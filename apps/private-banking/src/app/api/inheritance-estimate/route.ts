@@ -32,6 +32,7 @@ export async function PUT(request: Request) {
     const estimatedInheritanceTax = new Prisma.Decimal(Math.round(parsed.data.estimatedInheritanceTax));
     data.estimatedInheritanceTax = estimatedInheritanceTax;
     snapshotData.estimatedInheritanceTax = estimatedInheritanceTax;
+    snapshotData.inheritanceTaxCalculation = Prisma.DbNull;
     data.inheritanceTaxUpdatedAt = new Date();
   }
   if (parsed.data.otherTaxes !== undefined) {

@@ -50,6 +50,7 @@ function serializeSnapshot(snapshot: Snapshot) {
     fiscalYear: snapshot.fiscalYear,
     isCurrent: snapshot.isCurrent,
     estimatedInheritanceTax: decimalText(snapshot.estimatedInheritanceTax),
+    inheritanceTaxCalculation: snapshot.inheritanceTaxCalculation,
     otherTaxes: decimalText(snapshot.otherTaxes),
     createdAt: snapshot.createdAt.toISOString(),
     updatedAt: snapshot.updatedAt.toISOString(),
@@ -192,6 +193,7 @@ const snapshotFieldsSchema = z.object({
   fiscalYear: z.number().int().min(1900).max(2200),
   isCurrent: z.boolean().default(false),
   estimatedInheritanceTax: decimalLike.default(0),
+  inheritanceTaxCalculation: z.unknown().nullable().default(null),
   otherTaxes: decimalLike.default(0),
 });
 
@@ -304,6 +306,9 @@ function snapshotData(row: SnapshotFields) {
     fiscalYear: row.fiscalYear,
     isCurrent: row.isCurrent,
     estimatedInheritanceTax: toDecimal(row.estimatedInheritanceTax),
+    inheritanceTaxCalculation: row.inheritanceTaxCalculation === null
+      ? Prisma.DbNull
+      : row.inheritanceTaxCalculation as Prisma.InputJsonValue,
     otherTaxes: toDecimal(row.otherTaxes),
   };
 }

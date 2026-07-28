@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { inheritanceTaxApiCalculationSchema } from "@/lib/inheritance-tax-calculation";
 import { createInheritanceTaxRequest } from "@/lib/inheritance-tax-integration";
 import { getPortfolio } from "@/lib/portfolio";
 import type { Portfolio } from "@/lib/portfolio-view";
@@ -8,16 +9,6 @@ import { prisma } from "@/lib/prisma";
 
 const inputSchema = z.object({
   householdId: z.coerce.number().int().positive(),
-});
-
-const calculationSchema = z.object({
-  schemaVersion: z.string(),
-  unit: z.literal("JPY"),
-  totalInheritanceTaxJpy: z.number().finite().int().min(0),
-  effectiveTaxRate: z.number().finite().min(0),
-  calculatedAt: z.string().datetime(),
-  insuranceNonTaxableAmountJpy: z.number().finite().int().min(0),
-  insuranceTaxableDeathBenefitJpy: z.number().finite().int().min(0),
 });
 
 export async function POST(request: Request) {
@@ -58,13 +49,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "相続税計算APIへ接続できませんでした。" }, { status: 502 });
   }
 
-  const calculation = calculationSchema.safeParse(await calculationResponse.json().catch(() => null));
+  const calculation = inheritanceTaxApiCalculationSchema.safeParse(await calculationResponse.json().catch(() => null));
   if (!calculationResponse.ok || !calculation.success) {
     return NextResponse.json({ error: "相続税計算APIで計算できませんでした。" }, { status: 502 });
   }
 
   const estimatedInheritanceTax = new Prisma.Decimal(calculation.data.totalInheritanceTaxJpy);
   const inheritanceTaxUpdatedAt = new Date(calculation.data.calculatedAt);
+  const calculationRecord = {
+    ...calculation.data,
+    source: integration.source,
+    warnings: [
+      "B/S登録額を基礎とした概算です。相続税評価額との差異を確認してください。",
+      "小規模宅地等の特例、葬式費用、生前贈与加算、未成年者・障害者控除等はこの概算に含めていません。",
+      "実際の遺産分割により配偶者の税額軽減および各人の納付税額は変動します。",
+    ],
+  };
   await prisma.$transaction([
     prisma.household.update({
       where: { id: portfolio.household.id },
@@ -72,7 +72,10 @@ export async function POST(request: Request) {
     }),
     prisma.snapshot.update({
       where: { id: integration.snapshotId },
-      data: { estimatedInheritanceTax },
+      data: {
+        estimatedInheritanceTax,
+        inheritanceTaxCalculation: calculationRecord as Prisma.InputJsonValue,
+      },
     }),
   ]);
 
@@ -84,5 +87,6 @@ export async function POST(request: Request) {
     apiEstateValue: integration.request.estateValueJpy,
     insuranceNonTaxableAmountJpy: calculation.data.insuranceNonTaxableAmountJpy,
     insuranceTaxableDeathBenefitJpy: calculation.data.insuranceTaxableDeathBenefitJpy,
+    calculation: calculationRecord,
   });
 }

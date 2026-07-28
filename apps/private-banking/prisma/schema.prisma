@@ -61,6 +61,7 @@ model Snapshot {
   fiscalYear              Int
   isCurrent               Boolean    @default(false)
   estimatedInheritanceTax Decimal    @default(0) @db.Decimal(24, 0)
+  inheritanceTaxCalculation Json?
   otherTaxes              Decimal    @default(0) @db.Decimal(24, 0)
   positions               Position[]
   createdAt               DateTime   @default(now())

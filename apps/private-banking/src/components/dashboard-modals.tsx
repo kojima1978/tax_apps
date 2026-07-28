@@ -32,10 +32,11 @@ export function ClientDeleteModal({ household, snapshotCount, positionCount, err
   </div></div>;
 }
 
-export function PrintGuideModal({ section, onClose, onPrint }: { section: Section; onClose: () => void; onPrint: (sections: PrintSection[]) => void }) {
-  const options: Array<{ value: PrintSection; label: string }> = [
+export function PrintGuideModal({ section, taxCalculationAvailable, onClose, onPrint }: { section: Section; taxCalculationAvailable: boolean; onClose: () => void; onPrint: (sections: PrintSection[]) => void }) {
+  const options: Array<{ value: PrintSection; label: string; disabled?: boolean }> = [
     { value: "profile-family", label: "本人・家族情報" },
     { value: "balance", label: "貸借対照表" },
+    { value: "tax-calculation", label: "相続税の概算", disabled: !taxCalculationAvailable },
     { value: "details", label: "資産・負債明細" },
     { value: "history", label: "年度比較" },
   ];
@@ -58,7 +59,7 @@ export function PrintGuideModal({ section, onClose, onPrint }: { section: Sectio
     <header><div><p className="eyebrow">PRINT / PDF</p><h2 id="print-guide-title">印刷・PDF出力</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header>
     <div className="delete-modal-body">
       <p id="print-guide-description">印刷する資料を選択してください。</p>
-      <fieldset className="print-section-options"><legend>印刷対象</legend>{options.map((option) => <label key={option.value}><input type="checkbox" checked={selected.has(option.value)} onChange={() => toggleSection(option.value)} /><span>{option.label}</span></label>)}</fieldset>
+      <fieldset className="print-section-options"><legend>印刷対象</legend>{options.map((option) => <label key={option.value} aria-disabled={option.disabled}><input type="checkbox" checked={selected.has(option.value)} disabled={option.disabled} onChange={() => toggleSection(option.value)} /><span>{option.label}{option.disabled ? "（計算後に選択可）" : ""}</span></label>)}</fieldset>
       <p className="print-guide-example">「ページ」から、すべて・範囲（1-3）・個別ページ（1,3,5）を選択してください。</p>
       <footer><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="button" className="button primary" disabled={selected.size === 0} onClick={() => onPrint([...selected])}><Printer />選択して印刷</button></footer>
     </div>

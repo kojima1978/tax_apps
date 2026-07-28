@@ -33,7 +33,10 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   const estimatedInheritanceTax = new Prisma.Decimal(Math.round(parsed.data.estimatedInheritanceTax));
   const otherTaxes = new Prisma.Decimal(Math.round(parsed.data.otherTaxes));
   await prisma.$transaction(async (tx) => {
-    await tx.snapshot.update({ where: { id: snapshot.id }, data: { asOfDate, estimatedInheritanceTax, otherTaxes } });
+    await tx.snapshot.update({
+      where: { id: snapshot.id },
+      data: { asOfDate, estimatedInheritanceTax, inheritanceTaxCalculation: Prisma.DbNull, otherTaxes },
+    });
     if (snapshot.isCurrent) {
       await tx.household.update({
         where: { id: snapshot.householdId },

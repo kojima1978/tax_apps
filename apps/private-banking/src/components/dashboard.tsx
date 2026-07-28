@@ -14,6 +14,7 @@ import {
 } from "@/components/dashboard-modals";
 import { HistoryView } from "@/components/history-view";
 import { FamilyView } from "@/components/family-view";
+import { InheritanceTaxReport } from "@/components/inheritance-tax-report";
 import { PanelHeader } from "@/components/panel-header";
 import { PersonView } from "@/components/person-view";
 import { PortalLink } from "@/components/portal-link";
@@ -62,6 +63,7 @@ function BsAmount({ value, total }: { value: number; total: number }) {
 const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: string; description: string }> = [
   { key: "profile-family", title: "本人・家族情報", description: "本人の基本情報と親族構成、法定相続分および年齢" },
   { key: "balance", title: "貸借対照表", description: "現在価値と相続時予測による資産・負債の構成" },
+  { key: "tax-calculation", title: "相続税の概算", description: "概算税額、計算根拠および相続人別の税額内訳" },
   { key: "details", title: "資産・負債明細", description: "資産、負債および保証債務の明細" },
   { key: "history", title: "年度比較", description: "年度ごとの残高推移と比較" },
 ];
@@ -675,6 +677,10 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
               </section>
             </div>
           ) : null}
+          {reportSnapshot.inheritanceTaxCalculation && (section === "balance" || printSections?.has("tax-calculation")) ? <div
+            id="print-section-tax-calculation"
+            className={`report-document tax-calculation-document ${section !== "balance" ? "print-only-document" : ""} ${printSections && !printSections.has("tax-calculation") ? "print-excluded-document" : ""}`}
+          ><InheritanceTaxReport household={portfolio.household} snapshot={reportSnapshot} planning={portfolio.planning} calculation={reportSnapshot.inheritanceTaxCalculation} /></div> : null}
 
           {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditSettings={() => setSnapshotSettingsModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
@@ -692,7 +698,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}
       {snapshotSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal snapshot={workingSnapshot} onClose={() => setSnapshotSettingsModalOpen(false)} onSubmit={saveSnapshotSettings} saving={saving} /> : null}
       {clientDeleteOpen ? <ClientDeleteModal household={portfolio.household} snapshotCount={portfolio.snapshots.length} positionCount={portfolio.snapshots.reduce((count, snapshot) => count + snapshot.positions.length, 0)} error={error} saving={saving} onClose={() => setClientDeleteOpen(false)} onSubmit={deleteClient} /> : null}
-      {printGuideOpen ? <PrintGuideModal section={section} onClose={() => setPrintGuideOpen(false)} onPrint={(sections) => {
+      {printGuideOpen ? <PrintGuideModal section={section} taxCalculationAvailable={reportSnapshot.inheritanceTaxCalculation !== null} onClose={() => setPrintGuideOpen(false)} onPrint={(sections) => {
         setPrintSections(new Set(sections));
         const cleanup = () => { setPrintSections(null); };
         window.addEventListener("afterprint", cleanup, { once: true });

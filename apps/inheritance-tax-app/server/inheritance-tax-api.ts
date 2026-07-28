@@ -4,6 +4,8 @@ import { calculateDetailedInheritanceTax } from '../src/utils/taxCalculator';
 
 const JPY_PER_MAN_YEN = 10_000;
 const INSURANCE_EXEMPTION_PER_LEGAL_HEIR_JPY = 5_000_000;
+const CALCULATION_VERSION = 'inheritance-tax-2026.1';
+const TAX_RULE_AS_OF = '2026-01-01';
 const rankSchema = z.enum(['none', 'rank1', 'rank2', 'rank3']);
 const jpySchema = z.number().finite().int().min(0).max(Number.MAX_SAFE_INTEGER).multipleOf(JPY_PER_MAN_YEN, {
   message: '金額は1万円単位で指定してください。',
@@ -112,8 +114,12 @@ export function calculateInheritanceTaxApi(payload: unknown) {
 
   return {
     schemaVersion: '1.0',
+    calculationVersion: CALCULATION_VERSION,
+    taxRuleAsOf: TAX_RULE_AS_OF,
     calculatedAt: new Date().toISOString(),
     unit: 'JPY',
+    familyComposition: input.familyComposition,
+    legalHeirCount,
     inputEstateValueJpy: input.estateValueJpy,
     estateValueJpy: toJpy(result.estateValue),
     insuranceSurrenderValueJpy,
@@ -131,7 +137,12 @@ export function calculateInheritanceTaxApi(payload: unknown) {
       id: heir.heirId ?? null,
       label: heir.label,
       type: heir.type,
+      legalShareRatio: heir.legalShareRatio,
+      legalShareAmountJpy: toJpy(heir.legalShareAmount),
+      taxOnLegalShareJpy: toJpy(heir.taxOnShare),
       acquisitionAmountJpy: toJpy(heir.acquisitionAmount),
+      proportionalTaxJpy: toJpy(heir.proportionalTax),
+      surchargeAmountJpy: toJpy(heir.surchargeAmount),
       taxBeforeDeductionsJpy: toJpy(heir.proportionalTax + heir.surchargeAmount),
       spouseDeductionJpy: toJpy(heir.spouseDeduction),
       finalTaxJpy: toJpy(heir.finalTax),

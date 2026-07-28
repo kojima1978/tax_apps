@@ -9,11 +9,19 @@ describe('calculateInheritanceTaxApi', () => {
     });
 
     expect(result.unit).toBe('JPY');
+    expect(result.calculationVersion).toBe('inheritance-tax-2026.1');
+    expect(result.taxRuleAsOf).toBe('2026-01-01');
+    expect(result.legalHeirCount).toBe(3);
     expect(result.estateValueJpy).toBe(200_000_000);
     expect(result.basicDeductionJpy).toBe(48_000_000);
     expect(result.totalInheritanceTaxJpy).toBeGreaterThan(0);
     expect(result.effectiveTaxRate).toBe(6.75);
     expect(result.heirs).toHaveLength(3);
+    expect(result.heirs[0]).toMatchObject({
+      legalShareRatio: 0.5,
+      legalShareAmountJpy: 76_000_000,
+      taxOnLegalShareJpy: 15_800_000,
+    });
     expect(result.heirs.reduce((sum, heir) => sum + heir.finalTaxJpy, 0)).toBe(result.totalInheritanceTaxJpy);
   });
 

@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { parseInheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 import { prisma } from "@/lib/prisma";
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -82,6 +83,7 @@ export async function getPortfolio(householdId?: number) {
       fiscalYear: snapshot.fiscalYear,
       isCurrent: snapshot.isCurrent,
       estimatedInheritanceTax: toNumber(snapshot.estimatedInheritanceTax),
+      inheritanceTaxCalculation: parseInheritanceTaxCalculation(snapshot.inheritanceTaxCalculation),
       otherTaxes: toNumber(snapshot.otherTaxes),
       updatedAt: snapshot.updatedAt.toISOString(),
       positions: snapshot.positions.map((position) => ({

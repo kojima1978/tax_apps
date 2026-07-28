@@ -622,6 +622,47 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .person-save-status { color: #166534; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; }
 .person-save-status svg { width: 16px; height: 16px; }
 
+/* 相続税概算。参照帳票の「左に計算、右に根拠」を現在の配色へ合わせる。 */
+.tax-calculation-document { margin-top: 18px; }
+.inheritance-tax-report { padding: 20px; color: var(--slate-800); background: #fff; border: 1px solid #cfdad4; border-radius: 10px; box-shadow: 0 2px 8px #172b3a0a; }
+.inheritance-tax-report-heading { padding-bottom: 14px; border-bottom: 2px solid #2f765e; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.inheritance-tax-report-heading .eyebrow { margin: 0 0 2px; color: #277052; font-size: 9px; font-weight: 800; letter-spacing: .14em; }
+.inheritance-tax-report-heading h2 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 24px; font-weight: 700; }
+.inheritance-tax-report-heading dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 4px 18px; }
+.inheritance-tax-report-heading dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.inheritance-tax-report-heading dt { color: var(--slate-500); font-size: 9px; font-weight: 700; }
+.inheritance-tax-report-heading dd { margin: 0; color: var(--slate-800); font-size: 10px; font-weight: 700; text-align: right; }
+.tax-calc-stale { margin: 12px 0 0; padding: 9px 11px; color: #854d0e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 7px; display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; }
+.tax-calc-stale svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.tax-calc-columns { margin-top: 16px; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 18px; }
+.tax-calc-statement, .tax-calc-basis, .tax-calc-heirs { min-width: 0; border: 1px solid #d7e2dc; border-radius: 8px; overflow: hidden; }
+.tax-calc-statement h3, .tax-calc-basis h3, .tax-calc-heirs h3 { min-height: 39px; margin: 0; padding: 8px 12px; color: #fff; background: #183f34; display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.tax-calc-statement h3 svg, .tax-calc-basis h3 svg { width: 15px; height: 15px; }
+.tax-calc-money-list { padding: 6px 12px 10px; }
+.tax-calc-money-row { min-height: 28px; padding: 4px 2px; border-bottom: 1px solid #e2e8e5; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: baseline; gap: 4px; font-size: 11px; }
+.tax-calc-money-row strong { color: #263b34; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tax-calc-operator { color: #8b3a34; font-weight: 800; text-align: center; }
+.tax-calc-money-row.subtotal { margin-top: 2px; border: 1px solid #8fc4aa; border-width: 1px 0; color: #14532d; background: #f0fdf4; font-weight: 800; }
+.tax-calc-money-row.total { margin-top: 6px; padding: 8px 5px; color: #123c31; background: #edf7f0; border: 2px solid #2f765e; font-size: 13px; font-weight: 900; }
+.tax-calc-money-row.total strong { color: #123c31; font-size: 16px; }
+.tax-calc-basis ol { margin: 0; padding: 8px 14px 5px 34px; }
+.tax-calc-basis li { padding: 5px 2px; color: #7c2d2d; font-size: 10px; font-weight: 800; }
+.tax-calc-basis li p { margin: 2px 0 0; color: var(--slate-700); font-size: 10px; font-weight: 500; line-height: 1.55; }
+.tax-calc-assumptions { margin: 5px 12px 12px; padding: 9px 10px; color: #713f12; background: #fffbeb; border-left: 3px solid #d97706; }
+.tax-calc-assumptions strong { font-size: 10px; }
+.tax-calc-assumptions p { margin: 3px 0 0; font-size: 9px; line-height: 1.55; }
+.tax-calc-heirs { margin-top: 16px; }
+.tax-calc-heirs table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.tax-calc-heirs th, .tax-calc-heirs td { padding: 8px 7px; border-bottom: 1px solid #dbe4df; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tax-calc-heirs thead th { color: #345c4b; background: #edf7f0; font-size: 9px; }
+.tax-calc-heirs tbody th, .tax-calc-heirs thead th:first-child { text-align: left; }
+.tax-calc-heirs tbody tr:last-child th, .tax-calc-heirs tbody tr:last-child td { border-bottom: 0; }
+.tax-calc-heirs td:last-child strong { color: #14532d; }
+.tax-calc-no-tax { margin: 0; padding: 20px; color: #166534; background: #f0fdf4; font-size: 12px; font-weight: 800; text-align: center; }
+.tax-calc-notes { margin-top: 10px; color: var(--slate-500); font-size: 9px; line-height: 1.55; }
+.tax-calc-notes p { margin: 2px 0; }
+.print-section-options label[aria-disabled="true"] { color: var(--slate-400); background: var(--slate-50); cursor: not-allowed; }
+
 @media (min-width: 821px) {
   .sidebar, .main-area { transition: width .2s ease, margin-left .2s ease; }
   .sidebar-toggle { position: absolute; z-index: 2; top: 68px; right: -15px; width: 30px; height: 30px; padding: 0; color: #166534; background: #fff; border: 1px solid #bbf7d0; border-radius: 50%; box-shadow: 0 2px 8px #1665341f; display: grid; place-items: center; }
@@ -795,6 +836,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .family-table tbody td::before { content: attr(data-label); color: var(--slate-500); font-size: 9px; font-weight: 700; text-align: left; }
   .family-table tbody td > * { justify-self: end; }
   .family-table .family-fraction { text-align: right; }
+  .inheritance-tax-report { padding: 15px; }
+  .inheritance-tax-report-heading { align-items: flex-start; flex-direction: column; }
+  .inheritance-tax-report-heading dl { width: 100%; grid-template-columns: 1fr; }
+  .tax-calc-columns { grid-template-columns: 1fr; }
+  .tax-calc-heirs { overflow-x: auto; }
+  .tax-calc-heirs table { min-width: 760px; }
 }
 .backup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; align-items: start; }
 .backup-body { padding: 20px 22px; display: grid; gap: 16px; }
@@ -900,7 +947,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .print-toc footer { margin-top: auto; padding-top: 4mm; border-top: 1px solid #d7dfdb; display: flex; justify-content: space-between; color: #64748b; font-size: 8px; }
   .print-only-document { display: block !important; }
   .print-excluded-document { display: none !important; }
-  .report-document + .report-document { break-before: page; page-break-before: always; }
+  .report-document:not(.print-excluded-document) + .report-document:not(.print-excluded-document) { break-before: page; page-break-before: always; }
   html, body { width: 100%; max-width: 100%; overflow-x: clip; }
   body { overflow-y: visible; background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .sidebar, .top-actions, .menu-button, .back-to-list, .text-button, .balance-scenario-switch, .error-banner, .skip-link, .client-switcher-trigger > svg, .client-switcher-trigger small, .client-switcher-trigger em { display: none !important; }
@@ -956,6 +1003,39 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .detail-status-print { display: inline; }
   .detail-status.current::after { display: none !important; }
   .detail-page-actions, .position-table-tools { display: none !important; }
+  .tax-calculation-document { margin-top: 0; }
+  .inheritance-tax-report { width: 100%; height: auto; max-height: 160mm; padding: 4mm 5mm 3mm; border: 1px solid #b9cbc2; border-radius: 0; box-shadow: none; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+  .inheritance-tax-report-heading { min-height: 18mm; padding: 0 1mm 3mm; gap: 8mm; }
+  .inheritance-tax-report-heading .eyebrow { font-size: 6px; }
+  .inheritance-tax-report-heading h2 { font-size: 21px; }
+  .inheritance-tax-report-heading dl { min-width: 105mm; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1mm 6mm; }
+  .inheritance-tax-report-heading dt { font-size: 6.5px; }
+  .inheritance-tax-report-heading dd { font-size: 7px; }
+  .tax-calc-stale { margin: 2mm 0 0; padding: 1.5mm 2mm; font-size: 7px; }
+  .tax-calc-stale svg { width: 10px; height: 10px; }
+  .tax-calc-columns { height: 92mm; margin-top: 3mm; gap: 4mm; grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr); }
+  .tax-calc-statement, .tax-calc-basis, .tax-calc-heirs { border-radius: 2px; }
+  .tax-calc-statement h3, .tax-calc-basis h3, .tax-calc-heirs h3 { min-height: 8mm; padding: 1.5mm 2.5mm; font-size: 8px; }
+  .tax-calc-statement h3 svg, .tax-calc-basis h3 svg { width: 10px; height: 10px; }
+  .tax-calc-money-list { padding: 1mm 2.5mm 1.5mm; }
+  .tax-calc-money-row { min-height: 4.55mm; padding: .45mm .5mm; grid-template-columns: 4mm minmax(0, 1fr) auto; font-size: 7px; line-height: 1.15; }
+  .tax-calc-money-row strong { font-size: 7.5px; }
+  .tax-calc-money-row.total { margin-top: 1mm; padding: 1.1mm 1mm; font-size: 8px; }
+  .tax-calc-money-row.total strong { font-size: 10px; }
+  .tax-calc-basis ol { padding: 1mm 2.5mm .5mm 7mm; }
+  .tax-calc-basis li { padding: .8mm .4mm; font-size: 7px; line-height: 1.15; }
+  .tax-calc-basis li p { margin-top: .3mm; font-size: 6.7px; line-height: 1.35; }
+  .tax-calc-assumptions { margin: 1mm 2.5mm 2mm; padding: 1.5mm 2mm; }
+  .tax-calc-assumptions strong { font-size: 7px; }
+  .tax-calc-assumptions p { margin-top: .5mm; font-size: 6.5px; line-height: 1.35; }
+  .tax-calc-heirs { max-height: 41mm; margin-top: 3mm; }
+  .tax-calc-heirs table { min-width: 0; table-layout: fixed; font-size: 6.5px; }
+  .tax-calc-heirs th, .tax-calc-heirs td { padding: 1.2mm 1mm; overflow: hidden; text-overflow: ellipsis; }
+  .tax-calc-heirs thead th { font-size: 6px; white-space: normal; }
+  .tax-calc-heirs th:first-child { width: 17%; }
+  .tax-calc-no-tax { padding: 5mm; font-size: 8px; }
+  .tax-calc-notes { margin-top: 2mm; font-size: 6px; line-height: 1.35; }
+  .tax-calc-notes p { margin: .5mm 0; }
   .print-person-family-section { break-inside: avoid; page-break-inside: avoid; }
   .print-profile-panel, .print-family-panel { box-shadow: none; overflow: visible; }
   .print-profile-panel { margin-bottom: 4mm; }

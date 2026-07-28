@@ -37,6 +37,14 @@ describe("createInheritanceTaxRequest", () => {
 
     expect(result.snapshotId).toBe(18);
     expect(result.estimatedNetEstate).toBe(80_005_000);
+    expect(result.source).toMatchObject({
+      snapshotId: 18,
+      fiscalYear: 2026,
+      asOfDate: "2026-12-31",
+      totalAssetsJpy: 100_005_000,
+      deductibleLiabilitiesJpy: 20_000_000,
+      estimatedNetEstateJpy: 80_005_000,
+    });
     expect(result.request).toEqual({
       estateValueJpy: 80_010_000,
       familyComposition: { hasSpouse: true, selectedRank: "rank1", heirCount: 2 },
