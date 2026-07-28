@@ -224,7 +224,7 @@ function buildAdjustmentStep(result: DetailedTaxCalculationResult): Step | null 
     content: (
       <div className="calc-adjust-boxes space-y-2">
         {spouse && (
-          <p className="calc-adjust-box rounded border-l-4 border-green-600 bg-green-50 px-2.5 py-2 text-sm text-slate-700">
+          <p className="calc-adjust-box py-1 text-sm text-slate-700">
             配偶者は <span className="font-medium">{formatCurrency(spouse.deductionLimit)}</span> まで相続税がかかりません。
             取得額 {formatCurrency(spouse.acquisitionAmount)} は
             {spouse.acquisitionAmount <= spouse.deductionLimit ? 'その範囲内' : 'これを超える'}のため、
@@ -232,7 +232,7 @@ function buildAdjustmentStep(result: DetailedTaxCalculationResult): Step | null 
           </p>
         )}
         {surcharged.length > 0 && (
-          <p className="calc-adjust-box rounded border-l-4 border-orange-500 bg-orange-50 px-2.5 py-2 text-sm text-slate-700">
+          <p className="calc-adjust-box py-1 text-sm text-slate-700">
             兄弟姉妹・甥姪は税額が2割増しになります。
             {/* 人数が増えても印刷の高さが変わらないよう、印刷では合計額だけを出す */}
             <span className="no-print">
