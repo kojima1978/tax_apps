@@ -963,11 +963,12 @@ case "$COMMAND" in
   backup)    "$SCRIPT_DIR/backup.sh" backup ;;
   restore)   "$SCRIPT_DIR/backup.sh" restore "${2:-}" ;;
   verify)    "$SCRIPT_DIR/backup.sh" verify "${2:-}" ;;
+  drill)     "$SCRIPT_DIR/backup.sh" drill "${2:-}" ;;
   clean)     cmd_clean ;;
   clean-cache) cmd_clean_cache "${2:-}" ;;
   preflight) cmd_preflight ;;
   *)
-    echo "Usage: $0 {start|stop|down|restart|build|watch|logs|status|backup|restore|verify|clean|clean-cache|preflight} [app-name]"
+    echo "Usage: $0 {start|stop|down|restart|build|watch|logs|status|backup|restore|verify|drill|clean|clean-cache|preflight} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start              全アプリを起動（ネットワーク自動作成）"
@@ -983,6 +984,8 @@ case "$COMMAND" in
     echo "Operations:"
     echo "  backup             全データベース・データをバックアップ"
     echo "  restore [dir]      バックアップからリストア"
+    echo "  verify <backup>    バックアップの復号とハッシュ照合"
+    echo "  drill [backup]     リストア訓練（使い捨てDBへ実際に復元して検証。既定は最新）"
     echo "  clean              コンテナ・イメージのクリーンアップ"
     echo "  clean-cache [--all] Docker Build Cache の削除（通常は7日以上未使用のみ）"
     echo "  preflight          起動前チェック"

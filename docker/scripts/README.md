@@ -1,6 +1,6 @@
 # Tax Apps - docker/scripts ディレクトリ
 
-このディレクトリには Tax Apps の運用・バックアップ・監視を担う **15 ファイル** が含まれています。
+このディレクトリには Tax Apps の運用・バックアップ・監視を担う **18 ファイル** が含まれています。
 
 詳しい操作手順は親ディレクトリの [`docker/README.md`](../README.md) を参照してください。本ファイルは scripts ディレクトリ内の各ファイルの役割を整理した目次です。
 
@@ -47,12 +47,33 @@
   - `backup.sh itcm`: Windowsタスク用の互換名（暗号化済み全体バックアップ）
   - `backup.sh restore [dir]`: バックアップからのリストア
   - `backup.sh verify <file>`: データを上書きせず復号とSHA-256検証
+  - `backup.sh drill [file]`: リストア訓練。引数省略で最新のバックアップが対象
   - 暗号鍵: `~/.tax-apps/backup.key`（リポジトリ外、別媒体への保管必須）
+
+  対象は `backup.sh` 冒頭の 4 つの配列で定義する。DBを持つアプリを追加したら、ここに1行足すこと。
+  - `PG_TARGETS`: ITCM / Bank Analyzer / Private Banking の PostgreSQL
+  - `SQLITE_TARGETS`: Medical Stock / Insurance / Inheritance Tax Docs の SQLite
+  - `BIND_TARGETS`: Bank Analyzer のアップロード、ITCM の Excel テンプレート（`.gitignore` 対象なので Git には無い）
+  - `SETTINGS_TARGETS`: 各アプリの `.env`
+
+### リストア訓練（drill）
+
+`verify` は「復号できてハッシュが一致する」ことまでしか保証しない。ダンプが本当にリストア可能な
+SQL かどうかは別問題なので、`drill` が実際に復元して確かめる。
+
+- PostgreSQL: 使い捨ての `postgres:16-alpine` コンテナを起動し、`psql -v ON_ERROR_STOP=1` で
+  ダンプを流し込む。復元後にテーブル数と行数を数え、0 件なら失敗扱い。
+- SQLite: アーカイブを展開したコピーを稼働中コンテナの `/tmp` へ置き、readonly で開いて
+  `integrity_check` とテーブル数を確認する（`better-sqlite3` がアプリイメージにしか無いため）。
+- **稼働中のDBには一切触れない**。ドリル用コンテナは `tax-apps-network` に繋がず、ポートも公開しない。
 
 ### Windows 補助ラッパー
 
 - **`backup-db.bat`**
   `backup.sh itcm` を Git Bash 経由で呼ぶ ASCII ラッパー。ダブルクリックでも、タスクスケジューラからでも実行可能。
+
+- **`restore-drill.bat`**
+  `backup.sh drill` を Git Bash 経由で呼ぶ ASCII ラッパー。
 
 ### タスク登録（自動定期バックアップ）
 
@@ -64,6 +85,16 @@
 
 - **`unregister-backup-task.bat`**
   `register-backup-task.ps1 -Unregister` を呼ぶラッパー。UACなしでタスク削除。
+
+### タスク登録（週次リストア訓練）
+
+- **`register-restore-drill-task.ps1`** ← **本体**
+  毎週（デフォルト 日曜 04:00、日次バックアップの直後）に `restore-drill.bat` を実行する
+  スケジュールタスクを登録する PowerShell。出力は `docker/logs/restore-drill.log` に追記される。
+  `-Unregister` スイッチで削除も可能。
+
+- **`register-restore-drill-task.bat`** / **`unregister-restore-drill-task.bat`**
+  上記 `.ps1` を呼ぶ ASCII ラッパー。
 
 ---
 
@@ -131,9 +162,13 @@
 | `status.bat` | ショートカット | 状態確認 |
 | `backup.sh` | 本体 (Bash) | バックアップ/リストア本体 |
 | `backup-db.bat` | 補助 (CMD) | backup.sh itcm の Git Bash ラッパー |
+| `restore-drill.bat` | 補助 (CMD) | backup.sh drill の Git Bash ラッパー |
 | `register-backup-task.ps1` | 本体 (PS) | バックアップタスク登録 |
 | `register-backup-task.bat` | 補助 (CMD) | 現在ユーザーへタスク登録 |
 | `unregister-backup-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除 |
+| `register-restore-drill-task.ps1` | 本体 (PS) | 週次リストア訓練タスク登録 |
+| `register-restore-drill-task.bat` | 補助 (CMD) | 現在ユーザーへタスク登録 |
+| `unregister-restore-drill-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除 |
 | `docker-watchdog.ps1` | 本体 (PS) | Docker Desktop daemon 監視/復旧、unhealthy コンテナ再起動 |
 | `docker-watchdog.bat` | 補助 (CMD) | 手動実行用ラッパー |
 | `register-docker-watchdog-task.ps1` | 本体 (PS) | ウォッチドッグタスク登録 |
@@ -152,6 +187,9 @@
 | 状態確認 | `status.bat` をダブルクリック |
 | 毎日 03:00 の自動バックアップを設定 | `register-backup-task.bat` をダブルクリック |
 | バックアップタスクを削除 | `unregister-backup-task.bat` をダブルクリック |
+| 毎週日曜 04:00 のリストア訓練を設定 | `register-restore-drill-task.bat` をダブルクリック |
+| リストア訓練タスクを削除 | `unregister-restore-drill-task.bat` をダブルクリック |
+| バックアップが復元できるか今すぐ試す | `restore-drill.bat` をダブルクリック |
 | 15 分ごとの Docker 監視を設定 | `register-docker-watchdog-task.bat` をダブルクリック → UAC「はい」 |
 | 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック → UAC「はい」 |
 

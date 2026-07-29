@@ -5,6 +5,8 @@
 # Main script for:
 #   ./backup.sh backup
 #   ./backup.sh restore [dir]
+#   ./backup.sh verify <backup>
+#   ./backup.sh drill [backup]
 #   ./backup.sh itcm
 #
 # manage.sh delegates backup / restore here.
@@ -40,25 +42,38 @@ LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
 FULL_BACKUP_RETENTION_DAYS="${FULL_BACKUP_RETENTION_DAYS:-${RETENTION_DAYS:-7}}"
 BACKUP_KEY_FILE="${BACKUP_KEY_FILE:-$HOME/.tax-apps/backup.key}"
 BACKUP_ENCRYPTION_ITERATIONS="${BACKUP_ENCRYPTION_ITERATIONS:-200000}"
+DRILL_PG_IMAGE="${DRILL_PG_IMAGE:-postgres:16-alpine}"
+DRILL_PG_CONTAINER="tax-apps-restore-drill"
+DRILL_PG_STARTED=0
 
+# label:container:pg_user:db_name:volume:dump_file:restart_hint
 PG_TARGETS=(
   "ITCM PostgreSQL:itcm-postgres:postgres:inheritance_tax_db:inheritance-case-management_postgres_data:itcm-postgres:inheritance-case-management"
   "Bank Analyzer PostgreSQL:bank-analyzer-postgres:bankuser:bank_analyzer:bank-analyzer-postgres:bank-analyzer-postgres:bank-analyzer-django"
+  "Private Banking PostgreSQL:private-banking-postgres:postgres:private_banking:private-banking_private_banking_postgres:private-banking-postgres:private-banking"
 )
 
+# label:container:db_path:volume:file_name
 SQLITE_TARGETS=(
   "Medical Stock SQLite:medical-stock-valuation:/app/data/doctor.db:medical-stock-valuation-data:medical-stock-valuation-data"
   "Insurance App SQLite:insurance-app:/app/data/insurance.sqlite:insurance-app-data:insurance-app-data"
   "Inheritance Tax Docs SQLite:inheritance-tax-docs:/app/data/resources.sqlite:inheritance-tax-docs-data:inheritance-tax-docs-data"
 )
 
+# label:source_path:backup_dir_name
 BIND_TARGETS=(
   "bank-analyzer upload:apps/bank-analyzer-django/data:bank-analyzer-upload"
+  # 見積書・請求書の Excel テンプレート。.gitignore 対象なので Git には無く、
+  # バックアップから外すとディスク上の1コピーしか残らない。
+  "ITCM Excel templates:apps/inheritance-case-management/templates:itcm-templates"
 )
 
+# label:source_path:backup_file_name
 SETTINGS_TARGETS=(
   "ITCM .env:apps/inheritance-case-management/.env:itcm-.env"
   "Bank Analyzer .env:apps/bank-analyzer-django/.env:bank-analyzer-.env"
+  # prod は POSTGRES_PASSWORD が必須(`:?`)なので、これが無いと本番が起動できない。
+  "Private Banking .env:apps/private-banking/.env:private-banking-.env"
 )
 
 warn() { printf '\033[1;33m[WARN]\033[0m  %s\n' "$*"; }
@@ -77,6 +92,10 @@ check_dependencies() {
 }
 
 release_operation_lock() {
+  if [[ "$DRILL_PG_STARTED" -eq 1 ]]; then
+    docker rm -f "$DRILL_PG_CONTAINER" >/dev/null 2>&1 || true
+    DRILL_PG_STARTED=0
+  fi
   if [[ -n "$RESTORE_WORK_DIR" && -d "$RESTORE_WORK_DIR" ]]; then
     rm -rf "$RESTORE_WORK_DIR"
     RESTORE_WORK_DIR=""
@@ -496,7 +515,7 @@ backup_sqlite_volumes() {
           }).catch((error) => { console.error(error); process.exitCode = 1; });
         ' "$db_path" "$temp_db" >/dev/null 2>&1; then
           err "$label online backup failed"
-          MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" >/dev/null 2>&1 || true
+          MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" "$temp_db-wal" "$temp_db-shm" >/dev/null 2>&1 || true
           rm -rf "$stage_dir" "$raw_archive"
           (( backup_fail++ )) || true
           continue
@@ -505,7 +524,7 @@ backup_sqlite_volumes() {
         if ! MSYS_NO_PATHCONV=1 docker run --rm -v "$vol:/data:ro" -v "$backup_dir_win:/backup" \
           alpine:3.22 tar czf "/backup/$(basename "$raw_archive")" -C /data . >/dev/null 2>&1; then
           err "$label volume data copy failed"
-          MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" >/dev/null 2>&1 || true
+          MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" "$temp_db-wal" "$temp_db-shm" >/dev/null 2>&1 || true
           rm -rf "$stage_dir" "$raw_archive"
           (( backup_fail++ )) || true
           continue
@@ -517,12 +536,12 @@ backup_sqlite_volumes() {
         rm -f "$stage_dir/$db_name" "$stage_dir/$db_name-wal" "$stage_dir/$db_name-shm"
         if ! docker cp "$container:$temp_db" "$stage_dir/$db_name" >/dev/null 2>&1; then
           err "$label database copy failed"
-          MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" >/dev/null 2>&1 || true
+          MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" "$temp_db-wal" "$temp_db-shm" >/dev/null 2>&1 || true
           rm -rf "$stage_dir" "$raw_archive"
           (( backup_fail++ )) || true
           continue
         fi
-        MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" >/dev/null 2>&1 || true
+        MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$temp_db" "$temp_db-wal" "$temp_db-shm" >/dev/null 2>&1 || true
         tar czf "$backup_dir/${fname}.tar.gz" -C "$stage_dir" .
         rm -rf "$stage_dir" "$raw_archive"
         (( sqlite_ok++ )) || true
@@ -935,6 +954,7 @@ cmd_restore() {
     echo "  [NOTE] Restart apps to apply restored data:"
     echo "    ./manage.sh restart inheritance-case-management"
     echo "    ./manage.sh restart bank-analyzer-django"
+    echo "    ./manage.sh restart private-banking"
     echo ""
   fi
 }
@@ -960,14 +980,253 @@ cmd_verify() {
   ok "Encrypted backup is restorable: $(basename "$archive")"
 }
 
-log_file_ok() {
-  local path="$1"
-  local name="$2"
-  local size=0
-  if [[ -f "$path" ]]; then
-    size=$(wc -c < "$path" | tr -d ' ')
+# ------------------------------------------------------------
+# Restore drill
+# ------------------------------------------------------------
+# verify はアーカイブが展開でき、ハッシュが一致することまでしか見ない。
+# ダンプが「本当にリストアできるSQLか」は別問題なので、使い捨ての
+# PostgreSQL コンテナへ実際に流し込んで確かめる。
+#
+# 稼働中のDBには一切触れない:
+#   - ドリル用コンテナは tax-apps-network に繋がず、ポートも公開しない
+#   - SQLite は復元したコピーを /tmp で readonly で開くだけ
+
+start_drill_postgres() {
+  docker rm -f "$DRILL_PG_CONTAINER" >/dev/null 2>&1 || true
+
+  if ! MSYS_NO_PATHCONV=1 docker run -d \
+    --name "$DRILL_PG_CONTAINER" \
+    -e POSTGRES_PASSWORD=restore-drill \
+    "$DRILL_PG_IMAGE" >/dev/null 2>&1; then
+    err "Could not start the drill container ($DRILL_PG_IMAGE)."
+    return 1
   fi
-  echo "  OK: ${size} bytes -> $name"
+  DRILL_PG_STARTED=1
+
+  local i
+  for i in $(seq 1 60); do
+    if docker exec "$DRILL_PG_CONTAINER" pg_isready -U postgres -q >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  err "Drill container did not become ready within 60s."
+  return 1
+}
+
+stop_drill_postgres() {
+  if [[ "$DRILL_PG_STARTED" -eq 1 ]]; then
+    docker rm -f "$DRILL_PG_CONTAINER" >/dev/null 2>&1 || true
+    DRILL_PG_STARTED=0
+  fi
+}
+
+drill_postgres() {
+  local dir="$1"
+  echo "[Drill 1/2] PostgreSQL dumps ..."
+
+  local -a entries=()
+  local target
+  for target in "${PG_TARGETS[@]}"; do
+    local label pg_user db_name dump_file _container _volume _hint
+    IFS=: read -r label _container pg_user db_name _volume dump_file _hint <<< "$target"
+    if [[ -f "$dir/$dump_file.sql" ]]; then
+      entries+=("$label:$pg_user:$db_name:$dump_file")
+    else
+      warn "$label: no .sql dump in this backup (volume fallback is not drilled)"
+      (( drill_skip++ )) || true
+    fi
+  done
+
+  if [[ ${#entries[@]} -eq 0 ]]; then
+    warn "No PostgreSQL dumps to drill."
+    return 0
+  fi
+
+  start_drill_postgres || return 1
+
+  local entry
+  for entry in "${entries[@]}"; do
+    local label pg_user db_name dump_file
+    IFS=: read -r label pg_user db_name dump_file <<< "$entry"
+
+    # ダンプ内の OWNER TO / GRANT を通すためロールを先に作る(既存なら無視)。
+    if [[ "$pg_user" != "postgres" ]]; then
+      docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d postgres -q \
+        -c "CREATE ROLE \"$pg_user\" LOGIN SUPERUSER;" >/dev/null 2>&1 || true
+    fi
+    docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d postgres -q \
+      -c "DROP DATABASE IF EXISTS \"$db_name\";" >/dev/null 2>&1 || true
+    if ! docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d postgres -q \
+      -c "CREATE DATABASE \"$db_name\";" >/dev/null 2>&1; then
+      err "$label: could not create the drill database."
+      (( drill_fail++ )) || true
+      continue
+    fi
+
+    # ON_ERROR_STOP=1 が無いと psql は途中のエラーを無視して 0 を返す。
+    local psql_log="$RESTORE_WORK_DIR/drill-$dump_file.log"
+    if ! docker exec -i "$DRILL_PG_CONTAINER" \
+      psql -U postgres -d "$db_name" -q -v ON_ERROR_STOP=1 \
+      < "$dir/$dump_file.sql" > "$psql_log" 2>&1; then
+      err "$label: restore failed"
+      sed 's/^/    /' "$psql_log" | tail -5
+      (( drill_fail++ )) || true
+      continue
+    fi
+
+    local table_count
+    table_count=$(docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d "$db_name" -tAc \
+      "SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname = 'public';" 2>/dev/null | tr -d '\r\n ')
+    if [[ "${table_count:-0}" -gt 0 ]]; then
+      local row_total
+      row_total=$(docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d "$db_name" -tAc \
+        "SELECT coalesce(sum(n_live_tup), 0) FROM pg_stat_user_tables;" 2>/dev/null | tr -d '\r\n ')
+      ok "$label restored ($table_count tables, ${row_total:-?} rows)"
+      (( drill_ok++ )) || true
+    else
+      err "$label: restore reported success but no tables exist."
+      (( drill_fail++ )) || true
+    fi
+  done
+
+  stop_drill_postgres
+}
+
+drill_sqlite() {
+  local dir="$1"
+  echo "[Drill 2/2] SQLite databases ..."
+
+  local target
+  for target in "${SQLITE_TARGETS[@]}"; do
+    local label container db_path fname _volume
+    IFS=: read -r label container db_path _volume fname <<< "$target"
+    local archive="$dir/$fname.tar.gz"
+
+    if [[ ! -f "$archive" ]]; then
+      warn "$label: not in this backup"
+      (( drill_skip++ )) || true
+      continue
+    fi
+    # better-sqlite3 はアプリイメージにしか無いので、稼働中のコンテナを借りる。
+    if ! is_container_running "$container"; then
+      warn "$label: skipped ($container is not running)"
+      (( drill_skip++ )) || true
+      continue
+    fi
+
+    local stage="$RESTORE_WORK_DIR/drill-$fname"
+    rm -rf "$stage"
+    mkdir -p "$stage"
+    if ! tar xzf "$archive" -C "$stage" 2>/dev/null; then
+      err "$label: could not extract $fname.tar.gz"
+      (( drill_fail++ )) || true
+      continue
+    fi
+
+    local db_name
+    db_name="$(basename "$db_path")"
+    if [[ ! -f "$stage/$db_name" ]]; then
+      err "$label: $db_name is missing from the archive"
+      (( drill_fail++ )) || true
+      continue
+    fi
+
+    # 本番データには触れない。/tmp のコピーを readonly で開くだけ。
+    # コンテナ側のパスを MSYS に変換させないため MSYS_NO_PATHCONV=1 が要るが、
+    # そうするとホスト側の POSIX パスも素通しになるので docker.exe が読める形へ直す。
+    local probe="/tmp/tax-apps-drill-${fname}-$$.sqlite"
+    local stage_db_win
+    stage_db_win="$(to_win_path "$stage/$db_name")"
+    if ! MSYS_NO_PATHCONV=1 docker cp "$stage_db_win" "$container:$probe" >/dev/null 2>&1; then
+      err "$label: could not copy the restored database into $container"
+      (( drill_fail++ )) || true
+      continue
+    fi
+
+    local probe_out=""
+    if probe_out=$(MSYS_NO_PATHCONV=1 docker exec "$container" node -e '
+      const Database = require("better-sqlite3");
+      const db = new Database(process.argv[1], { readonly: true, fileMustExist: true });
+      const integrity = db.pragma("integrity_check", { simple: true });
+      const tables = db.prepare(
+        "SELECT count(*) AS n FROM sqlite_master WHERE type = \x27table\x27 AND name NOT LIKE \x27sqlite_%\x27"
+      ).get().n;
+      db.close();
+      if (integrity !== "ok") throw new Error(`integrity_check: ${integrity}`);
+      if (tables === 0) throw new Error("restored database has no tables");
+      process.stdout.write(String(tables));
+    ' "$probe" 2>/dev/null); then
+      ok "$label restored ($(echo "$probe_out" | tr -d '\r\n ') tables, integrity ok)"
+      (( drill_ok++ )) || true
+    else
+      err "$label: restored database failed verification"
+      (( drill_fail++ )) || true
+    fi
+    # docker cp で入れたファイルは root 所有になる。非rootで動くコンテナ
+    # (medical-stock-valuation 等) では -u root が無いと消せず、毎回の訓練で
+    # DBのフルコピーが /tmp に溜まっていく。readonly で開いても WAL/SHM は
+    # 作られるので一緒に消す。
+    if ! MSYS_NO_PATHCONV=1 docker exec -u root "$container" \
+      rm -f "$probe" "$probe-wal" "$probe-shm" >/dev/null 2>&1; then
+      warn "$label: could not remove the drill copy from $container:$probe"
+    fi
+    rm -rf "$stage"
+  done
+}
+
+cmd_drill() {
+  print_banner "Tax Apps - Restore Drill"
+
+  local requested="${1:-}"
+  local archive=""
+  if [[ -n "$requested" ]]; then
+    archive="$requested"
+    [[ -f "$archive" ]] || archive="$BACKUP_BASE/$requested"
+    [[ -f "$archive" ]] || archive="$BACKUP_BASE/$requested.tar.gz.enc"
+  else
+    archive=$(find "$BACKUP_BASE" -maxdepth 1 -type f -name '????-??-??_??????.tar.gz.enc' \
+      -print 2>/dev/null | sort | tail -1)
+    if [[ -z "$archive" ]]; then
+      err "No encrypted backup found. Run: ./manage.sh backup"
+      return 1
+    fi
+  fi
+
+  if [[ ! -f "$archive" || "$archive" != *.tar.gz.enc ]]; then
+    err "Encrypted backup not found: $requested"
+    return 1
+  fi
+
+  echo "Target: $(basename "$archive")"
+  echo ""
+
+  extract_encrypted_backup "$archive" || return 1
+  verify_backup_manifest "$EXTRACTED_BACKUP_PATH" || return 1
+  echo ""
+
+  drill_ok=0
+  drill_fail=0
+  drill_skip=0
+
+  drill_postgres "$EXTRACTED_BACKUP_PATH" || { (( drill_fail++ )) || true; }
+  stop_drill_postgres
+  echo ""
+  drill_sqlite "$EXTRACTED_BACKUP_PATH"
+  echo ""
+
+  print_summary_banner "Restore Drill Complete" "$drill_fail"
+  echo "  Backup: $(basename "$archive")"
+  echo "  OK: $drill_ok  Skipped: $drill_skip  Failed: $drill_fail"
+  echo ""
+  if [[ $drill_fail -gt 0 ]]; then
+    err "This backup is NOT safely restorable. Investigate before relying on it."
+    echo ""
+    return 1
+  fi
+  ok "All drilled databases restored cleanly."
+  echo ""
 }
 
 remove_old_files() {
@@ -992,293 +1251,9 @@ remove_old_dirs() {
     done
 }
 
-copy_xlsx_templates() {
-  local src="$1"
-  local dest="$2"
-  mkdir -p "$dest"
-  find "$src" -maxdepth 1 -type f -name '*.xlsx' -exec cp -p {} "$dest/" \;
-}
-
-cmd_itcm_backup() {
-  local retention_days="${RETENTION_DAYS:-7}"
-  local stamp
-  stamp="$(date +"%Y%m%d_%H%M%S")"
-  local errors=0
-  local -a latest_itcm_db_sources=()
-  local -a latest_json_sources=()
-  local -a latest_bank_analyzer_sources=()
-  local -a latest_medical_stock_sources=()
-  local -a latest_template_sources=()
-  local -a latest_app_sources=()
-
-  echo "============================================================"
-  echo " Data Backup - $(date)"
-  echo "============================================================"
-  echo
-
-  local pg1_container="itcm-postgres"
-  local pg1_user="postgres"
-  local pg1_db="inheritance_tax_db"
-  local pg1_volume="inheritance-case-management_postgres_data"
-  local pg1_dir="$BACKUP_BASE/itcm-db"
-  local pg1_file="itcm-db_${stamp}.sql"
-  local pg1_dump_file="itcm-db_${stamp}.dump"
-  local pg1_globals_file="itcm-globals_${stamp}.sql"
-  local pg1_volume_file="itcm-postgres-volume_${stamp}.tar.gz"
-
-  echo "[1/8] ITCM PostgreSQL"
-  mkdir -p "$pg1_dir"
-
-  if ! is_container_running "$pg1_container"; then
-    echo "  [SKIP] Container $pg1_container is not running."
-    if ! docker volume inspect "$pg1_volume" >/dev/null 2>&1; then
-      echo "  [WARN] Volume $pg1_volume was not found."
-      (( errors++ )) || true
-    else
-      echo "  [INFO] Backing up stopped PostgreSQL volume as fallback."
-      local pg1_dir_win
-      pg1_dir_win="$(to_win_path "$pg1_dir")"
-      if MSYS_NO_PATHCONV=1 docker run --rm -v "$pg1_volume:/data" -v "$pg1_dir_win:/backup" alpine tar czf "/backup/$pg1_volume_file" -C /data .; then
-        log_file_ok "$pg1_dir/$pg1_volume_file" "$pg1_volume_file"
-        latest_itcm_db_sources+=("$pg1_dir/$pg1_volume_file")
-      else
-        echo "  [ERROR] PostgreSQL volume backup failed."
-        (( errors++ )) || true
-      fi
-    fi
-  else
-    if docker exec "$pg1_container" pg_dump -U "$pg1_user" -d "$pg1_db" --clean --if-exists > "$pg1_dir/$pg1_file"; then
-      log_file_ok "$pg1_dir/$pg1_file" "$pg1_file"
-      latest_itcm_db_sources+=("$pg1_dir/$pg1_file")
-    else
-      echo "  [ERROR] plain pg_dump failed."
-      rm -f "$pg1_dir/$pg1_file"
-      (( errors++ )) || true
-    fi
-
-    if docker exec "$pg1_container" pg_dump -U "$pg1_user" -d "$pg1_db" --clean --if-exists -Fc > "$pg1_dir/$pg1_dump_file"; then
-      log_file_ok "$pg1_dir/$pg1_dump_file" "$pg1_dump_file"
-      latest_itcm_db_sources+=("$pg1_dir/$pg1_dump_file")
-    else
-      echo "  [ERROR] custom pg_dump failed."
-      rm -f "$pg1_dir/$pg1_dump_file"
-      (( errors++ )) || true
-    fi
-
-    if docker exec "$pg1_container" pg_dumpall -U "$pg1_user" --globals-only > "$pg1_dir/$pg1_globals_file"; then
-      log_file_ok "$pg1_dir/$pg1_globals_file" "$pg1_globals_file"
-      latest_itcm_db_sources+=("$pg1_dir/$pg1_globals_file")
-    else
-      echo "  [ERROR] globals dump failed."
-      rm -f "$pg1_dir/$pg1_globals_file"
-      (( errors++ )) || true
-    fi
-  fi
-  remove_old_files "$pg1_dir" "itcm-db_*.sql" "$retention_days"
-  remove_old_files "$pg1_dir" "itcm-db_*.dump" "$retention_days"
-  remove_old_files "$pg1_dir" "itcm-globals_*.sql" "$retention_days"
-  remove_old_files "$pg1_dir" "itcm-postgres-volume_*.tar.gz" "$retention_days"
-  echo
-
-  local itcm_web_container="itcm-frontend"
-  local json_dir="$BACKUP_BASE/itcm-json"
-  local json_file="itcm-json_${stamp}.json"
-  local json_url="http://127.0.0.1:3020/itcm/api/backup/"
-
-  echo "[2/8] ITCM JSON Export"
-  mkdir -p "$json_dir"
-
-  if ! is_container_running "$itcm_web_container"; then
-    echo "  [SKIP] Container $itcm_web_container is not running."
-    (( errors++ )) || true
-  else
-    local json_ok=0
-    if command -v curl.exe >/dev/null 2>&1; then
-      curl.exe -fsSL "$json_url" -o "$json_dir/$json_file" >/dev/null 2>&1 && json_ok=1
-    elif command -v curl >/dev/null 2>&1; then
-      curl -fsSL "$json_url" -o "$json_dir/$json_file" >/dev/null 2>&1 && json_ok=1
-    fi
-    if [[ "$json_ok" == "0" ]] && command -v powershell.exe >/dev/null 2>&1; then
-      local json_dir_win
-      json_dir_win="$(to_win_path "$json_dir")"
-      powershell.exe -NoProfile -Command "Invoke-WebRequest -UseBasicParsing -Uri '$json_url' -OutFile '$json_dir_win\\$json_file'" >/dev/null 2>&1 && json_ok=1
-    fi
-    if [[ "$json_ok" == "0" || ! -s "$json_dir/$json_file" ]]; then
-      echo "  [ERROR] JSON export failed."
-      rm -f "$json_dir/$json_file"
-      (( errors++ )) || true
-    else
-      log_file_ok "$json_dir/$json_file" "$json_file"
-      latest_json_sources+=("$json_dir/$json_file")
-    fi
-  fi
-  remove_old_files "$json_dir" "itcm-json_*.json" "$retention_days"
-  echo
-
-  local pg2_container="bank-analyzer-postgres"
-  local pg2_user="bankuser"
-  local pg2_db="bank_analyzer"
-  local pg2_dir="$BACKUP_BASE/bank-analyzer-db"
-  local pg2_file="bank-analyzer-db_${stamp}.sql"
-
-  echo "[3/8] Bank Analyzer PostgreSQL"
-  mkdir -p "$pg2_dir"
-  if ! is_container_running "$pg2_container"; then
-    echo "  [SKIP] Container $pg2_container is not running."
-    (( errors++ )) || true
-  else
-    if docker exec "$pg2_container" pg_dump -U "$pg2_user" -d "$pg2_db" --clean --if-exists > "$pg2_dir/$pg2_file"; then
-      log_file_ok "$pg2_dir/$pg2_file" "$pg2_file"
-      latest_bank_analyzer_sources+=("$pg2_dir/$pg2_file")
-    else
-      echo "  [ERROR] pg_dump failed."
-      rm -f "$pg2_dir/$pg2_file"
-      (( errors++ )) || true
-    fi
-  fi
-  remove_old_files "$pg2_dir" "bank-analyzer-db_*.sql" "$retention_days"
-  echo
-
-  local sq1_container="medical-stock-valuation"
-  local sq1_src="/app/data/doctor.db"
-  local sq1_dir="$BACKUP_BASE/medical-stock-db"
-  local sq1_file="medical-stock-db_${stamp}.db"
-
-  echo "[4/8] Medical Stock SQLite"
-  mkdir -p "$sq1_dir"
-  if ! is_container_running "$sq1_container"; then
-    echo "  [SKIP] Container $sq1_container is not running."
-    (( errors++ )) || true
-  else
-    if docker cp "$sq1_container:$sq1_src" "$sq1_dir/$sq1_file"; then
-      log_file_ok "$sq1_dir/$sq1_file" "$sq1_file"
-      latest_medical_stock_sources+=("$sq1_dir/$sq1_file")
-    else
-      echo "  [ERROR] docker cp failed."
-      rm -f "$sq1_dir/$sq1_file"
-      (( errors++ )) || true
-    fi
-  fi
-  remove_old_files "$sq1_dir" "medical-stock-db_*.db" "$retention_days"
-  echo
-
-  local sq2_container="insurance-app"
-  local sq2_src="/app/data/insurance.sqlite"
-  local sq2_dir="$BACKUP_BASE/insurance-db"
-  local sq2_file="insurance-db_${stamp}.sqlite"
-  local -a latest_insurance_sources=()
-
-  echo "[5/8] Insurance App SQLite"
-  mkdir -p "$sq2_dir"
-  if ! is_container_running "$sq2_container"; then
-    echo "  [SKIP] Container $sq2_container is not running."
-    (( errors++ )) || true
-  else
-    if docker cp "$sq2_container:$sq2_src" "$sq2_dir/$sq2_file"; then
-      log_file_ok "$sq2_dir/$sq2_file" "$sq2_file"
-      latest_insurance_sources+=("$sq2_dir/$sq2_file")
-    else
-      echo "  [ERROR] docker cp failed."
-      rm -f "$sq2_dir/$sq2_file"
-      (( errors++ )) || true
-    fi
-  fi
-  remove_old_files "$sq2_dir" "insurance-db_*.sqlite" "$retention_days"
-  echo
-
-  local sq3_container="inheritance-tax-docs"
-  local sq3_dir="$BACKUP_BASE/inheritance-tax-docs-data"
-  local sq3_file="inheritance-tax-docs-data_${stamp}.tar.gz"
-  local -a latest_inheritance_docs_sources=()
-
-  echo "[6/8] Inheritance Tax Docs Data (SQLite + uploads)"
-  mkdir -p "$sq3_dir"
-  if ! is_container_running "$sq3_container"; then
-    echo "  [SKIP] Container $sq3_container is not running."
-    (( errors++ )) || true
-  else
-    if docker exec "$sq3_container" tar czf - -C /app/data . > "$sq3_dir/$sq3_file" 2>/dev/null; then
-      log_file_ok "$sq3_dir/$sq3_file" "$sq3_file"
-      latest_inheritance_docs_sources+=("$sq3_dir/$sq3_file")
-    else
-      echo "  [ERROR] backup failed."
-      rm -f "$sq3_dir/$sq3_file"
-      (( errors++ )) || true
-    fi
-  fi
-  remove_old_files "$sq3_dir" "inheritance-tax-docs-data_*.tar.gz" "$retention_days"
-  echo
-
-  local tpl_src="$PROJECT_ROOT/apps/inheritance-case-management/templates"
-  local tpl_dir="$BACKUP_BASE/itcm-templates"
-  local tpl_folder="itcm-templates_${stamp}"
-  local tpl_dest="$tpl_dir/$tpl_folder"
-
-  echo "[7/8] ITCM Excel Templates"
-  if ! find "$tpl_src" -maxdepth 1 -type f -name '*.xlsx' | grep -q .; then
-    echo "  [SKIP] No .xlsx files found in templates folder."
-  else
-    copy_xlsx_templates "$tpl_src" "$tpl_dest"
-    echo "  OK: Copied to $tpl_folder\\"
-    latest_template_sources+=("$tpl_dest")
-  fi
-  remove_old_dirs "$tpl_dir" "itcm-templates_*" "$retention_days"
-  echo
-
-  local itcm_src="$PROJECT_ROOT/apps/inheritance-case-management"
-  local itcm_dir="$BACKUP_BASE/itcm-app"
-  local itcm_folder="itcm-app_${stamp}"
-  local itcm_dest="$itcm_dir/$itcm_folder"
-
-  echo "[8/8] ITCM App Restore Files"
-  if [[ ! -d "$itcm_src" ]]; then
-    echo "  [SKIP] ITCM app folder was not found."
-    (( errors++ )) || true
-  else
-    mkdir -p "$itcm_dest/web/prisma"
-    copy_xlsx_templates "$itcm_src/templates" "$itcm_dest/templates"
-    cp -p "$itcm_src/web/prisma/schema.prisma" "$itcm_dest/web/prisma/schema.prisma" 2>/dev/null || (( errors++ )) || true
-    cp -a "$itcm_src/web/prisma/migrations" "$itcm_dest/web/prisma/migrations" 2>/dev/null || (( errors++ )) || true
-    cp -p "$itcm_src/docker-compose.yml" "$itcm_dest/docker-compose.yml" 2>/dev/null || (( errors++ )) || true
-    cp -p "$itcm_src/docker-compose.prod.yml" "$itcm_dest/docker-compose.prod.yml" 2>/dev/null || (( errors++ )) || true
-    [[ -f "$itcm_src/.env" ]] && cp -p "$itcm_src/.env" "$itcm_dest/.env"
-    [[ -f "$itcm_src/.env.example" ]] && cp -p "$itcm_src/.env.example" "$itcm_dest/.env.example"
-    {
-      echo "backup_time=$(date)"
-      echo "source=$itcm_src"
-      echo "database_sql=$pg1_file"
-      echo "database_custom=$pg1_dump_file"
-      echo "json_export=$json_file"
-    } > "$itcm_dest/manifest.txt"
-    echo "  OK: Copied to $itcm_folder\\"
-    latest_app_sources+=("$itcm_dest")
-  fi
-  remove_old_dirs "$itcm_dir" "itcm-app_*" "$retention_days"
-  echo
-
-  echo "[Latest Copy] Saving one-day copy outside repository"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-db" "${latest_itcm_db_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-json" "${latest_json_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/bank-analyzer-db" "${latest_bank_analyzer_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/medical-stock-db" "${latest_medical_stock_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/insurance-db" "${latest_insurance_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/inheritance-tax-docs-data" "${latest_inheritance_docs_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-templates" "${latest_template_sources[@]}"
-  copy_latest_backup_set "$LATEST_BACKUP_BASE/itcm-daily/itcm-app" "${latest_app_sources[@]}"
-  echo
-
-  if [[ "$errors" -eq 0 ]]; then
-    echo "[OK] All backups completed successfully."
-  else
-    echo "[WARN] $errors backup(s) skipped or failed."
-  fi
-  echo "============================================================"
-  return "$errors"
-}
-
 COMMAND="${1:-help}"
 case "$COMMAND" in
-  backup|restore|verify|itcm)
+  backup|restore|verify|drill|itcm)
     check_dependencies
     acquire_operation_lock "$COMMAND"
     ;;
@@ -1288,11 +1263,12 @@ case "$COMMAND" in
   backup)  cmd_backup ;;
   restore) cmd_restore "${2:-}" ;;
   verify)  cmd_verify "${2:-}" ;;
+  drill)   cmd_drill "${2:-}" ;;
   # Keep the historical command name used by backup-db.bat, but create the
   # same encrypted, restorable full backup as the main backup command.
   itcm)    cmd_backup ;;
   *)
-    echo "Usage: $0 {backup|restore [backup]|verify <backup>|itcm}"
+    echo "Usage: $0 {backup|restore [backup]|verify <backup>|drill [backup]|itcm}"
     exit 1
     ;;
 esac

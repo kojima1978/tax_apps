@@ -46,16 +46,19 @@ docker/scripts/manage.sh watch <app-name>
 コマンド例は `.sh` を本体として記載する。`.bat` は Windows のダブルクリック用・タスクスケジューラ用の補助ラッパーとして扱う。
 
 - `manage.sh`: 起動、停止、再ビルド、ログ、状態確認などの管理本体
-- `backup.sh`: 全体バックアップ/リストア + ITCM定期バックアップ本体
+- `backup.sh`: 全体バックアップ/リストア/リストア訓練の本体
 - `manage.bat`: Git Bash 経由で `manage.sh` を呼ぶ補助ラッパー
-- `backup-db.bat`: Git Bash 経由で `backup.sh itcm` を呼ぶ補助ラッパー
-- バックアップは `docker/backups/` を主保存先とし、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/` に追加コピーする（全体: `all-apps/`、ITCM定期: `itcm-daily/`）
+- `backup-db.bat`: Git Bash 経由で `backup.sh itcm` を呼ぶ補助ラッパー（日次タスク用。中身は通常の `backup` と同じ）
+- `restore-drill.bat`: Git Bash 経由で `backup.sh drill` を呼ぶ補助ラッパー（週次タスク用）
+- バックアップは `docker/backups/` を主保存先とし、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/all-apps/` に追加コピーする
+- **バックアップ対象は `backup.sh` 冒頭の4配列** (`PG_TARGETS` / `SQLITE_TARGETS` / `BIND_TARGETS` / `SETTINGS_TARGETS`) で定義する。バックアップ・リストア・ドリルはすべてここから生成されるので、DBやデータを持つアプリを足したら**必ず1行追加すること**
 
 ヘルパースクリプト（ダブルクリック用）:
 - `start-prod.bat`: ワンクリックで本番モード起動
 - `stop.bat`: ワンクリックで停止
 - `status.bat`: ワンクリックで状態確認
-- `backup-db.bat`: ITCM PostgreSQLダンプ + JSONエクスポート + Excelテンプレート等（7日間保持、タスクスケジューラ対応）
+- `backup-db.bat`: 暗号化された全体バックアップ（PostgreSQL 3件 + SQLite 3件 + アップロード + テンプレート + `.env` + JSONエクスポート。7日間保持、タスクスケジューラ対応）
+- `restore-drill.bat`: 最新バックアップのリストア訓練（週次タスク対応）
 
 ```bash
 # 全アプリ起動（開発モード）
@@ -83,8 +86,8 @@ docker/scripts/manage.sh status
 docker/scripts/manage.sh backup
 docker/scripts/manage.sh restore [dir]
 
-# ITCM定期バックアップ（画面のJSONエクスポート相当も含む）
-docker/scripts/backup.sh itcm
+# リストア訓練（使い捨てDBへ実際に復元して検証。引数省略で最新が対象）
+docker/scripts/manage.sh drill
 ```
 
 ### 個別アプリのスクリプト（Docker内で実行）

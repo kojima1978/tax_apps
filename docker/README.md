@@ -147,8 +147,11 @@ rd /s /q tax_apps
 |-----------|------|------|
 | `manage.sh` | Linux / Git Bash | 全機能搭載（本体） |
 | `manage.bat` | Windows (CMD) | `manage.sh` を Git Bash 経由で呼び出す補助ラッパー（ダブルクリックで開発モード起動） |
-| `backup.sh` | Linux / Git Bash | 全体バックアップ/リストア + ITCM定期バックアップ本体 |
+| `backup.sh` | Linux / Git Bash | 全体バックアップ/リストア/リストア訓練の本体 |
 | `backup-db.bat` | Windows (CMD) | `backup.sh itcm` を Git Bash 経由で呼び出す補助ラッパー |
+| `restore-drill.bat` | Windows (CMD) | `backup.sh drill` を Git Bash 経由で呼び出す補助ラッパー |
+| `register-restore-drill-task.ps1` | Windows PowerShell | 週次リストア訓練タスクを登録（`-Unregister` で解除） |
+| `register-restore-drill-task.bat` / `unregister-restore-drill-task.bat` | Windows (CMD) | 上記 `.ps1` のダブルクリック用ラッパー |
 | `start-prod.bat` | Windows (CMD) | ワンクリックで本番モード起動 |
 | `stop.bat` | Windows (CMD) | ワンクリックで全アプリ停止 |
 | `status.bat` | Windows (CMD) | ワンクリックで状態確認 |
@@ -168,7 +171,8 @@ rd /s /q tax_apps
 | 本番モード起動 | `start-prod.bat` | ダブルクリックするだけで全アプリを本番モードで起動 |
 | 停止 | `stop.bat` | ダブルクリックするだけで全アプリを停止 |
 | 状態確認 | `status.bat` | ダブルクリックするだけで状態を確認 |
-| 自動バックアップ | `backup-db.bat` | `backup.sh itcm` を呼び出す補助。ITCM PostgreSQLダンプ + JSONエクスポート + Excelテンプレート等を7日間保持 |
+| 自動バックアップ | `backup-db.bat` | `backup.sh itcm` を呼び出す補助。PostgreSQL 3件・SQLite 3件・アップロード・テンプレート・設定・JSONエクスポートを7日間保持 |
+| リストア訓練 | `restore-drill.bat` | 最新のバックアップを使い捨て環境へ実際に復元し、本当に戻せるか検証 |
 | Docker自動復旧 | `docker-watchdog.bat` | `docker info` が連続失敗した場合に Docker Desktop を再起動し、unhealthy コンテナも再起動 |
 
 > 詳細操作は下記「コマンド一覧」を参照してください。Windows のコマンドプロンプトから実行する場合は、補助ラッパーとして `manage.bat` に読み替えできます。
@@ -188,6 +192,8 @@ rd /s /q tax_apps
 | `./manage.sh status` | 全アプリの状態表示 |
 | `./manage.sh backup` | 全データベース・データをバックアップ |
 | `./manage.sh restore [dir]` | バックアップからリストア |
+| `./manage.sh verify <backup>` | バックアップの復号とSHA-256照合（上書きなし） |
+| `./manage.sh drill [backup]` | リストア訓練。使い捨てDBへ実際に復元して検証（既定は最新） |
 | `./manage.sh clean` | コンテナ・イメージ・ボリュームのクリーンアップ |
 | `./manage.sh clean-cache [--all]` | Docker Build Cache の安全な削除 |
 | `./manage.sh preflight` | 起動前環境チェック |
@@ -417,12 +423,17 @@ DBなどの永続データは Docker Named Volume またはバインドマウン
 |:--|:------|:-----|:-----|
 | 1 | ITCM PostgreSQL | `pg_dump`（SQLダンプ） | コンテナ停止中はボリューム tar バックアップ |
 | 2 | Bank Analyzer PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
-| 3 | SQLite 3アプリ | `better-sqlite3 backup` + `PRAGMA integrity_check` | 稼働中も整合性のあるスナップショットを取得 |
-| 4 | Bank Analyzer データフォルダ | `cp` | `apps/bank-analyzer-django/data/` |
-| 5 | 設定ファイル | `cp` | ITCM .env, Bank Analyzer .env |
-| 6 | Bank Analyzer 案件別JSON | `manage.py export_case_json_backups` | 画面のJSONバックアップと同じ形式 |
+| 3 | Private Banking PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
+| 4 | SQLite 3アプリ | `better-sqlite3 backup` + `PRAGMA integrity_check` | 稼働中も整合性のあるスナップショットを取得 |
+| 5 | Bank Analyzer データフォルダ | `cp` | `apps/bank-analyzer-django/data/` |
+| 6 | ITCM Excel テンプレート | `cp` | `apps/inheritance-case-management/templates/`。`.gitignore` 対象なので Git には無い |
+| 7 | 設定ファイル | `cp` | ITCM .env, Bank Analyzer .env, Private Banking .env |
+| 8 | Bank Analyzer 案件別JSON | `manage.py export_case_json_backups` | 画面のJSONバックアップと同じ形式 |
 
 > 全体バックアップの保持期間は既定で7日間です。変更する場合は `FULL_BACKUP_RETENTION_DAYS` を指定して `backup.sh` を実行してください。
+
+> DBを持つアプリを追加したら、`backup.sh` 冒頭の `PG_TARGETS` / `SQLITE_TARGETS` / `BIND_TARGETS` /
+> `SETTINGS_TARGETS` に1行足すこと。バックアップ・リストア・リストア訓練はすべてこの配列から生成されます。
 
 ### リストア
 
@@ -441,7 +452,27 @@ PostgreSQL はコンテナ起動中に `psql` でリストア、SQLite はボリ
 ```bash
 ./manage.sh restart inheritance-case-management
 ./manage.sh restart bank-analyzer-django
+./manage.sh restart private-banking
 ```
+
+### リストア訓練（drill）
+
+`verify` は「復号できてハッシュが一致する」ことまでしか保証しません。ダンプが本当にリストア可能な SQL かどうかは別問題なので、`drill` が使い捨て環境へ実際に復元して確かめます。
+
+```bash
+./manage.sh drill                                # 最新のバックアップが対象
+./manage.sh drill 2026-02-22_153000.tar.gz.enc   # 直接指定
+```
+
+- **PostgreSQL**: 使い捨ての `postgres:16-alpine` コンテナを起動し、`psql -v ON_ERROR_STOP=1` でダンプを流し込む。復元後にテーブル数と行数を数え、0件なら失敗扱い
+- **SQLite**: 展開したコピーを稼働中コンテナの `/tmp` へ置き、readonly で開いて `integrity_check` とテーブル数を確認（`better-sqlite3` がアプリイメージにしか無いため。コンテナ停止中はスキップ）
+- **稼働中のDBには一切触れません**。ドリル用コンテナは `tax-apps-network` に繋がず、ポートも公開しません
+
+1件でも失敗すると終了コード 1 を返します。
+
+**タスクスケジューラへの登録手順:**
+
+`register-restore-drill-task.bat` をダブルクリックすると、`Tax Apps Weekly Restore Drill` が毎週日曜4:00（日次バックアップの直後）に登録されます。実行結果は `docker\logs\restore-drill.log` に追記されます。
 
 ### 自動バックアップ（タスクスケジューラ）
 
@@ -815,11 +846,14 @@ tax_apps/
 │   ├── scripts/                # 管理スクリプト
 │   │   ├── manage.sh           #   管理スクリプト本体（全機能）
 │   │   ├── manage.bat          #   Windows 補助ラッパー（ダブルクリックで開発モード起動）
-│   │   ├── backup.sh           #   全体バックアップ/リストア + ITCM定期バックアップ本体
+│   │   ├── backup.sh           #   全体バックアップ/リストア/リストア訓練の本体
 │   │   ├── start-prod.bat      #   ワンクリック本番モード起動
 │   │   ├── stop.bat            #   ワンクリック停止
 │   │   ├── status.bat          #   ワンクリック状態確認
 │   │   ├── backup-db.bat       #   backup.sh itcm を呼び出す Windows 補助ラッパー
+│   │   ├── restore-drill.bat   #   backup.sh drill を呼び出す Windows 補助ラッパー
+│   │   ├── register-restore-drill-task.ps1 #  週次リストア訓練タスク登録
+│   │   ├── register-restore-drill-task.bat #  タスク登録ラッパー
 │   │   ├── docker-watchdog.ps1 #   Docker Desktop 監視/復旧本体
 │   │   ├── docker-watchdog.bat #   watchdog Windows 補助ラッパー
 │   │   ├── register-docker-watchdog-task.ps1 #  タスクスケジューラ登録
