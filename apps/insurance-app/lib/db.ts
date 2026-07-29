@@ -89,6 +89,8 @@ function runMigrations(db: Database.Database): void {
       contract_age INTEGER NOT NULL,
       insured_member_id TEXT NOT NULL,
       beneficiary_member_id TEXT,
+      beneficiary_allocations TEXT,
+      pension_settings TEXT,
       death_benefit_disease INTEGER NOT NULL DEFAULT 0,
       death_benefit_accident INTEGER NOT NULL DEFAULT 0,
       hosp_day_disease INTEGER NOT NULL DEFAULT 0,
@@ -108,6 +110,8 @@ function runMigrations(db: Database.Database): void {
       premium_amount INTEGER NOT NULL DEFAULT 0,
       payment_end_date TEXT,
       payment_end_age INTEGER NOT NULL,
+      premium_payment_completed INTEGER NOT NULL DEFAULT 0,
+      payment_details TEXT,
       annual_premium INTEGER NOT NULL DEFAULT 0,
       maturity_benefit INTEGER NOT NULL DEFAULT 0,
       consultant_note TEXT,
@@ -124,6 +128,7 @@ function runMigrations(db: Database.Database): void {
       schema_version INTEGER NOT NULL DEFAULT 1,
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_exported_at TEXT,
+      valuation_settings TEXT,
       FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
     );
 
@@ -208,6 +213,10 @@ function runMigrations(db: Database.Database): void {
     `ALTER TABLE policies ADD COLUMN foreign_hosp_day_accident REAL NOT NULL DEFAULT 0`,
     `ALTER TABLE policies ADD COLUMN foreign_diagnosis_benefit REAL NOT NULL DEFAULT 0`,
     `ALTER TABLE policies ADD COLUMN foreign_maturity_benefit REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE policies ADD COLUMN pension_settings TEXT`,
+    `ALTER TABLE policies ADD COLUMN premium_payment_completed INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE policies ADD COLUMN payment_details TEXT`,
+    `ALTER TABLE policies ADD COLUMN beneficiary_allocations TEXT`,
   ];
 
   for (const sql of optionalPolicyColumns) {
@@ -216,5 +225,11 @@ function runMigrations(db: Database.Database): void {
     } catch {
       // column already exists
     }
+  }
+
+  try {
+    db.exec(`ALTER TABLE app_state_meta ADD COLUMN valuation_settings TEXT`);
+  } catch {
+    // column already exists
   }
 }

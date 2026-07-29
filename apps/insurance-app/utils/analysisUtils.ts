@@ -130,6 +130,7 @@ function monthsBetween(from: Date, to: Date): number {
 // （年齢差ベースだと保険年齢/満年齢のズレや被保険者≠本人のケースで最大1年超の誤差が出るため）
 export function calculateTotalPremiumsPaid(policy: Policy, currentAge: number, now: Date = new Date()): number {
   if (policy.paymentFrequency === 'single') return policy.premiumAmount;
+  if (policy.premiumPaymentCompleted) return calculateProjectedTotalPremiums(policy);
 
   const contract = new Date(policy.contractDate);
   if (isNaN(contract.getTime())) {
@@ -168,8 +169,12 @@ export function calculateProjectedTotalPremiums(policy: Policy): number {
 
 export function getPensionPayoutSummary(policy: Policy) {
   const startAge = policy.paymentEndAge;
-  const endAge = policy.policyEndAge === 999 ? startAge + 20 : policy.policyEndAge;
-  const periodYears = Math.max(0, endAge - startAge);
+  const periodYears = policy.pensionPayoutYears && policy.pensionPayoutYears > 0
+    ? policy.pensionPayoutYears
+    : policy.policyEndAge === 999
+      ? 20
+      : Math.max(0, policy.policyEndAge - startAge);
+  const endAge = startAge + periodYears;
   const annualPayout = periodYears > 0 ? policy.maturityBenefit / periodYears : 0;
   const projectedTotalPremiums = calculateProjectedTotalPremiums(policy);
   const returnRate = projectedTotalPremiums > 0
@@ -377,12 +382,14 @@ export function getRemainingCoverageYears(policy: Policy, currentAge: number): n
 }
 
 export function getRemainingPaymentYears(policy: Policy, currentAge: number): number | 'lifetime' {
+  if (policy.premiumPaymentCompleted) return 0;
   if (policy.paymentEndAge === 999) return 'lifetime';
   return Math.max(0, policy.paymentEndAge - currentAge);
 }
 
 export function isPaidUp(policy: Policy, currentAge: number): boolean {
   if (policy.paymentFrequency === 'single') return true;
+  if (policy.premiumPaymentCompleted) return true;
   return policy.paymentEndAge !== 999 && currentAge >= policy.paymentEndAge;
 }
 
@@ -632,6 +639,7 @@ export function getMonthlyPremium(policy: Policy): number {
 
 export function getActiveMonthlyPremium(policy: Policy, currentAge: number | null): number {
   if (policy.paymentFrequency === 'single') return 0;
+  if (policy.premiumPaymentCompleted) return 0;
   if (currentAge !== null && policy.paymentEndAge !== 999 && currentAge >= policy.paymentEndAge) return 0;
   return getMonthlyPremium(policy);
 }

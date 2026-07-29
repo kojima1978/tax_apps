@@ -3,13 +3,15 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType, normalizePolicyType } from '@/types';
-import type { Policy, PolicyType, FamilyMember, SurrenderValuePoint } from '@/types';
-import { AlertTriangle, Clipboard, FileUp, Info, RotateCcw, Save, Upload, X } from 'lucide-react';
+import type { Policy, PolicyType, FamilyMember, SurrenderValuePoint, ValuationSettings, BeneficiaryAllocation } from '@/types';
+import { AlertTriangle, Clipboard, FileUp, Info, Plus, RotateCcw, Save, Trash2, Upload, X } from 'lucide-react';
 import { mergeRelationshipSuggestions } from '@/utils/relationshipOptions';
 import { fetchPolicyPrompt, savePolicyPrompt } from '@/lib/api';
 import { DEFAULT_POLICY_PROMPT, LEGACY_DEFAULT_POLICY_PROMPTS, normalizePromptText } from '@/lib/policyPrompt';
 import { CommaInput, CommaInputRaw } from './CommaInput';
 import SurrenderValueEditor from './SurrenderValueEditor';
+import { applyValuationRateToPolicy, derivePaymentExchangeRate } from '@/utils/currencyUtils';
+import { getBeneficiaryAllocations, normalizeBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
 
 interface PolicyFormProps {
   isOpen: boolean;
@@ -19,6 +21,7 @@ interface PolicyFormProps {
   familyMembers: FamilyMember[];
   existingPolicies?: Policy[];
   editingPolicy: Policy | null;
+  valuationSettings: ValuationSettings;
 }
 
 interface UnresolvedNameRef {
@@ -60,6 +63,7 @@ const DIAGNOSIS_BENEFIT_TYPES: PolicyType[] = ['医療保険', 'がん保険'];
 const MATURITY_BENEFIT_TYPES: PolicyType[] = ['終身保険', '変額終身保険', '養老保険'];
 const BENEFICIARY_TYPES: PolicyType[] = [...DEATH_BENEFIT_TYPES];
 const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '養老保険'];
+const WHOLE_LIFE_COVERAGE_TYPES: PolicyType[] = ['終身保険', '変額終身保険'];
 
 // 生年月日と基準日から満年齢を計算（不明な場合は null）
 const calcAgeAt = (birthDate: string, targetDate: string): number | null => {
@@ -74,6 +78,32 @@ const calcAgeAt = (birthDate: string, targetDate: string): number | null => {
   }
   return age >= 0 ? age : null;
 };
+
+const calcAgeAtFiscalYearStart = (birthDate: string, fiscalYear: number): number | null => {
+  if (!Number.isInteger(fiscalYear) || fiscalYear < 1900 || fiscalYear > 2200) return null;
+  return calcAgeAt(birthDate, `${fiscalYear}-04-01`);
+};
+
+const getCurrentFiscalYear = () => {
+  const today = new Date();
+  return today.getMonth() < 3 ? today.getFullYear() - 1 : today.getFullYear();
+};
+
+const formatJapaneseEraYear = (year: number) => {
+  const era = year >= 2019
+    ? { name: '令和', year: year - 2018 }
+    : year >= 1989
+      ? { name: '平成', year: year - 1988 }
+      : year >= 1926
+        ? { name: '昭和', year: year - 1925 }
+        : year >= 1912
+          ? { name: '大正', year: year - 1911 }
+          : { name: '明治', year: year - 1867 };
+  return `${era.name}${era.year === 1 ? '元' : era.year}年`;
+};
+
+const formatFiscalYearOption = (year: number) =>
+  `${year}年度（${formatJapaneseEraYear(year)}度）`;
 
 const normalizePersonName = (name: unknown) => {
   let n = String(name || '');
@@ -110,6 +140,12 @@ const buildDefaultFormData = (members: FamilyMember[]): Partial<Policy> => {
     contractAge: calcAgeAt(insured?.birthDate || '', contractDate) ?? 30,
     insuredId,
     beneficiaryId: insuredId,
+    beneficiaryAllocations: insuredId ? [{ beneficiaryId: insuredId, percentage: 100 }] : [],
+    pensionRecipientId: insuredId,
+    pensionSuccessorRecipientId: '',
+    pensionStartMode: 'age',
+    pensionStartFiscalYear: getCurrentFiscalYear(),
+    pensionPayoutYears: 10,
     deathBenefitDisease: 0,
     deathBenefitAccident: 0,
     hospDayDisease: 0,
@@ -128,6 +164,7 @@ const buildDefaultFormData = (members: FamilyMember[]): Partial<Policy> => {
     paymentFrequency: 'monthly',
     premiumAmount: 0,
     paymentEndAge: 60,
+    premiumPaymentCompleted: false,
     maturityBenefit: 0,
   };
 };
@@ -189,6 +226,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   familyMembers,
   existingPolicies = [],
   editingPolicy,
+  valuationSettings,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pasteTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -292,7 +330,17 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   if (formSessionKey !== initializedFormKey) {
     setInitializedFormKey(formSessionKey);
     if (formSessionKey !== null) {
-      setFormData(editingPolicy ?? buildDefaultFormData(familyMembers));
+      const source = editingPolicy ?? buildDefaultFormData(familyMembers);
+      const normalized = source.currency === 'USD'
+        ? applyValuationRateToPolicy(source as Policy, valuationSettings.usdJpyRate)
+        : source;
+      setFormData({
+        ...normalized,
+        beneficiaryAllocations: getBeneficiaryAllocations(normalized as Policy),
+        ...(source.currency === 'USD' && source.paymentFrequency === 'single' && !source.paymentCurrency
+          ? { paymentCurrency: editingPolicy ? 'USD' : 'JPY' }
+          : {}),
+      });
       setShowPasteArea(false);
       setShowPromptEditor(false);
       setPasteText('');
@@ -354,9 +402,10 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       '年金受取終了年齢': 'policyEndAge',
       '受取終了年齢': 'policyEndAge',
       '通貨': 'currency',
-      '為替レート': 'exchangeRate',
-      '換算レート': 'exchangeRate',
-      '適用為替レート': 'exchangeRate',
+      '為替レート': 'contractExchangeRate',
+      '換算レート': 'contractExchangeRate',
+      '適用為替レート': 'contractExchangeRate',
+      '契約時為替レート': 'contractExchangeRate',
       '保険料USD': 'foreignPremiumAmount',
       '保険料ドル': 'foreignPremiumAmount',
       '死亡保障疾病USD': 'foreignDeathBenefitDisease',
@@ -609,7 +658,10 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       json.foreignMaturityBenefit,
     ].some(value => parseImportDecimal(value) > 0);
     const currency: Policy['currency'] = currencyText.includes('USD') || currencyText.includes('ドル') || hasForeignAmounts ? 'USD' : 'JPY';
-    const exchangeRate = currency === 'USD' ? parseImportDecimal(json.exchangeRate) : 0;
+    const contractExchangeRate = currency === 'USD'
+      ? parseImportDecimal(json.contractExchangeRate ?? json.exchangeRate)
+      : 0;
+    const exchangeRate = currency === 'USD' ? valuationSettings.usdJpyRate : 0;
     const foreignPremiumAmount = parseImportDecimal(json.foreignPremiumAmount);
     const foreignDeathBenefitDisease = parseImportDecimal(json.foreignDeathBenefitDisease);
     const foreignDeathBenefitAccident = parseImportDecimal(json.foreignDeathBenefitAccident);
@@ -650,6 +702,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       policyEndAge: parseImportAge(json.policyEndAge),
       currency,
       exchangeRate,
+      contractExchangeRate: contractExchangeRate > 0 ? contractExchangeRate : undefined,
       foreignPremiumAmount,
       foreignDeathBenefitDisease: hasDeathBenefit ? foreignDeathBenefitDisease : 0,
       foreignDeathBenefitAccident: hasAccidentDeathBenefit ? foreignDeathBenefitAccident : 0,
@@ -708,7 +761,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     if (!data.contractDate) warnings.push('契約日が未入力または判別できません');
     if (!insuredName && !insuredId) warnings.push('被保険者が未入力です');
     if (!data.premiumAmount) warnings.push('保険料が0円です');
-    if (data.currency === 'USD' && !data.exchangeRate) warnings.push('ドル建てですが為替レートが未入力です');
+    if (data.currency === 'USD' && valuationSettings.usdJpyRate <= 0) {
+      warnings.push('ドル建てですが、基本情報の現在評価用為替レートが未入力です');
+    }
     if (!data.policyEndAge) warnings.push('保険期間が未入力です');
     if (data.paymentEndAge && data.contractAge && data.paymentEndAge < data.contractAge) {
       warnings.push('払込終了年齢が契約年齢より若くなっています');
@@ -791,12 +846,16 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     const autoContractAge = !draft.data.contractAge
       ? calcAgeAt(insuredMember?.birthDate || '', draft.data.contractDate || '')
       : null;
+    const importedBeneficiaryId = draft.beneficiaryId || '';
     setFormData(prev => ({
       ...prev,
       ...draft.data,
       ...(autoContractAge !== null ? { contractAge: autoContractAge } : {}),
       insuredId: draft.insuredId || '',
-      beneficiaryId: draft.beneficiaryId || '',
+      beneficiaryId: importedBeneficiaryId,
+      beneficiaryAllocations: importedBeneficiaryId
+        ? [{ beneficiaryId: importedBeneficiaryId, percentage: 100 }]
+        : [],
     }));
     setFormImportWarnings(draft.warnings);
     setImportDrafts([]);
@@ -916,6 +975,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
         ...prev,
         insuredId: resolvedIds.insured || prev.insuredId,
         beneficiaryId: resolvedIds.beneficiary || prev.beneficiaryId,
+        beneficiaryAllocations: resolvedIds.beneficiary
+          ? [{ beneficiaryId: resolvedIds.beneficiary, percentage: 100 }]
+          : prev.beneficiaryAllocations,
       }));
     }
     setUnresolvedNames([]);
@@ -972,11 +1034,17 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   const setMoneyField = (yenField: keyof Policy, foreignField: keyof Policy, value: number) => {
     setFormData(prev => {
       const isUsd = prev.currency === 'USD';
-      const exchangeRate = Number(prev.exchangeRate || 0);
+      const exchangeRate = valuationSettings.usdJpyRate;
+      const preserveActualJpyPremium = yenField === 'premiumAmount'
+        && prev.paymentFrequency === 'single'
+        && prev.paymentCurrency === 'JPY'
+        && (prev.actualPremiumPaidJpy || 0) > 0;
       return {
         ...prev,
         [foreignField]: isUsd ? value : 0,
-        [yenField]: isUsd ? yenFromForeign(value, exchangeRate) : value,
+        [yenField]: preserveActualJpyPremium
+          ? prev.actualPremiumPaidJpy
+          : isUsd ? yenFromForeign(value, exchangeRate) : value,
       };
     });
   };
@@ -988,6 +1056,11 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
           ...prev,
           currency: 'JPY',
           exchangeRate: 0,
+          contractExchangeRate: undefined,
+          paymentCurrency: undefined,
+          premiumPaymentDate: undefined,
+          actualPremiumPaidJpy: undefined,
+          paymentExchangeRate: undefined,
           foreignPremiumAmount: 0,
           foreignDeathBenefitDisease: 0,
           foreignDeathBenefitAccident: 0,
@@ -998,11 +1071,12 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
           surrenderValues: prev.surrenderValues?.map(({ age, amount }) => ({ age, amount })),
         };
       }
-      const nextRate = prev.exchangeRate || 150;
+      const nextRate = valuationSettings.usdJpyRate;
       return {
         ...prev,
         currency: 'USD',
         exchangeRate: nextRate,
+        paymentCurrency: prev.paymentFrequency === 'single' ? (prev.paymentCurrency || 'JPY') : prev.paymentCurrency,
         // 円で入力済みの返戻金はドル額に変換しておく（外貨欄が0のまま円換算だけ残るのを防ぐ）
         surrenderValues: prev.surrenderValues?.map(point => (
           point.foreignAmount !== undefined
@@ -1013,22 +1087,47 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     });
   };
 
-  const setExchangeRate = (exchangeRate: number) => {
+  const setBeneficiaryAllocations = (allocations: BeneficiaryAllocation[]) => {
     setFormData(prev => ({
       ...prev,
-      exchangeRate,
-      premiumAmount: yenFromForeign(prev.foreignPremiumAmount || 0, exchangeRate),
-      deathBenefitDisease: yenFromForeign(prev.foreignDeathBenefitDisease || 0, exchangeRate),
-      deathBenefitAccident: yenFromForeign(prev.foreignDeathBenefitAccident || 0, exchangeRate),
-      hospDayDisease: yenFromForeign(prev.foreignHospDayDisease || 0, exchangeRate),
-      hospDayAccident: yenFromForeign(prev.foreignHospDayAccident || 0, exchangeRate),
-      diagnosisBenefit: yenFromForeign(prev.foreignDiagnosisBenefit || 0, exchangeRate),
-      maturityBenefit: yenFromForeign(prev.foreignMaturityBenefit || 0, exchangeRate),
-      surrenderValues: prev.surrenderValues?.map(point => ({
-        ...point,
-        amount: point.foreignAmount !== undefined ? yenFromForeign(point.foreignAmount, exchangeRate) : point.amount,
-      })),
+      beneficiaryId: allocations[0]?.beneficiaryId || '',
+      beneficiaryAllocations: allocations,
     }));
+    setFormErrors(prev => ({ ...prev, beneficiaryId: '', beneficiaryAllocations: '' }));
+  };
+
+  const updateBeneficiaryAllocation = (
+    index: number,
+    field: keyof BeneficiaryAllocation,
+    value: string | number,
+  ) => {
+    const allocations = getBeneficiaryAllocations(formData as Policy).map((allocation, allocationIndex) => (
+      allocationIndex === index ? { ...allocation, [field]: value } : allocation
+    ));
+    setBeneficiaryAllocations(allocations);
+  };
+
+  const addBeneficiaryAllocation = () => {
+    const current = getBeneficiaryAllocations(formData as Policy);
+    const usedIds = new Set(current.map(allocation => allocation.beneficiaryId));
+    const nextMember = familyMembers.find(member => !usedIds.has(member.id));
+    if (!nextMember) return;
+    const count = current.length + 1;
+    const basePercentage = Math.floor((100 / count) * 100) / 100;
+    const allocations = [
+      ...current.map(allocation => ({ ...allocation, percentage: basePercentage })),
+      {
+        beneficiaryId: nextMember.id,
+        percentage: Number((100 - basePercentage * current.length).toFixed(2)),
+      },
+    ];
+    setBeneficiaryAllocations(allocations);
+  };
+
+  const removeBeneficiaryAllocation = (index: number) => {
+    const remaining = getBeneficiaryAllocations(formData as Policy).filter((_, allocationIndex) => allocationIndex !== index);
+    if (remaining.length === 1) remaining[0] = { ...remaining[0], percentage: 100 };
+    setBeneficiaryAllocations(remaining);
   };
 
   const defaultFiniteEndAge = (contractAge?: number) => Math.max(60, Number(contractAge || 50) + 10);
@@ -1043,6 +1142,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       const hasBeneficiary = BENEFICIARY_TYPES.includes(policyType);
       const isIncomeProtectionType = isIncomeProtectionPolicyType(policyType);
 
+      if (WHOLE_LIFE_COVERAGE_TYPES.includes(policyType)) {
+        next.policyEndAge = 999;
+      }
       if (FINITE_END_AGE_TYPES.includes(policyType) && prev.policyEndAge === 999) {
         next.policyEndAge = defaultFiniteEndAge(prev.contractAge);
       }
@@ -1053,12 +1155,22 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
         next.policyEndAge = prev.policyEndAge && prev.policyEndAge !== 999 && prev.policyEndAge > startAge
           ? prev.policyEndAge
           : startAge + 10;
+        next.pensionRecipientId = prev.pensionRecipientId || prev.insuredId || '';
+        next.pensionSuccessorRecipientId = prev.pensionSuccessorRecipientId || '';
+        next.pensionStartMode = prev.pensionStartMode || 'age';
+        next.pensionPayoutYears = prev.pensionPayoutYears
+          || (next.policyEndAge !== 999 ? Math.max(1, Number(next.policyEndAge) - startAge) : 20);
+        next.pensionStartFiscalYear = prev.pensionStartFiscalYear || getCurrentFiscalYear();
       }
 
       if (!hasBeneficiary) {
         next.beneficiaryId = '';
+        next.beneficiaryAllocations = [];
       } else if (!prev.beneficiaryId) {
         next.beneficiaryId = prev.insuredId;
+        next.beneficiaryAllocations = prev.insuredId
+          ? [{ beneficiaryId: prev.insuredId, percentage: 100 }]
+          : [];
       }
 
       if (!hasDeathBenefit) {
@@ -1170,17 +1282,44 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   const hasMaturityBenefitField = isPension || MATURITY_BENEFIT_TYPES.includes(selectedPolicyType);
   const hasBeneficiaryField = BENEFICIARY_TYPES.includes(selectedPolicyType);
   const hasAccidentDeathBenefitField = hasDeathBenefitFields && !isIncomeProtection;
+  const isWholeLifeCoverage = WHOLE_LIFE_COVERAGE_TYPES.includes(selectedPolicyType);
   const isUsdPolicy = formData.currency === 'USD';
   const currencyUnit = isUsdPolicy ? 'USD' : '円';
   const isWholeLifePayment = formData.paymentEndAge === 999;
-  const pensionStartAge = formData.paymentEndAge || 0;
-  const pensionEndAge = formData.policyEndAge || 0;
-  const pensionPayoutYears = isPension && pensionStartAge !== 999 && pensionEndAge !== 999
-    ? Math.max(0, pensionEndAge - pensionStartAge)
-    : 0;
+  const pensionStartMode = formData.pensionStartMode || 'age';
+  const pensionStartFiscalYear = Number(formData.pensionStartFiscalYear || getCurrentFiscalYear());
+  const pensionInsured = allVisibleMembers.find(member => member.id === formData.insuredId);
+  const fiscalYearOptions = useMemo(() => {
+    const currentFiscalYear = getCurrentFiscalYear();
+    const years = Array.from({ length: 91 }, (_, index) => currentFiscalYear - 10 + index);
+    if (pensionStartFiscalYear >= 1900 && pensionStartFiscalYear <= 2200 && !years.includes(pensionStartFiscalYear)) {
+      years.push(pensionStartFiscalYear);
+    }
+    return years.sort((a, b) => a - b);
+  }, [pensionStartFiscalYear]);
+  const autoContractAge = useMemo(() => {
+    const member = allVisibleMembers.find(m => m.id === formData.insuredId);
+    return calcAgeAt(member?.birthDate || '', formData.contractDate || '');
+  }, [allVisibleMembers, formData.contractDate, formData.insuredId]);
+  const isContractAgeOverridden = autoContractAge !== null
+    && Number(formData.contractAge) !== autoContractAge;
+  const pensionStartAge = pensionStartMode === 'fiscalYear'
+    ? calcAgeAtFiscalYearStart(pensionInsured?.birthDate || '', pensionStartFiscalYear) ?? 0
+    : Number(formData.paymentEndAge || 0);
+  const pensionPayoutYears = Number(
+    formData.pensionPayoutYears
+    || (formData.policyEndAge !== 999 && pensionStartAge > 0
+      ? Math.max(1, Number(formData.policyEndAge || 0) - pensionStartAge)
+      : 10)
+  );
   const pensionAnnualPayout = pensionPayoutYears > 0
     ? (formData.maturityBenefit || 0) / pensionPayoutYears
     : 0;
+  const paymentCurrency = formData.paymentCurrency || 'JPY';
+  const derivedPaymentExchangeRate = derivePaymentExchangeRate(
+    formData.actualPremiumPaidJpy,
+    formData.foreignPremiumAmount,
+  );
 
   const surrenderValues = formData.surrenderValues ?? [];
 
@@ -1245,14 +1384,42 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     if (!formData.contractDate) errors.contractDate = '契約日は必須です';
     if (!formData.insuredId) errors.insuredId = '被保険者を選択してください';
     else if (!memberIds.has(formData.insuredId)) errors.insuredId = '被保険者が家族情報に存在しません';
-    if (formData.beneficiaryId && !memberIds.has(formData.beneficiaryId)) errors.beneficiaryId = '受取人が家族情報に存在しません';
-    if (formData.policyEndAge === undefined || isNaN(formData.policyEndAge)) errors.policyEndAge = '保険期間は数値が必要です';
-    if (formData.paymentEndAge === undefined || isNaN(formData.paymentEndAge)) errors.paymentEndAge = '払込終了年齢は数値が必要です';
-    if (isUsdPolicy && (!formData.exchangeRate || formData.exchangeRate <= 0)) {
-      errors.exchangeRate = 'ドル建ての場合は為替レートを入力してください';
+    const beneficiaryAllocations = getBeneficiaryAllocations(formData as Policy);
+    if (beneficiaryAllocations.some(allocation => !memberIds.has(allocation.beneficiaryId))) {
+      errors.beneficiaryAllocations = '受取人が家族情報に存在しません';
     }
-    if (!isPension && hasBeneficiaryField && !formData.beneficiaryId) {
-      errors.beneficiaryId = '死亡保障がある保険は受取人を選択してください';
+    if (new Set(beneficiaryAllocations.map(allocation => allocation.beneficiaryId)).size !== beneficiaryAllocations.length) {
+      errors.beneficiaryAllocations = '同じ受取人を複数行に設定できません';
+    }
+    if (beneficiaryAllocations.some(allocation => allocation.percentage <= 0 || allocation.percentage > 100)) {
+      errors.beneficiaryAllocations = '受取割合は0%を超え100%以下で入力してください';
+    }
+    const beneficiaryPercentageTotal = beneficiaryAllocations.reduce((sum, allocation) => sum + allocation.percentage, 0);
+    if (beneficiaryAllocations.length > 0 && Math.abs(beneficiaryPercentageTotal - 100) > 0.001) {
+      errors.beneficiaryAllocations = `受取割合の合計を100%にしてください（現在 ${beneficiaryPercentageTotal.toLocaleString('ja-JP')}%）`;
+    }
+    if (formData.pensionRecipientId && !memberIds.has(formData.pensionRecipientId)) errors.pensionRecipientId = '年金受取人が家族情報に存在しません';
+    if (formData.pensionSuccessorRecipientId && !memberIds.has(formData.pensionSuccessorRecipientId)) errors.pensionSuccessorRecipientId = '継続受取人が家族情報に存在しません';
+    if (!isWholeLifeCoverage && (formData.policyEndAge === undefined || isNaN(formData.policyEndAge))) {
+      errors.policyEndAge = '保険期間は数値が必要です';
+    }
+    if (formData.paymentEndAge === undefined || isNaN(formData.paymentEndAge)) errors.paymentEndAge = '払込終了年齢は数値が必要です';
+    if (isUsdPolicy && valuationSettings.usdJpyRate <= 0) {
+      errors.exchangeRate = '基本情報で現在評価用USD/JPYレートを入力してください';
+    }
+    if (isUsdPolicy && formData.paymentFrequency === 'single') {
+      if (!formData.premiumPaymentDate) {
+        errors.premiumPaymentDate = '支払日を入力してください';
+      }
+      if (paymentCurrency === 'JPY' && (!formData.actualPremiumPaidJpy || formData.actualPremiumPaidJpy <= 0)) {
+        errors.actualPremiumPaidJpy = '実際に支払った円額を入力してください';
+      }
+      if (paymentCurrency === 'USD' && (!formData.foreignPremiumAmount || formData.foreignPremiumAmount <= 0)) {
+        errors.foreignPremiumAmount = '一時払保険料のドル額を入力してください';
+      }
+    }
+    if (!isPension && hasBeneficiaryField && beneficiaryAllocations.length === 0) {
+      errors.beneficiaryAllocations = '死亡保障がある保険は受取人を1名以上選択してください';
     }
     if (!isPension && hasDeathBenefitFields && (!formData.deathBenefitDisease || formData.deathBenefitDisease <= 0)) {
       errors.deathBenefitDisease = isIncomeProtection ? '死亡保険金月額を入力してください' : '死亡保障額を入力してください';
@@ -1268,16 +1435,22 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       errors.policyEndAge = 'この保険種類は保険期間の終了年齢を入力してください';
     }
     if (isPension) {
-      if (formData.paymentEndAge === 999) {
-        errors.paymentEndAge = '個人年金は年金受取開始年齢を入力してください';
+      if (!formData.pensionRecipientId) {
+        errors.pensionRecipientId = '年金受取人を選択してください';
       }
-      if (!formData.paymentEndAge || formData.paymentEndAge <= 0) {
-        errors.paymentEndAge = '年金受取開始年齢は必須です';
+      if (pensionStartMode === 'age') {
+        if (!formData.paymentEndAge || formData.paymentEndAge <= 0 || formData.paymentEndAge === 999) {
+          errors.paymentEndAge = '年金受取開始年齢は必須です';
+        }
+      } else {
+        if (!formData.pensionStartFiscalYear || pensionStartFiscalYear < 1900 || pensionStartFiscalYear > 2200) {
+          errors.pensionStartFiscalYear = '年金受取開始年度を入力してください';
+        } else if (!pensionInsured?.birthDate || pensionStartAge <= 0) {
+          errors.pensionStartFiscalYear = '年度から開始年齢を計算するには被保険者の生年月日が必要です';
+        }
       }
-      if (!formData.policyEndAge || formData.policyEndAge === 999) {
-        errors.policyEndAge = '個人年金は受取終了年齢を入力してください';
-      } else if (formData.paymentEndAge && formData.policyEndAge <= formData.paymentEndAge) {
-        errors.policyEndAge = '受取終了年齢は受取開始年齢より後にしてください';
+      if (!formData.pensionPayoutYears || formData.pensionPayoutYears <= 0 || formData.pensionPayoutYears > 100) {
+        errors.pensionPayoutYears = '年金受取年数は1〜100年で入力してください';
       }
       if (!formData.maturityBenefit || formData.maturityBenefit <= 0) {
         errors.maturityBenefit = '年金原資（受取総額）は必須です';
@@ -1292,14 +1465,39 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     const finalPolicy: Policy = {
       ...(formData as Policy),
       id: formData.id || uuidv4(),
+      paymentEndAge: isPension ? pensionStartAge : Number(formData.paymentEndAge),
+      policyEndAge: isPension
+        ? pensionStartAge + pensionPayoutYears
+        : isWholeLifeCoverage ? 999 : Number(formData.policyEndAge),
+      pensionRecipientId: isPension ? formData.pensionRecipientId : undefined,
+      pensionSuccessorRecipientId: isPension ? formData.pensionSuccessorRecipientId : undefined,
+      pensionStartMode: isPension ? pensionStartMode : undefined,
+      pensionStartFiscalYear: isPension && pensionStartMode === 'fiscalYear' ? pensionStartFiscalYear : undefined,
+      pensionPayoutYears: isPension ? pensionPayoutYears : undefined,
+      exchangeRate: isUsdPolicy ? valuationSettings.usdJpyRate : 0,
+      paymentCurrency: isUsdPolicy && formData.paymentFrequency === 'single' ? paymentCurrency : undefined,
+      premiumPaymentDate: isUsdPolicy && formData.paymentFrequency === 'single' ? formData.premiumPaymentDate : undefined,
+      actualPremiumPaidJpy: isUsdPolicy && formData.paymentFrequency === 'single' && paymentCurrency === 'JPY'
+        ? Number(formData.actualPremiumPaidJpy || 0)
+        : undefined,
+      paymentExchangeRate: isUsdPolicy && formData.paymentFrequency === 'single' && paymentCurrency === 'JPY'
+        ? derivedPaymentExchangeRate
+        : undefined,
       annualPremium: (formData.paymentFrequency === 'monthly' ? (formData.premiumAmount || 0) * 12 : (formData.premiumAmount || 0)),
+      beneficiaryId: beneficiaryAllocations[0]?.beneficiaryId || '',
+      beneficiaryAllocations: normalizeBeneficiaryAllocations(beneficiaryAllocations),
     };
+    if (isUsdPolicy && formData.paymentFrequency === 'single' && paymentCurrency === 'JPY') {
+      finalPolicy.premiumAmount = Number(formData.actualPremiumPaidJpy || 0);
+      finalPolicy.annualPremium = finalPolicy.premiumAmount;
+    }
     if (!hasDeathBenefitFields) {
       finalPolicy.deathBenefitDisease = 0;
       finalPolicy.deathBenefitAccident = 0;
       finalPolicy.foreignDeathBenefitDisease = 0;
       finalPolicy.foreignDeathBenefitAccident = 0;
       finalPolicy.beneficiaryId = '';
+      finalPolicy.beneficiaryAllocations = [];
     } else if (!hasAccidentDeathBenefitField) {
       finalPolicy.deathBenefitAccident = 0;
       finalPolicy.foreignDeathBenefitAccident = 0;
@@ -1324,6 +1522,11 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     if (finalPolicy.currency !== 'USD') {
       finalPolicy.currency = 'JPY';
       finalPolicy.exchangeRate = 0;
+      finalPolicy.contractExchangeRate = undefined;
+      finalPolicy.paymentCurrency = undefined;
+      finalPolicy.premiumPaymentDate = undefined;
+      finalPolicy.actualPremiumPaidJpy = undefined;
+      finalPolicy.paymentExchangeRate = undefined;
       finalPolicy.foreignPremiumAmount = 0;
       finalPolicy.foreignDeathBenefitDisease = 0;
       finalPolicy.foreignDeathBenefitAccident = 0;
@@ -1561,19 +1764,35 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                 <option value="JPY">円建て</option>
                 <option value="USD">ドル建て（USD）</option>
               </select>
-              <span className="field-hint">ドル建ては外貨額を入力し、為替レートで円換算して分析します</span>
+              <span className="field-hint">ドル建ては外貨額を入力し、基本情報の共通レートで円換算します</span>
             </div>
             {isUsdPolicy && (
               <div className={`form-group ${formErrors.exchangeRate ? 'has-error' : ''}`}>
-                <label>為替レート（1 USD = 円） <span className="required-mark">*</span></label>
+                <label>現在評価用の共通為替レート</label>
+                <div className="fixed-field-value">
+                  {valuationSettings.usdJpyRate > 0
+                    ? `1 USD = ${valuationSettings.usdJpyRate.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}円`
+                    : '基本情報で未設定'}
+                </div>
+                <span className="field-hint">
+                  基準日: {valuationSettings.fxRateDate || '未設定'}。変更は基本情報から行います
+                </span>
+                {formErrors.exchangeRate && <span className="field-error">{formErrors.exchangeRate}</span>}
+              </div>
+            )}
+            {isUsdPolicy && (
+              <div className="form-group">
+                <label>契約時為替レート（任意）</label>
                 <input
                   type="number"
-                  step="0.01"
                   min="0"
-                  value={formData.exchangeRate || ''}
-                  onChange={e => setExchangeRate(Number(e.target.value))}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={formData.contractExchangeRate || ''}
+                  onChange={e => setField('contractExchangeRate', Number(e.target.value))}
+                  placeholder="証券記載値がある場合"
                 />
-                {formErrors.exchangeRate && <span className="field-error">{formErrors.exchangeRate}</span>}
+                <span className="field-hint">現在評価用の共通レートとは分けて証券ごとに記録します</span>
               </div>
             )}
             <div className={`form-group ${formErrors.insuredId ? 'has-error' : ''}`}>
@@ -1585,13 +1804,72 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
               {formErrors.insuredId && <span className="field-error">{formErrors.insuredId}</span>}
             </div>
             {hasBeneficiaryField && (
-              <div className={`form-group ${formErrors.beneficiaryId ? 'has-error' : ''}`}>
-                <label>保険金受取人 <span className="required-mark">*</span></label>
-                <select value={formData.beneficiaryId || ''} onChange={e => setField('beneficiaryId', e.target.value)}>
-                  <option value="">選択してください</option>
-                  {familyMembers.map(m => <option key={m.id} value={m.id}>{formatFamilyOptionLabel(m)}</option>)}
-                </select>
-                {formErrors.beneficiaryId && <span className="field-error">{formErrors.beneficiaryId}</span>}
+              <div className={`form-group beneficiary-allocation-group ${formErrors.beneficiaryAllocations ? 'has-error' : ''}`}>
+                <div className="beneficiary-allocation-heading">
+                  <label className="beneficiary-allocation-label">死亡保険金受取人・受取割合 <span className="required-mark">*</span></label>
+                  <button
+                    type="button"
+                    className="beneficiary-add-button"
+                    onClick={addBeneficiaryAllocation}
+                    disabled={getBeneficiaryAllocations(formData as Policy).length >= familyMembers.length}
+                  >
+                    <Plus size={13} aria-hidden="true" />
+                    受取人を追加
+                  </button>
+                </div>
+                <div className="beneficiary-allocation-list">
+                  {getBeneficiaryAllocations(formData as Policy).map((allocation, index, allocations) => (
+                    <div className="beneficiary-allocation-row" key={`${allocation.beneficiaryId}-${index}`}>
+                      <select
+                        aria-label={`受取人 ${index + 1}`}
+                        value={allocation.beneficiaryId}
+                        onChange={event => updateBeneficiaryAllocation(index, 'beneficiaryId', event.target.value)}
+                      >
+                        <option value="">選択してください</option>
+                        {familyMembers.map(member => (
+                          <option
+                            key={member.id}
+                            value={member.id}
+                            disabled={allocations.some((item, itemIndex) => itemIndex !== index && item.beneficiaryId === member.id)}
+                          >
+                            {formatFamilyOptionLabel(member)}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="beneficiary-percentage-input">
+                        <input
+                          type="number"
+                          min="0.01"
+                          max="100"
+                          step="0.01"
+                          inputMode="decimal"
+                          aria-label={`受取割合 ${index + 1}`}
+                          value={allocation.percentage}
+                          onChange={event => updateBeneficiaryAllocation(index, 'percentage', Number(event.target.value))}
+                        />
+                        <span>%</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="beneficiary-remove-button"
+                        onClick={() => removeBeneficiaryAllocation(index)}
+                        aria-label={`${index + 1}人目の受取人を削除`}
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="beneficiary-allocation-total">
+                  合計
+                  <strong>
+                    {getBeneficiaryAllocations(formData as Policy)
+                      .reduce((sum, allocation) => sum + allocation.percentage, 0)
+                      .toLocaleString('ja-JP')}%
+                  </strong>
+                </div>
+                <span className="field-hint">受取割合の合計が100%になるように設定してください</span>
+                {formErrors.beneficiaryAllocations && <span className="field-error">{formErrors.beneficiaryAllocations}</span>}
               </div>
             )}
             <div className={`form-group ${formErrors.contractDate ? 'has-error' : ''}`}><label>契約日 <span className="required-mark">*</span></label><input type="date" value={formData.contractDate} onChange={e => setFieldWithContractAge('contractDate', e.target.value)} />{formErrors.contractDate && <span className="field-error">{formErrors.contractDate}</span>}</div>
@@ -1603,6 +1881,19 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                 onChange={e => setField('contractAge', Number(e.target.value))}
               />
               <span className="field-hint">契約日・被保険者の生年月日から自動計算（満年齢）。手入力で上書きできます</span>
+              <button
+                type="button"
+                className="contract-age-reset"
+                onClick={() => autoContractAge !== null && setField('contractAge', autoContractAge)}
+                disabled={autoContractAge === null || !isContractAgeOverridden}
+              >
+                <RotateCcw size={14} aria-hidden="true" />
+                {autoContractAge === null
+                  ? '生年月日を入力すると自動計算できます'
+                  : isContractAgeOverridden
+                    ? `自動計算（${autoContractAge}歳）に戻す`
+                    : `自動計算値（${autoContractAge}歳）`}
+              </button>
             </div>
           </section>
 
@@ -1612,28 +1903,93 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
               <>
                 <div className="form-context-note" role="note">
                   <Info size={15} aria-hidden="true" />
-                  <span>開始年齢・終了年齢・年金原資から、受取期間と年間年金額を表示します。</span>
+                  <span>受取人、開始時期、受取年数、年金原資から年間年金額を表示します。</span>
                 </div>
-                <div className={`form-group ${formErrors.paymentEndAge ? 'has-error' : ''}`}>
-                  <label>年金受取開始年齢（歳）<span className="required-mark">*</span></label>
+                <div className={`form-group ${formErrors.pensionRecipientId ? 'has-error' : ''}`}>
+                  <label>年金受取人 <span className="required-mark">*</span></label>
+                  <select
+                    value={formData.pensionRecipientId || ''}
+                    onChange={e => setField('pensionRecipientId', e.target.value)}
+                  >
+                    <option value="">選択してください</option>
+                    {familyMembers.map(member => (
+                      <option key={member.id} value={member.id}>{formatFamilyOptionLabel(member)}</option>
+                    ))}
+                  </select>
+                  {formErrors.pensionRecipientId && <span className="field-error">{formErrors.pensionRecipientId}</span>}
+                </div>
+                <div className={`form-group ${formErrors.pensionSuccessorRecipientId ? 'has-error' : ''}`}>
+                  <label>死亡時の継続受取人</label>
+                  <select
+                    value={formData.pensionSuccessorRecipientId || ''}
+                    onChange={e => setField('pensionSuccessorRecipientId', e.target.value)}
+                  >
+                    <option value="">指定なし</option>
+                    {familyMembers.map(member => (
+                      <option key={member.id} value={member.id}>{formatFamilyOptionLabel(member)}</option>
+                    ))}
+                  </select>
+                  <span className="field-hint">年金受取人が死亡した場合に残りの年金を受け取る方</span>
+                  {formErrors.pensionSuccessorRecipientId && <span className="field-error">{formErrors.pensionSuccessorRecipientId}</span>}
+                </div>
+                <div className="form-group">
+                  <label>年金受取開始の指定方法</label>
+                  <select
+                    value={pensionStartMode}
+                    onChange={e => setField('pensionStartMode', e.target.value as Policy['pensionStartMode'])}
+                  >
+                    <option value="age">年齢で指定</option>
+                    <option value="fiscalYear">年度で指定</option>
+                  </select>
+                </div>
+                {pensionStartMode === 'age' ? (
+                  <div className={`form-group ${formErrors.paymentEndAge ? 'has-error' : ''}`}>
+                    <label>年金受取開始年齢（歳）<span className="required-mark">*</span></label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={formData.paymentEndAge}
+                      onChange={e => setField('paymentEndAge', Number(e.target.value))}
+                    />
+                    <span className="field-hint">払込終了後に年金を受け取り始める満年齢</span>
+                    {formErrors.paymentEndAge && <span className="field-error">{formErrors.paymentEndAge}</span>}
+                  </div>
+                ) : (
+                  <div className={`form-group ${formErrors.pensionStartFiscalYear ? 'has-error' : ''}`}>
+                    <label>年金受取開始年度<span className="required-mark">*</span></label>
+                    <select
+                      value={pensionStartFiscalYear}
+                      onChange={e => setField('pensionStartFiscalYear', Number(e.target.value))}
+                    >
+                      {fiscalYearOptions.map(year => (
+                        <option key={year} value={year}>{formatFiscalYearOption(year)}</option>
+                      ))}
+                    </select>
+                    <span className="field-hint">
+                      4月1日時点の満年齢で分析します
+                      {pensionStartAge > 0 ? `（${pensionStartAge}歳相当）` : ''}
+                    </span>
+                    {formErrors.pensionStartFiscalYear && <span className="field-error">{formErrors.pensionStartFiscalYear}</span>}
+                  </div>
+                )}
+                <div className={`form-group ${formErrors.pensionPayoutYears ? 'has-error' : ''}`}>
+                  <label>年金受取年数（年）<span className="required-mark">*</span></label>
                   <input
                     type="number"
-                    value={formData.paymentEndAge}
-                    onChange={e => setField('paymentEndAge', Number(e.target.value))}
+                    min="1"
+                    max="100"
+                    value={pensionPayoutYears}
+                    onChange={e => setField('pensionPayoutYears', Number(e.target.value))}
                   />
-                  <span className="field-hint">払込終了後に年金を受け取り始める年齢</span>
-                  {formErrors.paymentEndAge && <span className="field-error">{formErrors.paymentEndAge}</span>}
-                </div>
-                <div className={`form-group ${formErrors.policyEndAge ? 'has-error' : ''}`}>
-                  <label>受取終了年齢（歳）<span className="required-mark">*</span></label>
-                  <input type="number" value={formData.policyEndAge} onChange={e => setField('policyEndAge', Number(e.target.value))} />
-                  <span className="field-hint">例: 65歳開始・75歳終了なら10年間の確定年金</span>
-                  {formErrors.policyEndAge && <span className="field-error">{formErrors.policyEndAge}</span>}
+                  <span className="field-hint">例: 10年確定年金の場合は「10」</span>
+                  {formErrors.pensionPayoutYears && <span className="field-error">{formErrors.pensionPayoutYears}</span>}
                 </div>
                 <CommaInput
                   label={`年金原資（受取総額）(${currencyUnit})`}
                   value={getMoneyValue('maturityBenefit', 'foreignMaturityBenefit')}
                   onChange={v => setMoneyField('maturityBenefit', 'foreignMaturityBenefit', v)}
+                  decimalPlaces={isUsdPolicy ? 2 : 0}
                   required
                   hint={isUsdPolicy ? `円換算: ${(formData.maturityBenefit || 0).toLocaleString()}円` : '年金原資、年金受取総額、年金年額×受取年数など'}
                   error={formErrors.maturityBenefit}
@@ -1642,8 +1998,8 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                   <span>年金表示</span>
                   <strong>
                     {pensionPayoutYears > 0 && formData.maturityBenefit
-                      ? `${pensionStartAge}歳から${pensionPayoutYears}年間・年額${Math.round(pensionAnnualPayout).toLocaleString()}円`
-                      : '開始年齢、終了年齢、年金原資を入力すると計算します'}
+                      ? `${pensionStartMode === 'fiscalYear' ? `${pensionStartFiscalYear}年度（${pensionStartAge}歳相当）` : `${pensionStartAge}歳`}から${pensionPayoutYears}年間・年額${Math.round(pensionAnnualPayout).toLocaleString()}円`
+                      : '開始時期、受取年数、年金原資を入力すると計算します'}
                   </strong>
                 </div>
               </>
@@ -1663,6 +2019,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                       label={`${isIncomeProtection ? '死亡保険金月額' : '死亡保障（疾病）'} (${currencyUnit})`}
                       value={getMoneyValue('deathBenefitDisease', 'foreignDeathBenefitDisease')}
                       onChange={v => setMoneyField('deathBenefitDisease', 'foreignDeathBenefitDisease', v)}
+                      decimalPlaces={isUsdPolicy ? 2 : 0}
                       required
                       hint={isUsdPolicy ? `円換算: ${(formData.deathBenefitDisease || 0).toLocaleString()}円` : undefined}
                       error={formErrors.deathBenefitDisease}
@@ -1672,6 +2029,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                         label={`死亡保障（災害）(${currencyUnit})`}
                         value={getMoneyValue('deathBenefitAccident', 'foreignDeathBenefitAccident')}
                         onChange={v => setMoneyField('deathBenefitAccident', 'foreignDeathBenefitAccident', v)}
+                        decimalPlaces={isUsdPolicy ? 2 : 0}
                         hint={isUsdPolicy ? `円換算: ${(formData.deathBenefitAccident || 0).toLocaleString()}円` : undefined}
                       />
                     )}
@@ -1683,6 +2041,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                       label={`入院日額（疾病）(${currencyUnit})`}
                       value={getMoneyValue('hospDayDisease', 'foreignHospDayDisease')}
                       onChange={v => setMoneyField('hospDayDisease', 'foreignHospDayDisease', v)}
+                      decimalPlaces={isUsdPolicy ? 2 : 0}
                       hint={isUsdPolicy ? `円換算: ${(formData.hospDayDisease || 0).toLocaleString()}円` : undefined}
                       error={formErrors.hospDayDisease}
                     />
@@ -1690,6 +2049,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                       label={`入院日額（災害）(${currencyUnit})`}
                       value={getMoneyValue('hospDayAccident', 'foreignHospDayAccident')}
                       onChange={v => setMoneyField('hospDayAccident', 'foreignHospDayAccident', v)}
+                      decimalPlaces={isUsdPolicy ? 2 : 0}
                       hint={isUsdPolicy ? `円換算: ${(formData.hospDayAccident || 0).toLocaleString()}円` : undefined}
                     />
                   </>
@@ -1699,15 +2059,24 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                     label={`診断一時金 (${currencyUnit})`}
                     value={getMoneyValue('diagnosisBenefit', 'foreignDiagnosisBenefit')}
                     onChange={v => setMoneyField('diagnosisBenefit', 'foreignDiagnosisBenefit', v)}
+                    decimalPlaces={isUsdPolicy ? 2 : 0}
                     hint={isUsdPolicy ? `円換算: ${(formData.diagnosisBenefit || 0).toLocaleString()}円` : undefined}
                     error={formErrors.diagnosisBenefit}
                   />
                 )}
-                <div className={`form-group ${formErrors.policyEndAge ? 'has-error' : ''}`}>
-                  <label>保険期間（歳/999=終身）<span className="required-mark">*</span></label>
-                  <input type="number" value={formData.policyEndAge} onChange={e => setField('policyEndAge', Number(e.target.value))} />
-                  {formErrors.policyEndAge && <span className="field-error">{formErrors.policyEndAge}</span>}
-                </div>
+                {isWholeLifeCoverage ? (
+                  <div className="form-group">
+                    <label>保険期間</label>
+                    <div className="fixed-field-value">終身</div>
+                    <span className="field-hint">終身保険のため、保障終了年齢の入力は不要です</span>
+                  </div>
+                ) : (
+                  <div className={`form-group ${formErrors.policyEndAge ? 'has-error' : ''}`}>
+                    <label>保険期間（歳/999=終身）<span className="required-mark">*</span></label>
+                    <input type="number" value={formData.policyEndAge} onChange={e => setField('policyEndAge', Number(e.target.value))} />
+                    {formErrors.policyEndAge && <span className="field-error">{formErrors.policyEndAge}</span>}
+                  </div>
+                )}
               </>
             )}
           </section>
@@ -1723,11 +2092,77 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
               </select>
             </div>
             <CommaInput
-              label={`保険料（1回あたり）(${currencyUnit})`}
+              label={isUsdPolicy && formData.paymentFrequency === 'single'
+                ? '契約上の一時払保険料 (USD)'
+                : `保険料（1回あたり）(${currencyUnit})`}
               value={getMoneyValue('premiumAmount', 'foreignPremiumAmount')}
               onChange={v => setMoneyField('premiumAmount', 'foreignPremiumAmount', v)}
-              hint={isUsdPolicy ? `円換算: ${(formData.premiumAmount || 0).toLocaleString()}円` : undefined}
+              decimalPlaces={isUsdPolicy ? 2 : 0}
+              hint={isUsdPolicy
+                ? formData.paymentFrequency === 'single' && paymentCurrency === 'JPY' && (formData.actualPremiumPaidJpy || 0) > 0
+                  ? `コスト計上額: ${Number(formData.actualPremiumPaidJpy).toLocaleString()}円`
+                  : `共通レート円換算: ${(formData.premiumAmount || 0).toLocaleString()}円`
+                : undefined}
+              error={formErrors.foreignPremiumAmount}
             />
+            {isUsdPolicy && formData.paymentFrequency === 'single' && (
+              <>
+                <div className="form-group">
+                  <label>支払通貨 <span className="required-mark">*</span></label>
+                  <select
+                    value={paymentCurrency}
+                    onChange={e => setField('paymentCurrency', e.target.value as Policy['paymentCurrency'])}
+                  >
+                    <option value="JPY">円で支払った</option>
+                    <option value="USD">ドルで支払った</option>
+                  </select>
+                </div>
+                <div className={`form-group ${formErrors.premiumPaymentDate ? 'has-error' : ''}`}>
+                  <label>支払日 <span className="required-mark">*</span></label>
+                  <input
+                    type="date"
+                    value={formData.premiumPaymentDate || ''}
+                    onChange={e => setField('premiumPaymentDate', e.target.value)}
+                  />
+                  {formErrors.premiumPaymentDate && <span className="field-error">{formErrors.premiumPaymentDate}</span>}
+                </div>
+                {paymentCurrency === 'JPY' && (
+                  <CommaInput
+                    label="実際の一時払保険料（円）"
+                    value={Number(formData.actualPremiumPaidJpy || 0)}
+                    onChange={value => setFormData(prev => ({
+                      ...prev,
+                      actualPremiumPaidJpy: value,
+                      premiumAmount: value,
+                    }))}
+                    required
+                    hint="コスト計算には、支払日の実際の円支払額を使用します"
+                    error={formErrors.actualPremiumPaidJpy}
+                  />
+                )}
+                <div className="form-group">
+                  <label>支払時為替レート</label>
+                  <div className="fixed-field-value">
+                    {paymentCurrency === 'JPY' && derivedPaymentExchangeRate > 0
+                      ? `1 USD = ${derivedPaymentExchangeRate.toLocaleString('ja-JP', { maximumFractionDigits: 4 })}円`
+                      : paymentCurrency === 'USD' ? 'ドルで直接支払い' : '円額とドル額から自動計算'}
+                  </div>
+                </div>
+              </>
+            )}
+            {formData.paymentFrequency !== 'single' && (
+              <label className="payment-completed-check">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.premiumPaymentCompleted)}
+                  onChange={e => setField('premiumPaymentCompleted', e.target.checked)}
+                />
+                <span>
+                  <strong>保険料の払込は終了済み</strong>
+                  <small>現在の月額負担と残り払込額には含めません</small>
+                </span>
+              </label>
+            )}
             {!isPension && (
               <>
                 <div className={`form-group ${formErrors.paymentEndAge ? 'has-error' : ''}`}>
@@ -1737,7 +2172,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                       type="number"
                       value={isWholeLifePayment ? '' : formData.paymentEndAge}
                       disabled={isWholeLifePayment}
-                      placeholder={isWholeLifePayment ? '終身払' : undefined}
+                      placeholder={isWholeLifePayment ? '終身払い' : undefined}
                       onChange={e => setField('paymentEndAge', Number(e.target.value))}
                     />
                     <label className="wholelife-pay-check">
@@ -1746,7 +2181,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                         checked={isWholeLifePayment}
                         onChange={e => setField('paymentEndAge', e.target.checked ? 999 : 60)}
                       />
-                      終身払
+                      終身払い
                     </label>
                   </div>
                   {formErrors.paymentEndAge && <span className="field-error">{formErrors.paymentEndAge}</span>}
@@ -1756,6 +2191,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                     label={`${formData.policyType === '養老保険' ? '満期保険金' : '解約返戻金・満期保険金'} (${currencyUnit})`}
                     value={getMoneyValue('maturityBenefit', 'foreignMaturityBenefit')}
                     onChange={v => setMoneyField('maturityBenefit', 'foreignMaturityBenefit', v)}
+                    decimalPlaces={isUsdPolicy ? 2 : 0}
                     required={formData.policyType === '養老保険'}
                     hint={isUsdPolicy ? `円換算: ${(formData.maturityBenefit || 0).toLocaleString()}円` : undefined}
                     error={formErrors.maturityBenefit}

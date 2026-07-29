@@ -1,19 +1,21 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { FamilyMember, Agency, AgencyMaster } from '@/types';
+import type { FamilyMember, Agency, AgencyMaster, ValuationSettings } from '@/types';
 import {
   createAgencyMaster,
   fetchAgencyMasters,
   updateAgencyMaster,
 } from '@/lib/api';
-import { User, X, Plus, Trash2, Building2, Download, Save, RefreshCw } from 'lucide-react';
+import { User, X, Plus, Trash2, Building2, Download, Save, RefreshCw, DollarSign } from 'lucide-react';
 import { mergeRelationshipSuggestions } from '@/utils/relationshipOptions';
 
 interface CustomerModalProps {
   familyMembers: FamilyMember[];
   agency: Agency;
-  onSave: (updatedFamily: FamilyMember[], updatedAgency: Agency) => Promise<void> | void;
+  valuationSettings: ValuationSettings;
+  hasUsdPolicies: boolean;
+  onSave: (updatedFamily: FamilyMember[], updatedAgency: Agency, updatedValuationSettings: ValuationSettings) => Promise<void> | void;
   onClose: () => void;
 }
 
@@ -27,9 +29,17 @@ function sortAgencyMasters(masters: AgencyMaster[]): AgencyMaster[] {
   return [...masters].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
 }
 
-const CustomerModal: React.FC<CustomerModalProps> = ({ familyMembers, agency, onSave, onClose }) => {
+const CustomerModal: React.FC<CustomerModalProps> = ({
+  familyMembers,
+  agency,
+  valuationSettings,
+  hasUsdPolicies,
+  onSave,
+  onClose,
+}) => {
   const [tempMembers, setTempMembers] = useState<FamilyMember[]>(familyMembers);
   const [tempAgency, setTempAgency] = useState<Agency>(agency);
+  const [tempValuationSettings, setTempValuationSettings] = useState<ValuationSettings>(valuationSettings);
   const [agencyMasters, setAgencyMasters] = useState<AgencyMaster[]>([]);
   const [selectedAgencyMasterId, setSelectedAgencyMasterId] = useState('');
   const [agencyMasterNotice, setAgencyMasterNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -151,13 +161,17 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ familyMembers, agency, on
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
+    if (hasUsdPolicies && tempValuationSettings.usdJpyRate <= 0) {
+      setSubmitError('ドル建て証券があるため、現在評価用のUSD/JPYレートを入力してください');
+      return;
+    }
     setIsSubmitting(true);
     try {
       await onSave(tempMembers, {
         name: tempAgency.name.trim(),
         representative: tempAgency.representative.trim(),
         phone: tempAgency.phone.trim(),
-      });
+      }, tempValuationSettings);
       onClose();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : '保存に失敗しました');
@@ -172,7 +186,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ familyMembers, agency, on
         <div className="modal-header">
           <div className="title-with-icon">
             <User className="icon" />
-            <h3>世帯・代理店情報の設定</h3>
+            <h3>基本情報の設定</h3>
           </div>
           <button className="close-btn" onClick={onClose}><X size={20} /></button>
         </div>
@@ -211,6 +225,40 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ familyMembers, agency, on
             ))}
           </div>
           <button type="button" className="add-member-btn" onClick={handleAddMember}><Plus size={16} /> 家族を追加</button>
+
+          <h4 style={{marginTop: '2rem'}}><div className="title-with-icon"><DollarSign size={20} className="icon" /> 現在評価用の為替レート</div></h4>
+          <div className="form-context-note" role="note">
+            ドル建て死亡保障・解約返戻金などの現在円換算に、すべての証券で共通して使用します。
+          </div>
+          <div className="grid-form valuation-settings-grid">
+            <div className="form-group">
+              <label>USD/JPYレート（1 USD = 円）{hasUsdPolicies && <span className="required-mark">*</span>}</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={tempValuationSettings.usdJpyRate || ''}
+                onChange={e => setTempValuationSettings(current => ({
+                  ...current,
+                  usdJpyRate: Number(e.target.value),
+                }))}
+                placeholder="例：160.00"
+                required={hasUsdPolicies}
+              />
+            </div>
+            <div className="form-group">
+              <label>為替レート基準日</label>
+              <input
+                type="date"
+                value={tempValuationSettings.fxRateDate}
+                onChange={e => setTempValuationSettings(current => ({
+                  ...current,
+                  fxRateDate: e.target.value,
+                }))}
+              />
+            </div>
+          </div>
 
           <h4 style={{marginTop: '2rem'}}><div className="title-with-icon"><Building2 size={20} className="icon" /> 代理店情報</div></h4>
           <div className="agency-master-tools">

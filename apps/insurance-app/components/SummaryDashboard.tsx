@@ -3,6 +3,7 @@ import { isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember } from '@/types';
 import { Activity, CreditCard, Info, Shield } from 'lucide-react';
 import { getActiveMonthlyPremium, getDeathBenefitAtAge, getIncomeProtectionDeathBenefitTotal } from '@/utils/analysisUtils';
+import { formatWholeManYen } from '@/utils/currencyUtils';
 
 interface SummaryDashboardProps {
   policies: Policy[];
@@ -58,7 +59,7 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({ policies, familyMem
           <Info size={14} className="card-info-icon" aria-label={deathBenefitNote} />
         </div>
         <div className={`card-value ${totalDeathBenefit === null ? 'card-value-muted' : ''}`}>
-          {totalDeathBenefit === null ? '年齢未入力' : `${(totalDeathBenefit / 10000).toLocaleString()}万円`}
+          {totalDeathBenefit === null ? '年齢未入力' : formatWholeManYen(totalDeathBenefit)}
         </div>
         <div className="card-subtext card-subtext-two-line">
           <span>試算日時点の概算。</span>

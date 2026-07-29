@@ -19,7 +19,9 @@ import { PrintPagesProvider } from '@/components/PrintPageContext';
 import { buildPrintPageKeys } from '@/utils/printPages';
 import { CASE_SECTIONS, sectionPanelClassName, type CaseSectionKey } from '@/utils/caseSections';
 import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType } from '@/types';
-import type { Policy, FamilyMember, Agency, AppState, EvaluationOverride } from '@/types';
+import type { Policy, FamilyMember, Agency, AppState, EvaluationOverride, ValuationSettings } from '@/types';
+import { applyValuationRateToPolicy, EMPTY_VALUATION_SETTINGS, inferValuationSettings } from '@/utils/currencyUtils';
+import { getBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
 import {
   fetchAppState,
   saveAppState as apiSave,
@@ -41,7 +43,12 @@ const DEATH_BENEFIT_TYPES = ['終身保険', '定期保険', '収入保障保険
 const MEDICAL_BENEFIT_TYPES = ['医療保険', 'がん保険'] as const;
 const FINITE_END_AGE_TYPES = ['定期保険', '収入保障保険', '養老保険'] as const;
 
-function validateBeforeSave(familyMembers: FamilyMember[], policies: Policy[], agency: Agency): string | null {
+function validateBeforeSave(
+  familyMembers: FamilyMember[],
+  policies: Policy[],
+  agency: Agency,
+  valuationSettings: ValuationSettings,
+): string | null {
   if (familyMembers.length === 0) return '家族情報が1件もありません';
   for (const m of familyMembers) {
     if (!m.id) return '家族情報にIDが不足しています';
@@ -51,21 +58,36 @@ function validateBeforeSave(familyMembers: FamilyMember[], policies: Policy[], a
   if (typeof agency.name !== 'string' || typeof agency.representative !== 'string' || typeof agency.phone !== 'string') {
     return '代理店情報が不正です';
   }
+  const familyMemberIds = new Set(familyMembers.map(member => member.id));
   for (const p of policies) {
     if (!p.companyName) return `保険会社が未入力の証券があります`;
     if (!VALID_POLICY_TYPES.includes(p.policyType)) return `保険種類「${p.policyType}」が不正です`;
     if (!p.contractDate) return '契約日が未入力の証券があります';
     if (!p.insuredId) return '被保険者が未設定の証券があります';
     if (!VALID_FREQUENCIES.includes(p.paymentFrequency)) return `払方「${p.paymentFrequency}」が不正です`;
-    if (p.currency === 'USD' && (!p.exchangeRate || p.exchangeRate <= 0)) return 'ドル建て商品は為替レートが必要です';
+    if (p.currency === 'USD' && valuationSettings.usdJpyRate <= 0) {
+      return 'ドル建て商品があるため、基本情報に現在評価用USD/JPYレートを入力してください';
+    }
     if (p.policyType === '個人年金保険') {
       if (!p.paymentEndAge || p.paymentEndAge === 999) return '個人年金保険は年金受取開始年齢が必要です';
-      if (!p.policyEndAge || p.policyEndAge === 999) return '個人年金保険は受取終了年齢が必要です';
-      if (p.policyEndAge <= p.paymentEndAge) return '個人年金保険の受取終了年齢は受取開始年齢より後にしてください';
+      if (!p.pensionRecipientId) return '個人年金保険は年金受取人が必要です';
+      if (p.pensionStartMode === 'fiscalYear' && (!p.pensionStartFiscalYear || p.pensionStartFiscalYear < 1900 || p.pensionStartFiscalYear > 2200)) {
+        return '個人年金保険は年金受取開始年度が必要です';
+      }
+      if (!p.pensionPayoutYears || p.pensionPayoutYears <= 0 || p.pensionPayoutYears > 100) {
+        return '個人年金保険は1〜100年の年金受取年数が必要です';
+      }
       if (!p.maturityBenefit || p.maturityBenefit <= 0) return '個人年金保険は年金原資（受取総額）が必要です';
     } else {
       if ((DEATH_BENEFIT_TYPES as readonly string[]).includes(p.policyType)) {
-        if (!p.beneficiaryId) return `${p.policyType}は保険金受取人が必要です`;
+        const allocations = getBeneficiaryAllocations(p);
+        if (allocations.length === 0) return `${p.policyType}は保険金受取人が必要です`;
+        if (allocations.some(allocation => !familyMemberIds.has(allocation.beneficiaryId))) {
+          return `${p.policyType}の保険金受取人が家族情報に存在しません`;
+        }
+        if (Math.abs(allocations.reduce((sum, allocation) => sum + allocation.percentage, 0) - 100) > 0.001) {
+          return `${p.policyType}は受取割合の合計を100%にしてください`;
+        }
         if (!p.deathBenefitDisease || p.deathBenefitDisease <= 0) {
           return `${p.policyType}は${isIncomeProtectionPolicyType(p.policyType) ? '死亡保険金月額' : '死亡保障額'}が必要です`;
         }
@@ -113,6 +135,7 @@ export default function Page() {
     representative: "",
     phone: ""
   });
+  const [valuationSettings, setValuationSettings] = useState<ValuationSettings>(EMPTY_VALUATION_SETTINGS);
   const [isLoading, setIsLoading] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null);
   const [isPolicyFormOpen, setIsPolicyFormOpen] = useState(false);
@@ -144,9 +167,11 @@ export default function Page() {
   }, []);
 
   const applyState = useCallback((state: AppState) => {
+    const nextValuationSettings = inferValuationSettings(state.valuationSettings, state.policies);
     setFamilyMembers(state.familyMembers);
-    setPolicies(state.policies);
+    setPolicies(state.policies.map(policy => applyValuationRateToPolicy(policy, nextValuationSettings.usdJpyRate)));
     setAgency(state.agency);
+    setValuationSettings(nextValuationSettings);
     setHasUnsavedChanges(false);
     setSaveError(null);
     setLastSavedAt(formatLastSavedAt(state.updatedAt) ?? new Date().toLocaleString('ja-JP', {
@@ -228,7 +253,7 @@ export default function Page() {
       fetchCases(),
     ]);
     downloadAppStateJson(
-      { familyMembers, policies, agency },
+      { familyMembers, policies, agency, valuationSettings },
       {
         caseTitle: cases.find(c => c.id === caseId)?.title,
         portfolioInsights: insights.map(({ type, text, isCustom }) => ({ type, text, isCustom })),
@@ -352,7 +377,7 @@ export default function Page() {
 
   const handleSave = async () => {
     if (!activeCaseId) return;
-    const validationError = validateBeforeSave(familyMembers, policies, agency);
+    const validationError = validateBeforeSave(familyMembers, policies, agency, valuationSettings);
     if (validationError) {
       setSaveError(validationError);
       addToast('warning', validationError);
@@ -362,7 +387,13 @@ export default function Page() {
     setSaveError(null);
     setError(null);
     try {
-      const state = await apiSave(activeCaseId, { familyMembers, policies, agency });
+      const normalizedPolicies = policies.map(policy => applyValuationRateToPolicy(policy, valuationSettings.usdJpyRate));
+      const state = await apiSave(activeCaseId, {
+        familyMembers,
+        policies: normalizedPolicies,
+        agency,
+        valuationSettings,
+      });
       applyState(state);
       addToast('success', '保存しました');
     } catch (err) {
@@ -389,9 +420,16 @@ export default function Page() {
     setCsvImportOpen(false);
   };
 
-  const handleSaveModal = async (updatedFamily: FamilyMember[], updatedAgency: Agency) => {
+  const handleSaveModal = async (
+    updatedFamily: FamilyMember[],
+    updatedAgency: Agency,
+    updatedValuationSettings: ValuationSettings,
+  ) => {
     if (!activeCaseId) return;
-    const validationError = validateBeforeSave(updatedFamily, policies, updatedAgency);
+    const normalizedPolicies = policies.map(policy =>
+      applyValuationRateToPolicy(policy, updatedValuationSettings.usdJpyRate)
+    );
+    const validationError = validateBeforeSave(updatedFamily, normalizedPolicies, updatedAgency, updatedValuationSettings);
     if (validationError) {
       setSaveError(validationError);
       addToast('warning', validationError);
@@ -402,7 +440,12 @@ export default function Page() {
     setSaveError(null);
     setError(null);
     try {
-      const state = await apiSave(activeCaseId, { familyMembers: updatedFamily, policies, agency: updatedAgency });
+      const state = await apiSave(activeCaseId, {
+        familyMembers: updatedFamily,
+        policies: normalizedPolicies,
+        agency: updatedAgency,
+        valuationSettings: updatedValuationSettings,
+      });
       applyState(state);
       addToast('success', '世帯・代理店情報を保存しました');
     } catch (err) {
@@ -468,6 +511,8 @@ export default function Page() {
           <CustomerModal
             familyMembers={familyMembers}
             agency={agency}
+            valuationSettings={valuationSettings}
+            hasUsdPolicies={policies.some(policy => policy.currency === 'USD')}
             onSave={handleSaveModal}
             onClose={() => setIsCustomerModalOpen(false)}
           />
@@ -585,6 +630,7 @@ export default function Page() {
                 policies={policies}
                 familyMembers={familyMembers}
                 currentAge={displayAge}
+                valuationSettings={valuationSettings}
                 onDelete={handleDeletePolicy}
                 onEdit={handleEditStart}
                 onAddNew={() => setIsPolicyFormOpen(true)}
@@ -626,6 +672,7 @@ export default function Page() {
               familyMembers={familyMembers}
               existingPolicies={policies}
               editingPolicy={editingPolicy}
+              valuationSettings={valuationSettings}
             />
 
           </main>

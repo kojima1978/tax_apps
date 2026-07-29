@@ -18,6 +18,7 @@ import {
 } from '@/utils/analysisUtils';
 import EvaluationBadge from '@/components/EvaluationBadge';
 import PolicyMiniChart from '@/components/PolicyMiniChart';
+import { getBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
 
 interface PolicyAnalysisCardProps {
   policy: Policy;
@@ -71,6 +72,9 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
     const member = familyMembers.find(m => m.id === id);
     return member ? member.name : '未設定';
   };
+  const beneficiaryLabel = getBeneficiaryAllocations(policy)
+    .map(allocation => `${getMemberName(allocation.beneficiaryId)} ${allocation.percentage.toLocaleString('ja-JP')}%`)
+    .join('、') || '未設定';
 
   const formatYen = (amount: number) => {
     // 補間値は端数が出るので万円表示は小数第1位まで
@@ -115,7 +119,14 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
         <div className="pac-header-meta">
           <span>証券番号: {policy.policyNumber}</span>
           <span>被保険者: {getMemberName(policy.insuredId)}</span>
-          <span>保険金受取人: {getMemberName(policy.beneficiaryId)}</span>
+          {policy.policyType === '個人年金保険' ? (
+            <>
+              <span>年金受取人: {getMemberName(policy.pensionRecipientId || policy.insuredId)}</span>
+              <span>死亡時の継続受取人: {policy.pensionSuccessorRecipientId ? getMemberName(policy.pensionSuccessorRecipientId) : '指定なし'}</span>
+            </>
+          ) : (
+            <span>保険金受取人: {beneficiaryLabel}</span>
+          )}
         </div>
       </div>
 
@@ -186,11 +197,25 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
               <div className="pac-data-grid">
                 <div className="pac-data-row">
                   <span className="pac-data-label">年金受取開始</span>
-                  <span className="pac-data-value">{pensionSummary.startAge}歳</span>
+                  <span className="pac-data-value">
+                    {policy.pensionStartMode === 'fiscalYear' && policy.pensionStartFiscalYear
+                      ? `${policy.pensionStartFiscalYear}年度（${pensionSummary.startAge}歳相当）`
+                      : `${pensionSummary.startAge}歳`}
+                  </span>
                 </div>
                 <div className="pac-data-row">
                   <span className="pac-data-label">受取期間</span>
-                  <span className="pac-data-value">{policy.policyEndAge === 999 ? '終身' : `${pensionSummary.periodYears}年間`}</span>
+                  <span className="pac-data-value">{pensionSummary.periodYears}年間</span>
+                </div>
+                <div className="pac-data-row">
+                  <span className="pac-data-label">年金受取人</span>
+                  <span className="pac-data-value">{getMemberName(policy.pensionRecipientId || policy.insuredId)}</span>
+                </div>
+                <div className="pac-data-row">
+                  <span className="pac-data-label">死亡時の継続受取人</span>
+                  <span className="pac-data-value">
+                    {policy.pensionSuccessorRecipientId ? getMemberName(policy.pensionSuccessorRecipientId) : '指定なし'}
+                  </span>
                 </div>
                 <div className="pac-data-row">
                   <span className="pac-data-label">年間年金額</span>
@@ -202,7 +227,7 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
                 </div>
               </div>
               <div className="pac-coverage-period">
-                年金原資 ÷ {policy.policyEndAge === 999 ? '20年（仮置き）' : `${pensionSummary.periodYears}年`}で年間年金額を概算
+                年金原資 ÷ {pensionSummary.periodYears}年で年間年金額を概算
               </div>
             </div>
           )}

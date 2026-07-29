@@ -21,6 +21,11 @@ const HEADER_MAP: Record<string, string> = {
   '被保険者名': 'insuredName',
   '受取人': 'beneficiaryName',
   '受取人名': 'beneficiaryName',
+  '年金受取人': 'pensionRecipientName',
+  '死亡時の継続受取人': 'pensionSuccessorRecipientName',
+  '年金受取開始方法': 'pensionStartMode',
+  '年金受取開始年度': 'pensionStartFiscalYear',
+  '年金受取年数': 'pensionPayoutYears',
   '死亡保障疾病': 'deathBenefitDisease',
   '死亡保障災害': 'deathBenefitAccident',
   '入院日額疾病': 'hospDayDisease',
@@ -29,6 +34,10 @@ const HEADER_MAP: Record<string, string> = {
   '保険期間': 'policyEndAge',
   '通貨': 'currency',
   '為替レート': 'exchangeRate',
+  '契約時為替レート': 'contractExchangeRate',
+  '支払通貨': 'paymentCurrency',
+  '一時払保険料実支払円額': 'actualPremiumPaidJpy',
+  '一時払保険料支払日': 'premiumPaymentDate',
   '保険料USD': 'foreignPremiumAmount',
   '死亡保障疾病USD': 'foreignDeathBenefitDisease',
   '死亡保障災害USD': 'foreignDeathBenefitAccident',
@@ -41,6 +50,7 @@ const HEADER_MAP: Record<string, string> = {
   '保険料': 'premiumAmount',
   '払込終了年月日': 'paymentEndDate',
   '払込終了年齢': 'paymentEndAge',
+  '払込終了済み': 'premiumPaymentCompleted',
   '満期保険金': 'maturityBenefit',
   '満期保険金/年金原資': 'maturityBenefit',
   '年金原資': 'maturityBenefit',
@@ -59,6 +69,11 @@ interface CsvRow {
   contractAge?: string;
   insuredName?: string;
   beneficiaryName?: string;
+  pensionRecipientName?: string;
+  pensionSuccessorRecipientName?: string;
+  pensionStartMode?: string;
+  pensionStartFiscalYear?: string;
+  pensionPayoutYears?: string;
   deathBenefitDisease?: string;
   deathBenefitAccident?: string;
   hospDayDisease?: string;
@@ -67,6 +82,10 @@ interface CsvRow {
   policyEndAge?: string;
   currency?: string;
   exchangeRate?: string;
+  contractExchangeRate?: string;
+  paymentCurrency?: string;
+  actualPremiumPaidJpy?: string;
+  premiumPaymentDate?: string;
   foreignPremiumAmount?: string;
   foreignDeathBenefitDisease?: string;
   foreignDeathBenefitAccident?: string;
@@ -78,6 +97,7 @@ interface CsvRow {
   premiumAmount?: string;
   paymentEndDate?: string;
   paymentEndAge?: string;
+  premiumPaymentCompleted?: string;
   maturityBenefit?: string;
   consultantNote?: string;
 }
@@ -167,6 +187,11 @@ function parseNumberOrDefault(value: string | undefined, defaultValue: number): 
   return Number.isFinite(n) ? n : defaultValue;
 }
 
+function parsePaymentCompleted(value: string | undefined): boolean {
+  if (!value) return false;
+  return ['1', 'true', 'yes', '済', '終了', '終了済み', '払込済み'].includes(value.trim().toLowerCase());
+}
+
 function yenFromForeign(amount: number, exchangeRate: number): number {
   return Math.round((amount || 0) * (exchangeRate || 0));
 }
@@ -217,6 +242,8 @@ export function importCsv(
   records = normalizeHeaders(records);
 
   const db = getDb();
+  const currentState = getAppState(caseId);
+  const commonUsdJpyRate = currentState?.valuationSettings?.usdJpyRate || 0;
   const memberRows = db.prepare('SELECT id, name FROM family_members WHERE case_id = ?').all(caseId) as { id: string; name: string }[];
   const memberByName = new Map<string, FamilyMember['id']>();
   for (const m of memberRows) {
@@ -277,7 +304,25 @@ export function importCsv(
       beneficiaryId = bid;
     }
 
-    if (!row.policyEndAge?.trim()) {
+    let pensionRecipientId = '';
+    let pensionSuccessorRecipientId = '';
+    if (normalizedPolicyType === '個人年金保険') {
+      const recipientName = row.pensionRecipientName?.trim() || row.insuredName.trim();
+      pensionRecipientId = memberByName.get(recipientName) || '';
+      if (!pensionRecipientId) {
+        errors.push({ row: rowNum, message: `年金受取人「${recipientName}」が家族情報に存在しません` });
+        continue;
+      }
+      if (row.pensionSuccessorRecipientName?.trim()) {
+        pensionSuccessorRecipientId = memberByName.get(row.pensionSuccessorRecipientName.trim()) || '';
+        if (!pensionSuccessorRecipientId) {
+          errors.push({ row: rowNum, message: `死亡時の継続受取人「${row.pensionSuccessorRecipientName.trim()}」が家族情報に存在しません` });
+          continue;
+        }
+      }
+    }
+
+    if (normalizedPolicyType !== '個人年金保険' && !row.policyEndAge?.trim()) {
       errors.push({ row: rowNum, message: '保険期間は必須です' });
       continue;
     }
@@ -289,7 +334,9 @@ export function importCsv(
       errors.push({ row: rowNum, message: '保険料は必須です' });
       continue;
     }
-    if (!row.paymentEndDate?.trim() && !row.paymentEndAge?.trim()) {
+    const hasFiscalYearPensionStart = normalizedPolicyType === '個人年金保険'
+      && Boolean(row.pensionStartFiscalYear?.trim());
+    if (!hasFiscalYearPensionStart && !row.paymentEndDate?.trim() && !row.paymentEndAge?.trim()) {
       errors.push({ row: rowNum, message: '払込終了年月日または払込終了年齢は必須です' });
       continue;
     }
@@ -305,16 +352,38 @@ export function importCsv(
     }
     if (contractAge < 0) contractAge = 0;
 
+    const pensionStartMode: Policy['pensionStartMode'] = normalizedPolicyType === '個人年金保険'
+      && (row.pensionStartMode?.trim() === 'fiscalYear'
+        || row.pensionStartMode?.includes('年度')
+        || hasFiscalYearPensionStart)
+      ? 'fiscalYear'
+      : 'age';
+    const pensionStartFiscalYear = parseIntOrDefault(row.pensionStartFiscalYear, 0);
     let paymentEndAge = parseIntOrDefault(row.paymentEndAge, -1);
+    if (pensionStartMode === 'fiscalYear' && pensionStartFiscalYear > 0 && hasBirthDate) {
+      paymentEndAge = calcAge(insuredBirthDate, `${pensionStartFiscalYear}-04-01`);
+    }
     if (paymentEndAge < 0 && hasBirthDate && row.paymentEndDate?.trim()) {
       paymentEndAge = calcAge(insuredBirthDate, row.paymentEndDate.trim());
     }
     if (paymentEndAge < 0) paymentEndAge = 0;
 
     const policyType = normalizedPolicyType;
-    const policyEndAge = parseIntOrDefault(row.policyEndAge, 0);
+    let policyEndAge = parseIntOrDefault(row.policyEndAge, 0);
+    if (normalizedPolicyType === '終身保険' || normalizedPolicyType === '変額終身保険') {
+      policyEndAge = 999;
+    }
+    const legacyPensionPayoutYears = policyEndAge > paymentEndAge ? policyEndAge - paymentEndAge : 0;
+    const pensionPayoutYears = normalizedPolicyType === '個人年金保険'
+      ? parseIntOrDefault(row.pensionPayoutYears, legacyPensionPayoutYears)
+      : 0;
+    if (normalizedPolicyType === '個人年金保険' && paymentEndAge > 0 && pensionPayoutYears > 0) {
+      policyEndAge = paymentEndAge + pensionPayoutYears;
+    }
     const currency = row.currency?.trim() === 'USD' || row.currency?.trim() === 'ドル' ? 'USD' : 'JPY';
-    const exchangeRate = currency === 'USD' ? parseNumberOrDefault(row.exchangeRate, 0) : 0;
+    const legacyExchangeRate = currency === 'USD' ? parseNumberOrDefault(row.exchangeRate, 0) : 0;
+    const exchangeRate = currency === 'USD' ? (commonUsdJpyRate || legacyExchangeRate) : 0;
+    const contractExchangeRate = parseNumberOrDefault(row.contractExchangeRate, legacyExchangeRate);
     const foreignPremiumAmount = parseNumberOrDefault(row.foreignPremiumAmount, 0);
     const foreignDeathBenefitDisease = parseNumberOrDefault(row.foreignDeathBenefitDisease, 0);
     const foreignDeathBenefitAccident = parseNumberOrDefault(row.foreignDeathBenefitAccident, 0);
@@ -326,11 +395,16 @@ export function importCsv(
       errors.push({ row: rowNum, message: 'ドル建ては為替レートが必須です' });
       continue;
     }
+    const freq = row.paymentFrequency!.trim() as Policy['paymentFrequency'];
+    const paymentCurrency: Policy['paymentCurrency'] = row.paymentCurrency?.trim().toUpperCase() === 'USD' ? 'USD' : 'JPY';
+    const actualPremiumPaidJpy = parseIntOrDefault(row.actualPremiumPaidJpy, 0);
     const maturityBenefit = currency === 'USD' && foreignMaturityBenefit > 0
       ? yenFromForeign(foreignMaturityBenefit, exchangeRate)
       : parseIntOrDefault(row.maturityBenefit, 0);
-    const premiumAmount = currency === 'USD' && foreignPremiumAmount > 0
-      ? yenFromForeign(foreignPremiumAmount, exchangeRate)
+    const premiumAmount = currency === 'USD' && freq === 'single' && paymentCurrency === 'JPY' && actualPremiumPaidJpy > 0
+      ? actualPremiumPaidJpy
+      : currency === 'USD' && foreignPremiumAmount > 0
+        ? yenFromForeign(foreignPremiumAmount, exchangeRate)
       : parseIntOrDefault(row.premiumAmount, 0);
     const deathBenefitDisease = currency === 'USD' && foreignDeathBenefitDisease > 0
       ? yenFromForeign(foreignDeathBenefitDisease, exchangeRate)
@@ -347,19 +421,17 @@ export function importCsv(
     const diagnosisBenefit = currency === 'USD' && foreignDiagnosisBenefit > 0
       ? yenFromForeign(foreignDiagnosisBenefit, exchangeRate)
       : parseIntOrDefault(row.diagnosisBenefit, 0);
-    const freq = row.paymentFrequency!.trim() as Policy['paymentFrequency'];
-
     if (policyType === '個人年金保険') {
       if (!paymentEndAge || paymentEndAge === 999) {
         errors.push({ row: rowNum, message: '個人年金保険は年金受取開始年齢が必須です' });
         continue;
       }
-      if (!policyEndAge || policyEndAge === 999) {
-        errors.push({ row: rowNum, message: '個人年金保険は受取終了年齢が必須です' });
+      if (pensionStartMode === 'fiscalYear' && (!pensionStartFiscalYear || !hasBirthDate)) {
+        errors.push({ row: rowNum, message: '年度指定には年金受取開始年度と被保険者の生年月日が必須です' });
         continue;
       }
-      if (policyEndAge <= paymentEndAge) {
-        errors.push({ row: rowNum, message: '個人年金保険の受取終了年齢は受取開始年齢より後にしてください' });
+      if (!pensionPayoutYears || pensionPayoutYears < 1 || pensionPayoutYears > 100) {
+        errors.push({ row: rowNum, message: '個人年金保険は1〜100年の年金受取年数が必須です' });
         continue;
       }
       if (maturityBenefit <= 0) {
@@ -408,6 +480,11 @@ export function importCsv(
         contractAge,
         insuredId,
         beneficiaryId,
+        pensionRecipientId: policyType === '個人年金保険' ? pensionRecipientId : undefined,
+        pensionSuccessorRecipientId: policyType === '個人年金保険' ? pensionSuccessorRecipientId : undefined,
+        pensionStartMode: policyType === '個人年金保険' ? pensionStartMode : undefined,
+        pensionStartFiscalYear: policyType === '個人年金保険' && pensionStartMode === 'fiscalYear' ? pensionStartFiscalYear : undefined,
+        pensionPayoutYears: policyType === '個人年金保険' ? pensionPayoutYears : undefined,
         deathBenefitDisease,
         deathBenefitAccident: isIncomeProtectionPolicyType(policyType) ? 0 : deathBenefitAccident,
         hospDayDisease,
@@ -416,6 +493,7 @@ export function importCsv(
         policyEndAge,
         currency,
         exchangeRate,
+        contractExchangeRate: currency === 'USD' && contractExchangeRate > 0 ? contractExchangeRate : undefined,
         foreignPremiumAmount,
         foreignDeathBenefitDisease,
         foreignDeathBenefitAccident,
@@ -424,8 +502,18 @@ export function importCsv(
         foreignDiagnosisBenefit,
         foreignMaturityBenefit,
         paymentFrequency: freq,
+        paymentCurrency: currency === 'USD' && freq === 'single' ? paymentCurrency : undefined,
+        premiumPaymentDate: currency === 'USD' && freq === 'single' ? row.premiumPaymentDate?.trim() || undefined : undefined,
+        actualPremiumPaidJpy: currency === 'USD' && freq === 'single' && paymentCurrency === 'JPY' && actualPremiumPaidJpy > 0
+          ? actualPremiumPaidJpy
+          : undefined,
+        paymentExchangeRate: currency === 'USD' && freq === 'single' && paymentCurrency === 'JPY'
+          && actualPremiumPaidJpy > 0 && foreignPremiumAmount > 0
+          ? actualPremiumPaidJpy / foreignPremiumAmount
+          : undefined,
         premiumAmount,
         paymentEndAge,
+        premiumPaymentCompleted: parsePaymentCompleted(row.premiumPaymentCompleted),
         annualPremium: calcAnnualPremium(premiumAmount, freq),
         maturityBenefit,
         consultantNote: row.consultantNote?.trim() || undefined,
@@ -468,6 +556,9 @@ export function importCsv(
     }
 
     const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, currency, exchange_rate, foreign_premium_amount, foreign_death_benefit_disease, foreign_death_benefit_accident, foreign_hosp_day_disease, foreign_hosp_day_accident, foreign_diagnosis_benefit, foreign_maturity_benefit, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, consultant_note, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const updatePensionSettings = db.prepare('UPDATE policies SET pension_settings = ? WHERE id = ?');
+    const updatePaymentCompleted = db.prepare('UPDATE policies SET premium_payment_completed = ? WHERE id = ?');
+    const updatePaymentDetails = db.prepare('UPDATE policies SET payment_details = ? WHERE id = ?');
 
     for (const { policy, paymentEndDate } of parsed) {
       insertPolicy.run(
@@ -490,10 +581,31 @@ export function importCsv(
         policy.annualPremium, policy.maturityBenefit,
         policy.consultantNote ?? null, nextSort, ts, ts,
       );
+      if (policy.policyType === '個人年金保険') {
+        updatePensionSettings.run(JSON.stringify({
+          pensionRecipientId: policy.pensionRecipientId || policy.insuredId,
+          pensionSuccessorRecipientId: policy.pensionSuccessorRecipientId || '',
+          pensionStartMode: policy.pensionStartMode || 'age',
+          pensionStartFiscalYear: policy.pensionStartFiscalYear,
+          pensionPayoutYears: policy.pensionPayoutYears,
+        }), policy.id);
+      }
+      updatePaymentCompleted.run(policy.premiumPaymentCompleted ? 1 : 0, policy.id);
+      updatePaymentDetails.run(JSON.stringify({
+        contractExchangeRate: policy.contractExchangeRate,
+        paymentCurrency: policy.paymentCurrency,
+        premiumPaymentDate: policy.premiumPaymentDate,
+        actualPremiumPaidJpy: policy.actualPremiumPaidJpy,
+        paymentExchangeRate: policy.paymentExchangeRate,
+      }), policy.id);
       nextSort++;
     }
 
-    db.prepare('INSERT OR REPLACE INTO app_state_meta (case_id, schema_version, updated_at) VALUES (?, 1, ?)').run(caseId, ts);
+    db.prepare('INSERT OR REPLACE INTO app_state_meta (case_id, schema_version, updated_at, valuation_settings) VALUES (?, 1, ?, ?)').run(
+      caseId,
+      ts,
+      JSON.stringify(currentState?.valuationSettings ?? { usdJpyRate: commonUsdJpyRate, fxRateDate: '' }),
+    );
   })();
 
   return {

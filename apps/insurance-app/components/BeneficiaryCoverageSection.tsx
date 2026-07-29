@@ -19,6 +19,7 @@ import {
   getCoverageChartPolicies,
   getDeathBenefitAtAge,
 } from '@/utils/analysisUtils';
+import { allocatePercentage, getBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
 
 interface BeneficiaryCoverageSectionProps {
   policies: Policy[];
@@ -30,7 +31,13 @@ interface BeneficiaryGroup {
   key: string;
   label: string;
   isUnspecified: boolean;
-  policies: Policy[];
+  policies: AllocatedPolicy[];
+}
+
+interface AllocatedPolicy {
+  policy: Policy;
+  percentage: number;
+  dataKey: string;
 }
 
 const formatAxisTick = (value: number | string) =>
@@ -109,10 +116,27 @@ const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
   const ageTicks = useMemo(() => buildAgeTicks(currentAge, endAge), [currentAge, endAge]);
 
   const groups = useMemo<BeneficiaryGroup[]>(() => {
-    const byBeneficiary = new Map<string, Policy[]>();
+    const byBeneficiary = new Map<string, AllocatedPolicy[]>();
     chartPolicies.forEach(policy => {
-      const key = policy.beneficiaryId || '';
-      byBeneficiary.set(key, [...(byBeneficiary.get(key) ?? []), policy]);
+      const allocations = getBeneficiaryAllocations(policy);
+      if (allocations.length === 0) {
+        byBeneficiary.set('', [
+          ...(byBeneficiary.get('') ?? []),
+          { policy, percentage: 100, dataKey: `${policy.id}::__unspecified__` },
+        ]);
+        return;
+      }
+      allocations.forEach(allocation => {
+        const key = allocation.beneficiaryId;
+        byBeneficiary.set(key, [
+          ...(byBeneficiary.get(key) ?? []),
+          {
+            policy,
+            percentage: allocation.percentage,
+            dataKey: `${policy.id}::${allocation.beneficiaryId}`,
+          },
+        ]);
+      });
     });
 
     const ordered: BeneficiaryGroup[] = [];
@@ -144,13 +168,13 @@ const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
 
   if (groups.length === 0) return null;
 
-  const buildGroupData = (groupPolicies: Policy[]) => {
+  const buildGroupData = (groupPolicies: AllocatedPolicy[]) => {
     const rows: Record<string, number>[] = [];
-    const agePoints = buildCoverageAgePoints(groupPolicies, currentAge, endAge);
+    const agePoints = buildCoverageAgePoints(groupPolicies.map(item => item.policy), currentAge, endAge);
     agePoints.forEach((age) => {
       const row: Record<string, number> = { age };
-      groupPolicies.forEach(policy => {
-        row[policy.id] = getDeathBenefitAtAge(policy, age) / 10000;
+      groupPolicies.forEach(({ policy, percentage, dataKey }) => {
+        row[dataKey] = allocatePercentage(getDeathBenefitAtAge(policy, age), percentage) / 10000;
       });
       rows.push(row);
     });
@@ -169,7 +193,10 @@ const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
         {groups.map(group => {
           const data = buildGroupData(group.policies);
           const currentTotal = group.policies.reduce(
-            (sum, policy) => sum + getDeathBenefitAtAge(policy, currentAge),
+            (sum, item) => sum + allocatePercentage(
+              getDeathBenefitAtAge(item.policy, currentAge),
+              item.percentage,
+            ),
             0,
           );
 
@@ -189,7 +216,7 @@ const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
 
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart
-                  key={group.policies.map(policy => policy.id).join('|')}
+                  key={group.policies.map(item => item.dataKey).join('|')}
                   data={data}
                   margin={{ top: 4, right: 8, left: -4, bottom: 0 }}
                 >
@@ -214,14 +241,14 @@ const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
                     content={<BeneficiaryTooltip />}
                     cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
                   />
-                  {group.policies.map(policy => {
+                  {group.policies.map(({ policy, percentage, dataKey }) => {
                     const color = policyColors.get(policy.id) ?? COVERAGE_CHART_COLORS[0];
                     return (
                       <Area
-                        key={policy.id}
+                        key={dataKey}
                         type={getCoverageAreaType(policy)}
-                        dataKey={policy.id}
-                        name={`${policy.companyName} / ${policy.policyType}`}
+                        dataKey={dataKey}
+                        name={`${policy.companyName} / ${policy.policyType}（${percentage.toLocaleString('ja-JP')}%）`}
                         stackId="1"
                         stroke={color}
                         fill={color}
@@ -236,10 +263,10 @@ const BeneficiaryCoverageSection: React.FC<BeneficiaryCoverageSectionProps> = ({
               </ResponsiveContainer>
 
               <ul className="bcs-legend">
-                {group.policies.map(policy => (
-                  <li key={policy.id}>
+                {group.policies.map(({ policy, percentage, dataKey }) => (
+                  <li key={dataKey}>
                     <span style={{ backgroundColor: policyColors.get(policy.id) ?? COVERAGE_CHART_COLORS[0] }} />
-                    {policy.companyName} / {policy.policyType}
+                    {policy.companyName} / {policy.policyType}（{percentage.toLocaleString('ja-JP')}%）
                   </li>
                 ))}
               </ul>

@@ -86,18 +86,34 @@ insurance-app/
 | `contractAge` | number | 契約年齢 |
 | `insuredId` | string | 被保険者 `FamilyMember.id` |
 | `beneficiaryId` | string | 受取人 `FamilyMember.id` |
+| `beneficiaryAllocations` | array | 死亡保険金受取人ごとの `beneficiaryId` と受取割合（合計100%）。旧データは `beneficiaryId` 1名・100%として扱う |
+| `pensionRecipientId` | string | 個人年金の年金受取人 `FamilyMember.id` |
+| `pensionSuccessorRecipientId` | string | 年金受取人死亡時の継続受取人 `FamilyMember.id` |
+| `pensionStartMode` | `age` / `fiscalYear` | 年金受取開始の指定方法 |
+| `pensionStartFiscalYear` | number | 年度指定時の年金受取開始年度 |
+| `pensionPayoutYears` | number | 年金受取年数 |
 | `deathBenefitDisease` | number | 死亡保障・疾病 |
 | `deathBenefitAccident` | number | 死亡保障・災害 |
 | `hospDayDisease` | number | 入院日額・疾病 |
 | `hospDayAccident` | number | 入院日額・災害 |
 | `diagnosisBenefit` | number | 診断一時金 |
-| `policyEndAge` | number | 保険期間終了年齢、`999` は終身 |
+| `policyEndAge` | number | 保険期間終了年齢。個人年金では内部互換用に開始年齢＋受取年数を保持 |
 | `paymentFrequency` | `monthly` / `annual` / `single` | 払込頻度 |
 | `premiumAmount` | number | 1回あたり保険料 |
-| `paymentEndAge` | number | 払込終了年齢、`999` は終身払い |
+| `paymentEndAge` | number | 払込終了年齢、`999` は終身払い。個人年金では内部互換用に受取開始年齢を保持 |
+| `premiumPaymentCompleted` | boolean | 実際の保険料払込が終了済みか |
+| `contractExchangeRate` | number | 証券ごとの契約時為替レート（任意） |
+| `paymentCurrency` | `JPY` / `USD` | ドル建て一時払保険の実際の支払通貨 |
+| `premiumPaymentDate` | string | ドル建て一時払保険の支払日 |
+| `actualPremiumPaidJpy` | number | 円払い時の実際の一時払保険料 |
+| `paymentExchangeRate` | number | 実支払円額÷契約ドル額で求めた支払時為替レート |
 | `annualPremium` | number | 年間保険料 |
 | `maturityBenefit` | number | 満期保険金 |
 | `consultantNote` | string | コンサルタントメモ |
+
+`AppState.valuationSettings` は案件共通の現在評価用USD/JPYレートと基準日を保持する。ドル建て死亡保障・解約返戻金などの円換算にはこの共通レートを使用し、契約時・支払時の実績レートとは分離する。
+
+終身保険・変額終身保険の `policyEndAge` は内部で常に `999` とし、利用者には終了年齢を入力させない。
 
 ---
 
@@ -279,6 +295,7 @@ SQLiteの `app_settings` から `policy_import_prompt` を取得する。未保�
 `getActiveMonthlyPremium` は「現在の月額保険料負担」カードと証券一覧の集計行で使用する。
 
 - 一時払いは常に除外
+- `premiumPaymentCompleted = true` の証券は現在負担・残り払込額から除外
 - 年払いは `premiumAmount / 12` で月換算
 - 本人の生年月日から現在年齢を算出できる場合、`currentAge >= paymentEndAge` の証券は除外
 - `paymentEndAge = 999` は終身払いとして払込終了済みにしない

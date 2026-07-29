@@ -1,5 +1,7 @@
 export type PolicyType = '個人年金保険' | '収入保障保険' | '定期保険' | 'がん保険' | '変額終身保険' | '医療保険' | '終身保険' | '養老保険';
 export type PolicyCurrency = 'JPY' | 'USD';
+export type PaymentCurrency = 'JPY' | 'USD';
+export type PensionStartMode = 'age' | 'fiscalYear';
 
 export const DISPLAY_POLICY_TYPES: PolicyType[] = [
   '終身保険',
@@ -45,6 +47,11 @@ export interface FamilyMember {
   gender: 'male' | 'female';
 }
 
+export interface BeneficiaryAllocation {
+  beneficiaryId: string;
+  percentage: number;
+}
+
 export interface Policy {
   id: string;
   companyName: string;
@@ -54,6 +61,13 @@ export interface Policy {
   contractAge: number;
   insuredId: string;      // 被保険者（FamilyMember.id）
   beneficiaryId: string;    // 受取人（FamilyMember.id）
+  beneficiaryAllocations?: BeneficiaryAllocation[]; // 死亡保険金受取人ごとの受取割合
+  // 個人年金の受取設定
+  pensionRecipientId?: string;
+  pensionSuccessorRecipientId?: string;
+  pensionStartMode?: PensionStartMode;
+  pensionStartFiscalYear?: number;
+  pensionPayoutYears?: number;
   // 保障内容
   deathBenefitDisease: number;
   deathBenefitAccident: number;
@@ -63,7 +77,13 @@ export interface Policy {
   policyEndAge: number;
   // コスト
   currency?: PolicyCurrency;
+  // 互換用キャッシュ。現在評価には AppState.valuationSettings.usdJpyRate を使用
   exchangeRate?: number;
+  contractExchangeRate?: number;
+  paymentCurrency?: PaymentCurrency;
+  premiumPaymentDate?: string;
+  actualPremiumPaidJpy?: number;
+  paymentExchangeRate?: number;
   foreignPremiumAmount?: number;
   foreignDeathBenefitDisease?: number;
   foreignDeathBenefitAccident?: number;
@@ -74,6 +94,7 @@ export interface Policy {
   paymentFrequency: 'monthly' | 'annual' | 'single';
   premiumAmount: number;
   paymentEndAge: number;
+  premiumPaymentCompleted?: boolean;
   annualPremium: number;
   // 貯蓄性
   maturityBenefit: number;
@@ -98,10 +119,16 @@ export interface AgencyMaster {
   phone: string;
 }
 
+export interface ValuationSettings {
+  usdJpyRate: number;
+  fxRateDate: string;
+}
+
 export interface AppState {
   familyMembers: FamilyMember[];
   agency: Agency;
   policies: Policy[];
+  valuationSettings?: ValuationSettings;
   updatedAt?: string;
 }
 

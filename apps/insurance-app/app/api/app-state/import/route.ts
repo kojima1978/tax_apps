@@ -34,6 +34,10 @@ function normalizeImportData(raw: unknown): ImportPayload {
       familyMembers: source.familyMembers,
       agency: source.agency,
       policies: source.policies,
+      valuationSettings: source.valuationSettings ?? {
+        usdJpyRate: source.policies?.find(policy => policy.currency === 'USD' && (policy.exchangeRate || 0) > 0)?.exchangeRate || 0,
+        fxRateDate: '',
+      },
     } as AppState,
     caseTitle: typeof source.caseTitle === 'string' && source.caseTitle.trim() ? source.caseTitle.trim() : undefined,
     portfolioInsights: source.portfolioInsights,
@@ -90,6 +94,16 @@ export async function POST(request: NextRequest) {
         id: uuidv4(),
         insuredId: memberIdMap.get(p.insuredId) ?? p.insuredId,
         beneficiaryId: p.beneficiaryId ? memberIdMap.get(p.beneficiaryId) ?? p.beneficiaryId : p.beneficiaryId,
+        beneficiaryAllocations: p.beneficiaryAllocations?.map(allocation => ({
+          ...allocation,
+          beneficiaryId: memberIdMap.get(allocation.beneficiaryId) ?? allocation.beneficiaryId,
+        })),
+        pensionRecipientId: p.pensionRecipientId
+          ? memberIdMap.get(p.pensionRecipientId) ?? p.pensionRecipientId
+          : p.pensionRecipientId,
+        pensionSuccessorRecipientId: p.pensionSuccessorRecipientId
+          ? memberIdMap.get(p.pensionSuccessorRecipientId) ?? p.pensionSuccessorRecipientId
+          : p.pensionSuccessorRecipientId,
       })),
     };
 

@@ -124,6 +124,7 @@ function makeSampleState(): AppState {
     familyMembers: getSampleFamilyMembers(),
     agency: getSampleAgency(),
     policies: getSamplePolicies(),
+    valuationSettings: { usdJpyRate: 0, fxRateDate: '' },
     updatedAt: now(),
   };
 }
@@ -140,6 +141,7 @@ function makeBlankState(): AppState {
     }],
     agency: { name: '', representative: '', phone: '' },
     policies: [],
+    valuationSettings: { usdJpyRate: 0, fxRateDate: '' },
     updatedAt: now(),
   };
 }
@@ -202,6 +204,7 @@ function normalizeExportData(raw: unknown): JsonImportPayload {
       familyMembers: source.familyMembers,
       policies: source.policies,
       agency: source.agency,
+      valuationSettings: source.valuationSettings,
       updatedAt: now(),
     } as AppState,
     caseTitle,
@@ -218,6 +221,7 @@ function buildExportData(state: AppState, extras: ExportExtras = {}): JsonExport
     familyMembers: state.familyMembers,
     agency: state.agency,
     policies: state.policies,
+    valuationSettings: state.valuationSettings,
     updatedAt: state.updatedAt,
     portfolioInsights: extras.portfolioInsights ?? [],
   };

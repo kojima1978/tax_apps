@@ -1,5 +1,6 @@
 import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType } from '@/types';
-import type { PolicyType } from '@/types';
+import type { Policy, PolicyType } from '@/types';
+import { getBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
 
 const VALID_POLICY_TYPES: PolicyType[] = DISPLAY_POLICY_TYPES;
 const VALID_GENDERS = ['male', 'female'] as const;
@@ -7,6 +8,7 @@ const VALID_INSIGHT_TYPES = ['gap', 'redundancy', 'recommendation'] as const;
 const VALID_RATINGS = ['good', 'caution', 'warning'] as const;
 const VALID_FREQUENCIES = ['monthly', 'annual', 'single'] as const;
 const VALID_CURRENCIES = ['JPY', 'USD'] as const;
+const VALID_PENSION_START_MODES = ['age', 'fiscalYear'] as const;
 const DEATH_BENEFIT_TYPES: PolicyType[] = ['終身保険', '定期保険', '収入保障保険', '変額終身保険', '養老保険'];
 const MEDICAL_BENEFIT_TYPES: PolicyType[] = ['医療保険', 'がん保険'];
 const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '養老保険'];
@@ -59,6 +61,29 @@ export function validateAppState(body: unknown): ValidationResult {
     if (typeof a.phone !== 'string') errors.push({ field: 'agency.phone', message: 'phone は文字列が必要です' });
   }
 
+  if (data.valuationSettings !== undefined) {
+    if (!data.valuationSettings || typeof data.valuationSettings !== 'object') {
+      errors.push({ field: 'valuationSettings', message: '評価用為替レート設定が不正です' });
+    } else {
+      const settings = data.valuationSettings as Record<string, unknown>;
+      if (typeof settings.usdJpyRate !== 'number' || settings.usdJpyRate < 0) {
+        errors.push({ field: 'valuationSettings.usdJpyRate', message: 'USD/JPYレートは0以上の数値が必要です' });
+      }
+      if (typeof settings.fxRateDate !== 'string') {
+        errors.push({ field: 'valuationSettings.fxRateDate', message: '為替レート基準日は文字列が必要です' });
+      }
+    }
+  }
+
+  const familyMemberIds = new Set(
+    Array.isArray(data.familyMembers)
+      ? data.familyMembers
+        .filter(member => !!member && typeof member === 'object')
+        .map(member => (member as Record<string, unknown>).id)
+        .filter((id): id is string => typeof id === 'string')
+      : [],
+  );
+
   if (!Array.isArray(data.policies)) {
     errors.push({ field: 'policies', message: 'policies は配列が必要です' });
   } else {
@@ -80,23 +105,44 @@ export function validateAppState(body: unknown): ValidationResult {
       if (p.currency !== undefined && !VALID_CURRENCIES.includes(p.currency as typeof VALID_CURRENCIES[number])) {
         errors.push({ field: `policies[${i}].currency`, message: '通貨は JPY または USD が必要です' });
       }
-      if (p.currency === 'USD' && (typeof p.exchangeRate !== 'number' || p.exchangeRate <= 0)) {
-        errors.push({ field: `policies[${i}].exchangeRate`, message: 'ドル建ては為替レートが必要です' });
+      if (p.contractExchangeRate !== undefined && (typeof p.contractExchangeRate !== 'number' || p.contractExchangeRate < 0)) {
+        errors.push({ field: `policies[${i}].contractExchangeRate`, message: '契約時為替レートが不正です' });
+      }
+      if (p.paymentCurrency !== undefined && p.paymentCurrency !== 'JPY' && p.paymentCurrency !== 'USD') {
+        errors.push({ field: `policies[${i}].paymentCurrency`, message: '支払通貨は JPY または USD が必要です' });
+      }
+      if (p.premiumPaymentDate !== undefined && typeof p.premiumPaymentDate !== 'string') {
+        errors.push({ field: `policies[${i}].premiumPaymentDate`, message: '支払日が不正です' });
+      }
+      if (p.actualPremiumPaidJpy !== undefined && (typeof p.actualPremiumPaidJpy !== 'number' || p.actualPremiumPaidJpy < 0)) {
+        errors.push({ field: `policies[${i}].actualPremiumPaidJpy`, message: '実支払円額が不正です' });
       }
       if (!VALID_FREQUENCIES.includes(p.paymentFrequency as typeof VALID_FREQUENCIES[number])) {
         errors.push({ field: `policies[${i}].paymentFrequency`, message: '払方は monthly, annual, single のいずれかが必要です' });
       }
       if (typeof p.premiumAmount !== 'number') errors.push({ field: `policies[${i}].premiumAmount`, message: '保険料は数値が必要です' });
       if (typeof p.paymentEndAge !== 'number') errors.push({ field: `policies[${i}].paymentEndAge`, message: '払込終了年齢は数値が必要です' });
+      if (p.premiumPaymentCompleted !== undefined && typeof p.premiumPaymentCompleted !== 'boolean') {
+        errors.push({ field: `policies[${i}].premiumPaymentCompleted`, message: '払込終了済みは真偽値が必要です' });
+      }
       if (p.policyType === '個人年金保険') {
         if (typeof p.paymentEndAge === 'number' && (!p.paymentEndAge || p.paymentEndAge === 999)) {
           errors.push({ field: `policies[${i}].paymentEndAge`, message: '個人年金保険は年金受取開始年齢が必要です' });
         }
-        if (typeof p.policyEndAge === 'number' && (!p.policyEndAge || p.policyEndAge === 999)) {
-          errors.push({ field: `policies[${i}].policyEndAge`, message: '個人年金保険は受取終了年齢が必要です' });
+        if (p.pensionRecipientId !== undefined && (typeof p.pensionRecipientId !== 'string' || !p.pensionRecipientId)) {
+          errors.push({ field: `policies[${i}].pensionRecipientId`, message: '年金受取人が不正です' });
         }
-        if (typeof p.policyEndAge === 'number' && typeof p.paymentEndAge === 'number' && p.policyEndAge <= p.paymentEndAge) {
-          errors.push({ field: `policies[${i}].policyEndAge`, message: '受取終了年齢は受取開始年齢より後にしてください' });
+        if (p.pensionSuccessorRecipientId !== undefined && typeof p.pensionSuccessorRecipientId !== 'string') {
+          errors.push({ field: `policies[${i}].pensionSuccessorRecipientId`, message: '死亡時の継続受取人が不正です' });
+        }
+        if (p.pensionStartMode !== undefined && !VALID_PENSION_START_MODES.includes(p.pensionStartMode as typeof VALID_PENSION_START_MODES[number])) {
+          errors.push({ field: `policies[${i}].pensionStartMode`, message: '年金受取開始の指定方法が不正です' });
+        }
+        if (p.pensionStartMode === 'fiscalYear' && (typeof p.pensionStartFiscalYear !== 'number' || p.pensionStartFiscalYear < 1900 || p.pensionStartFiscalYear > 2200)) {
+          errors.push({ field: `policies[${i}].pensionStartFiscalYear`, message: '年金受取開始年度が不正です' });
+        }
+        if (p.pensionPayoutYears !== undefined && (typeof p.pensionPayoutYears !== 'number' || p.pensionPayoutYears <= 0 || p.pensionPayoutYears > 100)) {
+          errors.push({ field: `policies[${i}].pensionPayoutYears`, message: '年金受取年数は1〜100年で入力してください' });
         }
         if (typeof p.maturityBenefit !== 'number' || p.maturityBenefit <= 0) {
           errors.push({ field: `policies[${i}].maturityBenefit`, message: '個人年金保険は年金原資（受取総額）が必要です' });
@@ -108,8 +154,19 @@ export function validateAppState(body: unknown): ValidationResult {
           const label = isIncomeProtectionPolicyType(policyType) ? '死亡保険金月額' : '死亡保障額';
           errors.push({ field: `policies[${i}].deathBenefitDisease`, message: `死亡保障がある保険は${label}が必要です` });
         }
-        if (DEATH_BENEFIT_TYPES.includes(policyType) && (typeof p.beneficiaryId !== 'string' || !p.beneficiaryId)) {
-          errors.push({ field: `policies[${i}].beneficiaryId`, message: '死亡保障がある保険は受取人が必要です' });
+        const beneficiaryAllocations = getBeneficiaryAllocations(p as unknown as Policy);
+        if (DEATH_BENEFIT_TYPES.includes(policyType) && beneficiaryAllocations.length === 0) {
+          errors.push({ field: `policies[${i}].beneficiaryAllocations`, message: '死亡保障がある保険は受取人が必要です' });
+        }
+        if (beneficiaryAllocations.length > 0) {
+          const totalPercentage = beneficiaryAllocations.reduce((sum, allocation) => sum + allocation.percentage, 0);
+          if (beneficiaryAllocations.some(allocation => !familyMemberIds.has(allocation.beneficiaryId))) {
+            errors.push({ field: `policies[${i}].beneficiaryAllocations`, message: '受取人が家族情報に存在しません' });
+          }
+          if (beneficiaryAllocations.some(allocation => allocation.percentage <= 0 || allocation.percentage > 100)
+            || Math.abs(totalPercentage - 100) > 0.001) {
+            errors.push({ field: `policies[${i}].beneficiaryAllocations`, message: '受取割合の合計は100%である必要があります' });
+          }
         }
         if (MEDICAL_BENEFIT_TYPES.includes(policyType) && (Number(p.hospDayDisease || 0) <= 0 && Number(p.diagnosisBenefit || 0) <= 0)) {
           errors.push({ field: `policies[${i}].hospDayDisease`, message: '医療保険・がん保険は入院日額または診断一時金が必要です' });
@@ -150,6 +207,13 @@ export function validateAppState(body: unknown): ValidationResult {
         }
       }
     }
+  }
+
+  const hasUsdPolicy = Array.isArray(data.policies)
+    && data.policies.some(policy => !!policy && typeof policy === 'object' && (policy as Record<string, unknown>).currency === 'USD');
+  const valuationSettings = data.valuationSettings as Record<string, unknown> | undefined;
+  if (hasUsdPolicy && (!valuationSettings || typeof valuationSettings.usdJpyRate !== 'number' || valuationSettings.usdJpyRate <= 0)) {
+    errors.push({ field: 'valuationSettings.usdJpyRate', message: 'ドル建て証券がある場合は基本情報のUSD/JPYレートが必要です' });
   }
 
   return { valid: errors.length === 0, errors };

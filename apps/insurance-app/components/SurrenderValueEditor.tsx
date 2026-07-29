@@ -233,6 +233,7 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
                           value={displayValue(point)}
                           onChange={v => setAmount(index, v)}
                           ariaLabel={`${index + 1}行目の解約返戻金`}
+                          decimalPlaces={isUsd ? 2 : 0}
                         />
                       </td>
                       {isUsd && <td className="surrender-cell-sub">{point.amount.toLocaleString()}円</td>}
