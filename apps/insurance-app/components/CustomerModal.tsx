@@ -7,10 +7,13 @@ import {
   fetchAgencyMasters,
   updateAgencyMaster,
 } from '@/lib/api';
-import { User, X, Plus, Trash2, Building2, Download, Save, RefreshCw, DollarSign } from 'lucide-react';
+import { Users, X, Plus, Trash2, Building2, Download, Save, RefreshCw, DollarSign } from 'lucide-react';
 import { mergeRelationshipSuggestions } from '@/utils/relationshipOptions';
 
+export type CustomerSettingsSection = 'family' | 'valuation' | 'agency';
+
 interface CustomerModalProps {
+  section: CustomerSettingsSection;
   familyMembers: FamilyMember[];
   agency: Agency;
   valuationSettings: ValuationSettings;
@@ -30,6 +33,7 @@ function sortAgencyMasters(masters: AgencyMaster[]): AgencyMaster[] {
 }
 
 const CustomerModal: React.FC<CustomerModalProps> = ({
+  section,
   familyMembers,
   agency,
   valuationSettings,
@@ -53,8 +57,15 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
   );
   const selectedAgencyMaster = agencyMasters.find(master => master.id === selectedAgencyMasterId);
   const hasAgencyFields = Boolean(tempAgency.name.trim() && tempAgency.representative.trim() && tempAgency.phone.trim());
+  const sectionConfig = {
+    family: { title: '世帯・家族情報の修正', icon: Users },
+    valuation: { title: '現在評価用の為替レート', icon: DollarSign },
+    agency: { title: '代理店情報の修正', icon: Building2 },
+  }[section];
+  const SectionIcon = sectionConfig.icon;
 
   useEffect(() => {
+    if (section !== 'agency') return;
     let ignore = false;
     fetchAgencyMasters()
       .then(masters => {
@@ -66,7 +77,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [section]);
 
   const handleAddMember = () => {
     const newMember: FamilyMember = {
@@ -161,7 +172,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
-    if (hasUsdPolicies && tempValuationSettings.usdJpyRate <= 0) {
+    if (section === 'valuation' && hasUsdPolicies && tempValuationSettings.usdJpyRate <= 0) {
       setSubmitError('ドル建て証券があるため、現在評価用のUSD/JPYレートを入力してください');
       return;
     }
@@ -182,136 +193,145 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
 
   return (
     <div className="form-overlay">
-      <div className="form-container wide-form">
+      <div className={`form-container ${section === 'family' ? 'wide-form' : 'settings-form'}`}>
         <div className="modal-header">
           <div className="title-with-icon">
-            <User className="icon" />
-            <h3>基本情報の設定</h3>
+            <SectionIcon className="icon" />
+            <h3>{sectionConfig.title}</h3>
           </div>
-          <button className="close-btn" onClick={onClose}><X size={20} /></button>
+          <button type="button" className="close-btn" onClick={onClose} aria-label="閉じる"><X size={20} /></button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <h4>世帯・家族情報</h4>
-          <datalist id="customer-relationship-suggestions">
-            {relationshipSuggestions.map(value => <option key={value} value={value} />)}
-          </datalist>
-          <div className="family-list">
-            {tempMembers.map((member, index) => (
-              <div key={member.id} className="family-member-row">
-                <div className="form-group small"><label className="label-with-hint">続柄 <span>候補選択・直接入力</span></label>
-                  <input type="text" list="customer-relationship-suggestions" value={member.relationship} placeholder={index === 0 ? "例: 本人" : "例: 長男、妻など"}
-                    onChange={e => updateMember(member.id, 'relationship', e.target.value)} required />
+          {section === 'family' && (
+            <>
+              <datalist id="customer-relationship-suggestions">
+                {relationshipSuggestions.map(value => <option key={value} value={value} />)}
+              </datalist>
+              <div className="family-list">
+                {tempMembers.map((member, index) => (
+                  <div key={member.id} className="family-member-row">
+                    <div className="form-group small"><label className="label-with-hint">続柄 <span>候補選択・直接入力</span></label>
+                      <input type="text" list="customer-relationship-suggestions" value={member.relationship} placeholder={index === 0 ? "例: 本人" : "例: 長男、妻など"}
+                        onChange={e => updateMember(member.id, 'relationship', e.target.value)} required />
+                    </div>
+                    <div className="form-group"><label>氏名</label>
+                      <input type="text" value={member.name} onChange={e => updateMember(member.id, 'name', e.target.value)} required />
+                    </div>
+                    <div className="form-group"><label>フリガナ</label>
+                      <input type="text" value={member.nameKana} placeholder="カタカナ"
+                        onCompositionStart={() => { composingRef.current = true; }}
+                        onCompositionEnd={e => { composingRef.current = false; updateMember(member.id, 'nameKana', e.currentTarget.value); }}
+                        onChange={e => updateMember(member.id, 'nameKana', e.target.value)} />
+                    </div>
+                    <div className="form-group"><label>生年月日（任意）</label>
+                      <input type="date" value={member.birthDate} onChange={e => updateMember(member.id, 'birthDate', e.target.value)} />
+                    </div>
+                    <div className="form-group small"><label>性別</label>
+                      <select value={member.gender} onChange={e => updateMember(member.id, 'gender', e.target.value)}>
+                        <option value="male">男</option><option value="female">女</option>
+                      </select>
+                    </div>
+                    <button type="button" className="remove-btn" onClick={() => handleRemoveMember(member.id)} aria-label={`${member.name || `${index + 1}人目`}を削除`}><Trash2 size={16} /></button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="add-member-btn" onClick={handleAddMember}><Plus size={16} /> 家族を追加</button>
+            </>
+          )}
+
+          {section === 'valuation' && (
+            <>
+              <div className="form-context-note" role="note">
+                ドル建て死亡保障・解約返戻金などの現在円換算に、すべての証券で共通して使用します。
+              </div>
+              <div className="grid-form valuation-settings-grid">
+                <div className="form-group">
+                  <label>USD/JPYレート（1 USD = 円）{hasUsdPolicies && <span className="required-mark">*</span>}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={tempValuationSettings.usdJpyRate || ''}
+                    onChange={e => setTempValuationSettings(current => ({
+                      ...current,
+                      usdJpyRate: Number(e.target.value),
+                    }))}
+                    placeholder="例：160.00"
+                    required={hasUsdPolicies}
+                  />
                 </div>
-                <div className="form-group"><label>氏名</label>
-                  <input type="text" value={member.name} onChange={e => updateMember(member.id, 'name', e.target.value)} required />
+                <div className="form-group">
+                  <label>為替レート基準日</label>
+                  <input
+                    type="date"
+                    value={tempValuationSettings.fxRateDate}
+                    onChange={e => setTempValuationSettings(current => ({
+                      ...current,
+                      fxRateDate: e.target.value,
+                    }))}
+                  />
                 </div>
-                <div className="form-group"><label>フリガナ</label>
-                  <input type="text" value={member.nameKana} placeholder="カタカナ"
-                    onCompositionStart={() => { composingRef.current = true; }}
-                    onCompositionEnd={e => { composingRef.current = false; updateMember(member.id, 'nameKana', e.currentTarget.value); }}
-                    onChange={e => updateMember(member.id, 'nameKana', e.target.value)} />
-                </div>
-                <div className="form-group"><label>生年月日（任意）</label>
-                  <input type="date" value={member.birthDate} onChange={e => updateMember(member.id, 'birthDate', e.target.value)} />
-                </div>
-                <div className="form-group small"><label>性別</label>
-                  <select value={member.gender} onChange={e => updateMember(member.id, 'gender', e.target.value)}>
-                    <option value="male">男</option><option value="female">女</option>
+              </div>
+            </>
+          )}
+
+          {section === 'agency' && (
+            <>
+              <div className="agency-master-tools">
+                <div className="form-group">
+                  <label><Download size={14} style={{marginRight: '4px', verticalAlign: '-2px'}} />代理店マスター</label>
+                  <select value={selectedAgencyMasterId} onChange={e => { setSelectedAgencyMasterId(e.target.value); if (e.target.value) handleLoadAgencyMaster(e.target.value); }}>
+                    <option value="">選択してください</option>
+                    {agencyMasters.map(m => (
+                      <option key={m.id} value={m.id}>{m.name} ({m.representative})</option>
+                    ))}
                   </select>
                 </div>
-                <button type="button" className="remove-btn" onClick={() => handleRemoveMember(member.id)}><Trash2 size={16} /></button>
+                <div className="agency-master-actions">
+                  <button
+                    type="button"
+                    className="agency-master-action-btn"
+                    onClick={handleCreateAgencyMaster}
+                    disabled={!hasAgencyFields || isAgencyMasterSaving}
+                  >
+                    <Save size={15} /> 新規保存
+                  </button>
+                  <button
+                    type="button"
+                    className="agency-master-action-btn"
+                    onClick={handleUpdateAgencyMaster}
+                    disabled={!selectedAgencyMaster || !hasAgencyFields || isAgencyMasterSaving}
+                  >
+                    <RefreshCw size={15} /> 選択中を更新
+                  </button>
+                </div>
+                {agencyMasterNotice && (
+                  <div className={`agency-master-notice is-${agencyMasterNotice.type}`}>
+                    {agencyMasterNotice.text}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-          <button type="button" className="add-member-btn" onClick={handleAddMember}><Plus size={16} /> 家族を追加</button>
-
-          <h4 style={{marginTop: '2rem'}}><div className="title-with-icon"><DollarSign size={20} className="icon" /> 現在評価用の為替レート</div></h4>
-          <div className="form-context-note" role="note">
-            ドル建て死亡保障・解約返戻金などの現在円換算に、すべての証券で共通して使用します。
-          </div>
-          <div className="grid-form valuation-settings-grid">
-            <div className="form-group">
-              <label>USD/JPYレート（1 USD = 円）{hasUsdPolicies && <span className="required-mark">*</span>}</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                inputMode="decimal"
-                value={tempValuationSettings.usdJpyRate || ''}
-                onChange={e => setTempValuationSettings(current => ({
-                  ...current,
-                  usdJpyRate: Number(e.target.value),
-                }))}
-                placeholder="例：160.00"
-                required={hasUsdPolicies}
-              />
-            </div>
-            <div className="form-group">
-              <label>為替レート基準日</label>
-              <input
-                type="date"
-                value={tempValuationSettings.fxRateDate}
-                onChange={e => setTempValuationSettings(current => ({
-                  ...current,
-                  fxRateDate: e.target.value,
-                }))}
-              />
-            </div>
-          </div>
-
-          <h4 style={{marginTop: '2rem'}}><div className="title-with-icon"><Building2 size={20} className="icon" /> 代理店情報</div></h4>
-          <div className="agency-master-tools">
-            <div className="form-group">
-              <label><Download size={14} style={{marginRight: '4px', verticalAlign: '-2px'}} />代理店マスター</label>
-              <select value={selectedAgencyMasterId} onChange={e => { setSelectedAgencyMasterId(e.target.value); if (e.target.value) handleLoadAgencyMaster(e.target.value); }}>
-                <option value="">選択してください</option>
-                {agencyMasters.map(m => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.representative})</option>
-                ))}
-              </select>
-            </div>
-            <div className="agency-master-actions">
-              <button
-                type="button"
-                className="agency-master-action-btn"
-                onClick={handleCreateAgencyMaster}
-                disabled={!hasAgencyFields || isAgencyMasterSaving}
-              >
-                <Save size={15} /> 新規保存
-              </button>
-              <button
-                type="button"
-                className="agency-master-action-btn"
-                onClick={handleUpdateAgencyMaster}
-                disabled={!selectedAgencyMaster || !hasAgencyFields || isAgencyMasterSaving}
-              >
-                <RefreshCw size={15} /> 選択中を更新
-              </button>
-            </div>
-            {agencyMasterNotice && (
-              <div className={`agency-master-notice is-${agencyMasterNotice.type}`}>
-                {agencyMasterNotice.text}
+              <div className="grid-form">
+                <div className="form-group"><label>代理店名</label>
+                  <input type="text" value={tempAgency.name} onChange={e => setAgencyField('name', e.target.value)} required />
+                </div>
+                <div className="form-group"><label>取扱者名</label>
+                  <input type="text" value={tempAgency.representative} onChange={e => setAgencyField('representative', e.target.value)} required />
+                </div>
+                <div className="form-group"><label>連絡先電話番号</label>
+                  <input type="text" value={tempAgency.phone} onChange={e => setAgencyField('phone', e.target.value)} required />
+                </div>
               </div>
-            )}
-          </div>
-          <div className="grid-form">
-            <div className="form-group"><label>代理店名</label>
-              <input type="text" value={tempAgency.name} onChange={e => setAgencyField('name', e.target.value)} required />
-            </div>
-            <div className="form-group"><label>取扱者名</label>
-              <input type="text" value={tempAgency.representative} onChange={e => setAgencyField('representative', e.target.value)} required />
-            </div>
-            <div className="form-group"><label>連絡先電話番号</label>
-              <input type="text" value={tempAgency.phone} onChange={e => setAgencyField('phone', e.target.value)} required />
-            </div>
-          </div>
+            </>
+          )}
 
           {submitError && <div className="agency-master-notice is-error">{submitError}</div>}
 
           <div className="form-actions" style={{ marginTop: '2rem' }}>
             <button type="submit" className="save-btn" style={{ flex: 1 }} disabled={isSubmitting}>
-              {isSubmitting ? '保存中...' : '設定を保存'}
+              {isSubmitting ? '保存中...' : `${sectionConfig.title}を保存`}
             </button>
             <button type="button" className="cancel-btn" onClick={onClose} style={{ flex: 1 }}>キャンセル</button>
           </div>

@@ -545,6 +545,12 @@ h1 {
   font-weight: 600;
 }
 
+.pension-premium-cell .pension-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .policy-status-badges {
   display: flex;
   flex-wrap: wrap;
@@ -1917,6 +1923,147 @@ h1 {
   max-width: 1000px !important;
 }
 
+.settings-form {
+  max-width: 760px;
+}
+
+.print-selection-modal {
+  width: min(680px, 94vw);
+  max-width: 680px;
+}
+
+.print-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.print-selection-toolbar > div {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.print-selection-toolbar button {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  color: #2c5282;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.print-selection-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.print-selection-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 46px;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+}
+
+.print-selection-option:hover {
+  border-color: #90cdf4;
+  background: #f7fbff;
+}
+
+.print-selection-option.is-selected {
+  border-color: #63b3ed;
+  background: #ebf8ff;
+  color: #1a365d;
+}
+
+.print-selection-option:focus-within {
+  outline: 2px solid #3182ce;
+  outline-offset: 2px;
+}
+
+.print-selection-option > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.print-selection-check {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: #3182ce;
+}
+
+.print-selection-option-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.print-selection-option-text strong {
+  color: inherit;
+  font-size: 0.82rem;
+}
+
+.print-selection-option-text small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.print-selection-policy-group {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  padding: 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.print-selection-policy-group .print-selection-option {
+  margin-left: 0.8rem;
+}
+
+.print-selection-group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.print-selection-actions {
+  margin-top: 1rem;
+}
+
+.print-selection-actions .save-btn,
+.print-selection-actions .cancel-btn {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
 .grid-form {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -3011,9 +3158,13 @@ h1 {
 .fixed-field-value {
   display: flex;
   align-items: center;
+  align-self: start;
+  box-sizing: border-box;
   min-width: 0;
-  min-height: 38px;
-  padding: 0.55rem 0.7rem;
+  height: 35px;
+  min-height: 35px;
+  max-height: 35px;
+  padding: 0 0.7rem;
   border: 1px solid #cbd5e1;
   border-radius: 5px;
   background: #f8fafc;
@@ -4211,6 +4362,23 @@ body:has(.app-shell) #root {
   border-top: 1px solid #edf2f7;
 }
 
+.case-sidebar-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.case-sidebar-group-label {
+  padding: 0.15rem 0.6rem 0.25rem;
+  color: #94a3b8;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
 .case-sidebar-link {
   display: flex;
   align-items: center;
@@ -4292,6 +4460,16 @@ body:has(.app-shell) #root {
 
   .print-only {
     display: block !important;
+  }
+
+  .print-page.print-excluded,
+  .analysis-section.print-excluded,
+  .individual-analysis.print-excluded {
+    display: none !important;
+  }
+
+  .app-shell.print-without-summary header.app-header {
+    display: none !important;
   }
 
   /* 紙1枚に対応するページブロックの共通定義。
@@ -4906,6 +5084,11 @@ body:has(.app-shell) #root {
   .analysis-card-page + .analysis-card-page {
     page-break-before: always;
     break-before: page;
+  }
+
+  .analysis-card-page.is-first-selected-print-policy {
+    page-break-before: auto !important;
+    break-before: auto !important;
   }
 
   .analysis-card-page:last-child {

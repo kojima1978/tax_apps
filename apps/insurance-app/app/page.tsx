@@ -11,12 +11,14 @@ import PrintCoverPage from '@/components/PrintCoverPage';
 import PrintTocPage from '@/components/PrintTocPage';
 import PrintPageNumber from '@/components/PrintPageNumber';
 import CustomerModal from '@/components/CustomerModal';
+import type { CustomerSettingsSection } from '@/components/CustomerModal';
 import CsvImportDialog from '@/components/CsvImportDialog';
+import PrintSelectionModal from '@/components/PrintSelectionModal';
 import CaseListPage from '@/components/CaseListPage';
 import CaseSidebar from '@/components/CaseSidebar';
 import ToastContainer, { type ToastMessage } from '@/components/Toast';
 import { PrintPagesProvider } from '@/components/PrintPageContext';
-import { buildPrintPageKeys } from '@/utils/printPages';
+import { buildPrintPageKeys, type PrintPageKey } from '@/utils/printPages';
 import { CASE_SECTIONS, sectionPanelClassName, type CaseSectionKey } from '@/utils/caseSections';
 import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember, Agency, AppState, EvaluationOverride, ValuationSettings } from '@/types';
@@ -62,7 +64,10 @@ function validateBeforeSave(
   for (const p of policies) {
     if (!p.companyName) return `保険会社が未入力の証券があります`;
     if (!VALID_POLICY_TYPES.includes(p.policyType)) return `保険種類「${p.policyType}」が不正です`;
-    if (!p.contractDate) return '契約日が未入力の証券があります';
+    const contractDateOptional = p.policyType === '個人年金保険'
+      || p.policyType === '終身保険'
+      || p.policyType === '変額終身保険';
+    if (!contractDateOptional && !p.contractDate) return '契約日が未入力の証券があります';
     if (!p.insuredId) return '被保険者が未設定の証券があります';
     if (!VALID_FREQUENCIES.includes(p.paymentFrequency)) return `払方「${p.paymentFrequency}」が不正です`;
     if (p.currency === 'USD' && valuationSettings.usdJpyRate <= 0) {
@@ -139,7 +144,10 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null);
   const [isPolicyFormOpen, setIsPolicyFormOpen] = useState(false);
-  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [customerSettingsSection, setCustomerSettingsSection] = useState<CustomerSettingsSection | null>(null);
+  const [printSelectionOpen, setPrintSelectionOpen] = useState(false);
+  const [selectedPrintPageKeys, setSelectedPrintPageKeys] = useState<PrintPageKey[] | null>(null);
+  const [printRequested, setPrintRequested] = useState(false);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -356,10 +364,8 @@ export default function Page() {
     setIsPolicyFormOpen(true);
   };
 
-  // 印刷は画面で選択中のセクションに関係なく全ページを出力する（非表示セクションの復帰は globals.css の @media print 側）。
-  // 非表示セクションも実寸でレイアウトされたままなのでグラフの再計測待ちは不要で、Ctrl+P でも同じ結果になる。
   const handlePrint = () => {
-    window.print();
+    setPrintSelectionOpen(true);
   };
 
   const handleClear = async () => {
@@ -421,6 +427,7 @@ export default function Page() {
   };
 
   const handleSaveModal = async (
+    section: CustomerSettingsSection,
     updatedFamily: FamilyMember[],
     updatedAgency: Agency,
     updatedValuationSettings: ValuationSettings,
@@ -447,9 +454,12 @@ export default function Page() {
         valuationSettings: updatedValuationSettings,
       });
       applyState(state);
-      addToast('success', '世帯・代理店情報を保存しました');
+      const savedLabel = section === 'family'
+        ? '世帯・家族情報'
+        : section === 'valuation' ? '現在評価用の為替レート' : '代理店情報';
+      addToast('success', `${savedLabel}を保存しました`);
     } catch (err) {
-      const message = getErrorMessage(err, '世帯・代理店情報の保存に失敗しました');
+      const message = getErrorMessage(err, '基本情報の保存に失敗しました');
       setSaveError(message);
       setHasUnsavedChanges(true);
       addToast('error', message);
@@ -463,7 +473,7 @@ export default function Page() {
   const hasPrintableCharts = displayAge !== null;
   const hasPrintableAnalysis = displayAge !== null && policies.length > 0;
   const hasBeneficiaryPage = hasPrintableAnalysis && policies.some(p => p.deathBenefitDisease > 0);
-  const printPageKeys = useMemo(
+  const availablePrintPageKeys = useMemo(
     () => buildPrintPageKeys({
       hasChartsPage: hasPrintableCharts,
       hasAnalysisPages: hasPrintableAnalysis,
@@ -472,6 +482,17 @@ export default function Page() {
     }),
     [hasPrintableCharts, hasPrintableAnalysis, hasBeneficiaryPage, policies],
   );
+  const printPageKeys = selectedPrintPageKeys ?? availablePrintPageKeys;
+
+  useEffect(() => {
+    if (!printRequested) return;
+    const frame = window.requestAnimationFrame(() => {
+      window.print();
+      setPrintRequested(false);
+      setSelectedPrintPageKeys(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [printRequested, printPageKeys]);
 
   if (!activeCaseId) {
     return <CaseListPage onSelect={handleSelectCase} />;
@@ -503,18 +524,42 @@ export default function Page() {
 
   return (
     <PrintPagesProvider pageKeys={printPageKeys}>
-      <div className={`App app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        <PrintCoverPage customerName={self?.name || ""} agency={agency} />
+      <div className={[
+        'App',
+        'app-shell',
+        sidebarCollapsed ? 'sidebar-collapsed' : '',
+        printPageKeys.includes('summary') ? '' : 'print-without-summary',
+      ].filter(Boolean).join(' ')}>
+        <PrintCoverPage
+          customerName={self?.name || ""}
+          agency={agency}
+          selected={printPageKeys.includes('cover')}
+        />
         <PrintTocPage policies={policies} customerName={self?.name || ""} />
 
-        {isCustomerModalOpen && (
+        {printSelectionOpen && (
+          <PrintSelectionModal
+            availablePageKeys={availablePrintPageKeys}
+            policies={policies}
+            onConfirm={(pageKeys) => {
+              setSelectedPrintPageKeys(pageKeys);
+              setPrintSelectionOpen(false);
+              setPrintRequested(true);
+            }}
+            onClose={() => setPrintSelectionOpen(false)}
+          />
+        )}
+
+        {customerSettingsSection && (
           <CustomerModal
+            section={customerSettingsSection}
             familyMembers={familyMembers}
             agency={agency}
             valuationSettings={valuationSettings}
             hasUsdPolicies={policies.some(policy => policy.currency === 'USD')}
-            onSave={handleSaveModal}
-            onClose={() => setIsCustomerModalOpen(false)}
+            onSave={(updatedFamily, updatedAgency, updatedValuationSettings) =>
+              handleSaveModal(customerSettingsSection, updatedFamily, updatedAgency, updatedValuationSettings)}
+            onClose={() => setCustomerSettingsSection(null)}
           />
         )}
 
@@ -535,8 +580,9 @@ export default function Page() {
           counts={{ summary: policies.length, analysis: policies.length }}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(v => !v)}
-          customerName={self?.name ? `${self.name} 様` : ''}
-          onOpenCustomer={() => setIsCustomerModalOpen(true)}
+          onOpenFamily={() => setCustomerSettingsSection('family')}
+          onOpenValuation={() => setCustomerSettingsSection('valuation')}
+          onOpenAgency={() => setCustomerSettingsSection('agency')}
           onBackToList={handleBackToList}
         />
 
@@ -551,7 +597,7 @@ export default function Page() {
           <header className="app-header">
             <div className="header-title-area">
               <h1 className="app-title">保険証券分析・診断ダッシュボード</h1>
-              <div className="customer-summary-display" onClick={() => setIsCustomerModalOpen(true)} title="クリックして情報を編集">
+              <div className="customer-summary-display" onClick={() => setCustomerSettingsSection('family')} title="世帯・家族情報を編集">
                 <span className="customer-name-tag">{self?.name} 様</span>
                 <span className="customer-meta-tag">({birthDateLabel} | {ageLabel} | 世帯人数: {familyMembers.length}名)</span>
                 <UserCog size={16} className="customer-edit-icon" />
@@ -610,7 +656,11 @@ export default function Page() {
           </header>
 
           <main>
-            <section className={sectionPanelClassName('summary', currentSection, 'print-summary-page print-page')}>
+            <section className={sectionPanelClassName(
+              'summary',
+              currentSection,
+              `print-summary-page print-page${printPageKeys.includes('summary') ? '' : ' print-excluded'}`,
+            )}>
               {!hasKnownCurrentAge && policies.length > 0 && (
                 <div className="age-analysis-notice no-print">
                   <AlertTriangle size={20} />
@@ -618,7 +668,7 @@ export default function Page() {
                     <strong>年齢を使う集計・グラフ・診断は非表示にしています</strong>
                     <p>本人の生年月日が未入力のため、現在年齢が必要な結果を計算できません。生年月日を入力すると自動で表示されます。</p>
                   </div>
-                  <button type="button" onClick={() => setIsCustomerModalOpen(true)}>
+                  <button type="button" onClick={() => setCustomerSettingsSection('family')}>
                     世帯・家族情報を開く
                   </button>
                 </div>
@@ -641,7 +691,11 @@ export default function Page() {
             </section>
 
             {hasPrintableCharts && displayAge !== null && (
-              <div className={sectionPanelClassName('charts', currentSection, 'charts-container print-page')}>
+              <div className={sectionPanelClassName(
+                'charts',
+                currentSection,
+                `charts-container print-page${printPageKeys.includes('charts') ? '' : ' print-excluded'}`,
+              )}>
                 <div className="chart-item">
                   <CoverageChart policies={policies} currentAge={displayAge} />
                 </div>
@@ -661,6 +715,7 @@ export default function Page() {
                 onUpdateNote={handleUpdateNote}
                 onUpdateEvaluations={handleUpdateEvaluations}
                 activeSection={currentSection}
+                printPageKeys={printPageKeys}
               />
             )}
 

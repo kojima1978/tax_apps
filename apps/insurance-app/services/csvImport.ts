@@ -279,7 +279,10 @@ export function importCsv(
       errors.push({ row: rowNum, message: '保険種類が不正です' });
       continue;
     }
-    if (!row.contractDate?.trim()) {
+    const contractDateOptional = normalizedPolicyType === '個人年金保険'
+      || normalizedPolicyType === '終身保険'
+      || normalizedPolicyType === '変額終身保険';
+    if (!contractDateOptional && !row.contractDate?.trim()) {
       errors.push({ row: rowNum, message: '契約日は必須です' });
       continue;
     }
@@ -476,7 +479,7 @@ export function importCsv(
         companyName: row.companyName!.trim(),
         policyType,
         policyNumber,
-        contractDate: row.contractDate!.trim(),
+        contractDate: row.contractDate?.trim() || '',
         contractAge,
         insuredId,
         beneficiaryId,

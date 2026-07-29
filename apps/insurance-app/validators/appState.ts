@@ -98,7 +98,12 @@ export function validateAppState(body: unknown): ValidationResult {
       if (!VALID_POLICY_TYPES.includes(p.policyType as PolicyType)) {
         errors.push({ field: `policies[${i}].policyType`, message: '保険種類が不正です' });
       }
-      if (typeof p.contractDate !== 'string' || !p.contractDate) errors.push({ field: `policies[${i}].contractDate`, message: '契約日は必須です' });
+      const contractDateOptional = p.policyType === '個人年金保険'
+        || p.policyType === '終身保険'
+        || p.policyType === '変額終身保険';
+      if (typeof p.contractDate !== 'string' || (!contractDateOptional && !p.contractDate)) {
+        errors.push({ field: `policies[${i}].contractDate`, message: '契約日は必須です' });
+      }
       if (typeof p.contractAge !== 'number') errors.push({ field: `policies[${i}].contractAge`, message: '契約年齢は数値が必要です' });
       if (typeof p.insuredId !== 'string' || !p.insuredId) errors.push({ field: `policies[${i}].insuredId`, message: '被保険者は必須です' });
       if (typeof p.policyEndAge !== 'number') errors.push({ field: `policies[${i}].policyEndAge`, message: '保険期間は数値が必要です' });

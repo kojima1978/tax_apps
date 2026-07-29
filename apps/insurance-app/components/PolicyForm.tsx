@@ -6,7 +6,7 @@ import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType, normalizePolicyType
 import type { Policy, PolicyType, FamilyMember, SurrenderValuePoint, ValuationSettings, BeneficiaryAllocation } from '@/types';
 import { AlertTriangle, Clipboard, FileUp, Info, Plus, RotateCcw, Save, Trash2, Upload, X } from 'lucide-react';
 import { mergeRelationshipSuggestions } from '@/utils/relationshipOptions';
-import { fetchPolicyPrompt, savePolicyPrompt } from '@/lib/api';
+import { ApiError, fetchPolicyPrompt, savePolicyPrompt } from '@/lib/api';
 import { DEFAULT_POLICY_PROMPT, LEGACY_DEFAULT_POLICY_PROMPTS, normalizePromptText } from '@/lib/policyPrompt';
 import { CommaInput, CommaInputRaw } from './CommaInput';
 import SurrenderValueEditor from './SurrenderValueEditor';
@@ -286,10 +286,22 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       normalizePromptText(prompt) === normalizePromptText(DEFAULT_POLICY_PROMPT) ||
       LEGACY_DEFAULT_POLICY_PROMPTS.some(legacy => normalizePromptText(legacy) === normalizePromptText(prompt));
 
+    const fetchPromptWithRetry = async () => {
+      try {
+        return await fetchPolicyPrompt();
+      } catch (err) {
+        const isTransientGatewayError = err instanceof ApiError
+          && [502, 503, 504].includes(err.status);
+        if (!isTransientGatewayError) throw err;
+        await new Promise(resolve => window.setTimeout(resolve, 750));
+        return fetchPolicyPrompt();
+      }
+    };
+
     const loadPrompt = async () => {
       const legacyPrompt = readLegacyPrompt();
       try {
-        const saved = await fetchPolicyPrompt();
+        const saved = await fetchPromptWithRetry();
         let nextPrompt = saved.prompt?.trim() || DEFAULT_POLICY_PROMPT;
         const hasLegacyCustomPrompt = legacyPrompt && !isDefaultPrompt(legacyPrompt);
         const databasePromptIsDefault = isDefaultPrompt(nextPrompt);
@@ -307,7 +319,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
           setPromptDraft(nextPrompt);
         }
       } catch (err) {
-        console.error('Policy prompt load error:', err);
+        console.warn('Policy prompt could not be loaded; using the local default.', err);
         if (!cancelled && legacyPrompt && !isDefaultPrompt(legacyPrompt)) {
           setPolicyPrompt(legacyPrompt);
           setPromptDraft(legacyPrompt);
@@ -1283,6 +1295,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   const hasBeneficiaryField = BENEFICIARY_TYPES.includes(selectedPolicyType);
   const hasAccidentDeathBenefitField = hasDeathBenefitFields && !isIncomeProtection;
   const isWholeLifeCoverage = WHOLE_LIFE_COVERAGE_TYPES.includes(selectedPolicyType);
+  const isContractDateOptional = isWholeLifeCoverage || isPension;
   const isUsdPolicy = formData.currency === 'USD';
   const currencyUnit = isUsdPolicy ? 'USD' : '円';
   const isWholeLifePayment = formData.paymentEndAge === 999;
@@ -1381,7 +1394,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     const errors: Record<string, string> = {};
     const memberIds = new Set(familyMembers.map(member => member.id));
     if (!formData.companyName) errors.companyName = '保険会社は必須です';
-    if (!formData.contractDate) errors.contractDate = '契約日は必須です';
+    if (!isContractDateOptional && !formData.contractDate) errors.contractDate = '契約日は必須です';
     if (!formData.insuredId) errors.insuredId = '被保険者を選択してください';
     else if (!memberIds.has(formData.insuredId)) errors.insuredId = '被保険者が家族情報に存在しません';
     const beneficiaryAllocations = getBeneficiaryAllocations(formData as Policy);
@@ -1408,10 +1421,10 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       errors.exchangeRate = '基本情報で現在評価用USD/JPYレートを入力してください';
     }
     if (isUsdPolicy && formData.paymentFrequency === 'single') {
-      if (!formData.premiumPaymentDate) {
+      if (!isWholeLifeCoverage && !formData.premiumPaymentDate) {
         errors.premiumPaymentDate = '支払日を入力してください';
       }
-      if (paymentCurrency === 'JPY' && (!formData.actualPremiumPaidJpy || formData.actualPremiumPaidJpy <= 0)) {
+      if (!isWholeLifeCoverage && paymentCurrency === 'JPY' && (!formData.actualPremiumPaidJpy || formData.actualPremiumPaidJpy <= 0)) {
         errors.actualPremiumPaidJpy = '実際に支払った円額を入力してください';
       }
       if (paymentCurrency === 'USD' && (!formData.foreignPremiumAmount || formData.foreignPremiumAmount <= 0)) {
@@ -1478,7 +1491,8 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       paymentCurrency: isUsdPolicy && formData.paymentFrequency === 'single' ? paymentCurrency : undefined,
       premiumPaymentDate: isUsdPolicy && formData.paymentFrequency === 'single' ? formData.premiumPaymentDate : undefined,
       actualPremiumPaidJpy: isUsdPolicy && formData.paymentFrequency === 'single' && paymentCurrency === 'JPY'
-        ? Number(formData.actualPremiumPaidJpy || 0)
+        && Number(formData.actualPremiumPaidJpy || 0) > 0
+        ? Number(formData.actualPremiumPaidJpy)
         : undefined,
       paymentExchangeRate: isUsdPolicy && formData.paymentFrequency === 'single' && paymentCurrency === 'JPY'
         ? derivedPaymentExchangeRate
@@ -1488,7 +1502,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       beneficiaryAllocations: normalizeBeneficiaryAllocations(beneficiaryAllocations),
     };
     if (isUsdPolicy && formData.paymentFrequency === 'single' && paymentCurrency === 'JPY') {
-      finalPolicy.premiumAmount = Number(formData.actualPremiumPaidJpy || 0);
+      finalPolicy.premiumAmount = Number(formData.actualPremiumPaidJpy || 0) > 0
+        ? Number(formData.actualPremiumPaidJpy)
+        : yenFromForeign(Number(formData.foreignPremiumAmount || 0), valuationSettings.usdJpyRate);
       finalPolicy.annualPremium = finalPolicy.premiumAmount;
     }
     if (!hasDeathBenefitFields) {
@@ -1872,7 +1888,12 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                 {formErrors.beneficiaryAllocations && <span className="field-error">{formErrors.beneficiaryAllocations}</span>}
               </div>
             )}
-            <div className={`form-group ${formErrors.contractDate ? 'has-error' : ''}`}><label>契約日 <span className="required-mark">*</span></label><input type="date" value={formData.contractDate} onChange={e => setFieldWithContractAge('contractDate', e.target.value)} />{formErrors.contractDate && <span className="field-error">{formErrors.contractDate}</span>}</div>
+            <div className={`form-group ${formErrors.contractDate ? 'has-error' : ''}`}>
+              <label>契約日 {!isContractDateOptional && <span className="required-mark">*</span>}</label>
+              <input type="date" value={formData.contractDate} onChange={e => setFieldWithContractAge('contractDate', e.target.value)} />
+              {isContractDateOptional && <span className="field-hint">任意入力（未入力時は契約年齢を分析に使用します）</span>}
+              {formErrors.contractDate && <span className="field-error">{formErrors.contractDate}</span>}
+            </div>
             <div className="form-group">
               <label>契約年齢（歳）</label>
               <input
@@ -2118,12 +2139,13 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                   </select>
                 </div>
                 <div className={`form-group ${formErrors.premiumPaymentDate ? 'has-error' : ''}`}>
-                  <label>支払日 <span className="required-mark">*</span></label>
+                  <label>支払日 {!isWholeLifeCoverage && <span className="required-mark">*</span>}</label>
                   <input
                     type="date"
                     value={formData.premiumPaymentDate || ''}
                     onChange={e => setField('premiumPaymentDate', e.target.value)}
                   />
+                  {isWholeLifeCoverage && <span className="field-hint">任意入力</span>}
                   {formErrors.premiumPaymentDate && <span className="field-error">{formErrors.premiumPaymentDate}</span>}
                 </div>
                 {paymentCurrency === 'JPY' && (
@@ -2135,8 +2157,10 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                       actualPremiumPaidJpy: value,
                       premiumAmount: value,
                     }))}
-                    required
-                    hint="コスト計算には、支払日の実際の円支払額を使用します"
+                    required={!isWholeLifeCoverage}
+                    hint={isWholeLifeCoverage
+                      ? '任意入力。未入力時のコストは契約上のドル額を現在の共通レートで円換算した概算です'
+                      : 'コスト計算には、支払日の実際の円支払額を使用します'}
                     error={formErrors.actualPremiumPaidJpy}
                   />
                 )}

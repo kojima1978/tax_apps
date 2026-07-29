@@ -131,14 +131,19 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
     return `月払・${getPaymentEndLabel(policy)}`;
   };
 
-  const getPensionMeta = (policy: Policy) => {
+  const getPensionPremiumMeta = (policy: Policy) => {
     if (policy.policyType !== '個人年金保険' || policy.maturityBenefit <= 0) return null;
     const pension = getPensionPayoutSummary(policy);
-    if (pension.periodYears <= 0) return '年金受取: 受取年数を確認';
+    const paymentLabel = policy.paymentFrequency === 'single'
+      ? '一時払済'
+      : policy.premiumPaymentCompleted || (currentAge !== null && isPaidUp(policy, currentAge))
+        ? '払込済'
+        : getPaymentEndLabel(policy);
+    if (pension.periodYears <= 0) return `${paymentLabel}／受取年数を確認`;
     const startLabel = policy.pensionStartMode === 'fiscalYear' && policy.pensionStartFiscalYear
       ? `${policy.pensionStartFiscalYear}年度`
       : `${pension.startAge}歳`;
-    return `年金受取: ${startLabel}から${pension.periodYears}年・年額${Math.round(pension.annualPayout).toLocaleString()}円`;
+    return `${paymentLabel}／${startLabel}から${pension.periodYears}年受取`;
   };
 
   const getStatusBadges = (policy: Policy) => {
@@ -260,7 +265,8 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
         <tbody>
           {filteredPolicies.map((policy) => {
             const originalIndex = policies.indexOf(policy);
-            const pensionMeta = getPensionMeta(policy);
+            const pensionPremiumMeta = getPensionPremiumMeta(policy);
+            const isPension = policy.policyType === '個人年金保険';
             const statusBadges = getStatusBadges(policy);
             const [paymentFrequencyBadge, ...otherStatusBadges] = statusBadges;
             return (
@@ -304,7 +310,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
                   : getBeneficiaryLabel(policy)}
               </td>
               <td data-label="保険料">
-                <div className="premium-cell">
+                <div className={`premium-cell${isPension ? ' pension-premium-cell' : ''}`}>
                   <div className="premium-primary-row">
                     {paymentFrequencyBadge && (
                       <span className={`policy-status-badge premium-frequency-badge ${paymentFrequencyBadge.className}`}>
@@ -315,9 +321,16 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
                       <div className="premium-main">{formatPrimaryAmount(policy, policy.premiumAmount, policy.foreignPremiumAmount)}</div>
                     </div>
                   </div>
-                  <div className="premium-meta">{getPremiumMeta(policy)}</div>
-                  {pensionMeta && <div className="premium-meta pension-meta">{pensionMeta}</div>}
-                  {otherStatusBadges.length > 0 && (
+                  {isPension ? (
+                    pensionPremiumMeta && (
+                      <div className="premium-meta pension-meta" title={pensionPremiumMeta}>
+                        {pensionPremiumMeta}
+                      </div>
+                    )
+                  ) : (
+                    <div className="premium-meta">{getPremiumMeta(policy)}</div>
+                  )}
+                  {!isPension && otherStatusBadges.length > 0 && (
                     <div className="policy-status-badges">
                       {otherStatusBadges.map(badge => (
                         <span

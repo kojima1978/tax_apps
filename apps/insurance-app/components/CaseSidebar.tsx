@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowLeft, Home, PanelLeftClose, PanelLeftOpen, UserCog } from 'lucide-react';
+import { ArrowLeft, Building2, DollarSign, Home, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import type { CaseSectionDef, CaseSectionKey } from '@/utils/caseSections';
 
 interface CaseSidebarProps {
@@ -12,8 +12,9 @@ interface CaseSidebarProps {
   counts?: Partial<Record<CaseSectionKey, number>>;
   collapsed: boolean;
   onToggleCollapse: () => void;
-  customerName: string;
-  onOpenCustomer: () => void;
+  onOpenFamily: () => void;
+  onOpenValuation: () => void;
+  onOpenAgency: () => void;
   onBackToList: () => void;
 }
 
@@ -24,8 +25,9 @@ const CaseSidebar: React.FC<CaseSidebarProps> = ({
   counts,
   collapsed,
   onToggleCollapse,
-  customerName,
-  onOpenCustomer,
+  onOpenFamily,
+  onOpenValuation,
+  onOpenAgency,
   onBackToList,
 }) => (
   <aside className={`case-sidebar no-print ${collapsed ? 'collapsed' : ''}`}>
@@ -68,15 +70,36 @@ const CaseSidebar: React.FC<CaseSidebarProps> = ({
     </nav>
 
     <div className="case-sidebar-foot">
-      <button
-        type="button"
-        className="case-sidebar-link"
-        onClick={onOpenCustomer}
-        title="世帯・家族情報を編集"
-      >
-        <UserCog size={16} />
-        {!collapsed && <span>{customerName || 'お客様情報'}</span>}
-      </button>
+      <div className="case-sidebar-settings">
+        {!collapsed && <span className="case-sidebar-group-label">基本情報</span>}
+        <button
+          type="button"
+          className="case-sidebar-link"
+          onClick={onOpenFamily}
+          title="世帯・家族情報を編集"
+        >
+          <Users size={16} />
+          {!collapsed && <span>世帯・家族情報</span>}
+        </button>
+        <button
+          type="button"
+          className="case-sidebar-link"
+          onClick={onOpenValuation}
+          title="現在評価用の為替レートを編集"
+        >
+          <DollarSign size={16} />
+          {!collapsed && <span>現在評価用の為替レート</span>}
+        </button>
+        <button
+          type="button"
+          className="case-sidebar-link"
+          onClick={onOpenAgency}
+          title="代理店情報を編集"
+        >
+          <Building2 size={16} />
+          {!collapsed && <span>代理店情報</span>}
+        </button>
+      </div>
       <button type="button" className="case-sidebar-link" onClick={onBackToList} title="お客様一覧に戻る">
         <ArrowLeft size={16} />
         {!collapsed && <span>お客様一覧</span>}

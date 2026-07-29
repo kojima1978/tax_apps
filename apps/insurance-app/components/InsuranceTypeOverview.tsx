@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { DISPLAY_POLICY_TYPES } from '@/types';
 import type { Policy, PolicyType } from '@/types';
 import {
   Landmark,
@@ -84,6 +83,7 @@ const InsuranceTypeOverview: React.FC<InsuranceTypeOverviewProps> = ({ caseId, p
     acc[p.policyType].push(p);
     return acc;
   }, {} as Record<PolicyType, Policy[]>);
+  const policyTypesInAnalysisOrder = [...new Set(policies.map(policy => policy.policyType))];
 
   const [editableInsights, setEditableInsights] = useState<EditableInsight[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -221,7 +221,7 @@ const InsuranceTypeOverview: React.FC<InsuranceTypeOverviewProps> = ({ caseId, p
       </h3>
 
       <div className="type-overview-grid">
-        {DISPLAY_POLICY_TYPES
+        {policyTypesInAnalysisOrder
           .map(type => [type, grouped[type]] as const)
           .filter((entry): entry is readonly [PolicyType, Policy[]] => Boolean(entry[1]?.length))
           .map(([type, typePolicies]) => {
