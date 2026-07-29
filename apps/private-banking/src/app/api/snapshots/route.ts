@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
 import { defaultAsOfDate, isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
 
@@ -82,6 +83,8 @@ export async function POST(request: Request) {
           isCurrent: becomesCurrent,
           estimatedInheritanceTax: creationMode === "COPY" ? source.estimatedInheritanceTax : new Prisma.Decimal(0),
           otherTaxes: creationMode === "COPY" ? source.otherTaxes : new Prisma.Decimal(0),
+          // 明細を引き継ぐときは、その明細に焼き込まれたレートと年度設定がずれないよう円換算レートも一緒に引き継ぐ。
+          fxRates: creationMode === "COPY" ? parseFxRates(source.fxRates) : Prisma.DbNull,
           ...(creationMode === "COPY" ? { positions: {
             create: source.positions.map(
               // Database identifiers and timestamps are regenerated for the copied fiscal year.

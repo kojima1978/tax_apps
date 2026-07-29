@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { FamilyMember, Household, Position, Snapshot } from "@prisma/client";
 import { z } from "zod";
+import { parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
 
 export const BACKUP_SCHEMA_VERSION = 1;
@@ -52,6 +53,7 @@ function serializeSnapshot(snapshot: Snapshot) {
     estimatedInheritanceTax: decimalText(snapshot.estimatedInheritanceTax),
     inheritanceTaxCalculation: snapshot.inheritanceTaxCalculation,
     otherTaxes: decimalText(snapshot.otherTaxes),
+    fxRates: parseFxRates(snapshot.fxRates),
     createdAt: snapshot.createdAt.toISOString(),
     updatedAt: snapshot.updatedAt.toISOString(),
   };
@@ -195,6 +197,8 @@ const snapshotFieldsSchema = z.object({
   estimatedInheritanceTax: decimalLike.default(0),
   inheritanceTaxCalculation: z.unknown().nullable().default(null),
   otherTaxes: decimalLike.default(0),
+  // 円換算レートは後から追加した項目のため、旧バックアップファイルでも取り込めるようにしておく。
+  fxRates: z.unknown().optional(),
 });
 
 const positionFieldsSchema = z.object({
@@ -310,6 +314,7 @@ function snapshotData(row: SnapshotFields) {
       ? Prisma.DbNull
       : row.inheritanceTaxCalculation as Prisma.InputJsonValue,
     otherTaxes: toDecimal(row.otherTaxes),
+    fxRates: parseFxRates(row.fxRates),
   };
 }
 

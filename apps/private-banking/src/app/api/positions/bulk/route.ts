@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { fxRateFor, missingFxRateMessage, parseFxRates, type FxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
 import {
   calculatedOriginalAmount,
@@ -11,6 +12,20 @@ import {
 } from "@/lib/position-input";
 
 const bulkEntryCategories = new Set(["SECURITIES", "PRIVATE_SHARES", "HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"]);
+
+/**
+ * 円換算レートは明細ではなく年度に登録した値を使う。
+ * レート未登録の通貨が1件でもあれば、書き込む前にまとめて弾く。
+ */
+function fxRatesForRows(rates: FxRates, currencies: string[]) {
+  const resolved: number[] = [];
+  for (const currency of currencies) {
+    const rate = fxRateFor(rates, currency);
+    if (rate === null) return { error: missingFxRateMessage(currency) } as const;
+    resolved.push(rate);
+  }
+  return { rates: resolved } as const;
+}
 
 const bulkPositionInputSchema = z.object({
   snapshotId: z.coerce.number().int().positive(),
@@ -68,6 +83,9 @@ export async function POST(request: Request) {
   const snapshot = await prisma.snapshot.findUnique({ where: { id: parsed.data.snapshotId } });
   if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
 
+  const resolvedRates = fxRatesForRows(parseFxRates(snapshot.fxRates), parsed.data.positions.map((data) => data.currency));
+  if ("error" in resolvedRates) return NextResponse.json({ error: resolvedRates.error }, { status: 400 });
+
   const ids = await prisma.$transaction(async (tx) => {
     const lastPosition = await tx.position.findFirst({
       where: { snapshotId: snapshot.id, side: "ASSET" },
@@ -76,9 +94,10 @@ export async function POST(request: Request) {
     });
     let sortOrder = (lastPosition?.sortOrder ?? -1) + 1;
     const createdIds: number[] = [];
-    for (const data of parsed.data.positions) {
+    for (const [index, data] of parsed.data.positions.entries()) {
+      const fxRate = resolvedRates.rates[index];
       const originalAmount = calculatedOriginalAmount(data);
-      const valueJpy = Math.round(originalAmount * data.fxRate);
+      const valueJpy = Math.round(originalAmount * fxRate);
       const created = await tx.position.create({
         data: {
           ...data,
@@ -87,7 +106,7 @@ export async function POST(request: Request) {
           liquidity: liquidityForCategory(data.category),
           snapshotId: snapshot.id,
           originalAmount: new Prisma.Decimal(originalAmount),
-          fxRate: new Prisma.Decimal(data.fxRate),
+          fxRate: new Prisma.Decimal(fxRate),
           valueJpy: new Prisma.Decimal(valueJpy),
           includedInNetWorth: data.category !== "GUARANTEE",
           sortOrder,
@@ -116,8 +135,11 @@ export async function PUT(request: Request) {
     );
   }
 
-  const snapshot = await prisma.snapshot.findUnique({ where: { id: parsed.data.snapshotId }, select: { id: true } });
+  const snapshot = await prisma.snapshot.findUnique({ where: { id: parsed.data.snapshotId }, select: { id: true, fxRates: true } });
   if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
+
+  const resolvedRates = fxRatesForRows(parseFxRates(snapshot.fxRates), parsed.data.positions.map((position) => position.data.currency));
+  if ("error" in resolvedRates) return NextResponse.json({ error: resolvedRates.error }, { status: 400 });
 
   const requestedIds = parsed.data.positions.map((position) => position.id);
   const registeredPositions = await prisma.position.findMany({
@@ -129,10 +151,11 @@ export async function PUT(request: Request) {
   }
 
   await prisma.$transaction(async (tx) => {
-    for (const position of parsed.data.positions) {
+    for (const [index, position] of parsed.data.positions.entries()) {
       const data = position.data;
+      const fxRate = resolvedRates.rates[index];
       const originalAmount = calculatedOriginalAmount(data);
-      const valueJpy = Math.round(originalAmount * data.fxRate);
+      const valueJpy = Math.round(originalAmount * fxRate);
       await tx.position.update({
         where: { id: position.id },
         data: {
@@ -141,7 +164,7 @@ export async function PUT(request: Request) {
           valuationMethod: normalizedValuationMethod(data),
           liquidity: liquidityForCategory(data.category),
           originalAmount: new Prisma.Decimal(originalAmount),
-          fxRate: new Prisma.Decimal(data.fxRate),
+          fxRate: new Prisma.Decimal(fxRate),
           valueJpy: new Prisma.Decimal(valueJpy),
           includedInNetWorth: data.category !== "GUARANTEE",
         },
@@ -165,8 +188,11 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const snapshot = await prisma.snapshot.findUnique({ where: { id: parsed.data.snapshotId }, select: { id: true } });
+  const snapshot = await prisma.snapshot.findUnique({ where: { id: parsed.data.snapshotId }, select: { id: true, fxRates: true } });
   if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
+
+  const resolvedRates = fxRatesForRows(parseFxRates(snapshot.fxRates), parsed.data.positions.map((position) => position.data.currency));
+  if ("error" in resolvedRates) return NextResponse.json({ error: resolvedRates.error }, { status: 400 });
 
   const requestedIds = parsed.data.positions.flatMap((position) => position.id ? [position.id] : []);
   if (requestedIds.length > 0) {
@@ -189,17 +215,18 @@ export async function PATCH(request: Request) {
     const updatedIds: number[] = [];
     const createdIds: number[] = [];
 
-    for (const position of parsed.data.positions) {
+    for (const [index, position] of parsed.data.positions.entries()) {
       const data = position.data;
+      const fxRate = resolvedRates.rates[index];
       const originalAmount = calculatedOriginalAmount(data);
-      const valueJpy = Math.round(originalAmount * data.fxRate);
+      const valueJpy = Math.round(originalAmount * fxRate);
       const normalizedData = {
         ...data,
         ownershipShare: calculatedOwnershipShare(data),
         valuationMethod: normalizedValuationMethod(data),
         liquidity: liquidityForCategory(data.category),
         originalAmount: new Prisma.Decimal(originalAmount),
-        fxRate: new Prisma.Decimal(data.fxRate),
+        fxRate: new Prisma.Decimal(fxRate),
         valueJpy: new Prisma.Decimal(valueJpy),
         includedInNetWorth: data.category !== "GUARANTEE",
       };

@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { fxRateFor, missingFxRateMessage, parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
 import { calculatedOriginalAmount, calculatedOwnershipShare, liquidityForCategory, normalizedValuationMethod, positionInputSchema } from "@/lib/position-input";
 
@@ -14,8 +15,12 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   if (!parsed.success) return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
 
   const data = parsed.data;
+  // 円換算レートは明細ではなく年度に登録した値を使う。
+  const fxRate = fxRateFor(parseFxRates(position.snapshot.fxRates), data.currency);
+  if (fxRate === null) return NextResponse.json({ error: missingFxRateMessage(data.currency) }, { status: 400 });
+
   const originalAmount = calculatedOriginalAmount(data);
-  const valueJpy = Math.round(originalAmount * data.fxRate);
+  const valueJpy = Math.round(originalAmount * fxRate);
   const includedInNetWorth = data.category !== "GUARANTEE";
   const sectionChanged = position.side !== data.side || position.includedInNetWorth !== includedInNetWorth;
   await prisma.$transaction(async (tx) => {
@@ -34,7 +39,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         valuationMethod: normalizedValuationMethod(data),
         liquidity: liquidityForCategory(data.category),
         originalAmount: new Prisma.Decimal(originalAmount),
-        fxRate: new Prisma.Decimal(data.fxRate),
+        fxRate: new Prisma.Decimal(fxRate),
         valueJpy: new Prisma.Decimal(valueJpy),
         includedInNetWorth,
         ...(sectionChanged ? { sortOrder: (lastPosition?.sortOrder ?? -1) + 1 } : {}),

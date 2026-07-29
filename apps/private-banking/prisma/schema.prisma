@@ -63,6 +63,8 @@ model Snapshot {
   estimatedInheritanceTax Decimal    @default(0) @db.Decimal(24, 0)
   inheritanceTaxCalculation Json?
   otherTaxes              Decimal    @default(0) @db.Decimal(24, 0)
+  /// 通貨→円換算レート。明細ではなく年度で持つ（例: {"USD": 150.25}）。
+  fxRates                 Json?
   positions               Position[]
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt

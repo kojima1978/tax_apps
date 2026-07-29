@@ -33,8 +33,8 @@ const assetDetailsSchema = z.object({
   maturityDate: optionalDetailDate,
   securityType: optionalDetailText,
   securityCode: optionalDetailText,
-  valuationDate: optionalDetailDate,
   insuranceType: optionalDetailText,
+  policyNumber: optionalDetailText,
   insuredPerson: optionalDetailText,
   beneficiary: optionalDetailText,
   deathBenefit: optionalDetailNumber,
@@ -52,11 +52,6 @@ const assetDetailsSchema = z.object({
   businessAssetType: optionalDetailText,
   businessName: optionalDetailText,
   storageLocation: optionalDetailText,
-  borrower: optionalDetailText,
-  loanDate: optionalDetailDate,
-  dueDate: optionalDetailDate,
-  interestRate: optionalDetailNumber,
-  collectibility: optionalDetailText,
   otherAssetType: optionalDetailText,
 }).default({});
 const stockCategories = new Set(["SECURITIES", "PRIVATE_SHARES"]);
@@ -121,9 +116,6 @@ export const positionInputSchema = z.object({
     if (data.assetDetails.propertyType === "BUILDING" && ["LAND_ROADSIDE", "LAND_MULTIPLIER"].includes(data.valuationFormula)) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["valuationFormula"], message: "建物の評価方法を選択してください。" });
     }
-  }
-  if (data.category === "LOAN_RECEIVABLE" && !data.assetDetails.borrower) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "borrower"], message: "借主を入力してください。" });
   }
 });
 

@@ -137,10 +137,8 @@ describe("positionInputSchema", () => {
     expect(positionInputSchema.safeParse({ ...stockInput, valuationUnitPrice: 0 }).success).toBe(false);
   });
 
-  it("貸付金は借主が必須", () => {
-    const base = { side: "ASSET", category: "LOAN_RECEIVABLE", name: "役員貸付金", originalAmount: 5000000 };
-    expect(positionInputSchema.safeParse(base).success).toBe(false);
-    expect(positionInputSchema.safeParse({ ...base, assetDetails: { borrower: "株式会社サンプル" } }).success).toBe(true);
+  it("貸付金は名称と残高だけで登録できる", () => {
+    expect(positionInputSchema.safeParse({ side: "ASSET", category: "LOAN_RECEIVABLE", name: "役員貸付金", originalAmount: 5000000 }).success).toBe(true);
   });
 
   it("保険金の非課税枠対象フラグを真偽値へ正規化する", () => {

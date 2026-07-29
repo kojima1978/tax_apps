@@ -352,10 +352,10 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     setSaving(true); setError("");
     const form = new FormData(event.currentTarget);
     const fields = Object.fromEntries(form.entries()) as Record<string, unknown>;
-    for (const fieldName of ["originalAmount", "fxRate", "valuationQuantity", "valuationUnitPrice", "adjustmentRate", "landArea", "roadsideValue", "fixedAssetTaxValue", "valuationMultiplier", "ownershipNumerator", "ownershipDenominator"]) {
+    for (const fieldName of ["originalAmount", "valuationQuantity", "valuationUnitPrice", "adjustmentRate", "landArea", "roadsideValue", "fixedAssetTaxValue", "valuationMultiplier", "ownershipNumerator", "ownershipDenominator"]) {
       if (fieldName in fields) fields[fieldName] = unformatNumberInput(fields[fieldName] as FormDataEntryValue | undefined) ?? "";
     }
-    const numericDetailFields = new Set(["deathBenefit", "totalIssuedShares", "interestRate", "floorArea"]);
+    const numericDetailFields = new Set(["deathBenefit", "totalIssuedShares", "floorArea"]);
     const assetDetails: Record<string, string | number | boolean> = {};
     for (const [fieldName, rawValue] of Object.entries(fields)) {
       if (!fieldName.startsWith("assetDetail.")) continue;
@@ -380,10 +380,15 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         editingPosition ? `${API_BASE}/positions/${editingPosition.id}` : `${API_BASE}/positions`,
         { method: editingPosition ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
       );
-      if (!response.ok) throw new Error();
+      const result = await response.json().catch(() => null) as { error?: string } | null;
+      // 円換算レート未登録など、サーバ側で理由が分かる場合はその文言をそのまま出す。
+      if (!response.ok) throw new Error(result?.error);
       closePositionModal();
       await load();
-    } catch { setError(editingPosition ? "修正できませんでした。入力内容を確認してください。" : "登録できませんでした。入力内容を確認してください。"); }
+    } catch (positionError) {
+      const fallback = editingPosition ? "修正できませんでした。入力内容を確認してください。" : "登録できませんでした。入力内容を確認してください。";
+      setError(positionError instanceof Error && positionError.message ? positionError.message : fallback);
+    }
     finally { setSaving(false); }
   }
 
@@ -497,11 +502,21 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     event.preventDefault();
     if (!workingSnapshot) return;
     setSaving(true); setError("");
+    // 円換算レートは `fxRate.USD` のような名前で並ぶので、通貨→レートの表にまとめ直して送る。
+    const fields = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, unknown>;
+    const fxRates: Record<string, number> = {};
+    for (const [fieldName, rawValue] of Object.entries(fields)) {
+      if (!fieldName.startsWith("fxRate.")) continue;
+      const value = unformatNumberInput(rawValue as FormDataEntryValue);
+      if (value) fxRates[fieldName.slice("fxRate.".length)] = Number(value);
+      delete fields[fieldName];
+    }
+    fields.fxRates = fxRates;
     try {
       const response = await fetch(`${API_BASE}/snapshots/${workingSnapshot.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget).entries())),
+        body: JSON.stringify(fields),
       });
       const result = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) throw new Error(result?.error ?? "年度設定を保存できませんでした。");
@@ -740,7 +755,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         </main>
       </div>
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
-      {modalOpen ? <PositionModal position={editingPosition} people={familyPeopleNames} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
+      {modalOpen ? <PositionModal position={editingPosition} people={familyPeopleNames} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
       {bulkModalOpen && workingSnapshot ? <BulkPositionModal snapshot={workingSnapshot} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /> : null}
       {deletingPosition ? <DeletePositionModal position={deletingPosition} onClose={() => setDeletingPosition(null)} onDelete={() => void deletePosition()} saving={saving} /> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}

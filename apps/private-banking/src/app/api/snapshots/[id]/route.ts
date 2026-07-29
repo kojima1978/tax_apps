@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { fxRateFor, missingFxRateMessage, parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
 import { isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
 
@@ -8,6 +9,8 @@ const snapshotSettingsSchema = z.object({
   asOfDate: z.string(),
   estimatedInheritanceTax: z.coerce.number().finite().min(0),
   otherTaxes: z.coerce.number().finite().min(0),
+  // 通貨→円換算レート。空欄や不正値は parseFxRates が捨てる。
+  fxRates: z.unknown().optional(),
 });
 
 const snapshotDeleteSchema = z.object({
@@ -30,13 +33,32 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   const asOfDate = parseDateOnlyUtc(parsed.data.asOfDate);
   if (!asOfDate) return NextResponse.json({ error: "B/S基準日を確認してください。" }, { status: 400 });
 
+  // 円換算レートは年度で持つので、変更したら同じ年度の外貨建て明細を一括で評価し直す。
+  const fxRates = parseFxRates(parsed.data.fxRates);
+  const foreignPositions = await prisma.position.findMany({
+    where: { snapshotId: snapshot.id, currency: { not: "JPY" } },
+    select: { id: true, currency: true, originalAmount: true },
+  });
+  const missingCurrency = foreignPositions.find((position) => fxRateFor(fxRates, position.currency) === null);
+  if (missingCurrency) {
+    return NextResponse.json({ error: missingFxRateMessage(missingCurrency.currency) }, { status: 400 });
+  }
+
   const estimatedInheritanceTax = new Prisma.Decimal(Math.round(parsed.data.estimatedInheritanceTax));
   const otherTaxes = new Prisma.Decimal(Math.round(parsed.data.otherTaxes));
   await prisma.$transaction(async (tx) => {
     await tx.snapshot.update({
       where: { id: snapshot.id },
-      data: { asOfDate, estimatedInheritanceTax, inheritanceTaxCalculation: Prisma.DbNull, otherTaxes },
+      data: { asOfDate, estimatedInheritanceTax, inheritanceTaxCalculation: Prisma.DbNull, otherTaxes, fxRates },
     });
+    for (const position of foreignPositions) {
+      const fxRate = fxRates[position.currency];
+      const valueJpy = Math.round(Number(position.originalAmount.toString()) * fxRate);
+      await tx.position.update({
+        where: { id: position.id },
+        data: { fxRate: new Prisma.Decimal(fxRate), valueJpy: new Prisma.Decimal(valueJpy) },
+      });
+    }
     if (snapshot.isCurrent) {
       await tx.household.update({
         where: { id: snapshot.householdId },

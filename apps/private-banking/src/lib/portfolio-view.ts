@@ -1,5 +1,6 @@
 import { decimalToFraction, valuationNumber } from "@/lib/format";
 import type { FamilyMember } from "@/lib/family";
+import type { FxRates } from "@/lib/fx-rates";
 import type { InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 
 /** 画面側で扱うポートフォリオの型。API (`/api/portfolio`) のレスポンスと対応する。 */
@@ -15,19 +16,18 @@ export type Position = {
 };
 export type AssetDetails = {
   accountType?: string; branchName?: string; accountSuffix?: string; maturityDate?: string;
-  securityType?: string; securityCode?: string; valuationDate?: string;
-  insuranceType?: string; insuredPerson?: string; beneficiary?: string; deathBenefit?: number; beneficiaryIsLegalHeir?: boolean;
+  securityType?: string; securityCode?: string;
+  insuranceType?: string; policyNumber?: string; insuredPerson?: string; beneficiary?: string; deathBenefit?: number; beneficiaryIsLegalHeir?: boolean;
   propertyType?: string; propertyAddress?: string; landCategory?: string; smallLotType?: string;
   buildingType?: string; buildingStructure?: string; floorArea?: number;
   shareClass?: string; totalIssuedShares?: number; valuationApproach?: string;
   businessAssetType?: string; businessName?: string; storageLocation?: string;
-  borrower?: string; loanDate?: string; dueDate?: string; interestRate?: number; collectibility?: string;
   otherAssetType?: string;
 };
 export type Snapshot = {
   id: number; label: string; asOfDate: string; fiscalYear: number; isCurrent: boolean;
   estimatedInheritanceTax: number; inheritanceTaxCalculation: InheritanceTaxCalculation | null;
-  otherTaxes: number; updatedAt: string; positions: Position[];
+  otherTaxes: number; fxRates: FxRates; updatedAt: string; positions: Position[];
 };
 export type PositionSection = "ASSET" | "LIABILITY" | "CONTINGENT";
 export type PositionSortMode = "manual" | "classification-asc" | "classification-desc";
@@ -52,6 +52,10 @@ export const categoryLabels: Record<string, string> = {
   PRIVATE_SHARES: "自社株", BUSINESS_ASSETS: "事業用資産", LOAN_RECEIVABLE: "貸付金", INSURANCE: "生命保険", COLLECTIBLES: "その他資産",
   LOAN_HOME: "住宅ローン", LOAN_INVESTMENT_PROPERTY: "不動産投資ローン", LOAN_SECURITIES: "証券担保ローン",
   LOAN_BUSINESS: "事業用借入", LOAN_OTHER: "その他借入金", LOAN: "その他借入金", GUARANTEE: "個人保証",
+};
+/** その他資産の資産種類。明細フォームの選択肢と一覧の表示ラベルを兼ねる。 */
+export const otherAssetTypeLabels: Record<string, string> = {
+  PRECIOUS_METAL: "金・貴金属", ART: "美術品", WATCH: "時計", VEHICLE: "車両", MEMBERSHIP: "会員権", CRYPTO: "暗号資産", OTHER: "その他",
 };
 export const landCategoryOptions = [
   { value: "RICE_FIELD", label: "田", definition: "農地で、用水を利用して湛水して栽培する土地（稲など）" },
@@ -132,7 +136,12 @@ export function middleClassification(position: Position) {
 
 export function institutionOrPropertyAddress(position: Position) {
   const isRealEstate = ["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(position.category);
-  return isRealEstate ? position.assetDetails?.propertyAddress?.trim() ?? "" : position.institution.trim();
+  if (isRealEstate) return position.assetDetails?.propertyAddress?.trim() ?? "";
+  // 生命保険は保険会社名を明細の名称に使っているので、この欄には証券番号を出す。
+  if (position.category === "INSURANCE") return position.assetDetails?.policyNumber?.trim() ?? "";
+  // その他資産は保管先を持たせないので、この欄には資産種類を出す。
+  if (position.category === "COLLECTIBLES") return otherAssetTypeLabels[position.assetDetails?.otherAssetType ?? ""] ?? "";
+  return position.institution.trim();
 }
 
 export function valuationBreakdown(position: Position) {

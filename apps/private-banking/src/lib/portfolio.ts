@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { familyComposition, type AcquisitionReason, type Relationship } from "@/lib/family";
+import { parseFxRates } from "@/lib/fx-rates";
 import { parseInheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 import { prisma } from "@/lib/prisma";
 
@@ -95,6 +96,7 @@ export async function getPortfolio(householdId?: number) {
       estimatedInheritanceTax: toNumber(snapshot.estimatedInheritanceTax),
       inheritanceTaxCalculation: parseInheritanceTaxCalculation(snapshot.inheritanceTaxCalculation),
       otherTaxes: toNumber(snapshot.otherTaxes),
+      fxRates: parseFxRates(snapshot.fxRates),
       updatedAt: snapshot.updatedAt.toISOString(),
       positions: snapshot.positions.map((position) => ({
         ...position,
