@@ -17,6 +17,8 @@ import {
   valuationBreakdown,
 } from "@/lib/portfolio-view";
 
+const JPY_PER_MAN_YEN = 10_000;
+
 const classificationTone: Record<string, string> = {
   金融資産: "financial",
   不動産: "real-estate",
@@ -28,18 +30,31 @@ export function AssetsView({ snapshot, snapshots, onSelectSnapshot, onCreateNext
   const assets = snapshot.positions.filter((p) => p.side === "ASSET");
   const liabilities = snapshot.positions.filter((p) => p.side === "LIABILITY" && p.includedInNetWorth);
   const contingencies = snapshot.positions.filter((p) => p.side === "LIABILITY" && !p.includedInNetWorth);
-  // 相続税負担額は、相続税総額を「円換算時価 ÷ 正味財産」の率で各明細へ按分する。
+  // 相続税負担額は、相続税総額を「按分基準額 ÷ 正味財産」の率で各明細へ按分する。
   // 相続税は正味財産（資産合計 − 控除対象負債）に課されるため、負債は同率のマイナス（軽減）として扱い、
   // 資産の部と負債の部の差引が相続税総額と一致する。偶発債務はB/S外なので対象外。
   // 税額は連携計算値（totalInheritanceTax）を優先し、未計算なら手動の想定相続税へフォールバックする。
-  const totalAssets = assets.reduce((sum, p) => sum + p.valueJpy, 0);
-  const netEstate = totalAssets - liabilities.reduce((sum, p) => sum + p.valueJpy, 0);
-  const totalInheritanceTax = snapshot.inheritanceTaxCalculation?.totalInheritanceTaxJpy ?? snapshot.estimatedInheritanceTax;
+  // 生命保険は課税価格に入るのが解約返戻金ではなく「死亡保険金 − 非課税限度額」なので、按分基準も
+  // 課税対象死亡保険金に揃える（分子の相続税総額が同じ基準で計算されているため）。非課税枠は相続人が
+  // 受け取る契約にだけ適用されるので、その死亡保険金で按分する。法定相続人数が分かるのは連携計算値が
+  // ある場合だけなので、手動の想定相続税だけのときは従来どおり解約返戻金ベースのままとする。
+  const calculation = snapshot.inheritanceTaxCalculation;
+  const deathBenefitJpy = (position: Position) => Math.round(((position.assetDetails?.deathBenefit ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
+  const isHeirInsurance = (position: Position) => position.category === "INSURANCE" && position.assetDetails?.beneficiaryIsLegalHeir === true;
+  const heirDeathBenefit = calculation ? assets.filter(isHeirInsurance).reduce((sum, p) => sum + deathBenefitJpy(p), 0) : 0;
+  const nonTaxableRate = heirDeathBenefit > 0 ? Math.min(calculation?.insuranceNonTaxableAmountJpy ?? 0, heirDeathBenefit) / heirDeathBenefit : 0;
+  const taxableValue = (position: Position) => {
+    if (!calculation || position.category !== "INSURANCE") return position.valueJpy;
+    const deathBenefit = deathBenefitJpy(position);
+    return isHeirInsurance(position) ? Math.round(deathBenefit * (1 - nonTaxableRate)) : deathBenefit;
+  };
+  const netEstate = assets.reduce((sum, p) => sum + taxableValue(p), 0) - liabilities.reduce((sum, p) => sum + taxableValue(p), 0);
+  const totalInheritanceTax = calculation?.totalInheritanceTaxJpy ?? snapshot.estimatedInheritanceTax;
   const burdenRate = netEstate > 0 && totalInheritanceTax > 0 ? totalInheritanceTax / netEstate : 0;
   const taxBurden = (position: Position) => {
     if (burdenRate === 0) return null;
-    if (position.side === "ASSET") return Math.round(position.valueJpy * burdenRate);
-    return position.includedInNetWorth ? -Math.round(position.valueJpy * burdenRate) : null;
+    if (position.side === "ASSET") return Math.round(taxableValue(position) * burdenRate);
+    return position.includedInNetWorth ? -Math.round(taxableValue(position) * burdenRate) : null;
   };
   const orderedSnapshots = [...snapshots].sort((a, b) => b.fiscalYear - a.fiscalYear);
   const updatedAt = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(snapshot.updatedAt));
@@ -52,8 +67,9 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [classificationFilter, setClassificationFilter] = useState("ALL");
-  // ドラッグ保存後にデータを再取得しても、保存した登録順をそのまま表示する。
-  const [sortMode, setSortMode] = useState<PositionSortMode>("manual");
+  // 既定は中分類順。ただし中分類が1種類しかない表は表示順セレクト自体が出ないため、
+  // 既定を中分類順にするとドラッグ並び替えに戻す手段が無くなる。その場合だけ登録順で開く。
+  const [sortMode, setSortMode] = useState<PositionSortMode>(() => new Set(items.map(middleClassification)).size > 1 ? "classification-asc" : "manual");
 
   const classifications = useMemo(() => {
     const values = [...new Set(orderedItems.map(middleClassification))];
@@ -72,20 +88,35 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
       return (rankA - rankB) * direction || (manualIndex.get(a.id) ?? 0) - (manualIndex.get(b.id) ?? 0);
     });
   }, [classificationFilter, orderedItems, sortMode]);
-  const canManualReorder = classificationFilter === "ALL" && sortMode === "manual";
+  // 並び替えは同じ科目どうしの入れ替えに限る。科目をまたがなければ中分類の並びは崩れないので、
+  // 絞り込み中・中分類順で表示中でもドラッグを許可できる。
+  // 同じ科目の行が他に無い明細は入れ替え先が存在しないため、ハンドル自体を無効にする。
+  const reorderableIds = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const position of visibleItems) counts.set(position.category, (counts.get(position.category) ?? 0) + 1);
+    return new Set(visibleItems.filter((position) => (counts.get(position.category) ?? 0) > 1).map((position) => position.id));
+  }, [visibleItems]);
+  const canDrop = (sourceId: number, targetId: number) => {
+    if (saving || sourceId === targetId || !reorderableIds.has(sourceId) || !reorderableIds.has(targetId)) return false;
+    const source = visibleItems.find((position) => position.id === sourceId);
+    const target = visibleItems.find((position) => position.id === targetId);
+    return source !== undefined && target !== undefined && source.category === target.category;
+  };
   const hasClassificationControls = classifications.length > 1;
   const visibleTotal = visibleItems.reduce((sum, position) => sum + position.valueJpy, 0);
 
-  async function movePosition(positionId: number, targetIndex: number) {
-    if (!canManualReorder) return;
-    const currentIndex = orderedItems.findIndex((position) => position.id === positionId);
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedItems.length || currentIndex === targetIndex) return;
+  async function movePosition(sourceId: number, targetId: number) {
+    if (!canDrop(sourceId, targetId)) return;
+    const currentIndex = orderedItems.findIndex((position) => position.id === sourceId);
+    const targetIndex = orderedItems.findIndex((position) => position.id === targetId);
+    if (currentIndex < 0 || targetIndex < 0) return;
     const previous = orderedItems;
     const next = [...orderedItems];
     const [moved] = next.splice(currentIndex, 1);
     next.splice(targetIndex, 0, moved);
     setOrderedItems(next);
-    setAnnouncement(`${moved.name}を${targetIndex + 1}番目へ移動しました。`);
+    // 登録順の添字ではなく、移動先の行番号（表示中の位置）で読み上げる。
+    setAnnouncement(`${moved.name}を${visibleItems.findIndex((position) => position.id === targetId) + 1}番目へ移動しました。`);
     const saved = await onReorder(section, next.map((position) => position.id));
     if (!saved) {
       setOrderedItems(previous);
@@ -94,7 +125,7 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
   }
 
   function startDrag(event: DragEvent<HTMLButtonElement>, positionId: number) {
-    if (!canManualReorder) return;
+    if (saving || !reorderableIds.has(positionId)) return;
     setDraggedId(positionId);
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", String(positionId));
@@ -102,24 +133,30 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
 
   function dropPosition(event: DragEvent<HTMLTableRowElement>, targetId: number) {
     event.preventDefault();
-    if (draggedId === null || !canManualReorder) return;
-    const targetIndex = orderedItems.findIndex((position) => position.id === targetId);
-    void movePosition(draggedId, targetIndex);
+    if (draggedId === null) return;
+    void movePosition(draggedId, targetId);
     setDraggedId(null);
     setDropTargetId(null);
   }
 
   function moveWithKeyboard(event: KeyboardEvent<HTMLButtonElement>, positionId: number) {
-    if (!canManualReorder) return;
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     event.preventDefault();
-    const currentIndex = orderedItems.findIndex((position) => position.id === positionId);
-    void movePosition(positionId, currentIndex + (event.key === "ArrowUp" ? -1 : 1));
+    const currentIndex = visibleItems.findIndex((position) => position.id === positionId);
+    if (currentIndex < 0) return;
+    const step = event.key === "ArrowUp" ? -1 : 1;
+    // 科目をまたぐ移動はできないので、隣接行が別科目なら同じ科目の行まで読み飛ばす。
+    for (let index = currentIndex + step; index >= 0 && index < visibleItems.length; index += step) {
+      if (visibleItems[index].category !== visibleItems[currentIndex].category) continue;
+      void movePosition(positionId, visibleItems[index].id);
+      return;
+    }
   }
 
   const filterActive = classificationFilter !== "ALL";
-  const reorderHint = canManualReorder ? "登録順・ドラッグで並び替え" : "絞り込み・表示順を適用中";
-  const dragDisabledMessage = "並び替えるには、中分類を「すべて」、表示順を「登録順」に戻してください";
+  const sortLabel = sortMode === "manual" ? "登録順" : sortMode === "classification-asc" ? "中分類順" : "中分類の逆順";
+  const reorderHint = `${sortLabel}・同じ科目内でドラッグして並び替え`;
+  const dragDisabledMessage = "同じ科目の明細が他に無いため並び替えできません";
 
   return (
     <section className={`panel table-panel position-section ${section === "CONTINGENT" ? "contingent-section" : ""}`}>
@@ -156,9 +193,10 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
               const tone = classificationTone[classification] ?? "neutral";
               const isClassificationStart = index > 0 && middleClassification(visibleItems[index - 1]) !== classification;
               const burden = taxBurden(p);
+              const canReorder = reorderableIds.has(p.id);
               return (
-              <tr key={p.id} className={`classification-${tone} ${isClassificationStart ? "is-classification-start" : ""} ${draggedId === p.id ? "is-dragging" : ""} ${dropTargetId === p.id && draggedId !== p.id ? "is-drop-target" : ""}`} onDragOver={(event) => { if (!canManualReorder || draggedId === null || draggedId === p.id) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropTargetId(p.id); }} onDragLeave={() => setDropTargetId((current) => current === p.id ? null : current)} onDrop={(event) => dropPosition(event, p.id)}>
-                <td data-label="並び順" className="reorder-cell"><button type="button" className="drag-handle" draggable={!saving && canManualReorder} disabled={saving || !canManualReorder} aria-label={canManualReorder ? `${p.name}を並び替え。上下矢印キーでも移動できます` : dragDisabledMessage} title={canManualReorder ? "ドラッグして並び替え" : dragDisabledMessage} onDragStart={(event) => startDrag(event, p.id)} onDragEnd={() => { setDraggedId(null); setDropTargetId(null); }} onKeyDown={(event) => moveWithKeyboard(event, p.id)}><GripVertical /></button></td>
+              <tr key={p.id} className={`classification-${tone} ${isClassificationStart ? "is-classification-start" : ""} ${draggedId === p.id ? "is-dragging" : ""} ${dropTargetId === p.id && draggedId !== p.id ? "is-drop-target" : ""}`} onDragOver={(event) => { if (draggedId === null || !canDrop(draggedId, p.id)) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropTargetId(p.id); }} onDragLeave={() => setDropTargetId((current) => current === p.id ? null : current)} onDrop={(event) => dropPosition(event, p.id)}>
+                <td data-label="並び順" className="reorder-cell"><button type="button" className="drag-handle" draggable={!saving && canReorder} disabled={saving || !canReorder} aria-label={canReorder ? `${p.name}を並び替え。同じ科目の明細とのみ入れ替えできます。上下矢印キーでも移動できます` : dragDisabledMessage} title={canReorder ? "同じ科目内でドラッグして並び替え" : dragDisabledMessage} onDragStart={(event) => startDrag(event, p.id)} onDragEnd={() => { setDraggedId(null); setDropTargetId(null); }} onKeyDown={(event) => moveWithKeyboard(event, p.id)}><GripVertical /></button></td>
                 <td data-label="中分類"><span className="classification-label middle">{classification}</span></td>
                 <td data-label="科目・名称">{section !== "CONTINGENT" ? <span className="category-tag">{categoryLabels[p.category]}</span> : null}<strong>{p.name}</strong><small className="position-meta">{institutionOrPropertyAddress(p) || "保管先なし"} ／ {p.valuationMethod}</small></td>
                 <td data-label="所在地・金融機関等" title={institutionOrPropertyAddress(p) || undefined}>{institutionOrPropertyAddress(p) || "—"}</td>

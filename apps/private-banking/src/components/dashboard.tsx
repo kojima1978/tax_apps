@@ -62,6 +62,10 @@ function BsAmount({ value, total }: { value: number; total: number }) {
   return <><span className="bs-money">{compactYen(value)}</span><em className="bs-percent">{percent.format(value / Math.max(total, 1) * 100)}%</em></>;
 }
 
+function BsSubtotals({ items, total }: { items: ReadonlyArray<{ label: string; value: number }>; total: number }) {
+  return <dl className="bs-subtotals">{items.map((item) => <div key={item.label}><dt>{item.label}</dt><dd><BsAmount value={item.value} total={total} /></dd></div>)}</dl>;
+}
+
 const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: string; description: string }> = [
   { key: "profile-family", title: "本人・家族情報", description: "本人の基本情報と親族構成、法定相続分および年齢" },
   { key: "balance", title: "貸借対照表", description: "現在価値と相続時予測による資産・負債の構成" },
@@ -196,6 +200,11 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       homeRealEstate, incomeRealEstate, idleRealEstate, otherAssets,
     };
   }, [workingSnapshot]);
+  // 保険の被保険者・受取人の選択肢。本人と親族関係タブの登録者を氏名で並べる。
+  const familyPeopleNames = useMemo(
+    () => [...new Set([portfolio?.household.name, ...(portfolio?.familyMembers ?? []).map((member) => member.name)].filter((name): name is string => Boolean(name?.trim())))],
+    [portfolio],
+  );
   const loanBreakdown = useMemo(() => {
     let home = 0, investmentProperty = 0, securities = 0, business = 0, other = 0;
     for (const position of workingSnapshot?.positions ?? []) {
@@ -237,7 +246,48 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       { side: "負債・純資産", label: "承継関連費用", value: displayedSuccessionCosts, areaTotal: fundingAreaTotal },
       { side: "負債・純資産", label: "純資産", value: displayedNetWorth, areaTotal: fundingAreaTotal },
     ].filter((item) => item.value !== 0 && Math.abs(item.value) / Math.max(item.areaTotal, 1) < 0.04);
-    return { taxIncluded, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems };
+    // 小分類は枠内描画と枠外注記の両方から使うので、JSX に直書きせずデータで持つ。
+    const nonZero = (items: { label: string; value: number }[]) => items.filter((item) => item.value !== 0);
+    const subtotals = {
+      financial: nonZero([
+        { label: "預金", value: displayedAssets.deposits },
+        { label: "有価証券", value: displayedAssets.securities },
+        { label: `生命保険${taxIncluded ? "（死亡保険金）" : ""}`, value: displayedAssets.insurance },
+      ]),
+      realEstate: nonZero([
+        { label: "自宅", value: displayedAssets.homeRealEstate },
+        { label: "収益不動産", value: displayedAssets.incomeRealEstate },
+        { label: "遊休不動産", value: displayedAssets.idleRealEstate },
+      ]),
+      business: nonZero([
+        { label: "自社株", value: displayedAssets.privateShares },
+        { label: "事業用資産", value: displayedAssets.businessAssets },
+        { label: "貸付金", value: displayedAssets.loanReceivables },
+      ]),
+      taxes: nonZero([
+        { label: "相続税", value: estimatedInheritanceTax },
+        { label: "その他税金", value: otherTaxes },
+      ]),
+      loans: nonZero([
+        { label: "住宅ローン", value: loanBreakdown.home },
+        { label: "不動産投資ローン", value: loanBreakdown.investmentProperty },
+        { label: "証券担保ローン", value: loanBreakdown.securities },
+        { label: "事業用借入", value: loanBreakdown.business },
+        { label: "その他借入金", value: loanBreakdown.other },
+      ]),
+    };
+    // 区画の高さは金額比そのままなので、比率が小さい中分類では小分類が枠外にはみ出して切れる。
+    // 印刷時の区画エリアは約420px、1区画に必要な高さは 見出し18px ＋ 小分類1行11px。
+    // 収まらない中分類だけ、小分類を枠外注記へ回す。
+    const clippedSubtotals = [
+      { side: "資産", label: "金融資産", value: displayedAssets.financial, areaTotal: displayedAssetTotal, items: subtotals.financial },
+      { side: "資産", label: "不動産", value: displayedAssets.realEstate, areaTotal: displayedAssetTotal, items: subtotals.realEstate },
+      { side: "資産", label: "事業用資産", value: displayedAssets.business, areaTotal: displayedAssetTotal, items: subtotals.business },
+      { side: "負債・純資産", label: "税金", value: displayedTaxes, areaTotal: fundingAreaTotal, items: subtotals.taxes },
+      { side: "負債・純資産", label: "借入金", value: summary.liabilities, areaTotal: fundingAreaTotal, items: subtotals.loans },
+    ].filter((account) => account.value !== 0 && account.items.length > 0
+      && Math.abs(account.value) / Math.max(account.areaTotal, 1) * 420 < 18 + account.items.length * 11);
+    return { taxIncluded, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems, subtotals, clippedSubtotals };
   }
 
   function openNewPosition() {
@@ -484,7 +534,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       if (!response.ok) throw new Error();
       setForecastModalOpen(false);
       await load();
-    } catch { setError("予測条件を保存できませんでした。"); }
+    } catch { setError("税金・費用を保存できませんでした。"); }
     finally { setSaving(false); }
   }
 
@@ -598,14 +648,14 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
               </section>
               <section className={`dashboard-grid balance-report-series screen-${balanceScenario}`}>
                 {(printSections?.has("balance") ? (["without-tax", "with-tax"] as const) : [balanceScenario]).map((reportScenario) => {
-                  const { taxIncluded, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems } = balanceView(reportScenario);
+                  const { taxIncluded, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems, subtotals, clippedSubtotals } = balanceView(reportScenario);
                   const headingSuffix = reportScenario === "with-tax" ? "with-tax" : "without-tax";
                   return <article key={reportScenario} className={`panel balance-panel print-section-balance balance-report-${headingSuffix}`}>
                   {reportScenario === "with-tax" ? <p className="balance-print-owner">{portfolio.household.name}</p> : null}
                   <PanelHeader
                     title="貸借対照表"
                     subtitle={`${reportSnapshot.isCurrent ? "" : `${fiscalYearLabel(reportSnapshot)}・`}${taxIncluded ? "相続時予測（死亡保険金・税金を反映）" : "現在価値（保険は解約返戻金）"}`}
-                    action={reportScenario === balanceScenario ? <div className="balance-panel-actions"><div className="balance-scenario-switch" role="group" aria-label="貸借対照表の表示パターン"><button type="button" aria-pressed={!taxIncluded} onClick={() => setBalanceScenario("without-tax")}><span>税金なし</span><small>メイン</small></button><button type="button" aria-pressed={taxIncluded} onClick={() => setBalanceScenario("with-tax")}><span>税金あり</span><small>サブ</small></button></div>{reportSnapshot.isCurrent ? <><button className="text-button compact tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : "APIで相続税を計算"}</button><button className="text-button compact" type="button" onClick={() => setForecastModalOpen(true)}>予測条件</button></> : null}</div> : undefined}
+                    action={reportScenario === balanceScenario ? <div className="balance-panel-actions"><div className="balance-scenario-switch" role="group" aria-label="貸借対照表の表示パターン"><button type="button" aria-pressed={!taxIncluded} onClick={() => setBalanceScenario("without-tax")}><span>税金なし</span><small>メイン</small></button><button type="button" aria-pressed={taxIncluded} onClick={() => setBalanceScenario("with-tax")}><span>税金あり</span><small>サブ</small></button></div>{reportSnapshot.isCurrent ? <><button className="text-button compact tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : "APIで相続税を計算"}</button><button className="text-button compact" type="button" onClick={() => setForecastModalOpen(true)}>税金を入力</button></> : null}</div> : undefined}
                   />
                   {taxIncluded && successionAssets.insuranceDeathBenefitMissingCount > 0 ? <p className="insurance-data-note" role="note"><AlertTriangle />死亡保険金が未入力の保険 {successionAssets.insuranceDeathBenefitMissingCount}件は、税金ありB/Sでは0円として計算しています。</p> : null}
                   <div className="classified-bs" role="group" aria-label={`貸借対照表・${taxIncluded ? "税金あり" : "税金なし"}`}>
@@ -614,27 +664,15 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
                       <div className="bs-account-area">
                       {displayedAssets.financial !== 0 ? <div className={`bs-account financial-account grouped-account ${accountDensity(displayedAssets.financial, displayedAssetTotal)}`} style={{ height: areaHeight(displayedAssets.financial, displayedAssetTotal) }}>
                         <div className="bs-account-heading"><span>金融資産</span><strong><BsAmount value={displayedAssets.financial} total={displayedAssetTotal} /></strong></div>
-                        <dl className="bs-subtotals">
-                          {displayedAssets.deposits !== 0 ? <div><dt>預金</dt><dd><BsAmount value={displayedAssets.deposits} total={displayedAssetTotal} /></dd></div> : null}
-                          {displayedAssets.securities !== 0 ? <div><dt>有価証券</dt><dd><BsAmount value={displayedAssets.securities} total={displayedAssetTotal} /></dd></div> : null}
-                          {displayedAssets.insurance !== 0 ? <div><dt>生命保険{taxIncluded ? "（死亡保険金）" : ""}</dt><dd><BsAmount value={displayedAssets.insurance} total={displayedAssetTotal} /></dd></div> : null}
-                        </dl>
+                        <BsSubtotals items={subtotals.financial} total={displayedAssetTotal} />
                       </div> : null}
                       {displayedAssets.realEstate !== 0 ? <div className={`bs-account real-estate-account grouped-account ${accountDensity(displayedAssets.realEstate, displayedAssetTotal)}`} style={{ height: areaHeight(displayedAssets.realEstate, displayedAssetTotal) }}>
                         <div className="bs-account-heading"><span>不動産</span><strong><BsAmount value={displayedAssets.realEstate} total={displayedAssetTotal} /></strong></div>
-                        <dl className="bs-subtotals">
-                          {displayedAssets.homeRealEstate !== 0 ? <div><dt>自宅</dt><dd><BsAmount value={displayedAssets.homeRealEstate} total={displayedAssetTotal} /></dd></div> : null}
-                          {displayedAssets.incomeRealEstate !== 0 ? <div><dt>収益不動産</dt><dd><BsAmount value={displayedAssets.incomeRealEstate} total={displayedAssetTotal} /></dd></div> : null}
-                          {displayedAssets.idleRealEstate !== 0 ? <div><dt>遊休不動産</dt><dd><BsAmount value={displayedAssets.idleRealEstate} total={displayedAssetTotal} /></dd></div> : null}
-                        </dl>
+                        <BsSubtotals items={subtotals.realEstate} total={displayedAssetTotal} />
                       </div> : null}
                       {displayedAssets.business !== 0 ? <div className={`bs-account business-account grouped-account ${accountDensity(displayedAssets.business, displayedAssetTotal)}`} style={{ height: areaHeight(displayedAssets.business, displayedAssetTotal) }}>
                         <div className="bs-account-heading"><span>事業用資産</span><strong><BsAmount value={displayedAssets.business} total={displayedAssetTotal} /></strong></div>
-                        <dl className="bs-subtotals">
-                          {displayedAssets.privateShares !== 0 ? <div><dt>自社株</dt><dd><BsAmount value={displayedAssets.privateShares} total={displayedAssetTotal} /></dd></div> : null}
-                          {displayedAssets.businessAssets !== 0 ? <div><dt>事業用資産</dt><dd><BsAmount value={displayedAssets.businessAssets} total={displayedAssetTotal} /></dd></div> : null}
-                          {displayedAssets.loanReceivables !== 0 ? <div><dt>貸付金</dt><dd><BsAmount value={displayedAssets.loanReceivables} total={displayedAssetTotal} /></dd></div> : null}
-                        </dl>
+                        <BsSubtotals items={subtotals.business} total={displayedAssetTotal} />
                       </div> : null}
                       {displayedAssets.otherAssets !== 0 ? <div className={`bs-account other-account ${accountDensity(displayedAssets.otherAssets, displayedAssetTotal)}`} style={{ height: areaHeight(displayedAssets.otherAssets, displayedAssetTotal) }}><div><span>その他資産</span></div><strong><BsAmount value={displayedAssets.otherAssets} total={displayedAssetTotal} /></strong></div> : null}
                       </div>
@@ -645,20 +683,11 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
                       <div className="bs-account-area">
                       {displayedTaxes !== 0 ? <div className={`bs-account forecast-account grouped-account ${accountDensity(displayedTaxes, fundingAreaTotal)}`} style={{ height: areaHeight(displayedTaxes, fundingAreaTotal) }}>
                         <div className="bs-account-heading"><span>税金</span><strong><BsAmount value={displayedTaxes} total={displayedAssetTotal} /></strong></div>
-                        <dl className="bs-subtotals">
-                          {estimatedInheritanceTax !== 0 ? <div><dt>相続税</dt><dd><BsAmount value={estimatedInheritanceTax} total={displayedAssetTotal} /></dd></div> : null}
-                          {otherTaxes !== 0 ? <div><dt>その他税金</dt><dd><BsAmount value={otherTaxes} total={displayedAssetTotal} /></dd></div> : null}
-                        </dl>
+                        <BsSubtotals items={subtotals.taxes} total={displayedAssetTotal} />
                       </div> : null}
                       {summary.liabilities !== 0 ? <div className={`bs-account medium-liability grouped-account ${accountDensity(summary.liabilities, fundingAreaTotal)}`} style={{ height: areaHeight(summary.liabilities, fundingAreaTotal) }}>
                         <div className="bs-account-heading"><span>借入金</span><strong><BsAmount value={summary.liabilities} total={displayedAssetTotal} /></strong></div>
-                        <dl className="bs-subtotals">
-                          {loanBreakdown.home !== 0 ? <div><dt>住宅ローン</dt><dd><BsAmount value={loanBreakdown.home} total={displayedAssetTotal} /></dd></div> : null}
-                          {loanBreakdown.investmentProperty !== 0 ? <div><dt>不動産投資ローン</dt><dd><BsAmount value={loanBreakdown.investmentProperty} total={displayedAssetTotal} /></dd></div> : null}
-                          {loanBreakdown.securities !== 0 ? <div><dt>証券担保ローン</dt><dd><BsAmount value={loanBreakdown.securities} total={displayedAssetTotal} /></dd></div> : null}
-                          {loanBreakdown.business !== 0 ? <div><dt>事業用借入</dt><dd><BsAmount value={loanBreakdown.business} total={displayedAssetTotal} /></dd></div> : null}
-                          {loanBreakdown.other !== 0 ? <div><dt>その他借入金</dt><dd><BsAmount value={loanBreakdown.other} total={displayedAssetTotal} /></dd></div> : null}
-                        </dl>
+                        <BsSubtotals items={subtotals.loans} total={displayedAssetTotal} />
                       </div> : null}
                       {displayedSuccessionCosts !== 0 ? <div className={`bs-account forecast-account ${accountDensity(displayedSuccessionCosts, fundingAreaTotal)}`} aria-label={`承継関連費用 ${compactYen(displayedSuccessionCosts)}`} style={{ height: areaHeight(displayedSuccessionCosts, fundingAreaTotal) }}><div><span>承継関連費用</span><small className="bs-subcategories">承継時の諸費用</small></div><strong><BsAmount value={displayedSuccessionCosts} total={displayedAssetTotal} /></strong></div> : null}
                       {displayedNetWorth !== 0 ? <div className={`bs-account net-assets ${accountDensity(displayedNetWorth, fundingAreaTotal)}`} style={{ height: areaHeight(displayedNetWorth, fundingAreaTotal) }}>
@@ -672,6 +701,13 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
                     <span className="bs-small-area-key-title">小区画</span>
                     {smallAreaItems.map((item) => <span className="bs-small-area-key-item" key={`${item.side}-${item.label}`}>
                       <small>{item.side}</small><strong>{item.label}</strong><b>{compactYen(item.value)}</b><em>{percent.format(item.value / Math.max(displayedAssetTotal, 1) * 100)}%</em>
+                    </span>)}
+                  </div> : null}
+                  {clippedSubtotals.length > 0 ? <div className="bs-subtotal-note" role="note" aria-label="枠内に収まらない小分類の内訳">
+                    <span className="bs-subtotal-note-title">小分類の内訳</span>
+                    {clippedSubtotals.map((account) => <span className="bs-subtotal-note-item" key={`${account.side}-${account.label}`}>
+                      <strong>{account.label}</strong>
+                      <span>{account.items.map((item) => `${item.label} ${compactYen(item.value)}（${percent.format(item.value / Math.max(displayedAssetTotal, 1) * 100)}%）`).join("／")}</span>
                     </span>)}
                   </div> : null}
                   <p className="guarantee-note" role="note">※ 個人保証残高（B/S外）：<strong>{compactYen(summary.guarantees)}</strong></p>
@@ -704,11 +740,11 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         </main>
       </div>
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
-      {modalOpen ? <PositionModal position={editingPosition} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
+      {modalOpen ? <PositionModal position={editingPosition} people={familyPeopleNames} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
       {bulkModalOpen && workingSnapshot ? <BulkPositionModal snapshot={workingSnapshot} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /> : null}
       {deletingPosition ? <DeletePositionModal position={deletingPosition} onClose={() => setDeletingPosition(null)} onDelete={() => void deletePosition()} saving={saving} /> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
-      {forecastModalOpen ? <ForecastModal planning={portfolio.planning} members={portfolio.familyMembers} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
+      {forecastModalOpen ? <ForecastModal planning={portfolio.planning} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}
       {snapshotSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal snapshot={workingSnapshot} onClose={() => setSnapshotSettingsModalOpen(false)} onSubmit={saveSnapshotSettings} saving={saving} /> : null}
       {clientDeleteOpen ? <ClientDeleteModal household={portfolio.household} snapshotCount={portfolio.snapshots.length} positionCount={portfolio.snapshots.reduce((count, snapshot) => count + snapshot.positions.length, 0)} error={error} saving={saving} onClose={() => setClientDeleteOpen(false)} onSubmit={deleteClient} /> : null}

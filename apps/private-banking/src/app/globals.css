@@ -196,6 +196,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .bs-small-area-key-item strong { color: var(--navy-950); font-size: 9px; }
 .bs-small-area-key-item b { color: var(--navy-950); font-size: 9px; font-weight: 700; }
 .bs-small-area-key-item em { color: var(--slate-500); font-size: 7px; font-style: normal; font-weight: 600; }
+/* 小分類の枠外注記は印刷専用。画面は区画に余裕があり枠内で読める。 */
+.bs-subtotal-note { display: none; }
 .guarantee-note { margin: 8px 32px 18px; color: var(--slate-500); font-size: 9px; text-align: right; }
 .guarantee-note strong { margin-left: 3px; color: var(--slate-700); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .table-panel { min-width: 0; max-width: 100%; margin-bottom: 18px; overflow: hidden; }
@@ -207,16 +209,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .position-table-tools select:hover { border-color: #86efac; }
 .position-table-tools select:focus-visible { border-color: #22c55e; outline: 3px solid #bbf7d0; outline-offset: 1px; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.position-table { min-width: 1148px; table-layout: fixed; }
-.position-table th, .position-table td { padding-inline: 11px; }
-.position-table th:nth-child(1) { width: 54px; }
-.position-table th:nth-child(2) { width: 112px; }
-.position-table th:nth-child(3) { width: 22%; }
-.position-table th:nth-child(4) { width: 29%; }
-.position-table th:nth-child(5) { width: 17%; }
-.position-table th:nth-child(6) { width: 148px; }
-.position-table th:nth-child(7) { width: 148px; }
-.position-table th:nth-child(8) { width: 112px; }
+/* 横スクロールを出さずに全列を見せるため、余白・文字を詰めて 940px に収める。
+   固定幅の列 44+92+118+118+88=460px が 940px の 49%、残り 51% を文字列3列で分ける。 */
+.position-table { min-width: 940px; table-layout: fixed; font-size: 11px; }
+.position-table th { padding-block: 9px; font-size: 9px; letter-spacing: 0; }
+.position-table td { padding-block: 10px; }
+.position-table th, .position-table td { padding-inline: 7px; }
+.position-table td small { font-size: 8px; line-height: 1.4; }
+.position-table th:nth-child(1) { width: 44px; }
+.position-table th:nth-child(2) { width: 92px; }
+.position-table th:nth-child(3) { width: 18%; }
+.position-table th:nth-child(4) { width: 21%; }
+.position-table th:nth-child(5) { width: 12%; }
+.position-table th:nth-child(6) { width: 118px; }
+.position-table th:nth-child(7) { width: 118px; }
+.position-table th:nth-child(8) { width: 88px; }
 .insurance-death-benefit { display: block; margin-top: 2px; color: var(--slate-500); font-size: 11px; font-weight: 600; white-space: nowrap; }
 .tax-burden-empty { color: var(--slate-500); }
 .position-table th:nth-child(4), .position-table td:nth-child(4) { text-align: left; }
@@ -279,7 +286,10 @@ td small { color: var(--slate-500); font-size: 9px; }
 .position-table tbody tr.classification-real-estate { --classification-text: #6f5225; --classification-bg: #fbf5e9; --classification-border: #dfcda5; }
 .position-table tbody tr.classification-business { --classification-text: #2f6547; --classification-bg: #eef7f1; --classification-border: #bddbc7; }
 .position-table tbody tr.classification-other { --classification-text: #4b5563; --classification-bg: #f3f4f6; --classification-border: #d1d5db; }
-.position-table .classification-label.middle { padding-left: 9px; color: var(--classification-text); background: var(--classification-bg); border-color: var(--classification-border); border-left-width: 3px; font-weight: 800; }
+.position-table .classification-label.middle { min-height: 22px; padding: 3px 6px 3px 8px; color: var(--classification-text); background: var(--classification-bg); border-color: var(--classification-border); border-left-width: 3px; font-size: 9px; font-weight: 800; }
+.position-table .category-tag { font-size: 8px; }
+.position-table .row-action { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 6px; }
+.position-table .row-action svg { width: 14px; height: 14px; }
 .position-table tbody tr.is-classification-start td { padding-top: 17px; border-top: 2px solid var(--classification-border); }
 .classification-label.major { color: #166534; background: #ecfdf5; border-color: #bbf7d0; }
 .number { text-align: right; white-space: nowrap; }
@@ -481,14 +491,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .snapshot-delete-confirm input:focus { border-color: #dc2626; outline: 3px solid #fecaca; }
 .snapshot-delete-confirm small { color: var(--slate-500); font-size: 10px; font-weight: 500; line-height: 1.5; }
 .form-intro { margin: 0 0 18px; color: var(--slate-700); font-size: 11px; line-height: 1.7; }
-.family-form-grid { display: grid; grid-template-columns: 1fr 1.35fr .7fr; gap: 12px; }
-.advanced-forecast { margin-top: 18px; border-top: 1px solid var(--slate-200); }
-.advanced-forecast summary { min-height: 44px; color: var(--slate-700); display: flex; align-items: center; cursor: pointer; font-size: 11px; font-weight: 700; }
-.advanced-forecast[open] summary { margin-bottom: 12px; }
-.forecast-family-summary { display: grid; gap: 8px; margin: 4px 0 0; }
-.forecast-family-summary > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 13px; background: var(--slate-100); border: 1px solid var(--slate-200); border-radius: 7px; }
-.forecast-family-summary dt { color: var(--slate-700); font-size: 12px; font-weight: 600; }
-.forecast-family-summary dd { margin: 0; font-size: 13px; font-weight: 800; }
 .sync-status { margin: 14px 0 0; color: var(--slate-500); font-size: 9px; }
 .forecast-link { margin-top: 18px; padding: 12px 14px; background: #f5f8f6; border: 1px solid var(--slate-200); border-radius: 7px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .forecast-link a { color: var(--navy-800); display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
@@ -508,8 +510,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .contingent-form-note { margin: -8px 0 18px; padding: 10px 12px; color: #67501e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 7px; display: flex; align-items: center; gap: 8px; font-size: 11px; line-height: 1.55; }
 .contingent-form-note svg { width: 17px; height: 17px; flex: 0 0 auto; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.form-grid label, .family-form-grid label { color: var(--slate-700); font-size: 12px; font-weight: 700; }
-.form-grid input, .form-grid select, .form-grid textarea, .family-form-grid input, .family-form-grid select { width: 100%; min-height: 44px; margin-top: 5px; padding: 9px 11px; color: var(--slate-950); background: white; border: 1px solid var(--slate-300); border-radius: 6px; }
+.form-grid label { color: var(--slate-700); font-size: 12px; font-weight: 700; }
+.form-grid input, .form-grid select, .form-grid textarea { width: 100%; min-height: 44px; margin-top: 5px; padding: 9px 11px; color: var(--slate-950); background: white; border: 1px solid var(--slate-300); border-radius: 6px; }
 .form-grid .number-input-hint { min-height: 15px; margin-top: 3px; color: var(--slate-500); display: block; font-size: 9px; font-weight: 500; line-height: 1.5; }
 .form-grid input[readonly] { color: #166534; background: #f0fdf4; border-color: #bbf7d0; font-weight: 800; }
 .asset-detail-fieldset { min-width: 0; margin: 2px 0 4px; padding: 14px; background: #fbfdfb; border: 1px solid #cfe2d3; border-radius: 8px; }
@@ -733,16 +735,35 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 @media (max-width: 1100px) {
   .dashboard-grid { grid-template-columns: 1fr; }
 }
-@media (min-width: 821px) and (max-width: 1100px) {
+/* 明細表の本文幅は「ビューポート − 321px」。940px 版が収まるのは 1261px 以上なので、
+   それ未満では評価方法列を落とした 760px 版に切り替えて横スクロールを避ける。 */
+@media screen and (min-width: 601px) and (max-width: 1260px) {
   .position-table { min-width: 760px; }
   .position-table th:nth-child(1) { width: 54px; }
   .position-table th:nth-child(2) { width: 92px; }
   .position-table th:nth-child(3) { width: auto; }
-  .position-table th:nth-child(4) { width: 28%; }
-  .position-table th:nth-child(5), .position-table td:nth-child(5) { display: none; }
+  .position-table th:nth-child(4) { width: 22%; }
+  /* table-layout:fixed では display:none の列も「幅指定なしの1列」として残り、
+     名称列に回るはずの余りを山分けしてしまう。幅0＋クリップで列ごと畳む。 */
+  .position-table th:nth-child(5), .position-table td:nth-child(5) { width: 0; max-width: 0; padding-inline: 0; overflow: hidden; white-space: nowrap; visibility: hidden; }
   .position-table th:nth-child(6) { width: 136px; }
   .position-table th:nth-child(7) { width: 108px; }
   .position-table .position-meta { max-width: 100%; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+/* 1080px 以下では 760px 版も収まらない（サイドバーありで本文 500px まで縮む）。
+   「所在地・金融機関等」は科目・名称の補助行に同じ内容が出ているので列ごと落とし、
+   固定列も詰めて 500px 版にする。 */
+@media screen and (min-width: 601px) and (max-width: 1080px) {
+  .position-table { min-width: 500px; }
+  .position-table th, .position-table td { padding-inline: 5px; }
+  .position-table th:nth-child(1) { width: 38px; }
+  .position-table th:nth-child(2) { width: 72px; }
+  .position-table th:nth-child(4), .position-table td:nth-child(4) { width: 0; max-width: 0; padding-inline: 0; overflow: hidden; white-space: nowrap; visibility: hidden; }
+  .position-table th:nth-child(6) { width: 116px; }
+  .position-table th:nth-child(7) { width: 100px; }
+  .position-table th:nth-child(8) { width: 78px; }
+  .position-table .row-action { width: 28px; height: 28px; flex: 0 0 28px; }
+  .position-table .row-action svg { width: 13px; height: 13px; }
 }
 @media (min-width: 601px) and (max-width: 1200px) {
   .detail-page-heading { align-items: flex-start; flex-direction: column; }
@@ -854,7 +875,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .valuation-calculation-grid > span { display: none; }
   .valuation-result { grid-template-columns: 1fr; }
   .valuation-result small { grid-column: auto; text-align: left; }
-  .family-form-grid { grid-template-columns: 1fr; }
   .form-grid .full { grid-column: auto; }
   .modal-layer { padding: 0; place-items: end center; }
   .modal { max-height: 94vh; border-radius: 12px 12px 0 0; }
@@ -1035,6 +1055,11 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .classified-bs-side > footer span { font-size: 9px; }
   .classified-bs-side > footer strong { font-size: 12px; }
   .bs-small-area-key { margin: 4px 14px 0; padding: 3px 0; gap: 7px; }
+  .bs-subtotal-note { margin: 4px 14px 0; padding: 3px 0; border-top: 1px solid var(--slate-200); display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; font-variant-numeric: tabular-nums; }
+  .bs-subtotal-note-title { width: 100%; color: var(--slate-500); font-size: 7px; font-weight: 700; letter-spacing: .08em; }
+  .bs-subtotal-note-item { min-width: 0; display: inline-flex; align-items: baseline; gap: 5px; }
+  .bs-subtotal-note-item strong { color: var(--navy-950); font-size: 8px; font-weight: 800; }
+  .bs-subtotal-note-item > span { color: var(--slate-600); font-size: 7px; font-weight: 600; }
   .guarantee-note { margin: 4px 15px 7px; font-size: 7px; }
   .guarantee-note strong { font-size: 8px; }
 
@@ -1046,6 +1071,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .detail-status-print { display: inline; }
   .detail-status.current::after { display: none !important; }
   .detail-page-actions, .position-table-tools, .tax-section-toolbar, .tax-calc-recalc, .secondary-sim { display: none !important; }
+  /* 「14件・登録順・ドラッグで並び替え」は画面操作の案内なので印刷では出さない */
+  .position-section .panel-header p { display: none !important; }
   .tax-calculation-document { margin-top: 0; }
   .inheritance-tax-report { width: 100%; height: auto; max-height: 160mm; padding: 4mm 5mm 3mm; border: 1px solid #b9cbc2; border-radius: 0; box-shadow: none; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
   .inheritance-tax-report-heading { min-height: 18mm; padding: 0 1mm 3mm; gap: 8mm; }

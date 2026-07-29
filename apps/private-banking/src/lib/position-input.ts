@@ -125,9 +125,6 @@ export const positionInputSchema = z.object({
   if (data.category === "LOAN_RECEIVABLE" && !data.assetDetails.borrower) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "borrower"], message: "借主を入力してください。" });
   }
-  if (data.category === "PRIVATE_SHARES" && data.assetDetails.totalIssuedShares && data.valuationQuantity && data.valuationQuantity > data.assetDetails.totalIssuedShares) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "totalIssuedShares"], message: "発行済株式総数は保有株数以上で入力してください。" });
-  }
 });
 
 export type PositionInput = z.infer<typeof positionInputSchema>;

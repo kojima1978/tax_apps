@@ -137,12 +137,6 @@ describe("positionInputSchema", () => {
     expect(positionInputSchema.safeParse({ ...stockInput, valuationUnitPrice: 0 }).success).toBe(false);
   });
 
-  it("自社株は保有株数が発行済株式総数を超えられない", () => {
-    const base = { ...stockInput, category: "PRIVATE_SHARES", valuationQuantity: 200 };
-    expect(positionInputSchema.safeParse({ ...base, assetDetails: { totalIssuedShares: 100 } }).success).toBe(false);
-    expect(positionInputSchema.safeParse({ ...base, assetDetails: { totalIssuedShares: 200 } }).success).toBe(true);
-  });
-
   it("貸付金は借主が必須", () => {
     const base = { side: "ASSET", category: "LOAN_RECEIVABLE", name: "役員貸付金", originalAmount: 5000000 };
     expect(positionInputSchema.safeParse(base).success).toBe(false);

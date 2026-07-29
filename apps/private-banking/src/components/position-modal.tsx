@@ -17,9 +17,19 @@ import {
   positionSectionLabels,
 } from "@/lib/portfolio-view";
 
+/** 本人・親族の氏名から select の選択肢を作る。既存データの自由入力値は選択肢に足して保全する。 */
+function PersonSelect({ label, name, value, people }: { label: string; name: string; value: string; people: string[] }) {
+  const options = people.includes(value) || value === "" ? people : [value, ...people];
+  return <label>{label}<select name={name} defaultValue={value}>
+    <option value="">未選択</option>
+    {options.map((person) => <option key={person} value={person}>{person}</option>)}
+  </select>{people.length === 0 ? <small className="asset-detail-hint">親族関係タブに登録すると選択肢に表示されます。</small> : null}</label>;
+}
+
 function AssetSpecificFields({
   category,
   details,
+  people,
   propertyType,
   formula,
   onPropertyTypeChange,
@@ -34,6 +44,7 @@ function AssetSpecificFields({
 }: {
   category: string;
   details: AssetDetails;
+  people: string[];
   propertyType: string;
   formula: ValuationFormula;
   onPropertyTypeChange: (value: string) => void;
@@ -76,13 +87,6 @@ function AssetSpecificFields({
     <label>評価日<input name="assetDetail.valuationDate" type="date" defaultValue={details.valuationDate ?? ""} /></label>
   </div><p className="asset-detail-note">土地と建物は別明細で登録します。面積・固定資産税評価額・持分は、選択した評価方法へ自動反映されます。</p></fieldset>;
 
-  if (category === "PRIVATE_SHARES") return <fieldset key={category} className="asset-detail-fieldset full"><legend>自社株の情報</legend><div className="asset-detail-grid">
-    <label>株式種類<select name="assetDetail.shareClass" defaultValue={details.shareClass ?? "COMMON"}><option value="COMMON">普通株式</option><option value="CLASS">種類株式</option></select></label>
-    <label>発行済株式総数<CommaNumberInput name="assetDetail.totalIssuedShares" defaultValue={details.totalIssuedShares ?? ""} maxFractionDigits={0} placeholder="" positive required={false} /></label>
-    <label>評価方式<select name="assetDetail.valuationApproach" defaultValue={details.valuationApproach ?? "COMPARABLE"}><option value="COMPARABLE">類似業種比準方式</option><option value="NET_ASSET">純資産価額方式</option><option value="DIVIDEND">配当還元方式</option><option value="DCF">DCF法</option><option value="OTHER">その他</option></select></label>
-    <label>評価日<input name="assetDetail.valuationDate" type="date" defaultValue={details.valuationDate ?? ""} /></label>
-  </div></fieldset>;
-
   if (category === "BUSINESS_ASSETS") return <fieldset key={category} className="asset-detail-fieldset full"><legend>事業用資産の情報</legend><div className="asset-detail-grid">
     <label>資産種類<select name="assetDetail.businessAssetType" defaultValue={details.businessAssetType ?? "EQUIPMENT"}><option value="EQUIPMENT">機械・設備</option><option value="VEHICLE">車両</option><option value="GOODWILL">営業権</option><option value="INVENTORY">棚卸資産</option><option value="OTHER">その他</option></select></label>
     <label>事業・屋号<input name="assetDetail.businessName" defaultValue={details.businessName ?? ""} /></label>
@@ -100,8 +104,8 @@ function AssetSpecificFields({
 
   if (category === "INSURANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>生命保険の情報</legend><div className="asset-detail-grid">
     <label>保険種類<select name="assetDetail.insuranceType" defaultValue={details.insuranceType ?? "WHOLE_LIFE"}><option value="WHOLE_LIFE">終身保険</option><option value="TERM">定期保険</option><option value="ENDOWMENT">養老保険</option><option value="ANNUITY">個人年金保険</option><option value="OTHER">その他</option></select></label>
-    <label>被保険者<input name="assetDetail.insuredPerson" defaultValue={details.insuredPerson ?? ""} /></label>
-    <label>受取人<input name="assetDetail.beneficiary" defaultValue={details.beneficiary ?? ""} /></label>
+    <PersonSelect label="被保険者" name="assetDetail.insuredPerson" value={details.insuredPerson ?? ""} people={people} />
+    <PersonSelect label="受取人" name="assetDetail.beneficiary" value={details.beneficiary ?? ""} people={people} />
     <label>死亡保険金<CommaNumberInput name="assetDetail.deathBenefit" defaultValue={details.deathBenefit ?? ""} maxFractionDigits={2} placeholder="" required={false} /></label>
     <label className="insurance-exemption-check wide">
       <input name="assetDetail.beneficiaryIsLegalHeir" type="checkbox" value="true" defaultChecked={details.beneficiaryIsLegalHeir === true} />
@@ -119,13 +123,13 @@ function AssetSpecificFields({
   return null;
 }
 
-export function PositionModal({ position, onClose, onSubmit, saving }: { position: Position | null; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
+export function PositionModal({ position, people, onClose, onSubmit, saving }: { position: Position | null; people: string[]; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
   const assetDetails = position?.assetDetails ?? {};
   const [fallbackOwnershipNumerator, fallbackOwnershipDenominator] = decimalToFraction(position?.ownershipShare ?? null);
   const [section, setSection] = useState<PositionSection>(position ? positionSection(position) : "ASSET");
   const [category, setCategory] = useState(position?.category ?? "DEPOSIT");
-  const [currency, setCurrency] = useState(position?.currency ?? "JPY");
-  const [formula, setFormula] = useState<ValuationFormula>(position?.valuationFormula ?? "MANUAL");
+  const [currency, setCurrency] = useState(position?.category === "PRIVATE_SHARES" ? "JPY" : position?.currency ?? "JPY");
+  const [formula, setFormula] = useState<ValuationFormula>(position?.category === "PRIVATE_SHARES" ? "STOCK" : position?.valuationFormula ?? "MANUAL");
   const [quantity, setQuantity] = useState(position?.valuationQuantity === null || position?.valuationQuantity === undefined ? "" : String(position.valuationQuantity));
   const [unitPrice, setUnitPrice] = useState(position?.valuationUnitPrice === null || position?.valuationUnitPrice === undefined ? "" : String(position.valuationUnitPrice));
   const [adjustmentRate, setAdjustmentRate] = useState(position?.adjustmentRate === null || position?.adjustmentRate === undefined ? "1.0" : String(position.adjustmentRate));
@@ -137,6 +141,8 @@ export function PositionModal({ position, onClose, onSubmit, saving }: { positio
   const [ownershipDenominator, setOwnershipDenominator] = useState(String(position?.ownershipDenominator ?? fallbackOwnershipDenominator));
   const [fxRate, setFxRate] = useState(String(position?.fxRate ?? 1));
   const [propertyType, setPropertyType] = useState(assetDetails.propertyType ?? (position?.valuationFormula === "BUILDING" ? "BUILDING" : "LAND"));
+  // 生命保険は契約名を持たせず、保険会社を明細の名称として使う。
+  const [institution, setInstitution] = useState(position?.institution ?? "");
 
   function changeSection(nextSection: PositionSection) {
     setSection(nextSection);
@@ -146,7 +152,12 @@ export function PositionModal({ position, onClose, onSubmit, saving }: { positio
 
   function changeCategory(nextCategory: string) {
     setCategory(nextCategory);
-    if (["SECURITIES", "PRIVATE_SHARES"].includes(nextCategory)) setFormula("STOCK");
+    if (nextCategory === "PRIVATE_SHARES") {
+      setCurrency("JPY");
+      setFxRate("1");
+      setFormula("STOCK");
+    }
+    else if (nextCategory === "SECURITIES") setFormula("STOCK");
     else if (["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(nextCategory)) {
       setPropertyType("LAND");
       setFormula("LAND_ROADSIDE");
@@ -162,10 +173,12 @@ export function PositionModal({ position, onClose, onSubmit, saving }: { positio
   const isEditing = position !== null;
   const categories = section === "ASSET" ? assetCategories : section === "LIABILITY" ? liabilityCategories : ["GUARANTEE"];
   const isStockCategory = ["SECURITIES", "PRIVATE_SHARES"].includes(category);
+  const isPrivateShares = category === "PRIVATE_SHARES";
   const isRealEstateCategory = ["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(category);
-  const nameLabel = category === "SECURITIES" ? "銘柄名" : category === "PRIVATE_SHARES" ? "会社名" : category === "LOAN_RECEIVABLE" ? "貸付金名" : category === "INSURANCE" ? "保険契約名" : category === "COLLECTIBLES" ? "資産名" : "名称";
+  const isInsurance = category === "INSURANCE";
+  const nameLabel = category === "SECURITIES" ? "銘柄名" : category === "PRIVATE_SHARES" ? "会社名" : category === "LOAN_RECEIVABLE" ? "貸付金名" : category === "COLLECTIBLES" ? "資産名" : "名称";
   const institutionLabel = category === "DEPOSIT" ? "金融機関" : category === "SECURITIES" ? "証券会社・金融機関" : category === "INSURANCE" ? "保険会社" : section === "ASSET" ? null : "金融機関・債権者";
-  const amountLabel = category === "DEPOSIT" ? "残高" : category === "INSURANCE" ? "解約返戻金" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : "通貨建て金額";
+  const amountLabel = category === "DEPOSIT" ? "残高" : category === "INSURANCE" ? "解約返戻金" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : isPrivateShares ? "評価額" : "通貨建て金額";
   const numericValue = (value: string) => Number(value) || 0;
   const ownershipDisplay = `${ownershipNumerator || "—"} / ${ownershipDenominator || "—"}`;
   const ownershipRatio = numericValue(ownershipDenominator) > 0 ? numericValue(ownershipNumerator) / numericValue(ownershipDenominator) : 0;
@@ -188,12 +201,17 @@ export function PositionModal({ position, onClose, onSubmit, saving }: { positio
       {section === "CONTINGENT" ? <p className="contingent-form-note"><AlertTriangle />偶発債務はB/S外として登録し、純資産の計算には含めません。</p> : null}
       <div className="form-grid">
         <label>科目<select name="category" value={category} onChange={(event) => changeCategory(event.target.value)} required>{categories.map((key) => <option key={key} value={key}>{categoryLabels[key]}</option>)}</select></label>
-        <label>{nameLabel}<input name="name" required placeholder={category === "SECURITIES" ? "例：○○株式会社" : category === "PRIVATE_SHARES" ? "例：山田産業株式会社" : ""} defaultValue={position?.name ?? ""} /></label>
-        {institutionLabel ? <label>{institutionLabel}<input name="institution" defaultValue={position?.institution ?? ""} /></label> : <input type="hidden" name="institution" value="" />}
-        <label>通貨<select name="currency" value={currency} onChange={(event) => setCurrency(event.target.value)}><option>JPY</option><option>USD</option><option>EUR</option><option>GBP</option><option>AUD</option><option>CHF</option></select></label>
+        {isInsurance
+          ? <input type="hidden" name="name" value={institution} />
+          : <label>{nameLabel}<input name="name" required placeholder={category === "SECURITIES" ? "例：○○株式会社" : category === "PRIVATE_SHARES" ? "例：山田産業株式会社" : ""} defaultValue={position?.name ?? ""} /></label>}
+        {institutionLabel ? <label>{institutionLabel}{isInsurance ? <span className="required-mark">必須</span> : null}<input name="institution" required={isInsurance} value={institution} onChange={(event) => setInstitution(event.target.value)} placeholder={isInsurance ? "例：日本生命" : ""} />{isInsurance ? <small className="asset-detail-hint">明細の「科目・名称」にはこの保険会社名を表示します。</small> : null}</label> : <input type="hidden" name="institution" value="" />}
+        {isPrivateShares
+          ? <input type="hidden" name="currency" value="JPY" />
+          : <label>通貨<select name="currency" value={currency} onChange={(event) => setCurrency(event.target.value)}><option>JPY</option><option>USD</option><option>EUR</option><option>GBP</option><option>AUD</option><option>CHF</option></select></label>}
         {section === "ASSET" ? <AssetSpecificFields
           category={category}
           details={assetDetails}
+          people={people}
           propertyType={propertyType}
           formula={formula}
           onPropertyTypeChange={changePropertyType}
@@ -206,14 +224,16 @@ export function PositionModal({ position, onClose, onSubmit, saving }: { positio
           onOwnershipNumeratorChange={setOwnershipNumerator}
           onOwnershipDenominatorChange={setOwnershipDenominator}
         /> : null}
-        {isStockCategory || isRealEstateCategory ? <fieldset className="valuation-formula-fieldset full"><legend>評価額の計算方法</legend><select name="valuationFormula" aria-label="評価額の計算方法" value={formula} onChange={(event) => setFormula(event.target.value as ValuationFormula)}><option value="MANUAL">金額を直接入力</option>{isStockCategory ? <option value="STOCK">株数・口数から計算</option> : null}{isRealEstateCategory && propertyType === "LAND" ? <><option value="LAND_ROADSIDE">路線価方式</option><option value="LAND_MULTIPLIER">倍率方式</option></> : null}{isRealEstateCategory && propertyType === "BUILDING" ? <option value="BUILDING">固定資産税評価額方式</option> : null}</select>{formulaExpression ? <p className="valuation-formula-expression">{formulaExpression}</p> : null}
+        {isStockCategory || isRealEstateCategory ? <fieldset className="valuation-formula-fieldset full"><legend>{isPrivateShares ? "評価額の自動計算" : "評価額の計算方法"}</legend>{isPrivateShares ? <input type="hidden" name="valuationFormula" value="STOCK" /> : <select name="valuationFormula" aria-label="評価額の計算方法" value={formula} onChange={(event) => setFormula(event.target.value as ValuationFormula)}><option value="MANUAL">金額を直接入力</option>{isStockCategory ? <option value="STOCK">株数・口数から計算</option> : null}{isRealEstateCategory && propertyType === "LAND" ? <><option value="LAND_ROADSIDE">路線価方式</option><option value="LAND_MULTIPLIER">倍率方式</option></> : null}{isRealEstateCategory && propertyType === "BUILDING" ? <option value="BUILDING">固定資産税評価額方式</option> : null}</select>}{formulaExpression ? <p className="valuation-formula-expression">{formulaExpression}</p> : null}
           {formula === "STOCK" ? <div className="valuation-calculation-grid stock-formula"><label>株数・口数<CommaNumberInput name="valuationQuantity" defaultValue="" value={quantity} onValueChange={setQuantity} maxFractionDigits={6} placeholder="例：10,000" positive /></label><span aria-hidden="true">×</span><label>単価<CommaNumberInput name="valuationUnitPrice" defaultValue="" value={unitPrice} onValueChange={setUnitPrice} maxFractionDigits={2} placeholder="例：2,500" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div> : null}
           {formula === "LAND_ROADSIDE" ? <><div className="valuation-source-summary"><span>基本情報から使用</span><dl><div><dt>面積</dt><dd>{landArea ? `${valuationNumber.format(numericValue(landArea))}㎡` : "未入力"}</dd></div><div><dt>持分</dt><dd>{ownershipDisplay}</dd></div></dl></div><div className="valuation-calculation-grid real-estate-method-inputs"><label>路線価（円/㎡）<CommaNumberInput name="roadsideValue" defaultValue="" value={roadsideValue} onValueChange={setRoadsideValue} maxFractionDigits={2} placeholder="" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="" positive /></label></div></> : null}
           {formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? <><div className="valuation-source-summary"><span>基本情報から使用</span><dl><div><dt>固定資産税評価額</dt><dd>{fixedAssetTaxValue ? yen.format(numericValue(fixedAssetTaxValue)) : "未入力"}</dd></div><div><dt>持分</dt><dd>{ownershipDisplay}</dd></div></dl></div><div className="valuation-calculation-grid real-estate-method-inputs"><label>倍率<CommaNumberInput name="valuationMultiplier" defaultValue="" value={valuationMultiplier} onValueChange={setValuationMultiplier} maxFractionDigits={6} placeholder="" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="" positive /></label></div></> : null}
           {isCalculated ? <div className="valuation-result" aria-live="polite"><span>算式による評価額</span><strong>{calculatedAmount.toLocaleString("ja-JP", { maximumFractionDigits: 2 })} {currency}</strong><small>円換算見込 {yen.format(calculatedJpy)}</small></div> : null}
         </fieldset> : <input type="hidden" name="valuationFormula" value="MANUAL" />}
         <label>{amountLabel}<CommaNumberInput key={formula} name="originalAmount" defaultValue={isCalculated ? "" : position?.originalAmount ?? ""} value={isCalculated ? String(calculatedAmount) : undefined} maxFractionDigits={2} placeholder="" readOnly={isCalculated} hint={isCalculated ? "上の算式から自動計算されます" : undefined} /></label>
-        <label>円換算レート<CommaNumberInput name="fxRate" defaultValue={position?.fxRate ?? 1} value={fxRate} onValueChange={setFxRate} maxFractionDigits={6} placeholder="例：150.25" positive /></label>
+        {isPrivateShares
+          ? <input type="hidden" name="fxRate" value="1" />
+          : <label>円換算レート<CommaNumberInput name="fxRate" defaultValue={position?.fxRate ?? 1} value={fxRate} onValueChange={setFxRate} maxFractionDigits={6} placeholder="例：150.25" positive /></label>}
         {isCalculated ? <input type="hidden" name="valuationMethod" value={formulaLabel} /> : <label>評価方法<input name="valuationMethod" defaultValue={position?.valuationMethod ?? "手動入力"} /></label>}
         <label className="full">メモ<textarea name="note" rows={3} placeholder="評価日、根拠資料など" defaultValue={position?.note ?? ""} /></label>
       </div>
