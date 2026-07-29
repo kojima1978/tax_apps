@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckSquare, FileText, Printer, Square, X } from 'lucide-react';
 import type { Policy } from '@/types';
 import type { PrintPageKey } from '@/utils/printPages';
@@ -27,12 +27,59 @@ const PrintSelectionModal: React.FC<PrintSelectionModalProps> = ({
   onConfirm,
   onClose,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<PrintPageKey>>(
     () => new Set(availablePageKeys),
   );
-  const policyById = new Map(policies.map(policy => [policy.id, policy]));
+  const policyById = useMemo(
+    () => new Map(policies.map(policy => [policy.id, policy])),
+    [policies],
+  );
   const fixedKeys = availablePageKeys.filter(key => !key.startsWith('policy:'));
   const policyKeys = availablePageKeys.filter(key => key.startsWith('policy:'));
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const focusableSelector = [
+      'button:not([disabled])',
+      'input:not([disabled])',
+      '[href]',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+
+    dialog?.querySelector<HTMLElement>('.print-selection-bulk-toggle')?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !dialog) return;
+      const focusableElements = Array.from(
+        dialog.querySelectorAll<HTMLElement>(focusableSelector),
+      ).filter(element => !element.hasAttribute('disabled'));
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [onClose]);
 
   const toggleKey = (key: PrintPageKey) => {
     setSelectedKeys(current => {
@@ -43,9 +90,13 @@ const PrintSelectionModal: React.FC<PrintSelectionModalProps> = ({
     });
   };
 
-  const selectAll = () => setSelectedKeys(new Set(availablePageKeys));
-  const clearAll = () => setSelectedKeys(new Set<PrintPageKey>());
   const selectedCount = availablePageKeys.filter(key => selectedKeys.has(key)).length;
+  const allSelected = selectedCount === availablePageKeys.length;
+  const toggleAll = () => {
+    setSelectedKeys(allSelected
+      ? new Set<PrintPageKey>()
+      : new Set(availablePageKeys));
+  };
 
   const renderOption = (key: PrintPageKey, label: string, detail?: string) => {
     const checked = selectedKeys.has(key);
@@ -69,7 +120,7 @@ const PrintSelectionModal: React.FC<PrintSelectionModalProps> = ({
 
   return (
     <div className="form-overlay no-print">
-      <div className="form-container print-selection-modal" role="dialog" aria-modal="true" aria-labelledby="print-selection-title">
+      <div ref={dialogRef} className="form-container print-selection-modal" role="dialog" aria-modal="true" aria-labelledby="print-selection-title">
         <div className="modal-header">
           <div className="title-with-icon">
             <Printer className="icon" />
@@ -81,11 +132,16 @@ const PrintSelectionModal: React.FC<PrintSelectionModalProps> = ({
         </div>
 
         <div className="print-selection-toolbar">
-          <span>{selectedCount} / {availablePageKeys.length} ページ選択中</span>
-          <div>
-            <button type="button" onClick={selectAll}>すべて選択</button>
-            <button type="button" onClick={clearAll}>すべて解除</button>
-          </div>
+          <span className="print-selection-count">
+            {selectedCount} / {availablePageKeys.length} ページ選択中
+          </span>
+          <button
+            type="button"
+            className="print-selection-bulk-toggle"
+            onClick={toggleAll}
+          >
+            {allSelected ? 'すべて解除' : 'すべて選択'}
+          </button>
         </div>
 
         <div className="print-selection-list">
@@ -102,7 +158,9 @@ const PrintSelectionModal: React.FC<PrintSelectionModalProps> = ({
                 return renderOption(
                   key,
                   policy?.policyType || '保険証券',
-                  policy ? `${policy.companyName}${policy.policyNumber ? `・${policy.policyNumber}` : ''}` : undefined,
+                  policy
+                    ? `${policy.companyName}${policy.policyNumber ? `｜証券番号 ${policy.policyNumber}` : ''}`
+                    : undefined,
                 );
               })}
             </div>

@@ -1929,8 +1929,12 @@ h1 {
 
 .print-selection-modal {
   box-sizing: border-box;
+  display: flex;
+  max-height: min(720px, calc(100vh - 2rem));
   width: min(760px, 94vw);
   max-width: 760px;
+  flex-direction: column;
+  overflow: hidden;
   padding: 1.25rem;
   border: 1px solid rgba(203, 213, 225, 0.72);
   border-radius: 22px;
@@ -1940,6 +1944,7 @@ h1 {
 }
 
 .print-selection-modal .modal-header {
+  flex: 0 0 auto;
   margin-bottom: 0.75rem;
   padding-bottom: 0.65rem;
 }
@@ -1978,12 +1983,17 @@ h1 {
   font-weight: 700;
 }
 
-.print-selection-toolbar > div {
-  display: flex;
-  gap: 0.4rem;
+.print-selection-count {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
 }
 
-.print-selection-toolbar button {
+.print-selection-bulk-toggle {
   min-height: 30px;
   padding: 0.25rem 0.5rem;
   border: 1px solid #cbd5e1;
@@ -1996,15 +2006,27 @@ h1 {
   transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
-.print-selection-toolbar button:hover {
+.print-selection-bulk-toggle:hover {
   border-color: #93c5fd;
   background: #eff6ff;
+}
+
+.print-selection-modal .close-btn:focus-visible,
+.print-selection-bulk-toggle:focus-visible,
+.print-selection-actions button:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.34);
+  outline-offset: 2px;
 }
 
 .print-selection-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+  overflow-y: auto;
   gap: 0.3rem;
+  padding: 0.15rem 0.25rem 0.15rem 0;
+  scrollbar-color: #bfdbfe transparent;
+  scrollbar-width: thin;
 }
 
 .print-selection-option {
@@ -2074,7 +2096,7 @@ h1 {
 
 .print-selection-option-text small {
   overflow: hidden;
-  color: #64748b;
+  color: #52657d;
   font-size: 0.65rem;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -2088,10 +2110,10 @@ h1 {
   gap: 0.3rem;
   margin-top: 0.15rem;
   padding: 0.45rem;
-  border: 1px solid #e2e8f0;
+  border: 0;
   border-radius: 16px;
   background: #f8fafc;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.025);
+  box-shadow: none;
 }
 
 .print-selection-policy-group .print-selection-option {
@@ -2109,7 +2131,10 @@ h1 {
 }
 
 .print-selection-actions {
+  flex: 0 0 auto;
   margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #e2e8f0;
 }
 
 .print-selection-actions .save-btn,
@@ -2124,7 +2149,13 @@ h1 {
 }
 
 .print-selection-actions .save-btn {
-  box-shadow: 0 6px 14px rgba(22, 163, 74, 0.18);
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.22);
+}
+
+.print-selection-actions .save-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
 }
 
 .print-selection-actions .cancel-btn {
@@ -2140,6 +2171,10 @@ h1 {
 
   .print-selection-option {
     min-height: 44px;
+  }
+
+  .print-selection-toolbar {
+    align-items: flex-start;
   }
 }
 
