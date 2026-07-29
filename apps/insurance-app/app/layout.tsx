@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
 import './globals.css'
 
+const appBasePath = process.env.NEXT_PUBLIC_STORAGE_MODE === 'json' ? '' : '/insurance'
+
 export const metadata: Metadata = {
   title: 'insurance-app',
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: `${appBasePath}/favicon.svg` },
 }
 
 export default function RootLayout({

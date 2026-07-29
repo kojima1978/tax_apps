@@ -26,10 +26,10 @@ function getInitial(name: string): string {
 }
 
 const SortIcon = ({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) => {
-  if (sortKey !== col) return <ArrowUpDown size={12} className="case-sort-icon-idle" />;
+  if (sortKey !== col) return <ArrowUpDown size={12} className="case-sort-icon-idle" aria-hidden="true" />;
   return sortDir === 'asc'
-    ? <ArrowUp size={12} className="case-sort-icon-active" />
-    : <ArrowDown size={12} className="case-sort-icon-active" />;
+    ? <ArrowUp size={12} className="case-sort-icon-active" aria-hidden="true" />
+    : <ArrowDown size={12} className="case-sort-icon-active" aria-hidden="true" />;
 };
 
 function getAvatarColor(name: string): string {
@@ -201,13 +201,6 @@ export default function CaseListPage({ onSelect }: Props) {
           </p>
         </div>
         <div className="case-list-actions">
-          <button
-            className="case-agency-btn"
-            onClick={() => restoreJsonInputRef.current?.click()}
-            disabled={isRestoringJson}
-          >
-            <Upload size={18} /> {isRestoringJson ? '復元中...' : 'JSON復元'}
-          </button>
           <button className="case-agency-btn" onClick={() => setShowAgencyMaster(true)}>
             <Building2 size={18} /> 代理店管理
           </button>
@@ -224,33 +217,43 @@ export default function CaseListPage({ onSelect }: Props) {
         </div>
       )}
 
-      <div
-        className={`case-json-dropzone ${isJsonDragOver ? 'case-json-dropzone-active' : ''} ${isRestoringJson ? 'case-json-dropzone-disabled' : ''}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (!isRestoringJson) setIsJsonDragOver(true);
-        }}
-        onDragLeave={() => setIsJsonDragOver(false)}
-        onDrop={handleJsonDrop}
-        onClick={() => !isRestoringJson && restoreJsonInputRef.current?.click()}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && !isRestoringJson) {
+      <details className="case-import-panel">
+        <summary>
+          <Upload size={18} aria-hidden="true" />
+          <span className="case-import-summary-title">
+            {isRestoringJson ? 'JSON復元中...' : 'JSONから復元'}
+          </span>
+          <span className="case-import-summary-sub">バックアップファイルからお客様を追加</span>
+        </summary>
+        <div
+          className={`case-json-dropzone ${isJsonDragOver ? 'case-json-dropzone-active' : ''} ${isRestoringJson ? 'case-json-dropzone-disabled' : ''}`}
+          onDragOver={(e) => {
             e.preventDefault();
-            restoreJsonInputRef.current?.click();
-          }
-        }}
-        aria-disabled={isRestoringJson}
-      >
-        <Upload size={22} />
-        <div>
-          <p className="case-json-dropzone-title">
-            {isRestoringJson ? 'JSON復元中...' : 'JSONファイルをドラッグ＆ドロップ'}
-          </p>
-          <p className="case-json-dropzone-sub">クリックしてファイル選択もできます</p>
+            if (!isRestoringJson) setIsJsonDragOver(true);
+          }}
+          onDragLeave={() => setIsJsonDragOver(false)}
+          onDrop={handleJsonDrop}
+          onClick={() => !isRestoringJson && restoreJsonInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && !isRestoringJson) {
+              e.preventDefault();
+              restoreJsonInputRef.current?.click();
+            }
+          }}
+          aria-disabled={isRestoringJson}
+          aria-busy={isRestoringJson}
+        >
+          <Upload size={22} aria-hidden="true" />
+          <div>
+            <p className="case-json-dropzone-title">
+              {isRestoringJson ? 'JSON復元中...' : 'JSONファイルをドラッグ＆ドロップ'}
+            </p>
+            <p className="case-json-dropzone-sub">クリックしてファイル選択もできます</p>
+          </div>
         </div>
-      </div>
+      </details>
 
       {!isLoading && cases.length > 0 && (
         <div className="case-search-bar">
@@ -261,6 +264,7 @@ export default function CaseListPage({ onSelect }: Props) {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="お客様名で検索..."
             className="case-search-input"
+            aria-label="お客様名で検索"
           />
           {search && (
             <span className="case-search-count">
@@ -299,19 +303,28 @@ export default function CaseListPage({ onSelect }: Props) {
       ) : (
         <div className="case-table-wrapper">
           <table className="case-table">
+            <caption className="sr-only">登録済みのお客様一覧</caption>
             <thead>
               <tr>
-                <th className="case-th-sortable" onClick={() => handleSort('name')}>
-                  <span>お客様名</span> <SortIcon col="name" sortKey={sortKey} sortDir={sortDir} />
+                <th aria-sort={sortKey === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" className="case-th-sortable" onClick={() => handleSort('name')}>
+                    <span>お客様名</span> <SortIcon col="name" sortKey={sortKey} sortDir={sortDir} />
+                  </button>
                 </th>
-                <th className="case-th-sortable case-th-numeric" onClick={() => handleSort('members')}>
-                  <span>世帯人数</span> <SortIcon col="members" sortKey={sortKey} sortDir={sortDir} />
+                <th className="case-th-numeric" aria-sort={sortKey === 'members' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" className="case-th-sortable" onClick={() => handleSort('members')}>
+                    <span>世帯人数</span> <SortIcon col="members" sortKey={sortKey} sortDir={sortDir} />
+                  </button>
                 </th>
-                <th className="case-th-sortable case-th-numeric" onClick={() => handleSort('policies')}>
-                  <span>証券数</span> <SortIcon col="policies" sortKey={sortKey} sortDir={sortDir} />
+                <th className="case-th-numeric" aria-sort={sortKey === 'policies' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" className="case-th-sortable" onClick={() => handleSort('policies')}>
+                    <span>証券数</span> <SortIcon col="policies" sortKey={sortKey} sortDir={sortDir} />
+                  </button>
                 </th>
-                <th className="case-th-sortable" onClick={() => handleSort('updated')}>
-                  <span>最終更新</span> <SortIcon col="updated" sortKey={sortKey} sortDir={sortDir} />
+                <th aria-sort={sortKey === 'updated' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" className="case-th-sortable" onClick={() => handleSort('updated')}>
+                    <span>最終更新</span> <SortIcon col="updated" sortKey={sortKey} sortDir={sortDir} />
+                  </button>
                 </th>
                 <th className="case-th-actions"></th>
               </tr>
@@ -322,8 +335,16 @@ export default function CaseListPage({ onSelect }: Props) {
                 const avatarColor = getAvatarColor(c.primaryMemberName);
                 return (
                   <tr key={c.id} className="case-row" onClick={() => onSelect(c.id)}>
-                    <td className="case-name-cell">
-                      <div className="case-name-wrapper">
+                    <td className="case-name-cell" data-label="お客様名">
+                      <button
+                        type="button"
+                        className="case-open-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelect(c.id);
+                        }}
+                        aria-label={`${displayName}様の保険証券分析を開く`}
+                      >
                         <div className="case-avatar-sm" style={{ background: avatarColor }}>
                           {getInitial(c.primaryMemberName)}
                         </div>
@@ -331,24 +352,26 @@ export default function CaseListPage({ onSelect }: Props) {
                           <span className="case-primary-name">{displayName}</span>
                           {c.primaryMemberName && <span className="case-sama"> 様</span>}
                         </div>
-                      </div>
+                      </button>
                     </td>
-                    <td className="case-td-numeric">
+                    <td className="case-td-numeric" data-label="世帯人数">
                       <span className="case-count-pill case-count-members">{c.memberCount}</span>
                       <span className="case-unit">名</span>
                     </td>
-                    <td className="case-td-numeric">
+                    <td className="case-td-numeric" data-label="証券数">
                       <span className="case-count-pill case-count-policies">{c.policyCount}</span>
                       <span className="case-unit">件</span>
                     </td>
-                    <td className="case-updated-cell">{formatDate(c.updatedAt)}</td>
-                    <td className="case-td-actions">
+                    <td className="case-updated-cell" data-label="最終更新">{formatDate(c.updatedAt)}</td>
+                    <td className="case-td-actions" data-label="操作">
                       <button
+                        type="button"
                         className="case-delete-btn"
                         onClick={(e) => handleDelete(e, c.id, c.primaryMemberName)}
-                        title="削除"
+                        title={`${displayName}様を削除`}
+                        aria-label={`${displayName}様を削除`}
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={16} aria-hidden="true" />
                       </button>
                     </td>
                   </tr>

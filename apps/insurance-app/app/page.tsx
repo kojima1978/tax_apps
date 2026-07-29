@@ -254,6 +254,17 @@ export default function Page() {
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!activeCaseId) return;
+    const mobileQuery = window.matchMedia('(max-width: 900px)');
+    const collapseForMobile = () => {
+      if (mobileQuery.matches) setSidebarCollapsed(true);
+    };
+    collapseForMobile();
+    mobileQuery.addEventListener('change', collapseForMobile);
+    return () => mobileQuery.removeEventListener('change', collapseForMobile);
+  }, [activeCaseId]);
+
   // JSONモード用: 案件タイトルと診断コメントも添えてダウンロード(localStorageから同期解決)
   const downloadJsonWithExtras = async (caseId: string) => {
     const [{ insights }, cases] = await Promise.all([
@@ -597,11 +608,17 @@ export default function Page() {
           <header className="app-header">
             <div className="header-title-area">
               <h1 className="app-title">保険証券分析・診断ダッシュボード</h1>
-              <div className="customer-summary-display" onClick={() => setCustomerSettingsSection('family')} title="世帯・家族情報を編集">
+              <button
+                type="button"
+                className="customer-summary-display"
+                onClick={() => setCustomerSettingsSection('family')}
+                title="世帯・家族情報を編集"
+                aria-label={`${self?.name || 'お客様'}様の世帯・家族情報を編集`}
+              >
                 <span className="customer-name-tag">{self?.name} 様</span>
                 <span className="customer-meta-tag">({birthDateLabel} | {ageLabel} | 世帯人数: {familyMembers.length}名)</span>
-                <UserCog size={16} className="customer-edit-icon" />
-              </div>
+                <UserCog size={16} className="customer-edit-icon" aria-hidden="true" />
+              </button>
             </div>
             <div className="header-actions">
               <div
@@ -615,7 +632,13 @@ export default function Page() {
                 <span className="save-status-detail">{saveStatus.detail}</span>
               </div>
               <div className="dropdown-wrapper" ref={menuRef}>
-                <button onClick={() => setMenuOpen(v => !v)} className="dropdown-trigger">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(v => !v)}
+                  className="dropdown-trigger"
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
+                >
                   <Menu size={16} /> データ管理 <ChevronDown size={12} />
                 </button>
                 {menuOpen && (
@@ -646,11 +669,23 @@ export default function Page() {
                   </div>
                 )}
               </div>
-              <button onClick={handleSave} className="save-button" disabled={!hasUnsavedChanges || isSaving}>
-                <Save size={16} /> {isSaving ? '保存中...' : hasUnsavedChanges ? '保存' : '保存済み'}
+              <button
+                type="button"
+                onClick={handleSave}
+                className="save-button"
+                disabled={!hasUnsavedChanges || isSaving}
+                aria-label={isSaving ? '変更を保存中' : '変更を保存'}
+              >
+                <Save size={16} aria-hidden="true" /> {isSaving ? '保存中...' : '変更を保存'}
               </button>
-              <button onClick={handlePrint} className="print-button" title="印刷 / PDF保存">
-                <Printer size={16} /> <span>印刷</span>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="print-button"
+                title="印刷 / PDF保存"
+                aria-label="印刷またはPDF保存"
+              >
+                <Printer size={16} aria-hidden="true" /> <span>印刷</span>
               </button>
             </div>
           </header>
