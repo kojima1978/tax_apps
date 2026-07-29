@@ -21,6 +21,16 @@ const stockInput = {
   adjustmentRate: 0.98,
 };
 
+const unitRateInput = {
+  side: "ASSET",
+  category: "COLLECTIBLES",
+  name: "絵画",
+  originalAmount: 0,
+  valuationFormula: "UNIT_RATE",
+  valuationUnitPrice: 3000000,
+  adjustmentRate: 0.8,
+};
+
 const landRoadsideInput = {
   side: "ASSET",
   category: "REAL_ESTATE",
@@ -66,6 +76,10 @@ const buildingInput = {
 describe("calculatedOriginalAmount", () => {
   it("株式は 株数×単価×調整率（持分は掛けない）", () => {
     expect(calculatedOriginalAmount(parse(stockInput))).toBe(2450000);
+  });
+
+  it("その他資産は 単価×調整率（株数は掛けない）", () => {
+    expect(calculatedOriginalAmount(parse(unitRateInput))).toBe(2400000);
   });
 
   it("路線価方式は 面積×路線価×調整率×持分", () => {
@@ -135,6 +149,16 @@ describe("positionInputSchema", () => {
 
   it("株式の算式は株数・単価・調整率が0より大きいこと", () => {
     expect(positionInputSchema.safeParse({ ...stockInput, valuationUnitPrice: 0 }).success).toBe(false);
+  });
+
+  it("単価×調整率はその他資産でしか使えず、単価・調整率が0より大きいこと", () => {
+    expect(positionInputSchema.safeParse({ ...unitRateInput, category: "DEPOSIT" }).success).toBe(false);
+    expect(positionInputSchema.safeParse({ ...unitRateInput, valuationUnitPrice: 0 }).success).toBe(false);
+    expect(positionInputSchema.safeParse({ ...unitRateInput, adjustmentRate: 0 }).success).toBe(false);
+  });
+
+  it("その他資産は金額の直接入力でも登録できる", () => {
+    expect(positionInputSchema.safeParse({ side: "ASSET", category: "COLLECTIBLES", name: "美術品", originalAmount: 1500000 }).success).toBe(true);
   });
 
   it("貸付金は名称と残高だけで登録できる", () => {

@@ -31,7 +31,7 @@ export type Snapshot = {
 };
 export type PositionSection = "ASSET" | "LIABILITY" | "CONTINGENT";
 export type PositionSortMode = "manual" | "classification-asc" | "classification-desc";
-export type ValuationFormula = "MANUAL" | "STOCK" | "LAND_ROADSIDE" | "LAND_MULTIPLIER" | "BUILDING";
+export type ValuationFormula = "MANUAL" | "STOCK" | "UNIT_RATE" | "LAND_ROADSIDE" | "LAND_MULTIPLIER" | "BUILDING";
 export type Portfolio = {
   household: { id: number; clientCode: string; name: string; nameKana: string; birthDate: string | null; assignedStaff: string; currency: string };
   planning: {
@@ -149,6 +149,7 @@ export function valuationBreakdown(position: Position) {
   const [fallbackNumerator, fallbackDenominator] = decimalToFraction(position.ownershipShare);
   const ownership = `${valuationNumber.format(position.ownershipNumerator ?? fallbackNumerator)}/${valuationNumber.format(position.ownershipDenominator ?? fallbackDenominator)}`;
   if (position.valuationFormula === "STOCK") return `${number(position.valuationQuantity)}株・口 × ${number(position.valuationUnitPrice)} × ${number(position.adjustmentRate)}`;
+  if (position.valuationFormula === "UNIT_RATE") return `${number(position.valuationUnitPrice)}円 × ${number(position.adjustmentRate)}`;
   if (position.valuationFormula === "LAND_ROADSIDE") return `${number(position.landArea)}㎡ × ${number(position.roadsideValue)}円/㎡ × ${number(position.adjustmentRate)} × 持分${ownership}`;
   if (position.valuationFormula === "LAND_MULTIPLIER" || position.valuationFormula === "BUILDING") return `${number(position.fixedAssetTaxValue)}円 × ${number(position.valuationMultiplier)} × ${number(position.adjustmentRate)} × 持分${ownership}`;
   return "";

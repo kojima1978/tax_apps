@@ -19,10 +19,15 @@ import {
   positionSectionLabels,
 } from "@/lib/portfolio-view";
 
-/** 円建てでしか登録しない科目。通貨は JPY 固定にし、選択欄を出さない。 */
-const jpyOnlyCategories = ["PRIVATE_SHARES", "LOAN_RECEIVABLE", "COLLECTIBLES", "HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"];
-/** 円建ての金額をそのまま登録する科目。評価方法は「直接入力」に固定し、入力欄を出さない。 */
+/** 外貨建てで登録しうる科目。これ以外（不動産・自社株・借入金・偶発債務など）は円建てのみなので通貨欄を出さず JPY 固定にする。 */
+const foreignCurrencyCategories = ["DEPOSIT", "SECURITIES", "INSURANCE", "BUSINESS_ASSETS"];
+/** 評価方法を自由入力させない科目。算式名か「直接入力」を自動で焼き込む。 */
 const directEntryCategories = ["PRIVATE_SHARES", "LOAN_RECEIVABLE", "COLLECTIBLES"];
+/** 科目を選び直したときの既定の算式。ここに無い科目は金額を直接入力する。 */
+const defaultFormulaByCategory: Record<string, ValuationFormula> = {
+  SECURITIES: "STOCK", PRIVATE_SHARES: "STOCK", COLLECTIBLES: "UNIT_RATE",
+  HOME_REAL_ESTATE: "LAND_ROADSIDE", REAL_ESTATE: "LAND_ROADSIDE", IDLE_REAL_ESTATE: "LAND_ROADSIDE",
+};
 
 /** 本人・親族の氏名から select の選択肢を作る。既存データの自由入力値は選択肢に足して保全する。 */
 function PersonSelect({ label, name, value, people }: { label: string; name: string; value: string; people: string[] }) {
@@ -122,7 +127,7 @@ export function PositionModal({ position, people, fxRates, onClose, onSubmit, sa
   const [fallbackOwnershipNumerator, fallbackOwnershipDenominator] = decimalToFraction(position?.ownershipShare ?? null);
   const [section, setSection] = useState<PositionSection>(position ? positionSection(position) : "ASSET");
   const [category, setCategory] = useState(position?.category ?? "DEPOSIT");
-  const [currency, setCurrency] = useState(jpyOnlyCategories.includes(position?.category ?? "") ? "JPY" : position?.currency ?? "JPY");
+  const [currency, setCurrency] = useState(foreignCurrencyCategories.includes(position?.category ?? "") ? position?.currency ?? "JPY" : "JPY");
   // 自社株も直接入力を選べるので、保存済みの評価方法をそのまま開く。新規追加時の既定は changeCategory 側で決める。
   const [formula, setFormula] = useState<ValuationFormula>(position?.valuationFormula ?? "MANUAL");
   const [quantity, setQuantity] = useState(position?.valuationQuantity === null || position?.valuationQuantity === undefined ? "" : String(position.valuationQuantity));
@@ -146,14 +151,9 @@ export function PositionModal({ position, people, fxRates, onClose, onSubmit, sa
 
   function changeCategory(nextCategory: string) {
     setCategory(nextCategory);
-    if (jpyOnlyCategories.includes(nextCategory)) setCurrency("JPY");
-    if (directEntryCategories.includes(nextCategory)) setFormula(nextCategory === "PRIVATE_SHARES" ? "STOCK" : "MANUAL");
-    else if (nextCategory === "SECURITIES") setFormula("STOCK");
-    else if (["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(nextCategory)) {
-      setPropertyType("LAND");
-      setFormula("LAND_ROADSIDE");
-    }
-    else setFormula("MANUAL");
+    if (!foreignCurrencyCategories.includes(nextCategory)) setCurrency("JPY");
+    if (["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(nextCategory)) setPropertyType("LAND");
+    setFormula(defaultFormulaByCategory[nextCategory] ?? "MANUAL");
   }
 
   function changePropertyType(nextPropertyType: string) {
@@ -165,18 +165,20 @@ export function PositionModal({ position, people, fxRates, onClose, onSubmit, sa
   const categories = section === "ASSET" ? assetCategories : section === "LIABILITY" ? liabilityCategories : ["GUARANTEE"];
   const isStockCategory = ["SECURITIES", "PRIVATE_SHARES"].includes(category);
   const isPrivateShares = category === "PRIVATE_SHARES";
-  const isJpyOnly = jpyOnlyCategories.includes(category);
+  const isJpyOnly = !foreignCurrencyCategories.includes(category);
   const isDirectEntry = directEntryCategories.includes(category);
+  const isUnitRateCategory = category === "COLLECTIBLES";
   const isRealEstateCategory = ["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(category);
   const isInsurance = category === "INSURANCE";
   const nameLabel = category === "SECURITIES" ? "銘柄名" : category === "PRIVATE_SHARES" ? "会社名" : category === "LOAN_RECEIVABLE" ? "貸付金名" : category === "COLLECTIBLES" ? "資産名" : "名称";
   const institutionLabel = category === "DEPOSIT" ? "金融機関" : category === "SECURITIES" ? "証券会社・金融機関" : category === "INSURANCE" ? "保険会社" : section === "ASSET" ? null : "金融機関・債権者";
-  const amountLabel = category === "DEPOSIT" ? "残高" : category === "INSURANCE" ? "解約返戻金" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : category === "COLLECTIBLES" ? "評価額" : isPrivateShares ? (formula === "STOCK" ? "評価額（自動計算）" : "評価額（直接入力）") : isJpyOnly ? "評価額" : "通貨建て金額";
+  const amountLabel = section === "LIABILITY" ? "借入残高" : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : category === "INSURANCE" ? "解約返戻金" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : category === "COLLECTIBLES" ? "評価額" : isPrivateShares ? (formula === "STOCK" ? "評価額（自動計算）" : "評価額（直接入力）") : isJpyOnly ? "評価額" : "通貨建て金額";
   const numericValue = (value: string) => Number(value) || 0;
   const ownershipDisplay = `${ownershipNumerator || "—"} / ${ownershipDenominator || "—"}`;
   const ownershipRatio = numericValue(ownershipDenominator) > 0 ? numericValue(ownershipNumerator) / numericValue(ownershipDenominator) : 0;
   let calculatedAmount = 0;
   if (formula === "STOCK") calculatedAmount = numericValue(quantity) * numericValue(unitPrice) * numericValue(adjustmentRate);
+  if (formula === "UNIT_RATE") calculatedAmount = numericValue(unitPrice) * numericValue(adjustmentRate);
   if (formula === "LAND_ROADSIDE") calculatedAmount = numericValue(landArea) * numericValue(roadsideValue) * numericValue(adjustmentRate) * ownershipRatio;
   if (formula === "LAND_MULTIPLIER" || formula === "BUILDING") calculatedAmount = numericValue(fixedAssetTaxValue) * numericValue(valuationMultiplier) * numericValue(adjustmentRate) * ownershipRatio;
   calculatedAmount = Math.round(calculatedAmount * 100) / 100;
@@ -184,10 +186,10 @@ export function PositionModal({ position, people, fxRates, onClose, onSubmit, sa
   // 円換算レートは明細ではなく年度設定で持つ。未登録の外貨は登録できないよう保存ボタンを止める。
   const fxRate = fxRateFor(fxRates, currency);
   const calculatedJpy = Math.round(calculatedAmount * (fxRate ?? 0));
-  const formulaLabel = formula === "STOCK" ? "株数・口数×単価×調整率" : formula === "LAND_ROADSIDE" ? "土地・路線価方式" : formula === "LAND_MULTIPLIER" ? "土地・倍率方式" : formula === "BUILDING" ? "建物・固定資産税評価額方式" : "手動入力";
+  const formulaLabel = formula === "STOCK" ? "株数・口数×単価×調整率" : formula === "UNIT_RATE" ? "単価×調整率" : formula === "LAND_ROADSIDE" ? "土地・路線価方式" : formula === "LAND_MULTIPLIER" ? "土地・倍率方式" : formula === "BUILDING" ? "建物・固定資産税評価額方式" : "手動入力";
   // 算式で計算する場合はその算式名、円建てで直接入力する科目は「直接入力」（一括登録の表と同じ表記）を評価方法として固定する。
   const fixedValuationMethod = isCalculated ? formulaLabel : isDirectEntry ? "直接入力" : null;
-  const formulaExpression = formula === "STOCK" ? "株数・口数 × 単価 × 調整率" : formula === "LAND_ROADSIDE" ? "面積 × 路線価 × 調整率 × 持分（分子 ÷ 分母）" : formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? "固定資産税評価額 × 倍率 × 調整率 × 持分（分子 ÷ 分母）" : "";
+  const formulaExpression = formula === "STOCK" ? "株数・口数 × 単価 × 調整率" : formula === "UNIT_RATE" ? "単価 × 調整率" : formula === "LAND_ROADSIDE" ? "面積 × 路線価 × 調整率 × 持分（分子 ÷ 分母）" : formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? "固定資産税評価額 × 倍率 × 調整率 × 持分（分子 ÷ 分母）" : "";
 
   return <div className="modal-layer" role="presentation"><div className="modal position-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <header><div><p className="eyebrow">{isEditing ? "EDIT POSITION" : "NEW POSITION"}</p><h2 id="modal-title">{isEditing ? "明細を修正" : "明細を追加"}</h2></div><button className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header>
@@ -221,8 +223,9 @@ export function PositionModal({ position, people, fxRates, onClose, onSubmit, sa
           onOwnershipNumeratorChange={setOwnershipNumerator}
           onOwnershipDenominatorChange={setOwnershipDenominator}
         /> : null}
-        {isStockCategory || isRealEstateCategory ? <fieldset className="valuation-formula-fieldset full"><legend>{isPrivateShares ? "評価額の自動計算" : "評価額の計算方法"}</legend>{isPrivateShares ? <><input type="hidden" name="valuationFormula" value={formula} /><label className="valuation-formula-check"><input type="checkbox" checked={formula === "STOCK"} onChange={(event) => setFormula(event.target.checked ? "STOCK" : "MANUAL")} /><span><strong>株数・単価から自動計算する</strong><small>外すと「評価額（直接入力）」に金額をそのまま入力できます。</small></span></label></> : <select name="valuationFormula" aria-label="評価額の計算方法" value={formula} onChange={(event) => setFormula(event.target.value as ValuationFormula)}><option value="MANUAL">金額を直接入力</option>{isStockCategory ? <option value="STOCK">株数・口数から計算</option> : null}{isRealEstateCategory && propertyType === "LAND" ? <><option value="LAND_ROADSIDE">路線価方式</option><option value="LAND_MULTIPLIER">倍率方式</option></> : null}{isRealEstateCategory && propertyType === "BUILDING" ? <option value="BUILDING">固定資産税評価額方式</option> : null}</select>}{formulaExpression ? <p className="valuation-formula-expression">{formulaExpression}</p> : null}
+        {isStockCategory || isRealEstateCategory || isUnitRateCategory ? <fieldset className="valuation-formula-fieldset full"><legend>{isPrivateShares ? "評価額の自動計算" : "評価額の計算方法"}</legend>{isPrivateShares ? <><input type="hidden" name="valuationFormula" value={formula} /><label className="valuation-formula-check"><input type="checkbox" checked={formula === "STOCK"} onChange={(event) => setFormula(event.target.checked ? "STOCK" : "MANUAL")} /><span><strong>株数・単価から自動計算する</strong><small>外すと「評価額（直接入力）」に金額をそのまま入力できます。</small></span></label></> : <select name="valuationFormula" aria-label="評価額の計算方法" value={formula} onChange={(event) => setFormula(event.target.value as ValuationFormula)}>{isUnitRateCategory ? <option value="UNIT_RATE">単価×調整率</option> : null}<option value="MANUAL">金額を直接入力</option>{isStockCategory ? <option value="STOCK">株数・口数から計算</option> : null}{isRealEstateCategory && propertyType === "LAND" ? <><option value="LAND_ROADSIDE">路線価方式</option><option value="LAND_MULTIPLIER">倍率方式</option></> : null}{isRealEstateCategory && propertyType === "BUILDING" ? <option value="BUILDING">固定資産税評価額方式</option> : null}</select>}{formulaExpression ? <p className="valuation-formula-expression">{formulaExpression}</p> : null}
           {formula === "STOCK" ? <div className="valuation-calculation-grid stock-formula"><label>株数・口数<CommaNumberInput name="valuationQuantity" defaultValue="" value={quantity} onValueChange={setQuantity} maxFractionDigits={6} placeholder="例：10,000" positive /></label><span aria-hidden="true">×</span><label>単価<CommaNumberInput name="valuationUnitPrice" defaultValue="" value={unitPrice} onValueChange={setUnitPrice} maxFractionDigits={2} placeholder="例：2,500" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div> : null}
+          {formula === "UNIT_RATE" ? <div className="valuation-calculation-grid real-estate-method-inputs"><label>単価<CommaNumberInput name="valuationUnitPrice" defaultValue="" value={unitPrice} onValueChange={setUnitPrice} maxFractionDigits={2} placeholder="例：3,000,000" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div> : null}
           {formula === "LAND_ROADSIDE" ? <><div className="valuation-source-summary"><span>基本情報から使用</span><dl><div><dt>面積</dt><dd>{landArea ? `${valuationNumber.format(numericValue(landArea))}㎡` : "未入力"}</dd></div><div><dt>持分</dt><dd>{ownershipDisplay}</dd></div></dl></div><div className="valuation-calculation-grid real-estate-method-inputs"><label>路線価（円/㎡）<CommaNumberInput name="roadsideValue" defaultValue="" value={roadsideValue} onValueChange={setRoadsideValue} maxFractionDigits={2} placeholder="" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="" positive /></label></div></> : null}
           {formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? <><div className="valuation-source-summary"><span>基本情報から使用</span><dl><div><dt>固定資産税評価額</dt><dd>{fixedAssetTaxValue ? yen.format(numericValue(fixedAssetTaxValue)) : "未入力"}</dd></div><div><dt>持分</dt><dd>{ownershipDisplay}</dd></div></dl></div><div className="valuation-calculation-grid real-estate-method-inputs"><label>倍率<CommaNumberInput name="valuationMultiplier" defaultValue="" value={valuationMultiplier} onValueChange={setValuationMultiplier} maxFractionDigits={6} placeholder="" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="" positive /></label></div></> : null}
           {/* 円建ての科目は通貨表記と円換算見込を出さずに金額1行だけにする。 */}
