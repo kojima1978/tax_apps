@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { GripVertical, ArrowUpDown, RotateCcw } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
 import { StepNavigation } from '@/components/StepNavigation';
 import { CategoryNav } from '@/components/CategoryNav';
-import type { Asset, AnyAssetCategory } from '@/types';
+import type { Asset, AnyAssetCategory, CategoryOrderPreset } from '@/types';
 import type { SortKey, SortDirection } from '@/hooks/useAssetData';
 import { validateAllAssets, hasErrors } from '@/utils/validators';
 import { formatDate } from '@/utils/formatters';
 import { AssetTable } from './AssetTable';
+import { CategoryOrderBar } from './CategoryOrderBar';
 
 interface Props {
   assets: Asset[];
@@ -19,7 +20,14 @@ interface Props {
   onSortAssets: (label: string, sortBy: SortKey, direction: SortDirection) => void;
   onMoveAsset: (label: string, sourceId: string, targetId: string) => void;
   onMoveCategory: (label: string, direction: -1 | 1) => void;
+  onMoveCategoryTo: (label: string, index: number) => void;
+  onApplyCategoryOrder: (order: string[]) => void;
   onResetCategoryOrder: () => void;
+  onUndoOrder: () => void;
+  canUndoOrder: boolean;
+  orderPresets: CategoryOrderPreset[];
+  onSaveOrderPreset: (name: string, order: string[]) => void;
+  onDeleteOrderPreset: (name: string) => void;
   /** カテゴリ順を入れ替え済みか（標準に戻すボタンの出し分け） */
   isCustomCategoryOrder: boolean;
   onBack: () => void;
@@ -38,7 +46,14 @@ export function DataEditStep({
   onSortAssets,
   onMoveAsset,
   onMoveCategory,
+  onMoveCategoryTo,
+  onApplyCategoryOrder,
   onResetCategoryOrder,
+  onUndoOrder,
+  canUndoOrder,
+  orderPresets,
+  onSaveOrderPreset,
+  onDeleteOrderPreset,
   isCustomCategoryOrder,
   onBack,
   onNext,
@@ -72,19 +87,6 @@ export function DataEditStep({
           <GripVertical size={13} className="text-gray-400" />
           行頭をドラッグ、または ↑↓ キーでカテゴリ内の並べ替え
         </span>
-        <span className="flex items-center gap-1 text-xs text-gray-500">
-          <ArrowUpDown size={13} className="text-gray-400" />
-          カテゴリ見出しの ↑↓ でカテゴリの順序（計算結果・Excel出力にも反映）
-        </span>
-        {isCustomCategoryOrder && (
-          <button
-            onClick={onResetCategoryOrder}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:border-green-400 hover:text-green-700 cursor-pointer transition-colors"
-            title="カテゴリの順序を資産区分順に戻す"
-          >
-            <RotateCcw size={12} /> 標準の順序に戻す
-          </button>
-        )}
         <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer ml-auto">
           <input
             type="checkbox"
@@ -95,6 +97,19 @@ export function DataEditStep({
           詳細列（経過年数・償却額・評価根拠）
         </label>
       </div>
+
+      {/* カテゴリ順の操作（Undo・標準に戻す・プリセット） */}
+      <CategoryOrderBar
+        currentOrder={navGroups.map(([label]) => label)}
+        orderPresets={orderPresets}
+        onApplyOrder={onApplyCategoryOrder}
+        onSavePreset={onSaveOrderPreset}
+        onDeletePreset={onDeleteOrderPreset}
+        onUndoOrder={onUndoOrder}
+        canUndoOrder={canUndoOrder}
+        onResetCategoryOrder={onResetCategoryOrder}
+        isCustomCategoryOrder={isCustomCategoryOrder}
+      />
 
       {/* カテゴリ間ナビゲーション */}
       <CategoryNav groups={navGroups} />
@@ -136,6 +151,7 @@ export function DataEditStep({
         onSortAssets={onSortAssets}
         onMoveAsset={onMoveAsset}
         onMoveCategory={onMoveCategory}
+        onMoveCategoryTo={onMoveCategoryTo}
       />
 
       <StepNavigation

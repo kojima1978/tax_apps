@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import type {
   Asset,
   AnyAssetCategory,
@@ -19,6 +19,15 @@ import type { CsvData } from '@/utils/csvParser';
 /** 並び替えキー */
 export type SortKey = 'no' | 'acquisitionDate';
 export type SortDirection = 'asc' | 'desc';
+
+/** 並べ替えUndoの保持件数 */
+const ORDER_HISTORY_LIMIT = 30;
+
+/** 並べ替え直前のスナップショット（行の並び + カテゴリの並び） */
+interface OrderSnapshot {
+  assets: Asset[];
+  labelOrder: string[];
+}
 
 /**
  * 指定カテゴリラベルの行だけを差し替える。
@@ -52,6 +61,28 @@ export function useAssetData(taxDate: string) {
   const [assets, setAssets] = useState<Asset[]>([]);
   // カテゴリ（小計グループ）の表示順。空配列＝標準順（CATEGORY_ORDER準拠）
   const [labelOrder, setLabelOrder] = useState<string[]>([]);
+  // 並べ替え操作のUndo履歴（古い順）
+  const [orderHistory, setOrderHistory] = useState<OrderSnapshot[]>([]);
+
+  // 履歴に積む値は「操作前」の状態。setState更新関数の外から参照するのでrefで最新を持つ
+  const currentRef = useRef<OrderSnapshot>({ assets, labelOrder });
+  currentRef.current = { assets, labelOrder };
+
+  /** 並べ替え直前の状態を履歴に積む（各並べ替え操作の先頭で呼ぶ） */
+  const pushOrderHistory = useCallback(() => {
+    setOrderHistory((prev) =>
+      [...prev, currentRef.current].slice(-ORDER_HISTORY_LIMIT)
+    );
+  }, []);
+
+  /** 直前の並べ替えを取り消す */
+  const undoOrder = useCallback(() => {
+    const last = orderHistory[orderHistory.length - 1];
+    if (!last) return;
+    setAssets(last.assets);
+    setLabelOrder(last.labelOrder);
+    setOrderHistory((prev) => prev.slice(0, -1));
+  }, [orderHistory]);
 
   /** CSVデータからアセットを生成 */
   const importFromCsv = useCallback(
@@ -103,6 +134,8 @@ export function useAssetData(taxDate: string) {
       });
 
       setAssets(newAssets);
+      // 別データに差し替わるので並べ替え履歴は捨てる
+      setOrderHistory([]);
     },
     [taxDate]
   );
@@ -183,29 +216,57 @@ export function useAssetData(taxDate: string) {
     [assets, labelOrder]
   );
 
-  /** カテゴリ（小計グループ）を1つ上/下へ移動 */
-  const moveCategory = useCallback(
-    (label: string, direction: -1 | 1) => {
+  /** カテゴリを指定位置（0始まり）へ移動する共通処理 */
+  const relocateCategory = useCallback(
+    (label: string, resolveTo: (from: number, length: number) => number) => {
+      pushOrderHistory();
       setLabelOrder((prev) => {
         // 表示中の並びを丸ごと確定させてから入れ替える（未指定カテゴリの位置ズレを防ぐ）
         const current = groupByLabel(assets, prev).map(([l]) => l);
         const from = current.indexOf(label);
-        const to = from + direction;
-        if (from < 0 || to < 0 || to >= current.length) return prev;
+        if (from < 0) return prev;
+        const to = resolveTo(from, current.length);
+        if (to === from || to < 0 || to >= current.length) return prev;
         const next = [...current];
         next.splice(to, 0, next.splice(from, 1)[0]!);
         return next;
       });
     },
-    [assets]
+    [assets, pushOrderHistory]
+  );
+
+  /** カテゴリ（小計グループ）を1つ上/下へ移動 */
+  const moveCategory = useCallback(
+    (label: string, direction: -1 | 1) =>
+      relocateCategory(label, (from) => from + direction),
+    [relocateCategory]
+  );
+
+  /** カテゴリを◯番目（0始まり）へ移動 */
+  const moveCategoryTo = useCallback(
+    (label: string, index: number) => relocateCategory(label, () => index),
+    [relocateCategory]
+  );
+
+  /** 保存済みプリセットなどの並び順をそのまま適用 */
+  const applyCategoryOrder = useCallback(
+    (order: string[]) => {
+      pushOrderHistory();
+      setLabelOrder(order);
+    },
+    [pushOrderHistory]
   );
 
   /** カテゴリの表示順を標準（資産区分順 × 償却方法順）に戻す */
-  const resetCategoryOrder = useCallback(() => setLabelOrder([]), []);
+  const resetCategoryOrder = useCallback(() => {
+    pushOrderHistory();
+    setLabelOrder([]);
+  }, [pushOrderHistory]);
 
   /** 並び替え（昇順/降順） */
   const sortAssets = useCallback(
     (label: string, sortBy: SortKey, direction: SortDirection) => {
+      pushOrderHistory();
       const sign = direction === 'asc' ? 1 : -1;
       setAssets((prev) =>
         replaceGroup(prev, label, (group) =>
@@ -220,13 +281,14 @@ export function useAssetData(taxDate: string) {
         )
       );
     },
-    []
+    [pushOrderHistory]
   );
 
   /** カテゴリ内で行を移動（ドラッグ＆ドロップ / ↑↓ボタン） */
   const moveAsset = useCallback(
     (label: string, sourceId: string, targetId: string) => {
       if (sourceId === targetId) return;
+      pushOrderHistory();
       setAssets((prev) =>
         replaceGroup(prev, label, (group) => {
           const from = group.findIndex((a) => a.id === sourceId);
@@ -239,13 +301,15 @@ export function useAssetData(taxDate: string) {
         })
       );
     },
-    []
+    [pushOrderHistory]
   );
 
   /** JSONからロード（旧カテゴリ名を移行しつつ再計算。カテゴリ順も復元） */
   const loadFromJson = useCallback(
     (loadedAssets: Asset[], categoryOrder?: string[]) => {
       setLabelOrder(categoryOrder ?? []);
+      // 別データに差し替わるので並べ替え履歴は捨てる
+      setOrderHistory([]);
       setAssets(
         loadedAssets.map((asset) => {
           const category =
@@ -263,7 +327,11 @@ export function useAssetData(taxDate: string) {
     groupedAssets,
     labelOrder,
     moveCategory,
+    moveCategoryTo,
+    applyCategoryOrder,
     resetCategoryOrder,
+    undoOrder,
+    canUndoOrder: orderHistory.length > 0,
     importFromCsv,
     recalculateAll,
     updateAsset,

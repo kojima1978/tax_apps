@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import type {
   MappingPreset,
   ColumnMapping,
@@ -6,29 +6,15 @@ import type {
   PresetExportData,
 } from '@/types';
 import { downloadJsonFile } from '@/utils/fileDownload';
+import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 
 const STORAGE_KEY = 'asset-valuation-presets';
 
-function loadPresets(): MappingPreset[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored) as MappingPreset[];
-  } catch {
-    // ignore
-  }
-  return [];
-}
-
-function savePresets(presets: MappingPreset[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
-}
-
 export function usePresets() {
-  const [presets, setPresets] = useState<MappingPreset[]>(loadPresets);
-
-  useEffect(() => {
-    savePresets(presets);
-  }, [presets]);
+  const [presets, setPresets] = useLocalStorageState<MappingPreset[]>(
+    STORAGE_KEY,
+    []
+  );
 
   const addPreset = useCallback(
     (name: string, columnMapping: ColumnMapping, categoryMapping: CategoryMapping) => {

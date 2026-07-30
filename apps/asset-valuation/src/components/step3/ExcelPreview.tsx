@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import type { Asset } from '@/types';
 import { CATEGORY_CONFIG, groupByLabel } from '@/types';
 import { categorySectionId } from '@/components/CategoryNav';
@@ -19,10 +20,35 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
     () => groupByLabel(assets, labelOrder),
     [assets, labelOrder]
   );
+  // 折りたたみ中のカテゴリ（既定は全展開）
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const allCollapsed = collapsed.size >= groups.length && groups.length > 0;
+
+  const toggleGroup = (label: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(label)) next.add(label);
+      return next;
+    });
+  };
+
+  const toggleAll = () =>
+    setCollapsed(allCollapsed ? new Set() : new Set(groups.map(([l]) => l)));
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 font-mono text-xs">
-      <div className="font-bold text-sm mb-1">{caseName}</div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-bold text-sm mb-1">{caseName}</div>
+        {groups.length > 1 && (
+          <button
+            onClick={toggleAll}
+            className="flex items-center gap-1 px-2 py-1 text-xs font-sans rounded border border-gray-300 text-gray-600 hover:border-green-400 hover:text-green-700 cursor-pointer transition-colors"
+          >
+            {allCollapsed ? <ChevronsUpDown size={12} /> : <ChevronsDownUp size={12} />}
+            {allCollapsed ? 'すべて展開' : 'すべて折りたたむ'}
+          </button>
+        )}
+      </div>
       <div className="text-gray-600 mb-0.5">
         課税時期: {formatDate(taxDate)}
       </div>
@@ -36,6 +62,7 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
         const config = CATEGORY_CONFIG[category];
 
         const { totalAcquisition: totalAcq, totalEvaluation: totalEval, totalBookValue: totalBook } = calcGroupTotals(catAssets);
+        const isCollapsed = collapsed.has(label);
 
         return (
           <div
@@ -43,10 +70,23 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
             id={categorySectionId(label)}
             className="mb-4 scroll-mt-16"
           >
-            <div className="font-bold mb-1">
+            {/* 見出しクリックで折りたたみ。閉じているときは件数と評価額合計だけ見せる */}
+            <button
+              onClick={() => toggleGroup(label)}
+              className="w-full flex items-center gap-1 font-bold mb-1 text-left cursor-pointer hover:text-green-700 transition-colors"
+              aria-expanded={!isCollapsed}
+            >
+              {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
               【　{label}　】
-            </div>
-            <table className="w-full border-collapse">
+              {isCollapsed && (
+                <span className="font-normal text-gray-500">
+                  {catAssets.length}件 / 評価額 {formatYen(totalEval)}
+                </span>
+              )}
+            </button>
+            <table
+              className={`w-full border-collapse ${isCollapsed ? 'hidden' : ''}`}
+            >
               <thead>
                 <tr className="bg-[#D9E1F2]">
                   <th className="border px-1 py-0.5 text-left w-10">NO</th>

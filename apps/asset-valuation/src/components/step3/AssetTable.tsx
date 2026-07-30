@@ -78,6 +78,7 @@ interface Props {
   onSortAssets: (label: string, sortBy: SortKey, direction: SortDirection) => void;
   onMoveAsset: (label: string, sourceId: string, targetId: string) => void;
   onMoveCategory: (label: string, direction: -1 | 1) => void;
+  onMoveCategoryTo: (label: string, index: number) => void;
 }
 
 /** ドラッグ中の状態 */
@@ -97,6 +98,7 @@ export function AssetTable({
   onSortAssets,
   onMoveAsset,
   onMoveCategory,
+  onMoveCategoryTo,
 }: Props) {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [sortState, setSortState] = useState<
@@ -197,6 +199,22 @@ export function AssetTable({
                       <Icon size={14} />
                     </button>
                   ))}
+                  {/* 離れた位置へは1段ずつ押さずに直接指定できるようにする */}
+                  {groups.length > 2 && (
+                    <select
+                      value={groupIndex}
+                      onChange={(e) => onMoveCategoryTo(label, Number(e.target.value))}
+                      className="ml-0.5 px-1 py-0.5 text-xs rounded border border-green-300 bg-white text-green-800 cursor-pointer"
+                      aria-label={`${label} の位置（全${groups.length}件中）`}
+                      title="このカテゴリを◯番目へ移動"
+                    >
+                      {groups.map((_, i) => (
+                        <option key={i} value={i}>
+                          {i + 1}番目
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <h3 className="font-bold text-green-800 shrink-0 flex items-center gap-2">
                   {label}（{assets.length}件）

@@ -184,7 +184,11 @@ CSVの資産カテゴリ値を、アプリ内部の40カテゴリ（**資産区�
 | 行の追加 | カテゴリを指定して空行追加（手入力用） |
 | 並び替え | カテゴリ内で **NO順 / 取得年月日順**。ラベル + 昇順/降順を明示表示し、同じボタンを再度押すと反転 |
 | 手動並べ替え | 行頭のハンドルを**ドラッグ&ドロップ**、またはハンドルにフォーカスして **↑↓キー**。カテゴリ内のみ（カテゴリを跨ぐ移動は不可） |
-| カテゴリの並べ替え | カテゴリ見出し左の **↑↓ボタン**でカテゴリ（小計グループ）自体を1段ずつ移動。先頭/末尾では該当ボタンを disabled にする。凡例バーの「標準の順序に戻す」で既定順へ復帰（入れ替え済みのときだけ表示）。並び順は**カテゴリナビ・Step 4・Excel出力（本表／計算根拠）・案件JSON**に反映する |
+| カテゴリの並べ替え | カテゴリ見出し左の **↑↓ボタン**でカテゴリ（小計グループ）自体を1段ずつ移動。先頭/末尾では該当ボタンを disabled にする。並び順は**カテゴリナビ・Step 4・Excel出力（本表／計算根拠）・案件JSON**に反映する |
+| カテゴリを◯番目へ移動 | 見出しの**「◯番目」プルダウン**で離れた位置へ一度に移動（カテゴリが3つ以上あるときだけ表示）。現在位置を選択値として示す |
+| 並べ替えのUndo | カテゴリ順バーの**「元に戻す」**で直前の並べ替えを取り消す。対象は**行の並び替え・行のドラッグ移動・カテゴリ移動・標準に戻す・プリセット適用**。履歴は最大30件、CSV取込／案件JSON読込でクリアする |
+| カテゴリ順のリセット | カテゴリ順バーの「標準の順序に戻す」で既定順へ復帰（入れ替え済みのときだけ表示）。この操作もUndoできる |
+| カテゴリ順プリセット | 現在の並び順に名前を付けて **localStorage** に保存。プルダウンで選ぶと即適用。同名は上書き、削除は2回押し確認（→ 5.3） |
 | カテゴリ変更 | 行の操作列の ⇄ ボタンで行直下にパネルを開き、2段プルダウンで別カテゴリへ移動（`categoryLabel` も揃えるので小計グループが移る）。CSVの勘定科目が同じでも1件だけ償却方法が違う資産を扱える |
 | 固定資産税評価明細 一括チェック | 建物・建物附属設備それぞれに全行ON/OFFトグル |
 | 3年以内ハイライト | 課税時期から3年以内の取得は背景色 + 行内バッジ + カテゴリ見出しの件数バッジで明示（自動判定） |
@@ -198,7 +202,8 @@ CSVの資産カテゴリ値を、アプリ内部の40カテゴリ（**資産区�
 - サマリーカード（取得価額合計、相続税評価額合計）
 - カテゴリ別内訳（カテゴリ名 + 件数 + 3年以内件数 + 評価額小計）。**行クリックで下のExcelプレビューの該当カテゴリへスクロール**
 - カテゴリ別内訳・Excelプレビュー・計算根拠一覧はいずれも Step 3 で入れ替えたカテゴリ順に従う
-- Excelプレビューと同じレイアウトで表示
+- Excelプレビューと同じレイアウトで表示。**カテゴリ見出しクリックで折りたたみ**でき（既定は全展開）、
+  折りたたみ中は見出しに件数と評価額合計を出す。カテゴリが2つ以上あるときは「すべて折りたたむ／すべて展開」も表示する
 - 計算根拠一覧（カテゴリ別・NO昇順）
 - 印刷手順の案内（出力ライブラリが印刷設定を書けないため、Excel側での設定を促す → 4.4）
 - 「新規案件を開始」ボタン
@@ -479,6 +484,19 @@ Excel末尾に以下の条文テキストを記載:
 }
 ```
 
+### 5.3 カテゴリ順プリセット（localStorage のみ）
+
+キー `asset-valuation-category-order-presets` に保存する。JSON入出力の対象外（案件JSONの `categoryOrder` とは別物）。
+
+```json
+[
+  { "name": "決算書の並び", "order": ["構築物（200%定率法）", "建物（定額法）"] }
+]
+```
+
+`order` に無いカテゴリは標準順のまま後ろへ続き、存在しないカテゴリ名は無視される（`groupByLabel` の仕様）。
+そのため案件が変わっても同じプリセットを流用できる。
+
 ---
 
 ## 6. データ仕様
@@ -572,7 +590,10 @@ asset-valuation/
 │   │   ├── formatters.ts             # formatYen, formatDate, formatDepreciation, calcGroupTotals
 │   │   └── validators.ts             # バリデーション
 │   ├── hooks/
-│   │   ├── useAssetData.ts           # 資産データ管理（groupByLabel再利用・sortAssets / moveAsset / moveCategory）
+│   │   ├── useAssetData.ts           # 資産データ管理（groupByLabel再利用・sortAssets / moveAsset /
+│   │   │                             #   moveCategory / moveCategoryTo / undoOrder）
+│   │   ├── useLocalStorageState.ts   # localStorageに永続化するuseState（プリセット2種で共用）
+│   │   ├── useCategoryOrderPresets.ts # カテゴリ順プリセット管理
 │   │   └── usePresets.ts             # マッピングプリセット管理
 │   └── components/
 │       ├── StepIndicator.tsx          # ステップインジケーター
@@ -586,8 +607,9 @@ asset-valuation/
 │       │   └── PresetManager.tsx      # プリセット管理UI
 │       ├── step3/
 │       │   ├── DataEditStep.tsx       # データ確認・編集（詳細列トグル・カテゴリナビ）
+│       │   ├── CategoryOrderBar.tsx   # カテゴリ順の操作（Undo・標準に戻す・プリセット）
 │       │   ├── AssetTable.tsx         # 資産テーブル（並べ替えボタン + D&D + 行単位カテゴリ変更）
-│       │   └── ExcelPreview.tsx       # Excelプレビュー（Step 4で使用）
+│       │   └── ExcelPreview.tsx       # Excelプレビュー（カテゴリ折りたたみ。Step 4で使用）
 │       └── step4/
 │           └── ResultStep.tsx         # 計算結果・出力
 └── docker-compose.yml                 # スタンドアロン起動用
@@ -677,6 +699,8 @@ volumes:
 | 関数再利用 | `groupByLabel`（types/index.ts）をuseAssetData内で再利用。カテゴリの並び順は第2引数 `labelOrder` に集約し、Step 3・Step 4・Excel出力すべてが同じ関数を通る |
 | 型エイリアス | `CalcResult`、`AssetInput`（calculation.ts内の冗長なOmit/Pick削減） |
 | ヘルパー抽出 | `getDepRate`（calculateAsset内の重複残価率計算） |
-| コンポーネント抽出 | `StepNavigation`（3ステップの同一ナビゲーション） |
+| コンポーネント抽出 | `StepNavigation`（3ステップの同一ナビゲーション）、`CategoryOrderBar`（カテゴリ順の操作をStep 3の凡例バーから分離） |
+| フック抽出 | `useLocalStorageState`（マッピングプリセットとカテゴリ順プリセットの load/save 重複） |
+| 共通化 | `relocateCategory`（`moveCategory` と `moveCategoryTo` の位置計算。移動先の決め方だけをコールバックで差し替える） |
 | フック統合 | `useJsonExport`廃止 → `exportCaseJson`をfileDownload.tsに統合 |
 | 定数化 | `PAGE_SETUP`、`MARGINS`（Excel印刷設定の2箇所重複） |

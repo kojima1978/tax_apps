@@ -7,6 +7,7 @@ import { DataEditStep } from '@/components/step3/DataEditStep';
 import { ResultStep } from '@/components/step4/ResultStep';
 import { useAssetData } from '@/hooks/useAssetData';
 import { usePresets } from '@/hooks/usePresets';
+import { useCategoryOrderPresets } from '@/hooks/useCategoryOrderPresets';
 import { Home } from 'lucide-react';
 import { exportCaseJson } from '@/utils/fileDownload';
 import type { CsvData } from '@/utils/csvParser';
@@ -42,7 +43,11 @@ export default function App() {
     groupedAssets,
     labelOrder,
     moveCategory,
+    moveCategoryTo,
+    applyCategoryOrder,
     resetCategoryOrder,
+    undoOrder,
+    canUndoOrder,
     importFromCsv,
     recalculateAll,
     updateAsset,
@@ -62,6 +67,10 @@ export default function App() {
     exportPresetsToJson,
     importPresetsFromJson,
   } = usePresets();
+
+  // カテゴリ順プリセット管理
+  const { orderPresets, saveOrderPreset, deleteOrderPreset } =
+    useCategoryOrderPresets();
 
   // ステップ遷移
   const goToStep = useCallback(
@@ -190,7 +199,14 @@ export default function App() {
             onSortAssets={sortAssets}
             onMoveAsset={moveAsset}
             onMoveCategory={moveCategory}
+            onMoveCategoryTo={moveCategoryTo}
+            onApplyCategoryOrder={applyCategoryOrder}
             onResetCategoryOrder={resetCategoryOrder}
+            onUndoOrder={undoOrder}
+            canUndoOrder={canUndoOrder}
+            orderPresets={orderPresets}
+            onSaveOrderPreset={saveOrderPreset}
+            onDeleteOrderPreset={deleteOrderPreset}
             isCustomCategoryOrder={labelOrder.length > 0}
             onBack={() => setCurrentStep(2)}
             onNext={handleStep3Next}

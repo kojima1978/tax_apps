@@ -366,6 +366,12 @@ export interface PresetExportData {
   presets: MappingPreset[];
 }
 
+/** カテゴリ表示順のプリセット（localStorageに保存） */
+export interface CategoryOrderPreset {
+  name: string;
+  order: string[];
+}
+
 /**
  * CSVヘッダー名 → マッピングフィールド の候補テーブル。
  * 会計ソフトごとに列名が違うため、初回でも手作業なしで割り当てられるようにする。

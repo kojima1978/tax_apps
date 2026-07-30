@@ -76,8 +76,12 @@ Step 4: 計算結果 → Excel出力 / 案件JSON保存 / マッピングJSON出
 - **未償却残高表内蔵**: H24.4.1以後取得分（耐用年数3〜50、経過年数1〜50）
 - **並べ替え**: NO順 / 取得年月日順（昇順⇄降順トグル）に加え、行頭ハンドルのドラッグ&ドロップ、
   または ↑↓ キーでカテゴリ内の手動並べ替え
-- **カテゴリの並べ替え**: カテゴリ見出しの ↑↓ ボタンでカテゴリ（小計グループ）自体を入れ替え。
+- **カテゴリの並べ替え**: カテゴリ見出しの ↑↓ ボタン、または「◯番目」プルダウンでカテゴリ（小計グループ）自体を入れ替え。
   順序は計算結果画面・Excel出力（本表／計算根拠）・案件JSONにも反映され、「標準の順序に戻す」で既定順へ戻せる
+- **カテゴリ順プリセット**: よく使う並び順に名前を付けてlocalStorageに保存。プルダウンで選ぶと即適用（削除は2回押し確認）
+- **並べ替えのUndo**: 「元に戻す」で直前の並べ替えを取り消す（行の並び替え・D&D・カテゴリ移動・プリセット適用すべて対象、最大30件）
+- **Excelプレビューの折りたたみ**: カテゴリ見出しクリックで開閉。折りたたみ中は件数と評価額合計を見出しに表示。
+  「すべて折りたたむ／すべて展開」も可能
 - **Excel出力**: 3シート（減価償却資産 + 計算根拠 + 残価率表）。横線のみ罫線・評価通達条文付き。
   本表のH列（残価率）は残価率表シートを INDEX/MATCH で参照するので、年数を書き換えるとExcel側で再計算される。
   日付（課税時期・3年以内・取得年月）は**日付値のまま**出力し、表示書式だけ和暦（例: `R05.07.02`）にしているので、
@@ -104,7 +108,9 @@ src/
 │   ├── formatters.ts       # formatYen, formatDate, formatDepreciation, calcGroupTotals
 │   └── validators.ts       # バリデーション
 ├── hooks/
-│   ├── useAssetData.ts     # 資産データ管理（sortAssets / moveAsset / moveCategory / migrateCategory）
+│   ├── useAssetData.ts     # 資産データ管理（sortAssets / moveAsset / moveCategory / undoOrder）
+│   ├── useLocalStorageState.ts  # localStorageに永続化するuseState（プリセット2種で共用）
+│   ├── useCategoryOrderPresets.ts # カテゴリ順プリセット管理
 │   └── usePresets.ts       # マッピングプリセット管理
 └── components/
     ├── StepIndicator.tsx    # ステップインジケーター
@@ -113,6 +119,6 @@ src/
     ├── CategoryNav.tsx      # カテゴリチップ一覧 + セクションへのスクロール
     ├── step1/CsvImportStep.tsx
     ├── step2/ColumnMappingStep.tsx, PresetManager.tsx
-    ├── step3/DataEditStep.tsx, AssetTable.tsx, ExcelPreview.tsx
+    ├── step3/DataEditStep.tsx, CategoryOrderBar.tsx, AssetTable.tsx, ExcelPreview.tsx
     └── step4/ResultStep.tsx
 ```
