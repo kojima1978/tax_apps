@@ -182,18 +182,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .bs-account strong .bs-money, .bs-subtotals dd .bs-money { display: block; color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; }
 .net-assets span, .net-assets strong { color: var(--navy-950); }
 .forecast-account { border-bottom: 2px solid #86d8a8; }
-/* 大分類の識別色。面は塗らず左端の帯（--bs-accent）だけで分ける。
-   明度を「換金しやすさ」の順に一段ずつ落とし、流動資産＝最も明るい → 固定資産 → 税金 → 借入金＝最も暗い、で並ぶようにしてある。
-   帯は暖色（琥珀〜焦茶）1系統。アプリの地はグリーン系なので、寒色を混ぜず暖色でまとめて資産側の階層だけを読ませる。
-   彩度のあるグリーンは純資産だけに残し、そこに目が行くようにしてある。 */
+/* 大分類の識別色。金融資産・税金・借入金だけを左端の帯で強調する。 */
 .bs-account { border-left: 5px solid var(--bs-accent, transparent); }
-.financial-account { --bs-accent: #dfb887; }
-.real-estate-account { --bs-accent: #c1904f; }
-.business-account { --bs-accent: #a2733d; }
-.other-account { --bs-accent: #855b30; }
-.forecast-account { --bs-accent: #5f4224; }
-.medium-liability { --bs-accent: #332414; }
-.net-assets { --bs-accent: #16a34a; }
+.financial-account { --bs-accent: #2563eb; }
+.tax-account { --bs-accent: #b91c1c; }
+.medium-liability { --bs-accent: #dc2626; }
 .classified-bs-side > footer { min-height: 35px; margin-top: auto; padding: 6px 12px; color: #166534; background: #dcfce7; border-top: 1px solid #bbf7d0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .funding-side > footer { color: #166534; background: #dcfce7; }
 .classified-bs-side > footer span { font-size: 9px; font-weight: 700; }

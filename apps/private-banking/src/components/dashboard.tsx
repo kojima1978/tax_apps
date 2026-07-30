@@ -696,7 +696,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
                     <section className="classified-bs-side funding-side" aria-labelledby={`funding-heading-${headingSuffix}`}>
                       <h4 id={`funding-heading-${headingSuffix}`}><span>負債・純資産の部</span></h4>
                       <div className="bs-account-area">
-                      {displayedTaxes !== 0 ? <div className={`bs-account forecast-account grouped-account ${accountDensity(displayedTaxes, fundingAreaTotal)}`} style={{ height: areaHeight(displayedTaxes, fundingAreaTotal) }}>
+                      {displayedTaxes !== 0 ? <div className={`bs-account tax-account grouped-account ${accountDensity(displayedTaxes, fundingAreaTotal)}`} style={{ height: areaHeight(displayedTaxes, fundingAreaTotal) }}>
                         <div className="bs-account-heading"><span>税金</span><strong><BsAmount value={displayedTaxes} total={displayedAssetTotal} /></strong></div>
                         <BsSubtotals items={subtotals.taxes} total={displayedAssetTotal} />
                       </div> : null}
