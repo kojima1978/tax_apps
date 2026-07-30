@@ -1,5 +1,5 @@
 import { RATE_TABLE } from '@/data/rateTable';
-import type { Asset, AssetCategory, EvaluationBasis } from '@/types';
+import type { Asset, AnyAssetCategory } from '@/types';
 import { CATEGORY_CONFIG } from '@/types';
 import { formatYen } from '@/utils/formatters';
 
@@ -58,12 +58,12 @@ function calcBuildingDepreciation(
 
 /** カテゴリに応じた償却額/残価率を取得 */
 function getDepRate(
-  category: AssetCategory,
+  category: AnyAssetCategory,
   acquisitionCost: number,
   elapsed: number,
   usefulLife: number
 ): number {
-  return category === '建物'
+  return CATEGORY_CONFIG[category].valuationMethod === 'building'
     ? calcBuildingDepreciation(acquisitionCost, elapsed, usefulLife)
     : getUndepreciatedRate(elapsed, usefulLife);
 }
@@ -109,8 +109,8 @@ export function calculateAsset(asset: AssetInput, taxDate: string): CalcResult {
     };
   }
 
-  // 財産性なし（評価額0）
-  if (asset.category === '無形固定資産' || asset.category === '繰延資産') {
+  // 財産性なし（評価額0）: 繰延資産・旧カテゴリの無形固定資産
+  if (config.valuationMethod === 'none') {
     return {
       elapsedYears: elapsed,
       depreciationAmountOrRate: 0,
@@ -120,8 +120,8 @@ export function calculateAsset(asset: AssetInput, taxDate: string): CalcResult {
     };
   }
 
-  // 一括償却資産 → 簿価
-  if (asset.category === '一括償却資産') {
+  // 簿価評価: 特許権等の無形固定資産・一括償却資産・少額減価償却資産
+  if (config.valuationMethod === 'bookValue') {
     return {
       elapsedYears: elapsed,
       depreciationAmountOrRate: 0,
@@ -142,11 +142,10 @@ function calculateByCategory(
   within3: boolean
 ): CalcResult {
   const config = CATEGORY_CONFIG[asset.category];
-  let evaluationBasis: EvaluationBasis;
   let depreciationAmountOrRate: number;
   let evaluationAmount: number;
 
-  if (asset.category === '建物') {
+  if (config.valuationMethod === 'building') {
     // 定額法
     const depAmount = calcBuildingDepreciation(
       asset.acquisitionCost,
@@ -157,9 +156,8 @@ function calculateByCategory(
       (asset.acquisitionCost - depAmount) * 0.7
     );
     depreciationAmountOrRate = depAmount;
-    evaluationBasis = '評基通89－2(2)';
   } else {
-    // 定率法
+    // 定率法（財産評価では課税時期に効力を有する別表第十＝200%定率法を一律適用）
     const rate = getUndepreciatedRate(elapsed, asset.usefulLife);
     depreciationAmountOrRate = rate;
 
@@ -168,9 +166,9 @@ function calculateByCategory(
     } else {
       evaluationAmount = Math.floor(asset.acquisitionCost * rate);
     }
-
-    evaluationBasis = getEvaluationBasis(asset.category);
   }
+
+  const evaluationBasis = config.evaluationBasis;
 
   // 賃貸控除
   if (asset.isRental && config.hasRental) {
@@ -184,17 +182,6 @@ function calculateByCategory(
     evaluationBasis,
     isWithin3Years: within3,
   };
-}
-
-function getEvaluationBasis(category: AssetCategory): EvaluationBasis {
-  switch (category) {
-    case '建物付属設備':
-      return '評基通92';
-    case '構築物':
-      return '評基通97';
-    default:
-      return '評基通129';
-  }
 }
 
 /** 計算根拠テキストを生成 */
@@ -212,13 +199,13 @@ export function getCalculationTooltip(asset: Asset): string {
   }
 
   if (asset.evaluationBasis === '簿価') {
-    return `一括償却資産のため期末簿価を使用: ${formatYen(asset.bookValue)}`;
+    return `${asset.category}のため期末簿価を使用: ${formatYen(asset.bookValue)}`;
   }
 
   const config = CATEGORY_CONFIG[asset.category];
   let text: string;
 
-  if (asset.category === '建物') {
+  if (config.valuationMethod === 'building') {
     const dep = asset.depreciationAmountOrRate;
     const base = asset.acquisitionCost - dep;
     text = `${asset.evaluationBasis}: (${formatYen(asset.acquisitionCost)} - ${formatYen(Math.floor(dep))}) × 0.7 = ${formatYen(Math.floor(base * 0.7))}`;

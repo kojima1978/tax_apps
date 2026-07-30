@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
-import { Download, FileJson, Settings, FilePlus2, Loader2 } from 'lucide-react';
+import { Download, FileJson, Settings, FilePlus2, Loader2, Info } from 'lucide-react';
 import { StepNavigation } from '@/components/StepNavigation';
+import { scrollToCategory } from '@/components/CategoryNav';
 import type { Asset } from '@/types';
 import { groupByLabel } from '@/types';
 import { ExcelPreview } from '@/components/step3/ExcelPreview';
@@ -11,6 +12,8 @@ interface Props {
   caseName: string;
   taxDate: string;
   assets: Asset[];
+  /** Step3で入れ替えたカテゴリの表示順 */
+  labelOrder: string[];
   onExportExcel: () => Promise<void>;
   onExportJson: () => void;
   onExportPresets: () => void;
@@ -22,6 +25,7 @@ export function ResultStep({
   caseName,
   taxDate,
   assets,
+  labelOrder,
   onExportExcel,
   onExportJson,
   onExportPresets,
@@ -48,13 +52,17 @@ export function ResultStep({
     0
   );
 
-  const labelGroups = useMemo(() => groupByLabel(assets), [assets]);
+  const labelGroups = useMemo(
+    () => groupByLabel(assets, labelOrder),
+    [assets, labelOrder]
+  );
   const basisGroups = useMemo(
     () =>
       groupByLabel(
-        assets.filter((a) => a.evaluationAmount !== null)
+        assets.filter((a) => a.evaluationAmount !== null),
+        labelOrder
       ).map(([label, items]) => [label, items.sort((a, b) => a.no - b.no)] as [string, Asset[]]),
-    [assets]
+    [assets, labelOrder]
   );
 
   return (
@@ -87,6 +95,16 @@ export function ResultStep({
         </div>
       </div>
 
+      {/* 印刷設定はライブラリ側で出力できないため、手順を案内する */}
+      <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-md px-3 py-2 text-xs text-blue-900">
+        <Info size={14} className="shrink-0 mt-0.5" />
+        <span>
+          印刷する場合は、Excelで開いた後に［ページレイアウト］→［印刷の向き: 横］、
+          ［拡大縮小: すべての列を1ページに印刷］を指定してください
+          （出力ライブラリの制約により、印刷設定はファイルに含まれません）。
+        </span>
+      </div>
+
       {/* サマリー */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border p-4">
@@ -103,24 +121,38 @@ export function ResultStep({
         </div>
       </div>
 
-      {/* カテゴリ別サマリー */}
+      {/* カテゴリ別サマリー（クリックで下の表へジャンプ） */}
       <div className="bg-white rounded-lg border p-4">
-        <h3 className="text-sm font-bold text-gray-700 mb-3">
+        <h3 className="text-sm font-bold text-gray-700 mb-1">
           カテゴリ別内訳
         </h3>
+        <p className="text-xs text-gray-500 mb-3">
+          行をクリックすると下の表の該当カテゴリへ移動します。
+        </p>
         <div className="space-y-1">
           {labelGroups.map(([label, catAssets]) => {
             const total = catAssets.reduce(
               (s, a) => s + (a.evaluationAmount ?? 0),
               0
             );
+            const within3 = catAssets.filter((a) => a.isWithin3Years).length;
             return (
-              <div key={label} className="flex justify-between text-sm">
-                <span className="text-gray-600">
+              <button
+                key={label}
+                onClick={() => scrollToCategory(label)}
+                className="w-full flex justify-between items-center gap-3 text-sm px-2 py-1 -mx-2 rounded hover:bg-green-50 cursor-pointer transition-colors"
+                title={`${label} へ移動`}
+              >
+                <span className="text-gray-600 flex items-center gap-2 text-left">
                   {label}（{catAssets.length}件）
+                  {within3 > 0 && (
+                    <span className="px-1 rounded bg-yellow-100 border border-yellow-300 text-yellow-800 text-[10px]">
+                      3年以内 {within3}件
+                    </span>
+                  )}
                 </span>
-                <span className="font-mono">{formatYen(total)}</span>
-              </div>
+                <span className="font-mono shrink-0">{formatYen(total)}</span>
+              </button>
             );
           })}
         </div>
@@ -131,6 +163,7 @@ export function ResultStep({
         caseName={caseName}
         taxDate={taxDate}
         assets={assets}
+        labelOrder={labelOrder}
       />
 
       {/* 計算根拠一覧（カテゴリ別・NO昇順） */}

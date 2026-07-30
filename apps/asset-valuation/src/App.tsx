@@ -40,6 +40,9 @@ export default function App() {
   const {
     assets,
     groupedAssets,
+    labelOrder,
+    moveCategory,
+    resetCategoryOrder,
     importFromCsv,
     recalculateAll,
     updateAsset,
@@ -47,6 +50,7 @@ export default function App() {
     addEmptyAsset,
     toggleFixedAssetTaxBulk,
     sortAssets,
+    moveAsset,
     loadFromJson,
   } = useAssetData(taxDate);
 
@@ -98,7 +102,7 @@ export default function App() {
   const handleJsonImport = (data: CaseData) => {
     setCaseName(data.caseName);
     setTaxDate(data.taxDate);
-    loadFromJson(data.assets);
+    loadFromJson(data.assets, data.categoryOrder);
     setCsvData(null);
     // Step3に直接遷移
     setCurrentStep(3);
@@ -108,12 +112,12 @@ export default function App() {
   // Excel出力
   const handleExportExcel = async () => {
     const { exportToExcel } = await import('@/utils/excelExport');
-    exportToExcel(caseName, taxDate, assets);
+    exportToExcel(caseName, taxDate, assets, labelOrder);
   };
 
   // JSON出力
   const handleExportJson = () => {
-    exportCaseJson(caseName, taxDate, assets);
+    exportCaseJson(caseName, taxDate, assets, labelOrder);
   };
 
   return (
@@ -184,6 +188,10 @@ export default function App() {
             onAddEmptyAsset={addEmptyAsset}
             onToggleFixedAssetTaxBulk={toggleFixedAssetTaxBulk}
             onSortAssets={sortAssets}
+            onMoveAsset={moveAsset}
+            onMoveCategory={moveCategory}
+            onResetCategoryOrder={resetCategoryOrder}
+            isCustomCategoryOrder={labelOrder.length > 0}
             onBack={() => setCurrentStep(2)}
             onNext={handleStep3Next}
             onGoToStep1={() => setCurrentStep(1)}
@@ -195,6 +203,7 @@ export default function App() {
             caseName={caseName}
             taxDate={taxDate}
             assets={assets}
+            labelOrder={labelOrder}
             onExportExcel={handleExportExcel}
             onExportJson={handleExportJson}
             onExportPresets={exportPresetsToJson}

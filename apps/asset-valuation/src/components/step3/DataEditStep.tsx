@@ -1,7 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { GripVertical, ArrowUpDown, RotateCcw } from 'lucide-react';
 import { StepNavigation } from '@/components/StepNavigation';
-import type { Asset, AssetCategory } from '@/types';
+import { CategoryNav } from '@/components/CategoryNav';
+import type { Asset, AnyAssetCategory } from '@/types';
+import type { SortKey, SortDirection } from '@/hooks/useAssetData';
 import { validateAllAssets, hasErrors } from '@/utils/validators';
+import { formatDate } from '@/utils/formatters';
 import { AssetTable } from './AssetTable';
 
 interface Props {
@@ -10,9 +14,14 @@ interface Props {
   taxDate: string;
   onUpdateAsset: (id: string, updates: Partial<Asset>) => void;
   onDeleteAsset: (id: string) => void;
-  onAddEmptyAsset: (category: AssetCategory, categoryLabel: string) => void;
+  onAddEmptyAsset: (category: AnyAssetCategory, categoryLabel: string) => void;
   onToggleFixedAssetTaxBulk: (label: string, checked: boolean) => void;
-  onSortAssets: (label: string, sortBy: 'no' | 'acquisitionDate' | 'acquisitionCost') => void;
+  onSortAssets: (label: string, sortBy: SortKey, direction: SortDirection) => void;
+  onMoveAsset: (label: string, sourceId: string, targetId: string) => void;
+  onMoveCategory: (label: string, direction: -1 | 1) => void;
+  onResetCategoryOrder: () => void;
+  /** カテゴリ順を入れ替え済みか（標準に戻すボタンの出し分け） */
+  isCustomCategoryOrder: boolean;
   onBack: () => void;
   onNext: () => void;
   onGoToStep1: () => void;
@@ -27,6 +36,10 @@ export function DataEditStep({
   onAddEmptyAsset,
   onToggleFixedAssetTaxBulk,
   onSortAssets,
+  onMoveAsset,
+  onMoveCategory,
+  onResetCategoryOrder,
+  isCustomCategoryOrder,
   onBack,
   onNext,
   onGoToStep1,
@@ -34,6 +47,9 @@ export function DataEditStep({
   const validationResults = useMemo(() => validateAllAssets(assets), [assets]);
   const errors = useMemo(() => validationResults.filter((r) => r.type === 'error'), [validationResults]);
   const warnings = useMemo(() => validationResults.filter((r) => r.type === 'warning'), [validationResults]);
+  const navGroups = useMemo(() => Array.from(groupedAssets.entries()), [groupedAssets]);
+  // 横スクロールを抑えるため、計算結果の列は既定で隠す
+  const [showDetail, setShowDetail] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -42,14 +58,46 @@ export function DataEditStep({
       </h2>
 
       {/* 凡例・件数 */}
-      <div className="flex items-center gap-4 text-sm text-gray-600 bg-white rounded-md border border-gray-200 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 bg-white rounded-md border border-gray-200 px-4 py-2">
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded" />
           3年以内取得
         </span>
         <span className="text-gray-400">|</span>
         <span>全 <strong>{assets.length}</strong> 件</span>
+        <span className="text-gray-400">|</span>
+        <span>課税時期 <strong>{formatDate(taxDate)}</strong></span>
+        <span className="text-gray-400">|</span>
+        <span className="flex items-center gap-1 text-xs text-gray-500">
+          <GripVertical size={13} className="text-gray-400" />
+          行頭をドラッグ、または ↑↓ キーでカテゴリ内の並べ替え
+        </span>
+        <span className="flex items-center gap-1 text-xs text-gray-500">
+          <ArrowUpDown size={13} className="text-gray-400" />
+          カテゴリ見出しの ↑↓ でカテゴリの順序（計算結果・Excel出力にも反映）
+        </span>
+        {isCustomCategoryOrder && (
+          <button
+            onClick={onResetCategoryOrder}
+            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:border-green-400 hover:text-green-700 cursor-pointer transition-colors"
+            title="カテゴリの順序を資産区分順に戻す"
+          >
+            <RotateCcw size={12} /> 標準の順序に戻す
+          </button>
+        )}
+        <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer ml-auto">
+          <input
+            type="checkbox"
+            checked={showDetail}
+            onChange={(e) => setShowDetail(e.target.checked)}
+            className="rounded cursor-pointer"
+          />
+          詳細列（経過年数・償却額・評価根拠）
+        </label>
       </div>
+
+      {/* カテゴリ間ナビゲーション */}
+      <CategoryNav groups={navGroups} />
 
       {/* バリデーション結果 */}
       {errors.length > 0 && (
@@ -80,12 +128,14 @@ export function DataEditStep({
       {/* テーブル */}
       <AssetTable
         groupedAssets={groupedAssets}
-        taxDate={taxDate}
+        showDetail={showDetail}
         onUpdateAsset={onUpdateAsset}
         onDeleteAsset={onDeleteAsset}
         onAddEmptyAsset={onAddEmptyAsset}
         onToggleFixedAssetTaxBulk={onToggleFixedAssetTaxBulk}
         onSortAssets={onSortAssets}
+        onMoveAsset={onMoveAsset}
+        onMoveCategory={onMoveCategory}
       />
 
       <StepNavigation

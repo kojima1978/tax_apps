@@ -1,17 +1,57 @@
 import { useState, useCallback, useMemo } from 'react';
 import type {
   Asset,
+  AnyAssetCategory,
   AssetCategory,
   ColumnMapping,
   CategoryMapping,
 } from '@/types';
-import { resolveBaseCategory, groupByLabel } from '@/types';
+import {
+  resolveBaseCategory,
+  migrateCategory,
+  defaultCategoryOf,
+  groupByLabel,
+} from '@/types';
 import { calculateAsset } from '@/utils/calculation';
 import { normalizeDate, generateId } from '@/utils/formatters';
 import type { CsvData } from '@/utils/csvParser';
 
+/** 並び替えキー */
+export type SortKey = 'no' | 'acquisitionDate';
+export type SortDirection = 'asc' | 'desc';
+
+/**
+ * 指定カテゴリラベルの行だけを差し替える。
+ * 他カテゴリの位置は保ったまま、該当カテゴリの先頭位置に並べ直した行を挿入する。
+ */
+function replaceGroup(
+  assets: Asset[],
+  label: string,
+  reorder: (group: Asset[]) => Asset[]
+): Asset[] {
+  const group = assets.filter((a) => a.categoryLabel === label);
+  if (group.length === 0) return assets;
+
+  const reordered = reorder(group);
+  const result: Asset[] = [];
+  let inserted = false;
+  for (const a of assets) {
+    if (a.categoryLabel === label) {
+      if (!inserted) {
+        result.push(...reordered);
+        inserted = true;
+      }
+    } else {
+      result.push(a);
+    }
+  }
+  return result;
+}
+
 export function useAssetData(taxDate: string) {
   const [assets, setAssets] = useState<Asset[]>([]);
+  // カテゴリ（小計グループ）の表示順。空配列＝標準順（CATEGORY_ORDER準拠）
+  const [labelOrder, setLabelOrder] = useState<string[]>([]);
 
   /** CSVデータからアセットを生成 */
   const importFromCsv = useCallback(
@@ -32,7 +72,7 @@ export function useAssetData(taxDate: string) {
         const category: AssetCategory =
           categoryMapping[rawCategory] ??
           resolveBaseCategory(rawCategory) ??
-          '器具備品';
+          defaultCategoryOf('工具器具備品');
 
         const acquisitionDate = normalizeDate(getValue('acquisitionDate'));
         const acquisitionCost =
@@ -47,7 +87,8 @@ export function useAssetData(taxDate: string) {
           id: generateId(),
           no,
           category,
-          categoryLabel: rawCategory || category,
+          // 取込元の名称ではなく、Step2で選択したカテゴリ名で小計を作る
+          categoryLabel: category,
           name,
           acquisitionDate,
           usefulLife,
@@ -101,7 +142,7 @@ export function useAssetData(taxDate: string) {
 
   /** 空行を追加 */
   const addEmptyAsset = useCallback(
-    (category: AssetCategory, categoryLabel: string) => {
+    (category: AnyAssetCategory, categoryLabel: string) => {
       const base = {
         id: generateId(),
         no: 0,
@@ -136,57 +177,93 @@ export function useAssetData(taxDate: string) {
     [taxDate]
   );
 
-  /** カテゴリラベル別にグループ化（CATEGORY_ORDER準拠） */
+  /** カテゴリラベル別にグループ化（labelOrder優先、残りはCATEGORY_ORDER準拠） */
   const groupedAssets = useMemo(
-    () => new Map(groupByLabel(assets)),
+    () => new Map(groupByLabel(assets, labelOrder)),
+    [assets, labelOrder]
+  );
+
+  /** カテゴリ（小計グループ）を1つ上/下へ移動 */
+  const moveCategory = useCallback(
+    (label: string, direction: -1 | 1) => {
+      setLabelOrder((prev) => {
+        // 表示中の並びを丸ごと確定させてから入れ替える（未指定カテゴリの位置ズレを防ぐ）
+        const current = groupByLabel(assets, prev).map(([l]) => l);
+        const from = current.indexOf(label);
+        const to = from + direction;
+        if (from < 0 || to < 0 || to >= current.length) return prev;
+        const next = [...current];
+        next.splice(to, 0, next.splice(from, 1)[0]!);
+        return next;
+      });
+    },
     [assets]
   );
 
-  /** 並び替え */
+  /** カテゴリの表示順を標準（資産区分順 × 償却方法順）に戻す */
+  const resetCategoryOrder = useCallback(() => setLabelOrder([]), []);
+
+  /** 並び替え（昇順/降順） */
   const sortAssets = useCallback(
-    (
-      label: string,
-      sortBy: 'no' | 'acquisitionDate' | 'acquisitionCost'
-    ) => {
-      setAssets((prev) => {
-        const firstIdx = prev.findIndex((a) => a.categoryLabel === label);
-        if (firstIdx < 0) return prev;
-
-        const catAssets = prev
-          .filter((a) => a.categoryLabel === label)
-          .sort((a, b) => {
-            if (sortBy === 'no') return a.no - b.no;
-            if (sortBy === 'acquisitionDate')
-              return a.acquisitionDate.localeCompare(b.acquisitionDate);
-            return a.acquisitionCost - b.acquisitionCost;
-          });
-
-        const result: Asset[] = [];
-        let catInserted = false;
-        for (const a of prev) {
-          if (a.categoryLabel === label) {
-            if (!catInserted) {
-              result.push(...catAssets);
-              catInserted = true;
-            }
-          } else {
-            result.push(a);
-          }
-        }
-        return result;
-      });
+    (label: string, sortBy: SortKey, direction: SortDirection) => {
+      const sign = direction === 'asc' ? 1 : -1;
+      setAssets((prev) =>
+        replaceGroup(prev, label, (group) =>
+          [...group].sort((a, b) => {
+            const diff =
+              sortBy === 'no'
+                ? a.no - b.no
+                : a.acquisitionDate.localeCompare(b.acquisitionDate);
+            // 同値のときはNOで安定させる
+            return (diff !== 0 ? diff : a.no - b.no) * sign;
+          })
+        )
+      );
     },
     []
   );
 
-  /** JSONからロード */
-  const loadFromJson = useCallback((loadedAssets: Asset[]) => {
-    setAssets(loadedAssets);
-  }, []);
+  /** カテゴリ内で行を移動（ドラッグ＆ドロップ / ↑↓ボタン） */
+  const moveAsset = useCallback(
+    (label: string, sourceId: string, targetId: string) => {
+      if (sourceId === targetId) return;
+      setAssets((prev) =>
+        replaceGroup(prev, label, (group) => {
+          const from = group.findIndex((a) => a.id === sourceId);
+          const to = group.findIndex((a) => a.id === targetId);
+          if (from < 0 || to < 0) return group;
+          const next = [...group];
+          const [moved] = next.splice(from, 1);
+          next.splice(to, 0, moved!);
+          return next;
+        })
+      );
+    },
+    []
+  );
+
+  /** JSONからロード（旧カテゴリ名を移行しつつ再計算。カテゴリ順も復元） */
+  const loadFromJson = useCallback(
+    (loadedAssets: Asset[], categoryOrder?: string[]) => {
+      setLabelOrder(categoryOrder ?? []);
+      setAssets(
+        loadedAssets.map((asset) => {
+          const category =
+            migrateCategory(asset.category) ?? defaultCategoryOf('工具器具備品');
+          const migrated = { ...asset, category, categoryLabel: category };
+          return { ...migrated, ...calculateAsset(migrated, taxDate) };
+        })
+      );
+    },
+    [taxDate]
+  );
 
   return {
     assets,
     groupedAssets,
+    labelOrder,
+    moveCategory,
+    resetCategoryOrder,
     importFromCsv,
     recalculateAll,
     updateAsset,
@@ -194,6 +271,7 @@ export function useAssetData(taxDate: string) {
     addEmptyAsset,
     toggleFixedAssetTaxBulk,
     sortAssets,
+    moveAsset,
     loadFromJson,
   };
 }

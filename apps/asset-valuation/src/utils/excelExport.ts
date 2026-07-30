@@ -1,7 +1,9 @@
 import XLSX from 'xlsx-js-style';
 import type { Asset } from '@/types';
 import { CATEGORY_CONFIG, groupByLabel } from '@/types';
+import { RATE_TABLE } from '@/data/rateTable';
 import { calcWithin3YearsDate, getCalculationTooltip } from '@/utils/calculation';
+import { formatWareki } from '@/utils/formatters';
 
 /** 列ヘッダー */
 const COLUMN_HEADERS = [
@@ -90,6 +92,49 @@ const MARGINS = {
 /** Excel標準の和暦日付表示（例: R08.07.01） */
 const JAPANESE_ERA_DATE_FORMAT = '[$-ja-JP-x-gannen]gee"."mm"."dd';
 
+/** 残価率表シート名（本表H列の数式から参照するため定数化） */
+const RATE_SHEET_NAME = '残価率表';
+
+/** 残価率表の縦軸（経過年数）: RATE_TABLEから導出 */
+const RATE_ELAPSED_YEARS = Object.keys(RATE_TABLE)
+  .map(Number)
+  .sort((a, b) => a - b);
+
+/** 残価率表の横軸（耐用年数）: RATE_TABLEの全行に現れる列の和集合 */
+const RATE_USEFUL_LIVES = [
+  ...new Set(
+    Object.values(RATE_TABLE).flatMap((row) => Object.keys(row).map(Number))
+  ),
+].sort((a, b) => a - b);
+
+/** 残価率表: タイトル2行 + 空行1行の後にヘッダー行が来る（0-based） */
+const RATE_HEADER_ROW = 3;
+const RATE_DATA_START_ROW = RATE_HEADER_ROW + 1;
+
+/** 残価率表の参照範囲（Excelの1-based行番号・列名） */
+const RATE_REF = {
+  headerRow: RATE_HEADER_ROW + 1,
+  dataStartRow: RATE_DATA_START_ROW + 1,
+  dataEndRow: RATE_DATA_START_ROW + RATE_ELAPSED_YEARS.length,
+  firstLifeCol: XLSX.utils.encode_col(1),
+  lastLifeCol: XLSX.utils.encode_col(RATE_USEFUL_LIVES.length),
+} as const;
+
+/**
+ * 残価率（未償却残額割合）をINDEX/MATCHで残価率表から引く数式。
+ * calculation.ts の getUndepreciatedRate と同じ判定順を再現する:
+ *   経過年数 ≧ 耐用年数 → 0 ／ 経過年数 ≦ 0 → 1 ／ 表に無い組合せ → 0
+ */
+function undepreciatedRateFormula(excelRow: number): string {
+  const sheet = `'${RATE_SHEET_NAME}'`;
+  const { headerRow, dataStartRow, dataEndRow, firstLifeCol, lastLifeCol } = RATE_REF;
+  const matrix = `${sheet}!$${firstLifeCol}$${dataStartRow}:$${lastLifeCol}$${dataEndRow}`;
+  const elapsedAxis = `${sheet}!$A$${dataStartRow}:$A$${dataEndRow}`;
+  const lifeAxis = `${sheet}!$${firstLifeCol}$${headerRow}:$${lastLifeCol}$${headerRow}`;
+  const lookup = `INDEX(${matrix},MATCH(E${excelRow},${elapsedAxis},0),MATCH(F${excelRow},${lifeAxis},0))`;
+  return `IF(E${excelRow}>=F${excelRow},0,IF(E${excelRow}<=0,1,IFERROR(${lookup},0)))`;
+}
+
 
 /** セルスタイル生成ヘルパー */
 function textCell(
@@ -105,11 +150,17 @@ function textCell(
 
 function numberCell(
   value: number,
-  options?: { bold?: boolean; fill?: boolean; format?: string; border?: XLSX.CellStyle['border'] }
+  options?: {
+    bold?: boolean;
+    fill?: boolean;
+    format?: string;
+    border?: XLSX.CellStyle['border'];
+    alignment?: XLSX.CellStyle['alignment'];
+  }
 ): XLSX.CellObject {
   const style: XLSX.CellStyle = {
     font: options?.bold ? BOLD_FONT : BASE_FONT,
-    alignment: { horizontal: 'right' },
+    alignment: options?.alignment ?? { horizontal: 'right' },
     numFmt: options?.format ?? '#,##0',
   };
   if (options?.fill) style.fill = HEADER_FILL;
@@ -127,23 +178,24 @@ function formulaNumberCell(
   return cell;
 }
 
-/** 建物の償却額はExcel数式、その他の残価率は算出済み数値を出力 */
+/** 建物の償却額は定額法の数式、その他の残価率は残価率表への参照数式を出力 */
 function depreciationFormulaCell(asset: Asset, row: number): XLSX.CellObject {
-  if (
-    asset.category === '無形固定資産' ||
-    asset.category === '繰延資産' ||
-    asset.category === '一括償却資産'
-  ) {
+  const { valuationMethod } = CATEGORY_CONFIG[asset.category];
+
+  if (valuationMethod === 'bookValue' || valuationMethod === 'none') {
     return textCell('-', { alignment: { horizontal: 'center' } });
   }
 
-  if (asset.category !== '建物') {
-    return numberCell(asset.depreciationAmountOrRate, {
-      format: '0.000',
-    });
+  const excelRow = row + 1;
+
+  if (valuationMethod !== 'building') {
+    return formulaNumberCell(
+      undepreciatedRateFormula(excelRow),
+      asset.depreciationAmountOrRate,
+      { format: '0.000' }
+    );
   }
 
-  const excelRow = row + 1;
   return formulaNumberCell(
     `IF(E${excelRow}>=F${excelRow},G${excelRow}*0.9,G${excelRow}*0.9*(E${excelRow}/F${excelRow}))`,
     asset.depreciationAmountOrRate
@@ -172,17 +224,17 @@ function evaluationFormulaCell(asset: Asset, row: number): XLSX.CellObject {
   }
 
   const excelRow = row + 1;
+  const config = CATEGORY_CONFIG[asset.category];
   let formula: string;
 
   if (asset.evaluationBasis === '3年内_簿価' || asset.evaluationBasis === '簿価') {
     formula = `J${excelRow}`;
   } else if (asset.evaluationBasis === '財産性なし') {
     formula = `G${excelRow}*0`;
-  } else if (asset.category === '建物') {
+  } else if (config.valuationMethod === 'building') {
     const rentalFactor = asset.isRental ? '*0.7' : '';
     formula = `ROUNDDOWN((G${excelRow}-H${excelRow})*0.7${rentalFactor},0)`;
   } else {
-    const config = CATEGORY_CONFIG[asset.category];
     const valuationFactor = config.multiply07 ? '*0.7' : '';
     const rentalFactor = asset.isRental && config.hasRental ? '*0.7' : '';
     formula = `ROUNDDOWN(G${excelRow}*H${excelRow}${valuationFactor}${rentalFactor},0)`;
@@ -219,7 +271,9 @@ function dateCell(dateStr: string): XLSX.CellObject {
 export function exportToExcel(
   caseName: string,
   taxDate: string,
-  assets: Asset[]
+  assets: Asset[],
+  /** Step3で入れ替えたカテゴリの表示順（未指定＝標準順） */
+  labelOrder?: string[]
 ): void {
   const ws: XLSX.WorkSheet = {};
   const merges: XLSX.Range[] = [];
@@ -236,21 +290,17 @@ export function exportToExcel(
   ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = dateCell(taxDate);
   row++;
 
-  // ---- Row 3: 3年以内 ----
+  // ---- Row 3: 3年以内（和暦表記） ----
   const within3YearsDate = calcWithin3YearsDate(taxDate);
-  const w3y = within3YearsDate.getFullYear();
-  const w3m = String(within3YearsDate.getMonth() + 1).padStart(2, '0');
-  const w3d = String(within3YearsDate.getDate()).padStart(2, '0');
-  const within3YearsStr = `${w3y}/${w3m}/${w3d}`;
   ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell('3年以内', { bold: true });
-  ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = textCell(within3YearsStr);
+  ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = textCell(formatWareki(within3YearsDate));
   row++;
 
   // ---- Row 4: 空行 ----
   row++;
 
   // ---- カテゴリラベル別セクション ----
-  const labelGroups = groupByLabel(assets);
+  const labelGroups = groupByLabel(assets, labelOrder);
   for (const [label, categoryAssets] of labelGroups) {
     const category = categoryAssets[0]!.category;
     const config = CATEGORY_CONFIG[category];
@@ -388,15 +438,106 @@ export function exportToExcel(
   XLSX.utils.book_append_sheet(wb, ws, '減価償却資産');
 
   // ---- 計算根拠シート ----
-  const basisWs = createBasisSheet(assets);
+  const basisWs = createBasisSheet(assets, labelOrder);
   XLSX.utils.book_append_sheet(wb, basisWs, '計算根拠');
+
+  // ---- 残価率表シート（本表H列の数式参照先） ----
+  XLSX.utils.book_append_sheet(wb, createRateTableSheet(), RATE_SHEET_NAME);
 
   const dateStr = taxDate.replace(/-/g, '');
   XLSX.writeFile(wb, `${caseName}_減価償却資産評価_${dateStr}.xlsx`);
 }
 
+/**
+ * 残価率表シートを作成（縦=経過年数 × 横=耐用年数のマトリクス）。
+ * 利用者が本表の残価率を突き合わせて確認するための参照資料であり、
+ * 同時に本表H列のINDEX/MATCH参照先も兼ねる。
+ */
+function createRateTableSheet(): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  const merges: XLSX.Range[] = [];
+  const colCount = RATE_USEFUL_LIVES.length + 1; // A列(経過年数) + 耐用年数列
+
+  const setCell = (r: number, c: number, cell: XLSX.CellObject) => {
+    ws[XLSX.utils.encode_cell({ r, c })] = cell;
+  };
+
+  // ---- Row 1: タイトル ----
+  setCell(0, 0, textCell('定率法 未償却残額表（平成24年4月1日以後取得分）', { bold: true }));
+  merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } });
+
+  // ---- Row 2: 軸の説明 ----
+  setCell(
+    1,
+    0,
+    textCell(
+      '縦：経過年数（年）　横：耐用年数（年）　※空欄は経過年数が耐用年数に達した領域（残価率0）'
+    )
+  );
+  merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } });
+
+  // ---- Row 3: 空行 ----
+
+  // ---- ヘッダー行: 耐用年数 ----
+  const headerOptions = {
+    bold: true,
+    fill: true,
+    border: HORIZONTAL_BORDER,
+    alignment: { horizontal: 'center' as const },
+  };
+  setCell(
+    RATE_HEADER_ROW,
+    0,
+    textCell('経過年数＼耐用年数', headerOptions)
+  );
+  RATE_USEFUL_LIVES.forEach((life, i) => {
+    // MATCHで引くため文字列ではなく数値で出力する
+    setCell(RATE_HEADER_ROW, i + 1, numberCell(life, { ...headerOptions, format: '0' }));
+  });
+
+  // ---- データ行 ----
+  RATE_ELAPSED_YEARS.forEach((elapsed, rowIndex) => {
+    const r = RATE_DATA_START_ROW + rowIndex;
+    // A列: 経過年数（MATCHで引くため数値）
+    setCell(
+      r,
+      0,
+      numberCell(elapsed, {
+        bold: true,
+        fill: true,
+        format: '0',
+        alignment: { horizontal: 'center' },
+      })
+    );
+
+    RATE_USEFUL_LIVES.forEach((life, i) => {
+      const rate = RATE_TABLE[elapsed]?.[life];
+      if (rate === undefined) return; // 償却済み領域は空欄
+      setCell(r, i + 1, numberCell(rate, { format: '0.000' }));
+    });
+  });
+
+  // ---- シート設定 ----
+  ws['!ref'] = XLSX.utils.encode_range({
+    s: { r: 0, c: 0 },
+    e: { r: RATE_DATA_START_ROW + RATE_ELAPSED_YEARS.length - 1, c: colCount - 1 },
+  });
+  ws['!merges'] = merges;
+  ws['!cols'] = [
+    { wch: 18 },
+    ...RATE_USEFUL_LIVES.map(() => ({ wch: 6.5 })),
+  ];
+  ws['!margins'] = MARGINS;
+  // 注: xlsx-js-style は !pageSetup / !headerFooter を出力しないため設定しない
+
+  return ws;
+}
+
 /** 計算根拠シートを作成（カテゴリ別・NO昇順） */
-function createBasisSheet(assets: Asset[]): XLSX.WorkSheet {
+function createBasisSheet(
+  assets: Asset[],
+  labelOrder?: string[]
+): XLSX.WorkSheet {
   const ws: XLSX.WorkSheet = {};
   const merges: XLSX.Range[] = [];
   let row = 0;
@@ -409,7 +550,8 @@ function createBasisSheet(assets: Asset[]): XLSX.WorkSheet {
   row++; // 空行
 
   const basisGroups = groupByLabel(
-    assets.filter((a) => a.evaluationAmount !== null)
+    assets.filter((a) => a.evaluationAmount !== null),
+    labelOrder
   );
   for (const [label, rawAssets] of basisGroups) {
     const catAssets = rawAssets.sort((a, b) => a.no - b.no);

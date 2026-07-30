@@ -1,3 +1,6 @@
+import type { AnyAssetCategory } from '@/types';
+import { CATEGORY_CONFIG } from '@/types';
+
 /** 金額を3桁カンマ区切りでフォーマット */
 export function formatYen(value: number): string {
   return value.toLocaleString('ja-JP');
@@ -12,6 +15,33 @@ export function formatDate(dateStr: string): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}/${m}/${day}`;
+}
+
+/** 元号（新しい順。start は改元日） */
+const ERAS = [
+  { name: '令和', start: [2019, 5, 1] },
+  { name: '平成', start: [1989, 1, 8] },
+  { name: '昭和', start: [1926, 12, 25] },
+  { name: '大正', start: [1912, 7, 30] },
+  { name: '明治', start: [1868, 1, 25] },
+] as const;
+
+/** 日付を和暦（例: 令和8年7月1日）に変換。明治より前・不正値は西暦表記のまま返す */
+export function formatWareki(value: string | Date): string {
+  if (!value) return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return typeof value === 'string' ? value : '';
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const era = ERAS.find(
+    ({ start }) =>
+      y > start[0] ||
+      (y === start[0] && (m > start[1] || (m === start[1] && day >= start[2])))
+  );
+  if (!era) return `${y}/${String(m).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+  const eraYear = y - era.start[0] + 1;
+  return `${era.name}${eraYear === 1 ? '元' : eraYear}年${m}月${day}日`;
 }
 
 /** Excelシリアル値を日付文字列に変換 */
@@ -71,13 +101,14 @@ export function generateId(): string {
 
 /** 償却額/残価率の表示フォーマット */
 export function formatDepreciation(
-  category: string,
+  category: AnyAssetCategory,
   depreciationAmountOrRate: number
 ): string {
-  if (category === '無形固定資産' || category === '繰延資産' || category === '一括償却資産') {
+  const { valuationMethod } = CATEGORY_CONFIG[category];
+  if (valuationMethod === 'bookValue' || valuationMethod === 'none') {
     return '−';
   }
-  if (category === '建物') {
+  if (valuationMethod === 'building') {
     return formatYen(Math.floor(depreciationAmountOrRate));
   }
   return depreciationAmountOrRate.toFixed(3);

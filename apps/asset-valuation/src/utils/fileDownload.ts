@@ -14,13 +14,20 @@ export function downloadJsonFile(data: unknown, filename: string): void {
 }
 
 /** 案件データをJSONファイルとしてエクスポート */
-export function exportCaseJson(caseName: string, taxDate: string, assets: Asset[]): void {
+export function exportCaseJson(
+  caseName: string,
+  taxDate: string,
+  assets: Asset[],
+  /** 入れ替えたカテゴリ順（標準順のままなら省略） */
+  categoryOrder?: string[]
+): void {
   const data: CaseData = {
     version: '1.0',
     exportedAt: new Date().toISOString(),
     caseName,
     taxDate,
     assets,
+    ...(categoryOrder?.length ? { categoryOrder } : {}),
   };
   downloadJsonFile(data, `${caseName || '案件データ'}.json`);
 }

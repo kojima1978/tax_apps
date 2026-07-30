@@ -1,18 +1,24 @@
 import { useMemo } from 'react';
 import type { Asset } from '@/types';
 import { CATEGORY_CONFIG, groupByLabel } from '@/types';
-import { formatYen, formatDate, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
+import { categorySectionId } from '@/components/CategoryNav';
+import { formatYen, formatDate, formatWareki, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
 import { calcWithin3YearsDate } from '@/utils/calculation';
 
 interface Props {
   caseName: string;
   taxDate: string;
   assets: Asset[];
+  /** Step3で入れ替えたカテゴリの表示順 */
+  labelOrder: string[];
 }
 
-export function ExcelPreview({ caseName, taxDate, assets }: Props) {
+export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
   const threeYearsAgo = calcWithin3YearsDate(taxDate);
-  const groups = useMemo(() => groupByLabel(assets), [assets]);
+  const groups = useMemo(
+    () => groupByLabel(assets, labelOrder),
+    [assets, labelOrder]
+  );
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 font-mono text-xs">
@@ -20,10 +26,9 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
       <div className="text-gray-600 mb-0.5">
         課税時期: {formatDate(taxDate)}
       </div>
+      {/* Excel出力（B3）と同じ和暦表記にする */}
       <div className="text-gray-600 mb-4">
-        3年以内: {formatDate(
-          `${threeYearsAgo.getFullYear()}-${String(threeYearsAgo.getMonth() + 1).padStart(2, '0')}-${String(threeYearsAgo.getDate()).padStart(2, '0')}`
-        )}
+        3年以内: {formatWareki(threeYearsAgo)}
       </div>
 
       {groups.map(([label, catAssets]) => {
@@ -33,7 +38,11 @@ export function ExcelPreview({ caseName, taxDate, assets }: Props) {
         const { totalAcquisition: totalAcq, totalEvaluation: totalEval, totalBookValue: totalBook } = calcGroupTotals(catAssets);
 
         return (
-          <div key={label} className="mb-4">
+          <div
+            key={label}
+            id={categorySectionId(label)}
+            className="mb-4 scroll-mt-16"
+          >
             <div className="font-bold mb-1">
               【　{label}　】
             </div>
