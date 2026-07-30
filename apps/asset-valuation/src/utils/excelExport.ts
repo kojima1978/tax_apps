@@ -3,7 +3,6 @@ import type { Asset } from '@/types';
 import { CATEGORY_CONFIG, groupByLabel } from '@/types';
 import { RATE_TABLE } from '@/data/rateTable';
 import { calcWithin3YearsDate, getCalculationTooltip } from '@/utils/calculation';
-import { formatWareki } from '@/utils/formatters';
 
 /** 列ヘッダー */
 const COLUMN_HEADERS = [
@@ -243,17 +242,18 @@ function evaluationFormulaCell(asset: Asset, row: number): XLSX.CellObject {
   return formulaNumberCell(formula, asset.evaluationAmount);
 }
 
-/** 計算可能なExcel日付セル */
-function dateCell(dateStr: string): XLSX.CellObject {
-  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return textCell(dateStr);
-
-  const date = new Date(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3])
-  );
-  if (isNaN(date.getTime())) return textCell(dateStr);
+/** 計算可能なExcel日付セル（表示は和暦書式、値は日付なのでExcel側で計算に使える） */
+function dateCell(value: string | Date): XLSX.CellObject {
+  let date: Date;
+  if (value instanceof Date) {
+    // 時刻の端数が残るとExcelのシリアル値に小数が付き日付計算がずれるので0時に丸める
+    date = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  } else {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return textCell(value);
+    date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  if (isNaN(date.getTime())) return textCell(String(value));
 
   return {
     v: date,
@@ -290,10 +290,10 @@ export function exportToExcel(
   ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = dateCell(taxDate);
   row++;
 
-  // ---- Row 3: 3年以内（和暦表記） ----
+  // ---- Row 3: 3年以内（日付値＋和暦書式。Excel側で日付計算に使える） ----
   const within3YearsDate = calcWithin3YearsDate(taxDate);
   ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell('3年以内', { bold: true });
-  ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = textCell(formatWareki(within3YearsDate));
+  ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = dateCell(within3YearsDate);
   row++;
 
   // ---- Row 4: 空行 ----

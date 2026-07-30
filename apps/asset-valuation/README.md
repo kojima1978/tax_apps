@@ -80,7 +80,8 @@ Step 4: 計算結果 → Excel出力 / 案件JSON保存 / マッピングJSON出
   順序は計算結果画面・Excel出力（本表／計算根拠）・案件JSONにも反映され、「標準の順序に戻す」で既定順へ戻せる
 - **Excel出力**: 3シート（減価償却資産 + 計算根拠 + 残価率表）。横線のみ罫線・評価通達条文付き。
   本表のH列（残価率）は残価率表シートを INDEX/MATCH で参照するので、年数を書き換えるとExcel側で再計算される。
-  B3（3年以内）は和暦表記（例: `令和5年7月2日`）で出力する（B2の課税時期は日付値のまま）
+  日付（課税時期・3年以内・取得年月）は**日付値のまま**出力し、表示書式だけ和暦（例: `R05.07.02`）にしているので、
+  Excel側で日付計算にそのまま使える
 - **案件JSON保存・復元**: 案件データ全体（カテゴリの並び順を含む）をJSONでエクスポート/インポート
 - **アクセシビリティ**: 統一フォーカスリング、全入力にaria-label、コントラスト4.5:1以上、prefers-reduced-motion対応
 
@@ -100,7 +101,7 @@ src/
 │   ├── csvParser.ts        # CSV解析
 │   ├── excelExport.ts      # Excel出力（3シート・残価率表とINDEX/MATCH数式）
 │   ├── fileDownload.ts     # JSONダウンロード + exportCaseJson
-│   ├── formatters.ts       # formatYen, formatDate, formatWareki, formatDepreciation, calcGroupTotals
+│   ├── formatters.ts       # formatYen, formatDate, formatDepreciation, calcGroupTotals
 │   └── validators.ts       # バリデーション
 ├── hooks/
 │   ├── useAssetData.ts     # 資産データ管理（sortAssets / moveAsset / moveCategory / migrateCategory）

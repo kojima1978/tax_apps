@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { Asset } from '@/types';
 import { CATEGORY_CONFIG, groupByLabel } from '@/types';
 import { categorySectionId } from '@/components/CategoryNav';
-import { formatYen, formatDate, formatWareki, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
+import { formatYen, formatDate, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
 import { calcWithin3YearsDate } from '@/utils/calculation';
 
 interface Props {
@@ -26,9 +26,9 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
       <div className="text-gray-600 mb-0.5">
         課税時期: {formatDate(taxDate)}
       </div>
-      {/* Excel出力（B3）と同じ和暦表記にする */}
+      {/* Excel側は和暦書式（R05.07.02）だが、プレビューは他の日付にそろえて西暦表記 */}
       <div className="text-gray-600 mb-4">
-        3年以内: {formatWareki(threeYearsAgo)}
+        3年以内: {formatDate(threeYearsAgo)}
       </div>
 
       {groups.map(([label, catAssets]) => {
