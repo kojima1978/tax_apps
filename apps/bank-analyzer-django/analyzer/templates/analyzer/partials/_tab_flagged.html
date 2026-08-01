@@ -53,7 +53,7 @@
                         </td>
                         <td class="text-end text-nowrap text-danger">{% if tx.amount_out > 0 %}{{ tx.amount_out|intcomma }}{% elif tx.amount_in == 0 %}0{% endif %}</td>
                         <td class="text-end text-nowrap text-success">{% if tx.amount_in > 0 %}{{ tx.amount_in|intcomma }}{% elif tx.amount_out == 0 %}0{% endif %}</td>
-                        <td><span class="badge bg-secondary">{{ tx.category|default:"-" }}</span></td>
+                        <td><span class="badge bg-secondary transaction-category-badge" data-role="transaction-category">{{ tx.category|default:"-" }}</span></td>
                         <td class="question-memo-cell memo-cell" title="{{ tx.memo|default:'質問メモ未記入' }}" data-tx-id="{{ tx.id }}">
                             {% if tx.memo %}
                             <span class="text-truncate">{{ tx.memo }}</span>

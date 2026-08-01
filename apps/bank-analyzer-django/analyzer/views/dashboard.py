@@ -163,17 +163,15 @@ def _build_chart_data(case):
         'counts': [s['count'] for s in category_stats],
         'totals': [((s['total_out'] or 0) + (s['total_in'] or 0)) for s in category_stats],
     }
-    # 質問候補へ送った未分類取引は、分類作業キューからは除外する。
-    unclassified_total = all_txs_qs.filter(
-        category=UNCATEGORIZED,
-        is_flagged=False,
-    ).count()
+    unclassified_total = all_txs_qs.filter(category=UNCATEGORIZED).count()
     total_tx_count = all_txs_qs.count()
     classified_count = total_tx_count - unclassified_total
     classified_pct = round(classified_count / total_tx_count * 100, 1) if total_tx_count > 0 else 0
     totals = all_txs_qs.aggregate(
         total_out=Sum('amount_out'),
         total_in=Sum('amount_in'),
+        incoming_tx_count=Count('id', filter=Q(amount_in__gt=0)),
+        outgoing_tx_count=Count('id', filter=Q(amount_out__gt=0)),
         earliest_date=Min('date'),
         latest_date=Max('date'),
     )
@@ -208,6 +206,8 @@ def _build_chart_data(case):
         'classified_pct': classified_pct,
         'total_out': total_out,
         'total_in': total_in,
+        'incoming_tx_count': totals['incoming_tx_count'],
+        'outgoing_tx_count': totals['outgoing_tx_count'],
         'net_flow': total_in - total_out,
         'flagged_count': flagged_count,
         'earliest_transaction_date': totals['earliest_date'],
@@ -245,7 +245,6 @@ def _build_unclassified_context(request, case, sort_order, keyword):
     """未分類タブのグルーピング + サジェストデータを構築"""
     unclassified_qs = case.transactions.with_account_info().filter(
         category=UNCATEGORIZED,
-        is_flagged=False,
     ).order_by(*sort_order)
     group_data = AnalysisService.build_unclassified_groups(unclassified_qs, keyword)
     group_page = paginate(group_data['groups'], request.GET.get('group_page', 1), 50)
@@ -286,7 +285,6 @@ def _build_active_tab_context(request, case, active_tab, filter_state):
     if active_tab == 'unclassified':
         unclassified_qs = transactions.filter(
             category=UNCATEGORIZED,
-            is_flagged=False,
         )
         _, unclassified_page = _filter_and_paginate(
             unclassified_qs,
@@ -367,7 +365,7 @@ def analysis_dashboard(request: HttpRequest, pk: int) -> HttpResponse:
         total=Count('id'),
         unclassified=Count(
             'id',
-            filter=Q(category=UNCATEGORIZED, is_flagged=False),
+            filter=Q(category=UNCATEGORIZED),
         ),
         flagged=Count('id', filter=Q(is_flagged=True)),
     )

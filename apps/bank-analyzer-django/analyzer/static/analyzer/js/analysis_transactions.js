@@ -255,10 +255,24 @@ function _updateRowCells(row, tx) {
         catSelect.dataset.lastSaved = tx.category;
     }
 
-    // カテゴリーバッジ（付箋タブ等）
-    var catBadge = row.querySelector('.badge');
+    // カテゴリーバッジ（質問候補タブ）
+    // 日付の基準日バッジと混同しないよう専用クラスで取得する。
+    var catBadge = row.querySelector('.transaction-category-badge');
     if (catBadge && !catSelect) {
         catBadge.textContent = tx.category || '-';
+    }
+
+    // 質問メモ（質問候補タブ）
+    var memoCell = row.querySelector('.question-memo-cell');
+    if (memoCell) {
+        var memo = tx.memo || '';
+        memoCell.title = memo || '質問メモ未記入';
+        memoCell.replaceChildren();
+
+        var memoText = document.createElement('span');
+        memoText.className = memo ? 'text-truncate' : 'question-memo-empty';
+        memoText.textContent = memo || '未記入';
+        memoCell.appendChild(memoText);
     }
 }
 
@@ -348,22 +362,24 @@ document.querySelectorAll('.flag-btn').forEach(btn => {
                         }
                     });
                     showToast('質問候補から外しました', 'info');
-                } else if (sourceTab === 'unclassified' && data.is_flagged) {
-                    ProgressBar.update(1);
-                    updateUnclassifiedCount(1);
-                    fadeOutRow(row);
-                    showToast('質問候補へ移動しました', 'success');
                 } else {
                     if (data.is_flagged) {
                         button.classList.remove('btn-outline-secondary');
                         button.classList.add('btn-info');
                         button.title = '質問候補から外す';
+                        button.setAttribute('aria-label', '質問候補から外す');
                         if (row) row.classList.add('table-warning');
-                        showToast('質問候補に追加しました', 'success');
+                        showToast(
+                            sourceTab === 'unclassified'
+                                ? '質問候補に追加しました（未分類一覧に残ります）'
+                                : '質問候補に追加しました',
+                            'success'
+                        );
                     } else {
                         button.classList.remove('btn-info');
                         button.classList.add('btn-outline-secondary');
                         button.title = '質問候補に追加';
+                        button.setAttribute('aria-label', '質問候補に追加');
                         if (row) row.classList.remove('table-warning');
                         showToast('質問候補から外しました', 'info');
                     }

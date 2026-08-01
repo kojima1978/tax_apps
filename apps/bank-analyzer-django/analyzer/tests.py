@@ -601,6 +601,37 @@ class ViewsTest(TestCase):
             'aria-label="月次の出金額と入金額を比較する棒グラフ"',
         )
 
+    def test_overview_shows_shared_period_and_direction_counts(self):
+        """分析期間を共通表示し、総入金・総出金には各方向の取引件数を表示する"""
+        Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 15),
+            description="入金取引",
+            amount_in=50000,
+            amount_out=0,
+        )
+        Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 2, 20),
+            description="出金取引",
+            amount_in=0,
+            amount_out=30000,
+        )
+
+        response = self.client.get(
+            reverse('analysis-dashboard', args=[self.case.pk]),
+            {'tab': 'overview'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['incoming_tx_count'], 1)
+        self.assertEqual(response.context['outgoing_tx_count'], 1)
+        self.assertContains(response, 'id="analysisPeriod"')
+        self.assertContains(response, '分析対象期間')
+        self.assertContains(response, '2024/01/15〜2024/02/20')
+        self.assertContains(response, '入金のある取引 1件')
+        self.assertContains(response, '出金のある取引 1件')
+
     def test_ajax_category_change_shows_history_and_can_be_undone(self):
         """分類変更後は履歴を表示し、再読み込み後も直前の分類へ戻せる"""
         tx = Transaction.objects.create(
@@ -806,13 +837,13 @@ class ViewsTest(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_flagged_unclassified_is_moved_out_of_classification_queue(self):
-        """質問候補に送った未分類取引は分類作業キューから除外される"""
+    def test_flagged_unclassified_stays_in_classification_queue(self):
+        """質問候補に追加しても、未分類取引は分類作業画面に残る"""
         pending = Transaction.objects.create(
             case=self.case, date=date(2024, 1, 15),
             description="分類待ち", category="未分類",
         )
-        Transaction.objects.create(
+        flagged = Transaction.objects.create(
             case=self.case, date=date(2024, 1, 16),
             description="質問候補", category="未分類", is_flagged=True,
         )
@@ -822,11 +853,33 @@ class ViewsTest(TestCase):
             {'tab': 'unclassified'},
         )
 
-        self.assertEqual(response.context['unclassified_count'], 1)
+        self.assertEqual(response.context['unclassified_count'], 2)
         self.assertEqual(
             [tx.pk for tx in response.context['unclassified_txs']],
-            [pending.pk],
+            [pending.pk, flagged.pk],
         )
+        self.assertContains(response, f'data-tx-id="{flagged.pk}"')
+        self.assertContains(response, '質問候補から外す')
+
+    def test_flagged_tab_has_live_update_category_target(self):
+        """質問候補の分類バッジは、詳細保存後に更新できる専用要素とする"""
+        tx = Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 15),
+            description="分類表示更新",
+            category="生活費",
+            is_flagged=True,
+        )
+
+        response = self.client.get(
+            reverse('analysis-dashboard', args=[self.case.pk]),
+            {'tab': 'flagged'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'data-tx-id="{tx.pk}"')
+        self.assertContains(response, 'class="badge bg-secondary transaction-category-badge"')
+        self.assertContains(response, 'data-role="transaction-category"')
 
     def test_preview_pattern_impact_counts_current_and_other_cases(self):
         """グローバルパターン登録前に案件別の影響件数を確認できる"""
