@@ -41,7 +41,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '③　直前期末の\n　　自己株式数', bottomLabel: '（株）', bottomLabelAlign: 'right', fontSize: 7, top: 14.87, left: 50.2, width: 13.26, height: 4.7 },
   { kind: 'label', text: '④　１株当たりの\n　　資本金等の額\n（①÷（②－③））', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 7, top: 14.87, left: 63.46, width: 13.82, height: 4.7 },
   { kind: 'label', text: '⑤　１株当たりの資本金等の\n　　額を50円とした場合の発\n　　行済株式数（①÷50円）', bottomLabel: '（株）', bottomLabelAlign: 'right', fontSize: 6.5, top: 14.87, left: 77.28, width: 15.15, height: 4.7 },
-  ...ci('①', 'G01', 19.57, 2.6, 24.98, 36.34),
+  ...ci('①', 'G01', 19.57, 2.6, 24.98, 36.34, { calculationRequired: true }),
   ...ci('②', 'G02', 19.57, 2.6, 38.24, 50.2, { readOnly: true, jumpTo: { tab: 'table1_1', field: '⑤', hint: 'クリックで入力元（第１表の１⑤・発行済株式数）へ移動します' } }),
   ...ci('③', 'G03', 19.57, 2.6, 52.1, 63.46, { readOnly: true, jumpTo: { tab: 'table1_1', field: 'f63', hint: 'クリックで入力元（第１表の１・自己株式数）へ移動します' } }),
   { field: '④', kind: 'input', readOnly: true, top: 19.57, left: 63.46, width: 13.82, height: 2.6, align: 'right' },
@@ -57,15 +57,15 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑧　差引経常的な年配当\n　　金額（⑥－⑦）', top: 24.73, left: 50.2, width: 17.04, height: 2.96, fontSize: 7 },
   { kind: 'label', text: '年 平 均 配 当 金 額', top: 24.73, left: 67.24, width: 25.19, height: 2.96 },
   { kind: 'label', text: '直　前　期', top: 27.69, left: 13.05, width: 6.25, height: 2.79 },
-  ...ci('f28', 'G04', 27.69, 2.79, 21.19, 34.45),
+  ...ci('f28', 'G04', 27.69, 2.79, 21.19, 34.45, { calculationRequired: true }),
   ...ci('f29', 'G07', 27.69, 2.79, 36.34, 50.2),
   ...mi('㋑', '㋑', 27.69, 2.79, 52.1, 67.24),
   { kind: 'label', text: '直 前 々 期', top: 30.48, left: 13.05, width: 6.25, height: 2.71 },
-  ...ci('f32', 'G05', 30.48, 2.71, 21.19, 34.45),
+  ...ci('f32', 'G05', 30.48, 2.71, 21.19, 34.45, { calculationRequired: true }),
   ...ci('f33', 'G08', 30.48, 2.71, 36.34, 50.2),
   ...mi('㋺', '㋺', 30.48, 2.71, 52.1, 67.24),
   { kind: 'label', text: '直前々期\nの前期', top: 33.19, left: 13.05, width: 6.25, height: 2.76, fontSize: 7 },
-  ...ci('f36', 'G06', 33.19, 2.76, 21.19, 34.45),
+  ...ci('f36', 'G06', 33.19, 2.76, 21.19, 34.45, { calculationRequired: true }),
   ...ci('f37', 'G09', 33.19, 2.76, 36.34, 50.2),
   ...mi('㋩', '㋩', 33.19, 2.76, 52.1, 67.24),
   // ⑨=(㋑+㋺)÷2（上半分）、⑩=(㋺+㋩)÷2（下半分）
@@ -86,21 +86,21 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑮　損金算入した\n　　繰越欠損金の\n　　控除額', top: 38.35, left: 67.24, width: 11.93, height: 3.19, fontSize: 6.5 },
   { kind: 'label', text: '⑯　差引利益金額\n　　（⑪－⑫＋⑬\n　　－⑭＋⑮）', top: 38.35, left: 79.17, width: 13.26, height: 3.19, fontSize: 6.5 },
   { kind: 'label', text: '直　前　期', top: 41.54, left: 13.05, width: 6.25, height: 2.71 },
-  ...ci('e18', 'G10', 41.54, 2.71, 21.19, 32.55, { signedCommaInteger: true, commaInteger: false }),
+  ...ci('e18', 'G10', 41.54, 2.71, 21.19, 32.55, { calculationRequired: true, signedCommaInteger: true, commaInteger: false }),
   ...ci('e19', 'G13', 41.54, 2.71, 34.45, 43.92),
   ...ci('e20', 'G16', 41.54, 2.71, 45.81, 55.88),
   ...ci('e21', 'G19', 41.54, 2.71, 57.78, 67.24),
   ...ci('e22', 'G22', 41.54, 2.71, 69.14, 79.17),
   ...mi('㊁', '㊁', 41.54, 2.71, 81.06, 92.43),
   { kind: 'label', text: '直 前 々 期', top: 44.25, left: 13.05, width: 6.25, height: 2.7 },
-  ...ci('e25', 'G11', 44.25, 2.7, 21.19, 32.55, { signedCommaInteger: true, commaInteger: false }),
+  ...ci('e25', 'G11', 44.25, 2.7, 21.19, 32.55, { calculationRequired: true, signedCommaInteger: true, commaInteger: false }),
   ...ci('e26', 'G14', 44.25, 2.7, 34.45, 43.92),
   ...ci('e27', 'G17', 44.25, 2.7, 45.81, 55.88),
   ...ci('e28', 'G20', 44.25, 2.7, 57.78, 67.24),
   ...ci('e29', 'G23', 44.25, 2.7, 69.14, 79.17),
   ...mi('㋭', '㋭', 44.25, 2.7, 81.06, 92.43),
   { kind: 'label', text: '直前々期\nの前期', top: 46.95, left: 13.05, width: 6.25, height: 2.71, fontSize: 7 },
-  ...ci('e32', 'G12', 46.95, 2.71, 21.19, 32.55, { signedCommaInteger: true, commaInteger: false }),
+  ...ci('e32', 'G12', 46.95, 2.71, 21.19, 32.55, { calculationRequired: true, signedCommaInteger: true, commaInteger: false }),
   ...ci('e33', 'G15', 46.95, 2.71, 34.45, 43.92),
   ...ci('e34', 'G18', 46.95, 2.71, 45.81, 55.88),
   ...ci('e35', 'G21', 46.95, 2.71, 57.78, 67.24),
@@ -115,11 +115,11 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑲　純資産価額（⑰＋⑱）', top: 52.11, left: 67.24, width: 25.19, height: 2.79, fontSize: 7 },
   { kind: 'label', text: '直　前　期', top: 54.9, left: 13.05, width: 6.25, height: 2.68 },
   ...ci('n52', 'G25', 54.9, 2.68, 21.19, 43.92, { readOnly: true, jumpTo: { tab: 'table4', field: '①', hint: 'クリックで入力元（第４表の１①・直前期末の資本金等の額）へ移動します' } }),
-  ...ci('n53', 'G27', 54.9, 2.68, 45.81, 67.24, { signedCommaInteger: true, commaInteger: false }),
+  ...ci('n53', 'G27', 54.9, 2.68, 45.81, 67.24, { calculationRequired: true, signedCommaInteger: true, commaInteger: false }),
   ...mi('㋣', '㋣', 54.9, 2.68, 69.14, 92.43),
   { kind: 'label', text: '直 前 々 期', top: 57.58, left: 13.05, width: 6.25, height: 2.7 },
-  ...ci('n56', 'G26', 57.58, 2.7, 21.19, 43.92),
-  ...ci('n57', 'G28', 57.58, 2.7, 45.81, 67.24),
+  ...ci('n56', 'G26', 57.58, 2.7, 21.19, 43.92, { calculationRequired: true }),
+  ...ci('n57', 'G28', 57.58, 2.7, 45.81, 67.24, { calculationRequired: true }),
   ...mi('㋠', '㋠', 57.58, 2.7, 69.14, 92.43),
   // ── 比準要素数1／0の会社の判定要素の金額（下部集約ブロック） ──
   { kind: 'label', text: '比 準 要 素 数 １ の 会 社 ・ 比 準 要 素 数 ０ の 会 社 の 判 定 要 素 の 金 額', top: 60.28, left: 9.67, width: 82.76, height: 2.46 },
@@ -216,7 +216,7 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
   const modeSelect = (field: string, singleLabel: string) => (
-    <select id={`table4_1-${field}-toolbar`} name={`table4.${field}`} value={raw(field)} onChange={(e) => u(field, e.target.value)} style={{ fontSize: 11, padding: '1px 2px' }}>
+    <select id={`table4_1-${field}-toolbar`} name={`table4.${field}`} value={raw(field)} onChange={(e) => u(field, e.target.value)} style={{ fontSize: 11, padding: '1px 2px', background: '#eaf6ff' }}>
       <option value="">低い方（自動）</option>
       <option value="single">{singleLabel}</option>
       <option value="avg">２年平均</option>

@@ -132,6 +132,10 @@ const effectiveZokugaraCode = (storedCode: string, storedName: string): string =
 // ── 株式種類コード（記載要領⑷: 1=普通株式 / 2=普通株式以外。普通株式のみの会社は省略可） ──
 const STOCK_TYPE_OPTIONS = ['', { value: '1', label: '1：普通株式' }, { value: '2', label: '2：普通株式以外' }];
 
+/** 株式種類コードからE欄に表示する標準名称を返す。 */
+export const stockTypeNameOf = (code: string): string =>
+  code === '1' ? '普通株式' : code === '2' ? '普通株式以外' : '';
+
 // ── 判定マトリクスの自動ハイライト（②と④に基づく） ──
 // ④列の区分: 50%超 / 30%以上50%以下 / 30%未満 → 各列での②の閾値は 50 / 30 / 15
 const col4Threshold = (r4: number): 50 | 30 | 15 | null => (r4 > 50 ? 50 : r4 >= 30 ? 30 : r4 >= 0 ? 15 : null);
@@ -257,13 +261,14 @@ const DATE_COLS = [
   { suffix: '_d', left: 35.82, width: 5.44, options: DAY_OPTS },
 ] as const;
 
-function dateSelectCells(prefix: string, top: number, height: number, code: string): GridCell[] {
+function dateSelectCells(prefix: string, top: number, height: number, code: string, calculationRequired = false): GridCell[] {
   return [
     // N番号の印字セル（様式では元号列の左端）
     { kind: 'cell' as const, codeLabel: code, top, left: 17.69, width: 1.81, height },
     ...DATE_COLS.map((col) => ({
       field: `${prefix}${col.suffix}`,
       kind: 'input' as const,
+      calculationRequired,
       options: [...col.options],
       top,
       left: col.left,
@@ -317,9 +322,9 @@ function shareholderRows(): GridCell[] {
     out.push({ kind: 'cell', codeLabel: codes.typeCode, top: topB, left: X.gCode, width: +(X.gCodeEnd - X.gCode).toFixed(2), height: hB });
     out.push({ field: `sh_${r}_9`, kind: 'input', options: [...STOCK_TYPE_OPTIONS], compactSelectedOption: true, ariaLabel: `株主${r}の株式種類コード（1=普通株式、2=普通株式以外）`, top: topB, left: X.codeBox, width: +(X.codeBoxEnd - X.codeBox).toFixed(2), height: hB });
     out.push({ kind: 'cell', codeLabel: codes.typeName, top: topB, left: X.roleECode, width: +(X.roleECodeEnd - X.roleECode).toFixed(2), height: hB });
-    out.push({ field: `sh_${r}_8`, kind: 'input', ariaLabel: `株主${r}の株式の種類`, top: topB, left: X.role, width: +(X.roleEnd - X.role).toFixed(2), height: hB, align: 'left' });
+    out.push({ field: `sh_${r}_8`, kind: 'input', readOnlyWhen: (g) => stockTypeNameOf(g(`sh_${r}_9`)) !== '', ariaLabel: `株主${r}の株式の種類（株式種類コードから自動表示）`, top: topB, left: X.role, width: +(X.roleEnd - X.role).toFixed(2), height: hB, align: 'left' });
     out.push({ kind: 'cell', codeLabel: codes.votes, top: topB, left: X.numCode1, width: +(X.numCode1End - X.numCode1).toFixed(2), height: hB });
-    out.push({ field: `sh_${r}_5`, kind: 'input', commaInteger: true, top: topB, left: X.num1, width: +(X.num1End - X.num1).toFixed(2), height: hB, align: 'right' });
+    out.push({ field: `sh_${r}_5`, kind: 'input', calculationRequired: r === 1, commaInteger: true, top: topB, left: X.num1, width: +(X.num1End - X.num1).toFixed(2), height: hB, align: 'right' });
     out.push({ kind: 'cell', codeLabel: codes.ratio, top: topB, left: X.numCode2, width: +(X.numCode2End - X.numCode2).toFixed(2), height: hB });
     out.push({ field: `sh_${r}_6`, kind: 'input', readOnly: true, top: topB, left: X.num2, width: +(X.num2End - X.num2).toFixed(2), height: hB, align: 'right' });
     // ドラッグハンドル（2人目以降・氏名行のE番号セル右隣）
@@ -367,7 +372,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '年', top: 24.42, left: 24.94, width: 5.44, height: 0.99, fontSize: 7 },
   { kind: 'label', text: '月', top: 24.42, left: 30.38, width: 5.44, height: 0.99, fontSize: 7 },
   { kind: 'label', text: '日', top: 24.42, left: 35.82, width: 5.44, height: 0.99, fontSize: 7 },
-  ...dateSelectCells('f14', 25.41, 2.34, 'N01'),
+  ...dateSelectCells('f14', 25.41, 2.34, 'N01', true),
   { kind: 'label', text: '直\n前\n期', top: 27.75, left: 10.48, width: 3.58, height: 4.61, fontSize: 9 },
   { kind: 'label', text: '自', top: 27.75, left: 14.06, width: 3.63, height: 2.36 },
   ...dateSelectCells('f15_from', 27.75, 2.36, 'N02'),
@@ -380,19 +385,19 @@ const CELLS: GridCell[] = [
   { kind: 'cell', codeLabel: 'E02', top: 25.41, left: 44.88, width: 1.82, height: 2.34 },
   { field: 'f22', kind: 'input', readOnly: true, top: 25.41, left: 46.7, width: 19.94, height: 2.34, align: 'left' },
   { kind: 'cell', codeLabel: 'G01', top: 25.41, left: 66.64, width: 1.81, height: 2.34 },
-  { field: 'f23', kind: 'input', options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号1', top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
+  { field: 'f23', kind: 'input', calculationRequired: true, options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号1', top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
   { kind: 'cell', codeLabel: 'C01', top: 25.41, left: 81.14, width: 1.82, height: 2.34 },
   { field: 'f24', kind: 'input', top: 25.41, left: 82.96, width: 5.52, height: 2.34 },
   { kind: 'cell', codeLabel: 'E03', top: 27.75, left: 44.88, width: 1.82, height: 2.36 },
   { field: 'f25', kind: 'input', readOnly: true, top: 27.75, left: 46.7, width: 19.94, height: 2.36, align: 'left' },
   { kind: 'cell', codeLabel: 'G02', top: 27.75, left: 66.64, width: 1.81, height: 2.36 },
-  { field: 'f26', kind: 'input', options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号2', top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
+  { field: 'f26', kind: 'input', calculationRequired: true, options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号2', top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
   { kind: 'cell', codeLabel: 'C02', top: 27.75, left: 81.14, width: 1.82, height: 2.36 },
   { field: 'f27', kind: 'input', top: 27.75, left: 82.96, width: 5.52, height: 2.36 },
   { kind: 'cell', codeLabel: 'E04', top: 30.11, left: 44.88, width: 1.82, height: 2.25 },
   { field: 'f28', kind: 'input', readOnly: true, top: 30.11, left: 46.7, width: 19.94, height: 2.25, align: 'left' },
   { kind: 'cell', codeLabel: 'G03', top: 30.11, left: 66.64, width: 1.81, height: 2.25 },
-  { field: 'f29', kind: 'input', options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号3', top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
+  { field: 'f29', kind: 'input', calculationRequired: true, options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号3', top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
   { kind: 'cell', codeLabel: 'C03', top: 30.11, left: 81.14, width: 1.82, height: 2.25 },
   { field: 'f30', kind: 'input', top: 30.11, left: 82.96, width: 5.52, height: 2.25 },
   // ── 1. 株主及び評価方式の判定 ──
@@ -429,18 +434,18 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '筆頭株主グループの議決権の合計数', top: 73.45, left: X.name, width: 47.14, height: 4.07 },
   { kind: 'label', text: '③　議 決 権 数', top: 73.45, left: X.numCode1, width: 14.5, height: 1.48, fontSize: 7.5 },
   { kind: 'cell', codeLabel: 'G41', top: 74.93, left: X.numCode1, width: 1.81, height: 2.59 },
-  { field: '③', kind: 'input', commaInteger: true, top: 74.93, left: X.num1, width: 12.69, height: 2.59 },
+  { field: '③', kind: 'input', calculationRequired: true, commaInteger: true, top: 74.93, left: X.num1, width: 12.69, height: 2.59 },
   { kind: 'label', text: '④　議決権割合（③/⑥）', top: 73.45, left: X.numCode2, width: 14.59, height: 1.48, fontSize: 7.5 },
   { kind: 'cell', codeLabel: 'G42', top: 74.93, left: X.numCode2, width: 1.82, height: 2.59 },
   { field: '④', kind: 'input', readOnly: true, top: 74.93, left: X.num2, width: 12.77, height: 2.59 },
   { kind: 'label', text: '評 価 会 社 の 発 行 済 株 式 又 は 議 決 権 の 総 数', top: 77.52, left: X.name, width: 47.14, height: 7.27 },
   { kind: 'label', text: '⑤　発行済株式数', top: 77.52, left: X.numCode1, width: 14.5, height: 1.03, fontSize: 7.5 },
   { kind: 'cell', codeLabel: 'G43', top: 78.55, left: X.numCode1, width: 1.81, height: 2.59 },
-  { field: '⑤', kind: 'input', commaInteger: true, top: 78.55, left: X.num1, width: 12.69, height: 2.59 },
+  { field: '⑤', kind: 'input', calculationRequired: true, commaInteger: true, top: 78.55, left: X.num1, width: 12.69, height: 2.59 },
   { kind: 'cell', diagonal: 'bltr', top: 77.52, left: X.numCode2, width: 14.59, height: 3.62 },
   { kind: 'label', text: '⑥　議決権の総数', top: 81.14, left: X.numCode1, width: 14.5, height: 1.05, fontSize: 7.5 },
   { kind: 'cell', codeLabel: 'C04', top: 82.19, left: X.numCode1, width: 1.81, height: 2.6 },
-  { field: '⑥', kind: 'input', commaInteger: true, top: 82.19, left: X.num1, width: 12.69, height: 2.6 },
+  { field: '⑥', kind: 'input', calculationRequired: true, commaInteger: true, top: 82.19, left: X.num1, width: 12.69, height: 2.6 },
   { kind: 'label', text: '議 決 権 割 合', top: 81.14, left: X.numCode2, width: 14.59, height: 1.05, fontSize: 7.5 },
   { kind: 'label', text: '100', top: 82.19, left: X.numCode2, width: 14.59, height: 2.6 },
   // ── 判定基準 ──
@@ -536,7 +541,7 @@ function contShareholder(globalIdx: number, k: number): GridCell[] {
     { kind: 'cell', codeLabel: c.typeCode, top: topB, left: CX.gCode, width: w(CX.gCode, CX.gCodeEnd), height: h },
     { field: `sh_${r}_9`, kind: 'input', options: [...STOCK_TYPE_OPTIONS], compactSelectedOption: true, ariaLabel: `株主${r}の株式種類コード`, top: topB, left: CX.codeBox, width: w(CX.codeBox, CX.codeBoxEnd), height: h },
     { kind: 'cell', codeLabel: c.typeName, top: topB, left: CX.roleECode, width: w(CX.roleECode, CX.roleECodeEnd), height: h },
-    { field: `sh_${r}_8`, kind: 'input', ariaLabel: `株主${r}の株式の種類`, top: topB, left: CX.role, width: w(CX.role, CX.roleEnd), height: h, align: 'left' },
+    { field: `sh_${r}_8`, kind: 'input', readOnlyWhen: (g) => stockTypeNameOf(g(`sh_${r}_9`)) !== '', ariaLabel: `株主${r}の株式の種類（株式種類コードから自動表示）`, top: topB, left: CX.role, width: w(CX.role, CX.roleEnd), height: h, align: 'left' },
     { kind: 'cell', codeLabel: c.votes, top: topB, left: CX.numCode1, width: w(CX.numCode1, CX.numCode1End), height: h },
     { field: `sh_${r}_5`, kind: 'input', commaInteger: true, top: topB, left: CX.num1, width: w(CX.num1, CX.num1End), height: h, align: 'right' },
     { kind: 'cell', codeLabel: c.ratio, top: topB, left: CX.numCode2, width: w(CX.numCode2, CX.numCode2End), height: h },
@@ -650,6 +655,12 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
       const isOther = kind === '2' ? code === '18' : code === '16';
       return isOther ? (stored || standardName) : standardName;
     }
+    // 株式種類名称欄: G欄のコード（1/2）に応じてE欄へ標準名称を自動表示する。
+    const stockTypeNameMatch = /^sh_(\d+)_8$/.exec(f);
+    if (stockTypeNameMatch) {
+      const standardName = stockTypeNameOf(getField(T, `sh_${stockTypeNameMatch[1]}_9`));
+      return standardName || getField(T, f);
+    }
     if (f === '①') return sumShareholderVotes();
     if (f === '②') return percentage('①', true);
     if (f === '④') return percentage('③', true);
@@ -660,6 +671,8 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
     // コードを選び直したら名称欄の上書きをクリアし、標準名称の自動表示に戻す
     const codeMatch = /^sh_(\d+)_(2|3)k$/.exec(f);
     if (codeMatch) updateField(T, `sh_${codeMatch[1]}_${codeMatch[2]}`, '');
+    const stockTypeCodeMatch = /^sh_(\d+)_9$/.exec(f);
+    if (stockTypeCodeMatch) updateField(T, `sh_${stockTypeCodeMatch[1]}_8`, '');
   };
 
   // 続紙の追加／削除（株主が5名を超える場合。続紙は1枚まで＝最大18名）
@@ -689,7 +702,7 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   } as const);
   const toolbar = (
     <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap' }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 3, marginRight: 8, cursor: 'pointer' }} title="持分の定めのある医療法人の出資を評価する場合にチェック（評価通達194-2）。類似業種比準は配当要素を除いた（Ⓒ/C＋Ⓓ/D）÷2で計算し、配当還元方式は適用しません">
+      <label style={{ display: 'flex', alignItems: 'center', gap: 3, marginRight: 8, padding: '1px 4px', borderRadius: 3, background: '#eaf6ff', cursor: 'pointer' }} title="持分の定めのある医療法人の出資を評価する場合にチェック（評価通達194-2）。類似業種比準は配当要素を除いた（Ⓒ/C＋Ⓓ/D）÷2で計算し、配当還元方式は適用しません">
         <input
           id="table1_1-medical"
           name="table1_1.medical"

@@ -42,7 +42,7 @@ function simBlock(d: number, cfg: BlockCfg): GridCell[] {
     { field: `${fp}gyo`, kind: 'input', readOnly: true, top: t(14.96), left: 27.96, width: 30.42, height: 2.73, align: 'left' },
     { kind: 'label', text: '業 種 目 番 号', top: t(14.96), left: 58.38, width: 11.48, height: 2.73 },
     { kind: 'cell', codeLabel: cfg.aCode === 'G02' ? 'G01' : 'G07', top: t(14.96), left: 69.86, width: 1.9, height: 2.73 },
-    { field: `${fp}gyonum`, kind: 'input', compactSelectedOption: true, ariaLabel: fp === 'r1' ? '類似業種番号1' : '類似業種番号2', top: t(14.96), left: 71.76, width: 21.07, height: 2.73, align: 'left' },
+    { field: `${fp}gyonum`, kind: 'input', calculationRequired: true, compactSelectedOption: true, ariaLabel: fp === 'r1' ? '類似業種番号1' : '類似業種番号2', top: t(14.96), left: 71.76, width: 21.07, height: 2.73, align: 'left' },
     // 類似業種の株価 ヘッダー
     { kind: 'label', text: '類　似　業　種　の　株　価', top: t(17.69), left: 11.72, width: 81.11, height: 2.0 },
     { kind: 'label', text: '課税時期の\n属する月', fontSize: 6.5, top: t(19.69), left: 11.72, width: 12.41, height: 2.65 },

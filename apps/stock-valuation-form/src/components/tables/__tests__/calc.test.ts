@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { TableId } from '@/types/form';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
-import { calcShareholderJudgment } from '../Table1_1Grid';
+import { calcShareholderJudgment, stockTypeNameOf } from '../Table1_1Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import { calcTable8 } from '../table8/Table8Grid';
@@ -14,7 +14,25 @@ const mkGetField = (data: Data) => (table: TableId, field: string): string => da
 // calcCompanySize は table1_2 にバインド済みの 1 引数 getter を取るため、専用ビルダーを使う
 const mkG1 = (fields: Record<string, string>) => (field: string): string => fields[field] ?? '';
 
+describe('stockTypeNameOf（第1表の1：株式種類コードから名称への連動）', () => {
+  it('G05等のコード1を普通株式、コード2を普通株式以外として表示する', () => {
+    expect(stockTypeNameOf('1')).toBe('普通株式');
+    expect(stockTypeNameOf('2')).toBe('普通株式以外');
+  });
+
+  it('未選択または不明なコードでは自動表示しない', () => {
+    expect(stockTypeNameOf('')).toBe('');
+    expect(stockTypeNameOf('9')).toBe('');
+  });
+});
+
 describe('calcCompanySize（第1表の2：会社規模＝Lの割合の判定／通達178）', () => {
+  it('G12の取引金額だけでも、選択した業種の㋕区分を判定する', () => {
+    expect(calcCompanySize(mkG1({ gyoshu: '卸売業', f24: '350000' })).txRank).toBe(2);
+    expect(calcCompanySize(mkG1({ gyoshu: '小売・サービス業', f24: '100000' })).txRank).toBe(1);
+    expect(calcCompanySize(mkG1({ gyoshu: 'その他', f24: '100000' })).txRank).toBe(1);
+  });
+
   it('大会社：継続従業員70人以上は無条件で大会社(4)', () => {
     const c = calcCompanySize(mkG1({ gyoshu: 'その他', f22: '100000', f24: '50000', emp_regular: '80' }));
     expect(c.result).toBe(4);

@@ -210,13 +210,13 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
     { kind: 'label', text: '人　　　　数', top: 36.5, left: 71.6, width: 18.93, height: 1.65 },
     { kind: 'label', text: '直前期末の総資産価額\n（帳簿価額）', fontSize: 7, top: 38.15, left: 11, width: 15.15, height: 5.41 },
     { kind: 'cell', codeLabel: 'G09', top: 38.15, left: 26.15, width: 1.89, height: 5.41 },
-    { field: 'f22', kind: 'input', ariaLabel: '直前期末の総資産価額', commaInteger: true, noLeadingZero: true, top: 38.15, left: 28.04, width: 18.94, height: 5.41 },
+    { field: 'f22', kind: 'input', ariaLabel: '直前期末の総資産価額', calculationRequired: true, commaInteger: true, noLeadingZero: true, top: 38.15, left: 28.04, width: 18.94, height: 5.41 },
     { kind: 'label', text: '直前期末以前１年間\nの取引金額', fontSize: 7, top: 43.56, left: 11, width: 15.15, height: 5.41 },
     { kind: 'cell', codeLabel: 'G12', top: 43.56, left: 26.15, width: 1.89, height: 5.41 },
-    { field: 'f24', kind: 'input', ariaLabel: '直前期末以前１年間の取引金額', commaInteger: true, noLeadingZero: true, top: 43.56, left: 28.04, width: 18.94, height: 5.41 },
+    { field: 'f24', kind: 'input', ariaLabel: '直前期末以前１年間の取引金額', calculationRequired: true, commaInteger: true, noLeadingZero: true, top: 43.56, left: 28.04, width: 18.94, height: 5.41 },
     { kind: 'label', text: '㋠　継続勤務従業員数', fontSize: 7, top: 38.15, left: 46.98, width: 24.62, height: 2.7, align: 'left' },
     { kind: 'cell', codeLabel: 'G10', top: 38.15, left: 71.6, width: 1.89, height: 2.7 },
-    { field: 'emp_regular', kind: 'input', ariaLabel: '継続勤務従業員数', top: 38.15, left: 73.49, width: 15.15, height: 2.7 },
+    { field: 'emp_regular', kind: 'input', ariaLabel: '継続勤務従業員数', calculationRequired: true, top: 38.15, left: 73.49, width: 15.15, height: 2.7 },
     { kind: 'label', text: '人', top: 38.15, left: 88.64, width: 1.89, height: 2.7 },
     { kind: 'label', text: '㋷　継続勤務従業員以外の従業員の\n労働時間の合計時間数', fontSize: 6.5, top: 40.85, left: 46.98, width: 24.62, height: 2.71, align: 'left' },
     { kind: 'cell', codeLabel: 'G11', top: 40.85, left: 71.6, width: 1.89, height: 2.71 },
@@ -327,10 +327,11 @@ export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
   const u = (f: string, v: string) => updateField(T, f, v);
+  const needsIndustryForSizeJudgment = raw('gyoshu') === '' && (raw('f22') !== '' || raw('f24') !== '');
   const toolbar = (
-    <label className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap' }}>
+    <label className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap', color: '#000' }}>
       業種区分：
-      <select id="table1_2-gyoshu-toolbar" name="table1_2.gyoshu" value={g('gyoshu')} onChange={(e) => u('gyoshu', e.target.value)} style={{ fontSize: 11, padding: '1px 2px' }}>
+      <select id="table1_2-gyoshu-toolbar" name="table1_2.gyoshu" aria-required="true" aria-invalid={needsIndustryForSizeJudgment || undefined} value={g('gyoshu')} onChange={(e) => u('gyoshu', e.target.value)} style={{ fontSize: 11, padding: '1px 2px', background: '#eaf6ff' }}>
         <option value="">選択してください</option>
         <option value="卸売業">卸売業</option>
         <option value="小売・サービス業">小売・サービス業</option>
