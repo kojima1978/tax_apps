@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from 'react';
-import { Download, FileJson, Settings, FilePlus2, Loader2, Info } from 'lucide-react';
+import { Download, FileJson, Settings, FilePlus2, Loader2, Info, MoreHorizontal, ChevronRight } from 'lucide-react';
 import { StepNavigation } from '@/components/StepNavigation';
 import { scrollToCategory } from '@/components/CategoryNav';
 import type { Asset } from '@/types';
@@ -75,35 +75,42 @@ export function ResultStep({
           <button
             onClick={handleExcelExport}
             disabled={excelLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+            className="flex min-h-11 items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {excelLoading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
             {excelLoading ? '出力中...' : 'Excel出力'}
           </button>
-          <button
-            onClick={onExportJson}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
-          >
-            <FileJson size={16} /> 案件JSON保存
-          </button>
-          <button
-            onClick={onExportPresets}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
-          >
-            <Settings size={16} /> マッピングJSON出力
-          </button>
+          <details className="relative">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 transition-colors hover:bg-gray-50">
+              <MoreHorizontal size={17} aria-hidden="true" /> その他の出力
+            </summary>
+            <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
+              <button
+                onClick={onExportJson}
+                className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-50"
+              >
+                <FileJson size={16} aria-hidden="true" /> 保存用の案件ファイル
+              </button>
+              <button
+                onClick={onExportPresets}
+                className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-50"
+              >
+                <Settings size={16} aria-hidden="true" /> マッピング設定ファイル
+              </button>
+            </div>
+          </details>
         </div>
       </div>
 
       {/* 印刷設定はライブラリ側で出力できないため、手順を案内する */}
-      <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-md px-3 py-2 text-xs text-blue-900">
-        <Info size={14} className="shrink-0 mt-0.5" />
-        <span>
-          印刷する場合は、Excelで開いた後に［ページレイアウト］→［印刷の向き: 横］、
-          ［拡大縮小: すべての列を1ページに印刷］を指定してください
-          （出力ライブラリの制約により、印刷設定はファイルに含まれません）。
-        </span>
-      </div>
+      <details className="rounded-md border border-blue-200 bg-blue-50 text-xs text-blue-900">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-2 font-medium">
+          <Info size={15} className="shrink-0" aria-hidden="true" /> Excelを印刷するときの設定
+        </summary>
+        <p className="border-t border-blue-200 px-3 py-3 leading-relaxed">
+          Excelで開いた後に［ページレイアウト］→［印刷の向き: 横］、［拡大縮小: すべての列を1ページに印刷］を指定してください。
+        </p>
+      </details>
 
       {/* サマリー */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -140,11 +147,12 @@ export function ResultStep({
               <button
                 key={label}
                 onClick={() => scrollToCategory(label)}
-                className="w-full flex justify-between items-center gap-3 text-sm px-2 py-1 -mx-2 rounded hover:bg-green-50 cursor-pointer transition-colors"
+                className="w-full flex min-h-11 justify-between items-center gap-3 text-sm px-2 py-2 -mx-2 rounded hover:bg-green-50 cursor-pointer transition-colors"
                 title={`${label} へ移動`}
               >
-                <span className="text-gray-600 flex items-center gap-2 text-left">
-                  {label}（{catAssets.length}件）
+                <span className="min-w-0 text-gray-600 flex items-center gap-2 text-left">
+                  <ChevronRight size={15} className="shrink-0 text-green-600" aria-hidden="true" />
+                  <span className="break-words">{label}（{catAssets.length}件）</span>
                   {within3 > 0 && (
                     <span className="px-1 rounded bg-yellow-100 border border-yellow-300 text-yellow-800 text-[10px]">
                       3年以内 {within3}件

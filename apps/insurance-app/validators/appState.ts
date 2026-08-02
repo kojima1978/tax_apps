@@ -1,6 +1,7 @@
 import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, PolicyType } from '@/types';
 import { getBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
+import { isValidLogoDataUrl } from '@/lib/agencyLogo';
 
 const VALID_POLICY_TYPES: PolicyType[] = DISPLAY_POLICY_TYPES;
 const VALID_GENDERS = ['male', 'female'] as const;
@@ -59,6 +60,13 @@ export function validateAppState(body: unknown): ValidationResult {
     if (typeof a.name !== 'string') errors.push({ field: 'agency.name', message: 'name は文字列が必要です' });
     if (typeof a.representative !== 'string') errors.push({ field: 'agency.representative', message: 'representative は文字列が必要です' });
     if (typeof a.phone !== 'string') errors.push({ field: 'agency.phone', message: 'phone は文字列が必要です' });
+    // ロゴは data URL 形式・サイズ上限内のみ受け付ける（DBとJSONエクスポートの肥大化防止）
+    if (a.logoDataUrl !== undefined && a.logoDataUrl !== '' && (typeof a.logoDataUrl !== 'string' || !isValidLogoDataUrl(a.logoDataUrl))) {
+      errors.push({ field: 'agency.logoDataUrl', message: 'ロゴ画像の形式またはサイズが不正です' });
+    }
+    if (a.printLogo !== undefined && typeof a.printLogo !== 'boolean') {
+      errors.push({ field: 'agency.printLogo', message: 'printLogo は真偽値が必要です' });
+    }
   }
 
   if (data.valuationSettings !== undefined) {

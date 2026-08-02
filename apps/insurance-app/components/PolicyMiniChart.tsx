@@ -12,7 +12,8 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import { isIncomeProtectionPolicyType, type Policy } from '@/types';
+import { isIncomeProtectionPolicyType, type Policy, type SurrenderValuePoint } from '@/types';
+import { formatWholeManYen } from '@/utils/currencyUtils';
 import {
   INSURANCE_TYPE_INFO,
   calculateProjectedTotalPremiums,
@@ -41,6 +42,47 @@ const SERIES_LABELS: Record<string, string> = {
   payout: '年金受取額',
 };
 
+// 解約返戻金を「入力範囲内（実線）」と「範囲外の推定（点線）」の2系列に分ける。
+// 契約〜最初の入力点は0からの補間、最後の入力点以降は横ばいという仮定の部分を実データと区別するため
+function buildSurrenderSeries(
+  policy: Policy,
+  age: number,
+  points: SurrenderValuePoint[],
+): { surrender: number | null; surrenderEstimate: number | null } {
+  const surrenderYen = getSurrenderValueAtAge(policy, age);
+  if (surrenderYen === null) return { surrender: null, surrenderEstimate: null };
+
+  const manYen = surrenderYen / 10000;
+  const firstAge = points[0].age;
+  const lastAge = points[points.length - 1].age;
+  return {
+    surrender: age >= firstAge && age <= lastAge ? manYen : null,
+    // 境界の年齢は両系列に入れて実線と点線をつなぐ
+    surrenderEstimate: age <= firstAge || age >= lastAge ? manYen : null,
+  };
+}
+
+interface EnteredPointDotProps {
+  cx?: number;
+  cy?: number;
+  key?: React.Key | null;
+  payload?: { age?: number };
+}
+
+// 入力された年齢にだけドットを打ち、補間された年齢との区別をつける
+function createEnteredPointDot(points: SurrenderValuePoint[]) {
+  const enteredAges = new Set(points.map(point => point.age));
+  const EnteredPointDot = (props: EnteredPointDotProps) => {
+    const { cx, cy, key, payload } = props;
+    if (cx === undefined || cy === undefined || payload?.age === undefined || !enteredAges.has(payload.age)) {
+      return <g key={key} />;
+    }
+    return <circle key={key} cx={cx} cy={cy} r={2.5} fill={SURRENDER_COLOR} stroke="#fff" strokeWidth={1} />;
+  };
+  EnteredPointDot.displayName = 'EnteredPointDot';
+  return EnteredPointDot;
+}
+
 const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge }) => {
   const isPension = policy.policyType === '個人年金保険';
   const hasCoverage = policy.deathBenefitDisease > 0 || policy.hospDayDisease > 0;
@@ -55,9 +97,10 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
 
   const isHosp = policy.deathBenefitDisease <= 0 && policy.hospDayDisease > 0;
   const unit = isHosp ? '円/日' : '万円';
-  // 入院日額のグラフとは単位が違うため、返戻金ラインは万円軸のときだけ重ねる
-  const showSurrender = surrenderPoints.length > 0 && !isHosp;
-  const breakEvenAge = showSurrender ? getSurrenderBreakEvenAge(policy) : null;
+  const showSurrender = surrenderPoints.length > 0;
+  // 入院日額とは単位が違うので、返戻金は右側の第2軸（万円）に描く
+  const surrenderAxisId = isHosp ? 'right' : 'left';
+  const breakEvenAge = showSurrender ? getSurrenderBreakEvenAge(policy, currentAge) : null;
 
   const startAge = currentAge;
   const baseEndAge = policy.policyEndAge === 999 ? Math.max(90, currentAge + 20) : Math.max(policy.policyEndAge + 5, currentAge + 5);
@@ -76,16 +119,23 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
       value = policy.hospDayDisease;
     }
 
-    const surrenderYen = showSurrender ? getSurrenderValueAtAge(policy, age) : null;
+    const { surrender, surrenderEstimate } = showSurrender
+      ? buildSurrenderSeries(policy, age, surrenderPoints)
+      : { surrender: null, surrenderEstimate: null };
 
     data.push({
       age,
       value,
-      surrender: surrenderYen === null ? null : surrenderYen / 10000,
-      paid: showSurrender && surrenderYen !== null ? getCumulativePremiumsAtAge(policy, age) / 10000 : null,
+      surrender,
+      surrenderEstimate,
+      paid: showSurrender && (surrender !== null || surrenderEstimate !== null)
+        ? getCumulativePremiumsAtAge(policy, age, currentAge) / 10000
+        : null,
     });
   }
 
+  const hasEstimatedRange = data.some(point => point.surrenderEstimate !== null && point.surrender === null);
+  const renderEnteredDot = createEnteredPointDot(surrenderPoints);
   const areaType = isIncomeProtectionPolicyType(policy.policyType) ? 'linear' : 'stepAfter';
 
   return (
@@ -99,19 +149,34 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
             label={{ value: '年齢', position: 'insideBottomRight', offset: -5, fontSize: 11 }}
           />
           <YAxis
+            yAxisId="left"
             tick={{ fontSize: 11 }}
             tickFormatter={(v) => Number(v).toLocaleString()}
             width={55}
             label={{ value: unit, angle: -90, position: 'insideLeft', offset: 5, fontSize: 11 }}
           />
+          {isHosp && showSurrender && (
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tick={{ fontSize: 11 }}
+              tickFormatter={(v) => Number(v).toLocaleString()}
+              width={55}
+              label={{ value: '万円', angle: 90, position: 'insideRight', offset: 5, fontSize: 11 }}
+            />
+          )}
          <Tooltip
   formatter={(value, name) => [
-    `${Number(value ?? 0).toLocaleString()}${unit}`,
+    // 入院日額だけは円/日。それ以外は万円系列なので億/万円に丸めて要約表示
+    isHosp && name === '保障額'
+      ? `${Number(value ?? 0).toLocaleString()}${unit}`
+      : formatWholeManYen(Number(value ?? 0) * 10000),
     SERIES_LABELS[String(name)] ?? String(name),
   ]}
   labelFormatter={(label) => `${label}歳`}
 />
           <Area
+            yAxisId="left"
             type={areaType}
             dataKey="value"
             name="保障額"
@@ -122,6 +187,7 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
           {showSurrender && (
             <>
               <Line
+                yAxisId={surrenderAxisId}
                 type="linear"
                 dataKey="paid"
                 name="払込累計"
@@ -133,18 +199,32 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
                 isAnimationActive={false}
               />
               <Line
+                yAxisId={surrenderAxisId}
+                type="linear"
+                dataKey="surrenderEstimate"
+                name="解約返戻金（推定）"
+                stroke={SURRENDER_COLOR}
+                strokeWidth={2}
+                strokeDasharray="3 3"
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+              <Line
+                yAxisId={surrenderAxisId}
                 type="linear"
                 dataKey="surrender"
                 name="解約返戻金"
                 stroke={SURRENDER_COLOR}
                 strokeWidth={2}
-                dot={false}
+                dot={renderEnteredDot}
                 connectNulls
                 isAnimationActive={false}
               />
             </>
           )}
           <ReferenceLine
+            yAxisId="left"
             x={currentAge}
             stroke="#e53e3e"
             strokeWidth={2}
@@ -152,6 +232,7 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
           />
           {policy.paymentEndAge !== 999 && (
             <ReferenceLine
+              yAxisId="left"
               x={policy.paymentEndAge}
               stroke="#38a169"
               strokeWidth={1}
@@ -175,7 +256,7 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
           <>
             <span className="mini-chart-legend-item">
               <span className="mini-chart-legend-line is-solid" style={{ borderColor: SURRENDER_COLOR }} />
-              解約返戻金
+              解約返戻金{isHosp ? '（右軸・万円）' : ''}
             </span>
             <span className="mini-chart-legend-item">
               <span className="mini-chart-legend-line" style={{ borderColor: PAID_COLOR }} />
@@ -183,6 +264,9 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
             </span>
             {breakEvenAge !== null && (
               <span className="mini-chart-legend-item">損益分岐: {breakEvenAge}歳</span>
+            )}
+            {hasEstimatedRange && (
+              <span className="mini-chart-legend-note">点線・ドットなしの区間は入力値からの推定</span>
             )}
           </>
         )}
@@ -209,7 +293,8 @@ const PensionMiniChart: React.FC<{
   const projectedTotalPremiums = calculateProjectedTotalPremiums(policy);
   const surrenderPoints = getSurrenderValues(policy);
   const showSurrender = surrenderPoints.length > 0;
-  const breakEvenAge = showSurrender ? getSurrenderBreakEvenAge(policy) : null;
+  const breakEvenAge = showSurrender ? getSurrenderBreakEvenAge(policy, currentAge) : null;
+  const renderEnteredDot = createEnteredPointDot(surrenderPoints);
 
   const data = [];
   for (let age = startAge; age <= chartEndAge; age++) {
@@ -231,15 +316,20 @@ const PensionMiniChart: React.FC<{
       payout = 0;
     }
 
-    const surrenderYen = showSurrender ? getSurrenderValueAtAge(policy, age) : null;
+    const { surrender, surrenderEstimate } = showSurrender
+      ? buildSurrenderSeries(policy, age, surrenderPoints)
+      : { surrender: null, surrenderEstimate: null };
 
     data.push({
       age,
       accumulation,
       payout,
-      surrender: surrenderYen === null ? null : surrenderYen / 10000,
+      surrender,
+      surrenderEstimate,
     });
   }
+
+  const hasEstimatedRange = data.some(point => point.surrenderEstimate !== null && point.surrender === null);
 
   return (
     <div className="mini-chart-container">
@@ -259,7 +349,7 @@ const PensionMiniChart: React.FC<{
           />
           <Tooltip
   formatter={(value, name) => [
-    `${Number(value ?? 0).toLocaleString()}万円`,
+    formatWholeManYen(Number(value ?? 0) * 10000),
     SERIES_LABELS[String(name)] ?? String(name),
   ]}
   labelFormatter={(label) => `${label}歳`}
@@ -283,16 +373,29 @@ const PensionMiniChart: React.FC<{
             strokeWidth={2}
           />
           {showSurrender && (
-            <Line
-              type="linear"
-              dataKey="surrender"
-              name="解約返戻金"
-              stroke={SURRENDER_COLOR}
-              strokeWidth={2}
-              dot={false}
-              connectNulls
-              isAnimationActive={false}
-            />
+            <>
+              <Line
+                type="linear"
+                dataKey="surrenderEstimate"
+                name="解約返戻金（推定）"
+                stroke={SURRENDER_COLOR}
+                strokeWidth={2}
+                strokeDasharray="3 3"
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+              <Line
+                type="linear"
+                dataKey="surrender"
+                name="解約返戻金"
+                stroke={SURRENDER_COLOR}
+                strokeWidth={2}
+                dot={renderEnteredDot}
+                connectNulls
+                isAnimationActive={false}
+              />
+            </>
           )}
           <ReferenceLine
             x={currentAge}
@@ -325,6 +428,9 @@ const PensionMiniChart: React.FC<{
             </span>
             {breakEvenAge !== null && (
               <span className="mini-chart-legend-item">損益分岐: {breakEvenAge}歳</span>
+            )}
+            {hasEstimatedRange && (
+              <span className="mini-chart-legend-note">点線・ドットなしの区間は入力値からの推定</span>
             )}
           </>
         )}

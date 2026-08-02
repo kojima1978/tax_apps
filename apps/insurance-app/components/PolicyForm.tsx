@@ -11,6 +11,7 @@ import { DEFAULT_POLICY_PROMPT, LEGACY_DEFAULT_POLICY_PROMPTS, normalizePromptTe
 import { CommaInput, CommaInputRaw } from './CommaInput';
 import SurrenderValueEditor from './SurrenderValueEditor';
 import { applyValuationRateToPolicy, derivePaymentExchangeRate } from '@/utils/currencyUtils';
+import { getCumulativePremiumsAtAge, type PremiumSchedule } from '@/utils/analysisUtils';
 import { getBeneficiaryAllocations, normalizeBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
 
 interface PolicyFormProps {
@@ -61,6 +62,8 @@ const DEATH_BENEFIT_TYPES: PolicyType[] = ['終身保険', '定期保険', '収�
 const MEDICAL_BENEFIT_TYPES: PolicyType[] = ['医療保険', 'がん保険'];
 const DIAGNOSIS_BENEFIT_TYPES: PolicyType[] = ['医療保険', 'がん保険'];
 const MATURITY_BENEFIT_TYPES: PolicyType[] = ['終身保険', '変額終身保険', '養老保険'];
+// 解約返戻金の有無は満期保険金の有無とは別。低解約返戻金型の医療保険・がん保険にも返戻金がある
+const SURRENDER_VALUE_TYPES: PolicyType[] = [...MATURITY_BENEFIT_TYPES, '医療保険', 'がん保険'];
 const BENEFICIARY_TYPES: PolicyType[] = [...DEATH_BENEFIT_TYPES];
 const FINITE_END_AGE_TYPES: PolicyType[] = ['定期保険', '収入保障保険', '養老保険'];
 const WHOLE_LIFE_COVERAGE_TYPES: PolicyType[] = ['終身保険', '変額終身保険'];
@@ -687,6 +690,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     const hasMedicalBenefit = MEDICAL_BENEFIT_TYPES.includes(policyType);
     const hasDiagnosisBenefit = DIAGNOSIS_BENEFIT_TYPES.includes(policyType);
     const hasMaturityBenefit = isPensionImport || MATURITY_BENEFIT_TYPES.includes(policyType);
+    const hasSurrenderValues = isPensionImport || SURRENDER_VALUE_TYPES.includes(policyType);
     const hasAccidentDeathBenefit = hasDeathBenefit && !isIncomeProtectionPolicyType(policyType);
     const importContractAge = parseImportNum(json.contractAge);
 
@@ -728,7 +732,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       maturityBenefit: hasMaturityBenefit
         ? (currency === 'USD' && foreignMaturityBenefit > 0 ? yenFromForeign(foreignMaturityBenefit, exchangeRate) : parseImportNum(json.maturityBenefit))
         : 0,
-      surrenderValues: hasMaturityBenefit
+      surrenderValues: hasSurrenderValues
         ? parseImportSurrenderValues(json.surrenderValues, importContractAge, currency, exchangeRate)
         : undefined,
       consultantNote: json.consultantNote ? String(json.consultantNote).trim() : undefined,
@@ -1151,6 +1155,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       const hasMedicalBenefit = MEDICAL_BENEFIT_TYPES.includes(policyType);
       const hasDiagnosisBenefit = DIAGNOSIS_BENEFIT_TYPES.includes(policyType);
       const hasMaturityBenefit = policyType === '個人年金保険' || MATURITY_BENEFIT_TYPES.includes(policyType);
+      const hasSurrenderValues = policyType === '個人年金保険' || SURRENDER_VALUE_TYPES.includes(policyType);
       const hasBeneficiary = BENEFICIARY_TYPES.includes(policyType);
       const isIncomeProtectionType = isIncomeProtectionPolicyType(policyType);
 
@@ -1210,6 +1215,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       if (!hasMaturityBenefit) {
         next.maturityBenefit = 0;
         next.foreignMaturityBenefit = 0;
+      }
+
+      if (!hasSurrenderValues) {
         next.surrenderValues = [];
       }
 
@@ -1292,6 +1300,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
   const hasMedicalBenefitFields = MEDICAL_BENEFIT_TYPES.includes(selectedPolicyType);
   const hasDiagnosisBenefitFields = DIAGNOSIS_BENEFIT_TYPES.includes(selectedPolicyType);
   const hasMaturityBenefitField = isPension || MATURITY_BENEFIT_TYPES.includes(selectedPolicyType);
+  const hasSurrenderValueField = isPension || SURRENDER_VALUE_TYPES.includes(selectedPolicyType);
   const hasBeneficiaryField = BENEFICIARY_TYPES.includes(selectedPolicyType);
   const hasAccidentDeathBenefitField = hasDeathBenefitFields && !isIncomeProtection;
   const isWholeLifeCoverage = WHOLE_LIFE_COVERAGE_TYPES.includes(selectedPolicyType);
@@ -1346,20 +1355,40 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     return calcAgeAt(member?.birthDate || '', new Date().toISOString().split('T')[0]);
   }, [allVisibleMembers, formData.insuredId]);
 
-  // 返戻率の目安に使う払込累計（年額ベースの概算）
-  const paidAtAge = useMemo(() => (age: number) => {
-    const contractAge = Number(formData.contractAge || 0);
-    if (age < contractAge) return 0;
-    const premium = Number(formData.premiumAmount || 0);
-    if (formData.paymentFrequency === 'single') return premium;
-    const annual = formData.paymentFrequency === 'monthly' ? premium * 12 : premium;
-    const elapsedYears = age - contractAge;
-    const endAge = Number(formData.paymentEndAge || 0);
-    const paymentYears = endAge === 999 ? elapsedYears : Math.min(elapsedYears, Math.max(0, endAge - contractAge));
-    return Math.round(annual * paymentYears);
-  }, [formData.contractAge, formData.premiumAmount, formData.paymentFrequency, formData.paymentEndAge]);
+  // 返戻率の基準に使う払込累計。分析カード・グラフ・損益分岐と同じ計算を共有する
+  const { paidAtAge, foreignPaidAtAge } = useMemo(() => {
+    const paymentFrequency = formData.paymentFrequency || 'monthly';
+    const cumulativeAtAge = (premiumAmount: number) => {
+      const schedule: PremiumSchedule = {
+        contractDate: formData.contractDate || '',
+        contractAge: Number(formData.contractAge || 0),
+        paymentFrequency,
+        premiumAmount,
+        paymentEndAge: Number(formData.paymentEndAge || 0),
+        premiumPaymentCompleted: formData.premiumPaymentCompleted,
+        annualPremium: paymentFrequency === 'monthly' ? premiumAmount * 12 : premiumAmount,
+      };
+      return (age: number) => getCumulativePremiumsAtAge(schedule, age, insuredCurrentAge ?? undefined);
+    };
+    const yen = cumulativeAtAge(Number(formData.premiumAmount || 0));
+    // 設計書の返戻率はドル基準なので、外貨建てはドルの払込累計を分母にする
+    const foreign = cumulativeAtAge(Number(formData.foreignPremiumAmount || 0));
+    return {
+      paidAtAge: (age: number) => Math.round(yen(age)),
+      foreignPaidAtAge: (age: number) => Math.round(foreign(age) * 100) / 100,
+    };
+  }, [
+    formData.contractDate,
+    formData.contractAge,
+    formData.premiumAmount,
+    formData.foreignPremiumAmount,
+    formData.paymentFrequency,
+    formData.paymentEndAge,
+    formData.premiumPaymentCompleted,
+    insuredCurrentAge,
+  ]);
 
-  const surrenderEditor = hasMaturityBenefitField ? (
+  const surrenderEditor = hasSurrenderValueField ? (
     <SurrenderValueEditor
       points={surrenderValues}
       onChange={setSurrenderValues}
@@ -1370,6 +1399,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
       policyEndAge={Number(formData.policyEndAge || 0)}
       currentAge={insuredCurrentAge}
       paidAtAge={paidAtAge}
+      foreignPaidAtAge={foreignPaidAtAge}
     />
   ) : null;
 
@@ -1531,6 +1561,8 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     if (!hasMaturityBenefitField) {
       finalPolicy.maturityBenefit = 0;
       finalPolicy.foreignMaturityBenefit = 0;
+    }
+    if (!hasSurrenderValueField) {
       finalPolicy.surrenderValues = undefined;
     } else {
       finalPolicy.surrenderValues = normalizeSurrenderValues(finalPolicy.surrenderValues);
@@ -1871,7 +1903,7 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                         onClick={() => removeBeneficiaryAllocation(index)}
                         aria-label={`${index + 1}人目の受取人を削除`}
                       >
-                        <Trash2 size={16} aria-hidden="true" />
+                        <Trash2 size={14} aria-hidden="true" />
                       </button>
                     </div>
                   ))}
@@ -2031,7 +2063,9 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
                   <span>
                     {hasDeathBenefitFields && '死亡保障額・受取人を入力します。'}
                     {hasMedicalBenefitFields && '入院日額・診断一時金を入力します。'}
-                    {hasMaturityBenefitField && '満期保険金や解約返戻金の目安も入力できます。'}
+                    {hasMaturityBenefitField
+                      ? '満期保険金や解約返戻金の目安も入力できます。'
+                      : hasSurrenderValueField && '解約返戻金がある場合は年齢別の目安を入力できます。'}
                   </span>
                 </div>
                 {hasDeathBenefitFields && (

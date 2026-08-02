@@ -73,43 +73,49 @@ export function DataEditStep({
       </h2>
 
       {/* 凡例・件数 */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 bg-white rounded-md border border-gray-200 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-gray-600 bg-white rounded-md border border-gray-200 px-4 py-3">
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded" />
           3年以内取得
         </span>
-        <span className="text-gray-400">|</span>
+        <span className="hidden text-gray-400 sm:inline">|</span>
         <span>全 <strong>{assets.length}</strong> 件</span>
-        <span className="text-gray-400">|</span>
+        <span className="hidden text-gray-400 sm:inline">|</span>
         <span>課税時期 <strong>{formatDate(taxDate)}</strong></span>
-        <span className="text-gray-400">|</span>
-        <span className="flex items-center gap-1 text-xs text-gray-500">
+        <span className="hidden text-gray-400 md:inline">|</span>
+        <span className="hidden items-center gap-1 text-xs text-gray-500 md:flex">
           <GripVertical size={13} className="text-gray-400" />
           行頭をドラッグ、または ↑↓ キーでカテゴリ内の並べ替え
         </span>
-        <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer ml-auto">
+        <label className="flex min-h-11 w-full items-center gap-2 rounded-md bg-gray-50 px-3 text-sm text-gray-700 cursor-pointer md:ml-auto md:w-auto md:bg-transparent md:px-0 md:text-xs">
           <input
             type="checkbox"
             checked={showDetail}
             onChange={(e) => setShowDetail(e.target.checked)}
-            className="rounded cursor-pointer"
+            className="h-5 w-5 rounded cursor-pointer md:h-4 md:w-4"
           />
           詳細列（経過年数・償却額・評価根拠）
         </label>
       </div>
 
       {/* カテゴリ順の操作（Undo・標準に戻す・プリセット） */}
-      <CategoryOrderBar
-        currentOrder={navGroups.map(([label]) => label)}
-        orderPresets={orderPresets}
-        onApplyOrder={onApplyCategoryOrder}
-        onSavePreset={onSaveOrderPreset}
-        onDeletePreset={onDeleteOrderPreset}
-        onUndoOrder={onUndoOrder}
-        canUndoOrder={canUndoOrder}
-        onResetCategoryOrder={onResetCategoryOrder}
-        isCustomCategoryOrder={isCustomCategoryOrder}
-      />
+      <div className="hidden md:block">
+        <CategoryOrderBar
+          currentOrder={navGroups.map(([label]) => label)}
+          orderPresets={orderPresets}
+          onApplyOrder={onApplyCategoryOrder}
+          onSavePreset={onSaveOrderPreset}
+          onDeletePreset={onDeleteOrderPreset}
+          onUndoOrder={onUndoOrder}
+          canUndoOrder={canUndoOrder}
+          onResetCategoryOrder={onResetCategoryOrder}
+          isCustomCategoryOrder={isCustomCategoryOrder}
+        />
+      </div>
+
+      <p className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-900 md:hidden">
+        各資産の「編集」を押すと入力項目が開きます。カテゴリ順や一括設定は、カテゴリ見出し内の設定から変更できます。
+      </p>
 
       {/* カテゴリ間ナビゲーション */}
       <CategoryNav groups={navGroups} />

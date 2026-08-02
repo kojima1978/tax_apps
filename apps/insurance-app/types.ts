@@ -110,6 +110,10 @@ export interface Agency {
   name: string;
   representative: string;
   phone: string;
+  // ロゴ画像（data URL）。未登録なら印刷表紙にロゴを出さない
+  logoDataUrl?: string;
+  // 印刷表紙にロゴを載せるか（未指定は載せる）
+  printLogo?: boolean;
 }
 
 export interface AgencyMaster {
@@ -117,6 +121,7 @@ export interface AgencyMaster {
   name: string;
   representative: string;
   phone: string;
+  logoDataUrl?: string;
 }
 
 export interface ValuationSettings {

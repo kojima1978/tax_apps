@@ -308,6 +308,13 @@ export default function Page() {
   };
 
   const self = familyMembers.find(m => m.relationship === "本人") || familyMembers[0];
+
+  useEffect(() => {
+    const context = activeCaseId
+      ? (self?.name ? `${self.name} 様` : 'お客様詳細')
+      : 'お客様一覧';
+    document.title = `保険証券分析・診断｜${context}`;
+  }, [activeCaseId, self?.name]);
   const displayAge = self ? calculateAge(self.birthDate) : null;
   const hasKnownCurrentAge = displayAge !== null;
   const birthDateLabel = self?.birthDate || '生年月日未入力';

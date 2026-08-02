@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2, Home, Upload } from 'lucide-react';
+import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2, Home, Upload, DatabaseBackup, ChevronDown, ChevronRight } from 'lucide-react';
 import AgencyMasterModal from '@/components/AgencyMasterModal';
 import { fetchCases, createCase, deleteCase, restoreJsonAppState } from '@/lib/api';
 import type { CaseSummary } from '@/lib/api';
@@ -51,7 +51,6 @@ export default function CaseListPage({ onSelect }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showAgencyMaster, setShowAgencyMaster] = useState(false);
   const [isRestoringJson, setIsRestoringJson] = useState(false);
-  const [isJsonDragOver, setIsJsonDragOver] = useState(false);
   const restoreJsonInputRef = useRef<HTMLInputElement>(null);
 
   // 初期値が isLoading=true / error=null なので、取得と反映だけを行う
@@ -120,13 +119,6 @@ export default function CaseListPage({ onSelect }: Props) {
     await restoreJsonFile(file);
   };
 
-  const handleJsonDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsJsonDragOver(false);
-    if (isRestoringJson) return;
-    void restoreJsonFile(e.dataTransfer.files[0] ?? null);
-  }, [isRestoringJson, restoreJsonFile]);
-
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
     const label = name || '(未入力)';
@@ -193,7 +185,7 @@ export default function CaseListPage({ onSelect }: Props) {
             <a href="/" className="back-to-list-btn" title="ポータルに戻る">
               <Home size={20} />
             </a>
-            保険証券分析・診断ダッシュボード
+            お客様一覧
           </h1>
           <p className="case-list-subtitle">
             お客様を選択してください
@@ -201,6 +193,30 @@ export default function CaseListPage({ onSelect }: Props) {
           </p>
         </div>
         <div className="case-list-actions">
+          <details className="case-data-menu">
+            <summary className="case-agency-btn">
+              <DatabaseBackup size={18} aria-hidden="true" />
+              データ管理
+              <ChevronDown size={14} className="case-data-menu-chevron" aria-hidden="true" />
+            </summary>
+            <div className="case-data-menu-popover">
+              <button
+                type="button"
+                className="case-data-menu-item"
+                onClick={(event) => {
+                  restoreJsonInputRef.current?.click();
+                  event.currentTarget.closest('details')?.removeAttribute('open');
+                }}
+                disabled={isRestoringJson}
+              >
+                <Upload size={18} aria-hidden="true" />
+                <span>
+                  <strong>{isRestoringJson ? 'バックアップを復元中...' : 'バックアップを復元'}</strong>
+                  <small>JSONバックアップからお客様を追加</small>
+                </span>
+              </button>
+            </div>
+          </details>
           <button className="case-agency-btn" onClick={() => setShowAgencyMaster(true)}>
             <Building2 size={18} /> 代理店管理
           </button>
@@ -216,44 +232,6 @@ export default function CaseListPage({ onSelect }: Props) {
           <button onClick={() => setError(null)} className="error-close-btn">&times;</button>
         </div>
       )}
-
-      <details className="case-import-panel">
-        <summary>
-          <Upload size={18} aria-hidden="true" />
-          <span className="case-import-summary-title">
-            {isRestoringJson ? 'JSON復元中...' : 'JSONから復元'}
-          </span>
-          <span className="case-import-summary-sub">バックアップファイルからお客様を追加</span>
-        </summary>
-        <div
-          className={`case-json-dropzone ${isJsonDragOver ? 'case-json-dropzone-active' : ''} ${isRestoringJson ? 'case-json-dropzone-disabled' : ''}`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            if (!isRestoringJson) setIsJsonDragOver(true);
-          }}
-          onDragLeave={() => setIsJsonDragOver(false)}
-          onDrop={handleJsonDrop}
-          onClick={() => !isRestoringJson && restoreJsonInputRef.current?.click()}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && !isRestoringJson) {
-              e.preventDefault();
-              restoreJsonInputRef.current?.click();
-            }
-          }}
-          aria-disabled={isRestoringJson}
-          aria-busy={isRestoringJson}
-        >
-          <Upload size={22} aria-hidden="true" />
-          <div>
-            <p className="case-json-dropzone-title">
-              {isRestoringJson ? 'JSON復元中...' : 'JSONファイルをドラッグ＆ドロップ'}
-            </p>
-            <p className="case-json-dropzone-sub">クリックしてファイル選択もできます</p>
-          </div>
-        </div>
-      </details>
 
       {!isLoading && cases.length > 0 && (
         <div className="case-search-bar">
@@ -291,7 +269,7 @@ export default function CaseListPage({ onSelect }: Props) {
             onClick={() => restoreJsonInputRef.current?.click()}
             disabled={isRestoringJson}
           >
-            <Upload size={18} /> JSONから復元
+            <Upload size={18} /> バックアップを復元
           </button>
         </div>
       ) : filteredSorted.length === 0 ? (
@@ -326,7 +304,7 @@ export default function CaseListPage({ onSelect }: Props) {
                     <span>最終更新</span> <SortIcon col="updated" sortKey={sortKey} sortDir={sortDir} />
                   </button>
                 </th>
-                <th className="case-th-actions"></th>
+                <th className="case-th-actions">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -364,6 +342,17 @@ export default function CaseListPage({ onSelect }: Props) {
                     </td>
                     <td className="case-updated-cell" data-label="最終更新">{formatDate(c.updatedAt)}</td>
                     <td className="case-td-actions" data-label="操作">
+                      <button
+                        type="button"
+                        className="case-row-open-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelect(c.id);
+                        }}
+                        aria-label={`${displayName}様を開く`}
+                      >
+                        開く <ChevronRight size={15} aria-hidden="true" />
+                      </button>
                       <button
                         type="button"
                         className="case-delete-btn"

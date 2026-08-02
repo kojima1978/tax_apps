@@ -45,6 +45,20 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
     return member ? `${member.relationship} (${member.name})` : '未設定';
   }, [familyMembers]);
 
+  // 一覧は1人1行で表示するので続柄・氏名・割合を分けて返す（列幅が狭いため氏名は小さく添える）
+  const getBeneficiaryEntries = useCallback((policy: Policy) => (
+    getBeneficiaryAllocations(policy).map(allocation => {
+      const member = familyMembers.find(m => m.id === allocation.beneficiaryId);
+      return {
+        id: allocation.beneficiaryId,
+        relationship: member?.relationship ?? '未設定',
+        name: member?.name ?? '',
+        percentage: allocation.percentage,
+      };
+    })
+  ), [familyMembers]);
+
+  // 検索用の平文（表示は getBeneficiaryEntries 側）
   const getBeneficiaryLabel = useCallback((policy: Policy) => {
     const allocations = getBeneficiaryAllocations(policy);
     if (allocations.length === 0) return '未設定';
@@ -61,9 +75,10 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
   };
   const totalDeathBenefit = policies.reduce((sum, p) => sum + (isIncomeProtection(p) ? getIncomeProtectionTotal(p) ?? 0 : p.deathBenefitDisease), 0);
   const totalHospDay = policies.reduce((sum, p) => sum + p.hospDayDisease, 0);
+  // 合計行を1行に収めるため、但し書きは表の下の脚注に出す（合計行に入れると幅が足りず折り返す）
   const monthlyBurdenTotalNote = currentAge === null
-    ? '一時払を除外。払込終了判定には生年月日が必要'
-    : '対象: 月払・年払（払込中）';
+    ? '現在月額負担計は月払・年払のみが対象です（一時払は除外）。払込終了の判定には被保険者の生年月日が必要です。'
+    : '現在月額負担計は月払・年払（払込中）のみが対象です（一時払は除外）。';
   const hasUsdPolicies = policies.some(policy => policy.currency === 'USD');
 
   const freqLabel = (f: string) => f === 'monthly' ? '月払' : f === 'annual' ? '年払' : '一時払';
@@ -120,7 +135,8 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
   const getPremiumMeta = (policy: Policy) => {
     if (policy.paymentFrequency === 'single') {
       if (policy.paymentCurrency === 'JPY' && policy.actualPremiumPaidJpy) {
-        return `一時払・実支払${policy.actualPremiumPaidJpy.toLocaleString()}円`;
+        // 一時払は桁が大きいので万円単位に丸める（正確な額は個別分析の左側に円単位で出る）
+        return `一時払・実支払${formatWholeManYen(policy.actualPremiumPaidJpy)}`;
       }
       return '一時払・月額負担対象外';
     }
@@ -267,6 +283,9 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
             const originalIndex = policies.indexOf(policy);
             const pensionPremiumMeta = getPensionPremiumMeta(policy);
             const isPension = policy.policyType === '個人年金保険';
+            const beneficiaryEntries = getBeneficiaryEntries(policy);
+            // 受取人が1人で100%なら割合は自明。省いた分を氏名の表示幅に回す
+            const showBeneficiaryShare = beneficiaryEntries.length > 1 || beneficiaryEntries.some(e => e.percentage !== 100);
             const statusBadges = getStatusBadges(policy);
             const [paymentFrequencyBadge, ...otherStatusBadges] = statusBadges;
             return (
@@ -298,16 +317,34 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
                 </button>
               </td>
               <td className="policy-info-cell" data-label="証券">
-                <strong>{policy.policyType}</strong>
-                <span>{policy.companyName}</span>
-                <small>{policy.policyNumber || '証券番号未登録'}</small>
+                <strong className="policy-title">{policy.policyType}</strong>
+                <span className="policy-company">{policy.companyName}</span>
+                <small className="policy-number">証券番号: {policy.policyNumber || '未登録'}</small>
               </td>
               <td data-label="死亡保障">{formatDeathBenefitCell(policy)}</td>
               <td data-label="入院日額">{policy.hospDayDisease > 0 ? formatPrimaryAmount(policy, policy.hospDayDisease, policy.foreignHospDayDisease) : '-'}</td>
               <td data-label="受取人">
-                {policy.policyType === '個人年金保険'
-                  ? getMemberName(policy.pensionRecipientId || policy.insuredId)
-                  : getBeneficiaryLabel(policy)}
+                {isPension && getMemberName(policy.pensionRecipientId || policy.insuredId)}
+                {!isPension && beneficiaryEntries.length === 0 && '未設定'}
+                {!isPension && beneficiaryEntries.length > 0 && (
+                  <div className="beneficiary-list">
+                    {beneficiaryEntries.map((entry, index) => (
+                      <div
+                        key={`${policy.id}-beneficiary-${index}`}
+                        className="beneficiary-line"
+                        title={`${entry.relationship}${entry.name ? ` (${entry.name})` : ''} ${entry.percentage.toLocaleString('ja-JP')}%`}
+                      >
+                        <span className="beneficiary-who">
+                          <span className="beneficiary-relationship">{entry.relationship}</span>
+                          {entry.name && <span className="beneficiary-name">{entry.name}</span>}
+                        </span>
+                        {showBeneficiaryShare && (
+                          <span className="beneficiary-share">{entry.percentage.toLocaleString('ja-JP')}%</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </td>
               <td data-label="保険料">
                 <div className={`premium-cell${isPension ? ' pension-premium-cell' : ''}`}>
@@ -345,8 +382,8 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
                 </div>
               </td>
               <td className="actions-cell" data-label="操作">
-                <button onClick={() => onEdit(policy)} className="edit-icon-btn" title="編集"><Edit2 size={16} /></button>
-                <button onClick={() => onDelete(policy.id)} className="delete-icon-btn" title="削除"><Trash size={16} /></button>
+                <button onClick={() => onEdit(policy)} className="edit-icon-btn" title="編集" aria-label={`${policy.policyType}を編集`}><Edit2 size={16} aria-hidden="true" /></button>
+                <button onClick={() => onDelete(policy.id)} className="delete-icon-btn" title="削除" aria-label={`${policy.policyType}を削除`}><Trash size={16} aria-hidden="true" /></button>
               </td>
             </tr>
           );
@@ -359,17 +396,13 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
             <td className="total-caption">合計</td>
             <td style={{ fontWeight: 700 }}>{formatDeathBenefitYen(totalDeathBenefit)}</td>
             <td style={{ fontWeight: 700 }}>{totalHospDay > 0 ? `${totalHospDay.toLocaleString()}円` : '-'}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>
-              <div className="total-label">
-                <strong>現在月額負担計</strong>
-                <span>{monthlyBurdenTotalNote}</span>
-              </div>
-            </td>
+            <td className="total-burden-label">現在月額負担計</td>
             <td style={{ fontWeight: 700 }}>{currentMonthlyBurden > 0 ? `${Math.round(currentMonthlyBurden).toLocaleString()}円/月` : '-'}</td>
             <td className="actions-cell"></td>
           </tr>
         </tfoot>
       </table>
+      <p className="policy-table-note">※ {monthlyBurdenTotalNote}</p>
     </div>
   );
 };

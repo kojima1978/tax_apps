@@ -357,21 +357,25 @@ h1 {
   display: block;
 }
 
-.policy-info-cell strong {
+.policy-info-cell strong,
+.policy-info-cell .policy-title {
   color: #0f172a;
-  font-size: 0.78rem;
+  font-size: 0.86rem;
+  font-weight: 800;
 }
 
-.policy-info-cell span {
-  margin-top: 0.12rem;
-  color: #334155;
-  font-weight: 600;
-}
-
-.policy-info-cell small {
+.policy-info-cell .policy-company {
   margin-top: 0.12rem;
   color: #64748b;
-  font-size: 0.67rem;
+  font-size: 0.71rem;
+  font-weight: 500;
+}
+
+.policy-info-cell .policy-number {
+  margin-top: 0.12rem;
+  color: #94a3b8;
+  font-size: 0.65rem;
+  font-weight: 500;
 }
 
 .policy-exchange-summary {
@@ -606,18 +610,60 @@ h1 {
   color: #b91c1c;
 }
 
-.total-label {
+/* 受取人は1人1行。列幅が狭いので氏名は小さめのグレーで添え、割合は右端に揃える */
+.beneficiary-list {
   display: flex;
   flex-direction: column;
-  gap: 0.12rem;
-  align-items: flex-end;
-  line-height: 1.25;
+  gap: 0.15rem;
 }
 
-.total-label span {
+.beneficiary-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.3rem;
+  line-height: 1.3;
+}
+
+.beneficiary-who {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.beneficiary-relationship {
+  flex-shrink: 0;
+}
+
+/* 氏名が長い行だけ「…」に畳む（全文は行の title で参照できる） */
+.beneficiary-name {
+  overflow: hidden;
   color: #64748b;
   font-size: 0.7rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.beneficiary-share {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 金額欄（保険料列）の直前なので右詰めで寄せる。スマホでは1列積みになるので左詰めに戻す */
+.total-burden-label {
+  text-align: right;
+  font-weight: 700;
+}
+
+/* 合計行の但し書き。合計行の中に入れると幅が足りず折り返すので表の下に置く */
+.policy-table-note {
+  margin: 0.5rem 0 0;
+  color: #64748b;
+  text-align: right;
+  font-size: 0.72rem;
   font-weight: 600;
+  line-height: 1.4;
 }
 
 .total-caption {
@@ -692,8 +738,10 @@ h1 {
   box-sizing: border-box;
 }
 
+/* 金額系は右詰め。外貨（小数2桁）の CommaInput は inputmode="decimal" になるので含める */
 .form-group input[type="number"],
-.form-group input[inputmode="numeric"] {
+.form-group input[inputmode="numeric"],
+.form-group input[inputmode="decimal"] {
   text-align: right;
   padding-right: 0.75rem;
 }
@@ -766,11 +814,14 @@ h1 {
   margin-bottom: 0.35rem;
 }
 
-.beneficiary-allocation-label {
+/* .form-group label（0.9rem）に詳細度で負けるため .form-group を付ける。
+   ラベルと「受取人を追加」を必ず1行に収めるので折り返しも禁止する */
+.form-group .beneficiary-allocation-label {
   color: #334155;
   font-size: 0.78rem;
   font-weight: 650;
   line-height: 1.3;
+  white-space: nowrap;
 }
 
 .beneficiary-add-button,
@@ -785,6 +836,7 @@ h1 {
 }
 
 .beneficiary-add-button {
+  flex-shrink: 0;
   gap: 0.2rem;
   min-height: 28px;
   padding: 0.2rem 0.45rem;
@@ -813,13 +865,25 @@ h1 {
   flex: 1;
 }
 
+/* 3桁（100）が入れば足りる。3人按分で出る 33.33 まで収まる幅 */
 .beneficiary-percentage-input {
   position: relative;
-  flex: 0 0 118px;
+  flex: 0 0 68px;
 }
 
-.beneficiary-percentage-input input {
-  padding-right: 2rem;
+/* .form-group input[type="number"] に詳細度で負けるため .form-group を付ける。
+   右の padding は絶対配置の「%」を避けるための余白。スピナーは使わないので消す */
+.form-group .beneficiary-percentage-input input {
+  padding-left: 0.3rem;
+  padding-right: 1.6rem;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.beneficiary-percentage-input input::-webkit-outer-spin-button,
+.beneficiary-percentage-input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .beneficiary-percentage-input span {
@@ -831,9 +895,11 @@ h1 {
   pointer-events: none;
 }
 
+/* 行の高さ（入力欄33px）に収まるサイズ。解約返戻金表の削除ボタンと大きさを揃える */
 .beneficiary-remove-button {
-  width: 40px;
-  height: 40px;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
   border-color: #fecaca;
   border-radius: 6px;
   background: #fff7f7;
@@ -2267,6 +2333,135 @@ h1 {
   border: 1px solid #fed7d7;
 }
 
+/* 代理店ロゴ。プレビュー枠は印刷表紙と同じ横長比率にして仕上がりを想像しやすくする */
+.agency-logo-field {
+  margin-top: 1.5rem;
+}
+
+.agency-logo-field > label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #4a5568;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.agency-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.agency-logo-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 180px;
+  height: 60px;
+  padding: 0.35rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.agency-logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.agency-logo-empty {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.agency-logo-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.agency-logo-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.agency-logo-hint {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+/* 案件のロゴはマスターのスナップショット。マスター側だけ差し替えても追従しないので差分を明示する */
+.agency-logo-diff {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.82rem;
+}
+
+.agency-logo-diff-btn {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #d97706;
+  border-radius: 4px;
+  background: #fff;
+  color: #b45309;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agency-logo-diff-btn:hover {
+  background: #fef3c7;
+}
+
+.agency-logo-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  color: #2d3748;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agency-logo-toggle input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* 代理店マスター管理の表セル用。プレビューを縮め、ボタンはアイコンのみにする */
+.agency-logo-row.is-compact {
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+}
+
+.agency-logo-row.is-compact .agency-logo-preview {
+  width: 58px;
+  height: 30px;
+  padding: 0.15rem;
+}
+
+.agency-logo-row.is-compact .agency-logo-empty {
+  font-size: 0.65rem;
+}
+
+.agency-logo-row.is-compact .agency-logo-buttons {
+  gap: 0.25rem;
+}
+
 .grid-form section {
   display: flex;
   flex-direction: column;
@@ -3105,6 +3300,12 @@ h1 {
   row-gap: 0.25rem;
 }
 
+/* 入力値からの推定区間である旨の注記 */
+.mini-chart-legend-note {
+  color: #94a3b8;
+  font-size: 0.7rem;
+}
+
 /* --- 評価バッジ --- */
 
 .pac-evaluations {
@@ -3426,9 +3627,21 @@ h1 {
   font-size: 0.8rem;
 }
 
-.surrender-table tr.is-duplicate input {
+.surrender-table tr.is-duplicate input,
+.surrender-table tr.is-ignored input {
   border-color: #f6ad55;
   background: #fffaf0;
+}
+
+/* 保存時に削除される行（0〜120歳の範囲外） */
+.surrender-table tr.is-dropped input {
+  border-color: #fc8181;
+  background: #fff5f5;
+}
+
+.surrender-editor-warning {
+  color: #b7791f;
+  font-size: 0.72rem;
 }
 
 .surrender-cell-sub {
@@ -3447,6 +3660,60 @@ h1 {
 
 .surrender-cell-rate.is-positive {
   color: #2f855a;
+}
+
+/* 列幅。width は親が狭いと按分で縮むので、下限は入力欄の min-width で担保し、
+   余った幅は金額欄（width:100%）が吸う。年齢は3桁、金額は億（100,000,000）まで折り返さずに読める幅 */
+.surrender-col-age {
+  width: 2.3rem;
+}
+
+.surrender-col-amount {
+  width: 100%;
+}
+
+.surrender-col-rate {
+  width: 4rem;
+}
+
+/* 年齢は3桁（120）が入れば足りる */
+.surrender-table .surrender-col-age input {
+  min-width: 2.3rem;
+}
+
+.surrender-table .surrender-col-amount input {
+  min-width: 6rem;
+}
+
+/* 返戻率は入力欄。「%」を添えて金額欄と区別する */
+.surrender-rate-input {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+/* 「112.5」など小数1桁まで表示する */
+.surrender-rate-input input {
+  min-width: 2.7rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+/* 年齢・返戻率のスピナーは使い道がなく幅を食うだけなので消す（↑↓キーでの増減は残る） */
+.surrender-table input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.surrender-table input[type='number']::-webkit-outer-spin-button,
+.surrender-table input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.surrender-rate-input input:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
 }
 
 .surrender-row-delete {
@@ -3584,6 +3851,86 @@ h1 {
   gap: 0.75rem;
   align-items: center;
   flex-shrink: 0;
+}
+
+.case-data-menu {
+  position: relative;
+}
+
+.case-data-menu > summary {
+  box-sizing: border-box;
+  list-style: none;
+}
+
+.case-data-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.case-data-menu-chevron {
+  transition: transform 0.2s;
+}
+
+.case-data-menu[open] .case-data-menu-chevron {
+  transform: rotate(180deg);
+}
+
+.case-data-menu-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 310px;
+  padding: 0.4rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+}
+
+.case-data-menu-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 56px;
+  padding: 0.7rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.case-data-menu-item:hover,
+.case-data-menu-item:focus-visible {
+  background: #eff6ff;
+  outline: none;
+}
+
+.case-data-menu-item:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.case-data-menu-item > svg {
+  margin-top: 0.1rem;
+  color: #3182ce;
+  flex-shrink: 0;
+}
+
+.case-data-menu-item span,
+.case-data-menu-item strong,
+.case-data-menu-item small {
+  display: block;
+}
+
+.case-data-menu-item small {
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 500;
 }
 
 .case-import-panel {
@@ -3857,7 +4204,8 @@ h1 {
 }
 
 .case-th-actions {
-  width: 50px;
+  width: 132px;
+  text-align: center !important;
   cursor: default;
 }
 
@@ -3988,8 +4336,34 @@ h1 {
 }
 
 .case-td-actions {
-  width: 50px;
+  width: 132px;
   text-align: center;
+  white-space: nowrap;
+}
+
+.case-row-open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 58px;
+  min-height: 36px;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #2b6cb0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.case-row-open-btn:hover,
+.case-row-open-btn:focus-visible {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  outline: none;
 }
 
 .case-delete-btn {
@@ -4089,10 +4463,18 @@ h1 {
   }
 
   .case-list-actions .case-agency-btn,
+  .case-data-menu,
+  .case-data-menu > summary,
   .case-create-btn {
     width: 100%;
     justify-content: center;
     min-height: 44px;
+  }
+
+  .case-data-menu-popover {
+    right: auto;
+    left: 0;
+    width: 100%;
   }
 
   .case-import-summary-sub {
@@ -4187,6 +4569,10 @@ h1 {
   .case-row .case-updated-cell,
   .case-row .case-td-actions {
     grid-column: 1 / -1;
+  }
+
+  .case-row-open-btn {
+    display: none;
   }
 
   .case-row .case-td-actions {
@@ -4384,8 +4770,8 @@ h1 {
     display: none;
   }
 
-  .total-label {
-    align-items: flex-start;
+  .policy-table .total-row .total-burden-label {
+    text-align: left;
   }
 }
 
@@ -5025,10 +5411,13 @@ body:has(.app-shell) #root {
 
   .logo-container {
     height: 50px;
+    /* 横長ロゴが代理店名ブロックを押し出さないよう幅も止める */
+    max-width: 60mm;
   }
 
   .agency-logo {
     height: 100%;
+    max-width: 100%;
     width: auto;
     object-fit: contain;
   }
@@ -5310,7 +5699,7 @@ body:has(.app-shell) #root {
 
   .card-subtext,
   .premium-meta,
-  .total-label span {
+  .policy-table-note {
     font-size: 0.6rem !important;
     line-height: 1.18 !important;
   }
@@ -5376,8 +5765,8 @@ body:has(.app-shell) #root {
     gap: 1mm !important;
   }
 
-  .total-label {
-    gap: 0.5mm !important;
+  .policy-table-note {
+    margin-top: 1mm !important;
   }
 
   body {
@@ -5782,7 +6171,8 @@ body:has(.app-shell) #root {
    =========================================== */
 /* --- Agency Master Modal --- */
 .agency-master-modal {
-  max-width: 680px !important;
+  /* ロゴ列を足した分だけ広げる（文字列3列が窮屈にならないように） */
+  max-width: 810px !important;
   padding: 1.75rem 2rem;
 }
 
@@ -5809,7 +6199,8 @@ body:has(.app-shell) #root {
 .am-table-wrap {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  overflow: hidden;
+  /* 狭い画面では列が入り切らないので横スクロールで逃がす（編集モードは特に広い） */
+  overflow: auto hidden;
 }
 
 .am-table {
@@ -5832,6 +6223,26 @@ body:has(.app-shell) #root {
 .am-th-actions {
   width: 76px;
   text-align: center !important;
+}
+
+.am-th-logo {
+  width: 138px;
+}
+
+.am-logo-thumb {
+  display: flex;
+  align-items: center;
+  height: 28px;
+}
+
+.am-logo-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.am-logo-none {
+  color: #94a3b8;
 }
 
 .am-table tbody td {

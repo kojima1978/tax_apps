@@ -52,7 +52,9 @@ export function CategorySelect({ value, onChange, tone = 'normal', compact = fal
     onChange(method ? buildCategory(cls, method as never) : defaultCategoryOf(cls));
   };
 
-  const sizeClass = compact ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-1.5 text-sm';
+  const sizeClass = compact
+    ? 'px-1.5 py-0.5 text-xs'
+    : 'min-h-11 px-3 py-2 text-base sm:text-sm';
   const selectClass = `${sizeClass} border rounded-md cursor-pointer focus:outline-none focus:ring-1 focus:ring-green-500 disabled:cursor-not-allowed disabled:text-gray-500 ${TONE_CLASS[tone]}`;
 
   return (

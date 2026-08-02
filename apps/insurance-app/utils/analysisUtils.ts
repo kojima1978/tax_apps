@@ -1,5 +1,6 @@
 import { isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, PolicyType, SurrenderValuePoint } from '@/types';
+import { formatWholeManYen } from '@/utils/currencyUtils';
 
 export interface EvaluationResult {
   rating: 'good' | 'caution' | 'warning';
@@ -126,6 +127,30 @@ function monthsBetween(from: Date, to: Date): number {
   return Math.max(0, months);
 }
 
+// 払込スケジュールの算出に必要な項目だけを抜き出した型。
+// 編集中のフォーム（Partial<Policy>）からも同じ計算を呼べるようにするため
+export type PremiumSchedule = Pick<
+  Policy,
+  'contractDate' | 'contractAge' | 'paymentFrequency' | 'premiumAmount' | 'paymentEndAge' | 'premiumPaymentCompleted' | 'annualPremium'
+>;
+
+// 払込期間（年）。終身払は上限なし
+function getPaymentYears(policy: PremiumSchedule): number {
+  return policy.paymentEndAge === 999
+    ? Infinity
+    : Math.max(0, policy.paymentEndAge - policy.contractAge);
+}
+
+// 契約からの経過月数に対する払込回数（契約日に1回目、以降は契約応当日ごと）。
+// 「現在時点」も「将来の年齢時点」も同じモデルで数えるための共通ロジック
+function getPaidCountAtElapsedMonths(policy: PremiumSchedule, elapsedMonths: number): number {
+  const paymentYears = getPaymentYears(policy);
+  const paidCount = policy.paymentFrequency === 'monthly'
+    ? Math.min(Math.floor(elapsedMonths) + 1, paymentYears * 12)
+    : Math.min(Math.floor(elapsedMonths / 12) + 1, paymentYears);
+  return Math.max(0, paidCount);
+}
+
 // 累計支払済は契約日ベースの実払込回数で計算する
 // （年齢差ベースだと保険年齢/満年齢のズレや被保険者≠本人のケースで最大1年超の誤差が出るため）
 export function calculateTotalPremiumsPaid(policy: Policy, currentAge: number, now: Date = new Date()): number {
@@ -133,35 +158,15 @@ export function calculateTotalPremiumsPaid(policy: Policy, currentAge: number, n
   if (policy.premiumPaymentCompleted) return calculateProjectedTotalPremiums(policy);
 
   const contract = new Date(policy.contractDate);
-  if (isNaN(contract.getTime())) {
-    // 契約日が不正な場合のみ従来の年齢差ベースにフォールバック
-    const yearsElapsed = Math.max(0, currentAge - policy.contractAge);
-    const paymentYearsElapsed = Math.min(
-      yearsElapsed,
-      policy.paymentEndAge === 999 ? yearsElapsed : Math.max(0, policy.paymentEndAge - policy.contractAge)
-    );
-    return policy.annualPremium * paymentYearsElapsed;
-  }
+  // 契約日が不正な場合のみ年齢差ベースにフォールバック
+  if (isNaN(contract.getTime())) return getCumulativePremiumsAtAge(policy, currentAge);
 
   if (now.getTime() < contract.getTime()) return 0;
 
-  const paymentYears = policy.paymentEndAge === 999
-    ? Infinity
-    : Math.max(0, policy.paymentEndAge - policy.contractAge);
-  const elapsedMonths = monthsBetween(contract, now);
-
-  if (policy.paymentFrequency === 'monthly') {
-    // 契約日に1回目、以降は毎月の契約応当日に払込
-    const paidCount = Math.min(elapsedMonths + 1, paymentYears * 12);
-    return policy.premiumAmount * paidCount;
-  }
-
-  // 年払: 契約日に1回目、以降は毎年の契約応当日に払込
-  const paidCount = Math.min(Math.floor(elapsedMonths / 12) + 1, paymentYears);
-  return policy.premiumAmount * paidCount;
+  return policy.premiumAmount * getPaidCountAtElapsedMonths(policy, monthsBetween(contract, now));
 }
 
-export function calculateProjectedTotalPremiums(policy: Policy): number {
+export function calculateProjectedTotalPremiums(policy: PremiumSchedule): number {
   if (policy.paymentFrequency === 'single') return policy.premiumAmount;
   const paymentYears = policy.paymentEndAge === 999 ? 50 : policy.paymentEndAge - policy.contractAge;
   return policy.annualPremium * Math.max(0, paymentYears);
@@ -217,16 +222,31 @@ export function hasSurrenderValues(policy: Policy): boolean {
   return getSurrenderValues(policy).length > 0;
 }
 
-// 指定年齢時点の払込累計（将来分を含むため年額ベースの概算）
-export function getCumulativePremiumsAtAge(policy: Policy, age: number): number {
+// 年齢差から求めた経過月数と、契約日から求めた実経過月数のズレ（保険年齢/満年齢の差など）。
+// これを年齢ベースの推移に足すことで、現在年齢時点で calculateTotalPremiumsPaid と完全に一致させる
+function getAgeToElapsedMonthsOffset(policy: PremiumSchedule, currentAge?: number, now: Date = new Date()): number {
+  if (currentAge === undefined) return 0;
+  const contract = new Date(policy.contractDate);
+  if (isNaN(contract.getTime())) return 0;
+  if (now.getTime() < contract.getTime()) return 0;
+  return monthsBetween(contract, now) - (currentAge - policy.contractAge) * 12;
+}
+
+// 指定年齢に達した時点の払込累計。calculateTotalPremiumsPaid と同じ払込回数モデルを
+// 将来の年齢まで延長したもので、currentAge を渡せば現在年齢時点の値は完全に一致する。
+// グラフの払込累計ライン・損益分岐・返戻率はすべてこの関数を分母にすること
+export function getCumulativePremiumsAtAge(
+  policy: PremiumSchedule,
+  age: number,
+  currentAge?: number,
+  now: Date = new Date(),
+): number {
   if (age < policy.contractAge) return 0;
   if (policy.paymentFrequency === 'single') return policy.premiumAmount;
+  if (policy.premiumPaymentCompleted) return calculateProjectedTotalPremiums(policy);
 
-  const elapsedYears = age - policy.contractAge;
-  const paymentYears = policy.paymentEndAge === 999
-    ? elapsedYears
-    : Math.min(elapsedYears, Math.max(0, policy.paymentEndAge - policy.contractAge));
-  return policy.annualPremium * Math.max(0, paymentYears);
+  const elapsedMonths = (age - policy.contractAge) * 12 + getAgeToElapsedMonthsOffset(policy, currentAge, now);
+  return policy.premiumAmount * getPaidCountAtElapsedMonths(policy, elapsedMonths);
 }
 
 // 指定年齢時点の解約返戻金。入力点の間は線形補間、最初の入力点より前は契約時0からの補間、
@@ -272,14 +292,14 @@ export interface SurrenderValueSummary {
 }
 
 // 解約返戻率が初めて100%に達する年齢（損益分岐年齢）
-export function getSurrenderBreakEvenAge(policy: Policy): number | null {
+export function getSurrenderBreakEvenAge(policy: Policy, currentAge?: number): number | null {
   const points = getSurrenderValues(policy);
   if (points.length === 0) return null;
 
   const lastAge = points[points.length - 1].age;
   for (let age = Math.max(policy.contractAge, 0); age <= lastAge; age++) {
     const value = getSurrenderValueAtAge(policy, age);
-    const paid = getCumulativePremiumsAtAge(policy, age);
+    const paid = getCumulativePremiumsAtAge(policy, age, currentAge);
     if (value !== null && paid > 0 && value >= paid) return age;
   }
   return null;
@@ -290,7 +310,8 @@ export function getSurrenderValueSummary(policy: Policy, currentAge: number): Su
   if (points.length === 0) return null;
 
   const currentAmount = getSurrenderValueAtAge(policy, currentAge);
-  const currentPaid = calculateTotalPremiumsPaid(policy, currentAge);
+  // 損益分岐・グラフと同じ分母を使う（calculateTotalPremiumsPaid とも現在年齢時点で一致する）
+  const currentPaid = getCumulativePremiumsAtAge(policy, currentAge, currentAge);
   const peak = points.reduce((best, point) => (point.amount > best.amount ? point : best), points[0]);
 
   return {
@@ -298,7 +319,7 @@ export function getSurrenderValueSummary(policy: Policy, currentAge: number): Su
     currentAmount,
     currentPaid,
     currentRate: currentAmount !== null && currentPaid > 0 ? (currentAmount / currentPaid) * 100 : null,
-    breakEvenAge: getSurrenderBreakEvenAge(policy),
+    breakEvenAge: getSurrenderBreakEvenAge(policy, currentAge),
     peak,
     firstAge: points[0].age,
     lastAge: points[points.length - 1].age,
@@ -443,10 +464,10 @@ function evaluateCoverageAdequacy(policy: Policy, currentAge: number): Evaluatio
 
   if (policy.policyType === 'がん保険') {
     if (policy.diagnosisBenefit >= 1000000) {
-      return { rating: 'good', label: '保障充足度', text: `診断一時金${(policy.diagnosisBenefit / 10000).toLocaleString()}万円で十分な水準です` };
+      return { rating: 'good', label: '保障充足度', text: `診断一時金${formatWholeManYen(policy.diagnosisBenefit)}で十分な水準です` };
     }
     if (policy.diagnosisBenefit > 0) {
-      return { rating: 'caution', label: '保障充足度', text: `診断一時金${(policy.diagnosisBenefit / 10000).toLocaleString()}万円です。治療費を考慮すると100万円以上が目安です` };
+      return { rating: 'caution', label: '保障充足度', text: `診断一時金${formatWholeManYen(policy.diagnosisBenefit)}です。治療費を考慮すると100万円以上が目安です` };
     }
     if (policy.hospDayDisease > 0) {
       return { rating: 'caution', label: '保障充足度', text: `入院日額${policy.hospDayDisease.toLocaleString()}円のがん保障です。診断一時金の追加を検討してください` };
@@ -459,7 +480,7 @@ function evaluateCoverageAdequacy(policy: Policy, currentAge: number): Evaluatio
     if (benefit < 3000000) {
       return { rating: 'caution', label: '保障充足度', text: '死亡保障額が葬儀費用の平均（約300万円）を下回っています' };
     }
-    return { rating: 'good', label: '保障充足度', text: `死亡保障${(benefit / 10000).toLocaleString()}万円を確保しています` };
+    return { rating: 'good', label: '保障充足度', text: `死亡保障${formatWholeManYen(benefit)}を確保しています` };
   }
 
   if (isIncomeProtectionPolicyType(policy.policyType)) {
@@ -472,9 +493,9 @@ function evaluateCoverageAdequacy(policy: Policy, currentAge: number): Evaluatio
     }
     const current = getCurrentDeathBenefit(policy, currentAge);
     if (current < 5000000) {
-      return { rating: 'warning', label: '保障充足度', text: `現在の受取総額は${(current / 10000).toLocaleString()}万円に逓減しています` };
+      return { rating: 'warning', label: '保障充足度', text: `現在の受取総額は${formatWholeManYen(current)}に逓減しています` };
     }
-    return { rating: 'good', label: '保障充足度', text: `現在の受取総額は${(current / 10000).toLocaleString()}万円です` };
+    return { rating: 'good', label: '保障充足度', text: `現在の受取総額は${formatWholeManYen(current)}です` };
   }
 
   return null;
@@ -495,7 +516,7 @@ function generateConsultantNote(policy: Policy, currentAge: number): string {
         return '収入保障保険は死亡保険金月額をもとに受取総額を計算します。現在の入力額は月額としては大きいため、総額が入っていないか証券の月額給付額を確認してください。';
       }
       const current = getCurrentDeathBenefit(policy, currentAge);
-      let note = `収入保障保険は死亡保険金月額${(policy.deathBenefitDisease / 10000).toLocaleString()}万円が保険期間満了まで支払われ、経過年数とともに受取総額が逓減する合理的な設計です。現在の受取総額は約${(current / 10000).toLocaleString()}万円です。`;
+      let note = `収入保障保険は死亡保険金月額${formatWholeManYen(policy.deathBenefitDisease)}が保険期間満了まで支払われ、経過年数とともに受取総額が逓減する合理的な設計です。現在の受取総額は約${formatWholeManYen(current)}です。`;
       if (remainCov !== 'lifetime' && remainCov <= 10) {
         note += `保障期間終了（${policy.policyEndAge}歳）後の遺族保障について別途検討が必要です。`;
       }
@@ -511,7 +532,7 @@ function generateConsultantNote(policy: Policy, currentAge: number): string {
     case 'がん保険': {
       let note = 'がんの診断・治療に特化した保障です。';
       if (policy.diagnosisBenefit > 0) {
-        note += `診断一時金${(policy.diagnosisBenefit / 10000).toLocaleString()}万円により、治療初期の経済的負担に備えられます。`;
+        note += `診断一時金${formatWholeManYen(policy.diagnosisBenefit)}により、治療初期の経済的負担に備えられます。`;
       }
       if (policy.hospDayDisease > 0) {
         note += `がん入院日額${policy.hospDayDisease.toLocaleString()}円が付帯しています。`;
@@ -533,7 +554,7 @@ function generateConsultantNote(policy: Policy, currentAge: number): string {
     case '医療保険': {
       let note = `入院日額${policy.hospDayDisease.toLocaleString()}円の医療保障を提供しています。`;
       if (policy.diagnosisBenefit > 0) {
-        note += `診断一時金${(policy.diagnosisBenefit / 10000).toLocaleString()}万円も付帯しており、がん等の重大疾病への備えがあります。`;
+        note += `診断一時金${formatWholeManYen(policy.diagnosisBenefit)}も付帯しており、がん等の重大疾病への備えがあります。`;
       }
       if (remainCov !== 'lifetime' && remainCov <= 15) {
         note += `保障期間が${policy.policyEndAge}歳で終了するため、高齢期の医療費リスクへの対策を検討してください。`;
@@ -543,7 +564,7 @@ function generateConsultantNote(policy: Policy, currentAge: number): string {
     case '個人年金保険': {
       let note = '公的年金を補完する私的年金として、老後の安定収入を確保します。';
       if (policy.maturityBenefit > 0) {
-        note += `年金受取総額は${(policy.maturityBenefit / 10000).toLocaleString()}万円の予定です。`;
+        note += `年金受取総額は${formatWholeManYen(policy.maturityBenefit)}の予定です。`;
       }
       if (paidUp) {
         note += '払込が完了しています。据置期間中も積立金が増加します。';
@@ -560,7 +581,7 @@ function generateConsultantNote(policy: Policy, currentAge: number): string {
     case '養老保険': {
       let note = '死亡保障と貯蓄を兼ね備えた保険です。';
       if (policy.maturityBenefit > 0) {
-        note += `満期保険金${(policy.maturityBenefit / 10000).toLocaleString()}万円が予定されています。`;
+        note += `満期保険金${formatWholeManYen(policy.maturityBenefit)}が予定されています。`;
       }
       return note;
     }

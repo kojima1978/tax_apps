@@ -9,6 +9,7 @@ import {
 } from '@/lib/api';
 import { Users, X, Plus, Trash2, Building2, Download, Save, RefreshCw, DollarSign } from 'lucide-react';
 import { mergeRelationshipSuggestions } from '@/utils/relationshipOptions';
+import AgencyLogoPicker from '@/components/AgencyLogoPicker';
 
 export type CustomerSettingsSection = 'family' | 'valuation' | 'agency';
 
@@ -57,6 +58,8 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
   );
   const selectedAgencyMaster = agencyMasters.find(master => master.id === selectedAgencyMasterId);
   const hasAgencyFields = Boolean(tempAgency.name.trim() && tempAgency.representative.trim() && tempAgency.phone.trim());
+  // 案件のロゴはマスターのスナップショットなので、マスター側を直しても自動では追従しない。差分は明示する
+  const masterLogoDiffers = Boolean(selectedAgencyMaster) && (selectedAgencyMaster?.logoDataUrl ?? '') !== (tempAgency.logoDataUrl ?? '');
   const sectionConfig = {
     family: { title: '世帯・家族情報の修正', icon: Users },
     valuation: { title: '現在評価用の為替レート', icon: DollarSign },
@@ -69,7 +72,14 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
     let ignore = false;
     fetchAgencyMasters()
       .then(masters => {
-        if (!ignore) setAgencyMasters(sortAgencyMasters(masters));
+        if (ignore) return;
+        setAgencyMasters(sortAgencyMasters(masters));
+        // 代理店名・取扱者・電話が一致するマスターは選択済みにしておく（ロゴ差分の案内に使う）
+        const matched = masters.find(master =>
+          master.name === agency.name
+          && master.representative === agency.representative
+          && master.phone === agency.phone);
+        if (matched) setSelectedAgencyMasterId(matched.id);
       })
       .catch(() => {
         if (!ignore) setAgencyMasterNotice({ type: 'error', text: '代理店マスターの読み込みに失敗しました' });
@@ -77,7 +87,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
     return () => {
       ignore = true;
     };
-  }, [section]);
+  }, [section, agency]);
 
   const handleAddMember = () => {
     const newMember: FamilyMember = {
@@ -105,7 +115,14 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
     const master = agencyMasters.find(m => m.id === masterId);
     if (master) {
       setSelectedAgencyMasterId(masterId);
-      setTempAgency({ name: master.name, representative: master.representative, phone: master.phone });
+      // 印刷可否は案件ごとの設定なのでマスター呼び出しでは引き継がない
+      setTempAgency(current => ({
+        name: master.name,
+        representative: master.representative,
+        phone: master.phone,
+        logoDataUrl: master.logoDataUrl,
+        printLogo: current.printLogo,
+      }));
       setAgencyMasterNotice({ type: 'success', text: '代理店マスターを呼び出しました' });
     }
   };
@@ -116,11 +133,17 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
     setSubmitError(null);
   };
 
+  const handleLogoChange = (logoDataUrl: string | undefined) => {
+    setTempAgency(current => ({ ...current, logoDataUrl }));
+    setAgencyMasterNotice(null);
+  };
+
   const getAgencyPayload = (): Omit<AgencyMaster, 'id'> | null => {
     const payload = {
       name: tempAgency.name.trim(),
       representative: tempAgency.representative.trim(),
       phone: tempAgency.phone.trim(),
+      logoDataUrl: tempAgency.logoDataUrl,
     };
     if (!payload.name || !payload.representative || !payload.phone) return null;
     return payload;
@@ -182,6 +205,8 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
         name: tempAgency.name.trim(),
         representative: tempAgency.representative.trim(),
         phone: tempAgency.phone.trim(),
+        logoDataUrl: tempAgency.logoDataUrl,
+        printLogo: tempAgency.printLogo !== false,
       }, tempValuationSettings);
       onClose();
     } catch (err) {
@@ -323,6 +348,30 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                 <div className="form-group"><label>連絡先電話番号</label>
                   <input type="text" value={tempAgency.phone} onChange={e => setAgencyField('phone', e.target.value)} required />
                 </div>
+              </div>
+              <div className="agency-logo-field">
+                <label>ロゴ画像（任意）</label>
+                <AgencyLogoPicker
+                  value={tempAgency.logoDataUrl}
+                  onChange={handleLogoChange}
+                  onError={text => setAgencyMasterNotice({ type: 'error', text })}
+                />
+                {masterLogoDiffers && selectedAgencyMaster && (
+                  <p className="agency-logo-diff">
+                    代理店マスター「{selectedAgencyMaster.name}」のロゴと異なります。
+                    <button type="button" className="agency-logo-diff-btn" onClick={() => handleLogoChange(selectedAgencyMaster.logoDataUrl)}>
+                      {selectedAgencyMaster.logoDataUrl ? 'マスターのロゴを取り込む' : 'マスターに合わせて外す'}
+                    </button>
+                  </p>
+                )}
+                <label className="agency-logo-toggle">
+                  <input
+                    type="checkbox"
+                    checked={tempAgency.printLogo !== false}
+                    onChange={e => setTempAgency(current => ({ ...current, printLogo: e.target.checked }))}
+                  />
+                  印刷時に表紙へロゴを表示する
+                </label>
               </div>
             </>
           )}

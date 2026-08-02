@@ -60,6 +60,8 @@ function runMigrations(db: Database.Database): void {
       name TEXT NOT NULL,
       representative TEXT NOT NULL,
       phone TEXT NOT NULL,
+      logo_data_url TEXT,
+      print_logo INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
@@ -137,6 +139,7 @@ function runMigrations(db: Database.Database): void {
       name TEXT NOT NULL,
       representative TEXT NOT NULL,
       phone TEXT NOT NULL,
+      logo_data_url TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -231,5 +234,20 @@ function runMigrations(db: Database.Database): void {
     db.exec(`ALTER TABLE app_state_meta ADD COLUMN valuation_settings TEXT`);
   } catch {
     // column already exists
+  }
+
+  // 代理店ロゴ（data URL）と印刷時の表示可否
+  const optionalAgencyColumns = [
+    `ALTER TABLE agencies ADD COLUMN logo_data_url TEXT`,
+    `ALTER TABLE agencies ADD COLUMN print_logo INTEGER NOT NULL DEFAULT 1`,
+    `ALTER TABLE agency_masters ADD COLUMN logo_data_url TEXT`,
+  ];
+
+  for (const sql of optionalAgencyColumns) {
+    try {
+      db.exec(sql);
+    } catch {
+      // column already exists
+    }
   }
 }

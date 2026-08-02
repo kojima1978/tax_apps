@@ -29,6 +29,7 @@ import {
   getCurrentDeathBenefit,
   type PortfolioInsight,
 } from '@/utils/analysisUtils';
+import { formatWholeManYen } from '@/utils/currencyUtils';
 import {
   fetchInsuranceTypeDescriptions,
   updateInsuranceTypeDescription,
@@ -290,7 +291,7 @@ const InsuranceTypeOverview: React.FC<InsuranceTypeOverviewProps> = ({ caseId, p
                 {totalDeathBenefit > 0 && (
                   <div className="toc-stat">
                     <span className="toc-stat-label">合計保障額</span>
-                    <span className="toc-stat-value">{(totalDeathBenefit / 10000).toLocaleString()}万円</span>
+                    <span className="toc-stat-value">{formatWholeManYen(totalDeathBenefit)}</span>
                   </div>
                 )}
                 {totalHosp > 0 && (

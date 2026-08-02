@@ -36,7 +36,7 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
     setCollapsed(allCollapsed ? new Set() : new Set(groups.map(([l]) => l)));
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 font-mono text-xs">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 font-mono text-xs sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="font-bold text-sm mb-1">{caseName}</div>
         {groups.length > 1 && (
@@ -84,9 +84,30 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
                 </span>
               )}
             </button>
-            <table
-              className={`w-full border-collapse ${isCollapsed ? 'hidden' : ''}`}
-            >
+            <div className={`space-y-2 sm:hidden ${isCollapsed ? 'hidden' : ''}`}>
+              {catAssets.map((asset) => (
+                <div key={asset.id} className="rounded-md border border-slate-200 bg-slate-50 p-3 font-sans">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold text-slate-500">NO {asset.no}</p>
+                      <p className="break-words text-sm font-semibold text-slate-900">{asset.name}</p>
+                    </div>
+                    <span className="shrink-0 font-mono text-sm font-bold text-emerald-800">
+                      {asset.evaluationAmount === null ? '―' : `${formatYen(asset.evaluationAmount)}円`}
+                    </span>
+                  </div>
+                  <dl className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                    <div><dt>取得年月</dt><dd className="mt-0.5 text-slate-900">{formatDate(asset.acquisitionDate)}</dd></div>
+                    <div><dt>取得価額</dt><dd className="mt-0.5 font-mono text-slate-900">{formatYen(asset.acquisitionCost)}円</dd></div>
+                  </dl>
+                </div>
+              ))}
+              <div className="flex justify-between rounded-md bg-slate-100 px-3 py-2 text-sm font-bold">
+                <span>合計</span><span>{formatYen(totalEval)}円</span>
+              </div>
+            </div>
+            <div className={`hidden overflow-x-auto sm:block ${isCollapsed ? 'sm:hidden' : ''}`}>
+            <table className="w-full min-w-[960px] border-collapse">
               <thead>
                 <tr className="bg-[#D9E1F2]">
                   <th className="border px-1 py-0.5 text-left w-10">NO</th>
@@ -162,6 +183,7 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
                 </tr>
               </tfoot>
             </table>
+            </div>
           </div>
         );
       })}

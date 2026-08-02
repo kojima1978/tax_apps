@@ -2,9 +2,6 @@ import React from 'react';
 import type { Agency } from '@/types';
 import PrintPageNumber from '@/components/PrintPageNumber';
 
-// next.config.ts と同条件で basePath を解決する（素の img は basePath が自動付与されないため）
-const BASE_PATH = process.env.NEXT_PUBLIC_STORAGE_MODE === 'json' ? '' : '/insurance';
-
 interface PrintCoverPageProps {
   customerName: string;
   agency: Agency;
@@ -15,6 +12,8 @@ const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ customerName, agency, s
   const today = new Date();
   const reiwaYear = today.getFullYear() - 2018;
   const dateStr = `令和${reiwaYear}年${today.getMonth() + 1}月${today.getDate()}日`;
+  // ロゴ未登録、または「印刷時に表示する」が外れている場合は表紙に出さない
+  const showLogo = Boolean(agency.logoDataUrl) && agency.printLogo !== false;
 
   return (
     <div className={`print-only cover-page print-page${selected ? '' : ' print-excluded'}`}>
@@ -35,11 +34,13 @@ const PrintCoverPage: React.FC<PrintCoverPageProps> = ({ customerName, agency, s
       </div>
 
       <div className="cover-footer">
-        <div className="logo-container">
-          {/* 印刷レイアウト用。next/image の遅延読み込み・最適化は印刷では不都合なので素の img を使う */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${BASE_PATH}/njpw_logo.webp`} alt="Company Logo" className="agency-logo" />
-        </div>
+        {showLogo && (
+          <div className="logo-container">
+            {/* 印刷レイアウト用かつ data URL なので、next/image ではなく素の img を使う */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={agency.logoDataUrl} alt="代理店ロゴ" className="agency-logo" />
+          </div>
+        )}
         <div className="cover-agent">
           <div className="cover-agent-name">{agency.name}</div>
           <div className="cover-agent-detail">

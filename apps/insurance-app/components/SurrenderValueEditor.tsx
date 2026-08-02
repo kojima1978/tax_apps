@@ -14,8 +14,9 @@ interface SurrenderValueEditorProps {
   paymentEndAge: number;
   policyEndAge: number;
   currentAge?: number | null;
-  // 指定年齢時点の払込累計（返戻率の目安表示に使用）
+  // 指定年齢時点の払込累計（返戻率の基準）。外貨建ては設計書に合わせてドル基準を使う
   paidAtAge?: (age: number) => number;
+  foreignPaidAtAge?: (age: number) => number;
 }
 
 const yenFromForeign = (amount: number, exchangeRate: number) => Math.round((amount || 0) * (exchangeRate || 0));
@@ -76,6 +77,26 @@ export function parsePastedSurrenderValues(text: string, contractAge: number): {
   return results;
 }
 
+// 保存時に捨てられる行・グラフに反映されない行を入力中に気づけるようにする
+type RowIssue = { kind: 'dropped' | 'ignored'; message: string };
+
+export function getSurrenderRowIssue(
+  age: number,
+  contractAge: number,
+  policyEndAge: number,
+): RowIssue | null {
+  if (!Number.isFinite(age) || age < 0 || age > 120) {
+    return { kind: 'dropped', message: '年齢は0〜120の範囲で入力してください（このままでは保存時に削除されます）' };
+  }
+  if (contractAge > 0 && age < contractAge) {
+    return { kind: 'ignored', message: `契約年齢（${contractAge}歳）より前の行はグラフ・返戻率に反映されません` };
+  }
+  if (policyEndAge > 0 && policyEndAge !== 999 && age > policyEndAge) {
+    return { kind: 'ignored', message: `保険期間終了（${policyEndAge}歳）より後の行はグラフ・返戻率に反映されません` };
+  }
+  return null;
+}
+
 const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
   points,
   onChange,
@@ -86,6 +107,7 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
   policyEndAge,
   currentAge,
   paidAtAge,
+  foreignPaidAtAge,
 }) => {
   const [isOpen, setIsOpen] = useState(points.length > 0);
   // 既存契約の編集時は formData が後から入るため、点が現れた時点で開く
@@ -97,6 +119,8 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteMessage, setPasteMessage] = useState('');
+  // 返戻率は金額から逆算して表示するため、入力中は打鍵ごとの丸めで値が跳ねる。確定するまで生の文字列を保持する
+  const [rateDraft, setRateDraft] = useState<{ index: number; text: string } | null>(null);
 
   const isUsd = currency === 'USD';
   const unit = isUsd ? 'ドル' : '円';
@@ -116,6 +140,22 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
     [points],
   );
 
+  const rowIssues = useMemo(
+    () => points.map(p => getSurrenderRowIssue(p.age, contractAge, policyEndAge)),
+    [points, contractAge, policyEndAge],
+  );
+
+  // 同じ理由の行が複数あっても表示は1回にまとめる
+  const issueMessages = useMemo(() => {
+    const dropped = new Set<string>();
+    const ignored = new Set<string>();
+    rowIssues.forEach(issue => {
+      if (!issue) return;
+      (issue.kind === 'dropped' ? dropped : ignored).add(issue.message);
+    });
+    return { dropped: [...dropped], ignored: [...ignored] };
+  }, [rowIssues]);
+
   const displayValue = (point: SurrenderValuePoint) =>
     isUsd ? (point.foreignAmount ?? 0) : point.amount;
 
@@ -129,7 +169,21 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
       : { foreignAmount: undefined, amount: value });
   };
 
+  // 返戻率の分母。設計書の返戻率はドルベースなので、外貨建てはドルの払込累計に合わせる
+  const showRate = isUsd ? Boolean(foreignPaidAtAge) : Boolean(paidAtAge);
+  const rateBasisAt = (age: number) => (isUsd ? foreignPaidAtAge?.(age) : paidAtAge?.(age)) ?? 0;
+
+  const setRate = (index: number, text: string) => {
+    setRateDraft({ index, text });
+    const rate = Number(text);
+    const basis = rateBasisAt(points[index].age);
+    if (text.trim() === '' || !Number.isFinite(rate) || basis <= 0) return;
+    const value = (basis * rate) / 100;
+    setAmount(index, isUsd ? Math.round(value * 100) / 100 : Math.round(value));
+  };
+
   const removePoint = (index: number) => {
+    setRateDraft(null);
     onChange(points.filter((_, i) => i !== index));
   };
 
@@ -190,6 +244,7 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
         <div className="surrender-editor-body">
           <p className="field-hint">
             入力した年齢だけを保存し、間の年齢はグラフ側で線形補間します。全年齢を埋める必要はありません。
+            {showRate && '解約返戻金と返戻率はどちらから入力しても構いません（もう一方を自動計算します）。'}
           </p>
 
           {quickAdds.length > 0 && (
@@ -207,28 +262,40 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
             <table className="surrender-table">
               <thead>
                 <tr>
-                  <th>年齢</th>
-                  <th>解約返戻金（{unit}）</th>
+                  <th className="surrender-col-age">年齢</th>
+                  <th className="surrender-col-amount">解約返戻金（{unit}）</th>
                   {isUsd && <th>円換算</th>}
-                  {paidAtAge && <th>返戻率</th>}
+                  {showRate && <th className="surrender-col-rate">返戻率{isUsd ? '（ドル基準）' : ''}</th>}
                   <th aria-label="操作" />
                 </tr>
               </thead>
               <tbody>
                 {points.map((point, index) => {
-                  const paid = paidAtAge ? paidAtAge(point.age) : 0;
-                  const rate = paid > 0 ? (point.amount / paid) * 100 : null;
+                  const rateBasis = rateBasisAt(point.age);
+                  const rate = rateBasis > 0 ? (displayValue(point) / rateBasis) * 100 : null;
+                  const rateText = rateDraft?.index === index
+                    ? rateDraft.text
+                    : rate !== null ? String(Math.round(rate * 10) / 10) : '';
+                  const issue = rowIssues[index];
+                  const rowClass = [
+                    duplicateAges.has(point.age) ? 'is-duplicate' : '',
+                    issue ? `is-${issue.kind}` : '',
+                  ].filter(Boolean).join(' ');
                   return (
-                    <tr key={index} className={duplicateAges.has(point.age) ? 'is-duplicate' : ''}>
-                      <td>
+                    <tr key={index} className={rowClass}>
+                      <td className="surrender-col-age">
                         <input
                           type="number"
+                          min={0}
+                          max={120}
                           value={point.age}
+                          title={issue?.message}
                           aria-label={`${index + 1}行目の年齢`}
+                          aria-invalid={issue?.kind === 'dropped' || undefined}
                           onChange={e => updatePoint(index, { age: Number(e.target.value) })}
                         />
                       </td>
-                      <td>
+                      <td className="surrender-col-amount">
                         <CommaInputRaw
                           value={displayValue(point)}
                           onChange={v => setAmount(index, v)}
@@ -237,9 +304,22 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
                         />
                       </td>
                       {isUsd && <td className="surrender-cell-sub">{point.amount.toLocaleString()}円</td>}
-                      {paidAtAge && (
-                        <td className={`surrender-cell-rate ${rate !== null && rate >= 100 ? 'is-positive' : ''}`}>
-                          {rate !== null ? `${rate.toFixed(0)}%` : '-'}
+                      {showRate && (
+                        <td className={`surrender-cell-rate surrender-col-rate ${rate !== null && rate >= 100 ? 'is-positive' : ''}`}>
+                          <div className="surrender-rate-input">
+                            <input
+                              type="number"
+                              step="0.1"
+                              min={0}
+                              value={rateText}
+                              disabled={rateBasis <= 0}
+                              title={rateBasis <= 0 ? '保険料を入力すると返戻率から金額を計算できます' : undefined}
+                              aria-label={`${index + 1}行目の返戻率`}
+                              onChange={e => setRate(index, e.target.value)}
+                              onBlur={() => setRateDraft(null)}
+                            />
+                            <span>%</span>
+                          </div>
                         </td>
                       )}
                       <td>
@@ -262,6 +342,12 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
           {duplicateAges.size > 0 && (
             <span className="field-error">同じ年齢が重複しています（保存時は後の行が優先されます）</span>
           )}
+          {issueMessages.dropped.map(message => (
+            <span key={message} className="field-error">{message}</span>
+          ))}
+          {issueMessages.ignored.map(message => (
+            <span key={message} className="surrender-editor-warning">{message}</span>
+          ))}
 
           <div className="surrender-editor-actions">
             <button type="button" className="calc-btn" onClick={addBlankRow}>

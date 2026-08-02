@@ -8,6 +8,17 @@ body {
   min-height: 100vh;
 }
 
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
 .font-mono-num {
   font-family: 'Roboto Mono', monospace;
 }

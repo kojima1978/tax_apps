@@ -63,6 +63,8 @@ interface AgencyRow {
   name: string;
   representative: string;
   phone: string;
+  logo_data_url: string | null;
+  print_logo: number | null;
 }
 
 interface MetaRow {
@@ -278,7 +280,18 @@ function rowToPolicy(row: PolicyRow): Policy {
 }
 
 function rowToAgency(row: AgencyRow): Agency {
-  return { name: row.name, representative: row.representative, phone: row.phone };
+  return {
+    name: row.name,
+    representative: row.representative,
+    phone: row.phone,
+    logoDataUrl: row.logo_data_url ?? undefined,
+    printLogo: row.print_logo !== 0,
+  };
+}
+
+// ロゴ未登録・印刷可否未指定は「ロゴなし・印刷する」を既定とする
+function agencyStorageValues(agency: Agency): [string | null, number] {
+  return [agency.logoDataUrl?.trim() || null, agency.printLogo === false ? 0 : 1];
 }
 
 function now(): string {
@@ -400,11 +413,21 @@ export function saveAppState(caseId: string, state: AppState): AppState {
       insertMember.run(m.id, caseId, m.name, m.nameKana ?? '', m.relationship, m.birthDate, m.gender, i, ts, ts);
     }
 
-    const existingAgency = db.prepare('SELECT id FROM agencies WHERE case_id = ?').get(caseId) as { id: string } | undefined;
+    const existingAgency = db.prepare('SELECT name, representative, phone, logo_data_url, print_logo FROM agencies WHERE case_id = ?').get(caseId) as Omit<AgencyRow, 'id' | 'case_id'> | undefined;
+    const [logoDataUrl, printLogo] = agencyStorageValues(state.agency);
     if (existingAgency) {
-      db.prepare('UPDATE agencies SET name = ?, representative = ?, phone = ?, updated_at = ? WHERE case_id = ?').run(state.agency.name, state.agency.representative, state.agency.phone, ts, caseId);
+      // ロゴは data URL で数百KBになる。証券を1件直しただけで書き直すとWALが膨らむので、
+      // 実際に変わったときだけ UPDATE する
+      const isUnchanged = existingAgency.name === state.agency.name
+        && existingAgency.representative === state.agency.representative
+        && existingAgency.phone === state.agency.phone
+        && (existingAgency.logo_data_url ?? null) === logoDataUrl
+        && (existingAgency.print_logo === 0 ? 0 : 1) === printLogo;
+      if (!isUnchanged) {
+        db.prepare('UPDATE agencies SET name = ?, representative = ?, phone = ?, logo_data_url = ?, print_logo = ?, updated_at = ? WHERE case_id = ?').run(state.agency.name, state.agency.representative, state.agency.phone, logoDataUrl, printLogo, ts, caseId);
+      }
     } else {
-      db.prepare('INSERT INTO agencies (id, case_id, name, representative, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(uuidv4(), caseId, state.agency.name, state.agency.representative, state.agency.phone, ts, ts);
+      db.prepare('INSERT INTO agencies (id, case_id, name, representative, phone, logo_data_url, print_logo, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(uuidv4(), caseId, state.agency.name, state.agency.representative, state.agency.phone, logoDataUrl, printLogo, ts, ts);
     }
 
     const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, currency, exchange_rate, foreign_premium_amount, foreign_death_benefit_disease, foreign_death_benefit_accident, foreign_hosp_day_disease, foreign_hosp_day_accident, foreign_diagnosis_benefit, foreign_maturity_benefit, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, surrender_values, consultant_note, evaluation_overrides, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);

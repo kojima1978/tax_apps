@@ -17,6 +17,7 @@ import type { SortKey, SortDirection } from '@/hooks/useAssetData';
 import { CategorySelect } from '@/components/CategorySelect';
 import { categorySectionId } from '@/components/CategoryNav';
 import { formatYen, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
+import { MobileAssetCards } from './MobileAssetCards';
 
 const SORT_OPTIONS: { key: SortKey; icon: LucideIcon; label: string }[] = [
   { key: 'no', icon: Hash, label: 'NO' },
@@ -154,7 +155,19 @@ export function AssetTable({
   );
 
   return (
-    <div className="space-y-6">
+    <>
+      <MobileAssetCards
+        groups={groups}
+        showDetail={showDetail}
+        onUpdateAsset={onUpdateAsset}
+        onDeleteAsset={onDeleteAsset}
+        onAddEmptyAsset={onAddEmptyAsset}
+        onToggleFixedAssetTaxBulk={onToggleFixedAssetTaxBulk}
+        onSortAssets={onSortAssets}
+        onMoveAsset={onMoveAsset}
+        onMoveCategory={onMoveCategory}
+      />
+      <div className="hidden space-y-6 md:block">
       {groups.map(([label, assets], groupIndex) => {
         const category = assets[0]!.category;
         const config = CATEGORY_CONFIG[category];
@@ -559,6 +572,7 @@ export function AssetTable({
           </div>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 }

@@ -76,11 +76,8 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
     .map(allocation => `${getMemberName(allocation.beneficiaryId)} ${allocation.percentage.toLocaleString('ja-JP')}%`)
     .join('、') || '未設定';
 
-  const formatYen = (amount: number) => {
-    // 補間値は端数が出るので万円表示は小数第1位まで
-    if (amount >= 10000) return `${(Math.round(amount / 1000) / 10).toLocaleString()}万円`;
-    return `${amount.toLocaleString()}円`;
-  };
+  // 左側は詳細欄なので円単位で正確に出す（要約は右側の評価バッジ・グラフが億/万円で担当）
+  const formatYen = (amount: number) => `${Math.round(amount).toLocaleString()}円`;
   const formatPolicyMoney = (yenAmount: number, foreignAmount?: number) => {
     if (policy.currency === 'USD' && foreignAmount && foreignAmount > 0) {
       return `$${foreignAmount.toLocaleString()}（円換算 ${formatYen(yenAmount)}）`;

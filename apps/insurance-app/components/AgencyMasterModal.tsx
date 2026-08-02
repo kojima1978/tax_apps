@@ -9,17 +9,20 @@ import {
   deleteAgencyMaster as apiDelete,
 } from '@/lib/api';
 import { X, Plus, Trash2, Pencil, Check, Building2 } from 'lucide-react';
+import AgencyLogoPicker from '@/components/AgencyLogoPicker';
 
 interface AgencyMasterModalProps {
   onClose: () => void;
 }
 
+const EMPTY_FORM: Omit<AgencyMaster, 'id'> = { name: '', representative: '', phone: '' };
+
 const AgencyMasterModal: React.FC<AgencyMasterModalProps> = ({ onClose }) => {
   const [masters, setMasters] = useState<AgencyMaster[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', representative: '', phone: '' });
-  const [newForm, setNewForm] = useState({ name: '', representative: '', phone: '' });
+  const [editForm, setEditForm] = useState<Omit<AgencyMaster, 'id'>>(EMPTY_FORM);
+  const [newForm, setNewForm] = useState<Omit<AgencyMaster, 'id'>>(EMPTY_FORM);
   const [showNewForm, setShowNewForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +41,7 @@ const AgencyMasterModal: React.FC<AgencyMasterModalProps> = ({ onClose }) => {
     try {
       const created = await apiCreate(newForm);
       setMasters([...masters, created]);
-      setNewForm({ name: '', representative: '', phone: '' });
+      setNewForm(EMPTY_FORM);
       setShowNewForm(false);
       setError(null);
     } catch {
@@ -48,7 +51,7 @@ const AgencyMasterModal: React.FC<AgencyMasterModalProps> = ({ onClose }) => {
 
   const handleStartEdit = (master: AgencyMaster) => {
     setEditingId(master.id);
-    setEditForm({ name: master.name, representative: master.representative, phone: master.phone });
+    setEditForm({ name: master.name, representative: master.representative, phone: master.phone, logoDataUrl: master.logoDataUrl });
   };
 
   const handleSaveEdit = async () => {
@@ -116,6 +119,7 @@ const AgencyMasterModal: React.FC<AgencyMasterModalProps> = ({ onClose }) => {
                       <th>代理店名</th>
                       <th>取扱者</th>
                       <th>電話番号</th>
+                      <th className="am-th-logo">ロゴ</th>
                       <th className="am-th-actions">操作</th>
                     </tr>
                   </thead>
@@ -128,6 +132,14 @@ const AgencyMasterModal: React.FC<AgencyMasterModalProps> = ({ onClose }) => {
                             <td><input type="text" value={editForm.representative} onChange={e => setEditForm({ ...editForm, representative: e.target.value })} placeholder="取扱者" /></td>
                             <td><input type="text" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} placeholder="電話番号" /></td>
                             <td>
+                              <AgencyLogoPicker
+                                variant="compact"
+                                value={editForm.logoDataUrl}
+                                onChange={logoDataUrl => { setEditForm(current => ({ ...current, logoDataUrl })); setError(null); }}
+                                onError={setError}
+                              />
+                            </td>
+                            <td>
                               <div className="am-actions">
                                 <button type="button" className="am-icon-btn am-icon-save" onClick={handleSaveEdit} title="保存"><Check size={15} /></button>
                                 <button type="button" className="am-icon-btn" onClick={() => setEditingId(null)} title="キャンセル"><X size={15} /></button>
@@ -139,6 +151,17 @@ const AgencyMasterModal: React.FC<AgencyMasterModalProps> = ({ onClose }) => {
                             <td>{master.name}</td>
                             <td>{master.representative}</td>
                             <td>{master.phone}</td>
+                            <td>
+                              {master.logoDataUrl ? (
+                                <span className="am-logo-thumb">
+                                  {/* data URL なので next/image の最適化は使えない */}
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={master.logoDataUrl} alt={`${master.name}のロゴ`} />
+                                </span>
+                              ) : (
+                                <span className="am-logo-none">—</span>
+                              )}
+                            </td>
                             <td>
                               <div className="am-actions">
                                 <button type="button" className="am-icon-btn" onClick={() => handleStartEdit(master)} title="編集"><Pencil size={14} /></button>
@@ -155,9 +178,17 @@ const AgencyMasterModal: React.FC<AgencyMasterModalProps> = ({ onClose }) => {
                         <td><input type="text" value={newForm.representative} onChange={e => setNewForm({ ...newForm, representative: e.target.value })} placeholder="取扱者" /></td>
                         <td><input type="text" value={newForm.phone} onChange={e => setNewForm({ ...newForm, phone: e.target.value })} placeholder="電話番号" /></td>
                         <td>
+                          <AgencyLogoPicker
+                            variant="compact"
+                            value={newForm.logoDataUrl}
+                            onChange={logoDataUrl => { setNewForm(current => ({ ...current, logoDataUrl })); setError(null); }}
+                            onError={setError}
+                          />
+                        </td>
+                        <td>
                           <div className="am-actions">
                             <button type="button" className="am-icon-btn am-icon-save" onClick={handleCreate} title="追加"><Check size={15} /></button>
-                            <button type="button" className="am-icon-btn" onClick={() => { setShowNewForm(false); setNewForm({ name: '', representative: '', phone: '' }); }} title="キャンセル"><X size={15} /></button>
+                            <button type="button" className="am-icon-btn" onClick={() => { setShowNewForm(false); setNewForm(EMPTY_FORM); }} title="キャンセル"><X size={15} /></button>
                           </div>
                         </td>
                       </tr>
