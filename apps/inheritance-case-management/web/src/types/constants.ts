@@ -89,5 +89,6 @@ export const EXPENSE_DESCRIPTION_PRESETS = [
     "登記簿謄本",
     "固定資産評価証明書",
     "残高証明書",
+    "取引履歴",
     "交通費",
 ] as const
