@@ -15,6 +15,12 @@ const formatDeathBenefitYen = (amount: number) => formatWholeManYen(amount, '-')
 const formatUsdWhole = (amount: number) =>
   `$${Math.trunc(Math.max(0, amount)).toLocaleString('ja-JP')}`;
 
+const formatYen = (amount: number) =>
+  `${Math.round(amount).toLocaleString('ja-JP')}円`;
+
+const formatMonthlyYen = (amount: number) =>
+  `${formatYen(amount)}/月`;
+
 interface PolicyTableProps {
   policies: Policy[];
   familyMembers: FamilyMember[];
@@ -86,7 +92,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
     if (policy.currency === 'USD' && foreignAmount && foreignAmount > 0) {
       return formatUsdWhole(foreignAmount);
     }
-    return `${yenAmount.toLocaleString()}円`;
+    return formatYen(yenAmount);
   };
 
   const formatDeathBenefitCell = (policy: Policy) => {
@@ -142,7 +148,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
     }
     if (policy.premiumPaymentCompleted) return '払込終了済み・月額負担対象外';
     if (policy.paymentFrequency === 'annual') {
-      return `年払・月換算${Math.round(getMonthlyPremium(policy)).toLocaleString()}円`;
+      return `年払・月換算${formatYen(getMonthlyPremium(policy))}`;
     }
     return `月払・${getPaymentEndLabel(policy)}`;
   };
@@ -271,10 +277,10 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
             <th className="order-col">No.</th>
             <th className="drag-col"><span className="sr-only">並び替え</span></th>
             <th className="policy-info-col">証券</th>
-            <th className="death-benefit-col">死亡保障（円換算）<br /><span className="th-note">収入保障は月額</span></th>
-            <th className="hospital-col">入院日額</th>
+            <th className="death-benefit-col policy-amount-col">死亡保障（円換算）<br /><span className="th-note">収入保障は月額</span></th>
+            <th className="hospital-col policy-amount-col">入院日額</th>
             <th className="beneficiary-col">受取人</th>
-            <th className="premium-col">保険料</th>
+            <th className="premium-col policy-amount-col">保険料</th>
             <th className="actions-col">操作</th>
           </tr>
         </thead>
@@ -321,8 +327,8 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
                 <span className="policy-company">{policy.companyName}</span>
                 <small className="policy-number">証券番号: {policy.policyNumber || '未登録'}</small>
               </td>
-              <td data-label="死亡保障">{formatDeathBenefitCell(policy)}</td>
-              <td data-label="入院日額">{policy.hospDayDisease > 0 ? formatPrimaryAmount(policy, policy.hospDayDisease, policy.foreignHospDayDisease) : '-'}</td>
+              <td className="policy-amount-cell" data-label="死亡保障">{formatDeathBenefitCell(policy)}</td>
+              <td className="policy-amount-cell" data-label="入院日額">{policy.hospDayDisease > 0 ? formatPrimaryAmount(policy, policy.hospDayDisease, policy.foreignHospDayDisease) : '-'}</td>
               <td data-label="受取人">
                 {isPension && getMemberName(policy.pensionRecipientId || policy.insuredId)}
                 {!isPension && beneficiaryEntries.length === 0 && '未設定'}
@@ -346,7 +352,7 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
                   </div>
                 )}
               </td>
-              <td data-label="保険料">
+              <td className="policy-amount-cell" data-label="保険料">
                 <div className={`premium-cell${isPension ? ' pension-premium-cell' : ''}`}>
                   <div className="premium-primary-row">
                     {paymentFrequencyBadge && (
@@ -394,10 +400,13 @@ const PolicyTable: React.FC<PolicyTableProps> = ({
             <td className="order-cell"></td>
             <td className="drag-cell"></td>
             <td className="total-caption">合計</td>
-            <td style={{ fontWeight: 700 }}>{formatDeathBenefitYen(totalDeathBenefit)}</td>
-            <td style={{ fontWeight: 700 }}>{totalHospDay > 0 ? `${totalHospDay.toLocaleString()}円` : '-'}</td>
+            <td className="policy-amount-cell" style={{ fontWeight: 700 }}>{formatDeathBenefitYen(totalDeathBenefit)}</td>
+            <td className="policy-amount-cell" style={{ fontWeight: 700 }}>{totalHospDay > 0 ? formatYen(totalHospDay) : '-'}</td>
             <td className="total-burden-label">現在月額負担計</td>
-            <td style={{ fontWeight: 700 }}>{currentMonthlyBurden > 0 ? `${Math.round(currentMonthlyBurden).toLocaleString()}円/月` : '-'}</td>
+            <td className="policy-amount-cell total-burden-value" style={{ fontWeight: 700 }}>
+              <span className="print-only total-burden-print-label">現在月額負担計</span>
+              <span>{currentMonthlyBurden > 0 ? formatMonthlyYen(currentMonthlyBurden) : '-'}</span>
+            </td>
             <td className="actions-cell"></td>
           </tr>
         </tfoot>

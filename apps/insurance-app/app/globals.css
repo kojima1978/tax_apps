@@ -336,6 +336,26 @@ h1 {
   width: 20%;
 }
 
+.policy-table .policy-amount-col,
+.policy-table .policy-amount-cell {
+  text-align: right;
+}
+
+.policy-table .policy-amount-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+.policy-amount-cell .benefit-cell,
+.policy-amount-cell .premium-cell {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.policy-amount-cell .premium-primary-row,
+.policy-amount-cell .policy-status-badges {
+  justify-content: flex-end;
+}
+
 .policy-table .actions-col,
 .policy-table .actions-cell {
   width: 5.5rem;
@@ -4729,6 +4749,21 @@ h1 {
     font-weight: 700;
   }
 
+  .policy-table .policy-amount-cell {
+    text-align: left;
+  }
+
+  .policy-amount-cell .benefit-cell,
+  .policy-amount-cell .premium-cell {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .policy-amount-cell .premium-primary-row,
+  .policy-amount-cell .policy-status-badges {
+    justify-content: flex-start;
+  }
+
   .policy-table .policy-row .order-cell,
   .policy-table .policy-row .drag-cell {
     display: none;
@@ -5748,8 +5783,39 @@ body:has(.app-shell) #root {
   .policy-table th,
   .policy-table td {
     padding: 1.2mm 1.6mm !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
     line-height: 1.22 !important;
     vertical-align: middle !important;
+  }
+
+  .policy-table .death-benefit-col,
+  .policy-table td:nth-child(4),
+  .policy-table td:nth-child(4) .benefit-value,
+  .policy-table .hospital-col,
+  .policy-table td:nth-child(5) {
+    text-align: left !important;
+  }
+
+  .policy-table td:nth-child(4) .benefit-cell {
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+
+  .policy-table .total-row .total-burden-label {
+    visibility: hidden !important;
+  }
+
+  .policy-table .total-burden-value {
+    text-align: right !important;
+  }
+
+  .policy-table .total-burden-print-label {
+    margin-bottom: 0.5mm;
+    color: #334155;
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 1.2;
   }
 
   .policy-table tr {
