@@ -10,6 +10,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 import pandas as pd
 from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.properties import PageSetupProperties
 
@@ -250,4 +251,82 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
     )
     filename = f"{sanitize_filename(case.name)}_分類別取引.xlsx"
     set_download_filename(response, filename)
+    return response
+
+
+def export_monthly_cashflow_xlsx(request: HttpRequest, pk: int) -> HttpResponse:
+    """月次入出金の表形式データをExcelでエクスポートする。"""
+    case = get_object_or_404(Case, pk=pk)
+    monthly_stats = AnalysisService.get_monthly_cashflow(case)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '月次入出金'
+    ws.sheet_view.showGridLines = False
+
+    ws.merge_cells('A1:C1')
+    title = ws['A1']
+    title.value = '月次入出金'
+    title.font = Font(name='游ゴシック', size=16, bold=True, color='FFFFFF')
+    title.fill = PatternFill('solid', fgColor='2563EB')
+    title.alignment = Alignment(horizontal='left', vertical='center')
+    ws.row_dimensions[1].height = 28
+
+    ws['A2'] = 'お客様名'
+    ws['B2'] = case.name
+    ws['A3'] = '表示条件'
+    ws['B3'] = (
+        f"相続開始月（{case.reference_date.year}年{case.reference_date.month}月）以降を除外"
+        if case.reference_date else '全期間'
+    )
+    for cell in ('A2', 'A3'):
+        ws[cell].font = Font(name='游ゴシック', bold=True, color='475569')
+    for cell in ('B2', 'B3'):
+        ws[cell].font = Font(name='游ゴシック', color='0F172A')
+
+    header_row = 5
+    ws.append([])
+    ws.append(['月', '出金', '入金'])
+    header_fill = PatternFill('solid', fgColor='E2E8F0')
+    header_border = Border(bottom=Side(style='thin', color='94A3B8'))
+    for cell in ws[header_row]:
+        cell.font = Font(name='游ゴシック', bold=True, color='0F172A')
+        cell.fill = header_fill
+        cell.border = header_border
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    for stat in monthly_stats:
+        ws.append([
+            stat['month'].strftime('%Y-%m'),
+            stat['total_out'] or 0,
+            stat['total_in'] or 0,
+        ])
+
+    for row in ws.iter_rows(min_row=header_row + 1, min_col=2, max_col=3):
+        for cell in row:
+            cell.number_format = '#,##0'
+            cell.alignment = Alignment(horizontal='right')
+
+    ws.column_dimensions['A'].width = 14
+    ws.column_dimensions['B'].width = 18
+    ws.column_dimensions['C'].width = 18
+    ws.freeze_panes = 'A6'
+    if monthly_stats:
+        ws.auto_filter.ref = f'A{header_row}:C{header_row + len(monthly_stats)}'
+    ws.page_setup.paperSize = 9
+    ws.page_setup.orientation = 'portrait'
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    filename = f"{sanitize_filename(case.name)}_月次入出金.xlsx"
+    set_download_filename(response, filename)
+    logger.info(f"月次入出金Excel出力: case_id={pk}, months={len(monthly_stats)}")
     return response

@@ -10,6 +10,7 @@ from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET, require_POST
 
+from ..forms import CaseForm
 from ..models import Case, Transaction
 from ..services import TransactionService
 from ..services.transaction import get_or_create_account
@@ -17,6 +18,25 @@ from ..lib.constants import UNCATEGORIZED
 from .base import json_error, json_api_error, build_transaction_data, serialize_transaction
 
 logger = logging.getLogger(__name__)
+
+
+@require_POST
+def api_update_case_name(request: HttpRequest, pk: int) -> JsonResponse:
+    """編集・分析画面からお客様名（案件名）を更新する。"""
+    case = get_object_or_404(Case, pk=pk)
+    form = CaseForm(request.POST, instance=case)
+
+    if not form.is_valid():
+        error = form.errors.get('name', ['お客様名を確認してください'])[0]
+        return json_error(str(error))
+
+    updated_case = form.save()
+    logger.info(f"案件名更新: case_id={pk}, name={updated_case.name}")
+    return JsonResponse({
+        'success': True,
+        'name': updated_case.name,
+        'message': 'お客様名を更新しました',
+    })
 
 
 @require_POST

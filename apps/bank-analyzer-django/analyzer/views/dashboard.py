@@ -5,7 +5,6 @@ import logging
 import pandas as pd
 from django.contrib import messages
 from django.db.models import Sum, Count, Min, Max, Q
-from django.db.models.functions import TruncMonth
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
@@ -183,19 +182,17 @@ def _build_chart_data(case):
         chart_categories['counts'].append(unclassified_total)
         chart_categories['totals'].append(0)
 
-    # 月次入出金推移
-    monthly_stats = (
-        all_txs_qs
-        .filter(date__isnull=False)
-        .annotate(month=TruncMonth('date'))
-        .values('month')
-        .annotate(total_out=Sum('amount_out'), total_in=Sum('amount_in'))
-        .order_by('month')
-    )
+    # 月次入出金推移（Excel出力と同じ共通集計）
+    monthly_stats = AnalysisService.get_monthly_cashflow(case)
     chart_monthly = {
         'months': [s['month'].strftime('%Y-%m') for s in monthly_stats],
         'out': [s['total_out'] or 0 for s in monthly_stats],
         'in': [s['total_in'] or 0 for s in monthly_stats],
+        # 最大取引月は相続開始月以降を判定対象から除外する。
+        # 基準日が未設定の場合は空文字とし、従来どおり全期間を対象にする。
+        'inheritance_start_month': (
+            case.reference_date.strftime('%Y-%m') if case.reference_date else ''
+        ),
     }
 
     return {

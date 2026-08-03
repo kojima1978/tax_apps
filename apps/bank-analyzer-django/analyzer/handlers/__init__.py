@@ -61,6 +61,7 @@ from .wizard import (
 )
 
 from .api import (
+    api_update_case_name,
     api_toggle_flag,
     api_create_transaction,
     api_delete_transaction,
@@ -124,6 +125,7 @@ __all__ = [
     'mark_duplicates',
 
     # API endpoints
+    'api_update_case_name',
     'api_toggle_flag',
     'api_create_transaction',
     'api_delete_transaction',

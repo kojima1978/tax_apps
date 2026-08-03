@@ -8,7 +8,33 @@
 
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-    <h1 class="h2 mb-0"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> 編集・分析: {{ case.name }}</h1>
+    <div class="analysis-customer-name">
+        <div id="caseNameDisplay" class="d-flex flex-wrap align-items-center gap-2">
+            <h1 class="h5 mb-0">
+                <i class="bi bi-bar-chart-line" aria-hidden="true"></i>
+                編集・分析: <span id="caseNameValue">{{ case.name }}</span>
+            </h1>
+            <button type="button" class="btn btn-outline-secondary btn-sm analysis-name-edit-btn"
+                id="caseNameEditButton" aria-label="お客様名を修正"
+                onclick="toggleCaseNameEdit(true)">
+                <i class="bi bi-pencil" aria-hidden="true"></i>
+                <span>修正</span>
+            </button>
+        </div>
+        <form id="caseNameEdit" class="d-none" novalidate>
+            <label for="caseNameInput" class="form-label fw-semibold mb-1">お客様名</label>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <input type="text" class="form-control" id="caseNameInput"
+                    value="{{ case.name }}" maxlength="255" required autocomplete="off">
+                <button type="submit" class="btn btn-primary analysis-name-action-btn" id="caseNameSaveButton">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i> 保存
+                </button>
+                <button type="button" class="btn btn-outline-secondary analysis-name-action-btn"
+                    onclick="toggleCaseNameEdit(false)">キャンセル</button>
+            </div>
+            <div class="invalid-feedback d-block" id="caseNameError" role="alert" aria-live="polite"></div>
+        </form>
+    </div>
     <div class="d-flex gap-2 flex-wrap">
         <a href="{% url 'export-xlsx-by-category' case.pk %}" class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-excel" aria-hidden="true"></i>
@@ -222,7 +248,7 @@
 <!-- 基準日設定 -->
 <div class="glass-card px-4 py-3 mb-4">
     <div class="d-flex align-items-center gap-3 flex-wrap">
-        <span class="fw-semibold text-muted"><i class="bi bi-calendar-event me-1"></i>基準日</span>
+        <span class="fw-semibold text-muted reference-date-label"><i class="bi bi-calendar-event me-1"></i>基準日</span>
         <div id="referenceDateDisplay" class="d-flex align-items-center gap-2">
             {% if case.reference_date %}
             <span class="badge bg-primary fs-6 fw-normal" id="referenceDateValue">{{ case.reference_date|date:"Y-m-d" }}</span>
@@ -313,8 +339,7 @@
             <h2 class="h5 mb-1" id="nextStepHeading">{{ flagged_count }}件の付箋を確認</h2>
             <p class="text-muted small mb-0">確認事項やメモが残っている取引を整理しましょう。</p>
             {% else %}
-            <h2 class="h5 mb-1" id="nextStepHeading">主要な確認作業は完了しています</h2>
-            <p class="text-muted small mb-0">分類別Excelを最終成果物として出力できます。</p>
+            <h2 class="small fw-semibold text-muted mb-0" id="nextStepHeading">主要な確認作業は完了しています</h2>
             {% endif %}
         </div>
         {% if unclassified_count %}
@@ -324,10 +349,6 @@
         </a>
         {% elif flagged_count %}
         <a href="?tab=flagged" class="btn btn-outline-success">付箋を開く</a>
-        {% else %}
-        <a href="{% url 'export-xlsx-by-category' case.pk %}" class="btn btn-success">
-            <i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>分類別Excelを出力
-        </a>
         {% endif %}
     </div>
 </section>
@@ -392,7 +413,13 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
         <div>
             <h4 class="mb-0"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> 月次入出金</h4>
-            <small class="text-muted">大きな月は棒を選択すると金額を確認できます</small>
+            <small class="text-muted">
+                {% if case.reference_date %}
+                相続開始月（{{ case.reference_date|date:"Y年n月" }}）以降を除外し、前月までを表示しています
+                {% else %}
+                大きな月は棒を選択すると金額を確認できます
+                {% endif %}
+            </small>
         </div>
         <div class="btn-group btn-group-sm" role="group" aria-label="グラフ表示期間">
             <button type="button" class="btn btn-outline-secondary active chart-range-btn" data-months="0">全期間</button>
@@ -401,6 +428,12 @@
     </div>
     <div id="monthlyBarChart" style="height: 320px;" role="img"
         aria-label="月次の出金額と入金額を比較する棒グラフ"></div>
+    <div class="d-flex justify-content-end mt-2">
+        <a href="{% url 'export-monthly-cashflow-xlsx' case.pk %}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-file-earmark-excel" aria-hidden="true"></i>
+            表をExcel出力
+        </a>
+    </div>
     <details class="chart-data-details mt-2">
         <summary>表形式のデータを表示</summary>
         <div class="table-responsive mt-2">
@@ -751,6 +784,74 @@ document.addEventListener('click', function(e) {
 <!-- トースト通知 -->
 <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
 
+<!-- お客様名編集 JS -->
+<script>
+(function() {
+    const caseNameUrl = '{% url "api-update-case-name" case.pk %}';
+    const csrfToken = '{{ csrf_token }}';
+    const display = document.getElementById('caseNameDisplay');
+    const form = document.getElementById('caseNameEdit');
+    const input = document.getElementById('caseNameInput');
+    const value = document.getElementById('caseNameValue');
+    const error = document.getElementById('caseNameError');
+    const saveButton = document.getElementById('caseNameSaveButton');
+
+    window.toggleCaseNameEdit = function(show) {
+        display.classList.toggle('d-none', show);
+        form.classList.toggle('d-none', !show);
+        error.textContent = '';
+        input.classList.remove('is-invalid');
+        if (show) {
+            input.value = value.textContent.trim();
+            input.focus();
+            input.select();
+        }
+    };
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const name = input.value.trim();
+        if (!name) {
+            input.classList.add('is-invalid');
+            error.textContent = 'お客様名を入力してください';
+            input.focus();
+            return;
+        }
+
+        const fd = new FormData();
+        fd.append('name', name);
+        fd.append('csrfmiddlewaretoken', csrfToken);
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> 保存中';
+
+        postJson(caseNameUrl, fd, {
+            onSuccess: function(data) {
+                value.textContent = data.name;
+                input.value = data.name;
+                toggleCaseNameEdit(false);
+                showToast(data.message, 'success');
+            },
+            onError: function(data) {
+                input.classList.add('is-invalid');
+                error.textContent = data.error || 'お客様名を更新できませんでした';
+                input.focus();
+            },
+            onFinally: function() {
+                saveButton.disabled = false;
+                saveButton.innerHTML = '<i class="bi bi-check-lg" aria-hidden="true"></i> 保存';
+            }
+        });
+    });
+
+    input.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            toggleCaseNameEdit(false);
+        }
+    });
+})();
+</script>
+
 {% if chart_categories_json %}
 <script>
 (function() {
@@ -770,7 +871,12 @@ document.addEventListener('click', function(e) {
         var outValues = monthData.out.slice(start);
         var inValues = monthData['in'].slice(start);
         var combined = outValues.map(function(value, index) { return value + inValues[index]; });
-        var maxIndex = combined.indexOf(Math.max.apply(null, combined));
+        var eligibleValues = combined.map(function(value, index) {
+            var inheritanceStartMonth = monthData.inheritance_start_month;
+            return inheritanceStartMonth && months[index] >= inheritanceStartMonth ? -1 : value;
+        });
+        var maxEligibleValue = Math.max.apply(null, eligibleValues);
+        var maxIndex = maxEligibleValue >= 0 ? eligibleValues.indexOf(maxEligibleValue) : -1;
         var annotations = maxIndex >= 0 && combined[maxIndex] > 0 ? [{
             x: months[maxIndex],
             y: Math.max(outValues[maxIndex], inValues[maxIndex]),
@@ -836,6 +942,14 @@ document.addEventListener('click', function(e) {
                 });
             tableBody.appendChild(row);
         });
+    } else {
+        var chartElement = document.getElementById('monthlyBarChart');
+        chartElement.classList.add('d-flex', 'align-items-center', 'justify-content-center', 'text-muted');
+        chartElement.textContent = monthData.inheritance_start_month
+            ? '相続開始月より前の取引データがありません'
+            : '表示できる月次データがありません';
+        var tableDetails = document.querySelector('.chart-data-details');
+        if (tableDetails) tableDetails.classList.add('d-none');
     }
 })();
 </script>

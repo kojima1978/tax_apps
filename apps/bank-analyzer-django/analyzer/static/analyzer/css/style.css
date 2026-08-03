@@ -368,6 +368,41 @@ h1, h2, h3, h4 {
     padding-inline: clamp(1rem, 2.5vw, 2.5rem);
 }
 
+.analysis-customer-name {
+    min-width: min(100%, 24rem);
+}
+
+.reference-date-label {
+    font-size: 0.8125rem;
+}
+
+.reference-date-label i {
+    font-size: 0.75rem;
+}
+
+.analysis-name-action-btn {
+    min-height: 2.75rem;
+}
+
+.analysis-name-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding-inline: 0.5rem;
+}
+
+#caseNameEdit {
+    max-width: 38rem;
+}
+
+#caseNameInput {
+    width: min(22rem, 100%);
+}
+
+#caseNameError:empty {
+    display: none !important;
+}
+
 .analysis-shell {
     display: grid;
     grid-template-columns: 14rem minmax(0, 1fr);

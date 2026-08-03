@@ -3,6 +3,8 @@
 
 モデル、フォーム、サービス、テンプレートタグのテストを含む。
 """
+import json
+
 from datetime import date, datetime
 from io import BytesIO
 
@@ -568,6 +570,7 @@ class ViewsTest(TestCase):
             description="テスト取引",
             amount_out=10000,
             balance=90000,
+            category="生活費",
         )
         response = self.client.get(reverse('analysis-dashboard', args=[self.case.pk]))
         self.assertEqual(response.status_code, 200)
@@ -575,11 +578,21 @@ class ViewsTest(TestCase):
         self.assertContains(response, 'id="overview-tab"')
         self.assertContains(response, 'aria-orientation="vertical"')
         self.assertContains(response, 'id="analysisMobileMenuOpen"')
+        self.assertContains(response, 'id="caseNameEditButton"')
+        self.assertContains(response, 'class="h5 mb-0"')
+        self.assertContains(response, 'btn-sm analysis-name-edit-btn')
+        self.assertContains(response, 'id="caseNameInput"')
+        self.assertContains(response, 'reference-date-label')
         self.assertContains(response, 'class="overview-kpi-grid')
         self.assertContains(response, 'aria-label="月次の出金額と入金額を比較する棒グラフ"')
+        self.assertContains(response, '表をExcel出力')
+        self.assertContains(response, reverse('export-monthly-cashflow-xlsx', args=[self.case.pk]))
         self.assertContains(response, "最終成果物")
         self.assertContains(response, "分類別Excel出力")
         self.assertContains(response, reverse('export-xlsx-by-category', args=[self.case.pk]))
+        self.assertContains(response, 'class="small fw-semibold text-muted mb-0" id="nextStepHeading"')
+        self.assertNotContains(response, "分類別Excelを最終成果物として出力できます。")
+        self.assertNotContains(response, "分類別Excelを出力")
         self.assertNotContains(response, 'id="transactionKeyword"')
         self.assertNotContains(response, 'id="unclassifiedTable"')
 
@@ -600,6 +613,75 @@ class ViewsTest(TestCase):
             all_response,
             'aria-label="月次の出金額と入金額を比較する棒グラフ"',
         )
+
+    def test_update_case_name_from_analysis(self):
+        """編集・分析画面からお客様名を更新できる"""
+        response = self.client.post(
+            reverse('api-update-case-name', args=[self.case.pk]),
+            {'name': '徳倉 花子 さま'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['name'], '徳倉 花子 さま')
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.name, '徳倉 花子 さま')
+
+    def test_update_case_name_rejects_blank_and_duplicate(self):
+        """お客様名の空欄と重複を受け付けない"""
+        other_case = Case.objects.create(name='登録済みのお客様')
+        url = reverse('api-update-case-name', args=[self.case.pk])
+
+        blank_response = self.client.post(url, {'name': '   '})
+        duplicate_response = self.client.post(url, {'name': other_case.name})
+
+        self.assertEqual(blank_response.status_code, 400)
+        self.assertFalse(blank_response.json()['success'])
+        self.assertEqual(duplicate_response.status_code, 400)
+        self.assertFalse(duplicate_response.json()['success'])
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.name, 'テスト案件')
+
+    def test_monthly_chart_excludes_inheritance_month_and_later(self):
+        """月次グラフと表から相続開始月以降を除外する"""
+        self.case.reference_date = date(2024, 2, 15)
+        self.case.save(update_fields=['reference_date'])
+        Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 15),
+            description="相続開始前",
+            amount_out=10000,
+        )
+        Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 2, 1),
+            description="相続開始月",
+            amount_out=99999,
+        )
+
+        response = self.client.get(reverse('analysis-dashboard', args=[self.case.pk]))
+        chart_monthly = json.loads(response.context['chart_monthly_json'])
+
+        self.assertEqual(chart_monthly['inheritance_start_month'], '2024-02')
+        self.assertEqual(chart_monthly['months'], ['2024-01'])
+        self.assertEqual(chart_monthly['out'], [10000])
+        self.assertContains(response, "months[index] >= inheritanceStartMonth")
+        self.assertContains(response, '相続開始月（2024年2月）以降を除外')
+
+    def test_monthly_chart_uses_all_months_without_reference_date(self):
+        """相続開始日が未設定なら最大取引月の判定境界を設けない"""
+        Transaction.objects.create(
+            case=self.case,
+            date=date(2024, 1, 15),
+            description="基準日未設定",
+            amount_in=10000,
+        )
+
+        response = self.client.get(reverse('analysis-dashboard', args=[self.case.pk]))
+        chart_monthly = json.loads(response.context['chart_monthly_json'])
+
+        self.assertEqual(chart_monthly['inheritance_start_month'], '')
+        self.assertEqual(chart_monthly['months'], ['2024-01'])
 
     def test_overview_shows_shared_period_and_direction_counts(self):
         """分析期間を共通表示し、総入金・総出金には各方向の取引件数を表示する"""
@@ -813,6 +895,47 @@ class ViewsTest(TestCase):
         self.assertIn("付箋付き", workbook.sheetnames)
         self.assertEqual(workbook["生活費"].max_row, 2)
         self.assertEqual(workbook["付箋付き"].max_row, 2)
+
+    def test_export_monthly_cashflow_xlsx_matches_displayed_table(self):
+        """月次Excelは画面と同じく相続開始月以降を除外する"""
+        self.case.reference_date = date(2024, 3, 10)
+        self.case.save(update_fields=['reference_date'])
+        Transaction.objects.create(
+            case=self.case, date=date(2024, 1, 15),
+            description='1月', amount_out=1000, amount_in=2000,
+        )
+        Transaction.objects.create(
+            case=self.case, date=date(2024, 2, 15),
+            description='2月', amount_out=3000, amount_in=4000,
+        )
+        Transaction.objects.create(
+            case=self.case, date=date(2024, 3, 1),
+            description='相続開始月', amount_out=999999,
+        )
+
+        response = self.client.get(
+            reverse('export-monthly-cashflow-xlsx', args=[self.case.pk]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        self.assertIn('.xlsx', response['Content-Disposition'])
+
+        workbook = load_workbook(BytesIO(response.content), data_only=False)
+        sheet = workbook['月次入出金']
+        self.assertEqual(sheet['B2'].value, 'テスト案件')
+        self.assertEqual(sheet['A5'].value, '月')
+        self.assertEqual(sheet['B5'].value, '出金')
+        self.assertEqual(sheet['C5'].value, '入金')
+        self.assertEqual(
+            list(sheet.iter_rows(min_row=6, max_col=3, values_only=True)),
+            [('2024-01', 1000, 2000), ('2024-02', 3000, 4000)],
+        )
+        self.assertEqual(sheet['B6'].number_format, '#,##0')
+        self.assertEqual(sheet.freeze_panes, 'A6')
 
     def test_api_toggle_flag(self):
         """付箋トグルAPI"""

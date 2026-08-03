@@ -6,9 +6,11 @@
 import json
 import logging
 from collections import defaultdict, OrderedDict
+from datetime import date
 
 import pandas as pd
-from django.db.models import Q
+from django.db.models import Q, Sum
+from django.db.models.functions import TruncMonth
 
 from ..models import Case, Transaction
 from ..lib import analyzer, llm_classifier, config
@@ -23,6 +25,26 @@ class AnalysisService:
     """分析機能に関するビジネスロジック"""
 
     STANDARD_CATEGORIES = STANDARD_CATEGORIES
+
+    @staticmethod
+    def get_monthly_cashflow(case: Case) -> list[dict]:
+        """月次入出金を集計する（相続開始月以降は除外）。"""
+        transactions = case.transactions.filter(date__isnull=False)
+        if case.reference_date:
+            inheritance_start_month = date(
+                case.reference_date.year,
+                case.reference_date.month,
+                1,
+            )
+            transactions = transactions.filter(date__lt=inheritance_start_month)
+
+        return list(
+            transactions
+            .annotate(month=TruncMonth('date'))
+            .values('month')
+            .annotate(total_out=Sum('amount_out'), total_in=Sum('amount_in'))
+            .order_by('month')
+        )
 
     # =========================================================================
     # フィルタリング
