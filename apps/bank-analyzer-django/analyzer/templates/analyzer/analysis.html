@@ -415,7 +415,7 @@
             <h4 class="mb-0"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> 月次入出金</h4>
             <small class="text-muted">
                 {% if case.reference_date %}
-                相続開始月（{{ case.reference_date|date:"Y年n月" }}）以降を除外し、前月までを表示しています
+                相続開始月（{{ case.reference_date|wareki_month_short }}）以降を除外し、前月までを表示しています
                 {% else %}
                 大きな月は棒を選択すると金額を確認できます
                 {% endif %}
@@ -868,12 +868,13 @@ document.addEventListener('click', function(e) {
     function renderMonthlyChart(monthCount) {
         var start = monthCount > 0 ? Math.max(0, monthData.months.length - monthCount) : 0;
         var months = monthData.months.slice(start);
+        var monthKeys = monthData.month_keys.slice(start);
         var outValues = monthData.out.slice(start);
         var inValues = monthData['in'].slice(start);
         var combined = outValues.map(function(value, index) { return value + inValues[index]; });
         var eligibleValues = combined.map(function(value, index) {
             var inheritanceStartMonth = monthData.inheritance_start_month;
-            return inheritanceStartMonth && months[index] >= inheritanceStartMonth ? -1 : value;
+            return inheritanceStartMonth && monthKeys[index] >= inheritanceStartMonth ? -1 : value;
         });
         var maxEligibleValue = Math.max.apply(null, eligibleValues);
         var maxIndex = maxEligibleValue >= 0 ? eligibleValues.indexOf(maxEligibleValue) : -1;

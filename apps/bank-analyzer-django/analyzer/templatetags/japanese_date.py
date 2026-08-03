@@ -92,6 +92,35 @@ def wareki_short(value):
     return wareki(value, 'short')
 
 
+@register.filter(name='wareki_month_short')
+def wareki_month_short(value):
+    """年月のみの短い和暦（R6.1）"""
+    if value is None:
+        return "-"
+
+    if isinstance(value, str):
+        try:
+            value = datetime.strptime(value, '%Y-%m-%d').date()
+        except ValueError:
+            return value
+
+    if isinstance(value, datetime):
+        value = value.date()
+
+    if not isinstance(value, date):
+        return str(value)
+
+    era_name, era_year = get_japanese_era(value)
+    if not era_name:
+        return f"{value.year}.{value.month}"
+
+    for era_start, _, era_abbr in ERAS:
+        if value >= era_start:
+            return f"{era_abbr}{era_year}.{value.month}"
+
+    return f"{value.year}.{value.month}"
+
+
 @register.filter(name='wareki_year')
 def wareki_year(value):
     """年のみの和暦（令和6年）"""

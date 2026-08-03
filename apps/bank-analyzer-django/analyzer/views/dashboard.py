@@ -18,6 +18,7 @@ from ..lib.constants import (
 )
 from ..lib.text_utils import filter_by_keyword
 from ..services import ClassificationHistoryService, TransactionService, AnalysisService
+from ..templatetags.japanese_date import wareki_month_short
 from ..handlers import (
     handle_run_classifier,
     handle_apply_rules,
@@ -185,7 +186,8 @@ def _build_chart_data(case):
     # 月次入出金推移（Excel出力と同じ共通集計）
     monthly_stats = AnalysisService.get_monthly_cashflow(case)
     chart_monthly = {
-        'months': [s['month'].strftime('%Y-%m') for s in monthly_stats],
+        'months': [wareki_month_short(s['month']) for s in monthly_stats],
+        'month_keys': [s['month'].strftime('%Y-%m') for s in monthly_stats],
         'out': [s['total_out'] or 0 for s in monthly_stats],
         'in': [s['total_in'] or 0 for s in monthly_stats],
         # 最大取引月は相続開始月以降を判定対象から除外する。

@@ -21,7 +21,7 @@ from .services import (
     AnalysisService,
     parse_int_ids,
 )
-from .templatetags.japanese_date import wareki, wareki_short, wareki_year, get_japanese_era
+from .templatetags.japanese_date import wareki, wareki_short, wareki_month_short, wareki_year, get_japanese_era
 from .handlers import parse_amount
 from .views import sanitize_filename
 from .lib.importer import _convert_japanese_date
@@ -486,6 +486,12 @@ class JapaneseDateTest(TestCase):
         result = wareki_short(date(2024, 1, 15))
         self.assertEqual(result, "R6.1.15")
 
+    def test_wareki_month_short(self):
+        """年月のみの和暦短縮形式"""
+        self.assertEqual(wareki_month_short(date(2024, 1, 15)), "R6.1")
+        self.assertEqual(wareki_month_short(date(2019, 4, 1)), "H31.4")
+        self.assertEqual(wareki_month_short(date(2019, 5, 1)), "R1.5")
+
     def test_wareki_year(self):
         """和暦年のみ"""
         result = wareki_year(date(2024, 1, 15))
@@ -663,10 +669,11 @@ class ViewsTest(TestCase):
         chart_monthly = json.loads(response.context['chart_monthly_json'])
 
         self.assertEqual(chart_monthly['inheritance_start_month'], '2024-02')
-        self.assertEqual(chart_monthly['months'], ['2024-01'])
+        self.assertEqual(chart_monthly['months'], ['R6.1'])
+        self.assertEqual(chart_monthly['month_keys'], ['2024-01'])
         self.assertEqual(chart_monthly['out'], [10000])
-        self.assertContains(response, "months[index] >= inheritanceStartMonth")
-        self.assertContains(response, '相続開始月（2024年2月）以降を除外')
+        self.assertContains(response, "monthKeys[index] >= inheritanceStartMonth")
+        self.assertContains(response, '相続開始月（R6.2）以降を除外')
 
     def test_monthly_chart_uses_all_months_without_reference_date(self):
         """相続開始日が未設定なら最大取引月の判定境界を設けない"""
@@ -681,7 +688,8 @@ class ViewsTest(TestCase):
         chart_monthly = json.loads(response.context['chart_monthly_json'])
 
         self.assertEqual(chart_monthly['inheritance_start_month'], '')
-        self.assertEqual(chart_monthly['months'], ['2024-01'])
+        self.assertEqual(chart_monthly['months'], ['R6.1'])
+        self.assertEqual(chart_monthly['month_keys'], ['2024-01'])
 
     def test_overview_shows_shared_period_and_direction_counts(self):
         """分析期間を共通表示し、総入金・総出金には各方向の取引件数を表示する"""
@@ -932,7 +940,7 @@ class ViewsTest(TestCase):
         self.assertEqual(sheet['C5'].value, '入金')
         self.assertEqual(
             list(sheet.iter_rows(min_row=6, max_col=3, values_only=True)),
-            [('2024-01', 1000, 2000), ('2024-02', 3000, 4000)],
+            [('R6.1', 1000, 2000), ('R6.2', 3000, 4000)],
         )
         self.assertEqual(sheet['B6'].number_format, '#,##0')
         self.assertEqual(sheet.freeze_panes, 'A6')

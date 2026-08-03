@@ -20,7 +20,7 @@ from ..lib import config
 from ..lib.constants import sort_categories
 from ..lib.text_utils import df_filter_by_keyword
 from ..services import AnalysisService
-from ..templatetags.japanese_date import wareki
+from ..templatetags.japanese_date import wareki, wareki_month_short
 from ._helpers import (
     sanitize_filename, set_download_filename, build_filter_state,
     build_filtered_filename, require_transactions, prepare_export_df,
@@ -276,7 +276,7 @@ def export_monthly_cashflow_xlsx(request: HttpRequest, pk: int) -> HttpResponse:
     ws['B2'] = case.name
     ws['A3'] = '表示条件'
     ws['B3'] = (
-        f"相続開始月（{case.reference_date.year}年{case.reference_date.month}月）以降を除外"
+        f"相続開始月（{wareki_month_short(case.reference_date)}）以降を除外"
         if case.reference_date else '全期間'
     )
     for cell in ('A2', 'A3'):
@@ -297,7 +297,7 @@ def export_monthly_cashflow_xlsx(request: HttpRequest, pk: int) -> HttpResponse:
 
     for stat in monthly_stats:
         ws.append([
-            stat['month'].strftime('%Y-%m'),
+            wareki_month_short(stat['month']),
             stat['total_out'] or 0,
             stat['total_in'] or 0,
         ])
