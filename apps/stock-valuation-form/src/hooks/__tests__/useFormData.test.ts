@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { initialFormData, type FormData, type TableId } from '@/types/form';
+import { TEST_INDUSTRY_DATASET } from '@/data/__tests__/industryFixture';
 import { normalizeFormData, updateFormField } from '../useFormData';
 
 const COMPANY_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
@@ -26,7 +27,7 @@ const formDataWith = (table: TableId, field: string, value: string): FormData =>
 
 describe('normalizeFormData company name linkage', () => {
   it('updates every table when table 1-1 company name changes', () => {
-    const updated = updateFormField(initialFormData, 'table1_1', 'f12', '連動テスト株式会社');
+    const updated = updateFormField(initialFormData, 'table1_1', 'f12', '連動テスト株式会社', TEST_INDUSTRY_DATASET);
 
     for (const [table, field] of COMPANY_FIELDS) {
       expect(updated[table][field]).toBe('連動テスト株式会社');
@@ -34,7 +35,7 @@ describe('normalizeFormData company name linkage', () => {
   });
 
   it('copies the company name from table 1-1 to every table', () => {
-    const normalized = normalizeFormData(formDataWith('table1_1', 'f12', '株式会社テスト'));
+    const normalized = normalizeFormData(formDataWith('table1_1', 'f12', '株式会社テスト'), TEST_INDUSTRY_DATASET);
 
     for (const [table, field] of COMPANY_FIELDS) {
       expect(normalized[table][field]).toBe('株式会社テスト');
@@ -42,7 +43,7 @@ describe('normalizeFormData company name linkage', () => {
   });
 
   it('migrates a company name stored by an older form into the shared fields', () => {
-    const normalized = normalizeFormData(formDataWith('table2', 'company', '旧データ株式会社'));
+    const normalized = normalizeFormData(formDataWith('table2', 'company', '旧データ株式会社'), TEST_INDUSTRY_DATASET);
 
     expect(normalized.table1_1.f12).toBe('旧データ株式会社');
     expect(normalized.table7.company).toBe('旧データ株式会社');
@@ -56,7 +57,7 @@ describe('table 1-2 minority shareholder judgment', () => {
       ...initialFormData,
       table1_2: { j_yakuin: 'no', j_chushin_self: 'no', j_chushin_other: 'yes' },
     };
-    const updated = updateFormField(data, 'table1_2', 'j_yakuin', 'yes');
+    const updated = updateFormField(data, 'table1_2', 'j_yakuin', 'yes', TEST_INDUSTRY_DATASET);
 
     expect(updated.table1_2).toMatchObject({
       j_yakuin: 'yes',
@@ -70,7 +71,7 @@ describe('table 1-2 minority shareholder judgment', () => {
       ...initialFormData,
       table1_2: { j_yakuin: 'no', j_chushin_self: 'no', j_chushin_other: 'yes' },
     };
-    const updated = updateFormField(data, 'table1_2', 'j_chushin_self', 'yes');
+    const updated = updateFormField(data, 'table1_2', 'j_chushin_self', 'yes', TEST_INDUSTRY_DATASET);
 
     expect(updated.table1_2).toMatchObject({
       j_yakuin: 'no',
@@ -82,21 +83,21 @@ describe('table 1-2 minority shareholder judgment', () => {
 
 describe('table 1-1 industry linkage', () => {
   it('fills the industry name when an industry number is selected', () => {
-    const updated = updateFormField(initialFormData, 'table1_1', 'f23', '3');
+    const updated = updateFormField(initialFormData, 'table1_1', 'f23', '3', TEST_INDUSTRY_DATASET);
 
     expect(updated.table1_1.f23).toBe('3');
     expect(updated.table1_1.f22).toBe('建築工事業（木造建築工事業を除く）');
   });
 
   it('fills the large-category name even when its content is blank', () => {
-    const updated = updateFormField(initialFormData, 'table1_1', 'f23', '1');
+    const updated = updateFormField(initialFormData, 'table1_1', 'f23', '1', TEST_INDUSTRY_DATASET);
 
     expect(updated.table1_1.f22).toBe('建設業');
   });
 
   it('updates and clears the linked description together with the industry number', () => {
-    const selected = updateFormField(initialFormData, 'table1_1', 'f26', '54');
-    const cleared = updateFormField(selected, 'table1_1', 'f26', '');
+    const selected = updateFormField(initialFormData, 'table1_1', 'f26', '54', TEST_INDUSTRY_DATASET);
+    const cleared = updateFormField(selected, 'table1_1', 'f26', '', TEST_INDUSTRY_DATASET);
 
     expect(selected.table1_1.f25).toBe('ソフトウェア業');
     expect(cleared.table1_1.f26).toBe('');
@@ -107,7 +108,7 @@ describe('table 1-1 industry linkage', () => {
     const normalized = normalizeFormData({
       ...initialFormData,
       table1_1: { f29: '115', f28: '古い内容' },
-    });
+    }, TEST_INDUSTRY_DATASET);
 
     expect(normalized.table1_1.f28).toBe('その他の産業');
   });
@@ -115,8 +116,8 @@ describe('table 1-1 industry linkage', () => {
 
 describe('table 4-2 similar industry linkage', () => {
   it('fills the industry name, B/C/D and published prices when its number is selected', () => {
-    const dated = updateFormField(initialFormData, 'table1_1', 'f14_m', '4');
-    const updated = updateFormField(dated, 'table4', 'r1gyonum', '3');
+    const dated = updateFormField(initialFormData, 'table1_1', 'f14_m', '4', TEST_INDUSTRY_DATASET);
+    const updated = updateFormField(dated, 'table4', 'r1gyonum', '3', TEST_INDUSTRY_DATASET);
 
     expect(updated.table4.r1gyonum).toBe('3');
     expect(updated.table4.r1gyo).toBe('【小】建築工事業（木造建築工事業を除く）');
@@ -134,9 +135,9 @@ describe('table 4-2 similar industry linkage', () => {
   });
 
   it('refreshes both blocks when the tax month changes', () => {
-    const first = updateFormField(initialFormData, 'table4', 'r1gyonum', '1');
-    const both = updateFormField(first, 'table4', 'r2gyonum', '2');
-    const updated = updateFormField(both, 'table1_1', 'f14_m', '1');
+    const first = updateFormField(initialFormData, 'table4', 'r1gyonum', '1', TEST_INDUSTRY_DATASET);
+    const both = updateFormField(first, 'table4', 'r2gyonum', '2', TEST_INDUSTRY_DATASET);
+    const updated = updateFormField(both, 'table1_1', 'f14_m', '1', TEST_INDUSTRY_DATASET);
 
     expect(updated.table4).toMatchObject({
       '㋷': '756', '㋦': '708', '㋸': '681',
@@ -148,7 +149,7 @@ describe('table 4-2 similar industry linkage', () => {
     const normalized = normalizeFormData({
       ...initialFormData,
       table4: { r2gyonum: '2', r2gyo: '古い名称' },
-    });
+    }, TEST_INDUSTRY_DATASET);
 
     expect(normalized.table4.r2gyo).toBe('【中】総合工事業');
     expect(normalized.table4).toMatchObject({

@@ -1,10 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { companyFloatBox } from './companyFloatHeader';
 import type { TableProps } from '@/types/form';
-import { INDUSTRY_OPTIONS } from '@/data/industryCategories';
+import { useIndustryDataset } from '@/data/IndustryDataProvider';
 
 const T = 'table1_1' as const;
+
+/** 業種目番号の欄。選択肢は課税時期の年分で決まるのでコンポーネント側で注入する。 */
+const INDUSTRY_NUMBER_FIELDS = new Set(['f23', 'f26', 'f29']);
 
 // ══ 令和8年4月1日以降用の様式 ══
 // ・株主は1人あたり2行（上段: 氏名/役職名/㋑株式数/㋺未分割株式数、下段: 続柄/株式の種類/㋩議決権数/㋥議決権割合）
@@ -385,19 +388,19 @@ const CELLS: GridCell[] = [
   { kind: 'cell', codeLabel: 'E02', top: 25.41, left: 44.88, width: 1.82, height: 2.34 },
   { field: 'f22', kind: 'input', readOnly: true, top: 25.41, left: 46.7, width: 19.94, height: 2.34, align: 'left' },
   { kind: 'cell', codeLabel: 'G01', top: 25.41, left: 66.64, width: 1.81, height: 2.34 },
-  { field: 'f23', kind: 'input', calculationRequired: true, options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号1', top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
+  { field: 'f23', kind: 'input', calculationRequired: true, compactSelectedOption: true, ariaLabel: '業種目番号1', top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
   { kind: 'cell', codeLabel: 'C01', top: 25.41, left: 81.14, width: 1.82, height: 2.34 },
   { field: 'f24', kind: 'input', top: 25.41, left: 82.96, width: 5.52, height: 2.34 },
   { kind: 'cell', codeLabel: 'E03', top: 27.75, left: 44.88, width: 1.82, height: 2.36 },
   { field: 'f25', kind: 'input', readOnly: true, top: 27.75, left: 46.7, width: 19.94, height: 2.36, align: 'left' },
   { kind: 'cell', codeLabel: 'G02', top: 27.75, left: 66.64, width: 1.81, height: 2.36 },
-  { field: 'f26', kind: 'input', calculationRequired: true, options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号2', top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
+  { field: 'f26', kind: 'input', calculationRequired: true, compactSelectedOption: true, ariaLabel: '業種目番号2', top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
   { kind: 'cell', codeLabel: 'C02', top: 27.75, left: 81.14, width: 1.82, height: 2.36 },
   { field: 'f27', kind: 'input', top: 27.75, left: 82.96, width: 5.52, height: 2.36 },
   { kind: 'cell', codeLabel: 'E04', top: 30.11, left: 44.88, width: 1.82, height: 2.25 },
   { field: 'f28', kind: 'input', readOnly: true, top: 30.11, left: 46.7, width: 19.94, height: 2.25, align: 'left' },
   { kind: 'cell', codeLabel: 'G03', top: 30.11, left: 66.64, width: 1.81, height: 2.25 },
-  { field: 'f29', kind: 'input', calculationRequired: true, options: INDUSTRY_OPTIONS, compactSelectedOption: true, ariaLabel: '業種目番号3', top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
+  { field: 'f29', kind: 'input', calculationRequired: true, compactSelectedOption: true, ariaLabel: '業種目番号3', top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
   { kind: 'cell', codeLabel: 'C03', top: 30.11, left: 81.14, width: 1.82, height: 2.25 },
   { field: 'f30', kind: 'input', top: 30.11, left: 82.96, width: 5.52, height: 2.25 },
   // ── 1. 株主及び評価方式の判定 ──
@@ -577,6 +580,19 @@ function continuationPageCells(pageIndex: number): GridCell[] {
 
 /** 第1表の1（CSSグリッド方式・令和8年4月1日以降用） */
 export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
+  // 業種目の選択肢は課税時期の属する年分のもの（業種目番号は年分ごとに振り直される）
+  const industryData = useIndustryDataset();
+  const era = getField(T, 'f14_g');
+  const eraYear = getField(T, 'f14_y');
+  const cells = useMemo(() => {
+    const options = industryData.forTaxPeriod({ era, eraYear, month: '' }).options;
+    return CELLS.map((cell) => (
+      cell.field !== undefined && INDUSTRY_NUMBER_FIELDS.has(cell.field)
+        ? { ...cell, options }
+        : cell
+    ));
+  }, [industryData, era, eraYear]);
+
   const reorderShareholderRows = useCallback((activeId: string, overId: string) => {
     const fromRow = Number(activeId);
     const toRow = Number(overId);
@@ -742,7 +758,7 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   return (
     <>
       <div className="gov-page" style={shPageCount > 0 ? { marginBottom: '8mm' } : undefined}>
-        <GridForm cells={CELLS} g={g} u={u} formId={T} width="100%" aspectRatio={MAIN_ASPECT} title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" formCode="NTA0VNA170010010" headerExtra={shimeiBox} toolbar={toolbar} onDragReorder={reorderShareholderRows} />
+        <GridForm cells={cells} g={g} u={u} formId={T} width="100%" aspectRatio={MAIN_ASPECT} title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" formCode="NTA0VNA170010010" headerExtra={shimeiBox} toolbar={toolbar} onDragReorder={reorderShareholderRows} />
       </div>
       {Array.from({ length: shPageCount }).map((_, i) => (
         <div className="gov-page" key={i} style={i < shPageCount - 1 ? { marginBottom: '8mm' } : undefined}>

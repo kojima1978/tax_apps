@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { initialFormData, type FormData } from '@/types/form';
+import { TEST_INDUSTRY_DATASET } from '@/data/__tests__/industryFixture';
 import { rolloverFormData } from '../rollover';
 import { normalizeFormData } from '../useFormData';
 
@@ -71,7 +72,7 @@ describe('rolloverFormData（翌事業年度更新）', () => {
   });
 
   it('第4表の配当欄と連動する第3表・第6表の欄も同期する（正規化で古い値が復活しない）', () => {
-    const normalized = normalizeFormData(rolled);
+    const normalized = normalizeFormData(rolled, TEST_INDUSTRY_DATASET);
     expect(normalized.table3.f59).toBe('1,000'); // 直前々期＝旧直前期
     expect(normalized.table3.f55).toBe('');      // 直前期は空欄のまま
     expect(normalized.table6.f66).toBe('1,000');

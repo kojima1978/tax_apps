@@ -137,9 +137,58 @@ export function createIndustryRouter(db: PrismaClient) {
   });
 
   /**
+   * フロントエンドが起動時に一括取得する全年分のデータ。
+   *
+   * 帳票の入力は同期的に組み立てられる（業種目を選ぶと第4表のB/C/D・株価が即座に埋まる）ため、
+   * 都度APIを呼ぶのではなく必要な分をまとめて渡す。`description`（業種目の内容説明）は
+   * 帳票では使わないので含めない。
+   */
+  router.get('/industry-dataset', async (c) => {
+    const years = await db.industryYear.findMany({
+      orderBy: { gregorianYear: 'desc' },
+      include: {
+        categories: {
+          orderBy: { number: 'asc' },
+          include: {
+            metric: true,
+            monthlyPrices: { orderBy: [{ year: 'asc' }, { month: 'asc' }] },
+          },
+        },
+      },
+    });
+
+    return c.json({
+      years: years.map((year) => ({
+        ...toYearResponse(year),
+        categories: year.categories.map((category) => ({
+          number: category.number,
+          largeName: category.largeName,
+          middleName: category.middleName,
+          smallName: category.smallName,
+          name: category.name,
+          level: category.level,
+          dividend: category.metric === null ? null : Number(category.metric.dividend),
+          profit: category.metric?.profit ?? null,
+          netAsset: category.metric?.netAsset ?? null,
+          previousYearAveragePrice: category.metric?.previousYearAveragePrice ?? null,
+          monthlyPrices: category.monthlyPrices.map((price) => ({
+            year: price.year,
+            month: price.month,
+            price: price.price,
+            twoYearAveragePrice: price.twoYearAveragePrice,
+          })),
+        })),
+      })),
+    });
+  });
+
+  /**
    * 第4表「類似業種の株価」に必要な A の候補を、課税時期（西暦の年月）から引く。
    * 課税時期の属する月／前月／前々月・前年平均・課税時期の属する月以前2年間の平均を返す。
    * 未公表の月は null（例: 令和8年5月分がまだ公表されていない場合）。
+   *
+   * 帳票側は同じ選び方を `/industry-dataset` の結果から同期的に行うので、この経路は
+   * 単発参照用（外部からの問い合わせ・動作確認）である。
    */
   router.get('/similar-industry-prices', async (c) => {
     const query = c.req.query();

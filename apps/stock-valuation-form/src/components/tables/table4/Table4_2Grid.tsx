@@ -3,7 +3,7 @@ import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable4 } from './Table4Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
-import { similarIndustryOptions } from '@/data/industryCategories';
+import { useIndustryDataset } from '@/data/IndustryDataProvider';
 
 // ══ 第4表の2（令和8年4月1日以降用）══
 // 旧第4表の後半（3.類似業種比準価額の計算＋比準価額の修正）。
@@ -224,12 +224,18 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
 
   const c = calcTable4(getField);
 
+  const industryData = useIndustryDataset();
   const industry1 = getField('table1_1', 'f23');
   const industry2 = getField('table1_1', 'f26');
   const industry3 = getField('table1_1', 'f29');
+  // 業種目は課税時期の属する年分のものを引く（業種目番号は年分ごとに振り直される）
+  const era = getField('table1_1', 'f14_g');
+  const eraYear = getField('table1_1', 'f14_y');
   const linkedIndustryOptions = useMemo(
-    () => similarIndustryOptions([industry1, industry2, industry3]),
-    [industry1, industry2, industry3],
+    () => industryData
+      .forTaxPeriod({ era, eraYear, month: '' })
+      .similarIndustryOptions([industry1, industry2, industry3]),
+    [industryData, era, eraYear, industry1, industry2, industry3],
   );
   const linkedCells = useMemo(
     () => CELLS.map((cell) => (

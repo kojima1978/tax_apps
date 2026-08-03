@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { type FormData, type TableId, initialFormData } from '@/types/form';
-import { industryCategoryOf, similarIndustryDisplayNameOf } from '@/data/industryCategories';
-import { similarIndustryMetricValues } from '@/data/industryValuationMetrics';
+import { useIndustryDataset } from '@/data/IndustryDataProvider';
+import type { IndustryDataset, IndustryYearView } from '@/data/industryDataset';
 import { rolloverFormData } from './rollover';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
@@ -11,6 +11,17 @@ const INDUSTRY_FIELD_LINKS: Readonly<Record<string, string>> = {
   f26: 'f25',
   f29: 'f28',
 };
+
+/** 課税時期（第1表の1）。年分の選択と株価の月の特定に使う。 */
+const TAX_DATE_FIELDS = ['f14_g', 'f14_y', 'f14_m'] as const;
+
+function industryYearView(data: FormData, industry: IndustryDataset): IndustryYearView {
+  return industry.forTaxPeriod({
+    era: data.table1_1.f14_g ?? '',
+    eraYear: data.table1_1.f14_y ?? '',
+    month: data.table1_1.f14_m ?? '',
+  });
+}
 
 const SIMILAR_INDUSTRY_BLOCKS = {
   r1gyonum: {
@@ -30,15 +41,15 @@ type SimilarIndustryNumberField = keyof typeof SIMILAR_INDUSTRY_BLOCKS;
 function linkSimilarIndustryBlock(
   table: Record<string, string>,
   numberField: SimilarIndustryNumberField,
-  taxMonth: string,
+  view: IndustryYearView,
 ): Record<string, string> {
   const block = SIMILAR_INDUSTRY_BLOCKS[numberField];
   const number = table[numberField] ?? '';
-  const metrics = similarIndustryMetricValues(number, taxMonth);
+  const metrics = view.metricValues(number);
 
   return {
     ...table,
-    [block.name]: similarIndustryDisplayNameOf(number),
+    [block.name]: view.displayNameOf(number),
     [block.bYen]: metrics.bYen,
     [block.bSen]: metrics.bSen,
     [block.c]: metrics.c,
@@ -53,11 +64,11 @@ function linkSimilarIndustryBlock(
 
 function linkAllSimilarIndustryBlocks(
   table: Record<string, string>,
-  taxMonth: string,
+  view: IndustryYearView,
 ): Record<string, string> {
   return (Object.keys(SIMILAR_INDUSTRY_BLOCKS) as SimilarIndustryNumberField[])
     .reduce((linked, numberField) => (
-      linkSimilarIndustryBlock(linked, numberField, taxMonth)
+      linkSimilarIndustryBlock(linked, numberField, view)
     ), table);
 }
 
@@ -141,7 +152,13 @@ function linkedFieldGroup(table: TableId, field: string) {
   );
 }
 
-export function updateFormField(data: FormData, table: TableId, field: string, value: string): FormData {
+export function updateFormField(
+  data: FormData,
+  table: TableId,
+  field: string,
+  value: string,
+  industry: IndustryDataset,
+): FormData {
   if (table === 'table1_2' && field === 'j_yakuin') {
     return {
       ...data,
@@ -171,7 +188,7 @@ export function updateFormField(data: FormData, table: TableId, field: string, v
       table1_1: {
         ...data.table1_1,
         [field]: value,
-        [linkedIndustryField]: industryCategoryOf(value)?.名前 ?? '',
+        [linkedIndustryField]: industryYearView(data, industry).categoryOf(value)?.name ?? '',
       },
     };
   }
@@ -184,17 +201,18 @@ export function updateFormField(data: FormData, table: TableId, field: string, v
       table4: linkSimilarIndustryBlock(
         changedTable,
         numberField,
-        data.table1_1.f14_m ?? '',
+        industryYearView(data, industry),
       ),
     };
   }
 
-  if (table === 'table1_1' && field === 'f14_m') {
-    return {
-      ...data,
-      table1_1: { ...data.table1_1, [field]: value },
-      table4: linkAllSimilarIndustryBlocks(data.table4, value),
-    };
+  // 課税時期が変わると参照する年分と株価の月がずれる（業種目番号も年分ごとに振り直される）ので、
+  // 第1表の1の業種目名・第4表の類似業種欄をまとめて引き直す。
+  if (table === 'table1_1' && (TAX_DATE_FIELDS as readonly string[]).includes(field)) {
+    return normalizeIndustryFields(
+      { ...data, table1_1: { ...data.table1_1, [field]: value } },
+      industry,
+    );
   }
 
   const group = linkedFieldGroup(table, field);
@@ -224,22 +242,21 @@ function normalizeLinkedFields(data: FormData): FormData {
   }, data);
 }
 
-function normalizeIndustryFields(data: FormData): FormData {
+function normalizeIndustryFields(data: FormData, industry: IndustryDataset): FormData {
+  const view = industryYearView(data, industry);
+
   const normalizedTable = Object.entries(INDUSTRY_FIELD_LINKS).reduce<Record<string, string>>(
     (table, [numberField, contentField]) => {
       const number = table[numberField] ?? '';
       return {
         ...table,
-        [contentField]: industryCategoryOf(number)?.名前 ?? '',
+        [contentField]: view.categoryOf(number)?.name ?? '',
       };
     },
     data.table1_1,
   );
 
-  const normalizedTable4 = linkAllSimilarIndustryBlocks(
-    data.table4,
-    data.table1_1.f14_m ?? '',
-  );
+  const normalizedTable4 = linkAllSimilarIndustryBlocks(data.table4, view);
 
   return { ...data, table1_1: normalizedTable, table4: normalizedTable4 };
 }
@@ -259,20 +276,20 @@ function migrateTable1_1R8(data: FormData): FormData {
   };
 }
 
-export function normalizeFormData(data: FormData): FormData {
+export function normalizeFormData(data: FormData, industry: IndustryDataset): FormData {
   const completeData = Object.keys(initialFormData).reduce<FormData>((next, table) => ({
     ...next,
     [table]: { ...initialFormData[table as TableId], ...(data[table as TableId] ?? {}) },
   }), initialFormData);
 
-  return normalizeIndustryFields(normalizeLinkedFields(migrateTable1_1R8(completeData)));
+  return normalizeIndustryFields(normalizeLinkedFields(migrateTable1_1R8(completeData)), industry);
 }
 
-function loadFromStorage(): FormData {
+function loadFromStorage(industry: IndustryDataset): FormData {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return normalizeFormData(JSON.parse(saved) as FormData);
+      return normalizeFormData(JSON.parse(saved) as FormData, industry);
     }
   } catch {
     // ignore parse errors
@@ -281,7 +298,8 @@ function loadFromStorage(): FormData {
 }
 
 export function useFormData() {
-  const [formData, setFormData] = useState<FormData>(loadFromStorage);
+  const industry = useIndustryDataset();
+  const [formData, setFormData] = useState<FormData>(() => loadFromStorage(industry));
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
@@ -289,9 +307,9 @@ export function useFormData() {
 
   const updateField = useCallback(
     (table: TableId, field: string, value: string) => {
-      setFormData((prev) => updateFormField(prev, table, field, value));
+      setFormData((prev) => updateFormField(prev, table, field, value, industry));
     },
-    [],
+    [industry],
   );
 
   const getField = useCallback(
@@ -322,13 +340,13 @@ export function useFormData() {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string) as FormData;
-        setFormData(normalizeFormData(data));
+        setFormData(normalizeFormData(data, industry));
       } catch {
         alert('ファイルの読み込みに失敗しました。');
       }
     };
     reader.readAsText(file);
-  }, []);
+  }, [industry]);
 
   /** 翌事業年度更新（実行前に現在データをJSONで自動バックアップ） */
   const rolloverToNextYear = useCallback(() => {
@@ -346,8 +364,8 @@ export function useFormData() {
     ].join('\n');
     if (!window.confirm(message)) return;
     exportJson();
-    setFormData((prev) => normalizeFormData(rolloverFormData(prev)));
-  }, [exportJson]);
+    setFormData((prev) => normalizeFormData(rolloverFormData(prev), industry));
+  }, [exportJson, industry]);
 
   /** Table-scoped selector — stable reference per table while that table's data is unchanged */
   const tableData = useMemo(() => formData, [formData]);
