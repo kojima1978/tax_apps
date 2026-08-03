@@ -11,8 +11,12 @@ import { Table4_1, Table4_2 } from '@/components/tables/table4';
 import { Table5 } from '@/components/tables/table5';
 import { Table6 } from '@/components/tables/table6';
 import { Table7_1, Table7_2, Table7_3 } from '@/components/tables/table7';
+import { IndustryAdminPage } from '@/features/industryAdmin/IndustryAdminPage';
 import type { TableId, TableProps } from '@/types/form';
 import { TABS } from '@/data/constants';
+
+// 業種目データ管理は帳票と同居させない別画面。ハッシュで切り替える。
+const ADMIN_HASH = '#industry-data';
 
 const TABLE_COMPONENTS: Record<TableId, React.ComponentType<TableProps>> = {
   table1_1: Table1_1,
@@ -51,6 +55,7 @@ export default function App() {
   const printRequestedRef = useRef(false);
   const printAll = printTarget === 'all';
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(() => window.location.hash === ADMIN_HASH);
   const [printSelection, setPrintSelection] = useState<Record<TableId, boolean>>(
     () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
   );
@@ -102,6 +107,12 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  useEffect(() => {
+    const syncAdmin = () => setAdminOpen(window.location.hash === ADMIN_HASH);
+    window.addEventListener('hashchange', syncAdmin);
+    return () => window.removeEventListener('hashchange', syncAdmin);
+  }, []);
 
   const finishPrint = useCallback(() => {
     printRequestedRef.current = false;
@@ -165,6 +176,11 @@ export default function App() {
     event.target.value = '';
   };
 
+  // 帳票の入力状態は残したまま画面だけ差し替える（フックはすべて上で呼び終えている）。
+  if (adminOpen) {
+    return <IndustryAdminPage onClose={() => { window.location.hash = ''; }} />;
+  }
+
   return (
     <PrintRenderContext.Provider value={printTarget !== null}>
     <div className="app-root" style={{ fontFamily: '"Noto Sans JP", sans-serif' }}>
@@ -177,6 +193,14 @@ export default function App() {
           ポータル
         </a>
         <div className="app-header-title">取引相場のない株式の評価明細書</div>
+        <button
+          type="button"
+          className="app-tool-btn app-header-btn"
+          onClick={() => { window.location.hash = ADMIN_HASH; }}
+          title="類似業種比準価額に使う業種目マスタ・業種目別株価等を登録・訂正します"
+        >
+          業種目データ管理
+        </button>
       </header>
 
       <div className="no-print mobile-hint">
