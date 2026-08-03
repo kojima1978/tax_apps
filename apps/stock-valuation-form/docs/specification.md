@@ -399,14 +399,24 @@ stock-valuation-form/
 │   │   └── useFormData.ts             # フォーム状態管理 + sessionStorage
 │   └── types/
 │       └── form.ts                    # 型定義
+├── server/                            # API（Hono + Prisma）
+│   ├── index.ts                       # エントリ（API + 本番の静的配信）
+│   ├── db.ts                          # PrismaClient シングルトン
+│   ├── seed.ts                        # src/data の公表データを取込
+│   ├── wareki.ts                       # 和暦キーの解釈・西暦変換
+│   └── routes/
+│       └── industry.ts                # 業種目・株価等の読み取りAPI
+├── prisma/
+│   ├── schema.prisma                  # 業種目マスタ・株価等のスキーマ
+│   └── migrations/                    # マイグレーション
 ├── index.html                         # HTMLエントリーポイント
-├── vite.config.ts                     # Vite設定（base, alias, manualChunks）
-├── tsconfig.json / tsconfig.app.json / tsconfig.node.json
+├── vite.config.ts                     # Vite設定（base, alias, manualChunks, APIプロキシ）
+├── tsconfig.json / tsconfig.app.json / tsconfig.node.json / tsconfig.server.json
 ├── postcss.config.mjs                 # PostCSS/Tailwind設定
-├── Dockerfile                         # multi-stage build（dev + runner）
-├── docker-compose.yml                 # 開発用
+├── Dockerfile                         # multi-stage build（deps + dev + builder + runner）
+├── docker-entrypoint.sh               # migrate deploy 後にサーバ起動
+├── docker-compose.yml                 # 開発用（PostgreSQL 同梱）
 ├── docker-compose.prod.yml            # 本番用
-├── nginx.conf                         # 本番nginx設定
 └── README.md
 ```
 
@@ -414,10 +424,10 @@ stock-valuation-form/
 
 | 項目 | 内容 |
 |---|---|
-| バックエンド | なし（クライアントサイドのみ） |
-| データベース | なし（sessionStorage のみ） |
+| バックエンド | Hono + Prisma（業種目マスタ・業種目別株価等の配信のみ） |
+| データベース | PostgreSQL（公表データのみ。入力内容は保存しない） |
 | 認証 | なし |
-| API通信 | なし |
+| API通信 | 業種目・株価等の読み取りのみ（Phase 2 でフロントを接続予定） |
 | ブラウザ対応 | モダンブラウザ（Chrome, Edge, Firefox, Safari） |
 | 印刷 | A4縦のみ |
 | データ保持 | ブラウザタブを閉じると消失 |

@@ -4,19 +4,34 @@
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 # ============================================
 
+# 以前は nginx で静的配信するだけだったので 64M で足りていたが、
+# API（Node + Prisma）を同居させたため引き上げている。
 x-prod-deploy: &prod-deploy
   resources:
     limits:
-      memory: 64M
+      memory: 384M
     reservations:
-      memory: 16M
+      memory: 96M
 
 services:
   stock-valuation-form:
     build:
       target: runner
-    command: []
+    environment:
+      TZ: Asia/Tokyo
+      NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=256"
+      # 本番は Node が dist と API の両方を 3014 で配信する（Vite は動かない）。
+      PORT: "3014"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@svf-postgres:5432/${POSTGRES_DB:-stock_valuation}?schema=public
+    command: ["node", "dist-server/index.js"]
     init: false
     # `volumes: []` はマージされて base の開発用バインドが残るため !reset で無効化する
     volumes: !reset []
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "wget --no-verbose --tries=1 --spider http://127.0.0.1:3014/stock-valuation-form/api/health || exit 1"
+      start_period: 30s
     deploy: *prod-deploy

@@ -51,6 +51,7 @@ PG_TARGETS=(
   "ITCM PostgreSQL:itcm-postgres:postgres:inheritance_tax_db:inheritance-case-management_postgres_data:itcm-postgres:inheritance-case-management"
   "Bank Analyzer PostgreSQL:bank-analyzer-postgres:bankuser:bank_analyzer:bank-analyzer-postgres:bank-analyzer-postgres:bank-analyzer-django"
   "Private Banking PostgreSQL:private-banking-postgres:postgres:private_banking:private-banking_private_banking_postgres:private-banking-postgres:private-banking"
+  "Stock Valuation Form PostgreSQL:svf-postgres:postgres:stock_valuation:stock-valuation-form-postgres:svf-postgres:stock-valuation-form"
 )
 
 # label:container:db_path:volume:file_name
@@ -74,6 +75,7 @@ SETTINGS_TARGETS=(
   "Bank Analyzer .env:apps/bank-analyzer-django/.env:bank-analyzer-.env"
   # prod は POSTGRES_PASSWORD が必須(`:?`)なので、これが無いと本番が起動できない。
   "Private Banking .env:apps/private-banking/.env:private-banking-.env"
+  "Stock Valuation Form .env:apps/stock-valuation-form/.env:stock-valuation-form-.env"
 )
 
 warn() { printf '\033[1;33m[WARN]\033[0m  %s\n' "$*"; }

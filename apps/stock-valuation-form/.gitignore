@@ -13,6 +13,7 @@
 
 # production
 /dist
+/dist-server
 /build
 
 # misc
@@ -26,7 +27,9 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
+# .env.example は manage.sh が .env を生成する元なので追跡する
 .env*
+!.env.example
 
 # typescript
 *.tsbuildinfo

@@ -22,5 +22,10 @@ export default defineConfig({
   server: {
     port: 3014,
     host: true,
+    proxy: {
+      // 開発時は Vite が 3014、API サーバが 3114（同一コンテナ内）。
+      // 本番は dist ごと API サーバが 3014 で配信するのでプロキシは使わない。
+      '/stock-valuation-form/api': 'http://127.0.0.1:3114',
+    },
   },
 });

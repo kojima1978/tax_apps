@@ -28,31 +28,33 @@ x-healthcheck-defaults: &healthcheck-defaults
   start_period: 120s
 
 services:
-  stock-valuation-form:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: dev
-    container_name: stock-valuation-form
+  # ===========================================
+  # PostgreSQL（類似業種の業種目マスタ・業種目別株価等）
+  # Port: 3016 → 5432
+  # ===========================================
+  svf-postgres:
+    image: postgres:16-alpine
+    container_name: svf-postgres
     networks:
       - tax-apps-network
-    ports:
-      - "127.0.0.1:3014:3014"
-    volumes:
-      - ./src:/app/src:ro
-      - ./index.html:/app/index.html:ro
+    restart: unless-stopped
     environment:
       <<: *common-env
-      NODE_ENV: development
-    command: npm run dev -- --host --port 3014
-    init: true
-    restart: unless-stopped
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-svf_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-stock_valuation}
+    volumes:
+      - svf_postgres:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${DB_PORT:-3016}:5432"
+    shm_size: 128m
     logging: *default-logging
     labels: *autoheal-labels
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3014/stock-valuation-form/ || exit 1"]
-      <<: *healthcheck-defaults
-      start_period: 60s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-stock_valuation}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     deploy:
       resources:
         limits:
@@ -60,6 +62,60 @@ services:
         reservations:
           memory: 128M
 
+  # ===========================================
+  # フロントエンド + API（Vite + Hono/Prisma）
+  # Port: 3014（dev は Vite。API は同一コンテナの 3114 へプロキシ）
+  # ===========================================
+  stock-valuation-form:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        APP_PORT: "3014"
+    container_name: stock-valuation-form
+    networks:
+      - tax-apps-network
+    ports:
+      - "127.0.0.1:3014:3014"
+    volumes:
+      - ./src:/app/src:ro
+      - ./server:/app/server:ro
+      - ./prisma:/app/prisma:ro
+      - ./index.html:/app/index.html:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      # dev は Vite が 3014 を占めるので API は 3114。本番は 3014 に一本化する。
+      PORT: "3114"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-svf_dev_password}@svf-postgres:5432/${POSTGRES_DB:-stock_valuation}?schema=public
+    depends_on:
+      svf-postgres:
+        condition: service_healthy
+    command: ["npm", "run", "dev:all"]
+    init: true
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *autoheal-labels
+    healthcheck:
+      # API 側の health は seed 失敗も 503 で返す。業種目マスタが空のまま
+      # 静かに動き続けるのを防ぐため、Vite の生存確認と両方を見る。
+      test:
+        - "CMD-SHELL"
+        - "wget --no-verbose --tries=1 --spider http://127.0.0.1:3114/stock-valuation-form/api/health && wget --no-verbose --tries=1 --spider http://127.0.0.1:3014/stock-valuation-form/ || exit 1"
+      <<: *healthcheck-defaults
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
 networks:
   tax-apps-network:
     external: true
+
+volumes:
+  svf_postgres:
+    name: stock-valuation-form-postgres

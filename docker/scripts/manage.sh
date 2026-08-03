@@ -82,7 +82,34 @@ VOLUMES=(
   "tax-docs-data"
   "medical-stock-valuation-data"
   "private-banking_private_banking_postgres"
+  "stock-valuation-form-postgres"
 )
+
+# ------------------------------------
+# .env で PostgreSQL のパスワードを持つアプリ
+#
+# 本番起動時に、開発用の既定値のままなら一意のパスワードを生成して .env に書き戻し、
+# 既存の DB ボリュームのロールにも ALTER ROLE で反映する（環境変数だけでは
+# 作成済みのロールのパスワードは変わらないため）。
+#
+# 形式: アプリ名:postgresコンテナ名:既定DB名:パスワード接頭辞:開発用の既定パスワード
+# ------------------------------------
+POSTGRES_APPS=(
+  "private-banking:private-banking-postgres:private_banking:pb:pb_dev_password"
+  "stock-valuation-form:svf-postgres:stock_valuation:svf:svf_dev_password"
+)
+
+# アプリ名から POSTGRES_APPS の行を引く。見つからなければ 1 を返す。
+postgres_app_entry() {
+  local name="$1" entry
+  for entry in "${POSTGRES_APPS[@]}"; do
+    if [[ "${entry%%:*}" == "$name" ]]; then
+      printf '%s\n' "$entry"
+      return 0
+    fi
+  done
+  return 1
+}
 check_dependencies() {
   if ! command -v docker >/dev/null 2>&1; then
     err "docker がインストールされていません。"
@@ -274,61 +301,67 @@ set_env_value() {
   mv "$tmp_file" "$env_file"
 }
 
-ensure_private_banking_password() {
-  local dir="$1"
+ensure_postgres_password() {
+  local name="$1" dir="$2" prefix="$3" dev_password="$4"
   local env_file="$dir/.env"
   local example_file="$dir/.env.example"
   local password
 
   if [[ ! -f "$env_file" ]]; then
     if [[ ! -f "$example_file" ]]; then
-      err "private-banking: .env and .env.example are missing"
+      err "$name: .env and .env.example are missing"
       return 1
     fi
     cp "$example_file" "$env_file"
-    log "  .env を作成しました: private-banking"
+    log "  .env を作成しました: $name"
   fi
 
   password=$(read_env_value "$env_file" "POSTGRES_PASSWORD")
-  if [[ -z "$password" || "$password" == "change-me" || "$password" == "pb_dev_password" || ${#password} -lt 24 ]]; then
-    password="pb_$(od -An -N24 -tx1 /dev/urandom | tr -d '[:space:]')"
+  if [[ -z "$password" || "$password" == "change-me" || "$password" == "$dev_password" || ${#password} -lt 24 ]]; then
+    password="${prefix}_$(od -An -N24 -tx1 /dev/urandom | tr -d '[:space:]')"
     if [[ ${#password} -lt 40 ]]; then
-      err "private-banking: failed to generate a production database password"
+      err "$name: failed to generate a production database password"
       return 1
     fi
     set_env_value "$env_file" "POSTGRES_PASSWORD" "$password"
     chmod 600 "$env_file" 2>/dev/null || true
-    ok "private-banking: generated a unique production database password"
+    ok "$name: generated a unique production database password"
   fi
 }
 
-ensure_private_banking_production_env() {
-  local dir="$1"
+# POSTGRES_APPS に載っているアプリなら、本番起動の前にパスワードを用意して
+# 既存ロールへ反映する。載っていなければ何もしない。
+ensure_postgres_production_env() {
+  local name="$1" dir="$2"
+  local entry container default_db prefix dev_password
   local env_file="$dir/.env"
   local password db_user db_name escaped_password
 
-  ensure_private_banking_password "$dir"
+  entry=$(postgres_app_entry "$name") || return 0
+  IFS=':' read -r _ container default_db prefix dev_password <<< "$entry"
+
+  ensure_postgres_password "$name" "$dir" "$prefix" "$dev_password" || return 1
   password=$(read_env_value "$env_file" "POSTGRES_PASSWORD")
 
   db_user=$(read_env_value "$env_file" "POSTGRES_USER")
   db_name=$(read_env_value "$env_file" "POSTGRES_DB")
   db_user="${db_user:-postgres}"
-  db_name="${db_name:-private_banking}"
+  db_name="${db_name:-$default_db}"
 
   if [[ ! "$db_user" =~ ^[A-Za-z_][A-Za-z0-9_]*$ || ! "$db_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-    err "private-banking: POSTGRES_USER and POSTGRES_DB must be simple SQL identifiers"
+    err "$name: POSTGRES_USER and POSTGRES_DB must be simple SQL identifiers"
     return 1
   fi
 
   # Start only PostgreSQL first. For an existing development volume, the
   # POSTGRES_PASSWORD environment variable does not update the stored role.
   # Synchronize it explicitly before starting the production web container.
-  docker compose -f "$dir/docker-compose.yml" up -d --wait private-banking-postgres
+  docker compose -f "$dir/docker-compose.yml" up -d --wait "$container"
   escaped_password=${password//\'/\'\'}
   printf 'ALTER ROLE "%s" WITH PASSWORD '\''%s'\'';\n' "$db_user" "$escaped_password" |
-    docker compose -f "$dir/docker-compose.yml" exec -T private-banking-postgres \
+    docker compose -f "$dir/docker-compose.yml" exec -T "$container" \
       psql -v ON_ERROR_STOP=1 -U "$db_user" -d "$db_name" >/dev/null
-  ok "private-banking: database credentials are synchronized"
+  ok "$name: database credentials are synchronized"
 }
 
 # --- start用コールバック ---
@@ -345,9 +378,7 @@ _do_start() {
     log "  .env を作成しました: $name"
   fi
   if [[ $prod_mode -eq 1 ]]; then
-    if [[ "$name" == "private-banking" ]]; then
-      ensure_private_banking_production_env "$dir"
-    fi
+    ensure_postgres_production_env "$name" "$dir"
     local prod_compose="$dir/docker-compose.prod.yml"
     if [[ -f "$prod_compose" ]]; then
       log "  起動[本番]: $name"

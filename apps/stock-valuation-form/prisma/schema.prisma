@@ -1,0 +1,118 @@
+// 類似業種比準価額の計算に使う「業種目マスタ＋業種目別株価等」のスキーマ。
+//
+// 国税庁は毎年「令和N年分の類似業種比準価額計算上の業種目及び業種目別株価等について」
+// を公表し、月別株価はその後も月次で追加公表される。年分が変わると業種目の改廃に伴い
+// 業種目番号の割り当ても変わりうるため、業種目マスタごと年分（IndustryYear）に紐づける。
+//
+// 和暦キー（「令和８年４月分」など）はDBに持ち込まず、西暦の (year, month) に正規化する。
+// これにより元号や年分が変わってもスキーマ・コードの変更が不要になる。
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// 業種目の階層。日本標準産業分類に対応した大分類／中分類／小分類。
+enum IndustryLevel {
+  LARGE
+  MIDDLE
+  SMALL
+}
+
+/// 公表年分。「令和8年分」= 課税時期が令和8年（西暦2026年）に属する場合に使う一式。
+model IndustryYear {
+  id Int @id @default(autoincrement())
+
+  /// 元号。令和／平成など。
+  era String @default("令和")
+  /// 元号内の年。「令和8年分」なら 8。
+  eraYear Int
+  /// 元号内の年に対応する西暦年。「令和8年分」なら 2026。課税時期からの年分特定に使う。
+  gregorianYear Int
+  /// 「令和8年分」のような表示ラベル。
+  label String @unique
+
+  /// 出典（国税庁の公表ページURL）。
+  sourceUrl String?
+  /// 公表日・改訂内容などの備考。
+  note String @default("")
+
+  categories IndustryCategory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([era, eraYear])
+  @@unique([gregorianYear])
+}
+
+/// 業種目。番号は年分ごとに振り直されるため IndustryYear にぶら下げる。
+model IndustryCategory {
+  id     Int          @id @default(autoincrement())
+  yearId Int
+  year   IndustryYear @relation(fields: [yearId], references: [id], onDelete: Cascade)
+
+  /// 業種目番号（評価明細書に記載する番号）。年分内で一意。
+  number Int
+
+  /// 大分類。中分類・小分類は上位区分そのものの行では空文字。
+  largeName  String
+  middleName String @default("")
+  smallName  String @default("")
+
+  /// 表示名。大／中／小のうち最も下位の非空の区分名と一致する。
+  name  String
+  level IndustryLevel
+
+  /// その業種目の対象となる会社の説明（例:「鉄骨鉄筋コンクリート造建築物…の完成を請け負うもの」）。
+  description String @default("")
+
+  metric        IndustryMetric?
+  monthlyPrices IndustryMonthlyPrice[]
+
+  @@unique([yearId, number])
+  @@index([yearId, largeName, middleName, smallName])
+}
+
+/// 業種目別の比準要素（B/C/D）と前年平均株価。年分に1件ずつ。
+model IndustryMetric {
+  id         Int              @id @default(autoincrement())
+  categoryId Int              @unique
+  category   IndustryCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  /// B 課税時期の属する年の類似業種の1株当たりの配当金額（10銭単位のため小数1桁）。
+  dividend Decimal @db.Decimal(8, 1)
+  /// C 課税時期の属する年の類似業種の1株当たりの年利益金額（円）。
+  profit Int
+  /// D 課税時期の属する年の類似業種の1株当たりの純資産価額（帳簿価額。円）。
+  netAsset Int
+
+  /// 前年平均株価（例「令和7年平均」）。第4表の A の候補のひとつ。
+  previousYearAveragePrice Int
+}
+
+/// 月別株価（A の候補）。課税時期の属する月／前月／前々月をここから引く。
+model IndustryMonthlyPrice {
+  id         Int              @id @default(autoincrement())
+  categoryId Int
+  category   IndustryCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  /// 西暦年。年分の前年（前月・前々月の参照用）も入るため IndustryYear の年と一致しないことがある。
+  year Int
+  /// 1〜12。
+  month Int
+
+  /// その月の類似業種の株価（円）。
+  price Int
+
+  /// 「課税時期の属する月以前2年間の平均株価」。当年分の公表済みの月にしか存在しないため任意。
+  twoYearAveragePrice Int?
+
+  @@unique([categoryId, year, month])
+  @@index([year, month])
+}
