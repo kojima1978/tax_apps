@@ -28,12 +28,6 @@ function toYearResponse(year: YearRecord) {
   };
 }
 
-/** 課税時期の n か月前を西暦で返す（年跨ぎを正しく扱う）。 */
-function monthsBefore(year: number, month: number, back: number) {
-  const shifted = new Date(Date.UTC(year, month - 1 - back, 1));
-  return { year: shifted.getUTCFullYear(), month: shifted.getUTCMonth() + 1 };
-}
-
 export function createIndustryRouter(db: PrismaClient) {
   const router = new Hono();
 
@@ -179,68 +173,6 @@ export function createIndustryRouter(db: PrismaClient) {
           })),
         })),
       })),
-    });
-  });
-
-  /**
-   * 第4表「類似業種の株価」に必要な A の候補を、課税時期（西暦の年月）から引く。
-   * 課税時期の属する月／前月／前々月・前年平均・課税時期の属する月以前2年間の平均を返す。
-   * 未公表の月は null（例: 令和8年5月分がまだ公表されていない場合）。
-   *
-   * 帳票側は同じ選び方を `/industry-dataset` の結果から同期的に行うので、この経路は
-   * 単発参照用（外部からの問い合わせ・動作確認）である。
-   */
-  router.get('/similar-industry-prices', async (c) => {
-    const query = c.req.query();
-
-    const number = Number(query.number);
-    const taxYear = Number(query.taxYear);
-    const taxMonth = Number(query.taxMonth);
-    if (!Number.isInteger(number)) {
-      return c.json({ error: 'number は整数で指定してください' }, 400);
-    }
-    if (!Number.isInteger(taxYear) || !Number.isInteger(taxMonth) || taxMonth < 1 || taxMonth > 12) {
-      return c.json({ error: 'taxYear（西暦）と taxMonth（1〜12）を指定してください' }, 400);
-    }
-
-    // 年分は課税時期の属する年で決まる。`year` / `gregorianYear` で明示指定もできる。
-    const year = await resolveYear(
-      query.year || query.gregorianYear ? query : { gregorianYear: String(taxYear) },
-    );
-    if (!year) return c.json({ error: `${taxYear}年分は登録されていません` }, 404);
-
-    const category = await db.industryCategory.findUnique({
-      where: { yearId_number: { yearId: year.id, number } },
-      include: { metric: true, monthlyPrices: true },
-    });
-    if (!category) {
-      return c.json({ error: `業種目番号 ${number} は登録されていません` }, 404);
-    }
-
-    const priceAt = (at: { year: number; month: number }) =>
-      category.monthlyPrices.find((p) => p.year === at.year && p.month === at.month) ?? null;
-
-    const current = monthsBefore(taxYear, taxMonth, 0);
-    const previous = monthsBefore(taxYear, taxMonth, 1);
-    const twoBefore = monthsBefore(taxYear, taxMonth, 2);
-    const currentRow = priceAt(current);
-
-    return c.json({
-      year: toYearResponse(year),
-      number: category.number,
-      name: category.name,
-      level: category.level,
-      taxPeriod: current,
-      dividend: category.metric === null ? null : Number(category.metric.dividend),
-      profit: category.metric?.profit ?? null,
-      netAsset: category.metric?.netAsset ?? null,
-      prices: {
-        currentMonth: { ...current, price: currentRow?.price ?? null },
-        previousMonth: { ...previous, price: priceAt(previous)?.price ?? null },
-        twoMonthsBefore: { ...twoBefore, price: priceAt(twoBefore)?.price ?? null },
-        previousYearAverage: category.metric?.previousYearAveragePrice ?? null,
-        twoYearAverage: currentRow?.twoYearAveragePrice ?? null,
-      },
     });
   });
 
