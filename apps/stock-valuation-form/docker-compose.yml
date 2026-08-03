@@ -88,6 +88,11 @@ services:
       NODE_ENV: development
       # dev は Vite が 3014 を占めるので API は 3114。本番は 3014 に一本化する。
       PORT: "3114"
+      # `tsx watch` は内蔵 chokidar をこの環境変数でポーリングに切り替える。
+      # Vite 側は vite.config.ts の server.watch で別に指定が要る（watcher が2つあるため）。
+      # 本番の runner は tsx を動かさないので、prod へ漏れても無害。
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-svf_dev_password}@svf-postgres:5432/${POSTGRES_DB:-stock_valuation}?schema=public
     depends_on:
       svf-postgres:

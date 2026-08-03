@@ -22,6 +22,14 @@ export default defineConfig({
   server: {
     port: 3014,
     host: true,
+    // Windows の bind mount(Windows→WSL2) はコンテナ内の inotify にイベントを届けないことがあり、
+    // Vite が変更に気付かないまま古いモジュールを返し続ける（304 になるのでブラウザ側も更新されない）。
+    // dev サーバ専用の設定なので本番ビルドには影響しない。
+    watch: {
+      usePolling: true,
+      interval: 300,
+      binaryInterval: 1000,
+    },
     proxy: {
       // 開発時は Vite が 3014、API サーバが 3114（同一コンテナ内）。
       // 本番は dist ごと API サーバが 3014 で配信するのでプロキシは使わない。
