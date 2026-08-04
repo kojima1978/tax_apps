@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useIndustryDataset, useReloadIndustryDataset } from '@/data/IndustryDataProvider';
-import { MonthlyPriceImportPanel } from './MonthlyPriceImportPanel';
 import { NewYearPanel } from './NewYearPanel';
 import { YearListPanel } from './YearListPanel';
 
-type PanelId = 'list' | 'monthly' | 'newYear';
+type PanelId = 'list' | 'newYear';
 
 const PANELS: ReadonlyArray<{ id: PanelId; label: string; description: string }> = [
-  { id: 'list', label: '登録済みの年分', description: '登録内容の確認と、業種目ごとの個別訂正を行います。' },
-  { id: 'monthly', label: '月次株価を取り込む', description: '公表された月の株価と2年間の平均株価を貼り付けて取り込みます。' },
+  {
+    id: 'list',
+    label: '登録済みの年分',
+    description: '登録状況のアイコンをクリックすると中身を開きます。'
+      + '月をクリックすればその月の株価を直接入力・貼り付けで登録でき、基礎情報からはB・C・Dを訂正できます。',
+  },
   { id: 'newYear', label: '年分を新規追加', description: '新しい年分の業種目マスタとB・C・Dを貼り付けて登録します。' },
 ];
 
@@ -52,7 +55,6 @@ export function IndustryAdminPage({ onClose }: { onClose: () => void }) {
         <p className="admin-description">{active.description}</p>
 
         {panel === 'list' && <YearListPanel years={years} onUpdated={reload} />}
-        {panel === 'monthly' && <MonthlyPriceImportPanel years={years} onImported={reload} />}
         {panel === 'newYear' && <NewYearPanel years={years} onCreated={reload} />}
       </div>
     </div>

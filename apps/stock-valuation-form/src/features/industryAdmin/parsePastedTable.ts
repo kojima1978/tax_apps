@@ -98,7 +98,8 @@ function toNumericText(cell: string): string {
     .replace(/[△▲−–—]/g, '-');
 }
 
-function parseInteger(cell: string): number | null {
+/** 全角・桁区切り・△▲を吸収してから整数にする。直接入力欄も同じ規則で読む。 */
+export function parseInteger(cell: string): number | null {
   const text = toNumericText(cell);
   if (!/^-?\d+$/.test(text)) return null;
   return Number(text);

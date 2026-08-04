@@ -1,16 +1,11 @@
 import { Fragment, useMemo, useState } from 'react';
-import type { IndustryCategory, IndustryMonthlyPrice, IndustryYear } from '@/data/industryDataset';
-import {
-  updateIndustryCategory,
-  updateIndustryYear,
-  updateMonthlyPrice,
-  type UpdateCategoryRequest,
-  type UpdateMonthlyPriceRequest,
-} from './api';
+import type { IndustryCategory, IndustryYear } from '@/data/industryDataset';
+import { updateIndustryCategory, updateIndustryYear, type UpdateCategoryRequest } from './api';
+import { CategoryFilterRow, useCategoryFilter } from './CategoryFilter';
+import { LEVEL_LABELS } from './labels';
+import { MonthEditor } from './MonthEditor';
 import { CHIP_STATUS_CLASS, MonthlyCoverageBar, chipCountText } from './MonthlyCoverageBar';
 import { monthlyCoverageOf, statusOf, type MonthlyCoverage } from './monthlyCoverage';
-
-const LEVEL_LABELS = { LARGE: '大', MIDDLE: '中', SMALL: '小' } as const;
 
 /** 基礎情報ビューで触れる数値欄。ラベルと桁の扱いをここ1箇所で決める。 */
 const NUMERIC_FIELDS = [
@@ -256,19 +251,8 @@ interface YearDetailProps {
   onUpdated: () => Promise<void>;
 }
 
-/** チップで選んだ中身。絞り込みとメッセージ表示は基礎情報・月で共用する。 */
+/** チップで選んだ中身。基礎情報はこの場で訂正、月別株価は MonthEditor に任せる。 */
 function YearDetail({ year, view, onUpdated }: YearDetailProps) {
-  const [keyword, setKeyword] = useState('');
-  const [message, setMessage] = useState<Message | null>(null);
-
-  const filtered = useMemo(() => {
-    const needle = keyword.trim();
-    if (needle === '') return year.categories;
-    return year.categories.filter(
-      (category) => category.name.includes(needle) || String(category.number) === needle,
-    );
-  }, [year.categories, keyword]);
-
   const title = view.kind === 'basic'
     ? `${year.label} の基礎情報`
     : `${year.label} ${view.year}年${view.month}月分の株価`;
@@ -277,28 +261,34 @@ function YearDetail({ year, view, onUpdated }: YearDetailProps) {
     <div className="admin-detail">
       <h3 className="admin-detail-title">{title}</h3>
 
-      {view.kind === 'basic' && (
-        <YearMetaRow year={year} onUpdated={onUpdated} onMessage={setMessage} />
-      )}
-
-      {view.kind === 'month' && (
-        <p className="admin-note">
-          新しい月の追加や月まとめての差し替えは「月次株価を取り込む」から行ってください。
-        </p>
-      )}
-
-      <div className="admin-row">
-        <label className="admin-label admin-label-grow">
-          業種目を絞り込む
-          <input
-            className="admin-input"
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            placeholder="業種目名または番号"
+      {view.kind === 'basic'
+        ? <BasicInfoEditor year={year} onUpdated={onUpdated} />
+        : (
+          <MonthEditor
+            year={year}
+            target={{ year: view.year, month: view.month }}
+            onUpdated={onUpdated}
           />
-        </label>
-        <span className="admin-note">{filtered.length} / {year.categories.length} 件</span>
-      </div>
+        )}
+    </div>
+  );
+}
+
+/** 月に紐づかない値（年分の出典・備考と、業種目のB・C・D・前年平均）の訂正。 */
+function BasicInfoEditor({ year, onUpdated }: { year: IndustryYear; onUpdated: () => Promise<void> }) {
+  const [message, setMessage] = useState<Message | null>(null);
+  const filter = useCategoryFilter(year.categories);
+
+  return (
+    <>
+      <YearMetaRow year={year} onUpdated={onUpdated} onMessage={setMessage} />
+
+      <CategoryFilterRow
+        keyword={filter.keyword}
+        onChange={filter.setKeyword}
+        shown={filter.filtered.length}
+        total={year.categories.length}
+      />
 
       {message && (
         <div className={message.kind === 'ok' ? 'admin-alert admin-alert-ok' : 'admin-alert admin-alert-error'}>
@@ -311,41 +301,26 @@ function YearDetail({ year, view, onUpdated }: YearDetailProps) {
           <thead>
             <tr>
               <th>番号</th><th>階層</th><th>業種目</th>
-              {view.kind === 'basic'
-                ? NUMERIC_FIELDS.map((field) => (
-                  <th key={field.key} className="admin-num">{field.label}</th>
-                ))
-                : <><th className="admin-num">株価</th><th className="admin-num">2年平均</th></>}
+              {NUMERIC_FIELDS.map((field) => (
+                <th key={field.key} className="admin-num">{field.label}</th>
+              ))}
               <th />
             </tr>
           </thead>
           <tbody>
-            {filtered.map((category) => (
-              view.kind === 'basic'
-                ? (
-                  <CategoryRow
-                    key={category.number}
-                    gregorianYear={year.gregorianYear}
-                    category={category}
-                    onUpdated={onUpdated}
-                    onMessage={setMessage}
-                  />
-                )
-                : (
-                  <MonthPriceRow
-                    key={category.number}
-                    gregorianYear={year.gregorianYear}
-                    category={category}
-                    target={{ year: view.year, month: view.month }}
-                    onUpdated={onUpdated}
-                    onMessage={setMessage}
-                  />
-                )
+            {filter.filtered.map((category) => (
+              <CategoryRow
+                key={category.number}
+                gregorianYear={year.gregorianYear}
+                category={category}
+                onUpdated={onUpdated}
+                onMessage={setMessage}
+              />
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -478,140 +453,3 @@ function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: Category
   );
 }
 
-type PriceValues = { price: string; twoYearAveragePrice: string };
-
-/** 変更のあった欄だけを送る。2年平均の空欄は「未公表」として null を送る。 */
-function toPriceRequest(
-  price: IndustryMonthlyPrice,
-  values: PriceValues,
-): UpdateMonthlyPriceRequest | string {
-  const request: UpdateMonthlyPriceRequest = {};
-
-  const parsedPrice = parseNumericField(values.price, '株価');
-  if (typeof parsedPrice === 'string') return parsedPrice;
-  if (parsedPrice !== price.price) request.price = parsedPrice;
-
-  const twoYearText = values.twoYearAveragePrice.trim();
-  const parsedTwoYear = twoYearText === '' ? null : parseNumericField(twoYearText, '2年平均');
-  if (typeof parsedTwoYear === 'string') return parsedTwoYear;
-  if (parsedTwoYear !== price.twoYearAveragePrice) request.twoYearAveragePrice = parsedTwoYear;
-
-  if (Object.keys(request).length === 0) return '変更がありません';
-  return request;
-}
-
-interface MonthPriceRowProps {
-  gregorianYear: number;
-  category: IndustryCategory;
-  target: { year: number; month: number };
-  onUpdated: () => Promise<void>;
-  onMessage: (message: Message) => void;
-}
-
-/** 業種目1件のうち、選んだ月の株価だけを出す行。行が無い業種目も取込漏れとして並べる。 */
-function MonthPriceRow({ gregorianYear, category, target, onUpdated, onMessage }: MonthPriceRowProps) {
-  const price = category.monthlyPrices.find(
-    (candidate) => candidate.year === target.year && candidate.month === target.month,
-  );
-  const [values, setValues] = useState<PriceValues | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const head = (
-    <>
-      <td>{category.number}</td>
-      <td>{LEVEL_LABELS[category.level]}</td>
-      <td>{category.name}</td>
-    </>
-  );
-
-  if (!price) {
-    return (
-      <tr>
-        {head}
-        <td className="admin-before admin-num">未登録</td>
-        <td className="admin-before admin-num">—</td>
-        <td className="admin-before">「月次株価を取り込む」から追加</td>
-      </tr>
-    );
-  }
-
-  const label = `${price.year}年${price.month}月分`;
-
-  const save = async () => {
-    if (!values) return;
-    const request = toPriceRequest(price, values);
-    if (typeof request === 'string') {
-      onMessage({ kind: 'error', text: `${category.number} の${label}: ${request}` });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await updateMonthlyPrice(gregorianYear, category.number, price.year, price.month, request);
-      await onUpdated();
-      onMessage({ kind: 'ok', text: `${category.number} ${category.name} の${label}を更新しました` });
-      setValues(null);
-    } catch (caught) {
-      onMessage({ kind: 'error', text: caught instanceof Error ? caught.message : String(caught) });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!values) {
-    return (
-      <tr>
-        {head}
-        <td className="admin-num">{price.price}</td>
-        <td className="admin-num">{price.twoYearAveragePrice ?? '—'}</td>
-        <td>
-          <button
-            type="button"
-            className="app-tool-btn"
-            onClick={() => setValues({
-              price: String(price.price),
-              twoYearAveragePrice:
-                price.twoYearAveragePrice === null ? '' : String(price.twoYearAveragePrice),
-            })}
-          >
-            訂正
-          </button>
-        </td>
-      </tr>
-    );
-  }
-
-  const update = (key: keyof PriceValues, value: string) =>
-    setValues((current) => (current ? { ...current, [key]: value } : current));
-
-  return (
-    <tr className="admin-row-editing">
-      {head}
-      <td>
-        <input
-          className="admin-input admin-input-narrow"
-          value={values.price}
-          onChange={(event) => update('price', event.target.value)}
-          inputMode="numeric"
-        />
-      </td>
-      <td>
-        <input
-          className="admin-input admin-input-narrow"
-          value={values.twoYearAveragePrice}
-          onChange={(event) => update('twoYearAveragePrice', event.target.value)}
-          inputMode="numeric"
-          placeholder="未公表"
-        />
-      </td>
-      <td className="admin-cell-actions">
-        <button type="button" className="app-tool-btn admin-btn-primary" onClick={save} disabled={saving}>
-          {saving ? '保存中…' : '保存'}
-        </button>
-        <button type="button" className="app-tool-btn" onClick={() => setValues(null)} disabled={saving}>
-          取消
-        </button>
-      </td>
-    </tr>
-  );
-}
