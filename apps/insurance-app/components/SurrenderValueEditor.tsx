@@ -77,8 +77,9 @@ export function parsePastedSurrenderValues(text: string, contractAge: number): {
   return results;
 }
 
-// 保存時に捨てられる行・グラフに反映されない行を入力中に気づけるようにする
-type RowIssue = { kind: 'dropped' | 'ignored'; message: string };
+// 保存時に捨てられる行・グラフに反映されない行を入力中に気づけるようにする。
+// 文言は入力モード（年齢／経過年数）で変わるので、判定と文言生成は分けている
+type RowIssue = { kind: 'dropped' | 'ignored'; reason: 'outOfRange' | 'beforeContract' | 'afterPolicyEnd' };
 
 export function getSurrenderRowIssue(
   age: number,
@@ -86,16 +87,28 @@ export function getSurrenderRowIssue(
   policyEndAge: number,
 ): RowIssue | null {
   if (!Number.isFinite(age) || age < 0 || age > 120) {
-    return { kind: 'dropped', message: '年齢は0〜120の範囲で入力してください（このままでは保存時に削除されます）' };
+    return { kind: 'dropped', reason: 'outOfRange' };
   }
   if (contractAge > 0 && age < contractAge) {
-    return { kind: 'ignored', message: `契約年齢（${contractAge}歳）より前の行はグラフ・返戻率に反映されません` };
+    return { kind: 'ignored', reason: 'beforeContract' };
   }
   if (policyEndAge > 0 && policyEndAge !== 999 && age > policyEndAge) {
-    return { kind: 'ignored', message: `保険期間終了（${policyEndAge}歳）より後の行はグラフ・返戻率に反映されません` };
+    return { kind: 'ignored', reason: 'afterPolicyEnd' };
   }
   return null;
 }
+
+// 1列目を年齢で入れるか経過年数（◯年目）で入れるか。証券の表記に合わせて切り替える
+type AgeMode = 'age' | 'elapsed';
+
+const AGE_MODE_STORAGE_KEY = 'insurance-app:surrender-age-mode:v1';
+
+const AGE_MODE_OPTIONS: { value: AgeMode; label: string }[] = [
+  { value: 'age', label: '年齢' },
+  { value: 'elapsed', label: '経過年数' },
+];
+
+const MAX_AGE = 120;
 
 const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
   points,
@@ -121,9 +134,32 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
   const [pasteMessage, setPasteMessage] = useState('');
   // 返戻率は金額から逆算して表示するため、入力中は打鍵ごとの丸めで値が跳ねる。確定するまで生の文字列を保持する
   const [rateDraft, setRateDraft] = useState<{ index: number; text: string } | null>(null);
+  // 証券の表記は年齢と経過年数のどちらもあるので、前回選んだ側で開く
+  // （このエディタは証券フォームを開いたときだけ描画されるのでSSR時には存在せず、初期値で読んでよい）
+  const [ageMode, setAgeMode] = useState<AgeMode>(() => {
+    if (typeof window === 'undefined') return 'age';
+    const saved = window.localStorage.getItem(AGE_MODE_STORAGE_KEY);
+    return saved === 'age' || saved === 'elapsed' ? saved : 'age';
+  });
+
+  const changeAgeMode = (mode: AgeMode) => {
+    setAgeMode(mode);
+    window.localStorage.setItem(AGE_MODE_STORAGE_KEY, mode);
+  };
 
   const isUsd = currency === 'USD';
   const unit = isUsd ? 'ドル' : '円';
+  // 契約年齢がないと年数↔年齢を換算できないので、その間は年齢入力に固定する
+  const canUseElapsed = contractAge > 0;
+  const isElapsed = ageMode === 'elapsed' && canUseElapsed;
+  // 契約年齢が未入力の間は年齢入力に落ちるので、選択状態も実際に効いている側に合わせる
+  const effectiveMode: AgeMode = isElapsed ? 'elapsed' : 'age';
+  // 「1年目 = 契約年齢+1歳」。貼り付け取込の「◯年目」換算と同じ数え方に揃えている
+  const toElapsed = (age: number) => age - contractAge;
+  const fromElapsed = (elapsed: number) => contractAge + elapsed;
+  const formatAge = (age: number) => (isElapsed ? `${toElapsed(age)}年目` : `${age}歳`);
+  // 対になる表記（年齢モードなら年目、経過年数モードなら歳）。取り違え防止に隣へ添える
+  const formatCounterpart = (age: number) => (isElapsed ? `${age}歳` : `${toElapsed(age)}年目`);
 
   const duplicateAges = useMemo(() => {
     const seen = new Set<number>();
@@ -145,16 +181,31 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
     [points, contractAge, policyEndAge],
   );
 
+  const describeIssue = (issue: RowIssue): string => {
+    switch (issue.reason) {
+      case 'outOfRange':
+        return isElapsed
+          ? `経過年数は0〜${MAX_AGE - contractAge}年の範囲で入力してください（このままでは保存時に削除されます）`
+          : `年齢は0〜${MAX_AGE}の範囲で入力してください（このままでは保存時に削除されます）`;
+      case 'beforeContract':
+        return `契約時点（${formatAge(contractAge)}）より前の行はグラフ・返戻率に反映されません`;
+      case 'afterPolicyEnd':
+        return `保険期間終了（${formatAge(policyEndAge)}）より後の行はグラフ・返戻率に反映されません`;
+    }
+  };
+
   // 同じ理由の行が複数あっても表示は1回にまとめる
   const issueMessages = useMemo(() => {
     const dropped = new Set<string>();
     const ignored = new Set<string>();
     rowIssues.forEach(issue => {
       if (!issue) return;
-      (issue.kind === 'dropped' ? dropped : ignored).add(issue.message);
+      (issue.kind === 'dropped' ? dropped : ignored).add(describeIssue(issue));
     });
     return { dropped: [...dropped], ignored: [...ignored] };
-  }, [rowIssues]);
+    // describeIssue はモード・契約年齢・保険期間から決まるので、その3つを依存に置く
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowIssues, isElapsed, contractAge, policyEndAge]);
 
   const displayValue = (point: SurrenderValuePoint) =>
     isUsd ? (point.foreignAmount ?? 0) : point.amount;
@@ -222,10 +273,11 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
   };
 
   const quickAdds = [
-    { label: `現在（${currentAge ?? '-'}歳）`, age: currentAge ?? null },
-    { label: `払込完了（${paymentEndAge}歳）`, age: paymentEndAge && paymentEndAge !== 999 ? paymentEndAge : null },
-    { label: `満期（${policyEndAge}歳）`, age: policyEndAge && policyEndAge !== 999 ? policyEndAge : null },
-  ].filter(item => item.age !== null && item.age >= 0 && !points.some(p => p.age === item.age));
+    { name: '現在', age: currentAge ?? null },
+    { name: '払込完了', age: paymentEndAge && paymentEndAge !== 999 ? paymentEndAge : null },
+    { name: '満期', age: policyEndAge && policyEndAge !== 999 ? policyEndAge : null },
+  ].filter((item): item is { name: string; age: number } =>
+    item.age !== null && item.age >= 0 && !points.some(p => p.age === item.age));
 
   return (
     <div className="surrender-editor">
@@ -247,12 +299,30 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
             {showRate && '解約返戻金と返戻率はどちらから入力しても構いません（もう一方を自動計算します）。'}
           </p>
 
+          <div className="surrender-mode-switch">
+            <span>入力方法:</span>
+            {AGE_MODE_OPTIONS.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                className={`surrender-mode-btn${effectiveMode === option.value ? ' is-active' : ''}`}
+                aria-pressed={effectiveMode === option.value}
+                disabled={option.value === 'elapsed' && !canUseElapsed}
+                title={option.value === 'elapsed' && !canUseElapsed ? '契約年齢を入力すると経過年数で入力できます' : undefined}
+                onClick={() => changeAgeMode(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+            {isElapsed && <span>1年目 = 契約年齢（{contractAge}歳）の1年後</span>}
+          </div>
+
           {quickAdds.length > 0 && (
             <div className="surrender-quick-add">
-              <span>年齢を追加:</span>
+              <span>{isElapsed ? '経過年数' : '年齢'}を追加:</span>
               {quickAdds.map(item => (
-                <button key={item.label} type="button" className="calc-btn" onClick={() => addPoint(item.age as number)}>
-                  {item.label}
+                <button key={item.name} type="button" className="calc-btn" onClick={() => addPoint(item.age)}>
+                  {item.name}（{formatAge(item.age)}）
                 </button>
               ))}
             </div>
@@ -262,7 +332,8 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
             <table className="surrender-table">
               <thead>
                 <tr>
-                  <th className="surrender-col-age">年齢</th>
+                  <th className="surrender-col-age">{isElapsed ? '経過年数' : '年齢'}</th>
+                  {canUseElapsed && <th className="surrender-col-agesub">{isElapsed ? '年齢' : '経過年数'}</th>}
                   <th className="surrender-col-amount">解約返戻金（{unit}）</th>
                   {isUsd && <th>円換算</th>}
                   {showRate && <th className="surrender-col-rate">返戻率{isUsd ? '（ドル基準）' : ''}</th>}
@@ -287,14 +358,19 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
                         <input
                           type="number"
                           min={0}
-                          max={120}
-                          value={point.age}
-                          title={issue?.message}
-                          aria-label={`${index + 1}行目の年齢`}
+                          max={isElapsed ? MAX_AGE - contractAge : MAX_AGE}
+                          value={isElapsed ? toElapsed(point.age) : point.age}
+                          title={issue ? describeIssue(issue) : undefined}
+                          aria-label={`${index + 1}行目の${isElapsed ? '経過年数' : '年齢'}`}
                           aria-invalid={issue?.kind === 'dropped' || undefined}
-                          onChange={e => updatePoint(index, { age: Number(e.target.value) })}
+                          onChange={e => updatePoint(index, {
+                            age: isElapsed ? fromElapsed(Number(e.target.value)) : Number(e.target.value),
+                          })}
                         />
                       </td>
+                      {canUseElapsed && (
+                        <td className="surrender-cell-sub surrender-col-agesub">{formatCounterpart(point.age)}</td>
+                      )}
                       <td className="surrender-col-amount">
                         <CommaInputRaw
                           value={displayValue(point)}

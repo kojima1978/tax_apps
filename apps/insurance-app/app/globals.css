@@ -3610,6 +3610,43 @@ h1 {
   padding: 0 0.75rem 0.75rem;
 }
 
+/* 1列目を年齢／経過年数のどちらで入力するかの切り替え（証券の表記に合わせる） */
+.surrender-mode-switch {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.surrender-mode-btn {
+  padding: 0.1rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.surrender-mode-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.surrender-mode-btn.is-active {
+  border-color: #6b46c1;
+  background: #ede9fe;
+  color: #6b46c1;
+}
+
+.surrender-mode-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .surrender-quick-add {
   display: flex;
   align-items: center;
@@ -3686,6 +3723,11 @@ h1 {
    余った幅は金額欄（width:100%）が吸う。年齢は3桁、金額は億（100,000,000）まで折り返さずに読める幅 */
 .surrender-col-age {
   width: 2.3rem;
+}
+
+/* 対になる表記（◯年目 ↔ ◯歳）。「120歳」「-99年目」が折り返さない幅 */
+.surrender-col-agesub {
+  width: 3.4rem;
 }
 
 .surrender-col-amount {
