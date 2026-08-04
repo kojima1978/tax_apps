@@ -38,12 +38,18 @@ export const HeirNetComparisonTable: React.FC<HeirNetComparisonTableProps> = ({
         <p className="text-xs text-gray-500 mb-3">{description}</p>
       )}
       <div className="overflow-x-auto table-scroll-hint">
-        <table className="w-full border-collapse">
+        <table className="insurance-net-comparison-table w-full table-fixed border-collapse">
+          <colgroup>
+            <col className="w-1/4" />
+            <col className="w-1/4" />
+            <col className="w-1/4" />
+            <col className="w-1/4" />
+          </colgroup>
           <thead>
             <tr className="bg-green-600 text-white">
               <th className={TH}>相続人</th>
-              <th className={TH}>現在のまま 残る財産</th>
-              <th className={TH}>保険に加入した場合 残る財産</th>
+              <th className={`${TH} insurance-current-net-target`}>現在のまま 残る財産</th>
+              <th className={`${TH} insurance-proposed-net-target`}>保険に加入した場合 残る財産</th>
               <th className={TH}>差額</th>
             </tr>
           </thead>

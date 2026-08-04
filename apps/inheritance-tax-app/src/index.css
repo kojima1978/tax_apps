@@ -1086,6 +1086,41 @@
   display: none !important;
 }
 
+.insurance-tax-total-connector {
+  --insurance-tax-connector-color: #15803d;
+  --insurance-tax-connector-left: calc(39.2857% - 9.43px);
+  --insurance-tax-connector-right: calc(10.7143% - 2.57px);
+  position: relative;
+  height: 27px;
+  color: var(--insurance-tax-connector-color);
+}
+
+.insurance-tax-total-connector.insurance-tax-increase {
+  --insurance-tax-connector-color: #dc2626;
+}
+
+.insurance-tax-total-connector-line {
+  position: absolute;
+  top: 0;
+  right: var(--insurance-tax-connector-right);
+  left: var(--insurance-tax-connector-left);
+  height: 13px;
+  border-right: 1.5px dashed var(--insurance-tax-connector-color);
+  border-bottom: 1.5px dashed var(--insurance-tax-connector-color);
+  border-left: 1.5px dashed var(--insurance-tax-connector-color);
+}
+
+.insurance-tax-total-connector-label {
+  position: absolute;
+  top: 15px;
+  left: 64.2857%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 @media print {
   .no-print {
     display: none !important;
@@ -1459,15 +1494,141 @@
   /* フル幅の帯（ヘッダー・前提・計算の流れ・注意事項） */
   .calculator-print .calc-result-body > .print-only,
   .calculator-print .calc-premise,
+  .insurance-print .calc-premise,
   .calculator-print .calc-steps-card,
   .calculator-print .print-cautions {
     grid-column: 1 / -1;
   }
 
-  /* ヘッダーの下罫線と重なるので、前提バンドの上罫線は落とす */
-  .calculator-print .calc-premise dl {
-    border-top: none;
-    padding-top: 2px;
+  /* 計算条件: アイコン付きカードで、金額・人数・適用条件をひと目で区別する */
+  :is(.calculator-print, .insurance-print) .calc-premise {
+    padding: 7px 10px 8px !important;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #15803d;
+    border-radius: 7px;
+    background: #f8fafc;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise-heading {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise-heading-icon,
+  :is(.calculator-print, .insurance-print) .calc-premise-item-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    color: #15803d;
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise-heading-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise-heading-icon svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2.2;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise-heading h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 800;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise-heading p {
+    margin: 1px 0 0;
+    color: #64748b;
+    font-size: 8px;
+    line-height: 1.2;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise .calc-premise-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+    margin: 6px 0 0;
+    padding: 0;
+    border: 0;
+    font-size: inherit;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise .calc-premise-item {
+    display: grid;
+    grid-template-columns: 25px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 7px;
+    padding: 6px 7px;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    background: #fff;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise-item-icon {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: 25px;
+    height: 25px;
+    border-radius: 5px;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise-item-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise dt {
+    grid-column: 2;
+    margin: 0;
+    color: #64748b;
+    font-size: 8px;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise dt::after {
+    content: none;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise dd {
+    grid-column: 2;
+    min-width: 0;
+    margin: 1px 0 0;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise dd strong,
+  :is(.calculator-print, .insurance-print) .calc-premise dd span {
+    display: block;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise dd strong {
+    color: #0f172a;
+    font-size: 11.5px;
+    line-height: 1.2;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  :is(.calculator-print, .insurance-print) .calc-premise dd span {
+    margin-top: 1px;
+    color: #475569;
+    font-size: 7.5px;
+    line-height: 1.2;
+    white-space: nowrap;
   }
 
   .calculator-print .calc-summary-card {
@@ -1815,6 +1976,128 @@
   /* 結論のメトリクスカード（非課税枠含む4枚）は印刷時1行4列 */
   .insurance-print .grid.lg\:grid-cols-4 {
     grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  /* 結論を左、非課税枠のXYグラフを右に配置 */
+  .insurance-print .insurance-conclusion-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 70fr) minmax(0, 30fr) !important;
+    gap: 10px !important;
+    align-items: center;
+  }
+
+  .insurance-print .insurance-conclusion-card,
+  .insurance-print .insurance-exemption-chart {
+    min-width: 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .insurance-print .insurance-conclusion-card {
+    padding: 8px 10px !important;
+  }
+
+  .insurance-print .insurance-conclusion-card .text-2xl {
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+  }
+
+  .insurance-print .insurance-tax-impact {
+    font-size: 11px !important;
+  }
+
+  .insurance-print .insurance-heir-table-comparison {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .insurance-print .insurance-heir-table-grid {
+    --insurance-table-gap: 6px;
+    gap: var(--insurance-table-gap) !important;
+  }
+
+  .insurance-print .insurance-tax-total-connector {
+    --insurance-tax-connector-left: calc(39.2857% - 2.36px);
+    --insurance-tax-connector-right: calc(10.7143% - 0.64px);
+    display: block !important;
+    height: 23px;
+  }
+
+  .insurance-print .insurance-tax-total-connector-line {
+    height: 10px;
+  }
+
+  .insurance-print .insurance-tax-total-connector-label {
+    top: 12px;
+    font-size: 7px;
+  }
+
+  .insurance-print .insurance-net-flow-connector {
+    display: none !important;
+  }
+
+  .insurance-print .insurance-current-table tbody tr:last-child .insurance-net-proceeds-cell,
+  .insurance-print .insurance-proposed-table tbody tr:last-child .insurance-net-proceeds-cell {
+    position: relative;
+    overflow: visible;
+  }
+
+  .insurance-print :is(.insurance-current-table, .insurance-proposed-table) tbody tr:last-child .insurance-net-proceeds-cell::after {
+    content: '';
+    position: absolute;
+    z-index: 7;
+    top: 100%;
+    left: 50%;
+    height: 0.75px;
+    background: repeating-linear-gradient(to right, #2563eb 0 4px, transparent 4px 7px);
+    box-shadow: 0 0 0 0.75px #ffffff;
+    transform-origin: 0 50%;
+    pointer-events: none;
+  }
+
+  .insurance-print .insurance-current-table tbody tr:last-child .insurance-net-proceeds-cell::after {
+    width: 102px;
+    transform: rotate(126deg);
+  }
+
+  .insurance-print .insurance-proposed-table tbody tr:last-child .insurance-net-proceeds-cell::after {
+    width: 323px;
+    transform: rotate(165.2deg);
+  }
+
+  .insurance-print .insurance-heir-table-grid table th {
+    padding-right: 1px !important;
+    padding-left: 1px !important;
+    font-size: 7px !important;
+    line-height: 1.15 !important;
+  }
+
+  .insurance-print .insurance-heir-table-grid table td {
+    padding-right: 1px !important;
+    padding-left: 1px !important;
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+  }
+
+  .insurance-print .insurance-net-comparison-section {
+    margin-top: 10px !important;
+    padding-top: 7px !important;
+  }
+
+  .insurance-print .insurance-exemption-chart {
+    align-self: center;
+    justify-self: end;
+    width: 100%;
+    max-width: 300px;
+    margin-left: auto;
+    padding: 0 4px !important;
+  }
+
+  .insurance-print .insurance-exemption-lines {
+    display: block;
+    width: 100%;
+    height: auto !important;
+    margin: 0 !important;
   }
 
   /* A4横1枚に収める: テーブル・結論ブロックを途中で割らない */

@@ -45,6 +45,7 @@ export const Rank2Settings: React.FC<Rank2SettingsProps> = memo(({ composition, 
                     {ASCENDANT_TYPES.map((opt) => (
                         <button
                             key={opt.type}
+                            type="button"
                             onClick={() => addAscendant(opt.type)}
                             className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
                             aria-label={opt.label}
@@ -67,6 +68,7 @@ export const Rank2Settings: React.FC<Rank2SettingsProps> = memo(({ composition, 
                             {label} {index + 1}
                         </span>
                         <button
+                            type="button"
                             onClick={() => removeAscendant(ascendant.id)}
                             className="text-red-500 hover:text-red-700"
                             aria-label={`${label} ${index + 1} を削除`}

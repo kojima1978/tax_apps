@@ -4,6 +4,7 @@ import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { InsuranceContractList } from '../components/insurance/InsuranceContractList';
+import { InsuranceCalculationPremise } from '../components/insurance/InsuranceCalculationPremise';
 import { InsuranceHeirTable } from '../components/insurance/InsuranceHeirTable';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
@@ -100,6 +101,7 @@ export const InsurancePage: React.FC = () => {
           <div className="result-fade-in">
             <PrintHeader title="保険金シミュレーション" />
             <div className="space-y-4 md:space-y-6">
+              <InsuranceCalculationPremise result={result} />
               <InsuranceHeirTable result={result} />
             </div>
           </div>

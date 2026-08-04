@@ -8,6 +8,7 @@ export type HeirColumn = {
   getTotalValue: () => React.ReactNode;
   align?: 'left' | 'right';
   bold?: boolean;
+  cellClassName?: string;
 };
 
 interface HeirScenarioTableProps {
@@ -20,6 +21,7 @@ interface HeirScenarioTableProps {
   columns: HeirColumn[];
   compactRows?: boolean;
   showTaxTotal?: boolean;
+  className?: string;
 }
 
 export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
@@ -32,8 +34,9 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
   columns,
   compactRows = false,
   showTaxTotal = true,
+  className = '',
 }) => (
-  <div className="h-full flex flex-col">
+  <div className={`h-full flex flex-col ${className}`}>
     <h4 className={`${compactRows ? 'min-h-9 text-sm leading-tight' : 'min-h-10 text-base'} font-bold text-gray-700 mb-2 flex flex-wrap items-center gap-2`}>
       <span className="inline-block w-3 h-3 rounded-full bg-green-600" />
       {label}
@@ -44,7 +47,7 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
       )}
     </h4>
     <div className="overflow-x-auto table-scroll-hint">
-      <table className="w-full border-collapse">
+      <table className={`w-full border-collapse${compactRows ? ' table-fixed' : ''}`}>
         <thead>
           <tr className={`${headerBg} text-white`}>
             {columns.map(col => (
@@ -65,7 +68,7 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
               {columns.map(col => (
                 <td
                   key={col.label}
-                  className={`${compactRows ? 'h-8 border border-gray-300 px-1 py-1 text-right text-[11px] md:text-xs leading-tight whitespace-nowrap' : TD}${col.align === 'left' ? ' text-left font-medium' : ''}${col.bold ? ' font-bold' : ''}`}
+                  className={`${compactRows ? 'h-8 border border-gray-300 px-1 py-1 text-right text-[11px] md:text-xs leading-tight whitespace-nowrap' : TD}${col.align === 'left' ? ' text-left font-medium' : ''}${col.bold ? ' font-bold' : ''}${col.cellClassName ? ` ${col.cellClassName}` : ''}`}
                 >
                   {col.getValue(i)}
                 </td>
@@ -76,7 +79,7 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
             {columns.map(col => (
               <td
                 key={col.label}
-                className={`${compactRows ? 'h-8 border border-gray-300 px-1 py-1 text-right text-[11px] md:text-xs leading-tight whitespace-nowrap' : TD}${col.align === 'left' ? ' text-left' : ''}${col.bold ? ' font-bold' : ''}`}
+                className={`${compactRows ? 'h-8 border border-gray-300 px-1 py-1 text-right text-[11px] md:text-xs leading-tight whitespace-nowrap' : TD}${col.align === 'left' ? ' text-left' : ''}${col.bold ? ' font-bold' : ''}${col.cellClassName ? ` ${col.cellClassName}` : ''}`}
               >
                 {col.getTotalValue()}
               </td>

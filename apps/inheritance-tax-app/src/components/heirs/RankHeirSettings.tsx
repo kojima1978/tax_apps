@@ -47,6 +47,7 @@ export const RankHeirSettings: React.FC<RankHeirSettingsProps> = memo(({ composi
             <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-gray-700">{sectionTitle}</h3>
                 <button
+                    type="button"
                     onClick={addPrimary}
                     className="flex items-center gap-1 px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
                     aria-label={`${primaryLabel}を追加`}
@@ -72,6 +73,7 @@ export const RankHeirSettings: React.FC<RankHeirSettingsProps> = memo(({ composi
                             </label>
                         </div>
                         <button
+                            type="button"
                             onClick={() => removePrimary(heir.id)}
                             className="text-red-500 hover:text-red-700"
                             aria-label={`${primaryLabel} ${index + 1} を削除`}
@@ -82,6 +84,7 @@ export const RankHeirSettings: React.FC<RankHeirSettingsProps> = memo(({ composi
                     {heir.isDeceased && (
                         <div className="ml-4 mt-2">
                             <button
+                                type="button"
                                 onClick={() => addRepresentative(heir.id)}
                                 className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 mb-2"
                                 aria-label={`${primaryLabel} ${index + 1} の${representativeLabel}を追加`}
@@ -92,6 +95,7 @@ export const RankHeirSettings: React.FC<RankHeirSettingsProps> = memo(({ composi
                                 <div key={rep.id} className="flex items-center justify-between text-sm mb-1">
                                     <span>{representativeLabel} {rIndex + 1}</span>
                                     <button
+                                        type="button"
                                         onClick={() => removeRepresentative(heir.id, rep.id)}
                                         className="text-red-500 hover:text-red-700"
                                         aria-label={`${representativeLabel} ${rIndex + 1} を削除`}

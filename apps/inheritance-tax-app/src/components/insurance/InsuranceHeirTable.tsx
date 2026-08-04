@@ -3,8 +3,10 @@ import type { InsuranceSimulationResult, InsuranceScenarioResult } from '../../t
 import { formatCurrency, getHeirBaseAcquisition, getHeirNetProceeds, heirLabelColumn, currencyColumn } from '../../utils';
 import { HeirScenarioTable, type HeirColumn } from '../HeirScenarioTable';
 import { HeirNetComparisonTable } from '../HeirNetComparisonTable';
-import { INSURANCE_EXEMPT_PER_HEIR } from '../../constants';
 import { CARD } from '../tableStyles';
+import { InsuranceExemptionChart } from './InsuranceExemptionChart';
+import { InsuranceTaxCellConnectors } from './InsuranceTaxCellConnectors';
+import { InsuranceNetFlowConnector } from './InsuranceNetFlowConnector';
 
 interface InsuranceHeirTableProps {
   result: InsuranceSimulationResult;
@@ -40,105 +42,48 @@ function buildInsuranceColumns(scenario: InsuranceScenarioResult): HeirColumn[] 
     },
     currencyColumn('受け取る保険金', i => heirBreakdowns[i]?.totalBenefit ?? 0, scenario.totalBenefit),
     currencyColumn('税引前の財産', getPretaxProceeds, totalPretaxProceeds),
-    currencyColumn('支払う相続税', i => taxResult.heirBreakdowns[i]?.finalTax ?? 0, taxResult.totalFinalTax),
-    currencyColumn('残る財産', i => getHeirNetProceeds(scenario, i), scenario.totalNetProceeds, { bold: true }),
+    {
+      label: '支払う相続税',
+      getValue: i => formatCurrency(taxResult.heirBreakdowns[i]?.finalTax ?? 0),
+      getTotalValue: () => formatCurrency(taxResult.totalFinalTax),
+      cellClassName: 'insurance-tax-cell',
+    },
+    {
+      ...currencyColumn('残る財産', i => getHeirNetProceeds(scenario, i), scenario.totalNetProceeds, { bold: true }),
+      cellClassName: 'insurance-net-proceeds-cell',
+    },
   ];
 }
 
-function valueToneClass(value: number): string {
-  if (value > 0) return 'text-green-700';
-  if (value < 0) return 'text-red-600';
-  return 'text-gray-500';
-}
-
-function taxToneClass(taxDiff: number): string {
-  if (taxDiff > 0) return 'text-amber-700';
-  if (taxDiff < 0) return 'text-green-700';
-  return 'text-gray-500';
-}
-
-function MetricCard({
-  label,
-  value,
-  note,
-  className = 'text-gray-900',
-}: {
-  label: string;
-  value: React.ReactNode;
-  note: string;
-  className?: string;
-}) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-      <p className="text-xs font-medium text-gray-500">{label}</p>
-      <p className={`mt-1 text-lg font-bold ${className}`}>{value}</p>
-      <p className="mt-1 text-xs text-gray-500">{note}</p>
-    </div>
-  );
-}
-
 function InsuranceResultSummary({ result }: { result: InsuranceSimulationResult }) {
-  const { current, proposed, newPremiumTotal, netProceedsDiff } = result;
-  const currentNet = current.totalNetProceeds;
-  const proposedNet = proposed.totalNetProceeds;
-  const newBenefit = proposed.totalBenefit - current.totalBenefit;
+  const { current, proposed, netProceedsDiff } = result;
   const taxDiff = proposed.taxResult.totalFinalTax - current.taxResult.totalFinalTax;
   const positive = netProceedsDiff >= 0;
-
-  // 死亡保険金の非課税枠（500万円 × 法定相続人数）の適用状況
-  const exemptLimit = proposed.nonTaxableLimit;
-  const exemptHeirs = Math.round(exemptLimit / INSURANCE_EXEMPT_PER_HEIR);
-  const exemptApplied = proposed.nonTaxableAmount;
-  const exemptRemaining = exemptLimit - exemptApplied;
+  const taxImpact = taxDiff < 0
+    ? `相続税は${formatCurrency(Math.abs(taxDiff))}減少`
+    : taxDiff > 0
+      ? `相続税は${formatCurrency(taxDiff)}増加`
+      : '相続税は変化なし';
+  const taxImpactClass = taxDiff < 0 ? 'text-green-700' : taxDiff > 0 ? 'text-red-600' : 'text-gray-600';
 
   return (
     <div className="space-y-3">
-      <div className={`rounded-lg border px-4 py-4 ${positive ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-        <p className={`text-xs font-medium ${positive ? 'text-green-700' : 'text-red-700'}`}>3. 結論</p>
-        <div className="mt-1 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className={`text-2xl font-bold ${positive ? 'text-green-700' : 'text-red-700'}`}>
-              税金を払った後に残る財産 {formatTriangleDelta(netProceedsDiff)}
-            </p>
-            <p className="mt-1 text-sm text-gray-600">
-              {formatCurrency(currentNet)}（現在のまま） → {formatCurrency(proposedNet)}（保険に加入した場合）
-            </p>
+      <div className="insurance-conclusion-row grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2.3fr)_minmax(260px,1fr)]">
+        <div className={`insurance-conclusion-card flex flex-col rounded-lg border px-4 py-4 ${positive ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+          <p className={`text-xs font-medium ${positive ? 'text-green-700' : 'text-red-700'}`}>3. 結論</p>
+          <div className="mt-1 flex flex-1 flex-col gap-2">
+            <div>
+              <p className={`text-2xl font-bold ${positive ? 'text-green-700' : 'text-red-700'}`}>
+                税金を払った後に残る財産 {formatTriangleDelta(netProceedsDiff)}
+                <span className={`insurance-tax-impact ml-2 text-base font-semibold ${taxImpactClass}`}>
+                  （{taxImpact}）
+                </span>
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-gray-500 md:text-right">
-            支払う保険料、受け取る保険金、相続税をすべて反映した差額です。
-          </p>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          label="新たに支払う保険料"
-          value={newPremiumTotal > 0 ? formatTriangleDeduction(newPremiumTotal) : '—'}
-          note="保険に加入した場合に支払う金額"
-          className={newPremiumTotal > 0 ? 'text-gray-900' : 'text-gray-500'}
-        />
-        <MetricCard
-          label="新たに受け取る保険金"
-          value={newBenefit !== 0 ? formatTriangleDelta(newBenefit) : '—'}
-          note="保険に加入した場合に増える保険金"
-          className={valueToneClass(newBenefit)}
-        />
-        <MetricCard
-          label="相続税がどう変わるか"
-          value={taxDiff !== 0 ? formatTriangleDelta(taxDiff) : '—'}
-          note={taxDiff > 0 ? '相続税は増えます' : taxDiff < 0 ? '相続税は下がります' : '相続税は変わりません'}
-          className={taxToneClass(taxDiff)}
-        />
-        <MetricCard
-          label="相続税の非課税枠"
-          value={formatCurrency(exemptLimit)}
-          note={
-            exemptRemaining > 0
-              ? `${INSURANCE_EXEMPT_PER_HEIR}万円×${exemptHeirs}人・うち${formatCurrency(exemptApplied)}を適用（残り${formatCurrency(exemptRemaining)}）`
-              : `${INSURANCE_EXEMPT_PER_HEIR}万円×${exemptHeirs}人・全額適用済`
-          }
-          className="text-green-700"
-        />
+        <InsuranceExemptionChart scenario={proposed} />
       </div>
     </div>
   );
@@ -159,33 +104,39 @@ export const InsuranceHeirTable: React.FC<InsuranceHeirTableProps> = ({ result }
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <HeirScenarioTable
-          label="現在のまま"
-          taxTotal={current.taxResult.totalFinalTax}
-          taxLabel="支払う相続税"
-          headerBg="bg-green-600"
-          heirCount={heirCount}
-          getHeirKey={i => current.heirBreakdowns[i]?.label || String(i)}
-          columns={buildInsuranceColumns(current)}
-          compactRows
-          showTaxTotal={false}
-        />
-        <HeirScenarioTable
-          label="保険に加入した場合"
-          taxTotal={proposed.taxResult.totalFinalTax}
-          taxLabel="支払う相続税"
-          headerBg="bg-green-600"
-          heirCount={heirCount}
-          getHeirKey={i => proposed.heirBreakdowns[i]?.label || String(i)}
-          columns={buildInsuranceColumns(proposed)}
-          compactRows
-          showTaxTotal={false}
-        />
-      </div>
+      <div className="insurance-asset-flow relative">
+        <div className="insurance-heir-table-comparison relative">
+          <div className="insurance-heir-table-grid grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <HeirScenarioTable
+            label="現在のまま"
+            taxTotal={current.taxResult.totalFinalTax}
+            taxLabel="支払う相続税"
+            headerBg="bg-green-600"
+            heirCount={heirCount}
+            getHeirKey={i => current.heirBreakdowns[i]?.label || String(i)}
+            columns={buildInsuranceColumns(current)}
+            compactRows
+            showTaxTotal={false}
+            className="insurance-current-table"
+          />
+          <HeirScenarioTable
+            label="保険に加入した場合"
+            taxTotal={proposed.taxResult.totalFinalTax}
+            taxLabel="支払う相続税"
+            headerBg="bg-green-600"
+            heirCount={heirCount}
+            getHeirKey={i => proposed.heirBreakdowns[i]?.label || String(i)}
+            columns={buildInsuranceColumns(proposed)}
+            compactRows
+            showTaxTotal={false}
+            className="insurance-proposed-table"
+          />
+          </div>
+          <InsuranceTaxCellConnectors result={result} />
+        </div>
 
-      <div className="mt-6 border-t border-gray-200 pt-5">
-        <HeirNetComparisonTable
+        <div className="insurance-net-comparison-section mt-8 border-t border-gray-200 pt-5">
+          <HeirNetComparisonTable
           title="2. 相続人別 残る財産比較"
           description="現在のままと保険に加入した場合で、税金を払った後に残る財産を比べます。"
           heirCount={heirCount}
@@ -195,7 +146,9 @@ export const InsuranceHeirTable: React.FC<InsuranceHeirTableProps> = ({ result }
           totalCurrentNet={current.totalNetProceeds}
           totalProposedNet={proposed.totalNetProceeds}
           totalDiff={result.netProceedsDiff}
-        />
+          />
+        </div>
+        <InsuranceNetFlowConnector />
       </div>
 
       <div className="mt-6 border-t border-gray-200 pt-5">
