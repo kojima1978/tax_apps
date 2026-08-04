@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { CoverageMonth, MonthlyCoverage } from './monthlyCoverage';
 
 const STATUS_CLASS = {
@@ -45,12 +46,14 @@ interface Props {
   coverage: MonthlyCoverage;
   /** 選択中の年月。取込先として狙っている月を強調する。 */
   selected?: { year: number; month: number };
-  /** 渡すと月をクリックで選べるようになる（一覧側は読み取り専用なので渡さない）。 */
+  /** 渡すと月をクリックで選べるようになる（取込画面は対象月の選択、一覧は表示の切替）。 */
   onSelect?: (year: number, month: number) => void;
+  /** 月チップの手前に置くもの。一覧側が「基礎情報」チップを差し込むために使う。 */
+  leading?: ReactNode;
 }
 
 /** 月別株価の登録状況を月ごとのチップで並べる。取込前に「次はどこか」を見るためのもの。 */
-export function MonthlyCoverageBar({ coverage, selected, onSelect }: Props) {
+export function MonthlyCoverageBar({ coverage, selected, onSelect, leading }: Props) {
   const chip = (month: CoverageMonth) => {
     const isSelected = selected?.year === month.year && selected.month === month.month;
     const className = [
@@ -88,7 +91,10 @@ export function MonthlyCoverageBar({ coverage, selected, onSelect }: Props) {
 
   return (
     <div className="admin-coverage">
-      <div className="admin-coverage-chips">{coverage.months.map(chip)}</div>
+      <div className="admin-coverage-chips">
+        {leading}
+        {coverage.months.map(chip)}
+      </div>
       <div className="admin-coverage-legend">
         {LEGEND.map((item) => (
           <span key={item.status} className="admin-legend-item">

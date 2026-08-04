@@ -1044,19 +1044,6 @@
   font-weight: 700;
 }
 
-/* 業種目の行を開いて出す月別株価の内訳 */
-.admin-subtable {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
-}
-
-.admin-subtable .admin-table {
-  width: auto;
-  min-width: 320px;
-}
-
 /* 月別株価の登録状況（MonthlyCoverageBar） */
 .admin-coverage {
   display: flex;
@@ -1141,6 +1128,14 @@ button.admin-chip:hover {
 .admin-chip-partial .admin-chip-month,
 .admin-chip-full .admin-chip-month {
   color: inherit;
+}
+
+/* 月に紐づかない値（B・C・D・前年平均）への入口。月チップと区別するため少し離す。 */
+.admin-chip-basic {
+  margin-right: 8px;
+  border-color: #94a3b8;
+  background: #fff;
+  color: #475569;
 }
 
 /* 公表レンジ外＝年分違いの取込を疑う月。枠線だけ変えて並びからは外さない。 */
