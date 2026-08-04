@@ -25,8 +25,6 @@ function year(prices: { count: number; months: IndustryMonthlyPrice[] }): Indust
     era: '令和',
     eraYear: 8,
     gregorianYear: 2026,
-    sourceUrl: null,
-    note: '',
     categories: Array.from({ length: prices.count }, (_, index) =>
       category(index + 1, prices.months)),
   };

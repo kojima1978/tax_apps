@@ -111,8 +111,6 @@ export const TEST_INDUSTRY_DATASET: IndustryDataset = createIndustryDataset({
     era: '令和',
     eraYear: 8,
     gregorianYear: 2026,
-    sourceUrl: null,
-    note: '',
     categories,
   }],
 });

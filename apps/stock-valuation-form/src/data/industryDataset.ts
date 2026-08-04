@@ -36,8 +36,6 @@ export interface IndustryYear {
   era: string;
   eraYear: number;
   gregorianYear: number;
-  sourceUrl: string | null;
-  note: string;
   categories: IndustryCategory[];
 }
 

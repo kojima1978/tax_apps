@@ -27,8 +27,6 @@ interface Props {
 export function NewYearPanel({ years, onCreated }: Props) {
   const [era, setEra] = useState<string>(ERAS[0]);
   const [eraYear, setEraYear] = useState('');
-  const [sourceUrl, setSourceUrl] = useState('');
-  const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,8 +65,6 @@ export function NewYearPanel({ years, onCreated }: Props) {
       const response = await createIndustryYear({
         era,
         eraYear: eraYearNumber,
-        sourceUrl: sourceUrl.trim() === '' ? null : sourceUrl.trim(),
-        note: note.trim(),
         // line は貼り付け時のエラー表示用なので、送信時は落とす。
         categories: extracted.rows.map((row) => ({
           number: row.number,
@@ -88,8 +84,6 @@ export function NewYearPanel({ years, onCreated }: Props) {
       setResult(`${response.year.label}を作成しました（業種目 ${response.categoryCount} 件）。月別株価は「月次株価を取り込む」から登録してください。`);
       paste.clear();
       setEraYear('');
-      setSourceUrl('');
-      setNote('');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -117,28 +111,6 @@ export function NewYearPanel({ years, onCreated }: Props) {
             onChange={(event) => setEraYear(event.target.value)}
             placeholder="8"
             inputMode="numeric"
-          />
-        </label>
-
-        <label className="admin-label admin-label-grow">
-          出典URL（任意）
-          <input
-            className="admin-input"
-            value={sourceUrl}
-            onChange={(event) => setSourceUrl(event.target.value)}
-            placeholder="https://www.nta.go.jp/..."
-          />
-        </label>
-      </div>
-
-      <div className="admin-row">
-        <label className="admin-label admin-label-grow">
-          備考（任意）
-          <input
-            className="admin-input"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="令和8年分（令和8年4月公表）"
           />
         </label>
       </div>

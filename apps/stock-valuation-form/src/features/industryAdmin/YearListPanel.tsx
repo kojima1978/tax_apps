@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
 import type { IndustryCategory, IndustryYear } from '@/data/industryDataset';
-import { updateIndustryCategory, updateIndustryYear, type UpdateCategoryRequest } from './api';
+import { updateIndustryCategory, type UpdateCategoryRequest } from './api';
 import { CategoryFilterRow, useCategoryFilter } from './CategoryFilter';
 import { LEVEL_LABELS } from './labels';
 import { MonthEditor } from './MonthEditor';
@@ -24,7 +24,7 @@ type Message = { kind: 'ok' | 'error'; text: string };
 
 /**
  * 年分ブロックのチップから開く中身。
- * 基礎情報（業種目のB・C・D・前年平均と年分の出典・備考）か、1ヶ月分の株価一覧か。
+ * 基礎情報（業種目のB・C・D・前年平均）か、1ヶ月分の株価一覧か。
  */
 type DetailView = { kind: 'basic' } | { kind: 'month'; year: number; month: number };
 
@@ -143,7 +143,7 @@ export function YearListPanel({ years, onUpdated }: Props) {
         <table className="admin-table">
           <thead>
             <tr>
-              <th>年分</th><th>西暦</th><th>業種目</th><th>月別株価</th><th>最終月</th><th>出典</th><th>備考</th>
+              <th>年分</th><th>西暦</th><th>業種目</th><th>月別株価</th><th>最終月</th>
             </tr>
           </thead>
           <tbody>
@@ -157,16 +157,10 @@ export function YearListPanel({ years, onUpdated }: Props) {
                 <td>{year.categories.length} 件</td>
                 <td>{monthlyPriceCountOf(year)} 件</td>
                 <td>{latestMonthOf(year)}</td>
-                <td className="admin-cell-url">
-                  {year.sourceUrl
-                    ? <a href={year.sourceUrl} target="_blank" rel="noreferrer">公表資料</a>
-                    : '—'}
-                </td>
-                <td>{year.note || '—'}</td>
               </tr>
             ))}
             {years.length === 0 && (
-              <tr><td colSpan={7}>年分が登録されていません。</td></tr>
+              <tr><td colSpan={5}>年分が登録されていません。</td></tr>
             )}
           </tbody>
         </table>
@@ -233,7 +227,7 @@ function BasicInfoChip({ count, categoryCount, selected, onSelect }: BasicInfoCh
     selected ? 'admin-chip-selected' : '',
   ].filter(Boolean).join(' ');
 
-  const title = 'B（配当）・C（利益）・D（純資産）・前年平均株価と、この年分の出典・備考'
+  const title = 'B（配当）・C（利益）・D（純資産）・前年平均株価'
     + ` / ${status === 'none' ? '未登録' : `4項目そろっている業種目 ${count} / ${categoryCount}`}`;
 
   return (
@@ -274,15 +268,13 @@ function YearDetail({ year, view, onUpdated }: YearDetailProps) {
   );
 }
 
-/** 月に紐づかない値（年分の出典・備考と、業種目のB・C・D・前年平均）の訂正。 */
+/** 月に紐づかない値（業種目のB・C・D・前年平均）の訂正。 */
 function BasicInfoEditor({ year, onUpdated }: { year: IndustryYear; onUpdated: () => Promise<void> }) {
   const [message, setMessage] = useState<Message | null>(null);
   const filter = useCategoryFilter(year.categories);
 
   return (
     <>
-      <YearMetaRow year={year} onUpdated={onUpdated} onMessage={setMessage} />
-
       <CategoryFilterRow
         keyword={filter.keyword}
         onChange={filter.setKeyword}
@@ -321,53 +313,6 @@ function BasicInfoEditor({ year, onUpdated }: { year: IndustryYear; onUpdated: (
         </table>
       </div>
     </>
-  );
-}
-
-interface YearMetaRowProps {
-  year: IndustryYear;
-  onUpdated: () => Promise<void>;
-  onMessage: (message: Message) => void;
-}
-
-/** 年分そのものに付く情報。月に紐づかないので基礎情報側に置く。 */
-function YearMetaRow({ year, onUpdated, onMessage }: YearMetaRowProps) {
-  const [sourceUrl, setSourceUrl] = useState(year.sourceUrl ?? '');
-  const [note, setNote] = useState(year.note);
-  const [saving, setSaving] = useState(false);
-
-  const changed = sourceUrl !== (year.sourceUrl ?? '') || note !== year.note;
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await updateIndustryYear(year.gregorianYear, {
-        sourceUrl: sourceUrl.trim() === '' ? null : sourceUrl.trim(),
-        note,
-      });
-      await onUpdated();
-      onMessage({ kind: 'ok', text: '出典・備考を更新しました' });
-    } catch (caught) {
-      onMessage({ kind: 'error', text: caught instanceof Error ? caught.message : String(caught) });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="admin-row">
-      <label className="admin-label admin-label-grow">
-        出典URL
-        <input className="admin-input" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} />
-      </label>
-      <label className="admin-label admin-label-grow">
-        備考
-        <input className="admin-input" value={note} onChange={(event) => setNote(event.target.value)} />
-      </label>
-      <button type="button" className="app-tool-btn" onClick={save} disabled={!changed || saving}>
-        {saving ? '保存中…' : '保存'}
-      </button>
-    </div>
   );
 }
 

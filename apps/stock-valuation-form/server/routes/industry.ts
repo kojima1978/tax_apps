@@ -12,8 +12,6 @@ type YearRecord = {
   eraYear: number;
   gregorianYear: number;
   label: string;
-  sourceUrl: string | null;
-  note: string;
 };
 
 function toYearResponse(year: YearRecord) {
@@ -23,8 +21,6 @@ function toYearResponse(year: YearRecord) {
     era: year.era,
     eraYear: year.eraYear,
     gregorianYear: year.gregorianYear,
-    sourceUrl: year.sourceUrl,
-    note: year.note,
   };
 }
 

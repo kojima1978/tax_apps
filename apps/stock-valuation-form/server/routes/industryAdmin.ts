@@ -197,10 +197,6 @@ export function createIndustryAdminRouter(db: PrismaClient) {
             eraYear,
             gregorianYear,
             label,
-            sourceUrl: body.sourceUrl === undefined || body.sourceUrl === null
-              ? null
-              : asString(body.sourceUrl, 'sourceUrl'),
-            note: optionalString(body.note, 'note'),
           },
         });
 
@@ -463,39 +459,6 @@ export function createIndustryAdminRouter(db: PrismaClient) {
         profit: updated.metric?.profit ?? null,
         netAsset: updated.metric?.netAsset ?? null,
         previousYearAveragePrice: updated.metric?.previousYearAveragePrice ?? null,
-      });
-    } catch (error) {
-      const { body, status } = toErrorResponse(error);
-      return c.json(body, status);
-    }
-  });
-
-  /** 年分の出典URL・備考の更新。業種目そのものはここでは触らない。 */
-  router.patch('/industry-years/:gregorianYear', async (c) => {
-    try {
-      const year = await findYear(c.req.param('gregorianYear'));
-      if (!year) return c.json({ error: '指定された年分は登録されていません' }, 404);
-
-      const body = asRecord(await c.req.json(), 'リクエスト本体');
-
-      const data: Prisma.IndustryYearUpdateInput = {};
-      if (body.sourceUrl !== undefined) {
-        data.sourceUrl = body.sourceUrl === null ? null : asString(body.sourceUrl, 'sourceUrl');
-      }
-      if (body.note !== undefined) data.note = asString(body.note, 'note');
-
-      if (Object.keys(data).length === 0) {
-        throw new ValidationError('更新する項目が指定されていません');
-      }
-
-      const updated = await db.industryYear.update({ where: { id: year.id }, data });
-
-      return c.json({
-        id: updated.id,
-        label: updated.label,
-        gregorianYear: updated.gregorianYear,
-        sourceUrl: updated.sourceUrl,
-        note: updated.note,
       });
     } catch (error) {
       const { body, status } = toErrorResponse(error);

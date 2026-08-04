@@ -55,8 +55,6 @@ export interface CreateYearCategory {
 export interface CreateYearRequest {
   era: string;
   eraYear: number;
-  sourceUrl?: string | null;
-  note?: string;
   categories: CreateYearCategory[];
 }
 
@@ -135,11 +133,4 @@ export function updateIndustryCategory(
     `/industry-years/${gregorianYear}/categories/${number}`,
     request,
   );
-}
-
-export function updateIndustryYear(
-  gregorianYear: number,
-  request: { sourceUrl?: string | null; note?: string },
-) {
-  return send<Record<string, unknown>>('PATCH', `/industry-years/${gregorianYear}`, request);
 }

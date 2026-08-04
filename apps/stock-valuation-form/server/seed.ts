@@ -171,8 +171,6 @@ export async function seedIndustryDataIfMissing(
         eraYear,
         gregorianYear,
         label,
-        sourceUrl: 'https://www.nta.go.jp/law/tsutatsu/kobetsu/hyoka/index.htm',
-        note: 'src/data のJSONから初期取込',
       },
     });
 
