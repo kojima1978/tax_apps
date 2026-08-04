@@ -13,6 +13,7 @@ import {
   getIncomeProtectionDeathBenefitTotal,
   getMonthlyPremium,
   isLikelyIncomeProtectionGrossAmount,
+  getSurrenderProjectionAnnualRate,
   getSurrenderValueSummary,
   type EvaluationResult,
 } from '@/utils/analysisUtils';
@@ -95,6 +96,7 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
     : null;
   const incomeProtectionAmountWarning = isLikelyIncomeProtectionGrossAmount(policy);
   const surrenderSummary = getSurrenderValueSummary(policy, currentAge);
+  const surrenderProjectionRate = surrenderSummary ? getSurrenderProjectionAnnualRate(policy) : null;
 
   return (
     <div className={`policy-analysis-card ${analysis.isExpired ? 'expired-card' : ''}`}>
@@ -257,13 +259,16 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
                 </div>
                 {surrenderSummary.peak && (
                   <div className="pac-data-row">
-                    <span className="pac-data-label">ピーク</span>
+                    <span className="pac-data-label">入力値のピーク</span>
                     <span className="pac-data-value">{surrenderSummary.peak.age}歳 {formatYen(surrenderSummary.peak.amount)}</span>
                   </div>
                 )}
               </div>
               <div className="pac-coverage-period">
                 入力した{surrenderSummary.count}件（{surrenderSummary.firstAge}〜{surrenderSummary.lastAge}歳）から線形補間した概算
+                {surrenderProjectionRate !== null && (
+                  <>。{surrenderSummary.lastAge}歳以降は過去データの年平均増加率{(surrenderProjectionRate * 100).toFixed(1)}%で推定</>
+                )}
               </div>
             </div>
           )}

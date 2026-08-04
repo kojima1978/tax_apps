@@ -222,6 +222,28 @@ export function hasSurrenderValues(policy: Policy): boolean {
   return getSurrenderValues(policy).length > 0;
 }
 
+// 個別に将来推定を行う証券。元資料の入力範囲を越えるため、通常の横ばい仮定とは分ける。
+const SURRENDER_COMPOUND_PROJECTION_POLICY_NUMBERS = new Set(['PSX0294089']);
+
+// 入力済みの最初と最後の返戻金から年平均成長率（CAGR）を求める。
+// 設計書の数値以上の精度を装わないよう0.5%刻みに丸め、異常値は推定に使わない。
+export function getSurrenderProjectionAnnualRate(policy: Policy): number | null {
+  if (!SURRENDER_COMPOUND_PROJECTION_POLICY_NUMBERS.has(policy.policyNumber.trim().toUpperCase())) return null;
+
+  const points = getSurrenderValues(policy);
+  if (points.length < 2) return null;
+
+  const first = points[0];
+  const last = points[points.length - 1];
+  const years = last.age - first.age;
+  if (years <= 0 || first.amount <= 0 || last.amount <= first.amount) return null;
+
+  const rawRate = Math.pow(last.amount / first.amount, 1 / years) - 1;
+  if (!Number.isFinite(rawRate) || rawRate <= 0 || rawRate > 0.15) return null;
+
+  return Math.round(rawRate / 0.005) * 0.005;
+}
+
 // 年齢差から求めた経過月数と、契約日から求めた実経過月数のズレ（保険年齢/満年齢の差など）。
 // これを年齢ベースの推移に足すことで、現在年齢時点で calculateTotalPremiumsPaid と完全に一致させる
 function getAgeToElapsedMonthsOffset(policy: PremiumSchedule, currentAge?: number, now: Date = new Date()): number {
@@ -249,8 +271,9 @@ export function getCumulativePremiumsAtAge(
   return policy.premiumAmount * getPaidCountAtElapsedMonths(policy, elapsedMonths);
 }
 
-// 指定年齢時点の解約返戻金。入力点の間は線形補間、最初の入力点より前は契約時0からの補間、
-// 最後の入力点より後は横ばいとみなす（保障終了後は null）
+// 指定年齢時点の解約返戻金。入力点の間は線形補間、最初の入力点より前は契約時0からの補間。
+// 個別に将来推定を指定した証券は最後の入力点以降を過去の年平均成長率で複利推定し、
+// それ以外は従来どおり横ばいとみなす（保障終了後は null）。
 export function getSurrenderValueAtAge(policy: Policy, age: number): number | null {
   const points = getSurrenderValues(policy);
   if (points.length === 0) return null;
@@ -265,7 +288,12 @@ export function getSurrenderValueAtAge(policy: Policy, age: number): number | nu
     if (span <= 0) return first.amount;
     return first.amount * ((age - policy.contractAge) / span);
   }
-  if (age >= last.age) return last.amount;
+  if (age >= last.age) {
+    const projectionRate = getSurrenderProjectionAnnualRate(policy);
+    return projectionRate === null
+      ? last.amount
+      : last.amount * Math.pow(1 + projectionRate, age - last.age);
+  }
 
   for (let i = 0; i < points.length - 1; i++) {
     const from = points[i];

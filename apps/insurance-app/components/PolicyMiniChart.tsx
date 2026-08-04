@@ -21,6 +21,7 @@ import {
   getCumulativePremiumsAtAge,
   getDeathBenefitAtAge,
   getSurrenderBreakEvenAge,
+  getSurrenderProjectionAnnualRate,
   getSurrenderValueAtAge,
   getSurrenderValues,
 } from '@/utils/analysisUtils';
@@ -98,6 +99,7 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
   const isHosp = policy.deathBenefitDisease <= 0 && policy.hospDayDisease > 0;
   const unit = isHosp ? '円/日' : '万円';
   const showSurrender = surrenderPoints.length > 0;
+  const surrenderProjectionRate = showSurrender ? getSurrenderProjectionAnnualRate(policy) : null;
   // 入院日額とは単位が違うので、返戻金は右側の第2軸（万円）に描く
   const surrenderAxisId = isHosp ? 'right' : 'left';
   const breakEvenAge = showSurrender ? getSurrenderBreakEvenAge(policy, currentAge) : null;
@@ -165,11 +167,15 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
               label={{ value: '万円', angle: 90, position: 'insideRight', offset: 5, fontSize: 11 }}
             />
           )}
-         <Tooltip
+ <Tooltip
   formatter={(value, name) => [
     // 入院日額だけは円/日。それ以外は万円系列なので億/万円に丸めて要約表示
     isHosp && name === '保障額'
       ? `${Number(value ?? 0).toLocaleString()}${unit}`
+      : policy.currency === 'USD'
+        && String(name).startsWith('解約返戻金')
+        && (policy.exchangeRate ?? 0) > 0
+      ? `$${Math.round((Number(value ?? 0) * 10000) / (policy.exchangeRate ?? 1)).toLocaleString('ja-JP')}（円換算 ${formatWholeManYen(Number(value ?? 0) * 10000)}）`
       : formatWholeManYen(Number(value ?? 0) * 10000),
     SERIES_LABELS[String(name)] ?? String(name),
   ]}
@@ -266,7 +272,11 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
               <span className="mini-chart-legend-item">損益分岐: {breakEvenAge}歳</span>
             )}
             {hasEstimatedRange && (
-              <span className="mini-chart-legend-note">点線・ドットなしの区間は入力値からの推定</span>
+              <span className="mini-chart-legend-note">
+                {surrenderProjectionRate !== null
+                  ? `${surrenderPoints[surrenderPoints.length - 1].age}歳以降の点線は、過去データの年平均増加率${(surrenderProjectionRate * 100).toFixed(1)}%による推定`
+                  : '点線・ドットなしの区間は入力値からの推定'}
+              </span>
             )}
           </>
         )}
