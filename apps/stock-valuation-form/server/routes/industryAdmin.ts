@@ -1,8 +1,9 @@
 // 業種目マスタ・業種目別株価等の書き込みAPI（管理画面 #industry-data 用）。
 //
 // 読み取りAPI（industry.ts）と分けてあるのは、こちらだけが DB を書き換えるため。
-// 削除は用意しない：年分を1つ消すと業種目115件と月別株価が Cascade で道連れになるので、
-// 消したくなったらバックアップからのリストアで戻す（docker/scripts/backup.sh）。
+// 削除は月別株価（1業種目単位・1ヶ月まるごと）だけに限る。年分そのものの削除は用意しない：
+// 1つ消すと業種目115件と全月の株価が Cascade で道連れになるので、
+// そこまで戻したくなったらバックアップからのリストアで戻す（docker/scripts/backup.sh）。
 
 import { Hono } from 'hono';
 import { Prisma, type IndustryLevel, type PrismaClient } from '@prisma/client';
@@ -329,6 +330,65 @@ export function createIndustryAdminRouter(db: PrismaClient) {
         priceYear,
         priceMonth,
         ...result,
+      });
+    } catch (error) {
+      const { body, status } = toErrorResponse(error);
+      return c.json(body, status);
+    }
+  });
+
+  /**
+   * 月別株価の削除。`numbers` を渡せばその業種目だけ、省略すればその月をまるごと消す。
+   * 年分を間違えて取り込んだときの出口。業種目マスタ・B/C/D は消さない。
+   */
+  router.delete('/industry-years/:gregorianYear/monthly-prices/:priceYear/:priceMonth', async (c) => {
+    try {
+      const year = await findYear(c.req.param('gregorianYear'));
+      if (!year) return c.json({ error: '指定された年分は登録されていません' }, 404);
+
+      const priceYear = asInt(Number(c.req.param('priceYear')), '対象年');
+      const priceMonth = asMonth(Number(c.req.param('priceMonth')), '対象月');
+
+      // 本体なしは「その月を全件」。fetch は本体無しの DELETE を普通に送るので空を許す。
+      const raw = await c.req.json().catch(() => ({}));
+      const body = asRecord(raw ?? {}, 'リクエスト本体');
+
+      let numbers: number[] | undefined;
+      if (body.numbers !== undefined && body.numbers !== null) {
+        numbers = asArray(body.numbers, 'numbers').map((value, index) =>
+          asInt(value, `numbers[${index}]`));
+        // 空配列は「全件」と紛らわしいので、意図が読めない指定として弾く。
+        if (numbers.length === 0) throw new ValidationError('削除する業種目が指定されていません');
+      }
+
+      const categories = await db.industryCategory.findMany({
+        where: { yearId: year.id, ...(numbers ? { number: { in: numbers } } : {}) },
+        select: { id: true, number: true },
+      });
+
+      if (numbers) {
+        const found = new Set(categories.map(({ number }) => number));
+        const unknown = numbers.filter((number) => !found.has(number));
+        if (unknown.length > 0) {
+          throw new ValidationError(`${year.label}に存在しない業種目番号が含まれています`, {
+            numbers: unknown,
+          });
+        }
+      }
+
+      const { count } = await db.industryMonthlyPrice.deleteMany({
+        where: {
+          categoryId: { in: categories.map(({ id }) => id) },
+          year: priceYear,
+          month: priceMonth,
+        },
+      });
+
+      return c.json({
+        year: { id: year.id, label: year.label, gregorianYear: year.gregorianYear },
+        priceYear,
+        priceMonth,
+        deleted: count,
       });
     } catch (error) {
       const { body, status } = toErrorResponse(error);

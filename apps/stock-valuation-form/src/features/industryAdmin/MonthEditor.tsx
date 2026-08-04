@@ -7,9 +7,10 @@
 
 import { useMemo, useState } from 'react';
 import type { IndustryCategory, IndustryYear } from '@/data/industryDataset';
-import { importMonthlyPrices } from './api';
+import { deleteMonthlyPrices, importMonthlyPrices } from './api';
 import { CategoryFilterRow, useCategoryFilter } from './CategoryFilter';
 import {
+  deletionsOf,
   entriesFromRegistered,
   entryOf,
   extractEnteredPrices,
@@ -91,13 +92,30 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
   );
   const countOf = (status: MonthlyPriceDiff['status']) =>
     preview.diffs.filter((diff) => diff.status === status).length;
+
+  // 登録済みの行を空欄にした＝削除。空欄のうち元から未登録のものは「未入力」で放っておく。
+  const deletions = useMemo(
+    () => deletionsOf(year.categories, entries, target.year, target.month),
+    [year.categories, entries, target.year, target.month],
+  );
+  const deletionSet = useMemo(() => new Set(deletions), [deletions]);
   const blankCount = year.categories.filter(
     (category) => entryOf(entries, category.number).price.trim() === '',
-  ).length;
+  ).length - deletions.length;
+
+  const registeredCount = year.categories.filter((category) => category.monthlyPrices.some(
+    (price) => price.year === target.year && price.month === target.month,
+  )).length;
 
   // 送るのは値が変わる行だけ。据置を混ぜても結果は同じだが、更新件数の表示が実態とずれる。
   const pending = preview.diffs.filter((diff) => diff.status !== 'same');
-  const canSave = pending.length > 0 && entered.errors.length === 0 && !saving;
+  const canSave = (pending.length > 0 || deletions.length > 0)
+    && entered.errors.length === 0 && !saving;
+
+  // 削除が混ざるときだけ内訳を出す。ふだんは今までどおり「登録 N 件」で読める。
+  const saveCountText = deletions.length > 0
+    ? `登録 ${pending.length} 件 / 削除 ${deletions.length} 件`
+    : `${pending.length} 件`;
 
   const setEntry = (number: number, patch: Partial<PriceEntry>) =>
     setEntries((current) => ({
@@ -146,24 +164,77 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
   };
 
   const save = async () => {
+    // 削除は取り消せないので、1件でも混ざっていれば必ず一度止める。
+    if (deletions.length > 0) {
+      const numbers = deletions.slice(0, 10).join(', ')
+        + (deletions.length > 10 ? ` ほか${deletions.length - 10}件` : '');
+      const confirmed = window.confirm(
+        `${target.year}年${target.month}月分の株価を ${deletions.length} 件削除します。\n`
+        + `業種目番号: ${numbers}\n\n`
+        + (pending.length > 0 ? `同時に ${pending.length} 件を登録します。\n` : '')
+        + 'よろしいですか？',
+      );
+      if (!confirmed) return;
+    }
+
     setSaving(true);
     setMessage(null);
 
     try {
-      const response = await importMonthlyPrices(year.gregorianYear, {
-        year: target.year,
-        month: target.month,
-        rows: pending.map((diff) => ({
-          number: diff.number,
-          price: diff.after.price,
-          twoYearAveragePrice: diff.after.twoYearAveragePrice,
-        })),
-      });
+      const notes: string[] = [];
+
+      if (pending.length > 0) {
+        const response = await importMonthlyPrices(year.gregorianYear, {
+          year: target.year,
+          month: target.month,
+          rows: pending.map((diff) => ({
+            number: diff.number,
+            price: diff.after.price,
+            twoYearAveragePrice: diff.after.twoYearAveragePrice,
+          })),
+        });
+        notes.push(`新規 ${response.created} 件`, `更新 ${response.updated} 件`);
+      }
+
+      // 登録を先に済ませてから削除する。途中で失敗しても「消えただけ」にはならない。
+      if (deletions.length > 0) {
+        const response = await deleteMonthlyPrices(
+          year.gregorianYear, target.year, target.month, deletions,
+        );
+        notes.push(`削除 ${response.deleted} 件`);
+      }
+
       await onUpdated();
       setMessage({
         kind: 'ok',
-        text: `${response.priceYear}年${response.priceMonth}月分を登録しました`
-          + `（新規 ${response.created} 件 / 更新 ${response.updated} 件）`,
+        text: `${target.year}年${target.month}月分を保存しました（${notes.join(' / ')}）`,
+      });
+    } catch (caught) {
+      setMessage({ kind: 'error', text: caught instanceof Error ? caught.message : String(caught) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** その月をまるごと消す。取り込む年分・月を間違えたときの戻し方。 */
+  const deleteMonth = async () => {
+    const confirmed = window.confirm(
+      `${target.year}年${target.month}月分の株価 ${registeredCount} 件をすべて削除します。\n`
+      + '業種目とB・C・D（配当・利益・純資産）は消えません。\n\n'
+      + 'よろしいですか？',
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const response = await deleteMonthlyPrices(year.gregorianYear, target.year, target.month);
+      setEntries({});
+      await onUpdated();
+      setMessage({
+        kind: 'ok',
+        text: `${target.year}年${target.month}月分を削除しました（${response.deleted} 件）`,
       });
     } catch (caught) {
       setMessage({ kind: 'error', text: caught instanceof Error ? caught.message : String(caught) });
@@ -181,8 +252,18 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
         <button type="button" className="app-tool-btn" onClick={resetEntries} disabled={saving}>
           登録済みの値に戻す
         </button>
+        {registeredCount > 0 && (
+          <button
+            type="button"
+            className="app-tool-btn admin-btn-danger"
+            onClick={deleteMonth}
+            disabled={saving}
+          >
+            この月を削除（{registeredCount} 件）
+          </button>
+        )}
         <span className="admin-note">
-          直接入力できます。貼り付けた表も入力欄へ入るので、登録前に必ず内容を確認できます。
+          直接入力できます。株価と2年平均の両方を空欄にすると、その行は削除になります。
         </span>
       </div>
 
@@ -226,6 +307,9 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
         <span className="admin-badge admin-badge-new">新規 {countOf('new')}</span>
         <span className="admin-badge admin-badge-changed">変更 {countOf('changed')}</span>
         <span className="admin-badge">据置 {countOf('same')}</span>
+        {deletions.length > 0 && (
+          <span className="admin-badge admin-badge-delete">削除 {deletions.length}</span>
+        )}
         {blankCount > 0 && <span className="admin-note">未入力 {blankCount} 件</span>}
       </div>
 
@@ -261,10 +345,14 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
             {filter.filtered.map((category) => {
               const entry = entryOf(entries, category.number);
               const diff = diffByNumber.get(category.number);
+              const deleting = deletionSet.has(category.number);
               const changed = diff !== undefined && diff.status !== 'same';
+              const rowClass = deleting
+                ? 'admin-row-deleting'
+                : changed ? 'admin-row-editing' : undefined;
 
               return (
-                <tr key={category.number} className={changed ? 'admin-row-editing' : undefined}>
+                <tr key={category.number} className={rowClass}>
                   <td>{category.number}</td>
                   <td>{LEVEL_LABELS[category.level]}</td>
                   <td>{category.name}</td>
@@ -290,9 +378,11 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
                   </td>
                   <td className="admin-num admin-before">{registeredText(category, target)}</td>
                   <td>
-                    {diff
-                      ? <span className={DIFF_BADGE_CLASS[diff.status]}>{DIFF_STATUS_LABELS[diff.status]}</span>
-                      : <span className="admin-before">未入力</span>}
+                    {deleting && <span className="admin-badge admin-badge-delete">削除</span>}
+                    {!deleting && diff && (
+                      <span className={DIFF_BADGE_CLASS[diff.status]}>{DIFF_STATUS_LABELS[diff.status]}</span>
+                    )}
+                    {!deleting && !diff && <span className="admin-before">未入力</span>}
                   </td>
                 </tr>
               );
@@ -308,9 +398,7 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
           onClick={save}
           disabled={!canSave}
         >
-          {saving
-            ? '登録中…'
-            : `${target.year}年${target.month}月分を登録する（${pending.length} 件）`}
+          {saving ? '保存中…' : `${target.year}年${target.month}月分を保存する（${saveCountText}）`}
         </button>
       </div>
     </>

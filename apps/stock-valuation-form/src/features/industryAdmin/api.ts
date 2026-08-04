@@ -23,7 +23,7 @@ function messageOf(status: number, body: ErrorBody | null): string {
   return `${base}（${shown}${rest}）`;
 }
 
-async function send<T>(method: 'POST' | 'PATCH', path: string, body: unknown): Promise<T> {
+async function send<T>(method: 'POST' | 'PATCH' | 'DELETE', path: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method,
     headers: { 'Content-Type': 'application/json' },
@@ -89,6 +89,30 @@ export function importMonthlyPrices(gregorianYear: number, request: ImportMonthl
     'POST',
     `/industry-years/${gregorianYear}/monthly-prices`,
     request,
+  );
+}
+
+export interface DeleteMonthlyPricesResponse {
+  year: { id: number; label: string; gregorianYear: number };
+  priceYear: number;
+  priceMonth: number;
+  deleted: number;
+}
+
+/**
+ * 月別株価の削除。`numbers` を渡せばその業種目だけ、省略すればその月をまるごと消す。
+ * 業種目マスタ・B/C/D は消えない（年分そのものの削除APIは用意していない）。
+ */
+export function deleteMonthlyPrices(
+  gregorianYear: number,
+  priceYear: number,
+  priceMonth: number,
+  numbers?: readonly number[],
+) {
+  return send<DeleteMonthlyPricesResponse>(
+    'DELETE',
+    `/industry-years/${gregorianYear}/monthly-prices/${priceYear}/${priceMonth}`,
+    numbers ? { numbers } : {},
   );
 }
 

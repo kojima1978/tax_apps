@@ -927,6 +927,11 @@
   background: #fffbeb;
 }
 
+/* 空欄にした登録済みの行＝保存すると消える行。取り消せないので変更とは別色にする。 */
+.admin-row-deleting td {
+  background: #fef2f2;
+}
+
 .admin-before {
   color: #94a3b8;
 }
@@ -947,7 +952,7 @@
 }
 
 /* カーソルが乗っている行。115行あるので、どの業種目を見ているか分かるようにする。 */
-.admin-table tbody tr:not(.admin-row-editing):hover td {
+.admin-table tbody tr:not(.admin-row-editing):not(.admin-row-deleting):hover td {
   background: #e0f2fe;
 }
 
@@ -982,6 +987,11 @@
 .admin-badge-changed {
   background: #fef3c7;
   color: #b45309;
+}
+
+.admin-badge-delete {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .admin-alert {
@@ -1032,6 +1042,17 @@
   background: #d1fae5;
 }
 
+.admin-btn-danger {
+  border-color: #b91c1c;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.admin-btn-danger:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.admin-btn-danger:disabled,
 .admin-btn-primary:disabled,
 .app-tool-btn:disabled {
   opacity: 0.5;

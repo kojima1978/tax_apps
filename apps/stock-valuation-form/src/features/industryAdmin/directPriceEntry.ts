@@ -49,6 +49,29 @@ export function entriesFromRegistered(
 }
 
 /**
+ * 空欄にした登録済みの行＝削除する行。
+ *
+ * 株価・2年平均の**両方**を空にしたときだけ削除とみなす。株価だけ消した状態は
+ * extractEnteredPrices が入力ミスとして弾くので、削除と入力ミスが重ならない。
+ */
+export function deletionsOf(
+  categories: readonly IndustryCategory[],
+  entries: PriceEntries,
+  priceYear: number,
+  priceMonth: number,
+): number[] {
+  return categories
+    .filter((category) => {
+      const entry = entryOf(entries, category.number);
+      if (entry.price.trim() !== '' || entry.twoYearAveragePrice.trim() !== '') return false;
+      return category.monthlyPrices.some(
+        (price) => price.year === priceYear && price.month === priceMonth,
+      );
+    })
+    .map((category) => category.number);
+}
+
+/**
  * 入力欄の中身を行に変換する。
  *
  * 株価が空欄の業種目は「入力していない」とみなして落とす（登録もされない）。

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { IndustryCategory, IndustryMonthlyPrice } from '@/data/industryDataset';
-import { entriesFromRegistered, entryOf, extractEnteredPrices } from '../directPriceEntry';
+import {
+  deletionsOf,
+  entriesFromRegistered,
+  entryOf,
+  extractEnteredPrices,
+} from '../directPriceEntry';
 
 function category(number: number, monthlyPrices: IndustryMonthlyPrice[] = []): IndustryCategory {
   return {
@@ -103,6 +108,36 @@ describe('extractEnteredPrices', () => {
     expect(result.rows).toEqual([
       { line: 0, number: 1, price: 763, twoYearAveragePrice: 579 },
     ]);
+  });
+});
+
+describe('deletionsOf', () => {
+  const registered = [
+    category(1, [{ year: 2026, month: 4, price: 763, twoYearAveragePrice: 579 }]),
+    category(2, [{ year: 2026, month: 4, price: 812, twoYearAveragePrice: null }]),
+    category(3, []),
+  ];
+
+  it('登録済みの行を両方とも空欄にしたら削除対象になる', () => {
+    expect(deletionsOf(registered, {
+      1: { price: '', twoYearAveragePrice: '' },
+      2: { price: '812', twoYearAveragePrice: '' },
+    }, 2026, 4)).toEqual([1]);
+  });
+
+  it('もともと未登録の業種目は削除対象にしない', () => {
+    expect(deletionsOf(registered, {}, 2026, 4)).toEqual([1, 2]);
+    expect(deletionsOf(registered, {}, 2026, 5)).toEqual([]);
+  });
+
+  it('株価だけ消した状態は削除ではなく入力ミス（両者が重ならない）', () => {
+    const entries = {
+      ...entriesFromRegistered(registered, 2026, 4),
+      1: { price: '', twoYearAveragePrice: '579' },
+    };
+
+    expect(deletionsOf(registered, entries, 2026, 4)).toEqual([]);
+    expect(extractEnteredPrices(registered, entries).errors).toHaveLength(1);
   });
 });
 
