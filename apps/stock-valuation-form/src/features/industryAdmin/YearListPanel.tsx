@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react';
-import type { IndustryCategory, IndustryYear } from '@/data/industryDataset';
-import { updateIndustryCategory, updateIndustryYear, type UpdateCategoryRequest } from './api';
+import type { IndustryCategory, IndustryMonthlyPrice, IndustryYear } from '@/data/industryDataset';
+import {
+  updateIndustryCategory,
+  updateIndustryYear,
+  updateMonthlyPrice,
+  type UpdateCategoryRequest,
+  type UpdateMonthlyPriceRequest,
+} from './api';
 import { MonthlyCoverageBar } from './MonthlyCoverageBar';
 import { monthlyCoverageOf, type MonthlyCoverage } from './monthlyCoverage';
 
@@ -30,6 +36,19 @@ function toEditValues(category: IndustryCategory): EditValues {
   };
 }
 
+/**
+ * 入力欄1つを数値にする。読めなければメッセージ文字列を返す（呼び出し側がそのまま画面に出す）。
+ * 空欄を「未公表」として通したい欄は、呼ぶ前に空欄を弾いて null を選ぶこと。
+ */
+function parseNumericField(text: string, label: string, decimal = false): number | string {
+  const trimmed = text.trim();
+  if (trimmed === '') return `${label}は空にできません`;
+
+  const pattern = decimal ? /^-?\d+(\.\d+)?$/ : /^-?\d+$/;
+  if (!pattern.test(trimmed)) return `${label}が数値として読めません（"${trimmed}"）`;
+  return Number(trimmed);
+}
+
 /** 変更のあった欄だけを送る。空欄は「触っていない」ではなく不正入力として弾く。 */
 function toUpdateRequest(
   category: IndustryCategory,
@@ -45,9 +64,9 @@ function toUpdateRequest(
     const current = category[field.key];
     if (text === (current === null ? '' : String(current))) continue;
 
-    const pattern = field.decimal ? /^-?\d+(\.\d+)?$/ : /^-?\d+$/;
-    if (!pattern.test(text)) return `${field.label}が数値として読めません（"${text}"）`;
-    request[field.key] = Number(text);
+    const parsed = parseNumericField(text, field.label, field.decimal);
+    if (typeof parsed === 'string') return parsed;
+    request[field.key] = parsed;
   }
 
   if (Object.keys(request).length === 0) return '変更がありません';
@@ -263,7 +282,35 @@ interface CategoryRowProps {
 
 function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: CategoryRowProps) {
   const [values, setValues] = useState<EditValues | null>(null);
+  const [showPrices, setShowPrices] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // 月別株価は件数だけでは中身が分からないので、同じセルから開けるようにしている。
+  const priceCell = (
+    <td>
+      <button
+        type="button"
+        className="app-tool-btn"
+        aria-expanded={showPrices}
+        onClick={() => setShowPrices((open) => !open)}
+      >
+        {category.monthlyPrices.length} 月分
+      </button>
+    </td>
+  );
+
+  const priceDetail = showPrices && (
+    <tr className="admin-row-open">
+      <td colSpan={9}>
+        <MonthlyPriceEditor
+          gregorianYear={gregorianYear}
+          category={category}
+          onUpdated={onUpdated}
+          onMessage={onMessage}
+        />
+      </td>
+    </tr>
+  );
 
   const save = async () => {
     if (!values) return;
@@ -288,20 +335,23 @@ function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: Category
 
   if (!values) {
     return (
-      <tr>
-        <td>{category.number}</td>
-        <td>{LEVEL_LABELS[category.level]}</td>
-        <td>{category.name}</td>
-        {NUMERIC_FIELDS.map((field) => (
-          <td key={field.key}>{category[field.key] ?? '—'}</td>
-        ))}
-        <td>{category.monthlyPrices.length} 月分</td>
-        <td>
-          <button type="button" className="app-tool-btn" onClick={() => setValues(toEditValues(category))}>
-            訂正
-          </button>
-        </td>
-      </tr>
+      <>
+        <tr>
+          <td>{category.number}</td>
+          <td>{LEVEL_LABELS[category.level]}</td>
+          <td>{category.name}</td>
+          {NUMERIC_FIELDS.map((field) => (
+            <td key={field.key}>{category[field.key] ?? '—'}</td>
+          ))}
+          {priceCell}
+          <td>
+            <button type="button" className="app-tool-btn" onClick={() => setValues(toEditValues(category))}>
+              訂正
+            </button>
+          </td>
+        </tr>
+        {priceDetail}
+      </>
     );
   }
 
@@ -309,23 +359,187 @@ function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: Category
     setValues((current) => (current ? { ...current, [key]: value } : current));
 
   return (
-    <tr className="admin-row-editing">
-      <td>{category.number}</td>
-      <td>{LEVEL_LABELS[category.level]}</td>
-      <td>
-        <input className="admin-input" value={values.name} onChange={(event) => update('name', event.target.value)} />
-      </td>
-      {NUMERIC_FIELDS.map((field) => (
-        <td key={field.key}>
-          <input
-            className="admin-input admin-input-narrow"
-            value={values[field.key]}
-            onChange={(event) => update(field.key, event.target.value)}
-            inputMode="decimal"
-          />
+    <>
+      <tr className="admin-row-editing">
+        <td>{category.number}</td>
+        <td>{LEVEL_LABELS[category.level]}</td>
+        <td>
+          <input className="admin-input" value={values.name} onChange={(event) => update('name', event.target.value)} />
         </td>
-      ))}
-      <td>{category.monthlyPrices.length} 月分</td>
+        {NUMERIC_FIELDS.map((field) => (
+          <td key={field.key}>
+            <input
+              className="admin-input admin-input-narrow"
+              value={values[field.key]}
+              onChange={(event) => update(field.key, event.target.value)}
+              inputMode="decimal"
+            />
+          </td>
+        ))}
+        {priceCell}
+        <td className="admin-cell-actions">
+          <button type="button" className="app-tool-btn admin-btn-primary" onClick={save} disabled={saving}>
+            {saving ? '保存中…' : '保存'}
+          </button>
+          <button type="button" className="app-tool-btn" onClick={() => setValues(null)} disabled={saving}>
+            取消
+          </button>
+        </td>
+      </tr>
+      {priceDetail}
+    </>
+  );
+}
+
+interface MonthlyPriceEditorProps {
+  gregorianYear: number;
+  category: IndustryCategory;
+  onUpdated: () => Promise<void>;
+  onMessage: (message: { kind: 'ok' | 'error'; text: string }) => void;
+}
+
+/** 業種目1件の月別株価の内訳。年月順に並べ、行ごとに訂正できる。 */
+function MonthlyPriceEditor({ gregorianYear, category, onUpdated, onMessage }: MonthlyPriceEditorProps) {
+  const sorted = useMemo(
+    () => [...category.monthlyPrices].sort((a, b) => a.year - b.year || a.month - b.month),
+    [category.monthlyPrices],
+  );
+
+  if (sorted.length === 0) {
+    return (
+      <p className="admin-note">
+        月別株価が登録されていません。「月次株価を取り込む」から追加してください。
+      </p>
+    );
+  }
+
+  return (
+    <div className="admin-subtable">
+      <div className="admin-note">
+        {category.number} {category.name} の月別株価（新しい月の追加は「月次株価を取り込む」から）
+      </div>
+      <table className="admin-table">
+        <thead>
+          <tr><th>年月</th><th>株価</th><th>2年平均</th><th /></tr>
+        </thead>
+        <tbody>
+          {sorted.map((price) => (
+            <MonthlyPriceRow
+              key={`${price.year}-${price.month}`}
+              gregorianYear={gregorianYear}
+              number={category.number}
+              price={price}
+              onUpdated={onUpdated}
+              onMessage={onMessage}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+interface MonthlyPriceRowProps {
+  gregorianYear: number;
+  number: number;
+  price: IndustryMonthlyPrice;
+  onUpdated: () => Promise<void>;
+  onMessage: (message: { kind: 'ok' | 'error'; text: string }) => void;
+}
+
+/** 変更のあった欄だけを送る。2年平均の空欄は「未公表」として null を送る。 */
+function toPriceRequest(
+  price: IndustryMonthlyPrice,
+  values: { price: string; twoYearAveragePrice: string },
+): UpdateMonthlyPriceRequest | string {
+  const request: UpdateMonthlyPriceRequest = {};
+
+  const parsedPrice = parseNumericField(values.price, '株価');
+  if (typeof parsedPrice === 'string') return parsedPrice;
+  if (parsedPrice !== price.price) request.price = parsedPrice;
+
+  const twoYearText = values.twoYearAveragePrice.trim();
+  const parsedTwoYear = twoYearText === '' ? null : parseNumericField(twoYearText, '2年平均');
+  if (typeof parsedTwoYear === 'string') return parsedTwoYear;
+  if (parsedTwoYear !== price.twoYearAveragePrice) request.twoYearAveragePrice = parsedTwoYear;
+
+  if (Object.keys(request).length === 0) return '変更がありません';
+  return request;
+}
+
+function MonthlyPriceRow({ gregorianYear, number, price, onUpdated, onMessage }: MonthlyPriceRowProps) {
+  const [values, setValues] = useState<{ price: string; twoYearAveragePrice: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const label = `${price.year}年${price.month}月分`;
+
+  const save = async () => {
+    if (!values) return;
+    const request = toPriceRequest(price, values);
+    if (typeof request === 'string') {
+      onMessage({ kind: 'error', text: `${number} の${label}: ${request}` });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updateMonthlyPrice(gregorianYear, number, price.year, price.month, request);
+      await onUpdated();
+      onMessage({ kind: 'ok', text: `${number} の${label}を更新しました` });
+      setValues(null);
+    } catch (caught) {
+      onMessage({ kind: 'error', text: caught instanceof Error ? caught.message : String(caught) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!values) {
+    return (
+      <tr>
+        <td>{label}</td>
+        <td>{price.price}</td>
+        <td>{price.twoYearAveragePrice ?? '—'}</td>
+        <td>
+          <button
+            type="button"
+            className="app-tool-btn"
+            onClick={() => setValues({
+              price: String(price.price),
+              twoYearAveragePrice:
+                price.twoYearAveragePrice === null ? '' : String(price.twoYearAveragePrice),
+            })}
+          >
+            訂正
+          </button>
+        </td>
+      </tr>
+    );
+  }
+
+  const update = (key: 'price' | 'twoYearAveragePrice', value: string) =>
+    setValues((current) => (current ? { ...current, [key]: value } : current));
+
+  return (
+    <tr className="admin-row-editing">
+      <td>{label}</td>
+      <td>
+        <input
+          className="admin-input admin-input-narrow"
+          value={values.price}
+          onChange={(event) => update('price', event.target.value)}
+          inputMode="numeric"
+        />
+      </td>
+      <td>
+        <input
+          className="admin-input admin-input-narrow"
+          value={values.twoYearAveragePrice}
+          onChange={(event) => update('twoYearAveragePrice', event.target.value)}
+          inputMode="numeric"
+          placeholder="未公表"
+        />
+      </td>
       <td className="admin-cell-actions">
         <button type="button" className="app-tool-btn admin-btn-primary" onClick={save} disabled={saving}>
           {saving ? '保存中…' : '保存'}

@@ -410,6 +410,76 @@ export function createIndustryAdminRouter(db: PrismaClient) {
     }
   });
 
+  /**
+   * 月別株価1件の訂正。取込画面を通さずに1業種目・1ヶ月分だけ直すためのもの。
+   * 行が無ければ404にする（新規追加は取込画面の担当。ここで作れてしまうと
+   * 公表レンジ外の月がいつのまにか増える経路になる）。
+   */
+  router.patch(
+    '/industry-years/:gregorianYear/categories/:number/monthly-prices/:priceYear/:priceMonth',
+    async (c) => {
+      try {
+        const year = await findYear(c.req.param('gregorianYear'));
+        if (!year) return c.json({ error: '指定された年分は登録されていません' }, 404);
+
+        const number = Number(c.req.param('number'));
+        if (!Number.isInteger(number)) {
+          throw new ValidationError('業種目番号は整数で指定してください');
+        }
+        const priceYear = asInt(Number(c.req.param('priceYear')), '対象年');
+        const priceMonth = asMonth(Number(c.req.param('priceMonth')), '対象月');
+
+        const category = await db.industryCategory.findUnique({
+          where: { yearId_number: { yearId: year.id, number } },
+          select: { id: true },
+        });
+        if (!category) {
+          return c.json({ error: `業種目番号 ${number} は${year.label}に登録されていません` }, 404);
+        }
+
+        const where = {
+          categoryId_year_month: { categoryId: category.id, year: priceYear, month: priceMonth },
+        };
+        const existing = await db.industryMonthlyPrice.findUnique({ where });
+        if (!existing) {
+          return c.json(
+            {
+              error: `業種目番号 ${number} に${priceYear}年${priceMonth}月分は登録されていません`
+                + '。新しい月は「月次株価を取り込む」から追加してください',
+            },
+            404,
+          );
+        }
+
+        const body = asRecord(await c.req.json(), 'リクエスト本体');
+
+        const data: Prisma.IndustryMonthlyPriceUpdateInput = {};
+        if (body.price !== undefined) data.price = asInt(body.price, 'price');
+        // 2年平均は「未公表」を表す null を明示的に入れられるようにする
+        // （前年11月・12月分には元々付かない）。
+        if (body.twoYearAveragePrice !== undefined) {
+          data.twoYearAveragePrice = asNullableInt(body.twoYearAveragePrice, 'twoYearAveragePrice');
+        }
+        if (Object.keys(data).length === 0) {
+          throw new ValidationError('更新する項目が指定されていません');
+        }
+
+        const updated = await db.industryMonthlyPrice.update({ where, data });
+
+        return c.json({
+          number,
+          year: updated.year,
+          month: updated.month,
+          price: updated.price,
+          twoYearAveragePrice: updated.twoYearAveragePrice,
+        });
+      } catch (error) {
+        const { body, status } = toErrorResponse(error);
+        return c.json(body, status);
+      }
+    },
+  );
+
   /** 年分の出典URL・備考の更新。業種目そのものはここでは触らない。 */
   router.patch('/industry-years/:gregorianYear', async (c) => {
     try {

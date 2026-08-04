@@ -113,6 +113,27 @@ export function updateIndustryCategory(
   );
 }
 
+export interface UpdateMonthlyPriceRequest {
+  price?: number;
+  twoYearAveragePrice?: number | null;
+}
+
+/** 月別株価1件の訂正。新しい月の追加は取込画面の担当なので、ここでは既存行しか触れない。 */
+export function updateMonthlyPrice(
+  gregorianYear: number,
+  number: number,
+  priceYear: number,
+  priceMonth: number,
+  request: UpdateMonthlyPriceRequest,
+) {
+  return send<Record<string, unknown>>(
+    'PATCH',
+    `/industry-years/${gregorianYear}/categories/${number}`
+      + `/monthly-prices/${priceYear}/${priceMonth}`,
+    request,
+  );
+}
+
 export function updateIndustryYear(
   gregorianYear: number,
   request: { sourceUrl?: string | null; note?: string },
