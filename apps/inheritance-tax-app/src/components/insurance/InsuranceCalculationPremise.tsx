@@ -17,6 +17,12 @@ export const InsuranceCalculationPremise = memo(({
   const { proposed, baseEstate, newPremiumTotal } = result;
   const heirCount = proposed.heirBreakdowns.length;
   const newBenefit = proposed.totalBenefit - result.current.totalBenefit;
+  const benefitDifference = newBenefit - newPremiumTotal;
+  const benefitDifferenceLabel = benefitDifference > 0
+    ? `${formatCurrency(benefitDifference)}増加`
+    : benefitDifference < 0
+      ? `${formatCurrency(Math.abs(benefitDifference))}減少`
+      : '増減なし';
   const heirSummary = proposed.heirBreakdowns.map(heir => heir.label).join('・');
 
   const items = [
@@ -57,18 +63,27 @@ export const InsuranceCalculationPremise = memo(({
           <p>以下の前提で保険加入後の相続税を試算しています</p>
         </div>
       </div>
-      <dl className="calc-premise-grid">
-        {items.map(item => (
-          <div className="calc-premise-item" key={item.label}>
-            <span className="calc-premise-item-icon" aria-hidden="true">{item.icon}</span>
-            <dt>{item.label}</dt>
-            <dd>
-              <strong>{item.value}</strong>
-              <span>{item.detail}</span>
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <div className="insurance-premise-grid-wrap">
+        <dl className="calc-premise-grid">
+          {items.map(item => (
+            <div className="calc-premise-item" key={item.label}>
+              <span className="calc-premise-item-icon" aria-hidden="true">{item.icon}</span>
+              <dt>{item.label}</dt>
+              <dd>
+                <strong>{item.value}</strong>
+                <span>{item.detail}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <div
+          className="insurance-premise-benefit-connector"
+          role="img"
+          aria-label={`新たに受け取る保険金は、新たに支払う保険料より${benefitDifferenceLabel}`}
+        >
+          <span className="insurance-premise-benefit-connector-label">{benefitDifferenceLabel}</span>
+        </div>
+      </div>
     </section>
   );
 });

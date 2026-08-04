@@ -1565,6 +1565,38 @@
     font-size: inherit;
   }
 
+  .insurance-print .insurance-premise-grid-wrap {
+    position: relative;
+  }
+
+  .insurance-print .insurance-premise-grid-wrap .calc-premise-grid {
+    padding-bottom: 18px;
+  }
+
+  .insurance-print .insurance-premise-benefit-connector {
+    position: absolute;
+    right: calc(12.5% - 2.625px);
+    bottom: 9px;
+    left: calc(62.5% + 0.875px);
+    height: 8px;
+    border-right: 1px dashed #2563eb;
+    border-bottom: 1px dashed #2563eb;
+    border-left: 1px dashed #2563eb;
+    pointer-events: none;
+  }
+
+  .insurance-print .insurance-premise-benefit-connector-label {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #1d4ed8;
+    font-size: 7px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
   :is(.calculator-print, .insurance-print) .calc-premise .calc-premise-item {
     display: grid;
     grid-template-columns: 25px minmax(0, 1fr);

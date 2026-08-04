@@ -83,7 +83,7 @@ function InsuranceResultSummary({ result }: { result: InsuranceSimulationResult 
           </div>
         </div>
 
-        <InsuranceExemptionChart scenario={proposed} />
+        <InsuranceExemptionChart current={current} proposed={proposed} />
       </div>
     </div>
   );
