@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { IndustryCategory, IndustryYear } from '@/data/industryDataset';
 import { updateIndustryCategory, updateIndustryYear, type UpdateCategoryRequest } from './api';
+import { MonthlyCoverageBar } from './MonthlyCoverageBar';
+import { monthlyCoverageOf, type MonthlyCoverage } from './monthlyCoverage';
 
 const LEVEL_LABELS = { LARGE: '大', MIDDLE: '中', SMALL: '小' } as const;
 
@@ -69,6 +71,11 @@ function monthlyPriceCountOf(year: IndustryYear): number {
   return year.categories.reduce((total, category) => total + category.monthlyPrices.length, 0);
 }
 
+/** 公表レンジのうち、全業種目そろっていない月の数。 */
+function pendingMonthCountOf(coverage: MonthlyCoverage): number {
+  return coverage.months.filter((month) => !month.outOfRange && month.status !== 'full').length;
+}
+
 interface Props {
   years: readonly IndustryYear[];
   onUpdated: () => Promise<void>;
@@ -78,6 +85,11 @@ interface Props {
 export function YearListPanel({ years, onUpdated }: Props) {
   const [openYear, setOpenYear] = useState<number | null>(null);
   const selected = years.find((year) => year.gregorianYear === openYear);
+
+  const coverages = useMemo(
+    () => years.map((year) => ({ year, coverage: monthlyCoverageOf(year) })),
+    [years],
+  );
 
   return (
     <div className="admin-panel-body">
@@ -119,6 +131,21 @@ export function YearListPanel({ years, onUpdated }: Props) {
           </tbody>
         </table>
       </div>
+
+      {coverages.map(({ year, coverage }) => (
+        <div key={year.gregorianYear} className="admin-coverage-block">
+          <div className="admin-coverage-head">
+            <strong>{year.label} の月別株価</strong>
+            <span className="admin-note">
+              {pendingMonthCountOf(coverage) === 0
+                ? '公表レンジの全月がそろっています'
+                : `未登録・取込漏れ ${pendingMonthCountOf(coverage)} か月`
+                  + `（次は ${coverage.next.year}年${coverage.next.month}月分）`}
+            </span>
+          </div>
+          <MonthlyCoverageBar coverage={coverage} />
+        </div>
+      ))}
 
       {selected && <YearDetail key={selected.gregorianYear} year={selected} onUpdated={onUpdated} />}
     </div>

@@ -1043,3 +1043,122 @@
   font-size: 13px;
   font-weight: 700;
 }
+
+/* 月別株価の登録状況（MonthlyCoverageBar） */
+.admin-coverage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-coverage-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.admin-coverage-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.admin-coverage-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.admin-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 66px;
+  padding: 4px 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #94a3b8;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+button.admin-chip {
+  cursor: pointer;
+}
+
+button.admin-chip:hover {
+  border-color: #94a3b8;
+}
+
+.admin-chip-month {
+  color: #334155;
+  font-weight: 700;
+}
+
+.admin-chip-count,
+.admin-chip-sub {
+  font-size: 10px;
+}
+
+.admin-chip-none {
+  background: #f8fafc;
+}
+
+.admin-chip-partial {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.admin-chip-full {
+  border-color: #6ee7b7;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.admin-chip-partial .admin-chip-month,
+.admin-chip-full .admin-chip-month {
+  color: inherit;
+}
+
+/* 公表レンジ外＝年分違いの取込を疑う月。枠線だけ変えて並びからは外さない。 */
+.admin-chip-extra {
+  border-style: dashed;
+}
+
+.admin-chip-selected {
+  outline: 2px solid #0f766e;
+  outline-offset: 1px;
+}
+
+.admin-coverage-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.admin-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 2px;
+}

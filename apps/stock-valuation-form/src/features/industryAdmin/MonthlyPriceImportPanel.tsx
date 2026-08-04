@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { IndustryYear } from '@/data/industryDataset';
 import { importMonthlyPrices } from './api';
+import { MonthlyCoverageBar } from './MonthlyCoverageBar';
+import { coverageAt, monthlyCoverageOf, type MonthlyCoverage } from './monthlyCoverage';
 import { PasteTableEditor } from './PasteTableEditor';
 import {
   extractMonthlyPriceRows,
@@ -18,6 +20,15 @@ const PLACEHOLDER = `国税庁の「業種目別株価等」の表をコピー�
 const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
 
 const STATUS_LABELS = { new: '新規', changed: '変更', same: '据置' } as const;
+
+/** 月の選択肢に付ける登録状況。公表レンジ外（前年1〜10月など）はその旨を出す。 */
+function monthOptionSuffix(coverage: MonthlyCoverage, year: number, month: number): string {
+  const entry = coverageAt(coverage, year, month);
+  if (!entry) return '（公表レンジ外）';
+  if (entry.status === 'none') return '（未登録）';
+  if (entry.status === 'full') return `（登録済み ${entry.count}件）`;
+  return `（一部 ${entry.count}/${coverage.categoryCount}件）`;
+}
 
 interface Props {
   years: readonly IndustryYear[];
@@ -41,13 +52,19 @@ export function MonthlyPriceImportPanel({ years, onImported }: Props) {
   const [gregorianYear, setGregorianYear] = useState(() => years[0]?.gregorianYear ?? 0);
   const year = years.find((candidate) => candidate.gregorianYear === gregorianYear) ?? years[0];
 
-  const [priceYear, setPriceYear] = useState(() => years[0]?.gregorianYear ?? 0);
-  const [priceMonth, setPriceMonth] = useState(1);
+  // null は「まだ月を選び直していない」＝登録状況から求めた次の月に追従する状態。
+  // 年分を切り替えたときや取込に成功したときに null へ戻し、次に取り込むべき月へ勝手に進める。
+  const [target, setTarget] = useState<{ year: number; month: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const paste = usePastedTable<MonthlyPriceField>(MONTHLY_PRICE_FIELDS);
+
+  const coverage = useMemo(() => (year ? monthlyCoverageOf(year) : null), [year]);
+  const { year: priceYear, month: priceMonth } =
+    target ?? coverage?.next ?? { year: gregorianYear, month: 1 };
+  const selected = coverage && coverageAt(coverage, priceYear, priceMonth);
 
   const extracted = useMemo(
     () => extractMonthlyPriceRows(paste.table, paste.assignment),
@@ -97,6 +114,7 @@ export function MonthlyPriceImportPanel({ years, onImported }: Props) {
           + `（新規 ${response.created} 件 / 更新 ${response.updated} 件）`,
       );
       paste.clear();
+      setTarget(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -117,9 +135,8 @@ export function MonthlyPriceImportPanel({ years, onImported }: Props) {
             className="admin-select"
             value={gregorianYear}
             onChange={(event) => {
-              const next = Number(event.target.value);
-              setGregorianYear(next);
-              setPriceYear(next);
+              setGregorianYear(Number(event.target.value));
+              setTarget(null);
             }}
           >
             {years.map((candidate) => (
@@ -135,7 +152,7 @@ export function MonthlyPriceImportPanel({ years, onImported }: Props) {
           <select
             className="admin-select"
             value={priceYear}
-            onChange={(event) => setPriceYear(Number(event.target.value))}
+            onChange={(event) => setTarget({ year: Number(event.target.value), month: priceMonth })}
           >
             {priceYearOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -148,14 +165,40 @@ export function MonthlyPriceImportPanel({ years, onImported }: Props) {
           <select
             className="admin-select"
             value={priceMonth}
-            onChange={(event) => setPriceMonth(Number(event.target.value))}
+            onChange={(event) => setTarget({ year: priceYear, month: Number(event.target.value) })}
           >
             {MONTHS.map((month) => (
-              <option key={month} value={month}>{month}月</option>
+              <option key={month} value={month}>
+                {month}月{coverage ? monthOptionSuffix(coverage, priceYear, month) : ''}
+              </option>
             ))}
           </select>
         </label>
       </div>
+
+      {coverage && (
+        <>
+          <div className="admin-coverage-head">
+            <strong>{year.label}の登録状況</strong>
+            <span className="admin-note">
+              月をクリックすると取込先に指定できます。次に取り込むのは
+              {' '}{coverage.next.year}年{coverage.next.month}月分です。
+            </span>
+          </div>
+          <MonthlyCoverageBar
+            coverage={coverage}
+            selected={{ year: priceYear, month: priceMonth }}
+            onSelect={(y, month) => setTarget({ year: y, month })}
+          />
+        </>
+      )}
+
+      {selected && selected.status !== 'none' && (
+        <div className="admin-alert admin-alert-warn">
+          {priceYear}年{priceMonth}月分はすでに登録されています（{selected.count} 件）。
+          このまま取り込むと同じ業種目の値は上書きされます。
+        </div>
+      )}
 
       <PasteTableEditor state={paste} fields={MONTHLY_PRICE_FIELDS} placeholder={PLACEHOLDER} />
 
