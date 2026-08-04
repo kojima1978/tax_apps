@@ -1,11 +1,17 @@
 import type { ReactNode } from 'react';
-import type { CoverageMonth, MonthlyCoverage } from './monthlyCoverage';
+import type { CoverageMonth, CoverageStatus, MonthlyCoverage } from './monthlyCoverage';
 
-const STATUS_CLASS = {
+/** チップの色。月以外（基礎情報チップ）も同じ配色に揃えるため公開している。 */
+export const CHIP_STATUS_CLASS = {
   none: 'admin-chip-none',
   partial: 'admin-chip-partial',
   full: 'admin-chip-full',
 } as const;
+
+export function chipCountText(status: CoverageStatus, count: number, total: number): string {
+  if (status === 'none') return '未登録';
+  return status === 'full' ? `${count}件` : `${count}/${total}`;
+}
 
 const LEGEND = [
   { status: 'full', label: '全業種目そろっている' },
@@ -16,11 +22,6 @@ const LEGEND = [
 /** 当年は「5月」、前年11・12月分は年を付けて区別する。 */
 function labelOf(month: CoverageMonth, gregorianYear: number): string {
   return month.year === gregorianYear ? `${month.month}月` : `${month.year}年${month.month}月`;
-}
-
-function countTextOf(month: CoverageMonth, categoryCount: number): string {
-  if (month.status === 'none') return '未登録';
-  return month.status === 'full' ? `${month.count}件` : `${month.count}/${categoryCount}`;
 }
 
 /**
@@ -58,7 +59,7 @@ export function MonthlyCoverageBar({ coverage, selected, onSelect, leading }: Pr
     const isSelected = selected?.year === month.year && selected.month === month.month;
     const className = [
       'admin-chip',
-      STATUS_CLASS[month.status],
+      CHIP_STATUS_CLASS[month.status],
       month.outOfRange ? 'admin-chip-extra' : '',
       isSelected ? 'admin-chip-selected' : '',
     ].filter(Boolean).join(' ');
@@ -66,7 +67,9 @@ export function MonthlyCoverageBar({ coverage, selected, onSelect, leading }: Pr
     const body = (
       <>
         <span className="admin-chip-month">{labelOf(month, coverage.gregorianYear)}</span>
-        <span className="admin-chip-count">{countTextOf(month, coverage.categoryCount)}</span>
+        <span className="admin-chip-count">
+          {chipCountText(month.status, month.count, coverage.categoryCount)}
+        </span>
         <span className="admin-chip-sub">{twoYearTextOf(month) ?? '　'}</span>
       </>
     );
@@ -98,7 +101,7 @@ export function MonthlyCoverageBar({ coverage, selected, onSelect, leading }: Pr
       <div className="admin-coverage-legend">
         {LEGEND.map((item) => (
           <span key={item.status} className="admin-legend-item">
-            <span className={`admin-legend-swatch ${STATUS_CLASS[item.status]}`} />
+            <span className={`admin-legend-swatch ${CHIP_STATUS_CLASS[item.status]}`} />
             {item.label}
           </span>
         ))}

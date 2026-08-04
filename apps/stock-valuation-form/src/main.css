@@ -940,6 +940,17 @@
   gap: 6px;
 }
 
+/* 数値の列。桁を揃えて縦に読めるようにする。 */
+.admin-table .admin-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* カーソルが乗っている行。115行あるので、どの業種目を見ているか分かるようにする。 */
+.admin-table tbody tr:not(.admin-row-editing):hover td {
+  background: #e0f2fe;
+}
+
 .admin-preview {
   display: flex;
   flex-direction: column;
@@ -1044,6 +1055,15 @@
   font-weight: 700;
 }
 
+/*
+ * チップから開く一覧は列が少ない。幅いっぱいに引き伸ばすと数値が画面の端まで散って
+ * 行を目で追えなくなるので、内容の幅に収める。
+ */
+.admin-detail .admin-table {
+  width: auto;
+  min-width: 480px;
+}
+
 /* 月別株価の登録状況（MonthlyCoverageBar） */
 .admin-coverage {
   display: flex;
@@ -1130,12 +1150,12 @@ button.admin-chip:hover {
   color: inherit;
 }
 
-/* 月に紐づかない値（B・C・D・前年平均）への入口。月チップと区別するため少し離す。 */
+/*
+ * 月に紐づかない値（B・C・D・前年平均）への入口。
+ * 色は月チップと同じ状態クラスに任せ、ここでは月の並びから少し離すだけにする。
+ */
 .admin-chip-basic {
-  margin-right: 8px;
-  border-color: #94a3b8;
-  background: #fff;
-  color: #475569;
+  margin-right: 10px;
 }
 
 /* 公表レンジ外＝年分違いの取込を疑う月。枠線だけ変えて並びからは外さない。 */

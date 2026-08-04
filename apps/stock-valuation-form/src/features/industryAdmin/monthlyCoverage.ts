@@ -47,7 +47,8 @@ function keyOf(year: number, month: number): string {
   return `${year}-${month}`;
 }
 
-function statusOf(count: number, categoryCount: number): CoverageStatus {
+/** 何件そろっているかを3段階に畳む。月別株価以外（基礎情報チップ）からも使う。 */
+export function statusOf(count: number, categoryCount: number): CoverageStatus {
   if (count === 0) return 'none';
   return count >= categoryCount ? 'full' : 'partial';
 }

@@ -7,8 +7,8 @@ import {
   type UpdateCategoryRequest,
   type UpdateMonthlyPriceRequest,
 } from './api';
-import { MonthlyCoverageBar } from './MonthlyCoverageBar';
-import { monthlyCoverageOf, type MonthlyCoverage } from './monthlyCoverage';
+import { CHIP_STATUS_CLASS, MonthlyCoverageBar, chipCountText } from './MonthlyCoverageBar';
+import { monthlyCoverageOf, statusOf, type MonthlyCoverage } from './monthlyCoverage';
 
 const LEVEL_LABELS = { LARGE: '大', MIDDLE: '中', SMALL: '小' } as const;
 
@@ -107,6 +107,13 @@ function pendingMonthCountOf(coverage: MonthlyCoverage): number {
   return coverage.months.filter((month) => !month.outOfRange && month.status !== 'full').length;
 }
 
+/** 基礎情報（B・C・D・前年平均）が欠けなくそろっている業種目の数。 */
+function basicInfoCountOf(year: IndustryYear): number {
+  return year.categories.filter(
+    (category) => NUMERIC_FIELDS.every((field) => category[field.key] !== null),
+  ).length;
+}
+
 interface Props {
   years: readonly IndustryYear[];
   onUpdated: () => Promise<void>;
@@ -192,6 +199,7 @@ export function YearListPanel({ years, onUpdated }: Props) {
                   toggle(year.gregorianYear, { kind: 'month', year: priceYear, month: priceMonth })}
                 leading={
                   <BasicInfoChip
+                    count={basicInfoCountOf(year)}
                     categoryCount={year.categories.length}
                     selected={view?.kind === 'basic'}
                     onSelect={() => toggle(year.gregorianYear, { kind: 'basic' })}
@@ -211,29 +219,32 @@ export function YearListPanel({ years, onUpdated }: Props) {
 }
 
 interface BasicInfoChipProps {
+  count: number;
   categoryCount: number;
   selected: boolean;
   onSelect: () => void;
 }
 
-/** 月チップの手前に置く、月に紐づかない値（B・C・D・前年平均）への入口。 */
-function BasicInfoChip({ categoryCount, selected, onSelect }: BasicInfoChipProps) {
+/**
+ * 月チップの手前に置く、月に紐づかない値（B・C・D・前年平均）への入口。
+ * 色と件数の出し方は月チップと揃える（そろっていれば緑、欠けていれば黄）。
+ */
+function BasicInfoChip({ count, categoryCount, selected, onSelect }: BasicInfoChipProps) {
+  const status = statusOf(count, categoryCount);
   const className = [
     'admin-chip',
     'admin-chip-basic',
+    CHIP_STATUS_CLASS[status],
     selected ? 'admin-chip-selected' : '',
   ].filter(Boolean).join(' ');
 
+  const title = 'B（配当）・C（利益）・D（純資産）・前年平均株価と、この年分の出典・備考'
+    + ` / ${status === 'none' ? '未登録' : `4項目そろっている業種目 ${count} / ${categoryCount}`}`;
+
   return (
-    <button
-      type="button"
-      className={className}
-      title="業種目のB（配当）・C（利益）・D（純資産）・前年平均株価と、この年分の出典・備考"
-      aria-pressed={selected}
-      onClick={onSelect}
-    >
+    <button type="button" className={className} title={title} aria-pressed={selected} onClick={onSelect}>
       <span className="admin-chip-month">基礎情報</span>
-      <span className="admin-chip-count">{categoryCount}業種目</span>
+      <span className="admin-chip-count">{chipCountText(status, count, categoryCount)}</span>
       <span className="admin-chip-sub">B・C・D</span>
     </button>
   );
@@ -301,8 +312,10 @@ function YearDetail({ year, view, onUpdated }: YearDetailProps) {
             <tr>
               <th>番号</th><th>階層</th><th>業種目</th>
               {view.kind === 'basic'
-                ? NUMERIC_FIELDS.map((field) => <th key={field.key}>{field.label}</th>)
-                : <><th>株価</th><th>2年平均</th></>}
+                ? NUMERIC_FIELDS.map((field) => (
+                  <th key={field.key} className="admin-num">{field.label}</th>
+                ))
+                : <><th className="admin-num">株価</th><th className="admin-num">2年平均</th></>}
               <th />
             </tr>
           </thead>
@@ -422,7 +435,7 @@ function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: Category
         <td>{LEVEL_LABELS[category.level]}</td>
         <td>{category.name}</td>
         {NUMERIC_FIELDS.map((field) => (
-          <td key={field.key}>{category[field.key] ?? '—'}</td>
+          <td key={field.key} className="admin-num">{category[field.key] ?? '—'}</td>
         ))}
         <td>
           <button type="button" className="app-tool-btn" onClick={() => setValues(toEditValues(category))}>
@@ -444,7 +457,7 @@ function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: Category
         <input className="admin-input" value={values.name} onChange={(event) => update('name', event.target.value)} />
       </td>
       {NUMERIC_FIELDS.map((field) => (
-        <td key={field.key}>
+        <td key={field.key} className="admin-num">
           <input
             className="admin-input admin-input-narrow"
             value={values[field.key]}
@@ -515,8 +528,8 @@ function MonthPriceRow({ gregorianYear, category, target, onUpdated, onMessage }
     return (
       <tr>
         {head}
-        <td className="admin-before">未登録</td>
-        <td className="admin-before">—</td>
+        <td className="admin-before admin-num">未登録</td>
+        <td className="admin-before admin-num">—</td>
         <td className="admin-before">「月次株価を取り込む」から追加</td>
       </tr>
     );
@@ -549,8 +562,8 @@ function MonthPriceRow({ gregorianYear, category, target, onUpdated, onMessage }
     return (
       <tr>
         {head}
-        <td>{price.price}</td>
-        <td>{price.twoYearAveragePrice ?? '—'}</td>
+        <td className="admin-num">{price.price}</td>
+        <td className="admin-num">{price.twoYearAveragePrice ?? '—'}</td>
         <td>
           <button
             type="button"
