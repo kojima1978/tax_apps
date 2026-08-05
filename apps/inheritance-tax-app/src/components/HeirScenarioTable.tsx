@@ -9,6 +9,8 @@ export type HeirColumn = {
   align?: 'left' | 'right';
   bold?: boolean;
   cellClassName?: string;
+  /** 見出しセル(th)にだけ付けるクラス。cellClassName は tbody のセル専用 */
+  headerClassName?: string;
 };
 
 interface HeirScenarioTableProps {
@@ -20,6 +22,8 @@ interface HeirScenarioTableProps {
   getHeirKey: (i: number) => string;
   columns: HeirColumn[];
   compactRows?: boolean;
+  /** 列幅を均等にする（compactRows 指定時は常に均等） */
+  equalColumns?: boolean;
   showTaxTotal?: boolean;
   className?: string;
 }
@@ -33,6 +37,7 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
   getHeirKey,
   columns,
   compactRows = false,
+  equalColumns = false,
   showTaxTotal = true,
   className = '',
 }) => (
@@ -47,15 +52,15 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
       )}
     </h4>
     <div className="overflow-x-auto table-scroll-hint">
-      <table className={`w-full border-collapse${compactRows ? ' table-fixed' : ''}`}>
+      <table className={`w-full border-collapse${compactRows || equalColumns ? ' table-fixed' : ''}`}>
         <thead>
           <tr className={`${headerBg} text-white`}>
             {columns.map(col => (
               <th
                 key={col.label}
-                className={compactRows
+                className={`${compactRows
                   ? 'h-8 border border-gray-300 px-1 py-1 text-center text-[10px] md:text-[11px] font-semibold leading-tight whitespace-nowrap'
-                  : `${TH} whitespace-nowrap`}
+                  : `${TH} whitespace-nowrap`}${col.headerClassName ? ` ${col.headerClassName}` : ''}`}
               >
                 {col.label}
               </th>

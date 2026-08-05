@@ -4,7 +4,7 @@ import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { CashGiftRecipientList } from '../components/gift/CashGiftRecipientList';
-import { CashGiftPrintConditions } from '../components/gift/CashGiftPrintConditions';
+import { CalculationPremise } from '../components/calculator/CalculationPremise';
 import { CashGiftHeirTable } from '../components/gift/CashGiftHeirTable';
 import { PrintHeader } from '../components/PrintHeader';
 import { CautionBox } from '../components/CautionBox';
@@ -24,7 +24,6 @@ export const CashGiftPage: React.FC = () => {
     recipientOptions,
     cleanedRecipients,
     result,
-    calcInputs,
     handleCalculate: executeCalculate,
     totalGiftsInput,
     overAllocatedHeirsError,
@@ -112,12 +111,9 @@ export const CashGiftPage: React.FC = () => {
         <>
           {result && (
             <div className="result-fade-in">
-              <PrintHeader title="現金贈与シミュレーション" />
-              <CashGiftPrintConditions
-                result={result}
-                composition={calcInputs?.composition ?? composition}
-                spouseMode={calcInputs?.spouseMode ?? spouseMode}
-              />
+              <PrintHeader title="現金贈与シミュレーション" showDate={false} />
+              {/* 前提条件は相続税計算ページと共通。贈与前の「現状」シナリオを前提として示す */}
+              <CalculationPremise result={result.current.taxResult} />
               <div className="space-y-4 md:space-y-6">
                 <CashGiftHeirTable result={result} />
               </div>

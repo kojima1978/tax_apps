@@ -10,9 +10,11 @@ interface PrintHeaderProps {
    * 省略時は表示時点の日付（＝印刷日）を使う。
    */
   date?: string;
+  /** 作成日を表示するか。1枚に収める帳票では非表示にする */
+  showDate?: boolean;
 }
 
-export const PrintHeader: React.FC<PrintHeaderProps> = ({ title, date }) => {
+export const PrintHeader: React.FC<PrintHeaderProps> = ({ title, date, showDate = true }) => {
   const { staffName, staffPhone } = useStaffInfo();
   const hasStaff = staffName || staffPhone;
   const printDate = date ?? formatPrintDate(new Date());
@@ -21,7 +23,7 @@ export const PrintHeader: React.FC<PrintHeaderProps> = ({ title, date }) => {
     <div className="print-only justify-between items-end px-4 py-3 border-b-2 border-green-700 mb-6">
       <div>
         <h1 className="text-3xl font-bold text-green-800">{title}</h1>
-        <p className="text-base text-gray-600 mt-1">作成日: {printDate}</p>
+        {showDate && <p className="text-base text-gray-600 mt-1">作成日: {printDate}</p>}
       </div>
       <address className="text-right text-base not-italic text-gray-700">
         <p className="font-bold text-lg">{COMPANY_INFO.name}</p>

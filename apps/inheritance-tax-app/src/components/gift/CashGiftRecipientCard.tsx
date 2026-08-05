@@ -23,6 +23,8 @@ interface CashGiftRecipientCardProps {
 const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 const TAX_TYPE_OPTIONS: GiftRecipient['taxType'][] = ['general', 'special'];
 const CONTROL_CLASS = `h-11 w-full border border-gray-300 rounded-lg ${INPUT_FOCUS} bg-white text-base transition-colors hover:border-green-400`;
+// select の値は左寄せ。右寄せだとネイティブの矢印に張り付いて読みにくいため、右padも広げる
+const SELECT_CLASS = `${CONTROL_CLASS} pl-3 pr-9 text-left font-medium`;
 
 export const CashGiftRecipientCard = memo(function CashGiftRecipientCard({
   recipient,
@@ -78,7 +80,7 @@ export const CashGiftRecipientCard = memo(function CashGiftRecipientCard({
               <select
                 value={recipient.heirId}
                 onChange={e => onUpdate(recipient.id, { heirId: e.target.value })}
-                className={`${CONTROL_CLASS} px-3 text-right font-medium`}
+                className={SELECT_CLASS}
               >
                 {availableOptions.map(opt => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
@@ -102,7 +104,7 @@ export const CashGiftRecipientCard = memo(function CashGiftRecipientCard({
               <select
                 value={selectedSourceId}
                 onChange={e => onSelectSource(recipient.id, e.target.value)}
-                className={`${CONTROL_CLASS} px-3 text-right`}
+                className={SELECT_CLASS}
               >
                 {recipientOptions.map(opt => (
                   <option key={opt.id} value={opt.id}>{opt.label}の相続分から</option>
@@ -168,7 +170,7 @@ export const CashGiftRecipientCard = memo(function CashGiftRecipientCard({
               <select
                 value={recipient.years || ''}
                 onChange={e => onUpdate(recipient.id, { years: Number(e.target.value) || 0 })}
-                className={`${CONTROL_CLASS} px-3 text-right font-medium`}
+                className={SELECT_CLASS}
               >
                 <option value="">選択</option>
                 {YEAR_OPTIONS.map(year => (

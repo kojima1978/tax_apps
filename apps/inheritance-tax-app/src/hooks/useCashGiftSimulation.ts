@@ -45,31 +45,22 @@ export function useCashGiftSimulation() {
   );
 
   const [result, setResult] = useState<CashGiftSimulationResult | null>(null);
-  const [calcInputs, setCalcInputs] = useState<{
-    estateValue: number;
-    composition: typeof composition;
-    recipients: GiftRecipient[];
-    spouseMode: typeof spouseMode;
-  } | null>(null);
   const [overAllocatedHeirsError, setOverAllocatedHeirsError] = useState<string[]>([]);
 
   const handleCalculate = useCallback(() => {
     if (estateValue <= 0 || cleanedRecipients.length === 0 || cleanedRecipients.every(r => r.annualAmount <= 0 || r.years <= 0)) {
       setResult(null);
-      setCalcInputs(null);
       setOverAllocatedHeirsError([]);
       return;
     }
     const simResult = calculateCashGiftSimulation(estateValue, composition, cleanedRecipients, spouseMode);
     if (simResult.overAllocatedHeirs.length > 0) {
       setResult(null);
-      setCalcInputs(null);
       setOverAllocatedHeirsError(simResult.overAllocatedHeirs);
       return;
     }
     setOverAllocatedHeirsError([]);
     setResult(simResult);
-    setCalcInputs({ estateValue, composition, recipients: cleanedRecipients, spouseMode });
   }, [estateValue, composition, cleanedRecipients, spouseMode]);
 
   const totalGiftsInput = useMemo(
@@ -83,7 +74,6 @@ export function useCashGiftSimulation() {
     recipientOptions,
     cleanedRecipients,
     result,
-    calcInputs,
     handleCalculate,
     totalGiftsInput,
     overAllocatedHeirsError,

@@ -52,21 +52,8 @@ function addYears(date: Date, years: number): Date {
   return next;
 }
 
-export function addYearsAndDays(date: Date, years: number, days: number): Date {
-  const next = addYears(date, years);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
 function getReiwaYear(date: Date): number {
   return date.getFullYear() - 2018;
-}
-
-export function formatWarekiDate(date: Date): string {
-  const year = String(getReiwaYear(date)).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `令和${year}年${month}月${day}日`;
 }
 
 function formatReiwaShortYear(date: Date): string {
@@ -98,6 +85,9 @@ export function buildGiftColumns(
   const getNetProceeds = (i: number) => getOwnNetProceeds(i) + (giftGroups[i]?.relatedNetGift ?? 0);
   const netTotal = taxResult.heirBreakdowns.reduce((s, _, i) => s + getNetProceeds(i), 0);
 
+  // 提案シナリオ（贈与あり）でだけ「贈与額」列を赤枠で強調する
+  const giftHighlight = recipientResults.length > 0 ? 'cash-gift-amount-cell' : undefined;
+
   return [
     heirLabelColumn(i => taxResult.heirBreakdowns[i]?.label),
     currencyColumn('遺産取得額', i => taxResult.heirBreakdowns[i]?.acquisitionAmount ?? 0, acqTotal),
@@ -105,6 +95,8 @@ export function buildGiftColumns(
       label: '贈与額',
       getValue: i => formatCurrencyOrDash(giftGroups[i]?.totalGift ?? 0),
       getTotalValue: () => formatCurrencyOrDash(giftTotal),
+      cellClassName: giftHighlight,
+      headerClassName: giftHighlight,
     },
     {
       label: '贈与税負担',
@@ -169,6 +161,14 @@ export function getGiftConditionGroups(recipients: GiftRecipientResult[]): GiftC
   }
 
   return Array.from(groups.values());
+}
+
+/** 年次テーブルの行見出しに添える人数内訳。条件テーブル廃止に伴い唯一の表示箇所 */
+export function formatGiftGroupMembers(group: GiftConditionGroup): string {
+  const parts: string[] = [];
+  if (group.specialCount > 0) parts.push(`特例${group.specialCount}人`);
+  if (group.generalCount > 0) parts.push(`一般${group.generalCount}人`);
+  return parts.length > 0 ? `（${parts.join('・')}）` : '';
 }
 
 export function getGiftTimelineTotals(recipients: GiftRecipientResult[]): GiftTimelineTotals {
