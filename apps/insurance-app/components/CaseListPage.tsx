@@ -51,7 +51,11 @@ export default function CaseListPage({ onSelect }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showAgencyMaster, setShowAgencyMaster] = useState(false);
   const [isRestoringJson, setIsRestoringJson] = useState(false);
+  const [isDropTarget, setIsDropTarget] = useState(false);
   const restoreJsonInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLButtonElement>(null);
+  // 子要素をまたぐと dragleave が飛ぶので、出入りを数えて枠のハイライトを保つ
+  const dragDepth = useRef(0);
 
   // 初期値が isLoading=true / error=null なので、取得と反映だけを行う
   const loadCases = useCallback(async () => {
@@ -117,6 +121,65 @@ export default function CaseListPage({ onSelect }: Props) {
     const file = e.target.files?.[0] ?? null;
     e.target.value = '';
     await restoreJsonFile(file);
+  };
+
+  // ファイル以外（一覧の行や文字列）のドラッグには反応しない
+  const isFileDrag = (transfer: DataTransfer | null) =>
+    Array.from(transfer?.types ?? []).includes('Files');
+
+  // 復元枠を外したドロップでブラウザがJSONを開いてしまう（＝アプリから離脱する）のを防ぐ
+  useEffect(() => {
+    const allowDrop = (e: DragEvent) => {
+      if (isFileDrag(e.dataTransfer)) e.preventDefault();
+    };
+    const blockStrayDrop = (e: DragEvent) => {
+      if (!isFileDrag(e.dataTransfer)) return;
+      e.preventDefault();
+      // 復元枠の中なら onDrop 側で処理済み
+      if (dropZoneRef.current?.contains(e.target as Node)) return;
+      dragDepth.current = 0;
+      setIsDropTarget(false);
+      setError('復元するには「データ管理」を開いて、その中の「バックアップを復元」へドロップしてください');
+    };
+    window.addEventListener('dragover', allowDrop);
+    window.addEventListener('drop', blockStrayDrop);
+    return () => {
+      window.removeEventListener('dragover', allowDrop);
+      window.removeEventListener('drop', blockStrayDrop);
+    };
+  }, []);
+
+  const handleDropZoneDragEnter = (e: React.DragEvent) => {
+    if (!isFileDrag(e.dataTransfer)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setIsDropTarget(true);
+  };
+
+  const handleDropZoneDragOver = (e: React.DragEvent) => {
+    if (!isFileDrag(e.dataTransfer)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDropZoneDragLeave = (e: React.DragEvent) => {
+    if (!isFileDrag(e.dataTransfer)) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setIsDropTarget(false);
+  };
+
+  const handleDropZoneDrop = async (e: React.DragEvent) => {
+    if (!isFileDrag(e.dataTransfer)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setIsDropTarget(false);
+    const files = Array.from(e.dataTransfer.files);
+    e.currentTarget.closest('details')?.removeAttribute('open');
+    if (files.length > 1) {
+      setError('一度に復元できるJSONは1件です');
+      return;
+    }
+    await restoreJsonFile(files[0] ?? null);
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
@@ -201,18 +264,31 @@ export default function CaseListPage({ onSelect }: Props) {
             </summary>
             <div className="case-data-menu-popover">
               <button
+                ref={dropZoneRef}
                 type="button"
-                className="case-data-menu-item"
+                className={`case-data-menu-item${isDropTarget ? ' is-drop-target' : ''}`}
                 onClick={(event) => {
                   restoreJsonInputRef.current?.click();
                   event.currentTarget.closest('details')?.removeAttribute('open');
                 }}
+                onDragEnter={handleDropZoneDragEnter}
+                onDragOver={handleDropZoneDragOver}
+                onDragLeave={handleDropZoneDragLeave}
+                onDrop={handleDropZoneDrop}
                 disabled={isRestoringJson}
               >
                 <Upload size={18} aria-hidden="true" />
                 <span>
-                  <strong>{isRestoringJson ? 'バックアップを復元中...' : 'バックアップを復元'}</strong>
-                  <small>JSONバックアップからお客様を追加</small>
+                  <strong>
+                    {isRestoringJson
+                      ? 'バックアップを復元中...'
+                      : isDropTarget ? 'ここにドロップして復元' : 'バックアップを復元'}
+                  </strong>
+                  <small>
+                    {isDropTarget
+                      ? 'JSONファイルを離すと復元を開始します'
+                      : 'JSONバックアップからお客様を追加（ここにドロップも可）'}
+                  </small>
                 </span>
               </button>
             </div>

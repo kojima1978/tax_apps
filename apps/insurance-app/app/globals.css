@@ -3971,6 +3971,13 @@ h1 {
   outline: none;
 }
 
+/* JSONをドラッグ中の復元枠。破線でドロップ先だと分かるようにする */
+.case-data-menu-item.is-drop-target {
+  border: 2px dashed #3182ce;
+  padding: calc(0.7rem - 2px);
+  background: #eff6ff;
+}
+
 .case-data-menu-item:disabled {
   cursor: wait;
   opacity: 0.65;
