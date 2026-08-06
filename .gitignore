@@ -11,6 +11,11 @@ build/
 # Database
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 *.dump
 *.dump.gz
 *.sql.gz
