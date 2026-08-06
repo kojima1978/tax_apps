@@ -281,6 +281,24 @@
    App Layout
    ============================================ */
 
+:root {
+  /*
+   * ヘッダー・ツールバー・管理画面本文を収める中央寄せの列幅。
+   * 帳票本体（.gov-page）は 210mm ＝ 約794px で中央に置かれるのに、操作系だけが
+   * 画面の左右端まで引き離されると視線の移動が大きく読みにくい。そこで背景は
+   * 画面幅いっぱいのまま、中身だけをこの幅に収めて帳票と同じ中心線に揃える。
+   *
+   * 値の根拠: 表タブ11個（108px + gap 4px）＋ ツールバー300px ＋ 左右padding が
+   * 折り返さずに収まる最小幅。これより狭くするとタブ列が横スクロールになる。
+   */
+  --app-content-width: 1580px;
+}
+
+/*
+ * 中身を --app-content-width に収めるための左右padding。
+ * ラッパー要素を挟まずに済むよう、余った分を padding として振り分ける。
+ * 画面が狭いときは通常の padding 値まで縮む（max の第1引数）。
+ */
 .app-header {
   position: sticky;
   top: 0;
@@ -289,7 +307,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 12px;
+  padding: 0 max(12px, calc((100% - var(--app-content-width)) / 2));
   border-bottom: 1px solid #e2e8f0;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
@@ -335,7 +353,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 8px max(12px, calc((100% - var(--app-content-width)) / 2));
   border-bottom: 1px solid #d9d9d9;
   background: #fff;
 }
@@ -780,8 +798,9 @@
   font-weight: 700;
 }
 
+/* 上のツールバーだけ中央に寄せると本文パネルとの左端がずれるので、本文も同じ列に揃える */
 .admin-shell {
-  padding: 16px;
+  padding: 16px max(16px, calc((100% - var(--app-content-width)) / 2));
 }
 
 .admin-description {
@@ -1073,10 +1092,14 @@
 }
 
 /*
- * チップから開く一覧は列が少ない。幅いっぱいに引き伸ばすと数値が画面の端まで散って
+ * 列が少ない表は幅いっぱいに引き伸ばさない。引き伸ばすと数値が画面の端まで散って
  * 行を目で追えなくなるので、内容の幅に収める。
+ *
+ * チップから開く一覧（.admin-detail）と、列を明示的に絞りたい表（.admin-table-fit）の
+ * 両方で同じ扱いにする。
  */
-.admin-detail .admin-table {
+.admin-detail .admin-table,
+.admin-table-fit {
   width: auto;
   min-width: 480px;
 }

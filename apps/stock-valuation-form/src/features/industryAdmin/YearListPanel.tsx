@@ -140,7 +140,7 @@ export function YearListPanel({ years, onUpdated }: Props) {
   return (
     <div className="admin-panel-body">
       <div className="admin-scroll">
-        <table className="admin-table">
+        <table className="admin-table admin-table-fit">
           <thead>
             <tr>
               <th>年分</th><th>西暦</th><th>業種目</th><th>月別株価</th><th>最終月</th>
