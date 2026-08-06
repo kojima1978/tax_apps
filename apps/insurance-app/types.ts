@@ -31,6 +31,11 @@ export interface SurrenderValuePoint {
   foreignAmount?: number;  // 外貨建て契約の入力額
 }
 
+// 最後の入力年齢より先の描き方。'compound' は入力値の年平均増加率で延長、'flat' は横ばい。
+// 設計書に無い年齢を推定で見せることになるため、過大に見える証券は 'flat' に切り替えて使う
+export const SURRENDER_PROJECTION_MODES = ['compound', 'flat'] as const;
+export type SurrenderProjectionMode = (typeof SURRENDER_PROJECTION_MODES)[number];
+
 // 個々の保険分析（保障期間/払込状況/保障充足度）の手動上書き
 export interface EvaluationOverride {
   label: string;
@@ -100,6 +105,8 @@ export interface Policy {
   maturityBenefit: number;
   // 年齢別の解約返戻金（任意入力・スパース）
   surrenderValues?: SurrenderValuePoint[];
+  // 最後に入力した年齢より先のグラフの描き方（未指定は 'compound'）
+  surrenderProjection?: SurrenderProjectionMode;
   // コンサルタントメモ
   consultantNote?: string;
   // 個別評価の手動上書き（保障期間/払込状況/保障充足度）

@@ -116,6 +116,7 @@ function runMigrations(db: Database.Database): void {
       payment_details TEXT,
       annual_premium INTEGER NOT NULL DEFAULT 0,
       maturity_benefit INTEGER NOT NULL DEFAULT 0,
+      surrender_projection TEXT,
       consultant_note TEXT,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -220,6 +221,7 @@ function runMigrations(db: Database.Database): void {
     `ALTER TABLE policies ADD COLUMN premium_payment_completed INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE policies ADD COLUMN payment_details TEXT`,
     `ALTER TABLE policies ADD COLUMN beneficiary_allocations TEXT`,
+    `ALTER TABLE policies ADD COLUMN surrender_projection TEXT`,
   ];
 
   for (const sql of optionalPolicyColumns) {

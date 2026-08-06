@@ -2,12 +2,15 @@
 
 import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Clipboard, Plus, Trash2 } from 'lucide-react';
-import type { SurrenderValuePoint } from '@/types';
+import type { SurrenderProjectionMode, SurrenderValuePoint } from '@/types';
+import { calcSurrenderAnnualRate } from '@/utils/analysisUtils';
 import { CommaInputRaw } from './CommaInput';
 
 interface SurrenderValueEditorProps {
   points: SurrenderValuePoint[];
   onChange: (points: SurrenderValuePoint[]) => void;
+  projection?: SurrenderProjectionMode;
+  onProjectionChange: (mode: SurrenderProjectionMode) => void;
   currency: 'JPY' | 'USD';
   exchangeRate: number;
   contractAge: number;
@@ -110,9 +113,17 @@ const AGE_MODE_OPTIONS: { value: AgeMode; label: string }[] = [
 
 const MAX_AGE = 120;
 
+// 最後の入力年齢より先をどう描くか。既定は延長（未指定 = 'compound'）
+const PROJECTION_OPTIONS: { value: SurrenderProjectionMode; label: string }[] = [
+  { value: 'compound', label: '年平均増加率で延長' },
+  { value: 'flat', label: '横ばい' },
+];
+
 const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
   points,
   onChange,
+  projection,
+  onProjectionChange,
   currency,
   exchangeRate,
   contractAge,
@@ -206,6 +217,21 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
     // describeIssue はモード・契約年齢・保険期間から決まるので、その3つを依存に置く
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowIssues, isElapsed, contractAge, policyEndAge]);
+
+  // 最終入力より先を延長するときの年率。グラフ側と同じ計算を共有する
+  // （1点だけ・増えていない・年15%超は延長できず、選択に関わらず横ばいになる）
+  const projectionRate = useMemo(
+    () => calcSurrenderAnnualRate(points.filter(p => p.age > 0).sort((a, b) => a.age - b.age)),
+    [points],
+  );
+  const projectionMode: SurrenderProjectionMode = projection ?? 'compound';
+  const lastAge = points.length > 0 ? Math.max(...points.map(p => p.age)) : 0;
+
+  const projectionHint = projectionMode === 'flat'
+    ? `${formatAge(lastAge)}以降は横ばいで描かれます`
+    : projectionRate !== null
+      ? `${formatAge(lastAge)}以降を年平均${(projectionRate * 100).toFixed(1)}%で延長します（グラフは点線）`
+      : `入力値が増えていないため延長できません。${formatAge(lastAge)}以降は横ばいで描かれます`;
 
   const displayValue = (point: SurrenderValuePoint) =>
     isUsd ? (point.foreignAmount ?? 0) : point.amount;
@@ -424,6 +450,24 @@ const SurrenderValueEditor: React.FC<SurrenderValueEditorProps> = ({
           {issueMessages.ignored.map(message => (
             <span key={message} className="surrender-editor-warning">{message}</span>
           ))}
+
+          {points.length > 0 && (
+            <div className="surrender-mode-switch">
+              <span>最終入力より先:</span>
+              {PROJECTION_OPTIONS.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`surrender-mode-btn${projectionMode === option.value ? ' is-active' : ''}`}
+                  aria-pressed={projectionMode === option.value}
+                  onClick={() => onProjectionChange(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+              <span>{projectionHint}</span>
+            </div>
+          )}
 
           <div className="surrender-editor-actions">
             <button type="button" className="calc-btn" onClick={addBlankRow}>

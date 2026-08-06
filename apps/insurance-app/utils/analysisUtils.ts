@@ -222,15 +222,10 @@ export function hasSurrenderValues(policy: Policy): boolean {
   return getSurrenderValues(policy).length > 0;
 }
 
-// 個別に将来推定を行う証券。元資料の入力範囲を越えるため、通常の横ばい仮定とは分ける。
-const SURRENDER_COMPOUND_PROJECTION_POLICY_NUMBERS = new Set(['PSX0294089']);
-
 // 入力済みの最初と最後の返戻金から年平均成長率（CAGR）を求める。
-// 設計書の数値以上の精度を装わないよう0.5%刻みに丸め、異常値は推定に使わない。
-export function getSurrenderProjectionAnnualRate(policy: Policy): number | null {
-  if (!SURRENDER_COMPOUND_PROJECTION_POLICY_NUMBERS.has(policy.policyNumber.trim().toUpperCase())) return null;
-
-  const points = getSurrenderValues(policy);
+// 設計書の数値以上の精度を装わないよう0.5%刻みに丸め、異常値（減少・年15%超）は推定に使わない。
+// 入力欄でも「何%で延長されるか」を出すため、証券の設定とは切り離した純粋な計算にしてある
+export function calcSurrenderAnnualRate(points: SurrenderValuePoint[]): number | null {
   if (points.length < 2) return null;
 
   const first = points[0];
@@ -242,6 +237,12 @@ export function getSurrenderProjectionAnnualRate(policy: Policy): number | null 
   if (!Number.isFinite(rawRate) || rawRate <= 0 || rawRate > 0.15) return null;
 
   return Math.round(rawRate / 0.005) * 0.005;
+}
+
+// 最終入力より先を複利で延長するときの年率。証券ごとに「横ばい」を選べる（未指定は延長する）
+export function getSurrenderProjectionAnnualRate(policy: Policy): number | null {
+  if (policy.surrenderProjection === 'flat') return null;
+  return calcSurrenderAnnualRate(getSurrenderValues(policy));
 }
 
 // 年齢差から求めた経過月数と、契約日から求めた実経過月数のズレ（保険年齢/満年齢の差など）。

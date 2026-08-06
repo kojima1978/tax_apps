@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db';
 import { getSampleFamilyMembers, getSampleAgency, getSamplePolicies } from '@/lib/sampleData';
-import { isIncomeProtectionPolicyType, normalizePolicyType } from '@/types';
+import { isIncomeProtectionPolicyType, normalizePolicyType, SURRENDER_PROJECTION_MODES } from '@/types';
 import type { AppState, FamilyMember, Policy, Agency, BeneficiaryAllocation, EvaluationOverride, SurrenderValuePoint, ValuationSettings } from '@/types';
 import { normalizeBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
 
@@ -54,6 +54,7 @@ interface PolicyRow {
   consultant_note: string | null;
   evaluation_overrides: string | null;
   surrender_values: string | null;
+  surrender_projection: string | null;
   sort_order: number;
 }
 
@@ -272,6 +273,7 @@ function rowToPolicy(row: PolicyRow): Policy {
     annualPremium: row.annual_premium,
     maturityBenefit: row.maturity_benefit,
     surrenderValues: parseSurrenderValues(row.surrender_values),
+    surrenderProjection: SURRENDER_PROJECTION_MODES.find(mode => mode === row.surrender_projection),
     consultantNote: row.consultant_note ?? undefined,
     evaluationOverrides: parseEvaluationOverrides(row.evaluation_overrides),
     ...parsePensionSettings(row.pension_settings, { policyType, insuredId, paymentEndAge, policyEndAge }),
@@ -435,6 +437,7 @@ export function saveAppState(caseId: string, state: AppState): AppState {
     const updatePaymentCompleted = db.prepare('UPDATE policies SET premium_payment_completed = ? WHERE id = ?');
     const updatePaymentDetails = db.prepare('UPDATE policies SET payment_details = ? WHERE id = ?');
     const updateBeneficiaryAllocations = db.prepare('UPDATE policies SET beneficiary_allocations = ? WHERE id = ?');
+    const updateSurrenderProjection = db.prepare('UPDATE policies SET surrender_projection = ? WHERE id = ?');
     for (let i = 0; i < state.policies.length; i++) {
       const p = normalizePolicyForStorage(state.policies[i]);
       insertPolicy.run(p.id, caseId, p.companyName, p.policyType, p.policyNumber || null, p.contractDate, p.contractAge, p.insuredId, p.beneficiaryId || null, p.deathBenefitDisease, p.deathBenefitAccident, p.hospDayDisease, p.hospDayAccident, p.diagnosisBenefit, p.policyEndAge, p.currency ?? 'JPY', p.exchangeRate ?? 0, p.foreignPremiumAmount ?? 0, p.foreignDeathBenefitDisease ?? 0, p.foreignDeathBenefitAccident ?? 0, p.foreignHospDayDisease ?? 0, p.foreignHospDayAccident ?? 0, p.foreignDiagnosisBenefit ?? 0, p.foreignMaturityBenefit ?? 0, p.paymentFrequency, p.premiumAmount, null, p.paymentEndAge, p.annualPremium, p.maturityBenefit, p.surrenderValues?.length ? JSON.stringify(p.surrenderValues) : null, p.consultantNote ?? null, p.evaluationOverrides?.length ? JSON.stringify(p.evaluationOverrides) : null, i, ts, ts);
@@ -442,6 +445,7 @@ export function saveAppState(caseId: string, state: AppState): AppState {
       updatePaymentCompleted.run(p.premiumPaymentCompleted ? 1 : 0, p.id);
       updatePaymentDetails.run(serializePaymentDetails(p), p.id);
       updateBeneficiaryAllocations.run(serializeBeneficiaryAllocations(p), p.id);
+      updateSurrenderProjection.run(p.surrenderProjection ?? null, p.id);
     }
 
     db.prepare('INSERT OR REPLACE INTO app_state_meta (case_id, schema_version, updated_at, valuation_settings) VALUES (?, 1, ?, ?)').run(

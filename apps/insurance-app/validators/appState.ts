@@ -1,5 +1,5 @@
-import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType } from '@/types';
-import type { Policy, PolicyType } from '@/types';
+import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType, SURRENDER_PROJECTION_MODES } from '@/types';
+import type { Policy, PolicyType, SurrenderProjectionMode } from '@/types';
 import { getBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
 import { isValidLogoDataUrl } from '@/lib/agencyLogo';
 
@@ -205,6 +205,10 @@ export function validateAppState(body: unknown): ValidationResult {
             }
           }
         }
+      }
+      if (p.surrenderProjection !== undefined
+        && !SURRENDER_PROJECTION_MODES.includes(p.surrenderProjection as SurrenderProjectionMode)) {
+        errors.push({ field: `policies[${i}].surrenderProjection`, message: '解約返戻金の推定方法が不正です' });
       }
       if (p.evaluationOverrides !== undefined) {
         if (!Array.isArray(p.evaluationOverrides)) {

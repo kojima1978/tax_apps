@@ -1392,6 +1392,8 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     <SurrenderValueEditor
       points={surrenderValues}
       onChange={setSurrenderValues}
+      projection={formData.surrenderProjection}
+      onProjectionChange={mode => setFormData(prev => ({ ...prev, surrenderProjection: mode }))}
       currency={isUsdPolicy ? 'USD' : 'JPY'}
       exchangeRate={Number(formData.exchangeRate || 0)}
       contractAge={Number(formData.contractAge || 0)}
@@ -1564,8 +1566,11 @@ const PolicyForm: React.FC<PolicyFormProps> = ({
     }
     if (!hasSurrenderValueField) {
       finalPolicy.surrenderValues = undefined;
+      finalPolicy.surrenderProjection = undefined;
     } else {
       finalPolicy.surrenderValues = normalizeSurrenderValues(finalPolicy.surrenderValues);
+      // 返戻金の入力が無ければ延長の指定も持たせない（既定に戻す）
+      if (!finalPolicy.surrenderValues?.length) finalPolicy.surrenderProjection = undefined;
     }
     if (finalPolicy.currency !== 'USD') {
       finalPolicy.currency = 'JPY';

@@ -137,6 +137,14 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
   }
 
   const hasEstimatedRange = data.some(point => point.surrenderEstimate !== null && point.surrender === null);
+  // 最終入力より先が描かれているときだけ、その区間が「延長」か「横ばい」かを明記する
+  const lastPointAge = showSurrender ? surrenderPoints[surrenderPoints.length - 1].age : 0;
+  const hasTailEstimate = data.some(point => point.age > lastPointAge && point.surrenderEstimate !== null);
+  const estimateNote = !hasTailEstimate
+    ? '点線・ドットなしの区間は入力値からの推定'
+    : surrenderProjectionRate !== null
+      ? `${lastPointAge}歳以降の点線は、過去データの年平均増加率${(surrenderProjectionRate * 100).toFixed(1)}%による推定`
+      : `${lastPointAge}歳以降の点線は、横ばいとみなした線`;
   const renderEnteredDot = createEnteredPointDot(surrenderPoints);
   const areaType = isIncomeProtectionPolicyType(policy.policyType) ? 'linear' : 'stepAfter';
 
@@ -272,11 +280,7 @@ const PolicyMiniChart: React.FC<PolicyMiniChartProps> = ({ policy, currentAge })
               <span className="mini-chart-legend-item">損益分岐: {breakEvenAge}歳</span>
             )}
             {hasEstimatedRange && (
-              <span className="mini-chart-legend-note">
-                {surrenderProjectionRate !== null
-                  ? `${surrenderPoints[surrenderPoints.length - 1].age}歳以降の点線は、過去データの年平均増加率${(surrenderProjectionRate * 100).toFixed(1)}%による推定`
-                  : '点線・ドットなしの区間は入力値からの推定'}
-              </span>
+              <span className="mini-chart-legend-note">{estimateNote}</span>
             )}
           </>
         )}

@@ -266,9 +266,9 @@ const PolicyAnalysisCard: React.FC<PolicyAnalysisCardProps> = ({ policy, current
               </div>
               <div className="pac-coverage-period">
                 入力した{surrenderSummary.count}件（{surrenderSummary.firstAge}〜{surrenderSummary.lastAge}歳）から線形補間した概算
-                {surrenderProjectionRate !== null && (
-                  <>。{surrenderSummary.lastAge}歳以降は過去データの年平均増加率{(surrenderProjectionRate * 100).toFixed(1)}%で推定</>
-                )}
+                {surrenderProjectionRate !== null
+                  ? <>。{surrenderSummary.lastAge}歳以降は過去データの年平均増加率{(surrenderProjectionRate * 100).toFixed(1)}%で推定</>
+                  : <>。{surrenderSummary.lastAge}歳以降は横ばいとみなす</>}
               </div>
             </div>
           )}
