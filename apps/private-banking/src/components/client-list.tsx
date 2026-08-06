@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, LoaderCircle, Search, UserPlus, X } from "lucide-react";
+import { AlertTriangle, ChevronRight, DatabaseBackup, LoaderCircle, Search, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -132,6 +132,7 @@ export function ClientList() {
           />
         </label>
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
+        <Link className="button secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
       </div>
       {/* 件数は画面には出さず、読み上げにだけ残す。 */}
       <p className="sr-only" aria-live="polite">{filtered.length}件の顧客{terms.length > 0 && clients.length !== filtered.length ? `（全${clients.length}件中）` : ""}</p>

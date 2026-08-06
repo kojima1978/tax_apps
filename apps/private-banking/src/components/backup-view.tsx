@@ -2,12 +2,33 @@
 
 import { AlertTriangle, CircleCheck, Download, FileJson, LoaderCircle, Upload, X } from "lucide-react";
 import Link from "next/link";
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, DragEvent, useCallback, useEffect, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
 import { API_BASE } from "@/lib/api";
+import { ClientSummary } from "@/lib/clients";
+import type { Portfolio } from "@/lib/portfolio-view";
 
 export type BackupKind = "full" | "household";
 type BackupPreview = { kind: BackupKind; exportedAt: string | null; subject: string; households: number; snapshots: number; positions: number };
+type SelectedFile = { fileName: string; payload: unknown; preview: BackupPreview };
+
+/** 復元欄は「全体」「個別」で同じ部品を使い、文言だけ差し替える。 */
+const RESTORE_TEXT = {
+  full: {
+    pickerTitle: "全体バックアップファイルを選択",
+    pickerHint: "すべての顧客を置き換えて復元します",
+    action: "全データを置き換える",
+    mismatch: "これは顧客単位のファイルです。「個別書き出し・復元」から取り込んでください。",
+    failure: "復元できませんでした。",
+  },
+  household: {
+    pickerTitle: "顧客ファイルを選択",
+    pickerHint: "既存の顧客を消さずに1件追加します",
+    action: "新規顧客として取り込む",
+    mismatch: "これは全体バックアップファイルです。「全体書き出し・復元」から復元してください。",
+    failure: "取り込めませんでした。",
+  },
+} as const;
 
 function backupTimestamp(value: string | null) {
   if (!value) return "不明";
@@ -44,29 +65,145 @@ function readBackupPreview(payload: unknown): BackupPreview {
 
 /**
  * バックアップ画面。
- * scope="global" は顧客一覧配下（全体の書き出し・復元・顧客ファイルの取り込み）、
+ * scope="global" は顧客一覧配下（全体書き出し・復元／個別書き出し・復元）、
  * scope="household" は顧客ページ配下（その顧客だけの書き出し）で使う。
  */
-export function BackupView({ scope, household, onRestored }: {
-  scope: "global" | "household";
-  household?: { id: number; name: string; clientCode: string };
-  onRestored?: (kind: BackupKind, restoredHouseholdId?: number) => Promise<void> | void;
-}) {
-  const [selected, setSelected] = useState<{ fileName: string; payload: unknown; preview: BackupPreview } | null>(null);
+export function BackupView(props: { scope: "global" } | { scope: "household"; portfolio: Portfolio }) {
+  return props.scope === "global" ? <GlobalBackup /> : <HouseholdBackup portfolio={props.portfolio} />;
+}
+
+/** サーバ側（api/backup）と同じ規則でファイル名を組み立てる。 */
+function exportFileName(clientCode: string) {
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString();
+  return `private-banking-${clientCode}-${jst.slice(0, 4)}${jst.slice(5, 7)}${jst.slice(8, 10)}-${jst.slice(11, 13)}${jst.slice(14, 16)}.json`;
+}
+
+/** 顧客ページ配下。この顧客ぶんの書き出しだけを扱う。 */
+function HouseholdBackup({ portfolio: { household, snapshots, familyMembers } }: { portfolio: Portfolio }) {
+  const [exported, setExported] = useState("");
+  const years = snapshots.map((snapshot) => snapshot.fiscalYear);
+  const summary = [
+    { label: "顧客", value: `${household.name}（${household.clientCode}）` },
+    { label: "年度", value: years.length === 0 ? "なし" : `${years.length}件（${Math.min(...years) === Math.max(...years) ? `${years[0]}年度` : `${Math.min(...years)}〜${Math.max(...years)}年度`}）` },
+    { label: "明細", value: `${snapshots.reduce((total, snapshot) => total + snapshot.positions.length, 0)}件` },
+    { label: "親族関係", value: `${familyMembers.length}件` },
+    { label: "ファイル名", value: `private-banking-${household.clientCode}-<日時>.json` },
+  ];
+
+  return <>
+    <BackupHeading eyebrow="BACKUP" description="この顧客のデータをJSONファイルへ書き出します。" />
+    <article className="panel backup-single">
+      <PanelHeader title="この顧客のバックアップ" subtitle="別の環境へ移すとき・作業前に退避するときに使います" />
+      <div className="backup-body">
+        <dl className="backup-summary">
+          {summary.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+        </dl>
+        <div className="backup-preview-actions">
+          <a
+            className="button primary"
+            href={`${API_BASE}/backup?householdId=${household.id}`}
+            download
+            onClick={() => setExported(exportFileName(household.clientCode))}
+          ><Download />顧客を書き出す</a>
+        </div>
+        {exported ? <p className="backup-message success" role="status"><CircleCheck />書き出しました（{exported}）。</p> : null}
+        <p className="backup-note" role="note"><AlertTriangle />取り込むと<strong>常に新規顧客として追加</strong>されます。このファイルでこの顧客を上書きすることはできません。</p>
+        <p className="backup-inline-link"><Link href="/backup"><FileJson />復元・取り込みはバックアップ画面から</Link></p>
+      </div>
+    </article>
+  </>;
+}
+
+/** 顧客一覧配下。全顧客ぶんと顧客1件ぶんの両方を扱う。 */
+function GlobalBackup() {
+  const [clients, setClients] = useState<ClientSummary[] | null>(null);
+  const [exportTargetId, setExportTargetId] = useState("");
+
+  const loadClients = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/clients`, { cache: "no-store" });
+      if (!response.ok) throw new Error();
+      const list = await response.json() as ClientSummary[];
+      setClients(list);
+      // 復元後に顧客が入れ替わることがあるため、選択が消えていたら先頭へ戻す。
+      setExportTargetId((current) => list.some((client) => String(client.id) === current) ? current : String(list[0]?.id ?? ""));
+    } catch {
+      setClients([]);
+    }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void loadClients(); }, [loadClients]);
+
+  return <>
+    <BackupHeading eyebrow="BACKUP & RESTORE" description="データをJSONファイルへ書き出し、必要なときに復元します。" />
+    {/* よく使う個別を上、めったに使わない全体を下に置く。 */}
+    <div className="backup-grid backup-grid-stacked">
+      <article className="panel">
+        <PanelHeader title="個別書き出し・復元" subtitle="顧客を1件ずつ扱います" />
+        <div className="backup-body">
+          <div className="backup-option">
+            <div>
+              <strong>顧客を選んで書き出す</strong>
+              <span>選んだ顧客の全年度・明細・親族関係を1件ぶんのファイルに保存します。</span>
+              {clients && clients.length > 0 ? <select
+                className="backup-client-select"
+                aria-label="書き出す顧客"
+                value={exportTargetId}
+                onChange={(event) => setExportTargetId(event.target.value)}
+              >
+                {clients.map((client) => <option key={client.id} value={client.id}>{client.name}（{client.clientCode}）</option>)}
+              </select> : null}
+            </div>
+            {clients === null
+              ? <span className="backup-option-status">顧客を読み込んでいます…</span>
+              : clients.length === 0
+                ? <span className="backup-option-status">登録されている顧客がありません。</span>
+                : <a className="button primary" href={`${API_BASE}/backup?householdId=${exportTargetId}`} download><Download />顧客を書き出す</a>}
+          </div>
+          <RestoreSlot expected="household" onCompleted={loadClients} />
+        </div>
+      </article>
+      <article className="panel">
+        <PanelHeader title="全体書き出し・復元" subtitle="すべての顧客をまとめて扱います" />
+        <div className="backup-body">
+          <div className="backup-option">
+            <div><strong>全顧客をまとめて書き出す</strong><span>すべての顧客・年度・明細を1つのファイルに保存します。障害時の復旧用です。</span></div>
+            <a className="button primary" href={`${API_BASE}/backup`} download><Download />全体を書き出す</a>
+          </div>
+          <RestoreSlot expected="full" onCompleted={loadClients} />
+          <p className="backup-note" role="note"><AlertTriangle />全体バックアップの復元は<strong>現在のすべての顧客データを削除して置き換えます</strong>。実行前に現在のデータを書き出しておいてください。</p>
+        </div>
+      </article>
+    </div>
+  </>;
+}
+
+function BackupHeading({ eyebrow, description }: { eyebrow: string; description: string }) {
+  return <section className="page-heading"><div><p className="eyebrow">{eyebrow}</p><h2>バックアップ</h2><p>{description}</p></div></section>;
+}
+
+/** ファイル選択→内容の確認→復元（または取り込み）までの一連の操作。 */
+function RestoreSlot({ expected, onCompleted }: { expected: BackupKind; onCompleted: () => Promise<void> | void }) {
+  const [selected, setSelected] = useState<SelectedFile | null>(null);
   const [fileError, setFileError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [completed, setCompleted] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const text = RESTORE_TEXT[expected];
 
-  async function selectFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    // 同じファイルを選び直したときも change が発火するようにクリアする。
-    event.target.value = "";
+  /** 選択・ドロップの両方から呼ぶ読み込み処理。 */
+  async function readFile(file: File | undefined) {
     setCompleted("");
     if (!file) return;
     try {
+      if (!/\.json$/i.test(file.name)) throw new Error("JSONファイルを選んでください。");
       const payload = JSON.parse(await file.text()) as unknown;
-      setSelected({ fileName: file.name, payload, preview: readBackupPreview(payload) });
+      const preview = readBackupPreview(payload);
+      // 種類ちがいのファイルはもう一方の欄へ案内する（誤って全体を置き換えないため）。
+      if (preview.kind !== expected) throw new Error(text.mismatch);
+      setSelected({ fileName: file.name, payload, preview });
       setFileError("");
     } catch (error) {
       setSelected(null);
@@ -74,24 +211,38 @@ export function BackupView({ scope, household, onRestored }: {
     }
   }
 
+  function selectFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // 同じファイルを選び直したときも change が発火するようにクリアする。
+    event.target.value = "";
+    void readFile(file);
+  }
+
+  function dropFile(event: DragEvent<HTMLLabelElement>) {
+    // 既定の動作（ブラウザがファイルを開く）を止めてから受け取る。
+    event.preventDefault();
+    setDragging(false);
+    void readFile(event.dataTransfer.files[0]);
+  }
+
   async function runRestore() {
     if (!selected) return;
-    const { kind, households, snapshots, positions } = selected.preview;
+    const { households, snapshots, positions } = selected.preview;
     setBusy(true); setFileError("");
     try {
-      const response = await fetch(`${API_BASE}/backup/${kind === "full" ? "restore" : "import"}`, {
+      const response = await fetch(`${API_BASE}/backup/${expected === "full" ? "restore" : "import"}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(selected.payload),
       });
       const result = await response.json().catch(() => null) as { error?: string; household?: { id: number; name: string }; renamedClientCode?: string | null } | null;
-      if (!response.ok) throw new Error(result?.error ?? (kind === "full" ? "復元できませんでした。" : "取り込めませんでした。"));
+      if (!response.ok) throw new Error(result?.error ?? text.failure);
       setConfirming(false);
       setSelected(null);
-      setCompleted(kind === "full"
+      setCompleted(expected === "full"
         ? `全データを復元しました（顧客${households}件・年度${snapshots}件・明細${positions}件）。`
         : `「${result?.household?.name ?? "顧客"}」を新規顧客として取り込みました。${result?.renamedClientCode ? `顧客コードが重複したため ${result.renamedClientCode} に変更しています。` : ""}`);
-      await onRestored?.(kind, result?.household?.id);
+      await onCompleted();
     } catch (error) {
       setFileError(error instanceof Error ? error.message : "処理できませんでした。");
     } finally {
@@ -100,53 +251,30 @@ export function BackupView({ scope, household, onRestored }: {
   }
 
   return <>
-    <section className="page-heading"><div><p className="eyebrow">BACKUP &amp; RESTORE</p><h2>バックアップ</h2><p>データをJSONファイルへ書き出し、必要なときに復元します。</p></div></section>
-    <div className="backup-grid">
-      <article className="panel">
-        <PanelHeader title="書き出し" subtitle="JSONファイルとしてダウンロードします" />
-        <div className="backup-body">
-          {scope === "global" ? <div className="backup-option">
-            <div><strong>全顧客をまとめて書き出す</strong><span>すべての顧客・年度・明細を1つのファイルに保存します。障害時の復旧用です。</span></div>
-            <a className="button primary" href={`${API_BASE}/backup`} download><Download />全体を書き出す</a>
-          </div> : null}
-          {scope === "household" && household ? <div className="backup-option">
-            <div><strong>この顧客だけ書き出す</strong><span>{household.name}（{household.clientCode}）の全年度を保存します。別の環境へ新規顧客として取り込めます。</span></div>
-            <a className="button primary" href={`${API_BASE}/backup?householdId=${household.id}`} download><Download />顧客を書き出す</a>
-          </div> : null}
-        </div>
-      </article>
-      <article className="panel">
-        <PanelHeader title="復元・取り込み" subtitle="書き出したJSONファイルを読み込みます" />
-        <div className="backup-body">
-          {scope === "household" ? <>
-            <p className="backup-note" role="note"><AlertTriangle />復元・取り込みは顧客をまたぐ操作のため、顧客一覧の「バックアップ」から実行します。</p>
-            <Link className="button secondary" href="/backup"><FileJson />バックアップ画面へ</Link>
-          </> : <>
-            <label className="backup-file-picker">
-              <FileJson />
-              <span><strong>バックアップファイルを選択</strong><small>全体／顧客単位の種類は自動で判定します</small></span>
-              <input type="file" accept="application/json,.json" onChange={(event) => void selectFile(event)} />
-            </label>
-            {fileError ? <p className="backup-message error" role="alert"><AlertTriangle />{fileError}</p> : null}
-            {completed ? <p className="backup-message success" role="status"><CircleCheck />{completed}</p> : null}
-            {selected ? <div className="backup-preview">
-              <dl>
-                <div><dt>ファイル</dt><dd>{selected.fileName}</dd></div>
-                <div><dt>種類</dt><dd>{selected.preview.kind === "full" ? "全体バックアップ（置き換え）" : "顧客単位（追加）"}</dd></div>
-                <div><dt>作成日時</dt><dd>{backupTimestamp(selected.preview.exportedAt)}</dd></div>
-                <div><dt>対象</dt><dd>{selected.preview.subject}</dd></div>
-                <div><dt>内容</dt><dd>顧客{selected.preview.households}件 / 年度{selected.preview.snapshots}件 / 明細{selected.preview.positions}件</dd></div>
-              </dl>
-              <div className="backup-preview-actions">
-                <button type="button" className="button secondary" onClick={() => setSelected(null)}>選び直す</button>
-                <button type="button" className={`button ${selected.preview.kind === "full" ? "danger-button" : "primary"}`} onClick={() => setConfirming(true)}><Upload />{selected.preview.kind === "full" ? "全データを置き換える" : "新規顧客として取り込む"}</button>
-              </div>
-            </div> : null}
-            <p className="backup-note" role="note"><AlertTriangle />全体バックアップの復元は<strong>現在のすべての顧客データを削除して置き換えます</strong>。実行前に現在のデータを書き出しておいてください。</p>
-          </>}
-        </div>
-      </article>
-    </div>
+    <label
+      className={`backup-file-picker ${dragging ? "dragging" : ""}`}
+      onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={dropFile}
+    >
+      <FileJson />
+      <span><strong>{dragging ? "ここにドロップ" : text.pickerTitle}</strong><small>{dragging ? "JSONファイルを読み込みます" : `${text.pickerHint}／ドラッグ＆ドロップ可`}</small></span>
+      <input type="file" accept="application/json,.json" onChange={selectFile} />
+    </label>
+    {fileError ? <p className="backup-message error" role="alert"><AlertTriangle />{fileError}</p> : null}
+    {completed ? <p className="backup-message success" role="status"><CircleCheck />{completed}</p> : null}
+    {selected ? <div className="backup-preview">
+      <dl>
+        <div><dt>ファイル</dt><dd>{selected.fileName}</dd></div>
+        <div><dt>作成日時</dt><dd>{backupTimestamp(selected.preview.exportedAt)}</dd></div>
+        <div><dt>対象</dt><dd>{selected.preview.subject}</dd></div>
+        <div><dt>内容</dt><dd>顧客{selected.preview.households}件 / 年度{selected.preview.snapshots}件 / 明細{selected.preview.positions}件</dd></div>
+      </dl>
+      <div className="backup-preview-actions">
+        <button type="button" className="button secondary" onClick={() => setSelected(null)}>選び直す</button>
+        <button type="button" className={`button ${expected === "full" ? "danger-button" : "primary"}`} onClick={() => setConfirming(true)}><Upload />{text.action}</button>
+      </div>
+    </div> : null}
     {confirming && selected ? <BackupConfirmModal preview={selected.preview} fileName={selected.fileName} busy={busy} error={fileError} onClose={() => setConfirming(false)} onConfirm={() => void runRestore()} /> : null}
   </>;
 }

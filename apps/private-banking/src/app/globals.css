@@ -919,23 +919,39 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .tax-calc-heirs table { min-width: 760px; }
 }
 .backup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; align-items: start; }
+/* 利用頻度の高い順に上から並べるため、横並びにせず1列に積む。 */
+.backup-grid-stacked { grid-template-columns: 1fr; }
 .backup-body { padding: 20px 22px; display: grid; gap: 16px; }
 .backup-option { padding: 15px 16px; border: 1px solid var(--slate-200); border-radius: 9px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .backup-option strong { display: block; color: var(--navy-950); font-size: 13px; }
 .backup-option span { display: block; margin-top: 3px; color: var(--slate-500); font-size: 11px; line-height: 1.6; }
 .backup-option .button { flex: 0 0 auto; }
+/* 個別書き出しの顧客プルダウンと、顧客がいないときの案内。 */
+.backup-client-select { margin-top: 9px; max-width: 100%; min-height: 34px; padding: 5px 9px; border: 1px solid var(--slate-300); border-radius: 7px; background: #fff; color: var(--navy-950); font: inherit; font-size: 12px; }
+.backup-client-select:focus-visible { border-color: #22c55e; outline: 3px solid #bbf7d0; }
+.backup-option-status { flex: 0 0 auto; }
 .backup-file-picker { min-height: 84px; padding: 16px; background: #f0fdf4; border: 1px dashed #86efac; border-radius: 9px; display: flex; align-items: center; gap: 13px; cursor: pointer; transition: background-color .2s, border-color .2s; }
 .backup-file-picker:hover { background: #e6fbec; border-color: #4ade80; }
+/* 子要素へ入った瞬間の dragleave で表示が点滅しないよう、当たり判定をラベルにまとめる。 */
+.backup-file-picker > * { pointer-events: none; }
+.backup-file-picker.dragging { background: #dcfce7; border-style: solid; border-color: #22c55e; }
 .backup-file-picker > svg { width: 26px; height: 26px; flex: 0 0 auto; color: var(--navy-800); }
 .backup-file-picker strong { display: block; color: var(--navy-950); font-size: 13px; }
 .backup-file-picker small { display: block; margin-top: 3px; color: var(--slate-500); font-size: 11px; }
 .backup-file-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .backup-file-picker:focus-within { outline: 3px solid #22c55e; outline-offset: 2px; }
 .backup-preview { padding: 16px; border: 1px solid var(--slate-200); border-radius: 9px; display: grid; gap: 14px; }
-.backup-preview dl { margin: 0; display: grid; gap: 7px; }
-.backup-preview dl > div { display: grid; grid-template-columns: 82px 1fr; align-items: baseline; gap: 12px; }
-.backup-preview dt { color: var(--slate-500); font-size: 11px; font-weight: 700; }
-.backup-preview dd { margin: 0; color: var(--navy-950); font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+.backup-preview dl, .backup-summary { margin: 0; display: grid; gap: 7px; }
+.backup-preview dl > div, .backup-summary > div { display: grid; grid-template-columns: 82px 1fr; align-items: baseline; gap: 12px; }
+.backup-preview dt, .backup-summary dt { color: var(--slate-500); font-size: 11px; font-weight: 700; }
+.backup-preview dd, .backup-summary dd { margin: 0; color: var(--navy-950); font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+/* 顧客ページのバックアップは1枚パネル。書き出す中身を先に見せる。 */
+.backup-single { max-width: 640px; }
+.backup-summary { padding: 15px 16px; gap: 9px; border: 1px solid var(--slate-200); border-radius: 9px; }
+.backup-inline-link { margin: 0; }
+.backup-inline-link a { display: inline-flex; align-items: center; gap: 6px; color: var(--navy-800); font-size: 12px; font-weight: 700; text-decoration: none; }
+.backup-inline-link a:hover { text-decoration: underline; }
+.backup-inline-link svg { width: 15px; height: 15px; }
 .backup-preview-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
 .backup-message { margin: 0; padding: 12px 14px; border-radius: 8px; display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 1.6; }
 .backup-message svg { width: 17px; height: 17px; margin-top: 1px; flex: 0 0 auto; }
