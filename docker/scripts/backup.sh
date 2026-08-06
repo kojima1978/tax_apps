@@ -718,6 +718,76 @@ backup_bank_analyzer_json() {
   fi
 }
 
+# ------------------------------------
+# ウォッチドッグのスケジュールタスクが生きているかを確認し、無ければ登録し直す
+#
+# なぜバックアップから呼ぶのか: ウォッチドッグのタスクは過去に2度、誰にも
+# 気づかれずに消えている（直近は2026-05-10から約3ヶ月）。消えたことを検知
+# できるのは定期的に動いている何かだけで、そして消えるのは常にウォッチドッグ
+# の側だった。日次バックアップは動き続けているので、ここを見張り役にする。
+#
+# 登録には昇格が要らなくなった（register-docker-watchdog-task.ps1 参照）ので、
+# 検知したその場で直せる。結果は必ずウォッチドッグのログにも残す — 無人実行
+# では標準出力は誰も読まないため。
+# ------------------------------------
+WATCHDOG_TASK_NAME="Tax Apps Docker Watchdog"
+STARTUP_TASK_NAME="Tax Apps Startup"
+
+log_to_watchdog() {
+  local level="$1" message="$2"
+  local log_dir="$SCRIPT_DIR/../logs"
+  mkdir -p "$log_dir" 2>/dev/null || return 0
+  printf '%s [%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$level" "$message" \
+    >> "$log_dir/docker-watchdog.log" 2>/dev/null || true
+}
+
+# タスクの存在確認。必ずこれを経由すること。
+#
+# `schtasks.exe /Query` を Git Bash から直接呼ぶと壊れる。MSYS は `/` 始まりの
+# 引数をパスとみなして変換するため、`/Query` が `C:/Program Files/Git/Query` に
+# 化け、存在するタスクでも常に「未登録」と判定される。しかも schtasks は
+# 使い方エラーで exit 0 を返すので、素朴な `|| echo 未登録` では気づけない。
+task_exists() {
+  MSYS2_ARG_CONV_EXCL='*' schtasks.exe /Query /TN "$1" >/dev/null 2>&1
+}
+
+_ensure_task() {
+  local task_name="$1" script_name="$2" bat_name="$3"
+
+  if task_exists "$task_name"; then
+    return 0
+  fi
+
+  warn "Scheduled task is missing: $task_name"
+  log_to_watchdog "WARN" "Task '$task_name' was missing; re-registering it from backup.sh."
+
+  local register_script="$SCRIPT_DIR/$script_name"
+  if [[ ! -f "$register_script" ]]; then
+    log_to_watchdog "ERROR" "$script_name not found; cannot re-register '$task_name'."
+    return 0
+  fi
+
+  if powershell.exe -NoProfile -ExecutionPolicy Bypass \
+       -File "$(to_win_path "$register_script")" >/dev/null 2>&1 &&
+     task_exists "$task_name"; then
+    ok "Scheduled task re-registered: $task_name"
+    log_to_watchdog "INFO" "Task '$task_name' re-registered successfully."
+  else
+    err "Failed to re-register the scheduled task: $task_name"
+    log_to_watchdog "ERROR" "Failed to re-register '$task_name'. Run $bat_name manually."
+  fi
+}
+
+ensure_watchdog_task() {
+  command -v schtasks.exe >/dev/null 2>&1 || return 0
+  command -v powershell.exe >/dev/null 2>&1 || return 0
+
+  _ensure_task "$WATCHDOG_TASK_NAME" \
+    "register-docker-watchdog-task.ps1" "register-docker-watchdog-task.bat"
+  _ensure_task "$STARTUP_TASK_NAME" \
+    "register-startup-task.ps1" "register-startup-task.bat"
+}
+
 cmd_backup() {
   local backup_label="${1:-}"
   if [[ -n "$backup_label" ]]; then
@@ -803,6 +873,10 @@ cmd_backup() {
     fi
     echo "  To restore: ./manage.sh restore $(basename "$backup_dir")"
   fi
+  echo ""
+
+  # バックアップの成否とは独立に、毎回ウォッチドッグの生存を確認する
+  ensure_watchdog_task
   echo ""
 
   [[ $backup_fail -eq 0 ]]

@@ -1,19 +1,24 @@
+# Registers the Docker watchdog as a scheduled task.
+#
+# This task deliberately runs WITHOUT elevation (RunLevel Limited), the same as
+# the backup and restore-drill tasks. Everything the watchdog actually needs
+# works unelevated: stopping Docker Desktop processes owned by this user,
+# "wsl --shutdown", and relaunching Docker Desktop.exe. Only the optional
+# "Restart-Service com.docker.service" needs admin, and the watchdog already
+# treats that as best-effort - the service is Manual/Stopped on this machine
+# and Docker Desktop does not depend on it.
+#
+# Requiring UAC here was a reliability problem, not a safety feature: the task
+# could only ever be (re)created by an elevated double-click, so once it went
+# missing it stayed missing. It has already silently disappeared twice.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$TaskName = "Tax Apps Docker Watchdog",
     [int]$IntervalMinutes = 15,
-    [switch]$StartAppsAfterRecovery,
     [switch]$Unregister
 )
 
 $ErrorActionPreference = "Stop"
-
-$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-    [Security.Principal.WindowsBuiltInRole]::Administrator
-)
-if (-not $isAdmin) {
-    throw "This script requires Administrator privileges. Right-click PowerShell and select 'Run as administrator'."
-}
 
 if ($Unregister) {
     $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -40,9 +45,6 @@ if (-not (Test-Path -LiteralPath $WatchdogScript)) {
 }
 
 $taskArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$WatchdogScript`""
-if ($StartAppsAfterRecovery) {
-    $taskArgs += " -StartAppsAfterRecovery"
-}
 
 $action = New-ScheduledTaskAction `
     -Execute "powershell.exe" `
@@ -65,12 +67,9 @@ $settings = New-ScheduledTaskSettingsSet `
 $principal = New-ScheduledTaskPrincipal `
     -UserId ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name) `
     -LogonType Interactive `
-    -RunLevel Highest
+    -RunLevel Limited
 
-$description = "Checks Docker Desktop every $IntervalMinutes minutes, restarts it when docker info does not respond, and restarts unhealthy Tax Apps containers."
-if ($StartAppsAfterRecovery) {
-    $description += " Auto-starts Tax Apps after recovery."
-}
+$description = "Checks Docker Desktop every $IntervalMinutes minutes, restarts it when docker info does not respond, starts Tax Apps containers that are not running, and restarts unhealthy ones."
 
 $existingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 $isUpdate = $null -ne $existingTask
@@ -94,6 +93,6 @@ if ($PSCmdlet.ShouldProcess($TaskName, "Register scheduled task")) {
     Write-Host "$label scheduled task: $TaskName"
     Write-Host "  Interval  : $IntervalMinutes minutes"
     Write-Host "  Script    : $WatchdogScript"
-    Write-Host "  StartApps : $StartAppsAfterRecovery"
+    Write-Host "  RunLevel  : Limited (no UAC elevation required)"
     Write-Host "  Next run  : $($registered.Triggers[0].StartBoundary)"
 }

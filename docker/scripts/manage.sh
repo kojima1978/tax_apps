@@ -6,6 +6,7 @@
 # Usage:
 #   ./manage.sh start              全アプリを起動（ネットワーク自動作成）
 #   ./manage.sh start --prod       全アプリを本番モードで起動
+#   ./manage.sh recover            落ちているアプリのみ起動し直す（ウォッチドッグ用）
 #   ./manage.sh stop               全アプリを停止
 #   ./manage.sh restart <app>      指定アプリのみ再起動
 #   ./manage.sh status             全アプリの状態表示
@@ -45,11 +46,50 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 LOCK_DIR="${TMPDIR:-/tmp}/tax-apps-docker-ops.lock"
 LOCK_HELD=0
 
+# 「意図的に停止した」ことを示すマーカー。stop / down で作成し、start で消す。
+#
+# ウォッチドッグは停止中のコンテナを見つけると起動し直すが、それだけだと
+# stop.bat を押した直後に勝手に起動され、停止操作そのものが成立しなくなる。
+# 「落ちている」と「落とした」はコンテナの状態だけでは区別できないので、
+# 停止操作の側から明示的に印を残す。
+STOP_MARKER="$PROJECT_ROOT/docker/logs/tax-apps-stopped-intentionally"
+
+# 直近の start が dev / prod どちらだったかを記録する。
+# アプリ別の記録（下記 APP_MODE_DIR）が無い場合のフォールバックとしてのみ使う。
+MODE_STATE="$PROJECT_ROOT/docker/logs/tax-apps-last-start-mode"
+
+# アプリ別のモード記録（1アプリ1ファイル、中身は dev / prod）。
+#
+# 全体モード1つでは足りない。このリポジトリは実際には混在で動いていて、
+# 一部のアプリだけ `cd apps/x && docker compose -f ... -f ...prod.yml up` で
+# 個別に本番起動されている。全体モードだけで recover すると、落ちた本番アプリを
+# dev サーバとして作り直す（あるいはその逆をやる）ことになる。
+#
+# 記録は start 任せにしない。上記のとおり manage.sh を通らない起動があるため、
+# 「動いている今のうちに」実際の状態から採取する（snapshot_app_modes）。
+# 出所は推測ではなく docker compose 自身が付けるラベル
+# com.docker.compose.project.config_files で、起動に使った -f の一覧そのもの。
+APP_MODE_DIR="$PROJECT_ROOT/docker/logs/app-modes"
+
 # 外部ネットワーク名
 NETWORK_NAME="tax-apps-network"
 
-# Windows スケジュールタスク名（register-docker-watchdog-task.ps1 の既定値と一致させる）
+# Windows スケジュールタスク名（各 register-*.ps1 の既定値と一致させること）
+#
+# この2つが自動起動の全経路。ウォッチドッグが「落ちたら直す」係、スタートアップが
+# 「ログオン時に上げる」係で、片方欠けても症状は同じ（起動しない）ので必ず対で見る。
 WATCHDOG_TASK_NAME="Tax Apps Docker Watchdog"
+STARTUP_TASK_NAME="Tax Apps Startup"
+
+# タスクの存在確認。必ずこれを経由すること。
+#
+# `schtasks.exe /Query` を Git Bash から直接呼ぶと壊れる。MSYS は `/` 始まりの
+# 引数をパスとみなして変換するため、`/Query` が `C:/Program Files/Git/Query` に
+# 化け、存在するタスクでも常に「未登録」と判定される。しかも schtasks は
+# 使い方エラーで exit 0 を返すので、素朴な `|| echo 未登録` では気づけない。
+task_exists() {
+  MSYS2_ARG_CONV_EXCL='*' schtasks.exe /Query /TN "$1" >/dev/null 2>&1
+}
 
 # バックアップディレクトリ
 
@@ -69,6 +109,7 @@ APPS=(
   "apps/inheritance-tax-docs"
   "apps/retirement-tax-calc"
   "apps/depreciation-calc"
+  "apps/income-tax-calc"
   "apps/asset-valuation"
   "apps/stock-valuation-form"
   "docker/gateway"
@@ -168,6 +209,85 @@ acquire_operation_lock() {
     err "Lock directory: $LOCK_DIR"
   fi
   return 1
+}
+
+set_stop_marker() {
+  local reason="$1"
+  mkdir -p "$(dirname "$STOP_MARKER")"
+  {
+    echo "reason=$reason"
+    echo "stopped_at=$(date -Is 2>/dev/null || date)"
+  } > "$STOP_MARKER"
+}
+
+clear_stop_marker() {
+  rm -f "$STOP_MARKER"
+}
+
+write_start_mode() {
+  local mode="$1"
+  mkdir -p "$(dirname "$MODE_STATE")"
+  printf '%s\n' "$mode" > "$MODE_STATE"
+}
+
+read_start_mode() {
+  local mode=""
+  [[ -f "$MODE_STATE" ]] && mode=$(tr -d '\r\n' < "$MODE_STATE")
+  case "$mode" in
+    prod|dev) printf '%s\n' "$mode" ;;
+    # 記録が無い場合は dev 扱い。prod のアプリを勝手に dev で作り直すより、
+    # 何もせず status に出す方が安全なので recover 側で未記録を検出する。
+    *) printf '%s\n' "unknown" ;;
+  esac
+}
+
+# 稼働中コンテナから、そのアプリが今どのモードで動いているかを読む。
+# 停止中や判定不能なら空文字（呼び出し側が記録済みの値へフォールバックする）。
+detect_app_mode() {
+  local dir="$1"
+  local cname config_files
+
+  cname=$(docker compose -f "$dir/docker-compose.yml" ps --status running \
+            --format '{{.Name}}' 2>/dev/null | head -1)
+  [[ -z "$cname" ]] && return 0
+
+  config_files=$(docker inspect \
+    -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' \
+    "$cname" 2>/dev/null)
+  [[ -z "$config_files" ]] && return 0
+
+  case "$config_files" in
+    *docker-compose.prod.yml*) printf 'prod\n' ;;
+    *) printf 'dev\n' ;;
+  esac
+}
+
+app_mode_file() {
+  printf '%s/%s\n' "$APP_MODE_DIR" "$(basename "$1")"
+}
+
+read_app_mode() {
+  local f; f=$(app_mode_file "$1")
+  local mode=""
+  [[ -f "$f" ]] && mode=$(tr -d '\r\n' < "$f")
+  case "$mode" in
+    prod|dev) printf '%s\n' "$mode" ;;
+    *) return 0 ;;
+  esac
+}
+
+_snapshot_one_mode() {
+  local dir="$1" _name="$2"
+  local mode; mode=$(detect_app_mode "$dir")
+  [[ -z "$mode" ]] && return 0
+  mkdir -p "$APP_MODE_DIR"
+  printf '%s\n' "$mode" > "$(app_mode_file "$dir")"
+}
+
+# 稼働中のアプリのモードを記録しておく。落ちてからでは調べようがないので、
+# 元気なうちに採取するのが要点。status / recover の両方から毎回呼ぶ。
+snapshot_app_modes() {
+  for_each_app _snapshot_one_mode
 }
 
 print_banner() {
@@ -405,6 +525,9 @@ cmd_start() {
   [[ "${1:-}" == "--prod" ]] && prod_mode=1
   preflight_quick
   ensure_network
+  # 起動を指示した時点で「意図的な停止」は解除する（ウォッチドッグの復旧を再開させる）
+  clear_stop_marker
+  if [[ $prod_mode -eq 1 ]]; then write_start_mode "prod"; else write_start_mode "dev"; fi
   if [[ $prod_mode -eq 1 ]]; then
     log "全アプリを本番モードで起動します..."
   else
@@ -417,14 +540,110 @@ cmd_start() {
 
 cmd_stop() {
   log "全アプリを停止します..."
+  set_stop_marker "manage.sh stop"
   for_each_app_reverse _do_compose_action "stop" "停止"
   log "全アプリを停止しました"
+  warn "再開するまでウォッチドッグの自動復旧は止まります（start で解除）"
 }
 
 cmd_down() {
   log "全アプリを停止・削除します..."
+  set_stop_marker "manage.sh down"
   for_each_app_reverse _do_compose_action "down" "削除"
   log "全アプリを削除しました"
+  warn "再開するまでウォッチドッグの自動復旧は止まります（start で解除）"
+}
+
+# ------------------------------------
+# recover - 落ちているアプリだけを起動し直す（ウォッチドッグ用）
+#
+# start との違いは意図的で、どれもウォッチドッグから15分おきに無人で
+# 呼ばれることに由来する:
+#   - --build しない。再ビルドは数分かかるうえ、dev/prod のイメージを
+#     作り替えて別物を起動してしまう
+#   - 全アプリではなく「サービスが1つでも走っていないアプリ」だけを対象にする
+#   - モードはアプリ単位で、そのアプリが最後に動いていた状態を踏襲する
+#   - 意図的に停止中（stop / down / clean 直後）は何もしない
+# ------------------------------------
+RECOVER_TARGETS=0
+RECOVER_SKIPPED=0
+
+_do_recover() {
+  local dir="$1" name="$2" fallback_mode="$3"
+  local expected running
+
+  expected=$(docker compose -f "$dir/docker-compose.yml" config --services 2>/dev/null | grep -c . || true)
+  running=$(docker compose -f "$dir/docker-compose.yml" ps --status running --services 2>/dev/null | grep -c . || true)
+  expected=${expected:-0}
+  running=${running:-0}
+
+  if [[ "$expected" -eq 0 || "$running" -ge "$expected" ]]; then
+    return 0
+  fi
+
+  # このアプリが最後に動いていたときのモード。無ければ全体モードで代用する。
+  local mode; mode=$(read_app_mode "$dir")
+  local mode_source="記録"
+  if [[ -z "$mode" ]]; then
+    mode="$fallback_mode"
+    mode_source="全体"
+  fi
+
+  # どちらも分からないなら触らない。prod のアプリを dev で作り直す方が、
+  # 落ちたままにしておくより害が大きい。
+  if [[ -z "$mode" || "$mode" == "unknown" ]]; then
+    RECOVER_SKIPPED=$((RECOVER_SKIPPED + 1))
+    warn "  復旧を見送り: $name（モード不明。一度 start すると記録されます）"
+    return 0
+  fi
+
+  RECOVER_TARGETS=$((RECOVER_TARGETS + 1))
+  warn "  復旧: $name（稼働 $running / 定義 $expected・モード $mode［$mode_source］）"
+
+  local compose_files=(-f "$dir/docker-compose.yml")
+  if [[ "$mode" == "prod" && -f "$dir/docker-compose.prod.yml" ]]; then
+    compose_files+=(-f "$dir/docker-compose.prod.yml")
+  fi
+
+  if ! docker compose "${compose_files[@]}" up -d --no-build --remove-orphans; then
+    err "  復旧に失敗しました: $name"
+  fi
+}
+
+# ウォッチドッグがログに残すための1行。ここだけ ASCII で出すのは、
+# 呼び出し側が Windows PowerShell で、日本語のログ行はコンソールの
+# コードページ次第で化けて拾えなくなるため。
+recover_result() {
+  echo "RECOVER_RESULT status=$1 recovered=$2 skipped=$3"
+}
+
+cmd_recover() {
+  if [[ -f "$STOP_MARKER" ]]; then
+    log "意図的な停止中のため復旧しません（解除するには start）"
+    sed 's/^/  /' "$STOP_MARKER" 2>/dev/null || true
+    recover_result "stopped-intentionally" 0 0
+    return 0
+  fi
+
+  preflight_quick || return 1
+
+  # 復旧の前に、今動いているアプリのモードを採取しておく。次に落ちたときの
+  # 判断材料はこれしかない（落ちてからでは調べようがない）。
+  snapshot_app_modes
+
+  ensure_network
+  RECOVER_TARGETS=0
+  RECOVER_SKIPPED=0
+  for_each_app _do_recover "$(read_start_mode)"
+
+  if [[ $RECOVER_TARGETS -eq 0 ]]; then
+    log "復旧が必要なアプリはありません"
+  else
+    log "$RECOVER_TARGETS 件のアプリを復旧しました"
+  fi
+  [[ $RECOVER_SKIPPED -gt 0 ]] && warn "$RECOVER_SKIPPED 件はモード不明のため見送りました"
+
+  recover_result "ok" "$RECOVER_TARGETS" "$RECOVER_SKIPPED"
 }
 
 cmd_restart() {
@@ -493,14 +712,45 @@ _print_autoheal_status() {
   echo "自動復旧（ウォッチドッグ）:"
 
   if command -v schtasks.exe >/dev/null 2>&1; then
-    if schtasks.exe /Query /TN "$WATCHDOG_TASK_NAME" >/dev/null 2>&1; then
-      echo "  スケジュールタスク: 登録済み（$WATCHDOG_TASK_NAME）"
+    if task_exists "$WATCHDOG_TASK_NAME"; then
+      echo "  復旧タスク（15分毎）: 登録済み（$WATCHDOG_TASK_NAME）"
     else
-      echo "  スケジュールタスク: ★未登録 — unhealthy でも自動再起動されません"
-      echo "    登録: docker/scripts/register-docker-watchdog-task.bat をダブルクリック（UAC昇格）"
+      echo "  復旧タスク（15分毎）: ★未登録 — 停止しても unhealthy でも自動復旧されません"
+      echo "    登録: docker/scripts/register-docker-watchdog-task.bat をダブルクリック"
+    fi
+
+    if task_exists "$STARTUP_TASK_NAME"; then
+      echo "  起動タスク（ログオン時）: 登録済み（$STARTUP_TASK_NAME）"
+    else
+      echo "  起動タスク（ログオン時）: ★未登録 — 再起動後は最大15分間アプリが上がりません"
+      echo "    登録: docker/scripts/register-startup-task.bat をダブルクリック"
     fi
   else
     echo "  スケジュールタスク: 確認不可（schtasks.exe が見つかりません）"
+  fi
+
+  if [ -f "$STOP_MARKER" ]; then
+    echo "  復旧の一時停止: ★有効 — 意図的な停止中とみなして復旧しません"
+    sed 's/^/    /' "$STOP_MARKER" 2>/dev/null || true
+    echo "    解除: manage.sh start（または start-prod.bat）"
+  fi
+
+  # モードの記録が無いアプリは、落ちても recover が見送る。ウォッチドッグが
+  # 登録済みでもそのアプリだけ実質無防備なので、ここに出しておく。
+  snapshot_app_modes
+  local unrecorded="" _dir
+  for _dir in "${APPS[@]}"; do
+    [[ -d "$PROJECT_ROOT/$_dir" ]] || continue
+    if [[ -z "$(read_app_mode "$PROJECT_ROOT/$_dir")" ]]; then
+      unrecorded="$unrecorded $(basename "$_dir")"
+    fi
+  done
+
+  if [ -n "$unrecorded" ]; then
+    echo "  モード未記録:★$unrecorded"
+    echo "    （このアプリが落ちても復旧されません。一度起動すれば記録されます）"
+  else
+    echo "  アプリ別モード: 全アプリ記録済み（$APP_MODE_DIR）"
   fi
 
   local unlabeled=""
@@ -642,6 +892,7 @@ cmd_clean() {
 
   echo ""
   echo "コンテナを停止・削除しています..."
+  set_stop_marker "manage.sh clean"
   for_each_app_reverse _do_clean_app
   echo ""
   ok "コンテナ・イメージを削除しました"
@@ -891,10 +1142,37 @@ cmd_preflight() {
     ((++pf_warn))
   fi
 
+  # 8. Watchdog scheduled task
+  #
+  # 未登録でも起動そのものは通るので、これは警告に留める。ただし未登録の間は
+  # Docker が落ちても停止したコンテナがあっても誰も直さないため、preflight と
+  # status の両方から見えるようにしておく（過去に数ヶ月間気づかなかった）。
+  if command -v schtasks.exe >/dev/null 2>&1; then
+    if task_exists "$WATCHDOG_TASK_NAME"; then
+      ok "Docker watchdog task is registered"
+      ((++pf_ok))
+    else
+      warn "Docker watchdog task is NOT registered: $WATCHDOG_TASK_NAME"
+      echo "  Register it: docker/scripts/register-docker-watchdog-task.bat"
+      ((++pf_warn))
+    fi
+
+    if task_exists "$STARTUP_TASK_NAME"; then
+      ok "Logon startup task is registered"
+      ((++pf_ok))
+    else
+      warn "Logon startup task is NOT registered: $STARTUP_TASK_NAME"
+      echo "  Register it: docker/scripts/register-startup-task.bat"
+      ((++pf_warn))
+    fi
+  fi
+
   # 9. Port conflicts
   local port_conflict=0
   local tax_apps_ports=()
-  local ports=(80 3000 3001 3002 3003 3004 3007 3010 3012 3013 3014 3015 3017 3020 3022 5432)
+  # 実際に host へ publish しているポートに合わせること。ここに載っていない
+  # ポートの競合は preflight を素通りし、起動時に初めて bind 失敗として出る。
+  local ports=(80 3000 3001 3002 3003 3004 3007 3010 3013 3014 3015 3016 3017 3018 3020 3022 3025 3026 3030)
   for p in "${ports[@]}"; do
     local owner
     if owner=$(tax_apps_container_for_port "$p"); then
@@ -977,13 +1255,14 @@ check_dependencies
 
 COMMAND="${1:-help}"
 case "$COMMAND" in
-  start|stop|down|restart|build|clean|clean-cache)
+  start|stop|down|restart|build|clean|clean-cache|recover)
     acquire_operation_lock "$COMMAND"
     ;;
 esac
 
 case "$COMMAND" in
   start)     cmd_start "${2:-}" ;;
+  recover)   cmd_recover ;;
   stop)      cmd_stop ;;
   down)      cmd_down ;;
   restart)   cmd_restart "${2:-}" ;;
@@ -999,11 +1278,12 @@ case "$COMMAND" in
   clean-cache) cmd_clean_cache "${2:-}" ;;
   preflight) cmd_preflight ;;
   *)
-    echo "Usage: $0 {start|stop|down|restart|build|watch|logs|status|backup|restore|verify|drill|clean|clean-cache|preflight} [app-name]"
+    echo "Usage: $0 {start|recover|stop|down|restart|build|watch|logs|status|backup|restore|verify|drill|clean|clean-cache|preflight} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start              全アプリを起動（ネットワーク自動作成）"
     echo "  start --prod       全アプリを本番モードで起動"
+    echo "  recover            落ちているアプリだけを起動し直す（ウォッチドッグ用・再ビルドなし）"
     echo "  stop               全アプリを停止"
     echo "  down               全アプリを停止してコンテナ削除"
     echo "  restart <app>      指定アプリのみ再起動"

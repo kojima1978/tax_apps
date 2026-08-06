@@ -4,8 +4,14 @@ param(
     [int]$RetryDelaySeconds = 10,
     [int]$CooldownMinutes = 45,
     [int]$MaxRecoverySeconds = 300,
-    [switch]$StartAppsAfterRecovery,
+    [int]$AppRecoveryTimeoutSeconds = 600,
+    [switch]$SkipAppRecovery,
     [switch]$SkipContainerHealthRecovery,
+    # Used by the logon task. Right after logon, Docker Desktop is usually mid-startup
+    # rather than broken, so killing it and restarting WSL - what the periodic run does -
+    # would only make the first boot slower and flakier. In this mode we start Docker
+    # Desktop only if it is not running at all, then simply wait.
+    [switch]$StartupMode,
     [switch]$DryRun
 )
 
@@ -163,6 +169,97 @@ function Test-DockerHealthy {
     }
     Write-WatchdogLog "WARN" $message
     return $false
+}
+
+# Starts containers that are not running.
+#
+# This targets something completely different from the unhealthy-restart below:
+# "docker ps" only ever returns running containers, so exited / created /
+# removed ones can never be picked up there. "It did not come up" is almost
+# always that state, so starting is delegated to manage.sh recover.
+#
+# manage.sh recover is built for being called here unattended every 15 minutes:
+#   - never rebuilds / only touches apps that are down / keeps the last dev-prod mode
+#   - does nothing right after stop, down or clean (an intentional shutdown)
+#
+# NOTE: keep this file ASCII-only. Windows PowerShell 5.1 reads a .ps1 without a
+# BOM using the ANSI code page (932 here), so UTF-8 Japanese text breaks parsing.
+function Invoke-TaxAppsRecovery {
+    if ($SkipAppRecovery) {
+        return
+    }
+
+    $manageBat = Join-Path $ScriptDir "manage.bat"
+    if (-not (Test-Path -LiteralPath $manageBat)) {
+        Write-WatchdogLog "WARN" "manage.bat not found; app recovery skipped."
+        return
+    }
+
+    if ($DryRun) {
+        Write-WatchdogLog "INFO" "DryRun is enabled; app recovery skipped."
+        return
+    }
+
+    $oldNoPause = $env:TAX_APPS_NO_PAUSE
+    try {
+        # manage.bat pauses by default; always suppress that for unattended runs.
+        $env:TAX_APPS_NO_PAUSE = "1"
+        $result = Invoke-ProcessWithTimeout `
+            -FilePath $manageBat `
+            -ArgumentList @("recover") `
+            -TimeoutSeconds $AppRecoveryTimeoutSeconds
+
+        if ($result.TimedOut) {
+            Write-WatchdogLog "WARN" "manage.bat recover timed out after ${AppRecoveryTimeoutSeconds}s."
+            return
+        }
+
+        # While a manual start / stop is running, manage.sh rejects this via its
+        # operation lock. That is not a fault; leave it to the next run.
+        if ($result.ExitCode -ne 0) {
+            $message = ($result.StdErr | Out-String).Trim()
+            if ([string]::IsNullOrWhiteSpace($message)) {
+                $message = "manage.bat recover exited with code $($result.ExitCode)."
+            }
+            Write-WatchdogLog "WARN" $message
+            return
+        }
+
+        # manage.sh recover prints one ASCII summary line for exactly this.
+        # Matching its Japanese log lines would depend on the console code page.
+        $stdout = ($result.StdOut | Out-String)
+        $sawSummary = $false
+        foreach ($line in ($stdout -split "`r?`n")) {
+            if ($line -notmatch 'RECOVER_RESULT\s+(.+)$') { continue }
+            $sawSummary = $true
+            $summary = $Matches[1].Trim()
+
+            # "ok recovered=0 skipped=0" is the normal quiet case - everything was
+            # already up - and logging it every 15 minutes would bury the lines that
+            # matter. Anything else means an app was down: either it got started
+            # (INFO) or it was left down (WARN). Being left down silently is exactly
+            # the state that went unnoticed for three months.
+            if ($summary -notmatch 'status=ok\b') {
+                Write-WatchdogLog "WARN" "manage.sh recover did not run: $summary"
+            }
+            elseif ($summary -notmatch 'skipped=0\b') {
+                Write-WatchdogLog "WARN" "manage.sh recover left apps down: $summary"
+            }
+            elseif ($summary -match 'recovered=0\b') {
+                Write-Verbose "manage.sh recover: $summary"
+            }
+            else {
+                Write-WatchdogLog "INFO" "manage.sh recover: $summary"
+            }
+        }
+
+        if (-not $sawSummary) {
+            Write-WatchdogLog "WARN" "manage.bat recover produced no RECOVER_RESULT line."
+        }
+    }
+    finally {
+        $env:TAX_APPS_NO_PAUSE = $oldNoPause
+    }
 }
 
 function Restart-UnhealthyTaxAppsContainers {
@@ -333,6 +430,30 @@ function Restart-DockerDesktop {
     Write-WatchdogLog "INFO" "Docker Desktop start requested."
 }
 
+# Startup-mode counterpart of Restart-DockerDesktop: launch Docker Desktop when it is
+# not running, and otherwise keep hands off. No process kill, no "wsl --shutdown", and
+# no cooldown state is written - a slow first boot must not consume the periodic run's
+# restart budget.
+function Start-DockerDesktopIfStopped {
+    if (Get-Process -Name "Docker Desktop" -ErrorAction SilentlyContinue) {
+        Write-WatchdogLog "INFO" "Docker Desktop is already running; waiting for the engine."
+        return
+    }
+
+    $desktopExe = Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe"
+    if (-not (Test-Path -LiteralPath $desktopExe)) {
+        throw "Docker Desktop.exe was not found: $desktopExe"
+    }
+
+    if ($DryRun) {
+        Write-WatchdogLog "INFO" "DryRun is enabled; Docker Desktop start skipped."
+        return
+    }
+
+    Start-DetachedProcess -FilePath $desktopExe
+    Write-WatchdogLog "INFO" "Docker Desktop start requested (startup mode)."
+}
+
 function Wait-DockerRecovery {
     param([string]$DockerCli)
 
@@ -347,36 +468,16 @@ function Wait-DockerRecovery {
     return $false
 }
 
-function Start-TaxAppsAfterRecovery {
-    if (-not $StartAppsAfterRecovery) {
-        return
-    }
+# Recovery has two stages, and the order matters:
+#   1. Invoke-TaxAppsRecovery             - start containers that are not running
+#   2. Restart-UnhealthyTaxAppsContainers - restart ones that run but are unhealthy
+# Stage 2 does not act on what stage 1 just started (health is "starting" during
+# start_period, so they are not matched); those are picked up on the next run.
+function Invoke-TaxAppsRecoverySequence {
+    param([string]$DockerCli)
 
-    $manageBat = Join-Path $ScriptDir "manage.bat"
-    if (-not (Test-Path -LiteralPath $manageBat)) {
-        Write-WatchdogLog "WARN" "manage.bat not found; Tax Apps start skipped."
-        return
-    }
-
-    Write-WatchdogLog "INFO" "Starting Tax Apps in prod mode after Docker recovery."
-    $oldNoPause = $env:TAX_APPS_NO_PAUSE
-    try {
-        $env:TAX_APPS_NO_PAUSE = "1"
-        $result = Invoke-ProcessWithTimeout `
-            -FilePath $manageBat `
-            -ArgumentList @("start", "--prod") `
-            -TimeoutSeconds 900
-
-        if ($result.ExitCode -eq 0) {
-            Write-WatchdogLog "INFO" "Tax Apps start completed."
-        }
-        else {
-            Write-WatchdogLog "WARN" "Tax Apps start exited with code $($result.ExitCode)."
-        }
-    }
-    finally {
-        $env:TAX_APPS_NO_PAUSE = $oldNoPause
-    }
+    Invoke-TaxAppsRecovery
+    Restart-UnhealthyTaxAppsContainers -DockerCli $DockerCli
 }
 
 Enter-WatchdogLock
@@ -385,7 +486,7 @@ try {
     Write-WatchdogLog "INFO" "Checking Docker daemon. DockerCli=$dockerCli"
 
     if (Test-DockerHealthy -DockerCli $dockerCli) {
-        Restart-UnhealthyTaxAppsContainers -DockerCli $dockerCli
+        Invoke-TaxAppsRecoverySequence -DockerCli $dockerCli
         exit 0
     }
 
@@ -393,7 +494,22 @@ try {
     Start-Sleep -Seconds $RetryDelaySeconds
 
     if (Test-DockerHealthy -DockerCli $dockerCli) {
-        Restart-UnhealthyTaxAppsContainers -DockerCli $dockerCli
+        Invoke-TaxAppsRecoverySequence -DockerCli $dockerCli
+        exit 0
+    }
+
+    if ($StartupMode) {
+        Start-DockerDesktopIfStopped
+
+        if (Wait-DockerRecovery -DockerCli $dockerCli) {
+            Invoke-TaxAppsRecoverySequence -DockerCli $dockerCli
+            exit 0
+        }
+
+        # Deliberately exit 0: the periodic run happens every 15 minutes and is the one
+        # allowed to escalate to a full restart. Failing the logon task here would only
+        # show a red task in Task Scheduler for a machine that recovers on its own.
+        Write-WatchdogLog "WARN" "Docker did not become healthy within ${MaxRecoverySeconds}s at logon; leaving it to the periodic run."
         exit 0
     }
 
@@ -408,8 +524,7 @@ try {
     }
 
     if (Wait-DockerRecovery -DockerCli $dockerCli) {
-        Start-TaxAppsAfterRecovery
-        Restart-UnhealthyTaxAppsContainers -DockerCli $dockerCli
+        Invoke-TaxAppsRecoverySequence -DockerCli $dockerCli
         exit 0
     }
 
