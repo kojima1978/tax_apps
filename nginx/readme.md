@@ -99,7 +99,6 @@ nginx/
 | `/depreciation-calc/` | `depreciation-calc:3015` | 減価償却計算 (Vite) |
 | `/asset-valuation/` | `asset-valuation:3017` | 減価償却資産評価 (Vite) |
 | `/stock-valuation-form/` | `stock-valuation-form:3014` | 株式評価明細書 (Vite) |
-| `/income-tax-calc/` | `income-tax-calc:3018` | 所得税計算 (Vite) |
 | `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Django + PostgreSQL) |
 | `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API |
 | `/bank-analyzer/static/` | `bank-analyzer:3007` | 銀行分析 静的ファイル |

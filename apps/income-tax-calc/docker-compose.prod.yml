@@ -1,4 +1,0 @@
-services:
-  income-tax-calc:
-    # Keep the dev target while the app is under active development.
-    init: false

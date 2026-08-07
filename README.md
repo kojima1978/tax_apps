@@ -26,7 +26,6 @@
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
 | 減価償却資産評価 | `/asset-valuation/` | http://localhost/asset-valuation/ | 3017 | Vite + React | 相続税申告の減価償却資産評価 |
 | 株式評価明細書 | `/stock-valuation-form/` | http://localhost/stock-valuation-form/ | 3014 | Vite + React | 取引相場のない株式の評価明細書 |
-| 所得税計算 | `/income-tax-calc/` | http://localhost/income-tax-calc/ | 3018 | Vite + React | 所得税計算ツール |
 | 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 預金移動分析 |
 
 ### 本番モード イメージサイズ
@@ -47,7 +46,6 @@ tax_apps/
 │   ├── inheritance-tax-app/           # 相続税計算 (Vite)
 │   ├── gift-tax-simulator/            # 贈与税計算 (Vite)
 │   ├── retirement-tax-calc/           # 退職金税額計算 (Vite)
-│   ├── income-tax-calc/               # 所得税計算 (Vite)
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
 │   ├── insurance-app/                 # 保険管理 (Next.js)
 │   ├── tax-docs/                      # 確定申告必要書類 (Vite)

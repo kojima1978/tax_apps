@@ -325,7 +325,6 @@ docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-anal
 | Asset Valuation | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
 | Stock Valuation Form | `runner` | nginx:1.27-alpine | あり |
-| Income Tax Calc | 全体本番ビルド対象外 | 開発中のため個別 Compose で起動 | あり |
 | Bank Analyzer | `production` | Gunicorn | なし（`--profile production` で起動） |
 | ITCM | `runner` | Node.js standalone + tini | あり |
 
@@ -673,7 +672,6 @@ docker network create tax-apps-network
 | Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書 |
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
 | Asset Valuation | http://localhost/asset-valuation/ | 3017 | Vite | 減価償却資産評価 |
-| Income Tax Calc | http://localhost/income-tax-calc/ | 3018 | Vite | 所得税計算（個別起動のみ・全体管理対象外） |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
 
 ### バックエンドサービス
@@ -722,7 +720,6 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3015 | Depreciation Calc | apps/depreciation-calc |
 | 3017 | Asset Valuation | apps/asset-valuation |
-| 3018 | Income Tax Calc | apps/income-tax-calc（個別起動のみ） |
 | 3020 | ITCM Web | apps/inheritance-case-management |
 | 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
 
@@ -735,7 +732,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | docker-compose.yml ファイル存在確認（14個、income-tax-calc 除外） | OK / WARN |
+| 3 | docker-compose.yml ファイル存在確認（`APPS` 配列の全14件） | OK / WARN |
 | 4 | Compose config 検証 | OK / WARN |
 | 5 | Nginx 設定ファイル存在確認 | OK / WARN |
 | 6 | ITCM `.env` ファイル存在確認 | OK / WARN |
@@ -833,8 +830,6 @@ tax_apps/
 │   ├── stock-valuation-form/   # 株式評価明細書
 │   │   ├── docker-compose.yml
 │   │   └── docker-compose.prod.yml
-│   ├── income-tax-calc/        # 所得税計算
-│   │   └── docker-compose.yml
 │   └── bank-analyzer-django/   # 銀行分析
 │       ├── data/               #   アップロードデータ（バインドマウント）
 │       └── docker-compose.yml  #   PostgreSQL + Django + テスト

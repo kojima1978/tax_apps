@@ -26,7 +26,7 @@ Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh`) の技�
 
 ### 目的
 
-複数の独立した Docker Compose プロジェクト（13管理対象アプリ + 個別起動の income-tax-calc）を統合管理するオーケストレーションスクリプト。
+複数の独立した Docker Compose プロジェクト（13管理対象アプリ + gateway）を統合管理するオーケストレーションスクリプト。
 
 ### 設計方針
 
@@ -125,6 +125,7 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 | 3.3 | `restore` 前に `pre-restore` バックアップを自動作成。`clean` Step 2 は `DELETE DATA` 入力必須に変更 |
 | 3.4 | salary-calc を削除。manage.sh、Nginx、ポータル、Docker docs から参照を削除 |
 | 3.5 | `watch` コマンド追加（private-banking / inheritance-case-management の bind mount 廃止に伴う compose watch 対応）。`status` の末尾に自動復旧（ウォッチドッグ）の配線チェックを追加。`WATCHDOG_TASK_NAME` 定数を追加 |
+| 3.6 | income-tax-calc を削除。manage.sh、Nginx、ポータル、Docker docs から参照を削除 |
 
 ---
 
@@ -636,7 +637,7 @@ manage.sh の `resolve_app_dir()` では、部分一致で複数件ヒットし�
 |:--|:--------|:-----|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR (致命的) | `docker info` |
 | 2 | docker compose コマンド確認 | ERROR (致命的) | `docker compose version` |
-| 3 | docker-compose.yml 存在確認 (14個) | WARN | `income-tax-calc` を除く管理対象の `docker-compose.yml` 存在チェック |
+| 3 | docker-compose.yml 存在確認 (14個) | WARN | `APPS` 配列全件の `docker-compose.yml` 存在チェック |
 | 4 | Compose config 検証 | WARN | base + prod override がある場合は両方を `docker compose config --quiet` で検証 |
 | 5 | Nginx 設定ファイル確認 | WARN | `nginx.conf`, `default.conf`, `upstreams.conf`, `maps.conf`, `proxy_params.conf` |
 | 6 | ITCM `.env` 確認 | WARN | ファイル存在チェック（`.env.example` からのコピーを案内） |
@@ -687,7 +688,7 @@ All checks passed!
 | `NETWORK_NAME` | `tax-apps-network` | 外部ネットワーク名 |
 | `WATCHDOG_TASK_NAME` | `Tax Apps Docker Watchdog` | Windows スケジュールタスク名（`register-docker-watchdog-task.ps1` の `$TaskName` 既定値と一致させること） |
 | `BACKUP_BASE` | `$SCRIPT_DIR/../backups` | バックアップベースディレクトリ |
-| `APPS` | 配列 (13要素) | `income-tax-calc` を除く管理対象アプリパス一覧 |
+| `APPS` | 配列 (14要素) | 管理対象アプリパス一覧 + `docker/gateway` |
 | `VOLUMES` | 配列 (5要素) | データボリューム一覧 |
 | `PG_TARGETS` | 配列 (2要素) | PostgreSQL バックアップ/リストア対象定義（コロン区切り） |
 | `SQLITE_TARGETS` | 配列 (3要素) | SQLite バックアップ/リストア対象定義 |

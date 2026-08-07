@@ -61,7 +61,6 @@ app/
 | 贈与税計算 | /gift-tax-simulator/ | 贈与税計算・早見表・不動産取得税 |
 | 医療法人株式評価 | /medical/ | 医療法人の株式評価システム |
 | 保険管理 | /insurance/ | 保険証券の管理・分析 |
-| 所得税計算 | /income-tax-calc/ | 確定申告書に沿って所得税・住民税を計算 |
 | 退職金税額計算 | /retirement-tax-calc/ | 退職金の所得税・住民税を計算 |
 | 減価償却ツール | /depreciation-calc/ | 耐用年数・簿価・期間償却を計算 |
 | 減価償却資産評価 | /asset-valuation/ | 相続税の減価償却資産を一括評価 |

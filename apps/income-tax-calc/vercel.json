@@ -1,5 +1,0 @@
-{
-  "framework": "vite",
-  "buildCommand": "tsc -b && vite build --base /",
-  "outputDirectory": "dist"
-}

@@ -109,7 +109,6 @@ APPS=(
   "apps/inheritance-tax-docs"
   "apps/retirement-tax-calc"
   "apps/depreciation-calc"
-  "apps/income-tax-calc"
   "apps/asset-valuation"
   "apps/stock-valuation-form"
   "docker/gateway"
