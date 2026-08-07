@@ -60,15 +60,21 @@ docker/scripts/manage.sh watch <app-name>
 `stop.bat` を一度でも押すと以降のデーモン再起動では二度と復帰しない。タスクは2つで対になっている:
 
 - **`Tax Apps Startup`**（ログオン時・`register-startup-task.bat`）: Docker エンジンの起動を待ってから復旧
-- **`Tax Apps Docker Watchdog`**（15分毎・`register-docker-watchdog-task.bat`）: 落ちたら直す係
+- **`Tax Apps Docker Watchdog`**（毎日 8:00 / 20:00・`register-docker-watchdog-task.bat`）: 落ちたら直す係
 
 どちらも**昇格不要**（`RunLevel Limited`）。以前は UAC 必須だったが、それが原因で
 一度消えると管理者ダブルクリックでしか戻せず、**実際に2回消えて数ヶ月間無防備だった**。
 さらに `backup.sh` が毎日の実行時に両タスクの存在を確認し、消えていれば自動で再登録する。
 
 - 復旧の実体は `manage.sh recover`。起動ロジックを PowerShell 側に複製せず、
-  `APPS` 配列を唯一の定義元に保つ。`start` との違いは無人で15分毎に呼ばれる前提から来る:
+  `APPS` 配列を唯一の定義元に保つ。`start` との違いは無人で定期的に呼ばれる前提から来る:
   **再ビルドしない / 落ちているアプリだけ / モードを踏襲 / 意図的な停止中は何もしない**
+- **実行間隔は「1日2回の固定時刻」**（`register-docker-watchdog-task.ps1` の `$DailyTimes`）。
+  `-Once + RepetitionInterval` を使わないのは、繰り返し間隔が「登録した瞬間」を起点にするため。
+  `backup.sh` はタスク消失時に引数なしで自動再登録するので、その方式だと再登録のたびに
+  実行時刻が深夜などへ勝手にずれる。Daily トリガーなら常に同じ時刻に落ちる。
+  **間隔を変えるときは `$DailyTimes` の既定値を直すこと** — 登録済みタスクだけ変更しても、
+  次に `backup.sh` が再登録した時点で既定値に戻る
 - **モードはアプリ単位で記録する**（`docker/logs/app-modes/`）。このリポジトリは実際には
   混在稼働していて、一部のアプリだけ個別に `-f docker-compose.prod.yml` 付きで起動されている。
   全体で1つのモードにすると、落ちた本番アプリを dev サーバとして作り直してしまう。

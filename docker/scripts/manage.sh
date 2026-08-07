@@ -557,8 +557,8 @@ cmd_down() {
 # ------------------------------------
 # recover - 落ちているアプリだけを起動し直す（ウォッチドッグ用）
 #
-# start との違いは意図的で、どれもウォッチドッグから15分おきに無人で
-# 呼ばれることに由来する:
+# start との違いは意図的で、どれもウォッチドッグから無人で（1日2回＋
+# ログオン時に）呼ばれることに由来する:
 #   - --build しない。再ビルドは数分かかるうえ、dev/prod のイメージを
 #     作り替えて別物を起動してしまう
 #   - 全アプリではなく「サービスが1つでも走っていないアプリ」だけを対象にする
@@ -713,16 +713,16 @@ _print_autoheal_status() {
 
   if command -v schtasks.exe >/dev/null 2>&1; then
     if task_exists "$WATCHDOG_TASK_NAME"; then
-      echo "  復旧タスク（15分毎）: 登録済み（$WATCHDOG_TASK_NAME）"
+      echo "  復旧タスク（1日2回 8:00/20:00）: 登録済み（$WATCHDOG_TASK_NAME）"
     else
-      echo "  復旧タスク（15分毎）: ★未登録 — 停止しても unhealthy でも自動復旧されません"
+      echo "  復旧タスク（1日2回 8:00/20:00）: ★未登録 — 停止しても unhealthy でも自動復旧されません"
       echo "    登録: docker/scripts/register-docker-watchdog-task.bat をダブルクリック"
     fi
 
     if task_exists "$STARTUP_TASK_NAME"; then
       echo "  起動タスク（ログオン時）: 登録済み（$STARTUP_TASK_NAME）"
     else
-      echo "  起動タスク（ログオン時）: ★未登録 — 再起動後は最大15分間アプリが上がりません"
+      echo "  起動タスク（ログオン時）: ★未登録 — 再起動後は次の定期実行（最大12時間後）までアプリが上がりません"
       echo "    登録: docker/scripts/register-startup-task.bat をダブルクリック"
     fi
   else

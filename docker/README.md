@@ -157,9 +157,9 @@ rd /s /q tax_apps
 | `status.bat` | Windows (CMD) | ワンクリックで状態確認 |
 | `docker-watchdog.ps1` | Windows PowerShell | Docker Desktop の応答確認・自動再起動・unhealthy コンテナ再起動 |
 | `docker-watchdog.bat` | Windows (CMD) | 手動実行用の watchdog ラッパー（`-DryRun` 等の動作確認用。タスクスケジューラからは `.ps1` が直接呼ばれる） |
-| `register-docker-watchdog-task.ps1` | Windows PowerShell | 15分ごとの Docker watchdog タスクを登録（`-Unregister` で解除） |
-| `register-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク登録の自己昇格ラッパー（ダブルクリックで UAC 昇格 → 登録） |
-| `unregister-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク解除の自己昇格ラッパー（ダブルクリックで UAC 昇格 → 解除） |
+| `register-docker-watchdog-task.ps1` | Windows PowerShell | Docker watchdog タスクを登録（既定 1日2回 8:00/20:00、`-Unregister` で解除） |
+| `register-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク登録のラッパー（ダブルクリックで登録。昇格不要） |
+| `unregister-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク解除のラッパー（ダブルクリックで解除。昇格不要） |
 
 > **前提**: [Git for Windows](https://gitforwindows.org/) がインストールされていること（`bash` コマンドが必要）。
 
@@ -498,20 +498,20 @@ backup-db.bat                              # Windows補助。ダブルクリッ�
 
 > OneDrive等の同期フォルダに保存する場合は、`backup.sh` 実行時に `BACKUP_BASE` または `LATEST_BACKUP_BASE` を指定してください。
 
-### Docker Desktop Watchdog（15分監視）
+### Docker Desktop Watchdog（1日2回 8:00 / 20:00）
 
 Docker Desktop 自体がクラッシュ、または `docker info` に応答しない状態になった場合に、Docker Desktop の再起動を試みる watchdog を用意しています。
 
-**かんたん登録（推奨）**: `register-docker-watchdog-task.bat` をダブルクリック → UAC で「はい」をクリックするだけ。
+**かんたん登録（推奨）**: `register-docker-watchdog-task.bat` をダブルクリックするだけ（昇格不要）。
 
-**手動登録**（管理者 PowerShell から実行）:
+**手動登録**:
 
 ```powershell
 cd C:\Users\sashi\Desktop\dev\tax_apps\docker\scripts
 powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-task.ps1
 ```
 
-**かんたん解除**: `unregister-docker-watchdog-task.bat` をダブルクリック → UAC で「はい」をクリックするだけ。
+**かんたん解除**: `unregister-docker-watchdog-task.bat` をダブルクリックするだけ（昇格不要）。
 
 **手動解除**:
 
@@ -519,15 +519,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-t
 powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-task.ps1 -Unregister
 ```
 
-> スクリプト冒頭で管理者権限を検証するため、非管理者で実行するとエラーになります。
+> 昇格は不要です（`RunLevel=Limited`）。以前は管理者権限を必須にしていましたが、タスクが消えたときに管理者ダブルクリックでしか戻せず、実際に2度消えて長期間無防備になったため廃止しました。
 
 登録されるタスクの既定値:
 
 | 項目 | 内容 |
 |:-----|:-----|
 | タスク名 | `Tax Apps Docker Watchdog` |
-| 実行間隔 | 15分ごと |
-| 実行条件 | ログオン中の現在ユーザーで実行（`RunLevel=Highest` で管理者権限） |
+| 実行時刻 | 毎日 8:00 / 20:00（`-DailyTimes "06:00","18:00"` のように変更可）。PC 停止中に時刻を跨いだ場合は `StartWhenAvailable` で次の機会に実行 |
+| 実行条件 | ログオン中の現在ユーザーで実行（`RunLevel=Limited` で昇格不要） |
 | 多重起動 | 新しいインスタンスを開始しない |
 | ログ | `docker\logs\docker-watchdog.log` |
 | 状態ファイル | `docker\logs\docker-watchdog.state.json`（直近の再起動時刻を記録） |
@@ -857,7 +857,7 @@ tax_apps/
 │   │   ├── docker-watchdog.ps1 #   Docker Desktop 監視/復旧本体
 │   │   ├── docker-watchdog.bat #   watchdog Windows 補助ラッパー
 │   │   ├── register-docker-watchdog-task.ps1 #  タスクスケジューラ登録
-│   │   └── register-docker-watchdog-task.bat #  タスク登録の自己昇格ラッパー（UAC 昇格→登録）
+│   │   └── register-docker-watchdog-task.bat #  タスク登録ラッパー（昇格不要）
 │   ├── specs/                  # 仕様書
 │   │   └── manage-script-spec.md #  管理スクリプト仕様書
 │   ├── backups/                # バックアップ保存先（git管理外）

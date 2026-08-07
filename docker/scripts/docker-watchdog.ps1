@@ -178,7 +178,7 @@ function Test-DockerHealthy {
 # removed ones can never be picked up there. "It did not come up" is almost
 # always that state, so starting is delegated to manage.sh recover.
 #
-# manage.sh recover is built for being called here unattended every 15 minutes:
+# manage.sh recover is built for being called here unattended (twice a day):
 #   - never rebuilds / only touches apps that are down / keeps the last dev-prod mode
 #   - does nothing right after stop, down or clean (an intentional shutdown)
 #
@@ -235,7 +235,7 @@ function Invoke-TaxAppsRecovery {
             $summary = $Matches[1].Trim()
 
             # "ok recovered=0 skipped=0" is the normal quiet case - everything was
-            # already up - and logging it every 15 minutes would bury the lines that
+            # already up - and logging it on every run would bury the lines that
             # matter. Anything else means an app was down: either it got started
             # (INFO) or it was left down (WARN). Being left down silently is exactly
             # the state that went unnoticed for three months.
@@ -473,6 +473,9 @@ function Wait-DockerRecovery {
 #   2. Restart-UnhealthyTaxAppsContainers - restart ones that run but are unhealthy
 # Stage 2 does not act on what stage 1 just started (health is "starting" during
 # start_period, so they are not matched); those are picked up on the next run.
+# Since the periodic task now runs only twice a day, "the next run" is up to half
+# a day away: a container that starts but never turns healthy stays that way
+# until then. The logon task is the other chance to catch it.
 function Invoke-TaxAppsRecoverySequence {
     param([string]$DockerCli)
 
@@ -506,7 +509,7 @@ try {
             exit 0
         }
 
-        # Deliberately exit 0: the periodic run happens every 15 minutes and is the one
+        # Deliberately exit 0: the periodic run (daily at 08:00 / 20:00) is the one
         # allowed to escalate to a full restart. Failing the logon task here would only
         # show a red task in Task Scheduler for a machine that recovers on its own.
         Write-WatchdogLog "WARN" "Docker did not become healthy within ${MaxRecoverySeconds}s at logon; leaving it to the periodic run."
