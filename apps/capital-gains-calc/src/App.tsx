@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Header from "./components/Header";
+import MinimumTaxSection from "./components/MinimumTaxSection";
 import PrintFooter from "./components/PrintFooter";
 import RealEstateForm from "./components/RealEstateForm";
 import RealEstateResultView from "./components/RealEstateResult";
@@ -8,6 +9,7 @@ import SecuritiesForm from "./components/SecuritiesForm";
 import SecuritiesResultView from "./components/SecuritiesResult";
 import TabNav from "./components/TabNav";
 import { CalculatorIcon } from "./components/Icons";
+import { useMinimumTax } from "./hooks/useMinimumTax";
 import { useRealEstateForm } from "./hooks/useRealEstateForm";
 import { useSecuritiesForm } from "./hooks/useSecuritiesForm";
 import { TABS, type TabKey } from "./lib/tabs";
@@ -16,6 +18,17 @@ const App = () => {
     const [tab, setTab] = useState<TabKey>("real-estate");
     const realEstate = useRealEstateForm();
     const securities = useSecuritiesForm();
+
+    // 基準所得金額はその年の全所得の合算なので、タブをまたいで足し込む
+    const minimumTaxSource = useMemo(
+        () => ({
+            year: Number(realEstate.form.transferDate.slice(0, 4)) || new Date().getFullYear(),
+            capitalGainsIncome: realEstate.result.taxableIncome + securities.result.taxableIncome,
+            capitalGainsIncomeTax: realEstate.result.tax.incomeTax + securities.result.tax.incomeTax,
+        }),
+        [realEstate.form.transferDate, realEstate.result, securities.result],
+    );
+    const minimumTax = useMinimumTax(minimumTaxSource);
 
     const activeTab = TABS.find((t) => t.key === tab) ?? TABS[0];
     const hasInput = tab === "real-estate" ? realEstate.hasInput : securities.hasInput;
@@ -68,6 +81,13 @@ const App = () => {
                         <p className="empty-state no-print">譲渡価額を入力すると計算結果が表示されます。</p>
                     )}
                 </div>
+
+                <MinimumTaxSection
+                    form={minimumTax.form}
+                    setField={minimumTax.setField}
+                    result={minimumTax.result}
+                    source={minimumTaxSource}
+                />
 
                 <ReferenceTables />
 

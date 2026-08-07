@@ -215,6 +215,12 @@ body {
   color: var(--info-color);
 }
 
+.fieldset-note {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted-color);
+}
+
 .derived-value {
   margin: 0;
   padding: 0.75rem;
@@ -338,6 +344,31 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 1.25rem;
   align-items: start;
+}
+
+/* ミニマムタックス（該当者は稀なので、既定では畳んだ状態で置く） */
+.minimum-tax-section {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.minimum-tax-section h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.section-lead {
+  margin: 0 0 1rem 0;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--muted-color);
+}
+
+.minimum-tax-section .result-grid {
+  margin-top: 1.25rem;
 }
 
 .result-block h3 {
@@ -757,6 +788,18 @@ tbody th small {
   .note-list li,
   .ref-note,
   .disclaimer {
+    font-size: 7.5pt !important;
+  }
+
+  /* 判定を有効にしたときだけ印刷される（無効時は no-print が付く） */
+  .minimum-tax-section {
+    break-before: page;
+    border-top: none;
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  .section-lead {
     font-size: 7.5pt !important;
   }
 

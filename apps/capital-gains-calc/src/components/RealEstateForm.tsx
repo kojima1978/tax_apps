@@ -5,7 +5,7 @@ import DateField from "./DateField";
 import FormField from "./FormField";
 import ToggleGroup, { type ToggleOption } from "./ToggleGroup";
 import type { BuildingUsage, CostMode, RealEstateResult } from "@/lib/capital-gains";
-import type { RealEstateFormState } from "@/hooks/useRealEstateForm";
+import { TRANSFER_EXPENSE_ITEMS, type RealEstateFormState } from "@/hooks/useRealEstateForm";
 import { BUILDING_STRUCTURES, findStructure } from "@/lib/tax-rates";
 import { formatYen } from "@/lib/utils";
 
@@ -39,27 +39,13 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
     return (
         <div className="form-section">
             <fieldset>
-                <legend>譲渡の内容</legend>
+                <legend>売却の情報</legend>
                 <div className="form-row">
                     <CurrencyField
                         label="譲渡価額"
                         value={form.transferPrice}
                         onChange={(v) => setField("transferPrice", v)}
                         hint="売却代金（固定資産税精算金を含む）"
-                    />
-                    <CurrencyField
-                        label="譲渡費用"
-                        value={form.transferExpense}
-                        onChange={(v) => setField("transferExpense", v)}
-                        hint="仲介手数料・測量費・建物取壊費用など"
-                    />
-                </div>
-                <div className="form-row">
-                    <DateField
-                        label="取得日"
-                        value={form.acquisitionDate}
-                        onChange={(v) => setField("acquisitionDate", v)}
-                        hint="相続・贈与で取得した場合は被相続人等の取得日"
                     />
                     <DateField
                         label="譲渡日"
@@ -68,13 +54,22 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
                         hint="原則は引渡日（契約日も選択可）"
                     />
                 </div>
-                <p className="derived-note">
-                    譲渡年1月1日時点の所有期間: <strong>{ownershipLabel}</strong>
-                </p>
             </fieldset>
 
             <fieldset>
                 <legend>取得費</legend>
+                <div className="form-row">
+                    <DateField
+                        label="取得日"
+                        value={form.acquisitionDate}
+                        onChange={(v) => setField("acquisitionDate", v)}
+                        hint="相続・贈与で取得した場合は被相続人等の取得日"
+                    />
+                </div>
+                <p className="derived-note">
+                    譲渡年1月1日時点の所有期間: <strong>{ownershipLabel}</strong>
+                </p>
+
                 <FormField label="取得費の算定方法">
                     <ToggleGroup
                         options={COST_MODE_OPTIONS}
@@ -153,6 +148,27 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
                     onChange={(v) => setField("inheritedCostAddition", v)}
                     hint="相続財産を相続開始後3年10ヶ月以内に譲渡した場合の、対応する相続税額"
                 />
+            </fieldset>
+
+            <fieldset>
+                <legend>譲渡費用</legend>
+                <div className="form-row">
+                    {TRANSFER_EXPENSE_ITEMS.map((item) => (
+                        <CurrencyField
+                            key={item.key}
+                            label={item.label}
+                            value={form[item.key]}
+                            onChange={(v) => setField(item.key, v)}
+                            hint={item.hint}
+                        />
+                    ))}
+                </div>
+                <p className="derived-note">
+                    譲渡費用 合計: <strong>{formatYen(result.transferExpense)}</strong>
+                </p>
+                <small className="fieldset-note">
+                    修繕費・固定資産税など、資産の維持管理にかかる費用は譲渡費用になりません。
+                </small>
             </fieldset>
 
             <fieldset>

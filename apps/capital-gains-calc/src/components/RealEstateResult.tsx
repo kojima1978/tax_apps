@@ -3,7 +3,7 @@ import NoteList from "./NoteList";
 import ResultTable, { type ResultRow } from "./ResultTable";
 import type { RealEstateResult as RealEstateResultType } from "@/lib/capital-gains";
 import { formatYen, parseFormattedNumber } from "@/lib/utils";
-import type { RealEstateFormState } from "@/hooks/useRealEstateForm";
+import { TRANSFER_EXPENSE_ITEMS, type RealEstateFormState } from "@/hooks/useRealEstateForm";
 
 type RealEstateResultProps = {
     form: RealEstateFormState;
@@ -34,10 +34,17 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
             rows.push({ label: "取得費加算額（相続税額）", value: formatYen(result.costAddition), sub: true });
         }
 
-        rows.push(
-            { label: "譲渡費用", value: formatYen(result.transferExpense) },
-            { label: "譲渡所得金額", value: formatYen(result.grossProfit), highlight: true },
-        );
+        rows.push({ label: "譲渡費用", value: formatYen(result.transferExpense) });
+
+        // 内訳は入力のあった項目だけ出す（0円の行で結果表が伸びないように）
+        TRANSFER_EXPENSE_ITEMS.forEach((item) => {
+            const amount = parseFormattedNumber(form[item.key]);
+            if (amount > 0) {
+                rows.push({ label: item.label, value: formatYen(amount), sub: true });
+            }
+        });
+
+        rows.push({ label: "譲渡所得金額", value: formatYen(result.grossProfit), highlight: true });
 
         if (result.specialDeduction > 0) {
             rows.push({ label: "特別控除（居住用財産 3,000万円）", value: `− ${formatYen(result.specialDeduction)}` });

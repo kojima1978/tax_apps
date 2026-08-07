@@ -14,10 +14,13 @@ export type TaxRateSet = {
     residentTax: number;
 };
 
+/** 復興特別所得税は所得税額に対して課される（令和19年分まで） */
+export const RECONSTRUCTION_RATIO = 0.021;
+
 const rateSet = (incomeTax: number, residentTax: number): TaxRateSet => ({
     incomeTax,
     // 復興特別所得税は所得税額に対する2.1%。浮動小数点の桁ブレを避けて丸める
-    reconstruction: Math.round(incomeTax * 0.021 * 1e6) / 1e6,
+    reconstruction: Math.round(incomeTax * RECONSTRUCTION_RATIO * 1e6) / 1e6,
     residentTax,
 });
 

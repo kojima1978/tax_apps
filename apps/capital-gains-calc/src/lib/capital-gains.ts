@@ -10,6 +10,7 @@ import {
     ESTIMATED_COST_RATIO,
     LONG_TERM_RATE,
     LONG_TERM_YEARS,
+    RECONSTRUCTION_RATIO,
     REDUCED_RATE,
     REDUCED_RATE_LIMIT,
     REDUCED_RATE_YEARS,
@@ -20,9 +21,6 @@ import {
     totalRate,
     type TaxRateSet,
 } from './tax-rates';
-
-/** 復興特別所得税は所得税額に対して課される */
-const RECONSTRUCTION_RATIO = 0.021;
 
 export type Term = 'short' | 'long';
 /** 取得費の算定方法（実額 / 概算5%） */
