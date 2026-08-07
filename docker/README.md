@@ -672,6 +672,7 @@ docker network create tax-apps-network
 | Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書 |
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
 | Asset Valuation | http://localhost/asset-valuation/ | 3017 | Vite | 減価償却資産評価 |
+| Capital Gains Calc | http://localhost/capital-gains-calc/ | 3019 | Vite | 譲渡所得税計算 |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
 
 ### バックエンドサービス
@@ -699,7 +700,8 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 10 | depreciation-calc | Vite |
 | 11 | asset-valuation | Vite |
 | 12 | stock-valuation-form | Vite |
-| 13 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
+| 13 | capital-gains-calc | Vite |
+| 14 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -720,6 +722,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3015 | Depreciation Calc | apps/depreciation-calc |
 | 3017 | Asset Valuation | apps/asset-valuation |
+| 3019 | Capital Gains Calc | apps/capital-gains-calc |
 | 3020 | ITCM Web | apps/inheritance-case-management |
 | 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
 
@@ -823,7 +826,9 @@ tax_apps/
 │   │   └── docker-compose.yml
 │   ├── depreciation-calc/      # 減価償却計算
 │   │   └── docker-compose.yml
-│   │   └── docker-compose.yml
+│   ├── capital-gains-calc/     # 譲渡所得税計算
+│   │   ├── docker-compose.yml
+│   │   └── docker-compose.prod.yml
 │   ├── asset-valuation/        # 減価償却資産評価
 │   │   ├── docker-compose.yml
 │   │   └── docker-compose.prod.yml

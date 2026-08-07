@@ -62,6 +62,7 @@ app/
 | 医療法人株式評価 | /medical/ | 医療法人の株式評価システム |
 | 保険管理 | /insurance/ | 保険証券の管理・分析 |
 | 退職金税額計算 | /retirement-tax-calc/ | 退職金の所得税・住民税を計算 |
+| 譲渡所得税計算 | /capital-gains-calc/ | 不動産・株式等の譲渡にかかる税額を試算 |
 | 減価償却ツール | /depreciation-calc/ | 耐用年数・簿価・期間償却を計算 |
 | 減価償却資産評価 | /asset-valuation/ | 相続税の減価償却資産を一括評価 |
 | 株式評価明細書 | /stock-valuation-form/ | 取引相場のない株式の評価明細書 |

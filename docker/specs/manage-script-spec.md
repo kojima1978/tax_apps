@@ -26,7 +26,7 @@ Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh`) の技�
 
 ### 目的
 
-複数の独立した Docker Compose プロジェクト（13管理対象アプリ + gateway）を統合管理するオーケストレーションスクリプト。
+複数の独立した Docker Compose プロジェクト（14管理対象アプリ + gateway）を統合管理するオーケストレーションスクリプト。
 
 ### 設計方針
 
@@ -86,16 +86,18 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 | 3 | `APP_3` | `apps\tax-docs` | 所得税・贈与税書類リスト (Vite) | 3002 |
 | 4 | `APP_4` | `apps\medical-stock-valuation` | 医療法人株式 (SQLite + Next.js) | 3010 |
 | 5 | `APP_5` | `apps\insurance-app` | 保険管理 (SQLite + Next.js) | 3030 |
-| 6 | `APP_6` | `apps\inheritance-tax-app` | 相続税計算 (Vite) | 3004 |
-| 7 | `APP_7` | `apps\gift-tax-simulator` | 贈与税計算 (Vite) | 3001 |
-| 8 | `APP_8` | `apps\inheritance-tax-docs` | 相続税資料ガイド (Vite) | 3003 |
-| 9 | `APP_9` | `apps\retirement-tax-calc` | 退職金税額計算 (Vite) | 3013 |
-| 10 | `APP_10` | `apps\depreciation-calc` | 減価償却計算 (Vite) | 3015 |
-| 11 | `APP_11` | `apps\asset-valuation` | 減価償却資産評価 (Vite) | 3017 |
-| 12 | `APP_12` | `apps\stock-valuation-form` | 株式評価明細書 (Vite) | 3014 |
-| 13 | `APP_13` | `docker\gateway` | Nginx Gateway + Portal (Next.js) | 80/3000 |
+| 6 | `APP_6` | `apps\private-banking` | ファミリーB/S管理 (PostgreSQL + Next.js) | 3025/3026 |
+| 7 | `APP_7` | `apps\inheritance-tax-app` | 相続税計算 (Vite) | 3004 |
+| 8 | `APP_8` | `apps\gift-tax-simulator` | 贈与税計算 (Vite) | 3001 |
+| 9 | `APP_9` | `apps\inheritance-tax-docs` | 相続税資料ガイド (Vite) | 3003 |
+| 10 | `APP_10` | `apps\retirement-tax-calc` | 退職金税額計算 (Vite) | 3013 |
+| 11 | `APP_11` | `apps\depreciation-calc` | 減価償却計算 (Vite) | 3015 |
+| 12 | `APP_12` | `apps\asset-valuation` | 減価償却資産評価 (Vite) | 3017 |
+| 13 | `APP_13` | `apps\stock-valuation-form` | 株式評価明細書 (Vite) | 3014 |
+| 14 | `APP_14` | `apps\capital-gains-calc` | 譲渡所得税計算 (Vite) | 3019 |
+| 15 | `APP_15` | `docker\gateway` | Nginx Gateway + Portal (Next.js) | 80/3000 |
 
-**合計**: `APP_COUNT=13`
+**合計**: 14 管理対象アプリ + gateway（`APPS` 配列 15 要素）
 
 > **注**: Portal アプリ (`apps/portal/`) は Gateway の docker-compose.yml 内にサービスとして定義されている（`portal-app`）。独自の docker-compose.yml は持たない。
 
@@ -126,6 +128,7 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 | 3.4 | salary-calc を削除。manage.sh、Nginx、ポータル、Docker docs から参照を削除 |
 | 3.5 | `watch` コマンド追加（private-banking / inheritance-case-management の bind mount 廃止に伴う compose watch 対応）。`status` の末尾に自動復旧（ウォッチドッグ）の配線チェックを追加。`WATCHDOG_TASK_NAME` 定数を追加 |
 | 3.6 | income-tax-calc を削除。manage.sh、Nginx、ポータル、Docker docs から参照を削除 |
+| 3.7 | capital-gains-calc（譲渡所得税計算・port 3019）を追加。あわせてアプリ一覧の private-banking 欠落と preflight 対象ポート一覧の記載ずれを修正 |
 
 ---
 
@@ -643,7 +646,7 @@ manage.sh の `resolve_app_dir()` では、部分一致で複数件ヒットし�
 | 6 | ITCM `.env` 確認 | WARN | ファイル存在チェック（`.env.example` からのコピーを案内） |
 | 7 | 暗号化バックアップ確認 | WARN | 最新暗号化バックアップの鮮度と暗号鍵の存在を確認 |
 | 8 | 平文バックアップ確認 | WARN | 暗号化導入前の平文バックアップディレクトリが残っていれば警告 |
-| 9 | ポート競合検出 (16ポート) | WARN | `ss` + `netstat` + Windows `Get-NetTCPConnection` フォールバック。Tax Apps 自身の使用ポートは外部競合から除外 |
+| 9 | ポート競合検出 (19ポート) | WARN | `ss` + `netstat` + Windows `Get-NetTCPConnection` フォールバック。Tax Apps 自身の使用ポートは外部競合から除外 |
 | 10 | ホストディスク空き容量 | WARN | 5GB 未満で警告 |
 | 11 | Docker daemon メモリ | WARN | 4GB 未満で警告 |
 | 12 | Docker ディスク使用量 | WARN | `docker system df` を表示 |
@@ -651,8 +654,8 @@ manage.sh の `resolve_app_dir()` では、部分一致で複数件ヒットし�
 ### 対象ポート一覧
 
 ```
-80, 3000, 3001, 3002, 3003, 3004, 3007,
-3010, 3012, 3013, 3014, 3015, 3017, 3020, 3022, 5432
+80, 3000, 3001, 3002, 3003, 3004, 3007, 3010,
+3013, 3014, 3015, 3016, 3017, 3019, 3020, 3022, 3025, 3026, 3030
 ```
 
 ### 判定ロジック
@@ -688,7 +691,7 @@ All checks passed!
 | `NETWORK_NAME` | `tax-apps-network` | 外部ネットワーク名 |
 | `WATCHDOG_TASK_NAME` | `Tax Apps Docker Watchdog` | Windows スケジュールタスク名（`register-docker-watchdog-task.ps1` の `$TaskName` 既定値と一致させること） |
 | `BACKUP_BASE` | `$SCRIPT_DIR/../backups` | バックアップベースディレクトリ |
-| `APPS` | 配列 (14要素) | 管理対象アプリパス一覧 + `docker/gateway` |
+| `APPS` | 配列 (15要素) | 管理対象アプリパス一覧 + `docker/gateway` |
 | `VOLUMES` | 配列 (5要素) | データボリューム一覧 |
 | `PG_TARGETS` | 配列 (2要素) | PostgreSQL バックアップ/リストア対象定義（コロン区切り） |
 | `SQLITE_TARGETS` | 配列 (3要素) | SQLite バックアップ/リストア対象定義 |

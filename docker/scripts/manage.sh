@@ -111,6 +111,7 @@ APPS=(
   "apps/depreciation-calc"
   "apps/asset-valuation"
   "apps/stock-valuation-form"
+  "apps/capital-gains-calc"
   "docker/gateway"
 )
 
@@ -1171,7 +1172,7 @@ cmd_preflight() {
   local tax_apps_ports=()
   # 実際に host へ publish しているポートに合わせること。ここに載っていない
   # ポートの競合は preflight を素通りし、起動時に初めて bind 失敗として出る。
-  local ports=(80 3000 3001 3002 3003 3004 3007 3010 3013 3014 3015 3016 3017 3018 3020 3022 3025 3026 3030)
+  local ports=(80 3000 3001 3002 3003 3004 3007 3010 3013 3014 3015 3016 3017 3019 3020 3022 3025 3026 3030)
   for p in "${ports[@]}"; do
     local owner
     if owner=$(tax_apps_container_for_port "$p"); then

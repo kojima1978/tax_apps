@@ -23,6 +23,7 @@
 | 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React | 確定申告書類管理 |
 | 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人の株式評価 |
 | 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Prisma + PostgreSQL | 相続税案件管理 |
+| 譲渡所得税計算 | `/capital-gains-calc/` | http://localhost/capital-gains-calc/ | 3019 | Vite + React | 不動産・株式等の譲渡所得税シミュレーション |
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
 | 減価償却資産評価 | `/asset-valuation/` | http://localhost/asset-valuation/ | 3017 | Vite + React | 相続税申告の減価償却資産評価 |
 | 株式評価明細書 | `/stock-valuation-form/` | http://localhost/stock-valuation-form/ | 3014 | Vite + React | 取引相場のない株式の評価明細書 |
@@ -49,6 +50,7 @@ tax_apps/
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
 │   ├── insurance-app/                 # 保険管理 (Next.js)
 │   ├── tax-docs/                      # 確定申告必要書類 (Vite)
+│   ├── capital-gains-calc/            # 譲渡所得税計算 (Vite)
 │   ├── depreciation-calc/             # 減価償却計算 (Vite)
 │   ├── asset-valuation/              # 減価償却資産評価 (Vite)
 │   ├── stock-valuation-form/          # 株式評価明細書 (Vite)
