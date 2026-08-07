@@ -86,7 +86,9 @@ export default function AcquisitionTaxPage() {
                         disabled={!form.includeBuilding}
                         valuation={form.buildingValuation}
                         area={form.buildingArea}
-                        selYear={form.selYear}
+                        yearInput={form.yearInput}
+                        yearError={form.yearError}
+                        yearHint={form.yearHint}
                         selMonth={form.selMonth}
                         selDay={form.selDay}
                         isResidential={form.isResidential}
@@ -97,7 +99,7 @@ export default function AcquisitionTaxPage() {
                         transactionType={form.transactionType}
                         onValuationChange={(e) => form.handleFormattedInput(e, form.setBuildingValuation)}
                         onAreaChange={(e) => form.handleDecimalInput(e, form.setBuildingArea)}
-                        setSelYear={form.setSelYear}
+                        setYearInput={form.setYearInput}
                         setSelMonth={form.setSelMonth}
                         setSelDay={form.setSelDay}
                         setIsResidential={form.setIsResidential}

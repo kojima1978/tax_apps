@@ -1095,6 +1095,17 @@ tr.row-optimal td {
   color: var(--primary-color);
 }
 
+.text-error {
+  color: var(--error-color);
+}
+
+/* 建築年は西暦・和暦のどちらでも打つので、数値欄の右寄せ＋等幅を外す */
+.input-item input[type="text"].year-input {
+  min-width: 0;
+  text-align: left;
+  font-family: inherit;
+}
+
 .notice-primary {
   color: var(--primary-color);
   font-weight: bold;

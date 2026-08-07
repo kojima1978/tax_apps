@@ -94,12 +94,12 @@ export const useAcquisitionTaxForm = () => {
         setBuildingShareNumerator('1');
         setBuildingShareDenominator('1');
         setAreaWarning('');
-        buildingDate.setSelYear('');
+        buildingDate.setYearInput('');
         buildingDate.setSelMonth('');
         buildingDate.setSelDay('');
     }, [
         base.resetBase,
-        buildingDate.setSelYear,
+        buildingDate.setYearInput,
         buildingDate.setSelMonth,
         buildingDate.setSelDay,
     ]);

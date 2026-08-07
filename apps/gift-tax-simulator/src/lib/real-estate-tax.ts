@@ -56,6 +56,42 @@ export const getWareki = (year: number): string => {
     return `明治${year - 1867}年`;
 };
 
+// 元号 → 元年の前年（西暦 = base + 和暦年）。判定は長い綴りから順に行う
+const ERA_BASES: { keys: string[]; base: number }[] = [
+    { keys: ['令和', 'れいわ', 'reiwa', 'r'], base: 2018 },
+    { keys: ['平成', 'へいせい', 'heisei', 'h'], base: 1988 },
+    { keys: ['昭和', 'しょうわ', 'showa', 's'], base: 1925 },
+    { keys: ['大正', 'たいしょう', 'taisho', 't'], base: 1911 },
+    { keys: ['明治', 'めいじ', 'meiji', 'm'], base: 1867 },
+];
+
+/**
+ * 「1985」「昭和60」「S60」「昭和元」のいずれの打ち方でも西暦年に解決する。
+ *
+ * 登記簿や固定資産税評価証明書は和暦表記なので、西暦への変換を
+ * 担当者にやらせないための入口。解決できなければ null を返す。
+ */
+export const parseYearInput = (raw: string): number | null => {
+    const text = raw
+        .replace(/[０-９Ａ-Ｚａ-ｚ]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+        .replace(/\s/g, '')
+        .replace(/年$/, '')
+        .toLowerCase();
+    if (!text) return null;
+
+    if (/^\d{3,4}$/.test(text)) return Number(text);
+
+    for (const { keys, base } of ERA_BASES) {
+        for (const key of keys) {
+            if (!text.startsWith(key)) continue;
+            const rest = text.slice(key.length) === '元' ? '1' : text.slice(key.length);
+            if (!/^\d{1,2}$/.test(rest)) continue;
+            return base + Number(rest);
+        }
+    }
+    return null;
+};
+
 // 建築年月日による控除額閾値（新しい順）
 const BUILDING_DEDUCTION_THRESHOLDS = [
     { since: new Date('1997-04-01'), deduction: 12_000_000, message: '1997年4月1日以降 (1,200万円控除)' },

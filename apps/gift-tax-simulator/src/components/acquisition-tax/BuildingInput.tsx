@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { type TransactionType, getWareki } from '@/lib/real-estate-tax';
 import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
 
@@ -41,7 +42,9 @@ type BuildingInputProps = {
     disabled: boolean;
     valuation: string;
     area: string;
-    selYear: string;
+    yearInput: string;
+    yearError: string;
+    yearHint: string;
     selMonth: string;
     selDay: string;
     isResidential: boolean;
@@ -52,7 +55,7 @@ type BuildingInputProps = {
     transactionType: TransactionType;
     onValuationChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onAreaChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    setSelYear: (v: string) => void;
+    setYearInput: (v: string) => void;
     setSelMonth: (v: string) => void;
     setSelDay: (v: string) => void;
     setIsResidential: (v: boolean) => void;
@@ -68,7 +71,9 @@ const BuildingInput = ({
     disabled,
     valuation,
     area,
-    selYear,
+    yearInput,
+    yearError,
+    yearHint,
     selMonth,
     selDay,
     isResidential,
@@ -79,7 +84,7 @@ const BuildingInput = ({
     transactionType,
     onValuationChange,
     onAreaChange,
-    setSelYear,
+    setYearInput,
     setSelMonth,
     setSelDay,
     setIsResidential,
@@ -89,7 +94,12 @@ const BuildingInput = ({
     shareDenominator,
     onShareNumeratorChange,
     onShareDenominatorChange,
-}: BuildingInputProps) => (
+}: BuildingInputProps) => {
+    const yearInputId = useId();
+    const yearListId = useId();
+    const yearNoteId = useId();
+
+    return (
     <div className={`re-column ${disabled ? 'disabled' : ''}`}>
         <h3 className="re-column-title">建物の情報</h3>
         {disabled && (
@@ -112,19 +122,26 @@ const BuildingInput = ({
             decimal
         />
         <div className="input-item">
-            <label>建築年月日</label>
+            <label htmlFor={yearInputId}>建築年月日</label>
             <div className="flex-row">
-                <select
-                    value={selYear}
-                    onChange={(e) => setSelYear(e.target.value)}
+                <input
+                    id={yearInputId}
+                    type="text"
+                    className="flex-1 year-input"
+                    list={yearListId}
+                    placeholder="年"
+                    autoComplete="off"
+                    value={yearInput}
+                    onChange={(e) => setYearInput(e.target.value)}
                     disabled={disabled}
-                    className="flex-1"
-                >
-                    <option value="">年</option>
+                    aria-invalid={Boolean(yearError)}
+                    aria-describedby={yearNoteId}
+                />
+                <datalist id={yearListId}>
                     {yearOptions.map((y) => (
-                        <option key={y} value={y}>{y}年 ({getWareki(y)})</option>
+                        <option key={y} value={y}>{getWareki(y)}</option>
                     ))}
-                </select>
+                </datalist>
                 <select
                     value={selMonth}
                     onChange={(e) => setSelMonth(e.target.value)}
@@ -148,6 +165,9 @@ const BuildingInput = ({
                     ))}
                 </select>
             </div>
+            <small id={yearNoteId} className={yearError ? 'text-error' : 'text-primary'}>
+                {yearError || yearHint}
+            </small>
         </div>
         <div className="input-item">
             <label className="checkbox-label">
@@ -192,6 +212,7 @@ const BuildingInput = ({
             disabled={disabled}
         />
     </div>
-);
+    );
+};
 
 export default BuildingInput;
