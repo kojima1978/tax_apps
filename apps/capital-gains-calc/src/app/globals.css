@@ -1119,13 +1119,13 @@ tbody th small {
    * inset: 0 なら高さが親から確定するので判定できる。
    */
   /*
-   * 刷り込む表は下端に寄せる。上詰めにすると本文の直後に続いてしまい、
-   * 余った空きが紙の下半分にまとめて残って上に積んだように見える。
+   * 刷り込む表は空きの中央に置く。上詰めだと本文の直後に続いて空きが下に残り、
+   * 下端に寄せると紙の縁に貼り付いて見える。上下に同じだけ空きを残すのが収まりが良い。
    */
   .print-fill-slot {
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    justify-content: center;
     position: absolute;
     inset: 0;
     container-type: size;
