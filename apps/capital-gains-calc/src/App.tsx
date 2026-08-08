@@ -15,10 +15,15 @@ import { INITIAL_PRINT_OPTIONS, type PrintOptionKey, type PrintOptions } from ".
 import { useRealEstateForm } from "./hooks/useRealEstateForm";
 import { useSecuritiesForm } from "./hooks/useSecuritiesForm";
 import { TABS, type TabKey } from "./lib/tabs";
+import { formatJapaneseDate } from "./lib/utils";
 
 const App = () => {
     const [tab, setTab] = useState<TabKey>("real-estate");
     const [printOptions, setPrintOptions] = useState<PrintOptions>(INITIAL_PRINT_OPTIONS);
+    // 印刷物に載る書類情報。入力欄（ヘッダー・備考欄）と出力先（印刷面）が離れているのでここで持つ
+    const [staff, setStaff] = useState("");
+    const [remarks, setRemarks] = useState("");
+    const [today] = useState(() => formatJapaneseDate(new Date()));
     const realEstate = useRealEstateForm();
     const securities = useSecuritiesForm();
 
@@ -43,6 +48,8 @@ const App = () => {
     return (
         <>
             <Header
+                staff={staff}
+                onStaffChange={setStaff}
                 printOptions={printOptions}
                 onPrintOptionChange={setPrintOption}
                 onPrint={() => window.print()}
@@ -60,7 +67,7 @@ const App = () => {
                         </div>
                     </div>
 
-                    <PrintMeta />
+                    <PrintMeta staff={staff} today={today} />
 
                     <p className="print-only print-subtitle">対象: {activeTab.label}（{activeTab.description}）</p>
 
@@ -114,7 +121,7 @@ const App = () => {
                         実際の申告にあたっては個別に確認してください。
                     </p>
 
-                    <RemarksBox />
+                    <RemarksBox value={remarks} onChange={setRemarks} />
                 </div>
 
                 {/*
