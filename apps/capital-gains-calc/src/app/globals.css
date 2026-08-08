@@ -616,6 +616,39 @@ tbody th small {
 }
 
 /* ========================================
+   画面の2列レイアウト（PCのみ）
+   ======================================== */
+/*
+ * 入力欄が縦に長いので、PC では左に入力・右に結果とミニマムタックスを並べる。
+ * screen 限定にしてあるのは、A4横の印刷幅（約1070px）もこの条件に当たってしまい、
+ * 印刷の3段組（.print-columns）を壊すため。
+ */
+@media screen and (min-width: 1024px) {
+  .container-custom {
+    max-width: 1280px;
+  }
+
+  .screen-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 2rem;
+    align-items: start;
+  }
+
+  /* 列幅が半分になるので、結果表の2列組みは1列に戻す */
+  .screen-split .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* 右列の先頭は左の入力と上端を揃える（区切り線は列の境界が担う） */
+  .screen-split-side > :first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+}
+
+/* ========================================
    スマートフォン対応
    ======================================== */
 @media (max-width: 760px) {

@@ -75,11 +75,13 @@ const App = () => {
 
                     {/* 印刷ではこの中だけを3段組にする（見出し・免責・備考欄は段組の外） */}
                     <div className="print-columns">
+                        {/* 画面（PC）では左に入力・右に結果を並べる。印刷では段組へ流すだけ */}
                         <div
                             role="tabpanel"
                             id={`panel-${tab}`}
                             aria-labelledby={`tab-${tab}`}
                             key={tab}
+                            className="screen-split"
                         >
                             {tab === "real-estate" ? (
                                 <RealEstateForm
@@ -96,23 +98,25 @@ const App = () => {
                                 />
                             )}
 
-                            {hasInput ? (
-                                tab === "real-estate" ? (
-                                    <RealEstateResultView form={realEstate.form} result={realEstate.result} />
+                            <div className="screen-split-side">
+                                {hasInput ? (
+                                    tab === "real-estate" ? (
+                                        <RealEstateResultView form={realEstate.form} result={realEstate.result} />
+                                    ) : (
+                                        <SecuritiesResultView form={securities.form} result={securities.result} />
+                                    )
                                 ) : (
-                                    <SecuritiesResultView form={securities.form} result={securities.result} />
-                                )
-                            ) : (
-                                <p className="empty-state no-print">譲渡価額を入力すると計算結果が表示されます。</p>
-                            )}
-                        </div>
+                                    <p className="empty-state no-print">譲渡価額を入力すると計算結果が表示されます。</p>
+                                )}
 
-                        <MinimumTaxSection
-                            form={minimumTax.form}
-                            setField={minimumTax.setField}
-                            result={minimumTax.result}
-                            source={minimumTaxSource}
-                        />
+                                <MinimumTaxSection
+                                    form={minimumTax.form}
+                                    setField={minimumTax.setField}
+                                    result={minimumTax.result}
+                                    source={minimumTaxSource}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <p className="disclaimer">
