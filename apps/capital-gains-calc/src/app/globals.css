@@ -792,8 +792,9 @@ tbody th small {
     color: #333;
   }
 
+  /* 下の余白と罫線は .print-header-band が持つ */
   .page-header {
-    margin-bottom: 4px;
+    margin-bottom: 0;
     gap: 0.5rem;
   }
 
@@ -1078,11 +1079,13 @@ tbody th small {
     margin-top: 5px !important;
   }
 
-  /* タイトル直下のヘッダー帯。画面では非表示なのでここで出す */
-  .print-meta {
+  /*
+   * ヘッダー帯。タイトル・担当・事務所情報を1行の3列に並べる。
+   * 2行に分けると縦を余分に使うので、罫線もこの帯が持つ。
+   */
+  .print-header-band {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    align-items: flex-end;
     gap: 1rem;
     margin: 0 0 4px 0;
     padding: 0 0 3px;
@@ -1090,7 +1093,20 @@ tbody th small {
     break-inside: avoid;
   }
 
-  /* 会社情報を右、担当・作成日を左に置く */
+  /* 画面では非表示なのでここで出す。タイトルの残り幅を取る */
+  .print-meta {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: flex-end;
+    gap: 1rem;
+  }
+
+  /* 担当・作成日はタイトルと会社情報の中間へ（auto マージンで余白を等分） */
+  .print-meta-side {
+    margin: 0 auto;
+  }
+
+  /* 会社情報は右端 */
   .print-meta-company {
     text-align: right;
   }

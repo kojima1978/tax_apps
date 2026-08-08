@@ -59,15 +59,18 @@ const App = () => {
             <main className={`container-custom${printOptions.reference ? " print-with-reference" : ""}`}>
                 {/* 1枚目。印刷では用紙の高さいっぱいに広げ、余った分は末尾の備考欄が吸収する */}
                 <div className="print-sheet">
-                    <div className="page-header">
-                        <CalculatorIcon />
-                        <div>
-                            <h1>譲渡所得税 計算ツール</h1>
-                            <p>不動産・株式等の譲渡にかかる所得税・復興特別所得税・住民税を試算します（分離課税）</p>
+                    {/* 印刷ではこの帯が1行になる（タイトル｜担当・作成日｜事務所情報の3列） */}
+                    <div className="print-header-band">
+                        <div className="page-header">
+                            <CalculatorIcon />
+                            <div>
+                                <h1>譲渡所得税 計算ツール</h1>
+                                <p>不動産・株式等の譲渡にかかる所得税・復興特別所得税・住民税を試算します（分離課税）</p>
+                            </div>
                         </div>
-                    </div>
 
-                    <PrintMeta staff={staff} today={today} />
+                        <PrintMeta staff={staff} today={today} />
+                    </div>
 
                     <p className="print-only print-subtitle">対象: {activeTab.label}（{activeTab.description}）</p>
 
