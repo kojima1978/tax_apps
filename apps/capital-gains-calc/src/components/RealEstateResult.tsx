@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import NoteList from "./NoteList";
 import ResultTable from "./ResultTable";
 import type { RealEstateResult as RealEstateResultType } from "@/lib/capital-gains";
-import { taxBreakdownRows, type ResultRow } from "@/lib/result-rows";
+import { netProceedsRows, taxBreakdownRows, taxTotalRows, type ResultRow } from "@/lib/result-rows";
 import { findStructure } from "@/lib/tax-rates";
 import { formatYen, parseFormattedNumber } from "@/lib/utils";
 import { TRANSFER_EXPENSE_ITEMS, type RealEstateFormState } from "@/hooks/useRealEstateForm";
@@ -105,19 +105,17 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
         }
 
         rows.push(
-            { label: "所得税 合計", value: formatYen(result.tax.incomeTax) },
-            { label: "復興特別所得税 合計", value: formatYen(result.tax.reconstruction) },
-            { label: "住民税 合計", value: formatYen(result.tax.residentTax) },
+            ...taxTotalRows(result.tax),
             { label: "税額合計", value: formatYen(result.tax.total), highlight: true },
-            {
-                label: "手取り概算",
-                value: formatYen(result.netProceeds),
-                note: "譲渡価額 − 譲渡費用 − 税額",
-                highlight: true,
-            },
+            ...netProceedsRows({
+                transferPrice,
+                transferExpense: result.transferExpense,
+                tax: result.tax.total,
+                netProceeds: result.netProceeds,
+            }),
         );
         return rows;
-    }, [result]);
+    }, [result, transferPrice]);
 
     return (
         <section className="result-section">

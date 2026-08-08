@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import NoteList from "./NoteList";
 import ResultTable from "./ResultTable";
 import type { SecuritiesResult as SecuritiesResultType } from "@/lib/capital-gains";
-import { taxBreakdownRows, type ResultRow } from "@/lib/result-rows";
+import { netProceedsRows, taxTotalRows, type ResultRow } from "@/lib/result-rows";
 import type { SecuritiesFormState } from "@/hooks/useSecuritiesForm";
 import { formatYen, parseFormattedNumber } from "@/lib/utils";
 
@@ -30,21 +30,21 @@ const SecuritiesResultView = ({ form, result }: SecuritiesResultProps) => {
 
     const taxRows = useMemo<ResultRow[]>(
         () => [
-            ...taxBreakdownRows(result.tax, result.rate),
+            ...taxTotalRows(result.tax, result.rate),
             {
                 label: "税額合計",
                 value: formatYen(result.tax.total),
                 note: `合計税率 ${result.ratePercent}%`,
                 highlight: true,
             },
-            {
-                label: "手取り概算",
-                value: formatYen(result.netProceeds),
-                note: "譲渡価額 − 譲渡費用 − 税額",
-                highlight: true,
-            },
+            ...netProceedsRows({
+                transferPrice,
+                transferExpense: result.transferExpense,
+                tax: result.tax.total,
+                netProceeds: result.netProceeds,
+            }),
         ],
-        [result],
+        [result, transferPrice],
     );
 
     return (

@@ -750,8 +750,8 @@ tbody th small {
     --pr-gap-xs: 2px;
     --pr-rule-gap: 6px;
     --pr-rule-pad: 4px;
-    --pr-cell-y: 1px;
-    --pr-cell-lh: 1.25;
+    --pr-cell-y: 0.5px;
+    --pr-cell-lh: 1.2;
   }
 
   .no-print {
