@@ -615,6 +615,11 @@ tbody th small {
   box-sizing: border-box;
 }
 
+/* 備考が未入力のときに用紙の空きを埋める参考表。印刷専用 */
+.print-fill-slot {
+  display: none;
+}
+
 /* ========================================
    画面の2列レイアウト（PCのみ）
    ======================================== */
@@ -1058,6 +1063,60 @@ tbody th small {
     line-height: 1.4 !important;
     resize: none;
     overflow: hidden;
+  }
+
+  /*
+   * 備考が未入力のとき。空の枠とラベル、それに textarea の
+   * プレースホルダ（印刷でも出る）を丸ごと消す。
+   */
+  .print-remarks-empty {
+    min-height: 0;
+    padding: 0;
+    border: none;
+    position: relative;
+  }
+
+  .print-remarks-empty .print-remarks-label,
+  .print-remarks-empty .print-remarks-input {
+    display: none !important;
+  }
+
+  /*
+   * 空いた高さに税率一覧を刷り込む。入るかどうかは実際の空き次第なので、
+   * 高さそのものを @container の条件にする（画面側で測ると印刷レイアウトとずれる）。
+   *
+   * 判定用の枠を絶対配置で挟んでいるのは、flex-grow で決まる高さを Chrome が
+   * 「不定」と扱ってコンテナクエリの min-height が一切当たらないため。
+   * inset: 0 なら高さが親から確定するので判定できる。
+   */
+  .print-fill-slot {
+    display: block;
+    position: absolute;
+    inset: 0;
+    container-type: size;
+  }
+
+  .print-fill {
+    display: none;
+  }
+
+  /* 閾値は見出し＋表の実測（135px）に余裕を足した値 */
+  @container (min-height: 145px) {
+    .print-fill {
+      display: block;
+    }
+  }
+
+  /* 参考資料を2枚目に付けるときは同じ表が2度出るので刷り込まない */
+  .print-with-reference .print-fill {
+    display: none !important;
+  }
+
+  .print-fill h3 {
+    margin: 0 0 2px 0 !important;
+    font-size: 8pt !important;
+    color: #555;
+    break-after: avoid;
   }
 
   .ref-block {
