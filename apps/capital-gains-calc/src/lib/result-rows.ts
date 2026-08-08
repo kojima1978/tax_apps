@@ -33,21 +33,31 @@ export const taxBreakdownRows = (
 ];
 
 /**
- * 税目の合計4行。並びは申告書の順ではなく「いつ納めるか」で切る。
- * 所得税と復興特別所得税は確定申告で一緒に納め、住民税は翌年度に別途納付するので、
- * 単純に足し上げず小計を挟む。区分が1つしかないケースでは税目ごとの合計行が
- * すぐ上の明細と同じ数字の繰り返しになるため、納付時期という別の情報を持たせている。
- * 税率は不動産だと区分ごとに違って合計には書けないので、株式等のときだけ渡す。
+ * 税目の内訳4行。並びは申告書の順ではなく「いつ納めるか」で切り、
+ * 確定申告で一緒に納める所得税＋復興特別所得税で小計を挟んでから住民税（翌年度納付）を出す。
+ *
+ * 税率区分が1つならこれが唯一の明細（`rate` に区分の税率を渡す）、
+ * 軽減税率で区分が2つに割れるときだけ、区分ごとの明細に続く合計として `total` で使う。
+ * 合計のときに税率を書かないのは、区分ごとに違って1つに定まらないため。
  */
-export const taxTotalRows = (amounts: TaxAmounts, rate?: TaxRateSet): ResultRow[] => {
-    const withRate = (label: string, value: number | undefined) =>
-        value === undefined ? label : `${label}（${formatRate(value)}）`;
+export const taxTotalRows = (
+    amounts: TaxAmounts,
+    rate?: TaxRateSet,
+    total = false,
+): ResultRow[] => {
+    const suffix = total ? ' 合計' : '';
+    const label = (base: string, value: number | undefined) =>
+        `${base}${value === undefined ? '' : `（${formatRate(value)}）`}${suffix}`;
 
     return [
-        { label: withRate('所得税', rate?.incomeTax), value: formatYen(amounts.incomeTax) },
+        { label: label('所得税', rate?.incomeTax), value: formatYen(amounts.incomeTax), sub: true },
         {
-            label: `復興特別所得税（所得税額の${formatRate(RECONSTRUCTION_RATIO)}）`,
+            // 合計行では税率を書かない（区分ごとの明細に既に出ていて、ラベルが長くなるだけ）
+            label: total
+                ? '復興特別所得税 合計'
+                : `復興特別所得税（所得税額の${formatRate(RECONSTRUCTION_RATIO)}）`,
             value: formatYen(amounts.reconstruction),
+            sub: true,
         },
         {
             label: '小計',
@@ -55,9 +65,10 @@ export const taxTotalRows = (amounts: TaxAmounts, rate?: TaxRateSet): ResultRow[
             value: formatYen(amounts.incomeTax + amounts.reconstruction),
         },
         {
-            label: withRate('住民税', rate?.residentTax),
+            label: label('住民税', rate?.residentTax),
             note: '翌年度6月〜納付',
             value: formatYen(amounts.residentTax),
+            sub: true,
         },
     ];
 };
@@ -66,6 +77,7 @@ export const taxTotalRows = (amounts: TaxAmounts, rate?: TaxRateSet): ResultRow[
  * 手取り概算とその内訳3行。
  * 3つの数字はいずれも上の表に出ているが、印刷物では離れた位置に散るので、
  * 手取りの行だけを見て検算できるように再掲する。
+ * 内訳を先に置いて手取りで締めるのは、税額の計算と同じ「明細 → 結果」の並びに揃えるため。
  * 不動産・株式等の両タブで同じ見た目にするためここに置く。
  */
 export const netProceedsRows = (params: {
@@ -74,12 +86,8 @@ export const netProceedsRows = (params: {
     tax: number;
     netProceeds: number;
 }): ResultRow[] => [
-    { label: '手取り概算', value: formatYen(params.netProceeds), highlight: true },
     { label: '譲渡価額', value: formatYen(params.transferPrice), sub: true },
     { label: '譲渡費用', value: `− ${formatYen(params.transferExpense)}`, sub: true },
-    {
-        label: '税額（所得税・復興特別所得税・住民税）',
-        value: `− ${formatYen(params.tax)}`,
-        sub: true,
-    },
+    { label: '税額合計', value: `− ${formatYen(params.tax)}`, sub: true },
+    { label: '手取り概算', value: formatYen(params.netProceeds), highlight: true },
 ];

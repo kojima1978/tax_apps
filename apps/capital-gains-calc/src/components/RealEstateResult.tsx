@@ -90,6 +90,9 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
 
     const taxRows = useMemo<ResultRow[]>(() => {
         const rows: ResultRow[] = [];
+        // 区分が1つなら、その明細がそのまま税目ごとの合計になる。
+        // 合計行を別に立てると同じ数字の繰り返しにしかならないので、明細側を小計入りの形で出す
+        const isSingleBracket = result.brackets.length < 2;
 
         result.brackets.forEach((bracket) => {
             rows.push({
@@ -97,15 +100,22 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
                 value: formatYen(bracket.taxableAmount),
                 note: `税率 ${bracket.ratePercent}%`,
             });
-            rows.push(...taxBreakdownRows(bracket.amounts, bracket.rate, true));
+            rows.push(
+                ...(isSingleBracket
+                    ? taxTotalRows(bracket.amounts, bracket.rate)
+                    : taxBreakdownRows(bracket.amounts, bracket.rate, true)),
+            );
         });
 
         if (rows.length === 0) {
             rows.push({ label: "課税譲渡所得なし", value: formatYen(0) });
         }
 
+        if (!isSingleBracket) {
+            rows.push(...taxTotalRows(result.tax, undefined, true));
+        }
+
         rows.push(
-            ...taxTotalRows(result.tax),
             { label: "税額合計", value: formatYen(result.tax.total), highlight: true },
             ...netProceedsRows({
                 transferPrice,
