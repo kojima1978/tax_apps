@@ -1077,7 +1077,8 @@ tbody th small {
     break-inside: avoid;
   }
 
-  .print-meta-side {
+  /* 会社情報を右、担当・作成日を左に置く */
+  .print-meta-company {
     text-align: right;
   }
 
