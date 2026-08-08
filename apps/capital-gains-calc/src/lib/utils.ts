@@ -38,6 +38,12 @@ export const parseFormattedNumber = (val: string): number => {
 };
 
 /**
+ * 税率（小数）を百分率の文字列にする。
+ * 0.15 → "15%"、0.00315 → "0.315%"。浮動小数点の桁ブレを丸めてから表示する。
+ */
+export const formatRate = (rate: number): string => `${Math.round(rate * 1e6) / 1e4}%`;
+
+/**
  * 日付を「YYYY年M月D日」形式にフォーマットする
  */
 export const formatJapaneseDate = (date: Date): string =>

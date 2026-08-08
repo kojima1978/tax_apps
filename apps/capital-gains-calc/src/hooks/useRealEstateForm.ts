@@ -9,7 +9,11 @@ import { useFormState } from './useFormState';
  * 計算には合計だけを渡すが、申告時に内訳を問われる項目なので入力・印刷とも項目別に残す。
  */
 export const TRANSFER_EXPENSE_ITEMS = [
-    { key: 'brokerFee', label: '仲介手数料', hint: '売却時に不動産会社へ支払った手数料' },
+    {
+        key: 'brokerFee',
+        label: '仲介手数料',
+        hint: '売却時に不動産会社へ支払った手数料。自動計算は宅建業法の上限額（消費税込み）',
+    },
     { key: 'stampTax', label: '印紙税', hint: '売買契約書に貼付した印紙代（売主負担分）' },
     { key: 'surveyFee', label: '測量費・登記費用', hint: '境界確定測量、登記名義人の表示変更登記など' },
     { key: 'demolitionCost', label: '建物取壊費用', hint: '土地を売るために建物を取り壊した場合の費用と建物の損失額' },

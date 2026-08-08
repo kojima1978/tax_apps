@@ -188,6 +188,31 @@ body {
   margin-top: 0.25rem;
 }
 
+/* 入力欄に値を流し込む補助ボタン（仲介手数料の自動計算など） */
+.field-action {
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--primary-color);
+  border-radius: 4px;
+  background-color: var(--white);
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.field-action:hover:not(:disabled) {
+  background-color: var(--primary-color);
+  color: var(--white);
+}
+
+.field-action:disabled {
+  border-color: #ccc;
+  color: #999;
+  cursor: not-allowed;
+}
+
 .input-with-unit {
   display: flex;
   align-items: center;
@@ -651,9 +676,13 @@ tbody th small {
    印刷用スタイル
    ======================================== */
 @media print {
+  /*
+   * A4横1枚に収める。用紙面積はA4縦と同じなので、面積を稼いだのではなく
+   * 「参考資料を落とす」「ヒント文を落とす」「3段組で余白を潰す」で内容量を削っている。
+   */
   @page {
-    size: A4 portrait;
-    margin: 8mm;
+    size: A4 landscape;
+    margin: 7mm;
   }
 
   html,
@@ -675,102 +704,201 @@ tbody th small {
     display: block;
   }
 
-  .print-subtitle {
-    font-size: 10pt !important;
-    font-weight: 700;
-    margin: 0 0 6px 0;
+  /* 入力欄のヒント文・操作ボタンは画面で使うもの。印刷では項目名と金額だけ残す */
+  .input-item small,
+  .checkbox-item small,
+  .section-lead,
+  .field-action {
+    display: none !important;
   }
 
+  .print-subtitle {
+    font-size: 8.5pt !important;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+  }
+
+  /*
+   * 3段組。段の切れ目でフォーム・結果表が割れないよう break-inside: avoid を各ブロックに置く。
+   * ヘッダー・免責・フッターは column-span: all で段組の外に出す。
+   */
   .container-custom {
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    column-count: 3;
+    column-gap: 6mm;
+    column-rule: 1px solid #ddd;
+  }
+
+  .page-header,
+  .print-subtitle,
+  .disclaimer,
+  .print-footer {
+    column-span: all;
   }
 
   .page-header {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
+    gap: 0.5rem;
   }
 
   .page-header h1 {
-    font-size: 14pt;
+    font-size: 12pt;
   }
 
-  .form-section {
-    gap: 6px !important;
+  .page-header p,
+  .page-header svg {
+    display: none !important;
+  }
+
+  /* flex/grid は段をまたげないので、印刷時だけ通常フローに戻す */
+  .form-section,
+  .result-grid {
+    display: block !important;
   }
 
   .form-section fieldset {
-    padding: 6px 8px 8px !important;
-    gap: 4px !important;
+    padding: 4px 6px 5px !important;
+    gap: 3px !important;
+    margin-bottom: 5px !important;
     break-inside: avoid;
   }
 
   .form-section legend {
-    font-size: 9pt !important;
+    font-size: 8pt !important;
   }
 
   .form-row {
-    gap: 4px 12px !important;
+    gap: 3px 8px !important;
   }
 
   .input-item label,
   .pseudo-label {
-    font-size: 9pt;
+    font-size: 7.5pt !important;
+    line-height: 1.25 !important;
     color: #000;
-    margin-bottom: 2px;
+    margin-bottom: 1px !important;
   }
 
-  .input-item input,
+  /* 画面側が input[type="..."] で指定しているので、印刷側も同じ詳細度で当てる */
+  .input-item input[type="text"],
+  .input-item input[type="date"],
   .input-item select {
     border: none !important;
     border-bottom: 1px solid #999 !important;
     border-radius: 0 !important;
-    padding: 1px 2px !important;
-    font-size: 10pt;
+    padding: 0 1px !important;
+    font-size: 8.5pt !important;
+    line-height: 1.3 !important;
     background: transparent !important;
+  }
+
+  .input-with-unit {
+    gap: 3px !important;
+  }
+
+  .input-with-unit .unit {
+    font-size: 7pt !important;
+  }
+
+  .mode-toggle {
+    gap: 4px !important;
+  }
+
+  .toggle-btn {
+    padding: 0 4px !important;
+    font-size: 7pt !important;
+  }
+
+  .derived-note,
+  .fieldset-note {
+    font-size: 7pt !important;
+    line-height: 1.4 !important;
+    padding: 2px 4px !important;
+    margin: 0 !important;
   }
 
   .derived-value {
     border: none !important;
-    padding: 1px 2px !important;
+    padding: 0 1px !important;
     background: transparent !important;
-    font-size: 10pt;
+    font-size: 8.5pt !important;
   }
 
   .checkbox-item {
     background: transparent !important;
-    padding: 2px !important;
+    padding: 0 !important;
     min-height: 0;
   }
 
   .checkbox-label {
-    font-size: 9pt;
+    font-size: 7.5pt !important;
+    gap: 3px !important;
+    line-height: 1.4 !important;
   }
 
-  /* 結果は2ページ目から */
-  .result-section {
-    break-before: page;
-    border-top: none;
-    padding-top: 0;
-    margin-top: 0;
+  .checkbox-label input[type="checkbox"] {
+    width: 9px;
+    height: 9px;
   }
 
-  .result-grid {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 8px !important;
+  /* 改ページはしない（1枚に収めるため）。区切りは細い罫線だけで示す */
+  .result-section,
+  .minimum-tax-section {
+    break-before: auto;
+    border-top: 1px solid #999;
+    padding-top: 4px !important;
+    margin-top: 6px !important;
+  }
+
+  /* 見出しだけが段の末尾に取り残されないようにする */
+  .result-section h2,
+  .minimum-tax-section h2,
+  .result-block h3 {
+    break-after: avoid;
+  }
+
+  .result-section h2,
+  .minimum-tax-section h2 {
+    font-size: 9pt !important;
+    margin-bottom: 4px !important;
   }
 
   .result-block {
     break-inside: avoid;
+    margin-bottom: 4px;
+  }
+
+  .result-block h3 {
+    font-size: 8pt !important;
+    margin-bottom: 2px !important;
   }
 
   table {
-    font-size: 8.5pt !important;
+    font-size: 7.5pt !important;
   }
 
   th,
   td {
-    padding: 3px 5px !important;
+    padding: 1px 4px !important;
+    line-height: 1.25 !important;
+  }
+
+  /* thead th / tbody th は画面側で個別に font-size を持つので個別に上書きする */
+  thead th,
+  tbody th {
+    font-size: 7pt !important;
+  }
+
+  tbody th small,
+  .value-cell small {
+    font-size: 6pt !important;
+    margin-top: 0 !important;
+  }
+
+  .sub-label {
+    padding-left: 12px !important;
   }
 
   .table-scroll {
@@ -788,47 +916,63 @@ tbody th small {
   .note-list li,
   .ref-note,
   .disclaimer {
-    font-size: 7.5pt !important;
+    font-size: 6.5pt !important;
+    line-height: 1.5 !important;
   }
 
-  /* 判定を有効にしたときだけ印刷される（無効時は no-print が付く） */
-  .minimum-tax-section {
-    break-before: page;
-    border-top: none;
-    margin-top: 0;
-    padding-top: 0;
+  .note-list {
+    margin-top: 4px !important;
+    padding: 3px 5px !important;
+    border-left-width: 2px !important;
   }
 
-  .section-lead {
-    font-size: 7.5pt !important;
+  .note-list h4 {
+    font-size: 7pt !important;
+    margin-bottom: 2px !important;
   }
 
+  .note-list ul {
+    padding-left: 10px !important;
+  }
+
+  /* 参考資料は画面で参照する資料。1枚に収めるため印刷対象から外す */
   .ref-tables {
-    break-before: page;
-    margin-top: 0;
-    padding-top: 0;
+    display: none !important;
+  }
+
+  .disclaimer {
+    margin-top: 5px !important;
   }
 
   .print-footer {
-    margin-top: 1rem;
-    padding: 0.5rem 0;
+    margin-top: 5px;
+    padding: 4px 0 0;
     border-top: 1px solid #999;
     background-color: transparent;
     break-inside: avoid;
   }
 
+  .print-footer-content {
+    gap: 1rem;
+  }
+
   .print-footer-company p {
-    font-size: 9pt !important;
-    margin: 0.15rem 0;
+    font-size: 8pt !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
   }
 
   .print-footer-company .company-name {
-    font-size: 10pt !important;
+    font-size: 8.5pt !important;
+  }
+
+  .staff-input-wrapper {
+    margin-bottom: 0.25rem;
   }
 
   .staff-input-wrapper label,
   .staff-input {
-    font-size: 9pt !important;
+    font-size: 8pt !important;
   }
 
   .staff-input {
@@ -840,6 +984,6 @@ tbody th small {
   }
 
   .print-date {
-    font-size: 9pt !important;
+    font-size: 8pt !important;
   }
 }

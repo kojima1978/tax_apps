@@ -39,7 +39,10 @@ export type TaxAmounts = {
 export type TaxBracket = {
     label: string;
     taxableAmount: number;
+    /** 所得税・復興・住民税の合計税率（%） */
     ratePercent: number;
+    /** 税目ごとの税率。結果表で「所得税（15%）」のように併記するために持つ */
+    rate: TaxRateSet;
     amounts: TaxAmounts;
 };
 
@@ -214,6 +217,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
                 label: '6,000万円以下の部分（軽減税率）',
                 taxableAmount: lowerPart,
                 ratePercent: toPercent(REDUCED_RATE),
+                rate: REDUCED_RATE,
                 amounts: applyRate(lowerPart, REDUCED_RATE),
             });
             const upperPart = taxableIncome - lowerPart;
@@ -222,6 +226,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
                     label: '6,000万円超の部分',
                     taxableAmount: upperPart,
                     ratePercent: toPercent(LONG_TERM_RATE),
+                    rate: LONG_TERM_RATE,
                     amounts: applyRate(upperPart, LONG_TERM_RATE),
                 });
             }
@@ -231,6 +236,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
                 label: isLongTerm ? '長期譲渡所得' : '短期譲渡所得',
                 taxableAmount: taxableIncome,
                 ratePercent: toPercent(rate),
+                rate,
                 amounts: applyRate(taxableIncome, rate),
             });
         }
@@ -304,7 +310,10 @@ export type SecuritiesResult = {
     transferExpense: number;
     grossProfit: number;
     taxableIncome: number;
+    /** 所得税・復興・住民税の合計税率（%） */
     ratePercent: number;
+    /** 税目ごとの税率。結果表で「所得税（15%）」のように併記するために持つ */
+    rate: TaxRateSet;
     tax: TaxAmounts;
     netProceeds: number;
     isLoss: boolean;
@@ -341,6 +350,7 @@ export const calcSecurities = (input: SecuritiesInput): SecuritiesResult => {
         grossProfit,
         taxableIncome,
         ratePercent: toPercent(SECURITIES_RATE),
+        rate: SECURITIES_RATE,
         tax,
         netProceeds: input.transferPrice - input.transferExpense - tax.total,
         isLoss: grossProfit < 0,

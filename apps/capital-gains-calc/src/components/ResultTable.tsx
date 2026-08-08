@@ -1,12 +1,4 @@
-export type ResultRow = {
-    label: string;
-    value: string;
-    /** 内訳行（インデント表示） */
-    sub?: boolean;
-    /** 強調行（合計・税額など） */
-    highlight?: boolean;
-    note?: string;
-};
+import type { ResultRow } from "@/lib/result-rows";
 
 type ResultTableProps = {
     caption: string;

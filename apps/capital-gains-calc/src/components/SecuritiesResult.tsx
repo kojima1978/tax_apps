@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import NoteList from "./NoteList";
-import ResultTable, { type ResultRow } from "./ResultTable";
+import ResultTable from "./ResultTable";
 import type { SecuritiesResult as SecuritiesResultType } from "@/lib/capital-gains";
+import { taxBreakdownRows, type ResultRow } from "@/lib/result-rows";
 import type { SecuritiesFormState } from "@/hooks/useSecuritiesForm";
 import { formatYen, parseFormattedNumber } from "@/lib/utils";
 
@@ -29,9 +30,7 @@ const SecuritiesResultView = ({ form, result }: SecuritiesResultProps) => {
 
     const taxRows = useMemo<ResultRow[]>(
         () => [
-            { label: "所得税", value: formatYen(result.tax.incomeTax), note: "15%" },
-            { label: "復興特別所得税", value: formatYen(result.tax.reconstruction), note: "所得税額の2.1%" },
-            { label: "住民税", value: formatYen(result.tax.residentTax), note: "5%" },
+            ...taxBreakdownRows(result.tax, result.rate),
             {
                 label: "税額合計",
                 value: formatYen(result.tax.total),

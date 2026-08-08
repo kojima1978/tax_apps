@@ -1,8 +1,6 @@
 import { MINIMUM_TAX_RATE, MINIMUM_TAX_START_YEAR, MINIMUM_TAX_THRESHOLD } from "@/lib/minimum-tax";
 import { BUILDING_STRUCTURES, LONG_TERM_RATE, REDUCED_RATE, SECURITIES_RATE, SHORT_TERM_RATE, totalRate } from "@/lib/tax-rates";
-import { formatYen } from "@/lib/utils";
-
-const percent = (value: number): string => `${Math.round(value * 1e6) / 1e4}%`;
+import { formatRate, formatYen } from "@/lib/utils";
 
 const MINIMUM_TAX_ROWS = [
     { item: "適用年分", detail: `令和7年分（${MINIMUM_TAX_START_YEAR}年分）以後の所得税` },
@@ -65,11 +63,11 @@ const ReferenceTables = () => (
                                 <th scope="row">{row.category}</th>
                                 <td>{row.condition}</td>
                                 <td className="value-cell">
-                                    {percent(row.rate.incomeTax)}
-                                    <small>＋復興 {percent(row.rate.reconstruction)}</small>
+                                    {formatRate(row.rate.incomeTax)}
+                                    <small>＋復興 {formatRate(row.rate.reconstruction)}</small>
                                 </td>
-                                <td className="value-cell">{percent(row.rate.residentTax)}</td>
-                                <td className="value-cell">{percent(totalRate(row.rate))}</td>
+                                <td className="value-cell">{formatRate(row.rate.residentTax)}</td>
+                                <td className="value-cell">{formatRate(totalRate(row.rate))}</td>
                             </tr>
                         ))}
                     </tbody>

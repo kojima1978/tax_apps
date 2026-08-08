@@ -1,13 +1,14 @@
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import CheckboxField from "./CheckboxField";
-import CurrencyField from "./CurrencyField";
+import CurrencyField, { type FieldAction } from "./CurrencyField";
 import DateField from "./DateField";
 import FormField from "./FormField";
 import ToggleGroup, { type ToggleOption } from "./ToggleGroup";
 import type { BuildingUsage, CostMode, RealEstateResult } from "@/lib/capital-gains";
 import { TRANSFER_EXPENSE_ITEMS, type RealEstateFormState } from "@/hooks/useRealEstateForm";
+import { calcBrokerFee } from "@/lib/broker-fee";
 import { BUILDING_STRUCTURES, findStructure } from "@/lib/tax-rates";
-import { formatYen } from "@/lib/utils";
+import { formatInputValue, formatYen, parseFormattedNumber } from "@/lib/utils";
 
 const COST_MODE_OPTIONS: ToggleOption<CostMode>[] = [
     { value: "actual", label: "実額取得費" },
@@ -30,6 +31,23 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
     const structureId = useId();
     const structure = findStructure(form.structureKey);
     const showActualCost = form.costMode === "actual";
+
+    /**
+     * 仲介手数料を譲渡価額から入れるボタン。
+     * 入るのは上限額なので、押した後に実額へ書き換えられるようにしてある（追従はしない）。
+     */
+    const brokerFeeAction = useMemo<FieldAction>(() => {
+        const price = parseFormattedNumber(form.transferPrice);
+        return {
+            label: "譲渡価額から計算",
+            onClick: () => setField("brokerFee", formatInputValue(calcBrokerFee(price))),
+            disabled: price <= 0,
+            title:
+                price > 0
+                    ? "宅建業法の報酬上限（400万円超は 代金×3%＋6万円）に消費税を加えた額を入れます。実際の支払額が下回る場合は書き換えてください"
+                    : "譲渡価額を入力すると計算できます",
+        };
+    }, [form.transferPrice, setField]);
 
     const ownershipLabel =
         result.ownershipYears === null
@@ -160,6 +178,7 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
                             value={form[item.key]}
                             onChange={(v) => setField(item.key, v)}
                             hint={item.hint}
+                            action={item.key === "brokerFee" ? brokerFeeAction : undefined}
                         />
                     ))}
                 </div>

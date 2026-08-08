@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import NoteList from "./NoteList";
-import ResultTable, { type ResultRow } from "./ResultTable";
+import ResultTable from "./ResultTable";
 import type { RealEstateResult as RealEstateResultType } from "@/lib/capital-gains";
+import { taxBreakdownRows, type ResultRow } from "@/lib/result-rows";
 import { formatYen, parseFormattedNumber } from "@/lib/utils";
 import { TRANSFER_EXPENSE_ITEMS, type RealEstateFormState } from "@/hooks/useRealEstateForm";
 
@@ -63,9 +64,7 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
                 value: formatYen(bracket.taxableAmount),
                 note: `税率 ${bracket.ratePercent}%`,
             });
-            rows.push({ label: "所得税", value: formatYen(bracket.amounts.incomeTax), sub: true });
-            rows.push({ label: "復興特別所得税", value: formatYen(bracket.amounts.reconstruction), sub: true });
-            rows.push({ label: "住民税", value: formatYen(bracket.amounts.residentTax), sub: true });
+            rows.push(...taxBreakdownRows(bracket.amounts, bracket.rate, true));
         });
 
         if (rows.length === 0) {
