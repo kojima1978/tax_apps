@@ -214,7 +214,8 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
         if (reducedRateApplied) {
             const lowerPart = Math.min(taxableIncome, REDUCED_RATE_LIMIT);
             brackets.push({
-                label: '6,000万円以下の部分（軽減税率）',
+                // 税率は結果表で行を増やさずに出したいので、区分名と同じ括弧にまとめる
+                label: `6,000万円以下の部分（軽減税率 ${toPercent(REDUCED_RATE)}%）`,
                 taxableAmount: lowerPart,
                 ratePercent: toPercent(REDUCED_RATE),
                 rate: REDUCED_RATE,
@@ -223,7 +224,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
             const upperPart = taxableIncome - lowerPart;
             if (upperPart > 0) {
                 brackets.push({
-                    label: '6,000万円超の部分',
+                    label: `6,000万円超の部分（税率 ${toPercent(LONG_TERM_RATE)}%）`,
                     taxableAmount: upperPart,
                     ratePercent: toPercent(LONG_TERM_RATE),
                     rate: LONG_TERM_RATE,
@@ -233,7 +234,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
         } else {
             const rate = isLongTerm ? LONG_TERM_RATE : SHORT_TERM_RATE;
             brackets.push({
-                label: isLongTerm ? '長期譲渡所得' : '短期譲渡所得',
+                label: `${isLongTerm ? '長期譲渡所得' : '短期譲渡所得'}（税率 ${toPercent(rate)}%）`,
                 taxableAmount: taxableIncome,
                 ratePercent: toPercent(rate),
                 rate,

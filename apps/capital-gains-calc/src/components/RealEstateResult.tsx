@@ -95,11 +95,7 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
         const isSingleBracket = result.brackets.length < 2;
 
         result.brackets.forEach((bracket) => {
-            rows.push({
-                label: bracket.label,
-                value: formatYen(bracket.taxableAmount),
-                note: `税率 ${bracket.ratePercent}%`,
-            });
+            rows.push({ label: bracket.label, value: formatYen(bracket.taxableAmount) });
             rows.push(
                 ...(isSingleBracket
                     ? taxTotalRows(bracket.amounts, bracket.rate)

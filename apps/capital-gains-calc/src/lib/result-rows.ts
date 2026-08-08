@@ -10,7 +10,6 @@ export type ResultRow = {
     sub?: boolean;
     /** 強調行（合計・税額など） */
     highlight?: boolean;
-    note?: string;
 };
 
 /**
@@ -35,6 +34,7 @@ export const taxBreakdownRows = (
 /**
  * 税目の内訳4行。並びは申告書の順ではなく「いつ納めるか」で切り、
  * 確定申告で一緒に納める所得税＋復興特別所得税で小計を挟んでから住民税（翌年度納付）を出す。
+ * 納付時期そのものは行に書かない（1行1行の高さを揃えるため注記を持たせない方針）。
  *
  * 税率区分が1つならこれが唯一の明細（`rate` に区分の税率を渡す）、
  * 軽減税率で区分が2つに割れるときだけ、区分ごとの明細に続く合計として `total` で使う。
@@ -59,14 +59,9 @@ export const taxTotalRows = (
             value: formatYen(amounts.reconstruction),
             sub: true,
         },
-        {
-            label: '小計',
-            note: '確定申告で納付',
-            value: formatYen(amounts.incomeTax + amounts.reconstruction),
-        },
+        { label: '小計', value: formatYen(amounts.incomeTax + amounts.reconstruction) },
         {
             label: label('住民税', rate?.residentTax),
-            note: '翌年度6月〜納付',
             value: formatYen(amounts.residentTax),
             sub: true,
         },

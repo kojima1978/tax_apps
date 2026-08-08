@@ -32,9 +32,8 @@ const SecuritiesResultView = ({ form, result }: SecuritiesResultProps) => {
         () => [
             ...taxTotalRows(result.tax, result.rate),
             {
-                label: "税額合計",
+                label: `税額合計（合計税率 ${result.ratePercent}%）`,
                 value: formatYen(result.tax.total),
-                note: `合計税率 ${result.ratePercent}%`,
                 highlight: true,
             },
             ...netProceedsRows({

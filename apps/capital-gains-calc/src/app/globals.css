@@ -468,14 +468,6 @@ tbody th {
   font-size: 0.85rem;
 }
 
-tbody th small {
-  display: block;
-  font-size: 0.7rem;
-  font-weight: 400;
-  color: var(--muted-color);
-  margin-top: 2px;
-}
-
 .sub-label {
   padding-left: 1.75rem !important;
   font-weight: 400 !important;
@@ -750,8 +742,8 @@ tbody th small {
     --pr-gap-xs: 2px;
     --pr-rule-gap: 6px;
     --pr-rule-pad: 4px;
-    --pr-cell-y: 0.5px;
-    --pr-cell-lh: 1.2;
+    --pr-cell-y: 0.8px;
+    --pr-cell-lh: 1.22;
   }
 
   .no-print {
@@ -983,7 +975,7 @@ tbody th small {
     font-size: 7pt !important;
   }
 
-  tbody th small,
+  /* 税率一覧の「＋復興 0.315%」だけが結果表の外で small を使う */
   .value-cell small {
     font-size: 6pt !important;
     margin-top: 0 !important;

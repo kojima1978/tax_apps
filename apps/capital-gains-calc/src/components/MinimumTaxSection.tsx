@@ -26,9 +26,8 @@ const MinimumTaxSection = ({ form, setField, result, source }: MinimumTaxSection
             { label: "特別控除額", value: `− ${formatYen(MINIMUM_TAX_THRESHOLD)}` },
             { label: "3億3,000万円を超える部分", value: formatYen(result.excessIncome) },
             {
-                label: "① 上記に対する税額",
+                label: `① 上記に対する税額（税率 ${ratePercent}%）`,
                 value: formatYen(result.calculatedTax),
-                note: `税率 ${ratePercent}%`,
                 highlight: true,
             },
         ],
