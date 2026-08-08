@@ -728,6 +728,32 @@ tbody th small {
     overflow: visible !important;
   }
 
+  /*
+   * 縦の間隔はトークンで持つ。既定は「ゆとり」側の値。
+   * ミニマムタックスまで刷る構成だけは行数がほぼ倍（38行）になり、
+   * ゆとりを入れると備考を書いたときに2枚目へ溢れるので、そこだけ詰めた値へ落とす。
+   */
+  body {
+    --pr-gap: 9px;
+    --pr-gap-sm: 5px;
+    --pr-gap-xs: 3px;
+    --pr-rule-gap: 11px;
+    --pr-rule-pad: 7px;
+    --pr-cell-y: 1.5px;
+    --pr-cell-lh: 1.3;
+  }
+
+  /* .no-print が付いていない ＝ ミニマムタックスを印刷する構成 */
+  body:has(.minimum-tax-section:not(.no-print)) {
+    --pr-gap: 4px;
+    --pr-gap-sm: 3px;
+    --pr-gap-xs: 2px;
+    --pr-rule-gap: 6px;
+    --pr-rule-pad: 4px;
+    --pr-cell-y: 1px;
+    --pr-cell-lh: 1.25;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -747,7 +773,7 @@ tbody th small {
   .print-subtitle {
     font-size: 8.5pt !important;
     font-weight: 700;
-    margin: 0 0 4px 0;
+    margin: 0 0 var(--pr-gap-sm) 0;
   }
 
   .container-custom {
@@ -791,7 +817,7 @@ tbody th small {
   }
 
   .print-conditions {
-    margin: 0 0 4px 0 !important;
+    margin: 0 0 var(--pr-gap) 0 !important;
     font-size: 7.5pt !important;
     line-height: 1.4 !important;
     color: #333;
@@ -905,8 +931,8 @@ tbody th small {
   .minimum-tax-section {
     break-before: auto;
     border-top: 1px solid #999;
-    padding-top: 4px !important;
-    margin-top: 6px !important;
+    padding-top: var(--pr-rule-pad) !important;
+    margin-top: var(--pr-rule-gap) !important;
   }
 
   /* 入力欄を出さないので、段の先頭に来る結果表の上罫線は区切るものが無い */
@@ -926,27 +952,29 @@ tbody th small {
   .result-section h2,
   .minimum-tax-section h2 {
     font-size: 9pt !important;
-    margin-bottom: 4px !important;
+    margin-bottom: var(--pr-gap-sm) !important;
   }
 
+  /* 表と表の間。ここが詰まっていると結果全体が1つの塊に見える */
   .result-block {
     break-inside: avoid;
-    margin-bottom: 4px;
+    margin-bottom: var(--pr-gap);
   }
 
   .result-block h3 {
     font-size: 8pt !important;
-    margin-bottom: 2px !important;
+    margin-bottom: var(--pr-gap-xs) !important;
   }
 
   table {
     font-size: 7.5pt !important;
   }
 
+  /* 行ピッチ。セル上下 0.5px の差でも 38行あると 38px 効くので、トークンで切り替える */
   th,
   td {
-    padding: 1px 4px !important;
-    line-height: 1.25 !important;
+    padding: var(--pr-cell-y) 4px !important;
+    line-height: var(--pr-cell-lh) !important;
   }
 
   /* thead th / tbody th は画面側で個別に font-size を持つので個別に上書きする */
@@ -985,14 +1013,14 @@ tbody th small {
   }
 
   .note-list {
-    margin-top: 4px !important;
-    padding: 3px 5px !important;
+    margin-top: var(--pr-gap) !important;
+    padding: var(--pr-gap-xs) 6px !important;
     border-left-width: 2px !important;
   }
 
   .note-list h4 {
     font-size: 7pt !important;
-    margin-bottom: 2px !important;
+    margin-bottom: var(--pr-gap-xs) !important;
   }
 
   .note-list ul {
@@ -1041,7 +1069,7 @@ tbody th small {
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 12mm;
-    margin-top: 5px !important;
+    margin-top: var(--pr-gap) !important;
     padding: 3px 5px;
     border: 1px solid #999;
     border-radius: 2px;
@@ -1049,7 +1077,7 @@ tbody th small {
 
   .print-remarks-label {
     font-size: 7pt !important;
-    margin-bottom: 2px !important;
+    margin-bottom: var(--pr-gap-xs) !important;
     color: #555;
   }
 
@@ -1090,8 +1118,14 @@ tbody th small {
    * 「不定」と扱ってコンテナクエリの min-height が一切当たらないため。
    * inset: 0 なら高さが親から確定するので判定できる。
    */
+  /*
+   * 刷り込む表は下端に寄せる。上詰めにすると本文の直後に続いてしまい、
+   * 余った空きが紙の下半分にまとめて残って上に積んだように見える。
+   */
   .print-fill-slot {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
     position: absolute;
     inset: 0;
     container-type: size;
@@ -1101,8 +1135,8 @@ tbody th small {
     display: none;
   }
 
-  /* 閾値は見出し＋表の実測（135px）に余裕を足した値 */
-  @container (min-height: 145px) {
+  /* 閾値は見出し＋表の実測（144px）に余裕を足した値 */
+  @container (min-height: 155px) {
     .print-fill {
       display: block;
     }
@@ -1136,7 +1170,7 @@ tbody th small {
   }
 
   .disclaimer {
-    margin-top: 5px !important;
+    margin-top: var(--pr-gap) !important;
   }
 
   /*
@@ -1148,8 +1182,8 @@ tbody th small {
     justify-content: space-between;
     align-items: flex-end;
     gap: 1rem;
-    margin: 0 0 5px 0;
-    padding: 0 0 3px;
+    margin: 0 0 var(--pr-gap) 0;
+    padding: 0 0 var(--pr-gap-sm);
     border-bottom: 2px solid var(--primary-color);
     break-inside: avoid;
   }
