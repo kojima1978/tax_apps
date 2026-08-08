@@ -27,7 +27,23 @@ const CurrencyField = ({ label, value, onChange, hint, disabled, action }: Curre
     const id = useId();
 
     return (
-        <FormField label={label} htmlFor={id}>
+        <FormField
+            label={label}
+            htmlFor={id}
+            labelAction={
+                action && (
+                    <button
+                        type="button"
+                        className="field-action"
+                        onClick={action.onClick}
+                        disabled={action.disabled}
+                        title={action.title}
+                    >
+                        {action.label}
+                    </button>
+                )
+            }
+        >
             <InputWithUnit
                 unit="円"
                 id={id}
@@ -39,17 +55,6 @@ const CurrencyField = ({ label, value, onChange, hint, disabled, action }: Curre
                 disabled={disabled}
                 onChange={(e) => onChange(formatInputValue(e.target.value))}
             />
-            {action && (
-                <button
-                    type="button"
-                    className="field-action"
-                    onClick={action.onClick}
-                    disabled={action.disabled}
-                    title={action.title}
-                >
-                    {action.label}
-                </button>
-            )}
             {hint && <small>{hint}</small>}
         </FormField>
     );

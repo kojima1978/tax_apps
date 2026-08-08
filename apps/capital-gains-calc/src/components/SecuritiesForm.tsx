@@ -11,9 +11,10 @@ const COST_MODE_OPTIONS: ToggleOption<CostMode>[] = [
 
 type ListedKey = "listed" | "general";
 
+// 実務では非上場株式の譲渡を扱うことが多いので、既定側（左）を一般株式等にしてある
 const LISTED_OPTIONS: ToggleOption<ListedKey>[] = [
-    { value: "listed", label: "上場株式等" },
     { value: "general", label: "一般株式等（非上場）" },
+    { value: "listed", label: "上場株式等" },
 ];
 
 type SecuritiesFormProps = {

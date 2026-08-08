@@ -16,7 +16,8 @@ const INITIAL_STATE: SecuritiesFormState = {
     transferExpense: '',
     costMode: 'actual',
     actualCost: '',
-    listed: true,
+    // 既定は一般株式等（非上場）
+    listed: false,
 };
 
 export function useSecuritiesForm() {

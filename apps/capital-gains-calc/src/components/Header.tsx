@@ -1,10 +1,14 @@
 import { HomeIcon } from "./Icons";
+import PrintMenu from "./PrintMenu";
+import type { PrintOptionKey, PrintOptions } from "@/lib/print-options";
 
 type HeaderProps = {
+    printOptions: PrintOptions;
+    onPrintOptionChange: (key: PrintOptionKey, value: boolean) => void;
     onPrint: () => void;
 };
 
-const Header = ({ onPrint }: HeaderProps) => {
+const Header = ({ printOptions, onPrintOptionChange, onPrint }: HeaderProps) => {
     return (
         <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 no-print">
             <div className="max-w-7xl mx-auto flex items-center h-14 px-4 gap-2">
@@ -20,12 +24,11 @@ const Header = ({ onPrint }: HeaderProps) => {
 
                 <div className="flex-1" />
 
-                <button
-                    onClick={onPrint}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors border border-transparent hover:border-slate-200 flex-shrink-0 cursor-pointer"
-                >
-                    印刷
-                </button>
+                <PrintMenu
+                    options={printOptions}
+                    onOptionChange={onPrintOptionChange}
+                    onPrint={onPrint}
+                />
             </div>
         </header>
     );
