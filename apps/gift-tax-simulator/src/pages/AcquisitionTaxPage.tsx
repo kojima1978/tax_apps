@@ -2,7 +2,10 @@ import { useMemo } from 'react';
 import LandInput from '@/components/acquisition-tax/LandInput';
 import BuildingInput from '@/components/acquisition-tax/BuildingInput';
 import RealEstatePageLayout from '@/components/shared/RealEstatePageLayout';
-import PrintReference from '@/components/acquisition-tax/PrintReference';
+import TaxReference from '@/components/acquisition-tax/TaxReference';
+import {
+    areaRow, buildingDateRow, compactRows, flagRow, shareRow, usageRow, yenRow,
+} from '@/lib/print-conditions';
 import { useAcquisitionTaxForm } from '@/hooks/useAcquisitionTaxForm';
 
 export default function AcquisitionTaxPage() {
@@ -40,6 +43,38 @@ export default function AcquisitionTaxPage() {
             (bN !== bD ? `建物持ち分 ${bN}/${bD}` : ''),
         ].filter(Boolean).join('　') || undefined,
     } : null, [form.results, form.includeLand, form.includeBuilding, form.resLandValuation, form.otherLandValuation, lN, lD, bN, bD]);
+
+    // 印刷用の入力条件。選択していない対象・未入力欄は行ごと落とす
+    const printConditionGroups = useMemo(() => [
+        {
+            title: '土地',
+            rows: form.includeLand ? compactRows([
+                yenRow('宅地 固定資産税評価額', form.resLandValuation),
+                areaRow('宅地 土地面積', form.resLandArea),
+                yenRow('その他 固定資産税評価額', form.otherLandValuation),
+                shareRow(form.landShareNumerator, form.landShareDenominator),
+            ]) : [],
+        },
+        {
+            title: '建物',
+            rows: form.includeBuilding ? compactRows([
+                yenRow('固定資産税評価額', form.buildingValuation),
+                areaRow('建物床面積', form.buildingArea),
+                buildingDateRow(form.selYear, form.selMonth, form.selDay),
+                usageRow(form.isResidential),
+                flagRow('認定長期優良住宅', form.isResidential && form.isLongLifeQuality),
+                form.isResidential ? yenRow('建物不動産取得税の控除額', form.acquisitionDeduction) : null,
+                shareRow(form.buildingShareNumerator, form.buildingShareDenominator),
+            ]) : [],
+        },
+    ], [
+        form.includeLand, form.resLandValuation, form.resLandArea, form.otherLandValuation,
+        form.landShareNumerator, form.landShareDenominator,
+        form.includeBuilding, form.buildingValuation, form.buildingArea,
+        form.selYear, form.selMonth, form.selDay,
+        form.isResidential, form.isLongLifeQuality, form.acquisitionDeduction,
+        form.buildingShareNumerator, form.buildingShareDenominator,
+    ]);
 
     const inputNotice = useMemo(() => {
         const notices = [];
@@ -112,15 +147,17 @@ export default function AcquisitionTaxPage() {
                     />
                 </>
             }
+            printConditionGroups={printConditionGroups}
             onCalculate={form.calculateTax}
             onReset={form.resetForm}
             errorMsg={form.errorMsg}
             results={form.results}
             resultConfig={resultConfig}
+            isStale={form.isStale}
             showDetails={form.showDetails}
             setShowDetails={form.setShowDetails}
             printTitle="不動産取得税シミュレーション"
-            printReference={<PrintReference />}
+            reference={<TaxReference />}
         />
     );
 }

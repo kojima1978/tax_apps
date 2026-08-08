@@ -14,6 +14,9 @@
   --special-bg: #e3f2fd;
   --general-color: #e65100;
   --general-bg: #fff3e0;
+  /* 不動産ページ共通入力の高さ（セレクト＝トグル）と操作ボタンの高さ */
+  --re-control-height: 48px;
+  --re-action-height: 40px;
 }
 
 html {
@@ -674,15 +677,55 @@ body {
 .calc-action-bar {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid #e5e7eb;
 }
 
+/* 「計算する」と「入力を消す」は小ぶりに、かつ同じ高さで並べる */
+.calc-action-bar .btn-calc,
+.calc-action-bar .btn-input-helper {
+  height: var(--re-action-height);
+  min-height: 0;
+  flex: none;
+}
+
+.calc-action-bar .btn-calc {
+  padding: 0 1.25rem;
+  font-size: 0.9rem;
+  border-radius: 6px;
+}
+
+.calc-action-bar .btn-input-helper {
+  padding: 0 0.875rem;
+}
+
 /* ===================== 結果セクション ===================== */
 .result-section {
   padding: 1.5rem;
+}
+
+/* 印刷専用要素（画面では出さない） */
+.print-only {
+  display: none;
+}
+
+/* 入力変更後・未再計算の結果。消さずに薄くして再計算を促す */
+.result-stale > *:not(.result-stale-badge) {
+  opacity: 0.45;
+}
+
+.result-stale-badge {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #f59e0b;
+  border-left: 4px solid #f59e0b;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 /* ===================== 結果サマリー ===================== */
@@ -1028,11 +1071,6 @@ tr.row-optimal td {
   background-color: #fffaf5;
 }
 
-/* ===================== 早見表ページ ===================== */
-.table-page {
-  page: table-page;
-}
-
 /* ===================== グラフエリア ===================== */
 .chart-container-custom {
   position: relative;
@@ -1160,8 +1198,8 @@ tr.row-optimal td {
 }
 
 .re-result-share-note {
-  font-size: 0.8rem;
-  color: #bbf7d0;
+  font-size: 0.75rem;
+  color: #6b7280;
   margin: 0.25rem 0 0;
   text-align: right;
 }
@@ -1193,7 +1231,8 @@ tr.row-optimal td {
   background-color: var(--white);
   color: var(--text-color);
   cursor: pointer;
-  transition: all 0.2s;
+  /* all にすると高さ（ブレークポイント切替）まで補間される */
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
   font-size: 0.9rem;
 }
 
@@ -1203,9 +1242,35 @@ tr.row-optimal td {
   color: var(--white);
 }
 
+/* 「計算対象」ラベルと注記を1行に並べ、ラベル行の高さを隣の列と揃える */
+.label-with-hint {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.label-with-hint label {
+  margin-bottom: 0;
+}
+
 .calculation-target-hint {
   color: #64748b !important;
   line-height: 1.45;
+  margin-top: 0 !important;
+}
+
+/* 登記原因セレクトと計算対象トグルは同じ高さの箱に揃える */
+.transaction-select select,
+.toggle-buttons .toggle-btn {
+  height: var(--re-control-height);
+  min-height: 0;
+}
+
+.transaction-select select {
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .toggle-btn:hover:not(.active):not(:disabled) {
@@ -1292,10 +1357,13 @@ tr.row-optimal td {
 }
 
 /* ===================== 結果ボックス ===================== */
+/* 面で塗ると圧が強いので、白地＋左の緑ラインで「結果」を示す */
 .re-result-box {
-  background-color: var(--primary-dark);
-  color: var(--white);
-  padding: 1.5rem;
+  background-color: var(--white);
+  color: var(--text-color);
+  padding: 0.875rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-left: 3px solid var(--primary-color);
   border-radius: 6px;
   margin-bottom: 1rem;
 }
@@ -1303,65 +1371,68 @@ tr.row-optimal td {
 .re-result-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .re-result-item {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.125rem;
 }
 
 .re-result-label {
-  font-size: 0.85rem;
-  color: #bbf7d0;
+  font-size: 0.78rem;
+  color: #6b7280;
   font-weight: 600;
 }
 
 .re-result-sub {
-  font-size: 0.75rem;
-  color: #d4d4d4;
+  font-size: 0.7rem;
+  color: #9ca3af;
 }
 
 .re-result-value {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
 .re-result-groups {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .re-result-group-title {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: #bbf7d0;
-  padding-bottom: 0.5rem;
-  margin-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--green-700);
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .re-result-group-items {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .re-result-total {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  align-items: baseline;
+  padding-top: 0.625rem;
+  border-top: 1px solid #e5e7eb;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .re-result-total .total-value {
-  font-size: 1.75rem;
+  font-size: 1.35rem;
   font-weight: 700;
+  color: var(--primary-dark);
 }
 
 /* ===================== 計算過程の詳細（不動産） ===================== */
@@ -1549,10 +1620,14 @@ tr.rate-row-highlight td {
   gap: 0.5rem;
 }
 
+/* ラベルと金額はそれぞれ語中で折らず、幅が足りないときだけ行ごと折り返す */
 .calc-step-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
+  column-gap: 0.75rem;
+  row-gap: 0.125rem;
   font-size: 0.85rem;
   padding: 0.25rem 0;
 }
@@ -1560,12 +1635,16 @@ tr.rate-row-highlight td {
 .calc-step-label {
   color: #555;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .calc-step-value {
   font-family: 'Roboto Mono', monospace;
   font-weight: 600;
   color: var(--text-color);
+  white-space: nowrap;
+  /* 折り返して2行になっても金額は右端に揃える */
+  margin-left: auto;
 }
 
 .calc-step-row-result {
@@ -1592,7 +1671,14 @@ tr.rate-row-highlight td {
   margin-bottom: 0.375rem;
 }
 
+/* 「式」と「= 税額」を別々のまとまりにし、1行に収まらないときだけ2行に割る */
 .calc-formula-box {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  column-gap: 0.4rem;
+  row-gap: 0.125rem;
   font-family: 'Roboto Mono', monospace;
   font-size: 0.85rem;
   color: var(--text-color);
@@ -1600,6 +1686,10 @@ tr.rate-row-highlight td {
   background-color: #f5f5f5;
   border-radius: 3px;
   text-align: center;
+}
+
+.calc-formula-box > span {
+  white-space: nowrap;
 }
 
 .calc-formula-box strong {
@@ -1627,12 +1717,6 @@ tr.rate-row-highlight td {
   font-size: 0.8rem;
   color: #666;
   margin-top: 1rem;
-}
-
-/* ===================== 早見表印刷用ページ設定 ===================== */
-@page table-page {
-  size: A4 landscape;
-  margin: 10mm;
 }
 
 /* ===================== フォーカス状態 ===================== */
@@ -1878,9 +1962,23 @@ tr.rate-row-highlight td {
     font-size: 1rem;
   }
 
+  /* 狭い画面では入力欄も操作ボタンも一段低くする（タップ領域は44px確保） */
+  :root {
+    --re-control-height: 44px;
+    --re-action-height: 44px;
+  }
+
   .btn-calc {
     width: 100%;
     padding: 0.75rem 1rem;
+  }
+
+  .calc-action-bar {
+    flex-wrap: wrap;
+  }
+
+  .calc-action-bar .btn-calc {
+    flex: 1 1 auto;
   }
 
   .input-helper-actions {
@@ -1998,11 +2096,11 @@ tr.rate-row-highlight td {
   }
 
   .re-result-box {
-    padding: 1rem;
+    padding: 0.75rem 0.875rem;
   }
 
   .re-result-total .total-value {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
   }
 
   /* チャート */
@@ -2037,9 +2135,108 @@ tr.rate-row-highlight td {
   }
 }
 
-/* 印刷参照ページは画面では非表示 */
-.print-reference {
-  display: none;
+/* ===================== 税額の根拠（画面参照用・印刷対象外） ===================== */
+.tax-reference {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.tax-reference-body {
+  padding: 1rem 1.25rem;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+}
+
+.tax-ref-section {
+  margin-bottom: 1.5rem;
+}
+
+.tax-ref-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.tax-ref-h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 0.35rem;
+  margin: 0 0 0.75rem;
+}
+
+.tax-ref-h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #222;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.tax-ref-formula-block {
+  background-color: var(--white);
+  border-left: 3px solid var(--primary-color);
+  border-radius: 0 4px 4px 0;
+  padding: 0.6rem 0.9rem;
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+/* 幅が足りなければ自動で1カラムに落ちる */
+.tax-ref-two-col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.tax-ref-ul {
+  list-style: disc;
+  margin: 0.35rem 0 0.35rem 1.1rem;
+  padding: 0;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.tax-reference p {
+  font-size: 0.85rem;
+  line-height: 1.7;
+  margin: 0.3rem 0;
+}
+
+.tax-ref-note {
+  font-size: 0.78rem !important;
+  color: #555;
+}
+
+.tax-ref-src {
+  font-size: 0.72rem !important;
+  color: #888;
+  margin-top: 0.5rem !important;
+  word-break: break-all;
+}
+
+.tax-ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.4rem 0;
+  background-color: var(--white);
+  font-size: 0.8rem;
+}
+
+.tax-ref-table th,
+.tax-ref-table td {
+  border: 1px solid #ddd;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.tax-ref-table th {
+  background-color: #f0f7f0;
+  font-weight: 700;
+  text-align: center;
+}
+
+.tax-ref-td-right {
+  text-align: right;
+  font-weight: 700;
 }
 
 /* ===================== 印刷用スタイル ===================== */
@@ -2048,8 +2245,9 @@ tr.rate-row-highlight td {
     display: none;
   }
 
+  /* 全ページ共通: A4横1枚（本文領域 281mm × 194mm） */
   @page {
-    size: A4 portrait;
+    size: A4 landscape;
     margin: 8mm;
   }
 
@@ -2300,15 +2498,161 @@ tr.rate-row-highlight td {
     font-size: 8pt !important;
   }
 
-  /* シミュレーターページ用縮小（zoom はレイアウト自体を縮小するためページブレーク計算が正確） */
-  body:not(:has(.table-page)) {
-    zoom: 0.82;
+  /* 1枚に収まらない分だけ print-fit.ts が実測して差し込む（既定は等倍）。
+     zoom はレイアウト自体を縮小するため、ページブレークの計算が正確になる */
+  body {
+    zoom: var(--print-scale, 1);
   }
 
-  /* 早見表ページ（A4横・2テーブル横並び） */
+  /* ---------- 贈与税シミュレーター: 結果を2カラムに畳む ---------- */
+  .gift-sim-page .result-section {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 5px;
+    align-items: start;
+    padding: 8px 0 0 !important;
+  }
+
+  .gift-sim-page .result-summary-card {
+    grid-column: 1 / -1;
+    margin-bottom: 0 !important;
+  }
+
+  .gift-sim-page .result-section > .table-container {
+    margin-bottom: 0 !important;
+  }
+
+  .gift-sim-page .chart-container-custom {
+    height: 150px !important;
+    min-height: 0 !important; /* 画面用の min-height: 200px を解除 */
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .gift-sim-page .calc-process-section {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+  }
+
+  .gift-sim-page .rate-table-page {
+    margin-top: 0 !important;
+  }
+
+  /* ---------- 分割年数別比較: 表とグラフを横並びに ---------- */
+  .year-comparison-page .result-section {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 5px;
+    align-items: start;
+    padding: 8px 0 0 !important;
+  }
+
+  .year-comparison-page .result-summary-card,
+  .year-comparison-page .result-section > .disclaimer-right {
+    grid-column: 1 / -1;
+    margin-bottom: 0 !important;
+  }
+
+  .year-comparison-page .table-container {
+    margin-bottom: 0 !important;
+  }
+
+  .year-comparison-page .chart-container-custom {
+    height: 220px !important;
+    min-height: 0 !important; /* 画面用の min-height: 200px を解除 */
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .year-comparison-page .disclaimer-right {
+    font-size: 7pt !important;
+    margin-top: 3px !important;
+  }
+
+  /* ---------- 間接税ページ: 入力条件｜税額 の2カラム ---------- */
+  .re-print-layout {
+    display: grid !important;
+    /* 中央の auto は「条件 → 結果」の矢印カラム */
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 8px;
+    align-items: start;
+  }
+
+  /* 左右の枠を同じ高さで終わらせるため、列自体を行の高さまで伸ばす */
+  .re-print-layout > .re-input-column {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+  }
+
+  /* 注意書きは入力欄の中にあるので、そのままだと「入力条件」の上に出て
+     左右の箱の上端がずれる。入れ物を display: contents で畳んで注記だけを
+     取り出し（注記が無い日は箱ごと消える）、条件サマリの下へ送る */
+  /* :not() を外すと入力欄側（input-section-flat）の display: none まで
+     打ち消してしまい、入力欄が丸ごと紙に出る */
+  .re-print-layout > .re-input-column > .input-section:not(.input-section-flat) {
+    /* 上の .input-section が display: block !important を持つので打ち消す */
+    display: contents !important;
+  }
+
+  .re-print-layout > .re-input-column > .input-section:not(.input-section-flat) > * {
+    order: 1;
+    margin-top: 6px;
+  }
+
+  .re-print-layout > .re-input-column > .print-stale-notice {
+    order: 2;
+  }
+
+  /* 行の縦中央に置きたいので、行いっぱいに伸ばしてから中で中央寄せする */
+  .re-print-layout > .re-print-arrow {
+    display: flex !important;
+    align-self: stretch;
+    align-items: center;
+    color: var(--primary-color);
+  }
+
+  .re-print-layout > .re-print-arrow svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.5;
+  }
+
+  /* 結果ブロックの子を .re-print-layout 直下のグリッド項目に昇格させる。
+     画面側のDOMを崩さずに「条件｜税額 / 計算過程（全幅） / 免責（全幅）」を作る */
+  .re-print-layout > .result-section {
+    display: contents !important;
+  }
+
+  .re-print-layout > .result-section > .details-content,
+  .re-print-layout > .result-section > .disclaimer {
+    grid-column: 1 / -1;
+  }
+
+  /* 入力変更後・未再計算の古い税額は紙に出さない（入力条件だけ残る） */
+  .re-print-layout > .result-section.result-stale {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-stale-notice {
+    margin: 6px 0 0 !important;
+    padding: 4px 6px !important;
+    border: 1px solid #999 !important;
+    font-size: 8pt !important;
+    color: #000 !important;
+  }
+
+  /* 早見表ページ（2テーブル横並び） */
   .table-page {
     max-width: 100% !important;
-    page: table-page;
   }
 
   .table-page .input-section {
@@ -2363,10 +2707,12 @@ tr.rate-row-highlight td {
     width: 100% !important;
   }
 
+  /* 上限2,000万円で1表20行になるため、行の高さを抑えて等倍のまま1枚に収める */
   .table-page .tax-table-single th,
   .table-page .tax-table-single td {
-    padding: 5px 8px !important;
-    font-size: 10pt !important;
+    padding: 2px 8px !important;
+    font-size: 9pt !important;
+    line-height: 1.25 !important;
   }
 
   .table-page .table-container {
@@ -2382,8 +2728,8 @@ tr.rate-row-highlight td {
   .print-header-block {
     display: flex !important;
     border-bottom: 2px solid var(--primary-color);
-    padding: 0.5rem 0;
-    margin-bottom: 0.75rem;
+    padding: 0 0 0.25rem;
+    margin-bottom: 0.5rem;
   }
 
   .print-header-title-row {
@@ -2409,7 +2755,7 @@ tr.rate-row-highlight td {
   }
 
   .print-header-title-row address p {
-    margin: 0.1rem 0;
+    margin: 0;
   }
 
   .print-header-title-row address .company-name {
@@ -2424,91 +2770,150 @@ tr.rate-row-highlight td {
     width: 100% !important;
   }
 
+  /* 入力欄そのものは紙に出さず、PrintConditionList の条件サマリに置き換える。
+     注記（相続非課税・面積警告）は .input-section 直下に残るので印刷される */
   .real-estate-page .input-section {
-    padding: 10px 0 !important;
-  }
-
-  .real-estate-page .re-two-column {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 1rem !important;
-    width: 100% !important;
-  }
-
-  .real-estate-page .re-column {
-    background: transparent !important;
-    padding: 6px !important;
-    box-sizing: border-box !important;
-    width: 100% !important;
-  }
-
-  .real-estate-page .re-column .input-item {
-    margin-bottom: 8px !important;
-  }
-
-  .real-estate-page .land-subsection {
-    padding: 5px !important;
-    margin-bottom: 5px !important;
+    padding: 0 !important;
     background: transparent !important;
   }
 
-  .real-estate-page .land-subsection-title {
-    font-size: 9pt !important;
-    margin-bottom: 5px !important;
+  .real-estate-page .input-group-row,
+  .real-estate-page .input-section-flat {
+    display: none !important;
   }
 
-  .real-estate-page .re-column-title {
-    font-size: 10pt !important;
-    border-bottom-color: var(--primary-color);
+  /* ---------- 入力条件サマリ ---------- */
+  .print-conditions {
+    border: 1px solid #bbb;
+    padding: 5px 8px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    /* 列に余った高さを枠が吸い、税額ブロックと下端を揃える */
+    flex: 1 1 auto;
   }
 
-  .real-estate-page .toggle-btn {
-    padding: 3px 8px !important;
-    font-size: 9pt !important;
+  /* 「入力条件」「計算結果」の見出し。紙の上では対になるブロックなので共通 */
+  .print-block-title {
+    margin: 0 0 4px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid var(--primary-color);
+    font-size: 10pt;
+    font-weight: 700;
+    color: var(--primary-dark);
   }
 
+  .print-condition-group + .print-condition-group {
+    margin-top: 5px;
+  }
+
+  .print-condition-group h3 {
+    margin: 0 0 2px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #444;
+  }
+
+  .print-condition-group dl {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 12px;
+    margin: 0;
+  }
+
+  .print-condition-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+    border-bottom: 1px dotted #ddd;
+    padding: 1px 0;
+  }
+
+  .print-condition-row dt {
+    font-size: 8pt;
+    color: #555;
+  }
+
+  .print-condition-row dd {
+    margin: 0;
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #000;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* 税額ブロックは「入力条件」と同じ体裁にする（枠・グループ見出し・点線の明細行） */
   .real-estate-page .re-result-box {
+    display: flex !important;
+    flex-direction: column !important;
     background-color: #fff !important;
     color: #000 !important;
-    padding: 8px !important;
-    border: 1.5px solid var(--primary-color) !important;
-    border-left: 5px solid var(--primary-color) !important;
+    padding: 5px 8px !important;
+    border: 1px solid #bbb !important;
+    border-radius: 0 !important;
+    /* 画面用の下マージンが残ると枠の下端が入力条件とずれる */
+    margin: 0 !important;
+    align-self: stretch;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 
-  .real-estate-page .re-result-groups {
-    grid-template-columns: 1fr 1fr !important;
+  /* 入力条件が「共通条件／土地／建物」の縦並びなので、税額も同じ縦並びにする */
+  .real-estate-page .re-result-groups,
+  .real-estate-page .re-result-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 4px 0 !important;
+    margin-bottom: 0 !important;
   }
 
   .real-estate-page .re-result-group-title {
-    font-size: 9pt !important;
-    color: var(--primary-dark) !important;
-    border-bottom-color: #ccc !important;
+    margin: 0 0 2px !important;
+    padding: 0 !important;
+    border: none !important;
+    font-size: 8.5pt !important;
+    font-weight: 700 !important;
+    color: #444 !important;
+  }
+
+  .real-estate-page .re-result-group-items {
+    gap: 0 !important;
+  }
+
+  /* 画面では縦積みのラベル/金額を、紙では条件行と同じ左右1行に */
+  .real-estate-page .re-result-item {
+    flex-direction: row !important;
+    align-items: baseline !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    border-bottom: 1px dotted #ddd !important;
+    padding: 1px 0 !important;
   }
 
   .real-estate-page .re-result-label {
-    color: #444 !important;
-    font-size: 9pt !important;
-  }
-
-  .real-estate-page .re-result-sub {
-    color: #666 !important;
+    color: #555 !important;
     font-size: 8pt !important;
   }
 
   .real-estate-page .re-result-value {
-    font-size: 11pt !important;
+    font-size: 9.5pt !important;
     color: #000 !important;
     font-weight: 700 !important;
+    text-align: right !important;
+    white-space: nowrap !important;
   }
 
+  /* 枠を伸ばした分の余白は明細と合計の間に置き、合計は枠の下端に付ける */
   .real-estate-page .re-result-total {
-    border-top-color: var(--primary-color) !important;
+    margin-top: auto !important;
+    padding-top: 3px !important;
+    border-top: 1px solid var(--primary-color) !important;
+    font-size: 9pt !important;
   }
 
   .real-estate-page .re-result-total .total-value {
-    font-size: 14pt !important;
+    font-size: 12pt !important;
     color: var(--primary-dark) !important;
   }
 
@@ -2523,7 +2928,21 @@ tr.rate-row-highlight td {
   .real-estate-page .details-content {
     display: block !important;
     background: transparent !important;
-    padding: 5px 0 !important;
+    /* 上の「入力条件｜税額」と地続きに見えるので、罫線と余白で切り離す */
+    margin-top: 8px !important;
+    padding: 8px 0 0 !important;
+    border-top: 1px solid #bbb !important;
+    /* 土地・建物の計算過程を左右に振り分けて縦を半分にする */
+    column-count: 2;
+    column-gap: 8px;
+    /* 下の免責文は自前で margin-top を持つ */
+    margin-bottom: 0 !important;
+  }
+
+  .real-estate-page .detail-section {
+    margin-bottom: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .real-estate-page .detail-box {
@@ -2537,64 +2956,11 @@ tr.rate-row-highlight td {
     line-height: 1.4 !important;
   }
 
-  /* 印刷時: 入力値の視認性向上 */
-  .real-estate-page .input-item input[type="text"],
-  .real-estate-page .input-item select {
-    border: none !important;
-    border-bottom: 1px solid #999 !important;
-    padding: 0 2px !important;
-    font-weight: 600 !important;
-    color: #000 !important;
-    font-size: 10pt !important;
-    background: transparent !important;
-    width: auto !important;
-  }
-
-  .real-estate-page .input-item label {
-    font-size: 8pt !important;
-    color: #555 !important;
-  }
-
-  /* 持ち分入力を印刷表示 */
-  .share-input-row {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.4rem !important;
+  /* 免責文は顧客に渡す紙なので載せる（贈与税ページと同じ扱い） */
+  .real-estate-page .disclaimer {
     margin-top: 4px !important;
-  }
-
-  .share-fraction input[type="number"] {
-    width: auto !important;
-    min-width: 1.2rem !important;
-    max-width: 2.5rem !important;
-    padding: 0 !important;
-    border: none !important;
-    border-bottom: 1px solid #999 !important;
-    font-size: 9pt !important;
-    font-weight: 600 !important;
-    color: #000 !important;
-    text-align: center !important;
-    background: transparent !important;
-    -webkit-appearance: none !important;
-    -moz-appearance: textfield !important;
-  }
-
-  .share-fraction span {
-    font-size: 10pt !important;
-    color: #000 !important;
-    font-weight: bold !important;
-  }
-
-  /* 結果セクションのコンパクト化 */
-  .real-estate-page .result-section {
-    padding: 8px 0 !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  .real-estate-page .detail-section {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    font-size: 7pt !important;
+    color: #444 !important;
   }
 
   /* 計算過程セクション印刷用 */
@@ -2702,100 +3068,5 @@ tr.rate-row-highlight td {
 
   .no-print {
     display: none !important;
-  }
-
-  /* 印刷参照ページ（2P目） */
-  .print-reference {
-    display: block !important;
-    page-break-before: always !important;
-    break-before: page !important;
-    padding-top: 4px;
-  }
-
-  .print-ref-section {
-    margin-bottom: 1rem;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
-  .print-ref-h2 {
-    font-size: 10pt !important;
-    font-weight: bold;
-    color: var(--primary-dark);
-    border-bottom: 1.5px solid var(--primary-color);
-    padding-bottom: 3px;
-    margin: 0.75rem 0 0.4rem;
-  }
-
-  .print-ref-h3 {
-    font-size: 8.5pt !important;
-    font-weight: bold;
-    margin: 0.4rem 0 0.2rem;
-    color: #222;
-  }
-
-  .print-ref-formula-block {
-    background: #f8f8f8;
-    border-left: 3px solid var(--primary-color);
-    padding: 4px 8px;
-    margin: 0.3rem 0;
-    font-size: 8pt !important;
-    line-height: 1.6;
-  }
-
-  .print-ref-two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
-  .print-ref-ul {
-    margin: 0.2rem 0 0.2rem 1rem;
-    padding: 0;
-    font-size: 7.5pt !important;
-    line-height: 1.5;
-  }
-
-  .print-reference p {
-    font-size: 7.5pt !important;
-    margin: 0.15rem 0;
-    line-height: 1.5;
-  }
-
-  .print-ref-note {
-    font-size: 7pt !important;
-    color: #555 !important;
-  }
-
-  .print-ref-src {
-    font-size: 6.5pt !important;
-    color: #888 !important;
-    margin-top: 0.3rem !important;
-  }
-
-  .print-ref-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0.25rem 0;
-    font-size: 7.5pt !important;
-  }
-
-  .print-ref-table th,
-  .print-ref-table td {
-    border: 1px solid #bbb;
-    padding: 2px 6px !important;
-    font-size: 7.5pt !important;
-    white-space: nowrap;
-  }
-
-  .print-ref-table th {
-    background: #f0f7f0;
-    font-weight: bold;
-    text-align: center;
-  }
-
-  .print-ref-td-right {
-    text-align: right;
-    font-weight: bold;
   }
 }

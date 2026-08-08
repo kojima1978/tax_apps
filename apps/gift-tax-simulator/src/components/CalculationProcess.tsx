@@ -73,6 +73,8 @@ const CalculationProcess = ({ results }: Props) => (
                                             <span>
                                                 {formatCurrency(d.taxableAmount)} × {(d.rate * 100).toFixed(0)}%
                                                 {d.deduction > 0 && <> − {formatCurrency(d.deduction)}</>}
+                                            </span>
+                                            <span>
                                                 = <strong>{formatCurrency(d.tax)} 円</strong>
                                             </span>
                                         </div>

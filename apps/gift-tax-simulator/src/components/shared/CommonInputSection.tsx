@@ -21,7 +21,7 @@ const CommonInputSection = ({
 }: CommonInputSectionProps) => (
     <div className="input-section">
         <div className="input-group-row">
-            <div className="input-item">
+            <div className="input-item transaction-select">
                 <label htmlFor="transactionType">登記原因 (取引種別)</label>
                 <select
                     id="transactionType"
@@ -34,7 +34,13 @@ const CommonInputSection = ({
                 </select>
             </div>
             <div className="input-item toggle-buttons">
-                <label>計算対象</label>
+                {/* 注記はラベルの右。下に置くと隣のセレクトと高さが揃わない */}
+                <div className="label-with-hint">
+                    <label>計算対象</label>
+                    <small className="calculation-target-hint">
+                        選択した対象の入力欄が有効になります（複数選択可）
+                    </small>
+                </div>
                 <div className="flex-row" role="group" aria-label="計算対象">
                     <button
                         type="button"
@@ -55,9 +61,6 @@ const CommonInputSection = ({
                         建物
                     </button>
                 </div>
-                <small className="calculation-target-hint">
-                    選択した対象の入力欄が有効になります（複数選択可）
-                </small>
             </div>
         </div>
         {children}

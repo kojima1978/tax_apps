@@ -12,7 +12,7 @@ export default function YearComparisonPage() {
     const form = useYearComparisonForm();
 
     return (
-        <PageLayout>
+        <PageLayout className="year-comparison-page">
             <InputSection
                 amount={form.amount}
                 setAmount={form.setAmount}

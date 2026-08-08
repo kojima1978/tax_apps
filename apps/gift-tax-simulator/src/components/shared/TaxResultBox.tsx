@@ -35,6 +35,8 @@ const ResultItems = ({ items }: { items: ResultItem[] }) => (
 
 const TaxResultBox = ({ items, groups, totalLabel, totalValue, shareNote }: TaxResultBoxProps) => (
     <div className="re-result-box">
+        {/* 紙では「入力条件」と対になるブロックなので、同じ体裁の見出しを付ける */}
+        <h2 className="print-only print-block-title">計算結果</h2>
         {groups ? (
             <div className="re-result-groups">
                 {groups.map(({ title, items: groupItems, show }) =>

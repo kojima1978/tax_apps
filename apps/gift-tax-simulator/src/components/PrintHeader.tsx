@@ -17,8 +17,8 @@ const PrintHeader = ({ title }: PrintHeaderProps) => {
                 <h1>{title}</h1>
                 <address>
                     <p className="company-name">{COMPANY_INFO.name}</p>
-                    <p>{getFullAddress()}</p>
-                    <p>TEL: {COMPANY_INFO.phone}</p>
+                    {/* 電話番号は住所と同じ行に置いてヘッダーの行数を減らす */}
+                    <p>{getFullAddress()}　TEL: {COMPANY_INFO.phone}</p>
                     {hasStaff && (
                         <p>
                             {staffName && <>担当: {staffName}</>}

@@ -1,42 +1,10 @@
 import { useId } from 'react';
 import { type TransactionType, getWareki } from '@/lib/real-estate-tax';
 import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
+import ShareInput from '@/components/shared/ShareInput';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
-
-type ShareInputProps = {
-    numerator: string;
-    denominator: string;
-    onNumeratorChange: (v: string) => void;
-    onDenominatorChange: (v: string) => void;
-    disabled: boolean;
-};
-
-const ShareInput = ({ numerator, denominator, onNumeratorChange, onDenominatorChange, disabled }: ShareInputProps) => (
-    <div className="input-item share-input-row">
-        <label>持ち分</label>
-        <div className="share-fraction">
-            <input
-                type="number"
-                min="1"
-                max="100"
-                value={numerator}
-                onChange={e => onNumeratorChange(e.target.value)}
-                disabled={disabled}
-            />
-            <span>/</span>
-            <input
-                type="number"
-                min="1"
-                max="100"
-                value={denominator}
-                onChange={e => onDenominatorChange(e.target.value)}
-                disabled={disabled}
-            />
-        </div>
-    </div>
-);
 
 type BuildingInputProps = {
     disabled: boolean;

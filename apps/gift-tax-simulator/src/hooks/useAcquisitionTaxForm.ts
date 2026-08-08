@@ -48,15 +48,16 @@ export const useAcquisitionTaxForm = () => {
     // 面積decimal入力ハンドラ
     const handleDecimalInput = useDecimalInput();
 
+    // 入力が変わったら結果を消さずに「再計算が必要」の印を付ける
     useEffect(() => {
-        base.clearCalculatedResult();
+        base.markResultStale();
     }, [
         resLandValuation, resLandArea, otherLandValuation,
         buildingValuation, buildingArea, isResidential, isLongLifeQuality,
         landShareNumerator, landShareDenominator,
         buildingShareNumerator, buildingShareDenominator,
         buildingDate.selYear, buildingDate.selMonth, buildingDate.selDay,
-        base.clearCalculatedResult,
+        base.markResultStale,
     ]);
 
     // 評価額をlocalStorageに保存（土地は宅地+その他の合計値を保存）

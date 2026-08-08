@@ -27,14 +27,15 @@ export const useRegistrationTaxForm = () => {
     const [buildingShareNumerator, setBuildingShareNumerator] = useState('1');
     const [buildingShareDenominator, setBuildingShareDenominator] = useState('1');
 
+    // 入力が変わったら結果を消さずに「再計算が必要」の印を付ける
     useEffect(() => {
-        base.clearCalculatedResult();
+        base.markResultStale();
     }, [
         landValuation, buildingValuation,
         isResidential, hasHousingCertificate,
         landShareNumerator, landShareDenominator,
         buildingShareNumerator, buildingShareDenominator,
-        base.clearCalculatedResult,
+        base.markResultStale,
     ]);
 
     // 評価額をlocalStorageに保存

@@ -12,38 +12,47 @@ export function useRealEstateFormBase<T>() {
     const [transactionType, setTransactionTypeState] = useState<TransactionType>('gift');
 
     const [showDetails, setShowDetails] = useState(false);
-    const [results, setResults] = useState<T | null>(null);
+    const [resultsState, setResultsState] = useState<T | null>(null);
     const [errorMsg, setErrorMsg] = useState('');
+    // 入力が変わったのに再計算されていない状態。結果は消さずに「古い」印だけ付ける
+    const [isStale, setIsStale] = useState(false);
 
     const handleFormattedInput = useFormattedInput();
 
-    const clearCalculatedResult = useCallback(() => {
-        setResults(null);
+    // 新しい計算結果（またはエラーによる破棄）が来たら「古い」印は解除する
+    const setResults = useCallback((value: T | null) => {
+        setResultsState(value);
+        setIsStale(false);
+    }, []);
+
+    const markResultStale = useCallback(() => {
         setErrorMsg('');
+        setIsStale(true);
     }, []);
 
     const setIncludeLand = useCallback((value: boolean) => {
         setIncludeLandState(value);
-        clearCalculatedResult();
-    }, [clearCalculatedResult]);
+        markResultStale();
+    }, [markResultStale]);
 
     const setIncludeBuilding = useCallback((value: boolean) => {
         setIncludeBuildingState(value);
-        clearCalculatedResult();
-    }, [clearCalculatedResult]);
+        markResultStale();
+    }, [markResultStale]);
 
     const setTransactionType = useCallback((value: TransactionType) => {
         setTransactionTypeState(value);
-        clearCalculatedResult();
-    }, [clearCalculatedResult]);
+        markResultStale();
+    }, [markResultStale]);
 
     const resetBase = useCallback(() => {
         setIncludeLandState(false);
         setIncludeBuildingState(false);
         setTransactionTypeState('gift');
         setShowDetails(false);
-        setResults(null);
+        setResultsState(null);
         setErrorMsg('');
+        setIsStale(false);
     }, []);
 
     return {
@@ -51,9 +60,10 @@ export function useRealEstateFormBase<T>() {
         includeBuilding, setIncludeBuilding,
         transactionType, setTransactionType,
         showDetails, setShowDetails,
-        results, setResults,
+        results: resultsState, setResults,
         errorMsg, setErrorMsg,
+        isStale,
         handleFormattedInput,
-        resetBase, clearCalculatedResult,
+        resetBase, markResultStale,
     };
 }

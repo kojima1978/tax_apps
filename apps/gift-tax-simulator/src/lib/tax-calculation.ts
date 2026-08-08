@@ -123,10 +123,10 @@ export type YearComparisonResult = {
     optimal: boolean;
 };
 
-const MAX_YEARS = 20;
+const MAX_YEARS = 10;
 
 /**
- * 分割年数ごとの税額を一覧で取得（1〜20年）
+ * 分割年数ごとの税額を一覧で取得（1〜10年）
  */
 export const calculateYearComparison = (amount: number, type: GiftType): YearComparisonResult[] => {
     const rows: YearComparisonResult[] = [];

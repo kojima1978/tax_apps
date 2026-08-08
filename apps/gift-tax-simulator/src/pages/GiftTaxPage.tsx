@@ -7,7 +7,7 @@ export default function GiftTaxPage() {
   const form = useGiftTaxForm();
 
   return (
-    <PageLayout>
+    <PageLayout className="gift-sim-page">
       <InputSection
         amount={form.amount}
         setAmount={form.setAmount}

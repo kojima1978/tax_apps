@@ -5,10 +5,10 @@ import PageLayout from '@/components/PageLayout';
 
 const UNIT = 1_000_000; // 100万円
 
+// 3,000万円（1表30行）はA4横1枚に等倍で収まらないため上限は2,000万円まで
 const LIMIT_OPTIONS = [
     { value: 10_000_000, label: '1,000万円' },
     { value: 20_000_000, label: '2,000万円' },
-    { value: 30_000_000, label: '3,000万円' },
 ] as const;
 
 const TAX_NOTES = {

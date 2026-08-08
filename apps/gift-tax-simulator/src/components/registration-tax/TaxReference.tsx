@@ -1,3 +1,5 @@
+import TaxReferenceSection from '@/components/shared/TaxReferenceSection';
+
 const LAND_RATES = [
     { type: '売買', rate: '1,000分の20（2%）', note: '※R8.3.31まで軽減1,000分の15（期限切れ）' },
     { type: '相続・法人合併・共有物分割', rate: '1,000分の4（0.4%）', note: '－' },
@@ -20,16 +22,16 @@ const HOUSING_RATES = [
     { no: '⑥', type: '住宅取得資金の抵当権設定', content: '住宅新築・取得資金の貸付に係る抵当権設定・R9.3.31まで', rate: '1,000分の1（0.1%）', law: '措法75' },
 ];
 
-const PrintReference = () => (
-    <div className="print-reference">
+const TaxReference = () => (
+    <TaxReferenceSection label="登録免許税の税額表・軽減税率">
 
         {/* 表(1) 土地 */}
-        <section className="print-ref-section">
-            <h2 className="print-ref-h2">
+        <section className="tax-ref-section">
+            <h2 className="tax-ref-h2">
                 No.7191 登録免許税の税額表（国税庁）— （1）土地の所有権の移転登記
             </h2>
-            <p className="print-ref-note">課税標準：固定資産課税台帳に登録された価格（1,000円未満切捨）。税額は100円未満切捨（最低1,000円）。</p>
-            <table className="print-ref-table" style={{ marginTop: '0.3rem' }}>
+            <p className="tax-ref-note">課税標準：固定資産課税台帳に登録された価格（1,000円未満切捨）。税額は100円未満切捨（最低1,000円）。</p>
+            <table className="tax-ref-table" style={{ marginTop: '0.3rem' }}>
                 <thead>
                     <tr>
                         <th style={{ width: '30%' }}>内容</th>
@@ -41,21 +43,21 @@ const PrintReference = () => (
                     {LAND_RATES.map(({ type, rate, note }) => (
                         <tr key={type}>
                             <td>{type}</td>
-                            <td className="print-ref-td-right">{rate}</td>
-                            <td className="print-ref-note">{note}</td>
+                            <td className="tax-ref-td-right">{rate}</td>
+                            <td className="tax-ref-note">{note}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
-            <p className="print-ref-note" style={{ marginTop: '0.2rem' }}>
+            <p className="tax-ref-note" style={{ marginTop: '0.2rem' }}>
                 ※相続による土地の所有権移転登記等の免税措置（R9.3.31まで）：①死亡した登記名義人への登記、②課税標準100万円以下の土地
             </p>
         </section>
 
         {/* 表(2) 建物 */}
-        <section className="print-ref-section">
-            <h2 className="print-ref-h2">（2）建物の登記</h2>
-            <table className="print-ref-table">
+        <section className="tax-ref-section">
+            <h2 className="tax-ref-h2">（2）建物の登記</h2>
+            <table className="tax-ref-table">
                 <thead>
                     <tr>
                         <th style={{ width: '40%' }}>内容</th>
@@ -67,8 +69,8 @@ const PrintReference = () => (
                     {BUILDING_RATES.map(({ type, rate, note }) => (
                         <tr key={type}>
                             <td>{type}</td>
-                            <td className="print-ref-td-right">{rate}</td>
-                            <td className="print-ref-note">{note}</td>
+                            <td className="tax-ref-td-right">{rate}</td>
+                            <td className="tax-ref-note">{note}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -76,10 +78,10 @@ const PrintReference = () => (
         </section>
 
         {/* 表(3) 住宅用家屋の軽減税率 */}
-        <section className="print-ref-section">
-            <h2 className="print-ref-h2">（3）住宅用家屋の軽減税率（措法72の2〜75）</h2>
-            <p className="print-ref-note">適用要件：床面積50㎡以上、新築または取得後1年以内の登記、登記申請時に市区町村の証明書添付が必要。</p>
-            <table className="print-ref-table" style={{ marginTop: '0.3rem' }}>
+        <section className="tax-ref-section">
+            <h2 className="tax-ref-h2">（3）住宅用家屋の軽減税率（措法72の2〜75）</h2>
+            <p className="tax-ref-note">適用要件：床面積50㎡以上、新築または取得後1年以内の登記、登記申請時に市区町村の証明書添付が必要。</p>
+            <table className="tax-ref-table" style={{ marginTop: '0.3rem' }}>
                 <thead>
                     <tr>
                         <th style={{ width: '5%' }}></th>
@@ -94,22 +96,22 @@ const PrintReference = () => (
                         <tr key={no}>
                             <td style={{ textAlign: 'center' }}>{no}</td>
                             <td>{type}</td>
-                            <td className="print-ref-note">{content}</td>
-                            <td className="print-ref-td-right">{rate}</td>
-                            <td className="print-ref-note">{law}</td>
+                            <td className="tax-ref-note">{content}</td>
+                            <td className="tax-ref-td-right">{rate}</td>
+                            <td className="tax-ref-note">{law}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
-            <p className="print-ref-note" style={{ marginTop: '0.2rem' }}>
+            <p className="tax-ref-note" style={{ marginTop: '0.2rem' }}>
                 ※「住宅用家屋証明書」（市区町村発行）の添付が要件。登記後の提出では軽減適用不可。
             </p>
         </section>
 
         {/* 端数処理 */}
-        <section className="print-ref-section">
-            <h2 className="print-ref-h2">端数処理（登録免許税法第14条）</h2>
-            <div className="print-ref-two-col">
+        <section className="tax-ref-section">
+            <h2 className="tax-ref-h2">端数処理（登録免許税法第14条）</h2>
+            <div className="tax-ref-two-col">
                 <div>
                     <p><strong>課税標準（不動産の価額）</strong></p>
                     <p>1,000円未満の端数を切り捨て</p>
@@ -121,8 +123,8 @@ const PrintReference = () => (
             </div>
         </section>
 
-        <p className="print-ref-src">出典: https://www.nta.go.jp/taxes/shiraberu/taxanswer/inshi/7191.htm（令和7年4月1日現在法令等）</p>
-    </div>
+        <p className="tax-ref-src">出典: https://www.nta.go.jp/taxes/shiraberu/taxanswer/inshi/7191.htm（令和7年4月1日現在法令等）</p>
+    </TaxReferenceSection>
 );
 
-export default PrintReference;
+export default TaxReference;
