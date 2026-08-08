@@ -621,7 +621,7 @@ tbody th small {
 /*
  * 入力欄が縦に長いので、PC では左に入力・右に結果とミニマムタックスを並べる。
  * screen 限定にしてあるのは、A4横の印刷幅（約1070px）もこの条件に当たってしまい、
- * 印刷の3段組（.print-columns）を壊すため。
+ * 印刷の段組（.print-columns）を壊すため。
  */
 @media screen and (min-width: 1024px) {
   .container-custom {
@@ -705,7 +705,7 @@ tbody th small {
 @media print {
   /*
    * A4横1枚に収める。用紙面積はA4縦と同じなので、面積を稼いだのではなく
-   * 「参考資料を落とす」「ヒント文を落とす」「3段組で余白を潰す」で内容量を削っている。
+   * 「参考資料を落とす」「入力欄を落とす」「2段組で余白を潰す」で内容量を削っている。
    */
   @page {
     size: A4 landscape;
@@ -764,14 +764,32 @@ tbody th small {
   }
 
   /*
-   * 3段組はこの中だけ。見出し・事務所情報・免責・備考欄は段組の外にあるので
-   * column-span: all は要らない。段の切れ目でフォーム・結果表が割れないよう、
+   * 2段組はこの中だけ。見出し・事務所情報・免責・備考欄は段組の外にあるので
+   * column-span: all は要らない。段の切れ目で結果表が割れないよう、
    * 中の各ブロックに break-inside: avoid を置く。
    */
   .print-columns {
-    column-count: 3;
+    column-count: 2;
     column-gap: 6mm;
     column-rule: 1px solid #ddd;
+  }
+
+  /*
+   * 入力欄は印刷しない。
+   * 譲渡価額・取得費・譲渡費用の内訳はすべて結果表に再掲されるので、
+   * 印刷すると同じ数字が2度出るうえ段組が2枚目に溢れる。
+   * 結果表に載らない前提条件（日付・所有期間・建物・適用特例）は
+   * .print-conditions の1行で補う。
+   */
+  .form-section {
+    display: none !important;
+  }
+
+  .print-conditions {
+    margin: 0 0 4px 0 !important;
+    font-size: 7.5pt !important;
+    line-height: 1.4 !important;
+    color: #333;
   }
 
   .page-header {
@@ -789,20 +807,8 @@ tbody th small {
   }
 
   /* flex/grid は段をまたげないので、印刷時だけ通常フローに戻す */
-  .form-section,
   .result-grid {
     display: block !important;
-  }
-
-  .form-section fieldset {
-    padding: 4px 6px 5px !important;
-    gap: 3px !important;
-    margin-bottom: 5px !important;
-    break-inside: avoid;
-  }
-
-  .form-section legend {
-    font-size: 8pt !important;
   }
 
   .form-row {
@@ -894,6 +900,13 @@ tbody th small {
     border-top: 1px solid #999;
     padding-top: 4px !important;
     margin-top: 6px !important;
+  }
+
+  /* 入力欄を出さないので、段の先頭に来る結果表の上罫線は区切るものが無い */
+  .screen-split-side > :first-child {
+    border-top: none !important;
+    padding-top: 0 !important;
+    margin-top: 0 !important;
   }
 
   /* 見出しだけが段の末尾に取り残されないようにする */
@@ -993,9 +1006,9 @@ tbody th small {
   }
 
   /*
-   * 本紙の3段組の中に混ぜると段の幅（約340px）では表が縦に伸びて1枚に収まらないので、
-   * 参考資料は段組の外に出して紙幅いっぱいで組む。ただし1段だと横が空いたまま縦にだけ
-   * 伸びるので、この中を2段組にしている。
+   * 本紙の段組の中に混ぜると本紙が1枚に収まらないので、参考資料は段組の外に出して
+   * 紙幅いっぱいで組む。ただし1段だと横が空いたまま縦にだけ伸びるので、
+   * この中を2段組にしている。
    */
   .ref-tables {
     margin-top: 0 !important;

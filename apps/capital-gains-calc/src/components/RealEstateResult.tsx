@@ -3,6 +3,7 @@ import NoteList from "./NoteList";
 import ResultTable from "./ResultTable";
 import type { RealEstateResult as RealEstateResultType } from "@/lib/capital-gains";
 import { taxBreakdownRows, type ResultRow } from "@/lib/result-rows";
+import { findStructure } from "@/lib/tax-rates";
 import { formatYen, parseFormattedNumber } from "@/lib/utils";
 import { TRANSFER_EXPENSE_ITEMS, type RealEstateFormState } from "@/hooks/useRealEstateForm";
 
@@ -55,6 +56,38 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
         return rows;
     }, [form, result, transferPrice]);
 
+    /**
+     * 印刷では入力欄を出さない（内容がこの結果表とほぼ重複するため）。
+     * そこで、結果表に現れない前提条件だけをここで1行にまとめる。
+     */
+    const conditions = useMemo(() => {
+        const items: string[] = [];
+        const date = (v: string) => v.replace(/-/g, "/");
+
+        if (form.transferDate) items.push(`譲渡日 ${date(form.transferDate)}`);
+        if (form.acquisitionDate) items.push(`取得日 ${date(form.acquisitionDate)}`);
+        if (result.ownershipYears !== null) {
+            const term = result.isLongTerm ? "長期譲渡" : "短期譲渡";
+            items.push(`所有期間 ${result.ownershipYears}年（${term}${result.isOver10Years ? "・10年超" : ""}）`);
+        }
+        if (form.costMode === "actual" && parseFormattedNumber(form.buildingCost) > 0) {
+            // 構造は非事業用の償却率にしか使わないので、事業用のときは用途だけ出す
+            const isNonBusiness = form.buildingUsage === "non-business";
+            const structure = isNonBusiness ? `・${findStructure(form.structureKey).label}` : "";
+            items.push(`建物 ${isNonBusiness ? "非事業用" : "事業用"}${structure}`);
+        }
+
+        const specials = [
+            form.isResidence && "居住用財産",
+            form.useSpecialDeduction && "3,000万円特別控除",
+            form.useReducedRate && "軽減税率",
+            parseFormattedNumber(form.inheritedCostAddition) > 0 && "取得費加算",
+        ].filter(Boolean);
+        if (specials.length > 0) items.push(`適用 ${specials.join("・")}`);
+
+        return items.join("　／　");
+    }, [form, result]);
+
     const taxRows = useMemo<ResultRow[]>(() => {
         const rows: ResultRow[] = [];
 
@@ -89,6 +122,7 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
     return (
         <section className="result-section">
             <h2>計算結果（不動産の譲渡）</h2>
+            {conditions && <p className="print-only print-conditions">{conditions}</p>}
             <div className="result-grid">
                 <ResultTable caption="譲渡所得の計算" rows={incomeRows} />
                 <ResultTable caption="税額の計算" rows={taxRows} />
