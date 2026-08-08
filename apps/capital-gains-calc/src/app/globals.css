@@ -804,7 +804,8 @@ tbody th small {
   }
 
   .page-header h1 {
-    font-size: 12pt;
+    font-size: 15pt;
+    color: var(--primary-color);
   }
 
   .page-header p,
@@ -1139,34 +1140,24 @@ tbody th small {
   }
 
   /*
-   * ヘッダー帯。タイトル・担当・事務所情報を1行の3列に並べる。
+   * ヘッダー帯。左にタイトル、右に事務所情報・担当・作成日を1行にまとめる。
    * 2行に分けると縦を余分に使うので、罫線もこの帯が持つ。
    */
   .print-header-band {
     display: flex;
+    justify-content: space-between;
     align-items: flex-end;
     gap: 1rem;
-    margin: 0 0 4px 0;
+    margin: 0 0 5px 0;
     padding: 0 0 3px;
-    border-bottom: 1px solid #999;
+    border-bottom: 2px solid var(--primary-color);
     break-inside: avoid;
   }
 
-  /* 画面では非表示なのでここで出す。タイトルの残り幅を取る */
+  /* 画面では非表示なのでここで出す */
   .print-meta {
-    display: flex;
-    flex: 1 1 auto;
-    align-items: flex-end;
-    gap: 1rem;
-  }
-
-  /* 担当・作成日はタイトルと会社情報の中間へ（auto マージンで余白を等分） */
-  .print-meta-side {
-    margin: 0 auto;
-  }
-
-  /* 会社情報は右端 */
-  .print-meta-company {
+    display: block;
+    font-style: normal;
     text-align: right;
   }
 
