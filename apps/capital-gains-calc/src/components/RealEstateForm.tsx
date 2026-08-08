@@ -5,8 +5,9 @@ import DateField from "./DateField";
 import FormField from "./FormField";
 import ToggleGroup, { type ToggleOption } from "./ToggleGroup";
 import type { BuildingUsage, CostMode, RealEstateResult } from "@/lib/capital-gains";
-import { TRANSFER_EXPENSE_ITEMS, type RealEstateFormState } from "@/hooks/useRealEstateForm";
+import { TRANSFER_EXPENSE_ITEMS, type RealEstateFormState, type TransferExpenseKey } from "@/hooks/useRealEstateForm";
 import { calcBrokerFee } from "@/lib/broker-fee";
+import { calcStampDuty, isStampDutyReduced } from "@/lib/stamp-duty";
 import { BUILDING_STRUCTURES, findStructure } from "@/lib/tax-rates";
 import { formatInputValue, formatYen, parseFormattedNumber } from "@/lib/utils";
 
@@ -48,6 +49,30 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
                     : "譲渡価額を入力すると計算できます",
         };
     }, [form.transferPrice, setField]);
+
+    /**
+     * 印紙税を譲渡価額から入れるボタン。
+     * 入るのは契約書1通分なので、売主が2通分負担した場合などは書き換える。
+     */
+    const stampTaxAction = useMemo<FieldAction>(() => {
+        const price = parseFormattedNumber(form.transferPrice);
+        const reduced = isStampDutyReduced(form.transferDate);
+        return {
+            label: "譲渡価額から計算",
+            onClick: () => setField("stampTax", formatInputValue(calcStampDuty(price, form.transferDate))),
+            disabled: price <= 0,
+            title:
+                price > 0
+                    ? `売買代金の区分に応じた税額（契約書1通分）を入れます。${reduced ? "軽減措置（令和9年3月31日までの契約書）適用後" : "軽減措置の期限後なので本則"}の額です`
+                    : "譲渡価額を入力すると計算できます",
+        };
+    }, [form.transferPrice, form.transferDate, setField]);
+
+    /** 内訳のうち自動計算ボタンを持つ項目 */
+    const expenseActions: Partial<Record<TransferExpenseKey, FieldAction>> = {
+        brokerFee: brokerFeeAction,
+        stampTax: stampTaxAction,
+    };
 
     const ownershipLabel =
         result.ownershipYears === null
@@ -178,7 +203,7 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
                             value={form[item.key]}
                             onChange={(v) => setField(item.key, v)}
                             hint={item.hint}
-                            action={item.key === "brokerFee" ? brokerFeeAction : undefined}
+                            action={expenseActions[item.key]}
                         />
                     ))}
                 </div>
