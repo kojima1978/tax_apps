@@ -871,15 +871,19 @@ tbody th {
   }
 
   /*
-   * 2表は段組みではなく専用のグリッドで横に並べる。
-   * align-items: stretch と table の height: 100% で、行数が違っても
-   * 上端・下端がそろう（行数の少ない表は行の高さが伸びて埋める）。
+   * 2表は段組みではなく専用のグリッドで横に並べる。align-items: stretch で
+   * ブロックの高さはそろうが、表そのものは自然な高さのままにする
+   * （table に height: 100% を足すと下端もぴたりと合う代わりに、行数の少ない表の
+   *   行が最大2.4倍まで伸びて間延びする）。
+   * 行数の差は下端の空きとして残し、閉じの罫線で枠としてそろえる。
    */
   .result-section > .result-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr;
     gap: 0 6mm;
     align-items: stretch;
+    padding-bottom: var(--pr-gap-xs);
+    border-bottom: 1px solid #ddd;
   }
 
   /* 縦に1行しか置かないので、下余白はグリッド側（note-list の margin-top）に任せる */
@@ -887,10 +891,6 @@ tbody th {
     display: flex;
     flex-direction: column;
     margin-bottom: 0;
-  }
-
-  .result-section > .result-grid > .result-block table {
-    height: 100%;
   }
 
   .form-row {
