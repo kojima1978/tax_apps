@@ -6,7 +6,7 @@ export const PRINT_OPTIONS = [
     {
         key: "reference",
         label: "参考資料を含める",
-        hint: "税率一覧・償却率表・ミニマムタックスの概要を2枚目に印刷します",
+        hint: "税率一覧・特例の要件・償却率表・ミニマムタックスの概要を2枚目に印刷します",
     },
 ] as const;
 

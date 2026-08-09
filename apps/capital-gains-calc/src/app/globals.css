@@ -552,6 +552,26 @@ tbody th {
   color: var(--primary-color);
 }
 
+/* 特例の要件一覧。表ではなく箇条書きなので、見出しだけ表の行ラベルに寄せる */
+.requirement-group + .requirement-group {
+  margin-top: 0.75rem;
+}
+
+.requirement-group h4 {
+  margin: 0 0 0.3rem 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.requirement-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-color);
+}
+
 .table-scroll {
   overflow-x: auto;
 }
@@ -1159,6 +1179,22 @@ tbody th {
 
   .ref-note {
     margin-top: 2px !important;
+  }
+
+  .requirement-group h4 {
+    font-size: 7pt !important;
+    margin: 0 0 1px 0 !important;
+    break-after: avoid;
+  }
+
+  .requirement-group + .requirement-group {
+    margin-top: 4px !important;
+  }
+
+  .requirement-list {
+    font-size: 6.5pt !important;
+    line-height: 1.4 !important;
+    padding-left: 12px !important;
   }
 
   .disclaimer {

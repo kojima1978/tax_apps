@@ -78,6 +78,17 @@ const sumTax = (list: TaxAmounts[]): TaxAmounts =>
 
 const toPercent = (rate: TaxRateSet): number => Math.round(totalRate(rate) * 1e6) / 1e4;
 
+/**
+ * 納付時期の案内。所得税と住民税で納める時期が分かれることは資金繰りに直結するが、
+ * 結果表の行に書くと行の高さが揃わなくなるので注記へ回す。
+ */
+const PAYMENT_SCHEDULE_NOTE =
+    '納付時期: 所得税・復興特別所得税は翌年3月15日までの確定申告で納付し、住民税は翌年6月以降に別途納付します（普通徴収は年4回）。';
+
+/** 実額より概算取得費（5%）のほうが大きいときの案内。不動産・株式等で同じ判断をする */
+const estimatedCostAdvantageNote = (estimatedCost: number, actualCost: number): string =>
+    `概算取得費（${estimatedCost.toLocaleString('ja-JP')}円）のほうが実額（${actualCost.toLocaleString('ja-JP')}円）より大きいため、概算を選択すると譲渡所得が ${(estimatedCost - actualCost).toLocaleString('ja-JP')}円 少なくなります。`;
+
 const parseDate = (value: string): Date | null => {
     if (!value) return null;
     const d = new Date(value);
@@ -233,8 +244,10 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
             }
         } else {
             const rate = isLongTerm ? LONG_TERM_RATE : SHORT_TERM_RATE;
+            // 日付が未入力だと短期扱いになる。注記だけだと表を見て確定した区分と誤解するので区分名にも添える
+            const undated = !isLongTerm && ownershipYears === null;
             brackets.push({
-                label: `${isLongTerm ? '長期譲渡所得' : '短期譲渡所得'}（税率 ${toPercent(rate)}%）`,
+                label: `${isLongTerm ? '長期譲渡所得' : '短期譲渡所得'}（${undated ? '日付未入力・' : ''}税率 ${toPercent(rate)}%）`,
                 taxableAmount: taxableIncome,
                 ratePercent: toPercent(rate),
                 rate,
@@ -252,9 +265,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
     if (input.costMode === 'estimated') {
         notes.push('概算取得費（譲渡価額の5%）で計算しています。実額の取得費が判明している場合はそちらが有利になることがあります。');
     } else if (estimatedCost > actualCost && input.transferPrice > 0) {
-        notes.push(
-            `概算取得費（${estimatedCost.toLocaleString('ja-JP')}円）のほうが実額（${actualCost.toLocaleString('ja-JP')}円）より大きいため、概算を選択すると譲渡所得が ${(estimatedCost - actualCost).toLocaleString('ja-JP')}円 少なくなります。`,
-        );
+        notes.push(estimatedCostAdvantageNote(estimatedCost, actualCost));
     }
     if (input.useSpecialDeduction && !input.isResidence) {
         notes.push('3,000万円特別控除は居住用財産が対象です。「居住用財産である」にチェックを入れてください。');
@@ -266,6 +277,9 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
     }
     if (grossProfit < 0) {
         notes.push('譲渡損失が生じています。居住用財産の買換え等の要件を満たす場合、損益通算・繰越控除の適用余地があります。');
+    }
+    if (tax.total > 0) {
+        notes.push(PAYMENT_SCHEDULE_NOTE);
     }
 
     return {
@@ -332,6 +346,8 @@ export const calcSecurities = (input: SecuritiesInput): SecuritiesResult => {
     const notes: string[] = [];
     if (input.costMode === 'estimated') {
         notes.push('取得費が不明な場合の概算取得費（譲渡価額の5%）で計算しています。');
+    } else if (estimatedCost > input.actualCost && input.transferPrice > 0) {
+        notes.push(estimatedCostAdvantageNote(estimatedCost, input.actualCost));
     }
     if (grossProfit < 0) {
         notes.push(
@@ -341,6 +357,9 @@ export const calcSecurities = (input: SecuritiesInput): SecuritiesResult => {
         );
     } else if (!input.listed) {
         notes.push('一般株式等（非上場株式）の譲渡益は、上場株式等の譲渡損失とは通算できません。');
+    }
+    if (tax.total > 0) {
+        notes.push(PAYMENT_SCHEDULE_NOTE);
     }
 
     return {
