@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
 import ArrowRight from 'lucide-react/icons/arrow-right';
-import RotateCcw from 'lucide-react/icons/rotate-ccw';
-import Sparkles from 'lucide-react/icons/sparkles';
 import type { TransactionType, TaxResults } from '@/lib/real-estate-tax';
 import {
     compactGroups,
@@ -113,6 +111,8 @@ const RealEstatePageLayout = ({
                     setIncludeLand={setIncludeLand}
                     includeBuilding={includeBuilding}
                     setIncludeBuilding={setIncludeBuilding}
+                    onSample={onSample}
+                    onReset={onReset}
                 >
                     {inputNotice}
                 </CommonInputSection>
@@ -138,15 +138,6 @@ const RealEstatePageLayout = ({
                     </div>
                     <div className="calc-action-bar">
                         <button className="btn-calc" onClick={onCalculate}>計算する</button>
-                        {/* 贈与税ページと同じ「まず動かしてみる」導線 */}
-                        <button type="button" className="btn-input-helper sample no-print" onClick={onSample}>
-                            <Sparkles aria-hidden="true" />
-                            サンプルで試す
-                        </button>
-                        <button type="button" className="btn-input-helper no-print" onClick={onReset}>
-                            <RotateCcw aria-hidden="true" />
-                            入力を消す
-                        </button>
                         <ErrorMessage message={errorMsg} />
                     </div>
                 </div>

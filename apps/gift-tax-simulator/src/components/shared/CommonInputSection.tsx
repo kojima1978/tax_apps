@@ -1,3 +1,5 @@
+import Sparkles from 'lucide-react/icons/sparkles';
+import RotateCcw from 'lucide-react/icons/rotate-ccw';
 import { type TransactionType, TRANSACTION_OPTIONS } from '@/lib/real-estate-tax';
 
 type CommonInputSectionProps = {
@@ -7,6 +9,8 @@ type CommonInputSectionProps = {
     setIncludeLand: (v: boolean) => void;
     includeBuilding: boolean;
     setIncludeBuilding: (v: boolean) => void;
+    onSample: () => void;
+    onReset: () => void;
     children?: React.ReactNode;
 };
 
@@ -17,6 +21,8 @@ const CommonInputSection = ({
     setIncludeLand,
     includeBuilding,
     setIncludeBuilding,
+    onSample,
+    onReset,
     children,
 }: CommonInputSectionProps) => (
     <div className="input-section">
@@ -62,6 +68,17 @@ const CommonInputSection = ({
                     </button>
                 </div>
             </div>
+        </div>
+        {/* 入力を始める前に触るボタンなので、計算ボタンの隣ではなく条件のすぐ下に置く */}
+        <div className="input-helper-actions no-print">
+            <button type="button" className="btn-input-helper sample" onClick={onSample}>
+                <Sparkles aria-hidden="true" />
+                サンプルで試す
+            </button>
+            <button type="button" className="btn-input-helper" onClick={onReset}>
+                <RotateCcw aria-hidden="true" />
+                入力を消す
+            </button>
         </div>
         {children}
     </div>

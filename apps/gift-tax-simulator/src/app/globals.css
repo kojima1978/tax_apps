@@ -679,7 +679,7 @@ body {
   border-top: 1px solid #e5e7eb;
 }
 
-/* 「計算する」「サンプルで試す」「入力を消す」は小ぶりに、かつ同じ高さで並べる */
+/* 「計算する」はページ内の他のボタンと同じ高さで小ぶりに並べる */
 .calc-action-bar .btn-calc,
 .calc-action-bar .btn-input-helper {
   height: var(--re-action-height);
