@@ -2295,6 +2295,38 @@ tr.rate-row-highlight td {
   font-weight: 700;
 }
 
+/* ===================== 備考（印刷に載る1行） ===================== */
+.print-remarks {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.print-remarks-field {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.print-remarks-field > span {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.print-remarks-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.print-remarks-field input:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
+
 /* ===================== 印刷用スタイル ===================== */
 @media print {
   /* 「← 横にスクロールできます」は狭い画面用の案内。紙では意味を持たないので消す。
@@ -2775,6 +2807,20 @@ tr.rate-row-highlight td {
 
   .print-only {
     display: block !important;
+  }
+
+  /* 備考は紙のいちばん下に文字だけで1行。枠も地色も付けない。
+     未入力なら中身ごと無いので、余白だけが残らないよう padding を落とす */
+  .print-remarks {
+    padding: 0 !important;
+  }
+
+  .print-remarks-line {
+    margin: 4px 0 0 !important;
+    font-size: 8pt !important;
+    line-height: 1.4 !important;
+    color: #333 !important;
+    break-inside: avoid !important;
   }
 
   .print-stale-notice {

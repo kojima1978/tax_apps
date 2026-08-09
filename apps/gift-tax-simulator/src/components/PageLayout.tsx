@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Navigation from './Navigation';
 import PrintHeader from './PrintHeader';
+import PrintRemarks from './PrintRemarks';
 import TaxBasisNotice from './TaxBasisNotice';
 
 type Props = {
@@ -49,6 +50,8 @@ const PageLayout = ({ className, printTitle: providedPrintTitle, children }: Pro
                 <PrintHeader title={printTitle} />
                 <TaxBasisNotice />
                 {children}
+                {/* 全ページ共通。画面では最下部の入力欄、紙では最後の1行になる */}
+                <PrintRemarks />
             </main>
         </div>
     );
