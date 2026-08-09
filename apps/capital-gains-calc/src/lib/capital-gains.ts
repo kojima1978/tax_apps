@@ -155,6 +155,11 @@ export type RealEstateInput = {
     costMode: CostMode;
     landCost: number;
     buildingCost: number;
+    /**
+     * 建物の取得価額を建築価額表などから求めた場合の算出根拠（1行）。
+     * 申告時に必ず問われるところなので、計算上の補足に載せて印刷物にも残す。
+     */
+    buildingCostBasis?: string;
     buildingUsage: BuildingUsage;
     structureKey: string;
     /** 事業用の場合に手入力する償却費累計額 */
@@ -174,6 +179,9 @@ export type RealEstateResult = {
     isOver10Years: boolean;
     term: Term;
     depreciation: number;
+    /** 実額取得費の内訳。求め方によっては入力値ではなく算出値なので、結果側から参照できるようにする */
+    landCost: number;
+    buildingCost: number;
     actualCost: number;
     estimatedCost: number;
     acquisitionCost: number;
@@ -262,6 +270,9 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
     if (ownershipYears === null) {
         notes.push('取得日と譲渡日を入力すると、長期・短期の判定が行われます。現在は短期税率で計算しています。');
     }
+    if (input.costMode === 'actual' && input.buildingCostBasis) {
+        notes.push(input.buildingCostBasis);
+    }
     if (input.costMode === 'estimated') {
         notes.push('概算取得費（譲渡価額の5%）で計算しています。実額の取得費が判明している場合はそちらが有利になることがあります。');
     } else if (estimatedCost > actualCost && input.transferPrice > 0) {
@@ -289,6 +300,8 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
         isOver10Years,
         term,
         depreciation,
+        landCost: input.landCost,
+        buildingCost: input.buildingCost,
         actualCost,
         estimatedCost,
         acquisitionCost,

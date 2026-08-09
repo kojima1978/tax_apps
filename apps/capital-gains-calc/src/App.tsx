@@ -92,6 +92,7 @@ const App = () => {
                                     setField={realEstate.setField}
                                     reset={realEstate.reset}
                                     result={realEstate.result}
+                                    buildingPrice={realEstate.buildingPrice}
                                 />
                             ) : (
                                 <SecuritiesForm

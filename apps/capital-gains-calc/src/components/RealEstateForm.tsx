@@ -1,9 +1,11 @@
 import { useId, useMemo } from "react";
+import BuildingPricePanel from "./BuildingPricePanel";
 import CheckboxField from "./CheckboxField";
 import CurrencyField, { type FieldAction } from "./CurrencyField";
 import DateField from "./DateField";
 import FormField from "./FormField";
 import ToggleGroup, { type ToggleOption } from "./ToggleGroup";
+import type { BuildingPriceResult } from "@/lib/building-price";
 import type { BuildingUsage, CostMode, RealEstateResult } from "@/lib/capital-gains";
 import { TRANSFER_EXPENSE_ITEMS, type RealEstateFormState, type TransferExpenseKey } from "@/hooks/useRealEstateForm";
 import { calcBrokerFee } from "@/lib/broker-fee";
@@ -26,12 +28,16 @@ type RealEstateFormProps = {
     setField: <K extends keyof RealEstateFormState>(key: K, value: RealEstateFormState[K]) => void;
     reset: () => void;
     result: RealEstateResult;
+    buildingPrice: BuildingPriceResult;
 };
 
-const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) => {
+const RealEstateForm = ({ form, setField, reset, result, buildingPrice }: RealEstateFormProps) => {
     const structureId = useId();
     const structure = findStructure(form.structureKey);
     const showActualCost = form.costMode === "actual";
+    const isNonBusiness = form.buildingUsage === "non-business";
+    /** 直接入力以外は土地・建物の取得価額を自動算出するので、入力欄ではなく算出結果を出す */
+    const isDerived = form.buildingPriceMethod !== "direct";
 
     /**
      * 仲介手数料を譲渡価額から入れるボタン。
@@ -125,21 +131,6 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
 
                 {showActualCost && (
                     <>
-                        <div className="form-row">
-                            <CurrencyField
-                                label="土地の取得価額"
-                                value={form.landCost}
-                                onChange={(v) => setField("landCost", v)}
-                                hint="購入代金＋仲介手数料等（土地は償却しません）"
-                            />
-                            <CurrencyField
-                                label="建物の取得価額"
-                                value={form.buildingCost}
-                                onChange={(v) => setField("buildingCost", v)}
-                                hint="購入代金＋仲介手数料等（償却前）"
-                            />
-                        </div>
-
                         <FormField label="建物の用途">
                             <ToggleGroup
                                 options={USAGE_OPTIONS}
@@ -149,7 +140,41 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
                             />
                         </FormField>
 
-                        {form.buildingUsage === "non-business" ? (
+                        <BuildingPricePanel form={form} setField={setField} buildingPrice={buildingPrice} />
+
+                        {isDerived ? (
+                            <div className="form-row">
+                                <div className="input-item">
+                                    <span className="pseudo-label">土地の取得価額（自動算出）</span>
+                                    <p className="derived-value">{formatYen(result.landCost)}</p>
+                                </div>
+                                <div className="input-item">
+                                    <span className="pseudo-label">建物の取得価額（自動算出）</span>
+                                    <p className="derived-value">{formatYen(result.buildingCost)}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="form-row">
+                                <CurrencyField
+                                    label="土地の取得価額"
+                                    value={form.landCost}
+                                    onChange={(v) => setField("landCost", v)}
+                                    hint="購入代金＋仲介手数料等（土地は償却しません）"
+                                />
+                                <CurrencyField
+                                    label="建物の取得価額"
+                                    value={form.buildingCost}
+                                    onChange={(v) => setField("buildingCost", v)}
+                                    hint="購入代金＋仲介手数料等（償却前）"
+                                />
+                            </div>
+                        )}
+
+                        {/*
+                         * 構造は非事業用の償却率に使うが、建築価額表から算出する場合は
+                         * 新築から購入までの償却にも使うので、事業用でも選べるようにする。
+                         */}
+                        {(isNonBusiness || form.buildingPriceMethod === "table") && (
                             <div className="form-row">
                                 <FormField label="建物の構造" htmlFor={structureId}>
                                     <select
@@ -168,13 +193,17 @@ const RealEstateForm = ({ form, setField, reset, result }: RealEstateFormProps) 
                                         非事業用の耐用年数 {structure.nonBusinessYears}年 / 償却率 {structure.rate}
                                     </small>
                                 </FormField>
-                                <div className="input-item">
-                                    <span className="pseudo-label">償却費相当額（自動計算）</span>
-                                    <p className="derived-value">{formatYen(result.depreciation)}</p>
-                                    <small>経過年数 {result.elapsedYears}年（6ヶ月以上は切上げ）</small>
-                                </div>
+                                {isNonBusiness && (
+                                    <div className="input-item">
+                                        <span className="pseudo-label">償却費相当額（自動計算）</span>
+                                        <p className="derived-value">{formatYen(result.depreciation)}</p>
+                                        <small>経過年数 {result.elapsedYears}年（6ヶ月以上は切上げ）</small>
+                                    </div>
+                                )}
                             </div>
-                        ) : (
+                        )}
+
+                        {!isNonBusiness && (
                             <CurrencyField
                                 label="償却費累計額"
                                 value={form.depreciationInput}

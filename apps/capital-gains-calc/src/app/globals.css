@@ -315,6 +315,61 @@ body {
   background-color: #f5f5f5;
 }
 
+/*
+ * 建物の取得価額の求め方（土地建物を一括取得した場合の区分）。
+ * 取得費の入力の一部でありながら別立ての計算なので、枠で囲って本流の入力欄と見分けられるようにする。
+ */
+.derivation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px dashed var(--primary-light);
+  border-radius: 6px;
+  background-color: #fafcfc;
+}
+
+/* パネル内の間隔は gap が持つので、補足の上余白は外す */
+.derivation-panel .note-list {
+  margin-top: 0;
+}
+
+.calc-steps h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.calc-steps dl {
+  margin: 0;
+}
+
+.calc-step {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px dotted var(--border-color);
+}
+
+.calc-step:last-child {
+  border-bottom: none;
+}
+
+.calc-step dt {
+  font-size: 0.8rem;
+  color: var(--muted-color);
+}
+
+.calc-step dd {
+  margin: 0;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
 /* チェックボックス */
 .checkbox-item {
   background-color: #f9f9f9;

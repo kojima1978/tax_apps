@@ -1,4 +1,11 @@
 import { useMemo } from 'react';
+import {
+    CONSTRUCTION_STRUCTURES,
+    calcBuildingPrice,
+    parseArea,
+    type BuildingPriceMethod,
+    type ConstructionStructureKey,
+} from '@/lib/building-price';
 import { calcRealEstate, type BuildingUsage, type CostMode, type RealEstateResult } from '@/lib/capital-gains';
 import { BUILDING_STRUCTURES } from '@/lib/tax-rates';
 import { parseFormattedNumber } from '@/lib/utils';
@@ -31,6 +38,20 @@ export type RealEstateFormState = {
     costMode: CostMode;
     landCost: string;
     buildingCost: string;
+    /** 建物の取得価額の求め方（直接入力以外は土地・建物を自動算出する） */
+    buildingPriceMethod: BuildingPriceMethod;
+    /** 土地建物の合計取得価額（消費税込み） */
+    totalCost: string;
+    /** 消費税から逆算 */
+    buildingConsumptionTax: string;
+    consumptionTaxRate: string;
+    /** 固定資産税評価額で按分 */
+    landAssessedValue: string;
+    buildingAssessedValue: string;
+    /** 建築価額表から算出 */
+    builtDate: string;
+    constructionStructure: ConstructionStructureKey;
+    floorArea: string;
     buildingUsage: BuildingUsage;
     structureKey: string;
     depreciationInput: string;
@@ -53,6 +74,15 @@ const INITIAL_STATE: RealEstateFormState = {
     costMode: 'actual',
     landCost: '',
     buildingCost: '',
+    buildingPriceMethod: 'direct',
+    totalCost: '',
+    buildingConsumptionTax: '',
+    consumptionTaxRate: '0.1',
+    landAssessedValue: '',
+    buildingAssessedValue: '',
+    builtDate: '',
+    constructionStructure: CONSTRUCTION_STRUCTURES[0].key,
+    floorArea: '',
     buildingUsage: 'non-business',
     structureKey: BUILDING_STRUCTURES[0].key,
     depreciationInput: '',
@@ -67,6 +97,29 @@ const INITIAL_STATE: RealEstateFormState = {
 export function useRealEstateForm() {
     const { form, setField, reset } = useFormState<RealEstateFormState>(INITIAL_STATE);
 
+    /** 建物の取得価額の算出。直接入力のときは何も計算しない（resolved が false のまま） */
+    const buildingPrice = useMemo(
+        () =>
+            calcBuildingPrice({
+                method: form.buildingPriceMethod,
+                totalCost: parseFormattedNumber(form.totalCost),
+                taxRate: Number(form.consumptionTaxRate) || 0,
+                consumptionTax: parseFormattedNumber(form.buildingConsumptionTax),
+                landAssessedValue: parseFormattedNumber(form.landAssessedValue),
+                buildingAssessedValue: parseFormattedNumber(form.buildingAssessedValue),
+                builtDate: form.builtDate,
+                acquisitionDate: form.acquisitionDate,
+                constructionStructure: form.constructionStructure,
+                floorArea: parseArea(form.floorArea),
+                structureKey: form.structureKey,
+                buildingUsage: form.buildingUsage,
+            }),
+        [form],
+    );
+
+    /** 求め方が直接入力以外なら、土地・建物の取得価額は算出結果を使う */
+    const derived = form.buildingPriceMethod !== 'direct';
+
     const result: RealEstateResult = useMemo(
         () =>
             calcRealEstate({
@@ -76,8 +129,9 @@ export function useRealEstateForm() {
                     0,
                 ),
                 costMode: form.costMode,
-                landCost: parseFormattedNumber(form.landCost),
-                buildingCost: parseFormattedNumber(form.buildingCost),
+                landCost: derived ? buildingPrice.landCost : parseFormattedNumber(form.landCost),
+                buildingCost: derived ? buildingPrice.buildingCost : parseFormattedNumber(form.buildingCost),
+                buildingCostBasis: derived ? buildingPrice.basis : '',
                 buildingUsage: form.buildingUsage,
                 structureKey: form.structureKey,
                 depreciationInput: parseFormattedNumber(form.depreciationInput),
@@ -88,11 +142,11 @@ export function useRealEstateForm() {
                 useReducedRate: form.useReducedRate,
                 inheritedCostAddition: parseFormattedNumber(form.inheritedCostAddition),
             }),
-        [form],
+        [form, derived, buildingPrice],
     );
 
     /** 譲渡価額が未入力のうちは結果を出さない */
     const hasInput = parseFormattedNumber(form.transferPrice) > 0;
 
-    return { form, setField, reset, result, hasInput };
+    return { form, setField, reset, result, buildingPrice, hasInput };
 }

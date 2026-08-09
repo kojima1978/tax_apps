@@ -21,8 +21,8 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
         if (form.costMode === "actual") {
             rows.push(
                 { label: "取得費（実額）", value: formatYen(result.actualCost) },
-                { label: "土地の取得価額", value: formatYen(parseFormattedNumber(form.landCost)), sub: true },
-                { label: "建物の取得価額", value: formatYen(parseFormattedNumber(form.buildingCost)), sub: true },
+                { label: "土地の取得価額", value: formatYen(result.landCost), sub: true },
+                { label: "建物の取得価額", value: formatYen(result.buildingCost), sub: true },
                 { label: "償却費相当額", value: `− ${formatYen(result.depreciation)}`, sub: true },
             );
         } else {
@@ -70,7 +70,7 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
             const term = result.isLongTerm ? "長期譲渡" : "短期譲渡";
             items.push(`所有期間 ${result.ownershipYears}年（${term}${result.isOver10Years ? "・10年超" : ""}）`);
         }
-        if (form.costMode === "actual" && parseFormattedNumber(form.buildingCost) > 0) {
+        if (form.costMode === "actual" && result.buildingCost > 0) {
             // 構造は非事業用の償却率にしか使わないので、事業用のときは用途だけ出す
             const isNonBusiness = form.buildingUsage === "non-business";
             const structure = isNonBusiness ? `・${findStructure(form.structureKey).label}` : "";
