@@ -10,10 +10,6 @@
   --text-color: #333;
   --error-color: #d32f2f;
   --white: #ffffff;
-  --special-color: #1565c0;
-  --special-bg: #e3f2fd;
-  --general-color: #e65100;
-  --general-bg: #fff3e0;
   /* 不動産ページ共通入力の高さ（セレクト＝トグル）と操作ボタンの高さ */
   --re-control-height: 48px;
   --re-action-height: 40px;
@@ -683,7 +679,7 @@ body {
   border-top: 1px solid #e5e7eb;
 }
 
-/* 「計算する」と「入力を消す」は小ぶりに、かつ同じ高さで並べる */
+/* 「計算する」「サンプルで試す」「入力を消す」は小ぶりに、かつ同じ高さで並べる */
 .calc-action-bar .btn-calc,
 .calc-action-bar .btn-input-helper {
   height: var(--re-action-height);
@@ -948,14 +944,6 @@ tr:hover {
   color: var(--primary-dark);
 }
 
-.row-zero-tax {
-  background-color: #f5f5f5;
-}
-
-.row-zero-tax td {
-  color: #737373;
-}
-
 /* 詳細度を上げて !important を回避 */
 tr.row-optimal {
   background-color: #dcfce7;
@@ -963,6 +951,11 @@ tr.row-optimal {
 
 tr.row-optimal td {
   font-weight: bold;
+}
+
+/* 「分割年数」は数値なので中央寄せ。素の td:first-child は左寄せが既定 */
+.year-comparison-table td:first-child {
+  text-align: center;
 }
 
 .badge-optimal {
@@ -994,24 +987,16 @@ tr.row-optimal td {
   margin-bottom: 2rem;
 }
 
+/* 特例／一般とも同じ緑ベース。区別は見出しの文言で足りる */
 .table-section-title {
   font-size: 1.3rem;
   font-weight: bold;
   margin: 0 0 0.75rem 0;
   padding: 0.5rem 1rem;
   border-radius: 4px;
-}
-
-.table-section-title.special {
-  background-color: var(--special-bg);
-  color: var(--special-color);
-  border-left: 4px solid var(--special-color);
-}
-
-.table-section-title.general {
-  background-color: var(--general-bg);
-  color: var(--general-color);
-  border-left: 4px solid var(--general-color);
+  background-color: #f0fdf4;
+  color: var(--primary-dark);
+  border-left: 4px solid var(--primary-color);
 }
 
 .tax-table-single {
@@ -1026,49 +1011,58 @@ tr.row-optimal td {
   padding: 10px 15px;
 }
 
+/* 早見表の数字はすべて黒。強調は太字と地色だけで付ける
+   （.highlight-total の緑はこの表では打ち消す） */
+.tax-table-single td,
+.tax-table-single .highlight-total {
+  color: var(--text-color);
+}
+
 .tax-table-single .col-amount {
   text-align: left;
   font-weight: bold;
-  color: var(--primary-color);
   background-color: #f9f9f9;
 }
 
-/* 詳細度を上げて !important を回避 */
-.tax-table-single th.header-special {
-  background-color: var(--special-bg);
-  color: var(--special-color);
+/* よく参照される金額（300万・500万・1,000万円）の行。
+   縞や .col-amount の地色より後ろに置かれないよう td 自体に色を付ける */
+.tax-table-single tr.row-key-amount td {
+  background-color: #dcfce7;
+  font-weight: bold;
 }
 
-.tax-table-single th.header-general {
-  background-color: var(--general-bg);
-  color: var(--general-color);
+/* 数字は右詰め、単位は左揃え。数字側の幅を em で固定しているので、
+   太字の行（highlight-total）が混ざっても単位の位置がずれない */
+.num-unit {
+  display: grid;
+  grid-template-columns: 4.5em auto;
+  column-gap: 0.2em;
+  width: max-content;
+  margin: 0 auto;
 }
 
+.num-unit-value {
+  text-align: right;
+}
+
+.num-unit-suffix {
+  text-align: left;
+}
+
+/* 注記は地色を敷かず黒文字。表そのものより手前に出ないようにする */
 .table-common-note {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-color);
   margin-bottom: 1.5rem;
-  padding: 0.5rem;
-  background-color: #f5f5f5;
-  border-radius: 4px;
+  padding: 0.5rem 0;
 }
 
 .table-note {
   font-size: 0.85rem;
   line-height: 1.5;
   margin: 0.5rem 0 0 0;
-  padding: 0.5rem;
-  border-radius: 4px;
-}
-
-.table-note.note-special {
-  color: var(--special-color);
-  background-color: #f5f9ff;
-}
-
-.table-note.note-general {
-  color: var(--general-color);
-  background-color: #fffaf5;
+  padding: 0.5rem 0;
+  color: var(--text-color);
 }
 
 /* ===================== グラフエリア ===================== */
@@ -2228,6 +2222,12 @@ tr.rate-row-highlight td {
   font-size: 0.8rem;
 }
 
+/* 素の td は早見表向けに text-align: right が既定。条文の説明文が右寄せになって
+   読みにくいので、参照表は左寄せに戻す（金額・税率だけ .tax-ref-td-right で右） */
+.tax-ref-table td:not(.tax-ref-td-right) {
+  text-align: left;
+}
+
 .tax-ref-table th {
   background-color: #f0f7f0;
   font-weight: 700;
@@ -2241,8 +2241,13 @@ tr.rate-row-highlight td {
 
 /* ===================== 印刷用スタイル ===================== */
 @media print {
-  .table-container::before {
-    display: none;
+  /* 「← 横にスクロールできます」は狭い画面用の案内。紙では意味を持たないので消す。
+     セレクタを狭幅版（.table-container:not(.desktop-comparison-table)::before）と
+     同形にしないと、紙面幅が 768px 以下と判定されたときに向こうが勝って残る */
+  .table-container::before,
+  .table-container:not(.desktop-comparison-table)::before {
+    display: none !important;
+    content: none !important;
   }
 
   /* 全ページ共通: A4横1枚（本文領域 281mm × 194mm） */
@@ -2272,6 +2277,15 @@ tr.rate-row-highlight td {
     padding: 0 !important;
     border: none !important;
     overflow: visible !important;
+    /* 画面用の min-height: 100vh は紙では「1ページ分の空白」になる */
+    min-height: 0 !important;
+  }
+
+  /* シェルの地色(#f8fafc)は print-color-adjust: exact のせいで紙にも刷られ、
+     内容より下の余白が一面グレーになる。紙の地は白のまま */
+  .app-shell {
+    background: transparent !important;
+    min-height: 0 !important;
   }
 
   .app-main {
@@ -2694,13 +2708,13 @@ tr.rate-row-highlight td {
   .table-page .table-common-note {
     font-size: 9pt !important;
     margin-bottom: 0.5rem;
-    padding: 0.3rem;
+    padding: 0.2rem 0;
   }
 
   .table-page .table-note {
     font-size: 8pt !important;
     margin-top: 0.3rem;
-    padding: 0.3rem;
+    padding: 0.2rem 0;
   }
 
   .table-page .tax-table-single {
@@ -2877,8 +2891,11 @@ tr.rate-row-highlight td {
     color: #444 !important;
   }
 
+  /* 明細行の幅も「入力条件」に合わせる（あちらは dl が 1fr 1fr の2列） */
   .real-estate-page .re-result-group-items {
-    gap: 0 !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0 12px !important;
   }
 
   /* 画面では縦積みのラベル/金額を、紙では条件行と同じ左右1行に */

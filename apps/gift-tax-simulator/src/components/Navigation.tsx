@@ -14,7 +14,7 @@ import CalendarDays from 'lucide-react/icons/calendar-days';
 import Landmark from 'lucide-react/icons/landmark';
 import Phone from 'lucide-react/icons/phone';
 import { useStaffInfo } from '@/contexts/StaffContext';
-import { COMPANY_INFO, getFullAddress } from '@/lib/company';
+import { COMPANY_INFO } from '@/lib/company';
 import { formatDate } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -183,7 +183,9 @@ const Navigation = ({
         <div className="sidebar-footer">
             <div className="sidebar-company">
                 <strong>{COMPANY_INFO.name}</strong>
-                <span>{getFullAddress()}</span>
+                {/* 狭いサイドバーで住所が中途半端に折り返すので、郵便番号と住所で行を分ける */}
+                <span>{COMPANY_INFO.postalCode}</span>
+                <span>{COMPANY_INFO.address}</span>
                 <span className="sidebar-company-phone"><Phone aria-hidden="true" />{COMPANY_INFO.phone}</span>
             </div>
         </div>

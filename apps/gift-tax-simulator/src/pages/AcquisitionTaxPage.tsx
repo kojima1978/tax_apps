@@ -149,6 +149,7 @@ export default function AcquisitionTaxPage() {
             }
             printConditionGroups={printConditionGroups}
             onCalculate={form.calculateTax}
+            onSample={form.handleSample}
             onReset={form.resetForm}
             errorMsg={form.errorMsg}
             results={form.results}

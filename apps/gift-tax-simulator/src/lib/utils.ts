@@ -22,6 +22,15 @@ export const formatMan = (amount: number): string => {
 };
 
 /**
+ * 「1,000万円」「17.7%」を数字と単位に分割する
+ * （表で数字を右詰め・単位を左揃えにして、行をまたいで位置を揃えるため）
+ */
+export const splitNumberUnit = (formatted: string): { value: string; unit: string } => {
+    const matched = formatted.match(/^(-?[\d.,]+)(.*)$/);
+    return matched ? { value: matched[1], unit: matched[2] } : { value: formatted, unit: '' };
+};
+
+/**
  * パーセントフォーマット（小数点1桁）
  */
 export const formatPercent = (num: number): string => {

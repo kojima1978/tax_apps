@@ -31,7 +31,7 @@ const YearComparisonTable = ({ results, totalAmount }: Props) => {
                     </article>
                 ))}
             </div>
-            <div className="table-container desktop-comparison-table">
+            <div className="table-container desktop-comparison-table year-comparison-table">
                 <table>
                     <thead>
                         <tr>
@@ -54,9 +54,9 @@ const YearComparisonTable = ({ results, totalAmount }: Props) => {
                                         : ''
                                 }
                             >
+                                {/* 最安は行の色分け(row-optimal)で示すのでバッジは置かない */}
                                 <td>
                                     {row.years}年
-                                    {row.optimal && <span className="badge-optimal">最安</span>}
                                     {!row.optimal && row.taxFree && <span className="badge-tax-free">非課税</span>}
                                 </td>
                                 <td>{formatCurrency(row.oneTimeAmount)} 円</td>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import ArrowRight from 'lucide-react/icons/arrow-right';
 import RotateCcw from 'lucide-react/icons/rotate-ccw';
+import Sparkles from 'lucide-react/icons/sparkles';
 import type { TransactionType, TaxResults } from '@/lib/real-estate-tax';
 import {
     compactGroups,
@@ -47,6 +48,7 @@ type Props = {
     /** 印刷用「入力条件」の土地・建物グループ（共通条件はこの層で足す） */
     printConditionGroups: ConditionGroup[];
     onCalculate: () => void;
+    onSample: () => void;
     onReset: () => void;
     errorMsg: string;
     results: TaxResults | null;
@@ -66,7 +68,7 @@ const RealEstatePageLayout = ({
     importConfig,
     inputColumns,
     printConditionGroups,
-    onCalculate, onReset, errorMsg,
+    onCalculate, onSample, onReset, errorMsg,
     results, resultConfig,
     isStale,
     showDetails, setShowDetails,
@@ -136,6 +138,11 @@ const RealEstatePageLayout = ({
                     </div>
                     <div className="calc-action-bar">
                         <button className="btn-calc" onClick={onCalculate}>計算する</button>
+                        {/* 贈与税ページと同じ「まず動かしてみる」導線 */}
+                        <button type="button" className="btn-input-helper sample no-print" onClick={onSample}>
+                            <Sparkles aria-hidden="true" />
+                            サンプルで試す
+                        </button>
                         <button type="button" className="btn-input-helper no-print" onClick={onReset}>
                             <RotateCcw aria-hidden="true" />
                             入力を消す

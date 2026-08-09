@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
+    calculateBuildingDeduction,
     calculateRealEstateTax,
     type TaxResults,
 } from '@/lib/real-estate-tax';
 import { formatInputValue, parseFormattedNumber, parseDecimalNumber } from '@/lib/utils';
 import { validateRealEstateInput, validateResult, validateBuildingArea } from '@/lib/validate-real-estate';
 import { saveValuations } from '@/lib/valuation-storage';
+import { REAL_ESTATE_SAMPLE, sampleBuildingDate } from '@/lib/real-estate-sample';
 import { useValuationImport } from './useValuationImport';
 import { useBuildingDate, YEAR_OPTIONS } from './useBuildingDate';
 import { useRealEstateFormBase } from './useRealEstateFormBase';
 import { useDecimalInput } from './useFormattedInput';
+import { useSampleFill } from './useSampleFill';
 
 export type AcquisitionResults = TaxResults & {
     resLandAcq: number;
@@ -232,6 +235,38 @@ export const useAcquisitionTaxForm = () => {
         buildingShareNumerator, buildingShareDenominator,
     ]);
 
+    const fillSample = useSampleFill(calculateTax);
+
+    // 一通り入力された状態を1クリックで作る（土地・建物とも贈与で取得したケース）
+    const handleSample = useCallback(() => fillSample(() => {
+        base.setTransactionType('gift');
+        base.setIncludeLand(true);
+        base.setIncludeBuilding(true);
+        setResLandValuation(REAL_ESTATE_SAMPLE.landValuation);
+        setResLandArea(REAL_ESTATE_SAMPLE.landArea);
+        setOtherLandValuation('');
+        setBuildingValuation(REAL_ESTATE_SAMPLE.buildingValuation);
+        setBuildingArea(REAL_ESTATE_SAMPLE.buildingArea);
+        setIsResidential(true);
+        setIsLongLifeQuality(false);
+        setLandShareNumerator('1');
+        setLandShareDenominator('1');
+        setBuildingShareNumerator('1');
+        setBuildingShareDenominator('1');
+        buildingDate.setYearInput(REAL_ESTATE_SAMPLE.buildingYear);
+        buildingDate.setSelMonth(REAL_ESTATE_SAMPLE.buildingMonth);
+        buildingDate.setSelDay(REAL_ESTATE_SAMPLE.buildingDay);
+        // 控除額は建築年月日から effect 経由で決まるため、計算に間に合わない。
+        // 同じ関数で先に求めて入れておく（effect が後から同じ値を入れ直す）
+        const { deduction } = calculateBuildingDeduction(sampleBuildingDate(), 'gift', true, false);
+        buildingDate.setAcquisitionDeduction(formatInputValue(deduction));
+    }), [
+        fillSample,
+        base.setTransactionType, base.setIncludeLand, base.setIncludeBuilding,
+        buildingDate.setYearInput, buildingDate.setSelMonth, buildingDate.setSelDay,
+        buildingDate.setAcquisitionDeduction,
+    ]);
+
     return {
         ...base,
         resLandValuation, setResLandValuation,
@@ -250,6 +285,7 @@ export const useAcquisitionTaxForm = () => {
         yearOptions: YEAR_OPTIONS,
         calculateTax,
         resetForm,
+        handleSample,
         handleDecimalInput,
         importLandValuation, importBuildingValuation,
     };

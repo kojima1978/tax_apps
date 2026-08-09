@@ -16,6 +16,9 @@ const TAX_NOTES = {
     general: '特例贈与以外の贈与（兄弟間、夫婦間、親から未成年の子への贈与など）に使用します。',
 } as const;
 
+// 相談で使う頻度が高い金額。早見表で行ごと強調する
+const KEY_AMOUNTS = new Set([3_000_000, 5_000_000, 10_000_000]);
+
 const generateTableData = (maxAmount: number, type: GiftType): QuickRefRow[] => {
     const rows: QuickRefRow[] = [];
     for (let amount = UNIT; amount <= maxAmount; amount += UNIT) {
@@ -24,6 +27,7 @@ const generateTableData = (maxAmount: number, type: GiftType): QuickRefRow[] => 
             amount,
             tax,
             rate: amount > 0 ? tax / amount : 0,
+            keyAmount: KEY_AMOUNTS.has(amount),
         });
     }
     return rows;
@@ -64,14 +68,12 @@ export default function TablePage() {
                 <QuickRefTable
                     title="特例贈与"
                     data={specialData}
-                    colorClass="special"
                     note={TAX_NOTES.special}
                 />
 
                 <QuickRefTable
                     title="一般贈与"
                     data={generalData}
-                    colorClass="general"
                     note={TAX_NOTES.general}
                 />
             </div>

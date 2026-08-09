@@ -6,8 +6,10 @@ import {
 import { parseFormattedNumber } from '@/lib/utils';
 import { validateRealEstateInput, validateResult } from '@/lib/validate-real-estate';
 import { saveValuations } from '@/lib/valuation-storage';
+import { REAL_ESTATE_SAMPLE } from '@/lib/real-estate-sample';
 import { useValuationImport } from './useValuationImport';
 import { useRealEstateFormBase } from './useRealEstateFormBase';
+import { useSampleFill } from './useSampleFill';
 
 export const useRegistrationTaxForm = () => {
     const base = useRealEstateFormBase<TaxResults>();
@@ -118,6 +120,23 @@ export const useRegistrationTaxForm = () => {
         buildingShareNumerator, buildingShareDenominator,
     ]);
 
+    const fillSample = useSampleFill(calculateTax);
+
+    // 不動産取得税ページと同じ物件を入れる（取り込みを試しても金額が食い違わない）
+    const handleSample = useCallback(() => fillSample(() => {
+        base.setTransactionType('gift');
+        base.setIncludeLand(true);
+        base.setIncludeBuilding(true);
+        setLandValuation(REAL_ESTATE_SAMPLE.landValuation);
+        setBuildingValuation(REAL_ESTATE_SAMPLE.buildingValuation);
+        setIsResidential(true);
+        setHasHousingCertificate(true);
+        setLandShareNumerator('1');
+        setLandShareDenominator('1');
+        setBuildingShareNumerator('1');
+        setBuildingShareDenominator('1');
+    }), [fillSample, base.setTransactionType, base.setIncludeLand, base.setIncludeBuilding]);
+
     return {
         ...base,
         landValuation, setLandValuation,
@@ -130,6 +149,7 @@ export const useRegistrationTaxForm = () => {
         buildingShareDenominator, setBuildingShareDenominator,
         calculateTax,
         resetForm,
+        handleSample,
         importLandValuation, importBuildingValuation,
     };
 };
