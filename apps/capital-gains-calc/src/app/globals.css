@@ -807,9 +807,9 @@ tbody th {
   }
 
   /*
-   * 2段組はこの中だけ。見出し・事務所情報・免責・備考欄は段組の外にあるので
-   * column-span: all は要らない。段の切れ目で結果表が割れないよう、
-   * 中の各ブロックに break-inside: avoid を置く。
+   * 2段組はこの中だけ。タイトル・事務所情報・免責・備考欄は段組の外にあるので
+   * column-span: all は要らない（使うのは段の中の .result-section だけ）。
+   * 段の切れ目で結果表が割れないよう、中の各ブロックに break-inside: avoid を置く。
    */
   .print-columns {
     column-count: 2;
@@ -854,6 +854,43 @@ tbody th {
   /* flex/grid は段をまたげないので、印刷時だけ通常フローに戻す */
   .result-grid {
     display: block !important;
+  }
+
+  /*
+   * 結果セクションだけは段の流し込みに任せず、全幅の3つの帯に分ける。
+   * 段組みのままだと見出しと前提条件が左段の頭だけを消費するため、
+   * 「譲渡所得の計算」が「税額の計算」より下から始まって不揃いに見える。
+   * 〈見出し＋前提条件〉／〈2表〉／〈計算上の補足〉の順で紙幅いっぱいに置く。
+   * ミニマムタックスは段に流したままにする（こちらを帯にすると段が62px伸びる）。
+   */
+  .result-section > h2,
+  .result-section > .print-conditions,
+  .result-section > .result-grid,
+  .result-section > .note-list {
+    column-span: all;
+  }
+
+  /*
+   * 2表は段組みではなく専用のグリッドで横に並べる。
+   * align-items: stretch と table の height: 100% で、行数が違っても
+   * 上端・下端がそろう（行数の少ない表は行の高さが伸びて埋める）。
+   */
+  .result-section > .result-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 6mm;
+    align-items: stretch;
+  }
+
+  /* 縦に1行しか置かないので、下余白はグリッド側（note-list の margin-top）に任せる */
+  .result-section > .result-grid > .result-block {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+  }
+
+  .result-section > .result-grid > .result-block table {
+    height: 100%;
   }
 
   .form-row {
