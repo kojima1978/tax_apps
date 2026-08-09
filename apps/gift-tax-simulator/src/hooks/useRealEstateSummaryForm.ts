@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-    calculateAcquisitionBreakdown,
-    type AcquisitionResults,
-} from '@/lib/acquisition-breakdown';
+import { calculateRealEstateTax, type TaxResults } from '@/lib/real-estate-tax';
+import { calculateAcquisitionBreakdown, type AcquisitionResults } from '@/lib/acquisition-breakdown';
 import { parseFormattedNumber, parseDecimalNumber, parseShare } from '@/lib/utils';
 import { validateRealEstateInput, validateResult, validateBuildingArea } from '@/lib/validate-real-estate';
 import { useRealEstateFormBase } from './useRealEstateFormBase';
@@ -10,15 +8,34 @@ import { useRealEstateInputs } from './useRealEstateInputs';
 import { useRealEstateInputSync } from './useRealEstateInputSync';
 import { useSampleFill } from './useSampleFill';
 
-export type { AcquisitionResults };
+/** 同じ物件に対する不動産取得税と登録免許税を並べて持つ */
+export type RealEstateSummaryResults = {
+    acquisition: AcquisitionResults;
+    registration: TaxResults;
+    total: number;
+};
 
-export const useAcquisitionTaxForm = () => {
-    const base = useRealEstateFormBase<AcquisitionResults>();
+/**
+ * 不動産取得税と登録免許税を1つの入力からまとめて計算する。
+ * 税額の中身は各ページと同じ関数（calculateAcquisitionBreakdown / calculateRealEstateTax）を
+ * 呼ぶだけなので、こちらだけ金額が食い違うことはない。
+ */
+export const useRealEstateSummaryForm = () => {
+    const base = useRealEstateFormBase<RealEstateSummaryResults>();
     const { transactionType, includeLand, includeBuilding, setErrorMsg, setResults } = base;
     const inputs = useRealEstateInputs(transactionType);
 
+    // 登録免許税だけが使う条件
+    const [hasHousingCertificate, setHasHousingCertificate] = useState(true);
+
     // 面積警告
     const [areaWarning, setAreaWarning] = useState('');
+
+    // 入力条件の保存と、他ページからの引用。住宅用家屋証明書も運ぶ
+    const importFrom = useRealEstateInputSync('real-estate-summary', inputs, {
+        hasHousingCertificate,
+        setHasHousingCertificate,
+    });
 
     // 入力が変わったら結果を消さずに「再計算が必要」の印を付ける
     useEffect(() => {
@@ -29,15 +46,14 @@ export const useAcquisitionTaxForm = () => {
         inputs.landShareNumerator, inputs.landShareDenominator,
         inputs.buildingShareNumerator, inputs.buildingShareDenominator,
         inputs.selYear, inputs.selMonth, inputs.selDay,
+        hasHousingCertificate,
         base.markResultStale,
     ]);
-
-    // 入力条件の保存と、他ページからの引用
-    const importFrom = useRealEstateInputSync('acquisition-tax', inputs);
 
     const resetForm = useCallback(() => {
         base.resetBase();
         inputs.resetInputs();
+        setHasHousingCertificate(true);
         setAreaWarning('');
     }, [base.resetBase, inputs.resetInputs]);
 
@@ -63,7 +79,11 @@ export const useAcquisitionTaxForm = () => {
         // 面積要件チェック（警告のみ、計算は続行）
         setAreaWarning(validateBuildingArea(bArea) ?? '');
 
-        const breakdown = calculateAcquisitionBreakdown({
+        const landShare = parseShare(inputs.landShareNumerator, inputs.landShareDenominator);
+        const buildingShare = parseShare(inputs.buildingShareNumerator, inputs.buildingShareDenominator);
+        const acquisitionDeduction = parseFormattedNumber(inputs.acquisitionDeduction);
+
+        const acquisition = calculateAcquisitionBreakdown({
             includeLand,
             includeBuilding,
             resLandValuation: resVal,
@@ -73,18 +93,36 @@ export const useAcquisitionTaxForm = () => {
             buildingArea: bArea,
             transactionType,
             isResidential: inputs.isResidential,
-            acquisitionDeduction: parseFormattedNumber(inputs.acquisitionDeduction),
-            landShare: parseShare(inputs.landShareNumerator, inputs.landShareDenominator),
-            buildingShare: parseShare(inputs.buildingShareNumerator, inputs.buildingShareDenominator),
+            acquisitionDeduction,
+            landShare,
+            buildingShare,
         });
 
-        const resultError = validateResult(breakdown.total);
+        // 登録免許税は宅地とその他を区別しないので、土地は合算して1回で計算する
+        const registration = calculateRealEstateTax({
+            includeLand,
+            includeBuilding,
+            landValuation: resVal + otherVal,
+            buildingValuation: bldgVal,
+            transactionType,
+            landType: 'residential',
+            landArea: 0,
+            buildingArea: 0,
+            isResidential: inputs.isResidential,
+            hasHousingCertificate,
+            acquisitionDeduction: 0,
+            landShare,
+            buildingShare,
+        });
+
+        const total = acquisition.total + registration.totalReg;
+        const resultError = validateResult(total);
         if (resultError) {
             setErrorMsg(resultError);
             setResults(null);
             return;
         }
-        setResults(breakdown);
+        setResults({ acquisition, registration, total });
     }, [
         includeLand, includeBuilding,
         inputs.resLandValuation, inputs.resLandArea,
@@ -94,6 +132,7 @@ export const useAcquisitionTaxForm = () => {
         inputs.acquisitionDeduction,
         inputs.landShareNumerator, inputs.landShareDenominator,
         inputs.buildingShareNumerator, inputs.buildingShareDenominator,
+        hasHousingCertificate,
     ]);
 
     const fillSample = useSampleFill(calculateTax);
@@ -103,6 +142,7 @@ export const useAcquisitionTaxForm = () => {
         base.setIncludeLand(true);
         base.setIncludeBuilding(true);
         inputs.applySample();
+        setHasHousingCertificate(true);
     }), [
         fillSample,
         base.setTransactionType, base.setIncludeLand, base.setIncludeBuilding,
@@ -112,6 +152,7 @@ export const useAcquisitionTaxForm = () => {
     return {
         ...base,
         ...inputs,
+        hasHousingCertificate, setHasHousingCertificate,
         areaWarning,
         calculateTax,
         resetForm,

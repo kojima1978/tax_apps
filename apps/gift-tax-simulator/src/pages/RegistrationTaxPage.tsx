@@ -4,30 +4,28 @@ import FormattedNumberInput from '@/components/shared/FormattedNumberInput';
 import TaxReference from '@/components/registration-tax/TaxReference';
 import ShareInput from '@/components/shared/ShareInput';
 import { compactRows, shareRow, usageRow, yesNoRow, yenRow } from '@/lib/print-conditions';
+import { registrationResultItems, shareNoteText } from '@/lib/real-estate-result';
 import { useRegistrationTaxForm } from '@/hooks/useRegistrationTaxForm';
 
 export default function RegistrationTaxPage() {
     const form = useRegistrationTaxForm();
 
-    const lN = Math.max(1, parseInt(form.landShareNumerator) || 1);
-    const lD = Math.max(1, parseInt(form.landShareDenominator) || 1);
-    const bN = Math.max(1, parseInt(form.buildingShareNumerator) || 1);
-    const bD = Math.max(1, parseInt(form.buildingShareDenominator) || 1);
+    const shareNote = useMemo(() => shareNoteText(
+        form.landShareNumerator, form.landShareDenominator,
+        form.buildingShareNumerator, form.buildingShareDenominator,
+    ), [
+        form.landShareNumerator, form.landShareDenominator,
+        form.buildingShareNumerator, form.buildingShareDenominator,
+    ]);
 
-    const resultConfig = useMemo(() => form.results ? {
-        items: [
-            { label: '土地', value: form.results.landReg, show: form.includeLand },
-            { label: '建物', value: form.results.bldgReg, show: form.includeBuilding },
-        ],
+    const resultSections = useMemo(() => form.results ? [{
+        key: 'registration',
+        items: registrationResultItems(form.results, form.includeLand, form.includeBuilding),
         totalLabel: '登録免許税 合計',
         totalValue: form.results.totalReg,
-        taxType: 'registration' as const,
-        disclaimer: '※この計算は概算です。実際の税額は、端数処理のルールにより異なる場合があります。',
-        shareNote: [
-            (lN !== lD ? `土地持ち分 ${lN}/${lD}` : ''),
-            (bN !== bD ? `建物持ち分 ${bN}/${bD}` : ''),
-        ].filter(Boolean).join('　') || undefined,
-    } : null, [form.results, form.includeLand, form.includeBuilding, lN, lD, bN, bD]);
+        shareNote,
+        details: { results: form.results, taxType: 'registration' as const },
+    }] : [], [form.results, form.includeLand, form.includeBuilding, shareNote]);
 
     // 印刷用の入力条件。選択していない対象・未入力欄は行ごと落とす
     const printConditionGroups = useMemo(() => [
@@ -63,10 +61,8 @@ export default function RegistrationTaxPage() {
             includeBuilding={form.includeBuilding}
             setIncludeBuilding={form.setIncludeBuilding}
             importConfig={{
-                sourceLabel: '不動産取得税ページ',
-                sourcePage: 'acquisition-tax',
-                onLandImport: form.importLandValuation,
-                onBuildingImport: form.importBuildingValuation,
+                sources: ['acquisition-tax', 'real-estate-summary'],
+                onImport: form.importFrom,
             }}
             inputColumns={
                 <>
@@ -144,8 +140,8 @@ export default function RegistrationTaxPage() {
             onSample={form.handleSample}
             onReset={form.resetForm}
             errorMsg={form.errorMsg}
-            results={form.results}
-            resultConfig={resultConfig}
+            resultSections={resultSections}
+            disclaimer="※この計算は概算です。実際の税額は、端数処理のルールにより異なる場合があります。"
             isStale={form.isStale}
             showDetails={form.showDetails}
             setShowDetails={form.setShowDetails}

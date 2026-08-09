@@ -5,6 +5,7 @@ import Scale from 'lucide-react/icons/scale';
 import Table from 'lucide-react/icons/table';
 import Building from 'lucide-react/icons/building';
 import FileText from 'lucide-react/icons/file-text';
+import Layers from 'lucide-react/icons/layers';
 import Printer from 'lucide-react/icons/printer';
 import Menu from 'lucide-react/icons/menu';
 import X from 'lucide-react/icons/x';
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
     { to: '/table', label: '贈与税 早見表', icon: Table, pageTitle: '贈与税 早見表', mobileTitle: '贈与税 早見表', group: 'gift' },
     { to: '/acquisition-tax', label: '不動産取得税', icon: Building, pageTitle: '不動産取得税シミュレーター', mobileTitle: '不動産取得税', group: 'realEstate' },
     { to: '/registration-tax', label: '登録免許税', icon: FileText, pageTitle: '登録免許税シミュレーター', mobileTitle: '登録免許税', group: 'realEstate' },
+    { to: '/real-estate-summary', label: '2税まとめて計算', icon: Layers, pageTitle: '不動産取得税・登録免許税 まとめ計算', mobileTitle: '2税まとめて計算', group: 'realEstate' },
 ] as const;
 
 const NAV_GROUPS = [

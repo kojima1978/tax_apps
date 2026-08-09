@@ -18,6 +18,8 @@ type TaxResultBoxProps = {
     totalLabel: string;
     totalValue: number;
     shareNote?: string;
+    /** 紙の枠見出し。1ページに複数の税額を並べるときは税目を入れる */
+    printTitle?: string;
 };
 
 const ResultItems = ({ items }: { items: ResultItem[] }) => (
@@ -33,10 +35,12 @@ const ResultItems = ({ items }: { items: ResultItem[] }) => (
     </>
 );
 
-const TaxResultBox = ({ items, groups, totalLabel, totalValue, shareNote }: TaxResultBoxProps) => (
+const TaxResultBox = ({
+    items, groups, totalLabel, totalValue, shareNote, printTitle = '計算結果',
+}: TaxResultBoxProps) => (
     <div className="re-result-box">
         {/* 紙では「入力条件」と対になるブロックなので、同じ体裁の見出しを付ける */}
-        <h2 className="print-only print-block-title">計算結果</h2>
+        <h2 className="print-only print-block-title">{printTitle}</h2>
         {groups ? (
             <div className="re-result-groups">
                 {groups.map(({ title, items: groupItems, show }) =>

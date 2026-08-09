@@ -9,6 +9,8 @@ type CalculationDetailsProps = {
     showDetails: boolean;
     setShowDetails: (v: boolean) => void;
     taxType: TaxType;
+    /** 複数の計算過程が同じ開閉状態を共有する画面では、ボタンは先頭の1つだけ出す */
+    showToggle?: boolean;
 };
 
 const ProcessList = ({ title, steps }: { title: string; steps: string[] }) => (
@@ -22,12 +24,12 @@ const ProcessList = ({ title, steps }: { title: string; steps: string[] }) => (
 
 const SECTIONS: Record<TaxType, { key: 'land' | 'building'; label: string; includeKey: 'includeLand' | 'includeBuilding'; processKey: 'landAcq' | 'bldgAcq' | 'landReg' | 'bldgReg' }[]> = {
     acquisition: [
-        { key: 'land', label: '土地 — 不動産取得税', includeKey: 'includeLand', processKey: 'landAcq' },
-        { key: 'building', label: '建物 — 不動産取得税', includeKey: 'includeBuilding', processKey: 'bldgAcq' },
+        { key: 'land', label: '不動産取得税 — 土地', includeKey: 'includeLand', processKey: 'landAcq' },
+        { key: 'building', label: '不動産取得税 — 建物', includeKey: 'includeBuilding', processKey: 'bldgAcq' },
     ],
     registration: [
-        { key: 'land', label: '土地 — 登録免許税', includeKey: 'includeLand', processKey: 'landReg' },
-        { key: 'building', label: '建物 — 登録免許税', includeKey: 'includeBuilding', processKey: 'bldgReg' },
+        { key: 'land', label: '登録免許税 — 土地', includeKey: 'includeLand', processKey: 'landReg' },
+        { key: 'building', label: '登録免許税 — 建物', includeKey: 'includeBuilding', processKey: 'bldgReg' },
     ],
 };
 
@@ -38,17 +40,20 @@ const CalculationDetails = ({
     showDetails,
     setShowDetails,
     taxType,
+    showToggle = true,
 }: CalculationDetailsProps) => {
     const includes = { includeLand, includeBuilding };
 
     return (
         <>
-            <button
-                className="details-toggle no-print"
-                onClick={() => setShowDetails(!showDetails)}
-            >
-                {showDetails ? '▲ 計算過程を隠す' : '▼ 計算過程の詳細を表示'}
-            </button>
+            {showToggle && (
+                <button
+                    className="details-toggle no-print"
+                    onClick={() => setShowDetails(!showDetails)}
+                >
+                    {showDetails ? '▲ 計算過程を隠す' : '▼ 計算過程の詳細を表示'}
+                </button>
+            )}
 
             {/* 常時DOMに存在させ、印刷時はCSSで強制表示 */}
             <div className={`details-content${showDetails ? '' : ' details-hidden'}`}>

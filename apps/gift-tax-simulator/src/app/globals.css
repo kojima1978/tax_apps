@@ -488,6 +488,8 @@ body {
 /* ===================== 評価額引用バー ===================== */
 .import-bar-group {
   display: flex;
+  /* 引用元が2ページあると最大4ボタンになるので折り返す */
+  flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.5rem 1.5rem;
   background-color: #f0fdf4;
@@ -1426,6 +1428,60 @@ tr.row-optimal td {
 .re-result-total .total-value {
   font-size: 1.35rem;
   font-weight: 700;
+  color: var(--primary-dark);
+}
+
+/* ---------- 2税まとめページ ---------- */
+/* 同じ物件に対する2つの答えなので、画面でも横に並べて見比べられるようにする */
+.real-estate-summary .result-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+  align-items: start;
+}
+
+/* 総額・計算過程・注意書きは2つの枠にまたがる */
+.real-estate-summary .result-section > .result-stale-badge,
+.real-estate-summary .result-section > .re-grand-total,
+.real-estate-summary .result-section > .details-column,
+.real-estate-summary .result-section > .disclaimer {
+  grid-column: 1 / -1;
+}
+
+/* 明細の行数が違っても合計行の高さを揃える */
+.real-estate-summary .re-result-box {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.real-estate-summary .re-result-total {
+  margin-top: auto;
+}
+
+@media (max-width: 900px) {
+  .real-estate-summary .result-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 2税の総額。この画面の本題なので枠より目立たせる */
+.re-grand-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--primary-color);
+  border-radius: 6px;
+  background-color: #f0fdf4;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.re-grand-total .total-value {
+  font-size: 1.5rem;
   color: var(--primary-dark);
 }
 
@@ -2643,8 +2699,73 @@ tr.rate-row-highlight td {
   }
 
   .re-print-layout > .result-section > .details-content,
+  .re-print-layout > .result-section > .re-grand-total,
   .re-print-layout > .result-section > .disclaimer {
     grid-column: 1 / -1;
+  }
+
+  /* 2税まとめ: 条件｜矢印｜不動産取得税｜登録免許税 の4カラム。
+     条件側は行数が多いので少しだけ広く取る */
+  .real-estate-summary .re-print-layout {
+    grid-template-columns: minmax(0, 1.15fr) auto minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* 計算過程を載せるページ（取得税・登免税）は 左=条件+結果 / 右=計算過程 の2カラム。
+     計算過程は縦に長いので、全幅の帯として下に敷くより右カラムへ流したほうが
+     左右の高さが揃い、紙全体も縦に縮む（取得税で 593px → 511px） */
+  .re-print-layout.re-print-with-details {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .re-print-layout.re-print-with-details > .re-input-column {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .re-print-layout.re-print-with-details > .result-section > .re-result-box {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .re-print-layout.re-print-with-details > .result-section > .details-column {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .re-print-layout.re-print-with-details > .result-section > .disclaimer {
+    grid-row: 3;
+  }
+
+  /* 2税まとめ: 左上に条件（2列ぶん）、その下に税額の枠を2つ横並び、右に計算過程2本。
+     左右の下端がほぼ揃い、計算過程を載せてもA4横1枚に収まる（実測 664/733px） */
+  .real-estate-summary .re-print-layout.re-print-with-details {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr);
+  }
+
+  .real-estate-summary .re-print-layout.re-print-with-details > .re-input-column {
+    grid-column: 1 / 3;
+  }
+
+  /* 列は自動配置に任せる（1つ目が1列目、2つ目が2列目に入る） */
+  .real-estate-summary .re-print-layout.re-print-with-details > .result-section > .re-result-box {
+    grid-column: auto;
+  }
+
+  .real-estate-summary .re-print-layout.re-print-with-details > .result-section > .details-column {
+    grid-column: 3;
+  }
+
+  .real-estate-summary .re-print-layout.re-print-with-details > .result-section > .re-grand-total {
+    grid-row: 3;
+  }
+
+  .real-estate-summary .re-print-layout.re-print-with-details > .result-section > .disclaimer {
+    grid-row: 4;
+  }
+
+  /* 取得税と登免税の計算過程の間だけ空ける */
+  .details-column > .details-content + .details-content {
+    margin-top: 6px !important;
   }
 
   /* 入力変更後・未再計算の古い税額は紙に出さない（入力条件だけ残る） */
@@ -2827,10 +2948,10 @@ tr.rate-row-highlight td {
     color: #444;
   }
 
+  /* 項目名と値の対応を追いやすいよう、条件は1項目1行で縦に並べる */
   .print-condition-group dl {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 12px;
+    grid-template-columns: 1fr;
     margin: 0;
   }
 
@@ -2891,11 +3012,10 @@ tr.rate-row-highlight td {
     color: #444 !important;
   }
 
-  /* 明細行の幅も「入力条件」に合わせる（あちらは dl が 1fr 1fr の2列） */
+  /* 明細行の幅も「入力条件」に合わせて1列。金額が枠の右端と合計行に揃う */
   .real-estate-page .re-result-group-items {
     display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 0 12px !important;
+    grid-template-columns: 1fr !important;
   }
 
   /* 画面では縦積みのラベル/金額を、紙では条件行と同じ左右1行に */
@@ -2938,22 +3058,41 @@ tr.rate-row-highlight td {
     color: var(--primary-dark) !important;
   }
 
+  /* 2税の総額。税額の枠と同じ体裁のまま、枠線だけ太くして締めに使う */
+  .real-estate-page .re-grand-total {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0 !important;
+    padding: 2px 8px !important;
+    border: 1px solid var(--primary-color) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    font-size: 9pt !important;
+    color: #000 !important;
+  }
+
+  .real-estate-page .re-grand-total .total-value {
+    font-size: 12pt !important;
+    color: var(--primary-dark) !important;
+  }
+
   .real-estate-page .details-toggle {
     display: none !important;
   }
 
+  /* 右カラムを縦に流す。左の「条件＋税額」と並ぶので罫線での切り離しは不要 */
   .real-estate-page .details-content {
     display: block !important;
     background: transparent !important;
-    /* 上の「入力条件｜税額」と地続きに見えるので、罫線と余白で切り離す */
-    margin-top: 8px !important;
-    padding: 8px 0 0 !important;
-    border-top: 1px solid #bbb !important;
-    /* 土地・建物の計算過程を左右に振り分けて縦を半分にする */
-    column-count: 2;
-    column-gap: 8px;
-    /* 下の免責文は自前で margin-top を持つ */
-    margin-bottom: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 土地と建物の間だけ空ける（先頭は条件サマリと上端を揃える） */
+  .real-estate-page .detail-section + .detail-section {
+    margin-top: 6px !important;
   }
 
   .real-estate-page .detail-section {

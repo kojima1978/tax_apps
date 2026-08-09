@@ -8,6 +8,7 @@ import {
     transactionRow,
     type ConditionGroup,
 } from '@/lib/print-conditions';
+import { IMPORT_FIELDS, type ImportField, type PageKey } from '@/lib/real-estate-input-storage';
 import PageLayout from '@/components/PageLayout';
 import CommonInputSection from './CommonInputSection';
 import ImportButton from './ImportButton';
@@ -17,20 +18,23 @@ import CalculationDetails from './CalculationDetails';
 import ErrorMessage from './ErrorMessage';
 
 type ImportConfig = {
-    sourceLabel: string;
-    sourcePage: 'acquisition-tax' | 'registration-tax';
-    onLandImport: () => void;
-    onBuildingImport: () => void;
+    /** 引用元ページ。実際に入力が残っているものだけボタンが出る */
+    sources: PageKey[];
+    onImport: (page: PageKey, field: ImportField) => void;
 };
 
-type ResultConfig = {
+/** 税額の枠1つ分。まとめページでは取得税・免許税の2つを並べる */
+type ResultSection = {
+    key: string;
+    /** 紙の枠見出し。省略時は「計算結果」 */
+    printTitle?: string;
     items?: ResultItem[];
     groups?: ResultGroup[];
     totalLabel: string;
     totalValue: number;
-    taxType: 'acquisition' | 'registration';
-    disclaimer: string;
     shareNote?: string;
+    /** 計算過程の折りたたみ。省くと折りたたみ自体を出さない */
+    details?: { results: TaxResults; taxType: 'acquisition' | 'registration' };
 };
 
 type Props = {
@@ -41,7 +45,8 @@ type Props = {
     includeBuilding: boolean;
     setIncludeBuilding: (v: boolean) => void;
     inputNotice?: React.ReactNode;
-    importConfig: ImportConfig;
+    /** 他ページからの評価額取り込み。1ページで完結する画面では省く */
+    importConfig?: ImportConfig;
     inputColumns: React.ReactNode;
     /** 印刷用「入力条件」の土地・建物グループ（共通条件はこの層で足す） */
     printConditionGroups: ConditionGroup[];
@@ -49,12 +54,16 @@ type Props = {
     onSample: () => void;
     onReset: () => void;
     errorMsg: string;
-    results: TaxResults | null;
-    resultConfig: ResultConfig | null;
+    /** 空配列なら結果ブロックごと出さない */
+    resultSections: ResultSection[];
+    /** 税額の枠の下に置く総額など */
+    resultFooter?: React.ReactNode;
+    disclaimer: string;
     isStale: boolean;
     showDetails: boolean;
     setShowDetails: (v: boolean) => void;
     printTitle: string;
+    className?: string;
     reference?: React.ReactNode;
 };
 
@@ -67,15 +76,18 @@ const RealEstatePageLayout = ({
     inputColumns,
     printConditionGroups,
     onCalculate, onSample, onReset, errorMsg,
-    results, resultConfig,
+    resultSections, resultFooter, disclaimer,
     isStale,
     showDetails, setShowDetails,
     printTitle,
+    className,
     reference,
 }: Props) => {
     const formRef = useRef<HTMLDivElement>(null);
     const resultRef = useRef<HTMLDivElement>(null);
-    const hasResult = results !== null && resultConfig !== null;
+    const hasResult = resultSections.length > 0;
+    // 計算過程を載せるページは印刷レイアウトが変わる（左=条件+結果 / 右=計算過程）
+    const hasDetails = resultSections.some((section) => section.details);
 
     useEffect(() => {
         if (!errorMsg) return;
@@ -89,7 +101,7 @@ const RealEstatePageLayout = ({
     useEffect(() => {
         if (!hasResult || isStale) return;
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [hasResult, isStale, results]);
+    }, [hasResult, isStale, resultSections]);
 
     const conditionGroups = useMemo(() => compactGroups([
         {
@@ -100,9 +112,9 @@ const RealEstatePageLayout = ({
     ]), [transactionType, includeLand, includeBuilding, printConditionGroups]);
 
     return (
-    <PageLayout className="real-estate-page" printTitle={printTitle}>
-        {/* 画面では単なる縦積み。印刷時だけ「入力条件｜税額」の2カラムになる */}
-        <div className="re-print-layout">
+    <PageLayout className={`real-estate-page ${className ?? ''}`} printTitle={printTitle}>
+        {/* 画面では単なる縦積み。印刷時だけ「入力条件｜税額」の横並びになる */}
+        <div className={`re-print-layout${hasDetails ? ' re-print-with-details' : ''}`}>
             <div className="re-input-column">
                 <CommonInputSection
                     transactionType={transactionType}
@@ -117,20 +129,18 @@ const RealEstatePageLayout = ({
                     {inputNotice}
                 </CommonInputSection>
 
-                <div className="import-bar-group no-print">
-                    <ImportButton
-                        sourceLabel={importConfig.sourceLabel}
-                        sourcePage={importConfig.sourcePage}
-                        field="land"
-                        onImport={importConfig.onLandImport}
-                    />
-                    <ImportButton
-                        sourceLabel={importConfig.sourceLabel}
-                        sourcePage={importConfig.sourcePage}
-                        field="building"
-                        onImport={importConfig.onBuildingImport}
-                    />
-                </div>
+                {importConfig && (
+                    <div className="import-bar-group no-print">
+                        {importConfig.sources.flatMap((page) => IMPORT_FIELDS.map((field) => (
+                            <ImportButton
+                                key={`${page}-${field}`}
+                                sourcePage={page}
+                                field={field}
+                                onImport={() => importConfig.onImport(page, field)}
+                            />
+                        )))}
+                    </div>
+                )}
 
                 <div ref={formRef} className="input-section input-section-flat">
                     <div className="re-two-column">
@@ -152,36 +162,52 @@ const RealEstatePageLayout = ({
                 )}
             </div>
 
-            {/* 紙の上で「条件 → 結果」の流れを示す。古い税額を出さない stale 時は結果ごと消す */}
-            {hasResult && !isStale && (
+            {/* 紙の上で「条件 → 結果」の流れを示す。古い税額を出さない stale 時は結果ごと消す。
+                計算過程を載せるページは条件と結果が左カラムで縦に続くので矢印は置かない */}
+            {hasResult && !isStale && !hasDetails && (
                 <div className="print-only re-print-arrow" aria-hidden="true">
                     <ArrowRight />
                 </div>
             )}
 
-            {results !== null && resultConfig && (
+            {hasResult && (
                 <div ref={resultRef} className={`result-section${isStale ? ' result-stale' : ''}`}>
                     {isStale && (
                         <p className="result-stale-badge no-print">
                             入力が変更されました。「計算する」を押すと結果が更新されます。
                         </p>
                     )}
-                    <TaxResultBox
-                        items={resultConfig.items}
-                        groups={resultConfig.groups}
-                        totalLabel={resultConfig.totalLabel}
-                        totalValue={resultConfig.totalValue}
-                        shareNote={resultConfig.shareNote}
-                    />
-                    <CalculationDetails
-                        results={results}
-                        includeLand={includeLand}
-                        includeBuilding={includeBuilding}
-                        showDetails={showDetails}
-                        setShowDetails={setShowDetails}
-                        taxType={resultConfig.taxType}
-                    />
-                    <p className="disclaimer">{resultConfig.disclaimer}</p>
+                    {resultSections.map((section) => (
+                        <TaxResultBox
+                            key={section.key}
+                            printTitle={section.printTitle}
+                            items={section.items}
+                            groups={section.groups}
+                            totalLabel={section.totalLabel}
+                            totalValue={section.totalValue}
+                            shareNote={section.shareNote}
+                        />
+                    ))}
+                    {resultFooter}
+                    {/* 印刷では計算過程が右カラムそのものになるので、複数あっても1つの
+                        グリッド項目にまとめる（配置指定が枠の数に左右されなくなる） */}
+                    {hasDetails && (
+                        <div className="details-column">
+                            {resultSections.map((section, i) => section.details && (
+                                <CalculationDetails
+                                    key={`${section.key}-details`}
+                                    results={section.details.results}
+                                    includeLand={includeLand}
+                                    includeBuilding={includeBuilding}
+                                    showDetails={showDetails}
+                                    setShowDetails={setShowDetails}
+                                    taxType={section.details.taxType}
+                                    showToggle={i === 0}
+                                />
+                            ))}
+                        </div>
+                    )}
+                    <p className="disclaimer">{disclaimer}</p>
                 </div>
             )}
         </div>

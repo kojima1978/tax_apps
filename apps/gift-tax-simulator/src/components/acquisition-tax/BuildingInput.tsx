@@ -33,6 +33,8 @@ type BuildingInputProps = {
     shareDenominator: string;
     onShareNumeratorChange: (v: string) => void;
     onShareDenominatorChange: (v: string) => void;
+    /** この税だけが使う条件（まとめページの住宅用家屋証明書など）を居住用の下に足す */
+    children?: React.ReactNode;
 };
 
 const BuildingInput = ({
@@ -62,6 +64,7 @@ const BuildingInput = ({
     shareDenominator,
     onShareNumeratorChange,
     onShareDenominatorChange,
+    children,
 }: BuildingInputProps) => {
     const yearInputId = useId();
     const yearListId = useId();
@@ -148,6 +151,7 @@ const BuildingInput = ({
                 居住用である
             </label>
         </div>
+        {children}
         {isResidential && transactionType === 'new_build' && (
             <div className="input-item">
                 <label className="checkbox-label">

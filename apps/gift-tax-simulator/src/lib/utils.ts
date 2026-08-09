@@ -69,6 +69,15 @@ export const parseFormattedNumber = (val: string): number => {
 };
 
 /**
+ * 持ち分の入力（分子・分母）を数値にする。
+ * 未入力・0・不正値は 1 に丸めて 1/1（全部所有）として扱う
+ */
+export const parseShare = (numerator: string, denominator: string): { n: number; d: number } => ({
+    n: Math.max(1, parseInt(numerator) || 1),
+    d: Math.max(1, parseInt(denominator) || 1),
+});
+
+/**
  * 日付を「YYYY年M月D日」形式にフォーマット
  */
 export const formatDate = (date: Date): string =>

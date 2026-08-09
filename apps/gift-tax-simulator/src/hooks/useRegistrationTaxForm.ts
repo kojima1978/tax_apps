@@ -3,11 +3,15 @@ import {
     calculateRealEstateTax,
     type TaxResults,
 } from '@/lib/real-estate-tax';
-import { parseFormattedNumber } from '@/lib/utils';
+import { formatInputValue, parseFormattedNumber, parseShare } from '@/lib/utils';
 import { validateRealEstateInput, validateResult } from '@/lib/validate-real-estate';
-import { saveValuations } from '@/lib/valuation-storage';
+import {
+    applyIfPresent,
+    saveRealEstateInputs,
+    type RealEstateInputs,
+} from '@/lib/real-estate-input-storage';
 import { REAL_ESTATE_SAMPLE } from '@/lib/real-estate-sample';
-import { useValuationImport } from './useValuationImport';
+import { useRealEstateImport } from './useRealEstateImport';
 import { useRealEstateFormBase } from './useRealEstateFormBase';
 import { useSampleFill } from './useSampleFill';
 
@@ -40,22 +44,38 @@ export const useRegistrationTaxForm = () => {
         base.markResultStale,
     ]);
 
-    // 評価額をlocalStorageに保存
+    // 入力条件をlocalStorageに保存（面積・建築年月日はこのページに無いので持たない）
     useEffect(() => {
-        saveValuations('registration-tax', {
+        saveRealEstateInputs('registration-tax', {
             landValuation,
             buildingValuation,
+            isResidential,
+            hasHousingCertificate,
             landShareNumerator,
             landShareDenominator,
             buildingShareNumerator,
             buildingShareDenominator,
         });
-    }, [landValuation, buildingValuation,
+    }, [landValuation, buildingValuation, isResidential, hasHousingCertificate,
         landShareNumerator, landShareDenominator, buildingShareNumerator, buildingShareDenominator]);
 
-    const { importLandValuation, importBuildingValuation } =
-        useValuationImport('acquisition-tax', setLandValuation, setBuildingValuation,
-            setLandShareNumerator, setLandShareDenominator, setBuildingShareNumerator, setBuildingShareDenominator);
+    // 宅地とその他を区別しないので、引用元が分けて持っていれば合算して受け取る
+    const applyLand = useCallback((data: RealEstateInputs) => {
+        const total = parseFormattedNumber(data.landValuation) + parseFormattedNumber(data.otherLandValuation ?? '');
+        applyIfPresent(setLandValuation, total > 0 ? formatInputValue(total) : '');
+        applyIfPresent(setLandShareNumerator, data.landShareNumerator);
+        applyIfPresent(setLandShareDenominator, data.landShareDenominator);
+    }, []);
+
+    const applyBuilding = useCallback((data: RealEstateInputs) => {
+        applyIfPresent(setBuildingValuation, data.buildingValuation);
+        applyIfPresent(setIsResidential, data.isResidential);
+        applyIfPresent(setHasHousingCertificate, data.hasHousingCertificate);
+        applyIfPresent(setBuildingShareNumerator, data.buildingShareNumerator);
+        applyIfPresent(setBuildingShareDenominator, data.buildingShareDenominator);
+    }, []);
+
+    const importFrom = useRealEstateImport(applyLand, applyBuilding);
 
     const resetForm = useCallback(() => {
         base.resetBase();
@@ -85,11 +105,6 @@ export const useRegistrationTaxForm = () => {
             return;
         }
 
-        const lN = Math.max(1, parseInt(landShareNumerator) || 1);
-        const lD = Math.max(1, parseInt(landShareDenominator) || 1);
-        const bN = Math.max(1, parseInt(buildingShareNumerator) || 1);
-        const bD = Math.max(1, parseInt(buildingShareDenominator) || 1);
-
         const result = calculateRealEstateTax({
             includeLand,
             includeBuilding,
@@ -102,8 +117,8 @@ export const useRegistrationTaxForm = () => {
             isResidential,
             hasHousingCertificate,
             acquisitionDeduction: 0,
-            landShare: { n: lN, d: lD },
-            buildingShare: { n: bN, d: bD },
+            landShare: parseShare(landShareNumerator, landShareDenominator),
+            buildingShare: parseShare(buildingShareNumerator, buildingShareDenominator),
         });
 
         const resultError = validateResult(result.totalReg);
@@ -150,6 +165,6 @@ export const useRegistrationTaxForm = () => {
         calculateTax,
         resetForm,
         handleSample,
-        importLandValuation, importBuildingValuation,
+        importFrom,
     };
 };

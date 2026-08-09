@@ -1,28 +1,31 @@
 import { useState, useEffect } from 'react';
 import Copy from 'lucide-react/icons/copy';
 import Check from 'lucide-react/icons/check';
-import { loadValuations } from '@/lib/valuation-storage';
+import {
+    hasImportableField,
+    loadRealEstateInputs,
+    PAGE_LABEL,
+    type ImportField,
+    type PageKey,
+} from '@/lib/real-estate-input-storage';
 
 type Props = {
-    sourceLabel: string;
-    sourcePage: 'acquisition-tax' | 'registration-tax';
-    field: 'land' | 'building';
+    sourcePage: PageKey;
+    field: ImportField;
     onImport: () => void;
 };
 
-const FIELD_LABEL: Record<Props['field'], string> = {
+const FIELD_LABEL: Record<ImportField, string> = {
     land: '土地',
     building: '建物',
 };
 
-const ImportButton = ({ sourceLabel, sourcePage, field, onImport }: Props) => {
+const ImportButton = ({ sourcePage, field, onImport }: Props) => {
     const [hasData, setHasData] = useState(false);
     const [imported, setImported] = useState(false);
 
     useEffect(() => {
-        const data = loadValuations(sourcePage);
-        const key = field === 'land' ? 'landValuation' : 'buildingValuation';
-        setHasData(!!data && !!data[key]);
+        setHasData(hasImportableField(loadRealEstateInputs(sourcePage), field));
     }, [sourcePage, field]);
 
     if (!hasData) return null;
@@ -36,7 +39,7 @@ const ImportButton = ({ sourceLabel, sourcePage, field, onImport }: Props) => {
     return (
         <button className="btn-import" onClick={handleClick} disabled={imported}>
             {imported ? <Check size={16} /> : <Copy size={16} />}
-            {imported ? '引用しました' : `${sourceLabel}の${FIELD_LABEL[field]}評価額を引用`}
+            {imported ? '引用しました' : `${PAGE_LABEL[sourcePage]}の${FIELD_LABEL[field]}の入力を引用`}
         </button>
     );
 };
