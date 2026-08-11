@@ -1269,6 +1269,39 @@ tr.row-optimal td {
   padding-bottom: 0;
 }
 
+/* まとめ画面では、土地と建物で異なる登記原因を選べる */
+.transaction-type-group {
+  flex: 2;
+  min-width: 420px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.transaction-type-group legend {
+  margin-bottom: 0.5rem;
+  color: var(--primary-color);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.transaction-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.transaction-type-choice {
+  min-width: 0;
+}
+
+.transaction-type-choice label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #475569;
+  font-size: 0.75rem;
+}
+
 .toggle-btn:hover:not(.active):not(:disabled) {
   background-color: #f5f5f5;
 }
@@ -1323,6 +1356,128 @@ tr.row-optimal td {
   background: #e2e8f0;
   font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1.5;
+}
+
+.tokushima-building-estimator {
+  margin: 0 0 0.9rem;
+  padding: 0.85rem;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #2563eb;
+  border-radius: 6px;
+  background: #eff6ff;
+}
+
+.tokushima-estimator-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: #1d4ed8;
+}
+
+.tokushima-estimator-heading svg {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+}
+
+.tokushima-estimator-heading h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.tokushima-estimator-heading p {
+  margin: 0.12rem 0 0;
+  color: #475569;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.tokushima-estimator-selects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+}
+
+.tokushima-estimator-selects label {
+  display: grid;
+  gap: 0.25rem;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tokushima-estimator-selects select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.tokushima-estimator-selects select:focus-visible,
+.tokushima-estimator-apply:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.3);
+  outline-offset: 2px;
+}
+
+.tokushima-estimator-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #bfdbfe;
+  color: #475569;
+  font-size: 0.75rem;
+}
+
+.tokushima-estimator-formula {
+  display: block;
+}
+
+.tokushima-estimator-result strong {
+  display: block;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.tokushima-estimator-apply {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-height: 38px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #1d4ed8;
+  border-radius: 4px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.tokushima-estimator-apply:hover:not(:disabled) {
+  border-color: #1e40af;
+  background: #1d4ed8;
+}
+
+.tokushima-estimator-apply:disabled,
+.tokushima-estimator-selects select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.tokushima-building-estimator > small {
+  display: block;
+  margin-top: 0.6rem;
+  color: #475569;
+  font-size: 0.67rem;
   line-height: 1.5;
 }
 
@@ -2328,6 +2483,23 @@ tr.rate-row-highlight td {
 }
 
 /* ===================== 印刷用スタイル ===================== */
+@media (max-width: 480px) {
+  .tokushima-estimator-selects {
+    grid-template-columns: 1fr;
+  }
+
+  .tokushima-estimator-result {
+    grid-template-columns: 1fr;
+  }
+
+  .tokushima-estimator-apply {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+    margin-top: 0.35rem;
+  }
+}
+
 @media print {
   /* 「← 横にスクロールできます」は狭い画面用の案内。紙では意味を持たないので消す。
      セレクタを狭幅版（.table-container:not(.desktop-comparison-table)::before）と

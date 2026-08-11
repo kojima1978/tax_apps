@@ -40,6 +40,12 @@ type ResultSection = {
 type Props = {
     transactionType: TransactionType;
     setTransactionType: (v: TransactionType) => void;
+    assetTransactionTypes?: {
+        land: TransactionType;
+        setLand: (v: TransactionType) => void;
+        building: TransactionType;
+        setBuilding: (v: TransactionType) => void;
+    };
     includeLand: boolean;
     setIncludeLand: (v: boolean) => void;
     includeBuilding: boolean;
@@ -69,6 +75,7 @@ type Props = {
 
 const RealEstatePageLayout = ({
     transactionType, setTransactionType,
+    assetTransactionTypes,
     includeLand, setIncludeLand,
     includeBuilding, setIncludeBuilding,
     inputNotice,
@@ -103,13 +110,28 @@ const RealEstatePageLayout = ({
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, [hasResult, isStale, resultSections]);
 
-    const conditionGroups = useMemo(() => compactGroups([
-        {
-            title: '共通条件',
-            rows: compactRows([transactionRow(transactionType), targetRow(includeLand, includeBuilding)]),
-        },
-        ...printConditionGroups,
-    ]), [transactionType, includeLand, includeBuilding, printConditionGroups]);
+    const conditionGroups = useMemo(() => {
+        const transactionRows = assetTransactionTypes
+            ? [
+                includeLand ? transactionRow(assetTransactionTypes.land, '土地の登記原因') : null,
+                includeBuilding ? transactionRow(assetTransactionTypes.building, '建物の登記原因') : null,
+            ]
+            : [transactionRow(transactionType)];
+
+        return compactGroups([
+            {
+                title: '共通条件',
+                rows: compactRows([...transactionRows, targetRow(includeLand, includeBuilding)]),
+            },
+            ...printConditionGroups,
+        ]);
+    }, [
+        transactionType,
+        assetTransactionTypes,
+        includeLand,
+        includeBuilding,
+        printConditionGroups,
+    ]);
 
     return (
     <PageLayout className={`real-estate-page ${className ?? ''}`} printTitle={printTitle}>
@@ -119,6 +141,7 @@ const RealEstatePageLayout = ({
                 <CommonInputSection
                     transactionType={transactionType}
                     setTransactionType={setTransactionType}
+                    assetTransactionTypes={assetTransactionTypes}
                     includeLand={includeLand}
                     setIncludeLand={setIncludeLand}
                     includeBuilding={includeBuilding}

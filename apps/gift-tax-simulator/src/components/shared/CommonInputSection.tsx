@@ -2,9 +2,17 @@ import Sparkles from 'lucide-react/icons/sparkles';
 import RotateCcw from 'lucide-react/icons/rotate-ccw';
 import { type TransactionType, TRANSACTION_OPTIONS } from '@/lib/real-estate-tax';
 
+const LAND_TRANSACTION_OPTIONS = TRANSACTION_OPTIONS.filter(({ value }) => value !== 'new_build');
+
 type CommonInputSectionProps = {
     transactionType: TransactionType;
     setTransactionType: (v: TransactionType) => void;
+    assetTransactionTypes?: {
+        land: TransactionType;
+        setLand: (v: TransactionType) => void;
+        building: TransactionType;
+        setBuilding: (v: TransactionType) => void;
+    };
     includeLand: boolean;
     setIncludeLand: (v: boolean) => void;
     includeBuilding: boolean;
@@ -17,6 +25,7 @@ type CommonInputSectionProps = {
 const CommonInputSection = ({
     transactionType,
     setTransactionType,
+    assetTransactionTypes,
     includeLand,
     setIncludeLand,
     includeBuilding,
@@ -27,18 +36,50 @@ const CommonInputSection = ({
 }: CommonInputSectionProps) => (
     <div className="input-section">
         <div className="input-group-row">
-            <div className="input-item transaction-select">
-                <label htmlFor="transactionType">登記原因 (取引種別)</label>
-                <select
-                    id="transactionType"
-                    value={transactionType}
-                    onChange={(e) => setTransactionType(e.target.value as TransactionType)}
-                >
-                    {TRANSACTION_OPTIONS.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                    ))}
-                </select>
-            </div>
+            {assetTransactionTypes ? (
+                <fieldset className="input-item transaction-select transaction-type-group">
+                    <legend>登記原因 (取引種別)</legend>
+                    <div className="transaction-type-grid">
+                        <div className="transaction-type-choice">
+                            <label htmlFor="landTransactionType">土地</label>
+                            <select
+                                id="landTransactionType"
+                                value={assetTransactionTypes.land}
+                                onChange={(e) => assetTransactionTypes.setLand(e.target.value as TransactionType)}
+                            >
+                                {LAND_TRANSACTION_OPTIONS.map(({ value, label }) => (
+                                    <option key={value} value={value}>{label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="transaction-type-choice">
+                            <label htmlFor="buildingTransactionType">建物</label>
+                            <select
+                                id="buildingTransactionType"
+                                value={assetTransactionTypes.building}
+                                onChange={(e) => assetTransactionTypes.setBuilding(e.target.value as TransactionType)}
+                            >
+                                {TRANSACTION_OPTIONS.map(({ value, label }) => (
+                                    <option key={value} value={value}>{label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+            ) : (
+                <div className="input-item transaction-select">
+                    <label htmlFor="transactionType">登記原因 (取引種別)</label>
+                    <select
+                        id="transactionType"
+                        value={transactionType}
+                        onChange={(e) => setTransactionType(e.target.value as TransactionType)}
+                    >
+                        {TRANSACTION_OPTIONS.map(({ value, label }) => (
+                            <option key={value} value={value}>{label}</option>
+                        ))}
+                    </select>
+                </div>
+            )}
             <div className="input-item toggle-buttons">
                 {/* 注記はラベルの右。下に置くと隣のセレクトと高さが揃わない */}
                 <div className="label-with-hint">

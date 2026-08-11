@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { calculateRealEstateTax, type TaxResults } from '@/lib/real-estate-tax';
+import { calculateRealEstateTax, type TaxResults, type TransactionType } from '@/lib/real-estate-tax';
 import { calculateAcquisitionBreakdown, type AcquisitionResults } from '@/lib/acquisition-breakdown';
 import { parseFormattedNumber, parseDecimalNumber, parseShare } from '@/lib/utils';
 import { validateRealEstateInput, validateResult, validateBuildingArea } from '@/lib/validate-real-estate';
@@ -7,6 +7,7 @@ import { useRealEstateFormBase } from './useRealEstateFormBase';
 import { useRealEstateInputs } from './useRealEstateInputs';
 import { useRealEstateInputSync } from './useRealEstateInputSync';
 import { useSampleFill } from './useSampleFill';
+import type { TokushimaBuildingStructure, TokushimaBuildingUse } from '@/lib/tokushima-new-building';
 
 /** 同じ物件に対する不動産取得税と登録免許税を並べて持つ */
 export type RealEstateSummaryResults = {
@@ -22,8 +23,12 @@ export type RealEstateSummaryResults = {
  */
 export const useRealEstateSummaryForm = () => {
     const base = useRealEstateFormBase<RealEstateSummaryResults>();
-    const { transactionType, includeLand, includeBuilding, setErrorMsg, setResults } = base;
-    const inputs = useRealEstateInputs(transactionType);
+    const { includeLand, includeBuilding, setErrorMsg, setResults } = base;
+    const [landTransactionType, setLandTransactionType] = useState<TransactionType>('gift');
+    const [buildingTransactionType, setBuildingTransactionType] = useState<TransactionType>('gift');
+    const [newBuildingUse, setNewBuildingUse] = useState<TokushimaBuildingUse>('residence');
+    const [newBuildingStructure, setNewBuildingStructure] = useState<TokushimaBuildingStructure>('wood');
+    const inputs = useRealEstateInputs(buildingTransactionType);
 
     // 登録免許税だけが使う条件
     const [hasHousingCertificate, setHasHousingCertificate] = useState(true);
@@ -47,12 +52,17 @@ export const useRealEstateSummaryForm = () => {
         inputs.buildingShareNumerator, inputs.buildingShareDenominator,
         inputs.selYear, inputs.selMonth, inputs.selDay,
         hasHousingCertificate,
+        landTransactionType, buildingTransactionType,
         base.markResultStale,
     ]);
 
     const resetForm = useCallback(() => {
         base.resetBase();
         inputs.resetInputs();
+        setLandTransactionType('gift');
+        setBuildingTransactionType('gift');
+        setNewBuildingUse('residence');
+        setNewBuildingStructure('wood');
         setHasHousingCertificate(true);
         setAreaWarning('');
     }, [base.resetBase, inputs.resetInputs]);
@@ -91,7 +101,9 @@ export const useRealEstateSummaryForm = () => {
             resLandArea: rArea,
             buildingValuation: bldgVal,
             buildingArea: bArea,
-            transactionType,
+            transactionType: landTransactionType,
+            landTransactionType,
+            buildingTransactionType,
             isResidential: inputs.isResidential,
             acquisitionDeduction,
             landShare,
@@ -104,7 +116,9 @@ export const useRealEstateSummaryForm = () => {
             includeBuilding,
             landValuation: resVal + otherVal,
             buildingValuation: bldgVal,
-            transactionType,
+            transactionType: landTransactionType,
+            landTransactionType,
+            buildingTransactionType,
             landType: 'residential',
             landArea: 0,
             buildingArea: 0,
@@ -128,7 +142,8 @@ export const useRealEstateSummaryForm = () => {
         inputs.resLandValuation, inputs.resLandArea,
         inputs.otherLandValuation,
         inputs.buildingValuation, inputs.buildingArea,
-        transactionType, inputs.isResidential, inputs.isLongLifeQuality,
+        landTransactionType, buildingTransactionType,
+        inputs.isResidential, inputs.isLongLifeQuality,
         inputs.acquisitionDeduction,
         inputs.landShareNumerator, inputs.landShareDenominator,
         inputs.buildingShareNumerator, inputs.buildingShareDenominator,
@@ -138,20 +153,27 @@ export const useRealEstateSummaryForm = () => {
     const fillSample = useSampleFill(calculateTax);
 
     const handleSample = useCallback(() => fillSample(() => {
-        base.setTransactionType('gift');
+        setLandTransactionType('gift');
+        setBuildingTransactionType('gift');
+        setNewBuildingUse('residence');
+        setNewBuildingStructure('wood');
         base.setIncludeLand(true);
         base.setIncludeBuilding(true);
         inputs.applySample();
         setHasHousingCertificate(true);
     }), [
         fillSample,
-        base.setTransactionType, base.setIncludeLand, base.setIncludeBuilding,
+        base.setIncludeLand, base.setIncludeBuilding,
         inputs.applySample,
     ]);
 
     return {
         ...base,
         ...inputs,
+        landTransactionType, setLandTransactionType,
+        buildingTransactionType, setBuildingTransactionType,
+        newBuildingUse, setNewBuildingUse,
+        newBuildingStructure, setNewBuildingStructure,
         hasHousingCertificate, setHasHousingCertificate,
         areaWarning,
         calculateTax,

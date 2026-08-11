@@ -17,6 +17,8 @@ export type AcquisitionBreakdownInput = {
     buildingValuation: number;
     buildingArea: number;
     transactionType: TransactionType;
+    landTransactionType?: TransactionType;
+    buildingTransactionType?: TransactionType;
     isResidential: boolean;
     /** 建物の控除額（建築年月日から自動判定した値） */
     acquisitionDeduction: number;
@@ -35,7 +37,8 @@ export const calculateAcquisitionBreakdown = (input: AcquisitionBreakdownInput):
         includeLand, includeBuilding,
         resLandValuation, otherLandValuation, resLandArea,
         buildingValuation, buildingArea,
-        transactionType, isResidential, acquisitionDeduction,
+        transactionType, landTransactionType, buildingTransactionType,
+        isResidential, acquisitionDeduction,
         landShare, buildingShare,
     } = input;
 
@@ -46,6 +49,7 @@ export const calculateAcquisitionBreakdown = (input: AcquisitionBreakdownInput):
         landValuation: resLandValuation,
         buildingValuation: 0,
         transactionType,
+        landTransactionType,
         landType: 'residential',
         landArea: resLandArea,
         buildingArea,
@@ -62,6 +66,7 @@ export const calculateAcquisitionBreakdown = (input: AcquisitionBreakdownInput):
         landValuation: otherLandValuation,
         buildingValuation: 0,
         transactionType,
+        landTransactionType,
         landType: 'other',
         landArea: 0,
         buildingArea: 0,
@@ -78,6 +83,7 @@ export const calculateAcquisitionBreakdown = (input: AcquisitionBreakdownInput):
         landValuation: 0,
         buildingValuation,
         transactionType,
+        buildingTransactionType,
         landType: 'residential',
         landArea: 0,
         buildingArea,

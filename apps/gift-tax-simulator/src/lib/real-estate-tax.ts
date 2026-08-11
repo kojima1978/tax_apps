@@ -35,6 +35,9 @@ export interface RealEstateTaxInput {
     landValuation: number;
     buildingValuation: number;
     transactionType: TransactionType;
+    /** 土地・建物で登記原因が異なる場合に指定。未指定時は transactionType を共用する。 */
+    landTransactionType?: TransactionType;
+    buildingTransactionType?: TransactionType;
     landType: LandType;
     landArea: number;
     buildingArea: number;
@@ -143,6 +146,8 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
         hasHousingCertificate,
         acquisitionDeduction,
     } = input;
+    const landTransactionType = input.landTransactionType ?? transactionType;
+    const buildingTransactionType = input.buildingTransactionType ?? transactionType;
 
     const lN = input.landShare?.n ?? 1;
     const lD = input.landShare?.d ?? 1;
@@ -165,7 +170,7 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
     // --- 土地の計算 ---
     if (includeLand && landValuation > 0) {
         // 不動産取得税
-        if (transactionType === 'inheritance') {
+        if (landTransactionType === 'inheritance') {
             result.landAcq = 0;
             result.process.landAcq.push('相続のため不動産取得税は非課税 (0円)');
         } else {
@@ -243,16 +248,16 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
         let landRegRate = 0.02;
         let landRegRateNote = '本則税率';
 
-        if (transactionType === 'purchase') {
+        if (landTransactionType === 'purchase') {
             landRegRate = 0.02;
             landRegRateNote = '売買 (R8.4.1以降 本則2%・軽減1.5%は期限切れ)';
-        } else if (transactionType === 'inheritance') {
+        } else if (landTransactionType === 'inheritance') {
             landRegRate = 0.004;
             landRegRateNote = '相続';
-        } else if (transactionType === 'gift') {
+        } else if (landTransactionType === 'gift') {
             landRegRate = 0.02;
             landRegRateNote = '贈与';
-        } else if (transactionType === 'new_build') {
+        } else if (landTransactionType === 'new_build') {
             landRegRate = 0.02;
             landRegRateNote = '売買（土地取得 本則2%）';
         }
@@ -276,7 +281,7 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
     // --- 建物の計算 ---
     if (includeBuilding && buildingValuation > 0) {
         // 不動産取得税
-        if (transactionType === 'inheritance') {
+        if (buildingTransactionType === 'inheritance') {
             result.bldgAcq = 0;
             result.process.bldgAcq.push('相続のため不動産取得税は非課税 (0円)');
         } else {
@@ -316,14 +321,14 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
         let bldgRegRate = 0.02;
         let bldgRegRateNote = '本則';
 
-        if (transactionType === 'purchase') {
+        if (buildingTransactionType === 'purchase') {
             if (isResidential && hasHousingCertificate) {
                 bldgRegRate = 0.003;
                 bldgRegRateNote = '住宅用家屋証明あり';
             } else {
                 bldgRegRate = 0.02;
             }
-        } else if (transactionType === 'new_build') {
+        } else if (buildingTransactionType === 'new_build') {
             if (isResidential && hasHousingCertificate) {
                 bldgRegRate = 0.0015;
                 bldgRegRateNote = '住宅用家屋証明あり';
@@ -331,10 +336,10 @@ export const calculateRealEstateTax = (input: RealEstateTaxInput): TaxResults =>
                 bldgRegRate = 0.004;
                 bldgRegRateNote = '本則(保存)';
             }
-        } else if (transactionType === 'inheritance') {
+        } else if (buildingTransactionType === 'inheritance') {
             bldgRegRate = 0.004;
             bldgRegRateNote = '相続';
-        } else if (transactionType === 'gift') {
+        } else if (buildingTransactionType === 'gift') {
             bldgRegRate = 0.02;
             bldgRegRateNote = '贈与';
         }

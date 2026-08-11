@@ -57,9 +57,12 @@ export const buildingDateRow = (year: string, month: string, day: string): Maybe
     return { label: '建築年月日', value: `${y}年${monthDay}（${getWareki(y)}）` };
 };
 
-export const transactionRow = (transactionType: TransactionType): ConditionRow =>
+export const transactionRow = (
+    transactionType: TransactionType,
+    label = '登記原因 (取引種別)',
+): ConditionRow =>
     ({
-        label: '登記原因 (取引種別)',
+        label,
         value: TRANSACTION_OPTIONS.find((o) => o.value === transactionType)?.label ?? '',
     });
 

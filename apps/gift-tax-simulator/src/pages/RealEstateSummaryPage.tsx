@@ -4,11 +4,17 @@ import BuildingInput from '@/components/acquisition-tax/BuildingInput';
 import RealEstatePageLayout from '@/components/shared/RealEstatePageLayout';
 import AcquisitionTaxReference from '@/components/acquisition-tax/TaxReference';
 import RegistrationTaxReference from '@/components/registration-tax/TaxReference';
+import TokushimaNewBuildingEstimator from '@/components/shared/TokushimaNewBuildingEstimator';
 import {
     areaRow, buildingDateRow, compactRows, flagRow, shareRow, usageRow, yenRow, yesNoRow,
 } from '@/lib/print-conditions';
 import { acquisitionResultGroups, registrationResultGroups, shareNoteText } from '@/lib/real-estate-result';
-import { formatYen } from '@/lib/utils';
+import { formatInputValue, formatYen } from '@/lib/utils';
+import {
+    getTokushimaBuildingStructureLabel,
+    getTokushimaBuildingUseLabel,
+    getTokushimaUnitPrice,
+} from '@/lib/tokushima-new-building';
 import { useRealEstateSummaryForm } from '@/hooks/useRealEstateSummaryForm';
 
 /**
@@ -17,6 +23,18 @@ import { useRealEstateSummaryForm } from '@/hooks/useRealEstateSummaryForm';
  */
 export default function RealEstateSummaryPage() {
     const form = useRealEstateSummaryForm();
+
+    const assetTransactionTypes = useMemo(() => ({
+        land: form.landTransactionType,
+        setLand: form.setLandTransactionType,
+        building: form.buildingTransactionType,
+        setBuilding: form.setBuildingTransactionType,
+    }), [
+        form.landTransactionType,
+        form.setLandTransactionType,
+        form.buildingTransactionType,
+        form.setBuildingTransactionType,
+    ]);
 
     const shareNote = useMemo(() => shareNoteText(
         form.landShareNumerator, form.landShareDenominator,
@@ -80,6 +98,24 @@ export default function RealEstateSummaryPage() {
             rows: form.includeBuilding ? compactRows([
                 yenRow('固定資産税評価額', form.buildingValuation),
                 areaRow('建物床面積', form.buildingArea),
+                form.buildingTransactionType === 'new_build'
+                    ? { label: '概算基準', value: '徳島地方法務局 令和6年度' }
+                    : null,
+                form.buildingTransactionType === 'new_build'
+                    ? { label: '建物用途', value: getTokushimaBuildingUseLabel(form.newBuildingUse) }
+                    : null,
+                form.buildingTransactionType === 'new_build'
+                    ? { label: '建物構造', value: getTokushimaBuildingStructureLabel(form.newBuildingStructure) }
+                    : null,
+                form.buildingTransactionType === 'new_build'
+                    ? {
+                        label: '認定基準単価',
+                        value: `${formatInputValue(getTokushimaUnitPrice(
+                            form.newBuildingUse,
+                            form.newBuildingStructure,
+                        ))} 円/㎡`,
+                    }
+                    : null,
                 buildingDateRow(form.selYear, form.selMonth, form.selDay),
                 usageRow(form.isResidential),
                 // 登録免許税の税率が変わるので「なし」も紙に残す
@@ -93,6 +129,7 @@ export default function RealEstateSummaryPage() {
         form.includeLand, form.resLandValuation, form.resLandArea, form.otherLandValuation,
         form.landShareNumerator, form.landShareDenominator,
         form.includeBuilding, form.buildingValuation, form.buildingArea,
+        form.buildingTransactionType, form.newBuildingUse, form.newBuildingStructure,
         form.selYear, form.selMonth, form.selDay,
         form.isResidential, form.hasHousingCertificate, form.isLongLifeQuality, form.acquisitionDeduction,
         form.buildingShareNumerator, form.buildingShareDenominator,
@@ -100,20 +137,33 @@ export default function RealEstateSummaryPage() {
 
     const inputNotice = useMemo(() => {
         const notices = [];
-        if (form.transactionType === 'inheritance') {
-            notices.push(<p key="inh" className="notice-primary">※ 相続の場合、不動産取得税は非課税です（登録免許税はかかります）。</p>);
+        const inheritedTargets = [
+            form.includeLand && form.landTransactionType === 'inheritance' ? '土地' : '',
+            form.includeBuilding && form.buildingTransactionType === 'inheritance' ? '建物' : '',
+        ].filter(Boolean).join('・');
+        if (inheritedTargets) {
+            notices.push(
+                <p key="inh" className="notice-primary">
+                    ※ {inheritedTargets}は相続による取得のため、不動産取得税は非課税です（登録免許税はかかります）。
+                </p>,
+            );
         }
         if (form.areaWarning) {
             notices.push(<p key="area" className="notice-warning">{form.areaWarning}</p>);
         }
         return notices.length > 0 ? <>{notices}</> : undefined;
-    }, [form.transactionType, form.areaWarning]);
+    }, [
+        form.includeLand, form.includeBuilding,
+        form.landTransactionType, form.buildingTransactionType,
+        form.areaWarning,
+    ]);
 
     return (
         <RealEstatePageLayout
             className="real-estate-summary"
-            transactionType={form.transactionType}
-            setTransactionType={form.setTransactionType}
+            transactionType={form.landTransactionType}
+            setTransactionType={form.setLandTransactionType}
+            assetTransactionTypes={assetTransactionTypes}
             includeLand={form.includeLand}
             setIncludeLand={form.setIncludeLand}
             includeBuilding={form.includeBuilding}
@@ -152,7 +202,7 @@ export default function RealEstateSummaryPage() {
                         acquisitionDeduction={form.acquisitionDeduction}
                         deductionMessage={form.deductionMessage}
                         yearOptions={form.yearOptions}
-                        transactionType={form.transactionType}
+                        transactionType={form.buildingTransactionType}
                         onValuationChange={(e) => form.handleFormattedInput(e, form.setBuildingValuation)}
                         onAreaChange={(e) => form.handleDecimalInput(e, form.setBuildingArea)}
                         setYearInput={form.setYearInput}
@@ -166,6 +216,17 @@ export default function RealEstateSummaryPage() {
                         onShareNumeratorChange={form.setBuildingShareNumerator}
                         onShareDenominatorChange={form.setBuildingShareDenominator}
                     >
+                        {form.buildingTransactionType === 'new_build' && (
+                            <TokushimaNewBuildingEstimator
+                                area={form.buildingArea}
+                                buildingUse={form.newBuildingUse}
+                                structure={form.newBuildingStructure}
+                                setBuildingUse={form.setNewBuildingUse}
+                                setStructure={form.setNewBuildingStructure}
+                                onApply={(value) => form.setBuildingValuation(formatInputValue(value))}
+                                disabled={!form.includeBuilding}
+                            />
+                        )}
                         {form.isResidential && (
                             <div className="input-item">
                                 <label className="checkbox-label">
