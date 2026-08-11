@@ -70,6 +70,9 @@ COPY --from=builder /app/dist-server ./dist-server
 # seed の入力としてサーバ側が読み続ける。
 COPY src/data ./src/data
 COPY docker-entrypoint.sh ./
+# Keep the Linux entrypoint executable even when the build context comes from
+# a Windows checkout whose Git settings converted line endings to CRLF.
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
 
 EXPOSE ${APP_PORT}
 ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
