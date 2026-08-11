@@ -94,6 +94,7 @@ nginx/
 | `/inheritance-tax-app/` | `inheritance-tax-app:3004` | 相続税計算 (Vite) |
 | `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド (Vite) |
 | `/inheritance-tax-docs/api/` | `inheritance-tax-docs:3003` | 資料準備ガイド API (Express) |
+| `/inheritance-tax-form/` | `inheritance-tax-form:3021` | 相続税の申告書 第1表 (Vite) |
 | `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター (Vite) |
 | `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 (Vite) |
 | `/capital-gains-calc/` | `capital-gains-calc:3019` | 譲渡所得税計算 (Vite) |

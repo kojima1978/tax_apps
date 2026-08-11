@@ -673,6 +673,7 @@ docker network create tax-apps-network
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
 | Asset Valuation | http://localhost/asset-valuation/ | 3017 | Vite | 減価償却資産評価 |
 | Capital Gains Calc | http://localhost/capital-gains-calc/ | 3019 | Vite | 譲渡所得税計算 |
+| Inheritance Tax Form | http://localhost/inheritance-tax-form/ | 3021 | Vite | 相続税の申告書 第1表 |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
 
 ### バックエンドサービス
@@ -693,15 +694,17 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3 | tax-docs | Vite |
 | 4 | medical-stock-valuation | SQLite + Next.js |
 | 5 | insurance-app | SQLite + Next.js |
-| 6 | inheritance-tax-app | Vite |
-| 7 | gift-tax-simulator | Vite |
-| 8 | inheritance-tax-docs | Vite |
-| 9 | retirement-tax-calc | Vite |
-| 10 | depreciation-calc | Vite |
-| 11 | asset-valuation | Vite |
-| 12 | stock-valuation-form | Vite |
-| 13 | capital-gains-calc | Vite |
-| 14 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
+| 6 | private-banking | PostgreSQL + Next.js |
+| 7 | inheritance-tax-app | Vite |
+| 8 | gift-tax-simulator | Vite |
+| 9 | inheritance-tax-docs | Vite |
+| 10 | retirement-tax-calc | Vite |
+| 11 | depreciation-calc | Vite |
+| 12 | asset-valuation | Vite |
+| 13 | stock-valuation-form | Vite |
+| 14 | capital-gains-calc | Vite |
+| 15 | inheritance-tax-form | Vite |
+| 16 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -724,6 +727,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3017 | Asset Valuation | apps/asset-valuation |
 | 3019 | Capital Gains Calc | apps/capital-gains-calc |
 | 3020 | ITCM Web | apps/inheritance-case-management |
+| 3021 | Inheritance Tax Form | apps/inheritance-tax-form |
 | 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
 
 ### Preflight Check
@@ -735,7 +739,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 |:--|:------------|:-----|
 | 1 | Docker Desktop 起動確認 | ERROR（致命的） |
 | 2 | `docker compose` コマンド確認 | ERROR（致命的） |
-| 3 | docker-compose.yml ファイル存在確認（`APPS` 配列の全14件） | OK / WARN |
+| 3 | docker-compose.yml ファイル存在確認（`APPS` 配列の全16件） | OK / WARN |
 | 4 | Compose config 検証 | OK / WARN |
 | 5 | Nginx 設定ファイル存在確認 | OK / WARN |
 | 6 | ITCM `.env` ファイル存在確認 | OK / WARN |
@@ -833,6 +837,9 @@ tax_apps/
 │   │   ├── docker-compose.yml
 │   │   └── docker-compose.prod.yml
 │   ├── stock-valuation-form/   # 株式評価明細書
+│   │   ├── docker-compose.yml
+│   │   └── docker-compose.prod.yml
+│   ├── inheritance-tax-form/   # 相続税の申告書 第1表
 │   │   ├── docker-compose.yml
 │   │   └── docker-compose.prod.yml
 │   └── bank-analyzer-django/   # 銀行分析

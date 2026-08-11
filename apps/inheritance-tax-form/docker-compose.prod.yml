@@ -1,0 +1,25 @@
+# ============================================
+# 相続税の申告書 第1表 - Production Override
+# ============================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# ============================================
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 64M
+    reservations:
+      memory: 16M
+
+services:
+  inheritance-tax-form:
+    build:
+      target: runner
+    environment:
+      TZ: Asia/Tokyo
+    init: false
+    # `volumes: []` はマージされて base の開発用バインドが残るため !reset で無効化する
+    volumes: !reset []
+    healthcheck:
+      start_period: 10s
+    deploy: *prod-deploy

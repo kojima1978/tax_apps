@@ -112,6 +112,7 @@ APPS=(
   "apps/asset-valuation"
   "apps/stock-valuation-form"
   "apps/capital-gains-calc"
+  "apps/inheritance-tax-form"
   "docker/gateway"
 )
 

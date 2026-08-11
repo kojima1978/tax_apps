@@ -1,0 +1,268 @@
+/* ============================================
+   相続税の申告書 第1表 — 全体スタイル
+   ============================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Noto Sans JP", "Yu Gothic", "MS PGothic", sans-serif;
+  color: #111;
+  background: #e5e5e5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ============================================
+   画面レイアウト
+   ============================================ */
+
+.app-shell {
+  min-height: 100vh;
+  background: #e5e5e5;
+}
+
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  background: #1e3a5f;
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.app-title {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.app-title small {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+.app-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.app-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #1e3a5f;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.app-btn:hover {
+  background: #eef2f7;
+}
+
+.app-btn--primary {
+  color: #fff;
+  background: #2563eb;
+  border-color: #1d4ed8;
+}
+
+.app-btn--primary:hover {
+  background: #1d4ed8;
+}
+
+.app-btn--danger {
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.app-btn--danger:hover {
+  background: #fee2e2;
+}
+
+.app-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.app-main {
+  width: 100%;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.app-note {
+  max-width: 210mm;
+  margin: 0 auto 12px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #78350f;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+}
+
+.mobile-hint {
+  display: none;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+  background: #fff8e1;
+}
+
+@media (max-width: 800px) {
+  .mobile-hint {
+    display: block;
+  }
+
+  .app-topbar {
+    position: static;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .app-main {
+    padding: 10px;
+  }
+}
+
+/* ============================================
+   様式（A4 1枚 ＝ .gov-page）
+   ============================================ */
+
+.gov-page {
+  width: 210mm;
+  height: 297mm;
+  margin: 0 auto 16px;
+  padding: 6mm 8mm;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+/* 様式の枠外に置く注記（注1・2・3 と適用年分） */
+.gov-footnote {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 2px;
+  font-size: 6.5px;
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+/* 様式上部・下部の枠外テキスト（「※の項目は記入する必要がありません。」など） */
+.gov-aside {
+  padding: 1px 0;
+  font-size: 6.5px;
+  line-height: 1.2;
+  text-align: right;
+}
+
+/* ============================================
+   入力中の位置表示（フォーカス）
+   密な様式でも「今どこを入力しているか」が一目で分かるようにする。
+   セルの背景・枠はインライン style で付くため !important で上書きする。
+   ============================================ */
+.gf-cell:focus-within {
+  background: #e8f1ff !important;
+  box-shadow: inset 0 0 0 1.5px #2563eb !important;
+}
+
+/* 1セルに複数の入力欄がある場合（日付・郵便番号・電話番号）、
+   実際に入力中の欄をさらに濃く塗る。自動計算欄（readonly）は塗らない。 */
+.gf-cell input:focus:not([readonly]),
+.gf-cell select:focus {
+  background: #bfdbfe !important;
+}
+
+/* ============================================
+   印刷用スタイル
+   ============================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .mobile-hint {
+    display: none !important;
+  }
+
+  /* 高さを印刷可能領域（A4 297mm − @page margin 8mm×2 ＝ 281mm）より少し小さく確定させる。
+     height:auto だと GridForm の縦フレックスで本表の残り高さが決まらず、はみ出す。
+     281mm ちょうどにするとブラウザの丸め誤差で最終行が次ページへあふれるため 3mm の余裕を取る。 */
+  .gov-page {
+    width: 100%;
+    height: 278mm;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    page-break-inside: avoid;
+  }
+
+  /* 改ページは「2ページ目以降の直前」に入れる（最後のページの後に空白ページを作らないため） */
+  .gov-page + .gov-page {
+    page-break-before: always;
+  }
+
+  /* 印刷時はグリッドセルのハイライト（背景色・枠強調）を消して白地の提出様式にする */
+  .gf-cell,
+  .gf-cell input,
+  .gf-cell select,
+  .gf-cell:focus-within,
+  .gf-cell input:focus:not([readonly]),
+  .gf-cell select:focus {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* 画面用の min-height:100vh / padding が印刷に効くと最終ページの後に空白ページが出るためリセット */
+  html,
+  body,
+  .app-shell,
+  .app-main {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+}

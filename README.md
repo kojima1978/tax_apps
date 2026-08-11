@@ -19,6 +19,7 @@
 | 贈与税計算 | `/gift-tax-simulator/` | http://localhost/gift-tax-simulator/ | 3001 | Vite + React | 贈与税・不動産取得税・登録免許税シミュレーション |
 | 退職金税額計算 | `/retirement-tax-calc/` | http://localhost/retirement-tax-calc/ | 3013 | Vite + React | 退職金の税額計算シミュレーション |
 | 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React | 相続税申告の必要書類ガイド |
+| 相続税の申告書 | `/inheritance-tax-form/` | http://localhost/inheritance-tax-form/ | 3021 | Vite + React | 第1表・第1表（続）の作成・印刷 |
 | 非上場株式評価 | `/shares/` | http://localhost/shares/ | 3012 | Vite + React | 非上場株式の評価計算 |
 | 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React | 確定申告書類管理 |
 | 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人の株式評価 |
@@ -48,6 +49,7 @@ tax_apps/
 │   ├── gift-tax-simulator/            # 贈与税計算 (Vite)
 │   ├── retirement-tax-calc/           # 退職金税額計算 (Vite)
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
+│   ├── inheritance-tax-form/          # 相続税の申告書 第1表 (Vite)
 │   ├── insurance-app/                 # 保険管理 (Next.js)
 │   ├── tax-docs/                      # 確定申告必要書類 (Vite)
 │   ├── capital-gains-calc/            # 譲渡所得税計算 (Vite)

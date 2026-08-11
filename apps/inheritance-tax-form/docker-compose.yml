@@ -1,0 +1,81 @@
+# ============================================
+# 相続税の申告書 第1表 - Docker Compose
+# ============================================
+# Usage:
+#   開発:   docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:   docker compose logs -f
+#   停止:   docker compose down
+# ============================================
+
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-autoheal-labels: &autoheal-labels
+  tax-apps.autoheal: "true"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s
+
+services:
+  # ===========================================
+  # 相続税の申告書 第1表・第1表（続）
+  # Port: 3021
+  #
+  # 機能:
+  #   - 様式の罫線をCSSグリッドで再現（第1表 / 第1表（続）ともA4縦1枚）
+  #   - 相続人を追加すると第1表（続）が2人ずつ自動生成される
+  #   - ④⑥⑧⑨⑮⑯⑲㉑㉒㉖㉗ と「各人の合計」列を自動計算
+  #   - 元号コード・続柄コード（記載要領等）を選択式で入力
+  #   - localStorage 保存 / JSON 入出力 / 印刷対応
+  # ===========================================
+  inheritance-tax-form:
+    build:
+      context: .
+      dockerfile: ../../docker/Dockerfile.vite-static
+      target: dev
+      args:
+        APP_PORT: "3021"
+        APP_PATH: inheritance-tax-form
+        APP_TITLE: "Inheritance Tax Return Form"
+        APP_DESCRIPTION: "相続税の申告書 第1表"
+        NPM_CACHE_ID: npm-store-inheritance-tax-form
+    container_name: inheritance-tax-form
+    networks:
+      - tax-apps-network
+    ports:
+      - "127.0.0.1:3021:3021"
+    volumes:
+      - ./src:/app/src:ro
+      - ./index.html:/app/index.html:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+    init: true
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *autoheal-labels
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3021/inheritance-tax-form/ || exit 1"]
+      <<: *healthcheck-defaults
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true
