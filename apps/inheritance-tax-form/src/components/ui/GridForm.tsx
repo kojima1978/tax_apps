@@ -51,6 +51,8 @@ interface GridFormProps {
   u: (f: string, v: string) => void;
   /** 枠外上部に表示する様式タイトル */
   title?: string;
+  /** タイトルの下に1行細く添える副題（第2表の「相続税の総額の計算書」など）。formCode 指定時のみ */
+  subtitle?: string;
   /** 様式ID。指定時はタイトル上部に中央配置の「様式ID」枠を表示する */
   formCode?: string;
   /** グリッドのアスペクト比（省略時 '210 / 297'＝A4全体）。本表がA4の一部だけを占める場合に指定 */
@@ -213,7 +215,7 @@ function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown 
  * 各矩形の left/right を縦罫線、top/bottom を横罫線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, title, formCode, aspectRatio = '210 / 297', toolbar, footer, formId }: GridFormProps) {
+export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio = '210 / 297', toolbar, footer, formId }: GridFormProps) {
   const printRendering = useContext(PrintRenderContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
@@ -408,6 +410,7 @@ export function GridForm({ cells, g, u, title, formCode, aspectRatio = '210 / 29
             {toolbar && <div className="no-print" style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}>{toolbar}</div>}
           </div>
           <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, lineHeight: 1.3, marginTop: 4 }}>{title}</div>
+          {subtitle && <div style={{ textAlign: 'center', fontSize: 11, lineHeight: 1.3, marginTop: 2 }}>{subtitle}</div>}
         </div>
       ) : (
         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '2px 0 4px', fontFamily: FORM_FONT }}>

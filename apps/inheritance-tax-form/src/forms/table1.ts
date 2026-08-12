@@ -15,7 +15,7 @@ import {
 export const TABLE1_FORM_CODE = 'NTA1KSE010010030';
 export const TABLE1_TITLE = '相続税の申告書　第1表';
 
-/** 共通欄（被相続人・提出先・⑦・Ⓑ）と「各人の合計」欄のフィールド接頭辞 */
+/** 共通欄（被相続人・提出先）と、自動計算欄（「各人の合計」列・第2表からの転記）のフィールド接頭辞 */
 export const COMMON = 'c.';
 export const TOTALS = 't.';
 
@@ -161,17 +161,17 @@ function specialRows(heir: string): GridCell[] {
     label(RY.vB!, [V.BAND1, V.LBL_A], '法定相続人の数\n（人）'),
     label(RY.vB!, [V.LBL_A, V.LBL], '遺産に係る\n基礎控除額'),
     code(RY.vB!, [V.LBL, V.NUM], 'G09'),
-    mk(RY.vB!, [V.NUM, V.CNT], { kind: 'input', field: `${COMMON}heirCount`, ariaLabel: '法定相続人の数（人）', integerDigits: 2, align: 'center' }),
+    mk(RY.vB!, [V.NUM, V.CNT], { kind: 'input', field: `${TOTALS}heirCount`, ariaLabel: '法定相続人の数（人）', integerDigits: 2, align: 'center', readOnly: true }),
     label(RY.vB!, [V.CNT, V.B_MARK], 'Ⓑ', { fontSize: 10 }),
     code(RY.vB!, [V.B_MARK, V.B_CODE], 'G10'),
-    mk(RY.vB!, [V.B_CODE, V.MID], { kind: 'input', field: `${COMMON}tB`, ariaLabel: 'Ⓑ 遺産に係る基礎控除額', commaInteger: true, rightLabel: '000,000' }),
+    mk(RY.vB!, [V.B_CODE, V.MID], { kind: 'input', field: `${TOTALS}tB`, ariaLabel: 'Ⓑ 遺産に係る基礎控除額', commaInteger: true, rightLabel: '000,000', readOnly: true }),
     label(RY.vB!, [V.MID, V.R], '左の欄には、第２表の②欄の㋺の人数及び㋩の金額を記入します。', NOTE),
 
     // ⑦ 相続税の総額（第2表からの転記）
     label(RY.v7!, [V.BAND1, V.LBL], '相続税の総額'),
     label(RY.v7!, [V.LBL, V.NUM], '⑦', { fontSize: 10, semanticRole: 'rowheader' }),
     code(RY.v7!, [V.NUM, V.CODE1], 'G11'),
-    mk(RY.v7!, [V.CODE1, V.MID], { kind: 'input', field: `${COMMON}t7`, ariaLabel: '⑦ 相続税の総額', commaInteger: true, rightLabel: '00' }),
+    mk(RY.v7!, [V.CODE1, V.MID], { kind: 'input', field: `${TOTALS}t7`, ariaLabel: '⑦ 相続税の総額', commaInteger: true, rightLabel: '00', readOnly: true }),
     label(RY.v7!, [V.MID, V.R], '左の欄には、第２表の⑧欄の金額を記入します。', NOTE),
 
     // ⑧ あん分割合（合計欄は「1.00」が印字済み）

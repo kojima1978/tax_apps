@@ -1,17 +1,37 @@
-import { useMemo, useRef, type ChangeEvent } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { GridForm } from './components/ui/GridForm';
-import { EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, buildTable1 } from './forms/table1';
+import { COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1 } from './forms/table1';
 import {
   TABLE1CONT_CONFIRM_BOXES, TABLE1CONT_FORM_CODE, TABLE1CONT_NOTES, TABLE1CONT_TITLE, buildTable1Cont,
 } from './forms/table1cont';
+import {
+  TABLE2_EDITION, TABLE2_FORM_CODE, TABLE2_JOINT_NOTES, TABLE2_NOTES, TABLE2_SUBTITLE, TABLE2_TITLE, buildTable2,
+} from './forms/table2';
 import { heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
 
+/** 画面左の一覧と印刷順を決める様式の登録簿。様式を足したらここに1行追加する。 */
+interface FormMeta {
+  id: string;
+  label: string;
+  note: string;
+  /** 常に使用する様式（チェックを外せない） */
+  required?: boolean;
+  /** 人数に応じて自動で付く様式（チェックを持たない） */
+  auto?: boolean;
+}
+
+const FORMS: FormMeta[] = [
+  { id: 'table1', label: '第1表', note: '相続税の申告書', required: true },
+  { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
+  { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
+];
+
 /** 様式の枠外に印字されている注記と適用年分 */
-function Footnote({ notes }: { notes: string }) {
+function Footnote({ notes, edition = EDITION }: { notes: string; edition?: string }) {
   return (
     <div className="gov-footnote">
       <span>{notes}</span>
-      <span style={{ whiteSpace: 'nowrap' }}>{EDITION}</span>
+      <span style={{ whiteSpace: 'nowrap' }}>{edition}</span>
     </div>
   );
 }
@@ -72,11 +92,59 @@ function ContPage({ page, g, u }: ContPageProps) {
 }
 
 export default function App() {
-  const { data, g, u, addHeir, removeHeir, reset, exportJson, importJson, maxHeirs } = useFormData();
+  const { data, g, u, addHeir, removeHeir, toggleUsed, reset, exportJson, importJson, maxHeirs } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [active, setActive] = useState('table1');
 
   const table1Cells = useMemo(() => buildTable1(heirPrefix(0)), []);
+  const table2Cells = useMemo(() => buildTable2(COMMON, TOTALS), []);
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
+
+  /** その様式を提出する（＝印刷する）か */
+  const used = (form: FormMeta): boolean => {
+    if (form.required) return true;
+    if (form.auto) return contPages > 0;
+    return data.used.includes(form.id);
+  };
+
+  const pages: Record<string, ReactNode> = {
+    table1: (
+      <div className="gov-page">
+        <GridForm
+          cells={table1Cells}
+          g={g}
+          u={u}
+          formCode={TABLE1_FORM_CODE}
+          title={TABLE1_TITLE}
+          formId="t1"
+          footer={<Footnote notes={TABLE1_NOTES} />}
+        />
+      </div>
+    ),
+    table1cont: Array.from({ length: contPages }, (_, page) => (
+      <ContPage key={page} page={page} g={g} u={u} />
+    )),
+    table2: (
+      <div className="gov-page">
+        <GridForm
+          cells={table2Cells}
+          g={g}
+          u={u}
+          formCode={TABLE2_FORM_CODE}
+          title={TABLE2_TITLE}
+          subtitle={TABLE2_SUBTITLE}
+          aspectRatio="1065 / 1311.5"
+          formId="t2"
+          footer={
+            <>
+              <div className="gov-note">{TABLE2_NOTES}</div>
+              <Footnote notes={TABLE2_JOINT_NOTES} edition={TABLE2_EDITION} />
+            </>
+          }
+        />
+      </div>
+    ),
+  };
 
   const onPickFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -93,7 +161,7 @@ export default function App() {
     <div className="app-shell">
       <header className="app-topbar no-print">
         <div className="app-title">
-          相続税の申告書 第1表・第1表（続）
+          相続税の申告書
           <small>入力内容はこのブラウザに自動保存されます</small>
         </div>
         <div className="app-toolbar">
@@ -113,28 +181,50 @@ export default function App() {
 
       <div className="mobile-hint no-print">A4横幅の様式です。横スクロールしてご覧ください。</div>
 
-      <main className="app-main">
-        <p className="app-note no-print">
-          Ⓑ「遺産に係る基礎控除額」（第2表②の㋩）と⑦「相続税の総額」（第2表⑧）は第2表からの転記欄のため、手入力してください。
-          ④⑥⑧⑨⑮⑯⑲㉑㉒㉖㉗ と「各人の合計」列は自動計算されます（⑧は端数調整のため上書きできます）。
-        </p>
+      <div className="app-body">
+        <aside className="app-sidebar no-print">
+          <div className="app-sidebar__head">様式</div>
+          <ul className="form-list">
+            {FORMS.map((form) => (
+              <li key={form.id} className={`form-item${active === form.id ? ' form-item--active' : ''}`}>
+                <input
+                  type="checkbox"
+                  className="form-item__check"
+                  checked={used(form)}
+                  disabled={form.required || form.auto}
+                  onChange={() => toggleUsed(form.id)}
+                  aria-label={`${form.label}を使用する`}
+                />
+                <button type="button" className="form-item__btn" onClick={() => setActive(form.id)}>
+                  <span className="form-item__label">{form.label}</span>
+                  <small>{form.note}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="form-list__hint">チェックした様式だけを印刷します。第1表（続）は財産を取得した人が2人以上のときに自動で付きます。</p>
+        </aside>
 
-        <div className="gov-page">
-          <GridForm
-            cells={table1Cells}
-            g={g}
-            u={u}
-            formCode={TABLE1_FORM_CODE}
-            title={TABLE1_TITLE}
-            formId="t1"
-            footer={<Footnote notes={TABLE1_NOTES} />}
-          />
-        </div>
+        <main className="app-main">
+          <p className="app-note no-print">
+            Ⓑ「遺産に係る基礎控除額」・⑦「相続税の総額」・「法定相続人の数」は第2表から自動転記されます。
+            第1表の④⑥⑧⑨⑮⑯⑲㉑㉒㉖㉗ と「各人の合計」列、第2表の⑤以降も自動計算です（⑧あん分割合は端数調整のため上書きできます）。
+          </p>
 
-        {Array.from({ length: contPages }, (_, page) => (
-          <ContPage key={page} page={page} g={g} u={u} />
-        ))}
-      </main>
+          {FORMS.map((form) => (
+            <section
+              key={form.id}
+              className={[
+                'form-pages',
+                active === form.id ? '' : 'form-pages--hidden',
+                used(form) ? '' : 'form-pages--unused',
+              ].filter(Boolean).join(' ')}
+            >
+              {pages[form.id]}
+            </section>
+          ))}
+        </main>
+      </div>
     </div>
   );
 }
