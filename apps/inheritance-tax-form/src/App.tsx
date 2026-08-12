@@ -10,8 +10,11 @@ import {
 import {
   TABLE11_FORM_CODE, TABLE11_ROWS, TABLE11_SUBTITLE, TABLE11_TITLE, buildTable11,
 } from './forms/table11';
-import { DETAIL_GROUPS, buildDetail } from './forms/detail';
+import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
+import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
+import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
+import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
 
 /** 第11表を使う場合、第1表①は第11表2③からの転記になる */
@@ -36,12 +39,21 @@ const FORMS: FormMeta[] = [
   { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
   { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
   { id: 'table11f1', label: '第11表の付表1', note: '財産の明細書（土地・家屋等用）' },
+  { id: 'table11f2', label: '第11表の付表2', note: '財産の明細書（有価証券用）' },
+  { id: 'table11f3', label: '第11表の付表3', note: '財産の明細書（現金・預貯金等用）' },
+  { id: 'table11f4', label: '第11表の付表4', note: '財産の明細書（事業用・家庭用・その他）' },
 ];
 
 /** 付表（財産の明細書）の様式ID → 割付。様式を足したらここに1行追加する。 */
 const DETAIL_SPECS = {
   table11f1: { spec: TABLE11F1_SPEC, share: TABLE11F1_SHARE },
+  table11f2: { spec: TABLE11F2_SPEC, share: TABLE11F2_SHARE },
+  table11f3: { spec: TABLE11F3_SPEC, share: TABLE11F3_SHARE },
+  table11f4: { spec: TABLE11F4_SPEC, share: TABLE11F4_SHARE },
 } as const;
+
+/** 付表は様式IDと枚数以外の作りが同じなので、レジストリから画面を組み立てる */
+const DETAIL_FORMS = Object.keys(DETAIL_SPECS) as (keyof typeof DETAIL_SPECS)[];
 
 /** 様式の枠外に印字されている注記と適用年分 */
 function Footnote({ notes, edition = EDITION }: { notes: string; edition?: string }) {
@@ -167,7 +179,7 @@ function DetailPage({ form, page, g, u }: DetailPageProps) {
         formCode={spec.formCode}
         title={spec.title}
         subtitle={spec.subtitle}
-        aspectRatio="1037 / 1510"
+        aspectRatio={detailAspect(spec)}
         formId={`${form}p${page}`}
         footer={<Footnote notes="" />}
       />
@@ -241,18 +253,18 @@ export default function App() {
     table11: Array.from({ length: table11Pages }, (_, page) => (
       <Table11Page key={page} page={page} g={g} u={u} detail={detailUsed} />
     )),
-    table11f1: (
+    ...Object.fromEntries(DETAIL_FORMS.map((id) => [id, (
       <>
-        {Array.from({ length: detailPages('table11f1') }, (_, page) => (
-          <DetailPage key={page} form="table11f1" page={page} g={g} u={u} />
+        {Array.from({ length: detailPages(id) }, (_, page) => (
+          <DetailPage key={page} form={id} page={page} g={g} u={u} />
         ))}
         <div className="app-pagectl no-print">
-          <button type="button" className="app-btn" onClick={() => removeDetailPage('table11f1', DETAIL_GROUPS)} disabled={detailPages('table11f1') <= 1}>−</button>
-          明細 {detailPages('table11f1')}枚（財産{DETAIL_GROUPS}件／枚）
-          <button type="button" className="app-btn" onClick={() => addDetailPage('table11f1', DETAIL_GROUPS)}>＋</button>
+          <button type="button" className="app-btn" onClick={() => removeDetailPage(id, DETAIL_GROUPS)} disabled={detailPages(id) <= 1}>−</button>
+          明細 {detailPages(id)}枚（財産{DETAIL_GROUPS}件／枚）
+          <button type="button" className="app-btn" onClick={() => addDetailPage(id, DETAIL_GROUPS)}>＋</button>
         </div>
       </>
-    ),
+    )])),
   };
 
   const onPickFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -315,13 +327,6 @@ export default function App() {
         </aside>
 
         <main className="app-main">
-          <p className="app-note no-print">
-            Ⓑ「遺産に係る基礎控除額」・⑦「相続税の総額」・「法定相続人の数」は第2表から自動転記されます。
-            第1表の④⑥⑧⑨⑮⑯⑲㉑㉒㉖㉗ と「各人の合計」列、第2表の⑤以降も自動計算です（⑧あん分割合は端数調整のため上書きできます）。
-            第11表を使用すると、その2③「取得財産の価額」が第1表①へ自動転記されます（第1表①は入力できなくなります）。
-            付表（財産の明細書）を使用すると、「分割が確定した財産」が「財産を取得した人の番号」ごとに集計され、第11表2①へ自動転記されます。
-          </p>
-
           {FORMS.map((form) => (
             <section
               key={form.id}

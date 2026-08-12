@@ -222,18 +222,6 @@ button {
   display: none;
 }
 
-.app-note {
-  max-width: 210mm;
-  margin: 0 auto 12px;
-  padding: 8px 12px;
-  font-size: 11px;
-  line-height: 1.7;
-  color: #78350f;
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
-  border-radius: 4px;
-}
-
 .mobile-hint {
   display: none;
   padding: 4px 8px;

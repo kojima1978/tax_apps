@@ -1,15 +1,36 @@
 /**
  * 相続税の申告書 第11表の付表1「相続税がかかる財産の明細書（土地・家屋等用）」。
  *
- * 骨格（項番・分割が確定した財産・組の繰り返し）は `detail.ts` が持つ。
- * ここが与えるのは中央の「財産の明細」部分の割付だけ。x は様式PNG（150dpi）の実測px。
+ * 組み立て方（項番・分割が確定した財産・組の繰り返し）は `detail.ts` が持つ。
+ * ここが与えるのは罫線の位置と、中央の「財産の明細」部分の割付。
+ * 座標はいずれも様式PNG（150dpi）の実測px。
  */
 
-import type { DetailShareCodes, DetailSpec } from './detail';
+import type { DetailFrame, DetailShareCodes, DetailSpec } from './detail';
 
 export const TABLE11F1_FORM_CODE = 'NTA0KSE161010020';
 export const TABLE11F1_TITLE = '相続税の申告書　第11表の付表1';
 export const TABLE11F1_SUBTITLE = '相続税がかかる財産の明細書\n（土地・家屋等用）';
+
+/** 罫線の位置（様式PNG 150dpi の実測px） */
+const FRAME: DetailFrame = {
+  left: 76.5,
+  right: 1113.5,
+  name: [158.5, 203.5],
+  nameX: [552.5, 653.5, 679.5, 951],
+  lead: [211.5, 248.5],
+  band: [248.5, 285],
+  head: [285, 314, 343, 370],
+  groupTops: [373.5, 534, 696, 858, 1020, 1182, 1344, 1506, 1668.5],
+  rowLines: [108, 54],
+  noCode: 103,
+  noR: 134,
+  midR: 837,
+  splitR: 841,
+  whoCode: 865,
+  whoR: 926,
+  amtCode: 952,
+};
 
 /**
  * 識別コードの起点。1組あたり G が13個・E が8個・C が2個進む。
@@ -58,6 +79,7 @@ export const TABLE11F1_SPEC: DetailSpec = {
   title: TABLE11F1_TITLE,
   subtitle: TABLE11F1_SUBTITLE,
   lead: LEAD,
+  frame: FRAME,
   codes: CODES,
   head: HEAD,
   rows: [
