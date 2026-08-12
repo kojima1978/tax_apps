@@ -10,7 +10,9 @@ import {
 import {
   TABLE11_FORM_CODE, TABLE11_ROWS, TABLE11_SUBTITLE, TABLE11_TITLE, buildTable11,
 } from './forms/table11';
-import { heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
+import { DETAIL_GROUPS, buildDetail } from './forms/detail';
+import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
+import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
 
 /** 第11表を使う場合、第1表①は第11表2③からの転記になる */
 const TABLE11_TRANSFERRED = ['v1'] as const;
@@ -33,7 +35,13 @@ const FORMS: FormMeta[] = [
   { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
   { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
   { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
+  { id: 'table11f1', label: '第11表の付表1', note: '財産の明細書（土地・家屋等用）' },
 ];
+
+/** 付表（財産の明細書）の様式ID → 割付。様式を足したらここに1行追加する。 */
+const DETAIL_SPECS = {
+  table11f1: { spec: TABLE11F1_SPEC, share: TABLE11F1_SHARE },
+} as const;
 
 /** 様式の枠外に印字されている注記と適用年分 */
 function Footnote({ notes, edition = EDITION }: { notes: string; edition?: string }) {
@@ -105,14 +113,19 @@ function ContPage({ page, g, u, transferred }: ContPageProps) {
   );
 }
 
+interface Table11PageProps extends PageProps {
+  /** 付表を使う場合は2①が付表からの転記になる */
+  detail: boolean;
+}
+
 /** 第11表1枚（財産を取得した人10人分） */
-function Table11Page({ page, g, u }: PageProps) {
+function Table11Page({ page, g, u, detail }: Table11PageProps) {
   const cells = useMemo(
     () => buildTable11(COMMON, Array.from({ length: TABLE11_ROWS }, (_, i) => {
       const index = page * TABLE11_ROWS + i;
       return { prefix: heirPrefix(index), label: heirLabel(index) };
-    })),
-    [page],
+    }), detail),
+    [page, detail],
   );
   return (
     <div className="gov-page">
@@ -131,8 +144,42 @@ function Table11Page({ page, g, u }: PageProps) {
   );
 }
 
+interface DetailPageProps extends PageProps {
+  form: keyof typeof DETAIL_SPECS;
+}
+
+/** 付表（財産の明細書）1枚（財産8件分） */
+function DetailPage({ form, page, g, u }: DetailPageProps) {
+  const { spec, share } = DETAIL_SPECS[form];
+  const cells = useMemo(
+    () => buildDetail(spec, share, COMMON, Array.from({ length: DETAIL_GROUPS }, (_, i) => {
+      const index = page * DETAIL_GROUPS + i;
+      return { prefix: detailPrefix(form, index), label: detailLabel(index) };
+    })),
+    [spec, share, form, page],
+  );
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={spec.formCode}
+        title={spec.title}
+        subtitle={spec.subtitle}
+        aspectRatio="1037 / 1510"
+        formId={`${form}p${page}`}
+        footer={<Footnote notes="" />}
+      />
+    </div>
+  );
+}
+
 export default function App() {
-  const { data, g, u, addHeir, removeHeir, toggleUsed, reset, exportJson, importJson, maxHeirs } = useFormData();
+  const {
+    data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage,
+    toggleUsed, reset, exportJson, importJson, maxHeirs,
+  } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
 
@@ -142,6 +189,10 @@ export default function App() {
   const table2Cells = useMemo(() => buildTable2(COMMON, TOTALS), []);
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
   const table11Pages = Math.max(1, Math.ceil(data.heirs.length / TABLE11_ROWS));
+  /** 付表の枚数（明細の件数から決まる。1枚は必ず出す） */
+  const detailPages = (form: string): number => Math.max(1, Math.ceil((data.details[form]?.length ?? 0) / DETAIL_GROUPS));
+  /** 付表を1つでも使うなら、第11表2①は付表からの転記になる */
+  const detailUsed = Object.keys(DETAIL_SPECS).some((id) => data.used.includes(id));
 
   /** その様式を提出する（＝印刷する）か */
   const used = (form: FormMeta): boolean => {
@@ -188,8 +239,20 @@ export default function App() {
       </div>
     ),
     table11: Array.from({ length: table11Pages }, (_, page) => (
-      <Table11Page key={page} page={page} g={g} u={u} />
+      <Table11Page key={page} page={page} g={g} u={u} detail={detailUsed} />
     )),
+    table11f1: (
+      <>
+        {Array.from({ length: detailPages('table11f1') }, (_, page) => (
+          <DetailPage key={page} form="table11f1" page={page} g={g} u={u} />
+        ))}
+        <div className="app-pagectl no-print">
+          <button type="button" className="app-btn" onClick={() => removeDetailPage('table11f1', DETAIL_GROUPS)} disabled={detailPages('table11f1') <= 1}>−</button>
+          明細 {detailPages('table11f1')}枚（財産{DETAIL_GROUPS}件／枚）
+          <button type="button" className="app-btn" onClick={() => addDetailPage('table11f1', DETAIL_GROUPS)}>＋</button>
+        </div>
+      </>
+    ),
   };
 
   const onPickFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -256,6 +319,7 @@ export default function App() {
             Ⓑ「遺産に係る基礎控除額」・⑦「相続税の総額」・「法定相続人の数」は第2表から自動転記されます。
             第1表の④⑥⑧⑨⑮⑯⑲㉑㉒㉖㉗ と「各人の合計」列、第2表の⑤以降も自動計算です（⑧あん分割合は端数調整のため上書きできます）。
             第11表を使用すると、その2③「取得財産の価額」が第1表①へ自動転記されます（第1表①は入力できなくなります）。
+            付表（財産の明細書）を使用すると、「分割が確定した財産」が「財産を取得した人の番号」ごとに集計され、第11表2①へ自動転記されます。
           </p>
 
           {FORMS.map((form) => (

@@ -108,6 +108,16 @@ button {
   font-size: 12px;
 }
 
+/* 付表の枚数を増減する操作（用紙の下に置く） */
+.app-pagectl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0 16px;
+  font-size: 12px;
+}
+
 .app-body {
   display: flex;
   align-items: flex-start;

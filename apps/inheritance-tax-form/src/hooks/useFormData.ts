@@ -8,6 +8,8 @@
  *   `h0.xxx` … 財産を取得した人 0番目（第1表に載る人）
  *   `h1.xxx` … 以降は第1表（続）に2人ずつ
  *   `l0.xxx` … 第2表の法定相続人 0番目
+ *   `table11f1#0.xxx` … 付表（財産の明細書）の様式ID＋明細の通し番号。
+ *                       付表は「人」ではなく「財産」の一覧なので別枠で持つ。
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -21,6 +23,8 @@ export interface FormData {
   lawful: Values[];
   /** 使用する様式のID（印刷対象） */
   used: string[];
+  /** 付表（財産の明細書）の明細。様式IDごとに、財産1つ＝1要素の配列 */
+  details: Record<string, Values[]>;
 }
 
 const STORAGE_KEY = 'inheritance-tax-form:v1';
@@ -30,12 +34,19 @@ const MAX_HEIRS = 21;
 const DEFAULT_USED = ['table1', 'table2', 'table11'];
 
 const emptyLawful = (): Values[] => Array.from({ length: LAWFUL_ROWS }, () => ({}));
-const emptyData = (): FormData => ({ common: {}, heirs: [{}], lawful: emptyLawful(), used: [...DEFAULT_USED] });
+const emptyData = (): FormData => ({
+  common: {}, heirs: [{}], lawful: emptyLawful(), used: [...DEFAULT_USED], details: {},
+});
 
 /** 財産を取得した人 i 番目のフィールド接頭辞 */
 export const heirPrefix = (i: number): string => `h${i}.`;
 /** アクセシブル名・画面表示に使う呼び名 */
 export const heirLabel = (i: number): string => `${i + 1}人目`;
+
+/** 付表 form の i 番目の明細のフィールド接頭辞 */
+export const detailPrefix = (form: string, i: number): string => `${form}#${i}.`;
+/** アクセシブル名に使う呼び名 */
+export const detailLabel = (i: number): string => `明細${i + 1}`;
 
 /** 第1表1枚＋（続）は2人ずつ */
 export const pageCount = (heirs: number): number => 1 + Math.ceil(Math.max(0, heirs - 1) / 2);
@@ -54,6 +65,7 @@ function normalize(parsed: Partial<FormData>): FormData {
     heirs: parsed.heirs && parsed.heirs.length > 0 ? parsed.heirs : [{}],
     lawful,
     used: Array.isArray(parsed.used) ? parsed.used : [...DEFAULT_USED],
+    details: typeof parsed.details === 'object' && parsed.details !== null ? parsed.details : {},
   };
 }
 
@@ -75,6 +87,14 @@ function splitField(field: string): [string, string] {
   return dot < 0 ? ['c', field] : [field.slice(0, dot), field.slice(dot + 1)];
 }
 
+/** `table11f1#3` を ['table11f1', 3] に分ける（付表以外は null） */
+function splitDetailScope(scope: string): [string, number] | null {
+  const hash = scope.indexOf('#');
+  if (hash < 0) return null;
+  const index = Number(scope.slice(hash + 1));
+  return Number.isInteger(index) && index >= 0 ? [scope.slice(0, hash), index] : null;
+}
+
 export function useFormData() {
   const [data, setData] = useState<FormData>(loadStored);
 
@@ -86,12 +106,17 @@ export function useFormData() {
     }
   }, [data]);
 
-  const computed = useMemo(() => computeAll(data.common, data.heirs, data.lawful, data.used), [data]);
+  const computed = useMemo(
+    () => computeAll(data.common, data.heirs, data.lawful, data.used, data.details),
+    [data],
+  );
 
   const g = useCallback((field: string): string => {
     const [scope, key] = splitField(field);
     if (scope === 't') return computed.totals[key] ?? '';
     if (scope === 'c') return data.common[key] ?? '';
+    const detail = splitDetailScope(scope);
+    if (detail) return data.details[detail[0]]?.[detail[1]]?.[key] ?? '';
     const index = Number(scope.slice(1));
     if (scope.startsWith('l')) return computed.lawful[index]?.[key] ?? '';
     return computed.heirs[index]?.[key] ?? '';
@@ -100,9 +125,18 @@ export function useFormData() {
   const u = useCallback((field: string, value: string): void => {
     const [scope, key] = splitField(field);
     if (scope === 't') return; // 自動計算欄は書き込み不可
+    const detail = splitDetailScope(scope);
     const index = Number(scope.slice(1));
     setData((prev) => {
       if (scope === 'c') return { ...prev, common: { ...prev.common, [key]: value } };
+      if (detail) {
+        const [form, i] = detail;
+        // 明細は用紙の枚数だけ表示するので、未作成の行は入力時に作る
+        const rows = [...(prev.details[form] ?? [])];
+        while (rows.length <= i) rows.push({});
+        rows[i] = { ...rows[i]!, [key]: value };
+        return { ...prev, details: { ...prev.details, [form]: rows } };
+      }
       if (scope.startsWith('l')) {
         if (!Number.isInteger(index) || index < 0 || index >= prev.lawful.length) return prev;
         const lawful = [...prev.lawful];
@@ -129,6 +163,24 @@ export function useFormData() {
 
   const removeHeir = useCallback(() => {
     setData((prev) => (prev.heirs.length <= 1 ? prev : { ...prev, heirs: prev.heirs.slice(0, -1) }));
+  }, []);
+
+  /** 付表の明細を1枚分（`rows` 件）増やす */
+  const addDetailPage = useCallback((form: string, rows: number) => {
+    setData((prev) => {
+      const current = prev.details[form] ?? [];
+      const next = [...current, ...Array.from({ length: rows }, (): Values => ({}))];
+      return { ...prev, details: { ...prev.details, [form]: next } };
+    });
+  }, []);
+
+  /** 付表の明細の最後の1枚を削る（1枚目は残す） */
+  const removeDetailPage = useCallback((form: string, rows: number) => {
+    setData((prev) => {
+      const current = prev.details[form] ?? [];
+      if (current.length <= rows) return prev;
+      return { ...prev, details: { ...prev.details, [form]: current.slice(0, -rows) } };
+    });
   }, []);
 
   /** 様式を「使用する／しない」で切り替える（印刷対象の出し入れ） */
@@ -162,5 +214,8 @@ export function useFormData() {
     }
   }, []);
 
-  return { data, g, u, addHeir, removeHeir, toggleUsed, reset, exportJson, importJson, maxHeirs: MAX_HEIRS };
+  return {
+    data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage,
+    toggleUsed, reset, exportJson, importJson, maxHeirs: MAX_HEIRS,
+  };
 }
