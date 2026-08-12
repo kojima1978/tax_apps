@@ -232,8 +232,9 @@ function bottomRows(): GridCell[] {
 /**
  * 第1表のセルを組み立てる。
  * @param heir 1人目の財産取得者のフィールド接頭辞（'h0.'）
+ * @param transferred 他の様式からの転記になっている行（読み取り専用にする）
  */
-export function buildTable1(heir: string): GridCell[] {
+export function buildTable1(heir: string, transferred: readonly string[] = []): GridCell[] {
   return [
     ...topRows(),
     ...personLabelColumn(PY),
@@ -242,7 +243,7 @@ export function buildTable1(heir: string): GridCell[] {
     ...calcBands(RY),
     ...calcRows({
       ry: RY, keys: GENERIC, codes1: TOTAL_CODES, codes2: HEIR_CALC_CODES,
-      p1: TOTALS, p2: heir, who1: '各人の合計', who2: '1人目', readOnly1: true,
+      p1: TOTALS, p2: heir, who1: '各人の合計', who2: '1人目', readOnly1: true, transferred,
     }),
     ...specialRows(heir),
     ...bottomRows(),

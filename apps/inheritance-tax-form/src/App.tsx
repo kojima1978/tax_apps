@@ -7,7 +7,15 @@ import {
 import {
   TABLE2_EDITION, TABLE2_FORM_CODE, TABLE2_JOINT_NOTES, TABLE2_NOTES, TABLE2_SUBTITLE, TABLE2_TITLE, buildTable2,
 } from './forms/table2';
+import {
+  TABLE11_FORM_CODE, TABLE11_ROWS, TABLE11_SUBTITLE, TABLE11_TITLE, buildTable11,
+} from './forms/table11';
 import { heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
+
+/** 第11表を使う場合、第1表①は第11表2③からの転記になる */
+const TABLE11_TRANSFERRED = ['v1'] as const;
+/** 転記が無いときの既定値（useMemo の依存を安定させるため定数にする） */
+const EMPTY_TRANSFERRED: readonly string[] = [];
 
 /** 画面左の一覧と印刷順を決める様式の登録簿。様式を足したらここに1行追加する。 */
 interface FormMeta {
@@ -24,6 +32,7 @@ const FORMS: FormMeta[] = [
   { id: 'table1', label: '第1表', note: '相続税の申告書', required: true },
   { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
   { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
+  { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
 ];
 
 /** 様式の枠外に印字されている注記と適用年分 */
@@ -56,19 +65,24 @@ function ConfirmBoxes() {
   );
 }
 
-interface ContPageProps {
+interface PageProps {
   page: number;
   g: (field: string) => string;
   u: (field: string, value: string) => void;
 }
 
+interface ContPageProps extends PageProps {
+  /** 他の様式からの転記になっている行（読み取り専用にする） */
+  transferred: readonly string[];
+}
+
 /** 第1表（続）1枚（財産を取得した人2人分） */
-function ContPage({ page, g, u }: ContPageProps) {
+function ContPage({ page, g, u, transferred }: ContPageProps) {
   const a = 1 + page * 2;
   const b = a + 1;
   const cells = useMemo(
-    () => buildTable1Cont(heirPrefix(a), heirLabel(a), heirPrefix(b), heirLabel(b)),
-    [a, b],
+    () => buildTable1Cont(heirPrefix(a), heirLabel(a), heirPrefix(b), heirLabel(b), transferred),
+    [a, b, transferred],
   );
   return (
     <div className="gov-page">
@@ -91,14 +105,43 @@ function ContPage({ page, g, u }: ContPageProps) {
   );
 }
 
+/** 第11表1枚（財産を取得した人10人分） */
+function Table11Page({ page, g, u }: PageProps) {
+  const cells = useMemo(
+    () => buildTable11(COMMON, Array.from({ length: TABLE11_ROWS }, (_, i) => {
+      const index = page * TABLE11_ROWS + i;
+      return { prefix: heirPrefix(index), label: heirLabel(index) };
+    })),
+    [page],
+  );
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE11_FORM_CODE}
+        title={TABLE11_TITLE}
+        subtitle={TABLE11_SUBTITLE}
+        aspectRatio="1073 / 1579"
+        formId={`t11p${page}`}
+        footer={<Footnote notes="" />}
+      />
+    </div>
+  );
+}
+
 export default function App() {
   const { data, g, u, addHeir, removeHeir, toggleUsed, reset, exportJson, importJson, maxHeirs } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
 
-  const table1Cells = useMemo(() => buildTable1(heirPrefix(0)), []);
+  // 第11表を使うと第1表①がその転記欄になるため、①を読み取り専用にする
+  const transferred = data.used.includes('table11') ? TABLE11_TRANSFERRED : EMPTY_TRANSFERRED;
+  const table1Cells = useMemo(() => buildTable1(heirPrefix(0), transferred), [transferred]);
   const table2Cells = useMemo(() => buildTable2(COMMON, TOTALS), []);
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
+  const table11Pages = Math.max(1, Math.ceil(data.heirs.length / TABLE11_ROWS));
 
   /** その様式を提出する（＝印刷する）か */
   const used = (form: FormMeta): boolean => {
@@ -122,7 +165,7 @@ export default function App() {
       </div>
     ),
     table1cont: Array.from({ length: contPages }, (_, page) => (
-      <ContPage key={page} page={page} g={g} u={u} />
+      <ContPage key={page} page={page} g={g} u={u} transferred={transferred} />
     )),
     table2: (
       <div className="gov-page">
@@ -144,6 +187,9 @@ export default function App() {
         />
       </div>
     ),
+    table11: Array.from({ length: table11Pages }, (_, page) => (
+      <Table11Page key={page} page={page} g={g} u={u} />
+    )),
   };
 
   const onPickFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -209,6 +255,7 @@ export default function App() {
           <p className="app-note no-print">
             Ⓑ「遺産に係る基礎控除額」・⑦「相続税の総額」・「法定相続人の数」は第2表から自動転記されます。
             第1表の④⑥⑧⑨⑮⑯⑲㉑㉒㉖㉗ と「各人の合計」列、第2表の⑤以降も自動計算です（⑧あん分割合は端数調整のため上書きできます）。
+            第11表を使用すると、その2③「取得財産の価額」が第1表①へ自動転記されます（第1表①は入力できなくなります）。
           </p>
 
           {FORMS.map((form) => (

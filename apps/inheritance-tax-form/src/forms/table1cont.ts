@@ -115,8 +115,9 @@ function markedOutRows(): GridCell[] {
  * 第1表（続）のセルを組み立てる。
  * @param pA 左ブロックのフィールド接頭辞 / @param whoA そのアクセシブル名
  * @param pB 右ブロックのフィールド接頭辞 / @param whoB そのアクセシブル名
+ * @param transferred 他の様式からの転記になっている行（読み取り専用にする）
  */
-export function buildTable1Cont(pA: string, whoA: string, pB: string, whoB: string): GridCell[] {
+export function buildTable1Cont(pA: string, whoA: string, pB: string, whoB: string, transferred: readonly string[] = []): GridCell[] {
   return [
     ...topRows(),
     ...personLabelColumn(PY),
@@ -125,7 +126,7 @@ export function buildTable1Cont(pA: string, whoA: string, pB: string, whoB: stri
     ...calcBands(RY),
     ...calcRows({
       ry: RY, keys: [...GENERIC_ROWS], codes1: CODES_CALC_A, codes2: CODES_CALC_B,
-      p1: pA, p2: pB, who1: whoA, who2: whoB,
+      p1: pA, p2: pB, who1: whoA, who2: whoB, transferred,
     }),
     ...markedOutRows(),
   ];

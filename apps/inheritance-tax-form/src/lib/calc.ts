@@ -1,5 +1,5 @@
 /**
- * 第1表・第1表（続）・第2表の自動計算。
+ * 第1表・第1表（続）・第2表・第11表の自動計算。
  *
  * 【単位の扱い】
  * 様式には末尾の「000」「00」があらかじめ印字されている欄がある（⑥・Ⓑ・⑦・⑰・⑳・㉑・㉔）。
@@ -9,6 +9,8 @@
  * 【様式間の転記】
  * 第1表のⒷ・⑦・法定相続人の数は第2表からの転記欄。手入力させず totals（'t.' スコープ）に置き、
  * 両様式の同じキーを参照させることで転記のずれが起きないようにしている。
+ * 第1表①は第11表2③からの転記欄。こちらは人ごとの欄なので相続人の値（'h0.' スコープ）に
+ * 置き、第11表を使用する間だけ ① を ③ で上書きして読み取り専用にする。
  */
 
 import { RATE_BRACKETS } from '../forms/table2';
@@ -70,16 +72,22 @@ function truncHundred(n: number): number {
  * 相続人1人分の計算。手入力欄はそのままに、算出欄だけを上書きした新しい値を返す。
  * @param total7 ⑦相続税の総額（円）
  * @param totalA Ⓐ課税価格の合計額（円）
+ * @param table11 第11表を使用する（＝第1表①を第11表2③から転記して読み取り専用にする）
  */
-export function computeHeir(h: Values, total7: number, totalA: number): Values {
+export function computeHeir(h: Values, total7: number, totalA: number, table11 = false): Values {
   const out: Values = { ...h };
   const has = (...vals: (string | undefined)[]) => vals.some((v) => (v ?? '').trim() !== '');
   /** 算式に使う欄が1つも埋まっていない行は、0ではなく空欄のままにする（白紙の様式を0で埋めない） */
   const show = (n: number, present: boolean) => (present ? str(n) : '');
 
+  // 第11表2 ③ 取得財産の価額（①＋②）。第11表を使う場合は第1表①がこれの転記欄になる。
+  const hasT11 = has(h.t11v1, h.t11v2);
+  out.t11v3 = show(num(h.t11v1) + num(h.t11v2), hasT11);
+  if (table11) out.v1 = out.t11v3;
+
   // ④ 純資産価額（①＋②−③）（赤字のときは0）
-  const v4 = Math.max(0, num(h.v1) + num(h.v2) - num(h.v3));
-  out.v4 = show(v4, has(h.v1, h.v2, h.v3));
+  const v4 = Math.max(0, num(out.v1) + num(h.v2) - num(h.v3));
+  out.v4 = show(v4, has(out.v1, h.v2, h.v3));
 
   // ⑥ 課税価格（④＋⑤）（1,000円未満切捨て） — 様式の「000」に合わせ千円単位で保持
   const v6yen = Math.floor((v4 + num(h.v5)) / 1000) * 1000;
@@ -210,18 +218,21 @@ export interface Computed {
 /**
  * 全体を計算する。⑧の按分にはⒶ（＝⑥の合計）を、⑨には⑦（＝第2表⑧）を使うため、
  * ⑥→Ⓐ→（第2表）⑧→⑨ の順に第1表を2周する。循環はしない。
+ * @param used 使用する様式のID。第11表を使うかどうかで第1表①の扱いが変わる。
  */
-export function computeAll(common: Values, heirs: Values[], lawful: Values[]): Computed {
+export function computeAll(common: Values, heirs: Values[], lawful: Values[], used: string[] = []): Computed {
+  const table11 = used.includes('table11');
+
   // 1周目: Ⓐ（⑥の合計）を確定させる
-  const firstPass = heirs.map((h) => computeHeir(h, 0, 0));
+  const firstPass = heirs.map((h) => computeHeir(h, 0, 0, table11));
   const totalA = firstPass.reduce((s, h) => s + yen(h, 'v6'), 0);
 
   // 第2表: Ⓐと法定相続人から相続税の総額⑧（＝第1表⑦）を求める
   const table2 = computeTable2(common, lawful, totalA / 1000);
   const total7 = yen(table2.totals, 't7');
 
-  // 2周目: 確定したⒶ・⑦で⑧以降を計算する
-  const computed = heirs.map((h) => computeHeir(h, total7, totalA));
+  // 2周目: 確定したⒶ・⑦で⑧以降を計算する。第11表の項番は入力順の通し番号。
+  const computed: Values[] = heirs.map((h, i) => ({ ...computeHeir(h, total7, totalA, table11), t11no: str(i + 1) }));
 
   const totals: Values = { ...table2.totals };
   for (const key of TOTAL_ROWS) {

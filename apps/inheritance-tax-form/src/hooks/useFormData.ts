@@ -27,7 +27,7 @@ const STORAGE_KEY = 'inheritance-tax-form:v1';
 /** 第1表に1人＋第1表（続）10枚に2人ずつ */
 const MAX_HEIRS = 21;
 /** 既定で使用する様式 */
-const DEFAULT_USED = ['table1', 'table2'];
+const DEFAULT_USED = ['table1', 'table2', 'table11'];
 
 const emptyLawful = (): Values[] => Array.from({ length: LAWFUL_ROWS }, () => ({}));
 const emptyData = (): FormData => ({ common: {}, heirs: [{}], lawful: emptyLawful(), used: [...DEFAULT_USED] });
@@ -86,7 +86,7 @@ export function useFormData() {
     }
   }, [data]);
 
-  const computed = useMemo(() => computeAll(data.common, data.heirs, data.lawful), [data]);
+  const computed = useMemo(() => computeAll(data.common, data.heirs, data.lawful, data.used), [data]);
 
   const g = useCallback((field: string): string => {
     const [scope, key] = splitField(field);
