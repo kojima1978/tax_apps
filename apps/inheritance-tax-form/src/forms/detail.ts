@@ -83,6 +83,11 @@ export interface DetailField {
   name?: string;
   /** 縦に複数行をまたぐ欄。`rowLines` の添字で指定する（省略時はその行の範囲） */
   r?: readonly [number, number];
+  /**
+   * コードを選ぶと連動して書き換える欄（細目コード → 細目の名称）。
+   * `field` は接頭辞の付かない欄名で書く（組み立て時に組ごとの接頭辞を付ける）。
+   */
+  autoFill?: { field: string; byValue: Record<string, string> };
   /** 入力欄の種類（桁数・カンマ区切りなど） */
   cell?: Partial<GridCell>;
 }
@@ -170,6 +175,7 @@ function fieldCells(
   if (f.field !== undefined) {
     cells.push(mk(y, s.col(valueLeft, right), {
       kind: 'input', field: `${prefix}${f.field}`, ariaLabel: `${who}の${f.name ?? f.field}`, ...f.cell,
+      ...(f.autoFill ? { autoFill: { ...f.autoFill, field: `${prefix}${f.autoFill.field}` } } : {}),
     }));
   } else if (f.text !== undefined) {
     cells.push(label(y, s.col(valueLeft, right), f.text, f.cell));

@@ -6,6 +6,9 @@
  * 座標はいずれも様式PNG（150dpi）の実測px。
  */
 
+import {
+  FOREIGN_OPTIONS, TABLE11F1_KINDS, TABLE11F1_SPECIAL_OPTIONS, codeNames, codeOptions,
+} from '../data/detailCodes';
 import type { DetailFrame, DetailShareCodes, DetailSpec } from './detail';
 
 export const TABLE11F1_FORM_CODE = 'NTA0KSE161010020';
@@ -84,7 +87,12 @@ export const TABLE11F1_SPEC: DetailSpec = {
   head: HEAD,
   rows: [
     [
-      { x: [134, 160, 195], code: 'G1', field: 'kindCode', name: '細目コード', cell: { integerDigits: 2, align: 'center' } },
+      {
+        x: [134, 160, 195], code: 'G1', field: 'kindCode', name: '細目コード',
+        // コードを選ぶと右隣の「細目」に名称が入る（そのあと手で書き換えられる）
+        autoFill: { field: 'kind', byValue: codeNames(TABLE11F1_KINDS) },
+        cell: { options: codeOptions(TABLE11F1_KINDS), compactSelectedOption: true },
+      },
       { x: [195, 221, 308], code: 'E0', field: 'kind', name: '細目' },
       { x: [308, 334, 426], code: 'E4', field: 'pref', name: '所在場所（都道府県）' },
       { x: [426, 452, 577], code: 'E5', field: 'city', name: '所在場所（市区町村）' },
@@ -93,7 +101,7 @@ export const TABLE11F1_SPEC: DetailSpec = {
     ],
     [
       { x: [134, 160, 251.5], code: 'E1', field: 'usage', name: '利用区分' },
-      { x: [251.5, 277.5, 308], code: 'G2', field: 'foreign', name: '国外', cell: { integerDigits: 1, align: 'center' } },
+      { x: [251.5, 277.5, 308], code: 'G2', field: 'foreign', name: '国外', cell: { options: FOREIGN_OPTIONS, compactSelectedOption: true } },
       { x: [308, 334, 577], code: 'E6', field: 'town', name: '所在場所（大字・丁目）' },
       { x: [577, 603, 705], code: 'G3', field: 'fixedValue', name: '固定資産税評価額', cell: { commaInteger: true, align: 'right' } },
       { x: [705, 731, 762], code: 'G4', field: 'shareN', name: '持分割合の分子', cell: { align: 'center' } },
@@ -101,7 +109,7 @@ export const TABLE11F1_SPEC: DetailSpec = {
       { x: [782, 808, 837], code: 'G5', field: 'shareD', name: '持分割合の分母', cell: { align: 'center' } },
     ],
     [
-      { x: [134, 160, 195], code: 'E2', field: 'special', name: '特例' },
+      { x: [134, 160, 195], code: 'E2', field: 'special', name: '特例', cell: { options: TABLE11F1_SPECIAL_OPTIONS, compactSelectedOption: true } },
       { x: [195, 221, 308], code: 'E3', field: 'note', name: '備考' },
       { x: [308, 334, 577], code: 'E7', field: 'lot', name: '所在場所（地番又は家屋番号）' },
       { x: [577, 603, 837], code: 'G6', field: 'value', name: '価額', cell: { commaInteger: true, align: 'right' } },

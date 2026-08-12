@@ -6,6 +6,9 @@
  * 座標はいずれも様式PNG（150dpi）の実測px。
  */
 
+import {
+  FOREIGN_OPTIONS, TABLE11F4_KINDS, TABLE11F4_SPECIAL_OPTIONS, codeNames, codeOptions,
+} from '../data/detailCodes';
 import type { DetailFrame, DetailShareCodes, DetailSpec } from './detail';
 
 export const TABLE11F4_FORM_CODE = 'NTA0KSE164010020';
@@ -82,7 +85,12 @@ export const TABLE11F4_SPEC: DetailSpec = {
   head: HEAD,
   rows: [
     [
-      { x: [138.5, 165.5, 199.5], code: 'G1', field: 'kindCode', name: '細目コード', cell: { integerDigits: 2, align: 'center' } },
+      {
+        x: [138.5, 165.5, 199.5], code: 'G1', field: 'kindCode', name: '細目コード',
+        // コードを選ぶと右隣の「細目」に名称が入る（そのあと手で書き換えられる）
+        autoFill: { field: 'kind', byValue: codeNames(TABLE11F4_KINDS) },
+        cell: { options: codeOptions(TABLE11F4_KINDS), compactSelectedOption: true },
+      },
       { x: [199.5, 227.5, 322.5], code: 'E0', field: 'kind', name: '細目' },
       // 財産の名称等・所在場所等は上下2行分ずつをまたぐ
       { x: [322.5, 350.5, 634.5], code: 'E3', field: 'assetName', name: '財産の名称等', r: [0, 2] },
@@ -91,8 +99,11 @@ export const TABLE11F4_SPEC: DetailSpec = {
       { x: [757.5, 785.5, 881.5], code: 'C0', field: 'multiple', name: '倍数', cell: { align: 'right' } },
     ],
     [
-      { x: [138.5, 165.5, 261.5], code: 'E1', field: 'special', name: '特例' },
-      { x: [261.5, 288.5, 322.5], code: 'G2', field: 'foreign', name: '国外', cell: { integerDigits: 1, align: 'center' } },
+      {
+        x: [138.5, 165.5, 261.5], code: 'E1', field: 'special', name: '特例',
+        cell: { options: TABLE11F4_SPECIAL_OPTIONS, compactSelectedOption: true },
+      },
+      { x: [261.5, 288.5, 322.5], code: 'G2', field: 'foreign', name: '国外', cell: { options: FOREIGN_OPTIONS, compactSelectedOption: true } },
       { x: [634.5, 662.5, 881.5], code: 'C1', field: 'unitPrice', name: '単価', cell: { align: 'right' } },
     ],
     [

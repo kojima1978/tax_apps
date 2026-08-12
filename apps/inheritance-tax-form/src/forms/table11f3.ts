@@ -5,6 +5,9 @@
  * 座標はいずれも様式PNG（150dpi）の実測px。
  */
 
+import {
+  BANK_CODE_OPTIONS, BRANCH_CODE_OPTIONS, FOREIGN_OPTIONS, TABLE11F3_KINDS, codeNames, codeOptions,
+} from '../data/detailCodes';
 import type { DetailFrame, DetailShareCodes, DetailSpec } from './detail';
 
 export const TABLE11F3_FORM_CODE = 'NTA0KSE163010020';
@@ -86,9 +89,17 @@ export const TABLE11F3_SPEC: DetailSpec = {
   head: HEAD,
   rows: [
     [
-      { x: [146.5, 173.5, 217.5], code: 'G1', field: 'kindCode', name: '口座種別等コード', cell: { integerDigits: 2, align: 'center' } },
+      {
+        x: [146.5, 173.5, 217.5], code: 'G1', field: 'kindCode', name: '口座種別等コード',
+        // コードを選ぶと右隣の「口座種別等」に名称が入る（そのあと手で書き換えられる）
+        autoFill: { field: 'kind', byValue: codeNames(TABLE11F3_KINDS) },
+        cell: { options: codeOptions(TABLE11F3_KINDS), compactSelectedOption: true },
+      },
       { x: [217.5, 243.5, 357.5], code: 'E0', field: 'kind', name: '口座種別等' },
-      { x: [357.5, 379.5, 423.5], code: 'G3', field: 'bankCode', name: '金融機関等コード' },
+      {
+        x: [357.5, 379.5, 423.5], code: 'G3', field: 'bankCode', name: '金融機関等コード',
+        cell: { options: BANK_CODE_OPTIONS, compactSelectedOption: true },
+      },
       { x: [423.5, 449.5, 647.5], code: 'E3', field: 'bank', name: '金融機関等の名称' },
       // 数量と単価は上2行分をまたぐ
       { x: [647.5, 674.5, 784.5], code: 'E6', field: 'quantity', name: '数量', r: [0, 2], cell: { align: 'right' } },
@@ -96,8 +107,11 @@ export const TABLE11F3_SPEC: DetailSpec = {
     ],
     [
       { x: [146.5, 173.5, 287.5], code: 'E1', field: 'account', name: '口座番号' },
-      { x: [287.5, 313.5, 357.5], code: 'G2', field: 'foreign', name: '国外', cell: { integerDigits: 1, align: 'center' } },
-      { x: [357.5, 379.5, 423.5], code: 'G4', field: 'branchCode', name: '支店等コード' },
+      { x: [287.5, 313.5, 357.5], code: 'G2', field: 'foreign', name: '国外', cell: { options: FOREIGN_OPTIONS, compactSelectedOption: true } },
+      {
+        x: [357.5, 379.5, 423.5], code: 'G4', field: 'branchCode', name: '支店等コード',
+        cell: { options: BRANCH_CODE_OPTIONS, compactSelectedOption: true },
+      },
       { x: [423.5, 449.5, 647.5], code: 'E4', field: 'branch', name: '支店等の名称' },
       // 価額は下2行分をまたぐ
       { x: [647.5, 674.5, 918.5], code: 'G5', field: 'value', name: '価額', r: [2, 4], cell: { commaInteger: true, align: 'right' } },

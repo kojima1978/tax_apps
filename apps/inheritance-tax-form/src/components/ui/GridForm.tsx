@@ -35,6 +35,8 @@ export interface GridCell {
   readOnly?: boolean;                // 自動計算などの編集不可欄
   options?: (string | { value: string; label: string })[]; // 選択式入力の候補（空文字は未選択）
   compactSelectedOption?: boolean;   // 選択中の項目はコードのみ表示（狭いコード記入枠用）
+  /** 選択に連動して別の欄も書き換える（細目コード → 細目の名称）。書き換えた後も手入力できる */
+  autoFill?: { field: string; byValue: Record<string, string> };
   highlightWhen?: (g: (field: string) => string) => boolean; // 自動判定時の強調条件
   selectValue?: { field: string; value: string }; // セルをクリックして指定値を選択
   toggleField?: string;              // セルをクリックして指定フィールドをオン・オフ
@@ -331,7 +333,10 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(c.options, g(c.field))}` : ''}`}
                 title={selectedOptionLabel(c.options, g(c.field)) || undefined}
                 value={g(c.field)}
-                onChange={(e) => u(c.field!, e.target.value)}
+                onChange={(e) => {
+                  u(c.field!, e.target.value);
+                  if (c.autoFill) u(c.autoFill.field, c.autoFill.byValue[e.target.value] ?? '');
+                }}
                 onKeyDown={onEnterNext}
                 style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: 'left', fontSize: 'inherit', background: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: 'pointer' }}
               >
