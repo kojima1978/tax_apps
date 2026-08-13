@@ -183,6 +183,23 @@ export function useFormData() {
     });
   }, []);
 
+  /**
+   * 明細の件数をちょうど `count` 件にする。
+   * 枚数ではなく件数で増減する様式（第11・11の2表の付表1と、その別表1）用。
+   * 表示件数は「配列の長さ」ではなく「様式が持つ最低枚数」との大きい方なので、
+   * 未作成（長さ0）の状態から ＋ を押したときも飛ばずに1件だけ増える。
+   */
+  const setDetailCount = useCallback((form: string, count: number) => {
+    setData((prev) => {
+      const current = prev.details[form] ?? [];
+      if (count <= 0 || count === current.length) return prev;
+      const next = count < current.length
+        ? current.slice(0, count)
+        : [...current, ...Array.from({ length: count - current.length }, (): Values => ({}))];
+      return { ...prev, details: { ...prev.details, [form]: next } };
+    });
+  }, []);
+
   /** 様式を「使用する／しない」で切り替える（印刷対象の出し入れ） */
   const toggleUsed = useCallback((id: string) => {
     setData((prev) => ({
@@ -215,7 +232,7 @@ export function useFormData() {
   }, []);
 
   return {
-    data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage,
+    data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage, setDetailCount,
     toggleUsed, reset, exportJson, importJson, maxHeirs: MAX_HEIRS,
   };
 }

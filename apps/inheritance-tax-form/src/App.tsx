@@ -22,6 +22,15 @@ import {
   TABLE15_ASPECT, TABLE15_EDITION, TABLE15_FORM_CODE, TABLE15_SUBTITLE, TABLE15_TITLE,
   buildTable15,
 } from './forms/table15';
+import {
+  TABLE1112F1C_FORM_CODE, TABLE1112F1C_SUBTITLE, TABLE1112F1C_TITLE, TABLE1112F1_CONT_ROWS,
+  TABLE1112F1_EDITION, TABLE1112F1_FORM_CODE, TABLE1112F1_ROWS, TABLE1112F1_SUBTITLE,
+  TABLE1112F1_TITLE, buildTable1112f1, table1112f1Aspect, table1112f1First,
+} from './forms/table1112f1';
+import {
+  TABLE1112F1B_ASPECT, TABLE1112F1B_FORM_CODE, TABLE1112F1B_OWNERS, TABLE1112F1B_SUBTITLE,
+  TABLE1112F1B_TITLE, buildTable1112f1b,
+} from './forms/table1112f1b';
 import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
@@ -64,6 +73,9 @@ const FORMS: FormMeta[] = [
   { id: 'table11f2', label: '第11表の付表2', note: '財産の明細書（有価証券用）' },
   { id: 'table11f3', label: '第11表の付表3', note: '財産の明細書（現金・預貯金等用）' },
   { id: 'table11f4', label: '第11表の付表4', note: '財産の明細書（事業用・家庭用・その他）' },
+  { id: 'table1112f1', label: '第11・11の2表の付表1', note: '小規模宅地等についての課税価格の計算明細書' },
+  { id: 'table1112f1c', label: '同（続）', note: '小規模宅地等の明細 4件目以降', auto: true },
+  { id: 'table1112f1b', label: '同（別表1）', note: '一の宅地等ごとの取得者別の面積・評価額' },
   { id: 'table13', label: '第13表', note: '債務及び葬式費用の明細書' },
   { id: 'table15', label: '第15表', note: '相続財産の種類別価額表' },
   { id: 'table15cont', label: '第15表（続）', note: '財産を取得した人 2人目以降', auto: true },
@@ -277,6 +289,78 @@ function Table15ContPage({ page, g, u, t15Transferred }: Table15ContPageProps) {
   );
 }
 
+interface Table1112f1PageProps {
+  g: (field: string) => string;
+  u: (field: string, value: string) => void;
+  /** 0＝本表、1以降＝（続）の何枚目か */
+  sheet: number;
+  /** この用紙に載る明細の件数（本表3件・（続）5件） */
+  rows: number;
+  /** 明細ごとに別表1と結び付いているか。'0'/'1' の並びにして useMemo を効かせる */
+  linkedMask: string;
+  whoOptions: GridCell['options'];
+}
+
+/** 第11・11の2表の付表1／（続）1枚 */
+function Table1112f1Page({ sheet, rows, linkedMask, whoOptions, g, u }: Table1112f1PageProps) {
+  const first = table1112f1First(sheet);
+  const cells = useMemo(
+    () => buildTable1112f1(COMMON, TOTALS, sheet, Array.from({ length: rows }, (_, i) => ({
+      prefix: detailPrefix('table1112f1', first + i),
+      index: first + i,
+      label: detailLabel(first + i),
+      linked: linkedMask[i] === '1',
+    })), whoOptions),
+    [sheet, first, rows, linkedMask, whoOptions],
+  );
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={sheet === 0 ? TABLE1112F1_FORM_CODE : TABLE1112F1C_FORM_CODE}
+        title={sheet === 0 ? TABLE1112F1_TITLE : TABLE1112F1C_TITLE}
+        subtitle={sheet === 0 ? TABLE1112F1_SUBTITLE : TABLE1112F1C_SUBTITLE}
+        aspectRatio={table1112f1Aspect(sheet)}
+        formId={`t1112f1s${sheet}`}
+        footer={<Footnote notes="" edition={TABLE1112F1_EDITION} />}
+      />
+    </div>
+  );
+}
+
+interface Table1112f1bPageProps {
+  g: (field: string) => string;
+  u: (field: string, value: string) => void;
+  /** 何枚目（＝一の宅地等の何件目）か */
+  sheet: number;
+  whoOptions: GridCell['options'];
+}
+
+/** 第11・11の2表の付表1（別表1）1枚（一の宅地等1件・取得者2人分） */
+function Table1112f1bPage({ sheet, whoOptions, g, u }: Table1112f1bPageProps) {
+  const cells = useMemo(
+    () => buildTable1112f1b(COMMON, TOTALS, detailPrefix('table1112f1b', sheet), sheet, whoOptions),
+    [sheet, whoOptions],
+  );
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE1112F1B_FORM_CODE}
+        title={`${TABLE1112F1B_TITLE} ${sheet + 1}件目`}
+        subtitle={TABLE1112F1B_SUBTITLE}
+        aspectRatio={TABLE1112F1B_ASPECT}
+        formId={`t1112f1b${sheet}`}
+        footer={<Footnote notes="" edition={TABLE1112F1_EDITION} />}
+      />
+    </div>
+  );
+}
+
 interface DetailPageProps extends PageProps {
   form: keyof typeof DETAIL_SPECS;
 }
@@ -310,7 +394,7 @@ function DetailPage({ form, page, g, u }: DetailPageProps) {
 
 export default function App() {
   const {
-    data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage,
+    data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage, setDetailCount,
     toggleUsed, reset, exportJson, importJson, maxHeirs,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -350,8 +434,35 @@ export default function App() {
     [t15Transferred],
   );
 
+  /** 第11・11の2表の付表1の明細の件数（本表1枚分は常に出す） */
+  const f1Count = Math.max(TABLE1112F1_ROWS, data.details.table1112f1?.length ?? 0);
+  /** （続）の枚数（本表に3件載るので4件目から5件ずつ） */
+  const f1ContPages = data.used.includes('table1112f1')
+    ? Math.ceil(Math.max(0, f1Count - TABLE1112F1_ROWS) / TABLE1112F1_CONT_ROWS)
+    : 0;
+  /** 別表1の枚数（一の宅地等1件＝1枚） */
+  const f1bCount = Math.max(1, data.details.table1112f1b?.length ?? 0);
+  /**
+   * 明細の「対応する別表1」の選択肢。値は `枚数-取得者` で、
+   * 選ぶとその取得者の「2 選択特例対象宅地等」が明細の③④に転記される。
+   */
+  const f1LinkOptions = useMemo(
+    () => Array.from({ length: f1bCount }, (_, s) => Array.from(
+      { length: TABLE1112F1B_OWNERS },
+      (_unused, b) => ({ value: `${s}-${b}`, label: `別表1 ${s + 1}件目・取得者${b + 1}` }),
+    )).flat(),
+    [f1bCount],
+  );
+  /** 明細ごとに別表1と結び付いているか（③④を読み取り専用にする） */
+  const f1LinkedMask = useMemo(
+    () => Array.from({ length: f1Count }, (_, i) => ((data.details.table1112f1?.[i]?.link ?? '') === '' ? '0' : '1')).join(''),
+    [f1Count, data.details.table1112f1],
+  );
+
   /** 自動で付く様式の枚数（0枚なら提出しない） */
-  const autoPages: Record<string, number> = { table1cont: contPages, table15cont: t15ContPages };
+  const autoPages: Record<string, number> = {
+    table1cont: contPages, table15cont: t15ContPages, table1112f1c: f1ContPages,
+  };
 
   /** その様式を提出する（＝印刷する）か */
   const used = (form: FormMeta): boolean => {
@@ -417,6 +528,81 @@ export default function App() {
         </div>
       );
     }),
+    table1112f1: (
+      <>
+        <Table1112f1Page
+          sheet={0}
+          rows={TABLE1112F1_ROWS}
+          linkedMask={f1LinkedMask.slice(0, TABLE1112F1_ROWS)}
+          whoOptions={whoOptions}
+          g={g}
+          u={u}
+        />
+        <div className="app-pagectl no-print">
+          <button
+            type="button"
+            className="app-btn"
+            onClick={() => setDetailCount('table1112f1', f1Count - 1)}
+            disabled={f1Count <= TABLE1112F1_ROWS}
+          >
+            −
+          </button>
+          小規模宅地等の明細 {f1Count}件（本表{TABLE1112F1_ROWS}件・（続）{TABLE1112F1_CONT_ROWS}件／枚）
+          <button type="button" className="app-btn" onClick={() => setDetailCount('table1112f1', f1Count + 1)}>＋</button>
+        </div>
+        {/* 明細と別表1の対応づけ。選ぶと③④が別表1から転記されて読み取り専用になる */}
+        <div className="app-linkctl no-print">
+          {Array.from({ length: f1Count }, (_, i) => (
+            <label key={i}>
+              {detailLabel(i)}の別表1
+              <select
+                value={data.details.table1112f1?.[i]?.link ?? ''}
+                onChange={(event) => u(`${detailPrefix('table1112f1', i)}link`, event.target.value)}
+                aria-label={`${detailLabel(i)}に対応する別表1`}
+              >
+                <option value="">使わない（③④は手入力）</option>
+                {f1LinkOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+      </>
+    ),
+    table1112f1c: Array.from({ length: f1ContPages }, (_, page) => {
+      const first = table1112f1First(page + 1);
+      return (
+        <Table1112f1Page
+          key={page}
+          sheet={page + 1}
+          rows={TABLE1112F1_CONT_ROWS}
+          linkedMask={f1LinkedMask.slice(first, first + TABLE1112F1_CONT_ROWS).padEnd(TABLE1112F1_CONT_ROWS, '0')}
+          whoOptions={whoOptions}
+          g={g}
+          u={u}
+        />
+      );
+    }),
+    table1112f1b: (
+      <>
+        {Array.from({ length: f1bCount }, (_, sheet) => (
+          <Table1112f1bPage key={sheet} sheet={sheet} whoOptions={whoOptions} g={g} u={u} />
+        ))}
+        <div className="app-pagectl no-print">
+          <button
+            type="button"
+            className="app-btn"
+            onClick={() => setDetailCount('table1112f1b', f1bCount - 1)}
+            disabled={f1bCount <= 1}
+          >
+            −
+          </button>
+          一の宅地等 {f1bCount}件（1件＝1枚・取得者{TABLE1112F1B_OWNERS}人／枚）
+          <button type="button" className="app-btn" onClick={() => setDetailCount('table1112f1b', f1bCount + 1)}>＋</button>
+        </div>
+      </>
+    ),
     table13: (
       <>
         {Array.from({ length: t13Pages }, (_, page) => (

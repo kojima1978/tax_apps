@@ -17,6 +17,8 @@
 
 import { DETAIL_KINDS } from '../data/detailCodes';
 import { TABLE112_ROWS } from '../forms/table112';
+import { TABLE1112F1_RATE } from '../forms/table1112f1';
+import { SLOTS_BY_KIND, SLOTS_BY_ROW, TABLE1112F1B_OWNERS, TABLE1112F1B_ROWS } from '../forms/table1112f1b';
 import { TABLE13_DEBT_ROWS, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS } from '../forms/table13';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
@@ -454,6 +456,92 @@ export interface Computed {
   totals: Values;
 }
 
+/** 面積欄の保存形式（小数第2位まで）。0 は空欄にする。 */
+function area(n: number): string {
+  return n === 0 ? '' : n.toFixed(2);
+}
+
+/**
+ * 第11・11の2表の付表1（別表1）の「1 持分に応じた宅地等」と
+ * 「3 特例の対象とならない宅地等（1−2）」を計算する。
+ * 1 ＝ A〜Fの面積・評価額 × 持分割合（評価額は円未満切捨て）、3 ＝ 1 − 2。
+ * B行は2欄が上下2段に分かれるので、3欄からは2段の合計を引く。
+ */
+function computeTable1112f1b(sheets: Values[]): Values {
+  const out: Values = {};
+  sheets.forEach((s, si) => {
+    for (let b = 0; b < TABLE1112F1B_OWNERS; b += 1) {
+      const den = num(s[`p${b}den`]);
+      const share = den === 0 ? 0 : num(s[`p${b}num`]) / den;
+      for (let r = 0; r < TABLE1112F1B_ROWS; r += 1) {
+        const a1 = num(s[`r${r}a`]) * share;
+        const v1 = Math.floor(num(s[`r${r}v`]) * share);
+        const slots = SLOTS_BY_ROW[r] ?? [];
+        const selA = slots.reduce((t, k) => t + num(s[`p${b}s${k}a`]), 0);
+        const selV = slots.reduce((t, k) => t + num(s[`p${b}s${k}v`]), 0);
+        const key = `f1b${si}p${b}`;
+        out[`${key}o${r}a`] = area(a1);
+        out[`${key}o${r}v`] = v1 === 0 ? '' : str(v1);
+        out[`${key}n${r}a`] = area(a1 - selA);
+        out[`${key}n${r}v`] = v1 - selV === 0 ? '' : str(v1 - selV);
+      }
+    }
+  });
+  return out;
+}
+
+/**
+ * 第11・11の2表の付表1の明細（⑥⑦⑧）と、限度面積要件の判定（⑩・⑪）を計算する。
+ * ③④は別表1と結び付けた明細だけ、別表1の「2 選択特例対象宅地等」から転記する。
+ * ⑪は「4 貸付事業用宅地等」の選択が無ければイ、あればロだけを埋める。
+ */
+function computeTable1112f1(items: Values[], sheets: Values[]): Values {
+  const out: Values = {};
+  /** 添字は小規模宅地等の種類（1〜4） */
+  const byKind = [0, 0, 0, 0, 0];
+  items.forEach((item, i) => {
+    const kind = item.kind ?? '';
+    const link = /^(\d+)-(\d+)$/.exec(item.link ?? '');
+    let a3 = num(item.area);
+    let a4 = num(item.value);
+    if (link !== null) {
+      const sheet = sheets[Number(link[1])];
+      const slots = SLOTS_BY_KIND[kind] ?? [];
+      const b = Number(link[2]);
+      a3 = sheet === undefined ? 0 : slots.reduce((t, k) => t + num(sheet[`p${b}s${k}a`]), 0);
+      a4 = sheet === undefined ? 0 : slots.reduce((t, k) => t + num(sheet[`p${b}s${k}v`]), 0);
+      out[`f1d${i}v3`] = area(a3);
+      out[`f1d${i}v4`] = a4 === 0 ? '' : str(a4);
+    }
+    const a5 = num(item.sel);
+    const v6 = a3 === 0 ? 0 : Math.floor((a4 * a5) / a3);
+    const v7 = Math.floor(v6 * (TABLE1112F1_RATE[kind] ?? 0));
+    const filledIn = a3 > 0 && a4 > 0;
+    out[`f1d${i}v6`] = filledIn ? str(v6) : '';
+    out[`f1d${i}v7`] = filledIn ? str(v7) : '';
+    out[`f1d${i}v8`] = filledIn ? str(a4 - v7) : '';
+    const k = Math.trunc(num(kind));
+    if (k >= 1 && k <= 4) byKind[k] += a5;
+  });
+
+  // ⑩ 種類ごとの⑤の合計（全枚数を通した合計）
+  const [, k1, k2, k3, k4] = byKind as [number, number, number, number, number];
+  for (let k = 1; k <= 4; k += 1) out[`f1a${k}`] = area(byKind[k]!);
+
+  // ⑪ 限度面積（イ＝貸付事業用が無い場合、ロ＝ある場合）
+  const k23 = k2 + k3;
+  out.f1i1 = k4 > 0 ? '' : area(k1);
+  out.f1i2 = k4 > 0 ? '' : area(k23);
+  out.f1o1 = k4 > 0 ? area(k1) : '';
+  out.f1o2 = k4 > 0 ? area(k23) : '';
+  out.f1o3 = k4 > 0 ? area(k4) : '';
+  // 限度面積を超えている欄は強調するだけで、値は書き換えない
+  out.f1ovI1 = k4 === 0 && k1 > 330 ? '1' : '';
+  out.f1ovI2 = k4 === 0 && k23 > 400 ? '1' : '';
+  out.f1ovO = k4 > 0 && (k1 * 200) / 330 + (k23 * 200) / 400 + k4 > 200 ? '1' : '';
+  return out;
+}
+
 /**
  * 全体を計算する。⑧の按分にはⒶ（＝⑥の合計）を、⑨には⑦（＝第2表⑧）を使うため、
  * ⑥→Ⓐ→（第2表）⑧→⑨ の順に第1表を2周する。循環はしない。
@@ -469,8 +557,9 @@ export function computeAll(
     table13: used.includes('table13'),
   };
 
-  // 第11表2① ← 付表の「分割が確定した財産」。使用する付表だけを合計する。
-  const detailForms = used.filter((id) => (details[id]?.length ?? 0) > 0);
+  // 第11表2① ← 付表の「分割が確定した財産」。財産の明細書（付表1〜4）だけを合計する
+  // ＝ 明細を配列で持つ様式は他にもあるので、コード表を持つ様式だけに絞る。
+  const detailForms = used.filter((id) => id in DETAIL_KINDS && (details[id]?.length ?? 0) > 0);
   const detailTotals = sumDetails(detailForms.flatMap((id) => details[id]!));
   // 第13表3①④ ← 同表1・2の明細の「負担する金額」
   const t13 = computeTable13(common, table13Pages(common, heirs.length));
@@ -524,6 +613,9 @@ export function computeAll(
   // 第13表1・2の合計（負担する人が決まっていない分も含む「金額」列の合計）
   totals.t13dTotal = t13.debtTotal === 0 ? '' : str(t13.debtTotal);
   totals.t13fTotal = t13.funeralTotal === 0 ? '' : str(t13.funeralTotal);
+  // 第11・11の2表の付表1（小規模宅地等）と、その別表1
+  const f1Sheets = details.table1112f1b ?? [];
+  Object.assign(totals, computeTable1112f1b(f1Sheets), computeTable1112f1(details.table1112f1 ?? [], f1Sheets));
 
   return { heirs: computed, lawful: table2.lawful, totals };
 }
