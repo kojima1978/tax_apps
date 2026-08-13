@@ -15,8 +15,10 @@
  * 「財産を取得した人の番号」ごとに合計する。番号は第11表の項番＝入力順の通し番号。
  */
 
+import { DETAIL_KINDS } from '../data/detailCodes';
 import { TABLE112_ROWS } from '../forms/table112';
 import { TABLE13_DEBT_ROWS, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS } from '../forms/table13';
+import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
 
 export type Values = Record<string, string>;
@@ -31,6 +33,7 @@ export const SCALE: Record<string, number> = {
   v20: 100,      // ⑳ 納税猶予税額
   v21: 100,      // ㉑ 申告期限までに納付すべき税額
   v24: 100,      // ㉔ 納税猶予税額（この修正前の）
+  t15v38: 1000,  // 第15表㊳ 課税価格（1,000円未満切捨て）
   // 第2表①②③欄
   k2: 1000,      // ㋭ 第3表の課税価格の合計額
   k4: 10000,     // ㋩ 遺産に係る基礎控除額（万円単位で記入する）
@@ -162,6 +165,39 @@ function computeTable13(common: Values, pages: number): Table13 {
   return out;
 }
 
+/**
+ * 第15表（相続財産の種類別価額表）のうち、様式に算式が印字されている行を計算する。
+ *
+ * ①〜㉘は付表からの転記（`sumTable15` が入れる）、㉛㉝㉞は他の様式からの転記で、
+ * 手入力が残るのは⑧⑨（⑥のうち特例農地等）と㊲（第14表1④）だけ。
+ * 値はその人の欄（'h0.' スコープ）に持ち、「各人の合計」列は横計（`TOTAL_ROWS`）で作る。
+ */
+function computeTable15(h: Values): Values {
+  const out: Values = {};
+  const raw = (n: number): string => out[table15Key(n)] ?? h[table15Key(n)] ?? '';
+  const val = (n: number): number => num(raw(n));
+  const any = (ns: number[]): boolean => ns.some((n) => raw(n).trim() !== '');
+  /** 算式に使う欄が1つも埋まっていない行は、0ではなく空欄のままにする */
+  const sum = (dst: number, src: number[]): void => {
+    out[table15Key(dst)] = any(src) ? signed(src.reduce((s, n) => s + val(n), 0)) : '';
+  };
+
+  sum(6, [1, 2, 3, 4, 5]);                // ⑥ 土地の計（⑦は③の内数なので加えない）
+  sum(16, [12, 13, 14, 15]);              // ⑯ 事業（農業）用財産の計
+  sum(22, [17, 18, 19, 20, 21]);          // ㉒ 有価証券の計
+  sum(29, [25, 26, 27, 28]);              // ㉙ その他の財産の計
+  sum(30, [6, 10, 16, 22, 23, 24, 29]);   // ㉚ 合計
+  sum(32, [6, 10, 12, 17, 18, 27]);       // ㉜ 不動産等の価額
+  sum(35, [33, 34]);                      // ㉟ 債務等の合計
+
+  // ㊱ 差引純資産価額（㉚＋㉛−㉟）（赤字のときは0）
+  const v36 = Math.max(0, val(30) + val(31) - val(35));
+  out[table15Key(36)] = any([30, 31, 35]) ? str(v36) : '';
+  // ㊳ 課税価格（㊱＋㊲）（1,000円未満切捨て）— 様式の「000」に合わせ千円単位で保持
+  out[table15Key(38)] = any([36, 37]) ? str(Math.floor((v36 + val(37)) / 1000)) : '';
+  return out;
+}
+
 /** どの様式を使っているか（使う様式によって第1表の転記欄が変わる） */
 export interface UsedForms {
   /** 第11表を使用する（＝第1表①を第11表2③から転記して読み取り専用にする） */
@@ -201,6 +237,14 @@ export function computeHeir(h: Values, total7: number, totalA: number, forms: Us
   out.t13v7 = show(num(out.t13v3) + num(out.t13v6), has(out.t13v3, out.t13v6));
   // 第1表③ ← 第13表3⑦
   if (forms.table13) out.v3 = out.t13v7;
+
+  // 第15表㉛ ← 第11の2表1⑧ ／ ㉝ ← 第13表3③ ／ ㉞ ← 第13表3⑥
+  if (forms.table112) out[table15Key(31)] = out.t112v8 ?? '';
+  if (forms.table13) {
+    out[table15Key(33)] = out.t13v3;
+    out[table15Key(34)] = out.t13v6;
+  }
+  Object.assign(out, computeTable15(out));
 
   // ④ 純資産価額（①＋②−③）（赤字のときは0）
   const v4 = Math.max(0, num(out.v1) + num(out.v2) - num(out.v3));
@@ -248,11 +292,13 @@ export function computeHeir(h: Values, total7: number, totalA: number, forms: Us
 }
 
 /** 「各人の合計」列に横計で集計する欄（Ⓐ＝⑥は千円単位のまま合計してよい） */
-const TOTAL_ROWS = [
+const TOTAL_ROWS: readonly string[] = [
   'v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17', 'v18', 'v19', 'v20', 'v21', 'v22', 'v23', 'v24', 'v25', 'v26',
   // 第13表3の「各人の合計」列
   't13v1', 't13v2', 't13v3', 't13v4', 't13v5', 't13v6', 't13v7',
-] as const;
+  // 第15表の「各人の合計」列（①〜㊳。㊳は千円単位のまま合計してよい）
+  ...TABLE15_KEYS,
+];
 
 /** △表示のまま合計する欄（還付額・差引額） */
 const SIGNED_TOTAL_ROWS = ['v27'] as const;
@@ -346,6 +392,59 @@ function sumDetails(details: Values[]): number[] {
   return byNumber;
 }
 
+/**
+ * 第15表で「その様式を使うときだけ転記になる」欄（丸番号）。
+ * 付表の分はコード表（`DETAIL_KINDS`）から機械的に導く — 欄の一覧をここに書き写さない。
+ */
+export function table15Transferred(used: readonly string[]): string[] {
+  const marks = new Set<string>();
+  for (const [form, kinds] of Object.entries(DETAIL_KINDS)) {
+    if (!used.includes(form)) continue;
+    for (const kind of kinds) {
+      marks.add(kind.table15);
+      if (kind.table15Extra) marks.add(kind.table15Extra.table15);
+    }
+  }
+  if (used.includes('table112')) marks.add('㉛');
+  if (used.includes('table13')) marks.add('㉝').add('㉞');
+  return [...marks];
+}
+
+/**
+ * 第15表①〜㉘ ← 付表の「分割が確定した財産」。細目コードごとの転記先はコード表が持つ。
+ * 添字は財産を取得した人の番号（1始まり）で、返すのは行キーごとの人別合計。
+ */
+function sumTable15(used: readonly string[], details: Record<string, Values[]>): Record<string, number[]> {
+  const byKey: Record<string, number[]> = {};
+  const add = (mark: string, no: number, amount: number): void => {
+    const key = TABLE15_KEY_BY_MARK[mark];
+    if (key === undefined) return;
+    const row = byKey[key] ?? (byKey[key] = []);
+    row[no] = (row[no] ?? 0) + amount;
+  };
+  for (const [form, kinds] of Object.entries(DETAIL_KINDS)) {
+    if (!used.includes(form)) continue;
+    const byCode = new Map(kinds.map((kind) => [kind.code, kind]));
+    for (const item of details[form] ?? []) {
+      const kind = byCode.get(item.kindCode ?? '');
+      if (kind === undefined) continue;
+      // 利用区分が一致するときだけ増える欄がある（配偶者居住権に基づく敷地利用権 → ③に加えて⑦）。
+      // 判定は完全一致で行う（「配偶者居住権の目的となっている建物」は⑪の対象ではない）。
+      const extra = kind.table15Extra !== undefined && (item.usage ?? '').trim() === kind.table15Extra.whenUsage
+        ? kind.table15Extra.table15
+        : undefined;
+      for (const i of DETAIL_SHARES) {
+        const no = num(item[`who${i}`]);
+        if (no <= 0) continue;
+        const amount = num(item[`amount${i}`]);
+        add(kind.table15, no, amount);
+        if (extra !== undefined) add(extra, no, amount);
+      }
+    }
+  }
+  return byKey;
+}
+
 export interface Computed {
   /** 相続人ごとの算出済みの値（入力順） */
   heirs: Values[];
@@ -375,6 +474,14 @@ export function computeAll(
   const detailTotals = sumDetails(detailForms.flatMap((id) => details[id]!));
   // 第13表3①④ ← 同表1・2の明細の「負担する金額」
   const t13 = computeTable13(common, table13Pages(common, heirs.length));
+  // 第15表①〜㉘ ← 付表の細目ごとの合計。転記になる欄は手入力の残りを混ぜないよう毎回空に戻す。
+  const t15 = sumTable15(used, details);
+  const t15Blank = Object.fromEntries(
+    table15Transferred(used).flatMap((mark) => {
+      const key = TABLE15_KEY_BY_MARK[mark];
+      return key === undefined ? [] : [[key, '']];
+    }),
+  ) as Values;
   const inputs = heirs.map((h, i): Values => {
     const detail = detailTotals[i + 1] ?? 0;
     const debt = t13.debt[i + 1] ?? 0;
@@ -384,6 +491,11 @@ export function computeAll(
       ...(detailForms.length === 0 ? {} : { t11v1: detail === 0 ? '' : signed(detail) }),
       t13v1: debt === 0 ? '' : str(debt),
       t13v4: funeral === 0 ? '' : str(funeral),
+      ...t15Blank,
+      ...Object.fromEntries(Object.entries(t15).map(([key, byNo]) => {
+        const amount = byNo[i + 1] ?? 0;
+        return [key, amount === 0 ? '' : signed(amount)];
+      })),
     };
   });
 

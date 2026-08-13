@@ -17,13 +17,18 @@ import {
   TABLE13_ASPECT, TABLE13_DEBT_ROWS, TABLE13_FORM_CODE, TABLE13_FUNERAL_ROWS, TABLE13_EDITION,
   TABLE13_PERSONS, TABLE13_SUBTITLE, TABLE13_TITLE, buildTable13,
 } from './forms/table13';
+import {
+  TABLE15CONT_FORM_CODE, TABLE15CONT_PERSONS, TABLE15CONT_SUBTITLE, TABLE15CONT_TITLE,
+  TABLE15_ASPECT, TABLE15_EDITION, TABLE15_FORM_CODE, TABLE15_SUBTITLE, TABLE15_TITLE,
+  buildTable15,
+} from './forms/table15';
 import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
 import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
-import { hasTable112, table112Pages, table13Pages } from './lib/calc';
+import { hasTable112, table112Pages, table13Pages, table15Transferred } from './lib/calc';
 
 /** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
 const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
@@ -60,6 +65,8 @@ const FORMS: FormMeta[] = [
   { id: 'table11f3', label: '第11表の付表3', note: '財産の明細書（現金・預貯金等用）' },
   { id: 'table11f4', label: '第11表の付表4', note: '財産の明細書（事業用・家庭用・その他）' },
   { id: 'table13', label: '第13表', note: '債務及び葬式費用の明細書' },
+  { id: 'table15', label: '第15表', note: '相続財産の種類別価額表' },
+  { id: 'table15cont', label: '第15表（続）', note: '財産を取得した人 2人目以降', auto: true },
 ];
 
 /** 付表（財産の明細書）の様式ID → 割付。様式を足したらここに1行追加する。 */
@@ -237,6 +244,39 @@ function Table13Page({ page, last, whoOptions, g, u }: Table13PageProps) {
   );
 }
 
+interface Table15ContPageProps extends PageProps {
+  /** 他の様式からの転記になっている欄（丸番号。読み取り専用にする） */
+  t15Transferred: ReadonlySet<string>;
+}
+
+/** 第15表（続）1枚（財産を取得した人2人分。1人目は第15表の右列に載るので2人目から） */
+function Table15ContPage({ page, g, u, t15Transferred }: Table15ContPageProps) {
+  const a = 1 + page * TABLE15CONT_PERSONS;
+  const b = a + 1;
+  const cells = useMemo(
+    () => buildTable15(COMMON, [
+      { prefix: heirPrefix(a), label: heirLabel(a), nameCode: 'E02' },
+      { prefix: heirPrefix(b), label: heirLabel(b), nameCode: 'E03' },
+    ], t15Transferred),
+    [a, b, t15Transferred],
+  );
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE15CONT_FORM_CODE}
+        title={[TABLE15CONT_TITLE, `${heirLabel(a)}・${heirLabel(b)}`].join('　')}
+        subtitle={TABLE15CONT_SUBTITLE}
+        aspectRatio={TABLE15_ASPECT}
+        formId={`t15c${page}`}
+        footer={<Footnote notes="" edition={TABLE15_EDITION} />}
+      />
+    </div>
+  );
+}
+
 interface DetailPageProps extends PageProps {
   form: keyof typeof DETAIL_SPECS;
 }
@@ -296,11 +336,27 @@ export default function App() {
     (): GridCell['options'] => ['', ...data.heirs.map((heir, i) => ({ value: String(i + 1), label: heir.name ?? '' }))],
     [data.heirs],
   );
+  /** 第15表で他の様式からの転記になっている欄（丸番号） */
+  const t15Transferred = useMemo(() => new Set(table15Transferred(data.used)), [data.used]);
+  /** 第15表（続）の枚数（第15表に1人目まで載るので、2人目以降を2人ずつ） */
+  const t15ContPages = data.used.includes('table15')
+    ? Math.ceil(Math.max(0, data.heirs.length - 1) / TABLE15CONT_PERSONS)
+    : 0;
+  const table15Cells = useMemo(
+    () => buildTable15(COMMON, [
+      { prefix: TOTALS, label: '各人の合計' },
+      { prefix: heirPrefix(0), label: heirLabel(0), nameCode: 'E02' },
+    ], t15Transferred),
+    [t15Transferred],
+  );
+
+  /** 自動で付く様式の枚数（0枚なら提出しない） */
+  const autoPages: Record<string, number> = { table1cont: contPages, table15cont: t15ContPages };
 
   /** その様式を提出する（＝印刷する）か */
   const used = (form: FormMeta): boolean => {
     if (form.required) return true;
-    if (form.auto) return contPages > 0;
+    if (form.auto) return (autoPages[form.id] ?? 0) > 0;
     return data.used.includes(form.id);
   };
 
@@ -380,6 +436,24 @@ export default function App() {
         </div>
       </>
     ),
+    table15: (
+      <div className="gov-page">
+        <GridForm
+          cells={table15Cells}
+          g={g}
+          u={u}
+          formCode={TABLE15_FORM_CODE}
+          title={TABLE15_TITLE}
+          subtitle={TABLE15_SUBTITLE}
+          aspectRatio={TABLE15_ASPECT}
+          formId="t15"
+          footer={<Footnote notes="" edition={TABLE15_EDITION} />}
+        />
+      </div>
+    ),
+    table15cont: Array.from({ length: t15ContPages }, (_, page) => (
+      <Table15ContPage key={page} page={page} g={g} u={u} t15Transferred={t15Transferred} />
+    )),
     ...Object.fromEntries(DETAIL_FORMS.map((id) => [id, (
       <>
         {Array.from({ length: detailPages(id) }, (_, page) => (
@@ -450,7 +524,7 @@ export default function App() {
               </li>
             ))}
           </ul>
-          <p className="form-list__hint">チェックした様式だけを印刷します。第1表（続）は財産を取得した人が2人以上のときに自動で付きます。</p>
+          <p className="form-list__hint">チェックした様式だけを印刷します。第1表（続）・第15表（続）は財産を取得した人が2人以上のときに自動で付きます。</p>
         </aside>
 
         <main className="app-main">

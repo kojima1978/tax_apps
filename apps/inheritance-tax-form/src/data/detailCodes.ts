@@ -94,6 +94,17 @@ export const TABLE11F4_KINDS: DetailKindCode[] = [
 ];
 
 /**
+ * 付表の様式ID → 細目コード表。第15表への転記はこの表が唯一の定義元で、
+ * どの欄へ加算するかは `table15` / `table15Extra` から機械的に決まる。
+ */
+export const DETAIL_KINDS: Record<string, readonly DetailKindCode[]> = {
+  table11f1: TABLE11F1_KINDS,
+  table11f2: TABLE11F2_KINDS,
+  table11f3: TABLE11F3_KINDS,
+  table11f4: TABLE11F4_KINDS,
+};
+
+/**
  * 「特例」欄の番号。番号と特例の対応は4様式で共通だが、
  * **様式ごとに使える番号が違う**（付表1は1〜6、付表2は3・6〜8、付表4は2・4・6。付表3に欄は無い）。
  */
