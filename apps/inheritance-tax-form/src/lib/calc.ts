@@ -25,6 +25,7 @@ import { TABLE5_FLOOR } from '../forms/table5';
 import {
   TABLE6_COLS, TABLE6_DISABLED_AGE, TABLE6_DISABLED_RATE, TABLE6_MINOR_AGE, TABLE6_MINOR_RATE, TABLE6_SPECIAL_RATE,
 } from '../forms/table6';
+import { TABLE7_ROWS, TABLE7_SPAN } from '../forms/table7';
 import { TABLE9_ROWS } from '../forms/table9';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
@@ -782,6 +783,93 @@ function computeTable6(common: Values, heirs: Values[]): Values {
   return out;
 }
 
+/** 元号コード → 元年の西暦（第7表①②の年月日から期間を出すため） */
+const ERA_BASE: Record<string, number> = { 1: 1868, 2: 1912, 3: 1926, 4: 1989, 5: 2019 };
+
+interface YMD { y: number; m: number; d: number }
+
+/** 元号・年・月・日の欄から西暦の日付を組み立てる。1つでも欠けていれば undefined */
+function eraDate(values: Values, p: string): YMD | undefined {
+  const base = ERA_BASE[(values[`${p}Era`] ?? '').trim()];
+  const y = num(values[`${p}Y`]);
+  const m = num(values[`${p}M`]);
+  const d = num(values[`${p}D`]);
+  if (base === undefined || y <= 0 || m <= 0 || d <= 0) return undefined;
+  return { y: base + y - 1, m, d };
+}
+
+/** 満年数（1年未満切捨て） */
+function fullYears(from: YMD, to: YMD): number {
+  const before = to.m < from.m || (to.m === from.m && to.d < from.d);
+  return to.y - from.y - (before ? 1 : 0);
+}
+
+/**
+ * 第7表（相次相続控除額の計算書）。
+ *
+ * 1 の総額Ⓐ ＝ ⑥の相続税額 × ⑧/⑦（1を超えるときは1）× ④の年数/10。
+ * 2 の各人の控除額 ＝ Ⓐ × その人の純資産価額の割合。
+ *
+ * (1)一般の場合 は第1表の④（＝各人の純資産価額）をそのまま使えるが、
+ * (2)農業相続人がいる場合 の元になる第3表は未実装なので⑮だけ手入力とし、
+ * Ⓒはその合計をとる。⑰⑱の算式は(1)と同じ。
+ *
+ * ①前の相続の年月日と⑤⑥は前の相続の申告書を見て入力する欄なので手入力。
+ * ②は第1表の相続開始年月日からの転記で、③は①②の差（1年未満切捨て）。
+ * @param totalNet 第1表④の合計（＝⑧＝Ⓑ）
+ */
+function computeTable7(common: Values, heirs: Values[], totalNet: number): Values {
+  const out: Values = {};
+  const prev = eraDate(common, 't7p');
+  const now = eraDate(common, 'start');
+  const span = prev === undefined || now === undefined ? undefined : Math.max(0, fullYears(prev, now));
+  out.t7v3 = span === undefined ? '' : str(span);
+  out.t7v4 = span === undefined ? '' : str(Math.max(0, TABLE7_SPAN - span));
+
+  // ⑦（⑤−⑥）。赤字のときは0
+  const v6 = num(common.t7v6);
+  const hasAmount = filled(common, 't7v5') || filled(common, 't7v6');
+  const v7 = Math.max(0, num(common.t7v5) - v6);
+  out.t7v7 = hasAmount ? str(v7) : '';
+
+  // Ⓐ 相次相続控除額の総額（円未満切捨て）。⑦が0でも⑧があれば割合は1とする
+  const ratio = v7 > 0 ? Math.min(totalNet / v7, 1) : (totalNet > 0 ? 1 : 0);
+  const a = Math.floor((v6 * ratio * num(out.t7v4)) / TABLE7_SPAN);
+  const hasA = hasAmount && span !== undefined;
+  out.t7A = hasA ? str(a) : '';
+
+  /** 1段分（(1)(2) 共通）。⑫⑰の割合は第1表⑧と同じ小数2桁 */
+  const rows = (k: string, value: (i: number) => string, total: number): void => {
+    for (let i = 0; i < TABLE7_ROWS; i += 1) {
+      const p = `t7${k}${i}`;
+      const filledRow = num(common[`${p}no`]) > 0;
+      const share = filledRow && total > 0 ? (num(value(i)) / total).toFixed(2) : '';
+      out[`${p}v12`] = share;
+      out[`${p}v13`] = share !== '' && hasA ? str(Math.floor(a * num(share))) : '';
+    }
+  };
+
+  // (1) 一般の場合: ⑩は第1表の各人の④、Ⓑは第1表④の合計
+  for (let i = 0; i < TABLE7_ROWS; i += 1) {
+    const no = num(common[`t7a${i}no`]);
+    const h = no > 0 ? heirs[no - 1] : undefined;
+    out[`t7a${i}v10`] = h === undefined ? '' : str(num(h.v4));
+  }
+  rows('a', (i) => out[`t7a${i}v10`] ?? '', totalNet);
+
+  // (2) 農業相続人がいる場合: 第3表が未実装なので⑮は手入力、Ⓒはその合計
+  let sum15 = 0;
+  let has15 = false;
+  for (let i = 0; i < TABLE7_ROWS; i += 1) {
+    sum15 += num(common[`t7b${i}v15`]);
+    has15 ||= filled(common, `t7b${i}v15`);
+  }
+  out.t7C = has15 ? str(sum15) : '';
+  rows('b', (i) => common[`t7b${i}v15`] ?? '', sum15);
+
+  return out;
+}
+
 /**
  * 全体を計算する。⑧の按分にはⒶ（＝⑥の合計）を、⑨には⑦（＝第2表⑧）を使うため、
  * ⑥→Ⓐ→（第2表）⑧→⑨ の順に第1表を2周する。循環はしない。
@@ -871,6 +959,8 @@ export function computeAll(
   );
   // 第6表（未成年者控除・障害者控除）。③⑤は3周目で確定した第1表の⑨〜⑬を引く
   Object.assign(totals, computeTable6(common, computed));
+  // 第7表（相次相続控除）。⑧Ⓑは第1表④の合計、⑩は各人の④
+  Object.assign(totals, computeTable7(common, computed, num(totals.v4)));
   // 第11・11の2表の付表1（小規模宅地等）と、その別表1
   const f1Sheets = details.table1112f1b ?? [];
   Object.assign(totals, computeTable1112f1b(f1Sheets), computeTable1112f1(details.table1112f1 ?? [], f1Sheets));
