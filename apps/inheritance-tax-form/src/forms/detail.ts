@@ -215,7 +215,10 @@ function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: numb
         }),
         code(y, s.col(f.whoR, f.amtCode), resolve(spec, share.amount[i], g)),
         mk(y, s.col(f.amtCode, f.right), {
-          kind: 'input', field: `${prefix}amount${i}`, ariaLabel: `${who}の取得者${i + 1}の取得財産の価額`, commaInteger: true, align: 'right',
+          // 代償財産は支払う人が負数・受け取る人が正数（記載例62ページ）。△を打てるようにしておく
+          kind: 'input', field: `${prefix}amount${i}`, ariaLabel: `${who}の取得者${i + 1}の取得財産の価額`,
+          signedCommaInteger: true, align: 'right',
+          hint: '代償財産を支払う人の分は「△」を付けて負数で記入します（記載例62ページ）',
         }),
       ];
     }),

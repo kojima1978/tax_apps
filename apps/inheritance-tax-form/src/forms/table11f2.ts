@@ -103,7 +103,14 @@ export const TABLE11F2_SPEC: DetailSpec = {
     ],
     [
       { x: [141.5, 163.5, 272.5], code: 'E1', field: 'issue', name: '銘柄' },
-      { x: [272.5, 294.5, 337.5], code: 'G2', field: 'foreign', name: '国外', cell: { options: FOREIGN_OPTIONS, compactSelectedOption: true } },
+      {
+        x: [272.5, 294.5, 337.5], code: 'G2', field: 'foreign', name: '国外',
+        cell: {
+          options: FOREIGN_OPTIONS, compactSelectedOption: true,
+          // 記載例56ページ。「国内の口座で管理されていたものは記入不要」は様式にも記載要領にも無い
+          hint: '有価証券の所在場所が国外である場合に「1」を記入します。\nただし国内にある金融商品取引業者等の営業所等の口座で管理されていたものは記入不要です',
+        },
+      },
       {
         x: [337.5, 359.5, 402.5], code: 'G4', field: 'branchCode', name: '支店等コード',
         cell: { options: BRANCH_CODE_OPTIONS, compactSelectedOption: true },

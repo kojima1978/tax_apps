@@ -37,6 +37,11 @@ export interface GridCell {
   compactSelectedOption?: boolean;   // 選択中の項目はコードのみ表示（狭いコード記入枠用）
   /** 選択に連動して別の欄も書き換える（細目コード → 細目の名称）。書き換えた後も手入力できる */
   autoFill?: { field: string; byValue: Record<string, string> };
+  /**
+   * 記入条件のツールチップ（`title`）。様式にも記載要領にも書かれておらず
+   * 記載例にしか出てこない条件（「国内の口座で管理されていたものは記入不要」など）を添える。
+   */
+  hint?: string;
   highlightWhen?: (g: (field: string) => string) => boolean; // 自動判定時の強調条件
   selectValue?: { field: string; value: string }; // セルをクリックして指定値を選択
   toggleField?: string;              // セルをクリックして指定フィールドをオン・オフ
@@ -331,7 +336,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 id={`${inputPrefix}-${c.field}-${i}`}
                 name={`${inputPrefix}.${c.field}`}
                 aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(c.options, g(c.field))}` : ''}`}
-                title={selectedOptionLabel(c.options, g(c.field)) || undefined}
+                title={[selectedOptionLabel(c.options, g(c.field)), c.hint].filter(Boolean).join('\n') || undefined}
                 value={g(c.field)}
                 onChange={(e) => {
                   u(c.field!, e.target.value);
@@ -359,6 +364,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 id={`${inputPrefix}-${c.field}-${i}`}
                 name={`${inputPrefix}.${c.field}`}
                 aria-label={c.ariaLabel ?? c.field}
+                title={c.hint}
                 value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined ? normalizeInteger(g(c.field)) : g(c.field)}
                 onChange={(e) => {
                   const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces)

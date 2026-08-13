@@ -18,6 +18,12 @@ export interface DetailKindCode {
   label?: string;
   /** 第15表の該当欄 */
   table15: string;
+  /**
+   * 利用区分の文言によっては、`table15` の欄に**加えて**もう1欄にも転記する
+   * （付表1の記載要領 注1・注2）。判定は完全一致で行うこと —
+   * 「配偶者居住権の目的となっている建物」は「配偶者居住権」を含むが⑪の対象ではない。
+   */
+  table15Extra?: { whenUsage: string; table15: string };
 }
 
 /** コード表 → `<select>` の選択肢（先頭は未選択） */
@@ -37,10 +43,10 @@ export function codeNames(items: readonly DetailKindCode[]): Record<string, stri
 export const TABLE11F1_KINDS: DetailKindCode[] = [
   { code: '11', name: '田', table15: '①' },
   { code: '12', name: '畑', table15: '②' },
-  { code: '13', name: '宅地', table15: '③' },
+  { code: '13', name: '宅地', table15: '③', table15Extra: { whenUsage: '配偶者居住権に基づく敷地利用権', table15: '⑦' } },
   { code: '14', name: '山林', table15: '④' },
   { code: '15', name: 'その他の土地', table15: '⑤' },
-  { code: '21', name: '家屋等', table15: '⑩' },
+  { code: '21', name: '家屋等', table15: '⑩', table15Extra: { whenUsage: '配偶者居住権', table15: '⑪' } },
 ];
 
 /** 付表2《取得した財産の細目等の記載要領》 */

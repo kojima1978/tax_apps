@@ -218,11 +218,12 @@ function sumRows(people: Table11Person[], detail: boolean): GridCell[] {
         code(r, col(X.L, X.G_L), `G${n}`),
         mk(r, col(X.G_L, X.NO_L), { kind: 'input', field: `${p}t11no`, ariaLabel: `${person.label}の番号`, integerDigits: 2, align: 'center', readOnly: true }),
         code(r, col(X.NO_L, X.E_L), `G${n + 1}`),
-        mk(r, col(X.E_L, X.SUM2_L), { kind: 'input', field: `${p}t11v1`, ariaLabel: `${person.label} ①分割財産の価額`, commaInteger: true, readOnly: detail }),
+        // ①③は代償財産（記載例62ページ）で負数になり得るため △ を表示できるようにする
+        mk(r, col(X.E_L, X.SUM2_L), { kind: 'input', field: `${p}t11v1`, ariaLabel: `${person.label} ①分割財産の価額`, signedCommaInteger: true, readOnly: detail }),
         code(r, col(X.SUM2_L, X.SUM2_C), `G${n + 2}`),
         mk(r, col(X.SUM2_C, X.ALL_D), { kind: 'input', field: `${p}t11v2`, ariaLabel: `${person.label} ②未分割財産の価額`, commaInteger: true }),
         code(r, col(X.ALL_D, X.SUM3_C), `G${n + 3}`),
-        mk(r, col(X.SUM3_C, X.R), { kind: 'input', field: `${p}t11v3`, ariaLabel: `${person.label} ③取得財産の価額`, commaInteger: true, readOnly: true }),
+        mk(r, col(X.SUM3_C, X.R), { kind: 'input', field: `${p}t11v3`, ariaLabel: `${person.label} ③取得財産の価額`, signedCommaInteger: true, readOnly: true }),
       ];
     }),
   ];

@@ -107,7 +107,14 @@ export const TABLE11F3_SPEC: DetailSpec = {
     ],
     [
       { x: [146.5, 173.5, 287.5], code: 'E1', field: 'account', name: '口座番号' },
-      { x: [287.5, 313.5, 357.5], code: 'G2', field: 'foreign', name: '国外', cell: { options: FOREIGN_OPTIONS, compactSelectedOption: true } },
+      {
+        x: [287.5, 313.5, 357.5], code: 'G2', field: 'foreign', name: '国外',
+        cell: {
+          options: FOREIGN_OPTIONS, compactSelectedOption: true,
+          // 記載例58ページ。判定するのは財産の所在ではなく「預入れをしていた営業所」の所在
+          hint: '預貯金等の預入れをしていた営業所又は事業所の所在場所が国外である場合に「1」を記入します',
+        },
+      },
       {
         x: [357.5, 379.5, 423.5], code: 'G4', field: 'branchCode', name: '支店等コード',
         cell: { options: BRANCH_CODE_OPTIONS, compactSelectedOption: true },
@@ -117,7 +124,10 @@ export const TABLE11F3_SPEC: DetailSpec = {
       { x: [647.5, 674.5, 918.5], code: 'G5', field: 'value', name: '価額', r: [2, 4], cell: { commaInteger: true, align: 'right' } },
     ],
     [
-      { x: [146.5, 173.5, 357.5], code: 'E2', field: 'note', name: '備考' },
+      {
+        x: [146.5, 173.5, 357.5], code: 'E2', field: 'note', name: '備考',
+        cell: { hint: '家族名義の財産を記入する場合は、その財産の名義を記入します（記載例58ページ）' },
+      },
       { x: [357.5, 379.5, 647.5], code: 'E5', field: 'other', name: 'その他（所在地等）' },
     ],
   ],

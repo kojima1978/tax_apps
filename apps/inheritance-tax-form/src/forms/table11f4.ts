@@ -96,7 +96,10 @@ export const TABLE11F4_SPEC: DetailSpec = {
       { x: [322.5, 350.5, 634.5], code: 'E3', field: 'assetName', name: '財産の名称等', r: [0, 2] },
       { x: [322.5, 350.5, 634.5], code: 'E4', field: 'place', name: '財産の所在場所等', r: [2, 4] },
       { x: [634.5, 662.5, 757.5], code: 'E5', field: 'quantity', name: '数量', cell: { align: 'right' } },
-      { x: [757.5, 785.5, 881.5], code: 'C0', field: 'multiple', name: '倍数', cell: { align: 'right' } },
+      {
+        x: [757.5, 785.5, 881.5], code: 'C0', field: 'multiple', name: '倍数',
+        cell: { align: 'right', hint: '相続人及び包括受遺者が取得した立木は時価の85％で評価するため「0.85」と記入します（記載例60ページ）' },
+      },
     ],
     [
       {
@@ -108,7 +111,11 @@ export const TABLE11F4_SPEC: DetailSpec = {
     ],
     [
       { x: [138.5, 165.5, 322.5], code: 'E2', field: 'note', name: '備考' },
-      { x: [634.5, 662.5, 881.5], code: 'G3', field: 'value', name: '価額', cell: { commaInteger: true, align: 'right' } },
+      {
+        x: [634.5, 662.5, 881.5], code: 'G3', field: 'value', name: '価額',
+        // 記載例62ページ。代償財産だけは価額を0とし、授受の額は「取得財産の価額」欄に正負で書く
+        cell: { commaInteger: true, align: 'right', hint: '代償財産（細目コード75）はこの欄に「0」と記入し、授受する金額は右の「取得財産の価額」欄に記入します' },
+      },
     ],
   ],
 };

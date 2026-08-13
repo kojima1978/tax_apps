@@ -51,6 +51,10 @@ export const TABLE11F1_SHARE: DetailShareCodes = {
   amount: ['G8', 'G10', 'G12'],
 };
 
+/** 記載例54ページ。様式にも記載要領にも書かれていない条件なので入力欄の注記として添える */
+const SHARE_HINT = '被相続人が有していた持分割合を記入します（単独で所有していた財産は記入不要）';
+const NOTE_HINT = '区分所有財産は敷地利用権（敷地権）の割合を、家族名義の財産はその名義を記入します';
+
 const LEAD = 'この明細書は、相続税がかかる財産（相続時精算課税適用財産を除きます。）のうち、'
   + '土地（土地の上に存する権利を含みます。）又は家屋等の明細を記入します。';
 
@@ -100,17 +104,23 @@ export const TABLE11F1_SPEC: DetailSpec = {
       { x: [705, 731, 837], code: 'C1', field: 'unitPrice', name: '単価又は倍数', cell: { align: 'right' } },
     ],
     [
-      { x: [134, 160, 251.5], code: 'E1', field: 'usage', name: '利用区分' },
-      { x: [251.5, 277.5, 308], code: 'G2', field: 'foreign', name: '国外', cell: { options: FOREIGN_OPTIONS, compactSelectedOption: true } },
+      {
+        x: [134, 160, 251.5], code: 'E1', field: 'usage', name: '利用区分',
+        cell: { hint: '自用地（事業用・居住用・その他）、貸宅地、貸家建付地、借地権、自用家屋、貸家などの別を記入します。\n「配偶者居住権に基づく敷地利用権」は第15表③のほか⑦へ、「配偶者居住権」は⑩のほか⑪へも転記します' },
+      },
+      {
+        x: [251.5, 277.5, 308], code: 'G2', field: 'foreign', name: '国外',
+        cell: { options: FOREIGN_OPTIONS, compactSelectedOption: true, hint: '取得した土地又は家屋等の所在場所が国外である場合に「1」を記入します' },
+      },
       { x: [308, 334, 577], code: 'E6', field: 'town', name: '所在場所（大字・丁目）' },
       { x: [577, 603, 705], code: 'G3', field: 'fixedValue', name: '固定資産税評価額', cell: { commaInteger: true, align: 'right' } },
-      { x: [705, 731, 762], code: 'G4', field: 'shareN', name: '持分割合の分子', cell: { align: 'center' } },
+      { x: [705, 731, 762], code: 'G4', field: 'shareN', name: '持分割合の分子', cell: { align: 'center', hint: SHARE_HINT } },
       { x: [762, 782], text: '／' },
-      { x: [782, 808, 837], code: 'G5', field: 'shareD', name: '持分割合の分母', cell: { align: 'center' } },
+      { x: [782, 808, 837], code: 'G5', field: 'shareD', name: '持分割合の分母', cell: { align: 'center', hint: SHARE_HINT } },
     ],
     [
       { x: [134, 160, 195], code: 'E2', field: 'special', name: '特例', cell: { options: TABLE11F1_SPECIAL_OPTIONS, compactSelectedOption: true } },
-      { x: [195, 221, 308], code: 'E3', field: 'note', name: '備考' },
+      { x: [195, 221, 308], code: 'E3', field: 'note', name: '備考', cell: { hint: NOTE_HINT } },
       { x: [308, 334, 577], code: 'E7', field: 'lot', name: '所在場所（地番又は家屋番号）' },
       { x: [577, 603, 837], code: 'G6', field: 'value', name: '価額', cell: { commaInteger: true, align: 'right' } },
     ],

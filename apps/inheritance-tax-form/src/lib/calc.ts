@@ -83,8 +83,9 @@ export function computeHeir(h: Values, total7: number, totalA: number, table11 =
   const show = (n: number, present: boolean) => (present ? str(n) : '');
 
   // 第11表2 ③ 取得財産の価額（①＋②）。第11表を使う場合は第1表①がこれの転記欄になる。
+  // 代償財産を支払う人は①が負数になり得る（記載例62ページ）ので △ を保てる形式で持つ。
   const hasT11 = has(h.t11v1, h.t11v2);
-  out.t11v3 = show(num(h.t11v1) + num(h.t11v2), hasT11);
+  out.t11v3 = hasT11 ? signed(num(h.t11v1) + num(h.t11v2)) : '';
   if (table11) out.v1 = out.t11v3;
 
   // ④ 純資産価額（①＋②−③）（赤字のときは0）
@@ -252,7 +253,7 @@ export function computeAll(
   const detailTotals = sumDetails(detailForms.flatMap((id) => details[id]!));
   const inputs = detailForms.length === 0 ? heirs : heirs.map((h, i): Values => {
     const sum = detailTotals[i + 1] ?? 0;
-    return { ...h, t11v1: sum === 0 ? '' : str(sum) };
+    return { ...h, t11v1: sum === 0 ? '' : signed(sum) };
   });
 
   // 1周目: Ⓐ（⑥の合計）を確定させる
