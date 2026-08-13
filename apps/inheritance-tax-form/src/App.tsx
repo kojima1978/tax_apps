@@ -43,6 +43,10 @@ import {
   TABLE4_TITLE, buildTable4,
 } from './forms/table4';
 import {
+  TABLE42_ASPECT, TABLE42_EDITION, TABLE42_FORM_CODE, TABLE42_NOTES, TABLE42_PERSONS, TABLE42_SUBTITLE,
+  TABLE42_TITLE, buildTable42,
+} from './forms/table42';
+import {
   TABLE5_ASPECT, TABLE5_EDITION, TABLE5_FORM_CODE, TABLE5_NOTES, TABLE5_SUBTITLE, TABLE5_TITLE, buildTable5,
 } from './forms/table5';
 import {
@@ -58,12 +62,14 @@ import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
 import {
-  hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table15Transferred, table4Pages, table9Pages,
+  hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table15Transferred, table42Pages,
+  table4Pages, table9Pages,
 } from './lib/calc';
 
 /** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
 const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
   table4: ['v11'],    // ⑪ ← 第4表⑥
+  table42: ['v12'],   // ⑫ ← 第4表の2㉕
   table11: ['v1'],    // ① ← 第11表2③
   table112: ['v2', 'v17'], // ② ← 第11の2表1⑧ ／ ⑰ ← 同1⑨
   table13: ['v3'],    // ③ ← 第13表3⑦
@@ -77,6 +83,9 @@ const MAX_TABLE13_PAGES = 10;
 
 /** 第4表の枚数の上限（1枚に加算の対象となる人4人分） */
 const MAX_TABLE4_PAGES = 10;
+
+/** 第4表の2の枚数の上限（1枚に控除を受ける人3人分） */
+const MAX_TABLE42_PAGES = 10;
 
 /** 第9表の枚数の上限 */
 const MAX_TABLE9_PAGES = 10;
@@ -100,6 +109,7 @@ const FORMS: FormMeta[] = [
   { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
   { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
   { id: 'table4', label: '第4表', note: '相続税額の加算金額の計算書' },
+  { id: 'table42', label: '第4表の2', note: '暦年課税分の贈与税額控除額の計算書' },
   { id: 'table5', label: '第5表', note: '配偶者に対する相続税額の軽減額の計算書' },
   { id: 'table6', label: '第6表', note: '未成年者控除額・障害者控除額の計算書' },
   { id: 'table7', label: '第7表', note: '相次相続控除額の計算書' },
@@ -285,6 +295,26 @@ function Table4Page({ page, whoOptions, g, u }: Table4PageProps) {
         aspectRatio={TABLE4_ASPECT}
         formId={`t4p${page}`}
         footer={<Footnote notes={TABLE4_NOTES} edition={TABLE4_EDITION} />}
+      />
+    </div>
+  );
+}
+
+/** 第4表の2 1枚（控除を受ける人3人分） */
+function Table42Page({ page, whoOptions, g, u }: Table4PageProps) {
+  const cells = useMemo(() => buildTable42(COMMON, TOTALS, page, whoOptions), [page, whoOptions]);
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE42_FORM_CODE}
+        title={TABLE42_TITLE}
+        subtitle={TABLE42_SUBTITLE}
+        aspectRatio={TABLE42_ASPECT}
+        formId={`t42p${page}`}
+        footer={<Footnote notes={TABLE42_NOTES} edition={TABLE42_EDITION} />}
       />
     </div>
   );
@@ -547,6 +577,8 @@ export default function App() {
   const t13Pages = table13Pages(data.common, data.heirs.length);
   /** 第4表の枚数（加算の対象になるかは続柄だけでは決まらないので人数からは決めない） */
   const t4Pages = table4Pages(data.common);
+  /** 第4表の2の枚数（贈与税を納めているかは相続人の一覧からは分からないので人数からは決めない） */
+  const t42Pages = table42Pages(data.common);
   /** 第9表の枚数（明細も相続人も1枚に5件ずつ） */
   const t9Pages = table9Pages(data.common);
   /** 第10表の枚数（第9表と同じく1枚に5件ずつ） */
@@ -665,6 +697,18 @@ export default function App() {
           <button type="button" className="app-btn" onClick={() => u('t4Pages', String(t4Pages - 1))} disabled={t4Pages <= 1}>−</button>
           {t4Pages}枚（加算の対象となる人{TABLE4_PERSONS}人／枚）
           <button type="button" className="app-btn" onClick={() => u('t4Pages', String(t4Pages + 1))} disabled={t4Pages >= MAX_TABLE4_PAGES}>＋</button>
+        </div>
+      </>
+    ),
+    table42: (
+      <>
+        {Array.from({ length: t42Pages }, (_, page) => (
+          <Table42Page key={page} page={page} whoOptions={whoOptions} g={g} u={u} />
+        ))}
+        <div className="app-pagectl no-print">
+          <button type="button" className="app-btn" onClick={() => u('t42Pages', String(t42Pages - 1))} disabled={t42Pages <= 1}>−</button>
+          {t42Pages}枚（控除を受ける人{TABLE42_PERSONS}人／枚）
+          <button type="button" className="app-btn" onClick={() => u('t42Pages', String(t42Pages + 1))} disabled={t42Pages >= MAX_TABLE42_PAGES}>＋</button>
         </div>
       </>
     ),

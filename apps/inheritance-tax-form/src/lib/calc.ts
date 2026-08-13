@@ -26,6 +26,7 @@ import {
   TABLE6_COLS, TABLE6_DISABLED_AGE, TABLE6_DISABLED_RATE, TABLE6_MINOR_AGE, TABLE6_MINOR_RATE, TABLE6_SPECIAL_RATE,
 } from '../forms/table6';
 import { TABLE4_PERSONS, TABLE4_RATE } from '../forms/table4';
+import { TABLE42_BLOCKS, TABLE42_CREDIT_ROWS, TABLE42_PERSONS } from '../forms/table42';
 import { TABLE7_ROWS, TABLE7_SPAN } from '../forms/table7';
 import { TABLE9_ROWS } from '../forms/table9';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
@@ -204,6 +205,14 @@ export function table9Pages(common: Values): number {
  */
 export function table4Pages(common: Values): number {
   return Math.max(1, Math.trunc(num(common.t4Pages)) || 1);
+}
+
+/**
+ * 第4表の2の枚数。1枚に控除を受ける人3人分。
+ * 第4表と同じく、贈与税を納めているかどうかは相続人の一覧からは分からないので −／＋ で増減する。
+ */
+export function table42Pages(common: Values): number {
+  return Math.max(1, Math.trunc(num(common.t42Pages)) || 1);
 }
 
 /** 第10表の枚数。第9表と同じく1枚に明細5件・相続人5人。 */
@@ -935,6 +944,49 @@ function computeTable4(common: Values, heirs: Values[], pages: number): Table4 {
   return { totals: out, v11 };
 }
 
+/** 第4表の2の計算結果 */
+interface Table42 {
+  /** ④⑧㉕（共通欄に持つ自動計算値） */
+  totals: Values;
+  /** 第1表⑫へ転記する㉕（相続人の番号は0起点） */
+  v12: Map<number, string>;
+}
+
+/**
+ * 第4表の2（暦年課税分の贈与税額控除額の計算書）。
+ *
+ * 年分ごとに ④＝③×②÷①（特例贈与財産分）と ⑧＝⑦×⑥÷⑤（一般贈与財産分）を求め（円未満切捨て）、
+ * ㉕＝④＋⑧＋⑫＋⑯＋⑳＋㉔ をその人の贈与税額控除額とする。
+ * ①〜③・⑤〜⑦は贈与税の申告書を書き写す欄なので、この様式は自分の入力だけで完結する。
+ * そのため第4表と違って第1表を1周する前に確定でき、第5表㋺（配偶者の⑫を引く）にも間に合う。
+ */
+function computeTable42(common: Values, pages: number): Table42 {
+  const out: Values = {};
+  const v12 = new Map<number, string>();
+
+  for (let i = 0; i < pages * TABLE42_PERSONS; i += 1) {
+    const p = `t42${i}`;
+    let sum = 0;
+    let any = false;
+    for (let b = 0; b < TABLE42_BLOCKS; b += 1) {
+      for (const [dst, tax, base, total] of TABLE42_CREDIT_ROWS) {
+        const key = `${p}b${b}r`;
+        const den = num(common[`${key}${total}`]);
+        // 分母（①又は⑤）が無いと按分できない。分子側が空欄のままなら控除額も空欄にする
+        const has = den > 0 && (filled(common, `${key}${tax}`) || filled(common, `${key}${base}`));
+        const v = has ? Math.floor((num(common[`${key}${tax}`]) * num(common[`${key}${base}`])) / den) : 0;
+        out[`${key}${dst}`] = has ? str(v) : '';
+        sum += v;
+        any ||= has;
+      }
+    }
+    out[`${p}v25`] = any ? str(sum) : '';
+    const no = num(common[`${p}no`]);
+    if (no > 0) v12.set(no - 1, any ? str(sum) : '');
+  }
+  return { totals: out, v12 };
+}
+
 /**
  * 全体を計算する。⑧の按分にはⒶ（＝⑥の合計）を、⑨には⑦（＝第2表⑧）を使うため、
  * ⑥→Ⓐ→（第2表）⑧→⑨ の順に第1表を2周する。循環はしない。
@@ -958,6 +1010,11 @@ export function computeAll(
   const t13 = computeTable13(common, table13Pages(common, heirs.length));
   // 第15表①〜㉘ ← 付表の細目ごとの合計。転記になる欄は手入力の残りを混ぜないよう毎回空に戻す。
   const t15 = sumTable15(used, details);
+  // 第1表⑫ ← 第4表の2㉕。この様式は自分の入力だけで完結するので、第1表を1周する前に確定させる
+  // （配偶者の⑫は第5表㋺で引かれるため、2周目より後では間に合わない）。
+  // 名前を選び直したときに古い値が読み取り専用のまま残らないよう、使用中は全員分を上書きする。
+  const t42 = computeTable42(common, table42Pages(common));
+  const t42Used = used.includes('table42');
   const t15Blank = Object.fromEntries(
     table15Transferred(used).flatMap((mark) => {
       const key = TABLE15_KEY_BY_MARK[mark];
@@ -970,6 +1027,7 @@ export function computeAll(
     const funeral = t13.funeral[i + 1] ?? 0;
     return {
       ...h,
+      ...(t42Used ? { v12: t42.v12.get(i) ?? '' } : {}),
       ...(detailForms.length === 0 ? {} : { t11v1: detail === 0 ? '' : signed(detail) }),
       t13v1: debt === 0 ? '' : str(debt),
       t13v4: funeral === 0 ? '' : str(funeral),
@@ -1033,6 +1091,8 @@ export function computeAll(
   );
   // 第4表（相続税額の加算金額）。⑥は上で求めた各人の⑪への転記元
   Object.assign(totals, table4.totals);
+  // 第4表の2（暦年課税分の贈与税額控除額）。㉕は第1表を1周する前に各人の⑫へ入れてある
+  Object.assign(totals, t42.totals);
   // 第6表（未成年者控除・障害者控除）。③⑤は3周目で確定した第1表の⑨〜⑬を引く
   Object.assign(totals, computeTable6(common, computed));
   // 第7表（相次相続控除）。⑧Ⓑは第1表④の合計、⑩は各人の④
