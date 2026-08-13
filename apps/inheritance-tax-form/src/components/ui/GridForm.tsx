@@ -20,6 +20,7 @@ export interface GridCell {
   fontSize?: number;
   forceHorizontal?: boolean;         // 縦長セルでも横書きを維持する
   forceVertical?: boolean;           // セル比率にかかわらず縦書きにする
+  verticalLr?: boolean;              // 縦書きの列が左から右へ進む（第4表の縦書き帯）
   bold?: boolean;
   noWrap?: boolean;                  // 明示改行以外では折り返さない
   noBorder?: boolean;                // 様式に罫線が無い領域（提出日の行など）
@@ -293,7 +294,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           display: 'flex',
           alignItems: 'center',
           justifyContent: isVertical ? (c.align === 'center' ? 'center' : 'flex-start') : justify,
-          writingMode: isVertical ? 'vertical-rl' : undefined,
+          writingMode: isVertical ? (c.verticalLr ? 'vertical-lr' : 'vertical-rl') : undefined,
           fontSize,
           fontWeight: c.bold || highlighted ? 700 : 400,
           background: highlighted ? '#fff3b0' : undefined,

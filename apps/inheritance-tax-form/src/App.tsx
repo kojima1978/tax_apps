@@ -39,6 +39,10 @@ import {
   TABLE9_ASPECT, TABLE9_EDITION, TABLE9_FORM_CODE, TABLE9_ROWS, TABLE9_SUBTITLE, TABLE9_TITLE, buildTable9,
 } from './forms/table9';
 import {
+  TABLE4_ASPECT, TABLE4_EDITION, TABLE4_FORM_CODE, TABLE4_NOTES, TABLE4_PERSONS, TABLE4_SUBTITLE,
+  TABLE4_TITLE, buildTable4,
+} from './forms/table4';
+import {
   TABLE5_ASPECT, TABLE5_EDITION, TABLE5_FORM_CODE, TABLE5_NOTES, TABLE5_SUBTITLE, TABLE5_TITLE, buildTable5,
 } from './forms/table5';
 import {
@@ -54,11 +58,12 @@ import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
 import {
-  hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table15Transferred, table9Pages,
+  hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table15Transferred, table4Pages, table9Pages,
 } from './lib/calc';
 
 /** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
 const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
+  table4: ['v11'],    // ⑪ ← 第4表⑥
   table11: ['v1'],    // ① ← 第11表2③
   table112: ['v2', 'v17'], // ② ← 第11の2表1⑧ ／ ⑰ ← 同1⑨
   table13: ['v3'],    // ③ ← 第13表3⑦
@@ -69,6 +74,9 @@ const MAX_TABLE112_PAGES = 10;
 
 /** 第13表の枚数の上限 */
 const MAX_TABLE13_PAGES = 10;
+
+/** 第4表の枚数の上限（1枚に加算の対象となる人4人分） */
+const MAX_TABLE4_PAGES = 10;
 
 /** 第9表の枚数の上限 */
 const MAX_TABLE9_PAGES = 10;
@@ -91,6 +99,7 @@ const FORMS: FormMeta[] = [
   { id: 'table1', label: '第1表', note: '相続税の申告書', required: true },
   { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
   { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
+  { id: 'table4', label: '第4表', note: '相続税額の加算金額の計算書' },
   { id: 'table5', label: '第5表', note: '配偶者に対する相続税額の軽減額の計算書' },
   { id: 'table6', label: '第6表', note: '未成年者控除額・障害者控除額の計算書' },
   { id: 'table7', label: '第7表', note: '相次相続控除額の計算書' },
@@ -251,6 +260,31 @@ function Table112Page({ heir, page, last, g, u }: Table112PageProps) {
         aspectRatio="1167.5 / 1420"
         formId={`t112h${heir}p${page}`}
         footer={<Footnote notes="" />}
+      />
+    </div>
+  );
+}
+
+interface Table4PageProps extends PageProps {
+  /** 氏名の選択肢（項番を値に、氏名を表示に持つ） */
+  whoOptions: GridCell['options'];
+}
+
+/** 第4表1枚（加算の対象となる人4人分） */
+function Table4Page({ page, whoOptions, g, u }: Table4PageProps) {
+  const cells = useMemo(() => buildTable4(COMMON, TOTALS, page, whoOptions), [page, whoOptions]);
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE4_FORM_CODE}
+        title={TABLE4_TITLE}
+        subtitle={TABLE4_SUBTITLE}
+        aspectRatio={TABLE4_ASPECT}
+        formId={`t4p${page}`}
+        footer={<Footnote notes={TABLE4_NOTES} edition={TABLE4_EDITION} />}
       />
     </div>
   );
@@ -511,6 +545,8 @@ export default function App() {
   const detailUsed = Object.keys(DETAIL_SPECS).some((id) => data.used.includes(id));
   /** 第13表の枚数（3の承継した人が1枚に4人分しか入らないので人数でも増える） */
   const t13Pages = table13Pages(data.common, data.heirs.length);
+  /** 第4表の枚数（加算の対象になるかは続柄だけでは決まらないので人数からは決めない） */
+  const t4Pages = table4Pages(data.common);
   /** 第9表の枚数（明細も相続人も1枚に5件ずつ） */
   const t9Pages = table9Pages(data.common);
   /** 第10表の枚数（第9表と同じく1枚に5件ずつ） */
@@ -619,6 +655,18 @@ export default function App() {
           }
         />
       </div>
+    ),
+    table4: (
+      <>
+        {Array.from({ length: t4Pages }, (_, page) => (
+          <Table4Page key={page} page={page} whoOptions={whoOptions} g={g} u={u} />
+        ))}
+        <div className="app-pagectl no-print">
+          <button type="button" className="app-btn" onClick={() => u('t4Pages', String(t4Pages - 1))} disabled={t4Pages <= 1}>−</button>
+          {t4Pages}枚（加算の対象となる人{TABLE4_PERSONS}人／枚）
+          <button type="button" className="app-btn" onClick={() => u('t4Pages', String(t4Pages + 1))} disabled={t4Pages >= MAX_TABLE4_PAGES}>＋</button>
+        </div>
+      </>
     ),
     table5: (
       <div className="gov-page">

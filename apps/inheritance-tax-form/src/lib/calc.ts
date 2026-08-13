@@ -25,6 +25,7 @@ import { TABLE5_FLOOR } from '../forms/table5';
 import {
   TABLE6_COLS, TABLE6_DISABLED_AGE, TABLE6_DISABLED_RATE, TABLE6_MINOR_AGE, TABLE6_MINOR_RATE, TABLE6_SPECIAL_RATE,
 } from '../forms/table6';
+import { TABLE4_PERSONS, TABLE4_RATE } from '../forms/table4';
 import { TABLE7_ROWS, TABLE7_SPAN } from '../forms/table7';
 import { TABLE9_ROWS } from '../forms/table9';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
@@ -195,6 +196,14 @@ function computeTable13(common: Values, pages: number): Table13 {
 /** 第9表の枚数。1枚に明細5件・相続人5人しか載らないので、足りなければ用紙を増やす。 */
 export function table9Pages(common: Values): number {
   return Math.max(1, Math.trunc(num(common.t9Pages)) || 1);
+}
+
+/**
+ * 第4表の枚数。1枚に加算の対象となる人4人分。
+ * 2割加算の対象になるかどうかは続柄だけでは決まらないので、人数からは決めず −／＋ で増減する。
+ */
+export function table4Pages(common: Values): number {
+  return Math.max(1, Math.trunc(num(common.t4Pages)) || 1);
 }
 
 /** 第10表の枚数。第9表と同じく1枚に明細5件・相続人5人。 */
@@ -870,6 +879,62 @@ function computeTable7(common: Values, heirs: Values[], totalNet: number): Value
   return out;
 }
 
+/** 第4表の計算結果 */
+interface Table4 {
+  /** ①③④⑥（共通欄に持つ自動計算値） */
+  totals: Values;
+  /** 第1表⑪へ転記する⑥（相続人の番号は0起点） */
+  v11: Map<number, string>;
+}
+
+/**
+ * 第4表（相続税額の加算金額の計算書）。
+ *
+ * ⑥ ＝ ①×0.2。ただし④又は⑤があるときは（①−④−⑤）×0.2。
+ * ① は第1表⑨（⑩に記入があれば⑩）、③ は第1表①＋②＋⑤、④ は ①×②÷③（円未満切捨て）。
+ *
+ * ② は「一親等の血族であった期間内の相続時精算課税適用財産」で第1表からは出せないので手入力。
+ * ⑤ の第4表の付表は実装対象の様式に含まれないのでこちらも手入力。
+ *
+ * 氏名は第6表・第7表と同じ選択式（項番→氏名）で、選ばれた人の第1表を参照する。
+ * @param heirs 2周目まで確定した第1表（⑨と①②⑤が入っている）
+ */
+function computeTable4(common: Values, heirs: Values[], pages: number): Table4 {
+  const out: Values = {};
+  const v11 = new Map<number, string>();
+  const show = (n: number, present: boolean): string => (present ? str(n) : '');
+
+  for (let i = 0; i < pages * TABLE4_PERSONS; i += 1) {
+    const p = `t4${i}`;
+    const no = num(common[`${p}no`]);
+    const h = no > 0 ? heirs[no - 1] : undefined;
+    if (h === undefined) {
+      for (const key of ['v1', 'v3', 'v4', 'v6']) out[`${p}${key}`] = '';
+      continue;
+    }
+    // ① 各人の税額控除前の相続税額（第1表⑨。⑩に記入があればそちら）
+    const v1 = filled(h, 'v10') ? num(h.v10) : num(h.v9);
+    const hasV1 = filled(h, 'v9') || filled(h, 'v10');
+    // ③ 相続税の課税価格に算入された財産の価額（第1表①＋②＋⑤）
+    const v3 = num(h.v1) + num(h.v2) + num(h.v5);
+    const hasV3 = filled(h, 'v1') || filled(h, 'v2') || filled(h, 'v5');
+    // ④ 加算の対象とならない相続税額（①×②÷③）（円未満切捨て）
+    const hasV4 = filled(common, `${p}v2`) && v3 > 0;
+    const v4 = hasV4 ? Math.floor((v1 * num(common[`${p}v2`])) / v3) : 0;
+    const v5 = num(common[`${p}v5`]);
+    // ⑥ 相続税額の加算金額。④又は⑤があるときは①からその分を差し引いてから2割にする
+    const cut = hasV4 || filled(common, `${p}v5`);
+    const v6 = Math.floor(Math.max(0, cut ? v1 - v4 - v5 : v1) * TABLE4_RATE);
+
+    out[`${p}v1`] = show(v1, hasV1);
+    out[`${p}v3`] = show(v3, hasV3);
+    out[`${p}v4`] = show(v4, hasV4);
+    out[`${p}v6`] = show(v6, hasV1);
+    if (hasV1) v11.set(no - 1, str(v6));
+  }
+  return { totals: out, v11 };
+}
+
 /**
  * 全体を計算する。⑧の按分にはⒶ（＝⑥の合計）を、⑨には⑦（＝第2表⑧）を使うため、
  * ⑥→Ⓐ→（第2表）⑧→⑨ の順に第1表を2周する。循環はしない。
@@ -930,11 +995,20 @@ export function computeAll(
   // 第5表: 2周目で確定した配偶者の⑨⑫を使って軽減額㋩（㋬）を求める
   const spouse = used.includes('table5') ? spouseIndex(heirs) : -1;
   const table5 = computeTable5(common, pass2[spouse], totalA, total7);
-  // 3周目: ㋩（第3表側の記入があれば㋬）を配偶者の⑬へ転記して⑮以降を計算し直す
   const t5v13 = filled(common, 't5a3') || filled(common, 't5v17') ? table5.t5s2ha : table5.t5s1ha;
-  const computed: Values[] = spouse < 0 ? pass2 : pass2.map((h, i) => (
-    i === spouse ? { ...computeHeir({ ...inputs[i]!, v13: t5v13 ?? '' }, total7, totalA, forms), t11no: str(i + 1) } : h
-  ));
+  // 第4表: 2周目で確定した⑨と①②⑤から加算金額⑥を求める（⑨は⑪に依存しないので循環しない）
+  const table4 = computeTable4(common, pass2, table4Pages(common));
+  const t4v11 = used.includes('table4') ? table4.v11 : new Map<number, string>();
+
+  // 3周目: 第5表㋩を配偶者の⑬へ、第4表⑥を各人の⑪へ転記して⑮⑯以降を計算し直す
+  const computed: Values[] = pass2.map((h, i) => {
+    const patch: Values = {
+      ...(i === spouse ? { v13: t5v13 ?? '' } : {}),
+      ...(t4v11.has(i) ? { v11: t4v11.get(i)! } : {}),
+    };
+    if (Object.keys(patch).length === 0) return h;
+    return { ...computeHeir({ ...inputs[i]!, ...patch }, total7, totalA, forms), t11no: str(i + 1) };
+  });
 
   const totals: Values = { ...table2.totals, ...table5 };
   for (const key of TOTAL_ROWS) {
@@ -957,6 +1031,8 @@ export function computeAll(
     computeNonTaxableLimit(common, 't9', table9Pages(common), TABLE9_ROWS, heirCount),
     computeNonTaxableLimit(common, 't10', table10Pages(common), TABLE10_ROWS, heirCount),
   );
+  // 第4表（相続税額の加算金額）。⑥は上で求めた各人の⑪への転記元
+  Object.assign(totals, table4.totals);
   // 第6表（未成年者控除・障害者控除）。③⑤は3周目で確定した第1表の⑨〜⑬を引く
   Object.assign(totals, computeTable6(common, computed));
   // 第7表（相次相続控除）。⑧Ⓑは第1表④の合計、⑩は各人の④
