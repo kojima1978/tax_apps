@@ -16,6 +16,7 @@
  */
 
 import { TABLE112_ROWS } from '../forms/table112';
+import { TABLE13_DEBT_ROWS, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS } from '../forms/table13';
 import { RATE_BRACKETS } from '../forms/table2';
 
 export type Values = Record<string, string>;
@@ -116,12 +117,59 @@ function computeTable112(h: Values): Values {
   return out;
 }
 
+/**
+ * 第13表の枚数。1枚に債務4件・葬式費用5件・人4人しか載らないので、
+ * 明細の枚数（共通欄 `t13Pages`）と人数から決まる枚数の大きい方をとる。
+ */
+export function table13Pages(common: Values, heirs: number): number {
+  const explicit = Math.max(1, Math.trunc(num(common.t13Pages)) || 1);
+  return Math.max(explicit, Math.ceil(heirs / TABLE13_PERSONS));
+}
+
+/** 第13表1・2の明細の集計 */
+interface Table13 {
+  /** 人の番号（1始まり）ごとの 3① 負担することが確定した債務 */
+  debt: number[];
+  /** 同 3④ 負担することが確定した葬式費用 */
+  funeral: number[];
+  /** 1の合計（G09） */
+  debtTotal: number;
+  /** 2の合計（G20） */
+  funeralTotal: number;
+}
+
+/**
+ * 第13表1（債務の明細）・2（葬式費用の明細）を集計する。値は共通欄（'c.' スコープ）に持つ。
+ *
+ * 合計欄は「金額」列の合計で、負担する人が決まっていない債務も含まれる。
+ * 3①④は「負担する金額」を負担する人ごとに合計したもので、負担する人の欄は
+ * 第11表の項番（＝入力順の通し番号）を選ぶ選択式なので、そのまま人に結び付く。
+ * 枚数を減らしたときに残る入力値を混ぜないよう、表に出ている行番号だけを走査する。
+ */
+function computeTable13(common: Values, pages: number): Table13 {
+  const out: Table13 = { debt: [], funeral: [], debtTotal: 0, funeralTotal: 0 };
+  const scan = (prefix: string, rows: number, by: number[]): number => {
+    let total = 0;
+    for (let i = 0; i < pages * rows; i += 1) {
+      total += num(common[`${prefix}${i}Amt`]);
+      const no = num(common[`${prefix}${i}Who`]);
+      if (no > 0) by[no] = (by[no] ?? 0) + num(common[`${prefix}${i}Share`]);
+    }
+    return total;
+  };
+  out.debtTotal = scan('t13d', TABLE13_DEBT_ROWS, out.debt);
+  out.funeralTotal = scan('t13f', TABLE13_FUNERAL_ROWS, out.funeral);
+  return out;
+}
+
 /** どの様式を使っているか（使う様式によって第1表の転記欄が変わる） */
 export interface UsedForms {
   /** 第11表を使用する（＝第1表①を第11表2③から転記して読み取り専用にする） */
   table11?: boolean;
   /** 第11の2表を使用する（＝第1表②⑰を第11の2表1⑧⑨から転記して読み取り専用にする） */
   table112?: boolean;
+  /** 第13表を使用する（＝第1表③を第13表3⑦から転記して読み取り専用にする） */
+  table13?: boolean;
 }
 
 /**
@@ -147,9 +195,16 @@ export function computeHeir(h: Values, total7: number, totalA: number, forms: Us
     out.v17 = out.t112v9 === '' ? '' : str(num(out.t112v9) / 100);
   }
 
+  // 第13表3 ③計（①＋②）・⑥計（④＋⑤）・⑦合計（③＋⑥）。①④は1・2の明細からの転記。
+  out.t13v3 = show(num(h.t13v1) + num(h.t13v2), has(h.t13v1, h.t13v2));
+  out.t13v6 = show(num(h.t13v4) + num(h.t13v5), has(h.t13v4, h.t13v5));
+  out.t13v7 = show(num(out.t13v3) + num(out.t13v6), has(out.t13v3, out.t13v6));
+  // 第1表③ ← 第13表3⑦
+  if (forms.table13) out.v3 = out.t13v7;
+
   // ④ 純資産価額（①＋②−③）（赤字のときは0）
-  const v4 = Math.max(0, num(out.v1) + num(out.v2) - num(h.v3));
-  out.v4 = show(v4, has(out.v1, out.v2, h.v3));
+  const v4 = Math.max(0, num(out.v1) + num(out.v2) - num(out.v3));
+  out.v4 = show(v4, has(out.v1, out.v2, out.v3));
 
   // ⑥ 課税価格（④＋⑤）（1,000円未満切捨て） — 様式の「000」に合わせ千円単位で保持
   const v6yen = Math.floor((v4 + num(h.v5)) / 1000) * 1000;
@@ -193,7 +248,11 @@ export function computeHeir(h: Values, total7: number, totalA: number, forms: Us
 }
 
 /** 「各人の合計」列に横計で集計する欄（Ⓐ＝⑥は千円単位のまま合計してよい） */
-const TOTAL_ROWS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17', 'v18', 'v19', 'v20', 'v21', 'v22', 'v23', 'v24', 'v25', 'v26'] as const;
+const TOTAL_ROWS = [
+  'v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17', 'v18', 'v19', 'v20', 'v21', 'v22', 'v23', 'v24', 'v25', 'v26',
+  // 第13表3の「各人の合計」列
+  't13v1', 't13v2', 't13v3', 't13v4', 't13v5', 't13v6', 't13v7',
+] as const;
 
 /** △表示のまま合計する欄（還付額・差引額） */
 const SIGNED_TOTAL_ROWS = ['v27'] as const;
@@ -305,14 +364,27 @@ export interface Computed {
 export function computeAll(
   common: Values, heirs: Values[], lawful: Values[], used: string[] = [], details: Record<string, Values[]> = {},
 ): Computed {
-  const forms: UsedForms = { table11: used.includes('table11'), table112: used.includes('table112') };
+  const forms: UsedForms = {
+    table11: used.includes('table11'),
+    table112: used.includes('table112'),
+    table13: used.includes('table13'),
+  };
 
   // 第11表2① ← 付表の「分割が確定した財産」。使用する付表だけを合計する。
   const detailForms = used.filter((id) => (details[id]?.length ?? 0) > 0);
   const detailTotals = sumDetails(detailForms.flatMap((id) => details[id]!));
-  const inputs = detailForms.length === 0 ? heirs : heirs.map((h, i): Values => {
-    const sum = detailTotals[i + 1] ?? 0;
-    return { ...h, t11v1: sum === 0 ? '' : signed(sum) };
+  // 第13表3①④ ← 同表1・2の明細の「負担する金額」
+  const t13 = computeTable13(common, table13Pages(common, heirs.length));
+  const inputs = heirs.map((h, i): Values => {
+    const detail = detailTotals[i + 1] ?? 0;
+    const debt = t13.debt[i + 1] ?? 0;
+    const funeral = t13.funeral[i + 1] ?? 0;
+    return {
+      ...h,
+      ...(detailForms.length === 0 ? {} : { t11v1: detail === 0 ? '' : signed(detail) }),
+      t13v1: debt === 0 ? '' : str(debt),
+      t13v4: funeral === 0 ? '' : str(funeral),
+    };
   });
 
   // 1周目: Ⓐ（⑥の合計）を確定させる
@@ -337,6 +409,9 @@ export function computeAll(
   }
   // ⑧ 合計欄は様式にあらかじめ「1.00」と印字されている
   totals.v8 = '1.00';
+  // 第13表1・2の合計（負担する人が決まっていない分も含む「金額」列の合計）
+  totals.t13dTotal = t13.debtTotal === 0 ? '' : str(t13.debtTotal);
+  totals.t13fTotal = t13.funeralTotal === 0 ? '' : str(t13.funeralTotal);
 
   return { heirs: computed, lawful: table2.lawful, totals };
 }

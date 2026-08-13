@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
-import { GridForm } from './components/ui/GridForm';
+import { GridForm, type GridCell } from './components/ui/GridForm';
 import { COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1 } from './forms/table1';
 import {
   TABLE1CONT_CONFIRM_BOXES, TABLE1CONT_FORM_CODE, TABLE1CONT_NOTES, TABLE1CONT_TITLE, buildTable1Cont,
@@ -13,22 +13,30 @@ import {
 import {
   TABLE112_FORM_CODE, TABLE112_ROWS, TABLE112_SUBTITLE, TABLE112_TITLE, buildTable112,
 } from './forms/table112';
+import {
+  TABLE13_ASPECT, TABLE13_DEBT_ROWS, TABLE13_FORM_CODE, TABLE13_FUNERAL_ROWS, TABLE13_EDITION,
+  TABLE13_PERSONS, TABLE13_SUBTITLE, TABLE13_TITLE, buildTable13,
+} from './forms/table13';
 import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
 import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
-import { hasTable112, table112Pages } from './lib/calc';
+import { hasTable112, table112Pages, table13Pages } from './lib/calc';
 
 /** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
 const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
   table11: ['v1'],    // ① ← 第11表2③
   table112: ['v2', 'v17'], // ② ← 第11の2表1⑧ ／ ⑰ ← 同1⑨
+  table13: ['v3'],    // ③ ← 第13表3⑦
 };
 
 /** 第11の2表の枚数の上限（1人分・1枚に年分6行） */
 const MAX_TABLE112_PAGES = 10;
+
+/** 第13表の枚数の上限 */
+const MAX_TABLE13_PAGES = 10;
 
 /** 画面左の一覧と印刷順を決める様式の登録簿。様式を足したらここに1行追加する。 */
 interface FormMeta {
@@ -51,6 +59,7 @@ const FORMS: FormMeta[] = [
   { id: 'table11f2', label: '第11表の付表2', note: '財産の明細書（有価証券用）' },
   { id: 'table11f3', label: '第11表の付表3', note: '財産の明細書（現金・預貯金等用）' },
   { id: 'table11f4', label: '第11表の付表4', note: '財産の明細書（事業用・家庭用・その他）' },
+  { id: 'table13', label: '第13表', note: '債務及び葬式費用の明細書' },
 ];
 
 /** 付表（財産の明細書）の様式ID → 割付。様式を足したらここに1行追加する。 */
@@ -195,6 +204,39 @@ function Table112Page({ heir, page, last, g, u }: Table112PageProps) {
   );
 }
 
+interface Table13PageProps extends PageProps {
+  /** 3の「債務などを承継した人」は1枚に4人分。最終ページにだけ（各人の合計）を出す */
+  last: boolean;
+  /** 「負担する人の氏名」の選択肢（項番を値に、氏名を表示に持つ） */
+  whoOptions: GridCell['options'];
+}
+
+/** 第13表1枚（債務4件・葬式費用5件・承継した人4人分） */
+function Table13Page({ page, last, whoOptions, g, u }: Table13PageProps) {
+  const cells = useMemo(
+    () => buildTable13(COMMON, TOTALS, Array.from({ length: TABLE13_PERSONS }, (_, i) => {
+      const index = page * TABLE13_PERSONS + i;
+      return { prefix: heirPrefix(index), label: heirLabel(index) };
+    }), page, last, whoOptions),
+    [page, last, whoOptions],
+  );
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE13_FORM_CODE}
+        title={TABLE13_TITLE}
+        subtitle={TABLE13_SUBTITLE}
+        aspectRatio={TABLE13_ASPECT}
+        formId={`t13p${page}`}
+        footer={<Footnote notes="" edition={TABLE13_EDITION} />}
+      />
+    </div>
+  );
+}
+
 interface DetailPageProps extends PageProps {
   form: keyof typeof DETAIL_SPECS;
 }
@@ -247,6 +289,13 @@ export default function App() {
   const detailPages = (form: string): number => Math.max(1, Math.ceil((data.details[form]?.length ?? 0) / DETAIL_GROUPS));
   /** 付表を1つでも使うなら、第11表2①は付表からの転記になる */
   const detailUsed = Object.keys(DETAIL_SPECS).some((id) => data.used.includes(id));
+  /** 第13表の枚数（3の承継した人が1枚に4人分しか入らないので人数でも増える） */
+  const t13Pages = table13Pages(data.common, data.heirs.length);
+  /** 第13表の「負担する人の氏名」。値は項番（1始まり）で、印字は氏名になる */
+  const whoOptions = useMemo(
+    (): GridCell['options'] => ['', ...data.heirs.map((heir, i) => ({ value: String(i + 1), label: heir.name ?? '' }))],
+    [data.heirs],
+  );
 
   /** その様式を提出する（＝印刷する）か */
   const used = (form: FormMeta): boolean => {
@@ -312,6 +361,25 @@ export default function App() {
         </div>
       );
     }),
+    table13: (
+      <>
+        {Array.from({ length: t13Pages }, (_, page) => (
+          <Table13Page key={page} page={page} last={page === t13Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+        ))}
+        <div className="app-pagectl no-print">
+          <button
+            type="button"
+            className="app-btn"
+            onClick={() => u('t13Pages', String(t13Pages - 1))}
+            disabled={t13Pages <= Math.max(1, Math.ceil(data.heirs.length / TABLE13_PERSONS))}
+          >
+            −
+          </button>
+          明細 {t13Pages}枚（債務{TABLE13_DEBT_ROWS}件・葬式費用{TABLE13_FUNERAL_ROWS}件／枚）
+          <button type="button" className="app-btn" onClick={() => u('t13Pages', String(t13Pages + 1))} disabled={t13Pages >= MAX_TABLE13_PAGES}>＋</button>
+        </div>
+      </>
+    ),
     ...Object.fromEntries(DETAIL_FORMS.map((id) => [id, (
       <>
         {Array.from({ length: detailPages(id) }, (_, page) => (
