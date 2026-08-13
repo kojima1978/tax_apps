@@ -345,8 +345,13 @@ export interface CalcRowsOptions {
   who2: string;
   /** 左列を常に編集不可にする（第1表の「各人の合計」列） */
   readOnly1?: boolean;
-  /** 定義上は手入力だが、他の様式からの転記になっている行（第11表を使う場合の①など） */
+  /**
+   * 定義上は手入力だが、他の様式からの転記になっている行（第11表を使う場合の①など）。
+   * 左列・右列で別々に指定する。第5表の⑬のように**その人が配偶者のときだけ**
+   * 転記になる欄があるため、列ごとに分けている（第1表（続）は両列とも人の列）。
+   */
   transferred?: readonly string[];
+  transferred2?: readonly string[];
 }
 
 /** 金額欄・割合欄の共通指定 */
@@ -359,11 +364,12 @@ function valueCell(field: string, ariaLabel: string, def: CalcRowDef, readOnly: 
 }
 
 /** 計算欄の汎用行（ラベル・丸番号・コード枠・金額欄）をまとめて生成する。 */
-export function calcRows({ ry, keys, codes1, codes2, p1, p2, who1, who2, readOnly1, transferred }: CalcRowsOptions): GridCell[] {
+export function calcRows({ ry, keys, codes1, codes2, p1, p2, who1, who2, readOnly1, transferred, transferred2 }: CalcRowsOptions): GridCell[] {
   return keys.flatMap((key) => {
     const def = CALC_DEFS[key]!;
     const y = ry[key]!;
     const auto = def.auto === true || transferred?.includes(key) === true;
+    const auto2 = def.auto === true || transferred2?.includes(key) === true;
     const name = `${def.no}${def.label.split('\n')[0]}`;
     return [
       label(y, [def.labelLeft ?? V.BAND1, V.LBL], def.label),
@@ -371,7 +377,7 @@ export function calcRows({ ry, keys, codes1, codes2, p1, p2, who1, who2, readOnl
       code(y, [V.NUM, V.CODE1], codes1[key] ?? ''),
       mk(y, [V.CODE1, V.MID], valueCell(`${p1}${key}`, `${who1} ${name}`, def, readOnly1 === true || auto)),
       code(y, [V.MID, V.CODE2], codes2[key] ?? ''),
-      mk(y, [V.CODE2, V.R], valueCell(`${p2}${key}`, `${who2} ${name}`, def, auto)),
+      mk(y, [V.CODE2, V.R], valueCell(`${p2}${key}`, `${who2} ${name}`, def, auto2)),
     ];
   });
 }

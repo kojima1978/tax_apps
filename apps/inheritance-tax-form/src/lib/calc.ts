@@ -21,6 +21,7 @@ import { TABLE1112F1_RATE } from '../forms/table1112f1';
 import { SLOTS_BY_KIND, SLOTS_BY_ROW, TABLE1112F1B_OWNERS, TABLE1112F1B_ROWS } from '../forms/table1112f1b';
 import { TABLE13_DEBT_ROWS, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS } from '../forms/table13';
 import { TABLE10_ROWS } from '../forms/table10';
+import { TABLE5_FLOOR } from '../forms/table5';
 import { TABLE9_ROWS } from '../forms/table9';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
@@ -38,6 +39,10 @@ export const SCALE: Record<string, number> = {
   v21: 100,      // ㉑ 申告期限までに納付すべき税額
   v24: 100,      // ㉔ 納税猶予税額（この修正前の）
   t15v38: 1000,  // 第15表㊳ 課税価格（1,000円未満切捨て）
+  t5s1v6: 1000,  // 第5表⑥ 配偶者の税額軽減額を計算する場合の課税価格（1,000円未満切捨て）
+  t5s2v6: 1000,  // 第5表⑯ 同上（農業相続人がいる場合）
+  t5a3: 1000,    // 第5表 第3表のⒶの金額（課税価格の合計額）
+  t5v17: 100,    // 第5表⑰ 第3表の⑦の金額（相続税の総額）
   t9A: 1000000,  // 第9表Ⓐ 保険金の非課税限度額（百万円単位で記入する）
   t10A: 1000000, // 第10表Ⓐ 退職手当金などの非課税限度額（百万円単位で記入する）
   // 第2表①②③欄
@@ -598,6 +603,87 @@ function computeTable1112f1(items: Values[], sheets: Values[]): Values {
 }
 
 /**
+ * 配偶者の相続人番号（0起点。いなければ −1）。続柄コード「01」＝配偶者で判定する。
+ * 第5表は配偶者1人分の様式なので、複数いる場合は先に入力された方を配偶者として扱う。
+ */
+export function spouseIndex(heirs: Values[]): number {
+  return heirs.findIndex((h) => h.relation === '01');
+}
+
+/** 第5表 各セクションの転記元（上段＝第1表、下段＝第3表） */
+interface Table5Source {
+  /** キーの接頭辞（'t5s1' / 't5s2'） */
+  p: string;
+  /** Ⓐ 課税価格の合計額（円） */
+  totalA: number;
+  /** ⑦ 相続税の総額（円） */
+  tax: number;
+  /** 法定相続分の分子・分母（共通欄のキー） */
+  numKey: string;
+  denKey: string;
+  /** 限度額の1つ目（上段は⑨又は⑩、下段は⑩のみ） */
+  useV10Only: boolean;
+}
+
+/**
+ * 第5表（配偶者に対する相続税額の軽減額の計算書）。
+ *
+ * 上段・下段は転記元（第1表／第3表）が違うだけで算式は同じなので、
+ * `Table5Source` を差し替えて同じ計算を2回まわす。
+ * ①②③⑤は配偶者の第11表2・第1表からの転記なので、上段・下段で同じ値になる。
+ */
+function computeTable5(common: Values, spouseValues: Values | undefined, totalA: number, total7: number): Values {
+  const out: Values = {};
+  if (spouseValues === undefined) return out;
+  const sources: Table5Source[] = [
+    { p: 't5s1', totalA, tax: total7, numKey: 't5num', denKey: 't5den', useV10Only: false },
+    { p: 't5s2', totalA: yen(common, 't5a3'), tax: yen(common, 't5v17'), numKey: 't5num2', denKey: 't5den2', useV10Only: true },
+  ];
+  // ①③は第11表2の配偶者の①②、②⑤は第1表の配偶者の③⑤（どちらの段も同じ）
+  const v1 = num(spouseValues.t11v1);
+  const v2 = num(spouseValues.v3);
+  const v3 = num(spouseValues.t11v2);
+  const v4 = Math.max(0, v2 - v3);
+  // ⑥ 配偶者の税額軽減額を計算する場合の課税価格（⑤より小さいときは⑤・1,000円未満切捨て）
+  const v6yen = Math.floor(Math.max(v1 - v4 + num(spouseValues.v5), num(spouseValues.v5)) / 1000) * 1000;
+  // 第1表の配偶者の⑨（⑩の記入があれば⑩）と⑫
+  const g2 = num(spouseValues.v12);
+
+  for (const s of sources) {
+    const show = (n: number, present: boolean) => (present ? str(n) : '');
+    const hasA = s.totalA > 0;
+    out[`${s.p}v1`] = show(v1, v1 !== 0);
+    out[`${s.p}v2`] = show(v2, v2 !== 0);
+    out[`${s.p}v3`] = show(v3, v3 !== 0);
+    out[`${s.p}v4`] = show(v4, v2 !== 0 || v3 !== 0);
+    out[`${s.p}v5`] = show(num(spouseValues.v5), num(spouseValues.v5) !== 0);
+    out[`${s.p}v6`] = show(v6yen / 1000, v6yen !== 0);
+
+    // 課税価格の合計額 × 配偶者の法定相続分（円未満切捨て）。16,000万円に満たないときは16,000万円
+    const den = num(common[s.denKey]);
+    const mul = hasA && den > 0 ? Math.floor((s.totalA * num(common[s.numKey])) / den) : 0;
+    out[`${s.p}mul`] = show(mul, mul !== 0);
+    const i = Math.max(mul, TABLE5_FLOOR);
+    out[`${s.p}i`] = show(i, hasA);
+
+    // ⑧ ㋑の金額と⑥の金額のうち少ない方 ／ ⑩ ⑦×⑧÷⑨（円未満切捨て）
+    const v8 = Math.min(i, v6yen);
+    out[`${s.p}v8`] = show(v8, hasA && v6yen !== 0);
+    const v10 = hasA ? Math.floor((s.tax * v8) / s.totalA) : 0;
+    out[`${s.p}v10`] = show(v10, hasA && s.tax > 0 && v6yen !== 0);
+
+    // 限度額 ㋺ ＝ （⑨又は⑩）−⑫、軽減額 ㋩ ＝ ⑩と㋺のうち少ない方
+    const g1 = s.useV10Only || filled(spouseValues, 'v10') ? num(spouseValues.v10) : num(spouseValues.v9);
+    out[`${s.p}g1`] = show(g1, g1 !== 0);
+    out[`${s.p}g2`] = show(g2, g2 !== 0);
+    const ro = Math.max(0, g1 - g2);
+    out[`${s.p}ro`] = show(ro, g1 !== 0);
+    out[`${s.p}ha`] = show(Math.min(v10, ro), g1 !== 0 && v10 !== 0);
+  }
+  return out;
+}
+
+/**
  * 全体を計算する。⑧の按分にはⒶ（＝⑥の合計）を、⑨には⑦（＝第2表⑧）を使うため、
  * ⑥→Ⓐ→（第2表）⑧→⑨ の順に第1表を2周する。循環はしない。
  * @param used 使用する様式のID。第11表・付表を使うかどうかで第1表①・第11表2①の扱いが変わる。
@@ -652,9 +738,18 @@ export function computeAll(
   const total7 = yen(table2.totals, 't7');
 
   // 2周目: 確定したⒶ・⑦で⑧以降を計算する。第11表の項番は入力順の通し番号。
-  const computed: Values[] = inputs.map((h, i) => ({ ...computeHeir(h, total7, totalA, forms), t11no: str(i + 1) }));
+  const pass2: Values[] = inputs.map((h, i) => ({ ...computeHeir(h, total7, totalA, forms), t11no: str(i + 1) }));
 
-  const totals: Values = { ...table2.totals };
+  // 第5表: 2周目で確定した配偶者の⑨⑫を使って軽減額㋩（㋬）を求める
+  const spouse = used.includes('table5') ? spouseIndex(heirs) : -1;
+  const table5 = computeTable5(common, pass2[spouse], totalA, total7);
+  // 3周目: ㋩（第3表側の記入があれば㋬）を配偶者の⑬へ転記して⑮以降を計算し直す
+  const t5v13 = filled(common, 't5a3') || filled(common, 't5v17') ? table5.t5s2ha : table5.t5s1ha;
+  const computed: Values[] = spouse < 0 ? pass2 : pass2.map((h, i) => (
+    i === spouse ? { ...computeHeir({ ...inputs[i]!, v13: t5v13 ?? '' }, total7, totalA, forms), t11no: str(i + 1) } : h
+  ));
+
+  const totals: Values = { ...table2.totals, ...table5 };
   for (const key of TOTAL_ROWS) {
     const sum = computed.reduce((s, h) => s + num(h[key]), 0);
     totals[key] = sum === 0 ? '' : str(sum);

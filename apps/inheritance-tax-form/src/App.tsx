@@ -38,13 +38,18 @@ import {
 import {
   TABLE9_ASPECT, TABLE9_EDITION, TABLE9_FORM_CODE, TABLE9_ROWS, TABLE9_SUBTITLE, TABLE9_TITLE, buildTable9,
 } from './forms/table9';
+import {
+  TABLE5_ASPECT, TABLE5_EDITION, TABLE5_FORM_CODE, TABLE5_NOTES, TABLE5_SUBTITLE, TABLE5_TITLE, buildTable5,
+} from './forms/table5';
 import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
 import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
-import { hasTable112, table10Pages, table112Pages, table13Pages, table15Transferred, table9Pages } from './lib/calc';
+import {
+  hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table15Transferred, table9Pages,
+} from './lib/calc';
 
 /** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
 const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
@@ -80,6 +85,7 @@ const FORMS: FormMeta[] = [
   { id: 'table1', label: '第1表', note: '相続税の申告書', required: true },
   { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
   { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
+  { id: 'table5', label: '第5表', note: '配偶者に対する相続税額の軽減額の計算書' },
   { id: 'table9', label: '第9表', note: '生命保険金などの明細書' },
   { id: 'table10', label: '第10表', note: '退職手当金などの明細書' },
   { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
@@ -146,16 +152,20 @@ interface PageProps {
 interface ContPageProps extends PageProps {
   /** 他の様式からの転記になっている行（読み取り専用にする） */
   transferred: readonly string[];
+  /** 配偶者の列だけの転記行（⑬を含む） */
+  transferredSpouse: readonly string[];
+  /** 配偶者の相続人番号（0起点。いなければ −1） */
+  spouse: number;
 }
 
 /** 第1表（続）1枚（財産を取得した人2人分） */
-function ContPage({ page, g, u, transferred }: ContPageProps) {
+function ContPage({ page, g, u, transferred, transferredSpouse, spouse }: ContPageProps) {
   const a = 1 + page * 2;
   const b = a + 1;
-  const cells = useMemo(
-    () => buildTable1Cont(heirPrefix(a), heirLabel(a), heirPrefix(b), heirLabel(b), transferred),
-    [a, b, transferred],
-  );
+  const cells = useMemo(() => {
+    const pick = (i: number) => (i === spouse ? transferredSpouse : transferred);
+    return buildTable1Cont(heirPrefix(a), heirLabel(a), heirPrefix(b), heirLabel(b), pick(a), pick(b));
+  }, [a, b, spouse, transferred, transferredSpouse]);
   return (
     <div className="gov-page">
       <GridForm
@@ -473,8 +483,18 @@ export default function App() {
     () => data.used.flatMap((id) => TRANSFERRED_BY_FORM[id] ?? []),
     [data.used],
   );
-  const table1Cells = useMemo(() => buildTable1(heirPrefix(0), transferred), [transferred]);
+  // 第5表の㋩は配偶者の⑬への転記なので、配偶者の列だけ⑬を読み取り専用にする
+  const spouse = useMemo(
+    () => (data.used.includes('table5') ? spouseIndex(data.heirs) : -1),
+    [data.used, data.heirs],
+  );
+  const transferredSpouse = useMemo(() => [...transferred, 'v13'], [transferred]);
+  const table1Cells = useMemo(
+    () => buildTable1(heirPrefix(0), spouse === 0 ? transferredSpouse : transferred),
+    [spouse, transferred, transferredSpouse],
+  );
   const table2Cells = useMemo(() => buildTable2(COMMON, TOTALS), []);
+  const table5Cells = useMemo(() => buildTable5(COMMON, TOTALS), []);
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
   const table11Pages = Math.max(1, Math.ceil(data.heirs.length / TABLE11_ROWS));
   /** 付表の枚数（明細の件数から決まる。1枚は必ず出す） */
@@ -558,7 +578,15 @@ export default function App() {
       </div>
     ),
     table1cont: Array.from({ length: contPages }, (_, page) => (
-      <ContPage key={page} page={page} g={g} u={u} transferred={transferred} />
+      <ContPage
+        key={page}
+        page={page}
+        g={g}
+        u={u}
+        transferred={transferred}
+        transferredSpouse={transferredSpouse}
+        spouse={spouse}
+      />
     )),
     table2: (
       <div className="gov-page">
@@ -577,6 +605,21 @@ export default function App() {
               <Footnote notes={TABLE2_JOINT_NOTES} edition={TABLE2_EDITION} />
             </>
           }
+        />
+      </div>
+    ),
+    table5: (
+      <div className="gov-page">
+        <GridForm
+          cells={table5Cells}
+          g={g}
+          u={u}
+          formCode={TABLE5_FORM_CODE}
+          title={TABLE5_TITLE}
+          subtitle={TABLE5_SUBTITLE}
+          aspectRatio={TABLE5_ASPECT}
+          formId="t5"
+          footer={<Footnote notes={TABLE5_NOTES} edition={TABLE5_EDITION} />}
         />
       </div>
     ),
