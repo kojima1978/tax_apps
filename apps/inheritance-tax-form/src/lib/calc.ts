@@ -20,6 +20,7 @@ import { TABLE112_ROWS } from '../forms/table112';
 import { TABLE1112F1_RATE } from '../forms/table1112f1';
 import { SLOTS_BY_KIND, SLOTS_BY_ROW, TABLE1112F1B_OWNERS, TABLE1112F1B_ROWS } from '../forms/table1112f1b';
 import { TABLE13_DEBT_ROWS, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS } from '../forms/table13';
+import { TABLE9_ROWS } from '../forms/table9';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
 
@@ -36,6 +37,7 @@ export const SCALE: Record<string, number> = {
   v21: 100,      // ㉑ 申告期限までに納付すべき税額
   v24: 100,      // ㉔ 納税猶予税額（この修正前の）
   t15v38: 1000,  // 第15表㊳ 課税価格（1,000円未満切捨て）
+  t9A: 1000000,  // 第9表Ⓐ 保険金の非課税限度額（百万円単位で記入する）
   // 第2表①②③欄
   k2: 1000,      // ㋭ 第3表の課税価格の合計額
   k4: 10000,     // ㋩ 遺産に係る基礎控除額（万円単位で記入する）
@@ -164,6 +166,47 @@ function computeTable13(common: Values, pages: number): Table13 {
   };
   out.debtTotal = scan('t13d', TABLE13_DEBT_ROWS, out.debt);
   out.funeralTotal = scan('t13f', TABLE13_FUNERAL_ROWS, out.funeral);
+  return out;
+}
+
+/** 第9表の枚数。1枚に明細5件・相続人5人しか載らないので、足りなければ用紙を増やす。 */
+export function table9Pages(common: Values): number {
+  return Math.max(1, Math.trunc(num(common.t9Pages)) || 1);
+}
+
+/**
+ * 第9表2（課税される金額の計算）。1・2とも様式全体の一覧なので入力は共通欄（'c.' スコープ）に持ち、
+ * 自動計算の結果だけを 't.' スコープに返す。
+ *
+ * Ⓐ 非課税限度額 ＝ 500万円 × 法定相続人の数（第2表㋺からの転記）。
+ * 様式に「,000,000」が印字されている欄なので百万円単位で保持する。
+ * Ⓑ（①の合計）がⒶ以下なら①がそのまま②の非課税金額になり、超えるときはⒶを①で按分する
+ * （1円未満切捨て）。③は①−②。
+ * 枚数を減らしたときに残る入力値を混ぜないよう、表に出ている行番号だけを走査する。
+ */
+function computeTable9(common: Values, pages: number, heirCount: number): Values {
+  const out: Values = {};
+  // Ⓐ（百万円単位）。法定相続人が未入力のうちは空欄のままにする。
+  const aMillion = heirCount > 0 ? 5 * heirCount : 0;
+  out.t9A = aMillion > 0 ? str(aMillion) : '';
+
+  const limit = aMillion * (SCALE.t9A ?? 1);
+  const rows = Array.from({ length: pages * TABLE9_ROWS }, (_unused, i) => i);
+  const b = rows.reduce((s, i) => s + num(common[`t9p${i}v1`]), 0);
+  let sum2 = 0;
+  let sum3 = 0;
+  for (const i of rows) {
+    const v1 = num(common[`t9p${i}v1`]);
+    const v2 = b <= limit ? v1 : Math.floor((limit * v1) / b);
+    const has = filled(common, `t9p${i}v1`);
+    out[`t9r${i}v2`] = has ? str(v2) : '';
+    out[`t9r${i}v3`] = has ? str(v1 - v2) : '';
+    sum2 += v2;
+    sum3 += v1 - v2;
+  }
+  out.t9B = b === 0 ? '' : str(b);
+  out.t9v2Total = b === 0 ? '' : str(sum2);
+  out.t9v3Total = b === 0 ? '' : str(sum3);
   return out;
 }
 
@@ -613,6 +656,8 @@ export function computeAll(
   // 第13表1・2の合計（負担する人が決まっていない分も含む「金額」列の合計）
   totals.t13dTotal = t13.debtTotal === 0 ? '' : str(t13.debtTotal);
   totals.t13fTotal = t13.funeralTotal === 0 ? '' : str(t13.funeralTotal);
+  // 第9表（生命保険金など）。Ⓐは第2表の法定相続人の数から決まる
+  Object.assign(totals, computeTable9(common, table9Pages(common), num(table2.totals.heirCount)));
   // 第11・11の2表の付表1（小規模宅地等）と、その別表1
   const f1Sheets = details.table1112f1b ?? [];
   Object.assign(totals, computeTable1112f1b(f1Sheets), computeTable1112f1(details.table1112f1 ?? [], f1Sheets));

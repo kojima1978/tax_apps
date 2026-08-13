@@ -31,13 +31,16 @@ import {
   TABLE1112F1B_ASPECT, TABLE1112F1B_FORM_CODE, TABLE1112F1B_OWNERS, TABLE1112F1B_SUBTITLE,
   TABLE1112F1B_TITLE, buildTable1112f1b,
 } from './forms/table1112f1b';
+import {
+  TABLE9_ASPECT, TABLE9_EDITION, TABLE9_FORM_CODE, TABLE9_ROWS, TABLE9_SUBTITLE, TABLE9_TITLE, buildTable9,
+} from './forms/table9';
 import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
 import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
-import { hasTable112, table112Pages, table13Pages, table15Transferred } from './lib/calc';
+import { hasTable112, table112Pages, table13Pages, table15Transferred, table9Pages } from './lib/calc';
 
 /** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
 const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
@@ -51,6 +54,9 @@ const MAX_TABLE112_PAGES = 10;
 
 /** 第13表の枚数の上限 */
 const MAX_TABLE13_PAGES = 10;
+
+/** 第9表の枚数の上限 */
+const MAX_TABLE9_PAGES = 10;
 
 /** 画面左の一覧と印刷順を決める様式の登録簿。様式を足したらここに1行追加する。 */
 interface FormMeta {
@@ -67,6 +73,7 @@ const FORMS: FormMeta[] = [
   { id: 'table1', label: '第1表', note: '相続税の申告書', required: true },
   { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
   { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
+  { id: 'table9', label: '第9表', note: '生命保険金などの明細書' },
   { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
   { id: 'table112', label: '第11の2表', note: '相続時精算課税適用財産の明細書' },
   { id: 'table11f1', label: '第11表の付表1', note: '財産の明細書（土地・家屋等用）' },
@@ -218,6 +225,36 @@ function Table112Page({ heir, page, last, g, u }: Table112PageProps) {
         aspectRatio="1167.5 / 1420"
         formId={`t112h${heir}p${page}`}
         footer={<Footnote notes="" />}
+      />
+    </div>
+  );
+}
+
+interface Table9PageProps extends PageProps {
+  /** ⒷとⒷに基づく②③の合計は全枚数の通算なので、最終ページにだけ出す */
+  last: boolean;
+  /** 氏名の選択肢（項番を値に、氏名を表示に持つ） */
+  whoOptions: GridCell['options'];
+}
+
+/** 第9表1枚（保険金の明細5件・相続人5人分） */
+function Table9Page({ page, last, whoOptions, g, u }: Table9PageProps) {
+  const cells = useMemo(
+    () => buildTable9(COMMON, TOTALS, page, last, whoOptions),
+    [page, last, whoOptions],
+  );
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE9_FORM_CODE}
+        title={TABLE9_TITLE}
+        subtitle={TABLE9_SUBTITLE}
+        aspectRatio={TABLE9_ASPECT}
+        formId={`t9p${page}`}
+        footer={<Footnote notes="" edition={TABLE9_EDITION} />}
       />
     </div>
   );
@@ -415,6 +452,8 @@ export default function App() {
   const detailUsed = Object.keys(DETAIL_SPECS).some((id) => data.used.includes(id));
   /** 第13表の枚数（3の承継した人が1枚に4人分しか入らないので人数でも増える） */
   const t13Pages = table13Pages(data.common, data.heirs.length);
+  /** 第9表の枚数（明細も相続人も1枚に5件ずつ） */
+  const t9Pages = table9Pages(data.common);
   /** 第13表の「負担する人の氏名」。値は項番（1始まり）で、印字は氏名になる */
   const whoOptions = useMemo(
     (): GridCell['options'] => ['', ...data.heirs.map((heir, i) => ({ value: String(i + 1), label: heir.name ?? '' }))],
@@ -507,6 +546,18 @@ export default function App() {
           }
         />
       </div>
+    ),
+    table9: (
+      <>
+        {Array.from({ length: t9Pages }, (_, page) => (
+          <Table9Page key={page} page={page} last={page === t9Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+        ))}
+        <div className="app-pagectl no-print">
+          <button type="button" className="app-btn" onClick={() => u('t9Pages', String(t9Pages - 1))} disabled={t9Pages <= 1}>−</button>
+          {t9Pages}枚（保険金{TABLE9_ROWS}件・相続人{TABLE9_ROWS}人／枚）
+          <button type="button" className="app-btn" onClick={() => u('t9Pages', String(t9Pages + 1))} disabled={t9Pages >= MAX_TABLE9_PAGES}>＋</button>
+        </div>
+      </>
     ),
     table11: Array.from({ length: table11Pages }, (_, page) => (
       <Table11Page key={page} page={page} g={g} u={u} detail={detailUsed} />
