@@ -10,17 +10,25 @@ import {
 import {
   TABLE11_FORM_CODE, TABLE11_ROWS, TABLE11_SUBTITLE, TABLE11_TITLE, buildTable11,
 } from './forms/table11';
+import {
+  TABLE112_FORM_CODE, TABLE112_ROWS, TABLE112_SUBTITLE, TABLE112_TITLE, buildTable112,
+} from './forms/table112';
 import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
 import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
+import { hasTable112, table112Pages } from './lib/calc';
 
-/** 第11表を使う場合、第1表①は第11表2③からの転記になる */
-const TABLE11_TRANSFERRED = ['v1'] as const;
-/** 転記が無いときの既定値（useMemo の依存を安定させるため定数にする） */
-const EMPTY_TRANSFERRED: readonly string[] = [];
+/** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
+const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
+  table11: ['v1'],    // ① ← 第11表2③
+  table112: ['v2', 'v17'], // ② ← 第11の2表1⑧ ／ ⑰ ← 同1⑨
+};
+
+/** 第11の2表の枚数の上限（1人分・1枚に年分6行） */
+const MAX_TABLE112_PAGES = 10;
 
 /** 画面左の一覧と印刷順を決める様式の登録簿。様式を足したらここに1行追加する。 */
 interface FormMeta {
@@ -38,6 +46,7 @@ const FORMS: FormMeta[] = [
   { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
   { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
   { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
+  { id: 'table112', label: '第11の2表', note: '相続時精算課税適用財産の明細書' },
   { id: 'table11f1', label: '第11表の付表1', note: '財産の明細書（土地・家屋等用）' },
   { id: 'table11f2', label: '第11表の付表2', note: '財産の明細書（有価証券用）' },
   { id: 'table11f3', label: '第11表の付表3', note: '財産の明細書（現金・預貯金等用）' },
@@ -156,6 +165,36 @@ function Table11Page({ page, g, u, detail }: Table11PageProps) {
   );
 }
 
+interface Table112PageProps extends PageProps {
+  /** 何人目の分か（この様式は贈与を受けた人ごとに1枚以上書く） */
+  heir: number;
+  /** その人の最終ページ（⑧⑨⑩の合計はページをまたぐので最終ページにだけ出す） */
+  last: boolean;
+}
+
+/** 第11の2表1枚（1人分・年分6行＋財産の明細6行） */
+function Table112Page({ heir, page, last, g, u }: Table112PageProps) {
+  const cells = useMemo(
+    () => buildTable112(COMMON, heirPrefix(heir), heirLabel(heir), page, last),
+    [heir, page, last],
+  );
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE112_FORM_CODE}
+        title={TABLE112_TITLE}
+        subtitle={TABLE112_SUBTITLE}
+        aspectRatio="1167.5 / 1420"
+        formId={`t112h${heir}p${page}`}
+        footer={<Footnote notes="" />}
+      />
+    </div>
+  );
+}
+
 interface DetailPageProps extends PageProps {
   form: keyof typeof DETAIL_SPECS;
 }
@@ -195,8 +234,11 @@ export default function App() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
 
-  // 第11表を使うと第1表①がその転記欄になるため、①を読み取り専用にする
-  const transferred = data.used.includes('table11') ? TABLE11_TRANSFERRED : EMPTY_TRANSFERRED;
+  // 使用する様式によって第1表の一部が転記欄になるため、その行を読み取り専用にする
+  const transferred = useMemo(
+    () => data.used.flatMap((id) => TRANSFERRED_BY_FORM[id] ?? []),
+    [data.used],
+  );
   const table1Cells = useMemo(() => buildTable1(heirPrefix(0), transferred), [transferred]);
   const table2Cells = useMemo(() => buildTable2(COMMON, TOTALS), []);
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
@@ -253,6 +295,23 @@ export default function App() {
     table11: Array.from({ length: table11Pages }, (_, page) => (
       <Table11Page key={page} page={page} g={g} u={u} detail={detailUsed} />
     )),
+    // 第11の2表は贈与を受けた人ごとに1枚以上。記入が1つも無い人の分は印刷しない。
+    table112: data.heirs.map((heir, i) => {
+      const sheets = table112Pages(heir);
+      const setSheets = (n: number) => u(`${heirPrefix(i)}t112Pages`, String(n));
+      return (
+        <div key={i} className={hasTable112(heir) ? undefined : 'no-print'}>
+          {Array.from({ length: sheets }, (_, page) => (
+            <Table112Page key={page} heir={i} page={page} last={page === sheets - 1} g={g} u={u} />
+          ))}
+          <div className="app-pagectl no-print">
+            <button type="button" className="app-btn" onClick={() => setSheets(sheets - 1)} disabled={sheets <= 1}>−</button>
+            {heirLabel(i)} {sheets}枚（年分{TABLE112_ROWS}行／枚）
+            <button type="button" className="app-btn" onClick={() => setSheets(sheets + 1)} disabled={sheets >= MAX_TABLE112_PAGES}>＋</button>
+          </div>
+        </div>
+      );
+    }),
     ...Object.fromEntries(DETAIL_FORMS.map((id) => [id, (
       <>
         {Array.from({ length: detailPages(id) }, (_, page) => (

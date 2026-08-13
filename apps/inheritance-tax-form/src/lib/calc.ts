@@ -15,6 +15,7 @@
  * 「財産を取得した人の番号」ごとに合計する。番号は第11表の項番＝入力順の通し番号。
  */
 
+import { TABLE112_ROWS } from '../forms/table112';
 import { RATE_BRACKETS } from '../forms/table2';
 
 export type Values = Record<string, string>;
@@ -70,14 +71,66 @@ function truncHundred(n: number): number {
   return n > 0 ? Math.floor(n / 100) * 100 : n;
 }
 
+/** 第11の2表の枚数（その人1人分）。1枚に6行しか無いので、精算課税の贈与が多い人は増やす。 */
+export function table112Pages(h: Values): number {
+  return Math.max(1, Math.trunc(num(h.t112Pages)) || 1);
+}
+
+/**
+ * その人に相続時精算課税適用財産の記入があるか。
+ * 「入力が1つも無い人の第11の2表は印刷しない」の判定に使う（氏名は自動転記なので数えない）。
+ */
+export function hasTable112(h: Values): boolean {
+  return Object.entries(h).some(
+    ([k, v]) => k.startsWith('t112') && k !== 't112Pages' && (v ?? '').trim() !== '',
+  );
+}
+
+/**
+ * 第11の2表1（相続時精算課税適用財産の明細）の計算。値はその人の欄（'h0.' スコープ）に持つ。
+ *
+ * 行数はその人の用紙の枚数で決まる（`t112Pages`）。枚数を減らしたときに残る入力値を
+ * 合計に混ぜないよう、表に出ている行番号だけを走査する（値そのものは消さないので、
+ * 枚数を戻せば元の記入内容が戻る）。
+ * ⑧⑨⑩はその人の全枚数を通した合計で、表示は最終ページにだけ出す。
+ */
+function computeTable112(h: Values): Values {
+  const out: Values = {};
+  let sum5 = 0;
+  let sum6 = 0;
+  let sum7 = 0;
+  let any = false;
+  for (let i = 0; i < table112Pages(h) * TABLE112_ROWS; i += 1) {
+    // ⑤ 相続時精算課税適用財産の価額（③−④）（赤字のときは0）
+    const has3or4 = (h[`t112a${i}`] ?? '').trim() !== '' || (h[`t112b${i}`] ?? '').trim() !== '';
+    const v5 = Math.max(0, num(h[`t112a${i}`]) - num(h[`t112b${i}`]));
+    out[`t112c${i}`] = has3or4 ? str(v5) : '';
+    sum5 += v5;
+    sum6 += num(h[`t112d${i}`]);
+    sum7 += num(h[`t112e${i}`]);
+    any ||= has3or4 || (h[`t112d${i}`] ?? '').trim() !== '' || (h[`t112e${i}`] ?? '').trim() !== '';
+  }
+  out.t112v8 = any ? str(sum5) : '';
+  out.t112v9 = any ? str(sum6) : '';
+  out.t112v10 = any ? str(sum7) : '';
+  return out;
+}
+
+/** どの様式を使っているか（使う様式によって第1表の転記欄が変わる） */
+export interface UsedForms {
+  /** 第11表を使用する（＝第1表①を第11表2③から転記して読み取り専用にする） */
+  table11?: boolean;
+  /** 第11の2表を使用する（＝第1表②⑰を第11の2表1⑧⑨から転記して読み取り専用にする） */
+  table112?: boolean;
+}
+
 /**
  * 相続人1人分の計算。手入力欄はそのままに、算出欄だけを上書きした新しい値を返す。
  * @param total7 ⑦相続税の総額（円）
  * @param totalA Ⓐ課税価格の合計額（円）
- * @param table11 第11表を使用する（＝第1表①を第11表2③から転記して読み取り専用にする）
  */
-export function computeHeir(h: Values, total7: number, totalA: number, table11 = false): Values {
-  const out: Values = { ...h };
+export function computeHeir(h: Values, total7: number, totalA: number, forms: UsedForms = {}): Values {
+  const out: Values = { ...h, ...computeTable112(h) };
   const has = (...vals: (string | undefined)[]) => vals.some((v) => (v ?? '').trim() !== '');
   /** 算式に使う欄が1つも埋まっていない行は、0ではなく空欄のままにする（白紙の様式を0で埋めない） */
   const show = (n: number, present: boolean) => (present ? str(n) : '');
@@ -86,11 +139,17 @@ export function computeHeir(h: Values, total7: number, totalA: number, table11 =
   // 代償財産を支払う人は①が負数になり得る（記載例62ページ）ので △ を保てる形式で持つ。
   const hasT11 = has(h.t11v1, h.t11v2);
   out.t11v3 = hasT11 ? signed(num(h.t11v1) + num(h.t11v2)) : '';
-  if (table11) out.v1 = out.t11v3;
+  if (forms.table11) out.v1 = out.t11v3;
+
+  // 第1表② ← 第11の2表1⑧（円）／ 第1表⑰ ← 同⑨（⑰は百円単位の欄なので100で割る）
+  if (forms.table112) {
+    out.v2 = out.t112v8;
+    out.v17 = out.t112v9 === '' ? '' : str(num(out.t112v9) / 100);
+  }
 
   // ④ 純資産価額（①＋②−③）（赤字のときは0）
-  const v4 = Math.max(0, num(out.v1) + num(h.v2) - num(h.v3));
-  out.v4 = show(v4, has(out.v1, h.v2, h.v3));
+  const v4 = Math.max(0, num(out.v1) + num(out.v2) - num(h.v3));
+  out.v4 = show(v4, has(out.v1, out.v2, h.v3));
 
   // ⑥ 課税価格（④＋⑤）（1,000円未満切捨て） — 様式の「000」に合わせ千円単位で保持
   const v6yen = Math.floor((v4 + num(h.v5)) / 1000) * 1000;
@@ -114,8 +173,8 @@ export function computeHeir(h: Values, total7: number, totalA: number, table11 =
   out.v16 = show(v16, has(out.v9, h.v10, h.v11, out.v15));
 
   // ⑲ 小計（⑯−⑰−⑱）（黒字のときは100円未満切捨て）
-  const v19 = truncHundred(v16 - yen(h, 'v17') - num(h.v18));
-  out.v19 = show(v19, has(out.v16, h.v17, h.v18));
+  const v19 = truncHundred(v16 - yen(out, 'v17') - num(h.v18));
+  out.v19 = show(v19, has(out.v16, out.v17, h.v18));
 
   // ㉑ 申告期限までに納付すべき税額／㉒ 還付される税額（⑲−⑳）
   const payable = v19 - yen(h, 'v20');
@@ -246,7 +305,7 @@ export interface Computed {
 export function computeAll(
   common: Values, heirs: Values[], lawful: Values[], used: string[] = [], details: Record<string, Values[]> = {},
 ): Computed {
-  const table11 = used.includes('table11');
+  const forms: UsedForms = { table11: used.includes('table11'), table112: used.includes('table112') };
 
   // 第11表2① ← 付表の「分割が確定した財産」。使用する付表だけを合計する。
   const detailForms = used.filter((id) => (details[id]?.length ?? 0) > 0);
@@ -257,7 +316,7 @@ export function computeAll(
   });
 
   // 1周目: Ⓐ（⑥の合計）を確定させる
-  const firstPass = inputs.map((h) => computeHeir(h, 0, 0, table11));
+  const firstPass = inputs.map((h) => computeHeir(h, 0, 0, forms));
   const totalA = firstPass.reduce((s, h) => s + yen(h, 'v6'), 0);
 
   // 第2表: Ⓐと法定相続人から相続税の総額⑧（＝第1表⑦）を求める
@@ -265,7 +324,7 @@ export function computeAll(
   const total7 = yen(table2.totals, 't7');
 
   // 2周目: 確定したⒶ・⑦で⑧以降を計算する。第11表の項番は入力順の通し番号。
-  const computed: Values[] = inputs.map((h, i) => ({ ...computeHeir(h, total7, totalA, table11), t11no: str(i + 1) }));
+  const computed: Values[] = inputs.map((h, i) => ({ ...computeHeir(h, total7, totalA, forms), t11no: str(i + 1) }));
 
   const totals: Values = { ...table2.totals };
   for (const key of TOTAL_ROWS) {
