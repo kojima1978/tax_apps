@@ -41,6 +41,9 @@ import {
 import {
   TABLE5_ASPECT, TABLE5_EDITION, TABLE5_FORM_CODE, TABLE5_NOTES, TABLE5_SUBTITLE, TABLE5_TITLE, buildTable5,
 } from './forms/table5';
+import {
+  TABLE6_ASPECT, TABLE6_EDITION, TABLE6_FORM_CODE, TABLE6_NOTES, TABLE6_SUBTITLE, TABLE6_TITLE, buildTable6,
+} from './forms/table6';
 import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
@@ -86,6 +89,7 @@ const FORMS: FormMeta[] = [
   { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
   { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
   { id: 'table5', label: '第5表', note: '配偶者に対する相続税額の軽減額の計算書' },
+  { id: 'table6', label: '第6表', note: '未成年者控除額・障害者控除額の計算書' },
   { id: 'table9', label: '第9表', note: '生命保険金などの明細書' },
   { id: 'table10', label: '第10表', note: '退職手当金などの明細書' },
   { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
@@ -512,6 +516,8 @@ export default function App() {
     (): GridCell['options'] => ['', ...data.heirs.map((heir, i) => ({ value: String(i + 1), label: heir.name ?? '' }))],
     [data.heirs],
   );
+  /** 第6表の氏名欄も選択式（③⑤の相続税額を第1表から自動転記するため） */
+  const table6Cells = useMemo(() => buildTable6(COMMON, TOTALS, whoOptions), [whoOptions]);
   /** 第15表で他の様式からの転記になっている欄（丸番号） */
   const t15Transferred = useMemo(() => new Set(table15Transferred(data.used)), [data.used]);
   /** 第15表（続）の枚数（第15表に1人目まで載るので、2人目以降を2人ずつ） */
@@ -620,6 +626,21 @@ export default function App() {
           aspectRatio={TABLE5_ASPECT}
           formId="t5"
           footer={<Footnote notes={TABLE5_NOTES} edition={TABLE5_EDITION} />}
+        />
+      </div>
+    ),
+    table6: (
+      <div className="gov-page">
+        <GridForm
+          cells={table6Cells}
+          g={g}
+          u={u}
+          formCode={TABLE6_FORM_CODE}
+          title={TABLE6_TITLE}
+          subtitle={TABLE6_SUBTITLE}
+          aspectRatio={TABLE6_ASPECT}
+          formId="t6"
+          footer={<Footnote notes={TABLE6_NOTES} edition={TABLE6_EDITION} />}
         />
       </div>
     ),
