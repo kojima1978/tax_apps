@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { GridForm, type GridCell } from './components/ui/GridForm';
 import { COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1 } from './forms/table1';
 import {
@@ -612,6 +612,20 @@ function DetailPage({ form, page, g, u }: DetailPageProps) {
   );
 }
 
+/**
+ * サイドバーの開閉状態の保存先。申告内容（inheritance-tax-form:v1）とは別キーにして、
+ * JSON保存/読込・クリアの対象から外す（画面の見た目であって申告内容ではないため）。
+ */
+const SIDEBAR_KEY = 'inheritance-tax-form:sidebar';
+
+function loadSidebarOpen(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
+}
+
 export default function App() {
   const {
     data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage, setDetailCount,
@@ -619,6 +633,15 @@ export default function App() {
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
+  const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_KEY, sidebarOpen ? 'open' : 'closed');
+    } catch {
+      // privacy モード等では保存を諦める（開閉自体は続けられる）
+    }
+  }, [sidebarOpen]);
 
   // 使用する様式によって第1表の一部が転記欄になるため、その行を読み取り専用にする
   const transferred = useMemo(
@@ -1069,8 +1092,20 @@ export default function App() {
       <div className="mobile-hint no-print">A4横幅の様式です。横スクロールしてご覧ください。</div>
 
       <div className="app-body">
-        <aside className="app-sidebar no-print">
-          <div className="app-sidebar__head">様式</div>
+        <aside className={`app-sidebar no-print${sidebarOpen ? '' : ' app-sidebar--closed'}`}>
+          <div className="app-sidebar__head">
+            <span className="app-sidebar__title">様式</span>
+            <button
+              type="button"
+              className="app-sidebar__toggle"
+              onClick={() => setSidebarOpen((open) => !open)}
+              aria-expanded={sidebarOpen}
+              aria-label={sidebarOpen ? '様式一覧を閉じる' : '様式一覧を開く'}
+              title={sidebarOpen ? '様式一覧を閉じる' : '様式一覧を開く'}
+            >
+              {sidebarOpen ? '«' : '»'}
+            </button>
+          </div>
           <ul className="form-list">
             {FORMS.map((form) => (
               <li key={form.id} className={`form-item${active === form.id ? ' form-item--active' : ''}`}>

@@ -165,10 +165,47 @@ button {
 }
 
 .app-sidebar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
   padding: 0 4px 6px;
   font-size: 11px;
   font-weight: 700;
   color: #475569;
+}
+
+.app-sidebar__toggle {
+  flex: none;
+  padding: 0 5px;
+  font-size: 12px;
+  line-height: 20px;
+  color: #475569;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.app-sidebar__toggle:hover {
+  background: #eef2f7;
+}
+
+/* 閉じた状態は再展開ボタンだけを残した細帯にする */
+.app-sidebar--closed {
+  width: 32px;
+  padding: 12px 4px;
+}
+
+.app-sidebar--closed .app-sidebar__title,
+.app-sidebar--closed .form-list,
+.app-sidebar--closed .form-list__hint {
+  display: none;
+}
+
+.app-sidebar--closed .app-sidebar__head {
+  justify-content: center;
+  padding: 0;
 }
 
 .form-list {
@@ -274,6 +311,21 @@ button {
     max-height: none;
     border-right: none;
     border-bottom: 1px solid #cbd5e1;
+  }
+
+  /* 横並びの帯なので幅を縮めても意味がない。閉じたときは一覧を隠すだけにする */
+  .app-sidebar--closed {
+    width: auto;
+    padding: 12px 8px;
+  }
+
+  .app-sidebar--closed .app-sidebar__title {
+    display: inline;
+  }
+
+  .app-sidebar--closed .app-sidebar__head {
+    justify-content: space-between;
+    padding: 0 4px;
   }
 
   .form-list {
