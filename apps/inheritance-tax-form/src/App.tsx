@@ -310,10 +310,12 @@ function Table112Page({ heir, page, last, g, u }: Table112PageProps) {
 interface Table4PageProps extends PageProps {
   /** 氏名の選択肢（項番を値に、氏名を表示に持つ） */
   whoOptions: GridCell['options'];
+  /** 読み取り専用の転記欄から転記元の様式へ移動する */
+  onNavigate: (formId: string) => void;
 }
 
 /** 第4表1枚（加算の対象となる人4人分） */
-function Table4Page({ page, whoOptions, g, u }: Table4PageProps) {
+function Table4Page({ page, whoOptions, g, u, onNavigate }: Table4PageProps) {
   const cells = useMemo(() => buildTable4(COMMON, TOTALS, page, whoOptions), [page, whoOptions]);
   return (
     <div className="gov-page">
@@ -326,6 +328,7 @@ function Table4Page({ page, whoOptions, g, u }: Table4PageProps) {
         subtitle={TABLE4_SUBTITLE}
         aspectRatio={TABLE4_ASPECT}
         formId={`t4p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes={TABLE4_NOTES} edition={TABLE4_EDITION} />}
       />
     </div>
@@ -333,7 +336,7 @@ function Table4Page({ page, whoOptions, g, u }: Table4PageProps) {
 }
 
 /** 第4表の2 1枚（控除を受ける人3人分） */
-function Table42Page({ page, whoOptions, g, u }: Table4PageProps) {
+function Table42Page({ page, whoOptions, g, u, onNavigate }: Table4PageProps) {
   const cells = useMemo(() => buildTable42(COMMON, TOTALS, page, whoOptions), [page, whoOptions]);
   return (
     <div className="gov-page">
@@ -346,6 +349,7 @@ function Table42Page({ page, whoOptions, g, u }: Table4PageProps) {
         subtitle={TABLE42_SUBTITLE}
         aspectRatio={TABLE42_ASPECT}
         formId={`t42p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes={TABLE42_NOTES} edition={TABLE42_EDITION} />}
       />
     </div>
@@ -827,7 +831,7 @@ export default function App() {
     table4: (
       <>
         {Array.from({ length: t4Pages }, (_, page) => (
-          <Table4Page key={page} page={page} whoOptions={whoOptions} g={g} u={u} />
+          <Table4Page key={page} page={page} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
         ))}
         <div className="app-pagectl no-print">
           <button type="button" className="app-btn" onClick={() => u('t4Pages', String(t4Pages - 1))} disabled={t4Pages <= 1}>−</button>
@@ -839,7 +843,7 @@ export default function App() {
     table42: (
       <>
         {Array.from({ length: t42Pages }, (_, page) => (
-          <Table42Page key={page} page={page} whoOptions={whoOptions} g={g} u={u} />
+          <Table42Page key={page} page={page} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
         ))}
         <div className="app-pagectl no-print">
           <button type="button" className="app-btn" onClick={() => u('t42Pages', String(t42Pages - 1))} disabled={t42Pages <= 1}>−</button>

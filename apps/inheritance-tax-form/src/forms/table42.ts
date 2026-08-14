@@ -225,6 +225,7 @@ function bandCells(b: number, page: number, totals: string): GridCell[] {
     }),
     mk(row(y[8]!, y[9]!), col(X.ERA, X.BAND), {
       kind: 'input', field: `${p}Y`, ariaLabel: `${year}分の年`, align: 'center', readOnly: true,
+      navigateToForm: 'table1',
     }),
     label(row(y[9]!, y[11]!), col(LEFT, X.BAND), '分）', { forceVertical: true, fontSize: 10 }),
   ];
