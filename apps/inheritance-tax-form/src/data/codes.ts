@@ -17,6 +17,27 @@ export const ERA_OPTIONS = [
   ...ERA_CODES.map((c) => ({ value: c.value, label: `${c.value} ${c.label}` })),
 ];
 
+/** 和暦の年（元年〜99年）。保存値は既存JSON互換の整数文字列、表示だけ2桁にする。 */
+export const ERA_YEAR_OPTIONS = [
+  { value: '', label: '' },
+  ...Array.from({ length: 99 }, (_, index) => {
+    const year = index + 1;
+    return { value: String(year), label: String(year).padStart(2, '0') };
+  }),
+];
+
+/** 月・日。保存値は既存JSON互換の整数文字列、表示だけ2桁にする。 */
+const twoDigitOptions = (count: number) => [
+  { value: '', label: '' },
+  ...Array.from({ length: count }, (_, index) => {
+    const value = index + 1;
+    return { value: String(value), label: String(value).padStart(2, '0') };
+  }),
+];
+
+export const MONTH_OPTIONS = twoDigitOptions(12);
+export const DAY_OPTIONS = twoDigitOptions(31);
+
 /**
  * 記載要領等 4《続柄コード》— 「被相続人との続柄」欄
  * ※1「10 子」は「11 長男」〜「19 九男」又は「21 長女」〜「29 九女」に該当しない子に使用する。

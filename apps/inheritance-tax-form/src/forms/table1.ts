@@ -6,7 +6,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { ERA_OPTIONS } from '../data/codes';
+import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS } from '../data/codes';
 import { TAX_OFFICES } from '../data/taxOffices';
 import {
   CALC_ORDER, GENERIC_ROWS, V, calcBands, calcRowRanges, calcRows, code, decedentColumn,
@@ -125,12 +125,15 @@ function topRows(officeOptions: GridCell['options']): GridCell[] {
   const r12: [number, number] = [y(182), y(233)];
   return [
     // 1行目 — 提出日は罫線を持たない（下端の線は2行目のセル上辺が兼ねる）
-    mk(r1, [V.L, X.SUBMIT_R], { date: true, field: `${COMMON}submitDate`, ariaLabel: '申告書の提出年月日', dateSuffix: '提出', noBorder: true }),
+    mk(r1, [V.L, X.SUBMIT_R], {
+      date: true, field: `${COMMON}submitDate`, ariaLabel: '申告書の提出年月日',
+      dateSuffix: '提出', align: 'right', noBorder: true,
+    }),
     label(r1, [X.N_CODE, X.ERA_R], '元号'),
     label(r1, [X.ERA_R, X.YEAR_R], '年'),
     label(r1, [X.YEAR_R, X.MONTH_R], '月'),
     label(r1, [X.MONTH_R, X.DAY_R], '日'),
-    label(r1, [X.EXT_L, V.R], '※申告期限延長日'),
+    label(r1, [X.EXT_L, V.R], '※申告期限延長日', { align: 'left' }),
 
     // 2行目 — 提出先税務署
     label(r2, [V.L, V.SUBMIT], '提出先'),
@@ -147,12 +150,21 @@ function topRows(officeOptions: GridCell['options']): GridCell[] {
     mk(r1, [X.START_R, X.N_CODE], {}),
     code(r2, [X.START_R, X.N_CODE], 'N01'),
     mk(r2, [X.N_CODE, X.ERA_R], { kind: 'input', field: `${COMMON}startEra`, ariaLabel: '相続開始年月日（元号）', options: ERA_OPTIONS, compactSelectedOption: true }),
-    mk(r2, [X.ERA_R, X.YEAR_R], { kind: 'input', field: `${COMMON}startY`, ariaLabel: '相続開始年月日（年）', integerDigits: 2, align: 'center' }),
-    mk(r2, [X.YEAR_R, X.MONTH_R], { kind: 'input', field: `${COMMON}startM`, ariaLabel: '相続開始年月日（月）', integerDigits: 2, align: 'center' }),
-    mk(r2, [X.MONTH_R, X.DAY_R], { kind: 'input', field: `${COMMON}startD`, ariaLabel: '相続開始年月日（日）', integerDigits: 2, align: 'center' }),
+    mk(r2, [X.ERA_R, X.YEAR_R], {
+      kind: 'input', field: `${COMMON}startY`, ariaLabel: '相続開始年月日（年）',
+      options: ERA_YEAR_OPTIONS, align: 'center',
+    }),
+    mk(r2, [X.YEAR_R, X.MONTH_R], {
+      kind: 'input', field: `${COMMON}startM`, ariaLabel: '相続開始年月日（月）',
+      options: MONTH_OPTIONS, align: 'center',
+    }),
+    mk(r2, [X.MONTH_R, X.DAY_R], {
+      kind: 'input', field: `${COMMON}startD`, ariaLabel: '相続開始年月日（日）',
+      options: DAY_OPTIONS, align: 'center',
+    }),
 
     // 修正申告の場合の「1」
-    label(r12, [X.DAY_R, X.AMEND_R], '修正申告の場合、右欄に\n「1」と記入します。'),
+    label(r12, [X.DAY_R, X.AMEND_R], '修正申告の場合、右欄に\n「1」と記入します。', { noWrap: true }),
     code(r12, [X.AMEND_R, X.AMEND_CODE], 'G01'),
     mk(r12, [X.AMEND_CODE, X.EXT_L], flag(`${COMMON}amend`, '修正申告の場合は1')),
 
@@ -180,7 +192,7 @@ function specialRows(heir: string): GridCell[] {
     mk(RY.vB!, [V.NUM, V.CNT], { kind: 'input', field: `${TOTALS}heirCount`, ariaLabel: '法定相続人の数（人）', integerDigits: 2, align: 'center', readOnly: true }),
     label(RY.vB!, [V.CNT, V.B_MARK], 'Ⓑ', { fontSize: 10 }),
     code(RY.vB!, [V.B_MARK, V.B_CODE], 'G10'),
-    mk(RY.vB!, [V.B_CODE, V.MID], { kind: 'input', field: `${TOTALS}tB`, ariaLabel: 'Ⓑ 遺産に係る基礎控除額', commaInteger: true, rightLabel: '000,000', readOnly: true }),
+    mk(RY.vB!, [V.B_CODE, V.MID], { kind: 'input', field: `${TOTALS}tB`, ariaLabel: 'Ⓑ 遺産に係る基礎控除額', commaInteger: true, rightLabel: ',000,000', readOnly: true }),
     label(RY.vB!, [V.MID, V.R], '左の欄には、第２表の②欄の㋺の人数及び㋩の金額を記入します。', NOTE),
 
     // ⑦ 相続税の総額（第2表からの転記）
@@ -195,7 +207,7 @@ function specialRows(heir: string): GridCell[] {
     label(RY.v8!, [V.LBL, V.NUM], '⑧', { fontSize: 10, semanticRole: 'rowheader' }),
     label(RY.v8!, [V.NUM, V.MID], '1.00', { fontSize: 10, align: 'right' }),
     code(RY.v8!, [V.MID, V.CODE2], HEIR_CALC_CODES.v8!),
-    mk(RY.v8!, [V.CODE2, V.R], { kind: 'input', field: `${heir}v8`, ariaLabel: '⑧ あん分割合', decimalPlaces: 2, align: 'center' }),
+    mk(RY.v8!, [V.CODE2, V.R], { kind: 'input', field: `${heir}v8`, ariaLabel: '⑧ あん分割合', decimalPlaces: 2, align: 'center', readOnly: true }),
   ];
 }
 
@@ -210,9 +222,9 @@ function bottomRows(): GridCell[] {
     label(note, [V.L, V.R], '※の項目は記入する必要がありません。', { noBorder: true, align: 'right', fontSize: 6.5 }),
 
     // 修正申告である場合の異動の内容等
-    label(amend, [V.L, V.LBL_C], 'この申告が修正申告である場合の異動の内容等'),
+    label(amend, [V.L, V.LBL_C], 'この申告が修正申告である場合の異動の内容等', { align: 'left' }),
     code(amend, [V.LBL_C, V.CODE_C], 'E09'),
-    mk(amend, [V.CODE_C, XB.NOTE_R], { kind: 'input', field: `${COMMON}amendReason`, ariaLabel: 'この申告が修正申告である場合の異動の内容等', align: 'left' }),
+    mk(amend, [V.CODE_C, XB.NOTE_R], { kind: 'input', field: `${COMMON}amendReason`, ariaLabel: 'この申告が修正申告である場合の異動の内容等', align: 'left', readOnly: true }),
 
     // ※通信日付印の年月日（記入不要）
     label(amend, [XB.NOTE_R, XB.MARK_L], '※通信日付印の年月日'),
@@ -226,7 +238,7 @@ function bottomRows(): GridCell[] {
     mk(stampL, [XB.DATE_M_R, V.R], {}),
 
     // 税理士署名・税理士法書面提出（注3）
-    label(tax, [V.L, V.BAND2], '税理士署名'),
+    label(tax, [V.L, V.BAND2], '税理士\n署名', { noWrap: true }),
     code(tax, [V.BAND2, V.SUBMIT], 'R01'),
     mk(tax, [V.SUBMIT, XB.TAX_NAME_R], { kind: 'input', field: `${COMMON}taxAccountant`, ariaLabel: '税理士署名', align: 'left' }),
     label(tax, [XB.TAX_NAME_R, XB.TEL_LABEL_R], '電話番号\n（税理士）'),
@@ -254,6 +266,7 @@ function bottomRows(): GridCell[] {
  */
 export function buildTable1(
   heir: string, transferred: readonly string[] = [], officeOptions: GridCell['options'] = [],
+  sourceForms: Readonly<Record<string, string>> = {},
 ): GridCell[] {
   return [
     ...topRows(officeOptions),
@@ -263,7 +276,7 @@ export function buildTable1(
     ...calcBands(RY),
     ...calcRows({
       ry: RY, keys: GENERIC, codes1: TOTAL_CODES, codes2: HEIR_CALC_CODES,
-      p1: TOTALS, p2: heir, who1: '各人の合計', who2: '1人目', readOnly1: true, transferred, transferred2: transferred,
+      p1: TOTALS, p2: heir, who1: '各人の合計', who2: '1人目', readOnly1: true, transferred, transferred2: transferred, sourceForms,
     }),
     ...specialRows(heir),
     ...bottomRows(),
@@ -273,8 +286,8 @@ export function buildTable1(
 /** 様式の枠外に印字されている注記 */
 export const TABLE1_NOTES = [
   '（注）1 この申告書で提出しない人である場合（参考として記載している場合）、その人の分は申告書とは取り扱いません。',
-  '2 ⑲欄の金額が赤字となる場合は、⑲欄の頭に△を付してください。なお、この場合で、⑲欄の金額のうちに贈与税の外国税額控除額（第11の２表１⑩）があるときの㉒欄の金額については、「相続税の申告のしかた」を参照してください。',
-  '3 税理士の方が、税理士法第30条、第33条の２に規定する書面を作成し、申告書と併せて提出される場合には、該当する欄に「1」と記入してください。',
+  '　　　2 ⑲欄の金額が赤字となる場合は、⑲欄の頭に△を付してください。なお、この場合で、⑲欄の金額のうちに贈与税の外国税額控除額（第11の２表１⑩）があるときの㉒欄の金額については、「相続税の申告のしかた」を参照してください。',
+  '　　　3 税理士の方が、税理士法第30条、第33条の２に規定する書面を作成し、申告書と併せて提出される場合には、該当する欄に「1」と記入してください。',
 ].join('\n');
 
 /** 様式の適用年分 */

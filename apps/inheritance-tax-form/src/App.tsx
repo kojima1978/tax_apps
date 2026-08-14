@@ -73,20 +73,23 @@ import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
+  hasTable112, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
   table42Pages, table4Pages, table88Pages, table9Pages,
 } from './lib/calc';
 
-/** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
-const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
-  table4: ['v11'],    // ⑪ ← 第4表⑥
-  table42: ['v12'],   // ⑫ ← 第4表の2㉕
-  table11: ['v1'],    // ① ← 第11表2③
-  table112: ['v2', 'v17'], // ② ← 第11の2表1⑧ ／ ⑰ ← 同1⑨
-  table13: ['v3'],    // ③ ← 第13表3⑦
-  table14: ['v5'],    // ⑤ ← 第14表1④
-  table88: ['v14', 'v20'], // ⑭ ← 第8の8表1⑤ ／ ⑳ ← 同2⑧
+/** 第1表の転記欄。様式の選択状態にかかわらず直接入力させず、クリックで転記元を開く。 */
+const TABLE1_SOURCE_FOR_ROW: Readonly<Record<string, string>> = {
+  v1: 'table11',
+  v2: 'table112',
+  v3: 'table13',
+  v5: 'table14',
+  v11: 'table4',
+  v12: 'table42',
+  v13: 'table5',
+  v14: 'table88',
+  v17: 'table112',
 };
+const TABLE1_TRANSFERRED_ROWS = Object.keys(TABLE1_SOURCE_FOR_ROW);
 
 /** 第11の2表の枚数の上限（1人分・1枚に年分6行） */
 const MAX_TABLE112_PAGES = 10;
@@ -136,14 +139,14 @@ const FORMS: FormMeta[] = [
   { id: 'table9', label: '第9表', note: '生命保険金などの明細書' },
   { id: 'table10', label: '第10表', note: '退職手当金などの明細書' },
   { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
-  { id: 'table112', label: '第11の2表', note: '相続時精算課税適用財産の明細書' },
   { id: 'table11f1', label: '第11表の付表1', note: '財産の明細書（土地・家屋等用）' },
   { id: 'table11f2', label: '第11表の付表2', note: '財産の明細書（有価証券用）' },
   { id: 'table11f3', label: '第11表の付表3', note: '財産の明細書（現金・預貯金等用）' },
   { id: 'table11f4', label: '第11表の付表4', note: '財産の明細書（事業用・家庭用・その他）' },
+  { id: 'table112', label: '第11の2表', note: '相続時精算課税適用財産の明細書' },
   { id: 'table1112f1', label: '第11・11の2表の付表1', note: '小規模宅地等についての課税価格の計算明細書' },
-  { id: 'table1112f1c', label: '同（続）', note: '小規模宅地等の明細 4件目以降', auto: true },
-  { id: 'table1112f1b', label: '同（別表1）', note: '一の宅地等ごとの取得者別の面積・評価額' },
+  { id: 'table1112f1c', label: '第11・11の2表の付表1（続）', note: '小規模宅地等の明細 4件目以降', auto: true },
+  { id: 'table1112f1b', label: '第11・11の2表の付表1（別表１）', note: TABLE1112F1B_SUBTITLE },
   { id: 'table13', label: '第13表', note: '債務及び葬式費用の明細書' },
   { id: 'table14', label: '第14表', note: '純資産価額に加算される暦年課税分の贈与財産価額等の明細書' },
   { id: 'table15', label: '第15表', note: '相続財産の種類別価額表' },
@@ -163,9 +166,19 @@ const DETAIL_FORMS = Object.keys(DETAIL_SPECS) as (keyof typeof DETAIL_SPECS)[];
 
 /** 様式の枠外に印字されている注記と適用年分 */
 function Footnote({ notes, edition = EDITION }: { notes: string; edition?: string }) {
+  const rows = notes.split('\n').map((line) => line.match(/^(?:（注）)?[\u3000 ]*(\d+)[\u3000 ]+(.*)$/));
+  const numbered = rows.every((row) => row !== null);
   return (
     <div className="gov-footnote">
-      <span>{notes}</span>
+      <span className="gov-footnote__notes">
+        {numbered ? rows.map((row, index) => (
+          <span className="gov-footnote__note-row" key={`${row![1]}-${index}`}>
+            <span className="gov-footnote__note-prefix">{index === 0 ? '（注）' : ''}</span>
+            <span className="gov-footnote__note-number">{row![1]}</span>
+            <span className="gov-footnote__note-body">{row![2]}</span>
+          </span>
+        )) : notes}
+      </span>
       <span style={{ whiteSpace: 'nowrap' }}>{edition}</span>
     </div>
   );
@@ -198,22 +211,19 @@ interface PageProps {
 }
 
 interface ContPageProps extends PageProps {
-  /** 他の様式からの転記になっている行（読み取り専用にする） */
-  transferred: readonly string[];
-  /** 配偶者の列だけの転記行（⑬を含む） */
-  transferredSpouse: readonly string[];
-  /** 配偶者の相続人番号（0起点。いなければ −1） */
-  spouse: number;
+  onNavigate: (formId: string) => void;
 }
 
 /** 第1表（続）1枚（財産を取得した人2人分） */
-function ContPage({ page, g, u, transferred, transferredSpouse, spouse }: ContPageProps) {
+function ContPage({ page, g, u, onNavigate }: ContPageProps) {
   const a = 1 + page * 2;
   const b = a + 1;
   const cells = useMemo(() => {
-    const pick = (i: number) => (i === spouse ? transferredSpouse : transferred);
-    return buildTable1Cont(heirPrefix(a), heirLabel(a), heirPrefix(b), heirLabel(b), pick(a), pick(b));
-  }, [a, b, spouse, transferred, transferredSpouse]);
+    return buildTable1Cont(
+      heirPrefix(a), heirLabel(a), heirPrefix(b), heirLabel(b),
+      TABLE1_TRANSFERRED_ROWS, TABLE1_TRANSFERRED_ROWS, TABLE1_SOURCE_FOR_ROW,
+    );
+  }, [a, b]);
   return (
     <div className="gov-page">
       <GridForm
@@ -223,6 +233,7 @@ function ContPage({ page, g, u, transferred, transferredSpouse, spouse }: ContPa
         formCode={TABLE1CONT_FORM_CODE}
         title={[TABLE1CONT_TITLE, `${heirLabel(a)}・${heirLabel(b)}`].join('　')}
         formId={`t1c${page}`}
+        onNavigate={onNavigate}
         footer={
           <>
             <div className="gov-aside">※の項目は記入する必要がありません。</div>
@@ -623,7 +634,9 @@ const SIDEBAR_KEY = 'inheritance-tax-form:sidebar';
 
 function loadSidebarOpen(): boolean {
   try {
-    return localStorage.getItem(SIDEBAR_KEY) !== 'closed';
+    const saved = localStorage.getItem(SIDEBAR_KEY);
+    if (saved !== null) return saved !== 'closed';
+    return !window.matchMedia('(max-width: 800px)').matches;
   } catch {
     return true;
   }
@@ -646,17 +659,6 @@ export default function App() {
     }
   }, [sidebarOpen]);
 
-  // 使用する様式によって第1表の一部が転記欄になるため、その行を読み取り専用にする
-  const transferred = useMemo(
-    () => data.used.flatMap((id) => TRANSFERRED_BY_FORM[id] ?? []),
-    [data.used],
-  );
-  // 第5表の㋩は配偶者の⑬への転記なので、配偶者の列だけ⑬を読み取り専用にする
-  const spouse = useMemo(
-    () => (data.used.includes('table5') ? spouseIndex(data.heirs) : -1),
-    [data.used, data.heirs],
-  );
-  const transferredSpouse = useMemo(() => [...transferred, 'v13'], [transferred]);
   // 提出先税務署の候補は被相続人の郵便番号（＝住所地）の都道府県で絞る。
   // 郵便番号が未入力・該当なしのときは全国の署を出す。
   const officePref = useZipPrefecture((data.common['zip_1'] ?? '') + (data.common['zip_2'] ?? ''));
@@ -665,10 +667,37 @@ export default function App() {
     [officePref, data.common.office],
   );
   const table1Cells = useMemo(
-    () => buildTable1(heirPrefix(0), spouse === 0 ? transferredSpouse : transferred, officeOptions),
-    [spouse, transferred, transferredSpouse, officeOptions],
+    () => buildTable1(heirPrefix(0), TABLE1_TRANSFERRED_ROWS, officeOptions, TABLE1_SOURCE_FOR_ROW),
+    [officeOptions],
   );
-  const table2Cells = useMemo(() => buildTable2(COMMON, TOTALS), []);
+  /** 第2表④で選べる第1表の人物。同じ人物は複数行で選べないよう、他行の選択肢から外す。 */
+  const table2HeirOptions = useMemo(
+    (): GridCell['options'][] => data.lawful.map((row, rowIndex) => {
+      const selectedElsewhere = new Set(data.lawful.flatMap((candidate, index) => (
+        index !== rowIndex && candidate.source !== undefined && candidate.source !== ''
+          ? [candidate.source]
+          : []
+      )));
+      const legacy = (row.source === undefined || row.source === '') && (row.name ?? '').trim() !== ''
+        ? [{ value: 'manual', label: `${row.name}（旧入力）` }]
+        : [];
+      return [
+        { value: '', label: '' },
+        ...legacy,
+        ...data.heirs.flatMap((heir, index) => {
+          const value = String(index);
+          if (selectedElsewhere.has(value)) return [];
+          const name = (heir.name ?? '').trim();
+          return [{ value, label: name === '' ? `${index + 1}人目（氏名未入力）` : name }];
+        }),
+      ];
+    }),
+    [data.heirs, data.lawful],
+  );
+  const table2Cells = useMemo(
+    () => buildTable2(COMMON, TOTALS, table2HeirOptions),
+    [table2HeirOptions],
+  );
   const table5Cells = useMemo(() => buildTable5(COMMON, TOTALS), []);
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
   const table11Pages = Math.max(1, Math.ceil(data.heirs.length / TABLE11_ROWS));
@@ -760,6 +789,7 @@ export default function App() {
           formCode={TABLE1_FORM_CODE}
           title={TABLE1_TITLE}
           formId="t1"
+          onNavigate={setActive}
           footer={<Footnote notes={TABLE1_NOTES} />}
         />
       </div>
@@ -770,9 +800,7 @@ export default function App() {
         page={page}
         g={g}
         u={u}
-        transferred={transferred}
-        transferredSpouse={transferredSpouse}
-        spouse={spouse}
+        onNavigate={setActive}
       />
     )),
     table2: (
@@ -786,6 +814,7 @@ export default function App() {
           subtitle={TABLE2_SUBTITLE}
           aspectRatio="1065 / 1311.5"
           formId="t2"
+          onNavigate={setActive}
           footer={
             <>
               <div className="gov-note">{TABLE2_NOTES}</div>
@@ -1104,7 +1133,10 @@ export default function App() {
       <div className="app-body">
         <aside className={`app-sidebar no-print${sidebarOpen ? '' : ' app-sidebar--closed'}`}>
           <div className="app-sidebar__head">
-            <span className="app-sidebar__title">様式</span>
+            <span className="app-sidebar__title">
+              <strong>様式を選択</strong>
+              <small>チェックした様式を印刷</small>
+            </span>
             <button
               type="button"
               className="app-sidebar__toggle"
@@ -1113,7 +1145,9 @@ export default function App() {
               aria-label={sidebarOpen ? '様式一覧を閉じる' : '様式一覧を開く'}
               title={sidebarOpen ? '様式一覧を閉じる' : '様式一覧を開く'}
             >
-              {sidebarOpen ? '«' : '»'}
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d={sidebarOpen ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6'} />
+              </svg>
             </button>
           </div>
           <ul className="form-list">

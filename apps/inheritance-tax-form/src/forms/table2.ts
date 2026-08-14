@@ -27,10 +27,18 @@ const TABLE2_LEAD = '　この表は、第1表及び第3表の「相続税の総
   + 'この表の㋭欄及び㋬欄並びに⑨欄から⑪欄までは記入する必要がありません。';
 
 /** 罫線表の中に印字されている（注） */
-const TABLE2_INNER_NOTES = '(注) 1　被相続人との続柄は、コード表を参照してください。なお、④欄の記入に当たっては、被相続人に養子がある場合や'
-  + '相続の放棄があった場合には、「相続税の申告のしかた」をご覧ください。\n'
-  + '　　　2　⑧欄の金額を第1表⑦欄へ転記します。財産を取得した人のうちに農業相続人がいる場合は、'
-  + '⑧欄の金額を第1表⑦欄へ転記するとともに、⑪欄の金額を第3表⑦欄へ転記します。';
+const TABLE2_INNER_NOTES: NonNullable<GridCell['numberedNotes']> = [
+  {
+    number: '１',
+    body: '被相続人との続柄は、コード表を参照してください。なお、④欄の記入に当たっては、被相続人に養子がある場合や'
+      + '相続の放棄があった場合には、「相続税の申告のしかた」をご覧ください。',
+  },
+  {
+    number: '２',
+    body: '⑧欄の金額を第1表⑦欄へ転記します。財産を取得した人のうちに農業相続人がいる場合は、'
+      + '⑧欄の金額を第1表⑦欄へ転記するとともに、⑪欄の金額を第3表⑦欄へ転記します。',
+  },
+];
 
 /** 罫線表の外（下）に印字されている速算表の使用方法と連帯納付義務 */
 export const TABLE2_NOTES = 'この速算表の使用方法は、次のとおりです。\n'
@@ -122,7 +130,7 @@ const money = (field: string, ariaLabel: string, zeros?: string): Partial<GridCe
 });
 
 /** ①②③ — 課税価格の合計額・遺産に係る基礎控除額・課税遺産総額 */
-function taxableEstateRows(totals: string, common: string): GridCell[] {
+function taxableEstateRows(totals: string): GridCell[] {
   const head = row(343.5, 408.5);
   const sub = row(378.5, 408.5);
   const r1 = row(408.5, 464);
@@ -138,7 +146,7 @@ function taxableEstateRows(totals: string, common: string): GridCell[] {
     // ㋑（第1表⑥Ⓐ）＝ 第1表の課税価格の合計額
     label(r1, col(X.L, X.MARK_R), '㋑\n(第1表⑥Ⓐ)'),
     code(r1, col(X.MARK_R, X.MARK_C), 'G01'),
-    mk(r1, col(X.MARK_C, X.REL_R), money(`${totals}v6`, '㋑ 課税価格の合計額', '，000')),
+    mk(r1, col(X.MARK_C, X.REL_R), { ...money(`${totals}v6`, '㋑ 課税価格の合計額', '，000'), navigateToForm: 'table1' }),
 
     // 3,000万円＋(600万円×㋺法定相続人の数)＝㋩遺産に係る基礎控除額
     mk(r1, col(X.REL_R, X.DED_C), {}),
@@ -162,7 +170,7 @@ function taxableEstateRows(totals: string, common: string): GridCell[] {
     // ㋭（第3表⑥Ⓐ）— 農業相続人がいる場合のみ記入する。第3表は未対応のため手入力。
     label(r2, col(X.L, X.MARK_R), '㋭\n(第3表⑥Ⓐ)'),
     code(r2, col(X.MARK_R, X.MARK_C), 'G02'),
-    mk(r2, col(X.MARK_C, X.REL_R), { kind: 'input', field: `${common}k2`, ariaLabel: '㋭ 第3表の課税価格の合計額', commaInteger: true, rightLabel: '，000' }),
+    mk(r2, col(X.MARK_C, X.REL_R), { kind: 'input', field: `${totals}k2`, ariaLabel: '㋭ 第3表の課税価格の合計額', commaInteger: true, rightLabel: '，000', readOnly: true }),
     label(r2, col(X.REL_R, X.D3), '㋺の人数及び㋩の金額を第1表Ⓑへ転記します。'),
     label(r2, col(X.D3, X.NET_R), '㋬\n(㋭−㋩)'),
     code(r2, col(X.NET_R, X.NET_C), 'G06'),
@@ -191,7 +199,7 @@ function lawfulHead(): GridCell[] {
 }
 
 /** 法定相続人 i 行目 */
-function lawfulRow(i: number): GridCell[] {
+function lawfulRow(i: number, heirOptions: GridCell['options'] = []): GridCell[] {
   const [top, barTop, barBottom, bottom] = LAW_Y[i]!;
   const p = lawPrefix(i);
   const who = `法定相続人${i + 1}人目`;
@@ -200,9 +208,15 @@ function lawfulRow(i: number): GridCell[] {
   const lower = row(barBottom, bottom);
   return [
     code(all, col(X.L, X.CODE), `E0${2 + i}`),
-    mk(all, col(X.CODE, X.NAME_R), { kind: 'input', field: `${p}name`, ariaLabel: `${who}の氏名`, align: 'left', fontSize: 10 }),
+    mk(all, col(X.CODE, X.NAME_R), {
+      kind: 'input', field: `${p}source`, ariaLabel: `${who}：第1表の財産を取得した人`,
+      options: heirOptions, align: 'left', fontSize: 10,
+    }),
     code(all, col(X.NAME_R, X.REL_C), lawCode(i, 0)),
-    mk(all, col(X.REL_C, X.REL_R), { kind: 'input', field: `${p}rel`, ariaLabel: `${who}の被相続人との続柄`, options: RELATION_OPTIONS, compactSelectedOption: true }),
+    mk(all, col(X.REL_C, X.REL_R), {
+      kind: 'input', field: `${p}rel`, ariaLabel: `${who}の被相続人との続柄`,
+      options: RELATION_OPTIONS, compactSelectedOption: true, readOnly: true,
+    }),
 
     // ⑤ 法定相続分（上段＝分子・下段＝分母。間の細い帯が様式の分数の横線）
     code(upper, col(X.REL_R, X.FR_C), lawCode(i, 1)),
@@ -232,7 +246,10 @@ function totalRow(totals: string): GridCell[] {
     code(r, col(X.NAME_R, X.REL_C), 'G49'),
     mk(r, col(X.REL_C, X.REL_R), { kind: 'input', field: `${totals}heirCount`, ariaLabel: 'Ⓐ 法定相続人の数', integerDigits: 2, align: 'center', readOnly: true }),
     label(r, col(X.REL_R, X.SUM_R), '合計'),
-    label(r, col(X.SUM_R, X.D1), '1', { fontSize: 10 }),
+    mk(r, col(X.SUM_R, X.D1), {
+      kind: 'label', textField: `${totals}lawShareTotalDisplay`, fontSize: 6,
+      highlightWhen: (g) => g(`${totals}lawShareInvalid`) === '1',
+    }),
 
     label(r, col(X.D1R, X.N7_L), '⑧相続税の総額（⑦の合計額）\n(円)（100円未満切捨て）', { fontSize: 7 }),
     code(r, col(X.N7_L, X.N7_C), 'G50'),
@@ -272,7 +289,7 @@ function rateTable(): GridCell[] {
     label(deduct, col(RATE_X[0]!, RATE_X[1]!), '控　　除　　額'),
     ...RATE_BRACKETS.flatMap((b, i): GridCell[] => [
       label(head, at(i), amount(b), { align: 'right' }),
-      label(rate, at(i), `${b.rate * 100}%`, { align: 'right' }),
+      label(rate, at(i), `${Math.round(b.rate * 100)}%`, { align: 'right' }),
       label(deduct, at(i), b.deduction === 0 ? '−' : `${b.deduction.toLocaleString('en-US')}千円`, { align: b.deduction === 0 ? 'center' : 'right' }),
     ]),
   ];
@@ -283,16 +300,18 @@ function rateTable(): GridCell[] {
  * @param common 共通欄のフィールド接頭辞（'c.'）
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）
  */
-export function buildTable2(common: string, totals: string): GridCell[] {
+export function buildTable2(
+  common: string, totals: string, heirOptions: readonly GridCell['options'][] = [],
+): GridCell[] {
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
     label(row(237.5, 267.5), col(X.DEC_LBL, X.DEC_L), '被相続人'),
     code(row(237.5, 267.5), col(X.DEC_L, X.DEC_C), 'E01'),
-    mk(row(237.5, 267.5), col(X.DEC_C, X.R), { kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10 }),
+    mk(row(237.5, 267.5), col(X.DEC_C, X.R), { kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10, readOnly: true, navigateToForm: 'table1' }),
 
     label(row(267.5, 343.5), col(X.L, X.R), TABLE2_LEAD, { align: 'left', fontSize: 7 }),
 
-    ...taxableEstateRows(totals, common),
+    ...taxableEstateRows(totals),
 
     // ①②③ブロックと④以下のブロックを分ける二重線
     mk(row(518, 522), col(X.L, X.R), {}),
@@ -301,10 +320,10 @@ export function buildTable2(common: string, totals: string): GridCell[] {
     mk(row(522, 1329), col(X.D3, X.D3R), {}),
 
     ...lawfulHead(),
-    ...LAW_Y.map((_, i) => lawfulRow(i)).flat(),
+    ...LAW_Y.map((_, i) => lawfulRow(i, heirOptions[i])).flat(),
     ...totalRow(totals),
 
-    label(row(1329, 1406.5), col(X.L, X.R), TABLE2_INNER_NOTES, { align: 'left', fontSize: 7 }),
+    mk(row(1329, 1406.5), col(X.L, X.R), { kind: 'label', numberedNotes: TABLE2_INNER_NOTES, align: 'left', fontSize: 7 }),
     ...rateTable(),
   ];
 }

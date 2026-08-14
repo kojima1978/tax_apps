@@ -76,14 +76,14 @@ function topRows(): GridCell[] {
   const r2: [number, number] = [y(217), y(249)];
   const r12: [number, number] = [y(197.5), y(249)];
   return [
-    label(r12, [V.L, V.LBL_C], '修正申告の場合、右欄に\n「1」と記入します。'),
+    label(r12, [V.L, V.LBL_C], '修正申告の場合、右欄に\n「1」と記入します。', { noWrap: true }),
     code(r12, [V.LBL_C, V.CODE_C], 'G01'),
     mk(r12, [V.CODE_C, V.NUM], flag(`${COMMON}amend`, '修正申告の場合は1')),
     mk(r12, [V.NUM, EXT_L[0]], { noBorder: true }),
     ...EXT_L.flatMap((left, i): GridCell[] => {
       const right = i === 0 ? V.MID : V.R;
       return [
-        label(r1, [left, right], '※申告期限延長日'),
+        label(r1, [left, right], '※申告期限延長日', { align: 'left' }),
         label(r2, [left, right], '年　　月　　日'),
       ];
     }),
@@ -120,6 +120,7 @@ function markedOutRows(): GridCell[] {
 export function buildTable1Cont(
   pA: string, whoA: string, pB: string, whoB: string,
   transferred: readonly string[] = [], transferred2: readonly string[] = [],
+  sourceForms: Readonly<Record<string, string>> = {},
 ): GridCell[] {
   return [
     ...topRows(),
@@ -129,7 +130,7 @@ export function buildTable1Cont(
     ...calcBands(RY),
     ...calcRows({
       ry: RY, keys: [...GENERIC_ROWS], codes1: CODES_CALC_A, codes2: CODES_CALC_B,
-      p1: pA, p2: pB, who1: whoA, who2: whoB, transferred, transferred2,
+      p1: pA, p2: pB, who1: whoA, who2: whoB, transferred, transferred2, sourceForms,
     }),
     ...markedOutRows(),
   ];
@@ -155,5 +156,5 @@ export const TABLE1CONT_CONFIRM_BOXES: FooterBox[] = [
 /** 様式の枠外に印字されている注記（第1表の注1・注2と同文） */
 export const TABLE1CONT_NOTES = [
   '（注）1 この申告書で提出しない人である場合（参考として記載している場合）、その人の分は申告書とは取り扱いません。',
-  '2 ⑲欄の金額が赤字となる場合は、⑲欄の頭に△を付してください。なお、この場合で、⑲欄の金額のうちに贈与税の外国税額控除額（第11の２表１⑩）があるときの㉒欄の金額については、「相続税の申告のしかた」を参照してください。',
+  '　　　2 ⑲欄の金額が赤字となる場合は、⑲欄の頭に△を付してください。なお、この場合で、⑲欄の金額のうちに贈与税の外国税額控除額（第11の２表１⑩）があるときの㉒欄の金額については、「相続税の申告のしかた」を参照してください。',
 ].join('\n');

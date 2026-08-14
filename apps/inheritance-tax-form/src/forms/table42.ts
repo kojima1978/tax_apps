@@ -21,6 +21,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
+import { TAX_OFFICES, TAX_OFFICE_PREFS } from '../data/taxOffices';
 import { code, label, mk } from './geometry';
 
 export const TABLE42_FORM_CODE = 'NTA0KSE041010010';
@@ -141,6 +142,14 @@ const SUBMIT_CODES: readonly (readonly string[])[] = [
   ['E11', 'E12', 'E13'],
 ];
 
+/** 全国の税務署を都道府県ごとにまとめた提出先候補。 */
+const TAX_OFFICE_GROUPS: NonNullable<GridCell['optionGroups']> = TAX_OFFICE_PREFS.map((pref) => ({
+  label: pref,
+  options: TAX_OFFICES
+    .filter((office) => office.pref === pref)
+    .map((office) => ({ value: office.name, label: office.name })),
+}));
+
 const DESC = '　この表は、第14表の「1　純資産価額に加算される暦年課税分の贈与財産価額及び特定贈与財産価額の明細」欄に'
   + '記入した財産のうち相続税の課税価格に加算されるものについて、贈与税が課税されている場合に記入します。';
 
@@ -178,7 +187,8 @@ function blockRows(b: number): RowDef[] {
     {
       label: back3
         ? m(base) + 'のうち相続開始の日から遡って3年前の日以後に被相続人から暦年課税に係る贈与によって取得した'
-          + kind + '贈与財産の価額の合計額（円）（贈与税額の計算の基礎となった価額）'
+          + kind + '贈与財産の価額の合計額（円）\n'
+          + '（贈与税額の計算の基礎となった価額）'
         : m(base) + 'のうち被相続人から暦年課税に係る贈与によって取得した' + kind + '贈与財産の価額の合計額（円）\n'
           + '　（贈与税額の計算の基礎となった価額）',
       auto: false,
@@ -197,9 +207,9 @@ function blockRows(b: number): RowDef[] {
 }
 
 /** 年分の帯（縦書きの見出し＋元号・年の入力＋「分）」） */
-function bandCells(b: number, page: number, common: string): GridCell[] {
+function bandCells(b: number, page: number, totals: string): GridCell[] {
   const y = BLOCK_Y[b]!;
-  const p = `${common}t42y${page}b${b}`;
+  const p = `${totals}t42y${page}b${b}`;
   const year = YEARS[b]!;
   return [
     label(row(y[0]!, y[7]!), col(LEFT, X.BAND), '相続開始の年の' + year + '分（', { forceVertical: true, fontSize: 10 }),
@@ -207,10 +217,11 @@ function bandCells(b: number, page: number, common: string): GridCell[] {
     label(row(y[7]!, y[8]!), col(X.ERA, X.BAND), '年'),
     code(row(y[8]!, y[9]!), col(LEFT, X.LCODE), L_CODES[b]!),
     mk(row(y[8]!, y[9]!), col(X.LCODE, X.ERA), {
-      kind: 'input', field: `${p}Era`, ariaLabel: `${year}分の元号`, options: ERA_OPTIONS, compactSelectedOption: true,
+      kind: 'input', field: `${p}Era`, ariaLabel: `${year}分の元号`, options: ERA_OPTIONS,
+      compactSelectedOption: true, stackedSelectedOption: true, readOnly: true, fontSize: 6.5,
     }),
     mk(row(y[8]!, y[9]!), col(X.ERA, X.BAND), {
-      kind: 'input', field: `${p}Y`, ariaLabel: `${year}分の年`, integerDigits: 2, align: 'center',
+      kind: 'input', field: `${p}Y`, ariaLabel: `${year}分の年`, align: 'center', readOnly: true,
     }),
     label(row(y[9]!, y[11]!), col(LEFT, X.BAND), '分）', { forceVertical: true, fontSize: 10 }),
   ];
@@ -245,14 +256,15 @@ export function buildTable42(
       const y = BLOCK_Y[b]!;
       const year = YEARS[b]!;
       return [
-        ...bandCells(b, page, common),
+        ...bandCells(b, page, totals),
 
         // 贈与税の申告書の提出先（署名を書く欄なので右端に「署」が印字されている）
         label(row(y[0]!, y[1]!), col(X.BAND, X.NUM), '贈与税の申告書の提出先'),
         ...P.flatMap(([codeL, codeR, valueR, signL], j): GridCell[] => [
           code(row(y[0]!, y[1]!), col(codeL, codeR), SUBMIT_CODES[b]![j]!),
           mk(row(y[0]!, y[1]!), col(codeR, signL), {
-            kind: 'input', field: `${common}t42${at(j)}b${b}sub`, ariaLabel: `${at(j) + 1}人目の${year}分の贈与税の申告書の提出先`, align: 'left',
+            kind: 'input', field: `${common}t42${at(j)}b${b}sub`, ariaLabel: `${at(j) + 1}人目の${year}分の贈与税の申告書の提出先`,
+            optionGroups: TAX_OFFICE_GROUPS, align: 'left', fontSize: 7,
           }),
           label(row(y[0]!, y[1]!), col(signL, valueR), '署'),
         ]),
@@ -265,7 +277,7 @@ export function buildTable42(
           const no = MARKS[b * TABLE42_ROWS + r]!;
           const name = `${no}${def.label.split('\n')[0]}`;
           return [
-            label(ry, col(X.BAND, X.LBL), def.label, { align: 'left', fontSize: 7.5 }),
+            label(ry, col(X.BAND, X.LBL), def.label, { align: 'left', alignItems: 'flex-start', fontSize: 7.5 }),
             label(ry, col(X.LBL, X.NUM), no, { fontSize: 10, semanticRole: 'rowheader' }),
             ...P.flatMap(([codeL, codeR, valueR], j): GridCell[] => [
               code(ry, col(codeL, codeR), `G${String(b * 24 + j * TABLE42_ROWS + r + 1).padStart(2, '0')}`),

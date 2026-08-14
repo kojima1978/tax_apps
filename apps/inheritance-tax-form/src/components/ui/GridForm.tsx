@@ -13,11 +13,15 @@ export interface GridCell {
   height: number;
   kind?: 'cell' | 'input' | 'label'; // cell=枠のみ, input=入力, label=固定文字
   text?: string;                     // label/cell の表示文字（\n で改行）
+  textField?: string;                // 自動計算値を固定文字として表示するフィールド
+  numberedNotes?: readonly { number: string; body: string }[]; // （注）付きの番号注記（本文はぶら下げインデント）
   field?: string;                    // input のフィールドキー
   ariaLabel?: string;                // 入力欄のアクセシブル名
   semanticRole?: 'group' | 'columnheader' | 'rowheader' | 'presentation';
   groupBorder?: boolean;             // group の外枠セルを描画するか（既存罫線を使う場合は false）
   align?: 'left' | 'center' | 'right';
+  flexDirection?: CSSProperties['flexDirection']; // 特定セル内の配置方向（丸番号の縦中央配置など）
+  alignItems?: CSSProperties['alignItems'];       // 特定セル内の交差軸配置
   fontSize?: number;
   forceHorizontal?: boolean;         // 縦長セルでも横書きを維持する
   forceVertical?: boolean;           // セル比率にかかわらず縦書きにする
@@ -35,8 +39,11 @@ export interface GridCell {
   signedCommaInteger?: boolean;      // マイナス（△）を許可する整数を3桁区切りカンマで表示
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                // 自動計算などの編集不可欄
+  navigateToForm?: string;           // 読み取り専用の転記欄をクリックしたときに開く様式ID
   options?: (string | { value: string; label: string })[]; // 選択式入力の候補（空文字は未選択）
+  optionGroups?: readonly { label: string; options: readonly { value: string; label: string }[] }[]; // optgroup 付きの選択肢
   compactSelectedOption?: boolean;   // 印刷はコードのみ（狭いコード記入枠用。画面では選択肢の名称ごと出す）
+  stackedSelectedOption?: boolean;   // 画面では選択値のコードと名称を上下2段で表示
   /** 選択に連動して別の欄も書き換える（細目コード → 細目の名称）。書き換えた後も手入力できる */
   autoFill?: { field: string; byValue: Record<string, string> };
   /**
@@ -81,6 +88,8 @@ interface GridFormProps {
   footer?: ReactNode;
   /** input/select の id・name に使用する表識別子 */
   formId?: string;
+  /** 転記元の様式へ移動する */
+  onNavigate?: (formId: string) => void;
 }
 
 /** 半角・全角（U+3000）スペース。縦書きラベルでは字間が空きすぎるため取り除く。 */
@@ -218,9 +227,11 @@ interface SubInputProps {
   onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
   /** 先頭の0を残す（郵便番号「0640941」・市外局番「03」など、数値ではなく番号の欄） */
   keepZeros?: boolean;
+  /** false のとき下線を表示しない（日付欄など） */
+  underline?: boolean;
 }
 /** 複合入力の中の数字1マス */
-function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown, keepZeros }: SubInputProps) {
+function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown, keepZeros, underline = true }: SubInputProps) {
   const printRendering = useContext(PrintRenderContext);
   const digits = (raw: string) => (keepZeros ? raw.replace(/\D/g, '') : normalizeInteger(raw));
   const value = digits(g(field));
@@ -235,7 +246,7 @@ function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown,
       onKeyDown={onKeyDown}
       maxLength={maxLength}
       inputMode="numeric"
-      style={{ ...SUB_BOX, width }}
+      style={{ ...SUB_BOX, width, borderBottom: underline ? SUB_BOX.borderBottom : 'none' }}
     />
   );
 }
@@ -245,7 +256,7 @@ function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown,
  * 各矩形の left/right を縦罫線、top/bottom を横罫線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio = '210 / 297', toolbar, footer, formId }: GridFormProps) {
+export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio = '210 / 297', toolbar, footer, formId, onNavigate }: GridFormProps) {
   const printRendering = useContext(PrintRenderContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
@@ -281,16 +292,23 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     // 縦長のラベルは縦書き（帯見出し）。スペース（全角 U+3000 を含む）は縦書き時に除去。
     const ratio = c.height / c.width;
     const isVertical = c.kind === 'label' && !c.forceHorizontal && (c.forceVertical || ratio > 2.5);
-    const raw = c.text ?? '';
+    const raw = c.textField ? g(c.textField) : c.text ?? '';
     const text = isVertical ? raw.replace(SPACES, '') : raw;
+    const selectOptions = c.options ?? c.optionGroups?.flatMap((group) => group.options) ?? [];
     // 枠の実寸に合わせて自動縮小（長文ラベルがはみ出さないように）
     const fontSize = c.fontSize ?? fitFontSize(text, c, isVertical);
     const justify = c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center';
     const highlighted = c.highlightWhen?.(g) ?? false;
-    const interactive = c.selectValue || c.toggleField;
+    const interactive = !printRendering && Boolean(c.selectValue || c.toggleField || c.navigateToForm);
+    const editableComposite = Boolean(c.field && !c.readOnly && (c.date || c.zip || c.tel || c.twoLine));
+    const editable = Boolean(c.selectValue || c.toggleField || editableComposite || (c.kind === 'input' && c.field && !c.readOnly));
+    const rightLabelPadding = c.rightLabel
+      ? Math.max(14, Array.from(c.rightLabel).length * 4.5 + 4)
+      : 0;
     const selectCell = () => {
       if (c.toggleField) u(c.toggleField, g(c.toggleField) === '1' ? '' : '1');
       else if (c.selectValue) u(c.selectValue.field, g(c.selectValue.field) === c.selectValue.value ? '' : c.selectValue.value);
+      else if (c.navigateToForm) onNavigate?.(c.navigateToForm);
     };
     // 郵便番号の入力。7桁そろった時点で住所欄を補う（空のときだけ）
     const onZipInput = (field: string, value: string) => {
@@ -307,10 +325,10 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     return (
       <div
         key={i}
-        className="gf-cell"
-        role={c.toggleField ? 'checkbox' : c.selectValue ? 'button' : c.semanticRole}
+        className={`gf-cell${editable ? ' gf-cell--editable' : ''}${c.navigateToForm ? ' gf-cell--source-link' : ''}`}
+        role={c.toggleField ? 'checkbox' : c.selectValue || c.navigateToForm ? 'button' : c.semanticRole}
         tabIndex={interactive ? 0 : undefined}
-        aria-label={interactive ? c.ariaLabel ?? `${text}を選択` : c.ariaLabel}
+        aria-label={interactive ? c.navigateToForm ? `${c.ariaLabel ?? text}の転記元を開く` : c.ariaLabel ?? `${text}を選択` : c.ariaLabel}
         aria-checked={c.toggleField ? g(c.toggleField) === '1' : undefined}
         aria-pressed={c.selectValue ? g(c.selectValue.field) === c.selectValue.value : undefined}
         onClick={interactive ? selectCell : undefined}
@@ -325,7 +343,8 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           pointerEvents: c.outline ? 'none' : undefined,
           position: 'relative',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: c.alignItems ?? 'center',
+          flexDirection: c.flexDirection,
           justifyContent: isVertical ? (c.align === 'center' ? 'center' : 'flex-start') : justify,
           writingMode: isVertical ? (c.verticalLr ? 'vertical-lr' : 'vertical-rl') : undefined,
           fontSize,
@@ -335,7 +354,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           cursor: interactive ? 'pointer' : undefined,
           userSelect: interactive ? 'none' : undefined,
           padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
-          lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: 'center',
+          lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: c.align ?? 'center',
         }}
       >
         {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
@@ -346,10 +365,10 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
         {c.diagonal ? (
           <DiagonalLine dir={c.diagonal} />
         ) : c.date && c.field ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 1, width: '100%', whiteSpace: 'nowrap' }}>
-            <SubInput field={`${c.field}_y`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（年）`} g={g} u={u} onKeyDown={onEnterNext} />年
-            <SubInput field={`${c.field}_m`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（月）`} g={g} u={u} onKeyDown={onEnterNext} />月
-            <SubInput field={`${c.field}_d`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（日）`} g={g} u={u} onKeyDown={onEnterNext} />日
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: justify, gap: 1, width: '100%', whiteSpace: 'nowrap' }}>
+            <SubInput field={`${c.field}_y`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（年）`} g={g} u={u} onKeyDown={onEnterNext} underline={false} />年
+            <SubInput field={`${c.field}_m`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（月）`} g={g} u={u} onKeyDown={onEnterNext} underline={false} />月
+            <SubInput field={`${c.field}_d`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（日）`} g={g} u={u} onKeyDown={onEnterNext} underline={false} />日
             {c.dateSuffix && <span style={{ paddingLeft: '0.6em' }}>{c.dateSuffix}</span>}
           </span>
         ) : c.zip && c.field ? (
@@ -363,15 +382,20 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
             <SubInput field={`${c.field}_2`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（市内局番）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros />―
             <SubInput field={`${c.field}_3`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（加入者番号）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros />
           </span>
-        ) : c.kind === 'input' && c.field && c.options ? (
-          printRendering
-            ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: justify, overflow: 'hidden' }}>{c.compactSelectedOption ? g(c.field) : selectedOptionLabel(c.options, g(c.field))}</div>
+        ) : c.kind === 'input' && c.field && (c.options || c.optionGroups) ? (
+          printRendering || c.readOnly
+            ? c.stackedSelectedOption && !printRendering
+              ? <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', lineHeight: 1 }}>
+                  <span>{g(c.field)}</span>
+                  <span>{selectedOptionLabel(selectOptions, g(c.field)).replace(/^\S+\s*/, '')}</span>
+                </div>
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: justify, overflow: 'hidden' }}>{c.compactSelectedOption ? g(c.field) : selectedOptionLabel(selectOptions, g(c.field))}</div>
             : (
               <select
                 id={`${inputPrefix}-${c.field}-${i}`}
                 name={`${inputPrefix}.${c.field}`}
-                aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(c.options, g(c.field))}` : ''}`}
-                title={[selectedOptionLabel(c.options, g(c.field)), c.hint].filter(Boolean).join('\n') || undefined}
+                aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(selectOptions, g(c.field))}` : ''}`}
+                title={[selectedOptionLabel(selectOptions, g(c.field)), c.hint].filter(Boolean).join('\n') || undefined}
                 value={g(c.field)}
                 onChange={(e) => {
                   u(c.field!, e.target.value);
@@ -383,10 +407,19 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
               >
                 {/* 画面では選択後も名称ごと出す（`compactSelectedOption` は印刷だけの指定）。
                     選んだ項目の表示をコードだけに差し替えると、開き直したときに何を選んだのか読めなくなる */}
-                {c.options.map((option) => {
-                  const o = typeof option === 'string' ? { value: option, label: option } : option;
-                  return <option key={o.value || 'blank'} value={o.value}>{o.label}</option>;
-                })}
+                {c.optionGroups ? (
+                  <>
+                    <option value="" />
+                    {c.optionGroups.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </optgroup>
+                    ))}
+                  </>
+                ) : c.options?.map((option) => {
+                    const o = typeof option === 'string' ? { value: option, label: option } : option;
+                    return <option key={o.value || 'blank'} value={o.value}>{o.label}</option>;
+                  })}
               </select>
             )
         ) : c.twoLine && c.field ? (
@@ -413,7 +446,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           <>
             {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.cornerLabel}</span>}
             {printRendering ? (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', background: 'transparent', paddingRight: c.rightLabel ? 22 : 0, boxSizing: 'border-box', whiteSpace: 'nowrap' }}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', background: 'transparent', paddingRight: rightLabelPadding, boxSizing: 'border-box', whiteSpace: 'nowrap' }}>
                 {c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined ? normalizeInteger(g(c.field)) : g(c.field)}
               </div>
             ) : (
@@ -437,11 +470,21 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 maxLength={c.integerDigits}
                 readOnly={c.readOnly}
                 tabIndex={c.readOnly ? -1 : undefined}
-                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 22 : 0, boxSizing: 'border-box', fontFamily: 'inherit' }}
+                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit' }}
               />
             )}
           </>
-        ) : c.kind === 'label' || c.text ? (
+        ) : c.numberedNotes ? (
+          <span className="gf-numbered-notes">
+            {c.numberedNotes.map((note, index) => (
+              <span className="gf-numbered-notes__row" key={`${note.number}-${index}`}>
+                <span className="gf-numbered-notes__prefix">{index === 0 ? '（注）' : ''}</span>
+                <span className="gf-numbered-notes__number">{note.number}</span>
+                <span className="gf-numbered-notes__body">{note.body}</span>
+              </span>
+            ))}
+          </span>
+        ) : c.kind === 'label' || c.text || c.textField ? (
           text.includes('\n')
             ? <span style={{ whiteSpace: c.noWrap ? 'pre' : 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span>
             : text

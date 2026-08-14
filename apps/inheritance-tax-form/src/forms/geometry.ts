@@ -7,7 +7,9 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { ERA_NOTE, ERA_OPTIONS, RELATION_OPTIONS } from '../data/codes';
+import {
+  DAY_OPTIONS, ERA_NOTE, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS, RELATION_OPTIONS,
+} from '../data/codes';
 
 /** 縦罫線の位置（％）。両様式共通。 */
 export const V = {
@@ -42,7 +44,7 @@ export function mk(y: readonly [number, number], x: readonly [number, number], r
 
 /** 様式の識別コード（G03 等）の小さな枠。枠が狭く「G0/3」と折り返すため1行に固定する。 */
 export function code(y: readonly [number, number], x: readonly [number, number], text: string): GridCell {
-  return mk(y, x, { kind: 'label', text, fontSize: 5.5, align: 'left', noWrap: true, semanticRole: 'presentation' });
+  return mk(y, x, { kind: 'label', text, fontSize: 5.5, align: 'left', noWrap: true, forceHorizontal: true, semanticRole: 'presentation' });
 }
 
 /** 固定文字セル */
@@ -128,7 +130,9 @@ export const flag = (field: string, ariaLabel: string): Partial<GridCell> => ({
 });
 
 /** 生年月日（元号・年・月・日）と年齢。左右どちらの列でも割付は同じ。 */
-function birthCells(x: number, y: PersonY, birthCode: string, ageCode: string, p: string, who: string): GridCell[] {
+function birthCells(
+  x: number, y: PersonY, birthCode: string, ageCode: string, p: string, who: string, useDateSelects = false,
+): GridCell[] {
   const at = (d: number) => x + d;
   return [
     mk(y.birthHead, [x, at(O.code)], {}),
@@ -139,9 +143,18 @@ function birthCells(x: number, y: PersonY, birthCode: string, ageCode: string, p
     label(y.birthHead, [at(O.dayR), at(O.end)], '年齢'),
     code(y.birth, [x, at(O.code)], birthCode),
     mk(y.birth, [at(O.code), at(O.eraR)], { kind: 'input', field: `${p}birthEra`, ariaLabel: `${who}の生年月日（元号）`, options: ERA_OPTIONS, compactSelectedOption: true }),
-    mk(y.birth, [at(O.eraR), at(O.yearR)], { kind: 'input', field: `${p}birthY`, ariaLabel: `${who}の生年月日（年）`, integerDigits: 2, align: 'center' }),
-    mk(y.birth, [at(O.yearR), at(O.monthR)], { kind: 'input', field: `${p}birthM`, ariaLabel: `${who}の生年月日（月）`, integerDigits: 2, align: 'center' }),
-    mk(y.birth, [at(O.monthR), at(O.dayR)], { kind: 'input', field: `${p}birthD`, ariaLabel: `${who}の生年月日（日）`, integerDigits: 2, align: 'center' }),
+    mk(y.birth, [at(O.eraR), at(O.yearR)], {
+      kind: 'input', field: `${p}birthY`, ariaLabel: `${who}の生年月日（年）`, align: 'center',
+      ...(useDateSelects ? { options: ERA_YEAR_OPTIONS } : { integerDigits: 2 }),
+    }),
+    mk(y.birth, [at(O.yearR), at(O.monthR)], {
+      kind: 'input', field: `${p}birthM`, ariaLabel: `${who}の生年月日（月）`, align: 'center',
+      ...(useDateSelects ? { options: MONTH_OPTIONS } : { integerDigits: 2 }),
+    }),
+    mk(y.birth, [at(O.monthR), at(O.dayR)], {
+      kind: 'input', field: `${p}birthD`, ariaLabel: `${who}の生年月日（日）`, align: 'center',
+      ...(useDateSelects ? { options: DAY_OPTIONS } : { integerDigits: 2 }),
+    }),
     code(y.birth, [at(O.dayR), at(O.refCode)], ageCode),
     mk(y.birth, [at(O.refCode), at(O.end)], { kind: 'input', field: `${p}age`, ariaLabel: `${who}の年齢`, integerDigits: 3, align: 'center' }),
   ];
@@ -172,7 +185,7 @@ export function personColumn(x: number, y: PersonY, c: PersonCodes, p: string, w
     code(y.myNumber, [x, at(O.code)], c.myNumber),
     mk(y.myNumber, [at(O.code), at(O.end)], { kind: 'input', field: `${p}myNumber`, ariaLabel: `${who}の個人番号又は法人番号`, align: 'left' }),
 
-    ...birthCells(x, y, c.birth, c.age, p, who),
+    ...birthCells(x, y, c.birth, c.age, p, who, true),
 
     // 郵便番号・住所・電話番号
     code(y.zip, [x, at(O.code)], c.zip),
@@ -184,9 +197,9 @@ export function personColumn(x: number, y: PersonY, c: PersonCodes, p: string, w
     mk(y.tel, [at(O.code), at(O.end)], { tel: true, field: `${p}tel`, ariaLabel: `${who}の電話番号` }),
 
     // 被相続人との続柄・職業
-    label(y.relation, [x, at(O.relHead)], '続柄は\nコード表参照', { fontSize: 6 }),
+    label(y.relation, [x, at(O.relHead)], '続柄は\nコード表参照', { fontSize: 6, align: 'left' }),
     code(y.relation, [at(O.relHead), at(O.relCode)], c.relation),
-    mk(y.relation, [at(O.relCode), at(O.relR)], { kind: 'input', field: `${p}relation`, ariaLabel: `${who}の被相続人との続柄`, options: RELATION_OPTIONS, compactSelectedOption: true }),
+    mk(y.relation, [at(O.relCode), at(O.relR)], { kind: 'input', field: `${p}relation`, ariaLabel: `${who}の被相続人との続柄`, options: RELATION_OPTIONS, compactSelectedOption: true, fontSize: 5 }),
     code(y.relation, [at(O.relR), at(O.jobCode)], c.job),
     mk(y.relation, [at(O.jobCode), at(O.end)], { kind: 'input', field: `${p}job`, ariaLabel: `${who}の職業`, align: 'left' }),
 
@@ -223,7 +236,7 @@ export function decedentColumn(x: number, y: PersonY, p: string): GridCell[] {
 
     slash(y.myNumber),
 
-    ...birthCells(x, y, 'N02', 'G02', p, '被相続人'),
+    ...birthCells(x, y, 'N02', 'G02', p, '被相続人', true),
 
     // 様式では記入不要（斜線）の欄。住所の補助と提出先税務署の絞り込みに使うため画面だけ入力できるようにし、
     // 印刷では様式どおりの斜線に戻す。
@@ -256,7 +269,7 @@ export function personLabelColumn(y: PersonY): GridCell[] {
     mk(y.head, [V.L, V.LBL], { noBorder: true }),
     label(y.furigana, [V.L, V.LBL_A], 'フリガナ'),
     label(y.name, [V.L, V.LBL_A], '氏名', { fontSize: 11 }),
-    label(nameSpan, [V.LBL_A, V.LBL], '参考記載の\n場合「1」\nと記入（注1）', { fontSize: 7 }),
+    label(nameSpan, [V.LBL_A, V.LBL], '参考記載の\n場合「1」\nと記入（注1）', { fontSize: 7, align: 'left' }),
     label(y.myNumber, [V.L, V.LBL], '個人番号又は法人番号'),
     // 生年月日欄は上下2行が1マス。左に見出し、右に元号コードの破線注記が入る。
     mk(birthSpan, [V.L, V.LBL], {}),
@@ -325,9 +338,9 @@ const CALC_DEFS: Record<string, CalcRowDef> = {
   v4: { no: '④', label: '純資産価額（①＋②−③）\n（赤字のときは０）', auto: true },
   v5: { no: '⑤', label: '純資産価額に加算される暦年課税分の\n贈与財産価額（第14表１④）' },
   v6: { no: '⑥', label: '課税価格（④＋⑤）\n（1,000円未満切捨て）', zeros: '000', auto: true },
-  v8: { no: '⑧', label: 'あん分割合\n（各人の⑥/Ⓐ）', labelLeft: V.LBL_A, decimals: true },
+  v8: { no: '⑧', label: 'あん分割合\n（各人の⑥/Ⓐ）', labelLeft: V.LBL_A, decimals: true, auto: true },
   v9: { no: '⑨', label: '算出税額\n（⑦×各人の⑧）', labelLeft: V.LBL_A, auto: true },
-  v10: { no: '⑩', label: '算出税額\n（第３表⑬）', labelLeft: V.LBL_B },
+  v10: { no: '⑩', label: '算出税額\n（第３表⑬）', labelLeft: V.LBL_B, auto: true },
   v11: { no: '⑪', label: '相続税額の２割加算が行われる\n場合の加算金額（第４表⑥）' },
   v12: { no: '⑫', label: '暦年課税分の贈与税額控除額\n（第４表の２㉕）', labelLeft: V.BAND2 },
   v13: { no: '⑬', label: '配偶者の税額軽減額\n（第５表㋐又は㋩）', labelLeft: V.BAND2 },
@@ -335,14 +348,14 @@ const CALC_DEFS: Record<string, CalcRowDef> = {
   v15: { no: '⑮', label: '計', labelLeft: V.BAND2, auto: true },
   v16: { no: '⑯', label: '差引税額\n（⑨＋⑪−⑮）又は（⑩＋⑪−⑮）\n（赤字のときは０）', auto: true },
   v17: { no: '⑰', label: '相続時精算課税分の贈与税額控除額\n（第11の２表１⑨）', zeros: '00' },
-  v18: { no: '⑱', label: '医療法人持分税額控除額\n（第８の４表２Ｂ）' },
+  v18: { no: '⑱', label: '医療法人持分税額控除額\n（第８の４表２Ｂ）', auto: true },
   v19: { no: '⑲', label: '小計（⑯−⑰−⑱）\n（黒字のときは100円未満切捨て）', auto: true, signed: true },
-  v20: { no: '⑳', label: '納税猶予税額\n（第８の８表２⑧）', zeros: '00' },
+  v20: { no: '⑳', label: '納税猶予税額\n（第８の８表２⑧）', zeros: '00', auto: true },
   v21: { no: '㉑', label: '申告期限までに\n納付すべき税額', labelLeft: V.NARROW, zeros: '00', auto: true },
   v22: { no: '㉒', label: '還付される税額', labelLeft: V.NARROW, auto: true },
-  v23: { no: '㉓', label: '小計', labelLeft: V.BAND2 },
-  v24: { no: '㉔', label: '納税猶予税額', labelLeft: V.BAND2, zeros: '00' },
-  v25: { no: '㉕', label: '申告納税額\n（還付の場合は、頭に△を記載）', labelLeft: V.BAND2, signed: true },
+  v23: { no: '㉓', label: '小計', labelLeft: V.BAND2, auto: true },
+  v24: { no: '㉔', label: '納税猶予税額', labelLeft: V.BAND2, zeros: '00', auto: true },
+  v25: { no: '㉕', label: '申告納税額\n（還付の場合は、頭に△を記載）', labelLeft: V.BAND2, signed: true, auto: true },
   v26: { no: '㉖', label: '小計の増加額（⑲−㉓）', auto: true },
   v27: { no: '㉗', label: 'この申告により納付すべき税額\n又は還付される税額\n（還付の場合は、頭に△を記載）\n（（㉑又は㉒）−㉕）', auto: true, signed: true },
 };
@@ -370,19 +383,21 @@ export interface CalcRowsOptions {
    */
   transferred?: readonly string[];
   transferred2?: readonly string[];
+  /** 転記行をクリックしたときに開く様式（行キー → 様式ID） */
+  sourceForms?: Readonly<Record<string, string>>;
 }
 
 /** 金額欄・割合欄の共通指定 */
-function valueCell(field: string, ariaLabel: string, def: CalcRowDef, readOnly: boolean): Partial<GridCell> {
+function valueCell(field: string, ariaLabel: string, def: CalcRowDef, readOnly: boolean, navigateToForm?: string): Partial<GridCell> {
   return {
-    kind: 'input', field, ariaLabel, readOnly,
+    kind: 'input', field, ariaLabel, readOnly, navigateToForm,
     ...(def.decimals ? { decimalPlaces: 2, align: 'center' } : def.signed ? { signedCommaInteger: true } : { commaInteger: true }),
     ...(def.zeros ? { rightLabel: def.zeros } : {}),
   };
 }
 
 /** 計算欄の汎用行（ラベル・丸番号・コード枠・金額欄）をまとめて生成する。 */
-export function calcRows({ ry, keys, codes1, codes2, p1, p2, who1, who2, readOnly1, transferred, transferred2 }: CalcRowsOptions): GridCell[] {
+export function calcRows({ ry, keys, codes1, codes2, p1, p2, who1, who2, readOnly1, transferred, transferred2, sourceForms }: CalcRowsOptions): GridCell[] {
   return keys.flatMap((key) => {
     const def = CALC_DEFS[key]!;
     const y = ry[key]!;
@@ -393,9 +408,9 @@ export function calcRows({ ry, keys, codes1, codes2, p1, p2, who1, who2, readOnl
       label(y, [def.labelLeft ?? V.BAND1, V.LBL], def.label),
       label(y, [V.LBL, V.NUM], def.no, { fontSize: 10, semanticRole: 'rowheader' }),
       code(y, [V.NUM, V.CODE1], codes1[key] ?? ''),
-      mk(y, [V.CODE1, V.MID], valueCell(`${p1}${key}`, `${who1} ${name}`, def, readOnly1 === true || auto)),
+      mk(y, [V.CODE1, V.MID], valueCell(`${p1}${key}`, `${who1} ${name}`, def, readOnly1 === true || auto, sourceForms?.[key])),
       code(y, [V.MID, V.CODE2], codes2[key] ?? ''),
-      mk(y, [V.CODE2, V.R], valueCell(`${p2}${key}`, `${who2} ${name}`, def, auto2)),
+      mk(y, [V.CODE2, V.R], valueCell(`${p2}${key}`, `${who2} ${name}`, def, auto2, sourceForms?.[key])),
     ];
   });
 }
@@ -413,7 +428,7 @@ export function calcBands(ry: Record<string, [number, number]>): GridCell[] {
     label(span('v12', 'v15'), [V.BAND1, V.BAND2], '税額控除'),
     label(span('v23', 'v25'), [V.BAND1, V.BAND2], 'この修正前の'),
     // 複数行にまたがる行見出し
-    label(span('v8', 'v9'), [V.BAND1, V.LBL_A], '一般の場合\n（⑩の場合を除く）'),
+    label(span('v8', 'v9'), [V.BAND1, V.LBL_A], '一般の場合\n（⑩の場合を除く）', { noWrap: true }),
     label(ry.v10!, [V.BAND1, V.LBL_B], '農地等納税猶予の\n適用を受ける場合'),
     label(span('v21', 'v22'), [V.BAND1, V.NARROW], '申　告\n納税額\n（⑲−⑳）'),
   ];

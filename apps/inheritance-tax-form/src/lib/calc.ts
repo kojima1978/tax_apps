@@ -371,8 +371,11 @@ export function computeHeir(h: Values, total7: number, totalA: number, forms: Us
   const v6yen = Math.floor((v4 + num(h.v5)) / 1000) * 1000;
   out.v6 = show(v6yen / 1000, has(out.v4, h.v5));
 
-  // ⑧ あん分割合（各人の⑥／Ⓐ）— 端数調整のため手入力での上書きを許す（v8m が立っている間は触らない）
-  if (!h.v8m) out.v8 = totalA > 0 && has(out.v6) ? (v6yen / totalA).toFixed(2) : '';
+  // ⑧ あん分割合（各人の⑥／Ⓐ）。全員の合計が1.00になる端数調整値が渡された場合はそれを使う。
+  // v8a は computeAll 内だけで使う一時値で、保存データの旧手入力値（v8/v8m）は計算に採用しない。
+  out.v8 = totalA > 0 && has(out.v6)
+    ? h.v8a ?? (v6yen / totalA).toFixed(2)
+    : '';
   const v8 = num(out.v8);
 
   // ⑨ 算出税額（⑦×各人の⑧）— 円未満切捨て
@@ -438,13 +441,49 @@ interface Table2 {
   totals: Values;
 }
 
+/** ⑤の分子・分母を約分しながら正確に合算し、入力済みの場合だけ合計1かを返す。 */
+function lawfulShareIsOne(lawful: Values[]): boolean | undefined {
+  let sumNumerator = 0n;
+  let sumDenominator = 1n;
+  let hasInput = false;
+
+  for (const row of lawful) {
+    const numeratorText = (row.num ?? '').trim();
+    const denominatorText = (row.den ?? '').trim();
+    if (numeratorText === '' && denominatorText === '') continue;
+    hasInput = true;
+    if (!/^\d+$/.test(numeratorText) || !/^\d+$/.test(denominatorText)) return false;
+
+    const numerator = BigInt(numeratorText);
+    const denominator = BigInt(denominatorText);
+    if (denominator === 0n) return false;
+    sumNumerator = sumNumerator * denominator + numerator * sumDenominator;
+    sumDenominator *= denominator;
+
+    let a = sumNumerator;
+    let b = sumDenominator;
+    while (b !== 0n) [a, b] = [b, a % b];
+    if (a !== 0n) {
+      sumNumerator /= a;
+      sumDenominator /= a;
+    }
+  }
+
+  return hasInput ? sumNumerator === sumDenominator : undefined;
+}
+
 /**
  * 第2表（相続税の総額の計算書）。
  * @param totalAThousand ㋑ 課税価格の合計額（＝第1表Ⓐ・千円単位）
  */
-function computeTable2(common: Values, lawful: Values[], totalAThousand: number): Table2 {
+function computeTable2(lawful: Values[], totalAThousand: number): Table2 {
   const named = lawful.filter((l) => (l.name ?? '').trim() !== '').length;
   const totals: Values = {};
+  // 第3表は未対応。保存済みの旧入力値も計算へ混ぜず、㋭は空欄・読み取り専用にする。
+  totals.k2 = '';
+  const shareIsOne = lawfulShareIsOne(lawful);
+  totals.lawShareInvalid = shareIsOne === false ? '1' : '';
+  totals.lawShareTotalDisplay = shareIsOne === false ? '1\n※合計が1ではありません' : '1';
 
   // ㋺ 法定相続人の数 ／ ㋩ 遺産に係る基礎控除額（3,000万円＋600万円×法定相続人の数・万円単位）
   const deduction = named > 0 ? 3000 + 600 * named : 0;
@@ -454,7 +493,7 @@ function computeTable2(common: Values, lawful: Values[], totalAThousand: number)
   totals.tB = named > 0 ? str(deduction / 100) : '';
 
   // ㋥（㋑−㋩）／ ㋬（㋭−㋩）。基礎控除以下なら課税遺産は生じないので0とする。
-  const gross3 = num(common.k2);
+  const gross3 = 0;
   const net = Math.max(0, totalAThousand - deduction * 10);
   const net3 = Math.max(0, gross3 - deduction * 10);
   totals.k5 = totalAThousand > 0 || named > 0 ? str(net) : '';
@@ -1010,6 +1049,33 @@ function computeTable42(common: Values, pages: number): Table42 {
   const out: Values = {};
   const v12 = new Map<number, string>();
 
+  const eraStarts = [
+    { code: '1', year: 1868 },
+    { code: '2', year: 1912 },
+    { code: '3', year: 1926 },
+    { code: '4', year: 1989 },
+    { code: '5', year: 2019 },
+  ] as const;
+  const startEra = eraStarts.find((era) => era.code === common.startEra);
+  const startYear = num(common.startY);
+  const startGregorianYear = startEra !== undefined && startYear > 0
+    ? startEra.year + startYear - 1
+    : undefined;
+
+  for (let page = 0; page < pages; page += 1) {
+    for (let b = 0; b < TABLE42_BLOCKS; b += 1) {
+      const prefix = `t42y${page}b${b}`;
+      const targetYear = startGregorianYear === undefined ? undefined : startGregorianYear - b - 1;
+      const era = targetYear === undefined
+        ? undefined
+        : [...eraStarts].reverse().find((candidate) => candidate.year <= targetYear);
+      out[`${prefix}Era`] = era?.code ?? '';
+      out[`${prefix}Y`] = era === undefined || targetYear === undefined
+        ? ''
+        : String(targetYear - era.year + 1).padStart(2, '0');
+    }
+  }
+
   for (let i = 0; i < pages * TABLE42_PERSONS; i += 1) {
     const p = `t42${i}`;
     let sum = 0;
@@ -1171,8 +1237,9 @@ function computeTable88(
  * @param used 使用する様式のID。第11表・付表を使うかどうかで第1表①・第11表2①の扱いが変わる。
  * @param details 付表の明細（様式IDごと）。使用する付表の分だけ第11表2①へ合計する。
  */
-export function computeAll(
+function computeAllWithRatios(
   common: Values, heirs: Values[], lawful: Values[], used: string[] = [], details: Record<string, Values[]> = {},
+  ratios?: readonly number[],
 ): Computed {
   const forms: UsedForms = {
     table11: used.includes('table11'),
@@ -1208,6 +1275,7 @@ export function computeAll(
     const funeral = t13.funeral[i + 1] ?? 0;
     return {
       ...h,
+      ...(ratios === undefined ? {} : { v8a: ratios[i]!.toFixed(2) }),
       ...(t42Used ? { v12: t42.v12.get(i) ?? '' } : {}),
       ...(detailForms.length === 0 ? {} : { t11v1: detail === 0 ? '' : signed(detail) }),
       t13v1: debt === 0 ? '' : str(debt),
@@ -1226,8 +1294,20 @@ export function computeAll(
   const firstPass = inputs.map((h) => computeHeir(h, 0, 0, forms));
   const totalA = firstPass.reduce((s, h) => s + yen(h, 'v6'), 0);
 
+  // 第2表④は第1表の「財産を取得した人」から選ぶ。氏名・続柄は保存時に複製せず、
+  // 第1表の最新値から毎回導出することで変更に追従させる。
+  // 旧版で手入力された行は source='manual' として表示・計算を維持する。
+  const linkedLawful = lawful.map((row): Values => {
+    const source = row.source ?? '';
+    const index = /^\d+$/.test(source) ? Number(source) : -1;
+    if (index >= 0 && index < heirs.length) {
+      return { ...row, source, name: heirs[index]?.name ?? '', rel: heirs[index]?.relation ?? '' };
+    }
+    return source === '' && (row.name ?? '').trim() !== '' ? { ...row, source: 'manual' } : row;
+  });
+
   // 第2表: Ⓐと法定相続人から相続税の総額⑧（＝第1表⑦）を求める
-  const table2 = computeTable2(common, lawful, totalA / 1000);
+  const table2 = computeTable2(linkedLawful, totalA / 1000);
   const total7 = yen(table2.totals, 't7');
 
   // 2周目以降は他の様式からの転記を重ねて第1表を計算し直す。第11表の項番は入力順の通し番号。
@@ -1299,4 +1379,48 @@ export function computeAll(
   Object.assign(totals, computeTable1112f1b(f1Sheets), computeTable1112f1(details.table1112f1 ?? [], f1Sheets));
 
   return { heirs: final, lawful: table2.lawful, totals };
+}
+
+/** ⑧の端数調整後に比較する税負担。⑲は税額控除後・納税猶予前なので、猶予を節税と誤認しない。 */
+function apportionedTaxBurden(computed: Computed): number {
+  return computed.heirs.reduce((sum, heir) => sum + num(heir.v19), 0);
+}
+
+/**
+ * 相続税法基本通達17－1に従い、各人の⑧を小数第2位で調整して合計を1.00にする。
+ * 各人は正確な割合の切捨て値または切上げ値のどちらかとし、不足する0.01を、
+ * ⑲の合計税負担への増分が小さい人から配る。同額なら正確な割合の端数が大きい人を優先する。
+ */
+export function computeAll(
+  common: Values, heirs: Values[], lawful: Values[], used: string[] = [], details: Record<string, Values[]> = {},
+): Computed {
+  const preliminary = computeAllWithRatios(common, heirs, lawful, used, details);
+  const totalA = preliminary.heirs.reduce((sum, heir) => sum + yen(heir, 'v6'), 0);
+  if (totalA <= 0) return preliminary;
+
+  const exactUnits = preliminary.heirs.map((heir) => (yen(heir, 'v6') * 100) / totalA);
+  const floorUnits = exactUnits.map((units) => Math.floor(units + 1e-10));
+  const missingUnits = Math.max(0, 100 - floorUnits.reduce((sum, units) => sum + units, 0));
+  const floorRatios = floorUnits.map((units) => units / 100);
+  if (missingUnits === 0) return computeAllWithRatios(common, heirs, lawful, used, details, floorRatios);
+
+  const floorResult = computeAllWithRatios(common, heirs, lawful, used, details, floorRatios);
+  const floorTax = apportionedTaxBurden(floorResult);
+  const candidates = exactUnits.flatMap((units, index) => {
+    const remainder = units - floorUnits[index]!;
+    if (remainder <= 1e-10) return [];
+    const trial = [...floorRatios];
+    trial[index] = (floorUnits[index]! + 1) / 100;
+    const tax = apportionedTaxBurden(computeAllWithRatios(common, heirs, lawful, used, details, trial));
+    return [{ index, taxIncrease: tax - floorTax, remainder }];
+  });
+  candidates.sort((a, b) => (
+    a.taxIncrease - b.taxIncrease || b.remainder - a.remainder || a.index - b.index
+  ));
+
+  const optimized = [...floorRatios];
+  for (const candidate of candidates.slice(0, missingUnits)) {
+    optimized[candidate.index] = (floorUnits[candidate.index]! + 1) / 100;
+  }
+  return computeAllWithRatios(common, heirs, lawful, used, details, optimized);
 }

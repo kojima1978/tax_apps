@@ -146,11 +146,6 @@ export function useFormData() {
       // 第1表（続）は必ず2人分が印刷されるため、右側の未作成の1人は入力時に作る
       if (!Number.isInteger(index) || index < 0 || index > prev.heirs.length || index >= MAX_HEIRS) return prev;
       const next = { ...(prev.heirs[index] ?? {}), [key]: value };
-      // ⑧あん分割合は自動計算だが端数調整のため手入力を優先する。空に戻したら自動へ復帰。
-      if (key === 'v8') {
-        if (value.trim() === '') delete next.v8m;
-        else next.v8m = '1';
-      }
       const heirs = [...prev.heirs];
       heirs[index] = next;
       return { ...prev, heirs };
