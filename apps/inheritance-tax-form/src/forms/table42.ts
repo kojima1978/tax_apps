@@ -15,7 +15,7 @@
  * 氏名は第4表・第6表・第7表と同じ選択式（項番→氏名）。
  *
  * 罫線の位置は様式PNG（150dpi）の実測px。
- * 上端 209.5px（説明行の上辺）〜下端 1690px（（注）の下辺）、
+ * 上端 183.5px（被相続人欄の上辺）〜下端 1690px（（注）の下辺）、
  * 左端 29.5px 〜 右端 1180.5px を 0〜100％ に写す。
  */
 
@@ -50,7 +50,7 @@ export const TABLE42_CREDIT_ROWS: readonly (readonly [number, number, number, nu
   [7, 6, 5, 4],
 ];
 
-const TOP = 209.5;
+const TOP = 183.5;
 const BOTTOM = 1690;
 const LEFT = 29.5;
 const RIGHT = 1180.5;
@@ -81,6 +81,8 @@ const X = {
   LBL: 521.5,
   /** 丸番号の右端 */
   NUM: 542.5,
+  /** 被相続人欄（右上）の縦罫線 */
+  DEC_L: 735, DEC_C: 862, DEC_I: 905,
 } as const;
 
 /** 人の列（3人分）の［コード枠の左端, コード枠の右端＝入力の左端, 入力の右端, 提出先の「署」の左端］ */
@@ -92,7 +94,8 @@ const P: readonly (readonly [number, number, number, number])[] = [
 
 /** 全体の行（実測px） */
 const Y = {
-  desc: [TOP, 247],
+  decedent: [TOP, 209.5],
+  desc: [209.5, 247],
   name: [247, 275],
   v25: [1628, 1664.5],
   notes: [1664.5, BOTTOM],
@@ -241,6 +244,15 @@ export function buildTable42(
   const at = (j: number): number => page * TABLE42_PERSONS + j;
 
   return [
+    // 被相続人（第1表の氏名と同じ欄を共有する）。左側は罫線の無い余白
+    mk(row(Y.decedent[0], Y.decedent[1]), col(LEFT, X.DEC_L), { noBorder: true }),
+    label(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_L, X.DEC_C), '被相続人'),
+    code(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_C, X.DEC_I), 'E01'),
+    mk(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_I, RIGHT), {
+      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
+    }),
+
     label(row(Y.desc[0], Y.desc[1]), col(LEFT, RIGHT), DESC, { align: 'left', fontSize: 7.5 }),
 
     // 控除を受ける人の氏名（項番→氏名の選択式）。この行は帯・丸番号の列が無い
