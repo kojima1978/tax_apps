@@ -29,6 +29,9 @@ import { TABLE4_PERSONS, TABLE4_RATE } from '../forms/table4';
 import { TABLE42_BLOCKS, TABLE42_CREDIT_ROWS, TABLE42_PERSONS } from '../forms/table42';
 import { TABLE7_ROWS, TABLE7_SPAN } from '../forms/table7';
 import { TABLE9_ROWS } from '../forms/table9';
+import {
+  TABLE14_BEQUEST_ROWS, TABLE14_DONATION_ROWS, TABLE14_GIFT_ROWS, TABLE14_PERSONS,
+} from '../forms/table14';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
 
@@ -215,6 +218,15 @@ export function table42Pages(common: Values): number {
   return Math.max(1, Math.trunc(num(common.t42Pages)) || 1);
 }
 
+/**
+ * 第14表の枚数。1枚に1の明細4件・④4人・2の明細2件・3の明細2件。
+ * 3つの節がそれぞれ別の件数を持ち、どれが足りなくても用紙を増やすので、
+ * 件数からは導出せず表全体で1つの枚数を −／＋ で増減する。
+ */
+export function table14Pages(common: Values): number {
+  return Math.max(1, Math.trunc(num(common.t14Pages)) || 1);
+}
+
 /** 第10表の枚数。第9表と同じく1枚に明細5件・相続人5人。 */
 export function table10Pages(common: Values): number {
   return Math.max(1, Math.trunc(num(common.t10Pages)) || 1);
@@ -264,8 +276,8 @@ function computeNonTaxableLimit(
 /**
  * 第15表（相続財産の種類別価額表）のうち、様式に算式が印字されている行を計算する。
  *
- * ①〜㉘は付表からの転記（`sumTable15` が入れる）、㉛㉝㉞は他の様式からの転記で、
- * 手入力が残るのは⑧⑨（⑥のうち特例農地等）と㊲（第14表1④）だけ。
+ * ①〜㉘は付表からの転記（`sumTable15` が入れる）、㉛㉝㉞㊲は他の様式からの転記で、
+ * 手入力が残るのは⑧⑨（⑥のうち特例農地等）だけ（㊲は第14表を使わないときのみ手入力）。
  * 値はその人の欄（'h0.' スコープ）に持ち、「各人の合計」列は横計（`TOTAL_ROWS`）で作る。
  */
 function computeTable15(h: Values): Values {
@@ -503,6 +515,7 @@ export function table15Transferred(used: readonly string[]): string[] {
   }
   if (used.includes('table112')) marks.add('㉛');
   if (used.includes('table13')) marks.add('㉝').add('㉞');
+  if (used.includes('table14')) marks.add('㊲');
   return [...marks];
 }
 
@@ -987,6 +1000,62 @@ function computeTable42(common: Values, pages: number): Table42 {
   return { totals: out, v12 };
 }
 
+/** 第14表の計算結果 */
+interface Table14 {
+  /** ③・④・各節の合計（共通欄に持つ自動計算値） */
+  totals: Values;
+  /** 第1表⑤・第15表㊲へ転記する④（相続人の番号は0起点） */
+  v5: Map<number, string>;
+}
+
+/**
+ * 第14表（純資産価額に加算される暦年課税分の贈与財産価額等の明細書）。
+ *
+ * 1の明細は ③＝①−②（赤字は0）。④は「贈与を受けた人ごとの③欄の合計額」で、
+ * 全枚数を通してその人（項番で選ぶ）の③を合計する。2・3の合計も全枚数の通算。
+ * ①②は贈与税の申告書を書き写す欄なので、この様式も自分の入力だけで完結する。
+ * ④は第1表⑤（⑥→Ⓐ→⑦→⑨…の入口）へ転記するため、第4表の2と同じく1周する前に確定させる。
+ */
+function computeTable14(common: Values, pages: number): Table14 {
+  const out: Values = {};
+  const v5 = new Map<number, string>();
+
+  // 1の明細: ③＝①−②（赤字は0）を求めつつ、贈与を受けた人（項番）ごとに合計する
+  const byNo = new Map<number, number>();
+  for (let i = 0; i < pages * TABLE14_GIFT_ROWS; i += 1) {
+    const f = `t14g${i}`;
+    const has = filled(common, `${f}Amt`) || filled(common, `${f}V2`);
+    const v3 = Math.max(0, num(common[`${f}Amt`]) - num(common[`${f}V2`]));
+    out[`${f}v3`] = has ? str(v3) : '';
+    const no = num(common[`${f}Who`]);
+    if (has && no > 0) byNo.set(no, (byNo.get(no) ?? 0) + v3);
+  }
+
+  // ④: 氏名を選んだ枠だけに合計を出し、そのまま第1表⑤・第15表㊲への転記元にする
+  let total4 = 0;
+  let any4 = false;
+  for (let j = 0; j < pages * TABLE14_PERSONS; j += 1) {
+    const no = num(common[`t14p${j}Who`]);
+    const sum = no > 0 ? byNo.get(no) : undefined;
+    out[`t14p${j}v4`] = sum === undefined ? '' : str(sum);
+    if (sum === undefined) continue;
+    total4 += sum;
+    any4 = true;
+    v5.set(no - 1, str(sum));
+  }
+  out.t14v4Total = any4 ? str(total4) : '';
+
+  // 2・3の合計（明細の「価額」の通算）
+  const sumAmt = (prefix: string, rows: number): string => {
+    const keys = Array.from({ length: pages * rows }, (_unused, i) => `${prefix}${i}Amt`);
+    return keys.some((key) => filled(common, key)) ? str(keys.reduce((s, key) => s + num(common[key]), 0)) : '';
+  };
+  out.t14bTotal = sumAmt('t14b', TABLE14_BEQUEST_ROWS);
+  out.t14dTotal = sumAmt('t14d', TABLE14_DONATION_ROWS);
+
+  return { totals: out, v5 };
+}
+
 /**
  * 全体を計算する。⑧の按分にはⒶ（＝⑥の合計）を、⑨には⑦（＝第2表⑧）を使うため、
  * ⑥→Ⓐ→（第2表）⑧→⑨ の順に第1表を2周する。循環はしない。
@@ -1015,6 +1084,9 @@ export function computeAll(
   // 名前を選び直したときに古い値が読み取り専用のまま残らないよう、使用中は全員分を上書きする。
   const t42 = computeTable42(common, table42Pages(common));
   const t42Used = used.includes('table42');
+  // 第1表⑤・第15表㊲ ← 第14表1④。⑤は⑥→Ⓐ→⑦→⑨… の入口なので、これも1周する前に確定させる。
+  const t14 = computeTable14(common, table14Pages(common));
+  const t14Used = used.includes('table14');
   const t15Blank = Object.fromEntries(
     table15Transferred(used).flatMap((mark) => {
       const key = TABLE15_KEY_BY_MARK[mark];
@@ -1036,6 +1108,8 @@ export function computeAll(
         const amount = byNo[i + 1] ?? 0;
         return [key, amount === 0 ? '' : signed(amount)];
       })),
+      // 第14表を使う間は、名前を選び直したときに古い値が残らないよう全員分を上書きする
+      ...(t14Used ? { v5: t14.v5.get(i) ?? '', [table15Key(37)]: t14.v5.get(i) ?? '' } : {}),
     };
   });
 
@@ -1093,6 +1167,7 @@ export function computeAll(
   Object.assign(totals, table4.totals);
   // 第4表の2（暦年課税分の贈与税額控除額）。㉕は第1表を1周する前に各人の⑫へ入れてある
   Object.assign(totals, t42.totals);
+  Object.assign(totals, t14.totals);
   // 第6表（未成年者控除・障害者控除）。③⑤は3周目で確定した第1表の⑨〜⑬を引く
   Object.assign(totals, computeTable6(common, computed));
   // 第7表（相次相続控除）。⑧Ⓑは第1表④の合計、⑩は各人の④

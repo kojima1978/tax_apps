@@ -18,6 +18,10 @@ import {
   TABLE13_PERSONS, TABLE13_SUBTITLE, TABLE13_TITLE, buildTable13,
 } from './forms/table13';
 import {
+  TABLE14_ASPECT, TABLE14_BEQUEST_ROWS, TABLE14_DONATION_ROWS, TABLE14_EDITION, TABLE14_FORM_CODE,
+  TABLE14_GIFT_ROWS, TABLE14_SUBTITLE, TABLE14_TITLE, buildTable14,
+} from './forms/table14';
+import {
   TABLE15CONT_FORM_CODE, TABLE15CONT_PERSONS, TABLE15CONT_SUBTITLE, TABLE15CONT_TITLE,
   TABLE15_ASPECT, TABLE15_EDITION, TABLE15_FORM_CODE, TABLE15_SUBTITLE, TABLE15_TITLE,
   buildTable15,
@@ -62,8 +66,8 @@ import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
 import {
-  hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table15Transferred, table42Pages,
-  table4Pages, table9Pages,
+  hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
+  table42Pages, table4Pages, table9Pages,
 } from './lib/calc';
 
 /** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
@@ -73,6 +77,7 @@ const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
   table11: ['v1'],    // ① ← 第11表2③
   table112: ['v2', 'v17'], // ② ← 第11の2表1⑧ ／ ⑰ ← 同1⑨
   table13: ['v3'],    // ③ ← 第13表3⑦
+  table14: ['v5'],    // ⑤ ← 第14表1④
 };
 
 /** 第11の2表の枚数の上限（1人分・1枚に年分6行） */
@@ -86,6 +91,9 @@ const MAX_TABLE4_PAGES = 10;
 
 /** 第4表の2の枚数の上限（1枚に控除を受ける人3人分） */
 const MAX_TABLE42_PAGES = 10;
+
+/** 第14表の枚数の上限（1枚に1の明細4件・2と3の明細2件ずつ） */
+const MAX_TABLE14_PAGES = 10;
 
 /** 第9表の枚数の上限 */
 const MAX_TABLE9_PAGES = 10;
@@ -125,6 +133,7 @@ const FORMS: FormMeta[] = [
   { id: 'table1112f1c', label: '同（続）', note: '小規模宅地等の明細 4件目以降', auto: true },
   { id: 'table1112f1b', label: '同（別表1）', note: '一の宅地等ごとの取得者別の面積・評価額' },
   { id: 'table13', label: '第13表', note: '債務及び葬式費用の明細書' },
+  { id: 'table14', label: '第14表', note: '純資産価額に加算される暦年課税分の贈与財産価額等の明細書' },
   { id: 'table15', label: '第15表', note: '相続財産の種類別価額表' },
   { id: 'table15cont', label: '第15表（続）', note: '財産を取得した人 2人目以降', auto: true },
 ];
@@ -406,6 +415,26 @@ function Table13Page({ page, last, whoOptions, g, u }: Table13PageProps) {
   );
 }
 
+/** 第14表1枚（1の明細4件・④4人分・2と3の明細2件ずつ） */
+function Table14Page({ page, last, whoOptions, g, u }: Table13PageProps) {
+  const cells = useMemo(() => buildTable14(COMMON, TOTALS, page, last, whoOptions), [page, last, whoOptions]);
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE14_FORM_CODE}
+        title={TABLE14_TITLE}
+        subtitle={TABLE14_SUBTITLE}
+        aspectRatio={TABLE14_ASPECT}
+        formId={`t14p${page}`}
+        footer={<Footnote notes="" edition={TABLE14_EDITION} />}
+      />
+    </div>
+  );
+}
+
 interface Table15ContPageProps extends PageProps {
   /** 他の様式からの転記になっている欄（丸番号。読み取り専用にする） */
   t15Transferred: ReadonlySet<string>;
@@ -579,6 +608,8 @@ export default function App() {
   const t4Pages = table4Pages(data.common);
   /** 第4表の2の枚数（贈与税を納めているかは相続人の一覧からは分からないので人数からは決めない） */
   const t42Pages = table42Pages(data.common);
+  /** 第14表の枚数（3つの節がそれぞれ別の件数を持つので表全体で1つ） */
+  const t14Pages = table14Pages(data.common);
   /** 第9表の枚数（明細も相続人も1枚に5件ずつ） */
   const t9Pages = table9Pages(data.common);
   /** 第10表の枚数（第9表と同じく1枚に5件ずつ） */
@@ -892,6 +923,18 @@ export default function App() {
           </button>
           明細 {t13Pages}枚（債務{TABLE13_DEBT_ROWS}件・葬式費用{TABLE13_FUNERAL_ROWS}件／枚）
           <button type="button" className="app-btn" onClick={() => u('t13Pages', String(t13Pages + 1))} disabled={t13Pages >= MAX_TABLE13_PAGES}>＋</button>
+        </div>
+      </>
+    ),
+    table14: (
+      <>
+        {Array.from({ length: t14Pages }, (_, page) => (
+          <Table14Page key={page} page={page} last={page === t14Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+        ))}
+        <div className="app-pagectl no-print">
+          <button type="button" className="app-btn" onClick={() => u('t14Pages', String(t14Pages - 1))} disabled={t14Pages <= 1}>−</button>
+          明細 {t14Pages}枚（1の贈与{TABLE14_GIFT_ROWS}件・2の遺贈{TABLE14_BEQUEST_ROWS}件・3の寄附{TABLE14_DONATION_ROWS}件／枚）
+          <button type="button" className="app-btn" onClick={() => u('t14Pages', String(t14Pages + 1))} disabled={t14Pages >= MAX_TABLE14_PAGES}>＋</button>
         </div>
       </>
     ),
