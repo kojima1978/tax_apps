@@ -36,7 +36,7 @@ export interface GridCell {
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                // 自動計算などの編集不可欄
   options?: (string | { value: string; label: string })[]; // 選択式入力の候補（空文字は未選択）
-  compactSelectedOption?: boolean;   // 選択中の項目はコードのみ表示（狭いコード記入枠用）
+  compactSelectedOption?: boolean;   // 印刷はコードのみ（狭いコード記入枠用。画面では選択肢の名称ごと出す）
   /** 選択に連動して別の欄も書き換える（細目コード → 細目の名称）。書き換えた後も手入力できる */
   autoFill?: { field: string; byValue: Record<string, string> };
   /**
@@ -363,12 +363,14 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                   if (c.autoFill) u(c.autoFill.field, c.autoFill.byValue[e.target.value] ?? '');
                 }}
                 onKeyDown={onEnterNext}
-                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: 'left', fontSize: 'inherit', background: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: 'pointer' }}
+                // 「1」だけの狭い欄（flag）は中央寄せしたいので align を見る
+                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align === 'center' ? 'center' : 'left', fontSize: 'inherit', background: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: 'pointer' }}
               >
+                {/* 画面では選択後も名称ごと出す（`compactSelectedOption` は印刷だけの指定）。
+                    選んだ項目の表示をコードだけに差し替えると、開き直したときに何を選んだのか読めなくなる */}
                 {c.options.map((option) => {
                   const o = typeof option === 'string' ? { value: option, label: option } : option;
-                  const label = c.compactSelectedOption && o.value !== '' && o.value === g(c.field!) ? o.value : o.label;
-                  return <option key={o.value || 'blank'} value={o.value}>{label}</option>;
+                  return <option key={o.value || 'blank'} value={o.value}>{o.label}</option>;
                 })}
               </select>
             )

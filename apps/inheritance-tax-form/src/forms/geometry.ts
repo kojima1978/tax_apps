@@ -116,9 +116,15 @@ const O = {
  */
 export const ADDRESS_LINES = { top: '都道府県・市区町村・町域', bottom: '丁目・番地・建物名' } as const;
 
-/** 該当するときだけ「1」を記入する欄 */
+/**
+ * 該当するときだけ「1」を記入する欄。取り得る値が空欄と「1」しかないので選択式にする
+ * （様式に出るのは選んだ「1」だけ＝`compactSelectedOption`）。
+ */
+export const FLAG_OPTIONS = [{ value: '', label: '' }, { value: '1', label: '1' }];
+
 export const flag = (field: string, ariaLabel: string): Partial<GridCell> => ({
   kind: 'input', field, ariaLabel, integerDigits: 1, align: 'center',
+  options: FLAG_OPTIONS, compactSelectedOption: true,
 });
 
 /** 生年月日（元号・年・月・日）と年齢。左右どちらの列でも割付は同じ。 */
