@@ -663,6 +663,8 @@ export default function App() {
     () => taxOfficeOptions(officePref, data.common.office ?? ''),
     [officePref, data.common.office],
   );
+  // 先頭の空欄を除いた候補数（絞り込みの効き具合を数で見せる）
+  const officeCount = officeOptions.length - 1;
   const table1Cells = useMemo(
     () => buildTable1(heirPrefix(0), spouse === 0 ? transferredSpouse : transferred, officeOptions),
     [spouse, transferred, transferredSpouse, officeOptions],
@@ -752,6 +754,25 @@ export default function App() {
   const pages: Record<string, ReactNode> = {
     table1: (
       <div className="gov-page">
+        {/* 税務署欄は用紙の左上なので、絞り込みもその直前に置く（「県 → 署」の順に目が動く） */}
+        <div className="app-linkctl app-linkctl--top no-print">
+          <label>
+            提出先税務署の都道府県
+            <select
+              value={officePref}
+              onChange={(e) => u(`${COMMON}officePref`, e.target.value)}
+              aria-label="提出先税務署を絞り込む都道府県"
+            >
+              <option value="">全国（524署）</option>
+              {TAX_OFFICE_PREFS.map((pref) => <option key={pref} value={pref}>{pref}</option>)}
+            </select>
+          </label>
+          <span>
+            {officePref === ''
+              ? 'を選ぶと、用紙の税務署欄の候補がその県の署だけになります（この選択は印刷されません）。'
+              : `で絞り込み中（${officeCount}署）。用紙の税務署欄から選んでください。`}
+          </span>
+        </div>
         <GridForm
           cells={table1Cells}
           g={g}
@@ -761,20 +782,6 @@ export default function App() {
           formId="t1"
           footer={<Footnote notes={TABLE1_NOTES} />}
         />
-        <div className="app-linkctl no-print">
-          <label>
-            提出先税務署の都道府県
-            <select
-              value={officePref}
-              onChange={(e) => u(`${COMMON}officePref`, e.target.value)}
-              aria-label="提出先税務署を絞り込む都道府県"
-            >
-              <option value="">全国</option>
-              {TAX_OFFICE_PREFS.map((pref) => <option key={pref} value={pref}>{pref}</option>)}
-            </select>
-          </label>
-          <span>で税務署の候補を絞ります（この選択は印刷されません）。</span>
-        </div>
       </div>
     ),
     table1cont: Array.from({ length: contPages }, (_, page) => (

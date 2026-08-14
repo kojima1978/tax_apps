@@ -129,6 +129,12 @@ button {
   font-size: 12px;
 }
 
+/* 用紙の上に置く操作（提出先税務署の絞り込み）。用紙の左上の欄に合わせて左寄せ */
+.app-linkctl--top {
+  justify-content: flex-start;
+  margin: 0 0 8px;
+}
+
 .app-linkctl label {
   display: flex;
   align-items: center;
