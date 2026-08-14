@@ -110,6 +110,12 @@ const O = {
   end: COL_W,
 } as const;
 
+/**
+ * 住所欄は枠の高さを変えずに中を2段に割る。
+ * 上段は郵便番号から自動で入れる部分、下段は丁目以下の手入力部分。
+ */
+export const ADDRESS_LINES = { top: '都道府県・市区町村・町域', bottom: '丁目・番地・建物名' } as const;
+
 /** 該当するときだけ「1」を記入する欄 */
 export const flag = (field: string, ariaLabel: string): Partial<GridCell> => ({
   kind: 'input', field, ariaLabel, integerDigits: 1, align: 'center',
@@ -164,9 +170,10 @@ export function personColumn(x: number, y: PersonY, c: PersonCodes, p: string, w
 
     // 郵便番号・住所・電話番号
     code(y.zip, [x, at(O.code)], c.zip),
-    mk(y.zip, [at(O.code), at(O.end)], { zip: true, field: `${p}zip`, ariaLabel: `${who}の郵便番号` }),
+    // 郵便番号が7桁そろったら住所の上段を補う（上段が空のときだけ）
+    mk(y.zip, [at(O.code), at(O.end)], { zip: true, field: `${p}zip`, ariaLabel: `${who}の郵便番号`, zipAddress: `${p}address` }),
     code(y.address, [x, at(O.code)], c.address),
-    mk(y.address, [at(O.code), at(O.end)], { kind: 'input', field: `${p}address`, ariaLabel: `${who}の住所`, align: 'left' }),
+    mk(y.address, [at(O.code), at(O.end)], { kind: 'input', field: `${p}address`, ariaLabel: `${who}の住所`, align: 'left', twoLine: ADDRESS_LINES }),
     code(y.tel, [x, at(O.code)], c.tel),
     mk(y.tel, [at(O.code), at(O.end)], { tel: true, field: `${p}tel`, ariaLabel: `${who}の電話番号` }),
 
@@ -214,7 +221,8 @@ export function decedentColumn(x: number, y: PersonY, p: string): GridCell[] {
 
     slash(y.zip),
     code(y.address, [x, at(O.code)], 'E03'),
-    mk(y.address, [at(O.code), at(O.end)], { kind: 'input', field: `${p}address`, ariaLabel: '被相続人の住所', align: 'left' }),
+    // 被相続人欄は郵便番号が斜線で潰されているので補助は掛からない。2段書きだけ揃える
+    mk(y.address, [at(O.code), at(O.end)], { kind: 'input', field: `${p}address`, ariaLabel: '被相続人の住所', align: 'left', twoLine: ADDRESS_LINES }),
     slash(y.tel),
 
     slash(y.relation, 0, O.relR),

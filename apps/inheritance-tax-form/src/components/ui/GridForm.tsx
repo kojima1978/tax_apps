@@ -1,5 +1,6 @@
 import { useCallback, useContext, useId, useMemo, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { PrintRenderContext } from './printContext';
+import { lookupZipAddress } from '../../lib/zipAddress';
 
 /**
  * グリッドセル定義（座標・サイズは様式全体に対する％）。
@@ -50,7 +51,11 @@ export interface GridCell {
   date?: boolean;                    // ◯年◯月◯日（fieldを接頭辞に _y/_m/_d）
   dateSuffix?: string;               // 日付入力の後ろに置く固定文字（「提出」など）
   zip?: boolean;                     // 郵便番号（field_1「―」field_2）
+  /** 郵便番号が7桁埋まったら住所欄（指定フィールド）を補う。既に入力されていれば上書きしない */
+  zipAddress?: string;
   tel?: boolean;                     // 電話番号（field_1「―」field_2「―」field_3）
+  /** 枠の高さは変えずに中を上下2段に割る（住所欄）。下段は field に「2」を付けたフィールド */
+  twoLine?: { top: string; bottom: string };
 }
 
 interface GridFormProps {
@@ -197,11 +202,14 @@ interface SubInputProps {
   g: (f: string) => string;
   u: (f: string, v: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
+  /** 先頭の0を残す（郵便番号「0640941」・市外局番「03」など、数値ではなく番号の欄） */
+  keepZeros?: boolean;
 }
 /** 複合入力の中の数字1マス */
-function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown }: SubInputProps) {
+function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown, keepZeros }: SubInputProps) {
   const printRendering = useContext(PrintRenderContext);
-  const value = normalizeInteger(g(field));
+  const digits = (raw: string) => (keepZeros ? raw.replace(/\D/g, '') : normalizeInteger(raw));
+  const value = digits(g(field));
   if (printRendering) return <span style={{ display: 'inline-block', width, textAlign: 'center' }}>{value}</span>;
   return (
     <input
@@ -209,7 +217,7 @@ function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown 
       name={`${formId}.${field}`}
       aria-label={ariaLabel}
       value={value}
-      onChange={(e) => u(field, normalizeInteger(e.target.value).slice(0, maxLength))}
+      onChange={(e) => u(field, digits(e.target.value).slice(0, maxLength))}
       onKeyDown={onKeyDown}
       maxLength={maxLength}
       inputMode="numeric"
@@ -270,6 +278,17 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
       if (c.toggleField) u(c.toggleField, g(c.toggleField) === '1' ? '' : '1');
       else if (c.selectValue) u(c.selectValue.field, g(c.selectValue.field) === c.selectValue.value ? '' : c.selectValue.value);
     };
+    // 郵便番号の入力。7桁そろった時点で住所欄を補う（空のときだけ）
+    const onZipInput = (field: string, value: string) => {
+      u(field, value);
+      const target = c.zipAddress;
+      if (target === undefined || g(target) !== '') return;
+      const upper = field.endsWith('_1') ? value : g(`${c.field!}_1`);
+      const lower = field.endsWith('_2') ? value : g(`${c.field!}_2`);
+      void lookupZipAddress(upper + lower).then((address) => {
+        if (address !== '' && g(target) === '') u(target, address);
+      });
+    };
 
     return (
       <div
@@ -320,14 +339,14 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           </span>
         ) : c.zip && c.field ? (
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, width: '100%', whiteSpace: 'nowrap' }}>
-            <SubInput field={`${c.field}_1`} formId={inputPrefix} width="3.2em" maxLength={3} ariaLabel={`${c.ariaLabel ?? c.field}（上3桁）`} g={g} u={u} onKeyDown={onEnterNext} />―
-            <SubInput field={`${c.field}_2`} formId={inputPrefix} width="4.2em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（下4桁）`} g={g} u={u} onKeyDown={onEnterNext} />
+            <SubInput field={`${c.field}_1`} formId={inputPrefix} width="3.2em" maxLength={3} ariaLabel={`${c.ariaLabel ?? c.field}（上3桁）`} g={g} u={onZipInput} onKeyDown={onEnterNext} keepZeros />―
+            <SubInput field={`${c.field}_2`} formId={inputPrefix} width="4.2em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（下4桁）`} g={g} u={onZipInput} onKeyDown={onEnterNext} keepZeros />
           </span>
         ) : c.tel && c.field ? (
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, width: '100%', whiteSpace: 'nowrap' }}>
-            <SubInput field={`${c.field}_1`} formId={inputPrefix} width="4em" maxLength={5} ariaLabel={`${c.ariaLabel ?? c.field}（市外局番）`} g={g} u={u} onKeyDown={onEnterNext} />―
-            <SubInput field={`${c.field}_2`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（市内局番）`} g={g} u={u} onKeyDown={onEnterNext} />―
-            <SubInput field={`${c.field}_3`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（加入者番号）`} g={g} u={u} onKeyDown={onEnterNext} />
+            <SubInput field={`${c.field}_1`} formId={inputPrefix} width="4em" maxLength={5} ariaLabel={`${c.ariaLabel ?? c.field}（市外局番）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros />―
+            <SubInput field={`${c.field}_2`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（市内局番）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros />―
+            <SubInput field={`${c.field}_3`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（加入者番号）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros />
           </span>
         ) : c.kind === 'input' && c.field && c.options ? (
           printRendering
@@ -353,6 +372,26 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 })}
               </select>
             )
+        ) : c.twoLine && c.field ? (
+          // 様式には中の横罫線が無いので、枠は1つのまま入力欄だけを上下に積む
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {([[c.field, c.twoLine.top], [`${c.field}2`, c.twoLine.bottom]] as const).map(([field, part]) => (
+              printRendering ? (
+                <div key={field} style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>{g(field)}</div>
+              ) : (
+                <input
+                  key={field}
+                  id={`${inputPrefix}-${field}-${i}`}
+                  name={`${inputPrefix}.${field}`}
+                  aria-label={`${c.ariaLabel ?? c.field}（${part}）`}
+                  value={g(field)}
+                  onChange={(e) => u(field, e.target.value)}
+                  onKeyDown={onEnterNext}
+                  style={{ flex: 1, width: '100%', minHeight: 0, border: 'none', outline: 'none', textAlign: 'left', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }}
+                />
+              )
+            ))}
+          </div>
         ) : c.kind === 'input' && c.field ? (
           <>
             {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.cornerLabel}</span>}
