@@ -59,6 +59,10 @@ import {
 import {
   TABLE7_ASPECT, TABLE7_EDITION, TABLE7_FORM_CODE, TABLE7_NOTES, TABLE7_SUBTITLE, TABLE7_TITLE, buildTable7,
 } from './forms/table7';
+import {
+  TABLE88_ASPECT, TABLE88_EDITION, TABLE88_FORM_CODE, TABLE88_NOTES, TABLE88_PERSONS, TABLE88_SUBTITLE,
+  TABLE88_TITLE, buildTable88,
+} from './forms/table88';
 import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
@@ -67,7 +71,7 @@ import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
 import {
   hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
-  table42Pages, table4Pages, table9Pages,
+  table42Pages, table4Pages, table88Pages, table9Pages,
 } from './lib/calc';
 
 /** 様式ID → その様式を使うときに第1表が転記欄になる行。様式を足したらここに1行追加する。 */
@@ -78,6 +82,7 @@ const TRANSFERRED_BY_FORM: Record<string, readonly string[]> = {
   table112: ['v2', 'v17'], // ② ← 第11の2表1⑧ ／ ⑰ ← 同1⑨
   table13: ['v3'],    // ③ ← 第13表3⑦
   table14: ['v5'],    // ⑤ ← 第14表1④
+  table88: ['v14', 'v20'], // ⑭ ← 第8の8表1⑤ ／ ⑳ ← 同2⑧
 };
 
 /** 第11の2表の枚数の上限（1人分・1枚に年分6行） */
@@ -94,6 +99,9 @@ const MAX_TABLE42_PAGES = 10;
 
 /** 第14表の枚数の上限（1枚に1の明細4件・2と3の明細2件ずつ） */
 const MAX_TABLE14_PAGES = 10;
+
+/** 第8の8表の枚数の上限（1枚に2人分） */
+const MAX_TABLE88_PAGES = 10;
 
 /** 第9表の枚数の上限 */
 const MAX_TABLE9_PAGES = 10;
@@ -121,6 +129,7 @@ const FORMS: FormMeta[] = [
   { id: 'table5', label: '第5表', note: '配偶者に対する相続税額の軽減額の計算書' },
   { id: 'table6', label: '第6表', note: '未成年者控除額・障害者控除額の計算書' },
   { id: 'table7', label: '第7表', note: '相次相続控除額の計算書' },
+  { id: 'table88', label: '第8の8表', note: '税額控除額及び納税猶予税額の内訳書' },
   { id: 'table9', label: '第9表', note: '生命保険金などの明細書' },
   { id: 'table10', label: '第10表', note: '退職手当金などの明細書' },
   { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
@@ -435,6 +444,38 @@ function Table14Page({ page, last, whoOptions, g, u }: Table13PageProps) {
   );
 }
 
+interface Table88PageProps extends PageProps {
+  /** 「氏名」の選択肢（項番を値に、氏名を表示に持つ） */
+  whoOptions: GridCell['options'];
+  /** 第6表を使っているか（1の①②が転記になり読み取り専用になる） */
+  autoCredit: boolean;
+  /** 第7表を使っているか（同じく1の③） */
+  autoSuccessive: boolean;
+}
+
+/** 第8の8表1枚（1 税額控除額・2 納税猶予税額とも2人分） */
+function Table88Page({ page, whoOptions, autoCredit, autoSuccessive, g, u }: Table88PageProps) {
+  const cells = useMemo(
+    () => buildTable88(COMMON, TOTALS, page, autoCredit, autoSuccessive, whoOptions),
+    [page, autoCredit, autoSuccessive, whoOptions],
+  );
+  return (
+    <div className="gov-page">
+      <GridForm
+        cells={cells}
+        g={g}
+        u={u}
+        formCode={TABLE88_FORM_CODE}
+        title={TABLE88_TITLE}
+        subtitle={TABLE88_SUBTITLE}
+        aspectRatio={TABLE88_ASPECT}
+        formId={`t88p${page}`}
+        footer={<Footnote notes={TABLE88_NOTES} edition={TABLE88_EDITION} />}
+      />
+    </div>
+  );
+}
+
 interface Table15ContPageProps extends PageProps {
   /** 他の様式からの転記になっている欄（丸番号。読み取り専用にする） */
   t15Transferred: ReadonlySet<string>;
@@ -610,6 +651,8 @@ export default function App() {
   const t42Pages = table42Pages(data.common);
   /** 第14表の枚数（3つの節がそれぞれ別の件数を持つので表全体で1つ） */
   const t14Pages = table14Pages(data.common);
+  /** 第8の8表の枚数（控除・猶予の対象者は相続人の一覧からは分からないので人数からは決めない） */
+  const t88Pages = table88Pages(data.common);
   /** 第9表の枚数（明細も相続人も1枚に5件ずつ） */
   const t9Pages = table9Pages(data.common);
   /** 第10表の枚数（第9表と同じく1枚に5件ずつ） */
@@ -787,6 +830,26 @@ export default function App() {
           footer={<Footnote notes={TABLE7_NOTES} edition={TABLE7_EDITION} />}
         />
       </div>
+    ),
+    table88: (
+      <>
+        {Array.from({ length: t88Pages }, (_, page) => (
+          <Table88Page
+            key={page}
+            page={page}
+            whoOptions={whoOptions}
+            autoCredit={data.used.includes('table6')}
+            autoSuccessive={data.used.includes('table7')}
+            g={g}
+            u={u}
+          />
+        ))}
+        <div className="app-pagectl no-print">
+          <button type="button" className="app-btn" onClick={() => u('t88Pages', String(t88Pages - 1))} disabled={t88Pages <= 1}>−</button>
+          {t88Pages}枚（1・2とも{TABLE88_PERSONS}人／枚）
+          <button type="button" className="app-btn" onClick={() => u('t88Pages', String(t88Pages + 1))} disabled={t88Pages >= MAX_TABLE88_PAGES}>＋</button>
+        </div>
+      </>
     ),
     table9: (
       <>

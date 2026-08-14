@@ -29,6 +29,7 @@ import { TABLE4_PERSONS, TABLE4_RATE } from '../forms/table4';
 import { TABLE42_BLOCKS, TABLE42_CREDIT_ROWS, TABLE42_PERSONS } from '../forms/table42';
 import { TABLE7_ROWS, TABLE7_SPAN } from '../forms/table7';
 import { TABLE9_ROWS } from '../forms/table9';
+import { TABLE88_CREDIT_ROWS, TABLE88_DEFERRAL_ROWS, TABLE88_PERSONS } from '../forms/table88';
 import {
   TABLE14_BEQUEST_ROWS, TABLE14_DONATION_ROWS, TABLE14_GIFT_ROWS, TABLE14_PERSONS,
 } from '../forms/table14';
@@ -225,6 +226,14 @@ export function table42Pages(common: Values): number {
  */
 export function table14Pages(common: Values): number {
   return Math.max(1, Math.trunc(num(common.t14Pages)) || 1);
+}
+
+/**
+ * 第8の8表の枚数。1枚に2人分（1・2とも同じ2人）。
+ * 税額控除も納税猶予も相続人の一覧からは対象者が決まらないので、件数からは導出せず −／＋ で増減する。
+ */
+export function table88Pages(common: Values): number {
+  return Math.max(1, Math.trunc(num(common.t88Pages)) || 1);
 }
 
 /** 第10表の枚数。第9表と同じく1枚に明細5件・相続人5人。 */
@@ -737,32 +746,43 @@ function table1Balance(h: Values | undefined): number {
   return Math.max(0, base + num(h.v11) - num(h.v12) - num(h.v13));
 }
 
+/** 第6表の計算結果 */
+interface Table6 {
+  /** ②③④⑤と各計（共通欄に持つ自動計算値） */
+  totals: Values;
+  /** 第8の8表1① 未成年者控除額（第11表の項番 → 円） */
+  minor: Map<number, number>;
+  /** 第8の8表1② 障害者控除額（同上） */
+  disabled: Map<number, number>;
+}
+
 /**
  * 第6表（未成年者控除額・障害者控除額の計算書）。
  *
  * 上段（未成年者）と下段（障害者）は、控除額の算式（18歳×10万円／85歳×10万円・20万円）と
  * ③⑤が第8の8表1の①を引くかどうかが違うだけなので、`section` を諸元違いで2回まわす。
  *
- * ③⑤の「第8の8表1の①」は未成年者控除額そのもので、第8の8表は未実装だが
- * その値は第6表1の min(②,③)（扶養義務者なら⑥の配分額）なので、この表の中だけで確定する。
- * 上段を先に計算して項番ごとに控えておき（`minorCredit`）、下段でそれを差し引く。
+ * ③⑤の「第8の8表1の①」は未成年者控除額そのもので、その値は第6表1の min(②,③)
+ * （扶養義務者なら⑥の配分額）なのでこの表の中だけで確定する。
+ * 上段を先に計算して項番ごとに控えておき（`credits.m`）、下段でそれを差し引く。
+ * 同じ作りで採った障害者分（`credits.d`）と併せて、第8の8表1の①②へ渡す。
  *
  * ①年齢は生年月日を持っていないので手入力、⑥は扶養義務者間で協議して配分する額なので手入力。
  * それ以外（②③④⑤と各計）は自動計算。
  */
-function computeTable6(common: Values, heirs: Values[]): Values {
+function computeTable6(common: Values, heirs: Values[]): Table6 {
   const out: Values = {};
-  /** 第8の8表1① 未成年者控除額（第11表の項番 → 円） */
-  const minorCredit = new Map<number, number>();
-  const add = (no: number, amount: number): void => {
-    if (no > 0) minorCredit.set(no, (minorCredit.get(no) ?? 0) + amount);
-  };
+  /** 各人が実際に受けた控除額（第11表の項番 → 円）。'm'＝未成年者、'd'＝障害者 */
+  const credits = { m: new Map<number, number>(), d: new Map<number, number>() };
   /** 障害者の段だけ、その人の未成年者控除額を差し引いた後の相続税額にする */
   const balance = (minor: boolean, no: number): number => Math.max(
-    0, table1Balance(no > 0 ? heirs[no - 1] : undefined) - (minor ? 0 : minorCredit.get(no) ?? 0),
+    0, table1Balance(no > 0 ? heirs[no - 1] : undefined) - (minor ? 0 : credits.m.get(no) ?? 0),
   );
 
-  const section = (k: string, minor: boolean, limit: number, rate: (i: number) => number): void => {
+  const section = (k: 'm' | 'd', minor: boolean, limit: number, rate: (i: number) => number): void => {
+    const add = (no: number, amount: number): void => {
+      if (no > 0 && amount > 0) credits[k].set(no, (credits[k].get(no) ?? 0) + amount);
+    };
     const sums = { v2: 0, v3: 0, v4: 0, v5: 0, v6: 0 };
     // 合計が0でも、列に0が出ているなら計にも0を出す（列が空欄のときだけ計も空欄にする）
     const has = { v2: false, v3: false, v4: false, v5: false, v6: false };
@@ -785,8 +805,8 @@ function computeTable6(common: Values, heirs: Values[]): Values {
       has.v2 ||= hasAge;
       has.v3 ||= no > 0;
       has.v4 ||= both;
-      // その人自身が控除を受けた分は第8の8表1の①になる
-      if (minor && both) add(no, Math.min(man * 10000, v3));
+      // その人自身が控除を受けた分は第8の8表1の①②になる
+      if (both) add(no, Math.min(man * 10000, v3));
 
       // 扶養義務者: ⑤は第1表からの転記、⑥はⒶを協議で配分した額（手入力）
       const fp = `t6${k}f${i}`;
@@ -798,7 +818,7 @@ function computeTable6(common: Values, heirs: Values[]): Values {
       const v6 = num(common[`${fp}v6`]);
       sums.v6 += v6;
       has.v6 ||= filled(common, `${fp}v6`);
-      if (minor) add(fno, v6);
+      add(fno, v6);
     }
     const show = (n: number, present: boolean): string => (present ? str(n) : '');
     out[`t6${k}T2`] = show(sums.v2, has.v2);
@@ -811,7 +831,7 @@ function computeTable6(common: Values, heirs: Values[]): Values {
   section('m', true, TABLE6_MINOR_AGE, () => TABLE6_MINOR_RATE);
   // 障害者の段は3列目だけ特別障害者（20万円）
   section('d', false, TABLE6_DISABLED_AGE, (i) => (i === TABLE6_COLS - 1 ? TABLE6_SPECIAL_RATE : TABLE6_DISABLED_RATE));
-  return out;
+  return { totals: out, minor: credits.m, disabled: credits.d };
 }
 
 /** 元号コード → 元年の西暦（第7表①②の年月日から期間を出すため） */
@@ -835,6 +855,14 @@ function fullYears(from: YMD, to: YMD): number {
   return to.y - from.y - (before ? 1 : 0);
 }
 
+/** 第7表の計算結果 */
+interface Table7 {
+  /** ③④⑦Ⓐ⑫⑬（共通欄に持つ自動計算値） */
+  totals: Values;
+  /** 第8の8表1③ 相次相続控除額（第11表の項番 → 円） */
+  credit: Map<number, number>;
+}
+
 /**
  * 第7表（相次相続控除額の計算書）。
  *
@@ -849,8 +877,10 @@ function fullYears(from: YMD, to: YMD): number {
  * ②は第1表の相続開始年月日からの転記で、③は①②の差（1年未満切捨て）。
  * @param totalNet 第1表④の合計（＝⑧＝Ⓑ）
  */
-function computeTable7(common: Values, heirs: Values[], totalNet: number): Values {
+function computeTable7(common: Values, heirs: Values[], totalNet: number): Table7 {
   const out: Values = {};
+  /** 第8の8表1③ 相次相続控除額（第11表の項番 → 円） */
+  const credit = new Map<number, number>();
   const prev = eraDate(common, 't7p');
   const now = eraDate(common, 'start');
   const span = prev === undefined || now === undefined ? undefined : Math.max(0, fullYears(prev, now));
@@ -873,10 +903,13 @@ function computeTable7(common: Values, heirs: Values[], totalNet: number): Value
   const rows = (k: string, value: (i: number) => string, total: number): void => {
     for (let i = 0; i < TABLE7_ROWS; i += 1) {
       const p = `t7${k}${i}`;
-      const filledRow = num(common[`${p}no`]) > 0;
-      const share = filledRow && total > 0 ? (num(value(i)) / total).toFixed(2) : '';
+      const no = num(common[`${p}no`]);
+      const share = no > 0 && total > 0 ? (num(value(i)) / total).toFixed(2) : '';
+      const v13 = share !== '' && hasA ? Math.floor(a * num(share)) : undefined;
       out[`${p}v12`] = share;
-      out[`${p}v13`] = share !== '' && hasA ? str(Math.floor(a * num(share))) : '';
+      out[`${p}v13`] = v13 === undefined ? '' : str(v13);
+      // 第8の8表1③（⑬又は⑱）。(1)と(2)は択一なので、両方に書いてあれば後の(2)を採る
+      if (v13 !== undefined && v13 > 0) credit.set(no, v13);
     }
   };
 
@@ -898,7 +931,7 @@ function computeTable7(common: Values, heirs: Values[], totalNet: number): Value
   out.t7C = has15 ? str(sum15) : '';
   rows('b', (i) => common[`t7b${i}v15`] ?? '', sum15);
 
-  return out;
+  return { totals: out, credit };
 }
 
 /** 第4表の計算結果 */
@@ -1056,6 +1089,82 @@ function computeTable14(common: Values, pages: number): Table14 {
   return { totals: out, v5 };
 }
 
+/** 第8の8表の計算結果 */
+interface Table88 {
+  /** 1の①②③⑤・2の⑧（共通欄に持つ自動計算値） */
+  totals: Values;
+  /** 第1表⑭へ転記する1⑤（相続人の番号は0起点） */
+  v14: Map<number, string>;
+  /** 第1表⑳へ転記する2⑧（同上。様式が百円単位なので100で割った値） */
+  v20: Map<number, string>;
+}
+
+/**
+ * 第8の8表（税額控除額及び納税猶予税額の内訳書）。
+ *
+ * 1・2とも「合計＝その上の各行の和」だけの表で、2人分／枚。
+ * 1の①②は第6表、③は第7表からの転記なので自動計算にするが、その様式を使っていなければ手入力に戻す。
+ * ④（第8表）と2の①〜⑦（第8表2・第8の2表〜第8の6表）は転記元が実装対象の様式に無いので常に手入力。
+ *
+ * @param t6 第6表の控除額（①②の転記元）
+ * @param t7 第7表の控除額（③の転記元）
+ * @param useT6 第6表を使っているか（使っていなければ①②も手入力）
+ * @param useT7 第7表を使っているか（同じく③）
+ */
+function computeTable88(
+  common: Values, pages: number, t6: Table6, t7: Table7, useT6: boolean, useT7: boolean,
+): Table88 {
+  const out: Values = {};
+  const v14 = new Map<number, string>();
+  const v20 = new Map<number, string>();
+
+  /** 1の①②③（転記になる行）の値。undefined を返した行は手入力 */
+  const creditAuto = (i: number, no: number): number | undefined => {
+    const source = [useT6 && t6.minor, useT6 && t6.disabled, useT7 && t7.credit][i];
+    return source === undefined || source === false ? undefined : source.get(no) ?? 0;
+  };
+
+  /**
+   * 1人分の段を集計する。合計は転記・手入力のどちらかに記入があるときだけ出す。
+   * @returns 氏名を選んでいて合計が出るときだけ、その項番と合計
+   */
+  const person = (
+    k: string, count: number, page: number, cell: number, auto: (i: number, no: number) => number | undefined,
+  ): { no: number; total: number } | undefined => {
+    const p = `t88${k}p${page}c${cell}`;
+    const no = num(common[`${p}no`]);
+    let total = 0;
+    let any = false;
+    for (let i = 0; i < count; i += 1) {
+      const key = `${p}v${i + 1}`;
+      const t = auto(i, no);
+      if (t === undefined) {
+        total += num(common[key]);
+        any ||= filled(common, key);
+        continue;
+      }
+      // 転記の行は、名前を選び直したときに古い値が残らないよう毎回上書きする
+      out[key] = t > 0 ? str(t) : '';
+      total += t;
+      any ||= t > 0;
+    }
+    out[`${p}v${count + 1}`] = any ? str(total) : '';
+    return any && no > 0 ? { no, total } : undefined;
+  };
+
+  for (let page = 0; page < pages; page += 1) {
+    for (let cell = 0; cell < TABLE88_PERSONS; cell += 1) {
+      const credit = person('a', TABLE88_CREDIT_ROWS, page, cell, creditAuto);
+      if (credit !== undefined) v14.set(credit.no - 1, str(credit.total));
+      const deferral = person('b', TABLE88_DEFERRAL_ROWS, page, cell, () => undefined);
+      // ⑳は様式に「00」が印字されている百円単位の欄
+      if (deferral !== undefined) v20.set(deferral.no - 1, str(Math.floor(deferral.total / 100)));
+    }
+  }
+
+  return { totals: out, v14, v20 };
+}
+
 /**
  * 全体を計算する。⑧の按分にはⒶ（＝⑥の合計）を、⑨には⑦（＝第2表⑧）を使うため、
  * ⑥→Ⓐ→（第2表）⑧→⑨ の順に第1表を2周する。循環はしない。
@@ -1121,8 +1230,14 @@ export function computeAll(
   const table2 = computeTable2(common, lawful, totalA / 1000);
   const total7 = yen(table2.totals, 't7');
 
-  // 2周目: 確定したⒶ・⑦で⑧以降を計算する。第11表の項番は入力順の通し番号。
-  const pass2: Values[] = inputs.map((h, i) => ({ ...computeHeir(h, total7, totalA, forms), t11no: str(i + 1) }));
+  // 2周目以降は他の様式からの転記を重ねて第1表を計算し直す。第11表の項番は入力順の通し番号。
+  const pass = (patches: Values[]): Values[] => inputs.map((h, i) => ({
+    ...computeHeir({ ...h, ...patches[i] }, total7, totalA, forms), t11no: str(i + 1),
+  }));
+  const none: Values[] = inputs.map(() => ({}));
+
+  // 2周目: 確定したⒶ・⑦で⑧以降を計算する
+  const pass2 = pass(none);
 
   // 第5表: 2周目で確定した配偶者の⑨⑫を使って軽減額㋩（㋬）を求める
   const spouse = used.includes('table5') ? spouseIndex(heirs) : -1;
@@ -1133,22 +1248,31 @@ export function computeAll(
   const t4v11 = used.includes('table4') ? table4.v11 : new Map<number, string>();
 
   // 3周目: 第5表㋩を配偶者の⑬へ、第4表⑥を各人の⑪へ転記して⑮⑯以降を計算し直す
-  const computed: Values[] = pass2.map((h, i) => {
-    const patch: Values = {
-      ...(i === spouse ? { v13: t5v13 ?? '' } : {}),
-      ...(t4v11.has(i) ? { v11: t4v11.get(i)! } : {}),
-    };
-    if (Object.keys(patch).length === 0) return h;
-    return { ...computeHeir({ ...inputs[i]!, ...patch }, total7, totalA, forms), t11no: str(i + 1) };
-  });
+  const patch3: Values[] = inputs.map((_h, i) => ({
+    ...(i === spouse ? { v13: t5v13 ?? '' } : {}),
+    ...(t4v11.has(i) ? { v11: t4v11.get(i)! } : {}),
+  }));
+  const computed = pass(patch3);
+
+  // 第6表・第7表: 3周目で確定した第1表の⑨〜⑬（＝③⑤の元）と④から控除額を求める
+  const t6 = computeTable6(common, computed);
+  const t7 = computeTable7(common, computed, computed.reduce((s, h) => s + num(h.v4), 0));
+  // 第8の8表: 1⑤→第1表⑭、2⑧→第1表⑳。①②③の元が第6表・第7表なのでここまで下りてくる。
+  // ⑭⑳は第6表③⑤・第7表④のどちらにも影響しないので循環はしない。
+  const t88 = computeTable88(common, table88Pages(common), t6, t7, used.includes('table6'), used.includes('table7'));
+
+  // 4周目: 第8の8表の合計を各人の⑭⑳へ転記して⑮〜㉗を計算し直す
+  const final = used.includes('table88')
+    ? pass(patch3.map((p, i) => ({ ...p, v14: t88.v14.get(i) ?? '', v20: t88.v20.get(i) ?? '' })))
+    : computed;
 
   const totals: Values = { ...table2.totals, ...table5 };
   for (const key of TOTAL_ROWS) {
-    const sum = computed.reduce((s, h) => s + num(h[key]), 0);
+    const sum = final.reduce((s, h) => s + num(h[key]), 0);
     totals[key] = sum === 0 ? '' : str(sum);
   }
   for (const key of SIGNED_TOTAL_ROWS) {
-    const sum = computed.reduce((s, h) => s + num(h[key]), 0);
+    const sum = final.reduce((s, h) => s + num(h[key]), 0);
     totals[key] = sum === 0 ? '' : signed(sum);
   }
   // ⑧ 合計欄は様式にあらかじめ「1.00」と印字されている
@@ -1168,13 +1292,11 @@ export function computeAll(
   // 第4表の2（暦年課税分の贈与税額控除額）。㉕は第1表を1周する前に各人の⑫へ入れてある
   Object.assign(totals, t42.totals);
   Object.assign(totals, t14.totals);
-  // 第6表（未成年者控除・障害者控除）。③⑤は3周目で確定した第1表の⑨〜⑬を引く
-  Object.assign(totals, computeTable6(common, computed));
-  // 第7表（相次相続控除）。⑧Ⓑは第1表④の合計、⑩は各人の④
-  Object.assign(totals, computeTable7(common, computed, num(totals.v4)));
+  // 第6表（未成年者控除・障害者控除）・第7表（相次相続控除）と、その合計を集める第8の8表
+  Object.assign(totals, t6.totals, t7.totals, t88.totals);
   // 第11・11の2表の付表1（小規模宅地等）と、その別表1
   const f1Sheets = details.table1112f1b ?? [];
   Object.assign(totals, computeTable1112f1b(f1Sheets), computeTable1112f1(details.table1112f1 ?? [], f1Sheets));
 
-  return { heirs: computed, lawful: table2.lawful, totals };
+  return { heirs: final, lawful: table2.lawful, totals };
 }
