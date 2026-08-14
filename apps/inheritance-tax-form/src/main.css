@@ -129,10 +129,9 @@ button {
   font-size: 12px;
 }
 
-/* 用紙の上に置く操作（提出先税務署の絞り込み）。用紙の左上の欄に合わせて左寄せ */
-.app-linkctl--top {
-  justify-content: flex-start;
-  margin: 0 0 8px;
+/* 画面には出さず印刷にだけ出す要素（被相続人の郵便番号欄に戻す斜線など） */
+.print-only {
+  display: none;
 }
 
 .app-linkctl label {
@@ -426,6 +425,10 @@ button {
 
   .no-print {
     display: none !important;
+  }
+
+  .print-only {
+    display: block;
   }
 
   .mobile-hint {

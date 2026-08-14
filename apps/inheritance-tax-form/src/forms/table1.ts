@@ -20,13 +20,9 @@ export const TABLE1_TITLE = '相続税の申告書　第1表';
 export const COMMON = 'c.';
 export const TOTALS = 't.';
 
-/** 署名 → 都道府県。署名（「税務署」を除いた部分）は全524署で全国一意 */
-const OFFICE_PREF_BY_NAME: Record<string, string> = Object.fromEntries(
-  TAX_OFFICES.map((o) => [o.name, o.pref]),
-);
-
 /**
- * 提出先税務署の候補。都道府県が選ばれていればその県の署だけに絞る。
+ * 提出先税務署の候補。都道府県が決まっていればその県の署だけに絞る
+ * （都道府県は被相続人の郵便番号から求める）。
  * 保存済みの値が候補に無いとき（自由入力で保存された古いデータなど）は消えないように先頭へ残す。
  */
 export function taxOfficeOptions(pref: string, current: string): { value: string; label: string }[] {
@@ -142,8 +138,6 @@ function topRows(officeOptions: GridCell['options']): GridCell[] {
     mk(r2, [V.NARROW, V.LBL], {
       kind: 'input', field: `${COMMON}office`, ariaLabel: '提出先税務署', align: 'left',
       options: officeOptions,
-      // 署名は全国一意なので、署を選べば絞り込み用の都道府県も確定する
-      autoFill: { field: `${COMMON}officePref`, byValue: OFFICE_PREF_BY_NAME },
     }),
     label(r2, [V.LBL, X.SUBMIT_R], '税務署長'),
     label(r2, [X.EXT_L, V.R], '年　　月　　日'),

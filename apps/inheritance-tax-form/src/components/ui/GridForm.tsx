@@ -48,6 +48,11 @@ export interface GridCell {
   selectValue?: { field: string; value: string }; // セルをクリックして指定値を選択
   toggleField?: string;              // セルをクリックして指定フィールドをオン・オフ
   diagonal?: 'tlbr' | 'bltr';        // 斜線（記入不要欄: tlbr=＼ 左上→右下, bltr=／ 左下→右上）
+  /**
+   * 画面だけの入力欄。印刷では中身を隠し、様式どおりの斜線（記入不要）に戻す。
+   * 被相続人の郵便番号のように、様式には書かないが入力補助には要る欄で使う。
+   */
+  printDiagonal?: 'tlbr' | 'bltr';
   date?: boolean;                    // ◯年◯月◯日（fieldを接頭辞に _y/_m/_d）
   dateSuffix?: string;               // 日付入力の後ろに置く固定文字（「提出」など）
   zip?: boolean;                     // 郵便番号（field_1「―」field_2）
@@ -193,6 +198,15 @@ function formatFixedDecimal(value: string, places: number): string {
 const SUB_BOX: CSSProperties = { textAlign: 'center', border: 'none', borderBottom: '1px solid #aaa', outline: 'none', background: 'transparent', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, minWidth: 0 };
 const SELECT_ARROW = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")`;
 
+/** 記入不要欄の斜線。印刷だけ斜線に戻すセル（printDiagonal）でも使う */
+function DiagonalLine({ dir, className }: { dir: 'tlbr' | 'bltr'; className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={className} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+      <line x1="0" y1={dir === 'bltr' ? 100 : 0} x2="100" y2={dir === 'bltr' ? 0 : 100} stroke="#000" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
 interface SubInputProps {
   field: string;
   formId: string;
@@ -326,10 +340,11 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
       >
         {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
         {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
+        {/* 画面だけの入力欄は、印刷では中身を隠して様式どおりの斜線に差し替える */}
+        {c.printDiagonal && <DiagonalLine dir={c.printDiagonal} className="print-only" />}
+        <span className={c.printDiagonal ? 'no-print' : undefined} style={{ display: 'contents' }}>
         {c.diagonal ? (
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-            <line x1="0" y1={c.diagonal === 'bltr' ? 100 : 0} x2="100" y2={c.diagonal === 'bltr' ? 0 : 100} stroke="#000" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
-          </svg>
+          <DiagonalLine dir={c.diagonal} />
         ) : c.date && c.field ? (
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 1, width: '100%', whiteSpace: 'nowrap' }}>
             <SubInput field={`${c.field}_y`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（年）`} g={g} u={u} onKeyDown={onEnterNext} />年
@@ -431,6 +446,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
             ? <span style={{ whiteSpace: c.noWrap ? 'pre' : 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span>
             : text
         ) : null}
+        </span>
       </div>
     );
   };

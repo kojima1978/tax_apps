@@ -225,9 +225,13 @@ export function decedentColumn(x: number, y: PersonY, p: string): GridCell[] {
 
     ...birthCells(x, y, 'N02', 'G02', p, '被相続人'),
 
-    slash(y.zip),
+    // 様式では記入不要（斜線）の欄。住所の補助と提出先税務署の絞り込みに使うため画面だけ入力できるようにし、
+    // 印刷では様式どおりの斜線に戻す。
+    mk(y.zip, [x, at(O.end)], {
+      zip: true, field: `${p}zip`, zipAddress: `${p}address`, printDiagonal: 'bltr',
+      ariaLabel: '被相続人の郵便番号（入力の補助に使う欄。印刷されません）',
+    }),
     code(y.address, [x, at(O.code)], 'E03'),
-    // 被相続人欄は郵便番号が斜線で潰されているので補助は掛からない。2段書きだけ揃える
     mk(y.address, [at(O.code), at(O.end)], { kind: 'input', field: `${p}address`, ariaLabel: '被相続人の住所', align: 'left', twoLine: ADDRESS_LINES }),
     slash(y.tel),
 

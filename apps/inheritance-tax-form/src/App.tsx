@@ -3,7 +3,6 @@ import { GridForm, type GridCell } from './components/ui/GridForm';
 import {
   COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1, taxOfficeOptions,
 } from './forms/table1';
-import { TAX_OFFICE_PREFS } from './data/taxOffices';
 import {
   TABLE1CONT_CONFIRM_BOXES, TABLE1CONT_FORM_CODE, TABLE1CONT_NOTES, TABLE1CONT_TITLE, buildTable1Cont,
 } from './forms/table1cont';
@@ -72,6 +71,7 @@ import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
 import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
+import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
   hasTable112, spouseIndex, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
   table42Pages, table4Pages, table88Pages, table9Pages,
@@ -657,14 +657,13 @@ export default function App() {
     [data.used, data.heirs],
   );
   const transferredSpouse = useMemo(() => [...transferred, 'v13'], [transferred]);
-  // 提出先税務署の候補（都道府県で絞る。都道府県は用紙の外で選ぶ画面だけの操作）
-  const officePref = data.common.officePref ?? '';
+  // 提出先税務署の候補は被相続人の郵便番号（＝住所地）の都道府県で絞る。
+  // 郵便番号が未入力・該当なしのときは全国の署を出す。
+  const officePref = useZipPrefecture((data.common['zip_1'] ?? '') + (data.common['zip_2'] ?? ''));
   const officeOptions = useMemo(
     () => taxOfficeOptions(officePref, data.common.office ?? ''),
     [officePref, data.common.office],
   );
-  // 先頭の空欄を除いた候補数（絞り込みの効き具合を数で見せる）
-  const officeCount = officeOptions.length - 1;
   const table1Cells = useMemo(
     () => buildTable1(heirPrefix(0), spouse === 0 ? transferredSpouse : transferred, officeOptions),
     [spouse, transferred, transferredSpouse, officeOptions],
@@ -754,25 +753,6 @@ export default function App() {
   const pages: Record<string, ReactNode> = {
     table1: (
       <div className="gov-page">
-        {/* 税務署欄は用紙の左上なので、絞り込みもその直前に置く（「県 → 署」の順に目が動く） */}
-        <div className="app-linkctl app-linkctl--top no-print">
-          <label>
-            提出先税務署の都道府県
-            <select
-              value={officePref}
-              onChange={(e) => u(`${COMMON}officePref`, e.target.value)}
-              aria-label="提出先税務署を絞り込む都道府県"
-            >
-              <option value="">全国（524署）</option>
-              {TAX_OFFICE_PREFS.map((pref) => <option key={pref} value={pref}>{pref}</option>)}
-            </select>
-          </label>
-          <span>
-            {officePref === ''
-              ? 'を選ぶと、用紙の税務署欄の候補がその県の署だけになります（この選択は印刷されません）。'
-              : `で絞り込み中（${officeCount}署）。用紙の税務署欄から選んでください。`}
-          </span>
-        </div>
         <GridForm
           cells={table1Cells}
           g={g}
