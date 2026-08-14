@@ -7,6 +7,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
+import { TAX_OFFICES } from '../data/taxOffices';
 import {
   CALC_ORDER, GENERIC_ROWS, V, calcBands, calcRowRanges, calcRows, code, decedentColumn,
   flag, label, mk, personColumn, personLabelColumn, type PersonCodes, type PersonY,
@@ -18,6 +19,22 @@ export const TABLE1_TITLE = '相続税の申告書　第1表';
 /** 共通欄（被相続人・提出先）と、自動計算欄（「各人の合計」列・第2表からの転記）のフィールド接頭辞 */
 export const COMMON = 'c.';
 export const TOTALS = 't.';
+
+/** 署名 → 都道府県。署名（「税務署」を除いた部分）は全524署で全国一意 */
+const OFFICE_PREF_BY_NAME: Record<string, string> = Object.fromEntries(
+  TAX_OFFICES.map((o) => [o.name, o.pref]),
+);
+
+/**
+ * 提出先税務署の候補。都道府県が選ばれていればその県の署だけに絞る。
+ * 保存済みの値が候補に無いとき（自由入力で保存された古いデータなど）は消えないように先頭へ残す。
+ */
+export function taxOfficeOptions(pref: string, current: string): { value: string; label: string }[] {
+  const list = TAX_OFFICES.filter((o) => pref === '' || o.pref === pref);
+  const options = [{ value: '', label: '' }, ...list.map((o) => ({ value: o.name, label: o.name }))];
+  if (current !== '' && !list.some((o) => o.name === current)) options.splice(1, 0, { value: current, label: current });
+  return options;
+}
 
 const TOP = 182;
 const BOTTOM = 1625.5;
@@ -106,7 +123,7 @@ const GENERIC = GENERIC_ROWS.filter((key) => key !== 'v6' && key !== 'v8');
 const NOTE = { fontSize: 7, align: 'left' } as const;
 
 /** 提出日・提出先・相続開始年月日の2行 */
-function topRows(): GridCell[] {
+function topRows(officeOptions: GridCell['options']): GridCell[] {
   const r1: [number, number] = [y(182), y(201)];
   const r2: [number, number] = [y(201), y(233)];
   const r12: [number, number] = [y(182), y(233)];
@@ -122,7 +139,12 @@ function topRows(): GridCell[] {
     // 2行目 — 提出先税務署
     label(r2, [V.L, V.SUBMIT], '提出先'),
     code(r2, [V.SUBMIT, V.NARROW], 'F01'),
-    mk(r2, [V.NARROW, V.LBL], { kind: 'input', field: `${COMMON}office`, ariaLabel: '提出先税務署', align: 'left' }),
+    mk(r2, [V.NARROW, V.LBL], {
+      kind: 'input', field: `${COMMON}office`, ariaLabel: '提出先税務署', align: 'left',
+      options: officeOptions,
+      // 署名は全国一意なので、署を選べば絞り込み用の都道府県も確定する
+      autoFill: { field: `${COMMON}officePref`, byValue: OFFICE_PREF_BY_NAME },
+    }),
     label(r2, [V.LBL, X.SUBMIT_R], '税務署長'),
     label(r2, [X.EXT_L, V.R], '年　　月　　日'),
 
@@ -234,10 +256,13 @@ function bottomRows(): GridCell[] {
  * @param heir 1人目の財産取得者のフィールド接頭辞（'h0.'）
  * @param transferred 1人目の列で他の様式からの転記になっている行（読み取り専用にする）。
  *   「各人の合計」列はもともと常に読み取り専用なので同じものを渡してよい。
+ * @param officeOptions 提出先税務署の候補（taxOfficeOptions で作る）
  */
-export function buildTable1(heir: string, transferred: readonly string[] = []): GridCell[] {
+export function buildTable1(
+  heir: string, transferred: readonly string[] = [], officeOptions: GridCell['options'] = [],
+): GridCell[] {
   return [
-    ...topRows(),
+    ...topRows(officeOptions),
     ...personLabelColumn(PY),
     ...decedentColumn(V.LBL, PY, COMMON),
     ...personColumn(V.MID, PY, HEIR_CODES, heir, '1人目'),

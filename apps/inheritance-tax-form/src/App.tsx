@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { GridForm, type GridCell } from './components/ui/GridForm';
-import { COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1 } from './forms/table1';
+import {
+  COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1, taxOfficeOptions,
+} from './forms/table1';
+import { TAX_OFFICE_PREFS } from './data/taxOffices';
 import {
   TABLE1CONT_CONFIRM_BOXES, TABLE1CONT_FORM_CODE, TABLE1CONT_NOTES, TABLE1CONT_TITLE, buildTable1Cont,
 } from './forms/table1cont';
@@ -654,9 +657,15 @@ export default function App() {
     [data.used, data.heirs],
   );
   const transferredSpouse = useMemo(() => [...transferred, 'v13'], [transferred]);
+  // 提出先税務署の候補（都道府県で絞る。都道府県は用紙の外で選ぶ画面だけの操作）
+  const officePref = data.common.officePref ?? '';
+  const officeOptions = useMemo(
+    () => taxOfficeOptions(officePref, data.common.office ?? ''),
+    [officePref, data.common.office],
+  );
   const table1Cells = useMemo(
-    () => buildTable1(heirPrefix(0), spouse === 0 ? transferredSpouse : transferred),
-    [spouse, transferred, transferredSpouse],
+    () => buildTable1(heirPrefix(0), spouse === 0 ? transferredSpouse : transferred, officeOptions),
+    [spouse, transferred, transferredSpouse, officeOptions],
   );
   const table2Cells = useMemo(() => buildTable2(COMMON, TOTALS), []);
   const table5Cells = useMemo(() => buildTable5(COMMON, TOTALS), []);
@@ -752,6 +761,20 @@ export default function App() {
           formId="t1"
           footer={<Footnote notes={TABLE1_NOTES} />}
         />
+        <div className="app-linkctl no-print">
+          <label>
+            提出先税務署の都道府県
+            <select
+              value={officePref}
+              onChange={(e) => u(`${COMMON}officePref`, e.target.value)}
+              aria-label="提出先税務署を絞り込む都道府県"
+            >
+              <option value="">全国</option>
+              {TAX_OFFICE_PREFS.map((pref) => <option key={pref} value={pref}>{pref}</option>)}
+            </select>
+          </label>
+          <span>で税務署の候補を絞ります（この選択は印刷されません）。</span>
+        </div>
       </div>
     ),
     table1cont: Array.from({ length: contPages }, (_, page) => (
