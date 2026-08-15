@@ -4,7 +4,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/inheritance-tax-form/',
+  // ローカルは nginx ゲートウェイの下に置くのでサブパス、Vercel はルート配信
+  base: process.env.VERCEL ? '/' : '/inheritance-tax-form/',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
