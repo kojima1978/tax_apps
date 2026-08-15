@@ -156,7 +156,9 @@ function birthCells(
       ...(useDateSelects ? { options: DAY_OPTIONS } : { integerDigits: 2 }),
     }),
     code(y.birth, [at(O.dayR), at(O.refCode)], ageCode),
-    mk(y.birth, [at(O.refCode), at(O.end)], { kind: 'input', field: `${p}age`, ariaLabel: `${who}の年齢`, integerDigits: 3, align: 'center' }),
+    mk(y.birth, [at(O.refCode), at(O.end)], {
+      kind: 'input', field: `${p}age`, ariaLabel: `${who}の年齢`, integerDigits: 3, align: 'center', readOnly: true,
+    }),
   ];
 }
 

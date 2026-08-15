@@ -47,7 +47,9 @@ export interface GridCell {
   signedCommaInteger?: boolean;      // マイナス（△）を許可する整数を3桁区切りカンマで表示
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                // 自動計算などの編集不可欄
-  navigateToForm?: string;           // 読み取り専用の転記欄をクリックしたときに開く様式ID
+  navigateToForm?: string | ((g: (field: string) => string) => string | undefined); // 転記元の様式ID（入力値に応じた切替可）
+  invalidWhen?: (g: (field: string) => string) => boolean; // 入力値の組合せが不正なときのエラー表示
+  invalidMessage?: string;           // エラー理由（title・アクセシブル名）
   options?: (string | { value: string; label: string })[]; // 選択式入力の候補（空文字は未選択）
   optionGroups?: readonly { label: string; options: readonly { value: string; label: string }[] }[]; // optgroup 付きの選択肢
   compactSelectedOption?: boolean;   // 印刷はコードのみ（狭いコード記入枠用。画面では選択肢の名称ごと出す）
@@ -307,7 +309,9 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     const fontSize = c.fontSize ?? fitFontSize(text, c, isVertical);
     const justify = c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center';
     const highlighted = c.highlightWhen?.(g) ?? false;
-    const interactive = !printRendering && Boolean(c.selectValue || c.toggleField || c.navigateToForm);
+    const invalid = !printRendering && (c.invalidWhen?.(g) ?? false);
+    const navigateToForm = typeof c.navigateToForm === 'function' ? c.navigateToForm(g) : c.navigateToForm;
+    const interactive = !printRendering && Boolean(c.selectValue || c.toggleField || navigateToForm);
     const editableComposite = Boolean(c.field && !c.readOnly && (c.date || c.zip || c.tel || c.twoLine));
     const editable = Boolean(c.selectValue || c.toggleField || editableComposite || (c.kind === 'input' && c.field && !c.readOnly));
     const rightLabelPadding = c.rightLabel
@@ -319,7 +323,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     const selectCell = () => {
       if (c.toggleField) u(c.toggleField, g(c.toggleField) === '1' ? '' : '1');
       else if (c.selectValue) u(c.selectValue.field, g(c.selectValue.field) === c.selectValue.value ? '' : c.selectValue.value);
-      else if (c.navigateToForm) onNavigate?.(c.navigateToForm);
+      else if (navigateToForm) onNavigate?.(navigateToForm);
     };
     // 郵便番号の入力。7桁そろった時点で住所欄を補う（空のときだけ）
     const onZipInput = (field: string, value: string) => {
@@ -336,12 +340,14 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     return (
       <div
         key={i}
-        className={`gf-cell${editable ? ' gf-cell--editable' : ''}${c.navigateToForm ? ' gf-cell--source-link' : ''}${c.rightBrace ? ' gf-cell--right-brace' : ''}`}
-        role={c.toggleField ? 'checkbox' : c.selectValue || c.navigateToForm ? 'button' : c.semanticRole}
+        className={`gf-cell${editable ? ' gf-cell--editable' : ''}${navigateToForm ? ' gf-cell--source-link' : ''}${c.rightBrace ? ' gf-cell--right-brace' : ''}${invalid ? ' gf-cell--invalid' : ''}`}
+        role={c.toggleField ? 'checkbox' : c.selectValue || navigateToForm ? 'button' : c.semanticRole}
         tabIndex={interactive ? 0 : undefined}
-        aria-label={interactive ? c.navigateToForm ? `${c.ariaLabel ?? text}の転記元を開く` : c.ariaLabel ?? `${text}を選択` : c.ariaLabel}
+        aria-label={interactive ? navigateToForm ? `${c.ariaLabel ?? text}の転記元を開く` : c.ariaLabel ?? `${text}を選択` : c.ariaLabel}
         aria-checked={c.toggleField ? g(c.toggleField) === '1' : undefined}
         aria-pressed={c.selectValue ? g(c.selectValue.field) === c.selectValue.value : undefined}
+        aria-invalid={invalid || undefined}
+        title={invalid ? c.invalidMessage : undefined}
         onClick={interactive ? selectCell : undefined}
         onKeyDown={interactive ? (event) => {
           if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectCell(); }
@@ -366,13 +372,14 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           fontSize,
           fontWeight: c.bold || highlighted ? 700 : 400,
           background: highlighted ? '#fff3b0' : undefined,
-          boxShadow: highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
+          boxShadow: invalid ? 'inset 0 0 0 1.5px #dc2626' : highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
           cursor: interactive ? 'pointer' : undefined,
           userSelect: interactive ? 'none' : undefined,
           padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
           lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: c.align ?? 'center',
         }}
       >
+        {invalid && <span className="gf-cell__error no-print" aria-hidden="true">エラー</span>}
         {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
         {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
         {/* 画面だけの入力欄は、印刷では中身を隠して様式どおりの斜線に差し替える */}

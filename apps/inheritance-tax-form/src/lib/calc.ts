@@ -38,6 +38,40 @@ import { RATE_BRACKETS } from '../forms/table2';
 
 export type Values = Record<string, string>;
 
+const ERA_START_YEARS: Record<string, number> = {
+  '1': 1868,
+  '2': 1912,
+  '3': 1926,
+  '4': 1989,
+  '5': 2019,
+};
+
+/** 相続開始日当日の満年齢。日付が不足・不正な場合は空欄にする。 */
+function ageAtInheritanceStart(common: Values, heir: Values): number | undefined {
+  const startEra = ERA_START_YEARS[common.startEra ?? ''];
+  const birthEra = ERA_START_YEARS[heir.birthEra ?? ''];
+  const startY = num(common.startY);
+  const startM = num(common.startM);
+  const startD = num(common.startD);
+  const birthY = num(heir.birthY);
+  const birthM = num(heir.birthM);
+  const birthD = num(heir.birthD);
+  if (startEra === undefined || birthEra === undefined
+    || startY < 1 || birthY < 1 || startM < 1 || startD < 1 || birthM < 1 || birthD < 1) return undefined;
+
+  const startYear = startEra + startY - 1;
+  const birthYear = birthEra + birthY - 1;
+  const validDate = (year: number, month: number, day: number): boolean => {
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  };
+  if (!validDate(startYear, startM, startD) || !validDate(birthYear, birthM, birthD)) return undefined;
+
+  let age = startYear - birthYear;
+  if (startM < birthM || (startM === birthM && startD < birthD)) age -= 1;
+  return age >= 0 ? age : undefined;
+}
+
 /**
  * 第6表② 控除額と、その計。様式に「0,000」まで印字されているので万円単位で保持する。
  * 未成年者（m）・障害者（d）の各3列＋計で8欄あるので、キーは組み立てて作る。
@@ -815,7 +849,7 @@ interface Table6 {
  * 上段を先に計算して項番ごとに控えておき（`credits.m`）、下段でそれを差し引く。
  * 同じ作りで採った障害者分（`credits.d`）と併せて、第8の8表1の①②へ渡す。
  *
- * ①年齢は生年月日を持っていないので手入力、⑥は扶養義務者間で協議して配分する額なので手入力。
+ * ①年齢は第1表・第1表（続）の年齢から転記し、⑥は扶養義務者間で協議して配分する額なので手入力。
  * それ以外（②③④⑤と各計）は自動計算。
  */
 function computeTable6(common: Values, heirs: Values[]): Table6 {
@@ -834,12 +868,15 @@ function computeTable6(common: Values, heirs: Values[]): Table6 {
     const sums = { v2: 0, v3: 0, v4: 0, v5: 0, v6: 0 };
     // 合計が0でも、列に0が出ているなら計にも0を出す（列が空欄のときだけ計も空欄にする）
     const has = { v2: false, v3: false, v4: false, v5: false, v6: false };
+    const allocations: { p: string; v5: number; v6: number }[] = [];
     for (let i = 0; i < TABLE6_COLS; i += 1) {
       const p = `t6${k}${i}`;
       const no = num(common[`${p}no`]);
-      const hasAge = filled(common, `${p}age`);
+      const age = no > 0 ? heirs[no - 1]?.age ?? '' : '';
+      out[`${p}age`] = age;
+      const hasAge = age !== '';
       // ② 控除額（万円単位で保持）。基準年齢に達している人は0
-      const man = hasAge ? Math.max(0, rate(i) * (limit - num(common[`${p}age`]))) : 0;
+      const man = hasAge ? Math.max(0, rate(i) * (limit - num(age))) : 0;
       const v3 = balance(minor, no);
       // ④ 控除しきれない金額（②−③）。②③が揃っていなければ空欄のまま
       const both = hasAge && no > 0;
@@ -864,6 +901,7 @@ function computeTable6(common: Values, heirs: Values[]): Table6 {
       sums.v5 += fno > 0 ? v5 : 0;
       has.v5 ||= fno > 0;
       const v6 = num(common[`${fp}v6`]);
+      allocations.push({ p: fp, v5, v6 });
       sums.v6 += v6;
       has.v6 ||= filled(common, `${fp}v6`);
       add(fno, v6);
@@ -874,6 +912,9 @@ function computeTable6(common: Values, heirs: Values[]): Table6 {
     out[`t6${k}A`] = show(sums.v4, has.v4);
     out[`t6${k}fT5`] = show(sums.v5, has.v5);
     out[`t6${k}fT6`] = show(sums.v6, has.v6);
+    for (const allocation of allocations) {
+      out[`${allocation.p}v6Error`] = allocation.v5 > allocation.v6 && sums.v4 > sums.v6 ? '1' : '';
+    }
   };
 
   section('m', true, TABLE6_MINOR_AGE, () => TABLE6_MINOR_RATE);
@@ -1282,8 +1323,10 @@ function computeAllWithRatios(
     const detail = detailTotals[i + 1] ?? 0;
     const debt = t13.debt[i + 1] ?? 0;
     const funeral = t13.funeral[i + 1] ?? 0;
+    const age = ageAtInheritanceStart(common, h);
     return {
       ...h,
+      age: age === undefined ? '' : str(age),
       ...(ratios === undefined ? {} : { v8a: ratios[i]!.toFixed(2) }),
       ...(t42Used ? { v12: t42.v12.get(i) ?? '' } : {}),
       ...(detailForms.length === 0 ? {} : { t11v1: detail === 0 ? '' : signed(detail) }),

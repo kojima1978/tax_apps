@@ -226,10 +226,14 @@ interface ValueRowOptions {
   editable?: boolean;
   /** ④の「計Ⓐ」 */
   markA?: boolean;
+  /** 列ごとの入力エラー判定 */
+  invalidWhen?: (g: (field: string) => string, index: number) => boolean;
+  invalidMessage?: string;
 }
 
 function valueRow({
   y, no, heading, fontSize, headingAlign, gBase, field, totalField, who, name, editable, markA,
+  invalidWhen, invalidMessage,
 }: ValueRowOptions): GridCell[] {
   const totalLeft = markA === true ? TX.ACODE : TX.LEFT;
   return [
@@ -245,7 +249,9 @@ function valueRow({
     ...COLS.flatMap((c, i): GridCell[] => [
       code(y, col(c.code, c.left), cd('G', gBase + i)),
       mk(y, col(c.left, c.right), {
-        kind: 'input', field: field(i), ariaLabel: `${who}${i + 1}の${no}${name}`, commaInteger: true, readOnly: editable !== true,
+        kind: 'input', field: field(i), ariaLabel: `${who}${i + 1}の${no}${name}`, commaInteger: true,
+        readOnly: editable !== true,
+        ...(invalidWhen === undefined ? {} : { invalidWhen: (g) => invalidWhen(g, i), invalidMessage }),
       }),
     ]),
     ...(markA === true ? [label(y, col(TX.CODE, TX.MARK), '計\nⒶ', { fontSize: 8 })] : []),
@@ -264,14 +270,20 @@ function creditRows(b: Block, common: string, totals: string): GridCell[] {
   const lower = row(cMid, cBottom);
   const all = row(cTop, cBottom);
   const p = (i: number) => `${common}t6${b.k}${i}`;
+  const sourceForm = (i: number) => (g: (field: string) => string): string | undefined => {
+    const no = Number(g(`${p(i)}no`));
+    if (!Number.isInteger(no) || no < 1) return undefined;
+    return no === 1 ? 'table1' : 'table1cont';
+  };
   return [
-    // ① 年齢（1年未満切捨て）— 生年月日を持っていないので手入力
+    // ① 年齢（1年未満切捨て）— 第1表・第1表（続）の年齢から転記
     label(age, col(LEFT, HX.LBL), '年齢\n（1年未満切捨て）'),
     label(age, col(HX.LBL, HX.NUM), '①', { fontSize: 10, semanticRole: 'rowheader' }),
     ...COLS.flatMap((c, i): GridCell[] => [
       code(age, col(c.code, c.left), cd('G', b.gBase + i)),
       mk(age, col(c.left, c.unit), {
-        kind: 'input', field: `${p(i)}age`, ariaLabel: `${b.who}${i + 1}の年齢`, integerDigits: 3, align: 'center',
+        kind: 'input', field: `${totals}t6${b.k}${i}age`, ariaLabel: `${b.who}${i + 1}の年齢`,
+        integerDigits: 3, align: 'center', readOnly: true, navigateToForm: sourceForm(i),
       }),
       label(age, col(c.unit, c.right), '歳'),
     ]),
@@ -284,7 +296,8 @@ function creditRows(b: Block, common: string, totals: string): GridCell[] {
       label(upper, col(c.code, c.fCode), b.formulas[i] ?? '', { align: 'right', fontSize: 7.5 }),
       code(upper, col(c.fCode, c.fVal), cd('G', b.gBase + 3 + i)),
       mk(upper, col(c.fVal, c.unit), {
-        kind: 'input', field: `${p(i)}age`, ariaLabel: `${b.who}${i + 1}の控除額の計算に使う年齢`, integerDigits: 3, align: 'center', readOnly: true,
+        kind: 'input', field: `${totals}t6${b.k}${i}age`, ariaLabel: `${b.who}${i + 1}の控除額の計算に使う年齢`,
+        integerDigits: 3, align: 'center', readOnly: true, navigateToForm: sourceForm(i),
       }),
       label(upper, col(c.unit, c.right), '歳)', { fontSize: 7.5 }),
       label(lower, col(c.code, c.eq), '＝', { noBorder: true }),
@@ -382,6 +395,8 @@ function block(b: Block, common: string, totals: string, options: GridCell['opti
       who: `${b.who}の扶養義務者`,
       name: '控除額',
       editable: true,
+      invalidWhen: (g, i) => g(`${totals}t6${b.k}f${i}v6Error`) === '1',
+      invalidMessage: '⑤が⑥より大きく、かつⒶが⑥の計より大きいため、控除額の配分が不足しています。',
     }),
     label(row(y.note6[0], y.note6[1]), col(LEFT, RIGHT), b.note6, { align: 'left', fontSize: 7 }),
   ];
@@ -468,6 +483,7 @@ export function buildTable6(common: string, totals: string, options: GridCell['o
     code(row(TOP, 234.5), col(DX.CODE, DX.INPUT), 'E01'),
     mk(row(TOP, 234.5), col(DX.INPUT, RIGHT), {
       kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
     }),
 
     ...block(minor, common, totals, options),

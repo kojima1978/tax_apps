@@ -127,3 +127,81 @@ describe('computeAll 第4表の2の年分', () => {
     expect(result.totals.t42y0b0Y).toBe('30');
   });
 });
+
+describe('computeAll 第1表G32の年齢', () => {
+  const start = { startEra: '5', startY: '7', startM: '8', startD: '15' };
+
+  it('相続開始日当日の満年齢を計算する', () => {
+    const beforeBirthday = computeAll(start, [
+      { birthEra: '4', birthY: '17', birthM: '8', birthD: '16' },
+    ], []);
+    const onBirthday = computeAll(start, [
+      { birthEra: '4', birthY: '17', birthM: '8', birthD: '15' },
+    ], []);
+
+    expect(beforeBirthday.heirs[0]?.age).toBe('19');
+    expect(onBirthday.heirs[0]?.age).toBe('20');
+  });
+
+  it('日付が不足している場合は空欄にする', () => {
+    const result = computeAll(start, [{ birthEra: '4', birthY: '17' }], []);
+    expect(result.heirs[0]?.age).toBe('');
+  });
+});
+
+describe('computeAll 第6表①の年齢転記', () => {
+  it('選択した未成年者の第1表年齢を転記して控除額を計算する', () => {
+    const result = computeAll(
+      { startEra: '5', startY: '7', startM: '8', startD: '15', t6m0no: '2' },
+      [
+        { birthEra: '4', birthY: '10', birthM: '1', birthD: '1' },
+        { birthEra: '5', birthY: '1', birthM: '8', birthD: '16' },
+      ],
+      [],
+    );
+
+    expect(result.totals.t6m0age).toBe('5');
+    expect(result.totals.t6m0v2).toBe('130');
+  });
+});
+
+describe('computeAll 第6表⑥の配分エラー', () => {
+  const common = {
+    startEra: '5', startY: '7', startM: '8', startD: '15',
+    t6m0no: '1', t6mf0no: '2',
+  };
+  const heirs: Values[] = [
+    { name: '未成年者', birthEra: '5', birthY: '1', birthM: '8', birthD: '16' },
+    { name: '扶養義務者', v1: '200000000' },
+  ];
+  const lawful: Values[] = [
+    { source: '0', num: '1', den: '2' },
+    { source: '1', num: '1', den: '2' },
+  ];
+
+  it('⑤＞⑥かつⒶ＞⑥の計ならエラーにする', () => {
+    const result = computeAll(common, heirs, lawful);
+    expect(result.totals.t6mf0v6Error).toBe('1');
+  });
+
+  it('⑥の計がⒶ以上ならエラーを解除する', () => {
+    const result = computeAll({ ...common, t6mf0v6: '1300000' }, heirs, lawful);
+    expect(result.totals.t6mf0v6Error).toBe('');
+  });
+
+  it('障害者控除の⑥にも同じ条件を適用する', () => {
+    const result = computeAll(
+      {
+        startEra: '5', startY: '7', startM: '8', startD: '15',
+        t6d0no: '1', t6df0no: '2',
+      },
+      [
+        { name: '障害者', birthEra: '3', birthY: '60', birthM: '8', birthD: '16' },
+        { name: '扶養義務者', v1: '200000000' },
+      ],
+      lawful,
+    );
+
+    expect(result.totals.t6df0v6Error).toBe('1');
+  });
+});
