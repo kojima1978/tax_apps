@@ -72,6 +72,7 @@ import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
 import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
 import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
+import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
   hasTable112, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
@@ -697,6 +698,7 @@ export default function App() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
   const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
+  const { printing, print } = usePrinting();
 
   useEffect(() => {
     try {
@@ -1191,7 +1193,7 @@ export default function App() {
           <button type="button" className="app-btn" onClick={exportJson}>JSON保存</button>
           <button type="button" className="app-btn" onClick={() => fileRef.current?.click()}>JSON読込</button>
           <input ref={fileRef} type="file" accept="application/json,.json" onChange={onPickFile} hidden aria-label="JSONファイルを選択" />
-          <button type="button" className="app-btn app-btn--primary" onClick={() => window.print()}>印刷</button>
+          <button type="button" className="app-btn app-btn--primary" onClick={print}>印刷</button>
           <button type="button" className="app-btn app-btn--danger" onClick={onReset}>クリア</button>
         </div>
       </header>
@@ -1249,7 +1251,9 @@ export default function App() {
                 used(form) ? '' : 'form-pages--unused',
               ].filter(Boolean).join(' ')}
             >
-              {pages[form.id]}
+              {/* 画面には選択中の様式だけを置く。全様式を隠して置いておくと、
+                  1文字打つたびに24様式ぶん（セル5,000個超）を描き直すことになる。 */}
+              {active === form.id || (printing && used(form)) ? pages[form.id] : null}
             </section>
           ))}
         </main>

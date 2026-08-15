@@ -150,7 +150,22 @@ function emWidth(line: string): number {
  * 様式は同じ幅の枠に文字数の違うラベルを詰め込むため、文字数だけで決めると
  * 狭い枠（「算出税額（第３表⑬）」など）がはみ出す。枠の実寸から行数を見積もって決める。
  */
+/**
+ * 求めた文字サイズの覚え書き。同じ文言・同じ枠は毎回同じ答えになるうえ、
+ * 様式のラベルは再描画のたびに全セル分ここを通るので、計算し直さない。
+ */
+const fontSizeCache = new Map<string, number>();
+
 function fitFontSize(text: string, c: GridCell, vertical: boolean): number {
+  const key = `${text} ${c.width} ${c.height} ${vertical ? 1 : 0}${c.noWrap ? 1 : 0}`;
+  const cached = fontSizeCache.get(key);
+  if (cached !== undefined) return cached;
+  const size = measureFontSize(text, c, vertical);
+  fontSizeCache.set(key, size);
+  return size;
+}
+
+function measureFontSize(text: string, c: GridCell, vertical: boolean): number {
   const w = (c.width / 100) * NOMINAL_W - 5;   // 左右パディング2px＋罫線
   const h = (c.height / 100) * NOMINAL_H - 3;  // 上下パディング1px＋罫線
   // 縦書きでは行が伸びる向きが高さ、行が積まれる向きが幅になる
