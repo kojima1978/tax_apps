@@ -7,7 +7,7 @@
  * 唯一の例外は限度額行で、下段だけ「−」の位置が22px左にずれている（`lim`）。
  *
  * この様式は配偶者1人分なので枚数は常に1枚。入力は
- * 「法定相続分の分子・分母」と、下段の第3表からの転記2欄（第3表は未実装）だけで、
+ * 下段の「法定相続分の分子・分母」と、第3表からの転記2欄（第3表は未実装）だけで、
  * 残りは第1表・第11表2からの自動転記か算式による自動計算になる。
  *
  * 罫線の位置は様式PNG（150dpi）の実測px。
@@ -134,6 +134,9 @@ interface Section {
   /** 法定相続分の分子・分母 */
   numField: string;
   denField: string;
+  /** 第1表・第2表から自動転記する上段の法定相続分 */
+  shareReadOnly: boolean;
+  shareSource?: string;
   /** 限度額行の1つ目の見出し */
   limHead: string;
   /** 限度額行の「−」の左右とコード枠の右端（下段だけ22px左にずれる） */
@@ -176,31 +179,45 @@ function fracRows(s: Section): GridCell[] {
     mk(box, col(FX.CODE, FX.A), {
       kind: 'input', field: s.aField, ariaLabel: `${s.who} 課税価格の合計額`, commaInteger: true, rightLabel: '，000', readOnly: s.aReadOnly,
     }),
-    label(box, col(FX.A, FX.MUL), '×', { noBorder: true }),
+    label(box, col(FX.A, FX.MUL), '×', { noBorder: true, forceHorizontal: true, align: 'center' }),
 
     // 法定相続分（分子・分母）— 法定相続人の構成で決まるので手入力
     code(numY, col(FX.MUL, FX.FCODE), cd(s.base + 1)),
-    mk(numY, col(FX.FCODE, FX.FRAC), { kind: 'input', field: s.numField, ariaLabel: `${s.who} 配偶者の法定相続分の分子`, integerDigits: 3, align: 'center' }),
+    mk(numY, col(FX.FCODE, FX.FRAC), {
+      kind: 'input', field: s.numField, ariaLabel: `${s.who} 配偶者の法定相続分の分子`, integerDigits: 3, align: 'center',
+      readOnly: s.shareReadOnly, navigateToForm: s.shareSource,
+    }),
     code(denY, col(FX.MUL, FX.FCODE), cd(s.base + 2)),
-    mk(denY, col(FX.FCODE, FX.FRAC), { kind: 'input', field: s.denField, ariaLabel: `${s.who} 配偶者の法定相続分の分母`, integerDigits: 3, align: 'center' }),
+    mk(denY, col(FX.FCODE, FX.FRAC), {
+      kind: 'input', field: s.denField, ariaLabel: `${s.who} 配偶者の法定相続分の分母`, integerDigits: 3, align: 'center',
+      readOnly: s.shareReadOnly, navigateToForm: s.shareSource,
+    }),
 
-    label(box, col(FX.FRAC, FX.EQ), '＝', { noBorder: true }),
+    label(box, col(FX.FRAC, FX.EQ), '＝', { noBorder: true, forceHorizontal: true, align: 'center' }),
     code(box, col(FX.EQ, FX.PCODE), cd(s.base + 3)),
     mk(box, col(FX.PCODE, FX.PROD), {
       kind: 'input', field: `${s.p}mul`, ariaLabel: `${s.who} 課税価格の合計額に法定相続分を乗じた金額`, commaInteger: true, readOnly: true,
+      ...(s.base === 20 ? { borderWidth: 1 } : {}),
     }),
 
     // 16,000万円の下限（様式では分数の枠の下に1行で印字されている）
-    label(c16, col(FX.LBL, FX.BRK), C16_TEXT),
+    label(c16, col(FX.LBL, FX.BRK), C16_TEXT, { noBorderTop: true, noBorderRight: true }),
 
     // 分数の枠と㋑（㋥）をつなぐ括弧・矢印
-    mk(all, col(FX.PROD, FX.BRK), {}),
-    label(all, col(FX.BRK, FX.ARROW), '⇒', { noBorder: true }),
-    label(all, col(FX.ARROW, FX.MARK), s.marks[0] + '\n※', { fontSize: 8 }),
+    mk(all, col(FX.PROD, FX.BRK), { noBorder: true, rightBrace: true }),
+    label(all, col(FX.BRK, FX.ARROW), '⇒', { noBorder: true, forceHorizontal: true, align: 'center' }),
+    label(
+      all,
+      col(FX.ARROW, FX.MARK),
+      s.marks[0] + '※',
+      { fontSize: 8, forceVertical: true, align: 'center' },
+    ),
     code(all, col(FX.MARK, FX.MCODE), cd(s.base + 4)),
     mk(all, col(FX.MCODE, RIGHT), {
       kind: 'input', field: `${s.p}i`, ariaLabel: s.marks[0] + ' 配偶者の法定相続分相当額', commaInteger: true, readOnly: true,
     }),
+    // 内側の0.5px罫線が隣接セル同士で重なるため、外周も同じ見た目の1pxにそろえる。
+    mk(all, col(LEFT, RIGHT), { outline: true, borderWidth: 1 }),
   ];
 }
 
@@ -212,6 +229,15 @@ function sixRows(s: Section): GridCell[] {
   const upper = row(top, mid);
   const lower = row(mid, headB);
   const input = row(headB, bottom);
+  const giftValueLabel = s.base === 1
+    ? n[4] + '　純資産価額に加算される\n暦年課税分の贈与財産価額\n\n（第1表の配偶者の⑤の金額）'
+    : n[4] + '　純資産価額に加算される暦年課税分の贈与財産価額\n\n（第1表の配偶者の⑤の金額）';
+  const afterSubtractionNote = s.base === 1
+    ? '（' + n[2] + 'の金額が' + n[1] + 'の金額より\n大きいときは0）'
+    : '（' + n[2] + 'の金額が' + n[1] + 'の金額より大きいときは0）';
+  const totalMinimumNote = '（' + n[4] + 'の金額より小さいときは\n' + n[4] + 'の金額）';
+  const totalNoteSeparator = '\n\n';
+  const sourceForms = ['table112', 'table1', 'table112', undefined, 'table1', undefined] as const;
   /** ①〜⑥の入力欄（②〜⑤は他の様式からの転記、④⑥は算式による自動計算） */
   const cell = (i: number, x: [number, number], cx: [number, number], name: string, zeros?: string): GridCell[] => [
     code(input, col(cx[0], cx[1]), cd(s.base + 5 + i)),
@@ -221,19 +247,20 @@ function sixRows(s: Section): GridCell[] {
       ariaLabel: n[i] + ' ' + name,
       commaInteger: true,
       readOnly: true,
+      navigateToForm: sourceForms[i],
       ...(zeros === undefined ? {} : { rightLabel: zeros }),
     }),
   ];
   return [
     label(row(top, bottom), col(LEFT, SX.BAND), '配偶者の税額軽減額を計算する場合の課税価格（円）', { forceHorizontal: true, fontSize: 7.5 }),
 
-    label(all, col(SX.BAND, SX.V1), n[0] + '　分割財産の価額\n\n（第11表2の配偶者の①の金額）'),
+    label(all, col(SX.BAND, SX.V1), n[0] + '　分割財産の価額\n\n（第11表2の配偶者の①の金額）', { fontSizeAfterBlankLine: 6.5, noWrapAfterBlankLine: true }),
     label(upper, col(SX.V1, SX.V4), '分割財産の価額から控除する債務及び葬式費用の金額'),
-    label(lower, col(SX.V1, SX.V2), n[1] + '　債務及び葬式費用の金額\n（第1表の配偶者の③の金額）', { fontSize: 7.5 }),
-    label(lower, col(SX.V2, SX.V3), n[2] + '　未分割財産の価額\n（第11表2の配偶者の②の金額）', { fontSize: 7.5 }),
-    label(lower, col(SX.V3, SX.V4), n[3] + '　（' + n[1] + '−' + n[2] + '）の金額\n（' + n[2] + 'の金額が' + n[1] + 'の金額より大きいときは0）', { fontSize: 7.5 }),
-    label(all, col(SX.V4, SX.V5), n[4] + '　純資産価額に加算される暦年課税分の贈与財産価額\n\n（第1表の配偶者の⑤の金額）', { fontSize: 7.5 }),
-    label(all, col(SX.V5, RIGHT), n[5] + '　（' + n[0] + '−' + n[3] + '＋' + n[4] + '）の金額\n（' + n[4] + 'の金額より小さいときは' + n[4] + 'の金額）\n（1,000円未満切捨て）※', { fontSize: 7.5 }),
+    label(lower, col(SX.V1, SX.V2), n[1] + '　債務及び葬式費用の金額\n\n（第1表の配偶者の③の金額）', { fontSize: 7.5 }),
+    label(lower, col(SX.V2, SX.V3), n[2] + '　未分割財産の価額\n\n（第11表2の配偶者の②の金額）', { fontSize: 7.5 }),
+    label(lower, col(SX.V3, SX.V4), n[3] + '　（' + n[1] + '−' + n[2] + '）の金額\n\n' + afterSubtractionNote, { fontSize: 7.5 }),
+    label(all, col(SX.V4, SX.V5), giftValueLabel, { fontSize: 7.5 }),
+    label(all, col(SX.V5, RIGHT), n[5] + '　（' + n[0] + '−' + n[3] + '＋' + n[4] + '）の金額' + totalNoteSeparator + totalMinimumNote + '\n（1,000円未満切捨て）※', { fontSize: 7.5, leftAlignAfterBlankLine: s.base === 1 }),
 
     ...cell(0, [SX.BAND, SX.V1], [SX.BAND, SX.C1], '分割財産の価額'),
     ...cell(1, [SX.V1, SX.V2], [SX.V1, SX.C2], '債務及び葬式費用の金額'),
@@ -259,6 +286,7 @@ function quadRows(s: Section): GridCell[] {
     code(input, col(LEFT, QX.C1), cd(s.base + 11)),
     mk(input, col(QX.C1, QX.V1), {
       kind: 'input', field: s.taxField, ariaLabel: n[6] + ' 相続税の総額', commaInteger: true, rightLabel: '00', readOnly: s.taxReadOnly,
+      navigateToForm: s.base === 1 ? 'table1' : undefined,
     }),
     code(input, col(QX.V1, QX.C2), cd(s.base + 12)),
     mk(input, col(QX.C2, QX.V2), {
@@ -267,10 +295,14 @@ function quadRows(s: Section): GridCell[] {
     code(input, col(QX.V2, QX.C3), cd(s.base + 13)),
     mk(input, col(QX.C3, QX.V3), {
       kind: 'input', field: s.aField, ariaLabel: n[8] + ' 課税価格の合計額', commaInteger: true, rightLabel: '，000', readOnly: s.aReadOnly,
+      navigateToForm: s.base === 1 ? 'table1' : undefined,
     }),
     code(input, col(QX.V3, QX.C4), cd(s.base + 14)),
     mk(input, col(QX.C4, RIGHT), {
       kind: 'input', field: `${s.p}v10`, ariaLabel: n[9] + ' 配偶者の税額軽減の基となる金額', commaInteger: true, readOnly: true,
+      ...(s.base === 1 ? {
+        highlightWhen: (g: (field: string) => string) => g(`${s.p}v10`) !== '' && g(`${s.p}ro`) !== '' && Number(g(`${s.p}v10`)) <= Number(g(`${s.p}ro`)),
+      } : {}),
     }),
   ];
 }
@@ -286,7 +318,7 @@ function bottomRows(s: Section): GridCell[] {
   const red = row(redT, redB);
   const note = row(redB, noteB);
   return [
-    label(all, col(LEFT, RX.LBL), '配偶者の税額軽減の限度額（円）'),
+    label(all, col(LEFT, RX.LBL), '配偶者の税額軽減の限度額（円）', s.base === 1 ? { borderRightWidth: 1 } : {}),
     label(head, col(RX.LBL, s.limSplit), '（' + s.limHead + '）', { fontSize: 7.5 }),
     label(head, col(s.limSplit, RX.MARK), '（第1表の配偶者の⑫の金額）', { fontSize: 7.5 }),
 
@@ -294,18 +326,23 @@ function bottomRows(s: Section): GridCell[] {
     code(input, col(360.5, 382.5), cd(s.base + 15)),
     mk(input, col(382.5, minusL), {
       kind: 'input', field: `${s.p}g1`, ariaLabel: `${s.who} 第1表の配偶者の算出税額`, commaInteger: true, readOnly: true,
+      navigateToForm: s.base === 1 ? 'table1' : undefined,
     }),
     label(input, col(minusL, minusR), '−', { noBorder: true }),
     code(input, col(minusR, code2), cd(s.base + 16)),
     mk(input, col(code2, 876.5), {
       kind: 'input', field: `${s.p}g2`, ariaLabel: `${s.who} 第1表の配偶者の⑫の金額`, commaInteger: true, readOnly: true,
+      navigateToForm: s.base === 1 ? 'table1' : undefined,
     }),
     label(input, col(876.5, RX.MARK), '）', { noBorder: true }),
 
-    label(all, col(RX.MARK, RX.CODE), s.marks[1], { fontSize: 8 }),
+    label(all, col(RX.MARK, RX.CODE), s.marks[1], { fontSize: 8, align: 'center' }),
     code(all, col(RX.CODE, RX.VAL), cd(s.base + 17)),
     mk(all, col(RX.VAL, RIGHT), {
       kind: 'input', field: `${s.p}ro`, ariaLabel: s.marks[1] + ' 配偶者の税額軽減の限度額', commaInteger: true, readOnly: true,
+      ...(s.base === 1 ? {
+        highlightWhen: (g: (field: string) => string) => g(`${s.p}v10`) !== '' && g(`${s.p}ro`) !== '' && Number(g(`${s.p}ro`)) < Number(g(`${s.p}v10`)),
+      } : {}),
     }),
 
     label(red, col(LEFT, RX.LBL), '配偶者の税額軽減額（円）'),
@@ -347,8 +384,10 @@ export function buildTable5(common: string, totals: string): GridCell[] {
     taxField: `${totals}t7`,
     taxReadOnly: true,
     taxRef: '第1表の⑦の金額',
-    numField: `${common}t5num`,
-    denField: `${common}t5den`,
+    numField: `${totals}t5num`,
+    denField: `${totals}t5den`,
+    shareReadOnly: true,
+    shareSource: 'table2',
     limHead: '第1表の配偶者の⑨又は⑩の金額',
     lim: [618.5, 640.5, 661.5],
     limSplit: 640.5,
@@ -370,13 +409,14 @@ export function buildTable5(common: string, totals: string): GridCell[] {
     who: '配偶者以外の人が農業相続人である場合',
     headSplit: 445,
     aField: `${common}t5a3`,
-    aReadOnly: false,
+    aReadOnly: true,
     aRef: '第3表のⒶの金額',
     taxField: `${common}t5v17`,
-    taxReadOnly: false,
+    taxReadOnly: true,
     taxRef: '第3表の⑦の金額',
     numField: `${common}t5num2`,
     denField: `${common}t5den2`,
+    shareReadOnly: true,
     limHead: '第1表の配偶者の⑩の金額',
     lim: [597.5, 618.5, 640.5],
     limSplit: 618.5,
@@ -393,7 +433,10 @@ export function buildTable5(common: string, totals: string): GridCell[] {
     // 被相続人（第1表の氏名と同じ欄を共有する）
     label(row(TOP, 271.5), col(DX.L, DX.CODE), '被相続人'),
     code(row(TOP, 271.5), col(DX.CODE, DX.INPUT), 'E01'),
-    mk(row(TOP, 271.5), col(DX.INPUT, RIGHT), { kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10 }),
+    mk(row(TOP, 271.5), col(DX.INPUT, RIGHT), {
+      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
+    }),
 
     label(row(271.5, 315), col(LEFT, RIGHT), DECL, { align: 'left' }),
     gap(315, 322.5),

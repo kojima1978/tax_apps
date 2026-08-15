@@ -481,6 +481,43 @@ button {
   white-space: normal;
 }
 
+.gov-footnote__symbol-row {
+  display: grid;
+  grid-template-columns: 1.2em minmax(0, 1fr);
+  align-items: start;
+}
+
+.gov-footnote__symbol {
+  white-space: nowrap;
+}
+
+/* 第5表の計算結果欄と16,000万円の下限欄をまとめる、様式どおりの縦長の「｝」。 */
+.gf-cell--right-brace {
+  overflow: visible !important;
+}
+
+.gf-cell--right-brace::before {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 1px;
+  width: 55%;
+  border-top: 1px solid #000;
+  border-right: 1px solid #000;
+  border-bottom: 1px solid #000;
+  content: '';
+  box-sizing: border-box;
+}
+
+.gf-cell--right-brace::after {
+  position: absolute;
+  top: 50%;
+  left: 56%;
+  right: 0;
+  border-top: 1px solid #000;
+  content: '';
+}
+
 /* 様式の枠外に置く説明文（第2表の速算表の使用方法など） */
 .gov-note {
   padding-top: 3px;

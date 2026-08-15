@@ -83,6 +83,33 @@ describe('computeAll 第2表⑤の法定相続分合計', () => {
   });
 });
 
+describe('computeAll 第5表G02・G03の法定相続分', () => {
+  it('第1表の配偶者に紐づく第2表⑤から分子・分母を自動転記する', () => {
+    const result = computeAll(
+      { t5num: '9', t5den: '9' },
+      [{ name: '配偶者', relation: '01', v1: '100000000' }],
+      [{ source: '0', num: '1', den: '2' }],
+      ['table5'],
+    );
+
+    expect(result.totals.t5num).toBe('1');
+    expect(result.totals.t5den).toBe('2');
+    expect(result.totals.t5s1mul).toBe('50000000');
+  });
+
+  it('第5表が印刷対象外でも表示用の分子・分母を計算する', () => {
+    const result = computeAll(
+      {},
+      [{ name: '配偶者', relation: '01', v1: '100000000' }],
+      [{ source: '0', num: '1', den: '2' }],
+    );
+
+    expect(result.totals.t5num).toBe('1');
+    expect(result.totals.t5den).toBe('2');
+    expect(result.heirs[0]?.v13).toBe('');
+  });
+});
+
 describe('computeAll 第4表の2の年分', () => {
   it('相続開始年から前年・前々年・前々々年を2桁で自動入力する', () => {
     const result = computeAll({ startEra: '5', startY: '7' }, [], [], ['table42']);

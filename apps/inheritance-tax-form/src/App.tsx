@@ -168,6 +168,7 @@ const DETAIL_FORMS = Object.keys(DETAIL_SPECS) as (keyof typeof DETAIL_SPECS)[];
 function Footnote({ notes, edition = EDITION }: { notes: string; edition?: string }) {
   const rows = notes.split('\n').map((line) => line.match(/^(?:（注）)?[\u3000 ]*(\d+)[\u3000 ]+(.*)$/));
   const numbered = rows.every((row) => row !== null);
+  const symbolNote = notes.match(/^([※＊])[\u3000 ]*(.*)$/s);
   return (
     <div className="gov-footnote">
       <span className="gov-footnote__notes">
@@ -177,7 +178,12 @@ function Footnote({ notes, edition = EDITION }: { notes: string; edition?: strin
             <span className="gov-footnote__note-number">{row![1]}</span>
             <span className="gov-footnote__note-body">{row![2]}</span>
           </span>
-        )) : notes}
+        )) : symbolNote ? (
+          <span className="gov-footnote__symbol-row">
+            <span className="gov-footnote__symbol">{symbolNote[1]}</span>
+            <span className="gov-footnote__note-body">{symbolNote[2]}</span>
+          </span>
+        ) : notes}
       </span>
       <span style={{ whiteSpace: 'nowrap' }}>{edition}</span>
     </div>
@@ -863,6 +869,7 @@ export default function App() {
           subtitle={TABLE5_SUBTITLE}
           aspectRatio={TABLE5_ASPECT}
           formId="t5"
+          onNavigate={setActive}
           footer={<Footnote notes={TABLE5_NOTES} edition={TABLE5_EDITION} />}
         />
       </div>

@@ -20,6 +20,9 @@ export interface GridCell {
   semanticRole?: 'group' | 'columnheader' | 'rowheader' | 'presentation';
   groupBorder?: boolean;             // group の外枠セルを描画するか（既存罫線を使う場合は false）
   align?: 'left' | 'center' | 'right';
+  leftAlignAfterBlankLine?: boolean;  // 空行より後の注記だけを左寄せにする
+  fontSizeAfterBlankLine?: number;    // 空行より後の注記だけに使う文字サイズ
+  noWrapAfterBlankLine?: boolean;     // 空行より後の注記を1行で表示する
   flexDirection?: CSSProperties['flexDirection']; // 特定セル内の配置方向（丸番号の縦中央配置など）
   alignItems?: CSSProperties['alignItems'];       // 特定セル内の交差軸配置
   fontSize?: number;
@@ -29,8 +32,13 @@ export interface GridCell {
   bold?: boolean;
   noWrap?: boolean;                  // 明示改行以外では折り返さない
   noBorder?: boolean;                // 様式に罫線が無い領域（提出日の行など）
+  noBorderTop?: boolean;             // 上罫線だけを描かない（隣接する計算欄と一体に見せる注記行）
+  noBorderRight?: boolean;           // 右罫線だけを描かない（括弧セルへ連続する注記行）
+  rightBrace?: boolean;              // 計算結果と下限額をまとめる縦長の右括弧
   dashed?: boolean;                  // 破線枠（生年月日の元号コード注記）
   outline?: boolean;                 // 他のセルに重ねて描く太枠（被相続人ブロックの外枠）。入力を妨げない
+  borderWidth?: number;              // 個別に指定する罫線幅（px）
+  borderRightWidth?: number;         // 右罫線だけに指定する幅（px）
   codeLabel?: string;                // 様式の識別コード（E01/G04等）をセル左上に小さく表示
   cornerLabel?: string;              // 入力欄の左上に表示する固定ラベル（枠を持たないコード欄）
   rightLabel?: string;               // セルの右端中央に表示する固定ラベル（末尾の「000」など）
@@ -305,6 +313,9 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     const rightLabelPadding = c.rightLabel
       ? Math.max(14, Array.from(c.rightLabel).length * 4.5 + 4)
       : 0;
+    const borderStyle = c.dashed ? 'dashed' : 'solid';
+    const borderWidth = c.borderWidth ?? (c.outline ? 1.5 : c.dashed ? 1 : 0.5);
+    const borderLine = `${borderWidth}px ${borderStyle} #000`;
     const selectCell = () => {
       if (c.toggleField) u(c.toggleField, g(c.toggleField) === '1' ? '' : '1');
       else if (c.selectValue) u(c.selectValue.field, g(c.selectValue.field) === c.selectValue.value ? '' : c.selectValue.value);
@@ -325,7 +336,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     return (
       <div
         key={i}
-        className={`gf-cell${editable ? ' gf-cell--editable' : ''}${c.navigateToForm ? ' gf-cell--source-link' : ''}`}
+        className={`gf-cell${editable ? ' gf-cell--editable' : ''}${c.navigateToForm ? ' gf-cell--source-link' : ''}${c.rightBrace ? ' gf-cell--right-brace' : ''}`}
         role={c.toggleField ? 'checkbox' : c.selectValue || c.navigateToForm ? 'button' : c.semanticRole}
         tabIndex={interactive ? 0 : undefined}
         aria-label={interactive ? c.navigateToForm ? `${c.ariaLabel ?? text}の転記元を開く` : c.ariaLabel ?? `${text}を選択` : c.ariaLabel}
@@ -338,7 +349,12 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
         style={{
           gridColumn: `${cs} / ${ce}`,
           gridRow: `${rs} / ${re}`,
-          border: c.noBorder ? 'none' : c.outline ? '1.5px solid #000' : c.dashed ? '1px dashed #000' : '0.5px solid #000',
+          borderTop: c.noBorder || c.noBorderTop ? 'none' : borderLine,
+          borderRight: c.noBorder || c.noBorderRight
+            ? 'none'
+            : `${c.borderRightWidth ?? borderWidth}px ${borderStyle} #000`,
+          borderBottom: c.noBorder ? 'none' : borderLine,
+          borderLeft: c.noBorder ? 'none' : borderLine,
           // outline は既存セルの上に重ねる飾り枠。クリックを吸わないようにする
           pointerEvents: c.outline ? 'none' : undefined,
           position: 'relative',
@@ -470,7 +486,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 maxLength={c.integerDigits}
                 readOnly={c.readOnly}
                 tabIndex={c.readOnly ? -1 : undefined}
-                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: c.readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit' }}
+                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: highlighted ? 'transparent' : c.readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit' }}
               />
             )}
           </>
@@ -486,7 +502,17 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           </span>
         ) : c.kind === 'label' || c.text || c.textField ? (
           text.includes('\n')
-            ? <span style={{ whiteSpace: c.noWrap ? 'pre' : 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span>
+            ? (c.leftAlignAfterBlankLine || c.fontSizeAfterBlankLine || c.noWrapAfterBlankLine) && text.includes('\n\n')
+              ? (() => {
+                  const [heading, ...noteParts] = text.split('\n\n');
+                  return (
+                    <span style={{ width: '100%' }}>
+                      <span style={{ display: 'block', whiteSpace: 'pre-line', textAlign: c.align ?? 'center' }}>{heading}</span>
+                      <span style={{ display: 'block', marginTop: '1.15em', whiteSpace: c.noWrapAfterBlankLine ? 'nowrap' : 'pre-line', textAlign: c.leftAlignAfterBlankLine ? 'left' : c.align ?? 'center', fontSize: c.fontSizeAfterBlankLine }}>{noteParts.join('\n\n')}</span>
+                    </span>
+                  );
+                })()
+              : <span style={{ whiteSpace: c.noWrap ? 'pre' : 'pre-line', width: '100%', textAlign: c.align ?? 'center' }}>{text}</span>
             : text
         ) : null}
         </span>

@@ -713,9 +713,9 @@ interface Table5Source {
   totalA: number;
   /** ⑦ 相続税の総額（円） */
   tax: number;
-  /** 法定相続分の分子・分母（共通欄のキー） */
-  numKey: string;
-  denKey: string;
+  /** 法定相続分の分子・分母 */
+  numerator: number;
+  denominator: number;
   /** 限度額の1つ目（上段は⑨又は⑩、下段は⑩のみ） */
   useV10Only: boolean;
 }
@@ -727,12 +727,22 @@ interface Table5Source {
  * `Table5Source` を差し替えて同じ計算を2回まわす。
  * ①②③⑤は配偶者の第11表2・第1表からの転記なので、上段・下段で同じ値になる。
  */
-function computeTable5(common: Values, spouseValues: Values | undefined, totalA: number, total7: number): Values {
+function computeTable5(
+  common: Values,
+  spouseValues: Values | undefined,
+  spouseLawful: Values | undefined,
+  totalA: number,
+  total7: number,
+): Values {
   const out: Values = {};
   if (spouseValues === undefined) return out;
+  const lawfulNumerator = num(spouseLawful?.num);
+  const lawfulDenominator = num(spouseLawful?.den);
+  out.t5num = spouseLawful === undefined ? '' : str(lawfulNumerator);
+  out.t5den = spouseLawful === undefined ? '' : str(lawfulDenominator);
   const sources: Table5Source[] = [
-    { p: 't5s1', totalA, tax: total7, numKey: 't5num', denKey: 't5den', useV10Only: false },
-    { p: 't5s2', totalA: yen(common, 't5a3'), tax: yen(common, 't5v17'), numKey: 't5num2', denKey: 't5den2', useV10Only: true },
+    { p: 't5s1', totalA, tax: total7, numerator: lawfulNumerator, denominator: lawfulDenominator, useV10Only: false },
+    { p: 't5s2', totalA: yen(common, 't5a3'), tax: yen(common, 't5v17'), numerator: num(common.t5num2), denominator: num(common.t5den2), useV10Only: true },
   ];
   // ①③は第11表2の配偶者の①②、②⑤は第1表の配偶者の③⑤（どちらの段も同じ）
   const v1 = num(spouseValues.t11v1);
@@ -755,8 +765,7 @@ function computeTable5(common: Values, spouseValues: Values | undefined, totalA:
     out[`${s.p}v6`] = show(v6yen / 1000, v6yen !== 0);
 
     // 課税価格の合計額 × 配偶者の法定相続分（円未満切捨て）。16,000万円に満たないときは16,000万円
-    const den = num(common[s.denKey]);
-    const mul = hasA && den > 0 ? Math.floor((s.totalA * num(common[s.numKey])) / den) : 0;
+    const mul = hasA && s.denominator > 0 ? Math.floor((s.totalA * s.numerator) / s.denominator) : 0;
     out[`${s.p}mul`] = show(mul, mul !== 0);
     const i = Math.max(mul, TABLE5_FLOOR);
     out[`${s.p}i`] = show(i, hasA);
@@ -1320,9 +1329,14 @@ function computeAllWithRatios(
   const pass2 = pass(none);
 
   // 第5表: 2周目で確定した配偶者の⑨⑫を使って軽減額㋩（㋬）を求める
-  const spouse = used.includes('table5') ? spouseIndex(heirs) : -1;
-  const table5 = computeTable5(common, pass2[spouse], totalA, total7);
-  const t5v13 = filled(common, 't5a3') || filled(common, 't5v17') ? table5.t5s2ha : table5.t5s1ha;
+  const spouse = spouseIndex(heirs);
+  const spouseName = (heirs[spouse]?.name ?? '').trim();
+  const spouseLawful = linkedLawful.find((row) => row.source === String(spouse))
+    ?? linkedLawful.find((row) => spouseName !== '' && (row.name ?? '').trim() === spouseName);
+  const table5 = computeTable5(common, pass2[spouse], spouseLawful, totalA, total7);
+  const t5v13 = used.includes('table5')
+    ? filled(common, 't5a3') || filled(common, 't5v17') ? table5.t5s2ha : table5.t5s1ha
+    : '';
   // 第4表: 2周目で確定した⑨と①②⑤から加算金額⑥を求める（⑨は⑪に依存しないので循環しない）
   const table4 = computeTable4(common, pass2, table4Pages(common));
   const t4v11 = used.includes('table4') ? table4.v11 : new Map<number, string>();
