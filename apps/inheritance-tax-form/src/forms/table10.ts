@@ -17,7 +17,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, label, mk } from './geometry';
+import { code, dateSelect, label, mk } from './geometry';
 
 export const TABLE10_FORM_CODE = 'NTA0KSE100010020';
 export const TABLE10_TITLE = '相続税の申告書　第10表';
@@ -158,9 +158,9 @@ function detailRows(common: string, page: number, whoOptions: GridCell['options'
         label(head, col(X.M, X.DATE_R), '日', { fontSize: 6 }),
         code(date, col(X.NAME, X.D_C), cd('N', r + 1)),
         mk(date, col(X.D_C, X.ERA), { kind: 'input', field: `${f}RecvEra`, ariaLabel: `${who}の受取年月日の元号`, options: ERA_OPTIONS, compactSelectedOption: true }),
-        mk(date, col(X.ERA, X.Y), { kind: 'input', field: `${f}RecvY`, ariaLabel: `${who}の受取年月日（年）`, integerDigits: 2, align: 'center' }),
-        mk(date, col(X.Y, X.M), { kind: 'input', field: `${f}RecvM`, ariaLabel: `${who}の受取年月日（月）`, integerDigits: 2, align: 'center' }),
-        mk(date, col(X.M, X.DATE_R), { kind: 'input', field: `${f}RecvD`, ariaLabel: `${who}の受取年月日（日）`, integerDigits: 2, align: 'center' }),
+        mk(date, col(X.ERA, X.Y), dateSelect('y', `${f}RecvY`, `${who}の受取年月日（年）`)),
+        mk(date, col(X.Y, X.M), dateSelect('m', `${f}RecvM`, `${who}の受取年月日（月）`)),
+        mk(date, col(X.M, X.DATE_R), dateSelect('d', `${f}RecvD`, `${who}の受取年月日（日）`)),
 
         code(body, col(X.DATE_R, X.TTL_C), cd('E', e + 2)),
         mk(body, col(X.TTL_C, X.TTL_R), { kind: 'input', field: `${f}Title`, ariaLabel: `${who}の退職手当金などの名称`, align: 'left', fontSize: 8 }),

@@ -13,7 +13,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, label, mk } from './geometry';
+import { code, dateSelect, label, mk } from './geometry';
 
 export const TABLE112_FORM_CODE = 'NTA0KSE111010040';
 export const TABLE112_TITLE = '相続税の申告書　第11の2表';
@@ -289,9 +289,9 @@ function detailRows(p: string, who: string, page: number): GridCell[] {
       mk(y, col(X.NO2_C, X.E1_C), { kind: 'input', field: `${p}t112n${i}`, ariaLabel: `${item}の番号`, integerDigits: 1, align: 'center' }),
       code(y, col(X.E1_C, X.N_C), `N${String(1 + r).padStart(2, '0')}`),
       mk(y, col(X.N_C, X.ERA_R), { kind: 'input', field: `${p}t112g${i}Era`, ariaLabel: `${item}の贈与年月日の元号`, options: ERA_OPTIONS, compactSelectedOption: true }),
-      mk(y, col(X.ERA_R, X.YEAR_R), { kind: 'input', field: `${p}t112g${i}Y`, ariaLabel: `${item}の贈与年月日（年）`, integerDigits: 2, align: 'center' }),
-      mk(y, col(X.YEAR_R, X.C1_R), { kind: 'input', field: `${p}t112g${i}M`, ariaLabel: `${item}の贈与年月日（月）`, integerDigits: 2, align: 'center' }),
-      mk(y, col(X.C1_R, X.D_R), { kind: 'input', field: `${p}t112g${i}D`, ariaLabel: `${item}の贈与年月日（日）`, integerDigits: 2, align: 'center' }),
+      mk(y, col(X.ERA_R, X.YEAR_R), dateSelect('y', `${p}t112g${i}Y`, `${item}の贈与年月日（年）`)),
+      mk(y, col(X.YEAR_R, X.C1_R), dateSelect('m', `${p}t112g${i}M`, `${item}の贈与年月日（月）`)),
+      mk(y, col(X.C1_R, X.D_R), dateSelect('d', `${p}t112g${i}D`, `${item}の贈与年月日（日）`)),
       code(y, col(X.D_R, X.K_C), e(25 + r * 6)),
       mk(y, col(X.K_C, X.OFF_R), { kind: 'input', field: `${p}t112k${i}`, ariaLabel: `${item}の種類` }),
       code(y, col(X.OFF_R, X.C2_R), e(26 + r * 6)),

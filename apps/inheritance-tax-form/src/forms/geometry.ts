@@ -137,6 +137,21 @@ export const flag = (field: string, ariaLabel: string): Partial<GridCell> => ({
   options: FLAG_OPTIONS, compactSelectedOption: true,
 });
 
+/**
+ * 年・月・日の入力欄。手入力ではなく選択式にそろえる（元号がプルダウンなのに
+ * 年月日だけ手入力だと様式ごとに入力方法が食い違うため）。
+ * 保存値は整数文字列のままなので、既存の保存JSONと互換。
+ */
+export const dateSelect = (
+  part: 'y' | 'm' | 'd', field: string, ariaLabel: string,
+): Partial<GridCell> => ({
+  kind: 'input',
+  field,
+  ariaLabel,
+  align: 'center',
+  options: part === 'y' ? ERA_YEAR_OPTIONS : part === 'm' ? MONTH_OPTIONS : DAY_OPTIONS,
+});
+
 /** 生年月日（元号・年・月・日）と年齢。左右どちらの列でも割付は同じ。 */
 function birthCells(
   x: number, y: PersonY, birthCode: string, ageCode: string, p: string, who: string, useDateSelects = false,

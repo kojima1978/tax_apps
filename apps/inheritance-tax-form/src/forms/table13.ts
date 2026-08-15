@@ -14,7 +14,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, label, mk } from './geometry';
+import { code, dateSelect, label, mk } from './geometry';
 
 export const TABLE13_FORM_CODE = 'NTA0KSE130010020';
 export const TABLE13_TITLE = '相続税の申告書　第13表';
@@ -161,9 +161,9 @@ function dateRow(y: [number, number], xs: DateX, codeName: string, field: string
   return [
     code(y, col(xs[0], xs[1]), codeName),
     mk(y, col(xs[1], xs[2]), { kind: 'input', field: `${field}Era`, ariaLabel: `${who}の元号`, options: ERA_OPTIONS, compactSelectedOption: true }),
-    mk(y, col(xs[2], xs[3]), { kind: 'input', field: `${field}Y`, ariaLabel: `${who}（年）`, integerDigits: 2, align: 'center' }),
-    mk(y, col(xs[3], xs[4]), { kind: 'input', field: `${field}M`, ariaLabel: `${who}（月）`, integerDigits: 2, align: 'center' }),
-    mk(y, col(xs[4], xs[5]), { kind: 'input', field: `${field}D`, ariaLabel: `${who}（日）`, integerDigits: 2, align: 'center' }),
+    mk(y, col(xs[2], xs[3]), dateSelect('y', `${field}Y`, `${who}（年）`)),
+    mk(y, col(xs[3], xs[4]), dateSelect('m', `${field}M`, `${who}（月）`)),
+    mk(y, col(xs[4], xs[5]), dateSelect('d', `${field}D`, `${who}（日）`)),
   ];
 }
 

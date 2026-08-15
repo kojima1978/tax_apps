@@ -10,7 +10,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, label, mk } from './geometry';
+import { code, dateSelect, label, mk } from './geometry';
 
 export const TABLE11_FORM_CODE = 'NTA0KSE160010010';
 export const TABLE11_TITLE = '相続税の申告書　第11表';
@@ -128,9 +128,9 @@ function divisionDate(
   return [
     code(r, col(c0, c1), codeName),
     mk(r, col(c1, c2), { kind: 'input', field: `${field}Era`, ariaLabel: `${who}の元号`, options: ERA_OPTIONS, compactSelectedOption: true }),
-    mk(r, col(c2, c3), { kind: 'input', field: `${field}Y`, ariaLabel: `${who}（年）`, integerDigits: 2, align: 'center' }),
-    mk(r, col(c3, c4), { kind: 'input', field: `${field}M`, ariaLabel: `${who}（月）`, integerDigits: 2, align: 'center' }),
-    mk(r, col(c4, c5), { kind: 'input', field: `${field}D`, ariaLabel: `${who}（日）`, integerDigits: 2, align: 'center' }),
+    mk(r, col(c2, c3), dateSelect('y', `${field}Y`, `${who}（年）`)),
+    mk(r, col(c3, c4), dateSelect('m', `${field}M`, `${who}（月）`)),
+    mk(r, col(c4, c5), dateSelect('d', `${field}D`, `${who}（日）`)),
   ];
 }
 
