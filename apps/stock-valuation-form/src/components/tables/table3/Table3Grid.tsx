@@ -5,6 +5,7 @@ import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { calcShareholderJudgment } from '../Table1_1Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
+import { forcesSmallCompany } from '@/lib/valuationPurpose';
 
 const T = 'table3' as const;
 
@@ -275,7 +276,7 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
   // 転記元（第4表・第5表・第1表の2・第1表の1）
   const t4 = calcTable4(getField);
   const t5 = calcTable5(getField);
-  const size = calcCompanySize((f) => getField('table1_2', f)).result;
+  const size = calcCompanySize((f) => getField('table1_2', f), forcesSmallCompany(getField)).result;
   const judge = calcShareholderJudgment(getField);
 
   // 1. 原則的評価方式による価額

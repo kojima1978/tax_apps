@@ -14,6 +14,8 @@ import { Table7_1, Table7_2, Table7_3 } from '@/components/tables/table7';
 import { IndustryAdminPage } from '@/features/industryAdmin/IndustryAdminPage';
 import type { TableId, TableProps } from '@/types/form';
 import { TABS } from '@/data/constants';
+import { ValuationPurposePanel } from '@/components/ValuationPurposePanel';
+import { ClientSummaryPage } from '@/components/ClientSummaryPage';
 
 // 業種目データ管理は帳票と同居させない別画面。ハッシュで切り替える。
 const ADMIN_HASH = '#industry-data';
@@ -49,6 +51,7 @@ const PRINT_PREPARE_DELAY_MS = 80;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TableId>('table1_1');
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
   const { formData, getField, updateField, resetAll, exportJson, importJson, rolloverToNextYear } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
@@ -73,6 +76,7 @@ export default function App() {
 
   // 自動転記欄クリック時に入力元の表へ移動し、対象欄をフォーカス＋一瞬ハイライト
   const handleJump = useCallback((target: { tab: TableId; field: string }) => {
+    setSummaryOpen(false);
     setActiveTab(target.tab);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -195,6 +199,13 @@ export default function App() {
         <div className="app-header-title">取引相場のない株式の評価明細書</div>
         <button
           type="button"
+          className={`app-tool-btn app-header-btn app-summary-button${summaryOpen ? ' is-active' : ''}`}
+          onClick={() => setSummaryOpen((open) => !open)}
+        >
+          {summaryOpen ? '帳票入力へ戻る' : 'お客様サマリー'}
+        </button>
+        <button
+          type="button"
           className="app-tool-btn app-header-btn"
           onClick={() => { window.location.hash = ADMIN_HASH; }}
           title="類似業種比準価額に使う業種目マスタ・業種目別株価等を登録・訂正します"
@@ -208,7 +219,15 @@ export default function App() {
       </div>
 
       <div className="no-print app-topbar">
-        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+        {summaryOpen ? (
+          <div className="summary-topbar-title">
+            <span>REPORT</span>
+            <strong>お客様向け株式評価サマリー</strong>
+            <small>入力済みデータから現状と打ち手を自動整理</small>
+          </div>
+        ) : (
+          <Navigation activeTab={activeTab} onTabChange={(tab) => { setSummaryOpen(false); setActiveTab(tab); }} />
+        )}
 
         <div className="app-toolbar" aria-label="帳票操作">
           {([
@@ -233,9 +252,18 @@ export default function App() {
         </div>
       </div>
 
+      {!summaryOpen && <ValuationPurposePanel getField={getField} updateField={updateField} />}
+
       <div className="app-shell">
         <main className="app-main">
-          {printAll ? (
+          {summaryOpen && !printAll ? (
+            <ClientSummaryPage
+              getField={getField}
+              updateField={updateField}
+              onBack={() => setSummaryOpen(false)}
+              onPrint={() => requestPrint('current')}
+            />
+          ) : printAll ? (
             TABS.filter((tab) => printSelection[tab.id]).map((tab) => {
               const TableComp = TABLE_COMPONENTS[tab.id];
               // 第5表・第1表の1は続紙対応で自前に複数ページ（.gov-page）を描画するため外側で包まない

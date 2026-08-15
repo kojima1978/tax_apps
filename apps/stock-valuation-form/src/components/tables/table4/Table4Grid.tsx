@@ -1,6 +1,7 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import type { TableId, TableProps } from '@/types/form';
+import { forcesSmallCompany } from '@/lib/valuationPurpose';
 
 const T = 'table4' as const;
 
@@ -395,7 +396,7 @@ export function calcTable4(getField: TableProps['getField']) {
       : (a !== null && b !== null && c !== null ? fl2((a + b + c) / 3) : null)
   );
   // 斟酌率: 第1表の2の会社規模から自動連動（大0.7/中0.6/小0.5）
-  const size = calcCompanySize((f) => getField('table1_2', f)).result;
+  const size = calcCompanySize((f) => getField('table1_2', f), forcesSmallCompany(getField)).result;
   const shin = size === null ? null : size === 4 ? 0.7 : size === 0 ? 0.5 : 0.6;
   const e1B = elem(Bv, senPair('r1sB1', 'r1sB2')), e1C = elem(Cv, num('r1sC')), e1D = elem(Dv, num('r1sD'));
   const e2B = elem(Bv, senPair('r2sB1', 'r2sB2')), e2C = elem(Cv, num('r2sC')), e2D = elem(Dv, num('r2sD'));

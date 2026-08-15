@@ -5,6 +5,7 @@ import { calcTable7 } from '../table7/Table7Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import type { TableId, TableProps } from '@/types/form';
+import { forcesSmallCompany, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
 
 const T = 'table8' as const;
 
@@ -154,8 +155,9 @@ export function calcTable8(getField: TableProps['getField']) {
 
   const t5 = calcTable5(getField);
   const t7 = calcTable7(getField);
-  const size = calcCompanySize((f) => getField('table1_2', f)).result;
+  const size = calcCompanySize((f) => getField('table1_2', f), forcesSmallCompany(getField)).result;
   const isHijun1 = calcTable2(getField).j.s1 === true;
+  const specialMarketValueRules = usesSpecialMarketValueRules(getField);
 
   // ── 1. S1の金額（続）純資産価額（相続税評価額）の修正計算 ──
   const v1 = t5['⑤'] ?? null;                                  // ① 相続税評価額純資産（第5表⑤）
@@ -165,7 +167,7 @@ export function calcTable8(getField: TableProps['getField']) {
   const v5: number | null = t5['ロ'] ?? null;                  // ⑤ 株式等の帳簿価額（第5表ロを転記）
   const v6 = v4 !== null && v5 !== null ? v4 - v5 : null;       // ⑥ ④－⑤
   const v7 = v3 !== null && v6 !== null ? Math.max(0, v3 - v6) : null; // ⑦ 評価差額（負数→0）
-  const v8 = v7 !== null ? fl(v7 * CORPORATE_TAX_RATE) : null;  // ⑧ 法人税額等相当額（37％）
+  const v8 = v7 !== null ? (specialMarketValueRules ? 0 : fl(v7 * CORPORATE_TAX_RATE)) : null;  // ⑧ 法人税額等相当額
   const v9 = v3 !== null && v8 !== null ? v3 - v8 : null;       // ⑨ 修正純資産価額（③－⑧）
   const v10 = t5['⑩'] ?? null;                                 // ⑩ 発行済株式数（第5表⑩）
   const v11 = v9 !== null && v10 !== null && v10 > 0 ? fl((v9 * 1000) / v10) : null; // ⑪ 修正後1株純資産（円）
@@ -186,7 +188,7 @@ export function calcTable8(getField: TableProps['getField']) {
   const v18: number | null = num('⑱') ?? t5['イ'] ?? null;     // ⑱ 株式等の相続税評価額（第5表イ・上書き可）
   const v19: number | null = num('⑲') ?? t5['ロ'] ?? null;     // ⑲ 株式等の帳簿価額（第5表ロ・上書き可）
   const v20 = v18 !== null && v19 !== null ? Math.max(0, v18 - v19) : null; // ⑳ 評価差額（負数→0）
-  const v21 = v20 !== null ? fl(v20 * CORPORATE_TAX_RATE) : null; // ㉑ 法人税額等相当額（37％）
+  const v21 = v20 !== null ? (specialMarketValueRules ? 0 : fl(v20 * CORPORATE_TAX_RATE)) : null; // ㉑ 法人税額等相当額
   const v22 = v18 !== null && v21 !== null ? v18 - v21 : null;  // ㉒ S2純資産価額相当額（⑱－㉑）
   const v23 = t5['⑩'] ?? null;                                 // ㉓ 発行済株式数（第5表⑩）
   const v24 = v22 !== null && v23 !== null && v23 > 0 ? fl((v22 * 1000) / v23) : null; // ㉔ S2の金額（円）

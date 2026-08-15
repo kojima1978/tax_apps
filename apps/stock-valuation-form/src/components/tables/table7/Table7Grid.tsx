@@ -4,6 +4,7 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import type { TableId, TableProps } from '@/types/form';
+import { forcesSmallCompany } from '@/lib/valuationPurpose';
 
 const T = 'table7' as const;
 
@@ -270,7 +271,7 @@ export function calcTable7(getField: TableProps['getField']) {
 
   const t4 = calcTable4(getField);
   const t5 = calcTable5(getField);
-  const size = calcCompanySize((f) => getField('table1_2', f)).result;
+  const size = calcCompanySize((f) => getField('table1_2', f), forcesSmallCompany(getField)).result;
   const shin = size === null ? null : size === 4 ? 0.7 : size === 0 ? 0.5 : 0.6;
 
   // ⑴ 受取配当金等収受割合 ㋩ ＝ ㋑÷(㋑＋㋺)（小数3位未満切捨て、上限1）

@@ -2,6 +2,7 @@ import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import type { TableProps } from '@/types/form';
 import { calcShareholderJudgment } from '../Table1_1Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
+import { forcesSmallCompany } from '@/lib/valuationPurpose';
 
 const T = 'table1_2' as const;
 
@@ -58,7 +59,7 @@ function calcEmployees(g: G) {
 
 const formatEmployee = (value: number | null) => value === null ? '' : value.toFixed(1);
 
-function calc(g: G) {
+function calc(g: G, forceSmall = false) {
   const num = (f: string): number | null => {
     return parseNumber(g(f) || '');
   };
@@ -73,7 +74,7 @@ function calc(g: G) {
   const empRank = empBand === null ? null : { over35: 4, b075: 2, b060: 1, small: 0 }[empBand];
   // ㋻ = 総資産と従業員のいずれか下位、会社規模 = ㋻と㋕（取引金額）のいずれか上位。㋸70人以上は大会社。
   const wa = assetRank !== null && empRank !== null ? Math.min(assetRank, empRank) : null;
-  const result = emp !== null && emp >= 70 ? 4 : wa !== null && txRank !== null ? Math.max(wa, txRank) : null;
+  const result = forceSmall ? 0 : emp !== null && emp >= 70 ? 4 : wa !== null && txRank !== null ? Math.max(wa, txRank) : null;
   return { gyo, emp, assetRank, txRank, empBand, result };
 }
 
@@ -84,7 +85,6 @@ const isEmp70OrMore = (c: ReturnType<typeof calc>) => c.emp !== null && c.emp >=
 const assetHL = (gyo: Gyo, r: number) => (g: G) => { const c = calc(g); return !isEmp70OrMore(c) && c.gyo === gyo && c.assetRank === r; };
 const txHL = (gyo: Gyo, r: number) => (g: G) => { const c = calc(g); return !isEmp70OrMore(c) && c.gyo === gyo && c.txRank === r; };
 const empHL = (band: Band) => (g: G) => { const c = calc(g); return !isEmp70OrMore(c) && c.empBand === band; };
-const resHL = (r: number) => (g: G) => calc(g).result === r;
 const matrixResHL = (r: number) => (g: G) => { const c = calc(g); return !isEmp70OrMore(c) && c.result === r; };
 const emp70HL = (g: G) => { const e = calc(g).emp; return e !== null && e >= 70; };
 const empU70HL = (g: G) => { const e = calc(g).emp; return e !== null && e < 70; };
@@ -150,8 +150,9 @@ function isShosuOmitted(judge: ReturnType<typeof calcShareholderJudgment>): bool
  * グリッドセルを生成（罫線座標はPNGからの機械抽出）。
  * 「２．少数株式所有者の評価方式の判定」のハイライトは第1表の1の判定結果（judge）をクロージャで注入する。
  */
-function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell[] {
+function buildCells(judge: ReturnType<typeof calcShareholderJudgment>, forceSmall = false): GridCell[] {
   const omitted = isShosuOmitted(judge);
+  const resultHL = (r: number) => (g: G) => calc(g, forceSmall).result === r;
   return [
     { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '少数株式所有者の評価方式の判定', top: 14.7, left: 9.11, width: 81.42, height: 18.89 },
     { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '会社の規模（Lの割合）の判定', top: 33.82, left: 9.11, width: 81.42, height: 52.33 },
@@ -265,22 +266,22 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>): GridCell
     // ── 判定 ──
     { kind: 'label', text: '判定', forceVertical: true, top: 80.6, left: 9.11, width: 1.89, height: 5.55, align: 'center' },
     { kind: 'cell', codeLabel: 'G50', top: 80.6, left: 11, width: 1.89, height: 5.55 },
-    { field: 'k_res4', kind: 'input', readOnly: true, ariaLabel: '判定：大会社（該当時は１）', highlightWhen: resHL(4), top: 80.6, left: 12.89, width: 1.9, height: 5.55, align: 'center' },
-    { kind: 'label', text: '大　会　社', highlightWhen: resHL(4), top: 80.6, left: 14.79, width: 9.46, height: 5.55 },
+    { field: 'k_res4', kind: 'input', readOnly: true, ariaLabel: '判定：大会社（該当時は１）', highlightWhen: resultHL(4), top: 80.6, left: 12.89, width: 1.9, height: 5.55, align: 'center' },
+    { kind: 'label', text: '大　会　社', highlightWhen: resultHL(4), top: 80.6, left: 14.79, width: 9.46, height: 5.55 },
     { kind: 'label', text: '中　　会　　社', top: 80.6, left: 24.25, width: 28.41, height: 1.48 },
     { kind: 'label', text: 'Ｌ　の　割　合', top: 82.08, left: 24.25, width: 28.41, height: 1.48 },
     { kind: 'cell', codeLabel: 'G51', top: 83.56, left: 24.25, width: 1.9, height: 2.59 },
-    { field: 'k_res3', kind: 'input', readOnly: true, ariaLabel: '判定：Ｌの割合0.90（該当時は１）', highlightWhen: resHL(3), top: 83.56, left: 26.15, width: 1.89, height: 2.59, align: 'center' },
-    { kind: 'label', text: '0.90', highlightWhen: resHL(3), top: 83.56, left: 28.04, width: 5.68, height: 2.59 },
+    { field: 'k_res3', kind: 'input', readOnly: true, ariaLabel: '判定：Ｌの割合0.90（該当時は１）', highlightWhen: resultHL(3), top: 83.56, left: 26.15, width: 1.89, height: 2.59, align: 'center' },
+    { kind: 'label', text: '0.90', highlightWhen: resultHL(3), top: 83.56, left: 28.04, width: 5.68, height: 2.59 },
     { kind: 'cell', codeLabel: 'G52', top: 83.56, left: 33.72, width: 1.9, height: 2.59 },
-    { field: 'k_res2', kind: 'input', readOnly: true, ariaLabel: '判定：Ｌの割合0.75（該当時は１）', highlightWhen: resHL(2), top: 83.56, left: 35.62, width: 1.89, height: 2.59, align: 'center' },
-    { kind: 'label', text: '0.75', highlightWhen: resHL(2), top: 83.56, left: 37.51, width: 5.68, height: 2.59 },
+    { field: 'k_res2', kind: 'input', readOnly: true, ariaLabel: '判定：Ｌの割合0.75（該当時は１）', highlightWhen: resultHL(2), top: 83.56, left: 35.62, width: 1.89, height: 2.59, align: 'center' },
+    { kind: 'label', text: '0.75', highlightWhen: resultHL(2), top: 83.56, left: 37.51, width: 5.68, height: 2.59 },
     { kind: 'cell', codeLabel: 'G53', top: 83.56, left: 43.19, width: 1.89, height: 2.59 },
-    { field: 'k_res1', kind: 'input', readOnly: true, ariaLabel: '判定：Ｌの割合0.60（該当時は１）', highlightWhen: resHL(1), top: 83.56, left: 45.08, width: 1.9, height: 2.59, align: 'center' },
-    { kind: 'label', text: '0.60', highlightWhen: resHL(1), top: 83.56, left: 46.98, width: 5.68, height: 2.59 },
+    { field: 'k_res1', kind: 'input', readOnly: true, ariaLabel: '判定：Ｌの割合0.60（該当時は１）', highlightWhen: resultHL(1), top: 83.56, left: 45.08, width: 1.9, height: 2.59, align: 'center' },
+    { kind: 'label', text: '0.60', highlightWhen: resultHL(1), top: 83.56, left: 46.98, width: 5.68, height: 2.59 },
     { kind: 'cell', codeLabel: 'G54', top: 80.6, left: 52.66, width: 1.89, height: 5.55 },
-    { field: 'k_res0', kind: 'input', readOnly: true, ariaLabel: '判定：小会社（該当時は１）', highlightWhen: resHL(0), top: 80.6, left: 54.55, width: 1.9, height: 5.55, align: 'center' },
-    { kind: 'label', text: '小　会　社', highlightWhen: resHL(0), top: 80.6, left: 56.45, width: 9.46, height: 5.55 },
+    { field: 'k_res0', kind: 'input', readOnly: true, ariaLabel: '判定：小会社（該当時は１）', highlightWhen: resultHL(0), top: 80.6, left: 54.55, width: 1.9, height: 5.55, align: 'center' },
+    { kind: 'label', text: '小　会　社', highlightWhen: resultHL(0), top: 80.6, left: 56.45, width: 9.46, height: 5.55 },
     { kind: 'cell', diagonal: 'bltr', top: 80.6, left: 65.91, width: 24.62, height: 5.55 },
     // ── 4. 増（減）資の状況その他評価上の参考事項 ──
     { kind: 'label', text: '４．増（減）資の状況その他評価上の参考事項', semanticRole: 'columnheader', ariaLabel: '増減資の状況その他評価上の参考事項', top: 86.38, left: 9.11, width: 81.42, height: 1.51, align: 'left' },
@@ -295,7 +296,8 @@ export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
   const employee = calcEmployees(raw);
   // 少数株式所有者の判定（第1表の1の株主判定・役職コードと本表のj_*から算出）
   const judge = calcShareholderJudgment(getField);
-  const size = calc(raw);
+  const specialSmallCompany = forcesSmallCompany(getField);
+  const size = calc(raw, specialSmallCompany);
   // 様式の「１」記入枠: 該当時に「１」を自動表示
   const mark = (cond: boolean) => (cond ? '1' : '');
   const g = (f: string) => {
@@ -339,7 +341,7 @@ export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
       </select>
     </label>
   );
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(judge), g, u, T, onJump);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(judge, specialSmallCompany), g, u, T, onJump);
   // 「2.」欄が省略となる場合は画面上にその旨を重ね表示（印刷には出さない。様式どおり空欄のまま）
   // 座標はグリッド基準（セル外接範囲 top14.7〜94.53 / left9.11〜90.53 を0〜100%に正規化）:
   // 判定要素帯 top17.46〜33.59 → top(17.46-14.7)/79.83=3.46%, height16.13/79.83=20.2%
@@ -350,5 +352,13 @@ export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
       </span>
     </div>
   ) : null;
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} toolbar={toolbar} overlay={shosuOverlay} enterLoop={ENTER_LOOP} />;
+  const specialSmallCompanyOverlay = specialSmallCompany ? (
+    <div className="no-print" style={{ position: 'absolute', top: '82.5%', left: '51%', width: '29%', zIndex: 6, pointerEvents: 'none', display: 'flex', justifyContent: 'center' }}>
+      <span style={{ background: '#fffbeb', border: '1px solid #d97706', color: '#78350f', fontSize: 9, fontWeight: 700, padding: '2px 7px', textAlign: 'center' }}>
+        選択した通達により小会社として計算
+      </span>
+    </div>
+  ) : null;
+  const overlay = shosuOverlay || specialSmallCompanyOverlay ? <>{shosuOverlay}{specialSmallCompanyOverlay}</> : null;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} toolbar={toolbar} overlay={overlay} enterLoop={ENTER_LOOP} />;
 }

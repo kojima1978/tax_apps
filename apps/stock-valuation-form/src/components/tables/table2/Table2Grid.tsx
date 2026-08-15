@@ -4,6 +4,7 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
+import { forcesSmallCompany } from '@/lib/valuationPurpose';
 
 const T = 'table2' as const;
 
@@ -266,7 +267,7 @@ export function calcTable2(getField: TableProps['getField']) {
   // 転記元（第4表・第5表・第1表の2・第1表の1）
   const t4 = calcTable4(getField);
   const t5 = calcTable5(getField);
-  const sizeRank = calcCompanySize((f) => getField('table1_2', f)).result;
+  const sizeRank = calcCompanySize((f) => getField('table1_2', f), forcesSmallCompany(getField)).result;
 
   // 1. 比準要素数1（⑴のいずれか2が0かつ⑵の2以上が0。⑴がいずれも0なら比準要素数0=4⑵）
   // 医療法人（持分あり）は配当要素Ⓑを除いた2要素（C・D）で判定する（評価通達194-2）

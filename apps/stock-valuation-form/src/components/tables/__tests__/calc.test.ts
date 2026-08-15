@@ -7,6 +7,7 @@ import { calcTable2 } from '../table2/Table2Grid';
 import { calcTable8 } from '../table8/Table8Grid';
 import { calcTable7 } from '../table7/Table7Grid';
 import { calcTable4 } from '../table4/Table4Grid';
+import { calcClientSummary } from '@/lib/clientSummary';
 
 // 各表のフィールド値を与えると getField を返すモックビルダー（(table, field) 形式）
 type Data = Partial<Record<TableId, Record<string, string>>>;
@@ -53,6 +54,11 @@ describe('calcCompanySize（第1表の2：会社規模＝Lの割合の判定／�
   it('業種未選択なら判定不能(null)', () => {
     const c = calcCompanySize(mkG1({ f22: '600000', f24: '450000', emp_regular: '30' }));
     expect(c.result).toBeNull();
+  });
+
+  it('59－6・9－1－14の中心的同族株主等は、通常判定が大会社でも小会社として扱う', () => {
+    const c = calcCompanySize(mkG1({ gyoshu: 'その他', f22: '2000000', f24: '2000000', emp_regular: '80' }), true);
+    expect(c.result).toBe(0);
   });
 });
 
@@ -146,6 +152,25 @@ describe('calcTable5（第5表：1株当たりの純資産価額）', () => {
     expect(t5['⑨']).toBe(29000 - 4560);             // 課税時期現在の純資産 = 24440
   });
 
+  it('所得税基本通達59－6では評価差額に対する法人税額等相当額を控除しない', () => {
+    const t = calcTable5(mkGetField({
+      ...data,
+      table1_1: { ...data.table1_1, _valuation_purpose: 'special-market-value' },
+    }));
+    expect(t['⑧']).toBe(0);
+    expect(t['⑨']).toBe(29000);
+    expect(t['⑪']).toBe(29000);
+  });
+
+  it('旧9－1－14区分の保存データも共通区分として読み替える', () => {
+    const t = calcTable5(mkGetField({
+      ...data,
+      table1_1: { ...data.table1_1, _valuation_purpose: 'corporate-tax-9-1-14' },
+    }));
+    expect(t['⑧']).toBe(0);
+    expect(t['⑨']).toBe(29000);
+  });
+
   it('1株当たりの純資産価額（⑪）と株式等/土地等の集計（イ/ロ/ハ）', () => {
     expect(t5['⑩']).toBe(1000);   // 発行済株式数
     expect(t5['⑪']).toBe(24440);  // 24440千円 ×1000 ÷ 1000株
@@ -182,6 +207,45 @@ describe('calcTable2（第2表：特定の評価会社の判定／通達189）',
     const c = calcTable2(mkGetField({}));
     expect(c.j.s2).toBeNull();
     expect(c.result).toBe(0);
+  });
+});
+
+describe('calcClientSummary（お客様向けサマリー）', () => {
+  it('入力済みデータから現状指標と打ち手を生成する', () => {
+    const summary = calcClientSummary(mkGetField({
+      table1_1: { f12: 'サンプル株式会社', f13: '山田 太郎', '⑤': '1000', f63: '0', sh_1_5: '600', '⑥': '1000' },
+      table1_2: { gyoshu: 'その他', f22: '10000', f24: '5000', emp_regular: '3' },
+      table5: {
+        a_1_1: '株式', a_1_2: '60000', a_1_3: '40000', a_1_4: '株式等',
+        a_2_1: '現金', a_2_2: '40000', a_2_3: '40000',
+      },
+    }));
+
+    expect(summary.companyName).toBe('サンプル株式会社');
+    expect(summary.sizeLabel).toBe('小会社');
+    expect(summary.stockRatio).toBe(60);
+    expect(summary.current.length).toBeGreaterThan(2);
+    expect(summary.actions.some((item) => item.title === '保有株式の構成を見直す')).toBe(true);
+  });
+
+  it('主要項目が未入力なら確認事項を最優先の打ち手として示す', () => {
+    const summary = calcClientSummary(mkGetField({}));
+    expect(summary.missing).toContain('会社名');
+    expect(summary.actions[0]).toMatchObject({ priority: '高', title: '未入力項目を確定する' });
+  });
+
+  it('類似業種比準の各要素が1円増加した場合の影響度を算定する', () => {
+    const summary = calcClientSummary(mkGetField({
+      table1_1: { '⑤': '1000', f63: '0' },
+      table1_2: { gyoshu: 'その他', f22: '10000', f24: '5000', emp_regular: '3' },
+      table4: {
+        '①': '50', '㋷': '300',
+        r1sB1: '10', r1sB2: '0', r1sC: '20', r1sD: '40',
+      },
+    }));
+
+    expect(summary.sensitivity.adoptedBlock).toBe('第1業種目');
+    expect(summary.sensitivity.items.map((item) => item.value)).toEqual([5, 2.5, 1.25]);
   });
 });
 
@@ -224,6 +288,16 @@ describe('calcTable8（第8表：S1の続き・S2・株式の価額／第5表と
     expect(c.v21).toBe(Math.floor(20000 * 0.38)); // 7600
     expect(c.v22).toBe(60000 - 7600);     // 52400
     expect(c.v24).toBe(52400);            // S2の金額 = 52400千円 ×1000 ÷ 1000株
+  });
+
+  it('59－6・9－1－14ではS1修正・S2でも法人税額等相当額を控除しない', () => {
+    const special = calcTable8(mkGetField({
+      ...data,
+      table1_1: { ...data.table1_1, _valuation_purpose: 'special-market-value' },
+    }));
+    expect(special.v21).toBe(0);
+    expect(special.v22).toBe(60000);
+    expect(special.v24).toBe(60000);
   });
 
   it('株式等に係る評価差額が負数のときは0（通達の留意点）', () => {

@@ -1,6 +1,7 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { companyFloatBox } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
+import { getValuationPurpose, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
 
 const T = 'table5' as const;
 
@@ -309,7 +310,10 @@ export function calcTable5(getField: TableProps['getField']) {
   const netEval = Math.max(0, assetEval - liabilityEval);
   const netBook = Math.max(0, assetBook + applicableInKindDifference - liabilityBook);
   const evaluationDifference = Math.max(0, netEval - netBook);
-  const corporateTaxEquivalent = Math.floor(evaluationDifference * CORPORATE_TAX_RATE);
+  const specialMarketValueRules = usesSpecialMarketValueRules(getField);
+  const corporateTaxEquivalent = specialMarketValueRules
+    ? 0
+    : Math.floor(evaluationDifference * CORPORATE_TAX_RATE);
   const currentNet = netEval - corporateTaxEquivalent;
 
   const issuedShares = parseNum(
@@ -358,6 +362,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   const pageCount = pageCountOf(getField);
   const totalRows = totalRowsOf(pageCount);
   const calculated = calcTable5(getField);
+  const purpose = getValuationPurpose(getField);
 
   const g = (f: string) => {
     if (COMPUTED_FIELDS.has(f)) {
@@ -474,6 +479,11 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
       <button type="button" onClick={removePage} disabled={!canRemovePage} title={canRemovePage ? '続紙を削除' : '続紙はありません'} style={btnStyle(canRemovePage)}>削除</button>
     </span>
   );
+  const specialRuleNotice = purpose === 'inheritance' ? null : (
+    <span className="no-print" role="note" style={{ marginLeft: 6, padding: '1px 5px', border: '1px solid #d97706', background: '#fffbeb', color: '#78350f', fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap' }}>
+      所基通59－6(4)／法基通9－1－14(3)：法人税額等相当額を控除しない
+    </span>
+  );
   // 行操作は「１．資産及び負債の金額」の帯の上に重ねて表示
   const rowOpsOverlay = (
     <div className="no-print" style={{ position: 'absolute', top: 0, right: '0.6%', height: '2.05%', display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, whiteSpace: 'nowrap', background: 'transparent', padding: '0 3px' }}>
@@ -507,7 +517,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
               title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書"
               formCode="NTA0VNA220010010"
               headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33, onJump })}
-              toolbar={pageToolbar}
+              toolbar={<>{pageToolbar}{specialRuleNotice}</>}
               overlay={rowOpsOverlay}
               onJump={jump}
             />
