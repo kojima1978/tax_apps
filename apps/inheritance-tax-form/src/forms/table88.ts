@@ -5,9 +5,12 @@
  * 第5表・第6表・第7表と同じく1つの組み立て（`section`）に諸元を渡して2回呼ぶ。
  * 1枚に2人分。枚数は表全体で1つ（共通欄 `t88Pages`）で、件数からは導出しない。
  *
- * 1の①②は第6表、③は第7表からの転記なので自動計算。④（第8表）と2の①〜⑦
- * （第8の2表〜第8の6表）は転記元が24帳票の対象外なので手入力で、
- * その様式を使っていないときは①②③も手入力に戻る（`autoCredit` / `autoSuccessive`）。
+ * 1の①②は第6表、③は第7表からの転記なので自動計算。④（第8表）は転記元が24帳票の
+ * 対象外なので手入力で、その様式を使っていないときは①②③も手入力に戻る
+ * （`autoCredit` / `autoSuccessive`）。
+ *
+ * 2は転記元（第8表2・第8の2表〜第8の6表）がどれも対象外で、金額の根拠をこのアプリでは
+ * 作れないため段ごと未対応にしてある（`unsupported`）。氏名・金額とも入力させず灰色で出す。
  *
  * 罫線の位置は様式PNG（150dpi）の実測px。
  * 上端 203.5px（被相続人欄の上辺）〜下端 1693.5px（2の（注）の下辺）、
@@ -101,10 +104,18 @@ const LEAD2 = '　この表は、次の相続税の特例の適用を受ける�
   + '⑸　医療法人の持分についての納税猶予及び免除（租税特別措置法第70条の7の12第1項）\n'
   + '⑹　特定の美術品についての納税猶予及び免除（租税特別措置法第70条の6の7第1項）\n'
   + '⑺　個人の事業用資産についての納税猶予及び免除（租税特別措置法第70条の6の10第1項）';
-const NOTE2 = '（注）　1　上記⑴〜⑺の特例又は医療法人の持分についての相続税の税額控除'
-  + '（租税特別措置法第70条の7の13第1項）のうち2以上の特例の適用を受ける人がいる場合は、'
-  + 'その人の①〜⑦欄には、第8の7表の「3　納税猶予税額等」のうち①〜⑦欄に対応する欄の金額を転記します。\n'
-  + '　　　　2　各人の⑧欄の金額を第1表のその人の「納税猶予税額⑳」欄に転記します。';
+const NOTE2: NonNullable<GridCell['numberedNotes']> = [
+  {
+    number: '1',
+    body: '上記⑴〜⑺の特例又は医療法人の持分についての相続税の税額控除'
+      + '（租税特別措置法第70条の7の13第1項）のうち2以上の特例の適用を受ける人がいる場合は、'
+      + 'その人の①〜⑦欄には、第8の7表の「3　納税猶予税額等」のうち①〜⑦欄に対応する欄の金額を転記します。',
+  },
+  {
+    number: '2',
+    body: '各人の⑧欄の金額を第1表のその人の「納税猶予税額⑳」欄に転記します。',
+  },
+];
 
 const ROWS2 = [
   '農地等納税猶予税額\n（第8表2⑦）',
@@ -145,7 +156,8 @@ interface Section {
   lead: string;
   /** 説明文の文字サイズ（2は9行あるので小さくする） */
   leadSize: number;
-  note: string;
+  /** （注）。番号付きのものは配列で渡すとぶら下げ字下げになる */
+  note: string | NonNullable<GridCell['numberedNotes']>;
   /** 行見出し（丸番号は並び順に振る） */
   labels: readonly string[];
   /** Eコード（氏名欄）の起点 */
@@ -154,6 +166,11 @@ interface Section {
   gBase: number;
   /** 行ごとの保存先（'c'＝手入力／'t'＝自動計算）。呼び出し時に転記元の様式の有無で決まる */
   scope: (i: number) => string;
+  /**
+   * 段ごと未対応（＝この段に必要な様式をこのアプリで作れない）。
+   * 中途半端に手入力させると根拠の無い数字が申告書に載るので、氏名も金額も入力させず灰色にする。
+   */
+  unsupported?: boolean;
   y: SectionY;
 }
 
@@ -172,6 +189,7 @@ function nameRows(s: Section, common: string, page: number, options: GridCell['o
         ariaLabel: `${j + 1}人目の氏名`,
         options,
         align: 'left',
+        readOnly: s.unsupported,
       }),
     ]),
   ];
@@ -195,7 +213,7 @@ function valueRows(s: Section, common: string, totals: string, page: number): Gr
             field: `${scope === 't' ? totals : common}t88${s.k}p${page}c${j}v${i + 1}`,
             ariaLabel: `${j + 1}人目の${no}${name}`,
             commaInteger: true,
-            readOnly: scope === 't',
+            readOnly: scope === 't' || s.unsupported,
           }),
         ];
       }),
@@ -214,7 +232,11 @@ function section(s: Section, common: string, totals: string, page: number, optio
 
     ...nameRows(s, common, page, options),
     ...valueRows(s, common, totals, page),
-    label(row(s.y.note[0], s.y.note[1]), col(LEFT, RIGHT), s.note, { align: 'left', fontSize: 7 }),
+    typeof s.note === 'string'
+      ? label(row(s.y.note[0], s.y.note[1]), col(LEFT, RIGHT), s.note, { align: 'left', fontSize: 7 })
+      : mk(row(s.y.note[0], s.y.note[1]), col(LEFT, RIGHT), {
+          kind: 'label', numberedNotes: s.note, align: 'left', alignItems: 'flex-start', fontSize: 7,
+        }),
   ];
 }
 
@@ -265,8 +287,9 @@ export function buildTable88(
     labels: ROWS2,
     eBase: 4,
     gBase: 11,
-    // ①〜⑦の転記元（第8表2・第8の2表〜第8の6表）はどれも対象外の様式なので手入力
+    // ①〜⑦の転記元（第8表2・第8の2表〜第8の6表）はどれも対象外の様式なので、この段は丸ごと未対応
     scope: (i) => (i === ROWS2.length - 1 ? 't' : 'c'),
+    unsupported: true,
     y: {
       head: [798.5, 832],
       lead: [832, 1005],

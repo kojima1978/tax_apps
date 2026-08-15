@@ -429,7 +429,10 @@ export function buildTable14(
     // 被相続人（第1表の氏名と同じ欄を共有する）
     label(decY, col(726.5, 898.5), '被相続人'),
     code(decY, col(898.5, 919.5), 'E01'),
-    mk(decY, col(919.5, RIGHT), { kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10 }),
+    mk(decY, col(919.5, RIGHT), {
+      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
+    }),
 
     // 1の枠（290〜985）
     mk(row(290, 397), col(LEFT, RIGHT), {}),

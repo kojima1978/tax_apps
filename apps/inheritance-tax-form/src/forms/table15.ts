@@ -234,6 +234,7 @@ export function buildTable15(
     code(row(TOP, HEAD_TOP), col(X.NAME_LC, X.DEC_C), 'E01'),
     mk(row(TOP, HEAD_TOP), col(X.DEC_C, X.MID), {
       kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
     }),
 
     // 表頭

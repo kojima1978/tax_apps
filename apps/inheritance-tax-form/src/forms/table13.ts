@@ -367,7 +367,10 @@ export function buildTable13(
     // 被相続人（第1表の氏名と同じ欄を共有する）
     label(decY, col(DEC.L, DEC.CODE), '被相続人'),
     code(decY, col(DEC.CODE, DEC.INPUT), 'E01'),
-    mk(decY, col(DEC.INPUT, X.R), { kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10 }),
+    mk(decY, col(DEC.INPUT, X.R), {
+      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
+    }),
 
     ...sectionHead(215.5, 262.5, '1　債務の明細', DEBT_LEAD),
     ...debtRows(common, page, last, whoOptions),

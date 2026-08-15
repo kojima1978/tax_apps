@@ -429,7 +429,10 @@ export function buildTable1112f1(
     mk(decY, col(X.L, DEC.L), { noBorder: true }),
     label(decY, col(DEC.L, DEC.CODE), '被相続人'),
     code(decY, col(DEC.CODE, DEC.INPUT), 'E01'),
-    mk(decY, col(DEC.INPUT, X.R), { kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10 }),
+    mk(decY, col(DEC.INPUT, X.R), {
+      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
+    }),
 
     ...(s.intro ? [label(row(s.intro[0], s.intro[1]), col(X.L, X.R), INTRO, { align: 'left', fontSize: 7 })] : []),
     ...agreeRows(ctx, s, sheet),

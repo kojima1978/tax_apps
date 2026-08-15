@@ -240,7 +240,10 @@ export function buildTable11(common: string, people: Table11Person[], detail = f
     // 被相続人（第1表の氏名と同じ欄を共有する）
     label(row(110, 170.5), col(X.DEC_L, X.ALL_Y), '被相続人の氏名'),
     code(row(110, 170.5), col(X.ALL_Y, X.E_R), 'E01'),
-    mk(row(110, 170.5), col(X.E_R, X.DEC_R), { kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10 }),
+    mk(row(110, 170.5), col(X.E_R, X.DEC_R), {
+      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
+    }),
 
     notes(row(179, 302.5), TABLE11_LEAD),
 

@@ -314,6 +314,7 @@ export function buildTable1112f1b(
     code(row(182, 210.5), col(925, 955), 'E01'),
     mk(row(182, 210.5), col(955, RIGHT), {
       kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
     }),
 
     label(row(210.5, 304.5), col(LEFT, RIGHT), INTRO, { align: 'left', fontSize: 6.5 }),

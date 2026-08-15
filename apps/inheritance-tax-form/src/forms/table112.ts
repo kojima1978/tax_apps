@@ -144,7 +144,10 @@ function headRows(common: string, p: string, who: string): GridCell[] {
     // 被相続人（第1表の氏名と同じ欄を共有する）
     label(row(202.5, 240.5), col(X.DEC_L, X.C5_R), '被相続人'),
     code(row(202.5, 240.5), col(X.C5_R, X.G6_C), 'E01'),
-    mk(row(202.5, 240.5), col(X.G6_C, X.R), { kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10 }),
+    mk(row(202.5, 240.5), col(X.G6_C, X.R), {
+      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
+    }),
 
     notes(row(240.5, 278.5), LEAD),
 

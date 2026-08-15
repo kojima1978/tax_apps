@@ -214,14 +214,12 @@ interface PageProps {
   page: number;
   g: (field: string) => string;
   u: (field: string, value: string) => void;
-}
-
-interface ContPageProps extends PageProps {
+  /** 転記欄（被相続人の氏名など）のクリックで入力元の様式へ移る */
   onNavigate: (formId: string) => void;
 }
 
 /** 第1表（続）1枚（財産を取得した人2人分） */
-function ContPage({ page, g, u, onNavigate }: ContPageProps) {
+function ContPage({ page, g, u, onNavigate }: PageProps) {
   const a = 1 + page * 2;
   const b = a + 1;
   const cells = useMemo(() => {
@@ -258,7 +256,7 @@ interface Table11PageProps extends PageProps {
 }
 
 /** 第11表1枚（財産を取得した人10人分） */
-function Table11Page({ page, g, u, detail }: Table11PageProps) {
+function Table11Page({ page, g, u, detail, onNavigate }: Table11PageProps) {
   const cells = useMemo(
     () => buildTable11(COMMON, Array.from({ length: TABLE11_ROWS }, (_, i) => {
       const index = page * TABLE11_ROWS + i;
@@ -277,6 +275,7 @@ function Table11Page({ page, g, u, detail }: Table11PageProps) {
         subtitle={TABLE11_SUBTITLE}
         aspectRatio="1073 / 1579"
         formId={`t11p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" />}
       />
     </div>
@@ -291,7 +290,7 @@ interface Table112PageProps extends PageProps {
 }
 
 /** 第11の2表1枚（1人分・年分6行＋財産の明細6行） */
-function Table112Page({ heir, page, last, g, u }: Table112PageProps) {
+function Table112Page({ heir, page, last, g, u, onNavigate }: Table112PageProps) {
   const cells = useMemo(
     () => buildTable112(COMMON, heirPrefix(heir), heirLabel(heir), page, last),
     [heir, page, last],
@@ -307,6 +306,7 @@ function Table112Page({ heir, page, last, g, u }: Table112PageProps) {
         subtitle={TABLE112_SUBTITLE}
         aspectRatio="1167.5 / 1420"
         formId={`t112h${heir}p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" />}
       />
     </div>
@@ -316,8 +316,6 @@ function Table112Page({ heir, page, last, g, u }: Table112PageProps) {
 interface Table4PageProps extends PageProps {
   /** 氏名の選択肢（項番を値に、氏名を表示に持つ） */
   whoOptions: GridCell['options'];
-  /** 読み取り専用の転記欄から転記元の様式へ移動する */
-  onNavigate: (formId: string) => void;
 }
 
 /** 第4表1枚（加算の対象となる人4人分） */
@@ -370,7 +368,7 @@ interface Table9PageProps extends PageProps {
 }
 
 /** 第9表1枚（保険金の明細5件・相続人5人分） */
-function Table9Page({ page, last, whoOptions, g, u }: Table9PageProps) {
+function Table9Page({ page, last, whoOptions, g, u, onNavigate }: Table9PageProps) {
   const cells = useMemo(
     () => buildTable9(COMMON, TOTALS, page, last, whoOptions),
     [page, last, whoOptions],
@@ -386,6 +384,7 @@ function Table9Page({ page, last, whoOptions, g, u }: Table9PageProps) {
         subtitle={TABLE9_SUBTITLE}
         aspectRatio={TABLE9_ASPECT}
         formId={`t9p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" edition={TABLE9_EDITION} />}
       />
     </div>
@@ -393,7 +392,7 @@ function Table9Page({ page, last, whoOptions, g, u }: Table9PageProps) {
 }
 
 /** 第10表1枚（退職手当金などの明細5件・相続人5人分）。構成は第9表と同じ */
-function Table10Page({ page, last, whoOptions, g, u }: Table9PageProps) {
+function Table10Page({ page, last, whoOptions, g, u, onNavigate }: Table9PageProps) {
   const cells = useMemo(
     () => buildTable10(COMMON, TOTALS, page, last, whoOptions),
     [page, last, whoOptions],
@@ -409,6 +408,7 @@ function Table10Page({ page, last, whoOptions, g, u }: Table9PageProps) {
         subtitle={TABLE10_SUBTITLE}
         aspectRatio={TABLE10_ASPECT}
         formId={`t10p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" edition={TABLE10_EDITION} />}
       />
     </div>
@@ -423,7 +423,7 @@ interface Table13PageProps extends PageProps {
 }
 
 /** 第13表1枚（債務4件・葬式費用5件・承継した人4人分） */
-function Table13Page({ page, last, whoOptions, g, u }: Table13PageProps) {
+function Table13Page({ page, last, whoOptions, g, u, onNavigate }: Table13PageProps) {
   const cells = useMemo(
     () => buildTable13(COMMON, TOTALS, Array.from({ length: TABLE13_PERSONS }, (_, i) => {
       const index = page * TABLE13_PERSONS + i;
@@ -442,6 +442,7 @@ function Table13Page({ page, last, whoOptions, g, u }: Table13PageProps) {
         subtitle={TABLE13_SUBTITLE}
         aspectRatio={TABLE13_ASPECT}
         formId={`t13p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" edition={TABLE13_EDITION} />}
       />
     </div>
@@ -449,7 +450,7 @@ function Table13Page({ page, last, whoOptions, g, u }: Table13PageProps) {
 }
 
 /** 第14表1枚（1の明細4件・④4人分・2と3の明細2件ずつ） */
-function Table14Page({ page, last, whoOptions, g, u }: Table13PageProps) {
+function Table14Page({ page, last, whoOptions, g, u, onNavigate }: Table13PageProps) {
   const cells = useMemo(() => buildTable14(COMMON, TOTALS, page, last, whoOptions), [page, last, whoOptions]);
   return (
     <div className="gov-page">
@@ -462,6 +463,7 @@ function Table14Page({ page, last, whoOptions, g, u }: Table13PageProps) {
         subtitle={TABLE14_SUBTITLE}
         aspectRatio={TABLE14_ASPECT}
         formId={`t14p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" edition={TABLE14_EDITION} />}
       />
     </div>
@@ -469,7 +471,6 @@ function Table14Page({ page, last, whoOptions, g, u }: Table13PageProps) {
 }
 
 interface Table88PageProps extends PageProps {
-  onNavigate: (formId: string) => void;
   /** 「氏名」の選択肢（項番を値に、氏名を表示に持つ） */
   whoOptions: GridCell['options'];
   /** 第6表を使っているか（1の①②が転記になり読み取り専用になる） */
@@ -508,7 +509,7 @@ interface Table15ContPageProps extends PageProps {
 }
 
 /** 第15表（続）1枚（財産を取得した人2人分。1人目は第15表の右列に載るので2人目から） */
-function Table15ContPage({ page, g, u, t15Transferred }: Table15ContPageProps) {
+function Table15ContPage({ page, g, u, t15Transferred, onNavigate }: Table15ContPageProps) {
   const a = 1 + page * TABLE15CONT_PERSONS;
   const b = a + 1;
   const cells = useMemo(
@@ -529,6 +530,7 @@ function Table15ContPage({ page, g, u, t15Transferred }: Table15ContPageProps) {
         subtitle={TABLE15CONT_SUBTITLE}
         aspectRatio={TABLE15_ASPECT}
         formId={`t15c${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" edition={TABLE15_EDITION} />}
       />
     </div>
@@ -545,10 +547,12 @@ interface Table1112f1PageProps {
   /** 明細ごとに別表1と結び付いているか。'0'/'1' の並びにして useMemo を効かせる */
   linkedMask: string;
   whoOptions: GridCell['options'];
+  /** 転記欄（被相続人の氏名など）のクリックで入力元の様式へ移る */
+  onNavigate: (formId: string) => void;
 }
 
 /** 第11・11の2表の付表1／（続）1枚 */
-function Table1112f1Page({ sheet, rows, linkedMask, whoOptions, g, u }: Table1112f1PageProps) {
+function Table1112f1Page({ sheet, rows, linkedMask, whoOptions, g, u, onNavigate }: Table1112f1PageProps) {
   const first = table1112f1First(sheet);
   const cells = useMemo(
     () => buildTable1112f1(COMMON, TOTALS, sheet, Array.from({ length: rows }, (_, i) => ({
@@ -570,6 +574,7 @@ function Table1112f1Page({ sheet, rows, linkedMask, whoOptions, g, u }: Table111
         subtitle={sheet === 0 ? TABLE1112F1_SUBTITLE : TABLE1112F1C_SUBTITLE}
         aspectRatio={table1112f1Aspect(sheet)}
         formId={`t1112f1s${sheet}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" edition={TABLE1112F1_EDITION} />}
       />
     </div>
@@ -582,10 +587,12 @@ interface Table1112f1bPageProps {
   /** 何枚目（＝一の宅地等の何件目）か */
   sheet: number;
   whoOptions: GridCell['options'];
+  /** 転記欄（被相続人の氏名など）のクリックで入力元の様式へ移る */
+  onNavigate: (formId: string) => void;
 }
 
 /** 第11・11の2表の付表1（別表1）1枚（一の宅地等1件・取得者2人分） */
-function Table1112f1bPage({ sheet, whoOptions, g, u }: Table1112f1bPageProps) {
+function Table1112f1bPage({ sheet, whoOptions, g, u, onNavigate }: Table1112f1bPageProps) {
   const cells = useMemo(
     () => buildTable1112f1b(COMMON, TOTALS, detailPrefix('table1112f1b', sheet), sheet, whoOptions),
     [sheet, whoOptions],
@@ -601,6 +608,7 @@ function Table1112f1bPage({ sheet, whoOptions, g, u }: Table1112f1bPageProps) {
         subtitle={TABLE1112F1B_SUBTITLE}
         aspectRatio={TABLE1112F1B_ASPECT}
         formId={`t1112f1b${sheet}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" edition={TABLE1112F1_EDITION} />}
       />
     </div>
@@ -612,7 +620,7 @@ interface DetailPageProps extends PageProps {
 }
 
 /** 付表（財産の明細書）1枚（財産8件分） */
-function DetailPage({ form, page, g, u }: DetailPageProps) {
+function DetailPage({ form, page, g, u, onNavigate }: DetailPageProps) {
   const { spec, share } = DETAIL_SPECS[form];
   const cells = useMemo(
     () => buildDetail(spec, share, COMMON, Array.from({ length: DETAIL_GROUPS }, (_, i) => {
@@ -632,6 +640,7 @@ function DetailPage({ form, page, g, u }: DetailPageProps) {
         subtitle={spec.subtitle}
         aspectRatio={detailAspect(spec)}
         formId={`${form}p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes="" />}
       />
     </div>
@@ -969,7 +978,7 @@ export default function App() {
         {Array.from({ length: t9Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
             <PageControl page={page + 1} total={t9Pages} onDecrease={() => u('t9Pages', String(t9Pages - 1))} onIncrease={() => u('t9Pages', String(t9Pages + 1))} decreaseDisabled={t9Pages <= 1} increaseDisabled={t9Pages >= MAX_TABLE9_PAGES} detail={`保険金${TABLE9_ROWS}件・相続人${TABLE9_ROWS}人／ページ`} />
-            <Table9Page page={page} last={page === t9Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+            <Table9Page page={page} last={page === t9Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
       </>
@@ -979,13 +988,13 @@ export default function App() {
         {Array.from({ length: t10Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
             <PageControl page={page + 1} total={t10Pages} onDecrease={() => u('t10Pages', String(t10Pages - 1))} onIncrease={() => u('t10Pages', String(t10Pages + 1))} decreaseDisabled={t10Pages <= 1} increaseDisabled={t10Pages >= MAX_TABLE10_PAGES} detail={`退職手当金${TABLE10_ROWS}件・相続人${TABLE10_ROWS}人／ページ`} />
-            <Table10Page page={page} last={page === t10Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+            <Table10Page page={page} last={page === t10Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
       </>
     ),
     table11: Array.from({ length: table11Pages }, (_, page) => (
-      <Table11Page key={page} page={page} g={g} u={u} detail={detailUsed} />
+      <Table11Page key={page} page={page} g={g} u={u} detail={detailUsed} onNavigate={setActive} />
     )),
     // 第11の2表は贈与を受けた人ごとに1枚以上。記入が1つも無い人の分は印刷しない。
     table112: data.heirs.map((heir, i) => {
@@ -996,7 +1005,7 @@ export default function App() {
           {Array.from({ length: sheets }, (_, page) => (
             <div key={page} className="app-page-with-control">
               <PageControl page={page + 1} total={sheets} onDecrease={() => setSheets(sheets - 1)} onIncrease={() => setSheets(sheets + 1)} decreaseDisabled={sheets <= 1} increaseDisabled={sheets >= MAX_TABLE112_PAGES} detail={`${heirLabel(i)}・年分${TABLE112_ROWS}行／ページ`} />
-              <Table112Page heir={i} page={page} last={page === sheets - 1} g={g} u={u} />
+              <Table112Page heir={i} page={page} last={page === sheets - 1} g={g} u={u} onNavigate={setActive} />
             </div>
           ))}
         </div>
@@ -1019,6 +1028,7 @@ export default function App() {
           whoOptions={whoOptions}
           g={g}
           u={u}
+          onNavigate={setActive}
         />
         {/* 明細と別表1の対応づけ。選ぶと③④が別表1から転記されて読み取り専用になる */}
         <div className="app-linkctl no-print">
@@ -1059,6 +1069,7 @@ export default function App() {
             whoOptions={whoOptions}
             g={g}
             u={u}
+            onNavigate={setActive}
           />
         </div>
       );
@@ -1068,7 +1079,7 @@ export default function App() {
         {Array.from({ length: f1bCount }, (_, sheet) => (
           <div key={sheet} className="app-page-with-control">
             <PageControl page={sheet + 1} total={f1bCount} onDecrease={() => setDetailCount('table1112f1b', f1bCount - 1)} onIncrease={() => setDetailCount('table1112f1b', f1bCount + 1)} decreaseDisabled={f1bCount <= 1} detail={`一の宅地等 ${f1bCount}件`} />
-            <Table1112f1bPage sheet={sheet} whoOptions={whoOptions} g={g} u={u} />
+            <Table1112f1bPage sheet={sheet} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
       </>
@@ -1078,7 +1089,7 @@ export default function App() {
         {Array.from({ length: t13Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
             <PageControl page={page + 1} total={t13Pages} onDecrease={() => u('t13Pages', String(t13Pages - 1))} onIncrease={() => u('t13Pages', String(t13Pages + 1))} decreaseDisabled={t13Pages <= Math.max(1, Math.ceil(data.heirs.length / TABLE13_PERSONS))} increaseDisabled={t13Pages >= MAX_TABLE13_PAGES} detail={`債務${TABLE13_DEBT_ROWS}件・葬式費用${TABLE13_FUNERAL_ROWS}件／ページ`} />
-            <Table13Page page={page} last={page === t13Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+            <Table13Page page={page} last={page === t13Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
       </>
@@ -1088,7 +1099,7 @@ export default function App() {
         {Array.from({ length: t14Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
             <PageControl page={page + 1} total={t14Pages} onDecrease={() => u('t14Pages', String(t14Pages - 1))} onIncrease={() => u('t14Pages', String(t14Pages + 1))} decreaseDisabled={t14Pages <= 1} increaseDisabled={t14Pages >= MAX_TABLE14_PAGES} detail={`贈与${TABLE14_GIFT_ROWS}件・遺贈${TABLE14_BEQUEST_ROWS}件・寄附${TABLE14_DONATION_ROWS}件／ページ`} />
-            <Table14Page page={page} last={page === t14Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+            <Table14Page page={page} last={page === t14Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
       </>
@@ -1109,14 +1120,14 @@ export default function App() {
       </div>
     ),
     table15cont: Array.from({ length: t15ContPages }, (_, page) => (
-      <Table15ContPage key={page} page={page} g={g} u={u} t15Transferred={t15Transferred} />
+      <Table15ContPage key={page} page={page} g={g} u={u} t15Transferred={t15Transferred} onNavigate={setActive} />
     )),
     ...Object.fromEntries(DETAIL_FORMS.map((id) => [id, (
       <>
         {Array.from({ length: detailPages(id) }, (_, page) => (
           <div key={page} className="app-page-with-control">
             <PageControl page={page + 1} total={detailPages(id)} onDecrease={() => removeDetailPage(id, DETAIL_GROUPS)} onIncrease={() => addDetailPage(id, DETAIL_GROUPS)} decreaseDisabled={detailPages(id) <= 1} detail={`財産${DETAIL_GROUPS}件／ページ`} />
-            <DetailPage form={id} page={page} g={g} u={u} />
+            <DetailPage form={id} page={page} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
       </>

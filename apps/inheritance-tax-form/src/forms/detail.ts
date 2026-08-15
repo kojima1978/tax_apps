@@ -268,6 +268,7 @@ export function buildDetail(
     code(nameY, s.col(codeL, codeR), 'E01'),
     mk(nameY, s.col(codeR, nameR), {
       kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left',
+      readOnly: true, navigateToForm: 'table1',
     }),
     mk(nameY, s.col(nameR, f.right), { noBorder: true }),
     mk(s.row(f.name[1], f.lead[0]), s.col(f.left, f.right), { noBorder: true }),
