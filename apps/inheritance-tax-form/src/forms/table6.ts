@@ -113,16 +113,16 @@ const LEAD2 = '（この表は、相続、遺贈や相続時精算課税に係�
 const BALANCE = '（⑨＋⑪−⑫−⑬）\n又は（⑩＋⑪−⑫−⑬）';
 const BALANCE2 = '（⑨＋⑪−⑫−⑬）−第8の8表1の①\n又は（⑩＋⑪−⑫−⑬）−第8の8表1の①';
 
-const NOTES1 = '（注）　1　過去に未成年者控除の適用を受けた人は、控除額が制限されることがありますので、'
-  + '「相続税の申告のしかた」をご覧ください。\n'
-  + '　　　　2　②欄の金額と③欄の金額のいずれか少ない方の金額を、第8の8表1のその未成年者の'
-  + '「未成年者控除額①」欄に転記します。\n'
-  + '　　　　3　②欄の金額が③欄の金額を超える人は、その超える金額（②−③の金額）を次の④欄に記入します。';
-const NOTES2 = '（注）　1　過去に障害者控除の適用を受けた人の控除額は、②欄により計算した金額とは異なりますので、'
-  + '税務署にお尋ねください。\n'
-  + '　　　　2　②欄の金額と③欄の金額のいずれか少ない方の金額を、第8の8表1のその障害者の'
-  + '「障害者控除額②」欄に転記します。\n'
-  + '　　　　3　②欄の金額が③欄の金額を超える人は、その超える金額（②−③の金額）を次の④欄に記入します。';
+const NOTES1: NonNullable<GridCell['numberedNotes']> = [
+  { number: '1', body: '過去に未成年者控除の適用を受けた人は、控除額が制限されることがありますので、「相続税の申告のしかた」をご覧ください。' },
+  { number: '2', body: '②欄の金額と③欄の金額のいずれか少ない方の金額を、第8の8表1のその未成年者の「未成年者控除額①」欄に転記します。' },
+  { number: '3', body: '②欄の金額が③欄の金額を超える人は、その超える金額（②−③の金額）を次の④欄に記入します。' },
+];
+const NOTES2: NonNullable<GridCell['numberedNotes']> = [
+  { number: '1', body: '過去に障害者控除の適用を受けた人の控除額は、②欄により計算した金額とは異なりますので、税務署にお尋ねください。' },
+  { number: '2', body: '②欄の金額と③欄の金額のいずれか少ない方の金額を、第8の8表1のその障害者の「障害者控除額②」欄に転記します。' },
+  { number: '3', body: '②欄の金額が③欄の金額を超える人は、その超える金額（②−③の金額）を次の④欄に記入します。' },
+];
 
 /** 全角空白1つ（テンプレートリテラルに直接書くと no-irregular-whitespace に引っかかる） */
 const INDENT = '　';
@@ -176,7 +176,7 @@ interface Block {
   formulas: readonly [string, string, string];
   /** ③の算式（第8の8表1を引くかどうか） */
   balance: string;
-  notes: string;
+  notes: NonNullable<GridCell['numberedNotes']>;
   /** ⑥の下の（注） */
   note6: string;
   /** 区分見出し行を出すか（障害者だけ） */
@@ -212,6 +212,8 @@ interface ValueRowOptions {
   heading: string;
   /** 見出しの文字サイズ（③⑤は行数が多いので小さくする） */
   fontSize?: number;
+  /** 行見出しの文字揃え */
+  headingAlign?: GridCell['align'];
   gBase: number;
   /** 列ごとのフィールド */
   field: (i: number) => string;
@@ -227,12 +229,19 @@ interface ValueRowOptions {
 }
 
 function valueRow({
-  y, no, heading, fontSize, gBase, field, totalField, who, name, editable, markA,
+  y, no, heading, fontSize, headingAlign, gBase, field, totalField, who, name, editable, markA,
 }: ValueRowOptions): GridCell[] {
   const totalLeft = markA === true ? TX.ACODE : TX.LEFT;
   return [
-    label(y, col(LEFT, HX.LBL), heading, fontSize === undefined ? {} : { fontSize }),
-    label(y, col(HX.LBL, HX.NUM), no, { fontSize: 10, semanticRole: 'rowheader' }),
+    label(y, col(LEFT, HX.LBL), heading, {
+      ...(fontSize === undefined ? {} : { fontSize }),
+      ...(headingAlign === undefined ? {} : { align: headingAlign }),
+    }),
+    label(y, col(HX.LBL, HX.NUM), no, {
+      fontSize: 10,
+      semanticRole: 'rowheader',
+      ...(no === '③' ? { align: 'center' as const } : {}),
+    }),
     ...COLS.flatMap((c, i): GridCell[] => [
       code(y, col(c.code, c.left), cd('G', gBase + i)),
       mk(y, col(c.left, c.right), {
@@ -257,7 +266,7 @@ function creditRows(b: Block, common: string, totals: string): GridCell[] {
   const p = (i: number) => `${common}t6${b.k}${i}`;
   return [
     // ① 年齢（1年未満切捨て）— 生年月日を持っていないので手入力
-    label(age, col(LEFT, HX.LBL), '年齢（1年未満切捨て）'),
+    label(age, col(LEFT, HX.LBL), '年齢\n（1年未満切捨て）'),
     label(age, col(HX.LBL, HX.NUM), '①', { fontSize: 10, semanticRole: 'rowheader' }),
     ...COLS.flatMap((c, i): GridCell[] => [
       code(age, col(c.code, c.left), cd('G', b.gBase + i)),
@@ -270,7 +279,7 @@ function creditRows(b: Block, common: string, totals: string): GridCell[] {
 
     // ② 控除額 — 上段に算式、下段に「＝」と金額（末尾の「0,000」は様式に印字済み）
     label(all, col(LEFT, HX.LBL), `${b.who}控除額(円)`),
-    label(all, col(HX.LBL, HX.NUM), '②', { fontSize: 10, semanticRole: 'rowheader' }),
+    label(all, col(HX.LBL, HX.NUM), '②', { fontSize: 10, semanticRole: 'rowheader', align: 'center' }),
     ...COLS.flatMap((c, i): GridCell[] => [
       label(upper, col(c.code, c.fCode), b.formulas[i] ?? '', { align: 'right', fontSize: 7.5 }),
       code(upper, col(c.fCode, c.fVal), cd('G', b.gBase + 3 + i)),
@@ -317,15 +326,20 @@ function block(b: Block, common: string, totals: string, options: GridCell['opti
     ...valueRow({
       y: row(y.tax[0], y.tax[1]),
       no: '③',
-      heading: `${b.who}の第1表の\n${b.balance}\nの相続税額(円)`,
+      heading: b.who === '未成年者'
+        ? '未成年者の第1表の\n（⑨＋⑪−⑫−⑬） 又は\n（⑩＋⑪−⑫−⑬） の\n相続税額(円)'
+        : `${b.who}の第1表の\n${b.balance}\nの相続税額(円)`,
       fontSize: 7.5,
+      headingAlign: b.who === '未成年者' ? 'left' : undefined,
       gBase: b.gBase + 10,
       field: (i) => `${totals}t6${b.k}${i}v3`,
       totalField: `${totals}t6${b.k}T3`,
       who: b.who,
       name: '第1表の相続税額',
     }),
-    label(row(y.notes[0], y.notes[1]), col(LEFT, RIGHT), b.notes, { align: 'left', fontSize: 7 }),
+    mk(row(y.notes[0], y.notes[1]), col(LEFT, RIGHT), {
+      kind: 'label', numberedNotes: b.notes, align: 'left', alignItems: 'flex-start', fontSize: 7,
+    }),
 
     ...valueRow({
       y: row(y.left[0], y.left[1]),
@@ -347,7 +361,9 @@ function block(b: Block, common: string, totals: string, options: GridCell['opti
     ...valueRow({
       y: row(y.tax5[0], y.tax5[1]),
       no: '⑤',
-      heading: `扶養義務者の第1表の\n${b.balance}\nの相続税額(円)`,
+      heading: b.who === '未成年者'
+        ? '扶養義務者の第1表の\n（⑨＋⑪−⑫−⑬）又は\n（⑩＋⑪−⑫−⑬） の\n相続税額(円)'
+        : `扶養義務者の第1表の\n${b.balance}\nの相続税額(円)`,
       fontSize: 7.5,
       gBase: b.gBase + 18,
       field: (i) => `${totals}t6${b.k}f${i}v5`,
