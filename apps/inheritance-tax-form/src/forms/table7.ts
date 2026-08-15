@@ -154,6 +154,61 @@ const TAX_OFFICE_GROUPS: NonNullable<GridCell['optionGroups']> = TAX_OFFICE_PREF
     .map((office) => ({ value: office.name, label: office.name })),
 }));
 
+const ERA_START_YEARS: Readonly<Record<string, number>> = {
+  '1': 1868,
+  '2': 1912,
+  '3': 1926,
+  '4': 1989,
+  '5': 2019,
+};
+
+interface EraDateParts {
+  era: string;
+  year: string;
+  month: string;
+  day: string;
+}
+
+/** 元号付き年月日を比較し、current が previous より後なら true。未入力・不正日は比較しない。 */
+export function isCurrentInheritanceAfterPrevious(current: EraDateParts, previous: EraDateParts): boolean {
+  const toOrdinal = ({ era, year, month, day }: EraDateParts): number | undefined => {
+    const eraStart = ERA_START_YEARS[era];
+    const eraYear = Number(year);
+    const monthNumber = Number(month);
+    const dayNumber = Number(day);
+    if (eraStart === undefined || !Number.isInteger(eraYear) || eraYear < 1
+      || !Number.isInteger(monthNumber) || !Number.isInteger(dayNumber)) return undefined;
+
+    const gregorianYear = eraStart + eraYear - 1;
+    const date = new Date(Date.UTC(gregorianYear, monthNumber - 1, dayNumber));
+    if (date.getUTCFullYear() !== gregorianYear
+      || date.getUTCMonth() !== monthNumber - 1
+      || date.getUTCDate() !== dayNumber) return undefined;
+    return gregorianYear * 10000 + monthNumber * 100 + dayNumber;
+  };
+
+  const currentOrdinal = toOrdinal(current);
+  const previousOrdinal = toOrdinal(previous);
+  return currentOrdinal !== undefined && previousOrdinal !== undefined && currentOrdinal > previousOrdinal;
+}
+
+function dateComparisonError(g: (field: string) => string, common: string): boolean {
+  return isCurrentInheritanceAfterPrevious(
+    {
+      era: g(`${common}startEra`),
+      year: g(`${common}startY`),
+      month: g(`${common}startM`),
+      day: g(`${common}startD`),
+    },
+    {
+      era: g(`${common}t7pEra`),
+      year: g(`${common}t7pY`),
+      month: g(`${common}t7pM`),
+      day: g(`${common}t7pD`),
+    },
+  );
+}
+
 /** 元号・年・月・日の帯（①②で割付が同じ） */
 function dateBand(x: readonly [number, number, number, number, number]): GridCell[] {
   return [
@@ -171,6 +226,7 @@ function dateBand(x: readonly [number, number, number, number, number]): GridCel
 function dateValues(
   x: readonly [number, number, number, number, number, number],
   p: string, who: string, readOnly: boolean,
+  validation?: Pick<GridCell, 'invalidWhen' | 'invalidMessage'>,
 ): GridCell[] {
   const y = row(Y.dateVal[0], Y.dateVal[1]);
   const era: Partial<GridCell> = readOnly
@@ -194,7 +250,9 @@ function dateValues(
     : { options: DAY_OPTIONS };
   return [
     mk(y, col(x[1], x[2]), { kind: 'input', field: `${p}Era`, ariaLabel: `${who}（元号）`, ...era }),
-    mk(y, col(x[2], x[3]), { kind: 'input', field: `${p}Y`, ariaLabel: `${who}（年）`, align: 'center', ...year }),
+    mk(y, col(x[2], x[3]), {
+      kind: 'input', field: `${p}Y`, ariaLabel: `${who}（年）`, align: 'center', ...year, ...validation,
+    }),
     mk(y, col(x[3], x[4]), { kind: 'input', field: `${p}M`, ariaLabel: `${who}（月）`, align: 'center', ...month }),
     mk(y, col(x[4], x[5]), { kind: 'input', field: `${p}D`, ariaLabel: `${who}（日）`, align: 'center', ...day }),
   ];
@@ -485,7 +543,16 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
     // ① 前の相続の年月日（手入力）
     ...dateBand([LEFT, X.ERA1, X.YEAR1, X.MONTH1, X.D1]),
     code(row(Y.dateVal[0], Y.dateVal[1]), col(LEFT, X.C1), 'N01'),
-    ...dateValues([LEFT, X.C1, X.ERA1, X.YEAR1, X.MONTH1, X.D1], `${common}t7p`, '前の相続の年月日', false),
+    ...dateValues(
+      [LEFT, X.C1, X.ERA1, X.YEAR1, X.MONTH1, X.D1],
+      `${common}t7p`,
+      '前の相続の年月日',
+      false,
+      {
+        invalidWhen: (g) => dateComparisonError(g, common),
+        invalidMessage: '②今回の相続の年月日が①前の相続の年月日より後になっています。',
+      },
+    ),
 
     // ② 今回の相続の年月日（第1表の相続開始年月日からの転記）
     ...dateBand([X.D1, X.ERA2, X.YEAR2, X.MONTH2, X.D2]),
