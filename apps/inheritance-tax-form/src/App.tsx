@@ -652,6 +652,31 @@ function loadSidebarOpen(): boolean {
   }
 }
 
+type PageControlProps = {
+  page: number;
+  total: number;
+  onDecrease: () => void;
+  onIncrease: () => void;
+  decreaseDisabled?: boolean;
+  increaseDisabled?: boolean;
+  detail?: ReactNode;
+};
+
+/** 画面上だけに表示するページ増減操作。各用紙の左上に置く。 */
+function PageControl({
+  page, total, onDecrease, onIncrease, decreaseDisabled, increaseDisabled, detail,
+}: PageControlProps) {
+  return (
+    <div className="app-pagectl no-print">
+      <span>ページ</span>
+      <button type="button" className="app-btn" onClick={onDecrease} disabled={decreaseDisabled} aria-label="ページを減らす">−</button>
+      <button type="button" className="app-btn" onClick={onIncrease} disabled={increaseDisabled} aria-label="ページを増やす">＋</button>
+      <span>{page}/{total}ページ</span>
+      {detail && <span className="app-pagectl__detail">{detail}</span>}
+    </div>
+  );
+}
+
 export default function App() {
   const {
     data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage, setDetailCount,
@@ -710,6 +735,7 @@ export default function App() {
   );
   const table5Cells = useMemo(() => buildTable5(COMMON, TOTALS), []);
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
+  const heirPages = 1 + contPages;
   const table11Pages = Math.max(1, Math.ceil(data.heirs.length / TABLE11_ROWS));
   /** 付表の枚数（明細の件数から決まる。1枚は必ず出す） */
   const detailPages = (form: string): number => Math.max(1, Math.ceil((data.details[form]?.length ?? 0) / DETAIL_GROUPS));
@@ -791,27 +817,43 @@ export default function App() {
 
   const pages: Record<string, ReactNode> = {
     table1: (
-      <div className="gov-page">
-        <GridForm
-          cells={table1Cells}
-          g={g}
-          u={u}
-          formCode={TABLE1_FORM_CODE}
-          title={TABLE1_TITLE}
-          formId="t1"
-          onNavigate={setActive}
-          footer={<Footnote notes={TABLE1_NOTES} />}
+      <>
+        <PageControl
+          page={1}
+          total={heirPages}
+          onDecrease={removeHeir}
+          onIncrease={addHeir}
+          decreaseDisabled={data.heirs.length <= 1}
+          increaseDisabled={data.heirs.length >= maxHeirs}
+          detail={`財産を取得した人 ${data.heirs.length}人`}
         />
-      </div>
+        <div className="gov-page">
+          <GridForm
+            cells={table1Cells}
+            g={g}
+            u={u}
+            formCode={TABLE1_FORM_CODE}
+            title={TABLE1_TITLE}
+            formId="t1"
+            onNavigate={setActive}
+            footer={<Footnote notes={TABLE1_NOTES} />}
+          />
+        </div>
+      </>
     ),
     table1cont: Array.from({ length: contPages }, (_, page) => (
-      <ContPage
-        key={page}
-        page={page}
-        g={g}
-        u={u}
-        onNavigate={setActive}
-      />
+      <div key={page} className="app-page-with-control">
+        <PageControl
+          page={page + 2}
+          total={heirPages}
+          onDecrease={removeHeir}
+          onIncrease={addHeir}
+          decreaseDisabled={data.heirs.length <= 1}
+          increaseDisabled={data.heirs.length >= maxHeirs}
+          detail={`財産を取得した人 ${data.heirs.length}人`}
+        />
+        <ContPage page={page} g={g} u={u} onNavigate={setActive} />
+      </div>
     )),
     table2: (
       <div className="gov-page">
@@ -837,25 +879,21 @@ export default function App() {
     table4: (
       <>
         {Array.from({ length: t4Pages }, (_, page) => (
-          <Table4Page key={page} page={page} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
+          <div key={page} className="app-page-with-control">
+            <PageControl page={page + 1} total={t4Pages} onDecrease={() => u('t4Pages', String(t4Pages - 1))} onIncrease={() => u('t4Pages', String(t4Pages + 1))} decreaseDisabled={t4Pages <= 1} increaseDisabled={t4Pages >= MAX_TABLE4_PAGES} detail={`加算の対象となる人${TABLE4_PERSONS}人／ページ`} />
+            <Table4Page page={page} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
+          </div>
         ))}
-        <div className="app-pagectl no-print">
-          <button type="button" className="app-btn" onClick={() => u('t4Pages', String(t4Pages - 1))} disabled={t4Pages <= 1}>−</button>
-          {t4Pages}枚（加算の対象となる人{TABLE4_PERSONS}人／枚）
-          <button type="button" className="app-btn" onClick={() => u('t4Pages', String(t4Pages + 1))} disabled={t4Pages >= MAX_TABLE4_PAGES}>＋</button>
-        </div>
       </>
     ),
     table42: (
       <>
         {Array.from({ length: t42Pages }, (_, page) => (
-          <Table42Page key={page} page={page} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
+          <div key={page} className="app-page-with-control">
+            <PageControl page={page + 1} total={t42Pages} onDecrease={() => u('t42Pages', String(t42Pages - 1))} onIncrease={() => u('t42Pages', String(t42Pages + 1))} decreaseDisabled={t42Pages <= 1} increaseDisabled={t42Pages >= MAX_TABLE42_PAGES} detail={`控除を受ける人${TABLE42_PERSONS}人／ページ`} />
+            <Table42Page page={page} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
+          </div>
         ))}
-        <div className="app-pagectl no-print">
-          <button type="button" className="app-btn" onClick={() => u('t42Pages', String(t42Pages - 1))} disabled={t42Pages <= 1}>−</button>
-          {t42Pages}枚（控除を受ける人{TABLE42_PERSONS}人／枚）
-          <button type="button" className="app-btn" onClick={() => u('t42Pages', String(t42Pages + 1))} disabled={t42Pages >= MAX_TABLE42_PAGES}>＋</button>
-        </div>
       </>
     ),
     table5: (
@@ -908,45 +946,38 @@ export default function App() {
     table88: (
       <>
         {Array.from({ length: t88Pages }, (_, page) => (
-          <Table88Page
-            key={page}
-            page={page}
-            whoOptions={whoOptions}
-            autoCredit={data.used.includes('table6')}
-            autoSuccessive={data.used.includes('table7')}
-            g={g}
-            u={u}
-          />
+          <div key={page} className="app-page-with-control">
+            <PageControl page={page + 1} total={t88Pages} onDecrease={() => u('t88Pages', String(t88Pages - 1))} onIncrease={() => u('t88Pages', String(t88Pages + 1))} decreaseDisabled={t88Pages <= 1} increaseDisabled={t88Pages >= MAX_TABLE88_PAGES} detail={`1・2とも${TABLE88_PERSONS}人／ページ`} />
+            <Table88Page
+              page={page}
+              whoOptions={whoOptions}
+              autoCredit={data.used.includes('table6')}
+              autoSuccessive={data.used.includes('table7')}
+              g={g}
+              u={u}
+            />
+          </div>
         ))}
-        <div className="app-pagectl no-print">
-          <button type="button" className="app-btn" onClick={() => u('t88Pages', String(t88Pages - 1))} disabled={t88Pages <= 1}>−</button>
-          {t88Pages}枚（1・2とも{TABLE88_PERSONS}人／枚）
-          <button type="button" className="app-btn" onClick={() => u('t88Pages', String(t88Pages + 1))} disabled={t88Pages >= MAX_TABLE88_PAGES}>＋</button>
-        </div>
       </>
     ),
     table9: (
       <>
         {Array.from({ length: t9Pages }, (_, page) => (
-          <Table9Page key={page} page={page} last={page === t9Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+          <div key={page} className="app-page-with-control">
+            <PageControl page={page + 1} total={t9Pages} onDecrease={() => u('t9Pages', String(t9Pages - 1))} onIncrease={() => u('t9Pages', String(t9Pages + 1))} decreaseDisabled={t9Pages <= 1} increaseDisabled={t9Pages >= MAX_TABLE9_PAGES} detail={`保険金${TABLE9_ROWS}件・相続人${TABLE9_ROWS}人／ページ`} />
+            <Table9Page page={page} last={page === t9Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+          </div>
         ))}
-        <div className="app-pagectl no-print">
-          <button type="button" className="app-btn" onClick={() => u('t9Pages', String(t9Pages - 1))} disabled={t9Pages <= 1}>−</button>
-          {t9Pages}枚（保険金{TABLE9_ROWS}件・相続人{TABLE9_ROWS}人／枚）
-          <button type="button" className="app-btn" onClick={() => u('t9Pages', String(t9Pages + 1))} disabled={t9Pages >= MAX_TABLE9_PAGES}>＋</button>
-        </div>
       </>
     ),
     table10: (
       <>
         {Array.from({ length: t10Pages }, (_, page) => (
-          <Table10Page key={page} page={page} last={page === t10Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+          <div key={page} className="app-page-with-control">
+            <PageControl page={page + 1} total={t10Pages} onDecrease={() => u('t10Pages', String(t10Pages - 1))} onIncrease={() => u('t10Pages', String(t10Pages + 1))} decreaseDisabled={t10Pages <= 1} increaseDisabled={t10Pages >= MAX_TABLE10_PAGES} detail={`退職手当金${TABLE10_ROWS}件・相続人${TABLE10_ROWS}人／ページ`} />
+            <Table10Page page={page} last={page === t10Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+          </div>
         ))}
-        <div className="app-pagectl no-print">
-          <button type="button" className="app-btn" onClick={() => u('t10Pages', String(t10Pages - 1))} disabled={t10Pages <= 1}>−</button>
-          {t10Pages}枚（退職手当金{TABLE10_ROWS}件・相続人{TABLE10_ROWS}人／枚）
-          <button type="button" className="app-btn" onClick={() => u('t10Pages', String(t10Pages + 1))} disabled={t10Pages >= MAX_TABLE10_PAGES}>＋</button>
-        </div>
       </>
     ),
     table11: Array.from({ length: table11Pages }, (_, page) => (
@@ -959,18 +990,24 @@ export default function App() {
       return (
         <div key={i} className={hasTable112(heir) ? undefined : 'no-print'}>
           {Array.from({ length: sheets }, (_, page) => (
-            <Table112Page key={page} heir={i} page={page} last={page === sheets - 1} g={g} u={u} />
+            <div key={page} className="app-page-with-control">
+              <PageControl page={page + 1} total={sheets} onDecrease={() => setSheets(sheets - 1)} onIncrease={() => setSheets(sheets + 1)} decreaseDisabled={sheets <= 1} increaseDisabled={sheets >= MAX_TABLE112_PAGES} detail={`${heirLabel(i)}・年分${TABLE112_ROWS}行／ページ`} />
+              <Table112Page heir={i} page={page} last={page === sheets - 1} g={g} u={u} />
+            </div>
           ))}
-          <div className="app-pagectl no-print">
-            <button type="button" className="app-btn" onClick={() => setSheets(sheets - 1)} disabled={sheets <= 1}>−</button>
-            {heirLabel(i)} {sheets}枚（年分{TABLE112_ROWS}行／枚）
-            <button type="button" className="app-btn" onClick={() => setSheets(sheets + 1)} disabled={sheets >= MAX_TABLE112_PAGES}>＋</button>
-          </div>
         </div>
       );
     }),
     table1112f1: (
       <>
+        <PageControl
+          page={1}
+          total={1 + f1ContPages}
+          onDecrease={() => setDetailCount('table1112f1', f1Count - 1)}
+          onIncrease={() => setDetailCount('table1112f1', f1Count + 1)}
+          decreaseDisabled={f1Count <= TABLE1112F1_ROWS}
+          detail={`小規模宅地等の明細 ${f1Count}件`}
+        />
         <Table1112f1Page
           sheet={0}
           rows={TABLE1112F1_ROWS}
@@ -979,18 +1016,6 @@ export default function App() {
           g={g}
           u={u}
         />
-        <div className="app-pagectl no-print">
-          <button
-            type="button"
-            className="app-btn"
-            onClick={() => setDetailCount('table1112f1', f1Count - 1)}
-            disabled={f1Count <= TABLE1112F1_ROWS}
-          >
-            −
-          </button>
-          小規模宅地等の明細 {f1Count}件（本表{TABLE1112F1_ROWS}件・（続）{TABLE1112F1_CONT_ROWS}件／枚）
-          <button type="button" className="app-btn" onClick={() => setDetailCount('table1112f1', f1Count + 1)}>＋</button>
-        </div>
         {/* 明細と別表1の対応づけ。選ぶと③④が別表1から転記されて読み取り専用になる */}
         <div className="app-linkctl no-print">
           {Array.from({ length: f1Count }, (_, i) => (
@@ -1014,65 +1039,54 @@ export default function App() {
     table1112f1c: Array.from({ length: f1ContPages }, (_, page) => {
       const first = table1112f1First(page + 1);
       return (
-        <Table1112f1Page
-          key={page}
-          sheet={page + 1}
-          rows={TABLE1112F1_CONT_ROWS}
-          linkedMask={f1LinkedMask.slice(first, first + TABLE1112F1_CONT_ROWS).padEnd(TABLE1112F1_CONT_ROWS, '0')}
-          whoOptions={whoOptions}
-          g={g}
-          u={u}
-        />
+        <div key={page} className="app-page-with-control">
+          <PageControl
+            page={page + 2}
+            total={1 + f1ContPages}
+            onDecrease={() => setDetailCount('table1112f1', f1Count - 1)}
+            onIncrease={() => setDetailCount('table1112f1', f1Count + 1)}
+            decreaseDisabled={f1Count <= TABLE1112F1_ROWS}
+            detail={`小規模宅地等の明細 ${f1Count}件`}
+          />
+          <Table1112f1Page
+            sheet={page + 1}
+            rows={TABLE1112F1_CONT_ROWS}
+            linkedMask={f1LinkedMask.slice(first, first + TABLE1112F1_CONT_ROWS).padEnd(TABLE1112F1_CONT_ROWS, '0')}
+            whoOptions={whoOptions}
+            g={g}
+            u={u}
+          />
+        </div>
       );
     }),
     table1112f1b: (
       <>
         {Array.from({ length: f1bCount }, (_, sheet) => (
-          <Table1112f1bPage key={sheet} sheet={sheet} whoOptions={whoOptions} g={g} u={u} />
+          <div key={sheet} className="app-page-with-control">
+            <PageControl page={sheet + 1} total={f1bCount} onDecrease={() => setDetailCount('table1112f1b', f1bCount - 1)} onIncrease={() => setDetailCount('table1112f1b', f1bCount + 1)} decreaseDisabled={f1bCount <= 1} detail={`一の宅地等 ${f1bCount}件`} />
+            <Table1112f1bPage sheet={sheet} whoOptions={whoOptions} g={g} u={u} />
+          </div>
         ))}
-        <div className="app-pagectl no-print">
-          <button
-            type="button"
-            className="app-btn"
-            onClick={() => setDetailCount('table1112f1b', f1bCount - 1)}
-            disabled={f1bCount <= 1}
-          >
-            −
-          </button>
-          一の宅地等 {f1bCount}件（1件＝1枚・取得者{TABLE1112F1B_OWNERS}人／枚）
-          <button type="button" className="app-btn" onClick={() => setDetailCount('table1112f1b', f1bCount + 1)}>＋</button>
-        </div>
       </>
     ),
     table13: (
       <>
         {Array.from({ length: t13Pages }, (_, page) => (
-          <Table13Page key={page} page={page} last={page === t13Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+          <div key={page} className="app-page-with-control">
+            <PageControl page={page + 1} total={t13Pages} onDecrease={() => u('t13Pages', String(t13Pages - 1))} onIncrease={() => u('t13Pages', String(t13Pages + 1))} decreaseDisabled={t13Pages <= Math.max(1, Math.ceil(data.heirs.length / TABLE13_PERSONS))} increaseDisabled={t13Pages >= MAX_TABLE13_PAGES} detail={`債務${TABLE13_DEBT_ROWS}件・葬式費用${TABLE13_FUNERAL_ROWS}件／ページ`} />
+            <Table13Page page={page} last={page === t13Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+          </div>
         ))}
-        <div className="app-pagectl no-print">
-          <button
-            type="button"
-            className="app-btn"
-            onClick={() => u('t13Pages', String(t13Pages - 1))}
-            disabled={t13Pages <= Math.max(1, Math.ceil(data.heirs.length / TABLE13_PERSONS))}
-          >
-            −
-          </button>
-          明細 {t13Pages}枚（債務{TABLE13_DEBT_ROWS}件・葬式費用{TABLE13_FUNERAL_ROWS}件／枚）
-          <button type="button" className="app-btn" onClick={() => u('t13Pages', String(t13Pages + 1))} disabled={t13Pages >= MAX_TABLE13_PAGES}>＋</button>
-        </div>
       </>
     ),
     table14: (
       <>
         {Array.from({ length: t14Pages }, (_, page) => (
-          <Table14Page key={page} page={page} last={page === t14Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+          <div key={page} className="app-page-with-control">
+            <PageControl page={page + 1} total={t14Pages} onDecrease={() => u('t14Pages', String(t14Pages - 1))} onIncrease={() => u('t14Pages', String(t14Pages + 1))} decreaseDisabled={t14Pages <= 1} increaseDisabled={t14Pages >= MAX_TABLE14_PAGES} detail={`贈与${TABLE14_GIFT_ROWS}件・遺贈${TABLE14_BEQUEST_ROWS}件・寄附${TABLE14_DONATION_ROWS}件／ページ`} />
+            <Table14Page page={page} last={page === t14Pages - 1} whoOptions={whoOptions} g={g} u={u} />
+          </div>
         ))}
-        <div className="app-pagectl no-print">
-          <button type="button" className="app-btn" onClick={() => u('t14Pages', String(t14Pages - 1))} disabled={t14Pages <= 1}>−</button>
-          明細 {t14Pages}枚（1の贈与{TABLE14_GIFT_ROWS}件・2の遺贈{TABLE14_BEQUEST_ROWS}件・3の寄附{TABLE14_DONATION_ROWS}件／枚）
-          <button type="button" className="app-btn" onClick={() => u('t14Pages', String(t14Pages + 1))} disabled={t14Pages >= MAX_TABLE14_PAGES}>＋</button>
-        </div>
       </>
     ),
     table15: (
@@ -1096,13 +1110,11 @@ export default function App() {
     ...Object.fromEntries(DETAIL_FORMS.map((id) => [id, (
       <>
         {Array.from({ length: detailPages(id) }, (_, page) => (
-          <DetailPage key={page} form={id} page={page} g={g} u={u} />
+          <div key={page} className="app-page-with-control">
+            <PageControl page={page + 1} total={detailPages(id)} onDecrease={() => removeDetailPage(id, DETAIL_GROUPS)} onIncrease={() => addDetailPage(id, DETAIL_GROUPS)} decreaseDisabled={detailPages(id) <= 1} detail={`財産${DETAIL_GROUPS}件／ページ`} />
+            <DetailPage form={id} page={page} g={g} u={u} />
+          </div>
         ))}
-        <div className="app-pagectl no-print">
-          <button type="button" className="app-btn" onClick={() => removeDetailPage(id, DETAIL_GROUPS)} disabled={detailPages(id) <= 1}>−</button>
-          明細 {detailPages(id)}枚（財産{DETAIL_GROUPS}件／枚）
-          <button type="button" className="app-btn" onClick={() => addDetailPage(id, DETAIL_GROUPS)}>＋</button>
-        </div>
       </>
     )])),
   };
@@ -1126,12 +1138,6 @@ export default function App() {
           <small>入力内容はこのブラウザに自動保存されます</small>
         </div>
         <div className="app-toolbar">
-          <span className="app-count">
-            財産を取得した人
-            <button type="button" className="app-btn" onClick={removeHeir} disabled={data.heirs.length <= 1} aria-label="財産を取得した人を1人減らす">−</button>
-            {data.heirs.length}人
-            <button type="button" className="app-btn" onClick={addHeir} disabled={data.heirs.length >= maxHeirs} aria-label="財産を取得した人を1人増やす">＋</button>
-          </span>
           <button type="button" className="app-btn" onClick={exportJson}>JSON保存</button>
           <button type="button" className="app-btn" onClick={() => fileRef.current?.click()}>JSON読込</button>
           <input ref={fileRef} type="file" accept="application/json,.json" onChange={onPickFile} hidden aria-label="JSONファイルを選択" />

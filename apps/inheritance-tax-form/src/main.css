@@ -101,21 +101,25 @@ button {
   background: #fee2e2;
 }
 
-.app-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-/* 付表の枚数を増減する操作（用紙の下に置く） */
+/* ページの増減操作（各用紙の左上に置く） */
 .app-pagectl {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 8px 0 16px;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 210mm;
+  margin: 0 auto 6px;
   font-size: 12px;
+}
+
+.app-pagectl .app-btn {
+  min-width: 30px;
+  padding: 3px 9px;
+}
+
+.app-pagectl__detail {
+  margin-left: 4px;
+  color: #475569;
 }
 
 /* 明細と別表1の対応づけ（画面だけの操作。様式には印刷しない） */
@@ -662,7 +666,7 @@ button {
     page-break-before: always;
   }
 
-  .form-pages:first-of-type .gov-page:first-child {
+  .form-pages:first-of-type > .gov-page {
     page-break-before: auto;
   }
 
