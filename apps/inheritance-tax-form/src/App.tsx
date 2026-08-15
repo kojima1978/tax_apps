@@ -7,7 +7,8 @@ import {
   TABLE1CONT_CONFIRM_BOXES, TABLE1CONT_FORM_CODE, TABLE1CONT_NOTES, TABLE1CONT_TITLE, buildTable1Cont,
 } from './forms/table1cont';
 import {
-  TABLE2_EDITION, TABLE2_FORM_CODE, TABLE2_JOINT_NOTES, TABLE2_NOTES, TABLE2_SUBTITLE, TABLE2_TITLE, buildTable2,
+  TABLE2_EDITION, TABLE2_FORM_CODE, TABLE2_JOINT_NOTES, TABLE2_NOTES, TABLE2_SUBTITLE, TABLE2_TITLE,
+  buildTable2, lawPrefix,
 } from './forms/table2';
 import {
   TABLE11_FORM_CODE, TABLE11_ROWS, TABLE11_SUBTITLE, TABLE11_TITLE, buildTable11,
@@ -744,6 +745,21 @@ export default function App() {
     () => buildTable2(COMMON, TOTALS, table2HeirOptions),
     [table2HeirOptions],
   );
+  /**
+   * 放棄の有無を聞く相手（＝第2表④で第1表の人と結び付いている法定相続人）。
+   * 第2表④は「放棄がなかったものとした場合」の一覧なので、様式そのものには放棄が出てこない。
+   * 第9表・第10表2の非課税は「相続人（放棄した人を除く）の取得した」ものだけが対象なので、
+   * 画面だけの入力として持つ。
+   */
+  const renounceRows = useMemo(
+    () => data.lawful.flatMap((row, index) => {
+      const source = row.source ?? '';
+      if (!/^\d+$/.test(source)) return []; // 'manual'（旧入力）は第1表の人と結び付いていない
+      const name = (data.heirs[Number(source)]?.name ?? '').trim();
+      return [{ index, name: name === '' ? `${Number(source) + 1}人目（氏名未入力）` : name }];
+    }),
+    [data.heirs, data.lawful],
+  );
   const table5Cells = useMemo(() => buildTable5(COMMON, TOTALS), []);
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
   const heirPages = 1 + contPages;
@@ -867,6 +883,7 @@ export default function App() {
       </div>
     )),
     table2: (
+      <>
       <div className="gov-page">
         <GridForm
           cells={table2Cells}
@@ -886,6 +903,24 @@ export default function App() {
           }
         />
       </div>
+      {/* 相続の放棄。様式には印刷せず、第9表・第10表2の非課税の判定にだけ使う */}
+      {renounceRows.length > 0 && (
+        <div className="app-linkctl no-print">
+          <span>相続の放棄をした人（第9表・第10表2の非課税の判定に使う。様式には印刷しない）</span>
+          {renounceRows.map(({ index, name }) => (
+            <label key={index}>
+              <input
+                type="checkbox"
+                checked={g(`${lawPrefix(index)}renounced`) === '1'}
+                onChange={(event) => u(`${lawPrefix(index)}renounced`, event.target.checked ? '1' : '')}
+                aria-label={`${name}は相続を放棄した`}
+              />
+              {name}
+            </label>
+          ))}
+        </div>
+      )}
+      </>
     ),
     table4: (
       <>

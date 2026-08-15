@@ -196,8 +196,11 @@ function limitRow(totals: string): GridCell[] {
   ];
 }
 
-/** 2 課税される金額の計算（5人＋合計行） */
-function personRows(common: string, totals: string, page: number, last: boolean, whoOptions: GridCell['options']): GridCell[] {
+/**
+ * 2 課税される金額の計算（5人＋合計行）。
+ * 氏名も①も1の明細からの導出なので、この節に手入力欄は無い。
+ */
+function personRows(totals: string, page: number, last: boolean, whoOptions: GridCell['options']): GridCell[] {
   const cols = row(1128, PERSON_Y[0]);
   const total = row(PERSON_Y[5], PERSON_Y[6]);
   return [
@@ -213,9 +216,15 @@ function personRows(common: string, totals: string, page: number, last: boolean,
       const g = 8 + r * 3;
       return [
         code(y, col(X.L, X.C1), cd('E', 22 + r)),
-        mk(y, col(X.C1, P.NAME_R), { kind: 'input', field: `${common}t10p${i}Name`, ariaLabel: `${who}の氏名`, options: whoOptions, align: 'left' }),
+        mk(y, col(X.C1, P.NAME_R), {
+          kind: 'input', field: `${totals}t10r${i}No`, ariaLabel: `${who}の氏名`,
+          options: whoOptions, align: 'left', readOnly: true,
+        }),
         code(y, col(P.NAME_R, P.C1), cd('G', g)),
-        mk(y, col(P.C1, P.V1_R), { kind: 'input', field: `${common}t10p${i}v1`, ariaLabel: `${who}が受け取った退職手当金などの金額`, commaInteger: true }),
+        mk(y, col(P.C1, P.V1_R), {
+          kind: 'input', field: `${totals}t10r${i}v1`, ariaLabel: `${who}が受け取った退職手当金などの金額`,
+          commaInteger: true, readOnly: true,
+        }),
         code(y, col(P.V1_R, P.C2), cd('G', g + 1)),
         mk(y, col(P.C2, P.V2_R), { kind: 'input', field: `${totals}t10r${i}v2`, ariaLabel: `${who}の非課税金額`, commaInteger: true, readOnly: true }),
         code(y, col(P.V2_R, P.V3_C), cd('G', g + 2)),
@@ -273,7 +282,7 @@ export function buildTable10(
 
     ...sectionHead(965, 989, 1029.5, HEAD2, LEAD2),
     ...limitRow(totals),
-    ...personRows(common, totals, page, last, whoOptions),
+    ...personRows(totals, page, last, whoOptions),
 
     label(row(PERSON_Y[6], BOTTOM), col(X.L, X.R), NOTES2, { align: 'left', fontSize: 7 }),
   ];

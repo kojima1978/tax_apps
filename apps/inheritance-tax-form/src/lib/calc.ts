@@ -276,37 +276,80 @@ export function table10Pages(common: Values): number {
 }
 
 /**
+ * 相続人（相続の放棄をした人を除く）の項番（1始まり＝第11表の項番）。
+ *
+ * 相続税法12条1項6号・7号の非課税は「相続人の取得した」ものだけが対象なので、
+ * 受遺者など相続人以外を除くために使う。相続人かどうかは第2表④の法定相続人欄が
+ * 第1表の誰と結び付いているか（`source`）で判定する。
+ * 第2表④は放棄がなかったものとした場合の一覧なので、放棄は別に持つ印（`renounced`）で除く。
+ */
+function heirNosOfLawfulHeirs(lawful: Values[]): Set<number> {
+  const out = new Set<number>();
+  for (const row of lawful) {
+    if (row.renounced === '1') continue;
+    const source = row.source ?? '';
+    if (!/^\d+$/.test(source)) continue; // 'manual'（旧入力）は第1表の人と結び付いていない
+    out.add(Number(source) + 1);
+  }
+  return out;
+}
+
+/**
  * 第9表2・第10表2（課税される金額の計算）。様式が違うだけで算式は完全に同一なので1本にまとめる。
  * 1・2とも様式全体の一覧なので入力は共通欄（'c.' スコープ）に持ち、自動計算の結果だけを返す。
+ *
+ * 2は1の明細から丸ごと導出する（手入力は無い）。1の各明細の「受取人の氏名」と金額を人ごとに
+ * 合計し、そのうち**相続人の分だけ**を項番順に並べたものが2の氏名欄と①になる
+ * （相続税法12条1項6号・7号。相続人以外は非課税の対象外で、1の（注）2のとおり
+ * その金額をそのまま第11表の付表4へ書く）。
  *
  * Ⓐ 非課税限度額 ＝ 500万円 × 法定相続人の数（第2表㋺からの転記）。
  * 様式に「,000,000」が印字されている欄なので百万円単位で保持する。
  * Ⓑ（①の合計）がⒶ以下なら①がそのまま②の非課税金額になり、超えるときはⒶを①で按分する
  * （1円未満切捨て）。③は①−②。
- * 枚数を減らしたときに残る入力値を混ぜないよう、表に出ている行番号だけを走査する。
  *
- * @param p フィールドの接頭辞（'t9' または 't10'）。入力は `${p}p{i}v1`、
- *   出力は `${p}A` `${p}B` `${p}r{i}v2` `${p}r{i}v3` `${p}v2Total` `${p}v3Total`
+ * @param p フィールドの接頭辞（'t9' または 't10'）。入力は1の明細 `${p}d{i}Who` `${p}d{i}Amt`、
+ *   出力は `${p}A` `${p}B` `${p}r{i}No` `${p}r{i}v1` `${p}r{i}v2` `${p}r{i}v3`
+ *   `${p}v2Total` `${p}v3Total`
  */
 function computeNonTaxableLimit(
-  common: Values, p: string, pages: number, rowsPerPage: number, heirCount: number,
+  common: Values, lawful: Values[], p: string, pages: number, rowsPerPage: number, heirCount: number,
 ): Values {
   const out: Values = {};
   // Ⓐ（百万円単位）。法定相続人が未入力のうちは空欄のままにする。
   const aMillion = heirCount > 0 ? 5 * heirCount : 0;
   out[`${p}A`] = aMillion > 0 ? str(aMillion) : '';
 
+  // 1の明細を人ごとに合計する。枚数を減らしたときに残る入力値を混ぜないよう、
+  // 表に出ている行番号だけを走査する。
+  const lawfulHeirs = heirNosOfLawfulHeirs(lawful);
+  const byNo = new Map<number, number>();
+  for (let i = 0; i < pages * rowsPerPage; i += 1) {
+    const no = num(common[`${p}d${i}Who`]);
+    if (no <= 0 || !lawfulHeirs.has(no)) continue;
+    byNo.set(no, (byNo.get(no) ?? 0) + num(common[`${p}d${i}Amt`]));
+  }
+  const listed = [...byNo.keys()].sort((a, b) => a - b);
+
   const limit = aMillion * (SCALE[`${p}A`] ?? 1);
-  const rows = Array.from({ length: pages * rowsPerPage }, (_unused, i) => i);
-  const b = rows.reduce((s, i) => s + num(common[`${p}p${i}v1`]), 0);
+  const b = listed.reduce((s, no) => s + (byNo.get(no) ?? 0), 0);
   let sum2 = 0;
   let sum3 = 0;
-  for (const i of rows) {
-    const v1 = num(common[`${p}p${i}v1`]);
+  for (let i = 0; i < pages * rowsPerPage; i += 1) {
+    const no = listed[i];
+    if (no === undefined) {
+      out[`${p}r${i}No`] = '';
+      out[`${p}r${i}v1`] = '';
+      out[`${p}r${i}v2`] = '';
+      out[`${p}r${i}v3`] = '';
+      continue;
+    }
+    const v1 = byNo.get(no) ?? 0;
     const v2 = b <= limit ? v1 : Math.floor((limit * v1) / b);
-    const has = filled(common, `${p}p${i}v1`);
-    out[`${p}r${i}v2`] = has ? str(v2) : '';
-    out[`${p}r${i}v3`] = has ? str(v1 - v2) : '';
+    out[`${p}r${i}No`] = str(no);
+    out[`${p}r${i}v1`] = str(v1);
+    out[`${p}r${i}v2`] = str(v2);
+    out[`${p}r${i}v3`] = str(v1 - v2);
     sum2 += v2;
     sum3 += v1 - v2;
   }
@@ -1421,8 +1464,8 @@ function computeAllWithRatios(
   const heirCount = num(table2.totals.heirCount);
   Object.assign(
     totals,
-    computeNonTaxableLimit(common, 't9', table9Pages(common), TABLE9_ROWS, heirCount),
-    computeNonTaxableLimit(common, 't10', table10Pages(common), TABLE10_ROWS, heirCount),
+    computeNonTaxableLimit(common, linkedLawful, 't9', table9Pages(common), TABLE9_ROWS, heirCount),
+    computeNonTaxableLimit(common, linkedLawful, 't10', table10Pages(common), TABLE10_ROWS, heirCount),
   );
   // 第4表（相続税額の加算金額）。⑥は上で求めた各人の⑪への転記元
   Object.assign(totals, table4.totals);
