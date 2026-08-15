@@ -43,8 +43,16 @@ export function mk(y: readonly [number, number], x: readonly [number, number], r
 }
 
 /** 様式の識別コード（G03 等）の小さな枠。枠が狭く「G0/3」と折り返すため1行に固定する。 */
-export function code(y: readonly [number, number], x: readonly [number, number], text: string): GridCell {
-  return mk(y, x, { kind: 'label', text, fontSize: 5.5, align: 'left', noWrap: true, forceHorizontal: true, semanticRole: 'presentation' });
+export function code(
+  y: readonly [number, number],
+  x: readonly [number, number],
+  text: string,
+  rest: Partial<GridCell> = {},
+): GridCell {
+  return mk(y, x, {
+    kind: 'label', text, fontSize: 5.5, align: 'left', noWrap: true, forceHorizontal: true,
+    semanticRole: 'presentation', ...rest,
+  });
 }
 
 /** 固定文字セル */

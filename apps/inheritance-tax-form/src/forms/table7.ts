@@ -19,7 +19,8 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { ERA_OPTIONS } from '../data/codes';
+import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS } from '../data/codes';
+import { TAX_OFFICES, TAX_OFFICE_PREFS } from '../data/taxOffices';
 import { code, label, mk } from './geometry';
 
 export const TABLE7_FORM_CODE = 'NTA0KSE070010030';
@@ -145,6 +146,14 @@ const NOTES = '（注）　1　⑤欄の相続時精算課税適用財産の価�
   + 'その被相続人が納税猶予の適用を受けていた場合の免除された相続税額並びに延滞税、利子税及び加算税の額は含まれません。\n'
   + '　　　　3　各人の⑬又は⑱欄の金額を第8の8表1のその人の「相次相続控除額③」欄に転記します。';
 
+/** 第4表の2と同じ、都道府県ごとにまとめた全国の税務署候補。 */
+const TAX_OFFICE_GROUPS: NonNullable<GridCell['optionGroups']> = TAX_OFFICE_PREFS.map((pref) => ({
+  label: pref,
+  options: TAX_OFFICES
+    .filter((office) => office.pref === pref)
+    .map((office) => ({ value: office.name, label: office.name })),
+}));
+
 /** 元号・年・月・日の帯（①②で割付が同じ） */
 function dateBand(x: readonly [number, number, number, number, number]): GridCell[] {
   return [
@@ -165,13 +174,29 @@ function dateValues(
 ): GridCell[] {
   const y = row(Y.dateVal[0], Y.dateVal[1]);
   const era: Partial<GridCell> = readOnly
-    ? { readOnly: true, align: 'center' }
+    ? {
+        options: ERA_OPTIONS,
+        compactSelectedOption: true,
+        stackedSelectedOption: true,
+        readOnly: true,
+        align: 'center',
+        fontSize: 6.5,
+      }
     : { options: ERA_OPTIONS, compactSelectedOption: true };
+  const year: Partial<GridCell> = readOnly
+    ? { integerDigits: 2, readOnly: true }
+    : { options: ERA_YEAR_OPTIONS };
+  const month: Partial<GridCell> = readOnly
+    ? { integerDigits: 2, readOnly: true }
+    : { options: MONTH_OPTIONS };
+  const day: Partial<GridCell> = readOnly
+    ? { integerDigits: 2, readOnly: true }
+    : { options: DAY_OPTIONS };
   return [
     mk(y, col(x[1], x[2]), { kind: 'input', field: `${p}Era`, ariaLabel: `${who}（元号）`, ...era }),
-    mk(y, col(x[2], x[3]), { kind: 'input', field: `${p}Y`, ariaLabel: `${who}（年）`, integerDigits: 2, align: 'center', readOnly }),
-    mk(y, col(x[3], x[4]), { kind: 'input', field: `${p}M`, ariaLabel: `${who}（月）`, integerDigits: 2, align: 'center', readOnly }),
-    mk(y, col(x[4], x[5]), { kind: 'input', field: `${p}D`, ariaLabel: `${who}（日）`, integerDigits: 2, align: 'center', readOnly }),
+    mk(y, col(x[2], x[3]), { kind: 'input', field: `${p}Y`, ariaLabel: `${who}（年）`, align: 'center', ...year }),
+    mk(y, col(x[3], x[4]), { kind: 'input', field: `${p}M`, ariaLabel: `${who}（月）`, align: 'center', ...month }),
+    mk(y, col(x[4], x[5]), { kind: 'input', field: `${p}D`, ariaLabel: `${who}（日）`, align: 'center', ...day }),
   ];
 }
 
@@ -181,7 +206,7 @@ function yearCell(left: number, codeR: number, unit: number, right: number, gCod
   return [
     code(y, col(left, codeR), gCode),
     mk(y, col(codeR, unit), { kind: 'input', field, ariaLabel: who, integerDigits: 2, align: 'center', readOnly: true }),
-    label(y, col(unit, right), '年'),
+    label(y, col(unit, right), '年', { align: 'center' }),
   ];
 }
 
@@ -209,7 +234,7 @@ function formulaRows(common: string, totals: string): GridCell[] {
   return [
     // 見出し帯。「（④の年数）」は年数枠の真上に来るので、罫線の無いラベルを重ねる
     label(head, col(LEFT, X.MUL), '（⑥の相続税額）（円）'),
-    label(head, col(X.MUL, X.D3), ''),
+    label(head, col(X.MUL, X.D3), '', { noBorderBottom: true }),
     label(head, col(X.DEC_L, X.D3), '（④の年数）', { noBorder: true }),
     label(head, col(X.D3, RIGHT), '相次相続控除額の総額(円)'),
 
@@ -217,8 +242,9 @@ function formulaRows(common: string, totals: string): GridCell[] {
     code(all, col(LEFT, X.C1), 'G07'),
     mk(all, col(X.C1, X.MUL), {
       kind: 'input', field: `${common}t7v6`, ariaLabel: '⑥の相続税額', commaInteger: true, readOnly: true,
+      borderRightWidth: 1,
     }),
-    label(all, col(X.MUL, X.FRAC), '×', { noBorder: true }),
+    label(all, col(X.MUL, X.FRAC), '×', { noBorderTop: true, noBorderRight: true, borderLeftWidth: 1, forceHorizontal: true, align: 'center' }),
 
     // ⑧／⑦ の分数。上下の枠の間の帯が様式の二重線になる
     label(upper, col(X.FRAC, X.FRAC_C), '（⑧の金額）\n（円）', { fontSize: 7 }),
@@ -234,19 +260,20 @@ function formulaRows(common: string, totals: string): GridCell[] {
     }),
 
     // 割合の注記 ＋ ④の年数／10年
-    label(all, col(X.D2, X.RATIO_R), '（この割合が1を超\nえるときは1としま\nす。）', { noBorder: true, fontSize: 7 }),
-    label(all, col(X.RATIO_R, X.BOX_L), '×', { noBorder: true }),
+    label(all, col(X.D2, X.RATIO_R), '（この割合が1を超\nえるときは1としま\nす。）', { noBorderTop: true, noBorderRight: true, noBorderLeft: true, fontSize: 7 }),
+    label(all, col(X.RATIO_R, X.BOX_L), '×', { noBorderTop: true, noBorderRight: true, noBorderLeft: true, forceHorizontal: true, align: 'center' }),
     code(upper, col(X.BOX_L, X.BOX_C), 'G10'),
     mk(upper, col(X.BOX_C, X.BOX_R), {
       kind: 'input', field: `${totals}t7v4`, ariaLabel: '④の年数', integerDigits: 2, align: 'center', readOnly: true,
     }),
-    label(upper, col(X.BOX_R, X.D3), '年', { noBorder: true }),
+    label(upper, col(X.BOX_R, X.D3), '年', { noBorderTop: true, noBorderBottom: true, noBorderLeft: true, borderRightWidth: 1, align: 'center' }),
     label(row(mid1, mid2), col(X.BOX_L, X.BOX_R), '', { noBorder: true }),
-    label(lower, col(X.BOX_L, X.BOX_R), TABLE7_SPAN + SP + '年', { noBorder: true }),
-    label(lower, col(X.BOX_R, X.D3), '＝', { noBorder: true }),
+    label(row(mid1, mid2), col(X.BOX_R, X.D3), '＝', { noBorderTop: true, noBorderBottom: true, noBorderLeft: true, borderRightWidth: 1 }),
+    label(lower, col(X.BOX_L, X.BOX_R), String(TABLE7_SPAN), { noBorderTop: true, noBorderRight: true, noBorderLeft: true, borderBottomWidth: 1 }),
+    label(lower, col(X.BOX_R, X.D3), '年', { noBorderTop: true, noBorderLeft: true, borderRightWidth: 1, borderBottomWidth: 1, align: 'center' }),
 
     // Ⓐ 相次相続控除額の総額
-    label(all, col(X.D3, X.A_MARK), 'Ⓐ', { fontSize: 8 }),
+    label(all, col(X.D3, X.A_MARK), 'Ⓐ', { borderLeftWidth: 1, fontSize: 8, align: 'center' }),
     code(all, col(X.A_MARK, X.A_CODE), 'G11'),
     mk(all, col(X.A_CODE, RIGHT), {
       kind: 'input', field: `${totals}t7A`, ariaLabel: '相次相続控除額の総額', commaInteger: true, readOnly: true,
@@ -284,6 +311,10 @@ interface Section {
   src: string;
   /** 純資産価額が手入力か（第3表が未実装の(2)だけ true） */
   editable: boolean;
+  /** 未対応の氏名欄は既存フィールドを維持したまま入力不可にする */
+  readOnlyName?: boolean;
+  /** 未対応の純資産価額欄は既存フィールドを維持したまま入力不可にする */
+  readOnlyValue?: boolean;
   /** 純資産価額のフィールドキー（(1)は自動転記の⑩、(2)は手入力の⑮。割合と控除額は両段とも v12・v13） */
   valueKey: string;
   /** 合計額（Ⓑ／Ⓒ）のフィールド */
@@ -315,7 +346,7 @@ function section(s: Section, common: string, totals: string, options: GridCell['
     label(colHead, col(S.NAME_R, S.T_R), no9 + SP + '相次相続控除額の総額\n' + SP + SP + '（円）', { align: 'left', fontSize: 7.5 }),
     label(colHead, col(S.T_R, S.V_R), no10 + SP + '各相続人の純資産価額(円)\n' + SP + SP + '（' + s.src + 'の各人の④の金額）', { align: 'left', fontSize: 7.5 }),
     label(colHead, col(S.V_R, S.B_R), no11 + SP + '相続人以外の人も含めた純資産\n' + SP + SP + '価額の合計額（円）（' + s.src + 'の\n' + SP + SP + '④の各人の合計）', { align: 'left', fontSize: 7.5 }),
-    label(colHead, col(S.B_R, S.R_R), no12 + SP + '各人の' + no10 + '\n' + SP + SP + '――――――' + SP + 'の割合\n' + SP.repeat(4) + s.mark, { align: 'left', fontSize: 7.5 }),
+    label(colHead, col(S.B_R, S.R_R), SP.repeat(2) + '各人の' + no10 + '\n' + SP + SP + '――――――' + SP + 'の割合\n' + SP.repeat(4) + s.mark, { align: 'left', fontSize: 7.5, centeredPrefix: no12 }),
     label(colHead, col(S.R_R, RIGHT), no13 + SP + '各人の相次相続控除額(円)\n' + SP + SP + '（' + no9 + '×各人の' + no12 + 'の割合）', { align: 'left', fontSize: 7.5 }),
 
     // 相続人の氏名（項番→氏名の選択式）
@@ -323,6 +354,7 @@ function section(s: Section, common: string, totals: string, options: GridCell['
       code(rowY(i), col(LEFT, S.NAME_C), cd('E', s.eBase + i)),
       mk(rowY(i), col(S.NAME_C, S.NAME_R), {
         kind: 'input', field: `${p(i)}no`, ariaLabel: `${s.title}${i + 1}行目の相続人の氏名`, options, align: 'left',
+        readOnly: s.readOnlyName,
       }),
     ]).flat(),
 
@@ -341,12 +373,12 @@ function section(s: Section, common: string, totals: string, options: GridCell['
         field: (s.editable ? p(i) : t(i)) + s.valueKey,
         ariaLabel: `${s.title}${i + 1}行目の${no10}各相続人の純資産価額`,
         commaInteger: true,
-        readOnly: !s.editable,
+        readOnly: s.readOnlyValue ?? !s.editable,
       }),
     ]).flat(),
 
     // 純資産価額の合計額（5行の縦結合）
-    label(allRows, col(S.V_R, S.B_MARK), s.mark, { fontSize: 8 }),
+    label(allRows, col(S.V_R, S.B_MARK), s.mark, { fontSize: 8, align: 'center' }),
     code(allRows, col(S.B_MARK, S.B_C), cd('G', s.gBase + 2)),
     mk(allRows, col(S.B_C, S.B_R), {
       kind: 'input', field: s.totalField, ariaLabel: `${no11}純資産価額の合計額`, commaInteger: true, readOnly: true,
@@ -407,6 +439,8 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
     mark: 'Ⓒ',
     src: '第3表',
     editable: true,
+    readOnlyName: true,
+    readOnlyValue: true,
     valueKey: 'v15',
     totalField: `${totals}t7C`,
   };
@@ -417,6 +451,7 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
     code(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_C, X.DEC_I), 'E01'),
     mk(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_I, RIGHT), {
       kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      readOnly: true, navigateToForm: 'table1',
     }),
 
     label(row(Y.lead[0], Y.lead[1]), col(LEFT, RIGHT), LEAD, { align: 'left', fontSize: 7.5 }),
@@ -424,7 +459,7 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
 
     // 前の相続に係る被相続人の氏名・続柄・申告書の提出先
     label(row(Y.prevHead[0], Y.prevHead[1]), col(LEFT, X.NAME_R), '前の相続に係る被相続人の氏名'),
-    label(row(Y.prevHead[0], Y.prevHead[1]), col(X.NAME_R, X.REL_R), '前の相続に係る被相続人と今回の相続に係る被相続人との続柄'),
+    label(row(Y.prevHead[0], Y.prevHead[1]), col(X.NAME_R, X.REL_R), '前の相続に係る被相続人と今回の相続に係る被相続人との続柄', { noWrap: true }),
     label(row(Y.prevHead[0], Y.prevHead[1]), col(X.REL_R, RIGHT), '前の相続に係る相続税の申告書の提出先'),
     code(row(Y.prevVal[0], Y.prevVal[1]), col(LEFT, X.C1), 'E02'),
     mk(row(Y.prevVal[0], Y.prevVal[1]), col(X.C1, X.NAME_R), {
@@ -436,7 +471,8 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
     }),
     code(row(Y.prevVal[0], Y.prevVal[1]), col(X.REL_R, X.OFFICE_C), 'E04'),
     mk(row(Y.prevVal[0], Y.prevVal[1]), col(X.OFFICE_C, X.OFFICE_R), {
-      kind: 'input', field: `${common}t7pOffice`, ariaLabel: '前の相続に係る相続税の申告書の提出先', align: 'left',
+      kind: 'input', field: `${common}t7pOffice`, ariaLabel: '前の相続に係る相続税の申告書の提出先',
+      optionGroups: TAX_OFFICE_GROUPS, align: 'left', fontSize: 7,
     }),
     label(row(Y.prevVal[0], Y.prevVal[1]), col(X.OFFICE_R, RIGHT), '署'),
 
@@ -453,7 +489,7 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
 
     // ② 今回の相続の年月日（第1表の相続開始年月日からの転記）
     ...dateBand([X.D1, X.ERA2, X.YEAR2, X.MONTH2, X.D2]),
-    code(row(Y.dateVal[0], Y.dateVal[1]), col(X.D1, X.D1C), 'N02'),
+    code(row(Y.dateVal[0], Y.dateVal[1]), col(X.D1, X.D1C), 'N02', { fontSize: 5 }),
     ...dateValues([X.D1, X.D1C, X.ERA2, X.YEAR2, X.MONTH2, X.D2], `${common}start`, '今回の相続の年月日', true),
 
     // ③④ の年数（自動計算）

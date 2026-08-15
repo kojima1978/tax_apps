@@ -939,6 +939,7 @@ export default function App() {
           subtitle={TABLE7_SUBTITLE}
           aspectRatio={TABLE7_ASPECT}
           formId="t7"
+          onNavigate={setActive}
           footer={<Footnote notes={TABLE7_NOTES} edition={TABLE7_EDITION} />}
         />
       </div>

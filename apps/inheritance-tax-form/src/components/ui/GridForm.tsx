@@ -33,13 +33,18 @@ export interface GridCell {
   noWrap?: boolean;                  // 明示改行以外では折り返さない
   noBorder?: boolean;                // 様式に罫線が無い領域（提出日の行など）
   noBorderTop?: boolean;             // 上罫線だけを描かない（隣接する計算欄と一体に見せる注記行）
+  noBorderBottom?: boolean;          // 下罫線だけを描かない（下段の数式欄と一体に見せる見出し行）
   noBorderRight?: boolean;           // 右罫線だけを描かない（括弧セルへ連続する注記行）
+  noBorderLeft?: boolean;            // 左罫線だけを描かない（数式の演算子セルなど）
   rightBrace?: boolean;              // 計算結果と下限額をまとめる縦長の右括弧
   dashed?: boolean;                  // 破線枠（生年月日の元号コード注記）
   outline?: boolean;                 // 他のセルに重ねて描く太枠（被相続人ブロックの外枠）。入力を妨げない
   borderWidth?: number;              // 個別に指定する罫線幅（px）
   borderRightWidth?: number;         // 右罫線だけに指定する幅（px）
+  borderBottomWidth?: number;        // 下罫線だけに指定する幅（px）
+  borderLeftWidth?: number;          // 左罫線だけに指定する幅（px）
   codeLabel?: string;                // 様式の識別コード（E01/G04等）をセル左上に小さく表示
+  centeredPrefix?: string;           // 複数行見出しの左側で高さ中央に表示する項番
   cornerLabel?: string;              // 入力欄の左上に表示する固定ラベル（枠を持たないコード欄）
   rightLabel?: string;               // セルの右端中央に表示する固定ラベル（末尾の「000」など）
   integerDigits?: number;            // 数字のみの最大桁数
@@ -359,8 +364,12 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           borderRight: c.noBorder || c.noBorderRight
             ? 'none'
             : `${c.borderRightWidth ?? borderWidth}px ${borderStyle} #000`,
-          borderBottom: c.noBorder ? 'none' : borderLine,
-          borderLeft: c.noBorder ? 'none' : borderLine,
+          borderBottom: c.noBorder || c.noBorderBottom
+            ? 'none'
+            : `${c.borderBottomWidth ?? borderWidth}px ${borderStyle} #000`,
+          borderLeft: c.noBorder || c.noBorderLeft
+            ? 'none'
+            : `${c.borderLeftWidth ?? borderWidth}px ${borderStyle} #000`,
           // outline は既存セルの上に重ねる飾り枠。クリックを吸わないようにする
           pointerEvents: c.outline ? 'none' : undefined,
           position: 'relative',
@@ -381,6 +390,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
       >
         {invalid && <span className="gf-cell__error no-print" aria-hidden="true">エラー</span>}
         {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
+        {c.centeredPrefix && <span style={{ position: 'absolute', top: '50%', left: 2, transform: 'translateY(-50%)', lineHeight: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>{c.centeredPrefix}</span>}
         {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
         {/* 画面だけの入力欄は、印刷では中身を隠して様式どおりの斜線に差し替える */}
         {c.printDiagonal && <DiagonalLine dir={c.printDiagonal} className="print-only" />}
@@ -408,11 +418,11 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
         ) : c.kind === 'input' && c.field && (c.options || c.optionGroups) ? (
           printRendering || c.readOnly
             ? c.stackedSelectedOption && !printRendering
-              ? <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', lineHeight: 1 }}>
+              ? <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', lineHeight: 1, background: printRendering ? 'transparent' : '#f7f7f7' }}>
                   <span>{g(c.field)}</span>
                   <span>{selectedOptionLabel(selectOptions, g(c.field)).replace(/^\S+\s*/, '')}</span>
                 </div>
-              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: justify, overflow: 'hidden' }}>{c.compactSelectedOption ? g(c.field) : selectedOptionLabel(selectOptions, g(c.field))}</div>
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: justify, overflow: 'hidden', background: printRendering ? 'transparent' : '#f7f7f7' }}>{c.compactSelectedOption ? g(c.field) : selectedOptionLabel(selectOptions, g(c.field))}</div>
             : (
               <select
                 id={`${inputPrefix}-${c.field}-${i}`}
