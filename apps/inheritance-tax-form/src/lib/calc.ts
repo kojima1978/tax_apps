@@ -626,6 +626,43 @@ function sumDetails(details: Values[]): number[] {
 }
 
 /**
+ * 第11表2②（未分割財産の価額）。添字は財産を取得した人の番号（1始まり）。
+ *
+ * 未分割の財産＝付表の明細のうち「分割が確定した財産」に取得者が1人も入っていない行。
+ * その価額の合計を、第11表2の（注）3のとおり各相続人が相続分に応じて取得するものとして按分する。
+ * 相続分は第2表④の法定相続分。放棄した人は相続人ではないので除き、残った人の相続分の合計で
+ * 割り直す（第2表④は放棄がなかったものとした場合の一覧なので、そのままでは合計が1にならない）。
+ * 円未満は切り捨て、差額は項番のいちばん若い相続人に寄せて合計を一致させる。
+ */
+function computeUnsplit(details: Values[], lawful: Values[]): number[] {
+  const total = details.reduce((sum, item) => (
+    DETAIL_SHARES.some((i) => num(item[`who${i}`]) > 0) ? sum : sum + num(item.value)
+  ), 0);
+  const shares: { no: number; share: number }[] = [];
+  for (const row of lawful) {
+    if (row.renounced === '1') continue;
+    const source = row.source ?? '';
+    if (!/^\d+$/.test(source)) continue; // 'manual'（旧入力）は第1表の人と結び付いていない
+    const den = num(row.den);
+    if (den <= 0) continue;
+    shares.push({ no: Number(source) + 1, share: num(row.num) / den });
+  }
+  shares.sort((a, b) => a.no - b.no);
+  const denominator = shares.reduce((s, x) => s + x.share, 0);
+  const byNumber: number[] = [];
+  if (total === 0 || denominator === 0) return byNumber;
+  let rest = total;
+  for (const { no, share } of shares) {
+    const amount = Math.floor((total * share) / denominator);
+    byNumber[no] = (byNumber[no] ?? 0) + amount;
+    rest -= amount;
+  }
+  const first = shares[0]!.no;
+  byNumber[first] = (byNumber[first] ?? 0) + rest;
+  return byNumber;
+}
+
+/**
  * 第15表で「その様式を使うときだけ転記になる」欄（丸番号）。
  * 付表の分はコード表（`DETAIL_KINDS`）から機械的に導く — 欄の一覧をここに書き写さない。
  */
@@ -1343,7 +1380,10 @@ function computeAllWithRatios(
   // 第11表2① ← 付表の「分割が確定した財産」。財産の明細書（付表1〜4）だけを合計する
   // ＝ 明細を配列で持つ様式は他にもあるので、コード表を持つ様式だけに絞る。
   const detailForms = used.filter((id) => id in DETAIL_KINDS && (details[id]?.length ?? 0) > 0);
-  const detailTotals = sumDetails(detailForms.flatMap((id) => details[id]!));
+  const detailItems = detailForms.flatMap((id) => details[id]!);
+  const detailTotals = sumDetails(detailItems);
+  // 第11表2② ← 付表の未分割の明細を第2表④の相続分で按分したもの
+  const unsplitTotals = computeUnsplit(detailItems, lawful);
   // 第13表3①④ ← 同表1・2の明細の「負担する金額」
   const t13 = computeTable13(common, table13Pages(common, heirs.length));
   // 第15表①〜㉘ ← 付表の細目ごとの合計。転記になる欄は手入力の残りを混ぜないよう毎回空に戻す。
@@ -1364,6 +1404,7 @@ function computeAllWithRatios(
   ) as Values;
   const inputs = heirs.map((h, i): Values => {
     const detail = detailTotals[i + 1] ?? 0;
+    const unsplit = unsplitTotals[i + 1] ?? 0;
     const debt = t13.debt[i + 1] ?? 0;
     const funeral = t13.funeral[i + 1] ?? 0;
     const age = ageAtInheritanceStart(common, h);
@@ -1372,7 +1413,10 @@ function computeAllWithRatios(
       age: age === undefined ? '' : str(age),
       ...(ratios === undefined ? {} : { v8a: ratios[i]!.toFixed(2) }),
       ...(t42Used ? { v12: t42.v12.get(i) ?? '' } : {}),
-      ...(detailForms.length === 0 ? {} : { t11v1: detail === 0 ? '' : signed(detail) }),
+      ...(detailForms.length === 0 ? {} : {
+        t11v1: detail === 0 ? '' : signed(detail),
+        t11v2: unsplit === 0 ? '' : str(unsplit),
+      }),
       t13v1: debt === 0 ? '' : str(debt),
       t13v4: funeral === 0 ? '' : str(funeral),
       ...t15Blank,

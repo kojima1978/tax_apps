@@ -208,7 +208,7 @@ function listRows(people: Table11Person[]): GridCell[] {
 
 /**
  * 取得財産の価額の合計表（①分割財産・②未分割財産・③その合計）。
- * @param detail 付表（財産の明細書）を使う場合は①が付表からの転記になる
+ * @param detail 付表（財産の明細書）を使う場合は①②が付表からの導出になる
  */
 function sumRows(people: Table11Person[], detail: boolean): GridCell[] {
   const head = row(954, SUM_TOP);
@@ -236,7 +236,7 @@ function sumRows(people: Table11Person[], detail: boolean): GridCell[] {
         // ①③は代償財産（記載例62ページ）で負数になり得るため △ を表示できるようにする
         mk(r, col(X.E_L, X.SUM2_L), { kind: 'input', field: `${p}t11v1`, ariaLabel: `${person.label} ①分割財産の価額`, signedCommaInteger: true, readOnly: detail }),
         code(r, col(X.SUM2_L, X.SUM2_C), `G${n + 2}`),
-        mk(r, col(X.SUM2_C, X.ALL_D), { kind: 'input', field: `${p}t11v2`, ariaLabel: `${person.label} ②未分割財産の価額`, commaInteger: true }),
+        mk(r, col(X.SUM2_C, X.ALL_D), { kind: 'input', field: `${p}t11v2`, ariaLabel: `${person.label} ②未分割財産の価額`, commaInteger: true, readOnly: detail }),
         code(r, col(X.ALL_D, X.SUM3_C), `G${n + 3}`),
         mk(r, col(X.SUM3_C, X.R), { kind: 'input', field: `${p}t11v3`, ariaLabel: `${person.label} ③取得財産の価額`, signedCommaInteger: true, readOnly: true }),
       ];
@@ -248,7 +248,7 @@ function sumRows(people: Table11Person[], detail: boolean): GridCell[] {
  * 第11表のセルを組み立てる。
  * @param common 共通欄のフィールド接頭辞（'c.'）
  * @param people この様式に載る10人（不足分も接頭辞だけは渡す。値が無ければ空欄になる）
- * @param detail 付表（財産の明細書）を使う場合は2①が付表からの転記になる
+ * @param detail 付表（財産の明細書）を使う場合は2①②が付表からの導出になる
  */
 export function buildTable11(common: string, people: Table11Person[], detail = false): GridCell[] {
   return [
