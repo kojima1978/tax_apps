@@ -99,15 +99,28 @@ const PERSON_Y = [1181.5, 1251, 1320.5, 1390, 1459.5, 1529, 1598.5] as const;
 const HEAD1 = '1　相続や遺贈によって取得したものとみなされる退職手当金など';
 const LEAD1 = '　この表は、相続人やその他の人が被相続人から相続や遺贈によって取得したものとみなされる退職手当金、'
   + '功労金、退職給付金などを受け取った場合に、その受取金額などを記入します。';
-const NOTES1 = '（注）　1　相続人（相続の放棄をした人を除きます。以下同じです。）が受け取った退職手当金などのうち'
-  + '一定の金額は非課税となりますので、その人は、次の2の該当欄に非課税となる金額と課税される金額とを記入します。\n'
-  + '　　　　2　相続人以外の人が受け取った退職手当金などについては、非課税となる金額はありませんので、その人は、'
-  + 'その受け取った金額そのままを第11表の付表4の「財産の明細」の「価額」欄に転記します。';
+const NOTES1: NonNullable<GridCell['numberedNotes']> = [
+  {
+    number: '1',
+    body: '相続人（相続の放棄をした人を除きます。以下同じです。）が受け取った退職手当金などのうち'
+      + '一定の金額は非課税となりますので、その人は、次の2の該当欄に非課税となる金額と課税される金額とを記入します。',
+  },
+  {
+    number: '2',
+    body: '相続人以外の人が受け取った退職手当金などについては、非課税となる金額はありませんので、その人は、'
+      + 'その受け取った金額そのままを第11表の付表4の「財産の明細」の「価額」欄に転記します。',
+  },
+];
 const HEAD2 = '2　課税される金額の計算';
 const LEAD2 = '　この表は、被相続人の死亡によって相続人が退職手当金などを受け取った場合に、記入します。';
-const NOTES2 = '（注）　1　Ⓑの金額がⒶの金額より少ないときは、各相続人の①欄の金額がそのまま②欄の非課税金額と'
-  + 'なりますので、③欄の課税金額は0となります。\n'
-  + '　　　　2　③欄の金額を第11表の付表4の「財産の明細」の「価額」欄に転記します。';
+const NOTES2: NonNullable<GridCell['numberedNotes']> = [
+  {
+    number: '1',
+    body: 'Ⓑの金額がⒶの金額より少ないときは、各相続人の①欄の金額がそのまま②欄の非課税金額と'
+      + 'なりますので、③欄の課税金額は0となります。',
+  },
+  { number: '2', body: '③欄の金額を第11表の付表4の「財産の明細」の「価額」欄に転記します。' },
+];
 /** 1の明細の「受取人の氏名」に添える案内（③は自動転記しないので注記で補う） */
 const TRANSFER_HINT = '相続人以外の人が受け取った退職手当金などは、その金額をそのまま第11表の付表4の「価額」欄に転記します。';
 
@@ -278,12 +291,16 @@ export function buildTable10(
 
     ...sectionHead(244, 268, 328, HEAD1, LEAD1),
     ...detailRows(common, page, whoOptions),
-    label(row(865, 965), col(X.L, X.R), NOTES1, { align: 'left', fontSize: 7 }),
+    mk(row(865, 965), col(X.L, X.R), {
+      kind: 'label', numberedNotes: NOTES1, align: 'left', fontSize: 7,
+    }),
 
     ...sectionHead(965, 989, 1029.5, HEAD2, LEAD2),
     ...limitRow(totals),
     ...personRows(totals, page, last, whoOptions),
 
-    label(row(PERSON_Y[6], BOTTOM), col(X.L, X.R), NOTES2, { align: 'left', fontSize: 7 }),
+    mk(row(PERSON_Y[6], BOTTOM), col(X.L, X.R), {
+      kind: 'label', numberedNotes: NOTES2, align: 'left', fontSize: 7,
+    }),
   ];
 }
