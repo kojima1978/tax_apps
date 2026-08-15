@@ -171,7 +171,10 @@ function fracRows(s: Section): GridCell[] {
   const denY = row(denT, denB);
   const c16 = row(denB, bottom);
   return [
-    label(all, col(LEFT, FX.LBL), '課税価格の合計額のうち配偶者の法定相続分相当額（円）', { align: 'left' }),
+    label(all, col(LEFT, FX.LBL), '課税価格の合計額のうち配偶者の法定相続分相当額（円）', {
+      align: 'left',
+      ...(s.base === 1 ? { borderRightWidth: 1 } : {}),
+    }),
     label(note, col(FX.CODE, FX.A), '（' + s.aRef + '）', { noBorder: true, align: 'left', fontSize: 7 }),
     label(note, col(FX.FCODE, FX.PROD), '〔配偶者の法定相続分〕', { noBorder: true, align: 'left', fontSize: 7 }),
 

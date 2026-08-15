@@ -215,7 +215,7 @@ function lawfulRow(i: number, heirOptions: GridCell['options'] = []): GridCell[]
     code(all, col(X.NAME_R, X.REL_C), lawCode(i, 0)),
     mk(all, col(X.REL_C, X.REL_R), {
       kind: 'input', field: `${p}rel`, ariaLabel: `${who}の被相続人との続柄`,
-      options: RELATION_OPTIONS, compactSelectedOption: true, readOnly: true,
+      options: RELATION_OPTIONS, compactSelectedOption: true, stackedSelectedOption: true, readOnly: true,
     }),
 
     // ⑤ 法定相続分（上段＝分子・下段＝分母。間の細い帯が様式の分数の横線）
