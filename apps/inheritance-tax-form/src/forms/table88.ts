@@ -282,7 +282,13 @@ export function buildTable88(
     label(row(TOP, 254), col(DX.L, DX.CODE), '被相続人'),
     code(row(TOP, 254), col(DX.CODE, DX.INPUT), 'E01'),
     mk(row(TOP, 254), col(DX.INPUT, RIGHT), {
-      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
+      kind: 'input',
+      field: `${common}name`,
+      ariaLabel: '被相続人の氏名',
+      align: 'left',
+      fontSize: 10,
+      readOnly: true,
+      navigateToForm: 'table1',
     }),
 
     ...section(credit, common, totals, page, options),

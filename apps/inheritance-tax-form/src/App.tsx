@@ -469,6 +469,7 @@ function Table14Page({ page, last, whoOptions, g, u }: Table13PageProps) {
 }
 
 interface Table88PageProps extends PageProps {
+  onNavigate: (formId: string) => void;
   /** 「氏名」の選択肢（項番を値に、氏名を表示に持つ） */
   whoOptions: GridCell['options'];
   /** 第6表を使っているか（1の①②が転記になり読み取り専用になる） */
@@ -478,7 +479,7 @@ interface Table88PageProps extends PageProps {
 }
 
 /** 第8の8表1枚（1 税額控除額・2 納税猶予税額とも2人分） */
-function Table88Page({ page, whoOptions, autoCredit, autoSuccessive, g, u }: Table88PageProps) {
+function Table88Page({ page, whoOptions, autoCredit, autoSuccessive, g, u, onNavigate }: Table88PageProps) {
   const cells = useMemo(
     () => buildTable88(COMMON, TOTALS, page, autoCredit, autoSuccessive, whoOptions),
     [page, autoCredit, autoSuccessive, whoOptions],
@@ -494,6 +495,7 @@ function Table88Page({ page, whoOptions, autoCredit, autoSuccessive, g, u }: Tab
         subtitle={TABLE88_SUBTITLE}
         aspectRatio={TABLE88_ASPECT}
         formId={`t88p${page}`}
+        onNavigate={onNavigate}
         footer={<Footnote notes={TABLE88_NOTES} edition={TABLE88_EDITION} />}
       />
     </div>
@@ -956,6 +958,7 @@ export default function App() {
               autoSuccessive={data.used.includes('table7')}
               g={g}
               u={u}
+              onNavigate={setActive}
             />
           </div>
         ))}

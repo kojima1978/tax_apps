@@ -140,11 +140,22 @@ const LEAD1 = '（この表は、被相続人から相続、遺贈や相続時�
 const LEAD2 = '（この表は、被相続人から相続、遺贈や相続時精算課税に係る贈与によって財産を取得した人のうちに'
   + '農業相続人がいる場合に、財産を取得した相続人の全ての人が記入します。）';
 
-const NOTES = '（注）　1　⑤欄の相続時精算課税適用財産の価額は、令和6年1月1日以後の贈与により取得した財産の場合、'
-  + 'その贈与により取得した年分ごとに、その財産の価額から相続時精算課税に係る基礎控除額を控除した残額となります。\n'
-  + '　　　　2　⑥欄の相続税額は、相続時精算課税分の贈与税額控除後の金額をいい、'
-  + 'その被相続人が納税猶予の適用を受けていた場合の免除された相続税額並びに延滞税、利子税及び加算税の額は含まれません。\n'
-  + '　　　　3　各人の⑬又は⑱欄の金額を第8の8表1のその人の「相次相続控除額③」欄に転記します。';
+const NOTES: NonNullable<GridCell['numberedNotes']> = [
+  {
+    number: '1',
+    body: '⑤欄の相続時精算課税適用財産の価額は、令和6年1月1日以後の贈与により取得した財産の場合、'
+      + 'その贈与により取得した年分ごとに、その財産の価額から相続時精算課税に係る基礎控除額を控除した残額となります。',
+  },
+  {
+    number: '2',
+    body: '⑥欄の相続税額は、相続時精算課税分の贈与税額控除後の金額をいい、'
+      + 'その被相続人が納税猶予の適用を受けていた場合の免除された相続税額並びに延滞税、利子税及び加算税の額は含まれません。',
+  },
+  {
+    number: '3',
+    body: '各人の⑬又は⑱欄の金額を第8の8表1のその人の「相次相続控除額③」欄に転記します。',
+  },
+];
 
 /** 第4表の2と同じ、都道府県ごとにまとめた全国の税務署候補。 */
 const TAX_OFFICE_GROUPS: NonNullable<GridCell['optionGroups']> = TAX_OFFICE_PREFS.map((pref) => ({
@@ -169,8 +180,8 @@ interface EraDateParts {
   day: string;
 }
 
-/** 元号付き年月日を比較し、current が previous より後なら true。未入力・不正日は比較しない。 */
-export function isCurrentInheritanceAfterPrevious(current: EraDateParts, previous: EraDateParts): boolean {
+/** 元号付き年月日を比較し、current が previous より前なら true。未入力・不正日は比較しない。 */
+export function isCurrentInheritanceBeforePrevious(current: EraDateParts, previous: EraDateParts): boolean {
   const toOrdinal = ({ era, year, month, day }: EraDateParts): number | undefined => {
     const eraStart = ERA_START_YEARS[era];
     const eraYear = Number(year);
@@ -189,11 +200,11 @@ export function isCurrentInheritanceAfterPrevious(current: EraDateParts, previou
 
   const currentOrdinal = toOrdinal(current);
   const previousOrdinal = toOrdinal(previous);
-  return currentOrdinal !== undefined && previousOrdinal !== undefined && currentOrdinal > previousOrdinal;
+  return currentOrdinal !== undefined && previousOrdinal !== undefined && currentOrdinal < previousOrdinal;
 }
 
 function dateComparisonError(g: (field: string) => string, common: string): boolean {
-  return isCurrentInheritanceAfterPrevious(
+  return isCurrentInheritanceBeforePrevious(
     {
       era: g(`${common}startEra`),
       year: g(`${common}startY`),
@@ -550,7 +561,7 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
       false,
       {
         invalidWhen: (g) => dateComparisonError(g, common),
-        invalidMessage: '②今回の相続の年月日が①前の相続の年月日より後になっています。',
+        invalidMessage: '②今回の相続の年月日が①前の相続の年月日より前になっています。',
       },
     ),
 
@@ -574,6 +585,11 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
     ...section(general, common, totals, options),
     ...section(farm, common, totals, options),
 
-    label(row(Y.notes[0], Y.notes[1]), col(LEFT, RIGHT), NOTES, { align: 'left', fontSize: 6.5 }),
+    mk(row(Y.notes[0], Y.notes[1]), col(LEFT, RIGHT), {
+      kind: 'label',
+      align: 'left',
+      fontSize: 6.5,
+      numberedNotes: NOTES,
+    }),
   ];
 }
