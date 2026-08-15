@@ -208,9 +208,9 @@ function listRows(people: Table11Person[]): GridCell[] {
 
 /**
  * 取得財産の価額の合計表（①分割財産・②未分割財産・③その合計）。
- * @param detail 付表（財産の明細書）を使う場合は①②が付表からの導出になる
+ * ①②③はいずれも（注）2〜4のとおり付表1〜4からの導出なので、3欄とも入力不可にする。
  */
-function sumRows(people: Table11Person[], detail: boolean): GridCell[] {
+function sumRows(people: Table11Person[]): GridCell[] {
   const head = row(954, SUM_TOP);
   /** 見出しの丸番号は罫線を持たず、金額欄の見出しと同じマスの左端に印字されている */
   const headCell = (from: number, mark: number, to: number, no: string, text: string): GridCell[] => [
@@ -234,9 +234,9 @@ function sumRows(people: Table11Person[], detail: boolean): GridCell[] {
         mk(r, col(X.G_L, X.NO_L), { kind: 'input', field: `${p}t11no`, ariaLabel: `${person.label}の番号`, integerDigits: 2, align: 'center', readOnly: true }),
         code(r, col(X.NO_L, X.E_L), `G${n + 1}`),
         // ①③は代償財産（記載例62ページ）で負数になり得るため △ を表示できるようにする
-        mk(r, col(X.E_L, X.SUM2_L), { kind: 'input', field: `${p}t11v1`, ariaLabel: `${person.label} ①分割財産の価額`, signedCommaInteger: true, readOnly: detail }),
+        mk(r, col(X.E_L, X.SUM2_L), { kind: 'input', field: `${p}t11v1`, ariaLabel: `${person.label} ①分割財産の価額`, signedCommaInteger: true, readOnly: true }),
         code(r, col(X.SUM2_L, X.SUM2_C), `G${n + 2}`),
-        mk(r, col(X.SUM2_C, X.ALL_D), { kind: 'input', field: `${p}t11v2`, ariaLabel: `${person.label} ②未分割財産の価額`, commaInteger: true, readOnly: detail }),
+        mk(r, col(X.SUM2_C, X.ALL_D), { kind: 'input', field: `${p}t11v2`, ariaLabel: `${person.label} ②未分割財産の価額`, commaInteger: true, readOnly: true }),
         code(r, col(X.ALL_D, X.SUM3_C), `G${n + 3}`),
         mk(r, col(X.SUM3_C, X.R), { kind: 'input', field: `${p}t11v3`, ariaLabel: `${person.label} ③取得財産の価額`, signedCommaInteger: true, readOnly: true }),
       ];
@@ -248,9 +248,8 @@ function sumRows(people: Table11Person[], detail: boolean): GridCell[] {
  * 第11表のセルを組み立てる。
  * @param common 共通欄のフィールド接頭辞（'c.'）
  * @param people この様式に載る10人（不足分も接頭辞だけは渡す。値が無ければ空欄になる）
- * @param detail 付表（財産の明細書）を使う場合は2①②が付表からの導出になる
  */
-export function buildTable11(common: string, people: Table11Person[], detail = false): GridCell[] {
+export function buildTable11(common: string, people: Table11Person[]): GridCell[] {
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
     label(row(110, 170.5), col(X.DEC_L, X.ALL_Y), '被相続人の氏名'),
@@ -268,7 +267,7 @@ export function buildTable11(common: string, people: Table11Person[], detail = f
     notes(row(859.5, 906.5), TABLE11_LIST_NOTES),
 
     ...sectionHead(913.5, 954, '2　取得財産の価額の合計表'),
-    ...sumRows(people, detail),
+    ...sumRows(people),
     notes(row(1564.5, 1689), TABLE11_SUM_NOTES),
   ];
 }

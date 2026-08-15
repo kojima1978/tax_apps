@@ -1413,10 +1413,10 @@ function computeAllWithRatios(
       age: age === undefined ? '' : str(age),
       ...(ratios === undefined ? {} : { v8a: ratios[i]!.toFixed(2) }),
       ...(t42Used ? { v12: t42.v12.get(i) ?? '' } : {}),
-      ...(detailForms.length === 0 ? {} : {
-        t11v1: detail === 0 ? '' : signed(detail),
-        t11v2: unsplit === 0 ? '' : str(unsplit),
-      }),
+      // 第11表2①②は（注）2・3のとおり付表1〜4からの導出しかないので、
+      // 付表が空でも手入力に戻さず空欄のままにする（欄そのものが入力不可）
+      t11v1: detail === 0 ? '' : signed(detail),
+      t11v2: unsplit === 0 ? '' : str(unsplit),
       t13v1: debt === 0 ? '' : str(debt),
       t13v4: funeral === 0 ? '' : str(funeral),
       ...t15Blank,

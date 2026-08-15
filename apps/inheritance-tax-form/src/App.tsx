@@ -252,19 +252,14 @@ function ContPage({ page, g, u, onNavigate }: PageProps) {
   );
 }
 
-interface Table11PageProps extends PageProps {
-  /** 付表を使う場合は2①が付表からの転記になる */
-  detail: boolean;
-}
-
 /** 第11表1枚（財産を取得した人10人分） */
-function Table11Page({ page, g, u, detail, onNavigate }: Table11PageProps) {
+function Table11Page({ page, g, u, onNavigate }: PageProps) {
   const cells = useMemo(
     () => buildTable11(COMMON, Array.from({ length: TABLE11_ROWS }, (_, i) => {
       const index = page * TABLE11_ROWS + i;
       return { prefix: heirPrefix(index), label: heirLabel(index) };
-    }), detail),
-    [page, detail],
+    })),
+    [page],
   );
   return (
     <div className="gov-page">
@@ -768,8 +763,6 @@ export default function App() {
   const table11Pages = Math.max(1, Math.ceil(data.heirs.length / TABLE11_ROWS));
   /** 付表の枚数（明細の件数から決まる。1枚は必ず出す） */
   const detailPages = (form: string): number => Math.max(1, Math.ceil((data.details[form]?.length ?? 0) / DETAIL_GROUPS));
-  /** 付表を1つでも使うなら、第11表2①は付表からの転記になる */
-  const detailUsed = Object.keys(DETAIL_SPECS).some((id) => data.used.includes(id));
   /** 第13表の枚数（3の承継した人が1枚に4人分しか入らないので人数でも増える） */
   const t13Pages = table13Pages(data.common, data.heirs.length);
   /** 第4表の枚数（加算の対象になるかは続柄だけでは決まらないので人数からは決めない） */
@@ -1031,7 +1024,7 @@ export default function App() {
       </>
     ),
     table11: Array.from({ length: table11Pages }, (_, page) => (
-      <Table11Page key={page} page={page} g={g} u={u} detail={detailUsed} onNavigate={setActive} />
+      <Table11Page key={page} page={page} g={g} u={u} onNavigate={setActive} />
     )),
     // 第11の2表は贈与を受けた人ごとに1枚以上。記入が1つも無い人の分は印刷しない。
     table112: data.heirs.map((heir, i) => {
