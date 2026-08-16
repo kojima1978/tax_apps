@@ -586,7 +586,14 @@ button {
 .dpanel {
   /* 桁数から欄の幅を出すときの上乗せ分（左右の余白＋枠、選択式の▼） */
   --dpanel-pad: 14px;
-  --dpanel-arrow: 18px;
+
+  /*
+   * ▼の場所はブラウザが自分で確保する（余白では作れない）。
+   * padding-right を足しても▼はその内側に描かれるので、余白を足した分だけ
+   * 文字の場所が狭くなって選んだ値が読めなくなる。ここは実測した▼の幅
+   * （Chrome で約20px）に少し余裕を持たせた値で、桁数から幅を出すときにだけ足す。
+   */
+  --dpanel-arrow: 26px;
 
   position: fixed;
   inset: 0;
@@ -661,11 +668,6 @@ button {
   font-family: inherit;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
-}
-
-/* 選択式は右端に▼が描かれるので、その分だけ余白を空けて文字と重ならないようにする */
-select.dpanel__input {
-  padding-right: var(--dpanel-arrow);
 }
 
 .dpanel__input:disabled {
