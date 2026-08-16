@@ -684,7 +684,8 @@ select.dpanel__input {
 }
 
 .dpanel__note {
-  flex: 0 0 auto;
+  /* 縮まない設定にすると、説明が長い行で入力欄の側が潰れて何行にも折り返る */
+  flex: 0 1 auto;
   font-size: 11px;
   color: #64748b;
 }
