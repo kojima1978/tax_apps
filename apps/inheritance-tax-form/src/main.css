@@ -673,6 +673,65 @@ button {
   color: #64748b;
 }
 
+/* 1行に複数の欄が並ぶもの（生年月日・郵便番号・電話番号） */
+.dpanel__parts {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.dpanel__part {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 2px;
+  align-items: center;
+  min-width: 0;
+}
+
+.dpanel__unit {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* 上下2段に積む欄（住所） */
+.dpanel__stack {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* 縦に積むと .dpanel__input の flex-basis が高さとして効いてしまう */
+.dpanel__stack .dpanel__input {
+  flex: 0 0 auto;
+}
+
+/* 生年月日・郵便番号・電話番号は数字の桁数どおりの幅にする */
+.dpanel__parts .dpanel__input {
+  flex: 1 1 4em;
+  text-align: center;
+}
+
+/* チェックボックスの並び（取得原因・参考記載） */
+.dpanel__checks {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  align-items: center;
+}
+
+.dpanel__check {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  cursor: pointer;
+}
+
 .dpanel__methods {
   display: flex;
   gap: 16px;

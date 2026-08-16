@@ -60,6 +60,8 @@ const emptyData = (): FormData => ({
 export const heirPrefix = (i: number): string => `h${i}.`;
 /** アクセシブル名・画面表示に使う呼び名 */
 export const heirLabel = (i: number): string => `${i + 1}人目`;
+/** 接頭辞（'h0.'）から何人目かを取り出す。人物ブロックのクリックは接頭辞で返ってくる */
+export const heirIndex = (prefix: string): number => Number(prefix.slice(1, -1));
 
 /** 付表 form の i 番目の明細のフィールド接頭辞 */
 export const detailPrefix = (form: string, i: number): string => `${form}#${i}.`;

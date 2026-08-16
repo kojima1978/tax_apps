@@ -263,13 +263,15 @@ interface SubInputProps {
   keepZeros?: boolean;
   /** false のとき下線を表示しない（日付欄など） */
   underline?: boolean;
+  /** 入力を別画面へ一本化した欄（人物ブロック）。表示だけにする */
+  readOnly?: boolean;
 }
 /** 複合入力の中の数字1マス */
-function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown, keepZeros, underline = true }: SubInputProps) {
+function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown, keepZeros, underline = true, readOnly }: SubInputProps) {
   const printRendering = useContext(PrintRenderContext);
   const digits = (raw: string) => (keepZeros ? raw.replace(/\D/g, '') : normalizeInteger(raw));
   const value = digits(g(field));
-  if (printRendering) return <span style={{ display: 'inline-block', width, textAlign: 'center' }}>{value}</span>;
+  if (printRendering || readOnly) return <span style={{ display: 'inline-block', width, textAlign: 'center' }}>{value}</span>;
   return (
     <input
       id={`${formId}-${field}`}
@@ -340,7 +342,10 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     // 入力欄を持たないセル（項番など）はボタンそのものにする。入力欄を載せたセルはクリックだけ受ける
     const actionButton = action !== undefined && c.field === undefined;
     const interactive = !printRendering && Boolean(c.selectValue || c.toggleField || navigateToForm || action);
-    const editableComposite = Boolean(c.field && !readOnly && (c.date || c.zip || c.tel || c.twoLine));
+    const composite = Boolean(c.field && (c.date || c.zip || c.tel || c.twoLine));
+    const editableComposite = composite && !readOnly;
+    // 複合欄は入力欄が複数あるので、読み取り専用の灰色は欄ごとではなくセル全体に敷く
+    const readOnlyComposite = composite && readOnly && !printRendering;
     const editable = Boolean(c.selectValue || c.toggleField || editableComposite || (c.kind === 'input' && c.field && !readOnly));
     const rightLabelPadding = c.rightLabel
       ? Math.max(14, Array.from(c.rightLabel).length * 4.5 + 4)
@@ -408,7 +413,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           writingMode: isVertical ? (c.verticalLr ? 'vertical-lr' : 'vertical-rl') : undefined,
           fontSize,
           fontWeight: c.bold || highlighted ? 700 : 400,
-          background: highlighted ? '#fff3b0' : undefined,
+          background: highlighted ? '#fff3b0' : readOnlyComposite ? '#f7f7f7' : undefined,
           boxShadow: invalid ? 'inset 0 0 0 1.5px #dc2626' : highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
           cursor: interactive ? 'pointer' : undefined,
           userSelect: interactive ? 'none' : undefined,
@@ -427,21 +432,21 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           <DiagonalLine dir={c.diagonal} />
         ) : c.date && c.field ? (
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: justify, gap: 1, width: '100%', whiteSpace: 'nowrap' }}>
-            <SubInput field={`${c.field}_y`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（年）`} g={g} u={u} onKeyDown={onEnterNext} underline={false} />年
-            <SubInput field={`${c.field}_m`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（月）`} g={g} u={u} onKeyDown={onEnterNext} underline={false} />月
-            <SubInput field={`${c.field}_d`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（日）`} g={g} u={u} onKeyDown={onEnterNext} underline={false} />日
+            <SubInput field={`${c.field}_y`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（年）`} g={g} u={u} onKeyDown={onEnterNext} underline={false} readOnly={readOnly} />年
+            <SubInput field={`${c.field}_m`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（月）`} g={g} u={u} onKeyDown={onEnterNext} underline={false} readOnly={readOnly} />月
+            <SubInput field={`${c.field}_d`} formId={inputPrefix} width="2em" maxLength={2} ariaLabel={`${c.ariaLabel ?? c.field}（日）`} g={g} u={u} onKeyDown={onEnterNext} underline={false} readOnly={readOnly} />日
             {c.dateSuffix && <span style={{ paddingLeft: '0.6em' }}>{c.dateSuffix}</span>}
           </span>
         ) : c.zip && c.field ? (
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, width: '100%', whiteSpace: 'nowrap' }}>
-            <SubInput field={`${c.field}_1`} formId={inputPrefix} width="3.2em" maxLength={3} ariaLabel={`${c.ariaLabel ?? c.field}（上3桁）`} g={g} u={onZipInput} onKeyDown={onEnterNext} keepZeros />―
-            <SubInput field={`${c.field}_2`} formId={inputPrefix} width="4.2em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（下4桁）`} g={g} u={onZipInput} onKeyDown={onEnterNext} keepZeros />
+            <SubInput field={`${c.field}_1`} formId={inputPrefix} width="3.2em" maxLength={3} ariaLabel={`${c.ariaLabel ?? c.field}（上3桁）`} g={g} u={onZipInput} onKeyDown={onEnterNext} keepZeros readOnly={readOnly} />―
+            <SubInput field={`${c.field}_2`} formId={inputPrefix} width="4.2em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（下4桁）`} g={g} u={onZipInput} onKeyDown={onEnterNext} keepZeros readOnly={readOnly} />
           </span>
         ) : c.tel && c.field ? (
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, width: '100%', whiteSpace: 'nowrap' }}>
-            <SubInput field={`${c.field}_1`} formId={inputPrefix} width="4em" maxLength={5} ariaLabel={`${c.ariaLabel ?? c.field}（市外局番）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros />―
-            <SubInput field={`${c.field}_2`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（市内局番）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros />―
-            <SubInput field={`${c.field}_3`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（加入者番号）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros />
+            <SubInput field={`${c.field}_1`} formId={inputPrefix} width="4em" maxLength={5} ariaLabel={`${c.ariaLabel ?? c.field}（市外局番）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros readOnly={readOnly} />―
+            <SubInput field={`${c.field}_2`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（市内局番）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros readOnly={readOnly} />―
+            <SubInput field={`${c.field}_3`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（加入者番号）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros readOnly={readOnly} />
           </span>
         ) : c.kind === 'input' && c.field && (c.options || c.optionGroups) ? (
           printRendering || readOnly
@@ -487,7 +492,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           // 様式には中の横罫線が無いので、枠は1つのまま入力欄だけを上下に積む
           <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
             {([[c.field, c.twoLine.top], [`${c.field}2`, c.twoLine.bottom]] as const).map(([field, part]) => (
-              printRendering ? (
+              printRendering || readOnly ? (
                 <div key={field} style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>{g(field)}</div>
               ) : (
                 <input

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { GridForm, type GridCell } from './components/ui/GridForm';
 import { DetailPanel } from './components/DetailPanel';
+import { PersonPanel } from './components/PersonPanel';
 import { giftYearOptions } from './data/codes';
+import { personActionPrefix } from './forms/person';
 import {
   COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1, taxOfficeOptions,
 } from './forms/table1';
@@ -73,7 +75,7 @@ import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
 import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
 import { TABLE11F4_SHARE, TABLE11F4_SPEC } from './forms/table11f4';
-import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
+import { detailLabel, detailPrefix, heirIndex, heirLabel, heirPrefix, useFormData } from './hooks/useFormData';
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
@@ -222,8 +224,13 @@ interface PageProps {
   onNavigate: (formId: string) => void;
 }
 
+interface ContPageProps extends PageProps {
+  /** 人物ブロックのクリック（基本情報の入力は別画面に一本化してある） */
+  onAction: (action: string) => void;
+}
+
 /** 第1表（続）1枚（財産を取得した人2人分） */
-function ContPage({ page, g, u, onNavigate }: PageProps) {
+function ContPage({ page, g, u, onNavigate, onAction }: ContPageProps) {
   const a = 1 + page * 2;
   const b = a + 1;
   const cells = useMemo(() => {
@@ -242,6 +249,7 @@ function ContPage({ page, g, u, onNavigate }: PageProps) {
         title={[TABLE1CONT_TITLE, `${heirLabel(a)}・${heirLabel(b)}`].join('　')}
         formId={`t1c${page}`}
         onNavigate={onNavigate}
+        onAction={onAction}
         footer={
           <>
             <div className="gov-aside">※の項目は記入する必要がありません。</div>
@@ -698,6 +706,8 @@ export default function App() {
   const [active, setActive] = useState('table1');
   /** 別画面で編集中の明細（付表の様式IDと通し番号） */
   const [editing, setEditing] = useState<{ form: keyof typeof DETAIL_SPECS; index: number } | null>(null);
+  /** 別画面で編集中の「財産を取得した人」（何人目か） */
+  const [editingPerson, setEditingPerson] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
   const { printing, print } = usePrinting();
 
@@ -721,6 +731,11 @@ export default function App() {
     () => giftYearOptions(data.common.startEra ?? '', data.common.startY ?? ''),
     [data.common.startEra, data.common.startY],
   );
+  /** 用紙の人物ブロックのクリック → その人の基本情報の画面を開く */
+  const onPersonAction = useCallback((action: string) => {
+    const prefix = personActionPrefix(action);
+    if (prefix !== undefined) setEditingPerson(heirIndex(prefix));
+  }, []);
   const table1Cells = useMemo(
     () => buildTable1(heirPrefix(0), TABLE1_TRANSFERRED_ROWS, officeOptions, TABLE1_SOURCE_FOR_ROW),
     [officeOptions],
@@ -894,6 +909,7 @@ export default function App() {
             title={TABLE1_TITLE}
             formId="t1"
             onNavigate={setActive}
+            onAction={onPersonAction}
             footer={<Footnote notes={TABLE1_NOTES} />}
           />
         </div>
@@ -910,7 +926,7 @@ export default function App() {
           increaseDisabled={data.heirs.length >= maxHeirs}
           detail={`財産を取得した人 ${data.heirs.length}人`}
         />
-        <ContPage page={page} g={g} u={u} onNavigate={setActive} />
+        <ContPage page={page} g={g} u={u} onNavigate={setActive} onAction={onPersonAction} />
       </div>
     )),
     table2: (
@@ -1314,6 +1330,23 @@ export default function App() {
           onSubmit={(item) => { setDetailItem(editing.form, editing.index, item); setEditing(null); }}
           onDelete={() => { removeDetailItem(editing.form, editing.index); setEditing(null); }}
           onCancel={() => setEditing(null)}
+        />
+      )}
+
+      {/* 人数を減らした直後は、開いていた人が居なくなっていることがある */}
+      {editingPerson !== null && editingPerson < data.heirs.length && (
+        <PersonPanel
+          index={editingPerson}
+          total={data.heirs.length}
+          prefix={heirPrefix(editingPerson)}
+          g={g}
+          u={u}
+          onSelect={(index) => {
+            setEditingPerson(index);
+            // その人が載っている用紙へ移る（1人目は第1表、2人目からは第1表（続））
+            setActive(index === 0 ? 'table1' : 'table1cont');
+          }}
+          onClose={() => setEditingPerson(null)}
         />
       )}
     </div>

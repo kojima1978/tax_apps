@@ -10,6 +10,7 @@ import type { GridCell } from '../components/ui/GridForm';
 import {
   DAY_OPTIONS, ERA_NOTE, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS, RELATION_OPTIONS,
 } from '../data/codes';
+import { personAction } from './person';
 
 /** 縦罫線の位置（％）。両様式共通。 */
 export const V = {
@@ -187,6 +188,12 @@ function birthCells(
 
 /**
  * 「財産を取得した人」1人分の列。
+ *
+ * 基本情報の入力は別画面（`PersonPanel`）へ一本化してあるので、この列の欄は
+ * すべて読み取り専用にし、クリックでその人の画面を開く入口にしている。
+ * 1人分が縦1列に細長く割り付けられ、2人目からは別の用紙に移るため、
+ * 用紙の上では1人をまとめて登録できないのがその理由。
+ *
  * @param x 列の左端（％）。第1表の取得者列は V.MID、第1表（続）は V.LBL と V.MID。
  * @param p フィールド接頭辞（'h0.' など）
  * @param who アクセシブル名の主語（「1人目」など）
@@ -194,8 +201,10 @@ function birthCells(
 export function personColumn(x: number, y: PersonY, c: PersonCodes, p: string, who: string): GridCell[] {
   const at = (d: number) => x + d;
   const nameSpan: [number, number] = [y.furigana[0], y.name[1]];
-  return [
-    label(y.head, [x, at(O.nameR)], '財産を取得した人', { fontSize: 10 }),
+  const action = personAction(p);
+  const cells: GridCell[] = [
+    // 見出しはこの列で唯一のボタン（キーボードでも画面を開けるようにする）
+    label(y.head, [x, at(O.nameR)], '財産を取得した人', { fontSize: 10, action, ariaLabel: `${who}の基本情報を入力する` }),
     label(y.head, [at(O.nameR), at(O.end)], '参考記載', { fontSize: 8 }),
 
     // フリガナ・氏名・参考記載
@@ -241,6 +250,11 @@ export function personColumn(x: number, y: PersonY, c: PersonCodes, p: string, w
 
     label(y.calcHead, [x, at(O.end)], '財産を取得した人の計算（円）', { fontSize: 10 }),
   ];
+  // 入力欄は表示だけにし、どこをクリックしてもその人の画面が開くようにする
+  // （計算欄の見出しは下の計算部分のものなので、対象から外す）
+  return cells.map((cell) => (
+    cell.field === undefined ? cell : { ...cell, readOnly: true, action }
+  ));
 }
 
 /**
