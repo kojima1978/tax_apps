@@ -6,6 +6,7 @@
  * 座標はいずれも様式PNG（150dpi）の実測px。
  */
 
+import { PREFECTURE_OPTIONS } from '../data/codes';
 import {
   FOREIGN_OPTIONS, TABLE11F1_KINDS, TABLE11F1_SPECIAL_OPTIONS, codeNames, codeOptions,
 } from '../data/detailCodes';
@@ -98,7 +99,10 @@ export const TABLE11F1_SPEC: DetailSpec = {
         cell: { options: codeOptions(TABLE11F1_KINDS), compactSelectedOption: true },
       },
       { x: [195, 221, 308], code: 'E0', field: 'kind', name: '細目' },
-      { x: [308, 334, 426], code: 'E4', field: 'pref', name: '所在場所（都道府県）' },
+      {
+        x: [308, 334, 426], code: 'E4', field: 'pref', name: '所在場所（都道府県）',
+        cell: { options: PREFECTURE_OPTIONS },
+      },
       { x: [426, 452, 577], code: 'E5', field: 'city', name: '所在場所（市区町村）' },
       { x: [577, 603, 705], code: 'C0', field: 'area', name: '面積', cell: { align: 'right' } },
       { x: [705, 731, 837], code: 'C1', field: 'unitPrice', name: '単価又は倍数', cell: { align: 'right' } },
