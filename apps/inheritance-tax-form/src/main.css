@@ -683,6 +683,12 @@ button {
   background: #f1f5f9;
 }
 
+/* 数字の欄は用紙の上と同じく右詰め（桁を揃えないと読めないため） */
+.dpanel__input--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* 自動計算欄は用紙の上と同じ灰色にする */
 .dpanel__input--auto {
   background: #f7f7f7;

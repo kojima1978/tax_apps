@@ -18,6 +18,7 @@ import {
   detailMethod, detailShareAmounts, detailShareCount, detailUnusedFields, detailValue,
   isEmptyDetail, moveDetailShare, num,
 } from '../lib/calc';
+import { formatCommaInteger, formatSignedCommaInteger, normalizeInteger, sanitizeDecimal } from '../lib/format';
 
 /** 評価方式の選択肢（付表1のみ） */
 const METHOD_OPTIONS: readonly { value: DetailMethod; label: string; note: string }[] = [
@@ -55,13 +56,35 @@ function panelFields(spec: DetailSpec): PanelField[] {
     });
 }
 
-/** 欄の種類に応じて入力を整える（用紙側の GridForm と同じ扱いにする） */
+/**
+ * 欄の種類に応じて入力を整える（用紙側の GridForm と同じ扱いにする）。
+ * 価額の欄は打っている最中からカンマを入れる。保存されるのもこの形だが、
+ * 読むときは `num()` がカンマと△を落とすので計算には影響しない。
+ */
 function clean(cell: Partial<GridCell>, raw: string): string {
-  if (cell.commaInteger) return raw.replace(/\D/g, '');
-  if (cell.signedCommaInteger) return raw.replace(/[^\d△-]/g, '').replace(/(?!^)[△-]/g, '');
-  if (cell.integerDigits !== undefined) return raw.replace(/\D/g, '').slice(0, cell.integerDigits);
-  if (cell.decimalPlaces !== undefined) return raw.replace(/[^\d.]/g, '');
+  if (cell.commaInteger) return formatCommaInteger(raw);
+  if (cell.signedCommaInteger) return formatSignedCommaInteger(raw);
+  if (cell.integerDigits !== undefined) return normalizeInteger(raw).slice(0, cell.integerDigits);
+  if (cell.decimalPlaces !== undefined) return sanitizeDecimal(raw, cell.decimalPlaces);
   return raw;
+}
+
+/** 保存済みの値の表示形（カンマの無い古い値も用紙と同じ見た目にする） */
+function display(cell: Partial<GridCell>, value: string): string {
+  if (cell.commaInteger) return formatCommaInteger(value);
+  if (cell.signedCommaInteger) return formatSignedCommaInteger(value);
+  return value;
+}
+
+/** 数字の欄は右詰めにする（用紙側と同じく、桁を揃えないと読めないため） */
+function isNumericCell(cell: Partial<GridCell>): boolean {
+  return cell.commaInteger === true || cell.signedCommaInteger === true
+    || cell.decimalPlaces !== undefined || cell.align === 'right';
+}
+
+/** 数字欄の入力ボックスの class */
+function inputClass(cell: Partial<GridCell>, auto = false): string {
+  return `dpanel__input${isNumericCell(cell) ? ' dpanel__input--num' : ''}${auto ? ' dpanel__input--auto' : ''}`;
 }
 
 interface FieldInputProps {
@@ -99,8 +122,8 @@ function FieldInput({ id, field, value, disabled, onChange }: FieldInputProps) {
   return (
     <input
       id={id}
-      className="dpanel__input"
-      value={value}
+      className={inputClass(cell)}
+      value={display(cell, value)}
       disabled={disabled}
       inputMode={cell.commaInteger || cell.integerDigits !== undefined || cell.decimalPlaces !== undefined ? 'numeric' : undefined}
       onChange={(e) => onChange(clean(cell, e.target.value))}
@@ -204,14 +227,14 @@ export function DetailPanel({
         </span>
         {amount === undefined ? (
           <input
-            className="dpanel__input"
-            value={draft[`amount${i}`] ?? ''}
+            className="dpanel__input dpanel__input--num"
+            value={formatSignedCommaInteger(draft[`amount${i}`] ?? '')}
             inputMode="numeric"
             aria-label={`取得者${i + 1}の取得財産の価額`}
-            onChange={(e) => set(`amount${i}`, clean({ signedCommaInteger: true }, e.target.value))}
+            onChange={(e) => set(`amount${i}`, formatSignedCommaInteger(e.target.value))}
           />
         ) : (
-          <input className="dpanel__input dpanel__input--auto" value={amount} readOnly aria-label={`取得者${i + 1}の取得財産の価額（自動計算）`} />
+          <input className="dpanel__input dpanel__input--num dpanel__input--auto" value={formatSignedCommaInteger(amount)} readOnly aria-label={`取得者${i + 1}の取得財産の価額（自動計算）`} />
         )}
       </div>
     );
@@ -253,7 +276,7 @@ export function DetailPanel({
               <div className="dpanel__row" key={field.field}>
                 <label className="dpanel__label" htmlFor={id}>{field.name}</label>
                 {auto ? (
-                  <input className="dpanel__input dpanel__input--auto" value={autoValue} readOnly aria-label={`${field.name}（自動計算）`} />
+                  <input className={inputClass(field.cell, true)} value={display(field.cell, autoValue)} readOnly aria-label={`${field.name}（自動計算）`} />
                 ) : (
                   <FieldInput
                     id={id}

@@ -1,6 +1,7 @@
 import { useCallback, useContext, useId, useMemo, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { PrintRenderContext } from './printContext';
 import { lookupZipAddress } from '../../lib/zipAddress';
+import { formatCommaInteger, formatFixedDecimal, formatSignedCommaInteger, normalizeInteger, sanitizeDecimal } from '../../lib/format';
 
 /**
  * グリッドセル定義（座標・サイズは様式全体に対する％）。
@@ -204,37 +205,6 @@ function selectedOptionLabel(options: NonNullable<GridCell['options']>, value: s
     typeof candidate === 'string' ? candidate === value : candidate.value === value
   ));
   return typeof option === 'string' ? option : option?.label ?? '';
-}
-
-function normalizeInteger(value: string): string {
-  return value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
-}
-
-function formatCommaInteger(value: string): string {
-  return normalizeInteger(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-
-/** 様式では還付額の頭に「△」を付ける。入力は - / △ のどちらでも受け付け、表示は △ に統一する。 */
-function formatSignedCommaInteger(value: string): string {
-  const raw = value.replace(/,/g, '').trim();
-  const negative = raw.startsWith('-') || raw.startsWith('△');
-  const digits = normalizeInteger(raw);
-  if (negative && digits === '') return '△';
-  const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return negative && formatted !== '' ? `△${formatted}` : formatted;
-}
-
-function sanitizeDecimal(value: string, places: number): string {
-  const normalized = value.replace(/[^\d.]/g, '');
-  const [integer = '', ...fractions] = normalized.split('.');
-  const fraction = fractions.join('').slice(0, places);
-  return normalized.includes('.') ? `${integer}.${fraction}` : integer;
-}
-
-function formatFixedDecimal(value: string, places: number): string {
-  const sanitized = sanitizeDecimal(value, places);
-  if (!sanitized || sanitized === '.') return '';
-  return Number(sanitized).toFixed(places);
 }
 
 /** 複合入力（日付・郵便番号・電話番号）の入力ボックス共通スタイル */
