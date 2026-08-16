@@ -52,7 +52,8 @@ export interface GridCell {
   signedCommaInteger?: boolean;      // マイナス（△）を許可する整数を3桁区切りカンマで表示
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                // 自動計算などの編集不可欄
-  readOnlyWhen?: (g: (field: string) => string) => boolean; // 入力値しだいで自動計算に切り替わる欄
+  /** クリックすると呼び出し側へ返す識別子（付表の明細を別画面で開く）。印刷では無効 */
+  action?: string;
   navigateToForm?: string | ((g: (field: string) => string) => string | undefined); // 転記元の様式ID（入力値に応じた切替可）
   invalidWhen?: (g: (field: string) => string) => boolean; // 入力値の組合せが不正なときのエラー表示
   invalidMessage?: string;           // エラー理由（title・アクセシブル名）
@@ -106,6 +107,8 @@ interface GridFormProps {
   formId?: string;
   /** 転記元の様式へ移動する */
   onNavigate?: (formId: string) => void;
+  /** `action` を持つセルがクリックされた */
+  onAction?: (action: string) => void;
 }
 
 /** 半角・全角（U+3000）スペース。縦書きラベルでは字間が空きすぎるため取り除く。 */
@@ -287,7 +290,7 @@ function SubInput({ field, formId, width, maxLength, ariaLabel, g, u, onKeyDown,
  * 各矩形の left/right を縦罫線、top/bottom を横罫線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio = '210 / 297', toolbar, footer, formId, onNavigate }: GridFormProps) {
+export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio = '210 / 297', toolbar, footer, formId, onNavigate, onAction }: GridFormProps) {
   const printRendering = useContext(PrintRenderContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
@@ -329,12 +332,14 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     // 枠の実寸に合わせて自動縮小（長文ラベルがはみ出さないように）
     const fontSize = c.fontSize ?? fitFontSize(text, c, isVertical);
     const justify = c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center';
-    // 自動計算に切り替わる欄がある（付表の価額など）ので、readOnly は毎回入力値から求め直す
-    const readOnly = c.readOnly === true || (c.readOnlyWhen?.(g) ?? false);
+    const readOnly = c.readOnly === true;
     const highlighted = c.highlightWhen?.(g) ?? false;
     const invalid = !printRendering && (c.invalidWhen?.(g) ?? false);
     const navigateToForm = typeof c.navigateToForm === 'function' ? c.navigateToForm(g) : c.navigateToForm;
-    const interactive = !printRendering && Boolean(c.selectValue || c.toggleField || navigateToForm);
+    const action = printRendering ? undefined : c.action;
+    // 入力欄を持たないセル（項番など）はボタンそのものにする。入力欄を載せたセルはクリックだけ受ける
+    const actionButton = action !== undefined && c.field === undefined;
+    const interactive = !printRendering && Boolean(c.selectValue || c.toggleField || navigateToForm || action);
     const editableComposite = Boolean(c.field && !readOnly && (c.date || c.zip || c.tel || c.twoLine));
     const editable = Boolean(c.selectValue || c.toggleField || editableComposite || (c.kind === 'input' && c.field && !readOnly));
     const rightLabelPadding = c.rightLabel
@@ -347,6 +352,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
       if (c.toggleField) u(c.toggleField, g(c.toggleField) === '1' ? '' : '1');
       else if (c.selectValue) u(c.selectValue.field, g(c.selectValue.field) === c.selectValue.value ? '' : c.selectValue.value);
       else if (navigateToForm) onNavigate?.(navigateToForm);
+      else if (action !== undefined) onAction?.(action);
     };
     // 郵便番号の入力。7桁そろった時点で住所欄を補う（空のときだけ）
     const onZipInput = (field: string, value: string) => {
@@ -363,10 +369,14 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     return (
       <div
         key={i}
-        className={`gf-cell${editable ? ' gf-cell--editable' : ''}${navigateToForm ? ' gf-cell--source-link' : ''}${c.rightBrace ? ' gf-cell--right-brace' : ''}${invalid ? ' gf-cell--invalid' : ''}`}
-        role={c.toggleField ? 'checkbox' : c.selectValue || navigateToForm ? 'button' : c.semanticRole}
-        tabIndex={interactive ? 0 : undefined}
-        aria-label={interactive ? navigateToForm ? `${c.ariaLabel ?? text}の転記元を開く` : c.ariaLabel ?? `${text}を選択` : c.ariaLabel}
+        className={`gf-cell${editable ? ' gf-cell--editable' : ''}${navigateToForm ? ' gf-cell--source-link' : ''}${action !== undefined ? ' gf-cell--action' : ''}${c.rightBrace ? ' gf-cell--right-brace' : ''}${invalid ? ' gf-cell--invalid' : ''}`}
+        // 入力欄を載せたまま行全体をクリックできるようにするため、
+        // 欄を持つセルはボタンにせず（読み取り専用の入力欄のまま）クリックだけ受ける
+        role={c.toggleField ? 'checkbox' : c.selectValue || navigateToForm || actionButton ? 'button' : c.semanticRole}
+        tabIndex={interactive && (action === undefined || actionButton) ? 0 : undefined}
+        aria-label={interactive && c.field === undefined
+          ? navigateToForm ? `${c.ariaLabel ?? text}の転記元を開く` : c.ariaLabel ?? `${text}を選択`
+          : c.ariaLabel}
         aria-checked={c.toggleField ? g(c.toggleField) === '1' : undefined}
         aria-pressed={c.selectValue ? g(c.selectValue.field) === c.selectValue.value : undefined}
         aria-invalid={invalid || undefined}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  computeAll, detailAutoValue, detailGroupCount, detailShareCount, detailSlots, num, type Values,
+  computeAll, detailAutoValue, detailGroupCount, detailShareAmounts, detailShareCount, detailSlots,
+  detailUnusedFields, num, type Values,
 } from './calc';
 import { table15Key } from '../forms/table15';
 
@@ -198,10 +199,21 @@ describe('付表の価額の自動計算', () => {
     })).toBe('7500000');
   });
 
-  it('付表1は固定資産税評価額が入っていれば倍率方式（評価額×倍数×持分割合）にする', () => {
+  it('付表1で倍率方式を選ぶと固定資産税評価額×倍数×持分割合で計算する', () => {
     expect(detailAutoValue('table11f1', {
-      area: '100.00', fixedValue: '3000000', unitPrice: '1.1', shareN: '1', shareD: '3',
+      method: 'ratio', fixedValue: '3000000', unitPrice: '1.1', shareN: '1', shareD: '3',
     })).toBe('1100000');
+  });
+
+  it('評価方式は入力から推測しない（固定資産税評価額を控えても路線価方式のまま）', () => {
+    const item = { area: '100.00', fixedValue: '3000000', unitPrice: '150000', shareN: '1', shareD: '2' };
+    expect(detailAutoValue('table11f1', item)).toBe('7500000');
+    expect(detailUnusedFields('table11f1', item)).toEqual(['fixedValue']);
+    expect(detailUnusedFields('table11f1', { ...item, method: 'ratio' })).toEqual(['area']);
+  });
+
+  it('選んだ方式の元になる欄が空なら自動計算しない', () => {
+    expect(detailAutoValue('table11f1', { method: 'ratio', area: '100.00', unitPrice: '1.1' })).toBeUndefined();
   });
 
   it('持分割合が空なら全部（持分の指定なし）として計算する', () => {
@@ -250,6 +262,52 @@ describe('付表の価額の自動計算', () => {
     );
 
     expect(result.heirs.map((heir) => heir.t11v2)).toEqual(['7500000', '7500000']);
+  });
+});
+
+describe('取得者ごとの割合からの按分', () => {
+  // 3で割り切れない価額（100.00 × 150,001 ＝ 15,000,100円）にして端数の寄せ方まで見る
+  const land = {
+    kindCode: '13', area: '100.00', unitPrice: '150001',
+    who0: '1', who1: '2', who2: '3',
+  };
+
+  it('割合（分数）で按分し、端数は先頭の人へ寄せて合計を価額に一致させる', () => {
+    const amounts = detailShareAmounts('table11f1', {
+      ...land,
+      ratioN0: '1', ratioD0: '3', ratioN1: '1', ratioD1: '3', ratioN2: '1', ratioD2: '3',
+    });
+
+    expect(amounts).toEqual(['5000034', '5000033', '5000033']);
+    expect(amounts.reduce((sum, a) => sum + num(a ?? ''), 0)).toBe(15000100);
+  });
+
+  it('割合の合計が1でなくても、その比で分ける', () => {
+    expect(detailShareAmounts('table11f1', {
+      ...land, ratioN0: '1', ratioD0: '4', ratioN1: '1', ratioD1: '4',
+    })).toEqual(['7500050', '7500050', undefined]);
+  });
+
+  it('割合を入れていない取得者は手入力のまま', () => {
+    expect(detailShareAmounts('table11f1', land)).toEqual([undefined, undefined, undefined]);
+  });
+
+  it('手入力した価額でも按分できる（自動計算できない様式）', () => {
+    expect(detailShareAmounts('table11f2', {
+      value: '1000000', fx: '150', who0: '1', who1: '2',
+      ratioN0: '1', ratioD0: '2', ratioN1: '1', ratioD1: '2',
+    })).toEqual(['500000', '500000']);
+  });
+
+  it('按分した価額を第11表2①・第15表の集計に使う', () => {
+    const result = computeAll({}, [{ name: '甲' }, { name: '乙' }, { name: '丙' }], [], ['table11f1'], {
+      table11f1: [{
+        ...land, ratioN0: '1', ratioD0: '3', ratioN1: '1', ratioD1: '3', ratioN2: '1', ratioD2: '3',
+      }],
+    });
+
+    expect(result.heirs.map((heir) => heir.t11v1)).toEqual(['5000034', '5000033', '5000033']);
+    expect(result.heirs.map((heir) => heir[table15Key(3)])).toEqual(['5000034', '5000033', '5000033']);
   });
 });
 

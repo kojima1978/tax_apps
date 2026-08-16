@@ -558,6 +558,179 @@ button {
   background: #fff1f2 !important;
 }
 
+/* 付表の明細。入力は別画面に一本化してあるので、用紙の上はクリックの入口 */
+.gf-cell--action {
+  cursor: pointer;
+}
+
+.gf-cell--action:hover,
+.gf-cell--action:focus-visible {
+  background: #eef4fb !important;
+}
+
+.gf-cell--action input,
+.gf-cell--action select {
+  cursor: pointer;
+}
+
+/* ============================================
+   付表の明細1件の入力画面
+   ============================================ */
+.dpanel {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(15 23 42 / 45%);
+}
+
+.dpanel__box {
+  display: flex;
+  flex-direction: column;
+  width: min(720px, 100%);
+  max-height: 100%;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 30%);
+}
+
+.dpanel__head,
+.dpanel__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dpanel__foot {
+  border-top: 1px solid #e2e8f0;
+  border-bottom: none;
+}
+
+.dpanel__spacer {
+  flex: 1;
+}
+
+.dpanel__head .app-btn {
+  margin-left: auto;
+}
+
+.dpanel__sub {
+  font-size: 12px;
+  color: #475569;
+}
+
+.dpanel__body {
+  overflow-y: auto;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.dpanel__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.dpanel__label {
+  flex: 0 0 11em;
+  color: #334155;
+}
+
+.dpanel__input {
+  min-width: 0;
+  flex: 1 1 8em;
+  padding: 4px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.dpanel__input:disabled {
+  color: #94a3b8;
+  background: #f1f5f9;
+}
+
+/* 自動計算欄は用紙の上と同じ灰色にする */
+.dpanel__input--auto {
+  background: #f7f7f7;
+}
+
+.dpanel__slash {
+  flex: 0 0 auto;
+  color: #64748b;
+}
+
+.dpanel__note {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.dpanel__methods {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 10px;
+  padding: 6px 10px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.dpanel__methods legend {
+  padding: 0 4px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.dpanel__method {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.dpanel__shares {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.dpanel__shares-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.dpanel__share {
+  display: grid;
+  grid-template-columns: 1fr 9em 1fr;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.dpanel__share--head {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.dpanel__fraction {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dpanel__fraction .dpanel__input {
+  width: 100%;
+  text-align: center;
+}
+
 .gf-cell__error {
   position: absolute;
   top: 1px;

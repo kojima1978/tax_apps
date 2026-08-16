@@ -618,7 +618,7 @@ export const DETAIL_SHARES_PER_GROUP = 3;
 export function detailShareCount(item: Values): number {
   let last = -1;
   for (const [key, value] of Object.entries(item)) {
-    const found = /^(?:who|amount)(\d+)$/.exec(key);
+    const found = /^(?:who|amount|ratioN|ratioD)(\d+)$/.exec(key);
     if (found && value.trim() !== '') last = Math.max(last, Number(found[1]));
   }
   return last + 1;
@@ -640,8 +640,8 @@ export function isEmptyDetail(item: Values | undefined): boolean {
 
 /** 付表の「価額」の計算式（様式ごと） */
 interface DetailValueRule {
-  /** 数量にあたる欄。先に入っている方を使う（付表1は固定資産税評価額＝倍率方式が優先） */
-  base: readonly string[];
+  /** 数量にあたる欄 */
+  base: string;
   /** 掛ける欄（すべて入っていないと自動計算しない） */
   times: readonly string[];
   /** 入っていれば掛ける欄 */
@@ -652,20 +652,50 @@ interface DetailValueRule {
   manualWhen?: readonly string[];
 }
 
+/** 付表1（土地・家屋等）の評価方式 */
+export type DetailMethod = 'route' | 'ratio';
+/** 評価方式の欄名 */
+export const DETAIL_METHOD = 'method';
+
 /**
- * 付表の「価額」を元の欄から自動計算する式。
- *
- * 付表1（土地・家屋等）は2通りある — 路線価方式は 面積 × 単価 × 持分割合、
- * 倍率方式は 固定資産税評価額 × 倍数 × 持分割合。単価欄は「単価又は倍数」で共通なので、
- * 固定資産税評価額が入っていれば倍率方式とみなす。
+ * 付表1の評価方式ごとの計算式。単価欄は様式上「単価（円）又は倍数」で共通のため、
+ * どちらの式で計算するかは**入力から推測せずユーザーが選ぶ**。
+ * 固定資産税評価額を参考に控えただけで倍率方式に化ける、といったことを起こさないため。
+ */
+const TABLE11F1_RULES: Record<DetailMethod, DetailValueRule> = {
+  // 路線価方式: 面積 × 単価 × 持分割合
+  route: { base: 'area', times: ['unitPrice'], ratio: ['shareN', 'shareD'] },
+  // 倍率方式: 固定資産税評価額 × 倍数 × 持分割合
+  ratio: { base: 'fixedValue', times: ['unitPrice'], ratio: ['shareN', 'shareD'] },
+};
+
+/**
+ * 付表2〜4の「価額」を元の欄から自動計算する式。
  * 付表2は外貨建て（為替欄あり）だと邦貨換算の入れ方が一通りに決まらないので自動計算しない。
  */
 const DETAIL_VALUE_RULES: Record<string, DetailValueRule> = {
-  table11f1: { base: ['fixedValue', 'area'], times: ['unitPrice'], ratio: ['shareN', 'shareD'] },
-  table11f2: { base: ['quantity'], times: ['unitPrice'], manualWhen: ['fx'] },
-  table11f3: { base: ['quantity'], times: ['unitPrice'] },
-  table11f4: { base: ['quantity'], times: ['unitPrice'], optional: ['multiple'] },
+  table11f2: { base: 'quantity', times: ['unitPrice'], manualWhen: ['fx'] },
+  table11f3: { base: 'quantity', times: ['unitPrice'] },
+  table11f4: { base: 'quantity', times: ['unitPrice'], optional: ['multiple'] },
 };
+
+/** 明細1件の評価方式（付表1のみ。未指定は路線価方式） */
+export function detailMethod(item: Values): DetailMethod {
+  return item[DETAIL_METHOD] === 'ratio' ? 'ratio' : 'route';
+}
+
+function valueRule(form: string, item: Values): DetailValueRule | undefined {
+  return form === 'table11f1' ? TABLE11F1_RULES[detailMethod(item)] : DETAIL_VALUE_RULES[form];
+}
+
+/**
+ * 選んでいない評価方式でしか使わない欄（画面で入力を塞ぐ）。
+ * 路線価方式なら固定資産税評価額、倍率方式なら面積。
+ */
+export function detailUnusedFields(form: string, item: Values): string[] {
+  if (form !== 'table11f1') return [];
+  return detailMethod(item) === 'ratio' ? [TABLE11F1_RULES.route.base] : [TABLE11F1_RULES.ratio.base];
+}
 
 /**
  * 「価額が自動計算になっているか」を GridForm へ渡すための擬似フィールド。
@@ -678,11 +708,11 @@ export const DETAIL_AUTO_VALUE = 'valueAuto';
  * 円未満は切り捨てる。
  */
 export function detailAutoValue(form: string, item: Values): string | undefined {
-  const rule = DETAIL_VALUE_RULES[form];
+  const rule = valueRule(form, item);
   if (rule === undefined) return undefined;
   if (rule.manualWhen?.some((key) => (item[key] ?? '').trim() !== '')) return undefined;
-  const base = rule.base.map((key) => num(item[key])).find((value) => value > 0);
-  if (base === undefined) return undefined;
+  const base = num(item[rule.base]);
+  if (base <= 0) return undefined;
   let total = base;
   for (const key of rule.times) {
     const value = num(item[key]);
@@ -700,10 +730,56 @@ export function detailAutoValue(form: string, item: Values): string | undefined 
   return str(Math.floor(total));
 }
 
-/** 自動計算できる明細は価額を計算値に置き換える（手入力の欄はそのまま） */
+/** 明細1件の価額（自動計算できるものは計算値、できないものは手入力の値） */
+export function detailValue(form: string, item: Values): string {
+  return detailAutoValue(form, item) ?? item.value ?? '';
+}
+
+/** 取得者ごとの取り分の割合（分数）の欄名 */
+export const DETAIL_RATIO_N = 'ratioN';
+export const DETAIL_RATIO_D = 'ratioD';
+
+/**
+ * 取得者ごとの「取得財産の価額」を、割合（分数）から按分して求める。
+ * 割合が1つも入っていない取得者は `undefined`（手入力のまま）。
+ *
+ * 端数は合計が財産の価額とぴったり一致するよう先頭の取得者へ寄せる
+ * （第1表の未分割財産の按分と同じ扱い）。
+ */
+export function detailShareAmounts(form: string, item: Values): (string | undefined)[] {
+  const shares = Array.from({ length: detailShareCount(item) }, (_, i) => {
+    const n = num(item[`${DETAIL_RATIO_N}${i}`]);
+    const d = num(item[`${DETAIL_RATIO_D}${i}`]);
+    return n > 0 && d > 0 ? n / d : 0;
+  });
+  const out: (string | undefined)[] = shares.map(() => undefined);
+  const denominator = shares.reduce((sum, share) => sum + share, 0);
+  const total = num(detailValue(form, item));
+  if (denominator <= 0 || total === 0) return out;
+  let rest = total;
+  let first = -1;
+  shares.forEach((share, i) => {
+    if (share <= 0) return;
+    const amount = Math.floor((total * share) / denominator);
+    out[i] = str(amount);
+    rest -= amount;
+    if (first < 0) first = i;
+  });
+  if (first >= 0 && rest !== 0) out[first] = str(num(out[first]!) + rest);
+  return out;
+}
+
+/** 自動計算できる明細は価額と取得者ごとの価額を計算値に置き換える（手入力の欄はそのまま） */
 function resolveDetail(form: string, item: Values): Values {
   const value = detailAutoValue(form, item);
-  return value === undefined ? item : { ...item, value };
+  const resolved = value === undefined ? item : { ...item, value };
+  const amounts = detailShareAmounts(form, resolved);
+  if (amounts.every((amount) => amount === undefined)) return resolved;
+  const out: Values = { ...resolved };
+  amounts.forEach((amount, i) => {
+    if (amount !== undefined) out[`amount${i}`] = amount;
+  });
+  return out;
 }
 
 /** 明細1件の取得者（番号が入っているものだけ） */
@@ -823,7 +899,9 @@ function sumTable15(used: readonly string[], details: Record<string, Values[]>):
   for (const [form, kinds] of Object.entries(DETAIL_KINDS)) {
     if (!used.includes(form)) continue;
     const byCode = new Map(kinds.map((kind) => [kind.code, kind]));
-    for (const item of details[form] ?? []) {
+    for (const raw of details[form] ?? []) {
+      // 価額の自動計算と取得者ごとの按分を通してから合計する（第11表2①と同じ数字にする）
+      const item = resolveDetail(form, raw);
       const kind = byCode.get(item.kindCode ?? '');
       if (kind === undefined) continue;
       // 利用区分が一致するときだけ増える欄がある（配偶者居住権に基づく敷地利用権 → ③に加えて⑦）。

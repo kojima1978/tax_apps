@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { GridForm, type GridCell } from './components/ui/GridForm';
+import { DetailPanel } from './components/DetailPanel';
 import {
   COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1, taxOfficeOptions,
 } from './forms/table1';
@@ -616,12 +617,15 @@ interface DetailPageProps extends PageProps {
   form: keyof typeof DETAIL_SPECS;
   /** この用紙に載せる組（8組。1組＝1財産とは限らない） */
   items: readonly DetailItem[];
+  /** 明細をクリックしたとき（入力は別画面に一本化してある） */
+  onEdit: (index: number) => void;
 }
 
 /** 付表（財産の明細書）1枚（8組分） */
-function DetailPage({ form, items, page, g, u, onNavigate }: DetailPageProps) {
+function DetailPage({ form, items, page, g, u, onNavigate, onEdit }: DetailPageProps) {
   const { spec, share } = DETAIL_SPECS[form];
   const cells = useMemo(() => buildDetail(spec, share, COMMON, items), [spec, share, items]);
+  const onAction = useCallback((action: string) => onEdit(Number(action)), [onEdit]);
   return (
     <div className="gov-page">
       <GridForm
@@ -634,6 +638,7 @@ function DetailPage({ form, items, page, g, u, onNavigate }: DetailPageProps) {
         aspectRatio={detailAspect(spec)}
         formId={`${form}p${page}`}
         onNavigate={onNavigate}
+        onAction={onAction}
         footer={<Footnote notes="" />}
       />
     </div>
@@ -683,11 +688,13 @@ function PageControl({
 
 export default function App() {
   const {
-    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount,
+    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
     toggleUsed, reset, exportJson, importJson, maxHeirs,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
+  /** 別画面で編集中の明細（付表の様式IDと通し番号） */
+  const [editing, setEditing] = useState<{ form: keyof typeof DETAIL_SPECS; index: number } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
   const { printing, print } = usePrinting();
 
@@ -770,7 +777,7 @@ export default function App() {
     const pageItems: DetailItem[][] = Array.from({ length: pages }, (_, page) => slots
       .slice(page * DETAIL_GROUPS, (page + 1) * DETAIL_GROUPS)
       .map(({ item, base }): DetailItem => ({
-        prefix: detailPrefix(form, item), label: detailLabel(item), base, first: base === 0,
+        index: item, prefix: detailPrefix(form, item), label: detailLabel(item), base, first: base === 0,
       })));
     // 最後の1枚を削るときに残す件数。用紙の切れ目が財産の途中（続きの組）に当たるときは、
     // 財産を半分だけ消すことになるので − を出さない
@@ -779,6 +786,11 @@ export default function App() {
   })), [data.details]);
   /** 付表の枚数 */
   const detailPages = (form: string): number => detailLayout[form]?.pages ?? 1;
+  /** 付表の「財産を取得した人の番号」の選択肢（第1表の人。番号は1始まり） */
+  const detailHeirOptions = useMemo(
+    () => data.heirs.map((heir, i) => ({ value: String(i + 1), label: `${i + 1} ${heir.name ?? '（氏名未入力）'}` })),
+    [data.heirs],
+  );
   /** 第13表の枚数（3の承継した人が1枚に4人分しか入らないので人数でも増える） */
   const t13Pages = table13Pages(data.common, data.heirs.length);
   /** 第4表の枚数（加算の対象になるかは続柄だけでは決まらないので人数からは決めない） */
@@ -1172,8 +1184,23 @@ export default function App() {
       <>
         {Array.from({ length: detailPages(id) }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={detailPages(id)} onDecrease={() => setDetailCount(id, detailLayout[id]!.keep)} onIncrease={() => addDetailPage(id, DETAIL_GROUPS)} decreaseDisabled={!detailLayout[id]!.canRemove} detail={`財産${DETAIL_GROUPS}件／ページ`} />
-            <DetailPage form={id} page={page} items={detailLayout[id]!.pageItems[page]!} g={g} u={u} onNavigate={setActive} />
+            <PageControl
+              page={page + 1}
+              total={detailPages(id)}
+              onDecrease={() => setDetailCount(id, detailLayout[id]!.keep)}
+              onIncrease={() => addDetailPage(id, DETAIL_GROUPS)}
+              decreaseDisabled={!detailLayout[id]!.canRemove}
+              detail={(
+                <>
+                  財産{DETAIL_GROUPS}件／ページ
+                  <button type="button" className="app-btn" onClick={() => setEditing({ form: id, index: (data.details[id] ?? []).length })}>
+                    財産を追加
+                  </button>
+                  <span>（用紙をクリックすると入力画面が開きます）</span>
+                </>
+              )}
+            />
+            <DetailPage form={id} page={page} items={detailLayout[id]!.pageItems[page]!} g={g} u={u} onNavigate={setActive} onEdit={(index) => setEditing({ form: id, index })} />
           </div>
         ))}
       </>
@@ -1267,6 +1294,20 @@ export default function App() {
           ))}
         </main>
       </div>
+
+      {editing && (
+        <DetailPanel
+          key={`${editing.form}#${editing.index}`}
+          form={editing.form}
+          spec={DETAIL_SPECS[editing.form].spec}
+          index={editing.index}
+          item={data.details[editing.form]?.[editing.index] ?? {}}
+          heirs={detailHeirOptions}
+          onSubmit={(item) => { setDetailItem(editing.form, editing.index, item); setEditing(null); }}
+          onDelete={() => { removeDetailItem(editing.form, editing.index); setEditing(null); }}
+          onCancel={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }

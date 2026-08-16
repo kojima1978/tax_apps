@@ -15,7 +15,6 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { DETAIL_AUTO_VALUE } from '../lib/calc';
 import { code, label, mk } from './geometry';
 
 /** 1枚に載る財産の数（＝組の数） */
@@ -167,6 +166,7 @@ function resolve(spec: DetailSpec, ref: DetailCode, g: number): string {
 /** 明細欄1つ（コード枠＋入力欄） */
 function fieldCells(
   spec: DetailSpec, s: Scale, f: DetailField, y: [number, number], g: number, prefix: string, who: string,
+  action: string,
 ): GridCell[] {
   const cells: GridCell[] = [];
   const valueLeft = f.x.length === 3 ? f.x[1] : f.x[0];
@@ -177,12 +177,9 @@ function fieldCells(
     cells.push(mk(y, s.col(valueLeft, right), {
       kind: 'input', field: `${prefix}${f.field}`, ariaLabel: `${who}の${f.name ?? f.field}`, ...f.cell,
       ...(f.autoFill ? { autoFill: { ...f.autoFill, field: `${prefix}${f.autoFill.field}` } } : {}),
-      // 価額は元になる欄（路線価方式なら面積×単価×持分割合、倍率方式なら固定資産税評価額×倍数×持分割合、
-      // 付表2〜4なら数量×単価）がそろうと自動計算に切り替わり、灰色＝入力不可になる
-      ...(f.field === 'value' ? {
-        readOnlyWhen: (get: (field: string) => string) => get(`${prefix}${DETAIL_AUTO_VALUE}`) === '1',
-        hint: '元になる欄がそろうと自動計算します（灰色）。手で入れたいときは元の欄を空にします',
-      } : {}),
+      // 入力は明細ごとの別画面に一本化してあるので、用紙の上は結果の表示だけ。
+      // クリックするとその明細の入力画面が開く
+      readOnly: true, action,
     }));
   } else if (f.text !== undefined) {
     cells.push(label(y, s.col(valueLeft, right), f.text, f.cell));
@@ -205,21 +202,22 @@ const SHARE_ROWS = [0, 1, 2] as const;
  */
 function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: number, item: DetailItem): GridCell[] {
   const f = spec.frame;
-  const { prefix, label: who, base, first } = item;
+  const { prefix, label: who, base, first, index } = item;
+  const action = String(index);
   const lines = groupLines(f, g);
   const at = (r: readonly [number, number]): [number, number] => s.row(lines[r[0]]!, lines[r[1]]!);
   const bands = f.bands ?? DEFAULT_BANDS;
   const all = at([0, lines.length - 1]);
   return [
-    // 項番（3行をまたぐ）。並び順から決まるので入力できない
+    // 項番（3行をまたぐ）。並び順から決まるので入力できない。
+    // 入力欄を持たないので、この組ぜんたいの入力画面を開くボタンにしてある
     code(all, s.col(f.left, f.noCode), resolve(spec, 'G0', g)),
     mk(all, s.col(f.noCode, f.noR), {
-      kind: 'input', field: `${prefix}no${base}`, ariaLabel: `${who}の項番`,
-      integerDigits: 3, align: 'center', readOnly: true,
+      textField: `${prefix}no${base}`, ariaLabel: `${who}を入力`, align: 'center', action,
     }),
     // 財産の明細（様式ごと）
     ...spec.rows.flatMap((fields, i) => fields.flatMap(
-      (field) => fieldCells(spec, s, first ? field : { x: field.x, code: field.code }, at(field.r ?? bands[i]!), g, prefix, who),
+      (field) => fieldCells(spec, s, first ? field : { x: field.x, code: field.code }, at(field.r ?? bands[i]!), g, prefix, who, action),
     )),
     // 分割が確定した財産（1組3人分）
     ...SHARE_ROWS.flatMap((i): GridCell[] => {
@@ -229,13 +227,13 @@ function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: numb
         code(y, s.col(f.splitR, f.whoCode), resolve(spec, share.no[i], g)),
         mk(y, s.col(f.whoCode, f.whoR), {
           kind: 'input', field: `${prefix}who${n}`, ariaLabel: `${who}の取得者${n + 1}の番号`, integerDigits: 2, align: 'center',
+          readOnly: true, action,
         }),
         code(y, s.col(f.whoR, f.amtCode), resolve(spec, share.amount[i], g)),
         mk(y, s.col(f.amtCode, f.right), {
           // 代償財産は支払う人が負数・受け取る人が正数（記載例62ページ）。△を打てるようにしておく
           kind: 'input', field: `${prefix}amount${n}`, ariaLabel: `${who}の取得者${n + 1}の取得財産の価額`,
-          signedCommaInteger: true, align: 'right',
-          hint: '代償財産を支払う人の分は「△」を付けて負数で記入します（記載例62ページ）',
+          signedCommaInteger: true, align: 'right', readOnly: true, action,
         }),
       ];
     }),
@@ -263,6 +261,8 @@ function headCells(spec: DetailSpec, s: Scale): GridCell[] {
 
 /** 組1つ分の割り付け */
 export interface DetailItem {
+  /** その組が載せる明細の通し番号（クリックでこの明細の入力画面を開く） */
+  index: number;
   /** その組が載せる明細のフィールド接頭辞 */
   prefix: string;
   /** アクセシブル名に使う呼び名 */

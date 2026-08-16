@@ -14,7 +14,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  DETAIL_AUTO_VALUE, computeAll, detailAutoValue, detailShareCount, isEmptyDetail, type Values,
+  DETAIL_AUTO_VALUE, DETAIL_METHOD, computeAll, detailAutoValue, detailShareAmounts, detailShareCount,
+  isEmptyDetail, type Values,
 } from '../lib/calc';
 import { LAWFUL_ROWS } from '../forms/table2';
 
@@ -32,7 +33,11 @@ export interface FormData {
    * 4人以上で共有した財産は記載例59ページのQ&Aのとおり次の組へ続けて印字する）。
    */
   details: Record<string, Values[]>;
-  /** 保存形式の版。付表を「1組＝1要素」から「1財産＝1要素」に変えた時点で 2 */
+  /**
+   * 保存形式の版。
+   * 2 … 付表を「1組＝1要素」から「1財産＝1要素」に変えた
+   * 3 … 付表1の評価方式（路線価／倍率）を明示的に持つようにした
+   */
   version?: number;
 }
 
@@ -40,7 +45,7 @@ const STORAGE_KEY = 'inheritance-tax-form:v1';
 /** 移行前のデータの退避先（付表のまとめ直しは元に戻せないため） */
 const BACKUP_KEY = 'inheritance-tax-form:v1-backup';
 /** 現在の保存形式 */
-const DATA_VERSION = 2;
+const DATA_VERSION = 3;
 /** 第1表に1人＋第1表（続）10枚に2人ずつ */
 const MAX_HEIRS = 21;
 /** 既定で使用する様式 */
@@ -96,13 +101,27 @@ function migrateDetails(rows: readonly Values[]): Values[] {
   return out;
 }
 
-/** 保存形式 1 のデータ全体を 2 へ移行する */
+/**
+ * 版2までの付表1は「固定資産税評価額が入っていれば倍率方式」と推測していた。
+ * 版3では方式を明示的に持つので、その推測を1回だけ実際の値に焼き付ける。
+ */
+function migrateMethod(rows: readonly Values[]): Values[] {
+  return rows.map((row) => (
+    row[DETAIL_METHOD] !== undefined || (row.fixedValue ?? '').trim() === ''
+      ? row
+      : { ...row, [DETAIL_METHOD]: 'ratio' }
+  ));
+}
+
+/** 保存済みデータを現在の保存形式へ移行する */
 function migrate(parsed: Partial<FormData>): Partial<FormData> {
   if (parsed.version === DATA_VERSION || typeof parsed.details !== 'object' || parsed.details === null) return parsed;
   const details: Record<string, Values[]> = {};
   for (const [form, rows] of Object.entries(parsed.details)) {
-    details[form] = migrateDetails(Array.isArray(rows) ? rows : []);
+    const list = Array.isArray(rows) ? rows : [];
+    details[form] = (parsed.version ?? 1) < 2 ? migrateDetails(list) : list;
   }
+  if (details.table11f1 !== undefined) details.table11f1 = migrateMethod(details.table11f1);
   return { ...parsed, details };
 }
 
@@ -210,13 +229,20 @@ export function useFormData() {
       const base = shareBase(key);
       if (base !== null) return detailNo(rows, index, base);
       const item = rows[index];
+      if (item === undefined) return '';
       // 価額は元になる欄（面積×単価など）がそろっていれば自動計算に切り替わる
-      if (item !== undefined && (key === 'value' || key === DETAIL_AUTO_VALUE)) {
+      if (key === 'value' || key === DETAIL_AUTO_VALUE) {
         const auto = detailAutoValue(form, item);
         if (key === DETAIL_AUTO_VALUE) return auto === undefined ? '' : '1';
         if (auto !== undefined) return auto;
       }
-      return item?.[key] ?? '';
+      // 取得者ごとの価額は、取り分の割合が入っていれば按分で決まる
+      const share = /^amount(\d+)$/.exec(key);
+      if (share !== null) {
+        const amount = detailShareAmounts(form, item)[Number(share[1])];
+        if (amount !== undefined) return amount;
+      }
+      return item[key] ?? '';
     }
     const index = Number(scope.slice(1));
     if (scope.startsWith('l')) return computed.lawful[index]?.[key] ?? '';
@@ -262,6 +288,30 @@ export function useFormData() {
 
   const removeHeir = useCallback(() => {
     setData((prev) => (prev.heirs.length <= 1 ? prev : { ...prev, heirs: prev.heirs.slice(0, -1) }));
+  }, []);
+
+  /**
+   * 付表の明細1件を丸ごと差し替える（別画面の「確定」）。
+   * 入力は1件ずつ別画面で行い、確定するまで申告内容には反映しない。
+   * `index` が末尾より後なら新しい明細として足す。
+   */
+  const setDetailItem = useCallback((form: string, index: number, item: Values) => {
+    setData((prev) => {
+      const rows = [...(prev.details[form] ?? [])];
+      while (rows.length <= index) rows.push({});
+      // 空欄は保存しない（項番は「空でない明細」の並び順から決まるため）
+      rows[index] = Object.fromEntries(Object.entries(item).filter(([, value]) => value.trim() !== ''));
+      return { ...prev, details: { ...prev.details, [form]: rows } };
+    });
+  }, []);
+
+  /** 付表の明細1件を消す（以降の項番は自動で繰り上がる） */
+  const removeDetailItem = useCallback((form: string, index: number) => {
+    setData((prev) => {
+      const rows = prev.details[form] ?? [];
+      if (index < 0 || index >= rows.length) return prev;
+      return { ...prev, details: { ...prev.details, [form]: rows.filter((_, i) => i !== index) } };
+    });
   }, []);
 
   /** 付表の明細を1枚分（`rows` 件）増やす */
@@ -322,7 +372,7 @@ export function useFormData() {
   }, []);
 
   return {
-    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount,
+    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
     toggleUsed, reset, exportJson, importJson, maxHeirs: MAX_HEIRS,
   };
 }
