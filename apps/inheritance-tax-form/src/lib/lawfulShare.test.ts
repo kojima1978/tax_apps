@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoLawfulShares } from './lawfulShare';
+import { adoptionCounted, autoLawfulShares, type Member } from './lawfulShare';
 
 /** '1/2' の並びで見比べる（undefined は「自動では決められない」） */
 const shares = (...relations: string[]): string[] | undefined => (
@@ -29,6 +29,34 @@ describe('autoLawfulShares 民法900条の割合', () => {
 
   it('配偶者だけなら全部', () => {
     expect(shares('01')).toEqual(['1/1']);
+  });
+});
+
+describe('adoptionCounted 養子の数の制限（相法15条2項）', () => {
+  /** 続柄コードの並びから法定相続人を作る。'90*' は実子とみなされる養子 */
+  const counted = (...codes: string[]): boolean[] => adoptionCounted(codes.map((code): Member => ({
+    relation: code.replace('*', ''), renounced: false, realChild: code.endsWith('*'),
+  })));
+
+  it('実子がいるときは養子1人まで', () => {
+    expect(counted('01', '11', '90', '90')).toEqual([true, true, true, false]);
+  });
+
+  it('実子がいないときは養子2人まで', () => {
+    expect(counted('01', '90', '90', '90')).toEqual([true, true, true, false]);
+  });
+
+  it('実子とみなされる養子は制限を受けず、実子としても数える', () => {
+    // 90* が実子の側に立つので、残りの養子は1人までになる
+    expect(counted('90*', '90', '90')).toEqual([true, true, false]);
+  });
+
+  it('養子がいなければ全員そのまま', () => {
+    expect(counted('01', '11', '12', '13')).toEqual([true, true, true, true]);
+  });
+
+  it('孫は実子ではないので、養子は2人まで数える', () => {
+    expect(counted('30', '90', '90')).toEqual([true, true, true]);
   });
 });
 

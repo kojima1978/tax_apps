@@ -115,6 +115,11 @@ export const PERSON_ATTRS: readonly PersonField[] = [
     note: '第2表④と法定相続人の数（第1表Ⓑ・第9・10表Ⓐ）に入ります',
   },
   {
+    field: 'realChild', name: '実子とみなす養子', control: 'flag',
+    checkLabel: '特別養子・配偶者の連れ子・代襲相続人のいずれか',
+    note: '続柄が「90 養子」の人だけ。印を付けると養子の数の制限を受けません',
+  },
+  {
     field: 'renounced', name: '相続の放棄', control: 'flag', checkLabel: '相続の放棄をした',
     note: '第2表の法定相続人の数は、放棄がなかったものとして数えます',
   },

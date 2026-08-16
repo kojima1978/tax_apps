@@ -37,7 +37,7 @@ import {
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
 import { DISABILITY_GENERAL, DISABILITY_SPECIAL } from '../forms/person';
-import { autoLawfulShares } from './lawfulShare';
+import { adoptionCounted, autoLawfulShares, type Member } from './lawfulShare';
 
 export type Values = Record<string, string>;
 
@@ -283,15 +283,17 @@ export function table10Pages(common: Values): number {
  *
  * 相続税法12条1項6号・7号の非課税は「相続人の取得した」ものだけが対象なので、
  * 受遺者など相続人以外を除くために使う。相続人かどうかは、その人に「法定相続人」の印
- * （`isLawful`）が付いているかで判定する（＝第2表④に並ぶ人）。
- * 第2表④は放棄がなかったものとした場合の一覧なので、放棄した人は人物の属性（`renounced`）で除く。
+ * （`isLawful`）が付いているかで判定し、放棄した人は相続人ではないので除く。
+ *
+ * 養子の数の制限（相法15条2項）はここでは効かせない。制限は非課税限度額を出すための
+ * 「法定相続人の数」に掛かるものであって、制限で数から外れた養子も相続人ではあるため、
+ * その人が受け取った保険金・退職手当金は非課税の対象になる。
  */
-function heirNosOfLawfulHeirs(lawful: Values[]): Set<number> {
+function heirNosOfLawfulHeirs(heirs: readonly Values[]): Set<number> {
   const out = new Set<number>();
-  for (const row of lawful) {
-    if (row.renounced === '1') continue;
-    out.add(Number(row.source) + 1);
-  }
+  heirs.forEach((heir, index) => {
+    if (heir.isLawful === '1' && heir.renounced !== '1') out.add(index + 1);
+  });
   return out;
 }
 
@@ -314,7 +316,7 @@ function heirNosOfLawfulHeirs(lawful: Values[]): Set<number> {
  *   `${p}v2Total` `${p}v3Total`
  */
 function computeNonTaxableLimit(
-  common: Values, lawful: Values[], p: string, pages: number, rowsPerPage: number, heirCount: number,
+  common: Values, heirs: readonly Values[], p: string, pages: number, rowsPerPage: number, heirCount: number,
 ): Values {
   const out: Values = {};
   // Ⓐ（百万円単位）。法定相続人が未入力のうちは空欄のままにする。
@@ -323,7 +325,7 @@ function computeNonTaxableLimit(
 
   // 1の明細を人ごとに合計する。枚数を減らしたときに残る入力値を混ぜないよう、
   // 表に出ている行番号だけを走査する。
-  const lawfulHeirs = heirNosOfLawfulHeirs(lawful);
+  const lawfulHeirs = heirNosOfLawfulHeirs(heirs);
   const byNo = new Map<number, number>();
   for (let i = 0; i < pages * rowsPerPage; i += 1) {
     const no = num(common[`${p}d${i}Who`]);
@@ -559,8 +561,33 @@ function lawfulShareIsOne(lawful: Values[]): boolean | undefined {
  * ⑤法定相続分は続柄と人数から自動で入れ、手入力（`lawNum`/`lawDen`）があればそちらを優先する
  * （消せば自動に戻る＝付表の価額と同じ扱い）。自動で決められない組み合わせは空欄のままにする。
  */
+export interface LawfulMember {
+  /** 何人目か（0始まり） */
+  index: number;
+  heir: Values;
+  /** 法定相続人の数に算入されるか（相法15条2項の養子の数の制限） */
+  counted: boolean;
+}
+
+/** 人物の欄から `lawfulShare` が見る事実を取り出す */
+const memberOf = (heir: Values): Member => ({
+  relation: heir.relation ?? '',
+  renounced: heir.renounced === '1',
+  realChild: heir.realChild === '1',
+});
+
+/**
+ * 「法定相続人」の印が付いた人と、養子の数の制限（相法15条2項）の判定。
+ * 制限で外れた養子も戻す（画面でそのことを知らせるため）。
+ */
+export function lawfulMembers(heirs: readonly Values[]): LawfulMember[] {
+  const picked = heirs.flatMap((heir, index) => (heir.isLawful === '1' ? [{ heir, index }] : []));
+  const counted = adoptionCounted(picked.map(({ heir }) => memberOf(heir)));
+  return picked.map(({ heir, index }, i) => ({ index, heir, counted: counted[i] === true }));
+}
+
 export function deriveLawful(heirs: readonly Values[]): Values[] {
-  const members = heirs.flatMap((heir, index) => (heir.isLawful === '1' ? [{ heir, index }] : []));
+  const members = lawfulMembers(heirs).filter((member) => member.counted);
   const autos = autoLawfulShares(members.map(({ heir }) => heir.relation ?? ''));
   return members.map(({ heir, index }, i) => {
     const auto = autos?.[i];
@@ -1749,8 +1776,8 @@ function computeAllWithRatios(
   const heirCount = num(table2.totals.heirCount);
   Object.assign(
     totals,
-    computeNonTaxableLimit(common, linkedLawful, 't9', table9Pages(common), TABLE9_ROWS, heirCount),
-    computeNonTaxableLimit(common, linkedLawful, 't10', table10Pages(common), TABLE10_ROWS, heirCount),
+    computeNonTaxableLimit(common, heirs, 't9', table9Pages(common), TABLE9_ROWS, heirCount),
+    computeNonTaxableLimit(common, heirs, 't10', table10Pages(common), TABLE10_ROWS, heirCount),
   );
   // 第4表（相続税額の加算金額）。⑥は上で求めた各人の⑪への転記元
   Object.assign(totals, table4.totals);

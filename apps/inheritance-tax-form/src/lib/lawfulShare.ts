@@ -10,6 +10,19 @@
  * 総額まで狂うため、迷うくらいなら空欄のままにして手で入れてもらう。
  */
 
+/** 法定相続人1人分。続柄だけでは決まらない事実を添える。 */
+export interface Member {
+  /** 続柄コード（第1表の人物欄） */
+  relation: string;
+  /** 相続の放棄をした */
+  renounced: boolean;
+  /**
+   * 実子とみなされる養子（相法15条3項）。特別養子・配偶者の連れ子・代襲相続人の3つ。
+   * 続柄が「90 養子」のときだけ意味を持つ。
+   */
+  realChild: boolean;
+}
+
 /** 順位の区分 */
 type Rank = 'spouse' | 'child' | 'parent' | 'grandparent' | 'sibling' | 'unknown';
 
@@ -27,6 +40,37 @@ function rankOf(code: string): Rank {
   if (value >= 10 && value <= 29) return 'child'; // 子・長男〜九女
   if (value >= 61 && value <= 64) return 'sibling'; // 兄・弟・姉・妹
   return 'unknown'; // 30 孫（代襲）・99 その他
+}
+
+/** 続柄コードのうち「90 養子」。他の続柄にも当てはまる人はこちらを選ぶ決まりになっている。 */
+const ADOPTED = '90';
+
+/** 数の制限を受ける養子か（実子とみなされる養子は受けない） */
+const isLimitedAdoption = (member: Member): boolean => (
+  member.relation === ADOPTED && !member.realChild
+);
+
+/**
+ * 養子の数の制限（相法15条2項）。法定相続人の数に算入できる養子は、
+ * 被相続人に実子がある場合は1人、実子がない場合は2人まで。
+ *
+ * 実子とみなされる養子（同条3項）は制限を受けないうえ、実子として扱うので
+ * 「実子がある場合」の判定にも数える。どの養子を残すかは法律では決まっていないので、
+ * ここでは登録順の先頭から残す（画面で並べ替えれば変えられる）。
+ *
+ * @returns 各人が数に算入されるか（`members` と同じ並び）
+ */
+export function adoptionCounted(members: readonly Member[]): boolean[] {
+  const hasRealChild = members.some(
+    (member) => rankOf(member.relation) === 'child' && !isLimitedAdoption(member),
+  );
+  const limit = hasRealChild ? 1 : 2;
+  let used = 0;
+  return members.map((member) => {
+    if (!isLimitedAdoption(member)) return true;
+    used += 1;
+    return used <= limit;
+  });
 }
 
 export interface Share {

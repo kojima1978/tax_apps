@@ -84,6 +84,35 @@ describe('computeAll 第2表⑤の法定相続分合計', () => {
   });
 });
 
+describe('computeAll 第2表㋺の法定相続人の数（養子の数の制限）', () => {
+  const lawful = (relation: string, extra: Values = {}): Values => (
+    { name: relation, relation, isLawful: '1', ...extra }
+  );
+
+  it('実子がいるときは養子1人までしか数えない', () => {
+    const result = computeAll({}, [lawful('01'), lawful('11'), lawful('90'), lawful('90')]);
+
+    // 配偶者・実子・養子1人の3人 → 3,000万円＋600万円×3
+    expect(result.totals.heirCount).toBe('3');
+    expect(result.totals.k4).toBe('4800');
+    expect(result.lawful).toHaveLength(3);
+  });
+
+  it('実子がいないときは養子2人まで数える', () => {
+    const result = computeAll({}, [lawful('01'), lawful('90'), lawful('90'), lawful('90')]);
+
+    expect(result.totals.heirCount).toBe('3');
+    expect(result.totals.k4).toBe('4800');
+  });
+
+  it('実子とみなされる養子は制限を受けない', () => {
+    const result = computeAll({}, [lawful('01'), lawful('11'), lawful('90', { realChild: '1' })]);
+
+    expect(result.totals.heirCount).toBe('3');
+    expect(result.totals.k4).toBe('4800');
+  });
+});
+
 describe('computeAll 第5表G02・G03の法定相続分', () => {
   it('第1表の配偶者に紐づく第2表⑤から分子・分母を自動転記する', () => {
     const result = computeAll(

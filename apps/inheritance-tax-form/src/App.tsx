@@ -82,8 +82,8 @@ import { detailLabel, detailPrefix, heirIndex, heirLabel, heirPrefix, useFormDat
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  deriveLawful, detailSlots, hasTable112, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
-  table42Pages, table4Pages, table88Pages, table9Pages,
+  deriveLawful, detailSlots, hasTable112, lawfulMembers, table10Pages, table112Pages, table13Pages,
+  table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9Pages,
 } from './lib/calc';
 
 /** 第1表の転記欄。様式の選択状態にかかわらず直接入力させず、クリックで転記元を開く。 */
@@ -755,6 +755,13 @@ export default function App() {
     })),
     [data.heirs],
   );
+  /** 養子の数の制限（相法15条2項）で④から外れた人。黙って落とさず画面で知らせる */
+  const limitedAdoptions = useMemo(
+    () => lawfulMembers(data.heirs).flatMap((member) => (member.counted ? [] : [
+      (member.heir.name ?? '').trim() === '' ? heirLabel(member.index) : member.heir.name!,
+    ])),
+    [data.heirs],
+  );
   const table2Cells = useMemo(
     (): GridCell[] => buildTable2(COMMON, TOTALS, lawfulPeople.slice(0, LAWFUL_ROWS).map(
       (person): LawfulRowRef => ({ prefix: heirPrefix(person.index), autoable: person.autoable }),
@@ -969,6 +976,11 @@ export default function App() {
             {person.name === '' ? `${person.index + 1}人目（氏名未入力）` : person.name}
           </button>
         ))}
+        {limitedAdoptions.length > 0 && (
+          <span className="app-linkctl__warn">
+            {`養子の数の制限（相法15条2項）により、${limitedAdoptions.join('・')}は法定相続人の数に算入されません`}
+          </span>
+        )}
         {lawfulPeople.length > LAWFUL_ROWS && (
           <span className="app-linkctl__warn">
             {`様式の④は${LAWFUL_ROWS}人分までです。${LAWFUL_ROWS + 1}人目以降は第2表の付表に書きます（人数と税額の計算には全員入っています）`}
