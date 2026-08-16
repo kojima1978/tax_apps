@@ -705,7 +705,7 @@ function PageControl({
 export default function App() {
   const {
     data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
-    moveDetailItem, toggleUsed, reset, exportJson, importJson, maxHeirs,
+    moveDetailItem, toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
@@ -1307,13 +1307,18 @@ export default function App() {
             </button>
           </div>
           <ul className="form-list">
-            {FORMS.map((form) => (
+            {FORMS.map((form) => {
+              // 明細を入れた付表と第11表は印を外せない。印は集計・転記のスイッチも兼ねていて、
+              // 外すと入力したものが第11表にも第1表①にも出てこなくなるため
+              const byDetails = requiredForms.includes(form.id);
+              return (
               <li key={form.id} className={`form-item${active === form.id ? ' form-item--active' : ''}`}>
                 <input
                   type="checkbox"
                   className="form-item__check"
                   checked={used(form)}
-                  disabled={form.required || form.auto}
+                  disabled={form.required || form.auto || byDetails}
+                  title={byDetails ? '入力した明細があるため、この様式は外せません' : undefined}
                   onChange={() => toggleUsed(form.id)}
                   aria-label={`${form.label}を使用する`}
                 />
@@ -1322,9 +1327,13 @@ export default function App() {
                   <small>{form.note}</small>
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
-          <p className="form-list__hint">チェックした様式だけを印刷します。第1表（続）・第15表（続）は財産を取得した人が2人以上のときに自動で付きます。</p>
+          <p className="form-list__hint">
+            チェックした様式だけを印刷します。第1表（続）・第15表（続）は財産を取得した人が2人以上のときに自動で付きます。
+            付表に明細を入れると、その付表と第11表には自動でチェックが付きます（外すと第11表・第1表①へ集計されなくなるため）。
+          </p>
         </aside>
 
         <main className="app-main">

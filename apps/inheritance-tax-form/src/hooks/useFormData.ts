@@ -16,6 +16,7 @@ import {
   DETAIL_AUTO_VALUE, DETAIL_METHOD, computeAll, detailAutoValue, detailShareAmounts, detailShareCount,
   isEmptyDetail, moved, type Values,
 } from '../lib/calc';
+import { DETAIL_KINDS } from '../data/detailCodes';
 
 export interface FormData {
   common: Values;
@@ -52,6 +53,26 @@ const DEFAULT_USED = ['table1', 'table2', 'table11'];
 const emptyData = (): FormData => ({
   common: {}, heirs: [{}], used: [...DEFAULT_USED], details: {}, version: DATA_VERSION,
 });
+
+/**
+ * 明細が1件でも入っている付表の様式ID。
+ *
+ * 「使用する」の印は提出する様式の指定であると同時に、集計と転記のスイッチも兼ねている
+ * （付表→第11表2①②は印の付いた付表だけ、第11表2③→第1表①は第11表に印があるときだけ）。
+ * 印を忘れると入力しても画面上は何も起きず、原因が分からないまま止まる。
+ * 入力した以上は提出する様式なので、印は自動で付ける（`requiredForms` で外せなくもする）。
+ */
+function detailFormsInUse(details: Record<string, Values[]>): string[] {
+  return Object.keys(DETAIL_KINDS).filter((id) => (details[id] ?? []).some((item) => !isEmptyDetail(item)));
+}
+
+/** 明細のある付表と、その合計表である第11表に「使用する」の印を付ける */
+function withDetailForms(used: string[], details: Record<string, Values[]>): string[] {
+  const forms = detailFormsInUse(details);
+  if (forms.length > 0) forms.push('table11');
+  const add = forms.filter((id) => !used.includes(id));
+  return add.length === 0 ? used : [...used, ...add];
+}
 
 /** 財産を取得した人 i 番目のフィールド接頭辞 */
 export const heirPrefix = (i: number): string => `h${i}.`;
@@ -164,11 +185,13 @@ function isFormData(value: unknown): value is Partial<FormData> {
 /** 保存済み・読込データを現在の形（行数・様式一覧・保存形式）に揃える */
 function normalize(input: Partial<FormData>): FormData {
   const parsed = migrate(input);
+  const details = typeof parsed.details === 'object' && parsed.details !== null ? parsed.details : {};
   return {
     common: parsed.common ?? {},
     heirs: parsed.heirs && parsed.heirs.length > 0 ? parsed.heirs : [{}],
-    used: Array.isArray(parsed.used) ? parsed.used : [...DEFAULT_USED],
-    details: typeof parsed.details === 'object' && parsed.details !== null ? parsed.details : {},
+    // 印を付け忘れたまま入力していた既存データも、読み込んだ時点で直す
+    used: withDetailForms(Array.isArray(parsed.used) ? parsed.used : [...DEFAULT_USED], details),
+    details,
     version: DATA_VERSION,
   };
 }
@@ -242,6 +265,9 @@ export function useFormData() {
     () => computeAll(data.common, data.heirs, data.used, data.details),
     [data],
   );
+
+  /** 明細が入っているため「使用する」の印を外せない様式（付表とその合計表の第11表） */
+  const requiredForms = useMemo(() => withDetailForms([], data.details), [data.details]);
 
   const g = useCallback((field: string): string => {
     const [scope, key] = splitField(field);
@@ -318,7 +344,8 @@ export function useFormData() {
       while (rows.length <= index) rows.push({});
       // 空欄は保存しない（項番は「空でない明細」の並び順から決まるため）
       rows[index] = Object.fromEntries(Object.entries(item).filter(([, value]) => value.trim() !== ''));
-      return { ...prev, details: { ...prev.details, [form]: rows } };
+      const details = { ...prev.details, [form]: rows };
+      return { ...prev, details, used: withDetailForms(prev.used, details) };
     });
   }, []);
 
@@ -399,6 +426,6 @@ export function useFormData() {
 
   return {
     data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
-    toggleUsed, reset, exportJson, importJson, maxHeirs: MAX_HEIRS,
+    toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs: MAX_HEIRS,
   };
 }
