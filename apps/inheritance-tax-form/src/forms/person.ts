@@ -109,6 +109,11 @@ export const DISABILITY_OPTIONS = [
  */
 export const PERSON_ATTRS: readonly PersonField[] = [
   {
+    field: 'isLawful', name: '法定相続人', control: 'flag',
+    checkLabel: '法定相続人である（相続の放棄がなかったものとした場合）',
+    note: '印を付けた人が第2表④に並び、法定相続人の数（第1表Ⓑ・第9表・第10表Ⓐ）に入ります',
+  },
+  {
     field: 'renounced', name: '相続の放棄', control: 'flag', checkLabel: '相続の放棄をした',
     note: '第2表の法定相続人の数は、放棄がなかったものとして数えます',
   },

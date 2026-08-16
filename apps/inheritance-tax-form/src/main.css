@@ -144,6 +144,13 @@ button {
   gap: 4px;
 }
 
+/* 様式に収まらない・印が付いていないなど、そのままでは書き切れないことの注意 */
+.app-linkctl__warn {
+  width: 100%;
+  text-align: center;
+  color: #b71c1c;
+}
+
 .app-body {
   display: flex;
   align-items: flex-start;

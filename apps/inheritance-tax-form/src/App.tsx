@@ -13,8 +13,8 @@ import {
   TABLE1CONT_CONFIRM_BOXES, TABLE1CONT_FORM_CODE, TABLE1CONT_NOTES, TABLE1CONT_TITLE, buildTable1Cont,
 } from './forms/table1cont';
 import {
-  TABLE2_EDITION, TABLE2_FORM_CODE, TABLE2_JOINT_NOTES, TABLE2_NOTES, TABLE2_SUBTITLE, TABLE2_TITLE,
-  buildTable2,
+  LAWFUL_ROWS, TABLE2_EDITION, TABLE2_FORM_CODE, TABLE2_JOINT_NOTES, TABLE2_NOTES, TABLE2_SUBTITLE,
+  TABLE2_TITLE, buildTable2, type LawfulRowRef,
 } from './forms/table2';
 import {
   TABLE11_FORM_CODE, TABLE11_ROWS, TABLE11_SUBTITLE, TABLE11_TITLE, buildTable11,
@@ -82,7 +82,7 @@ import { detailLabel, detailPrefix, heirIndex, heirLabel, heirPrefix, useFormDat
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  detailSlots, hasTable112, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
+  deriveLawful, detailSlots, hasTable112, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
   table42Pages, table4Pages, table88Pages, table9Pages,
 } from './lib/calc';
 
@@ -743,51 +743,23 @@ export default function App() {
     () => buildTable1(heirPrefix(0), TABLE1_TRANSFERRED_ROWS, officeOptions, TABLE1_SOURCE_FOR_ROW),
     [officeOptions],
   );
-  /** 第2表④で選べる第1表の人物。同じ人物は複数行で選べないよう、他行の選択肢から外す。 */
-  const table2HeirOptions = useMemo(
-    (): GridCell['options'][] => data.lawful.map((row, rowIndex) => {
-      const selectedElsewhere = new Set(data.lawful.flatMap((candidate, index) => (
-        index !== rowIndex && candidate.source !== undefined && candidate.source !== ''
-          ? [candidate.source]
-          : []
-      )));
-      const legacy = (row.source === undefined || row.source === '') && (row.name ?? '').trim() !== ''
-        ? [{ value: 'manual', label: `${row.name}（旧入力）` }]
-        : [];
-      return [
-        { value: '', label: '' },
-        ...legacy,
-        ...data.heirs.flatMap((heir, index) => {
-          const value = String(index);
-          if (selectedElsewhere.has(value)) return [];
-          const name = (heir.name ?? '').trim();
-          // 放棄した人もこの欄には載せる（放棄がなかったものとした場合の一覧のため）
-          const suffix = heir.renounced === '1' ? '（放棄）' : '';
-          return [{ value, label: (name === '' ? `${index + 1}人目（氏名未入力）` : name) + suffix }];
-        }),
-      ];
-    }),
-    [data.heirs, data.lawful],
+  /**
+   * 第2表④に並ぶ法定相続人。行を作るのではなく、「法定相続人」の印を付けた人が
+   * 登録順にそのまま並ぶ（氏名・続柄・法定相続分はその人の欄を指す）。
+   */
+  const lawfulPeople = useMemo(
+    () => deriveLawful(data.heirs).map((row) => ({
+      index: Number(row.source),
+      name: (row.name ?? '').trim(),
+      autoable: row.autoable === '1',
+    })),
+    [data.heirs],
   );
   const table2Cells = useMemo(
-    () => buildTable2(COMMON, TOTALS, table2HeirOptions),
-    [table2HeirOptions],
-  );
-  /**
-   * 放棄の有無を聞く相手（＝第2表④で第1表の人と結び付いている法定相続人）。
-   * 第2表④は「放棄がなかったものとした場合」の一覧なので、様式そのものには放棄が出てこない。
-   * 第9表・第10表2の非課税は「相続人（放棄した人を除く）の取得した」ものだけが対象なので、
-   * 画面だけの入力として持つ。印は人物（`h{n}.renounced`）に付くので、人物の画面と同じ値を指す。
-   */
-  const renounceRows = useMemo(
-    () => data.lawful.flatMap((row) => {
-      const source = row.source ?? '';
-      if (!/^\d+$/.test(source)) return []; // 'manual'（旧入力）は第1表の人と結び付いていない
-      const index = Number(source);
-      const name = (data.heirs[index]?.name ?? '').trim();
-      return [{ index, name: name === '' ? `${index + 1}人目（氏名未入力）` : name }];
-    }),
-    [data.heirs, data.lawful],
+    (): GridCell[] => buildTable2(COMMON, TOTALS, lawfulPeople.slice(0, LAWFUL_ROWS).map(
+      (person): LawfulRowRef => ({ prefix: heirPrefix(person.index), autoable: person.autoable }),
+    )),
+    [lawfulPeople],
   );
   const table5Cells = useMemo(() => buildTable5(COMMON, TOTALS), []);
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
@@ -970,6 +942,7 @@ export default function App() {
           aspectRatio="1065 / 1311.5"
           formId="t2"
           onNavigate={setActive}
+          onAction={onPersonAction}
           footer={
             <>
               <div className="gov-note">{TABLE2_NOTES}</div>
@@ -978,24 +951,30 @@ export default function App() {
           }
         />
       </div>
-      {/* 相続の放棄。様式には印刷せず、第9表・第10表2の非課税の判定にだけ使う。
-          印は人物に付くので、人物の画面の「相続の放棄」と同じ値を出し入れしている */}
-      {renounceRows.length > 0 && (
-        <div className="app-linkctl no-print">
-          <span>相続の放棄をした人（第9表・第10表2の非課税の判定に使う。様式には印刷しない）</span>
-          {renounceRows.map(({ index, name }) => (
-            <label key={index}>
-              <input
-                type="checkbox"
-                checked={g(`${heirPrefix(index)}renounced`) === '1'}
-                onChange={(event) => u(`${heirPrefix(index)}renounced`, event.target.checked ? '1' : '')}
-                aria-label={`${name}は相続を放棄した`}
-              />
-              {name}
-            </label>
-          ))}
-        </div>
-      )}
+      {/* ④に誰が並ぶかは人物の画面の印で決まる。この帯はその入口と、様式に収まらない場合の案内。
+          様式には印刷しない */}
+      <div className="app-linkctl no-print">
+        <span>
+          {lawfulPeople.length === 0
+            ? '④法定相続人がいません。「財産を取得した人」の画面で「法定相続人」に印を付けてください'
+            : `④法定相続人 ${lawfulPeople.length}人（財産を取得しない人も、印を付ければここに並びます）`}
+        </span>
+        {lawfulPeople.map((person) => (
+          <button
+            key={person.index}
+            type="button"
+            className="app-btn"
+            onClick={() => setEditingPerson(person.index)}
+          >
+            {person.name === '' ? `${person.index + 1}人目（氏名未入力）` : person.name}
+          </button>
+        ))}
+        {lawfulPeople.length > LAWFUL_ROWS && (
+          <span className="app-linkctl__warn">
+            {`様式の④は${LAWFUL_ROWS}人分までです。${LAWFUL_ROWS + 1}人目以降は第2表の付表に書きます（人数と税額の計算には全員入っています）`}
+          </span>
+        )}
+      </div>
       </>
     ),
     table4: (

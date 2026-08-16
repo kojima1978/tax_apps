@@ -6,8 +6,7 @@
  *   `c.xxx`  … 共通欄（被相続人・提出先・第2表㋭）
  *   `t.xxx`  … 自動計算欄（「各人の合計」列と様式間の転記欄・書き込み不可）
  *   `h0.xxx` … 財産を取得した人 0番目（第1表に載る人）
- *   `h1.xxx` … 以降は第1表（続）に2人ずつ
- *   `l0.xxx` … 第2表の法定相続人 0番目
+ *   `h1.xxx` … 以降は第1表（続）に2人ずつ（第2表④の法定相続人もこの人の欄を指す）
  *   `table11f1#0.xxx` … 付表（財産の明細書）の様式ID＋明細の通し番号。
  *                       付表は「人」ではなく「財産」の一覧なので別枠で持つ。
  */
@@ -17,13 +16,10 @@ import {
   DETAIL_AUTO_VALUE, DETAIL_METHOD, computeAll, detailAutoValue, detailShareAmounts, detailShareCount,
   isEmptyDetail, type Values,
 } from '../lib/calc';
-import { LAWFUL_ROWS } from '../forms/table2';
 
 export interface FormData {
   common: Values;
   heirs: Values[];
-  /** 第2表の法定相続人（様式の行数と同じ固定長） */
-  lawful: Values[];
   /** 使用する様式のID（印刷対象） */
   used: string[];
   /**
@@ -38,6 +34,7 @@ export interface FormData {
    * 2 … 付表を「1組＝1要素」から「1財産＝1要素」に変えた
    * 3 … 付表1の評価方式（路線価／倍率）を明示的に持つようにした
    * 4 … 相続の放棄を第2表の行から「財産を取得した人」へ移した
+   * 5 … 第2表④の行を廃止し、法定相続人であることと法定相続分も「財産を取得した人」へ移した
    */
   version?: number;
 }
@@ -46,15 +43,14 @@ const STORAGE_KEY = 'inheritance-tax-form:v1';
 /** 移行前のデータの退避先（付表のまとめ直しは元に戻せないため） */
 const BACKUP_KEY = 'inheritance-tax-form:v1-backup';
 /** 現在の保存形式 */
-const DATA_VERSION = 4;
+const DATA_VERSION = 5;
 /** 第1表に1人＋第1表（続）10枚に2人ずつ */
 const MAX_HEIRS = 21;
 /** 既定で使用する様式 */
 const DEFAULT_USED = ['table1', 'table2', 'table11'];
 
-const emptyLawful = (): Values[] => Array.from({ length: LAWFUL_ROWS }, () => ({}));
 const emptyData = (): FormData => ({
-  common: {}, heirs: [{}], lawful: emptyLawful(), used: [...DEFAULT_USED], details: {}, version: DATA_VERSION,
+  common: {}, heirs: [{}], used: [...DEFAULT_USED], details: {}, version: DATA_VERSION,
 });
 
 /** 財産を取得した人 i 番目のフィールド接頭辞 */
@@ -117,28 +113,35 @@ function migrateMethod(rows: readonly Values[]): Values[] {
 }
 
 /**
- * 版3までの相続の放棄は第2表の法定相続人の行に付いていた。
- * 放棄は人に付く事実で、第6表の候補や第9表・第10表2の非課税の判定にも効くので、
- * 版4では「財産を取得した人」へ移す（行から人へ、結び付け `source` をたどって移し替える）。
+ * 版4までの第2表④は独立した行の一覧で、誰を載せるか・その人の法定相続分・相続の放棄が
+ * 行の側に付いていた。どれも人に付く事実で、放棄は第6表の候補や第9表・第10表2の非課税の
+ * 判定にも効く。版5では行そのものを廃し、「財産を取得した人」へ移す
+ * （結び付け `source` をたどって移し替える）。
+ *
+ * `source` を持たない行（版3以前に手で氏名を打った行）は第1表の人と結び付いていないので
+ * 移す先が無い。第2表④に載る人は第1表にも必ず載る人なので、人物を登録し直してもらう。
  */
-function migrateRenounced(heirs: readonly Values[], lawful: readonly Values[]): { heirs: Values[]; lawful: Values[] } {
+function migrateLawful(heirs: readonly Values[], lawful: readonly Values[]): Values[] {
   const next = heirs.map((heir) => ({ ...heir }));
-  const rows = lawful.map((row) => {
-    if (row.renounced !== '1') return row;
-    const { renounced, ...rest } = row;
-    const source = rest.source ?? '';
-    // 'manual'（旧入力）は第1表の人と結び付いていないので移す先が無い
-    if (/^\d+$/.test(source) && next[Number(source)] !== undefined) next[Number(source)]!.renounced = renounced;
-    return rest;
-  });
-  return { heirs: next, lawful: rows };
+  for (const row of lawful) {
+    const source = row.source ?? '';
+    if (!/^\d+$/.test(source)) continue;
+    const heir = next[Number(source)];
+    if (heir === undefined) continue;
+    heir.isLawful = '1';
+    if (row.renounced === '1') heir.renounced = '1';
+    // 分数は手入力として引き継ぐ（消せば続柄からの自動候補に切り替わる）
+    if ((row.num ?? '') !== '') heir.lawNum = row.num!;
+    if ((row.den ?? '') !== '') heir.lawDen = row.den!;
+  }
+  return next;
 }
 
 /** 保存済みデータを現在の保存形式へ移行する */
 function migrate(parsed: Partial<FormData>): Partial<FormData> {
   if (parsed.version === DATA_VERSION) return parsed;
-  const moved = migrateRenounced(parsed.heirs ?? [], parsed.lawful ?? []);
-  const out: Partial<FormData> = { ...parsed, ...moved };
+  const { lawful, ...rest } = parsed as Partial<FormData> & { lawful?: Values[] };
+  const out: Partial<FormData> = { ...rest, heirs: migrateLawful(parsed.heirs ?? [], lawful ?? []) };
   if (typeof parsed.details !== 'object' || parsed.details === null) return out;
   const details: Record<string, Values[]> = {};
   for (const [form, rows] of Object.entries(parsed.details)) {
@@ -161,11 +164,9 @@ function isFormData(value: unknown): value is Partial<FormData> {
 /** 保存済み・読込データを現在の形（行数・様式一覧・保存形式）に揃える */
 function normalize(input: Partial<FormData>): FormData {
   const parsed = migrate(input);
-  const lawful = emptyLawful().map((row, i) => parsed.lawful?.[i] ?? row);
   return {
     common: parsed.common ?? {},
     heirs: parsed.heirs && parsed.heirs.length > 0 ? parsed.heirs : [{}],
-    lawful,
     used: Array.isArray(parsed.used) ? parsed.used : [...DEFAULT_USED],
     details: typeof parsed.details === 'object' && parsed.details !== null ? parsed.details : {},
     version: DATA_VERSION,
@@ -238,7 +239,7 @@ export function useFormData() {
   }, [data]);
 
   const computed = useMemo(
-    () => computeAll(data.common, data.heirs, data.lawful, data.used, data.details),
+    () => computeAll(data.common, data.heirs, data.used, data.details),
     [data],
   );
 
@@ -268,9 +269,7 @@ export function useFormData() {
       }
       return item[key] ?? '';
     }
-    const index = Number(scope.slice(1));
-    if (scope.startsWith('l')) return computed.lawful[index]?.[key] ?? '';
-    return computed.heirs[index]?.[key] ?? '';
+    return computed.heirs[Number(scope.slice(1))]?.[key] ?? '';
   }, [data, computed]);
 
   const u = useCallback((field: string, value: string): void => {
@@ -290,12 +289,6 @@ export function useFormData() {
         while (rows.length <= i) rows.push({});
         rows[i] = { ...rows[i]!, [key]: value };
         return { ...prev, details: { ...prev.details, [form]: rows } };
-      }
-      if (scope.startsWith('l')) {
-        if (!Number.isInteger(index) || index < 0 || index >= prev.lawful.length) return prev;
-        const lawful = [...prev.lawful];
-        lawful[index] = { ...(lawful[index] ?? {}), [key]: value };
-        return { ...prev, lawful };
       }
       // 第1表（続）は必ず2人分が印刷されるため、右側の未作成の1人は入力時に作る
       if (!Number.isInteger(index) || index < 0 || index > prev.heirs.length || index >= MAX_HEIRS) return prev;

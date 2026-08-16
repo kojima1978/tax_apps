@@ -37,6 +37,7 @@ import {
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
 import { DISABILITY_GENERAL, DISABILITY_SPECIAL } from '../forms/person';
+import { autoLawfulShares } from './lawfulShare';
 
 export type Values = Record<string, string>;
 
@@ -281,17 +282,15 @@ export function table10Pages(common: Values): number {
  * 相続人（相続の放棄をした人を除く）の項番（1始まり＝第11表の項番）。
  *
  * 相続税法12条1項6号・7号の非課税は「相続人の取得した」ものだけが対象なので、
- * 受遺者など相続人以外を除くために使う。相続人かどうかは第2表④の法定相続人欄が
- * 第1表の誰と結び付いているか（`source`）で判定する。
+ * 受遺者など相続人以外を除くために使う。相続人かどうかは、その人に「法定相続人」の印
+ * （`isLawful`）が付いているかで判定する（＝第2表④に並ぶ人）。
  * 第2表④は放棄がなかったものとした場合の一覧なので、放棄した人は人物の属性（`renounced`）で除く。
  */
 function heirNosOfLawfulHeirs(lawful: Values[]): Set<number> {
   const out = new Set<number>();
   for (const row of lawful) {
     if (row.renounced === '1') continue;
-    const source = row.source ?? '';
-    if (!/^\d+$/.test(source)) continue; // 'manual'（旧入力）は第1表の人と結び付いていない
-    out.add(Number(source) + 1);
+    out.add(Number(row.source) + 1);
   }
   return out;
 }
@@ -552,11 +551,44 @@ function lawfulShareIsOne(lawful: Values[]): boolean | undefined {
 }
 
 /**
+ * 第2表④の一覧を「財産を取得した人」から作る。
+ *
+ * ④は人の一覧なので、誰を載せるかは人に付ける印（`isLawful`）で決め、行の側では持たない。
+ * 並びは登録順。氏名・続柄・放棄は第1表の最新値をそのまま指す。
+ *
+ * ⑤法定相続分は続柄と人数から自動で入れ、手入力（`lawNum`/`lawDen`）があればそちらを優先する
+ * （消せば自動に戻る＝付表の価額と同じ扱い）。自動で決められない組み合わせは空欄のままにする。
+ */
+export function deriveLawful(heirs: readonly Values[]): Values[] {
+  const members = heirs.flatMap((heir, index) => (heir.isLawful === '1' ? [{ heir, index }] : []));
+  const autos = autoLawfulShares(members.map(({ heir }) => heir.relation ?? ''));
+  return members.map(({ heir, index }, i) => {
+    const auto = autos?.[i];
+    const manualNum = (heir.lawNum ?? '').trim();
+    const manualDen = (heir.lawDen ?? '').trim();
+    const manual = manualNum !== '' || manualDen !== '';
+    const useAuto = !manual && auto !== undefined;
+    return {
+      source: str(index),
+      name: heir.name ?? '',
+      rel: heir.relation ?? '',
+      renounced: heir.renounced ?? '',
+      num: useAuto ? str(auto.num) : manualNum,
+      den: useAuto ? str(auto.den) : manualDen,
+      // 自動候補が出せるか（画面の手掛かりの出し分け）と、それを手入力で上書きしているか
+      autoable: auto === undefined ? '' : '1',
+      override: manual && auto !== undefined ? '1' : '',
+    };
+  });
+}
+
+/**
  * 第2表（相続税の総額の計算書）。
+ * @param lawful `deriveLawful` が作った法定相続人の一覧（載せる人はここで決まっている）
  * @param totalAThousand ㋑ 課税価格の合計額（＝第1表Ⓐ・千円単位）
  */
 function computeTable2(lawful: Values[], totalAThousand: number): Table2 {
-  const named = lawful.filter((l) => (l.name ?? '').trim() !== '').length;
+  const named = lawful.length;
   const totals: Values = {};
   // 第3表は未対応。保存済みの旧入力値も計算へ混ぜず、㋭は空欄・読み取り専用にする。
   totals.k2 = '';
@@ -583,7 +615,7 @@ function computeTable2(lawful: Values[], totalAThousand: number): Table2 {
   const rows = lawful.map((l): Values => {
     const den = num(l.den);
     const share = den > 0 ? num(l.num) / den : 0;
-    const active = (l.name ?? '').trim() !== '' && share > 0;
+    const active = share > 0;
     // ⑥⑨ 法定相続分に応ずる取得金額（1,000円未満切捨て） → ⑦⑩ 速算表による税額
     const v6 = active ? Math.floor(net * share) : 0;
     const v7 = active ? rateTax(v6) : 0;
@@ -1586,7 +1618,7 @@ function computeTable88(
  * @param details 付表の明細（様式IDごと）。使用する付表の分だけ第11表2①へ合計する。
  */
 function computeAllWithRatios(
-  common: Values, heirs: Values[], lawful: Values[], used: string[] = [], details: Record<string, Values[]> = {},
+  common: Values, heirs: Values[], used: string[] = [], details: Record<string, Values[]> = {},
   ratios?: readonly number[],
 ): Computed {
   const forms: UsedForms = {
@@ -1595,20 +1627,8 @@ function computeAllWithRatios(
     table13: used.includes('table13'),
   };
 
-  // 第2表④は第1表の「財産を取得した人」から選ぶ。氏名・続柄・相続の放棄は保存時に複製せず、
-  // 第1表の最新値から毎回導出することで変更に追従させる。
-  // 旧版で手入力された行は source='manual' として表示・計算を維持する。
-  const linkedLawful = lawful.map((row): Values => {
-    const source = row.source ?? '';
-    const index = /^\d+$/.test(source) ? Number(source) : -1;
-    if (index >= 0 && index < heirs.length) {
-      const heir = heirs[index];
-      return {
-        ...row, source, name: heir?.name ?? '', rel: heir?.relation ?? '', renounced: heir?.renounced ?? '',
-      };
-    }
-    return source === '' && (row.name ?? '').trim() !== '' ? { ...row, source: 'manual' } : row;
-  });
+  // 第2表④は「財産を取得した人」のうち法定相続人の印が付いた人。行として別に持たず毎回作る
+  const linkedLawful = deriveLawful(heirs);
 
   // 第11表2① ← 付表の「分割が確定した財産」。財産の明細書（付表1〜4）だけを合計する
   // ＝ 明細を配列で持つ様式は他にもあるので、コード表を持つ様式だけに絞る。
@@ -1743,7 +1763,19 @@ function computeAllWithRatios(
   const f1Sheets = details.table1112f1b ?? [];
   Object.assign(totals, computeTable1112f1b(f1Sheets), computeTable1112f1(details.table1112f1 ?? [], f1Sheets));
 
-  return { heirs: final, lawful: table2.lawful, totals };
+  // 第2表④の行はその人自身の欄なので、⑤⑥⑦⑨⑩をその人の値として持たせる
+  // （様式側は `h{n}.lawNum` … を参照する。分数は手入力があればそれ、無ければ自動候補）
+  const byHeir = new Map(table2.lawful.map((row) => [Number(row.source), row]));
+  const withLawful = final.map((heir, i): Values => {
+    const row = byHeir.get(i);
+    return row === undefined ? heir : {
+      ...heir,
+      lawNum: row.num ?? '', lawDen: row.den ?? '', lawOverride: row.override ?? '',
+      lawV6: row.v6 ?? '', lawV7: row.v7 ?? '', lawV9: row.v9 ?? '', lawV10: row.v10 ?? '',
+    };
+  });
+
+  return { heirs: withLawful, lawful: table2.lawful, totals };
 }
 
 /** ⑧の端数調整後に比較する税負担。⑲は税額控除後・納税猶予前なので、猶予を節税と誤認しない。 */
@@ -1757,9 +1789,9 @@ function apportionedTaxBurden(computed: Computed): number {
  * ⑲の合計税負担への増分が小さい人から配る。同額なら正確な割合の端数が大きい人を優先する。
  */
 export function computeAll(
-  common: Values, heirs: Values[], lawful: Values[], used: string[] = [], details: Record<string, Values[]> = {},
+  common: Values, heirs: Values[], used: string[] = [], details: Record<string, Values[]> = {},
 ): Computed {
-  const preliminary = computeAllWithRatios(common, heirs, lawful, used, details);
+  const preliminary = computeAllWithRatios(common, heirs, used, details);
   const totalA = preliminary.heirs.reduce((sum, heir) => sum + yen(heir, 'v6'), 0);
   if (totalA <= 0) return preliminary;
 
@@ -1767,16 +1799,16 @@ export function computeAll(
   const floorUnits = exactUnits.map((units) => Math.floor(units + 1e-10));
   const missingUnits = Math.max(0, 100 - floorUnits.reduce((sum, units) => sum + units, 0));
   const floorRatios = floorUnits.map((units) => units / 100);
-  if (missingUnits === 0) return computeAllWithRatios(common, heirs, lawful, used, details, floorRatios);
+  if (missingUnits === 0) return computeAllWithRatios(common, heirs, used, details, floorRatios);
 
-  const floorResult = computeAllWithRatios(common, heirs, lawful, used, details, floorRatios);
+  const floorResult = computeAllWithRatios(common, heirs, used, details, floorRatios);
   const floorTax = apportionedTaxBurden(floorResult);
   const candidates = exactUnits.flatMap((units, index) => {
     const remainder = units - floorUnits[index]!;
     if (remainder <= 1e-10) return [];
     const trial = [...floorRatios];
     trial[index] = (floorUnits[index]! + 1) / 100;
-    const tax = apportionedTaxBurden(computeAllWithRatios(common, heirs, lawful, used, details, trial));
+    const tax = apportionedTaxBurden(computeAllWithRatios(common, heirs, used, details, trial));
     return [{ index, taxIncrease: tax - floorTax, remainder }];
   });
   candidates.sort((a, b) => (
@@ -1787,5 +1819,5 @@ export function computeAll(
   for (const candidate of candidates.slice(0, missingUnits)) {
     optimized[candidate.index] = (floorUnits[candidate.index]! + 1) / 100;
   }
-  return computeAllWithRatios(common, heirs, lawful, used, details, optimized);
+  return computeAllWithRatios(common, heirs, used, details, optimized);
 }

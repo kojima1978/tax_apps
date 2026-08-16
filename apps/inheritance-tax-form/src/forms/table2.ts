@@ -11,6 +11,7 @@
 import type { GridCell } from '../components/ui/GridForm';
 import { RELATION_OPTIONS } from '../data/codes';
 import { code, label, mk } from './geometry';
+import { personAction } from './person';
 
 export const TABLE2_FORM_CODE = 'NTA0KSE020010020';
 export const TABLE2_TITLE = '相続税の申告書　第2表';
@@ -117,8 +118,16 @@ const LAW_Y: readonly (readonly [number, number, number, number])[] = [
   [1155.0, 1200.0, 1215.0, 1260.0],
 ];
 
-/** 法定相続人 i 行目のフィールド接頭辞 */
-export const lawPrefix = (i: number): string => `l${i}.`;
+/**
+ * ④に載る法定相続人1人分の参照先。
+ * 行そのものは値を持たず、「財産を取得した人」の欄（`h{n}.`）をそのまま指す。
+ */
+export interface LawfulRowRef {
+  /** その人のフィールド接頭辞（'h0.'） */
+  prefix: string;
+  /** 続柄と人数から法定相続分の自動候補を出せるか */
+  autoable: boolean;
+}
 
 /** ④⑤⑥⑦欄の識別コード（1行ごとに5ずつ進む） */
 const lawCode = (i: number, offset: number): string => `G${String(7 + i * 5 + offset).padStart(2, '0')}`;
@@ -199,48 +208,75 @@ function lawfulHead(): GridCell[] {
 }
 
 /**
- * ④の氏名欄の手掛かり。この欄は「放棄がなかったものとした場合」の一覧なので、
- * 放棄した人も行に載せて数える（人物の画面で放棄に印を付けた人は選択肢に「（放棄）」と出る）。
+ * ④の氏名欄の手掛かり。誰を載せるかは「財産を取得した人」の画面で決める
+ * （放棄がなかったものとした場合の一覧なので、放棄した人もここに載って人数に入る）。
  */
-const LAWFUL_HINT = '法定相続人の数は、相続の放棄がなかったものとして数えます。'
-  + '放棄した人もこの欄に載せてください。';
+const LAWFUL_HINT = '法定相続人は「財産を取得した人」の画面で印を付けます。'
+  + 'クリックするとその人の画面を開きます。'
+  + '法定相続人の数は、相続の放棄がなかったものとして数えます。';
 
-/** 法定相続人 i 行目 */
-function lawfulRow(i: number, heirOptions: GridCell['options'] = []): GridCell[] {
+/** ⑤法定相続分の手掛かり（自動候補を出せるかで文言を変える） */
+const SHARE_HINT_AUTO = '続柄と人数から自動で入れています。'
+  + '数字を入れると手入力が優先され、消すと自動に戻ります。'
+  + '半血の兄弟姉妹がいる場合は自動の値が当てはまりません。';
+const SHARE_HINT_MANUAL = '続柄の組み合わせからは自動で決められないので、手で入力してください'
+  + '（代襲相続の孫、続柄が「その他」の人、順位の違う血族が混ざっている場合など）。';
+
+/** 法定相続人 i 行目。`ref` が無い行は様式の空欄（法定相続人がその行まで居ない） */
+function lawfulRow(i: number, ref?: LawfulRowRef): GridCell[] {
   const [top, barTop, barBottom, bottom] = LAW_Y[i]!;
-  const p = lawPrefix(i);
   const who = `法定相続人${i + 1}人目`;
   const all = row(top, bottom);
   const upper = row(top, barTop);
   const lower = row(barBottom, bottom);
-  return [
+  // 識別コードと分数の横線は、人が居ない行にも様式どおり印字する
+  const frame: GridCell[] = [
     code(all, col(X.L, X.CODE), `E0${2 + i}`),
-    mk(all, col(X.CODE, X.NAME_R), {
-      kind: 'input', field: `${p}source`, ariaLabel: `${who}：第1表の財産を取得した人`,
-      options: heirOptions, align: 'left', fontSize: 10, hint: LAWFUL_HINT,
-    }),
     code(all, col(X.NAME_R, X.REL_C), lawCode(i, 0)),
+    code(upper, col(X.REL_R, X.FR_C), lawCode(i, 1)),
+    mk(row(barTop, barBottom), col(X.REL_R, X.D1), {}),
+    code(lower, col(X.REL_R, X.FR_C), lawCode(i, 2)),
+    code(all, col(X.D1R, X.N6_C), lawCode(i, 3)),
+    code(all, col(X.N7_L, X.N7_C), lawCode(i, 4)),
+    code(all, col(X.D3R, X.N9_C), `G${37 + i * 2}`),
+    code(all, col(X.N10_L, X.N10_C), `G${38 + i * 2}`),
+  ];
+  const boxes: [[number, number], [number, number]][] = [
+    [all, col(X.CODE, X.NAME_R)], [all, col(X.REL_C, X.REL_R)],
+    [upper, col(X.FR_C, X.D1)], [lower, col(X.FR_C, X.D1)],
+    [all, col(X.N6_C, X.N7_L)], [all, col(X.N7_C, X.D3)],
+    [all, col(X.N9_C, X.N10_L)], [all, col(X.N10_C, X.R)],
+  ];
+  if (ref === undefined) return [...frame, ...boxes.map(([y, x]) => mk(y, x, {}))];
+
+  const p = ref.prefix;
+  const share = (field: string, name: string): Partial<GridCell> => ({
+    kind: 'input', field: `${p}${field}`, ariaLabel: `${who}の法定相続分（${name}）`,
+    integerDigits: 3, align: 'center',
+    hint: ref.autoable ? SHARE_HINT_AUTO : SHARE_HINT_MANUAL,
+    // 自動候補があるのに手で入れている行は、自動と違うことが分かるように強調する
+    highlightWhen: (g) => g(`${p}lawOverride`) === '1',
+  });
+  return [
+    ...frame,
+    // 氏名はこの欄で選ぶのではなく、人物に付けた印の結果。クリックでその人の画面を開く
+    label(all, col(X.CODE, X.NAME_R), '', {
+      textField: `${p}name`, align: 'left', fontSize: 10,
+      action: personAction(p), ariaLabel: `${who}の基本情報を入力する`, hint: LAWFUL_HINT,
+    }),
     mk(all, col(X.REL_C, X.REL_R), {
-      kind: 'input', field: `${p}rel`, ariaLabel: `${who}の被相続人との続柄`,
+      kind: 'input', field: `${p}relation`, ariaLabel: `${who}の被相続人との続柄`,
       options: RELATION_OPTIONS, compactSelectedOption: true, stackedSelectedOption: true, readOnly: true,
     }),
 
     // ⑤ 法定相続分（上段＝分子・下段＝分母。間の細い帯が様式の分数の横線）
-    code(upper, col(X.REL_R, X.FR_C), lawCode(i, 1)),
-    mk(upper, col(X.FR_C, X.D1), { kind: 'input', field: `${p}num`, ariaLabel: `${who}の法定相続分（分子）`, integerDigits: 3, align: 'center' }),
-    mk(row(barTop, barBottom), col(X.REL_R, X.D1), {}),
-    code(lower, col(X.REL_R, X.FR_C), lawCode(i, 2)),
-    mk(lower, col(X.FR_C, X.D1), { kind: 'input', field: `${p}den`, ariaLabel: `${who}の法定相続分（分母）`, integerDigits: 3, align: 'center' }),
+    mk(upper, col(X.FR_C, X.D1), share('lawNum', '分子')),
+    mk(lower, col(X.FR_C, X.D1), share('lawDen', '分母')),
 
-    code(all, col(X.D1R, X.N6_C), lawCode(i, 3)),
-    mk(all, col(X.N6_C, X.N7_L), money(`${p}v6`, `${who} ⑥法定相続分に応ずる取得金額`, '，000')),
-    code(all, col(X.N7_L, X.N7_C), lawCode(i, 4)),
-    mk(all, col(X.N7_C, X.D3), money(`${p}v7`, `${who} ⑦相続税の総額の基となる税額`)),
-
-    code(all, col(X.D3R, X.N9_C), `G${37 + i * 2}`),
-    mk(all, col(X.N9_C, X.N10_L), money(`${p}v9`, `${who} ⑨法定相続分に応ずる取得金額`, '，000')),
-    code(all, col(X.N10_L, X.N10_C), `G${38 + i * 2}`),
-    mk(all, col(X.N10_C, X.R), money(`${p}v10`, `${who} ⑩相続税の総額の基となる税額`)),
+    mk(all, col(X.N6_C, X.N7_L), money(`${p}lawV6`, `${who} ⑥法定相続分に応ずる取得金額`, '，000')),
+    mk(all, col(X.N7_C, X.D3), money(`${p}lawV7`, `${who} ⑦相続税の総額の基となる税額`)),
+    mk(all, col(X.N9_C, X.N10_L), money(`${p}lawV9`, `${who} ⑨法定相続分に応ずる取得金額`, '，000')),
+    mk(all, col(X.N10_C, X.R), money(`${p}lawV10`, `${who} ⑩相続税の総額の基となる税額`)),
   ];
 }
 
@@ -306,9 +342,10 @@ function rateTable(): GridCell[] {
  * 第2表のセルを組み立てる。
  * @param common 共通欄のフィールド接頭辞（'c.'）
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）
+ * @param rows ④に載せる法定相続人（上から順に。行数を超える分は様式では第2表の付表に書く）
  */
 export function buildTable2(
-  common: string, totals: string, heirOptions: readonly GridCell['options'][] = [],
+  common: string, totals: string, rows: readonly LawfulRowRef[] = [],
 ): GridCell[] {
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
@@ -327,7 +364,7 @@ export function buildTable2(
     mk(row(522, 1329), col(X.D3, X.D3R), {}),
 
     ...lawfulHead(),
-    ...LAW_Y.map((_, i) => lawfulRow(i, heirOptions[i])).flat(),
+    ...LAW_Y.map((_, i) => lawfulRow(i, rows[i])).flat(),
     ...totalRow(totals),
 
     mk(row(1329, 1406.5), col(X.L, X.R), { kind: 'label', numberedNotes: TABLE2_INNER_NOTES, align: 'left', fontSize: 7 }),
