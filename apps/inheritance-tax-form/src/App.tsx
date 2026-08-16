@@ -66,7 +66,7 @@ import {
   TABLE88_ASPECT, TABLE88_EDITION, TABLE88_FORM_CODE, TABLE88_NOTES, TABLE88_PERSONS, TABLE88_SUBTITLE,
   TABLE88_TITLE, buildTable88,
 } from './forms/table88';
-import { DETAIL_GROUPS, buildDetail, detailAspect } from './forms/detail';
+import { DETAIL_GROUPS, buildDetail, detailAspect, type DetailItem } from './forms/detail';
 import { TABLE11F1_SHARE, TABLE11F1_SPEC } from './forms/table11f1';
 import { TABLE11F2_SHARE, TABLE11F2_SPEC } from './forms/table11f2';
 import { TABLE11F3_SHARE, TABLE11F3_SPEC } from './forms/table11f3';
@@ -75,7 +75,7 @@ import { detailLabel, detailPrefix, heirLabel, heirPrefix, useFormData } from '.
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  hasTable112, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
+  detailSlots, hasTable112, table10Pages, table112Pages, table13Pages, table14Pages, table15Transferred,
   table42Pages, table4Pages, table88Pages, table9Pages,
 } from './lib/calc';
 
@@ -614,18 +614,14 @@ function Table1112f1bPage({ sheet, whoOptions, g, u, onNavigate }: Table1112f1bP
 
 interface DetailPageProps extends PageProps {
   form: keyof typeof DETAIL_SPECS;
+  /** この用紙に載せる組（8組。1組＝1財産とは限らない） */
+  items: readonly DetailItem[];
 }
 
-/** 付表（財産の明細書）1枚（財産8件分） */
-function DetailPage({ form, page, g, u, onNavigate }: DetailPageProps) {
+/** 付表（財産の明細書）1枚（8組分） */
+function DetailPage({ form, items, page, g, u, onNavigate }: DetailPageProps) {
   const { spec, share } = DETAIL_SPECS[form];
-  const cells = useMemo(
-    () => buildDetail(spec, share, COMMON, Array.from({ length: DETAIL_GROUPS }, (_, i) => {
-      const index = page * DETAIL_GROUPS + i;
-      return { prefix: detailPrefix(form, index), label: detailLabel(index) };
-    })),
-    [spec, share, form, page],
-  );
+  const cells = useMemo(() => buildDetail(spec, share, COMMON, items), [spec, share, items]);
   return (
     <div className="gov-page">
       <GridForm
@@ -687,7 +683,7 @@ function PageControl({
 
 export default function App() {
   const {
-    data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage, setDetailCount,
+    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount,
     toggleUsed, reset, exportJson, importJson, maxHeirs,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -761,8 +757,28 @@ export default function App() {
   const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
   const heirPages = 1 + contPages;
   const table11Pages = Math.max(1, Math.ceil(data.heirs.length / TABLE11_ROWS));
-  /** 付表の枚数（明細の件数から決まる。1枚は必ず出す） */
-  const detailPages = (form: string): number => Math.max(1, Math.ceil((data.details[form]?.length ?? 0) / DETAIL_GROUPS));
+  /**
+   * 付表の割り付け。財産の並び順を様式の組へ配る。
+   * 1財産が2組以上を使うことがある（4人以上の共有）ので、枚数は件数ではなく組数から決まる。
+   * 用紙の余りは空の財産で埋め、1枚は必ず出す。
+   */
+  const detailLayout = useMemo(() => Object.fromEntries(DETAIL_FORMS.map((form) => {
+    const rows = data.details[form] ?? [];
+    const pages = Math.max(1, Math.ceil(detailSlots(rows, 0).length / DETAIL_GROUPS));
+    const slots = detailSlots(rows, pages * DETAIL_GROUPS);
+    // 用紙1枚ぶんずつに切り分けておく（描画のたびに配列を作ると GridForm の再計算が毎回走る）
+    const pageItems: DetailItem[][] = Array.from({ length: pages }, (_, page) => slots
+      .slice(page * DETAIL_GROUPS, (page + 1) * DETAIL_GROUPS)
+      .map(({ item, base }): DetailItem => ({
+        prefix: detailPrefix(form, item), label: detailLabel(item), base, first: base === 0,
+      })));
+    // 最後の1枚を削るときに残す件数。用紙の切れ目が財産の途中（続きの組）に当たるときは、
+    // 財産を半分だけ消すことになるので − を出さない
+    const edge = slots[(pages - 1) * DETAIL_GROUPS]!;
+    return [form, { pageItems, pages, keep: Math.min(rows.length, edge.item), canRemove: pages > 1 && edge.base === 0 }];
+  })), [data.details]);
+  /** 付表の枚数 */
+  const detailPages = (form: string): number => detailLayout[form]?.pages ?? 1;
   /** 第13表の枚数（3の承継した人が1枚に4人分しか入らないので人数でも増える） */
   const t13Pages = table13Pages(data.common, data.heirs.length);
   /** 第4表の枚数（加算の対象になるかは続柄だけでは決まらないので人数からは決めない） */
@@ -1156,8 +1172,8 @@ export default function App() {
       <>
         {Array.from({ length: detailPages(id) }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={detailPages(id)} onDecrease={() => removeDetailPage(id, DETAIL_GROUPS)} onIncrease={() => addDetailPage(id, DETAIL_GROUPS)} decreaseDisabled={detailPages(id) <= 1} detail={`財産${DETAIL_GROUPS}件／ページ`} />
-            <DetailPage form={id} page={page} g={g} u={u} onNavigate={setActive} />
+            <PageControl page={page + 1} total={detailPages(id)} onDecrease={() => setDetailCount(id, detailLayout[id]!.keep)} onIncrease={() => addDetailPage(id, DETAIL_GROUPS)} decreaseDisabled={!detailLayout[id]!.canRemove} detail={`財産${DETAIL_GROUPS}件／ページ`} />
+            <DetailPage form={id} page={page} items={detailLayout[id]!.pageItems[page]!} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
       </>

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { computeAll, num, type Values } from './calc';
+import {
+  computeAll, detailGroupCount, detailShareCount, detailSlots, num, type Values,
+} from './calc';
+import { table15Key } from '../forms/table15';
 
 const lawfulThirds = (): Values[] => Array.from(
   { length: 3 },
@@ -162,6 +165,59 @@ describe('computeAll 第6表①の年齢転記', () => {
 
     expect(result.totals.t6m0age).toBe('5');
     expect(result.totals.t6m0v2).toBe('130');
+  });
+});
+
+describe('付表の組への割り付け', () => {
+  it('取得者が3人までなら1組＋次の1組（4人目を書く場所）を使う', () => {
+    const item: Values = { kindCode: '13', who0: '1', who1: '2', who2: '3' };
+    expect(detailShareCount(item)).toBe(3);
+    expect(detailGroupCount(item)).toBe(2);
+  });
+
+  it('取得者が4人なら2組目に続きを書く', () => {
+    const item: Values = { who0: '1', who1: '2', who2: '3', who3: '4' };
+    expect(detailShareCount(item)).toBe(4);
+    expect(detailGroupCount(item)).toBe(2);
+  });
+
+  it('財産の並び順に組を並べ、用紙の余りは空の財産で埋める', () => {
+    const items: Values[] = [{ who0: '1', who1: '2', who2: '3', who3: '4' }, { who0: '1' }];
+    expect(detailSlots(items, 5)).toEqual([
+      { item: 0, base: 0 }, { item: 0, base: 3 },
+      { item: 1, base: 0 },
+      { item: 2, base: 0 }, { item: 3, base: 0 },
+    ]);
+  });
+});
+
+describe('computeAll 1つの財産を4人で共有した場合', () => {
+  const details: Record<string, Values[]> = {
+    table11f1: [{
+      kindCode: '13', value: '40000000',
+      who0: '1', amount0: '10000000',
+      who1: '2', amount1: '10000000',
+      who2: '3', amount2: '10000000',
+      // 4人目は様式の次の組に続けて書く（記載例59ページのQ&A）
+      who3: '4', amount3: '10000000',
+    }],
+  };
+  const heirs: Values[] = Array.from({ length: 4 }, (_, i) => ({ name: `相続人${i + 1}` }));
+
+  it('第11表2①に4人目の取得額を含める', () => {
+    const result = computeAll({}, heirs, [], ['table11f1'], details);
+    expect(result.heirs.map((heir) => heir.t11v1)).toEqual(Array(4).fill('10000000'));
+  });
+
+  it('第15表③も4人目まで第11表2①と一致する', () => {
+    const result = computeAll({}, heirs, [], ['table11f1'], details);
+    const key = table15Key(3);
+    expect(result.heirs.map((heir) => heir[key])).toEqual(result.heirs.map((heir) => heir.t11v1));
+  });
+
+  it('取得者が全員そろっていれば未分割財産にしない', () => {
+    const result = computeAll({}, heirs, [], ['table11f1'], details);
+    expect(result.heirs.map((heir) => heir.t11v2)).toEqual(Array(4).fill(''));
   });
 });
 

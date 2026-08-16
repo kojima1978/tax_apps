@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { computeAll, type Values } from '../lib/calc';
+import { computeAll, detailShareCount, isEmptyDetail, type Values } from '../lib/calc';
 import { LAWFUL_ROWS } from '../forms/table2';
 
 export interface FormData {
@@ -23,11 +23,22 @@ export interface FormData {
   lawful: Values[];
   /** 使用する様式のID（印刷対象） */
   used: string[];
-  /** 付表（財産の明細書）の明細。様式IDごとに、財産1つ＝1要素の配列 */
+  /**
+   * 付表（財産の明細書）の明細。様式IDごとに、**財産1つ＝1要素**の配列。
+   * 配列の順がそのまま出力順で、項番は順番から決まる。
+   * 取得者は `who0`/`amount0` から可変長で並べる（様式の1組は3人までだが、
+   * 4人以上で共有した財産は記載例59ページのQ&Aのとおり次の組へ続けて印字する）。
+   */
   details: Record<string, Values[]>;
+  /** 保存形式の版。付表を「1組＝1要素」から「1財産＝1要素」に変えた時点で 2 */
+  version?: number;
 }
 
 const STORAGE_KEY = 'inheritance-tax-form:v1';
+/** 移行前のデータの退避先（付表のまとめ直しは元に戻せないため） */
+const BACKUP_KEY = 'inheritance-tax-form:v1-backup';
+/** 現在の保存形式 */
+const DATA_VERSION = 2;
 /** 第1表に1人＋第1表（続）10枚に2人ずつ */
 const MAX_HEIRS = 21;
 /** 既定で使用する様式 */
@@ -35,7 +46,7 @@ const DEFAULT_USED = ['table1', 'table2', 'table11'];
 
 const emptyLawful = (): Values[] => Array.from({ length: LAWFUL_ROWS }, () => ({}));
 const emptyData = (): FormData => ({
-  common: {}, heirs: [{}], lawful: emptyLawful(), used: [...DEFAULT_USED], details: {},
+  common: {}, heirs: [{}], lawful: emptyLawful(), used: [...DEFAULT_USED], details: {}, version: DATA_VERSION,
 });
 
 /** 財産を取得した人 i 番目のフィールド接頭辞 */
@@ -48,6 +59,51 @@ export const detailPrefix = (form: string, i: number): string => `${form}#${i}.`
 /** アクセシブル名に使う呼び名 */
 export const detailLabel = (i: number): string => `明細${i + 1}`;
 
+/**
+ * 保存形式 1（1組＝1要素）の明細を、2（1財産＝1要素）へまとめ直す。
+ *
+ * 版1では4人以上の共有を「項番を手で同じ番号にした次の組」で表していたので、
+ * 「項番が直前と同じで、明細欄が空の組」を直前の財産の続きとみなして
+ * `who3`/`amount3` … へ繋ぎ替える。まったくの空組は落とす（項番は順番から決まるため、
+ * 途中に空組が残っていると番号がずれる）。
+ */
+function migrateDetails(rows: readonly Values[]): Values[] {
+  const out: Values[] = [];
+  let lastNo = '';
+  for (const row of rows) {
+    const { no = '', ...rest } = row;
+    if (isEmptyDetail(rest)) { lastNo = ''; continue; }
+    const shares: Values = {};
+    const detail: Values = {};
+    for (const [key, value] of Object.entries(rest)) {
+      (/^(?:who|amount)\d$/.test(key) ? shares : detail)[key] = value;
+    }
+    const prev = out[out.length - 1];
+    // 明細欄が空＝続きの組。直前の財産の取得者として後ろに足す
+    if (prev !== undefined && no !== '' && no === lastNo && isEmptyDetail(detail)) {
+      const base = detailShareCount(prev);
+      for (const [key, value] of Object.entries(shares)) {
+        const found = /^(who|amount)(\d)$/.exec(key)!;
+        prev[`${found[1]}${base + Number(found[2])}`] = value;
+      }
+      continue;
+    }
+    out.push({ ...detail, ...shares });
+    lastNo = no;
+  }
+  return out;
+}
+
+/** 保存形式 1 のデータ全体を 2 へ移行する */
+function migrate(parsed: Partial<FormData>): Partial<FormData> {
+  if (parsed.version === DATA_VERSION || typeof parsed.details !== 'object' || parsed.details === null) return parsed;
+  const details: Record<string, Values[]> = {};
+  for (const [form, rows] of Object.entries(parsed.details)) {
+    details[form] = migrateDetails(Array.isArray(rows) ? rows : []);
+  }
+  return { ...parsed, details };
+}
+
 /** 第1表1枚＋（続）は2人ずつ */
 export const pageCount = (heirs: number): number => 1 + Math.ceil(Math.max(0, heirs - 1) / 2);
 
@@ -57,8 +113,9 @@ function isFormData(value: unknown): value is Partial<FormData> {
   return typeof data.common === 'object' && data.common !== null && Array.isArray(data.heirs);
 }
 
-/** 保存済み・読込データを現在の形（行数・様式一覧）に揃える */
-function normalize(parsed: Partial<FormData>): FormData {
+/** 保存済み・読込データを現在の形（行数・様式一覧・保存形式）に揃える */
+function normalize(input: Partial<FormData>): FormData {
+  const parsed = migrate(input);
   const lawful = emptyLawful().map((row, i) => parsed.lawful?.[i] ?? row);
   return {
     common: parsed.common ?? {},
@@ -66,6 +123,7 @@ function normalize(parsed: Partial<FormData>): FormData {
     lawful,
     used: Array.isArray(parsed.used) ? parsed.used : [...DEFAULT_USED],
     details: typeof parsed.details === 'object' && parsed.details !== null ? parsed.details : {},
+    version: DATA_VERSION,
   };
 }
 
@@ -75,6 +133,14 @@ function loadStored(): FormData {
     if (!raw) return emptyData();
     const parsed: unknown = JSON.parse(raw);
     if (!isFormData(parsed)) return emptyData();
+    try {
+      // 付表のまとめ直しは元に戻せないので、移行前のものを1回だけ退避しておく
+      if (parsed.version !== DATA_VERSION && localStorage.getItem(BACKUP_KEY) === null) {
+        localStorage.setItem(BACKUP_KEY, raw);
+      }
+    } catch {
+      // 退避できなくても読み込み自体は続ける
+    }
     return normalize(parsed);
   } catch {
     return emptyData();
@@ -85,6 +151,26 @@ function loadStored(): FormData {
 function splitField(field: string): [string, string] {
   const dot = field.indexOf('.');
   return dot < 0 ? ['c', field] : [field.slice(0, dot), field.slice(dot + 1)];
+}
+
+/** 項番の欄名（`no0`・`no3` …）から、その組の先頭の取得者の添字を取り出す */
+function shareBase(key: string): number | null {
+  const found = /^no(\d+)$/.exec(key);
+  return found ? Number(found[1]) : null;
+}
+
+/**
+ * 付表の項番。財産の並び順から決まる（空欄の財産は数えない）ので入力できない。
+ * 続きの組（`base` が3以上）は、そこに取得者が入ったときだけ番号を出す。
+ * 4人目を書くために先回りして空けてある組に番号だけ浮かぶのを避けるため。
+ */
+function detailNo(rows: readonly Values[], index: number, base: number): string {
+  const item = rows[index];
+  if (isEmptyDetail(item)) return '';
+  if (base > 0 && base >= detailShareCount(item!)) return '';
+  let no = 0;
+  for (let i = 0; i <= index; i += 1) if (!isEmptyDetail(rows[i])) no += 1;
+  return String(no);
 }
 
 /** `table11f1#3` を ['table11f1', 3] に分ける（付表以外は null） */
@@ -116,7 +202,12 @@ export function useFormData() {
     if (scope === 't') return computed.totals[key] ?? '';
     if (scope === 'c') return data.common[key] ?? '';
     const detail = splitDetailScope(scope);
-    if (detail) return data.details[detail[0]]?.[detail[1]]?.[key] ?? '';
+    if (detail) {
+      const rows = data.details[detail[0]] ?? [];
+      const base = shareBase(key);
+      if (base !== null) return detailNo(rows, detail[1], base);
+      return rows[detail[1]]?.[key] ?? '';
+    }
     const index = Number(scope.slice(1));
     if (scope.startsWith('l')) return computed.lawful[index]?.[key] ?? '';
     return computed.heirs[index]?.[key] ?? '';
@@ -126,6 +217,7 @@ export function useFormData() {
     const [scope, key] = splitField(field);
     if (scope === 't') return; // 自動計算欄は書き込み不可
     const detail = splitDetailScope(scope);
+    if (detail && shareBase(key) !== null) return; // 付表の項番は並び順から決まるので書き込み不可
     const index = Number(scope.slice(1));
     setData((prev) => {
       if (scope === 'c') return { ...prev, common: { ...prev.common, [key]: value } };
@@ -166,15 +258,6 @@ export function useFormData() {
       const current = prev.details[form] ?? [];
       const next = [...current, ...Array.from({ length: rows }, (): Values => ({}))];
       return { ...prev, details: { ...prev.details, [form]: next } };
-    });
-  }, []);
-
-  /** 付表の明細の最後の1枚を削る（1枚目は残す） */
-  const removeDetailPage = useCallback((form: string, rows: number) => {
-    setData((prev) => {
-      const current = prev.details[form] ?? [];
-      if (current.length <= rows) return prev;
-      return { ...prev, details: { ...prev.details, [form]: current.slice(0, -rows) } };
     });
   }, []);
 
@@ -227,7 +310,7 @@ export function useFormData() {
   }, []);
 
   return {
-    data, g, u, addHeir, removeHeir, addDetailPage, removeDetailPage, setDetailCount,
+    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount,
     toggleUsed, reset, exportJson, importJson, maxHeirs: MAX_HEIRS,
   };
 }

@@ -606,8 +606,69 @@ function computeTable2(lawful: Values[], totalAThousand: number): Table2 {
   return { lawful: rows, totals };
 }
 
-/** 付表（財産の明細書）の1明細で、1つの財産を分けられる人数 */
-const DETAIL_SHARES = [0, 1, 2] as const;
+/**
+ * 付表の「分割が確定した財産」欄は、様式の1組に3人分しか無い。
+ * 4人以上で共有した財産は、記載例59ページのQ&Aのとおり次の組に同じ項番で続きを書く。
+ * データの側は「財産1件＝1要素」で持ち、取得者は `who0`/`amount0` から可変長で並べる。
+ * 何組に割り付けるかは印字のときだけの話なので、集計はここでは組を意識しない。
+ */
+export const DETAIL_SHARES_PER_GROUP = 3;
+
+/** 明細1件が持つ取得者の枠の数（＝最後に何か入っている枠の次まで） */
+export function detailShareCount(item: Values): number {
+  let last = -1;
+  for (const [key, value] of Object.entries(item)) {
+    const found = /^(?:who|amount)(\d+)$/.exec(key);
+    if (found && value.trim() !== '') last = Math.max(last, Number(found[1]));
+  }
+  return last + 1;
+}
+
+/**
+ * 明細1件が使う組の数。
+ * 最後の組が3人とも埋まったら次の組を1つ空けておく（4人目を書く場所を先に用意する）。
+ * 空の組は様式の未使用行と見分けが付かないので、印刷しても差し支えない。
+ */
+export function detailGroupCount(item: Values): number {
+  return Math.floor(detailShareCount(item) / DETAIL_SHARES_PER_GROUP) + 1;
+}
+
+/** 明細1件がまったくの空欄か（項番を振る対象から外す） */
+export function isEmptyDetail(item: Values | undefined): boolean {
+  return item === undefined || Object.values(item).every((value) => value.trim() === '');
+}
+
+/** 明細1件の取得者（番号が入っているものだけ） */
+function detailShares(item: Values): { no: number; amount: number }[] {
+  const out: { no: number; amount: number }[] = [];
+  const count = detailShareCount(item);
+  for (let i = 0; i < count; i += 1) {
+    const no = num(item[`who${i}`]);
+    if (no > 0) out.push({ no, amount: num(item[`amount${i}`]) });
+  }
+  return out;
+}
+
+/** 組1つ分の割り付け（どの明細の、何人目からを載せるか） */
+export interface DetailSlot {
+  /** 明細の通し番号 */
+  item: number;
+  /** この組に載せる取得者の先頭の添字（0・3・6…） */
+  base: number;
+}
+
+/**
+ * 明細の一覧を様式の組へ割り付ける。`least` は用紙の枚数ぶんの組数（足りない分は空の明細で埋める）。
+ */
+export function detailSlots(items: readonly Values[], least: number): DetailSlot[] {
+  const slots: DetailSlot[] = [];
+  items.forEach((item, index) => {
+    const groups = detailGroupCount(item);
+    for (let g = 0; g < groups; g += 1) slots.push({ item: index, base: g * DETAIL_SHARES_PER_GROUP });
+  });
+  for (let index = items.length; slots.length < least; index += 1) slots.push({ item: index, base: 0 });
+  return slots;
+}
 
 /**
  * 付表の「分割が確定した財産」を、財産を取得した人の番号ごとに合計する（円）。
@@ -616,10 +677,8 @@ const DETAIL_SHARES = [0, 1, 2] as const;
 function sumDetails(details: Values[]): number[] {
   const byNumber: number[] = [];
   for (const item of details) {
-    for (const i of DETAIL_SHARES) {
-      const no = num(item[`who${i}`]);
-      if (no <= 0) continue;
-      byNumber[no] = (byNumber[no] ?? 0) + num(item[`amount${i}`]);
+    for (const { no, amount } of detailShares(item)) {
+      byNumber[no] = (byNumber[no] ?? 0) + amount;
     }
   }
   return byNumber;
@@ -636,7 +695,7 @@ function sumDetails(details: Values[]): number[] {
  */
 function computeUnsplit(details: Values[], lawful: Values[]): number[] {
   const total = details.reduce((sum, item) => (
-    DETAIL_SHARES.some((i) => num(item[`who${i}`]) > 0) ? sum : sum + num(item.value)
+    detailShares(item).length > 0 ? sum : sum + num(item.value)
   ), 0);
   const shares: { no: number; share: number }[] = [];
   for (const row of lawful) {
@@ -704,10 +763,7 @@ function sumTable15(used: readonly string[], details: Record<string, Values[]>):
       const extra = kind.table15Extra !== undefined && (item.usage ?? '').trim() === kind.table15Extra.whenUsage
         ? kind.table15Extra.table15
         : undefined;
-      for (const i of DETAIL_SHARES) {
-        const no = num(item[`who${i}`]);
-        if (no <= 0) continue;
-        const amount = num(item[`amount${i}`]);
+      for (const { no, amount } of detailShares(item)) {
         add(kind.table15, no, amount);
         if (extra !== undefined) add(extra, no, amount);
       }

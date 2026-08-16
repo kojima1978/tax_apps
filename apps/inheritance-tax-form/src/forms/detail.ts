@@ -185,38 +185,48 @@ function fieldCells(
   return cells;
 }
 
-/** 「分割が確定した財産」欄の欄名（1つの財産を最大3人で分けられる） */
+/** 「分割が確定した財産」欄の行数（1つの組で3人まで） */
 const SHARE_ROWS = [0, 1, 2] as const;
 
-/** 組1つ分（3行）。左端の項番と右端の分割確定欄は全様式で共通。 */
-function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: number, prefix: string, who: string): GridCell[] {
+/**
+ * 組1つ分（3行）。左端の項番と右端の分割確定欄は全様式で共通。
+ *
+ * 1つの組＝1つの財産とは限らない。4人以上で共有した財産は記載例59ページのQ&Aのとおり
+ * 次の組に続きを書くので、`item.base` が 3 以上の組は同じ財産の続きになる。
+ * 続きの組は※のとおり「項番」「取得した人の番号」「取得財産の価額」以外は記入しないため、
+ * 明細欄は識別コードと罫線だけを置いて入力欄を作らない。
+ */
+function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: number, item: DetailItem): GridCell[] {
   const f = spec.frame;
+  const { prefix, label: who, base, first } = item;
   const lines = groupLines(f, g);
   const at = (r: readonly [number, number]): [number, number] => s.row(lines[r[0]]!, lines[r[1]]!);
   const bands = f.bands ?? DEFAULT_BANDS;
   const all = at([0, lines.length - 1]);
   return [
-    // 項番（3行をまたぐ）
+    // 項番（3行をまたぐ）。並び順から決まるので入力できない
     code(all, s.col(f.left, f.noCode), resolve(spec, 'G0', g)),
     mk(all, s.col(f.noCode, f.noR), {
-      kind: 'input', field: `${prefix}no`, ariaLabel: `${who}の項番`, integerDigits: 3, align: 'center',
+      kind: 'input', field: `${prefix}no${base}`, ariaLabel: `${who}の項番`,
+      integerDigits: 3, align: 'center', readOnly: true,
     }),
     // 財産の明細（様式ごと）
     ...spec.rows.flatMap((fields, i) => fields.flatMap(
-      (field) => fieldCells(spec, s, field, at(field.r ?? bands[i]!), g, prefix, who),
+      (field) => fieldCells(spec, s, first ? field : { x: field.x, code: field.code }, at(field.r ?? bands[i]!), g, prefix, who),
     )),
-    // 分割が確定した財産（3人分）
+    // 分割が確定した財産（1組3人分）
     ...SHARE_ROWS.flatMap((i): GridCell[] => {
       const y = at(bands[i]!);
+      const n = base + i;
       return [
         code(y, s.col(f.splitR, f.whoCode), resolve(spec, share.no[i], g)),
         mk(y, s.col(f.whoCode, f.whoR), {
-          kind: 'input', field: `${prefix}who${i}`, ariaLabel: `${who}の取得者${i + 1}の番号`, integerDigits: 2, align: 'center',
+          kind: 'input', field: `${prefix}who${n}`, ariaLabel: `${who}の取得者${n + 1}の番号`, integerDigits: 2, align: 'center',
         }),
         code(y, s.col(f.whoR, f.amtCode), resolve(spec, share.amount[i], g)),
         mk(y, s.col(f.amtCode, f.right), {
           // 代償財産は支払う人が負数・受け取る人が正数（記載例62ページ）。△を打てるようにしておく
-          kind: 'input', field: `${prefix}amount${i}`, ariaLabel: `${who}の取得者${i + 1}の取得財産の価額`,
+          kind: 'input', field: `${prefix}amount${n}`, ariaLabel: `${who}の取得者${n + 1}の取得財産の価額`,
           signedCommaInteger: true, align: 'right',
           hint: '代償財産を支払う人の分は「△」を付けて負数で記入します（記載例62ページ）',
         }),
@@ -244,18 +254,30 @@ function headCells(spec: DetailSpec, s: Scale): GridCell[] {
   ];
 }
 
+/** 組1つ分の割り付け */
+export interface DetailItem {
+  /** その組が載せる明細のフィールド接頭辞 */
+  prefix: string;
+  /** アクセシブル名に使う呼び名 */
+  label: string;
+  /** この組に載せる取得者の先頭の添字（0・3・6…） */
+  base: number;
+  /** その明細の最初の組か（続きの組は明細欄を書かない） */
+  first: boolean;
+}
+
 /**
  * 付表1〜4のセルを組み立てる。
  * @param spec 様式ごとの罫線と「財産の明細」部分の定義
  * @param share 「分割が確定した財産」の識別コード
  * @param common 共通欄（被相続人）のフィールド接頭辞
- * @param items 8組分の [フィールド接頭辞, 呼び名]
+ * @param items 8組分の割り付け
  */
 export function buildDetail(
   spec: DetailSpec,
   share: DetailShareCodes,
   common: string,
-  items: readonly { prefix: string; label: string }[],
+  items: readonly DetailItem[],
 ): GridCell[] {
   const f = spec.frame;
   const s = scaleOf(f);
@@ -282,6 +304,6 @@ export function buildDetail(
     // 「財産の明細」と「分割が確定した財産」を分ける二重線
     mk(s.row(f.band[0], f.groupTops[DETAIL_GROUPS]!), s.col(f.midR, f.splitR), {}),
 
-    ...items.flatMap((item, g) => groupCells(spec, share, s, g, item.prefix, item.label)),
+    ...items.flatMap((item, g) => groupCells(spec, share, s, g, item)),
   ];
 }
