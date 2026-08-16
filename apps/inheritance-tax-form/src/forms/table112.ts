@@ -149,6 +149,30 @@ const numberedNotes = (y: [number, number], items: NonNullable<GridCell['numbere
   mk(y, col(X.L, X.R), { kind: 'label', numberedNotes: items, align: 'left', fontSize: 6.5 })
 );
 
+/** 金額欄の文字列 → 円。カンマや空白は落とし、数字以外が混ざっていれば0とみなす */
+const yen = (text: string): number => {
+  const digits = (text ?? '').replace(/[,\s]/g, '');
+  return /^\d+$/.test(digits) ? Number(digits) : 0;
+};
+
+/**
+ * 1の③（その年分の価額の合計額）と、2の明細のうち同じ番号を指す行の価額の合計が食い違っていないか。
+ * 様式の「番号」欄はページごとに1〜6が刷られているので、突き合わせも同じページの中だけで行う。
+ * その番号を指す明細行が1行も無い間は、これから書くところとみなして何も言わない。
+ */
+const sumMismatch = (p: string, page: number, r: number) => (g: (field: string) => string): boolean => {
+  const no = String(r + 1);
+  let total = 0;
+  let found = false;
+  for (let d = 0; d < TABLE112_ROWS; d += 1) {
+    const j = page * TABLE112_ROWS + d;
+    if ((g(`${p}t112n${j}`) ?? '').trim() !== no) continue;
+    found = true;
+    total += yen(g(`${p}t112w${j}`));
+  }
+  return found && total !== yen(g(`${p}t112a${page * TABLE112_ROWS + r}`));
+};
+
 /** 「1 …」「2 …」の章見出し（太字の見出し行と、その下の細い説明文） */
 function sectionHead(top: number, bottom: number, heading: string, lead?: string): GridCell[] {
   const split = lead === undefined ? bottom : (top + bottom) / 2;
@@ -247,7 +271,12 @@ function sumRows(p: string, who: string, page: number, yearOptions: GridCell['op
       }),
       label(y, col(X.OFF_R, X.C2_R), '署'),
       code(y, col(X.C2_R, X.G3_C), g(1 + r * 3)),
-      mk(y, col(X.G3_C, X.C3_R), { kind: 'input', field: `${p}t112a${i}`, ariaLabel: `${who}の${i + 1}行目 ③贈与を受けた財産の価額の合計額`, commaInteger: true, align: 'right' }),
+      mk(y, col(X.G3_C, X.C3_R), {
+        kind: 'input', field: `${p}t112a${i}`, ariaLabel: `${who}の${i + 1}行目 ③贈与を受けた財産の価額の合計額`,
+        commaInteger: true, align: 'right',
+        invalidWhen: sumMismatch(p, page, r),
+        invalidMessage: `下記2の明細のうち番号${r + 1}の「価額」欄の合計と一致しません。`,
+      }),
       code(y, col(X.C3_R, X.G4_C), g(46 + r * 2)),
       mk(y, col(X.G4_C, X.C4_R), { kind: 'input', field: `${p}t112b${i}`, ariaLabel: `${who}の${i + 1}行目 ④相続時精算課税に係る基礎控除額`, commaInteger: true, align: 'right', hint: BASE_HINT }),
       code(y, col(X.C4_R, X.G5_C), g(47 + r * 2)),
