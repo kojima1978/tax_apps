@@ -859,6 +859,41 @@ export function detailValue(form: string, item: Values): string {
 export const DETAIL_RATIO_N = 'ratioN';
 export const DETAIL_RATIO_D = 'ratioD';
 
+/** 取得者1人分を作る欄（添字を付けて `who0` … のように並ぶ） */
+const SHARE_KEYS = ['who', DETAIL_RATIO_N, DETAIL_RATIO_D, 'amount'] as const;
+
+/**
+ * 配列の `from` 番目を `to` 番目の位置へ移す（並べ替えの共通処理）。
+ * 元の配列は変えない。
+ */
+export function moved<T>(items: readonly T[], from: number, to: number): T[] {
+  const out = [...items];
+  if (from === to || from < 0 || to < 0 || from >= out.length || to >= out.length) return out;
+  out.splice(to, 0, ...out.splice(from, 1));
+  return out;
+}
+
+/**
+ * 明細の中の取得者の並びを入れ替える。
+ * 1人は `who`・割合・`amount` の4欄で1組なので、まとめて動かして添字を振り直す。
+ * 按分の端数は先頭の取得者へ寄せるので、並び順は金額にも効く。
+ */
+export function moveDetailShare(item: Values, from: number, to: number): Values {
+  const count = detailShareCount(item);
+  if (from === to || from < 0 || to < 0 || from >= count || to >= count) return item;
+  const out: Values = {};
+  for (const [key, value] of Object.entries(item)) {
+    if (!/^(?:who|amount|ratioN|ratioD)\d+$/.test(key)) out[key] = value;
+  }
+  moved(Array.from({ length: count }, (_, i) => i), from, to).forEach((source, index) => {
+    for (const key of SHARE_KEYS) {
+      const value = item[`${key}${source}`];
+      if (value !== undefined) out[`${key}${index}`] = value;
+    }
+  });
+  return out;
+}
+
 /**
  * 取得者ごとの「取得財産の価額」を、割合（分数）から按分して求める。
  * 割合が1つも入っていない取得者は `undefined`（手入力のまま）。

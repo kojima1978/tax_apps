@@ -11,10 +11,12 @@
 
 import { useMemo, useState } from 'react';
 import type { GridCell } from './ui/GridForm';
+import { SortableList } from './ui/SortableList';
 import type { DetailField, DetailSpec } from '../forms/detail';
 import {
   DETAIL_METHOD, DETAIL_RATIO_D, DETAIL_RATIO_N, type DetailMethod, type Values,
-  detailMethod, detailShareAmounts, detailShareCount, detailUnusedFields, detailValue, num,
+  detailMethod, detailShareAmounts, detailShareCount, detailUnusedFields, detailValue,
+  isEmptyDetail, moveDetailShare, num,
 } from '../lib/calc';
 
 /** 評価方式の選択肢（付表1のみ） */
@@ -116,12 +118,16 @@ export interface DetailPanelProps {
   item: Values;
   /** 「財産を取得した人の番号」の選択肢（第1表の人） */
   heirs: readonly { value: string; label: string }[];
+  /** 前項複写のもと（この明細より前にある、空でない最後の明細）。無ければ undefined */
+  previous?: Values;
   onSubmit: (item: Values) => void;
   onDelete: () => void;
   onCancel: () => void;
 }
 
-export function DetailPanel({ form, spec, index, item, heirs, onSubmit, onDelete, onCancel }: DetailPanelProps) {
+export function DetailPanel({
+  form, spec, index, item, heirs, previous, onSubmit, onDelete, onCancel,
+}: DetailPanelProps) {
   const [draft, setDraft] = useState<Values>(item);
   const fields = useMemo(() => panelFields(spec), [spec]);
   const set = (field: string, value: string) => setDraft((prev) => ({ ...prev, [field]: value }));
@@ -130,8 +136,9 @@ export function DetailPanel({ form, spec, index, item, heirs, onSubmit, onDelete
   const unused = useMemo(() => new Set(detailUnusedFields(form, draft)), [form, draft]);
   const autoValue = useMemo(() => detailValue(form, { ...draft, value: '' }), [form, draft]);
   const amounts = useMemo(() => detailShareAmounts(form, draft), [form, draft]);
-  // 取得者は最後の1人の次まで並べ、必ず1行は空けておく（そこに次の人を書く）
-  const shareRows = detailShareCount(draft) + 1;
+  // 取得者は最後の1人の次まで並べ、必ず1行は空けておく（そこに次の人を書く）。
+  // 空けてある行は並べ替えの対象にしない（まだ誰でもないため）
+  const shareCount = detailShareCount(draft);
 
   /** 自動で決まる欄（価額・按分した取得者の価額）は保存しない。手入力の値が残ると次に開いたとき食い違う */
   const submit = () => {
@@ -141,8 +148,18 @@ export function DetailPanel({ form, spec, index, item, heirs, onSubmit, onDelete
     onSubmit(out);
   };
 
+  /**
+   * 前項複写。前の明細をそのまま写して、違うところだけ直してもらう。
+   * 同じ地番の土地を利用区分ごとに分けて書くなど、隣り合う明細はほとんど同じ内容になる。
+   */
+  const copyPrevious = () => {
+    if (previous === undefined) return;
+    if (!isEmptyDetail(draft) && !window.confirm('今の入力内容を、前の明細の内容で置き換えます。よろしいですか？')) return;
+    setDraft({ ...previous });
+  };
+
   const distribute = () => {
-    const filled = Array.from({ length: shareRows }, (_, i) => i).filter((i) => (draft[`who${i}`] ?? '') !== '');
+    const filled = Array.from({ length: shareCount + 1 }, (_, i) => i).filter((i) => (draft[`who${i}`] ?? '') !== '');
     if (filled.length === 0) return;
     setDraft((prev) => {
       const next = { ...prev };
@@ -152,6 +169,52 @@ export function DetailPanel({ form, spec, index, item, heirs, onSubmit, onDelete
       }
       return next;
     });
+  };
+
+  /** 取得者1人分の入力欄（並べ替えで動く単位。末尾の空き行にも同じものを使う） */
+  const shareRow = (i: number) => {
+    const amount = amounts[i];
+    return (
+      <div className="dpanel__share">
+        <select
+          className="dpanel__input"
+          value={draft[`who${i}`] ?? ''}
+          aria-label={`取得者${i + 1}`}
+          onChange={(e) => set(`who${i}`, e.target.value)}
+        >
+          <option value="">（未選択）</option>
+          {heirs.map((heir) => <option key={heir.value} value={heir.value}>{heir.label}</option>)}
+        </select>
+        <span className="dpanel__fraction">
+          <input
+            className="dpanel__input"
+            value={draft[`${DETAIL_RATIO_N}${i}`] ?? ''}
+            inputMode="numeric"
+            aria-label={`取得者${i + 1}の割合の分子`}
+            onChange={(e) => set(`${DETAIL_RATIO_N}${i}`, e.target.value.replace(/\D/g, ''))}
+          />
+          <span className="dpanel__slash">／</span>
+          <input
+            className="dpanel__input"
+            value={draft[`${DETAIL_RATIO_D}${i}`] ?? ''}
+            inputMode="numeric"
+            aria-label={`取得者${i + 1}の割合の分母`}
+            onChange={(e) => set(`${DETAIL_RATIO_D}${i}`, e.target.value.replace(/\D/g, ''))}
+          />
+        </span>
+        {amount === undefined ? (
+          <input
+            className="dpanel__input"
+            value={draft[`amount${i}`] ?? ''}
+            inputMode="numeric"
+            aria-label={`取得者${i + 1}の取得財産の価額`}
+            onChange={(e) => set(`amount${i}`, clean({ signedCommaInteger: true }, e.target.value))}
+          />
+        ) : (
+          <input className="dpanel__input dpanel__input--auto" value={amount} readOnly aria-label={`取得者${i + 1}の取得財産の価額（自動計算）`} />
+        )}
+      </div>
+    );
   };
 
   return (
@@ -223,55 +286,17 @@ export function DetailPanel({ form, spec, index, item, heirs, onSubmit, onDelete
               <strong>分割が確定した財産</strong>
               <button type="button" className="app-btn" onClick={distribute}>均等に分ける</button>
             </div>
-            <div className="dpanel__share dpanel__share--head">
+            <div className="dpanel__share dpanel__share--head sortlist__pad">
               <span>財産を取得した人</span>
               <span>割合</span>
               <span>取得財産の価額（円）</span>
             </div>
-            {Array.from({ length: shareRows }, (_, i) => {
-              const amount = amounts[i];
-              return (
-                <div className="dpanel__share" key={i}>
-                  <select
-                    className="dpanel__input"
-                    value={draft[`who${i}`] ?? ''}
-                    aria-label={`取得者${i + 1}`}
-                    onChange={(e) => set(`who${i}`, e.target.value)}
-                  >
-                    <option value="">（未選択）</option>
-                    {heirs.map((heir) => <option key={heir.value} value={heir.value}>{heir.label}</option>)}
-                  </select>
-                  <span className="dpanel__fraction">
-                    <input
-                      className="dpanel__input"
-                      value={draft[`${DETAIL_RATIO_N}${i}`] ?? ''}
-                      inputMode="numeric"
-                      aria-label={`取得者${i + 1}の割合の分子`}
-                      onChange={(e) => set(`${DETAIL_RATIO_N}${i}`, e.target.value.replace(/\D/g, ''))}
-                    />
-                    <span className="dpanel__slash">／</span>
-                    <input
-                      className="dpanel__input"
-                      value={draft[`${DETAIL_RATIO_D}${i}`] ?? ''}
-                      inputMode="numeric"
-                      aria-label={`取得者${i + 1}の割合の分母`}
-                      onChange={(e) => set(`${DETAIL_RATIO_D}${i}`, e.target.value.replace(/\D/g, ''))}
-                    />
-                  </span>
-                  {amount === undefined ? (
-                    <input
-                      className="dpanel__input"
-                      value={draft[`amount${i}`] ?? ''}
-                      inputMode="numeric"
-                      aria-label={`取得者${i + 1}の取得財産の価額`}
-                      onChange={(e) => set(`amount${i}`, clean({ signedCommaInteger: true }, e.target.value))}
-                    />
-                  ) : (
-                    <input className="dpanel__input dpanel__input--auto" value={amount} readOnly aria-label={`取得者${i + 1}の取得財産の価額（自動計算）`} />
-                  )}
-                </div>
-              );
-            })}
+            <SortableList
+              items={Array.from({ length: shareCount }, (_, i) => shareRow(i))}
+              labelOf={(i) => `取得者${i + 1}`}
+              onMove={(from, to) => setDraft((prev) => moveDetailShare(prev, from, to))}
+            />
+            <div className="sortlist__pad">{shareRow(shareCount)}</div>
             <p className="dpanel__note">
               割合を入れると価額を按分します（端数は先頭の人へ寄せ、合計は
               {num(detailValue(form, draft)).toLocaleString()} 円に一致します）。
@@ -282,6 +307,15 @@ export function DetailPanel({ form, spec, index, item, heirs, onSubmit, onDelete
 
         <div className="dpanel__foot">
           <button type="button" className="app-btn app-btn--danger" onClick={onDelete}>この明細を削除</button>
+          <button
+            type="button"
+            className="app-btn"
+            onClick={copyPrevious}
+            disabled={previous === undefined}
+            title={previous === undefined ? '前に入力済みの明細がありません' : undefined}
+          >
+            前項複写
+          </button>
           <span className="dpanel__spacer" />
           <button type="button" className="app-btn" onClick={onCancel}>取消</button>
           <button type="button" className="app-btn app-btn--primary" onClick={submit}>確定</button>

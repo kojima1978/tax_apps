@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DETAIL_AUTO_VALUE, DETAIL_METHOD, computeAll, detailAutoValue, detailShareAmounts, detailShareCount,
-  isEmptyDetail, type Values,
+  isEmptyDetail, moved, type Values,
 } from '../lib/calc';
 
 export interface FormData {
@@ -331,6 +331,15 @@ export function useFormData() {
     });
   }, []);
 
+  /** 付表の明細の並びを入れ替える（項番は並び順そのものなので、動かせば番号も振り直される） */
+  const moveDetailItem = useCallback((form: string, from: number, to: number) => {
+    setData((prev) => {
+      const rows = prev.details[form] ?? [];
+      if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return prev;
+      return { ...prev, details: { ...prev.details, [form]: moved(rows, from, to) } };
+    });
+  }, []);
+
   /** 付表の明細を1枚分（`rows` 件）増やす */
   const addDetailPage = useCallback((form: string, rows: number) => {
     setData((prev) => {
@@ -389,7 +398,7 @@ export function useFormData() {
   }, []);
 
   return {
-    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
+    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
     toggleUsed, reset, exportJson, importJson, maxHeirs: MAX_HEIRS,
   };
 }

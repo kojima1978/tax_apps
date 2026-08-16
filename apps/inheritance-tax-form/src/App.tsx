@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { GridForm, type GridCell } from './components/ui/GridForm';
 import { DetailPanel } from './components/DetailPanel';
+import { DetailSortPanel } from './components/DetailSortPanel';
 import { PersonPanel } from './components/PersonPanel';
 import { giftYearOptions } from './data/codes';
 import {
@@ -82,7 +83,7 @@ import { detailLabel, detailPrefix, heirIndex, heirLabel, heirPrefix, useFormDat
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  deriveLawful, detailSlots, hasTable112, lawfulMembers, table10Pages, table112Pages, table13Pages,
+  deriveLawful, detailSlots, hasTable112, isEmptyDetail, lawfulMembers, table10Pages, table112Pages, table13Pages,
   table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9Pages,
 } from './lib/calc';
 
@@ -704,12 +705,14 @@ function PageControl({
 export default function App() {
   const {
     data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
-    toggleUsed, reset, exportJson, importJson, maxHeirs,
+    moveDetailItem, toggleUsed, reset, exportJson, importJson, maxHeirs,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
   /** 別画面で編集中の明細（付表の様式IDと通し番号） */
   const [editing, setEditing] = useState<{ form: keyof typeof DETAIL_SPECS; index: number } | null>(null);
+  /** 別画面で並べ替え中の付表（様式ID） */
+  const [sorting, setSorting] = useState<keyof typeof DETAIL_SPECS | null>(null);
   /** 別画面で編集中の「財産を取得した人」（何人目か） */
   const [editingPerson, setEditingPerson] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
@@ -1226,6 +1229,9 @@ export default function App() {
                   <button type="button" className="app-btn" onClick={() => setEditing({ form: id, index: (data.details[id] ?? []).length })}>
                     財産を追加
                   </button>
+                  <button type="button" className="app-btn" onClick={() => setSorting(id)}>
+                    並べ替え
+                  </button>
                   <span>（用紙をクリックすると入力画面が開きます）</span>
                 </>
               )}
@@ -1236,6 +1242,20 @@ export default function App() {
       </>
     )])),
   };
+
+  /**
+   * 前項複写のもと。編集中の明細より前にある、空でない最後の明細。
+   * 途中の空欄（まだ書いていない枠）は飛ばす。
+   */
+  const previousDetail = useMemo(() => {
+    if (editing === null) return undefined;
+    const rows = data.details[editing.form] ?? [];
+    for (let i = Math.min(editing.index, rows.length) - 1; i >= 0; i -= 1) {
+      const item = rows[i]!;
+      if (!isEmptyDetail(item)) return item;
+    }
+    return undefined;
+  }, [editing, data.details]);
 
   const onPickFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1333,9 +1353,20 @@ export default function App() {
           index={editing.index}
           item={data.details[editing.form]?.[editing.index] ?? {}}
           heirs={detailHeirOptions}
+          previous={previousDetail}
           onSubmit={(item) => { setDetailItem(editing.form, editing.index, item); setEditing(null); }}
           onDelete={() => { removeDetailItem(editing.form, editing.index); setEditing(null); }}
           onCancel={() => setEditing(null)}
+        />
+      )}
+
+      {sorting !== null && (
+        <DetailSortPanel
+          form={sorting}
+          spec={DETAIL_SPECS[sorting].spec}
+          items={data.details[sorting] ?? []}
+          onMove={(from, to) => moveDetailItem(sorting, from, to)}
+          onClose={() => setSorting(null)}
         />
       )}
 

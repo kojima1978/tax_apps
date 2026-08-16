@@ -595,6 +595,14 @@ button {
    */
   --dpanel-arrow: 26px;
 
+  /*
+   * 並べ替えのつまみと▲▼のために、行の中身の左右へ空ける溝。
+   * 並べ替えの対象にしない行（見出し・末尾の空き行）も同じだけ空けて縦を揃える。
+   */
+  --sortlist-grip: 20px;
+  --sortlist-moves: 52px;
+  --sortlist-gap: 6px;
+
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -816,6 +824,89 @@ button {
 .dpanel__fraction .dpanel__input {
   width: 100%;
   text-align: center;
+}
+
+.sortlist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sortlist__row {
+  display: grid;
+  grid-template-columns: var(--sortlist-grip) 1fr var(--sortlist-moves);
+  align-items: center;
+  gap: var(--sortlist-gap);
+  border-radius: 4px;
+}
+
+/* 掴んでいる行。落とし先の目印は枠線ではなく outline で描く（幅が変わって行がずれるため） */
+.sortlist__row--from {
+  opacity: 0.45;
+}
+
+.sortlist__row--over {
+  outline: 2px solid #2563eb;
+  background: #eff6ff;
+}
+
+.sortlist__body {
+  min-width: 0;
+}
+
+.sortlist__grip {
+  cursor: grab;
+  text-align: center;
+  color: #94a3b8;
+  user-select: none;
+}
+
+.sortlist__grip:active {
+  cursor: grabbing;
+}
+
+.sortlist__moves {
+  display: flex;
+  gap: 2px;
+}
+
+.sortlist__moves .app-btn {
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 18px;
+}
+
+/* 並べ替え画面：明細1件を1行にたたんだもの */
+.dsort__row {
+  display: grid;
+  grid-template-columns: 2.5em 1fr 9em;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 2px;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 12px;
+}
+
+.dsort__no {
+  color: #64748b;
+  text-align: right;
+}
+
+.dsort__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsort__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 並べ替えの対象にしない行（見出し・末尾の空き行）を、行の中身と同じ位置に置く */
+.sortlist__pad {
+  margin-left: calc(var(--sortlist-grip) + var(--sortlist-gap));
+  margin-right: calc(var(--sortlist-moves) + var(--sortlist-gap));
 }
 
 .gf-cell__error {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeAll, detailAutoValue, detailGroupCount, detailShareAmounts, detailShareCount, detailSlots,
-  detailUnusedFields, num, type Values,
+  detailUnusedFields, moveDetailShare, moved, num, type Values,
 } from './calc';
 import { table15Key } from '../forms/table15';
 
@@ -418,5 +418,43 @@ describe('computeAll 第6表⑥の配分エラー', () => {
     );
 
     expect(result.totals.t6df0v6Error).toBe('1');
+  });
+});
+
+describe('並べ替え', () => {
+  it('moved は元の配列を変えずに1件だけ動かす', () => {
+    const items = ['a', 'b', 'c', 'd'];
+    expect(moved(items, 0, 2)).toEqual(['b', 'c', 'a', 'd']);
+    expect(moved(items, 3, 1)).toEqual(['a', 'd', 'b', 'c']);
+    expect(items).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('moved は範囲外・同じ位置なら並びを変えない', () => {
+    const items = ['a', 'b', 'c'];
+    expect(moved(items, 1, 1)).toEqual(items);
+    expect(moved(items, -1, 0)).toEqual(items);
+    expect(moved(items, 0, 3)).toEqual(items);
+  });
+
+  it('取得者は who・割合・価額の4欄をまとめて動かし、添字を振り直す', () => {
+    const item: Values = {
+      kind: '宅地',
+      who0: '1', ratioN0: '1', ratioD0: '2', amount0: '100',
+      who1: '2', ratioN1: '1', ratioD1: '4', amount1: '50',
+      who2: '3', ratioN2: '1', ratioD2: '4', amount2: '50',
+    };
+
+    expect(moveDetailShare(item, 2, 0)).toEqual({
+      kind: '宅地',
+      who0: '3', ratioN0: '1', ratioD0: '4', amount0: '50',
+      who1: '1', ratioN1: '1', ratioD1: '2', amount1: '100',
+      who2: '2', ratioN2: '1', ratioD2: '4', amount2: '50',
+    });
+  });
+
+  it('取得者の並べ替えは範囲外なら何もしない（末尾の空き行は対象外）', () => {
+    const item: Values = { who0: '1', who1: '2' };
+    expect(moveDetailShare(item, 1, 2)).toBe(item);
+    expect(moveDetailShare(item, 0, 0)).toBe(item);
   });
 });
