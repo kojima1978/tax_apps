@@ -638,6 +638,74 @@ export function isEmptyDetail(item: Values | undefined): boolean {
   return item === undefined || Object.values(item).every((value) => value.trim() === '');
 }
 
+/** 付表の「価額」の計算式（様式ごと） */
+interface DetailValueRule {
+  /** 数量にあたる欄。先に入っている方を使う（付表1は固定資産税評価額＝倍率方式が優先） */
+  base: readonly string[];
+  /** 掛ける欄（すべて入っていないと自動計算しない） */
+  times: readonly string[];
+  /** 入っていれば掛ける欄 */
+  optional?: readonly string[];
+  /** 掛ける分数（分子・分母がそろっているときだけ） */
+  ratio?: readonly [string, string];
+  /** この欄に入力があるうちは自動計算しない */
+  manualWhen?: readonly string[];
+}
+
+/**
+ * 付表の「価額」を元の欄から自動計算する式。
+ *
+ * 付表1（土地・家屋等）は2通りある — 路線価方式は 面積 × 単価 × 持分割合、
+ * 倍率方式は 固定資産税評価額 × 倍数 × 持分割合。単価欄は「単価又は倍数」で共通なので、
+ * 固定資産税評価額が入っていれば倍率方式とみなす。
+ * 付表2は外貨建て（為替欄あり）だと邦貨換算の入れ方が一通りに決まらないので自動計算しない。
+ */
+const DETAIL_VALUE_RULES: Record<string, DetailValueRule> = {
+  table11f1: { base: ['fixedValue', 'area'], times: ['unitPrice'], ratio: ['shareN', 'shareD'] },
+  table11f2: { base: ['quantity'], times: ['unitPrice'], manualWhen: ['fx'] },
+  table11f3: { base: ['quantity'], times: ['unitPrice'] },
+  table11f4: { base: ['quantity'], times: ['unitPrice'], optional: ['multiple'] },
+};
+
+/**
+ * 「価額が自動計算になっているか」を GridForm へ渡すための擬似フィールド。
+ * 保存はされない（`g` が明細から求めて '1' か '' を返す）。
+ */
+export const DETAIL_AUTO_VALUE = 'valueAuto';
+
+/**
+ * 明細1件の価額の自動計算。元になる欄がそろっていないときは `undefined`（手入力のまま）。
+ * 円未満は切り捨てる。
+ */
+export function detailAutoValue(form: string, item: Values): string | undefined {
+  const rule = DETAIL_VALUE_RULES[form];
+  if (rule === undefined) return undefined;
+  if (rule.manualWhen?.some((key) => (item[key] ?? '').trim() !== '')) return undefined;
+  const base = rule.base.map((key) => num(item[key])).find((value) => value > 0);
+  if (base === undefined) return undefined;
+  let total = base;
+  for (const key of rule.times) {
+    const value = num(item[key]);
+    if (value <= 0) return undefined;
+    total *= value;
+  }
+  for (const key of rule.optional ?? []) {
+    const value = num(item[key]);
+    if (value > 0) total *= value;
+  }
+  if (rule.ratio !== undefined) {
+    const [n, d] = rule.ratio.map((key) => num(item[key]));
+    if (n! > 0 && d! > 0) total = (total * n!) / d!;
+  }
+  return str(Math.floor(total));
+}
+
+/** 自動計算できる明細は価額を計算値に置き換える（手入力の欄はそのまま） */
+function resolveDetail(form: string, item: Values): Values {
+  const value = detailAutoValue(form, item);
+  return value === undefined ? item : { ...item, value };
+}
+
 /** 明細1件の取得者（番号が入っているものだけ） */
 function detailShares(item: Values): { no: number; amount: number }[] {
   const out: { no: number; amount: number }[] = [];
@@ -1436,7 +1504,7 @@ function computeAllWithRatios(
   // 第11表2① ← 付表の「分割が確定した財産」。財産の明細書（付表1〜4）だけを合計する
   // ＝ 明細を配列で持つ様式は他にもあるので、コード表を持つ様式だけに絞る。
   const detailForms = used.filter((id) => id in DETAIL_KINDS && (details[id]?.length ?? 0) > 0);
-  const detailItems = detailForms.flatMap((id) => details[id]!);
+  const detailItems = detailForms.flatMap((id) => details[id]!.map((item) => resolveDetail(id, item)));
   const detailTotals = sumDetails(detailItems);
   // 第11表2② ← 付表の未分割の明細を第2表④の相続分で按分したもの
   const unsplitTotals = computeUnsplit(detailItems, lawful);

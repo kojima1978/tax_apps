@@ -52,6 +52,7 @@ export interface GridCell {
   signedCommaInteger?: boolean;      // マイナス（△）を許可する整数を3桁区切りカンマで表示
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                // 自動計算などの編集不可欄
+  readOnlyWhen?: (g: (field: string) => string) => boolean; // 入力値しだいで自動計算に切り替わる欄
   navigateToForm?: string | ((g: (field: string) => string) => string | undefined); // 転記元の様式ID（入力値に応じた切替可）
   invalidWhen?: (g: (field: string) => string) => boolean; // 入力値の組合せが不正なときのエラー表示
   invalidMessage?: string;           // エラー理由（title・アクセシブル名）
@@ -328,12 +329,14 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     // 枠の実寸に合わせて自動縮小（長文ラベルがはみ出さないように）
     const fontSize = c.fontSize ?? fitFontSize(text, c, isVertical);
     const justify = c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center';
+    // 自動計算に切り替わる欄がある（付表の価額など）ので、readOnly は毎回入力値から求め直す
+    const readOnly = c.readOnly === true || (c.readOnlyWhen?.(g) ?? false);
     const highlighted = c.highlightWhen?.(g) ?? false;
     const invalid = !printRendering && (c.invalidWhen?.(g) ?? false);
     const navigateToForm = typeof c.navigateToForm === 'function' ? c.navigateToForm(g) : c.navigateToForm;
     const interactive = !printRendering && Boolean(c.selectValue || c.toggleField || navigateToForm);
-    const editableComposite = Boolean(c.field && !c.readOnly && (c.date || c.zip || c.tel || c.twoLine));
-    const editable = Boolean(c.selectValue || c.toggleField || editableComposite || (c.kind === 'input' && c.field && !c.readOnly));
+    const editableComposite = Boolean(c.field && !readOnly && (c.date || c.zip || c.tel || c.twoLine));
+    const editable = Boolean(c.selectValue || c.toggleField || editableComposite || (c.kind === 'input' && c.field && !readOnly));
     const rightLabelPadding = c.rightLabel
       ? Math.max(14, Array.from(c.rightLabel).length * 4.5 + 4)
       : 0;
@@ -431,7 +434,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
             <SubInput field={`${c.field}_3`} formId={inputPrefix} width="4em" maxLength={4} ariaLabel={`${c.ariaLabel ?? c.field}（加入者番号）`} g={g} u={u} onKeyDown={onEnterNext} keepZeros />
           </span>
         ) : c.kind === 'input' && c.field && (c.options || c.optionGroups) ? (
-          printRendering || c.readOnly
+          printRendering || readOnly
             ? c.stackedSelectedOption && !printRendering
               ? <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', lineHeight: 1, background: printRendering ? 'transparent' : '#f7f7f7' }}>
                   <span>{g(c.field)}</span>
@@ -512,13 +515,13 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                     : e.target.value;
                   u(c.field!, next);
                 }}
-                onBlur={() => { if (!c.readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }}
+                onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }}
                 onKeyDown={onEnterNext}
                 inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined}
                 maxLength={c.integerDigits}
-                readOnly={c.readOnly}
-                tabIndex={c.readOnly ? -1 : undefined}
-                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: highlighted ? 'transparent' : c.readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit' }}
+                readOnly={readOnly}
+                tabIndex={readOnly ? -1 : undefined}
+                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit' }}
               />
             )}
           </>

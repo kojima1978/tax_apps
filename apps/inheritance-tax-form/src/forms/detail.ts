@@ -15,6 +15,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
+import { DETAIL_AUTO_VALUE } from '../lib/calc';
 import { code, label, mk } from './geometry';
 
 /** 1枚に載る財産の数（＝組の数） */
@@ -176,6 +177,12 @@ function fieldCells(
     cells.push(mk(y, s.col(valueLeft, right), {
       kind: 'input', field: `${prefix}${f.field}`, ariaLabel: `${who}の${f.name ?? f.field}`, ...f.cell,
       ...(f.autoFill ? { autoFill: { ...f.autoFill, field: `${prefix}${f.autoFill.field}` } } : {}),
+      // 価額は元になる欄（路線価方式なら面積×単価×持分割合、倍率方式なら固定資産税評価額×倍数×持分割合、
+      // 付表2〜4なら数量×単価）がそろうと自動計算に切り替わり、灰色＝入力不可になる
+      ...(f.field === 'value' ? {
+        readOnlyWhen: (get: (field: string) => string) => get(`${prefix}${DETAIL_AUTO_VALUE}`) === '1',
+        hint: '元になる欄がそろうと自動計算します（灰色）。手で入れたいときは元の欄を空にします',
+      } : {}),
     }));
   } else if (f.text !== undefined) {
     cells.push(label(y, s.col(valueLeft, right), f.text, f.cell));

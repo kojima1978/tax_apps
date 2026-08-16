@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  computeAll, detailGroupCount, detailShareCount, detailSlots, num, type Values,
+  computeAll, detailAutoValue, detailGroupCount, detailShareCount, detailSlots, num, type Values,
 } from './calc';
 import { table15Key } from '../forms/table15';
 
@@ -188,6 +188,68 @@ describe('付表の組への割り付け', () => {
       { item: 1, base: 0 },
       { item: 2, base: 0 }, { item: 3, base: 0 },
     ]);
+  });
+});
+
+describe('付表の価額の自動計算', () => {
+  it('付表1は路線価方式（面積×単価×持分割合）で計算する', () => {
+    expect(detailAutoValue('table11f1', {
+      area: '100.00', unitPrice: '150000', shareN: '1', shareD: '2',
+    })).toBe('7500000');
+  });
+
+  it('付表1は固定資産税評価額が入っていれば倍率方式（評価額×倍数×持分割合）にする', () => {
+    expect(detailAutoValue('table11f1', {
+      area: '100.00', fixedValue: '3000000', unitPrice: '1.1', shareN: '1', shareD: '3',
+    })).toBe('1100000');
+  });
+
+  it('持分割合が空なら全部（持分の指定なし）として計算する', () => {
+    expect(detailAutoValue('table11f1', { area: '100.00', unitPrice: '150000' })).toBe('15000000');
+  });
+
+  it('円未満は切り捨てる', () => {
+    expect(detailAutoValue('table11f1', {
+      area: '1.00', unitPrice: '100', shareN: '1', shareD: '3',
+    })).toBe('33');
+  });
+
+  it('元になる欄が欠けていれば自動計算しない（手入力のまま）', () => {
+    expect(detailAutoValue('table11f1', { area: '100.00' })).toBeUndefined();
+    expect(detailAutoValue('table11f3', { quantity: '10' })).toBeUndefined();
+  });
+
+  it('付表2〜4は数量×単価。付表4は倍数が入っていれば掛ける', () => {
+    expect(detailAutoValue('table11f3', { quantity: '10', unitPrice: '1500' })).toBe('15000');
+    expect(detailAutoValue('table11f4', { quantity: '2', unitPrice: '30000', multiple: '1.5' })).toBe('90000');
+  });
+
+  it('付表2は為替が入っていると邦貨換算の入れ方が決まらないので自動計算しない', () => {
+    expect(detailAutoValue('table11f2', { quantity: '10', unitPrice: '100', fx: '150' })).toBeUndefined();
+  });
+
+  it('自動計算した価額を第11表2①・第15表の集計に使う', () => {
+    const result = computeAll({}, [{ name: '甲' }], [], ['table11f1'], {
+      table11f1: [{
+        kindCode: '13', area: '100.00', unitPrice: '150000', shareN: '1', shareD: '2',
+        who0: '1', amount0: '7500000',
+      }],
+    });
+
+    expect(result.heirs[0]?.t11v1).toBe('7500000');
+    expect(result.heirs[0]?.[table15Key(3)]).toBe('7500000');
+  });
+
+  it('未分割の財産の按分にも自動計算した価額を使う', () => {
+    const result = computeAll(
+      {},
+      [{ name: '甲' }, { name: '乙' }],
+      [{ source: '0', num: '1', den: '2' }, { source: '1', num: '1', den: '2' }],
+      ['table11f1'],
+      { table11f1: [{ kindCode: '13', area: '100.00', unitPrice: '150000' }] },
+    );
+
+    expect(result.heirs.map((heir) => heir.t11v2)).toEqual(['7500000', '7500000']);
   });
 });
 

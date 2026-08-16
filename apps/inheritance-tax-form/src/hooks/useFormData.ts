@@ -13,7 +13,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { computeAll, detailShareCount, isEmptyDetail, type Values } from '../lib/calc';
+import {
+  DETAIL_AUTO_VALUE, computeAll, detailAutoValue, detailShareCount, isEmptyDetail, type Values,
+} from '../lib/calc';
 import { LAWFUL_ROWS } from '../forms/table2';
 
 export interface FormData {
@@ -203,10 +205,18 @@ export function useFormData() {
     if (scope === 'c') return data.common[key] ?? '';
     const detail = splitDetailScope(scope);
     if (detail) {
-      const rows = data.details[detail[0]] ?? [];
+      const [form, index] = detail;
+      const rows = data.details[form] ?? [];
       const base = shareBase(key);
-      if (base !== null) return detailNo(rows, detail[1], base);
-      return rows[detail[1]]?.[key] ?? '';
+      if (base !== null) return detailNo(rows, index, base);
+      const item = rows[index];
+      // 価額は元になる欄（面積×単価など）がそろっていれば自動計算に切り替わる
+      if (item !== undefined && (key === 'value' || key === DETAIL_AUTO_VALUE)) {
+        const auto = detailAutoValue(form, item);
+        if (key === DETAIL_AUTO_VALUE) return auto === undefined ? '' : '1';
+        if (auto !== undefined) return auto;
+      }
+      return item?.[key] ?? '';
     }
     const index = Number(scope.slice(1));
     if (scope.startsWith('l')) return computed.lawful[index]?.[key] ?? '';
@@ -223,6 +233,8 @@ export function useFormData() {
       if (scope === 'c') return { ...prev, common: { ...prev.common, [key]: value } };
       if (detail) {
         const [form, i] = detail;
+        // 自動計算に切り替わっている価額も書き込み不可（元の欄を消せば手入力に戻る）
+        if (key === 'value' && detailAutoValue(form, prev.details[form]?.[i] ?? {}) !== undefined) return prev;
         // 明細は用紙の枚数だけ表示するので、未作成の行は入力時に作る
         const rows = [...(prev.details[form] ?? [])];
         while (rows.length <= i) rows.push({});
