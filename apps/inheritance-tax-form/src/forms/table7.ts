@@ -20,7 +20,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS } from '../data/codes';
-import { TAX_OFFICES, TAX_OFFICE_PREFS } from '../data/taxOffices';
+import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
 import { code, label, mk } from './geometry';
 
 export const TABLE7_FORM_CODE = 'NTA0KSE070010030';
@@ -156,14 +156,6 @@ const NOTES: NonNullable<GridCell['numberedNotes']> = [
     body: '各人の⑬又は⑱欄の金額を第8の8表1のその人の「相次相続控除額③」欄に転記します。',
   },
 ];
-
-/** 第4表の2と同じ、都道府県ごとにまとめた全国の税務署候補。 */
-const TAX_OFFICE_GROUPS: NonNullable<GridCell['optionGroups']> = TAX_OFFICE_PREFS.map((pref) => ({
-  label: pref,
-  options: TAX_OFFICES
-    .filter((office) => office.pref === pref)
-    .map((office) => ({ value: office.name, label: office.name })),
-}));
 
 const ERA_START_YEARS: Readonly<Record<string, number>> = {
   '1': 1868,

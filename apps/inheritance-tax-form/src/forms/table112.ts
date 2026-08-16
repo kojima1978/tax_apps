@@ -13,6 +13,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
+import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
 import { code, dateSelect, label, mk } from './geometry';
 
 export const TABLE112_FORM_CODE = 'NTA0KSE111010040';
@@ -87,29 +88,48 @@ const LEAD = '　この表は、被相続人から相続時精算課税に係る
   + '（相続時精算課税適用財産）がある場合に贈与を受けた人ごとに記入します。';
 
 /** 1「…贈与税額の明細」の（注） */
-const SUM_NOTES = '（注）　1　租税特別措置法第70条の6の9（（個人の事業用資産の贈与者が死亡した場合の相続税の課税の特例））、'
-  + '第70条の7の3（（非上場株式等の贈与者が死亡した場合の相続税の課税の特例））又は第70条の7の7'
-  + '（（非上場株式等の特例贈与者が死亡した場合の相続税の課税の特例））の規定の適用により相続又は遺贈により'
-  + '取得したものとみなされる財産は、その財産の種類に応じて第11表の付表1、付表2又は付表4に記入します'
-  + '（この表には記入しません。）。\n'
-  + '　　　　2　③欄の金額は、下記2の②の「価額」欄の金額に基づき記入します。\n'
-  + '　　　　3　④欄は、被相続人である特定贈与者に係る贈与税の申告書第2表の「相続時精算課税に係る基礎控除額」欄の'
-  + '金額を記入します。なお、「① 贈与を受けた年分」欄が令和5年分以前の場合は、「0」と記入します。\n'
-  + '　　　　4　⑧欄の金額を第1表のその人の「相続時精算課税適用財産の価額②」欄及び第15表のその人の㉛欄に'
-  + 'それぞれ転記します。\n'
-  + '　　　　5　⑨欄の金額を第1表のその人の「相続時精算課税分の贈与税額控除額⑰」欄に転記します。';
+const SUM_NOTES: NonNullable<GridCell['numberedNotes']> = [
+  {
+    number: '1',
+    body: '租税特別措置法第70条の6の9（（個人の事業用資産の贈与者が死亡した場合の相続税の課税の特例））、'
+      + '第70条の7の3（（非上場株式等の贈与者が死亡した場合の相続税の課税の特例））又は第70条の7の7'
+      + '（（非上場株式等の特例贈与者が死亡した場合の相続税の課税の特例））の規定の適用により相続又は遺贈により'
+      + '取得したものとみなされる財産は、その財産の種類に応じて第11表の付表1、付表2又は付表4に記入します'
+      + '（この表には記入しません。）。',
+  },
+  { number: '2', body: '③欄の金額は、下記2の②の「価額」欄の金額に基づき記入します。' },
+  {
+    number: '3',
+    body: '④欄は、被相続人である特定贈与者に係る贈与税の申告書第2表の「相続時精算課税に係る基礎控除額」欄の'
+      + '金額を記入します。なお、「① 贈与を受けた年分」欄が令和5年分以前の場合は、「0」と記入します。',
+  },
+  {
+    number: '4',
+    body: '⑧欄の金額を第1表のその人の「相続時精算課税適用財産の価額②」欄及び第15表のその人の㉛欄に'
+      + 'それぞれ転記します。',
+  },
+  { number: '5', body: '⑨欄の金額を第1表のその人の「相続時精算課税分の贈与税額控除額⑰」欄に転記します。' },
+];
 
 /** 2「相続時精算課税適用財産の明細」の（注） */
-const DETAIL_NOTES = '（注）　1　この明細は、被相続人である特定贈与者に係る贈与税の申告書第2表に基づき記入します。'
-  + 'なお、被相続人である特定贈与者が贈与をした年中に死亡し贈与税の申告が不要である場合は、'
-  + '「相続税の申告のしかた」の記載例を参照してください。\n'
-  + '　　　　2　②の「価額」欄には、被相続人である特定贈与者に係る贈与税の申告書第2表の「財産の価額」欄の'
-  + '金額を記入します。ただし、特定事業用資産の特例の適用を受ける場合には、第11・11の2表の付表3の⑦欄の金額と'
-  + '⑦欄の金額に係る第11・11の2表の付表3の2の⑲欄の金額の合計額を、特定計画山林の特例の適用を受ける場合には、'
-  + '第11・11の2表の付表4の「2　特定受贈森林経営計画対象山林である選択特定計画山林の明細」の⑤欄の金額を'
-  + '記入します。また、租税特別措置法第70条の3の3（（相続時精算課税に係る土地又は建物の価額の特例））の'
-  + '承認を受けている場合には、その承認に係る財産の価額から同条の規定による災害により被害を受けた部分に'
-  + '対応する金額を控除した金額を記入します。';
+const DETAIL_NOTES: NonNullable<GridCell['numberedNotes']> = [
+  {
+    number: '1',
+    body: 'この明細は、被相続人である特定贈与者に係る贈与税の申告書第2表に基づき記入します。'
+      + 'なお、被相続人である特定贈与者が贈与をした年中に死亡し贈与税の申告が不要である場合は、'
+      + '「相続税の申告のしかた」の記載例を参照してください。',
+  },
+  {
+    number: '2',
+    body: '②の「価額」欄には、被相続人である特定贈与者に係る贈与税の申告書第2表の「財産の価額」欄の'
+      + '金額を記入します。ただし、特定事業用資産の特例の適用を受ける場合には、第11・11の2表の付表3の⑦欄の金額と'
+      + '⑦欄の金額に係る第11・11の2表の付表3の2の⑲欄の金額の合計額を、特定計画山林の特例の適用を受ける場合には、'
+      + '第11・11の2表の付表4の「2　特定受贈森林経営計画対象山林である選択特定計画山林の明細」の⑤欄の金額を'
+      + '記入します。また、租税特別措置法第70条の3の3（（相続時精算課税に係る土地又は建物の価額の特例））の'
+      + '承認を受けている場合には、その承認に係る財産の価額から同条の規定による災害により被害を受けた部分に'
+      + '対応する金額を控除した金額を記入します。',
+  },
+];
 
 /** 記載例63ページ。様式にも記載要領にも書かれていない条件なので入力欄の注記として添える */
 const BASE_HINT = '被相続人である特定贈与者が死亡した年分については110万円と記入します。\n'
@@ -122,6 +142,11 @@ const FOREIGN_HINT = '下記2に記載した財産について、贈与税の外
 /** 見出し・（注）などの説明文セル */
 const notes = (y: [number, number], text: string): GridCell => (
   label(y, col(X.L, X.R), text, { align: 'left', fontSize: 6.5 })
+);
+
+/** 番号付きの（注）。番号を縦にそろえ、本文はぶら下げインデントにする */
+const numberedNotes = (y: [number, number], items: NonNullable<GridCell['numberedNotes']>): GridCell => (
+  mk(y, col(X.L, X.R), { kind: 'label', numberedNotes: items, align: 'left', fontSize: 6.5 })
 );
 
 /** 「1 …」「2 …」の章見出し（太字の見出し行と、その下の細い説明文） */
@@ -162,7 +187,10 @@ function headRows(common: string, p: string, who: string): GridCell[] {
     mk(entry, col(X.C2_R, X.YEAR_L), { kind: 'input', field: `${p}t112FirstYear`, ariaLabel: `${who}が初めて相続時精算課税に係る贈与を受けた年分`, align: 'center' }),
     label(entry, col(X.YEAR_L, X.HEAD_R), '年分'),
     code(entry, col(X.HEAD_R, X.G6_C), 'E61'),
-    mk(entry, col(X.G6_C, X.OFF2_R), { kind: 'input', field: `${p}t112Office`, ariaLabel: `${who}が相続時精算課税選択届出書を提出した税務署名`, align: 'left' }),
+    mk(entry, col(X.G6_C, X.OFF2_R), {
+      kind: 'input', field: `${p}t112Office`, ariaLabel: `${who}が相続時精算課税選択届出書を提出した税務署名`,
+      optionGroups: TAX_OFFICE_GROUPS, align: 'left',
+    }),
     label(entry, col(X.OFF2_R, X.R), '署'),
   ];
 }
@@ -207,7 +235,10 @@ function sumRows(p: string, who: string, page: number): GridCell[] {
       mk(y, col(X.E1_C, X.YEAR_R), { kind: 'input', field: `${p}t112y${i}`, ariaLabel: `${who}の${i + 1}行目の贈与を受けた年分`, align: 'center' }),
       label(y, col(X.YEAR_R, X.C1_R), '年分'),
       code(y, col(X.C1_R, X.E2_C), e(4 + r * 3)),
-      mk(y, col(X.E2_C, X.OFF_R), { kind: 'input', field: `${p}t112o${i}`, ariaLabel: `${who}の${i + 1}行目の贈与税の申告書を提出した税務署名`, align: 'left' }),
+      mk(y, col(X.E2_C, X.OFF_R), {
+        kind: 'input', field: `${p}t112o${i}`, ariaLabel: `${who}の${i + 1}行目の贈与税の申告書を提出した税務署名`,
+        optionGroups: TAX_OFFICE_GROUPS, align: 'left', fontSize: 7,
+      }),
       label(y, col(X.OFF_R, X.C2_R), '署'),
       code(y, col(X.C2_R, X.G3_C), g(1 + r * 3)),
       mk(y, col(X.G3_C, X.C3_R), { kind: 'input', field: `${p}t112a${i}`, ariaLabel: `${who}の${i + 1}行目 ③贈与を受けた財産の価額の合計額`, commaInteger: true, align: 'right' }),
@@ -326,11 +357,11 @@ export function buildTable112(common: string, prefix: string, who: string, page:
     ...sumHead(),
     ...sumRows(prefix, who, page),
     ...sumTotals(prefix, who, last),
-    notes(row(902.5, 1025), SUM_NOTES),
+    numberedNotes(row(902.5, 1025), SUM_NOTES),
 
     ...sectionHead(1032.5, 1107, '2　相続時精算課税適用財産（1の③）の明細', '（上記1の「番号」欄の番号に合わせて記入します。）'),
     ...detailHead(),
     ...detailRows(prefix, who, page),
-    notes(row(1528, 1622.5), DETAIL_NOTES),
+    numberedNotes(row(1528, 1622.5), DETAIL_NOTES),
   ];
 }

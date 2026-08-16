@@ -21,7 +21,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { TAX_OFFICES, TAX_OFFICE_PREFS } from '../data/taxOffices';
+import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
 import { code, label, mk } from './geometry';
 
 export const TABLE42_FORM_CODE = 'NTA0KSE041010010';
@@ -144,14 +144,6 @@ const SUBMIT_CODES: readonly (readonly string[])[] = [
   ['E08', 'E09', 'E10'],
   ['E11', 'E12', 'E13'],
 ];
-
-/** 全国の税務署を都道府県ごとにまとめた提出先候補。 */
-const TAX_OFFICE_GROUPS: NonNullable<GridCell['optionGroups']> = TAX_OFFICE_PREFS.map((pref) => ({
-  label: pref,
-  options: TAX_OFFICES
-    .filter((office) => office.pref === pref)
-    .map((office) => ({ value: office.name, label: office.name })),
-}));
 
 const DESC = '　この表は、第14表の「1　純資産価額に加算される暦年課税分の贈与財産価額及び特定贈与財産価額の明細」欄に'
   + '記入した財産のうち相続税の課税価格に加算されるものについて、贈与税が課税されている場合に記入します。';

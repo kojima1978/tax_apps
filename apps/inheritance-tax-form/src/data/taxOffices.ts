@@ -588,3 +588,18 @@ export const TAX_OFFICES: readonly TaxOffice[] = [
   { pref: '沖縄県', name: '那覇', code: '12101' },
   { pref: '沖縄県', name: '宮古島', code: '12109' },
 ];
+
+/**
+ * 都道府県ごとにまとめた税務署の選択肢（`GridCell` の `optionGroups` にそのまま渡せる形）。
+ * 提出先を絞り込む手掛かりが無い欄（過去の申告書の提出先など）で使う。
+ * 第1表の提出先だけは被相続人の郵便番号で絞れるので `taxOfficeOptions` を使う。
+ */
+export const TAX_OFFICE_GROUPS: readonly {
+  label: string;
+  options: readonly { value: string; label: string }[];
+}[] = TAX_OFFICE_PREFS.map((pref) => ({
+  label: pref,
+  options: TAX_OFFICES
+    .filter((office) => office.pref === pref)
+    .map((office) => ({ value: office.name, label: office.name })),
+}));
