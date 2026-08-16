@@ -678,8 +678,9 @@ function loadSidebarOpen(): boolean {
 type PageControlProps = {
   page: number;
   total: number;
-  onDecrease: () => void;
-  onIncrease: () => void;
+  /** 増減の操作。省略すると枚数の表示だけになる（枚数が別の場所で決まる用紙） */
+  onDecrease?: () => void;
+  onIncrease?: () => void;
   decreaseDisabled?: boolean;
   increaseDisabled?: boolean;
   detail?: ReactNode;
@@ -692,8 +693,8 @@ function PageControl({
   return (
     <div className="app-pagectl no-print">
       <span>ページ</span>
-      <button type="button" className="app-btn" onClick={onDecrease} disabled={decreaseDisabled} aria-label="ページを減らす">−</button>
-      <button type="button" className="app-btn" onClick={onIncrease} disabled={increaseDisabled} aria-label="ページを増やす">＋</button>
+      {onDecrease && <button type="button" className="app-btn" onClick={onDecrease} disabled={decreaseDisabled} aria-label="ページを減らす">−</button>}
+      {onIncrease && <button type="button" className="app-btn" onClick={onIncrease} disabled={increaseDisabled} aria-label="ページを増やす">＋</button>}
       <span>{page}/{total}ページ</span>
       {detail && <span className="app-pagectl__detail">{detail}</span>}
     </div>
@@ -898,15 +899,8 @@ export default function App() {
   const pages: Record<string, ReactNode> = {
     table1: (
       <>
-        <PageControl
-          page={1}
-          total={heirPages}
-          onDecrease={removeHeir}
-          onIncrease={addHeir}
-          decreaseDisabled={data.heirs.length <= 1}
-          increaseDisabled={data.heirs.length >= maxHeirs}
-          detail={`財産を取得した人 ${data.heirs.length}人`}
-        />
+        {/* 用紙の枚数は人数から決まる。人の追加・削除は人物の画面（PersonPanel）で行う */}
+        <PageControl page={1} total={heirPages} detail={`財産を取得した人 ${data.heirs.length}人`} />
         <div className="gov-page">
           <GridForm
             cells={table1Cells}
@@ -924,15 +918,7 @@ export default function App() {
     ),
     table1cont: Array.from({ length: contPages }, (_, page) => (
       <div key={page} className="app-page-with-control">
-        <PageControl
-          page={page + 2}
-          total={heirPages}
-          onDecrease={removeHeir}
-          onIncrease={addHeir}
-          decreaseDisabled={data.heirs.length <= 1}
-          increaseDisabled={data.heirs.length >= maxHeirs}
-          detail={`財産を取得した人 ${data.heirs.length}人`}
-        />
+        <PageControl page={page + 2} total={heirPages} detail={`財産を取得した人 ${data.heirs.length}人`} />
         <ContPage page={page} g={g} u={u} onNavigate={setActive} onAction={onPersonAction} />
       </div>
     )),
@@ -1361,6 +1347,8 @@ export default function App() {
           prefix={heirPrefix(editingPerson)}
           g={g}
           u={u}
+          onAdd={data.heirs.length < maxHeirs ? addHeir : undefined}
+          onRemove={data.heirs.length > 1 ? removeHeir : undefined}
           onSelect={(index) => {
             setEditingPerson(index);
             // その人が載っている用紙へ移る（1人目は第1表、2人目からは第1表（続））

@@ -38,10 +38,16 @@ export interface PersonPanelProps {
   u: (field: string, value: string) => void;
   /** 別の人へ移る */
   onSelect: (index: number) => void;
+  /** 人を1人足す（足せる上限に達していれば undefined） */
+  onAdd?: () => void;
+  /** 最後の1人を消す（消せないときは undefined） */
+  onRemove?: () => void;
   onClose: () => void;
 }
 
-export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: PersonPanelProps) {
+export function PersonPanel({
+  index, total, prefix, g, u, onSelect, onAdd, onRemove, onClose,
+}: PersonPanelProps) {
   const get = (field: string) => g(`${prefix}${field}`);
   const set = (field: string, value: string) => u(`${prefix}${field}`, value);
 
@@ -58,6 +64,8 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
 
   const name = get('name').trim();
   const title = [`${index + 1}人目`, name].filter((part) => part !== '').join(' ');
+  /** 消せるのは最後の人だけ。途中を抜くと他の表が持つ項番（何人目か）が全部ずれる */
+  const canRemove = onRemove !== undefined && index === total - 1;
 
   const textInput = (field: string, label: string) => (
     <input
@@ -268,6 +276,29 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
         <div className="dpanel__foot">
           <button type="button" className="app-btn" onClick={() => onSelect(index - 1)} disabled={index <= 0}>◀ 前の人</button>
           <button type="button" className="app-btn" onClick={() => onSelect(index + 1)} disabled={index >= total - 1}>次の人 ▶</button>
+          <button
+            type="button"
+            className="app-btn"
+            onClick={() => { onAdd?.(); onSelect(total); }}
+            disabled={onAdd === undefined}
+          >
+            ＋ 人を追加
+          </button>
+          <button
+            type="button"
+            className="app-btn"
+            onClick={() => {
+              if (!window.confirm(`「${title}」の入力内容を消します。よろしいですか？`)) return;
+              onRemove?.();
+              onSelect(index - 1);
+            }}
+            disabled={!canRemove}
+          >
+            この人を削除
+          </button>
+          {onRemove !== undefined && !canRemove && (
+            <span className="dpanel__note">削除は最後の人から（項番がずれるため）</span>
+          )}
           <span className="dpanel__spacer" />
           <button type="button" className="app-btn app-btn--primary" onClick={onClose}>閉じる</button>
         </div>
