@@ -83,8 +83,9 @@ import { detailLabel, detailPrefix, heirIndex, heirLabel, heirPrefix, useFormDat
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  deriveLawful, detailSlots, hasTable112, isEmptyDetail, lawfulMembers, table10Pages, table112Pages, table13Pages,
-  table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9Pages,
+  deriveLawful, detailSlots, hasTable112, isEmptyDetail, lawfulMembers, sameValues, table10Pages, table112Pages,
+  table13Pages, table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9Pages,
+  type Values,
 } from './lib/calc';
 
 /** 第1表の転記欄。様式の選択状態にかかわらず直接入力させず、クリックで転記元を開く。 */
@@ -704,7 +705,7 @@ function PageControl({
 
 export default function App() {
   const {
-    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
+    data, g, u, addHeir, removeHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
     moveDetailItem, toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -738,11 +739,30 @@ export default function App() {
     () => giftYearOptions(data.common.startEra ?? '', data.common.startY ?? ''),
     [data.common.startEra, data.common.startY],
   );
+  /**
+   * 人物の画面を開いた時点の内容（「取消」で戻す先）。
+   * この画面は打つそばから書き込むので、戻すには開く側で控えておくしかない。
+   * 別の人へ移った時も控え直すため、取り消せるのは今開いている人の分だけ。
+   */
+  const personBackup = useRef<Values>({});
+  const openPerson = useCallback((index: number) => {
+    personBackup.current = data.heirs[index] ?? {};
+    setEditingPerson(index);
+  }, [data.heirs]);
   /** 用紙の人物ブロックのクリック → その人の基本情報の画面を開く */
   const onPersonAction = useCallback((action: string) => {
     const prefix = personActionPrefix(action);
-    if (prefix !== undefined) setEditingPerson(heirIndex(prefix));
-  }, []);
+    if (prefix !== undefined) openPerson(heirIndex(prefix));
+  }, [openPerson]);
+  /** 人物の画面の「取消」。開いた時から変わっている時だけ確認する */
+  const cancelPerson = useCallback(() => {
+    if (editingPerson === null) return;
+    const current = data.heirs[editingPerson] ?? {};
+    if (!sameValues(current, personBackup.current)
+      && !window.confirm('この画面で入力した内容を、開いた時の状態に戻します。よろしいですか？')) return;
+    setHeir(editingPerson, personBackup.current);
+    setEditingPerson(null);
+  }, [editingPerson, data.heirs, setHeir]);
   const table1Cells = useMemo(
     () => buildTable1(heirPrefix(0), TABLE1_TRANSFERRED_ROWS, officeOptions, TABLE1_SOURCE_FOR_ROW),
     [officeOptions],
@@ -960,7 +980,7 @@ export default function App() {
             key={person.index}
             type="button"
             className="app-btn"
-            onClick={() => setEditingPerson(person.index)}
+            onClick={() => openPerson(person.index)}
           >
             {person.name === '' ? `${person.index + 1}人目（氏名未入力）` : person.name}
           </button>
@@ -1390,11 +1410,12 @@ export default function App() {
           onAdd={data.heirs.length < maxHeirs ? addHeir : undefined}
           onRemove={data.heirs.length > 1 ? removeHeir : undefined}
           onSelect={(index) => {
-            setEditingPerson(index);
+            openPerson(index);
             // その人が載っている用紙へ移る（1人目は第1表、2人目からは第1表（続））
             setActive(index === 0 ? 'table1' : 'table1cont');
           }}
           onClose={() => setEditingPerson(null)}
+          onCancel={cancelPerson}
         />
       )}
     </div>

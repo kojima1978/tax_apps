@@ -753,6 +753,16 @@ export function detailGroupCount(item: Values): number {
   return Math.floor(detailShareCount(item) / DETAIL_SHARES_PER_GROUP) + 1;
 }
 
+/**
+ * 2つの入力内容が同じか（欄の並び順は見ない）。
+ * 「取消」で戻す前に、そもそも変わっているかを調べるのに使う。
+ * 空文字と欄そのものが無い状態は同じものとして扱う（打って消すと空文字が残るため）。
+ */
+export function sameValues(a: Values, b: Values): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...keys].every((key) => (a[key] ?? '') === (b[key] ?? ''));
+}
+
 /** 明細1件がまったくの空欄か（項番を振る対象から外す） */
 export function isEmptyDetail(item: Values | undefined): boolean {
   return item === undefined || Object.values(item).every((value) => value.trim() === '');

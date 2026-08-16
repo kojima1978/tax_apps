@@ -334,6 +334,20 @@ export function useFormData() {
   }, []);
 
   /**
+   * 「財産を取得した人」1人分を丸ごと差し替える（人物の画面の「取消」で使う）。
+   * 人物の画面は打つそばから書き込むので、取り消すには開いた時に控えたオブジェクトを戻す。
+   * 欄を数え上げて組み立て直すのではないため、他の表が入れた計算値も控えたまま戻る。
+   */
+  const setHeir = useCallback((index: number, values: Values) => {
+    setData((prev) => {
+      if (!Number.isInteger(index) || index < 0 || index >= prev.heirs.length) return prev;
+      const heirs = [...prev.heirs];
+      heirs[index] = { ...values };
+      return { ...prev, heirs };
+    });
+  }, []);
+
+  /**
    * 付表の明細1件を丸ごと差し替える（別画面の「確定」）。
    * 入力は1件ずつ別画面で行い、確定するまで申告内容には反映しない。
    * `index` が末尾より後なら新しい明細として足す。
@@ -425,7 +439,7 @@ export function useFormData() {
   }, []);
 
   return {
-    data, g, u, addHeir, removeHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
+    data, g, u, addHeir, removeHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
     toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs: MAX_HEIRS,
   };
 }

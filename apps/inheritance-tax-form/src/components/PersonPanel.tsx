@@ -42,11 +42,14 @@ export interface PersonPanelProps {
   onAdd?: () => void;
   /** 最後の1人を消す（消せないときは undefined） */
   onRemove?: () => void;
+  /** 確定（この画面を閉じる。入力は打つそばから入っているので、そのまま残る） */
   onClose: () => void;
+  /** 取消（この画面を開いた時の状態へ戻して閉じる） */
+  onCancel: () => void;
 }
 
 export function PersonPanel({
-  index, total, prefix, g, u, onSelect, onAdd, onRemove, onClose,
+  index, total, prefix, g, u, onSelect, onAdd, onRemove, onClose, onCancel,
 }: PersonPanelProps) {
   const get = (field: string) => g(`${prefix}${field}`);
   const set = (field: string, value: string) => u(`${prefix}${field}`, value);
@@ -302,7 +305,16 @@ export function PersonPanel({
             <span className="dpanel__note">削除は最後の人から（項番がずれるため）</span>
           )}
           <span className="dpanel__spacer" />
-          <button type="button" className="app-btn app-btn--primary" onClick={onClose}>閉じる</button>
+          {/* 付表の明細と違い、ここは打つそばから入っている。取消は「開いた時に戻す」操作 */}
+          <button
+            type="button"
+            className="app-btn"
+            onClick={onCancel}
+            title="この画面を開いた時の状態に戻します"
+          >
+            取消
+          </button>
+          <button type="button" className="app-btn app-btn--primary" onClick={onClose}>確定</button>
         </div>
       </div>
     </div>

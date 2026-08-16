@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeAll, detailAutoValue, detailGroupCount, detailShareAmounts, detailShareCount, detailSlots,
-  detailUnusedFields, moveDetailShare, moved, num, type Values,
+  detailUnusedFields, moveDetailShare, moved, num, sameValues, type Values,
 } from './calc';
 import { table15Key } from '../forms/table15';
 
@@ -456,5 +456,20 @@ describe('並べ替え', () => {
     const item: Values = { who0: '1', who1: '2' };
     expect(moveDetailShare(item, 1, 2)).toBe(item);
     expect(moveDetailShare(item, 0, 0)).toBe(item);
+  });
+});
+
+describe('入力内容の比較', () => {
+  it('欄の並び順が違っても同じ内容なら同じとみなす', () => {
+    expect(sameValues({ name: '甲', rel: '長男' }, { rel: '長男', name: '甲' })).toBe(true);
+  });
+
+  it('空文字と欄そのものが無い状態は同じとみなす（打って消した後）', () => {
+    expect(sameValues({ name: '甲', tel_1: '' }, { name: '甲' })).toBe(true);
+  });
+
+  it('値が1つでも違えば違うとみなす', () => {
+    expect(sameValues({ name: '甲' }, { name: '乙' })).toBe(false);
+    expect(sameValues({ name: '甲' }, { name: '甲', rel: '長男' })).toBe(false);
   });
 });
