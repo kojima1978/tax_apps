@@ -36,6 +36,7 @@ import {
 } from '../forms/table14';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
+import { DISABILITY_GENERAL, DISABILITY_SPECIAL } from '../forms/person';
 
 export type Values = Record<string, string>;
 
@@ -282,7 +283,7 @@ export function table10Pages(common: Values): number {
  * 相続税法12条1項6号・7号の非課税は「相続人の取得した」ものだけが対象なので、
  * 受遺者など相続人以外を除くために使う。相続人かどうかは第2表④の法定相続人欄が
  * 第1表の誰と結び付いているか（`source`）で判定する。
- * 第2表④は放棄がなかったものとした場合の一覧なので、放棄は別に持つ印（`renounced`）で除く。
+ * 第2表④は放棄がなかったものとした場合の一覧なので、放棄した人は人物の属性（`renounced`）で除く。
  */
 function heirNosOfLawfulHeirs(lawful: Values[]): Set<number> {
   const out = new Set<number>();
@@ -1144,7 +1145,11 @@ function computeTable6(common: Values, heirs: Values[]): Table6 {
     0, table1Balance(no > 0 ? heirs[no - 1] : undefined) - (minor ? 0 : credits.m.get(no) ?? 0),
   );
 
-  const section = (k: 'm' | 'd', minor: boolean, limit: number, rate: (i: number) => number): void => {
+  const section = (
+    k: 'm' | 'd', minor: boolean, limit: number, rate: (i: number) => number,
+    /** 選んだ人がその列の区分に合っているか（合わないときだけ注意を出す） */
+    mismatched: (person: Values | undefined, i: number) => boolean,
+  ): void => {
     const add = (no: number, amount: number): void => {
       if (no > 0 && amount > 0) credits[k].set(no, (credits[k].get(no) ?? 0) + amount);
     };
@@ -1155,8 +1160,10 @@ function computeTable6(common: Values, heirs: Values[]): Table6 {
     for (let i = 0; i < TABLE6_COLS; i += 1) {
       const p = `t6${k}${i}`;
       const no = num(common[`${p}no`]);
-      const age = no > 0 ? heirs[no - 1]?.age ?? '' : '';
+      const person = no > 0 ? heirs[no - 1] : undefined;
+      const age = person?.age ?? '';
       out[`${p}age`] = age;
+      out[`${p}noError`] = mismatched(person, i) ? '1' : '';
       const hasAge = age !== '';
       // ② 控除額（万円単位で保持）。基準年齢に達している人は0
       const man = hasAge ? Math.max(0, rate(i) * (limit - num(age))) : 0;
@@ -1200,9 +1207,20 @@ function computeTable6(common: Values, heirs: Values[]): Table6 {
     }
   };
 
-  section('m', true, TABLE6_MINOR_AGE, () => TABLE6_MINOR_RATE);
-  // 障害者の段は3列目だけ特別障害者（20万円）
-  section('d', false, TABLE6_DISABLED_AGE, (i) => (i === TABLE6_COLS - 1 ? TABLE6_SPECIAL_RATE : TABLE6_DISABLED_RATE));
+  // 未成年者の段は年齢だけで判定できる（年齢が出ていないときは何も言わない）
+  section('m', true, TABLE6_MINOR_AGE, () => TABLE6_MINOR_RATE, (person) => {
+    const age = person?.age ?? '';
+    return age !== '' && num(age) >= TABLE6_MINOR_AGE;
+  });
+  // 障害者の段は3列目だけ特別障害者（20万円）。区分が未登録のうちは判定しない
+  section(
+    'd', false, TABLE6_DISABLED_AGE, (i) => (i === TABLE6_COLS - 1 ? TABLE6_SPECIAL_RATE : TABLE6_DISABLED_RATE),
+    (person, i) => {
+      const kind = person?.disability ?? '';
+      if (kind === '') return false;
+      return kind !== (i === TABLE6_COLS - 1 ? DISABILITY_SPECIAL : DISABILITY_GENERAL);
+    },
+  );
   return { totals: out, minor: credits.m, disabled: credits.d };
 }
 
@@ -1577,13 +1595,28 @@ function computeAllWithRatios(
     table13: used.includes('table13'),
   };
 
+  // 第2表④は第1表の「財産を取得した人」から選ぶ。氏名・続柄・相続の放棄は保存時に複製せず、
+  // 第1表の最新値から毎回導出することで変更に追従させる。
+  // 旧版で手入力された行は source='manual' として表示・計算を維持する。
+  const linkedLawful = lawful.map((row): Values => {
+    const source = row.source ?? '';
+    const index = /^\d+$/.test(source) ? Number(source) : -1;
+    if (index >= 0 && index < heirs.length) {
+      const heir = heirs[index];
+      return {
+        ...row, source, name: heir?.name ?? '', rel: heir?.relation ?? '', renounced: heir?.renounced ?? '',
+      };
+    }
+    return source === '' && (row.name ?? '').trim() !== '' ? { ...row, source: 'manual' } : row;
+  });
+
   // 第11表2① ← 付表の「分割が確定した財産」。財産の明細書（付表1〜4）だけを合計する
   // ＝ 明細を配列で持つ様式は他にもあるので、コード表を持つ様式だけに絞る。
   const detailForms = used.filter((id) => id in DETAIL_KINDS && (details[id]?.length ?? 0) > 0);
   const detailItems = detailForms.flatMap((id) => details[id]!.map((item) => resolveDetail(id, item)));
   const detailTotals = sumDetails(detailItems);
   // 第11表2② ← 付表の未分割の明細を第2表④の相続分で按分したもの
-  const unsplitTotals = computeUnsplit(detailItems, lawful);
+  const unsplitTotals = computeUnsplit(detailItems, linkedLawful);
   // 第13表3①④ ← 同表1・2の明細の「負担する金額」
   const t13 = computeTable13(common, table13Pages(common, heirs.length));
   // 第15表①〜㉘ ← 付表の細目ごとの合計。転記になる欄は手入力の残りを混ぜないよう毎回空に戻す。
@@ -1632,18 +1665,6 @@ function computeAllWithRatios(
   // 1周目: Ⓐ（⑥の合計）を確定させる
   const firstPass = inputs.map((h) => computeHeir(h, 0, 0, forms));
   const totalA = firstPass.reduce((s, h) => s + yen(h, 'v6'), 0);
-
-  // 第2表④は第1表の「財産を取得した人」から選ぶ。氏名・続柄は保存時に複製せず、
-  // 第1表の最新値から毎回導出することで変更に追従させる。
-  // 旧版で手入力された行は source='manual' として表示・計算を維持する。
-  const linkedLawful = lawful.map((row): Values => {
-    const source = row.source ?? '';
-    const index = /^\d+$/.test(source) ? Number(source) : -1;
-    if (index >= 0 && index < heirs.length) {
-      return { ...row, source, name: heirs[index]?.name ?? '', rel: heirs[index]?.relation ?? '' };
-    }
-    return source === '' && (row.name ?? '').trim() !== '' ? { ...row, source: 'manual' } : row;
-  });
 
   // 第2表: Ⓐと法定相続人から相続税の総額⑧（＝第1表⑦）を求める
   const table2 = computeTable2(linkedLawful, totalA / 1000);

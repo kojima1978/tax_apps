@@ -3,7 +3,9 @@ import { GridForm, type GridCell } from './components/ui/GridForm';
 import { DetailPanel } from './components/DetailPanel';
 import { PersonPanel } from './components/PersonPanel';
 import { giftYearOptions } from './data/codes';
-import { personActionPrefix } from './forms/person';
+import {
+  DISABILITY_GENERAL, DISABILITY_SPECIAL, candidateGroups, personActionPrefix,
+} from './forms/person';
 import {
   COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1, taxOfficeOptions,
 } from './forms/table1';
@@ -12,7 +14,7 @@ import {
 } from './forms/table1cont';
 import {
   TABLE2_EDITION, TABLE2_FORM_CODE, TABLE2_JOINT_NOTES, TABLE2_NOTES, TABLE2_SUBTITLE, TABLE2_TITLE,
-  buildTable2, lawPrefix,
+  buildTable2,
 } from './forms/table2';
 import {
   TABLE11_FORM_CODE, TABLE11_ROWS, TABLE11_SUBTITLE, TABLE11_TITLE, buildTable11,
@@ -61,7 +63,8 @@ import {
   TABLE5_ASPECT, TABLE5_EDITION, TABLE5_FORM_CODE, TABLE5_NOTES, TABLE5_SUBTITLE, TABLE5_TITLE, buildTable5,
 } from './forms/table5';
 import {
-  TABLE6_ASPECT, TABLE6_EDITION, TABLE6_FORM_CODE, TABLE6_NOTES, TABLE6_SUBTITLE, TABLE6_TITLE, buildTable6,
+  TABLE6_ASPECT, TABLE6_EDITION, TABLE6_FORM_CODE, TABLE6_MINOR_AGE, TABLE6_NOTES, TABLE6_SUBTITLE, TABLE6_TITLE,
+  buildTable6, type Table6Options,
 } from './forms/table6';
 import {
   TABLE7_ASPECT, TABLE7_EDITION, TABLE7_FORM_CODE, TABLE7_NOTES, TABLE7_SUBTITLE, TABLE7_TITLE, buildTable7,
@@ -758,7 +761,9 @@ export default function App() {
           const value = String(index);
           if (selectedElsewhere.has(value)) return [];
           const name = (heir.name ?? '').trim();
-          return [{ value, label: name === '' ? `${index + 1}人目（氏名未入力）` : name }];
+          // 放棄した人もこの欄には載せる（放棄がなかったものとした場合の一覧のため）
+          const suffix = heir.renounced === '1' ? '（放棄）' : '';
+          return [{ value, label: (name === '' ? `${index + 1}人目（氏名未入力）` : name) + suffix }];
         }),
       ];
     }),
@@ -772,14 +777,15 @@ export default function App() {
    * 放棄の有無を聞く相手（＝第2表④で第1表の人と結び付いている法定相続人）。
    * 第2表④は「放棄がなかったものとした場合」の一覧なので、様式そのものには放棄が出てこない。
    * 第9表・第10表2の非課税は「相続人（放棄した人を除く）の取得した」ものだけが対象なので、
-   * 画面だけの入力として持つ。
+   * 画面だけの入力として持つ。印は人物（`h{n}.renounced`）に付くので、人物の画面と同じ値を指す。
    */
   const renounceRows = useMemo(
-    () => data.lawful.flatMap((row, index) => {
+    () => data.lawful.flatMap((row) => {
       const source = row.source ?? '';
       if (!/^\d+$/.test(source)) return []; // 'manual'（旧入力）は第1表の人と結び付いていない
-      const name = (data.heirs[Number(source)]?.name ?? '').trim();
-      return [{ index, name: name === '' ? `${Number(source) + 1}人目（氏名未入力）` : name }];
+      const index = Number(source);
+      const name = (data.heirs[index]?.name ?? '').trim();
+      return [{ index, name: name === '' ? `${index + 1}人目（氏名未入力）` : name }];
     }),
     [data.heirs, data.lawful],
   );
@@ -833,8 +839,30 @@ export default function App() {
     (): GridCell['options'] => ['', ...data.heirs.map((heir, i) => ({ value: String(i + 1), label: heir.name ?? '' }))],
     [data.heirs],
   );
-  /** 第6表の氏名欄も選択式（③⑤の相続税額を第1表から自動転記するため） */
-  const table6Cells = useMemo(() => buildTable6(COMMON, TOTALS, whoOptions), [whoOptions]);
+  /**
+   * 第6表の氏名欄も選択式（③⑤の相続税額を第1表から自動転記するため）。
+   * 人物の画面で登録した属性から候補を分けて並べるが、自動では埋めない（選ぶのは利用者）。
+   */
+  const table6Options = useMemo((): Table6Options => {
+    const people = data.heirs.map((heir, i) => ({
+      value: String(i + 1), label: (heir.name ?? '').trim() === '' ? heirLabel(i) : heir.name!,
+    }));
+    const age = (i: number): string => g(`${heirPrefix(i)}age`);
+    const disability = (i: number): string => data.heirs[i]?.disability ?? '';
+    return {
+      minor: candidateGroups(people, [
+        { label: `候補（${TABLE6_MINOR_AGE}歳未満）`, match: (i) => age(i) !== '' && Number(age(i)) < TABLE6_MINOR_AGE },
+      ]),
+      disabled: candidateGroups(people, [
+        { label: '候補（一般障害者）', match: (i) => disability(i) === DISABILITY_GENERAL },
+        { label: '候補（特別障害者）', match: (i) => disability(i) === DISABILITY_SPECIAL },
+      ]),
+      support: candidateGroups(people, [
+        { label: '候補（扶養義務者）', match: (i) => data.heirs[i]?.supporter === '1' },
+      ]),
+    };
+  }, [data.heirs, g]);
+  const table6Cells = useMemo(() => buildTable6(COMMON, TOTALS, table6Options), [table6Options]);
   /** 第7表の氏名欄も選択式（⑩の純資産価額を第1表から自動転記するため） */
   const table7Cells = useMemo(() => buildTable7(COMMON, TOTALS, whoOptions), [whoOptions]);
   /** 第15表で他の様式からの転記になっている欄（丸番号） */
@@ -950,7 +978,8 @@ export default function App() {
           }
         />
       </div>
-      {/* 相続の放棄。様式には印刷せず、第9表・第10表2の非課税の判定にだけ使う */}
+      {/* 相続の放棄。様式には印刷せず、第9表・第10表2の非課税の判定にだけ使う。
+          印は人物に付くので、人物の画面の「相続の放棄」と同じ値を出し入れしている */}
       {renounceRows.length > 0 && (
         <div className="app-linkctl no-print">
           <span>相続の放棄をした人（第9表・第10表2の非課税の判定に使う。様式には印刷しない）</span>
@@ -958,8 +987,8 @@ export default function App() {
             <label key={index}>
               <input
                 type="checkbox"
-                checked={g(`${lawPrefix(index)}renounced`) === '1'}
-                onChange={(event) => u(`${lawPrefix(index)}renounced`, event.target.checked ? '1' : '')}
+                checked={g(`${heirPrefix(index)}renounced`) === '1'}
+                onChange={(event) => u(`${heirPrefix(index)}renounced`, event.target.checked ? '1' : '')}
                 aria-label={`${name}は相続を放棄した`}
               />
               {name}

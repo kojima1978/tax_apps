@@ -198,6 +198,13 @@ function lawfulHead(): GridCell[] {
   ];
 }
 
+/**
+ * ④の氏名欄の手掛かり。この欄は「放棄がなかったものとした場合」の一覧なので、
+ * 放棄した人も行に載せて数える（人物の画面で放棄に印を付けた人は選択肢に「（放棄）」と出る）。
+ */
+const LAWFUL_HINT = '法定相続人の数は、相続の放棄がなかったものとして数えます。'
+  + '放棄した人もこの欄に載せてください。';
+
 /** 法定相続人 i 行目 */
 function lawfulRow(i: number, heirOptions: GridCell['options'] = []): GridCell[] {
   const [top, barTop, barBottom, bottom] = LAW_Y[i]!;
@@ -210,7 +217,7 @@ function lawfulRow(i: number, heirOptions: GridCell['options'] = []): GridCell[]
     code(all, col(X.L, X.CODE), `E0${2 + i}`),
     mk(all, col(X.CODE, X.NAME_R), {
       kind: 'input', field: `${p}source`, ariaLabel: `${who}：第1表の財産を取得した人`,
-      options: heirOptions, align: 'left', fontSize: 10,
+      options: heirOptions, align: 'left', fontSize: 10, hint: LAWFUL_HINT,
     }),
     code(all, col(X.NAME_R, X.REL_C), lawCode(i, 0)),
     mk(all, col(X.REL_C, X.REL_R), {

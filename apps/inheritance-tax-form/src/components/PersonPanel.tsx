@@ -12,7 +12,7 @@
 
 import { lookupZipAddress } from '../lib/zipAddress';
 import {
-  PERSON_ADDRESS_PARTS, PERSON_BIRTH_PARTS, PERSON_CAUSES, PERSON_FIELDS, PERSON_TEL_PARTS,
+  PERSON_ADDRESS_PARTS, PERSON_ATTRS, PERSON_BIRTH_PARTS, PERSON_CAUSES, PERSON_FIELDS, PERSON_TEL_PARTS,
   PERSON_ZIP_PARTS, type PersonField,
 } from '../forms/person';
 
@@ -166,6 +166,18 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
     }
   };
 
+  const fieldRow = (field: PersonField) => {
+    // 複合欄（生年月日・郵便番号など）は入力欄が複数あるので、見出しは特定の欄に結び付けない
+    const single = field.control === 'text' || field.control === 'select';
+    return (
+      <div className="dpanel__row" key={field.field}>
+        <label className="dpanel__label" htmlFor={single ? `ppanel-${field.field}` : undefined}>{field.name}</label>
+        {control(field)}
+        {field.note && <span className="dpanel__note">{field.note}</span>}
+      </div>
+    );
+  };
+
   return (
     <div className="dpanel no-print" role="dialog" aria-modal="true" aria-label={`財産を取得した人 ${title}`}>
       <div className="dpanel__box">
@@ -176,17 +188,9 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
         </div>
 
         <div className="dpanel__body">
-          {PERSON_FIELDS.map((field) => {
-            // 複合欄（生年月日・郵便番号など）は入力欄が複数あるので、見出しは特定の欄に結び付けない
-            const single = field.control === 'text' || field.control === 'select';
-            return (
-              <div className="dpanel__row" key={field.field}>
-                <label className="dpanel__label" htmlFor={single ? `ppanel-${field.field}` : undefined}>{field.name}</label>
-                {control(field)}
-                {field.note && <span className="dpanel__note">{field.note}</span>}
-              </div>
-            );
-          })}
+          {PERSON_FIELDS.map(fieldRow)}
+          <div className="dpanel__section">申告書の他の表で使う情報（様式には印刷しません）</div>
+          {PERSON_ATTRS.map(fieldRow)}
         </div>
 
         <div className="dpanel__foot">

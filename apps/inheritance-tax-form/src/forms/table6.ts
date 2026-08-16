@@ -12,6 +12,9 @@
  *
  * 氏名欄は第9表・第13表と同じ選択式（項番→氏名）。見た目の都合ではなく、
  * ③⑤の相続税額を第1表から自動転記するために「誰か」を確定する必要があるため。
+ * 選択肢は人物の画面で登録した属性（年齢・障害者の区分・扶養義務者）から候補を分けて並べるが、
+ * **自動では埋めない**。控除を受けるかどうかは様式の割付（一般2列・特別1列）や
+ * 過去の控除の有無にも左右されるので、決めるのは利用者。
  *
  * 罫線の位置は様式PNG（150dpi）の実測px。
  * 上端 184.5px（被相続人欄の上辺）〜下端 1654.5px（下段の（注）の下辺）、
@@ -183,20 +186,51 @@ interface Block {
   groups: boolean;
   /** フィールドキーの識別子（'m'＝未成年者／'d'＝障害者） */
   k: string;
+  /** 氏名欄の候補の出し方（選ぶときの手掛かり） */
+  nameHint: string;
+  /** 選んだ人が段（列）の区分と合わないときの注意 */
+  nameInvalid: string;
   y: BlockY;
 }
 
+/**
+ * 氏名欄の選択肢。人物の画面で登録した属性から候補を分けたもの。
+ * 候補を出すだけで自動では埋めない（誰を書くかは利用者が決める）。
+ */
+export interface Table6Options {
+  /** 未成年者の氏名（候補＝18歳未満） */
+  minor: GridCell['optionGroups'];
+  /** 障害者の氏名（候補＝一般障害者／特別障害者） */
+  disabled: GridCell['optionGroups'];
+  /** 扶養義務者の氏名（候補＝扶養義務者。上下段で共通） */
+  support: GridCell['optionGroups'];
+}
+
 /** 氏名の行（未成年者・障害者・扶養義務者で共通）。`total` は「計」の見出しを出すか。 */
-function nameRow(
-  y: [number, number], eBase: number, field: (i: number) => string,
-  heading: string, who: string, options: GridCell['options'], total: boolean,
-): GridCell[] {
+interface NameRowOptions {
+  y: [number, number];
+  eBase: number;
+  field: (i: number) => string;
+  heading: string;
+  who: string;
+  /** 候補と「その他」に分けた選択肢 */
+  options: GridCell['optionGroups'];
+  total: boolean;
+  /** 選んだ人が列の区分と合わないときの注意（列ごとのエラー欄と文言） */
+  invalid?: { field: (i: number) => string; message: string };
+  /** 選ぶときの手掛かり（候補の出し方の説明） */
+  hint?: string;
+}
+
+function nameRow({ y, eBase, field, heading, who, options, total, invalid, hint }: NameRowOptions): GridCell[] {
   return [
     label(y, col(LEFT, HX.NUM), heading),
     ...COLS.flatMap((c, i): GridCell[] => [
       code(y, col(c.code, c.left), cd('E', eBase + i)),
       mk(y, col(c.left, c.right), {
-        kind: 'input', field: field(i), ariaLabel: `${who}${i + 1}の氏名`, options, align: 'left',
+        kind: 'input', field: field(i), ariaLabel: `${who}${i + 1}の氏名`, optionGroups: options, align: 'left',
+        ...(hint === undefined ? {} : { hint }),
+        ...(invalid === undefined ? {} : { invalidWhen: (g) => g(invalid.field(i)) === '1', invalidMessage: invalid.message }),
       }),
     ]),
     ...(total ? [label(y, col(TX.CODE, RIGHT), '計')] : []),
@@ -314,7 +348,7 @@ function creditRows(b: Block, common: string, totals: string): GridCell[] {
 }
 
 /** 1つの段（未成年者控除／障害者控除）を組み立てる */
-function block(b: Block, common: string, totals: string, options: GridCell['options']): GridCell[] {
+function block(b: Block, common: string, totals: string, options: Table6Options): GridCell[] {
   const y = b.y;
   const p = (i: number) => `${common}t6${b.k}${i}`;
   const fp = (i: number) => `${common}t6${b.k}f${i}`;
@@ -333,7 +367,17 @@ function block(b: Block, common: string, totals: string, options: GridCell['opti
       ]
       : []),
 
-    ...nameRow(row(y.name[0], y.name[1]), b.eBase, (i) => `${p(i)}no`, `${b.who}の氏名`, b.who, options, !b.groups),
+    ...nameRow({
+      y: row(y.name[0], y.name[1]),
+      eBase: b.eBase,
+      field: (i) => `${p(i)}no`,
+      heading: `${b.who}の氏名`,
+      who: b.who,
+      options: b.k === 'm' ? options.minor : options.disabled,
+      total: !b.groups,
+      invalid: { field: (i) => `${totals}t6${b.k}${i}noError`, message: b.nameInvalid },
+      hint: b.nameHint,
+    }),
     ...creditRows(b, common, totals),
 
     ...valueRow({
@@ -370,7 +414,16 @@ function block(b: Block, common: string, totals: string, options: GridCell['opti
       + INDENT + 'Ⓐ欄の金額は、' + b.who + 'の扶養義務者の相続税額から控除することができますから、'
       + 'その金額を扶養義務者間で協議の上、適宜配分し、次の⑥欄に記入します。', { align: 'left', fontSize: 7 }),
 
-    ...nameRow(row(y.sname[0], y.sname[1]), b.eBase + 3, (i) => `${fp(i)}no`, '扶養義務者の氏名', `${b.who}の扶養義務者`, options, true),
+    ...nameRow({
+      y: row(y.sname[0], y.sname[1]),
+      eBase: b.eBase + 3,
+      field: (i) => `${fp(i)}no`,
+      heading: '扶養義務者の氏名',
+      who: `${b.who}の扶養義務者`,
+      options: options.support,
+      total: true,
+      hint: '人物の画面で「扶養義務者」に印を付けた人を候補として先に並べています。',
+    }),
     ...valueRow({
       y: row(y.tax5[0], y.tax5[1]),
       no: '⑤',
@@ -406,9 +459,9 @@ function block(b: Block, common: string, totals: string, options: GridCell['opti
  * 第6表のセルを組み立てる。
  * @param common 共通欄のフィールド接頭辞（'c.'）— 氏名の項番・年齢・⑥の配分
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）— ②③④⑤と各計
- * @param options 氏名の選択肢（値は第11表の項番＝入力順の通し番号）
+ * @param options 氏名の選択肢（値は第11表の項番＝入力順の通し番号）。候補と「その他」に分けたもの
  */
-export function buildTable6(common: string, totals: string, options: GridCell['options']): GridCell[] {
+export function buildTable6(common: string, totals: string, options: Table6Options): GridCell[] {
   const minor: Block = {
     eBase: 2,
     gBase: 1,
@@ -427,6 +480,8 @@ export function buildTable6(common: string, totals: string, options: GridCell['o
       + '「未成年者控除額①」欄に転記します。',
     groups: false,
     k: 'm',
+    nameHint: `${TABLE6_MINOR_AGE}歳未満の人（生年月日と相続開始日から出した年齢）を候補として先に並べています。`,
+    nameInvalid: `${TABLE6_MINOR_AGE}歳以上の人が選ばれています。未成年者控除の対象は満${TABLE6_MINOR_AGE}歳にならない人です。`,
     y: {
       head: [234.5, 276],
       name: [276, 326],
@@ -460,6 +515,9 @@ export function buildTable6(common: string, totals: string, options: GridCell['o
       + '「障害者控除額②」欄に転記します。',
     groups: true,
     k: 'd',
+    nameHint: '人物の画面で登録した障害者の区分ごとに候補を並べています。'
+      + '様式の割付どおり、左2列が一般障害者・右1列が特別障害者です。',
+    nameInvalid: '人物の画面で登録した障害者の区分と、この列の区分（一般障害者／特別障害者）が違います。',
     y: {
       head: [909, 951],
       groups: [951, 992],

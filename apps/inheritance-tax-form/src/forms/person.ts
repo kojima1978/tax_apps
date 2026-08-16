@@ -87,6 +87,73 @@ export const PERSON_FIELDS: readonly PersonField[] = [
   },
 ];
 
+/** 障害者の区分。第6表の2は一般障害者2列＋特別障害者1列の割付なので、区分まで持つ。 */
+export const DISABILITY_GENERAL = 'general';
+export const DISABILITY_SPECIAL = 'special';
+
+export const DISABILITY_OPTIONS = [
+  { value: DISABILITY_GENERAL, label: '一般障害者' },
+  { value: DISABILITY_SPECIAL, label: '特別障害者' },
+] as const;
+
+/**
+ * 用紙（第1表）には出ない属性。
+ *
+ * 「誰が未成年者控除・障害者控除の対象か」「誰が放棄したか」は他の様式（第2表・第6表・
+ * 第9表・第10表）が必要とするのに、第1表の用紙には書く欄が無い。人に付く事実なので
+ * 人物の画面で持ち、様式側は**候補を出すところまで**にとどめる（誰を書くかは利用者が決める）。
+ */
+export const PERSON_ATTRS: readonly PersonField[] = [
+  {
+    field: 'renounced', name: '相続の放棄', control: 'flag', checkLabel: '相続の放棄をした',
+    note: '第2表の法定相続人の数は、放棄がなかったものとして数えます',
+  },
+  {
+    field: 'disability', name: '障害者の区分', control: 'select', options: DISABILITY_OPTIONS,
+    note: '第6表の2 障害者控除の候補になります',
+  },
+  {
+    field: 'supporter', name: '扶養義務者', control: 'flag', checkLabel: '未成年者・障害者の扶養義務者である',
+    note: '第6表の扶養義務者の候補になります',
+  },
+];
+
+/** 氏名の選択肢1つ分（値は第11表の項番） */
+export interface PersonOption {
+  value: string;
+  label: string;
+}
+
+export interface CandidateGroup {
+  label: string;
+  /** その人が候補かどうか（`people` の添字で聞く） */
+  match: (index: number) => boolean;
+}
+
+/** 候補に当てはまらなかった人を入れる区分 */
+const OTHERS = 'その他';
+
+/**
+ * 氏名欄の選択肢を「候補」と「その他」に分ける。
+ * 属性から候補を出すだけで、選ぶのは利用者（自動では埋めない）。
+ * 先に当てはまった区分に入れるので、区分は並べた順に優先される。
+ */
+export function candidateGroups(
+  people: readonly PersonOption[],
+  groups: readonly CandidateGroup[],
+): { label: string; options: PersonOption[] }[] {
+  const buckets = groups.map((group): { label: string; options: PersonOption[] } => ({ label: group.label, options: [] }));
+  const others: PersonOption[] = [];
+  people.forEach((person, index) => {
+    const hit = groups.findIndex((group) => group.match(index));
+    (hit < 0 ? others : buckets[hit]!.options).push(person);
+  });
+  return [
+    ...buckets.filter((bucket) => bucket.options.length > 0),
+    ...(others.length > 0 ? [{ label: OTHERS, options: others }] : []),
+  ];
+}
+
 /** 複合欄が持つ用紙側のフィールド名（用紙のセル1つ＝ここの1つ） */
 const CONTROL_FIELDS: Record<PersonControl, (field: string) => string[]> = {
   text: (field) => [field],

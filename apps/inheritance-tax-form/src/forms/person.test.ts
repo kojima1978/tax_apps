@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { PERSON_FIELDS, personActionPrefix, personAction, personFieldNames } from './person';
+import {
+  PERSON_ATTRS, PERSON_FIELDS, candidateGroups, personActionPrefix, personAction, personFieldNames,
+} from './person';
 import { personColumn, type PersonCodes, type PersonY } from './geometry';
 
 /** 突き合わせに使うだけの位置・コード（値そのものは結果に関係しない） */
@@ -36,6 +38,37 @@ describe('人物ブロックと基本情報の画面', () => {
   it('画面の欄に重複が無い', () => {
     const names = personFieldNames();
     expect(new Set(names).size).toBe(names.length);
-    expect(new Set(PERSON_FIELDS.map((field) => field.field)).size).toBe(PERSON_FIELDS.length);
+    const all = [...PERSON_FIELDS, ...PERSON_ATTRS].map((field) => field.field);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it('属性は用紙に出ない（他の表のためだけに持つ）', () => {
+    const onPaper = new Set(personFieldNames());
+    for (const attr of PERSON_ATTRS) expect(onPaper.has(attr.field)).toBe(false);
+  });
+});
+
+describe('氏名欄の候補分け', () => {
+  const people = [
+    { value: '1', label: '甲' },
+    { value: '2', label: '乙' },
+    { value: '3', label: '丙' },
+  ];
+
+  it('先に当てはまった区分に入り、残りは「その他」になる', () => {
+    const groups = candidateGroups(people, [
+      { label: '候補（一般障害者）', match: (i) => i === 0 },
+      { label: '候補（特別障害者）', match: (i) => i <= 1 },
+    ]);
+    expect(groups).toEqual([
+      { label: '候補（一般障害者）', options: [people[0]] },
+      { label: '候補（特別障害者）', options: [people[1]] },
+      { label: 'その他', options: [people[2]] },
+    ]);
+  });
+
+  it('空の区分は出さない（候補が居なければ全員が「その他」）', () => {
+    const groups = candidateGroups(people, [{ label: '候補', match: () => false }]);
+    expect(groups).toEqual([{ label: 'その他', options: people }]);
   });
 });

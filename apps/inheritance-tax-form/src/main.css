@@ -732,6 +732,15 @@ button {
   cursor: pointer;
 }
 
+/* 用紙に出る欄と、他の表のために持つ属性の区切り */
+.dpanel__section {
+  margin: 12px 0 6px;
+  padding-top: 8px;
+  font-size: 11px;
+  color: #64748b;
+  border-top: 1px solid #e2e8f0;
+}
+
 .dpanel__methods {
   display: flex;
   gap: 16px;

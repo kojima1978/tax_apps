@@ -37,6 +37,7 @@ export interface FormData {
    * 保存形式の版。
    * 2 … 付表を「1組＝1要素」から「1財産＝1要素」に変えた
    * 3 … 付表1の評価方式（路線価／倍率）を明示的に持つようにした
+   * 4 … 相続の放棄を第2表の行から「財産を取得した人」へ移した
    */
   version?: number;
 }
@@ -45,7 +46,7 @@ const STORAGE_KEY = 'inheritance-tax-form:v1';
 /** 移行前のデータの退避先（付表のまとめ直しは元に戻せないため） */
 const BACKUP_KEY = 'inheritance-tax-form:v1-backup';
 /** 現在の保存形式 */
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 /** 第1表に1人＋第1表（続）10枚に2人ずつ */
 const MAX_HEIRS = 21;
 /** 既定で使用する様式 */
@@ -115,16 +116,37 @@ function migrateMethod(rows: readonly Values[]): Values[] {
   ));
 }
 
+/**
+ * 版3までの相続の放棄は第2表の法定相続人の行に付いていた。
+ * 放棄は人に付く事実で、第6表の候補や第9表・第10表2の非課税の判定にも効くので、
+ * 版4では「財産を取得した人」へ移す（行から人へ、結び付け `source` をたどって移し替える）。
+ */
+function migrateRenounced(heirs: readonly Values[], lawful: readonly Values[]): { heirs: Values[]; lawful: Values[] } {
+  const next = heirs.map((heir) => ({ ...heir }));
+  const rows = lawful.map((row) => {
+    if (row.renounced !== '1') return row;
+    const { renounced, ...rest } = row;
+    const source = rest.source ?? '';
+    // 'manual'（旧入力）は第1表の人と結び付いていないので移す先が無い
+    if (/^\d+$/.test(source) && next[Number(source)] !== undefined) next[Number(source)]!.renounced = renounced;
+    return rest;
+  });
+  return { heirs: next, lawful: rows };
+}
+
 /** 保存済みデータを現在の保存形式へ移行する */
 function migrate(parsed: Partial<FormData>): Partial<FormData> {
-  if (parsed.version === DATA_VERSION || typeof parsed.details !== 'object' || parsed.details === null) return parsed;
+  if (parsed.version === DATA_VERSION) return parsed;
+  const moved = migrateRenounced(parsed.heirs ?? [], parsed.lawful ?? []);
+  const out: Partial<FormData> = { ...parsed, ...moved };
+  if (typeof parsed.details !== 'object' || parsed.details === null) return out;
   const details: Record<string, Values[]> = {};
   for (const [form, rows] of Object.entries(parsed.details)) {
     const list = Array.isArray(rows) ? rows : [];
     details[form] = (parsed.version ?? 1) < 2 ? migrateDetails(list) : list;
   }
   if (details.table11f1 !== undefined) details.table11f1 = migrateMethod(details.table11f1);
-  return { ...parsed, details };
+  return { ...out, details };
 }
 
 /** 第1表1枚＋（続）は2人ずつ */
