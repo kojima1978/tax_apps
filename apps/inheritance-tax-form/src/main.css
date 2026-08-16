@@ -577,6 +577,10 @@ button {
    付表の明細1件の入力画面
    ============================================ */
 .dpanel {
+  /* 桁数から欄の幅を出すときの上乗せ分（左右の余白＋枠、選択式の▼） */
+  --dpanel-pad: 14px;
+  --dpanel-arrow: 18px;
+
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -652,6 +656,11 @@ button {
   border-radius: 4px;
 }
 
+/* 選択式は右端に▼が描かれるので、その分だけ余白を空けて文字と重ならないようにする */
+select.dpanel__input {
+  padding-right: var(--dpanel-arrow);
+}
+
 .dpanel__input:disabled {
   color: #94a3b8;
   background: #f1f5f9;
@@ -684,7 +693,7 @@ button {
 
 .dpanel__part {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   gap: 2px;
   align-items: center;
   min-width: 0;
@@ -710,9 +719,9 @@ button {
   flex: 0 0 auto;
 }
 
-/* 生年月日・郵便番号・電話番号は数字の桁数どおりの幅にする */
+/* 生年月日・郵便番号・電話番号は桁数どおりの幅（要素側の width）にして伸ばさない */
 .dpanel__parts .dpanel__input {
-  flex: 1 1 4em;
+  flex: 0 0 auto;
   text-align: center;
 }
 

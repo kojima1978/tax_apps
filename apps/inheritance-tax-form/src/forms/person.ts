@@ -36,12 +36,16 @@ export interface PersonField {
   note?: string;
 }
 
-/** 生年月日の4欄。用紙の並び（元号・年・月・日）のまま。 */
+/**
+ * 生年月日の4欄。用紙の並び（元号・年・月・日）のまま。
+ * `chars` は画面の幅を出すための桁数（`ch`＝数字1文字分）。元号は用紙と同じく
+ * コード付きで「5 令和」と出すので、数字1桁＋空白＋全角2文字の6桁分を見込む。
+ */
 export const PERSON_BIRTH_PARTS = [
-  { field: 'birthEra', name: '元号', options: ERA_OPTIONS },
-  { field: 'birthY', name: '年', options: ERA_YEAR_OPTIONS },
-  { field: 'birthM', name: '月', options: MONTH_OPTIONS },
-  { field: 'birthD', name: '日', options: DAY_OPTIONS },
+  { field: 'birthEra', name: '元号', options: ERA_OPTIONS, chars: 6 },
+  { field: 'birthY', name: '年', options: ERA_YEAR_OPTIONS, chars: 2 },
+  { field: 'birthM', name: '月', options: MONTH_OPTIONS, chars: 2 },
+  { field: 'birthD', name: '日', options: DAY_OPTIONS, chars: 2 },
 ] as const;
 
 /** 取得原因。様式では該当する欄に「1」と記入する。 */

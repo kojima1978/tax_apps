@@ -19,6 +19,14 @@ import {
 /** 数字だけの欄（郵便番号・電話番号）。先頭の0を残す（数値ではなく番号のため） */
 const digits = (value: string, maxLength: number): string => value.replace(/\D/g, '').slice(0, maxLength);
 
+/**
+ * 桁数どおりの幅。左右の余白と枠の分（`--dpanel-pad`）を足す。
+ * 選択式は右端の▼が文字に重なるため、その分（`--dpanel-arrow`）も足す。
+ */
+const boxWidth = (chars: number, arrow = false): { width: string } => ({
+  width: `calc(${chars}ch + var(--dpanel-pad)${arrow ? ' + var(--dpanel-arrow)' : ''})`,
+});
+
 export interface PersonPanelProps {
   /** 何人目か（0始まり） */
   index: number;
@@ -61,15 +69,22 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
     />
   );
 
-  const select = (field: string, label: string, options: readonly { value: string; label: string }[]) => (
+  const select = (
+    field: string,
+    label: string,
+    options: readonly { value: string; label: string }[],
+    // 幅の狭い欄（生年月日）は未選択の表示を短くする。隣の「年」「月」「日」で何の欄かは分かる
+    { style, placeholder = '（未選択）' }: { style?: { width: string }; placeholder?: string } = {},
+  ) => (
     <select
       id={`ppanel-${field}`}
       className="dpanel__input"
+      style={style}
       value={get(field)}
       aria-label={label}
       onChange={(e) => set(field, e.target.value)}
     >
-      <option value="">（未選択）</option>
+      <option value="">{placeholder}</option>
       {options.map((option) => (option.value === '' ? null : (
         <option key={option.value} value={option.value}>{option.label}</option>
       )))}
@@ -102,12 +117,20 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
           <span className="dpanel__parts">
             {PERSON_BIRTH_PARTS.map((part) => (
               <span className="dpanel__part" key={part.field}>
-                {select(part.field, `生年月日（${part.name}）`, part.options)}
+                {select(part.field, `生年月日（${part.name}）`, part.options, {
+                  style: boxWidth(part.chars, true), placeholder: '―',
+                })}
                 <span className="dpanel__unit">{part.name === '元号' ? '' : part.name}</span>
               </span>
             ))}
             <span className="dpanel__part">
-              <input className="dpanel__input dpanel__input--auto" value={get('age')} readOnly aria-label="年齢（自動計算）" />
+              <input
+                className="dpanel__input dpanel__input--auto"
+                style={boxWidth(3)}
+                value={get('age')}
+                readOnly
+                aria-label="年齢（自動計算）"
+              />
               <span className="dpanel__unit">歳</span>
             </span>
           </span>
@@ -120,6 +143,7 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
                 {i > 0 && <span className="dpanel__slash">―</span>}
                 <input
                   className="dpanel__input"
+                  style={boxWidth(part.maxLength)}
                   value={get(`zip${part.suffix}`)}
                   inputMode="numeric"
                   aria-label={`郵便番号（${part.name}）`}
@@ -137,6 +161,7 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
                 {i > 0 && <span className="dpanel__slash">―</span>}
                 <input
                   className="dpanel__input"
+                  style={boxWidth(part.maxLength)}
                   value={get(`tel${part.suffix}`)}
                   inputMode="numeric"
                   aria-label={`電話番号（${part.name}）`}
