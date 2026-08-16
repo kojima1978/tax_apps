@@ -162,7 +162,7 @@ function sectionHead(top: number, bottom: number, heading: string, lead?: string
 }
 
 /** 上部（被相続人・贈与を受けた人の氏名・初めて贈与を受けた年分・選択届出書の提出先） */
-function headRows(common: string, p: string, who: string): GridCell[] {
+function headRows(common: string, p: string, who: string, yearOptions: GridCell['options']): GridCell[] {
   const head = row(278.5, 316);
   const entry = row(316, 363);
   return [
@@ -184,7 +184,10 @@ function headRows(common: string, p: string, who: string): GridCell[] {
     code(entry, col(X.L, X.NO2_C), 'E02'),
     mk(entry, col(X.NO2_C, X.OFF_R), { kind: 'input', field: `${p}name`, ariaLabel: `${who}の氏名`, align: 'left', fontSize: 10, readOnly: true }),
     code(entry, col(X.OFF_R, X.C2_R), 'E60'),
-    mk(entry, col(X.C2_R, X.YEAR_L), { kind: 'input', field: `${p}t112FirstYear`, ariaLabel: `${who}が初めて相続時精算課税に係る贈与を受けた年分`, align: 'center' }),
+    mk(entry, col(X.C2_R, X.YEAR_L), {
+      kind: 'input', field: `${p}t112FirstYear`, ariaLabel: `${who}が初めて相続時精算課税に係る贈与を受けた年分`,
+      options: yearOptions, align: 'center',
+    }),
     label(entry, col(X.YEAR_L, X.HEAD_R), '年分'),
     code(entry, col(X.HEAD_R, X.G6_C), 'E61'),
     mk(entry, col(X.G6_C, X.OFF2_R), {
@@ -221,7 +224,7 @@ function sumHead(): GridCell[] {
 }
 
 /** 1の明細6行（年分ごとの計算） */
-function sumRows(p: string, who: string, page: number): GridCell[] {
+function sumRows(p: string, who: string, page: number, yearOptions: GridCell['options']): GridCell[] {
   return Array.from({ length: TABLE112_ROWS }, (_, r): GridCell[] => {
     const top = SUM_TOP + r * ROW_H;
     const y = row(top, top + ROW_H);
@@ -232,7 +235,10 @@ function sumRows(p: string, who: string, page: number): GridCell[] {
     return [
       label(y, col(X.L, X.NO_R), String(r + 1)),
       code(y, col(X.NO_R, X.E1_C), e(3 + r * 3)),
-      mk(y, col(X.E1_C, X.YEAR_R), { kind: 'input', field: `${p}t112y${i}`, ariaLabel: `${who}の${i + 1}行目の贈与を受けた年分`, align: 'center' }),
+      mk(y, col(X.E1_C, X.YEAR_R), {
+        kind: 'input', field: `${p}t112y${i}`, ariaLabel: `${who}の${i + 1}行目の贈与を受けた年分`,
+        options: yearOptions, align: 'center',
+      }),
       label(y, col(X.YEAR_R, X.C1_R), '年分'),
       code(y, col(X.C1_R, X.E2_C), e(4 + r * 3)),
       mk(y, col(X.E2_C, X.OFF_R), {
@@ -348,14 +354,17 @@ function detailRows(p: string, who: string, page: number): GridCell[] {
  * @param who アクセシブル名の主語（「1人目」など）
  * @param page その人の何枚目か（0始まり）
  * @param last その人の最終ページ（⑧⑨⑩の合計はここにだけ出す）
+ * @param yearOptions 「贈与を受けた年分」の候補（giftYearOptions で作る）
  */
-export function buildTable112(common: string, prefix: string, who: string, page: number, last: boolean): GridCell[] {
+export function buildTable112(
+  common: string, prefix: string, who: string, page: number, last: boolean, yearOptions: GridCell['options'],
+): GridCell[] {
   return [
-    ...headRows(common, prefix, who),
+    ...headRows(common, prefix, who, yearOptions),
 
     ...sectionHead(363, 406.5, '1　相続税の課税価格に加算する相続時精算課税適用財産の価額及び納付すべき相続税額から控除すべき贈与税額の明細'),
     ...sumHead(),
-    ...sumRows(prefix, who, page),
+    ...sumRows(prefix, who, page, yearOptions),
     ...sumTotals(prefix, who, last),
     numberedNotes(row(902.5, 1025), SUM_NOTES),
 

@@ -15,6 +15,7 @@
  * 「財産を取得した人の番号」ごとに合計する。番号は第11表の項番＝入力順の通し番号。
  */
 
+import { ERA_BASE_YEAR } from '../data/codes';
 import { DETAIL_KINDS } from '../data/detailCodes';
 import { TABLE112_ROWS } from '../forms/table112';
 import { TABLE1112F1_RATE } from '../forms/table1112f1';
@@ -1205,14 +1206,11 @@ function computeTable6(common: Values, heirs: Values[]): Table6 {
   return { totals: out, minor: credits.m, disabled: credits.d };
 }
 
-/** 元号コード → 元年の西暦（第7表①②の年月日から期間を出すため） */
-const ERA_BASE: Record<string, number> = { 1: 1868, 2: 1912, 3: 1926, 4: 1989, 5: 2019 };
-
 interface YMD { y: number; m: number; d: number }
 
 /** 元号・年・月・日の欄から西暦の日付を組み立てる。1つでも欠けていれば undefined */
 function eraDate(values: Values, p: string): YMD | undefined {
-  const base = ERA_BASE[(values[`${p}Era`] ?? '').trim()];
+  const base = ERA_BASE_YEAR[(values[`${p}Era`] ?? '').trim()];
   const y = num(values[`${p}Y`]);
   const m = num(values[`${p}M`]);
   const d = num(values[`${p}D`]);

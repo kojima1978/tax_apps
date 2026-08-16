@@ -26,6 +26,42 @@ export const ERA_YEAR_OPTIONS = [
   }),
 ];
 
+/** 元号コード → 元年の西暦。和暦と西暦を行き来する箇所はここを唯一の定義元にする。 */
+export const ERA_BASE_YEAR: Record<string, number> = { 1: 1868, 2: 1912, 3: 1926, 4: 1989, 5: 2019 };
+
+/** 相続時精算課税制度が創設された年（平成15年）。これより前の年分は存在しない */
+const GIFT_YEAR_FIRST = 2003;
+
+/**
+ * 西暦 →「令和6」「平成15」形式の和暦表記。
+ * 2019年は平成31年と令和元年にまたがるが、贈与税の「年分」は令和元年分として扱う。
+ * 用途を相続時精算課税の年分（平成15年以降）に限っているため、この2元号だけを見る。
+ */
+function giftYearLabel(year: number): string {
+  return year >= ERA_BASE_YEAR[5]
+    ? `令和${year === ERA_BASE_YEAR[5] ? '元' : year - ERA_BASE_YEAR[5] + 1}`
+    : `平成${year - ERA_BASE_YEAR[4] + 1}`;
+}
+
+/**
+ * 相続時精算課税の「贈与を受けた年分」の選択肢。
+ * 平成15年（制度創設）から相続開始年までを新しい順に並べる。保存値は表示と同じ和暦表記。
+ * 相続開始年月日が未入力のうちは今年を上限にしておく（後から入れれば絞られる）。
+ */
+export function giftYearOptions(startEra: string, startYear: string): { value: string; label: string }[] {
+  const base = ERA_BASE_YEAR[startEra.trim()];
+  const year = Number(startYear);
+  const start = base !== undefined && Number.isInteger(year) && year > 0 ? base + year - 1 : new Date().getFullYear();
+  const last = Math.max(start, GIFT_YEAR_FIRST);
+  return [
+    { value: '', label: '' },
+    ...Array.from({ length: last - GIFT_YEAR_FIRST + 1 }, (_, index) => {
+      const label = giftYearLabel(last - index);
+      return { value: label, label };
+    }),
+  ];
+}
+
 /** 月・日。保存値は既存JSON互換の整数文字列、表示だけ2桁にする。 */
 const twoDigitOptions = (count: number) => [
   { value: '', label: '' },

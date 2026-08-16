@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { GridForm, type GridCell } from './components/ui/GridForm';
 import { DetailPanel } from './components/DetailPanel';
+import { giftYearOptions } from './data/codes';
 import {
   COMMON, EDITION, TABLE1_FORM_CODE, TABLE1_NOTES, TABLE1_TITLE, TOTALS, buildTable1, taxOfficeOptions,
 } from './forms/table1';
@@ -285,13 +286,15 @@ interface Table112PageProps extends PageProps {
   heir: number;
   /** その人の最終ページ（⑧⑨⑩の合計はページをまたぐので最終ページにだけ出す） */
   last: boolean;
+  /** 「贈与を受けた年分」の候補（giftYearOptions で作る） */
+  yearOptions: GridCell['options'];
 }
 
 /** 第11の2表1枚（1人分・年分6行＋財産の明細6行） */
-function Table112Page({ heir, page, last, g, u, onNavigate }: Table112PageProps) {
+function Table112Page({ heir, page, last, yearOptions, g, u, onNavigate }: Table112PageProps) {
   const cells = useMemo(
-    () => buildTable112(COMMON, heirPrefix(heir), heirLabel(heir), page, last),
-    [heir, page, last],
+    () => buildTable112(COMMON, heirPrefix(heir), heirLabel(heir), page, last, yearOptions),
+    [heir, page, last, yearOptions],
   );
   return (
     <div className="gov-page">
@@ -713,6 +716,11 @@ export default function App() {
     () => taxOfficeOptions(officePref, data.common.office ?? ''),
     [officePref, data.common.office],
   );
+  // 第11の2表の年分は「平成15年（制度創設）〜相続開始年」に限る。
+  const giftYears = useMemo(
+    () => giftYearOptions(data.common.startEra ?? '', data.common.startY ?? ''),
+    [data.common.startEra, data.common.startY],
+  );
   const table1Cells = useMemo(
     () => buildTable1(heirPrefix(0), TABLE1_TRANSFERRED_ROWS, officeOptions, TABLE1_SOURCE_FOR_ROW),
     [officeOptions],
@@ -1063,7 +1071,7 @@ export default function App() {
           {Array.from({ length: sheets }, (_, page) => (
             <div key={page} className="app-page-with-control">
               <PageControl page={page + 1} total={sheets} onDecrease={() => setSheets(sheets - 1)} onIncrease={() => setSheets(sheets + 1)} decreaseDisabled={sheets <= 1} increaseDisabled={sheets >= MAX_TABLE112_PAGES} detail={`${heirLabel(i)}・年分${TABLE112_ROWS}行／ページ`} />
-              <Table112Page heir={i} page={page} last={page === sheets - 1} g={g} u={u} onNavigate={setActive} />
+              <Table112Page heir={i} page={page} last={page === sheets - 1} yearOptions={giftYears} g={g} u={u} onNavigate={setActive} />
             </div>
           ))}
         </div>
