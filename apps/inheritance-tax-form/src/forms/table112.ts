@@ -173,6 +173,17 @@ const sumMismatch = (p: string, page: number, r: number) => (g: (field: string) 
   return found && total !== yen(g(`${p}t112a${page * TABLE112_ROWS + r}`));
 };
 
+/**
+ * 2の明細に価額が入っているのに番号が無い（または1〜6以外）か。
+ * 番号が無い行はどの年分にも数えられず、上の突き合わせからも静かに漏れてしまうので、
+ * 価額を書いた時点で番号も求める。
+ */
+const missingDetailNo = (p: string, i: number) => (g: (field: string) => string): boolean => {
+  if ((g(`${p}t112w${i}`) ?? '').trim() === '') return false;
+  const no = Number((g(`${p}t112n${i}`) ?? '').trim());
+  return !Number.isInteger(no) || no < 1 || no > TABLE112_ROWS;
+};
+
 /** 「1 …」「2 …」の章見出し（太字の見出し行と、その下の細い説明文） */
 function sectionHead(top: number, bottom: number, heading: string, lead?: string): GridCell[] {
   const split = lead === undefined ? bottom : (top + bottom) / 2;
@@ -352,7 +363,11 @@ function detailRows(p: string, who: string, page: number): GridCell[] {
     const item = `${who}の明細${i + 1}`;
     return [
       code(y, col(X.L, X.NO2_C), `G${34 + r * 2}`),
-      mk(y, col(X.NO2_C, X.E1_C), { kind: 'input', field: `${p}t112n${i}`, ariaLabel: `${item}の番号`, integerDigits: 1, align: 'center' }),
+      mk(y, col(X.NO2_C, X.E1_C), {
+        kind: 'input', field: `${p}t112n${i}`, ariaLabel: `${item}の番号`, integerDigits: 1, align: 'center',
+        invalidWhen: missingDetailNo(p, i),
+        invalidMessage: `価額を記入した行には、上記1の「番号」欄の番号（1〜${TABLE112_ROWS}）を記入します。`,
+      }),
       code(y, col(X.E1_C, X.N_C), `N${String(1 + r).padStart(2, '0')}`),
       mk(y, col(X.N_C, X.ERA_R), { kind: 'input', field: `${p}t112g${i}Era`, ariaLabel: `${item}の贈与年月日の元号`, options: ERA_OPTIONS, compactSelectedOption: true }),
       mk(y, col(X.ERA_R, X.YEAR_R), dateSelect('y', `${p}t112g${i}Y`, `${item}の贈与年月日（年）`)),
