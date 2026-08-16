@@ -21,7 +21,8 @@ export type PersonControl =
   | 'zip'       // 郵便番号（保存は field_1 / field_2）
   | 'tel'       // 電話番号（保存は field_1 / field_2 / field_3）
   | 'address'   // 住所（上段 field ／ 下段 field2）
-  | 'causes';   // 取得原因（相続・遺贈・相続時精算課税に係る贈与）
+  | 'causes'    // 取得原因（相続・遺贈・相続時精算課税に係る贈与）
+  | 'fraction'; // 分数（保存は fieldNum / fieldDen）。空にすると自動計算に戻る
 
 export interface PersonField {
   /** 接頭辞（'h0.'）を除いたフィールド名。複合欄は保存時に接尾辞が付く */
@@ -116,12 +117,20 @@ export const PERSON_ATTRS: readonly PersonField[] = [
   },
   {
     field: 'realChild', name: '実子とみなす養子', control: 'flag',
-    checkLabel: '特別養子・配偶者の連れ子・代襲相続人のいずれか',
-    note: '続柄が「90 養子」の人だけ。印を付けると養子の数の制限を受けません',
+    checkLabel: '特別養子・連れ子・代襲相続人',
+    note: '養子の数の制限を受けません（続柄「90 養子」の人）',
   },
   {
     field: 'renounced', name: '相続の放棄', control: 'flag', checkLabel: '相続の放棄をした',
     note: '第2表の法定相続人の数は、放棄がなかったものとして数えます',
+  },
+  {
+    field: 'law', name: '法定相続分（税法上）', control: 'fraction',
+    note: '第2表④⑤に印刷します。続柄から自動で入り、直せば手入力が優先します',
+  },
+  {
+    field: 'civil', name: '相続分（民法上）', control: 'fraction',
+    note: '未分割の財産の按分に使います（相法55条）。放棄を反映します',
   },
   {
     field: 'disability', name: '障害者の区分', control: 'select', options: DISABILITY_OPTIONS,
@@ -180,6 +189,7 @@ const CONTROL_FIELDS: Record<PersonControl, (field: string) => string[]> = {
   tel: (field) => [field],
   address: (field) => [field],
   causes: () => PERSON_CAUSES.map((cause) => cause.field),
+  fraction: (field) => [`${field}Num`, `${field}Den`],
 };
 
 /** この画面が扱う用紙側のフィールド名（接頭辞なし） */

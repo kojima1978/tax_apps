@@ -290,6 +290,25 @@ describe('付表の価額の自動計算', () => {
   });
 });
 
+describe('computeAll 未分割財産の按分は民法上の相続分による（相法55条）', () => {
+  const heirs: Values[] = [
+    { name: '甲', relation: '01', isLawful: '1' },
+    { name: '乙', relation: '11', isLawful: '1' },
+    { name: '丙', relation: '12', isLawful: '1', renounced: '1' },
+  ];
+  const details = { table11f1: [{ kindCode: '13', value: '12000000' }] };
+
+  it('放棄した人を除いて分け直す（税法上の1/2・1/4・1/4では分けない）', () => {
+    const result = computeAll({}, heirs, ['table11f1'], details);
+    expect(result.heirs.map((heir) => heir.t11v2)).toEqual(['6000000', '6000000', '']);
+  });
+
+  it('第2表④の法定相続分は放棄がなかったものとしたまま', () => {
+    const result = computeAll({}, heirs, ['table11f1'], details);
+    expect(result.lawful.map((row) => `${row.num}/${row.den}`)).toEqual(['1/2', '1/4', '1/4']);
+  });
+});
+
 describe('取得者ごとの割合からの按分', () => {
   // 3で割り切れない価額（100.00 × 150,001 ＝ 15,000,100円）にして端数の寄せ方まで見る
   const land = {

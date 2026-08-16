@@ -103,6 +103,51 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
     </label>
   );
 
+  /**
+   * 分数の欄（分子／分母）。表示しているのは手入力があればそれ、無ければ自動候補。
+   *
+   * 片方だけ打つと残りが空のまま手入力に切り替わってしまうので、そのときはもう一方へ
+   * 今表示している値（＝自動候補）を書き移す。両方を空にすれば自動候補に戻る。
+   */
+  const fraction = (base: string, label: string) => {
+    const parts = [
+      { field: `${base}Num`, name: '分子' },
+      { field: `${base}Den`, name: '分母' },
+    ];
+    const setPart = (field: string, value: string) => {
+      parts.forEach((part) => {
+        if (part.field !== field && get(part.field) !== '') set(part.field, get(part.field));
+      });
+      set(field, digits(value, 6));
+    };
+    return (
+      <span className="dpanel__parts">
+        {parts.map((part, i) => (
+          <span className="dpanel__part" key={part.field}>
+            {i > 0 && <span className="dpanel__slash">／</span>}
+            <input
+              className="dpanel__input"
+              style={boxWidth(4)}
+              value={get(part.field)}
+              inputMode="numeric"
+              aria-label={`${label}（${part.name}）`}
+              onChange={(e) => setPart(part.field, e.target.value)}
+            />
+          </span>
+        ))}
+        {get(`${base}Override`) === '1' && (
+          <button
+            type="button"
+            className="app-btn"
+            onClick={() => parts.forEach((part) => set(part.field, ''))}
+          >
+            自動に戻す
+          </button>
+        )}
+      </span>
+    );
+  };
+
   /** 欄の種類ごとの入力（用紙側のセルと同じ区切り・同じ桁数にそろえる） */
   const control = (field: PersonField) => {
     switch (field.control) {
@@ -110,6 +155,8 @@ export function PersonPanel({ index, total, prefix, g, u, onSelect, onClose }: P
         return select(field.field, field.name, field.options ?? []);
       case 'flag':
         return <span className="dpanel__checks">{checkbox(field.field, field.checkLabel ?? field.name)}</span>;
+      case 'fraction':
+        return fraction(field.field, field.name);
       case 'causes':
         return <span className="dpanel__checks">{PERSON_CAUSES.map((cause) => checkbox(cause.field, cause.name))}</span>;
       case 'birth':

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adoptionCounted, autoLawfulShares, type Member } from './lawfulShare';
+import { adoptionCounted, autoLawfulShares, civilShares, type Member } from './lawfulShare';
 
 /** '1/2' の並びで見比べる（undefined は「自動では決められない」） */
 const shares = (...relations: string[]): string[] | undefined => (
@@ -57,6 +57,35 @@ describe('adoptionCounted 養子の数の制限（相法15条2項）', () => {
 
   it('孫は実子ではないので、養子は2人まで数える', () => {
     expect(counted('30', '90', '90')).toEqual([true, true, true]);
+  });
+});
+
+describe('civilShares 民法上の相続分（相法55条の按分）', () => {
+  /** 続柄コードの並びから相続分を見る。'11-' は放棄した人、'90*' は実子とみなされる養子 */
+  const civil = (...codes: string[]): (string | null)[] | undefined => civilShares(
+    codes.map((code): Member => ({
+      relation: code.replace(/[-*]/g, ''),
+      renounced: code.endsWith('-'),
+      realChild: code.endsWith('*'),
+    })),
+  )?.map((share) => (share === null ? null : `${share.num}/${share.den}`));
+
+  it('放棄した人がいなければ法定相続分と同じ', () => {
+    expect(civil('01', '11', '12')).toEqual(['1/2', '1/4', '1/4']);
+  });
+
+  it('子の1人が放棄すると、残った人で分け直す', () => {
+    // 税法上の法定相続分（1/2・1/4・1/4）を按分に使うと配偶者2/3・子A1/3になってしまう
+    expect(civil('01', '11', '12-')).toEqual(['1/2', '1/2', null]);
+  });
+
+  it('養子の数の制限は受けない', () => {
+    expect(civil('01', '11', '90', '90')).toEqual(['1/2', '1/6', '1/6', '1/6']);
+  });
+
+  it('その順位の血族が全員放棄したときは自動では決められない', () => {
+    // 相続人は次順位（直系尊属・兄弟姉妹）へ移るが、その人は第2表④に載らないので分からない
+    expect(civil('01', '11-')).toBeUndefined();
   });
 });
 

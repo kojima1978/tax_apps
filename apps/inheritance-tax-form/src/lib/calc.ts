@@ -37,7 +37,9 @@ import {
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
 import { DISABILITY_GENERAL, DISABILITY_SPECIAL } from '../forms/person';
-import { adoptionCounted, autoLawfulShares, type Member } from './lawfulShare';
+import {
+  adoptionCounted, autoLawfulShares, civilShares, type Member, type Share,
+} from './lawfulShare';
 
 export type Values = Record<string, string>;
 
@@ -586,26 +588,78 @@ export function lawfulMembers(heirs: readonly Values[]): LawfulMember[] {
   return picked.map(({ heir, index }, i) => ({ index, heir, counted: counted[i] === true }));
 }
 
+/**
+ * 表示する分数を決める。手入力があればそちらを使い、消せば自動候補に戻る（付表の価額と同じ扱い）。
+ *
+ * @param auto 自動候補。`undefined` は自動では決められない（手で入れてもらう）、
+ *   `null` は自動で決めた結果「相続分なし」（放棄した人）
+ * @returns `num` `den` と、自動候補が出せるか（`autoable`）・手入力で上書きしているか（`override`）
+ */
+function pickShare(auto: Share | null | undefined, manualNum: string, manualDen: string): Values {
+  const manual = manualNum !== '' || manualDen !== '';
+  const determined = auto !== undefined;
+  if (manual || !determined) {
+    return {
+      num: manualNum,
+      den: manualDen,
+      autoable: determined ? '1' : '',
+      override: manual && determined ? '1' : '',
+    };
+  }
+  return {
+    num: auto === null ? '' : str(auto.num),
+    den: auto === null ? '' : str(auto.den),
+    autoable: '1',
+    override: '',
+  };
+}
+
 export function deriveLawful(heirs: readonly Values[]): Values[] {
   const members = lawfulMembers(heirs).filter((member) => member.counted);
   const autos = autoLawfulShares(members.map(({ heir }) => heir.relation ?? ''));
-  return members.map(({ heir, index }, i) => {
-    const auto = autos?.[i];
-    const manualNum = (heir.lawNum ?? '').trim();
-    const manualDen = (heir.lawDen ?? '').trim();
-    const manual = manualNum !== '' || manualDen !== '';
-    const useAuto = !manual && auto !== undefined;
-    return {
+  return members.map(({ heir, index }, i) => ({
+    source: str(index),
+    name: heir.name ?? '',
+    rel: heir.relation ?? '',
+    renounced: heir.renounced ?? '',
+    ...pickShare(autos?.[i], (heir.lawNum ?? '').trim(), (heir.lawDen ?? '').trim()),
+  }));
+}
+
+/**
+ * 民法上の相続分。未分割の財産の按分（相法55条）にだけ使い、様式には印刷しない。
+ *
+ * 自動候補を出せるのは「法定相続人」の印が付いた人の分だけだが、行は全員分作る。
+ * ある順位の血族が全員放棄すると相続人は次順位へ移り、その人は第2表④に載らない（＝印が無い）ので、
+ * そういう場合でも手入力だけで相続分を持てるようにしておく。
+ *
+ * @param lawful 税法上の法定相続分（`deriveLawful`）。民法上の相続分が自動でも手入力でも
+ *   決まらない人の按分に使う。放棄も養子の数の制限も無ければ両者は同じ値なので、
+ *   続柄を入れずに第2表④の分数だけ手で入れた入力でも従来どおり按分できる
+ */
+export function deriveCivil(heirs: readonly Values[], lawful: readonly Values[]): Values[] {
+  const lawByIndex = new Map(lawful.map((row) => [Number(row.source), row]));
+  const picked = lawfulMembers(heirs);
+  const autos = civilShares(picked.map(({ heir }) => memberOf(heir)));
+  const autoByIndex = new Map<number, Share | null>();
+  if (autos !== undefined) {
+    picked.forEach(({ index }, i) => autoByIndex.set(index, autos[i] ?? null));
+  }
+  return heirs.map((heir, index) => {
+    const row: Values = {
       source: str(index),
       name: heir.name ?? '',
-      rel: heir.relation ?? '',
-      renounced: heir.renounced ?? '',
-      num: useAuto ? str(auto.num) : manualNum,
-      den: useAuto ? str(auto.den) : manualDen,
-      // 自動候補が出せるか（画面の手掛かりの出し分け）と、それを手入力で上書きしているか
-      autoable: auto === undefined ? '' : '1',
-      override: manual && auto !== undefined ? '1' : '',
+      ...pickShare(
+        autoByIndex.has(index) ? autoByIndex.get(index)! : undefined,
+        (heir.civilNum ?? '').trim(),
+        (heir.civilDen ?? '').trim(),
+      ),
     };
+    // 自動候補も手入力も無い（＝相続分が空のまま）人だけ、税法上の法定相続分で代える。
+    // 放棄した人は自動で「相続分なし」と決まっている（autoable が立つ）ので代えない
+    if (row.autoable === '1' || row.num !== '' || row.den !== '') return row;
+    const law = lawByIndex.get(index);
+    return law === undefined ? row : { ...row, num: law.num ?? '', den: law.den ?? '' };
   });
 }
 
@@ -894,22 +948,21 @@ function sumDetails(details: Values[]): number[] {
  *
  * 未分割の財産＝付表の明細のうち「分割が確定した財産」に取得者が1人も入っていない行。
  * その価額の合計を、第11表2の（注）3のとおり各相続人が相続分に応じて取得するものとして按分する。
- * 相続分は第2表④の法定相続分。放棄した人は相続人ではないので除き、残った人の相続分の合計で
- * 割り直す（第2表④は放棄がなかったものとした場合の一覧なので、そのままでは合計が1にならない）。
+ *
+ * ここで使う相続分は**民法上の相続分**（相法55条）であって、第2表④の法定相続分ではない。
+ * 第2表④は放棄がなかったものとした場合の一覧で、養子の数の制限も受けているため、
+ * 放棄や養子がいる相続では割合そのものが変わる。`deriveCivil` が別に求めている。
  * 円未満は切り捨て、差額は項番のいちばん若い相続人に寄せて合計を一致させる。
  */
-function computeUnsplit(details: Values[], lawful: Values[]): number[] {
+function computeUnsplit(details: Values[], civil: Values[]): number[] {
   const total = details.reduce((sum, item) => (
     detailShares(item).length > 0 ? sum : sum + num(item.value)
   ), 0);
   const shares: { no: number; share: number }[] = [];
-  for (const row of lawful) {
-    if (row.renounced === '1') continue;
-    const source = row.source ?? '';
-    if (!/^\d+$/.test(source)) continue; // 'manual'（旧入力）は第1表の人と結び付いていない
+  for (const row of civil) {
     const den = num(row.den);
     if (den <= 0) continue;
-    shares.push({ no: Number(source) + 1, share: num(row.num) / den });
+    shares.push({ no: Number(row.source) + 1, share: num(row.num) / den });
   }
   shares.sort((a, b) => a.no - b.no);
   const denominator = shares.reduce((s, x) => s + x.share, 0);
@@ -1656,14 +1709,16 @@ function computeAllWithRatios(
 
   // 第2表④は「財産を取得した人」のうち法定相続人の印が付いた人。行として別に持たず毎回作る
   const linkedLawful = deriveLawful(heirs);
+  // 未分割財産の按分に使う民法上の相続分（放棄を反映し、養子の数の制限は受けない）
+  const linkedCivil = deriveCivil(heirs, linkedLawful);
 
   // 第11表2① ← 付表の「分割が確定した財産」。財産の明細書（付表1〜4）だけを合計する
   // ＝ 明細を配列で持つ様式は他にもあるので、コード表を持つ様式だけに絞る。
   const detailForms = used.filter((id) => id in DETAIL_KINDS && (details[id]?.length ?? 0) > 0);
   const detailItems = detailForms.flatMap((id) => details[id]!.map((item) => resolveDetail(id, item)));
   const detailTotals = sumDetails(detailItems);
-  // 第11表2② ← 付表の未分割の明細を第2表④の相続分で按分したもの
-  const unsplitTotals = computeUnsplit(detailItems, linkedLawful);
+  // 第11表2② ← 付表の未分割の明細を民法上の相続分で按分したもの
+  const unsplitTotals = computeUnsplit(detailItems, linkedCivil);
   // 第13表3①④ ← 同表1・2の明細の「負担する金額」
   const t13 = computeTable13(common, table13Pages(common, heirs.length));
   // 第15表①〜㉘ ← 付表の細目ごとの合計。転記になる欄は手入力の残りを混ぜないよう毎回空に戻す。
@@ -1793,10 +1848,17 @@ function computeAllWithRatios(
   // 第2表④の行はその人自身の欄なので、⑤⑥⑦⑨⑩をその人の値として持たせる
   // （様式側は `h{n}.lawNum` … を参照する。分数は手入力があればそれ、無ければ自動候補）
   const byHeir = new Map(table2.lawful.map((row) => [Number(row.source), row]));
+  // 民法上の相続分は様式に印刷しないが、自動候補を登録画面に出すのでその人の値として持たせる
+  const civilByHeir = new Map(linkedCivil.map((row) => [Number(row.source), row]));
   const withLawful = final.map((heir, i): Values => {
-    const row = byHeir.get(i);
-    return row === undefined ? heir : {
+    const civil = civilByHeir.get(i);
+    const withCivil: Values = civil === undefined ? heir : {
       ...heir,
+      civilNum: civil.num ?? '', civilDen: civil.den ?? '', civilOverride: civil.override ?? '',
+    };
+    const row = byHeir.get(i);
+    return row === undefined ? withCivil : {
+      ...withCivil,
       lawNum: row.num ?? '', lawDen: row.den ?? '', lawOverride: row.override ?? '',
       lawV6: row.v6 ?? '', lawV7: row.v7 ?? '', lawV9: row.v9 ?? '', lawV10: row.v10 ?? '',
     };

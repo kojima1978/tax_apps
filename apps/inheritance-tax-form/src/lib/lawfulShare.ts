@@ -93,6 +93,13 @@ function reduce({ num, den }: Share): Share {
   return a === 0 ? { num, den } : { num: num / a, den: den / a };
 }
 
+/** 並びの中に出てくる血族の順位（配偶者と、判別できない続柄を除く） */
+function bloodRanks(relations: readonly string[]): Blood[] {
+  return [...new Set(relations.map(rankOf).filter(
+    (rank): rank is Blood => rank !== 'spouse' && rank !== 'unknown',
+  ))];
+}
+
 /**
  * 法定相続分を続柄から求める。並びは渡した順のまま。
  *
@@ -109,9 +116,7 @@ export function autoLawfulShares(relations: readonly string[]): Share[] | undefi
 
   // 血族は最先順位の1区分だけが相続人になる。混ざっていたら自動では決められない
   // （父母と祖父母のように、本来は片方しか相続人にならない組み合わせも含む）
-  const bloods = [...new Set(ranks.filter(
-    (rank): rank is Blood => rank !== 'spouse' && rank !== 'unknown', // 'unknown' は上で返している
-  ))];
+  const bloods = bloodRanks(relations);
   if (bloods.length > 1) return undefined;
 
   const blood = bloods[0];
@@ -129,4 +134,35 @@ export function autoLawfulShares(relations: readonly string[]): Share[] | undefi
   const each = reduce({ num: bloodTotal.num, den: bloodTotal.den * count });
 
   return ranks.map((rank) => (rank === 'spouse' ? reduce(spouse!) : each));
+}
+
+/**
+ * 民法上の相続分。未分割の財産を各人に按分するのに使う（相法55条）。
+ *
+ * 第2表④⑤の法定相続分（税法上）との違いは2つ。**放棄を反映する**（放棄した人は
+ * 相続人ではないので相続分を持たない）ことと、**養子の数の制限を受けない**こと。
+ * 制限の対象になった養子も民法上は相続人なので、呼ぶ側は制限前の一覧を渡す。
+ *
+ * @returns 各人の相続分（`members` と同じ並び）。放棄した人は null。
+ *   決められないときは全体で undefined（空欄のままにして手で入れてもらう）
+ */
+export function civilShares(members: readonly Member[]): (Share | null)[] | undefined {
+  const alive = members.filter((member) => !member.renounced);
+  if (alive.length === members.length) return autoLawfulShares(members.map((m) => m.relation));
+
+  // ある順位の血族が全員放棄すると相続人は次順位へ移るが、次順位の人は第2表④には載らない。
+  // 「もともと居ない」のか「居るが未登録」なのかがここからは分からないので自動では決めない
+  const before = bloodRanks(members.map((m) => m.relation));
+  const after = bloodRanks(alive.map((m) => m.relation));
+  if (before.length > 0 && after.length === 0) return undefined;
+
+  const shares = autoLawfulShares(alive.map((m) => m.relation));
+  if (shares === undefined) return undefined;
+  let next = 0;
+  return members.map((member) => {
+    if (member.renounced) return null;
+    const share = shares[next] ?? null;
+    next += 1;
+    return share;
+  });
 }
