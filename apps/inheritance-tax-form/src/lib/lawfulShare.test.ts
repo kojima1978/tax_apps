@@ -1,9 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { adoptionCounted, autoLawfulShares, civilShares, type Member } from './lawfulShare';
+import {
+  SUBSTITUTE_CHILD, SUBSTITUTE_SIBLING, adoptionCounted, autoLawfulShares, civilShares, type Member,
+} from './lawfulShare';
+
+/**
+ * 続柄コードの後ろに記号を付けて、続柄以外の事実を表す。
+ *
+ * - `11-` 相続の放棄をした
+ * - `90*` 実子とみなされる養子
+ * - `61~` 半血の兄弟姉妹
+ * - `30<甲` 子の代襲相続人（被代襲者は甲）
+ * - `99>甲` 兄弟姉妹の代襲相続人（被代襲者は甲）
+ */
+const member = (code: string): Member => {
+  const substitute = /[<>]/.exec(code);
+  return {
+    relation: code.replace(/[-*~<>].*$/, ''),
+    renounced: code.endsWith('-'),
+    realChild: code.endsWith('*'),
+    halfBlood: code.endsWith('~'),
+    substitute: substitute === null ? '' : (substitute[0] === '<' ? SUBSTITUTE_CHILD : SUBSTITUTE_SIBLING),
+    substituteFor: substitute === null ? '' : code.slice(substitute.index + 1).replace('~', ''),
+  };
+};
 
 /** '1/2' の並びで見比べる（undefined は「自動では決められない」） */
-const shares = (...relations: string[]): string[] | undefined => (
-  autoLawfulShares(relations)?.map((share) => `${share.num}/${share.den}`)
+const shares = (...codes: string[]): string[] | undefined => (
+  autoLawfulShares(codes.map(member))?.map((share) => `${share.num}/${share.den}`)
 );
 
 describe('autoLawfulShares 民法900条の割合', () => {
@@ -33,10 +56,7 @@ describe('autoLawfulShares 民法900条の割合', () => {
 });
 
 describe('adoptionCounted 養子の数の制限（相法15条2項）', () => {
-  /** 続柄コードの並びから法定相続人を作る。'90*' は実子とみなされる養子 */
-  const counted = (...codes: string[]): boolean[] => adoptionCounted(codes.map((code): Member => ({
-    relation: code.replace('*', ''), renounced: false, realChild: code.endsWith('*'),
-  })));
+  const counted = (...codes: string[]): boolean[] => adoptionCounted(codes.map(member));
 
   it('実子がいるときは養子1人まで', () => {
     expect(counted('01', '11', '90', '90')).toEqual([true, true, true, false]);
@@ -60,15 +80,47 @@ describe('adoptionCounted 養子の数の制限（相法15条2項）', () => {
   });
 });
 
+describe('autoLawfulShares 代襲相続（民法901条）', () => {
+  it('孫1人が子1人を代襲すると、その子の分をそのまま取る', () => {
+    expect(shares('01', '11', '30<乙')).toEqual(['1/2', '1/4', '1/4']);
+  });
+
+  it('孫2人が同じ子を代襲すると、その子の1人分を分け合う', () => {
+    expect(shares('01', '11', '30<乙', '30<乙')).toEqual(['1/2', '1/4', '1/8', '1/8']);
+  });
+
+  it('別々の子を代襲した孫は、それぞれ1人分を取る', () => {
+    expect(shares('30<乙', '30<丙')).toEqual(['1/2', '1/2']);
+  });
+
+  it('甥姪（続柄コードが無いので「99 その他」）も兄弟姉妹の代襲として扱える', () => {
+    expect(shares('01', '61', '99>弟')).toEqual(['3/4', '1/8', '1/8']);
+  });
+
+  it('代襲相続人が2人以上いて被代襲者が空なら自動では決められない', () => {
+    // 同じ人を代襲したのか別々の人を代襲したのかで結果が変わる
+    expect(shares('01', '30<', '30<')).toBeUndefined();
+  });
+});
+
+describe('autoLawfulShares 半血の兄弟姉妹（民法900条4号但書）', () => {
+  it('半血は全血の半分', () => {
+    expect(shares('01', '61', '62~')).toEqual(['3/4', '1/6', '1/12']);
+  });
+
+  it('配偶者がいなければ全血2・半血1の比で分ける', () => {
+    expect(shares('61', '62~', '63~')).toEqual(['1/2', '1/4', '1/4']);
+  });
+
+  it('半血の兄弟姉妹を代襲した甥姪も半分のまま', () => {
+    expect(shares('61', '99>弟', '99>弟')).toEqual(['1/2', '1/4', '1/4']);
+    expect(shares('61', '99>弟~', '99>弟~')).toEqual(['2/3', '1/6', '1/6']);
+  });
+});
+
 describe('civilShares 民法上の相続分（相法55条の按分）', () => {
-  /** 続柄コードの並びから相続分を見る。'11-' は放棄した人、'90*' は実子とみなされる養子 */
-  const civil = (...codes: string[]): (string | null)[] | undefined => civilShares(
-    codes.map((code): Member => ({
-      relation: code.replace(/[-*]/g, ''),
-      renounced: code.endsWith('-'),
-      realChild: code.endsWith('*'),
-    })),
-  )?.map((share) => (share === null ? null : `${share.num}/${share.den}`));
+  const civil = (...codes: string[]): (string | null)[] | undefined => civilShares(codes.map(member))
+    ?.map((share) => (share === null ? null : `${share.num}/${share.den}`));
 
   it('放棄した人がいなければ法定相続分と同じ', () => {
     expect(civil('01', '11', '12')).toEqual(['1/2', '1/4', '1/4']);

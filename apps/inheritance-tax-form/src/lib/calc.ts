@@ -38,7 +38,8 @@ import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15'
 import { RATE_BRACKETS } from '../forms/table2';
 import { DISABILITY_GENERAL, DISABILITY_SPECIAL } from '../forms/person';
 import {
-  adoptionCounted, autoLawfulShares, civilShares, type Member, type Share,
+  SUBSTITUTE_CHILD, SUBSTITUTE_SIBLING, adoptionCounted, autoLawfulShares, civilShares,
+  type Member, type Share,
 } from './lawfulShare';
 
 export type Values = Record<string, string>;
@@ -576,6 +577,10 @@ const memberOf = (heir: Values): Member => ({
   relation: heir.relation ?? '',
   renounced: heir.renounced === '1',
   realChild: heir.realChild === '1',
+  substitute: heir.substitute === SUBSTITUTE_CHILD || heir.substitute === SUBSTITUTE_SIBLING
+    ? heir.substitute : '',
+  substituteFor: heir.substituteFor ?? '',
+  halfBlood: heir.halfBlood === '1',
 });
 
 /**
@@ -616,7 +621,7 @@ function pickShare(auto: Share | null | undefined, manualNum: string, manualDen:
 
 export function deriveLawful(heirs: readonly Values[]): Values[] {
   const members = lawfulMembers(heirs).filter((member) => member.counted);
-  const autos = autoLawfulShares(members.map(({ heir }) => heir.relation ?? ''));
+  const autos = autoLawfulShares(members.map(({ heir }) => memberOf(heir)));
   return members.map(({ heir, index }, i) => ({
     source: str(index),
     name: heir.name ?? '',

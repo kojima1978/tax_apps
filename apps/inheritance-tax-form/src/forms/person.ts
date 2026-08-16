@@ -11,6 +11,7 @@
  */
 
 import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS, RELATION_OPTIONS } from '../data/codes';
+import { SUBSTITUTE_CHILD, SUBSTITUTE_SIBLING } from '../lib/lawfulShare';
 
 /** 入力欄の種類 */
 export type PersonControl =
@@ -35,6 +36,8 @@ export interface PersonField {
   checkLabel?: string;
   /** 欄の右に添える説明 */
   note?: string;
+  /** ここに挙げた欄が空でないときだけ表示する（当てはまらない人には出さない） */
+  showIf?: string;
 }
 
 /**
@@ -96,6 +99,15 @@ export const PERSON_FIELDS: readonly PersonField[] = [
 export const DISABILITY_GENERAL = 'general';
 export const DISABILITY_SPECIAL = 'special';
 
+/**
+ * 代襲相続人の区分。孫の続柄コードは「30 孫」だが、甥姪にはコードが無く「99 その他」に
+ * なるため、誰の代わりに相続するのかは続柄からは決められない。ここで選んでもらう。
+ */
+export const SUBSTITUTE_OPTIONS = [
+  { value: SUBSTITUTE_CHILD, label: '子の代襲相続人（孫・ひ孫）' },
+  { value: SUBSTITUTE_SIBLING, label: '兄弟姉妹の代襲相続人（甥・姪）' },
+] as const;
+
 export const DISABILITY_OPTIONS = [
   { value: DISABILITY_GENERAL, label: '一般障害者' },
   { value: DISABILITY_SPECIAL, label: '特別障害者' },
@@ -119,6 +131,18 @@ export const PERSON_ATTRS: readonly PersonField[] = [
     field: 'realChild', name: '実子とみなす養子', control: 'flag',
     checkLabel: '特別養子・連れ子・代襲相続人',
     note: '養子の数の制限を受けません（続柄「90 養子」の人）',
+  },
+  {
+    field: 'substitute', name: '代襲相続', control: 'select', options: SUBSTITUTE_OPTIONS,
+    note: '被代襲者の順位を継ぎます（民法901条）',
+  },
+  {
+    field: 'substituteFor', name: '被代襲者の氏名', control: 'text', showIf: 'substitute',
+    note: '同じ人を代襲した人どうしで1人分を分け合います',
+  },
+  {
+    field: 'halfBlood', name: '半血の兄弟姉妹', control: 'flag', checkLabel: '父母の一方だけが同じ',
+    note: '全血の半分になります（民法900条4号但書）',
   },
   {
     field: 'renounced', name: '相続の放棄', control: 'flag', checkLabel: '相続の放棄をした',

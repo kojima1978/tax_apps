@@ -247,6 +247,8 @@ export function PersonPanel({
   };
 
   const fieldRow = (field: PersonField) => {
+    // 当てはまる人にだけ出す欄（代襲相続を選んだ人の「被代襲者の氏名」など）
+    if (field.showIf !== undefined && get(field.showIf) === '') return null;
     // 複合欄（生年月日・郵便番号など）は入力欄が複数あるので、見出しは特定の欄に結び付けない
     const single = field.control === 'text' || field.control === 'select';
     return (
