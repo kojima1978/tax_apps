@@ -38,6 +38,19 @@ export const V = {
 /** 人物ブロック1列の幅（％）。左右どちらも同じ幅で、内部の割付も完全に一致する。 */
 export const COL_W = V.MID - V.LBL;
 
+/**
+ * 様式1枚に載る1行の在りか。
+ *
+ * 明細は「行そのもの」を1要素とする配列（`FormData.details`）で持ち、その要素を指す
+ * 接頭辞をここで渡す。どの行が何番目かは枚数から決まるので、決めるのは呼ぶ側。
+ */
+export interface FormRow {
+  /** フィールド接頭辞（'table9detail#0.'・'h0.' など） */
+  prefix: string;
+  /** アクセシブル名の主語（「保険金1」「1人目」など） */
+  label: string;
+}
+
 /** 上下・左右（％）を指定してセルを作る。 */
 export function mk(y: readonly [number, number], x: readonly [number, number], rest: Partial<GridCell> = {}): GridCell {
   return { top: y[0], left: x[0], width: x[1] - x[0], height: y[1] - y[0], ...rest };

@@ -14,7 +14,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, dateSelect, label, mk } from './geometry';
+import { code, dateSelect, label, mk, type FormRow } from './geometry';
 
 export const TABLE13_FORM_CODE = 'NTA0KSE130010020';
 export const TABLE13_TITLE = '相続税の申告書　第13表';
@@ -349,12 +349,7 @@ function sumRows(totals: string, people: readonly Table13Row[], last: boolean): 
 }
 
 /** 様式1枚に載る1行（承継した人・債務・葬式費用）の在りか */
-export interface Table13Row {
-  /** フィールド接頭辞（'h0.'・'table13debt#0.' など） */
-  prefix: string;
-  /** アクセシブル名の主語（「1人目」「債務1」など） */
-  label: string;
-}
+export type Table13Row = FormRow;
 
 /** 第13表1枚に載る行（枚数から決まるので、どの行が何番目かは呼ぶ側が決める） */
 export interface Table13Rows {

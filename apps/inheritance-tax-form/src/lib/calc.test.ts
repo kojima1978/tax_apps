@@ -499,3 +499,37 @@ describe('computeAll 第13表1・2の集計', () => {
       .toEqual(['3000000', '1000000']);
   });
 });
+
+describe('computeAll 第9表2（課税される金額の計算）', () => {
+  /** 法定相続人2人 ⇒ Ⓐ＝1,000万円。受取人は `resolveHeirRefs` を通った後の「何人目か」 */
+  const heirs: Values[] = [{ ...third, name: '甲' }, { ...third, name: '乙' }];
+  const rows: Values[] = [
+    { name: 'A生命', amt: '9000000', who: '1' },
+    { name: 'B生命', amt: '3000000', who: '2' },
+  ];
+
+  it('1の明細を受取人ごとに合計してⒷ・②③を出す', () => {
+    const result = computeAll({}, heirs, ['table9'], { table9detail: rows });
+
+    expect(result.totals.t9A).toBe('10');
+    expect(result.totals.t9B).toBe('12000000');
+    // Ⓑ＞Ⓐ なので②はⒶの按分（1円未満切捨て）
+    expect([result.totals.t9r0v2, result.totals.t9r1v2]).toEqual(['7500000', '2500000']);
+    expect([result.totals.t9r0v3, result.totals.t9r1v3]).toEqual(['1500000', '500000']);
+    expect(result.totals.t9v3Total).toBe('2000000');
+  });
+
+  it('明細を並べ替えても結果は変わらない（値は行そのものが持つ）', () => {
+    const swapped = { table9detail: [rows[1]!, rows[0]!] };
+
+    expect(computeAll({}, heirs, ['table9'], swapped).totals.t9r0v2).toBe('7500000');
+  });
+
+  it('相続人以外が受け取った分は2に載せない（非課税の対象外）', () => {
+    const others: Values[] = [{ ...third, name: '甲' }, { name: '丙' }];
+    const result = computeAll({}, others, ['table9'], { table9detail: rows });
+
+    expect(result.totals.t9B).toBe('9000000');
+    expect(result.totals.t9r1No).toBe('');
+  });
+});

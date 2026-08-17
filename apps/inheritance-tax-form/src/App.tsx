@@ -4,6 +4,7 @@ import { DetailPanel } from './components/DetailPanel';
 import { DetailSortPanel } from './components/DetailSortPanel';
 import { PersonPanel } from './components/PersonPanel';
 import { giftYearOptions } from './data/codes';
+import type { FormRow } from './forms/geometry';
 import {
   DISABILITY_GENERAL, DISABILITY_SPECIAL, candidateGroups, personActionPrefix,
 } from './forms/person';
@@ -46,11 +47,12 @@ import {
   TABLE1112F1B_TITLE, buildTable1112f1b,
 } from './forms/table1112f1b';
 import {
-  TABLE10_ASPECT, TABLE10_EDITION, TABLE10_FORM_CODE, TABLE10_ROWS, TABLE10_SUBTITLE, TABLE10_TITLE,
-  buildTable10,
+  TABLE10_ASPECT, TABLE10_DETAIL_FORM, TABLE10_EDITION, TABLE10_FORM_CODE, TABLE10_ROWS, TABLE10_SUBTITLE,
+  TABLE10_TITLE, buildTable10,
 } from './forms/table10';
 import {
-  TABLE9_ASPECT, TABLE9_EDITION, TABLE9_FORM_CODE, TABLE9_ROWS, TABLE9_SUBTITLE, TABLE9_TITLE, buildTable9,
+  TABLE9_ASPECT, TABLE9_DETAIL_FORM, TABLE9_EDITION, TABLE9_FORM_CODE, TABLE9_ROWS, TABLE9_SUBTITLE,
+  TABLE9_TITLE, buildTable9,
 } from './forms/table9';
 import {
   TABLE4_ASPECT, TABLE4_EDITION, TABLE4_FORM_CODE, TABLE4_NOTES, TABLE4_PERSONS, TABLE4_SUBTITLE,
@@ -83,9 +85,9 @@ import { detailLabel, detailPrefix, heirIndex, heirLabel, heirPrefix, useFormDat
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  deriveLawful, detailSlots, hasTable112, isEmptyDetail, lawfulMembers, sameValues, table10Pages, table112Pages,
-  table13MinPages, table13Pages, table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9Pages,
-  type Values,
+  deriveLawful, detailSlots, hasTable112, isEmptyDetail, lawfulMembers, sameValues, table10MinPages, table10Pages,
+  table112Pages, table13MinPages, table13Pages, table14Pages, table15Transferred, table42Pages, table4Pages,
+  table88Pages, table9MinPages, table9Pages, type Values,
 } from './lib/calc';
 import { HEIR_ID } from './lib/heirRef';
 
@@ -375,6 +377,14 @@ function Table42Page({ page, whoOptions, g, u, onNavigate }: Table4PageProps) {
   );
 }
 
+/** 明細の行（この用紙に載る `rows` 件）の在りか。接頭辞は明細の配列を指す */
+function detailRows(form: string, page: number, rows: number, name: string): FormRow[] {
+  return Array.from({ length: rows }, (_, r) => {
+    const index = page * rows + r;
+    return { prefix: detailPrefix(form, index), label: `${name}${index + 1}` };
+  });
+}
+
 interface Table9PageProps extends PageProps {
   /** ⒷとⒷに基づく②③の合計は全枚数の通算なので、最終ページにだけ出す */
   last: boolean;
@@ -385,7 +395,7 @@ interface Table9PageProps extends PageProps {
 /** 第9表1枚（保険金の明細5件・相続人5人分） */
 function Table9Page({ page, last, whoOptions, g, u, onNavigate }: Table9PageProps) {
   const cells = useMemo(
-    () => buildTable9(COMMON, TOTALS, page, last, whoOptions),
+    () => buildTable9(COMMON, TOTALS, detailRows(TABLE9_DETAIL_FORM, page, TABLE9_ROWS, '保険金'), page, last, whoOptions),
     [page, last, whoOptions],
   );
   return (
@@ -409,7 +419,7 @@ function Table9Page({ page, last, whoOptions, g, u, onNavigate }: Table9PageProp
 /** 第10表1枚（退職手当金などの明細5件・相続人5人分）。構成は第9表と同じ */
 function Table10Page({ page, last, whoOptions, g, u, onNavigate }: Table9PageProps) {
   const cells = useMemo(
-    () => buildTable10(COMMON, TOTALS, page, last, whoOptions),
+    () => buildTable10(COMMON, TOTALS, detailRows(TABLE10_DETAIL_FORM, page, TABLE10_ROWS, '退職手当金'), page, last, whoOptions),
     [page, last, whoOptions],
   );
   return (
@@ -435,14 +445,6 @@ interface Table13PageProps extends PageProps {
   last: boolean;
   /** 「負担する人の氏名」の選択肢（項番を値に、氏名を表示に持つ） */
   whoOptions: GridCell['options'];
-}
-
-/** 明細の行（この用紙に載る `rows` 件）の在りか。接頭辞は明細の配列を指す */
-function detailRows(form: string, page: number, rows: number, name: string) {
-  return Array.from({ length: rows }, (_, r) => {
-    const index = page * rows + r;
-    return { prefix: detailPrefix(form, index), label: `${name}${index + 1}` };
-  });
 }
 
 /** 第13表1枚（債務4件・葬式費用5件・承継した人4人分） */
@@ -853,10 +855,12 @@ export default function App() {
   const t14Pages = table14Pages(data.common);
   /** 第8の8表の枚数（控除・猶予の対象者は相続人の一覧からは分からないので人数からは決めない） */
   const t88Pages = table88Pages(data.common);
-  /** 第9表の枚数（明細も相続人も1枚に5件ずつ） */
-  const t9Pages = table9Pages(data.common);
+  /** 第9表の枚数（明細も相続人も1枚に5件ずつ）と、明細の件数から決まる最低枚数 */
+  const t9Min = table9MinPages(data.details);
+  const t9Pages = table9Pages(data.common, data.details);
   /** 第10表の枚数（第9表と同じく1枚に5件ずつ） */
-  const t10Pages = table10Pages(data.common);
+  const t10Min = table10MinPages(data.details);
+  const t10Pages = table10Pages(data.common, data.details);
   /** 各表の氏名欄（第13表の「負担する人の氏名」など）。値は人のIDで、印字は氏名になる */
   const whoOptions = useMemo(
     (): GridCell['options'] => ['', ...data.heirs.map((heir) => ({ value: heir[HEIR_ID] ?? '', label: heir.name ?? '' }))],
@@ -1108,7 +1112,7 @@ export default function App() {
       <>
         {Array.from({ length: t9Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={t9Pages} onDecrease={() => u('t9Pages', String(t9Pages - 1))} onIncrease={() => u('t9Pages', String(t9Pages + 1))} decreaseDisabled={t9Pages <= 1} increaseDisabled={t9Pages >= MAX_TABLE9_PAGES} detail={`保険金${TABLE9_ROWS}件・相続人${TABLE9_ROWS}人／ページ`} />
+            <PageControl page={page + 1} total={t9Pages} onDecrease={() => u('t9Pages', String(t9Pages - 1))} onIncrease={() => u('t9Pages', String(t9Pages + 1))} decreaseDisabled={t9Pages <= t9Min} increaseDisabled={t9Pages >= MAX_TABLE9_PAGES} detail={`保険金${TABLE9_ROWS}件・相続人${TABLE9_ROWS}人／ページ`} />
             <Table9Page page={page} last={page === t9Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
@@ -1118,7 +1122,7 @@ export default function App() {
       <>
         {Array.from({ length: t10Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={t10Pages} onDecrease={() => u('t10Pages', String(t10Pages - 1))} onIncrease={() => u('t10Pages', String(t10Pages + 1))} decreaseDisabled={t10Pages <= 1} increaseDisabled={t10Pages >= MAX_TABLE10_PAGES} detail={`退職手当金${TABLE10_ROWS}件・相続人${TABLE10_ROWS}人／ページ`} />
+            <PageControl page={page + 1} total={t10Pages} onDecrease={() => u('t10Pages', String(t10Pages - 1))} onIncrease={() => u('t10Pages', String(t10Pages + 1))} decreaseDisabled={t10Pages <= t10Min} increaseDisabled={t10Pages >= MAX_TABLE10_PAGES} detail={`退職手当金${TABLE10_ROWS}件・相続人${TABLE10_ROWS}人／ページ`} />
             <Table10Page page={page} last={page === t10Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}

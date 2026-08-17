@@ -23,7 +23,7 @@ import { SLOTS_BY_KIND, SLOTS_BY_ROW, TABLE1112F1B_OWNERS, TABLE1112F1B_ROWS } f
 import {
   TABLE13_DEBT_FORM, TABLE13_DEBT_ROWS, TABLE13_FUNERAL_FORM, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS,
 } from '../forms/table13';
-import { TABLE10_ROWS } from '../forms/table10';
+import { TABLE10_DETAIL_FORM, TABLE10_ROWS } from '../forms/table10';
 import { TABLE5_FLOOR } from '../forms/table5';
 import {
   TABLE6_COLS, TABLE6_DISABLED_AGE, TABLE6_DISABLED_RATE, TABLE6_MINOR_AGE, TABLE6_MINOR_RATE, TABLE6_SPECIAL_RATE,
@@ -31,7 +31,7 @@ import {
 import { TABLE4_PERSONS, TABLE4_RATE } from '../forms/table4';
 import { TABLE42_BLOCKS, TABLE42_CREDIT_ROWS, TABLE42_PERSONS } from '../forms/table42';
 import { TABLE7_ROWS, TABLE7_SPAN } from '../forms/table7';
-import { TABLE9_ROWS } from '../forms/table9';
+import { TABLE9_DETAIL_FORM, TABLE9_ROWS } from '../forms/table9';
 import { TABLE88_CREDIT_ROWS, TABLE88_DEFERRAL_ROWS, TABLE88_PERSONS } from '../forms/table88';
 import {
   TABLE14_BEQUEST_ROWS, TABLE14_DONATION_ROWS, TABLE14_GIFT_ROWS, TABLE14_PERSONS,
@@ -258,9 +258,22 @@ function computeTable13(details: Record<string, Values[]>): Table13 {
   return out;
 }
 
+/**
+ * 明細を持つ様式の最低枚数。**これより少ない枚数には減らせない**
+ * （減らせてしまうと、用紙に出ていない行が集計にだけ効く）。
+ */
+function detailMinPages(details: Record<string, Values[]>, form: string, rowsPerPage: number): number {
+  return Math.max(1, Math.ceil(filledLength(details[form]) / rowsPerPage));
+}
+
+/** 第9表の最低枚数（1枚に明細5件） */
+export function table9MinPages(details: Record<string, Values[]>): number {
+  return detailMinPages(details, TABLE9_DETAIL_FORM, TABLE9_ROWS);
+}
+
 /** 第9表の枚数。1枚に明細5件・相続人5人しか載らないので、足りなければ用紙を増やす。 */
-export function table9Pages(common: Values): number {
-  return Math.max(1, Math.trunc(num(common.t9Pages)) || 1);
+export function table9Pages(common: Values, details: Record<string, Values[]>): number {
+  return Math.max(Math.trunc(num(common.t9Pages)) || 1, table9MinPages(details));
 }
 
 /**
@@ -296,9 +309,14 @@ export function table88Pages(common: Values): number {
   return Math.max(1, Math.trunc(num(common.t88Pages)) || 1);
 }
 
+/** 第10表の最低枚数（1枚に明細5件） */
+export function table10MinPages(details: Record<string, Values[]>): number {
+  return detailMinPages(details, TABLE10_DETAIL_FORM, TABLE10_ROWS);
+}
+
 /** 第10表の枚数。第9表と同じく1枚に明細5件・相続人5人。 */
-export function table10Pages(common: Values): number {
-  return Math.max(1, Math.trunc(num(common.t10Pages)) || 1);
+export function table10Pages(common: Values, details: Record<string, Values[]>): number {
+  return Math.max(Math.trunc(num(common.t10Pages)) || 1, table10MinPages(details));
 }
 
 /**
@@ -334,26 +352,27 @@ function heirNosOfLawfulHeirs(heirs: readonly Values[]): Set<number> {
  * Ⓑ（①の合計）がⒶ以下なら①がそのまま②の非課税金額になり、超えるときはⒶを①で按分する
  * （1円未満切捨て）。③は①−②。
  *
- * @param p フィールドの接頭辞（'t9' または 't10'）。入力は1の明細 `${p}d{i}Who` `${p}d{i}Amt`、
- *   出力は `${p}A` `${p}B` `${p}r{i}No` `${p}r{i}v1` `${p}r{i}v2` `${p}r{i}v3`
- *   `${p}v2Total` `${p}v3Total`
+ * @param rows 1の明細（`details` の配列。1行が1要素）。使うのは `who` と `amt`
+ * @param p 出力するフィールドの接頭辞（'t9' または 't10'）。`${p}A` `${p}B`
+ *   `${p}r{i}No` `${p}r{i}v1` `${p}r{i}v2` `${p}r{i}v3` `${p}v2Total` `${p}v3Total`
  */
 function computeNonTaxableLimit(
-  common: Values, heirs: readonly Values[], p: string, pages: number, rowsPerPage: number, heirCount: number,
+  rows: readonly Values[], heirs: readonly Values[], p: string, pages: number, rowsPerPage: number,
+  heirCount: number,
 ): Values {
   const out: Values = {};
   // Ⓐ（百万円単位）。法定相続人が未入力のうちは空欄のままにする。
   const aMillion = heirCount > 0 ? 5 * heirCount : 0;
   out[`${p}A`] = aMillion > 0 ? str(aMillion) : '';
 
-  // 1の明細を人ごとに合計する。枚数を減らしたときに残る入力値を混ぜないよう、
-  // 表に出ている行番号だけを走査する。
+  // 1の明細を人ごとに合計する。用紙に出ていない行は存在しない（枚数が明細の件数より
+  // 少なくならない）ので、全件を走査する。
   const lawfulHeirs = heirNosOfLawfulHeirs(heirs);
   const byNo = new Map<number, number>();
-  for (let i = 0; i < pages * rowsPerPage; i += 1) {
-    const no = num(common[`${p}d${i}Who`]);
+  for (const detail of rows) {
+    const no = num(detail.who);
     if (no <= 0 || !lawfulHeirs.has(no)) continue;
-    byNo.set(no, (byNo.get(no) ?? 0) + num(common[`${p}d${i}Amt`]));
+    byNo.set(no, (byNo.get(no) ?? 0) + num(detail.amt));
   }
   const listed = [...byNo.keys()].sort((a, b) => a - b);
 
@@ -1901,8 +1920,12 @@ function computeAllWithRatios(
   const heirCount = num(table2.totals.heirCount);
   Object.assign(
     totals,
-    computeNonTaxableLimit(common, heirs, 't9', table9Pages(common), TABLE9_ROWS, heirCount),
-    computeNonTaxableLimit(common, heirs, 't10', table10Pages(common), TABLE10_ROWS, heirCount),
+    computeNonTaxableLimit(
+      details[TABLE9_DETAIL_FORM] ?? [], heirs, 't9', table9Pages(common, details), TABLE9_ROWS, heirCount,
+    ),
+    computeNonTaxableLimit(
+      details[TABLE10_DETAIL_FORM] ?? [], heirs, 't10', table10Pages(common, details), TABLE10_ROWS, heirCount,
+    ),
   );
   // 第4表（相続税額の加算金額）。⑥は上で求めた各人の⑪への転記元
   Object.assign(totals, table4.totals);

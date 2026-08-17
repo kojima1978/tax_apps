@@ -2,8 +2,9 @@
  * 相続税の申告書 第9表「生命保険金などの明細書」。
  *
  * 1枚に 1保険金などの明細5件・2課税される金額の計算5人分 が載る。
- * どちらも「様式全体の一覧」で人ごとの欄ではないので、第13表と同じく共通欄
- * （'c.' スコープ）に持ち、枚数も共通欄 `t9Pages` で決める。
+ * 1の明細は行を並べ替えられるよう「行そのもの」の配列（`details`）に持つ。
+ * 2は1からの導出で手入力が無いので自動計算欄（'t.' スコープ）。
+ * どちらも人ごとの欄ではないので、枚数は共通欄 `t9Pages` で表全体を1つとして決める。
  * Ⓐ（非課税限度額）とⒷ（①の合計）は全枚数を通した値なので、Ⓑ・②③の合計は
  * **最終ページにだけ値を出す**（第13表と同じ扱い）。
  *
@@ -14,7 +15,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, dateSelect, label, mk } from './geometry';
+import { code, dateSelect, label, mk, type FormRow } from './geometry';
 
 export const TABLE9_FORM_CODE = 'NTA0KSE090010020';
 export const TABLE9_TITLE = '相続税の申告書　第9表';
@@ -23,6 +24,16 @@ export const TABLE9_EDITION = '（令和6年1月分以降用）（R8.7）';
 
 /** 様式1枚に記入できる件数（1の明細・2の相続人とも5行） */
 export const TABLE9_ROWS = 5;
+
+/**
+ * 1 保険金などの明細を持つ配列のID（`FormData.details` のキー）。
+ *
+ * 明細は「行そのもの」を1要素とする配列で持つ。共通欄に `t9d0Amt` のように行の位置を
+ * 欄の名前へ焼き込むと、行を入れ替えるには全部の欄を移し替えるしかなく、1つでも
+ * 移し忘れると別の行の値が混ざる。配列なら並べ替えは要素の移動だけで済む。
+ * （2 課税される金額の計算は1からの導出で手入力が無いので、共通欄のままでよい。）
+ */
+export const TABLE9_DETAIL_FORM = 'table9detail';
 
 const TOP = 207.5;
 const BOTTOM = 1682;
@@ -129,7 +140,7 @@ function sectionHead(top: number, mid: number, bottom: number, heading: string, 
 const cd = (series: string, n: number): string => `${series}${String(n).padStart(2, '0')}`;
 
 /** 1 保険金などの明細（5件） */
-function detailRows(common: string, page: number, whoOptions: GridCell['options']): GridCell[] {
+function detailRows(rows: readonly FormRow[], whoOptions: GridCell['options']): GridCell[] {
   const cols = row(343.5, 381);
   return [
     label(cols, col(X.L, X.ADDR), '保険会社等の所在地'),
@@ -141,18 +152,16 @@ function detailRows(common: string, page: number, whoOptions: GridCell['options'
     ...Array.from({ length: TABLE9_ROWS }, (_unused, r): GridCell[] => {
       const top = DETAIL_Y[r]!;
       const bottom = DETAIL_Y[r + 1]!;
-      const i = page * TABLE9_ROWS + r;
-      const who = `保険金${i + 1}`;
-      const f = `${common}t9d${i}`;
+      const { prefix: f, label: who } = rows[r]!;
       const body = row(top, bottom);
       const head = row(top, top + DATE_HEAD_H);
       const date = row(top + DATE_HEAD_H, bottom);
       const e = 2 + r * 3;
       return [
         code(body, col(X.L, X.C1), cd('E', e)),
-        mk(body, col(X.C1, X.ADDR), { kind: 'input', field: `${f}Addr`, ariaLabel: `${who}の保険会社等の所在地`, align: 'left' }),
+        mk(body, col(X.C1, X.ADDR), { kind: 'input', field: `${f}addr`, ariaLabel: `${who}の保険会社等の所在地`, align: 'left' }),
         code(body, col(X.ADDR, X.C2), cd('E', e + 1)),
-        mk(body, col(X.C2, X.NAME), { kind: 'input', field: `${f}Name`, ariaLabel: `${who}の保険会社等の名称`, align: 'left' }),
+        mk(body, col(X.C2, X.NAME), { kind: 'input', field: `${f}name`, ariaLabel: `${who}の保険会社等の名称`, align: 'left' }),
 
         // 「元号・年・月・日」の見出し帯は明細行ごとに繰り返される（第13表は1行目だけ）
         mk(head, col(X.NAME, X.D_C), {}),
@@ -161,15 +170,15 @@ function detailRows(common: string, page: number, whoOptions: GridCell['options'
         label(head, col(X.Y, X.M), '月', { fontSize: 6 }),
         label(head, col(X.M, X.DATE_R), '日', { fontSize: 6 }),
         code(date, col(X.NAME, X.D_C), cd('N', r + 1)),
-        mk(date, col(X.D_C, X.ERA), { kind: 'input', field: `${f}RecvEra`, ariaLabel: `${who}の受取年月日の元号`, options: ERA_OPTIONS, compactSelectedOption: true }),
-        mk(date, col(X.ERA, X.Y), dateSelect('y', `${f}RecvY`, `${who}の受取年月日（年）`)),
-        mk(date, col(X.Y, X.M), dateSelect('m', `${f}RecvM`, `${who}の受取年月日（月）`)),
-        mk(date, col(X.M, X.DATE_R), dateSelect('d', `${f}RecvD`, `${who}の受取年月日（日）`)),
+        mk(date, col(X.D_C, X.ERA), { kind: 'input', field: `${f}recvEra`, ariaLabel: `${who}の受取年月日の元号`, options: ERA_OPTIONS, compactSelectedOption: true }),
+        mk(date, col(X.ERA, X.Y), dateSelect('y', `${f}recvY`, `${who}の受取年月日（年）`)),
+        mk(date, col(X.Y, X.M), dateSelect('m', `${f}recvM`, `${who}の受取年月日（月）`)),
+        mk(date, col(X.M, X.DATE_R), dateSelect('d', `${f}recvD`, `${who}の受取年月日（日）`)),
 
         code(body, col(X.DATE_R, X.AMT_C), cd('G', r + 1)),
-        mk(body, col(X.AMT_C, X.AMT_R), { kind: 'input', field: `${f}Amt`, ariaLabel: `${who}の受取金額`, commaInteger: true }),
+        mk(body, col(X.AMT_C, X.AMT_R), { kind: 'input', field: `${f}amt`, ariaLabel: `${who}の受取金額`, commaInteger: true }),
         code(body, col(X.AMT_R, X.WHO_C), cd('E', e + 2)),
-        mk(body, col(X.WHO_C, X.R), { kind: 'input', field: `${f}Who`, ariaLabel: `${who}の受取人の氏名`, options: whoOptions, align: 'left', hint: TRANSFER_HINT }),
+        mk(body, col(X.WHO_C, X.R), { kind: 'input', field: `${f}who`, ariaLabel: `${who}の受取人の氏名`, options: whoOptions, align: 'left', hint: TRANSFER_HINT }),
       ];
     }).flat(),
   ];
@@ -259,14 +268,16 @@ function personRows(totals: string, page: number, last: boolean, whoOptions: Gri
 
 /**
  * 第9表のセルを組み立てる。
- * @param common 共通欄のフィールド接頭辞（'c.'）— 1・2とも人ではなく様式全体の一覧
- * @param totals 自動計算欄のフィールド接頭辞（'t.'）— Ⓐ・Ⓑ・②③
+ * @param common 共通欄のフィールド接頭辞（'c.'）— 被相続人の氏名
+ * @param totals 自動計算欄のフィールド接頭辞（'t.'）— Ⓐ・Ⓑ・②③と2の全欄
+ * @param rows この用紙に載る1の明細5件の在りか（明細の配列を指す）
  * @param page 0始まりの枚数
  * @param last 最終ページか（Ⓑと②③の合計はここにだけ出す）
- * @param whoOptions 氏名の選択肢（値は第11表の項番＝入力順の通し番号）
+ * @param whoOptions 氏名の選択肢（値はその人のID。計算へ渡る前に「何人目か」へ直される）
  */
 export function buildTable9(
-  common: string, totals: string, page: number, last: boolean, whoOptions: GridCell['options'],
+  common: string, totals: string, rows: readonly FormRow[], page: number, last: boolean,
+  whoOptions: GridCell['options'],
 ): GridCell[] {
   const decY = row(TOP, 257);
   return [
@@ -279,7 +290,7 @@ export function buildTable9(
     }),
 
     ...sectionHead(257, 280, 343.5, HEAD1, LEAD1),
-    ...detailRows(common, page, whoOptions),
+    ...detailRows(rows, whoOptions),
     mk(row(891, 994.5), col(X.L, X.R), {
       kind: 'label', numberedNotes: NOTES1, align: 'left', fontSize: 7,
     }),
