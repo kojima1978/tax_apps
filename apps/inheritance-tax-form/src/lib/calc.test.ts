@@ -533,3 +533,43 @@ describe('computeAll 第9表2（課税される金額の計算）', () => {
     expect(result.totals.t9r1No).toBe('');
   });
 });
+
+describe('computeAll 第14表（暦年課税分の贈与財産・遺贈・寄附）', () => {
+  const heirs: Values[] = [{ ...third, name: '甲' }, { ...third, name: '乙' }];
+  /** 1の明細（①価額・②特定贈与財産・贈与を受けた人）。受取人は「何人目か」 */
+  const gift: Values[] = [
+    { kind: '土地', amt: '5000000', v2: '2000000', who: '1' },
+    { kind: '現金', amt: '1000000', who: '2' },
+    { kind: '株式', amt: '3000000', who: '1' },
+  ];
+  /** ④は氏名を選んだ枠にだけ合計を出す（同じ人が何行も持てるので明細からは枠が決まらない） */
+  const common: Values = { t14p0Who: '1', t14p1Who: '2' };
+
+  it('③＝①−②を行ごとに出し、④で贈与を受けた人ごとに合計する', () => {
+    const result = computeAll(common, heirs, ['table14'], { table14gift: gift });
+
+    expect([result.totals.t14g0v3, result.totals.t14g1v3, result.totals.t14g2v3])
+      .toEqual(['3000000', '1000000', '3000000']);
+    expect([result.totals.t14p0v4, result.totals.t14p1v4]).toEqual(['6000000', '1000000']);
+    expect(result.totals.t14v4Total).toBe('7000000');
+    // ④は第1表⑤・第15表㊲へ転記する
+    expect(result.heirs[0]!.v5).toBe('6000000');
+  });
+
+  it('明細を並べ替えても各人の④は変わらない（値は行そのものが持つ）', () => {
+    const swapped = { table14gift: [gift[2]!, gift[0]!, gift[1]!] };
+    const result = computeAll(common, heirs, ['table14'], swapped);
+
+    expect([result.totals.t14p0v4, result.totals.t14p1v4]).toEqual(['6000000', '1000000']);
+  });
+
+  it('2と3の合計は明細の価額の通算', () => {
+    const result = computeAll(common, heirs, ['table14'], {
+      table14bequest: [{ amt: '400000' }, { amt: '600000' }],
+      table14donation: [{ amt: '250000' }],
+    });
+
+    expect(result.totals.t14bTotal).toBe('1000000');
+    expect(result.totals.t14dTotal).toBe('250000');
+  });
+});

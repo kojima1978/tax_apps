@@ -34,7 +34,8 @@ import { TABLE7_ROWS, TABLE7_SPAN } from '../forms/table7';
 import { TABLE9_DETAIL_FORM, TABLE9_ROWS } from '../forms/table9';
 import { TABLE88_CREDIT_ROWS, TABLE88_DEFERRAL_ROWS, TABLE88_PERSONS } from '../forms/table88';
 import {
-  TABLE14_BEQUEST_ROWS, TABLE14_DONATION_ROWS, TABLE14_GIFT_ROWS, TABLE14_PERSONS,
+  TABLE14_BEQUEST_FORM, TABLE14_BEQUEST_ROWS, TABLE14_DONATION_FORM, TABLE14_DONATION_ROWS,
+  TABLE14_GIFT_FORM, TABLE14_GIFT_ROWS, TABLE14_PERSONS,
 } from '../forms/table14';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 import { RATE_BRACKETS } from '../forms/table2';
@@ -293,12 +294,24 @@ export function table42Pages(common: Values): number {
 }
 
 /**
- * 第14表の枚数。1枚に1の明細4件・④4人・2の明細2件・3の明細2件。
- * 3つの節がそれぞれ別の件数を持ち、どれが足りなくても用紙を増やすので、
- * 件数からは導出せず表全体で1つの枚数を −／＋ で増減する。
+ * 第14表の最低枚数。1枚に1の明細4件・2の明細2件・3の明細2件。
+ * 枚数は3つの節で1つなので、いちばん足りていない節に合わせる。
  */
-export function table14Pages(common: Values): number {
-  return Math.max(1, Math.trunc(num(common.t14Pages)) || 1);
+export function table14MinPages(details: Record<string, Values[]>): number {
+  return Math.max(
+    detailMinPages(details, TABLE14_GIFT_FORM, TABLE14_GIFT_ROWS),
+    detailMinPages(details, TABLE14_BEQUEST_FORM, TABLE14_BEQUEST_ROWS),
+    detailMinPages(details, TABLE14_DONATION_FORM, TABLE14_DONATION_ROWS),
+  );
+}
+
+/**
+ * 第14表の枚数。1枚に1の明細4件・④4人・2の明細2件・3の明細2件。
+ * ④は明細から件数が決まらない（同じ人が何行も持てる）ので、
+ * 件数だけでは決めず −／＋ で増やせるようにし、明細が載り切る枚数を下限にする。
+ */
+export function table14Pages(common: Values, details: Record<string, Values[]>): number {
+  return Math.max(Math.trunc(num(common.t14Pages)) || 1, table14MinPages(details));
 }
 
 /**
@@ -1664,18 +1677,19 @@ interface Table14 {
  * ①②は贈与税の申告書を書き写す欄なので、この様式も自分の入力だけで完結する。
  * ④は第1表⑤（⑥→Ⓐ→⑦→⑨…の入口）へ転記するため、第4表の2と同じく1周する前に確定させる。
  */
-function computeTable14(common: Values, pages: number): Table14 {
+function computeTable14(common: Values, details: Record<string, Values[]>, pages: number): Table14 {
   const out: Values = {};
   const v5 = new Map<number, string>();
 
   // 1の明細: ③＝①−②（赤字は0）を求めつつ、贈与を受けた人（項番）ごとに合計する
+  const gifts = details[TABLE14_GIFT_FORM] ?? [];
   const byNo = new Map<number, number>();
   for (let i = 0; i < pages * TABLE14_GIFT_ROWS; i += 1) {
-    const f = `t14g${i}`;
-    const has = filled(common, `${f}Amt`) || filled(common, `${f}V2`);
-    const v3 = Math.max(0, num(common[`${f}Amt`]) - num(common[`${f}V2`]));
-    out[`${f}v3`] = has ? str(v3) : '';
-    const no = num(common[`${f}Who`]);
+    const gift = gifts[i] ?? {};
+    const has = filled(gift, 'amt') || filled(gift, 'v2');
+    const v3 = Math.max(0, num(gift.amt) - num(gift.v2));
+    out[`t14g${i}v3`] = has ? str(v3) : '';
+    const no = num(gift.who);
     if (has && no > 0) byNo.set(no, (byNo.get(no) ?? 0) + v3);
   }
 
@@ -1694,12 +1708,14 @@ function computeTable14(common: Values, pages: number): Table14 {
   out.t14v4Total = any4 ? str(total4) : '';
 
   // 2・3の合計（明細の「価額」の通算）
-  const sumAmt = (prefix: string, rows: number): string => {
-    const keys = Array.from({ length: pages * rows }, (_unused, i) => `${prefix}${i}Amt`);
-    return keys.some((key) => filled(common, key)) ? str(keys.reduce((s, key) => s + num(common[key]), 0)) : '';
+  const sumAmt = (form: string): string => {
+    const rows = details[form] ?? [];
+    return rows.some((detail) => filled(detail, 'amt'))
+      ? str(rows.reduce((s, detail) => s + num(detail.amt), 0))
+      : '';
   };
-  out.t14bTotal = sumAmt('t14b', TABLE14_BEQUEST_ROWS);
-  out.t14dTotal = sumAmt('t14d', TABLE14_DONATION_ROWS);
+  out.t14bTotal = sumAmt(TABLE14_BEQUEST_FORM);
+  out.t14dTotal = sumAmt(TABLE14_DONATION_FORM);
 
   return { totals: out, v5 };
 }
@@ -1818,7 +1834,7 @@ function computeAllWithRatios(
   const t42 = computeTable42(common, table42Pages(common));
   const t42Used = used.includes('table42');
   // 第1表⑤・第15表㊲ ← 第14表1④。⑤は⑥→Ⓐ→⑦→⑨… の入口なので、これも1周する前に確定させる。
-  const t14 = computeTable14(common, table14Pages(common));
+  const t14 = computeTable14(common, details, table14Pages(common, details));
   const t14Used = used.includes('table14');
   const t15Blank = Object.fromEntries(
     table15Transferred(used).flatMap((mark) => {

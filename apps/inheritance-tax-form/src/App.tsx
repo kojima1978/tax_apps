@@ -29,8 +29,9 @@ import {
   TABLE13_FUNERAL_ROWS, TABLE13_EDITION, TABLE13_PERSONS, TABLE13_SUBTITLE, TABLE13_TITLE, buildTable13,
 } from './forms/table13';
 import {
-  TABLE14_ASPECT, TABLE14_BEQUEST_ROWS, TABLE14_DONATION_ROWS, TABLE14_EDITION, TABLE14_FORM_CODE,
-  TABLE14_GIFT_ROWS, TABLE14_SUBTITLE, TABLE14_TITLE, buildTable14,
+  TABLE14_ASPECT, TABLE14_BEQUEST_FORM, TABLE14_BEQUEST_ROWS, TABLE14_DONATION_FORM,
+  TABLE14_DONATION_ROWS, TABLE14_EDITION, TABLE14_FORM_CODE, TABLE14_GIFT_FORM, TABLE14_GIFT_ROWS,
+  TABLE14_SUBTITLE, TABLE14_TITLE, buildTable14,
 } from './forms/table14';
 import {
   TABLE15CONT_FORM_CODE, TABLE15CONT_PERSONS, TABLE15CONT_SUBTITLE, TABLE15CONT_TITLE,
@@ -86,7 +87,7 @@ import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
   deriveLawful, detailSlots, hasTable112, isEmptyDetail, lawfulMembers, sameValues, table10MinPages, table10Pages,
-  table112Pages, table13MinPages, table13Pages, table14Pages, table15Transferred, table42Pages, table4Pages,
+  table112Pages, table13MinPages, table13Pages, table14MinPages, table14Pages, table15Transferred, table42Pages, table4Pages,
   table88Pages, table9MinPages, table9Pages, type Values,
 } from './lib/calc';
 import { HEIR_ID } from './lib/heirRef';
@@ -480,7 +481,14 @@ function Table13Page({ page, last, whoOptions, g, u, onNavigate }: Table13PagePr
 
 /** 第14表1枚（1の明細4件・④4人分・2と3の明細2件ずつ） */
 function Table14Page({ page, last, whoOptions, g, u, onNavigate }: Table13PageProps) {
-  const cells = useMemo(() => buildTable14(COMMON, TOTALS, page, last, whoOptions), [page, last, whoOptions]);
+  const cells = useMemo(
+    () => buildTable14(COMMON, TOTALS, {
+      gift: detailRows(TABLE14_GIFT_FORM, page, TABLE14_GIFT_ROWS, '1の贈与財産'),
+      bequest: detailRows(TABLE14_BEQUEST_FORM, page, TABLE14_BEQUEST_ROWS, '2の遺贈財産'),
+      donation: detailRows(TABLE14_DONATION_FORM, page, TABLE14_DONATION_ROWS, '3の寄附財産'),
+    }, page, last, whoOptions),
+    [page, last, whoOptions],
+  );
   return (
     <div className="gov-page">
       <GridForm
@@ -851,8 +859,9 @@ export default function App() {
   const t4Pages = table4Pages(data.common);
   /** 第4表の2の枚数（贈与税を納めているかは相続人の一覧からは分からないので人数からは決めない） */
   const t42Pages = table42Pages(data.common);
-  /** 第14表の枚数（3つの節がそれぞれ別の件数を持つので表全体で1つ） */
-  const t14Pages = table14Pages(data.common);
+  /** 第14表の枚数（3つの節がそれぞれ別の件数を持つので表全体で1つ。下限は明細が載り切る枚数） */
+  const t14Min = table14MinPages(data.details);
+  const t14Pages = table14Pages(data.common, data.details);
   /** 第8の8表の枚数（控除・猶予の対象者は相続人の一覧からは分からないので人数からは決めない） */
   const t88Pages = table88Pages(data.common);
   /** 第9表の枚数（明細も相続人も1枚に5件ずつ）と、明細の件数から決まる最低枚数 */
@@ -1233,7 +1242,7 @@ export default function App() {
       <>
         {Array.from({ length: t14Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={t14Pages} onDecrease={() => u('t14Pages', String(t14Pages - 1))} onIncrease={() => u('t14Pages', String(t14Pages + 1))} decreaseDisabled={t14Pages <= 1} increaseDisabled={t14Pages >= MAX_TABLE14_PAGES} detail={`贈与${TABLE14_GIFT_ROWS}件・遺贈${TABLE14_BEQUEST_ROWS}件・寄附${TABLE14_DONATION_ROWS}件／ページ`} />
+            <PageControl page={page + 1} total={t14Pages} onDecrease={() => u('t14Pages', String(t14Pages - 1))} onIncrease={() => u('t14Pages', String(t14Pages + 1))} decreaseDisabled={t14Pages <= t14Min} increaseDisabled={t14Pages >= MAX_TABLE14_PAGES} detail={`贈与${TABLE14_GIFT_ROWS}件・遺贈${TABLE14_BEQUEST_ROWS}件・寄附${TABLE14_DONATION_ROWS}件／ページ`} />
             <Table14Page page={page} last={page === t14Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}

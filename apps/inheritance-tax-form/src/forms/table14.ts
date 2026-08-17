@@ -5,7 +5,8 @@
  * 特定の公益法人などに寄附した相続財産・特定公益信託などのために支出した相続財産の明細書」。
  *
  * 1枚に 1の明細4行＋④の合計4人分、2の明細2行、3の明細2行 が載る。
- * 枚数は表全体で1つ（共通欄 `t14Pages`）。件数からは導出しない。
+ * 1・2・3のどの明細も「行そのもの」を1要素とする配列（`FormData.details`）で持ち、並べ替えられる。
+ * 枚数は3つの節をまとめて表全体で1つ（共通欄 `t14Pages`）。
  * 1の④の各人の合計・2の合計・3の合計は全枚数を通した合計なので、**最終ページにだけ値を出す**
  * （第9表・第13表と同じ扱い）。
  *
@@ -16,7 +17,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, dateSelect, label, mk } from './geometry';
+import { code, dateSelect, label, mk, type FormRow } from './geometry';
 
 export const TABLE14_FORM_CODE = 'NTA0KSE141010040';
 export const TABLE14_TITLE = '相続税の申告書　第14表';
@@ -33,6 +34,29 @@ export const TABLE14_PERSONS = 4;
 export const TABLE14_BEQUEST_ROWS = 2;
 /** 様式1枚に記入できる「3 特定の公益法人などに寄附した相続財産」の件数 */
 export const TABLE14_DONATION_ROWS = 2;
+
+/**
+ * 1の明細を持つ配列のID（`FormData.details` のキー）。
+ *
+ * 共通欄に `t14g0Amt` のように行の位置を欄の名前へ焼き込むと、行を入れ替えるには
+ * 全部の欄を移し替えるしかなく、1つでも移し忘れると別の行の値が混ざる。
+ * 配列なら並べ替えは要素の移動だけで済む。
+ */
+export const TABLE14_GIFT_FORM = 'table14gift';
+/** 2の明細を持つ配列のID（同上） */
+export const TABLE14_BEQUEST_FORM = 'table14bequest';
+/** 3の明細を持つ配列のID（同上） */
+export const TABLE14_DONATION_FORM = 'table14donation';
+
+/** 様式1枚に載る明細の行の在りか。どの行が何番目かは枚数から決まるので、決めるのは呼ぶ側 */
+export interface Table14Rows {
+  /** 1 暦年課税分の贈与財産（4件） */
+  gift: readonly FormRow[];
+  /** 2 出資持分の定めのない法人などに遺贈した財産（2件） */
+  bequest: readonly FormRow[];
+  /** 3 特定の公益法人などに寄附した相続財産（2件） */
+  donation: readonly FormRow[];
+}
 
 const TOP = 251.5;
 const BOTTOM = 1682.5;
@@ -114,11 +138,11 @@ function propRow(
 ): GridCell[] {
   const CW = 22; // コード枠の幅（実測px。どの欄も共通）
   const defs = [
-    { label: '種類', key: 'Kind', align: 'left' as const },
-    { label: '細目', key: 'Item', align: 'left' as const },
-    { label: '所在場所等', key: 'Place', align: 'left' as const },
-    { label: '数量', key: 'Qty', align: 'right' as const },
-    { label: '単位', key: 'Unit', align: 'center' as const },
+    { label: '種類', key: 'kind', align: 'left' as const },
+    { label: '細目', key: 'item', align: 'left' as const },
+    { label: '所在場所等', key: 'place', align: 'left' as const },
+    { label: '数量', key: 'qty', align: 'right' as const },
+    { label: '単位', key: 'unit', align: 'center' as const },
   ];
   return [
     ...defs.flatMap((def, n): GridCell[] => [
@@ -126,7 +150,7 @@ function propRow(
       mk(y, col(xs[n]! + CW, xs[n + 1]!), { kind: 'input', field: `${field}${def.key}`, ariaLabel: `${who}の${def.label}`, align: def.align }),
     ]),
     code(y, col(xs[5]!, xs[5]! + CW), codes[5]!),
-    mk(y, col(xs[5]! + CW, xs[6]!), { kind: 'input', field: `${field}Amt`, ariaLabel: `${who}の価額`, commaInteger: true }),
+    mk(y, col(xs[5]! + CW, xs[6]!), { kind: 'input', field: `${field}amt`, ariaLabel: `${who}の価額`, commaInteger: true }),
   ];
 }
 
@@ -183,7 +207,8 @@ const S1_FOOT = '（注）　④欄の金額を第1表のその人の「純資�
 
 /** 1 純資産価額に加算される暦年課税分の贈与財産価額及び特定贈与財産価額の明細 */
 function giftSection(
-  common: string, totals: string, page: number, last: boolean, whoOptions: GridCell['options'],
+  common: string, totals: string, rows: readonly FormRow[], page: number, last: boolean,
+  whoOptions: GridCell['options'],
 ): GridCell[] {
   const t1 = row(397, 424);
   const t2 = row(424, 453.5);
@@ -209,20 +234,19 @@ function giftSection(
     ...GIFT_Y.slice(0, TABLE14_GIFT_ROWS).flatMap((top, r): GridCell[] => {
       const y = row(top, GIFT_Y[r + 1]!);
       const i = page * TABLE14_GIFT_ROWS + r;
-      const f = `${common}t14g${i}`;
-      const who = `1の${r + 1}行目`;
+      const { prefix: f, label: who } = rows[r]!;
       const e = 2 + r * 5;
       const g = 1 + r * 3;
       return [
         label(y, col(LEFT, X1.NO), String(r + 1)),
         code(y, col(X1.NO, X1.NO + 22), cd('E', e)),
-        mk(y, col(X1.NO + 22, X1.NAME), { kind: 'input', field: `${f}Who`, ariaLabel: `${who}の贈与を受けた人の氏名`, options: whoOptions, align: 'left' }),
-        ...dateRow(y, GIFT_DATE_X, cd('N', 1 + r), `${f}D`, `${who}の贈与年月日`),
+        mk(y, col(X1.NO + 22, X1.NAME), { kind: 'input', field: `${f}who`, ariaLabel: `${who}の贈与を受けた人の氏名`, options: whoOptions, align: 'left' }),
+        ...dateRow(y, GIFT_DATE_X, cd('N', 1 + r), `${f}date`, `${who}の贈与年月日`),
         ...propRow(y, GIFT_PROP_X, f, who, [
           cd('E', e + 1), cd('E', e + 2), cd('E', e + 3), cd('C', 1 + r), cd('E', e + 4), cd('G', g),
         ]),
         code(y, col(X1.V1, X1.V1 + 21), cd('G', g + 1)),
-        mk(y, col(X1.V1 + 21, X1.V2), { kind: 'input', field: `${f}V2`, ariaLabel: `${who}の②特定贈与財産の価額`, commaInteger: true }),
+        mk(y, col(X1.V1 + 21, X1.V2), { kind: 'input', field: `${f}v2`, ariaLabel: `${who}の②特定贈与財産の価額`, commaInteger: true }),
         code(y, col(X1.V2, X1.V2 + 21), cd('G', g + 2)),
         mk(y, col(X1.V2 + 21, RIGHT), { kind: 'input', field: `${totals}t14g${i}v3`, ariaLabel: `${who}の③課税価格に加算される価額`, commaInteger: true, readOnly: true }),
       ];
@@ -281,7 +305,7 @@ const S2_LEAD = 'この表は、被相続人が人格のない社団又は財団
   + '出資持分の定めのない法人に遺贈した財産のうち、相続税がかからないものの明細を記入します。';
 
 /** 2 出資持分の定めのない法人などに遺贈した財産の明細 */
-function bequestSection(common: string, totals: string, page: number, last: boolean): GridCell[] {
+function bequestSection(totals: string, rows: readonly FormRow[], last: boolean): GridCell[] {
   const t1 = row(1045.5, 1074);
   const t2 = row(1074, 1102);
   const full = row(1045.5, 1102);
@@ -296,16 +320,14 @@ function bequestSection(common: string, totals: string, page: number, last: bool
 
     ...BEQUEST_Y.slice(0, TABLE14_BEQUEST_ROWS).flatMap((top, r): GridCell[] => {
       const y = row(top, BEQUEST_Y[r + 1]!);
-      const i = page * TABLE14_BEQUEST_ROWS + r;
-      const f = `${common}t14b${i}`;
-      const who = `2の${r + 1}行目`;
+      const { prefix: f, label: who } = rows[r]!;
       const e = 27 + r * 5;
       return [
         ...propRow(y, BEQUEST_PROP_X, f, who, [
           cd('E', e), cd('E', e + 1), cd('E', e + 2), cd('C', 5 + r), cd('E', e + 3), cd('G', 19 + r),
         ]),
         code(y, col(B_CORP, B_CORP + 22), cd('E', e + 4)),
-        mk(y, col(B_CORP + 22, RIGHT), { kind: 'input', field: `${f}Corp`, ariaLabel: `${who}の法人などの所在地、名称`, align: 'left' }),
+        mk(y, col(B_CORP + 22, RIGHT), { kind: 'input', field: `${f}corp`, ariaLabel: `${who}の法人などの所在地、名称`, align: 'left' }),
       ];
     }),
 
@@ -352,7 +374,9 @@ const S3_ARROW = '↑適用を受ける特例の欄に「1」を記入してく�
 const S3_FOOT = '（注）　この特例の適用を受ける場合には、期限内申告書に一定の受領書、証明書類等の添付が必要です。';
 
 /** 3 特定の公益法人などに寄附した相続財産又は特定公益信託などのために支出した相続財産の明細 */
-function donationSection(common: string, totals: string, page: number, last: boolean): GridCell[] {
+function donationSection(
+  common: string, totals: string, rows: readonly FormRow[], page: number, last: boolean,
+): GridCell[] {
   const t1 = row(1440, 1464.5);
   const t2 = row(1464.5, 1488.5);
   const full = row(1440, 1488.5);
@@ -381,19 +405,17 @@ function donationSection(common: string, totals: string, page: number, last: boo
 
     ...DONATION_Y.slice(0, TABLE14_DONATION_ROWS).flatMap((top, r): GridCell[] => {
       const y = row(top, DONATION_Y[r + 1]!);
-      const i = page * TABLE14_DONATION_ROWS + r;
-      const f = `${common}t14d${i}`;
-      const who = `3の${r + 1}行目`;
+      const { prefix: f, label: who } = rows[r]!;
       const e = 37 + r * 6;
       return [
-        ...dateRow(y, DONATION_DATE_X, cd('N', 5 + r), `${f}D`, `${who}の寄附（支出）年月日`),
+        ...dateRow(y, DONATION_DATE_X, cd('N', 5 + r), `${f}date`, `${who}の寄附（支出）年月日`),
         ...propRow(y, DONATION_PROP_X, f, who, [
           cd('E', e), cd('E', e + 1), cd('E', e + 2), cd('C', 7 + r), cd('E', e + 3), cd('G', 25 + r),
         ]),
         code(y, col(D_CORP, D_CORP + 22), cd('E', e + 4)),
-        mk(y, col(D_CORP + 22, D_PERSON), { kind: 'input', field: `${f}Corp`, ariaLabel: `${who}の公益法人等の所在地・名称`, align: 'left' }),
+        mk(y, col(D_CORP + 22, D_PERSON), { kind: 'input', field: `${f}corp`, ariaLabel: `${who}の公益法人等の所在地・名称`, align: 'left' }),
         code(y, col(D_PERSON, D_PERSON + 22), cd('E', e + 5)),
-        mk(y, col(D_PERSON + 22, RIGHT), { kind: 'input', field: `${f}Person`, ariaLabel: `${who}の寄附（支出）をした相続人等の氏名`, align: 'left' }),
+        mk(y, col(D_PERSON + 22, RIGHT), { kind: 'input', field: `${f}person`, ariaLabel: `${who}の寄附（支出）をした相続人等の氏名`, align: 'left' }),
       ];
     }),
 
@@ -415,14 +437,16 @@ function donationSection(common: string, totals: string, page: number, last: boo
 
 /**
  * 第14表のセルを組み立てる。
- * @param common 共通欄のフィールド接頭辞（'c.'）— 明細は人ではなく様式全体の一覧
+ * @param common 共通欄のフィールド接頭辞（'c.'）— 被相続人・④の氏名・確認欄・適用を受ける特例
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）— ③・④・2と3の合計
+ * @param rows この用紙に載る1・2・3の明細の在りか（それぞれの明細の配列を指す）
  * @param page 0始まりの枚数
  * @param last 最終ページか（④の各人の合計・2の合計・3の合計は全枚数の通算なのでここにだけ出す）
- * @param whoOptions 「贈与を受けた人の氏名」の選択肢（値は第11表の項番＝入力順の通し番号）
+ * @param whoOptions 「贈与を受けた人の氏名」の選択肢（値はその人のID。計算へ渡る前に何人目かへ直る）
  */
 export function buildTable14(
-  common: string, totals: string, page: number, last: boolean, whoOptions: GridCell['options'],
+  common: string, totals: string, rows: Table14Rows, page: number, last: boolean,
+  whoOptions: GridCell['options'],
 ): GridCell[] {
   const decY = row(TOP, 290);
   return [
@@ -436,14 +460,14 @@ export function buildTable14(
 
     // 1の枠（290〜985）
     mk(row(290, 397), col(LEFT, RIGHT), {}),
-    ...giftSection(common, totals, page, last, whoOptions),
+    ...giftSection(common, totals, rows.gift, page, last, whoOptions),
 
     // 2の枠（992〜1271.5）
     mk(row(992, 1045.5), col(LEFT, RIGHT), {}),
-    ...bequestSection(common, totals, page, last),
+    ...bequestSection(totals, rows.bequest, last),
 
     // 3の枠（1279〜1682.5）
     mk(row(1279, 1440), col(LEFT, RIGHT), {}),
-    ...donationSection(common, totals, page, last),
+    ...donationSection(common, totals, rows.donation, page, last),
   ];
 }

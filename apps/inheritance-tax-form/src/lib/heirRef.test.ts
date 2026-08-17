@@ -11,7 +11,10 @@ import {
   TABLE13_DEBT_FORM, TABLE13_DEBT_ROWS, TABLE13_FUNERAL_FORM, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS,
   buildTable13,
 } from '../forms/table13';
-import { buildTable14 } from '../forms/table14';
+import {
+  TABLE14_BEQUEST_FORM, TABLE14_BEQUEST_ROWS, TABLE14_DONATION_FORM, TABLE14_DONATION_ROWS,
+  TABLE14_GIFT_FORM, TABLE14_GIFT_ROWS, buildTable14,
+} from '../forms/table14';
 import { buildTable88 } from '../forms/table88';
 import { buildTable1112f1 } from '../forms/table1112f1';
 import { buildTable1112f1b } from '../forms/table1112f1b';
@@ -48,7 +51,11 @@ function allCells(): GridCell[] {
       ...buildTable42(COMMON, TOTALS, page, OPTIONS),
       ...buildTable9(COMMON, TOTALS, rows(TABLE9_DETAIL_FORM, page, TABLE9_ROWS), page, false, OPTIONS),
       ...buildTable10(COMMON, TOTALS, rows(TABLE10_DETAIL_FORM, page, TABLE10_ROWS), page, false, OPTIONS),
-      ...buildTable14(COMMON, TOTALS, page, false, OPTIONS),
+      ...buildTable14(COMMON, TOTALS, {
+        gift: rows(TABLE14_GIFT_FORM, page, TABLE14_GIFT_ROWS),
+        bequest: rows(TABLE14_BEQUEST_FORM, page, TABLE14_BEQUEST_ROWS),
+        donation: rows(TABLE14_DONATION_FORM, page, TABLE14_DONATION_ROWS),
+      }, page, false, OPTIONS),
       ...buildTable88(COMMON, TOTALS, page, false, false, OPTIONS),
       ...buildTable13(COMMON, TOTALS, {
         people: Array.from({ length: TABLE13_PERSONS }, (_, i) => ({
