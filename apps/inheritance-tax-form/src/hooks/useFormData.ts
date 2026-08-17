@@ -420,12 +420,29 @@ export function useFormData() {
     });
   }, []);
 
-  /** 付表の明細の並びを入れ替える（項番は並び順そのものなので、動かせば番号も振り直される） */
-  const moveDetailItem = useCallback((form: string, from: number, to: number) => {
+  /**
+   * 明細の並びを入れ替える（項番は並び順そのものなので、動かせば番号も振り直される）。
+   *
+   * @param remapCommon 共通欄が行を番号で名指ししている様式（第14表の確認欄）だけ渡す。
+   *   共通欄と明細を1回の更新でまとめて直せるのがここしかないため。
+   */
+  const moveDetailItem = useCallback((
+    form: string, from: number, to: number,
+    remapCommon?: (common: Values, indexOf: (index: number) => number) => Values,
+  ) => {
     setData((prev) => {
       const rows = prev.details[form] ?? [];
       if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return prev;
-      return { ...prev, details: { ...prev.details, [form]: moved(rows, from, to) } };
+      const details = { ...prev.details, [form]: moved(rows, from, to) };
+      if (remapCommon === undefined) return { ...prev, details };
+      /** 動かした1件だけが行き先へ跳び、間に挟まれた行は1つずつ寄る */
+      const indexOf = (index: number): number => {
+        if (index === from) return to;
+        if (from < index && index <= to) return index - 1;
+        if (to <= index && index < from) return index + 1;
+        return index;
+      };
+      return { ...prev, common: remapCommon(prev.common, indexOf), details };
     });
   }, []);
 

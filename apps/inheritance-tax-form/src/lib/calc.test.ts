@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeAll, detailAutoValue, detailGroupCount, detailShareAmounts, detailShareCount, detailSlots,
-  detailUnusedFields, moveDetailShare, moved, num, sameValues, type Values,
+  detailUnusedFields, moveDetailShare, moved, num, remapTable14Confirm, sameValues, type Values,
 } from './calc';
 import { table15Key } from '../forms/table15';
 
@@ -571,5 +571,42 @@ describe('computeAll 第14表（暦年課税分の贈与財産・遺贈・寄附
 
     expect(result.totals.t14bTotal).toBe('1000000');
     expect(result.totals.t14dTotal).toBe('250000');
+  });
+});
+
+describe('remapTable14Confirm（受贈財産の番号の振り直し）', () => {
+  /** 1件だけを `from` から `to` へ動かしたときの、並べ替え前 → 後の添字 */
+  const move = (from: number, to: number) => (i: number): number => {
+    if (i === from) return to;
+    if (from < i && i <= to) return i - 1;
+    if (to <= i && i < from) return i + 1;
+    return i;
+  };
+
+  it('同じ用紙の中で動いたら番号だけを直す', () => {
+    const common: Values = { t14c0Spouse: '甲', t14c0No: '3' };
+
+    // 3行目（添字2）を先頭へ
+    expect(remapTable14Confirm(common, move(2, 0))).toEqual({ t14c0Spouse: '甲', t14c0No: '1' });
+  });
+
+  it('挟まれただけの行も番号がずれる', () => {
+    const common: Values = { t14c0Spouse: '甲', t14c0No: '2' };
+
+    // 1行目（添字0）を3行目へ動かすと、2行目は1行目に繰り上がる
+    expect(remapTable14Confirm(common, move(0, 2)).t14c0No).toBe('1');
+  });
+
+  it('別の用紙へ移った行を指していたら、確認欄ごとその用紙へ移す', () => {
+    const common: Values = { t14c0Spouse: '甲', t14c0No: '1' };
+
+    // 1枚目の1行目を2枚目の1行目（添字4）へ
+    expect(remapTable14Confirm(common, move(0, 4))).toEqual({ t14c1Spouse: '甲', t14c1No: '1' });
+  });
+
+  it('番号を書いていなければ何も変えない', () => {
+    const common: Values = { t14c0Spouse: '甲' };
+
+    expect(remapTable14Confirm(common, move(2, 0))).toBe(common);
   });
 });

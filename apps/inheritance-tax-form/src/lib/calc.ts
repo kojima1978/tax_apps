@@ -315,6 +315,48 @@ export function table14Pages(common: Values, details: Record<string, Values[]>):
 }
 
 /**
+ * 第14表の確認欄（特定贈与財産）の「受贈財産の番号」を、1の明細の並べ替えに追従させる。
+ *
+ * この番号だけは行を外から名指ししている。手で書いた番号なので、行が動いた後もそのまま残ると
+ * 別の財産を指したまま気付けない。確認欄は用紙ごとに1つなので、指す行が別の用紙へ移ったときは
+ * 確認欄そのものをその用紙へ移す。
+ *
+ * @param indexOf 並べ替え前の添字 → 並べ替え後の添字
+ */
+export function remapTable14Confirm(common: Values, indexOf: (from: number) => number): Values {
+  const entries = Object.keys(common)
+    .map((key) => /^t14c(\d+)No$/.exec(key))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => Number(m[1]))
+    .filter((page) => num(common[`t14c${page}No`]) > 0)
+    .map((page) => ({
+      page,
+      spouse: common[`t14c${page}Spouse`] ?? '',
+      to: indexOf(page * TABLE14_GIFT_ROWS + num(common[`t14c${page}No`]) - 1),
+    }));
+  if (entries.length === 0) return common;
+
+  const out = { ...common };
+  for (const entry of entries) {
+    delete out[`t14c${entry.page}No`];
+    delete out[`t14c${entry.page}Spouse`];
+  }
+  const taken = new Set<number>();
+  for (const entry of entries) {
+    const page = Math.trunc(entry.to / TABLE14_GIFT_ROWS);
+    if (taken.has(page)) {
+      // 1枚に確認欄は1つしかない。氏名は元の用紙に残し、行き先の分からなくなった番号だけ空ける
+      if (out[`t14c${entry.page}Spouse`] === undefined) out[`t14c${entry.page}Spouse`] = entry.spouse;
+      continue;
+    }
+    taken.add(page);
+    out[`t14c${page}Spouse`] = entry.spouse;
+    out[`t14c${page}No`] = String((entry.to % TABLE14_GIFT_ROWS) + 1);
+  }
+  return out;
+}
+
+/**
  * 第8の8表の枚数。1枚に2人分（1・2とも同じ2人）。
  * 税額控除も納税猶予も相続人の一覧からは対象者が決まらないので、件数からは導出せず −／＋ で増減する。
  */

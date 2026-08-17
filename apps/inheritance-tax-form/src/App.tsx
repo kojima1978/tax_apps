@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { GridForm, type GridCell } from './components/ui/GridForm';
 import { DetailPanel } from './components/DetailPanel';
-import { DetailSortPanel } from './components/DetailSortPanel';
+import { RowSortPanel, type RowSortColumn } from './components/RowSortPanel';
 import { PersonPanel } from './components/PersonPanel';
 import { giftYearOptions } from './data/codes';
 import type { FormRow } from './forms/geometry';
@@ -86,9 +86,10 @@ import { detailLabel, detailPrefix, heirIndex, heirLabel, heirPrefix, useFormDat
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  deriveLawful, detailSlots, hasTable112, isEmptyDetail, lawfulMembers, sameValues, table10MinPages, table10Pages,
-  table112Pages, table13MinPages, table13Pages, table14MinPages, table14Pages, table15Transferred, table42Pages, table4Pages,
-  table88Pages, table9MinPages, table9Pages, type Values,
+  deriveLawful, detailSlots, detailValue, hasTable112, isEmptyDetail, lawfulMembers, remapTable14Confirm,
+  sameValues, table10MinPages, table10Pages, table112Pages, table13MinPages, table13Pages, table14MinPages,
+  table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9MinPages, table9Pages,
+  type Values,
 } from './lib/calc';
 import { HEIR_ID } from './lib/heirRef';
 
@@ -178,6 +179,118 @@ const DETAIL_SPECS = {
 
 /** 付表は様式IDと枚数以外の作りが同じなので、レジストリから画面を組み立てる */
 const DETAIL_FORMS = Object.keys(DETAIL_SPECS) as (keyof typeof DETAIL_SPECS)[];
+
+/** 並べ替え画面の作り方。様式ごとに違うのは見出しと一覧に拾う欄だけ。 */
+interface RowSortTarget {
+  /** 用紙の上に出すボタンの文字（1つの様式に明細が2つ以上あるので区別が要る） */
+  button: string;
+  heading: string;
+  subtitle: string;
+  columns: readonly RowSortColumn[];
+  amountOf: (item: Values) => string;
+}
+
+/** 金額の欄がそのまま1件の価額になる様式（付表だけは1件が複数の欄に分かれる） */
+const amtOf = (item: Values): string => item.amt ?? '';
+
+/** 明細を並べ替えられる様式。明細を持つ様式を足したらここに1行追加する。 */
+const ROW_SORTS: Readonly<Record<string, RowSortTarget>> = {
+  ...Object.fromEntries(DETAIL_FORMS.map((id): [string, RowSortTarget] => [id, {
+    button: '並べ替え',
+    heading: '財産の並べ替え',
+    subtitle: DETAIL_SPECS[id].spec.subtitle.replace('\n', ''),
+    columns: DETAIL_SPECS[id].spec.rows.flat().flatMap((field): RowSortColumn[] => (
+      field.field === undefined ? [] : [{ field: field.field, name: field.name ?? field.field }]
+    )),
+    amountOf: (item) => detailValue(id, item),
+  }])),
+  [TABLE9_DETAIL_FORM]: {
+    button: '並べ替え',
+    heading: '保険金などの並べ替え',
+    subtitle: '第9表 1 保険金などの明細',
+    columns: [{ field: 'name', name: '保険会社等' }, { field: 'addr', name: '所在地' }],
+    amountOf: amtOf,
+  },
+  [TABLE10_DETAIL_FORM]: {
+    button: '並べ替え',
+    heading: '退職手当金などの並べ替え',
+    subtitle: '第10表 1 退職手当金などの明細',
+    columns: [
+      { field: 'title', name: '名称' }, { field: 'name', name: '勤務先会社等' }, { field: 'addr', name: '所在地' },
+    ],
+    amountOf: amtOf,
+  },
+  [TABLE13_DEBT_FORM]: {
+    button: '債務の並べ替え',
+    heading: '債務の並べ替え',
+    subtitle: '第13表 1 債務の明細',
+    columns: [
+      { field: 'kind', name: '種類' }, { field: 'item', name: '細目' },
+      { field: 'name', name: '債権者' }, { field: 'addr', name: '住所' },
+    ],
+    amountOf: amtOf,
+  },
+  [TABLE13_FUNERAL_FORM]: {
+    button: '葬式費用の並べ替え',
+    heading: '葬式費用の並べ替え',
+    subtitle: '第13表 2 葬式費用の明細',
+    columns: [{ field: 'name', name: '支払先' }, { field: 'addr', name: '住所' }],
+    amountOf: amtOf,
+  },
+  [TABLE14_GIFT_FORM]: {
+    button: '1の並べ替え',
+    heading: '贈与財産の並べ替え',
+    subtitle: '第14表 1 暦年課税分の贈与財産の明細',
+    columns: [
+      { field: 'kind', name: '種類' }, { field: 'item', name: '細目' }, { field: 'place', name: '所在場所等' },
+    ],
+    amountOf: amtOf,
+  },
+  [TABLE14_BEQUEST_FORM]: {
+    button: '2の並べ替え',
+    heading: '遺贈した財産の並べ替え',
+    subtitle: '第14表 2 出資持分の定めのない法人などに遺贈した財産の明細',
+    columns: [
+      { field: 'kind', name: '種類' }, { field: 'item', name: '細目' }, { field: 'corp', name: '法人など' },
+    ],
+    amountOf: amtOf,
+  },
+  [TABLE14_DONATION_FORM]: {
+    button: '3の並べ替え',
+    heading: '寄附した財産の並べ替え',
+    subtitle: '第14表 3 特定の公益法人などに寄附した相続財産の明細',
+    columns: [
+      { field: 'kind', name: '種類' }, { field: 'item', name: '細目' }, { field: 'corp', name: '公益法人等' },
+    ],
+    amountOf: amtOf,
+  },
+};
+
+/**
+ * 共通欄が明細の行を番号で名指ししている様式。並べ替えたら番号も追従させる。
+ * （行そのものが値を持つ様式は、ここに載せる必要が無い。）
+ */
+const ROW_SORT_REMAPS: Readonly<Record<string, (common: Values, indexOf: (i: number) => number) => Values>> = {
+  [TABLE14_GIFT_FORM]: remapTable14Confirm,
+};
+
+/** 用紙の上の説明と並べ替えボタン（明細は用紙の上では動かせないので別画面へ送る） */
+function PageDetail({ text, forms, onSort }: {
+  text: string;
+  forms: readonly string[];
+  onSort: (form: string) => void;
+}) {
+  return (
+    <>
+      {text}
+      {forms.map((form) => (
+        <button key={form} type="button" className="app-btn" onClick={() => onSort(form)}>
+          {ROW_SORTS[form]!.button}
+        </button>
+      ))}
+    </>
+  );
+}
 
 /** 様式の枠外に印字されている注記と適用年分 */
 function Footnote({ notes, edition = EDITION }: { notes: string; edition?: string }) {
@@ -735,8 +848,8 @@ export default function App() {
   const [active, setActive] = useState('table1');
   /** 別画面で編集中の明細（付表の様式IDと通し番号） */
   const [editing, setEditing] = useState<{ form: keyof typeof DETAIL_SPECS; index: number } | null>(null);
-  /** 別画面で並べ替え中の付表（様式ID） */
-  const [sorting, setSorting] = useState<keyof typeof DETAIL_SPECS | null>(null);
+  /** 別画面で並べ替え中の明細（様式ID。`ROW_SORTS` のキー） */
+  const [sorting, setSorting] = useState<string | null>(null);
   /** 別画面で編集中の「財産を取得した人」（何人目か） */
   const [editingPerson, setEditingPerson] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
@@ -1121,7 +1234,7 @@ export default function App() {
       <>
         {Array.from({ length: t9Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={t9Pages} onDecrease={() => u('t9Pages', String(t9Pages - 1))} onIncrease={() => u('t9Pages', String(t9Pages + 1))} decreaseDisabled={t9Pages <= t9Min} increaseDisabled={t9Pages >= MAX_TABLE9_PAGES} detail={`保険金${TABLE9_ROWS}件・相続人${TABLE9_ROWS}人／ページ`} />
+            <PageControl page={page + 1} total={t9Pages} onDecrease={() => u('t9Pages', String(t9Pages - 1))} onIncrease={() => u('t9Pages', String(t9Pages + 1))} decreaseDisabled={t9Pages <= t9Min} increaseDisabled={t9Pages >= MAX_TABLE9_PAGES} detail={<PageDetail text={`保険金${TABLE9_ROWS}件・相続人${TABLE9_ROWS}人／ページ`} forms={[TABLE9_DETAIL_FORM]} onSort={setSorting} />} />
             <Table9Page page={page} last={page === t9Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
@@ -1131,7 +1244,7 @@ export default function App() {
       <>
         {Array.from({ length: t10Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={t10Pages} onDecrease={() => u('t10Pages', String(t10Pages - 1))} onIncrease={() => u('t10Pages', String(t10Pages + 1))} decreaseDisabled={t10Pages <= t10Min} increaseDisabled={t10Pages >= MAX_TABLE10_PAGES} detail={`退職手当金${TABLE10_ROWS}件・相続人${TABLE10_ROWS}人／ページ`} />
+            <PageControl page={page + 1} total={t10Pages} onDecrease={() => u('t10Pages', String(t10Pages - 1))} onIncrease={() => u('t10Pages', String(t10Pages + 1))} decreaseDisabled={t10Pages <= t10Min} increaseDisabled={t10Pages >= MAX_TABLE10_PAGES} detail={<PageDetail text={`退職手当金${TABLE10_ROWS}件・相続人${TABLE10_ROWS}人／ページ`} forms={[TABLE10_DETAIL_FORM]} onSort={setSorting} />} />
             <Table10Page page={page} last={page === t10Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
@@ -1232,7 +1345,7 @@ export default function App() {
       <>
         {Array.from({ length: t13Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={t13Pages} onDecrease={() => u('t13Pages', String(t13Pages - 1))} onIncrease={() => u('t13Pages', String(t13Pages + 1))} decreaseDisabled={t13Pages <= t13Min} increaseDisabled={t13Pages >= MAX_TABLE13_PAGES} detail={`債務${TABLE13_DEBT_ROWS}件・葬式費用${TABLE13_FUNERAL_ROWS}件／ページ`} />
+            <PageControl page={page + 1} total={t13Pages} onDecrease={() => u('t13Pages', String(t13Pages - 1))} onIncrease={() => u('t13Pages', String(t13Pages + 1))} decreaseDisabled={t13Pages <= t13Min} increaseDisabled={t13Pages >= MAX_TABLE13_PAGES} detail={<PageDetail text={`債務${TABLE13_DEBT_ROWS}件・葬式費用${TABLE13_FUNERAL_ROWS}件／ページ`} forms={[TABLE13_DEBT_FORM, TABLE13_FUNERAL_FORM]} onSort={setSorting} />} />
             <Table13Page page={page} last={page === t13Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
@@ -1242,7 +1355,7 @@ export default function App() {
       <>
         {Array.from({ length: t14Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={t14Pages} onDecrease={() => u('t14Pages', String(t14Pages - 1))} onIncrease={() => u('t14Pages', String(t14Pages + 1))} decreaseDisabled={t14Pages <= t14Min} increaseDisabled={t14Pages >= MAX_TABLE14_PAGES} detail={`贈与${TABLE14_GIFT_ROWS}件・遺贈${TABLE14_BEQUEST_ROWS}件・寄附${TABLE14_DONATION_ROWS}件／ページ`} />
+            <PageControl page={page + 1} total={t14Pages} onDecrease={() => u('t14Pages', String(t14Pages - 1))} onIncrease={() => u('t14Pages', String(t14Pages + 1))} decreaseDisabled={t14Pages <= t14Min} increaseDisabled={t14Pages >= MAX_TABLE14_PAGES} detail={<PageDetail text={`贈与${TABLE14_GIFT_ROWS}件・遺贈${TABLE14_BEQUEST_ROWS}件・寄附${TABLE14_DONATION_ROWS}件／ページ`} forms={[TABLE14_GIFT_FORM, TABLE14_BEQUEST_FORM, TABLE14_DONATION_FORM]} onSort={setSorting} />} />
             <Table14Page page={page} last={page === t14Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}
@@ -1423,11 +1536,13 @@ export default function App() {
       )}
 
       {sorting !== null && (
-        <DetailSortPanel
-          form={sorting}
-          spec={DETAIL_SPECS[sorting].spec}
+        <RowSortPanel
+          heading={ROW_SORTS[sorting]!.heading}
+          subtitle={ROW_SORTS[sorting]!.subtitle}
+          columns={ROW_SORTS[sorting]!.columns}
+          amountOf={ROW_SORTS[sorting]!.amountOf}
           items={data.details[sorting] ?? []}
-          onMove={(from, to) => moveDetailItem(sorting, from, to)}
+          onMove={(from, to) => moveDetailItem(sorting, from, to, ROW_SORT_REMAPS[sorting])}
           onClose={() => setSorting(null)}
         />
       )}
