@@ -107,7 +107,7 @@ export const TABLE11F1_SPEC: DetailSpec = {
       { x: [195, 221, 308], code: 'E0', field: 'kind', name: '細目', cell: { align: 'left' } },
       {
         x: [308, 334, 426], code: 'E4', field: 'pref', name: '所在場所（都道府県）',
-        cell: { options: PREFECTURE_OPTIONS },
+        cell: { options: PREFECTURE_OPTIONS, align: 'left' },
       },
       { x: [426, 452, 577], code: 'E5', field: 'city', name: '所在場所（市区町村）', cell: { align: 'left' } },
       { x: [577, 603, 705], code: 'C0', field: 'area', name: '面積', cell: { align: 'right', decimalPlaces: 2, commaInteger: true } },
