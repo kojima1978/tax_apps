@@ -998,6 +998,74 @@ cmd_clean_cache() {
 }
 
 # ------------------------------------
+# Dockerfile の CRLF ガード検査
+# ------------------------------------
+# CRLF のまま Linux コンテナへ入った docker-entrypoint.sh は BusyBox sh が
+# `set: line 2: illegal option -` で即死し、CrashLoop になる。Windows の
+# core.autocrlf でチェックアウトされた作業ツリーは git status がクリーンなまま
+# CRLF を保持するので、上流を直しても各PCの手元は直らない。そのため各 Dockerfile が
+# `sed -i 's/\r$//'` でイメージに入る直前に正規化して防いでいる。
+#
+# ただしこれはステージ単位の対策で、ステージを増やしたときに片方だけ抜けても
+# healthcheck もビルドも通ってしまう（実際に stock-valuation-form の dev だけ
+# 抜けていて、本番は無事なのに dev が CrashLoop していた）。
+#
+# 検査する不変条件は「entrypoint を ENTRYPOINT/CMD に指定しているステージは、
+# 自分か祖先のどこかで必ずガードを通っていること」。FROM の継承を辿るのは、
+# bank-analyzer-django のように親でガードして子で CMD だけ差し替える書き方が
+# 実在するため（辿らないと誤検知になる）。
+#
+# ガードを欠くステージ名を1行ずつ出力する。無ければ何も出力しない。
+dockerfile_missing_crlf_guard() {
+  local dockerfile="$1"
+  local -A parent=() guarded=() uses=()
+  local order=() stage="" line base name
+
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*[Ff][Rr][Oo][Mm][[:space:]]+([^[:space:]]+)([[:space:]]+[Aa][Ss][[:space:]]+([^[:space:]]+))? ]]; then
+      base="${BASH_REMATCH[1]}"
+      name="${BASH_REMATCH[3]}"
+      # AS 名の無いステージも順序で一意にしておく（継承元にはなれない）
+      [[ -n "$name" ]] || name="stage#${#order[@]}"
+      stage="$name"
+      order+=("$stage")
+      parent["$stage"]="$base"
+      guarded["$stage"]=0
+      uses["$stage"]=0
+      continue
+    fi
+    [[ -n "$stage" ]] || continue
+    [[ "$line" == *docker-entrypoint* ]] || continue
+
+    # sed / tr / dos2unix のどれでも正規化とみなす（書き方を縛らない）
+    if [[ "$line" == *dos2unix* ]] || { [[ "$line" == *sed* || "$line" == *tr* ]] && [[ "$line" == *'\r'* ]]; }; then
+      guarded["$stage"]=1
+    elif [[ "$line" =~ ^[[:space:]]*([Ee][Nn][Tt][Rr][Yy][Pp][Oo][Ii][Nn][Tt]|[Cc][Mm][Dd])[[:space:]] ]]; then
+      uses["$stage"]=1
+    fi
+  done < "$dockerfile"
+
+  local cur hops found
+  for stage in ${order[@]+"${order[@]}"}; do
+    [[ "${uses[$stage]}" == 1 ]] || continue
+    cur="$stage"
+    hops=0
+    found=0
+    # 祖先を辿る。親がステージ名でなければ（外部イメージ）そこで打ち切り。
+    while [[ -n "$cur" && $hops -lt 32 ]]; do
+      if [[ "${guarded[$cur]:-0}" == 1 ]]; then
+        found=1
+        break
+      fi
+      cur="${parent[$cur]:-}"
+      [[ -n "${guarded[$cur]+set}" ]] || break
+      hops=$((hops + 1))
+    done
+    [[ $found -eq 1 ]] || printf '%s\n' "$stage"
+  done
+}
+
+# ------------------------------------
 # preflight - 起動前チェック
 # ------------------------------------
 cmd_preflight() {
@@ -1231,6 +1299,27 @@ cmd_preflight() {
   else
     warn "Docker disk usage could not be checked"
     ((++pf_warn))
+  fi
+
+  # 13. Dockerfile の CRLF ガード
+  #
+  # ビルドが通ってしまう類の抜けなので、アプリを追加したときにここで落とす。
+  local guard_checked=0 guard_missing=0 entry dockerfile missing_stages
+  while IFS= read -r entry; do
+    dockerfile="$(dirname "$entry")/Dockerfile"
+    [[ -f "$dockerfile" ]] || continue
+    ((++guard_checked))
+    missing_stages="$(dockerfile_missing_crlf_guard "$dockerfile" | tr '\n' ' ')"
+    if [[ -n "${missing_stages// /}" ]]; then
+      warn "CRLF guard missing: ${dockerfile#"$PROJECT_ROOT/"} (stage: ${missing_stages% })"
+      echo "  Add to that stage: RUN sed -i 's/\\r\$//' <path>/docker-entrypoint.sh && chmod +x <path>/docker-entrypoint.sh"
+      guard_missing=1
+      ((++pf_warn))
+    fi
+  done < <(find "$PROJECT_ROOT/apps" -name docker-entrypoint.sh -not -path '*/node_modules/*' 2>/dev/null)
+  if [[ $guard_missing -eq 0 ]]; then
+    ok "CRLF guard present in all $guard_checked entrypoint Dockerfiles"
+    ((++pf_ok))
   fi
 
   # Summary
