@@ -96,7 +96,7 @@ export const TABLE11F3_SPEC: DetailSpec = {
         autoFill: { field: 'kind', byValue: codeNames(TABLE11F3_KINDS) },
         cell: { options: codeOptions(TABLE11F3_KINDS), compactSelectedOption: true },
       },
-      { x: [217.5, 243.5, 357.5], code: 'E0', field: 'kind', name: '口座種別等' },
+      { x: [217.5, 243.5, 357.5], code: 'E0', field: 'kind', name: '口座種別等', cell: { align: 'left' } },
       {
         x: [357.5, 379.5, 423.5], code: 'G3', field: 'bankCode', name: '金融機関等コード',
         cell: { options: BANK_CODE_OPTIONS, compactSelectedOption: true },
@@ -105,13 +105,14 @@ export const TABLE11F3_SPEC: DetailSpec = {
         x: [423.5, 449.5, 647.5], code: 'E3', field: 'bank', name: '金融機関等の名称',
         // 入力は「みずほ」のまま。用紙にはコードに合わせて「みずほ銀行」と出す
         suffixByCode: { field: 'bankCode', ...BANK_CODE_SUFFIX },
+        cell: { align: 'left' },
       },
       // 数量と単価は上2行分をまたぐ
       { x: [647.5, 674.5, 784.5], code: 'E6', field: 'quantity', name: '数量', r: [0, 2], cell: { align: 'right' } },
       { x: [784.5, 810.5, 918.5], code: 'C0', field: 'unitPrice', name: '単価', r: [0, 2], cell: { align: 'right' } },
     ],
     [
-      { x: [146.5, 173.5, 287.5], code: 'E1', field: 'account', name: '口座番号' },
+      { x: [146.5, 173.5, 287.5], code: 'E1', field: 'account', name: '口座番号', cell: { align: 'left' } },
       {
         x: [287.5, 313.5, 357.5], code: 'G2', field: 'foreign', name: '国外',
         cell: {
@@ -127,6 +128,7 @@ export const TABLE11F3_SPEC: DetailSpec = {
       {
         x: [423.5, 449.5, 647.5], code: 'E4', field: 'branch', name: '支店等の名称',
         suffixByCode: { field: 'branchCode', ...BRANCH_CODE_SUFFIX },
+        cell: { align: 'left' },
       },
       // 価額は下2行分をまたぐ
       { x: [647.5, 674.5, 918.5], code: 'G5', field: 'value', name: '価額', r: [2, 4], cell: { commaInteger: true, align: 'right' } },
@@ -134,9 +136,9 @@ export const TABLE11F3_SPEC: DetailSpec = {
     [
       {
         x: [146.5, 173.5, 357.5], code: 'E2', field: 'note', name: '備考',
-        cell: { hint: '家族名義の財産を記入する場合は、その財産の名義を記入します（記載例58ページ）' },
+        cell: { align: 'left', hint: '家族名義の財産を記入する場合は、その財産の名義を記入します（記載例58ページ）' },
       },
-      { x: [357.5, 379.5, 647.5], code: 'E5', field: 'other', name: 'その他（所在地等）' },
+      { x: [357.5, 379.5, 647.5], code: 'E5', field: 'other', name: 'その他（所在地等）', cell: { align: 'left' } },
     ],
   ],
 };

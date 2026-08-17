@@ -312,8 +312,9 @@ describe('付表の価額の自動計算', () => {
     expect(detailAutoValue('table11f4', { quantity: '2', unitPrice: '30000', multiple: '1.5' })).toBe('90000');
   });
 
-  it('付表2は為替が入っていると邦貨換算の入れ方が決まらないので自動計算しない', () => {
-    expect(detailAutoValue('table11f2', { quantity: '10', unitPrice: '100', fx: '150' })).toBeUndefined();
+  it('付表2の為替は入っていれば掛け、空欄なら邦貨建てとして掛けない', () => {
+    expect(detailAutoValue('table11f2', { quantity: '10', unitPrice: '100', fx: '150' })).toBe('150000');
+    expect(detailAutoValue('table11f2', { quantity: '10', unitPrice: '100' })).toBe('1000');
   });
 
   it('自動計算した価額を第11表2①・第15表の集計に使う', () => {

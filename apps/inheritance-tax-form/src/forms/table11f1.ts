@@ -104,12 +104,12 @@ export const TABLE11F1_SPEC: DetailSpec = {
         autoFill: { field: 'kind', byValue: codeNames(TABLE11F1_KINDS) },
         cell: { options: codeOptions(TABLE11F1_KINDS), compactSelectedOption: true },
       },
-      { x: [195, 221, 308], code: 'E0', field: 'kind', name: '細目' },
+      { x: [195, 221, 308], code: 'E0', field: 'kind', name: '細目', cell: { align: 'left' } },
       {
         x: [308, 334, 426], code: 'E4', field: 'pref', name: '所在場所（都道府県）',
         cell: { options: PREFECTURE_OPTIONS },
       },
-      { x: [426, 452, 577], code: 'E5', field: 'city', name: '所在場所（市区町村）' },
+      { x: [426, 452, 577], code: 'E5', field: 'city', name: '所在場所（市区町村）', cell: { align: 'left' } },
       { x: [577, 603, 705], code: 'C0', field: 'area', name: '面積', cell: { align: 'right', decimalPlaces: 2, commaInteger: true } },
       // 様式の枠は1つだが、中身は評価方式で変わる（路線価×調整 か 倍数×調整）。
       // 保存する欄は路線価・倍数・調整の3つで、この欄はその結果を出すだけ
@@ -118,13 +118,13 @@ export const TABLE11F1_SPEC: DetailSpec = {
     [
       {
         x: [134, 160, 251.5], code: 'E1', field: 'usage', name: '利用区分',
-        cell: { hint: '自用地（事業用・居住用・その他）、貸宅地、貸家建付地、借地権、自用家屋、貸家などの別を記入します。\n「配偶者居住権に基づく敷地利用権」は第15表③のほか⑦へ、「配偶者居住権」は⑩のほか⑪へも転記します' },
+        cell: { align: 'left', hint: '自用地（事業用・居住用・その他）、貸宅地、貸家建付地、借地権、自用家屋、貸家などの別を記入します。\n「配偶者居住権に基づく敷地利用権」は第15表③のほか⑦へ、「配偶者居住権」は⑩のほか⑪へも転記します' },
       },
       {
         x: [251.5, 277.5, 308], code: 'G2', field: 'foreign', name: '国外',
         cell: { options: FOREIGN_OPTIONS, compactSelectedOption: true, hint: '取得した土地又は家屋等の所在場所が国外である場合に「1」を記入します' },
       },
-      { x: [308, 334, 577], code: 'E6', field: 'town', name: '所在場所（大字・丁目）' },
+      { x: [308, 334, 577], code: 'E6', field: 'town', name: '所在場所（大字・丁目）', cell: { align: 'left' } },
       { x: [577, 603, 705], code: 'G3', field: 'fixedValue', name: '固定資産税評価額', cell: { commaInteger: true, align: 'right' } },
       { x: [705, 731, 762], code: 'G4', field: 'shareN', name: '持分割合の分子', cell: { align: 'center', hint: SHARE_HINT } },
       { x: [762, 782], text: '／' },
@@ -132,8 +132,8 @@ export const TABLE11F1_SPEC: DetailSpec = {
     ],
     [
       { x: [134, 160, 195], code: 'E2', field: 'special', name: '特例', cell: { options: TABLE11F1_SPECIAL_OPTIONS, compactSelectedOption: true } },
-      { x: [195, 221, 308], code: 'E3', field: 'note', name: '備考', cell: { hint: NOTE_HINT } },
-      { x: [308, 334, 577], code: 'E7', field: 'lot', name: '所在場所（地番又は家屋番号）' },
+      { x: [195, 221, 308], code: 'E3', field: 'note', name: '備考', cell: { align: 'left', hint: NOTE_HINT } },
+      { x: [308, 334, 577], code: 'E7', field: 'lot', name: '所在場所（地番又は家屋番号）', cell: { align: 'left' } },
       { x: [577, 603, 837], code: 'G6', field: 'value', name: '価額', cell: { commaInteger: true, align: 'right' } },
     ],
   ],

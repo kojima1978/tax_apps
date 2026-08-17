@@ -91,10 +91,10 @@ export const TABLE11F4_SPEC: DetailSpec = {
         autoFill: { field: 'kind', byValue: codeNames(TABLE11F4_KINDS) },
         cell: { options: codeOptions(TABLE11F4_KINDS), compactSelectedOption: true },
       },
-      { x: [199.5, 227.5, 322.5], code: 'E0', field: 'kind', name: '細目' },
+      { x: [199.5, 227.5, 322.5], code: 'E0', field: 'kind', name: '細目', cell: { align: 'left' } },
       // 財産の名称等・所在場所等は上下2行分ずつをまたぐ
-      { x: [322.5, 350.5, 634.5], code: 'E3', field: 'assetName', name: '財産の名称等', r: [0, 2] },
-      { x: [322.5, 350.5, 634.5], code: 'E4', field: 'place', name: '財産の所在場所等', r: [2, 4] },
+      { x: [322.5, 350.5, 634.5], code: 'E3', field: 'assetName', name: '財産の名称等', r: [0, 2], cell: { align: 'left' } },
+      { x: [322.5, 350.5, 634.5], code: 'E4', field: 'place', name: '財産の所在場所等', r: [2, 4], cell: { align: 'left' } },
       { x: [634.5, 662.5, 757.5], code: 'E5', field: 'quantity', name: '数量', cell: { align: 'right' } },
       {
         x: [757.5, 785.5, 881.5], code: 'C0', field: 'multiple', name: '倍数',
@@ -110,7 +110,7 @@ export const TABLE11F4_SPEC: DetailSpec = {
       { x: [634.5, 662.5, 881.5], code: 'C1', field: 'unitPrice', name: '単価', cell: { align: 'right' } },
     ],
     [
-      { x: [138.5, 165.5, 322.5], code: 'E2', field: 'note', name: '備考' },
+      { x: [138.5, 165.5, 322.5], code: 'E2', field: 'note', name: '備考', cell: { align: 'left' } },
       {
         x: [634.5, 662.5, 881.5], code: 'G3', field: 'value', name: '価額',
         // 記載例62ページ。代償財産だけは価額を0とし、授受の額は「取得財産の価額」欄に正負で書く

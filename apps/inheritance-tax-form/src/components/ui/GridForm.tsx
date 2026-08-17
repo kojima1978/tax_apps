@@ -33,6 +33,8 @@ export interface GridCell {
   verticalLr?: boolean;              // 縦書きの列が左から右へ進む（第4表の縦書き帯）
   bold?: boolean;
   noWrap?: boolean;                  // 明示改行以外では折り返さない
+  /** 枠に入りきらない入力値をセル内で折り返す（銘柄など長い名称の欄）。1行入力の input ではなく textarea で描く */
+  multiline?: boolean;
   noBorder?: boolean;                // 様式に罫線が無い領域（提出日の行など）
   noBorderTop?: boolean;             // 上罫線だけを描かない（隣接する計算欄と一体に見せる注記行）
   noBorderBottom?: boolean;          // 下罫線だけを描かない（下段の数式欄と一体に見せる見出し行）
@@ -500,25 +502,40 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           <>
             {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.cornerLabel}</span>}
             {printRendering ? (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', background: 'transparent', paddingRight: rightLabelPadding, boxSizing: 'border-box', whiteSpace: 'nowrap' }}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', background: 'transparent', paddingRight: rightLabelPadding, boxSizing: 'border-box', whiteSpace: c.multiline ? 'pre-wrap' : 'nowrap', overflowWrap: c.multiline ? 'anywhere' : undefined, lineHeight: c.multiline ? 1.15 : undefined }}>
                 {inputText(c, g, true)}
               </div>
             ) : (
-              <input
-                id={`${inputPrefix}-${c.field}-${i}`}
-                name={`${inputPrefix}.${c.field}`}
-                aria-label={c.ariaLabel ?? c.field}
-                title={c.hint}
-                value={inputText(c, g, readOnly)}
-                onChange={(e) => u(c.field!, cleanNumeric(c, e.target.value))}
-                onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, fixNumeric(c, g(c.field!))); }}
-                onKeyDown={onEnterNext}
-                inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined}
-                maxLength={c.integerDigits}
-                readOnly={readOnly}
-                tabIndex={readOnly ? -1 : undefined}
-                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit' }}
-              />
+              c.multiline ? (
+                <textarea
+                  id={`${inputPrefix}-${c.field}-${i}`}
+                  name={`${inputPrefix}.${c.field}`}
+                  aria-label={c.ariaLabel ?? c.field}
+                  title={c.hint}
+                  value={inputText(c, g, readOnly)}
+                  onChange={(e) => u(c.field!, e.target.value)}
+                  onKeyDown={onEnterNext}
+                  readOnly={readOnly}
+                  tabIndex={readOnly ? -1 : undefined}
+                  style={{ width: '100%', height: '100%', border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', textAlign: c.align ?? 'left', fontSize: 'inherit', lineHeight: 1.15, background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit', overflowWrap: 'anywhere' }}
+                />
+              ) : (
+                <input
+                  id={`${inputPrefix}-${c.field}-${i}`}
+                  name={`${inputPrefix}.${c.field}`}
+                  aria-label={c.ariaLabel ?? c.field}
+                  title={c.hint}
+                  value={inputText(c, g, readOnly)}
+                  onChange={(e) => u(c.field!, cleanNumeric(c, e.target.value))}
+                  onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, fixNumeric(c, g(c.field!))); }}
+                  onKeyDown={onEnterNext}
+                  inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined}
+                  maxLength={c.integerDigits}
+                  readOnly={readOnly}
+                  tabIndex={readOnly ? -1 : undefined}
+                  style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit' }}
+                />
+              )
             )}
           </>
         ) : c.numberedNotes ? (

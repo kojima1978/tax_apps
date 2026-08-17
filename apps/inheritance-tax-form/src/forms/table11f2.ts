@@ -92,7 +92,7 @@ export const TABLE11F2_SPEC: DetailSpec = {
         autoFill: { field: 'kind', byValue: codeNames(TABLE11F2_KINDS) },
         cell: { options: codeOptions(TABLE11F2_KINDS), compactSelectedOption: true },
       },
-      { x: [207.5, 228.5, 337.5], code: 'E0', field: 'kind', name: '細目' },
+      { x: [207.5, 228.5, 337.5], code: 'E0', field: 'kind', name: '細目', cell: { align: 'left' } },
       {
         x: [337.5, 359.5, 402.5], code: 'G3', field: 'brokerCode', name: '金融商品取引業者等コード',
         cell: { options: BROKER_CODE_OPTIONS, compactSelectedOption: true },
@@ -101,12 +101,24 @@ export const TABLE11F2_SPEC: DetailSpec = {
         x: [402.5, 424.5, 620.5], code: 'E4', field: 'broker', name: '金融商品取引業者等の名称',
         // 入力は「みずほ」のまま。用紙にはコードに合わせて「みずほ銀行」と出す
         suffixByCode: { field: 'brokerCode', ...BROKER_CODE_SUFFIX },
+        cell: { align: 'left' },
       },
-      { x: [620.5, 642.5, 762.5], code: 'C0', field: 'quantity', name: '数量', cell: { align: 'right' } },
-      { x: [762.5, 784.5, 890.5], code: 'C1', field: 'fx', name: '為替', cell: { align: 'right' } },
+      {
+        x: [620.5, 642.5, 762.5], code: 'C0', field: 'quantity', name: '数量',
+        cell: { align: 'right', decimalPlaces: 2, commaInteger: true },
+      },
+      {
+        x: [762.5, 784.5, 890.5], code: 'C1', field: 'fx', name: '為替',
+        // 外貨建てのときだけ入れる欄。空欄は 1.0（邦貨建て）として価額を計算する
+        cell: {
+          align: 'right', decimalPlaces: 10, commaInteger: true,
+          hint: '外貨建ての有価証券のとき、単価に掛ける邦貨換算の為替相場を記入します（空欄なら掛けません）',
+        },
+      },
     ],
     [
-      { x: [141.5, 163.5, 272.5], code: 'E1', field: 'issue', name: '銘柄' },
+      // 銘柄は長くなりがちなので枠内で折り返す
+      { x: [141.5, 163.5, 272.5], code: 'E1', field: 'issue', name: '銘柄', cell: { align: 'left', multiline: true } },
       {
         x: [272.5, 294.5, 337.5], code: 'G2', field: 'foreign', name: '国外',
         cell: {
@@ -122,17 +134,27 @@ export const TABLE11F2_SPEC: DetailSpec = {
       {
         x: [402.5, 424.5, 620.5], code: 'E5', field: 'branch', name: '支店等の名称',
         suffixByCode: { field: 'branchCode', ...BRANCH_CODE_SUFFIX },
+        cell: { align: 'left' },
       },
-      { x: [620.5, 642.5, 890.5], code: 'E7', field: 'unitPrice', name: '単価', cell: { align: 'right' } },
+      {
+        x: [620.5, 642.5, 890.5], code: 'E7', field: 'unitPrice', name: '単価',
+        cell: { align: 'right', decimalPlaces: 2, commaInteger: true },
+      },
     ],
     [
       {
         x: [141.5, 163.5, 207.5], code: 'E2', field: 'special', name: '特例',
         cell: { options: TABLE11F2_SPECIAL_OPTIONS, compactSelectedOption: true },
       },
-      { x: [207.5, 228.5, 337.5], code: 'E3', field: 'note', name: '備考' },
-      { x: [337.5, 359.5, 620.5], code: 'E6', field: 'other', name: 'その他（発行法人の所在地等）' },
+      { x: [207.5, 228.5, 337.5], code: 'E3', field: 'note', name: '備考', cell: { align: 'left' } },
+      { x: [337.5, 359.5, 620.5], code: 'E6', field: 'other', name: 'その他（発行法人の所在地等）', cell: { align: 'left' } },
       { x: [620.5, 642.5, 890.5], code: 'G5', field: 'value', name: '価額', cell: { commaInteger: true, align: 'right' } },
     ],
+  ],
+  panel: [
+    ['kindCode', 'kind'],
+    ['brokerCode', 'broker', 'branchCode', 'branch', 'other', 'issue'],
+    ['quantity', 'unitPrice', 'fx', 'value'],
+    ['foreign', 'special', 'note'],
   ],
 };

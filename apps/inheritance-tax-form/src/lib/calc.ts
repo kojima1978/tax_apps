@@ -869,10 +869,8 @@ interface DetailValueRule {
   base: string;
   /** 掛ける欄（すべて入っていないと自動計算しない） */
   times: readonly string[];
-  /** 入っていれば掛ける欄 */
+  /** 入っていれば掛ける欄（空欄は1.0として扱う） */
   optional?: readonly string[];
-  /** この欄に入力があるうちは自動計算しない */
-  manualWhen?: readonly string[];
 }
 
 /** 付表1（土地・家屋等）の評価方式 */
@@ -1030,10 +1028,10 @@ export function table11f1Calc(item: Values): Table11f1Calc {
 
 /**
  * 付表2〜4の「価額」を元の欄から自動計算する式。
- * 付表2は外貨建て（為替欄あり）だと邦貨換算の入れ方が一通りに決まらないので自動計算しない。
+ * 付表2の為替は外貨建てのときだけ入れる欄なので、空欄は 1.0（邦貨建て）として扱う。
  */
 const DETAIL_VALUE_RULES: Record<string, DetailValueRule> = {
-  table11f2: { base: 'quantity', times: ['unitPrice'], manualWhen: ['fx'] },
+  table11f2: { base: 'quantity', times: ['unitPrice'], optional: ['fx'] },
   table11f3: { base: 'quantity', times: ['unitPrice'] },
   table11f4: { base: 'quantity', times: ['unitPrice'], optional: ['multiple'] },
 };
@@ -1057,7 +1055,6 @@ export function detailAutoValue(form: string, item: Values): string | undefined 
   if (form === 'table11f1') return table11f1Value(item);
   const rule = DETAIL_VALUE_RULES[form];
   if (rule === undefined) return undefined;
-  if (rule.manualWhen?.some((key) => (item[key] ?? '').trim() !== '')) return undefined;
   const base = num(item[rule.base]);
   if (base <= 0) return undefined;
   let total = base;
