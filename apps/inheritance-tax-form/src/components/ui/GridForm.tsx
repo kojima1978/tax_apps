@@ -2,6 +2,7 @@ import { useCallback, useContext, useId, useMemo, useRef, type CSSProperties, ty
 import { PrintRenderContext } from './printContext';
 import { lookupZipAddress } from '../../lib/zipAddress';
 import { formatCommaInteger, formatFixedDecimal, formatSignedCommaInteger, normalizeInteger, sanitizeDecimal } from '../../lib/format';
+import { codeLinkedUpdates, type AutoFill, type AutoSuffix } from '../../lib/codeLink';
 
 /**
  * グリッドセル定義（座標・サイズは様式全体に対する％）。
@@ -63,7 +64,9 @@ export interface GridCell {
   compactSelectedOption?: boolean;   // 印刷はコードのみ（狭いコード記入枠用。画面では選択肢の名称ごと出す）
   stackedSelectedOption?: boolean;   // 画面では選択値のコードと名称を上下2段で表示
   /** 選択に連動して別の欄も書き換える（細目コード → 細目の名称）。書き換えた後も手入力できる */
-  autoFill?: { field: string; byValue: Record<string, string> };
+  autoFill?: AutoFill;
+  /** 選択に連動して別の欄の**末尾の語だけ**を付け替える（金融機関等コード → 名称の「銀行」） */
+  autoSuffix?: AutoSuffix;
   /**
    * 記入条件のツールチップ（`title`）。様式にも記載要領にも書かれておらず
    * 記載例にしか出てこない条件（「国内の口座で管理されていたものは記入不要」など）を添える。
@@ -435,7 +438,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 value={g(c.field)}
                 onChange={(e) => {
                   u(c.field!, e.target.value);
-                  if (c.autoFill) u(c.autoFill.field, c.autoFill.byValue[e.target.value] ?? '');
+                  codeLinkedUpdates(c, e.target.value, g).forEach(([field, value]) => u(field, value));
                 }}
                 onKeyDown={onEnterNext}
                 // 「1」だけの狭い欄（flag）は中央寄せしたいので align を見る

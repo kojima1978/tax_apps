@@ -128,34 +128,57 @@ export const TABLE11F2_SPECIAL_OPTIONS = specialOptions(['3', '6', '7', '8']);
 export const TABLE11F4_SPECIAL_OPTIONS = specialOptions(['2', '4', '6']);
 
 /** 付表2《金融商品取引業者等コード》（5番が無く、6が証券・7が上記以外） */
-export const BROKER_CODE_OPTIONS = codeOptions([
+const BROKER_CODES = [
   { code: '1', name: '銀行' },
   { code: '2', name: '金庫' },
   { code: '3', name: '組合' },
   { code: '4', name: '農協' },
   { code: '6', name: '証券' },
   { code: '7', name: '上記以外' },
-]);
+];
 
 /** 付表3《金融機関等コード》（付表2と違い5が漁協、6が上記以外） */
-export const BANK_CODE_OPTIONS = codeOptions([
+const BANK_CODES = [
   { code: '1', name: '銀行' },
   { code: '2', name: '金庫' },
   { code: '3', name: '組合' },
   { code: '4', name: '農協' },
   { code: '5', name: '漁協' },
   { code: '6', name: '上記以外' },
-]);
+];
 
 /** 《支店等コード》（付表2・付表3で共通） */
-export const BRANCH_CODE_OPTIONS = codeOptions([
+const BRANCH_CODES = [
   { code: '1', name: '本店' },
   { code: '2', name: '支店' },
   { code: '3', name: '本所' },
   { code: '4', name: '支所' },
   { code: '5', name: '出張所' },
   { code: '6', name: '上記以外' },
-]);
+];
+
+export const BROKER_CODE_OPTIONS = codeOptions(BROKER_CODES);
+export const BANK_CODE_OPTIONS = codeOptions(BANK_CODES);
+export const BRANCH_CODE_OPTIONS = codeOptions(BRANCH_CODES);
+
+/** 名称の末尾に補っても意味を成さない語（「みずほ上記以外」になってしまう） */
+const NO_SUFFIX = ['上記以外'];
+
+/**
+ * コード表 → 名称欄の末尾に補う語の表（`autoSuffix` にそのまま渡す）。
+ * コードを選ぶと「みずほ」が「みずほ銀行」になる。
+ */
+function codeSuffix(items: readonly { code: string; name: string }[]) {
+  const words = items.map((c) => c.name).filter((name) => !NO_SUFFIX.includes(name));
+  return {
+    byValue: Object.fromEntries(items.map((c) => [c.code, NO_SUFFIX.includes(c.name) ? '' : c.name])),
+    words,
+  };
+}
+
+export const BROKER_CODE_SUFFIX = codeSuffix(BROKER_CODES);
+export const BANK_CODE_SUFFIX = codeSuffix(BANK_CODES);
+export const BRANCH_CODE_SUFFIX = codeSuffix(BRANCH_CODES);
 
 /** 「国外」欄は所在場所が国外のときだけ「1」を書く */
 export const FOREIGN_OPTIONS = codeOptions([{ code: '1', name: '国外' }]);

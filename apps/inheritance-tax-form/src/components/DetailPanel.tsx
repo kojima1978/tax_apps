@@ -19,6 +19,7 @@ import {
   isEmptyDetail, moveDetailShare, num,
 } from '../lib/calc';
 import { formatCommaInteger, formatSignedCommaInteger, normalizeInteger, sanitizeDecimal } from '../lib/format';
+import { codeLinkedUpdates, type AutoFill, type AutoSuffix } from '../lib/codeLink';
 
 /** 評価方式の選択肢（付表1のみ） */
 const METHOD_OPTIONS: readonly { value: DetailMethod; label: string; note: string }[] = [
@@ -34,6 +35,9 @@ interface PanelField {
   field: string;
   name: string;
   cell: Partial<GridCell>;
+  /** コードを選んだときに連動して書き換える欄（用紙側と同じ規則で動かす） */
+  autoFill?: AutoFill;
+  autoSuffix?: AutoSuffix;
   /** 分母の欄（分数の欄のときだけ） */
   denominator?: PanelField;
 }
@@ -42,7 +46,13 @@ interface PanelField {
 function panelFields(spec: DetailSpec): PanelField[] {
   const flat: DetailField[] = spec.rows.flat().filter((f) => f.field !== undefined);
   const byField = new Map(flat.map((f) => [f.field!, f]));
-  const toPanel = (f: DetailField): PanelField => ({ field: f.field!, name: f.name ?? f.field!, cell: f.cell ?? {} });
+  const toPanel = (f: DetailField): PanelField => ({
+    field: f.field!,
+    name: f.name ?? f.field!,
+    cell: f.cell ?? {},
+    ...(f.autoFill ? { autoFill: f.autoFill } : {}),
+    ...(f.autoSuffix ? { autoSuffix: f.autoSuffix } : {}),
+  });
   const denominators = new Set(Object.values(FRACTIONS));
   return flat
     .filter((f) => !denominators.has(f.field!))
@@ -154,6 +164,12 @@ export function DetailPanel({
   const [draft, setDraft] = useState<Values>(item);
   const fields = useMemo(() => panelFields(spec), [spec]);
   const set = (field: string, value: string) => setDraft((prev) => ({ ...prev, [field]: value }));
+  /** 欄の定義に従って入れる（コードの欄なら連動する欄も一緒に書き換える） */
+  const setField = (field: PanelField, value: string) => setDraft((prev) => {
+    const next: Values = { ...prev, [field.field]: value };
+    codeLinkedUpdates(field, value, (key) => prev[key] ?? '').forEach(([key, v]) => { next[key] = v; });
+    return next;
+  });
 
   const method = detailMethod(draft);
   const unused = useMemo(() => new Set(detailUnusedFields(form, draft)), [form, draft]);
@@ -283,7 +299,7 @@ export function DetailPanel({
                     field={field}
                     value={draft[field.field] ?? ''}
                     disabled={disabled}
-                    onChange={(value) => set(field.field, value)}
+                    onChange={(value) => setField(field, value)}
                   />
                 )}
                 {field.denominator && (

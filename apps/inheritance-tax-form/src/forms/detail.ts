@@ -15,6 +15,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
+import type { AutoFill, AutoSuffix } from '../lib/codeLink';
 import { code, label, mk } from './geometry';
 
 /** 1枚に載る財産の数（＝組の数） */
@@ -87,7 +88,12 @@ export interface DetailField {
    * コードを選ぶと連動して書き換える欄（細目コード → 細目の名称）。
    * `field` は接頭辞の付かない欄名で書く（組み立て時に組ごとの接頭辞を付ける）。
    */
-  autoFill?: { field: string; byValue: Record<string, string> };
+  autoFill?: AutoFill;
+  /**
+   * コードを選ぶと連動して**末尾の語だけ**を付け替える欄（金融機関等コード → 名称の「銀行」）。
+   * `field` の書き方は `autoFill` と同じ。
+   */
+  autoSuffix?: AutoSuffix;
   /** 入力欄の種類（桁数・カンマ区切りなど） */
   cell?: Partial<GridCell>;
 }
@@ -177,6 +183,7 @@ function fieldCells(
     cells.push(mk(y, s.col(valueLeft, right), {
       kind: 'input', field: `${prefix}${f.field}`, ariaLabel: `${who}の${f.name ?? f.field}`, ...f.cell,
       ...(f.autoFill ? { autoFill: { ...f.autoFill, field: `${prefix}${f.autoFill.field}` } } : {}),
+      ...(f.autoSuffix ? { autoSuffix: { ...f.autoSuffix, field: `${prefix}${f.autoSuffix.field}` } } : {}),
       // 入力は明細ごとの別画面に一本化してあるので、用紙の上は結果の表示だけ。
       // クリックするとその明細の入力画面が開く
       readOnly: true, action,

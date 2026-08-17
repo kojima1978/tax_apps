@@ -6,8 +6,8 @@
  */
 
 import {
-  BRANCH_CODE_OPTIONS, BROKER_CODE_OPTIONS, FOREIGN_OPTIONS, TABLE11F2_KINDS, TABLE11F2_SPECIAL_OPTIONS,
-  codeNames, codeOptions,
+  BRANCH_CODE_OPTIONS, BRANCH_CODE_SUFFIX, BROKER_CODE_OPTIONS, BROKER_CODE_SUFFIX,
+  FOREIGN_OPTIONS, TABLE11F2_KINDS, TABLE11F2_SPECIAL_OPTIONS, codeNames, codeOptions,
 } from '../data/detailCodes';
 import type { DetailFrame, DetailShareCodes, DetailSpec } from './detail';
 
@@ -95,6 +95,8 @@ export const TABLE11F2_SPEC: DetailSpec = {
       { x: [207.5, 228.5, 337.5], code: 'E0', field: 'kind', name: '細目' },
       {
         x: [337.5, 359.5, 402.5], code: 'G3', field: 'brokerCode', name: '金融商品取引業者等コード',
+        // コードを選ぶと名称の末尾に業態が付く（「みずほ」→「みずほ銀行」）
+        autoSuffix: { field: 'broker', ...BROKER_CODE_SUFFIX },
         cell: { options: BROKER_CODE_OPTIONS, compactSelectedOption: true },
       },
       { x: [402.5, 424.5, 620.5], code: 'E4', field: 'broker', name: '金融商品取引業者等の名称' },
@@ -113,6 +115,7 @@ export const TABLE11F2_SPEC: DetailSpec = {
       },
       {
         x: [337.5, 359.5, 402.5], code: 'G4', field: 'branchCode', name: '支店等コード',
+        autoSuffix: { field: 'branch', ...BRANCH_CODE_SUFFIX },
         cell: { options: BRANCH_CODE_OPTIONS, compactSelectedOption: true },
       },
       { x: [402.5, 424.5, 620.5], code: 'E5', field: 'branch', name: '支店等の名称' },
