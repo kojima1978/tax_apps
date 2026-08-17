@@ -87,6 +87,7 @@ import {
   table13Pages, table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9Pages,
   type Values,
 } from './lib/calc';
+import { HEIR_ID } from './lib/heirRef';
 
 /** 第1表の転記欄。様式の選択状態にかかわらず直接入力させず、クリックで転記元を開く。 */
 const TABLE1_SOURCE_FOR_ROW: Readonly<Record<string, string>> = {
@@ -705,7 +706,7 @@ function PageControl({
 
 export default function App() {
   const {
-    data, g, u, addHeir, removeHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
+    data, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
     moveDetailItem, toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -818,9 +819,15 @@ export default function App() {
   })), [data.details]);
   /** 付表の枚数 */
   const detailPages = (form: string): number => detailLayout[form]?.pages ?? 1;
-  /** 付表の「財産を取得した人の番号」の選択肢（第1表の人。番号は1始まり） */
+  /**
+   * 付表の「財産を取得した人の番号」の選択肢（第1表の人）。
+   * 値は人のID。用紙に出る番号は何人目かだが、保存するのは人そのものにする
+   * （並べ替えや途中の削除で番号が動いても、指す相手が変わらないように）。
+   */
   const detailHeirOptions = useMemo(
-    () => data.heirs.map((heir, i) => ({ value: String(i + 1), label: `${i + 1} ${heir.name ?? '（氏名未入力）'}` })),
+    () => data.heirs.map((heir, i) => ({
+      value: heir[HEIR_ID] ?? '', label: `${i + 1} ${heir.name ?? '（氏名未入力）'}`,
+    })),
     [data.heirs],
   );
   /** 第13表の枚数（3の承継した人が1枚に4人分しか入らないので人数でも増える） */
@@ -837,9 +844,9 @@ export default function App() {
   const t9Pages = table9Pages(data.common);
   /** 第10表の枚数（第9表と同じく1枚に5件ずつ） */
   const t10Pages = table10Pages(data.common);
-  /** 第13表の「負担する人の氏名」。値は項番（1始まり）で、印字は氏名になる */
+  /** 各表の氏名欄（第13表の「負担する人の氏名」など）。値は人のIDで、印字は氏名になる */
   const whoOptions = useMemo(
-    (): GridCell['options'] => ['', ...data.heirs.map((heir, i) => ({ value: String(i + 1), label: heir.name ?? '' }))],
+    (): GridCell['options'] => ['', ...data.heirs.map((heir) => ({ value: heir[HEIR_ID] ?? '', label: heir.name ?? '' }))],
     [data.heirs],
   );
   /**
@@ -848,7 +855,7 @@ export default function App() {
    */
   const table6Options = useMemo((): Table6Options => {
     const people = data.heirs.map((heir, i) => ({
-      value: String(i + 1), label: (heir.name ?? '').trim() === '' ? heirLabel(i) : heir.name!,
+      value: heir[HEIR_ID] ?? '', label: (heir.name ?? '').trim() === '' ? heirLabel(i) : heir.name!,
     }));
     const age = (i: number): string => g(`${heirPrefix(i)}age`);
     const disability = (i: number): string => data.heirs[i]?.disability ?? '';
@@ -1408,7 +1415,8 @@ export default function App() {
           g={g}
           u={u}
           onAdd={data.heirs.length < maxHeirs ? addHeir : undefined}
-          onRemove={data.heirs.length > 1 ? removeHeir : undefined}
+          onRemove={data.heirs.length > 1 ? () => removeHeir(editingPerson) : undefined}
+          onMove={(to) => { moveHeir(editingPerson, to); setEditingPerson(to); }}
           onSelect={(index) => {
             openPerson(index);
             // その人が載っている用紙へ移る（1人目は第1表、2人目からは第1表（続））

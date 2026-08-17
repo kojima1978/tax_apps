@@ -40,8 +40,10 @@ export interface PersonPanelProps {
   onSelect: (index: number) => void;
   /** 人を1人足す（足せる上限に達していれば undefined） */
   onAdd?: () => void;
-  /** 最後の1人を消す（消せないときは undefined） */
+  /** この人を消す（1人しか居ないときは undefined） */
   onRemove?: () => void;
+  /** この人を `to` 番目へ動かす（用紙に載る順が変わる） */
+  onMove: (to: number) => void;
   /** 確定（この画面を閉じる。入力は打つそばから入っているので、そのまま残る） */
   onClose: () => void;
   /** 取消（この画面を開いた時の状態へ戻して閉じる） */
@@ -49,7 +51,7 @@ export interface PersonPanelProps {
 }
 
 export function PersonPanel({
-  index, total, prefix, g, u, onSelect, onAdd, onRemove, onClose, onCancel,
+  index, total, prefix, g, u, onSelect, onAdd, onRemove, onMove, onClose, onCancel,
 }: PersonPanelProps) {
   const get = (field: string) => g(`${prefix}${field}`);
   const set = (field: string, value: string) => u(`${prefix}${field}`, value);
@@ -67,8 +69,6 @@ export function PersonPanel({
 
   const name = get('name').trim();
   const title = [`${index + 1}人目`, name].filter((part) => part !== '').join(' ');
-  /** 消せるのは最後の人だけ。途中を抜くと他の表が持つ項番（何人目か）が全部ずれる */
-  const canRemove = onRemove !== undefined && index === total - 1;
 
   const textInput = (field: string, label: string) => (
     <input
@@ -289,21 +289,26 @@ export function PersonPanel({
           >
             ＋ 人を追加
           </button>
+          {/* 各表の氏名欄は人そのもの（ID）を持つので、順番を変えても指す相手は変わらない */}
+          <button type="button" className="app-btn" onClick={() => onMove(index - 1)} disabled={index <= 0}>
+            ▲ 順番を前へ
+          </button>
+          <button type="button" className="app-btn" onClick={() => onMove(index + 1)} disabled={index >= total - 1}>
+            ▼ 順番を後へ
+          </button>
           <button
             type="button"
             className="app-btn"
             onClick={() => {
-              if (!window.confirm(`「${title}」の入力内容を消します。よろしいですか？`)) return;
+              // 途中の人を消すと、その人を指していた他の表の氏名欄は行き先を失って空欄になる
+              if (!window.confirm(`「${title}」の入力内容を消します。他の表でこの人を選んでいた欄は空欄になります。よろしいですか？`)) return;
               onRemove?.();
-              onSelect(index - 1);
+              onSelect(Math.max(0, index - 1));
             }}
-            disabled={!canRemove}
+            disabled={onRemove === undefined}
           >
             この人を削除
           </button>
-          {onRemove !== undefined && !canRemove && (
-            <span className="dpanel__note">削除は最後の人から（項番がずれるため）</span>
-          )}
           <span className="dpanel__spacer" />
           {/* 付表の明細と違い、ここは打つそばから入っている。取消は「開いた時に戻す」操作 */}
           <button

@@ -17,6 +17,10 @@ import {
   isEmptyDetail, moved, type Values,
 } from '../lib/calc';
 import { DETAIL_KINDS } from '../data/detailCodes';
+import {
+  HEIR_ID, detailHeirRefKind, heirRefMap, isTotalsHeirRef, migrateHeirRefs, newHeirId, resolveHeirRefs,
+  withHeirIds,
+} from '../lib/heirRef';
 
 export interface FormData {
   common: Values;
@@ -36,6 +40,7 @@ export interface FormData {
    * 3 … 付表1の評価方式（路線価／倍率）を明示的に持つようにした
    * 4 … 相続の放棄を第2表の行から「財産を取得した人」へ移した
    * 5 … 第2表④の行を廃止し、法定相続人であることと法定相続分も「財産を取得した人」へ移した
+   * 6 … 各表の氏名欄が持つ「第1表の何人目か」を、人ごとの不変のID（`_id`）に変えた
    */
   version?: number;
 }
@@ -44,14 +49,14 @@ const STORAGE_KEY = 'inheritance-tax-form:v1';
 /** 移行前のデータの退避先（付表のまとめ直しは元に戻せないため） */
 const BACKUP_KEY = 'inheritance-tax-form:v1-backup';
 /** 現在の保存形式 */
-const DATA_VERSION = 5;
+const DATA_VERSION = 6;
 /** 第1表に1人＋第1表（続）10枚に2人ずつ */
 const MAX_HEIRS = 21;
 /** 既定で使用する様式 */
 const DEFAULT_USED = ['table1', 'table2', 'table11'];
 
 const emptyData = (): FormData => ({
-  common: {}, heirs: [{}], used: [...DEFAULT_USED], details: {}, version: DATA_VERSION,
+  common: {}, heirs: withHeirIds([{}]), used: [...DEFAULT_USED], details: {}, version: DATA_VERSION,
 });
 
 /**
@@ -185,10 +190,15 @@ function isFormData(value: unknown): value is Partial<FormData> {
 /** 保存済み・読込データを現在の形（行数・様式一覧・保存形式）に揃える */
 function normalize(input: Partial<FormData>): FormData {
   const parsed = migrate(input);
-  const details = typeof parsed.details === 'object' && parsed.details !== null ? parsed.details : {};
+  const stored = typeof parsed.details === 'object' && parsed.details !== null ? parsed.details : {};
+  const heirs = withHeirIds(parsed.heirs && parsed.heirs.length > 0 ? parsed.heirs : [{}]);
+  // 版5までの氏名欄は「第1表の何人目か」。IDを付けた直後の並びで1回だけ読み替える
+  const { common, details } = (input.version ?? 1) < 6
+    ? migrateHeirRefs(parsed.common ?? {}, heirs, stored)
+    : { common: parsed.common ?? {}, details: stored };
   return {
-    common: parsed.common ?? {},
-    heirs: parsed.heirs && parsed.heirs.length > 0 ? parsed.heirs : [{}],
+    common,
+    heirs,
     // 印を付け忘れたまま入力していた既存データも、読み込んだ時点で直す
     used: withDetailForms(Array.isArray(parsed.used) ? parsed.used : [...DEFAULT_USED], details),
     details,
@@ -261,17 +271,32 @@ export function useFormData() {
     }
   }, [data]);
 
-  const computed = useMemo(
-    () => computeAll(data.common, data.heirs, data.used, data.details),
-    [data],
+  /**
+   * 計算に渡す前に、氏名欄が持つIDを「何人目か」へ直す。
+   * 位置に依存する計算（第4表・第6表・第7表・付表の集計）はここより下では今までどおり。
+   */
+  const resolved = useMemo(
+    () => resolveHeirRefs(data.common, data.heirs, data.details),
+    [data.common, data.heirs, data.details],
   );
+
+  const computed = useMemo(
+    () => computeAll(resolved.common, data.heirs, data.used, resolved.details),
+    [resolved, data.heirs, data.used],
+  );
+
+  /** 画面へ返すときの読み替え（計算結果の中の人の番号は、選択肢に合わせてIDへ戻す） */
+  const refs = useMemo(() => heirRefMap(data.heirs), [data.heirs]);
 
   /** 明細が入っているため「使用する」の印を外せない様式（付表とその合計表の第11表） */
   const requiredForms = useMemo(() => withDetailForms([], data.details), [data.details]);
 
   const g = useCallback((field: string): string => {
     const [scope, key] = splitField(field);
-    if (scope === 't') return computed.totals[key] ?? '';
+    if (scope === 't') {
+      const value = computed.totals[key] ?? '';
+      return isTotalsHeirRef(key) ? refs.toId(value) : value;
+    }
     if (scope === 'c') return data.common[key] ?? '';
     const detail = splitDetailScope(scope);
     if (detail) {
@@ -293,10 +318,12 @@ export function useFormData() {
         const amount = detailShareAmounts(form, item)[Number(share[1])];
         if (amount !== undefined) return amount;
       }
-      return item[key] ?? '';
+      // 取得者は用紙に「何人目か」を印字する（画面の選択肢はIDのままなので、ここでだけ直す）
+      const value = item[key] ?? '';
+      return detailHeirRefKind(key) === 'number' ? refs.toNo(value) : value;
     }
     return computed.heirs[Number(scope.slice(1))]?.[key] ?? '';
-  }, [data, computed]);
+  }, [data, computed, refs]);
 
   const u = useCallback((field: string, value: string): void => {
     const [scope, key] = splitField(field);
@@ -318,7 +345,8 @@ export function useFormData() {
       }
       // 第1表（続）は必ず2人分が印刷されるため、右側の未作成の1人は入力時に作る
       if (!Number.isInteger(index) || index < 0 || index > prev.heirs.length || index >= MAX_HEIRS) return prev;
-      const next = { ...(prev.heirs[index] ?? {}), [key]: value };
+      const current = prev.heirs[index] ?? { [HEIR_ID]: newHeirId() };
+      const next = { ...current, [key]: value };
       const heirs = [...prev.heirs];
       heirs[index] = next;
       return { ...prev, heirs };
@@ -326,23 +354,43 @@ export function useFormData() {
   }, []);
 
   const addHeir = useCallback(() => {
-    setData((prev) => (prev.heirs.length >= MAX_HEIRS ? prev : { ...prev, heirs: [...prev.heirs, {}] }));
+    setData((prev) => (prev.heirs.length >= MAX_HEIRS
+      ? prev
+      : { ...prev, heirs: [...prev.heirs, { [HEIR_ID]: newHeirId() }] }));
   }, []);
 
-  const removeHeir = useCallback(() => {
-    setData((prev) => (prev.heirs.length <= 1 ? prev : { ...prev, heirs: prev.heirs.slice(0, -1) }));
+  /**
+   * 「財産を取得した人」を1人消す。
+   * 各表の氏名欄はIDを持っているので、後ろの人がずれても指す相手は変わらない。
+   * 消した人を指していた欄は行き先が無くなるため、空欄として表示される。
+   */
+  const removeHeir = useCallback((index: number) => {
+    setData((prev) => (prev.heirs.length <= 1 || index < 0 || index >= prev.heirs.length
+      ? prev
+      : { ...prev, heirs: prev.heirs.filter((_, i) => i !== index) }));
+  }, []);
+
+  /** 「財産を取得した人」の並びを入れ替える（用紙に載る順と番号が変わる。参照は付いてくる） */
+  const moveHeir = useCallback((from: number, to: number) => {
+    setData((prev) => {
+      const { heirs } = prev;
+      if (from === to || from < 0 || to < 0 || from >= heirs.length || to >= heirs.length) return prev;
+      return { ...prev, heirs: moved(heirs, from, to) };
+    });
   }, []);
 
   /**
    * 「財産を取得した人」1人分を丸ごと差し替える（人物の画面の「取消」で使う）。
    * 人物の画面は打つそばから書き込むので、取り消すには開いた時に控えたオブジェクトを戻す。
    * 欄を数え上げて組み立て直すのではないため、他の表が入れた計算値も控えたまま戻る。
+   * IDだけは今の人のものを残す（控えた時点でまだIDが無くても、参照の指す先を失わないため）。
    */
   const setHeir = useCallback((index: number, values: Values) => {
     setData((prev) => {
-      if (!Number.isInteger(index) || index < 0 || index >= prev.heirs.length) return prev;
+      const current = prev.heirs[index];
+      if (!Number.isInteger(index) || index < 0 || current === undefined) return prev;
       const heirs = [...prev.heirs];
-      heirs[index] = { ...values };
+      heirs[index] = { ...values, [HEIR_ID]: current[HEIR_ID] ?? values[HEIR_ID] ?? newHeirId() };
       return { ...prev, heirs };
     });
   }, []);
@@ -439,7 +487,7 @@ export function useFormData() {
   }, []);
 
   return {
-    data, g, u, addHeir, removeHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
+    data, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
     toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs: MAX_HEIRS,
   };
 }
