@@ -247,7 +247,7 @@ function section(s: Section, common: string, totals: string, page: number, optio
  * @param page 0始まりの枚数
  * @param autoCredit 第6表を使っているか（1の①②が転記になる）
  * @param autoSuccessive 第7表を使っているか（1の③が転記になる）
- * @param options 氏名の選択肢（値は第11表の項番＝入力順の通し番号）
+ * @param options 氏名の選択肢（値はその人のID。計算へ渡る前に「何人目か」へ直される）
  */
 export function buildTable88(
   common: string, totals: string, page: number,

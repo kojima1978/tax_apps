@@ -228,7 +228,7 @@ function bandCells(b: number, page: number, totals: string): GridCell[] {
  * @param common 共通欄のフィールド接頭辞（'c.'）— 氏名の項番・提出先・年分・①②③⑤⑥⑦
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）— ④⑧㉕
  * @param page 何枚目か（0起点）。人の通し番号は `page * TABLE42_PERSONS + 列番号`
- * @param options 氏名の選択肢（値は第11表の項番＝入力順の通し番号）
+ * @param options 氏名の選択肢（値はその人のID。計算へ渡る前に「何人目か」へ直される）
  */
 export function buildTable42(
   common: string, totals: string, page: number, options: GridCell['options'],

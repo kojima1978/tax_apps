@@ -182,7 +182,7 @@ const ROWS: readonly RowDef[] = [
  * @param common 共通欄のフィールド接頭辞（'c.'）— 被相続人の氏名・氏名の項番・②⑤
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）— ①③④⑥
  * @param page 何枚目か（0起点）。人の通し番号は `page * TABLE4_PERSONS + 列番号`
- * @param options 氏名の選択肢（値は第11表の項番＝入力順の通し番号）
+ * @param options 氏名の選択肢（値はその人のID。計算へ渡る前に「何人目か」へ直される）
  */
 export function buildTable4(
   common: string, totals: string, page: number, options: GridCell['options'],

@@ -463,7 +463,7 @@ function section(s: Section, common: string, totals: string, options: GridCell['
  * 第7表のセルを組み立てる。
  * @param common 共通欄のフィールド接頭辞（'c.'）— 前の相続の情報・⑤⑥・氏名の項番・(2)の⑮
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）— ③④⑦Ⓐと各人の⑩⑫⑬
- * @param options 氏名の選択肢（値は第11表の項番＝入力順の通し番号）
+ * @param options 氏名の選択肢（値はその人のID。計算へ渡る前に「何人目か」へ直される）
  */
 export function buildTable7(common: string, totals: string, options: GridCell['options']): GridCell[] {
   const general: Section = {

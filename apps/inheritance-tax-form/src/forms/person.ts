@@ -166,7 +166,7 @@ export const PERSON_ATTRS: readonly PersonField[] = [
   },
 ];
 
-/** 氏名の選択肢1つ分（値は第11表の項番） */
+/** 氏名の選択肢1つ分（値はその人のID。計算へ渡る前に「何人目か」へ直される） */
 export interface PersonOption {
   value: string;
   label: string;

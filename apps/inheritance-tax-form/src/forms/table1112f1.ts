@@ -412,7 +412,7 @@ function limitRows(ctx: Ctx): GridCell[] {
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）— ⑥⑦⑧・⑩・⑪
  * @param sheet 0＝本表、1以降＝（続）の枚数
  * @param items この用紙に載る明細（本表3件・（続）5件。不足分も接頭辞だけは渡す）
- * @param whoOptions 氏名欄の選択肢（値は第11表の項番＝入力順の通し番号）
+ * @param whoOptions 氏名欄の選択肢（値はその人のID。計算へ渡る前に「何人目か」へ直される）
  */
 export function buildTable1112f1(
   common: string, totals: string, sheet: number, items: F1Item[], whoOptions: GridCell['options'],

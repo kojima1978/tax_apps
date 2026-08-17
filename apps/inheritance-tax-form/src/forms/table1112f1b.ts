@@ -302,7 +302,7 @@ function ownerBlock(
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）— 1欄・3欄
  * @param prefix この用紙（一の宅地等1件）のフィールド接頭辞
  * @param sheet 何枚目か（自動計算欄のキーに使う）
- * @param whoOptions 取得者氏名の選択肢（値は第11表の項番）
+ * @param whoOptions 取得者氏名の選択肢（値はその人のID。計算へ渡る前に「何人目か」へ直される）
  */
 export function buildTable1112f1b(
   common: string, totals: string, prefix: string, sheet: number, whoOptions: GridCell['options'],
