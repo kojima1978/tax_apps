@@ -4,3 +4,4 @@
 # 手元にあるファイルは git status がクリーンなまま残るので、削除して checkout し直すこと。
 *.sh text eol=lf
 Dockerfile* text eol=lf
+.gitattributes text eol=lf
