@@ -30,6 +30,7 @@ FROM deps AS dev
 ARG APP_PORT
 ENV NODE_ENV=development TZ=Asia/Tokyo PORT=3114
 COPY . .
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
 EXPOSE ${APP_PORT}
 ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
 CMD ["npm", "run", "dev:all"]
