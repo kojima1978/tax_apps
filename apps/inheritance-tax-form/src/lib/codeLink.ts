@@ -1,11 +1,11 @@
 /**
- * コードを選んだときに連動して別の欄を書き換える仕組み。
- *
- * 用紙（`GridForm`）と明細の入力画面（`DetailPanel`）のどちらで選んでも同じ結果になるよう、
- * 「何をどう書き換えるか」はここ1箇所に置く。書き換えた後の値は普通に手直しできる。
+ * コードを選んだときに連動して別の欄へ効く仕組み。
  *
  * - `autoFill` … 欄の中身をまるごと差し替える（細目コード → 細目の名称）
- * - `autoSuffix` … 末尾の語だけを付け替える（金融機関等コード → 名称の「銀行」）
+ * - `suffixByCode` … **用紙の上の見え方だけ**を変える（金融機関等コード → 名称の末尾に「銀行」）
+ *
+ * 名称の語を保存する値そのものに入れないのは、入力画面には「みずほ」と打ったままを残したいため。
+ * 用紙は `suffixByCode` を見て「みずほ銀行」と出す。
  */
 
 /** 選択に連動して中身をまるごと入れ替える欄 */
@@ -14,21 +14,21 @@ export interface AutoFill {
   byValue: Record<string, string>;
 }
 
-/** 選択に連動して末尾の語を付け替える欄 */
-export interface AutoSuffix {
+/** 用紙に出すときだけ名称の末尾に語を補う指定（名称の欄に付ける） */
+export interface CodeSuffix {
+  /** 補う語を決めるコードの欄 */
   field: string;
   /** コード → 末尾に補う語（補わないコードは空文字） */
   byValue: Record<string, string>;
-  /** 付け替えのときに末尾から剥がす語の一覧 */
+  /** すでに末尾にあれば剥がす語の一覧 */
   words: readonly string[];
 }
 
 /**
  * 名称の末尾の語を `word` に付け替える。
  *
- * 足すだけにすると選び直すたびに「みずほ銀行金庫」と伸びていくので、
+ * 足すだけにすると手で「みずほ銀行」と打ってある場合に「みずほ銀行銀行」になるので、
  * 末尾に既知の語があれば**1つだけ**剥がしてから足す。
- * `word` が空（未選択・「上記以外」）なら剥がすだけで、手で打った部分は残る。
  */
 export function applyCodeSuffix(name: string, word: string, words: readonly string[]): string {
   const base = name.trim();
@@ -39,17 +39,8 @@ export function applyCodeSuffix(name: string, word: string, words: readonly stri
   return `${found === undefined ? base : base.slice(0, -found.length)}${word}`;
 }
 
-/** コードを `code` にしたときに連動して書き換わる［欄名, 値］の組 */
-export function codeLinkedUpdates(
-  link: { autoFill?: AutoFill; autoSuffix?: AutoSuffix },
-  code: string,
-  read: (field: string) => string,
-): [string, string][] {
-  const updates: [string, string][] = [];
-  if (link.autoFill) updates.push([link.autoFill.field, link.autoFill.byValue[code] ?? '']);
-  if (link.autoSuffix) {
-    const { field, byValue, words } = link.autoSuffix;
-    updates.push([field, applyCodeSuffix(read(field), byValue[code] ?? '', words)]);
-  }
-  return updates;
+/** 用紙に出す名称。名称が空なら語だけを出しても意味が無いので空のままにする */
+export function suffixedName(name: string, code: string, suffix: CodeSuffix): string {
+  if (name.trim() === '') return '';
+  return applyCodeSuffix(name, suffix.byValue[code] ?? '', suffix.words);
 }

@@ -15,7 +15,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import type { AutoFill, AutoSuffix } from '../lib/codeLink';
+import type { AutoFill, CodeSuffix } from '../lib/codeLink';
 import { code, label, mk } from './geometry';
 
 /** 1枚に載る財産の数（＝組の数） */
@@ -90,10 +90,10 @@ export interface DetailField {
    */
   autoFill?: AutoFill;
   /**
-   * コードを選ぶと連動して**末尾の語だけ**を付け替える欄（金融機関等コード → 名称の「銀行」）。
-   * `field` の書き方は `autoFill` と同じ。
+   * コードの欄に合わせて**用紙の上の表示だけ**末尾に語を補う（金融機関等コード → 名称の「銀行」）。
+   * `field` は語を決めるコードの欄。書き方は `autoFill` と同じく接頭辞なし。
    */
-  autoSuffix?: AutoSuffix;
+  suffixByCode?: CodeSuffix;
   /** 入力欄の種類（桁数・カンマ区切りなど） */
   cell?: Partial<GridCell>;
 }
@@ -183,7 +183,7 @@ function fieldCells(
     cells.push(mk(y, s.col(valueLeft, right), {
       kind: 'input', field: `${prefix}${f.field}`, ariaLabel: `${who}の${f.name ?? f.field}`, ...f.cell,
       ...(f.autoFill ? { autoFill: { ...f.autoFill, field: `${prefix}${f.autoFill.field}` } } : {}),
-      ...(f.autoSuffix ? { autoSuffix: { ...f.autoSuffix, field: `${prefix}${f.autoSuffix.field}` } } : {}),
+      ...(f.suffixByCode ? { suffixByCode: { ...f.suffixByCode, field: `${prefix}${f.suffixByCode.field}` } } : {}),
       // 入力は明細ごとの別画面に一本化してあるので、用紙の上は結果の表示だけ。
       // クリックするとその明細の入力画面が開く
       readOnly: true, action,

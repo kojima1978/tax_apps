@@ -95,11 +95,13 @@ export const TABLE11F2_SPEC: DetailSpec = {
       { x: [207.5, 228.5, 337.5], code: 'E0', field: 'kind', name: '細目' },
       {
         x: [337.5, 359.5, 402.5], code: 'G3', field: 'brokerCode', name: '金融商品取引業者等コード',
-        // コードを選ぶと名称の末尾に業態が付く（「みずほ」→「みずほ銀行」）
-        autoSuffix: { field: 'broker', ...BROKER_CODE_SUFFIX },
         cell: { options: BROKER_CODE_OPTIONS, compactSelectedOption: true },
       },
-      { x: [402.5, 424.5, 620.5], code: 'E4', field: 'broker', name: '金融商品取引業者等の名称' },
+      {
+        x: [402.5, 424.5, 620.5], code: 'E4', field: 'broker', name: '金融商品取引業者等の名称',
+        // 入力は「みずほ」のまま。用紙にはコードに合わせて「みずほ銀行」と出す
+        suffixByCode: { field: 'brokerCode', ...BROKER_CODE_SUFFIX },
+      },
       { x: [620.5, 642.5, 762.5], code: 'C0', field: 'quantity', name: '数量', cell: { align: 'right' } },
       { x: [762.5, 784.5, 890.5], code: 'C1', field: 'fx', name: '為替', cell: { align: 'right' } },
     ],
@@ -115,10 +117,12 @@ export const TABLE11F2_SPEC: DetailSpec = {
       },
       {
         x: [337.5, 359.5, 402.5], code: 'G4', field: 'branchCode', name: '支店等コード',
-        autoSuffix: { field: 'branch', ...BRANCH_CODE_SUFFIX },
         cell: { options: BRANCH_CODE_OPTIONS, compactSelectedOption: true },
       },
-      { x: [402.5, 424.5, 620.5], code: 'E5', field: 'branch', name: '支店等の名称' },
+      {
+        x: [402.5, 424.5, 620.5], code: 'E5', field: 'branch', name: '支店等の名称',
+        suffixByCode: { field: 'branchCode', ...BRANCH_CODE_SUFFIX },
+      },
       { x: [620.5, 642.5, 890.5], code: 'E7', field: 'unitPrice', name: '単価', cell: { align: 'right' } },
     ],
     [

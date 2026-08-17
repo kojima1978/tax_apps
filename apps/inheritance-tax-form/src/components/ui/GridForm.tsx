@@ -2,7 +2,7 @@ import { useCallback, useContext, useId, useMemo, useRef, type CSSProperties, ty
 import { PrintRenderContext } from './printContext';
 import { lookupZipAddress } from '../../lib/zipAddress';
 import { formatCommaInteger, formatFixedDecimal, formatSignedCommaInteger, normalizeInteger, sanitizeDecimal } from '../../lib/format';
-import { codeLinkedUpdates, type AutoFill, type AutoSuffix } from '../../lib/codeLink';
+import { suffixedName, type AutoFill, type CodeSuffix } from '../../lib/codeLink';
 
 /**
  * グリッドセル定義（座標・サイズは様式全体に対する％）。
@@ -65,8 +65,12 @@ export interface GridCell {
   stackedSelectedOption?: boolean;   // 画面では選択値のコードと名称を上下2段で表示
   /** 選択に連動して別の欄も書き換える（細目コード → 細目の名称）。書き換えた後も手入力できる */
   autoFill?: AutoFill;
-  /** 選択に連動して別の欄の**末尾の語だけ**を付け替える（金融機関等コード → 名称の「銀行」） */
-  autoSuffix?: AutoSuffix;
+  /**
+   * コードの欄に合わせて、**用紙の上の表示だけ**名称の末尾に語を補う
+   * （金融機関等コードが「1 銀行」なら「みずほ」を「みずほ銀行」と出す）。
+   * 保存する値も入力画面の表示も打ったままなので、`readOnly` の欄にだけ効く。
+   */
+  suffixByCode?: CodeSuffix;
   /**
    * 記入条件のツールチップ（`title`）。様式にも記載要領にも書かれておらず
    * 記載例にしか出てこない条件（「国内の口座で管理されていたものは記入不要」など）を添える。
@@ -208,6 +212,18 @@ function selectedOptionLabel(options: NonNullable<GridCell['options']>, value: s
     typeof candidate === 'string' ? candidate === value : candidate.value === value
   ));
   return typeof option === 'string' ? option : option?.label ?? '';
+}
+
+/**
+ * 入力欄に出す文字。数字欄の整形に加え、`suffixByCode` の欄は末尾の語を補う。
+ * 語を補うのは表示だけなので、手で打ち直せる欄（`readOnly` でない）には効かせない。
+ */
+function inputText(c: GridCell, g: (field: string) => string, readOnly: boolean): string {
+  const raw = g(c.field!);
+  const value = c.signedCommaInteger ? formatSignedCommaInteger(raw)
+    : c.commaInteger ? formatCommaInteger(raw)
+    : c.integerDigits !== undefined ? normalizeInteger(raw) : raw;
+  return readOnly && c.suffixByCode ? suffixedName(value, g(c.suffixByCode.field), c.suffixByCode) : value;
 }
 
 /** 複合入力（日付・郵便番号・電話番号）の入力ボックス共通スタイル */
@@ -438,7 +454,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 value={g(c.field)}
                 onChange={(e) => {
                   u(c.field!, e.target.value);
-                  codeLinkedUpdates(c, e.target.value, g).forEach(([field, value]) => u(field, value));
+                  if (c.autoFill) u(c.autoFill.field, c.autoFill.byValue[e.target.value] ?? '');
                 }}
                 onKeyDown={onEnterNext}
                 // 「1」だけの狭い欄（flag）は中央寄せしたいので align を見る
@@ -486,7 +502,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
             {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.cornerLabel}</span>}
             {printRendering ? (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', background: 'transparent', paddingRight: rightLabelPadding, boxSizing: 'border-box', whiteSpace: 'nowrap' }}>
-                {c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined ? normalizeInteger(g(c.field)) : g(c.field)}
+                {inputText(c, g, true)}
               </div>
             ) : (
               <input
@@ -494,7 +510,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 name={`${inputPrefix}.${c.field}`}
                 aria-label={c.ariaLabel ?? c.field}
                 title={c.hint}
-                value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined ? normalizeInteger(g(c.field)) : g(c.field)}
+                value={inputText(c, g, readOnly)}
                 onChange={(e) => {
                   const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces)
                     : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value)

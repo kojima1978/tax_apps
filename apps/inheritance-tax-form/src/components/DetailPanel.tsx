@@ -19,7 +19,7 @@ import {
   isEmptyDetail, moveDetailShare, num,
 } from '../lib/calc';
 import { formatCommaInteger, formatSignedCommaInteger, normalizeInteger, sanitizeDecimal } from '../lib/format';
-import { codeLinkedUpdates, type AutoFill, type AutoSuffix } from '../lib/codeLink';
+import type { AutoFill } from '../lib/codeLink';
 
 /** 評価方式の選択肢（付表1のみ） */
 const METHOD_OPTIONS: readonly { value: DetailMethod; label: string; note: string }[] = [
@@ -35,9 +35,8 @@ interface PanelField {
   field: string;
   name: string;
   cell: Partial<GridCell>;
-  /** コードを選んだときに連動して書き換える欄（用紙側と同じ規則で動かす） */
+  /** コードを選んだときに中身を差し替える欄（用紙側と同じ規則で動かす） */
   autoFill?: AutoFill;
-  autoSuffix?: AutoSuffix;
   /** 分母の欄（分数の欄のときだけ） */
   denominator?: PanelField;
 }
@@ -51,7 +50,6 @@ function panelFields(spec: DetailSpec): PanelField[] {
     name: f.name ?? f.field!,
     cell: f.cell ?? {},
     ...(f.autoFill ? { autoFill: f.autoFill } : {}),
-    ...(f.autoSuffix ? { autoSuffix: f.autoSuffix } : {}),
   });
   const denominators = new Set(Object.values(FRACTIONS));
   return flat
@@ -167,7 +165,7 @@ export function DetailPanel({
   /** 欄の定義に従って入れる（コードの欄なら連動する欄も一緒に書き換える） */
   const setField = (field: PanelField, value: string) => setDraft((prev) => {
     const next: Values = { ...prev, [field.field]: value };
-    codeLinkedUpdates(field, value, (key) => prev[key] ?? '').forEach(([key, v]) => { next[key] = v; });
+    if (field.autoFill) next[field.autoFill.field] = field.autoFill.byValue[value] ?? '';
     return next;
   });
 
