@@ -1,2 +1,6 @@
+# Windows でチェックアウトしても改行を LF に固定する。
+# CRLF のまま Linux コンテナへ持ち込むと `set: line 2: illegal option -` のように壊れる。
+# 注意: この指定は「これからチェックアウトされるファイル」にしか効かない。既に CRLF で
+# 手元にあるファイルは git status がクリーンなまま残るので、削除して checkout し直すこと。
 *.sh text eol=lf
-
+Dockerfile* text eol=lf
