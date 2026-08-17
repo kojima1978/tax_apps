@@ -473,3 +473,29 @@ describe('入力内容の比較', () => {
     expect(sameValues({ name: '甲' }, { name: '甲', rel: '長男' })).toBe(false);
   });
 });
+
+describe('computeAll 第13表1・2の集計', () => {
+  const heirs: Values[] = [{ name: '甲' }, { name: '乙' }];
+  /** 負担する人は `resolveHeirRefs` を通った後の「何人目か」 */
+  const debt: Values[] = [
+    { kind: '借入金', amt: '3000000', who: '1', share: '3000000' },
+    { kind: '未払金', amt: '1000000', who: '2', share: '1000000' },
+  ];
+  const details = { table13debt: debt, table13funeral: [{ name: '寺', amt: '500000', who: '1', share: '500000' }] };
+
+  it('負担する人ごとに3①④へ、金額の列は1・2の合計欄へ', () => {
+    const result = computeAll({}, heirs, ['table13'], details);
+
+    expect(result.heirs.map((heir) => heir.t13v1)).toEqual(['3000000', '1000000']);
+    expect(result.heirs.map((heir) => heir.t13v4)).toEqual(['500000', '']);
+    expect(result.totals.t13dTotal).toBe('4000000');
+    expect(result.totals.t13fTotal).toBe('500000');
+  });
+
+  it('明細を並べ替えても結果は変わらない（値は行そのものが持つ）', () => {
+    const swapped = { ...details, table13debt: [debt[1]!, debt[0]!] };
+
+    expect(computeAll({}, heirs, ['table13'], swapped).heirs.map((heir) => heir.t13v1))
+      .toEqual(['3000000', '1000000']);
+  });
+});

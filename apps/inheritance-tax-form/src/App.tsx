@@ -24,8 +24,8 @@ import {
   TABLE112_FORM_CODE, TABLE112_ROWS, TABLE112_SUBTITLE, TABLE112_TITLE, buildTable112,
 } from './forms/table112';
 import {
-  TABLE13_ASPECT, TABLE13_DEBT_ROWS, TABLE13_FORM_CODE, TABLE13_FUNERAL_ROWS, TABLE13_EDITION,
-  TABLE13_PERSONS, TABLE13_SUBTITLE, TABLE13_TITLE, buildTable13,
+  TABLE13_ASPECT, TABLE13_DEBT_FORM, TABLE13_DEBT_ROWS, TABLE13_FORM_CODE, TABLE13_FUNERAL_FORM,
+  TABLE13_FUNERAL_ROWS, TABLE13_EDITION, TABLE13_PERSONS, TABLE13_SUBTITLE, TABLE13_TITLE, buildTable13,
 } from './forms/table13';
 import {
   TABLE14_ASPECT, TABLE14_BEQUEST_ROWS, TABLE14_DONATION_ROWS, TABLE14_EDITION, TABLE14_FORM_CODE,
@@ -84,7 +84,7 @@ import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
   deriveLawful, detailSlots, hasTable112, isEmptyDetail, lawfulMembers, sameValues, table10Pages, table112Pages,
-  table13Pages, table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9Pages,
+  table13MinPages, table13Pages, table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9Pages,
   type Values,
 } from './lib/calc';
 import { HEIR_ID } from './lib/heirRef';
@@ -437,13 +437,25 @@ interface Table13PageProps extends PageProps {
   whoOptions: GridCell['options'];
 }
 
+/** 明細の行（この用紙に載る `rows` 件）の在りか。接頭辞は明細の配列を指す */
+function detailRows(form: string, page: number, rows: number, name: string) {
+  return Array.from({ length: rows }, (_, r) => {
+    const index = page * rows + r;
+    return { prefix: detailPrefix(form, index), label: `${name}${index + 1}` };
+  });
+}
+
 /** 第13表1枚（債務4件・葬式費用5件・承継した人4人分） */
 function Table13Page({ page, last, whoOptions, g, u, onNavigate }: Table13PageProps) {
   const cells = useMemo(
-    () => buildTable13(COMMON, TOTALS, Array.from({ length: TABLE13_PERSONS }, (_, i) => {
-      const index = page * TABLE13_PERSONS + i;
-      return { prefix: heirPrefix(index), label: heirLabel(index) };
-    }), page, last, whoOptions),
+    () => buildTable13(COMMON, TOTALS, {
+      people: Array.from({ length: TABLE13_PERSONS }, (_, i) => {
+        const index = page * TABLE13_PERSONS + i;
+        return { prefix: heirPrefix(index), label: heirLabel(index) };
+      }),
+      debt: detailRows(TABLE13_DEBT_FORM, page, TABLE13_DEBT_ROWS, '債務'),
+      funeral: detailRows(TABLE13_FUNERAL_FORM, page, TABLE13_FUNERAL_ROWS, '葬式費用'),
+    }, last, whoOptions),
     [page, last, whoOptions],
   );
   return (
@@ -830,8 +842,9 @@ export default function App() {
     })),
     [data.heirs],
   );
-  /** 第13表の枚数（3の承継した人が1枚に4人分しか入らないので人数でも増える） */
-  const t13Pages = table13Pages(data.common, data.heirs.length);
+  /** 第13表の最低枚数（3の承継した人は1枚に4人分、1・2の明細も入力した件数だけ用紙が要る） */
+  const t13Min = table13MinPages(data.heirs.length, data.details);
+  const t13Pages = table13Pages(data.common, data.heirs.length, data.details);
   /** 第4表の枚数（加算の対象になるかは続柄だけでは決まらないので人数からは決めない） */
   const t4Pages = table4Pages(data.common);
   /** 第4表の2の枚数（贈与税を納めているかは相続人の一覧からは分からないので人数からは決めない） */
@@ -1206,7 +1219,7 @@ export default function App() {
       <>
         {Array.from({ length: t13Pages }, (_, page) => (
           <div key={page} className="app-page-with-control">
-            <PageControl page={page + 1} total={t13Pages} onDecrease={() => u('t13Pages', String(t13Pages - 1))} onIncrease={() => u('t13Pages', String(t13Pages + 1))} decreaseDisabled={t13Pages <= Math.max(1, Math.ceil(data.heirs.length / TABLE13_PERSONS))} increaseDisabled={t13Pages >= MAX_TABLE13_PAGES} detail={`債務${TABLE13_DEBT_ROWS}件・葬式費用${TABLE13_FUNERAL_ROWS}件／ページ`} />
+            <PageControl page={page + 1} total={t13Pages} onDecrease={() => u('t13Pages', String(t13Pages - 1))} onIncrease={() => u('t13Pages', String(t13Pages + 1))} decreaseDisabled={t13Pages <= t13Min} increaseDisabled={t13Pages >= MAX_TABLE13_PAGES} detail={`債務${TABLE13_DEBT_ROWS}件・葬式費用${TABLE13_FUNERAL_ROWS}件／ページ`} />
             <Table13Page page={page} last={page === t13Pages - 1} whoOptions={whoOptions} g={g} u={u} onNavigate={setActive} />
           </div>
         ))}

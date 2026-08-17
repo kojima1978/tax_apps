@@ -28,6 +28,17 @@ export const TABLE13_FUNERAL_ROWS = 5;
 /** 様式1枚に載る「債務などを承継した人」の人数 */
 export const TABLE13_PERSONS = 4;
 
+/**
+ * 1・2の明細を持つ配列のID（`FormData.details` のキー）。
+ *
+ * 明細は「行そのもの」を1要素とする配列で持つ。共通欄に `t13d0Kind` のように
+ * 行の位置を欄の名前へ焼き込むと、行を入れ替えるには全部の欄を移し替えるしかなく、
+ * 1つでも移し忘れると別の行の値が混ざる。配列なら並べ替えは要素の移動だけで済む。
+ */
+export const TABLE13_DEBT_FORM = 'table13debt';
+/** 2 葬式費用の明細（同上） */
+export const TABLE13_FUNERAL_FORM = 'table13funeral';
+
 const TOP = 181.5;
 const BOTTOM = 1693.5;
 const LEFT = 106.5;
@@ -169,16 +180,16 @@ function dateRow(y: [number, number], xs: DateX, codeName: string, field: string
 
 /** 明細行の右側3列（金額・負担する人の氏名・負担する金額）。1と2で割付は同じ。 */
 function shareCells(
-  y: [number, number], xs: ShareX, field: string, who: string,
+  y: [number, number], xs: ShareX, f: string, who: string,
   codes: readonly [string, string, string], whoOptions: GridCell['options'],
 ): GridCell[] {
   return [
     code(y, col(xs[0], xs[1]), codes[0]),
-    mk(y, col(xs[1], X.AMT), { kind: 'input', field: `${field}Amt`, ariaLabel: `${who}の金額`, commaInteger: true }),
+    mk(y, col(xs[1], X.AMT), { kind: 'input', field: `${f}amt`, ariaLabel: `${who}の金額`, commaInteger: true }),
     code(y, col(X.AMT, X.C6), codes[1]),
-    mk(y, col(X.C6, X.SHARE), { kind: 'input', field: `${field}Who`, ariaLabel: `${who}を負担する人の氏名`, options: whoOptions, align: 'left' }),
+    mk(y, col(X.C6, X.SHARE), { kind: 'input', field: `${f}who`, ariaLabel: `${who}を負担する人の氏名`, options: whoOptions, align: 'left' }),
     code(y, col(X.SHARE, X.C7), codes[2]),
-    mk(y, col(X.C7, X.R), { kind: 'input', field: `${field}Share`, ariaLabel: `${who}のうち負担する金額`, commaInteger: true }),
+    mk(y, col(X.C7, X.R), { kind: 'input', field: `${f}share`, ariaLabel: `${who}のうち負担する金額`, commaInteger: true }),
   ];
 }
 
@@ -203,7 +214,7 @@ function totalRow(
 const cd = (series: string, n: number): string => `${series}${String(n).padStart(2, '0')}`;
 
 /** 1 債務の明細（4行＋合計） */
-function debtRows(common: string, page: number, last: boolean, whoOptions: GridCell['options']): GridCell[] {
+function debtRows(rows: readonly Table13Row[], last: boolean, whoOptions: GridCell['options']): GridCell[] {
   const head = row(296.5, 330.5);
   const sub = row(330.5, 364.5);
   const full = row(296.5, 364.5);
@@ -223,9 +234,7 @@ function debtRows(common: string, page: number, last: boolean, whoOptions: GridC
     label(full, col(X.SHARE, X.R), '負担する金額(円)'),
 
     ...DEBT_Y.flatMap(([top, bottom], r): GridCell[] => {
-      const i = page * TABLE13_DEBT_ROWS + r;
-      const who = `債務${i + 1}`;
-      const f = `${common}t13d${i}`;
+      const { prefix: f, label: who } = rows[r]!;
       const body = row(top, bottom);
       // 1行目だけ「元号・年・月・日」の見出し帯を持ち、その分だけ日付欄が下にずれる
       const dateTop = r === 0 ? DEBT_HEAD : top;
@@ -233,16 +242,16 @@ function debtRows(common: string, page: number, last: boolean, whoOptions: GridC
       const e = 2 + r * 5;
       return [
         code(body, col(X.L, X.C1), cd('E', e)),
-        mk(body, col(X.C1, X.KIND), { kind: 'input', field: `${f}Kind`, ariaLabel: `${who}の種類`, align: 'left' }),
+        mk(body, col(X.C1, X.KIND), { kind: 'input', field: `${f}kind`, ariaLabel: `${who}の種類`, align: 'left' }),
         code(body, col(X.KIND, X.C2), cd('E', e + 1)),
-        mk(body, col(X.C2, X.ITEM), { kind: 'input', field: `${f}Item`, ariaLabel: `${who}の細目`, align: 'left' }),
+        mk(body, col(X.C2, X.ITEM), { kind: 'input', field: `${f}item`, ariaLabel: `${who}の細目`, align: 'left' }),
         code(body, col(X.ITEM, X.C3), cd('E', e + 2)),
-        mk(body, col(X.C3, X.NAME), { kind: 'input', field: `${f}Name`, ariaLabel: `${who}の債権者の氏名又は名称`, align: 'left' }),
+        mk(body, col(X.C3, X.NAME), { kind: 'input', field: `${f}name`, ariaLabel: `${who}の債権者の氏名又は名称`, align: 'left' }),
         code(body, col(X.NAME, X.C4), cd('E', e + 3)),
-        mk(body, col(X.C4, X.ADDR1), { kind: 'input', field: `${f}Addr`, ariaLabel: `${who}の債権者の住所又は所在地`, align: 'left' }),
+        mk(body, col(X.C4, X.ADDR1), { kind: 'input', field: `${f}addr`, ariaLabel: `${who}の債権者の住所又は所在地`, align: 'left' }),
         ...(r === 0 ? dateHead(row(top, DEBT_HEAD), DEBT_DATE_X) : []),
-        ...dateRow(row(dateTop, mid), DEBT_DATE_X, cd('N', 1 + r * 2), `${f}Occ`, `${who}の発生年月日`),
-        ...dateRow(row(mid, bottom), DEBT_DATE_X, cd('N', 2 + r * 2), `${f}Due`, `${who}の弁済期限`),
+        ...dateRow(row(dateTop, mid), DEBT_DATE_X, cd('N', 1 + r * 2), `${f}occ`, `${who}の発生年月日`),
+        ...dateRow(row(mid, bottom), DEBT_DATE_X, cd('N', 2 + r * 2), `${f}due`, `${who}の弁済期限`),
         ...shareCells(body, DEBT_SHARE_X, f, who, [cd('G', 1 + r * 2), cd('E', e + 4), cd('G', 2 + r * 2)], whoOptions),
       ];
     }),
@@ -254,7 +263,7 @@ function debtRows(common: string, page: number, last: boolean, whoOptions: GridC
 }
 
 /** 2 葬式費用の明細（5行＋合計） */
-function funeralRows(common: string, page: number, last: boolean, whoOptions: GridCell['options']): GridCell[] {
+function funeralRows(rows: readonly Table13Row[], last: boolean, whoOptions: GridCell['options']): GridCell[] {
   const head = row(744.5, 772.5);
   const sub = row(772.5, 801.0);
   const full = row(744.5, 801.0);
@@ -271,19 +280,17 @@ function funeralRows(common: string, page: number, last: boolean, whoOptions: Gr
     label(full, col(X.SHARE, X.R), '負担する金額(円)'),
 
     ...FUNERAL_Y.flatMap(([top, bottom], r): GridCell[] => {
-      const i = page * TABLE13_FUNERAL_ROWS + r;
-      const who = `葬式費用${i + 1}`;
-      const f = `${common}t13f${i}`;
+      const { prefix: f, label: who } = rows[r]!;
       const body = row(top, bottom);
       const dateTop = r === 0 ? FUNERAL_HEAD : top;
       const e = 22 + r * 3;
       return [
         code(body, col(X.L, X.C1), cd('E', e)),
-        mk(body, col(X.C1, X.ITEM), { kind: 'input', field: `${f}Name`, ariaLabel: `${who}の支払先の氏名又は名称`, align: 'left' }),
+        mk(body, col(X.C1, X.ITEM), { kind: 'input', field: `${f}name`, ariaLabel: `${who}の支払先の氏名又は名称`, align: 'left' }),
         code(body, col(X.ITEM, X.C3), cd('E', e + 1)),
-        mk(body, col(X.C3, X.ADDR2), { kind: 'input', field: `${f}Addr`, ariaLabel: `${who}の支払先の住所又は所在地`, align: 'left' }),
+        mk(body, col(X.C3, X.ADDR2), { kind: 'input', field: `${f}addr`, ariaLabel: `${who}の支払先の住所又は所在地`, align: 'left' }),
         ...(r === 0 ? dateHead(row(top, FUNERAL_HEAD), FUNERAL_DATE_X) : []),
-        ...dateRow(row(dateTop, bottom), FUNERAL_DATE_X, cd('N', 9 + r), `${f}Pay`, `${who}の支払年月日`),
+        ...dateRow(row(dateTop, bottom), FUNERAL_DATE_X, cd('N', 9 + r), `${f}pay`, `${who}の支払年月日`),
         ...shareCells(body, FUNERAL_SHARE_X, f, who, [cd('G', 10 + r * 2), cd('E', e + 2), cd('G', 11 + r * 2)], whoOptions),
       ];
     }),
@@ -295,7 +302,7 @@ function funeralRows(common: string, page: number, last: boolean, whoOptions: Gr
 }
 
 /** 3 債務及び葬式費用の合計額（「各人の合計」列＋この用紙に載る4人） */
-function sumRows(totals: string, people: Table13Person[], last: boolean): GridCell[] {
+function sumRows(totals: string, people: readonly Table13Row[], last: boolean): GridCell[] {
   const headY = row(1202.0, SUM_Y[0]);
   return [
     label(headY, col(X.L, X.MK3), '債務などを承継した人の氏名'),
@@ -341,25 +348,34 @@ function sumRows(totals: string, people: Table13Person[], last: boolean): GridCe
   ];
 }
 
-/** 様式1枚に載る「債務などを承継した人」 */
-export interface Table13Person {
-  /** フィールド接頭辞（'h0.' など） */
+/** 様式1枚に載る1行（承継した人・債務・葬式費用）の在りか */
+export interface Table13Row {
+  /** フィールド接頭辞（'h0.'・'table13debt#0.' など） */
   prefix: string;
-  /** アクセシブル名の主語（「1人目」など） */
+  /** アクセシブル名の主語（「1人目」「債務1」など） */
   label: string;
+}
+
+/** 第13表1枚に載る行（枚数から決まるので、どの行が何番目かは呼ぶ側が決める） */
+export interface Table13Rows {
+  /** 3 債務などを承継した人（4人。不足分も接頭辞だけは渡す。値が無ければ空欄になる） */
+  people: readonly Table13Row[];
+  /** 1 債務の明細（4件） */
+  debt: readonly Table13Row[];
+  /** 2 葬式費用の明細（5件） */
+  funeral: readonly Table13Row[];
 }
 
 /**
  * 第13表のセルを組み立てる。
- * @param common 共通欄のフィールド接頭辞（'c.'）— 1・2の明細は人ではなく様式全体の一覧
+ * @param common 共通欄のフィールド接頭辞（'c.'）— 被相続人の氏名
  * @param totals 自動計算欄のフィールド接頭辞（'t.'）— 3の「各人の合計」列
- * @param people この用紙に載る4人（不足分も接頭辞だけは渡す。値が無ければ空欄になる）
- * @param page 0始まりの枚数
+ * @param rows この用紙に載る行
  * @param last 最終ページか（1・2の合計と3の「各人の合計」は全枚数の通算なのでここにだけ出す）
- * @param whoOptions 「負担する人の氏名」の選択肢（値は第11表の項番＝入力順の通し番号）
+ * @param whoOptions 「負担する人の氏名」の選択肢（値は人のID）
  */
 export function buildTable13(
-  common: string, totals: string, people: Table13Person[], page: number, last: boolean,
+  common: string, totals: string, rows: Table13Rows, last: boolean,
   whoOptions: GridCell['options'],
 ): GridCell[] {
   const decY = row(181.5, 215.5);
@@ -373,18 +389,18 @@ export function buildTable13(
     }),
 
     ...sectionHead(215.5, 262.5, '1　債務の明細', DEBT_LEAD),
-    ...debtRows(common, page, last, whoOptions),
+    ...debtRows(rows.debt, last, whoOptions),
 
     // 1と2の間の細い空き帯（罫線は上下のセルが持つ）
     mk(row(666.5, 672.0), col(X.L, X.R), { noBorder: true }),
 
     ...sectionHead(672.0, 710.5, '2　葬式費用の明細', FUNERAL_LEAD),
-    ...funeralRows(common, page, last, whoOptions),
+    ...funeralRows(rows.funeral, last, whoOptions),
 
     mk(row(1159.5, 1165.0), col(X.L, X.R), { noBorder: true }),
 
     label(row(1165.0, 1202.0), col(X.L, X.R), '3　債務及び葬式費用の合計額', { align: 'left', bold: true, fontSize: 9 }),
-    ...sumRows(totals, people, last),
+    ...sumRows(totals, rows.people, last),
 
     label(row(1654.0, 1693.5), col(X.L, X.R), TABLE13_NOTES, { align: 'left', fontSize: 7 }),
   ];

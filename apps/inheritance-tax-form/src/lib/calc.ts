@@ -20,7 +20,9 @@ import { DETAIL_KINDS } from '../data/detailCodes';
 import { TABLE112_ROWS } from '../forms/table112';
 import { TABLE1112F1_RATE } from '../forms/table1112f1';
 import { SLOTS_BY_KIND, SLOTS_BY_ROW, TABLE1112F1B_OWNERS, TABLE1112F1B_ROWS } from '../forms/table1112f1b';
-import { TABLE13_DEBT_ROWS, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS } from '../forms/table13';
+import {
+  TABLE13_DEBT_FORM, TABLE13_DEBT_ROWS, TABLE13_FUNERAL_FORM, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS,
+} from '../forms/table13';
 import { TABLE10_ROWS } from '../forms/table10';
 import { TABLE5_FLOOR } from '../forms/table5';
 import {
@@ -193,13 +195,31 @@ function computeTable112(h: Values): Values {
   return out;
 }
 
+/** 末尾の空行を除いた件数（打って消しただけの行は用紙を増やす理由にならない） */
+function filledLength(rows: readonly Values[] | undefined): number {
+  let n = 0;
+  (rows ?? []).forEach((row, i) => { if (!isEmptyDetail(row)) n = i + 1; });
+  return n;
+}
+
 /**
- * 第13表の枚数。1枚に債務4件・葬式費用5件・人4人しか載らないので、
- * 明細の枚数（共通欄 `t13Pages`）と人数から決まる枚数の大きい方をとる。
+ * 第13表の最低枚数。1枚に債務4件・葬式費用5件・人4人しか載らないので、
+ * 人数と入力済みの明細の件数から決まる。**これより少ない枚数には減らせない**
+ * （減らせてしまうと、用紙に出ていない行が集計にだけ効く）。
  */
-export function table13Pages(common: Values, heirs: number): number {
+export function table13MinPages(heirs: number, details: Record<string, Values[]>): number {
+  return Math.max(
+    1,
+    Math.ceil(heirs / TABLE13_PERSONS),
+    Math.ceil(filledLength(details[TABLE13_DEBT_FORM]) / TABLE13_DEBT_ROWS),
+    Math.ceil(filledLength(details[TABLE13_FUNERAL_FORM]) / TABLE13_FUNERAL_ROWS),
+  );
+}
+
+/** 第13表の枚数。明細の枚数（共通欄 `t13Pages`）と最低枚数の大きい方をとる。 */
+export function table13Pages(common: Values, heirs: number, details: Record<string, Values[]>): number {
   const explicit = Math.max(1, Math.trunc(num(common.t13Pages)) || 1);
-  return Math.max(explicit, Math.ceil(heirs / TABLE13_PERSONS));
+  return Math.max(explicit, table13MinPages(heirs, details));
 }
 
 /** 第13表1・2の明細の集計 */
@@ -215,26 +235,26 @@ interface Table13 {
 }
 
 /**
- * 第13表1（債務の明細）・2（葬式費用の明細）を集計する。値は共通欄（'c.' スコープ）に持つ。
+ * 第13表1（債務の明細）・2（葬式費用の明細）を集計する。値は明細の配列（`details`）に持つ。
  *
  * 合計欄は「金額」列の合計で、負担する人が決まっていない債務も含まれる。
- * 3①④は「負担する金額」を負担する人ごとに合計したもので、負担する人の欄は
- * 第11表の項番（＝入力順の通し番号）を選ぶ選択式なので、そのまま人に結び付く。
- * 枚数を減らしたときに残る入力値を混ぜないよう、表に出ている行番号だけを走査する。
+ * 3①④は「負担する金額」を負担する人ごとに合計したもの。負担する人の欄は選択式で、
+ * ここへ来る時点では `resolveHeirRefs` が「何人目か」へ直してある。
+ * 用紙に出ていない行は存在しない（枚数が明細の件数より少なくならない）ので、全件を走査する。
  */
-function computeTable13(common: Values, pages: number): Table13 {
+function computeTable13(details: Record<string, Values[]>): Table13 {
   const out: Table13 = { debt: [], funeral: [], debtTotal: 0, funeralTotal: 0 };
-  const scan = (prefix: string, rows: number, by: number[]): number => {
+  const scan = (form: string, by: number[]): number => {
     let total = 0;
-    for (let i = 0; i < pages * rows; i += 1) {
-      total += num(common[`${prefix}${i}Amt`]);
-      const no = num(common[`${prefix}${i}Who`]);
-      if (no > 0) by[no] = (by[no] ?? 0) + num(common[`${prefix}${i}Share`]);
+    for (const row of details[form] ?? []) {
+      total += num(row.amt);
+      const no = num(row.who);
+      if (no > 0) by[no] = (by[no] ?? 0) + num(row.share);
     }
     return total;
   };
-  out.debtTotal = scan('t13d', TABLE13_DEBT_ROWS, out.debt);
-  out.funeralTotal = scan('t13f', TABLE13_FUNERAL_ROWS, out.funeral);
+  out.debtTotal = scan(TABLE13_DEBT_FORM, out.debt);
+  out.funeralTotal = scan(TABLE13_FUNERAL_FORM, out.funeral);
   return out;
 }
 
@@ -1770,7 +1790,7 @@ function computeAllWithRatios(
   // 第11表2② ← 付表の未分割の明細を民法上の相続分で按分したもの
   const unsplitTotals = computeUnsplit(detailItems, linkedCivil);
   // 第13表3①④ ← 同表1・2の明細の「負担する金額」
-  const t13 = computeTable13(common, table13Pages(common, heirs.length));
+  const t13 = computeTable13(details);
   // 第15表①〜㉘ ← 付表の細目ごとの合計。転記になる欄は手入力の残りを混ぜないよう毎回空に戻す。
   const t15 = sumTable15(used, details);
   // 第1表⑫ ← 第4表の2㉕。この様式は自分の入力だけで完結するので、第1表を1周する前に確定させる
