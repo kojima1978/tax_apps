@@ -108,6 +108,16 @@ export interface DetailHead {
   cell?: Partial<GridCell>;
 }
 
+/**
+ * 用紙に独立した枠を持たない入力欄（付表1の路線価・倍数・調整）。
+ * 用紙の枠は1つしか無いのに、その1つを組み立てるのに複数の値が要る欄のために置く。
+ */
+export interface DetailExtraField {
+  field: string;
+  name: string;
+  cell?: Partial<GridCell>;
+}
+
 /** 様式ごとに違う「財産の明細」部分の定義 */
 export interface DetailSpec {
   formCode: string;
@@ -123,6 +133,14 @@ export interface DetailSpec {
   head: DetailHead[];
   /** 1組3行分の明細欄（x は `frame.noR` 〜 `frame.midR` の範囲） */
   rows: [DetailField[], DetailField[], DetailField[]];
+  /** 用紙に枠を持たない入力欄 */
+  extra?: readonly DetailExtraField[];
+  /**
+   * 入力画面（`DetailPanel`）の欄の並び。内側の配列が1グループで、画面では区切って並べる。
+   * 省略すると用紙の並び順（`rows` のまま）。用紙の割付と入力の並びは目的が違うので、
+   * 用紙どおりでは入力しにくい様式だけここで並べ替える。
+   */
+  panel?: readonly (readonly string[])[];
 }
 
 /** 「分割が確定した財産」の3行分の識別コード（様式ごとに違うため spec から受け取る） */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeAll, detailAutoValue, detailGroupCount, detailShareAmounts, detailShareCount, detailSlots,
-  detailUnusedFields, moveDetailShare, moved, num, remapTable14Confirm, sameValues, type Values,
+  detailUnit, moveDetailShare, moved, num, remapTable14Confirm, sameValues, table11f1Calc, type Values,
 } from './calc';
 import { table15Key } from '../forms/table15';
 
@@ -215,37 +215,90 @@ describe('付表の組への割り付け', () => {
   });
 });
 
+describe('付表1の単価（円）又は倍数', () => {
+  it('路線価方式は 路線価×調整 を円未満切り捨てで出す', () => {
+    expect(detailUnit({ routePrice: '150000', adjust: '0.98' })).toBe('147000');
+    expect(detailUnit({ routePrice: '100', adjust: '0.333' })).toBe('33');
+  });
+
+  it('倍率方式は 倍数×調整 を小数のまま出す', () => {
+    expect(detailUnit({ method: 'ratio', multiple: '1.1', adjust: '0.98' })).toBe('1.078');
+    expect(detailUnit({ method: 'ratio', multiple: '1.1' })).toBe('1.1');
+  });
+
+  it('調整が空なら掛けない', () => {
+    expect(detailUnit({ routePrice: '150000' })).toBe('150000');
+  });
+
+  it('選んだ方式の欄が空なら出さない（もう一方の欄が埋まっていても）', () => {
+    expect(detailUnit({ multiple: '1.1' })).toBeUndefined();
+    expect(detailUnit({ method: 'ratio', routePrice: '150000' })).toBeUndefined();
+  });
+});
+
+describe('付表1の補助資料（単価の計算根拠）', () => {
+  it('路線価方式は切り捨てを明示し、数はカンマ付きで並べる', () => {
+    const calc = table11f1Calc({ area: '1,234.56', routePrice: '150,000', adjust: '0.987', shareN: '1', shareD: '2' });
+    expect(calc.methodLabel).toBe('路線価方式');
+    expect(calc.unit).toBe('148050');
+    expect(calc.formula).toBe(
+      '単価 150,000 × 0.987（円未満切捨て） ＝ 148,050'
+      + ' ／ 価額 1,234.56 × 148,050 × 1／2 ＝ 91,388,304',
+    );
+  });
+
+  it('倍率方式は倍数を小数のまま出す', () => {
+    const calc = table11f1Calc({ method: 'ratio', fixedValue: '3,000,000', multiple: '1.1', adjust: '0.98' });
+    expect(calc.baseName).toBe('固定資産税評価額（円）');
+    expect(calc.unit).toBe('1.078');
+    expect(calc.formula).toBe('単価 1.1 × 0.98 ＝ 1.078 ／ 価額 3,000,000 × 1.078 ＝ 3,234,000');
+  });
+
+  it('欄が埋まっていないところは ? と — で出す（何が足りないか分かるように）', () => {
+    expect(table11f1Calc({}).formula).toBe('単価 ? ＝ — ／ 価額 ? × ? ＝ —');
+  });
+});
+
 describe('付表の価額の自動計算', () => {
   it('付表1は路線価方式（面積×単価×持分割合）で計算する', () => {
     expect(detailAutoValue('table11f1', {
-      area: '100.00', unitPrice: '150000', shareN: '1', shareD: '2',
+      area: '100.00', routePrice: '150000', shareN: '1', shareD: '2',
     })).toBe('7500000');
   });
 
   it('付表1で倍率方式を選ぶと固定資産税評価額×倍数×持分割合で計算する', () => {
     expect(detailAutoValue('table11f1', {
-      method: 'ratio', fixedValue: '3000000', unitPrice: '1.1', shareN: '1', shareD: '3',
+      method: 'ratio', fixedValue: '3000000', multiple: '1.1', shareN: '1', shareD: '3',
     })).toBe('1100000');
   });
 
+  it('価額は用紙に出る単価から計算する（調整は単価の側で切り捨てる）', () => {
+    expect(detailAutoValue('table11f1', {
+      area: '100.00', routePrice: '150000', adjust: '0.98',
+    })).toBe('14700000');
+    // 単価は切り捨てて 33 円。100㎡なら 3300 円（3333 円にはならない）
+    expect(detailAutoValue('table11f1', {
+      area: '100.00', routePrice: '100', adjust: '0.333',
+    })).toBe('3300');
+  });
+
   it('評価方式は入力から推測しない（固定資産税評価額を控えても路線価方式のまま）', () => {
-    const item = { area: '100.00', fixedValue: '3000000', unitPrice: '150000', shareN: '1', shareD: '2' };
+    const item = { area: '100.00', fixedValue: '3000000', routePrice: '150000', multiple: '1.1', shareN: '1', shareD: '2' };
     expect(detailAutoValue('table11f1', item)).toBe('7500000');
-    expect(detailUnusedFields('table11f1', item)).toEqual(['fixedValue']);
-    expect(detailUnusedFields('table11f1', { ...item, method: 'ratio' })).toEqual(['area']);
+    expect(detailAutoValue('table11f1', { ...item, method: 'ratio' })).toBe('1650000');
   });
 
   it('選んだ方式の元になる欄が空なら自動計算しない', () => {
-    expect(detailAutoValue('table11f1', { method: 'ratio', area: '100.00', unitPrice: '1.1' })).toBeUndefined();
+    expect(detailAutoValue('table11f1', { method: 'ratio', area: '100.00', multiple: '1.1' })).toBeUndefined();
   });
 
   it('持分割合が空なら全部（持分の指定なし）として計算する', () => {
-    expect(detailAutoValue('table11f1', { area: '100.00', unitPrice: '150000' })).toBe('15000000');
+    expect(detailAutoValue('table11f1', { area: '100.00', routePrice: '150000' })).toBe('15000000');
   });
 
   it('円未満は切り捨てる', () => {
     expect(detailAutoValue('table11f1', {
-      area: '1.00', unitPrice: '100', shareN: '1', shareD: '3',
+      area: '1.00', routePrice: '100', shareN: '1', shareD: '3',
     })).toBe('33');
   });
 
@@ -266,7 +319,7 @@ describe('付表の価額の自動計算', () => {
   it('自動計算した価額を第11表2①・第15表の集計に使う', () => {
     const result = computeAll({}, [{ name: '甲' }], ['table11f1'], {
       table11f1: [{
-        kindCode: '13', area: '100.00', unitPrice: '150000', shareN: '1', shareD: '2',
+        kindCode: '13', area: '100.00', routePrice: '150000', shareN: '1', shareD: '2',
         who0: '1', amount0: '7500000',
       }],
     });
@@ -283,7 +336,7 @@ describe('付表の価額の自動計算', () => {
         { name: '乙', isLawful: '1', lawNum: '1', lawDen: '2' },
       ],
       ['table11f1'],
-      { table11f1: [{ kindCode: '13', area: '100.00', unitPrice: '150000' }] },
+      { table11f1: [{ kindCode: '13', area: '100.00', routePrice: '150000' }] },
     );
 
     expect(result.heirs.map((heir) => heir.t11v2)).toEqual(['7500000', '7500000']);
@@ -312,7 +365,7 @@ describe('computeAll 未分割財産の按分は民法上の相続分による�
 describe('取得者ごとの割合からの按分', () => {
   // 3で割り切れない価額（100.00 × 150,001 ＝ 15,000,100円）にして端数の寄せ方まで見る
   const land = {
-    kindCode: '13', area: '100.00', unitPrice: '150001',
+    kindCode: '13', area: '100.00', routePrice: '150001',
     who0: '1', who1: '2', who2: '3',
   };
 

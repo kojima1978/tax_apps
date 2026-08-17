@@ -13,7 +13,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  DETAIL_AUTO_VALUE, DETAIL_METHOD, computeAll, detailAutoValue, detailShareAmounts, detailShareCount,
+  DETAIL_AUTO_VALUE, DETAIL_METHOD, TABLE11F1_MULTIPLE, TABLE11F1_ROUTE_PRICE, TABLE11F1_UNIT,
+  computeAll, detailAutoValue, detailShareAmounts, detailShareCount, detailUnit,
   isEmptyDetail, moved, type Values,
 } from '../lib/calc';
 import { DETAIL_KINDS } from '../data/detailCodes';
@@ -41,6 +42,7 @@ export interface FormData {
    * 4 … 相続の放棄を第2表の行から「財産を取得した人」へ移した
    * 5 … 第2表④の行を廃止し、法定相続人であることと法定相続分も「財産を取得した人」へ移した
    * 6 … 各表の氏名欄が持つ「第1表の何人目か」を、人ごとの不変のID（`_id`）に変えた
+   * 7 … 付表1の「単価（円）又は倍数」を路線価・倍数・調整の3欄に分けた
    */
   version?: number;
 }
@@ -49,7 +51,7 @@ const STORAGE_KEY = 'inheritance-tax-form:v1';
 /** 移行前のデータの退避先（付表のまとめ直しは元に戻せないため） */
 const BACKUP_KEY = 'inheritance-tax-form:v1-backup';
 /** 現在の保存形式 */
-const DATA_VERSION = 6;
+const DATA_VERSION = 7;
 /** 第1表に1人＋第1表（続）10枚に2人ずつ */
 const MAX_HEIRS = 21;
 /** 既定で使用する様式 */
@@ -163,6 +165,19 @@ function migrateLawful(heirs: readonly Values[], lawful: readonly Values[]): Val
   return next;
 }
 
+/**
+ * 版6までの付表1は、路線価も倍数も同じ `unitPrice` に入れていた（様式の枠が1つのため）。
+ * 版7では欄を分けたので、その明細の評価方式が指している側へ移す。
+ */
+function migrateUnitPrice(rows: readonly Values[]): Values[] {
+  return rows.map((row) => {
+    const { unitPrice, ...rest } = row;
+    if (unitPrice === undefined) return row;
+    const field = row[DETAIL_METHOD] === 'ratio' ? TABLE11F1_MULTIPLE : TABLE11F1_ROUTE_PRICE;
+    return rest[field] === undefined ? { ...rest, [field]: unitPrice } : rest;
+  });
+}
+
 /** 保存済みデータを現在の保存形式へ移行する */
 function migrate(parsed: Partial<FormData>): Partial<FormData> {
   if (parsed.version === DATA_VERSION) return parsed;
@@ -174,7 +189,9 @@ function migrate(parsed: Partial<FormData>): Partial<FormData> {
     const list = Array.isArray(rows) ? rows : [];
     details[form] = (parsed.version ?? 1) < 2 ? migrateDetails(list) : list;
   }
-  if (details.table11f1 !== undefined) details.table11f1 = migrateMethod(details.table11f1);
+  if (details.table11f1 !== undefined) {
+    details.table11f1 = migrateUnitPrice(migrateMethod(details.table11f1));
+  }
   return { ...out, details };
 }
 
@@ -306,6 +323,8 @@ export function useFormData() {
       if (base !== null) return detailNo(rows, index, base);
       const item = rows[index];
       if (item === undefined) return '';
+      // 用紙の「単価（円）又は倍数」は保存欄ではなく、路線価・倍数・調整から組み立てる
+      if (key === TABLE11F1_UNIT) return detailUnit(item) ?? '';
       // 価額は元になる欄（面積×単価など）がそろっていれば自動計算に切り替わる
       if (key === 'value' || key === DETAIL_AUTO_VALUE) {
         const auto = detailAutoValue(form, item);

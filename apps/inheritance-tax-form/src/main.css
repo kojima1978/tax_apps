@@ -455,6 +455,69 @@ button {
   overflow: hidden;
 }
 
+/* ============================================
+   補助資料（提出する様式ではない検算用の1枚）
+   ============================================ */
+.worksheet {
+  display: flex;
+  flex-direction: column;
+  gap: 4mm;
+  font-size: 9pt;
+  color: #0f172a;
+}
+
+.worksheet__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 2mm;
+}
+
+.worksheet__title {
+  margin: 0;
+  font-size: 12pt;
+}
+
+.worksheet__lead {
+  margin: 0;
+  font-size: 8pt;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.worksheet__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.worksheet__table th,
+.worksheet__table td {
+  border: 1px solid #94a3b8;
+  padding: 1mm 1.5mm;
+  font-size: 7.5pt;
+  line-height: 1.35;
+  /* 折り返しは語の切れ目で。break-all にすると「148,050」が桁の途中で割れて読めなくなる */
+  overflow-wrap: break-word;
+}
+
+.worksheet__table th {
+  background: #f1f5f9;
+  font-weight: 600;
+  text-align: center;
+}
+
+.worksheet__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.worksheet__empty {
+  margin: 0;
+  color: #64748b;
+}
+
 /* 様式の枠外に置く注記（注1・2・3 と適用年分） */
 .gov-footnote {
   display: flex;
@@ -654,6 +717,13 @@ button {
   overflow-y: auto;
   padding: 12px 14px;
   font-size: 13px;
+}
+
+/* 入力欄のまとまり（様式の `panel` が持つグループ）。区切り線で読み分けやすくする */
+.dpanel__group + .dpanel__group {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e2e8f0;
 }
 
 .dpanel__row {

@@ -1,7 +1,7 @@
 import { useCallback, useContext, useId, useMemo, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { PrintRenderContext } from './printContext';
 import { lookupZipAddress } from '../../lib/zipAddress';
-import { formatCommaInteger, formatFixedDecimal, formatSignedCommaInteger, normalizeInteger, sanitizeDecimal } from '../../lib/format';
+import { cleanNumeric, displayNumeric, fixNumeric, normalizeInteger } from '../../lib/format';
 import { suffixedName, type AutoFill, type CodeSuffix } from '../../lib/codeLink';
 
 /**
@@ -51,6 +51,7 @@ export interface GridCell {
   rightLabel?: string;               // セルの右端中央に表示する固定ラベル（末尾の「000」など）
   integerDigits?: number;            // 数字のみの最大桁数
   commaInteger?: boolean;            // 整数を3桁区切りカンマで表示
+  commaNumber?: boolean;             // 整数部だけ3桁区切りにし、小数はそのまま表示（整数にも小数にもなる欄）
   signedCommaInteger?: boolean;      // マイナス（△）を許可する整数を3桁区切りカンマで表示
   decimalPlaces?: number;            // 小数点以下の最大桁数（フォーカス解除時に固定表示）
   readOnly?: boolean;                // 自動計算などの編集不可欄
@@ -220,9 +221,7 @@ function selectedOptionLabel(options: NonNullable<GridCell['options']>, value: s
  */
 function inputText(c: GridCell, g: (field: string) => string, readOnly: boolean): string {
   const raw = g(c.field!);
-  const value = c.signedCommaInteger ? formatSignedCommaInteger(raw)
-    : c.commaInteger ? formatCommaInteger(raw)
-    : c.integerDigits !== undefined ? normalizeInteger(raw) : raw;
+  const value = displayNumeric(c, raw);
   return readOnly && c.suffixByCode ? suffixedName(value, g(c.suffixByCode.field), c.suffixByCode) : value;
 }
 
@@ -511,15 +510,8 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                 aria-label={c.ariaLabel ?? c.field}
                 title={c.hint}
                 value={inputText(c, g, readOnly)}
-                onChange={(e) => {
-                  const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces)
-                    : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value)
-                    : c.commaInteger ? formatCommaInteger(e.target.value)
-                    : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits)
-                    : e.target.value;
-                  u(c.field!, next);
-                }}
-                onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }}
+                onChange={(e) => u(c.field!, cleanNumeric(c, e.target.value))}
+                onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, fixNumeric(c, g(c.field!))); }}
                 onKeyDown={onEnterNext}
                 inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined}
                 maxLength={c.integerDigits}

@@ -10,6 +10,9 @@ import { PREFECTURE_OPTIONS } from '../data/codes';
 import {
   FOREIGN_OPTIONS, TABLE11F1_KINDS, TABLE11F1_SPECIAL_OPTIONS, codeNames, codeOptions,
 } from '../data/detailCodes';
+import {
+  TABLE11F1_ADJUST, TABLE11F1_MULTIPLE, TABLE11F1_ROUTE_PRICE, TABLE11F1_UNIT,
+} from '../lib/calc';
 import type { DetailFrame, DetailShareCodes, DetailSpec } from './detail';
 
 export const TABLE11F1_FORM_CODE = 'NTA0KSE161010020';
@@ -55,6 +58,9 @@ export const TABLE11F1_SHARE: DetailShareCodes = {
 /** 記載例54ページ。様式にも記載要領にも書かれていない条件なので入力欄の注記として添える */
 const SHARE_HINT = '被相続人が有していた持分割合を記入します（単独で所有していた財産は記入不要）';
 const NOTE_HINT = '区分所有財産は敷地利用権（敷地権）の割合を、家族名義の財産はその名義を記入します';
+/** 奥行価格補正・不整形地補正・借地権割合など、単価に掛ける率をまとめて入れる欄 */
+const ADJUST_HINT = '路線価又は倍率に掛ける率（奥行価格補正率・借地権割合など）。'
+  + '空欄なら掛けません。掛けた後の値が用紙の「単価（円）又は倍数」に出ます';
 
 const LEAD = 'この明細書は、相続税がかかる財産（相続時精算課税適用財産を除きます。）のうち、'
   + '土地（土地の上に存する権利を含みます。）又は家屋等の明細を記入します。';
@@ -104,8 +110,10 @@ export const TABLE11F1_SPEC: DetailSpec = {
         cell: { options: PREFECTURE_OPTIONS },
       },
       { x: [426, 452, 577], code: 'E5', field: 'city', name: '所在場所（市区町村）' },
-      { x: [577, 603, 705], code: 'C0', field: 'area', name: '面積', cell: { align: 'right' } },
-      { x: [705, 731, 837], code: 'C1', field: 'unitPrice', name: '単価又は倍数', cell: { align: 'right' } },
+      { x: [577, 603, 705], code: 'C0', field: 'area', name: '面積', cell: { align: 'right', decimalPlaces: 2, commaInteger: true } },
+      // 様式の枠は1つだが、中身は評価方式で変わる（路線価×調整 か 倍数×調整）。
+      // 保存する欄は路線価・倍数・調整の3つで、この欄はその結果を出すだけ
+      { x: [705, 731, 837], code: 'C1', field: TABLE11F1_UNIT, name: '単価又は倍数', cell: { align: 'right', commaNumber: true } },
     ],
     [
       {
@@ -128,5 +136,27 @@ export const TABLE11F1_SPEC: DetailSpec = {
       { x: [308, 334, 577], code: 'E7', field: 'lot', name: '所在場所（地番又は家屋番号）' },
       { x: [577, 603, 837], code: 'G6', field: 'value', name: '価額', cell: { commaInteger: true, align: 'right' } },
     ],
+  ],
+  // 用紙の「単価（円）又は倍数」1枠のもとになる欄。どちらの方式でも入力でき、
+  // 選んでいない方式の値も参考として残せる
+  extra: [
+    {
+      field: TABLE11F1_ROUTE_PRICE, name: '路線価',
+      cell: { commaInteger: true, align: 'right', hint: '1㎡当たりの路線価（円）。路線価方式のときに単価欄へ出ます' },
+    },
+    {
+      field: TABLE11F1_MULTIPLE, name: '倍数',
+      cell: { decimalPlaces: 1, align: 'right', hint: '固定資産税評価額に乗じる倍率。倍率方式のときに単価欄へ出ます' },
+    },
+    {
+      field: TABLE11F1_ADJUST, name: '調整',
+      cell: { decimalPlaces: 3, align: 'right', hint: ADJUST_HINT },
+    },
+  ],
+  panel: [
+    ['kindCode', 'kind', 'usage'],
+    ['pref', 'city', 'town', 'lot'],
+    ['area', 'fixedValue', TABLE11F1_ROUTE_PRICE, TABLE11F1_MULTIPLE, TABLE11F1_ADJUST, 'shareN', 'value'],
+    ['foreign', 'special', 'note'],
   ],
 };

@@ -12,19 +12,23 @@
 import { useMemo, useState } from 'react';
 import type { GridCell } from './ui/GridForm';
 import { SortableList } from './ui/SortableList';
-import type { DetailField, DetailSpec } from '../forms/detail';
+import type { DetailExtraField, DetailField, DetailSpec } from '../forms/detail';
 import {
   DETAIL_METHOD, DETAIL_RATIO_D, DETAIL_RATIO_N, type DetailMethod, type Values,
-  detailMethod, detailShareAmounts, detailShareCount, detailUnusedFields, detailValue,
+  detailMethod, detailShareAmounts, detailShareCount, detailValue,
   isEmptyDetail, moveDetailShare, num,
 } from '../lib/calc';
-import { formatCommaInteger, formatSignedCommaInteger, normalizeInteger, sanitizeDecimal } from '../lib/format';
+import { cleanNumeric, displayNumeric, formatSignedCommaInteger } from '../lib/format';
 import type { AutoFill } from '../lib/codeLink';
 
-/** 評価方式の選択肢（付表1のみ） */
-const METHOD_OPTIONS: readonly { value: DetailMethod; label: string; note: string }[] = [
-  { value: 'route', label: '路線価方式', note: '面積 × 単価 × 持分割合' },
-  { value: 'ratio', label: '倍率方式', note: '固定資産税評価額 × 倍数 × 持分割合' },
+/**
+ * 評価方式の選択肢（付表1のみ）。
+ * どちらを選んでも欄はすべて入力できる（選ばなかった側の値も参考として残せる）。
+ * 方式が決めるのは、用紙の「単価（円）又は倍数」に何を印字するかと、価額の式だけ。
+ */
+const METHOD_OPTIONS: readonly { value: DetailMethod; label: string }[] = [
+  { value: 'route', label: '路線価方式' },
+  { value: 'ratio', label: '倍率方式' },
 ];
 
 /** 持分割合のように分子・分母で1組になる欄 */
@@ -41,47 +45,36 @@ interface PanelField {
   denominator?: PanelField;
 }
 
-/** 様式の定義から入力欄の並びを作る（用紙の並び順のまま） */
-function panelFields(spec: DetailSpec): PanelField[] {
-  const flat: DetailField[] = spec.rows.flat().filter((f) => f.field !== undefined);
-  const byField = new Map(flat.map((f) => [f.field!, f]));
-  const toPanel = (f: DetailField): PanelField => ({
+/**
+ * 様式の定義から入力欄の並びを作る。
+ * 既定は用紙の並び順そのまま。`spec.panel` がある様式はその並び（グループ分けも）に従う。
+ */
+function panelFields(spec: DetailSpec): PanelField[][] {
+  const paper: DetailField[] = spec.rows.flat().filter((f) => f.field !== undefined);
+  const toPanel = (f: DetailField | DetailExtraField): PanelField => ({
     field: f.field!,
     name: f.name ?? f.field!,
     cell: f.cell ?? {},
-    ...(f.autoFill ? { autoFill: f.autoFill } : {}),
+    ...('autoFill' in f && f.autoFill ? { autoFill: f.autoFill } : {}),
   });
+  const byField = new Map<string, PanelField>([
+    ...paper.map((f): [string, PanelField] => [f.field!, toPanel(f)]),
+    ...(spec.extra ?? []).map((f): [string, PanelField] => [f.field, toPanel(f)]),
+  ]);
   const denominators = new Set(Object.values(FRACTIONS));
-  return flat
-    .filter((f) => !denominators.has(f.field!))
-    .map((f) => {
-      const pair = FRACTIONS[f.field!];
-      const denominator = pair === undefined ? undefined : byField.get(pair);
-      if (denominator === undefined) return toPanel(f);
+  const order: readonly (readonly string[])[] = spec.panel
+    ?? [paper.map((f) => f.field!)];
+  return order.map((group) => group
+    .filter((field) => !denominators.has(field))
+    .flatMap((field): PanelField[] => {
+      const panel = byField.get(field);
+      // 様式の定義に無い欄を並びに書いた場合（`detail.test.ts` が拾う）
+      if (panel === undefined) return [];
+      const denominator = byField.get(FRACTIONS[field] ?? '');
+      if (denominator === undefined) return [panel];
       // 分子・分母を1行にまとめるので、見出しからは「の分子」を落とす
-      const panel = toPanel(f);
-      return { ...panel, name: panel.name.replace(/の分子$/, ''), denominator: toPanel(denominator) };
-    });
-}
-
-/**
- * 欄の種類に応じて入力を整える（用紙側の GridForm と同じ扱いにする）。
- * 価額の欄は打っている最中からカンマを入れる。保存されるのもこの形だが、
- * 読むときは `num()` がカンマと△を落とすので計算には影響しない。
- */
-function clean(cell: Partial<GridCell>, raw: string): string {
-  if (cell.commaInteger) return formatCommaInteger(raw);
-  if (cell.signedCommaInteger) return formatSignedCommaInteger(raw);
-  if (cell.integerDigits !== undefined) return normalizeInteger(raw).slice(0, cell.integerDigits);
-  if (cell.decimalPlaces !== undefined) return sanitizeDecimal(raw, cell.decimalPlaces);
-  return raw;
-}
-
-/** 保存済みの値の表示形（カンマの無い古い値も用紙と同じ見た目にする） */
-function display(cell: Partial<GridCell>, value: string): string {
-  if (cell.commaInteger) return formatCommaInteger(value);
-  if (cell.signedCommaInteger) return formatSignedCommaInteger(value);
-  return value;
+      return [{ ...panel, name: panel.name.replace(/の分子$/, ''), denominator }];
+    }));
 }
 
 /** 数字の欄は右詰めにする（用紙側と同じく、桁を揃えないと読めないため） */
@@ -99,12 +92,11 @@ interface FieldInputProps {
   id: string;
   field: PanelField;
   value: string;
-  disabled?: boolean;
   onChange: (value: string) => void;
 }
 
 /** 様式の欄の定義（選択式・桁数・小数）に従った入力欄 */
-function FieldInput({ id, field, value, disabled, onChange }: FieldInputProps) {
+function FieldInput({ id, field, value, onChange }: FieldInputProps) {
   const { cell } = field;
   const groups = cell.optionGroups;
   const options = cell.options;
@@ -113,7 +105,7 @@ function FieldInput({ id, field, value, disabled, onChange }: FieldInputProps) {
       typeof option === 'string' ? { value: option, label: option } : option
     );
     return (
-      <select id={id} className="dpanel__input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+      <select id={id} className="dpanel__input" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">（未選択）</option>
         {options?.map((option) => {
           const { value: v, label } = item(option);
@@ -131,10 +123,9 @@ function FieldInput({ id, field, value, disabled, onChange }: FieldInputProps) {
     <input
       id={id}
       className={inputClass(cell)}
-      value={display(cell, value)}
-      disabled={disabled}
+      value={displayNumeric(cell, value)}
       inputMode={cell.commaInteger || cell.integerDigits !== undefined || cell.decimalPlaces !== undefined ? 'numeric' : undefined}
-      onChange={(e) => onChange(clean(cell, e.target.value))}
+      onChange={(e) => onChange(cleanNumeric(cell, e.target.value))}
     />
   );
 }
@@ -170,7 +161,6 @@ export function DetailPanel({
   });
 
   const method = detailMethod(draft);
-  const unused = useMemo(() => new Set(detailUnusedFields(form, draft)), [form, draft]);
   const autoValue = useMemo(() => detailValue(form, { ...draft, value: '' }), [form, draft]);
   const amounts = useMemo(() => detailShareAmounts(form, draft), [form, draft]);
   // 取得者は最後の1人の次まで並べ、必ず1行は空けておく（そこに次の人を書く）。
@@ -276,47 +266,47 @@ export function DetailPanel({
                     onChange={() => set(DETAIL_METHOD, option.value)}
                   />
                   <span>{option.label}</span>
-                  <span className="dpanel__note">{option.note}</span>
                 </label>
               ))}
             </fieldset>
           )}
 
-          {fields.map((field) => {
-            const id = `dpanel-${field.field}`;
-            const disabled = unused.has(field.field);
-            const auto = field.field === 'value' && autoValue !== '';
-            return (
-              <div className="dpanel__row" key={field.field}>
-                <label className="dpanel__label" htmlFor={id}>{field.name}</label>
-                {auto ? (
-                  <input className={inputClass(field.cell, true)} value={display(field.cell, autoValue)} readOnly aria-label={`${field.name}（自動計算）`} />
-                ) : (
-                  <FieldInput
-                    id={id}
-                    field={field}
-                    value={draft[field.field] ?? ''}
-                    disabled={disabled}
-                    onChange={(value) => setField(field, value)}
-                  />
-                )}
-                {field.denominator && (
-                  <>
-                    <span className="dpanel__slash">／</span>
-                    <FieldInput
-                      id={`dpanel-${field.denominator.field}`}
-                      field={field.denominator}
-                      value={draft[field.denominator.field] ?? ''}
-                      disabled={disabled}
-                      onChange={(value) => set(field.denominator!.field, value)}
-                    />
-                  </>
-                )}
-                {disabled && <span className="dpanel__note">この方式では使いません</span>}
-                {auto && <span className="dpanel__note">自動計算（元の欄を空にすると手入力）</span>}
-              </div>
-            );
-          })}
+          {fields.map((group, g) => (
+            // グループの区切りは様式の定義が持つ（`spec.panel`）。無い様式は1グループになる
+            <div className="dpanel__group" key={group[0]?.field ?? g}>
+              {group.map((field) => {
+                const id = `dpanel-${field.field}`;
+                const auto = field.field === 'value' && autoValue !== '';
+                return (
+                  <div className="dpanel__row" key={field.field}>
+                    <label className="dpanel__label" htmlFor={id}>{field.name}</label>
+                    {auto ? (
+                      <input className={inputClass(field.cell, true)} value={displayNumeric(field.cell, autoValue)} readOnly aria-label={`${field.name}（自動計算）`} />
+                    ) : (
+                      <FieldInput
+                        id={id}
+                        field={field}
+                        value={draft[field.field] ?? ''}
+                        onChange={(value) => setField(field, value)}
+                      />
+                    )}
+                    {field.denominator && (
+                      <>
+                        <span className="dpanel__slash">／</span>
+                        <FieldInput
+                          id={`dpanel-${field.denominator.field}`}
+                          field={field.denominator}
+                          value={draft[field.denominator.field] ?? ''}
+                          onChange={(value) => set(field.denominator!.field, value)}
+                        />
+                      </>
+                    )}
+                    {auto && <span className="dpanel__note">自動計算（元の欄を空にすると手入力）</span>}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
 
           <div className="dpanel__shares">
             <div className="dpanel__shares-head">

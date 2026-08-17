@@ -16,6 +16,7 @@
  */
 
 import { ERA_BASE_YEAR } from '../data/codes';
+import { formatCommaInteger, formatCommaNumber } from './format';
 import { DETAIL_KINDS } from '../data/detailCodes';
 import { TABLE112_ROWS } from '../forms/table112';
 import { TABLE1112F1_RATE } from '../forms/table1112f1';
@@ -862,7 +863,7 @@ export function isEmptyDetail(item: Values | undefined): boolean {
   return item === undefined || Object.values(item).every((value) => value.trim() === '');
 }
 
-/** 付表の「価額」の計算式（様式ごと） */
+/** 付表2〜4の「価額」の計算式（様式ごと。付表1は評価方式があるので別に持つ） */
 interface DetailValueRule {
   /** 数量にあたる欄 */
   base: string;
@@ -870,8 +871,6 @@ interface DetailValueRule {
   times: readonly string[];
   /** 入っていれば掛ける欄 */
   optional?: readonly string[];
-  /** 掛ける分数（分子・分母がそろっているときだけ） */
-  ratio?: readonly [string, string];
   /** この欄に入力があるうちは自動計算しない */
   manualWhen?: readonly string[];
 }
@@ -881,17 +880,153 @@ export type DetailMethod = 'route' | 'ratio';
 /** 評価方式の欄名 */
 export const DETAIL_METHOD = 'method';
 
+/** 付表1の欄名（用紙には独立した枠が無く、入力画面にだけ並ぶ欄を含む） */
+export const TABLE11F1_ROUTE_PRICE = 'routePrice';
+export const TABLE11F1_MULTIPLE = 'multiple';
+export const TABLE11F1_ADJUST = 'adjust';
+
+/**
+ * 用紙の「単価（円）又は倍数」に印字する値の擬似フィールド。
+ * 様式の枠は1つしか無いので、保存する欄（路線価・倍数・調整）から組み立てて表示する。
+ */
+export const TABLE11F1_UNIT = 'unit';
+
+/** 付表1の評価方式ごとの計算式 */
+interface Table11f1Rule {
+  /** 方式の名前（補助資料の見出しに使う） */
+  label: string;
+  /** 数量にあたる欄 */
+  base: string;
+  baseName: string;
+  /** 単価のもとになる欄 */
+  unit: string;
+  unitName: string;
+  /** 単価に調整を掛けた結果を円未満切り捨てにするか（倍数は小数のまま扱う） */
+  floorUnit: boolean;
+}
+
 /**
  * 付表1の評価方式ごとの計算式。単価欄は様式上「単価（円）又は倍数」で共通のため、
  * どちらの式で計算するかは**入力から推測せずユーザーが選ぶ**。
  * 固定資産税評価額を参考に控えただけで倍率方式に化ける、といったことを起こさないため。
+ *
+ * どちらの方式でも欄はすべて入力できる（選んでいない方式の値も参考として残せる）。
+ * 方式は「単価欄にどちらを印字するか」「価額をどちらの式で出すか」だけを決める。
  */
-const TABLE11F1_RULES: Record<DetailMethod, DetailValueRule> = {
-  // 路線価方式: 面積 × 単価 × 持分割合
-  route: { base: 'area', times: ['unitPrice'], ratio: ['shareN', 'shareD'] },
-  // 倍率方式: 固定資産税評価額 × 倍数 × 持分割合
-  ratio: { base: 'fixedValue', times: ['unitPrice'], ratio: ['shareN', 'shareD'] },
+const TABLE11F1_RULES: Record<DetailMethod, Table11f1Rule> = {
+  // 路線価方式: 面積 × 切捨(路線価 × 調整) × 持分割合
+  route: {
+    label: '路線価方式', base: 'area', baseName: '面積（㎡）',
+    unit: TABLE11F1_ROUTE_PRICE, unitName: '路線価（円）', floorUnit: true,
+  },
+  // 倍率方式: 固定資産税評価額 × (倍数 × 調整) × 持分割合
+  ratio: {
+    label: '倍率方式', base: 'fixedValue', baseName: '固定資産税評価額（円）',
+    unit: TABLE11F1_MULTIPLE, unitName: '倍数', floorUnit: false,
+  },
 };
+
+/** 付表1の持分割合の欄 */
+const TABLE11F1_SHARE_RATIO = ['shareN', 'shareD'] as const;
+
+/**
+ * 小数のまま扱う値の表示形。
+ * 掛け算の結果は 1.1 × 0.98 = 1.0780000000000001 のように誤差が出るので、
+ * 倍数として意味のある桁で丸めてから文字にする。
+ */
+function decimal(n: number): string {
+  return String(Number(n.toFixed(10)));
+}
+
+/**
+ * 用紙の「単価（円）又は倍数」に印字する値。もとになる欄が空なら `undefined`。
+ * 路線価方式は 路線価 × 調整（円未満切り捨て）、倍率方式は 倍率 × 調整（小数のまま）。
+ * 調整が空・0のときは掛けない（＝1.0）。
+ */
+export function detailUnit(item: Values): string | undefined {
+  const rule = TABLE11F1_RULES[detailMethod(item)];
+  const unit = num(item[rule.unit]);
+  if (unit <= 0) return undefined;
+  const adjust = num(item[TABLE11F1_ADJUST]);
+  const value = adjust > 0 ? unit * adjust : unit;
+  return rule.floorUnit ? str(Math.floor(value)) : decimal(value);
+}
+
+/**
+ * 付表1の価額。用紙の上で 数量 × 単価 × 持分割合 の検算が閉じるよう、
+ * **用紙に印字した単価から**計算する（調整を掛けた後の値）。
+ */
+function table11f1Value(item: Values): string | undefined {
+  const base = num(item[TABLE11F1_RULES[detailMethod(item)].base]);
+  const unit = num(detailUnit(item));
+  if (base <= 0 || unit <= 0) return undefined;
+  let total = base * unit;
+  const [n, d] = TABLE11F1_SHARE_RATIO.map((key) => num(item[key]));
+  if (n! > 0 && d! > 0) total = (total * n!) / d!;
+  return str(Math.floor(total));
+}
+
+/** 補助資料（単価の計算根拠）1行分 */
+export interface Table11f1Calc {
+  method: DetailMethod;
+  /** 方式の名前 */
+  methodLabel: string;
+  /** 数量（路線価方式は面積、倍率方式は固定資産税評価額） */
+  base: string;
+  baseName: string;
+  /** 単価のもと（路線価又は倍数） */
+  unitSource: string;
+  unitName: string;
+  adjust: string;
+  /** 用紙に印字する単価（＝ もと × 調整） */
+  unit: string;
+  /** 持分割合（分子／分母。指定が無ければ空） */
+  share: string;
+  /** 価額（自動計算できないときは手入力の値） */
+  value: string;
+  /** 検算用の式（そのまま読めば同じ値になる） */
+  formula: string;
+}
+
+/**
+ * 補助資料に出す1行分。用紙には単価の結果しか出ないため、
+ * 何をどう掛けてその単価・価額になったのかをここで文字にして残す。
+ */
+export function table11f1Calc(item: Values): Table11f1Calc {
+  const method = detailMethod(item);
+  const rule = TABLE11F1_RULES[method];
+  const base = item[rule.base] ?? '';
+  const unitSource = item[rule.unit] ?? '';
+  const adjust = item[TABLE11F1_ADJUST] ?? '';
+  const unit = detailUnit(item) ?? '';
+  const [n, d] = TABLE11F1_SHARE_RATIO.map((key) => num(item[key]));
+  const share = n! > 0 && d! > 0 ? `${item.shareN}／${item.shareD}` : '';
+
+  const value = detailValue('table11f1', item);
+  // 式に出す数はすべて用紙と同じ見た目（カンマ入り）にそろえる
+  const unitParts = [num(unitSource) > 0 ? formatCommaNumber(unitSource) : '?'];
+  if (num(adjust) > 0) unitParts.push(adjust);
+  const valueParts = [num(base) > 0 ? formatCommaNumber(base) : '?', unit === '' ? '?' : formatCommaNumber(unit)];
+  if (share !== '') valueParts.push(share);
+  const formula = `単価 ${unitParts.join(' × ')}`
+    + `${rule.floorUnit && unitParts.length > 1 ? '（円未満切捨て）' : ''}`
+    + ` ＝ ${unit === '' ? '—' : formatCommaNumber(unit)}`
+    + ` ／ 価額 ${valueParts.join(' × ')} ＝ ${value === '' ? '—' : formatCommaInteger(value)}`;
+
+  return {
+    method,
+    methodLabel: rule.label,
+    base,
+    baseName: rule.baseName,
+    unitSource,
+    unitName: rule.unitName,
+    adjust,
+    unit,
+    share,
+    value,
+    formula,
+  };
+}
 
 /**
  * 付表2〜4の「価額」を元の欄から自動計算する式。
@@ -908,19 +1043,6 @@ export function detailMethod(item: Values): DetailMethod {
   return item[DETAIL_METHOD] === 'ratio' ? 'ratio' : 'route';
 }
 
-function valueRule(form: string, item: Values): DetailValueRule | undefined {
-  return form === 'table11f1' ? TABLE11F1_RULES[detailMethod(item)] : DETAIL_VALUE_RULES[form];
-}
-
-/**
- * 選んでいない評価方式でしか使わない欄（画面で入力を塞ぐ）。
- * 路線価方式なら固定資産税評価額、倍率方式なら面積。
- */
-export function detailUnusedFields(form: string, item: Values): string[] {
-  if (form !== 'table11f1') return [];
-  return detailMethod(item) === 'ratio' ? [TABLE11F1_RULES.route.base] : [TABLE11F1_RULES.ratio.base];
-}
-
 /**
  * 「価額が自動計算になっているか」を GridForm へ渡すための擬似フィールド。
  * 保存はされない（`g` が明細から求めて '1' か '' を返す）。
@@ -932,7 +1054,8 @@ export const DETAIL_AUTO_VALUE = 'valueAuto';
  * 円未満は切り捨てる。
  */
 export function detailAutoValue(form: string, item: Values): string | undefined {
-  const rule = valueRule(form, item);
+  if (form === 'table11f1') return table11f1Value(item);
+  const rule = DETAIL_VALUE_RULES[form];
   if (rule === undefined) return undefined;
   if (rule.manualWhen?.some((key) => (item[key] ?? '').trim() !== '')) return undefined;
   const base = num(item[rule.base]);
@@ -946,10 +1069,6 @@ export function detailAutoValue(form: string, item: Values): string | undefined 
   for (const key of rule.optional ?? []) {
     const value = num(item[key]);
     if (value > 0) total *= value;
-  }
-  if (rule.ratio !== undefined) {
-    const [n, d] = rule.ratio.map((key) => num(item[key]));
-    if (n! > 0 && d! > 0) total = (total * n!) / d!;
   }
   return str(Math.floor(total));
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { GridForm, type GridCell } from './components/ui/GridForm';
 import { DetailPanel } from './components/DetailPanel';
 import { RowSortPanel, type RowSortColumn } from './components/RowSortPanel';
+import { Table11f1Worksheet } from './components/Table11f1Worksheet';
 import { PersonPanel } from './components/PersonPanel';
 import { giftYearOptions } from './data/codes';
 import type { FormRow } from './forms/geometry';
@@ -87,7 +88,7 @@ import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
   deriveLawful, detailSlots, detailValue, hasTable112, isEmptyDetail, lawfulMembers, remapTable14Confirm,
-  sameValues, table10MinPages, table10Pages, table112Pages, table13MinPages, table13Pages, table14MinPages,
+  sameValues, TABLE11F1_UNIT, table10MinPages, table10Pages, table112Pages, table13MinPages, table13Pages, table14MinPages,
   table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9MinPages, table9Pages,
   type Values,
 } from './lib/calc';
@@ -156,6 +157,7 @@ const FORMS: FormMeta[] = [
   { id: 'table10', label: '第10表', note: '退職手当金などの明細書' },
   { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
   { id: 'table11f1', label: '第11表の付表1', note: '財産の明細書（土地・家屋等用）' },
+  { id: 'table11f1calc', label: '（補助資料）', note: '第11表の付表1　単価（円）又は倍数の計算根拠' },
   { id: 'table11f2', label: '第11表の付表2', note: '財産の明細書（有価証券用）' },
   { id: 'table11f3', label: '第11表の付表3', note: '財産の明細書（現金・預貯金等用）' },
   { id: 'table11f4', label: '第11表の付表4', note: '財産の明細書（事業用・家庭用・その他）' },
@@ -199,8 +201,10 @@ const ROW_SORTS: Readonly<Record<string, RowSortTarget>> = {
     button: '並べ替え',
     heading: '財産の並べ替え',
     subtitle: DETAIL_SPECS[id].spec.subtitle.replace('\n', ''),
+    // 単価欄は他の欄から作る表示専用なので、明細には値が入っていない（一覧に出しても空になる）
     columns: DETAIL_SPECS[id].spec.rows.flat().flatMap((field): RowSortColumn[] => (
-      field.field === undefined ? [] : [{ field: field.field, name: field.name ?? field.field }]
+      field.field === undefined || field.field === TABLE11F1_UNIT
+        ? [] : [{ field: field.field, name: field.name ?? field.field }]
     )),
     amountOf: (item) => detailValue(id, item),
   }])),
@@ -952,6 +956,13 @@ export default function App() {
     const edge = slots[(pages - 1) * DETAIL_GROUPS]!;
     return [form, { pageItems, pages, keep: Math.min(rows.length, edge.item), canRemove: pages > 1 && edge.base === 0 }];
   })), [data.details]);
+  /** 補助資料に載せる付表1の明細（空の枠は載せない。番号は用紙と同じ通し番号） */
+  const table11f1Rows = useMemo(
+    () => (data.details.table11f1 ?? [])
+      .map((item, index) => ({ index, item }))
+      .filter(({ item }) => !isEmptyDetail(item)),
+    [data.details],
+  );
   /** 付表の枚数 */
   const detailPages = (form: string): number => detailLayout[form]?.pages ?? 1;
   /**
@@ -1407,6 +1418,7 @@ export default function App() {
         ))}
       </>
     )])),
+    table11f1calc: <Table11f1Worksheet rows={table11f1Rows} />,
   };
 
   /**
