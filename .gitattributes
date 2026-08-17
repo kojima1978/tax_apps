@@ -5,3 +5,8 @@
 *.sh text eol=lf
 Dockerfile* text eol=lf
 .gitattributes text eol=lf
+
+# Windows 側で動くものは逆に CRLF に固定する。改行が PC ごとにばらつく状態そのものが
+# 上と同じ事故の入口なので、向きを明示して固定しておく。
+*.bat text eol=crlf
+*.ps1 text eol=crlf
