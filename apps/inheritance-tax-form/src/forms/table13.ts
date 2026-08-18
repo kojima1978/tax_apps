@@ -233,6 +233,7 @@ function debtRows(rows: readonly Table13Row[], last: boolean, whoOptions: GridCe
     label(full, col(X.AMT, X.SHARE), '負担する人の氏名'),
     label(full, col(X.SHARE, X.R), '負担する金額(円)'),
 
+    // 種類・細目・氏名・住所は枠に入りきらないことが多いので、枠内で2行以上に折り返す
     ...DEBT_Y.flatMap(([top, bottom], r): GridCell[] => {
       const { prefix: f, label: who } = rows[r]!;
       const body = row(top, bottom);
@@ -242,13 +243,13 @@ function debtRows(rows: readonly Table13Row[], last: boolean, whoOptions: GridCe
       const e = 2 + r * 5;
       return [
         code(body, col(X.L, X.C1), cd('E', e)),
-        mk(body, col(X.C1, X.KIND), { kind: 'input', field: `${f}kind`, ariaLabel: `${who}の種類`, align: 'left' }),
+        mk(body, col(X.C1, X.KIND), { kind: 'input', field: `${f}kind`, ariaLabel: `${who}の種類`, align: 'left', multiline: true }),
         code(body, col(X.KIND, X.C2), cd('E', e + 1)),
-        mk(body, col(X.C2, X.ITEM), { kind: 'input', field: `${f}item`, ariaLabel: `${who}の細目`, align: 'left' }),
+        mk(body, col(X.C2, X.ITEM), { kind: 'input', field: `${f}item`, ariaLabel: `${who}の細目`, align: 'left', multiline: true }),
         code(body, col(X.ITEM, X.C3), cd('E', e + 2)),
-        mk(body, col(X.C3, X.NAME), { kind: 'input', field: `${f}name`, ariaLabel: `${who}の債権者の氏名又は名称`, align: 'left' }),
+        mk(body, col(X.C3, X.NAME), { kind: 'input', field: `${f}name`, ariaLabel: `${who}の債権者の氏名又は名称`, align: 'left', multiline: true }),
         code(body, col(X.NAME, X.C4), cd('E', e + 3)),
-        mk(body, col(X.C4, X.ADDR1), { kind: 'input', field: `${f}addr`, ariaLabel: `${who}の債権者の住所又は所在地`, align: 'left' }),
+        mk(body, col(X.C4, X.ADDR1), { kind: 'input', field: `${f}addr`, ariaLabel: `${who}の債権者の住所又は所在地`, align: 'left', multiline: true }),
         ...(r === 0 ? dateHead(row(top, DEBT_HEAD), DEBT_DATE_X) : []),
         ...dateRow(row(dateTop, mid), DEBT_DATE_X, cd('N', 1 + r * 2), `${f}occ`, `${who}の発生年月日`),
         ...dateRow(row(mid, bottom), DEBT_DATE_X, cd('N', 2 + r * 2), `${f}due`, `${who}の弁済期限`),
@@ -286,9 +287,9 @@ function funeralRows(rows: readonly Table13Row[], last: boolean, whoOptions: Gri
       const e = 22 + r * 3;
       return [
         code(body, col(X.L, X.C1), cd('E', e)),
-        mk(body, col(X.C1, X.ITEM), { kind: 'input', field: `${f}name`, ariaLabel: `${who}の支払先の氏名又は名称`, align: 'left' }),
+        mk(body, col(X.C1, X.ITEM), { kind: 'input', field: `${f}name`, ariaLabel: `${who}の支払先の氏名又は名称`, align: 'left', multiline: true }),
         code(body, col(X.ITEM, X.C3), cd('E', e + 1)),
-        mk(body, col(X.C3, X.ADDR2), { kind: 'input', field: `${f}addr`, ariaLabel: `${who}の支払先の住所又は所在地`, align: 'left' }),
+        mk(body, col(X.C3, X.ADDR2), { kind: 'input', field: `${f}addr`, ariaLabel: `${who}の支払先の住所又は所在地`, align: 'left', multiline: true }),
         ...(r === 0 ? dateHead(row(top, FUNERAL_HEAD), FUNERAL_DATE_X) : []),
         ...dateRow(row(dateTop, bottom), FUNERAL_DATE_X, cd('N', 9 + r), `${f}pay`, `${who}の支払年月日`),
         ...shareCells(body, FUNERAL_SHARE_X, f, who, [cd('G', 10 + r * 2), cd('E', e + 2), cd('G', 11 + r * 2)], whoOptions),
