@@ -33,7 +33,7 @@ export interface GridCell {
   verticalLr?: boolean;              // 縦書きの列が左から右へ進む（第4表の縦書き帯）
   bold?: boolean;
   noWrap?: boolean;                  // 明示改行以外では折り返さない
-  /** 枠に入りきらない入力値をセル内で折り返す（銘柄など長い名称の欄）。1行入力の input ではなく textarea で描く */
+  /** 枠に入りきらない入力値をセル内で折り返す（銘柄など長い名称の欄）。1行入力の input ではなく textarea で描き、2行で打ち切る */
   multiline?: boolean;
   noBorder?: boolean;                // 様式に罫線が無い領域（提出日の行など）
   noBorderTop?: boolean;             // 上罫線だけを描かない（隣接する計算欄と一体に見せる注記行）
@@ -226,6 +226,14 @@ function inputText(c: GridCell, g: (field: string) => string, readOnly: boolean)
   const value = displayNumeric(c, raw);
   return readOnly && c.suffixByCode ? suffixedName(value, g(c.suffixByCode.field), c.suffixByCode) : value;
 }
+
+/**
+ * `multiline` の欄の折り返し。2行までで打ち切る（3行目以降は枠に入っても表示しない）。
+ * 行送りを揃えないと打ち切る高さが決まらないので、行高もここで持つ。
+ */
+const MULTILINE_LINES = 2;
+const MULTILINE_LINE_HEIGHT = 1.15;
+const MULTILINE_MAX_HEIGHT = `${MULTILINE_LINES * MULTILINE_LINE_HEIGHT}em`;
 
 /** 複合入力（日付・郵便番号・電話番号）の入力ボックス共通スタイル */
 const SUB_BOX: CSSProperties = { textAlign: 'center', border: 'none', borderBottom: '1px solid #aaa', outline: 'none', background: 'transparent', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, minWidth: 0 };
@@ -502,8 +510,10 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           <>
             {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.cornerLabel}</span>}
             {printRendering ? (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', background: 'transparent', paddingRight: rightLabelPadding, boxSizing: 'border-box', whiteSpace: c.multiline ? 'pre-wrap' : 'nowrap', overflowWrap: c.multiline ? 'anywhere' : undefined, lineHeight: c.multiline ? 1.15 : undefined }}>
-                {inputText(c, g, true)}
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', background: 'transparent', paddingRight: rightLabelPadding, boxSizing: 'border-box', whiteSpace: c.multiline ? 'pre-wrap' : 'nowrap', overflowWrap: c.multiline ? 'anywhere' : undefined, lineHeight: c.multiline ? MULTILINE_LINE_HEIGHT : undefined }}>
+                {c.multiline
+                  ? <span style={{ maxHeight: MULTILINE_MAX_HEIGHT, overflow: 'hidden', width: '100%' }}>{inputText(c, g, true)}</span>
+                  : inputText(c, g, true)}
               </div>
             ) : (
               c.multiline ? (
@@ -517,7 +527,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                   onKeyDown={onEnterNext}
                   readOnly={readOnly}
                   tabIndex={readOnly ? -1 : undefined}
-                  style={{ width: '100%', height: '100%', border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', textAlign: c.align ?? 'left', fontSize: 'inherit', lineHeight: 1.15, background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit', overflowWrap: 'anywhere' }}
+                  style={{ width: '100%', height: '100%', maxHeight: MULTILINE_MAX_HEIGHT, border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', textAlign: c.align ?? 'left', fontSize: 'inherit', lineHeight: MULTILINE_LINE_HEIGHT, background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit', overflowWrap: 'anywhere' }}
                 />
               ) : (
                 <input
