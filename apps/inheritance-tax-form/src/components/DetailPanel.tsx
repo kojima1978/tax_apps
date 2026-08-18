@@ -33,7 +33,7 @@ const METHOD_OPTIONS: readonly { value: DetailMethod; label: string }[] = [
 ];
 
 /**
- * 価額の入力方法。既定は自動計算で、元になる欄（数量・単価など）がそろっている明細だけ選べる。
+ * 価額の入力方法。既定は自動計算（元になる欄がそろうまで空欄のまま）。
  * 直接入力にしても数量・単価・為替はそのまま残り、用紙にも印字される。
  */
 const VALUE_MODE_OPTIONS: readonly { manual: boolean; label: string }[] = [
@@ -160,7 +160,14 @@ export interface DetailPanelProps {
 export function DetailPanel({
   form, spec, index, item, heirs, previous, onSubmit, onDelete, onCancel,
 }: DetailPanelProps) {
-  const [draft, setDraft] = useState<Values>(item);
+  const [draft, setDraft] = useState<Values>(() => (
+    // 印が付く前に価額だけ手で入れてあった明細は、直接入力として開く
+    // （自動計算のまま開くと、読み取り専用の空欄に見えて入力した値が消えたように映る）
+    item[DETAIL_VALUE_MANUAL] === undefined && (item.value ?? '') !== ''
+    && detailValue(form, { ...item, value: '' }) === ''
+      ? { ...item, [DETAIL_VALUE_MANUAL]: '1' }
+      : item
+  ));
   const fields = useMemo(() => panelFields(spec), [spec]);
   const set = (field: string, value: string) => setDraft((prev) => ({ ...prev, [field]: value }));
   /** 欄の定義に従って入れる（コードの欄なら連動する欄も一緒に書き換える） */
@@ -191,8 +198,11 @@ export function DetailPanel({
   /** 自動で決まる欄（価額・按分した取得者の価額）は保存しない。手入力の値が残ると次に開いたとき食い違う */
   const submit = () => {
     const out: Values = { ...draft };
-    if (autoValue !== '' && !valueManual) delete out.value;
-    if (!valueManual) delete out[DETAIL_VALUE_MANUAL];
+    // 自動計算のときは価額を保存しない（手入力の値が残ると次に開いたとき食い違う）
+    if (!valueManual) {
+      delete out.value;
+      delete out[DETAIL_VALUE_MANUAL];
+    }
     amounts.forEach((amount, i) => { if (amount !== undefined) delete out[`amount${i}`]; });
     onSubmit(out);
   };
@@ -298,8 +308,9 @@ export function DetailPanel({
             <div className="dpanel__group" key={group[0]?.field ?? g}>
               {group.map((field) => {
                 const id = `dpanel-${field.field}`;
-                // 元になる欄がそろっている価額欄だけ、自動計算か直接入力かを選べる
-                const chooseMode = field.field === 'value' && autoValue !== '';
+                // 価額はどちらで入れるかを常に選べる。自動計算のうちは読み取り専用
+                // （元になる欄がそろっていなければ、そろうまで空欄のまま）
+                const chooseMode = field.field === 'value';
                 const auto = chooseMode && !valueManual;
                 return (
                   <div className="dpanel__row" key={field.field}>
