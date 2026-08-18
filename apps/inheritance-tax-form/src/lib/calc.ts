@@ -1048,10 +1048,19 @@ export function detailMethod(item: Values): DetailMethod {
 export const DETAIL_AUTO_VALUE = 'valueAuto';
 
 /**
+ * 価額を直接入力にしている明細の印（'1' なら直接入力）。
+ * 既定は自動計算で、この印が付いている明細だけ元の欄（数量・単価など）を残したまま
+ * 価額を手で入れられる。数量・単価・為替はこの印と関係なく用紙に印字される。
+ */
+export const DETAIL_VALUE_MANUAL = 'valueManual';
+
+/**
  * 明細1件の価額の自動計算。元になる欄がそろっていないときは `undefined`（手入力のまま）。
  * 円未満は切り捨てる。
  */
 export function detailAutoValue(form: string, item: Values): string | undefined {
+  // 直接入力を選んでいる明細は、元の欄がそろっていても計算しない
+  if (item[DETAIL_VALUE_MANUAL] === '1') return undefined;
   if (form === 'table11f1') return table11f1Value(item);
   const rule = DETAIL_VALUE_RULES[form];
   if (rule === undefined) return undefined;

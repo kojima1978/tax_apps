@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DETAIL_VALUE_MANUAL,
   computeAll, detailAutoValue, detailGroupCount, detailShareAmounts, detailShareCount, detailSlots,
-  detailUnit, moveDetailShare, moved, num, remapTable14Confirm, sameValues, table11f1Calc, type Values,
+  detailUnit, detailValue, moveDetailShare, moved, num, remapTable14Confirm, sameValues, table11f1Calc,
+  type Values,
 } from './calc';
 import { table15Key } from '../forms/table15';
 
@@ -315,6 +317,14 @@ describe('付表の価額の自動計算', () => {
   it('付表2の為替は入っていれば掛け、空欄なら邦貨建てとして掛けない', () => {
     expect(detailAutoValue('table11f2', { quantity: '10', unitPrice: '100', fx: '150' })).toBe('150000');
     expect(detailAutoValue('table11f2', { quantity: '10', unitPrice: '100' })).toBe('1000');
+  });
+
+  it('直接入力を選んだ明細は、元の欄がそろっていても自動計算しない', () => {
+    const item = { quantity: '10', unitPrice: '100', fx: '150', value: '999' };
+    expect(detailAutoValue('table11f2', item)).toBe('150000');
+    expect(detailAutoValue('table11f2', { ...item, [DETAIL_VALUE_MANUAL]: '1' })).toBeUndefined();
+    // 数量・単価・為替は直接入力にしても残る（用紙に印字するため）
+    expect(detailValue('table11f2', { ...item, [DETAIL_VALUE_MANUAL]: '1' })).toBe('999');
   });
 
   it('自動計算した価額を第11表2①・第15表の集計に使う', () => {

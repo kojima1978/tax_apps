@@ -354,8 +354,8 @@ export function useFormData() {
       if (scope === 'c') return { ...prev, common: { ...prev.common, [key]: value } };
       if (detail) {
         const [form, i] = detail;
-        // 自動計算に切り替わっている価額も書き込み不可（元の欄を消せば手入力に戻る）
-        if (key === 'value' && detailAutoValue(form, prev.details[form]?.[i] ?? {}) !== undefined) return prev;
+        // 価額は用紙から直接は書けない。自動計算か直接入力かの選択も含めて入力画面に一本化してある
+        if (key === 'value') return prev;
         // 明細は用紙の枚数だけ表示するので、未作成の行は入力時に作る
         const rows = [...(prev.details[form] ?? [])];
         while (rows.length <= i) rows.push({});

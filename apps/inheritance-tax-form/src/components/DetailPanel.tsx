@@ -14,7 +14,8 @@ import type { GridCell } from './ui/GridForm';
 import { SortableList } from './ui/SortableList';
 import type { DetailExtraField, DetailField, DetailSpec } from '../forms/detail';
 import {
-  DETAIL_METHOD, DETAIL_RATIO_D, DETAIL_RATIO_N, type DetailMethod, type Values,
+  DETAIL_METHOD, DETAIL_RATIO_D, DETAIL_RATIO_N, DETAIL_VALUE_MANUAL,
+  type DetailMethod, type Values,
   detailMethod, detailShareAmounts, detailShareCount, detailValue,
   isEmptyDetail, moveDetailShare, num,
 } from '../lib/calc';
@@ -29,6 +30,15 @@ import type { AutoFill } from '../lib/codeLink';
 const METHOD_OPTIONS: readonly { value: DetailMethod; label: string }[] = [
   { value: 'route', label: '路線価方式' },
   { value: 'ratio', label: '倍率方式' },
+];
+
+/**
+ * 価額の入力方法。既定は自動計算で、元になる欄（数量・単価など）がそろっている明細だけ選べる。
+ * 直接入力にしても数量・単価・為替はそのまま残り、用紙にも印字される。
+ */
+const VALUE_MODE_OPTIONS: readonly { manual: boolean; label: string }[] = [
+  { manual: false, label: '自動計算' },
+  { manual: true, label: '直接入力' },
 ];
 
 /** 持分割合のように分子・分母で1組になる欄 */
@@ -161,7 +171,18 @@ export function DetailPanel({
   });
 
   const method = detailMethod(draft);
-  const autoValue = useMemo(() => detailValue(form, { ...draft, value: '' }), [form, draft]);
+  // 直接入力を選んでいても計算値は出しておく（切り替えたときの初期値に使う）
+  const autoValue = useMemo(
+    () => detailValue(form, { ...draft, value: '', [DETAIL_VALUE_MANUAL]: '' }),
+    [form, draft],
+  );
+  const valueManual = draft[DETAIL_VALUE_MANUAL] === '1';
+  /** 価額の入力方法の切り替え。直接入力にしたときは計算値を初期値として置く */
+  const setValueMode = (manual: boolean) => setDraft((prev) => ({
+    ...prev,
+    [DETAIL_VALUE_MANUAL]: manual ? '1' : '',
+    ...(manual && (prev.value ?? '') === '' ? { value: autoValue } : {}),
+  }));
   const amounts = useMemo(() => detailShareAmounts(form, draft), [form, draft]);
   // 取得者は最後の1人の次まで並べ、必ず1行は空けておく（そこに次の人を書く）。
   // 空けてある行は並べ替えの対象にしない（まだ誰でもないため）
@@ -170,7 +191,8 @@ export function DetailPanel({
   /** 自動で決まる欄（価額・按分した取得者の価額）は保存しない。手入力の値が残ると次に開いたとき食い違う */
   const submit = () => {
     const out: Values = { ...draft };
-    if (autoValue !== '') delete out.value;
+    if (autoValue !== '' && !valueManual) delete out.value;
+    if (!valueManual) delete out[DETAIL_VALUE_MANUAL];
     amounts.forEach((amount, i) => { if (amount !== undefined) delete out[`amount${i}`]; });
     onSubmit(out);
   };
@@ -276,7 +298,9 @@ export function DetailPanel({
             <div className="dpanel__group" key={group[0]?.field ?? g}>
               {group.map((field) => {
                 const id = `dpanel-${field.field}`;
-                const auto = field.field === 'value' && autoValue !== '';
+                // 元になる欄がそろっている価額欄だけ、自動計算か直接入力かを選べる
+                const chooseMode = field.field === 'value' && autoValue !== '';
+                const auto = chooseMode && !valueManual;
                 return (
                   <div className="dpanel__row" key={field.field}>
                     <label className="dpanel__label" htmlFor={id}>{field.name}</label>
@@ -301,7 +325,24 @@ export function DetailPanel({
                         />
                       </>
                     )}
-                    {auto && <span className="dpanel__note">自動計算（元の欄を空にすると手入力）</span>}
+                    {chooseMode && (
+                      <span className="dpanel__choice" role="radiogroup" aria-label="価額の入力方法">
+                        {VALUE_MODE_OPTIONS.map((option) => (
+                          <label
+                            key={option.label}
+                            className={`dpanel__choice-item${option.manual === valueManual ? ' dpanel__choice-item--on' : ''}`}
+                          >
+                            <input
+                              type="radio"
+                              name="detail-value-mode"
+                              checked={option.manual === valueManual}
+                              onChange={() => setValueMode(option.manual)}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </span>
+                    )}
                   </div>
                 );
               })}

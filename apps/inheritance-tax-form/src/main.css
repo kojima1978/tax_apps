@@ -866,6 +866,30 @@ button {
   cursor: pointer;
 }
 
+/*
+ * 価額の「自動計算／直接入力」。どちらを選んでいるかが一目で分かるよう、
+ * 選んでいる側だけ濃く・太くする（ラジオの丸だけでは小さくて見落とす）
+ */
+.dpanel__choice {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.dpanel__choice-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.dpanel__choice-item--on {
+  color: #0f172a;
+  font-weight: 600;
+}
+
 .dpanel__shares {
   margin-top: 12px;
   padding-top: 10px;
