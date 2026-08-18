@@ -87,7 +87,7 @@ import { detailLabel, detailPrefix, heirIndex, heirLabel, heirPrefix, useFormDat
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  deriveLawful, detailSlots, detailValue, hasTable112, isEmptyDetail, lawfulMembers, remapTable14Confirm,
+  DETAIL_SOURCE, deriveLawful, detailSlots, detailValue, hasTable112, isEmptyDetail, lawfulMembers, remapTable14Confirm,
   sameValues, TABLE11F1_UNIT, table10MinPages, table10Pages, table112Pages, table13MinPages, table13Pages, table14MinPages,
   table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9MinPages, table9Pages,
   type Values,
@@ -845,7 +845,7 @@ function PageControl({
 
 export default function App() {
   const {
-    data, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
+    data, detailRows, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
     moveDetailItem, toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -942,7 +942,11 @@ export default function App() {
    * 用紙の余りは空の財産で埋め、1枚は必ず出す。
    */
   const detailLayout = useMemo(() => Object.fromEntries(DETAIL_FORMS.map((form) => {
-    const rows = data.details[form] ?? [];
+    // 転記された明細（付表4 ← 第9表・第10表）は保存した明細の後ろに並ぶ。
+    // 添字がずれるので、入力画面を開く添字は保存した明細の側で数え直す
+    const stored = data.details[form]?.length ?? 0;
+    const rows = detailRows[form] ?? [];
+    const derived = rows.length - stored;
     const pages = Math.max(1, Math.ceil(detailSlots(rows, 0).length / DETAIL_GROUPS));
     const slots = detailSlots(rows, pages * DETAIL_GROUPS);
     // 用紙1枚ぶんずつに切り分けておく（描画のたびに配列を作ると GridForm の再計算が毎回走る）
@@ -950,12 +954,17 @@ export default function App() {
       .slice(page * DETAIL_GROUPS, (page + 1) * DETAIL_GROUPS)
       .map(({ item, base }): DetailItem => ({
         index: item, prefix: detailPrefix(form, item), label: detailLabel(item), base, first: base === 0,
+        // 転記行はその印を、空の組は保存した明細の続きとして開く添字を持たせる
+        source: rows[item]?.[DETAIL_SOURCE],
+        edit: item < stored ? item : item - derived,
       })));
     // 最後の1枚を削るときに残す件数。用紙の切れ目が財産の途中（続きの組）に当たるときは、
     // 財産を半分だけ消すことになるので − を出さない
     const edge = slots[(pages - 1) * DETAIL_GROUPS]!;
-    return [form, { pageItems, pages, keep: Math.min(rows.length, edge.item), canRemove: pages > 1 && edge.base === 0 }];
-  })), [data.details]);
+    const keep = Math.min(stored, edge.item);
+    // 転記行は消せないので、最後の1枚が転記行から始まるときは − を出さない
+    return [form, { pageItems, pages, keep, canRemove: pages > 1 && edge.base === 0 && edge.item < stored }];
+  })), [data.details, detailRows]);
   /** 補助資料に載せる付表1の明細（空の枠は載せない。番号は用紙と同じ通し番号） */
   const table11f1Rows = useMemo(
     () => (data.details.table11f1 ?? [])

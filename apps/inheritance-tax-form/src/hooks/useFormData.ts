@@ -13,11 +13,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  DETAIL_AUTO_VALUE, DETAIL_METHOD, TABLE11F1_MULTIPLE, TABLE11F1_ROUTE_PRICE, TABLE11F1_UNIT,
+  DETAIL_AUTO_VALUE, DETAIL_METHOD, DETAIL_SOURCE, TABLE11F1_MULTIPLE, TABLE11F1_ROUTE_PRICE, TABLE11F1_UNIT,
   computeAll, detailAutoValue, detailShareAmounts, detailShareCount, detailUnit,
   isEmptyDetail, moved, type Values,
 } from '../lib/calc';
 import { DETAIL_KINDS } from '../data/detailCodes';
+import { TABLE9_DETAIL_FORM } from '../forms/table9';
+import { TABLE10_DETAIL_FORM } from '../forms/table10';
 import {
   HEIR_ID, detailHeirRefKind, heirRefMap, isTotalsHeirRef, migrateHeirRefs, newHeirId, resolveHeirRefs,
   withHeirIds,
@@ -70,7 +72,13 @@ const emptyData = (): FormData => ({
  * 入力した以上は提出する様式なので、印は自動で付ける（`requiredForms` で外せなくもする）。
  */
 function detailFormsInUse(details: Record<string, Values[]>): string[] {
-  return Object.keys(DETAIL_KINDS).filter((id) => (details[id] ?? []).some((item) => !isEmptyDetail(item)));
+  const forms = Object.keys(DETAIL_KINDS)
+    .filter((id) => (details[id] ?? []).some((item) => !isEmptyDetail(item)));
+  // 第9表・第10表の明細は付表4へ転記される。印が無いと転記先が集計に入らないので付けておく
+  const transferred = [TABLE9_DETAIL_FORM, TABLE10_DETAIL_FORM]
+    .some((id) => (details[id] ?? []).some((item) => !isEmptyDetail(item)));
+  if (transferred && !forms.includes('table11f4')) forms.push('table11f4');
+  return forms;
 }
 
 /** 明細のある付表と、その合計表である第11表に「使用する」の印を付ける */
@@ -308,6 +316,18 @@ export function useFormData() {
   /** 明細が入っているため「使用する」の印を外せない様式（付表とその合計表の第11表） */
   const requiredForms = useMemo(() => withDetailForms([], data.details), [data.details]);
 
+  /**
+   * 用紙に載せる明細（保存した明細の後ろに、他の様式から転記された明細を続けたもの）。
+   * 転記行は読み取り専用で、直すときは転記元の様式を開く。
+   */
+  const detailRows = useMemo(() => {
+    const forms = Object.keys(computed.derived);
+    if (forms.length === 0) return data.details;
+    const out = { ...data.details };
+    for (const form of forms) out[form] = [...(data.details[form] ?? []), ...computed.derived[form]!];
+    return out;
+  }, [data.details, computed.derived]);
+
   const g = useCallback((field: string): string => {
     const [scope, key] = splitField(field);
     if (scope === 't') {
@@ -318,11 +338,13 @@ export function useFormData() {
     const detail = splitDetailScope(scope);
     if (detail) {
       const [form, index] = detail;
-      const rows = data.details[form] ?? [];
+      const rows = detailRows[form] ?? [];
       const base = shareBase(key);
       if (base !== null) return detailNo(rows, index, base);
       const item = rows[index];
       if (item === undefined) return '';
+      // 転記された明細は計算済み（人も番号のまま）なので、そのまま出す
+      if (item[DETAIL_SOURCE] !== undefined) return item[key] ?? '';
       // 用紙の「単価（円）又は倍数」は保存欄ではなく、路線価・倍数・調整から組み立てる
       if (key === TABLE11F1_UNIT) return detailUnit(item) ?? '';
       // 価額は元になる欄（面積×単価など）がそろっていれば自動計算に切り替わる
@@ -342,7 +364,7 @@ export function useFormData() {
       return detailHeirRefKind(key) === 'number' ? refs.toNo(value) : value;
     }
     return computed.heirs[Number(scope.slice(1))]?.[key] ?? '';
-  }, [data, computed, refs]);
+  }, [data, detailRows, computed, refs]);
 
   const u = useCallback((field: string, value: string): void => {
     const [scope, key] = splitField(field);
@@ -358,6 +380,8 @@ export function useFormData() {
         if (key === 'value') return prev;
         // 明細は用紙の枚数だけ表示するので、未作成の行は入力時に作る
         const rows = [...(prev.details[form] ?? [])];
+        // 転記行は保存行の後ろに並ぶ。その添字へ書くと転記行を保存行で押しのけてしまう
+        if (i >= rows.length && (computed.derived[form]?.length ?? 0) > 0) return prev;
         while (rows.length <= i) rows.push({});
         rows[i] = { ...rows[i]!, [key]: value };
         return { ...prev, details: { ...prev.details, [form]: rows } };
@@ -370,7 +394,7 @@ export function useFormData() {
       heirs[index] = next;
       return { ...prev, heirs };
     });
-  }, []);
+  }, [computed.derived]);
 
   const addHeir = useCallback(() => {
     setData((prev) => (prev.heirs.length >= MAX_HEIRS
@@ -523,7 +547,7 @@ export function useFormData() {
   }, []);
 
   return {
-    data, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
+    data, detailRows, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
     toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs: MAX_HEIRS,
   };
 }

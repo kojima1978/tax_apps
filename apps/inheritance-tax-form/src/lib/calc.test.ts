@@ -5,7 +5,7 @@ import {
   detailUnit, detailValue, moveDetailShare, moved, num, remapTable14Confirm, sameValues, table11f1Calc,
   type Values,
 } from './calc';
-import { table15Key } from '../forms/table15';
+import { TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
 
 /** 法定相続人の印と法定相続分（1/3ずつ）。第2表④はこの印が付いた人だけが並ぶ */
 const third: Values = { isLawful: '1', lawNum: '1', lawDen: '3' };
@@ -595,6 +595,82 @@ describe('computeAll 第9表2（課税される金額の計算）', () => {
 
     expect(result.totals.t9B).toBe('9000000');
     expect(result.totals.t9r1No).toBe('');
+  });
+});
+
+describe('computeAll 第9表・第10表 → 第11表の付表4 の転記', () => {
+  /** 法定相続人2人 ⇒ Ⓐ＝1,000万円 */
+  const heirs: Values[] = [{ ...third, name: '甲' }, { ...third, name: '乙' }];
+  const used = ['table9', 'table10', 'table11', 'table11f4'];
+
+  it('明細1行が1件になり、価額は非課税を引いた後の額（③）になる', () => {
+    const details = {
+      table9detail: [
+        { addr: '東京都千代田区', name: 'A生命', amt: '9000000', who: '1' },
+        { addr: '大阪市北区', name: 'B生命', amt: '3000000', who: '2' },
+      ],
+    };
+    const result = computeAll({}, heirs, used, details);
+    const items = result.derived.table11f4 ?? [];
+
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      sourceForm: 'table9', kindCode: '71', kind: '生命保険金等',
+      assetName: 'A生命', place: '東京都千代田区', value: '1500000', who0: '1', amount0: '1500000',
+    });
+    expect(items[1]?.value).toBe('500000');
+    // 第11表2①と第15表㉕へも同じ額が入る
+    expect(result.heirs[0]?.t11v1).toBe('1500000');
+    expect(result.heirs[1]?.t11v1).toBe('500000');
+    expect(result.heirs[0]?.[TABLE15_KEY_BY_MARK['㉕']!]).toBe('1500000');
+  });
+
+  it('相続人以外が受け取った分は受取金額をそのまま転記する', () => {
+    const others: Values[] = [{ ...third, name: '甲' }, { name: '丙' }];
+    const details = {
+      table9detail: [
+        { name: 'A生命', amt: '9000000', who: '1' },
+        { name: 'B生命', amt: '3000000', who: '2' },
+      ],
+    };
+    const items = computeAll({}, others, used, details).derived.table11f4 ?? [];
+
+    // 甲は非課税限度額（1人なので500万円）を引いた残り、丙は全額
+    expect(items.map((item) => item.value)).toEqual(['4000000', '3000000']);
+  });
+
+  it('同じ人が複数行のときは受取金額の比で割り振り、端数は先頭の行へ寄せる', () => {
+    const details = {
+      table9detail: [
+        { name: 'A生命', amt: '5000000', who: '1' },
+        { name: 'B生命', amt: '5000000', who: '1' },
+        { name: 'C生命', amt: '5000001', who: '2' },
+      ],
+    };
+    const result = computeAll({}, heirs, used, details);
+    const items = result.derived.table11f4 ?? [];
+    const total = items.reduce((sum, item) => sum + Number(item.value), 0);
+
+    // 転記した価額の合計は第9表2③の合計と一致する
+    expect(total).toBe(Number(result.totals.t9v3Total));
+    // 同じ人の2行は受取金額が同じなので同額に割れる
+    expect(items[0]?.value).toBe(items[1]?.value);
+  });
+
+  it('第10表は退職手当金等（コード74）として転記する', () => {
+    // Ⓐ＝1,000万円を超える分だけが課税される
+    const details = { table10detail: [{ name: '株式会社甲', amt: '19000000', who: '1' }] };
+    const result = computeAll({}, heirs, used, details);
+    const items = result.derived.table11f4 ?? [];
+
+    expect(items[0]).toMatchObject({ sourceForm: 'table10', kindCode: '74', kind: '退職手当金等', value: '9000000' });
+    expect(result.heirs[0]?.[TABLE15_KEY_BY_MARK['㉖']!]).toBe('9000000');
+  });
+
+  it('全額が非課税になる行は転記しない（課税価格に入らない）', () => {
+    const details = { table9detail: [{ name: 'A生命', amt: '3000000', who: '1' }] };
+
+    expect(computeAll({}, heirs, used, details).derived.table11f4).toBeUndefined();
   });
 });
 

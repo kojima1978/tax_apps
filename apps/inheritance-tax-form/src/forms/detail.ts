@@ -187,10 +187,13 @@ function resolve(spec: DetailSpec, ref: DetailCode, g: number): string {
   return `${prefix}${String(n).padStart(2, '0')}`;
 }
 
+/** 明細欄を押したときの行き先（入力画面か、転記元の様式か） */
+type CellAction = Pick<GridCell, 'action'> | Pick<GridCell, 'navigateToForm'>;
+
 /** 明細欄1つ（コード枠＋入力欄） */
 function fieldCells(
   spec: DetailSpec, s: Scale, f: DetailField, y: [number, number], g: number, prefix: string, who: string,
-  action: string,
+  act: CellAction,
 ): GridCell[] {
   const cells: GridCell[] = [];
   const valueLeft = f.x.length === 3 ? f.x[1] : f.x[0];
@@ -203,8 +206,8 @@ function fieldCells(
       ...(f.autoFill ? { autoFill: { ...f.autoFill, field: `${prefix}${f.autoFill.field}` } } : {}),
       ...(f.suffixByCode ? { suffixByCode: { ...f.suffixByCode, field: `${prefix}${f.suffixByCode.field}` } } : {}),
       // 入力は明細ごとの別画面に一本化してあるので、用紙の上は結果の表示だけ。
-      // クリックするとその明細の入力画面が開く
-      readOnly: true, action,
+      // クリックするとその明細の入力画面（転記された明細は転記元の様式）が開く
+      readOnly: true, ...act,
     }));
   } else if (f.text !== undefined) {
     cells.push(label(y, s.col(valueLeft, right), f.text, f.cell));
@@ -227,8 +230,11 @@ const SHARE_ROWS = [0, 1, 2] as const;
  */
 function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: number, item: DetailItem): GridCell[] {
   const f = spec.frame;
-  const { prefix, label: who, base, first, index } = item;
-  const action = String(index);
+  const { prefix, label: who, base, first, index, edit, source } = item;
+  // 転記された明細は入力画面を持たない。押すと転記元の様式へ移る
+  const act: CellAction = source !== undefined
+    ? { navigateToForm: source }
+    : { action: String(edit ?? index) };
   const lines = groupLines(f, g);
   const at = (r: readonly [number, number]): [number, number] => s.row(lines[r[0]]!, lines[r[1]]!);
   const bands = f.bands ?? DEFAULT_BANDS;
@@ -238,11 +244,11 @@ function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: numb
     // 入力欄を持たないので、この組ぜんたいの入力画面を開くボタンにしてある
     code(all, s.col(f.left, f.noCode), resolve(spec, 'G0', g)),
     mk(all, s.col(f.noCode, f.noR), {
-      textField: `${prefix}no${base}`, ariaLabel: `${who}を入力`, align: 'center', action,
+      textField: `${prefix}no${base}`, ariaLabel: `${who}を入力`, align: 'center', ...act,
     }),
     // 財産の明細（様式ごと）
     ...spec.rows.flatMap((fields, i) => fields.flatMap(
-      (field) => fieldCells(spec, s, first ? field : { x: field.x, code: field.code }, at(field.r ?? bands[i]!), g, prefix, who, action),
+      (field) => fieldCells(spec, s, first ? field : { x: field.x, code: field.code }, at(field.r ?? bands[i]!), g, prefix, who, act),
     )),
     // 分割が確定した財産（1組3人分）
     ...SHARE_ROWS.flatMap((i): GridCell[] => {
@@ -252,13 +258,13 @@ function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: numb
         code(y, s.col(f.splitR, f.whoCode), resolve(spec, share.no[i], g)),
         mk(y, s.col(f.whoCode, f.whoR), {
           kind: 'input', field: `${prefix}who${n}`, ariaLabel: `${who}の取得者${n + 1}の番号`, integerDigits: 2, align: 'center',
-          readOnly: true, action,
+          readOnly: true, ...act,
         }),
         code(y, s.col(f.whoR, f.amtCode), resolve(spec, share.amount[i], g)),
         mk(y, s.col(f.amtCode, f.right), {
           // 代償財産は支払う人が負数・受け取る人が正数（記載例62ページ）。△を打てるようにしておく
           kind: 'input', field: `${prefix}amount${n}`, ariaLabel: `${who}の取得者${n + 1}の取得財産の価額`,
-          signedCommaInteger: true, align: 'right', readOnly: true, action,
+          signedCommaInteger: true, align: 'right', readOnly: true, ...act,
         }),
       ];
     }),
@@ -286,8 +292,12 @@ function headCells(spec: DetailSpec, s: Scale): GridCell[] {
 
 /** 組1つ分の割り付け */
 export interface DetailItem {
-  /** その組が載せる明細の通し番号（クリックでこの明細の入力画面を開く） */
+  /** その組が載せる明細の通し番号（用紙の並び順。転記された明細も含めて数える） */
   index: number;
+  /** 入力画面を開くときの明細の添字（転記された明細は入力画面を持たないので無い） */
+  edit?: number;
+  /** 他の様式から転記された明細のときの転記元の様式ID（クリックでその様式へ移る） */
+  source?: string;
   /** その組が載せる明細のフィールド接頭辞 */
   prefix: string;
   /** アクセシブル名に使う呼び名 */

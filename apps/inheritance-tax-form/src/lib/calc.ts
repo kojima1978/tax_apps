@@ -17,7 +17,7 @@
 
 import { ERA_BASE_YEAR } from '../data/codes';
 import { formatCommaInteger, formatCommaNumber } from './format';
-import { DETAIL_KINDS } from '../data/detailCodes';
+import { DETAIL_KINDS, codeNames } from '../data/detailCodes';
 import { TABLE112_ROWS } from '../forms/table112';
 import { TABLE1112F1_RATE } from '../forms/table1112f1';
 import { SLOTS_BY_KIND, SLOTS_BY_ROW, TABLE1112F1B_OWNERS, TABLE1112F1B_ROWS } from '../forms/table1112f1b';
@@ -412,6 +412,42 @@ function heirNosOfLawfulHeirs(heirs: readonly Values[]): Set<number> {
  * @param p 出力するフィールドの接頭辞（'t9' または 't10'）。`${p}A` `${p}B`
  *   `${p}r{i}No` `${p}r{i}v1` `${p}r{i}v2` `${p}r{i}v3` `${p}v2Total` `${p}v3Total`
  */
+/** 第9表・第10表 2 の1行分（受取人ごとの ①受取金額・②非課税金額・③課税金額） */
+interface NonTaxableRow {
+  /** 受取人の番号（第11表の項番＝入力順の通し番号） */
+  no: number;
+  v1: number;
+  v2: number;
+  v3: number;
+}
+
+/**
+ * 1の明細を受取人ごとに合計し、非課税限度額Ⓐで按分して①②③を出す（項番順）。
+ * 対象は法定相続人だけで、相続人以外が受け取った分はここに出てこない
+ * （相続税法12条1項6号・7号。非課税の対象外なので全額が課税される）。
+ *
+ * 用紙に出ていない行は存在しない（枚数が明細の件数より少なくならない）ので、全件を走査する。
+ */
+function nonTaxableByHeir(
+  rows: readonly Values[], heirs: readonly Values[], p: string, heirCount: number,
+): NonTaxableRow[] {
+  const lawfulHeirs = heirNosOfLawfulHeirs(heirs);
+  const byNo = new Map<number, number>();
+  for (const detail of rows) {
+    const no = num(detail.who);
+    if (no <= 0 || !lawfulHeirs.has(no)) continue;
+    byNo.set(no, (byNo.get(no) ?? 0) + num(detail.amt));
+  }
+  const listed = [...byNo.keys()].sort((a, b) => a - b);
+  const limit = (heirCount > 0 ? 5 * heirCount : 0) * (SCALE[`${p}A`] ?? 1);
+  const b = listed.reduce((s, no) => s + (byNo.get(no) ?? 0), 0);
+  return listed.map((no): NonTaxableRow => {
+    const v1 = byNo.get(no) ?? 0;
+    const v2 = b <= limit ? v1 : Math.floor((limit * v1) / b);
+    return { no, v1, v2, v3: v1 - v2 };
+  });
+}
+
 function computeNonTaxableLimit(
   rows: readonly Values[], heirs: readonly Values[], p: string, pages: number, rowsPerPage: number,
   heirCount: number,
@@ -421,42 +457,100 @@ function computeNonTaxableLimit(
   const aMillion = heirCount > 0 ? 5 * heirCount : 0;
   out[`${p}A`] = aMillion > 0 ? str(aMillion) : '';
 
-  // 1の明細を人ごとに合計する。用紙に出ていない行は存在しない（枚数が明細の件数より
-  // 少なくならない）ので、全件を走査する。
-  const lawfulHeirs = heirNosOfLawfulHeirs(heirs);
-  const byNo = new Map<number, number>();
-  for (const detail of rows) {
-    const no = num(detail.who);
-    if (no <= 0 || !lawfulHeirs.has(no)) continue;
-    byNo.set(no, (byNo.get(no) ?? 0) + num(detail.amt));
-  }
-  const listed = [...byNo.keys()].sort((a, b) => a - b);
-
-  const limit = aMillion * (SCALE[`${p}A`] ?? 1);
-  const b = listed.reduce((s, no) => s + (byNo.get(no) ?? 0), 0);
+  const listed = nonTaxableByHeir(rows, heirs, p, heirCount);
+  const b = listed.reduce((s, row) => s + row.v1, 0);
   let sum2 = 0;
   let sum3 = 0;
   for (let i = 0; i < pages * rowsPerPage; i += 1) {
-    const no = listed[i];
-    if (no === undefined) {
+    const row = listed[i];
+    if (row === undefined) {
       out[`${p}r${i}No`] = '';
       out[`${p}r${i}v1`] = '';
       out[`${p}r${i}v2`] = '';
       out[`${p}r${i}v3`] = '';
       continue;
     }
-    const v1 = byNo.get(no) ?? 0;
-    const v2 = b <= limit ? v1 : Math.floor((limit * v1) / b);
-    out[`${p}r${i}No`] = str(no);
-    out[`${p}r${i}v1`] = str(v1);
-    out[`${p}r${i}v2`] = str(v2);
-    out[`${p}r${i}v3`] = str(v1 - v2);
-    sum2 += v2;
-    sum3 += v1 - v2;
+    out[`${p}r${i}No`] = str(row.no);
+    out[`${p}r${i}v1`] = str(row.v1);
+    out[`${p}r${i}v2`] = str(row.v2);
+    out[`${p}r${i}v3`] = str(row.v3);
+    sum2 += row.v2;
+    sum3 += row.v3;
   }
   out[`${p}B`] = b === 0 ? '' : str(b);
   out[`${p}v2Total`] = b === 0 ? '' : str(sum2);
   out[`${p}v3Total`] = b === 0 ? '' : str(sum3);
+  return out;
+}
+
+/** 他の様式から転記された明細に付く印（値は転記元の様式ID）。この印がある明細は手で直せない */
+export const DETAIL_SOURCE = 'sourceForm';
+
+/** 第9表・第10表 1 の明細 → 第11表の付表4 の明細（1行が1明細） */
+const TRANSFER_TO_F4 = [
+  { form: 'table9', detailForm: TABLE9_DETAIL_FORM, prefix: 't9', kindCode: '71' },
+  { form: 'table10', detailForm: TABLE10_DETAIL_FORM, prefix: 't10', kindCode: '74' },
+] as const;
+
+/**
+ * 第9表（生命保険金など）・第10表（退職手当金など）の明細を第11表の付表4へ転記する。
+ *
+ * 価額に入るのは課税される部分だけ。法定相続人は同表2③（＝①−②非課税金額）を、
+ * その人の行へ受取金額の比で割り振る（端数は先頭の行へ寄せる。取得者ごとの按分と同じ扱い）。
+ * 法定相続人以外は非課税の対象外なので受取金額をそのまま転記する（第9表1（注）2）。
+ * 全額が非課税になる行は課税価格に入らないので明細を作らない。
+ */
+function derivedTable11f4(
+  details: Record<string, Values[]>, heirs: readonly Values[], heirCount: number,
+): Values[] {
+  const kindNames = codeNames(DETAIL_KINDS.table11f4 ?? []);
+  const out: Values[] = [];
+  for (const t of TRANSFER_TO_F4) {
+    const rows = details[t.detailForm] ?? [];
+    const byNo = new Map(nonTaxableByHeir(rows, heirs, t.prefix, heirCount).map((row) => [row.no, row]));
+    /** 行の添字 → 価額 */
+    const values = new Map<number, number>();
+    /** 受取人 → その人の先頭の行の添字 */
+    const first = new Map<number, number>();
+    /** 受取人 → 割り振りの残り（端数） */
+    const rest = new Map<number, number>();
+    rows.forEach((row, i) => {
+      const no = num(row.who);
+      const amt = num(row.amt);
+      if (no <= 0 || amt === 0) return;
+      const taxed = byNo.get(no);
+      if (taxed === undefined) {
+        values.set(i, amt);
+        return;
+      }
+      const value = taxed.v1 === 0 ? 0 : Math.floor((taxed.v3 * amt) / taxed.v1);
+      values.set(i, value);
+      if (!first.has(no)) {
+        first.set(no, i);
+        rest.set(no, taxed.v3);
+      }
+      rest.set(no, (rest.get(no) ?? 0) - value);
+    });
+    for (const [no, remainder] of rest) {
+      const i = first.get(no);
+      if (i === undefined || remainder === 0) continue;
+      values.set(i, (values.get(i) ?? 0) + remainder);
+    }
+    rows.forEach((row, i) => {
+      const value = values.get(i) ?? 0;
+      if (value === 0) return;
+      out.push({
+        [DETAIL_SOURCE]: t.form,
+        kindCode: t.kindCode,
+        kind: kindNames[t.kindCode] ?? '',
+        assetName: row.name ?? '',
+        place: row.addr ?? '',
+        value: str(value),
+        who0: str(num(row.who)),
+        amount0: str(value),
+      });
+    });
+  }
   return out;
 }
 
@@ -1308,6 +1402,8 @@ export interface Computed {
   lawful: Values[];
   /** 「各人の合計」列と、第2表から転記されるⒷ・⑦・法定相続人の数 */
   totals: Values;
+  /** 他の様式から転記される明細（様式IDごと）。保存した明細の後ろに続けて表示する */
+  derived: Record<string, Values[]>;
 }
 
 /** 面積欄の保存形式（小数第2位まで）。0 は空欄にする。 */
@@ -1984,17 +2080,24 @@ function computeAllWithRatios(
   // 未分割財産の按分に使う民法上の相続分（放棄を反映し、養子の数の制限は受けない）
   const linkedCivil = deriveCivil(heirs, linkedLawful);
 
+  // 付表4 ← 第9表・第10表（生命保険金等・退職手当金等のうち課税される部分）。
+  // 保存した明細の後ろに続け、以降の集計はこの継ぎ足した明細を見る
+  const f4 = derivedTable11f4(details, heirs, linkedLawful.length);
+  const withDerived = f4.length === 0
+    ? details
+    : { ...details, table11f4: [...(details.table11f4 ?? []), ...f4] };
+
   // 第11表2① ← 付表の「分割が確定した財産」。財産の明細書（付表1〜4）だけを合計する
   // ＝ 明細を配列で持つ様式は他にもあるので、コード表を持つ様式だけに絞る。
-  const detailForms = used.filter((id) => id in DETAIL_KINDS && (details[id]?.length ?? 0) > 0);
-  const detailItems = detailForms.flatMap((id) => details[id]!.map((item) => resolveDetail(id, item)));
+  const detailForms = used.filter((id) => id in DETAIL_KINDS && (withDerived[id]?.length ?? 0) > 0);
+  const detailItems = detailForms.flatMap((id) => withDerived[id]!.map((item) => resolveDetail(id, item)));
   const detailTotals = sumDetails(detailItems);
   // 第11表2② ← 付表の未分割の明細を民法上の相続分で按分したもの
   const unsplitTotals = computeUnsplit(detailItems, linkedCivil);
   // 第13表3①④ ← 同表1・2の明細の「負担する金額」
   const t13 = computeTable13(details);
   // 第15表①〜㉘ ← 付表の細目ごとの合計。転記になる欄は手入力の残りを混ぜないよう毎回空に戻す。
-  const t15 = sumTable15(used, details);
+  const t15 = sumTable15(used, withDerived);
   // 第1表⑫ ← 第4表の2㉕。この様式は自分の入力だけで完結するので、第1表を1周する前に確定させる
   // （配偶者の⑫は第5表㋺で引かれるため、2周目より後では間に合わない）。
   // 名前を選び直したときに古い値が読み取り専用のまま残らないよう、使用中は全員分を上書きする。
@@ -2140,7 +2243,10 @@ function computeAllWithRatios(
     };
   });
 
-  return { heirs: withLawful, lawful: table2.lawful, totals };
+  return {
+    heirs: withLawful, lawful: table2.lawful, totals,
+    derived: f4.length === 0 ? {} : { table11f4: f4 },
+  };
 }
 
 /** ⑧の端数調整後に比較する税負担。⑲は税額控除後・納税猶予前なので、猶予を節税と誤認しない。 */
