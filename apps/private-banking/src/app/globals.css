@@ -627,6 +627,21 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .fx-rate-grid input { width: 100%; min-height: 42px; margin-top: 6px; padding: 8px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--slate-300); border-radius: 6px; font-size: 13px; }
 .asset-detail-hint.warning { color: #b45309; font-weight: 700; }
 .asset-detail-hint.legal-heir-ok { color: #168642; font-weight: 700; }
+/* 死亡保険金・死亡退職金の受取人。1人なら受取人欄だけ、複数人なら分数と按分後の金額を並べる。 */
+.benefit-recipients { min-width: 0; display: grid; gap: 12px; }
+.benefit-recipient-rows { display: grid; gap: 8px; }
+.benefit-recipient-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--slate-700); font-size: 12px; font-weight: 700; }
+.benefit-recipient-heading .button { min-height: 34px; padding: 0 10px; font-size: 11px; }
+.benefit-recipient-heading .button svg { width: 14px; height: 14px; }
+.benefit-recipient-row { display: grid; grid-template-columns: minmax(0, 1.6fr) auto minmax(0, 1fr) 44px; align-items: center; gap: 8px; }
+.benefit-recipient-row:has(input[type="hidden"]) { grid-template-columns: minmax(0, 1fr); }
+.benefit-recipient-fraction { display: grid; grid-template-columns: 56px 16px 56px; align-items: center; gap: 4px; }
+.benefit-recipient-fraction input { width: 100%; min-height: 44px; padding: 8px; text-align: center; }
+.benefit-recipient-fraction strong { display: grid; place-items: center; font-size: 14px; }
+.benefit-recipient-amount { color: var(--slate-700); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.benefit-recipient-judgement { grid-column: 1 / -1; margin-top: -2px; font-size: 9px; font-weight: 700; }
+.benefit-recipient-judgement.warning { color: #b45309; }
+.benefit-recipient-judgement.legal-heir-ok { color: #168642; }
 @media (max-width: 720px) { .fx-rate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* 本人情報。親族テーブルとは分離し、顧客本人の基本項目だけを編集する。 */
@@ -881,6 +896,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table tfoot td:last-child { display: none; }
   .form-grid { grid-template-columns: 1fr; }
   .year-method-options { grid-template-columns: 1fr; }
+  .benefit-recipient-row { grid-template-columns: minmax(0, 1fr) auto 44px; }
+  .benefit-recipient-amount { grid-column: 1 / -1; text-align: left; }
   .asset-detail-grid { grid-template-columns: 1fr; }
   .asset-detail-grid .wide { grid-column: auto; }
   .valuation-calculation-grid.stock-formula, .valuation-calculation-grid.real-estate-formula, .valuation-calculation-grid.real-estate-method-inputs { grid-template-columns: 1fr; }

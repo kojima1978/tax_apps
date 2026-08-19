@@ -136,6 +136,69 @@ describe("createInheritanceTaxRequest", () => {
     expect(result.unregisteredRecipientCount).toBe(1);
   });
 
+  it("受取人が複数なら分数で割り振って受取人ごとの契約にする", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      snapshots: [{
+        ...portfolio.snapshots[0],
+        positions: [
+          ...portfolio.snapshots[0].positions,
+          {
+            side: "ASSET",
+            category: "INSURANCE",
+            valueJpy: 10_000_000,
+            fxRate: 1,
+            assetDetails: {
+              deathBenefit: 30_000_000,
+              // 配偶者と子は法定相続人、兄弟姉妹は第1順位がいるので対象外。
+              benefitAllocations: [
+                { recipient: "山田 花子", numerator: 1, denominator: 2 },
+                { recipient: "山田 一郎", numerator: 1, denominator: 4 },
+                { recipient: "山田 次郎", numerator: 1, denominator: 4 },
+              ],
+            },
+          },
+        ],
+      }],
+    } as Portfolio);
+
+    expect(result.request.lifeInsurance?.contracts).toEqual([
+      { deathBenefitJpy: 15_000_000, beneficiaryIsLegalHeir: true },
+      { deathBenefitJpy: 7_500_000, beneficiaryIsLegalHeir: true },
+      { deathBenefitJpy: 7_500_000, beneficiaryIsLegalHeir: false },
+    ]);
+  });
+
+  it("1万円単位で割り切れない分数でも、受取人ごとの合計は給付金と一致する", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      snapshots: [{
+        ...portfolio.snapshots[0],
+        positions: [
+          ...portfolio.snapshots[0].positions,
+          {
+            side: "ASSET",
+            category: "RETIREMENT_ALLOWANCE",
+            valueJpy: 1_000_000,
+            fxRate: 1,
+            assetDetails: {
+              retirementAllowance: 10_000_000,
+              benefitAllocations: [
+                { recipient: "山田 花子", numerator: 1, denominator: 3 },
+                { recipient: "山田 一郎", numerator: 1, denominator: 3 },
+                { recipient: "山田 次郎", numerator: 1, denominator: 3 },
+              ],
+            },
+          },
+        ],
+      }],
+    } as Portfolio);
+
+    const contracts = result.request.retirementAllowance!.contracts;
+    expect(contracts.map((contract) => contract.deathBenefitJpy)).toEqual([3_340_000, 3_330_000, 3_330_000]);
+    expect(contracts.reduce((sum, contract) => sum + contract.deathBenefitJpy, 0)).toBe(10_000_000);
+  });
+
   it("小規模宅地等の特例を選択した宅地は減額して遺産額へ反映する", () => {
     const result = createInheritanceTaxRequest({
       ...portfolio,

@@ -1,5 +1,5 @@
 import { legalHeirNames } from "@/lib/family";
-import type { Portfolio } from "@/lib/portfolio-view";
+import { deemedAllocations, deemedBenefit, splitBenefit, type Portfolio } from "@/lib/portfolio-view";
 
 const JPY_PER_MAN_YEN = 10_000;
 const financialCategories = new Set(["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"]);
@@ -48,23 +48,21 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
         const coveredRatio = area > 0 ? Math.min(1, smallLotRule.capSqm / area) : 1;
         smallLotReductionRaw += position.valueJpy * smallLotRule.rate * coveredRatio;
       }
-      if (position.category === "INSURANCE") {
-        insuranceSurrenderValueJpy += position.valueJpy;
-        const deathBenefitJpy = Math.round(((position.assetDetails?.deathBenefit ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
-        countUnregisteredRecipient(position.assetDetails?.beneficiary, deathBenefitJpy);
-        insuranceContracts.push({
-          deathBenefitJpy,
-          beneficiaryIsLegalHeir: heirNames.has((position.assetDetails?.beneficiary ?? "").trim()),
-        });
-      }
       // 死亡退職金も生命保険と同じ扱い。B/Sには解約手当金が載り、死亡時はそれが死亡退職金に置き換わる。
-      if (position.category === "RETIREMENT_ALLOWANCE") {
-        retirementSurrenderValueJpy += position.valueJpy;
-        const deathBenefitJpy = Math.round(((position.assetDetails?.retirementAllowance ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
-        countUnregisteredRecipient(position.assetDetails?.retirementRecipient, deathBenefitJpy);
-        retirementContracts.push({
-          deathBenefitJpy,
-          recipientIsLegalHeir: heirNames.has((position.assetDetails?.retirementRecipient ?? "").trim()),
+      // 受取人が複数なら、給付金を分数で割り振って受取人ごとに契約1件として積む（非課税枠の判定が受取人ごとのため）。
+      if (position.category === "INSURANCE" || position.category === "RETIREMENT_ALLOWANCE") {
+        const isInsurance = position.category === "INSURANCE";
+        if (isInsurance) insuranceSurrenderValueJpy += position.valueJpy;
+        else retirementSurrenderValueJpy += position.valueJpy;
+        const totalBenefitJpy = Math.round((deemedBenefit(position) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
+        const allocations = deemedAllocations(position);
+        const benefitsJpy = splitBenefit(totalBenefitJpy, allocations, JPY_PER_MAN_YEN);
+        allocations.forEach((allocation, index) => {
+          const deathBenefitJpy = benefitsJpy[index];
+          countUnregisteredRecipient(allocation.recipient, deathBenefitJpy);
+          const isLegalHeir = heirNames.has(allocation.recipient.trim());
+          if (isInsurance) insuranceContracts.push({ deathBenefitJpy, beneficiaryIsLegalHeir: isLegalHeir });
+          else retirementContracts.push({ deathBenefitJpy, recipientIsLegalHeir: isLegalHeir });
         });
       }
     }

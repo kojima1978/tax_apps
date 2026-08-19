@@ -173,6 +173,55 @@ describe("positionInputSchema", () => {
   });
 });
 
+describe("受取人ごとの分数（benefitAllocations）", () => {
+  const insuranceInput = (allocations: unknown) => ({
+    side: "ASSET",
+    category: "INSURANCE",
+    name: "終身保険",
+    originalAmount: 1000000,
+    assetDetails: { deathBenefit: 30000000, benefitAllocations: allocations },
+  });
+
+  it("分数の合計が1なら受け付ける", () => {
+    const data = parse(insuranceInput([
+      { recipient: "山田 花子", numerator: 1, denominator: 2 },
+      { recipient: "山田 一郎", numerator: 1, denominator: 2 },
+    ]));
+    expect(data.assetDetails.benefitAllocations).toHaveLength(2);
+  });
+
+  it("1/3 を3人分に割り振っても誤差で弾かれない", () => {
+    const rows = ["A", "B", "C"].map((recipient) => ({ recipient, numerator: 1, denominator: 3 }));
+    expect(positionInputSchema.safeParse(insuranceInput(rows)).success).toBe(true);
+  });
+
+  it("分数の合計が1でなければ拒否する", () => {
+    const result = positionInputSchema.safeParse(insuranceInput([
+      { recipient: "山田 花子", numerator: 1, denominator: 2 },
+      { recipient: "山田 一郎", numerator: 1, denominator: 3 },
+    ]));
+    expect(result.success).toBe(false);
+  });
+
+  it("受取人が空の行は入力途中とみなして捨てる", () => {
+    const data = parse(insuranceInput([
+      { recipient: "山田 花子", numerator: 1, denominator: 1 },
+      { recipient: "", numerator: 1, denominator: 1 },
+    ]));
+    expect(data.assetDetails.benefitAllocations).toEqual([{ recipient: "山田 花子", numerator: 1, denominator: 1 }]);
+  });
+
+  it("すべての行が空なら配列自体を持たせない（受取人未選択のまま登録できる）", () => {
+    const data = parse(insuranceInput([{ recipient: "", numerator: 1, denominator: 1 }]));
+    expect(data.assetDetails.benefitAllocations).toBeUndefined();
+  });
+
+  it("分母0や負の分子は拒否する", () => {
+    expect(positionInputSchema.safeParse(insuranceInput([{ recipient: "A", numerator: 1, denominator: 0 }])).success).toBe(false);
+    expect(positionInputSchema.safeParse(insuranceInput([{ recipient: "A", numerator: -1, denominator: 1 }])).success).toBe(false);
+  });
+});
+
 describe("calculatedOwnershipShare", () => {
   it("持分は小数6桁に丸める", () => {
     expect(calculatedOwnershipShare(parse({ ...landRoadsideInput, ownershipNumerator: 1, ownershipDenominator: 3 }))).toBe(0.333333);

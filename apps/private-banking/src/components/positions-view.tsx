@@ -11,10 +11,11 @@ import {
   type PositionSortMode,
   type Snapshot,
   categoryLabels,
+  deemedAllocations,
   deemedBenefit,
   deemedConfig,
   deemedInheritanceCategories,
-  deemedRecipientIsLegalHeir,
+  splitBenefit,
   fiscalYearLabel,
   institutionOrPropertyAddress,
   middleClassification,
@@ -27,8 +28,13 @@ const JPY_PER_MAN_YEN = 10_000;
 function DeemedBenefitNote({ position }: { position: Position }) {
   const config = deemedConfig(position);
   const benefit = deemedBenefit(position);
+  const allocations = deemedAllocations(position);
   if (!config || benefit <= 0) return null;
-  return <small className="deemed-benefit-note">（{config.label} {yen.format(benefit)}）</small>;
+  // 受取人が1人のときは従来どおり金額だけ。複数人のときは誰にいくら分の分数で渡るのかを添える。
+  const split = allocations.length > 1
+    ? `：${allocations.map((allocation) => `${allocation.recipient} ${allocation.numerator}/${allocation.denominator}`).join("、")}`
+    : "";
+  return <small className="deemed-benefit-note">（{config.label} {yen.format(benefit)}{split}）</small>;
 }
 
 const classificationTone: Record<string, string> = {
@@ -52,20 +58,25 @@ export function AssetsView({ snapshot, snapshots, legalHeirNames, onSelectSnapsh
   // ある場合だけなので、手動の想定相続税だけのときは従来どおり解約返戻金ベースのままとする。
   const calculation = snapshot.inheritanceTaxCalculation;
   const benefitJpy = (position: Position) => Math.round((deemedBenefit(position) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
-  const isHeirBenefit = (position: Position) => deemedRecipientIsLegalHeir(position, legalHeirNames);
+  // 受取人が複数のときは分数で割り振り、法定相続人が受け取る分だけを非課税枠の対象にする。
+  const heirBenefitJpy = (position: Position) => {
+    const allocations = deemedAllocations(position);
+    const benefits = splitBenefit(benefitJpy(position), allocations, JPY_PER_MAN_YEN);
+    return allocations.reduce((sum, allocation, index) => legalHeirNames.has(allocation.recipient.trim()) ? sum + benefits[index] : sum, 0);
+  };
   // 非課税枠は生命保険と死亡退職金で別枠なので、按分率も区分ごとに求める。
   const nonTaxableAmounts: Record<DeemedCategory, number> = {
     INSURANCE: calculation?.insuranceNonTaxableAmountJpy ?? 0,
     RETIREMENT_ALLOWANCE: calculation?.retirementNonTaxableAmountJpy ?? 0,
   };
   const nonTaxableRates = new Map((Object.keys(deemedInheritanceCategories) as DeemedCategory[]).map((category) => {
-    const heirBenefit = calculation ? assets.filter((p) => p.category === category && isHeirBenefit(p)).reduce((sum, p) => sum + benefitJpy(p), 0) : 0;
+    const heirBenefit = calculation ? assets.filter((p) => p.category === category).reduce((sum, p) => sum + heirBenefitJpy(p), 0) : 0;
     return [category, heirBenefit > 0 ? Math.min(nonTaxableAmounts[category], heirBenefit) / heirBenefit : 0];
   }));
   const taxableValue = (position: Position) => {
     if (!calculation || !deemedConfig(position)) return position.valueJpy;
-    const benefit = benefitJpy(position);
-    return isHeirBenefit(position) ? Math.round(benefit * (1 - (nonTaxableRates.get(position.category as DeemedCategory) ?? 0))) : benefit;
+    const rate = nonTaxableRates.get(position.category as DeemedCategory) ?? 0;
+    return benefitJpy(position) - Math.round(heirBenefitJpy(position) * rate);
   };
   const netEstate = assets.reduce((sum, p) => sum + taxableValue(p), 0) - liabilities.reduce((sum, p) => sum + taxableValue(p), 0);
   const totalInheritanceTax = calculation?.totalInheritanceTaxJpy ?? snapshot.estimatedInheritanceTax;

@@ -365,15 +365,27 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       if (fieldName in fields) fields[fieldName] = unformatNumberInput(fields[fieldName] as FormDataEntryValue | undefined) ?? "";
     }
     const numericDetailFields = new Set(["deathBenefit", "retirementAllowance", "totalIssuedShares", "floorArea"]);
-    const assetDetails: Record<string, string | number> = {};
+    const assetDetails: Record<string, unknown> = {};
+    // 死亡保険金・死亡退職金の受取人は複数行あるので、`benefitAllocation.<行番号>.<項目>` を配列へ組み立てる。
+    const allocationRows = new Map<number, Record<string, string | number>>();
     for (const [fieldName, rawValue] of Object.entries(fields)) {
       if (!fieldName.startsWith("assetDetail.")) continue;
       const detailName = fieldName.slice("assetDetail.".length);
       const value = String(rawValue).trim();
-      if (value !== "") {
+      const allocationField = /^benefitAllocation\.(\d+)\.(recipient|numerator|denominator)$/.exec(detailName);
+      if (allocationField) {
+        const index = Number(allocationField[1]);
+        const row = allocationRows.get(index) ?? {};
+        row[allocationField[2]] = allocationField[2] === "recipient" ? value : Number(value);
+        allocationRows.set(index, row);
+      }
+      else if (value !== "") {
         assetDetails[detailName] = numericDetailFields.has(detailName) ? Number(value.replace(/,/g, "")) : value;
       }
       delete fields[fieldName];
+    }
+    if (allocationRows.size > 0) {
+      assetDetails.benefitAllocations = [...allocationRows.entries()].sort(([a], [b]) => a - b).map(([, row]) => row);
     }
     fields.assetDetails = assetDetails;
     const body = {

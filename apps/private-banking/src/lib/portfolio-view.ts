@@ -23,8 +23,11 @@ export type AssetDetails = {
   shareClass?: string; totalIssuedShares?: number; valuationApproach?: string;
   businessAssetType?: string; businessName?: string; storageLocation?: string;
   retirementType?: string; retirementRecipient?: string; retirementAllowance?: number;
+  benefitAllocations?: BenefitAllocation[];
   otherAssetType?: string;
 };
+/** 死亡保険金・死亡退職金を複数の受取人へ分数で割り振るときの1行。 */
+export type BenefitAllocation = { recipient: string; numerator: number; denominator: number };
 export type Snapshot = {
   id: number; label: string; asOfDate: string; fiscalYear: number; isCurrent: boolean;
   estimatedInheritanceTax: number; inheritanceTaxCalculation: InheritanceTaxCalculation | null;
@@ -140,11 +143,39 @@ export const deemedBenefit = (position: Position) => {
   const config = deemedConfig(position);
   return config ? position.assetDetails?.[config.benefitKey] ?? 0 : 0;
 };
-/** 受取人が法定相続人なら、その給付金に非課税枠が適用される。 */
-export const deemedRecipientIsLegalHeir = (position: Position, legalHeirNames: ReadonlySet<string>) => {
+/**
+ * 受取人ごとの取り分。複数受取人は `benefitAllocations` に分数で持つ。
+ * 配列を持たない明細（複数受取人に対応する前の登録）は、従来の受取人へ 1/1 とみなす。
+ */
+export const deemedAllocations = (position: Position): BenefitAllocation[] => {
   const config = deemedConfig(position);
-  return config ? legalHeirNames.has((position.assetDetails?.[config.recipientKey] ?? "").trim()) : false;
+  if (!config) return [];
+  const allocations = position.assetDetails?.benefitAllocations;
+  if (allocations && allocations.length > 0) return allocations;
+  return [{ recipient: (position.assetDetails?.[config.recipientKey] ?? "").trim(), numerator: 1, denominator: 1 }];
 };
+
+/**
+ * 給付金を受取人ごとの分数で割り振る。丸めた各行の合計が総額とずれないよう、
+ * 端数（unit 単位に満たない分）は最大剰余法で取り分の大きい行から配る。
+ */
+export function splitBenefit(totalJpy: number, allocations: BenefitAllocation[], unit = 1): number[] {
+  if (allocations.length === 0) return [];
+  const shares = allocations.map((allocation) => allocation.denominator > 0 ? allocation.numerator / allocation.denominator : 0);
+  const shareTotal = shares.reduce((sum, share) => sum + share, 0);
+  if (shareTotal <= 0) return allocations.map(() => 0);
+  const units = Math.round(totalJpy / unit);
+  const exact = shares.map((share) => units * share / shareTotal);
+  const floored = exact.map((value) => Math.floor(value));
+  let remainder = units - floored.reduce((sum, value) => sum + value, 0);
+  const order = exact.map((value, index) => ({ index, fraction: value - Math.floor(value) })).sort((a, b) => b.fraction - a.fraction);
+  for (const { index } of order) {
+    if (remainder <= 0) break;
+    floored[index] += 1;
+    remainder -= 1;
+  }
+  return floored.map((value) => value * unit);
+}
 
 export function middleClassification(position: Position) {
   if (["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"].includes(position.category)) return "金融資産";

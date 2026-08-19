@@ -2,12 +2,12 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { fxRateFor, missingFxRateMessage, parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
-import { calculatedOriginalAmount, calculatedOwnershipShare, liquidityForCategory, normalizedValuationMethod, positionInputSchema } from "@/lib/position-input";
+import { calculatedOriginalAmount, calculatedOwnershipShare, liquidityForCategory, normalizedValuationMethod, positionInputErrorMessage, positionInputSchema } from "@/lib/position-input";
 
 export async function POST(request: Request) {
   const body = await request.json();
   const parsed = positionInputSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: positionInputErrorMessage(parsed.error) }, { status: 400 });
 
   // 顧客をまたいで現在年度を拾わないよう、対象年度は必ず呼び出し側から受け取る。
   const requestedSnapshotId = Number(body.snapshotId);

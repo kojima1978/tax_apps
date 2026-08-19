@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { fxRateFor, missingFxRateMessage, parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
-import { calculatedOriginalAmount, calculatedOwnershipShare, liquidityForCategory, normalizedValuationMethod, positionInputSchema } from "@/lib/position-input";
+import { calculatedOriginalAmount, calculatedOwnershipShare, liquidityForCategory, normalizedValuationMethod, positionInputErrorMessage, positionInputSchema } from "@/lib/position-input";
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -12,7 +12,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   }
 
   const parsed = positionInputSchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: positionInputErrorMessage(parsed.error) }, { status: 400 });
 
   const data = parsed.data;
   // 円換算レートは明細ではなく年度に登録した値を使う。

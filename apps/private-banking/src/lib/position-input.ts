@@ -22,6 +22,20 @@ const optionalDetailNumber = z.preprocess(
   (value) => value === "" || value === undefined ? undefined : value,
   z.coerce.number().nonnegative().optional(),
 );
+/** 死亡保険金・死亡退職金を複数の受取人へ分数で割り振る1行。受取人名が空の行は入力途中とみなして捨てる。 */
+const benefitAllocationSchema = z.object({
+  recipient: z.string().trim().min(1).max(100),
+  numerator: z.coerce.number().int().positive(),
+  denominator: z.coerce.number().int().positive(),
+});
+const optionalBenefitAllocations = z.preprocess(
+  (value) => {
+    if (!Array.isArray(value)) return undefined;
+    const rows = value.filter((row) => typeof row === "object" && row !== null && String((row as { recipient?: unknown }).recipient ?? "").trim() !== "");
+    return rows.length > 0 ? rows : undefined;
+  },
+  z.array(benefitAllocationSchema).max(10).optional(),
+);
 const assetDetailsSchema = z.object({
   accountType: optionalDetailText,
   branchName: optionalDetailText,
@@ -50,8 +64,10 @@ const assetDetailsSchema = z.object({
   retirementType: optionalDetailText,
   retirementRecipient: optionalDetailText,
   retirementAllowance: optionalDetailNumber,
+  benefitAllocations: optionalBenefitAllocations,
   otherAssetType: optionalDetailText,
 }).default({});
+const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
 const stockCategories = new Set(["SECURITIES", "PRIVATE_SHARES"]);
 /** 単価×調整率で評価する科目。今のところその他資産だけ。 */
 const unitRateCategories = new Set(["COLLECTIBLES"]);
@@ -106,6 +122,16 @@ export const positionInputSchema = z.object({
     requirePositive(data.valuationMultiplier, "valuationMultiplier", "倍率");
     requirePositive(data.adjustmentRate, "adjustmentRate", "調整率");
   }
+  // 受取人ごとの分数は、合計が1でないと給付金の一部が誰にも割り当たらない（または二重に割り当たる）。
+  // 浮動小数だと 1/3 × 3 が 1 にならないので、通分した整数で判定する。
+  const allocations = data.assetDetails.benefitAllocations ?? [];
+  if (allocations.length > 0) {
+    const denominator = allocations.reduce((lcm, allocation) => lcm / gcd(lcm, allocation.denominator) * allocation.denominator, 1);
+    const numerator = allocations.reduce((sum, allocation) => sum + allocation.numerator * (denominator / allocation.denominator), 0);
+    if (numerator !== denominator) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "benefitAllocations"], message: `受取人ごとの分数の合計を1にしてください（現在 ${numerator}/${denominator}）。` });
+    }
+  }
   if (realEstateCategories.has(data.category)) {
     if (!["LAND", "BUILDING"].includes(data.assetDetails.propertyType ?? "")) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "propertyType"], message: "土地または建物を選択してください。" });
@@ -125,6 +151,14 @@ export const positionInputSchema = z.object({
 });
 
 export type PositionInput = z.infer<typeof positionInputSchema>;
+
+/**
+ * 画面に出す入力エラー文言。理由を説明できる検証（superRefine の custom）だけそのまま返す。
+ * 型レベルのエラーは Zod の英語文言なので、総括の文言に寄せる。
+ */
+export function positionInputErrorMessage(error: z.ZodError) {
+  return error.issues.find((issue) => issue.code === z.ZodIssueCode.custom)?.message ?? "入力内容を確認してください。";
+}
 
 export function calculatedOriginalAmount(data: PositionInput) {
   let value = data.originalAmount;

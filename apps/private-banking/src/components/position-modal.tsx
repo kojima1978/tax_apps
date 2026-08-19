@@ -7,11 +7,13 @@ import { fxRateFor, positionCurrencies, type FxRates } from "@/lib/fx-rates";
 import { decimalToFraction, valuationNumber, yen } from "@/lib/format";
 import {
   type AssetDetails,
+  type BenefitAllocation,
   type Position,
   type PositionSection,
   type ValuationFormula,
   assetCategories,
   categoryLabels,
+  splitBenefit,
   liabilityCategories,
   middleClassification,
   otherAssetTypeLabels,
@@ -47,6 +49,98 @@ function PersonSelect({ label, name, value, people, legalHeirNames, exemptionNot
     : isLegalHeir
       ? `法定相続人のため${exemptionNote}`
       : "法定相続人ではないため非課税枠の対象外です。親族関係タブの続柄と取得原因（相続）をご確認ください。"}</small> : null}</label>;
+}
+
+/** 受取人の選択肢。既存データの自由入力値は選択肢に足して保全する。 */
+function personOptions(people: string[], value: string) {
+  return people.includes(value) || value === "" ? people : [value, ...people];
+}
+
+/** 編集中の明細から受取人行の初期値を作る。配列が無ければ従来の受取人へ 1/1。 */
+function allocationDefaults(details: AssetDetails, recipientKey: "beneficiary" | "retirementRecipient"): BenefitAllocation[] {
+  const allocations = details.benefitAllocations;
+  if (allocations && allocations.length > 0) return allocations;
+  return [{ recipient: details[recipientKey] ?? "", numerator: 1, denominator: 1 }];
+}
+
+const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+/** 分数の合計を通分した整数で返す。1/3 を3人分足しても誤差が出ないようにする。 */
+function fractionTotal(rows: Array<{ numerator: string; denominator: string }>) {
+  const fractions = rows.map((row) => ({ numerator: Number(row.numerator) || 0, denominator: Number(row.denominator) || 0 }));
+  if (fractions.some((fraction) => fraction.denominator <= 0)) return null;
+  const denominator = fractions.reduce((lcm, fraction) => lcm / gcd(lcm, fraction.denominator) * fraction.denominator, 1);
+  const numerator = fractions.reduce((sum, fraction) => sum + fraction.numerator * (denominator / fraction.denominator), 0);
+  return { numerator, denominator };
+}
+
+type AllocationRow = { key: number; recipient: string; numerator: string; denominator: string };
+/** 全行が同じ取り分か（＝分数を手で触っていない状態か）。均等割りに直してよいかの判断に使う。 */
+const evenlySplit = (rows: AllocationRow[]) => rows.every((row) => row.numerator === rows[0].numerator && row.denominator === rows[0].denominator);
+const evenRows = (rows: AllocationRow[]) => rows.map((row) => ({ ...row, numerator: "1", denominator: String(rows.length) }));
+
+/**
+ * 死亡保険金・死亡退職金の給付金額と、その受取人。受取人が複数のときは分数で割り振る。
+ * 受取人1人のときは分数欄を出さず 1/1 として扱い、従来どおりの入力のままにする。
+ */
+function BenefitRecipientsField({ benefitLabel, benefitName, benefitDefault, recipientName, allocationDefaults, people, legalHeirNames, exemptionNote }: {
+  benefitLabel: string; benefitName: string; benefitDefault: string; recipientName: string;
+  allocationDefaults: BenefitAllocation[]; people: string[]; legalHeirNames: ReadonlySet<string>; exemptionNote: string;
+}) {
+  const [benefit, setBenefit] = useState(benefitDefault);
+  const [rows, setRows] = useState<AllocationRow[]>(() => allocationDefaults.map((allocation, index) => ({
+    key: index, recipient: allocation.recipient, numerator: String(allocation.numerator), denominator: String(allocation.denominator),
+  })));
+  const multiple = rows.length > 1;
+  const total = fractionTotal(rows);
+  const totalIsOne = total !== null && total.numerator === total.denominator;
+  const benefitAmount = Number(benefit.replace(/,/g, "")) || 0;
+  const amounts = splitBenefit(benefitAmount, rows.map((row) => ({ recipient: row.recipient, numerator: Number(row.numerator) || 0, denominator: Number(row.denominator) || 1 })));
+  const updateRow = (key: number, patch: Partial<AllocationRow>) => setRows((current) => current.map((row) => row.key === key ? { ...row, ...patch } : row));
+  const addRow = () => setRows((current) => {
+    const next = [...current, { key: Math.max(...current.map((row) => row.key)) + 1, recipient: "", numerator: "1", denominator: "1" }];
+    return evenlySplit(current) ? evenRows(next) : next;
+  });
+  const removeRow = (key: number) => setRows((current) => {
+    const next = current.filter((row) => row.key !== key);
+    return evenlySplit(current) ? evenRows(next) : next;
+  });
+  return <div className="benefit-recipients wide">
+    <label>{benefitLabel}<CommaNumberInput name={benefitName} defaultValue="" value={benefit} onValueChange={setBenefit} maxFractionDigits={2} placeholder="" required={false} /></label>
+    <div className="benefit-recipient-rows" role="group" aria-label={`${benefitLabel}の受取人`}>
+      <div className="benefit-recipient-heading"><span>受取人{multiple ? "と取り分" : ""}</span><button type="button" className="button secondary" onClick={addRow}><Plus />受取人を追加</button></div>
+      {rows.map((row, index) => {
+        const isLegalHeir = legalHeirNames.has(row.recipient.trim());
+        return <div key={row.key} className="benefit-recipient-row">
+          <select aria-label={multiple ? `受取人${index + 1}` : "受取人"} name={`assetDetail.benefitAllocation.${index}.recipient`} value={row.recipient} onChange={(event) => updateRow(row.key, { recipient: event.target.value })}>
+            <option value="">未選択</option>
+            {personOptions(people, row.recipient).map((person) => <option key={person} value={person}>{person}</option>)}
+          </select>
+          {multiple ? <>
+            <span className="benefit-recipient-fraction">
+              <input aria-label={`受取人${index + 1}の分子`} name={`assetDetail.benefitAllocation.${index}.numerator`} inputMode="numeric" value={row.numerator} onChange={(event) => updateRow(row.key, { numerator: event.target.value.replace(/[^0-9]/g, "") })} />
+              <strong aria-hidden="true">／</strong>
+              <input aria-label={`受取人${index + 1}の分母`} name={`assetDetail.benefitAllocation.${index}.denominator`} inputMode="numeric" value={row.denominator} onChange={(event) => updateRow(row.key, { denominator: event.target.value.replace(/[^0-9]/g, "") })} />
+            </span>
+            <span className="benefit-recipient-amount">{benefitAmount > 0 ? yen.format(amounts[index]) : ""}</span>
+            <button type="button" className="icon-button" aria-label={`受取人${index + 1}を削除`} onClick={() => removeRow(row.key)}><Trash2 /></button>
+          </> : <>
+            <input type="hidden" name={`assetDetail.benefitAllocation.${index}.numerator`} value="1" />
+            <input type="hidden" name={`assetDetail.benefitAllocation.${index}.denominator`} value="1" />
+          </>}
+          <small className={`benefit-recipient-judgement ${row.recipient.trim() === "" ? "" : isLegalHeir ? "legal-heir-ok" : "warning"}`}>{row.recipient.trim() === "" ? "" : isLegalHeir ? "法定相続人" : "非課税枠の対象外"}</small>
+        </div>;
+      })}
+      {/* 受取人が1人のときの互換用。複数受取人に対応する前の明細も同じキーを読むため、先頭の受取人を入れておく。 */}
+      <input type="hidden" name={recipientName} value={rows[0]?.recipient ?? ""} />
+      {people.length === 0 ? <small className="asset-detail-hint">親族関係タブに登録すると選択肢に表示されます。</small> : null}
+      {multiple ? <small className={`asset-detail-hint ${totalIsOne ? "legal-heir-ok" : "warning"}`}>{total === null
+        ? "分母には1以上の数を入力してください。"
+        : totalIsOne
+          ? `分数の合計 ${total.numerator}/${total.denominator}（= 1）`
+          : `分数の合計が ${total.numerator}/${total.denominator} です。合計が1になるように入力してください。`}</small> : null}
+      {people.length > 0 ? <small className="asset-detail-hint">法定相続人が受け取る分だけ{exemptionNote}</small> : null}
+    </div>
+  </div>;
 }
 
 function AssetSpecificFields({
@@ -120,14 +214,12 @@ function AssetSpecificFields({
     <label>保険種類<select name="assetDetail.insuranceType" defaultValue={details.insuranceType ?? "WHOLE_LIFE"}><option value="WHOLE_LIFE">終身保険</option><option value="TERM">定期保険</option><option value="ENDOWMENT">養老保険</option><option value="ANNUITY">個人年金保険</option><option value="OTHER">その他</option></select></label>
     <label>証券番号<input name="assetDetail.policyNumber" defaultValue={details.policyNumber ?? ""} placeholder="例：1234567890" /><small className="asset-detail-hint">明細一覧の「所在地・金融機関等」に表示します。</small></label>
     <PersonSelect label="被保険者" name="assetDetail.insuredPerson" value={details.insuredPerson ?? ""} people={people} />
-    <PersonSelect label="受取人" name="assetDetail.beneficiary" value={details.beneficiary ?? ""} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数）の対象です。" />
-    <label>死亡保険金<CommaNumberInput name="assetDetail.deathBenefit" defaultValue={details.deathBenefit ?? ""} maxFractionDigits={2} placeholder="" required={false} /></label>
+    <BenefitRecipientsField benefitLabel="死亡保険金" benefitName="assetDetail.deathBenefit" benefitDefault={String(details.deathBenefit ?? "")} recipientName="assetDetail.beneficiary" allocationDefaults={allocationDefaults(details, "beneficiary")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数）の対象です。" />
   </div></fieldset>;
 
   if (category === "RETIREMENT_ALLOWANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>退職金の情報</legend><div className="asset-detail-grid">
     <label>制度種類<select name="assetDetail.retirementType" defaultValue={details.retirementType ?? "SMALL_ENTERPRISE"}><option value="SMALL_ENTERPRISE">小規模企業共済</option><option value="CORPORATE">中小企業退職金共済</option><option value="OFFICER">役員退職金</option><option value="EMPLOYEE">従業員退職金</option><option value="OTHER">その他</option></select></label>
-    <PersonSelect label="受取人" name="assetDetail.retirementRecipient" value={details.retirementRecipient ?? ""} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数・生命保険金とは別枠）の対象です。" />
-    <label>死亡退職金<CommaNumberInput name="assetDetail.retirementAllowance" defaultValue={details.retirementAllowance ?? ""} maxFractionDigits={2} placeholder="" required={false} /></label>
+    <BenefitRecipientsField benefitLabel="死亡退職金" benefitName="assetDetail.retirementAllowance" benefitDefault={String(details.retirementAllowance ?? "")} recipientName="assetDetail.retirementRecipient" allocationDefaults={allocationDefaults(details, "retirementRecipient")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数・生命保険金とは別枠）の対象です。" />
   </div><p className="asset-detail-note">円換算時価には、生存中に解約した場合の解約返戻金（解約手当金）を入力します。死亡退職金は相続税の概算にだけ反映し、資産合計には含めません。</p></fieldset>;
 
   if (category === "COLLECTIBLES") return <fieldset key={category} className="asset-detail-fieldset full"><legend>その他資産の情報</legend><div className="asset-detail-grid">
