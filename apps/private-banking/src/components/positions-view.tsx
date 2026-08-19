@@ -14,6 +14,7 @@ import {
   deemedBenefit,
   deemedConfig,
   deemedInheritanceCategories,
+  deemedRecipientIsLegalHeir,
   fiscalYearLabel,
   institutionOrPropertyAddress,
   middleClassification,
@@ -37,7 +38,7 @@ const classificationTone: Record<string, string> = {
   その他資産: "other",
 };
 
-export function AssetsView({ snapshot, snapshots, onSelectSnapshot, onCreateNext, onAdd, onBulkManage, onEdit, onDelete, onReorder, onEditSettings, onBack, saving }: { snapshot: Snapshot; snapshots: Snapshot[]; onSelectSnapshot: (snapshotId: number) => void; onCreateNext: () => void; onAdd: () => void; onBulkManage: () => void; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; onEditSettings: () => void; onBack?: () => void; saving: boolean }) {
+export function AssetsView({ snapshot, snapshots, legalHeirNames, onSelectSnapshot, onCreateNext, onAdd, onBulkManage, onEdit, onDelete, onReorder, onEditSettings, onBack, saving }: { snapshot: Snapshot; snapshots: Snapshot[]; legalHeirNames: ReadonlySet<string>; onSelectSnapshot: (snapshotId: number) => void; onCreateNext: () => void; onAdd: () => void; onBulkManage: () => void; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; onEditSettings: () => void; onBack?: () => void; saving: boolean }) {
   const assets = snapshot.positions.filter((p) => p.side === "ASSET");
   const liabilities = snapshot.positions.filter((p) => p.side === "LIABILITY" && p.includedInNetWorth);
   const contingencies = snapshot.positions.filter((p) => p.side === "LIABILITY" && !p.includedInNetWorth);
@@ -51,10 +52,7 @@ export function AssetsView({ snapshot, snapshots, onSelectSnapshot, onCreateNext
   // ある場合だけなので、手動の想定相続税だけのときは従来どおり解約返戻金ベースのままとする。
   const calculation = snapshot.inheritanceTaxCalculation;
   const benefitJpy = (position: Position) => Math.round((deemedBenefit(position) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
-  const isHeirBenefit = (position: Position) => {
-    const config = deemedConfig(position);
-    return config ? position.assetDetails?.[config.heirKey] === true : false;
-  };
+  const isHeirBenefit = (position: Position) => deemedRecipientIsLegalHeir(position, legalHeirNames);
   // 非課税枠は生命保険と死亡退職金で別枠なので、按分率も区分ごとに求める。
   const nonTaxableAmounts: Record<DeemedCategory, number> = {
     INSURANCE: calculation?.insuranceNonTaxableAmountJpy ?? 0,

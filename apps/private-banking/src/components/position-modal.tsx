@@ -29,19 +29,31 @@ const defaultFormulaByCategory: Record<string, ValuationFormula> = {
   HOME_REAL_ESTATE: "LAND_ROADSIDE", REAL_ESTATE: "LAND_ROADSIDE", IDLE_REAL_ESTATE: "LAND_ROADSIDE",
 };
 
-/** 本人・親族の氏名から select の選択肢を作る。既存データの自由入力値は選択肢に足して保全する。 */
-function PersonSelect({ label, name, value, people }: { label: string; name: string; value: string; people: string[] }) {
+/**
+ * 本人・親族の氏名から select の選択肢を作る。既存データの自由入力値は選択肢に足して保全する。
+ * 受取人欄（exemptionNote あり）では、選んだ人が法定相続人かどうかをその場で判定して表示する。
+ * 非課税枠の対象かを別途チェックさせると入れ忘れに気づけないため、入力させずに判定結果だけ見せる。
+ */
+function PersonSelect({ label, name, value, people, legalHeirNames, exemptionNote }: { label: string; name: string; value: string; people: string[]; legalHeirNames?: ReadonlySet<string>; exemptionNote?: string }) {
+  const [selected, setSelected] = useState(value);
   const options = people.includes(value) || value === "" ? people : [value, ...people];
-  return <label>{label}<select name={name} defaultValue={value}>
+  const isLegalHeir = legalHeirNames?.has(selected.trim()) ?? false;
+  return <label>{label}<select name={name} value={selected} onChange={(event) => setSelected(event.target.value)}>
     <option value="">未選択</option>
     {options.map((person) => <option key={person} value={person}>{person}</option>)}
-  </select>{people.length === 0 ? <small className="asset-detail-hint">親族関係タブに登録すると選択肢に表示されます。</small> : null}</label>;
+  </select>{people.length === 0 ? <small className="asset-detail-hint">親族関係タブに登録すると選択肢に表示されます。</small> : null}
+  {exemptionNote && people.length > 0 ? <small className={`asset-detail-hint ${isLegalHeir ? "legal-heir-ok" : "warning"}`}>{selected.trim() === ""
+    ? "受取人を選ぶと非課税枠の判定を表示します。"
+    : isLegalHeir
+      ? `法定相続人のため${exemptionNote}`
+      : "法定相続人ではないため非課税枠の対象外です。親族関係タブの続柄と取得原因（相続）をご確認ください。"}</small> : null}</label>;
 }
 
 function AssetSpecificFields({
   category,
   details,
   people,
+  legalHeirNames,
   propertyType,
   formula,
   onPropertyTypeChange,
@@ -57,6 +69,7 @@ function AssetSpecificFields({
   category: string;
   details: AssetDetails;
   people: string[];
+  legalHeirNames: ReadonlySet<string>;
   propertyType: string;
   formula: ValuationFormula;
   onPropertyTypeChange: (value: string) => void;
@@ -107,22 +120,14 @@ function AssetSpecificFields({
     <label>保険種類<select name="assetDetail.insuranceType" defaultValue={details.insuranceType ?? "WHOLE_LIFE"}><option value="WHOLE_LIFE">終身保険</option><option value="TERM">定期保険</option><option value="ENDOWMENT">養老保険</option><option value="ANNUITY">個人年金保険</option><option value="OTHER">その他</option></select></label>
     <label>証券番号<input name="assetDetail.policyNumber" defaultValue={details.policyNumber ?? ""} placeholder="例：1234567890" /><small className="asset-detail-hint">明細一覧の「所在地・金融機関等」に表示します。</small></label>
     <PersonSelect label="被保険者" name="assetDetail.insuredPerson" value={details.insuredPerson ?? ""} people={people} />
-    <PersonSelect label="受取人" name="assetDetail.beneficiary" value={details.beneficiary ?? ""} people={people} />
+    <PersonSelect label="受取人" name="assetDetail.beneficiary" value={details.beneficiary ?? ""} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数）の対象です。" />
     <label>死亡保険金<CommaNumberInput name="assetDetail.deathBenefit" defaultValue={details.deathBenefit ?? ""} maxFractionDigits={2} placeholder="" required={false} /></label>
-    <label className="insurance-exemption-check wide">
-      <input name="assetDetail.beneficiaryIsLegalHeir" type="checkbox" value="true" defaultChecked={details.beneficiaryIsLegalHeir === true} />
-      <span><strong>非課税枠の対象</strong><small>受取人が法定相続人の場合に選択してください。死亡保険金の非課税限度額は「500万円 × 法定相続人数」です。</small></span>
-    </label>
   </div></fieldset>;
 
   if (category === "RETIREMENT_ALLOWANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>退職金の情報</legend><div className="asset-detail-grid">
     <label>制度種類<select name="assetDetail.retirementType" defaultValue={details.retirementType ?? "SMALL_ENTERPRISE"}><option value="SMALL_ENTERPRISE">小規模企業共済</option><option value="CORPORATE">中小企業退職金共済</option><option value="OFFICER">役員退職金</option><option value="EMPLOYEE">従業員退職金</option><option value="OTHER">その他</option></select></label>
-    <PersonSelect label="受取人" name="assetDetail.retirementRecipient" value={details.retirementRecipient ?? ""} people={people} />
+    <PersonSelect label="受取人" name="assetDetail.retirementRecipient" value={details.retirementRecipient ?? ""} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数・生命保険金とは別枠）の対象です。" />
     <label>死亡退職金<CommaNumberInput name="assetDetail.retirementAllowance" defaultValue={details.retirementAllowance ?? ""} maxFractionDigits={2} placeholder="" required={false} /></label>
-    <label className="insurance-exemption-check wide">
-      <input name="assetDetail.retirementRecipientIsLegalHeir" type="checkbox" value="true" defaultChecked={details.retirementRecipientIsLegalHeir === true} />
-      <span><strong>非課税枠の対象</strong><small>受取人が法定相続人の場合に選択してください。死亡退職金の非課税限度額は「500万円 × 法定相続人数」で、生命保険金とは別枠です。</small></span>
-    </label>
   </div><p className="asset-detail-note">円換算時価には、生存中に解約した場合の解約返戻金（解約手当金）を入力します。死亡退職金は相続税の概算にだけ反映し、資産合計には含めません。</p></fieldset>;
 
   if (category === "COLLECTIBLES") return <fieldset key={category} className="asset-detail-fieldset full"><legend>その他資産の情報</legend><div className="asset-detail-grid">
@@ -132,7 +137,7 @@ function AssetSpecificFields({
   return null;
 }
 
-export function PositionModal({ position, people, fxRates, onClose, onSubmit, saving }: { position: Position | null; people: string[]; fxRates: FxRates; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
+export function PositionModal({ position, people, legalHeirNames, fxRates, onClose, onSubmit, saving }: { position: Position | null; people: string[]; legalHeirNames: ReadonlySet<string>; fxRates: FxRates; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
   const assetDetails = position?.assetDetails ?? {};
   const [fallbackOwnershipNumerator, fallbackOwnershipDenominator] = decimalToFraction(position?.ownershipShare ?? null);
   const [section, setSection] = useState<PositionSection>(position ? positionSection(position) : "ASSET");
@@ -221,6 +226,7 @@ export function PositionModal({ position, people, fxRates, onClose, onSubmit, sa
           category={category}
           details={assetDetails}
           people={people}
+          legalHeirNames={legalHeirNames}
           propertyType={propertyType}
           formula={formula}
           onPropertyTypeChange={changePropertyType}

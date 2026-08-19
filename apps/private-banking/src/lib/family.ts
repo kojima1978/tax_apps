@@ -74,6 +74,22 @@ export function familyComposition(members: Pick<FamilyMemberDraft, "relationship
   };
 }
 
+/**
+ * 法定相続人にあたる親族の氏名。生命保険金・死亡退職金の非課税枠は、
+ * 法定相続人が受け取る分にだけ適用されるため、受取人の判定に使う。
+ * 判定基準は familyComposition と同じ（相続で取得する配偶者＋選択中の相続順位の親族）。
+ */
+export function legalHeirNames(members: Pick<FamilyMemberDraft, "name" | "relationship" | "acquisitionReason">[]) {
+  const { heirRank } = familyComposition(members);
+  const selected = heirRank === "rank1" ? rank1 : heirRank === "rank2" ? rank2 : heirRank === "rank3" ? rank3 : new Set<Relationship>();
+  return new Set(
+    members
+      .filter((member) => member.acquisitionReason === "INHERITANCE" && (member.relationship === "SPOUSE" || selected.has(member.relationship)))
+      .map((member) => member.name.trim())
+      .filter(Boolean),
+  );
+}
+
 function share(numerator: number, denominator: number) {
   return { numerator, denominator };
 }

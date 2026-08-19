@@ -1,3 +1,4 @@
+import { legalHeirNames } from "@/lib/family";
 import type { Portfolio } from "@/lib/portfolio-view";
 
 const JPY_PER_MAN_YEN = 10_000;
@@ -14,6 +15,14 @@ const smallLotRules: Record<string, { rate: number; capSqm: number }> = {
 export function createInheritanceTaxRequest(portfolio: Portfolio) {
   const current = portfolio.snapshots.find((snapshot) => snapshot.isCurrent);
   if (!current) throw new Error("CURRENT_SNAPSHOT_NOT_FOUND");
+  // 非課税枠は法定相続人が受け取る分にだけ適用される。受取人名を親族関係の登録と突き合わせて判定する。
+  const heirNames = legalHeirNames(portfolio.familyMembers ?? []);
+  // 受取人が親族関係タブに無い（未選択・登録前の自由入力）と非課税枠が黙って0になるので、件数を数えて警告に使う。
+  const registeredNames = new Set((portfolio.familyMembers ?? []).map((member) => member.name.trim()).filter(Boolean));
+  let unregisteredRecipientCount = 0;
+  const countUnregisteredRecipient = (recipient: string | undefined, benefitJpy: number) => {
+    if (benefitJpy > 0 && !registeredNames.has((recipient ?? "").trim())) unregisteredRecipientCount += 1;
+  };
 
   let assets = 0;
   let liabilities = 0;
@@ -41,17 +50,21 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
       }
       if (position.category === "INSURANCE") {
         insuranceSurrenderValueJpy += position.valueJpy;
+        const deathBenefitJpy = Math.round(((position.assetDetails?.deathBenefit ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
+        countUnregisteredRecipient(position.assetDetails?.beneficiary, deathBenefitJpy);
         insuranceContracts.push({
-          deathBenefitJpy: Math.round(((position.assetDetails?.deathBenefit ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN,
-          beneficiaryIsLegalHeir: position.assetDetails?.beneficiaryIsLegalHeir === true,
+          deathBenefitJpy,
+          beneficiaryIsLegalHeir: heirNames.has((position.assetDetails?.beneficiary ?? "").trim()),
         });
       }
       // 死亡退職金も生命保険と同じ扱い。B/Sには解約手当金が載り、死亡時はそれが死亡退職金に置き換わる。
       if (position.category === "RETIREMENT_ALLOWANCE") {
         retirementSurrenderValueJpy += position.valueJpy;
+        const deathBenefitJpy = Math.round(((position.assetDetails?.retirementAllowance ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
+        countUnregisteredRecipient(position.assetDetails?.retirementRecipient, deathBenefitJpy);
         retirementContracts.push({
-          deathBenefitJpy: Math.round(((position.assetDetails?.retirementAllowance ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN,
-          recipientIsLegalHeir: position.assetDetails?.retirementRecipientIsLegalHeir === true,
+          deathBenefitJpy,
+          recipientIsLegalHeir: heirNames.has((position.assetDetails?.retirementRecipient ?? "").trim()),
         });
       }
     }
@@ -64,6 +77,7 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
   return {
     snapshotId: current.id,
     estimatedNetEstate,
+    unregisteredRecipientCount,
     source: {
       snapshotId: current.id,
       fiscalYear: current.fiscalYear,

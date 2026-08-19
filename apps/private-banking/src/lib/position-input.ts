@@ -22,10 +22,6 @@ const optionalDetailNumber = z.preprocess(
   (value) => value === "" || value === undefined ? undefined : value,
   z.coerce.number().nonnegative().optional(),
 );
-const optionalDetailBoolean = z.preprocess(
-  (value) => value === "" || value === undefined ? undefined : value,
-  z.union([z.boolean(), z.enum(["true", "false"]).transform((value) => value === "true")]).optional(),
-);
 const assetDetailsSchema = z.object({
   accountType: optionalDetailText,
   branchName: optionalDetailText,
@@ -38,7 +34,6 @@ const assetDetailsSchema = z.object({
   insuredPerson: optionalDetailText,
   beneficiary: optionalDetailText,
   deathBenefit: optionalDetailNumber,
-  beneficiaryIsLegalHeir: optionalDetailBoolean,
   propertyType: optionalDetailText,
   propertyAddress: optionalDetailText,
   landCategory: optionalDetailText,
@@ -55,7 +50,6 @@ const assetDetailsSchema = z.object({
   retirementType: optionalDetailText,
   retirementRecipient: optionalDetailText,
   retirementAllowance: optionalDetailNumber,
-  retirementRecipientIsLegalHeir: optionalDetailBoolean,
   otherAssetType: optionalDetailText,
 }).default({});
 const stockCategories = new Set(["SECURITIES", "PRIVATE_SHARES"]);

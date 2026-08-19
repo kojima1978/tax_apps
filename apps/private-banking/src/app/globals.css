@@ -521,12 +521,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .asset-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
 .asset-detail-grid .wide { grid-column: 1 / -1; }
 /* 説明付きチェックボックス（生命保険の非課税枠、自社株の自動計算切り替え）。 */
-.insurance-exemption-check, .valuation-formula-check { min-height: 52px; padding: 9px 12px; border: 1px solid #cfe2d3; border-radius: 7px; background: #fff; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
-.insurance-exemption-check:has(input:focus-visible), .valuation-formula-check:has(input:focus-visible) { border-color: #16a34a; outline: 3px solid #bbf7d0; outline-offset: 1px; }
-.insurance-exemption-check input, .valuation-formula-check input { width: 18px; height: 18px; min-height: 18px; margin: 1px 0 0; accent-color: #168642; flex: 0 0 auto; }
-.insurance-exemption-check span, .valuation-formula-check span { min-width: 0; display: grid; gap: 2px; }
-.insurance-exemption-check strong, .valuation-formula-check strong { color: var(--navy-950); font-size: 12px; }
-.insurance-exemption-check small, .valuation-formula-check small { color: var(--slate-600); font-size: 10px; font-weight: 500; line-height: 1.5; }
+.valuation-formula-check { min-height: 52px; padding: 9px 12px; border: 1px solid #cfe2d3; border-radius: 7px; background: #fff; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.valuation-formula-check:has(input:focus-visible) { border-color: #16a34a; outline: 3px solid #bbf7d0; outline-offset: 1px; }
+.valuation-formula-check input { width: 18px; height: 18px; min-height: 18px; margin: 1px 0 0; accent-color: #168642; flex: 0 0 auto; }
+.valuation-formula-check span { min-width: 0; display: grid; gap: 2px; }
+.valuation-formula-check strong { color: var(--navy-950); font-size: 12px; }
+.valuation-formula-check small { color: var(--slate-600); font-size: 10px; font-weight: 500; line-height: 1.5; }
 .land-category-definition, .building-type-definition, .asset-detail-hint { margin-top: 5px; color: var(--slate-500); font-size: 9px; font-weight: 500; line-height: 1.55; display: block; }
 .asset-detail-note { margin: 10px 0 0; padding-top: 9px; color: var(--slate-600); border-top: 1px solid #e2ece4; font-size: 10px; line-height: 1.6; }
 .valuation-formula-fieldset { min-width: 0; margin: 2px 0 4px; padding: 14px; background: #fafcfb; border: 1px solid var(--slate-200); border-radius: 8px; }
@@ -626,6 +626,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .fx-rate-grid label { min-width: 0; color: var(--slate-700); font-size: 11px; font-weight: 800; }
 .fx-rate-grid input { width: 100%; min-height: 42px; margin-top: 6px; padding: 8px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--slate-300); border-radius: 6px; font-size: 13px; }
 .asset-detail-hint.warning { color: #b45309; font-weight: 700; }
+.asset-detail-hint.legal-heir-ok { color: #168642; font-weight: 700; }
 @media (max-width: 720px) { .fx-rate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* 本人情報。親族テーブルとは分離し、顧客本人の基本項目だけを編集する。 */

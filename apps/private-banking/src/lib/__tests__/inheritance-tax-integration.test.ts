@@ -13,7 +13,11 @@ const portfolio = {
     heirRank: "rank1",
     heirCount: 2,
   },
-  familyMembers: [],
+  familyMembers: [
+    { name: "山田 花子", relationship: "SPOUSE", acquisitionReason: "INHERITANCE" },
+    { name: "山田 一郎", relationship: "CHILD", acquisitionReason: "INHERITANCE" },
+    { name: "山田 次郎", relationship: "SIBLING", acquisitionReason: "INHERITANCE" },
+  ],
   snapshots: [{
     id: 18,
     label: "現在",
@@ -73,7 +77,7 @@ describe("createInheritanceTaxRequest", () => {
             category: "INSURANCE",
             valueJpy: 10_000_000,
             fxRate: 1,
-            assetDetails: { deathBenefit: 30_000_000, beneficiaryIsLegalHeir: true },
+            assetDetails: { deathBenefit: 30_000_000, beneficiary: "山田 花子" },
           },
         ],
       }],
@@ -97,7 +101,7 @@ describe("createInheritanceTaxRequest", () => {
             category: "RETIREMENT_ALLOWANCE",
             valueJpy: 5_000_000,
             fxRate: 1,
-            assetDetails: { retirementAllowance: 20_000_000, retirementRecipientIsLegalHeir: true },
+            assetDetails: { retirementAllowance: 20_000_000, retirementRecipient: "山田 花子" },
           },
         ],
       }],
@@ -109,6 +113,27 @@ describe("createInheritanceTaxRequest", () => {
     });
     // 退職金を持たない構成ではキー自体を送らない（生命保険と同じ扱い）。
     expect(createInheritanceTaxRequest(portfolio).request.retirementAllowance).toBeUndefined();
+  });
+
+  it("受取人が法定相続人でなければ非課税枠の対象にしない", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      snapshots: [{
+        ...portfolio.snapshots[0],
+        positions: [
+          ...portfolio.snapshots[0].positions,
+          // 第1順位（子）がいるので、兄弟姉妹は法定相続人にならない。
+          { side: "ASSET", category: "INSURANCE", valueJpy: 1_000_000, fxRate: 1, assetDetails: { deathBenefit: 10_000_000, beneficiary: "山田 次郎" } },
+          // 親族関係タブに登録の無い受取人も対象外。
+          { side: "ASSET", category: "RETIREMENT_ALLOWANCE", valueJpy: 1_000_000, fxRate: 1, assetDetails: { retirementAllowance: 10_000_000, retirementRecipient: "友人 太郎" } },
+        ],
+      }],
+    } as Portfolio);
+
+    expect(result.request.lifeInsurance?.contracts).toEqual([{ deathBenefitJpy: 10_000_000, beneficiaryIsLegalHeir: false }]);
+    expect(result.request.retirementAllowance?.contracts).toEqual([{ deathBenefitJpy: 10_000_000, recipientIsLegalHeir: false }]);
+    // 親族関係に登録の無い受取人だけを警告用に数える（登録済みの兄弟姉妹は数えない）。
+    expect(result.unregisteredRecipientCount).toBe(1);
   });
 
   it("小規模宅地等の特例を選択した宅地は減額して遺産額へ反映する", () => {

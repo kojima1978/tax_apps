@@ -17,12 +17,12 @@ export type Position = {
 export type AssetDetails = {
   accountType?: string; branchName?: string; accountSuffix?: string; maturityDate?: string;
   securityType?: string; securityCode?: string;
-  insuranceType?: string; policyNumber?: string; insuredPerson?: string; beneficiary?: string; deathBenefit?: number; beneficiaryIsLegalHeir?: boolean;
+  insuranceType?: string; policyNumber?: string; insuredPerson?: string; beneficiary?: string; deathBenefit?: number;
   propertyType?: string; propertyAddress?: string; landCategory?: string; smallLotType?: string;
   buildingType?: string; buildingStructure?: string; floorArea?: number;
   shareClass?: string; totalIssuedShares?: number; valuationApproach?: string;
   businessAssetType?: string; businessName?: string; storageLocation?: string;
-  retirementType?: string; retirementRecipient?: string; retirementAllowance?: number; retirementRecipientIsLegalHeir?: boolean;
+  retirementType?: string; retirementRecipient?: string; retirementAllowance?: number;
   otherAssetType?: string;
 };
 export type Snapshot = {
@@ -128,9 +128,10 @@ export const positionSectionLabels: Record<PositionSection, string> = {
 
 // 生命保険と死亡退職金は同じ構造のみなし相続財産。B/Sには解約返戻金（解約手当金）が載り、
 // 死亡時はそれが給付金に置き換わる。非課税枠はそれぞれ別枠で、受取人が法定相続人の契約にだけ適用される。
+// 法定相続人かどうかは入力させず、受取人が親族関係タブの法定相続人かどうかで判定する。
 export const deemedInheritanceCategories = {
-  INSURANCE: { label: "死亡保険金", benefitKey: "deathBenefit", heirKey: "beneficiaryIsLegalHeir" },
-  RETIREMENT_ALLOWANCE: { label: "死亡退職金", benefitKey: "retirementAllowance", heirKey: "retirementRecipientIsLegalHeir" },
+  INSURANCE: { label: "死亡保険金", benefitKey: "deathBenefit", recipientKey: "beneficiary" },
+  RETIREMENT_ALLOWANCE: { label: "死亡退職金", benefitKey: "retirementAllowance", recipientKey: "retirementRecipient" },
 } as const;
 export type DeemedCategory = keyof typeof deemedInheritanceCategories;
 export const deemedConfig = (position: Position) => deemedInheritanceCategories[position.category as DeemedCategory] ?? null;
@@ -138,6 +139,11 @@ export const deemedConfig = (position: Position) => deemedInheritanceCategories[
 export const deemedBenefit = (position: Position) => {
   const config = deemedConfig(position);
   return config ? position.assetDetails?.[config.benefitKey] ?? 0 : 0;
+};
+/** 受取人が法定相続人なら、その給付金に非課税枠が適用される。 */
+export const deemedRecipientIsLegalHeir = (position: Position, legalHeirNames: ReadonlySet<string>) => {
+  const config = deemedConfig(position);
+  return config ? legalHeirNames.has((position.assetDetails?.[config.recipientKey] ?? "").trim()) : false;
 };
 
 export function middleClassification(position: Position) {

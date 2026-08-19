@@ -24,7 +24,7 @@ import { PersonFamilyPrintView } from "@/components/print-person-family";
 import { SecondaryInheritanceSimulator } from "@/components/secondary-inheritance-simulator";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary } from "@/lib/clients";
-import type { FamilyMemberDraft } from "@/lib/family";
+import { legalHeirNames, type FamilyMemberDraft } from "@/lib/family";
 import { compactYen, dateJa, percent, unformatNumberInput } from "@/lib/format";
 import {
   type BalanceScenario,
@@ -204,6 +204,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       homeRealEstate, incomeRealEstate, idleRealEstate, otherAssets,
     };
   }, [workingSnapshot]);
+  // 非課税枠の判定に使う法定相続人の氏名。受取人を選ぶだけで判定できるよう、入力欄では持たせない。
+  const legalHeirNameSet = useMemo(() => legalHeirNames(portfolio?.familyMembers ?? []), [portfolio]);
   // 保険の被保険者・受取人の選択肢。本人と親族関係タブの登録者を氏名で並べる。
   const familyPeopleNames = useMemo(
     () => [...new Set([portfolio?.household.name, ...(portfolio?.familyMembers ?? []).map((member) => member.name)].filter((name): name is string => Boolean(name?.trim())))],
@@ -363,18 +365,13 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       if (fieldName in fields) fields[fieldName] = unformatNumberInput(fields[fieldName] as FormDataEntryValue | undefined) ?? "";
     }
     const numericDetailFields = new Set(["deathBenefit", "retirementAllowance", "totalIssuedShares", "floorArea"]);
-    const booleanDetailFields = new Set(["beneficiaryIsLegalHeir", "retirementRecipientIsLegalHeir"]);
-    const assetDetails: Record<string, string | number | boolean> = {};
+    const assetDetails: Record<string, string | number> = {};
     for (const [fieldName, rawValue] of Object.entries(fields)) {
       if (!fieldName.startsWith("assetDetail.")) continue;
       const detailName = fieldName.slice("assetDetail.".length);
       const value = String(rawValue).trim();
       if (value !== "") {
-        assetDetails[detailName] = booleanDetailFields.has(detailName)
-          ? value === "true"
-          : numericDetailFields.has(detailName)
-            ? Number(value.replace(/,/g, ""))
-            : value;
+        assetDetails[detailName] = numericDetailFields.has(detailName) ? Number(value.replace(/,/g, "")) : value;
       }
       delete fields[fieldName];
     }
@@ -755,7 +752,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
               : null}
           </div> : null}
 
-          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditSettings={() => setSnapshotSettingsModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
+          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} legalHeirNames={legalHeirNameSet} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditSettings={() => setSnapshotSettingsModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
           {section === "family" ? <div className="report-document print-excluded-document"><FamilyView members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} saving={saving} onSave={saveFamilyMembers} /></div> : null}
           {(section === "history" || printSections?.has("history")) ? <div id="print-section-history" className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
@@ -763,7 +760,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         </main>
       </div>
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
-      {modalOpen ? <PositionModal position={editingPosition} people={familyPeopleNames} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
+      {modalOpen ? <PositionModal position={editingPosition} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
       {bulkModalOpen && workingSnapshot ? <BulkPositionModal snapshot={workingSnapshot} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /> : null}
       {deletingPosition ? <DeletePositionModal position={deletingPosition} onClose={() => setDeletingPosition(null)} onDelete={() => void deletePosition()} saving={saving} /> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
