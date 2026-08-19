@@ -316,7 +316,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .drag-handle:hover { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
 .drag-handle:active { cursor: grabbing; }
 .drag-handle:focus-visible { color: #166534; outline: 3px solid #86efac; outline-offset: 1px; }
-.drag-handle:disabled { opacity: .45; cursor: wait; }
+/* 入れ替え先が無くて無効な状態と、保存中で一時的に無効な状態はカーソルで区別する。 */
+.drag-handle:disabled { opacity: .45; cursor: not-allowed; }
+.drag-handle.is-saving:disabled { cursor: wait; }
 .drag-handle svg { width: 19px; height: 19px; }
 .position-table tbody tr.is-dragging { opacity: .45; }
 .position-table tbody tr.is-drop-target td { background: #f0fdf4; border-top: 2px solid #22c55e; }
