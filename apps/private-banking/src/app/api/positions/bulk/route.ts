@@ -11,7 +11,7 @@ import {
   positionInputSchema,
 } from "@/lib/position-input";
 
-const bulkEntryCategories = new Set(["SECURITIES", "PRIVATE_SHARES", "HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"]);
+const bulkEntryCategories = new Set(["DEPOSIT", "SECURITIES", "PRIVATE_SHARES", "HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"]);
 
 /**
  * 円換算レートは明細ではなく年度に登録した値を使う。
