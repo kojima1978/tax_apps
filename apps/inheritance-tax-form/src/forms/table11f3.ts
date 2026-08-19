@@ -108,8 +108,8 @@ export const TABLE11F3_SPEC: DetailSpec = {
         cell: { align: 'left' },
       },
       // 数量と単価は上2行分をまたぐ
-      { x: [647.5, 674.5, 784.5], code: 'E6', field: 'quantity', name: '数量', r: [0, 2], cell: { align: 'right' } },
-      { x: [784.5, 810.5, 918.5], code: 'C0', field: 'unitPrice', name: '単価', r: [0, 2], cell: { align: 'right' } },
+      { x: [647.5, 674.5, 784.5], code: 'E6', field: 'quantity', name: '数量', r: [0, 2], cell: { align: 'right', commaNumber: true } },
+      { x: [784.5, 810.5, 918.5], code: 'C0', field: 'unitPrice', name: '単価', r: [0, 2], cell: { align: 'right', commaInteger: true, decimalPlaces: 3 } },
     ],
     [
       { x: [146.5, 173.5, 287.5], code: 'E1', field: 'account', name: '口座番号', cell: { align: 'left' } },
