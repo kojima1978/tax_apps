@@ -52,6 +52,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const composingRef = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const relationshipSuggestions = useMemo(
     () => mergeRelationshipSuggestions(tempMembers.map(member => member.relationship)),
     [tempMembers],
@@ -192,6 +193,37 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
     }
   };
 
+  // Enterで即送信（＝保存して画面が閉じる）のを止め、次の入力欄へ送る。
+  // 保存はフッターの保存ボタンからだけ行う
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== 'Enter') return;
+    // IME変換確定のEnterは入力操作なので拾わない
+    if (composingRef.current || (e.nativeEvent as unknown as { isComposing?: boolean }).isComposing) return;
+
+    const target = e.target as HTMLElement;
+    const tag = target.tagName.toLowerCase();
+    // ボタン・textareaの改行は本来の挙動のまま
+    if (tag === 'button' || tag === 'textarea') return;
+    if (tag !== 'input' && tag !== 'select') return;
+
+    e.preventDefault();
+    const form = formRef.current;
+    if (!form) return;
+
+    const fields = Array.from(form.querySelectorAll<HTMLElement>('input, select, textarea'))
+      .filter(el => !(el as HTMLInputElement).disabled && el.tabIndex !== -1 && el.offsetParent !== null);
+    const index = fields.indexOf(target);
+    const next = index >= 0 ? fields[index + 1] : undefined;
+
+    if (next) {
+      next.focus();
+      if (next instanceof HTMLInputElement && (next.type === 'text' || next.type === 'number')) next.select();
+      return;
+    }
+    // 最後の欄まで来たら保存ボタンへ。もう一度Enterを押せば保存できる
+    form.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
@@ -227,7 +259,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
           <button type="button" className="close-btn" onClick={onClose} aria-label="閉じる"><X size={20} /></button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleFormKeyDown}>
           {section === 'family' && (
             <>
               <datalist id="customer-relationship-suggestions">
