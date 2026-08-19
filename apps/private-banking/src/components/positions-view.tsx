@@ -11,6 +11,7 @@ import {
   type PositionSortMode,
   type Snapshot,
   categoryLabels,
+  categoryRank,
   deemedAllocations,
   deemedBenefit,
   deemedConfig,
@@ -115,7 +116,10 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
     return [...filtered].sort((a, b) => {
       const rankA = middleClassificationRank.get(middleClassification(a)) ?? Number.MAX_SAFE_INTEGER;
       const rankB = middleClassificationRank.get(middleClassification(b)) ?? Number.MAX_SAFE_INTEGER;
-      return (rankA - rankB) * direction || (manualIndex.get(a.id) ?? 0) - (manualIndex.get(b.id) ?? 0);
+      // 中分類が同じなら科目の既定順（預金・現金が先頭）で揃え、同じ科目の中だけ手動の並びを保つ。
+      const categoryA = categoryRank.get(a.category) ?? Number.MAX_SAFE_INTEGER;
+      const categoryB = categoryRank.get(b.category) ?? Number.MAX_SAFE_INTEGER;
+      return (rankA - rankB) * direction || categoryA - categoryB || (manualIndex.get(a.id) ?? 0) - (manualIndex.get(b.id) ?? 0);
     });
   }, [classificationFilter, orderedItems, sortMode]);
   // 並び替えは同じ科目どうしの入れ替えに限る。科目をまたがなければ中分類の並びは崩れないので、

@@ -209,6 +209,8 @@ export function valuationBreakdown(position: Position) {
 
 const middleClassificationOrder = ["金融資産", "不動産", "事業用資産", "その他資産", "借入金", "個人保証"];
 export const middleClassificationRank = new Map(middleClassificationOrder.map((classification, index) => [classification, index]));
+/** 中分類が同じ明細を並べるときの科目順。科目の選択肢と同じ並びを使う（預金・現金が先頭）。 */
+export const categoryRank = new Map([...assetCategories, ...liabilityCategories, "GUARANTEE"].map((category, index) => [category, index]));
 
 export function totals(positions: Position[]) {
   let assets = 0, liabilities = 0, guarantees = 0;
