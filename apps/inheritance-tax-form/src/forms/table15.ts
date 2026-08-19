@@ -91,9 +91,14 @@ interface Table15Row {
   subX?: number;
   /** 様式に算式が印字されている自動計算行 */
   auto?: boolean;
+  /** 手入力させない行（値は理由。ホバーで出す） */
+  locked?: string;
   /** 末尾にあらかじめ「000」が印字されている欄（千円単位で保持する） */
   zeros?: boolean;
 }
+
+/** ⑧⑨（⑥のうち特例農地等）を入力不可にしている理由 */
+const NO_FARMLAND = '農地等の納税猶予（第12表）が未実装のため入力できません';
 
 /** ①〜㊳の行定義（添字＋1が行番号＝識別コードの番号） */
 const ROWS: Table15Row[] = [
@@ -104,8 +109,8 @@ const ROWS: Table15Row[] = [
   { no: '⑤', label: 'その他の土地' },
   { no: '⑥', label: '計', auto: true },
   { no: '⑦', label: '③のうち配偶者居住権に基づく敷地利用権' },
-  { no: '⑧', label: '通常価額', sub: { text: '⑥のうち特例農地等', rows: 2 }, subX: X.SUB_A },
-  { no: '⑨', label: '農業投資価格による価額', subX: X.SUB_A },
+  { no: '⑧', label: '通常価額', sub: { text: '⑥のうち特例農地等', rows: 2 }, subX: X.SUB_A, locked: NO_FARMLAND },
+  { no: '⑨', label: '農業投資価格による価額', subX: X.SUB_A, locked: NO_FARMLAND },
   { no: '⑩', label: '家屋等', band: { rows: 2, spread: true } },
   { no: '⑪', label: '⑩のうち配偶者居住権' },
   { no: '⑫', label: '機械、器具、農耕具、その他の減価償却資産', band: { text: '事業（農業）用財産', rows: 5 } },
@@ -195,6 +200,7 @@ function valueCell(column: Table15Column, r: Table15Row, n: number, readOnly: bo
     ariaLabel: `${column.label} ${r.no}${r.label.split('\n')[0]}`,
     signedCommaInteger: true,
     readOnly,
+    ...(r.locked === undefined ? {} : { hint: r.locked }),
     ...(r.zeros ? { rightLabel: '000' } : {}),
   };
 }
@@ -250,7 +256,7 @@ export function buildTable15(
     ...ROWS.flatMap((r, i): GridCell[] => {
       const n = i + 1;
       const y = rowY(n);
-      const readOnly = r.auto === true || transferred.has(r.no);
+      const readOnly = r.auto === true || r.locked !== undefined || transferred.has(r.no);
       const g = (offset: number) => `G${String(n + offset).padStart(2, '0')}`;
       return [
         ...labelCells(r, n),

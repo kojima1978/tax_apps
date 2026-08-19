@@ -557,8 +557,8 @@ function derivedTable11f4(
 /**
  * 第15表（相続財産の種類別価額表）のうち、様式に算式が印字されている行を計算する。
  *
- * ①〜㉘は付表からの転記（`sumTable15` が入れる）、㉛㉝㉞㊲は他の様式からの転記で、
- * 手入力が残るのは⑧⑨（⑥のうち特例農地等）だけ（㊲は第14表を使わないときのみ手入力）。
+ * ①〜㉘は付表からの転記（`sumTable15` が入れる）、㉛㉝㉞㊲は他の様式からの転記。
+ * ⑧⑨（⑥のうち特例農地等）は第12表が未実装なので入力させない（＝手入力の残る欄は無い）。
  * 値はその人の欄（'h0.' スコープ）に持ち、「各人の合計」列は横計（`TOTAL_ROWS`）で作る。
  */
 function computeTable15(h: Values): Values {
@@ -1343,7 +1343,8 @@ function computeUnsplit(details: Values[], civil: Values[]): number[] {
 }
 
 /**
- * 第15表で「その様式を使うときだけ転記になる」欄（丸番号）。
+ * 第15表で手入力にしない欄（丸番号）。読み取り専用にするほか、
+ * 転記元が無くなったときに古い値が残らないよう毎回空に戻す先でもある。
  * 付表の分はコード表（`DETAIL_KINDS`）から機械的に導く — 欄の一覧をここに書き写さない。
  */
 export function table15Transferred(used: readonly string[]): string[] {
@@ -1355,9 +1356,9 @@ export function table15Transferred(used: readonly string[]): string[] {
       if (kind.table15Extra) marks.add(kind.table15Extra.table15);
     }
   }
-  if (used.includes('table112')) marks.add('㉛');
+  // ㉛は第11の2表、㊲は第14表からしか入らない欄なので、その様式を使っていなくても手入力にはしない
+  marks.add('㉛').add('㊲');
   if (used.includes('table13')) marks.add('㉝').add('㉞');
-  if (used.includes('table14')) marks.add('㊲');
   return [...marks];
 }
 
