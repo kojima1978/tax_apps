@@ -141,4 +141,11 @@ export const TABLE11F3_SPEC: DetailSpec = {
       { x: [357.5, 379.5, 647.5], code: 'E5', field: 'other', name: 'その他（所在地等）', cell: { align: 'left' } },
     ],
   ],
+  // 入力画面の並び（用紙は3行に散っているので、口座・所在場所等・金額・その他でまとめる）
+  panel: [
+    ['kindCode', 'kind', 'account'],
+    ['bankCode', 'bank', 'branchCode', 'branch', 'other'],
+    ['quantity', 'unitPrice', 'value'],
+    ['foreign', 'note'],
+  ],
 };
