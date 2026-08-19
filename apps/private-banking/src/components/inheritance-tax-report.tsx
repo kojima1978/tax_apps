@@ -82,6 +82,9 @@ export function InheritanceTaxReport({
           {calculation.insuranceSurrenderValueJpy > 0 ? <MoneyRow label="生命保険の解約返戻金" value={calculation.insuranceSurrenderValueJpy} operator="−" /> : null}
           {calculation.insuranceDeathBenefitJpy > 0 ? <MoneyRow label="死亡保険金" value={calculation.insuranceDeathBenefitJpy} operator="＋" /> : null}
           {calculation.insuranceNonTaxableAmountJpy > 0 ? <MoneyRow label="死亡保険金の非課税額" value={calculation.insuranceNonTaxableAmountJpy} operator="−" /> : null}
+          {calculation.retirementSurrenderValueJpy > 0 ? <MoneyRow label="退職金の解約返戻金" value={calculation.retirementSurrenderValueJpy} operator="−" /> : null}
+          {calculation.retirementDeathBenefitJpy > 0 ? <MoneyRow label="死亡退職金" value={calculation.retirementDeathBenefitJpy} operator="＋" /> : null}
+          {calculation.retirementNonTaxableAmountJpy > 0 ? <MoneyRow label="死亡退職金の非課税額" value={calculation.retirementNonTaxableAmountJpy} operator="−" /> : null}
           <MoneyRow label="相続税計算上の遺産額" value={calculation.estateValueJpy} operator="＝" emphasis="subtotal" />
           <MoneyRow label="基礎控除額" value={calculation.basicDeductionJpy} operator="−" />
           <MoneyRow label="課税遺産総額" value={calculation.taxableEstateJpy} operator="＝" emphasis="subtotal" />
@@ -97,6 +100,7 @@ export function InheritanceTaxReport({
         <ol>
           <li><strong>財産評価額と債務</strong><p>現在年度のB/S登録額を使用。個人保証などB/S外債務は控除していません。</p></li>
           <li><strong>生命保険金の非課税額</strong><p>500万円 × 法定相続人 {calculation.legalHeirCount}人 ＝ {compactYen(calculation.insuranceNonTaxableLimitJpy)}（対象保険金が上限）。</p></li>
+          {calculation.retirementDeathBenefitJpy > 0 ? <li><strong>死亡退職金の非課税額</strong><p>500万円 × 法定相続人 {calculation.legalHeirCount}人 ＝ {compactYen(calculation.retirementNonTaxableLimitJpy)}（対象退職金が上限）。生命保険金とは別枠で適用します。</p></li> : null}
           <li><strong>基礎控除額</strong><p>3,000万円 ＋ 600万円 × {calculation.legalHeirCount}人 ＝ {compactYen(calculation.basicDeductionJpy)}。</p></li>
           <li><strong>相続税の総額</strong><p>課税遺産総額を法定相続分で按分し、各法定取得額に速算税率を適用して合計。</p></li>
           <li><strong>税額の軽減・加算</strong><p>取得額に応じて按分し、配偶者の税額軽減と兄弟姉妹等の2割加算を反映。</p></li>

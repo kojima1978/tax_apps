@@ -4,6 +4,8 @@ import { calculateDetailedInheritanceTax } from '../src/utils/taxCalculator';
 
 const JPY_PER_MAN_YEN = 10_000;
 const INSURANCE_EXEMPTION_PER_LEGAL_HEIR_JPY = 5_000_000;
+// 退職手当金等の非課税枠。生命保険金とは別枠で、限度額は同じ「500万円 × 法定相続人数」。
+const RETIREMENT_EXEMPTION_PER_LEGAL_HEIR_JPY = 5_000_000;
 const CALCULATION_VERSION = 'inheritance-tax-2026.1';
 const TAX_RULE_AS_OF = '2026-01-01';
 const rankSchema = z.enum(['none', 'rank1', 'rank2', 'rank3']);
@@ -44,6 +46,15 @@ const requestSchema = z.object({
     contracts: z.array(z.object({
       deathBenefitJpy: jpySchema,
       beneficiaryIsLegalHeir: z.boolean(),
+    })).max(100),
+  }).optional(),
+  // 死亡退職金（退職手当金等）。小規模企業共済などは生存中の解約手当金がB/Sに載るため、
+  // 生命保険と同じく「解約返戻金を差し引いて、課税対象の死亡退職金を加える」形で受け取る。
+  retirementAllowance: z.object({
+    surrenderValueJpy: jpySchema,
+    contracts: z.array(z.object({
+      deathBenefitJpy: jpySchema,
+      recipientIsLegalHeir: z.boolean(),
     })).max(100),
   }).optional(),
 });
@@ -102,9 +113,23 @@ export function calculateInheritanceTaxApi(payload: unknown) {
   const insuranceNonTaxableAmountJpy = Math.min(insuranceEligibleDeathBenefitJpy, insuranceNonTaxableLimitJpy);
   const insuranceTaxableDeathBenefitJpy = insuranceDeathBenefitJpy - insuranceNonTaxableAmountJpy;
   const insuranceSurrenderValueJpy = input.lifeInsurance?.surrenderValueJpy ?? 0;
+  // 死亡退職金も生命保険金と同じ手順で置き換える。非課税枠は生命保険とは別枠で判定する。
+  const retirementDeathBenefitJpy = input.retirementAllowance?.contracts.reduce((sum, contract) => sum + contract.deathBenefitJpy, 0) ?? 0;
+  const retirementEligibleDeathBenefitJpy = input.retirementAllowance?.contracts.reduce(
+    (sum, contract) => sum + (contract.recipientIsLegalHeir ? contract.deathBenefitJpy : 0),
+    0,
+  ) ?? 0;
+  const retirementNonTaxableLimitJpy = input.retirementAllowance
+    ? RETIREMENT_EXEMPTION_PER_LEGAL_HEIR_JPY * legalHeirCount
+    : 0;
+  const retirementNonTaxableAmountJpy = Math.min(retirementEligibleDeathBenefitJpy, retirementNonTaxableLimitJpy);
+  const retirementTaxableDeathBenefitJpy = retirementDeathBenefitJpy - retirementNonTaxableAmountJpy;
+  const retirementSurrenderValueJpy = input.retirementAllowance?.surrenderValueJpy ?? 0;
   const adjustedEstateValueJpy = Math.max(
     0,
-    input.estateValueJpy - insuranceSurrenderValueJpy + insuranceTaxableDeathBenefitJpy,
+    input.estateValueJpy
+      - insuranceSurrenderValueJpy + insuranceTaxableDeathBenefitJpy
+      - retirementSurrenderValueJpy + retirementTaxableDeathBenefitJpy,
   );
   const result = calculateDetailedInheritanceTax(
     adjustedEstateValueJpy / JPY_PER_MAN_YEN,
@@ -127,6 +152,11 @@ export function calculateInheritanceTaxApi(payload: unknown) {
     insuranceNonTaxableLimitJpy,
     insuranceNonTaxableAmountJpy,
     insuranceTaxableDeathBenefitJpy,
+    retirementSurrenderValueJpy,
+    retirementDeathBenefitJpy,
+    retirementNonTaxableLimitJpy,
+    retirementNonTaxableAmountJpy,
+    retirementTaxableDeathBenefitJpy,
     basicDeductionJpy: toJpy(result.basicDeduction),
     taxableEstateJpy: toJpy(result.taxableAmount),
     totalTaxBeforeDeductionsJpy: toJpy(result.totalTax),

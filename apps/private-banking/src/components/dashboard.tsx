@@ -35,6 +35,8 @@ import {
   type PrintSection,
   type Section,
   type Snapshot,
+  deemedBenefit,
+  deemedConfig,
   fiscalYearLabel,
   totals,
 } from "@/lib/portfolio-view";
@@ -171,17 +173,19 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const workingSnapshot = portfolio?.snapshots.find((snapshot) => snapshot.id === workingSnapshotId) ?? current;
   const summary = useMemo(() => totals(workingSnapshot?.positions ?? []), [workingSnapshot]);
   const successionAssets = useMemo(() => {
-    let deposits = 0, securities = 0, insurance = 0, insuranceDeathBenefit = 0, insuranceDeathBenefitMissingCount = 0, privateShares = 0, businessAssets = 0, loanReceivables = 0;
+    let deposits = 0, securities = 0, insurance = 0, insuranceDeathBenefit = 0, retirementAllowance = 0, retirementDeathBenefit = 0, deemedBenefitMissingCount = 0, privateShares = 0, businessAssets = 0, loanReceivables = 0;
     let homeRealEstate = 0, incomeRealEstate = 0, idleRealEstate = 0, otherAssets = 0;
     for (const position of workingSnapshot?.positions ?? []) {
       if (position.side !== "ASSET") continue;
       if (position.category === "DEPOSIT") deposits += position.valueJpy;
       else if (position.category === "SECURITIES") securities += position.valueJpy;
-      else if (position.category === "INSURANCE") {
-        insurance += position.valueJpy;
-        const deathBenefit = position.assetDetails?.deathBenefit;
-        if (deathBenefit === undefined || deathBenefit === null || deathBenefit <= 0) insuranceDeathBenefitMissingCount += 1;
-        else insuranceDeathBenefit += Math.round(deathBenefit * position.fxRate);
+      // 生命保険と退職金はB/Sに解約返戻金（解約手当金）が載り、税金ありB/Sでは死亡給付金に置き換える。
+      else if (deemedConfig(position)) {
+        const benefit = deemedBenefit(position);
+        const benefitJpy = benefit > 0 ? Math.round(benefit * position.fxRate) : 0;
+        if (benefitJpy <= 0) deemedBenefitMissingCount += 1;
+        if (position.category === "INSURANCE") { insurance += position.valueJpy; insuranceDeathBenefit += benefitJpy; }
+        else { retirementAllowance += position.valueJpy; retirementDeathBenefit += benefitJpy; }
       }
       else if (position.category === "PRIVATE_SHARES") privateShares += position.valueJpy;
       else if (position.category === "BUSINESS_ASSETS") businessAssets += position.valueJpy;
@@ -192,8 +196,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       else otherAssets += position.valueJpy;
     }
     return {
-      financial: deposits + securities + insurance,
-      deposits, securities, insurance, insuranceDeathBenefit, insuranceDeathBenefitMissingCount,
+      financial: deposits + securities + insurance + retirementAllowance,
+      deposits, securities, insurance, insuranceDeathBenefit, retirementAllowance, retirementDeathBenefit, deemedBenefitMissingCount,
       business: privateShares + businessAssets + loanReceivables,
       privateShares, businessAssets, loanReceivables,
       realEstate: homeRealEstate + incomeRealEstate + idleRealEstate,
@@ -225,12 +229,14 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   function balanceView(scenario: BalanceScenario) {
     const taxIncluded = scenario === "with-tax";
     const displayedInsurance = taxIncluded ? successionAssets.insuranceDeathBenefit : successionAssets.insurance;
+    const displayedRetirement = taxIncluded ? successionAssets.retirementDeathBenefit : successionAssets.retirementAllowance;
     const displayedAssets = {
       ...successionAssets,
       insurance: displayedInsurance,
-      financial: successionAssets.deposits + successionAssets.securities + displayedInsurance,
+      retirementAllowance: displayedRetirement,
+      financial: successionAssets.deposits + successionAssets.securities + displayedInsurance + displayedRetirement,
     };
-    const displayedAssetTotal = summary.assets - successionAssets.insurance + displayedInsurance;
+    const displayedAssetTotal = summary.assets - successionAssets.insurance - successionAssets.retirementAllowance + displayedInsurance + displayedRetirement;
     const displayedTaxes = taxIncluded ? totalTaxes : 0;
     const displayedSuccessionCosts = taxIncluded ? successionCosts : 0;
     const forecastAdjustments = displayedTaxes + displayedSuccessionCosts;
@@ -253,6 +259,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         { label: "預金", value: displayedAssets.deposits },
         { label: "有価証券", value: displayedAssets.securities },
         { label: `生命保険${taxIncluded ? "（死亡保険金）" : ""}`, value: displayedAssets.insurance },
+        { label: `退職金${taxIncluded ? "（死亡退職金）" : ""}`, value: displayedAssets.retirementAllowance },
       ]),
       realEstate: nonZero([
         { label: "自宅", value: displayedAssets.homeRealEstate },
@@ -355,14 +362,15 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     for (const fieldName of ["originalAmount", "valuationQuantity", "valuationUnitPrice", "adjustmentRate", "landArea", "roadsideValue", "fixedAssetTaxValue", "valuationMultiplier", "ownershipNumerator", "ownershipDenominator"]) {
       if (fieldName in fields) fields[fieldName] = unformatNumberInput(fields[fieldName] as FormDataEntryValue | undefined) ?? "";
     }
-    const numericDetailFields = new Set(["deathBenefit", "totalIssuedShares", "floorArea"]);
+    const numericDetailFields = new Set(["deathBenefit", "retirementAllowance", "totalIssuedShares", "floorArea"]);
+    const booleanDetailFields = new Set(["beneficiaryIsLegalHeir", "retirementRecipientIsLegalHeir"]);
     const assetDetails: Record<string, string | number | boolean> = {};
     for (const [fieldName, rawValue] of Object.entries(fields)) {
       if (!fieldName.startsWith("assetDetail.")) continue;
       const detailName = fieldName.slice("assetDetail.".length);
       const value = String(rawValue).trim();
       if (value !== "") {
-        assetDetails[detailName] = detailName === "beneficiaryIsLegalHeir"
+        assetDetails[detailName] = booleanDetailFields.has(detailName)
           ? value === "true"
           : numericDetailFields.has(detailName)
             ? Number(value.replace(/,/g, ""))
@@ -672,7 +680,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
                     subtitle={`${reportSnapshot.isCurrent ? "" : `${fiscalYearLabel(reportSnapshot)}・`}${taxIncluded ? "相続時予測（死亡保険金・税金を反映）" : "現在価値（保険は解約返戻金）"}`}
                     action={reportScenario === balanceScenario ? <div className="balance-panel-actions"><div className="balance-scenario-switch" role="group" aria-label="貸借対照表の表示パターン"><button type="button" aria-pressed={!taxIncluded} onClick={() => setBalanceScenario("without-tax")}><span>税金なし</span><small>メイン</small></button><button type="button" aria-pressed={taxIncluded} onClick={() => setBalanceScenario("with-tax")}><span>税金あり</span><small>サブ</small></button></div>{reportSnapshot.isCurrent ? <><button className="text-button compact tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : "APIで相続税を計算"}</button><button className="text-button compact" type="button" onClick={() => setForecastModalOpen(true)}>税金を入力</button></> : null}</div> : undefined}
                   />
-                  {taxIncluded && successionAssets.insuranceDeathBenefitMissingCount > 0 ? <p className="insurance-data-note" role="note"><AlertTriangle />死亡保険金が未入力の保険 {successionAssets.insuranceDeathBenefitMissingCount}件は、税金ありB/Sでは0円として計算しています。</p> : null}
+                  {taxIncluded && successionAssets.deemedBenefitMissingCount > 0 ? <p className="insurance-data-note" role="note"><AlertTriangle />死亡保険金・死亡退職金が未入力の明細 {successionAssets.deemedBenefitMissingCount}件は、税金ありB/Sでは0円として計算しています。</p> : null}
                   <div className="classified-bs" role="group" aria-label={`貸借対照表・${taxIncluded ? "税金あり" : "税金なし"}`}>
                     <section className="classified-bs-side asset-side" aria-labelledby={`assets-heading-${headingSuffix}`}>
                       <h4 id={`assets-heading-${headingSuffix}`}><span>資産の部</span></h4>

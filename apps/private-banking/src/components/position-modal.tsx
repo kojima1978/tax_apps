@@ -115,6 +115,16 @@ function AssetSpecificFields({
     </label>
   </div></fieldset>;
 
+  if (category === "RETIREMENT_ALLOWANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>退職金の情報</legend><div className="asset-detail-grid">
+    <label>制度種類<select name="assetDetail.retirementType" defaultValue={details.retirementType ?? "SMALL_ENTERPRISE"}><option value="SMALL_ENTERPRISE">小規模企業共済</option><option value="CORPORATE">中小企業退職金共済</option><option value="OFFICER">役員退職金</option><option value="EMPLOYEE">従業員退職金</option><option value="OTHER">その他</option></select></label>
+    <PersonSelect label="受取人" name="assetDetail.retirementRecipient" value={details.retirementRecipient ?? ""} people={people} />
+    <label>死亡退職金<CommaNumberInput name="assetDetail.retirementAllowance" defaultValue={details.retirementAllowance ?? ""} maxFractionDigits={2} placeholder="" required={false} /></label>
+    <label className="insurance-exemption-check wide">
+      <input name="assetDetail.retirementRecipientIsLegalHeir" type="checkbox" value="true" defaultChecked={details.retirementRecipientIsLegalHeir === true} />
+      <span><strong>非課税枠の対象</strong><small>受取人が法定相続人の場合に選択してください。死亡退職金の非課税限度額は「500万円 × 法定相続人数」で、生命保険金とは別枠です。</small></span>
+    </label>
+  </div><p className="asset-detail-note">円換算時価には、生存中に解約した場合の解約返戻金（解約手当金）を入力します。死亡退職金は相続税の概算にだけ反映し、資産合計には含めません。</p></fieldset>;
+
   if (category === "COLLECTIBLES") return <fieldset key={category} className="asset-detail-fieldset full"><legend>その他資産の情報</legend><div className="asset-detail-grid">
     <label>資産種類<select name="assetDetail.otherAssetType" defaultValue={details.otherAssetType ?? "PRECIOUS_METAL"}>{Object.entries(otherAssetTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small className="asset-detail-hint">明細一覧の「所在地・金融機関等」に表示します。</small></label>
   </div></fieldset>;
@@ -170,9 +180,9 @@ export function PositionModal({ position, people, fxRates, onClose, onSubmit, sa
   const isUnitRateCategory = category === "COLLECTIBLES";
   const isRealEstateCategory = ["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(category);
   const isInsurance = category === "INSURANCE";
-  const nameLabel = category === "SECURITIES" ? "銘柄名" : category === "PRIVATE_SHARES" ? "会社名" : category === "LOAN_RECEIVABLE" ? "貸付金名" : category === "COLLECTIBLES" ? "資産名" : "名称";
-  const institutionLabel = category === "DEPOSIT" ? "金融機関" : category === "SECURITIES" ? "証券会社・金融機関" : category === "INSURANCE" ? "保険会社" : section === "ASSET" ? null : "金融機関・債権者";
-  const amountLabel = section === "LIABILITY" ? "借入残高" : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : category === "INSURANCE" ? "解約返戻金" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : category === "COLLECTIBLES" ? "評価額" : isPrivateShares ? (formula === "STOCK" ? "評価額（自動計算）" : "評価額（直接入力）") : isJpyOnly ? "評価額" : "通貨建て金額";
+  const nameLabel = category === "SECURITIES" ? "銘柄名" : category === "PRIVATE_SHARES" ? "会社名" : category === "LOAN_RECEIVABLE" ? "貸付金名" : category === "COLLECTIBLES" ? "資産名" : category === "RETIREMENT_ALLOWANCE" ? "制度名・契約名" : "名称";
+  const institutionLabel = category === "DEPOSIT" ? "金融機関" : category === "SECURITIES" ? "証券会社・金融機関" : category === "INSURANCE" ? "保険会社" : category === "RETIREMENT_ALLOWANCE" ? "支給元・勤務先" : section === "ASSET" ? null : "金融機関・債権者";
+  const amountLabel = section === "LIABILITY" ? "借入残高" : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : category === "INSURANCE" || category === "RETIREMENT_ALLOWANCE" ? "解約返戻金" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : category === "COLLECTIBLES" ? "評価額" : isPrivateShares ? (formula === "STOCK" ? "評価額（自動計算）" : "評価額（直接入力）") : isJpyOnly ? "評価額" : "通貨建て金額";
   const numericValue = (value: string) => Number(value) || 0;
   const ownershipDisplay = `${ownershipNumerator || "—"} / ${ownershipDenominator || "—"}`;
   const ownershipRatio = numericValue(ownershipDenominator) > 0 ? numericValue(ownershipNumerator) / numericValue(ownershipDenominator) : 0;

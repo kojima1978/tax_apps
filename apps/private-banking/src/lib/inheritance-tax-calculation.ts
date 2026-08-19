@@ -38,6 +38,12 @@ export const inheritanceTaxApiCalculationSchema = z.object({
   insuranceNonTaxableLimitJpy: nonNegativeJpy,
   insuranceNonTaxableAmountJpy: nonNegativeJpy,
   insuranceTaxableDeathBenefitJpy: nonNegativeJpy,
+  // 死亡退職金は後から追加した項目なので、これ以前に保存した計算結果でも読めるよう既定値0にする。
+  retirementSurrenderValueJpy: nonNegativeJpy.default(0),
+  retirementDeathBenefitJpy: nonNegativeJpy.default(0),
+  retirementNonTaxableLimitJpy: nonNegativeJpy.default(0),
+  retirementNonTaxableAmountJpy: nonNegativeJpy.default(0),
+  retirementTaxableDeathBenefitJpy: nonNegativeJpy.default(0),
   basicDeductionJpy: nonNegativeJpy,
   taxableEstateJpy: nonNegativeJpy,
   totalTaxBeforeDeductionsJpy: nonNegativeJpy,

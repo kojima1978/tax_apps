@@ -14,6 +14,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   BUSINESS_ASSETS: "事業用資産",
   LOAN_RECEIVABLE: "貸付金",
   INSURANCE: "生命保険",
+  RETIREMENT_ALLOWANCE: "退職金",
   COLLECTIBLES: "その他資産",
   LOAN_HOME: "住宅ローン",
   LOAN_INVESTMENT_PROPERTY: "不動産投資ローン",

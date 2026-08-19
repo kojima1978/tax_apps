@@ -1,7 +1,7 @@
 import type { Portfolio } from "@/lib/portfolio-view";
 
 const JPY_PER_MAN_YEN = 10_000;
-const financialCategories = new Set(["DEPOSIT", "SECURITIES", "INSURANCE"]);
+const financialCategories = new Set(["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"]);
 const realEstateCategories = new Set(["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"]);
 const businessCategories = new Set(["PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE"]);
 // 小規模宅地等の特例（概算）：宅地区分ごとの減額割合と限度面積。限度面積を超える分は面積按分で減額する。
@@ -24,6 +24,8 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
   let insuranceSurrenderValueJpy = 0;
   let smallLotReductionRaw = 0;
   const insuranceContracts: Array<{ deathBenefitJpy: number; beneficiaryIsLegalHeir: boolean }> = [];
+  let retirementSurrenderValueJpy = 0;
+  const retirementContracts: Array<{ deathBenefitJpy: number; recipientIsLegalHeir: boolean }> = [];
   for (const position of current.positions) {
     if (position.side === "ASSET") {
       assets += position.valueJpy;
@@ -42,6 +44,14 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
         insuranceContracts.push({
           deathBenefitJpy: Math.round(((position.assetDetails?.deathBenefit ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN,
           beneficiaryIsLegalHeir: position.assetDetails?.beneficiaryIsLegalHeir === true,
+        });
+      }
+      // 死亡退職金も生命保険と同じ扱い。B/Sには解約手当金が載り、死亡時はそれが死亡退職金に置き換わる。
+      if (position.category === "RETIREMENT_ALLOWANCE") {
+        retirementSurrenderValueJpy += position.valueJpy;
+        retirementContracts.push({
+          deathBenefitJpy: Math.round(((position.assetDetails?.retirementAllowance ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN,
+          recipientIsLegalHeir: position.assetDetails?.retirementRecipientIsLegalHeir === true,
         });
       }
     }
@@ -79,6 +89,12 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
         lifeInsurance: {
           surrenderValueJpy: Math.round(insuranceSurrenderValueJpy / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN,
           contracts: insuranceContracts,
+        },
+      } : {}),
+      ...(retirementContracts.length > 0 ? {
+        retirementAllowance: {
+          surrenderValueJpy: Math.round(retirementSurrenderValueJpy / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN,
+          contracts: retirementContracts,
         },
       } : {}),
     },

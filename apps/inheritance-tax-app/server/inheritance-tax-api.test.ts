@@ -65,6 +65,59 @@ describe('calculateInheritanceTaxApi', () => {
     expect(result.estateValueJpy).toBe(115_000_000);
   });
 
+  it('法定相続人が受け取る死亡退職金に500万円×法定相続人数の非課税枠を適用する', () => {
+    const result = calculateInheritanceTaxApi({
+      estateValueJpy: 200_000_000,
+      familyComposition: { hasSpouse: true, selectedRank: 'rank1', heirCount: 2 },
+      retirementAllowance: {
+        surrenderValueJpy: 10_000_000,
+        contracts: [{ deathBenefitJpy: 30_000_000, recipientIsLegalHeir: true }],
+      },
+    });
+
+    expect(result.retirementNonTaxableLimitJpy).toBe(15_000_000);
+    expect(result.retirementNonTaxableAmountJpy).toBe(15_000_000);
+    expect(result.retirementTaxableDeathBenefitJpy).toBe(15_000_000);
+    // 2億 − 解約手当金1,000万 ＋ 課税対象1,500万
+    expect(result.estateValueJpy).toBe(205_000_000);
+  });
+
+  it('法定相続人以外が受け取る死亡退職金には非課税枠を適用しない', () => {
+    const result = calculateInheritanceTaxApi({
+      estateValueJpy: 100_000_000,
+      familyComposition: { hasSpouse: true, selectedRank: 'rank1', heirCount: 1 },
+      retirementAllowance: {
+        surrenderValueJpy: 5_000_000,
+        contracts: [{ deathBenefitJpy: 20_000_000, recipientIsLegalHeir: false }],
+      },
+    });
+
+    expect(result.retirementNonTaxableAmountJpy).toBe(0);
+    expect(result.retirementTaxableDeathBenefitJpy).toBe(20_000_000);
+    expect(result.estateValueJpy).toBe(115_000_000);
+  });
+
+  it('死亡保険金と死亡退職金の非課税枠はそれぞれ別枠で適用する', () => {
+    const result = calculateInheritanceTaxApi({
+      estateValueJpy: 200_000_000,
+      familyComposition: { hasSpouse: true, selectedRank: 'rank1', heirCount: 2 },
+      lifeInsurance: {
+        surrenderValueJpy: 0,
+        contracts: [{ deathBenefitJpy: 30_000_000, beneficiaryIsLegalHeir: true }],
+      },
+      retirementAllowance: {
+        surrenderValueJpy: 0,
+        contracts: [{ deathBenefitJpy: 30_000_000, recipientIsLegalHeir: true }],
+      },
+    });
+
+    // 1,500万円の非課税枠を保険・退職金それぞれに適用する（合算して1,500万円ではない）
+    expect(result.insuranceNonTaxableAmountJpy).toBe(15_000_000);
+    expect(result.retirementNonTaxableAmountJpy).toBe(15_000_000);
+    // 2億 ＋ 課税対象1,500万 ＋ 課税対象1,500万
+    expect(result.estateValueJpy).toBe(230_000_000);
+  });
+
   it('相続順位と人数の矛盾を拒否する', () => {
     const parsed = parseInheritanceTaxApiRequest({
       estateValueJpy: 100_000_000,

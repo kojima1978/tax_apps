@@ -85,6 +85,32 @@ describe("createInheritanceTaxRequest", () => {
     });
   });
 
+  it("退職金の解約手当金・死亡退職金・非課税枠対象をAPIへ渡す", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      snapshots: [{
+        ...portfolio.snapshots[0],
+        positions: [
+          ...portfolio.snapshots[0].positions,
+          {
+            side: "ASSET",
+            category: "RETIREMENT_ALLOWANCE",
+            valueJpy: 5_000_000,
+            fxRate: 1,
+            assetDetails: { retirementAllowance: 20_000_000, retirementRecipientIsLegalHeir: true },
+          },
+        ],
+      }],
+    } as Portfolio);
+
+    expect(result.request.retirementAllowance).toEqual({
+      surrenderValueJpy: 5_000_000,
+      contracts: [{ deathBenefitJpy: 20_000_000, recipientIsLegalHeir: true }],
+    });
+    // 退職金を持たない構成ではキー自体を送らない（生命保険と同じ扱い）。
+    expect(createInheritanceTaxRequest(portfolio).request.retirementAllowance).toBeUndefined();
+  });
+
   it("小規模宅地等の特例を選択した宅地は減額して遺産額へ反映する", () => {
     const result = createInheritanceTaxRequest({
       ...portfolio,

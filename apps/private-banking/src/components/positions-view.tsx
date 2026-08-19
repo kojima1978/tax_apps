@@ -5,11 +5,15 @@ import { DragEvent, KeyboardEvent, useMemo, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
 import { triangleYen, yen } from "@/lib/format";
 import {
+  type DeemedCategory,
   type Position,
   type PositionSection,
   type PositionSortMode,
   type Snapshot,
   categoryLabels,
+  deemedBenefit,
+  deemedConfig,
+  deemedInheritanceCategories,
   fiscalYearLabel,
   institutionOrPropertyAddress,
   middleClassification,
@@ -18,6 +22,13 @@ import {
 } from "@/lib/portfolio-view";
 
 const JPY_PER_MAN_YEN = 10_000;
+
+function DeemedBenefitNote({ position }: { position: Position }) {
+  const config = deemedConfig(position);
+  const benefit = deemedBenefit(position);
+  if (!config || benefit <= 0) return null;
+  return <small className="deemed-benefit-note">（{config.label} {yen.format(benefit)}）</small>;
+}
 
 const classificationTone: Record<string, string> = {
   金融資産: "financial",
@@ -34,19 +45,29 @@ export function AssetsView({ snapshot, snapshots, onSelectSnapshot, onCreateNext
   // 相続税は正味財産（資産合計 − 控除対象負債）に課されるため、負債は同率のマイナス（軽減）として扱い、
   // 資産の部と負債の部の差引が相続税総額と一致する。偶発債務はB/S外なので対象外。
   // 税額は連携計算値（totalInheritanceTax）を優先し、未計算なら手動の想定相続税へフォールバックする。
-  // 生命保険は課税価格に入るのが解約返戻金ではなく「死亡保険金 − 非課税限度額」なので、按分基準も
-  // 課税対象死亡保険金に揃える（分子の相続税総額が同じ基準で計算されているため）。非課税枠は相続人が
-  // 受け取る契約にだけ適用されるので、その死亡保険金で按分する。法定相続人数が分かるのは連携計算値が
+  // 生命保険・死亡退職金は課税価格に入るのが解約返戻金ではなく「給付金 − 非課税限度額」なので、按分基準も
+  // 課税対象の給付金に揃える（分子の相続税総額が同じ基準で計算されているため）。非課税枠は相続人が
+  // 受け取る契約にだけ適用されるので、その給付金で按分する。法定相続人数が分かるのは連携計算値が
   // ある場合だけなので、手動の想定相続税だけのときは従来どおり解約返戻金ベースのままとする。
   const calculation = snapshot.inheritanceTaxCalculation;
-  const deathBenefitJpy = (position: Position) => Math.round(((position.assetDetails?.deathBenefit ?? 0) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
-  const isHeirInsurance = (position: Position) => position.category === "INSURANCE" && position.assetDetails?.beneficiaryIsLegalHeir === true;
-  const heirDeathBenefit = calculation ? assets.filter(isHeirInsurance).reduce((sum, p) => sum + deathBenefitJpy(p), 0) : 0;
-  const nonTaxableRate = heirDeathBenefit > 0 ? Math.min(calculation?.insuranceNonTaxableAmountJpy ?? 0, heirDeathBenefit) / heirDeathBenefit : 0;
+  const benefitJpy = (position: Position) => Math.round((deemedBenefit(position) * position.fxRate) / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN;
+  const isHeirBenefit = (position: Position) => {
+    const config = deemedConfig(position);
+    return config ? position.assetDetails?.[config.heirKey] === true : false;
+  };
+  // 非課税枠は生命保険と死亡退職金で別枠なので、按分率も区分ごとに求める。
+  const nonTaxableAmounts: Record<DeemedCategory, number> = {
+    INSURANCE: calculation?.insuranceNonTaxableAmountJpy ?? 0,
+    RETIREMENT_ALLOWANCE: calculation?.retirementNonTaxableAmountJpy ?? 0,
+  };
+  const nonTaxableRates = new Map((Object.keys(deemedInheritanceCategories) as DeemedCategory[]).map((category) => {
+    const heirBenefit = calculation ? assets.filter((p) => p.category === category && isHeirBenefit(p)).reduce((sum, p) => sum + benefitJpy(p), 0) : 0;
+    return [category, heirBenefit > 0 ? Math.min(nonTaxableAmounts[category], heirBenefit) / heirBenefit : 0];
+  }));
   const taxableValue = (position: Position) => {
-    if (!calculation || position.category !== "INSURANCE") return position.valueJpy;
-    const deathBenefit = deathBenefitJpy(position);
-    return isHeirInsurance(position) ? Math.round(deathBenefit * (1 - nonTaxableRate)) : deathBenefit;
+    if (!calculation || !deemedConfig(position)) return position.valueJpy;
+    const benefit = benefitJpy(position);
+    return isHeirBenefit(position) ? Math.round(benefit * (1 - (nonTaxableRates.get(position.category as DeemedCategory) ?? 0))) : benefit;
   };
   const netEstate = assets.reduce((sum, p) => sum + taxableValue(p), 0) - liabilities.reduce((sum, p) => sum + taxableValue(p), 0);
   const totalInheritanceTax = calculation?.totalInheritanceTaxJpy ?? snapshot.estimatedInheritanceTax;
@@ -202,7 +223,7 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
                   <small className="position-meta">{[institutionOrPropertyAddress(p), p.valuationMethod].filter(Boolean).join(" ／ ")}</small></td>
                 <td data-label="所在地・金融機関等" title={institutionOrPropertyAddress(p) || undefined}>{institutionOrPropertyAddress(p) || "—"}</td>
                 <td data-label="評価方法" title={valuationBreakdown(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationBreakdown(p) ? <small className="valuation-breakdown">{valuationBreakdown(p)}</small> : null}</td>
-                <td data-label="円換算時価" className="number"><strong>{yen.format(p.valueJpy)}</strong>{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}{p.category === "INSURANCE" && p.assetDetails?.deathBenefit ? <small className="insurance-death-benefit">（死亡保険金 {yen.format(p.assetDetails.deathBenefit)}）</small> : null}</td>
+                <td data-label="円換算時価" className="number"><strong>{yen.format(p.valueJpy)}</strong>{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}<DeemedBenefitNote position={p} /></td>
                 <td data-label="相続税負担額" className="number">{burden === null ? <span className="tax-burden-empty">—</span> : <span className={burden < 0 ? "tax-burden-negative" : undefined}>{triangleYen(burden)}</span>}</td>
                 <td data-label="操作"><div className="table-actions"><button className="row-action edit" title="修正" aria-label={`${p.name}を修正`} onClick={() => onEdit(p)}><Pencil /><span className="sr-only">修正</span></button><button className="row-action delete" title="削除" aria-label={`${p.name}を削除`} onClick={() => onDelete(p)}><Trash2 /><span className="sr-only">削除</span></button></div></td>
               </tr>
