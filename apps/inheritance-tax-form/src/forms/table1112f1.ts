@@ -258,7 +258,7 @@ function legendRows(ctx: Ctx, s: F1Sheet): GridCell[] {
   const [y0, y1, y2, y3, y4] = s.legend;
   const blockEnd = s.blocks[s.blocks.length - 1]! + s.sub[5];
   const rows = [ctx.row(y0, y1), ctx.row(y1, y2), ctx.row(y2, y3), ctx.row(y3, y4)];
-  const lefts = ['②　所在地番', '③　取得者の持分に\n　　応ずる宅地等の面積（㎡）', '④　取得者の持分に\n　　応ずる宅地等の価額（円）'];
+  const lefts = ['②　所在地番', '③　取得者の持分に応ずる宅地等の面積（㎡）', '④　取得者の持分に応ずる宅地等の価額（円）'];
   const rights = [
     '⑤　③のうち小規模宅地等（「限度面積要件」を満たす宅地等）の面積（㎡）',
     '⑥　④のうち小規模宅地等（④×⑤/③）の価額（円）',
@@ -267,9 +267,9 @@ function legendRows(ctx: Ctx, s: F1Sheet): GridCell[] {
   ];
   return [
     label(ctx.row(y0, blockEnd), col(X.L, X.SEL), '選択した小規模宅地等'),
-    label(rows[0]!, col(X.SEL, X.KIND), '小規模宅地等の種類'),
-    label(ctx.row(y1, y4), col(X.SEL, X.KIND), '（1〜4の番号を\n記入します。）', { fontSize: 6 }),
-    label(rows[0]!, col(X.KIND, X.NAME), '①　特例の適用を受ける取得者の氏名', { fontSize: 7 }),
+    // 見出しと注記は様式では1マス（罫線で分かれていない）
+    label(ctx.row(y0, y4), col(X.SEL, X.KIND), '小規模宅地等の種類\n\n（1〜4の番号を\n記入します。）', { fontSize: 7 }),
+    label(rows[0]!, col(X.KIND, X.NAME), '①　特例の適用を受ける取得者の氏名', { align: 'left', fontSize: 7 }),
     label(rows[0]!, col(X.NAME, X.MID), '事業内容', { fontSize: 7 }),
     ...lefts.map((text, i) => label(rows[i + 1]!, col(X.KIND, X.MID), text, { align: 'left', fontSize: 7 })),
     ...rights.map((text, i) => label(rows[i]!, col(X.MID, X.R), text, { align: 'left', fontSize: 7 })),
