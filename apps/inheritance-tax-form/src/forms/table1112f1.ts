@@ -345,20 +345,27 @@ function detailBlock(ctx: Ctx, s: F1Sheet, n: number, item: F1Item): GridCell[] 
 /** ○「限度面積要件」の判定（本表のみ） */
 function limitRows(ctx: Ctx): GridCell[] {
   const t = ctx.totals;
-  /** イ・ロの入力欄（コード・自動計算欄のキー・末尾に印字されている単位） */
+  /**
+   * イ・ロの入力欄。様式では「コード枠＋記入枠」が閉じた長方形で、単位（㎡≦330㎡ など）は
+   * その外側に印字されている。x はコード枠の左端・記入枠の左端・記入枠の右端・欄の右端。
+   */
   const limitCell = (
-    y: [number, number], x: readonly [number, number, number], codeName: string, key: string,
+    y: [number, number], x: readonly [number, number, number, number], codeName: string, key: string,
     unit: GridCell['rightLabel'], name: string, over: string,
   ): GridCell[] => [
     code(y, col(x[0], x[1]), codeName),
     mk(y, col(x[1], x[2]), {
       kind: 'input', field: `${t}${key}`, ariaLabel: name, decimalPlaces: 2, readOnly: true,
-      rightLabel: unit, highlightWhen: (g) => g(`${t}${over}`) === '1',
+      highlightWhen: (g) => g(`${t}${over}`) === '1',
     }),
+    // 単位は記入枠の外。上辺と左辺は様式に無いので描かず、行の下罫線と縦罫線だけ残す
+    mk(y, col(x[2], x[3]), { kind: 'label', rightLabel: unit, noBorderTop: true, noBorderLeft: true }),
   ];
-  const roA = [353, 374, 632] as const;
-  const roB = [632, 654, 912] as const;
-  const roC = [912, 933, 1213] as const;
+  const iA = [353, 374, 481.5, 568] as const;
+  const iB = [568, 589, 847, 998] as const;
+  const roA = [353, 374, 524.5, 632] as const;
+  const roB = [632, 653.5, 804, 912] as const;
+  const roC = [912, 933, 1083.5, 1213] as const;
   return [
     ...sectionHead(ctx, [1324, 1372.5], 0.55, '○　「限度面積要件」の判定', LIMIT_LEAD),
 
@@ -391,17 +398,20 @@ function limitRows(ctx: Ctx): GridCell[] {
 
     label(ctx.row(1500, 1559.5), col(138, 181), 'イ'),
     label(ctx.row(1500, 1559.5), col(181, 353), '小規模宅地等のうちに\n4　貸付事業用宅地等が\nない場合', { align: 'left', fontSize: 7 }),
-    label(ctx.row(1500, 1523.5), col(353, 568), '〔1の⑩の面積〕', { align: 'left', fontSize: 7 }),
-    label(ctx.row(1500, 1523.5), col(568, 998), '〔2の⑩及び3の⑩の面積の合計〕', { align: 'left', fontSize: 7 }),
-    ...limitCell(ctx.row(1523.5, 1559.5), [353, 374, 568], 'C11', 'f1i1', '㎡　≦　330㎡', '⑪イ 1の⑩の面積', 'f1ovI1'),
-    ...limitCell(ctx.row(1523.5, 1559.5), [568, 589, 998], 'C12', 'f1i2', '㎡　≦　400㎡', '⑪イ 2の⑩及び3の⑩の面積の合計', 'f1ovI2'),
+    // 見出し〔…〕の下に罫線は無い（1523.5 の横線は記入枠の上辺だけ）
+    label(ctx.row(1500, 1523.5), col(353, 568), '〔1の⑩の面積〕', { align: 'left', fontSize: 7, noBorderBottom: true }),
+    label(ctx.row(1500, 1523.5), col(568, 998), '〔2の⑩及び3の⑩の面積の合計〕', { align: 'left', fontSize: 7, noBorderBottom: true }),
+    ...limitCell(ctx.row(1523.5, 1559.5), iA, 'C11', 'f1i1', '㎡　≦　330㎡', '⑪イ 1の⑩の面積', 'f1ovI1'),
+    ...limitCell(ctx.row(1523.5, 1559.5), iB, 'C12', 'f1i2', '㎡　≦　400㎡', '⑪イ 2の⑩及び3の⑩の面積の合計', 'f1ovI2'),
     mk(ctx.row(1500, 1559.5), col(998, X.R), { diagonal: 'bltr' }),
 
     label(ctx.row(1559.5, 1619), col(138, 181), 'ロ'),
     label(ctx.row(1559.5, 1619), col(181, 353), '小規模宅地等のうちに\n4　貸付事業用宅地等が\nある場合', { align: 'left', fontSize: 7 }),
-    label(ctx.row(1559.5, 1583), col(353, 632), '〔1の⑩の面積〕', { align: 'left', fontSize: 7 }),
-    label(ctx.row(1559.5, 1583), col(632, 912), '〔2の⑩及び3の⑩の面積の合計〕', { align: 'left', fontSize: 7 }),
-    label(ctx.row(1559.5, 1583), col(912, X.R), '〔4の⑩の面積〕', { align: 'left', fontSize: 7 }),
+    // ロの見出しは3つの〔…〕が1本の帯に並ぶ（間に縦罫線が無い）ので、帯を1枚敷いて文字を重ねる
+    mk(ctx.row(1559.5, 1583), col(353, X.R), { noBorderBottom: true }),
+    label(ctx.row(1559.5, 1583), col(353, 632), '〔1の⑩の面積〕', { noBorder: true, align: 'left', fontSize: 7 }),
+    label(ctx.row(1559.5, 1583), col(632, 912), '〔2の⑩及び3の⑩の面積の合計〕', { noBorder: true, align: 'left', fontSize: 7 }),
+    label(ctx.row(1559.5, 1583), col(912, X.R), '〔4の⑩の面積〕', { noBorder: true, align: 'left', fontSize: 7 }),
     ...limitCell(ctx.row(1583, 1619), roA, 'C13', 'f1o1', ['㎡　×', { top: '200', bottom: '330' }, '　＋'], '⑪ロ 1の⑩の面積', 'f1ovO'),
     ...limitCell(ctx.row(1583, 1619), roB, 'C14', 'f1o2', ['㎡　×', { top: '200', bottom: '400' }, '　＋'], '⑪ロ 2の⑩及び3の⑩の面積の合計', 'f1ovO'),
     ...limitCell(ctx.row(1583, 1619), roC, 'C15', 'f1o3', '㎡　≦　200㎡', '⑪ロ 4の⑩の面積', 'f1ovO'),
