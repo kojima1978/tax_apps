@@ -4,6 +4,12 @@ import { lookupZipAddress } from '../../lib/zipAddress';
 import { cleanNumeric, displayNumeric, fixNumeric, normalizeInteger } from '../../lib/format';
 import { suffixedName, type AutoFill, type CodeSuffix } from '../../lib/codeLink';
 
+/** 分数（分子と分母を横線で上下に組む）。⑨の減額割合「80／100」や「200／330」など様式どおりの縦組み */
+export interface Fraction {
+  top: string;
+  bottom: string;
+}
+
 /**
  * グリッドセル定義（座標・サイズは様式全体に対する％）。
  * 株式評価明細書アプリの GridForm を、相続税申告書 第1表で使う機能だけに絞って移植したもの。
@@ -50,7 +56,9 @@ export interface GridCell {
   codeLabel?: string;                // 様式の識別コード（E01/G04等）をセル左上に小さく表示
   centeredPrefix?: string;           // 複数行見出しの左側で高さ中央に表示する項番
   cornerLabel?: string;              // 入力欄の左上に表示する固定ラベル（枠を持たないコード欄）
-  rightLabel?: string;               // セルの右端中央に表示する固定ラベル（末尾の「000」など）
+  /** セルの右端中央に表示する固定ラベル（末尾の「000」など）。配列にすると文字と分数を混ぜられる */
+  rightLabel?: string | readonly (string | Fraction)[];
+  fraction?: Fraction;               // セルの中身を分数だけで描く（⑨の減額割合）
   integerDigits?: number;            // 数字のみの最大桁数
   commaInteger?: boolean;            // 整数を3桁区切りカンマで表示
   commaNumber?: boolean;             // 整数部だけ3桁区切りにし、小数はそのまま表示（整数にも小数にもなる欄）
@@ -248,6 +256,24 @@ function DiagonalLine({ dir, className }: { dir: 'tlbr' | 'bltr'; className?: st
   );
 }
 
+/** 分子・分母を横線で上下に組む（様式の分数はすべてこの形） */
+function FractionText({ value }: { value: Fraction }) {
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.1, margin: '0 2px' }}>
+      <span style={{ padding: '0 2px' }}>{value.top}</span>
+      <span style={{ padding: '0 2px', borderTop: '0.5px solid #000' }}>{value.bottom}</span>
+    </span>
+  );
+}
+
+/** rightLabel が占める見た目の文字数（分数は縦に組むので広い方の桁数だけ数える） */
+function rightLabelLength(label: NonNullable<GridCell['rightLabel']>): number {
+  if (typeof label === 'string') return Array.from(label).length;
+  return label.reduce((n, part) => n + (typeof part === 'string'
+    ? Array.from(part).length
+    : Math.max(Array.from(part.top).length, Array.from(part.bottom).length)), 0);
+}
+
 interface SubInputProps {
   field: string;
   formId: string;
@@ -346,7 +372,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     const readOnlyComposite = composite && readOnly && !printRendering;
     const editable = Boolean(c.selectValue || c.toggleField || editableComposite || (c.kind === 'input' && c.field && !readOnly));
     const rightLabelPadding = c.rightLabel
-      ? Math.max(14, Array.from(c.rightLabel).length * 4.5 + 4)
+      ? Math.max(14, rightLabelLength(c.rightLabel) * 4.5 + 4)
       : 0;
     const borderStyle = c.dashed ? 'dashed' : 'solid';
     const borderWidth = c.borderWidth ?? (c.outline ? 1.5 : c.dashed ? 1 : 0.5);
@@ -422,7 +448,15 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
         {invalid && <span className="gf-cell__error no-print" aria-hidden="true">エラー</span>}
         {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
         {c.centeredPrefix && <span style={{ position: 'absolute', top: '50%', left: 2, transform: 'translateY(-50%)', lineHeight: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>{c.centeredPrefix}</span>}
-        {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
+        {c.rightLabel && (
+          <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+            {typeof c.rightLabel === 'string'
+              ? c.rightLabel
+              : c.rightLabel.map((part, partIndex) => (typeof part === 'string'
+                ? <span key={partIndex}>{part}</span>
+                : <FractionText key={partIndex} value={part} />))}
+          </span>
+        )}
         {/* 画面だけの入力欄は、印刷では中身を隠して様式どおりの斜線に差し替える */}
         {c.printDiagonal && <DiagonalLine dir={c.printDiagonal} className="print-only" />}
         <span className={c.printDiagonal ? 'no-print' : undefined} style={{ display: 'contents' }}>
@@ -548,6 +582,8 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
               )
             )}
           </>
+        ) : c.fraction ? (
+          <FractionText value={c.fraction} />
         ) : c.numberedNotes ? (
           <span className="gf-numbered-notes">
             {c.numberedNotes.map((note, index) => (

@@ -13,7 +13,7 @@
  * （続）: 上端 197.5px 〜 下端 1687px（左右は本表の px をそのまま使う）。
  */
 
-import type { GridCell } from '../components/ui/GridForm';
+import type { Fraction, GridCell } from '../components/ui/GridForm';
 import { code, label, mk } from './geometry';
 
 export const TABLE1112F1_FORM_CODE = 'NTA0KSE112010030';
@@ -88,7 +88,11 @@ const LIMIT_X: readonly (readonly [number, number, number])[] = [
   [353, 374, 568], [568, 589, 783], [783, 804, 998], [998, 1019, 1213],
 ];
 const LIMIT_KINDS = ['1　特定居住用宅地等', '2　特定事業用宅地等', '3　特定同族会社事業用宅地等', '4　貸付事業用宅地等'] as const;
-const LIMIT_RATES = ['80／100', '80／100', '80／100', '50／100'] as const;
+/** ⑨減額割合。様式では横線を挟んだ縦の分数で印字されている */
+const LIMIT_RATES: readonly Fraction[] = [
+  { top: '80', bottom: '100' }, { top: '80', bottom: '100' },
+  { top: '80', bottom: '100' }, { top: '50', bottom: '100' },
+];
 
 const INTRO = 'この表は、小規模宅地等の特例（租税特別措置法第69条の4第1項）の適用を受ける場合に記入します。'
   + 'なお、被相続人から、相続、遺贈又は相続時精算課税に係る贈与により取得した財産のうちに、'
@@ -112,17 +116,14 @@ const DETAIL_LEAD = 'この欄は、小規模宅地等の特例の対象とな�
 const DETAIL_KIND_NOTE = '「小規模宅地等の種類」欄は、選択した小規模宅地等の種類に応じて次の1〜4の番号を記入します。\n'
   + '　小規模宅地等の種類：1　特定居住用宅地等、2　特定事業用宅地等、3　特定同族会社事業用宅地等、4　貸付事業用宅地等';
 
-const NOTES = '（注）　1　①欄の「事業内容」は、選択した小規模宅地等が被相続人等の事業用宅地等'
-  + '（小規模宅地等の種類が2、3又は4）である場合に、相続開始の直前にその宅地等の上で行われていた'
-  + '被相続人等の事業について、例えば、飲食サービス業、法律事務所、貸家などのように具体的に記入します。\n'
-  + '　　　　2　小規模宅地等を選択する一の宅地等が共有である場合又は一の宅地等が貸家建付地である場合において、'
-  + 'その評価額の計算上「賃貸割合」が1でないときには、第11・11の2表の付表1（別表1）を作成します。\n'
-  + '　　　　3　小規模宅地等を選択する宅地等が、配偶者居住権に基づく敷地利用権又は'
-  + '配偶者居住権の目的となっている建物の敷地の用に供される宅地等である場合には、'
-  + '第11・11の2表の付表1（別表1の2）を作成します。\n'
-  + '　　　　4　⑧欄の金額を第11表の付表1の「財産の明細」の「価額」欄に転記します。';
+const NOTES: NonNullable<GridCell['numberedNotes']> = [
+  { number: '1', body: '①欄の「事業内容」は、選択した小規模宅地等が被相続人等の事業用宅地等（小規模宅地等の種類が2、3又は4）である場合に、相続開始の直前にその宅地等の上で行われていた被相続人等の事業について、例えば、飲食サービス業、法律事務所、貸家などのように具体的に記入します。' },
+  { number: '2', body: '小規模宅地等を選択する一の宅地等が共有である場合又は一の宅地等が貸家建付地である場合において、その評価額の計算上「賃貸割合」が1でないときには、第11・11の2表の付表1（別表1）を作成します。' },
+  { number: '3', body: '小規模宅地等を選択する宅地等が、配偶者居住権に基づく敷地利用権又は配偶者居住権の目的となっている建物の敷地の用に供される宅地等である場合には、第11・11の2表の付表1（別表1の2）を作成します。' },
+  { number: '4', body: '⑧欄の金額を第11表の付表1の「財産の明細」の「価額」欄に転記します。' },
+];
 
-const LIMIT_LEAD = '上記「2　小規模宅地等の明細」の⑤欄で選択した宅地等の全てが限度面積要件を満たすものであることを、'
+const LIMIT_LEAD = '　　上記「2　小規模宅地等の明細」の⑤欄で選択した宅地等の全てが限度面積要件を満たすものであることを、'
   + 'この表の各欄を記入することにより判定します。';
 const LIMIT_NOTE = '（注）　限度面積は、小規模宅地等の種類（「4　貸付事業用宅地等」の選択の有無）に応じて、'
   + '⑪欄（イ又はロ）により判定を行います。「限度面積要件」を満たす場合に限り、この特例の適用を受けることができます。';
@@ -221,12 +222,15 @@ interface Ctx {
 }
 
 /** 「1 …」「2 …」の章見出し（太字の見出しと、その下に続く説明文） */
-function sectionHead(ctx: Ctx, span: readonly [number, number], ratio: number, heading: string, lead: string): GridCell[] {
-  const split = span[0] + (span[1] - span[0]) * ratio;
+function sectionHead(
+  ctx: Ctx, span: readonly [number, number], ratio: number, heading: string, lead: string, leadRatio = 1,
+): GridCell[] {
+  const at = (r: number): number => span[0] + (span[1] - span[0]) * r;
+  const split = at(ratio);
   return [
     mk(ctx.row(span[0], span[1]), col(X.L, X.R), {}),
     label(ctx.row(span[0], split), col(X.L, X.R), heading, { noBorder: true, align: 'left', bold: true, fontSize: 9 }),
-    label(ctx.row(split, span[1]), col(X.L, X.R), lead, { noBorder: true, align: 'left', fontSize: 7 }),
+    label(ctx.row(split, at(leadRatio)), col(X.L, X.R), lead, { noBorder: true, align: 'left', fontSize: 7 }),
   ];
 }
 
@@ -344,7 +348,7 @@ function limitRows(ctx: Ctx): GridCell[] {
   /** イ・ロの入力欄（コード・自動計算欄のキー・末尾に印字されている単位） */
   const limitCell = (
     y: [number, number], x: readonly [number, number, number], codeName: string, key: string,
-    unit: string, name: string, over: string,
+    unit: GridCell['rightLabel'], name: string, over: string,
   ): GridCell[] => [
     code(y, col(x[0], x[1]), codeName),
     mk(y, col(x[1], x[2]), {
@@ -367,7 +371,7 @@ function limitRows(ctx: Ctx): GridCell[] {
     label(ctx.row(1421, 1464.5), col(X.BAND, 353), '⑨　減額割合'),
     ...LIMIT_X.flatMap(([left, , right], k): GridCell[] => [
       label(ctx.row(1397, 1421), col(left, right), LIMIT_KINDS[k]!, { fontSize: 7 }),
-      label(ctx.row(1421, 1464.5), col(left, right), LIMIT_RATES[k]!),
+      mk(ctx.row(1421, 1464.5), col(left, right), { kind: 'label', fraction: LIMIT_RATES[k]! }),
     ]),
 
     // ⑩ ⑤の小規模宅地等の面積の合計（全枚数を通した種類ごとの合計）
@@ -398,8 +402,8 @@ function limitRows(ctx: Ctx): GridCell[] {
     label(ctx.row(1559.5, 1583), col(353, 632), '〔1の⑩の面積〕', { align: 'left', fontSize: 7 }),
     label(ctx.row(1559.5, 1583), col(632, 912), '〔2の⑩及び3の⑩の面積の合計〕', { align: 'left', fontSize: 7 }),
     label(ctx.row(1559.5, 1583), col(912, X.R), '〔4の⑩の面積〕', { align: 'left', fontSize: 7 }),
-    ...limitCell(ctx.row(1583, 1619), roA, 'C13', 'f1o1', '㎡×200／330　＋', '⑪ロ 1の⑩の面積', 'f1ovO'),
-    ...limitCell(ctx.row(1583, 1619), roB, 'C14', 'f1o2', '㎡×200／400　＋', '⑪ロ 2の⑩及び3の⑩の面積の合計', 'f1ovO'),
+    ...limitCell(ctx.row(1583, 1619), roA, 'C13', 'f1o1', ['㎡　×', { top: '200', bottom: '330' }, '　＋'], '⑪ロ 1の⑩の面積', 'f1ovO'),
+    ...limitCell(ctx.row(1583, 1619), roB, 'C14', 'f1o2', ['㎡　×', { top: '200', bottom: '400' }, '　＋'], '⑪ロ 2の⑩及び3の⑩の面積の合計', 'f1ovO'),
     ...limitCell(ctx.row(1583, 1619), roC, 'C15', 'f1o3', '㎡　≦　200㎡', '⑪ロ 4の⑩の面積', 'f1ovO'),
 
     label(ctx.row(1619, 1657), col(X.L, X.R), LIMIT_NOTE, { align: 'left', fontSize: 7 }),
@@ -436,14 +440,20 @@ export function buildTable1112f1(
 
     ...(s.intro ? [label(row(s.intro[0], s.intro[1]), col(X.L, X.R), INTRO, { align: 'left', fontSize: 7 })] : []),
     ...agreeRows(ctx, s, sheet),
-    ...sectionHead(ctx, s.detailHead, 0.24, '2　小規模宅地等の明細', DETAIL_LEAD),
+    // 2の説明文は種類の注記（0.52から）の上の帯に収める
+    ...sectionHead(ctx, s.detailHead, 0.24, '2　小規模宅地等の明細', DETAIL_LEAD, 0.52),
     label(
       row(s.detailHead[0] + (s.detailHead[1] - s.detailHead[0]) * 0.52, s.detailHead[1]),
       col(X.KIND, X.R), DETAIL_KIND_NOTE, { noBorder: true, align: 'left', fontSize: 7 },
     ),
+    // 注記から種類欄へ下りる矢印（様式では注記の左端から折れて下を指す）
+    label(
+      row(s.detailHead[0] + (s.detailHead[1] - s.detailHead[0]) * 0.52, s.detailHead[1]),
+      col(X.SEL, X.KIND), '↓', { noBorder: true, align: 'center', fontSize: 12 },
+    ),
     ...legendRows(ctx, s),
     ...items.flatMap((item, n) => detailBlock(ctx, s, n, item)),
-    label(row(s.notes[0], s.notes[1]), col(X.L, X.R), NOTES, { align: 'left', fontSize: 7 }),
+    mk(row(s.notes[0], s.notes[1]), col(X.L, X.R), { kind: 'label', numberedNotes: NOTES, align: 'left', fontSize: 7 }),
     ...(s.limit === true ? [mk(row(1318.5, 1324), col(X.L, X.R), { noBorder: true }), ...limitRows(ctx)] : []),
   ];
 }
