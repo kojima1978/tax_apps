@@ -415,6 +415,8 @@ export function buildTable112(
     ...sectionHead(1032.5, 1107, '2　相続時精算課税適用財産（1の③）の明細', '（上記1の「番号」欄の番号に合わせて記入します。）'),
     ...detailHead(),
     ...detailRows(prefix, who, page),
+    // ①贈与年月日の欄は表頭から明細の最終行まで太枠で囲む（様式の見た目に合わせる）
+    mk(row(1107, DETAIL_TOP + TABLE112_ROWS * ROW_H), col(X.N_C, X.D_R), { outline: true }),
     numberedNotes(row(1528, 1622.5), DETAIL_NOTES),
   ];
 }
