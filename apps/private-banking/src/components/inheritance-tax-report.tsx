@@ -1,4 +1,4 @@
-import { AlertTriangle, Calculator, LoaderCircle, RefreshCw, ShieldCheck, Users } from "lucide-react";
+import { AlertTriangle, Calculator, LoaderCircle, RefreshCw, ShieldCheck } from "lucide-react";
 import { legalHeirRoster } from "@/lib/family";
 import { compactYen, dateJa } from "@/lib/format";
 import type { InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
@@ -7,23 +7,6 @@ import { fiscalYearLabel, totals, type Portfolio, type Snapshot } from "@/lib/po
 type HeirCalculation = InheritanceTaxCalculation["heirs"][number];
 
 const yen = (value: number) => (value === 0 ? "0円" : compactYen(value));
-
-// 受取人別内訳の列。2割加算・配偶者の税額軽減・みなし相続財産は使わない構成も多く、
-// 常に出すと横幅だけ食うので optional にして「誰かに金額がある列」だけ表示する。
-const heirColumns: Array<{
-  key: string;
-  label: string;
-  optional?: boolean;
-  emphasis?: boolean;
-  value: (heir: HeirCalculation) => number;
-}> = [
-  { key: "acquisition", label: "取得額", value: (heir) => heir.acquisitionAmountJpy },
-  { key: "deemed", label: "うち保険金・退職金", optional: true, value: (heir) => heir.deemedTaxableJpy },
-  { key: "proportional", label: "按分税額", value: (heir) => heir.proportionalTaxJpy },
-  { key: "surcharge", label: "2割加算", optional: true, value: (heir) => heir.surchargeAmountJpy },
-  { key: "spouseDeduction", label: "配偶者の税額軽減", optional: true, value: (heir) => heir.spouseDeductionJpy },
-  { key: "final", label: "納付税額", emphasis: true, value: (heir) => heir.finalTaxJpy },
-];
 
 function MoneyRow({
   label,
@@ -46,12 +29,14 @@ function MoneyRow({
 }
 
 /**
- * 誰がいくら取得し、いくら納めるかの内訳。
+ * 誰がいくら取得し、いくら納めるかを計算根拠へ添える最小限の表。
  * 死亡保険金・死亡退職金は遺産分割の対象ではなく受取人固有の権利なので受取人へ帰属させ、
- * 残りの財産を法定相続分で按分している。取得割合が変わると配偶者の税額軽減も変わるため、
- * 相続税の総額が同じでも納付税額はこの表でしか読み取れない。
+ * 残りの財産を法定相続分で按分している。相続税の総額が同じでも取得割合によって
+ * 配偶者の税額軽減と2割加算が動くため、納付税額は人ごとにしか読み取れない。
+ * 按分税額・2割加算・配偶者の税額軽減は概算計算の欄に総額で出ているので、
+ * ここは結果（取得額と納付税額）だけに絞る。
  */
-function HeirBreakdownTable({
+function HeirSummary({
   heirs,
   familyMembers,
 }: {
@@ -65,35 +50,29 @@ function HeirBreakdownTable({
     const order = Number(id?.split("-").pop());
     return Number.isInteger(order) ? roster.heirNames[order - 1] ?? null : null;
   };
-  const columns = heirColumns.filter((column) => !column.optional || heirs.some((heir) => column.value(heir) > 0));
-  const cell = (column: typeof heirColumns[number], value: number) =>
-    <td key={column.key}>{column.emphasis ? <strong>{yen(value)}</strong> : yen(value)}</td>;
 
-  return <article className="tax-calc-heirs">
-    <h3><Users />受取人別の内訳</h3>
+  return <div className="tax-calc-heir-summary">
+    <strong>受取人ごとの取得額・納付税額</strong>
     <table>
       <thead>
-        <tr><th scope="col">相続人</th>{columns.map((column) => <th key={column.key} scope="col">{column.label}</th>)}</tr>
+        <tr><th scope="col">相続人</th><th scope="col">取得額</th><th scope="col">納付税額</th></tr>
       </thead>
       <tbody>
+        {/* 取得額は各人を1万円単位で切り捨てて按分するため、合計しても課税価格の合計額に
+            数万円届かない。誤解を招くので合計行は置かない（納付税額の総額は概算計算の欄にある）。 */}
         {heirs.map((heir, index) => {
+          // 続柄（子1・子2…）は氏名が未登録でも重複していても行を見分けられる唯一の手掛かりなので、
+          // 氏名を出せたときも添える。
           const name = nameOf(heir.id);
           return <tr key={heir.id ?? index}>
             <th scope="row">{name ?? heir.label}{name ? <small>{heir.label}</small> : null}</th>
-            {columns.map((column) => cell(column, column.value(heir)))}
+            <td>{yen(heir.acquisitionAmountJpy)}</td>
+            <td><strong>{yen(heir.finalTaxJpy)}</strong></td>
           </tr>;
         })}
-        {/* 取得額は各人を1万円単位で切り捨てて按分するため、合計すると課税価格の合計額に
-            数万円届かないことがある。誤解を招くので、合計は納付税額の列だけ出す（計算ページと同じ扱い）。 */}
-        <tr className="tax-calc-heirs-total">
-          <th scope="row">合計</th>
-          {columns.map((column) => (column.emphasis
-            ? cell(column, heirs.reduce((sum, heir) => sum + column.value(heir), 0))
-            : <td key={column.key} />))}
-        </tr>
       </tbody>
     </table>
-  </article>;
+  </div>;
 }
 
 export function InheritanceTaxReport({
@@ -181,16 +160,15 @@ export function InheritanceTaxReport({
           {calculation.retirementDeathBenefitJpy > 0 ? <li><strong>死亡退職金の非課税額</strong><p>500万円 × 法定相続人 {calculation.legalHeirCount}人 ＝ {compactYen(calculation.retirementNonTaxableLimitJpy)}（対象退職金が上限）。生命保険金とは別枠で適用します。</p></li> : null}
           <li><strong>基礎控除額</strong><p>3,000万円 ＋ 600万円 × {calculation.legalHeirCount}人 ＝ {compactYen(calculation.basicDeductionJpy)}。</p></li>
           <li><strong>相続税の総額</strong><p>課税遺産総額を法定相続分で按分し、各法定取得額に速算税率を適用して合計。</p></li>
-          <li><strong>税額の軽減・加算</strong><p>取得額に応じて按分し、配偶者の税額軽減と兄弟姉妹等の2割加算を反映。</p></li>
+          <li><strong>各人の取得額と納付税額</strong><p>{deemedAttributed > 0 ? "死亡保険金・死亡退職金は受取人へ帰属させ、残りの財産を法定相続分で按分。" : "財産を法定相続分で按分。"}取得額に応じて相続税の総額を割り振り、配偶者の税額軽減と兄弟姉妹等の2割加算を反映。</p></li>
         </ol>
+        {calculation.heirs.length > 0 ? <HeirSummary heirs={calculation.heirs} familyMembers={familyMembers} /> : null}
         <div className="tax-calc-assumptions">
           <strong>概算に含めていない主な項目</strong>
           <p>{smallLotReduction > 0 ? "葬式費用、生前贈与加算、未成年者・障害者控除、相次相続控除、外国税額控除（小規模宅地等の特例は選択宅地に概算適用）" : "小規模宅地等の特例、葬式費用、生前贈与加算、未成年者・障害者控除、相次相続控除、外国税額控除"}</p>
         </div>
       </article>
     </div>
-
-    {calculation.heirs.length > 0 ? <HeirBreakdownTable heirs={calculation.heirs} familyMembers={familyMembers} /> : null}
 
     <footer className="tax-calc-notes">
       <p>※ {calculation.warnings.join(" ")}</p>
