@@ -192,7 +192,16 @@ Content-Type: application/json
     "contracts": [
       {
         "deathBenefitJpy": 30000000,
-        "beneficiaryIsLegalHeir": true
+        "recipient": { "kind": "spouse" }
+      }
+    ]
+  },
+  "retirementAllowance": {
+    "surrenderValueJpy": 5000000,
+    "contracts": [
+      {
+        "deathBenefitJpy": 20000000,
+        "recipient": { "kind": "heir", "index": 0 }
       }
     ]
   }
@@ -201,7 +210,15 @@ Content-Type: application/json
 
 `selectedRank` は `none`、`rank1`（子）、`rank2`（直系尊属）、`rank3`（兄弟姉妹）のいずれかです。`spouseAcquisition` を省略した場合は法定相続分で計算します。配偶者取得割合を指定する場合は0〜100%にしてください。
 
-`lifeInsurance` は省略できます。指定した場合、`estateValueJpy` に含まれる解約返戻金を `surrenderValueJpy` で差し引き、死亡保険金へ置き換えます。`beneficiaryIsLegalHeir` が `true` の契約には、全契約を通じて「500万円 × 法定相続人数」を上限とする非課税枠を適用します。
+`lifeInsurance` と `retirementAllowance` はどちらも省略できます。指定した場合、`estateValueJpy` に含まれる解約返戻金（解約手当金）を `surrenderValueJpy` で差し引き、死亡保険金・死亡退職金へ置き換えます。非課税枠「500万円 × 法定相続人数」は生命保険金と死亡退職金でそれぞれ別枠に適用し、法定相続人が受け取る契約だけを対象として受取額に比例配分します。
+
+`recipient` は契約ごとに必須で、次の3種類です。
+
+- `{ "kind": "spouse" }`: 配偶者（`familyComposition.hasSpouse` が `true` のときだけ指定できます）
+- `{ "kind": "heir", "index": 0 }`: 配偶者を除く法定相続人。`index` は0始まりで、`familyComposition.heirCount` 未満である必要があります
+- `{ "kind": "other" }`: 法定相続人以外（孫・甥姪・第三者など）
+
+死亡保険金・死亡退職金は遺産分割の対象ではなく受取人固有の権利なので、非課税枠を控除した課税対象額を受取人の取得額へ直接加算し、残りの財産（`divisibleEstateJpy`）だけを法定相続分で按分します。相続税の総額は課税価格の合計額から決まるため受取人の指定では変わりませんが、各人の取得額が変わることで按分税額・2割加算・配偶者の税額軽減が変わり、納付税額は変動します。`{ "kind": "other" }` の分は課税価格には加算しますが受取人へは帰属させず、法定相続人だけで按分します（相続人以外の取得者としての税額計算は行いません）。
 
 主なレスポンス項目:
 
@@ -212,7 +229,9 @@ Content-Type: application/json
 - `effectiveTaxRate`: 控除後の実効税率
 - `insuranceNonTaxableAmountJpy`: 実際に適用した死亡保険金の非課税額
 - `insuranceTaxableDeathBenefitJpy`: 非課税枠適用後の課税対象死亡保険金
-- `heirs`: 相続人ごとの取得額、控除額、最終税額
+- `retirementNonTaxableAmountJpy` / `retirementTaxableDeathBenefitJpy`: 死亡退職金の同項目
+- `divisibleEstateJpy`: 課税価格の合計額のうち、法定相続分で按分する部分（受取人へ帰属させた分を除いた額）
+- `heirs`: 相続人ごとの取得額、控除額、最終税額（`deemedBenefitJpy` / `deemedNonTaxableJpy` / `deemedTaxableJpy` に、その人へ帰属させた死亡保険金・死亡退職金の内訳が入ります）
 
 環境変数 `INHERITANCE_TAX_API_KEY` を設定すると、`Authorization: Bearer <APIキー>` が必須になります。未設定のローカル開発環境では認証なしで利用できます。
 

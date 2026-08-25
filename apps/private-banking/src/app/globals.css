@@ -681,7 +681,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .tax-calc-columns { margin-top: 16px; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 18px; }
 .tax-calc-statement, .tax-calc-basis, .tax-calc-heirs { min-width: 0; border: 1px solid #d7e2dc; border-radius: 8px; overflow: hidden; }
 .tax-calc-statement h3, .tax-calc-basis h3, .tax-calc-heirs h3 { min-height: 39px; margin: 0; padding: 8px 12px; color: #fff; background: #183f34; display: flex; align-items: center; gap: 7px; font-size: 12px; }
-.tax-calc-statement h3 svg, .tax-calc-basis h3 svg { width: 15px; height: 15px; }
+.tax-calc-statement h3 svg, .tax-calc-basis h3 svg, .tax-calc-heirs h3 svg { width: 15px; height: 15px; }
 .tax-calc-money-list { padding: 6px 12px 10px; }
 .tax-calc-money-row { min-height: 28px; padding: 4px 2px; border-bottom: 1px solid #e2e8e5; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: baseline; gap: 4px; font-size: 11px; }
 .tax-calc-money-row strong { color: #263b34; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -733,6 +733,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .tax-calc-heirs tbody th, .tax-calc-heirs thead th:first-child { text-align: left; }
 .tax-calc-heirs tbody tr:last-child th, .tax-calc-heirs tbody tr:last-child td { border-bottom: 0; }
 .tax-calc-heirs td:last-child strong { color: #14532d; }
+.tax-calc-heirs tbody th small { margin-left: 5px; color: #6f8279; font-size: 9px; font-weight: 600; }
+.tax-calc-heirs-total th, .tax-calc-heirs-total td { background: #f4f8f6; font-weight: 800; }
 .tax-calc-no-tax { margin: 0; padding: 20px; color: #166534; background: #f0fdf4; font-size: 12px; font-weight: 800; text-align: center; }
 .tax-calc-notes { margin-top: 10px; color: var(--slate-500); font-size: 9px; line-height: 1.55; }
 .tax-calc-notes p { margin: 2px 0; }

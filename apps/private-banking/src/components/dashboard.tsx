@@ -757,7 +757,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             </div> : null}
             {reportSnapshot.inheritanceTaxCalculation
               ? <>
-                <InheritanceTaxReport household={portfolio.household} snapshot={reportSnapshot} planning={portfolio.planning} calculation={reportSnapshot.inheritanceTaxCalculation} onRecalculate={section === "tax" && reportSnapshot.isCurrent ? () => void calculateInheritanceTaxViaApi() : undefined} recalculating={taxApiStatus === "loading"} />
+                <InheritanceTaxReport household={portfolio.household} snapshot={reportSnapshot} planning={portfolio.planning} familyMembers={portfolio.familyMembers} calculation={reportSnapshot.inheritanceTaxCalculation} onRecalculate={section === "tax" && reportSnapshot.isCurrent ? () => void calculateInheritanceTaxViaApi() : undefined} recalculating={taxApiStatus === "loading"} />
                 {section === "tax" && portfolio.planning.hasSpouse && portfolio.planning.heirRank === "rank1" ? <SecondaryInheritanceSimulator householdId={portfolio.household.id} /> : null}
               </>
               : section === "tax" ? <div className="tax-empty-state" role="note"><Calculator /><p>まだ相続税の概算を計算していません。</p><p>{reportSnapshot.isCurrent ? "上のボタンから、現在のB/Sと親族関係をもとに概算税額を計算できます。" : "概算は現在年度のB/Sで計算してください。"}</p></div>

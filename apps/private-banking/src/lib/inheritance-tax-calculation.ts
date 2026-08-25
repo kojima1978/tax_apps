@@ -21,6 +21,11 @@ const heirCalculationSchema = z.object({
   taxBeforeDeductionsJpy: nonNegativeJpy,
   spouseDeductionJpy: nonNegativeJpy,
   finalTaxJpy: nonNegativeJpy,
+  // 受取人へ帰属させた死亡保険金・死亡退職金。後から追加した項目なので、
+  // これ以前に保存した計算結果でも読めるよう既定値0にする。
+  deemedBenefitJpy: nonNegativeJpy.default(0),
+  deemedNonTaxableJpy: nonNegativeJpy.default(0),
+  deemedTaxableJpy: nonNegativeJpy.default(0),
 });
 
 export const inheritanceTaxApiCalculationSchema = z.object({
@@ -33,6 +38,9 @@ export const inheritanceTaxApiCalculationSchema = z.object({
   legalHeirCount: z.number().int().min(0).max(21),
   inputEstateValueJpy: nonNegativeJpy,
   estateValueJpy: nonNegativeJpy,
+  // 課税価格の合計額のうち、法定相続分で按分する部分（みなし相続財産を除いた額）。
+  // 受取人帰属より前に保存した計算結果でも読めるよう既定値0にする。
+  divisibleEstateJpy: nonNegativeJpy.default(0),
   insuranceSurrenderValueJpy: nonNegativeJpy,
   insuranceDeathBenefitJpy: nonNegativeJpy,
   insuranceNonTaxableLimitJpy: nonNegativeJpy,

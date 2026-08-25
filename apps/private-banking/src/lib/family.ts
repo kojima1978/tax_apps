@@ -75,19 +75,28 @@ export function familyComposition(members: Pick<FamilyMemberDraft, "relationship
 }
 
 /**
- * 法定相続人にあたる親族の氏名。生命保険金・死亡退職金の非課税枠は、
- * 法定相続人が受け取る分にだけ適用されるため、受取人の判定に使う。
+ * 法定相続人の並び。配偶者と、選択中の相続順位の親族を members の並び順のまま返す。
+ * 相続税APIは相続人を人数でしか受け取らないため、死亡保険金・死亡退職金の受取人は
+ * 「何番目の相続人か」で指定する。その index の定義元はこの並びだけにする。
  * 判定基準は familyComposition と同じ（相続で取得する配偶者＋選択中の相続順位の親族）。
  */
-export function legalHeirNames(members: Pick<FamilyMemberDraft, "name" | "relationship" | "acquisitionReason">[]) {
+export function legalHeirRoster(members: Pick<FamilyMemberDraft, "name" | "relationship" | "acquisitionReason">[]) {
   const { heirRank } = familyComposition(members);
   const selected = heirRank === "rank1" ? rank1 : heirRank === "rank2" ? rank2 : heirRank === "rank3" ? rank3 : new Set<Relationship>();
-  return new Set(
-    members
-      .filter((member) => member.acquisitionReason === "INHERITANCE" && (member.relationship === "SPOUSE" || selected.has(member.relationship)))
-      .map((member) => member.name.trim())
-      .filter(Boolean),
-  );
+  const eligible = members.filter((member) => member.acquisitionReason === "INHERITANCE" && member.name.trim());
+  return {
+    spouseNames: eligible.filter((member) => member.relationship === "SPOUSE").map((member) => member.name.trim()),
+    heirNames: eligible.filter((member) => selected.has(member.relationship)).map((member) => member.name.trim()),
+  };
+}
+
+/**
+ * 法定相続人にあたる親族の氏名。生命保険金・死亡退職金の非課税枠は、
+ * 法定相続人が受け取る分にだけ適用されるため、受取人の判定に使う。
+ */
+export function legalHeirNames(members: Pick<FamilyMemberDraft, "name" | "relationship" | "acquisitionReason">[]) {
+  const { spouseNames, heirNames } = legalHeirRoster(members);
+  return new Set([...spouseNames, ...heirNames]);
 }
 
 function share(numerator: number, denominator: number) {

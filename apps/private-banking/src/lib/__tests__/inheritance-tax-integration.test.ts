@@ -85,7 +85,7 @@ describe("createInheritanceTaxRequest", () => {
 
     expect(result.request.lifeInsurance).toEqual({
       surrenderValueJpy: 10_000_000,
-      contracts: [{ deathBenefitJpy: 30_000_000, beneficiaryIsLegalHeir: true }],
+      contracts: [{ deathBenefitJpy: 30_000_000, recipient: { kind: "spouse" } }],
     });
   });
 
@@ -109,13 +109,13 @@ describe("createInheritanceTaxRequest", () => {
 
     expect(result.request.retirementAllowance).toEqual({
       surrenderValueJpy: 5_000_000,
-      contracts: [{ deathBenefitJpy: 20_000_000, recipientIsLegalHeir: true }],
+      contracts: [{ deathBenefitJpy: 20_000_000, recipient: { kind: "spouse" } }],
     });
     // 退職金を持たない構成ではキー自体を送らない（生命保険と同じ扱い）。
     expect(createInheritanceTaxRequest(portfolio).request.retirementAllowance).toBeUndefined();
   });
 
-  it("受取人が法定相続人でなければ非課税枠の対象にしない", () => {
+  it("受取人が法定相続人でなければ受取人へ帰属させず、非課税枠の対象にもしない", () => {
     const result = createInheritanceTaxRequest({
       ...portfolio,
       snapshots: [{
@@ -130,10 +130,12 @@ describe("createInheritanceTaxRequest", () => {
       }],
     } as Portfolio);
 
-    expect(result.request.lifeInsurance?.contracts).toEqual([{ deathBenefitJpy: 10_000_000, beneficiaryIsLegalHeir: false }]);
-    expect(result.request.retirementAllowance?.contracts).toEqual([{ deathBenefitJpy: 10_000_000, recipientIsLegalHeir: false }]);
+    expect(result.request.lifeInsurance?.contracts).toEqual([{ deathBenefitJpy: 10_000_000, recipient: { kind: "other" } }]);
+    expect(result.request.retirementAllowance?.contracts).toEqual([{ deathBenefitJpy: 10_000_000, recipient: { kind: "other" } }]);
     // 親族関係に登録の無い受取人だけを警告用に数える（登録済みの兄弟姉妹は数えない）。
     expect(result.unregisteredRecipientCount).toBe(1);
+    // 法定相続人以外は登録の有無にかかわらず数える（按分に混ぜていることを警告するため）。
+    expect(result.nonHeirRecipientCount).toBe(2);
   });
 
   it("受取人が複数なら分数で割り振って受取人ごとの契約にする", () => {
@@ -162,11 +164,37 @@ describe("createInheritanceTaxRequest", () => {
       }],
     } as Portfolio);
 
+    // 受取人は「配偶者・何番目の相続人・それ以外」に解決して渡す。
+    // index は親族関係タブの並び（配偶者を除く、選択中の順位の親族）に対応する。
     expect(result.request.lifeInsurance?.contracts).toEqual([
-      { deathBenefitJpy: 15_000_000, beneficiaryIsLegalHeir: true },
-      { deathBenefitJpy: 7_500_000, beneficiaryIsLegalHeir: true },
-      { deathBenefitJpy: 7_500_000, beneficiaryIsLegalHeir: false },
+      { deathBenefitJpy: 15_000_000, recipient: { kind: "spouse" } },
+      { deathBenefitJpy: 7_500_000, recipient: { kind: "heir", index: 0 } },
+      { deathBenefitJpy: 7_500_000, recipient: { kind: "other" } },
     ]);
+  });
+
+  it("相続人が複数いる場合、受取人のindexは親族関係タブの並びに対応する", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      planning: { ...portfolio.planning, heirCount: 3 },
+      familyMembers: [
+        { name: "山田 花子", relationship: "SPOUSE", acquisitionReason: "INHERITANCE" },
+        { name: "山田 一郎", relationship: "CHILD", acquisitionReason: "INHERITANCE" },
+        { name: "山田 二郎", relationship: "CHILD", acquisitionReason: "INHERITANCE" },
+        { name: "山田 三郎", relationship: "CHILD", acquisitionReason: "INHERITANCE" },
+      ],
+      snapshots: [{
+        ...portfolio.snapshots[0],
+        positions: [
+          ...portfolio.snapshots[0].positions,
+          { side: "ASSET", category: "INSURANCE", valueJpy: 1_000_000, fxRate: 1, assetDetails: { deathBenefit: 10_000_000, beneficiary: "山田 三郎" } },
+        ],
+      }],
+    } as unknown as Portfolio);
+
+    // 配偶者は index に含めない。子の3人目なので index は 2。
+    expect(result.request.lifeInsurance?.contracts).toEqual([{ deathBenefitJpy: 10_000_000, recipient: { kind: "heir", index: 2 } }]);
+    expect(result.nonHeirRecipientCount).toBe(0);
   });
 
   it("1万円単位で割り切れない分数でも、受取人ごとの合計は給付金と一致する", () => {

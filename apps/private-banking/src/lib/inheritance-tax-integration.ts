@@ -1,7 +1,10 @@
-import { legalHeirNames } from "@/lib/family";
+import { legalHeirRoster } from "@/lib/family";
 import { deemedAllocations, deemedBenefit, splitBenefit, type Portfolio } from "@/lib/portfolio-view";
 
 const JPY_PER_MAN_YEN = 10_000;
+// 死亡保険金・死亡退職金の受取人。相続税APIは相続人を人数でしか持たないので、
+// 配偶者か・何番目の相続人か・法定相続人以外か、の3択で渡す。
+type DeemedRecipient = { kind: "spouse" } | { kind: "heir"; index: number } | { kind: "other" };
 const financialCategories = new Set(["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"]);
 const realEstateCategories = new Set(["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"]);
 const businessCategories = new Set(["PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE"]);
@@ -15,13 +18,31 @@ const smallLotRules: Record<string, { rate: number; capSqm: number }> = {
 export function createInheritanceTaxRequest(portfolio: Portfolio) {
   const current = portfolio.snapshots.find((snapshot) => snapshot.isCurrent);
   if (!current) throw new Error("CURRENT_SNAPSHOT_NOT_FOUND");
-  // 非課税枠は法定相続人が受け取る分にだけ適用される。受取人名を親族関係の登録と突き合わせて判定する。
-  const heirNames = legalHeirNames(portfolio.familyMembers ?? []);
+  // 非課税枠は法定相続人が受け取る分にだけ適用され、みなし相続財産は遺産分割の対象外で
+  // 受取人へ直接帰属する。どちらも受取人名を親族関係の登録と突き合わせて判定する。
+  const roster = legalHeirRoster(portfolio.familyMembers ?? []);
+  const spouseNames = new Set(roster.spouseNames);
+  // 同姓同名は先に登録された相続人として扱う（後勝ちにすると並びの意味が変わる）。
+  const heirIndexByName = new Map<string, number>();
+  roster.heirNames.forEach((name, index) => {
+    if (!heirIndexByName.has(name)) heirIndexByName.set(name, index);
+  });
+  const resolveRecipient = (recipient: string | undefined): DeemedRecipient => {
+    const name = (recipient ?? "").trim();
+    if (spouseNames.has(name)) return { kind: "spouse" };
+    const index = heirIndexByName.get(name);
+    return index === undefined ? { kind: "other" } : { kind: "heir", index };
+  };
   // 受取人が親族関係タブに無い（未選択・登録前の自由入力）と非課税枠が黙って0になるので、件数を数えて警告に使う。
   const registeredNames = new Set((portfolio.familyMembers ?? []).map((member) => member.name.trim()).filter(Boolean));
   let unregisteredRecipientCount = 0;
-  const countUnregisteredRecipient = (recipient: string | undefined, benefitJpy: number) => {
-    if (benefitJpy > 0 && !registeredNames.has((recipient ?? "").trim())) unregisteredRecipientCount += 1;
+  // 法定相続人以外が受取人の分は受取人へ帰属させず按分に混ぜている（相続人以外の取得者としては計算しない）。
+  // 実務との差がここに出るので、件数を数えて警告に使う。
+  let nonHeirRecipientCount = 0;
+  const countRecipient = (recipient: string | undefined, benefitJpy: number, resolved: DeemedRecipient) => {
+    if (benefitJpy <= 0) return;
+    if (!registeredNames.has((recipient ?? "").trim())) unregisteredRecipientCount += 1;
+    if (resolved.kind === "other") nonHeirRecipientCount += 1;
   };
 
   let assets = 0;
@@ -32,9 +53,9 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
   let otherAssetsJpy = 0;
   let insuranceSurrenderValueJpy = 0;
   let smallLotReductionRaw = 0;
-  const insuranceContracts: Array<{ deathBenefitJpy: number; beneficiaryIsLegalHeir: boolean }> = [];
+  const insuranceContracts: Array<{ deathBenefitJpy: number; recipient: DeemedRecipient }> = [];
   let retirementSurrenderValueJpy = 0;
-  const retirementContracts: Array<{ deathBenefitJpy: number; recipientIsLegalHeir: boolean }> = [];
+  const retirementContracts: Array<{ deathBenefitJpy: number; recipient: DeemedRecipient }> = [];
   for (const position of current.positions) {
     if (position.side === "ASSET") {
       assets += position.valueJpy;
@@ -59,10 +80,10 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
         const benefitsJpy = splitBenefit(totalBenefitJpy, allocations, JPY_PER_MAN_YEN);
         allocations.forEach((allocation, index) => {
           const deathBenefitJpy = benefitsJpy[index];
-          countUnregisteredRecipient(allocation.recipient, deathBenefitJpy);
-          const isLegalHeir = heirNames.has(allocation.recipient.trim());
-          if (isInsurance) insuranceContracts.push({ deathBenefitJpy, beneficiaryIsLegalHeir: isLegalHeir });
-          else retirementContracts.push({ deathBenefitJpy, recipientIsLegalHeir: isLegalHeir });
+          const contract = { deathBenefitJpy, recipient: resolveRecipient(allocation.recipient) };
+          countRecipient(allocation.recipient, deathBenefitJpy, contract.recipient);
+          if (isInsurance) insuranceContracts.push(contract);
+          else retirementContracts.push(contract);
         });
       }
     }
@@ -76,6 +97,7 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
     snapshotId: current.id,
     estimatedNetEstate,
     unregisteredRecipientCount,
+    nonHeirRecipientCount,
     source: {
       snapshotId: current.id,
       fiscalYear: current.fiscalYear,
