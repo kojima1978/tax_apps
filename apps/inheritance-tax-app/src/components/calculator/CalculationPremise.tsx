@@ -37,17 +37,11 @@ export const CalculationPremise: React.FC<CalculationPremiseProps> = memo(({ res
     ? (spouse.acquisitionAmount / result.estateValue) * 100
     : 0;
 
-  // 保険金等があるとき result.estateValue は課税価格の合計額（遺産 + 課税される保険金等）。
-  // 印刷の枠を4項目に保つため、項目を増やさず内訳を detail 側に出す。
-  const deemed = result.deemedAssets;
-
   const items = [
     {
-      label: deemed ? '課税価格の合計額' : '遺産総額',
+      label: '遺産総額',
       value: formatCurrency(result.estateValue),
-      detail: deemed
-        ? `遺産 ${formatCurrency(deemed.baseEstate)} ＋ 課税される保険金等 ${formatCurrency(deemed.taxableAmount)}`
-        : '税額計算の基となる財産額',
+      detail: '税額計算の基となる財産額',
       icon: <Landmark aria-hidden="true" />,
     },
     {
@@ -66,7 +60,7 @@ export const CalculationPremise: React.FC<CalculationPremiseProps> = memo(({ res
       label: '配偶者の取得条件',
       value: spouse ? formatCurrency(spouse.acquisitionAmount) : '配偶者なし',
       detail: spouse
-        ? `${deemed ? '課税価格の合計額' : '遺産総額'}の${spouseRatio.toFixed(1)}%`
+        ? `遺産総額の${spouseRatio.toFixed(1)}%`
         : '配偶者の税額軽減は適用なし',
       icon: <HeartHandshake aria-hidden="true" />,
     },

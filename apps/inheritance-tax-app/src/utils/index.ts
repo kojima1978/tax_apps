@@ -6,7 +6,6 @@ export { getHeirInfo, getHeirLabel, getEffectiveHeirShares, getScenarioName, get
 export type { EffectiveHeirShare } from './heirUtils';
 export { calculateComparisonTable } from './comparisonCalculator';
 export { calculateInsuranceSimulation, getHeirNetProceeds, getHeirBaseAcquisition } from './insuranceCalculator';
-export { calculateTaxWithDeemedAssets, summarizeDeemedAssets, allocateNonTaxableAmounts, DEEMED_ASSET_KINDS, DEEMED_ASSET_KIND_LABELS } from './deemedAssets';
 export { calculateGiftTaxPerYear, calculateRecipientResult, getGiftRecipientOptions, getGiftBreakdownTotals, getGiftHeirNetProceeds, calculateCashGiftSimulation, optimizeGiftAmounts } from './giftCalculator';
 export type { GiftBreakdownTotals } from './giftCalculator';
 export { buildHeirLabels, calculateLegalAcquisitions, calculateSplitTax, generateSplitSimulation } from './splitCalculator';

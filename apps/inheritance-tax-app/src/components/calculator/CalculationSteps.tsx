@@ -64,33 +64,12 @@ const FormulaRow: React.FC<{
 /** ① 課税される財産 */
 function buildTaxableStep(result: DetailedTaxCalculationResult): Step {
   const heirCount = result.heirBreakdowns.length;
-  // 保険金等があるとき result.estateValue は課税価格の合計額なので、遺産と保険金等に分けて見せる
-  const deemed = result.deemedAssets;
 
   return {
     title: '課税される財産を計算する',
-    notes: deemed
-      ? ['生命保険金・死亡退職金は、非課税枠を超える部分だけが課税価格に入ります。']
-      : undefined,
     content: (
       <div>
-        {deemed ? (
-          <>
-            <FormulaRow label="遺産総額" detail="保険金等を除く" value={formatCurrency(deemed.baseEstate)} />
-            {deemed.kinds.map(kind => (
-              <FormulaRow
-                key={kind.kind}
-                op="＋"
-                label={`課税される${kind.label}`}
-                detail={`受取額 ${formatCurrency(kind.totalBenefit)} − 非課税枠 ${formatCurrency(kind.nonTaxableAmount)}`}
-                value={formatCurrency(kind.taxableAmount)}
-              />
-            ))}
-            <FormulaRow op="＝" label="課税価格の合計額" value={formatCurrency(result.estateValue)} />
-          </>
-        ) : (
-          <FormulaRow label="遺産総額" value={formatCurrency(result.estateValue)} />
-        )}
+        <FormulaRow label="遺産総額" value={formatCurrency(result.estateValue)} />
         <FormulaRow
           op="−"
           label="基礎控除"
@@ -190,26 +169,19 @@ function buildTotalTaxStep(result: DetailedTaxCalculationResult): Step {
 /** ③ 実効税率で各相続人に割り振る（軽減・加算が無い場合はここで納付税額まで確定） */
 function buildApportionStep(result: DetailedTaxCalculationResult, isFinal: boolean): Step {
   const rate = formatPercent(result.effectiveTaxRate);
-  const deemed = result.deemedAssets;
-  const baseLabel = deemed ? '課税価格の合計額' : '遺産総額';
 
   return {
     title: isFinal
       ? '実際の取得割合で各相続人に割り振る（＝納付税額）'
       : '実際の取得割合で各相続人に割り振る',
-    notes: [
-      `相続税の総額を${baseLabel}で割った「実効税率」を、各相続人の取得額に掛けて求めます。`,
-      ...(deemed
-        ? ['生命保険金・死亡退職金は受取人固有の財産のため、遺産分割の対象に含めず、受取人の取得額に加算しています。']
-        : []),
-    ],
+    notes: ['相続税の総額を遺産総額で割った「実効税率」を、各相続人の取得額に掛けて求めます。'],
     content: (
       <div>
         <div className="calc-rate-strip mb-1 flex items-baseline justify-between gap-2 rounded border border-slate-200 bg-slate-50 px-2 py-1">
           <span className="text-xs text-slate-600">
             実効税率
             <span className="ml-1.5 text-slate-400">
-              {formatCurrency(result.totalTax)} ÷ {formatCurrency(result.estateValue)}（{baseLabel}）
+              {formatCurrency(result.totalTax)} ÷ {formatCurrency(result.estateValue)}
             </span>
           </span>
           <span className="text-sm font-bold tabular-nums text-green-800">{rate}</span>

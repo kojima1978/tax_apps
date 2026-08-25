@@ -4,7 +4,7 @@ import { formatCurrency, formatPercent } from '../../utils';
 import { CARD } from '../tableStyles';
 import { PrintHeader } from '../PrintHeader';
 import { PrintCautions } from '../PrintCautions';
-import { CALCULATOR_PRINT_CAUTIONS, DEEMED_ASSET_PRINT_CAUTIONS } from '../../constants/cautionMessages';
+import { CALCULATOR_PRINT_CAUTIONS } from '../../constants/cautionMessages';
 import { CalculationPremise } from './CalculationPremise';
 import { CalculationSteps } from './CalculationSteps';
 import { CalculationBasisDetails } from './CalculationBasisDetails';
@@ -41,9 +41,6 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result }) 
   // 配偶者の特例で税額が下がる場合だけ「本来の総額 ＞＞ 実際の納付税額」の対比で見せる
   const adjustedLabel = getAdjustedLabel(result);
 
-  // 保険金等があるとき result.estateValue は課税価格の合計額なので、負担率の分母名も合わせる
-  const baseLabel = result.deemedAssets ? '課税価格の合計額' : '遺産総額';
-
   return (
     <div className="calc-result-body space-y-4 md:space-y-6">
       <PrintHeader title="相続税シミュレーション" />
@@ -64,7 +61,7 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result }) 
                 {formatCurrency(result.totalTax)}
               </p>
               <p className="calc-headline-sub col-start-1 row-start-3 mt-1 text-xs text-slate-500">
-                （{baseLabel}の <span className="tabular-nums">{formatPercent(result.effectiveTaxRate)}</span>）
+                （遺産総額の <span className="tabular-nums">{formatPercent(result.effectiveTaxRate)}</span>）
               </p>
 
               <span
@@ -90,7 +87,7 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result }) 
                 {formatCurrency(result.totalFinalTax)}
               </p>
               <p className="calc-headline-sub mt-2 text-xs text-slate-600">
-                （{baseLabel}の{' '}
+                （遺産総額の{' '}
                 <span className="font-semibold tabular-nums text-slate-800">{formatPercent(burdenRate)}</span>）
               </p>
             </>
@@ -102,7 +99,6 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result }) 
       <HeirBreakdownTable
         breakdowns={result.heirBreakdowns}
         totalFinalTax={result.totalFinalTax}
-        deemedAssets={result.deemedAssets}
       />
 
       {/* どう計算したか */}
@@ -111,9 +107,7 @@ export const CalculationResult: React.FC<CalculationResultProps> = ({ result }) 
       {/* 税理士向けの詳細根拠（画面のみ・折りたたみ） */}
       <CalculationBasisDetails result={result} />
 
-      <PrintCautions
-        items={result.deemedAssets ? [...DEEMED_ASSET_PRINT_CAUTIONS, ...CALCULATOR_PRINT_CAUTIONS] : CALCULATOR_PRINT_CAUTIONS}
-      />
+      <PrintCautions items={CALCULATOR_PRINT_CAUTIONS} />
     </div>
   );
 };
