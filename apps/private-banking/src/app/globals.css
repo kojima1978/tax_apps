@@ -726,12 +726,13 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .tax-calc-assumptions { margin: 5px 12px 12px; padding: 9px 10px; color: #713f12; background: #fffbeb; border-left: 3px solid #d97706; }
 .tax-calc-assumptions strong { font-size: 10px; }
 .tax-calc-assumptions p { margin: 3px 0 0; font-size: 9px; line-height: 1.55; }
-.tax-calc-heir-summary { margin: 4px 12px 0; padding: 8px 10px 5px; background: #f6faf8; border: 1px solid #dbe8e1; border-radius: 6px; }
+.tax-calc-heir-summary { margin: 4px 12px 0; padding: 8px 10px 5px; border: 1px solid #dbe8e1; border-radius: 6px; }
 .tax-calc-heir-summary > strong { color: #7c2d2d; font-size: 10px; }
 .tax-calc-heir-summary table { width: 100%; margin-top: 4px; border-collapse: collapse; font-size: 10px; }
 .tax-calc-heir-summary th, .tax-calc-heir-summary td { padding: 4px 3px; border-bottom: 1px solid #e2ebe6; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tax-calc-heir-summary thead th { color: #345c4b; font-size: 9px; font-weight: 700; }
 .tax-calc-heir-summary tbody th, .tax-calc-heir-summary thead th:first-child { color: var(--slate-700); text-align: left; }
+.tax-calc-heir-summary .left { text-align: left; }
 .tax-calc-heir-summary tbody th small { margin-left: 4px; color: #6f8279; font-size: 9px; font-weight: 600; }
 .tax-calc-heir-summary tbody tr:last-child th, .tax-calc-heir-summary tbody tr:last-child td { border-bottom: 0; }
 .tax-calc-heir-summary td strong { color: #14532d; }
