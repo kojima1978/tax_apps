@@ -1,17 +1,19 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
+import { DeemedAssetInput } from '../components/calculator/DeemedAssetInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
 import { CalculationResult } from '../components/calculator/CalculationResult';
 import { CautionBox } from '../components/CautionBox';
 import { StatusCard } from '../components/StatusCard';
 import { useScrollToResult } from '../hooks/useScrollToResult';
 import { useFormValidation } from '../hooks/useFormValidation';
-import type { Heir, HeirComposition, SpouseAcquisitionMode } from '../types';
+import type { DeemedAssetEntry, Heir, HeirComposition, SpouseAcquisitionMode } from '../types';
 import { createDefaultComposition } from '../constants';
-import { CALCULATOR_CAUTIONS } from '../constants/cautionMessages';
-import { calculateDetailedInheritanceTax } from '../utils';
+import { CALCULATOR_CAUTIONS, DEEMED_ASSET_CAUTIONS } from '../constants/cautionMessages';
+import { calculateTaxWithDeemedAssets } from '../utils';
+import { getBeneficiaryOptions, getHeirInfo } from '../utils/heirUtils';
 
 type PbFamilyComposition = {
   hasSpouse: boolean;
@@ -60,7 +62,8 @@ export const CalculatorPage: React.FC = () => {
   const [composition, setComposition] = useState<HeirComposition>(createDefaultComposition);
   const [estateValue, setEstateValue] = useState<number>(0);
   const [spouseMode, setSpouseMode] = useState<SpouseAcquisitionMode>({ mode: 'legal' });
-  const [result, setResult] = useState<ReturnType<typeof calculateDetailedInheritanceTax> | null>(null);
+  const [deemedAssets, setDeemedAssets] = useState<DeemedAssetEntry[]>([]);
+  const [result, setResult] = useState<ReturnType<typeof calculateTaxWithDeemedAssets> | null>(null);
   const [pbImportMessage, setPbImportMessage] = useState('');
   const [pbSyncMessage, setPbSyncMessage] = useState('');
 
@@ -84,15 +87,18 @@ export const CalculatorPage: React.FC = () => {
         setEstateValue(importedEstateValue);
         setComposition(importedComposition);
         setSpouseMode(legalShareMode);
+        // PB側は保険金等を持たないため、取り込み時は入力済みの受取額をクリアする
+        setDeemedAssets([]);
         setPbImportMessage(
           `PB管理B/S（${payload.asOfDate}時点）の純資産と家族情報を取り込みました。${payload.warning}`,
         );
 
         if (params.get('autocalc') === '1') {
-          const calculated = calculateDetailedInheritanceTax(
+          const calculated = calculateTaxWithDeemedAssets(
             importedEstateValue,
             importedComposition,
             legalShareMode,
+            [],
           );
           setResult(calculated);
           setPbSyncMessage('想定相続税をPB管理B/Sへ連携しています。');
@@ -115,8 +121,22 @@ export const CalculatorPage: React.FC = () => {
 
   const noHeirs = !composition.hasSpouse && composition.selectedRank === 'none';
 
+  const beneficiaryOptions = useMemo(() => getBeneficiaryOptions(composition), [composition]);
+  const heirCount = useMemo(() => getHeirInfo(composition).totalHeirsCount, [composition]);
+  const deemedTotal = deemedAssets.reduce((sum, entry) => sum + entry.amount, 0);
+
+  // 相続人を変えると受取人が消えることがあるので、残った受取人の入力だけを引き継ぐ
+  const handleCompositionChange = useCallback((next: HeirComposition) => {
+    setComposition(next);
+    const validIds = new Set(getBeneficiaryOptions(next).map(option => option.id));
+    setDeemedAssets(prev => {
+      const kept = prev.filter(entry => validIds.has(entry.beneficiaryId));
+      return kept.length === prev.length ? prev : kept;
+    });
+  }, []);
+
   const onValid = useCallback(() => {
-    const calculated = calculateDetailedInheritanceTax(estateValue, composition, spouseMode);
+    const calculated = calculateTaxWithDeemedAssets(estateValue, composition, spouseMode, deemedAssets);
     setResult(calculated);
     if (new URLSearchParams(window.location.search).get('source') === 'pb') {
       const householdId = Number(new URLSearchParams(window.location.search).get('householdId'));
@@ -126,10 +146,14 @@ export const CalculatorPage: React.FC = () => {
         .then(() => setPbSyncMessage('想定相続税をPB管理B/Sへ連携しました。'))
         .catch(() => setPbSyncMessage('想定相続税をPB管理B/Sへ連携できませんでした。'));
     }
-  }, [estateValue, composition, spouseMode]);
+  }, [estateValue, composition, spouseMode, deemedAssets]);
 
   const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
-    { condition: estateValue <= 0, ref: estateRef, message: '遺産総額を入力してください' },
+    {
+      condition: estateValue <= 0 && deemedTotal <= 0,
+      ref: estateRef,
+      message: '遺産総額または生命保険金・死亡退職金を入力してください',
+    },
     { condition: noHeirs, ref: heirRef, message: '相続人を設定してください（配偶者または相続人の順位を選択）' },
   ], onValid);
 
@@ -155,7 +179,7 @@ export const CalculatorPage: React.FC = () => {
         <div ref={heirRef}>
           <HeirSettings
             composition={composition}
-            onChange={setComposition}
+            onChange={handleCompositionChange}
             hasError={hasAttempted && noHeirs}
           />
         </div>
@@ -166,15 +190,25 @@ export const CalculatorPage: React.FC = () => {
             <EstateInput
               value={estateValue}
               onChange={setEstateValue}
-              hasError={hasAttempted && estateValue <= 0}
+              title="遺産総額（生命保険金等を除く）"
+              hint="生命保険金・死亡退職金は下の欄に受取人別に入力してください"
+              hasError={hasAttempted && estateValue <= 0 && deemedTotal <= 0}
             />
           </div>
+          <DeemedAssetInput
+            entries={deemedAssets}
+            beneficiaryOptions={beneficiaryOptions}
+            heirCount={heirCount}
+            onChange={setDeemedAssets}
+          />
           <SpouseAcquisitionSettings
             value={spouseMode}
             onChange={setSpouseMode}
             hasSpouse={composition.hasSpouse}
           />
-          <CautionBox items={CALCULATOR_CAUTIONS} />
+          <CautionBox
+            items={deemedAssets.length > 0 ? [...CALCULATOR_CAUTIONS, ...DEEMED_ASSET_CAUTIONS] : CALCULATOR_CAUTIONS}
+          />
         </>
       }
       validationErrors={validationErrors}
@@ -188,12 +222,12 @@ export const CalculatorPage: React.FC = () => {
               <CalculationResult result={result} />
             </div>
           )}
-          {result && result.taxableAmount === 0 && estateValue > 0 && (
+          {result && result.taxableAmount === 0 && result.estateValue > 0 && (
             <div className="result-fade-in">
               <StatusCard
                 variant="success"
                 title="相続税はかかりません"
-                description={`遺産総額（${result.estateValue.toLocaleString()}万円）が基礎控除額（${result.basicDeduction.toLocaleString()}万円）以下のため、課税されません。`}
+                description={`${result.deemedAssets ? '課税価格の合計額' : '遺産総額'}（${result.estateValue.toLocaleString()}万円）が基礎控除額（${result.basicDeduction.toLocaleString()}万円）以下のため、課税されません。`}
               />
             </div>
           )}

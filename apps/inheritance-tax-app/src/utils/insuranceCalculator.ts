@@ -8,6 +8,7 @@ import type {
 } from '../types';
 import { INSURANCE_EXEMPT_PER_HEIR } from '../constants';
 import { getHeirInfo, getBeneficiaryOptions } from './heirUtils';
+import { allocateNonTaxableAmounts } from './deemedAssets';
 import { calculateDetailedInheritanceTax } from './taxCalculator';
 import { reapportionTax } from './reapportionTax';
 
@@ -40,36 +41,16 @@ function calculateHeirInsuranceBreakdowns(
     }
   }
 
-  const totalBenefitToHeirs = Array.from(benefitMap.values()).reduce((s, v) => s + v, 0);
-  const actualNonTaxable = Math.min(totalBenefitToHeirs, nonTaxableLimit);
+  const benefits = options.map(opt => benefitMap.get(opt.id) || 0);
+  const nonTaxables = allocateNonTaxableAmounts(benefits, nonTaxableLimit);
 
-  // 非課税枠を受取人へ按分する。各人を単純に切り捨てると合計が枠に満たず
-  // 端数（例: 1,000万円が999万円）が出るため、最大剰余法で配分する:
-  // まず小数部を切り捨て、不足分を小数部の大きい順（同点は受取保険金の多い順）に
-  // 1万円ずつ加算して、合計を actualNonTaxable に一致させる。
-  const allocations = options.map(opt => {
-    const benefit = benefitMap.get(opt.id) || 0;
-    const exact = totalBenefitToHeirs > 0 ? actualNonTaxable * (benefit / totalBenefitToHeirs) : 0;
-    const floor = Math.floor(exact);
-    return { opt, benefit, premium: premiumMap.get(opt.id) || 0, nonTaxable: floor, frac: exact - floor };
-  });
-
-  let remainder = actualNonTaxable - allocations.reduce((s, a) => s + a.nonTaxable, 0);
-  for (const a of [...allocations].sort((x, y) => (y.frac - x.frac) || (y.benefit - x.benefit))) {
-    if (remainder <= 0) break;
-    a.nonTaxable += 1;
-    remainder -= 1;
-  }
-
-  const breakdowns: InsuranceHeirBreakdown[] = allocations.map(a => ({
-    label: a.opt.label,
-    totalBenefit: a.benefit,
-    nonTaxableAmount: a.nonTaxable,
-    taxableAmount: a.benefit - a.nonTaxable,
-    premiumPaid: a.premium,
+  return options.map((opt, index) => ({
+    label: opt.label,
+    totalBenefit: benefits[index],
+    nonTaxableAmount: nonTaxables[index],
+    taxableAmount: benefits[index] - nonTaxables[index],
+    premiumPaid: premiumMap.get(opt.id) || 0,
   }));
-
-  return breakdowns;
 }
 
 /** 受取人帰属モデルで税の按分を再計算（共通reapportionTaxのラッパー） */

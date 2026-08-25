@@ -67,6 +67,47 @@ export interface SpouseDeductionDetail {
   actualDeduction: number;
 }
 
+// ── みなし相続財産（生命保険金・死亡退職金）──
+
+/** みなし相続財産の種別。非課税枠は種別ごとに別枠で計算する。 */
+export type DeemedAssetKind = 'insurance' | 'retirement';
+
+/** 受取額の入力1行 */
+export interface DeemedAssetEntry {
+  id: string;
+  kind: DeemedAssetKind;
+  beneficiaryId: string;  // 'spouse' | heir.id
+  amount: number;         // 受取額（万円）
+}
+
+/** 種別ごとの非課税枠の消化状況 */
+export interface DeemedAssetKindSummary {
+  kind: DeemedAssetKind;
+  label: string;
+  totalBenefit: number;
+  nonTaxableLimit: number;
+  nonTaxableAmount: number;
+  taxableAmount: number;
+}
+
+/** 相続人ごとの受取額（heirBreakdowns と同じ並び） */
+export interface DeemedAssetHeirAmount {
+  label: string;
+  totalBenefit: number;
+  nonTaxableAmount: number;
+  taxableAmount: number;
+}
+
+/** みなし相続財産の集計結果 */
+export interface DeemedAssetSummary {
+  baseEstate: number;        // 保険金等を除いた遺産額
+  totalBenefit: number;
+  nonTaxableAmount: number;
+  taxableAmount: number;
+  kinds: DeemedAssetKindSummary[];
+  heirAmounts: DeemedAssetHeirAmount[];
+}
+
 // 詳細計算結果
 export interface DetailedTaxCalculationResult {
   estateValue: number;
@@ -77,6 +118,8 @@ export interface DetailedTaxCalculationResult {
   spouseDeductionDetail: SpouseDeductionDetail | null;
   totalFinalTax: number;
   effectiveTaxRate: number;
+  /** 生命保険金・死亡退職金の内訳（入力が無ければ未設定。estateValue は課税価格の合計額になる） */
+  deemedAssets?: DeemedAssetSummary | null;
 }
 
 // 1次2次比較テーブルの行
