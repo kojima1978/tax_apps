@@ -52,7 +52,9 @@ export function AssetsView({ snapshot, snapshots, legalHeirNames, onSelectSnapsh
   // 相続税負担額は、相続税総額を「按分基準額 ÷ 正味財産」の率で各明細へ按分する。
   // 相続税は正味財産（資産合計 − 控除対象負債）に課されるため、負債は同率のマイナス（軽減）として扱い、
   // 資産の部と負債の部の差引が相続税総額と一致する。偶発債務はB/S外なので対象外。
-  // 税額は連携計算値（totalInheritanceTax）を優先し、未計算なら手動の想定相続税へフォールバックする。
+  // 率は配偶者の税額軽減を反映する前の相続税の総額（＝概算計算の欄に出ている実効税率）で求める。
+  // 明細は誰が取得するかを持たないので、納付税額から求めると配偶者の軽減分が全明細へ薄く広がり、
+  // 財産そのものの税負担が実際より軽く見えてしまう。連携計算値が無いときは手動の想定相続税を使う。
   // 生命保険・死亡退職金は課税価格に入るのが解約返戻金ではなく「給付金 − 非課税限度額」なので、按分基準も
   // 課税対象の給付金に揃える（分子の相続税総額が同じ基準で計算されているため）。非課税枠は相続人が
   // 受け取る契約にだけ適用されるので、その給付金で按分する。法定相続人数が分かるのは連携計算値が
@@ -80,8 +82,8 @@ export function AssetsView({ snapshot, snapshots, legalHeirNames, onSelectSnapsh
     return benefitJpy(position) - Math.round(heirBenefitJpy(position) * rate);
   };
   const netEstate = assets.reduce((sum, p) => sum + taxableValue(p), 0) - liabilities.reduce((sum, p) => sum + taxableValue(p), 0);
-  const totalInheritanceTax = calculation?.totalInheritanceTaxJpy ?? snapshot.estimatedInheritanceTax;
-  const burdenRate = netEstate > 0 && totalInheritanceTax > 0 ? totalInheritanceTax / netEstate : 0;
+  const burdenTaxTotal = calculation?.totalTaxBeforeDeductionsJpy ?? snapshot.estimatedInheritanceTax;
+  const burdenRate = netEstate > 0 && burdenTaxTotal > 0 ? burdenTaxTotal / netEstate : 0;
   const taxBurden = (position: Position) => {
     if (burdenRate === 0) return null;
     if (position.side === "ASSET") return Math.round(taxableValue(position) * burdenRate);
