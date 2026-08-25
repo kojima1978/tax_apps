@@ -113,7 +113,9 @@ export const buildingTypeOptions = [
   { value: "SUBSTATION", label: "変電所", definition: "電圧を変換し送配電するエネルギーインフラ施設" },
 ] as const;
 export const buildingTypeByValue = new Map(buildingTypeOptions.map((option) => [option.value, option]));
-export const assetCategories = ["DEPOSIT", "SECURITIES", "HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "INSURANCE", "RETIREMENT_ALLOWANCE", "COLLECTIBLES"];
+// 中分類（金融資産 → 不動産 → 事業用資産 → その他資産）の順に並べる。生命保険・退職金も金融資産なので預金・有価証券に続ける。
+// この並びは科目の選択肢と categoryRank（中分類内の並び順）の両方を兼ねる。
+export const assetCategories = ["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE", "HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "COLLECTIBLES"];
 export const liabilityCategories = ["LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER"];
 
 export const fiscalYearLabel = (snapshot: Pick<Snapshot, "fiscalYear">) => `${snapshot.fiscalYear}年度`;
