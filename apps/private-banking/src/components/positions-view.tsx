@@ -26,16 +26,24 @@ import {
 
 const JPY_PER_MAN_YEN = 10_000;
 
-function DeemedBenefitNote({ position }: { position: Position }) {
+/**
+ * 生命保険・退職金の円換算時価は「解約返戻金（解約手当金）」と「死亡給付金」の2段。
+ * 金額を並べるだけでは紙の上でどちらの評価額か判別できないので、両方に名前を付ける。
+ */
+function DeemedAmounts({ position }: { position: Position }) {
   const config = deemedConfig(position);
   const benefit = deemedBenefit(position);
   const allocations = deemedAllocations(position);
-  if (!config || benefit <= 0) return null;
-  // 受取人が1人のときは従来どおり金額だけ。複数人のときは誰にいくら分の分数で渡るのかを添える。
+  if (!config) return <strong>{yen.format(position.valueJpy)}</strong>;
+  // 受取人が1人のときは金額だけ。複数人のときは誰にいくら分の分数で渡るのかを添える。
   const split = allocations.length > 1
-    ? `：${allocations.map((allocation) => `${allocation.recipient} ${allocation.numerator}/${allocation.denominator}`).join("、")}`
+    ? allocations.map((allocation) => `${allocation.recipient} ${allocation.numerator}/${allocation.denominator}`).join("、")
     : "";
-  return <small className="deemed-benefit-note">（{config.label} {yen.format(benefit)}{split}）</small>;
+  return <>
+    <span className="deemed-amount"><small>{config.surrenderLabel}</small><strong>{yen.format(position.valueJpy)}</strong></span>
+    {benefit > 0 ? <span className="deemed-amount"><small>{config.label}</small><strong>{yen.format(benefit)}</strong></span> : null}
+    {benefit > 0 && split ? <small className="deemed-benefit-note">（{split}）</small> : null}
+  </>;
 }
 
 const classificationTone: Record<string, string> = {
@@ -238,7 +246,7 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
                   <small className="position-meta">{[institutionOrPropertyAddress(p), p.valuationMethod].filter(Boolean).join(" ／ ")}</small></td>
                 <td data-label="所在地・金融機関等" title={institutionOrPropertyAddress(p) || undefined}>{institutionOrPropertyAddress(p) || "—"}</td>
                 <td data-label="評価方法" title={valuationBreakdown(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationBreakdown(p) ? <small className="valuation-breakdown">{valuationBreakdown(p)}</small> : null}</td>
-                <td data-label="円換算時価" className="number"><strong>{yen.format(p.valueJpy)}</strong>{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}<DeemedBenefitNote position={p} /></td>
+                <td data-label="円換算時価" className="number"><DeemedAmounts position={p} />{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}</td>
                 <td data-label="相続税負担額" className="number">{burden === null ? <span className="tax-burden-empty">—</span> : <span className={burden < 0 ? "tax-burden-negative" : undefined}>{triangleYen(burden)}</span>}</td>
                 <td data-label="操作"><div className="table-actions"><button className="row-action edit" title="修正" aria-label={`${p.name}を修正`} onClick={() => onEdit(p)}><Pencil /><span className="sr-only">修正</span></button><button className="row-action delete" title="削除" aria-label={`${p.name}を削除`} onClick={() => onDelete(p)}><Trash2 /><span className="sr-only">削除</span></button></div></td>
               </tr>

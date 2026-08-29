@@ -135,8 +135,8 @@ export const positionSectionLabels: Record<PositionSection, string> = {
 // 死亡時はそれが給付金に置き換わる。非課税枠はそれぞれ別枠で、受取人が法定相続人の契約にだけ適用される。
 // 法定相続人かどうかは入力させず、受取人が親族関係タブの法定相続人かどうかで判定する。
 export const deemedInheritanceCategories = {
-  INSURANCE: { label: "死亡保険金", benefitKey: "deathBenefit", recipientKey: "beneficiary" },
-  RETIREMENT_ALLOWANCE: { label: "死亡退職金", benefitKey: "retirementAllowance", recipientKey: "retirementRecipient" },
+  INSURANCE: { label: "死亡保険金", surrenderLabel: "解約返戻金", benefitKey: "deathBenefit", recipientKey: "beneficiary" },
+  RETIREMENT_ALLOWANCE: { label: "死亡退職金", surrenderLabel: "解約手当金", benefitKey: "retirementAllowance", recipientKey: "retirementRecipient" },
 } as const;
 export type DeemedCategory = keyof typeof deemedInheritanceCategories;
 export const deemedConfig = (position: Position) => deemedInheritanceCategories[position.category as DeemedCategory] ?? null;

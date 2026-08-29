@@ -226,6 +226,10 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .position-table th:nth-child(6) { width: 118px; }
 .position-table th:nth-child(7) { width: 118px; }
 .position-table th:nth-child(8) { width: 88px; }
+/* 解約返戻金と死亡給付金の2段。ラベルは左、金額は右端で縦に揃える。 */
+.deemed-amount { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.deemed-amount + .deemed-amount { margin-top: 2px; }
+.deemed-amount > small { color: var(--slate-500); font-weight: 700; white-space: nowrap; }
 .deemed-benefit-note { display: block; margin-top: 2px; color: var(--slate-500); font-size: 11px; font-weight: 600; white-space: nowrap; }
 .tax-burden-empty { color: var(--slate-500); }
 .position-table th:nth-child(4), .position-table td:nth-child(4) { text-align: left; }
@@ -1196,11 +1200,16 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table td, .trend-table tbody th, .trend-table tbody td { border-bottom-color: #b2beb8; }
   .position-table th, .trend-table thead th { border-bottom-color: #93a29a; }
   .position-table th { font-size: 11px; }
-  .position-table th:nth-child(2) { width: 14%; }
-  .position-table th:nth-child(3) { width: 20%; }
-  .position-table th:nth-child(4) { width: 30%; }
-  .position-table th:nth-child(5) { width: 20%; }
-  .position-table th:nth-child(6) { width: 16%; }
+  /* 6列すべてに幅を振って合計100%にする。1列でも未指定だと table-layout:fixed が
+     残り列の最小幅を捻出するために指定幅を一律で縮め、評価方法の算式が3行に折り返していた。
+     版面277mm での表幅1037px を基準に、各列の実測必要幅（中分類77 / 科目・名称169 /
+     所在地241 / 評価方法233 / 円換算時価150 / 相続税負担額77px）を満たす配分。 */
+  .position-table th:nth-child(2) { width: 8.5%; }
+  .position-table th:nth-child(3) { width: 17.5%; }
+  .position-table th:nth-child(4) { width: 24%; }
+  .position-table th:nth-child(5) { width: 25%; }
+  .position-table th:nth-child(6) { width: 15.5%; }
+  .position-table th:nth-child(7) { width: 9.5%; }
   .position-table thead .reorder-column,
   .position-table tbody .reorder-cell,
   .position-table thead .actions-column,
