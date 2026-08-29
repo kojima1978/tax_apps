@@ -14,6 +14,7 @@ import {
   categoryRank,
   deemedAllocations,
   deemedBenefit,
+  deemedBenefitJpy,
   deemedConfig,
   deemedInheritanceCategories,
   splitBenefit,
@@ -32,7 +33,7 @@ const JPY_PER_MAN_YEN = 10_000;
  */
 function DeemedAmounts({ position }: { position: Position }) {
   const config = deemedConfig(position);
-  const benefit = deemedBenefit(position);
+  const benefitJpy = deemedBenefitJpy(position);
   const allocations = deemedAllocations(position);
   if (!config) return <strong>{yen.format(position.valueJpy)}</strong>;
   // 受取人が1人のときは金額だけ。複数人のときは誰にいくら分の分数で渡るのかを添える。
@@ -41,8 +42,8 @@ function DeemedAmounts({ position }: { position: Position }) {
     : "";
   return <>
     <span className="deemed-amount"><small>{config.surrenderLabel}</small><strong>{yen.format(position.valueJpy)}</strong></span>
-    {benefit > 0 ? <span className="deemed-amount"><small>{config.label}</small><strong>{yen.format(benefit)}</strong></span> : null}
-    {benefit > 0 && split ? <small className="deemed-benefit-note">（{split}）</small> : null}
+    {benefitJpy > 0 ? <span className="deemed-amount"><small>{config.label}</small><strong>{yen.format(benefitJpy)}</strong></span> : null}
+    {benefitJpy > 0 && split ? <small className="deemed-benefit-note">（{split}）</small> : null}
   </>;
 }
 

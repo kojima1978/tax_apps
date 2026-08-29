@@ -35,7 +35,7 @@ import {
   type PrintSection,
   type Section,
   type Snapshot,
-  deemedBenefit,
+  deemedBenefitJpy,
   deemedConfig,
   fiscalYearLabel,
   totals,
@@ -181,8 +181,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       else if (position.category === "SECURITIES") securities += position.valueJpy;
       // 生命保険と退職金はB/Sに解約返戻金（解約手当金）が載り、税金ありB/Sでは死亡給付金に置き換える。
       else if (deemedConfig(position)) {
-        const benefit = deemedBenefit(position);
-        const benefitJpy = benefit > 0 ? Math.round(benefit * position.fxRate) : 0;
+        const benefitJpy = deemedBenefitJpy(position);
         if (benefitJpy <= 0) deemedBenefitMissingCount += 1;
         if (position.category === "INSURANCE") { insurance += position.valueJpy; insuranceDeathBenefit += benefitJpy; }
         else { retirementAllowance += position.valueJpy; retirementDeathBenefit += benefitJpy; }

@@ -145,6 +145,11 @@ export const deemedBenefit = (position: Position) => {
   const config = deemedConfig(position);
   return config ? position.assetDetails?.[config.benefitKey] ?? 0 : 0;
 };
+/** 死亡保険金・死亡退職金の円換算額。B/Sの資産合計や明細の円換算時価はこちらを使う。 */
+export const deemedBenefitJpy = (position: Position) => {
+  const benefit = deemedBenefit(position);
+  return benefit > 0 ? Math.round(benefit * position.fxRate) : 0;
+};
 /**
  * 受取人ごとの取り分。複数受取人は `benefitAllocations` に分数で持つ。
  * 配列を持たない明細（複数受取人に対応する前の登録）は、従来の受取人へ 1/1 とみなす。
