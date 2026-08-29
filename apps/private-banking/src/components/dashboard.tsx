@@ -5,9 +5,10 @@ import {
   LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Printer, ShieldCheck, UsersRound, WalletCards, X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, useMemo, useState } from "react";
 import { BackupView } from "@/components/backup-view";
+import { BalanceScenarioActions, BalanceSheetPanel } from "@/components/balance-sheet-panel";
 import { BulkPositionModal } from "@/components/bulk-position-modal";
 import {
   ClientDeleteModal, DeleteSnapshotModal, ForecastModal, PrintGuideModal, SnapshotSettingsModal, YearCreationModal,
@@ -15,28 +16,25 @@ import {
 import { HistoryView } from "@/components/history-view";
 import { FamilyView } from "@/components/family-view";
 import { InheritanceTaxReport } from "@/components/inheritance-tax-report";
-import { PanelHeader } from "@/components/panel-header";
 import { PersonView } from "@/components/person-view";
 import { PortalLink } from "@/components/portal-link";
 import { DeletePositionModal, PositionModal } from "@/components/position-modal";
 import { AssetsView } from "@/components/positions-view";
+import { PRINT_SECTION_META, PrintFrontMatter } from "@/components/print-front-matter";
 import { PersonFamilyPrintView } from "@/components/print-person-family";
 import { SecondaryInheritanceSimulator } from "@/components/secondary-inheritance-simulator";
-import { API_BASE } from "@/lib/api";
-import { ClientSummary } from "@/lib/clients";
+import { usePortfolio } from "@/components/use-portfolio";
+import { buildBalanceView, loanBreakdownTotals, successionAssetTotals } from "@/lib/balance-view";
 import { legalHeirNames, type FamilyMemberDraft } from "@/lib/family";
-import { compactYen, dateJa, percent, unformatNumberInput } from "@/lib/format";
+import { dateJa, unformatNumberInput } from "@/lib/format";
 import {
   type BalanceScenario,
   type BulkPositionPayload,
-  type Portfolio,
   type Position,
   type PositionSection,
   type PrintSection,
   type Section,
   type Snapshot,
-  deemedBenefitJpy,
-  deemedConfig,
   fiscalYearLabel,
   totals,
 } from "@/lib/portfolio-view";
@@ -52,84 +50,8 @@ const SECTIONS = [
   { key: "backup", label: "バックアップ", icon: DatabaseBackup },
 ] as const satisfies ReadonlyArray<{ key: Section; label: string; icon: typeof LayoutDashboard }>;
 
-const areaHeight = (value: number, total: number) => `${Math.abs(value) / Math.max(total, 1) * 100}%`;
-const accountDensity = (value: number, total: number) => {
-  const ratio = Math.abs(value) / Math.max(total, 1);
-  if (ratio < 0.02) return "micro-account";
-  if (ratio < 0.04) return "compact-account";
-  return ratio < 0.22 ? "dense-account" : "";
-};
-
-function BsAmount({ value, total }: { value: number; total: number }) {
-  return <><span className="bs-money">{compactYen(value)}</span><em className="bs-percent">{percent.format(value / Math.max(total, 1) * 100)}%</em></>;
-}
-
-function BsSubtotals({ items, total }: { items: ReadonlyArray<{ label: string; value: number }>; total: number }) {
-  return <dl className="bs-subtotals">{items.map((item) => <div key={item.label}><dt>{item.label}</dt><dd><BsAmount value={item.value} total={total} /></dd></div>)}</dl>;
-}
-
-const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: string; description: string }> = [
-  { key: "profile-family", title: "本人・家族情報", description: "本人の基本情報と親族構成、法定相続分および年齢" },
-  { key: "balance", title: "貸借対照表", description: "現在価値と相続時予測による資産・負債の構成" },
-  { key: "tax-calculation", title: "相続税の概算", description: "概算税額および計算根拠" },
-  { key: "details", title: "資産・負債明細", description: "資産、負債および保証債務の明細" },
-  { key: "history", title: "年度比較", description: "年度ごとの残高推移と比較" },
-];
-
-function PrintFrontMatter({
-  household,
-  snapshot,
-  sections,
-}: {
-  household: Portfolio["household"];
-  snapshot: Snapshot;
-  sections: PrintSection[];
-}) {
-  const includedSections = PRINT_SECTION_META.filter(({ key }) => sections.includes(key));
-
-  return (
-    <div className="print-front-matter" aria-hidden="true">
-      <section className="print-cover">
-        <div className="print-cover-mark">PERSONAL ASSET BALANCE SHEET</div>
-        <div className="print-cover-main">
-          <p>PRIVATE BANKING REPORT</p>
-          <h1>個人資産・負債管理レポート</h1>
-          <span className="print-cover-rule" />
-          <dl>
-            <div><dt>顧客名</dt><dd>{household.name}</dd></div>
-            <div><dt>顧客コード</dt><dd>{household.clientCode}</dd></div>
-            <div><dt>対象年度</dt><dd>{fiscalYearLabel(snapshot)}</dd></div>
-            <div><dt>B/S基準日</dt><dd>{dateJa(snapshot.asOfDate)}</dd></div>
-          </dl>
-        </div>
-        <p className="print-cover-confidential">CONFIDENTIAL</p>
-      </section>
-
-      <section className="print-toc">
-        <header>
-          <p>CONTENTS</p>
-          <h2>目次</h2>
-        </header>
-        <ol>
-          {includedSections.map(({ key, title, description }, index) => (
-            <li key={key}>
-              <span className="print-toc-index">{String(index + 1).padStart(2, "0")}</span>
-              <span className="print-toc-copy"><strong>{title}</strong><small>{description}</small></span>
-            </li>
-          ))}
-        </ol>
-        <footer>
-          <span>{household.name}</span>
-          <span>{fiscalYearLabel(snapshot)}・基準日 {dateJa(snapshot.asOfDate)}</span>
-        </footer>
-      </section>
-    </div>
-  );
-}
-
 export function Dashboard({ householdId, section }: { householdId: number; section: Section }) {
-  const router = useRouter();
-  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const { portfolio, saving, error, setError, load, mutate, router } = usePortfolio(householdId);
   const [balanceScenario, setBalanceScenario] = useState<BalanceScenario>("without-tax");
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -148,62 +70,12 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const [printSections, setPrintSections] = useState<Set<PrintSection> | null>(null);
   const [clientDeleteOpen, setClientDeleteOpen] = useState(false);
   const [clientSaved, setClientSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [taxApiStatus, setTaxApiStatus] = useState<"idle" | "loading" | "success">("idle");
-  const [error, setError] = useState("");
-
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      const response = await fetch(`${API_BASE}/portfolio?householdId=${householdId}`, { cache: "no-store" });
-      // URL の顧客が存在しない場合は一覧へ戻して選び直してもらう。
-      if (response.status === 404) { router.replace("/"); return; }
-      if (!response.ok) throw new Error();
-      setPortfolio(await response.json() as Portfolio);
-    } catch {
-      setError("データを読み込めませんでした。接続を確認してください。");
-    }
-  }, [householdId, router]);
-
-  // 顧客が変わったときだけ、安定したローダー経由で読み直す。
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void load(); }, [load]);
 
   const current = portfolio?.snapshots.find((snapshot) => snapshot.isCurrent);
   const workingSnapshot = portfolio?.snapshots.find((snapshot) => snapshot.id === workingSnapshotId) ?? current;
   const summary = useMemo(() => totals(workingSnapshot?.positions ?? []), [workingSnapshot]);
-  const successionAssets = useMemo(() => {
-    let deposits = 0, securities = 0, insurance = 0, insuranceDeathBenefit = 0, retirementAllowance = 0, retirementDeathBenefit = 0, deemedBenefitMissingCount = 0, privateShares = 0, businessAssets = 0, loanReceivables = 0;
-    let homeRealEstate = 0, incomeRealEstate = 0, idleRealEstate = 0, otherRealEstate = 0, otherAssets = 0;
-    for (const position of workingSnapshot?.positions ?? []) {
-      if (position.side !== "ASSET") continue;
-      if (position.category === "DEPOSIT") deposits += position.valueJpy;
-      else if (position.category === "SECURITIES") securities += position.valueJpy;
-      // 生命保険と退職金はB/Sに解約返戻金（解約手当金）が載り、税金ありB/Sでは死亡給付金に置き換える。
-      else if (deemedConfig(position)) {
-        const benefitJpy = deemedBenefitJpy(position);
-        if (benefitJpy <= 0) deemedBenefitMissingCount += 1;
-        if (position.category === "INSURANCE") { insurance += position.valueJpy; insuranceDeathBenefit += benefitJpy; }
-        else { retirementAllowance += position.valueJpy; retirementDeathBenefit += benefitJpy; }
-      }
-      else if (position.category === "PRIVATE_SHARES") privateShares += position.valueJpy;
-      else if (position.category === "BUSINESS_ASSETS") businessAssets += position.valueJpy;
-      else if (position.category === "LOAN_RECEIVABLE") loanReceivables += position.valueJpy;
-      else if (position.category === "HOME_REAL_ESTATE") homeRealEstate += position.valueJpy;
-      else if (position.category === "REAL_ESTATE") incomeRealEstate += position.valueJpy;
-      else if (position.category === "IDLE_REAL_ESTATE") idleRealEstate += position.valueJpy;
-      else if (position.category === "OTHER_REAL_ESTATE") otherRealEstate += position.valueJpy;
-      else otherAssets += position.valueJpy;
-    }
-    return {
-      financial: deposits + securities + insurance + retirementAllowance,
-      deposits, securities, insurance, insuranceDeathBenefit, retirementAllowance, retirementDeathBenefit, deemedBenefitMissingCount,
-      business: privateShares + businessAssets + loanReceivables,
-      privateShares, businessAssets, loanReceivables,
-      realEstate: homeRealEstate + incomeRealEstate + idleRealEstate + otherRealEstate,
-      homeRealEstate, incomeRealEstate, idleRealEstate, otherRealEstate, otherAssets,
-    };
-  }, [workingSnapshot]);
+  const successionAssets = useMemo(() => successionAssetTotals(workingSnapshot?.positions ?? []), [workingSnapshot]);
   // 非課税枠の判定に使う法定相続人の氏名。受取人を選ぶだけで判定できるよう、入力欄では持たせない。
   const legalHeirNameSet = useMemo(() => legalHeirNames(portfolio?.familyMembers ?? []), [portfolio]);
   // 保険の被保険者・受取人の選択肢。本人と親族関係タブの登録者を氏名で並べる。
@@ -211,94 +83,14 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     () => [...new Set([portfolio?.household.name, ...(portfolio?.familyMembers ?? []).map((member) => member.name)].filter((name): name is string => Boolean(name?.trim())))],
     [portfolio],
   );
-  const loanBreakdown = useMemo(() => {
-    let home = 0, investmentProperty = 0, securities = 0, business = 0, other = 0;
-    for (const position of workingSnapshot?.positions ?? []) {
-      if (position.side !== "LIABILITY" || !position.includedInNetWorth) continue;
-      if (position.category === "LOAN_HOME") home += position.valueJpy;
-      else if (position.category === "LOAN_INVESTMENT_PROPERTY") investmentProperty += position.valueJpy;
-      else if (position.category === "LOAN_SECURITIES") securities += position.valueJpy;
-      else if (position.category === "LOAN_BUSINESS") business += position.valueJpy;
-      else other += position.valueJpy;
-    }
-    return { home, investmentProperty, securities, business, other };
-  }, [workingSnapshot]);
+  const loanBreakdown = useMemo(() => loanBreakdownTotals(workingSnapshot?.positions ?? []), [workingSnapshot]);
   // 税金は年度ごとに保存している（承継関連費用だけは顧客単位）。
   const estimatedInheritanceTax = workingSnapshot?.estimatedInheritanceTax ?? 0;
   const otherTaxes = workingSnapshot?.otherTaxes ?? 0;
   const successionCosts = portfolio?.planning.successionCosts ?? 0;
-  const totalTaxes = estimatedInheritanceTax + otherTaxes;
-  function balanceView(scenario: BalanceScenario) {
-    const taxIncluded = scenario === "with-tax";
-    const displayedInsurance = taxIncluded ? successionAssets.insuranceDeathBenefit : successionAssets.insurance;
-    const displayedRetirement = taxIncluded ? successionAssets.retirementDeathBenefit : successionAssets.retirementAllowance;
-    const displayedAssets = {
-      ...successionAssets,
-      insurance: displayedInsurance,
-      retirementAllowance: displayedRetirement,
-      financial: successionAssets.deposits + successionAssets.securities + displayedInsurance + displayedRetirement,
-    };
-    const displayedAssetTotal = summary.assets - successionAssets.insurance - successionAssets.retirementAllowance + displayedInsurance + displayedRetirement;
-    const displayedTaxes = taxIncluded ? totalTaxes : 0;
-    const displayedSuccessionCosts = taxIncluded ? successionCosts : 0;
-    const forecastAdjustments = displayedTaxes + displayedSuccessionCosts;
-    const displayedNetWorth = displayedAssetTotal - summary.liabilities - forecastAdjustments;
-    const fundingAreaTotal = summary.liabilities + forecastAdjustments + Math.abs(displayedNetWorth);
-    const smallAreaItems = [
-      { side: "資産", label: "金融資産", value: displayedAssets.financial, areaTotal: displayedAssetTotal },
-      { side: "資産", label: "不動産", value: displayedAssets.realEstate, areaTotal: displayedAssetTotal },
-      { side: "資産", label: "事業用資産", value: displayedAssets.business, areaTotal: displayedAssetTotal },
-      { side: "資産", label: "その他資産", value: displayedAssets.otherAssets, areaTotal: displayedAssetTotal },
-      { side: "負債・純資産", label: "税金", value: displayedTaxes, areaTotal: fundingAreaTotal },
-      { side: "負債・純資産", label: "借入金", value: summary.liabilities, areaTotal: fundingAreaTotal },
-      { side: "負債・純資産", label: "承継関連費用", value: displayedSuccessionCosts, areaTotal: fundingAreaTotal },
-      { side: "負債・純資産", label: "純資産", value: displayedNetWorth, areaTotal: fundingAreaTotal },
-    ].filter((item) => item.value !== 0 && Math.abs(item.value) / Math.max(item.areaTotal, 1) < 0.04);
-    // 小分類は枠内描画と枠外注記の両方から使うので、JSX に直書きせずデータで持つ。
-    const nonZero = (items: { label: string; value: number }[]) => items.filter((item) => item.value !== 0);
-    const subtotals = {
-      financial: nonZero([
-        { label: "預金", value: displayedAssets.deposits },
-        { label: "有価証券", value: displayedAssets.securities },
-        { label: `生命保険${taxIncluded ? "（死亡保険金）" : ""}`, value: displayedAssets.insurance },
-        { label: `退職金${taxIncluded ? "（死亡退職金）" : ""}`, value: displayedAssets.retirementAllowance },
-      ]),
-      realEstate: nonZero([
-        { label: "自宅", value: displayedAssets.homeRealEstate },
-        { label: "収益不動産", value: displayedAssets.incomeRealEstate },
-        { label: "遊休不動産", value: displayedAssets.idleRealEstate },
-        { label: "その他不動産", value: displayedAssets.otherRealEstate },
-      ]),
-      business: nonZero([
-        { label: "自社株", value: displayedAssets.privateShares },
-        { label: "事業用資産", value: displayedAssets.businessAssets },
-        { label: "貸付金", value: displayedAssets.loanReceivables },
-      ]),
-      taxes: nonZero([
-        { label: "相続税", value: estimatedInheritanceTax },
-        { label: "その他税金", value: otherTaxes },
-      ]),
-      loans: nonZero([
-        { label: "住宅ローン", value: loanBreakdown.home },
-        { label: "不動産投資ローン", value: loanBreakdown.investmentProperty },
-        { label: "証券担保ローン", value: loanBreakdown.securities },
-        { label: "事業用借入", value: loanBreakdown.business },
-        { label: "その他借入金", value: loanBreakdown.other },
-      ]),
-    };
-    // 区画の高さは金額比そのままなので、比率が小さい中分類では小分類が枠外にはみ出して切れる。
-    // 印刷時の区画エリアは約420px、1区画に必要な高さは 見出し18px ＋ 小分類1行11px。
-    // 収まらない中分類だけ、小分類を枠外注記へ回す。
-    const clippedSubtotals = [
-      { side: "資産", label: "金融資産", value: displayedAssets.financial, areaTotal: displayedAssetTotal, items: subtotals.financial },
-      { side: "資産", label: "不動産", value: displayedAssets.realEstate, areaTotal: displayedAssetTotal, items: subtotals.realEstate },
-      { side: "資産", label: "事業用資産", value: displayedAssets.business, areaTotal: displayedAssetTotal, items: subtotals.business },
-      { side: "負債・純資産", label: "税金", value: displayedTaxes, areaTotal: fundingAreaTotal, items: subtotals.taxes },
-      { side: "負債・純資産", label: "借入金", value: summary.liabilities, areaTotal: fundingAreaTotal, items: subtotals.loans },
-    ].filter((account) => account.value !== 0 && account.items.length > 0
-      && Math.abs(account.value) / Math.max(account.areaTotal, 1) * 420 < 18 + account.items.length * 11);
-    return { taxIncluded, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems, subtotals, clippedSubtotals };
-  }
+  const balanceView = (scenario: BalanceScenario) => buildBalanceView({
+    scenario, summary, successionAssets, loanBreakdown, estimatedInheritanceTax, otherTaxes, successionCosts,
+  });
 
   function openNewPosition() {
     setEditingPosition(null);
@@ -317,49 +109,24 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
 
   async function saveClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
     setClientSaved(false);
-    setError("");
-    try {
-      const response = await fetch(`${API_BASE}/clients`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...Object.fromEntries(new FormData(event.currentTarget).entries()), id: householdId }),
-      });
-      const result = await response.json().catch(() => null) as (ClientSummary & { error?: string }) | null;
-      if (!response.ok || !result) throw new Error(result?.error ?? "顧客情報を保存できませんでした。");
-      await load();
-      setClientSaved(true);
-    } catch (clientError) {
-      setError(clientError instanceof Error ? clientError.message : "顧客情報を保存できませんでした。");
-    } finally {
-      setSaving(false);
-    }
+    const body = { ...Object.fromEntries(new FormData(event.currentTarget).entries()), id: householdId };
+    const { ok } = await mutate("/clients", "PATCH", body, "顧客情報を保存できませんでした。");
+    if (!ok) return;
+    await load();
+    setClientSaved(true);
   }
 
   async function deleteClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
-    setError("");
-    try {
-      const response = await fetch(`${API_BASE}/clients`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: householdId, confirmationClientCode: new FormData(event.currentTarget).get("confirmationClientCode") }),
-      });
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(result?.error ?? "顧客を削除できませんでした。");
-      // 削除した顧客のURLに留まらないよう、一覧へ戻す。
-      router.replace("/");
-    } catch (clientError) {
-      setError(clientError instanceof Error ? clientError.message : "顧客を削除できませんでした。");
-      setSaving(false);
-    }
+    const body = { id: householdId, confirmationClientCode: new FormData(event.currentTarget).get("confirmationClientCode") };
+    const { ok } = await mutate("/clients", "DELETE", body, "顧客を削除できませんでした。");
+    // 削除した顧客のURLに留まらないよう、一覧へ戻す。
+    if (ok) router.replace("/");
   }
 
   async function savePosition(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true); setError("");
     const form = new FormData(event.currentTarget);
     const fields = Object.fromEntries(form.entries()) as Record<string, unknown>;
     for (const fieldName of ["originalAmount", "valuationQuantity", "valuationUnitPrice", "adjustmentRate", "landArea", "roadsideValue", "fixedAssetTaxValue", "valuationMultiplier", "ownershipNumerator", "ownershipDenominator"]) {
@@ -389,137 +156,74 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       assetDetails.benefitAllocations = [...allocationRows.entries()].sort(([a], [b]) => a - b).map(([, row]) => row);
     }
     fields.assetDetails = assetDetails;
-    const body = {
-      ...fields,
-      snapshotId: workingSnapshot?.id,
-    };
-    try {
-      const response = await fetch(
-        editingPosition ? `${API_BASE}/positions/${editingPosition.id}` : `${API_BASE}/positions`,
-        { method: editingPosition ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-      );
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      // 円換算レート未登録など、サーバ側で理由が分かる場合はその文言をそのまま出す。
-      if (!response.ok) throw new Error(result?.error);
-      closePositionModal();
-      await load();
-    } catch (positionError) {
-      const fallback = editingPosition ? "修正できませんでした。入力内容を確認してください。" : "登録できませんでした。入力内容を確認してください。";
-      setError(positionError instanceof Error && positionError.message ? positionError.message : fallback);
-    }
-    finally { setSaving(false); }
+    // 円換算レート未登録など、サーバ側で理由が分かる場合はその文言をそのまま出す。
+    const fallback = editingPosition ? "修正できませんでした。入力内容を確認してください。" : "登録できませんでした。入力内容を確認してください。";
+    const { ok } = await mutate(
+      editingPosition ? `/positions/${editingPosition.id}` : "/positions",
+      editingPosition ? "PUT" : "POST",
+      { ...fields, snapshotId: workingSnapshot?.id },
+      fallback,
+    );
+    if (!ok) return;
+    closePositionModal();
+    await load();
   }
 
   async function saveBulkPositions(positions: BulkPositionPayload[]) {
     if (!workingSnapshot) return false;
-    setSaving(true); setError("");
-    try {
-      const response = await fetch(`${API_BASE}/positions/bulk`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ snapshotId: workingSnapshot.id, positions }),
-      });
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(result?.error ?? "明細を一括保存できませんでした。入力内容を確認してください。");
-      setBulkModalOpen(false);
-      await load();
-      return true;
-    } catch (bulkError) {
-      setError(bulkError instanceof Error ? bulkError.message : "明細を一括保存できませんでした。");
-      return false;
-    } finally {
-      setSaving(false);
-    }
+    const { ok } = await mutate("/positions/bulk", "PATCH", { snapshotId: workingSnapshot.id, positions }, "明細を一括保存できませんでした。入力内容を確認してください。");
+    if (!ok) return false;
+    setBulkModalOpen(false);
+    await load();
+    return true;
   }
 
   async function deletePosition() {
     if (!deletingPosition) return;
-    setSaving(true); setError("");
-    const response = await fetch(`${API_BASE}/positions/${deletingPosition.id}`, { method: "DELETE" });
-    if (response.ok) {
-      setDeletingPosition(null);
-      await load();
-    } else {
-      setError("削除できませんでした。");
-    }
-    setSaving(false);
+    const { ok } = await mutate(`/positions/${deletingPosition.id}`, "DELETE", undefined, "削除できませんでした。");
+    if (!ok) return;
+    setDeletingPosition(null);
+    await load();
   }
 
   async function reorderPositions(snapshotId: number, section: PositionSection, orderedIds: number[]) {
-    setSaving(true); setError("");
-    try {
-      const response = await fetch(`${API_BASE}/positions/reorder`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ snapshotId, section, orderedIds }),
-      });
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(result?.error ?? "並び順を保存できませんでした。");
-      await load();
-      return true;
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "並び順を保存できませんでした。");
-      return false;
-    } finally {
-      setSaving(false);
-    }
+    const { ok } = await mutate("/positions/reorder", "PUT", { snapshotId, section, orderedIds }, "並び順を保存できませんでした。");
+    if (!ok) return false;
+    await load();
+    return true;
   }
 
   async function deleteSnapshot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!deletingSnapshot) return;
-    setSaving(true); setError("");
-    try {
-      const confirmationFiscalYear = new FormData(event.currentTarget).get("confirmationFiscalYear");
-      const response = await fetch(`${API_BASE}/snapshots/${deletingSnapshot.id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmationFiscalYear }),
-      });
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(result?.error ?? "年度データを削除できませんでした。");
-      setDeletingSnapshot(null);
-      // 削除した年度を URL に残さない。
-      if (workingSnapshotId === deletingSnapshot.id) router.replace(`/customers/${householdId}/${section}`);
-      await load();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "年度データを削除できませんでした。");
-    } finally {
-      setSaving(false);
-    }
+    const confirmationFiscalYear = new FormData(event.currentTarget).get("confirmationFiscalYear");
+    const { ok } = await mutate(`/snapshots/${deletingSnapshot.id}`, "DELETE", { confirmationFiscalYear }, "年度データを削除できませんでした。");
+    if (!ok) return;
+    setDeletingSnapshot(null);
+    // 削除した年度を URL に残さない。
+    if (workingSnapshotId === deletingSnapshot.id) router.replace(`/customers/${householdId}/${section}`);
+    await load();
   }
 
   async function saveSnapshot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true); setError("");
-    try {
-      const body = Object.fromEntries(new FormData(event.currentTarget).entries());
-      const response = await fetch(`${API_BASE}/snapshots`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const result = await response.json().catch(() => null) as { error?: string; existingSnapshotId?: number } | null;
-      if (response.status === 409 && result?.existingSnapshotId) {
-        setYearCreationSourceId(null);
-        editSnapshot(result.existingSnapshotId);
-        setError(`${result.error} 既存年度を表示しました。`);
-        return;
-      }
-      if (!response.ok) throw new Error(result?.error ?? "年度を作成できませんでした。");
+    const body = Object.fromEntries(new FormData(event.currentTarget).entries());
+    // 同じ年度が既にある場合（409）は失敗ではなく分岐として扱い、その年度を開いて知らせる。
+    const { ok, status, result } = await mutate("/snapshots", "POST", body, "年度を作成できませんでした。", { silentStatus: 409 });
+    if (status === 409 && typeof result?.existingSnapshotId === "number") {
       setYearCreationSourceId(null);
-      await load();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "年度を作成できませんでした。");
-    } finally {
-      setSaving(false);
+      editSnapshot(result.existingSnapshotId);
+      setError(`${result.error} 既存年度を表示しました。`);
+      return;
     }
+    if (!ok) return;
+    setYearCreationSourceId(null);
+    await load();
   }
 
   async function saveSnapshotSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workingSnapshot) return;
-    setSaving(true); setError("");
     // 円換算レートは `fxRate.USD` のような名前で並ぶので、通貨→レートの表にまとめ直して送る。
     const fields = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, unknown>;
     const fxRates: Record<string, number> = {};
@@ -530,18 +234,10 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       delete fields[fieldName];
     }
     fields.fxRates = fxRates;
-    try {
-      const response = await fetch(`${API_BASE}/snapshots/${workingSnapshot.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fields),
-      });
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(result?.error ?? "年度設定を保存できませんでした。");
-      setSnapshotSettingsModalOpen(false);
-      await load();
-    } catch (error) { setError(error instanceof Error ? error.message : "年度設定を保存できませんでした。"); }
-    finally { setSaving(false); }
+    const { ok } = await mutate(`/snapshots/${workingSnapshot.id}`, "PUT", fields, "年度設定を保存できませんでした。");
+    if (!ok) return;
+    setSnapshotSettingsModalOpen(false);
+    await load();
   }
 
   // 貸借対照表と明細は同じ年度を見せたいので、?snapshot= を引き継ぐ。
@@ -556,63 +252,31 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   async function saveForecast(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!portfolio) return;
-    setSaving(true); setError("");
-    const form = new FormData(event.currentTarget);
-    try {
-      const response = await fetch(`${API_BASE}/inheritance-estimate`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...Object.fromEntries(form.entries()), householdId: portfolio.household.id }),
-      });
-      if (!response.ok) throw new Error();
-      setForecastModalOpen(false);
-      await load();
-    } catch { setError("税金・費用を保存できませんでした。"); }
-    finally { setSaving(false); }
+    const body = { ...Object.fromEntries(new FormData(event.currentTarget).entries()), householdId: portfolio.household.id };
+    const { ok } = await mutate("/inheritance-estimate", "PUT", body, "税金・費用を保存できませんでした。");
+    if (!ok) return;
+    setForecastModalOpen(false);
+    await load();
   }
 
   async function saveFamilyMembers(members: FamilyMemberDraft[]) {
     if (!portfolio) return;
-    setSaving(true);
-    setError("");
-    try {
-      const response = await fetch(`${API_BASE}/family-members`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ householdId: portfolio.household.id, members }),
-      });
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(result?.error ?? "家族情報を保存できませんでした。");
-      await load();
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "家族情報を保存できませんでした。";
-      setError(message);
-      throw caught;
-    } finally {
-      setSaving(false);
-    }
+    const fallback = "家族情報を保存できませんでした。";
+    const { ok, result } = await mutate("/family-members", "PUT", { householdId: portfolio.household.id, members }, fallback);
+    // 保存できたかは FamilyView 側でも見ているので、失敗は例外として返す。
+    if (!ok) throw new Error(result?.error ?? fallback);
+    await load();
   }
 
   async function calculateInheritanceTaxViaApi() {
     if (!portfolio || taxApiStatus === "loading") return;
     setTaxApiStatus("loading");
-    setError("");
-    try {
-      const response = await fetch(`${API_BASE}/inheritance-tax-calculate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ householdId: portfolio.household.id }),
-      });
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(result?.error || "相続税を計算できませんでした。");
-      await load();
-      setBalanceScenario("with-tax");
-      setTaxApiStatus("success");
-      window.setTimeout(() => setTaxApiStatus("idle"), 3_000);
-    } catch (caught) {
-      setTaxApiStatus("idle");
-      setError(caught instanceof Error ? caught.message : "相続税を計算できませんでした。");
-    }
+    const { ok } = await mutate("/inheritance-tax-calculate", "POST", { householdId: portfolio.household.id }, "相続税を計算できませんでした。");
+    if (!ok) { setTaxApiStatus("idle"); return; }
+    await load();
+    setBalanceScenario("with-tax");
+    setTaxApiStatus("success");
+    window.setTimeout(() => setTaxApiStatus("idle"), 3_000);
   }
 
   if (!portfolio || !current) {
@@ -681,70 +345,25 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
               </section>
               <section className={`dashboard-grid balance-report-series screen-${balanceScenario}`}>
                 {(printSections?.has("balance") ? (["without-tax", "with-tax"] as const) : [balanceScenario]).map((reportScenario) => {
-                  const { taxIncluded, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems, subtotals, clippedSubtotals } = balanceView(reportScenario);
-                  const headingSuffix = reportScenario === "with-tax" ? "with-tax" : "without-tax";
-                  return <article key={reportScenario} className={`panel balance-panel print-section-balance balance-report-${headingSuffix}`}>
-                  {reportScenario === "with-tax" ? <p className="balance-print-owner">{portfolio.household.name}</p> : null}
-                  <PanelHeader
-                    title="貸借対照表"
-                    subtitle={`${reportSnapshot.isCurrent ? "" : `${fiscalYearLabel(reportSnapshot)}・`}${taxIncluded ? "相続時予測（死亡保険金・税金を反映）" : "現在価値（保険は解約返戻金）"}`}
-                    action={reportScenario === balanceScenario ? <div className="balance-panel-actions"><div className="balance-scenario-switch" role="group" aria-label="貸借対照表の表示パターン"><button type="button" aria-pressed={!taxIncluded} onClick={() => setBalanceScenario("without-tax")}><span>税金なし</span><small>メイン</small></button><button type="button" aria-pressed={taxIncluded} onClick={() => setBalanceScenario("with-tax")}><span>税金あり</span><small>サブ</small></button></div>{reportSnapshot.isCurrent ? <><button className="text-button compact tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : "APIで相続税を計算"}</button><button className="text-button compact" type="button" onClick={() => setForecastModalOpen(true)}>税金を入力</button></> : null}</div> : undefined}
-                  />
-                  {taxIncluded && successionAssets.deemedBenefitMissingCount > 0 ? <p className="insurance-data-note" role="note"><AlertTriangle />死亡保険金・死亡退職金が未入力の明細 {successionAssets.deemedBenefitMissingCount}件は、税金ありB/Sでは0円として計算しています。</p> : null}
-                  <div className="classified-bs" role="group" aria-label={`貸借対照表・${taxIncluded ? "税金あり" : "税金なし"}`}>
-                    <section className="classified-bs-side asset-side" aria-labelledby={`assets-heading-${headingSuffix}`}>
-                      <h4 id={`assets-heading-${headingSuffix}`}><span>資産の部</span></h4>
-                      <div className="bs-account-area">
-                      {displayedAssets.financial !== 0 ? <div className={`bs-account financial-account grouped-account ${accountDensity(displayedAssets.financial, displayedAssetTotal)}`} style={{ height: areaHeight(displayedAssets.financial, displayedAssetTotal) }}>
-                        <div className="bs-account-heading"><span>金融資産</span><strong><BsAmount value={displayedAssets.financial} total={displayedAssetTotal} /></strong></div>
-                        <BsSubtotals items={subtotals.financial} total={displayedAssetTotal} />
-                      </div> : null}
-                      {displayedAssets.realEstate !== 0 ? <div className={`bs-account real-estate-account grouped-account ${accountDensity(displayedAssets.realEstate, displayedAssetTotal)}`} style={{ height: areaHeight(displayedAssets.realEstate, displayedAssetTotal) }}>
-                        <div className="bs-account-heading"><span>不動産</span><strong><BsAmount value={displayedAssets.realEstate} total={displayedAssetTotal} /></strong></div>
-                        <BsSubtotals items={subtotals.realEstate} total={displayedAssetTotal} />
-                      </div> : null}
-                      {displayedAssets.business !== 0 ? <div className={`bs-account business-account grouped-account ${accountDensity(displayedAssets.business, displayedAssetTotal)}`} style={{ height: areaHeight(displayedAssets.business, displayedAssetTotal) }}>
-                        <div className="bs-account-heading"><span>事業用資産</span><strong><BsAmount value={displayedAssets.business} total={displayedAssetTotal} /></strong></div>
-                        <BsSubtotals items={subtotals.business} total={displayedAssetTotal} />
-                      </div> : null}
-                      {displayedAssets.otherAssets !== 0 ? <div className={`bs-account other-account ${accountDensity(displayedAssets.otherAssets, displayedAssetTotal)}`} style={{ height: areaHeight(displayedAssets.otherAssets, displayedAssetTotal) }}><div><span>その他資産</span></div><strong><BsAmount value={displayedAssets.otherAssets} total={displayedAssetTotal} /></strong></div> : null}
-                      </div>
-                      <footer><span>資産合計</span><strong>{compactYen(displayedAssetTotal)}</strong></footer>
-                    </section>
-                    <section className="classified-bs-side funding-side" aria-labelledby={`funding-heading-${headingSuffix}`}>
-                      <h4 id={`funding-heading-${headingSuffix}`}><span>負債・純資産の部</span></h4>
-                      <div className="bs-account-area">
-                      {displayedTaxes !== 0 ? <div className={`bs-account tax-account grouped-account ${accountDensity(displayedTaxes, fundingAreaTotal)}`} style={{ height: areaHeight(displayedTaxes, fundingAreaTotal) }}>
-                        <div className="bs-account-heading"><span>税金</span><strong><BsAmount value={displayedTaxes} total={displayedAssetTotal} /></strong></div>
-                        <BsSubtotals items={subtotals.taxes} total={displayedAssetTotal} />
-                      </div> : null}
-                      {summary.liabilities !== 0 ? <div className={`bs-account medium-liability grouped-account ${accountDensity(summary.liabilities, fundingAreaTotal)}`} style={{ height: areaHeight(summary.liabilities, fundingAreaTotal) }}>
-                        <div className="bs-account-heading"><span>借入金</span><strong><BsAmount value={summary.liabilities} total={displayedAssetTotal} /></strong></div>
-                        <BsSubtotals items={subtotals.loans} total={displayedAssetTotal} />
-                      </div> : null}
-                      {displayedSuccessionCosts !== 0 ? <div className={`bs-account forecast-account ${accountDensity(displayedSuccessionCosts, fundingAreaTotal)}`} aria-label={`承継関連費用 ${compactYen(displayedSuccessionCosts)}`} style={{ height: areaHeight(displayedSuccessionCosts, fundingAreaTotal) }}><div><span>承継関連費用</span><small className="bs-subcategories">承継時の諸費用</small></div><strong><BsAmount value={displayedSuccessionCosts} total={displayedAssetTotal} /></strong></div> : null}
-                      {displayedNetWorth !== 0 ? <div className={`bs-account net-assets ${accountDensity(displayedNetWorth, fundingAreaTotal)}`} style={{ height: areaHeight(displayedNetWorth, fundingAreaTotal) }}>
-                        <div><span>純資産</span><small>{taxIncluded ? "資産 − 負債 − 税金等" : "資産 − 負債"}</small></div><strong><BsAmount value={displayedNetWorth} total={displayedAssetTotal} /></strong>
-                      </div> : null}
-                      </div>
-                      <footer><span>負債・純資産合計</span><strong>{compactYen(summary.liabilities + forecastAdjustments + displayedNetWorth)}</strong></footer>
-                    </section>
-                  </div>
-                  {smallAreaItems.length > 0 ? <div className="bs-small-area-key" role="note" aria-label="小さい区画の補助表示">
-                    <span className="bs-small-area-key-title">小区画</span>
-                    {smallAreaItems.map((item) => <span className="bs-small-area-key-item" key={`${item.side}-${item.label}`}>
-                      <small>{item.side}</small><strong>{item.label}</strong><b>{compactYen(item.value)}</b><em>{percent.format(item.value / Math.max(displayedAssetTotal, 1) * 100)}%</em>
-                    </span>)}
-                  </div> : null}
-                  {clippedSubtotals.length > 0 ? <div className="bs-subtotal-note" role="note" aria-label="枠内に収まらない小分類の内訳">
-                    <span className="bs-subtotal-note-title">小分類の内訳</span>
-                    {clippedSubtotals.map((account) => <span className="bs-subtotal-note-item" key={`${account.side}-${account.label}`}>
-                      <strong>{account.label}</strong>
-                      <span>{account.items.map((item) => `${item.label} ${compactYen(item.value)}（${percent.format(item.value / Math.max(displayedAssetTotal, 1) * 100)}%）`).join("／")}</span>
-                    </span>)}
-                  </div> : null}
-                  <p className="guarantee-note" role="note">※ 個人保証残高（B/S外）：<strong>{compactYen(summary.guarantees)}</strong></p>
-                </article>;
+                  const view = balanceView(reportScenario);
+                  return <BalanceSheetPanel
+                    key={reportScenario}
+                    view={view}
+                    headingSuffix={reportScenario}
+                    subtitle={`${reportSnapshot.isCurrent ? "" : `${fiscalYearLabel(reportSnapshot)}・`}${view.taxIncluded ? "相続時予測（死亡保険金・税金を反映）" : "現在価値（保険は解約返戻金）"}`}
+                    ownerName={reportScenario === "with-tax" ? portfolio.household.name : null}
+                    liabilities={summary.liabilities}
+                    guarantees={summary.guarantees}
+                    deemedBenefitMissingCount={successionAssets.deemedBenefitMissingCount}
+                    action={reportScenario === balanceScenario ? <BalanceScenarioActions
+                      taxIncluded={view.taxIncluded}
+                      isCurrent={reportSnapshot.isCurrent}
+                      taxApiStatus={taxApiStatus}
+                      onSelectScenario={setBalanceScenario}
+                      onCalculateTax={() => void calculateInheritanceTaxViaApi()}
+                      onOpenForecast={() => setForecastModalOpen(true)}
+                    /> : undefined}
+                  />;
                 })}
               </section>
             </div>
