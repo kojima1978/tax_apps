@@ -484,11 +484,11 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
   }
 
   return <div className="modal-layer" role="presentation"><div className="modal bulk-position-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
-    <header><div><p className="eyebrow">BULK MANAGE</p><h2 id="bulk-modal-title">明細を表で編集・追加</h2><p>{snapshot.fiscalYear}年度・資産の部</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <header><div><p className="eyebrow">BULK MANAGE</p><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要8種類）</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <div className="bulk-modal-body">
       <section className="bulk-common-settings" aria-label="共通条件">
         <label>編集・追加する種類<select value={entryType} onChange={(event) => changeEntryType(event.target.value as BulkEntryType)}>{bulkEntryTypes.map((type) => <option key={type} value={type}>{bulkEntryTypeLabels[type]}（登録済み{entryCounts[type]}件）</option>)}</select></label>
-        <div className="bulk-help"><Table2 /><span>{isRealEstate ? "登録済み行の修正と新規行の追加を同じ表で行えます。金額は千円単位です。" : "登録済み行の修正と新規行の追加を同じ表で行えます。Excelから複数セルを貼り付けることもできます。"} Enterで次のセル、Shift+Enterで前のセルへ移動します。</span></div>
+        <div className="bulk-help"><Table2 /><span>{isRealEstate ? "登録済み行の修正と新規行の追加を同じ表で行えます。金額は千円単位です。" : "登録済み行の修正と新規行の追加を同じ表で行えます。Excelから複数セルを貼り付けることもできます。"} Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の8種類だけです。事業用資産・その他資産・借入金・個人保証は「1件追加」から登録します。</span></div>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll">

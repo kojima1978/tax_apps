@@ -1,6 +1,6 @@
 "use client";
 
-import { GripVertical, Pencil, Plus, Table2, Trash2 } from "lucide-react";
+import { CalendarPlus, GripVertical, Pencil, Plus, Table2, Trash2 } from "lucide-react";
 import { DragEvent, KeyboardEvent, useMemo, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
 import { triangleYen, yen } from "@/lib/format";
@@ -47,6 +47,9 @@ function DeemedAmounts({ position }: { position: Position }) {
   </>;
 }
 
+/** 追加ボタンの文言。表の見出しは「〜の部（B/S外）」まで含むので、ボタンでは短い呼び方にする。 */
+const sectionAddLabels: Record<PositionSection, string> = { ASSET: "資産", LIABILITY: "負債", CONTINGENT: "偶発債務" };
+
 const classificationTone: Record<string, string> = {
   金融資産: "financial",
   不動産: "real-estate",
@@ -54,7 +57,7 @@ const classificationTone: Record<string, string> = {
   その他資産: "other",
 };
 
-export function AssetsView({ snapshot, snapshots, legalHeirNames, onSelectSnapshot, onCreateNext, onAdd, onBulkManage, onEdit, onDelete, onReorder, onEditSettings, onBack, saving }: { snapshot: Snapshot; snapshots: Snapshot[]; legalHeirNames: ReadonlySet<string>; onSelectSnapshot: (snapshotId: number) => void; onCreateNext: () => void; onAdd: () => void; onBulkManage: () => void; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; onEditSettings: () => void; onBack?: () => void; saving: boolean }) {
+export function AssetsView({ snapshot, snapshots, legalHeirNames, onSelectSnapshot, onCreateNext, onAdd, onBulkManage, onEdit, onDelete, onReorder, onEditSettings, onBack, saving }: { snapshot: Snapshot; snapshots: Snapshot[]; legalHeirNames: ReadonlySet<string>; onSelectSnapshot: (snapshotId: number) => void; onCreateNext: () => void; onAdd: (section?: PositionSection) => void; onBulkManage: () => void; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; onEditSettings: () => void; onBack?: () => void; saving: boolean }) {
   const assets = snapshot.positions.filter((p) => p.side === "ASSET");
   const liabilities = snapshot.positions.filter((p) => p.side === "LIABILITY" && p.includedInNetWorth);
   const contingencies = snapshot.positions.filter((p) => p.side === "LIABILITY" && !p.includedInNetWorth);
@@ -100,10 +103,10 @@ export function AssetsView({ snapshot, snapshots, legalHeirNames, onSelectSnapsh
   };
   const orderedSnapshots = [...snapshots].sort((a, b) => b.fiscalYear - a.fiscalYear);
   const updatedAt = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(snapshot.updatedAt));
-  return <><section className="page-heading detail-page-heading"><div><p className="eyebrow">ASSET &amp; LIABILITY DETAILS</p><h2>資産・負債明細</h2><p className="detail-heading-meta"><span className={`detail-status ${snapshot.isCurrent ? "current" : "historical"}`}><span className="detail-status-screen">{snapshot.isCurrent ? "現在年度" : "過年度を編集中"}</span><span className="detail-status-print">{fiscalYearLabel(snapshot)}{snapshot.isCurrent ? "（現在）" : ""}</span></span><span className="detail-updated-at">最終更新 {updatedAt}</span>{!snapshot.isCurrent ? <span>現在年度のデータには影響しません</span> : null}</p></div><div className="page-heading-actions detail-page-actions"><label className="detail-year-selector"><span>表示年度</span><select aria-label="資産・負債明細の表示年度" value={snapshot.id} onChange={(event) => onSelectSnapshot(Number(event.target.value))}>{orderedSnapshots.map((item) => <option key={item.id} value={item.id}>{fiscalYearLabel(item)}{item.isCurrent ? "（現在）" : ""}</option>)}</select></label>{onBack ? <button className="button secondary" onClick={onBack}>年度比較へ戻る</button> : null}<button className="button secondary" onClick={onCreateNext}><Plus />年度を追加</button><button className="button secondary" onClick={onEditSettings}><Pencil />年度設定</button><div className="entry-action-group" role="group" aria-label="明細の追加と編集"><button className="button secondary" onClick={onBulkManage}><Table2 />表で編集・追加</button><button className="button primary" onClick={onAdd}><Plus />1件追加</button></div></div></section><PositionTable key={`${snapshot.id}-ASSET-${snapshot.updatedAt}`} title="資産の部" section="ASSET" items={assets} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /><PositionTable key={`${snapshot.id}-LIABILITY-${snapshot.updatedAt}`} title="負債の部" section="LIABILITY" items={liabilities} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /><PositionTable key={`${snapshot.id}-CONTINGENT-${snapshot.updatedAt}`} title="偶発債務の部（B/S外）" section="CONTINGENT" items={contingencies} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /></>;
+  return <><section className="page-heading detail-page-heading"><div><p className="eyebrow">ASSET &amp; LIABILITY DETAILS</p><h2>資産・負債明細</h2><p className="detail-heading-meta"><span className={`detail-status ${snapshot.isCurrent ? "current" : "historical"}`}><span className="detail-status-screen">{snapshot.isCurrent ? "現在年度" : "過年度を編集中"}</span><span className="detail-status-print">{fiscalYearLabel(snapshot)}{snapshot.isCurrent ? "（現在）" : ""}</span></span><span className="detail-updated-at">最終更新 {updatedAt}</span>{!snapshot.isCurrent ? <span>現在年度のデータには影響しません</span> : null}</p></div><div className="page-heading-actions detail-page-actions">{onBack ? <button className="button secondary" onClick={onBack}>年度比較へ戻る</button> : null}{/* 年度（スナップショット）の操作と明細の入力は別レイヤーなので、グループを分けて誤操作を防ぐ。 */}<div className="year-action-group" role="group" aria-label="年度の操作"><label className="detail-year-selector"><span>表示年度</span><select aria-label="資産・負債明細の表示年度" value={snapshot.id} onChange={(event) => onSelectSnapshot(Number(event.target.value))}>{orderedSnapshots.map((item) => <option key={item.id} value={item.id}>{fiscalYearLabel(item)}{item.isCurrent ? "（現在）" : ""}</option>)}</select></label><button className="button secondary" onClick={onCreateNext}><CalendarPlus />年度を追加</button><button className="button secondary" onClick={onEditSettings}><Pencil />年度設定</button></div><div className="entry-action-group" role="group" aria-label="明細の追加と編集"><button className="button secondary" onClick={onBulkManage}><Table2 />まとめて入力</button><button className="button primary" onClick={() => onAdd()}><Plus />1件追加</button></div></div></section><PositionTable key={`${snapshot.id}-ASSET-${snapshot.updatedAt}`} title="資産の部" section="ASSET" items={assets} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /><PositionTable key={`${snapshot.id}-LIABILITY-${snapshot.updatedAt}`} title="負債の部" section="LIABILITY" items={liabilities} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /><PositionTable key={`${snapshot.id}-CONTINGENT-${snapshot.updatedAt}`} title="偶発債務の部（B/S外）" section="CONTINGENT" items={contingencies} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /></>;
 }
 
-function PositionTable({ title, section, items, onEdit, onDelete, onReorder, taxBurden, saving }: { title: string; section: PositionSection; items: Position[]; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; taxBurden: (position: Position) => number | null; saving: boolean }) {
+function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReorder, taxBurden, saving }: { title: string; section: PositionSection; items: Position[]; onAdd: (section?: PositionSection) => void; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; taxBurden: (position: Position) => number | null; saving: boolean }) {
   const [orderedItems, setOrderedItems] = useState(items);
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
@@ -208,7 +211,9 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
       <PanelHeader
         title={title}
         subtitle={`${visibleItems.length === items.length ? `${items.length}件` : `${visibleItems.length}/${items.length}件表示`}・${reorderHint}`}
-        action={hasClassificationControls ? (
+        action={(
+          <div className="position-table-actions">
+          {hasClassificationControls ? (
           <div className="position-table-tools" aria-label={`${title}の表示設定`}>
             <label>
               <span>中分類</span>
@@ -226,14 +231,20 @@ function PositionTable({ title, section, items, onEdit, onDelete, onReorder, tax
               </select>
             </label>
           </div>
-        ) : undefined}
+          ) : null}
+          {/* 追加はこの表の区分で開く。見ている表と追加先を一致させ、モーダルでの区分選択を1段減らす。 */}
+          <button type="button" className="button secondary table-add-button" aria-label={`${title}に明細を追加`} onClick={() => onAdd(section)}><Plus />{sectionAddLabels[section]}を追加</button>
+          </div>
+        )}
       />
       <p className="sr-only" aria-live="polite">{announcement}</p>
       <div className="table-scroll">
         <table className="position-table">
           <thead><tr><th className="reorder-column"><span className="sr-only">並び順</span></th><th>中分類</th><th>科目・名称</th><th>所在地・金融機関等</th><th>評価方法</th><th className="number">円換算時価</th><th className="number">相続税負担額</th><th className="actions-column">操作</th></tr></thead>
           <tbody>
-            {visibleItems.length === 0 ? <tr className="position-empty-row"><td colSpan={8}>該当する明細はありません。</td></tr> : visibleItems.map((p, index) => {
+            {visibleItems.length === 0 ? <tr className="position-empty-row"><td colSpan={8}>{/* 未登録と「絞り込みの結果0件」は別物。未登録のときだけ最初の1件への入口を出す。 */items.length === 0
+              ? <div className="position-empty-state"><p>まだ{sectionAddLabels[section]}の明細がありません。</p><button type="button" className="button primary" onClick={() => onAdd(section)}><Plus />{sectionAddLabels[section]}を追加</button></div>
+              : "該当する明細はありません。"}</td></tr> : visibleItems.map((p, index) => {
               const classification = middleClassification(p);
               const tone = classificationTone[classification] ?? "neutral";
               const isClassificationStart = index > 0 && middleClassification(visibleItems[index - 1]) !== classification;

@@ -58,6 +58,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
+  // 表ごとの「追加」から開いたときは、その表の区分を選んだ状態でモーダルを開く。
+  const [newPositionSection, setNewPositionSection] = useState<PositionSection>("ASSET");
   const [deletingPosition, setDeletingPosition] = useState<Position | null>(null);
   const [deletingSnapshot, setDeletingSnapshot] = useState<Snapshot | null>(null);
   const [forecastModalOpen, setForecastModalOpen] = useState(false);
@@ -92,8 +94,9 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     scenario, summary, successionAssets, loanBreakdown, estimatedInheritanceTax, otherTaxes, successionCosts,
   });
 
-  function openNewPosition() {
+  function openNewPosition(section: PositionSection = "ASSET") {
     setEditingPosition(null);
+    setNewPositionSection(section);
     setModalOpen(true);
   }
 
@@ -392,7 +395,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         </main>
       </div>
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
-      {modalOpen ? <PositionModal position={editingPosition} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
+      {modalOpen ? <PositionModal position={editingPosition} defaultSection={newPositionSection} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
       {bulkModalOpen && workingSnapshot ? <BulkPositionModal snapshot={workingSnapshot} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /> : null}
       {deletingPosition ? <DeletePositionModal position={deletingPosition} onClose={() => setDeletingPosition(null)} onDelete={() => void deletePosition()} saving={saving} /> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}

@@ -227,13 +227,16 @@ function AssetSpecificFields({
   return null;
 }
 
-export function PositionModal({ position, people, legalHeirNames, fxRates, onClose, onSubmit, saving }: { position: Position | null; people: string[]; legalHeirNames: ReadonlySet<string>; fxRates: FxRates; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
+/** 区分ごとの既定科目。区分を切り替えたときと、表ごとの「追加」から開いたときの初期値を揃える。 */
+const defaultCategoryOf = (section: PositionSection) => section === "ASSET" ? "DEPOSIT" : section === "LIABILITY" ? "LOAN_OTHER" : "GUARANTEE";
+
+export function PositionModal({ position, defaultSection = "ASSET", people, legalHeirNames, fxRates, onClose, onSubmit, saving }: { position: Position | null; defaultSection?: PositionSection; people: string[]; legalHeirNames: ReadonlySet<string>; fxRates: FxRates; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
   const assetDetails = position?.assetDetails ?? {};
   const [fallbackOwnershipNumerator, fallbackOwnershipDenominator] = decimalToFraction(position?.ownershipShare ?? null);
-  const [section, setSection] = useState<PositionSection>(position ? positionSection(position) : "ASSET");
+  const [section, setSection] = useState<PositionSection>(position ? positionSection(position) : defaultSection);
   // 科目は中分類で絞り込んでから選ぶ。科目が11件のフラットな一覧だと目的の科目を探しづらいため。
   const [group, setGroup] = useState<AssetGroupLabel>(assetGroupOf(position?.category ?? "DEPOSIT") ?? "金融資産");
-  const [category, setCategory] = useState(position?.category ?? "DEPOSIT");
+  const [category, setCategory] = useState(position?.category ?? defaultCategoryOf(defaultSection));
   const [currency, setCurrency] = useState(foreignCurrencyCategories.includes(position?.category ?? "") ? position?.currency ?? "JPY" : "JPY");
   // 自社株も直接入力を選べるので、保存済みの評価方法をそのまま開く。新規追加時の既定は changeCategory 側で決める。
   const [formula, setFormula] = useState<ValuationFormula>(position?.valuationFormula ?? "MANUAL");
@@ -253,7 +256,7 @@ export function PositionModal({ position, people, legalHeirNames, fxRates, onClo
   function changeSection(nextSection: PositionSection) {
     setSection(nextSection);
     setGroup("金融資産");
-    setCategory(nextSection === "ASSET" ? "DEPOSIT" : nextSection === "LIABILITY" ? "LOAN_OTHER" : "GUARANTEE");
+    setCategory(defaultCategoryOf(nextSection));
     setFormula("MANUAL");
   }
 
