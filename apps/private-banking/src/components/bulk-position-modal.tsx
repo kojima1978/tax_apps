@@ -23,7 +23,13 @@ type BulkRow = Record<BulkField, string> & { id: number; positionId: number | nu
 type BulkColumn = { key: BulkField; label: string; numeric?: boolean; required?: boolean; conditional?: boolean; kind?: "category" | "formula" | "landCategory" | "buildingType" | "accountType"; width?: string };
 
 const bulkEntryTypeLabels: Record<BulkEntryType, string> = { DEPOSIT: "現金・預貯金", SECURITIES: "有価証券", PRIVATE_SHARES: "自社株", LAND: "土地", BUILDING: "建物", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金", LOAN_RECEIVABLE: "貸付金" };
-const bulkEntryTypes: BulkEntryType[] = ["DEPOSIT", "SECURITIES", "PRIVATE_SHARES", "LAND", "BUILDING", "INSURANCE", "RETIREMENT_ALLOWANCE", "LOAN_RECEIVABLE"];
+/** タブの並びと区切り。明細一覧の中分類（assetCategoryGroups）と同じ順に並べ、画面間で探す位置を揃える。 */
+const bulkEntryGroups: { label: string; types: BulkEntryType[] }[] = [
+  { label: "金融資産", types: ["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"] },
+  { label: "不動産", types: ["LAND", "BUILDING"] },
+  { label: "事業用資産", types: ["PRIVATE_SHARES", "LOAN_RECEIVABLE"] },
+];
+const bulkEntryTypes: BulkEntryType[] = bulkEntryGroups.flatMap((group) => group.types);
 
 const bulkNumberOrNull = (value: string) => value ? Number(value.replace(/,/g, "")) : null;
 
@@ -166,6 +172,11 @@ function initialRows(snapshot: Snapshot, entryType: BulkEntryType) {
   return [...existingRows, createEmptyRow(nextId, entryType)];
 }
 
+/** 保存対象になる新規行かどうか。フッターの件数とタブの印で同じ判定を使う。 */
+const bulkRowIsFilledNew = (row: BulkRow) => row.positionId === null && Boolean(row.name.trim() || row.institution.trim() || row.address.trim());
+/** 行の内容だけを比べるための文字列。id と検証結果は保存内容と関係しないので落とす。 */
+const bulkRowContent = (row: BulkRow) => JSON.stringify({ ...row, id: 0, error: "", errorFields: [] });
+
 export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
   snapshot: Snapshot;
   onClose: () => void;
@@ -173,11 +184,13 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
   saving: boolean;
 }) {
   const entryCounts = useMemo(() => Object.fromEntries(bulkEntryTypes.map((type) => [type, editableBulkPositions(snapshot, type).length])) as Record<BulkEntryType, number>, [snapshot]);
+  /** 開いた直後の行。タブに「未保存の編集」を出すため、比較の基準として持っておく。 */
+  const initialRowsByType = useMemo(() => Object.fromEntries(
+    bulkEntryTypes.map((type) => [type, initialRows(snapshot, type)]),
+  ) as Record<BulkEntryType, BulkRow[]>, [snapshot]);
   const initialEntryType = bulkEntryTypes.find((type) => entryCounts[type] > 0) ?? "SECURITIES";
   const [entryType, setEntryType] = useState<BulkEntryType>(initialEntryType);
-  const [rowsByType, setRowsByType] = useState<Record<BulkEntryType, BulkRow[]>>(() => Object.fromEntries(
-    bulkEntryTypes.map((type) => [type, initialRows(snapshot, type)]),
-  ) as Record<BulkEntryType, BulkRow[]>);
+  const [rowsByType, setRowsByType] = useState<Record<BulkEntryType, BulkRow[]>>(initialRowsByType);
   const [formError, setFormError] = useState("");
   const rows = rowsByType[entryType];
   const isDeposit = entryType === "DEPOSIT";
@@ -187,10 +200,16 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
   const isRealEstate = isLand || isBuilding;
   const simpleConfig = simpleEntryConfigOf(entryType);
   const totalExistingCount = bulkEntryTypes.reduce((count, type) => count + entryCounts[type], 0);
-  const activeNewRowCount = bulkEntryTypes.reduce(
-    (count, type) => count + rowsByType[type].filter((row) => row.positionId === null && (row.name.trim() || row.institution.trim() || row.address.trim())).length,
-    0,
-  );
+  const activeNewRowCount = bulkEntryTypes.reduce((count, type) => count + rowsByType[type].filter(bulkRowIsFilledNew).length, 0);
+  /** 種類ごとの未保存の編集。タブを切り替えても入力は残り一緒に保存されるので、見えていない種類の分も数える。 */
+  const editedCounts = useMemo(() => Object.fromEntries(bulkEntryTypes.map((type) => {
+    const initialContents = new Map(initialRowsByType[type].map((row) => [row.positionId, bulkRowContent(row)]));
+    return [type, rowsByType[type].filter((row) => bulkRowIsFilledNew(row)
+      || (row.positionId !== null && initialContents.get(row.positionId) !== bulkRowContent(row))).length];
+  })) as Record<BulkEntryType, number>, [initialRowsByType, rowsByType]);
+  const errorCounts = useMemo(() => Object.fromEntries(
+    bulkEntryTypes.map((type) => [type, rowsByType[type].filter((row) => row.error).length]),
+  ) as Record<BulkEntryType, number>, [rowsByType]);
 
   const columns = useMemo<BulkColumn[]>(() => {
     if (simpleConfig) return simpleConfig.columns;
@@ -246,6 +265,21 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
   function changeEntryType(nextType: BulkEntryType) {
     setEntryType(nextType);
     setFormError("");
+  }
+
+  /** タブ間の移動。←→ で隣、Home/End で端へ。roving tabindex なのでフォーカスも移す。 */
+  function handleTabKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+    if (step === 0 && event.key !== "Home" && event.key !== "End") return;
+    event.preventDefault();
+    const current = bulkEntryTypes.indexOf(entryType);
+    const nextIndex = event.key === "Home" ? 0
+      : event.key === "End" ? bulkEntryTypes.length - 1
+        : (current + step + bulkEntryTypes.length) % bulkEntryTypes.length;
+    const nextType = bulkEntryTypes[nextIndex];
+    if (!nextType) return;
+    changeEntryType(nextType);
+    document.getElementById(`bulk-entry-tab-${nextType}`)?.focus();
   }
 
   function setRows(updater: (currentRows: BulkRow[]) => BulkRow[]) {
@@ -487,11 +521,27 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
     <header><div><p className="eyebrow">BULK MANAGE</p><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要8種類）</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <div className="bulk-modal-body">
       <section className="bulk-common-settings" aria-label="共通条件">
-        <label>編集・追加する種類<select value={entryType} onChange={(event) => changeEntryType(event.target.value as BulkEntryType)}>{bulkEntryTypes.map((type) => <option key={type} value={type}>{bulkEntryTypeLabels[type]}（登録済み{entryCounts[type]}件）</option>)}</select></label>
+        {/* 種類は絞り込みではなく入力シートの切替。どこに何件あるかを一覧できるよう、選択式ではなくタブで出す。 */}
+        <div className="bulk-entry-tabs" role="tablist" aria-label="編集・追加する種類" onKeyDown={handleTabKeyDown}>{bulkEntryGroups.map((group) => <div key={group.label} className="bulk-entry-tab-group" role="presentation">
+          <span className="bulk-entry-group-label" aria-hidden="true">{group.label}</span>
+          <div className="bulk-entry-tab-row" role="presentation">{group.types.map((type) => {
+            const errorCount = errorCounts[type];
+            const editedCount = editedCounts[type];
+            const stateLabel = errorCount ? `・入力エラー${errorCount}件` : editedCount ? `・未保存の編集${editedCount}件` : "";
+            return <button key={type} type="button" id={`bulk-entry-tab-${type}`} role="tab" aria-selected={type === entryType} aria-controls="bulk-entry-panel" tabIndex={type === entryType ? 0 : -1}
+              aria-label={`${bulkEntryTypeLabels[type]}・登録済み${entryCounts[type]}件${stateLabel}`}
+              className={`bulk-entry-tab${type === entryType ? " is-active" : ""}${errorCount ? " has-error" : ""}`}
+              onClick={() => changeEntryType(type)}>
+              <span aria-hidden="true">{bulkEntryTypeLabels[type]}</span>
+              <em aria-hidden="true" className={entryCounts[type] ? "" : "is-zero"}>{entryCounts[type]}</em>
+              {errorCount ? <b aria-hidden="true" className="bulk-tab-flag error"><AlertTriangle /></b> : editedCount ? <b aria-hidden="true" className="bulk-tab-flag edited">●</b> : null}
+            </button>;
+          })}</div>
+        </div>)}</div>
         <div className="bulk-help"><Table2 /><span>{isRealEstate ? "登録済み行の修正と新規行の追加を同じ表で行えます。金額は千円単位です。" : "登録済み行の修正と新規行の追加を同じ表で行えます。Excelから複数セルを貼り付けることもできます。"} Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の8種類だけです。事業用資産・その他資産・借入金・個人保証は「1件追加」から登録します。</span></div>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
-      <div className="bulk-table-scroll">
+      <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>
         <table className="bulk-entry-table">
           <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional">方式別</em> : null}</th>)}<th className="bulk-calculated-value">評価額</th><th className="bulk-row-actions">状態・操作</th></tr></thead>
           <tbody onPaste={handlePaste} onKeyDown={handleTableKeyDown}>{rows.map((row, rowIndex) => <tr key={row.id} className={row.error ? "has-error" : ""}>
@@ -520,7 +570,7 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
         </table>
       </div>
       <button type="button" className="button secondary bulk-add-row" onClick={() => addRow()}><Plus />新しい行を追加</button>
-      <footer><span>保存対象：登録済み {totalExistingCount}件・新規 {activeNewRowCount}件</span><div><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="button" className="button primary" onClick={() => void submitBulk()} disabled={saving || rows.length === 0}>{saving ? <LoaderCircle className="spin" /> : <CircleCheck />}変更をまとめて保存</button></div></footer>
+      <footer><span>保存対象：登録済み {totalExistingCount}件・新規 {activeNewRowCount}件（全{bulkEntryTypes.length}種類の合計）</span><div><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="button" className="button primary" onClick={() => void submitBulk()} disabled={saving || rows.length === 0}>{saving ? <LoaderCircle className="spin" /> : <CircleCheck />}変更をまとめて保存</button></div></footer>
     </div>
   </div></div>;
 }

@@ -31,11 +31,43 @@ function renderModal(positions: Position[] = []) {
 const savedPayloads = (onSubmit: ReturnType<typeof renderModal>) =>
   (onSubmit.mock.calls[0]?.[0] ?? []) as Array<{ id: number | null; data: Record<string, unknown> }>;
 
-/** 種類の切替。select は登録件数付きのラベルなので value で選ぶ。 */
-const selectEntryType = (value: string) => fireEvent.change(screen.getByLabelText(/編集・追加する種類/), { target: { value } });
+/** 種類の切替。タブのラベルは件数や状態が続くので、種類名の前方一致で選ぶ。 */
+const entryTypeLabels: Record<string, string> = {
+  DEPOSIT: "現金・預貯金", SECURITIES: "有価証券", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金",
+  LAND: "土地", BUILDING: "建物", PRIVATE_SHARES: "自社株", LOAN_RECEIVABLE: "貸付金",
+};
+const entryTab = (value: string) => screen.getByRole("tab", { name: new RegExp(`^${entryTypeLabels[value]}`) });
+const selectEntryType = (value: string) => fireEvent.click(entryTab(value));
 const cell = (rowIndex: number, label: string) => screen.getByLabelText(`${rowIndex}行目 ${label}`) as HTMLInputElement;
 const typeIn = (rowIndex: number, label: string, value: string) => fireEvent.change(cell(rowIndex, label), { target: { value } });
 const save = () => fireEvent.click(screen.getByText("変更をまとめて保存"));
+
+describe("BulkPositionModal（種類タブ）", () => {
+  it("タブを明細一覧と同じ中分類順に並べ、登録済み件数を出す", () => {
+    renderModal([position({ id: 5, category: "INSURANCE", name: "○○生命", institution: "○○生命", originalAmount: 1_000_000, valueJpy: 1_000_000 })]);
+    expect(screen.getAllByRole("tab").map((tab) => tab.getAttribute("aria-label"))).toEqual([
+      "現金・預貯金・登録済み0件", "有価証券・登録済み0件", "生命保険・登録済み1件", "退職金・登録済み0件",
+      "土地・登録済み0件", "建物・登録済み0件", "自社株・登録済み0件", "貸付金・登録済み0件",
+    ]);
+    // 登録済みのある種類を最初に開く。
+    expect(entryTab("INSURANCE").getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("表示していない種類に未保存の入力があると、その種類のタブに印を付ける", () => {
+    renderModal();
+    selectEntryType("INSURANCE");
+    typeIn(1, "保険会社", "◇◇生命");
+    selectEntryType("LOAN_RECEIVABLE");
+    expect(entryTab("INSURANCE").getAttribute("aria-label")).toBe("生命保険・登録済み0件・未保存の編集1件");
+  });
+
+  it("←→ で隣の種類へ移動する", () => {
+    renderModal();
+    selectEntryType("SECURITIES");
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
+    expect(entryTab("INSURANCE").getAttribute("aria-selected")).toBe("true");
+  });
+});
 
 describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
   it("生命保険では保険向けの列だけを出し、算式や不動産の列は出さない", () => {
@@ -90,6 +122,8 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("入力エラー"));
     // 不足項目は「直接入力額」ではなく、画面に出ている列名で伝える。
     expect(screen.getByText("名称・貸付金残高（円）を入力してください。")).toBeTruthy();
+    // どの種類でエラーが出たかはタブでも分かるようにする。
+    expect(entryTab("LOAN_RECEIVABLE").getAttribute("aria-label")).toContain("入力エラー1件");
     expect(onSubmit).not.toHaveBeenCalled();
   });
 

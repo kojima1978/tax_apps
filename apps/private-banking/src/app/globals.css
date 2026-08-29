@@ -359,10 +359,28 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .bulk-position-modal > header { min-height: 78px; }
 .bulk-position-modal > header p:last-child { margin: 4px 0 0; color: var(--slate-500); font-size: 12px; }
 .bulk-modal-body { max-height: calc(100vh - 150px); padding: 14px 10px 0; overflow: auto; }
-.bulk-common-settings { padding: 14px; border: 1px solid #bbf7d0; border-radius: 9px; background: #f7fdf9; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-.bulk-common-settings > label { min-width: 170px; color: var(--navy-950); font-size: 11px; font-weight: 700; display: grid; gap: 5px; }
-.bulk-common-settings select { min-height: 44px; padding: 8px 34px 8px 10px; border: 1px solid var(--slate-300); border-radius: 7px; color: var(--navy-950); background: #fff; }
-.bulk-help { min-height: 44px; margin-left: auto; color: var(--slate-600); font-size: 11px; line-height: 1.5; display: flex; align-items: center; gap: 8px; }
+.bulk-common-settings { padding: 14px; border: 1px solid #bbf7d0; border-radius: 9px; background: #f7fdf9; display: flex; flex-direction: column; gap: 10px; }
+.bulk-entry-tabs { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+/* 中分類のまとまりが分かるよう、明細一覧と同じ区切りで見出しを載せる。 */
+.bulk-entry-tab-group { padding-right: 10px; border-right: 1px solid #bbf7d0; display: grid; gap: 4px; }
+.bulk-entry-tab-group:last-child { padding-right: 0; border-right: none; }
+.bulk-entry-group-label { color: var(--slate-500); font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.bulk-entry-tab-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.bulk-entry-tab { min-height: 38px; padding: 0 10px; border: 1px solid var(--slate-300); border-radius: 7px; background: #fff; color: var(--slate-700); font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.bulk-entry-tab:hover { border-color: var(--teal-700); color: var(--navy-950); }
+.bulk-entry-tab.is-active { border-color: var(--teal-700); background: var(--teal-700); color: #fff; }
+.bulk-entry-tab em { min-width: 20px; padding: 1px 5px; border-radius: 999px; background: var(--slate-100); color: var(--slate-500); font-size: 11px; font-style: normal; text-align: center; }
+.bulk-entry-tab em.is-zero { opacity: .55; }
+.bulk-entry-tab.is-active em { background: rgba(255, 255, 255, .26); color: #fff; }
+/* 未保存の編集とエラーは、切り替えないと見えない他の種類の状態を知らせるための印。 */
+.bulk-entry-tab .bulk-tab-flag { font-size: 10px; line-height: 1; display: inline-flex; align-items: center; }
+.bulk-entry-tab .bulk-tab-flag.edited { color: #b45309; }
+.bulk-entry-tab.is-active .bulk-tab-flag.edited { color: #fde68a; }
+.bulk-entry-tab .bulk-tab-flag.error svg { width: 14px; height: 14px; }
+.bulk-entry-tab.has-error { border-color: #fecaca; color: #991b1b; background: #fef2f2; }
+.bulk-entry-tab.has-error.is-active { border-color: #991b1b; color: #fff; background: #991b1b; }
+.bulk-entry-tab.has-error em { background: #fee2e2; color: #991b1b; }
+.bulk-help { color: var(--slate-500); font-size: 11px; line-height: 1.5; display: flex; align-items: center; gap: 8px; }
 .bulk-help svg { width: 18px; height: 18px; color: #16a34a; flex: 0 0 auto; }
 .bulk-form-error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 7px; color: #991b1b; background: #fef2f2; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .bulk-form-error svg { width: 17px; height: 17px; }
@@ -820,6 +838,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .year-action-group { flex: 1 1 auto; min-width: 0; }
 }
 @media (max-width: 820px) {
+  /* この幅から折り返すので、行末に取り残される区切り線を消してグループ見出しだけで分ける。 */
+  .bulk-entry-tab-group { padding-right: 0; border-right: none; }
   .sidebar { transform: translateX(-100%); transition: transform .25s ease; box-shadow: 12px 0 34px #07172333; }
   .sidebar.open { transform: translateX(0); }
   .close-menu { position: absolute; right: 8px; top: 8px; width: 44px; height: 44px; border: 0; color: var(--navy-950); background: transparent; display: grid; place-items: center; }
@@ -933,9 +953,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .modal { max-height: 94vh; border-radius: 12px 12px 0 0; }
   .bulk-position-modal { width: 100%; }
   .bulk-modal-body { max-height: calc(94vh - 78px); padding-inline: 12px; }
-  .bulk-common-settings { align-items: stretch; }
-  .bulk-common-settings > label { flex: 1 1 140px; }
-  .bulk-help { width: 100%; margin-left: 0; }
+  .bulk-help { width: 100%; }
   .bulk-modal-body > footer { margin-inline: -12px; padding-inline: 12px; }
   .client-switcher-toolbar { align-items: stretch; flex-direction: column; }
   .client-switcher-toolbar .button { width: 100%; }
