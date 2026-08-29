@@ -41,11 +41,11 @@ import {
 
 /** サイドバーのメニュー。key はそのまま URL の `/customers/<id>/<key>` になる。 */
 const SECTIONS = [
+  { key: "profile", label: "本人情報", icon: CircleUserRound },
+  { key: "family", label: "親族関係", icon: UsersRound },
   { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
   { key: "positions", label: "資産・負債明細", icon: WalletCards },
   { key: "tax", label: "相続税の概算", icon: Calculator },
-  { key: "profile", label: "本人情報", icon: CircleUserRound },
-  { key: "family", label: "親族関係", icon: UsersRound },
   { key: "history", label: "年度比較", icon: History },
   { key: "backup", label: "バックアップ", icon: DatabaseBackup },
 ] as const satisfies ReadonlyArray<{ key: Section; label: string; icon: typeof LayoutDashboard }>;
