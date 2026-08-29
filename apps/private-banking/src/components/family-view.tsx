@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp, Calculator, LoaderCircle, Pencil, Plus, Trash2, UsersRound, X } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { dateJa, dateWareki } from "@/lib/format";
 import {
   type FamilyMember,
   type FamilyMemberDraft,
@@ -37,9 +38,11 @@ const emptyRow = (sortOrder: number): EditRow => ({
 const fraction = (numerator: number | null, denominator: number | null) =>
   numerator === null || denominator === null ? "－" : `${numerator} / ${denominator}`;
 
-const birthDateJa = (value: string | null) => value
-  ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`))
-  : "－";
+/** 生年月日のセル。列幅が限られるので、和暦は西暦の下に小さく添える。 */
+function BirthDateCell({ value }: { value: string | null }) {
+  if (!value) return <>－</>;
+  return <><span className="birth-date-gregorian">{dateJa(value)}</span><small className="birth-date-wareki">{dateWareki(value)}</small></>;
+}
 
 function normalizeRows(members: FamilyMember[]): EditRow[] {
   const rows: EditRow[] = members
@@ -155,7 +158,7 @@ export function FamilyView({
                 <td data-label="税法上の法定相続分" className="family-fraction">{fraction(member.taxShareNumerator, member.taxShareDenominator)}</td>
                 <td data-label="2割加算">{member.specialTaxAddition ? "対象" : "－"}</td>
                 <td data-label="障害者">{disabilityLabels[member.disabilityCategory]}</td>
-                <td data-label="生年月日">{birthDateJa(member.birthDate)}</td>
+                <td data-label="生年月日"><BirthDateCell value={member.birthDate} /></td>
                 <td data-label="年齢">{age === null ? "－" : `${age}歳`}</td>
               </tr>;
             })}</tbody>

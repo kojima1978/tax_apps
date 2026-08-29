@@ -56,3 +56,14 @@ export const decimalToFraction = (value: number | null): [number, number] => {
 };
 
 export const dateJa = (date: string) => new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric" }).format(new Date(`${date}T00:00:00`));
+
+/**
+ * 和暦表記。`era: "long"` と `year: "numeric"` の組み合わせで改元年が「令和元年」になる
+ * （`era: "short"` だと「令和1年」）。生年月日は西暦と和暦のどちらで聞かれても答えられるよう、
+ * 画面・印刷とも西暦に和暦を添えて出す。
+ */
+const warekiFormat = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", { era: "long", year: "numeric", month: "long", day: "numeric" });
+export const dateWareki = (date: string) => warekiFormat.format(new Date(`${date}T00:00:00`));
+
+/** 西暦（和暦）の1行表記。1行に収まる場所で使う。 */
+export const dateJaWithWareki = (date: string) => `${dateJa(date)}（${dateWareki(date)}）`;

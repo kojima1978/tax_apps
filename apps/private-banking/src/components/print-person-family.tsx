@@ -4,7 +4,7 @@ import {
   disabilityLabels,
   relationshipLabels,
 } from "@/lib/family";
-import { dateJa } from "@/lib/format";
+import { dateJa, dateJaWithWareki, dateWareki } from "@/lib/format";
 import type { Portfolio } from "@/lib/portfolio-view";
 
 const fraction = (numerator: number | null, denominator: number | null) =>
@@ -31,7 +31,7 @@ export function PersonFamilyPrintView({
       <header><h3>本人情報</h3></header>
       <dl className="print-profile-grid">
         <div><dt>氏名</dt><dd>{household.name}</dd></div>
-        <div><dt>生年月日</dt><dd>{household.birthDate ? dateJa(household.birthDate) : "－"}</dd></div>
+        <div><dt>生年月日</dt><dd>{household.birthDate ? dateJaWithWareki(household.birthDate) : "－"}</dd></div>
         <div><dt>年齢</dt><dd>{personAge === null ? "－" : `${personAge}歳`}</dd></div>
       </dl>
     </article>
@@ -53,7 +53,7 @@ export function PersonFamilyPrintView({
             <td className="numeric">{fraction(member.taxShareNumerator, member.taxShareDenominator)}</td>
             <td>{member.specialTaxAddition ? "対象" : "－"}</td>
             <td>{disabilityLabels[member.disabilityCategory]}</td>
-            <td>{member.birthDate ? dateJa(member.birthDate) : "－"}</td>
+            <td>{member.birthDate ? <><span className="birth-date-gregorian">{dateJa(member.birthDate)}</span><small className="birth-date-wareki">{dateWareki(member.birthDate)}</small></> : "－"}</td>
             <td>{age === null ? "－" : `${age}歳`}</td>
           </tr>;
         })}</tbody>

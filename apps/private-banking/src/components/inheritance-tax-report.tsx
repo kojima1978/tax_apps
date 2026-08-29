@@ -90,11 +90,11 @@ function HeirSummary({
         {/* 取得額は各人を1万円単位で切り捨てて按分するため、合計しても課税価格の合計額に
             数万円届かない。誤解を招くので合計行は置かない（納付税額の総額は概算計算の欄にある）。 */}
         {heirs.map((heir, index) => {
-          // 続柄（子1・子2…）は氏名が未登録でも重複していても行を見分けられる唯一の手掛かりなので、
-          // 氏名を出せたときも添える。
+          // 氏名が引けたら氏名だけを出す。続柄（子1・子2…）は氏名を出せないときの代わりで、
+          // 併記すると誰の行かを読むのに余計な情報になる。
           const name = nameOf(heir.id);
           return <tr key={heir.id ?? index}>
-            <th scope="row">{name ?? heir.label}{name ? <small>{heir.label}</small> : null}</th>
+            <th scope="row">{name ?? heir.label}</th>
             {columns.map((column) => {
               const text = column.text(heir, effectiveTaxRate);
               return <td key={column.key} className={column.left ? "left" : undefined}>{column.emphasis ? <strong>{text}</strong> : text}</td>;

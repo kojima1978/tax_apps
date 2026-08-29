@@ -3,7 +3,7 @@
 import { CalendarDays, CircleCheck, CircleUserRound, LoaderCircle, Save, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
 import { ageOnDate } from "@/lib/family";
-import { dateJa } from "@/lib/format";
+import { dateJaWithWareki } from "@/lib/format";
 import type { Portfolio } from "@/lib/portfolio-view";
 
 export function PersonView({
@@ -50,7 +50,7 @@ export function PersonView({
         </div>
         <div id="person-birth-date-help" className="person-reference-note">
           <CalendarDays aria-hidden="true" />
-          <span>{household.birthDate ? `生年月日 ${dateJa(household.birthDate)}${age === null ? "" : `／B/S基準日時点 ${age}歳`}` : "生年月日は未設定です。"}</span>
+          <span>{household.birthDate ? `生年月日 ${dateJaWithWareki(household.birthDate)}${age === null ? "" : `／B/S基準日時点 ${age}歳`}` : "生年月日は未設定です。"}</span>
         </div>
         <footer className="person-form-footer">
           <button type="button" className="text-button danger-text-button" onClick={onRequestDelete} disabled={saving}><Trash2 />この顧客を削除</button>
