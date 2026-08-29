@@ -7,28 +7,56 @@ import { fxRateFor, positionCurrencies, type FxRates } from "@/lib/fx-rates";
 import { decimalToFraction, valuationNumber, yen } from "@/lib/format";
 import {
   type AssetDetails,
+  type AssetGroupLabel,
   type BenefitAllocation,
+  type DeemedCategory,
   type Position,
   type PositionSection,
   type ValuationFormula,
-  assetCategories,
+  assetCategoryGroups,
+  assetGroupOf,
   categoryLabels,
+  deemedInheritanceCategories,
   splitBenefit,
   liabilityCategories,
   middleClassification,
   otherAssetTypeLabels,
   positionSection,
   positionSectionLabels,
+  realEstateCategories,
 } from "@/lib/portfolio-view";
 
 /** 外貨建てで登録しうる科目。これ以外（不動産・自社株・借入金・偶発債務など）は円建てのみなので通貨欄を出さず JPY 固定にする。 */
 const foreignCurrencyCategories = ["DEPOSIT", "SECURITIES", "INSURANCE", "BUSINESS_ASSETS"];
-/** 評価方法を自由入力させない科目。算式名か「直接入力」を自動で焼き込む。 */
-const directEntryCategories = ["PRIVATE_SHARES", "LOAN_RECEIVABLE", "COLLECTIBLES"];
+/** 中分類に属する科目。科目セレクトの選択肢と、中分類を切り替えたときの既定科目に使う。 */
+const groupCategories = (label: AssetGroupLabel): readonly string[] => assetCategoryGroups.find((group) => group.label === label)!.categories;
 /** 科目を選び直したときの既定の算式。ここに無い科目は金額を直接入力する。 */
 const defaultFormulaByCategory: Record<string, ValuationFormula> = {
   SECURITIES: "STOCK", PRIVATE_SHARES: "STOCK", COLLECTIBLES: "UNIT_RATE",
-  HOME_REAL_ESTATE: "LAND_ROADSIDE", REAL_ESTATE: "LAND_ROADSIDE", IDLE_REAL_ESTATE: "LAND_ROADSIDE",
+  ...Object.fromEntries(realEstateCategories.map((category) => [category, "LAND_ROADSIDE" as const])),
+};
+/**
+ * 算式を使わない科目の評価方法。明細一覧の「評価方法」列にそのまま出る。
+ * 以前は自由入力のテキスト欄だったが、既定の「手動入力」のまま保存されるだけで
+ * 科目ごとに何を評価額としたのかが列から読み取れなかったため、科目から焼き込む。
+ */
+const manualValuationMethods: Record<string, string> = {
+  DEPOSIT: "残高",
+  ...Object.fromEntries(Object.entries(deemedInheritanceCategories).map(([category, config]) => [category, config.surrenderLabel])),
+};
+/**
+ * 科目のすぐ下に置く「種類」欄。詳細がこの1項目しかない科目は fieldset を畳んで
+ * ここへ出し、どの科目でも同じ位置で選べるようにする。
+ */
+const categoryTypeFields: Record<string, { label: string; name: string; fallback: string; options: Record<string, string>; read: (details: AssetDetails) => string | undefined; hint?: string }> = {
+  DEPOSIT: { label: "預金種類", name: "assetDetail.accountType", fallback: "ORDINARY", read: (details) => details.accountType,
+    options: { ORDINARY: "普通預金", TIME: "定期預金", FOREIGN: "外貨預金", OTHER: "その他" } },
+  SECURITIES: { label: "証券種類", name: "assetDetail.securityType", fallback: "LISTED_STOCK", read: (details) => details.securityType,
+    options: { LISTED_STOCK: "上場株式", BOND: "債券", FUND: "投資信託", ETF: "ETF", OTHER: "その他" } },
+  BUSINESS_ASSETS: { label: "資産種類", name: "assetDetail.businessAssetType", fallback: "EQUIPMENT", read: (details) => details.businessAssetType,
+    options: { EQUIPMENT: "機械・設備", VEHICLE: "車両", GOODWILL: "営業権", INVENTORY: "棚卸資産", OTHER: "その他" } },
+  COLLECTIBLES: { label: "資産種類", name: "assetDetail.otherAssetType", fallback: "PRECIOUS_METAL", read: (details) => details.otherAssetType,
+    options: otherAssetTypeLabels, hint: "明細一覧の「所在地・金融機関等」に表示します。" },
 };
 
 /**
@@ -176,55 +204,25 @@ function AssetSpecificFields({
   onOwnershipNumeratorChange: (value: string) => void;
   onOwnershipDenominatorChange: (value: string) => void;
 }) {
-  if (category === "DEPOSIT") return <fieldset key={category} className="asset-detail-fieldset full"><legend>預金の情報</legend><div className="asset-detail-grid">
-    <label>預金種類<select name="assetDetail.accountType" defaultValue={details.accountType ?? "ORDINARY"}><option value="ORDINARY">普通預金</option><option value="TIME">定期預金</option><option value="FOREIGN">外貨預金</option><option value="OTHER">その他</option></select></label>
-    <label>支店名<input name="assetDetail.branchName" defaultValue={details.branchName ?? ""} /></label>
-    <label>口座識別（下4桁）<input name="assetDetail.accountSuffix" inputMode="numeric" maxLength={4} pattern="[0-9]{0,4}" defaultValue={details.accountSuffix ?? ""} /></label>
-    <label>満期日<input name="assetDetail.maturityDate" type="date" defaultValue={details.maturityDate ?? ""} /></label>
-  </div></fieldset>;
-
-  if (category === "SECURITIES") return <fieldset key={category} className="asset-detail-fieldset full"><legend>有価証券の情報</legend><div className="asset-detail-grid">
-    <label>証券種類<select name="assetDetail.securityType" defaultValue={details.securityType ?? "LISTED_STOCK"}><option value="LISTED_STOCK">上場株式</option><option value="BOND">債券</option><option value="FUND">投資信託</option><option value="ETF">ETF</option><option value="OTHER">その他</option></select></label>
-    <label>銘柄コード<input name="assetDetail.securityCode" defaultValue={details.securityCode ?? ""} /></label>
-  </div></fieldset>;
-
-  if (["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(category)) return <fieldset key={category} className="asset-detail-fieldset full"><legend>不動産の基本情報</legend><div className="asset-detail-grid">
+  if (realEstateCategories.includes(category)) return <fieldset key={category} className="asset-detail-fieldset full"><legend>不動産の基本情報</legend><div className="asset-detail-grid">
     <label>資産区分<select name="assetDetail.propertyType" value={propertyType} onChange={(event) => onPropertyTypeChange(event.target.value)}><option value="LAND">土地</option><option value="BUILDING">建物</option></select></label>
-    <label className="wide">所在地<input name="assetDetail.propertyAddress" required defaultValue={details.propertyAddress ?? ""} /></label>
     {propertyType === "LAND" ? <>
       <LandCategoryField defaultValue={details.landCategory ?? ""} />
       <label>面積（㎡）<CommaNumberInput name="landArea" defaultValue="" value={landArea} onValueChange={onLandAreaChange} maxFractionDigits={4} placeholder="" positive required={formula === "LAND_ROADSIDE"} /></label>
       <label className="wide">小規模宅地等の特例（概算）<select name="assetDetail.smallLotType" defaultValue={details.smallLotType ?? ""}><option value="">適用しない</option><option value="RESIDENTIAL">特定居住用宅地（80%・限度330㎡）</option><option value="BUSINESS">特定事業用宅地（80%・限度400㎡）</option><option value="RENTAL">貸付事業用宅地（50%・限度200㎡）</option></select><small className="asset-detail-hint">選択すると相続税の概算計算で減額割合を反映します（限度面積を超える分は按分）。要件充足の可否は別途ご確認ください。</small></label>
-    </> : <>
-      <BuildingTypeField defaultValue={details.buildingType ?? ""} />
-      <label>構造<select name="assetDetail.buildingStructure" defaultValue={details.buildingStructure ?? ""}><option value="">未選択</option><option value="WOOD">木造</option><option value="STEEL">鉄骨造</option><option value="RC">鉄筋コンクリート造</option><option value="SRC">鉄骨鉄筋コンクリート造</option><option value="OTHER">その他</option></select></label>
-      <label>床面積（㎡）<CommaNumberInput name="assetDetail.floorArea" defaultValue={details.floorArea ?? ""} maxFractionDigits={4} placeholder="" positive required={false} /></label>
-    </>}
+    </> : <BuildingTypeField defaultValue={details.buildingType ?? ""} />}
     <label>固定資産税評価額<CommaNumberInput name="fixedAssetTaxValue" defaultValue="" value={fixedAssetTaxValue} onValueChange={onFixedAssetTaxValueChange} maxFractionDigits={2} placeholder="" positive required={formula === "LAND_MULTIPLIER" || formula === "BUILDING"} /></label>
     <OwnershipFractionInput numerator={ownershipNumerator} denominator={ownershipDenominator} onNumeratorChange={onOwnershipNumeratorChange} onDenominatorChange={onOwnershipDenominatorChange} />
   </div><p className="asset-detail-note">土地と建物は別明細で登録します。面積・固定資産税評価額・持分は、選択した評価方法へ自動反映されます。</p></fieldset>;
 
-  if (category === "BUSINESS_ASSETS") return <fieldset key={category} className="asset-detail-fieldset full"><legend>事業用資産の情報</legend><div className="asset-detail-grid">
-    <label>資産種類<select name="assetDetail.businessAssetType" defaultValue={details.businessAssetType ?? "EQUIPMENT"}><option value="EQUIPMENT">機械・設備</option><option value="VEHICLE">車両</option><option value="GOODWILL">営業権</option><option value="INVENTORY">棚卸資産</option><option value="OTHER">その他</option></select></label>
-    <label>事業・屋号<input name="assetDetail.businessName" defaultValue={details.businessName ?? ""} /></label>
-    <label>保管・所在場所<input name="assetDetail.storageLocation" defaultValue={details.storageLocation ?? ""} /></label>
-  </div></fieldset>;
-
   if (category === "INSURANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>生命保険の情報</legend><div className="asset-detail-grid">
-    <label>保険種類<select name="assetDetail.insuranceType" defaultValue={details.insuranceType ?? "WHOLE_LIFE"}><option value="WHOLE_LIFE">終身保険</option><option value="TERM">定期保険</option><option value="ENDOWMENT">養老保険</option><option value="ANNUITY">個人年金保険</option><option value="OTHER">その他</option></select></label>
-    <label>証券番号<input name="assetDetail.policyNumber" defaultValue={details.policyNumber ?? ""} placeholder="例：1234567890" /><small className="asset-detail-hint">明細一覧の「所在地・金融機関等」に表示します。</small></label>
     <PersonSelect label="被保険者" name="assetDetail.insuredPerson" value={details.insuredPerson ?? ""} people={people} />
     <BenefitRecipientsField benefitLabel="死亡保険金" benefitName="assetDetail.deathBenefit" benefitDefault={String(details.deathBenefit ?? "")} recipientName="assetDetail.beneficiary" allocationDefaults={allocationDefaults(details, "beneficiary")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数）の対象です。" />
   </div></fieldset>;
 
   if (category === "RETIREMENT_ALLOWANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>退職金の情報</legend><div className="asset-detail-grid">
-    <label>制度種類<select name="assetDetail.retirementType" defaultValue={details.retirementType ?? "SMALL_ENTERPRISE"}><option value="SMALL_ENTERPRISE">小規模企業共済</option><option value="CORPORATE">中小企業退職金共済</option><option value="OFFICER">役員退職金</option><option value="EMPLOYEE">従業員退職金</option><option value="OTHER">その他</option></select></label>
     <BenefitRecipientsField benefitLabel="死亡退職金" benefitName="assetDetail.retirementAllowance" benefitDefault={String(details.retirementAllowance ?? "")} recipientName="assetDetail.retirementRecipient" allocationDefaults={allocationDefaults(details, "retirementRecipient")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数・生命保険金とは別枠）の対象です。" />
   </div><p className="asset-detail-note">円換算時価には、生存中に解約した場合の解約返戻金（解約手当金）を入力します。死亡退職金は相続税の概算にだけ反映し、資産合計には含めません。</p></fieldset>;
-
-  if (category === "COLLECTIBLES") return <fieldset key={category} className="asset-detail-fieldset full"><legend>その他資産の情報</legend><div className="asset-detail-grid">
-    <label>資産種類<select name="assetDetail.otherAssetType" defaultValue={details.otherAssetType ?? "PRECIOUS_METAL"}>{Object.entries(otherAssetTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small className="asset-detail-hint">明細一覧の「所在地・金融機関等」に表示します。</small></label>
-  </div></fieldset>;
 
   return null;
 }
@@ -233,6 +231,8 @@ export function PositionModal({ position, people, legalHeirNames, fxRates, onClo
   const assetDetails = position?.assetDetails ?? {};
   const [fallbackOwnershipNumerator, fallbackOwnershipDenominator] = decimalToFraction(position?.ownershipShare ?? null);
   const [section, setSection] = useState<PositionSection>(position ? positionSection(position) : "ASSET");
+  // 科目は中分類で絞り込んでから選ぶ。科目が11件のフラットな一覧だと目的の科目を探しづらいため。
+  const [group, setGroup] = useState<AssetGroupLabel>(assetGroupOf(position?.category ?? "DEPOSIT") ?? "金融資産");
   const [category, setCategory] = useState(position?.category ?? "DEPOSIT");
   const [currency, setCurrency] = useState(foreignCurrencyCategories.includes(position?.category ?? "") ? position?.currency ?? "JPY" : "JPY");
   // 自社株も直接入力を選べるので、保存済みの評価方法をそのまま開く。新規追加時の既定は changeCategory 側で決める。
@@ -252,14 +252,20 @@ export function PositionModal({ position, people, legalHeirNames, fxRates, onClo
 
   function changeSection(nextSection: PositionSection) {
     setSection(nextSection);
+    setGroup("金融資産");
     setCategory(nextSection === "ASSET" ? "DEPOSIT" : nextSection === "LIABILITY" ? "LOAN_OTHER" : "GUARANTEE");
     setFormula("MANUAL");
+  }
+
+  function changeGroup(nextGroup: AssetGroupLabel) {
+    setGroup(nextGroup);
+    changeCategory(groupCategories(nextGroup)[0]);
   }
 
   function changeCategory(nextCategory: string) {
     setCategory(nextCategory);
     if (!foreignCurrencyCategories.includes(nextCategory)) setCurrency("JPY");
-    if (["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(nextCategory)) setPropertyType("LAND");
+    if (realEstateCategories.includes(nextCategory)) setPropertyType("LAND");
     setFormula(defaultFormulaByCategory[nextCategory] ?? "MANUAL");
   }
 
@@ -269,17 +275,27 @@ export function PositionModal({ position, people, legalHeirNames, fxRates, onClo
   }
 
   const isEditing = position !== null;
-  const categories = section === "ASSET" ? assetCategories : section === "LIABILITY" ? liabilityCategories : ["GUARANTEE"];
+  const categories: readonly string[] = section === "ASSET" ? groupCategories(group) : section === "LIABILITY" ? liabilityCategories : ["GUARANTEE"];
   const isStockCategory = ["SECURITIES", "PRIVATE_SHARES"].includes(category);
   const isPrivateShares = category === "PRIVATE_SHARES";
   const isJpyOnly = !foreignCurrencyCategories.includes(category);
-  const isDirectEntry = directEntryCategories.includes(category);
   const isUnitRateCategory = category === "COLLECTIBLES";
-  const isRealEstateCategory = ["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(category);
+  const isRealEstateCategory = realEstateCategories.includes(category);
   const isInsurance = category === "INSURANCE";
+  const typeField = section === "ASSET" ? categoryTypeFields[category] ?? null : null;
   const nameLabel = category === "SECURITIES" ? "銘柄名" : category === "PRIVATE_SHARES" ? "会社名" : category === "LOAN_RECEIVABLE" ? "貸付金名" : category === "COLLECTIBLES" ? "資産名" : category === "RETIREMENT_ALLOWANCE" ? "制度名・契約名" : "名称";
-  const institutionLabel = category === "DEPOSIT" ? "金融機関" : category === "SECURITIES" ? "証券会社・金融機関" : category === "INSURANCE" ? "保険会社" : category === "RETIREMENT_ALLOWANCE" ? "支給元・勤務先" : section === "ASSET" ? null : "金融機関・債権者";
-  const amountLabel = section === "LIABILITY" ? "借入残高" : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : category === "INSURANCE" || category === "RETIREMENT_ALLOWANCE" ? "解約返戻金" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : category === "COLLECTIBLES" ? "評価額" : isPrivateShares ? (formula === "STOCK" ? "評価額（自動計算）" : "評価額（直接入力）") : isJpyOnly ? "評価額" : "通貨建て金額";
+  // 「所在地・金融機関等」欄の見出し。生命保険（証券番号）と不動産（所在地）はここではなく専用の欄で出す。
+  // 自社株・事業用資産・貸付金にも欄を用意して、どの科目でも場所を入力できるようにする（明細一覧の同名の列に出る）。
+  // その他資産だけは列に「資産種類」を出すので欄を持たない。
+  const institutionLabel = category === "DEPOSIT" ? "金融機関"
+    : category === "SECURITIES" ? "証券会社・金融機関"
+    : category === "RETIREMENT_ALLOWANCE" ? "支給元・勤務先"
+    : category === "PRIVATE_SHARES" ? "本店所在地"
+    : category === "BUSINESS_ASSETS" ? "保管・所在場所"
+    : category === "LOAN_RECEIVABLE" ? "貸付先"
+    : section === "ASSET" ? null
+    : "金融機関・債権者";
+  const amountLabel = section === "LIABILITY" ? "借入残高" : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : deemedInheritanceCategories[category as DeemedCategory] ? deemedInheritanceCategories[category as DeemedCategory].surrenderLabel : category === "LOAN_RECEIVABLE" ? "貸付金残高" : category === "COLLECTIBLES" ? "評価額" : isPrivateShares ? (formula === "STOCK" ? "評価額（自動計算）" : "評価額（直接入力）") : isJpyOnly ? "評価額" : "通貨建て金額";
   const numericValue = (value: string) => Number(value) || 0;
   const ownershipDisplay = `${ownershipNumerator || "—"} / ${ownershipDenominator || "—"}`;
   const ownershipRatio = numericValue(ownershipDenominator) > 0 ? numericValue(ownershipNumerator) / numericValue(ownershipDenominator) : 0;
@@ -294,8 +310,11 @@ export function PositionModal({ position, people, legalHeirNames, fxRates, onClo
   const fxRate = fxRateFor(fxRates, currency);
   const calculatedJpy = Math.round(calculatedAmount * (fxRate ?? 0));
   const formulaLabel = formula === "STOCK" ? "株数・口数×単価×調整率" : formula === "UNIT_RATE" ? "単価×調整率" : formula === "LAND_ROADSIDE" ? "土地・路線価方式" : formula === "LAND_MULTIPLIER" ? "土地・倍率方式" : formula === "BUILDING" ? "建物・固定資産税評価額方式" : "手動入力";
-  // 算式で計算する場合はその算式名、円建てで直接入力する科目は「直接入力」（一括登録の表と同じ表記）を評価方法として固定する。
-  const fixedValuationMethod = isCalculated ? formulaLabel : isDirectEntry ? "直接入力" : null;
+  // 算式で計算する場合はその算式名、それ以外は科目から決まる表記（一括登録の表と同じ「直接入力」を既定とする）を評価方法として固定する。
+  const fixedValuationMethod = isCalculated ? formulaLabel
+    : section === "LIABILITY" ? "借入残高"
+    : section === "CONTINGENT" ? "保証金額"
+    : manualValuationMethods[category] ?? "直接入力";
   const formulaExpression = formula === "STOCK" ? "株数・口数 × 単価 × 調整率" : formula === "UNIT_RATE" ? "単価 × 調整率" : formula === "LAND_ROADSIDE" ? "面積 × 路線価 × 調整率 × 持分（分子 ÷ 分母）" : formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? "固定資産税評価額 × 倍率 × 調整率 × 持分（分子 ÷ 分母）" : "";
 
   return <div className="modal-layer" role="presentation"><div className="modal position-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -306,11 +325,18 @@ export function PositionModal({ position, people, legalHeirNames, fxRates, onClo
       {section === "ASSET" ? <p className="personal-owner-note"><ShieldCheck />オーナー本人が直接所有する個人資産を登録します。</p> : null}
       {section === "CONTINGENT" ? <p className="contingent-form-note"><AlertTriangle />偶発債務はB/S外として登録し、純資産の計算には含めません。</p> : null}
       <div className="form-grid">
+        {/* 中分類 → 科目 → 種類 → 名称 → 所在地・金融機関等 → 通貨 の順は全科目で共通。
+            名称と場所の欄には、明細一覧の「科目・名称」「所在地・金融機関等」列に出る値がそのまま入る。 */}
+        {section === "ASSET" ? <label>中分類<select aria-label="中分類" value={group} onChange={(event) => changeGroup(event.target.value as AssetGroupLabel)}>{assetCategoryGroups.map((assetGroup) => <option key={assetGroup.label} value={assetGroup.label}>{assetGroup.label}</option>)}</select><small className="asset-detail-hint">科目の選択肢がこの中分類の中だけに絞られます。</small></label> : null}
         <label>科目<select name="category" value={category} onChange={(event) => changeCategory(event.target.value)} required>{categories.map((key) => <option key={key} value={key}>{categoryLabels[key]}</option>)}</select></label>
+        {typeField ? <label key={category}>{typeField.label}<select name={typeField.name} defaultValue={typeField.read(assetDetails) ?? typeField.fallback}>{Object.entries(typeField.options).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{typeField.hint ? <small className="asset-detail-hint">{typeField.hint}</small> : null}</label> : null}
         {isInsurance
           ? <input type="hidden" name="name" value={institution} />
           : <label>{nameLabel}<input name="name" required placeholder={category === "SECURITIES" ? "例：○○株式会社" : category === "PRIVATE_SHARES" ? "例：山田産業株式会社" : ""} defaultValue={position?.name ?? ""} /></label>}
-        {institutionLabel ? <label>{institutionLabel}{isInsurance ? <span className="required-mark">必須</span> : null}<input name="institution" required={isInsurance} value={institution} onChange={(event) => setInstitution(event.target.value)} placeholder={isInsurance ? "例：日本生命" : ""} />{isInsurance ? <small className="asset-detail-hint">明細の「科目・名称」にはこの保険会社名を表示します。</small> : null}</label> : <input type="hidden" name="institution" value="" />}
+        {isInsurance ? <label>保険会社<span className="required-mark">必須</span><input name="institution" required value={institution} onChange={(event) => setInstitution(event.target.value)} placeholder="例：日本生命" /><small className="asset-detail-hint">明細の「科目・名称」にはこの保険会社名を表示します。</small></label> : null}
+        {isRealEstateCategory ? <><label>所在地<input name="assetDetail.propertyAddress" required defaultValue={assetDetails.propertyAddress ?? ""} placeholder="例：東京都港区南青山1-2-3" /></label><input type="hidden" name="institution" value="" /></> : null}
+        {isInsurance ? <label>証券番号<input name="assetDetail.policyNumber" defaultValue={assetDetails.policyNumber ?? ""} placeholder="例：1234567890" /><small className="asset-detail-hint">明細の「所在地・金融機関等」に表示します。</small></label> : null}
+        {!isInsurance && !isRealEstateCategory ? (institutionLabel ? <label>{institutionLabel}<input name="institution" value={institution} onChange={(event) => setInstitution(event.target.value)} /></label> : <input type="hidden" name="institution" value="" />) : null}
         {isJpyOnly
           ? <input type="hidden" name="currency" value="JPY" />
           : <label>通貨<select name="currency" value={currency} onChange={(event) => setCurrency(event.target.value)}>{positionCurrencies.map((code) => <option key={code} value={code}>{code}</option>)}</select>{currency === "JPY" ? null : <small className={fxRate === null ? "asset-detail-hint warning" : "asset-detail-hint"}>{fxRate === null ? "この通貨の円換算レートが年度設定に未登録です。年度設定で登録してください。" : `年度設定の円換算レート 1 ${currency} = ${fxRate.toLocaleString("ja-JP", { maximumFractionDigits: 6 })} 円`}</small>}</label>}
@@ -340,7 +366,7 @@ export function PositionModal({ position, people, legalHeirNames, fxRates, onClo
           {isCalculated ? <div className="valuation-result" aria-live="polite"><span>算式による評価額</span><strong>{calculatedAmount.toLocaleString("ja-JP", { maximumFractionDigits: 2 })}{currency === "JPY" ? "" : ` ${currency}`}</strong>{currency === "JPY" || fxRate === null ? null : <small>円換算見込 {yen.format(calculatedJpy)}</small>}</div> : null}
         </fieldset> : <input type="hidden" name="valuationFormula" value="MANUAL" />}
         <label>{amountLabel}<CommaNumberInput key={formula} name="originalAmount" defaultValue={isCalculated ? "" : position?.originalAmount ?? ""} value={isCalculated ? String(calculatedAmount) : undefined} maxFractionDigits={2} placeholder="" readOnly={isCalculated} hint={isCalculated ? "上の算式から自動計算されます" : undefined} /></label>
-        {fixedValuationMethod !== null ? <input type="hidden" name="valuationMethod" value={fixedValuationMethod} /> : <label>評価方法<input name="valuationMethod" defaultValue={position?.valuationMethod ?? "手動入力"} /></label>}
+        <input type="hidden" name="valuationMethod" value={fixedValuationMethod} />
         <label className="full">メモ<textarea name="note" rows={3} placeholder="評価日、根拠資料など" defaultValue={position?.note ?? ""} /></label>
       </div>
       <footer><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>

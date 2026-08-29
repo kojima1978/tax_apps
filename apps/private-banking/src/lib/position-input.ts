@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { realEstateCategories } from "@/lib/portfolio-view";
 
-const positionCategorySchema = z.enum(["DEPOSIT", "SECURITIES", "HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "INSURANCE", "RETIREMENT_ALLOWANCE", "COLLECTIBLES", "LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER", "LOAN", "GUARANTEE"]);
+const positionCategorySchema = z.enum(["DEPOSIT", "SECURITIES", "HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "INSURANCE", "RETIREMENT_ALLOWANCE", "COLLECTIBLES", "LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER", "LOAN", "GUARANTEE"]);
 const valuationFormulaSchema = z.enum(["MANUAL", "STOCK", "UNIT_RATE", "LAND_ROADSIDE", "LAND_MULTIPLIER", "BUILDING"]);
 const optionalNonnegativeNumber = z.preprocess(
   (value) => value === "" || value === undefined ? null : value,
@@ -71,7 +72,7 @@ const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
 const stockCategories = new Set(["SECURITIES", "PRIVATE_SHARES"]);
 /** 単価×調整率で評価する科目。今のところその他資産だけ。 */
 const unitRateCategories = new Set(["COLLECTIBLES"]);
-const realEstateCategories = new Set(["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"]);
+const realEstateCategorySet = new Set(realEstateCategories);
 
 export const positionInputSchema = z.object({
   side: z.enum(["ASSET", "LIABILITY"]),
@@ -111,13 +112,13 @@ export const positionInputSchema = z.object({
     requirePositive(data.adjustmentRate, "adjustmentRate", "調整率");
   }
   if (data.valuationFormula === "LAND_ROADSIDE") {
-    if (!realEstateCategories.has(data.category)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["valuationFormula"], message: "路線価方式を利用できない科目です。" });
+    if (!realEstateCategorySet.has(data.category)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["valuationFormula"], message: "路線価方式を利用できない科目です。" });
     requirePositive(data.landArea, "landArea", "面積");
     requirePositive(data.roadsideValue, "roadsideValue", "路線価");
     requirePositive(data.adjustmentRate, "adjustmentRate", "調整率");
   }
   if (data.valuationFormula === "LAND_MULTIPLIER" || data.valuationFormula === "BUILDING") {
-    if (!realEstateCategories.has(data.category)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["valuationFormula"], message: "倍率方式を利用できない科目です。" });
+    if (!realEstateCategorySet.has(data.category)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["valuationFormula"], message: "倍率方式を利用できない科目です。" });
     requirePositive(data.fixedAssetTaxValue, "fixedAssetTaxValue", "固定資産税評価額");
     requirePositive(data.valuationMultiplier, "valuationMultiplier", "倍率");
     requirePositive(data.adjustmentRate, "adjustmentRate", "調整率");
@@ -132,7 +133,7 @@ export const positionInputSchema = z.object({
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "benefitAllocations"], message: `受取人ごとの分数の合計を1にしてください（現在 ${numerator}/${denominator}）。` });
     }
   }
-  if (realEstateCategories.has(data.category)) {
+  if (realEstateCategorySet.has(data.category)) {
     if (!["LAND", "BUILDING"].includes(data.assetDetails.propertyType ?? "")) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "propertyType"], message: "土地または建物を選択してください。" });
     }

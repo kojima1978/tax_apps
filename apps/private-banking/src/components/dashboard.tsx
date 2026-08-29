@@ -174,7 +174,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const summary = useMemo(() => totals(workingSnapshot?.positions ?? []), [workingSnapshot]);
   const successionAssets = useMemo(() => {
     let deposits = 0, securities = 0, insurance = 0, insuranceDeathBenefit = 0, retirementAllowance = 0, retirementDeathBenefit = 0, deemedBenefitMissingCount = 0, privateShares = 0, businessAssets = 0, loanReceivables = 0;
-    let homeRealEstate = 0, incomeRealEstate = 0, idleRealEstate = 0, otherAssets = 0;
+    let homeRealEstate = 0, incomeRealEstate = 0, idleRealEstate = 0, otherRealEstate = 0, otherAssets = 0;
     for (const position of workingSnapshot?.positions ?? []) {
       if (position.side !== "ASSET") continue;
       if (position.category === "DEPOSIT") deposits += position.valueJpy;
@@ -192,6 +192,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       else if (position.category === "HOME_REAL_ESTATE") homeRealEstate += position.valueJpy;
       else if (position.category === "REAL_ESTATE") incomeRealEstate += position.valueJpy;
       else if (position.category === "IDLE_REAL_ESTATE") idleRealEstate += position.valueJpy;
+      else if (position.category === "OTHER_REAL_ESTATE") otherRealEstate += position.valueJpy;
       else otherAssets += position.valueJpy;
     }
     return {
@@ -199,8 +200,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       deposits, securities, insurance, insuranceDeathBenefit, retirementAllowance, retirementDeathBenefit, deemedBenefitMissingCount,
       business: privateShares + businessAssets + loanReceivables,
       privateShares, businessAssets, loanReceivables,
-      realEstate: homeRealEstate + incomeRealEstate + idleRealEstate,
-      homeRealEstate, incomeRealEstate, idleRealEstate, otherAssets,
+      realEstate: homeRealEstate + incomeRealEstate + idleRealEstate + otherRealEstate,
+      homeRealEstate, incomeRealEstate, idleRealEstate, otherRealEstate, otherAssets,
     };
   }, [workingSnapshot]);
   // 非課税枠の判定に使う法定相続人の氏名。受取人を選ぶだけで判定できるよう、入力欄では持たせない。
@@ -266,6 +267,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         { label: "自宅", value: displayedAssets.homeRealEstate },
         { label: "収益不動産", value: displayedAssets.incomeRealEstate },
         { label: "遊休不動産", value: displayedAssets.idleRealEstate },
+        { label: "その他不動産", value: displayedAssets.otherRealEstate },
       ]),
       business: nonZero([
         { label: "自社株", value: displayedAssets.privateShares },

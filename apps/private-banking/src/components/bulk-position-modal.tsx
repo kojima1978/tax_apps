@@ -10,8 +10,10 @@ import {
   type ValuationFormula,
   buildingTypeByValue,
   buildingTypeOptions,
+  categoryLabels,
   landCategoryByValue,
   landCategoryOptions,
+  realEstateCategories,
 } from "@/lib/portfolio-view";
 
 type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING";
@@ -40,7 +42,7 @@ function bulkEntryTypeForPosition(position: Position): BulkEntryType | null {
   if (position.category === "DEPOSIT") return position.valuationFormula === "MANUAL" && position.currency === "JPY" ? "DEPOSIT" : null;
   if (position.category === "SECURITIES" && ["STOCK", "MANUAL"].includes(position.valuationFormula)) return "SECURITIES";
   if (position.category === "PRIVATE_SHARES" && ["STOCK", "MANUAL"].includes(position.valuationFormula)) return "PRIVATE_SHARES";
-  if (!["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(position.category)) return null;
+  if (!realEstateCategories.includes(position.category)) return null;
   const propertyType = position.assetDetails?.propertyType ?? (position.valuationFormula === "BUILDING" ? "BUILDING" : "LAND");
   if (propertyType === "BUILDING" && !["LAND_ROADSIDE", "LAND_MULTIPLIER"].includes(position.valuationFormula)) return "BUILDING";
   if (propertyType === "LAND" && position.valuationFormula !== "BUILDING") return "LAND";
@@ -253,8 +255,8 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
   function normalizedPastedValue(key: BulkField, value: string) {
     const trimmed = value.trim();
     if (key === "category") {
-      const categories: Record<string, string> = { 自宅: "HOME_REAL_ESTATE", 収益不動産: "REAL_ESTATE", 遊休不動産: "IDLE_REAL_ESTATE" };
-      return categories[trimmed] ?? trimmed;
+      // 貼り付けは「自宅」などの表示ラベルで来る。ラベル→科目キーの対応は categoryLabels の逆引きで作る。
+      return realEstateCategories.find((key) => categoryLabels[key] === trimmed) ?? trimmed;
     }
     if (key === "valuationFormula") {
       const formulas: Record<string, string> = {
@@ -447,7 +449,7 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
               return <td key={column.key} className={disabled ? "is-disabled" : ""}>
                 {column.kind === "accountType" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{accountTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
                   : column.kind === "date" ? <input {...commonProps} type="date" onChange={(event) => updateRow(row.id, column.key, event.target.value)} />
-                  : column.kind === "category" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="HOME_REAL_ESTATE">自宅</option><option value="REAL_ESTATE">収益不動産</option><option value="IDLE_REAL_ESTATE">遊休不動産</option></select>
+                  : column.kind === "category" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{realEstateCategories.map((key) => <option key={key} value={key}>{categoryLabels[key]}</option>)}</select>
                   : column.kind === "formula" ? <select {...commonProps} title={row.valuationFormula === "STOCK" ? "株数・口数から計算" : row.valuationFormula === "LAND_ROADSIDE" ? "路線価方式" : row.valuationFormula === "MANUAL" ? "直接入力" : "倍率方式"} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{isStock ? <option value="STOCK">算</option> : isLand ? <><option value="LAND_ROADSIDE">路</option><option value="LAND_MULTIPLIER">倍</option></> : <option value="BUILDING">倍</option>}<option value="MANUAL">直</option></select>
                     : column.kind === "landCategory" ? <><select {...commonProps} title={landCategoryByValue.get(row.landCategory as typeof landCategoryOptions[number]["value"])?.definition ?? "地目を選択"} aria-describedby={row.landCategory ? `bulk-land-category-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{landCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.landCategory ? <span id={`bulk-land-category-${row.id}`} className="sr-only">{landCategoryByValue.get(row.landCategory as typeof landCategoryOptions[number]["value"])?.definition}</span> : null}</>
                       : column.kind === "buildingType" ? <><select {...commonProps} title={buildingTypeByValue.get(row.buildingType as typeof buildingTypeOptions[number]["value"])?.definition ?? "建物種類を選択"} aria-describedby={row.buildingType ? `bulk-building-type-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{buildingTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.buildingType ? <span id={`bulk-building-type-${row.id}`} className="sr-only">{buildingTypeByValue.get(row.buildingType as typeof buildingTypeOptions[number]["value"])?.definition}</span> : null}</>

@@ -52,7 +52,7 @@ export type BalanceScenario = "without-tax" | "with-tax";
 export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "details" | "history";
 
 export const categoryLabels: Record<string, string> = {
-  DEPOSIT: "預金・現金", SECURITIES: "有価証券", HOME_REAL_ESTATE: "自宅", REAL_ESTATE: "収益不動産", IDLE_REAL_ESTATE: "遊休不動産",
+  DEPOSIT: "預金・現金", SECURITIES: "有価証券", HOME_REAL_ESTATE: "自宅", REAL_ESTATE: "収益不動産", IDLE_REAL_ESTATE: "遊休不動産", OTHER_REAL_ESTATE: "その他不動産",
   PRIVATE_SHARES: "自社株", BUSINESS_ASSETS: "事業用資産", LOAN_RECEIVABLE: "貸付金", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金", COLLECTIBLES: "その他資産",
   LOAN_HOME: "住宅ローン", LOAN_INVESTMENT_PROPERTY: "不動産投資ローン", LOAN_SECURITIES: "証券担保ローン",
   LOAN_BUSINESS: "事業用借入", LOAN_OTHER: "その他借入金", LOAN: "その他借入金", GUARANTEE: "個人保証",
@@ -113,9 +113,23 @@ export const buildingTypeOptions = [
   { value: "SUBSTATION", label: "変電所", definition: "電圧を変換し送配電するエネルギーインフラ施設" },
 ] as const;
 export const buildingTypeByValue = new Map(buildingTypeOptions.map((option) => [option.value, option]));
-// 中分類（金融資産 → 不動産 → 事業用資産 → その他資産）の順に並べる。生命保険・退職金も金融資産なので預金・有価証券に続ける。
-// この並びは科目の選択肢と categoryRank（中分類内の並び順）の両方を兼ねる。
-export const assetCategories = ["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE", "HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "COLLECTIBLES"];
+// 資産の中分類と、その中に属する科目。明細フォームの2段選択（中分類→科目）、明細一覧の並び順（categoryRank・
+// middleClassification）、B/Sの小分類がすべてこの1箇所から決まる。同じ並びを複数箇所に書くと、科目を足したときに
+// 中分類の判定だけ漏れて「その他資産」に落ちる事故が起きるため、唯一の定義元にしている。
+// 生命保険・退職金も金融資産なので預金・有価証券に続ける。
+export const assetCategoryGroups = [
+  { label: "金融資産", categories: ["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"] },
+  { label: "不動産", categories: ["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE"] },
+  { label: "事業用資産", categories: ["PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE"] },
+  { label: "その他資産", categories: ["COLLECTIBLES"] },
+] as const;
+export type AssetGroupLabel = typeof assetCategoryGroups[number]["label"];
+export const assetCategories: string[] = assetCategoryGroups.flatMap((group) => [...group.categories]);
+/** 不動産の科目。所在地欄・持分・小規模宅地など、不動産だけの扱いをする箇所で使う。 */
+export const realEstateCategories: readonly string[] = assetCategoryGroups.find((group) => group.label === "不動産")!.categories;
+const assetGroupByCategory = new Map<string, AssetGroupLabel>(assetCategoryGroups.flatMap((group) => group.categories.map((category) => [category, group.label] as const)));
+/** 科目からその中分類を引く。資産以外（借入金・個人保証）は null。 */
+export const assetGroupOf = (category: string) => assetGroupByCategory.get(category) ?? null;
 export const liabilityCategories = ["LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER"];
 
 export const fiscalYearLabel = (snapshot: Pick<Snapshot, "fiscalYear">) => `${snapshot.fiscalYear}年度`;
@@ -184,17 +198,15 @@ export function splitBenefit(totalJpy: number, allocations: BenefitAllocation[],
   return floored.map((value) => value * unit);
 }
 
-export function middleClassification(position: Position) {
-  if (["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"].includes(position.category)) return "金融資産";
-  if (["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(position.category)) return "不動産";
-  if (["PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE"].includes(position.category)) return "事業用資産";
-  if (position.category === "COLLECTIBLES") return "その他資産";
+export function middleClassification(position: Position): string {
+  const group = assetGroupOf(position.category);
+  if (group) return group;
   if (position.category === "GUARANTEE") return "個人保証";
   return "借入金";
 }
 
 export function institutionOrPropertyAddress(position: Position) {
-  const isRealEstate = ["HOME_REAL_ESTATE", "REAL_ESTATE", "IDLE_REAL_ESTATE"].includes(position.category);
+  const isRealEstate = realEstateCategories.includes(position.category);
   if (isRealEstate) return position.assetDetails?.propertyAddress?.trim() ?? "";
   // 生命保険は保険会社名を明細の名称に使っているので、この欄には証券番号を出す。
   if (position.category === "INSURANCE") return position.assetDetails?.policyNumber?.trim() ?? "";
@@ -234,7 +246,7 @@ export type TrendValues = ReturnType<typeof trendValues>;
 
 export function trendValues(snapshot: Snapshot) {
   let deposits = 0, securities = 0, insurance = 0, retirementAllowance = 0;
-  let homeRealEstate = 0, incomeRealEstate = 0, idleRealEstate = 0;
+  let homeRealEstate = 0, incomeRealEstate = 0, idleRealEstate = 0, otherRealEstate = 0;
   let privateShares = 0, businessAssets = 0, loanReceivables = 0, otherAssets = 0;
   let loanHome = 0, loanInvestmentProperty = 0, loanSecurities = 0, loanBusiness = 0, loanOther = 0, guarantees = 0;
   for (const position of snapshot.positions) {
@@ -246,6 +258,7 @@ export function trendValues(snapshot: Snapshot) {
       else if (position.category === "HOME_REAL_ESTATE") homeRealEstate += position.valueJpy;
       else if (position.category === "REAL_ESTATE") incomeRealEstate += position.valueJpy;
       else if (position.category === "IDLE_REAL_ESTATE") idleRealEstate += position.valueJpy;
+      else if (position.category === "OTHER_REAL_ESTATE") otherRealEstate += position.valueJpy;
       else if (position.category === "PRIVATE_SHARES") privateShares += position.valueJpy;
       else if (position.category === "BUSINESS_ASSETS") businessAssets += position.valueJpy;
       else if (position.category === "LOAN_RECEIVABLE") loanReceivables += position.valueJpy;
@@ -261,7 +274,7 @@ export function trendValues(snapshot: Snapshot) {
     }
   }
   const financial = deposits + securities + insurance + retirementAllowance;
-  const realEstate = homeRealEstate + incomeRealEstate + idleRealEstate;
+  const realEstate = homeRealEstate + incomeRealEstate + idleRealEstate + otherRealEstate;
   const business = privateShares + businessAssets + loanReceivables;
   const borrowings = loanHome + loanInvestmentProperty + loanSecurities + loanBusiness + loanOther;
   const inheritanceTax = snapshot.estimatedInheritanceTax;
@@ -271,7 +284,7 @@ export function trendValues(snapshot: Snapshot) {
   const assets = financial + realEstate + business + otherAssets;
   return {
     deposits, securities, insurance, retirementAllowance, financial,
-    homeRealEstate, incomeRealEstate, idleRealEstate, realEstate,
+    homeRealEstate, incomeRealEstate, idleRealEstate, otherRealEstate, realEstate,
     privateShares, businessAssets, loanReceivables, business, otherAssets, assets,
     inheritanceTax, otherTaxes, taxes,
     loanHome, loanInvestmentProperty, loanSecurities, loanBusiness, loanOther, borrowings, liabilities,
@@ -308,6 +321,7 @@ export const trendChildRows: Record<TrendGroup, TrendRow[]> = {
     { label: "自宅", key: "homeRealEstate", child: true },
     { label: "収益不動産", key: "incomeRealEstate", child: true },
     { label: "遊休不動産", key: "idleRealEstate", child: true },
+    { label: "その他不動産", key: "otherRealEstate", child: true },
   ],
   business: [
     { label: "自社株", key: "privateShares", child: true },

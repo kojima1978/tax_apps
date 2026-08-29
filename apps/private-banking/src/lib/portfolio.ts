@@ -10,6 +10,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   HOME_REAL_ESTATE: "自宅",
   REAL_ESTATE: "収益不動産",
   IDLE_REAL_ESTATE: "遊休不動産",
+  OTHER_REAL_ESTATE: "その他不動産",
   PRIVATE_SHARES: "自社株",
   BUSINESS_ASSETS: "事業用資産",
   LOAN_RECEIVABLE: "貸付金",
