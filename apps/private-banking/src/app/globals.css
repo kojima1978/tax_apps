@@ -1035,28 +1035,28 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 @media print {
   .print-front-matter { display: block !important; }
   .print-cover, .print-toc { min-height: 178mm; box-sizing: border-box; break-after: page; page-break-after: always; }
-  .print-cover { padding: 10mm 12mm 7mm; border: 1px solid #d7dfdb; display: flex; flex-direction: column; color: #0f2f26; background: #fff; }
+  .print-cover { padding: 10mm 12mm 7mm; border: 1px solid #b2beb8; display: flex; flex-direction: column; color: #0f2f26; background: #fff; }
   .print-cover-mark { font-size: 9.5px; font-weight: 700; letter-spacing: .24em; }
   .print-cover-main { width: 72%; margin: auto; padding: 0 0 4mm; }
   .print-cover-main > p { margin: 0 0 4mm; color: #4a5761; font-size: 10.5px; font-weight: 700; letter-spacing: .22em; }
   .print-cover-main h1 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 31px; font-weight: 600; letter-spacing: .04em; }
   .print-cover-rule { width: 24mm; height: 1.5px; margin: 7mm 0 9mm; background: #2f765e; display: block; }
   .print-cover-main dl { width: 72%; margin: 0; }
-  .print-cover-main dl > div { padding: 2.5mm 0; border-bottom: 1px solid #d7dfdb; display: grid; grid-template-columns: 28mm 1fr; align-items: baseline; }
+  .print-cover-main dl > div { padding: 2.5mm 0; border-bottom: 1px solid #b2beb8; display: grid; grid-template-columns: 28mm 1fr; align-items: baseline; }
   .print-cover-main dt { color: #4a5761; font-size: 10.5px; font-weight: 600; }
   .print-cover-main dd { margin: 0; color: #172c25; font-size: 12.5px; font-weight: 700; }
-  .print-cover-confidential { margin: 0; color: #525f59; font-size: 8.5px; font-weight: 700; letter-spacing: .22em; text-align: right; }
+  .print-cover-confidential { margin: 0; color: #525f59; font-size: 9.5px; font-weight: 700; letter-spacing: .22em; text-align: right; }
   .print-toc { padding: 10mm 16mm 7mm; display: flex; flex-direction: column; color: #172c25; background: #fff; }
   .print-toc header { padding-bottom: 7mm; border-bottom: 2px solid #285f4d; }
   .print-toc header p { margin: 0 0 2mm; color: #4a5761; font-size: 9.5px; font-weight: 700; letter-spacing: .22em; }
   .print-toc header h2 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 25px; font-weight: 600; }
   .print-toc ol { margin: 8mm 0 0; padding: 0; list-style: none; }
-  .print-toc li { min-height: 21mm; padding: 4mm 2mm; border-bottom: 1px solid #d7dfdb; display: grid; grid-template-columns: 17mm 1fr; align-items: center; }
+  .print-toc li { min-height: 21mm; padding: 4mm 2mm; border-bottom: 1px solid #b2beb8; display: grid; grid-template-columns: 17mm 1fr; align-items: center; }
   .print-toc-index { color: #2f765e; font-family: Georgia, serif; font-size: 17px; }
   .print-toc-copy { display: flex; flex-direction: column; gap: 1.5mm; }
   .print-toc-copy strong { color: #123c31; font-size: 14px; }
   .print-toc-copy small { color: #4a5761; font-size: 10.5px; }
-  .print-toc footer { margin-top: auto; padding-top: 4mm; border-top: 1px solid #d7dfdb; display: flex; justify-content: space-between; color: #4a5761; font-size: 9.5px; }
+  .print-toc footer { margin-top: auto; padding-top: 4mm; border-top: 1px solid #b2beb8; display: flex; justify-content: space-between; color: #4a5761; font-size: 9.5px; }
   .print-only-document { display: block !important; }
   .print-excluded-document { display: none !important; }
   .report-document:not(.print-excluded-document) + .report-document:not(.print-excluded-document) { break-before: page; page-break-before: always; }
@@ -1094,7 +1094,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .bs-subtotals dd { font-size: 10.5px; }
   .bs-account-heading > span, .bs-subtotals dt { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
   .bs-account-heading strong, .bs-subtotals dd { flex: 0 0 auto; white-space: nowrap; }
-  .bs-percent { font-size: 7.5px; }
+  .bs-percent { font-size: 8.5px; }
   .dense-account:has(.bs-subtotals > div:nth-child(4)) .bs-account-heading > span,
   .dense-account:has(.bs-subtotals > div:nth-child(4)) .bs-account-heading strong { font-size: 9.5px; }
   .dense-account:has(.bs-subtotals > div:nth-child(4)) .bs-subtotals > div { min-height: 12px; }
@@ -1113,7 +1113,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .guarantee-note strong { font-size: 9.5px; }
 
   .detail-page-heading { margin: 0 0 8px; padding: 0 2mm; display: flex; align-items: flex-end; flex-direction: row; }
-  .detail-page-heading .eyebrow { font-size: 8.5px; }
+  .detail-page-heading .eyebrow { font-size: 9.5px; }
   .detail-page-heading h2 { margin: 1px 0 2px; font-size: 18px; }
   .detail-heading-meta { gap: 6px; font-size: 9.5px; }
   .detail-status-screen, .detail-updated-at { display: none !important; }
@@ -1125,53 +1125,53 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .tax-calculation-document { margin-top: 0; }
   .inheritance-tax-report { width: 100%; height: auto; max-height: 174mm; padding: 4mm 5mm 3mm; border: 1px solid #b9cbc2; border-radius: 0; box-shadow: none; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
   .inheritance-tax-report-heading { min-height: 18mm; padding: 0 1mm 3mm; gap: 8mm; }
-  .inheritance-tax-report-heading .eyebrow { font-size: 7.5px; }
+  .inheritance-tax-report-heading .eyebrow { font-size: 8.5px; }
   .inheritance-tax-report-heading h2 { font-size: 21px; }
   .inheritance-tax-report-heading dl { min-width: 105mm; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1mm 6mm; }
-  .inheritance-tax-report-heading dt { font-size: 8px; }
-  .inheritance-tax-report-heading dd { font-size: 8.5px; }
-  .tax-calc-stale { margin: 2mm 0 0; padding: 1.5mm 2mm; font-size: 8.5px; }
+  .inheritance-tax-report-heading dt { font-size: 9px; }
+  .inheritance-tax-report-heading dd { font-size: 9.5px; }
+  .tax-calc-stale { margin: 2mm 0 0; padding: 1.5mm 2mm; font-size: 9.5px; }
   .tax-calc-stale svg { width: 10px; height: 10px; }
   .tax-calc-columns { min-height: 126mm; margin-top: 3mm; gap: 4mm; grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr); }
   .tax-calc-statement, .tax-calc-basis { border-radius: 2px; }
   .tax-calc-statement h3, .tax-calc-basis h3 { min-height: 9mm; padding: 1.5mm 2.5mm; font-size: 9.5px; }
   .tax-calc-statement h3 svg, .tax-calc-basis h3 svg { width: 10px; height: 10px; }
   .tax-calc-money-list { padding: 1mm 2.5mm 1.5mm; }
-  .tax-calc-money-row { min-height: 5.4mm; padding: .45mm .5mm; grid-template-columns: 4mm minmax(0, 1fr) auto; font-size: 8.5px; line-height: 1.15; }
-  .tax-calc-money-row strong { font-size: 9px; }
+  .tax-calc-money-row { min-height: 5.4mm; padding: .45mm .5mm; grid-template-columns: 4mm minmax(0, 1fr) auto; font-size: 9.5px; line-height: 1.4; }
+  .tax-calc-money-row strong { font-size: 10px; }
   .tax-calc-money-row.total { margin-top: 1mm; padding: 1.1mm 1mm; font-size: 9.5px; }
   .tax-calc-money-row.total strong { font-size: 11.5px; }
   .tax-calc-basis ol { padding: 1mm 2.5mm .5mm 7mm; }
-  .tax-calc-basis li { padding: .8mm .4mm; font-size: 8.5px; line-height: 1.15; }
-  .tax-calc-basis li p { margin-top: .3mm; font-size: 8px; line-height: 1.35; }
+  .tax-calc-basis li { padding: .8mm .4mm; font-size: 9.5px; line-height: 1.4; }
+  .tax-calc-basis li p { margin-top: .3mm; font-size: 9px; line-height: 1.45; }
   .tax-calc-assumptions { margin: 1mm 2.5mm 2mm; padding: 1.5mm 2mm; }
-  .tax-calc-assumptions strong { font-size: 8.5px; }
-  .tax-calc-assumptions p { margin-top: .5mm; font-size: 8px; line-height: 1.35; }
+  .tax-calc-assumptions strong { font-size: 9.5px; }
+  .tax-calc-assumptions p { margin-top: .5mm; font-size: 9px; line-height: 1.45; }
   .tax-calc-heir-summary { margin: 1mm 2.5mm 0; padding: 1.2mm 1.6mm .6mm; border-radius: 1px; }
-  .tax-calc-heir-summary > strong { font-size: 8.5px; }
-  .tax-calc-heir-summary table { margin-top: .6mm; font-size: 8px; }
+  .tax-calc-heir-summary > strong { font-size: 9.5px; }
+  .tax-calc-heir-summary table { margin-top: .6mm; font-size: 9px; }
   .tax-calc-heir-summary th, .tax-calc-heir-summary td { padding: .8mm .6mm; }
-  .tax-calc-heir-summary thead th { font-size: 7.5px; }
-  .tax-calc-heir-summary tbody th small { margin-left: 1mm; font-size: 7.5px; }
+  .tax-calc-heir-summary thead th { font-size: 8.5px; }
+  .tax-calc-heir-summary tbody th small { margin-left: 1mm; font-size: 8.5px; }
   .tax-calc-no-tax { padding: 5mm; font-size: 9.5px; }
-  .tax-calc-notes { margin-top: 2mm; font-size: 7.5px; line-height: 1.35; }
+  .tax-calc-notes { margin-top: 2mm; font-size: 8.5px; line-height: 1.45; }
   .tax-calc-notes p { margin: .5mm 0; }
   .print-person-family-section { break-inside: avoid; page-break-inside: avoid; }
   .print-profile-panel, .print-family-panel { box-shadow: none; overflow: visible; }
   .print-profile-panel { margin-bottom: 4mm; }
-  .print-profile-panel > header, .print-family-panel > header { min-height: 38px; padding: 6px 10px; border-bottom: 1px solid #d7dfdb; display: flex; align-items: baseline; justify-content: space-between; }
+  .print-profile-panel > header, .print-family-panel > header { min-height: 38px; padding: 6px 10px; border-bottom: 1px solid #b2beb8; display: flex; align-items: baseline; justify-content: space-between; }
   .print-profile-panel > header h3, .print-family-panel > header h3 { margin: 0; color: #123c31; font-size: 13px; }
-  .print-profile-panel > header p, .print-family-panel > header p { margin: 0; color: #4a5761; font-size: 9.5px; }
+  .print-profile-panel > header p, .print-family-panel > header p { margin: 0; color: #4a5761; font-size: 10.5px; }
   .print-profile-grid { margin: 0; padding: 4mm 7mm; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8mm; }
-  .print-profile-grid > div { min-height: 12mm; padding: 3mm 2mm; border-bottom: 1px solid #d7dfdb; display: grid; grid-template-columns: 22mm minmax(0, 1fr); align-items: baseline; }
+  .print-profile-grid > div { min-height: 12mm; padding: 3mm 2mm; border-bottom: 1px solid #b2beb8; display: grid; grid-template-columns: 22mm minmax(0, 1fr); align-items: baseline; }
   .print-profile-grid dt { color: #4a5761; font-size: 10.5px; font-weight: 700; }
   .print-profile-grid dd { min-width: 0; margin: 0; color: #172c25; font-size: 13.5px; font-weight: 700; overflow-wrap: anywhere; }
   .print-family-panel { break-inside: auto; page-break-inside: auto; }
-  .print-family-table { width: 100%; max-width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9px; }
+  .print-family-table { width: 100%; max-width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10.5px; }
   .print-family-table thead { display: table-header-group; }
   .print-family-table tr { break-inside: avoid; page-break-inside: avoid; }
-  .print-family-table th { padding: 4px; color: #234b3d; background: #edf7f0; border: 1px solid #bdd3c4; font-size: 8.5px; line-height: 1.25; text-align: left; }
-  .print-family-table td { padding: 4px; color: #263b34; border: 1px solid #d7dfdb; overflow-wrap: anywhere; }
+  .print-family-table th { padding: 5px 4px; color: #234b3d; background: #edf7f0; border: 1px solid #a2c1af; font-size: 10px; line-height: 1.4; text-align: left; }
+  .print-family-table td { padding: 5px 4px; color: #263b34; border: 1px solid #b2beb8; overflow-wrap: anywhere; }
   .print-family-table th:nth-child(1) { width: 18%; }
   .print-family-table th:nth-child(2) { width: 10%; }
   .print-family-table th:nth-child(3), .print-family-table th:nth-child(4) { width: 14%; }
@@ -1186,12 +1186,16 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-section .panel-header h3 { font-size: 13px; }
   .position-section .panel-header p { font-size: 9.5px; }
   .position-section .table-scroll { overflow: visible; }
-  .position-table { width: 100%; min-width: 0; table-layout: fixed; font-size: 9.5px; }
+  .position-table { width: 100%; min-width: 0; table-layout: fixed; font-size: 11px; }
   .position-table thead { display: table-header-group; }
   .position-table tfoot { display: table-row-group; }
   .position-table tr { break-inside: avoid; page-break-inside: avoid; }
   .position-table th, .position-table td { min-width: 0; padding: 5px 7px; box-sizing: border-box; }
-  .position-table th { font-size: 9.5px; }
+  /* 行の区切り線は画面では --slate-100(#f0f3f1) だが、白紙では 1.09:1 でほぼ見えない。
+     どの行がどこで切れているかが分からないと数字を横に追えないので、印刷時だけ濃くする。 */
+  .position-table td, .trend-table tbody th, .trend-table tbody td { border-bottom-color: #b2beb8; }
+  .position-table th, .trend-table thead th { border-bottom-color: #93a29a; }
+  .position-table th { font-size: 11px; }
   .position-table th:nth-child(2) { width: 14%; }
   .position-table th:nth-child(3) { width: 20%; }
   .position-table th:nth-child(4) { width: 30%; }
@@ -1207,12 +1211,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table td:nth-child(5), .valuation-breakdown { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
   .position-table td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .position-table td:nth-child(2), .position-table td:nth-child(3) { overflow: hidden; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
-  .position-table td strong { font-size: 9.5px; }
-  .position-table td small { font-size: 8.5px; line-height: 1.35; }
+  .position-table td strong { font-size: 11px; }
+  .position-table td small { font-size: 10px; line-height: 1.45; }
   .position-table tbody tr.is-classification-start td { border-top: 1.5pt solid var(--classification-border); padding-top: 7px; }
-  .classification-label { min-height: 0; padding: 2px 4px; font-size: 8.5px; white-space: normal; }
-  .category-tag { font-size: 8.5px; }
-  .position-table tfoot td { padding-block: 6px; font-size: 10.5px; }
+  .classification-label { min-height: 0; padding: 2px 4px; font-size: 10px; white-space: normal; }
+  .category-tag { font-size: 10px; }
+  .position-table tfoot td { padding-block: 7px; font-size: 12px; }
 
   .history-page-heading { display: none !important; }
   .trend-panel .panel-header p, .period-position-label { display: none !important; }
@@ -1222,7 +1226,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .trend-panel .panel-header h3 { font-size: 13px; }
   .trend-panel .panel-header p { font-size: 9.5px; }
   .trend-scroll { overflow: visible; }
-  .trend-table { width: 100%; max-width: 100%; min-width: 0; margin: 0; table-layout: fixed; font-size: 9.5px; }
+  .trend-table { width: 100%; max-width: 100%; min-width: 0; margin: 0; table-layout: fixed; font-size: 11px; }
   .trend-table thead { display: table-header-group; }
   .trend-table tr { break-inside: avoid; page-break-inside: avoid; }
   .trend-table .trend-section { break-after: avoid; page-break-after: avoid; }
@@ -1231,13 +1235,13 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .trend-table thead th:first-child, .trend-table tbody th { width: 28%; max-width: 28%; min-width: 0; }
   .trend-table thead th.period-selector, .trend-table thead th.trend-change-column { width: 18%; }
   .trend-table th, .trend-table td { min-width: 0; padding: 6px 9px; box-sizing: border-box; }
-  .trend-table thead span { font-size: 9.5px; }
-  .trend-table thead small { font-size: 8.5px; }
+  .trend-table thead span { font-size: 11px; }
+  .trend-table thead small { font-size: 10px; }
   .period-selector select { min-height: 0; margin-top: 2px; padding: 2px 0; appearance: none; color: var(--navy-950); background: transparent; border: 0; font-size: 10.5px; text-align: right; }
   .trend-expand, .trend-expand-placeholder { display: none !important; }
   .trend-row-heading { min-width: 0; max-width: 100%; gap: 0; overflow: hidden; }
   .trend-row-heading > span:last-child { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
-  .trend-table tbody th, .trend-table tbody td { padding: 6px 9px; font-size: 9.5px; }
-  .trend-table .trend-section th { padding: 5px 9px; font-size: 9.5px; }
+  .trend-table tbody th, .trend-table tbody td { padding: 6px 9px; font-size: 11px; }
+  .trend-table .trend-section th { padding: 5px 9px; font-size: 11px; }
   .trend-table .trend-child th { padding-left: 18px; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
 }
