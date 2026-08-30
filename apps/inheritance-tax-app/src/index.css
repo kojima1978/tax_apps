@@ -1383,10 +1383,6 @@ tbody tr:last-child > .cash-gift-amount-cell {
   stroke: #dc2626;
 }
 
-.cash-gift-tax-print-legend {
-  display: none;
-}
-
 .cash-gift-tax-burden-connector-bridge {
   fill: none;
   stroke: #ffffff;
@@ -2672,7 +2668,7 @@ tbody tr:last-child > .cash-gift-amount-cell {
     top: 37px !important;
   }
 
-  /* 白黒印刷でも税目を判別できるよう、色に加えて線種と凡例を使う */
+  /* 白黒印刷でも税目を判別できるよう、色に加えて線種を使う */
   .cash-gift-print .cash-gift-gift-tax-connector-line {
     stroke: #111827 !important;
     stroke-dasharray: none !important;
@@ -2686,37 +2682,6 @@ tbody tr:last-child > .cash-gift-amount-cell {
   .cash-gift-print .cash-gift-gift-tax-arrowhead,
   .cash-gift-print .cash-gift-inheritance-tax-arrowhead {
     fill: #111827 !important;
-  }
-
-  .cash-gift-print .cash-gift-tax-print-legend {
-    align-items: center;
-    color: #111827;
-    display: flex;
-    font-size: 7px;
-    font-weight: 600;
-    gap: 10px;
-    left: 50%;
-    line-height: 1;
-    position: absolute;
-    top: 0;
-    transform: translateX(-50%);
-    white-space: nowrap;
-  }
-
-  .cash-gift-print .cash-gift-tax-print-legend > span {
-    align-items: center;
-    display: inline-flex;
-    gap: 3px;
-  }
-
-  .cash-gift-print .cash-gift-tax-print-legend-line {
-    border-top: 1.5px solid #111827;
-    display: inline-block;
-    width: 16px;
-  }
-
-  .cash-gift-print .cash-gift-tax-print-legend-line-inheritance {
-    border-top-style: dashed;
   }
 
   .cash-gift-print h3 {

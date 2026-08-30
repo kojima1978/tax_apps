@@ -404,16 +404,6 @@ const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }
         <span className="cash-gift-tax-change-label cash-gift-tax-change-label-inheritance">
           増減額 <strong>{inheritanceTaxChange < 0 ? '△' : inheritanceTaxChange > 0 ? '+' : ''}{formatCurrency(Math.abs(inheritanceTaxChange))}</strong>
         </span>
-        <div className="cash-gift-tax-print-legend" aria-hidden="true">
-          <span>
-            <i className="cash-gift-tax-print-legend-line cash-gift-tax-print-legend-line-gift" />
-            贈与税負担
-          </span>
-          <span>
-            <i className="cash-gift-tax-print-legend-line cash-gift-tax-print-legend-line-inheritance" />
-            納付相続税
-          </span>
-        </div>
       </div>
     </section>
   );
