@@ -6,9 +6,17 @@ import { useCleanOptions } from './useCleanOptions';
 
 export function useCashGiftSimulation() {
   const base = useSimulationBase();
-  const { composition, estateValue, spouseMode } = base;
+  const {
+    composition,
+    setComposition: setBaseComposition,
+    estateValue,
+    setEstateValue: setBaseEstateValue,
+    spouseMode,
+    setSpouseMode: setBaseSpouseMode,
+  } = base;
 
-  const [recipients, setRecipients] = useState<GiftRecipient[]>([]);
+  const [recipients, setRecipientsState] = useState<GiftRecipient[]>([]);
+  const [optimizationUndoAmounts, setOptimizationUndoAmounts] = useState<Map<string, number> | null>(null);
 
   const recipientOptions = useMemo(
     () => getGiftRecipientOptions(composition),
@@ -53,6 +61,26 @@ export function useCashGiftSimulation() {
   const [overAllocatedHeirsError, setOverAllocatedHeirsError] = useState<string[]>([]);
   const [isOptimizing, startOptimization] = useTransition();
 
+  const setRecipients = useCallback((nextRecipients: GiftRecipient[]) => {
+    setOptimizationUndoAmounts(null);
+    setRecipientsState(nextRecipients);
+  }, []);
+
+  const setComposition: typeof setBaseComposition = useCallback(nextComposition => {
+    setOptimizationUndoAmounts(null);
+    setBaseComposition(nextComposition);
+  }, [setBaseComposition]);
+
+  const setEstateValue: typeof setBaseEstateValue = useCallback(nextEstateValue => {
+    setOptimizationUndoAmounts(null);
+    setBaseEstateValue(nextEstateValue);
+  }, [setBaseEstateValue]);
+
+  const setSpouseMode: typeof setBaseSpouseMode = useCallback(nextSpouseMode => {
+    setOptimizationUndoAmounts(null);
+    setBaseSpouseMode(nextSpouseMode);
+  }, [setBaseSpouseMode]);
+
   const commitSimulationResult = useCallback((simResult: CashGiftSimulationResult) => {
     if (simResult.overAllocatedHeirs.length > 0) {
       setResult(null);
@@ -87,6 +115,7 @@ export function useCashGiftSimulation() {
     if (optimizationBlockedReason) return;
 
     startOptimization(() => {
+      setOptimizationUndoAmounts(new Map(recipients.map(recipient => [recipient.id, recipient.annualAmount])));
       const optimized = optimizeGiftAmounts(
         estateValue,
         composition,
@@ -94,7 +123,7 @@ export function useCashGiftSimulation() {
         spouseMode,
       );
       const annualAmountById = new Map(optimized.map(r => [r.id, r.annualAmount]));
-      setRecipients(current => current.map(recipient => ({
+      setRecipientsState(current => current.map(recipient => ({
         ...recipient,
         annualAmount: annualAmountById.get(recipient.id) ?? recipient.annualAmount,
       })));
@@ -105,7 +134,36 @@ export function useCashGiftSimulation() {
         spouseMode,
       ));
     });
-  }, [optimizationBlockedReason, estateValue, composition, cleanedRecipients, spouseMode, commitSimulationResult]);
+  }, [optimizationBlockedReason, recipients, estateValue, composition, cleanedRecipients, spouseMode, commitSimulationResult]);
+
+  const handleUndoOptimization = useCallback(() => {
+    if (!optimizationUndoAmounts) return;
+
+    const restoredRecipients = recipients.map(recipient => ({
+      ...recipient,
+      annualAmount: optimizationUndoAmounts.get(recipient.id) ?? recipient.annualAmount,
+    }));
+    const restoredCleanedRecipients = cleanedRecipients.map(recipient => ({
+      ...recipient,
+      annualAmount: optimizationUndoAmounts.get(recipient.id) ?? recipient.annualAmount,
+    }));
+
+    setRecipientsState(restoredRecipients);
+    setOptimizationUndoAmounts(null);
+
+    if (restoredCleanedRecipients.length === 0 || restoredCleanedRecipients.every(r => r.annualAmount <= 0 || r.years <= 0)) {
+      setResult(null);
+      setOverAllocatedHeirsError([]);
+      return;
+    }
+
+    commitSimulationResult(calculateCashGiftSimulation(
+      estateValue,
+      composition,
+      restoredCleanedRecipients,
+      spouseMode,
+    ));
+  }, [optimizationUndoAmounts, recipients, cleanedRecipients, estateValue, composition, spouseMode, commitSimulationResult]);
 
   const totalGiftsInput = useMemo(
     () => cleanedRecipients.reduce((s, r) => s + r.annualAmount * r.years, 0),
@@ -114,12 +172,17 @@ export function useCashGiftSimulation() {
 
   return {
     ...base,
+    setComposition,
+    setEstateValue,
+    setSpouseMode,
     recipients, setRecipients,
     recipientOptions,
     cleanedRecipients,
     result,
     handleCalculate,
     handleOptimizeGiftAmounts,
+    handleUndoOptimization,
+    canUndoOptimization: optimizationUndoAmounts !== null,
     isOptimizing,
     optimizationBlockedReason,
     totalGiftsInput,

@@ -26,6 +26,8 @@ export const CashGiftPage: React.FC = () => {
     result,
     handleCalculate: executeCalculate,
     handleOptimizeGiftAmounts,
+    handleUndoOptimization,
+    canUndoOptimization,
     isOptimizing,
     optimizationBlockedReason,
     totalGiftsInput,
@@ -83,6 +85,8 @@ export const CashGiftPage: React.FC = () => {
             recipientOptions={recipientOptions}
             onChange={setRecipients}
             onOptimize={handleOptimizeGiftAmounts}
+            onUndoOptimization={handleUndoOptimization}
+            canUndoOptimization={canUndoOptimization}
             isOptimizing={isOptimizing}
             optimizationBlockedReason={optimizationBlockedReason}
           />

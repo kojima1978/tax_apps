@@ -4,6 +4,7 @@ import Gift from 'lucide-react/icons/gift';
 import Users from 'lucide-react/icons/users';
 import LoaderCircle from 'lucide-react/icons/loader-circle';
 import Sparkles from 'lucide-react/icons/sparkles';
+import Undo2 from 'lucide-react/icons/undo-2';
 import { SectionHeader } from '../SectionHeader';
 import type { GiftRecipient } from '../../types';
 import { generateId, getGiftTaxTypeForHeirId } from '../../utils';
@@ -16,6 +17,8 @@ interface CashGiftRecipientListProps {
   recipientOptions: RecipientOption[];
   onChange: (recipients: GiftRecipient[]) => void;
   onOptimize: () => void;
+  onUndoOptimization: () => void;
+  canUndoOptimization: boolean;
   isOptimizing: boolean;
   optimizationBlockedReason: string | null;
 }
@@ -43,6 +46,8 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
   recipientOptions,
   onChange,
   onOptimize,
+  onUndoOptimization,
+  canUndoOptimization,
   isOptimizing,
   optimizationBlockedReason,
 }) => {
@@ -164,22 +169,36 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
         <div>
           <p className="text-sm font-semibold text-green-800">年間贈与額を自動計算</p>
           <p className="mt-0.5 text-xs leading-relaxed text-gray-600">
-            {optimizationBlockedReason ?? '受贈者と贈与年数をもとに、相続税＋贈与税が最小となる金額を10万円単位で探索します'}
+            {optimizationBlockedReason ?? (canUndoOptimization
+              ? '自動計算結果を反映しました。変更前の年間贈与額へ戻せます'
+              : '受贈者と贈与年数をもとに、相続税＋贈与税が最小となる金額を10万円単位で探索します')}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOptimize}
-          disabled={!!optimizationBlockedReason || isOptimizing}
-          className="inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
-        >
-          {isOptimizing ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={onOptimize}
+            disabled={!!optimizationBlockedReason || isOptimizing}
+            className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+          >
+            {isOptimizing ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+            )}
+            {isOptimizing ? '計算中...' : '最適額を自動計算'}
+          </button>
+          {canUndoOptimization && (
+            <button
+              type="button"
+              onClick={onUndoOptimization}
+              className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-green-700 bg-white px-4 py-2 text-sm font-semibold text-green-800 transition-colors hover:bg-green-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2"
+            >
+              <Undo2 className="h-4 w-4" aria-hidden="true" />
+              元に戻す
+            </button>
           )}
-          {isOptimizing ? '計算中...' : '最適額を自動計算'}
-        </button>
+        </div>
       </div>
     </div>
   );
