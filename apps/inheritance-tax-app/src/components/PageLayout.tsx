@@ -11,6 +11,7 @@ interface PageLayoutProps {
   validationErrors?: string[];
   hasAttempted?: boolean;
   onCalculate: () => void;
+  calculateButtonLabel?: string;
   belowButton?: React.ReactNode;
   resultRef: React.RefObject<HTMLDivElement | null>;
   resultSection: React.ReactNode;
@@ -24,6 +25,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   validationErrors = [],
   hasAttempted = false,
   onCalculate,
+  calculateButtonLabel,
   belowButton,
   resultRef,
   resultSection,
@@ -62,7 +64,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 
         <div className="mb-6 md:mb-8 no-print">
           <ValidationErrorPanel show={hasAttempted} errors={validationErrors} />
-          <CalculateButton onClick={handleCalculateClick} />
+          <CalculateButton onClick={handleCalculateClick} label={calculateButtonLabel} />
         </div>
       </form>
 

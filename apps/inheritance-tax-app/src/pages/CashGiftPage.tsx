@@ -91,6 +91,7 @@ export const CashGiftPage: React.FC = () => {
       validationErrors={validationErrors}
       hasAttempted={hasAttempted}
       onCalculate={handleCalculate}
+      calculateButtonLabel="入力内容で計算"
       belowButton={
         <>
           {overAllocatedHeirsError.length > 0 && (
