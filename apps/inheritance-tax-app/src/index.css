@@ -711,6 +711,75 @@
   color: #b91c1c;
 }
 
+.cash-gift-detail-block + .cash-gift-detail-block {
+  margin-top: 0.625rem;
+}
+
+.cash-gift-detail-toggle {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #86efac;
+  border-radius: 0.625rem;
+  color: #166534;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  min-height: 3rem;
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  transition: background-color 200ms ease, border-color 200ms ease;
+  width: 100%;
+}
+
+.cash-gift-detail-toggle:hover {
+  background: #f0fdf4;
+  border-color: #22c55e;
+}
+
+.cash-gift-detail-toggle:focus-visible {
+  outline: 3px solid #86efac;
+  outline-offset: 2px;
+}
+
+.cash-gift-detail-toggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.cash-gift-detail-toggle strong {
+  font-size: 0.875rem;
+}
+
+.cash-gift-detail-toggle small {
+  color: #4b5563;
+  font-size: 0.6875rem;
+}
+
+.cash-gift-detail-toggle svg {
+  flex: 0 0 auto;
+  height: 1.125rem;
+  transition: transform 200ms ease;
+  width: 1.125rem;
+}
+
+.cash-gift-detail-toggle svg.is-expanded {
+  transform: rotate(180deg);
+}
+
+.cash-gift-detail-content {
+  display: none;
+}
+
+.cash-gift-detail-content.is-expanded {
+  display: block;
+  margin-top: 0.75rem;
+}
+
+.cash-gift-detail-content.is-expanded .cash-gift-workbook-heading {
+  display: none;
+}
+
 @media (min-width: 768px) {
   .cash-gift-result-summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -718,6 +787,24 @@
 
   .cash-gift-result-summary-impact {
     grid-column: auto;
+  }
+
+  .cash-gift-detail-block + .cash-gift-detail-block {
+    margin-top: 1.5rem;
+  }
+
+  .cash-gift-detail-toggle {
+    display: none;
+  }
+
+  .cash-gift-detail-content,
+  .cash-gift-detail-content.is-expanded {
+    display: block;
+    margin-top: 0;
+  }
+
+  .cash-gift-detail-content.is-expanded .cash-gift-workbook-heading {
+    display: flex;
   }
 }
 
@@ -2360,6 +2447,20 @@ tbody tr:last-child > .cash-gift-amount-cell {
 
   .cash-gift-print .cash-gift-result-summary-item strong {
     font-size: 11px !important;
+  }
+
+  .cash-gift-print .cash-gift-detail-block + .cash-gift-detail-block {
+    margin-top: 6px !important;
+  }
+
+  .cash-gift-print .cash-gift-detail-content,
+  .cash-gift-print .cash-gift-detail-content.is-expanded {
+    display: block !important;
+    margin-top: 0 !important;
+  }
+
+  .cash-gift-print .cash-gift-detail-content.is-expanded .cash-gift-workbook-heading {
+    display: flex !important;
   }
 
   .cash-gift-print .cash-gift-report-section + .cash-gift-report-section {

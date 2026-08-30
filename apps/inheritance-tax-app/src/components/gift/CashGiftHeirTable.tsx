@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import ChevronDown from 'lucide-react/icons/chevron-down';
 import type { CashGiftSimulationResult } from '../../types';
 import { formatCurrency } from '../../utils';
 import { CARD } from '../tableStyles';
@@ -20,6 +21,38 @@ import {
 interface CashGiftHeirTableProps {
   result: CashGiftSimulationResult;
 }
+
+const MobileDetailDisclosure: React.FC<{
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}> = ({ id, title, children }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="cash-gift-detail-block">
+      <button
+        type="button"
+        className="cash-gift-detail-toggle no-print"
+        aria-expanded={isExpanded}
+        aria-controls={id}
+        onClick={() => setIsExpanded(current => !current)}
+      >
+        <span>
+          <strong>{title}</strong>
+          <small>{isExpanded ? '詳細を閉じる' : '詳細を見る'}</small>
+        </span>
+        <ChevronDown className={isExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+      </button>
+      <div
+        id={id}
+        className={`cash-gift-detail-content ${isExpanded ? 'is-expanded' : ''}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const CashGiftResultSummary: React.FC<{ result: CashGiftSimulationResult }> = ({ result }) => {
   const currentTax = result.current.taxResult.totalFinalTax;
@@ -329,8 +362,14 @@ const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }
 export const CashGiftHeirTable: React.FC<CashGiftHeirTableProps> = ({ result }) => (
   <div className={`${CARD} cash-gift-report-sheet`}>
     <CashGiftResultSummary result={result} />
-    <GiftTaxCalculationWorkbook result={result} />
-    <InheritanceTaxWorkbookMatrix result={result} />
-    <HeirBreakdownWorkbookTables result={result} />
+    <MobileDetailDisclosure id="cash-gift-gift-tax-details" title="贈与税の計算">
+      <GiftTaxCalculationWorkbook result={result} />
+    </MobileDetailDisclosure>
+    <MobileDetailDisclosure id="cash-gift-inheritance-tax-details" title="相続税の計算">
+      <InheritanceTaxWorkbookMatrix result={result} />
+    </MobileDetailDisclosure>
+    <MobileDetailDisclosure id="cash-gift-heir-breakdown-details" title="相続人別内訳">
+      <HeirBreakdownWorkbookTables result={result} />
+    </MobileDetailDisclosure>
   </div>
 );
