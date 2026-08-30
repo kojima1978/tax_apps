@@ -4,6 +4,7 @@ import HeartHandshake from 'lucide-react/icons/heart-handshake';
 import Landmark from 'lucide-react/icons/landmark';
 import ShieldCheck from 'lucide-react/icons/shield-check';
 import UsersRound from 'lucide-react/icons/users-round';
+import { INSURANCE_EXEMPT_PER_HEIR } from '../../constants';
 import type { InsuranceSimulationResult } from '../../types';
 import { formatCurrency } from '../../utils';
 
@@ -16,6 +17,9 @@ export const InsuranceCalculationPremise = memo(({
 }: InsuranceCalculationPremiseProps) => {
   const { proposed, baseEstate, newPremiumTotal } = result;
   const heirCount = proposed.heirBreakdowns.length;
+  const exemptionLimit = proposed.nonTaxableLimit;
+  const currentExemptionUsed = result.current.nonTaxableAmount;
+  const currentUnusedExemption = Math.max(0, exemptionLimit - currentExemptionUsed);
   const newBenefit = proposed.totalBenefit - result.current.totalBenefit;
   const benefitDifference = newBenefit - newPremiumTotal;
   const benefitDifferenceLabel = benefitDifference > 0
@@ -82,6 +86,25 @@ export const InsuranceCalculationPremise = memo(({
           aria-label={`新たに受け取る保険金は、新たに支払う保険料より${benefitDifferenceLabel}`}
         >
           <span className="insurance-premise-benefit-connector-label">{benefitDifferenceLabel}</span>
+        </div>
+      </div>
+      <div
+        className="insurance-exemption-status"
+        role="group"
+        aria-label="死亡保険金の非課税枠の利用状況"
+      >
+        <div className="insurance-exemption-metric">
+          <span>死亡保険金の非課税限度額</span>
+          <strong>{formatCurrency(exemptionLimit)}</strong>
+          <small>（{formatCurrency(INSURANCE_EXEMPT_PER_HEIR)} × 法定相続人{heirCount}人）</small>
+        </div>
+        <div className="insurance-exemption-metric">
+          <span>現在の利用額</span>
+          <strong>{formatCurrency(currentExemptionUsed)}</strong>
+        </div>
+        <div className="insurance-exemption-metric">
+          <span>非課税限度の残り金額</span>
+          <strong>{formatCurrency(currentUnusedExemption)}</strong>
         </div>
       </div>
     </section>
