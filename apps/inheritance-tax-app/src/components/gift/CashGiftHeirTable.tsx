@@ -14,7 +14,7 @@ import {
   getGiftConditionGroups,
   getGiftTimelineTotals,
   getGiftYearLabels,
-  GIFT_YEAR_COLUMN_COUNT,
+  GIFT_DISPLAY_YEAR_COUNT,
 } from './cashGiftReportUtils';
 
 interface CashGiftHeirTableProps {
@@ -29,12 +29,10 @@ const GiftTaxCalculationWorkbook: React.FC<{ result: CashGiftSimulationResult }>
     () => getGiftYearLabels(startDate),
     [startDate],
   );
-  const {
-    amountByYear,
-    taxByYear,
-    amountAfterTimeline,
-    taxAfterTimeline,
-  } = useMemo(() => getGiftTimelineTotals(recipients), [recipients]);
+  const { amountByYear, taxByYear } = useMemo(
+    () => getGiftTimelineTotals(recipients),
+    [recipients],
+  );
 
   return (
     <section className="cash-gift-report-section">
@@ -45,19 +43,24 @@ const GiftTaxCalculationWorkbook: React.FC<{ result: CashGiftSimulationResult }>
       {/* 条件テーブルは年次テーブルと重複するため廃止。人数内訳だけ行見出しに残している */}
       <div className="overflow-x-auto table-scroll-hint">
         <table className="cash-gift-year-total-table w-full min-w-[900px] border-collapse">
+          <colgroup>
+            <col className="cash-gift-group-column" />
+            <col className="cash-gift-item-column" />
+            {Array.from({ length: GIFT_DISPLAY_YEAR_COUNT }, (_, i) => (
+              <col key={i} className="cash-gift-year-column" />
+            ))}
+            <col className="cash-gift-total-column" />
+          </colgroup>
           <thead>
             <tr>
               <th className="cash-gift-unit-cell" colSpan={2}>（単位：万円）</th>
               {yearLabels.map(label => <th key={label}>{label}</th>)}
-              <th>以降</th>
               <th>合計</th>
             </tr>
           </thead>
           <tbody>
             {conditionGroups.map((group, index) => {
               const groupIndex = CIRCLED_NUMBERS[index] ?? `${index + 1}.`;
-              const groupAmountAfterTimeline = group.years > GIFT_YEAR_COLUMN_COUNT ? group.annualAmount : 0;
-              const groupTaxAfterTimeline = group.years > GIFT_YEAR_COLUMN_COUNT ? group.giftTaxPerYear : 0;
 
               return (
                 <React.Fragment key={group.key}>
@@ -65,14 +68,12 @@ const GiftTaxCalculationWorkbook: React.FC<{ result: CashGiftSimulationResult }>
                     <th>{groupIndex} {group.groupLabel}グループ{formatGiftGroupMembers(group)}</th>
                     <th>贈与額</th>
                     {yearLabels.map((label, i) => <td key={label}>{formatManNumber(i < group.years ? group.annualAmount : 0)}</td>)}
-                    <td>{formatManNumber(groupAmountAfterTimeline)}</td>
                     <td>{formatManTotal(group.totalGift)}</td>
                   </tr>
                   <tr>
                     <th className="cash-gift-second-line-cell"></th>
                     <th className="cash-gift-second-line-label">贈与税額</th>
                     {yearLabels.map((label, i) => <td key={label}>{formatManNumber(i < group.years ? group.giftTaxPerYear : 0)}</td>)}
-                    <td>{formatManNumber(groupTaxAfterTimeline)}</td>
                     <td>{formatManTotal(group.totalGiftTax)}</td>
                   </tr>
                 </React.Fragment>
@@ -82,14 +83,12 @@ const GiftTaxCalculationWorkbook: React.FC<{ result: CashGiftSimulationResult }>
               <th>合計</th>
               <th>贈与額</th>
               {amountByYear.map((value, i) => <td key={yearLabels[i]}>{formatManNumber(value)}</td>)}
-              <td>{formatManNumber(amountAfterTimeline)}</td>
               <td>{formatManTotal(result.totalGifts)}</td>
             </tr>
             <tr className="cash-gift-year-total-summary">
               <th className="cash-gift-second-line-cell"></th>
               <th className="cash-gift-second-line-label">贈与税額</th>
               {taxByYear.map((value, i) => <td key={yearLabels[i]}>{formatManNumber(value)}</td>)}
-              <td>{formatManNumber(taxAfterTimeline)}</td>
               <td>{formatManTotal(result.totalGiftTax)}</td>
             </tr>
           </tbody>
@@ -201,6 +200,8 @@ const InheritanceTaxWorkbookMatrix: React.FC<{ result: CashGiftSimulationResult 
 const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }> = ({ result }) => {
   const { current, proposed, recipientResults } = result;
   const heirCount = current.taxResult.heirBreakdowns.length;
+  const giftTaxChange = result.totalGiftTax;
+  const inheritanceTaxChange = proposed.taxResult.totalFinalTax - current.taxResult.totalFinalTax;
   const currentColumns = useMemo(() => buildGiftColumns(current, []), [current]);
   const proposedColumns = useMemo(
     () => buildGiftColumns(proposed, recipientResults),
@@ -221,6 +222,8 @@ const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }
           getHeirKey={i => current.taxResult.heirBreakdowns[i]?.label || String(i)}
           columns={currentColumns}
           equalColumns
+          showTaxTotal={false}
+          showHeadingMarker={false}
         />
         <HeirScenarioTable
           label={proposed.label}
@@ -231,7 +234,63 @@ const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }
           getHeirKey={i => proposed.taxResult.heirBreakdowns[i]?.label || String(i)}
           columns={proposedColumns}
           equalColumns
+          showTaxTotal={false}
+          showHeadingMarker={false}
         />
+      </div>
+      <div
+        className="cash-gift-tax-burden-connector"
+        role="img"
+        aria-label={`贈与税負担の増減額 ${giftTaxChange > 0 ? 'プラス' : ''}${formatCurrency(giftTaxChange)}、納付相続税の増減額 ${inheritanceTaxChange < 0 ? 'マイナス' : inheritanceTaxChange > 0 ? 'プラス' : ''}${formatCurrency(Math.abs(inheritanceTaxChange))}`}
+      >
+        <svg viewBox="0 0 1000 58" preserveAspectRatio="none" focusable="false" aria-hidden="true">
+          <defs>
+            <marker
+              id="cash-gift-gift-tax-arrowhead"
+              viewBox="0 0 10 10"
+              refX="5"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+              markerUnits="userSpaceOnUse"
+            >
+              <path className="cash-gift-gift-tax-arrowhead" d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+            <marker
+              id="cash-gift-inheritance-tax-arrowhead"
+              viewBox="0 0 10 10"
+              refX="5"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+              markerUnits="userSpaceOnUse"
+            >
+              <path className="cash-gift-inheritance-tax-arrowhead" d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+          </defs>
+          <path
+            className="cash-gift-tax-burden-connector-line cash-gift-inheritance-tax-connector-line"
+            d="M 367 1 V 42 H 879 V 7"
+            markerEnd="url(#cash-gift-inheritance-tax-arrowhead)"
+          />
+          <path
+            className="cash-gift-tax-burden-connector-bridge"
+            d="M 285 1 V 17 H 797 V 7"
+          />
+          <path
+            className="cash-gift-tax-burden-connector-line cash-gift-gift-tax-connector-line"
+            d="M 285 1 V 17 H 797 V 7"
+            markerEnd="url(#cash-gift-gift-tax-arrowhead)"
+          />
+        </svg>
+        <span className="cash-gift-tax-change-label cash-gift-tax-change-label-gift">
+          増減額 <strong>{giftTaxChange > 0 ? '+' : ''}{formatCurrency(giftTaxChange)}</strong>
+        </span>
+        <span className="cash-gift-tax-change-label cash-gift-tax-change-label-inheritance">
+          増減額 <strong>{inheritanceTaxChange < 0 ? '△' : inheritanceTaxChange > 0 ? '+' : ''}{formatCurrency(Math.abs(inheritanceTaxChange))}</strong>
+        </span>
       </div>
     </section>
   );

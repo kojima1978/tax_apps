@@ -669,6 +669,23 @@
 .cash-gift-year-total-table {
   border: 1px solid #9ca3af;
   font-size: 0.8125rem;
+  table-layout: fixed;
+}
+
+.cash-gift-year-total-table .cash-gift-group-column {
+  width: 25%;
+}
+
+.cash-gift-year-total-table .cash-gift-item-column {
+  width: 11%;
+}
+
+.cash-gift-year-total-table .cash-gift-year-column {
+  width: 5%;
+}
+
+.cash-gift-year-total-table .cash-gift-total-column {
+  width: 14%;
 }
 
 .cash-gift-year-total-table th {
@@ -872,6 +889,87 @@ th.cash-gift-amount-cell {
 
 tbody tr:last-child > .cash-gift-amount-cell {
   border-bottom: 2px solid #dc2626 !important;
+}
+
+/* 現状と提案の「贈与税負担」列を、表を覆わないU字型の矢印で結ぶ */
+.cash-gift-tax-burden-connector {
+  display: none;
+  height: 4.875rem;
+  margin-top: 0.125rem;
+  position: relative;
+  width: 100%;
+}
+
+.cash-gift-tax-burden-connector svg {
+  display: block;
+  height: 100%;
+  overflow: visible;
+  width: 100%;
+}
+
+.cash-gift-tax-burden-connector-line {
+  fill: none;
+  stroke-linecap: square;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.cash-gift-gift-tax-connector-line {
+  stroke: #2563eb;
+}
+
+.cash-gift-inheritance-tax-connector-line {
+  stroke: #dc2626;
+}
+
+.cash-gift-tax-burden-connector-bridge {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: square;
+  stroke-linejoin: round;
+  stroke-width: 6;
+  vector-effect: non-scaling-stroke;
+}
+
+.cash-gift-gift-tax-arrowhead {
+  fill: #2563eb;
+}
+
+.cash-gift-inheritance-tax-arrowhead {
+  fill: #dc2626;
+}
+
+.cash-gift-tax-change-label {
+  background: #ffffff;
+  color: #166534;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0 0.35rem;
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.cash-gift-tax-change-label strong {
+  color: #111827;
+  font-weight: 800;
+}
+
+.cash-gift-tax-change-label-gift {
+  left: 54.1%;
+  top: 1.75rem;
+}
+
+.cash-gift-tax-change-label-inheritance {
+  left: 62.3%;
+  top: 3.875rem;
+}
+
+@media (min-width: 1024px) {
+  .cash-gift-tax-burden-connector {
+    display: block;
+  }
 }
 
 @media (max-width: 1279px) {
@@ -2076,6 +2174,25 @@ tbody tr:last-child > .cash-gift-amount-cell {
   .cash-gift-print .cash-gift-heir-scenarios table th,
   .cash-gift-print .cash-gift-heir-scenarios table td {
     padding: 1px 4px !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-burden-connector {
+    display: block !important;
+    height: 46px !important;
+    margin-top: 1px !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-change-label {
+    font-size: 7px !important;
+    padding: 0 2px !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-change-label-gift {
+    top: 17px !important;
+  }
+
+  .cash-gift-print .cash-gift-tax-change-label-inheritance {
+    top: 37px !important;
   }
 
   .cash-gift-print h3 {

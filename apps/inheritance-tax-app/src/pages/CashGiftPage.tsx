@@ -25,6 +25,9 @@ export const CashGiftPage: React.FC = () => {
     cleanedRecipients,
     result,
     handleCalculate: executeCalculate,
+    handleOptimizeGiftAmounts,
+    isOptimizing,
+    optimizationBlockedReason,
     totalGiftsInput,
     overAllocatedHeirsError,
   } = useCashGiftSimulation();
@@ -79,6 +82,9 @@ export const CashGiftPage: React.FC = () => {
             recipients={recipients}
             recipientOptions={recipientOptions}
             onChange={setRecipients}
+            onOptimize={handleOptimizeGiftAmounts}
+            isOptimizing={isOptimizing}
+            optimizationBlockedReason={optimizationBlockedReason}
           />
         </div>
       }

@@ -78,15 +78,22 @@ export function calculateRecipientResult(recipient: GiftRecipient): GiftRecipien
   };
 }
 
+/** 配偶者は一般贈与、子・孫は特例贈与として扱う */
+export function getGiftTaxTypeForHeirId(heirId: string): GiftRecipient['taxType'] {
+  return heirId === 'spouse' ? 'general' : 'special';
+}
+
 /**
- * 贈与対象の相続人（子・孫のみ）の選択肢を取得
- * 特例贈与は直系尊属→18歳以上の子・孫のみ対象
+ * 贈与対象の相続人を取得する。
+ * 配偶者は相続順位にかかわらず対象とし、子・孫は第1順位の場合のみ対象とする。
  */
 export function getGiftRecipientOptions(
   composition: HeirComposition,
 ): { id: string; label: string }[] {
-  if (composition.selectedRank !== 'rank1') return [];
-  return getBeneficiaryOptions(composition).filter(opt => opt.id !== 'spouse');
+  const options = getBeneficiaryOptions(composition);
+  return composition.selectedRank === 'rank1'
+    ? options
+    : options.filter(opt => opt.id === 'spouse');
 }
 
 function isOwnGiftForBreakdown(r: GiftRecipientResult, b: HeirTaxBreakdown): boolean {

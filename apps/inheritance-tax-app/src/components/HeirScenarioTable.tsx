@@ -25,6 +25,7 @@ interface HeirScenarioTableProps {
   /** 列幅を均等にする（compactRows 指定時は常に均等） */
   equalColumns?: boolean;
   showTaxTotal?: boolean;
+  showHeadingMarker?: boolean;
   className?: string;
 }
 
@@ -39,11 +40,12 @@ export const HeirScenarioTable: React.FC<HeirScenarioTableProps> = ({
   compactRows = false,
   equalColumns = false,
   showTaxTotal = true,
+  showHeadingMarker = true,
   className = '',
 }) => (
   <div className={`h-full flex flex-col ${className}`}>
     <h4 className={`${compactRows ? 'min-h-9 text-sm leading-tight' : 'min-h-10 text-base'} font-bold text-gray-700 mb-2 flex flex-wrap items-center gap-2`}>
-      <span className="inline-block w-3 h-3 rounded-full bg-green-600" />
+      {showHeadingMarker ? <span className="inline-block w-3 h-3 rounded-full bg-green-600" /> : null}
       {label}
       {showTaxTotal && (
         <span className={`${compactRows ? 'text-xs' : 'text-sm'} font-normal text-gray-500`}>

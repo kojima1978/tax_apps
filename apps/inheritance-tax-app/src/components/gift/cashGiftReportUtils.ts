@@ -23,12 +23,10 @@ export type GiftConditionGroup = {
 export type GiftTimelineTotals = {
   amountByYear: number[];
   taxByYear: number[];
-  amountAfterTimeline: number;
-  taxAfterTimeline: number;
 };
 
 export const CIRCLED_NUMBERS = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'];
-export const GIFT_YEAR_COLUMN_COUNT = 15;
+export const GIFT_DISPLAY_YEAR_COUNT = 10;
 
 export function formatCurrencyOrDash(value: number): string {
   return value > 0 ? formatCurrency(value) : '—';
@@ -62,7 +60,7 @@ function formatReiwaShortYear(date: Date): string {
 
 export function getGiftYearLabels(startDate: Date): string[] {
   return Array.from(
-    { length: GIFT_YEAR_COLUMN_COUNT },
+    { length: GIFT_DISPLAY_YEAR_COUNT },
     (_, i) => formatReiwaShortYear(addYears(startDate, i)),
   );
 }
@@ -171,25 +169,20 @@ export function formatGiftGroupMembers(group: GiftConditionGroup): string {
   return parts.length > 0 ? `（${parts.join('・')}）` : '';
 }
 
-export function getGiftTimelineTotals(recipients: GiftRecipientResult[]): GiftTimelineTotals {
-  const amountByYear = Array(GIFT_YEAR_COLUMN_COUNT).fill(0) as number[];
-  const taxByYear = Array(GIFT_YEAR_COLUMN_COUNT).fill(0) as number[];
-  let amountAfterTimeline = 0;
-  let taxAfterTimeline = 0;
+export function getGiftTimelineTotals(
+  recipients: GiftRecipientResult[],
+): GiftTimelineTotals {
+  const amountByYear = Array(GIFT_DISPLAY_YEAR_COUNT).fill(0) as number[];
+  const taxByYear = Array(GIFT_DISPLAY_YEAR_COUNT).fill(0) as number[];
 
   for (const recipient of recipients) {
-    const visibleYears = Math.min(recipient.years, GIFT_YEAR_COLUMN_COUNT);
+    const visibleYears = Math.min(recipient.years, GIFT_DISPLAY_YEAR_COUNT);
 
     for (let i = 0; i < visibleYears; i++) {
       amountByYear[i] += recipient.annualAmount;
       taxByYear[i] += recipient.giftTaxPerYear;
     }
-
-    if (recipient.years > GIFT_YEAR_COLUMN_COUNT) {
-      amountAfterTimeline += recipient.annualAmount;
-      taxAfterTimeline += recipient.giftTaxPerYear;
-    }
   }
 
-  return { amountByYear, taxByYear, amountAfterTimeline, taxAfterTimeline };
+  return { amountByYear, taxByYear };
 }

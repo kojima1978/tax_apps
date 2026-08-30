@@ -2,9 +2,11 @@ import React, { useCallback, useMemo } from 'react';
 import Plus from 'lucide-react/icons/plus';
 import Gift from 'lucide-react/icons/gift';
 import Users from 'lucide-react/icons/users';
+import LoaderCircle from 'lucide-react/icons/loader-circle';
+import Sparkles from 'lucide-react/icons/sparkles';
 import { SectionHeader } from '../SectionHeader';
 import type { GiftRecipient } from '../../types';
-import { generateId } from '../../utils';
+import { generateId, getGiftTaxTypeForHeirId } from '../../utils';
 import { useUniqueOptions } from '../../hooks/useUniqueOptions';
 import { CARD } from '../tableStyles';
 import { CashGiftRecipientCard, type RecipientOption } from './CashGiftRecipientCard';
@@ -13,6 +15,9 @@ interface CashGiftRecipientListProps {
   recipients: GiftRecipient[];
   recipientOptions: RecipientOption[];
   onChange: (recipients: GiftRecipient[]) => void;
+  onOptimize: () => void;
+  isOptimizing: boolean;
+  optimizationBlockedReason: string | null;
 }
 
 const getHeirId = (recipient: GiftRecipient) => recipient.heirId;
@@ -25,7 +30,11 @@ function resolveRecipientUpdates(
 
   const selectedHeir = optionById.get(updates.heirId);
   return selectedHeir
-    ? { ...updates, heirLabel: selectedHeir.label }
+    ? {
+        ...updates,
+        heirLabel: selectedHeir.label,
+        taxType: getGiftTaxTypeForHeirId(selectedHeir.id),
+      }
     : updates;
 }
 
@@ -33,6 +42,9 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
   recipients,
   recipientOptions,
   onChange,
+  onOptimize,
+  isOptimizing,
+  optimizationBlockedReason,
 }) => {
   const heirRecipients = useMemo(
     () => recipients.filter(r => r.isHeir),
@@ -55,7 +67,7 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
         annualAmount: 0,
         years: 0,
         isHeir: true,
-        taxType: 'special',
+        taxType: getGiftTaxTypeForHeirId(nextAvailable.id),
       },
     ]);
   }, [nextAvailable, onChange, recipients]);
@@ -145,6 +157,28 @@ export const CashGiftRecipientList: React.FC<CashGiftRecipientListProps> = ({
         >
           <Users className="w-4 h-4" />
           関係者を追加
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 rounded-lg border border-green-200 bg-green-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-green-800">年間贈与額を自動計算</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-gray-600">
+            {optimizationBlockedReason ?? '受贈者と贈与年数をもとに、相続税＋贈与税が最小となる金額を10万円単位で探索します'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOptimize}
+          disabled={!!optimizationBlockedReason || isOptimizing}
+          className="inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+        >
+          {isOptimizing ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
+          )}
+          {isOptimizing ? '計算中...' : '最適額を自動計算'}
         </button>
       </div>
     </div>
