@@ -1004,11 +1004,11 @@
 }
 
 .cash-gift-year-total-table .cash-gift-year-column {
-  width: 5%;
+  width: 5.5%;
 }
 
 .cash-gift-year-total-table .cash-gift-total-column {
-  width: 14%;
+  width: 9%;
 }
 
 .cash-gift-year-total-table th {
@@ -1136,7 +1136,7 @@
   }
 
   .cash-gift-year-total-table .cash-gift-year-column {
-    width: 5.8%;
+    width: 6.3%;
   }
 
   .cash-gift-year-total-table tbody th:first-child {
