@@ -1071,6 +1071,7 @@
 
 .cash-gift-year-total-table tbody tr.cash-gift-year-tax-row > * {
   background: #f8fafc;
+  border-bottom: 0;
   color: #374151;
 }
 
@@ -1111,9 +1112,12 @@
   font-weight: 800;
 }
 
-.cash-gift-year-total-summary-start th,
-.cash-gift-year-total-summary-start td {
+.cash-gift-year-total-table tbody tr.cash-gift-year-total-summary-start > * {
   border-top: 2px solid #15803d;
+}
+
+.cash-gift-year-total-table tbody tr.cash-gift-year-total-summary:last-child > * {
+  border-bottom: 0;
 }
 
 .cash-gift-year-total-summary th.cash-gift-second-line-cell,
