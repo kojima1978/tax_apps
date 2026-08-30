@@ -1306,9 +1306,12 @@ tbody tr:last-child > .cash-gift-amount-cell {
 }
 
 .cash-gift-heir-breakdown-section .cash-gift-heir-scenarios table th,
-.cash-gift-heir-breakdown-section .cash-gift-heir-scenarios table td,
-.cash-gift-heir-breakdown-section .cash-gift-amount-cell {
+.cash-gift-heir-breakdown-section .cash-gift-heir-scenarios table td {
   border-color: #000000 !important;
+}
+
+.cash-gift-heir-breakdown-section .cash-gift-heir-scenarios table .cash-gift-amount-cell {
+  border-color: #dc2626 !important;
 }
 
 /* 現状と提案の「贈与税負担」列を、表を覆わないU字型の矢印で結ぶ */
