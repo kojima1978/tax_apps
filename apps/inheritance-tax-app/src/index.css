@@ -1267,6 +1267,28 @@ tbody tr:last-child > .cash-gift-amount-cell {
   border-bottom: 2px solid #dc2626 !important;
 }
 
+/* 相続人別内訳のテーブルだけを白地・黒文字・黒罫線に統一する */
+.cash-gift-heir-breakdown-section table,
+.cash-gift-heir-breakdown-section table th,
+.cash-gift-heir-breakdown-section table td {
+  color: #000000 !important;
+}
+
+.cash-gift-heir-breakdown-section .cash-gift-heir-scenarios thead tr {
+  background-color: #ffffff !important;
+}
+
+.cash-gift-heir-breakdown-section .cash-gift-heir-scenarios h4 {
+  margin-bottom: 0.25rem !important;
+  min-height: 0 !important;
+}
+
+.cash-gift-heir-breakdown-section .cash-gift-heir-scenarios table th,
+.cash-gift-heir-breakdown-section .cash-gift-heir-scenarios table td,
+.cash-gift-heir-breakdown-section .cash-gift-amount-cell {
+  border-color: #000000 !important;
+}
+
 /* 現状と提案の「贈与税負担」列を、表を覆わないU字型の矢印で結ぶ */
 .cash-gift-tax-burden-connector {
   display: none;

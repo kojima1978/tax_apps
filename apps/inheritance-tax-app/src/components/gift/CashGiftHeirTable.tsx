@@ -317,7 +317,7 @@ const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }
   );
 
   return (
-    <section className="cash-gift-report-section">
+    <section className="cash-gift-report-section cash-gift-heir-breakdown-section">
       <div className="cash-gift-workbook-heading">
         <h3>相続人別内訳</h3>
       </div>
