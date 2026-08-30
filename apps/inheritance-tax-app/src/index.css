@@ -1049,7 +1049,7 @@
 
 .cash-gift-year-total-table td {
   border-top: 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #cbd5e1;
   padding: 0.35rem 0.4rem;
   text-align: right;
   white-space: nowrap;
@@ -1058,7 +1058,7 @@
 .cash-gift-year-total-table tbody th {
   background: #ffffff;
   border-top: 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #cbd5e1;
   padding-bottom: 0.35rem;
   padding-top: 0.35rem;
   text-align: left;
@@ -1088,7 +1088,7 @@
 }
 
 .cash-gift-year-total-table tbody th:nth-child(2) {
-  box-shadow: 5px 0 5px -5px rgb(17 24 39 / 45%);
+  box-shadow: none;
   left: var(--cash-gift-group-column-width);
   position: sticky;
   z-index: 3;
