@@ -260,6 +260,46 @@ const InheritanceTaxWorkbookMatrix: React.FC<{ result: CashGiftSimulationResult 
   );
 };
 
+const MobileTaxBurdenChanges: React.FC<{
+  currentInheritanceTax: number;
+  proposedGiftTax: number;
+  proposedInheritanceTax: number;
+}> = ({ currentInheritanceTax, proposedGiftTax, proposedInheritanceTax }) => {
+  const inheritanceTaxChange = proposedInheritanceTax - currentInheritanceTax;
+
+  return (
+    <section className="cash-gift-mobile-tax-changes no-print" aria-labelledby="cash-gift-mobile-tax-changes-heading">
+      <h4 id="cash-gift-mobile-tax-changes-heading">税負担の増減</h4>
+      <div className="cash-gift-mobile-tax-change-list">
+        <div className="cash-gift-mobile-tax-change-card is-gift-tax">
+          <span className="cash-gift-mobile-tax-change-title">贈与税負担</span>
+          <div className="cash-gift-mobile-tax-change-values">
+            <span>現状 <strong>{formatCurrency(0)}</strong></span>
+            <span aria-hidden="true">→</span>
+            <span>提案 <strong>{formatCurrency(proposedGiftTax)}</strong></span>
+          </div>
+          <p>
+            増減額 <strong>{proposedGiftTax > 0 ? '+' : ''}{formatCurrency(proposedGiftTax)}</strong>
+            <small>{proposedGiftTax > 0 ? '増加' : '変化なし'}</small>
+          </p>
+        </div>
+        <div className="cash-gift-mobile-tax-change-card is-inheritance-tax">
+          <span className="cash-gift-mobile-tax-change-title">納付相続税</span>
+          <div className="cash-gift-mobile-tax-change-values">
+            <span>現状 <strong>{formatCurrency(currentInheritanceTax)}</strong></span>
+            <span aria-hidden="true">→</span>
+            <span>提案 <strong>{formatCurrency(proposedInheritanceTax)}</strong></span>
+          </div>
+          <p>
+            増減額 <strong>{inheritanceTaxChange < 0 ? '△' : inheritanceTaxChange > 0 ? '+' : ''}{formatCurrency(Math.abs(inheritanceTaxChange))}</strong>
+            <small>{inheritanceTaxChange < 0 ? '減少' : inheritanceTaxChange > 0 ? '増加' : '変化なし'}</small>
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }> = ({ result }) => {
   const { current, proposed, recipientResults } = result;
   const heirCount = current.taxResult.heirBreakdowns.length;
@@ -301,6 +341,11 @@ const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }
           showHeadingMarker={false}
         />
       </div>
+      <MobileTaxBurdenChanges
+        currentInheritanceTax={current.taxResult.totalFinalTax}
+        proposedGiftTax={result.totalGiftTax}
+        proposedInheritanceTax={proposed.taxResult.totalFinalTax}
+      />
       <div
         className="cash-gift-tax-burden-connector"
         role="img"
