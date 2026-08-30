@@ -15,7 +15,6 @@ import PanelLeftOpen from 'lucide-react/icons/panel-left-open';
 import CalendarDays from 'lucide-react/icons/calendar-days';
 import Landmark from 'lucide-react/icons/landmark';
 import Phone from 'lucide-react/icons/phone';
-import UserRound from 'lucide-react/icons/user-round';
 import { useStaffInfo } from '../contexts/useStaffInfo';
 import { COMPANY_INFO } from '../constants';
 
@@ -47,10 +46,7 @@ export const Header = ({ actions }: HeaderProps) => {
   const location = useLocation();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const printInfoButtonRef = useRef<HTMLButtonElement>(null);
-  const printInfoPanelRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isPrintInfoOpen, setIsPrintInfoOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     () => window.localStorage.getItem('inheritance-sidebar-collapsed') === 'true',
   );
@@ -81,28 +77,6 @@ export const Header = ({ actions }: HeaderProps) => {
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [isMobileMenuOpen]);
-
-  useEffect(() => {
-    if (!isPrintInfoOpen) return;
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (printInfoButtonRef.current?.contains(target) || printInfoPanelRef.current?.contains(target)) return;
-      setIsPrintInfoOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      setIsPrintInfoOpen(false);
-      printInfoButtonRef.current?.focus();
-    };
-
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [isPrintInfoOpen]);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(current => {
@@ -221,56 +195,15 @@ export const Header = ({ actions }: HeaderProps) => {
             <CalendarDays aria-hidden="true" />
             <span>{today}</span>
           </div>
-          <div className="inheritance-print-info">
-            <button
-              ref={printInfoButtonRef}
-              type="button"
-              className="inheritance-print-info-button"
-              aria-expanded={isPrintInfoOpen}
-              aria-controls="inheritance-print-info-panel"
-              onClick={() => setIsPrintInfoOpen(current => !current)}
-            >
-              <UserRound aria-hidden="true" />
-              <span>印刷情報</span>
-              {(staffName || staffPhone) && <span className="inheritance-print-info-status" aria-label="入力済み" />}
-            </button>
-            {isPrintInfoOpen && (
-              <div
-                ref={printInfoPanelRef}
-                id="inheritance-print-info-panel"
-                className="inheritance-print-info-panel"
-                aria-label="印刷情報"
-              >
-                <div className="inheritance-print-info-heading">
-                  <div>
-                    <strong>印刷情報</strong>
-                    <small>印刷ヘッダーに反映されます</small>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="印刷情報を閉じる"
-                    onClick={() => {
-                      setIsPrintInfoOpen(false);
-                      printInfoButtonRef.current?.focus();
-                    }}
-                  >
-                    <X aria-hidden="true" />
-                  </button>
-                </div>
-                <div className="inheritance-print-info-date">
-                  <span>作成日</span>
-                  <strong>{today}</strong>
-                </div>
-                <label>
-                  <span>担当者名</span>
-                  <input value={staffName} onChange={e => setStaffName(e.target.value)} placeholder="例: 山田 太郎" />
-                </label>
-                <label>
-                  <span>電話番号</span>
-                  <input type="tel" value={staffPhone} onChange={e => setStaffPhone(e.target.value)} placeholder="例: 088-000-0000" />
-                </label>
-              </div>
-            )}
+          <div className="inheritance-topbar-staff">
+            <label>
+              <span className="sr-only">担当者名</span>
+              <input value={staffName} onChange={e => setStaffName(e.target.value)} placeholder="担当者名" />
+            </label>
+            <label>
+              <span className="sr-only">電話番号</span>
+              <input type="tel" value={staffPhone} onChange={e => setStaffPhone(e.target.value)} placeholder="電話番号" />
+            </label>
           </div>
           {actions}
           <button type="button" onClick={() => window.print()} className="inheritance-print-button" aria-label="印刷">
