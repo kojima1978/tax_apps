@@ -104,7 +104,12 @@ const GiftTaxCalculationWorkbook: React.FC<{ result: CashGiftSimulationResult }>
       </div>
 
       {/* 条件テーブルは年次テーブルと重複するため廃止。人数内訳だけ行見出しに残している */}
-      <div className="overflow-x-auto table-scroll-hint">
+      <div
+        className="cash-gift-year-table-scroll overflow-x-auto table-scroll-hint"
+        role="region"
+        aria-label="贈与税の10年推移表"
+        tabIndex={0}
+      >
         <table className="cash-gift-year-total-table w-full min-w-[900px] border-collapse">
           <colgroup>
             <col className="cash-gift-group-column" />

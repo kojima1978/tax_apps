@@ -833,7 +833,10 @@
 }
 
 .cash-gift-year-total-table {
+  --cash-gift-group-column-width: 225px;
   border: 1px solid #9ca3af;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.8125rem;
   table-layout: fixed;
 }
@@ -865,6 +868,27 @@
   white-space: nowrap;
 }
 
+.cash-gift-year-table-scroll {
+  position: relative;
+}
+
+.cash-gift-year-table-scroll:focus-visible {
+  border-radius: 0.25rem;
+  outline: 3px solid #86efac;
+  outline-offset: 2px;
+}
+
+.cash-gift-year-total-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.cash-gift-year-total-table thead th:first-child {
+  left: 0;
+  z-index: 4;
+}
+
 .cash-gift-year-total-table td {
   border-top: 1px dotted #d1d5db;
   padding: 0.25rem 0.4rem;
@@ -881,8 +905,18 @@
 
 .cash-gift-year-total-table tbody th:first-child {
   color: #166534;
+  left: 0;
   min-width: 8.5rem;
+  position: sticky;
   text-align: left;
+  z-index: 3;
+}
+
+.cash-gift-year-total-table tbody th:nth-child(2) {
+  box-shadow: 5px 0 5px -5px rgb(17 24 39 / 45%);
+  left: var(--cash-gift-group-column-width);
+  position: sticky;
+  z-index: 3;
 }
 
 .cash-gift-year-total-table tbody th.cash-gift-second-line-cell,
@@ -911,6 +945,29 @@
 .cash-gift-year-total-summary th.cash-gift-second-line-label {
   background: #ffffff;
   color: #4b5563;
+}
+
+@media (max-width: 767px) {
+  .cash-gift-year-total-table {
+    --cash-gift-group-column-width: 180px;
+  }
+
+  .cash-gift-year-total-table .cash-gift-group-column {
+    width: 20%;
+  }
+
+  .cash-gift-year-total-table .cash-gift-item-column {
+    width: 8%;
+  }
+
+  .cash-gift-year-total-table .cash-gift-year-column {
+    width: 5.8%;
+  }
+
+  .cash-gift-year-total-table tbody th:first-child {
+    line-height: 1.25;
+    white-space: normal;
+  }
 }
 
 .cash-gift-unit-cell {
@@ -2578,6 +2635,15 @@ tbody tr:last-child > .cash-gift-amount-cell {
     padding: 0 4px !important;
     font-size: 8px !important;
     line-height: 1.35 !important;
+  }
+
+  .cash-gift-print .cash-gift-year-total-table thead th,
+  .cash-gift-print .cash-gift-year-total-table tbody th:first-child,
+  .cash-gift-print .cash-gift-year-total-table tbody th:nth-child(2) {
+    box-shadow: none !important;
+    left: auto !important;
+    position: static !important;
+    top: auto !important;
   }
 
   .cash-gift-print .cash-gift-tax-flow-grid {
