@@ -72,7 +72,7 @@ export const CashGiftPage: React.FC = () => {
             onChange={setSpouseMode}
             hasSpouse={composition.hasSpouse}
           />
-          <CautionBox items={CASH_GIFT_CAUTIONS} />
+          <CautionBox items={CASH_GIFT_CAUTIONS} collapsible />
         </>
       }
       middleSection={

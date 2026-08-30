@@ -841,6 +841,34 @@
   table-layout: fixed;
 }
 
+.collapsible-caution-open-label {
+  display: none;
+}
+
+.collapsible-caution-content {
+  display: none;
+}
+
+.collapsible-caution-chevron {
+  transition: transform 200ms ease;
+}
+
+.collapsible-caution[data-expanded="true"] .collapsible-caution-closed-label {
+  display: none;
+}
+
+.collapsible-caution[data-expanded="true"] .collapsible-caution-open-label {
+  display: inline;
+}
+
+.collapsible-caution[data-expanded="true"] .collapsible-caution-content {
+  display: block;
+}
+
+.collapsible-caution[data-expanded="true"] .collapsible-caution-chevron {
+  transform: rotate(180deg);
+}
+
 .cash-gift-year-total-table .cash-gift-group-column {
   width: 25%;
 }
@@ -1336,6 +1364,15 @@ tbody tr:last-child > .cash-gift-amount-cell {
 
 @media print {
   .no-print {
+    display: none !important;
+  }
+
+  .collapsible-caution-content {
+    display: block !important;
+  }
+
+  .collapsible-caution button small,
+  .collapsible-caution-chevron {
     display: none !important;
   }
 
