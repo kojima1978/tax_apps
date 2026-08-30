@@ -2668,22 +2668,6 @@ tbody tr:last-child > .cash-gift-amount-cell {
     top: 37px !important;
   }
 
-  /* 白黒印刷でも税目を判別できるよう、色に加えて線種を使う */
-  .cash-gift-print .cash-gift-gift-tax-connector-line {
-    stroke: #111827 !important;
-    stroke-dasharray: none !important;
-  }
-
-  .cash-gift-print .cash-gift-inheritance-tax-connector-line {
-    stroke: #111827 !important;
-    stroke-dasharray: 5 3 !important;
-  }
-
-  .cash-gift-print .cash-gift-gift-tax-arrowhead,
-  .cash-gift-print .cash-gift-inheritance-tax-arrowhead {
-    fill: #111827 !important;
-  }
-
   .cash-gift-print h3 {
     font-size: 13px !important;
     margin-bottom: 4px !important;
