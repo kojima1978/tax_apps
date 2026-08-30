@@ -642,6 +642,85 @@
   color: #1f2937;
 }
 
+.cash-gift-result-summary {
+  margin-bottom: 1.5rem;
+}
+
+.cash-gift-result-summary h3 {
+  color: #166534;
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem;
+}
+
+.cash-gift-result-summary-grid {
+  display: grid;
+  gap: 0.625rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cash-gift-result-summary-item {
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  border-radius: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+}
+
+.cash-gift-result-summary-item span {
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.cash-gift-result-summary-item strong {
+  color: #111827;
+  font-size: clamp(1.125rem, 3.5vw, 1.5rem);
+  line-height: 1.3;
+  margin-top: 0.125rem;
+  overflow-wrap: anywhere;
+}
+
+.cash-gift-result-summary-item small {
+  color: #4b5563;
+  font-size: 0.6875rem;
+  margin-top: 0.125rem;
+}
+
+.cash-gift-result-summary-impact {
+  grid-column: 1 / -1;
+}
+
+.cash-gift-result-summary-impact.is-reduction {
+  background: #f0fdf4;
+  border-color: #16a34a;
+}
+
+.cash-gift-result-summary-impact.is-reduction strong {
+  color: #166534;
+}
+
+.cash-gift-result-summary-impact.is-increase {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
+.cash-gift-result-summary-impact.is-increase strong {
+  color: #b91c1c;
+}
+
+@media (min-width: 768px) {
+  .cash-gift-result-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cash-gift-result-summary-impact {
+    grid-column: auto;
+  }
+}
+
 .cash-gift-report-section + .cash-gift-report-section {
   margin-top: 1.5rem;
 }
@@ -2249,6 +2328,38 @@ tbody tr:last-child > .cash-gift-amount-cell {
   .cash-gift-print .cash-gift-report-sheet {
     padding: 4px 10px !important;
     border: none !important;
+  }
+
+  .cash-gift-print .cash-gift-result-summary {
+    margin-bottom: 6px !important;
+  }
+
+  .cash-gift-print .cash-gift-result-summary h3 {
+    font-size: 11px !important;
+    margin-bottom: 3px !important;
+  }
+
+  .cash-gift-print .cash-gift-result-summary-grid {
+    gap: 5px !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .cash-gift-print .cash-gift-result-summary-impact {
+    grid-column: auto !important;
+  }
+
+  .cash-gift-print .cash-gift-result-summary-item {
+    border-radius: 3px !important;
+    padding: 3px 5px !important;
+  }
+
+  .cash-gift-print .cash-gift-result-summary-item span,
+  .cash-gift-print .cash-gift-result-summary-item small {
+    font-size: 7px !important;
+  }
+
+  .cash-gift-print .cash-gift-result-summary-item strong {
+    font-size: 11px !important;
   }
 
   .cash-gift-print .cash-gift-report-section + .cash-gift-report-section {

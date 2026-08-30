@@ -21,6 +21,36 @@ interface CashGiftHeirTableProps {
   result: CashGiftSimulationResult;
 }
 
+const CashGiftResultSummary: React.FC<{ result: CashGiftSimulationResult }> = ({ result }) => {
+  const currentTax = result.current.taxResult.totalFinalTax;
+  const proposedTax = result.proposed.taxResult.totalFinalTax + result.totalGiftTax;
+  const taxReduction = currentTax - proposedTax;
+  const isReduction = taxReduction >= 0;
+
+  return (
+    <section className="cash-gift-result-summary" aria-labelledby="cash-gift-result-summary-heading">
+      <h3 id="cash-gift-result-summary-heading">税額サマリー</h3>
+      <div className="cash-gift-result-summary-grid">
+        <div className="cash-gift-result-summary-item">
+          <span>対策なし</span>
+          <strong>{formatCurrency(currentTax)}</strong>
+          <small>相続税</small>
+        </div>
+        <div className="cash-gift-result-summary-item">
+          <span>対策あり</span>
+          <strong>{formatCurrency(proposedTax)}</strong>
+          <small>相続税＋贈与税</small>
+        </div>
+        <div className={`cash-gift-result-summary-item cash-gift-result-summary-impact ${isReduction ? 'is-reduction' : 'is-increase'}`}>
+          <span>納付税額の変化</span>
+          <strong>{isReduction ? '△' : '+'}{formatCurrency(Math.abs(taxReduction))}</strong>
+          <small>{isReduction ? '税負担が減少' : '税負担が増加'}</small>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const GiftTaxCalculationWorkbook: React.FC<{ result: CashGiftSimulationResult }> = ({ result }) => {
   const recipients = result.recipientResults;
   const startDate = useMemo(() => new Date(), []);
@@ -298,6 +328,7 @@ const HeirBreakdownWorkbookTables: React.FC<{ result: CashGiftSimulationResult }
 
 export const CashGiftHeirTable: React.FC<CashGiftHeirTableProps> = ({ result }) => (
   <div className={`${CARD} cash-gift-report-sheet`}>
+    <CashGiftResultSummary result={result} />
     <GiftTaxCalculationWorkbook result={result} />
     <InheritanceTaxWorkbookMatrix result={result} />
     <HeirBreakdownWorkbookTables result={result} />
