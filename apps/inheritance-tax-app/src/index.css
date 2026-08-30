@@ -959,10 +959,11 @@
 
 .cash-gift-year-total-table {
   --cash-gift-group-column-width: 225px;
-  border: 1px solid #9ca3af;
+  border: 1px solid #6b7280;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
   table-layout: fixed;
 }
 
@@ -1032,6 +1033,10 @@
 }
 
 .cash-gift-year-total-table thead th {
+  background: #ecfdf5;
+  border-bottom: 2px solid #15803d;
+  color: #14532d;
+  font-weight: 700;
   position: sticky;
   top: 0;
   z-index: 2;
@@ -1043,17 +1048,34 @@
 }
 
 .cash-gift-year-total-table td {
-  border-top: 1px dotted #d1d5db;
-  padding: 0.25rem 0.4rem;
+  border-top: 0;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.35rem 0.4rem;
   text-align: right;
   white-space: nowrap;
 }
 
 .cash-gift-year-total-table tbody th {
   background: #ffffff;
-  border-top: 1px dotted #d1d5db;
+  border-top: 0;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.35rem;
+  padding-top: 0.35rem;
   text-align: left;
   vertical-align: middle;
+}
+
+.cash-gift-year-total-table tbody tr.cash-gift-year-group-start:not(:first-child) > * {
+  border-top: 2px solid #cbd5e1;
+}
+
+.cash-gift-year-total-table tbody tr.cash-gift-year-tax-row > * {
+  background: #f8fafc;
+  color: #374151;
+}
+
+.cash-gift-year-total-table tbody td:last-child {
+  font-weight: 700;
 }
 
 .cash-gift-year-total-table tbody th:first-child {
@@ -1085,19 +1107,19 @@
 
 .cash-gift-year-total-summary th,
 .cash-gift-year-total-summary td {
-  background: #ffffff;
+  background: #f0fdf4;
   font-weight: 800;
 }
 
 .cash-gift-year-total-summary-start th,
 .cash-gift-year-total-summary-start td {
-  border-top: 1px solid #9ca3af;
+  border-top: 2px solid #15803d;
 }
 
 .cash-gift-year-total-summary th.cash-gift-second-line-cell,
 .cash-gift-year-total-summary th.cash-gift-second-line-label {
-  background: #ffffff;
-  color: #4b5563;
+  background: #f0fdf4;
+  color: #374151;
 }
 
 @media (max-width: 767px) {

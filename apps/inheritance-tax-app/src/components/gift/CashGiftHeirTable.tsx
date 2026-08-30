@@ -132,13 +132,13 @@ const GiftTaxCalculationWorkbook: React.FC<{ result: CashGiftSimulationResult }>
 
               return (
                 <React.Fragment key={group.key}>
-                  <tr>
+                  <tr className="cash-gift-year-group-start">
                     <th>{groupIndex} {group.groupLabel}グループ{formatGiftGroupMembers(group)}</th>
                     <th>贈与額</th>
                     {yearLabels.map((label, i) => <td key={label}>{formatManNumber(i < group.years ? group.annualAmount : 0)}</td>)}
                     <td>{formatManTotal(group.totalGift)}</td>
                   </tr>
-                  <tr>
+                  <tr className="cash-gift-year-tax-row">
                     <th className="cash-gift-second-line-cell"></th>
                     <th className="cash-gift-second-line-label">贈与税額</th>
                     {yearLabels.map((label, i) => <td key={label}>{formatManNumber(i < group.years ? group.giftTaxPerYear : 0)}</td>)}
