@@ -8,7 +8,9 @@ import { ResultStep } from '@/components/step4/ResultStep';
 import { useAssetData } from '@/hooks/useAssetData';
 import { usePresets } from '@/hooks/usePresets';
 import { useCategoryOrderPresets } from '@/hooks/useCategoryOrderPresets';
-import { Home } from 'lucide-react';
+import { useCaseDraft } from '@/hooks/useCaseDraft';
+import { Home, History, X } from 'lucide-react';
+import { formatDateTime } from '@/utils/formatters';
 import { exportCaseJson } from '@/utils/fileDownload';
 import type { CsvData } from '@/utils/csvParser';
 
@@ -73,6 +75,17 @@ export default function App() {
   const { orderPresets, saveOrderPreset, deleteOrderPreset } =
     useCategoryOrderPresets();
 
+  // 作業内容の自動保存（リロードやタブを閉じても続きから再開できるようにする）
+  const { restorable, savedAt, saveError, dismissRestore, discardDraft } =
+    useCaseDraft({
+      caseName,
+      taxDate,
+      assets,
+      labelOrder,
+      currentStep,
+      maxReachedStep,
+    });
+
   // ステップ遷移
   const goToStep = useCallback(
     (step: StepId) => {
@@ -113,10 +126,25 @@ export default function App() {
     setCaseName(data.caseName);
     setTaxDate(data.taxDate);
     loadFromJson(data.assets, data.categoryOrder);
+    // loadFromJson は更新前の課税時期で計算するため、取り込んだ日付で計算し直す
+    recalculateAll(data.taxDate);
     setCsvData(null);
     // Step3に直接遷移
     setCurrentStep(3);
     setMaxReachedStep(4);
+  };
+
+  // 前回の作業を復元
+  const handleRestoreDraft = () => {
+    if (!restorable) return;
+    setCaseName(restorable.caseName);
+    setTaxDate(restorable.taxDate);
+    loadFromJson(restorable.assets, restorable.labelOrder);
+    recalculateAll(restorable.taxDate);
+    setCsvData(null);
+    setCurrentStep(restorable.currentStep);
+    setMaxReachedStep(restorable.maxReachedStep);
+    dismissRestore();
   };
 
   // Excel出力
@@ -147,6 +175,32 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* 前回の作業の復元（自動保存された下書きが残っているときだけ） */}
+        {restorable && assets.length === 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">
+            <History size={18} className="shrink-0" aria-hidden="true" />
+            <span className="min-w-0">
+              前回の作業が残っています（
+              <strong>{restorable.caseName || '案件名未入力'}</strong> /{' '}
+              {restorable.assets.length}件 / {formatDateTime(restorable.savedAt)}）
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={handleRestoreDraft}
+                className="min-h-11 rounded-md bg-amber-600 px-4 py-2 font-medium text-white transition-colors hover:bg-amber-700 cursor-pointer"
+              >
+                復元する
+              </button>
+              <button
+                onClick={discardDraft}
+                className="flex min-h-11 items-center gap-1 rounded-md border border-amber-300 px-3 py-2 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer"
+              >
+                <X size={15} aria-hidden="true" /> 破棄
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ステップインジケーター */}
         <div className="print:hidden">
           <StepIndicator
@@ -194,6 +248,8 @@ export default function App() {
             taxDate={taxDate}
             onCaseNameChange={setCaseName}
             onTaxDateChange={handleTaxDateChange}
+            savedAt={savedAt}
+            saveError={saveError}
             assets={assets}
             groupedAssets={groupedAssets}
             onUpdateAsset={updateAsset}

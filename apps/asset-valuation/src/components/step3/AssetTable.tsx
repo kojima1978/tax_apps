@@ -19,6 +19,7 @@ import { CATEGORY_CONFIG } from '@/types';
 import type { SortKey, SortDirection } from '@/hooks/useAssetData';
 import { CategorySelect } from '@/components/CategorySelect';
 import { categorySectionId } from '@/components/CategoryNav';
+import { assetRowId } from './anchors';
 import { formatYen, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
 import { MobileAssetCards } from './MobileAssetCards';
 
@@ -50,10 +51,14 @@ function MoneyInput({
   value,
   onChange,
   ariaLabel,
+  dataCol,
+  onKeyDown,
 }: {
   value: number;
   onChange: (v: number) => void;
   ariaLabel: string;
+  dataCol: string;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [raw, setRaw] = useState('');
@@ -68,7 +73,9 @@ function MoneyInput({
         if (!isNaN(v)) onChange(v);
         setEditing(false);
       }}
-      className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono"
+      onKeyDown={onKeyDown}
+      data-col={dataCol}
+      className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono tabular-nums"
       aria-label={ariaLabel}
     />
   );
@@ -87,6 +94,8 @@ interface Props {
   onMoveAssetsTo: (label: string, ids: string[], slot: number) => void;
   onMoveCategory: (label: string, direction: -1 | 1) => void;
   onMoveCategoryTo: (label: string, index: number) => void;
+  /** エラー一覧からジャンプしてきた行（一時的に強調する） */
+  flashAssetId?: string | null;
 }
 
 /** ドラッグ中の状態 */
@@ -114,6 +123,7 @@ export function AssetTable({
   onMoveAssetsTo,
   onMoveCategory,
   onMoveCategoryTo,
+  flashAssetId,
 }: Props) {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [sortState, setSortState] = useState<
@@ -179,11 +189,46 @@ export function AssetTable({
     setLastPicked(null);
   };
 
+  // 移動中の行が属するカテゴリ（フローティングバーの「末尾へ」「1つ下へ」で使う）
+  const selectedGroup = selection ? (groupedAssets.get(selection.label) ?? []) : [];
+  const selectedIndexes = selection
+    ? selectedGroup
+        .map((a, i) => (selection.ids.includes(a.id) ? i : -1))
+        .filter((i) => i >= 0)
+    : [];
+  const canStepUp = selectedIndexes.length > 0 && Math.min(...selectedIndexes) > 0;
+  const canStepDown =
+    selectedIndexes.length > 0 &&
+    Math.max(...selectedIndexes) < selectedGroup.length - 1;
+
   /** 選択行を slot の位置へまとめて挿入して選択を解除 */
   const insertAt = (label: string, slot: number) => {
     if (selection?.label !== label) return;
     onMoveAssetsTo(label, selection.ids, slot);
     clearSelection();
+  };
+
+  /**
+   * 選択行を1つ上／1つ下へずらす。
+   * 「先頭へ／末尾へ」と違い連続で押す操作なので、移動後も選択を保つ。
+   */
+  const stepSelection = (direction: -1 | 1) => {
+    if (!selection) return;
+    const idSet = new Set(selection.ids);
+    const indexes = selectedGroup
+      .map((a, i) => (idSet.has(a.id) ? i : -1))
+      .filter((i) => i >= 0);
+    if (indexes.length === 0) return;
+    const first = Math.min(...indexes);
+    const last = Math.max(...indexes);
+    if (direction === -1) {
+      if (first === 0) return;
+      onMoveAssetsTo(selection.label, selection.ids, first - 1);
+    } else {
+      if (last >= selectedGroup.length - 1) return;
+      // slot は移動前のグループ内位置。1つ下の行を飛び越すので +2 する
+      onMoveAssetsTo(selection.label, selection.ids, last + 2);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -250,6 +295,25 @@ export function AssetTable({
     if (target) onMoveAsset(label, id, target.id);
   };
 
+  /**
+   * Enterで同じ列の次の行へ移動（Shift+Enterで前の行）。
+   * ↑↓ を使わないのは、数値入力では値の増減、日付入力では日付の変更に既に割り当たっているため。
+   */
+  const handleCellKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    const col = e.currentTarget.dataset.col;
+    const table = e.currentTarget.closest('table');
+    if (!col || !table) return;
+    e.preventDefault();
+    const cells = Array.from(
+      table.querySelectorAll<HTMLInputElement>(`input[data-col="${col}"]`)
+    );
+    const next = cells[cells.indexOf(e.currentTarget) + (e.shiftKey ? -1 : 1)];
+    if (!next) return;
+    next.focus();
+    next.select();
+  };
+
   /** 挿入位置の行（移動中のカテゴリにだけ挟む） */
   const insertSlotRow = (label: string, slot: number, colCount: number) => (
     <tr>
@@ -270,14 +334,12 @@ export function AssetTable({
     ([, assets]) => assets.length > 0
   );
 
-  // 移動中の行が属するカテゴリ（フローティングバーの「末尾へ」で使う）
-  const selectedGroup = selection ? (groupedAssets.get(selection.label) ?? []) : [];
-
   return (
     <>
       <MobileAssetCards
         groups={groups}
         showDetail={showDetail}
+        flashAssetId={flashAssetId}
         onUpdateAsset={onUpdateAsset}
         onDeleteAsset={onDeleteAsset}
         onAddEmptyAsset={onAddEmptyAsset}
@@ -311,10 +373,10 @@ export function AssetTable({
           <div
             key={label}
             id={categorySectionId(label)}
-            className="bg-white rounded-lg border border-gray-200 overflow-hidden scroll-mt-16"
+            className="bg-white rounded-lg border border-gray-200 scroll-mt-28"
           >
-            {/* カテゴリヘッダー */}
-            <div className="bg-green-50 border-b px-4 py-2 flex items-center justify-between gap-3">
+            {/* カテゴリヘッダー。スクロール中もどのカテゴリを見ているか分かるよう追従させる */}
+            <div className="sticky top-[5.75rem] z-20 bg-green-50 border-b px-4 py-2 flex items-center justify-between gap-3">
               <div className="flex items-center gap-1.5 min-w-0">
                 {/* カテゴリの並べ替え（表の順序＝Excel出力の順序） */}
                 <div className="flex items-center gap-0.5 shrink-0">
@@ -358,6 +420,9 @@ export function AssetTable({
                       3年以内 {within3}件
                     </span>
                   )}
+                  <span className="text-xs font-normal text-green-700">
+                    評価額 <span className="font-mono">{formatYen(totalEvaluation)}</span>
+                  </span>
                 </h3>
               </div>
               <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -426,7 +491,7 @@ export function AssetTable({
                 <caption className="sr-only">
                   {label}{' '}
                   資産一覧（左端のチェックで選択して挿入位置を指定、ハンドルをドラッグ、または ↑↓
-                  キーで並べ替え）
+                  キーで並べ替え。Enterで同じ列の次の行へ移動）
                 </caption>
                 <thead>
                   <tr className="bg-gray-50 border-b">
@@ -443,13 +508,13 @@ export function AssetTable({
                     <th className="w-7 sticky left-8 bg-gray-50 z-10">
                       <span className="sr-only">並べ替え</span>
                     </th>
-                    <th className="px-2 py-1.5 text-left w-20 sticky left-[60px] bg-gray-50 z-10">NO</th>
+                    <th className="px-2 py-1.5 text-right w-20 sticky left-[60px] bg-gray-50 z-10">NO</th>
                     <th className="px-2 py-1.5 text-left w-40 sticky left-[140px] bg-gray-50 z-10">名称</th>
                     <th className="px-2 py-1.5 text-left w-24">取得年月</th>
                     {showDetail && (
-                      <th className="px-2 py-1.5 text-center w-14">経過年数</th>
+                      <th className="px-2 py-1.5 text-right w-14">経過年数</th>
                     )}
-                    <th className="px-2 py-1.5 text-center w-14">耐用年数</th>
+                    <th className="px-2 py-1.5 text-right w-14">耐用年数</th>
                     <th className="px-2 py-1.5 text-right w-24">取得価額</th>
                     {showDetail && (
                       <th className="px-2 py-1.5 text-right w-24">{config.headerLabel}</th>
@@ -480,6 +545,7 @@ export function AssetTable({
                     <Fragment key={asset.id}>
                     {selecting && insertSlotRow(label, rowIndex, colCount)}
                     <tr
+                      id={assetRowId(asset.id)}
                       draggable={handleRow === asset.id}
                       onDragStart={(e) => {
                         e.dataTransfer.effectAllowed = 'move';
@@ -504,7 +570,7 @@ export function AssetTable({
                         setDrag(null);
                         setHandleRow(null);
                       }}
-                      className={`border-b hover:bg-gray-50 ${
+                      className={`border-b scroll-mt-40 hover:bg-gray-50 ${
                         isSelected
                           ? 'bg-green-100'
                           : asset.isWithin3Years
@@ -512,6 +578,10 @@ export function AssetTable({
                             : ''
                       } ${isDragging ? 'opacity-40' : ''} ${
                         isDropTarget ? 'border-t-2 border-t-green-500' : ''
+                      } ${
+                        flashAssetId === asset.id
+                          ? 'outline outline-2 -outline-offset-2 outline-red-500'
+                          : ''
                       }`}
                     >
                       <td
@@ -548,7 +618,9 @@ export function AssetTable({
                           type="number"
                           value={asset.no || ''}
                           onChange={(e) => onUpdateAsset(asset.id, { no: Number(e.target.value) })}
-                          className="w-full px-1 py-0.5 border rounded text-xs"
+                          onKeyDown={handleCellKey}
+                          data-col="no"
+                          className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono tabular-nums"
                           aria-label={`${asset.name || '資産'} NO`}
                         />
                       </td>
@@ -559,6 +631,8 @@ export function AssetTable({
                           type="text"
                           value={asset.name}
                           onChange={(e) => onUpdateAsset(asset.id, { name: e.target.value })}
+                          onKeyDown={handleCellKey}
+                          data-col="name"
                           className="w-full px-1 py-0.5 border rounded text-xs"
                           aria-label="資産名称"
                         />
@@ -568,6 +642,8 @@ export function AssetTable({
                           type="date"
                           value={asset.acquisitionDate}
                           onChange={(e) => onUpdateAsset(asset.id, { acquisitionDate: e.target.value })}
+                          onKeyDown={handleCellKey}
+                          data-col="acquisitionDate"
                           className="w-full px-1 py-0.5 border rounded text-xs"
                           aria-label={`${asset.name || '資産'} 取得年月`}
                         />
@@ -578,7 +654,7 @@ export function AssetTable({
                         )}
                       </td>
                       {showDetail && (
-                        <td className="px-2 py-1 text-center font-mono">
+                        <td className="px-2 py-1 text-right font-mono tabular-nums">
                           {asset.elapsedYears}
                         </td>
                       )}
@@ -587,7 +663,9 @@ export function AssetTable({
                           type="number"
                           value={asset.usefulLife || ''}
                           onChange={(e) => onUpdateAsset(asset.id, { usefulLife: Number(e.target.value) })}
-                          className="w-full px-1 py-0.5 border rounded text-xs text-center"
+                          onKeyDown={handleCellKey}
+                          data-col="usefulLife"
+                          className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono tabular-nums"
                           aria-label={`${asset.name || '資産'} 耐用年数`}
                         />
                       </td>
@@ -596,6 +674,8 @@ export function AssetTable({
                           value={asset.acquisitionCost}
                           onChange={(v) => onUpdateAsset(asset.id, { acquisitionCost: v })}
                           ariaLabel={`${asset.name || '資産'} 取得価額`}
+                          dataCol="acquisitionCost"
+                          onKeyDown={handleCellKey}
                         />
                       </td>
                       {showDetail && (
@@ -615,6 +695,8 @@ export function AssetTable({
                           value={asset.bookValue}
                           onChange={(v) => onUpdateAsset(asset.id, { bookValue: v })}
                           ariaLabel={`${asset.name || '資産'} 期末簿価`}
+                          dataCol="bookValue"
+                          onKeyDown={handleCellKey}
                         />
                       </td>
                       {showDetail && (
@@ -745,6 +827,20 @@ export function AssetTable({
               {selection.label} 内の「ここに挿入」をクリック
             </span>
             <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => stepSelection(-1)}
+                disabled={!canStepUp}
+                className="flex items-center gap-1 rounded border border-green-500 px-2 py-1 text-green-700 cursor-pointer transition-colors hover:bg-green-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent"
+              >
+                <ArrowUp size={12} /> 1つ上へ
+              </button>
+              <button
+                onClick={() => stepSelection(1)}
+                disabled={!canStepDown}
+                className="flex items-center gap-1 rounded border border-green-500 px-2 py-1 text-green-700 cursor-pointer transition-colors hover:bg-green-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent"
+              >
+                <ArrowDown size={12} /> 1つ下へ
+              </button>
               <button
                 onClick={() => insertAt(selection.label, 0)}
                 className="flex items-center gap-1 rounded border border-green-500 bg-green-600 px-2 py-1 text-white cursor-pointer transition-colors hover:bg-green-700"

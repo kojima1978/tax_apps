@@ -16,6 +16,7 @@ import type { SortDirection, SortKey } from '@/hooks/useAssetData';
 import { CategorySelect } from '@/components/CategorySelect';
 import { categorySectionId } from '@/components/CategoryNav';
 import { calcGroupTotals, formatDate, formatYen } from '@/utils/formatters';
+import { assetCardId } from './anchors';
 
 interface Props {
   groups: [string, Asset[]][];
@@ -27,10 +28,14 @@ interface Props {
   onSortAssets: (label: string, sortBy: SortKey, direction: SortDirection) => void;
   onMoveAsset: (label: string, sourceId: string, targetId: string) => void;
   onMoveCategory: (label: string, direction: -1 | 1) => void;
+  /** エラー一覧からジャンプしてきた資産（一時的に強調する） */
+  flashAssetId?: string | null;
 }
 
 const fieldClass =
   'min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500';
+/** 数値入力は桁を読みやすくするため右詰め・等幅 */
+const numberFieldClass = `${fieldClass} text-right font-mono tabular-nums`;
 
 export function MobileAssetCards({
   groups,
@@ -42,6 +47,7 @@ export function MobileAssetCards({
   onSortAssets,
   onMoveAsset,
   onMoveCategory,
+  flashAssetId,
 }: Props) {
   const [openAsset, setOpenAsset] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -146,7 +152,17 @@ export function MobileAssetCards({
               {assets.map((asset, assetIndex) => {
                 const isOpen = openAsset === asset.id;
                 return (
-                  <article key={asset.id} className={asset.isWithin3Years ? 'bg-amber-50/60' : 'bg-white'}>
+                  <article
+                    key={asset.id}
+                    id={assetCardId(asset.id)}
+                    className={`scroll-mt-24 ${
+                      flashAssetId === asset.id
+                        ? 'bg-red-50 outline outline-2 -outline-offset-2 outline-red-500'
+                        : asset.isWithin3Years
+                          ? 'bg-amber-50/60'
+                          : 'bg-white'
+                    }`}
+                  >
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -201,7 +217,7 @@ export function MobileAssetCards({
                               inputMode="numeric"
                               value={asset.no || ''}
                               onChange={(event) => onUpdateAsset(asset.id, { no: Number(event.target.value) })}
-                              className={fieldClass}
+                              className={numberFieldClass}
                             />
                           </div>
                           <div>
@@ -212,7 +228,7 @@ export function MobileAssetCards({
                               inputMode="numeric"
                               value={asset.usefulLife || ''}
                               onChange={(event) => onUpdateAsset(asset.id, { usefulLife: Number(event.target.value) })}
-                              className={fieldClass}
+                              className={numberFieldClass}
                             />
                           </div>
                         </div>
@@ -235,7 +251,7 @@ export function MobileAssetCards({
                               inputMode="numeric"
                               value={asset.acquisitionCost || ''}
                               onChange={(event) => onUpdateAsset(asset.id, { acquisitionCost: Number(event.target.value) })}
-                              className={fieldClass}
+                              className={numberFieldClass}
                             />
                           </div>
                           <div>
@@ -246,7 +262,7 @@ export function MobileAssetCards({
                               inputMode="numeric"
                               value={asset.bookValue || ''}
                               onChange={(event) => onUpdateAsset(asset.id, { bookValue: Number(event.target.value) })}
-                              className={fieldClass}
+                              className={numberFieldClass}
                             />
                           </div>
                         </div>

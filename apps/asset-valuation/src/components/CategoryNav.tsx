@@ -13,13 +13,15 @@ export function scrollToCategory(label: string) {
 
 interface Props {
   groups: [string, Asset[]][];
+  /** カテゴリごとのエラー・警告件数（Step3のバリデーション結果） */
+  issueCounts?: Map<string, { errors: number; warnings: number }>;
 }
 
 /**
  * カテゴリ名＋件数のチップ一覧。
  * カテゴリが増えると縦スクロールが長くなるため、目的の表へ直接飛べるようにする。
  */
-export function CategoryNav({ groups }: Props) {
+export function CategoryNav({ groups, issueCounts }: Props) {
   if (groups.length === 0) return null;
 
   return (
@@ -29,6 +31,7 @@ export function CategoryNav({ groups }: Props) {
     >
       {groups.map(([label, assets]) => {
         const within3 = assets.filter((a) => a.isWithin3Years).length;
+        const issues = issueCounts?.get(label);
         return (
           <button
             key={label}
@@ -44,6 +47,22 @@ export function CategoryNav({ groups }: Props) {
             )}
             <span>{label}</span>
             <span className="text-gray-500">{assets.length}件</span>
+            {issues && issues.errors > 0 && (
+              <span
+                className="rounded bg-red-100 px-1 text-[10px] font-bold text-red-700"
+                title={`エラー ${issues.errors}件`}
+              >
+                エラー{issues.errors}
+              </span>
+            )}
+            {issues && issues.warnings > 0 && (
+              <span
+                className="rounded bg-yellow-100 px-1 text-[10px] font-bold text-yellow-800"
+                title={`警告 ${issues.warnings}件`}
+              >
+                警告{issues.warnings}
+              </span>
+            )}
           </button>
         );
       })}

@@ -36,7 +36,15 @@ export function ResultStep({
 
   const handleExcelExport = useCallback(async () => {
     setExcelLoading(true);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    // スピナーを描画してから重い生成処理に入る。
+    // requestAnimationFrame は非表示タブでは発火しないので、タイマーで必ず先へ進める
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 50);
+      requestAnimationFrame(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
     try {
       await onExportExcel();
     } finally {
@@ -189,7 +197,7 @@ export function ResultStep({
                 <div className="space-y-1 pl-2">
                   {catAssets.map((asset) => (
                     <div key={asset.id} className="flex gap-2">
-                      <span className="text-gray-500 w-8 text-right shrink-0">
+                      <span className="w-14 shrink-0 text-right font-mono tabular-nums text-gray-500">
                         {asset.no}
                       </span>
                       <span className="text-gray-600 w-24 truncate shrink-0">

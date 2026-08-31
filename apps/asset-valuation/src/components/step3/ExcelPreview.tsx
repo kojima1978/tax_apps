@@ -110,7 +110,7 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
             <table className="w-full min-w-[960px] border-collapse">
               <thead>
                 <tr className="bg-[#D9E1F2]">
-                  <th className="border px-1 py-0.5 text-left w-10">NO</th>
+                  <th className="border px-1 py-0.5 text-left w-14">NO</th>
                   <th className="border px-1 py-0.5 text-left">名称等</th>
                   <th className="border px-1 py-0.5 text-center w-20">取得年月</th>
                   <th className="border px-1 py-0.5 text-center w-20">課税時期</th>
@@ -128,7 +128,7 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
               <tbody>
                 {catAssets.map((a) => (
                   <tr key={a.id}>
-                    <td className="border px-1 py-0.5">{a.no}</td>
+                    <td className="border px-1 py-0.5 tabular-nums">{a.no}</td>
                     <td className="border px-1 py-0.5 truncate max-w-[120px]">
                       {a.name}
                     </td>

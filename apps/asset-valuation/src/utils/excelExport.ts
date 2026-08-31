@@ -201,6 +201,20 @@ function depreciationFormulaCell(asset: Asset, row: number): XLSX.CellObject {
   );
 }
 
+/**
+ * 経過年数をExcel数式で算出（取得年月・課税時期を直すと下流の評価額まで再計算される）。
+ * アプリ側 calcElapsedYears と同じ「日数 ÷ 365 の切上げ」。
+ * 取得年月が未入力の行は日付セルにならないので N() で 0 に落とす。
+ */
+function elapsedYearsFormulaCell(asset: Asset, row: number): XLSX.CellObject {
+  const excelRow = row + 1;
+  return formulaNumberCell(
+    `IF(N(C${excelRow})=0,0,ROUNDUP((D${excelRow}-C${excelRow})/365,0))`,
+    asset.elapsedYears,
+    { format: '0' }
+  );
+}
+
 function sumFormulaCell(
   column: number,
   startRow: number,
@@ -345,8 +359,8 @@ export function exportToExcel(
       // D: 課税時期
       ws[XLSX.utils.encode_cell({ r: row, c: 3 })] = dateCell(taxDate);
 
-      // E: 経過年数
-      ws[XLSX.utils.encode_cell({ r: row, c: 4 })] = numberCell(asset.elapsedYears, { format: '0' });
+      // E: 経過年数（Excel数式）
+      ws[XLSX.utils.encode_cell({ r: row, c: 4 })] = elapsedYearsFormulaCell(asset, row);
 
       // F: 耐用年数
       ws[XLSX.utils.encode_cell({ r: row, c: 5 })] = numberCell(asset.usefulLife, { format: '0' });

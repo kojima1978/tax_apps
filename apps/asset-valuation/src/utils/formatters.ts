@@ -17,6 +17,17 @@ export function formatDate(value: string | Date): string {
   return `${y}/${m}/${day}`;
 }
 
+/** 日時を「M/D HH:MM」形式に変換（自動保存の表示用） */
+export function formatDateTime(value: string): string {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${m}/${day} ${hh}:${mm}`;
+}
+
 /** Excelシリアル値を日付文字列に変換 */
 export function excelSerialToDate(serial: number): string {
   // Excel serial date: days since 1900-01-01 (with the 1900 leap year bug)
