@@ -304,6 +304,32 @@ export function useAssetData(taxDate: string) {
     [pushOrderHistory]
   );
 
+  /**
+   * 選択した複数行をカテゴリ内の指定位置へまとめて挿入（切り取り→挿入）。
+   * slot は「移動前のグループ内で、どの行の手前に入れるか」（0＝先頭、group.length＝末尾）。
+   * 選択行は元の相対順序を保ったまま、飛び飛びに選ばれていても1か所へ詰めて入る。
+   */
+  const moveAssetsTo = useCallback(
+    (label: string, ids: string[], slot: number) => {
+      if (ids.length === 0) return;
+      pushOrderHistory();
+      setAssets((prev) =>
+        replaceGroup(prev, label, (group) => {
+          const idSet = new Set(ids);
+          const moving = group.filter((a) => idSet.has(a.id));
+          const rest = group.filter((a) => !idSet.has(a.id));
+          if (moving.length === 0) return group;
+          // slot はグループ全体の位置なので、選択行を除いた列での位置に読み替える
+          const at = group
+            .slice(0, Math.max(0, Math.min(slot, group.length)))
+            .filter((a) => !idSet.has(a.id)).length;
+          return [...rest.slice(0, at), ...moving, ...rest.slice(at)];
+        })
+      );
+    },
+    [pushOrderHistory]
+  );
+
   /** JSONからロード（旧カテゴリ名を移行しつつ再計算。カテゴリ順も復元） */
   const loadFromJson = useCallback(
     (loadedAssets: Asset[], categoryOrder?: string[]) => {
@@ -340,6 +366,7 @@ export function useAssetData(taxDate: string) {
     toggleFixedAssetTaxBulk,
     sortAssets,
     moveAsset,
+    moveAssetsTo,
     loadFromJson,
   };
 }

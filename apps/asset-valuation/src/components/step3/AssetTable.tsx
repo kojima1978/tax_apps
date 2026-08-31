@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import {
   Trash2,
   Plus,
@@ -8,6 +8,9 @@ import {
   ArrowDown,
   ArrowRightLeft,
   GripVertical,
+  ChevronsUp,
+  ChevronsDown,
+  CornerDownLeft,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -35,9 +38,12 @@ const CATEGORY_MOVES: { direction: -1 | 1; icon: LucideIcon; label: string }[] =
   { direction: 1, icon: ArrowDown, label: '下へ' },
 ];
 
-/** スティッキーカラムの背景色 */
-const stickyBg = (isHighlight: boolean) =>
-  isHighlight ? 'bg-yellow-50' : 'bg-white';
+/** Alt+↑↓ で一度に飛ぶ行数 */
+const JUMP_ROWS = 5;
+
+/** スティッキーカラムの背景色（選択中 > 3年以内 > 通常） */
+const stickyBg = (isHighlight: boolean, isSelected = false) =>
+  isSelected ? 'bg-green-100' : isHighlight ? 'bg-yellow-50' : 'bg-white';
 
 /** 金額入力: フォーカス時は生数値、ブラー時はカンマフォーマット */
 function MoneyInput({
@@ -78,6 +84,7 @@ interface Props {
   onToggleFixedAssetTaxBulk: (label: string, checked: boolean) => void;
   onSortAssets: (label: string, sortBy: SortKey, direction: SortDirection) => void;
   onMoveAsset: (label: string, sourceId: string, targetId: string) => void;
+  onMoveAssetsTo: (label: string, ids: string[], slot: number) => void;
   onMoveCategory: (label: string, direction: -1 | 1) => void;
   onMoveCategoryTo: (label: string, index: number) => void;
 }
@@ -89,6 +96,12 @@ interface DragState {
   overId: string | null;
 }
 
+/** 「切り取り→挿入」で移動中の行。移動はカテゴリ内限定なので label で束ねる */
+interface SelectionState {
+  label: string;
+  ids: string[];
+}
+
 export function AssetTable({
   groupedAssets,
   showDetail,
@@ -98,6 +111,7 @@ export function AssetTable({
   onToggleFixedAssetTaxBulk,
   onSortAssets,
   onMoveAsset,
+  onMoveAssetsTo,
   onMoveCategory,
   onMoveCategoryTo,
 }: Props) {
@@ -110,6 +124,67 @@ export function AssetTable({
   const [handleRow, setHandleRow] = useState<string | null>(null);
   // カテゴリ変更パネルを開いている行
   const [categoryRow, setCategoryRow] = useState<string | null>(null);
+  // 「切り取り→挿入」で移動中の行
+  const [selection, setSelection] = useState<SelectionState | null>(null);
+  // Shift+クリックの範囲選択の起点
+  const [lastPicked, setLastPicked] = useState<string | null>(null);
+
+  const clearSelection = () => {
+    setSelection(null);
+    setLastPicked(null);
+  };
+
+  // Escでいつでも解除できるようにする（挿入位置を探して長距離スクロールした後でも戻れる）
+  useEffect(() => {
+    if (!selection) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setSelection(null);
+      setLastPicked(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selection]);
+
+  /** 行の選択トグル。Shift併用で直前に選んだ行からの範囲選択 */
+  const toggleSelect = (
+    label: string,
+    assets: Asset[],
+    id: string,
+    shift: boolean
+  ) => {
+    setSelection((prev) => {
+      // 別カテゴリの行を選んだら、そのカテゴリの選択に切り替える（移動はカテゴリ内限定）
+      const base = prev?.label === label ? prev.ids : [];
+      if (shift && lastPicked && base.length > 0) {
+        const from = assets.findIndex((a) => a.id === lastPicked);
+        const to = assets.findIndex((a) => a.id === id);
+        if (from >= 0 && to >= 0) {
+          const [start, end] = from < to ? [from, to] : [to, from];
+          const range = assets.slice(start, end + 1).map((a) => a.id);
+          return { label, ids: Array.from(new Set([...base, ...range])) };
+        }
+      }
+      const ids = base.includes(id)
+        ? base.filter((x) => x !== id)
+        : [...base, id];
+      return ids.length > 0 ? { label, ids } : null;
+    });
+    setLastPicked(id);
+  };
+
+  /** カテゴリの全行を選択／解除 */
+  const toggleSelectAll = (label: string, assets: Asset[], checked: boolean) => {
+    setSelection(checked ? { label, ids: assets.map((a) => a.id) } : null);
+    setLastPicked(null);
+  };
+
+  /** 選択行を slot の位置へまとめて挿入して選択を解除 */
+  const insertAt = (label: string, slot: number) => {
+    if (selection?.label !== label) return;
+    onMoveAssetsTo(label, selection.ids, slot);
+    clearSelection();
+  };
 
   const handleDelete = (id: string) => {
     if (pendingDelete === id) {
@@ -135,24 +210,68 @@ export function AssetTable({
     onSortAssets(label, key, direction);
   };
 
-  /** ↑↓キーでの並べ替え（ドラッグの代替） */
+  /**
+   * キーボードでの並べ替え（ドラッグの代替）。
+   * Space=選択トグル / ↑↓=1行 / Alt+↑↓=5行 / Shift+↑↓=先頭・末尾へ
+   */
   const handleGripKey = (
     e: React.KeyboardEvent,
     label: string,
     assets: Asset[],
     id: string
   ) => {
+    if (e.key === ' ') {
+      e.preventDefault();
+      toggleSelect(label, assets, id, e.shiftKey);
+      return;
+    }
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
     e.preventDefault();
     const idx = assets.findIndex((a) => a.id === id);
-    const target = assets[e.key === 'ArrowUp' ? idx - 1 : idx + 1];
+    if (idx < 0) return;
+    const up = e.key === 'ArrowUp';
+
+    if (e.shiftKey) {
+      onMoveAssetsTo(label, [id], up ? 0 : assets.length);
+      return;
+    }
+    if (e.altKey) {
+      // 下方向は自分自身が抜ける分を見込んで +1 する
+      onMoveAssetsTo(
+        label,
+        [id],
+        up
+          ? Math.max(0, idx - JUMP_ROWS)
+          : Math.min(assets.length, idx + JUMP_ROWS + 1)
+      );
+      return;
+    }
+    const target = assets[up ? idx - 1 : idx + 1];
     if (target) onMoveAsset(label, id, target.id);
   };
+
+  /** 挿入位置の行（移動中のカテゴリにだけ挟む） */
+  const insertSlotRow = (label: string, slot: number, colCount: number) => (
+    <tr>
+      <td colSpan={colCount} className="p-0">
+        <button
+          type="button"
+          onClick={() => insertAt(label, slot)}
+          className="flex w-full cursor-pointer items-center justify-center gap-1 border-y border-dashed border-green-400 bg-green-50 py-0.5 text-[10px] font-medium text-green-700 transition-colors hover:bg-green-200"
+        >
+          <CornerDownLeft size={11} /> ここに挿入
+        </button>
+      </td>
+    </tr>
+  );
 
   // 空グループを除いてから描画する（カテゴリ移動の端判定を正しくするため）
   const groups = Array.from(groupedAssets.entries()).filter(
     ([, assets]) => assets.length > 0
   );
+
+  // 移動中の行が属するカテゴリ（フローティングバーの「末尾へ」で使う）
+  const selectedGroup = selection ? (groupedAssets.get(selection.label) ?? []) : [];
 
   return (
     <>
@@ -175,9 +294,12 @@ export function AssetTable({
         const within3 = assets.filter((a) => a.isWithin3Years).length;
 
         const { totalAcquisition, totalEvaluation, totalBookValue } = calcGroupTotals(assets);
+        // このカテゴリで「切り取り→挿入」の最中か
+        const selecting = selection?.label === label;
+        const allSelected = selecting && selection.ids.length === assets.length;
 
         // 合計行のcolSpan計算用
-        const leadSpan = 5 + (showDetail ? 1 : 0); // ハンドル〜耐用年数
+        const leadSpan = 6 + (showDetail ? 1 : 0); // 選択・ハンドル〜耐用年数
         const trailSpan =
           (showDetail ? 1 : 0) + // 評価根拠
           (config.hasFixedAssetTaxRecord ? 1 : 0) +
@@ -302,15 +424,27 @@ export function AssetTable({
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <caption className="sr-only">
-                  {label} 資産一覧（左端のハンドルをドラッグ、または ↑↓ キーで並べ替え）
+                  {label}{' '}
+                  資産一覧（左端のチェックで選択して挿入位置を指定、ハンドルをドラッグ、または ↑↓
+                  キーで並べ替え）
                 </caption>
                 <thead>
                   <tr className="bg-gray-50 border-b">
-                    <th className="w-7 sticky left-0 bg-gray-50 z-10">
+                    <th className="w-8 sticky left-0 bg-gray-50 z-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={(e) => toggleSelectAll(label, assets, e.target.checked)}
+                        className="rounded cursor-pointer"
+                        aria-label={`${label} の全行を選択`}
+                        title="このカテゴリの全行を選択"
+                      />
+                    </th>
+                    <th className="w-7 sticky left-8 bg-gray-50 z-10">
                       <span className="sr-only">並べ替え</span>
                     </th>
-                    <th className="px-2 py-1.5 text-left w-12 sticky left-7 bg-gray-50 z-10">NO</th>
-                    <th className="px-2 py-1.5 text-left w-40 sticky left-[76px] bg-gray-50 z-10">名称</th>
+                    <th className="px-2 py-1.5 text-left w-20 sticky left-[60px] bg-gray-50 z-10">NO</th>
+                    <th className="px-2 py-1.5 text-left w-40 sticky left-[140px] bg-gray-50 z-10">名称</th>
                     <th className="px-2 py-1.5 text-left w-24">取得年月</th>
                     {showDetail && (
                       <th className="px-2 py-1.5 text-center w-14">経過年数</th>
@@ -337,12 +471,14 @@ export function AssetTable({
                   </tr>
                 </thead>
                 <tbody>
-                  {assets.map((asset) => {
+                  {assets.map((asset, rowIndex) => {
                     const isDragging = drag?.sourceId === asset.id;
                     const isDropTarget =
                       drag?.label === label && drag.overId === asset.id;
+                    const isSelected = selecting && selection.ids.includes(asset.id);
                     return (
                     <Fragment key={asset.id}>
+                    {selecting && insertSlotRow(label, rowIndex, colCount)}
                     <tr
                       draggable={handleRow === asset.id}
                       onDragStart={(e) => {
@@ -369,24 +505,45 @@ export function AssetTable({
                         setHandleRow(null);
                       }}
                       className={`border-b hover:bg-gray-50 ${
-                        asset.isWithin3Years ? 'bg-yellow-50' : ''
+                        isSelected
+                          ? 'bg-green-100'
+                          : asset.isWithin3Years
+                            ? 'bg-yellow-50'
+                            : ''
                       } ${isDragging ? 'opacity-40' : ''} ${
                         isDropTarget ? 'border-t-2 border-t-green-500' : ''
                       }`}
                     >
-                      <td className={`sticky left-0 z-10 ${stickyBg(asset.isWithin3Years)}`}>
+                      <td
+                        className={`px-1 text-center sticky left-0 z-10 ${stickyBg(asset.isWithin3Years, isSelected)}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          onClick={(e) => toggleSelect(label, assets, asset.id, e.shiftKey)}
+                          className="rounded cursor-pointer"
+                          aria-label={`${asset.name || '資産'} を移動対象に選択（Shift+クリックで範囲選択）`}
+                          title="移動対象に選択（Shift+クリックで範囲選択）"
+                        />
+                      </td>
+                      <td
+                        className={`sticky left-8 z-10 ${stickyBg(asset.isWithin3Years, isSelected)}`}
+                      >
                         <button
                           onMouseDown={() => setHandleRow(asset.id)}
                           onMouseUp={() => setHandleRow(null)}
                           onKeyDown={(e) => handleGripKey(e, label, assets, asset.id)}
                           className="flex w-full justify-center text-gray-300 hover:text-gray-600 cursor-grab active:cursor-grabbing"
-                          aria-label={`${asset.name || '資産'} の位置を変更（ドラッグ、または ↑↓ キー）`}
-                          title="ドラッグ、または ↑↓ キーで並べ替え"
+                          aria-label={`${asset.name || '資産'} の位置を変更（ドラッグ、↑↓ キーで1行、Alt+↑↓ で${JUMP_ROWS}行、Shift+↑↓ で先頭・末尾へ、Space で選択）`}
+                          title={`ドラッグ / ↑↓=1行 / Alt+↑↓=${JUMP_ROWS}行 / Shift+↑↓=先頭・末尾へ / Space=選択`}
                         >
                           <GripVertical size={14} />
                         </button>
                       </td>
-                      <td className={`px-2 py-1 sticky left-7 z-10 ${stickyBg(asset.isWithin3Years)}`}>
+                      <td
+                        className={`px-2 py-1 sticky left-[60px] z-10 ${stickyBg(asset.isWithin3Years, isSelected)}`}
+                      >
                         <input
                           type="number"
                           value={asset.no || ''}
@@ -395,7 +552,9 @@ export function AssetTable({
                           aria-label={`${asset.name || '資産'} NO`}
                         />
                       </td>
-                      <td className={`px-2 py-1 sticky left-[76px] z-10 ${stickyBg(asset.isWithin3Years)}`}>
+                      <td
+                        className={`px-2 py-1 sticky left-[140px] z-10 ${stickyBg(asset.isWithin3Years, isSelected)}`}
+                      >
                         <input
                           type="text"
                           value={asset.name}
@@ -548,6 +707,7 @@ export function AssetTable({
                     </Fragment>
                     );
                   })}
+                  {selecting && insertSlotRow(label, assets.length, colCount)}
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50 font-bold border-t-2">
@@ -573,6 +733,40 @@ export function AssetTable({
         );
       })}
       </div>
+
+      {/* 移動中のフローティングバー。長距離スクロールしても操作を見失わないよう画面下に固定する */}
+      {selection && (
+        <div className="fixed inset-x-0 bottom-4 z-40 hidden justify-center px-4 md:flex">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-green-500 bg-white px-4 py-2 text-xs shadow-lg">
+            <strong className="text-sm text-green-800">
+              {selection.ids.length}件を移動中
+            </strong>
+            <span className="text-gray-600">
+              {selection.label} 内の「ここに挿入」をクリック
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => insertAt(selection.label, 0)}
+                className="flex items-center gap-1 rounded border border-green-500 bg-green-600 px-2 py-1 text-white cursor-pointer transition-colors hover:bg-green-700"
+              >
+                <ChevronsUp size={12} /> 先頭へ
+              </button>
+              <button
+                onClick={() => insertAt(selection.label, selectedGroup.length)}
+                className="flex items-center gap-1 rounded border border-green-500 bg-green-600 px-2 py-1 text-white cursor-pointer transition-colors hover:bg-green-700"
+              >
+                <ChevronsDown size={12} /> 末尾へ
+              </button>
+              <button
+                onClick={clearSelection}
+                className="flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-gray-600 cursor-pointer transition-colors hover:border-gray-400 hover:text-gray-800"
+              >
+                <X size={12} /> 解除（Esc）
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

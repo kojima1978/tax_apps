@@ -56,6 +56,7 @@ export default function App() {
     toggleFixedAssetTaxBulk,
     sortAssets,
     moveAsset,
+    moveAssetsTo,
     loadFromJson,
   } = useAssetData(taxDate);
 
@@ -189,7 +190,10 @@ export default function App() {
 
         {currentStep === 3 && (
           <DataEditStep
+            caseName={caseName}
             taxDate={taxDate}
+            onCaseNameChange={setCaseName}
+            onTaxDateChange={handleTaxDateChange}
             assets={assets}
             groupedAssets={groupedAssets}
             onUpdateAsset={updateAsset}
@@ -198,6 +202,7 @@ export default function App() {
             onToggleFixedAssetTaxBulk={toggleFixedAssetTaxBulk}
             onSortAssets={sortAssets}
             onMoveAsset={moveAsset}
+            onMoveAssetsTo={moveAssetsTo}
             onMoveCategory={moveCategory}
             onMoveCategoryTo={moveCategoryTo}
             onApplyCategoryOrder={applyCategoryOrder}
