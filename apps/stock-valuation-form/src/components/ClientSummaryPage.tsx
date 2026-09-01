@@ -105,7 +105,7 @@ const PRICE_ROWS: {
   {
     key: 'gensokuSpecial',
     label: '原則的評価額（所得税・法人税ベース）',
-    note: '所得税法・法人税法上の時価',
+    note: '所基通59－6／法基通9－1－14による時価',
     emphasis: true,
     basis: 'special-market-value',
     cell: (b) => ({ text: yenOrDash(b.gensoku) }),
