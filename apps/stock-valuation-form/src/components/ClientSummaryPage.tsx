@@ -1,5 +1,5 @@
 import { calcClientSummary, type ActionItem, type SummaryItem } from '@/lib/clientSummary';
-import { calcValuationReport, type ShareholderValuationRow, type ValuationBasis } from '@/lib/valuationReport';
+import { calcValuationReport, type ShareholderValuationRow, type ValuationBasis, type ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
 
 type Props = Pick<TableProps, 'getField' | 'updateField'> & {
@@ -45,49 +45,71 @@ function ActionRow({ item, index }: { item: ActionItem; index: number }) {
 
 const yenOrDash = (value: number | null) => value === null ? '－' : `${value.toLocaleString('ja-JP')}円`;
 
-// 株価一覧の行（行＝価額の種類、列＝評価ベース）
+// 株価一覧の行。ベースの違いは行のラベル側に持たせ、表は「項目｜金額」の2列で並べる。
 const PRICE_ROWS: {
   key: string;
   label: string;
   note: string;
   emphasis?: boolean;
+  basis: ValuationBasisKey;
   cell: (basis: ValuationBasis) => { text: string; sub?: string };
 }[] = [
   {
     key: 'comparable',
     label: '類似業種比準価額',
-    note: '第4表の修正後の算定値を優先',
+    note: '第4表の修正後の算定値を優先（両ベース共通）',
+    basis: 'inheritance',
     cell: (b) => ({ text: yenOrDash(b.comparablePrice) }),
   },
   {
     key: 'netAssetDeducted',
     label: '1株当たり純資産価額（38％控除あり）',
     note: '第5表⑪（評価差額に対する法人税額等相当額を控除）',
-    cell: (b) => ({ text: b.key === 'inheritance' ? yenOrDash(b.netAssetPrice) : '－' }),
+    basis: 'inheritance',
+    cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
   },
   {
     key: 'netAssetGross',
     label: '1株当たり純資産価額（38％控除なし）',
     note: '第5表⑪（所基通59－6(4)／法基通9－1－14(3)）',
-    cell: (b) => ({ text: b.key === 'special-market-value' ? yenOrDash(b.netAssetPrice) : '－' }),
+    basis: 'special-market-value',
+    cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
   },
   {
-    key: 'lRate',
-    label: 'Lの割合',
+    key: 'lRateInheritance',
+    label: 'Lの割合（相続税評価額ベース）',
     note: '中会社のみ（大会社・小会社は適用なし）',
+    basis: 'inheritance',
     cell: (b) => ({ text: b.lRate === null ? '－' : b.lRate.toFixed(2), sub: b.sizeLabel }),
   },
   {
-    key: 'gensoku',
-    label: '原則的評価額',
+    key: 'lRateSpecial',
+    label: 'Lの割合（所得税・法人税ベース）',
+    note: '中心的な同族株主は小会社として判定（所基通59－6(2)）',
+    basis: 'special-market-value',
+    cell: (b) => ({ text: b.lRate === null ? '－' : b.lRate.toFixed(2), sub: b.sizeLabel }),
+  },
+  {
+    key: 'gensokuInheritance',
+    label: '原則的評価額（相続税評価額ベース）',
     note: '会社規模に応じた第3表の最終価額',
     emphasis: true,
+    basis: 'inheritance',
+    cell: (b) => ({ text: yenOrDash(b.gensoku) }),
+  },
+  {
+    key: 'gensokuSpecial',
+    label: '原則的評価額（所得税・法人税ベース）',
+    note: '所得税法・法人税法上の時価',
+    emphasis: true,
+    basis: 'special-market-value',
     cell: (b) => ({ text: yenOrDash(b.gensoku) }),
   },
   {
     key: 'haito',
     label: '配当還元方式',
     note: '原則的評価額を上回る場合は原則的評価額',
+    basis: 'inheritance',
     cell: (b) => ({ text: yenOrDash(b.haitoKangen) }),
   },
 ];
@@ -175,24 +197,20 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
               <thead>
                 <tr>
                   <th scope="col">評価方式</th>
-                  {report.bases.map((basis) => (
-                    <th scope="col" key={basis.key}>
-                      {basis.label}
-                      <small>{basis.note}</small>
-                    </th>
-                  ))}
+                  <th scope="col">金額</th>
                 </tr>
               </thead>
               <tbody>
-                {PRICE_ROWS.map((priceRow) => (
-                  <tr key={priceRow.key} className={priceRow.emphasis ? 'summary-table-emphasis' : undefined}>
-                    <th scope="row">{priceRow.label}<small>{priceRow.note}</small></th>
-                    {report.bases.map((basis) => {
-                      const { text, sub } = priceRow.cell(basis);
-                      return <td className="summary-holders-num" key={basis.key}>{text}{sub && <small>{sub}</small>}</td>;
-                    })}
-                  </tr>
-                ))}
+                {PRICE_ROWS.map((priceRow) => {
+                  const basis = report.bases.find((b) => b.key === priceRow.basis);
+                  const { text, sub } = basis ? priceRow.cell(basis) : { text: '－', sub: undefined };
+                  return (
+                    <tr key={priceRow.key} className={priceRow.emphasis ? 'summary-table-emphasis' : undefined}>
+                      <th scope="row">{priceRow.label}<small>{priceRow.note}</small></th>
+                      <td className="summary-holders-num">{text}{sub && <small>{sub}</small>}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
