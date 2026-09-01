@@ -71,10 +71,6 @@ export type ValuationBasis = {
   comparablePrice: number | null;
   /** 1株当たり純資産価額（第5表 ⑪） */
   netAssetPrice: number | null;
-  /** 同 ⑫（議決権割合50%以下の場合の80%相当額。該当しなければ null） */
-  netAssetPrice80: number | null;
-  /** 法人税額等相当額（第5表 ⑧）。所得税・法人税ベースでは 0 */
-  corporateTaxEquivalent: number | null;
   /** Lの割合（中会社のみ。大会社・小会社は null） */
   lRate: number | null;
   /** 原則的評価方式による価額（第3表） */
@@ -110,8 +106,6 @@ export function calcValuationBasis(
     ...BASIS_LABELS[key],
     comparablePrice: t4.v28 ?? t4.v27 ?? t4.v26,
     netAssetPrice: t5['⑪'] ?? null,
-    netAssetPrice80: t5['⑫'] ?? null,
-    corporateTaxEquivalent: t5['⑧'] ?? null,
     lRate: t3.lRate,
     gensoku: t3.gensoku,
     haitoKangen: t3.haitoKangen,

@@ -26,24 +26,25 @@ const data: Data = {
 
 describe('calcValuationReport（お客様報告：株価一覧・株主ごとの評価）', () => {
   const report = calcValuationReport(mkGetField(data));
-  const [souzoku, shotoku] = report.bases;
+  const souzoku = report.bases[0]!;
+  const shotoku = report.bases[1]!;
 
   it('相続税評価額ベースは法人税額等相当額（評価差額×38％）を控除する', () => {
     expect(souzoku.key).toBe('inheritance');
-    expect(souzoku.corporateTaxEquivalent).toBe(Math.floor(12000 * 0.38)); // 4560
-    expect(souzoku.netAssetPrice).toBe(24440);                             // (29000-4560)千円 ÷ 1000株
+    // 評価差額12,000千円 × 38% = 4,560千円 を控除 → (29,000-4,560)千円 ÷ 1,000株
+    expect(souzoku.netAssetPrice).toBe(24440);
   });
 
   it('所得税・法人税ベースは法人税額等相当額を控除しない（所基通59－6(4)／法基通9－1－14(3)）', () => {
     expect(shotoku.key).toBe('special-market-value');
-    expect(shotoku.corporateTaxEquivalent).toBe(0);
+    // 控除しないので純資産29,000千円がそのまま1株当たりの価額になる
     expect(shotoku.netAssetPrice).toBe(29000);
   });
 
   it('評価目的の上書きは元データを書き換えない（同一入力から2ベースを同時算定できる）', () => {
     const again = calcValuationReport(mkGetField(data));
-    expect(again.bases[0].netAssetPrice).toBe(24440);
-    expect(again.bases[1].netAssetPrice).toBe(29000);
+    expect(again.bases[0]!.netAssetPrice).toBe(24440);
+    expect(again.bases[1]!.netAssetPrice).toBe(29000);
   });
 
   it('小会社はLの割合を持たず、原則的評価額は純資産価額になる', () => {
@@ -56,19 +57,20 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
   it('株主ごとに判定をやり直し、議決権5％以上の株主は原則的評価方式になる', () => {
     const rows = report.shareholders;
     expect(rows.map((r) => r.name)).toEqual(['甲', '乙', '丙']);
-    expect(rows[0]).toMatchObject({ votingRatio: 60, method: 'gensoku' });
-    expect(rows[1]).toMatchObject({ votingRatio: 37, method: 'gensoku' });
+    expect(rows[0]!).toMatchObject({ votingRatio: 60, method: 'gensoku' });
+    expect(rows[1]!).toMatchObject({ votingRatio: 37, method: 'gensoku' });
   });
 
   it('評価額は「1株当たりの価額×株式数」で算定する', () => {
-    const [kou, otsu] = report.shareholders;
-    expect(kou.amounts[0]).toMatchObject({ basis: 'inheritance', gensokuTotal: 600 * 24440, haitoTotal: null });
-    expect(kou.amounts[1]).toMatchObject({ basis: 'special-market-value', gensokuTotal: 600 * 29000 });
-    expect(otsu.amounts[0].gensokuTotal).toBe(370 * 24440);
+    const kou = report.shareholders[0]!;
+    const otsu = report.shareholders[1]!;
+    expect(kou.amounts[0]!).toMatchObject({ basis: 'inheritance', gensokuTotal: 600 * 24440, haitoTotal: null });
+    expect(kou.amounts[1]!).toMatchObject({ basis: 'special-market-value', gensokuTotal: 600 * 29000 });
+    expect(otsu.amounts[0]!.gensokuTotal).toBe(370 * 24440);
   });
 
   it('議決権5％未満の株主は役員・中心的な同族株主の判定が要るため確定させない', () => {
-    const hei = report.shareholders[2];
+    const hei = report.shareholders[2]!;
     expect(hei).toMatchObject({ votingRatio: 3, method: 'unknown' });
     expect(hei.pendingReason).toContain('5%未満');
   });
@@ -79,7 +81,7 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
       ...data,
       table1_2: { ...data.table1_2, j_yakuin: 'yes' },
     }));
-    expect(withOfficer.shareholders[2].method).toBe('unknown');
+    expect(withOfficer.shareholders[2]!.method).toBe('unknown');
   });
 
   it('株主欄が空の行は報告に載せない', () => {

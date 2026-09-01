@@ -69,18 +69,6 @@ const PRICE_ROWS: {
     }),
   },
   {
-    key: 'netAsset80',
-    label: '　うち80％相当額',
-    note: '議決権割合50％以下の場合（第5表⑫）',
-    cell: (b) => ({ text: yenOrDash(b.netAssetPrice80) }),
-  },
-  {
-    key: 'corporateTax',
-    label: '　法人税額等相当額',
-    note: '評価差額×38％（第5表⑧）',
-    cell: (b) => ({ text: yenOrDash(b.corporateTaxEquivalent), sub: b.key === 'inheritance' ? undefined : '控除しない' }),
-  },
-  {
     key: 'lRate',
     label: 'Lの割合',
     note: '中会社のみ（大会社・小会社は適用なし）',
