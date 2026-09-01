@@ -1080,29 +1080,6 @@
   font-size: 9px;
 }
 
-.summary-metrics {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr 1fr;
-  margin: -1px 28px 0;
-  border: 1px solid #dbe3ed;
-  border-top: 0;
-  background: #fff;
-}
-
-.summary-metric {
-  min-width: 0;
-  padding: 18px 20px;
-  border-right: 1px solid #e2e8f0;
-}
-
-.summary-metric:last-child { border-right: 0; }
-.summary-metric small { display: block; color: #64748b; font-size: 9px; font-weight: 700; }
-.summary-metric strong { display: block; margin-top: 5px; color: #0f2744; font-size: 21px; line-height: 1.25; }
-.summary-metric p { margin: 4px 0 0; color: #94a3b8; font-size: 8px; }
-.summary-metric-primary { display: flex; align-items: center; gap: 13px; background: #eff8ff; }
-.summary-metric-icon { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 50%; background: #0ea5e9; color: #fff; }
-.summary-metric-icon svg { width: 18px; height: 18px; }
-
 /* ── 株価一覧・株主ごとの評価（お客様報告） ── */
 .summary-prices,
 .summary-holders {
@@ -1434,9 +1411,6 @@
   .summary-hero { padding: 26px 22px 22px; }
   .summary-hero-main, .summary-two-columns { grid-template-columns: 1fr; }
   .summary-date-block { padding: 14px 0 0; border-left: 0; border-top: 1px solid rgba(255,255,255,0.25); }
-  .summary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-inline: 12px; }
-  .summary-metric:nth-child(2) { border-right: 0; }
-  .summary-metric:nth-child(-n+2) { border-bottom: 1px solid #e2e8f0; }
   .summary-sensitivity { margin-inline: 12px; }
   .summary-prices, .summary-holders { margin-inline: 12px; padding: 14px 12px 12px; }
   .summary-sensitivity-content { grid-template-columns: 1fr; gap: 15px; }
@@ -1448,9 +1422,6 @@
   .summary-topbar-title { grid-template-columns: auto 1fr; }
   .summary-topbar-title small { grid-column: 1 / -1; }
   .summary-hero h1 { font-size: 23px; }
-  .summary-metrics { grid-template-columns: 1fr; }
-  .summary-metric { border-right: 0; border-bottom: 1px solid #e2e8f0; }
-  .summary-metric:last-child { border-bottom: 0; }
   .summary-sensitivity { padding: 17px 15px 14px; }
   .summary-sensitivity-heading { flex-direction: column; gap: 8px; }
   .summary-sensitivity-row { grid-template-columns: 42px minmax(70px, 1fr) 76px; gap: 7px; }
@@ -1482,9 +1453,6 @@
   .summary-hero h1 { font-size: 25px; }
   .summary-lead { margin-top: 7px; line-height: 1.55; }
   .summary-meta { margin-top: 13px; }
-  .summary-metrics { margin-inline: 20px; }
-  .summary-metric { padding: 13px 15px; }
-  .summary-metric strong { font-size: 17px; }
   .summary-sensitivity { margin: 14px 20px 0; padding: 13px 15px 10px; }
   .summary-prices, .summary-holders { margin: 14px 20px 0; padding: 13px 15px 10px; }
   .summary-table { font-size: 9px; }

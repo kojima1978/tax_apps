@@ -7,10 +7,9 @@ type Props = Pick<TableProps, 'getField' | 'updateField'> & {
   onPrint: () => void;
 };
 
-function Icon({ name }: { name: 'building' | 'chart' | 'compass' | 'check' | 'alert' | 'arrow' | 'print' }) {
+function Icon({ name }: { name: 'building' | 'compass' | 'check' | 'alert' | 'arrow' | 'print' }) {
   const paths = {
     building: <><path d="M3 21h18"/><path d="M6 21V4h9v17"/><path d="M15 9h3v12"/><path d="M9 8h2M9 12h2M9 16h2"/></>,
-    chart: <><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/></>,
     compass: <><circle cx="12" cy="12" r="9"/><path d="m15 9-2 4-4 2 2-4 4-2Z"/></>,
     check: <path d="m5 12 4 4L19 6"/>,
     alert: <><path d="M12 3 2.7 20h18.6L12 3Z"/><path d="M12 9v4M12 17h.01"/></>,
@@ -20,8 +19,6 @@ function Icon({ name }: { name: 'building' | 'chart' | 'compass' | 'check' | 'al
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
 
-const yen = (value: number | null) => value === null ? '未算定' : `${value.toLocaleString('ja-JP')}円`;
-const ratio = (value: number | null) => value === null ? '未判定' : `${value}%`;
 
 function CurrentItem({ item }: { item: SummaryItem }) {
   return (
@@ -181,13 +178,6 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           </div>
           <div className="summary-meta"><span>{summary.purposeLabel}</span><span>{summary.sizeLabel}</span><span>{summary.classificationLabel}</span></div>
         </header>
-
-        <section className="summary-metrics" aria-label="主要指標">
-          <div className="summary-metric summary-metric-primary"><span className="summary-metric-icon"><Icon name="chart" /></span><div><small>1株当たり純資産価額</small><strong>{yen(summary.netAssetPrice)}</strong><p>第5表の算定値</p></div></div>
-          <div className="summary-metric"><small>類似業種比準価額</small><strong>{yen(summary.comparablePrice)}</strong><p>修正後の算定値を優先</p></div>
-          <div className="summary-metric"><small>株式等保有割合</small><strong>{ratio(summary.stockRatio)}</strong><p>総資産に占める割合</p></div>
-          <div className="summary-metric"><small>土地等保有割合</small><strong>{ratio(summary.landRatio)}</strong><p>総資産に占める割合</p></div>
-        </section>
 
         <section className="summary-prices" aria-labelledby="summary-prices-title">
           <div className="summary-sensitivity-heading">
