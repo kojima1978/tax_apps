@@ -60,13 +60,16 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.comparablePrice) }),
   },
   {
-    key: 'netAsset',
-    label: '1株当たり純資産価額',
-    note: '第5表⑪',
-    cell: (b) => ({
-      text: yenOrDash(b.netAssetPrice),
-      sub: b.key === 'inheritance' ? '38％控除あり' : '38％控除なし',
-    }),
+    key: 'netAssetDeducted',
+    label: '1株当たり純資産価額（38％控除あり）',
+    note: '第5表⑪（評価差額に対する法人税額等相当額を控除）',
+    cell: (b) => ({ text: b.key === 'inheritance' ? yenOrDash(b.netAssetPrice) : '－' }),
+  },
+  {
+    key: 'netAssetGross',
+    label: '1株当たり純資産価額（38％控除なし）',
+    note: '第5表⑪（所基通59－6(4)／法基通9－1－14(3)）',
+    cell: (b) => ({ text: b.key === 'special-market-value' ? yenOrDash(b.netAssetPrice) : '－' }),
   },
   {
     key: 'lRate',
