@@ -88,6 +88,23 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
     expect(report.shareholders).toHaveLength(3);
   });
 
+  it('利益0の類似業種比準価額は、第4表の年利益金額をゼロとして再計算する', () => {
+    // ①10,000千円・⑤1,000株 → cap4=10,000円、cap5=200,000株
+    // Ⓑ=5.00／Ⓒ=50／Ⓓ=200、B=10.80・C=25・D=100、A=300、斟酌率0.5（小会社）
+    const withTable4 = calcValuationReport(mkGetField({
+      ...data,
+      table4: {
+        '①': '10,000', e18: '10,000', n53: '30,000', f28: '1,000', f32: '1,000',
+        r1sB1: '10', r1sB2: '80', r1sC: '25', r1sD: '100', '㋷': '300',
+      },
+    }));
+    const basis = withTable4.bases[0]!;
+    // 比準割合 (0.46＋2.00＋2.00)÷3＝1.48 → 300×1.48×0.5＝222円 → ×(10,000÷50)
+    expect(basis.comparablePrice).toBe(44400);
+    // Ⓒ＝0 なので (0.46＋0＋2.00)÷3＝0.82 → 300×0.82×0.5＝123円 → ×(10,000÷50)
+    expect(basis.comparablePriceZeroProfit).toBe(24600);
+  });
+
   it('所得税・法人税ベースは帳票側のチェックに関係なく小会社として評価する（所基通59－6(2)）', () => {
     // 従業員70人以上なので相続税評価額ベースでは大会社になる
     const large = calcValuationReport(mkGetField({

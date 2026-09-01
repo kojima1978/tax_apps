@@ -36,6 +36,19 @@ export function withPurpose(
 }
 
 /**
+ * 第4表の年利益金額（⑪〜⑮の3期分）を0とみなす getField を返す。
+ * 利益をゼロにしたときの類似業種比準価額（Ⓒ＝0）を試算するために使う。
+ */
+const ZERO_PROFIT_FIELDS = new Set([
+  'e18', 'e19', 'e20', 'e21', 'e22',
+  'e25', 'e26', 'e27', 'e28', 'e29',
+  'e32', 'e33', 'e34', 'e35', 'e36',
+]);
+function withZeroProfit(getField: TableProps['getField']): TableProps['getField'] {
+  return (table, field) => (table === 'table4' && ZERO_PROFIT_FIELDS.has(field) ? '0' : getField(table, field));
+}
+
+/**
  * 株主 r を納税義務者（1行目）とみなす getField を返す。
  * 1行目と r 行目を入れ替えるだけなので、同族グループの議決権合計は変わらず、
  * 既存の calcShareholderJudgment をそのまま行ごとの判定に流用できる。
@@ -74,6 +87,8 @@ export type ValuationBasis = {
   note: string;
   /** 類似業種比準価額（第4表 ㉘→㉗→㉖） */
   comparablePrice: number | null;
+  /** 年利益金額を0としたときの類似業種比準価額 */
+  comparablePriceZeroProfit: number | null;
   /** 1株当たり純資産価額（第5表 ⑪） */
   netAssetPrice: number | null;
   /** Lの割合（中会社のみ。大会社・小会社は null） */
@@ -106,12 +121,14 @@ export function calcValuationBasis(
   const gf = withPurpose(getField, key);
   const t3 = calcTable3(gf);
   const t4 = calcTable4(gf);
+  const t4zero = calcTable4(withZeroProfit(gf));
   const t5 = calcTable5(gf);
   const size = calcCompanySize((field) => gf('table1_2', field), forcesSmallCompany(gf)).result;
   return {
     key,
     ...BASIS_LABELS[key],
     comparablePrice: t4.v28 ?? t4.v27 ?? t4.v26,
+    comparablePriceZeroProfit: t4zero.v28 ?? t4zero.v27 ?? t4zero.v26,
     netAssetPrice: t5['⑪'] ?? null,
     lRate: t3.lRate,
     gensoku: t3.gensoku,

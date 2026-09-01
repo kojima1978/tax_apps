@@ -43,6 +43,13 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.comparablePrice) }),
   },
   {
+    key: 'comparableZeroProfit',
+    label: '類似業種比準価額（利益0の場合）',
+    note: '第4表の年利益金額をゼロとして再計算（Ⓒ＝0）',
+    basis: 'inheritance',
+    cell: (b) => ({ text: yenOrDash(b.comparablePriceZeroProfit) }),
+  },
+  {
     key: 'netAssetDeducted',
     label: '1株当たり純資産価額（38％控除あり）',
     note: '第5表⑪（評価差額に対する法人税額等相当額を控除）',
