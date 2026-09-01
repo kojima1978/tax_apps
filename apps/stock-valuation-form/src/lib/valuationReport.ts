@@ -26,6 +26,11 @@ export function withPurpose(
     if (table === 'table1_1' && field === VALUATION_PURPOSE_FIELD) {
       return purpose === 'special-market-value' ? 'special-market-value' : '';
     }
+    // 所得税・法人税ベースは所基通59－6／法基通9－1－14による評価そのものを示すため、
+    // 帳票側のチェックの有無にかかわらず同(2)の小会社みなしを適用する。
+    if (table === 'table1_1' && field === SPECIAL_CENTRAL_HOLDER_FIELD) {
+      return purpose === 'special-market-value' ? '1' : '';
+    }
     return getField(table, field);
   };
 }
@@ -89,7 +94,7 @@ const BASIS_LABELS: Record<ValuationBasisKey, { label: string; note: string }> =
   },
   'special-market-value': {
     label: '所得税・法人税ベース',
-    note: '所基通59－6(4)／法基通9－1－14(3)：法人税額等相当額を控除しない',
+    note: '所基通59－6／法基通9－1－14：小会社として評価し、法人税額等相当額を控除しない',
   },
 };
 
@@ -195,8 +200,6 @@ export function calcShareholderValuations(
 export type ValuationReport = {
   bases: ValuationBasis[];
   shareholders: ShareholderValuationRow[];
-  /** 所得税・法人税ベースで「中心的な同族株主に該当」が未選択（小会社みなしが効かない） */
-  specialCentralHolderUnset: boolean;
 };
 
 /** お客様報告の株価セクション一式 */
@@ -208,6 +211,5 @@ export function calcValuationReport(getField: TableProps['getField']): Valuation
   return {
     bases,
     shareholders: calcShareholderValuations(getField, bases),
-    specialCentralHolderUnset: getField('table1_1', SPECIAL_CENTRAL_HOLDER_FIELD) !== '1',
   };
 }

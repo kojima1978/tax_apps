@@ -87,4 +87,14 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
   it('株主欄が空の行は報告に載せない', () => {
     expect(report.shareholders).toHaveLength(3);
   });
+
+  it('所得税・法人税ベースは帳票側のチェックに関係なく小会社として評価する（所基通59－6(2)）', () => {
+    // 従業員70人以上なので相続税評価額ベースでは大会社になる
+    const large = calcValuationReport(mkGetField({
+      ...data,
+      table1_2: { ...data.table1_2, emp_regular: '70' },
+    }));
+    expect(large.bases[0]!.size).toBe(4);
+    expect(large.bases[1]!.size).toBe(0);
+  });
 });

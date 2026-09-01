@@ -77,7 +77,7 @@ const PRICE_ROWS: {
   {
     key: 'gensokuSpecial',
     label: '原則的評価額（所得税・法人税ベース）',
-    note: '所基通59－6／法基通9－1－14による時価',
+    note: '所基通59－6：小会社として評価し、法人税額等相当額を控除しない',
     emphasis: true,
     basis: 'special-market-value',
     cell: (b) => ({ text: yenOrDash(b.gensoku) }),
@@ -184,8 +184,8 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             </table>
           </div>
           <p className="summary-sensitivity-disclaimer">
-            所得税・法人税ベースは、所基通59－6(4)／法基通9－1－14(3)により評価差額に対する法人税額等相当額を控除せずに計算しています。
-            {report.specialCentralHolderUnset && '「中心的な同族株主に該当する」を選択すると、小会社としての評価（同(2)）も反映されます。'}
+            所得税・法人税ベースは、所基通59－6／法基通9－1－14による時価です。中心的な同族株主に該当するものとして小会社の評価方法（同(2)）を適用し、
+            評価差額に対する法人税額等相当額を控除していません（同(4)）。中心的な同族株主に該当しない場合は相続税評価額ベースの金額になります。
           </p>
         </section>
 
