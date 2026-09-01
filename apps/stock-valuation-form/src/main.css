@@ -1218,76 +1218,12 @@
   font-weight: 700;
 }
 
-.summary-sensitivity-content {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 230px;
-  gap: 24px;
-  align-items: center;
-}
-
-.summary-sensitivity-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-}
-
-.summary-sensitivity-row {
-  display: grid;
-  grid-template-columns: 48px minmax(100px, 1fr) 82px;
-  gap: 11px;
-  align-items: center;
-}
-
-.summary-sensitivity-row > strong {
-  color: #334155;
-  font-size: 10px;
-}
-
-.summary-sensitivity-track {
-  height: 11px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #edf2f7;
-}
-
-.summary-sensitivity-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-}
-
-.summary-sensitivity-dividend { background: #0284c7; }
-.summary-sensitivity-profit { background: #16a34a; }
-.summary-sensitivity-netAsset { background: #d97706; }
-
-.summary-sensitivity-value {
-  color: #0f2744;
-  font-size: 10px;
-  font-weight: 800;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.summary-sensitivity-note {
-  padding: 12px 14px;
-  border-left: 3px solid #38bdf8;
-  background: #f8fafc;
-}
-
-.summary-sensitivity-note strong {
-  color: #0369a1;
-  font-size: 9px;
-}
-
-.summary-sensitivity-note p,
 .summary-sensitivity-disclaimer {
+  margin: 13px 0 0;
   color: #64748b;
   font-size: 8px;
   line-height: 1.65;
 }
-
-.summary-sensitivity-note p { margin: 3px 0 0; }
-.summary-sensitivity-disclaimer { margin: 13px 0 0; }
 
 .summary-sensitivity-empty {
   padding: 14px;
@@ -1298,72 +1234,6 @@
   font-size: 9px;
   text-align: center;
 }
-
-.summary-two-columns {
-  display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  gap: 20px;
-  padding: 28px;
-}
-
-.summary-section {
-  min-width: 0;
-  padding: 22px;
-  border: 1px solid #dbe3ed;
-  border-radius: 6px;
-  background: #fff;
-}
-
-.summary-section-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
-.summary-section-heading > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 5px; background: #e0f2fe; color: #0369a1; }
-.summary-section-heading > span svg { width: 20px; height: 20px; }
-.summary-section-heading small { color: #0284c7; font-size: 8px; font-weight: 800; letter-spacing: 0.12em; }
-.summary-section-heading h2 { margin: 1px 0 0; font-size: 19px; }
-.summary-section-heading-green > span { background: #dcfce7; color: #15803d; }
-.summary-section-heading-green small { color: #15803d; }
-
-.summary-findings,
-.summary-action-list { margin: 0; padding: 0; list-style: none; }
-.summary-findings { display: flex; flex-direction: column; gap: 9px; }
-
-.summary-finding {
-  display: grid;
-  grid-template-columns: 25px 1fr;
-  gap: 9px;
-  padding: 11px 12px;
-  border-left: 3px solid #94a3b8;
-  background: #f8fafc;
-}
-
-.summary-finding-positive { border-left-color: #16a34a; background: #f0fdf4; }
-.summary-finding-attention { border-left-color: #d97706; background: #fffbeb; }
-.summary-finding-icon { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: #fff; color: #475569; }
-.summary-finding-positive .summary-finding-icon { color: #15803d; }
-.summary-finding-attention .summary-finding-icon { color: #b45309; }
-.summary-finding-icon svg { width: 14px; height: 14px; }
-.summary-finding h3, .summary-action-row h3 { margin: 0; font-size: 11px; }
-.summary-finding p, .summary-action-row p { margin: 3px 0 0; color: #475569; font-size: 9px; line-height: 1.65; }
-
-.summary-action-list { display: flex; flex-direction: column; gap: 8px; }
-.summary-action-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: 44px 28px 1fr 18px;
-  align-items: center;
-  gap: 8px;
-  min-height: 61px;
-  padding: 9px 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-}
-
-.summary-priority { padding: 3px 4px; border-radius: 3px; font-size: 7px; font-weight: 800; text-align: center; }
-.summary-priority-高 { background: #fee2e2; color: #b91c1c; }
-.summary-priority-中 { background: #fef3c7; color: #92400e; }
-.summary-priority-低 { background: #e2e8f0; color: #475569; }
-.summary-action-number { color: #cbd5e1; font-size: 17px; font-weight: 800; }
-.summary-action-arrow { color: #94a3b8; }
-.summary-action-arrow svg { width: 15px; height: 15px; }
 
 .summary-advisor-note {
   display: grid;
@@ -1409,12 +1279,10 @@
 
 @media (max-width: 900px) {
   .summary-hero { padding: 26px 22px 22px; }
-  .summary-hero-main, .summary-two-columns { grid-template-columns: 1fr; }
+  .summary-hero-main { grid-template-columns: 1fr; }
   .summary-date-block { padding: 14px 0 0; border-left: 0; border-top: 1px solid rgba(255,255,255,0.25); }
   .summary-sensitivity { margin-inline: 12px; }
   .summary-prices, .summary-holders { margin-inline: 12px; padding: 14px 12px 12px; }
-  .summary-sensitivity-content { grid-template-columns: 1fr; gap: 15px; }
-  .summary-two-columns { padding: 18px 12px; }
   .summary-advisor-note { grid-template-columns: 1fr; margin-inline: 12px; }
 }
 
@@ -1424,9 +1292,6 @@
   .summary-hero h1 { font-size: 23px; }
   .summary-sensitivity { padding: 17px 15px 14px; }
   .summary-sensitivity-heading { flex-direction: column; gap: 8px; }
-  .summary-sensitivity-row { grid-template-columns: 42px minmax(70px, 1fr) 76px; gap: 7px; }
-  .summary-action-row { grid-template-columns: 42px 25px 1fr; }
-  .summary-action-arrow { display: none; }
   .summary-footer { align-items: flex-start; flex-direction: column; }
 }
 
@@ -1459,17 +1324,7 @@
   .summary-table-emphasis td, .summary-table-emphasis th { font-size: 10.5px; }
   .summary-sensitivity-heading { margin-bottom: 10px; }
   .summary-sensitivity-heading h2 { font-size: 14px; }
-  .summary-sensitivity-content { grid-template-columns: minmax(0, 1fr) 190px; gap: 14px; }
-  .summary-sensitivity-bars { gap: 7px; }
-  .summary-sensitivity-row { grid-template-columns: 42px minmax(80px, 1fr) 72px; gap: 7px; }
-  .summary-sensitivity-note { padding: 8px 10px; }
   .summary-sensitivity-disclaimer { margin-top: 7px; }
-  .summary-two-columns { gap: 14px; padding: 20px; }
-  .summary-section { padding: 16px; }
-  .summary-section-heading { margin-bottom: 12px; }
-  .summary-findings, .summary-action-list { gap: 6px; }
-  .summary-finding { padding: 8px 9px; }
-  .summary-action-row { min-height: 51px; padding: 6px 8px; }
   .summary-advisor-note { margin: 0 20px 15px; padding: 12px 15px; }
   .summary-advisor-note textarea {
     min-height: 52px;
