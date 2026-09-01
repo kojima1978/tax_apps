@@ -77,7 +77,7 @@ const PRICE_ROWS: {
   {
     key: 'gensokuSpecial',
     label: '原則的評価額（所得税・法人税ベース）',
-    note: '所基通59－6：小会社として評価し、法人税額等相当額を控除しない',
+    note: '所基通59－6／法基通9－1－14：小会社として評価し、法人税額等相当額を控除しない',
     emphasis: true,
     basis: 'special-market-value',
     cell: (b) => ({ text: yenOrDash(b.gensoku) }),
