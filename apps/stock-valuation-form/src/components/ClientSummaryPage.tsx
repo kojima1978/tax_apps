@@ -52,7 +52,7 @@ const PRICE_ROWS: {
   {
     key: 'netAssetGross',
     label: '1株当たり純資産価額（38％控除なし）',
-    note: '第5表⑪（所基通59－6(4)／法基通9－1－14(3)）',
+    note: '第5表⑪（評価差額に対する法人税額等相当額を控除なし）',
     basis: 'special-market-value',
     cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
   },
