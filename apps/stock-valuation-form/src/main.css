@@ -1109,6 +1109,11 @@
   white-space: nowrap;
 }
 
+/* 数値列は見出しも値と同じ右揃えにそろえる */
+.summary-table thead th.summary-holders-num {
+  text-align: right;
+}
+
 .summary-table thead th small {
   display: block;
   margin-top: 2px;

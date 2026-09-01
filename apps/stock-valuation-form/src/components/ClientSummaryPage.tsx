@@ -198,7 +198,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
               <thead>
                 <tr>
                   <th scope="col">評価方式</th>
-                  <th scope="col">金額</th>
+                  <th scope="col" className="summary-holders-num">金額</th>
                 </tr>
               </thead>
               <tbody>
@@ -235,10 +235,10 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
                 <thead>
                   <tr>
                     <th scope="col">株主</th>
-                    <th scope="col">株式数</th>
-                    <th scope="col">議決権割合</th>
+                    <th scope="col" className="summary-holders-num">株式数</th>
+                    <th scope="col" className="summary-holders-num">議決権割合</th>
                     <th scope="col">評価方式</th>
-                    {holderColumns.map((column) => <th scope="col" key={column.key}>{column.label}</th>)}
+                    {holderColumns.map((column) => <th scope="col" className="summary-holders-num" key={column.key}>{column.label}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -265,7 +265,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
                 <thead>
                   <tr>
                     <th scope="col">比準要素</th>
-                    <th scope="col">1円増加あたりの影響</th>
+                    <th scope="col" className="summary-holders-num">1円増加あたりの影響</th>
                   </tr>
                 </thead>
                 <tbody>
