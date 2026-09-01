@@ -163,6 +163,8 @@ export type ShareholderValuationRow = {
   amounts: {
     basis: ValuationBasisKey;
     gensokuTotal: number | null;
+    /** 年利益金額を0としたときの原則的評価方式による評価額 */
+    gensokuZeroProfitTotal: number | null;
     haitoTotal: number | null;
   }[];
 };
@@ -212,6 +214,7 @@ export function calcShareholderValuations(
       amounts: bases.map((basis) => ({
         basis: basis.key,
         gensokuTotal: method === 'haito' ? null : multiply(basis.gensoku, shares),
+        gensokuZeroProfitTotal: method === 'haito' ? null : multiply(basis.gensokuZeroProfit, shares),
         haitoTotal: method === 'gensoku' ? null : multiply(basis.haitoKangen, shares),
       })),
     });

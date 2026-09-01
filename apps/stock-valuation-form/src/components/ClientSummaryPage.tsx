@@ -106,7 +106,21 @@ const PRICE_ROWS: {
   },
 ];
 
-function ShareholderRow({ row, bases }: { row: ShareholderValuationRow; bases: ValuationBasis[] }) {
+// 株主ごとの評価の金額列。相続税評価額ベースだけは「利益0の場合」を隣に並べる。
+type HolderColumn = { key: string; label: string; basis: ValuationBasisKey; zeroProfit?: boolean };
+
+function holderColumnsOf(bases: ValuationBasis[]): HolderColumn[] {
+  return bases.flatMap((basis): HolderColumn[] => (
+    basis.key === 'inheritance'
+      ? [
+          { key: basis.key, label: basis.label, basis: basis.key },
+          { key: `${basis.key}-zero`, label: `${basis.label}（利益0の場合）`, basis: basis.key, zeroProfit: true },
+        ]
+      : [{ key: basis.key, label: basis.label, basis: basis.key }]
+  ));
+}
+
+function ShareholderRow({ row, columns }: { row: ShareholderValuationRow; columns: HolderColumn[] }) {
   return (
     <tr>
       <th scope="row">
@@ -119,17 +133,19 @@ function ShareholderRow({ row, bases }: { row: ShareholderValuationRow; bases: V
         <span className={`summary-holders-method summary-holders-method-${row.method}`}>{row.methodLabel}</span>
         {row.pendingReason && <small>{row.pendingReason}</small>}
       </td>
-      {bases.map((basis) => {
-        const amount = row.amounts.find((a) => a.basis === basis.key);
+      {columns.map((column) => {
+        const amount = row.amounts.find((a) => a.basis === column.basis);
+        // 配当還元方式は年利益金額の影響を受けないため、利益0の列でも同じ金額になる。
+        const gensokuTotal = (column.zeroProfit ? amount?.gensokuZeroProfitTotal : amount?.gensokuTotal) ?? null;
         return (
-          <td className="summary-holders-num" key={basis.key}>
+          <td className="summary-holders-num" key={column.key}>
             {row.method === 'unknown' ? (
               <>
-                <span>原則 {yenOrDash(amount?.gensokuTotal ?? null)}</span>
+                <span>原則 {yenOrDash(gensokuTotal)}</span>
                 <small>配当還元 {yenOrDash(amount?.haitoTotal ?? null)}</small>
               </>
             ) : (
-              yenOrDash(row.method === 'haito' ? amount?.haitoTotal ?? null : amount?.gensokuTotal ?? null)
+              yenOrDash(row.method === 'haito' ? amount?.haitoTotal ?? null : gensokuTotal)
             )}
           </td>
         );
@@ -142,6 +158,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
   const summary = calcClientSummary(getField);
   const report = calcValuationReport(getField);
   const note = getField('table1_1', '_summary_advisor_note');
+  const holderColumns = holderColumnsOf(report.bases);
   const availableSensitivity = summary.sensitivity.items.filter((item) => item.value !== null);
 
   return (
@@ -221,11 +238,11 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
                     <th scope="col">株式数</th>
                     <th scope="col">議決権割合</th>
                     <th scope="col">評価方式</th>
-                    {report.bases.map((basis) => <th scope="col" key={basis.key}>{basis.label}</th>)}
+                    {holderColumns.map((column) => <th scope="col" key={column.key}>{column.label}</th>)}
                   </tr>
                 </thead>
                 <tbody>
-                  {report.shareholders.map((row) => <ShareholderRow key={row.row} row={row} bases={report.bases} />)}
+                  {report.shareholders.map((row) => <ShareholderRow key={row.row} row={row} columns={holderColumns} />)}
                 </tbody>
               </table>
             </div>

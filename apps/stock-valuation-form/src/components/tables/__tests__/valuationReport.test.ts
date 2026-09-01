@@ -65,6 +65,8 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
     const kou = report.shareholders[0]!;
     const otsu = report.shareholders[1]!;
     expect(kou.amounts[0]!).toMatchObject({ basis: 'inheritance', gensokuTotal: 600 * 24440, haitoTotal: null });
+    // 第4表未入力なので利益0でも原則的評価額は純資産価額のまま
+    expect(kou.amounts[0]!.gensokuZeroProfitTotal).toBe(600 * 24440);
     expect(kou.amounts[1]!).toMatchObject({ basis: 'special-market-value', gensokuTotal: 600 * 29000 });
     expect(otsu.amounts[0]!.gensokuTotal).toBe(370 * 24440);
   });
@@ -127,6 +129,8 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
     // 大会社なので斟酌率は0.7（小会社0.5の 1.4倍）
     expect(basis.gensoku).toBe(62160);
     expect(basis.gensokuZeroProfit).toBe(34440);
+    // 株主ごとの評価にも「1株当たりの価額×株式数」で反映する
+    expect(large.shareholders[0]!.amounts[0]!.gensokuZeroProfitTotal).toBe(600 * 34440);
   });
 
   it('所得税・法人税ベースは帳票側のチェックに関係なく小会社として評価する（所基通59－6(2)）', () => {
