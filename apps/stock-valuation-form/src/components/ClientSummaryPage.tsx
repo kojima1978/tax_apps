@@ -45,6 +45,15 @@ function ActionRow({ item, index }: { item: ActionItem; index: number }) {
 
 const yenOrDash = (value: number | null) => value === null ? '－' : `${value.toLocaleString('ja-JP')}円`;
 
+// 会社規模と、その規模で用いる類似業種比準価額の割合（小会社0.50・中会社L・大会社1.00）
+const SIZE_SCALE = [
+  { size: 0, name: '小会社', rate: 0.5 },
+  { size: 1, name: '中会社', rate: 0.6 },
+  { size: 2, name: '中会社', rate: 0.75 },
+  { size: 3, name: '中会社', rate: 0.9 },
+  { size: 4, name: '大会社', rate: 1 },
+] as const;
+
 // 株価一覧の行。ベースの違いは行のラベル側に持たせ、表は「項目｜金額」の2列で並べる。
 const PRICE_ROWS: {
   key: string;
@@ -76,11 +85,14 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
   },
   {
-    key: 'lRate',
-    label: 'Lの割合',
-    note: '中会社のみ（大会社・小会社は適用なし）',
+    key: 'companySize',
+    label: '会社の規模',
+    note: '小会社 0.50／中会社 0.60・0.75・0.90／大会社 1.00',
     basis: 'inheritance',
-    cell: (b) => ({ text: b.lRate === null ? '－' : b.lRate.toFixed(2), sub: b.sizeLabel }),
+    cell: (b) => {
+      const size = SIZE_SCALE.find((s) => s.size === b.size);
+      return { text: size ? `${size.name}　${size.rate.toFixed(2)}` : '－' };
+    },
   },
   {
     key: 'gensokuInheritance',

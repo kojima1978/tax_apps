@@ -77,6 +77,8 @@ export type ValuationBasis = {
   gensoku: number | null;
   /** 配当還元方式による価額（第3表 ㉔。なければ㉓） */
   haitoKangen: number | null;
+  /** 会社規模の判定結果（0=小会社 1〜3=中会社 4=大会社。未判定は null） */
+  size: number | null;
   sizeLabel: string;
 };
 
@@ -109,6 +111,7 @@ export function calcValuationBasis(
     lRate: t3.lRate,
     gensoku: t3.gensoku,
     haitoKangen: t3.haitoKangen,
+    size,
     sizeLabel: size === null ? '判定未完了' : SIZE_NAMES[size] ?? '判定未完了',
   };
 }
