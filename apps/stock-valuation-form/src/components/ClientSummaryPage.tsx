@@ -82,6 +82,14 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.gensoku) }),
   },
   {
+    key: 'gensokuInheritanceZeroProfit',
+    label: '原則的評価額（相続税評価額ベース・利益0の場合）',
+    note: '第4表の年利益金額をゼロとして再計算した場合の第3表の最終価額',
+    emphasis: true,
+    basis: 'inheritance',
+    cell: (b) => ({ text: yenOrDash(b.gensokuZeroProfit) }),
+  },
+  {
     key: 'gensokuSpecial',
     label: '原則的評価額（所得税・法人税ベース）',
     note: '所基通59－6／法基通9－1－14：小会社として評価し、法人税額等相当額を控除しない',

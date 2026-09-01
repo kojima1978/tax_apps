@@ -95,6 +95,8 @@ export type ValuationBasis = {
   lRate: number | null;
   /** 原則的評価方式による価額（第3表） */
   gensoku: number | null;
+  /** 年利益金額を0としたときの原則的評価方式による価額 */
+  gensokuZeroProfit: number | null;
   /** 配当還元方式による価額（第3表 ㉔。なければ㉓） */
   haitoKangen: number | null;
   /** 会社規模の判定結果（0=小会社 1〜3=中会社 4=大会社。未判定は null） */
@@ -119,9 +121,11 @@ export function calcValuationBasis(
   key: ValuationBasisKey,
 ): ValuationBasis {
   const gf = withPurpose(getField, key);
+  const gfZero = withZeroProfit(gf);
   const t3 = calcTable3(gf);
+  const t3zero = calcTable3(gfZero);
   const t4 = calcTable4(gf);
-  const t4zero = calcTable4(withZeroProfit(gf));
+  const t4zero = calcTable4(gfZero);
   const t5 = calcTable5(gf);
   const size = calcCompanySize((field) => gf('table1_2', field), forcesSmallCompany(gf)).result;
   return {
@@ -132,6 +136,7 @@ export function calcValuationBasis(
     netAssetPrice: t5['⑪'] ?? null,
     lRate: t3.lRate,
     gensoku: t3.gensoku,
+    gensokuZeroProfit: t3zero.gensoku,
     haitoKangen: t3.haitoKangen,
     size,
     sizeLabel: size === null ? '判定未完了' : SIZE_NAMES[size] ?? '判定未完了',

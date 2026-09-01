@@ -105,6 +105,30 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
     expect(basis.comparablePriceZeroProfit).toBe(24600);
   });
 
+  it('利益0の原則的評価額は、年利益金額をゼロとした類似業種比準価額で算定する', () => {
+    // 従業員70人以上＝大会社（原則的評価額＝類似業種比準価額と純資産価額の低い方）。
+    // 第5表を3倍にして純資産価額を73,320円まで引き上げ、両方とも類似業種比準価額が採用される状態にする。
+    const large = calcValuationReport(mkGetField({
+      ...data,
+      table5: {
+        a_1_1: '現金', a_1_2: '30000', a_1_3: '24000',
+        a_2_1: '株式', a_2_2: '15000', a_2_3: '9000', a_2_4: '株式等',
+        a_3_1: '土地', a_3_2: '60000', a_3_3: '36000', a_3_4: '土地等',
+        l_1_1: '借入金', l_1_2: '18000', l_1_3: '18000',
+      },
+      table1_2: { ...data.table1_2, emp_regular: '70' },
+      table4: {
+        '①': '10,000', e18: '10,000', n53: '30,000', f28: '1,000', f32: '1,000',
+        r1sB1: '10', r1sB2: '80', r1sC: '25', r1sD: '100', '㋷': '300',
+      },
+    }));
+    const basis = large.bases[0]!;
+    expect(basis.netAssetPrice).toBe(73320);
+    // 大会社なので斟酌率は0.7（小会社0.5の 1.4倍）
+    expect(basis.gensoku).toBe(62160);
+    expect(basis.gensokuZeroProfit).toBe(34440);
+  });
+
   it('所得税・法人税ベースは帳票側のチェックに関係なく小会社として評価する（所基通59－6(2)）', () => {
     // 従業員70人以上なので相続税評価額ベースでは大会社になる
     const large = calcValuationReport(mkGetField({
