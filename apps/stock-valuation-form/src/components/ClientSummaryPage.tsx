@@ -76,17 +76,10 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
   },
   {
-    key: 'lRateInheritance',
-    label: 'Lの割合（相続税評価額ベース）',
+    key: 'lRate',
+    label: 'Lの割合',
     note: '中会社のみ（大会社・小会社は適用なし）',
     basis: 'inheritance',
-    cell: (b) => ({ text: b.lRate === null ? '－' : b.lRate.toFixed(2), sub: b.sizeLabel }),
-  },
-  {
-    key: 'lRateSpecial',
-    label: 'Lの割合（所得税・法人税ベース）',
-    note: '中心的な同族株主は小会社として判定（所基通59－6(2)）',
-    basis: 'special-market-value',
     cell: (b) => ({ text: b.lRate === null ? '－' : b.lRate.toFixed(2), sub: b.sizeLabel }),
   },
   {
