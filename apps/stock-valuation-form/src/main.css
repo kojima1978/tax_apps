@@ -1103,6 +1103,104 @@
 .summary-metric-icon { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 50%; background: #0ea5e9; color: #fff; }
 .summary-metric-icon svg { width: 18px; height: 18px; }
 
+/* ── 株価一覧・株主ごとの評価（お客様報告） ── */
+.summary-prices,
+.summary-holders {
+  margin: 20px 28px 0;
+  padding: 20px 22px 16px;
+  border: 1px solid #dbe3ed;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.summary-table-scroll { overflow-x: auto; }
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.summary-table thead th {
+  padding: 8px 10px;
+  border-bottom: 1px solid #cbd5e1;
+  background: #f1f5f9;
+  color: #0f2744;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.summary-table thead th small {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 7.5px;
+  font-weight: 600;
+  white-space: normal;
+}
+
+.summary-table tbody th {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #172033;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.summary-table tbody th small {
+  display: block;
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 7.5px;
+  font-weight: 600;
+  white-space: normal;
+}
+
+.summary-table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f2744;
+  vertical-align: top;
+}
+
+.summary-table tbody td small {
+  display: block;
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 7.5px;
+  font-weight: 600;
+}
+
+.summary-holders-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.summary-table-emphasis td,
+.summary-table-emphasis th {
+  background: #eff8ff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.summary-holders-method {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.summary-holders-method-gensoku { border: 1px solid #bae6fd; background: #f0f9ff; color: #0369a1; }
+.summary-holders-method-haito { border: 1px solid #bbf7d0; background: #f0fdf4; color: #15803d; }
+.summary-holders-method-unknown { border: 1px solid #fde68a; background: #fffbeb; color: #b45309; }
+
 .summary-sensitivity {
   margin: 20px 28px 0;
   padding: 20px 22px 16px;
@@ -1340,6 +1438,7 @@
   .summary-metric:nth-child(2) { border-right: 0; }
   .summary-metric:nth-child(-n+2) { border-bottom: 1px solid #e2e8f0; }
   .summary-sensitivity { margin-inline: 12px; }
+  .summary-prices, .summary-holders { margin-inline: 12px; padding: 14px 12px 12px; }
   .summary-sensitivity-content { grid-template-columns: 1fr; gap: 15px; }
   .summary-two-columns { padding: 18px 12px; }
   .summary-advisor-note { grid-template-columns: 1fr; margin-inline: 12px; }
@@ -1387,6 +1486,9 @@
   .summary-metric { padding: 13px 15px; }
   .summary-metric strong { font-size: 17px; }
   .summary-sensitivity { margin: 14px 20px 0; padding: 13px 15px 10px; }
+  .summary-prices, .summary-holders { margin: 14px 20px 0; padding: 13px 15px 10px; }
+  .summary-table { font-size: 9px; }
+  .summary-table-emphasis td, .summary-table-emphasis th { font-size: 10.5px; }
   .summary-sensitivity-heading { margin-bottom: 10px; }
   .summary-sensitivity-heading h2 { font-size: 14px; }
   .summary-sensitivity-content { grid-template-columns: minmax(0, 1fr) 190px; gap: 14px; }

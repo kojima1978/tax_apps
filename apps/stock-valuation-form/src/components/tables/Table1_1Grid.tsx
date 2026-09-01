@@ -29,7 +29,7 @@ const MAX_SH_PAGES = 1; // 続紙は1枚まで（＝株主 最大18名）
 /** 続紙ページ数（_shpages。0=本表のみ） */
 const shPageCountOf = (getField: TableProps['getField']) => Math.max(0, Number(getField('table1_1', '_shpages')) || 0);
 /** 総株主数（本表5＋続紙13×ページ） */
-const totalShOf = (getField: TableProps['getField']) => SH_ROWS + CONT_SH * shPageCountOf(getField);
+export const totalShOf = (getField: TableProps['getField']) => SH_ROWS + CONT_SH * shPageCountOf(getField);
 // 罫線検出による行上端%（ヘッダー2行の後、データ10行＋自己株式行）
 const ROW_TOPS = [40.88, 43.48, 46.07, 48.66, 51.25, 53.85, 56.44, 59.03, 61.62, 64.22, 66.81] as const;
 const SH_REORDER_FIELDS = ['1', '2', '2k', '3', '3k', '4', '5', '7', '8', '9'] as const;

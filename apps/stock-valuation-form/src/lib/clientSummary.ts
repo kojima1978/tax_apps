@@ -18,7 +18,7 @@ export type ActionItem = {
   description: string;
 };
 
-const SIZE_NAMES: Record<number, string> = {
+export const SIZE_NAMES: Record<number, string> = {
   0: '小会社', 1: '中会社（L=0.60）', 2: '中会社（L=0.75）', 3: '中会社（L=0.90）', 4: '大会社',
 };
 

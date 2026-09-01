@@ -1,4 +1,5 @@
 import { calcClientSummary, type ActionItem, type SummaryItem } from '@/lib/clientSummary';
+import { calcValuationReport, type ShareholderValuationRow, type ValuationBasis } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
 
 type Props = Pick<TableProps, 'getField' | 'updateField'> & {
@@ -42,8 +43,99 @@ function ActionRow({ item, index }: { item: ActionItem; index: number }) {
   );
 }
 
+const yenOrDash = (value: number | null) => value === null ? '－' : `${value.toLocaleString('ja-JP')}円`;
+
+// 株価一覧の行（行＝価額の種類、列＝評価ベース）
+const PRICE_ROWS: {
+  key: string;
+  label: string;
+  note: string;
+  emphasis?: boolean;
+  cell: (basis: ValuationBasis) => { text: string; sub?: string };
+}[] = [
+  {
+    key: 'comparable',
+    label: '類似業種比準価額',
+    note: '第4表の修正後の算定値を優先',
+    cell: (b) => ({ text: yenOrDash(b.comparablePrice) }),
+  },
+  {
+    key: 'netAsset',
+    label: '1株当たり純資産価額',
+    note: '第5表⑪',
+    cell: (b) => ({
+      text: yenOrDash(b.netAssetPrice),
+      sub: b.key === 'inheritance' ? '38％控除あり' : '38％控除なし',
+    }),
+  },
+  {
+    key: 'netAsset80',
+    label: '　うち80％相当額',
+    note: '議決権割合50％以下の場合（第5表⑫）',
+    cell: (b) => ({ text: yenOrDash(b.netAssetPrice80) }),
+  },
+  {
+    key: 'corporateTax',
+    label: '　法人税額等相当額',
+    note: '評価差額×38％（第5表⑧）',
+    cell: (b) => ({ text: yenOrDash(b.corporateTaxEquivalent), sub: b.key === 'inheritance' ? undefined : '控除しない' }),
+  },
+  {
+    key: 'lRate',
+    label: 'Lの割合',
+    note: '中会社のみ（大会社・小会社は適用なし）',
+    cell: (b) => ({ text: b.lRate === null ? '－' : b.lRate.toFixed(2), sub: b.sizeLabel }),
+  },
+  {
+    key: 'gensoku',
+    label: '原則的評価額',
+    note: '会社規模に応じた第3表の最終価額',
+    emphasis: true,
+    cell: (b) => ({ text: yenOrDash(b.gensoku) }),
+  },
+  {
+    key: 'haito',
+    label: '配当還元方式',
+    note: '原則的評価額を上回る場合は原則的評価額',
+    cell: (b) => ({ text: yenOrDash(b.haitoKangen) }),
+  },
+];
+
+function ShareholderRow({ row, bases }: { row: ShareholderValuationRow; bases: ValuationBasis[] }) {
+  return (
+    <tr>
+      <th scope="row">
+        {row.name || `株主${row.row}`}
+        {row.relation && <small>{row.relation}</small>}
+      </th>
+      <td className="summary-holders-num">{row.shares === null ? '－' : row.shares.toLocaleString('ja-JP')}</td>
+      <td className="summary-holders-num">{row.votingRatio === null ? '－' : `${row.votingRatio}%`}</td>
+      <td>
+        <span className={`summary-holders-method summary-holders-method-${row.method}`}>{row.methodLabel}</span>
+        {row.pendingReason && <small>{row.pendingReason}</small>}
+      </td>
+      {bases.map((basis) => {
+        const amount = row.amounts.find((a) => a.basis === basis.key);
+        return (
+          <td className="summary-holders-num" key={basis.key}>
+            {row.method === 'unknown' ? (
+              <>
+                <span>原則 {yenOrDash(amount?.gensokuTotal ?? null)}</span>
+                <small>配当還元 {yenOrDash(amount?.haitoTotal ?? null)}</small>
+              </>
+            ) : (
+              yenOrDash(row.method === 'haito' ? amount?.haitoTotal ?? null : amount?.gensokuTotal ?? null)
+            )}
+          </td>
+        );
+      })}
+    </tr>
+  );
+}
+
 export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Props) {
   const summary = calcClientSummary(getField);
+  const report = calcValuationReport(getField);
   const note = getField('table1_1', '_summary_advisor_note');
   const availableSensitivity = summary.sensitivity.items.filter((item) => item.value !== null);
   const maxSensitivity = Math.max(0, ...availableSensitivity.map((item) => item.value ?? 0));
@@ -77,6 +169,79 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           <div className="summary-metric"><small>類似業種比準価額</small><strong>{yen(summary.comparablePrice)}</strong><p>修正後の算定値を優先</p></div>
           <div className="summary-metric"><small>株式等保有割合</small><strong>{ratio(summary.stockRatio)}</strong><p>総資産に占める割合</p></div>
           <div className="summary-metric"><small>土地等保有割合</small><strong>{ratio(summary.landRatio)}</strong><p>総資産に占める割合</p></div>
+        </section>
+
+        <section className="summary-prices" aria-labelledby="summary-prices-title">
+          <div className="summary-sensitivity-heading">
+            <div>
+              <small>SHARE PRICE BY BASIS</small>
+              <h2 id="summary-prices-title">株価一覧｜相続税評価額ベースと所得税・法人税ベース</h2>
+            </div>
+            <span>1株当たり</span>
+          </div>
+          <div className="summary-table-scroll">
+            <table className="summary-table">
+              <thead>
+                <tr>
+                  <th scope="col">評価方式</th>
+                  {report.bases.map((basis) => (
+                    <th scope="col" key={basis.key}>
+                      {basis.label}
+                      <small>{basis.note}</small>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {PRICE_ROWS.map((priceRow) => (
+                  <tr key={priceRow.key} className={priceRow.emphasis ? 'summary-table-emphasis' : undefined}>
+                    <th scope="row">{priceRow.label}<small>{priceRow.note}</small></th>
+                    {report.bases.map((basis) => {
+                      const { text, sub } = priceRow.cell(basis);
+                      return <td className="summary-holders-num" key={basis.key}>{text}{sub && <small>{sub}</small>}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="summary-sensitivity-disclaimer">
+            所得税・法人税ベースは、所基通59－6(4)／法基通9－1－14(3)により評価差額に対する法人税額等相当額を控除せずに計算しています。
+            {report.specialCentralHolderUnset && '「中心的な同族株主に該当する」を選択すると、小会社としての評価（同(2)）も反映されます。'}
+          </p>
+        </section>
+
+        <section className="summary-holders" aria-labelledby="summary-holders-title">
+          <div className="summary-sensitivity-heading">
+            <div>
+              <small>VALUATION BY SHAREHOLDER</small>
+              <h2 id="summary-holders-title">株主ごとの評価</h2>
+            </div>
+            <span>株式数×1株当たりの価額</span>
+          </div>
+          {report.shareholders.length ? (
+            <div className="summary-table-scroll">
+              <table className="summary-table">
+                <thead>
+                  <tr>
+                    <th scope="col">株主</th>
+                    <th scope="col">株式数</th>
+                    <th scope="col">議決権割合</th>
+                    <th scope="col">評価方式</th>
+                    {report.bases.map((basis) => <th scope="col" key={basis.key}>{basis.label}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.shareholders.map((row) => <ShareholderRow key={row.row} row={row} bases={report.bases} />)}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="summary-sensitivity-empty" role="note">第1表の1に株主を入力すると表示されます。</div>
+          )}
+          <p className="summary-sensitivity-disclaimer">
+            各行の株主を納税義務者とみなして株主判定をやり直した結果です。議決権割合5％未満の株主は、役員該当性や中心的な同族株主の有無により方式が変わるため「要確認」として両方の金額を表示しています。
+          </p>
         </section>
 
         <section className="summary-sensitivity" aria-labelledby="summary-sensitivity-title">

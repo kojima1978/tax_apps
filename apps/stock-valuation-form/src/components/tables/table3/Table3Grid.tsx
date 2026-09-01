@@ -48,6 +48,27 @@ function yenSenInput(
   ];
 }
 
+
+// ── フィールド読み取り（計算関数とコンポーネントで共用） ──
+const numOf = (s: string): number | null => {
+  const t = s.replace(/,/g, '').trim();
+  if (t === '') return null;
+  const n = Number(t);
+  return isNaN(n) ? null : n;
+};
+function fieldReaders(getField: TableProps['getField']) {
+  const raw = (f: string) => getField(T, f);
+  const num = (f: string) => numOf(raw(f));
+  // 円・銭の2欄に分かれた金額を1つの数値にまとめる
+  const amountWithSen = (yenField: string, senField: string) => {
+    const yen = num(yenField);
+    const senText = raw(senField).trim();
+    if (yen === null && senText === '') return null;
+    if (senText === '') return yen;
+    return fl(yen ?? 0) + (numOf(senText) ?? 0) / 100;
+  };
+  return { raw, num, amountWithSen };
+}
 /** 第3表のグリッドセル（令和8年様式・罫線座標はPNGからの機械抽出） */
 const CELLS: GridCell[] = [
   // 表内の各計算区分を、見た目を変えずに意味のあるDOMグループとしてまとめる。
@@ -249,29 +270,14 @@ const CELLS: GridCell[] = [
   { field: '㉞', kind: 'input', readOnly: true, multiline: true, fontSize: 7, top: 90.46, left: 66.08, width: 26.26, height: 3.44 },
 ];
 
-/** 第3表（CSSグリッド方式・令和8年4月1日以降用） */
-export function Table3Grid({ getField, updateField, onJump }: TableProps) {
-  const raw = (f: string) => getField(T, f);
-  const u = (f: string, v: string) => updateField(T, f, v);
 
-  const numOf = (s: string): number | null => {
-    const t = s.replace(/,/g, '').trim();
-    if (t === '') return null;
-    const n = Number(t);
-    return isNaN(n) ? null : n;
-  };
-  const num = (f: string) => numOf(raw(f));
-  const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
-  const fmtDec1 = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP', { maximumFractionDigits: 1 }));
-  const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
-  const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
-  const amountWithSen = (yenField: string, senField: string) => {
-    const yen = num(yenField);
-    const senText = raw(senField).trim();
-    if (yen === null && senText === '') return null;
-    if (senText === '') return yen;
-    return fl(yen ?? 0) + (numOf(senText) ?? 0) / 100;
-  };
+/**
+ * 第3表の計算（他の calcTableN と同じくコンポーネント外から呼べる形）。
+ * お客様報告（株価一覧・株主ごとの評価）が原則的評価額・配当還元額・Lの割合を
+ * 参照するため、コンポーネント内のローカル計算をここへ切り出している。
+ */
+export function calcTable3(getField: TableProps['getField']) {
+  const { raw, num, amountWithSen } = fieldReaders(getField);
 
   // 転記元（第4表・第5表・第1表の2・第1表の1）
   const t4 = calcTable4(getField);
@@ -350,6 +356,34 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
   const v30 = base28 !== null && r22Pay !== null ? fl(base28 - r22Pay) : null; // ㉚
   const v31 = base28 === null ? null : fl(base28);                            // ㉛
   const v32 = base28; // ㉜
+
+  return {
+    v1, v2, v3, v4, v5, v6, size, lRate, iSmall, v8, v12,
+    gensoku,                    // 原則的評価方式の最終価額（⑫→⑧→会社規模別の順）
+    linkedTreasuryShares, v16, v17, v17disp, ia, ro, v21, v22, v22raw, v22Floored,
+    v23, v24,                   // ㉓=配当還元の計算値、㉔=原則を超える場合に原則で頭打ちした額
+    haitoKangen: v24 ?? v23,    // 配当還元方式による価額
+    v27, base28, v30, v31, v32,
+    judge, medical, useHaito, finalPrice,
+  };
+}
+
+/** 第3表（CSSグリッド方式・令和8年4月1日以降用） */
+export function Table3Grid({ getField, updateField, onJump }: TableProps) {
+  const { raw, num } = fieldReaders(getField);
+  const u = (f: string, v: string) => updateField(T, f, v);
+
+  const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
+  const fmtDec1 = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP', { maximumFractionDigits: 1 }));
+  const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
+  const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
+
+  const {
+    v1, v2, v3, v4, v5, v6, size, lRate, iSmall, v8, v12,
+    linkedTreasuryShares, v16, v17disp, ia, ro, v21, v22, v22raw, v22Floored,
+    v23, v24, v27, base28, v30, v31, v32, finalPrice,
+  } = calcTable3(getField);
+
 
   // 4. 株式に関する権利の評価額: 発生している権利（クリック指定）の金額をそれぞれ別に記載（記載要領）
   const RIGHTS = [
