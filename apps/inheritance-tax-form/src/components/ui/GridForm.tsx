@@ -248,6 +248,18 @@ const MULTILINE_LINES = 2;
 const MULTILINE_LINE_HEIGHT = 1.15;
 const MULTILINE_MAX_HEIGHT = `${MULTILINE_LINES * MULTILINE_LINE_HEIGHT}em`;
 
+/**
+ * 内側余白を落とす細さ（％）。
+ * セルは `border-box` なので、内側余白（左右2px・上下1px）と罫線の合計が
+ * 枠の最小寸法になる。罫線として置いた極細セル（二重線の間・分数の横線など）は
+ * 割り当てた幅よりこの最小寸法の方が大きく、右へ数px はみ出して
+ * 「様式に無い縦罫線」として見えてしまう。用紙の描画幅は 700〜800px 程度なので、
+ * 幅1％（≒7px）・高さ0.5％（≒5px）を下回るセルは、その軸の余白を落とす。
+ * この細さに収まる文字は無いので、文字を持つセルには当たらない。
+ */
+const THIN_H = 1;
+const THIN_V = 0.5;
+
 /** 複合入力（日付・郵便番号・電話番号）の入力ボックス共通スタイル */
 const SUB_BOX: CSSProperties = { textAlign: 'center', border: 'none', borderBottom: '1px solid #aaa', outline: 'none', background: 'transparent', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, minWidth: 0 };
 const SELECT_ARROW = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")`;
@@ -448,7 +460,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           boxShadow: invalid ? 'inset 0 0 0 1.5px #dc2626' : highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
           cursor: interactive ? 'pointer' : undefined,
           userSelect: interactive ? 'none' : undefined,
-          padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
+          padding: `${c.height < THIN_V ? 0 : 1}px ${c.width < THIN_H ? 0 : 2}px`, boxSizing: 'border-box', overflow: 'hidden',
           lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: c.align ?? 'center',
         }}
       >
