@@ -149,6 +149,36 @@ export interface GridCell {
   dragId?: string;
 }
 
+/** 様式原本の実測寸法（A4ページ左上を原点とする mm）。同じ座標で画面にも印刷にも描く */
+export interface MmRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** 様式原本の実測レイアウト。指定すると本表・ヘッダーを原本と同じ位置・大きさに配置する */
+export interface FormGeometry {
+  /** 本表（罫線枠）の外枠 */
+  frame: MmRect;
+  /** 様式IDボックスの外枠 */
+  formCodeBox?: MmRect;
+  /** タイトル文字の上端（ページ中央寄せ） */
+  titleTop?: number;
+  /** headerExtra（氏名欄など）の外枠 */
+  headerExtraBox?: MmRect;
+  /** 本表の左外に置く縦書き帯 */
+  leftBand?: string;
+  /** 本表の右外に置く縦書き帯 */
+  rightBand?: string;
+}
+
+/** 実寸レイアウトの基準幅。セル座標はこの幅で組んであるので、原本の枠幅との比が縮小率になる */
+const GEOMETRY_DESIGN_WIDTH_MM = 194;
+
+const mm = (v: number) => `${v}mm`;
+const rectStyle = (r: MmRect): CSSProperties => ({ position: 'absolute', left: mm(r.left), top: mm(r.top), width: mm(r.width), height: mm(r.height), boxSizing: 'border-box' });
+
 interface GridFormProps {
   cells: GridCell[];
   g: (f: string) => string;
@@ -166,6 +196,8 @@ interface GridFormProps {
   toolbar?: ReactNode;
   /** グリッド上に絶対配置で重ねる操作UI（帯の上に配置する行操作など。自前で位置指定） */
   overlay?: ReactNode;
+  /** 様式原本の実測レイアウト。指定時は aspectRatio ではなく実測mmで配置する（.gov-page--exact と併用） */
+  geometry?: FormGeometry;
   /** Enterキーで循環する入力欄のaria-label順 */
   enterLoop?: string[];
   /** input/select の id・name に使用する表識別子 */
@@ -295,7 +327,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
  * 各矩形の left/right を縦線、top/bottom を横線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, toolbar, overlay, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
+export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, toolbar, overlay, geometry, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
   const printRendering = useContext(PrintRenderContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
@@ -345,10 +377,52 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
     items.slice(idx + 1).find(isEditableField)?.focus();
   }, [enterLoop]);
 
+  // 実寸モードの縮小率。セル座標は基準幅(194mm)で組んであるので、原本の枠幅との比だけ縮める。
+  // 幅・高さ・文字・罫線がまとめて同じ比率で縮むので、既存の座標を1つも書き換えずに原本と重なる。
+  const scale = geometry ? geometry.frame.width / GEOMETRY_DESIGN_WIDTH_MM : 1;
+  const gridBoxStyle: CSSProperties = geometry
+    ? { ...rectStyle({ ...geometry.frame, width: GEOMETRY_DESIGN_WIDTH_MM, height: geometry.frame.height / scale }), transform: `scale(${scale})`, transformOrigin: 'top left' }
+    // aspectRatio は親の高さが不定なときの既定サイズ。親がA4で高さ確定なら flex で残り高さにフィットする
+    : { width: '100%', aspectRatio, flex: '1 1 auto', minHeight: 0 };
+  // 本表の左右外側に置く縦書き帯（「取引相場のない株式（出資）の評価明細書」など）
+  const bandStyle = (side: 'left' | 'right'): CSSProperties => ({
+    position: 'absolute',
+    left: side === 'left' ? mm(geometry!.frame.left - 5) : undefined,
+    right: side === 'right' ? mm(210 - (geometry!.frame.left + geometry!.frame.width) - 5) : undefined,
+    top: mm(geometry!.frame.top),
+    height: mm(geometry!.frame.height),
+    width: mm(4.5),
+    display: 'flex',
+    alignItems: 'center',
+    // 縦書きなので主軸は上下。原本と同じく枠の上端から書き始める
+    justifyContent: 'flex-start',
+    writingMode: 'vertical-rl',
+    fontSize: 8,
+    letterSpacing: '0.05em',
+    fontFamily: '"Noto Sans JP", sans-serif',
+  });
+
   return (
     // .gov-page（A4・overflow:hidden）の内側で縦フレックス。ヘッダーは縮まず、本表が残り高さにぴったり収まる。
-    <div style={{ width, margin: '0 auto', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      {title && (formCode ? (
+    // 実寸モードでは全要素を mm 絶対配置にするため、フレックスではなく位置指定の基準箱にする。
+    <div style={geometry ? { position: 'relative', width: '100%', height: '100%' } : { width, margin: '0 auto', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {geometry ? (
+        <>
+          {formCode && geometry.formCodeBox && (
+            <div style={{ ...rectStyle(geometry.formCodeBox), display: 'flex', border: '1px solid #000', fontSize: 11, fontFamily: '"Noto Sans JP", sans-serif' }}>
+              <span style={{ flex: '0 0 28%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid #000' }}>様式ID</span>
+              <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.08em' }}>{formCode}</span>
+            </div>
+          )}
+          {title && (
+            <div style={{ position: 'absolute', left: 0, right: 0, top: mm(geometry.titleTop ?? 22), textAlign: 'center', fontWeight: 700, fontSize: 13, lineHeight: 1.3, fontFamily: '"Noto Sans JP", sans-serif' }}>{title}</div>
+          )}
+          {toolbar && <div className="no-print" style={{ position: 'absolute', right: mm(6), top: mm(6) }}>{toolbar}</div>}
+          {headerExtra && <div style={geometry.headerExtraBox ? rectStyle(geometry.headerExtraBox) : undefined}>{headerExtra}</div>}
+          {geometry.leftBand && <div style={bandStyle('left')}>{geometry.leftBand}</div>}
+          {geometry.rightBand && <div style={bandStyle('right')}>{geometry.rightBand}</div>}
+        </>
+      ) : title && (formCode ? (
         // 様式ID枠つきヘッダー（様式ID＝中央上部、タイトル＝中央寄せ、toolbar＝右上のQRコード位置）
         <div style={{ flexShrink: 0, padding: '2px 0 6px', fontFamily: '"Noto Sans JP", sans-serif' }}>
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: 22 }}>
@@ -366,9 +440,8 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
           {toolbar}
         </div>
       ))}
-      {headerExtra && <div style={{ flexShrink: 0 }}>{headerExtra}</div>}
-      {/* aspectRatio は親の高さが不定なときの既定サイズ。親がA4で高さ確定なら flex で残り高さにフィットする */}
-      <div ref={gridRef} style={{ width: '100%', aspectRatio, flex: '1 1 auto', minHeight: 0, display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif', position: 'relative' }}>
+      {!geometry && headerExtra && <div style={{ flexShrink: 0 }}>{headerExtra}</div>}
+      <div ref={gridRef} style={{ ...gridBoxStyle, display: 'grid', gridTemplateColumns: colTmpl, gridTemplateRows: rowTmpl, border: '1.5px solid #000', boxSizing: 'border-box', fontFamily: '"Noto Sans JP", sans-serif', position: geometry ? 'absolute' : 'relative' }}>
       {(() => {
         const renderCell = ({ c, cs, ce, rs, re }: (typeof placed)[number], i: number) => {
         // 縦長のラベルは縦書き（帯見出し）。スペースは縦書き時に除去。
