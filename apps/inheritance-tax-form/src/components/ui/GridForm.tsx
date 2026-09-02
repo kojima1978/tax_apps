@@ -3,6 +3,8 @@ import { PrintRenderContext } from './printContext';
 import { lookupZipAddress } from '../../lib/zipAddress';
 import { cleanNumeric, displayNumeric, fixNumeric, normalizeInteger } from '../../lib/format';
 import { suffixedName, type AutoFill, type CodeSuffix } from '../../lib/codeLink';
+import { formQrPath } from '../../lib/qrPath';
+import { FORM_QR_STAR, QR_SIZE } from '../../data/formQr';
 
 /** 分数（分子と分母を横線で上下に組む）。⑨の減額割合「80／100」や「200／330」など様式どおりの縦組み */
 export interface Fraction {
@@ -614,6 +616,9 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     );
   };
 
+  // 右上のQRコード。パス自体はモジュール側で使い回されるので、ここは様式が変わったときだけ引き直す
+  const qrPath = useMemo(() => (formCode ? formQrPath(formCode) : null), [formCode]);
+
   // semanticRole:'group' のセルは、その矩形に収まる子セルをまとめて role="group" で包む
   const rendered = useMemo(() => {
     const containedBy = (entry: (typeof placed)[number], group: (typeof placed)[number]) => (
@@ -633,16 +638,34 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
   return (
     <div style={{ width: '100%', margin: '0 auto', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {title && (formCode ? (
-        <div style={{ flexShrink: 0, padding: '2px 0 6px', fontFamily: FORM_FONT }}>
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: 22 }}>
-            <div style={{ display: 'inline-flex', border: '1px solid #000', fontSize: 11, lineHeight: 1.5 }}>
-              <span style={{ padding: '1px 8px', borderRight: '1px solid #000' }}>様式ID</span>
-              <span style={{ padding: '1px 14px', letterSpacing: '0.08em' }}>{formCode}</span>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', padding: '2px 0 6px', fontFamily: FORM_FONT }}>
+          {/* 左：様式PDFでは空き。右のQR欄と同じ幅を取って表題を用紙の中央に置くための列で、画面では操作ボタンの置き場にする。
+              列そのものは印刷時も残す（消すと中央列がずれて表題が左に寄る） */}
+          <div style={{ flex: '0 0 12.5%', minWidth: 0 }}>{toolbar && <div className="no-print">{toolbar}</div>}</div>
+          {/* 中央：様式ID枠・表題・副題 */}
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            {/* 様式ID枠は用紙幅の50%〜84.5%（様式PDFの実測）。中央列に直すと幅46%・右へ3.9%残す */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', minHeight: 22 }}>
+              <div style={{ display: 'flex', width: '46%', marginRight: '3.9%', border: '1px solid #000', fontSize: 11, lineHeight: 1.5 }}>
+                <span style={{ flexShrink: 0, padding: '1px 8px', borderRight: '1px solid #000' }}>様式ID</span>
+                <span style={{ flex: '1 1 auto', textAlign: 'center', letterSpacing: '0.08em' }}>{formCode}</span>
+              </div>
             </div>
-            {toolbar && <div className="no-print" style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}>{toolbar}</div>}
+            <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, lineHeight: 1.3, marginTop: 4 }}>{title}</div>
+            {subtitle && <div style={{ textAlign: 'center', fontSize: 11, lineHeight: 1.3, marginTop: 2 }}>{subtitle}</div>}
           </div>
-          <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, lineHeight: 1.3, marginTop: 4 }}>{title}</div>
-          {subtitle && <div style={{ textAlign: 'center', fontSize: 11, lineHeight: 1.3, marginTop: 2 }}>{subtitle}</div>}
+          {/* 右：QRコード。用紙幅の87.5%〜97%（列の左76%）に置くと様式PDFと同じ位置になる。
+              画面では列だけ残して中身を出さない（QRは18mm角あり、画面の見出しが無駄に高くなるため） */}
+          <div style={{ flex: '0 0 12.5%', minWidth: 0 }}>
+            {qrPath && (
+              <div className="print-only" style={{ position: 'relative' }}>
+                <svg viewBox={`0 0 ${QR_SIZE} ${QR_SIZE}`} shapeRendering="crispEdges" aria-hidden="true" style={{ display: 'block', width: '76%' }}>
+                  <path d={qrPath} fill="#000" />
+                </svg>
+                {FORM_QR_STAR.has(formCode) && <span style={{ position: 'absolute', left: '78%', top: 0, fontSize: 10, lineHeight: 1 }}>★</span>}
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '2px 0 4px', fontFamily: FORM_FONT }}>
