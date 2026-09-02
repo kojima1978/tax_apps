@@ -23,6 +23,21 @@
   position: relative;
 }
 
+/* 実寸モードの headerExtra（会社名欄・氏名欄）は位置と大きさを geometry 側が決めるので、
+   呼び出し側が持っている余白・％幅・縦横比を打ち消して親枠いっぱいに広げる */
+.gf-exact-head > div {
+  width: 100%;
+  height: 100%;
+  padding: 0 !important;
+}
+
+.gf-exact-head .gf-float-box {
+  width: 100% !important;
+  height: 100%;
+  margin-left: 0 !important;
+  aspect-ratio: auto !important;
+}
+
 /* 基本フォーム枠 — 全4辺太線（グループ外枠） */
 .gov-form {
   border: 2px solid #000;

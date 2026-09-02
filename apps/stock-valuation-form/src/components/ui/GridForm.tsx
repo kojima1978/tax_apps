@@ -1,3 +1,4 @@
+import { FORM_GEOMETRY, type FormGeometry, type MmRect } from './formGeometry';
 import { createContext, useContext, useMemo, useRef, useCallback, useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 
 /** グリッドセル定義（座標・サイズは％） */
@@ -149,29 +150,7 @@ export interface GridCell {
   dragId?: string;
 }
 
-/** 様式原本の実測寸法（A4ページ左上を原点とする mm）。同じ座標で画面にも印刷にも描く */
-export interface MmRect {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
-
-/** 様式原本の実測レイアウト。指定すると本表・ヘッダーを原本と同じ位置・大きさに配置する */
-export interface FormGeometry {
-  /** 本表（罫線枠）の外枠 */
-  frame: MmRect;
-  /** 様式IDボックスの外枠 */
-  formCodeBox?: MmRect;
-  /** タイトル文字の上端（ページ中央寄せ） */
-  titleTop?: number;
-  /** headerExtra（氏名欄など）の外枠 */
-  headerExtraBox?: MmRect;
-  /** 本表の左外に置く縦書き帯 */
-  leftBand?: string;
-  /** 本表の右外に置く縦書き帯 */
-  rightBand?: string;
-}
+export type { FormGeometry, MmRect };
 
 /** 実寸レイアウトの基準幅。セル座標はこの幅で組んであるので、原本の枠幅との比が縮小率になる */
 const GEOMETRY_DESIGN_WIDTH_MM = 194;
@@ -327,7 +306,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
  * 各矩形の left/right を縦線、top/bottom を横線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, toolbar, overlay, geometry, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
+export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, toolbar, overlay, geometry: geometryProp, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
   const printRendering = useContext(PrintRenderContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
@@ -379,6 +358,8 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
 
   // 実寸モードの縮小率。セル座標は基準幅(194mm)で組んであるので、原本の枠幅との比だけ縮める。
   // 幅・高さ・文字・罫線がまとめて同じ比率で縮むので、既存の座標を1つも書き換えずに原本と重なる。
+  // 実測レイアウトは様式IDで引く（明示指定があればそちらを優先）
+  const geometry = geometryProp ?? (formCode ? FORM_GEOMETRY[formCode] : undefined);
   const scale = geometry ? geometry.frame.width / GEOMETRY_DESIGN_WIDTH_MM : 1;
   const gridBoxStyle: CSSProperties = geometry
     ? { ...rectStyle({ ...geometry.frame, width: GEOMETRY_DESIGN_WIDTH_MM, height: geometry.frame.height / scale }), transform: `scale(${scale})`, transformOrigin: 'top left' }
@@ -418,7 +399,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             <div style={{ position: 'absolute', left: 0, right: 0, top: mm(geometry.titleTop ?? 22), textAlign: 'center', fontWeight: 700, fontSize: 13, lineHeight: 1.3, fontFamily: '"Noto Sans JP", sans-serif' }}>{title}</div>
           )}
           {toolbar && <div className="no-print" style={{ position: 'absolute', right: mm(6), top: mm(6) }}>{toolbar}</div>}
-          {headerExtra && <div style={geometry.headerExtraBox ? rectStyle(geometry.headerExtraBox) : undefined}>{headerExtra}</div>}
+          {headerExtra && <div className="gf-exact-head" style={geometry.headerExtraBox ? rectStyle(geometry.headerExtraBox) : undefined}>{headerExtra}</div>}
           {geometry.leftBand && <div style={bandStyle('left')}>{geometry.leftBand}</div>}
           {geometry.rightBand && <div style={bandStyle('right')}>{geometry.rightBand}</div>}
         </>

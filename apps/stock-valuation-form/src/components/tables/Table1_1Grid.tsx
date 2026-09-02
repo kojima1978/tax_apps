@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { GridForm, type GridCell, type FormGeometry } from '@/components/ui/GridForm';
+import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { companyFloatBox } from './companyFloatHeader';
 import type { TableProps } from '@/types/form';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
@@ -355,16 +355,6 @@ function shareholderRows(): GridCell[] {
 // 縦スケールを従来と同一に保つよう調整: 297 × (99.34-19.43)/(99.34-13.68) = 277.07
 const MAIN_ASPECT = '210 / 277.07';
 
-// 様式原本（令和8年4月1日以降用 第1表の1）の実測寸法。A4ページ左上からの mm。
-// public のサンプルPDFを110dpiでラスタライズし、罫線をピクセル検出して求めた値。
-const GEOMETRY: FormGeometry = {
-  frame: { left: 21.7, top: 57.5, width: 164.4, height: 237.7 },
-  formCodeBox: { left: 102.1, top: 12.0, width: 53.3, height: 5.1 },
-  titleTop: 21.9,
-  headerExtraBox: { left: 105.6, top: 40.4, width: 80.5, height: 9.5 },
-  leftBand: '（取引相場のない株式（出資）の評価明細書）',
-  rightBand: '（令和八年四月一日以降用）',
-};
 
 const CELLS: GridCell[] = [
   { kind: 'cell', semanticRole: 'group', groupBorder: false, ariaLabel: '会社情報', top: 19.43, left: 10.48, width: 78, height: 12.93 },
@@ -746,7 +736,7 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   );
 
   // 氏名（被相続人又は受贈者）欄＝本表の外に浮く独立枠（実様式どおり右寄せ・左側は開放）。
-  // 実寸モードでは GEOMETRY.headerExtraBox が位置と大きさを決めるので、枠は親いっぱいに広げる。
+  // 実寸モードでは headerExtraBox が位置と大きさを決める（枠は親いっぱいに広げる＝main.css）。
   const shimeiBox = (
     <div style={{ display: 'flex', width: '100%', height: '100%', fontFamily: '"Noto Sans JP", sans-serif' }}>
       <div className="gf-float-box" style={{ width: '100%', height: '100%', display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
@@ -769,10 +759,10 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   return (
     <>
       <div className="gov-page gov-page--exact" style={shPageCount > 0 ? { marginBottom: '8mm' } : undefined}>
-        <GridForm cells={cells} g={g} u={u} formId={T} width="100%" aspectRatio={MAIN_ASPECT} title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" formCode="NTA0VNA170010010" headerExtra={shimeiBox} toolbar={toolbar} geometry={GEOMETRY} onDragReorder={reorderShareholderRows} />
+        <GridForm cells={cells} g={g} u={u} formId={T} width="100%" aspectRatio={MAIN_ASPECT} title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" formCode="NTA0VNA170010010" headerExtra={shimeiBox} toolbar={toolbar} onDragReorder={reorderShareholderRows} />
       </div>
       {Array.from({ length: shPageCount }).map((_, i) => (
-        <div className="gov-page" key={i} style={i < shPageCount - 1 ? { marginBottom: '8mm' } : undefined}>
+        <div className="gov-page gov-page--exact" key={i} style={i < shPageCount - 1 ? { marginBottom: '8mm' } : undefined}>
           <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} formCode="NTA0VNA170020010" headerExtra={companyFloatBox((f) => g(f === 'company' ? 'f12' : f), (f, v) => u(f === 'company' ? 'f12' : f, v), `${T}-cont${i + 1}`, { widthPct: 46.6, aspect: 8.9, labelFrac: 0.3, onJump })} />
         </div>
       ))}

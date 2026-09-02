@@ -506,7 +506,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   return (
     <>
       {Array.from({ length: pageCount }).map((_, p) => (
-        <div className="gov-page" key={p} style={p < pageCount - 1 ? { marginBottom: '8mm' } : undefined}>
+        <div className="gov-page gov-page--exact" key={p} style={p < pageCount - 1 ? { marginBottom: '8mm' } : undefined}>
           {p === 0 ? (
             <GridForm
               cells={mainPageCells}

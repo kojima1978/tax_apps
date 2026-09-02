@@ -270,7 +270,7 @@ export default function App() {
               return SELF_PAGING.has(tab.id) ? (
                 <TableComp key={tab.id} {...tableProps} />
               ) : (
-                <div key={tab.id} className="gov-page">
+                <div key={tab.id} className="gov-page gov-page--exact">
                   <TableComp {...tableProps} />
                 </div>
               );
@@ -278,7 +278,7 @@ export default function App() {
           ) : SELF_PAGING.has(activeTab) ? (
             <ActiveTable {...tableProps} />
           ) : (
-            <div className="gov-page">
+            <div className="gov-page gov-page--exact">
               <ActiveTable {...tableProps} />
             </div>
           )}
