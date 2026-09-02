@@ -134,7 +134,7 @@ function FieldInput({ id, field, value, onChange }: FieldInputProps) {
       id={id}
       className={inputClass(cell)}
       value={displayNumeric(cell, value)}
-      inputMode={cell.commaInteger || cell.integerDigits !== undefined || cell.decimalPlaces !== undefined ? 'numeric' : undefined}
+      inputMode={cell.commaInteger || cell.commaNumber || cell.integerDigits !== undefined || cell.decimalPlaces !== undefined ? 'numeric' : undefined}
       onChange={(e) => onChange(cleanNumeric(cell, e.target.value))}
     />
   );

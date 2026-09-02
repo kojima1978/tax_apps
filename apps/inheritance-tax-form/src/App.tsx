@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { GridForm, type GridCell } from './components/ui/GridForm';
+import { PrintRenderContext } from './components/ui/printContext';
 import { DetailPanel } from './components/DetailPanel';
 import { RowSortPanel, type RowSortColumn } from './components/RowSortPanel';
 import { Table11f1Worksheet } from './components/Table11f1Worksheet';
@@ -828,6 +829,49 @@ type PageControlProps = {
   detail?: ReactNode;
 };
 
+type ResetDialogProps = {
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+/** 申告データ全体を消去する前に、対象範囲を明示して確認する。 */
+function ResetDialog({ onCancel, onConfirm }: ResetDialogProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    cancelRef.current?.focus();
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div className="reset-dialog no-print" role="dialog" aria-modal="true" aria-labelledby="reset-dialog-title" aria-describedby="reset-dialog-description">
+      <div className="reset-dialog__box">
+        <div className="reset-dialog__head">
+          <strong id="reset-dialog-title">申告データをクリア</strong>
+        </div>
+        <div className="reset-dialog__body" id="reset-dialog-description">
+          <p className="reset-dialog__scope"><strong>対象範囲：すべての申告データ</strong></p>
+          <ul>
+            <li>被相続人・財産を取得した人の情報</li>
+            <li>財産、債務、控除など各様式の入力内容</li>
+            <li>使用する様式の選択と自動計算結果</li>
+          </ul>
+          <p className="reset-dialog__excluded">様式一覧の開閉状態と、保存済みのデータファイルは削除されません。</p>
+          <p className="reset-dialog__warning">この操作は取り消せません。必要な場合は先に「データを保存」してください。</p>
+        </div>
+        <div className="reset-dialog__foot">
+          <button ref={cancelRef} type="button" className="app-btn" onClick={onCancel}>キャンセル</button>
+          <button type="button" className="app-btn app-btn--danger-solid" onClick={onConfirm}>すべての申告データをクリア</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** 画面上だけに表示するページ増減操作。各用紙の左上に置く。 */
 function PageControl({
   page, total, onDecrease, onIncrease, decreaseDisabled, increaseDisabled, detail,
@@ -857,6 +901,8 @@ export default function App() {
   /** 別画面で編集中の「財産を取得した人」（何人目か） */
   const [editingPerson, setEditingPerson] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const menuRef = useRef<HTMLDetailsElement>(null);
   const { printing, print } = usePrinting();
 
   useEffect(() => {
@@ -1113,6 +1159,78 @@ export default function App() {
     )),
     table2: (
       <>
+      {/* 第2表④の対象者は帳票を見始める前に確認できるよう、用紙の直前に置く。
+          画面だけの操作・説明であり、印刷する様式には含めない。 */}
+      <section className="table2-lawful-guide no-print" aria-labelledby="table2-lawful-guide-title">
+        <div className="table2-lawful-guide__summary">
+          <span className="table2-lawful-guide__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M19 8v6M22 11h-6" />
+            </svg>
+          </span>
+          <div className="table2-lawful-guide__copy">
+            <div className="table2-lawful-guide__heading">
+              <h2 id="table2-lawful-guide-title">第2表④に記載する法定相続人</h2>
+              <span className="table2-lawful-guide__count">{lawfulPeople.length}人</span>
+            </div>
+            <p>相続税の総額と基礎控除の計算に使います。財産を取得しない法定相続人も指定が必要です。</p>
+          </div>
+          <button
+            type="button"
+            className="app-btn app-btn--primary table2-lawful-guide__action"
+            onClick={() => openPerson(lawfulPeople[0]?.index ?? 0)}
+          >
+            確認・追加
+          </button>
+        </div>
+
+        {lawfulPeople.length === 0 ? (
+          <p className="table2-lawful-guide__empty" role="status">
+            法定相続人が指定されていません。「確認・追加」から該当する人を指定してください。
+          </p>
+        ) : (
+          <div className="table2-lawful-guide__people" aria-label="指定済みの法定相続人">
+            <span className="table2-lawful-guide__people-label">指定済み</span>
+            {lawfulPeople.map((person) => (
+              <button
+                key={person.index}
+                type="button"
+                className="table2-lawful-guide__person"
+                onClick={() => openPerson(person.index)}
+                aria-label={`${person.name === '' ? `${person.index + 1}人目（氏名未入力）` : person.name}の人物情報を編集`}
+              >
+                {person.name === '' ? `${person.index + 1}人目（氏名未入力）` : person.name}
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+                </svg>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {limitedAdoptions.length > 0 && (
+          <p className="table2-lawful-guide__warning">
+            {`養子の数の制限（相法15条2項）により、${limitedAdoptions.join('・')}は法定相続人の数に算入されません`}
+          </p>
+        )}
+        {lawfulPeople.length > LAWFUL_ROWS && (
+          <p className="table2-lawful-guide__warning">
+            {`様式の④は${LAWFUL_ROWS}人分までです。${LAWFUL_ROWS + 1}人目以降は第2表の付表に書きます（人数と税額の計算には全員入っています）`}
+          </p>
+        )}
+
+        <details className="table2-lawful-guide__details">
+          <summary>この指定が必要な理由</summary>
+          <ul>
+            <li>法定相続人の人数から遺産に係る基礎控除額を計算します。</li>
+            <li>法定相続分に応じた取得金額と相続税の総額を第2表で計算します。</li>
+            <li>相続放棄や養子の扱いは、それぞれの人物情報で別に指定します。</li>
+          </ul>
+        </details>
+      </section>
       <div className="gov-page">
         <GridForm
           cells={table2Cells}
@@ -1132,35 +1250,6 @@ export default function App() {
             </>
           }
         />
-      </div>
-      {/* ④に誰が並ぶかは人物の画面の印で決まる。この帯はその入口と、様式に収まらない場合の案内。
-          様式には印刷しない */}
-      <div className="app-linkctl no-print">
-        <span>
-          {lawfulPeople.length === 0
-            ? '④法定相続人がいません。「財産を取得した人」の画面で「法定相続人」に印を付けてください'
-            : `④法定相続人 ${lawfulPeople.length}人（財産を取得しない人も、印を付ければここに並びます）`}
-        </span>
-        {lawfulPeople.map((person) => (
-          <button
-            key={person.index}
-            type="button"
-            className="app-btn"
-            onClick={() => openPerson(person.index)}
-          >
-            {person.name === '' ? `${person.index + 1}人目（氏名未入力）` : person.name}
-          </button>
-        ))}
-        {limitedAdoptions.length > 0 && (
-          <span className="app-linkctl__warn">
-            {`養子の数の制限（相法15条2項）により、${limitedAdoptions.join('・')}は法定相続人の数に算入されません`}
-          </span>
-        )}
-        {lawfulPeople.length > LAWFUL_ROWS && (
-          <span className="app-linkctl__warn">
-            {`様式の④は${LAWFUL_ROWS}人分までです。${LAWFUL_ROWS + 1}人目以降は第2表の付表に書きます（人数と税額の計算には全員入っています）`}
-          </span>
-        )}
       </div>
       </>
     ),
@@ -1451,8 +1540,18 @@ export default function App() {
     if (!await importJson(file)) window.alert('このファイルは読み込めませんでした。');
   };
 
-  const onReset = () => {
-    if (window.confirm('入力内容をすべて消去します。よろしいですか？')) reset();
+  const openResetDialog = () => {
+    menuRef.current?.removeAttribute('open');
+    setResetDialogOpen(true);
+  };
+
+  const confirmReset = () => {
+    reset();
+    setActive('table1');
+    setEditing(null);
+    setSorting(null);
+    setEditingPerson(null);
+    setResetDialogOpen(false);
   };
 
   return (
@@ -1472,13 +1571,22 @@ export default function App() {
           </div>
         </div>
         <div className="app-toolbar">
-          <button type="button" className="app-btn" onClick={exportJson}>JSON保存</button>
-          <button type="button" className="app-btn" onClick={() => fileRef.current?.click()}>JSON読込</button>
-          <input ref={fileRef} type="file" accept="application/json,.json" onChange={onPickFile} hidden aria-label="JSONファイルを選択" />
+          <button type="button" className="app-btn" onClick={exportJson}>データを保存</button>
+          <button type="button" className="app-btn" onClick={() => fileRef.current?.click()}>保存データを読み込む</button>
+          <input ref={fileRef} type="file" accept="application/json,.json" onChange={onPickFile} hidden aria-label="保存データファイルを選択" />
           <button type="button" className="app-btn app-btn--primary" onClick={print}>印刷</button>
-          <button type="button" className="app-btn app-btn--danger" onClick={onReset}>クリア</button>
+          <details ref={menuRef} className="app-menu">
+            <summary className="app-btn" aria-label="その他の操作">その他</summary>
+            <div className="app-menu__panel">
+              <button type="button" className="app-menu__danger" onClick={openResetDialog}>
+                申告データをクリア
+              </button>
+            </div>
+          </details>
         </div>
       </header>
+
+      {resetDialogOpen && <ResetDialog onCancel={() => setResetDialogOpen(false)} onConfirm={confirmReset} />}
 
       <div className="mobile-hint no-print">A4横幅の様式です。横スクロールしてご覧ください。</div>
 
@@ -1532,6 +1640,7 @@ export default function App() {
           </p>
         </aside>
 
+        <PrintRenderContext.Provider value={printing}>
         <main className="app-main">
           {FORMS.map((form) => (
             <section
@@ -1548,6 +1657,7 @@ export default function App() {
             </section>
           ))}
         </main>
+        </PrintRenderContext.Provider>
       </div>
 
       {editing && (

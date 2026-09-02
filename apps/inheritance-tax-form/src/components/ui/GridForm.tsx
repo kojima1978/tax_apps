@@ -283,14 +283,6 @@ function FractionText({ value }: { value: Fraction }) {
   );
 }
 
-/** rightLabel が占める見た目の文字数（分数は縦に組むので広い方の桁数だけ数える） */
-function rightLabelLength(label: NonNullable<GridCell['rightLabel']>): number {
-  if (typeof label === 'string') return Array.from(label).length;
-  return label.reduce((n, part) => n + (typeof part === 'string'
-    ? Array.from(part).length
-    : Math.max(Array.from(part.top).length, Array.from(part.bottom).length)), 0);
-}
-
 interface SubInputProps {
   field: string;
   formId: string;
@@ -390,9 +382,6 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     // 複合欄は入力欄が複数あるので、読み取り専用の灰色は欄ごとではなくセル全体に敷く
     const readOnlyComposite = composite && readOnly && !printRendering;
     const editable = Boolean(c.selectValue || c.toggleField || editableComposite || (c.kind === 'input' && c.field && !readOnly));
-    const rightLabelPadding = c.rightLabel
-      ? Math.max(14, rightLabelLength(c.rightLabel) * 4.5 + 4)
-      : 0;
     const borderStyle = c.dashed ? 'dashed' : 'solid';
     const borderWidth = c.borderWidth ?? (c.outline ? 1.5 : c.dashed ? 1 : 0.5);
     const borderLine = `${borderWidth}px ${borderStyle} #000`;
@@ -468,7 +457,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
         {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
         {c.centeredPrefix && <span style={{ position: 'absolute', top: '50%', left: 2, transform: 'translateY(-50%)', lineHeight: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>{c.centeredPrefix}</span>}
         {c.rightLabel && (
-          <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <span className="gf-cell__right-label" style={{ order: 2, flex: '0 0 auto', marginLeft: 1, fontSize: 7, lineHeight: 1, pointerEvents: 'none', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
             {typeof c.rightLabel === 'string'
               ? c.rightLabel
               : c.rightLabel.map((part, partIndex) => (typeof part === 'string'
@@ -563,7 +552,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
           <>
             {c.cornerLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.cornerLabel}</span>}
             {printRendering ? (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', background: 'transparent', paddingRight: rightLabelPadding, boxSizing: 'border-box', whiteSpace: c.multiline ? 'pre-wrap' : 'nowrap', overflowWrap: c.multiline ? 'anywhere' : undefined, lineHeight: c.multiline ? MULTILINE_LINE_HEIGHT : undefined }}>
+              <div style={{ width: c.rightLabel ? 0 : '100%', flex: c.rightLabel ? '1 1 0' : undefined, minWidth: 0, height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', background: 'transparent', boxSizing: 'border-box', whiteSpace: c.multiline ? 'pre-wrap' : 'nowrap', overflowWrap: c.multiline ? 'anywhere' : undefined, lineHeight: c.multiline ? MULTILINE_LINE_HEIGHT : undefined }}>
                 {c.multiline
                   ? <span style={{ maxHeight: MULTILINE_MAX_HEIGHT, overflow: 'hidden', width: '100%' }}>{inputText(c, g, true)}</span>
                   : inputText(c, g, true)}
@@ -580,7 +569,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                   onKeyDown={onEnterNext}
                   readOnly={readOnly}
                   tabIndex={readOnly ? -1 : undefined}
-                  style={{ width: '100%', height: '100%', maxHeight: MULTILINE_MAX_HEIGHT, border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', textAlign: c.align ?? 'left', fontSize: 'inherit', lineHeight: MULTILINE_LINE_HEIGHT, background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit', overflowWrap: 'anywhere' }}
+                  style={{ width: c.rightLabel ? 0 : '100%', flex: c.rightLabel ? '1 1 0' : undefined, minWidth: 0, height: '100%', maxHeight: MULTILINE_MAX_HEIGHT, border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', textAlign: c.align ?? 'left', fontSize: 'inherit', lineHeight: MULTILINE_LINE_HEIGHT, background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit', overflowWrap: 'anywhere' }}
                 />
               ) : (
                 <input
@@ -592,11 +581,11 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                   onChange={(e) => u(c.field!, cleanNumeric(c, e.target.value))}
                   onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, fixNumeric(c, g(c.field!))); }}
                   onKeyDown={onEnterNext}
-                  inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined}
+                  inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger || c.commaNumber ? 'numeric' : undefined}
                   maxLength={c.integerDigits}
                   readOnly={readOnly}
                   tabIndex={readOnly ? -1 : undefined}
-                  style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, paddingRight: rightLabelPadding, boxSizing: 'border-box', fontFamily: 'inherit' }}
+                  style={{ width: c.rightLabel ? 0 : '100%', flex: c.rightLabel ? '1 1 0' : undefined, minWidth: 0, height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: highlighted ? 'transparent' : readOnly ? '#f7f7f7' : 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }}
                 />
               )
             )}
