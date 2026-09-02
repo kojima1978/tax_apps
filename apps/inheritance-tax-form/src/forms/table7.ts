@@ -77,8 +77,8 @@ const Y = {
   amountHead: [520, 588],
   amountVal: [588, 643.5],
   formulaHead: [643.5, 670],
-  /** 計算式の行（分数の上段・二重線・下段） */
-  formula: [670, 726.5, 739.5, 796],
+  /** 計算式の行（分数の上段・横線・下段）。726.5〜739.5 の帯の中央に分数の横線が入る */
+  formula: [670, 726.5, 732.5, 739.5, 796],
   notes: [1576, BOTTOM],
 } as const;
 
@@ -287,7 +287,7 @@ function amountColumn(
 
 /** 相次相続控除額の総額Ⓐを求める計算式の行 */
 function formulaRows(common: string, totals: string): GridCell[] {
-  const [top, mid1, mid2, bottom] = Y.formula;
+  const [top, mid1, bar, mid2, bottom] = Y.formula;
   const head = row(Y.formulaHead[0], Y.formulaHead[1]);
   const all = row(top, bottom);
   const upper = row(top, mid1);
@@ -307,13 +307,14 @@ function formulaRows(common: string, totals: string): GridCell[] {
     }),
     label(all, col(X.MUL, X.FRAC), '×', { noBorderTop: true, noBorderRight: true, borderLeftWidth: 1, forceHorizontal: true, align: 'center' }),
 
-    // ⑧／⑦ の分数。上下の枠の間の帯が様式の二重線になる
+    // ⑧／⑦ の分数。上下の枠の間の帯の中央に分数の横線を引く
     label(upper, col(X.FRAC, X.FRAC_C), '（⑧の金額）\n（円）', { fontSize: 7 }),
     code(upper, col(X.FRAC_C, X.FRAC_V), 'G08'),
     mk(upper, col(X.FRAC_V, X.D2), {
       kind: 'input', field: `${totals}v4`, ariaLabel: '⑧の金額', commaInteger: true, readOnly: true,
     }),
-    mk(row(mid1, mid2), col(X.FRAC, X.D2), { noBorder: true }),
+    mk(row(mid1, bar), col(X.FRAC, X.D2), { noBorderTop: true, noBorderRight: true, noBorderLeft: true }),
+    mk(row(bar, mid2), col(X.FRAC, X.D2), { noBorder: true }),
     label(lower, col(X.FRAC, X.FRAC_C), '（⑦の金額）\n（円）', { fontSize: 7 }),
     code(lower, col(X.FRAC_C, X.FRAC_V), 'G09'),
     mk(lower, col(X.FRAC_V, X.D2), {
@@ -328,7 +329,10 @@ function formulaRows(common: string, totals: string): GridCell[] {
       kind: 'input', field: `${totals}t7v4`, ariaLabel: '④の年数', integerDigits: 2, align: 'center', readOnly: true,
     }),
     label(upper, col(X.BOX_R, X.D3), '年', { noBorderTop: true, noBorderBottom: true, noBorderLeft: true, borderRightWidth: 1, align: 'center' }),
-    label(row(mid1, mid2), col(X.BOX_L, X.BOX_R), '', { noBorder: true }),
+    // ④の年数／10年 の分数の横線。左のコード枠（G10）の下には引かない
+    label(row(mid1, bar), col(X.BOX_L, X.BOX_C), '', { noBorder: true }),
+    label(row(mid1, bar), col(X.BOX_C, X.BOX_R), '', { noBorderTop: true, noBorderRight: true, noBorderLeft: true }),
+    label(row(bar, mid2), col(X.BOX_L, X.BOX_R), '', { noBorder: true }),
     label(row(mid1, mid2), col(X.BOX_R, X.D3), '＝', { noBorderTop: true, noBorderBottom: true, noBorderLeft: true, borderRightWidth: 1 }),
     label(lower, col(X.BOX_L, X.BOX_R), String(TABLE7_SPAN), { noBorderTop: true, noBorderRight: true, noBorderLeft: true, borderBottomWidth: 1 }),
     label(lower, col(X.BOX_R, X.D3), '年', { noBorderTop: true, noBorderLeft: true, borderRightWidth: 1, borderBottomWidth: 1, align: 'center' }),

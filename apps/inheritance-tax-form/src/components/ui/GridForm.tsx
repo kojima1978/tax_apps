@@ -141,9 +141,12 @@ const FORM_FONT = '"Noto Sans JP", "Yu Gothic", "MS PGothic", sans-serif';
 /**
  * 近接する境界線を統合（tol％以内は同一線とみなす）。
  * 実測値の誤差は最大でも 0.05％ 程度なのに対し、様式には高さ 0.66％ の帯（見出し帯の上の
- * 空白帯）が実在する。tol を大きく取るとその帯が潰れて 0 幅の行になるため 0.3％ とする。
+ * 空白帯）が実在する。tol を大きく取るとその帯が潰れて 0 幅の行になる。
+ * さらに様式の二重線は 4px（150dpi 実測）＝ 用紙の 0.23〜0.28％ しかないので、
+ * 0.3％ では二重線まで 1 本に潰れてしまう（第5表・第11の2表・第11表の付表1〜4）。
+ * 実測誤差の 3 倍を確保しつつ二重線を残せる 0.15％ とする。
  */
-function snapLines(values: number[], tol = 0.3): number[] {
+function snapLines(values: number[], tol = 0.15): number[] {
   const sorted = [...values].sort((a, b) => a - b);
   const lines: number[] = [];
   for (const v of sorted) {
@@ -327,8 +330,10 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     const xs = snapLines(cells.flatMap((c) => [c.left, c.left + c.width]));
     const ys = snapLines(cells.flatMap((c) => [c.top, c.top + c.height]));
     return {
-      colTmpl: xs.slice(1).map((x, i) => `${(x - xs[i]!).toFixed(3)}fr`).join(' '),
-      rowTmpl: ys.slice(1).map((y, i) => `${(y - ys[i]!).toFixed(3)}fr`).join(' '),
+      // minmax(0, …) を外すと fr の下限が min-content になり、罫線1本ぶんの細い列
+      // （二重線の間など）が中身の分だけ広がって、他の列を押しのけて全体がずれる。
+      colTmpl: xs.slice(1).map((x, i) => `minmax(0, ${(x - xs[i]!).toFixed(3)}fr)`).join(' '),
+      rowTmpl: ys.slice(1).map((y, i) => `minmax(0, ${(y - ys[i]!).toFixed(3)}fr)`).join(' '),
       placed: cells.map((c) => ({
         c,
         cs: nearestIndex(xs, c.left) + 1,
