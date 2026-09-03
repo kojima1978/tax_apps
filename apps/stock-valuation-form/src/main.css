@@ -538,6 +538,14 @@
   flex-shrink: 0;
 }
 
+/* 自動転記欄から飛んだ後の「戻る」 */
+.app-tool-btn-back {
+  color: #92400e;
+  border-color: #fcd34d;
+  background: #fffbeb;
+  font-weight: 700;
+}
+
 /* 必須入力欄のナビゲータ */
 .app-tool-btn-required {
   color: #1d4ed8;

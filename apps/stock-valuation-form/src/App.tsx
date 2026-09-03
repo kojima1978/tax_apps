@@ -64,6 +64,8 @@ export default function App() {
   const [printSelection, setPrintSelection] = useState<Record<TableId, boolean>>(
     () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
   );
+  // 自動転記欄から入力元へ飛ぶ前にいた場所（「戻る」用）
+  const [jumpOrigin, setJumpOrigin] = useState<{ tab: TableId; fieldName: string | null } | null>(null);
 
   // 表に（UI状態 _* と他表からの転記先を除く）入力値があるか。第4表の1／2は共通バケット table4 を参照する
   const hasData = useCallback(
@@ -84,18 +86,35 @@ export default function App() {
   const setAllSelection = (fn: (tab: TableId) => boolean) =>
     setPrintSelection(Object.fromEntries(TABS.map((t) => [t.id, fn(t.id)])) as Record<TableId, boolean>);
 
-  // 自動転記欄クリック時に入力元の表へ移動し、対象欄をフォーカス＋一瞬ハイライト
-  const handleJump = useCallback((target: { tab: TableId; field: string }) => {
+  // 表へ移動し、指定の欄（name属性）をフォーカス＋一瞬ハイライトする
+  const goToField = useCallback((tab: TableId, fieldName: string | null) => {
     setSummaryOpen(false);
-    setActiveTab(target.tab);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const fieldTable = DATA_BUCKET[target.tab] ?? target.tab;
-        const el = document.querySelector<HTMLElement>(`[name="${fieldTable}.${target.field}"]`);
-        if (el) focusAndFlash(el);
-      });
-    });
+    setActiveTab(tab);
+    if (!fieldName) return;
+    // 表の描画後に探す。requestAnimationFrame は非表示タブで止まるので setTimeout を使う
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[name="${fieldName}"]`);
+      if (el) focusAndFlash(el);
+    }, 0);
   }, []);
+
+  // 自動転記欄クリック時に入力元の表へ移動する。戻れるように移動元を覚えておく
+  const handleJump = useCallback((target: { tab: TableId; field: string }) => {
+    const active = document.activeElement;
+    setJumpOrigin({
+      tab: activeTab,
+      fieldName: active instanceof HTMLElement ? active.getAttribute('name') : null,
+    });
+    goToField(target.tab, `${DATA_BUCKET[target.tab] ?? target.tab}.${target.field}`);
+  }, [activeTab, goToField]);
+
+  // 移動元へ戻る（戻ったら履歴は消す。1段だけで足りる想定）
+  const handleJumpBack = useCallback(() => {
+    setJumpOrigin((origin) => {
+      if (origin) goToField(origin.tab, origin.fieldName);
+      return null;
+    });
+  }, [goToField]);
 
   const tableProps: TableProps = { getField, updateField, onTabChange: setActiveTab, onJump: handleJump };
   const ActiveTable = TABLE_COMPONENTS[activeTab];
@@ -227,7 +246,7 @@ export default function App() {
         ) : (
           <Navigation
             activeTab={activeTab}
-            onTabChange={(tab) => { setSummaryOpen(false); setActiveTab(tab); }}
+            onTabChange={(tab) => { setSummaryOpen(false); setJumpOrigin(null); setActiveTab(tab); }}
             hasData={hasData}
             isJudgmentTarget={isJudgmentTarget}
           />
@@ -252,6 +271,16 @@ export default function App() {
               {tool.label}
             </button>
           ))}
+          {!summaryOpen && jumpOrigin && (
+            <button
+              type="button"
+              className="app-tool-btn app-tool-btn-back"
+              onClick={handleJumpBack}
+              title="自動転記欄から入力元へ移動する前の位置に戻ります"
+            >
+              ◂ {TABS.find((t) => t.id === jumpOrigin.tab)?.label ?? '前の表'}へ戻る
+            </button>
+          )}
           {!summaryOpen && <RequiredFieldNavigator watch={`${activeTab}:${printTarget ?? ''}:${JSON.stringify(formData)}`} />}
           <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
           <span className="app-autosave" aria-live="polite">
