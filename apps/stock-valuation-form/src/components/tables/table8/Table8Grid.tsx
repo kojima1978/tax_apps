@@ -116,8 +116,8 @@ function buildCells(cls: S1Class): GridCell[] {
   head('⑲　株式等の帳簿価額の合計額\n　　（第５表の㋺＋（㊁－㋭）の金額）（注）', '（千円）', 71.79, 4.11, 31.43, 52.7),
   head('⑳　株式等に係る評価差額に相当\n　　する金額（⑱－⑲）', '（千円）', 71.79, 4.11, 52.7, 72.04),
   head('㉑　⑳の評価差額に対する法人税額\n　　等相当額（⑳×38％）', '（千円）', 71.79, 4.11, 72.04, 91.38),
-  { field: '⑱', kind: 'input', top: 75.9, left: 10.15, width: 21.28, height: 2.73, align: 'right' },
-  { field: '⑲', kind: 'input', top: 75.9, left: 31.43, width: 21.27, height: 2.73, align: 'right' },
+  { field: '⑱', kind: 'input', commaInteger: true, top: 75.9, left: 10.15, width: 21.28, height: 2.73, align: 'right' },
+  { field: '⑲', kind: 'input', commaInteger: true, top: 75.9, left: 31.43, width: 21.27, height: 2.73, align: 'right' },
   { field: '⑳', kind: 'input', readOnly: true, top: 75.9, left: 52.7, width: 19.34, height: 2.73, align: 'right' },
   { field: '㉑', kind: 'input', readOnly: true, top: 75.9, left: 72.04, width: 19.34, height: 2.73, align: 'right' },
   // 行2: ㉒ ㉓ ㉔（ヘッダー 78.63-82.45 / 値 82.45-85.07）＋（注）

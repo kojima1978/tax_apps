@@ -257,11 +257,12 @@ const ERA_OPTS = ['令和', '平成'];
 const YEAR_OPTS = numOptions(64);
 const MONTH_OPTS = numOptions(12);
 const DAY_OPTS = numOptions(31);
+// 数字（年月日）は様式どおり右詰め。元号は文字なので既定（左詰め）のまま
 const DATE_COLS = [
-  { suffix: '_g', left: 19.5, width: 5.44, options: ERA_OPTS },
-  { suffix: '_y', left: 24.94, width: 5.44, options: YEAR_OPTS },
-  { suffix: '_m', left: 30.38, width: 5.44, options: MONTH_OPTS },
-  { suffix: '_d', left: 35.82, width: 5.44, options: DAY_OPTS },
+  { suffix: '_g', left: 19.5, width: 5.44, options: ERA_OPTS, align: undefined },
+  { suffix: '_y', left: 24.94, width: 5.44, options: YEAR_OPTS, align: 'right' },
+  { suffix: '_m', left: 30.38, width: 5.44, options: MONTH_OPTS, align: 'right' },
+  { suffix: '_d', left: 35.82, width: 5.44, options: DAY_OPTS, align: 'right' },
 ] as const;
 
 function dateSelectCells(prefix: string, top: number, height: number, code: string, calculationRequired = false): GridCell[] {
@@ -273,6 +274,7 @@ function dateSelectCells(prefix: string, top: number, height: number, code: stri
       kind: 'input' as const,
       calculationRequired,
       options: [...col.options],
+      align: col.align,
       top,
       left: col.left,
       width: col.width,
@@ -390,19 +392,19 @@ const CELLS: GridCell[] = [
   { kind: 'cell', codeLabel: 'E02', top: 25.41, left: 44.88, width: 1.82, height: 2.34 },
   { field: 'f22', kind: 'input', readOnly: true, top: 25.41, left: 46.7, width: 19.94, height: 2.34, align: 'left' },
   { kind: 'cell', codeLabel: 'G01', top: 25.41, left: 66.64, width: 1.81, height: 2.34 },
-  { field: 'f23', kind: 'input', calculationRequired: true, compactSelectedOption: true, ariaLabel: '業種目番号1', top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
+  { field: 'f23', kind: 'input', calculationRequired: true, compactSelectedOption: true, align: 'right', ariaLabel: '業種目番号1', top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
   { kind: 'cell', codeLabel: 'C01', top: 25.41, left: 81.14, width: 1.82, height: 2.34 },
   { field: 'f24', kind: 'input', top: 25.41, left: 82.96, width: 5.52, height: 2.34 },
   { kind: 'cell', codeLabel: 'E03', top: 27.75, left: 44.88, width: 1.82, height: 2.36 },
   { field: 'f25', kind: 'input', readOnly: true, top: 27.75, left: 46.7, width: 19.94, height: 2.36, align: 'left' },
   { kind: 'cell', codeLabel: 'G02', top: 27.75, left: 66.64, width: 1.81, height: 2.36 },
-  { field: 'f26', kind: 'input', calculationRequired: true, compactSelectedOption: true, ariaLabel: '業種目番号2', top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
+  { field: 'f26', kind: 'input', calculationRequired: true, compactSelectedOption: true, align: 'right', ariaLabel: '業種目番号2', top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
   { kind: 'cell', codeLabel: 'C02', top: 27.75, left: 81.14, width: 1.82, height: 2.36 },
   { field: 'f27', kind: 'input', top: 27.75, left: 82.96, width: 5.52, height: 2.36 },
   { kind: 'cell', codeLabel: 'E04', top: 30.11, left: 44.88, width: 1.82, height: 2.25 },
   { field: 'f28', kind: 'input', readOnly: true, top: 30.11, left: 46.7, width: 19.94, height: 2.25, align: 'left' },
   { kind: 'cell', codeLabel: 'G03', top: 30.11, left: 66.64, width: 1.81, height: 2.25 },
-  { field: 'f29', kind: 'input', calculationRequired: true, compactSelectedOption: true, ariaLabel: '業種目番号3', top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
+  { field: 'f29', kind: 'input', calculationRequired: true, compactSelectedOption: true, align: 'right', ariaLabel: '業種目番号3', top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
   { kind: 'cell', codeLabel: 'C03', top: 30.11, left: 81.14, width: 1.82, height: 2.25 },
   { field: 'f30', kind: 'input', top: 30.11, left: 82.96, width: 5.52, height: 2.25 },
   // ── 1. 株主及び評価方式の判定 ──
