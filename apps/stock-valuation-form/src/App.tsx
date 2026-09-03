@@ -16,6 +16,8 @@ import type { TableId, TableProps } from '@/types/form';
 import { TABS } from '@/data/constants';
 import { ValuationPurposePanel } from '@/components/ValuationPurposePanel';
 import { ClientSummaryPage } from '@/components/ClientSummaryPage';
+import { RequiredFieldNavigator } from '@/components/RequiredFieldNavigator';
+import { focusAndFlash } from '@/lib/focusField';
 
 // 業種目データ管理は帳票と同居させない別画面。ハッシュで切り替える。
 const ADMIN_HASH = '#industry-data';
@@ -90,17 +92,7 @@ export default function App() {
       requestAnimationFrame(() => {
         const fieldTable = DATA_BUCKET[target.tab] ?? target.tab;
         const el = document.querySelector<HTMLElement>(`[name="${fieldTable}.${target.field}"]`);
-        if (!el) return;
-        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        el.focus();
-        const prevShadow = el.style.boxShadow;
-        const prevBg = el.style.background;
-        el.style.boxShadow = 'inset 0 0 0 2px #2563eb';
-        el.style.background = '#dbeafe';
-        setTimeout(() => {
-          el.style.boxShadow = prevShadow;
-          el.style.background = prevBg;
-        }, 1500);
+        if (el) focusAndFlash(el);
       });
     });
   }, []);
@@ -260,6 +252,7 @@ export default function App() {
               {tool.label}
             </button>
           ))}
+          {!summaryOpen && <RequiredFieldNavigator watch={`${activeTab}:${printTarget ?? ''}:${JSON.stringify(formData)}`} />}
           <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
           <span className="app-autosave" aria-live="polite">
             {savedAt

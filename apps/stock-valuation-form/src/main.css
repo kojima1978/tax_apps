@@ -538,6 +538,21 @@
   flex-shrink: 0;
 }
 
+/* 必須入力欄のナビゲータ */
+.app-tool-btn-required {
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  background: #eff6ff;
+  font-weight: 700;
+}
+
+.app-required-done {
+  align-self: center;
+  font-size: 10px;
+  color: #15803d;
+  white-space: nowrap;
+}
+
 /* 自動保存の状況表示（ツールバー下段に回り込ませる） */
 .app-autosave {
   flex-basis: 100%;
