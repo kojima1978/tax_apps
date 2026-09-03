@@ -652,7 +652,8 @@
   background: #b45309;
 }
 
-.prereq-backdrop {
+/* ダイアログの土台（前提条件・確認事項で共用。幅だけ各ダイアログ側で決める） */
+.app-modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 2000;
@@ -663,8 +664,7 @@
   background: rgba(0, 0, 0, 0.4);
 }
 
-.prereq-dialog {
-  width: min(880px, 100%);
+.app-modal {
   max-height: 88vh;
   overflow-y: auto;
   padding: 16px 18px;
@@ -672,6 +672,10 @@
   background: #fff;
   color: #0f172a;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.prereq-dialog {
+  width: min(880px, 100%);
 }
 
 .prereq-section-title {
@@ -697,6 +701,75 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 14px;
+}
+
+/* 整合チェック（確認事項）。エラーではないので赤ではなく琥珀色にする */
+.app-tool-btn-check {
+  color: #92400e;
+  border-color: #fcd34d;
+  background: #fffbeb;
+  font-weight: 700;
+}
+
+.app-tool-btn-check:hover {
+  background: #fef3c7;
+}
+
+.check-dialog {
+  width: min(560px, 100%);
+}
+
+.check-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.check-note {
+  margin: 4px 0 12px;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.check-item:hover {
+  background: #fef3c7;
+}
+
+.check-item-where {
+  display: block;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.check-item-message {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .valuation-purpose-heading {

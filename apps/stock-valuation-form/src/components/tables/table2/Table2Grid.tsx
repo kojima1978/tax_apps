@@ -5,6 +5,7 @@ import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 import { forcesSmallCompany } from '@/lib/valuationPurpose';
+import { readWarekiDate } from '@/lib/wareki';
 
 const T = 'table2' as const;
 
@@ -310,14 +311,8 @@ export function calcTable2(getField: TableProps['getField']) {
   const s3 = landRatio === null ? null : landTh === null ? (sizeRank === 0 && assetBook !== null && gyo !== '' ? false : null) : landRatio >= landTh;
 
   // 4(1). 開業後3年未満（開業年月日=和暦入力、課税時期=第1表の1と比較。未入力は判定不能）
-  const western = (g: string, y: number) => (g === '昭和' ? 1925 + y : g === '平成' ? 1988 + y : 2018 + y);
-  const readDate = (gf: (f: string) => string, p: string): Date | null => {
-    const y = Number(gf(`${p}_y`)), m = Number(gf(`${p}_m`)), d = Number(gf(`${p}_d`));
-    if (!y || !m || !d) return null;
-    return new Date(western(gf(`${p}_g`) || '令和', y), m - 1, d);
-  };
-  const taxDate = readDate((f) => getField('table1_1', f), 'f14');
-  const openDate = readDate(raw, 'f85');
+  const taxDate = readWarekiDate((f) => getField('table1_1', f), 'f14');
+  const openDate = readWarekiDate(raw, 'f85');
   const s4a = taxDate !== null && openDate !== null
     ? taxDate.getTime() < new Date(openDate.getFullYear() + 3, openDate.getMonth(), openDate.getDate()).getTime()
     : null;

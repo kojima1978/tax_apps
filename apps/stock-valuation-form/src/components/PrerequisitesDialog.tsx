@@ -82,9 +82,9 @@ export function PrerequisitesDialog({ getField, updateField, onClose }: Props & 
   };
 
   return (
-    <div className="no-print prereq-backdrop" onClick={onClose}>
+    <div className="no-print app-modal-backdrop" onClick={onClose}>
       <div
-        className="prereq-dialog"
+        className="app-modal prereq-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="prereq-title"

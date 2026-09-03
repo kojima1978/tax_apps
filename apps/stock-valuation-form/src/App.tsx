@@ -17,6 +17,7 @@ import { TABS } from '@/data/constants';
 import { PrerequisitesChip, PrerequisitesDialog } from '@/components/PrerequisitesDialog';
 import { ClientSummaryPage } from '@/components/ClientSummaryPage';
 import { RequiredFieldNavigator } from '@/components/RequiredFieldNavigator';
+import { ConsistencyChecker } from '@/components/ConsistencyChecker';
 import { focusAndFlash } from '@/lib/focusField';
 
 // 業種目データ管理は帳票と同居させない別画面。ハッシュで切り替える。
@@ -291,6 +292,7 @@ export default function App() {
             </button>
           )}
           {!summaryOpen && <RequiredFieldNavigator watch={`${activeTab}:${printTarget ?? ''}:${JSON.stringify(formData)}`} />}
+          {!summaryOpen && <ConsistencyChecker getField={getField} onJump={(tab, field) => handleJump({ tab, field })} />}
           <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
         </div>
       </div>
