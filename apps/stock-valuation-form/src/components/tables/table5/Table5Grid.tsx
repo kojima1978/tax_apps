@@ -510,6 +510,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
           {p === 0 ? (
             <GridForm
               cells={mainPageCells}
+              snapTol={0.25}
               g={g}
               u={u}
               formId={T}
@@ -524,6 +525,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
           ) : (
             <GridForm
               cells={continuationPageCells(p)}
+              snapTol={0.25}
               g={g}
               u={u}
               formId={T}

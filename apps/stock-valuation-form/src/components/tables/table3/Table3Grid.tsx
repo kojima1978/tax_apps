@@ -267,7 +267,10 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '円', top: 90.46, left: 51.09, width: 1.81, height: 3.44, fontSize: 7 },
   { kind: 'label', text: '㉞　株式に関する\n権利の評価額', fontSize: 7, top: 90.46, left: 52.9, width: 10.88, height: 3.44 },
   { kind: 'cell', codeLabel: 'J06', top: 90.46, left: 63.78, width: 2.3, height: 3.44 },
-  { field: '㉞', kind: 'input', readOnly: true, multiline: true, fontSize: 7, top: 90.46, left: 66.08, width: 26.26, height: 3.44 },
+  { field: '㉞円', kind: 'input', readOnly: true, multiline: true, fontSize: 7, top: 90.46, left: 66.08, width: 15.0, height: 3.44, align: 'right' },
+  { kind: 'label', text: '円', top: 90.46, left: 81.08, width: 1.8, height: 3.44, fontSize: 7 },
+  { field: '㉞銭', kind: 'input', readOnly: true, top: 90.46, left: 82.88, width: 7.23, height: 3.44, align: 'right' },
+  { kind: 'label', text: '銭', top: 90.46, left: 90.11, width: 2.23, height: 3.44, fontSize: 7 },
 ];
 
 
@@ -387,12 +390,16 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
 
   // 4. 株式に関する権利の評価額: 発生している権利（クリック指定）の金額をそれぞれ別に記載（記載要領）
   const RIGHTS = [
-    { key: 'right_haito', label: '配当期待権', mark: '㉗', text: v27 === null ? null : `㉗ ${fl(v27).toLocaleString('ja-JP')}円${String(Math.round((v27 - fl(v27)) * 100)).padStart(2, '0')}銭` },
-    { key: 'right_wariate', label: '割当てを受ける権利', mark: '㉚', text: v30 === null ? null : `㉚ ${v30.toLocaleString('ja-JP')}円` },
-    { key: 'right_kabunushi', label: '株主となる権利', mark: '㉛', text: v31 === null ? null : `㉛ ${v31.toLocaleString('ja-JP')}円` },
-    { key: 'right_musho', label: '無償交付期待権', mark: '㉜', text: v32 === null ? null : `㉜ ${v32.toLocaleString('ja-JP')}円` },
+    { key: 'right_haito', label: '配当期待権', mark: '㉗', yen: v27 === null ? null : `㉗ ${fl(v27).toLocaleString('ja-JP')}` },
+    { key: 'right_wariate', label: '割当てを受ける権利', mark: '㉚', yen: v30 === null ? null : `㉚ ${v30.toLocaleString('ja-JP')}` },
+    { key: 'right_kabunushi', label: '株主となる権利', mark: '㉛', yen: v31 === null ? null : `㉛ ${v31.toLocaleString('ja-JP')}` },
+    { key: 'right_musho', label: '無償交付期待権', mark: '㉜', yen: v32 === null ? null : `㉜ ${v32.toLocaleString('ja-JP')}` },
   ];
-  const rightsText = RIGHTS.filter((r) => raw(r.key) === '1').map((r) => r.text ?? `${r.mark} －`).join('\n');
+  // 様式の㉞欄は［円］［銭］に分かれる。銭が生じるのは配当期待権のみなので、
+  // 円欄に権利ごとの円部分を、銭欄に配当期待権の銭部分を表示する。
+  const selectedRights = RIGHTS.filter((r) => raw(r.key) === '1');
+  const rightsYenText = selectedRights.map((r) => r.yen ?? `${r.mark} －`).join('\n');
+  const rightsSenText = selectedRights.some((r) => r.key === 'right_haito') && v27 !== null ? senPart(v27) : '';
 
   const g = (f: string): string => {
     switch (f) {
@@ -447,7 +454,8 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
       case '㉛': return fmt(v31);
       case '㉜': return fmt(v32);
       case '㉝': return finalPrice === null ? '' : fmt(finalPrice);
-      case '㉞': return rightsText;
+      case '㉞円': return rightsYenText;
+      case '㉞銭': return rightsSenText;
       default: return raw(f);
     }
   };

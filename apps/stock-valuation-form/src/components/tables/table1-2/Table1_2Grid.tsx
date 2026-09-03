@@ -192,8 +192,8 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>, forceSmal
     { field: 'j1_co_yes', kind: 'input', readOnly: true, ariaLabel: '中心的な同族株主がいる（該当時は１）', highlightWhen: (g) => judge.chushinOtherActive && g('j_chushin_other') === 'yes', top: 25.58, left: 67.81, width: 1.89, height: 2.71, align: 'center' },
     { kind: 'label', text: 'がいる　（配当還元方式）', selectValue: judge.chushinOtherActive ? { field: 'j_chushin_other', value: 'yes' } : undefined, highlightWhen: (g) => judge.chushinOtherActive && g('j_chushin_other') === 'yes', top: 25.58, left: 69.7, width: 20.83, height: 2.71 },
     // 中心的な同族株主の氏名
-    { kind: 'label', text: '中心的な同族株主（又は株主）がいる場合は、\nその同族株主（又は株主）の氏名', fontSize: 7, top: 28.29, left: 11, width: 32.19, height: 2.71 },
-    { field: 'j_chushin_name', kind: 'input', readOnly: omitted, top: 28.29, left: 43.19, width: 47.34, height: 2.71, align: 'left' },
+    { kind: 'label', text: '中心的な同族株主（又は株主）がいる場合は、\nその同族株主（又は株主）の氏名', fontSize: 7, top: 28.29, left: 13.05, width: 28.25, height: 2.71 },
+    { field: 'j_chushin_name', kind: 'input', readOnly: omitted, top: 28.29, left: 41.3, width: 49.23, height: 2.71, align: 'left' },
     // 判定
     { kind: 'label', text: '判　　　定', top: 31, left: 9.11, width: 32.19, height: 2.59 },
     { kind: 'cell', codeLabel: 'G07', top: 31, left: 41.3, width: 1.89, height: 2.59 },
@@ -255,12 +255,17 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>, forceSmal
     // マトリクス本体（データ駆動）
     ...matrixCells(),
     // 会社規模とＬの割合の列
-    { kind: 'label', text: '大　会　社', highlightWhen: matrixResHL(4), top: 61.6, left: 82.96, width: 7.57, height: 3.27 },
-    { kind: 'label', text: '0.90', highlightWhen: matrixResHL(3), top: 64.87, left: 82.96, width: 5.68, height: 3.28 },
-    { kind: 'label', text: '0.75', highlightWhen: matrixResHL(2), top: 68.15, left: 82.96, width: 5.68, height: 3.27 },
-    { kind: 'label', text: '0.60', highlightWhen: matrixResHL(1), top: 71.42, left: 82.96, width: 5.68, height: 3.28 },
+    { kind: 'cell', top: 61.6, left: 82.96, width: 1.88, height: 3.27 },
+    { kind: 'label', text: '大　会　社', highlightWhen: matrixResHL(4), top: 61.6, left: 84.84, width: 5.69, height: 3.27 },
+    { kind: 'cell', top: 64.87, left: 82.96, width: 1.88, height: 3.28 },
+    { kind: 'label', text: '0.90', highlightWhen: matrixResHL(3), top: 64.87, left: 84.84, width: 3.8, height: 3.28 },
+    { kind: 'cell', top: 68.15, left: 82.96, width: 1.88, height: 3.27 },
+    { kind: 'label', text: '0.75', highlightWhen: matrixResHL(2), top: 68.15, left: 84.84, width: 3.8, height: 3.27 },
+    { kind: 'cell', top: 71.42, left: 82.96, width: 1.88, height: 3.28 },
+    { kind: 'label', text: '0.60', highlightWhen: matrixResHL(1), top: 71.42, left: 84.84, width: 3.8, height: 3.28 },
     { kind: 'label', text: '中会社', top: 64.87, left: 88.64, width: 1.89, height: 9.83, align: 'center', forceVertical: true },
-    { kind: 'label', text: '小　会　社', highlightWhen: matrixResHL(0), top: 74.7, left: 82.96, width: 7.57, height: 3.28 },
+    { kind: 'cell', top: 74.7, left: 82.96, width: 1.88, height: 3.28 },
+    { kind: 'label', text: '小　会　社', highlightWhen: matrixResHL(0), top: 74.7, left: 84.84, width: 5.69, height: 3.28 },
     // 脚注
     { kind: 'label', text: '・　「会社規模とＬの割合（中会社）の区分」欄は、㋻欄の区分（「総資産価額（帳簿価額）」と「従業員数」とのいずれか下位の区分）と㋕欄（取引金額）の区分とのいずれか上位の区分により判定します。', fontSize: 7, top: 77.98, left: 11, width: 79.53, height: 2.62, align: 'left' },
     // ── 判定 ──

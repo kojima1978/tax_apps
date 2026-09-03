@@ -129,8 +129,8 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '㋺', top: 65.98, left: 54.27, width: 1.85, height: 2.62 },
   { kind: 'cell', codeLabel: 'G10', top: 65.98, left: 56.12, width: 1.82, height: 2.62 },
   { field: '㋺', kind: 'input', readOnly: true, top: 65.98, left: 57.94, width: 14.46, height: 2.62, align: 'right' },
-  { kind: 'cell', codeLabel: 'G11', top: 63.36, left: 72.4, width: 1.86, height: 5.24 },
-  { field: '㉓', kind: 'input', readOnly: true, top: 63.36, left: 74.26, width: 18.17, height: 5.24, align: 'right' },
+  { kind: 'cell', codeLabel: 'G11', top: 63.36, left: 72.4, width: 2.53, height: 5.24 },
+  { field: '㉓', kind: 'input', readOnly: true, top: 63.36, left: 74.93, width: 17.5, height: 5.24, align: 'right' },
   // ㉔ 1株50円年配当
   { kind: 'label', text: '㉔　１株（50円）当たりの年配当金額\n（㉓÷⑱）', fontSize: 7, top: 68.6, left: 10.76, width: 27.03, height: 2.63 },
   ...yenSenInput('J02', '㉔円', '㉔銭', 68.6, 2.63, 37.79, 39.61, 48.79, 50.6, 57.94, 59.79, { readOnly: true }),
@@ -189,7 +189,10 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '円', top: 93.59, left: 50.6, width: 1.86, height: 3.48, fontSize: 7 },
   { kind: 'label', text: '㊱　株式に関する\n権利の評価額', fontSize: 7, top: 93.59, left: 52.46, width: 11.0, height: 3.48 },
   { kind: 'cell', codeLabel: 'J06', top: 93.59, left: 63.46, width: 2.86, height: 3.48 },
-  { field: '㊱', kind: 'input', readOnly: true, multiline: true, fontSize: 7, top: 93.59, left: 66.32, width: 26.11, height: 3.48 },
+  { field: '㊱円', kind: 'input', readOnly: true, multiline: true, fontSize: 7, top: 93.59, left: 66.32, width: 14.7, height: 3.48, align: 'right' },
+  { kind: 'label', text: '円', top: 93.59, left: 81.02, width: 1.81, height: 3.48, fontSize: 7 },
+  { field: '㊱銭', kind: 'input', readOnly: true, top: 93.59, left: 82.83, width: 7.34, height: 3.48, align: 'right' },
+  { kind: 'label', text: '銭', top: 93.59, left: 90.17, width: 2.26, height: 3.48, fontSize: 7 },
 ];
 
 /** 第6表（CSSグリッド方式・令和8年4月1日以降用） */
@@ -283,12 +286,17 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
   const v34 = baseRight; // ㉞
 
   const RIGHTS = [
-    { key: 'right_haito', mark: '㉙', text: v29 === null ? null : `㉙ ${fl(v29).toLocaleString('ja-JP')}円${String(Math.round((v29 - fl(v29)) * 100)).padStart(2, '0')}銭` },
-    { key: 'right_wariate', mark: '㉜', text: v32 === null ? null : `㉜ ${v32.toLocaleString('ja-JP')}円` },
-    { key: 'right_kabunushi', mark: '㉝', text: v33 === null ? null : `㉝ ${v33.toLocaleString('ja-JP')}円` },
-    { key: 'right_musho', mark: '㉞', text: v34 === null ? null : `㉞ ${v34.toLocaleString('ja-JP')}円` },
+    { key: 'right_haito', mark: '㉙', yen: v29 === null ? null : `㉙ ${fl(v29).toLocaleString('ja-JP')}` },
+    { key: 'right_wariate', mark: '㉜', yen: v32 === null ? null : `㉜ ${v32.toLocaleString('ja-JP')}` },
+    { key: 'right_kabunushi', mark: '㉝', yen: v33 === null ? null : `㉝ ${v33.toLocaleString('ja-JP')}` },
+    { key: 'right_musho', mark: '㉞', yen: v34 === null ? null : `㉞ ${v34.toLocaleString('ja-JP')}` },
   ];
-  const rightsText = RIGHTS.filter((r) => raw(r.key) === '1').map((r) => r.text ?? `${r.mark} －`).join('\n');
+  // 様式の㊱欄は［円］［銭］に分かれる。銭が生じるのは配当期待権のみなので、
+  // 円欄に権利ごとの円部分を、銭欄に配当期待権の銭部分を表示する。
+  const selectedRights = RIGHTS.filter((r) => raw(r.key) === '1');
+  const rightsYenText = selectedRights.map((r) => r.yen ?? `${r.mark} －`).join('\n');
+  const rightsSenText = selectedRights.some((r) => r.key === 'right_haito') && v29 !== null
+    ? String(Math.round((v29 - fl(v29)) * 100)).padStart(2, '0') : '';
 
   const g = (f: string): string => {
     switch (f) {
@@ -317,7 +325,8 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
       case '㉚': return fmt(baseRight); case '㉜': return fmt(v32);
       case '㉝': return fmt(v33); case '㉞': return fmt(v34);
       case '㉟': return finalPrice === null ? '' : fmt(finalPrice);
-      case '㊱': return rightsText;
+      case '㊱円': return rightsYenText;
+      case '㊱銭': return rightsSenText;
       default: return raw(f);
     }
   };

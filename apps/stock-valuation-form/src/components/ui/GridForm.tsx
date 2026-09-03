@@ -179,6 +179,8 @@ interface GridFormProps {
   geometry?: FormGeometry;
   /** Enterキーで循環する入力欄のaria-label順 */
   enterLoop?: string[];
+  /** 罫線をまとめる許容差（省略時0.7）。第5表の中央二重線のように0.7未満の隙間を残す表だけ小さくする */
+  snapTol?: number;
   /** input/select の id・name に使用する表識別子 */
   formId?: string;
   /** 自動転記欄（jumpTo付き）クリック時に入力元へ移動する */
@@ -306,13 +308,13 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
  * 各矩形の left/right を縦線、top/bottom を横線として grid-template を生成し、
  * 各セルを grid-column / grid-row で配置する。背景画像は不要。
  */
-export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, toolbar, overlay, geometry: geometryProp, enterLoop, formId, onJump, onDragReorder }: GridFormProps) {
+export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, toolbar, overlay, geometry: geometryProp, enterLoop, formId, snapTol, onJump, onDragReorder }: GridFormProps) {
   const printRendering = useContext(PrintRenderContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
   const { colTmpl, rowTmpl, placed, bounds } = useMemo(() => {
-    const xs = snapLines(cells.flatMap((c) => [c.left, c.left + c.width]));
-    const ys = snapLines(cells.flatMap((c) => [c.top, c.top + c.height]));
+    const xs = snapLines(cells.flatMap((c) => [c.left, c.left + c.width]), snapTol);
+    const ys = snapLines(cells.flatMap((c) => [c.top, c.top + c.height]), snapTol);
     const colTmpl = xs.slice(1).map((x, i) => `${(x - xs[i]!).toFixed(3)}fr`).join(' ');
     const rowTmpl = ys.slice(1).map((y, i) => `${(y - ys[i]!).toFixed(3)}fr`).join(' ');
     const placed = cells.map((c) => ({
@@ -333,7 +335,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
         height: ys[ys.length - 1]! - ys[0]!,
       },
     };
-  }, [cells]);
+  }, [cells, snapTol]);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const dragIdRef = useRef<string | null>(null);
