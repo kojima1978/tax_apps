@@ -508,6 +508,15 @@
   flex-shrink: 0;
 }
 
+/* 自動保存の状況表示（ツールバー下段に回り込ませる） */
+.app-autosave {
+  flex-basis: 100%;
+  text-align: right;
+  font-size: 10px;
+  line-height: 1.2;
+  color: #6b7280;
+}
+
 .app-tool-btn {
   height: 28px;
   padding: 0 8px;

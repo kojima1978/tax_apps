@@ -53,7 +53,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TableId>('table1_1');
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
-  const { formData, getField, updateField, resetAll, exportJson, importJson, rolloverToNextYear } = useFormData();
+  const { formData, savedAt, getField, updateField, resetAll, exportJson, importJson, rolloverToNextYear } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
   const printRequestedRef = useRef(false);
   const printAll = printTarget === 'all';
@@ -249,6 +249,11 @@ export default function App() {
             </button>
           ))}
           <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+          <span className="app-autosave" aria-live="polite">
+            {savedAt
+              ? `自動保存済み ${savedAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`
+              : '入力するとこの端末に自動保存されます'}
+          </span>
         </div>
       </div>
 

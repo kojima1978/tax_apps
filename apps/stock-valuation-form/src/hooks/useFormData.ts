@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { type FormData, type TableId, initialFormData } from '@/types/form';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
 import type { IndustryDataset, IndustryYearView } from '@/data/industryDataset';
@@ -285,6 +285,25 @@ export function normalizeFormData(data: FormData, industry: IndustryDataset): Fo
   return normalizeIndustryFields(normalizeLinkedFields(migrateTable1_1R8(completeData)), industry);
 }
 
+/** UI状態（_*）を除いて1つでも入力があるか */
+export function hasAnyInput(data: FormData): boolean {
+  return Object.values(data).some((table) =>
+    Object.entries(table).some(([k, v]) => !k.startsWith('_') && String(v).trim() !== ''),
+  );
+}
+
+/** 読み込んだJSONがこの明細書のデータらしいか（別アプリのJSONで現データを消さないための検査） */
+function looksLikeFormData(value: unknown): value is FormData {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const tables = Object.keys(initialFormData).filter((table) => {
+    const entry = record[table];
+    return typeof entry === 'object' && entry !== null && !Array.isArray(entry);
+  });
+  // 表が1つも無いものは別物とみなす（旧バージョンで表が少ない可能性があるので全一致は求めない）
+  return tables.length > 0;
+}
+
 function loadFromStorage(industry: IndustryDataset): FormData {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -300,9 +319,17 @@ function loadFromStorage(industry: IndustryDataset): FormData {
 export function useFormData() {
   const industry = useIndustryDataset();
   const [formData, setFormData] = useState<FormData>(() => loadFromStorage(industry));
+  // 自動保存した時刻。ヘッダの表示用で、初回マウント時の保存は「変更」ではないので記録しない
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    setSavedAt(new Date());
   }, [formData]);
 
   const updateField = useCallback(
@@ -319,12 +346,6 @@ export function useFormData() {
     [formData],
   );
 
-  const resetAll = useCallback(() => {
-    if (!window.confirm('全データをリセットしますか？この操作は取り消せません。')) return;
-    setFormData(initialFormData);
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
-
   const exportJson = useCallback(() => {
     const blob = new Blob([JSON.stringify(formData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -335,18 +356,52 @@ export function useFormData() {
     URL.revokeObjectURL(url);
   }, [formData]);
 
+  const resetAll = useCallback(() => {
+    // 翌事業年度更新と同じく、取り消せない操作の前に現在のデータをJSONで自動保存する
+    const empty = !hasAnyInput(formData);
+    const message = empty
+      ? '全データをリセットしますか？'
+      : [
+          '全データをリセットします。この操作は取り消せません。',
+          '',
+          '実行前に現在のデータをJSONファイルとして自動保存します。よろしいですか？',
+        ].join('\n');
+    if (!window.confirm(message)) return;
+    if (!empty) exportJson();
+    setFormData(initialFormData);
+    localStorage.removeItem(STORAGE_KEY);
+    setSavedAt(null);
+  }, [exportJson, formData]);
+
   const importJson = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
+      let data: FormData;
       try {
-        const data = JSON.parse(e.target?.result as string) as FormData;
-        setFormData(normalizeFormData(data, industry));
+        const parsed: unknown = JSON.parse(e.target?.result as string);
+        if (!looksLikeFormData(parsed)) {
+          alert('この明細書のデータファイルではないようです。読み込みを中止しました。');
+          return;
+        }
+        data = parsed;
       } catch {
         alert('ファイルの読み込みに失敗しました。');
+        return;
       }
+      // 入力済みのデータを黙って消さない。破棄する前に現在のデータをJSONで自動保存する
+      if (hasAnyInput(formData)) {
+        const message = [
+          '現在入力されているデータを破棄して読み込みます。',
+          '',
+          '破棄する前に現在のデータをJSONファイルとして自動保存します。よろしいですか？',
+        ].join('\n');
+        if (!window.confirm(message)) return;
+        exportJson();
+      }
+      setFormData(normalizeFormData(data, industry));
     };
     reader.readAsText(file);
-  }, [industry]);
+  }, [exportJson, formData, industry]);
 
   /** 翌事業年度更新（実行前に現在データをJSONで自動バックアップ） */
   const rolloverToNextYear = useCallback(() => {
@@ -370,5 +425,5 @@ export function useFormData() {
   /** Table-scoped selector — stable reference per table while that table's data is unchanged */
   const tableData = useMemo(() => formData, [formData]);
 
-  return { formData, tableData, updateField, getField, resetAll, exportJson, importJson, rolloverToNextYear };
+  return { formData, tableData, savedAt, updateField, getField, resetAll, exportJson, importJson, rolloverToNextYear };
 }

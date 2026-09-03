@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialFormData, type FormData, type TableId } from '@/types/form';
 import { TEST_INDUSTRY_DATASET } from '@/data/__tests__/industryFixture';
-import { normalizeFormData, updateFormField } from '../useFormData';
+import { hasAnyInput, normalizeFormData, updateFormField } from '../useFormData';
 
 const COMPANY_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', 'f12'],
@@ -155,5 +155,15 @@ describe('table 4-2 similar industry linkage', () => {
     expect(normalized.table4).toMatchObject({
       r2sB1: '14', r2sB2: '60', r2sC: '71', r2sD: '600', '㋹': '543',
     });
+  });
+
+  it('treats the initial data as empty and any real input as non-empty', () => {
+    expect(hasAnyInput(initialFormData)).toBe(false);
+    expect(hasAnyInput({ ...initialFormData, table1_1: { ...initialFormData.table1_1, f12: 'アタック' } })).toBe(true);
+  });
+
+  it('ignores UI state fields (_*) and whitespace when judging emptiness', () => {
+    expect(hasAnyInput({ ...initialFormData, table1_1: { ...initialFormData.table1_1, _ui: '1' } })).toBe(false);
+    expect(hasAnyInput({ ...initialFormData, table1_1: { ...initialFormData.table1_1, f12: '   ' } })).toBe(false);
   });
 });
