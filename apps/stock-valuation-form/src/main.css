@@ -486,10 +486,40 @@
   color: #1a1a1a;
 }
 
+.table-tab-label-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .table-tab-label {
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* 第2表の判定で記載対象になる表 */
+.table-tab-button-target {
+  border-left: 3px solid #2563eb;
+}
+
+.table-tab-flag {
+  font-size: 9px;
+  line-height: 1;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  border-radius: 2px;
+  padding: 1px 2px;
+}
+
+/* 入力済みの表 */
+.table-tab-dot {
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #16a34a;
+  flex-shrink: 0;
 }
 
 .table-tab-subtitle {

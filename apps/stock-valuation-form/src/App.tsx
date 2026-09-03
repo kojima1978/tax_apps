@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Navigation } from '@/components/Navigation';
-import { useFormData } from '@/hooks/useFormData';
+import { MIRRORED_FIELDS, useFormData } from '@/hooks/useFormData';
 import { PrintRenderContext } from '@/components/ui/GridForm';
 // Keep Table1_1Overlay and public/forms/table1.png for PNG layout measurement.
 import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
@@ -63,14 +63,22 @@ export default function App() {
     () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
   );
 
-  // 表に（UI状態 _* を除く）入力値があるか。第4表の1／2は共通バケット table4 を参照する
+  // 表に（UI状態 _* と他表からの転記先を除く）入力値があるか。第4表の1／2は共通バケット table4 を参照する
   const hasData = useCallback(
     (tab: TableId) => {
       const bucket = DATA_BUCKET[tab] ?? tab;
-      return Object.entries(formData[bucket]).some(([k, v]) => !k.startsWith('_') && String(v).trim() !== '');
+      const mirrored = MIRRORED_FIELDS[bucket];
+      return Object.entries(formData[bucket]).some(
+        ([k, v]) => !k.startsWith('_') && !mirrored?.has(k) && String(v).trim() !== '',
+      );
     },
     [formData],
   );
+  // 第2表の判定で記載対象になる表（タブのバッジと印刷ダイアログの初期選択で共用）
+  const judgment = useMemo(() => printTablesForJudgment(getField), [getField]);
+  const judgmentTargets = useMemo(() => new Set<TableId>(judgment.tables), [judgment]);
+  const isJudgmentTarget = useCallback((tab: TableId) => judgmentTargets.has(tab), [judgmentTargets]);
+
   const setAllSelection = (fn: (tab: TableId) => boolean) =>
     setPrintSelection(Object.fromEntries(TABS.map((t) => [t.id, fn(t.id)])) as Record<TableId, boolean>);
 
@@ -131,10 +139,9 @@ export default function App() {
 
   // 全表印刷：選択ダイアログを開く（第2表の判定結果に応じた記載対象の表を初期チェック）
   const openPrintDialog = useCallback(() => {
-    const judgmentSet = new Set<TableId>(printTablesForJudgment(getField).tables);
-    setAllSelection((tab) => judgmentSet.has(tab));
+    setAllSelection((tab) => judgmentTargets.has(tab));
     setPrintDialogOpen(true);
-  }, [getField]);
+  }, [judgmentTargets]);
   const confirmPrintSelected = useCallback(() => {
     if (!TABS.some((t) => printSelection[t.id])) return;
     setPrintDialogOpen(false);
@@ -226,7 +233,12 @@ export default function App() {
             <small>入力済みデータから現状と打ち手を自動整理</small>
           </div>
         ) : (
-          <Navigation activeTab={activeTab} onTabChange={(tab) => { setSummaryOpen(false); setActiveTab(tab); }} />
+          <Navigation
+            activeTab={activeTab}
+            onTabChange={(tab) => { setSummaryOpen(false); setActiveTab(tab); }}
+            hasData={hasData}
+            isJudgmentTarget={isJudgmentTarget}
+          />
         )}
 
         <div className="app-toolbar" aria-label="帳票操作">
@@ -291,9 +303,7 @@ export default function App() {
       </div>
 
       {printDialogOpen && (() => {
-        // 第2表の判定結果から記載（提出）対象の表を導出（ダイアログ表示中のみ計算）
-        const judgment = printTablesForJudgment(getField);
-        const judgmentSet = new Set<TableId>(judgment.tables);
+        const judgmentSet = judgmentTargets;
         return (
         <div className="no-print" onClick={() => setPrintDialogOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 8, padding: 20, minWidth: 340, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>

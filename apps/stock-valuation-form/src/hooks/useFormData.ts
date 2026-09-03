@@ -146,6 +146,20 @@ const LINKED_FIELD_GROUPS: ReadonlyArray<ReadonlyArray<readonly [TableId, string
   PREVIOUS_EXTRAORDINARY_DIVIDEND_FIELDS,
 ];
 
+/**
+ * 転記先の欄（他表への自動転記で値が入る欄）。各グループの先頭を入力元とみなす。
+ * 会社名のように全表へ写る欄があるため、これを除かないと1箇所の入力で全表が「入力済み」になる。
+ */
+export const MIRRORED_FIELDS: Readonly<Partial<Record<TableId, ReadonlySet<string>>>> = (() => {
+  const map: Partial<Record<TableId, Set<string>>> = {};
+  for (const group of LINKED_FIELD_GROUPS) {
+    for (const [table, field] of group.slice(1)) {
+      (map[table] ??= new Set<string>()).add(field);
+    }
+  }
+  return map;
+})();
+
 function linkedFieldGroup(table: TableId, field: string) {
   return LINKED_FIELD_GROUPS.find((group) =>
     group.some(([targetTable, targetField]) => targetTable === table && targetField === field),

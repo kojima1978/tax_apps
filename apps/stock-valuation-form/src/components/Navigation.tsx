@@ -5,9 +5,13 @@ import type { TableId } from '@/types/form';
 interface NavigationProps {
   activeTab: TableId;
   onTabChange: (tab: TableId) => void;
+  /** 入力値のある表か（印刷ダイアログと同じ判定） */
+  hasData: (tab: TableId) => boolean;
+  /** 第2表の判定で記載対象になる表か */
+  isJudgmentTarget: (tab: TableId) => boolean;
 }
 
-export function Navigation({ activeTab, onTabChange }: NavigationProps) {
+export function Navigation({ activeTab, onTabChange, hasData, isJudgmentTarget }: NavigationProps) {
   const activeRef = useRef<HTMLButtonElement>(null);
   const activeIndex = TABS.findIndex((tab) => tab.id === activeTab);
   const currentTab = TABS[activeIndex] ?? TABS[0];
@@ -39,7 +43,7 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
         >
           {TABS.map((tab) => (
             <option key={tab.id} value={tab.id}>
-              {tab.label}　{tab.subtitle}
+              {hasData(tab.id) ? '●' : '　'}{tab.label}　{tab.subtitle}{isJudgmentTarget(tab.id) ? '（記載対象）' : ''}
             </option>
           ))}
         </select>
@@ -57,17 +61,27 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
       <div className="table-tab-list" role="tablist" aria-label="表一覧">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
+          const entered = hasData(tab.id);
+          const target = isJudgmentTarget(tab.id);
+          // 状態は色だけに頼らない（記号＋aria-labelでも伝える）
+          const state = [target ? '記載対象' : null, entered ? '入力済み' : '未入力'].filter(Boolean).join('・');
           return (
             <button
               key={tab.id}
               type="button"
               ref={isActive ? activeRef : undefined}
               onClick={() => onTabChange(tab.id)}
-              className={`table-tab-button${isActive ? ' table-tab-button-active' : ''}`}
+              className={`table-tab-button${isActive ? ' table-tab-button-active' : ''}${target ? ' table-tab-button-target' : ''}`}
               role="tab"
               aria-selected={isActive}
+              aria-label={`${tab.label} ${tab.subtitle}（${state}）`}
+              title={`${tab.label} ${tab.subtitle}／${state}`}
             >
-              <span className="table-tab-label">{tab.label}</span>
+              <span className="table-tab-label-row">
+                <span className="table-tab-label">{tab.label}</span>
+                {target && <span className="table-tab-flag" aria-hidden="true">対象</span>}
+                {entered && <span className="table-tab-dot" aria-hidden="true" />}
+              </span>
               <span className="table-tab-subtitle">{tab.subtitle}</span>
             </button>
           );
