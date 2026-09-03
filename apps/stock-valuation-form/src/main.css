@@ -368,27 +368,38 @@
   text-overflow: ellipsis;
 }
 
+/* ヘッダーの空きに前提条件チップ・保存状態・画面切替をまとめ、ツールバーの折り返しを減らす */
+.app-header-right {
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .app-topbar {
   position: sticky;
   top: 40px;
   z-index: 40;
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: 8px max(12px, calc((100% - var(--app-content-width)) / 2));
   border-bottom: 1px solid #d9d9d9;
   background: #fff;
 }
 
+/* 前へ・次へとタブ列を1行に収める（表ラベルの重複表示はやめた） */
 .table-nav {
   min-width: 0;
-  flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
 }
 
 .table-nav-controls {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -400,6 +411,11 @@
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.table-select-label,
+.table-select {
+  display: none;
 }
 
 .table-select {
@@ -443,13 +459,16 @@
   background: #f8fafc;
 }
 
+/* 読み上げ専用（表示はタブ列が担う） */
 .table-current-label {
-  min-width: 0;
-  color: #475569;
-  font-size: 11px;
-  white-space: nowrap;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .table-tab-list {
@@ -532,10 +551,9 @@
 .app-toolbar {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 4px;
-  width: 300px;
-  flex-shrink: 0;
 }
 
 /* 自動転記欄から飛んだ後の「戻る」 */
@@ -563,11 +581,11 @@
 
 /* 自動保存の状況表示（ツールバー下段に回り込ませる） */
 .app-autosave {
-  flex-basis: 100%;
-  text-align: right;
+  flex: none;
   font-size: 10px;
   line-height: 1.2;
   color: #6b7280;
+  white-space: nowrap;
 }
 
 .app-tool-btn {
@@ -851,17 +869,26 @@
     flex-direction: column;
   }
 
+  .table-nav {
+    flex-wrap: wrap;
+  }
+
   .table-nav-controls {
     flex-wrap: wrap;
   }
 
+  .table-select-label,
   .table-select {
-    width: calc(100vw - 96px);
-    min-width: 220px;
+    display: inline-block;
   }
 
-  .table-current-label {
-    width: 100%;
+  .table-select {
+    width: calc(100vw - 160px);
+    min-width: 180px;
+  }
+
+  .app-autosave {
+    display: none;
   }
 
   .app-toolbar {
@@ -1069,19 +1096,11 @@
 /* ===== 業種目データ管理（#industry-data） =====
    帳票と違い用紙サイズに縛られないので、画面幅いっぱいの素直なレイアウトにする。 */
 
-.app-header-btn {
-  margin-left: auto;
-}
-
+/* 右寄せは .app-header-right がまとめて行う */
 .app-summary-button {
-  margin-left: auto;
   border-color: #1d4ed8;
   color: #1d4ed8;
   font-weight: 700;
-}
-
-.app-summary-button + .app-header-btn {
-  margin-left: 0;
 }
 
 .app-summary-button.is-active {

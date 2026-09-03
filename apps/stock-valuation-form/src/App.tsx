@@ -216,21 +216,29 @@ export default function App() {
           ポータル
         </a>
         <div className="app-header-title">取引相場のない株式の評価明細書</div>
-        <button
-          type="button"
-          className={`app-tool-btn app-header-btn app-summary-button${summaryOpen ? ' is-active' : ''}`}
-          onClick={() => setSummaryOpen((open) => !open)}
-        >
-          {summaryOpen ? '帳票入力へ戻る' : 'お客様サマリー'}
-        </button>
-        <button
-          type="button"
-          className="app-tool-btn app-header-btn"
-          onClick={() => { window.location.hash = ADMIN_HASH; }}
-          title="類似業種比準価額に使う業種目マスタ・業種目別株価等を登録・訂正します"
-        >
-          業種目データ管理
-        </button>
+        <div className="app-header-right">
+          <PrerequisitesChip getField={getField} onClick={() => setPrereqOpen(true)} />
+          <span className="app-autosave" aria-live="polite">
+            {savedAt
+              ? `自動保存済み ${savedAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`
+              : '入力するとこの端末に自動保存されます'}
+          </span>
+          <button
+            type="button"
+            className={`app-tool-btn app-summary-button${summaryOpen ? ' is-active' : ''}`}
+            onClick={() => setSummaryOpen((open) => !open)}
+          >
+            {summaryOpen ? '帳票入力へ戻る' : 'お客様サマリー'}
+          </button>
+          <button
+            type="button"
+            className="app-tool-btn"
+            onClick={() => { window.location.hash = ADMIN_HASH; }}
+            title="類似業種比準価額に使う業種目マスタ・業種目別株価等を登録・訂正します"
+          >
+            業種目データ管理
+          </button>
+        </div>
       </header>
 
       <div className="no-print mobile-hint">
@@ -254,7 +262,6 @@ export default function App() {
         )}
 
         <div className="app-toolbar" aria-label="帳票操作">
-          <PrerequisitesChip getField={getField} onClick={() => setPrereqOpen(true)} />
           {([
             { label: '保存 (JSON)', onClick: exportJson, title: 'Ctrl+S' },
             { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
@@ -285,11 +292,6 @@ export default function App() {
           )}
           {!summaryOpen && <RequiredFieldNavigator watch={`${activeTab}:${printTarget ?? ''}:${JSON.stringify(formData)}`} />}
           <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
-          <span className="app-autosave" aria-live="polite">
-            {savedAt
-              ? `自動保存済み ${savedAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`
-              : '入力するとこの端末に自動保存されます'}
-          </span>
         </div>
       </div>
 

@@ -30,6 +30,13 @@ export function Navigation({ activeTab, onTabChange, hasData, isJudgmentTarget }
   return (
     <nav className="table-nav" aria-label="表の選択">
       <div className="table-nav-controls">
+        <button type="button" className="table-nav-button" onClick={() => move(-1)} disabled={!hasPrevious}>
+          前へ
+        </button>
+        <button type="button" className="table-nav-button" onClick={() => move(1)} disabled={!hasNext}>
+          次へ
+        </button>
+        {/* 表セレクトはタブ列が横スクロールになる狭い画面用（広い画面ではタブ列と重複するので隠す） */}
         <label className="table-select-label" htmlFor="table-selector">
           表
         </label>
@@ -47,16 +54,12 @@ export function Navigation({ activeTab, onTabChange, hasData, isJudgmentTarget }
             </option>
           ))}
         </select>
-        <button type="button" className="table-nav-button" onClick={() => move(-1)} disabled={!hasPrevious}>
-          前へ
-        </button>
-        <button type="button" className="table-nav-button" onClick={() => move(1)} disabled={!hasNext}>
-          次へ
-        </button>
-        <span className="table-current-label" aria-live="polite">
-          {currentTab?.label} {currentTab?.subtitle}
-        </span>
       </div>
+
+      {/* 現在の表はタブ列で強調しているので画面には出さない（読み上げ用にだけ残す） */}
+      <span className="table-current-label" aria-live="polite">
+        {currentTab?.label} {currentTab?.subtitle}
+      </span>
 
       <div className="table-tab-list" role="tablist" aria-label="表一覧">
         {TABS.map((tab) => {
