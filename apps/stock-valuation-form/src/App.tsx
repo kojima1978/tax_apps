@@ -14,7 +14,7 @@ import { Table7_1, Table7_2, Table7_3 } from '@/components/tables/table7';
 import { IndustryAdminPage } from '@/features/industryAdmin/IndustryAdminPage';
 import type { TableId, TableProps } from '@/types/form';
 import { TABS } from '@/data/constants';
-import { ValuationPurposePanel } from '@/components/ValuationPurposePanel';
+import { PrerequisitesChip, PrerequisitesDialog } from '@/components/PrerequisitesDialog';
 import { ClientSummaryPage } from '@/components/ClientSummaryPage';
 import { RequiredFieldNavigator } from '@/components/RequiredFieldNavigator';
 import { focusAndFlash } from '@/lib/focusField';
@@ -60,6 +60,7 @@ export default function App() {
   const printRequestedRef = useRef(false);
   const printAll = printTarget === 'all';
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [prereqOpen, setPrereqOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(() => window.location.hash === ADMIN_HASH);
   const [printSelection, setPrintSelection] = useState<Record<TableId, boolean>>(
     () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
@@ -253,6 +254,7 @@ export default function App() {
         )}
 
         <div className="app-toolbar" aria-label="帳票操作">
+          <PrerequisitesChip getField={getField} onClick={() => setPrereqOpen(true)} />
           {([
             { label: '保存 (JSON)', onClick: exportJson, title: 'Ctrl+S' },
             { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
@@ -291,7 +293,6 @@ export default function App() {
         </div>
       </div>
 
-      {!summaryOpen && <ValuationPurposePanel getField={getField} updateField={updateField} />}
 
       <div className="app-shell">
         <main className="app-main">
@@ -323,6 +324,10 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {prereqOpen && (
+        <PrerequisitesDialog getField={getField} updateField={updateField} onClose={() => setPrereqOpen(false)} />
+      )}
 
       {printDialogOpen && (() => {
         const judgmentSet = judgmentTargets;
