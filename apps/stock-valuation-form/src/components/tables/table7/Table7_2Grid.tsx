@@ -249,10 +249,11 @@ export function Table7_2Grid({ getField, updateField, onJump }: TableProps) {
     if (linked) return table4Raw(linked);
     switch (f) {
       case '⑱': return fmt(c.A1); case '㉑': return fmt(c.A2);
-      case 'f103': return yenPart(c.Bv); case 'f104': return senPart(c.Bv);
-      case 'b2_f103': return yenPart(c.Bv); case 'b2_f104': return senPart(c.Bv);
-      case 'f106': return fmt(c.Cv); case 'b2_f106': return fmt(c.Cv);
-      case 'f108': return fmt(c.Dv); case 'b2_f108': return fmt(c.Dv);
+      // 評価会社の要素は第7表の1の⑤⑧⑰（受取配当金等収受割合で減額した後）
+      case 'f103': return yenPart(c.adjB); case 'f104': return senPart(c.adjB);
+      case 'b2_f103': return yenPart(c.adjB); case 'b2_f104': return senPart(c.adjB);
+      case 'f106': return fmt(c.adjC); case 'b2_f106': return fmt(c.adjC);
+      case 'f108': return fmt(c.adjD); case 'b2_f108': return fmt(c.adjD);
       case 'f117': return c.e1B === null ? '' : c.e1B.toFixed(2);
       case 'f119': return c.e1C === null ? '' : c.e1C.toFixed(2);
       case 'f121': return c.e1D === null ? '' : c.e1D.toFixed(2);

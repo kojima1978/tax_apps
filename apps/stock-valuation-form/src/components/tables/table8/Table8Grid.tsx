@@ -1,6 +1,6 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { companyFloatBox } from '../companyFloatHeader';
-import { calcTable5 } from '../table5/Table5Grid';
+import { calcTable5, calcTable5Detail } from '../table5/Table5Grid';
 import { calcTable7 } from '../table7/Table7Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import { table8Hints } from './formulaHints';
@@ -156,6 +156,11 @@ export function calcTable8(getField: TableProps['getField']) {
   const num = (f: string) => parseNum(raw(f));
 
   const t5 = calcTable5(getField);
+  // ⑤⑲は「第5表の㋺＋（㊁－㋭）」。㊁㋭（現物出資等受入れ資産）は総資産の20％超のときだけ
+  // 第5表の帳簿価額へ加算されるので、その判定を通した後の差額を使う（評価通達186-2）
+  const t5d = calcTable5Detail(getField);
+  const inKind = { eval: t5d.inKindEval, book: t5d.inKindBook, ratio: t5d.inKindRatio, diff: t5d.applicableInKindDifference };
+  const stockBook = t5['ロ'] === null || t5['ロ'] === undefined ? null : t5['ロ'] + inKind.diff;
   const t7 = calcTable7(getField);
   const size = calcCompanySize((f) => getField('table1_2', f), forcesSmallCompany(getField)).result;
   const isHijun1 = calcTable2(getField).j.s1 === true;
@@ -166,7 +171,7 @@ export function calcTable8(getField: TableProps['getField']) {
   const v2: number | null = t5['イ'] ?? null;                  // ② 株式等の相続税評価額（第5表イを転記）
   const v3 = v1 !== null && v2 !== null ? v1 - v2 : null;       // ③ ①－②
   const v4 = t5['⑥'] ?? null;                                  // ④ 帳簿価額純資産（第5表⑥）
-  const v5: number | null = t5['ロ'] ?? null;                  // ⑤ 株式等の帳簿価額（第5表ロを転記）
+  const v5: number | null = stockBook;                          // ⑤ 株式等の帳簿価額（第5表㋺＋（㊁－㋭））
   const v6 = v4 !== null && v5 !== null ? v4 - v5 : null;       // ⑥ ④－⑤
   const v7 = v3 !== null && v6 !== null ? Math.max(0, v3 - v6) : null; // ⑦ 評価差額（負数→0）
   const v8 = v7 !== null ? (specialMarketValueRules ? 0 : fl(v7 * CORPORATE_TAX_RATE)) : null;  // ⑧ 法人税額等相当額
@@ -188,7 +193,7 @@ export function calcTable8(getField: TableProps['getField']) {
 
   // ── 2. S2の金額 ──
   const v18: number | null = num('⑱') ?? t5['イ'] ?? null;     // ⑱ 株式等の相続税評価額（第5表イ・上書き可）
-  const v19: number | null = num('⑲') ?? t5['ロ'] ?? null;     // ⑲ 株式等の帳簿価額（第5表ロ・上書き可）
+  const v19: number | null = num('⑲') ?? stockBook;            // ⑲ 株式等の帳簿価額（第5表㋺＋（㊁－㋭）・上書き可）
   const v20 = v18 !== null && v19 !== null ? Math.max(0, v18 - v19) : null; // ⑳ 評価差額（負数→0）
   const v21 = v20 !== null ? (specialMarketValueRules ? 0 : fl(v20 * CORPORATE_TAX_RATE)) : null; // ㉑ 法人税額等相当額
   const v22 = v18 !== null && v21 !== null ? v18 - v21 : null;  // ㉒ S2純資産価額相当額（⑱－㉑）
@@ -208,7 +213,7 @@ export function calcTable8(getField: TableProps['getField']) {
     lRate,
   };
 
-  return { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, s1, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, cls };
+  return { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, s1, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, cls, t5Stock: t5['ロ'] ?? null, inKind };
 }
 
 /** 第8表（CSSグリッド方式・完成版） */

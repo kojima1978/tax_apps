@@ -102,14 +102,14 @@ export function table7_2Hints(c: Calc, raw: Raw, t4raw: Raw, medical: boolean): 
     hints[b.aField] = b.prices.map(([, mark, t4field]) => `${mark} ${hs(t4raw(t4field))}円`).join('　')
       + `\nのうち最も低い ${rv(b.aValue)}円`;
 
-    // 評価会社の行は、様式では第7表の1の⑤⑧⑰（Ⓑ－ⓑ／Ⓒ－ⓒ／Ⓓ－ⓓ）を書く欄。
-    // 現在の計算は第4表の1のⒷⒸⒹをそのまま表示しているので、両方を出して食い違いが見えるようにする。
+    // 評価会社の行は第7表の1の⑤⑧⑰（受取配当金等収受割合で減額した後）を書く欄。
+    // 第4表のⒷⒸⒹとは別物なので、減額前の金額も併せて出す。
     const ev5 = medical ? MEDICAL_NO_DIVIDEND
-      : `第４表の１のⒷ ${ryen(c.Bv)}（第７表の１の⑤ Ⓑ－ⓑ は ${ryen(c.adjB)}）`;
+      : `第７表の１の⑤（Ⓑ－ⓑ）${ryen(c.adjB)}\n減額前の第４表の１のⒷは ${ryen(c.Bv)}`;
     hints[b.ev5] = ev5;
     hints[b.ev5sen] = ev5;
-    hints[b.ev8] = `第４表の１のⒸ ${rv(c.Cv)}円（第７表の１の⑧ Ⓒ－ⓒ は ${rv(c.adjC)}円）`;
-    hints[b.ev17] = `第４表の１のⒹ ${rv(c.Dv)}円（第７表の１の⑰ Ⓓ－ⓓ は ${rv(c.adjD)}円）`;
+    hints[b.ev8] = `第７表の１の⑧（Ⓒ－ⓒ）${rv(c.adjC)}円\n減額前の第４表の１のⒸは ${rv(c.Cv)}円`;
+    hints[b.ev17] = `第７表の１の⑰（Ⓓ－ⓓ）${rv(c.adjD)}円\n減額前の第４表の１のⒹは ${rv(c.Dv)}円`;
 
     hints[b.sB1] = source;
     hints[b.sB2] = source;
@@ -117,9 +117,9 @@ export function table7_2Hints(c: Calc, raw: Raw, t4raw: Raw, medical: boolean): 
     hints[b.sD] = source;
 
     hints[b.eB] = medical ? MEDICAL_NO_DIVIDEND
-      : `Ⓑ ${ryen(c.Bv)} ÷ B ${hyen(sB)} ＝ ${ratio2(b.eBv)}（小数点2位未満切捨て）`;
-    hints[b.eC] = `Ⓒ ${rv(c.Cv)}円 ÷ C ${hs(t4raw(`${b.fp}sC`))}円 ＝ ${ratio2(b.eCv)}（小数点2位未満切捨て）`;
-    hints[b.eD] = `Ⓓ ${rv(c.Dv)}円 ÷ D ${hs(t4raw(`${b.fp}sD`))}円 ＝ ${ratio2(b.eDv)}（小数点2位未満切捨て）`;
+      : `⑤ ${ryen(c.adjB)} ÷ B ${hyen(sB)} ＝ ${ratio2(b.eBv)}（小数点2位未満切捨て）`;
+    hints[b.eC] = `⑧ ${rv(c.adjC)}円 ÷ C ${hs(t4raw(`${b.fp}sC`))}円 ＝ ${ratio2(b.eCv)}（小数点2位未満切捨て）`;
+    hints[b.eD] = `⑰ ${rv(c.adjD)}円 ÷ D ${hs(t4raw(`${b.fp}sD`))}円 ＝ ${ratio2(b.eDv)}（小数点2位未満切捨て）`;
     hints[b.ratioField] = medical
       ? `（[⑧]÷C ${ratio2(b.eCv)} ＋ [⑰]÷D ${ratio2(b.eDv)}）÷ 2 ＝ ${ratio2(b.ratioValue)}`
         + '\n医療法人（持分あり）は配当要素を除いた2要素で計算します（評価通達194－2。小数点2位未満切捨て）'

@@ -11,6 +11,7 @@ const T = 'table7' as const;
 // ── 端数処理（第7表記載要領＝第4表の記載方法等4に準ずる） ──
 const fl = (v: number) => Math.floor(v + 1e-9);                 // 円未満切捨て
 const fl10sen = (v: number) => Math.floor(v * 10 + 1e-7) / 10;  // 10銭未満切捨て
+const fl2 = (v: number) => Math.floor(v * 100 + 1e-7) / 100;    // 小数点以下2位未満切捨て
 const fl3 = (v: number) => Math.floor(v * 1000 + 1e-7) / 1000;  // 小数点以下3位未満切捨て
 
 const TABLE4_LINKED_FIELDS: Record<string, string> = {
@@ -300,22 +301,36 @@ export function calcTable7(getField: TableProps['getField']) {
     ? fl(Dv * (kabuBook / totalBook)) : null;                                // ⑫ (イ)
   const ekiseki = parseNum(getField('table4', 'n53'));                       // ⑬ 利益積立金額（第4表⑱直前期）
   const shares50 = t4.cap5;                                                   // ⑭ 第4表⑤株式数
+  // ⑬は千円・⑮は円なので、株数で割る前に千円→円へ直す（第4表の per50 と同じ換算）
   const roKin = ekiseki !== null && shares50 !== null && shares50 > 0 && ha !== null
-    ? fl((ekiseki / shares50) * ha) : null;                                   // ⑮ (ロ)
+    ? fl(((ekiseki * 1000) / shares50) * ha) : null;                          // ⑮ (ロ)
   const lowerDraw = iKin === null && roKin === null ? null : (iKin ?? 0) + (roKin ?? 0);
   const lowerD = lowerDraw === null ? null : Dv !== null ? Math.min(lowerDraw, Dv) : lowerDraw; // ⑯ ⓓ（⑨上限）
   const adjD = Dv !== null && lowerD !== null ? Dv - lowerD : null;           // ⑰
 
-  // 比準価額: 第4表3「類似業種比準価額の計算」と同じ値を転記する。
+  // ⑵ S1の類似業種比準価額。
+  // 類似業種側の株価A・B・C・Dは第4表の2からの転記だが、評価会社側の要素は第4表のⒷⒸⒹではなく、
+  // 受取配当金等収受割合で減額した後の⑤⑧⑰（Ⓑ－ⓑ／Ⓒ－ⓒ／Ⓓ－ⓓ）を使う（様式の欄名のとおり）
+  const t4num = (f: string) => parseNum(getField('table4', f));
+  const t4senPair = (y: string, s2: string) => { const a = t4num(y); return a === null ? null : a + (t4num(s2) ?? 0) / 100; };
   const A1 = t4.A1;             // 第4表⑳ → 第7表⑱
   const A2 = t4.A2;             // 第4表㉓ → 第7表㉑
-  const e1B = t4.e1B, e1C = t4.e1C, e1D = t4.e1D;
-  const e2B = t4.e2B, e2C = t4.e2C, e2D = t4.e2D;
-  const r19 = t4.r21;           // 第4表㉑ → 第7表⑲
-  const r22 = t4.r24;           // 第4表㉔ → 第7表㉒
-  const p20 = t4.p22;           // 第4表㉒ → 第7表⑳
-  const p23 = t4.p25;           // 第4表㉕ → 第7表㉓
-  const v24 = t4.v26;           // 第4表㉖ → 第7表㉔
+  const elem = (v: number | null, base: number | null) => (v !== null && base !== null && base > 0 ? fl2(v / base) : null);
+  const e1B = elem(adjB, t4senPair('r1sB1', 'r1sB2')), e1C = elem(adjC, t4num('r1sC')), e1D = elem(adjD, t4num('r1sD'));
+  const e2B = elem(adjB, t4senPair('r2sB1', 'r2sB2')), e2C = elem(adjC, t4num('r2sC')), e2D = elem(adjD, t4num('r2sD'));
+  // 医療法人（持分あり）は配当要素を除いた2要素で比準割合を出す（評価通達194-2。第4表と同じ扱い）
+  const medical = getField('table1_1', 'medical') === '1';
+  const ratio3 = (a: number | null, b: number | null, d: number | null) => (
+    medical
+      ? (b !== null && d !== null ? fl2((b + d) / 2) : null)
+      : (a !== null && b !== null && d !== null ? fl2((a + b + d) / 3) : null)
+  );
+  const r19 = ratio3(e1B, e1C, e1D);  // ⑲
+  const r22 = ratio3(e2B, e2C, e2D);  // ㉒
+  const price = (A: number | null, r: number | null) => (A !== null && r !== null && shin !== null ? fl10sen(A * r * shin) : null);
+  const p20 = price(A1, r19), p23 = price(A2, r22);   // ⑳・㉓
+  const minP = p20 !== null && p23 !== null ? Math.min(p20, p23) : p20 ?? p23;
+  const v24 = minP !== null && t4.cap4 !== null ? fl((minP * t4.cap4) / 50) : null; // ㉔
 
   // 比準価額の修正
   const modDiv = senPair('mod_div', 'mod_div_sen');
