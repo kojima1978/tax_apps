@@ -18,6 +18,7 @@ import { PrerequisitesChip, PrerequisitesDialog } from '@/components/Prerequisit
 import { ClientSummaryPage } from '@/components/ClientSummaryPage';
 import { RequiredFieldNavigator } from '@/components/RequiredFieldNavigator';
 import { ConsistencyChecker } from '@/components/ConsistencyChecker';
+import { ShortcutHelp } from '@/components/ShortcutHelp';
 import { focusAndFlash } from '@/lib/focusField';
 
 // 業種目データ管理は帳票と同居させない別画面。ハッシュで切り替える。
@@ -52,6 +53,12 @@ const DATA_BUCKET: Partial<Record<TableId, TableId>> = {
 type PrintTarget = 'current' | 'all';
 const PRINT_PREPARE_DELAY_MS = 80;
 
+// 「?」のような文字キーのショートカットは、入力中の文字を奪わないよう入力欄の外でだけ効かせる
+const isTypingTarget = (target: EventTarget | null) => (
+  target instanceof HTMLElement
+  && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+);
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TableId>('table1_1');
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -62,6 +69,7 @@ export default function App() {
   const printAll = printTarget === 'all';
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [prereqOpen, setPrereqOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(() => window.location.hash === ADMIN_HASH);
   const [printSelection, setPrintSelection] = useState<Record<TableId, boolean>>(
     () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
@@ -100,6 +108,13 @@ export default function App() {
     }, 0);
   }, []);
 
+  // 表を切り替える（タブ列とキーボードショートカットで共用）。切り替えたら移動履歴は捨てる
+  const goToTab = useCallback((tab: TableId) => {
+    setSummaryOpen(false);
+    setJumpOrigin(null);
+    setActiveTab(tab);
+  }, []);
+
   // 自動転記欄クリック時に入力元の表へ移動する。戻れるように移動元を覚えておく
   const handleJump = useCallback((target: { tab: TableId; field: string }) => {
     const active = document.activeElement;
@@ -120,18 +135,6 @@ export default function App() {
 
   const tableProps: TableProps = { getField, updateField, onTabChange: setActiveTab, onJump: handleJump };
   const ActiveTable = TABLE_COMPONENTS[activeTab];
-
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-      event.preventDefault();
-      exportJson();
-    }
-  }, [exportJson]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
 
   useEffect(() => {
     const syncAdmin = () => setAdminOpen(window.location.hash === ADMIN_HASH);
@@ -160,6 +163,45 @@ export default function App() {
     setPrintDialogOpen(false);
     requestPrint('all');
   }, [printSelection, requestPrint]);
+
+  // 画面操作のショートカット。様式そのものには触れないので印刷結果は変わらない
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // 日本語入力の変換中は横取りしない（変換の確定・候補選択を奪ってしまうため）
+    if (event.isComposing) return;
+    // ダイアログを開いている間と印刷準備中は、背後の表が勝手に動かないよう止める
+    if (printDialogOpen || prereqOpen || printTarget !== null) return;
+
+    const ctrl = event.ctrlKey || event.metaKey;
+    if (ctrl && event.key === 's') {
+      event.preventDefault();
+      exportJson();
+      return;
+    }
+    // 印刷はブラウザ既定に任せず必ずアプリの印刷経路へ流す。
+    // 既定のままだと入力欄や転記マーク（✎）が出たまま刷られ、様式の見た目が変わってしまう
+    if (ctrl && event.key === 'p') {
+      event.preventDefault();
+      requestPrint('current');
+      return;
+    }
+    if (ctrl && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      const next = TABS[TABS.findIndex((t) => t.id === activeTab) + (event.key === 'ArrowLeft' ? -1 : 1)];
+      if (!next) return;
+      event.preventDefault();  // 入力欄の中では単語単位の移動が既定なので打ち消す
+      goToTab(next.id);
+      return;
+    }
+    // 「?」は入力できる文字なので、入力欄の外で押されたときだけ一覧の開閉に使う
+    if (event.key === '?' && !ctrl && !isTypingTarget(event.target)) {
+      event.preventDefault();
+      setShortcutsOpen((open) => !open);
+    }
+  }, [activeTab, exportJson, goToTab, prereqOpen, printDialogOpen, printTarget, requestPrint]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   useEffect(() => {
     if (!printTarget) return;
@@ -256,7 +298,7 @@ export default function App() {
         ) : (
           <Navigation
             activeTab={activeTab}
-            onTabChange={(tab) => { setSummaryOpen(false); setJumpOrigin(null); setActiveTab(tab); }}
+            onTabChange={goToTab}
             hasData={hasData}
             isJudgmentTarget={isJudgmentTarget}
           />
@@ -268,7 +310,8 @@ export default function App() {
             { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
             { label: '翌年度更新', onClick: rolloverToNextYear, title: '直前期の数値を直前々期へ順送りして翌事業年度の評価に移行します（実行前に自動バックアップ）' },
             { label: '全表印刷', onClick: openPrintDialog },
-            { label: '現在の表を印刷', onClick: () => requestPrint('current') },
+            { label: '現在の表を印刷', onClick: () => requestPrint('current'), title: 'Ctrl+P' },
+            { label: 'ショートカット', onClick: () => setShortcutsOpen(true), title: 'キーボードショートカットの一覧を表示します（? キー）' },
             { label: '全データリセット', onClick: resetAll, danger: true },
           ] as const).map((tool) => (
             <button
@@ -332,6 +375,8 @@ export default function App() {
       {prereqOpen && (
         <PrerequisitesDialog getField={getField} updateField={updateField} onClose={() => setPrereqOpen(false)} />
       )}
+
+      {shortcutsOpen && <ShortcutHelp onClose={() => setShortcutsOpen(false)} />}
 
       {printDialogOpen && (() => {
         const judgmentSet = judgmentTargets;
