@@ -1,5 +1,7 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable4 } from './Table4Grid';
+import { table4_1Hints } from './formulaHints';
+import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 
@@ -237,6 +239,9 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
     }
     return cell;
   });
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T, onJump);
+  // 自動計算欄には「実際に使った値」をホバーで出す（医療法人は配当要素を計算しないので分岐を伝える）
+  const medical = getField('table1_1', 'medical') === '1';
+  const hintedCells = withFormulaHints(cells, table4_1Hints(c, raw, medical));
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(hintedCells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の１　類似業種比準価額等の計算明細書" formCode="NTA0VNA210010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

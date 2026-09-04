@@ -1,6 +1,8 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable4 } from '../table4/Table4Grid';
 import { calcTable7 } from './Table7Grid';
+import { table7_2Hints } from './formulaHints';
+import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 
@@ -274,6 +276,8 @@ export function Table7_2Grid({ getField, updateField, onJump }: TableProps) {
       ? { ...c, text: '（[⑧]÷C＋[⑰]÷D）÷２＝', fractionExpression: { terms: [{ numerator: '[⑧]', denominator: 'C' }, { numerator: '[⑰]', denominator: 'D' }], denominator: '2', suffix: '＝' } }
       : c))
     : CELLS;
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(displayCells, g, u, T, onJump);
+  // 自動計算欄には「実際に使った値」と転記元（第4表・第7表の1）をホバーで出す
+  const hintedCells = withFormulaHints(displayCells, table7_2Hints(c, raw, table4Raw, medical));
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(hintedCells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の２　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240020010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable4 } from './Table4Grid';
+import { table4_2Hints } from './formulaHints';
+import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
@@ -287,6 +289,8 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
       ? { ...c, text: '（Ⓒ÷C＋Ⓓ÷D）÷２＝', fractionExpression: { terms: [{ numerator: 'Ⓒ', denominator: 'C' }, { numerator: 'Ⓓ', denominator: 'D' }], denominator: '2', suffix: '＝' } }
       : c))
     : linkedCells;
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(displayCells, g, u, T, onJump);
+  // 自動計算欄には「実際に使った値」をホバーで出す（転記元・公表値の出どころもここで伝える）
+  const hintedCells = withFormulaHints(displayCells, table4_2Hints(c, raw, medical, taxMonthRaw));
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(hintedCells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の２　類似業種比準価額等の計算明細書（続）" formCode="NTA0VNA210020010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

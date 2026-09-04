@@ -2,6 +2,8 @@ import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { companyFloatBox } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 import { getValuationPurpose, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
+import { table5Hints } from './formulaHints';
+import { withFormulaHints } from '@/lib/formulaHint';
 
 const T = 'table5' as const;
 
@@ -259,8 +261,11 @@ function continuationPageCells(pageIndex: number): GridCell[] {
   ];
 }
 
-/** 第5表の自動計算（第3表の②③などからも参照する） */
-export function calcTable5(getField: TableProps['getField']) {
+/**
+ * 第5表の計算の途中経過。表示値（calcTable5）と算式ツールチップの両方がここから作られる。
+ * 「なぜこの金額になったか」は現物出資の割合・議決権割合といった中間値で決まるため、表示値だけでは足りない。
+ */
+export function calcTable5Detail(getField: TableProps['getField']) {
   const totalRows = totalRowsOf(pageCountOf(getField));
   let assetEval = 0;
   let assetBook = 0;
@@ -337,22 +342,39 @@ export function calcTable5(getField: TableProps['getField']) {
     ? Math.floor(netPerShare * 0.8)
     : null;
 
+  return {
+    assetEval, assetBook, stockEval, stockBook, landEval, liabilityEval, liabilityBook,
+    hasAssetInput, hasLiabilityInput, hasCalculationInput,
+    inKindEval, inKindBook, inKindRatio, applicableInKindDifference,
+    netEval, netBook, evaluationDifference, specialMarketValueRules, corporateTaxEquivalent, currentNet,
+    issuedShares, treasuryShares, currentShares, netPerShare,
+    groupVotes, totalVotes, votingRatio, netPerShare80,
+  };
+}
+
+/** 第5表の自動計算（第3表の②③などからも参照する） */
+export function calcTable5(getField: TableProps['getField']) {
+  return table5Calculated(calcTable5Detail(getField));
+}
+
+/** 途中経過から表示値を組み立てる（画面側は算式ツールチップと共用するのでここを直接呼ぶ） */
+export function table5Calculated(d: ReturnType<typeof calcTable5Detail>) {
   const calculated: Record<string, number | null> = {
-    '①': hasAssetInput ? assetEval : null,
-    '②': hasAssetInput ? assetBook : null,
-    'イ': hasAssetInput ? stockEval : null,
-    'ロ': hasAssetInput ? stockBook : null,
-    'ハ': hasAssetInput ? landEval : null,
-    '③': hasLiabilityInput ? liabilityEval : null,
-    '④': hasLiabilityInput ? liabilityBook : null,
-    '⑤': hasCalculationInput ? netEval : null,
-    '⑥': hasCalculationInput ? netBook : null,
-    '⑦': hasCalculationInput ? evaluationDifference : null,
-    '⑧': hasCalculationInput ? corporateTaxEquivalent : null,
-    '⑨': hasCalculationInput ? currentNet : null,
-    '⑩': currentShares > 0 ? currentShares : null,
-    '⑪': netPerShare,
-    '⑫': netPerShare80,
+    '①': d.hasAssetInput ? d.assetEval : null,
+    '②': d.hasAssetInput ? d.assetBook : null,
+    'イ': d.hasAssetInput ? d.stockEval : null,
+    'ロ': d.hasAssetInput ? d.stockBook : null,
+    'ハ': d.hasAssetInput ? d.landEval : null,
+    '③': d.hasLiabilityInput ? d.liabilityEval : null,
+    '④': d.hasLiabilityInput ? d.liabilityBook : null,
+    '⑤': d.hasCalculationInput ? d.netEval : null,
+    '⑥': d.hasCalculationInput ? d.netBook : null,
+    '⑦': d.hasCalculationInput ? d.evaluationDifference : null,
+    '⑧': d.hasCalculationInput ? d.corporateTaxEquivalent : null,
+    '⑨': d.hasCalculationInput ? d.currentNet : null,
+    '⑩': d.currentShares > 0 ? d.currentShares : null,
+    '⑪': d.netPerShare,
+    '⑫': d.netPerShare80,
   };
   return calculated;
 }
@@ -361,8 +383,11 @@ export function calcTable5(getField: TableProps['getField']) {
 export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   const pageCount = pageCountOf(getField);
   const totalRows = totalRowsOf(pageCount);
-  const calculated = calcTable5(getField);
+  const detail = calcTable5Detail(getField);
+  const calculated = table5Calculated(detail);
   const purpose = getValuationPurpose(getField);
+  // 自動計算欄には「実際に使った値」をホバーで出す（通達の判定で0になった欄はその理由も）
+  const hintedMainCells = withFormulaHints(mainPageCells, table5Hints(detail));
 
   const g = (f: string) => {
     if (COMPUTED_FIELDS.has(f)) {
@@ -509,7 +534,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
         <div className="gov-page gov-page--exact" key={p} style={p < pageCount - 1 ? { marginBottom: '8mm' } : undefined}>
           {p === 0 ? (
             <GridForm
-              cells={mainPageCells}
+              cells={hintedMainCells}
               snapTol={0.25}
               g={g}
               u={u}

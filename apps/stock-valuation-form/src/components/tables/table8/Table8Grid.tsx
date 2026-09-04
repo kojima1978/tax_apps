@@ -3,6 +3,8 @@ import { companyFloatBox } from '../companyFloatHeader';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcTable7 } from '../table7/Table7Grid';
 import { calcTable2 } from '../table2/Table2Grid';
+import { table8Hints } from './formulaHints';
+import { withFormulaHints } from '@/lib/formulaHint';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import type { TableId, TableProps } from '@/types/form';
 import { forcesSmallCompany, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
@@ -254,5 +256,7 @@ export function Table8Grid({ getField, updateField, onJump }: TableProps) {
   // 会社名は第7表の1・2（table7バケット）と共有
   const gCompany = (f: string) => (f === 'company' ? getField('table7', 'company') : g(f));
   const uCompany = (f: string, v: string) => (f === 'company' ? updateField('table7', 'company', v) : u(f, v));
-  return <GridForm cells={buildCells(cls)} g={g} u={u} formId={T} width="100%" title="第７表の３　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240030010" headerExtra={companyFloatBox(gCompany, uCompany, T, { widthPct: 42, aspect: 9, labelFrac: 0.33, onJump })} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  // 自動計算欄には「実際に使った値」と、⑭〜⑰のどれを使うかの理由をホバーで出す
+  const hintedCells = withFormulaHints(buildCells(cls), table8Hints(c, usesSpecialMarketValueRules(getField)));
+  return <GridForm cells={hintedCells} g={g} u={u} formId={T} width="100%" title="第７表の３　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240030010" headerExtra={companyFloatBox(gCompany, uCompany, T, { widthPct: 42, aspect: 9, labelFrac: 0.33, onJump })} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

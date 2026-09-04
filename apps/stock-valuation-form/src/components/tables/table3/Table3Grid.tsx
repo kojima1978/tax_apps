@@ -4,6 +4,8 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { calcShareholderJudgment } from '../Table1_1Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
+import { table3Hints } from './formulaHints';
+import { withFormulaHints } from '@/lib/formulaHint';
 import type { TableId, TableProps } from '@/types/form';
 import { forcesSmallCompany } from '@/lib/valuationPurpose';
 
@@ -381,11 +383,12 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
   const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
   const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
 
+  const calc = calcTable3(getField);
   const {
     v1, v2, v3, v4, v5, v6, size, lRate, iSmall, v8, v12,
     linkedTreasuryShares, v16, v17disp, ia, ro, v21, v22, v22raw, v22Floored,
     v23, v24, v27, base28, v30, v31, v32, finalPrice,
-  } = calcTable3(getField);
+  } = calc;
 
 
   // 4. 株式に関する権利の評価額: 発生している権利（クリック指定）の金額をそれぞれ別に記載（記載要領）
@@ -485,6 +488,8 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
     }
     return cell;
   });
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T, onJump);
+  // 自動計算欄には「実際に使った値」をホバーで出す（会社規模・適用方式の分岐もここで伝える）
+  const hintedCells = withFormulaHints(cells, table3Hints(calc, raw, getField));
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(hintedCells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA200010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

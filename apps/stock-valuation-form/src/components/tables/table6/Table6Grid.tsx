@@ -1,7 +1,9 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable4 } from '../table4/Table4Grid';
 import { calcTable5 } from '../table5/Table5Grid';
-import { calcTable2 } from '../table2/Table2Grid';
+import { calcTable2, RESULT_NAMES } from '../table2/Table2Grid';
+import { table6Hints } from './formulaHints';
+import { withFormulaHints } from '@/lib/formulaHint';
 import { calcShareholderJudgment } from '../Table1_1Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
@@ -286,10 +288,10 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
   const v34 = baseRight; // ㉞
 
   const RIGHTS = [
-    { key: 'right_haito', mark: '㉙', yen: v29 === null ? null : `㉙ ${fl(v29).toLocaleString('ja-JP')}` },
-    { key: 'right_wariate', mark: '㉜', yen: v32 === null ? null : `㉜ ${v32.toLocaleString('ja-JP')}` },
-    { key: 'right_kabunushi', mark: '㉝', yen: v33 === null ? null : `㉝ ${v33.toLocaleString('ja-JP')}` },
-    { key: 'right_musho', mark: '㉞', yen: v34 === null ? null : `㉞ ${v34.toLocaleString('ja-JP')}` },
+    { key: 'right_haito', mark: '㉙', name: '配当期待権', yen: v29 === null ? null : `㉙ ${fl(v29).toLocaleString('ja-JP')}` },
+    { key: 'right_wariate', mark: '㉜', name: '株式の割当てを受ける権利', yen: v32 === null ? null : `㉜ ${v32.toLocaleString('ja-JP')}` },
+    { key: 'right_kabunushi', mark: '㉝', name: '株主となる権利', yen: v33 === null ? null : `㉝ ${v33.toLocaleString('ja-JP')}` },
+    { key: 'right_musho', mark: '㉞', name: '株式無償交付期待権', yen: v34 === null ? null : `㉞ ${v34.toLocaleString('ja-JP')}` },
   ];
   // 様式の㊱欄は［円］［銭］に分かれる。銭が生じるのは配当期待権のみなので、
   // 円欄に権利ごとの円部分を、銭欄に配当期待権の銭部分を表示する。
@@ -346,7 +348,25 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
   const noteText = v24Floored && v24raw !== null
     ? `計算値 ${yenPart(v24raw)}円${senPart(v24raw)}銭\n→ 下限の２円50銭を適用`
     : 'この金額が２円50銭未満の場合は\n２円50銭とします。';
-  const cells = CELLS.map((cell) => {
+  // 自動計算欄には「実際に使った値」をホバーで出す（④〜⑧の選択理由と適用方式もここで伝える）
+  const baseLabel = KUBUN_ROWS[t2.result - 1]?.field ?? ''; // 判定結果1〜5が④〜⑧に対応
+  const method = medical
+    ? '医療法人（持分あり）は配当還元方式を適用しないため、純資産価額方式等'
+    : mode === 'haito' ? '配当還元方式（ツールバーで選択中）'
+      : mode === 'junshisan' ? '純資産価額方式等（ツールバーで選択中）'
+        : useHaito === null ? '第１表の株主判定がまだ決まっていません'
+          : useHaito ? '配当還元方式（第１表の株主判定に連動）' : '純資産価額方式等（第１表の株主判定に連動）';
+  const hints = table6Hints({
+    v1, v2, v3, iValue, p4, p6, p7, p8,
+    resultName: RESULT_NAMES[t2.result] ?? RESULT_NAMES[0]!, base, baseLabel,
+    mod9Div, v10, base14, base14Label: v10 !== null ? '⑩' : baseLabel || '④〜⑧', v14,
+    cap, issued, treasury, v18, sharesNet, v19disp,
+    ia, ro, v23, v24raw, v24, v24Floored, v25, jun,
+    method, baseRight, finalPrice,
+    expDiv, expTax, v29, v32, v33, v34,
+    rightsLabels: selectedRights.map((r) => `${r.mark} ${r.name}`).join('、'),
+  });
+  const cells = withFormulaHints(CELLS, hints).map((cell) => {
     if (cell.kind === 'label' && cell.text === 'この金額が２円50銭未満の場合は\n２円50銭とします。') {
       return { ...cell, text: noteText, highlightWhen: () => v24Floored };
     }

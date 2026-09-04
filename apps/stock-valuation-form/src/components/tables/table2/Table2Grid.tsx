@@ -330,7 +330,7 @@ export function calcTable2(getField: TableProps['getField']) {
   return { t4, a01, a02, a05, kabuRatio, landRatio, j, result };
 }
 
-const RESULT_NAMES: Record<number, string> = { 0: '一般の評価会社（非該当）', 1: '１．比準要素数１の会社', 2: '２．株式等保有特定会社', 3: '３．土地保有特定会社', 4: '４．開業後３年未満の会社等', 5: '５．開業前又は休業中の会社', 6: '６．清算中の会社' };
+export const RESULT_NAMES: Record<number, string> = { 0: '一般の評価会社（非該当）', 1: '１．比準要素数１の会社', 2: '２．株式等保有特定会社', 3: '３．土地保有特定会社', 4: '４．開業後３年未満の会社等', 5: '５．開業前又は休業中の会社', 6: '６．清算中の会社' };
 
 /**
  * 第2表の判定結果に応じて記載（印刷）対象となる表。
