@@ -374,7 +374,12 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
   const qrPath = useMemo(() => (formCode ? formQrPath(formCode) : null), [formCode]);
   const scale = geometry ? geometry.frame.width / GEOMETRY_DESIGN_WIDTH_MM : 1;
   const gridBoxStyle: CSSProperties = geometry
-    ? { ...rectStyle({ ...geometry.frame, width: GEOMETRY_DESIGN_WIDTH_MM, height: geometry.frame.height / scale }), transform: `scale(${scale})`, transformOrigin: 'top left' }
+    // 位置は left/top ではなく transform の translate で与える。transform は見た目しか縮めないので、
+    // left/top に原本座標を入れるとレイアウト上の箱が「原本の上端 + 基準幅での高さ」＝最大338mm になり、
+    // A4(297mm)をはみ出す。画面では overflow:hidden に隠れて無害だが、印刷時は Chromium が
+    // その箱をページ境界で分割し、あふれた下端が次ページ送りになって消える（第1表の1・第1表の2・
+    // 第3表・第6表・第7表の3で発生）。原点を 0,0 にすれば箱は最大280.5mmでA4に収まり分割されない。
+    ? { ...rectStyle({ left: 0, top: 0, width: GEOMETRY_DESIGN_WIDTH_MM, height: geometry.frame.height / scale }), transform: `translate(${mm(geometry.frame.left)}, ${mm(geometry.frame.top)}) scale(${scale})`, transformOrigin: 'top left' }
     // aspectRatio は親の高さが不定なときの既定サイズ。親がA4で高さ確定なら flex で残り高さにフィットする
     : { width: '100%', aspectRatio, flex: '1 1 auto', minHeight: 0 };
   // 本表の左右外側に置く縦書き帯（「取引相場のない株式（出資）の評価明細書」など）

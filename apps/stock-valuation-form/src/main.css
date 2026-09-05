@@ -1219,10 +1219,13 @@
     padding: 0 !important;
   }
 
+  /* overflow-x:auto は画面の横スクロール用。印刷では .app-main がスクロールコンテナのままだと
+     最終ページの後に空白ページが1枚増えるので、可視に戻す */
   .app-main {
     height: auto !important;
     min-height: 0 !important;
     padding: 0 !important;
+    overflow: visible !important;
   }
 }
 
