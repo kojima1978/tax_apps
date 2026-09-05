@@ -3,6 +3,8 @@
 // 帳票の入力は同期的に組み立てられる（業種目を選ぶと第4表のB/C/D・株価が即座に埋まる）ため、
 // 起動時に全年分をまとめて取得し、以降の参照はすべてこの層でメモリ上から行う。
 
+import { DEFAULT_ERA } from '@/lib/wareki';
+
 export type IndustryLevel = 'LARGE' | 'MIDDLE' | 'SMALL';
 
 export interface IndustryMonthlyPrice {
@@ -278,14 +280,32 @@ export function createIndustryDataset(payload: IndustryDatasetPayload): Industry
 
     forTaxPeriod: ({ era, eraYear, month }) => {
       const wantedEraYear = Number(eraYear.trim());
-      const matched = Number.isInteger(wantedEraYear)
-        ? indexes.find(({ year }) => year.era === era && year.eraYear === wantedEraYear)
-        : undefined;
 
-      const index = matched ?? indexes[0];
-      if (!index) return EMPTY_VIEW;
+      // 年が未入力のうちは年分を絞れない。業種目だけ先に選べるよう最新の年分で代替する
+      // （年が確定していないので、株価は月だけで引く）。
+      if (!Number.isInteger(wantedEraYear) || wantedEraYear <= 0) {
+        const latest = indexes[0];
+        return latest === undefined ? EMPTY_VIEW : createYearView(latest, month, null);
+      }
 
-      return createYearView(index, month, matched ? matched.year.gregorianYear : null);
+      /*
+        課税時期の年分が登録されていなければ何も返さない。
+
+        以前は最新の年分で代替していたが、株価はその年分の標本会社を基に計算されるので、
+        標本会社が入れ替わった業種目では同じ月でも年分によって金額が違う（公表資料の(注)のとおり）。
+        実際、令和7年11月分は令和7年分の表と令和8年分の表で別の金額が載っている。
+        業種目番号も年分ごとに振り直されるため、別の年分から借りた値は月と番号が合っていても中身が別物になる。
+
+        しかも代替したことは画面に出ないので、気づかないまま誤った金額が転記される。
+        それより空欄のほうが安全なので、株価だけでなく業種目の選択肢ごと出さない。
+      */
+      const matched = indexes.find(({ year }) => (
+        year.era === (era.trim() || DEFAULT_ERA) && year.eraYear === wantedEraYear
+      ));
+
+      return matched === undefined
+        ? EMPTY_VIEW
+        : createYearView(matched, month, matched.year.gregorianYear);
     },
   };
 }

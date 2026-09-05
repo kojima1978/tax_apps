@@ -1,3 +1,9 @@
+/**
+ * 元号の既定。第1表の1の元号プルダウンは未選択のままでも令和として扱う（様式の運用に合わせる）。
+ * 表示・日付・年分の特定で同じ既定を使う必要があるので、値はここだけに置く。
+ */
+export const DEFAULT_ERA = '令和';
+
 /** 和暦の元号＋年を西暦年に直す。元号が空のときは令和として扱う */
 export function westernYear(era: string, year: number): number {
   return era === '昭和' ? 1925 + year : era === '平成' ? 1988 + year : 2018 + year;
@@ -12,5 +18,5 @@ export function readWarekiDate(get: (field: string) => string, prefix: string): 
   const m = Number(get(`${prefix}_m`));
   const d = Number(get(`${prefix}_d`));
   if (!y || !m || !d) return null;
-  return new Date(westernYear(get(`${prefix}_g`) || '令和', y), m - 1, d);
+  return new Date(westernYear(get(`${prefix}_g`) || DEFAULT_ERA, y), m - 1, d);
 }

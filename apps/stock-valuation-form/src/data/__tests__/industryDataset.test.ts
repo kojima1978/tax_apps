@@ -94,7 +94,32 @@ describe('業種目別株価等の転記値', () => {
     });
   });
 
-  it('未登録の年分を指したときは最新の年分で代替する', () => {
-    expect(viewOf('令和', '9', '4').year?.label).toBe('令和8年分');
+  it('未登録の年分を指したときは代替せず空にする', () => {
+    // 株価は年分ごとの標本会社を基に計算されるので、別の年分の表から借りると誤った金額になる。
+    const view = viewOf('令和', '9', '4');
+
+    expect(view.year).toBeUndefined();
+    expect(view.metricValues('1')).toEqual({
+      bYen: '', bSen: '', c: '', d: '',
+      currentPrice: '', previousPrice: '', twoMonthsPreviousPrice: '',
+      previousYearAverage: '', twoYearAverage: '',
+    });
+  });
+
+  it('未登録の年分では業種目の選択肢も出さない', () => {
+    // 業種目番号は年分ごとに振り直されるので、別の年分の一覧から選ばせてはいけない。
+    const view = viewOf('令和', '9', '4');
+
+    expect(view.options).toEqual([{ value: '', label: '業種目を選択' }]);
+    expect(view.similarIndustryOptions(['1'])).toEqual([{ value: '', label: '類似業種を選択' }]);
+    expect(view.displayNameOf('1')).toBe('');
+    expect(view.categoryOf('1')).toBeUndefined();
+  });
+
+  it('元号が未選択でも令和として年分を引き当てる', () => {
+    expect(viewOf('', '8', '4').metricValues('1')).toMatchObject({
+      currentPrice: '763',
+      previousPrice: '785',
+    });
   });
 });

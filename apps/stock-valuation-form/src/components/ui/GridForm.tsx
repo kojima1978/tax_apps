@@ -1,6 +1,7 @@
 import { FORM_GEOMETRY, type FormGeometry, type MmRect } from './formGeometry';
 import { QR_SIZE } from '@/data/formQr';
 import { formQrPath } from '@/lib/qrPath';
+import { DEFAULT_ERA } from '@/lib/wareki';
 import { createContext, useContext, useMemo, useRef, useCallback, useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 
 /** グリッドセル定義（座標・サイズは％） */
@@ -289,7 +290,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
   if (printRendering) {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'baseline', justifyContent: 'center', gap: 1, width: '100%', whiteSpace: 'nowrap' }}>
-        <span>{g(`${field}_g`) || '令和'}</span>
+        <span>{g(`${field}_g`) || DEFAULT_ERA}</span>
         <span>{normalizeInteger(g(`${field}_y`))}</span><span>年</span>
         <span>{normalizeInteger(g(`${field}_m`))}</span><span>月</span>
         <span>{normalizeInteger(g(`${field}_d`))}</span><span>日</span>
@@ -302,7 +303,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
   );
   return (
     <>
-      <select id={`${formId}-${field}_g`} name={`${formId}.${field}_g`} aria-label={`${field}_g`} value={g(`${field}_g`) || '令和'} onChange={(e) => u(`${field}_g`, e.target.value)} onKeyDown={onKeyDown} style={{ ...DATE_BOX, width: '4.4em', borderBottom: 'none', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', textAlignLast: 'center', cursor: 'pointer', paddingRight: '9px', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '7px' }}>
+      <select id={`${formId}-${field}_g`} name={`${formId}.${field}_g`} aria-label={`${field}_g`} value={g(`${field}_g`) || DEFAULT_ERA} onChange={(e) => u(`${field}_g`, e.target.value)} onKeyDown={onKeyDown} style={{ ...DATE_BOX, width: '4.4em', borderBottom: 'none', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', textAlignLast: 'center', cursor: 'pointer', paddingRight: '9px', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '7px' }}>
         <option value="令和">令和</option>
         <option value="平成">平成</option>
       </select>
