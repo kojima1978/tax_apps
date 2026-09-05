@@ -43,6 +43,16 @@ describe("successionAssetTotals", () => {
     expect(result.deemedBenefitMissingCount).toBe(2);
   });
 
+  it("死亡保険金0円は空欄と区別して入力済みとして扱う", () => {
+    const result = successionAssetTotals([
+      asset("INSURANCE", 0, { deathBenefit: 0 }),
+      asset("INSURANCE", 1_000_000, {}),
+    ]);
+    expect(result.insuranceDeathBenefit).toBe(0);
+    expect(result.insurance).toBe(1_000_000);
+    expect(result.deemedBenefitMissingCount).toBe(1);
+  });
+
   it("負債と、分類の無い資産は「その他資産」へ回す", () => {
     const result = successionAssetTotals([
       asset("COLLECTIBLES", 3_000_000),

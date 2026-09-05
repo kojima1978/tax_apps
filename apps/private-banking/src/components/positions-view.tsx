@@ -36,14 +36,13 @@ function DeemedAmounts({ position }: { position: Position }) {
   const benefitJpy = deemedBenefitJpy(position);
   const allocations = deemedAllocations(position);
   if (!config) return <strong>{yen.format(position.valueJpy)}</strong>;
-  // 受取人が1人のときは金額だけ。複数人のときは誰にいくら分の分数で渡るのかを添える。
-  const split = allocations.length > 1
-    ? allocations.map((allocation) => `${allocation.recipient} ${allocation.numerator}/${allocation.denominator}`).join("、")
-    : "";
+  // 1人が全額を受け取る場合も、受取人と割合を省略しない。
+  const split = allocations.map((allocation) => `${allocation.recipient.trim() || "未設定"} ${allocation.numerator}/${allocation.denominator}`).join("、");
+  const benefitEntered = position.assetDetails?.[config.benefitKey] != null;
   return <>
     <span className="deemed-amount"><small>{config.surrenderLabel}</small><strong>{yen.format(position.valueJpy)}</strong></span>
-    {benefitJpy > 0 ? <span className="deemed-amount"><small>{config.label}</small><strong>{yen.format(benefitJpy)}</strong></span> : null}
-    {benefitJpy > 0 && split ? <small className="deemed-benefit-note">（{split}）</small> : null}
+    {benefitEntered ? <span className="deemed-amount"><small>{config.label}</small><strong>{yen.format(benefitJpy)}</strong></span> : null}
+    {split ? <small className="deemed-benefit-note">受取人：{split}</small> : null}
   </>;
 }
 

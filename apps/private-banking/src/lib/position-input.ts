@@ -20,7 +20,7 @@ const optionalDetailDate = z.preprocess(
   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 );
 const optionalDetailNumber = z.preprocess(
-  (value) => value === "" || value === undefined ? undefined : value,
+  (value) => value === "" || value === undefined || value === null ? undefined : value,
   z.coerce.number().nonnegative().optional(),
 );
 /** 死亡保険金・死亡退職金を複数の受取人へ分数で割り振る1行。受取人名が空の行は入力途中とみなして捨てる。 */

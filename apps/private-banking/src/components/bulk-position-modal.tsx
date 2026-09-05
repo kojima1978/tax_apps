@@ -448,7 +448,11 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
       const missing = missingFields.map((field) => type === "DEPOSIT" && field === "originalAmount" ? "残高"
         : simpleColumns?.find((column) => column.key === field)?.label ?? fieldLabels[field] ?? field);
       const number = (value: string) => Number(value.replace(/,/g, "")) || 0;
-      const invalidNumberFields = requiredFields.filter((field) => numericFields.has(field) && row[field].trim() && number(row[field]) <= 0);
+      const invalidNumberFields = requiredFields.filter((field) => {
+        if (!numericFields.has(field) || !row[field].trim()) return false;
+        // 掛け捨て保険など、解約返戻金が0円の契約も登録できる。
+        return type === "INSURANCE" && field === "originalAmount" ? number(row[field]) < 0 : number(row[field]) <= 0;
+      });
       if (invalidNumberFields.length > 0) {
         invalid = true;
         return { ...row, error: "必須の数値は0より大きい値で入力してください。", errorFields: [...missingFields, ...invalidNumberFields] };
@@ -543,7 +547,7 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>
         <table className="bulk-entry-table">
-          <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional">方式別</em> : null}</th>)}<th className="bulk-calculated-value">評価額</th><th className="bulk-row-actions">状態・操作</th></tr></thead>
+          <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional">方式別</em> : null}</th>)}<th className="bulk-calculated-value">評価額</th><th className="bulk-row-actions">操作・状態</th></tr></thead>
           <tbody onPaste={handlePaste} onKeyDown={handleTableKeyDown}>{rows.map((row, rowIndex) => <tr key={row.id} className={row.error ? "has-error" : ""}>
             <th scope="row" className="bulk-row-number">{rowIndex + 1}{row.error ? <span className="sr-only">入力エラー</span> : null}</th>
             {columns.map((column) => {
@@ -565,7 +569,11 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
               </td>;
             })}
             <td className="bulk-calculated-value"><strong>{compactYen(calculatedRowValue(row))}</strong>{row.error ? <small>{row.error}</small> : null}</td>
-            <td className="bulk-row-actions"><span className={row.positionId === null ? "bulk-new-badge" : "bulk-existing-badge"}>{row.positionId === null ? <Plus /> : <CircleCheck />}{row.positionId === null ? "新規" : "登録済"}</span><button type="button" className="icon-button" aria-label={`${rowIndex + 1}行目を複製`} title="行を複製" onClick={() => addRow(row.id, row)}><Copy /></button>{row.positionId === null ? <button type="button" className="icon-button danger" aria-label={`${rowIndex + 1}行目を削除`} title="新規行を削除" onClick={() => removeRow(row.id)}><Trash2 /></button> : null}</td>
+            <td className="bulk-row-actions"><div className="bulk-row-actions-content">
+              <button type="button" className="icon-button" aria-label={`${rowIndex + 1}行目を複製`} title="行を複製" onClick={() => addRow(row.id, row)}><Copy /></button>
+              {row.positionId === null ? <button type="button" className="icon-button danger" aria-label={`${rowIndex + 1}行目を削除`} title="新規行を削除" onClick={() => removeRow(row.id)}><Trash2 /></button> : null}
+              <span className={row.positionId === null ? "bulk-new-badge" : "bulk-existing-badge"}>{row.positionId === null ? "未登録" : "登録済"}</span>
+            </div></td>
           </tr>)}</tbody>
         </table>
       </div>

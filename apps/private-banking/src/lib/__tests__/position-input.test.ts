@@ -10,6 +10,21 @@ import {
 /** 画面から送られてくる素の入力（未指定は schema の既定値に任せる）を通す。 */
 const parse = (input: Record<string, unknown>) => positionInputSchema.parse(input);
 
+describe("生命保険金0円の保存", () => {
+  const insuranceInput = { side: "ASSET", category: "INSURANCE", name: "テスト生命", originalAmount: 0 };
+  it.each([0, "0"])("死亡保険金%sを0円として保持する", (deathBenefit) => {
+    const result = parse({ ...insuranceInput, assetDetails: { deathBenefit } });
+    expect(result.originalAmount).toBe(0);
+    expect(result.assetDetails.deathBenefit).toBe(0);
+  });
+  it.each([null, undefined, ""])("空欄%sは0円へ変換しない", (deathBenefit) => {
+    expect(parse({ ...insuranceInput, assetDetails: { deathBenefit } }).assetDetails.deathBenefit).toBeUndefined();
+  });
+  it("負の死亡保険金は拒否する", () => {
+    expect(positionInputSchema.safeParse({ ...insuranceInput, assetDetails: { deathBenefit: -1 } }).success).toBe(false);
+  });
+});
+
 const stockInput = {
   side: "ASSET",
   category: "SECURITIES",

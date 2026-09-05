@@ -1,14 +1,16 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, DatabaseBackup, LoaderCircle, Search, UserPlus, X } from "lucide-react";
+import { AlertTriangle, ChevronRight, DatabaseBackup, LoaderCircle, MoreHorizontal, Search, Trash2, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClientFields } from "@/components/client-fields";
+import { ClientDeleteModal } from "@/components/client-delete-modal";
 import { PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary, filterClients, highlightRanges, searchTerms } from "@/lib/clients";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
+import { type Portfolio } from "@/lib/portfolio-view";
 
 /** 顧客ページのうち、一覧から最初に開く画面。 */
 export const CLIENT_HOME_SECTION = "balance";
@@ -38,6 +40,12 @@ export function ClientList() {
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState<Portfolio | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteLoadingId, setDeleteLoadingId] = useState<number | null>(null);
+  const [notice, setNotice] = useState("");
+  const deleteBusy = useRef(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Array<HTMLAnchorElement | null>>([]);
 
   const load = useCallback(async () => {
@@ -80,6 +88,56 @@ export function ClientList() {
     if (event.key === "Escape" && query) { event.preventDefault(); setQuery(""); setActiveIndex(0); }
   }
 
+  async function requestDelete(client: ClientSummary) {
+    if (deleteBusy.current) return;
+    deleteBusy.current = true;
+    setDeleteLoadingId(client.id);
+    setError("");
+    setNotice("");
+    setDeleteError("");
+    try {
+      // 削除を選んだ時点で最新の年度・明細数を確認する。
+      const response = await fetch(`${API_BASE}/portfolio?householdId=${client.id}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("削除対象の情報を読み込めませんでした。もう一度お試しください。");
+      const portfolio = await response.json() as Portfolio;
+      if (portfolio.household.id !== client.id) throw new Error("削除対象を確認できませんでした。");
+      setDeleting(portfolio);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "削除対象の情報を読み込めませんでした。");
+    } finally {
+      setDeleteLoadingId(null);
+      deleteBusy.current = false;
+    }
+  }
+
+  async function deleteClient(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!deleting || deleteBusy.current) return;
+    const confirmationClientCode = String(new FormData(event.currentTarget).get("confirmationClientCode") ?? "");
+    if (confirmationClientCode.toUpperCase() !== deleting.household.clientCode.toUpperCase()) return;
+    deleteBusy.current = true;
+    setSaving(true);
+    setDeleteError("");
+    try {
+      const response = await fetch(`${API_BASE}/clients`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleting.household.id, confirmationClientCode }),
+      });
+      const result = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(result?.error ?? "顧客を削除できませんでした。");
+      setClients((current) => current?.filter((client) => client.id !== deleting.household.id) ?? []);
+      setNotice(`${deleting.household.name}を削除しました。`);
+      setDeleting(null);
+      searchRef.current?.focus();
+    } catch (caught) {
+      setDeleteError(caught instanceof Error ? caught.message : "顧客を削除できませんでした。");
+    } finally {
+      setSaving(false);
+      deleteBusy.current = false;
+    }
+  }
+
   async function createClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
@@ -112,14 +170,17 @@ export function ClientList() {
       <section className="page-heading"><div><h1>顧客一覧</h1></div></section>
 
       {error ? <div className="error-banner" role="alert"><AlertTriangle />{error}<button onClick={() => setError("")} aria-label="閉じる"><X /></button></div> : null}
+      {notice ? <p className="client-delete-notice" role="status">{notice}</p> : null}
 
       <div className="client-home-toolbar">
         <label className="client-search">
           <span className="sr-only">顧客を検索</span>
           <Search />
           <input
+            ref={searchRef}
             type="search"
             role="combobox"
+            aria-haspopup="grid"
             aria-expanded
             aria-controls="client-options"
             aria-activedescendant={highlightedIndex >= 0 ? `client-option-${filtered[highlightedIndex].id}` : undefined}
@@ -137,18 +198,21 @@ export function ClientList() {
       {/* 件数は画面には出さず、読み上げにだけ残す。 */}
       <p className="sr-only" aria-live="polite">{filtered.length}件の顧客{terms.length > 0 && clients.length !== filtered.length ? `（全${clients.length}件中）` : ""}</p>
 
-      <div className="client-list" id="client-options" role="listbox" aria-label="顧客">
-        {filtered.map((client, index) => <Link
+      <div className="client-list" id="client-options" role="grid" aria-label="顧客">
+        {filtered.map((client, index) => <div
           key={client.id}
           id={`client-option-${client.id}`}
-          ref={(element) => { itemRefs.current[index] = element; }}
-          role="option"
+          role="row"
           aria-selected={index === highlightedIndex}
-          tabIndex={-1}
-          className={`client-list-item ${index === highlightedIndex ? "highlighted" : ""}`}
-          href={clientHref(client.id)}
+          className={`client-list-row ${index === highlightedIndex ? "highlighted" : ""}`}
           onMouseEnter={() => setActiveIndex(index)}
         >
+          <div role="gridcell" className="client-list-open-cell"><Link
+            ref={(element) => { itemRefs.current[index] = element; }}
+            className="client-list-item"
+            href={clientHref(client.id)}
+            onFocus={() => setActiveIndex(index)}
+          >
           <span className="client-avatar" aria-hidden="true">{client.name.slice(0, 1)}</span>
           <span className="client-list-main">
             <strong><Highlighted text={client.name} terms={terms} /></strong>
@@ -160,12 +224,43 @@ export function ClientList() {
           </span>
           <span className="client-list-year">{client.latestFiscalYear ? `${client.latestFiscalYear}年度` : "年度なし"}</span>
           <ChevronRight />
-        </Link>)}
+          </Link></div>
+          <div role="gridcell"><ClientRowActions client={client} busy={deleteLoadingId !== null} loading={deleteLoadingId === client.id} onDelete={() => { void requestDelete(client); }} /></div>
+        </div>)}
       </div>
       {filtered.length === 0 ? <div className="client-empty"><Search /><strong>該当する顧客がありません</strong><span>{clients.length === 0 ? "「顧客を追加」から登録してください。" : "検索条件を変更してください。"}</span></div> : null}
     </main>
 
     {creating ? <ClientCreateModal error={error} saving={saving} onClose={() => setCreating(false)} onSubmit={createClient} /> : null}
+    {deleting ? <ClientDeleteModal household={deleting.household} snapshotCount={deleting.snapshots.length} positionCount={deleting.snapshots.reduce((count, snapshot) => count + snapshot.positions.length, 0)} error={deleteError} saving={saving} onClose={() => setDeleting(null)} onSubmit={deleteClient} /> : null}
+  </div>;
+}
+
+function ClientRowActions({ client, busy, loading, onDelete }: { client: ClientSummary; busy: boolean; loading: boolean; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const deleteRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    deleteRef.current?.focus();
+    const closeOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open]);
+  return <div ref={rootRef} className="client-row-actions" onBlur={(event) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+  }} onKeyDown={(event) => {
+    if (event.key === "Escape") { event.preventDefault(); setOpen(false); triggerRef.current?.focus(); }
+  }}>
+    <button ref={triggerRef} type="button" className="icon-button client-actions-trigger" aria-label={`${client.name}の操作`} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? `client-menu-${client.id}` : undefined} aria-busy={loading} aria-disabled={busy} onClick={() => { if (!busy) setOpen(!open); }} onKeyDown={(event) => {
+      if (!busy && (event.key === "ArrowDown" || event.key === "ArrowUp")) { event.preventDefault(); setOpen(true); }
+    }}>{loading ? <LoaderCircle className="spin" /> : <MoreHorizontal />}</button>
+    {open ? <div className="client-actions-menu" role="menu" id={`client-menu-${client.id}`} aria-label={`${client.name}の操作`}>
+      <button ref={deleteRef} type="button" role="menuitem" onClick={() => { setOpen(false); triggerRef.current?.focus(); onDelete(); }}><Trash2 />顧客を削除</button>
+    </div> : null}
   </div>;
 }
 

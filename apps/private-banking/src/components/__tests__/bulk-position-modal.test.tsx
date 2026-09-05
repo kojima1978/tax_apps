@@ -148,6 +148,33 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     }]);
   });
 
+  it.each([0, 30_000_000])("解約返戻金0円・死亡保険金%s円の生命保険を保存できる", async (deathBenefit) => {
+    const onSubmit = renderModal();
+    selectEntryType("INSURANCE");
+    typeIn(1, "保険会社", "テスト生命");
+    typeIn(1, "解約返戻金（円）", "0");
+    typeIn(1, "死亡保険金（円）", String(deathBenefit));
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(savedPayloads(onSubmit)[0]?.data).toMatchObject({ originalAmount: 0, assetDetails: { deathBenefit } });
+  });
+
+  it("保存済みの保険金0円を再表示しても空欄にならない", () => {
+    renderModal([position({ category: "INSURANCE", name: "テスト生命", institution: "テスト生命", assetDetails: { deathBenefit: 0 } })]);
+    expect(cell(1, "死亡保険金（円）").value).toBe("0");
+    expect(cell(1, "解約返戻金（円）").value).toBe("0");
+  });
+
+  it("生命保険の解約返戻金は0円を許可しても空欄は保存しない", async () => {
+    const onSubmit = renderModal();
+    selectEntryType("INSURANCE");
+    typeIn(1, "保険会社", "テスト生命");
+    typeIn(1, "死亡保険金（円）", "0");
+    save();
+    await screen.findByText("解約返戻金（円）を入力してください。");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("退職金は制度名を名称にし、死亡退職金を assetDetails へ入れる", async () => {
     const onSubmit = renderModal();
     selectEntryType("RETIREMENT_ALLOWANCE");

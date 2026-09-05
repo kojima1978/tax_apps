@@ -10,8 +10,9 @@ import { FormEvent, useMemo, useState } from "react";
 import { BackupView } from "@/components/backup-view";
 import { BalanceScenarioActions, BalanceSheetPanel } from "@/components/balance-sheet-panel";
 import { BulkPositionModal } from "@/components/bulk-position-modal";
+import { ClientDeleteModal } from "@/components/client-delete-modal";
 import {
-  ClientDeleteModal, DeleteSnapshotModal, ForecastModal, PrintGuideModal, SnapshotSettingsModal, YearCreationModal,
+  DeleteSnapshotModal, ForecastModal, PrintGuideModal, SnapshotSettingsModal, YearCreationModal,
 } from "@/components/dashboard-modals";
 import { HistoryView } from "@/components/history-view";
 import { FamilyView } from "@/components/family-view";
