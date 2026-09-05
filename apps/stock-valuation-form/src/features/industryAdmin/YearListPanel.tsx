@@ -1,7 +1,16 @@
-import { Fragment, useMemo, useState } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react';
 import type { IndustryCategory, IndustryYear } from '@/data/industryDataset';
-import { updateIndustryCategory, type UpdateCategoryRequest } from './api';
-import { CategoryFilterRow, useCategoryFilter } from './CategoryFilter';
+import { AdminAlert } from './AdminAlert';
+import { fetchIndustryCategories, updateIndustryCategory, type UpdateCategoryRequest } from './api';
+import { CategoryFilterRow, useCategoryFilter, type CategoryStatusFilter } from './CategoryFilter';
 import { LEVEL_LABELS } from './labels';
 import { MonthEditor } from './MonthEditor';
 import { CHIP_STATUS_CLASS, MonthlyCoverageBar, chipCountText } from './MonthlyCoverageBar';
@@ -17,10 +26,28 @@ const NUMERIC_FIELDS = [
 
 type NumericField = (typeof NUMERIC_FIELDS)[number]['key'];
 
-// 内容（description）は帳票側で使わないためデータセットに載っていない。ここでも触らない。
-type EditValues = Record<'name' | NumericField, string>;
+/**
+ * 内容（description）は帳票で使わないためデータセットには載っていない。
+ * 管理画面だけが必要とするので `/industry-categories` から別に取ってきて、ここに混ぜる。
+ */
+type EditValues = Record<'name' | 'description' | NumericField, string>;
 
 type Message = { kind: 'ok' | 'error'; text: string };
+
+/** 基礎情報の絞り込み。115件のうち「まだ埋まっていない行」へ直接飛べるようにする。 */
+const BASIC_STATUS_FILTERS: readonly CategoryStatusFilter[] = [
+  {
+    id: 'missing-bcd',
+    label: 'B・C・D欠け',
+    match: (category) =>
+      category.dividend === null || category.profit === null || category.netAsset === null,
+  },
+  {
+    id: 'missing-previous',
+    label: '前年平均なし',
+    match: (category) => category.previousYearAveragePrice === null,
+  },
+];
 
 /**
  * 年分ブロックのチップから開く中身。
@@ -32,9 +59,10 @@ function viewKeyOf(view: DetailView): string {
   return view.kind === 'basic' ? 'basic' : `month-${view.year}-${view.month}`;
 }
 
-function toEditValues(category: IndustryCategory): EditValues {
+function toEditValues(category: IndustryCategory, description: string | null): EditValues {
   return {
     name: category.name,
+    description: description ?? '',
     dividend: category.dividend === null ? '' : String(category.dividend),
     profit: category.profit === null ? '' : String(category.profit),
     netAsset: category.netAsset === null ? '' : String(category.netAsset),
@@ -56,15 +84,23 @@ function parseNumericField(text: string, label: string, decimal = false): number
   return Number(trimmed);
 }
 
-/** 変更のあった欄だけを送る。空欄は「触っていない」ではなく不正入力として弾く。 */
+/**
+ * 変更のあった欄だけを送る。空欄は「触っていない」ではなく不正入力として弾く。
+ * `description` は未取得（null）なら送らない。取れていないものを空欄で上書きしないため。
+ */
 function toUpdateRequest(
   category: IndustryCategory,
   values: EditValues,
+  description: string | null,
 ): UpdateCategoryRequest | string {
   const request: UpdateCategoryRequest = {};
 
   if (values.name.trim() === '') return '業種目名は空にできません';
   if (values.name !== category.name) request.name = values.name.trim();
+
+  if (description !== null && values.description.trim() !== description.trim()) {
+    request.description = values.description.trim();
+  }
 
   for (const field of NUMERIC_FIELDS) {
     const text = values[field.key].trim();
@@ -112,17 +148,58 @@ function basicInfoCountOf(year: IndustryYear): number {
 interface Props {
   years: readonly IndustryYear[];
   onUpdated: () => Promise<void>;
+  /** 開いた状態で見せたい年分（西暦）。新規追加の直後にそこへ連れて行くために使う。 */
+  focusYear?: number;
 }
 
 /** 登録済み年分の一覧と、登録状況チップから開く中身の表示・訂正。 */
-export function YearListPanel({ years, onUpdated }: Props) {
+export function YearListPanel({ years, onUpdated, focusYear }: Props) {
   // 開いている年分とその中身。チップが唯一の入口なので、両方まとめて1つの state で持つ。
   const [open, setOpen] = useState<{ gregorianYear: number; view: DetailView } | null>(null);
+  /*
+   * 年分ブロックの開閉。触るまでは null で、既定（最新の年分だけ開く）に従う。
+   *
+   * 年分が増えるほどチップの列が縦に伸びて、作業対象の年分にたどり着くまでが遠くなる。
+   * 普段いじるのは最新の年分なので、そこだけ開いた状態から始める。
+   */
+  const [expandedRaw, setExpandedRaw] = useState<ReadonlySet<number> | null>(null);
 
   const coverages = useMemo(
     () => years.map((year) => ({ year, coverage: monthlyCoverageOf(year) })),
     [years],
   );
+
+  const defaultExpanded = useMemo(
+    () => new Set(years.slice(0, 1).map((year) => year.gregorianYear)),
+    [years],
+  );
+  const expanded = expandedRaw ?? defaultExpanded;
+
+  // 指定された年分は開いて、そこまで画面を送る。年分が増えても迷子にならないように。
+  const focusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusYear === undefined) return;
+    setExpandedRaw((current) => {
+      const base = current ?? defaultExpanded;
+      if (base.has(focusYear)) return current;
+      const next = new Set(base);
+      next.add(focusYear);
+      return next;
+    });
+    // jsdom には scrollIntoView が無い。表示だけの都合なので、無ければ何もしない。
+    focusRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+  }, [focusYear, defaultExpanded]);
+
+  const toggleYear = (gregorianYear: number) => {
+    const collapsing = expanded.has(gregorianYear);
+    const next = new Set(expanded);
+    if (collapsing) next.delete(gregorianYear);
+    else next.add(gregorianYear);
+    setExpandedRaw(next);
+
+    // 畳んだ年分の中身は閉じる。見えない場所で編集中のまま残さない。
+    if (collapsing) setOpen((current) => (current?.gregorianYear === gregorianYear ? null : current));
+  };
 
   /** 同じチップをもう一度押したら閉じる。 */
   const toggle = (gregorianYear: number, view: DetailView) =>
@@ -137,64 +214,76 @@ export function YearListPanel({ years, onUpdated }: Props) {
   const openViewOf = (gregorianYear: number) =>
     open && open.gregorianYear === gregorianYear ? open.view : null;
 
+  if (years.length === 0) {
+    return (
+      <div className="admin-panel-body">
+        <div className="admin-note">年分が登録されていません。「年分を新規追加」から登録してください。</div>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-panel-body">
-      <div className="admin-scroll">
-        <table className="admin-table admin-table-fit">
-          <thead>
-            <tr>
-              <th>年分</th><th>西暦</th><th>業種目</th><th>月別株価</th><th>最終月</th>
-            </tr>
-          </thead>
-          <tbody>
-            {years.map((year) => (
-              <tr
-                key={year.gregorianYear}
-                className={open?.gregorianYear === year.gregorianYear ? 'admin-row-open' : undefined}
-              >
-                <td>{year.label}</td>
-                <td>{year.gregorianYear}</td>
-                <td>{year.categories.length} 件</td>
-                <td>{monthlyPriceCountOf(year)} 件</td>
-                <td>{latestMonthOf(year)}</td>
-              </tr>
-            ))}
-            {years.length === 0 && (
-              <tr><td colSpan={5}>年分が登録されていません。</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
       {coverages.map(({ year, coverage }) => {
-        const view = openViewOf(year.gregorianYear);
+        const isExpanded = expanded.has(year.gregorianYear);
+        const view = isExpanded ? openViewOf(year.gregorianYear) : null;
+        const pending = pendingMonthCountOf(coverage);
+
         return (
           <Fragment key={year.gregorianYear}>
-            <div className="admin-coverage-block">
-              <div className="admin-coverage-head">
-                <strong>{year.label} の月別株価</strong>
-                <span className="admin-note">
-                  {pendingMonthCountOf(coverage) === 0
-                    ? '公表レンジの全月がそろっています'
-                    : `未登録・取込漏れ ${pendingMonthCountOf(coverage)} か月`
-                      + `（次は ${coverage.next.year}年${coverage.next.month}月分）`}
+            <div
+              className="admin-coverage-block"
+              ref={year.gregorianYear === focusYear ? focusRef : undefined}
+            >
+              {/*
+                年分の件数を上の表とチップ列の2箇所に出していたので、同じ数字を見比べる手間があった。
+                見出し1行にまとめて、そこが年分の開閉も兼ねる。
+              */}
+              <button
+                type="button"
+                className="admin-year-head"
+                aria-expanded={isExpanded}
+                onClick={() => toggleYear(year.gregorianYear)}
+              >
+                <span className="admin-year-toggle" aria-hidden="true">{isExpanded ? '▼' : '▶'}</span>
+                <strong className="admin-year-label">{year.label}</strong>
+                <span className="admin-note">{year.gregorianYear}年</span>
+                <span className="admin-year-facts">
+                  <span className="admin-badge">業種目 {year.categories.length} 件</span>
+                  <span className="admin-badge">月別株価 {monthlyPriceCountOf(year)} 件</span>
+                  <span className="admin-badge">最終 {latestMonthOf(year)}</span>
+                  {pending === 0
+                    ? <span className="admin-badge admin-badge-new">公表レンジの全月そろい</span>
+                    : <span className="admin-badge admin-badge-changed">未登録・取込漏れ {pending} か月</span>}
                 </span>
-                <span className="admin-note">クリックすると中身を表示します</span>
-              </div>
-              <MonthlyCoverageBar
-                coverage={coverage}
-                selected={view?.kind === 'month' ? { year: view.year, month: view.month } : undefined}
-                onSelect={(priceYear, priceMonth) =>
-                  toggle(year.gregorianYear, { kind: 'month', year: priceYear, month: priceMonth })}
-                leading={
-                  <BasicInfoChip
-                    count={basicInfoCountOf(year)}
-                    categoryCount={year.categories.length}
-                    selected={view?.kind === 'basic'}
-                    onSelect={() => toggle(year.gregorianYear, { kind: 'basic' })}
+              </button>
+
+              {isExpanded && (
+                <>
+                  <div className="admin-coverage-head">
+                    <span className="admin-note">
+                      {pending === 0
+                        ? '公表レンジの全月がそろっています'
+                        : `次は ${coverage.next.year}年${coverage.next.month}月分`}
+                    </span>
+                    <span className="admin-note">クリックすると中身を表示します</span>
+                  </div>
+                  <MonthlyCoverageBar
+                    coverage={coverage}
+                    selected={view?.kind === 'month' ? { year: view.year, month: view.month } : undefined}
+                    onSelect={(priceYear, priceMonth) =>
+                      toggle(year.gregorianYear, { kind: 'month', year: priceYear, month: priceMonth })}
+                    leading={
+                      <BasicInfoChip
+                        count={basicInfoCountOf(year)}
+                        categoryCount={year.categories.length}
+                        selected={view?.kind === 'basic'}
+                        onSelect={() => toggle(year.gregorianYear, { kind: 'basic' })}
+                      />
+                    }
                   />
-                }
-              />
+                </>
+              )}
             </div>
 
             {view && (
@@ -222,7 +311,6 @@ function BasicInfoChip({ count, categoryCount, selected, onSelect }: BasicInfoCh
   const status = statusOf(count, categoryCount);
   const className = [
     'admin-chip',
-    'admin-chip-basic',
     CHIP_STATUS_CLASS[status],
     selected ? 'admin-chip-selected' : '',
   ].filter(Boolean).join(' ');
@@ -268,31 +356,63 @@ function YearDetail({ year, view, onUpdated }: YearDetailProps) {
   );
 }
 
-/** 月に紐づかない値（業種目のB・C・D・前年平均）の訂正。 */
+/** 月に紐づかない値（業種目のB・C・D・前年平均・内容）の訂正。 */
 function BasicInfoEditor({ year, onUpdated }: { year: IndustryYear; onUpdated: () => Promise<void> }) {
   const [message, setMessage] = useState<Message | null>(null);
-  const filter = useCategoryFilter(year.categories);
+  /*
+   * 内容説明。データセット（`/industry-dataset`）は帳票用で description を落としているので、
+   * この画面を開いたときだけ `/industry-categories` から取り直す。null は未取得。
+   */
+  const [descriptions, setDescriptions] = useState<ReadonlyMap<number, string> | null>(null);
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
+
+  const filter = useCategoryFilter(year.categories, BASIC_STATUS_FILTERS);
+
+  useEffect(() => {
+    let alive = true;
+    setDescriptions(null);
+    setDescriptionError(null);
+
+    fetchIndustryCategories(year.gregorianYear)
+      .then((categories) => {
+        if (alive) setDescriptions(new Map(categories.map((c) => [c.number, c.description])));
+      })
+      .catch((caught) => {
+        if (alive) setDescriptionError(caught instanceof Error ? caught.message : String(caught));
+      });
+
+    return () => { alive = false; };
+  }, [year.gregorianYear]);
+
+  // 保存できた内容はその場で手元にも反映する（データセットの再取得には載ってこないため）。
+  const rememberDescription = useCallback((number: number, description: string) => {
+    setDescriptions((current) => {
+      if (!current) return current;
+      const next = new Map(current);
+      next.set(number, description);
+      return next;
+    });
+  }, []);
 
   return (
     <>
-      <CategoryFilterRow
-        keyword={filter.keyword}
-        onChange={filter.setKeyword}
-        shown={filter.filtered.length}
-        total={year.categories.length}
-      />
+      <CategoryFilterRow filter={filter} total={year.categories.length} />
+
+      {descriptionError && (
+        <AdminAlert kind="warn" scrollKey={descriptionError}>
+          内容説明を読み込めませんでした（{descriptionError}）。B・C・Dの訂正はこのまま行えます。
+        </AdminAlert>
+      )}
 
       {message && (
-        <div className={message.kind === 'ok' ? 'admin-alert admin-alert-ok' : 'admin-alert admin-alert-error'}>
-          {message.text}
-        </div>
+        <AdminAlert kind={message.kind} scrollKey={message.text}>{message.text}</AdminAlert>
       )}
 
       <div className="admin-scroll admin-scroll-tall">
         <table className="admin-table">
           <thead>
             <tr>
-              <th>番号</th><th>階層</th><th>業種目</th>
+              <th>番号</th><th>階層</th><th>業種目</th><th>内容</th>
               {NUMERIC_FIELDS.map((field) => (
                 <th key={field.key} className="admin-num">{field.label}</th>
               ))}
@@ -305,8 +425,10 @@ function BasicInfoEditor({ year, onUpdated }: { year: IndustryYear; onUpdated: (
                 key={category.number}
                 gregorianYear={year.gregorianYear}
                 category={category}
+                description={descriptions?.get(category.number) ?? null}
                 onUpdated={onUpdated}
                 onMessage={setMessage}
+                onDescriptionSaved={rememberDescription}
               />
             ))}
           </tbody>
@@ -319,17 +441,27 @@ function BasicInfoEditor({ year, onUpdated }: { year: IndustryYear; onUpdated: (
 interface CategoryRowProps {
   gregorianYear: number;
   category: IndustryCategory;
+  /** 内容説明。null は未取得（この行では触らせない）。 */
+  description: string | null;
   onUpdated: () => Promise<void>;
   onMessage: (message: Message) => void;
+  onDescriptionSaved: (number: number, description: string) => void;
 }
 
-function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: CategoryRowProps) {
+function CategoryRow({
+  gregorianYear,
+  category,
+  description,
+  onUpdated,
+  onMessage,
+  onDescriptionSaved,
+}: CategoryRowProps) {
   const [values, setValues] = useState<EditValues | null>(null);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     if (!values) return;
-    const request = toUpdateRequest(category, values);
+    const request = toUpdateRequest(category, values, description);
     if (typeof request === 'string') {
       onMessage({ kind: 'error', text: `${category.number} ${category.name}: ${request}` });
       return;
@@ -338,6 +470,9 @@ function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: Category
     setSaving(true);
     try {
       await updateIndustryCategory(gregorianYear, category.number, request);
+      if (request.description !== undefined) {
+        onDescriptionSaved(category.number, request.description);
+      }
       await onUpdated();
       onMessage({ kind: 'ok', text: `${category.number} ${category.name} を更新しました` });
       setValues(null);
@@ -354,11 +489,18 @@ function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: Category
         <td>{category.number}</td>
         <td>{LEVEL_LABELS[category.level]}</td>
         <td>{category.name}</td>
+        <td className="admin-cell-description" title={description ?? undefined}>
+          {description === null ? '…' : description || '—'}
+        </td>
         {NUMERIC_FIELDS.map((field) => (
           <td key={field.key} className="admin-num">{category[field.key] ?? '—'}</td>
         ))}
         <td>
-          <button type="button" className="app-tool-btn" onClick={() => setValues(toEditValues(category))}>
+          <button
+            type="button"
+            className="app-tool-btn"
+            onClick={() => setValues(toEditValues(category, description))}
+          >
             訂正
           </button>
         </td>
@@ -369,12 +511,47 @@ function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: Category
   const update = (key: keyof EditValues, value: string) =>
     setValues((current) => (current ? { ...current, [key]: value } : current));
 
+  /*
+   * 115行を順に直すとき、欄ごとにボタンへマウスを往復させるのは遅い。
+   * 打ち終わったら Enter、間違えたら Esc で次へ進める。
+   * 日本語入力の変換確定も Enter なので、変換中は素通しする。
+   */
+  const handleKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
+    if (event.nativeEvent.isComposing || saving) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void save();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setValues(null);
+    }
+  };
+
   return (
-    <tr className="admin-row-editing">
+    <tr className="admin-row-editing" onKeyDown={handleKeyDown}>
       <td>{category.number}</td>
       <td>{LEVEL_LABELS[category.level]}</td>
       <td>
-        <input className="admin-input" value={values.name} onChange={(event) => update('name', event.target.value)} />
+        {/*
+          「訂正」を押した直後はどこにも焦点が無く、そのままでは Enter も Esc も届かない。
+          最初の欄に入れておくと、押してすぐ打ち始められる。
+        */}
+        <input
+          className="admin-input"
+          value={values.name}
+          onChange={(event) => update('name', event.target.value)}
+          autoFocus
+        />
+      </td>
+      <td>
+        <input
+          className="admin-input"
+          value={values.description}
+          onChange={(event) => update('description', event.target.value)}
+          disabled={description === null}
+          placeholder={description === null ? '内容説明を読込中…' : 'この業種目の対象となる会社'}
+          aria-label={`${category.number} ${category.name} の内容`}
+        />
       </td>
       {NUMERIC_FIELDS.map((field) => (
         <td key={field.key} className="admin-num">
@@ -387,14 +564,25 @@ function CategoryRow({ gregorianYear, category, onUpdated, onMessage }: Category
         </td>
       ))}
       <td className="admin-cell-actions">
-        <button type="button" className="app-tool-btn admin-btn-primary" onClick={save} disabled={saving}>
+        <button
+          type="button"
+          className="app-tool-btn admin-btn-primary"
+          onClick={save}
+          disabled={saving}
+          title="Enter でも保存できます"
+        >
           {saving ? '保存中…' : '保存'}
         </button>
-        <button type="button" className="app-tool-btn" onClick={() => setValues(null)} disabled={saving}>
+        <button
+          type="button"
+          className="app-tool-btn"
+          onClick={() => setValues(null)}
+          disabled={saving}
+          title="Esc でも取り消せます"
+        >
           取消
         </button>
       </td>
     </tr>
   );
 }
-

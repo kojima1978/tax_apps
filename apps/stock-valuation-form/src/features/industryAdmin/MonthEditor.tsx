@@ -7,8 +7,9 @@
 
 import { useMemo, useState } from 'react';
 import type { IndustryCategory, IndustryYear } from '@/data/industryDataset';
+import { AdminAlert } from './AdminAlert';
 import { deleteMonthlyPrices, importMonthlyPrices } from './api';
-import { CategoryFilterRow, useCategoryFilter } from './CategoryFilter';
+import { CategoryFilterRow, useCategoryFilter, type CategoryStatusFilter } from './CategoryFilter';
 import {
   deletionsOf,
   entriesFromRegistered,
@@ -41,6 +42,18 @@ const DIFF_BADGE_CLASS: Readonly<Record<MonthlyPriceDiff['status'], string>> = {
   same: 'admin-badge',
 };
 
+/**
+ * 取り消せない操作の確認。
+ *
+ * ブラウザの confirm はページの外に出るので、何件消えるのかを表の並びと見比べられない。
+ * 保存ボタンのすぐ上に出して、消える対象を見ながら決められるようにする。
+ */
+interface PendingConfirm {
+  kind: 'save' | 'deleteMonth';
+  message: string;
+  confirmLabel: string;
+}
+
 function issueText(issue: RowIssue): string {
   return `${issue.line > 0 ? `${issue.line}行目: ` : ''}${issue.reason}`;
 }
@@ -67,9 +80,9 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
   );
   const [pasteOpen, setPasteOpen] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const filter = useCategoryFilter(year.categories);
   const paste = usePastedTable<MonthlyPriceField>(MONTHLY_PRICE_FIELDS);
 
   const pasted = useMemo(
@@ -107,6 +120,27 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
     (price) => price.year === target.year && price.month === target.month,
   )).length;
 
+  // 115行の中から「保存すると変わる行」「まだ入れていない行」だけを引けるようにする。
+  const statusFilters = useMemo<CategoryStatusFilter[]>(() => [
+    {
+      id: 'changed',
+      label: '変更あり',
+      match: (category) => {
+        if (deletionSet.has(category.number)) return true;
+        const diff = diffByNumber.get(category.number);
+        return diff !== undefined && diff.status !== 'same';
+      },
+    },
+    {
+      id: 'blank',
+      label: '未入力',
+      match: (category) => entryOf(entries, category.number).price.trim() === ''
+        && !deletionSet.has(category.number),
+    },
+  ], [diffByNumber, deletionSet, entries]);
+
+  const filter = useCategoryFilter(year.categories, statusFilters);
+
   // 送るのは値が変わる行だけ。据置を混ぜても結果は同じだが、更新件数の表示が実態とずれる。
   const pending = preview.diffs.filter((diff) => diff.status !== 'same');
   const canSave = (pending.length > 0 || deletions.length > 0)
@@ -117,15 +151,19 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
     ? `登録 ${pending.length} 件 / 削除 ${deletions.length} 件`
     : `${pending.length} 件`;
 
-  const setEntry = (number: number, patch: Partial<PriceEntry>) =>
+  const setEntry = (number: number, patch: Partial<PriceEntry>) => {
+    // 確認を出したあとに入力が変われば、確認文の件数が実態とずれる。出し直させる。
+    setConfirm(null);
     setEntries((current) => ({
       ...current,
       [number]: { ...entryOf(current, number), ...patch },
     }));
+  };
 
   const resetEntries = () => {
     setEntries(entriesFromRegistered(year.categories, target.year, target.month));
     setMessage(null);
+    setConfirm(null);
   };
 
   /** 貼り付けた表を入力欄へ流し込む。ここでは登録しない（必ず差分を見てから保存する）。 */
@@ -134,6 +172,7 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
     const applicable = pasted.rows.filter((row) => known.has(row.number));
     const unknown = pasted.rows.filter((row) => !known.has(row.number)).map((row) => row.number);
 
+    setConfirm(null);
     setEntries((current) => {
       const next = { ...current };
       for (const row of applicable) {
@@ -163,20 +202,7 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
     }
   };
 
-  const save = async () => {
-    // 削除は取り消せないので、1件でも混ざっていれば必ず一度止める。
-    if (deletions.length > 0) {
-      const numbers = deletions.slice(0, 10).join(', ')
-        + (deletions.length > 10 ? ` ほか${deletions.length - 10}件` : '');
-      const confirmed = window.confirm(
-        `${target.year}年${target.month}月分の株価を ${deletions.length} 件削除します。\n`
-        + `業種目番号: ${numbers}\n\n`
-        + (pending.length > 0 ? `同時に ${pending.length} 件を登録します。\n` : '')
-        + 'よろしいですか？',
-      );
-      if (!confirmed) return;
-    }
-
+  const runSave = async () => {
     setSaving(true);
     setMessage(null);
 
@@ -217,14 +243,7 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
   };
 
   /** その月をまるごと消す。取り込む年分・月を間違えたときの戻し方。 */
-  const deleteMonth = async () => {
-    const confirmed = window.confirm(
-      `${target.year}年${target.month}月分の株価 ${registeredCount} 件をすべて削除します。\n`
-      + '業種目とB・C・D（配当・利益・純資産）は消えません。\n\n'
-      + 'よろしいですか？',
-    );
-    if (!confirmed) return;
-
+  const runDeleteMonth = async () => {
     setSaving(true);
     setMessage(null);
 
@@ -243,6 +262,38 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
     }
   };
 
+  /** 削除は取り消せないので、1件でも混ざっていれば必ず一度止める。 */
+  const requestSave = () => {
+    if (deletions.length === 0) {
+      void runSave();
+      return;
+    }
+
+    const numbers = deletions.slice(0, 10).join(', ')
+      + (deletions.length > 10 ? ` ほか${deletions.length - 10}件` : '');
+    setConfirm({
+      kind: 'save',
+      message: `${target.year}年${target.month}月分の株価を ${deletions.length} 件削除します`
+        + `（業種目番号: ${numbers}）。`
+        + (pending.length > 0 ? `同時に ${pending.length} 件を登録します。` : ''),
+      confirmLabel: `削除して保存する（${saveCountText}）`,
+    });
+  };
+
+  const requestDeleteMonth = () => setConfirm({
+    kind: 'deleteMonth',
+    message: `${target.year}年${target.month}月分の株価 ${registeredCount} 件をすべて削除します。`
+      + '業種目とB・C・D（配当・利益・純資産）は消えません。',
+    confirmLabel: `${registeredCount} 件を削除する`,
+  });
+
+  const runConfirmed = () => {
+    const accepted = confirm;
+    setConfirm(null);
+    if (!accepted) return;
+    void (accepted.kind === 'save' ? runSave() : runDeleteMonth());
+  };
+
   return (
     <>
       <div className="admin-row">
@@ -256,7 +307,7 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
           <button
             type="button"
             className="app-tool-btn admin-btn-danger"
-            onClick={deleteMonth}
+            onClick={requestDeleteMonth}
             disabled={saving}
           >
             この月を削除（{registeredCount} 件）
@@ -271,14 +322,14 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
         <>
           <PasteTableEditor state={paste} fields={MONTHLY_PRICE_FIELDS} placeholder={PLACEHOLDER} />
           {pasted.errors.length > 0 && (
-            <div className="admin-alert admin-alert-warn">
+            <AdminAlert kind="warn" scrollKey={`paste-${pasted.errors.length}`}>
               <strong>読み取れない行があります（{pasted.errors.length}件）</strong>
               <ul>
                 {pasted.errors.slice(0, 10).map((issue) => (
                   <li key={`${issue.line}-${issue.reason}`}>{issueText(issue)}</li>
                 ))}
               </ul>
-            </div>
+            </AdminAlert>
           )}
           <div className="admin-actions">
             <button type="button" className="app-tool-btn" onClick={paste.clear}>
@@ -296,38 +347,21 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
         </>
       )}
 
-      <CategoryFilterRow
-        keyword={filter.keyword}
-        onChange={filter.setKeyword}
-        shown={filter.filtered.length}
-        total={year.categories.length}
-      />
-
-      <div className="admin-summary">
-        <span className="admin-badge admin-badge-new">新規 {countOf('new')}</span>
-        <span className="admin-badge admin-badge-changed">変更 {countOf('changed')}</span>
-        <span className="admin-badge">据置 {countOf('same')}</span>
-        {deletions.length > 0 && (
-          <span className="admin-badge admin-badge-delete">削除 {deletions.length}</span>
-        )}
-        {blankCount > 0 && <span className="admin-note">未入力 {blankCount} 件</span>}
-      </div>
+      <CategoryFilterRow filter={filter} total={year.categories.length} />
 
       {entered.errors.length > 0 && (
-        <div className="admin-alert admin-alert-error">
+        <AdminAlert kind="error" scrollKey={`entered-${entered.errors.length}`}>
           <strong>入力を直してください（{entered.errors.length}件）</strong>
           <ul>
             {entered.errors.slice(0, 10).map((issue) => (
               <li key={issue.reason}>{issueText(issue)}</li>
             ))}
           </ul>
-        </div>
+        </AdminAlert>
       )}
 
       {message && (
-        <div className={message.kind === 'ok' ? 'admin-alert admin-alert-ok' : 'admin-alert admin-alert-error'}>
-          {message.text}
-        </div>
+        <AdminAlert kind={message.kind} scrollKey={message.text}>{message.text}</AdminAlert>
       )}
 
       <div className="admin-scroll admin-scroll-tall">
@@ -391,15 +425,45 @@ export function MonthEditor({ year, target, onUpdated }: Props) {
         </table>
       </div>
 
-      <div className="admin-actions">
-        <button
-          type="button"
-          className="app-tool-btn admin-btn-primary"
-          onClick={save}
-          disabled={!canSave}
-        >
-          {saving ? '保存中…' : `${target.year}年${target.month}月分を保存する（${saveCountText}）`}
-        </button>
+      {/*
+        115行をスクロールしている間、差分の内訳も保存ボタンもずっと画面の外にいた。
+        表の下端に貼り付けて、どこを見ていても「いま何件変わるか」と保存が手元にあるようにする。
+      */}
+      <div className="admin-sticky-actions">
+        {confirm && (
+          <div className="admin-alert admin-alert-warn admin-confirm">
+            <span className="admin-confirm-text">{confirm.message}</span>
+            <span className="admin-confirm-actions">
+              <button type="button" className="app-tool-btn" onClick={() => setConfirm(null)}>
+                やめる
+              </button>
+              <button type="button" className="app-tool-btn admin-btn-danger" onClick={runConfirmed}>
+                {confirm.confirmLabel}
+              </button>
+            </span>
+          </div>
+        )}
+
+        <div className="admin-sticky-row">
+          <div className="admin-summary">
+            <span className="admin-badge admin-badge-new">新規 {countOf('new')}</span>
+            <span className="admin-badge admin-badge-changed">変更 {countOf('changed')}</span>
+            <span className="admin-badge">据置 {countOf('same')}</span>
+            {deletions.length > 0 && (
+              <span className="admin-badge admin-badge-delete">削除 {deletions.length}</span>
+            )}
+            {blankCount > 0 && <span className="admin-note">未入力 {blankCount} 件</span>}
+          </div>
+
+          <button
+            type="button"
+            className="app-tool-btn admin-btn-primary admin-sticky-save"
+            onClick={requestSave}
+            disabled={!canSave}
+          >
+            {saving ? '保存中…' : `${target.year}年${target.month}月分を保存する（${saveCountText}）`}
+          </button>
+        </div>
       </div>
     </>
   );

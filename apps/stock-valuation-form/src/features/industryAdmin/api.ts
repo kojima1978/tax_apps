@@ -124,6 +124,29 @@ export function fetchIndustryYearArchive(gregorianYear: number) {
   return load<YearArchive>(`/industry-years/${gregorianYear}/export`);
 }
 
+/**
+ * 業種目マスタ（内容説明つき）。
+ *
+ * 帳票では使わないため `/industry-dataset` には `description` を載せていない。
+ * 管理画面で内容を見る・直すときだけ、この経路で別に取りに行く。
+ */
+export interface IndustryCategoryDetail {
+  number: number;
+  largeName: string;
+  middleName: string;
+  smallName: string;
+  name: string;
+  level: IndustryLevel;
+  description: string;
+}
+
+export async function fetchIndustryCategories(gregorianYear: number) {
+  const body = await load<{ categories: IndustryCategoryDetail[] }>(
+    `/industry-categories?gregorianYear=${gregorianYear}`,
+  );
+  return body.categories;
+}
+
 export interface ImportMonthlyPricesResponse {
   year: { id: number; label: string; gregorianYear: number };
   priceYear: number;

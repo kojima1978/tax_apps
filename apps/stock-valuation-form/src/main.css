@@ -1810,16 +1810,31 @@
   gap: 8px 12px;
 }
 
+/*
+ * 表の枠。高さを固定していたころは、縦に広い画面でも数行ぶんしか見えず、
+ * 115件の業種目を細い窓から延々スクロールすることになっていた。画面の高さに追従させる。
+ *
+ * max() の左側は従来の固定値。ノートPCのような低い画面では今までと同じ見え方に落ち着き、
+ * 高い画面でだけ伸びる。
+ *
+ * こちら（短い方）は貼り付けの下見と書き出し一覧、つまり画面の主役ではなく
+ * 下にボタンが控えている枠なので、画面を埋めきらない割合で止める。
+ */
 .admin-scroll {
-  max-height: 240px;
+  max-height: max(240px, 32dvh);
   overflow: auto;
   border: 1px solid #e2e8f0;
   border-radius: 4px;
   background: #fff;
 }
 
+/*
+ * こちらは業種目一覧そのもの。枠より上（ヘッダー・タブ・チップ列・絞り込み）と
+ * 下（保存バー）に要る高さを引いて、ページ自体はスクロールしない大きさに収める。
+ * 520px は 1440x900 で実測した値（表の上端 442px + 保存バー 49px + 下の余白 29px）。
+ */
 .admin-scroll-tall {
-  max-height: 420px;
+  max-height: max(420px, calc(100dvh - 520px));
 }
 
 .admin-table {
@@ -1854,10 +1869,6 @@
 
 .admin-row-muted td {
   color: #94a3b8;
-}
-
-.admin-row-open td {
-  background: #ecfdf5;
 }
 
 .admin-row-editing td {
@@ -2108,14 +2119,6 @@ button.admin-chip:hover {
   color: inherit;
 }
 
-/*
- * 月に紐づかない値（B・C・D・前年平均）への入口。
- * 色は月チップと同じ状態クラスに任せ、ここでは月の並びから少し離すだけにする。
- */
-.admin-chip-basic {
-  margin-right: 10px;
-}
-
 /* 公表レンジ外＝年分違いの取込を疑う月。枠線だけ変えて並びからは外さない。 */
 .admin-chip-extra {
   border-style: dashed;
@@ -2141,10 +2144,205 @@ button.admin-chip:hover {
   gap: 4px;
 }
 
+/*
+ * 凡例の見本。色だけで状態を区別すると、色覚特性や白黒印刷で読めなくなるので
+ * チップと同じ記号（− ! ✓）を中に入れる。器はその分だけ大きくする。
+ */
 .admin-legend-swatch {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   border: 1px solid #cbd5e1;
   border-radius: 2px;
+  font-size: 9px;
+  line-height: 1;
+}
+
+/*
+ * 年分の見出し（C-1 / C-3）。件数の表とチップ列で同じ数字を2回出していたのをここへ寄せ、
+ * 行そのものが年分の開閉ボタンを兼ねる。押せる範囲を広く取りたいので幅いっぱいに敷く。
+ */
+.admin-year-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  /* 横だけ食い込ませて、下のチップ列と文字の左端をそろえる。 */
+  margin: 0 -4px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #334155;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-year-head:hover {
+  background: #f8fafc;
+}
+
+.admin-year-head:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 1px;
+}
+
+.admin-year-toggle {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.admin-year-label {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+/* 件数は右側にまとめる。年分名を左端で縦に読めるようにするため。 */
+.admin-year-facts {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* C-2 年分共通の値と月別株価を、見出し付きの区画として分ける。 */
+.admin-chip-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.admin-chip-group-label {
+  /* チップの1行目の高さに合わせる。 */
+  padding-top: 6px;
+  color: #64748b;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* B-3 状態での絞り込み。件数を出して、押す前に空振りかどうか分かるようにする。 */
+.admin-filter-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-filter-chip {
+  padding: 3px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+  color: #475569;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.admin-filter-chip:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.admin-filter-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.admin-filter-chip-active {
+  border-color: #0f766e;
+  background: #ccfbf1;
+  color: #0f766e;
+  font-weight: 700;
+}
+
+/*
+ * B-2 表の下端に貼り付く保存バー。115行スクロールしている間、
+ * 差分の内訳も保存ボタンも画面の外にいたのを手元に置く。
+ * 負のマージンは .admin-detail の padding(12px) を打ち消して端まで敷くため。
+ */
+.admin-sticky-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 -12px -12px;
+  padding: 10px 12px;
+  border-top: 1px solid #e2e8f0;
+  border-radius: 0 0 6px 6px;
+  background: #fff;
+}
+
+.admin-sticky-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-sticky-save {
+  flex: none;
+}
+
+/*
+ * C-4 window.confirm の置き換え。ブラウザのダイアログは画面の中身が見えなくなるうえ、
+ * 「何件消えるのか」を文章でしか伝えられなかった。保存バーの上に出して、
+ * 後ろの差分を見ながら決められるようにする。
+ */
+.admin-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-confirm-text {
+  flex: 1 1 240px;
+}
+
+.admin-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/*
+ * D-1 内容説明の列。全文だと表が横に伸びて数値の列が画面外へ出るので、
+ * 幅を決めて末尾を省略する（全文は title 属性で読める）。
+ */
+.admin-cell-description {
+  max-width: 22em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* D-3 書き出したJSONをそのまま放り込める枠。 */
+.admin-dropzone {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.admin-dropzone-active {
+  border-color: #0f766e;
+  background: #ccfbf1;
 }

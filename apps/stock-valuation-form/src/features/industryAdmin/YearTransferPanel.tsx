@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, type DragEvent } from 'react';
 import type { IndustryYear } from '@/data/industryDataset';
+import { AdminAlert } from './AdminAlert';
 import { createIndustryYear, fetchIndustryYearArchive, importMonthlyPrices } from './api';
 import {
   archiveFileName,
@@ -59,13 +60,13 @@ function ExportSection({ years }: { years: readonly IndustryYear[] }) {
         このファイルはそのまま下の「読み込み」で復元できます。
       </p>
 
-      {error && <div className="admin-alert admin-alert-error">{error}</div>}
+      {error && <AdminAlert kind="error" scrollKey={error}>{error}</AdminAlert>}
 
       <div className="admin-scroll">
         <table className="admin-table admin-table-fit">
           <thead>
             <tr>
-              <th>年分</th><th>西暦</th><th>業種目</th><th>月別株価</th><th />
+              <th>年分</th><th>西暦</th><th>業種目</th><th>月別株価</th><th>書き出し</th>
             </tr>
           </thead>
           <tbody>
@@ -109,6 +110,7 @@ function ImportSection({ years, onImported }: Props) {
   const [message, setMessage] = useState<Message | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const existing = archive
     ? years.find((year) => year.era === archive.era && year.eraYear === archive.eraYear)
@@ -127,6 +129,29 @@ function ImportSection({ years, onImported }: Props) {
       return;
     }
     setArchive(result.archive);
+  };
+
+  /*
+   * 書き出したJSONは output フォルダやダウンロードフォルダに落ちている。
+   * そこから直接放り込めるようにする（ファイル選択でも今までどおり選べる）。
+   */
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    if (busy) return;
+    void load(event.dataTransfer.files[0]);
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    // 既定の動作はブラウザがそのファイルを開いてしまうこと。止めないと drop も来ない。
+    event.preventDefault();
+    if (!busy) setDragging(true);
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    // 枠の中の子要素をまたぐたびに leave が来るので、本当に外へ出たときだけ戻す。
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setDragging(false);
   };
 
   /** 未登録の年分。業種目マスタも月別株価も1トランザクションで入る。 */
@@ -203,7 +228,12 @@ function ImportSection({ years, onImported }: Props) {
         書き出したJSONを選ぶと中身を確認してから登録します。ファイルを選んだだけでは登録されません。
       </p>
 
-      <div className="admin-row">
+      <div
+        className={`admin-dropzone${dragging ? ' admin-dropzone-active' : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <label className="admin-label admin-label-grow">
           年分のJSONファイル
           <input
@@ -214,6 +244,9 @@ function ImportSection({ years, onImported }: Props) {
             disabled={busy}
           />
         </label>
+        <span className="admin-note">
+          {dragging ? 'ここで離すと読み込みます' : 'この枠にファイルをドラッグしても読み込めます'}
+        </span>
       </div>
 
       {fileName && !archive && !message && (
@@ -241,11 +274,11 @@ function ImportSection({ years, onImported }: Props) {
           )}
 
           {existing && (
-            <div className="admin-alert admin-alert-warn">
+            <AdminAlert kind="warn" scrollKey={`existing-${existing.gregorianYear}`}>
               {existing.label}は既に登録されています。業種目マスタとB・C・Dの作り直しはできません
               （年分の削除APIを用意していないため）。月別株価だけなら上書きで取り込めます。
               まるごと戻したい場合はバックアップからのリストアで対応してください。
-            </div>
+            </AdminAlert>
           )}
         </div>
       )}
@@ -253,9 +286,7 @@ function ImportSection({ years, onImported }: Props) {
       {progress && <div className="admin-note">取込中… {progress}</div>}
 
       {message && (
-        <div className={message.kind === 'ok' ? 'admin-alert admin-alert-ok' : 'admin-alert admin-alert-error'}>
-          {message.text}
-        </div>
+        <AdminAlert kind={message.kind} scrollKey={message.text}>{message.text}</AdminAlert>
       )}
 
       {archive && (

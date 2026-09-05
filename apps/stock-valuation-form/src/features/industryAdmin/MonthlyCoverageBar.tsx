@@ -8,6 +8,13 @@ export const CHIP_STATUS_CLASS = {
   full: 'admin-chip-full',
 } as const;
 
+/** 凡例の記号。色だけで状態を伝えないようにする（印刷・色覚特性・モノクロ表示）。 */
+const CHIP_STATUS_SYMBOL: Readonly<Record<CoverageStatus, string>> = {
+  none: '−',
+  partial: '!',
+  full: '✓',
+};
+
 export function chipCountText(status: CoverageStatus, count: number, total: number): string {
   if (status === 'none') return '未登録';
   return status === 'full' ? `${count}件` : `${count}/${total}`;
@@ -95,13 +102,28 @@ export function MonthlyCoverageBar({ coverage, selected, onSelect, leading }: Pr
   return (
     <div className="admin-coverage">
       <div className="admin-coverage-chips">
-        {leading}
-        {coverage.months.map(chip)}
+        {/*
+          年分共通の値（B・C・D・前年平均）と月別株価は別のものなのに、同じ形のチップが
+          地続きに並んでいて見分けが付かなかった。見出しを付けて区画として分ける。
+        */}
+        {leading && (
+          <div className="admin-chip-group">
+            <span className="admin-chip-group-label">年分共通</span>
+            <div className="admin-chip-list">{leading}</div>
+          </div>
+        )}
+        <div className="admin-chip-group">
+          <span className="admin-chip-group-label">月別株価</span>
+          <div className="admin-chip-list">{coverage.months.map(chip)}</div>
+        </div>
       </div>
+
       <div className="admin-coverage-legend">
         {LEGEND.map((item) => (
           <span key={item.status} className="admin-legend-item">
-            <span className={`admin-legend-swatch ${CHIP_STATUS_CLASS[item.status]}`} />
+            <span className={`admin-legend-swatch ${CHIP_STATUS_CLASS[item.status]}`} aria-hidden="true">
+              {CHIP_STATUS_SYMBOL[item.status]}
+            </span>
             {item.label}
           </span>
         ))}

@@ -84,6 +84,36 @@ export const CATEGORY_FIELDS: ReadonlyArray<FieldDef<CategoryField>> = [
   },
 ];
 
+/**
+ * 前年分から引き継ぐ業種目の名称。
+ *
+ * 業種目の分類は年が変わっても基本的に同じで、毎年変わるのは B・C・D と前年平均株価。
+ * それでも新規追加のたびに分類名まで貼り直させていたので、前年分を雛形として渡せるようにした。
+ * 番号で突き合わせ、貼り付けに列が無い項目だけを補う。
+ */
+export interface CategoryTemplateEntry {
+  largeName: string;
+  middleName: string;
+  smallName: string;
+  name: string;
+  description: string;
+}
+
+export type CategoryTemplate = ReadonlyMap<number, CategoryTemplateEntry>;
+
+/** 雛形が補える項目。雛形があるときは貼り付け側で必須にしない。 */
+const TEMPLATE_SUPPLIED: ReadonlyArray<CategoryField> = ['largeName'];
+
+/**
+ * 貼り付けに要求する列。雛形があれば大分類は省ける（番号とB・C・D・前年平均だけで足りる）。
+ * 参照が毎回変わると usePastedTable の推測が走り直すので、呼び出し側で useMemo すること。
+ */
+export function categoryFieldsFor(hasTemplate: boolean): ReadonlyArray<FieldDef<CategoryField>> {
+  if (!hasTemplate) return CATEGORY_FIELDS;
+  return CATEGORY_FIELDS.map((field) =>
+    (TEMPLATE_SUPPLIED.includes(field.key) ? { ...field, required: false } : field));
+}
+
 /** 全角英数字・全角空白を半角に倒す。公表資料の見出しや数字は全角で書かれていることがある。 */
 function toHalfWidth(value: string): string {
   return value
@@ -399,14 +429,27 @@ export function extractMonthlyPriceRows(
 export function extractCategoryRows(
   table: PastedTable,
   assignment: ColumnAssignment<CategoryField>,
+  template?: CategoryTemplate,
 ): ExtractResult<CategoryRow> {
-  return extractRows(table, assignment, CATEGORY_FIELDS, 'number', (cells, line) => {
+  return extractRows(table, assignment, categoryFieldsFor(template !== undefined), 'number', (cells, line) => {
     const number = parseInteger(cellOf(cells, assignment, 'number'))!;
+    const inherited = template?.get(number);
 
-    const largeName = cellOf(cells, assignment, 'largeName');
-    if (largeName === '') return '大分類が空欄です';
-    const middleName = cellOf(cells, assignment, 'middleName');
-    const smallName = cellOf(cells, assignment, 'smallName');
+    /*
+     * 雛形で補うのは「列そのものが無い」項目だけにする。列があって空欄なのは
+     * 大分類だけの行（中分類・小分類が無い）という意味なので、そこへ雛形を混ぜてはいけない。
+     */
+    const textOf = (key: CategoryField, fallback: string): string =>
+      (assignment[key] === undefined ? fallback : cellOf(cells, assignment, key));
+
+    const largeName = textOf('largeName', inherited?.largeName ?? '');
+    if (largeName === '') {
+      return template && !inherited
+        ? `大分類が空欄です（雛形にも業種目番号 ${number} がありません）`
+        : '大分類が空欄です';
+    }
+    const middleName = textOf('middleName', inherited?.middleName ?? '');
+    const smallName = textOf('smallName', inherited?.smallName ?? '');
 
     const dividend = parseDecimal(cellOf(cells, assignment, 'dividend'));
     if (dividend === null) return `B 配当金額が数値として読めません（"${cellOf(cells, assignment, 'dividend')}"）`;
@@ -421,8 +464,10 @@ export function extractCategoryRows(
       return `前年平均株価が数値として読めません（"${cellOf(cells, assignment, 'previousYearAveragePrice')}"）`;
     }
 
-    // 業種目名の列が無い表もある。その場合は最も下位の区分名を名前として使う。
-    const name = cellOf(cells, assignment, 'name') || smallName || middleName || largeName;
+    // 業種目名の列が無い表もある。その場合は雛形、無ければ最も下位の区分名を名前として使う。
+    const name = cellOf(cells, assignment, 'name')
+      || inherited?.name
+      || smallName || middleName || largeName;
 
     return {
       line,
@@ -432,7 +477,7 @@ export function extractCategoryRows(
       smallName,
       name,
       level: levelOf(middleName, smallName),
-      description: cellOf(cells, assignment, 'description'),
+      description: textOf('description', inherited?.description ?? ''),
       dividend,
       profit,
       netAsset,
