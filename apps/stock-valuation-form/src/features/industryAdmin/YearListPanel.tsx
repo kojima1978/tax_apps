@@ -13,7 +13,7 @@ import { fetchIndustryCategories, updateIndustryCategory, type UpdateCategoryReq
 import { CategoryFilterRow, useCategoryFilter, type CategoryStatusFilter } from './CategoryFilter';
 import { LEVEL_LABELS } from './labels';
 import { MonthEditor } from './MonthEditor';
-import { CHIP_STATUS_CLASS, MonthlyCoverageBar, chipCountText } from './MonthlyCoverageBar';
+import { CHIP_STATUS_CLASS, ChipStatusCount, MonthlyCoverageBar } from './MonthlyCoverageBar';
 import { monthlyCoverageOf, statusOf, type MonthlyCoverage } from './monthlyCoverage';
 
 /** 基礎情報ビューで触れる数値欄。ラベルと桁の扱いをここ1箇所で決める。 */
@@ -252,37 +252,36 @@ export function YearListPanel({ years, onUpdated, focusYear }: Props) {
                   <span className="admin-badge">業種目 {year.categories.length} 件</span>
                   <span className="admin-badge">月別株価 {monthlyPriceCountOf(year)} 件</span>
                   <span className="admin-badge">最終 {latestMonthOf(year)}</span>
+                  {/*
+                    「次はどこを取り込むか」は開いたときだけ別行に出していたが、同じことを
+                    言う行が2つ並ぶことになる。バッジ側に畳むと行が1つ消えるうえ、
+                    畳んだままの年分でも次の月が見える。
+                  */}
                   {pending === 0
                     ? <span className="admin-badge admin-badge-new">公表レンジの全月そろい</span>
-                    : <span className="admin-badge admin-badge-changed">未登録・取込漏れ {pending} か月</span>}
+                    : (
+                      <span className="admin-badge admin-badge-changed">
+                        未登録・取込漏れ {pending} か月／次は {coverage.next.year}年{coverage.next.month}月分
+                      </span>
+                    )}
                 </span>
               </button>
 
               {isExpanded && (
-                <>
-                  <div className="admin-coverage-head">
-                    <span className="admin-note">
-                      {pending === 0
-                        ? '公表レンジの全月がそろっています'
-                        : `次は ${coverage.next.year}年${coverage.next.month}月分`}
-                    </span>
-                    <span className="admin-note">クリックすると中身を表示します</span>
-                  </div>
-                  <MonthlyCoverageBar
-                    coverage={coverage}
-                    selected={view?.kind === 'month' ? { year: view.year, month: view.month } : undefined}
-                    onSelect={(priceYear, priceMonth) =>
-                      toggle(year.gregorianYear, { kind: 'month', year: priceYear, month: priceMonth })}
-                    leading={
-                      <BasicInfoChip
-                        count={basicInfoCountOf(year)}
-                        categoryCount={year.categories.length}
-                        selected={view?.kind === 'basic'}
-                        onSelect={() => toggle(year.gregorianYear, { kind: 'basic' })}
-                      />
-                    }
-                  />
-                </>
+                <MonthlyCoverageBar
+                  coverage={coverage}
+                  selected={view?.kind === 'month' ? { year: view.year, month: view.month } : undefined}
+                  onSelect={(priceYear, priceMonth) =>
+                    toggle(year.gregorianYear, { kind: 'month', year: priceYear, month: priceMonth })}
+                  leading={
+                    <BasicInfoChip
+                      count={basicInfoCountOf(year)}
+                      categoryCount={year.categories.length}
+                      selected={view?.kind === 'basic'}
+                      onSelect={() => toggle(year.gregorianYear, { kind: 'basic' })}
+                    />
+                  }
+                />
               )}
             </div>
 
@@ -319,10 +318,14 @@ function BasicInfoChip({ count, categoryCount, selected, onSelect }: BasicInfoCh
     + ` / ${status === 'none' ? '未登録' : `4項目そろっている業種目 ${count} / ${categoryCount}`}`;
 
   return (
+    /*
+      3行目に「B・C・D」を出していたが、title に同じ内容がより詳しく入っている。
+      月チップ側が3行目を常用しなくなったので、ここだけ3行あると列全体が
+      1行ぶん高いままになる。落として高さを揃える。
+    */
     <button type="button" className={className} title={title} aria-pressed={selected} onClick={onSelect}>
       <span className="admin-chip-month">基礎情報</span>
-      <span className="admin-chip-count">{chipCountText(status, count, categoryCount)}</span>
-      <span className="admin-chip-sub">B・C・D</span>
+      <ChipStatusCount status={status} count={count} total={categoryCount} />
     </button>
   );
 }

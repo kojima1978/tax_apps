@@ -1831,10 +1831,12 @@
 /*
  * こちらは業種目一覧そのもの。枠より上（ヘッダー・タブ・チップ列・絞り込み）と
  * 下（保存バー）に要る高さを引いて、ページ自体はスクロールしない大きさに収める。
- * 520px は 1440x900 で実測した値（表の上端 442px + 保存バー 49px + 下の余白 29px）。
+ * 461px は 1440x900 で実測した値（表の上端 383px + 保存バー 49px + 下の余白 29px）。
+ * 登録状況のブロックを詰めた（凡例と空行を落とした）ぶん上端が 442px から上がったので、
+ * その差 59px をそのまま表の行数に回している。
  */
 .admin-scroll-tall {
-  max-height: max(420px, calc(100dvh - 520px));
+  max-height: max(420px, calc(100dvh - 461px));
 }
 
 .admin-table {
@@ -2034,12 +2036,6 @@
 }
 
 /* 月別株価の登録状況（MonthlyCoverageBar） */
-.admin-coverage {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 .admin-coverage-block {
   display: flex;
   flex-direction: column;
@@ -2048,15 +2044,6 @@
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   background: #fff;
-}
-
-.admin-coverage-head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: #334155;
-  font-size: 12px;
 }
 
 .admin-coverage-chips {
@@ -2098,6 +2085,15 @@ button.admin-chip:hover {
   font-size: 10px;
 }
 
+/*
+ * 件数の頭に付ける状態の記号（− ! ✓）。色だけで状態を区別すると色覚特性や
+ * 白黒印刷で読めなくなるので、チップ自身に記号を持たせる。以前は同じ役目を
+ * チップ列の下の凡例が担っていたが、年分ごとに1行使うわりに言うことは毎回同じだった。
+ */
+.admin-chip-mark {
+  margin-right: 2px;
+}
+
 .admin-chip-none {
   background: #f8fafc;
 }
@@ -2127,37 +2123,6 @@ button.admin-chip:hover {
 .admin-chip-selected {
   outline: 2px solid #0f766e;
   outline-offset: 1px;
-}
-
-.admin-coverage-legend {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-size: 11px;
-  color: #64748b;
-}
-
-.admin-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/*
- * 凡例の見本。色だけで状態を区別すると、色覚特性や白黒印刷で読めなくなるので
- * チップと同じ記号（− ! ✓）を中に入れる。器はその分だけ大きくする。
- */
-.admin-legend-swatch {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 2px;
-  font-size: 9px;
-  line-height: 1;
 }
 
 /*
