@@ -176,6 +176,20 @@ const TABLE4_LINKED: Record<string, string> = {
   b2_f110: 'r2sB1', b2_f111: 'r2sB2', b2_f113: 'r2sC', b2_f115: 'r2sD',
 };
 
+/**
+ * 医療法人（持分あり）では使わない、2つ目の類似業種比準ブロック（下側）の全欄。
+ * 第4表の2と同じで、保存値は消さないのでチェックを外せば元の内容に戻る。
+ */
+const SECOND_BLOCK_FIELDS = new Set([
+  'b2_f61', 'b2_f61num', 'b2_f66', 'b2_f68', 'b2_f70',
+  'b2_㊁', 'b2_㋭', 'b2_㋬', 'b2_㋣', 'b2_㋠', '㉑',
+  'b2_f103', 'b2_f104', 'b2_f106', 'b2_f108',
+  'b2_f110', 'b2_f111', 'b2_f113', 'b2_f115',
+  'b2_f117', 'b2_f119', 'b2_f121',
+  '㉒', '㉓', 'b2_f125',
+  'r2shin', 'r2size',
+]);
+
 const CELLS: GridCell[] = [
   // 続紙の各計算区分を、見た目を変えずに意味のあるDOMグループとしてまとめる。
   { kind: 'cell', text: '1株50円当たりの比準価額の計算', ariaLabel: '1株50円当たりの比準価額の計算', semanticRole: 'group', groupBorder: false, top: 14.47, left: 9.75, width: 82.55, height: 57.24 },
@@ -244,7 +258,11 @@ export function Table7_2Grid({ getField, updateField, onJump }: TableProps) {
   const c = calcTable7(getField);
   void calcTable4; // calcTable7 が内部で参照
 
+  // 医療法人（持分あり）は類似業種を1つだけ選んで評価するため、下側のブロックは使わない
+  const medical = getField('table1_1', 'medical') === '1';
+
   const g = (f: string): string => {
+    if (medical && SECOND_BLOCK_FIELDS.has(f)) return '';
     const linked = TABLE4_LINKED[f];
     if (linked) return table4Raw(linked);
     switch (f) {
@@ -270,12 +288,16 @@ export function Table7_2Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  // 医療法人（持分あり）は比準割合の式表示を（[⑧]/C＋[⑰]/D）÷2 に切り替える（計算は第4表転記で切替済み）
-  const medical = getField('table1_1', 'medical') === '1';
+  // 医療法人（持分あり）は比準割合の式表示を（[⑧]/C＋[⑰]/D）÷2 に切り替え（計算は calcTable7 側で切替済み）、
+  // 下側のブロックで唯一の入力欄である業種目名・業種目番号を入力不可にする
   const displayCells = medical
-    ? CELLS.map((c) => (c.kind === 'label' && c.fractionExpression
-      ? { ...c, text: '（[⑧]÷C＋[⑰]÷D）÷２＝', fractionExpression: { terms: [{ numerator: '[⑧]', denominator: 'C' }, { numerator: '[⑰]', denominator: 'D' }], denominator: '2', suffix: '＝' } }
-      : c))
+    ? CELLS.map((cell) => {
+      if (cell.kind === 'label' && cell.fractionExpression) {
+        return { ...cell, text: '（[⑧]÷C＋[⑰]÷D）÷２＝', fractionExpression: { terms: [{ numerator: '[⑧]', denominator: 'C' }, { numerator: '[⑰]', denominator: 'D' }], denominator: '2', suffix: '＝' } };
+      }
+      if (cell.field === 'b2_f61' || cell.field === 'b2_f61num') return { ...cell, readOnly: true };
+      return cell;
+    })
     : CELLS;
   // 自動計算欄には「実際に使った値」と転記元（第4表・第7表の1）をホバーで出す
   const hintedCells = withFormulaHints(displayCells, table7_2Hints(c, raw, table4Raw, medical));

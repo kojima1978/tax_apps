@@ -308,6 +308,38 @@ describe('calcTable7（第7表の2：S1の類似業種比準価額）', () => {
     expect(c.p20).toBe(17.5);   // ⑱100円 × ⑲0.35 × 斟酌率0.5
     expect(c.v24).toBe(17);     // ㉔ 17.50 × ④50円 ÷ 50円
   });
+
+  describe('医療法人（持分あり）は下側の類似業種ブロック（㉑～㉓）を使わない', () => {
+    // 下側の方が安くなる値（㉑＝20円）をわざと入れておく
+    const withSecond: Data = {
+      ...data,
+      table4: {
+        ...data.table4,
+        '㋕': '20',
+        r2sB1: '4', r2sB2: '00', r2sC: '10', r2sD: '200',
+      },
+    };
+
+    it('㉒・㉓は空になり、㉔は⑳だけから求める', () => {
+      const m = calcTable7(mkGetField({ ...withSecond, table1_1: { ...withSecond.table1_1, medical: '1' } }));
+      expect(m.e2B).toBeNull();
+      expect(m.e2C).toBeNull();
+      expect(m.e2D).toBeNull();
+      expect(m.r22).toBeNull();
+      expect(m.p23).toBeNull();
+      expect(m.r19).toBe(0.33);  // 医療法人は（0.40＋0.27）÷2
+      expect(m.p20).toBe(16.5);  // ⑱100円 × ⑲0.33 × 斟酌率0.5
+      expect(m.v24).toBe(16);    // ㉓（3.50円）とは比べない
+      expect(m.A2).toBe(20);     // 第4表の㉓の値自体は残す
+    });
+
+    it('通常モードなら同じ入力で㉓を計算し、㉔は低い方を採る', () => {
+      const n = calcTable7(mkGetField(withSecond));
+      expect(n.r22).toBe(0.35);
+      expect(n.p23).toBe(3.5);   // ㉑20円 × ㉒0.35 × 斟酌率0.5
+      expect(n.v24).toBe(3);     // ⑳（17.50円）と比べて低い方
+    });
+  });
 });
 
 describe('calcTable8（第8表：S1の続き・S2・株式の価額／第5表と連動）', () => {

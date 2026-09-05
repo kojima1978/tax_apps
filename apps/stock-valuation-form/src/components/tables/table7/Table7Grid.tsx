@@ -316,10 +316,13 @@ export function calcTable7(getField: TableProps['getField']) {
   const A1 = t4.A1;             // 第4表⑳ → 第7表⑱
   const A2 = t4.A2;             // 第4表㉓ → 第7表㉑
   const elem = (v: number | null, base: number | null) => (v !== null && base !== null && base > 0 ? fl2(v / base) : null);
-  const e1B = elem(adjB, t4senPair('r1sB1', 'r1sB2')), e1C = elem(adjC, t4num('r1sC')), e1D = elem(adjD, t4num('r1sD'));
-  const e2B = elem(adjB, t4senPair('r2sB1', 'r2sB2')), e2C = elem(adjC, t4num('r2sC')), e2D = elem(adjD, t4num('r2sD'));
   // 医療法人（持分あり）は配当要素を除いた2要素で比準割合を出す（評価通達194-2。第4表と同じ扱い）
   const medical = getField('table1_1', 'medical') === '1';
+  const e1B = elem(adjB, t4senPair('r1sB1', 'r1sB2')), e1C = elem(adjC, t4num('r1sC')), e1D = elem(adjD, t4num('r1sD'));
+  // 医療法人は類似業種を1つだけ選んで評価するため、2つ目のブロック（㉑～㉓）は使わない
+  const e2B = medical ? null : elem(adjB, t4senPair('r2sB1', 'r2sB2'));
+  const e2C = medical ? null : elem(adjC, t4num('r2sC'));
+  const e2D = medical ? null : elem(adjD, t4num('r2sD'));
   const ratio3 = (a: number | null, b: number | null, d: number | null) => (
     medical
       ? (b !== null && d !== null ? fl2((b + d) / 2) : null)

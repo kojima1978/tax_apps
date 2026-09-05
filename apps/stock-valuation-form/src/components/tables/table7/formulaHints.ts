@@ -1,4 +1,4 @@
-import { MEDICAL_NO_DIVIDEND, hs, hv, hyen, rv, ryen } from '@/lib/formulaHint';
+import { MEDICAL_NO_DIVIDEND, MEDICAL_NO_SECOND_INDUSTRY, hs, hv, hyen, rv, ryen } from '@/lib/formulaHint';
 import { PRICE_LABELS, shinLabel } from '../table4/formulaHints';
 import type { calcTable7 } from './Table7Grid';
 
@@ -92,6 +92,19 @@ export function table7_2Hints(c: Calc, raw: Raw, t4raw: Raw, medical: boolean): 
   ] as const;
 
   for (const b of blocks) {
+    // 医療法人（持分あり）は下側のブロックを使わないので、ヒントもその旨だけにする
+    if (medical && b.fp === 'r2') {
+      const unused: string[] = [
+        'b2_f61', 'b2_f61num',
+        ...b.months, ...b.prices.map(([field]) => field), b.aField,
+        b.ev5, b.ev5sen, b.ev8, b.ev17,
+        b.sB1, b.sB2, b.sC, b.sD,
+        b.eB, b.eC, b.eD,
+        b.ratioField, b.priceField, b.priceSen,
+      ];
+      for (const f of unused) hints[f] = MEDICAL_NO_SECOND_INDUSTRY;
+      continue;
+    }
     const source = `第４表の２から自動で入っています（業種目番号 ${hs(t4raw(`${b.fp}gyonum`))}／${hs(t4raw(`${b.fp}gyo`))}）`;
     const sB = senPair(t4raw, `${b.fp}sB1`, `${b.fp}sB2`);
 
@@ -135,8 +148,10 @@ export function table7_2Hints(c: Calc, raw: Raw, t4raw: Raw, medical: boolean): 
   const minPrice = c.p20 !== null && c.p23 !== null ? Math.min(c.p20, c.p23) : c.p20 ?? c.p23;
   const modDiv = senPair(raw, 'mod_div', 'mod_div_sen');
 
-  hints['㉔'] = `⑳ ${ryen(c.p20)} と ㉓ ${ryen(c.p23)} のうち低い方 ${ryen(minPrice)}`
-    + `\n× 第４表の１の④（1株当たりの資本金等の額）÷ 50円 ＝ ${rv(c.v24)}円（円未満切捨て）`;
+  const capLine = `× 第４表の１の④（1株当たりの資本金等の額）÷ 50円 ＝ ${rv(c.v24)}円（円未満切捨て）`;
+  hints['㉔'] = medical
+    ? `⑳ ${ryen(c.p20)}\n${capLine}\n医療法人（持分あり）は類似業種が1つなので、㉓とは比べません`
+    : `⑳ ${ryen(c.p20)} と ㉓ ${ryen(c.p23)} のうち低い方 ${ryen(minPrice)}\n${capLine}`;
   hints['㉖'] = `㉔ ${rv(c.v24)}円 － ㉕ ${hyen(modDiv)} ＝ ${rv(c.v25)}円（円未満切捨て）`;
   hints['㉚'] = (c.v25 !== null ? `㉖ ${rv(c.v25)}円` : `㉔ ${rv(c.v24)}円`)
     + ` ＋ ㉗ ${hyen(senPair(raw, 'mod_pay', 'mod_pay_sen'))} × ㉘ ${hs(raw('mod_ratio'))}株`
