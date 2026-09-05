@@ -1,12 +1,12 @@
 import { useMemo, useState, useCallback } from 'react';
-import { Download, FileJson, Settings, FilePlus2, Loader2, Info, MoreHorizontal, ChevronRight } from 'lucide-react';
+import { Download, FileJson, FilePlus2, Loader2, Info, ChevronRight } from 'lucide-react';
 import { StepNavigation } from '@/components/StepNavigation';
 import { scrollToCategory } from '@/components/CategoryNav';
 import type { Asset } from '@/types';
 import { groupByLabel } from '@/types';
 import { ExcelPreview } from '@/components/step3/ExcelPreview';
 import { getCalculationTooltip } from '@/utils/calculation';
-import { formatYen } from '@/utils/formatters';
+import { formatYen, compareAssetNo } from '@/utils/formatters';
 
 interface Props {
   caseName: string;
@@ -16,7 +16,6 @@ interface Props {
   labelOrder: string[];
   onExportExcel: () => Promise<void>;
   onExportJson: () => void;
-  onExportPresets: () => void;
   onBack: () => void;
   onGoToStep1: () => void;
 }
@@ -28,7 +27,6 @@ export function ResultStep({
   labelOrder,
   onExportExcel,
   onExportJson,
-  onExportPresets,
   onBack,
   onGoToStep1,
 }: Props) {
@@ -69,17 +67,17 @@ export function ResultStep({
       groupByLabel(
         assets.filter((a) => a.evaluationAmount !== null),
         labelOrder
-      ).map(([label, items]) => [label, items.sort((a, b) => a.no - b.no)] as [string, Asset[]]),
+      ).map(([label, items]) => [label, items.sort((a, b) => compareAssetNo(a.no, b.no))] as [string, Asset[]]),
     [assets, labelOrder]
   );
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="sticky top-14 z-40 -mx-4 flex flex-col justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center print:static print:border-0 print:shadow-none">
         <h2 className="text-xl font-bold text-gray-800">
           計算結果
         </h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 print:hidden">
           <button
             onClick={handleExcelExport}
             disabled={excelLoading}
@@ -88,25 +86,12 @@ export function ResultStep({
             {excelLoading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
             {excelLoading ? '出力中...' : 'Excel出力'}
           </button>
-          <details className="relative">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 transition-colors hover:bg-gray-50">
-              <MoreHorizontal size={17} aria-hidden="true" /> その他の出力
-            </summary>
-            <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
-              <button
-                onClick={onExportJson}
-                className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-50"
-              >
-                <FileJson size={16} aria-hidden="true" /> 保存用の案件ファイル
-              </button>
-              <button
-                onClick={onExportPresets}
-                className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-50"
-              >
-                <Settings size={16} aria-hidden="true" /> マッピング設定ファイル
-              </button>
-            </div>
-          </details>
+          <button
+            onClick={onExportJson}
+            className="flex min-h-11 items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 transition-colors hover:bg-gray-50 cursor-pointer"
+          >
+            <FileJson size={16} aria-hidden="true" /> JSONバックアップ
+          </button>
         </div>
       </div>
 

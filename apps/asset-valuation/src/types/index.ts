@@ -305,7 +305,8 @@ export type EvaluationBasis =
 /** 資産データ */
 export interface Asset {
   id: string;
-  no: number;
+  /** 管理番号。枝番・英字・先頭ゼロをそのまま保持する */
+  no: string;
   category: AnyAssetCategory;
   categoryLabel: string; // 表示・小計の単位（通常は category と同一）
   name: string;
@@ -602,7 +603,7 @@ export function groupByLabel(
 
 /** ステップ定義 */
 export const STEPS = [
-  { id: 1, label: 'CSVインポート' },
+  { id: 1, label: 'CSV・JSON取り込み' },
   { id: 2, label: 'カラムマッピング' },
   { id: 3, label: 'データ確認・編集' },
   { id: 4, label: '計算結果' },

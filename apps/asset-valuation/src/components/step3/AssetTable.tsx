@@ -615,9 +615,9 @@ export function AssetTable({
                         className={`px-2 py-1 sticky left-[60px] z-10 ${stickyBg(asset.isWithin3Years, isSelected)}`}
                       >
                         <input
-                          type="number"
-                          value={asset.no || ''}
-                          onChange={(e) => onUpdateAsset(asset.id, { no: Number(e.target.value) })}
+                          type="text"
+                          value={asset.no}
+                          onChange={(e) => onUpdateAsset(asset.id, { no: e.target.value })}
                           onKeyDown={handleCellKey}
                           data-col="no"
                           className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono tabular-nums"

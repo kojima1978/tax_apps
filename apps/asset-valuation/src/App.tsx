@@ -89,10 +89,12 @@ export default function App() {
   // ステップ遷移
   const goToStep = useCallback(
     (step: StepId) => {
+      if (step === 2 && !csvData) step = 1;
+      if (step === 4 && (!caseName.trim() || !taxDate)) step = 3;
       setCurrentStep(step);
       if (step > maxReachedStep) setMaxReachedStep(step);
     },
-    [maxReachedStep]
+    [maxReachedStep, csvData, caseName, taxDate]
   );
 
   // Step1 → Step2
@@ -206,17 +208,13 @@ export default function App() {
           <StepIndicator
             currentStep={currentStep}
             onStepClick={goToStep}
-            maxReachedStep={maxReachedStep}
+            maxReachedStep={!caseName.trim() || !taxDate ? Math.min(maxReachedStep, 3) as StepId : maxReachedStep}
           />
         </div>
 
         {/* ステップコンテンツ */}
         {currentStep === 1 && (
           <CsvImportStep
-            caseName={caseName}
-            taxDate={taxDate}
-            onCaseNameChange={setCaseName}
-            onTaxDateChange={handleTaxDateChange}
             onCsvLoaded={setCsvData}
             onJsonImport={handleJsonImport}
             onNext={handleStep1Next}
@@ -269,8 +267,9 @@ export default function App() {
             onSaveOrderPreset={saveOrderPreset}
             onDeleteOrderPreset={deleteOrderPreset}
             isCustomCategoryOrder={labelOrder.length > 0}
-            onBack={() => setCurrentStep(2)}
+            onBack={() => setCurrentStep(csvData ? 2 : 1)}
             onNext={handleStep3Next}
+            onExportPresets={exportPresetsToJson}
             onGoToStep1={() => setCurrentStep(1)}
           />
         )}
@@ -283,7 +282,6 @@ export default function App() {
             labelOrder={labelOrder}
             onExportExcel={handleExportExcel}
             onExportJson={handleExportJson}
-            onExportPresets={exportPresetsToJson}
             onBack={() => setCurrentStep(3)}
             onGoToStep1={() => setCurrentStep(1)}
           />

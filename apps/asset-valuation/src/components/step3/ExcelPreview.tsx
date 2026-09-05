@@ -68,7 +68,7 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
           <div
             key={label}
             id={categorySectionId(label)}
-            className="mb-4 scroll-mt-16"
+            className="mb-4 scroll-mt-48 sm:scroll-mt-36"
           >
             {/* 見出しクリックで折りたたみ。閉じているときは件数と評価額合計だけ見せる */}
             <button
@@ -112,17 +112,17 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
                 <tr className="bg-[#D9E1F2]">
                   <th className="border px-1 py-0.5 text-left w-14">NO</th>
                   <th className="border px-1 py-0.5 text-left">名称等</th>
-                  <th className="border px-1 py-0.5 text-center w-20">取得年月</th>
-                  <th className="border px-1 py-0.5 text-center w-20">課税時期</th>
-                  <th className="border px-1 py-0.5 text-center w-12">経過</th>
-                  <th className="border px-1 py-0.5 text-center w-12">耐用</th>
+                  <th className="border px-1 py-0.5 text-right w-20">取得年月</th>
+                  <th className="border px-1 py-0.5 text-right w-20">課税時期</th>
+                  <th className="border px-1 py-0.5 text-right w-12">経過</th>
+                  <th className="border px-1 py-0.5 text-right w-12">耐用</th>
                   <th className="border px-1 py-0.5 text-right w-20">取得価額</th>
                   <th className="border px-1 py-0.5 text-right w-20">
                     {config.headerLabel}
                   </th>
                   <th className="border px-1 py-0.5 text-right w-20">評価額</th>
                   <th className="border px-1 py-0.5 text-right w-20">期末簿価</th>
-                  <th className="border px-1 py-0.5 text-center w-24">その他</th>
+                  <th className="border px-1 py-0.5 text-left w-24">その他</th>
                 </tr>
               </thead>
               <tbody>
@@ -132,16 +132,16 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
                     <td className="border px-1 py-0.5 truncate max-w-[120px]">
                       {a.name}
                     </td>
-                    <td className="border px-1 py-0.5 text-center">
+                    <td className="border px-1 py-0.5 text-right">
                       {formatDate(a.acquisitionDate)}
                     </td>
-                    <td className="border px-1 py-0.5 text-center">
+                    <td className="border px-1 py-0.5 text-right">
                       {formatDate(taxDate)}
                     </td>
-                    <td className="border px-1 py-0.5 text-center">
+                    <td className="border px-1 py-0.5 text-right">
                       {a.elapsedYears}
                     </td>
-                    <td className="border px-1 py-0.5 text-center">
+                    <td className="border px-1 py-0.5 text-right">
                       {a.usefulLife}
                     </td>
                     <td className="border px-1 py-0.5 text-right">
@@ -158,7 +158,7 @@ export function ExcelPreview({ caseName, taxDate, assets, labelOrder }: Props) {
                     <td className="border px-1 py-0.5 text-right">
                       {formatYen(a.bookValue)}
                     </td>
-                    <td className="border px-1 py-0.5 text-center text-[9px]">
+                    <td className="border px-1 py-0.5 text-left text-[9px]">
                       {a.evaluationBasis}
                     </td>
                   </tr>

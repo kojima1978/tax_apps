@@ -213,10 +213,9 @@ export function MobileAssetCards({
                             <label htmlFor={`mobile-no-${asset.id}`} className="mb-1 block text-sm font-medium text-slate-700">NO</label>
                             <input
                               id={`mobile-no-${asset.id}`}
-                              type="number"
-                              inputMode="numeric"
-                              value={asset.no || ''}
-                              onChange={(event) => onUpdateAsset(asset.id, { no: Number(event.target.value) })}
+                              type="text"
+                              value={asset.no}
+                              onChange={(event) => onUpdateAsset(asset.id, { no: event.target.value })}
                               className={numberFieldClass}
                             />
                           </div>

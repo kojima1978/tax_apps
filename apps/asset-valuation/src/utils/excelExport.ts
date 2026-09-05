@@ -2,6 +2,7 @@ import XLSX from 'xlsx-js-style';
 import type { Asset } from '@/types';
 import { CATEGORY_CONFIG, groupByLabel } from '@/types';
 import { RATE_TABLE } from '@/data/rateTable';
+import { compareAssetNo } from '@/utils/formatters';
 import { calcWithin3YearsDate, getCalculationTooltip } from '@/utils/calculation';
 
 /** 列ヘッダー */
@@ -275,7 +276,7 @@ function dateCell(value: string | Date): XLSX.CellObject {
     z: JAPANESE_ERA_DATE_FORMAT,
     s: {
       font: BASE_FONT,
-      alignment: { horizontal: 'center' },
+      alignment: { horizontal: 'right' },
       numFmt: JAPANESE_ERA_DATE_FORMAT,
     },
   };
@@ -334,7 +335,7 @@ export function exportToExcel(
       ws[XLSX.utils.encode_cell({ r: row, c })] = textCell(headers[c]!, {
         bold: true,
         fill: true,
-        alignment: { horizontal: 'center' },
+        alignment: { horizontal: c >= 2 && c <= 5 ? 'right' : c === 10 ? 'left' : 'center' },
         border: HORIZONTAL_BORDER,
       });
     }
@@ -348,7 +349,7 @@ export function exportToExcel(
 
     for (const asset of categoryAssets) {
       // A: NO
-      ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = numberCell(asset.no, { format: '0' });
+      ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell(asset.no);
 
       // B: 名称
       ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = textCell(asset.name);
@@ -381,7 +382,9 @@ export function exportToExcel(
       ws[XLSX.utils.encode_cell({ r: row, c: 9 })] = numberCell(asset.bookValue);
 
       // K: その他（評価根拠）
-      ws[XLSX.utils.encode_cell({ r: row, c: 10 })] = textCell(asset.evaluationBasis);
+      ws[XLSX.utils.encode_cell({ r: row, c: 10 })] = textCell(asset.evaluationBasis, {
+        alignment: { horizontal: 'left' },
+      });
 
       sumAcquisitionCost += asset.acquisitionCost;
       sumBookValue += asset.bookValue;
@@ -568,7 +571,7 @@ function createBasisSheet(
     labelOrder
   );
   for (const [label, rawAssets] of basisGroups) {
-    const catAssets = rawAssets.sort((a, b) => a.no - b.no);
+    const catAssets = rawAssets.sort((a, b) => compareAssetNo(a.no, b.no));
     if (catAssets.length === 0) continue;
 
     // カテゴリヘッダー
@@ -593,7 +596,7 @@ function createBasisSheet(
 
     // データ行
     for (const asset of catAssets) {
-      ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = numberCell(asset.no, { format: '0' });
+      ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = textCell(asset.no);
       ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = textCell(asset.name);
       ws[XLSX.utils.encode_cell({ r: row, c: 2 })] = numberCell(asset.evaluationAmount!);
       ws[XLSX.utils.encode_cell({ r: row, c: 3 })] = textCell(

@@ -13,7 +13,7 @@ import {
   groupByLabel,
 } from '@/types';
 import { calculateAsset } from '@/utils/calculation';
-import { normalizeDate, generateId } from '@/utils/formatters';
+import { normalizeDate, generateId, compareAssetNo } from '@/utils/formatters';
 import type { CsvData } from '@/utils/csvParser';
 
 /** 並び替えキー */
@@ -111,7 +111,7 @@ export function useAssetData(taxDate: string) {
         const bookValue =
           Math.floor(Number(getValue('bookValue').replace(/,/g, ''))) || 0;
         const usefulLife = Number(getValue('usefulLife')) || 0;
-        const no = Number(getValue('no')) || 0;
+        const no = getValue('no');
         const name = getValue('name');
 
         const base = {
@@ -178,7 +178,7 @@ export function useAssetData(taxDate: string) {
     (category: AnyAssetCategory, categoryLabel: string) => {
       const base = {
         id: generateId(),
-        no: 0,
+        no: '',
         category,
         categoryLabel: categoryLabel,
         name: '',
@@ -273,10 +273,10 @@ export function useAssetData(taxDate: string) {
           [...group].sort((a, b) => {
             const diff =
               sortBy === 'no'
-                ? a.no - b.no
+                ? compareAssetNo(a.no, b.no)
                 : a.acquisitionDate.localeCompare(b.acquisitionDate);
             // 同値のときはNOで安定させる
-            return (diff !== 0 ? diff : a.no - b.no) * sign;
+            return (diff !== 0 ? diff : compareAssetNo(a.no, b.no)) * sign;
           })
         )
       );
@@ -340,7 +340,8 @@ export function useAssetData(taxDate: string) {
         loadedAssets.map((asset) => {
           const category =
             migrateCategory(asset.category) ?? defaultCategoryOf('工具器具備品');
-          const migrated = { ...asset, category, categoryLabel: category };
+          // 旧JSON・自動保存ではNOが数値のため、復元時に文字列へ揃える。
+          const migrated = { ...asset, no: String(asset.no ?? ''), category, categoryLabel: category };
           return { ...migrated, ...calculateAsset(migrated, taxDate) };
         })
       );

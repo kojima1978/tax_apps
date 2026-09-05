@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { GripVertical, AlertTriangle, CircleAlert, Check, CloudOff } from 'lucide-react';
+import { GripVertical, AlertTriangle, CircleAlert, Check, CloudOff, Settings } from 'lucide-react';
 import { StepNavigation } from '@/components/StepNavigation';
 import { CategoryNav } from '@/components/CategoryNav';
 import type { Asset, AnyAssetCategory, CategoryOrderPreset } from '@/types';
@@ -46,6 +46,7 @@ interface Props {
   isCustomCategoryOrder: boolean;
   onBack: () => void;
   onNext: () => void;
+  onExportPresets: () => void;
   onGoToStep1: () => void;
 }
 
@@ -77,8 +78,10 @@ export function DataEditStep({
   isCustomCategoryOrder,
   onBack,
   onNext,
+  onExportPresets,
   onGoToStep1,
 }: Props) {
+  const missingBasicInfo = !caseName.trim() || !taxDate;
   const validationResults = useMemo(() => validateAllAssets(assets), [assets]);
   const errors = useMemo(() => validationResults.filter((r) => r.type === 'error'), [validationResults]);
   const warnings = useMemo(() => validationResults.filter((r) => r.type === 'warning'), [validationResults]);
@@ -162,9 +165,23 @@ export function DataEditStep({
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-gray-800">
-        データ確認・編集
-      </h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl font-bold text-gray-800">
+          データ確認・編集
+        </h2>
+        <button
+          type="button"
+          onClick={onExportPresets}
+          className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm transition-colors hover:bg-gray-50 cursor-pointer"
+        >
+          <Settings size={16} aria-hidden="true" /> マッピング設定ファイルを出力
+        </button>
+      </div>
+      {missingBasicInfo && (
+        <p role="status" className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          案件名・課税時期を入力してください。課税時期を設定すると評価額が再計算され、基本情報とデータの確認後に計算結果へ進めます。
+        </p>
+      )}
 
       {/* 合計と保存状態。スクロールしても金額を見失わないよう画面上部に固定する（高さ2.25rem固定） */}
       <div className="sticky top-14 z-30 -mx-4 hidden h-9 items-center gap-x-4 overflow-hidden border-b border-gray-200 bg-white/95 px-4 text-xs backdrop-blur md:flex">
@@ -180,7 +197,7 @@ export function DataEditStep({
         <span className="shrink-0 text-green-700">
           相続税評価額合計{' '}
           <strong className="font-mono text-sm text-green-800">
-            ¥{formatYen(totals.evaluation)}
+            {taxDate ? `¥${formatYen(totals.evaluation)}` : '課税時期を入力してください'}
           </strong>
         </span>
         {errors.length > 0 && (
@@ -211,25 +228,27 @@ export function DataEditStep({
         </span>
         <span className="hidden text-gray-400 sm:inline">|</span>
         <label className="flex items-center gap-1.5">
-          案件名
+          案件名 <span className="text-red-500">*</span>
           <input
             type="text"
+            required
             value={caseName}
             onChange={(e) => onCaseNameChange(e.target.value)}
             placeholder="株式会社〇〇〇 様"
-            className={`w-52 rounded border px-2 py-1 text-sm ${
-              caseName ? 'border-gray-300' : 'border-red-300 bg-red-50'
+            className={`min-h-11 w-52 rounded border px-2 py-1 text-sm ${
+              caseName.trim() ? 'border-gray-300' : 'border-red-300 bg-red-50'
             }`}
             aria-label="案件名"
           />
         </label>
         <label className="flex items-center gap-1.5">
-          課税時期
+          課税時期 <span className="text-red-500">*</span>
           <input
             type="date"
+            required
             value={taxDate}
             onChange={(e) => onTaxDateChange(e.target.value)}
-            className={`rounded border px-2 py-1 text-sm ${
+            className={`min-h-11 rounded border px-2 py-1 text-sm ${
               taxDate ? 'border-gray-300' : 'border-red-300 bg-red-50'
             }`}
             aria-label="課税時期（変更すると全行を再計算）"
@@ -320,7 +339,7 @@ export function DataEditStep({
         onBack={onBack}
         onNext={onNext}
         onGoToStep1={onGoToStep1}
-        nextDisabled={hasErrors(validationResults)}
+        nextDisabled={missingBasicInfo || hasErrors(validationResults)}
       />
     </div>
   );

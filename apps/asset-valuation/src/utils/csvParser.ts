@@ -91,9 +91,5 @@ export async function parseCsvFile(file: File): Promise<CsvData> {
     throw new Error('CSVファイルにデータ行がありません');
   }
 
-  if (rows.length > 300) {
-    throw new Error(`データ行が300件を超えています（${rows.length}件）`);
-  }
-
   return { headers, rows };
 }

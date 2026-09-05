@@ -78,6 +78,28 @@ export function normalizeDate(value: string): string {
   return trimmed;
 }
 
+/** NOを自然順で比較（2 → 10、230-2 → 230-10）。 */
+export function compareAssetNo(a: string, b: string): number {
+  const left = a.match(/\d+|\D+/g) ?? [];
+  const right = b.match(/\d+|\D+/g) ?? [];
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    const x = left[i]!;
+    const y = right[i]!;
+    if (x === y) continue;
+    if (/^\d+$/.test(x) && /^\d+$/.test(y)) {
+      // 数値変換せず比較し、長い管理番号でも桁落ちさせない。
+      const nx = x.replace(/^0+/, '') || '0';
+      const ny = y.replace(/^0+/, '') || '0';
+      const diff = nx.length - ny.length || (nx < ny ? -1 : nx > ny ? 1 : 0);
+      if (diff !== 0) return diff;
+    } else {
+      const diff = x.localeCompare(y, 'ja');
+      if (diff !== 0) return diff;
+    }
+  }
+  return left.length - right.length;
+}
+
 /** 一意IDを生成 */
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
