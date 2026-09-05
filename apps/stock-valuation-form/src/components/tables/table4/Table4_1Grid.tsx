@@ -14,6 +14,9 @@ const T = 'table4' as const;
 
 const CW = 1.89; // 標準コード／記号セル幅
 
+/** 医療法人（持分あり）では入力させない年配当金額の入力欄（⑥⑦の3期分） */
+const DIVIDEND_INPUT_FIELDS = new Set(['f28', 'f29', 'f32', 'f33', 'f36', 'f37']);
+
 /** [コードセル][値入力] を生成（コード左＝値左−CW） */
 function ci(field: string, code: string, top: number, h: number, valL: number, valEnd: number, extra: Partial<GridCell> = {}): GridCell[] {
   return [
@@ -192,8 +195,12 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
   const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
 
   const c = calcTable4(getField);
+  // 医療法人（持分あり）は剰余金の配当ができないため、年配当金額は入力させず表示もしない。
+  // 保存値は消さないので、チェックを外せば元の入力に戻る。
+  const medical = getField('table1_1', 'medical') === '1';
 
   const g = (f: string): string => {
+    if (medical && DIVIDEND_INPUT_FIELDS.has(f)) return '';
     switch (f) {
       case '②': return fmt(c.issued);
       case '③': return fmt(c.treasuryShares);
@@ -231,6 +238,9 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
     </span>
   );
   const cells = CELLS.map((cell) => {
+    if (medical && cell.field && DIVIDEND_INPUT_FIELDS.has(cell.field)) {
+      return { ...cell, readOnly: true, calculationRequired: false };
+    }
     if (cell.kind === 'label' && cell.text?.startsWith('㋥/⑤ 又は') && cell.alternativeFractions) {
       return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.c1baseSide } };
     }
@@ -240,7 +250,6 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
     return cell;
   });
   // 自動計算欄には「実際に使った値」をホバーで出す（医療法人は配当要素を計算しないので分岐を伝える）
-  const medical = getField('table1_1', 'medical') === '1';
   const hintedCells = withFormulaHints(cells, table4_1Hints(c, raw, medical));
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(hintedCells, g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の１　類似業種比準価額等の計算明細書" formCode="NTA0VNA210010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;

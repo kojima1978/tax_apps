@@ -22,6 +22,20 @@ const minValueHighlight = (fields: string[], target: string) => (g: (field: stri
   return values.some(({ field, value }) => field === target && value === min);
 };
 
+/**
+ * 医療法人（持分あり）では使わない、2つ目の類似業種比準ブロック（下側）の全欄。
+ * 入力できるのは業種目番号だけだが、残りの自動計算欄も空欄にして表を揃える。
+ * 保存値は消さないので、チェックを外せば元の内容に戻る。
+ */
+const SECOND_BLOCK_FIELDS = new Set([
+  'r2gyonum', 'r2gyo', 'h61', 'h64', 'h67',
+  '㋕', '㋵', '㋟', '㋹', '㋞', '㉓',
+  'r2vB1', 'r2vB2', 'r2vC', 'r2vD',
+  'r2sB1', 'r2sB2', 'r2sC', 'r2sD',
+  'r2eB', 'r2eC', 'r2eD', '㉔', '㉕', 'r2px',
+  'r2shin', 'r2size',
+]);
+
 interface BlockCfg {
   fp: string;            // フィールド接頭辞 r1/r2
   months: [string, string, string]; // 月フィールド h8/h11/h13, h61/h64/h67
@@ -254,7 +268,11 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
   const taxMonthValid = taxMonthRaw.trim() !== '' && Number.isInteger(taxMonth) && taxMonth >= 1 && taxMonth <= 12;
   const prevMonth = (back: number): string => (taxMonthValid ? String(((taxMonth - 1 - back + 12) % 12) + 1) : '');
 
+  // 医療法人（持分あり）は類似業種を1つだけ選んで評価するため、下側のブロックは使わない
+  const medical = getField('table1_1', 'medical') === '1';
+
   const g = (f: string): string => {
+    if (medical && SECOND_BLOCK_FIELDS.has(f)) return '';
     switch (f) {
       case 'h8': case 'h61': return taxMonthRaw;
       case 'h11': case 'h64': return prevMonth(1);
@@ -282,12 +300,16 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  // 医療法人（持分あり）は比準割合の式表示を（Ⓒ/C＋Ⓓ/D）÷2 に切り替える（計算は calcTable4 側で切替済み）
-  const medical = getField('table1_1', 'medical') === '1';
+  // 医療法人（持分あり）は比準割合の式表示を（Ⓒ/C＋Ⓓ/D）÷2 に切り替え（計算は calcTable4 側で切替済み）、
+  // 下側のブロックで唯一の入力欄である業種目番号を入力不可にする
   const displayCells = medical
-    ? linkedCells.map((c) => (c.kind === 'label' && c.fractionExpression
-      ? { ...c, text: '（Ⓒ÷C＋Ⓓ÷D）÷２＝', fractionExpression: { terms: [{ numerator: 'Ⓒ', denominator: 'C' }, { numerator: 'Ⓓ', denominator: 'D' }], denominator: '2', suffix: '＝' } }
-      : c))
+    ? linkedCells.map((cell) => {
+      if (cell.kind === 'label' && cell.fractionExpression) {
+        return { ...cell, text: '（Ⓒ÷C＋Ⓓ÷D）÷２＝', fractionExpression: { terms: [{ numerator: 'Ⓒ', denominator: 'C' }, { numerator: 'Ⓓ', denominator: 'D' }], denominator: '2', suffix: '＝' } };
+      }
+      if (cell.field === 'r2gyonum') return { ...cell, readOnly: true, calculationRequired: false };
+      return cell;
+    })
     : linkedCells;
   // 自動計算欄には「実際に使った値」をホバーで出す（転記元・公表値の出どころもここで伝える）
   const hintedCells = withFormulaHints(displayCells, table4_2Hints(c, raw, medical, taxMonthRaw));

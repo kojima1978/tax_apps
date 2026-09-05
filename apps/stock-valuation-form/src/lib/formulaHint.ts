@@ -13,6 +13,7 @@ const NOT_CALC = '（未計算）';
 
 /** 医療法人（持分あり）は剰余金の配当ができないため、配当要素の欄は計算しない（評価通達194－2） */
 export const MEDICAL_NO_DIVIDEND = '医療法人（持分あり）は剰余金の配当ができないため、配当要素は計算しません（評価通達194－2）';
+export const MEDICAL_NO_SECOND_INDUSTRY = '医療法人（持分あり）は類似業種を1つだけ選んで評価するため、下側の欄は使いません';
 
 /** 算式に埋める数値（入力側） */
 export const hv = (v: number | null | undefined, digits = 0, empty = '未入力'): string =>

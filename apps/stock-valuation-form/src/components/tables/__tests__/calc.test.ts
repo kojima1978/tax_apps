@@ -443,6 +443,39 @@ describe('医療法人（持分あり）の評価（評価通達194-2：配当�
     expect(c.r21).not.toBe(2);
   });
 
+  describe('下側の類似業種ブロック（㎓～㎕）は使わない', () => {
+    // 小会社（旟酌率0.5）で、下側の方が安くなる値をわざと入れておく
+    const withSecond = {
+      ...base,
+      table1_2: { gyoshu: 'その他', f22: '10000', f24: '5000', emp_regular: '3' },
+      table4: {
+        ...base.table4,
+        '㋷': '500',                     // ⑳=A1=500円
+        '㋕': '100',                     // ㎓=A2=100円
+        r2sB1: '10', r2sB2: '0', r2sC: '10', r2sD: '50',
+      },
+    };
+
+    it('医療法人は㎔・㎕を記載せず、㎖は㎒だけから求める', () => {
+      const c = calcTable4(mkGetField(withSecond));
+      expect(c.e2B).toBeNull();
+      expect(c.e2C).toBeNull();
+      expect(c.e2D).toBeNull();
+      expect(c.r24).toBeNull();
+      expect(c.p25).toBeNull();
+      expect(c.p22).toBe(500);   // 500円 × 2.00 × 0.5
+      expect(c.v26).toBe(500);   // ㎕（225円）とは比べない
+      expect(c.A2).toBe(100);    // 第7表㌠が参照するので、㎓の値自体は残す
+    });
+
+    it('通常モードなら同じ入力で㎔・㎕を計算し、㎖は低い方を採る', () => {
+      const c = calcTable4(mkGetField({ ...withSecond, table1_1: { ...withSecond.table1_1, medical: '' } }));
+      expect(c.r24).toBe(3.16);  // (0.50＋5.00＋4.00)÷3
+      expect(c.p25).toBe(158);   // 100円 × 3.16 × 0.5
+      expect(c.v26).toBe(158);   // ㎒（370円）と比べて低い方
+    });
+  });
+
   it('比準要素数1の判定はC・Dの2要素で行う（いずれか1つが0）', () => {
     const g = mkGetField({
       table1_1: { medical: '1', '⑤': '200000' },

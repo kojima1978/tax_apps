@@ -334,13 +334,16 @@ export function calcTable4(getField: TableProps['getField']) {
   // （評価通達194-2。第1表の1のチェックで切替）
   const medical = getField('table1_1', 'medical') === '1';
 
-  // 2. 配当（⑧=⑥-⑦, ⑨⑩=2年平均, B=10銭未満切捨て）。医療法人はⒷ1/Ⓑ2/Ⓑを記載しない
+  // 2. 配当（⑧=⑥-⑦, ⑨⑩=2年平均, B=10銭未満切捨て）
+  // 医療法人は⑥⑦を入力させないので、⑧（㋑㋺㋩）・⑨⑩からⒷ1・Ⓑ2・Ⓑまで一括で記載しない
   const sub = (a: string, b: string) => { const x = num(a); return x === null ? null : x - (num(b) ?? 0); };
-  const i1 = sub('f28', 'f29'), i2 = sub('f32', 'f33'), i3 = sub('f36', 'f37');
+  const i1 = medical ? null : sub('f28', 'f29');
+  const i2 = medical ? null : sub('f32', 'f33');
+  const i3 = medical ? null : sub('f36', 'f37');
   const avg = (a: number | null, b: number | null) => (a !== null && b !== null ? (a + b) / 2 : null);
   const v9 = avg(i1, i2), v10 = avg(i2, i3);
-  const b1 = medical ? null : per50(v9) !== null ? fl10sen(per50(v9)!) : null;
-  const b2 = medical ? null : per50(v10) !== null ? fl10sen(per50(v10)!) : null;
+  const b1 = per50(v9) !== null ? fl10sen(per50(v9)!) : null;
+  const b2 = per50(v10) !== null ? fl10sen(per50(v10)!) : null;
   const Bv = b1;
 
   // 2. 利益（⑯=⑪-⑫+⑬-⑭+⑮, C=単年と2年平均の低い方・円未満切捨て）
@@ -399,7 +402,10 @@ export function calcTable4(getField: TableProps['getField']) {
   const size = calcCompanySize((f) => getField('table1_2', f), forcesSmallCompany(getField)).result;
   const shin = size === null ? null : size === 4 ? 0.7 : size === 0 ? 0.5 : 0.6;
   const e1B = elem(Bv, senPair('r1sB1', 'r1sB2')), e1C = elem(Cv, num('r1sC')), e1D = elem(Dv, num('r1sD'));
-  const e2B = elem(Bv, senPair('r2sB1', 'r2sB2')), e2C = elem(Cv, num('r2sC')), e2D = elem(Dv, num('r2sD'));
+  // 医療法人は類似業種を1つだけ選んで評価するため、2つ目のブロック（㉓～㉕）は使わない
+  const e2B = medical ? null : elem(Bv, senPair('r2sB1', 'r2sB2'));
+  const e2C = medical ? null : elem(Cv, num('r2sC'));
+  const e2D = medical ? null : elem(Dv, num('r2sD'));
   const r21 = ratio3(e1B, e1C, e1D); // ㉑
   const r24 = ratio3(e2B, e2C, e2D); // ㉔
   const price = (A: number | null, r: number | null) => (A !== null && r !== null && shin !== null ? fl10sen(A * r * shin) : null);

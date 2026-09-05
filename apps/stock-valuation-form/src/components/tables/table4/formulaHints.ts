@@ -1,4 +1,4 @@
-import { MEDICAL_NO_DIVIDEND, hs, hv, hyen, rv, ryen } from '@/lib/formulaHint';
+import { MEDICAL_NO_DIVIDEND, MEDICAL_NO_SECOND_INDUSTRY, hs, hv, hyen, rv, ryen } from '@/lib/formulaHint';
 import type { calcTable4 } from './Table4Grid';
 
 // 第4表の1・第4表の2の自動計算欄に出すツールチップ。
@@ -37,9 +37,9 @@ function profitBaseLine(
 export function table4_1Hints(c: Calc, raw: Raw, medical: boolean): Record<string, string> {
   const net = c.issued === null ? null : c.issued - (c.treasuryShares ?? 0);
 
-  /** ⑧＝⑥－⑦（3期分とも同じ形） */
+  /** ⑧＝⑥－⑦（3期分とも同じ形）。医療法人は⑥⑦を入力させないので計算しない */
   const dividend = (total: string, extra: string, value: number | null) =>
-    `⑥ ${hs(raw(total))}千円 － ⑦ ${hs(raw(extra))}千円 ＝ ${rv(value, 1)}千円`;
+    (medical ? MEDICAL_NO_DIVIDEND : `⑥ ${hs(raw(total))}千円 － ⑦ ${hs(raw(extra))}千円 ＝ ${rv(value, 1)}千円`);
   /** ⑯＝⑪－⑫＋⑬－⑭＋⑮（3期分とも同じ形） */
   const profit = (fs: readonly [string, string, string, string, string], value: number | null) =>
     `⑪ ${hs(raw(fs[0]))} － ⑫ ${hs(raw(fs[1]))} ＋ ⑬ ${hs(raw(fs[2]))} － ⑭ ${hs(raw(fs[3]))} ＋ ⑮ ${hs(raw(fs[4]))}（千円）`
@@ -73,8 +73,8 @@ export function table4_1Hints(c: Calc, raw: Raw, medical: boolean): Record<strin
     '㋑': dividend('f28', 'f29', c.i1),
     '㋺': dividend('f32', 'f33', c.i2),
     '㋩': dividend('f36', 'f37', c.i3),
-    '⑨': `（㋑ ${hv(c.i1, 1)} ＋ ㋺ ${hv(c.i2, 1)}）÷ 2 ＝ ${rv(c.v9, 1)}千円`,
-    '⑩': `（㋺ ${hv(c.i2, 1)} ＋ ㋩ ${hv(c.i3, 1)}）÷ 2 ＝ ${rv(c.v10, 1)}千円`,
+    '⑨': medical ? MEDICAL_NO_DIVIDEND : `（㋑ ${hv(c.i1, 1)} ＋ ㋺ ${hv(c.i2, 1)}）÷ 2 ＝ ${rv(c.v9, 1)}千円`,
+    '⑩': medical ? MEDICAL_NO_DIVIDEND : `（㋺ ${hv(c.i2, 1)} ＋ ㋩ ${hv(c.i3, 1)}）÷ 2 ＝ ${rv(c.v10, 1)}千円`,
     B1: b1, f45: b1,
     B2: bHint('⑩', c.v10, c.b2), f48: bHint('⑩', c.v10, c.b2),
     B: medical ? MEDICAL_NO_DIVIDEND : `Ⓑ₁ ${ryen(c.b1)} をそのまま記載します`,
@@ -127,6 +127,17 @@ export function table4_2Hints(c: Calc, raw: Raw, medical: boolean, taxMonth: str
   ] as const;
 
   for (const b of blocks) {
+    // 医療法人（持分あり）は下側のブロックを使わないので、ヒントもその旨だけにする
+    if (medical && b.fp === 'r2') {
+      const unused: string[] = [
+        ...b.months, ...b.prices, b.aField, b.ratioField, b.priceField, `${b.fp}px`,
+        `${b.fp}vB1`, `${b.fp}vB2`, `${b.fp}vC`, `${b.fp}vD`,
+        `${b.fp}sB1`, `${b.fp}sB2`, `${b.fp}sC`, `${b.fp}sD`,
+        `${b.fp}eB`, `${b.fp}eC`, `${b.fp}eD`,
+      ];
+      for (const f of unused) hints[f] = MEDICAL_NO_SECOND_INDUSTRY;
+      continue;
+    }
     const source = `業種目番号 ${hs(raw(`${b.fp}gyonum`))}（${hs(raw(`${b.fp}gyo`))}）として公表されている金額です`;
     const sB = senPair(`${b.fp}sB1`, `${b.fp}sB2`);
     const ratio2 = (v: number | null) => (v === null ? '（未計算）' : v.toFixed(2));
@@ -165,8 +176,10 @@ export function table4_2Hints(c: Calc, raw: Raw, medical: boolean, taxMonth: str
 
   const minPrice = c.p22 !== null && c.p25 !== null ? Math.min(c.p22, c.p25) : c.p22 ?? c.p25;
   const modDiv = senPair('mod_div', 'mod_div_sen');
-  hints['㉖'] = `㉒ ${ryen(c.p22)} と ㉕ ${ryen(c.p25)} のうち低い方 ${ryen(minPrice)}`
-    + `\n× 第４表の１の④ ${c.cap4disp === '' ? '（未計算）' : c.cap4disp}円 ÷ 50円 ＝ ${rv(c.v26)}円（円未満切捨て）`;
+  const capLine = `× 第４表の１の④ ${c.cap4disp === '' ? '（未計算）' : c.cap4disp}円 ÷ 50円 ＝ ${rv(c.v26)}円（円未満切捨て）`;
+  hints['㉖'] = medical
+    ? `㉒ ${ryen(c.p22)}\n${capLine}\n医療法人（持分あり）は類似業種が1つなので、㉕とは比べません`
+    : `㉒ ${ryen(c.p22)} と ㉕ ${ryen(c.p25)} のうち低い方 ${ryen(minPrice)}\n${capLine}`;
   hints['㉘'] = `㉖ ${rv(c.v26)}円 － ㉗ ${hyen(modDiv)} ＝ ${rv(c.v27)}円（円未満切捨て）`;
   hints['㉜'] = `${c.v27 !== null ? `㉘ ${rv(c.v27)}円` : `㉖ ${rv(c.v26)}円`}`
     + ` ＋ ㉙ ${hyen(senPair('mod_pay', 'mod_pay_sen'))} × ㉚ ${hs(raw('mod_ratio'))}株`
