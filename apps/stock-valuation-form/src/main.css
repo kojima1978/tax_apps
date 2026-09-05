@@ -1176,8 +1176,9 @@
     box-shadow: none !important;
     background: transparent !important;
   }
-  .gf-cell input,
-  .gf-cell select {
+  /* 印刷モードでは input/select が div・span に差し替わるので、セレクタを子孫全体へ広げる。
+     ○囲み（判定欄）は border で描いているためここでは消えず、画面用の塗りだけが落ちる。 */
+  .gf-cell * {
     background: transparent !important;
     box-shadow: none !important;
   }
@@ -1189,16 +1190,12 @@
     box-shadow: none !important;
   }
 
-  .gf-cell input:focus:not([readonly]),
-  .gf-cell select:focus {
-    background: transparent !important;
-  }
-
   .gf-float-box:focus-within {
     box-shadow: none !important;
   }
 
-  .gf-float-box input:focus {
+  /* 会社名などのフローティング見出しは印刷でも input のまま。灰色の帯が刷られないようにする */
+  .gf-float-box input {
     background: transparent !important;
   }
 

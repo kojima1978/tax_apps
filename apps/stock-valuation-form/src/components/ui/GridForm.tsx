@@ -1,4 +1,6 @@
 import { FORM_GEOMETRY, type FormGeometry, type MmRect } from './formGeometry';
+import { QR_SIZE } from '@/data/formQr';
+import { formQrPath } from '@/lib/qrPath';
 import { createContext, useContext, useMemo, useRef, useCallback, useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 
 /** グリッドセル定義（座標・サイズは％） */
@@ -368,6 +370,8 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
   // 幅・高さ・文字・罫線がまとめて同じ比率で縮むので、既存の座標を1つも書き換えずに原本と重なる。
   // 実測レイアウトは様式IDで引く（明示指定があればそちらを優先）
   const geometry = geometryProp ?? (formCode ? FORM_GEOMETRY[formCode] : undefined);
+  // 右上のQRコード。パス自体はモジュール側で使い回されるので、ここは様式が変わったときだけ引き直す
+  const qrPath = useMemo(() => (formCode ? formQrPath(formCode) : null), [formCode]);
   const scale = geometry ? geometry.frame.width / GEOMETRY_DESIGN_WIDTH_MM : 1;
   const gridBoxStyle: CSSProperties = geometry
     ? { ...rectStyle({ ...geometry.frame, width: GEOMETRY_DESIGN_WIDTH_MM, height: geometry.frame.height / scale }), transform: `scale(${scale})`, transformOrigin: 'top left' }
@@ -401,6 +405,14 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             <div style={{ ...rectStyle(geometry.formCodeBox), display: 'flex', border: '1px solid #000', fontSize: 11, fontFamily: '"Noto Sans JP", sans-serif' }}>
               <span style={{ flex: '0 0 28%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid #000' }}>様式ID</span>
               <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.08em' }}>{formCode}</span>
+            </div>
+          )}
+          {qrPath && geometry.qrBox && (
+            // 原本と同じ位置・大きさで刷る。画面では同じ場所に toolbar（no-print）が出るため print-only
+            <div className="print-only" style={rectStyle(geometry.qrBox)}>
+              <svg viewBox={`0 0 ${QR_SIZE} ${QR_SIZE}`} shapeRendering="crispEdges" aria-hidden="true" style={{ display: 'block', width: '100%', height: '100%' }}>
+                <path d={qrPath} fill="#000" />
+              </svg>
             </div>
           )}
           {title && (
