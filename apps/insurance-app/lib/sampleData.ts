@@ -2,10 +2,10 @@ import type { FamilyMember, Policy, Agency } from '@/types';
 
 export function getSampleFamilyMembers(): FamilyMember[] {
   return [
-    { id: 'm1', name: '佐々木健介', nameKana: 'ササキケンスケ', relationship: '本人', birthDate: '1966-08-04', gender: 'male' },
-    { id: 'm2', name: '北斗晶', nameKana: 'ホクトアキラ', relationship: '配偶者', birthDate: '1985-04-12', gender: 'female' },
-    { id: 'm3', name: '佐々木誠也', nameKana: 'ササキセイヤ', relationship: '長男', birthDate: '2004-11-06', gender: 'male' },
-    { id: 'm4', name: '佐々木凛', nameKana: 'ササキリン', relationship: '長女', birthDate: '2008-03-18', gender: 'female' },
+    { id: 'm1', name: '山田太郎', nameKana: 'ヤマダタロウ', relationship: '本人', birthDate: '1966-08-04', gender: 'male' },
+    { id: 'm2', name: '山田花子', nameKana: 'ヤマダハナコ', relationship: '配偶者', birthDate: '1985-04-12', gender: 'female' },
+    { id: 'm3', name: '山田一郎', nameKana: 'ヤマダイチロウ', relationship: '長男', birthDate: '2004-11-06', gender: 'male' },
+    { id: 'm4', name: '山田さくら', nameKana: 'ヤマダサクラ', relationship: '長女', birthDate: '2008-03-18', gender: 'female' },
   ];
 }
 

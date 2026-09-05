@@ -89,6 +89,9 @@ user_settings.json
 apps/*/output/
 apps/*/tmp/
 
+# 様式の参照用に落としてきた原本（国税庁PDF等）。作業用の資料でリポジトリには入れない
+apps/*/sample/
+
 # Docker volumes data
 docker/backups/
 
