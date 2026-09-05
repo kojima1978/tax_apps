@@ -18,6 +18,7 @@ import { PrerequisitesChip, PrerequisitesDialog } from '@/components/Prerequisit
 import { ClientSummaryPage } from '@/components/ClientSummaryPage';
 import { RequiredFieldNavigator } from '@/components/RequiredFieldNavigator';
 import { ConsistencyChecker } from '@/components/ConsistencyChecker';
+import { IndustryYearNotice } from '@/components/IndustryYearNotice';
 import { ShortcutHelp } from '@/components/ShortcutHelp';
 import { focusAndFlash } from '@/lib/focusField';
 
@@ -347,6 +348,13 @@ export default function App() {
           )}
           {!summaryOpen && <RequiredFieldNavigator watch={`${activeTab}:${printTarget ?? ''}:${JSON.stringify(formData)}`} />}
           {!summaryOpen && <ConsistencyChecker getField={getField} onJump={(tab, field) => handleJump({ tab, field })} />}
+          {!summaryOpen && (
+            <IndustryYearNotice
+              getField={getField}
+              updateField={updateField}
+              onJump={(tab, field) => handleJump({ tab, field })}
+            />
+          )}
           <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
         </div>
       </div>

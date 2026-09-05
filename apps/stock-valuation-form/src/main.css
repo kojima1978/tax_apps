@@ -772,6 +772,76 @@
   line-height: 1.5;
 }
 
+/* 参照中の業種目の年分。ふだんは黙っていてよいので、自動保存と同じ控えめな出し方にする */
+.app-industry-year {
+  align-self: center;
+  font-size: 10px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.app-industry-year.is-missing {
+  color: #92400e;
+  font-weight: 700;
+}
+
+/* 業種目の年分照合。1件ずつ「前の年分 → 当年分」を並べて、その場で直せるようにする */
+.industry-year-dialog {
+  width: min(640px, 100%);
+}
+
+.industry-diff {
+  padding: 8px 10px;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  background: #fffbeb;
+}
+
+.industry-diff-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.industry-diff-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* 課税時期の年分の行。いま帳票に入っているのはこちら */
+.industry-diff-row.is-now {
+  font-weight: 700;
+}
+
+.industry-diff-year {
+  flex: none;
+  width: 6.5em;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.industry-diff-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.industry-diff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.industry-diff-primary {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  font-weight: 700;
+}
+
 /* キーボードショートカット一覧（画面のみ。様式の外に出すので印刷には出ない） */
 .shortcut-dialog {
   width: min(460px, 100%);

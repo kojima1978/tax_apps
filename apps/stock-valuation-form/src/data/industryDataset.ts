@@ -97,7 +97,7 @@ export interface IndustryYearView {
 
 export interface IndustryDataset {
   readonly years: readonly IndustryYear[];
-  /** 課税時期に対応する年分のビュー。該当する年分が無ければ最新の年分で代替する。 */
+  /** 課税時期に対応する年分のビュー。年分が登録されていなければ空のビューを返す。 */
   forTaxPeriod(period: TaxPeriod): IndustryYearView;
 }
 

@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { type FormData, type TableId, initialFormData } from '@/types/form';
+import { type FormData, type TableId, type TableProps, initialFormData } from '@/types/form';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
 import type { IndustryDataset, IndustryYearView } from '@/data/industryDataset';
 import { rolloverFormData } from './rollover';
+import { INDUSTRY_NUMBER_TARGETS, syncIndustryStamps } from '@/lib/industryYearAudit';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
 
@@ -14,6 +15,30 @@ const INDUSTRY_FIELD_LINKS: Readonly<Record<string, string>> = {
 
 /** 課税時期（第1表の1）。年分の選択と株価の月の特定に使う。 */
 const TAX_DATE_FIELDS = ['f14_g', 'f14_y', 'f14_m'] as const;
+
+/** 業種目番号の欄 → その番号を選んだ年分を控える欄。 */
+const STAMP_FIELDS: Readonly<Record<string, string>> = Object.fromEntries(
+  INDUSTRY_NUMBER_TARGETS.map((target) => [`${target.table}.${target.field}`, target.stampField]),
+);
+
+function readerOf(data: FormData): TableProps['getField'] {
+  return (table, field) => data[table]?.[field] ?? '';
+}
+
+/**
+ * 業種目番号を選んだ年分の控え。番号は年分ごとに振り直されるので、あとで課税時期の
+ * 年分と突き合わせられるように、選んだ時点の年分を番号と一緒に持っておく。
+ */
+function stampPatch(
+  table: TableId,
+  field: string,
+  value: string,
+  view: IndustryYearView,
+): Record<string, string> {
+  const stampField = STAMP_FIELDS[`${table}.${field}`];
+  if (stampField === undefined) return {};
+  return { [stampField]: value.trim() === '' ? '' : String(view.year?.gregorianYear ?? '') };
+}
 
 function industryYearView(data: FormData, industry: IndustryDataset): IndustryYearView {
   return industry.forTaxPeriod({
@@ -197,26 +222,29 @@ export function updateFormField(
 
   const linkedIndustryField = table === 'table1_1' ? INDUSTRY_FIELD_LINKS[field] : undefined;
   if (linkedIndustryField) {
+    const view = industryYearView(data, industry);
     return {
       ...data,
       table1_1: {
         ...data.table1_1,
         [field]: value,
-        [linkedIndustryField]: industryYearView(data, industry).categoryOf(value)?.name ?? '',
+        [linkedIndustryField]: view.categoryOf(value)?.name ?? '',
+        ...stampPatch('table1_1', field, value, view),
       },
     };
   }
 
   if (table === 'table4' && field in SIMILAR_INDUSTRY_BLOCKS) {
     const numberField = field as SimilarIndustryNumberField;
-    const changedTable = { ...data.table4, [field]: value };
+    const view = industryYearView(data, industry);
+    const changedTable = {
+      ...data.table4,
+      [field]: value,
+      ...stampPatch('table4', field, value, view),
+    };
     return {
       ...data,
-      table4: linkSimilarIndustryBlock(
-        changedTable,
-        numberField,
-        industryYearView(data, industry),
-      ),
+      table4: linkSimilarIndustryBlock(changedTable, numberField, view),
     };
   }
 
@@ -272,7 +300,24 @@ function normalizeIndustryFields(data: FormData, industry: IndustryDataset): For
 
   const normalizedTable4 = linkAllSimilarIndustryBlocks(data.table4, view);
 
-  return { ...data, table1_1: normalizedTable, table4: normalizedTable4 };
+  return applyIndustryStamps(
+    { ...data, table1_1: normalizedTable, table4: normalizedTable4 },
+    industry,
+  );
+}
+
+/**
+ * 番号の控えを整える。業種目が変わっていない欄は控えを当年分へ進め、変わっている欄だけ
+ * 前の年分のまま残す。残ったぶんが「業種目の確認」として画面に出る。
+ */
+function applyIndustryStamps(data: FormData, industry: IndustryDataset): FormData {
+  const updates = syncIndustryStamps(readerOf(data), industry);
+  if (updates.length === 0) return data;
+
+  return updates.reduce<FormData>((next, { target, stamp }) => ({
+    ...next,
+    [target.table]: { ...next[target.table], [target.stampField]: stamp },
+  }), data);
 }
 
 /** 旧様式（令和6年版）→令和8年様式の第1表の1のフィールド移行（①発行済株式→⑤、④議決権総数→⑥） */

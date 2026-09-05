@@ -245,13 +245,27 @@ export function NewYearPanel({ years, onCreated, onOpenYear }: Props) {
             ))}
             {inheritedNames && templateSource && (
               <span className="admin-badge admin-badge-new">
-                業種目名は{templateSource.label}から引き継ぎ
+                業種目名は{templateSource.label}から引き継ぎ {extracted.rows.length}件
               </span>
             )}
             {extracted.skipped.length > 0 && (
               <span className="admin-note">見出し等の読み飛ばし {extracted.skipped.length} 行</span>
             )}
           </div>
+
+          {/*
+            引き継ぎは番号で引く。国税庁が番号を振り直した年分では、番号だけを貼り付けると
+            前年の名前がそのまま登録されてしまい、しかも取り込み時には何も起こらない
+            （前年に無い番号だけがエラーになる）。危ないのは番号が残って中身が変わった場合。
+          */}
+          {inheritedNames && templateSource && (
+            <AdminAlert kind="warn">
+              業種目名を{templateSource.label}から<strong>業種目番号で</strong>引き継いでいます。
+              業種目番号は年分ごとに振り直されるため、番号だけを貼り付けると名前が食い違うことがあります。
+              公表資料の表から大分類・中分類・小分類の列ごと貼り付ければ引き継ぎは行われず、
+              貼り付けた名前がそのまま登録されます。
+            </AdminAlert>
+          )}
 
           {extracted.errors.length > 0 && (
             <AdminAlert kind="error" scrollKey={`extract-${extracted.errors.length}`}>
