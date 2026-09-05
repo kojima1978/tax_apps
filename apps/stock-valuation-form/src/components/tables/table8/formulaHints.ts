@@ -8,16 +8,17 @@ import type { calcTable8 } from './Table8Grid';
 type Calc = ReturnType<typeof calcTable8>;
 
 /** ⑤・⑲の「第5表の㋺＋（㊁－㋭）」。20％判定で加算しなかったときはその理由を書く */
-const stockBookHint = (c: Calc): string => {
+const stockBookHint = (c: Calc, value: number | null): string => {
   const base = `第５表の㋺（株式等の帳簿価額の合計額）${rv(c.t5Stock, 1)}千円`;
   // ㊁が未入力のうちは20％判定の話をしても意味がないので、転記元だけ出す
-  if (c.inKind.eval === 0) return base;
-  if (c.inKind.diff === 0) {
-    return `${base}\n現物出資等受入れ資産（㊁）は総資産の20％以下のため、（㊁－㋭）は加算しません（評価通達186－2）`;
-  }
-  return `${base} ＋（㊁ ${hv(c.inKind.eval, 1)} － ㋭ ${hv(c.inKind.book, 1)}）＝ ${rv(c.v5, 1)}千円`
-    + `\n現物出資等受入れ資産が総資産の${c.inKind.ratio.toFixed(1)}％（20％超）のため差額を加算しています（評価通達186－2）`
-    + '\n㊁㋭に株式等以外の資産に係る金額が含まれるときは、その分を除いた金額に読み替えてください';
+  const body = c.inKind.eval === 0 ? base
+    : c.inKind.diff === 0 ? `${base}\n現物出資等受入れ資産（㊁）は総資産の20％以下のため、（㊁－㋭）は加算しません（評価通達186－2）`
+      : `${base} ＋（㊁ ${hv(c.inKind.eval, 1)} － ㋭ ${hv(c.inKind.book, 1)}）＝ ${rv(value, 1)}千円`
+        + `\n現物出資等受入れ資産が総資産の${c.inKind.ratio.toFixed(1)}％（20％超）のため差額を加算しています（評価通達186－2）`;
+  // ㊁㋭から株式等以外の分を除いた金額に読み替える欄なので、⑤⑲とも直接入力で上書きできる
+  return body
+    + '\n㊁㋭に株式等以外の資産に係る金額が含まれるときは、その分を除いた金額に読み替えてください'
+    + '\n第５表と異なる金額を使うときは、この欄に直接入力すると上書きできます';
 };
 
 const NO_TAX_DEDUCTION = '所得税・法人税の時価評価（中心的な同族株主に該当する場合）では、'
@@ -41,7 +42,7 @@ export function table8Hints(c: Calc, specialMarketValueRules: boolean): Record<s
     '②': `第５表のイ（課税時期現在の株式等の価額の合計額）${rv(c.v2, 1)}千円`,
     '③': `① ${hv(c.v1, 1)} － ② ${hv(c.v2, 1)} ＝ ${rv(c.v3, 1)}千円`,
     '④': `第５表の⑥（帳簿価額による純資産価額）${rv(c.v4, 1)}千円`,
-    '⑤': stockBookHint(c),
+    '⑤': stockBookHint(c, c.v5),
     '⑥': `④ ${hv(c.v4, 1)} － ⑤ ${hv(c.v5, 1)} ＝ ${rv(c.v6, 1)}千円`,
     '⑦': `③ ${hv(c.v3, 1)} － ⑥ ${hv(c.v6, 1)} ＝ ${rv(c.v7, 1)}千円（マイナスのときは0）`,
     '⑧': specialMarketValueRules ? NO_TAX_DEDUCTION
@@ -70,8 +71,7 @@ export function table8Hints(c: Calc, specialMarketValueRules: boolean): Record<s
 
     '⑱': `第５表のイ（株式等の相続税評価額の合計額）${rv(c.v18, 1)}千円`
       + '\n第５表と異なる金額を使うときは、この欄に直接入力すると上書きできます',
-    '⑲': stockBookHint(c)
-      + '\n第５表と異なる金額を使うときは、この欄に直接入力すると上書きできます',
+    '⑲': stockBookHint(c, c.v19),
     '⑳': `⑱ ${hv(c.v18, 1)} － ⑲ ${hv(c.v19, 1)} ＝ ${rv(c.v20, 1)}千円（マイナスのときは0）`,
     '㉑': specialMarketValueRules ? NO_TAX_DEDUCTION
       : `⑳ ${hv(c.v20, 1)}千円 × 38％ ＝ ${rv(c.v21, 1)}千円（端数切捨て）`,

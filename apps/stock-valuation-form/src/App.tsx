@@ -74,6 +74,8 @@ export default function App() {
   const [printSelection, setPrintSelection] = useState<Record<TableId, boolean>>(
     () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
   );
+  // お客様サマリーは様式ではないので、全表印刷では既定で外し、選びたいときだけ足す
+  const [printSummary, setPrintSummary] = useState(false);
   // 自動転記欄から入力元へ飛ぶ前にいた場所（「戻る」用）
   const [jumpOrigin, setJumpOrigin] = useState<{ tab: TableId; fieldName: string | null } | null>(null);
 
@@ -93,8 +95,10 @@ export default function App() {
   const judgmentTargets = useMemo(() => new Set<TableId>(judgment.tables), [judgment]);
   const isJudgmentTarget = useCallback((tab: TableId) => judgmentTargets.has(tab), [judgmentTargets]);
 
-  const setAllSelection = (fn: (tab: TableId) => boolean) =>
+  const setAllSelection = (fn: (tab: TableId) => boolean, summary: boolean) => {
     setPrintSelection(Object.fromEntries(TABS.map((t) => [t.id, fn(t.id)])) as Record<TableId, boolean>);
+    setPrintSummary(summary);
+  };
 
   // 表へ移動し、指定の欄（name属性）をフォーカス＋一瞬ハイライトする
   const goToField = useCallback((tab: TableId, fieldName: string | null) => {
@@ -155,14 +159,14 @@ export default function App() {
 
   // 全表印刷：選択ダイアログを開く（第2表の判定結果に応じた記載対象の表を初期チェック）
   const openPrintDialog = useCallback(() => {
-    setAllSelection((tab) => judgmentTargets.has(tab));
+    setAllSelection((tab) => judgmentTargets.has(tab), false);
     setPrintDialogOpen(true);
   }, [judgmentTargets]);
   const confirmPrintSelected = useCallback(() => {
-    if (!TABS.some((t) => printSelection[t.id])) return;
+    if (!TABS.some((t) => printSelection[t.id]) && !printSummary) return;
     setPrintDialogOpen(false);
     requestPrint('all');
-  }, [printSelection, requestPrint]);
+  }, [printSelection, printSummary, requestPrint]);
 
   // 画面操作のショートカット。様式そのものには触れないので印刷結果は変わらない
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -281,6 +285,14 @@ export default function App() {
           >
             業種目データ管理
           </button>
+          <button
+            type="button"
+            className="app-tool-btn"
+            onClick={() => setShortcutsOpen(true)}
+            title="キーボードショートカットの一覧を表示します（? キー）"
+          >
+            ショートカット
+          </button>
         </div>
       </header>
 
@@ -311,7 +323,6 @@ export default function App() {
             { label: '翌年度更新', onClick: rolloverToNextYear, title: '直前期の数値を直前々期へ順送りして翌事業年度の評価に移行します（実行前に自動バックアップ）' },
             { label: '全表印刷', onClick: openPrintDialog },
             { label: '現在の表を印刷', onClick: () => requestPrint('current'), title: 'Ctrl+P' },
-            { label: 'ショートカット', onClick: () => setShortcutsOpen(true), title: 'キーボードショートカットの一覧を表示します（? キー）' },
             { label: '全データリセット', onClick: resetAll, danger: true },
           ] as const).map((tool) => (
             <button
@@ -351,7 +362,16 @@ export default function App() {
               onPrint={() => requestPrint('current')}
             />
           ) : printAll ? (
-            TABS.filter((tab) => printSelection[tab.id]).map((tab) => {
+            <>
+            {printSummary && (
+              <ClientSummaryPage
+                getField={getField}
+                updateField={updateField}
+                onBack={() => setSummaryOpen(false)}
+                onPrint={() => requestPrint('current')}
+              />
+            )}
+            {TABS.filter((tab) => printSelection[tab.id]).map((tab) => {
               const TableComp = TABLE_COMPONENTS[tab.id];
               // 第5表・第1表の1は続紙対応で自前に複数ページ（.gov-page）を描画するため外側で包まない
               return SELF_PAGING.has(tab.id) ? (
@@ -361,7 +381,8 @@ export default function App() {
                   <TableComp {...tableProps} />
                 </div>
               );
-            })
+            })}
+            </>
           ) : SELF_PAGING.has(activeTab) ? (
             <ActiveTable {...tableProps} />
           ) : (
@@ -386,13 +407,19 @@ export default function App() {
             <h2 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>印刷する表を選択</h2>
             <p style={{ fontSize: 12, color: '#666', margin: '0 0 12px' }}>第2表の判定結果に応じた記載対象の表を初期選択しています。チェックの追加・解除で自由に変更できます。</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-              <button type="button" onClick={() => setAllSelection(() => true)} className="app-tool-btn">全選択</button>
-              <button type="button" onClick={() => setAllSelection(() => false)} className="app-tool-btn">全解除</button>
-              <button type="button" onClick={() => setAllSelection((tab) => hasData(tab))} className="app-tool-btn">入力済みのみ</button>
-              <button type="button" onClick={() => setAllSelection((tab) => judgmentSet.has(tab))} className="app-tool-btn" title="第2表の判定結果に応じて記載対象となる表だけを選択します">第2表の判定で選択</button>
+              <button type="button" onClick={() => setAllSelection(() => true, true)} className="app-tool-btn">全選択</button>
+              <button type="button" onClick={() => setAllSelection(() => false, false)} className="app-tool-btn">全解除</button>
+              <button type="button" onClick={() => setAllSelection((tab) => hasData(tab), TABS.some((t) => hasData(t.id)))} className="app-tool-btn">入力済みのみ</button>
+              <button type="button" onClick={() => setAllSelection((tab) => judgmentSet.has(tab), false)} className="app-tool-btn" title="第2表の判定結果に応じて記載対象となる表だけを選択します">第2表の判定で選択</button>
             </div>
             <p style={{ fontSize: 12, color: '#444', margin: '0 0 10px' }}>第2表の判定結果：<strong>{judgment.name}</strong></p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '3px 4px', marginBottom: 4, borderBottom: '1px solid #eee', cursor: 'pointer' }}>
+                <input type="checkbox" checked={printSummary} onChange={(e) => setPrintSummary(e.target.checked)} />
+                <span style={{ fontWeight: 600 }}>お客様サマリー</span>
+                <span style={{ color: '#888', fontSize: 11 }}>入力済みデータから現状と打ち手を自動整理</span>
+                <span style={{ marginLeft: 'auto', color: '#888', fontSize: 11 }}>様式ではありません</span>
+              </label>
               {TABS.map((tab) => (
                 <label key={tab.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '3px 4px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={!!printSelection[tab.id]} onChange={(e) => setPrintSelection((p) => ({ ...p, [tab.id]: e.target.checked }))} />
@@ -407,7 +434,7 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
               <button type="button" onClick={() => setPrintDialogOpen(false)} className="app-tool-btn">キャンセル</button>
-              <button type="button" onClick={confirmPrintSelected} disabled={!TABS.some((t) => printSelection[t.id])} className="app-tool-btn" style={{ fontWeight: 700 }}>印刷</button>
+              <button type="button" onClick={confirmPrintSelected} disabled={!TABS.some((t) => printSelection[t.id]) && !printSummary} className="app-tool-btn" style={{ fontWeight: 700 }}>印刷</button>
             </div>
           </div>
         </div>

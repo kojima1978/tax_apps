@@ -1631,6 +1631,12 @@
     width: 100%;
   }
 
+  /* 全表印刷でサマリーを先頭に刷るときは、続く様式1枚目を必ず次のページから始める
+     （.gov-page + .gov-page と同じく「2ページ目以降の直前」に入れる考え方） */
+  .client-summary-wrap + .gov-page {
+    page-break-before: always;
+  }
+
   .client-summary-page {
     width: 100%;
     min-height: 0;

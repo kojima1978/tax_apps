@@ -56,7 +56,7 @@ function buildCells(cls: S1Class): GridCell[] {
   head('⑤　株式等の帳簿価額の合計額\n　　（第５表の㋺＋（㊁－㋭）の金額）（注）', '（千円）', 21.88, 4.05, 39.16, 64.3),
   head('⑥　差引（④－⑤）', '（千円）', 21.88, 4.05, 64.3, 91.38),
   { field: '④', kind: 'input', readOnly: true, top: 25.93, left: 14.02, width: 25.14, height: 2.79, align: 'right' },
-  { field: '⑤', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: 'ロ', hint: 'クリックで転記元（第５表 ロ・株式等の帳簿価額の合計額）へ移動します' }, top: 25.93, left: 39.16, width: 25.14, height: 2.79, align: 'right' },
+  { field: '⑤', kind: 'input', commaInteger: true, top: 25.93, left: 39.16, width: 25.14, height: 2.79, align: 'right' },
   { field: '⑥', kind: 'input', readOnly: true, top: 25.93, left: 64.3, width: 27.08, height: 2.79, align: 'right' },
   // 行3: ⑦ ⑧ ⑨（ヘッダー 28.72-32.71 / 値 32.71-35.50）
   head('⑦　評価差額に相当する金額\n　　（③－⑥）', '（千円）', 28.72, 3.99, 14.02, 39.16),
@@ -171,7 +171,7 @@ export function calcTable8(getField: TableProps['getField']) {
   const v2: number | null = t5['イ'] ?? null;                  // ② 株式等の相続税評価額（第5表イを転記）
   const v3 = v1 !== null && v2 !== null ? v1 - v2 : null;       // ③ ①－②
   const v4 = t5['⑥'] ?? null;                                  // ④ 帳簿価額純資産（第5表⑥）
-  const v5: number | null = stockBook;                          // ⑤ 株式等の帳簿価額（第5表㋺＋（㊁－㋭））
+  const v5: number | null = num('⑤') ?? stockBook;              // ⑤ 株式等の帳簿価額（第5表㋺＋（㊁－㋭）・上書き可）
   const v6 = v4 !== null && v5 !== null ? v4 - v5 : null;       // ⑥ ④－⑤
   const v7 = v3 !== null && v6 !== null ? Math.max(0, v3 - v6) : null; // ⑦ 評価差額（負数→0）
   const v8 = v7 !== null ? (specialMarketValueRules ? 0 : fl(v7 * CORPORATE_TAX_RATE)) : null;  // ⑧ 法人税額等相当額
@@ -231,7 +231,7 @@ export function Table8Grid({ getField, updateField, onJump }: TableProps) {
       case '②': return fmt(c.v2);
       case '③': return fmt(c.v3);
       case '④': return fmt(c.v4);
-      case '⑤': return fmt(c.v5);
+      case '⑤': return raw('⑤').trim() !== '' ? raw('⑤') : fmt(c.v5);
       case '⑥': return fmt(c.v6);
       case '⑦': return fmt(c.v7);
       case '⑧': return fmt(c.v8);
