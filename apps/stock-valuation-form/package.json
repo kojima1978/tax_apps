@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy"
+    "db:migrate": "prisma migrate deploy",
+    "industry:export": "node scripts/industry-export.mjs",
+    "industry:import": "node scripts/industry-import.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

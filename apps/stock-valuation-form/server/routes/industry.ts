@@ -4,7 +4,7 @@
 // フロント側が担っているため、ここでは公表値をそのまま返すことに徹する。
 
 import { Hono } from 'hono';
-import type { PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 
 type YearRecord = {
   id: number;
@@ -21,6 +21,45 @@ function toYearResponse(year: YearRecord) {
     era: year.era,
     eraYear: year.eraYear,
     gregorianYear: year.gregorianYear,
+  };
+}
+
+/** 年分の書き出しJSONの形式。読み込む側が想定外の形を弾けるように版を持たせる。 */
+const ARCHIVE_FORMAT_VERSION = 1;
+
+type MetricRecord = {
+  dividend: Prisma.Decimal;
+  profit: number;
+  netAsset: number;
+  previousYearAveragePrice: number;
+};
+
+type MonthlyPriceRecord = {
+  year: number;
+  month: number;
+  price: number;
+  twoYearAveragePrice: number | null;
+};
+
+/**
+ * B・C・D・前年平均と月別株価。metrics / dataset / export の3箇所で同じ形を返すのでここに寄せる。
+ * 比準要素が無い業種目（取込途中など）は null で返し、欠けていることを隠さない。
+ */
+function toMetricResponse(category: {
+  metric: MetricRecord | null;
+  monthlyPrices: MonthlyPriceRecord[];
+}) {
+  return {
+    dividend: category.metric === null ? null : Number(category.metric.dividend),
+    profit: category.metric?.profit ?? null,
+    netAsset: category.metric?.netAsset ?? null,
+    previousYearAveragePrice: category.metric?.previousYearAveragePrice ?? null,
+    monthlyPrices: category.monthlyPrices.map((price) => ({
+      year: price.year,
+      month: price.month,
+      price: price.price,
+      twoYearAveragePrice: price.twoYearAveragePrice,
+    })),
   };
 }
 
@@ -112,16 +151,7 @@ export function createIndustryRouter(db: PrismaClient) {
         number: category.number,
         name: category.name,
         level: category.level,
-        dividend: category.metric === null ? null : Number(category.metric.dividend),
-        profit: category.metric?.profit ?? null,
-        netAsset: category.metric?.netAsset ?? null,
-        previousYearAveragePrice: category.metric?.previousYearAveragePrice ?? null,
-        monthlyPrices: category.monthlyPrices.map((price) => ({
-          year: price.year,
-          month: price.month,
-          price: price.price,
-          twoYearAveragePrice: price.twoYearAveragePrice,
-        })),
+        ...toMetricResponse(category),
       })),
     });
   });
@@ -157,17 +187,56 @@ export function createIndustryRouter(db: PrismaClient) {
           smallName: category.smallName,
           name: category.name,
           level: category.level,
-          dividend: category.metric === null ? null : Number(category.metric.dividend),
-          profit: category.metric?.profit ?? null,
-          netAsset: category.metric?.netAsset ?? null,
-          previousYearAveragePrice: category.metric?.previousYearAveragePrice ?? null,
-          monthlyPrices: category.monthlyPrices.map((price) => ({
-            year: price.year,
-            month: price.month,
-            price: price.price,
-            twoYearAveragePrice: price.twoYearAveragePrice,
-          })),
+          ...toMetricResponse(category),
         })),
+      })),
+    });
+  });
+
+  /**
+   * 年分をまるごと書き出す。`POST /industry-years` がそのまま受け取れる形で返すので、
+   * これ1本で別環境への移設・手元への控えができる（`/industry-dataset` は帳票用に
+   * `description` を落としているため、そちらだけでは復元できない）。
+   *
+   * DB内部のIDは環境ごとに変わるので載せない。年分の同定は西暦と元号で行う。
+   */
+  router.get('/industry-years/:gregorianYear/export', async (c) => {
+    const gregorianYear = Number(c.req.param('gregorianYear'));
+    if (!Number.isInteger(gregorianYear)) {
+      return c.json({ error: '西暦年は整数で指定してください' }, 400);
+    }
+
+    const year = await db.industryYear.findUnique({
+      where: { gregorianYear },
+      include: {
+        categories: {
+          orderBy: { number: 'asc' },
+          include: {
+            metric: true,
+            monthlyPrices: { orderBy: [{ year: 'asc' }, { month: 'asc' }] },
+          },
+        },
+      },
+    });
+    if (!year) return c.json({ error: '指定された年分は登録されていません' }, 404);
+
+    return c.json({
+      formatVersion: ARCHIVE_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      label: year.label,
+      era: year.era,
+      eraYear: year.eraYear,
+      gregorianYear: year.gregorianYear,
+      categories: year.categories.map((category) => ({
+        number: category.number,
+        largeName: category.largeName,
+        middleName: category.middleName,
+        smallName: category.smallName,
+        name: category.name,
+        level: category.level,
+        // 復元用なので内容説明も載せる（帳票では使わないが、書き出して戻したときに消えては困る）。
+        description: category.description,
+        ...toMetricResponse(category),
       })),
     });
   });

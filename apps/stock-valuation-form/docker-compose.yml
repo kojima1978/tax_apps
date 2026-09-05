@@ -83,6 +83,11 @@ services:
       - ./server:/app/server:ro
       - ./prisma:/app/prisma:ro
       - ./index.html:/app/index.html:ro
+      # 業種目データの書き出し・読み込みCLI。本番は runner イメージに同梱している
+      # （prod 側で volumes を !reset しているのでここのマウントは効かない）。
+      - ./scripts:/app/scripts:ro
+      # 書き出したJSONを手元で受け取るための唯一の経路。ここだけ書き込み可。
+      - ./output:/app/output
     environment:
       <<: *common-env
       NODE_ENV: development

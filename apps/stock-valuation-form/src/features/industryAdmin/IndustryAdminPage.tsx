@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useIndustryDataset, useReloadIndustryDataset } from '@/data/IndustryDataProvider';
 import { NewYearPanel } from './NewYearPanel';
 import { YearListPanel } from './YearListPanel';
+import { YearTransferPanel } from './YearTransferPanel';
 
-type PanelId = 'list' | 'newYear';
+type PanelId = 'list' | 'newYear' | 'transfer';
 
 const PANELS: ReadonlyArray<{ id: PanelId; label: string; description: string }> = [
   {
@@ -13,6 +14,11 @@ const PANELS: ReadonlyArray<{ id: PanelId; label: string; description: string }>
       + '月をクリックすればその月の株価を直接入力・貼り付けで登録でき、基礎情報からはB・C・Dを訂正できます。',
   },
   { id: 'newYear', label: '年分を新規追加', description: '新しい年分の業種目マスタとB・C・Dを貼り付けて登録します。' },
+  {
+    id: 'transfer',
+    label: 'JSONで入出力',
+    description: '年分まるごとをJSONファイルに書き出し、別のPCや作り直した環境で読み込んで復元します。',
+  },
 ];
 
 /**
@@ -56,6 +62,7 @@ export function IndustryAdminPage({ onClose }: { onClose: () => void }) {
 
         {panel === 'list' && <YearListPanel years={years} onUpdated={reload} />}
         {panel === 'newYear' && <NewYearPanel years={years} onCreated={reload} />}
+        {panel === 'transfer' && <YearTransferPanel years={years} onImported={reload} />}
       </div>
     </div>
   );

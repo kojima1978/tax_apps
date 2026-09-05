@@ -70,6 +70,9 @@ COPY --from=builder /app/dist-server ./dist-server
 # 初回取込のもとになる公表データ。Phase 2 でフロントが API 駆動になっても
 # seed の入力としてサーバ側が読み続ける。
 COPY src/data ./src/data
+# 業種目データの書き出し・読み込みCLI（npm run industry:export / industry:import）。
+# 本番でこそ使うので runner にも入れる。
+COPY scripts ./scripts
 COPY docker-entrypoint.sh ./
 # Keep the Linux entrypoint executable even when the build context comes from
 # a Windows checkout whose Git settings converted line endings to CRLF.

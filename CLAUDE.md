@@ -134,6 +134,7 @@ docker/scripts/manage.sh drill
 - 案件管理 (inheritance-case-management/web): `npm run dev` / `npm run db:generate` / `npm run db:push`
 - 確定申告書類 (tax-docs): Vite フロントエンドのみ（バックエンドなし）
 - 株式評価明細書 (stock-valuation-form): `npm run dev:all`（Vite 3014 + API 3114 を並走）/ `npm run build` + `npm run build:server`。本番は Node が 3014 で両方を配信
+  - 業種目データの持ち運び: `npm run industry:export`（全年分を `output/industry-export/` へ）/ `npm run industry:import -- <file>`。管理画面の「JSONで入出力」タブと同じ経路。年分の削除APIは無いので、登録済みの年分へは `--months-only` で月別株価だけ上書きする
 - Django (bank-analyzer-django): `python manage.py runserver 0.0.0.0:3007`
 
 ## コーディング規約
