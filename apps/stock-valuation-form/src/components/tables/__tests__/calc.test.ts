@@ -5,7 +5,7 @@ import { calcShareholderJudgment, stockTypeNameOf } from '../Table1_1Grid';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import { calcTable8 } from '../table8/Table8Grid';
-import { calcTable7 } from '../table7/Table7Grid';
+import { calcTable7 } from '../table7/calcTable7';
 import { calcTable4 } from '../table4/calcTable4';
 import { calcClientSummary } from '@/lib/clientSummary';
 

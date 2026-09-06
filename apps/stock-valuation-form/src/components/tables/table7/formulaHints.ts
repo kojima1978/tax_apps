@@ -1,6 +1,6 @@
 import { MEDICAL_NO_DIVIDEND, MEDICAL_NO_SECOND_INDUSTRY, hs, hv, hyen, rv, ryen } from '@/lib/formulaHint';
 import { PRICE_LABELS, shinLabel } from '../table4/formulaHints';
-import type { calcTable7 } from './Table7Grid';
+import type { calcTable7 } from './calcTable7';
 
 // 第7表の1・第7表の2の自動計算欄に出すツールチップ。
 // この2表は値のほとんどが第4表・第5表からの転記なので、「どこから来た数字か」を最初に書く。

@@ -1,6 +1,6 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { calcTable4 } from '../table4/calcTable4';
-import { calcTable7 } from './Table7Grid';
+import { calcTable7 } from './calcTable7';
 import { table7_2Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';

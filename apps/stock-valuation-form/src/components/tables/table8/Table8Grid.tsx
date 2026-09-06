@@ -1,7 +1,7 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { companyFloatBox } from '../companyFloatHeader';
 import { calcTable5, calcTable5Detail } from '../table5/Table5Grid';
-import { calcTable7 } from '../table7/Table7Grid';
+import { calcTable7 } from '../table7/calcTable7';
 import { calcTable2 } from '../table2/Table2Grid';
 import { table8Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';

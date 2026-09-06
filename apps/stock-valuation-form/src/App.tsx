@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { MIRRORED_FIELDS, useFormData } from '@/hooks/useFormData';
 import { PrintRenderContext } from '@/components/ui/GridForm';
-// Keep Table1_1Overlay and public/forms/table1.png for PNG layout measurement.
 import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
 import { Table1_2 } from '@/components/tables/table1-2';
 import { Table2, printTablesForJudgment } from '@/components/tables/table2';

@@ -1,6 +1,5 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
-import { calcTable7 } from './Table7Grid';
-import { calcTable2 } from '../table2/Table2Grid';
+import { calcTable7 } from './calcTable7';
 import { table7_1Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
@@ -126,7 +125,6 @@ export function Table7_1Grid({ getField, updateField, onJump }: TableProps) {
   const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
 
   const c = calcTable7(getField);
-  const judge = calcTable2(getField).j;
 
   const g = (f: string): string => {
     switch (f) {
@@ -151,14 +149,9 @@ export function Table7_1Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  const toolbar = (
-    <span className="no-print" style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', color: judge.s2 === true ? '#b45309' : '#555' }}>
-      第2表判定：株式等保有特定会社に{judge.s2 === true ? '該当' : judge.s2 === false ? '非該当' : '未判定'}
-    </span>
-  );
   // 自動計算欄には「実際に使った値」と転記元をホバーで出す
   const medical = getField('table1_1', 'medical') === '1';
   const hintedCells = withFormulaHints(CELLS, table7_1Hints(c, raw, medical));
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(hintedCells, g, u, T, onJump);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の１　株式等保有特定会社の株式の価額の計算明細書" formCode="NTA0VNA240010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第７表の１　株式等保有特定会社の株式の価額の計算明細書" formCode="NTA0VNA240010010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }
