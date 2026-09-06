@@ -23,6 +23,21 @@
   position: relative;
 }
 
+/* 用紙と用紙のあいだに置く操作帯（第1表の1 の続紙 追加・削除など）。
+   様式の中に重ねず、入力欄から下へスクロールした先に操作が現れるようにするための場所。
+   .gov-page と同じ幅・同じ中心線に揃える。印刷では no-print で消える。 */
+.sheet-ops {
+  width: 210mm;
+  max-width: 100%;
+  margin: 4mm auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #334155;
+}
+
 /* 実寸モードの headerExtra（会社名欄・氏名欄）は位置と大きさを geometry 側が決めるので、
    呼び出し側が持っている余白・％幅・縦横比を打ち消して親枠いっぱいに広げる */
 .gf-exact-head > div {
@@ -1190,6 +1205,12 @@
 
   /* 改ページは「2ページ目以降の直前」に入れる（最後のページの後に空白ページを作らないため） */
   .gov-page + .gov-page {
+    page-break-before: always;
+  }
+
+  /* 操作帯は no-print で消えるが兄弟としては残るため .gov-page + .gov-page が外れる。
+     帯をまたいだ用紙の切れ目も同じく改ページにする */
+  .sheet-ops + .gov-page {
     page-break-before: always;
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { Fragment, useCallback, useMemo } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { companyFloatBox } from './companyFloatHeader';
 import type { TableProps } from '@/types/form';
@@ -701,7 +701,9 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
     if (stockTypeCodeMatch) updateField(T, `sh_${stockTypeCodeMatch[1]}_8`, '');
   };
 
-  // 続紙の追加／削除（株主が5名を超える場合。続紙は1枚まで＝最大18名）
+  // 続紙の追加／削除（株主が5名を超える場合。続紙は1枚まで＝最大18名）。
+  // 操作は用紙と用紙のあいだの帯（.sheet-ops）に置く。本表の5人目を埋めて下へスクロールした
+  // 自然な視線の先に追加ボタンが現れ、削除ボタンは消す対象の直上に来る。
   const SH_FIELDS = ['1', '2', '2k', '3', '3k', '4', '5', '6', '7', '8', '9'] as const;
   const canAdd = shPageCount < MAX_SH_PAGES;
   const canRemove = shPageCount > 0;
@@ -726,13 +728,6 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
     background: '#fff', cursor: enabled ? 'pointer' : 'not-allowed',
     color: enabled ? '#111' : '#aaa', borderColor: enabled ? '#888' : '#ddd',
   } as const);
-  const toolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap' }}>
-      <span>続紙</span>
-      <button type="button" onClick={addShPage} disabled={!canAdd} title={canAdd ? '続紙を追加（株主13名分）' : '続紙は1枚までです'} style={btnStyle(canAdd)}>追加</button>
-      <button type="button" onClick={removeShPage} disabled={!canRemove} title={canRemove ? '続紙を削除' : '続紙はありません'} style={btnStyle(canRemove)}>削除</button>
-    </span>
-  );
 
   // 氏名（被相続人又は受贈者）欄＝本表の外に浮く独立枠（実様式どおり右寄せ・左側は開放）。
   // 実寸モードでは headerExtraBox が位置と大きさを決める（枠は親いっぱいに広げる＝main.css）。
@@ -757,14 +752,29 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
 
   return (
     <>
-      <div className="gov-page gov-page--exact" style={shPageCount > 0 ? { marginBottom: '8mm' } : undefined}>
-        <GridForm cells={cells} g={g} u={u} formId={T} width="100%" aspectRatio={MAIN_ASPECT} title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" formCode="NTA0VNA170010010" headerExtra={shimeiBox} toolbar={toolbar} onDragReorder={reorderShareholderRows} />
+      <div className="gov-page gov-page--exact">
+        <GridForm cells={cells} g={g} u={u} formId={T} width="100%" aspectRatio={MAIN_ASPECT} title="第１表の１　評価上の株主の判定及び会社規模の判定の明細書" formCode="NTA0VNA170010010" headerExtra={shimeiBox} onDragReorder={reorderShareholderRows} />
       </div>
       {Array.from({ length: shPageCount }).map((_, i) => (
-        <div className="gov-page gov-page--exact" key={i} style={i < shPageCount - 1 ? { marginBottom: '8mm' } : undefined}>
-          <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} formCode="NTA0VNA170020010" headerExtra={companyFloatBox((f) => g(f === 'company' ? 'f12' : f), (f, v) => u(f === 'company' ? 'f12' : f, v), `${T}-cont${i + 1}`, { widthPct: 46.6, aspect: 8.9, labelFrac: 0.3, onJump })} />
-        </div>
+        <Fragment key={i}>
+          {/* 削除ボタンは消す対象である続紙のすぐ上に置く（続紙は末尾から1枚ずつ外す） */}
+          <div className="sheet-ops no-print">
+            <span>続紙{i + 1}（株主{SH_ROWS + i * CONT_SH + 1}〜{SH_ROWS + (i + 1) * CONT_SH}名）</span>
+            {i === shPageCount - 1 && (
+              <button type="button" onClick={removeShPage} title="続紙を削除" style={btnStyle(true)}>× 続紙を削除</button>
+            )}
+          </div>
+          <div className="gov-page gov-page--exact">
+            <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} formCode="NTA0VNA170020010" headerExtra={companyFloatBox((f) => g(f === 'company' ? 'f12' : f), (f, v) => u(f === 'company' ? 'f12' : f, v), `${T}-cont${i + 1}`, { widthPct: 46.6, aspect: 8.9, labelFrac: 0.3, onJump })} />
+          </div>
+        </Fragment>
       ))}
+      {canAdd && (
+        <div className="sheet-ops no-print">
+          <span>株主が{SH_ROWS + 1}名以上のときは続紙に記入します</span>
+          <button type="button" onClick={addShPage} title="続紙を追加" style={btnStyle(true)}>＋ 続紙を追加（株主{CONT_SH}名分）</button>
+        </div>
+      )}
     </>
   );
 }
