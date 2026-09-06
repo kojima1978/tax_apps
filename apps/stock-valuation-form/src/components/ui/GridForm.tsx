@@ -46,6 +46,7 @@ export interface GridCell {
   options?: (string | { value: string; label: string })[]; // 選択式入力の候補（空文字は未選択。value=保存値/label=表示。文字列は両者同一）
   compactSelectedOption?: boolean;    // 選択中の項目はvalue（コード）のみ表示（狭いコード記入枠用。リストを開くと全文表示）
   highlightWhen?: (g: (field: string) => string) => boolean; // 自動判定時の強調条件
+  highlightScreenOnly?: boolean;      // 強調を画面だけにする（様式にない着色を印刷物に出さない）
   selectValue?: { field: string; value: string }; // セルをクリックして指定値を選択
   toggleField?: string; // セルをクリックして指定フィールドをオン・オフ
   diagonal?: 'tlbr' | 'bltr'; // 斜線（入力不可セル: tlbr=＼ 左上→右下, bltr=／ 左下→右上）
@@ -460,7 +461,8 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
         const len = raw.length;
         const fontSize = c.fontSize ?? (isVertical ? 8 : len > 40 ? 6 : len > 24 ? 6.5 : len > 12 ? 7.5 : 9);
         const justify = c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center';
-        const highlighted = c.highlightWhen?.(g) ?? false;
+        // 画面限定の強調（業種区分の選択など）は印刷時には付けない
+        const highlighted = (c.highlightWhen?.(g) ?? false) && !(c.highlightScreenOnly && printRendering);
         const readOnly = c.readOnly || (c.readOnlyWhen?.(g) ?? false);
         const selectable = c.selectValue;
         const toggleField = c.toggleField;

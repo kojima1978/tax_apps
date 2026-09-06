@@ -109,6 +109,44 @@ const FLAG_W = 1.9;
 /** マトリクスの「１」記入枠の判定条件（コード→条件。コンポーネントのg()から参照） */
 const MATRIX_HL: Record<string, (g: G) => boolean> = {};
 
+/** 業種区分の選択肢のフルラベル（ツールバーのセレクトと同じ gyoshu を読み書きする） */
+const GYO_LABEL: Record<Gyo, string> = {
+  '卸売業': '卸売業',
+  '小売・サービス業': '小売・サービス業',
+  'その他': '卸売業、小売・サービス業以外',
+};
+
+// 判定基準の業種区分見出し（左3列＝総資産価額側、右3列＝取引金額側）。
+// 選んだ結果がすぐ下のマトリクスに現れるので、画面上端のツールバーより
+// ここで選べた方が分かりやすい。左右は同じ gyoshu を指すため、
+// どちらを押しても対応する2セルが同時に強調される。
+// 従業員数の列は様式上、業種区分の区別がないので対象外。
+const GYO_HEADERS: readonly { gyo: Gyo; text: string; fontSize?: number; left: number; width: number }[] = [
+  { gyo: '卸売業', text: '卸　売　業', left: 11, width: 9.47 },
+  { gyo: '小売・サービス業', text: '小売・サービス業', left: 20.47, width: 11.36 },
+  { gyo: 'その他', text: '卸売業、小売・\nサービス業以外', fontSize: 6.5, left: 31.83, width: 11.36 },
+  { gyo: '卸売業', text: '卸　売　業', left: 50.77, width: 11.36 },
+  { gyo: '小売・サービス業', text: '小売・サービス業', left: 62.13, width: 11.36 },
+  { gyo: 'その他', text: '卸売業、小売・\nサービス業以外', fontSize: 6.5, left: 73.49, width: 9.47 },
+];
+
+/** 業種区分の見出しをクリックで選べるセルとして生成する */
+function gyoHeaderCells(): GridCell[] {
+  return GYO_HEADERS.map((h) => ({
+    kind: 'label' as const,
+    text: h.text,
+    fontSize: h.fontSize,
+    selectValue: { field: 'gyoshu', value: h.gyo },
+    ariaLabel: `業種区分：${GYO_LABEL[h.gyo]}を選択`,
+    highlightWhen: (g: G) => g('gyoshu') === h.gyo,
+    highlightScreenOnly: true,  // 様式にない着色なので印刷物には出さない
+    top: 58.63,
+    left: h.left,
+    width: h.width,
+    height: 2.97,
+  }));
+}
+
 function matrixCells(): GridCell[] {
   const out: GridCell[] = [];
   MATRIX_COLS.forEach((col) => {
@@ -245,12 +283,8 @@ function buildCells(judge: ReturnType<typeof calcShareholderJudgment>, forceSmal
     { kind: 'label', text: '総 資 産 価 額 （ 帳 簿 価 額 ）', top: 57.01, left: 11, width: 32.19, height: 1.62 },
     { kind: 'label', text: '従 業 員 数', top: 57.01, left: 43.19, width: 7.58, height: 4.59 },
     { kind: 'label', text: '取　　引　　金　　額', top: 57.01, left: 50.77, width: 32.19, height: 1.62 },
-    { kind: 'label', text: '卸　売　業', top: 58.63, left: 11, width: 9.47, height: 2.97 },
-    { kind: 'label', text: '小売・サービス業', top: 58.63, left: 20.47, width: 11.36, height: 2.97 },
-    { kind: 'label', text: '卸売業、小売・\nサービス業以外', fontSize: 6.5, top: 58.63, left: 31.83, width: 11.36, height: 2.97 },
-    { kind: 'label', text: '卸　売　業', top: 58.63, left: 50.77, width: 11.36, height: 2.97 },
-    { kind: 'label', text: '小売・サービス業', top: 58.63, left: 62.13, width: 11.36, height: 2.97 },
-    { kind: 'label', text: '卸売業、小売・\nサービス業以外', fontSize: 6.5, top: 58.63, left: 73.49, width: 9.47, height: 2.97 },
+    // 業種区分の見出し（クリックで選択）
+    ...gyoHeaderCells(),
     { kind: 'label', text: '会社規模とＬの\n割合（中会社）\nの区分', fontSize: 6.5, top: 54.39, left: 82.96, width: 7.57, height: 7.21 },
     // マトリクス本体（データ駆動）
     ...matrixCells(),
