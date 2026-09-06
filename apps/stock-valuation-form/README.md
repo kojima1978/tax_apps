@@ -24,7 +24,7 @@
 - セッションストレージによる入力データの一時保存
 - 数値フィールドの自動カンマ区切り表示
 - 印刷対応（`Ctrl+P`でA4印刷可能）
-- 行のドラッグ＆ドロップ並び替え（@dnd-kit）
+- 行のドラッグ＆ドロップ並び替え（HTML5 ネイティブ D&D）
 
 ## 技術スタック
 
@@ -34,7 +34,7 @@
 | 言語 | TypeScript 5 |
 | スタイリング | Tailwind CSS v4 + カスタムCSS（政府書式） |
 | フォント | Noto Sans JP（Google Fonts） |
-| ドラッグ＆ドロップ | @dnd-kit |
+| ドラッグ＆ドロップ | HTML5 ネイティブ（draggable 属性） |
 | 本番サーバー | nginx 1.27 (Alpine) |
 | コンテナ | Docker (multi-stage build) |
 

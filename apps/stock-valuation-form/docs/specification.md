@@ -20,7 +20,7 @@
 | 言語 | TypeScript | 5.9.0 |
 | スタイリング | Tailwind CSS v4 + カスタムCSS | 4.0.0 |
 | フォント | Noto Sans JP（Google Fonts） | — |
-| ドラッグ＆ドロップ | @dnd-kit (core + sortable) | 6.3.1 / 10.0.0 |
+| ドラッグ＆ドロップ | HTML5 ネイティブ（draggable 属性） | — |
 | 本番サーバー | nginx (Alpine) | 1.27 |
 | コンテナ | Docker (multi-stage build) | — |
 
@@ -92,7 +92,7 @@
 | 数値カンマ区切り | NumberField コンポーネントで自動フォーマット |
 | 自動計算 | Computed コンポーネントで算出結果をリアルタイム表示 |
 | 丸付き数字 | CircledNumber コンポーネントで ①②③ 等を表示 |
-| 行の並べ替え | @dnd-kit によるドラッグ＆ドロップ |
+| 行の並べ替え | GridForm のドラッグハンドル（HTML5 ネイティブ D&D） |
 | 行の削除 | 行番号をダブルクリックで削除 |
 | プリセット入力 | EditableTable のプリセットボタンで定型データを一括入力 |
 | 印刷対応 | `Ctrl+P` でA4印刷可能（`.no-print` で操作UIを非表示化） |
