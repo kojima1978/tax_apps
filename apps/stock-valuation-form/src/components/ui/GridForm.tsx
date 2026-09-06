@@ -408,6 +408,8 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
   const dragIdRef = useRef<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: NonNullable<GridCell['contextMenu']> } | null>(null);
+  // プルダウンを開いている間の欄（フォーカスは一覧が開く直前に来るので、開いた時点では全文・左詰めになっている）
+  const [openSelectId, setOpenSelectId] = useState<string | null>(null);
   // Enter で次の入力欄（DOM順＝右→下）へフォーカス移動
   const onEnterNext = useCallback((e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== 'Enter') return;
@@ -523,6 +525,10 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
         const readOnly = c.readOnly || (c.readOnlyWhen?.(g) ?? false);
         // 自動で選ばれた区分と手で固定した区分を枠の色で見分ける（様式にない表示なので画面のみ）
         const pinned = (c.pinnedWhen?.(g) ?? false) && !printRendering;
+        // 選択中の項目をコードだけに縮める（compactSelectedOption）のは閉じている間だけ。
+        // 一覧を開いたら全文に戻し、長い業種目名などを読めるように左詰めにする。
+        const selectId = `${inputPrefix}-${c.field}-${i}`;
+        const selectExpanded = openSelectId === selectId;
         const selectable = c.selectValue;
         // クリックで選ぶセルも「計算に必須」を名乗れる。未選択のあいだだけ薄い水色にして、
         // 必須未入力カウンタ（RequiredFieldNavigator）が data-value から空判定できるようにする
@@ -782,10 +788,10 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                 {g(c.field)}
               </div>
             ) : c.kind === 'input' && c.field && c.options
-              ? printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 6, backgroundColor: readOnly ? '#f7f7f7' : 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{g(c.field)}</div> : <select id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(c.options, g(c.field))}` : ''}`} aria-required={c.calculationRequired || undefined} title={selectedOptionLabel(c.options, g(c.field)) || undefined} value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} disabled={readOnly} tabIndex={readOnly ? -1 : undefined} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'left', fontSize: 6, color: 'inherit', opacity: 1, WebkitTextFillColor: 'inherit', backgroundColor: readOnly ? '#f7f7f7' : c.calculationRequired ? CALCULATION_REQUIRED_BG : 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: readOnly ? 'none' : SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: readOnly ? 'default' : 'pointer' }}>
+              ? printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 6, backgroundColor: readOnly ? '#f7f7f7' : 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{g(c.field)}</div> : <select id={selectId} name={`${inputPrefix}.${c.field}`} aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(c.options, g(c.field))}` : ''}`} aria-required={c.calculationRequired || undefined} title={selectedOptionLabel(c.options, g(c.field)) || undefined} value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} onFocus={() => setOpenSelectId(selectId)} onBlur={() => setOpenSelectId((prev) => (prev === selectId ? null : prev))} disabled={readOnly} tabIndex={readOnly ? -1 : undefined} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: selectExpanded ? 'left' : (c.align ?? 'left'), fontSize: 6, color: 'inherit', opacity: 1, WebkitTextFillColor: 'inherit', backgroundColor: readOnly ? '#f7f7f7' : c.calculationRequired ? CALCULATION_REQUIRED_BG : 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: readOnly ? 'none' : SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: readOnly ? 'default' : 'pointer' }}>
                   {c.options.map((option) => {
                     const o = typeof option === 'string' ? { value: option, label: option } : option;
-                    const label = c.compactSelectedOption && o.value !== '' && o.value === g(c.field!) ? o.value : o.label;
+                    const label = c.compactSelectedOption && !selectExpanded && o.value !== '' && o.value === g(c.field!) ? o.value : o.label;
                     return <option key={o.value || 'blank'} value={o.value}>{label}</option>;
                   })}
                 </select>
