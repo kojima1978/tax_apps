@@ -1,4 +1,6 @@
+import { Fragment } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
+import { SheetOps } from '@/components/ui/SheetOps';
 import { companyFloatBox } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 import { getValuationPurpose, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
@@ -405,6 +407,8 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   const writeRows = (prefix: 'a' | 'l', rows: string[][]) =>
     rows.forEach((vals, i) => [1, 2, 3, 4].forEach((c, ci) => updateField(T, `${prefix}_${i + 1}_${c}`, vals[ci] ?? '')));
 
+  // 続紙の追加／削除は用紙と用紙のあいだの操作帯（SheetOps）に置く。
+  // 本表の明細末尾を埋めて下へスクロールした先に追加が現れ、削除は消す対象の続紙の直上に来る。
   const canAddPage = pageCount < MAX_PAGES;
   const canRemovePage = pageCount > 1;
   const addPage = () => { if (canAddPage) u('_pages', String(pageCount + 1)); };
@@ -489,21 +493,8 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   const selValid = (selP === 'a' || selP === 'l') && Number.isInteger(selR) && selR >= 1 && selR <= totalRows;
   const selList = selP === 'a' ? 'a' : 'l';
 
-  const btnStyle = (enabled: boolean) => ({
-    fontSize: 11, lineHeight: 1.4, padding: '0 6px', border: '1px solid #888', borderRadius: 3,
-    background: '#fff', cursor: enabled ? 'pointer' : 'not-allowed',
-    color: enabled ? '#111' : '#aaa', borderColor: enabled ? '#888' : '#ddd',
-  } as const);
   // 帯オーバーレイ用の小さめボタン（枠線は様式の罫線と同じ 0.5px）
   const opBtnStyle = { fontSize: 9, padding: '0 3px', cursor: 'pointer', border: '0.5px solid #000', borderRadius: 0, background: '#fff', lineHeight: 1.3, boxSizing: 'border-box' } as const;
-  // 続紙の追加/削除はタイトルバーに表示（続紙は1枚まで）
-  const pageToolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap' }}>
-      <span>続紙</span>
-      <button type="button" onClick={addPage} disabled={!canAddPage} title={canAddPage ? `続紙を追加（明細${CONT_ROWS}行分）` : '続紙は1枚までです'} style={btnStyle(canAddPage)}>追加</button>
-      <button type="button" onClick={removePage} disabled={!canRemovePage} title={canRemovePage ? '続紙を削除' : '続紙はありません'} style={btnStyle(canRemovePage)}>削除</button>
-    </span>
-  );
   const specialRuleNotice = purpose === 'inheritance' ? null : (
     <span className="no-print" role="note" style={{ marginLeft: 6, padding: '1px 5px', border: '1px solid #d97706', background: '#fffbeb', color: '#78350f', fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap' }}>
       所基通59－6(4)／法基通9－1－14(3)：法人税額等相当額を控除しない
@@ -531,38 +522,52 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   return (
     <>
       {Array.from({ length: pageCount }).map((_, p) => (
-        <div className="gov-page gov-page--exact" key={p} style={p < pageCount - 1 ? { marginBottom: '8mm' } : undefined}>
-          {p === 0 ? (
-            <GridForm
-              cells={hintedMainCells}
-              snapTol={0.25}
-              g={g}
-              u={u}
-              formId={T}
-              width="100%"
-              title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書"
-              formCode="NTA0VNA220010010"
-              headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33, onJump })}
-              toolbar={<>{pageToolbar}{specialRuleNotice}</>}
-              overlay={rowOpsOverlay}
-              onJump={jump}
-            />
-          ) : (
-            <GridForm
-              cells={continuationPageCells(p)}
-              snapTol={0.25}
-              g={g}
-              u={u}
-              formId={T}
-              width="100%"
-              title={`第５表（続）　１株当たりの純資産価額（相続税評価額）の計算明細書（${p + 1}／${pageCount}ページ）`}
-              formCode="NTA0VNA220020010"
-              headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33, onJump })}
-              overlay={rowOpsOverlay}
+        <Fragment key={p}>
+          {p > 0 && (
+            <SheetOps
+              label={`続紙${p}（明細${pageStartRow(p)}〜${totalRowsOf(p + 1)}行目）`}
+              action={p === pageCount - 1 ? { text: '× 続紙を削除', title: '続紙を削除', onClick: removePage } : undefined}
             />
           )}
-        </div>
+          <div className="gov-page gov-page--exact">
+            {p === 0 ? (
+              <GridForm
+                cells={hintedMainCells}
+                snapTol={0.25}
+                g={g}
+                u={u}
+                formId={T}
+                width="100%"
+                title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書"
+                formCode="NTA0VNA220010010"
+                headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33, onJump })}
+                toolbar={specialRuleNotice}
+                overlay={rowOpsOverlay}
+                onJump={jump}
+              />
+            ) : (
+              <GridForm
+                cells={continuationPageCells(p)}
+                snapTol={0.25}
+                g={g}
+                u={u}
+                formId={T}
+                width="100%"
+                title={`第５表（続）　１株当たりの純資産価額（相続税評価額）の計算明細書（${p + 1}／${pageCount}ページ）`}
+                formCode="NTA0VNA220020010"
+                headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33, onJump })}
+                overlay={rowOpsOverlay}
+              />
+            )}
+          </div>
+        </Fragment>
       ))}
+      {canAddPage && (
+        <SheetOps
+          label={`明細が${MAIN_ROWS}行を超えるときは続紙に記入します`}
+          action={{ text: `＋ 続紙を追加（明細${CONT_ROWS}行分）`, title: '続紙を追加', onClick: addPage }}
+        />
+      )}
     </>
   );
 }

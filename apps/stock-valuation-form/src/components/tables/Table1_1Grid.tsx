@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useMemo } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
+import { SheetOps } from '@/components/ui/SheetOps';
 import { companyFloatBox } from './companyFloatHeader';
 import type { TableProps } from '@/types/form';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
@@ -723,11 +724,6 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
     for (let r = start; r <= totalSh; r++) for (const c of SH_FIELDS) updateField(T, `sh_${r}_${c}`, '');
     updateField(T, '_shpages', String(shPageCount - 1));
   };
-  const btnStyle = (enabled: boolean) => ({
-    fontSize: 11, lineHeight: 1.4, padding: '0 6px', border: '1px solid #888', borderRadius: 3,
-    background: '#fff', cursor: enabled ? 'pointer' : 'not-allowed',
-    color: enabled ? '#111' : '#aaa', borderColor: enabled ? '#888' : '#ddd',
-  } as const);
 
   // 氏名（被相続人又は受贈者）欄＝本表の外に浮く独立枠（実様式どおり右寄せ・左側は開放）。
   // 実寸モードでは headerExtraBox が位置と大きさを決める（枠は親いっぱいに広げる＝main.css）。
@@ -758,22 +754,20 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
       {Array.from({ length: shPageCount }).map((_, i) => (
         <Fragment key={i}>
           {/* 削除ボタンは消す対象である続紙のすぐ上に置く（続紙は末尾から1枚ずつ外す） */}
-          <div className="sheet-ops no-print">
-            <span>続紙{i + 1}（株主{SH_ROWS + i * CONT_SH + 1}〜{SH_ROWS + (i + 1) * CONT_SH}名）</span>
-            {i === shPageCount - 1 && (
-              <button type="button" onClick={removeShPage} title="続紙を削除" style={btnStyle(true)}>× 続紙を削除</button>
-            )}
-          </div>
+          <SheetOps
+            label={`続紙${i + 1}（株主${SH_ROWS + i * CONT_SH + 1}〜${SH_ROWS + (i + 1) * CONT_SH}名）`}
+            action={i === shPageCount - 1 ? { text: '× 続紙を削除', title: '続紙を削除', onClick: removeShPage } : undefined}
+          />
           <div className="gov-page gov-page--exact">
             <GridForm cells={continuationPageCells(i + 1)} g={g} u={u} formId={T} width="100%" title={`第１表の１（続）　評価上の株主の判定及び会社規模の判定の明細書（続紙${i + 1}）`} formCode="NTA0VNA170020010" headerExtra={companyFloatBox((f) => g(f === 'company' ? 'f12' : f), (f, v) => u(f === 'company' ? 'f12' : f, v), `${T}-cont${i + 1}`, { widthPct: 46.6, aspect: 8.9, labelFrac: 0.3, onJump })} />
           </div>
         </Fragment>
       ))}
       {canAdd && (
-        <div className="sheet-ops no-print">
-          <span>株主が{SH_ROWS + 1}名以上のときは続紙に記入します</span>
-          <button type="button" onClick={addShPage} title="続紙を追加" style={btnStyle(true)}>＋ 続紙を追加（株主{CONT_SH}名分）</button>
-        </div>
+        <SheetOps
+          label={`株主が${SH_ROWS + 1}名以上のときは続紙に記入します`}
+          action={{ text: `＋ 続紙を追加（株主${CONT_SH}名分）`, title: '続紙を追加', onClick: addShPage }}
+        />
       )}
     </>
   );

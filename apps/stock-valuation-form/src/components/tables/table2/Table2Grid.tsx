@@ -387,12 +387,6 @@ export function Table2Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
 
-  const toolbar = (
-    <span className="no-print" style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
-      判定結果：{RESULT_NAMES[c.result] ?? RESULT_NAMES[0]!}
-    </span>
-  );
-
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(c), g, u, T, onJump);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第２表　特定の評価会社の判定の明細書" formCode="NTA0VNA190010010" headerExtra={headerExtra} toolbar={toolbar} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第２表　特定の評価会社の判定の明細書" formCode="NTA0VNA190010010" headerExtra={headerExtra} />;
 }
