@@ -1,5 +1,5 @@
 import { MEDICAL_NO_DIVIDEND, MEDICAL_NO_SECOND_INDUSTRY, hs, hv, hyen, rv, ryen } from '@/lib/formulaHint';
-import type { calcTable4 } from './Table4Grid';
+import type { calcTable4 } from './calcTable4';
 
 // 第4表の1・第4表の2の自動計算欄に出すツールチップ。
 // calcTable4 が「実際に採用した値」と「なぜその分岐になったか」を文にする。

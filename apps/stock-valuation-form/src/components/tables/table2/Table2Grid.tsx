@@ -1,5 +1,5 @@
 ﻿import { GridForm, type GridCell } from '@/components/ui/GridForm';
-import { calcTable4 } from '../table4/Table4Grid';
+import { calcTable4 } from '../table4/calcTable4';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';

@@ -1,6 +1,6 @@
 import { calcCompanySize } from '@/components/tables/table1-2/Table1_2Grid';
 import { calcTable2 } from '@/components/tables/table2/Table2Grid';
-import { calcTable4 } from '@/components/tables/table4/Table4Grid';
+import { calcTable4 } from '@/components/tables/table4/calcTable4';
 import { calcTable5 } from '@/components/tables/table5/Table5Grid';
 import { calcShareholderJudgment } from '@/components/tables/Table1_1Grid';
 import { forcesSmallCompany, getValuationPurpose } from '@/lib/valuationPurpose';

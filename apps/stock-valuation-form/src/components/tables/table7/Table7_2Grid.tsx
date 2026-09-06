@@ -1,5 +1,5 @@
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
-import { calcTable4 } from '../table4/Table4Grid';
+import { calcTable4 } from '../table4/calcTable4';
 import { calcTable7 } from './Table7Grid';
 import { table7_2Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';

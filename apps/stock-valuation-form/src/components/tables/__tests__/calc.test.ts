@@ -6,7 +6,7 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcTable2 } from '../table2/Table2Grid';
 import { calcTable8 } from '../table8/Table8Grid';
 import { calcTable7 } from '../table7/Table7Grid';
-import { calcTable4 } from '../table4/Table4Grid';
+import { calcTable4 } from '../table4/calcTable4';
 import { calcClientSummary } from '@/lib/clientSummary';
 
 // 各表のフィールド値を与えると getField を返すモックビルダー（(table, field) 形式）

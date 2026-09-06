@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
-import { calcTable4 } from './Table4Grid';
+import { calcTable4 } from './calcTable4';
 import { table4_2Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
