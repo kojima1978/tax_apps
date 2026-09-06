@@ -465,6 +465,10 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
         const highlighted = (c.highlightWhen?.(g) ?? false) && !(c.highlightScreenOnly && printRendering);
         const readOnly = c.readOnly || (c.readOnlyWhen?.(g) ?? false);
         const selectable = c.selectValue;
+        // クリックで選ぶセルも「計算に必須」を名乗れる。未選択のあいだだけ薄い水色にして、
+        // 必須未入力カウンタ（RequiredFieldNavigator）が data-value から空判定できるようにする
+        const selectRequired = selectable !== undefined && c.calculationRequired === true;
+        const selectValueNow = selectable ? g(selectable.field) : '';
         const toggleField = c.toggleField;
         const dragId = c.dragId;
         const isDragHandle = dragId !== undefined;
@@ -487,6 +491,9 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             aria-label={interactive ? c.ariaLabel ?? (isDragHandle ? `${text}をドラッグして並び替え` : `${text}を選択`) : c.ariaLabel}
             aria-checked={toggleField ? g(toggleField) === '1' : undefined}
             aria-pressed={selectable ? g(selectable.field) === selectable.value : undefined}
+            aria-required={selectRequired || undefined}
+            data-field={selectRequired ? `${inputPrefix}.${selectable!.field}` : undefined}
+            data-value={selectRequired ? selectValueNow : undefined}
             draggable={isDragHandle}
             onClick={selectable || toggleField ? selectCell : undefined}
             onKeyDown={selectable || toggleField ? (event) => {
@@ -539,7 +546,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             fontSize,
             fontWeight: c.bold || highlighted ? 700 : 400,
             color: isDragHandle ? '#334155' : undefined,
-            background: dragOver ? '#dbeafe' : highlighted ? '#fff3b0' : isDragHandle ? '#f8fafc' : undefined,
+            background: dragOver ? '#dbeafe' : highlighted ? '#fff3b0' : isDragHandle ? '#f8fafc' : selectRequired && selectValueNow === '' && !printRendering ? CALCULATION_REQUIRED_BG : undefined,
             boxShadow: dragOver ? 'inset 0 0 0 1.5px #2563eb' : highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
             cursor: isDragHandle ? 'grab' : interactive ? 'pointer' : undefined,
             userSelect: interactive ? 'none' : undefined,

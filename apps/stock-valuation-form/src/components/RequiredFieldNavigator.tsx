@@ -1,16 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
 import { focusAndFlash } from '@/lib/focusField';
 
-type RequiredField = HTMLInputElement | HTMLSelectElement;
+type RequiredField = HTMLElement;
+
+/** 入力欄以外（クリックで選ぶセルなど）は data-value に現在値を持たせている */
+function fieldValue(el: RequiredField): string {
+  if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) return el.value;
+  return el.dataset.value ?? '';
+}
 
 /** 表示中の表にある「計算に必須の入力欄」（薄い水色＝aria-required）を拾う */
 function requiredFields(): RequiredField[] {
-  return [...document.querySelectorAll<RequiredField>('.app-main [aria-required="true"]')].filter(
-    (el) => !el.disabled && !(el instanceof HTMLInputElement && el.readOnly),
-  );
+  const seen = new Set<string>();
+  return [...document.querySelectorAll<RequiredField>('.app-main [aria-required="true"]')].filter((el) => {
+    if (el instanceof HTMLInputElement && (el.disabled || el.readOnly)) return false;
+    if (el instanceof HTMLSelectElement && el.disabled) return false;
+    // 同じ項目が複数のセルに出ることがある（業種区分など）ので1件にまとめる
+    const key = el.getAttribute('name') ?? el.dataset.field;
+    if (key === undefined || key === null) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
-const isEmpty = (el: RequiredField) => el.value.trim() === '';
+const isEmpty = (el: RequiredField) => fieldValue(el).trim() === '';
 
 interface RequiredFieldNavigatorProps {
   /** 再集計のきっかけ（表の切替・入力値の変化） */

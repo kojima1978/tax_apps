@@ -109,7 +109,7 @@ const FLAG_W = 1.9;
 /** マトリクスの「１」記入枠の判定条件（コード→条件。コンポーネントのg()から参照） */
 const MATRIX_HL: Record<string, (g: G) => boolean> = {};
 
-/** 業種区分の選択肢のフルラベル（ツールバーのセレクトと同じ gyoshu を読み書きする） */
+/** 業種区分の選択肢のフルラベル（読み上げ用。セル本文は様式どおり2行に折り返している） */
 const GYO_LABEL: Record<Gyo, string> = {
   '卸売業': '卸売業',
   '小売・サービス業': '小売・サービス業',
@@ -117,8 +117,7 @@ const GYO_LABEL: Record<Gyo, string> = {
 };
 
 // 判定基準の業種区分見出し（左3列＝総資産価額側、右3列＝取引金額側）。
-// 選んだ結果がすぐ下のマトリクスに現れるので、画面上端のツールバーより
-// ここで選べた方が分かりやすい。左右は同じ gyoshu を指すため、
+// 選んだ結果がすぐ下のマトリクスに現れるので、ここが唯一の選択場所。左右は同じ gyoshu を指すため、
 // どちらを押しても対応する2セルが同時に強調される。
 // 従業員数の列は様式上、業種区分の区別がないので対象外。
 const GYO_HEADERS: readonly { gyo: Gyo; text: string; fontSize?: number; left: number; width: number }[] = [
@@ -137,6 +136,7 @@ function gyoHeaderCells(): GridCell[] {
     text: h.text,
     fontSize: h.fontSize,
     selectValue: { field: 'gyoshu', value: h.gyo },
+    calculationRequired: true,  // 未選択のあいだ薄い水色。必須未入力カウンタもここを拾う
     ariaLabel: `業種区分：${GYO_LABEL[h.gyo]}を選択`,
     highlightWhen: (g: G) => g('gyoshu') === h.gyo,
     highlightScreenOnly: true,  // 様式にない着色なので印刷物には出さない
@@ -368,18 +368,6 @@ export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
   const u = (f: string, v: string) => updateField(T, f, v);
-  const needsIndustryForSizeJudgment = raw('gyoshu') === '' && (raw('f22') !== '' || raw('f24') !== '');
-  const toolbar = (
-    <label className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap', color: '#000' }}>
-      業種区分：
-      <select id="table1_2-gyoshu-toolbar" name="table1_2.gyoshu" aria-required="true" aria-invalid={needsIndustryForSizeJudgment || undefined} value={g('gyoshu')} onChange={(e) => u('gyoshu', e.target.value)} style={{ fontSize: 11, padding: '1px 2px', background: '#eaf6ff' }}>
-        <option value="">選択してください</option>
-        <option value="卸売業">卸売業</option>
-        <option value="小売・サービス業">小売・サービス業</option>
-        <option value="その他">卸売業、小売・サービス業以外</option>
-      </select>
-    </label>
-  );
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(judge, specialSmallCompany), g, u, T, onJump);
   // 「2.」欄が省略となる場合は画面上にその旨を重ね表示（印刷には出さない。様式どおり空欄のまま）
   // 座標はグリッド基準（セル外接範囲 top14.7〜94.53 / left9.11〜90.53 を0〜100%に正規化）:
@@ -399,5 +387,5 @@ export function Table1_2Grid({ getField, updateField, onJump }: TableProps) {
     </div>
   ) : null;
   const overlay = shosuOverlay || specialSmallCompanyOverlay ? <>{shosuOverlay}{specialSmallCompanyOverlay}</> : null;
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} toolbar={toolbar} overlay={overlay} enterLoop={ENTER_LOOP} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第１表の２　評価上の株主の判定及び会社規模の判定の明細書（続）" formCode="NTA0VNA180010010" headerExtra={headerExtra} overlay={overlay} enterLoop={ENTER_LOOP} />;
 }
