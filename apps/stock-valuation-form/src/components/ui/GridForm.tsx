@@ -42,11 +42,13 @@ export interface GridCell {
   calculationRequired?: boolean;      // 計算に必須の入力欄（薄い水色＋aria-required）
   jumpTo?: { tab: string; field: string; hint?: string }; // 自動転記欄クリックで入力元へ移動
   formulaHint?: string;               // 自動計算欄の算式（実際に使った値で組み立てる。ホバーで表示）
+  hoverHint?: string;                 // ホバーで出す補足（算式以外。クリックで選ぶセルの操作説明など）
   contextMenu?: { label: string; copyFrom: string; copyTo: string }[]; // 右クリックメニュー（copyFromの値をcopyToへコピー）
   options?: (string | { value: string; label: string })[]; // 選択式入力の候補（空文字は未選択。value=保存値/label=表示。文字列は両者同一）
   compactSelectedOption?: boolean;    // 選択中の項目はvalue（コード）のみ表示（狭いコード記入枠用。リストを開くと全文表示）
   highlightWhen?: (g: (field: string) => string) => boolean; // 自動判定時の強調条件
   highlightScreenOnly?: boolean;      // 強調を画面だけにする（様式にない着色を印刷物に出さない）
+  pinnedWhen?: (g: (field: string) => string) => boolean; // 手で固定した選択を青枠で示す（自動選択と見分ける。画面のみ）
   selectValue?: { field: string; value: string }; // セルをクリックして指定値を選択
   toggleField?: string; // セルをクリックして指定フィールドをオン・オフ
   diagonal?: 'tlbr' | 'bltr'; // 斜線（入力不可セル: tlbr=＼ 左上→右下, bltr=／ 左下→右上）
@@ -209,7 +211,7 @@ function snapLines(values: number[], tol = 0.7): number[] {
 
 /** ホバーで出す説明。算式（自動計算欄）と転記元の案内（自動転記欄）を両方持つ場合は2行にする */
 function cellHint(c: GridCell): string | undefined {
-  return [c.formulaHint, c.jumpTo?.hint].filter(Boolean).join('\n') || undefined;
+  return [c.formulaHint, c.jumpTo?.hint, c.hoverHint].filter(Boolean).join('\n') || undefined;
 }
 
 /** 入力できる欄か（自動計算＝readOnly や無効化された欄はカーソル移動でスキップする） */
@@ -519,6 +521,8 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
         // 画面限定の強調（業種区分の選択など）は印刷時には付けない
         const highlighted = (c.highlightWhen?.(g) ?? false) && !(c.highlightScreenOnly && printRendering);
         const readOnly = c.readOnly || (c.readOnlyWhen?.(g) ?? false);
+        // 自動で選ばれた区分と手で固定した区分を枠の色で見分ける（様式にない表示なので画面のみ）
+        const pinned = (c.pinnedWhen?.(g) ?? false) && !printRendering;
         const selectable = c.selectValue;
         // クリックで選ぶセルも「計算に必須」を名乗れる。未選択のあいだだけ薄い水色にして、
         // 必須未入力カウンタ（RequiredFieldNavigator）が data-value から空判定できるようにする
@@ -541,6 +545,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
           <div
             key={i}
             className="gf-cell"
+            title={cellHint(c)}
             role={isDragHandle ? 'button' : toggleField ? 'checkbox' : selectable ? 'button' : c.semanticRole}
             tabIndex={selectable || toggleField ? 0 : undefined}
             aria-label={interactive ? c.ariaLabel ?? (isDragHandle ? `${text}をドラッグして並び替え` : `${text}を選択`) : c.ariaLabel}
@@ -602,7 +607,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             fontWeight: c.bold || highlighted ? 700 : 400,
             color: isDragHandle ? '#334155' : undefined,
             background: dragOver ? '#dbeafe' : highlighted ? '#fff3b0' : isDragHandle ? '#f8fafc' : selectRequired && selectValueNow === '' && !printRendering ? CALCULATION_REQUIRED_BG : undefined,
-            boxShadow: dragOver ? 'inset 0 0 0 1.5px #2563eb' : highlighted ? 'inset 0 0 0 1.5px #d97706' : undefined,
+            boxShadow: dragOver ? 'inset 0 0 0 1.5px #2563eb' : highlighted ? `inset 0 0 0 1.5px ${pinned ? '#2563eb' : '#d97706'}` : undefined,
             cursor: isDragHandle ? 'grab' : interactive ? 'pointer' : undefined,
             userSelect: interactive ? 'none' : undefined,
             touchAction: isDragHandle ? 'none' : undefined,

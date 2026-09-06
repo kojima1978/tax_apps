@@ -4,6 +4,7 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { calcShareholderJudgment } from '../Table1_1Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
+import { methodPickCell } from '../shared';
 import { table3Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
 import type { TableId, TableProps } from '@/types/form';
@@ -345,7 +346,7 @@ export function calcTable3(getField: TableProps['getField']) {
   const v23 = v22 !== null && v17 !== null ? fl((v22 * v17) / 5) : null; // ㉓=㉒÷10%×⑰÷50円
   const v24 = v23 === null ? null : gensoku !== null && v23 > gensoku ? gensoku : v23; // ㉔
 
-  // 適用方式（自動=第1表の1・第1表の2の株主判定に連動、toolbarで手動切替可）
+  // 適用方式（自動=第1表の1・第1表の2の株主判定に連動、様式の区分見出しをクリックして手動固定も可）
   // 医療法人（持分あり）は配当がないため配当還元方式を適用しない（常に原則的評価方式）
   const medical = getField('table1_1', 'medical') === '1';
   const mode = raw('hoshiki');
@@ -387,7 +388,7 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
   const {
     v1, v2, v3, v4, v5, v6, size, lRate, iSmall, v8, v12,
     linkedTreasuryShares, v16, v17disp, ia, ro, v21, v22, v22raw, v22Floored,
-    v23, v24, v27, base28, v30, v31, v32, finalPrice,
+    v23, v24, v27, base28, v30, v31, v32, finalPrice, medical, useHaito,
   } = calc;
 
 
@@ -463,18 +464,18 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
 
-  const toolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', fontSize: 11, whiteSpace: 'nowrap' }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        適用方式：
-        <select id="table3-hoshiki-toolbar" name="table3.hoshiki" value={raw('hoshiki')} onChange={(e) => u('hoshiki', e.target.value)} style={{ fontSize: 11, padding: '1px 2px' }}>
-          <option value="">自動（第1表の判定に連動）</option>
-          <option value="gensoku">原則的評価方式</option>
-          <option value="haito">配当還元方式</option>
-        </select>
-      </label>
-    </span>
-  );
+  // 適用方式は様式の区分見出しそのもの（左端の「１．…」「２．…」）をクリックして選ぶ。
+  // 上端のツールバーに置くと、どちらの区分の話なのかが選択肢の文字だけに頼ることになり、
+  // 表のどこが切り替わったのかも見えない。見出しで選べば対象の区分がそのまま当たり判定になる。
+  const methodPick = (value: 'gensoku' | 'haito', name: string) => methodPickCell({
+    field: 'hoshiki', value, name,
+    pinned: raw('hoshiki'),
+    applied: useHaito !== null && (value === 'haito') === useHaito,
+    // 医療法人（持分あり）は配当がないため配当還元方式を適用しない
+    blockedReason: medical && value === 'haito'
+      ? '医療法人（持分あり）は配当がないため、配当還元方式は適用しません'
+      : undefined,
+  });
   // ㉒が2円50銭未満で下限適用された場合、注記欄に「計算値→2円50銭」の比較を表示し、㉒欄とともに強調する
   const noteText = v22Floored && v22raw !== null
     ? `計算値 ${yenPart(v22raw)}円${senPart(v22raw)}銭\n→ 下限の２円50銭を適用`
@@ -486,10 +487,16 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
     if (cell.field === '㉒円' || cell.field === '㉒銭') {
       return { ...cell, highlightWhen: () => v22Floored };
     }
+    if (cell.kind === 'label' && cell.text === '１．原則的評価方式による価額') {
+      return { ...cell, ...methodPick('gensoku', '原則的評価方式') };
+    }
+    if (cell.kind === 'label' && cell.text === '２．配当還元方式による価額') {
+      return { ...cell, ...methodPick('haito', '配当還元方式') };
+    }
     return cell;
   });
   // 自動計算欄には「実際に使った値」をホバーで出す（会社規模・適用方式の分岐もここで伝える）
   const hintedCells = withFormulaHints(cells, table3Hints(calc, raw, getField));
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(hintedCells, g, u, T, onJump);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA200010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA200010010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

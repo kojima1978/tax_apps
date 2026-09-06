@@ -35,8 +35,8 @@ export function table3Hints(c: Calc, raw: Raw, getField: TableProps['getField'])
   const expTax = senPair(raw, 'exp_tax', 'exp_tax_sen');
   const method = c.medical
     ? '医療法人（持分あり）は配当還元方式を適用しないため、原則的評価方式'
-    : raw('hoshiki') === 'haito' ? '配当還元方式（ツールバーで選択中）'
-      : raw('hoshiki') === 'gensoku' ? '原則的評価方式（ツールバーで選択中）'
+    : raw('hoshiki') === 'haito' ? '配当還元方式（区分見出しで固定中）'
+      : raw('hoshiki') === 'gensoku' ? '原則的評価方式（区分見出しで固定中）'
         : c.useHaito === null ? '第１表の株主判定がまだ決まっていません'
           : c.useHaito ? '配当還元方式（第１表の株主判定に連動）' : '原則的評価方式（第１表の株主判定に連動）';
 

@@ -6,6 +6,7 @@ import { table6Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
 import { calcShareholderJudgment } from '../Table1_1Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
+import { methodPickCell } from '../shared';
 import type { TableId, TableProps } from '@/types/form';
 
 const T = 'table6' as const;
@@ -333,18 +334,16 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
 
-  const toolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', fontSize: 11, whiteSpace: 'nowrap' }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        適用方式：
-        <select id="table6-hoshiki-toolbar" name="table6.hoshiki" value={raw('hoshiki')} onChange={(e) => u('hoshiki', e.target.value)} style={{ fontSize: 11, padding: '1px 2px' }}>
-          <option value="">自動（第1表の判定に連動）</option>
-          <option value="junshisan">純資産価額方式等</option>
-          <option value="haito">配当還元方式</option>
-        </select>
-      </label>
-    </span>
-  );
+  // 適用方式は様式の区分見出しそのもの（左端の「１．…」「２．…」）をクリックして選ぶ（第3表と同じ）。
+  const methodPick = (value: 'junshisan' | 'haito', name: string) => methodPickCell({
+    field: 'hoshiki', value, name,
+    pinned: mode,
+    applied: useHaito !== null && (value === 'haito') === useHaito,
+    // 医療法人（持分あり）は配当がないため配当還元方式を適用しない
+    blockedReason: medical && value === 'haito'
+      ? '医療法人（持分あり）は配当がないため、配当還元方式は適用しません'
+      : undefined,
+  });
   const noteText = v24Floored && v24raw !== null
     ? `計算値 ${yenPart(v24raw)}円${senPart(v24raw)}銭\n→ 下限の２円50銭を適用`
     : 'この金額が２円50銭未満の場合は\n２円50銭とします。';
@@ -352,8 +351,8 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
   const baseLabel = KUBUN_ROWS[t2.result - 1]?.field ?? ''; // 判定結果1〜5が④〜⑧に対応
   const method = medical
     ? '医療法人（持分あり）は配当還元方式を適用しないため、純資産価額方式等'
-    : mode === 'haito' ? '配当還元方式（ツールバーで選択中）'
-      : mode === 'junshisan' ? '純資産価額方式等（ツールバーで選択中）'
+    : mode === 'haito' ? '配当還元方式（区分見出しで固定中）'
+      : mode === 'junshisan' ? '純資産価額方式等（区分見出しで固定中）'
         : useHaito === null ? '第１表の株主判定がまだ決まっていません'
           : useHaito ? '配当還元方式（第１表の株主判定に連動）' : '純資産価額方式等（第１表の株主判定に連動）';
   const hints = table6Hints({
@@ -371,8 +370,14 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
       return { ...cell, text: noteText, highlightWhen: () => v24Floored };
     }
     if (cell.field === '㉔円' || cell.field === '㉔銭') return { ...cell, highlightWhen: () => v24Floored };
+    if (cell.kind === 'label' && cell.text === '１．純資産価額方式等による価額') {
+      return { ...cell, ...methodPick('junshisan', '純資産価額方式等') };
+    }
+    if (cell.kind === 'label' && cell.text === '２．配当還元方式による価額') {
+      return { ...cell, ...methodPick('haito', '配当還元方式') };
+    }
     return cell;
   });
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(cells, g, u, T, onJump);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA230010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第６表　特定の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA230010010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }
