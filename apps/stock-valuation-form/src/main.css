@@ -23,6 +23,18 @@
   position: relative;
 }
 
+/* 「又は」で並ぶ2つの分数のうち、クリックで選べる側（第4表の1 Ⓒ₁・Ⓒ₂）。
+   採用中の着色はインライン指定なので、ホバー・フォーカスは outline で重ねる */
+.gf-alt-pick:hover {
+  outline: 1px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.gf-alt-pick:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
 /* 用紙と用紙のあいだに置く操作帯（第1表の1 の続紙 追加・削除など）。
    様式の中に重ねず、入力欄から下へスクロールした先に操作が現れるようにするための場所。
    .gov-page と同じ幅・同じ中心線に揃える。印刷では no-print で消える。 */

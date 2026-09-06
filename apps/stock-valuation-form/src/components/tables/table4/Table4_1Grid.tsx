@@ -224,33 +224,34 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  const modeSelect = (field: string, singleLabel: string) => (
-    <select id={`table4_1-${field}-toolbar`} name={`table4.${field}`} value={raw(field)} onChange={(e) => u(field, e.target.value)} style={{ fontSize: 11, padding: '1px 2px', background: '#eaf6ff' }}>
-      <option value="">低い方（自動）</option>
-      <option value="single">{singleLabel}</option>
-      <option value="avg">２年平均</option>
-    </select>
-  );
-  const toolbar = (
-    <span className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, whiteSpace: 'nowrap' }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 3 }}>Ⓒ1:{modeSelect('c1_mode', '単年（㋥÷⑤）')}</label>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 3 }}>Ⓒ2:{modeSelect('c2_mode', '単年（㋭÷⑤）')}</label>
-    </span>
-  );
+  // Ⓒ₁・Ⓒ₂ は「単年」と「２年平均」のどちらを採るかを納税者が選ぶ（既定は低い方の自動選択）。
+  // 選ぶ場所は様式のその式そのもの＝左の分数が単年、右の分数が２年平均。
+  // 同じ側をもう一度押すと自動（低い方）に戻る。
+  const pinnedSide = (field: string): 'left' | 'right' | undefined =>
+    raw(field) === 'single' ? 'left' : raw(field) === 'avg' ? 'right' : undefined;
+  const selectSide = (field: string) => (side: 'left' | 'right') => {
+    const next = side === 'left' ? 'single' : 'avg';
+    u(field, raw(field) === next ? '' : next);
+  };
+  const modeProps = (field: string, single: string, avg: string) => ({
+    pinnedSide: pinnedSide(field),
+    onSelect: selectSide(field),
+    labels: { left: `単年（${single}）`, right: `２年平均（${avg}）` },
+  });
   const cells = CELLS.map((cell) => {
     if (medical && cell.field && DIVIDEND_INPUT_FIELDS.has(cell.field)) {
       return { ...cell, readOnly: true, calculationRequired: false };
     }
     if (cell.kind === 'label' && cell.text?.startsWith('㋥/⑤ 又は') && cell.alternativeFractions) {
-      return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.c1baseSide } };
+      return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.c1baseSide, ...modeProps('c1_mode', '㊁÷⑤', '(㊁＋㋭)÷２÷⑤') } };
     }
     if (cell.kind === 'label' && cell.text?.startsWith('㋭/⑤ 又は') && cell.alternativeFractions) {
-      return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.c2baseSide } };
+      return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.c2baseSide, ...modeProps('c2_mode', '㋭÷⑤', '(㋭＋㋬)÷２÷⑤') } };
     }
     return cell;
   });
   // 自動計算欄には「実際に使った値」をホバーで出す（医療法人は配当要素を計算しないので分岐を伝える）
   const hintedCells = withFormulaHints(cells, table4_1Hints(c, raw, medical));
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(hintedCells, g, u, T, onJump);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の１　類似業種比準価額等の計算明細書" formCode="NTA0VNA210010010" headerExtra={headerExtra} toolbar={toolbar} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第４表の１　類似業種比準価額等の計算明細書" formCode="NTA0VNA210010010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

@@ -125,7 +125,10 @@ export interface GridCell {
     prefix?: string;
     left: { numerator: string; denominator: string };
     right: { numerator: string; denominator: string };
-    selectedSide?: 'left' | 'right';
+    selectedSide?: 'left' | 'right';            // 計算に採用している側
+    pinnedSide?: 'left' | 'right';              // 手で固定している側（自動選択なら undefined）
+    onSelect?: (side: 'left' | 'right') => void; // 左右をクリックで選べるようにする
+    labels?: { left: string; right: string };   // 読み上げ・ツールチップ用の説明
     suffix?: string;
   }; // 2つの分数を「又は」で並べる式
   companyRateExpression?: {
@@ -269,6 +272,58 @@ const DATE_BOX: CSSProperties = { textAlign: 'center', border: 'none', borderBot
 const SELECT_ARROW = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")`;
 const CALCULATION_REQUIRED_BG = '#eaf6ff';
 export const PrintRenderContext = createContext(false);
+
+/**
+ * 「又は」で2つの分数を並べる式（第4表の1 Ⓒ₁・Ⓒ₂ など）。
+ * onSelect があると左右をクリックで選べる。分数の文字は 11px 程度しかないため、
+ * レイアウトを1pxも動かさずに当たり判定だけを外へ広げる（透明・印刷には出さない）。
+ * 採用中の強調は様式にない着色なので画面限定。自動で選ばれた側は橙、手で固定した側は青で示す。
+ */
+function AlternativeFractions({ spec, printRendering }: { spec: NonNullable<GridCell['alternativeFractions']>; printRendering: boolean }) {
+  const pick = spec.onSelect;
+  const renderSide = (which: 'left' | 'right') => {
+    const fraction = spec[which];
+    const selected = spec.selectedSide === which;
+    const pinned = spec.pinnedSide === which;
+    const label = spec.labels?.[which] ?? `${fraction.numerator}÷${fraction.denominator}`;
+    const state = pinned ? '固定中' : selected ? '自動で採用中' : '未選択';
+    return (
+      <span
+        className={pick ? 'gf-alt-pick' : undefined}
+        role={pick ? 'button' : undefined}
+        tabIndex={pick ? 0 : undefined}
+        aria-pressed={pick ? selected : undefined}
+        aria-label={pick ? `${label}（${state}）` : undefined}
+        title={pick ? (pinned ? `${label}に固定中。クリックで自動（低い方）に戻す` : `クリックで${label}に固定`) : undefined}
+        onClick={pick ? () => pick(which) : undefined}
+        onKeyDown={pick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(which); } } : undefined}
+        style={{
+          display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch',
+          minWidth: which === 'left' ? '2em' : '5.5em', padding: '0.08em 0.18em',
+          position: pick ? 'relative' : undefined, cursor: pick ? 'pointer' : undefined,
+          ...(selected && !printRendering ? { background: '#fff3b0', boxShadow: `inset 0 0 0 ${pinned ? '1.2px #2563eb' : '0.7px #d97706'}` } : {}),
+        }}
+      >
+        {pick && <span className="no-print" aria-hidden style={{ position: 'absolute', top: -13, bottom: -13, left: -6, right: -6 }} />}
+        <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.25em 1px' }}>{fraction.numerator}</span>
+        <span style={{ paddingTop: 1 }}>{fraction.denominator}</span>
+      </span>
+    );
+  };
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: spec.caption ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: spec.caption ? '0.15em' : 0, width: '98%', height: '100%', lineHeight: 1, whiteSpace: 'nowrap' }}>
+      {spec.caption && <span>{spec.caption}</span>}
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35em' }}>
+        {spec.prefix && <span>{spec.prefix}</span>}
+        {renderSide('left')}
+        <span>又は</span>
+        {renderSide('right')}
+        {spec.suffix && <span>{spec.suffix}</span>}
+      </span>
+    </span>
+  );
+}
+
 
 function formattedFieldValue(c: GridCell, g: (field: string) => string): string {
   if (!c.field) return '';
@@ -762,22 +817,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                   <span>とします。</span>
                 </span>
               ) : c.kind === 'label' && c.alternativeFractions ? (
-                <span style={{ display: 'inline-flex', flexDirection: c.alternativeFractions.caption ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: c.alternativeFractions.caption ? '0.15em' : 0, width: '98%', height: '100%', lineHeight: 1, whiteSpace: 'nowrap' }}>
-                  {c.alternativeFractions.caption && <span>{c.alternativeFractions.caption}</span>}
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35em' }}>
-                    {c.alternativeFractions.prefix && <span>{c.alternativeFractions.prefix}</span>}
-                    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '2em', padding: '0.08em 0.18em', ...(c.alternativeFractions.selectedSide === 'left' ? { background: '#fff3b0', boxShadow: 'inset 0 0 0 0.7px #d97706' } : {}) }}>
-                      <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.25em 1px' }}>{c.alternativeFractions.left.numerator}</span>
-                      <span style={{ paddingTop: 1 }}>{c.alternativeFractions.left.denominator}</span>
-                    </span>
-                    <span>又は</span>
-                    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '5.5em', padding: '0.08em 0.18em', ...(c.alternativeFractions.selectedSide === 'right' ? { background: '#fff3b0', boxShadow: 'inset 0 0 0 0.7px #d97706' } : {}) }}>
-                      <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.25em 1px' }}>{c.alternativeFractions.right.numerator}</span>
-                      <span style={{ paddingTop: 1 }}>{c.alternativeFractions.right.denominator}</span>
-                    </span>
-                    {c.alternativeFractions.suffix && <span>{c.alternativeFractions.suffix}</span>}
-                  </span>
-                </span>
+                <AlternativeFractions spec={c.alternativeFractions} printRendering={printRendering} />
               ) : c.kind === 'label' && c.simpleFraction ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', minWidth: '2.5em', lineHeight: 1 }}>
                   <span style={{ borderBottom: '0.7px solid #000', padding: '0 0.45em 1px' }}>{c.simpleFraction.numerator}</span>
