@@ -395,19 +395,19 @@ const CELLS: GridCell[] = [
   { kind: 'cell', codeLabel: 'G01', top: 25.41, left: 66.64, width: 1.81, height: 2.34 },
   { field: 'f23', kind: 'input', calculationRequired: true, compactSelectedOption: true, align: 'right', ariaLabel: '業種目番号1', top: 25.41, left: 68.45, width: 12.69, height: 2.34 },
   { kind: 'cell', codeLabel: 'C01', top: 25.41, left: 81.14, width: 1.82, height: 2.34 },
-  { field: 'f24', kind: 'input', top: 25.41, left: 82.96, width: 5.52, height: 2.34 },
+  { field: 'f24', kind: 'input', calculationRequired: true, ariaLabel: '取引金額の構成比1', top: 25.41, left: 82.96, width: 5.52, height: 2.34 },
   { kind: 'cell', codeLabel: 'E03', top: 27.75, left: 44.88, width: 1.82, height: 2.36 },
   { field: 'f25', kind: 'input', readOnly: true, top: 27.75, left: 46.7, width: 19.94, height: 2.36, align: 'left' },
   { kind: 'cell', codeLabel: 'G02', top: 27.75, left: 66.64, width: 1.81, height: 2.36 },
   { field: 'f26', kind: 'input', calculationRequired: true, compactSelectedOption: true, align: 'right', ariaLabel: '業種目番号2', top: 27.75, left: 68.45, width: 12.69, height: 2.36 },
   { kind: 'cell', codeLabel: 'C02', top: 27.75, left: 81.14, width: 1.82, height: 2.36 },
-  { field: 'f27', kind: 'input', top: 27.75, left: 82.96, width: 5.52, height: 2.36 },
+  { field: 'f27', kind: 'input', ariaLabel: '取引金額の構成比2', top: 27.75, left: 82.96, width: 5.52, height: 2.36 },
   { kind: 'cell', codeLabel: 'E04', top: 30.11, left: 44.88, width: 1.82, height: 2.25 },
   { field: 'f28', kind: 'input', readOnly: true, top: 30.11, left: 46.7, width: 19.94, height: 2.25, align: 'left' },
   { kind: 'cell', codeLabel: 'G03', top: 30.11, left: 66.64, width: 1.81, height: 2.25 },
   { field: 'f29', kind: 'input', calculationRequired: true, compactSelectedOption: true, align: 'right', ariaLabel: '業種目番号3', top: 30.11, left: 68.45, width: 12.69, height: 2.25 },
   { kind: 'cell', codeLabel: 'C03', top: 30.11, left: 81.14, width: 1.82, height: 2.25 },
-  { field: 'f30', kind: 'input', top: 30.11, left: 82.96, width: 5.52, height: 2.25 },
+  { field: 'f30', kind: 'input', ariaLabel: '取引金額の構成比3', top: 30.11, left: 82.96, width: 5.52, height: 2.25 },
   // ── 1. 株主及び評価方式の判定 ──
   { kind: 'label', text: '１．株主及び評価方式の判定\n※　「判定基準」及び「判定」欄については、当てはまる項目の空欄に「１」を記入してください。', semanticRole: 'columnheader', ariaLabel: '株主及び評価方式の判定', top: 32.36, left: 10.48, width: 78, height: 3.42, align: 'left', fontSize: 8.5 },
   { kind: 'label', text: '判定要素（課税時期現在の株式等の所有状況）', top: 35.78, left: 10.48, width: 1.77, height: 49.01, align: 'center' },
@@ -595,14 +595,21 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   const industryData = useIndustryDataset();
   const era = getField(T, 'f14_g');
   const eraYear = getField(T, 'f14_y');
+  const ratio1 = getField(T, 'f24');
+  const ratio2 = getField(T, 'f27');
   const cells = useMemo(() => {
     const options = industryData.forTaxPeriod({ era, eraYear, month: '' }).options;
+    // 取引金額の構成比が累計100％に達したら、それより下の業種目番号は入力しなくてよい
+    const pct = (value: string) => Number(value.replace(/,/g, '')) || 0;
+    const optional = new Set<string>();
+    if (pct(ratio1) >= 100) { optional.add('f26'); optional.add('f29'); }
+    else if (pct(ratio1) + pct(ratio2) >= 100) optional.add('f29');
     return CELLS.map((cell) => (
       cell.field !== undefined && INDUSTRY_NUMBER_FIELDS.has(cell.field)
-        ? { ...cell, options }
+        ? { ...cell, options, calculationRequired: !optional.has(cell.field) }
         : cell
     ));
-  }, [industryData, era, eraYear]);
+  }, [industryData, era, eraYear, ratio1, ratio2]);
 
   const reorderShareholderRows = useCallback((activeId: string, overId: string) => {
     const fromRow = Number(activeId);

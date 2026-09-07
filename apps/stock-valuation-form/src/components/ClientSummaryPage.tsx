@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react';
 import { calcClientSummary } from '@/lib/clientSummary';
 import { calcNextYearForecast, type ElementForecast } from '@/lib/nextYearForecast';
 import {
   ACTION_FIELD, ACTION_FILTERS, BASIS_FIELD, BASIS_FILTERS, FORECAST_DETAIL_FIELD, SUMMARY_SECTIONS, ZERO_PROFIT_FIELD,
   changedOptionCount, filterActions, filterBases, isRowVisible, readSummaryOptions, resetSummaryOptionFields,
-  sectionField, toStoredFlag, type RowScope,
+  sectionField, toStoredFlag, type RowScope, type SummaryOptions, type SummarySectionKey,
 } from '@/lib/summaryOptions';
 import { calcValuationReport, type ShareholderValuationRow, type ValuationBasis, type ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
@@ -162,6 +163,94 @@ function holderColumnsOf(bases: ValuationBasis[], showZeroProfit: boolean): Hold
   ));
 }
 
+type SetOption = (field: string, value: string) => void;
+
+/** 出力条件のチェックボックス1つ分。見出しの下に並べるので文字は小さめ */
+function OptionCheck({ label, hint, checked, onChange }: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="summary-option">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <span>{label}{hint && <small>{hint}</small>}</span>
+    </label>
+  );
+}
+
+/** 出力条件のラジオ1組。name は同じ条件を2箇所に出しても混ざらないよう呼び出し側で分ける */
+function OptionRadios<T extends string>({ name, label, items, value, onChange }: {
+  name: string;
+  label: string;
+  items: readonly { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <span className="summary-option-group">
+      <span className="summary-option-group-label">{label}</span>
+      {items.map((item) => (
+        <label className="summary-option" key={item.value}>
+          <input type="radio" name={name} value={item.value} checked={value === item.value} onChange={() => onChange(item.value)} />
+          <span>{item.label}</span>
+        </label>
+      ))}
+    </span>
+  );
+}
+
+/** 評価ベースの条件は株価一覧と株主ごとの評価の両方に効くので、両方の見出しに出す */
+function BasisOptions({ name, options, setOption }: { name: string; options: SummaryOptions; setOption: SetOption }) {
+  return (
+    <>
+      <OptionRadios name={name} label="評価ベース" items={BASIS_FILTERS} value={options.basis} onChange={(value) => setOption(BASIS_FIELD, value)} />
+      <OptionCheck
+        label="「利益0の場合」を併記"
+        checked={options.showZeroProfit}
+        onChange={(checked) => setOption(ZERO_PROFIT_FIELD, toStoredFlag(checked))}
+      />
+    </>
+  );
+}
+
+/** 見出しの直下に置く出力条件の行。印刷には出ない */
+function SectionTools({ sectionKey, options, setOption, children }: {
+  sectionKey: SummarySectionKey;
+  options: SummaryOptions;
+  setOption: SetOption;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="summary-section-tools no-print">
+      <OptionCheck
+        label="出力する"
+        checked={options.sections[sectionKey]}
+        onChange={(checked) => setOption(sectionField(sectionKey), toStoredFlag(checked))}
+      />
+      {children}
+    </div>
+  );
+}
+
+/** 出力しない設定にしたセクションの跡地。位置を残しておかないと戻す入口が無くなる */
+function HiddenSection({ sectionKey, setOption }: { sectionKey: SummarySectionKey; setOption: SetOption }) {
+  const section = SUMMARY_SECTIONS.find((item) => item.key === sectionKey);
+  if (!section) return null;
+  return (
+    <div className="summary-section-hidden no-print">
+      <OptionCheck
+        label={section.label}
+        hint={section.hint}
+        checked={false}
+        onChange={() => setOption(sectionField(sectionKey), toStoredFlag(true))}
+      />
+      <span>出力しません</span>
+    </div>
+  );
+}
+
 function ShareholderRow({ row, columns }: { row: ShareholderValuationRow; columns: HolderColumn[] }) {
   return (
     <tr>
@@ -214,94 +303,24 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
     <div className="client-summary-wrap">
       <div className="client-summary-actions no-print">
         <button type="button" onClick={onBack} className="summary-back-button">帳票入力へ戻る</button>
-        <button type="button" onClick={onPrint} className="summary-print-button"><Icon name="print" />このサマリーを印刷</button>
-      </div>
-
-      {/* 出力条件。設定は案件データ（第1表の1）に保存されるので、保存/読込・翌年度更新にも引き継がれる */}
-      <details className="summary-options no-print">
-        <summary>
-          出力する内容を選ぶ
-          {changedCount > 0 && <span className="summary-options-badge">{changedCount}件を既定から変更</span>}
-        </summary>
-        <div className="summary-options-body">
-          <fieldset>
-            <legend>表示するセクション</legend>
-            <div className="summary-options-grid">
-              {SUMMARY_SECTIONS.map((section) => (
-                <label key={section.key}>
-                  <input
-                    type="checkbox"
-                    checked={options.sections[section.key]}
-                    onChange={(event) => setOption(sectionField(section.key), toStoredFlag(event.target.checked))}
-                  />
-                  <span>{section.label}<small>{section.hint}</small></span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>評価ベース</legend>
-            <div className="summary-options-grid">
-              {BASIS_FILTERS.map((filter) => (
-                <label key={filter.value}>
-                  <input
-                    type="radio"
-                    name="summary-basis"
-                    checked={options.basis === filter.value}
-                    onChange={() => setOption(BASIS_FIELD, filter.value)}
-                  />
-                  <span>{filter.label}</span>
-                </label>
-              ))}
-              <label>
-                <input
-                  type="checkbox"
-                  checked={options.showZeroProfit}
-                  onChange={(event) => setOption(ZERO_PROFIT_FIELD, toStoredFlag(event.target.checked))}
-                />
-                <span>「利益0の場合」を併記<small>株価一覧の行と株主ごとの列</small></span>
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>次の一手・来期の見通し</legend>
-            <div className="summary-options-grid">
-              {ACTION_FILTERS.map((filter) => (
-                <label key={filter.value}>
-                  <input
-                    type="radio"
-                    name="summary-action-filter"
-                    checked={options.actionFilter === filter.value}
-                    onChange={() => setOption(ACTION_FIELD, filter.value)}
-                  />
-                  <span>次の一手：{filter.label}</span>
-                </label>
-              ))}
-              <label>
-                <input
-                  type="checkbox"
-                  checked={options.showForecastDetail}
-                  onChange={(event) => setOption(FORECAST_DETAIL_FIELD, toStoredFlag(event.target.checked))}
-                />
-                <span>回避するために必要な水準<small>来期の見通しの明細表</small></span>
-              </label>
-            </div>
-          </fieldset>
-
-          <div className="summary-options-foot">
+        {changedCount > 0 && (
+          <span className="summary-options-reset">
+            <span className="summary-options-badge">{changedCount}件を既定から変更</span>
             <button
               type="button"
               onClick={() => resetSummaryOptionFields().forEach(({ field, value }) => setOption(field, value))}
-              disabled={changedCount === 0}
             >
-              すべて表示に戻す
+              すべて出力に戻す
             </button>
-            <small>設定は案件データに保存され、印刷にも反映されます（この欄自体は印刷されません）。</small>
-          </div>
-        </div>
-      </details>
+          </span>
+        )}
+        <button type="button" onClick={onPrint} className="summary-print-button"><Icon name="print" />このサマリーを印刷</button>
+      </div>
+
+      {/* 出力条件は各見出しの下に置く。設定は案件データ（第1表の1）に保存されるので、保存/読込・翌年度更新にも引き継がれる */}
+      <p className="summary-options-hint no-print">
+        各見出しの下にある「出力する」で、印刷する内容をその場で選べます。設定は案件データに保存され、条件の行そのものは印刷されません。
+      </p>
 
       <article className="client-summary-page" aria-labelledby="client-summary-title">
         <header className="summary-hero">
@@ -320,7 +339,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           <div className="summary-meta"><span>{summary.purposeLabel}</span><span>{summary.sizeLabel}</span><span>{summary.classificationLabel}</span></div>
         </header>
 
-        {options.sections.prices && (
+        {options.sections.prices ? (
         <section className="summary-prices" aria-labelledby="summary-prices-title">
           <div className="summary-sensitivity-heading">
             <div>
@@ -329,6 +348,10 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             </div>
             <span>1株当たり</span>
           </div>
+          <SectionTools sectionKey="prices" options={options} setOption={setOption}>
+            <BasisOptions name="summary-basis-prices" options={options} setOption={setOption} />
+            <small>評価ベースと「利益0の場合」は株主ごとの評価にも反映されます。</small>
+          </SectionTools>
           <div className="summary-table-scroll">
             <table className="summary-table">
               <thead>
@@ -358,9 +381,9 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             </p>
           )}
         </section>
-        )}
+        ) : <HiddenSection sectionKey="prices" setOption={setOption} />}
 
-        {options.sections.holders && (
+        {options.sections.holders ? (
         <section className="summary-holders" aria-labelledby="summary-holders-title">
           <div className="summary-sensitivity-heading">
             <div>
@@ -369,6 +392,10 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             </div>
             <span>株式数×1株当たりの価額</span>
           </div>
+          <SectionTools sectionKey="holders" options={options} setOption={setOption}>
+            <BasisOptions name="summary-basis-holders" options={options} setOption={setOption} />
+            <small>評価ベースと「利益0の場合」は株価一覧にも反映されます。</small>
+          </SectionTools>
           {report.shareholders.length ? (
             <div className="summary-table-scroll">
               <table className="summary-table">
@@ -393,14 +420,15 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             各行の株主を納税義務者とみなして株主判定をやり直した結果です。議決権割合5％未満の株主は、役員該当性や中心的な同族株主の有無により方式が変わるため「要確認」として両方の金額を表示しています。
           </p>
         </section>
-        )}
+        ) : <HiddenSection sectionKey="holders" setOption={setOption} />}
 
-        {options.sections.sensitivity && (
+        {options.sections.sensitivity ? (
         <section className="summary-sensitivity" aria-labelledby="summary-sensitivity-title">
           <div className="summary-sensitivity-heading">
             <h2 id="summary-sensitivity-title">類似業種比準要素｜1円当たりの影響度</h2>
             <span>{summary.sensitivity.adoptedBlock}を基準</span>
           </div>
+          <SectionTools sectionKey="sensitivity" options={options} setOption={setOption} />
           {availableSensitivity.length ? (
             <div className="summary-table-scroll">
               <table className="summary-table">
@@ -427,9 +455,9 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           )}
           <p className="summary-sensitivity-disclaimer">各要素が1円増加したときの、1株当たりの類似業種比準価額への概算影響です（端数処理・最低価額判定を固定した線形近似）。</p>
         </section>
-        )}
+        ) : <HiddenSection sectionKey="sensitivity" setOption={setOption} />}
 
-        {options.sections.forecast && (
+        {options.sections.forecast ? (
         <section className="summary-forecast" aria-labelledby="summary-forecast-title">
           <div className="summary-sensitivity-heading">
             <div>
@@ -438,6 +466,14 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             </div>
             <span>現在の判定：{forecast.currentResultLabel}</span>
           </div>
+          <SectionTools sectionKey="forecast" options={options} setOption={setOption}>
+            <OptionCheck
+              label="回避するために必要な水準"
+              hint="来期の判定要素の明細表"
+              checked={options.showForecastDetail}
+              onChange={(checked) => setOption(FORECAST_DETAIL_FIELD, toStoredFlag(checked))}
+            />
+          </SectionTools>
           {!forecast.known ? (
             <div className="summary-sensitivity-empty" role="note">第4表の①資本金等の額と比準要素（Ⓑ・Ⓒ・Ⓓ）を入力すると表示されます。</div>
           ) : (
@@ -518,9 +554,9 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             </>
           )}
         </section>
-        )}
+        ) : <HiddenSection sectionKey="forecast" setOption={setOption} />}
 
-        {options.sections.actions && (
+        {options.sections.actions ? (
         <section className="summary-actions" aria-labelledby="summary-actions-title">
           <div className="summary-sensitivity-heading">
             <div>
@@ -529,6 +565,15 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             </div>
             <span>{actions.length}件</span>
           </div>
+          <SectionTools sectionKey="actions" options={options} setOption={setOption}>
+            <OptionRadios
+              name="summary-action-filter"
+              label="優先度"
+              items={ACTION_FILTERS}
+              value={options.actionFilter}
+              onChange={(value) => setOption(ACTION_FIELD, value)}
+            />
+          </SectionTools>
           {actions.length ? (
             <ol className="summary-action-list">
               {actions.map((action) => (
@@ -542,11 +587,15 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             <div className="summary-sensitivity-empty" role="note">選択した優先度に該当する打ち手はありません。</div>
           )}
         </section>
-        )}
+        ) : <HiddenSection sectionKey="actions" setOption={setOption} />}
 
-        {options.sections.note && (
+        {options.sections.note ? (
         <section className="summary-advisor-note" aria-labelledby="summary-note-title">
-          <div><small>ADVISOR'S NOTE</small><h2 id="summary-note-title">担当者コメント</h2></div>
+          <div>
+            <small>ADVISOR'S NOTE</small>
+            <h2 id="summary-note-title">担当者コメント</h2>
+            <SectionTools sectionKey="note" options={options} setOption={setOption} />
+          </div>
           <textarea
             aria-label="担当者コメント"
             value={note}
@@ -554,7 +603,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             placeholder="お客様への補足説明、次回までの確認事項などを入力してください。"
           />
         </section>
-        )}
+        ) : <HiddenSection sectionKey="note" setOption={setOption} />}
 
         <footer className="summary-footer">
           <p>本資料は入力情報に基づく概算・検討用資料です。実行に際しては、最新の法令・通達および個別事情を確認してください。</p>
