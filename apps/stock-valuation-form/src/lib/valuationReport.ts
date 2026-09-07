@@ -1,7 +1,7 @@
 import { calcTable3 } from '@/components/tables/table3/Table3Grid';
 import { calcTable4 } from '@/components/tables/table4/calcTable4';
 import { calcTable5 } from '@/components/tables/table5/Table5Grid';
-import { calcCompanySize } from '@/components/tables/table1-2/Table1_2Grid';
+import { SIZE_OVERRIDE_FIELD, calcCompanySize } from '@/components/tables/table1-2/Table1_2Grid';
 import { calcShareholderJudgment, totalShOf } from '@/components/tables/Table1_1Grid';
 import { SIZE_NAMES } from '@/lib/clientSummary';
 import {
@@ -52,6 +52,18 @@ function withProfit(getField: TableProps['getField'], amount: number): TableProp
     if (table !== 'table4') return getField(table, field);
     if (field === LATEST_PROFIT_INCOME) return String(amount);
     if (LATEST_PROFIT_ADJUST.has(field)) return '0';
+    return getField(table, field);
+  };
+}
+
+/**
+ * 会社規模を上書きした getField を返す。第1表の2の判定（総資産価額・取引金額・従業員数）を
+ * 飛ばして規模だけ差し替えるので、第4表の斟酌率・第3表のLの割合・第2表の土地保有特定会社の
+ * 判定基準が、まとめてその規模のものになる。
+ */
+export function withSize(getField: TableProps['getField'], size: number): TableProps['getField'] {
+  return (table, field) => {
+    if (table === 'table1_2' && field === SIZE_OVERRIDE_FIELD) return String(size);
     return getField(table, field);
   };
 }
@@ -243,11 +255,50 @@ export function calcShareholderValuations(
   return rows;
 }
 
+/** 会社規模を変えた場合の株価（相続税評価額ベース） */
+export type SizeScenario = {
+  /** 0=小会社 1〜3=中会社 4=大会社 */
+  size: number;
+  sizeLabel: string;
+  /** 類似業種比準価額（第4表 ㉘→㉗→㉖） */
+  comparablePrice: number | null;
+  /** 原則的評価方式による価額（第3表） */
+  gensoku: number | null;
+  /** 第1表の2の判定と一致する規模か */
+  current: boolean;
+};
+
+/** 報告書では大きい規模から並べる（規模が下がるほど純資産価額に寄る、という読み方になる） */
+const SIZE_ORDER = [4, 3, 2, 1, 0];
+
+/**
+ * 会社規模を変えたときの株価。相続税評価額ベースだけを対象にする
+ * （所得税・法人税ベースは所基通59－6(2)により常に小会社として評価するので、規模を動かしても変わらない）。
+ */
+export function calcSizeScenarios(
+  getField: TableProps['getField'],
+  currentSize: number | null,
+): SizeScenario[] {
+  const gf = withPurpose(getField, 'inheritance');
+  return SIZE_ORDER.map((size) => {
+    const t3 = calcTable3(withSize(gf, size));
+    return {
+      size,
+      sizeLabel: SIZE_NAMES[size] ?? '',
+      comparablePrice: t3.v1,
+      gensoku: t3.gensoku,
+      current: size === currentSize,
+    };
+  });
+}
+
 export type ValuationReport = {
   bases: ValuationBasis[];
   shareholders: ShareholderValuationRow[];
   /** 試算に使った直前期の想定年利益金額（千円）。未入力なら null */
   assumedProfit: number | null;
+  /** 会社規模を変えた場合の株価（相続税評価額ベース。大会社→小会社の順） */
+  sizeScenarios: SizeScenario[];
 };
 
 /** お客様報告の株価セクション一式 */
@@ -263,5 +314,6 @@ export function calcValuationReport(
     bases,
     shareholders: calcShareholderValuations(getField, bases),
     assumedProfit,
+    sizeScenarios: calcSizeScenarios(getField, bases[0]!.size),
   };
 }

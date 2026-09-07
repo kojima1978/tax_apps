@@ -195,6 +195,50 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
     expect(assumed.gensokuAssumed).toBe(34440);
   });
 
+  // ── 会社規模別の株価（規模を変えた場合の試算） ──
+  // 従業員70人以上＝大会社。第5表を3倍にして純資産価額を73,320円まで引き上げ、
+  // 規模ごとに採用する金額が変わる（＝差が出る）状態にする。
+  const sizeData: Data = {
+    ...data,
+    table5: {
+      a_1_1: '現金', a_1_2: '30000', a_1_3: '24000',
+      a_2_1: '株式', a_2_2: '15000', a_2_3: '9000', a_2_4: '株式等',
+      a_3_1: '土地', a_3_2: '60000', a_3_3: '36000', a_3_4: '土地等',
+      l_1_1: '借入金', l_1_2: '18000', l_1_3: '18000',
+    },
+    table1_2: { ...data.table1_2, emp_regular: '70' },
+    table4: {
+      '①': '10,000', e18: '10,000', n53: '30,000', f28: '1,000', f32: '1,000',
+      r1sB1: '10', r1sB2: '80', r1sC: '25', r1sD: '100', '㋷': '300',
+    },
+  };
+
+  it('会社規模別の株価は大会社から小会社まで5区分を返し、現在の判定に印を付ける', () => {
+    const sized = calcValuationReport(mkGetField(sizeData));
+    expect(sized.sizeScenarios.map((s) => s.size)).toEqual([4, 3, 2, 1, 0]);
+    expect(sized.sizeScenarios.map((s) => s.sizeLabel))
+      .toEqual(['大会社', '中会社（L=0.90）', '中会社（L=0.75）', '中会社（L=0.60）', '小会社']);
+    expect(sized.sizeScenarios.filter((s) => s.current).map((s) => s.size)).toEqual([4]);
+    // 規模の上書きは第1表の2の判定そのものを書き換えない
+    expect(sized.bases[0]!.size).toBe(4);
+  });
+
+  it('会社規模を変えると斟酌率と純資産価額との併用割合が変わる', () => {
+    const sized = calcValuationReport(mkGetField(sizeData));
+    const at = (size: number) => sized.sizeScenarios.find((s) => s.size === size)!;
+    // 比準割合1.48・A=300 → 斟酌率 大0.7／中0.6／小0.5、×(10,000÷50)
+    expect([at(4), at(3), at(2), at(1), at(0)].map((s) => s.comparablePrice))
+      .toEqual([62160, 53280, 53280, 53280, 44400]);
+    // 純資産価額73,320円との併用。大会社は低い方、中会社はLの割合、小会社は50％併用
+    expect(at(4).gensoku).toBe(62160);                    // min(62,160, 73,320)
+    expect(at(3).gensoku).toBe(55284);                    // 53,280×0.9＋73,320×0.1
+    expect(at(2).gensoku).toBe(58290);                    // 53,280×0.75＋73,320×0.25
+    expect(at(1).gensoku).toBe(61296);                    // 53,280×0.6＋73,320×0.4
+    expect(at(0).gensoku).toBe(58860);                    // 44,400×0.5＋73,320×0.5
+    // 現在の判定の行は株価一覧の金額と一致する
+    expect(at(4).gensoku).toBe(sized.bases[0]!.gensoku);
+  });
+
   it('所得税・法人税ベースは帳票側のチェックに関係なく小会社として評価する（所基通59－6(2)）', () => {
     // 従業員70人以上なので相続税評価額ベースでは大会社になる
     const large = calcValuationReport(mkGetField({

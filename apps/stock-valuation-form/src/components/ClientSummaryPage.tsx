@@ -499,6 +499,52 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
         </section>
         ) : <HiddenSection sectionKey="prices" setOption={setOption} />}
 
+        {options.sections.sizes ? (
+        <section className="summary-sizes" aria-labelledby="summary-sizes-title">
+          <div className="summary-sensitivity-heading">
+            <div>
+              <small>SHARE PRICE BY COMPANY SIZE</small>
+              <h2 id="summary-sizes-title">会社規模別の株価｜規模が変わった場合</h2>
+            </div>
+            <span>相続税評価額ベース・1株当たり</span>
+          </div>
+          <SectionTools sectionKey="sizes" options={options} setOption={setOption} />
+          <div className="summary-table-scroll">
+            <table className="summary-table">
+              <thead>
+                <tr>
+                  <th scope="col">会社の規模</th>
+                  <th scope="col" className="summary-holders-num">類似業種比準価額の割合</th>
+                  <th scope="col" className="summary-holders-num">類似業種比準価額</th>
+                  <th scope="col" className="summary-holders-num">原則的評価額</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.sizeScenarios.map((scenario) => {
+                  const scale = SIZE_SCALE.find((item) => item.size === scenario.size);
+                  return (
+                    <tr key={scenario.size} className={scenario.current ? 'summary-table-emphasis' : undefined}>
+                      <th scope="row">
+                        {scenario.sizeLabel}
+                        {scenario.current && <span className="summary-size-current">現在の判定</span>}
+                      </th>
+                      <td className="summary-holders-num">{scale ? scale.rate.toFixed(2) : '－'}</td>
+                      <td className="summary-holders-num">{yenOrDash(scenario.comparablePrice)}</td>
+                      <td className="summary-holders-num">{yenOrDash(scenario.gensoku)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="summary-sensitivity-disclaimer">
+            会社規模が変わると、第4表の斟酌率（大会社0.7／中会社0.6／小会社0.5）と、第3表で純資産価額と併用する割合が変わります。
+            1株当たり純資産価額そのものは規模では変わりません。所得税・法人税ベースは所基通59－6(2)により常に小会社として評価するため、この表の対象外です。
+            実際の規模は直前期末の総資産価額・取引金額・従業員数（第1表の2）で決まります。
+          </p>
+        </section>
+        ) : <HiddenSection sectionKey="sizes" setOption={setOption} />}
+
         {options.sections.holders ? (
         <section className="summary-holders" aria-labelledby="summary-holders-title">
           <div className="summary-sensitivity-heading">

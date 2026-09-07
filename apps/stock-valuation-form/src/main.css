@@ -1362,6 +1362,7 @@
 /* ── 株価一覧・株主ごとの評価（お客様報告） ── */
 /* サマリー本文のカード（株価一覧・株主ごと・感応度・来期の見通し・次の一手で共通） */
 .summary-prices,
+.summary-sizes,
 .summary-holders,
 .summary-sensitivity,
 .summary-forecast,
@@ -1458,6 +1459,19 @@
   background: #eff8ff;
   font-size: 12px;
   font-weight: 800;
+}
+
+/* 会社規模別の株価で、第1表の2の判定と一致する行に付ける印 */
+.summary-size-current {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 8.5px;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 .summary-holders-method {
@@ -1643,7 +1657,7 @@
   .summary-hero-main { grid-template-columns: 1fr; }
   .summary-date-block { padding: 14px 0 0; border-left: 0; border-top: 1px solid rgba(255,255,255,0.25); }
   .summary-sensitivity { margin-inline: 12px; }
-  .summary-prices, .summary-holders, .summary-forecast, .summary-actions { margin-inline: 12px; padding: 14px 12px 12px; }
+  .summary-prices, .summary-sizes, .summary-holders, .summary-forecast, .summary-actions { margin-inline: 12px; padding: 14px 12px 12px; }
   .summary-advisor-note { grid-template-columns: 1fr; margin-inline: 12px; }
   .summary-section-hidden { margin-inline: 12px; }
 }
@@ -1685,7 +1699,7 @@
   .summary-hero h1 { font-size: 25px; }
   .summary-lead { margin-top: 7px; line-height: 1.55; }
   .summary-meta { margin-top: 13px; }
-  .summary-prices, .summary-holders, .summary-sensitivity,
+  .summary-prices, .summary-sizes, .summary-holders, .summary-sensitivity,
   .summary-forecast, .summary-actions { margin: 14px 20px 0; padding: 13px 15px 10px; }
   .summary-forecast-lead { font-size: 8.5px; }
   .summary-forecast-note { font-size: 8.5px; }

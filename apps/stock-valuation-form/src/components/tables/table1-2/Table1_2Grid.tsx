@@ -59,6 +59,20 @@ function calcEmployees(g: G) {
 
 const formatEmployee = (value: number | null) => value === null ? '' : value.toFixed(1);
 
+/**
+ * 会社規模の上書き（お客様サマリーの「会社規模別の株価」用）。
+ * 様式の入力欄ではなく getField のプロキシからだけ渡る隠しフィールドで、
+ * 入っていれば総資産・取引金額・従業員数からの判定を飛ばして規模を固定する。
+ * 第2表〜第4表・第7表・第8表がどれもこの判定を通るので、斟酌率もLの割合も
+ * 土地保有特定会社の判定基準も、まとめてその規模のものになる。
+ */
+export const SIZE_OVERRIDE_FIELD = '_size_override';
+
+const sizeOverrideOf = (g: G): number | null => {
+  const v = parseNumber(g(SIZE_OVERRIDE_FIELD) || '');
+  return v !== null && Number.isInteger(v) && v >= 0 && v <= 4 ? v : null;
+};
+
 function calc(g: G, forceSmall = false) {
   const num = (f: string): number | null => {
     return parseNumber(g(f) || '');
@@ -74,7 +88,8 @@ function calc(g: G, forceSmall = false) {
   const empRank = empBand === null ? null : { over35: 4, b075: 2, b060: 1, small: 0 }[empBand];
   // ㋻ = 総資産と従業員のいずれか下位、会社規模 = ㋻と㋕（取引金額）のいずれか上位。㋸70人以上は大会社。
   const wa = assetRank !== null && empRank !== null ? Math.min(assetRank, empRank) : null;
-  const result = forceSmall ? 0 : emp !== null && emp >= 70 ? 4 : wa !== null && txRank !== null ? Math.max(wa, txRank) : null;
+  const judged = emp !== null && emp >= 70 ? 4 : wa !== null && txRank !== null ? Math.max(wa, txRank) : null;
+  const result = forceSmall ? 0 : sizeOverrideOf(g) ?? judged;
   return { gyo, emp, assetRank, txRank, empBand, result };
 }
 
