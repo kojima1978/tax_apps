@@ -1406,6 +1406,13 @@
   white-space: normal;
 }
 
+/* 条件名は列見出しの2行目へ落とす。注記ではなく見出しの一部なので小さくしすぎない */
+.summary-table thead th small.summary-th-case {
+  color: #334155;
+  font-size: 8.5px;
+  font-weight: 700;
+}
+
 .summary-table tbody th {
   padding: 8px 10px;
   border-bottom: 1px solid #e2e8f0;

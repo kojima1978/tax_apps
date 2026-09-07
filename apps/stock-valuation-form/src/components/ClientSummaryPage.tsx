@@ -55,9 +55,12 @@ const SIZE_SCALE = [
   { size: 4, name: '大会社', rate: 1 },
 ] as const;
 
-/** 「（利益3,000千円の場合）」のように、試算に使った額を見出しへ入れる */
+/** 「利益3,000千円の場合」のように、試算に使った額を条件名にする */
+const assumedProfitCase = (amount: number) => `利益${amount.toLocaleString('ja-JP')}千円の場合`;
+
+/** 「〜（利益3,000千円の場合）」のように、条件名を見出しの後ろへ入れる */
 const assumedProfitLabel = (base: string, amount: number, extra = '') =>
-  `${base}（${extra}利益${amount.toLocaleString('ja-JP')}千円の場合）`;
+  `${base}（${extra}${assumedProfitCase(amount)}）`;
 
 // 株価一覧の行。ベースの違いは行のラベル側に持たせ、表は「項目｜金額」の2列で並べる。
 const PRICE_ROWS: {
@@ -181,6 +184,8 @@ const PRICE_ROWS: {
 type HolderColumn = {
   key: string;
   label: string;
+  /** 「利益0の場合」などの条件名。列見出しが横に伸びないよう、label の下へ改行して置く */
+  caseLabel?: string;
   basis: ValuationBasisKey;
   zeroProfit?: boolean;
   assumedProfit?: boolean;
@@ -194,11 +199,11 @@ function holderColumnsOf(
     const columns: HolderColumn[] = [{ key: basis.key, label: basis.label, basis: basis.key }];
     if (basis.key !== 'inheritance') return columns;
     if (options.showZeroProfit) {
-      columns.push({ key: `${basis.key}-zero`, label: `${basis.label}（利益0の場合）`, basis: basis.key, zeroProfit: true });
+      columns.push({ key: `${basis.key}-zero`, label: basis.label, caseLabel: '利益0の場合', basis: basis.key, zeroProfit: true });
     }
     if (isAssumedProfitVisible(options) && options.assumedProfit !== null) {
-      const label = assumedProfitLabel(basis.label, options.assumedProfit);
-      columns.push({ key: `${basis.key}-assumed`, label, basis: basis.key, assumedProfit: true });
+      const caseLabel = assumedProfitCase(options.assumedProfit);
+      columns.push({ key: `${basis.key}-assumed`, label: basis.label, caseLabel, basis: basis.key, assumedProfit: true });
     }
     return columns;
   });
@@ -516,7 +521,11 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
                     <th scope="col" className="summary-holders-num">株式数</th>
                     <th scope="col" className="summary-holders-num">議決権割合</th>
                     <th scope="col">評価方式</th>
-                    {holderColumns.map((column) => <th scope="col" className="summary-holders-num" key={column.key}>{column.label}</th>)}
+                    {holderColumns.map((column) => (
+                      <th scope="col" className="summary-holders-num" key={column.key}>
+                        {column.label}{column.caseLabel && <small className="summary-th-case">{column.caseLabel}</small>}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
