@@ -3,7 +3,7 @@ import type { TableId } from '@/types/form';
 import type { ActionItem } from '@/lib/clientSummary';
 import type { ValuationBasis } from '@/lib/valuationReport';
 import {
-  ACTION_FIELD, BASIS_FIELD, FORECAST_DETAIL_FIELD, ZERO_PROFIT_FIELD,
+  ACTION_FIELD, ASSUMED_PROFIT_FIELD, BASIS_FIELD, FORECAST_DETAIL_FIELD, ZERO_PROFIT_FIELD,
   changedOptionCount, filterActions, filterBases, isRowVisible, readSummaryOptions, resetSummaryOptionFields,
   sectionField, toStoredFlag,
 } from '@/lib/summaryOptions';
@@ -48,6 +48,24 @@ describe('readSummaryOptions（保存値の読み取り）', () => {
     expect(changedOptionCount(options)).toBe(4);
   });
 
+  it('想定利益は千円の数値として読み、カンマや空白は無視する', () => {
+    const read = (text: string) => readSummaryOptions(mkGetField({ [ASSUMED_PROFIT_FIELD]: text }));
+    expect(read('').assumedProfit).toBeNull();
+    expect(read('5,000').assumedProfit).toBe(5000);
+    expect(read(' 1 200 ').assumedProfit).toBe(1200);
+    expect(read('-800').assumedProfit).toBe(-800); // 欠損の想定も受け付ける
+    expect(read('未定').assumedProfit).toBeNull();
+    // 入力欄には打った文字をそのまま返す
+    expect(read('5,000').assumedProfitText).toBe('5,000');
+  });
+
+  it('想定利益は出力を絞る条件ではないので、変更件数にも「すべて出力に戻す」にも含めない', () => {
+    const options = readSummaryOptions(mkGetField({ [ASSUMED_PROFIT_FIELD]: '5000' }));
+    expect(options.assumedProfit).toBe(5000);
+    expect(changedOptionCount(options)).toBe(0);
+    expect(resetSummaryOptionFields().some((f) => f.field === ASSUMED_PROFIT_FIELD)).toBe(false);
+  });
+
   it('チェックボックスの値は表示なら空、非表示なら1で保存する', () => {
     expect(toStoredFlag(true)).toBe('');
     expect(toStoredFlag(false)).toBe('1');
@@ -89,14 +107,23 @@ describe('filterBases / isRowVisible（評価ベースの絞り込み）', () =>
   });
 
   it('共通行は絞り込んでも残り、他ベースの行だけ落ちる', () => {
-    const opts = { basis: 'inheritance', showZeroProfit: true } as const;
+    const opts = { basis: 'inheritance', showZeroProfit: true, assumedProfit: null } as const;
     expect(isRowVisible({ scope: 'common' }, opts)).toBe(true);
     expect(isRowVisible({ scope: 'inheritance' }, opts)).toBe(true);
     expect(isRowVisible({ scope: 'special-market-value' }, opts)).toBe(false);
   });
 
+  it('想定利益の行は、金額を入れたときだけ出す', () => {
+    const off = { basis: 'both', showZeroProfit: true, assumedProfit: null } as const;
+    const on = { basis: 'both', showZeroProfit: true, assumedProfit: 5000 } as const;
+    expect(isRowVisible({ scope: 'common', assumedProfit: true }, off)).toBe(false);
+    expect(isRowVisible({ scope: 'common', assumedProfit: true }, on)).toBe(true);
+    // 金額を入れても通常の行は増減しない
+    expect(isRowVisible({ scope: 'common' }, off)).toBe(true);
+  });
+
   it('「利益0の場合」を出さない設定なら、共通行でも落ちる', () => {
-    const opts = { basis: 'both', showZeroProfit: false } as const;
+    const opts = { basis: 'both', showZeroProfit: false, assumedProfit: null } as const;
     expect(isRowVisible({ scope: 'common', zeroProfit: true }, opts)).toBe(false);
     expect(isRowVisible({ scope: 'common' }, opts)).toBe(true);
   });

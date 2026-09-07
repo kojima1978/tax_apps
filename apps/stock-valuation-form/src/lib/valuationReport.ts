@@ -36,16 +36,33 @@ export function withPurpose(
 }
 
 /**
- * 第4表の年利益金額（⑪〜⑮の3期分）を0とみなす getField を返す。
- * 利益をゼロにしたときの類似業種比準価額（Ⓒ＝0）を試算するために使う。
+ * 第4表の年利益金額（⑪〜⑮）を差し替えた getField を返す。
+ * ⑯＝⑪－⑫＋⑬－⑭＋⑮ なので、⑪へ金額を入れて⑫〜⑮を0にすれば⑯がちょうどその金額になる。
+ *
+ * scope='all'    … 3期とも差し替える。利益0の試算（Ⓒ＝0）に使う。
+ * scope='latest' … 直前期だけ差し替え、直前々期以前は実績のまま。想定利益の試算に使う。
+ *                  Ⓒ＝min（想定額, 想定額と直前々期実績の平均）と、通達どおりの計算がそのまま働く。
  */
-const ZERO_PROFIT_FIELDS = new Set([
-  'e18', 'e19', 'e20', 'e21', 'e22',
-  'e25', 'e26', 'e27', 'e28', 'e29',
-  'e32', 'e33', 'e34', 'e35', 'e36',
-]);
-function withZeroProfit(getField: TableProps['getField']): TableProps['getField'] {
-  return (table, field) => (table === 'table4' && ZERO_PROFIT_FIELDS.has(field) ? '0' : getField(table, field));
+const PROFIT_PERIODS = [
+  { income: 'e18', adjust: ['e19', 'e20', 'e21', 'e22'] },
+  { income: 'e25', adjust: ['e26', 'e27', 'e28', 'e29'] },
+  { income: 'e32', adjust: ['e33', 'e34', 'e35', 'e36'] },
+] as const;
+
+function withProfit(
+  getField: TableProps['getField'],
+  amount: number,
+  scope: 'all' | 'latest',
+): TableProps['getField'] {
+  const periods = scope === 'all' ? PROFIT_PERIODS : PROFIT_PERIODS.slice(0, 1);
+  const income = new Set<string>(periods.map((period) => period.income));
+  const adjust = new Set<string>(periods.flatMap((period) => [...period.adjust]));
+  return (table, field) => {
+    if (table !== 'table4') return getField(table, field);
+    if (income.has(field)) return String(amount);
+    if (adjust.has(field)) return '0';
+    return getField(table, field);
+  };
 }
 
 /**
@@ -89,6 +106,8 @@ export type ValuationBasis = {
   comparablePrice: number | null;
   /** 年利益金額を0としたときの類似業種比準価額 */
   comparablePriceZeroProfit: number | null;
+  /** 直前期の年利益金額を想定額としたときの類似業種比準価額（想定利益が未入力なら null） */
+  comparablePriceAssumed: number | null;
   /** 1株当たり純資産価額（第5表 ⑪） */
   netAssetPrice: number | null;
   /** Lの割合（中会社のみ。大会社・小会社は null） */
@@ -97,6 +116,8 @@ export type ValuationBasis = {
   gensoku: number | null;
   /** 年利益金額を0としたときの原則的評価方式による価額 */
   gensokuZeroProfit: number | null;
+  /** 直前期の年利益金額を想定額としたときの原則的評価方式による価額（想定利益が未入力なら null） */
+  gensokuAssumed: number | null;
   /** 配当還元方式による価額（第3表 ㉔。なければ㉓） */
   haitoKangen: number | null;
   /** 会社規模の判定結果（0=小会社 1〜3=中会社 4=大会社。未判定は null） */
@@ -119,13 +140,17 @@ const BASIS_LABELS: Record<ValuationBasisKey, { label: string; note: string }> =
 export function calcValuationBasis(
   getField: TableProps['getField'],
   key: ValuationBasisKey,
+  assumedProfit: number | null = null,
 ): ValuationBasis {
   const gf = withPurpose(getField, key);
-  const gfZero = withZeroProfit(gf);
+  const gfZero = withProfit(gf, 0, 'all');
+  const gfAssumed = assumedProfit === null ? null : withProfit(gf, assumedProfit, 'latest');
   const t3 = calcTable3(gf);
   const t3zero = calcTable3(gfZero);
+  const t3assumed = gfAssumed && calcTable3(gfAssumed);
   const t4 = calcTable4(gf);
   const t4zero = calcTable4(gfZero);
+  const t4assumed = gfAssumed && calcTable4(gfAssumed);
   const t5 = calcTable5(gf);
   const size = calcCompanySize((field) => gf('table1_2', field), forcesSmallCompany(gf)).result;
   return {
@@ -133,10 +158,12 @@ export function calcValuationBasis(
     ...BASIS_LABELS[key],
     comparablePrice: t4.v28 ?? t4.v27 ?? t4.v26,
     comparablePriceZeroProfit: t4zero.v28 ?? t4zero.v27 ?? t4zero.v26,
+    comparablePriceAssumed: t4assumed ? t4assumed.v28 ?? t4assumed.v27 ?? t4assumed.v26 : null,
     netAssetPrice: t5['⑪'] ?? null,
     lRate: t3.lRate,
     gensoku: t3.gensoku,
     gensokuZeroProfit: t3zero.gensoku,
+    gensokuAssumed: t3assumed ? t3assumed.gensoku : null,
     haitoKangen: t3.haitoKangen,
     size,
     sizeLabel: size === null ? '判定未完了' : SIZE_NAMES[size] ?? '判定未完了',
@@ -165,6 +192,8 @@ export type ShareholderValuationRow = {
     gensokuTotal: number | null;
     /** 年利益金額を0としたときの原則的評価方式による評価額 */
     gensokuZeroProfitTotal: number | null;
+    /** 直前期の年利益金額を想定額としたときの原則的評価方式による評価額 */
+    gensokuAssumedTotal: number | null;
     haitoTotal: number | null;
   }[];
 };
@@ -215,6 +244,7 @@ export function calcShareholderValuations(
         basis: basis.key,
         gensokuTotal: method === 'haito' ? null : multiply(basis.gensoku, shares),
         gensokuZeroProfitTotal: method === 'haito' ? null : multiply(basis.gensokuZeroProfit, shares),
+        gensokuAssumedTotal: method === 'haito' ? null : multiply(basis.gensokuAssumed, shares),
         haitoTotal: method === 'gensoku' ? null : multiply(basis.haitoKangen, shares),
       })),
     });
@@ -225,16 +255,22 @@ export function calcShareholderValuations(
 export type ValuationReport = {
   bases: ValuationBasis[];
   shareholders: ShareholderValuationRow[];
+  /** 試算に使った直前期の想定年利益金額（千円）。未入力なら null */
+  assumedProfit: number | null;
 };
 
 /** お客様報告の株価セクション一式 */
-export function calcValuationReport(getField: TableProps['getField']): ValuationReport {
+export function calcValuationReport(
+  getField: TableProps['getField'],
+  assumedProfit: number | null = null,
+): ValuationReport {
   const bases: ValuationBasis[] = [
-    calcValuationBasis(getField, 'inheritance'),
-    calcValuationBasis(getField, 'special-market-value'),
+    calcValuationBasis(getField, 'inheritance', assumedProfit),
+    calcValuationBasis(getField, 'special-market-value', assumedProfit),
   ];
   return {
     bases,
     shareholders: calcShareholderValuations(getField, bases),
+    assumedProfit,
   };
 }

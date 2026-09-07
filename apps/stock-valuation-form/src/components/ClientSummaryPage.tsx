@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { calcClientSummary } from '@/lib/clientSummary';
 import { calcNextYearForecast, type ElementForecast } from '@/lib/nextYearForecast';
 import {
-  ACTION_FIELD, ACTION_FILTERS, BASIS_FIELD, BASIS_FILTERS, FORECAST_DETAIL_FIELD, SUMMARY_SECTIONS, ZERO_PROFIT_FIELD,
+  ACTION_FIELD, ACTION_FILTERS, ASSUMED_PROFIT_FIELD, BASIS_FIELD, BASIS_FILTERS, FORECAST_DETAIL_FIELD,
+  SUMMARY_SECTIONS, ZERO_PROFIT_FIELD,
   changedOptionCount, filterActions, filterBases, isRowVisible, readSummaryOptions, resetSummaryOptionFields,
   sectionField, toStoredFlag, type RowScope, type SummaryOptions, type SummarySectionKey,
 } from '@/lib/summaryOptions';
@@ -65,6 +66,8 @@ const PRICE_ROWS: {
   scope: RowScope;
   /** 「利益0の場合」を出さない設定のときに落とす行 */
   zeroProfit?: boolean;
+  /** 想定利益が未入力のときに落とす行 */
+  assumedProfit?: boolean;
   cell: (basis: ValuationBasis) => { text: string; sub?: string };
 }[] = [
   {
@@ -83,6 +86,15 @@ const PRICE_ROWS: {
     scope: 'common',
     zeroProfit: true,
     cell: (b) => ({ text: yenOrDash(b.comparablePriceZeroProfit) }),
+  },
+  {
+    key: 'comparableAssumed',
+    label: '類似業種比準価額（想定利益の場合）',
+    note: '直前期の年利益金額を想定額に置き換えて再計算',
+    basis: 'inheritance',
+    scope: 'common',
+    assumedProfit: true,
+    cell: (b) => ({ text: yenOrDash(b.comparablePriceAssumed) }),
   },
   {
     key: 'netAssetDeducted',
@@ -131,6 +143,16 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.gensokuZeroProfit) }),
   },
   {
+    key: 'gensokuInheritanceAssumed',
+    label: '原則的評価額（相続税評価額ベース・想定利益の場合）',
+    note: '直前期の年利益金額を想定額に置き換えて再計算した場合の第3表の最終価額',
+    emphasis: true,
+    basis: 'inheritance',
+    scope: 'inheritance',
+    assumedProfit: true,
+    cell: (b) => ({ text: yenOrDash(b.gensokuAssumed) }),
+  },
+  {
     key: 'gensokuSpecial',
     label: '原則的評価額（所得税・法人税ベース）',
     note: '所基通59－6／法基通9－1－14：小会社として評価し、法人税額等相当額を控除しない',
@@ -149,18 +171,30 @@ const PRICE_ROWS: {
   },
 ];
 
-// 株主ごとの評価の金額列。相続税評価額ベースだけは「利益0の場合」を隣に並べる。
-type HolderColumn = { key: string; label: string; basis: ValuationBasisKey; zeroProfit?: boolean };
+// 株主ごとの評価の金額列。相続税評価額ベースだけは「利益0の場合」「想定利益の場合」を隣に並べる。
+type HolderColumn = {
+  key: string;
+  label: string;
+  basis: ValuationBasisKey;
+  zeroProfit?: boolean;
+  assumedProfit?: boolean;
+};
 
-function holderColumnsOf(bases: ValuationBasis[], showZeroProfit: boolean): HolderColumn[] {
-  return bases.flatMap((basis): HolderColumn[] => (
-    basis.key === 'inheritance' && showZeroProfit
-      ? [
-          { key: basis.key, label: basis.label, basis: basis.key },
-          { key: `${basis.key}-zero`, label: `${basis.label}（利益0の場合）`, basis: basis.key, zeroProfit: true },
-        ]
-      : [{ key: basis.key, label: basis.label, basis: basis.key }]
-  ));
+function holderColumnsOf(
+  bases: ValuationBasis[],
+  options: Pick<SummaryOptions, 'showZeroProfit' | 'assumedProfit'>,
+): HolderColumn[] {
+  return bases.flatMap((basis): HolderColumn[] => {
+    const columns: HolderColumn[] = [{ key: basis.key, label: basis.label, basis: basis.key }];
+    if (basis.key !== 'inheritance') return columns;
+    if (options.showZeroProfit) {
+      columns.push({ key: `${basis.key}-zero`, label: `${basis.label}（利益0の場合）`, basis: basis.key, zeroProfit: true });
+    }
+    if (options.assumedProfit !== null) {
+      columns.push({ key: `${basis.key}-assumed`, label: `${basis.label}（想定利益の場合）`, basis: basis.key, assumedProfit: true });
+    }
+    return columns;
+  });
 }
 
 type SetOption = (field: string, value: string) => void;
@@ -201,6 +235,30 @@ function OptionRadios<T extends string>({ name, label, items, value, onChange }:
   );
 }
 
+/** 出力条件の金額入力。id は同じ条件を2箇所に出しても label が混ざらないよう呼び出し側で分ける */
+function OptionNumber({ id, label, hint, value, onChange }: {
+  id: string;
+  label: string;
+  hint: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <span className="summary-option summary-option-number">
+      <label htmlFor={id}>{label}<small>{hint}</small></label>
+      <input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        value={value}
+        placeholder="未入力"
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <span className="summary-option-unit">千円</span>
+    </span>
+  );
+}
+
 /** 評価ベースの条件は株価一覧と株主ごとの評価の両方に効くので、両方の見出しに出す */
 function BasisOptions({ name, options, setOption }: { name: string; options: SummaryOptions; setOption: SetOption }) {
   return (
@@ -210,6 +268,13 @@ function BasisOptions({ name, options, setOption }: { name: string; options: Sum
         label="「利益0の場合」を併記"
         checked={options.showZeroProfit}
         onChange={(checked) => setOption(ZERO_PROFIT_FIELD, toStoredFlag(checked))}
+      />
+      <OptionNumber
+        id={`${name}-assumed-profit`}
+        label="想定利益を併記"
+        hint="直前期の年利益金額"
+        value={options.assumedProfitText}
+        onChange={(value) => setOption(ASSUMED_PROFIT_FIELD, value)}
       />
     </>
   );
@@ -251,6 +316,17 @@ function HiddenSection({ sectionKey, setOption }: { sectionKey: SummarySectionKe
   );
 }
 
+/** 想定利益の行・列が出ているときだけ、その前提を印刷物にも残す */
+function AssumedProfitNote({ amount }: { amount: number | null }) {
+  if (amount === null) return null;
+  return (
+    <p className="summary-sensitivity-disclaimer">
+      「想定利益の場合」は、直前期の年利益金額（第4表⑯）を {amount.toLocaleString('ja-JP')} 千円に置き換えて再計算した金額です。
+      直前々期以前は実績のままなので、比準要素のⒸは想定額と直前々期実績との平均のうち低い方が採られます。
+    </p>
+  );
+}
+
 function ShareholderRow({ row, columns }: { row: ShareholderValuationRow; columns: HolderColumn[] }) {
   return (
     <tr>
@@ -266,8 +342,12 @@ function ShareholderRow({ row, columns }: { row: ShareholderValuationRow; column
       </td>
       {columns.map((column) => {
         const amount = row.amounts.find((a) => a.basis === column.basis);
-        // 配当還元方式は年利益金額の影響を受けないため、利益0の列でも同じ金額になる。
-        const gensokuTotal = (column.zeroProfit ? amount?.gensokuZeroProfitTotal : amount?.gensokuTotal) ?? null;
+        // 配当還元方式は年利益金額の影響を受けないため、利益0・想定利益の列でも同じ金額になる。
+        const gensokuTotal = (column.zeroProfit
+          ? amount?.gensokuZeroProfitTotal
+          : column.assumedProfit
+            ? amount?.gensokuAssumedTotal
+            : amount?.gensokuTotal) ?? null;
         return (
           <td className="summary-holders-num" key={column.key}>
             {row.method === 'unknown' ? (
@@ -287,13 +367,13 @@ function ShareholderRow({ row, columns }: { row: ShareholderValuationRow; column
 
 export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Props) {
   const summary = calcClientSummary(getField);
-  const report = calcValuationReport(getField);
+  const options = readSummaryOptions(getField);
+  const report = calcValuationReport(getField, options.assumedProfit);
   const forecast = calcNextYearForecast(getField);
   const note = getField('table1_1', '_summary_advisor_note');
-  const options = readSummaryOptions(getField);
   const setOption = (field: string, value: string) => updateField('table1_1', field, value);
   const bases = filterBases(report.bases, options.basis);
-  const holderColumns = holderColumnsOf(bases, options.showZeroProfit);
+  const holderColumns = holderColumnsOf(bases, options);
   const priceRows = PRICE_ROWS.filter((row) => isRowVisible(row, options));
   const actions = filterActions(summary.actions, options.actionFilter);
   const availableSensitivity = summary.sensitivity.items.filter((item) => item.value !== null);
@@ -350,7 +430,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           </div>
           <SectionTools sectionKey="prices" options={options} setOption={setOption}>
             <BasisOptions name="summary-basis-prices" options={options} setOption={setOption} />
-            <small>評価ベースと「利益0の場合」は株主ごとの評価にも反映されます。</small>
+            <small>評価ベース・「利益0の場合」・想定利益は株主ごとの評価にも反映されます。</small>
           </SectionTools>
           <div className="summary-table-scroll">
             <table className="summary-table">
@@ -374,6 +454,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
               </tbody>
             </table>
           </div>
+          <AssumedProfitNote amount={options.assumedProfit} />
           {options.basis !== 'inheritance' && (
             <p className="summary-sensitivity-disclaimer">
               所得税・法人税ベースは、所基通59－6／法基通9－1－14による時価です。中心的な同族株主に該当するものとして小会社の評価方法（同(2)）を適用し、
@@ -394,7 +475,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           </div>
           <SectionTools sectionKey="holders" options={options} setOption={setOption}>
             <BasisOptions name="summary-basis-holders" options={options} setOption={setOption} />
-            <small>評価ベースと「利益0の場合」は株価一覧にも反映されます。</small>
+            <small>評価ベース・「利益0の場合」・想定利益は株価一覧にも反映されます。</small>
           </SectionTools>
           {report.shareholders.length ? (
             <div className="summary-table-scroll">
@@ -416,6 +497,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           ) : (
             <div className="summary-sensitivity-empty" role="note">第1表の1に株主を入力すると表示されます。</div>
           )}
+          <AssumedProfitNote amount={options.assumedProfit} />
           <p className="summary-sensitivity-disclaimer">
             各行の株主を納税義務者とみなして株主判定をやり直した結果です。議決権割合5％未満の株主は、役員該当性や中心的な同族株主の有無により方式が変わるため「要確認」として両方の金額を表示しています。
           </p>

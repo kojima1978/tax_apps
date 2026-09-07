@@ -1215,6 +1215,39 @@
   font-weight: 700;
 }
 
+/* 想定利益の金額入力。チェックやラジオと同じ高さに収める */
+.summary-option-number {
+  align-items: center;
+}
+
+.summary-option-number label {
+  cursor: pointer;
+}
+
+.summary-option-number input {
+  width: 84px;
+  min-height: 26px;
+  padding: 0 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 11.5px;
+  text-align: right;
+}
+
+.summary-option-number input:focus {
+  outline: 2px solid #1d4ed8;
+  outline-offset: -1px;
+}
+
+.summary-option-unit {
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
 /* 出力しない設定にしたセクションの跡地。位置を残しておかないと戻す入口が無くなる */
 .summary-section-hidden {
   display: flex;

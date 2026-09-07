@@ -107,6 +107,35 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
     expect(basis.comparablePriceZeroProfit).toBe(24600);
   });
 
+  it('想定利益は直前期の年利益金額だけを置き換え、直前々期以前は実績のまま残す', () => {
+    // 直前期10,000千円・直前々期6,000千円。想定利益2,000千円を入れると
+    // Ⓒの基は min(2,000, (2,000＋6,000)÷2＝4,000)＝2,000千円 → Ⓒ＝10円。
+    const table4 = {
+      '①': '10,000', e18: '10,000', e25: '6,000', n53: '30,000', f28: '1,000', f32: '1,000',
+      r1sB1: '10', r1sB2: '80', r1sC: '25', r1sD: '100', '㋷': '300',
+    };
+    const base = calcValuationReport(mkGetField({ ...data, table4 })).bases[0]!;
+    const assumed = calcValuationReport(mkGetField({ ...data, table4 }), 2000).bases[0]!;
+    // 想定利益を入れても実績の株価は動かない
+    expect(assumed.comparablePrice).toBe(base.comparablePrice);
+    // Ⓒ/C＝10÷25＝0.40 →（0.46＋0.40＋2.00）÷3＝0.95 → 300×0.95×0.5＝142.5円 → ×(10,000÷50)
+    expect(assumed.comparablePriceAssumed).toBe(28500);
+    // 未入力なら想定利益の金額は出さない
+    expect(base.comparablePriceAssumed).toBeNull();
+    expect(base.gensokuAssumed).toBeNull();
+  });
+
+  it('想定利益0でもⒸは0になるので、金額は利益0の場合と一致する', () => {
+    // Ⓒの基は min(単年, 2年平均) なので、直前期を0にすれば直前々期の実績が残っていても0に落ちる。
+    // 直前々期の実績が効くのは⑵側（Ⓒ2）で、そちらは株価の算定に使われない。
+    const table4 = {
+      '①': '10,000', e18: '10,000', e25: '6,000', n53: '30,000', f28: '1,000', f32: '1,000',
+      r1sB1: '10', r1sB2: '80', r1sC: '25', r1sD: '100', '㋷': '300',
+    };
+    const basis = calcValuationReport(mkGetField({ ...data, table4 }), 0).bases[0]!;
+    expect(basis.comparablePriceAssumed).toBe(basis.comparablePriceZeroProfit);
+  });
+
   it('利益0の原則的評価額は、年利益金額をゼロとした類似業種比準価額で算定する', () => {
     // 従業員70人以上＝大会社（原則的評価額＝類似業種比準価額と純資産価額の低い方）。
     // 第5表を3倍にして純資産価額を73,320円まで引き上げ、両方とも類似業種比準価額が採用される状態にする。
@@ -131,6 +160,24 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
     expect(basis.gensokuZeroProfit).toBe(34440);
     // 株主ごとの評価にも「1株当たりの価額×株式数」で反映する
     expect(large.shareholders[0]!.amounts[0]!.gensokuZeroProfitTotal).toBe(600 * 34440);
+    expect(large.shareholders[0]!.amounts[0]!.gensokuAssumedTotal).toBeNull();
+
+    // 想定利益を入れると、原則的評価額も株主ごとの評価額も想定額で再計算する
+    const assumed = calcValuationReport(mkGetField({
+      ...data,
+      table5: {
+        a_1_1: '現金', a_1_2: '30000', a_1_3: '24000',
+        a_2_1: '株式', a_2_2: '15000', a_2_3: '9000', a_2_4: '株式等',
+        a_3_1: '土地', a_3_2: '60000', a_3_3: '36000', a_3_4: '土地等',
+        l_1_1: '借入金', l_1_2: '18000', l_1_3: '18000',
+      },
+      table1_2: { ...data.table1_2, emp_regular: '70' },
+      table4: {
+        '①': '10,000', e18: '10,000', n53: '30,000', f28: '1,000', f32: '1,000',
+        r1sB1: '10', r1sB2: '80', r1sC: '25', r1sD: '100', '㋷': '300',
+      },
+    }), 0).bases[0]!;
+    expect(assumed.gensokuAssumed).toBe(34440);
   });
 
   it('所得税・法人税ベースは帳票側のチェックに関係なく小会社として評価する（所基通59－6(2)）', () => {
