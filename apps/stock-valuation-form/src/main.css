@@ -1145,6 +1145,125 @@
 .summary-print-button:hover { background: #1e40af; }
 .summary-print-button svg { width: 17px; height: 17px; }
 
+/* 出力条件パネル（no-print なので印刷には出ない） */
+.summary-options {
+  margin-bottom: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  color: #334155;
+}
+
+.summary-options > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #1e293b;
+  list-style: none;
+}
+
+.summary-options > summary::-webkit-details-marker { display: none; }
+
+.summary-options > summary::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid #64748b;
+  border-bottom: 2px solid #64748b;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.summary-options[open] > summary::before { transform: rotate(45deg); }
+.summary-options > summary:hover { background: #f8fafc; }
+
+.summary-options-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.summary-options-body {
+  display: grid;
+  gap: 12px;
+  padding: 4px 14px 14px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.summary-options fieldset {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.summary-options legend {
+  padding: 0 6px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.summary-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 14px;
+}
+
+.summary-options-grid label {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 3px 0;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.summary-options-grid input {
+  margin: 2px 0 0;
+  accent-color: #1d4ed8;
+  cursor: pointer;
+}
+
+.summary-options-grid small {
+  display: block;
+  color: #94a3b8;
+  font-size: 10.5px;
+}
+
+.summary-options-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.summary-options-foot button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.summary-options-foot button:hover:not(:disabled) { background: #f8fafc; border-color: #94a3b8; }
+.summary-options-foot button:disabled { opacity: 0.5; cursor: default; }
+.summary-options-foot small { color: #94a3b8; font-size: 11px; }
+
+
 .client-summary-page {
   min-height: 272mm;
   overflow: hidden;

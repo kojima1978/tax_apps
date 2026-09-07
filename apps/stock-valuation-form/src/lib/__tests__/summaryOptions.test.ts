@@ -1,0 +1,103 @@
+import { describe, it, expect } from 'vitest';
+import type { TableId } from '@/types/form';
+import type { ActionItem } from '@/lib/clientSummary';
+import type { ValuationBasis } from '@/lib/valuationReport';
+import {
+  ACTION_FIELD, BASIS_FIELD, FORECAST_DETAIL_FIELD, ZERO_PROFIT_FIELD,
+  changedOptionCount, filterActions, filterBases, isRowVisible, readSummaryOptions, resetSummaryOptionFields,
+  sectionField, toStoredFlag,
+} from '@/lib/summaryOptions';
+
+const mkGetField = (fields: Record<string, string>) => (table: TableId, field: string): string => (
+  table === 'table1_1' ? fields[field] ?? '' : ''
+);
+
+describe('readSummaryOptions（保存値の読み取り）', () => {
+  it('未設定ならすべて表示・絞り込みなしになる', () => {
+    const options = readSummaryOptions(mkGetField({}));
+    expect(Object.values(options.sections).every(Boolean)).toBe(true);
+    expect(options).toMatchObject({ basis: 'both', showZeroProfit: true, actionFilter: 'all', showForecastDetail: true });
+    expect(changedOptionCount(options)).toBe(0);
+  });
+
+  it('隠す側の値を保存したセクションだけ落ちる', () => {
+    const options = readSummaryOptions(mkGetField({
+      [sectionField('holders')]: '1',
+      [sectionField('sensitivity')]: '1',
+    }));
+    expect(options.sections.holders).toBe(false);
+    expect(options.sections.sensitivity).toBe(false);
+    expect(options.sections.prices).toBe(true);
+    expect(changedOptionCount(options)).toBe(2);
+  });
+
+  it('選択肢は保存値が想定外なら既定へ倒す', () => {
+    const options = readSummaryOptions(mkGetField({ [BASIS_FIELD]: 'unknown', [ACTION_FIELD]: '' }));
+    expect(options.basis).toBe('both');
+    expect(options.actionFilter).toBe('all');
+  });
+
+  it('絞り込みの設定も変更件数に数える', () => {
+    const options = readSummaryOptions(mkGetField({
+      [BASIS_FIELD]: 'inheritance',
+      [ZERO_PROFIT_FIELD]: '1',
+      [ACTION_FIELD]: 'high',
+      [FORECAST_DETAIL_FIELD]: '1',
+    }));
+    expect(options).toMatchObject({ basis: 'inheritance', showZeroProfit: false, actionFilter: 'high', showForecastDetail: false });
+    expect(changedOptionCount(options)).toBe(4);
+  });
+
+  it('チェックボックスの値は表示なら空、非表示なら1で保存する', () => {
+    expect(toStoredFlag(true)).toBe('');
+    expect(toStoredFlag(false)).toBe('1');
+  });
+
+  it('すべて表示へ戻す欄は全条件を空へ戻す', () => {
+    const fields = resetSummaryOptionFields();
+    expect(fields).toHaveLength(10); // セクション6 + 絞り込み4
+    expect(fields.every((f) => f.value === '')).toBe(true);
+    const stored = Object.fromEntries(fields.map((f) => [f.field, f.value]));
+    expect(changedOptionCount(readSummaryOptions(mkGetField(stored)))).toBe(0);
+  });
+});
+
+describe('filterActions（次の一手の優先度）', () => {
+  const actions = [
+    { title: 'a', description: '', priority: '高' },
+    { title: 'b', description: '', priority: '中' },
+    { title: 'c', description: '', priority: '低' },
+  ] as ActionItem[];
+
+  it('allはすべて、midは高・中、highは高だけ残す', () => {
+    expect(filterActions(actions, 'all')).toHaveLength(3);
+    expect(filterActions(actions, 'mid').map((a) => a.title)).toEqual(['a', 'b']);
+    expect(filterActions(actions, 'high').map((a) => a.title)).toEqual(['a']);
+  });
+});
+
+describe('filterBases / isRowVisible（評価ベースの絞り込み）', () => {
+  const bases = [
+    { key: 'inheritance', label: '相続税評価額' },
+    { key: 'special-market-value', label: '所得税・法人税' },
+  ] as ValuationBasis[];
+
+  it('bothなら両方、指定すればその1つだけ残す', () => {
+    expect(filterBases(bases, 'both')).toHaveLength(2);
+    expect(filterBases(bases, 'inheritance').map((b) => b.key)).toEqual(['inheritance']);
+    expect(filterBases(bases, 'special-market-value').map((b) => b.key)).toEqual(['special-market-value']);
+  });
+
+  it('共通行は絞り込んでも残り、他ベースの行だけ落ちる', () => {
+    const opts = { basis: 'inheritance', showZeroProfit: true } as const;
+    expect(isRowVisible({ scope: 'common' }, opts)).toBe(true);
+    expect(isRowVisible({ scope: 'inheritance' }, opts)).toBe(true);
+    expect(isRowVisible({ scope: 'special-market-value' }, opts)).toBe(false);
+  });
+
+  it('「利益0の場合」を出さない設定なら、共通行でも落ちる', () => {
+    const opts = { basis: 'both', showZeroProfit: false } as const;
+    expect(isRowVisible({ scope: 'common', zeroProfit: true }, opts)).toBe(false);
+    expect(isRowVisible({ scope: 'common' }, opts)).toBe(true);
+  });
+});

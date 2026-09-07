@@ -1,5 +1,10 @@
 import { calcClientSummary } from '@/lib/clientSummary';
 import { calcNextYearForecast, type ElementForecast } from '@/lib/nextYearForecast';
+import {
+  ACTION_FIELD, ACTION_FILTERS, BASIS_FIELD, BASIS_FILTERS, FORECAST_DETAIL_FIELD, SUMMARY_SECTIONS, ZERO_PROFIT_FIELD,
+  changedOptionCount, filterActions, filterBases, isRowVisible, readSummaryOptions, resetSummaryOptionFields,
+  sectionField, toStoredFlag, type RowScope,
+} from '@/lib/summaryOptions';
 import { calcValuationReport, type ShareholderValuationRow, type ValuationBasis, type ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
 
@@ -53,7 +58,12 @@ const PRICE_ROWS: {
   label: string;
   note: string;
   emphasis?: boolean;
+  /** 金額を読み取るベース */
   basis: ValuationBasisKey;
+  /** 出力条件でどの評価ベースに絞られたときに残す行か（common は両ベース共通の情報） */
+  scope: RowScope;
+  /** 「利益0の場合」を出さない設定のときに落とす行 */
+  zeroProfit?: boolean;
   cell: (basis: ValuationBasis) => { text: string; sub?: string };
 }[] = [
   {
@@ -61,6 +71,7 @@ const PRICE_ROWS: {
     label: '類似業種比準価額',
     note: '第4表の修正後の算定値を優先（両ベース共通）',
     basis: 'inheritance',
+    scope: 'common',
     cell: (b) => ({ text: yenOrDash(b.comparablePrice) }),
   },
   {
@@ -68,6 +79,8 @@ const PRICE_ROWS: {
     label: '類似業種比準価額（利益0の場合）',
     note: '第4表の年利益金額をゼロとして再計算（Ⓒ＝0）',
     basis: 'inheritance',
+    scope: 'common',
+    zeroProfit: true,
     cell: (b) => ({ text: yenOrDash(b.comparablePriceZeroProfit) }),
   },
   {
@@ -75,6 +88,7 @@ const PRICE_ROWS: {
     label: '1株当たり純資産価額（38％控除あり）',
     note: '第5表⑪（評価差額に対する法人税額等相当額を控除）',
     basis: 'inheritance',
+    scope: 'inheritance',
     cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
   },
   {
@@ -82,6 +96,7 @@ const PRICE_ROWS: {
     label: '1株当たり純資産価額（38％控除なし）',
     note: '第5表⑪（評価差額に対する法人税額等相当額を控除なし）',
     basis: 'special-market-value',
+    scope: 'special-market-value',
     cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
   },
   {
@@ -89,6 +104,7 @@ const PRICE_ROWS: {
     label: '会社の規模',
     note: '小会社 0.50／中会社 0.60・0.75・0.90／大会社 1.00',
     basis: 'inheritance',
+    scope: 'common',
     cell: (b) => {
       const size = SIZE_SCALE.find((s) => s.size === b.size);
       return { text: size ? `${size.name}　${size.rate.toFixed(2)}` : '－' };
@@ -100,6 +116,7 @@ const PRICE_ROWS: {
     note: '会社規模に応じた第3表の最終価額',
     emphasis: true,
     basis: 'inheritance',
+    scope: 'inheritance',
     cell: (b) => ({ text: yenOrDash(b.gensoku) }),
   },
   {
@@ -108,6 +125,8 @@ const PRICE_ROWS: {
     note: '第4表の年利益金額をゼロとして再計算した場合の第3表の最終価額',
     emphasis: true,
     basis: 'inheritance',
+    scope: 'inheritance',
+    zeroProfit: true,
     cell: (b) => ({ text: yenOrDash(b.gensokuZeroProfit) }),
   },
   {
@@ -116,6 +135,7 @@ const PRICE_ROWS: {
     note: '所基通59－6／法基通9－1－14：小会社として評価し、法人税額等相当額を控除しない',
     emphasis: true,
     basis: 'special-market-value',
+    scope: 'special-market-value',
     cell: (b) => ({ text: yenOrDash(b.gensoku) }),
   },
   {
@@ -123,6 +143,7 @@ const PRICE_ROWS: {
     label: '配当還元方式',
     note: '原則的評価額を上回る場合は原則的評価額',
     basis: 'inheritance',
+    scope: 'inheritance',
     cell: (b) => ({ text: yenOrDash(b.haitoKangen) }),
   },
 ];
@@ -130,9 +151,9 @@ const PRICE_ROWS: {
 // 株主ごとの評価の金額列。相続税評価額ベースだけは「利益0の場合」を隣に並べる。
 type HolderColumn = { key: string; label: string; basis: ValuationBasisKey; zeroProfit?: boolean };
 
-function holderColumnsOf(bases: ValuationBasis[]): HolderColumn[] {
+function holderColumnsOf(bases: ValuationBasis[], showZeroProfit: boolean): HolderColumn[] {
   return bases.flatMap((basis): HolderColumn[] => (
-    basis.key === 'inheritance'
+    basis.key === 'inheritance' && showZeroProfit
       ? [
           { key: basis.key, label: basis.label, basis: basis.key },
           { key: `${basis.key}-zero`, label: `${basis.label}（利益0の場合）`, basis: basis.key, zeroProfit: true },
@@ -180,8 +201,14 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
   const report = calcValuationReport(getField);
   const forecast = calcNextYearForecast(getField);
   const note = getField('table1_1', '_summary_advisor_note');
-  const holderColumns = holderColumnsOf(report.bases);
+  const options = readSummaryOptions(getField);
+  const setOption = (field: string, value: string) => updateField('table1_1', field, value);
+  const bases = filterBases(report.bases, options.basis);
+  const holderColumns = holderColumnsOf(bases, options.showZeroProfit);
+  const priceRows = PRICE_ROWS.filter((row) => isRowVisible(row, options));
+  const actions = filterActions(summary.actions, options.actionFilter);
   const availableSensitivity = summary.sensitivity.items.filter((item) => item.value !== null);
+  const changedCount = changedOptionCount(options);
 
   return (
     <div className="client-summary-wrap">
@@ -189,6 +216,92 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
         <button type="button" onClick={onBack} className="summary-back-button">帳票入力へ戻る</button>
         <button type="button" onClick={onPrint} className="summary-print-button"><Icon name="print" />このサマリーを印刷</button>
       </div>
+
+      {/* 出力条件。設定は案件データ（第1表の1）に保存されるので、保存/読込・翌年度更新にも引き継がれる */}
+      <details className="summary-options no-print">
+        <summary>
+          出力する内容を選ぶ
+          {changedCount > 0 && <span className="summary-options-badge">{changedCount}件を既定から変更</span>}
+        </summary>
+        <div className="summary-options-body">
+          <fieldset>
+            <legend>表示するセクション</legend>
+            <div className="summary-options-grid">
+              {SUMMARY_SECTIONS.map((section) => (
+                <label key={section.key}>
+                  <input
+                    type="checkbox"
+                    checked={options.sections[section.key]}
+                    onChange={(event) => setOption(sectionField(section.key), toStoredFlag(event.target.checked))}
+                  />
+                  <span>{section.label}<small>{section.hint}</small></span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>評価ベース</legend>
+            <div className="summary-options-grid">
+              {BASIS_FILTERS.map((filter) => (
+                <label key={filter.value}>
+                  <input
+                    type="radio"
+                    name="summary-basis"
+                    checked={options.basis === filter.value}
+                    onChange={() => setOption(BASIS_FIELD, filter.value)}
+                  />
+                  <span>{filter.label}</span>
+                </label>
+              ))}
+              <label>
+                <input
+                  type="checkbox"
+                  checked={options.showZeroProfit}
+                  onChange={(event) => setOption(ZERO_PROFIT_FIELD, toStoredFlag(event.target.checked))}
+                />
+                <span>「利益0の場合」を併記<small>株価一覧の行と株主ごとの列</small></span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>次の一手・来期の見通し</legend>
+            <div className="summary-options-grid">
+              {ACTION_FILTERS.map((filter) => (
+                <label key={filter.value}>
+                  <input
+                    type="radio"
+                    name="summary-action-filter"
+                    checked={options.actionFilter === filter.value}
+                    onChange={() => setOption(ACTION_FIELD, filter.value)}
+                  />
+                  <span>次の一手：{filter.label}</span>
+                </label>
+              ))}
+              <label>
+                <input
+                  type="checkbox"
+                  checked={options.showForecastDetail}
+                  onChange={(event) => setOption(FORECAST_DETAIL_FIELD, toStoredFlag(event.target.checked))}
+                />
+                <span>回避するために必要な水準<small>来期の見通しの明細表</small></span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div className="summary-options-foot">
+            <button
+              type="button"
+              onClick={() => resetSummaryOptionFields().forEach(({ field, value }) => setOption(field, value))}
+              disabled={changedCount === 0}
+            >
+              すべて表示に戻す
+            </button>
+            <small>設定は案件データに保存され、印刷にも反映されます（この欄自体は印刷されません）。</small>
+          </div>
+        </div>
+      </details>
 
       <article className="client-summary-page" aria-labelledby="client-summary-title">
         <header className="summary-hero">
@@ -207,6 +320,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           <div className="summary-meta"><span>{summary.purposeLabel}</span><span>{summary.sizeLabel}</span><span>{summary.classificationLabel}</span></div>
         </header>
 
+        {options.sections.prices && (
         <section className="summary-prices" aria-labelledby="summary-prices-title">
           <div className="summary-sensitivity-heading">
             <div>
@@ -224,7 +338,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
                 </tr>
               </thead>
               <tbody>
-                {PRICE_ROWS.map((priceRow) => {
+                {priceRows.map((priceRow) => {
                   const basis = report.bases.find((b) => b.key === priceRow.basis);
                   const { text, sub } = basis ? priceRow.cell(basis) : { text: '－', sub: undefined };
                   return (
@@ -237,12 +351,16 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
               </tbody>
             </table>
           </div>
-          <p className="summary-sensitivity-disclaimer">
-            所得税・法人税ベースは、所基通59－6／法基通9－1－14による時価です。中心的な同族株主に該当するものとして小会社の評価方法（同(2)）を適用し、
-            評価差額に対する法人税額等相当額を控除していません（同(4)）。中心的な同族株主に該当しない場合は相続税評価額ベースの金額になります。
-          </p>
+          {options.basis !== 'inheritance' && (
+            <p className="summary-sensitivity-disclaimer">
+              所得税・法人税ベースは、所基通59－6／法基通9－1－14による時価です。中心的な同族株主に該当するものとして小会社の評価方法（同(2)）を適用し、
+              評価差額に対する法人税額等相当額を控除していません（同(4)）。中心的な同族株主に該当しない場合は相続税評価額ベースの金額になります。
+            </p>
+          )}
         </section>
+        )}
 
+        {options.sections.holders && (
         <section className="summary-holders" aria-labelledby="summary-holders-title">
           <div className="summary-sensitivity-heading">
             <div>
@@ -275,7 +393,9 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             各行の株主を納税義務者とみなして株主判定をやり直した結果です。議決権割合5％未満の株主は、役員該当性や中心的な同族株主の有無により方式が変わるため「要確認」として両方の金額を表示しています。
           </p>
         </section>
+        )}
 
+        {options.sections.sensitivity && (
         <section className="summary-sensitivity" aria-labelledby="summary-sensitivity-title">
           <div className="summary-sensitivity-heading">
             <h2 id="summary-sensitivity-title">類似業種比準要素｜1円当たりの影響度</h2>
@@ -307,7 +427,9 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           )}
           <p className="summary-sensitivity-disclaimer">各要素が1円増加したときの、1株当たりの類似業種比準価額への概算影響です（端数処理・最低価額判定を固定した線形近似）。</p>
         </section>
+        )}
 
+        {options.sections.forecast && (
         <section className="summary-forecast" aria-labelledby="summary-forecast-title">
           <div className="summary-sensitivity-heading">
             <div>
@@ -363,6 +485,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
                   </tbody>
                 </table>
               </div>
+              {options.showForecastDetail && (<>
               <h3 className="summary-forecast-subhead">回避するために必要な水準（来期の判定要素）</h3>
               <div className="summary-table-scroll">
                 <table className="summary-table">
@@ -387,6 +510,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
                   </tbody>
                 </table>
               </div>
+              </>)}
               <p className="summary-sensitivity-disclaimer">
                 「来期」は次の決算を経過した後の課税時期を指します。金額はいずれも現在の入力値をそのまま用いた試算で、第3表・第6表の修正欄、資本金等の額の変動、来期の類似業種の株価改定は反映していません。
                 配当・利益の水準を調整する場合は、事業実態と整合していることが前提です。
@@ -394,25 +518,33 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             </>
           )}
         </section>
+        )}
 
+        {options.sections.actions && (
         <section className="summary-actions" aria-labelledby="summary-actions-title">
           <div className="summary-sensitivity-heading">
             <div>
               <small>NEXT ACTIONS</small>
               <h2 id="summary-actions-title">次の一手</h2>
             </div>
-            <span>{summary.actions.length}件</span>
+            <span>{actions.length}件</span>
           </div>
-          <ol className="summary-action-list">
-            {summary.actions.map((action) => (
-              <li key={action.title} className={`summary-action-${PRIORITY_CLASS[action.priority]}`}>
-                <span className="summary-action-priority">優先度{action.priority}</span>
-                <div><strong>{action.title}</strong><p>{action.description}</p></div>
-              </li>
-            ))}
-          </ol>
+          {actions.length ? (
+            <ol className="summary-action-list">
+              {actions.map((action) => (
+                <li key={action.title} className={`summary-action-${PRIORITY_CLASS[action.priority]}`}>
+                  <span className="summary-action-priority">優先度{action.priority}</span>
+                  <div><strong>{action.title}</strong><p>{action.description}</p></div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="summary-sensitivity-empty" role="note">選択した優先度に該当する打ち手はありません。</div>
+          )}
         </section>
+        )}
 
+        {options.sections.note && (
         <section className="summary-advisor-note" aria-labelledby="summary-note-title">
           <div><small>ADVISOR'S NOTE</small><h2 id="summary-note-title">担当者コメント</h2></div>
           <textarea
@@ -422,6 +554,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             placeholder="お客様への補足説明、次回までの確認事項などを入力してください。"
           />
         </section>
+        )}
 
         <footer className="summary-footer">
           <p>本資料は入力情報に基づく概算・検討用資料です。実行に際しては、最新の法令・通達および個別事情を確認してください。</p>
