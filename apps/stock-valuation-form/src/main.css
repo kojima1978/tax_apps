@@ -1670,6 +1670,14 @@
 }
 
 @media print {
+  /* 既定の @page は実寸様式（.gov-page--exact）が用紙原点から描くために margin: 0 に
+     してある。サマリーはそれを継承すると紙の端まで印字してしまい、プリンタの
+     印字不可領域で表のヘッダ行が欠ける。名前付きページで四辺 10mm を与えて切り離す */
+  @page summary {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
   body:has(.client-summary-page) {
     background: #fff !important;
   }
@@ -1686,21 +1694,36 @@
   }
 
   .client-summary-page {
+    page: summary;
     width: 100%;
     min-height: 0;
     border-radius: 0;
     box-shadow: none;
+    /* 画面の薄グレー地は全面ベタ塗りで刷られるので、紙では白に戻す */
+    background: #fff;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
+
+  /* セクションの途中で改ページさせない。カードの枠線が断ち切られたり、
+     会社規模別・来期の見通しの表が行の途中で割れるのを防ぐ */
+  .summary-prices, .summary-sizes, .summary-holders, .summary-sensitivity,
+  .summary-forecast, .summary-actions, .summary-advisor-note { break-inside: avoid; }
+  /* フッターだけが最終ページに取り残されるのを防ぐ */
+  .summary-footer { break-before: avoid; }
+  /* break-inside: avoid はあくまで指示なので、株主が多い等でセクション自体が
+     1ページに収まらない場合に備えた保険 */
+  .summary-table thead { display: table-header-group; }
+  .summary-table tr { break-inside: avoid; }
 
   .summary-hero { padding: 24px 30px 19px; }
   .summary-kicker { margin-bottom: 18px; }
   .summary-hero h1 { font-size: 25px; }
   .summary-lead { margin-top: 7px; line-height: 1.55; }
   .summary-meta { margin-top: 13px; }
+  /* 余白 10mm を確保したぶん、セクション間の間隔を詰めて 3 ページに収める */
   .summary-prices, .summary-sizes, .summary-holders, .summary-sensitivity,
-  .summary-forecast, .summary-actions { margin: 14px 20px 0; padding: 13px 15px 10px; }
+  .summary-forecast, .summary-actions { margin: 9px 20px 0; padding: 11px 15px 8px; }
   .summary-forecast-lead { font-size: 8.5px; }
   .summary-forecast-note { font-size: 8.5px; }
   .summary-action-list li { break-inside: avoid; }
@@ -1711,14 +1734,14 @@
   .summary-sensitivity-heading { margin-bottom: 10px; }
   .summary-sensitivity-heading h2 { font-size: 14px; }
   .summary-sensitivity-disclaimer { margin-top: 7px; }
-  .summary-advisor-note { margin: 0 20px 15px; padding: 12px 15px; }
+  .summary-advisor-note { margin: 9px 20px 0; padding: 10px 15px; }
   .summary-advisor-note textarea {
     min-height: 52px;
     resize: none;
     border-color: transparent;
     background: transparent;
   }
-  .summary-footer { padding: 10px 20px; }
+  .summary-footer { padding: 8px 20px; }
 }
 
 .admin-root {
