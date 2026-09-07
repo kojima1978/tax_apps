@@ -55,9 +55,9 @@ const SIZE_SCALE = [
   { size: 4, name: '大会社', rate: 1 },
 ] as const;
 
-/** 「（想定利益3,000千円の場合）」のように、試算に使った額を見出しへ入れる */
+/** 「（利益3,000千円の場合）」のように、試算に使った額を見出しへ入れる */
 const assumedProfitLabel = (base: string, amount: number, extra = '') =>
-  `${base}（${extra}想定利益${amount.toLocaleString('ja-JP')}千円の場合）`;
+  `${base}（${extra}利益${amount.toLocaleString('ja-JP')}千円の場合）`;
 
 // 株価一覧の行。ベースの違いは行のラベル側に持たせ、表は「項目｜金額」の2列で並べる。
 const PRICE_ROWS: {
@@ -177,7 +177,7 @@ const PRICE_ROWS: {
   },
 ];
 
-// 株主ごとの評価の金額列。相続税評価額ベースだけは「利益0の場合」「想定利益の場合」を隣に並べる。
+// 株主ごとの評価の金額列。相続税評価額ベースだけは「利益0の場合」「利益〇〇〇千円の場合」を隣に並べる。
 type HolderColumn = {
   key: string;
   label: string;
@@ -294,7 +294,7 @@ function BasisOptions({ name, options, setOption }: { name: string; options: Sum
       />
       <OptionCheckNumber
         id={`${name}-assumed-profit`}
-        label="「想定利益の場合」を併記"
+        label="「利益〇〇〇千円の場合」を併記"
         hint="直前期の年利益金額"
         unit="千円"
         checked={options.showAssumedProfit}
@@ -347,8 +347,8 @@ function AssumedProfitNote({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
     <p className="summary-sensitivity-disclaimer">
-      「想定利益の場合」は、直前期の年利益金額（第4表⑯）だけを想定額に置き換えて再計算した金額です。
-      直前々期以前は実績のままなので、比準要素のⒸは想定額と直前々期実績との平均のうち低い方が採られます。
+      利益の額を置き換えた行・列は、直前期の年利益金額（第4表⑯）だけを差し替えて再計算した金額です。
+      直前々期以前は実績のままなので、比準要素のⒸは置き換えた額と直前々期実績との平均のうち低い方が採られます。
     </p>
   );
 }
