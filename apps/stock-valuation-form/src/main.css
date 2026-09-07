@@ -273,6 +273,7 @@
 }
 
 .table-tab-button {
+  position: relative;
   min-width: 108px;
   height: 38px;
   display: flex;
@@ -314,6 +315,31 @@
 /* 第2表の判定で記載対象になる表 */
 .table-tab-button-target {
   border-left: 3px solid #2563eb;
+}
+
+/* 様式ではないサマリー。並びは他の表と同じにしつつ、区切り線と地色で様式と見分ける */
+.table-tab-button-summary {
+  margin-right: 6px;
+  border-color: #bfdbfe;
+  background: #f5f9ff;
+  color: #1d4ed8;
+}
+
+.table-tab-button-summary::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: -6px;
+  bottom: 4px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.table-tab-button-summary:hover { background: #eaf2ff; }
+
+.table-tab-button-summary.table-tab-button-active {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
 }
 
 .table-tab-flag {
@@ -1055,48 +1081,6 @@
 /* ===== 業種目データ管理（#industry-data） =====
    帳票と違い用紙サイズに縛られないので、画面幅いっぱいの素直なレイアウトにする。 */
 
-/* 右寄せは .app-header-right がまとめて行う */
-.app-summary-button {
-  border-color: #1d4ed8;
-  color: #1d4ed8;
-  font-weight: 700;
-}
-
-.app-summary-button.is-active {
-  background: #1d4ed8;
-  color: #fff;
-}
-
-.summary-topbar-title {
-  min-width: 0;
-  flex: 1;
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  align-items: center;
-  gap: 8px;
-  min-height: 66px;
-}
-
-.summary-topbar-title span {
-  padding: 3px 7px;
-  border-radius: 3px;
-  background: #0f172a;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-}
-
-.summary-topbar-title strong {
-  color: #0f172a;
-  font-size: 14px;
-}
-
-.summary-topbar-title small {
-  color: #64748b;
-  font-size: 11px;
-}
-
 /* ============================================
    お客様向けサマリー
    ============================================ */
@@ -1629,8 +1613,6 @@
 }
 
 @media (max-width: 520px) {
-  .summary-topbar-title { grid-template-columns: auto 1fr; }
-  .summary-topbar-title small { grid-column: 1 / -1; }
   .summary-hero h1 { font-size: 23px; }
   .summary-sensitivity { padding: 17px 15px 14px; }
   .summary-sensitivity-heading { flex-direction: column; gap: 8px; }

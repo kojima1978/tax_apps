@@ -12,7 +12,7 @@ import { Table6 } from '@/components/tables/table6';
 import { Table7_1, Table7_2, Table7_3 } from '@/components/tables/table7';
 import { IndustryAdminPage } from '@/features/industryAdmin/IndustryAdminPage';
 import type { TableId, TableProps } from '@/types/form';
-import { TABS } from '@/data/constants';
+import { NAV_TABS, SUMMARY_TAB_ID, TABS } from '@/data/constants';
 import { PrerequisitesChip, PrerequisitesDialog } from '@/components/PrerequisitesDialog';
 import { ClientSummaryPage } from '@/components/ClientSummaryPage';
 import { RequiredFieldNavigator } from '@/components/RequiredFieldNavigator';
@@ -132,6 +132,16 @@ export default function App() {
     setActiveTab(tab);
   }, []);
 
+  // タブ列は様式ではないサマリーを先頭に含むので、IDで振り分ける
+  const goToNav = useCallback((id: string) => {
+    if (id !== SUMMARY_TAB_ID) {
+      goToTab(id as TableId);
+      return;
+    }
+    setJumpOrigin(null);
+    setSummaryOpen(true);
+  }, [goToTab]);
+
   // 自動転記欄クリック時に入力元の表へ移動する。戻れるように移動元を覚えておく
   const handleJump = useCallback((target: { tab: TableId; field: string }) => {
     const active = document.activeElement;
@@ -212,10 +222,11 @@ export default function App() {
       return;
     }
     if (ctrl && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
-      const next = TABS[TABS.findIndex((t) => t.id === activeTab) + (event.key === 'ArrowLeft' ? -1 : 1)];
+      const current = summaryOpen ? SUMMARY_TAB_ID : activeTab;
+      const next = NAV_TABS[NAV_TABS.findIndex((t) => t.id === current) + (event.key === 'ArrowLeft' ? -1 : 1)];
       if (!next) return;
       event.preventDefault();  // 入力欄の中では単語単位の移動が既定なので打ち消す
-      goToTab(next.id);
+      goToNav(next.id);
       return;
     }
     // 「?」は入力できる文字なので、入力欄の外で押されたときだけ一覧の開閉に使う
@@ -223,7 +234,7 @@ export default function App() {
       event.preventDefault();
       setShortcutsOpen((open) => !open);
     }
-  }, [activeTab, exportJson, goToTab, prereqOpen, printDialogOpen, printTarget, requestPrint]);
+  }, [activeTab, exportJson, goToNav, prereqOpen, printDialogOpen, printTarget, requestPrint, summaryOpen]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -294,13 +305,6 @@ export default function App() {
           </span>
           <button
             type="button"
-            className={`app-tool-btn app-summary-button${summaryOpen ? ' is-active' : ''}`}
-            onClick={() => setSummaryOpen((open) => !open)}
-          >
-            {summaryOpen ? '帳票入力へ戻る' : 'お客様サマリー'}
-          </button>
-          <button
-            type="button"
             className="app-tool-btn"
             onClick={() => { window.location.hash = ADMIN_HASH; }}
             title="類似業種比準価額に使う業種目マスタ・業種目別株価等を登録・訂正します"
@@ -323,20 +327,12 @@ export default function App() {
       </div>
 
       <div className="no-print app-topbar">
-        {summaryOpen ? (
-          <div className="summary-topbar-title">
-            <span>REPORT</span>
-            <strong>お客様向け株式評価サマリー</strong>
-            <small>入力済みデータから現状と打ち手を自動整理</small>
-          </div>
-        ) : (
-          <Navigation
-            activeTab={activeTab}
-            onTabChange={goToTab}
-            hasData={hasData}
-            isJudgmentTarget={isJudgmentTarget}
-          />
-        )}
+        <Navigation
+          activeId={summaryOpen ? SUMMARY_TAB_ID : activeTab}
+          onSelect={goToNav}
+          hasData={hasData}
+          isJudgmentTarget={isJudgmentTarget}
+        />
 
         <div className="app-toolbar" aria-label="帳票操作">
           {([

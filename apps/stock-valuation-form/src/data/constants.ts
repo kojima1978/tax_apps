@@ -19,3 +19,15 @@ export const TABS: TabDef[] = [
   { id: 'table7_2', label: '第７表の２', subtitle: 'S1類似業種比準' },
   { id: 'table7_3', label: '第７表の３', subtitle: 'S1純資産・S2' },
 ];
+
+/** タブ列でお客様サマリーを指すID（様式ではないので TableId ではない） */
+export const SUMMARY_TAB_ID = 'summary';
+
+/**
+ * タブ列の並び。サマリーは様式ではないが、全表印刷でも印刷ダイアログでも先頭に来るため
+ * タブ列でも先頭に置いて三者の並びを揃える。
+ */
+export const NAV_TABS: { id: string; label: string; subtitle: string; form: boolean }[] = [
+  { id: SUMMARY_TAB_ID, label: 'サマリー', subtitle: '現状と打ち手の整理', form: false },
+  ...TABS.map((tab) => ({ ...tab, form: true })),
+];

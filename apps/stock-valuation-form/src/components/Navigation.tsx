@@ -1,30 +1,44 @@
 import { useEffect, useRef } from 'react';
-import { TABS } from '@/data/constants';
+import { NAV_TABS, SUMMARY_TAB_ID } from '@/data/constants';
 import type { TableId } from '@/types/form';
 
 interface NavigationProps {
-  activeTab: TableId;
-  onTabChange: (tab: TableId) => void;
+  /** 表示中のタブ。サマリーを開いている間は SUMMARY_TAB_ID */
+  activeId: string;
+  onSelect: (id: string) => void;
   /** 入力値のある表か（印刷ダイアログと同じ判定） */
   hasData: (tab: TableId) => boolean;
   /** 第2表の判定で記載対象になる表か */
   isJudgmentTarget: (tab: TableId) => boolean;
 }
 
-export function Navigation({ activeTab, onTabChange, hasData, isJudgmentTarget }: NavigationProps) {
+export function Navigation({ activeId, onSelect, hasData, isJudgmentTarget }: NavigationProps) {
   const activeRef = useRef<HTMLButtonElement>(null);
-  const activeIndex = TABS.findIndex((tab) => tab.id === activeTab);
-  const currentTab = TABS[activeIndex] ?? TABS[0];
+  const activeIndex = NAV_TABS.findIndex((tab) => tab.id === activeId);
+  const currentTab = NAV_TABS[activeIndex] ?? NAV_TABS[0];
   const hasPrevious = activeIndex > 0;
-  const hasNext = activeIndex >= 0 && activeIndex < TABS.length - 1;
+  const hasNext = activeIndex >= 0 && activeIndex < NAV_TABS.length - 1;
 
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-  }, [activeTab]);
+  }, [activeId]);
 
   const move = (offset: number) => {
-    const nextTab = TABS[activeIndex + offset];
-    if (nextTab) onTabChange(nextTab.id);
+    const nextTab = NAV_TABS[activeIndex + offset];
+    if (nextTab) onSelect(nextTab.id);
+  };
+
+  // 様式ではないサマリーには入力済み・記載対象の印を付けない
+  const stateOf = (tab: typeof NAV_TABS[number]) => {
+    if (!tab.form) return { entered: false, target: false, state: '様式ではありません' };
+    const entered = hasData(tab.id as TableId);
+    const target = isJudgmentTarget(tab.id as TableId);
+    return {
+      entered,
+      target,
+      // 状態は色だけに頼らない（記号＋aria-labelでも伝える）
+      state: [target ? '記載対象' : null, entered ? '入力済み' : '未入力'].filter(Boolean).join('・'),
+    };
   };
 
   return (
@@ -44,15 +58,18 @@ export function Navigation({ activeTab, onTabChange, hasData, isJudgmentTarget }
           id="table-selector"
           name="app.activeTable"
           className="table-select"
-          value={activeTab}
-          onChange={(event) => onTabChange(event.target.value as TableId)}
+          value={activeId}
+          onChange={(event) => onSelect(event.target.value)}
           aria-label="表示する表"
         >
-          {TABS.map((tab) => (
-            <option key={tab.id} value={tab.id}>
-              {hasData(tab.id) ? '●' : '　'}{tab.label}　{tab.subtitle}{isJudgmentTarget(tab.id) ? '（記載対象）' : ''}
-            </option>
-          ))}
+          {NAV_TABS.map((tab) => {
+            const { entered, target } = stateOf(tab);
+            return (
+              <option key={tab.id} value={tab.id}>
+                {entered ? '●' : '　'}{tab.label}　{tab.subtitle}{target ? '（記載対象）' : ''}
+              </option>
+            );
+          })}
         </select>
       </div>
 
@@ -62,19 +79,16 @@ export function Navigation({ activeTab, onTabChange, hasData, isJudgmentTarget }
       </span>
 
       <div className="table-tab-list" role="tablist" aria-label="表一覧">
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab.id;
-          const entered = hasData(tab.id);
-          const target = isJudgmentTarget(tab.id);
-          // 状態は色だけに頼らない（記号＋aria-labelでも伝える）
-          const state = [target ? '記載対象' : null, entered ? '入力済み' : '未入力'].filter(Boolean).join('・');
+        {NAV_TABS.map((tab) => {
+          const isActive = activeId === tab.id;
+          const { entered, target, state } = stateOf(tab);
           return (
             <button
               key={tab.id}
               type="button"
               ref={isActive ? activeRef : undefined}
-              onClick={() => onTabChange(tab.id)}
-              className={`table-tab-button${isActive ? ' table-tab-button-active' : ''}${target ? ' table-tab-button-target' : ''}`}
+              onClick={() => onSelect(tab.id)}
+              className={`table-tab-button${isActive ? ' table-tab-button-active' : ''}${target ? ' table-tab-button-target' : ''}${tab.id === SUMMARY_TAB_ID ? ' table-tab-button-summary' : ''}`}
               role="tab"
               aria-selected={isActive}
               aria-label={`${tab.label} ${tab.subtitle}（${state}）`}
