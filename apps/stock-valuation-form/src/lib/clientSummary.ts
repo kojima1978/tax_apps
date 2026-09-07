@@ -22,7 +22,7 @@ export const SIZE_NAMES: Record<number, string> = {
   0: '小会社', 1: '中会社（L=0.60）', 2: '中会社（L=0.75）', 3: '中会社（L=0.90）', 4: '大会社',
 };
 
-const RESULT_NAMES: Record<number, string> = {
+export const RESULT_NAMES: Record<number, string> = {
   0: '一般の評価会社', 1: '比準要素数1の会社', 2: '株式等保有特定会社', 3: '土地保有特定会社',
   4: '開業後3年未満の会社等', 5: '開業前または休業中の会社', 6: '清算中の会社',
 };

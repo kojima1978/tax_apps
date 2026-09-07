@@ -364,7 +364,7 @@ export function calcTable3(getField: TableProps['getField']) {
   const v32 = base28; // ㉜
 
   return {
-    v1, v2, v3, v4, v5, v6, size, lRate, iSmall, v8, v12,
+    v1, v2, v3, v4, v5, v6, size, lRate, iSmall, v8, v12, base,
     gensoku,                    // 原則的評価方式の最終価額（⑫→⑧→会社規模別の順）
     linkedTreasuryShares, v16, v17, v17disp, ia, ro, v21, v22, v22raw, v22Floored,
     v23, v24,                   // ㉓=配当還元の計算値、㉔=原則を超える場合に原則で頭打ちした額

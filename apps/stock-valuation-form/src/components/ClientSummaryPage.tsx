@@ -1,4 +1,5 @@
 import { calcClientSummary } from '@/lib/clientSummary';
+import { calcNextYearForecast, type ElementForecast } from '@/lib/nextYearForecast';
 import { calcValuationReport, type ShareholderValuationRow, type ValuationBasis, type ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
 
@@ -16,6 +17,26 @@ function Icon({ name }: { name: 'print' }) {
 
 
 const yenOrDash = (value: number | null) => value === null ? '－' : `${value.toLocaleString('ja-JP')}円`;
+
+// 打ち手の優先度バッジ（クラス名はASCIIに寄せる）
+const PRIORITY_CLASS: Record<'高' | '中' | '低', string> = { 高: 'high', 中: 'mid', 低: 'low' };
+
+// 来期の見通し：現在との差。株価が上がる（＝不利になる）方向を赤で示す
+function DiffCell({ diff, rate }: { diff: number | null; rate: number | null }) {
+  if (diff === null) return <>－</>;
+  const sign = diff > 0 ? '+' : diff < 0 ? '−' : '±';
+  const tone = diff > 0 ? 'summary-forecast-diff-up' : diff < 0 ? 'summary-forecast-diff-down' : undefined;
+  return (
+    <>
+      <span className={tone}>{sign}{Math.abs(diff).toLocaleString('ja-JP')}円</span>
+      {rate !== null && <small>{sign}{Math.abs(rate).toLocaleString('ja-JP', { maximumFractionDigits: 1 })}%</small>}
+    </>
+  );
+}
+
+const elementValueOf = (element: ElementForecast) => element.excluded
+  ? '評価対象外'
+  : element.current === null ? '－' : `${element.current.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}円`;
 
 // 会社規模と、その規模で用いる類似業種比準価額の割合（小会社0.50・中会社L・大会社1.00）
 const SIZE_SCALE = [
@@ -157,6 +178,7 @@ function ShareholderRow({ row, columns }: { row: ShareholderValuationRow; column
 export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Props) {
   const summary = calcClientSummary(getField);
   const report = calcValuationReport(getField);
+  const forecast = calcNextYearForecast(getField);
   const note = getField('table1_1', '_summary_advisor_note');
   const holderColumns = holderColumnsOf(report.bases);
   const availableSensitivity = summary.sensitivity.items.filter((item) => item.value !== null);
@@ -284,6 +306,111 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             <div className="summary-sensitivity-empty" role="note">類似業種株価、斟酌率、1株当たり資本金等の額、または比準要素の基準値を入力すると表示されます。</div>
           )}
           <p className="summary-sensitivity-disclaimer">各要素が1円増加したときの、1株当たりの類似業種比準価額への概算影響です（端数処理・最低価額判定を固定した線形近似）。</p>
+        </section>
+
+        <section className="summary-forecast" aria-labelledby="summary-forecast-title">
+          <div className="summary-sensitivity-heading">
+            <div>
+              <small>NEXT YEAR OUTLOOK</small>
+              <h2 id="summary-forecast-title">来期の見通し｜比準要素数1・比準要素数0への該当リスク</h2>
+            </div>
+            <span>現在の判定：{forecast.currentResultLabel}</span>
+          </div>
+          {!forecast.known ? (
+            <div className="summary-sensitivity-empty" role="note">第4表の①資本金等の額と比準要素（Ⓑ・Ⓒ・Ⓓ）を入力すると表示されます。</div>
+          ) : (
+            <>
+              <p className="summary-forecast-lead">
+                今期の判定要素（⑴）は、来期には「直前々期末を基準とした判定要素（⑵）」へそのまま繰り上がります。
+                {forecast.zeroLabels.length
+                  ? <>現在ゼロの要素は <span className="summary-forecast-zero">{forecast.zeroLabels.join('、')}</span> の{forecast.zerosNow}個です。</>
+                  : '現在ゼロの要素はありません。'}
+                {forecast.carryOverMet
+                  ? `来期の⑵側の条件は既に成立が確定しているため、来期の⑴でゼロが${forecast.zerosNeededFor1}個になった時点で比準要素数1の会社に該当します。`
+                  : `来期の⑵側の条件（ゼロが${forecast.zerosNeededFor1}個以上）を満たさないため、来期に比準要素数1の会社となることはありません。`}
+              </p>
+              <div className="summary-table-scroll">
+                <table className="summary-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">来期のシナリオ</th>
+                      <th scope="col">評価区分</th>
+                      <th scope="col" className="summary-holders-num">1株当たりの価額</th>
+                      <th scope="col" className="summary-holders-num">現在との差</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="summary-table-emphasis">
+                      <th scope="row">現在の判定<small>今期の課税時期</small></th>
+                      <td>{forecast.currentResultLabel}</td>
+                      <td className="summary-holders-num">{yenOrDash(forecast.currentPrice)}</td>
+                      <td className="summary-holders-num">－</td>
+                    </tr>
+                    {forecast.scenarios.map((scenario) => (
+                      <tr key={scenario.key} className={scenario.possible ? undefined : 'summary-forecast-off'}>
+                        <th scope="row">{scenario.label}<small>来期の⑴でゼロが{scenario.zerosNeeded}個になった場合</small></th>
+                        <td>
+                          {scenario.possible ? scenario.resultLabel : '該当しません'}
+                          {scenario.impossibleReason && <small>{scenario.impossibleReason}</small>}
+                          {scenario.possible && scenario.noEffect && <small>現在と同じ評価区分のため、株価の算定方法は変わりません。</small>}
+                        </td>
+                        <td className="summary-holders-num">{scenario.possible ? yenOrDash(scenario.price) : '－'}</td>
+                        <td className="summary-holders-num">
+                          {scenario.possible ? <DiffCell diff={scenario.diff} rate={scenario.diffRate} /> : '－'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <h3 className="summary-forecast-subhead">回避するために必要な水準（来期の判定要素）</h3>
+              <div className="summary-table-scroll">
+                <table className="summary-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">判定要素</th>
+                      <th scope="col" className="summary-holders-num">今期の⑴</th>
+                      <th scope="col">来期にゼロにしないための条件</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {forecast.elements.map((element) => (
+                      <tr key={element.key}>
+                        <th scope="row">{element.label}</th>
+                        <td className="summary-holders-num">
+                          {elementValueOf(element)}
+                          {element.isZeroNow === true && <small>ゼロ</small>}
+                        </td>
+                        <td className="summary-forecast-note">{element.requiredNote}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="summary-sensitivity-disclaimer">
+                「来期」は次の決算を経過した後の課税時期を指します。金額はいずれも現在の入力値をそのまま用いた試算で、第3表・第6表の修正欄、資本金等の額の変動、来期の類似業種の株価改定は反映していません。
+                配当・利益の水準を調整する場合は、事業実態と整合していることが前提です。
+              </p>
+            </>
+          )}
+        </section>
+
+        <section className="summary-actions" aria-labelledby="summary-actions-title">
+          <div className="summary-sensitivity-heading">
+            <div>
+              <small>NEXT ACTIONS</small>
+              <h2 id="summary-actions-title">次の一手</h2>
+            </div>
+            <span>{summary.actions.length}件</span>
+          </div>
+          <ol className="summary-action-list">
+            {summary.actions.map((action) => (
+              <li key={action.title} className={`summary-action-${PRIORITY_CLASS[action.priority]}`}>
+                <span className="summary-action-priority">優先度{action.priority}</span>
+                <div><strong>{action.title}</strong><p>{action.description}</p></div>
+              </li>
+            ))}
+          </ol>
         </section>
 
         <section className="summary-advisor-note" aria-labelledby="summary-note-title">
