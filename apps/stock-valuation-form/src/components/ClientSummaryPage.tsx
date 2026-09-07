@@ -87,7 +87,7 @@ const PRICE_ROWS: {
   {
     key: 'comparableZeroProfit',
     label: '類似業種比準価額（利益0の場合）',
-    note: '第4表の年利益金額をゼロとして再計算（Ⓒ＝0）',
+    note: '直前期の年利益金額をゼロとして再計算',
     basis: 'inheritance',
     scope: 'common',
     zeroProfit: true,
@@ -141,7 +141,7 @@ const PRICE_ROWS: {
   {
     key: 'gensokuInheritanceZeroProfit',
     label: '原則的評価額（相続税評価額ベース・利益0の場合）',
-    note: '第4表の年利益金額をゼロとして再計算した場合の第3表の最終価額',
+    note: '直前期の年利益金額をゼロとして再計算した場合の第3表の最終価額',
     emphasis: true,
     basis: 'inheritance',
     scope: 'inheritance',

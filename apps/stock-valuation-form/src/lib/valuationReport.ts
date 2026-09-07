@@ -36,31 +36,22 @@ export function withPurpose(
 }
 
 /**
- * 第4表の年利益金額（⑪〜⑮）を差し替えた getField を返す。
+ * 第4表の直前期の年利益金額（⑪〜⑮）を差し替えた getField を返す。
  * ⑯＝⑪－⑫＋⑬－⑭＋⑮ なので、⑪へ金額を入れて⑫〜⑮を0にすれば⑯がちょうどその金額になる。
  *
- * scope='all'    … 3期とも差し替える。利益0の試算（Ⓒ＝0）に使う。
- * scope='latest' … 直前期だけ差し替え、直前々期以前は実績のまま。想定利益の試算に使う。
- *                  Ⓒ＝min（想定額, 想定額と直前々期実績の平均）と、通達どおりの計算がそのまま働く。
+ * 置き換えるのは直前期だけで、直前々期以前は実績のまま残す。利益0も想定利益も
+ * 「直前期の業績だけが変わったら」という同じ問いなので、扱いをそろえてある。
+ * Ⓒの基は min（置換額, 置換額と直前々期実績の平均）と、通達どおりの計算がそのまま働く
+ * （第4表で2年平均を選んでいる場合は、利益0でもⒸは0にならず直前々期の実績が残る）。
  */
-const PROFIT_PERIODS = [
-  { income: 'e18', adjust: ['e19', 'e20', 'e21', 'e22'] },
-  { income: 'e25', adjust: ['e26', 'e27', 'e28', 'e29'] },
-  { income: 'e32', adjust: ['e33', 'e34', 'e35', 'e36'] },
-] as const;
+const LATEST_PROFIT_INCOME = 'e18';
+const LATEST_PROFIT_ADJUST = new Set(['e19', 'e20', 'e21', 'e22']);
 
-function withProfit(
-  getField: TableProps['getField'],
-  amount: number,
-  scope: 'all' | 'latest',
-): TableProps['getField'] {
-  const periods = scope === 'all' ? PROFIT_PERIODS : PROFIT_PERIODS.slice(0, 1);
-  const income = new Set<string>(periods.map((period) => period.income));
-  const adjust = new Set<string>(periods.flatMap((period) => [...period.adjust]));
+function withProfit(getField: TableProps['getField'], amount: number): TableProps['getField'] {
   return (table, field) => {
     if (table !== 'table4') return getField(table, field);
-    if (income.has(field)) return String(amount);
-    if (adjust.has(field)) return '0';
+    if (field === LATEST_PROFIT_INCOME) return String(amount);
+    if (LATEST_PROFIT_ADJUST.has(field)) return '0';
     return getField(table, field);
   };
 }
@@ -143,8 +134,8 @@ export function calcValuationBasis(
   assumedProfit: number | null = null,
 ): ValuationBasis {
   const gf = withPurpose(getField, key);
-  const gfZero = withProfit(gf, 0, 'all');
-  const gfAssumed = assumedProfit === null ? null : withProfit(gf, assumedProfit, 'latest');
+  const gfZero = withProfit(gf, 0);
+  const gfAssumed = assumedProfit === null ? null : withProfit(gf, assumedProfit);
   const t3 = calcTable3(gf);
   const t3zero = calcTable3(gfZero);
   const t3assumed = gfAssumed && calcTable3(gfAssumed);
