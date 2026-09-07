@@ -250,6 +250,8 @@ function OptionRadios<T extends string>({ name, label, items, value, onChange }:
  * 併記のチェックと金額入力を1組にした出力条件。
  * チェックを外しても打ち込んだ額は消さず、入力欄をグレーアウトして残す（戻せばそのまま復活する）。
  * id は同じ条件を2箇所に出しても label が混ざらないよう呼び出し側で分ける。
+ * hint は画面には出さない。ここだけ2行になって他の条件と行がそろわないため、
+ * 入力欄の説明（読み上げとホバー）へ回している。
  */
 function OptionCheckNumber({ id, label, hint, unit, checked, onCheck, value, onChange }: {
   id: string;
@@ -265,7 +267,7 @@ function OptionCheckNumber({ id, label, hint, unit, checked, onCheck, value, onC
     <span className="summary-option-number">
       <label className="summary-option">
         <input type="checkbox" checked={checked} onChange={(event) => onCheck(event.target.checked)} />
-        <span>{label}<small>{hint}</small></span>
+        <span>{label}</span>
       </label>
       <input
         id={id}
@@ -275,6 +277,7 @@ function OptionCheckNumber({ id, label, hint, unit, checked, onCheck, value, onC
         placeholder="未入力"
         disabled={!checked}
         aria-label={`${label}　${hint}（${unit}）`}
+        title={`${hint}（${unit}）`}
         onChange={(event) => onChange(event.target.value)}
       />
       <span className="summary-option-unit">{unit}</span>
