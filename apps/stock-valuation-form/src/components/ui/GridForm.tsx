@@ -1,5 +1,6 @@
 import { FORM_GEOMETRY, type FormGeometry, type MmRect } from './formGeometry';
 import { QR_SIZE } from '@/data/formQr';
+import { formatCommaInteger, formatSignedCommaInteger, normalizeInteger } from '@/lib/numberFormat';
 import { formQrPath } from '@/lib/qrPath';
 import { DEFAULT_ERA } from '@/lib/wareki';
 import { createContext, useContext, useMemo, useRef, useCallback, useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
@@ -235,25 +236,6 @@ function nearestIndex(lines: number[], v: number): number {
   let best = 0, bd = Infinity;
   lines.forEach((l, i) => { const d = Math.abs(l - v); if (d < bd) { bd = d; best = i; } });
   return best;
-}
-
-function normalizeInteger(value: string): string {
-  const digits = value.replace(/\D/g, '');
-  return digits.replace(/^0+(?=\d)/, '');
-}
-
-function formatCommaInteger(value: string): string {
-  const digits = normalizeInteger(value);
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-
-function formatSignedCommaInteger(value: string): string {
-  const raw = value.replace(/,/g, '').trim();
-  const negative = raw.startsWith('-');
-  const digits = normalizeInteger(raw);
-  if (negative && digits === '') return '-';
-  const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return negative && formatted !== '' ? `-${formatted}` : formatted;
 }
 
 function sanitizeDecimal(value: string, places: number): string {

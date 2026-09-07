@@ -2,9 +2,10 @@ import type { ReactNode } from 'react';
 import { calcClientSummary } from '@/lib/clientSummary';
 import { calcNextYearForecast, type ElementForecast } from '@/lib/nextYearForecast';
 import {
-  ACTION_FIELD, ACTION_FILTERS, ASSUMED_PROFIT_FIELD, BASIS_FIELD, BASIS_FILTERS, FORECAST_DETAIL_FIELD,
-  SUMMARY_SECTIONS, ZERO_PROFIT_FIELD,
-  changedOptionCount, filterActions, filterBases, isRowVisible, readSummaryOptions, resetSummaryOptionFields,
+  ACTION_FIELD, ACTION_FILTERS, ASSUMED_PROFIT_FIELD, ASSUMED_PROFIT_OFF_FIELD, BASIS_FIELD, BASIS_FILTERS,
+  FORECAST_DETAIL_FIELD, SUMMARY_SECTIONS, ZERO_PROFIT_FIELD,
+  changedOptionCount, filterActions, filterBases, formatAssumedProfit, isAssumedProfitVisible, isRowVisible,
+  readSummaryOptions, resetSummaryOptionFields,
   sectionField, toStoredFlag, type RowScope, type SummaryOptions, type SummarySectionKey,
 } from '@/lib/summaryOptions';
 import { calcValuationReport, type ShareholderValuationRow, type ValuationBasis, type ValuationBasisKey } from '@/lib/valuationReport';
@@ -54,10 +55,15 @@ const SIZE_SCALE = [
   { size: 4, name: '大会社', rate: 1 },
 ] as const;
 
+/** 「（想定利益3,000千円の場合）」のように、試算に使った額を見出しへ入れる */
+const assumedProfitLabel = (base: string, amount: number, extra = '') =>
+  `${base}（${extra}想定利益${amount.toLocaleString('ja-JP')}千円の場合）`;
+
 // 株価一覧の行。ベースの違いは行のラベル側に持たせ、表は「項目｜金額」の2列で並べる。
 const PRICE_ROWS: {
   key: string;
-  label: string;
+  /** 想定利益の行だけは、試算に使った額を見出しに入れるため関数で持つ */
+  label: string | ((assumedProfit: number) => string);
   note: string;
   emphasis?: boolean;
   /** 金額を読み取るベース */
@@ -89,7 +95,7 @@ const PRICE_ROWS: {
   },
   {
     key: 'comparableAssumed',
-    label: '類似業種比準価額（想定利益の場合）',
+    label: (amount) => assumedProfitLabel('類似業種比準価額', amount),
     note: '直前期の年利益金額を想定額に置き換えて再計算',
     basis: 'inheritance',
     scope: 'common',
@@ -144,7 +150,7 @@ const PRICE_ROWS: {
   },
   {
     key: 'gensokuInheritanceAssumed',
-    label: '原則的評価額（相続税評価額ベース・想定利益の場合）',
+    label: (amount) => assumedProfitLabel('原則的評価額', amount, '相続税評価額ベース・'),
     note: '直前期の年利益金額を想定額に置き換えて再計算した場合の第3表の最終価額',
     emphasis: true,
     basis: 'inheritance',
@@ -182,7 +188,7 @@ type HolderColumn = {
 
 function holderColumnsOf(
   bases: ValuationBasis[],
-  options: Pick<SummaryOptions, 'showZeroProfit' | 'assumedProfit'>,
+  options: Pick<SummaryOptions, 'showZeroProfit' | 'showAssumedProfit' | 'assumedProfit'>,
 ): HolderColumn[] {
   return bases.flatMap((basis): HolderColumn[] => {
     const columns: HolderColumn[] = [{ key: basis.key, label: basis.label, basis: basis.key }];
@@ -190,12 +196,17 @@ function holderColumnsOf(
     if (options.showZeroProfit) {
       columns.push({ key: `${basis.key}-zero`, label: `${basis.label}（利益0の場合）`, basis: basis.key, zeroProfit: true });
     }
-    if (options.assumedProfit !== null) {
-      columns.push({ key: `${basis.key}-assumed`, label: `${basis.label}（想定利益の場合）`, basis: basis.key, assumedProfit: true });
+    if (isAssumedProfitVisible(options) && options.assumedProfit !== null) {
+      const label = assumedProfitLabel(basis.label, options.assumedProfit);
+      columns.push({ key: `${basis.key}-assumed`, label, basis: basis.key, assumedProfit: true });
     }
     return columns;
   });
 }
+
+/** 想定利益の行の見出しに試算額を差し込む（その行は金額が入っているときしか出ないので ?? には落ちない） */
+const labelOf = (row: typeof PRICE_ROWS[number], assumedProfit: number | null) =>
+  typeof row.label === 'function' ? row.label(assumedProfit ?? 0) : row.label;
 
 type SetOption = (field: string, value: string) => void;
 
@@ -235,26 +246,38 @@ function OptionRadios<T extends string>({ name, label, items, value, onChange }:
   );
 }
 
-/** 出力条件の金額入力。id は同じ条件を2箇所に出しても label が混ざらないよう呼び出し側で分ける */
-function OptionNumber({ id, label, hint, value, onChange }: {
+/**
+ * 併記のチェックと金額入力を1組にした出力条件。
+ * チェックを外しても打ち込んだ額は消さず、入力欄をグレーアウトして残す（戻せばそのまま復活する）。
+ * id は同じ条件を2箇所に出しても label が混ざらないよう呼び出し側で分ける。
+ */
+function OptionCheckNumber({ id, label, hint, unit, checked, onCheck, value, onChange }: {
   id: string;
   label: string;
   hint: string;
+  unit: string;
+  checked: boolean;
+  onCheck: (checked: boolean) => void;
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
-    <span className="summary-option summary-option-number">
-      <label htmlFor={id}>{label}<small>{hint}</small></label>
+    <span className="summary-option-number">
+      <label className="summary-option">
+        <input type="checkbox" checked={checked} onChange={(event) => onCheck(event.target.checked)} />
+        <span>{label}<small>{hint}</small></span>
+      </label>
       <input
         id={id}
         type="text"
         inputMode="numeric"
         value={value}
         placeholder="未入力"
+        disabled={!checked}
+        aria-label={`${label}　${hint}（${unit}）`}
         onChange={(event) => onChange(event.target.value)}
       />
-      <span className="summary-option-unit">千円</span>
+      <span className="summary-option-unit">{unit}</span>
     </span>
   );
 }
@@ -269,12 +292,15 @@ function BasisOptions({ name, options, setOption }: { name: string; options: Sum
         checked={options.showZeroProfit}
         onChange={(checked) => setOption(ZERO_PROFIT_FIELD, toStoredFlag(checked))}
       />
-      <OptionNumber
+      <OptionCheckNumber
         id={`${name}-assumed-profit`}
-        label="想定利益を併記"
+        label="「想定利益の場合」を併記"
         hint="直前期の年利益金額"
+        unit="千円"
+        checked={options.showAssumedProfit}
+        onCheck={(checked) => setOption(ASSUMED_PROFIT_OFF_FIELD, toStoredFlag(checked))}
         value={options.assumedProfitText}
-        onChange={(value) => setOption(ASSUMED_PROFIT_FIELD, value)}
+        onChange={(value) => setOption(ASSUMED_PROFIT_FIELD, formatAssumedProfit(value))}
       />
     </>
   );
@@ -316,12 +342,12 @@ function HiddenSection({ sectionKey, setOption }: { sectionKey: SummarySectionKe
   );
 }
 
-/** 想定利益の行・列が出ているときだけ、その前提を印刷物にも残す */
-function AssumedProfitNote({ amount }: { amount: number | null }) {
-  if (amount === null) return null;
+/** 想定利益の行・列が出ているときだけ、その前提を印刷物にも残す（金額は見出し側にある） */
+function AssumedProfitNote({ visible }: { visible: boolean }) {
+  if (!visible) return null;
   return (
     <p className="summary-sensitivity-disclaimer">
-      「想定利益の場合」は、直前期の年利益金額（第4表⑯）を {amount.toLocaleString('ja-JP')} 千円に置き換えて再計算した金額です。
+      「想定利益の場合」は、直前期の年利益金額（第4表⑯）だけを想定額に置き換えて再計算した金額です。
       直前々期以前は実績のままなので、比準要素のⒸは想定額と直前々期実績との平均のうち低い方が採られます。
     </p>
   );
@@ -373,6 +399,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
   const note = getField('table1_1', '_summary_advisor_note');
   const setOption = (field: string, value: string) => updateField('table1_1', field, value);
   const bases = filterBases(report.bases, options.basis);
+  const showAssumedProfit = isAssumedProfitVisible(options);
   const holderColumns = holderColumnsOf(bases, options);
   const priceRows = PRICE_ROWS.filter((row) => isRowVisible(row, options));
   const actions = filterActions(summary.actions, options.actionFilter);
@@ -446,7 +473,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
                   const { text, sub } = basis ? priceRow.cell(basis) : { text: '－', sub: undefined };
                   return (
                     <tr key={priceRow.key} className={priceRow.emphasis ? 'summary-table-emphasis' : undefined}>
-                      <th scope="row">{priceRow.label}<small>{priceRow.note}</small></th>
+                      <th scope="row">{labelOf(priceRow, options.assumedProfit)}<small>{priceRow.note}</small></th>
                       <td className="summary-holders-num">{text}{sub && <small>{sub}</small>}</td>
                     </tr>
                   );
@@ -454,7 +481,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
               </tbody>
             </table>
           </div>
-          <AssumedProfitNote amount={options.assumedProfit} />
+          <AssumedProfitNote visible={showAssumedProfit} />
           {options.basis !== 'inheritance' && (
             <p className="summary-sensitivity-disclaimer">
               所得税・法人税ベースは、所基通59－6／法基通9－1－14による時価です。中心的な同族株主に該当するものとして小会社の評価方法（同(2)）を適用し、
@@ -497,7 +524,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           ) : (
             <div className="summary-sensitivity-empty" role="note">第1表の1に株主を入力すると表示されます。</div>
           )}
-          <AssumedProfitNote amount={options.assumedProfit} />
+          <AssumedProfitNote visible={showAssumedProfit} />
           <p className="summary-sensitivity-disclaimer">
             各行の株主を納税義務者とみなして株主判定をやり直した結果です。議決権割合5％未満の株主は、役員該当性や中心的な同族株主の有無により方式が変わるため「要確認」として両方の金額を表示しています。
           </p>

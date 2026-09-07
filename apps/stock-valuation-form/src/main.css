@@ -1216,15 +1216,15 @@
 }
 
 /* 想定利益の金額入力。チェックやラジオと同じ高さに収める */
+/* 併記のチェックと金額入力の組。チェックを外すと金額欄だけグレーアウトする */
 .summary-option-number {
+  display: inline-flex;
   align-items: center;
+  gap: 6px;
 }
 
-.summary-option-number label {
-  cursor: pointer;
-}
-
-.summary-option-number input {
+/* 金額欄。中のチェックボックスまで枠が付かないよう type で絞る */
+.summary-option-number > input[type="text"] {
   width: 84px;
   min-height: 26px;
   padding: 0 6px;
@@ -1237,9 +1237,16 @@
   text-align: right;
 }
 
-.summary-option-number input:focus {
+.summary-option-number > input[type="text"]:focus {
   outline: 2px solid #1d4ed8;
   outline-offset: -1px;
+}
+
+.summary-option-number > input[type="text"]:disabled {
+  border-color: #e2e8f0;
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .summary-option-unit {

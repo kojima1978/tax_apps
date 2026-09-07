@@ -3,9 +3,10 @@ import type { TableId } from '@/types/form';
 import type { ActionItem } from '@/lib/clientSummary';
 import type { ValuationBasis } from '@/lib/valuationReport';
 import {
-  ACTION_FIELD, ASSUMED_PROFIT_FIELD, BASIS_FIELD, FORECAST_DETAIL_FIELD, ZERO_PROFIT_FIELD,
-  changedOptionCount, filterActions, filterBases, isRowVisible, readSummaryOptions, resetSummaryOptionFields,
-  sectionField, toStoredFlag,
+  ACTION_FIELD, ASSUMED_PROFIT_FIELD, ASSUMED_PROFIT_OFF_FIELD, BASIS_FIELD, FORECAST_DETAIL_FIELD,
+  ZERO_PROFIT_FIELD,
+  changedOptionCount, filterActions, filterBases, formatAssumedProfit, isRowVisible, readSummaryOptions,
+  resetSummaryOptionFields, sectionField, toStoredFlag,
 } from '@/lib/summaryOptions';
 
 const mkGetField = (fields: Record<string, string>) => (table: TableId, field: string): string => (
@@ -16,7 +17,9 @@ describe('readSummaryOptions（保存値の読み取り）', () => {
   it('未設定ならすべて表示・絞り込みなしになる', () => {
     const options = readSummaryOptions(mkGetField({}));
     expect(Object.values(options.sections).every(Boolean)).toBe(true);
-    expect(options).toMatchObject({ basis: 'both', showZeroProfit: true, actionFilter: 'all', showForecastDetail: true });
+    expect(options).toMatchObject({
+      basis: 'both', showZeroProfit: true, showAssumedProfit: true, actionFilter: 'all', showForecastDetail: true,
+    });
     expect(changedOptionCount(options)).toBe(0);
   });
 
@@ -41,11 +44,14 @@ describe('readSummaryOptions（保存値の読み取り）', () => {
     const options = readSummaryOptions(mkGetField({
       [BASIS_FIELD]: 'inheritance',
       [ZERO_PROFIT_FIELD]: '1',
+      [ASSUMED_PROFIT_OFF_FIELD]: '1',
       [ACTION_FIELD]: 'high',
       [FORECAST_DETAIL_FIELD]: '1',
     }));
-    expect(options).toMatchObject({ basis: 'inheritance', showZeroProfit: false, actionFilter: 'high', showForecastDetail: false });
-    expect(changedOptionCount(options)).toBe(4);
+    expect(options).toMatchObject({
+      basis: 'inheritance', showZeroProfit: false, showAssumedProfit: false, actionFilter: 'high', showForecastDetail: false,
+    });
+    expect(changedOptionCount(options)).toBe(5);
   });
 
   it('想定利益は千円の数値として読み、カンマや空白は無視する', () => {
@@ -59,11 +65,35 @@ describe('readSummaryOptions（保存値の読み取り）', () => {
     expect(read('5,000').assumedProfitText).toBe('5,000');
   });
 
-  it('想定利益は出力を絞る条件ではないので、変更件数にも「すべて出力に戻す」にも含めない', () => {
+  it('想定利益の「額」は出力を絞る条件ではないので、変更件数にも「すべて出力に戻す」にも含めない', () => {
     const options = readSummaryOptions(mkGetField({ [ASSUMED_PROFIT_FIELD]: '5000' }));
     expect(options.assumedProfit).toBe(5000);
     expect(changedOptionCount(options)).toBe(0);
     expect(resetSummaryOptionFields().some((f) => f.field === ASSUMED_PROFIT_FIELD)).toBe(false);
+    // 併記のチェックは絞り込み条件なので、こちらは戻す対象に入れる
+    expect(resetSummaryOptionFields().some((f) => f.field === ASSUMED_PROFIT_OFF_FIELD)).toBe(true);
+  });
+
+  it('併記のチェックを外すと、金額が入っていても行を出さない', () => {
+    const options = readSummaryOptions(mkGetField({
+      [ASSUMED_PROFIT_FIELD]: '5,000',
+      [ASSUMED_PROFIT_OFF_FIELD]: '1',
+    }));
+    expect(options).toMatchObject({ showAssumedProfit: false, assumedProfit: 5000, assumedProfitText: '5,000' });
+    expect(isRowVisible({ scope: 'common', assumedProfit: true }, options)).toBe(false);
+    // 「すべて出力に戻す」を通すとチェックだけ戻り、金額はそのまま残る
+    const stored = Object.fromEntries(resetSummaryOptionFields().map((f) => [f.field, f.value]));
+    const restored = readSummaryOptions(mkGetField({ [ASSUMED_PROFIT_FIELD]: '5,000', ...stored }));
+    expect(restored).toMatchObject({ showAssumedProfit: true, assumedProfit: 5000 });
+  });
+
+  it('想定利益の入力は3桁区切りへ整形する（欠損のマイナスは残す）', () => {
+    expect(formatAssumedProfit('3000')).toBe('3,000');
+    expect(formatAssumedProfit('1234567')).toBe('1,234,567');
+    expect(formatAssumedProfit('-2000')).toBe('-2,000');
+    expect(formatAssumedProfit('-')).toBe('-');
+    expect(formatAssumedProfit('12a3')).toBe('123');
+    expect(formatAssumedProfit('')).toBe('');
   });
 
   it('チェックボックスの値は表示なら空、非表示なら1で保存する', () => {
@@ -73,7 +103,7 @@ describe('readSummaryOptions（保存値の読み取り）', () => {
 
   it('すべて表示へ戻す欄は全条件を空へ戻す', () => {
     const fields = resetSummaryOptionFields();
-    expect(fields).toHaveLength(10); // セクション6 + 絞り込み4
+    expect(fields).toHaveLength(11); // セクション6 + 絞り込み5
     expect(fields.every((f) => f.value === '')).toBe(true);
     const stored = Object.fromEntries(fields.map((f) => [f.field, f.value]));
     expect(changedOptionCount(readSummaryOptions(mkGetField(stored)))).toBe(0);
@@ -107,15 +137,15 @@ describe('filterBases / isRowVisible（評価ベースの絞り込み）', () =>
   });
 
   it('共通行は絞り込んでも残り、他ベースの行だけ落ちる', () => {
-    const opts = { basis: 'inheritance', showZeroProfit: true, assumedProfit: null } as const;
+    const opts = { basis: 'inheritance', showZeroProfit: true, showAssumedProfit: true, assumedProfit: null } as const;
     expect(isRowVisible({ scope: 'common' }, opts)).toBe(true);
     expect(isRowVisible({ scope: 'inheritance' }, opts)).toBe(true);
     expect(isRowVisible({ scope: 'special-market-value' }, opts)).toBe(false);
   });
 
-  it('想定利益の行は、金額を入れたときだけ出す', () => {
-    const off = { basis: 'both', showZeroProfit: true, assumedProfit: null } as const;
-    const on = { basis: 'both', showZeroProfit: true, assumedProfit: 5000 } as const;
+  it('想定利益の行は、併記のチェックが入っていて金額を入れたときだけ出す', () => {
+    const off = { basis: 'both', showZeroProfit: true, showAssumedProfit: true, assumedProfit: null } as const;
+    const on = { basis: 'both', showZeroProfit: true, showAssumedProfit: true, assumedProfit: 5000 } as const;
     expect(isRowVisible({ scope: 'common', assumedProfit: true }, off)).toBe(false);
     expect(isRowVisible({ scope: 'common', assumedProfit: true }, on)).toBe(true);
     // 金額を入れても通常の行は増減しない
@@ -123,7 +153,7 @@ describe('filterBases / isRowVisible（評価ベースの絞り込み）', () =>
   });
 
   it('「利益0の場合」を出さない設定なら、共通行でも落ちる', () => {
-    const opts = { basis: 'both', showZeroProfit: false, assumedProfit: null } as const;
+    const opts = { basis: 'both', showZeroProfit: false, showAssumedProfit: true, assumedProfit: null } as const;
     expect(isRowVisible({ scope: 'common', zeroProfit: true }, opts)).toBe(false);
     expect(isRowVisible({ scope: 'common' }, opts)).toBe(true);
   });

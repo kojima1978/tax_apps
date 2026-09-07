@@ -6,6 +6,7 @@
  * 未設定＝すべて表示になるよう、真偽値は「隠す側」を '1' として持つ（既存データは全部表示のまま）。
  */
 import type { ActionItem } from '@/lib/clientSummary';
+import { formatSignedCommaInteger } from '@/lib/numberFormat';
 import type { ValuationBasis, ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
 
@@ -42,6 +43,8 @@ export type SummaryOptions = {
   basis: BasisFilter;
   /** 「利益0の場合」の行・列を出すか */
   showZeroProfit: boolean;
+  /** 「想定利益の場合」の行・列を出すか。金額が入っていても、これを外せば出さない */
+  showAssumedProfit: boolean;
   /** 想定利益の入力値（入力欄の表示用にそのまま持つ） */
   assumedProfitText: string;
   /** 直前期の想定年利益金額（千円）。未入力・数値にならない入力なら null で、想定利益の行・列を出さない */
@@ -57,12 +60,16 @@ const OPTION_TABLE = 'table1_1' as const;
 export const sectionField = (key: SummarySectionKey) => `_summary_off_${key}`;
 export const BASIS_FIELD = '_summary_basis';
 export const ZERO_PROFIT_FIELD = '_summary_off_zeroprofit';
+export const ASSUMED_PROFIT_OFF_FIELD = '_summary_off_assumedprofit';
 export const ASSUMED_PROFIT_FIELD = '_summary_assumed_profit';
 export const ACTION_FIELD = '_summary_action_filter';
 export const FORECAST_DETAIL_FIELD = '_summary_off_forecast_detail';
 
 /** チェックボックス（表示するなら true）を保存値へ */
 export const toStoredFlag = (visible: boolean) => (visible ? '' : OFF);
+
+/** 想定利益の入力を3桁区切りへ整形する（第4表などの金額欄と同じ表記にそろえる） */
+export const formatAssumedProfit = formatSignedCommaInteger;
 
 /** 想定利益の入力値を千円の数値へ。欠損（マイナス）も想定利益として受け付ける */
 export function parseAssumedProfit(text: string): number | null {
@@ -86,6 +93,7 @@ export function readSummaryOptions(getField: TableProps['getField']): SummaryOpt
     ) as Record<SummarySectionKey, boolean>,
     basis: pick<BasisFilter>(BASIS_FIELD, BASIS_FILTERS, 'both'),
     showZeroProfit: shown(ZERO_PROFIT_FIELD),
+    showAssumedProfit: shown(ASSUMED_PROFIT_OFF_FIELD),
     assumedProfitText,
     assumedProfit: parseAssumedProfit(assumedProfitText),
     actionFilter: pick<ActionFilter>(ACTION_FIELD, ACTION_FILTERS, 'all'),
@@ -95,21 +103,23 @@ export function readSummaryOptions(getField: TableProps['getField']): SummaryOpt
 
 /**
  * すべて表示へ戻すための欄と値の一覧。
- * 想定利益（ASSUMED_PROFIT_FIELD）は「出力を絞る条件」ではなく利用者が打ち込んだ金額なので、
- * ここには含めない（「すべて出力に戻す」で入力が消えないようにする）。
+ * 想定利益の「額」（ASSUMED_PROFIT_FIELD）は出力を絞る条件ではなく利用者が打ち込んだ金額なので、
+ * ここには含めない（「すべて出力に戻す」で入力が消えないようにする）。併記のチェックは含める。
  */
 export function resetSummaryOptionFields(): { field: string; value: string }[] {
   return [
     ...SUMMARY_SECTIONS.map((section) => ({ field: sectionField(section.key), value: '' })),
-    ...[BASIS_FIELD, ZERO_PROFIT_FIELD, ACTION_FIELD, FORECAST_DETAIL_FIELD].map((field) => ({ field, value: '' })),
+    ...[BASIS_FIELD, ZERO_PROFIT_FIELD, ASSUMED_PROFIT_OFF_FIELD, ACTION_FIELD, FORECAST_DETAIL_FIELD]
+      .map((field) => ({ field, value: '' })),
   ];
 }
 
-/** 既定から外している条件の数。想定利益は出力を絞る条件ではないので数えない */
+/** 既定から外している条件の数。想定利益の「金額」は出力を絞る条件ではないので数えない */
 export function changedOptionCount(options: SummaryOptions): number {
   return SUMMARY_SECTIONS.filter((section) => !options.sections[section.key]).length
     + (options.basis === 'both' ? 0 : 1)
     + (options.showZeroProfit ? 0 : 1)
+    + (options.showAssumedProfit ? 0 : 1)
     + (options.actionFilter === 'all' ? 0 : 1)
     + (options.showForecastDetail ? 0 : 1);
 }
@@ -125,15 +135,23 @@ export function filterBases(bases: readonly ValuationBasis[], basis: BasisFilter
   return basis === 'both' ? [...bases] : bases.filter((item) => item.key === basis);
 }
 
+/** 「想定利益の場合」の行・列・注記を出すか。金額が数値として読めることが前提 */
+export function isAssumedProfitVisible(
+  options: Pick<SummaryOptions, 'showAssumedProfit' | 'assumedProfit'>,
+): boolean {
+  return options.showAssumedProfit && options.assumedProfit !== null;
+}
+
 /** 株価一覧の行をどの評価ベースのときに出すか。common は両ベース共通の情報 */
 export type RowScope = 'common' | ValuationBasisKey;
 
 export function isRowVisible(
   row: { scope: RowScope; zeroProfit?: boolean; assumedProfit?: boolean },
-  options: Pick<SummaryOptions, 'basis' | 'showZeroProfit' | 'assumedProfit'>,
+  options: Pick<SummaryOptions, 'basis' | 'showZeroProfit' | 'showAssumedProfit' | 'assumedProfit'>,
 ): boolean {
   if (row.zeroProfit && !options.showZeroProfit) return false;
-  // 想定利益は金額を入れたときだけ出す（既定は未入力なので何も増えない）
-  if (row.assumedProfit && options.assumedProfit === null) return false;
+  // 想定利益は併記のチェックが入っていて、かつ金額を入れたときだけ出す
+  // （既定はチェックONだが金額が未入力なので何も増えない）
+  if (row.assumedProfit && !isAssumedProfitVisible(options)) return false;
   return options.basis === 'both' || row.scope === 'common' || row.scope === options.basis;
 }
