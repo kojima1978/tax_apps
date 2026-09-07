@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { memo, startTransition, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { MIRRORED_FIELDS, useFormData } from '@/hooks/useFormData';
 import { PrintRenderContext } from '@/components/ui/GridForm';
@@ -51,7 +51,19 @@ const DATA_BUCKET: Partial<Record<TableId, TableId>> = {
 };
 
 type PrintTarget = 'current' | 'all';
-const PRINT_PREPARE_DELAY_MS = 80;
+
+// 選択画面を開いた時点で印刷用DOMを準備し、印刷ボタンでは表示だけを切り替える。
+// 入力データ・選択が同じなら、印刷開始時に全表のReact描画を繰り返さない。
+const PrintTables = memo(function PrintTables({ selection, ...props }: TableProps & { selection: Record<TableId, boolean> }) {
+  return TABS.filter((tab) => selection[tab.id]).map((tab) => {
+    const TableComp = TABLE_COMPONENTS[tab.id];
+    return SELF_PAGING.has(tab.id) ? (
+      <TableComp key={tab.id} {...props} />
+    ) : (
+      <div key={tab.id} className="gov-page gov-page--exact"><TableComp {...props} /></div>
+    );
+  });
+});
 
 // 「?」のような文字キーのショートカットは、入力中の文字を奪わないよう入力欄の外でだけ効かせる
 const isTypingTarget = (target: EventTarget | null) => (
@@ -68,6 +80,7 @@ export default function App() {
   const printRequestedRef = useRef(false);
   const printAll = printTarget === 'all';
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [printPrepared, setPrintPrepared] = useState(false);
   const [prereqOpen, setPrereqOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(() => window.location.hash === ADMIN_HASH);
@@ -168,6 +181,16 @@ export default function App() {
     requestPrint('all');
   }, [printSelection, printSummary, requestPrint]);
 
+  useEffect(() => {
+    if (!printDialogOpen) {
+      setPrintPrepared(false);
+      return;
+    }
+    // 選択画面の表示を優先し、重い全表の準備は操作を妨げない更新として行う。
+    const timer = window.setTimeout(() => startTransition(() => setPrintPrepared(true)), 0);
+    return () => window.clearTimeout(timer);
+  }, [printDialogOpen]);
+
   // 画面操作のショートカット。様式そのものには触れないので印刷結果は変わらない
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // 日本語入力の変換中は横取りしない（変換の確定・候補選択を奪ってしまうため）
@@ -218,7 +241,6 @@ export default function App() {
       await waitForNextFrame();
       await waitForNextFrame();
       await document.fonts?.ready.catch(() => undefined);
-      await new Promise<void>((resolve) => window.setTimeout(resolve, PRINT_PREPARE_DELAY_MS));
 
       if (cancelled) return;
 
@@ -378,23 +400,19 @@ export default function App() {
                 onPrint={() => requestPrint('current')}
               />
             )}
-            {TABS.filter((tab) => printSelection[tab.id]).map((tab) => {
-              const TableComp = TABLE_COMPONENTS[tab.id];
-              // 第5表・第1表の1は続紙対応で自前に複数ページ（.gov-page）を描画するため外側で包まない
-              return SELF_PAGING.has(tab.id) ? (
-                <TableComp key={tab.id} {...tableProps} />
-              ) : (
-                <div key={tab.id} className="gov-page gov-page--exact">
-                  <TableComp {...tableProps} />
-                </div>
-              );
-            })}
             </>
           ) : SELF_PAGING.has(activeTab) ? (
             <ActiveTable {...tableProps} />
           ) : (
             <div className="gov-page gov-page--exact">
               <ActiveTable {...tableProps} />
+            </div>
+          )}
+          {(printPrepared || printAll) && (
+            <div className={`print-tables${printAll ? '' : ' print-tables--preparing'}`} aria-hidden={!printAll || undefined} inert={!printAll}>
+              <PrintRenderContext.Provider value={true}>
+                <PrintTables selection={printSelection} {...tableProps} />
+              </PrintRenderContext.Provider>
             </div>
           )}
         </main>

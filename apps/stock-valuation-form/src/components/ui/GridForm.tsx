@@ -382,8 +382,10 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
   const { colTmpl, rowTmpl, placed, bounds } = useMemo(() => {
     const xs = snapLines(cells.flatMap((c) => [c.left, c.left + c.width]), snapTol);
     const ys = snapLines(cells.flatMap((c) => [c.top, c.top + c.height]), snapTol);
-    const colTmpl = xs.slice(1).map((x, i) => `${(x - xs[i]!).toFixed(3)}fr`).join(' ');
-    const rowTmpl = ys.slice(1).map((y, i) => `${(y - ys[i]!).toFixed(3)}fr`).join(' ');
+    // 帳票の枠は座標で確定しているため、文字の min-content サイズでトラックを広げない。
+    // fr の暗黙の最小値(auto)を外すと、全表印刷でも各セルの最小幅・高さの測定を省ける。
+    const colTmpl = xs.slice(1).map((x, i) => `minmax(0, ${(x - xs[i]!).toFixed(3)}fr)`).join(' ');
+    const rowTmpl = ys.slice(1).map((y, i) => `minmax(0, ${(y - ys[i]!).toFixed(3)}fr)`).join(' ');
     const placed = cells.map((c) => ({
       c,
       cs: nearestIndex(xs, c.left) + 1,

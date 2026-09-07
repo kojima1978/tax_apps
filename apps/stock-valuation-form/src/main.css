@@ -71,6 +71,28 @@
   display: none !important;
 }
 
+.print-tables {
+  display: contents;
+}
+
+/* 選択画面の裏でレイアウトと必要なフォントも準備する。display:none では
+   フォント取得が印刷ボタンを押すまで始まらないため、画面外の固定領域を使う。 */
+.print-tables--preparing {
+  display: block;
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 210mm;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media print {
+  .print-tables--preparing {
+    display: none;
+  }
+}
+
 /* ============================================
    App Layout
    ============================================ */
@@ -1507,7 +1529,8 @@
 
   /* 全表印刷でサマリーを先頭に刷るときは、続く様式1枚目を必ず次のページから始める
      （.gov-page + .gov-page と同じく「2ページ目以降の直前」に入れる考え方） */
-  .client-summary-wrap + .gov-page {
+  .client-summary-wrap + .gov-page,
+  .client-summary-wrap + .print-tables > .gov-page:first-of-type {
     page-break-before: always;
   }
 
