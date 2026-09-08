@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { RetirementSimulation } from './RetirementSimulation';
 import { calcClientSummary } from '@/lib/clientSummary';
 import { calcNextYearForecast, type ElementForecast } from '@/lib/nextYearForecast';
 import {
@@ -24,7 +25,21 @@ function Icon({ name }: { name: 'print' }) {
 }
 
 
-const yenOrDash = (value: number | null) => value === null ? '－' : `${value.toLocaleString('ja-JP')}円`;
+const yenOrDash = (value: number | null) => value === null ? '算定未完了' : `${value.toLocaleString('ja-JP')}円`;
+
+function PriceDifference({ current, value }: { current: number | null; value: number | null }) {
+  if (current === null || value === null) return <small>現在との差：比較に必要な金額が未算定です</small>;
+  const diff = value - current;
+  return <small className="summary-price-difference">{diff === 0 ? '現在と同額' : `現在より${Math.abs(diff).toLocaleString('ja-JP')}円${diff > 0 ? '高い' : '低い'}`}</small>;
+}
+
+function pendingPrice(key: string, basis: ValuationBasis | undefined): string {
+  if (key.startsWith('companySize')) return '会社規模の判定待ち';
+  if (key.startsWith('comparable')) return '第4表の入力・算定結果を確認してください';
+  if (key.startsWith('netAsset')) return '第5表の入力・算定結果を確認してください';
+  if (basis?.size === null) return '第1表の2で会社規模を判定してください';
+  return '第3表の判定・算定結果を確認してください';
+}
 
 // 打ち手の優先度バッジ（クラス名はASCIIに寄せる）
 const PRIORITY_CLASS: Record<'高' | '中' | '低', string> = { 高: 'high', 中: 'mid', 低: 'low' };
@@ -58,15 +73,10 @@ const SIZE_SCALE = [
 /** 「利益3,000千円の場合」のように、試算に使った額を条件名にする */
 const assumedProfitCase = (amount: number) => `利益${amount.toLocaleString('ja-JP')}千円の場合`;
 
-/** 「〜（利益3,000千円の場合）」のように、条件名を見出しの後ろへ入れる */
-const assumedProfitLabel = (base: string, amount: number, extra = '') =>
-  `${base}（${extra}${assumedProfitCase(amount)}）`;
-
 // 株価一覧の行。ベースの違いは行のラベル側に持たせ、表は「項目｜金額」の2列で並べる。
 const PRICE_ROWS: {
   key: string;
-  /** 想定利益の行だけは、試算に使った額を見出しに入れるため関数で持つ */
-  label: string | ((assumedProfit: number) => string);
+  label: string;
   note: string;
   emphasis?: boolean;
   /** 金額を読み取るベース */
@@ -88,53 +98,16 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.comparablePrice) }),
   },
   {
-    key: 'comparableZeroProfit',
-    label: '類似業種比準価額（利益0の場合）',
-    note: '直前期の年利益金額をゼロとして再計算',
-    basis: 'inheritance',
-    scope: 'common',
-    zeroProfit: true,
-    cell: (b) => ({ text: yenOrDash(b.comparablePriceZeroProfit) }),
-  },
-  {
-    key: 'comparableAssumed',
-    label: (amount) => assumedProfitLabel('類似業種比準価額', amount),
-    note: '直前期の年利益金額を想定額に置き換えて再計算',
-    basis: 'inheritance',
-    scope: 'common',
-    assumedProfit: true,
-    cell: (b) => ({ text: yenOrDash(b.comparablePriceAssumed) }),
-  },
-  {
     key: 'netAssetDeducted',
-    label: '1株当たり純資産価額（38％控除あり）',
-    note: '第5表⑪（評価差額に対する法人税額等相当額を控除）',
+    label: '純資産価額',
+    note: '評価差額に対する法人税額等相当額（38％）を控除・第5表⑪',
     basis: 'inheritance',
     scope: 'inheritance',
     cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
   },
   {
-    key: 'netAssetGross',
-    label: '1株当たり純資産価額（38％控除なし）',
-    note: '第5表⑪（評価差額に対する法人税額等相当額を控除なし）',
-    basis: 'special-market-value',
-    scope: 'special-market-value',
-    cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
-  },
-  {
-    key: 'companySize',
-    label: '会社の規模',
-    note: '小会社 0.50／中会社 0.60・0.75・0.90／大会社 1.00',
-    basis: 'inheritance',
-    scope: 'common',
-    cell: (b) => {
-      const size = SIZE_SCALE.find((s) => s.size === b.size);
-      return { text: size ? `${size.name}　${size.rate.toFixed(2)}` : '－' };
-    },
-  },
-  {
     key: 'gensokuInheritance',
-    label: '原則的評価額（相続税評価額ベース）',
+    label: '原則的評価方式による評価額',
     note: '会社規模に応じた第3表の最終価額',
     emphasis: true,
     basis: 'inheritance',
@@ -142,8 +115,38 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.gensoku) }),
   },
   {
+    key: 'companySize',
+    label: '会社の規模',
+    note: '会社規模と、類似業種比準価額を併用する場合の割合',
+    basis: 'inheritance',
+    scope: 'common',
+    cell: (b) => {
+      const size = SIZE_SCALE.find((s) => s.size === b.size);
+      const rate = b.lRate ?? size?.rate;
+      return { text: size?.name ?? '－', sub: rate === undefined ? undefined : `類似業種 ${(rate * 100).toLocaleString('ja-JP')}％・純資産 ${((1 - rate) * 100).toLocaleString('ja-JP', { maximumFractionDigits: 2 })}％` };
+    },
+  },
+  {
+    key: 'comparableZeroProfit',
+    label: '類似業種比準価額',
+    note: '直前期の年利益金額をゼロとして再計算',
+    basis: 'inheritance',
+    scope: 'common',
+    zeroProfit: true,
+    cell: (b) => ({ text: yenOrDash(b.comparablePriceZeroProfit) }),
+  },
+  {
+    key: 'netAssetZeroProfit',
+    label: '純資産価額',
+    note: '現在と同額（この試算では純資産を変更しません）・38％控除あり',
+    basis: 'inheritance',
+    scope: 'inheritance',
+    zeroProfit: true,
+    cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
+  },
+  {
     key: 'gensokuInheritanceZeroProfit',
-    label: '原則的評価額（相続税評価額ベース・利益0の場合）',
+    label: '原則的評価方式による評価額',
     note: '直前期の年利益金額をゼロとして再計算した場合の第3表の最終価額',
     emphasis: true,
     basis: 'inheritance',
@@ -152,8 +155,26 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.gensokuZeroProfit) }),
   },
   {
+    key: 'comparableAssumed',
+    label: '類似業種比準価額',
+    note: '直前期の年利益金額を想定額に置き換えて再計算',
+    basis: 'inheritance',
+    scope: 'common',
+    assumedProfit: true,
+    cell: (b) => ({ text: yenOrDash(b.comparablePriceAssumed) }),
+  },
+  {
+    key: 'netAssetAssumed',
+    label: '純資産価額',
+    note: '現在と同額（この試算では純資産を変更しません）・38％控除あり',
+    basis: 'inheritance',
+    scope: 'inheritance',
+    assumedProfit: true,
+    cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
+  },
+  {
     key: 'gensokuInheritanceAssumed',
-    label: (amount) => assumedProfitLabel('原則的評価額', amount, '相続税評価額ベース・'),
+    label: '原則的評価方式による評価額',
     note: '直前期の年利益金額を想定額に置き換えて再計算した場合の第3表の最終価額',
     emphasis: true,
     basis: 'inheritance',
@@ -162,8 +183,16 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.gensokuAssumed) }),
   },
   {
+    key: 'netAssetGross',
+    label: '純資産価額',
+    note: '評価差額に対する法人税額等相当額（38％）の控除なし・第5表⑪',
+    basis: 'special-market-value',
+    scope: 'special-market-value',
+    cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
+  },
+  {
     key: 'gensokuSpecial',
-    label: '原則的評価額（所得税・法人税ベース）',
+    label: '原則的評価方式による評価額',
     note: '所基通59－6／法基通9－1－14：小会社として評価し、法人税額等相当額を控除しない',
     emphasis: true,
     basis: 'special-market-value',
@@ -171,14 +200,31 @@ const PRICE_ROWS: {
     cell: (b) => ({ text: yenOrDash(b.gensoku) }),
   },
   {
+    key: 'companySizeSpecial',
+    label: '会社の規模',
+    note: '所得税・法人税ベースの評価上の区分（小会社として評価）',
+    basis: 'special-market-value',
+    scope: 'special-market-value',
+    cell: (b) => ({ text: b.sizeLabel, sub: '類似業種 50％・純資産 50％（併用する場合）' }),
+  },
+  {
     key: 'haito',
     label: '配当還元方式',
-    note: '原則的評価額を上回る場合は原則的評価額',
+    note: '',
     basis: 'inheritance',
     scope: 'inheritance',
     cell: (b) => ({ text: yenOrDash(b.haitoKangen) }),
   },
 ];
+
+// 基本の金額を先に読み、前提・試算へ順に進める。表示条件で空になるグループは出さない。
+const PRICE_GROUPS = [
+  { key: 'current', title: '現在の評価額', note: '相続税評価額ベース・1株当たり', rows: ['companySize', 'comparable', 'netAssetDeducted', 'gensokuInheritance'] },
+  { key: 'zero', title: '利益0の場合', note: '直前期の年利益金額を0として試算', rows: ['companySize', 'comparableZeroProfit', 'netAssetZeroProfit', 'gensokuInheritanceZeroProfit'] },
+  { key: 'assumed', title: '想定利益の場合', note: '直前期の年利益金額を想定額に置き換えて試算', rows: ['companySize', 'comparableAssumed', 'netAssetAssumed', 'gensokuInheritanceAssumed'] },
+  { key: 'special', title: '所得税・法人税ベースの評価額', note: '1株当たり', rows: ['companySizeSpecial', 'comparable', 'netAssetGross', 'gensokuSpecial'] },
+  { key: 'dividend', title: '配当還元方式の評価額', note: '会社への支配力が小さい株主などに用いる評価方法です。', rows: ['haito'] },
+] as const;
 
 // 株主ごとの評価の金額列。相続税評価額ベースだけは「利益0の場合」「利益〇〇〇千円の場合」を隣に並べる。
 type HolderColumn = {
@@ -208,10 +254,6 @@ function holderColumnsOf(
     return columns;
   });
 }
-
-/** 想定利益の行の見出しに試算額を差し込む（その行は金額が入っているときしか出ないので ?? には落ちない） */
-const labelOf = (row: typeof PRICE_ROWS[number], assumedProfit: number | null) =>
-  typeof row.label === 'function' ? row.label(assumedProfit ?? 0) : row.label;
 
 type SetOption = (field: string, value: string) => void;
 
@@ -322,7 +364,9 @@ function SectionTools({ sectionKey, options, setOption, children }: {
   children?: ReactNode;
 }) {
   return (
-    <div className="summary-section-tools no-print">
+    <details className="summary-settings no-print">
+      <summary>表示・印刷設定<span>この項目は出力対象です</span></summary>
+    <div className="summary-section-tools">
       <OptionCheck
         label="出力する"
         checked={options.sections[sectionKey]}
@@ -330,6 +374,7 @@ function SectionTools({ sectionKey, options, setOption, children }: {
       />
       {children}
     </div>
+    </details>
   );
 }
 
@@ -350,17 +395,6 @@ function HiddenSection({ sectionKey, setOption }: { sectionKey: SummarySectionKe
   );
 }
 
-/** 想定利益の行・列が出ているときだけ、その前提を印刷物にも残す（金額は見出し側にある） */
-function AssumedProfitNote({ visible }: { visible: boolean }) {
-  if (!visible) return null;
-  return (
-    <p className="summary-sensitivity-disclaimer">
-      利益の額を置き換えた行・列は、直前期の年利益金額（第4表⑯）だけを差し替えて再計算した金額です。
-      直前々期以前は実績のままなので、比準要素のⒸは置き換えた額と直前々期実績との平均のうち低い方が採られます。
-    </p>
-  );
-}
-
 function ShareholderRow({ row, columns }: { row: ShareholderValuationRow; columns: HolderColumn[] }) {
   return (
     <tr>
@@ -368,8 +402,8 @@ function ShareholderRow({ row, columns }: { row: ShareholderValuationRow; column
         {row.name || `株主${row.row}`}
         {row.relation && <small>{row.relation}</small>}
       </th>
-      <td className="summary-holders-num">{row.shares === null ? '－' : row.shares.toLocaleString('ja-JP')}</td>
-      <td className="summary-holders-num">{row.votingRatio === null ? '－' : `${row.votingRatio}%`}</td>
+      <td className="summary-holders-num">{row.shares === null ? '未入力' : row.shares.toLocaleString('ja-JP')}</td>
+      <td className="summary-holders-num">{row.votingRatio === null ? '判定待ち' : `${row.votingRatio}%`}</td>
       <td>
         <span className={`summary-holders-method summary-holders-method-${row.method}`}>{row.methodLabel}</span>
         {row.pendingReason && <small>{row.pendingReason}</small>}
@@ -414,6 +448,61 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
   const availableSensitivity = summary.sensitivity.items.filter((item) => item.value !== null);
   const changedCount = changedOptionCount(options);
 
+  const renderPriceGroup = (group: typeof PRICE_GROUPS[number]) => {
+            if (group.key === 'zero' && !options.showZeroProfit) return null;
+            if (group.key === 'assumed' && !showAssumedProfit) return null;
+            if (group.key === 'special' && options.basis === 'inheritance') return null;
+            const rows = group.rows.flatMap((key) => {
+              const row = priceRows.find((item) => item.key === key);
+              return row ? [row] : [];
+            });
+            if (!rows.length) return null;
+            return (
+          <div className="summary-price-group" key={group.key}>
+          <h3 className="summary-forecast-subhead" id={`summary-price-${group.key}`}>
+            {group.key === 'assumed' && options.assumedProfit !== null ? assumedProfitCase(options.assumedProfit) : group.title}
+          </h3>
+          <p className="summary-price-group-note">
+            {group.key === 'current' && options.basis === 'special-market-value' ? '類似業種比準価額は両ベース共通・1株当たり' : group.note}
+          </p>
+          <div className="summary-table-scroll">
+            <table className="summary-table" aria-labelledby={`summary-price-${group.key}`}>
+              <thead>
+                <tr>
+                  <th scope="col">評価項目</th>
+                  <th scope="col" className="summary-holders-num">{group.key !== 'dividend' ? '金額・内容' : '金額'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((priceRow) => {
+                  const basis = report.bases.find((b) => b.key === priceRow.basis);
+                  const { text, sub } = basis ? priceRow.cell(basis) : { text: '－', sub: undefined };
+                  const pending = text === '算定未完了' || text === '－' || text === '判定未完了';
+                  const sizeRow = priceRow.key.startsWith('companySize');
+                  const trialValue = group.key === 'zero' ? basis?.gensokuZeroProfit : basis?.gensokuAssumed;
+                  return (
+                    <tr key={priceRow.key} className={priceRow.emphasis ? 'summary-table-emphasis' : sizeRow ? 'summary-company-size' : undefined}>
+                      <th scope="row">{priceRow.label}{priceRow.note && <small>{priceRow.note}</small>}</th>
+                      <td className="summary-holders-num">
+                        {pending ? (sizeRow || basis?.size === null && priceRow.emphasis ? '判定待ち' : '算定未完了') : text}
+                        {pending ? <small>{pendingPrice(priceRow.key, basis)}</small> : sub && <small>{sub}</small>}
+                        {priceRow.emphasis && (group.key === 'zero' || group.key === 'assumed') && (
+                          <PriceDifference current={basis?.gensoku ?? null} value={trialValue ?? null} />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {group.key === 'current' && (
+            <p className="summary-price-group-note">{summary.classificationLabel}。株主に適用する評価方式は「株主ごとの評価」に表示します。</p>
+          )}
+          </div>
+    );
+  };
+
   return (
     <div className="client-summary-wrap">
       <div className="client-summary-actions no-print">
@@ -434,7 +523,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
 
       {/* 出力条件は各見出しの下に置く。設定は案件データ（第1表の1）に保存されるので、保存/読込・翌年度更新にも引き継がれる */}
       <p className="summary-options-hint no-print">
-        各見出しの下にある「出力する」で、印刷する内容をその場で選べます。設定は案件データに保存され、条件の行そのものは印刷されません。
+        各項目の「表示・印刷設定」を開くと、出力内容を変更できます。設定は案件データに保存されます。
       </p>
 
       <article className="client-summary-page" aria-labelledby="client-summary-title">
@@ -459,7 +548,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           <div className="summary-sensitivity-heading">
             <div>
               <small>SHARE PRICE BY BASIS</small>
-              <h2 id="summary-prices-title">株価一覧｜相続税評価額ベースと所得税・法人税ベース</h2>
+              <h2 id="summary-prices-title">株価一覧</h2>
             </div>
             <span>1株当たり</span>
           </div>
@@ -467,83 +556,9 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             <BasisOptions name="summary-basis-prices" options={options} setOption={setOption} />
             <small>評価ベース・「利益0の場合」・想定利益は株主ごとの評価にも反映されます。</small>
           </SectionTools>
-          <div className="summary-table-scroll">
-            <table className="summary-table">
-              <thead>
-                <tr>
-                  <th scope="col">評価方式</th>
-                  <th scope="col" className="summary-holders-num">金額</th>
-                </tr>
-              </thead>
-              <tbody>
-                {priceRows.map((priceRow) => {
-                  const basis = report.bases.find((b) => b.key === priceRow.basis);
-                  const { text, sub } = basis ? priceRow.cell(basis) : { text: '－', sub: undefined };
-                  return (
-                    <tr key={priceRow.key} className={priceRow.emphasis ? 'summary-table-emphasis' : undefined}>
-                      <th scope="row">{labelOf(priceRow, options.assumedProfit)}<small>{priceRow.note}</small></th>
-                      <td className="summary-holders-num">{text}{sub && <small>{sub}</small>}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <AssumedProfitNote visible={showAssumedProfit} />
-          {options.basis !== 'inheritance' && (
-            <p className="summary-sensitivity-disclaimer">
-              所得税・法人税ベースは、所基通59－6／法基通9－1－14による時価です。中心的な同族株主に該当するものとして小会社の評価方法（同(2)）を適用し、
-              評価差額に対する法人税額等相当額を控除していません（同(4)）。中心的な同族株主に該当しない場合は相続税評価額ベースの金額になります。
-            </p>
-          )}
+          {PRICE_GROUPS.filter((group) => group.key === 'current').map(renderPriceGroup)}
         </section>
         ) : <HiddenSection sectionKey="prices" setOption={setOption} />}
-
-        {options.sections.sizes ? (
-        <section className="summary-sizes" aria-labelledby="summary-sizes-title">
-          <div className="summary-sensitivity-heading">
-            <div>
-              <small>SHARE PRICE BY COMPANY SIZE</small>
-              <h2 id="summary-sizes-title">会社規模別の株価｜規模が変わった場合</h2>
-            </div>
-            <span>相続税評価額ベース・1株当たり</span>
-          </div>
-          <SectionTools sectionKey="sizes" options={options} setOption={setOption} />
-          <div className="summary-table-scroll">
-            <table className="summary-table">
-              <thead>
-                <tr>
-                  <th scope="col">会社の規模</th>
-                  <th scope="col" className="summary-holders-num">類似業種比準価額の割合</th>
-                  <th scope="col" className="summary-holders-num">類似業種比準価額</th>
-                  <th scope="col" className="summary-holders-num">原則的評価額</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.sizeScenarios.map((scenario) => {
-                  const scale = SIZE_SCALE.find((item) => item.size === scenario.size);
-                  return (
-                    <tr key={scenario.size} className={scenario.current ? 'summary-table-emphasis' : undefined}>
-                      <th scope="row">
-                        {scenario.sizeLabel}
-                        {scenario.current && <span className="summary-size-current">現在の判定</span>}
-                      </th>
-                      <td className="summary-holders-num">{scale ? scale.rate.toFixed(2) : '－'}</td>
-                      <td className="summary-holders-num">{yenOrDash(scenario.comparablePrice)}</td>
-                      <td className="summary-holders-num">{yenOrDash(scenario.gensoku)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="summary-sensitivity-disclaimer">
-            会社規模が変わると、第4表の斟酌率（大会社0.7／中会社0.6／小会社0.5）と、第3表で純資産価額と併用する割合が変わります。
-            1株当たり純資産価額そのものは規模では変わりません。所得税・法人税ベースは所基通59－6(2)により常に小会社として評価するため、この表の対象外です。
-            実際の規模は直前期末の総資産価額・取引金額・従業員数（第1表の2）で決まります。
-          </p>
-        </section>
-        ) : <HiddenSection sectionKey="sizes" setOption={setOption} />}
 
         {options.sections.holders ? (
         <section className="summary-holders" aria-labelledby="summary-holders-title">
@@ -561,6 +576,13 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           {report.shareholders.length ? (
             <div className="summary-table-scroll">
               <table className="summary-table">
+                <colgroup>
+                  <col className="summary-holder-name-col" />
+                  <col className="summary-holder-shares-col" />
+                  <col className="summary-holder-votes-col" />
+                  <col className="summary-holder-method-col" />
+                  {holderColumns.map((column) => <col key={column.key} />)}
+                </colgroup>
                 <thead>
                   <tr>
                     <th scope="col">株主</th>
@@ -569,7 +591,8 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
                     <th scope="col">評価方式</th>
                     {holderColumns.map((column) => (
                       <th scope="col" className="summary-holders-num" key={column.key}>
-                        {column.label}{column.caseLabel && <small className="summary-th-case">{column.caseLabel}</small>}
+                        <span className="summary-holder-basis">{column.basis === 'inheritance' ? '相続税評価額' : '所得税・法人税'}</span>
+                        <small className="summary-th-case">{column.caseLabel?.replace(/の場合$/, '') ?? '現在'}</small>
                       </th>
                     ))}
                   </tr>
@@ -582,12 +605,25 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           ) : (
             <div className="summary-sensitivity-empty" role="note">第1表の1に株主を入力すると表示されます。</div>
           )}
-          <AssumedProfitNote visible={showAssumedProfit} />
           <p className="summary-sensitivity-disclaimer">
             各行の株主を納税義務者とみなして株主判定をやり直した結果です。議決権割合5％未満の株主は、役員該当性や中心的な同族株主の有無により方式が変わるため「要確認」として両方の金額を表示しています。
           </p>
         </section>
         ) : <HiddenSection sectionKey="holders" setOption={setOption} />}
+
+        {options.sections.prices && (
+          <section className="summary-prices" aria-labelledby="summary-scenarios-title">
+            <div className="summary-sensitivity-heading">
+              <h2 id="summary-scenarios-title">条件を変えた評価額</h2>
+              <span>1株当たり</span>
+            </div>
+            {PRICE_GROUPS.filter((group) => group.key !== 'current').map(renderPriceGroup)}
+          </section>
+        )}
+        {options.sections.retirement ? (
+          <RetirementSimulation getField={getField} updateField={updateField} basis={options.basis} before={report.bases}
+            onHide={() => setOption(sectionField('retirement'), toStoredFlag(false))} />
+        ) : <HiddenSection sectionKey="retirement" setOption={setOption} />}
 
         {options.sections.sensitivity ? (
         <section className="summary-sensitivity" aria-labelledby="summary-sensitivity-title">
@@ -623,6 +659,54 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           <p className="summary-sensitivity-disclaimer">各要素が1円増加したときの、1株当たりの類似業種比準価額への概算影響です（端数処理・最低価額判定を固定した線形近似）。</p>
         </section>
         ) : <HiddenSection sectionKey="sensitivity" setOption={setOption} />}
+
+        {options.sections.sizes ? (
+        <section className="summary-sizes" aria-labelledby="summary-sizes-title">
+          <div className="summary-sensitivity-heading">
+            <div>
+              <small>SHARE PRICE BY COMPANY SIZE</small>
+              <h2 id="summary-sizes-title">会社規模別の株価｜規模が変わった場合</h2>
+            </div>
+            <span>相続税評価額ベース・1株当たり</span>
+          </div>
+          <SectionTools sectionKey="sizes" options={options} setOption={setOption} />
+          <div className="summary-table-scroll">
+            <table className="summary-table">
+              <thead>
+                <tr>
+                  <th scope="col">会社の規模</th>
+                  <th scope="col" className="summary-holders-num">類似業種比準価額の割合</th>
+                  <th scope="col" className="summary-holders-num">類似業種比準価額</th>
+                  <th scope="col" className="summary-holders-num">純資産価額</th>
+                  <th scope="col" className="summary-holders-num">原則的評価額</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.sizeScenarios.map((scenario) => {
+                  const scale = SIZE_SCALE.find((item) => item.size === scenario.size);
+                  return (
+                    <tr key={scenario.size} className={scenario.current ? 'summary-table-emphasis' : undefined}>
+                      <th scope="row">
+                        {scenario.sizeLabel}
+                        {scenario.current && <span className="summary-size-current">現在の判定</span>}
+                      </th>
+                      <td className="summary-holders-num">{scale ? scale.rate.toFixed(2) : '－'}</td>
+                      <td className="summary-holders-num">{yenOrDash(scenario.comparablePrice)}</td>
+                      <td className="summary-holders-num">{yenOrDash(report.bases.find((basis) => basis.key === 'inheritance')?.netAssetPrice ?? null)}</td>
+                      <td className="summary-holders-num">{yenOrDash(scenario.gensoku)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="summary-sensitivity-disclaimer">
+            会社規模が変わると、第4表の斟酌率（大会社0.7／中会社0.6／小会社0.5）と、第3表で純資産価額と併用する割合が変わります。
+            1株当たり純資産価額そのものは規模では変わりません。所得税・法人税ベースは所基通59－6(2)により常に小会社として評価するため、この表の対象外です。
+            実際の規模は直前期末の総資産価額・取引金額・従業員数（第1表の2）で決まります。
+          </p>
+        </section>
+        ) : <HiddenSection sectionKey="sizes" setOption={setOption} />}
 
         {options.sections.forecast ? (
         <section className="summary-forecast" aria-labelledby="summary-forecast-title">

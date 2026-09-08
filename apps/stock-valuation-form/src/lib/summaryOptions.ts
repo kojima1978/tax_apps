@@ -10,12 +10,13 @@ import { formatSignedCommaInteger } from '@/lib/numberFormat';
 import type { ValuationBasis, ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
 
-export type SummarySectionKey = 'prices' | 'sizes' | 'holders' | 'sensitivity' | 'forecast' | 'actions' | 'note';
+export type SummarySectionKey = 'prices' | 'sizes' | 'holders' | 'retirement' | 'sensitivity' | 'forecast' | 'actions' | 'note';
 
 export const SUMMARY_SECTIONS: readonly { key: SummarySectionKey; label: string; hint: string }[] = [
   { key: 'prices', label: '株価一覧', hint: '評価方式ごとの1株当たりの価額' },
   { key: 'sizes', label: '会社規模別の株価', hint: '規模が変わった場合の1株当たりの価額' },
   { key: 'holders', label: '株主ごとの評価', hint: '株主別の評価方式と評価額' },
+  { key: 'retirement', label: '退職金支給後のシミュレーション', hint: '支給後の株価と現在との差' },
   { key: 'sensitivity', label: '比準要素の影響度', hint: '1円増加あたりの影響' },
   { key: 'forecast', label: '来期の見通し', hint: '比準要素数1・比準要素数0への該当リスク' },
   { key: 'actions', label: '次の一手', hint: '優先度つきの検討事項' },

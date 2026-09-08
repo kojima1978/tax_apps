@@ -1376,6 +1376,31 @@
 
 .summary-table-scroll { overflow-x: auto; }
 
+.summary-price-group > h3 {
+  margin: 20px 0 4px;
+  font-size: 13px;
+  break-after: avoid;
+}
+
+.summary-price-group-note {
+  margin: 0 0 8px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.6;
+  break-after: avoid;
+}
+
+.summary-price-group .summary-table {
+  table-layout: fixed;
+}
+
+.summary-price-group .summary-table thead th:first-child { width: 62%; }
+
+@media print {
+  .summary-price-group > h3 { margin-top: 12px; font-size: 11px; }
+  .summary-price-group-note { font-size: 9px; }
+}
+
 .summary-table {
   width: 100%;
   border-collapse: collapse;
@@ -1715,6 +1740,33 @@
      1ページに収まらない場合に備えた保険 */
   .summary-table thead { display: table-header-group; }
   .summary-table tr { break-inside: avoid; }
+
+  /* 最大8列でもA4の本文幅に収める。画面用の横スクロールと折返し禁止を解除し、
+     株主が多い場合は行単位で次の用紙へ送り、列見出しを繰り返す。 */
+  .summary-holders { break-inside: auto; }
+  .summary-holders .summary-sensitivity-heading { break-after: avoid; }
+  .summary-holders .summary-table-scroll { overflow: visible; }
+  .summary-holders .summary-table { table-layout: fixed; width: 100%; }
+  .summary-holder-name-col { width: 14%; }
+  .summary-holder-shares-col { width: 10%; }
+  .summary-holder-votes-col { width: 8%; }
+  .summary-holder-method-col { width: 14%; }
+  .summary-holders .summary-table th,
+  .summary-holders .summary-table td {
+    padding: 6px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .summary-holders .summary-table thead th { font-size: 8px; }
+  .summary-holders .summary-table thead th { vertical-align: top; }
+  .summary-holders .summary-holder-basis,
+  .summary-holders .summary-table thead th small.summary-th-case {
+    display: block;
+    font-size: 7.5px;
+    line-height: 1.5;
+  }
+  .summary-holders .summary-table tbody th { font-size: 9px; }
+  .summary-holders .summary-holders-method { white-space: normal; }
 
   .summary-hero { padding: 24px 30px 19px; }
   .summary-kicker { margin-bottom: 18px; }
@@ -2380,3 +2432,59 @@ button.admin-chip:hover {
   border-color: #0f766e;
   background: #ccfbf1;
 }
+
+/* サマリーは画面で読みやすく、印刷では既存の用紙寸法に収める。 */
+.summary-settings { margin: 0 0 16px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; }
+.summary-settings > summary { padding: 12px; color: #334155; font-size: 13px; font-weight: 700; cursor: pointer; }
+.summary-settings > summary span { margin-left: 16px; color: #475569; font-size: 12px; font-weight: 400; }
+.summary-settings > summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.summary-settings .summary-section-tools { margin: 0; border: 0; border-top: 1px solid #e2e8f0; padding: 12px; }
+.summary-price-group .summary-table th,
+.summary-price-group .summary-table td { overflow-wrap: anywhere; white-space: normal; }
+.summary-price-group .summary-table td small { color: #475569; line-height: 1.6; }
+.summary-table .summary-company-size th,
+.summary-table .summary-company-size td { background: #f8fafc; color: #475569; font-weight: 500; }
+.summary-price-group .summary-table-emphasis th { border-left: 3px solid #2563eb; }
+.summary-price-group .summary-table td small.summary-price-difference { color: #1e40af; font-weight: 700; }
+
+@media screen {
+  .summary-hero { padding: 20px 28px; }
+  .summary-kicker { margin-bottom: 8px; }
+  .summary-hero-main { gap: 20px; }
+  .summary-hero h1 { font-size: 26px; }
+  .summary-lead { margin-top: 6px; }
+  .summary-meta { margin-top: 12px; }
+  .summary-table { font-size: 14px; }
+  .summary-table thead th { font-size: 12px; white-space: normal; }
+  .summary-table tbody th { font-size: 14px; white-space: normal; }
+  .summary-table tbody td { padding: 12px 10px; }
+  .summary-table tbody th small,
+  .summary-table tbody td small,
+  .summary-table thead th small,
+  .summary-table thead th small.summary-th-case { font-size: 12px; color: #475569; line-height: 1.6; }
+  .summary-table-emphasis th, .summary-table-emphasis td { font-size: 16px; }
+  .summary-price-group .summary-table-emphasis td { font-size: 20px; }
+  .summary-price-group > h3 { font-size: 16px; }
+  .summary-price-group-note, .summary-sensitivity-disclaimer,
+  .summary-options-hint, .summary-option small,
+  .summary-section-tools > small { font-size: 12px; color: #475569; line-height: 1.6; }
+  .summary-option { font-size: 14px; min-height: 32px; align-items: center; }
+  .summary-option input { min-width: 18px; min-height: 18px; }
+  .summary-option-number > input[type="text"] { min-height: 36px; font-size: 14px; }
+  .summary-hero .summary-date-block span { color: #cbd5e1; }
+}
+@media screen and (max-width: 600px) {
+  .summary-hero { padding: 16px; }
+  .summary-hero h1 { font-size: 22px; }
+  .summary-settings > summary span { display: block; margin: 4px 0 0 16px; }
+  .summary-option-number { flex-wrap: wrap; }
+  .summary-option { min-height: 44px; }
+  .summary-price-group .summary-table thead th:first-child { width: 52%; }
+  .summary-price-group .summary-table-emphasis td { font-size: 17px; }
+}
+
+.summary-retirement-field { display: flex; flex-direction: column; gap: 6px; color: #334155; font-size: 13px; max-width: 100%; }
+.summary-retirement-field input, .summary-retirement-field select { min-height: 40px; max-width: 100%; padding: 6px 10px; border: 1px solid #94a3b8; border-radius: 4px; background: #fff; color: #0f172a; font: inherit; }
+.summary-retirement-field input { width: 160px; text-align: right; }
+.summary-retirement-field input:focus-visible, .summary-retirement-field select:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.summary-retirement-error { color: #991b1b; background: #fff1f2; border: 1px solid #fecdd3; padding: 12px; font-size: 13px; }
