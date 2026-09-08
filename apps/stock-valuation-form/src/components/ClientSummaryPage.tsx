@@ -365,7 +365,15 @@ function SectionTools({ sectionKey, options, setOption, children }: {
 }) {
   return (
     <details className="summary-settings no-print">
-      <summary>表示・印刷設定<span>この項目は出力対象です</span></summary>
+      <summary>表示・印刷設定<span>
+        {sectionKey === 'prices' || sectionKey === 'holders'
+          ? [BASIS_FILTERS.find((item) => item.value === options.basis)?.label,
+            options.showZeroProfit ? '利益0を併記' : null,
+            isAssumedProfitVisible(options) ? `利益${options.assumedProfit!.toLocaleString('ja-JP')}千円を併記` : null].filter(Boolean).join(' ／ ')
+          : sectionKey === 'actions' ? `優先度：${ACTION_FILTERS.find((item) => item.value === options.actionFilter)?.label}`
+          : sectionKey === 'forecast' ? (options.showForecastDetail ? '必要水準の明細あり' : '必要水準の明細なし')
+          : '出力する'}
+      </span></summary>
     <div className="summary-section-tools">
       <OptionCheck
         label="出力する"
@@ -525,6 +533,28 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
       <p className="summary-options-hint no-print">
         各項目の「表示・印刷設定」を開くと、出力内容を変更できます。設定は案件データに保存されます。
       </p>
+
+      <nav className="summary-jump-nav no-print" aria-label="サマリー内の移動">
+        {([
+          ['prices', 'summary-prices-title', '現在の評価額'],
+          ['holders', 'summary-holders-title', '株主ごとの評価'],
+          ['prices', 'summary-scenarios-title', '条件別の試算'],
+          ['retirement', 'summary-retirement-title', '退職金の試算'],
+          ['sensitivity', 'summary-sensitivity-title', '比準要素の影響'],
+          ['sizes', 'summary-sizes-title', '会社規模別'],
+          ['forecast', 'summary-forecast-title', '来期の見通し'],
+          ['actions', 'summary-actions-title', '次の一手'],
+          ['note', 'summary-note-title', 'コメント'],
+        ] as const).filter(([key]) => options.sections[key]).map(([, id, label]) => (
+          <button type="button" key={id} onClick={() => {
+            const target = document.getElementById(id);
+            if (!target) return;
+            target.setAttribute('tabindex', '-1');
+            target.focus({ preventScroll: true });
+            target.scrollIntoView({ block: 'start', behavior: 'auto' });
+          }}>{label}</button>
+        ))}
+      </nav>
 
       <article className="client-summary-page" aria-labelledby="client-summary-title">
         <header className="summary-hero">

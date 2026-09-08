@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type { TableProps } from '@/types/form';
 import type { ValuationBasis } from '@/lib/valuationReport';
 import { filterBases, formatAssumedProfit, type BasisFilter } from '@/lib/summaryOptions';
@@ -19,6 +19,8 @@ const difference = (now: number | null, after: number | null) => {
 export function RetirementSimulation({ getField, updateField, basis, before, onHide }: Props) {
   const amountText = getField('table1_1', RETIREMENT_AMOUNT_FIELD);
   const [settingsOpen, setSettingsOpen] = useState(() => !amountText);
+  const hintId = useId();
+  const errorId = useId();
   const result = useMemo(() => calcRetirementSimulation(getField), [getField]);
   const ready = result.bases.length > 0;
   const set = (field: string, value: string) => updateField('table1_1', field, value);
@@ -29,18 +31,21 @@ export function RetirementSimulation({ getField, updateField, basis, before, onH
         <span>1株当たり</span>
       </div>
       <details className="summary-settings no-print" open={settingsOpen} onToggle={(event) => setSettingsOpen(event.currentTarget.open)}>
-        <summary>表示・印刷設定<span>{ready ? '試算を出力します' : '退職金額を入力してください'}</span></summary>
+        <summary>表示・印刷設定<span>{ready ? `支給額 ${result.amount!.toLocaleString('ja-JP')}千円 ／ 税軽減なし` : '退職金額を入力してください'}</span></summary>
         <div className="summary-section-tools">
           <label className="summary-option"><input type="checkbox" checked onChange={onHide} />出力する</label>
           <label className="summary-retirement-field">退職金支給額（千円）
             <input aria-label="退職金支給額（千円）" inputMode="numeric" value={amountText}
               onChange={(event) => set(RETIREMENT_AMOUNT_FIELD, formatAssumedProfit(event.target.value))}
-              aria-invalid={!!result.error} placeholder="例：5,000" />
+              aria-invalid={!!result.error} aria-describedby={`${hintId}${result.error ? ` ${errorId}` : ''}`} placeholder="例：5,000" />
+            <span id={hintId} className="summary-amount-hint">{result.amount !== null && Number.isSafeInteger(result.amount) && result.amount >= 0
+              ? `${(result.amount / 10).toLocaleString('ja-JP', { maximumFractionDigits: 1 })}万円（${(result.amount * 1000).toLocaleString('ja-JP')}円）`
+              : '千円単位で入力（5,000千円＝500万円）'}</span>
           </label>
           <small>帳票にまだ反映していない追加支給額を入力してください。支払原資・現預金残高は考慮しません。</small>
         </div>
       </details>
-      {result.error && <p className="summary-retirement-error no-print" role="alert">{result.error}</p>}
+      {result.error && <p id={errorId} className="summary-retirement-error no-print" role="alert">{result.error}</p>}
       {!amountText && <p className="summary-price-group-note no-print">支給額を入力すると、支給後の評価額を表示します。</p>}
       {ready && <>
         <p className="summary-price-group-note">退職金 {result.amount!.toLocaleString('ja-JP')}千円を支給した場合（支払原資は考慮しない）</p>

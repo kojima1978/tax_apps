@@ -2488,3 +2488,29 @@ button.admin-chip:hover {
 .summary-retirement-field input { width: 160px; text-align: right; }
 .summary-retirement-field input:focus-visible, .summary-retirement-field select:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .summary-retirement-error { color: #991b1b; background: #fff1f2; border: 1px solid #fecdd3; padding: 12px; font-size: 13px; }
+
+/* 長いサマリーを移動・比較しやすくする画面用ナビゲーション。 */
+.summary-jump-nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; margin: 0 0 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+.summary-jump-nav button { min-height: 40px; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; color: #334155; background: #f8fafc; font: inherit; font-size: 12px; cursor: pointer; }
+.summary-jump-nav button:hover { background: #eff6ff; border-color: #93c5fd; color: #1e40af; }
+.summary-jump-nav button:focus-visible, .client-summary-wrap button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.client-summary-page h2 { scroll-margin-top: 170px; }
+.summary-amount-hint { color: #1e40af; font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+@media screen and (max-width: 700px) {
+  .app-root:has(.client-summary-wrap) .app-header { position: static; height: auto; min-height: 44px; flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+  .app-root:has(.client-summary-wrap) .app-home-link { flex-shrink: 0; white-space: nowrap; min-height: 36px; }
+  .app-root:has(.client-summary-wrap) .app-header-title { flex: 1; }
+  .app-root:has(.client-summary-wrap) .app-header-right { width: 100%; margin-left: 0; flex-wrap: wrap; }
+  .app-root:has(.client-summary-wrap) .app-topbar { position: static; }
+  .app-root:has(.client-summary-wrap) .table-tab-list { display: none; }
+  .app-root:has(.client-summary-wrap) .table-select { display: block; width: 100%; min-width: 0; height: 40px; }
+  .app-root:has(.client-summary-wrap) .table-nav-controls { width: 100%; }
+  .app-root:has(.client-summary-wrap) .table-nav-button { min-height: 40px; flex-shrink: 0; }
+  .app-root:has(.client-summary-wrap) .mobile-hint { display: none; }
+  .client-summary-actions { flex-wrap: wrap; }
+  .summary-options-reset { flex-wrap: wrap; order: 3; width: 100%; }
+  .summary-jump-nav { gap: 4px; }
+  .summary-jump-nav button { flex: 1 1 calc(33% - 4px); padding: 8px 6px; min-height: 44px; }
+  .client-summary-page h2 { scroll-margin-top: 12px; }
+  .summary-settings > summary span { display: block; margin: 6px 0 0 16px; line-height: 1.6; }
+}
