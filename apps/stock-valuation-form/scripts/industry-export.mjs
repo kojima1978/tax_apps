@@ -1,10 +1,12 @@
 // 登録済みの年分をJSONファイルへ書き出す。
 //
-//   npm run industry:export                 … 全年分を ./output/industry-export/ へ
+//   npm run industry:save                   … 全年分を Git 管理下の prisma/industry-data/ へ
+//   npm run industry:export                 … 全年分を ./output/industry-export/ へ（手元への控え）
 //   npm run industry:export -- --year 2026  … 指定年分だけ
 //   npm run industry:export -- --out /tmp/x --base http://host:3014/stock-valuation-form/api
 //
 // 書き出したファイルはそのまま industry-import.mjs（と管理画面の「JSONで入出力」）で戻せる。
+// prisma/industry-data/ に置いたものは起動時のシード（server/seed.ts）が拾う。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,6 +32,9 @@ async function main() {
 
   for (const gregorianYear of targets) {
     const archive = await getJson(base, `/industry-years/${gregorianYear}/export`);
+    // 書き出し時刻はファイルには残さない。Git 管理下に置くと中身が同じでも毎回差分に
+    // なってしまうため。APIの応答（管理画面のダウンロード）からは落とさない。
+    delete archive.exportedAt;
     const file = path.join(outDir, archiveFileName(archive.label, archive.gregorianYear));
     fs.writeFileSync(file, `${JSON.stringify(archive, null, 2)}\n`, 'utf8');
 

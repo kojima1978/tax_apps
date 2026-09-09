@@ -82,6 +82,9 @@ services:
       - ./src:/app/src:ro
       - ./server:/app/server:ro
       - ./prisma:/app/prisma:ro
+      # 業種目データの年分アーカイブ（Git 管理下）。`npm run industry:save` がここへ直接
+      # 書けるよう、読み取り専用の ./prisma の内側にこのディレクトリだけ書き込み可で重ねる。
+      - ./prisma/industry-data:/app/prisma/industry-data
       - ./index.html:/app/index.html:ro
       # 業種目データの書き出し・読み込みCLI。本番は runner イメージに同梱している
       # （prod 側で volumes を !reset しているのでここのマウントは効かない）。

@@ -11,11 +11,12 @@ import { Hono } from 'hono';
 import { prisma } from './db.js';
 import { createIndustryRouter } from './routes/industry.js';
 import { createIndustryAdminRouter } from './routes/industryAdmin.js';
-import { seedIndustryDataIfMissing } from './seed.js';
+import { seedIndustryData } from './seed.js';
 
 const PORT = Number(process.env.PORT ?? 3014);
 const BASE_PATH = '/stock-valuation-form';
-const SEED_DATA_DIR = process.env.SEED_DATA_DIR ?? path.resolve('src/data');
+// 業種目データの年分アーカイブ。Git 管理下に置き、`git pull` だけで復元できるようにしてある。
+const INDUSTRY_DATA_DIR = process.env.INDUSTRY_DATA_DIR ?? path.resolve('prisma/industry-data');
 const DIST_RELATIVE = process.env.DIST_DIR ?? './dist';
 const DIST_DIR = path.resolve(DIST_RELATIVE);
 
@@ -50,12 +51,14 @@ if (fs.existsSync(DIST_DIR)) {
 
 async function main() {
   try {
-    const result = await seedIndustryDataIfMissing(prisma, SEED_DATA_DIR);
-    console.log(
-      result.skipped
-        ? `[seed] ${result.label} は登録済みのため取込をスキップしました`
-        : `[seed] ${result.label} を取り込みました（業種目 ${result.categoryCount} 件 / 月別株価 ${result.monthlyPriceCount} 件）`,
-    );
+    const result = await seedIndustryData(prisma, INDUSTRY_DATA_DIR);
+    for (const year of result.years) {
+      console.log(
+        year.skipped
+          ? `[seed] ${year.label} は登録済みのため取込をスキップしました`
+          : `[seed] ${year.label} を取り込みました（業種目 ${year.categoryCount} 件 / 月別株価 ${year.monthlyPriceCount} 件）`,
+      );
+    }
   } catch (error) {
     seedError = error instanceof Error ? error.message : String(error);
     console.error('[seed] 業種目データの取込に失敗しました:', error);

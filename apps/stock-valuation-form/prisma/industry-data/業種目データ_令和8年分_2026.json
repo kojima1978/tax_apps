@@ -1,0 +1,5874 @@
+{
+  "formatVersion": 1,
+  "label": "令和8年分",
+  "era": "令和",
+  "eraYear": 8,
+  "gregorianYear": 2026,
+  "categories": [
+    {
+      "number": 1,
+      "largeName": "建設業",
+      "middleName": "",
+      "smallName": "",
+      "name": "建設業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 14.3,
+      "profit": 75,
+      "netAsset": 595,
+      "previousYearAveragePrice": 579,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 681,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 708,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 756,
+          "twoYearAveragePrice": 540
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 812,
+          "twoYearAveragePrice": 554
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 785,
+          "twoYearAveragePrice": 567
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 763,
+          "twoYearAveragePrice": 579
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "largeName": "建設業",
+      "middleName": "総合工事業",
+      "smallName": "",
+      "name": "総合工事業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 14.6,
+      "profit": 71,
+      "netAsset": 600,
+      "previousYearAveragePrice": 543,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 626,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 650,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 682,
+          "twoYearAveragePrice": 515
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 732,
+          "twoYearAveragePrice": 526
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 706,
+          "twoYearAveragePrice": 536
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 681,
+          "twoYearAveragePrice": 544
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "largeName": "建設業",
+      "middleName": "総合工事業",
+      "smallName": "建築工事業（木造建築工事業を除く）",
+      "name": "建築工事業（木造建築工事業を除く）",
+      "level": "SMALL",
+      "description": "鉄骨鉄筋コンクリート造建築物、鉄筋コンクリート造建築物、無筋コンクリート造建築物及び鉄骨造建築物等の完成を請け負うもの",
+      "dividend": 21.1,
+      "profit": 128,
+      "netAsset": 780,
+      "previousYearAveragePrice": 753,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 859,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 892,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 911,
+          "twoYearAveragePrice": 709
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 979,
+          "twoYearAveragePrice": 725
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 952,
+          "twoYearAveragePrice": 739
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 916,
+          "twoYearAveragePrice": 751
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "largeName": "建設業",
+      "middleName": "総合工事業",
+      "smallName": "その他の総合工事業",
+      "name": "その他の総合工事業",
+      "level": "SMALL",
+      "description": "総合工事業のうち、３に該当するもの以外のもの",
+      "dividend": 12.9,
+      "profit": 56,
+      "netAsset": 554,
+      "previousYearAveragePrice": 488,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 565,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 588,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 623,
+          "twoYearAveragePrice": 464
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 667,
+          "twoYearAveragePrice": 474
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 642,
+          "twoYearAveragePrice": 483
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 620,
+          "twoYearAveragePrice": 491
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "largeName": "建設業",
+      "middleName": "職別工事業",
+      "smallName": "",
+      "name": "職別工事業",
+      "level": "MIDDLE",
+      "description": "下請として工事現場において建築物又は土木施設等の工事目的物の一部を構成するための建設工事を行うもの",
+      "dividend": 16.1,
+      "profit": 77,
+      "netAsset": 672,
+      "previousYearAveragePrice": 593,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 641,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 659,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 686,
+          "twoYearAveragePrice": 561
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 709,
+          "twoYearAveragePrice": 569
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 707,
+          "twoYearAveragePrice": 577
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 695,
+          "twoYearAveragePrice": 584
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "largeName": "建設業",
+      "middleName": "設備工事業",
+      "smallName": "",
+      "name": "設備工事業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 13.7,
+      "profit": 85,
+      "netAsset": 574,
+      "previousYearAveragePrice": 676,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 843,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 880,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 972,
+          "twoYearAveragePrice": 608
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 1060,
+          "twoYearAveragePrice": 633
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 1019,
+          "twoYearAveragePrice": 655
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 1000,
+          "twoYearAveragePrice": 676
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "largeName": "建設業",
+      "middleName": "設備工事業",
+      "smallName": "電気工事業",
+      "name": "電気工事業",
+      "level": "SMALL",
+      "description": "一般電気工事業及び電気配線工事業を営むもの",
+      "dividend": 12,
+      "profit": 79,
+      "netAsset": 634,
+      "previousYearAveragePrice": 645,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 820,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 853,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 949,
+          "twoYearAveragePrice": 579
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 1047,
+          "twoYearAveragePrice": 604
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 1031,
+          "twoYearAveragePrice": 627
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 1014,
+          "twoYearAveragePrice": 649
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "largeName": "建設業",
+      "middleName": "設備工事業",
+      "smallName": "その他の設備工事業",
+      "name": "その他の設備工事業",
+      "level": "SMALL",
+      "description": "設備工事業のうち、７に該当するもの以外のもの",
+      "dividend": 14.7,
+      "profit": 88,
+      "netAsset": 540,
+      "previousYearAveragePrice": 694,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 856,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 895,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 986,
+          "twoYearAveragePrice": 624
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 1067,
+          "twoYearAveragePrice": 649
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 1012,
+          "twoYearAveragePrice": 671
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 992,
+          "twoYearAveragePrice": 691
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "largeName": "製造業",
+      "middleName": "",
+      "smallName": "",
+      "name": "製造業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 10.4,
+      "profit": 48,
+      "netAsset": 449,
+      "previousYearAveragePrice": 475,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 528,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 538,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 570,
+          "twoYearAveragePrice": 472
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 612,
+          "twoYearAveragePrice": 479
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 599,
+          "twoYearAveragePrice": 485
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 609,
+          "twoYearAveragePrice": 491
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "largeName": "製造業",
+      "middleName": "食料品製造業",
+      "smallName": "",
+      "name": "食料品製造業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 10.6,
+      "profit": 55,
+      "netAsset": 514,
+      "previousYearAveragePrice": 724,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 748,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 755,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 778,
+          "twoYearAveragePrice": 714
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 827,
+          "twoYearAveragePrice": 719
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 821,
+          "twoYearAveragePrice": 725
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 814,
+          "twoYearAveragePrice": 730
+        }
+      ]
+    },
+    {
+      "number": 11,
+      "largeName": "製造業",
+      "middleName": "食料品製造業",
+      "smallName": "畜産食料品製造業",
+      "name": "畜産食料品製造業",
+      "level": "SMALL",
+      "description": "部分肉・冷凍肉、肉加工品、処理牛乳・乳飲料及び乳製品等の製造を行うもの",
+      "dividend": 10.9,
+      "profit": 51,
+      "netAsset": 426,
+      "previousYearAveragePrice": 528,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 554,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 564,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 581,
+          "twoYearAveragePrice": 520
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 589,
+          "twoYearAveragePrice": 524
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 580,
+          "twoYearAveragePrice": 527
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 578,
+          "twoYearAveragePrice": 530
+        }
+      ]
+    },
+    {
+      "number": 12,
+      "largeName": "製造業",
+      "middleName": "食料品製造業",
+      "smallName": "パン・菓子製造業",
+      "name": "パン・菓子製造業",
+      "level": "SMALL",
+      "description": "パン、生菓子、ビスケット類・干菓子及び米菓等の製造を行うもの",
+      "dividend": 12.6,
+      "profit": 83,
+      "netAsset": 928,
+      "previousYearAveragePrice": 1613,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 1634,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 1667,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 1720,
+          "twoYearAveragePrice": 1578
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 1829,
+          "twoYearAveragePrice": 1590
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 1858,
+          "twoYearAveragePrice": 1603
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 1844,
+          "twoYearAveragePrice": 1618
+        }
+      ]
+    },
+    {
+      "number": 13,
+      "largeName": "製造業",
+      "middleName": "食料品製造業",
+      "smallName": "その他の食料品製造業",
+      "name": "その他の食料品製造業",
+      "level": "SMALL",
+      "description": "食料品製造業のうち、11及び12に該当するもの以外のもの",
+      "dividend": 10,
+      "profit": 49,
+      "netAsset": 437,
+      "previousYearAveragePrice": 561,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 585,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 585,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 602,
+          "twoYearAveragePrice": 556
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 648,
+          "twoYearAveragePrice": 561
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 635,
+          "twoYearAveragePrice": 565
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 628,
+          "twoYearAveragePrice": 569
+        }
+      ]
+    },
+    {
+      "number": 14,
+      "largeName": "製造業",
+      "middleName": "飲料・たばこ・飼料製造業",
+      "smallName": "",
+      "name": "飲料・たばこ・飼料製造業",
+      "level": "MIDDLE",
+      "description": "清涼飲料、酒類、茶、コーヒー、氷、たばこ、飼料及び有機質肥料の製造を行うもの",
+      "dividend": 8.9,
+      "profit": 32,
+      "netAsset": 357,
+      "previousYearAveragePrice": 515,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 541,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 530,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 526,
+          "twoYearAveragePrice": 496
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 519,
+          "twoYearAveragePrice": 498
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 495,
+          "twoYearAveragePrice": 501
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 526,
+          "twoYearAveragePrice": 504
+        }
+      ]
+    },
+    {
+      "number": 15,
+      "largeName": "製造業",
+      "middleName": "繊維工業",
+      "smallName": "",
+      "name": "繊維工業",
+      "level": "MIDDLE",
+      "description": "製糸、紡績糸、織物、ニット生地、網地、フェルト、染色整理及び衣服の縫製など繊維製品の製造を行うもの",
+      "dividend": 5.9,
+      "profit": 31,
+      "netAsset": 345,
+      "previousYearAveragePrice": 308,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 347,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 362,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 377,
+          "twoYearAveragePrice": 297
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 391,
+          "twoYearAveragePrice": 302
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 381,
+          "twoYearAveragePrice": 306
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 377,
+          "twoYearAveragePrice": 310
+        }
+      ]
+    },
+    {
+      "number": 16,
+      "largeName": "製造業",
+      "middleName": "パルプ・紙・紙加工品製造業",
+      "smallName": "",
+      "name": "パルプ・紙・紙加工品製造業",
+      "level": "MIDDLE",
+      "description": "木材、その他の植物原料及び古繊維からパルプ及び紙の製造を行うもの並びにこれらの紙から紙加工品の製造を行うもの",
+      "dividend": 6,
+      "profit": 35,
+      "netAsset": 425,
+      "previousYearAveragePrice": 230,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 249,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 257,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 273,
+          "twoYearAveragePrice": 233
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 278,
+          "twoYearAveragePrice": 235
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 273,
+          "twoYearAveragePrice": 236
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 272,
+          "twoYearAveragePrice": 237
+        }
+      ]
+    },
+    {
+      "number": 17,
+      "largeName": "製造業",
+      "middleName": "印刷・同関連業",
+      "smallName": "",
+      "name": "印刷・同関連業",
+      "level": "MIDDLE",
+      "description": "印刷業、製版業、製本業、印刷物加工業及び印刷関連サービス業を営むもの",
+      "dividend": 10,
+      "profit": 58,
+      "netAsset": 548,
+      "previousYearAveragePrice": 459,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 492,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 516,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 534,
+          "twoYearAveragePrice": 433
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 523,
+          "twoYearAveragePrice": 440
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 489,
+          "twoYearAveragePrice": 445
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 481,
+          "twoYearAveragePrice": 449
+        }
+      ]
+    },
+    {
+      "number": 18,
+      "largeName": "製造業",
+      "middleName": "化学工業",
+      "smallName": "",
+      "name": "化学工業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 10.8,
+      "profit": 44,
+      "netAsset": 401,
+      "previousYearAveragePrice": 447,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 487,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 507,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 543,
+          "twoYearAveragePrice": 448
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 589,
+          "twoYearAveragePrice": 454
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 571,
+          "twoYearAveragePrice": 459
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 566,
+          "twoYearAveragePrice": 465
+        }
+      ]
+    },
+    {
+      "number": 19,
+      "largeName": "製造業",
+      "middleName": "化学工業",
+      "smallName": "有機化学工業製品製造業",
+      "name": "有機化学工業製品製造業",
+      "level": "SMALL",
+      "description": "工業原料として用いられる有機化学工業製品の製造を行うもの",
+      "dividend": 9.7,
+      "profit": 41,
+      "netAsset": 381,
+      "previousYearAveragePrice": 383,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 436,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 460,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 527,
+          "twoYearAveragePrice": 392
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 628,
+          "twoYearAveragePrice": 403
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 592,
+          "twoYearAveragePrice": 410
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 588,
+          "twoYearAveragePrice": 418
+        }
+      ]
+    },
+    {
+      "number": 20,
+      "largeName": "製造業",
+      "middleName": "化学工業",
+      "smallName": "油脂加工製品・石けん・合成洗剤・界面活性剤・塗料製造業",
+      "name": "油脂加工製品・石けん・合成洗剤・界面活性剤・塗料製造業",
+      "level": "SMALL",
+      "description": "脂肪酸・硬化油・グリセリン、石けん・合成洗剤、界面活性剤、塗料、印刷インキ、洗浄剤・磨用剤及びろうそくの製造を行うもの",
+      "dividend": 6.6,
+      "profit": 44,
+      "netAsset": 368,
+      "previousYearAveragePrice": 303,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 356,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 368,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 376,
+          "twoYearAveragePrice": 287
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 387,
+          "twoYearAveragePrice": 292
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 366,
+          "twoYearAveragePrice": 297
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 356,
+          "twoYearAveragePrice": 301
+        }
+      ]
+    },
+    {
+      "number": 21,
+      "largeName": "製造業",
+      "middleName": "化学工業",
+      "smallName": "医薬品製造業",
+      "name": "医薬品製造業",
+      "level": "SMALL",
+      "description": "医薬品原薬、医薬品製剤、生物学的製剤、生薬・漢方製剤及び動物用医薬品の製造を行うもの",
+      "dividend": 16.6,
+      "profit": 56,
+      "netAsset": 435,
+      "previousYearAveragePrice": 657,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 710,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 771,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 798,
+          "twoYearAveragePrice": 655
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 836,
+          "twoYearAveragePrice": 664
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 817,
+          "twoYearAveragePrice": 671
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 811,
+          "twoYearAveragePrice": 679
+        }
+      ]
+    },
+    {
+      "number": 22,
+      "largeName": "製造業",
+      "middleName": "化学工業",
+      "smallName": "その他の化学工業",
+      "name": "その他の化学工業",
+      "level": "SMALL",
+      "description": "化学工業のうち、19から21に該当するもの以外のもの",
+      "dividend": 9.9,
+      "profit": 40,
+      "netAsset": 401,
+      "previousYearAveragePrice": 417,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 445,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 451,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 490,
+          "twoYearAveragePrice": 420
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 536,
+          "twoYearAveragePrice": 425
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 524,
+          "twoYearAveragePrice": 429
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 519,
+          "twoYearAveragePrice": 433
+        }
+      ]
+    },
+    {
+      "number": 23,
+      "largeName": "製造業",
+      "middleName": "プラスチック製品製造業",
+      "smallName": "",
+      "name": "プラスチック製品製造業",
+      "level": "MIDDLE",
+      "description": "プラスチックを用い、押出成形機、射出成形機等の各種成形機により成形された押出成形品、射出成形品等の成形製品の製造を行うもの及び同製品に切断、接合、塗装、蒸着めっき、バフ加工等の加工を行うもの並びにプラスチックを用いて成形のために配合、混和を行うもの及び再生プラスチックの製造を行うもの",
+      "dividend": 7.7,
+      "profit": 26,
+      "netAsset": 365,
+      "previousYearAveragePrice": 239,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 254,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 264,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 282,
+          "twoYearAveragePrice": 244
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 301,
+          "twoYearAveragePrice": 246
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 293,
+          "twoYearAveragePrice": 247
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 291,
+          "twoYearAveragePrice": 248
+        }
+      ]
+    },
+    {
+      "number": 24,
+      "largeName": "製造業",
+      "middleName": "ゴム製品製造業",
+      "smallName": "",
+      "name": "ゴム製品製造業",
+      "level": "MIDDLE",
+      "description": "天然ゴム類、合成ゴムなどから作られたゴム製品、すなわち、タイヤ、チューブ、ゴム製履物、ゴム引布、ゴムベルト、ゴムホース、工業用ゴム製品、更生タイヤ、再生ゴム、その他のゴム製品の製造を行うもの",
+      "dividend": 24,
+      "profit": 95,
+      "netAsset": 831,
+      "previousYearAveragePrice": 691,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 760,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 781,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 813,
+          "twoYearAveragePrice": 678
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 876,
+          "twoYearAveragePrice": 687
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 851,
+          "twoYearAveragePrice": 694
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 837,
+          "twoYearAveragePrice": 700
+        }
+      ]
+    },
+    {
+      "number": 25,
+      "largeName": "製造業",
+      "middleName": "窯業・土石製品製造業",
+      "smallName": "",
+      "name": "窯業・土石製品製造業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 11.8,
+      "profit": 43,
+      "netAsset": 443,
+      "previousYearAveragePrice": 375,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 428,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 444,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 479,
+          "twoYearAveragePrice": 381
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 513,
+          "twoYearAveragePrice": 386
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 495,
+          "twoYearAveragePrice": 390
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 507,
+          "twoYearAveragePrice": 394
+        }
+      ]
+    },
+    {
+      "number": 26,
+      "largeName": "製造業",
+      "middleName": "窯業・土石製品製造業",
+      "smallName": "セメント・同製品製造業",
+      "name": "セメント・同製品製造業",
+      "level": "SMALL",
+      "description": "セメント、生コンクリート及びコンクリート製品等の製造を行うもの",
+      "dividend": 4.9,
+      "profit": 30,
+      "netAsset": 243,
+      "previousYearAveragePrice": 206,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 242,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 237,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 256,
+          "twoYearAveragePrice": 189
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 256,
+          "twoYearAveragePrice": 193
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 233,
+          "twoYearAveragePrice": 195
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 223,
+          "twoYearAveragePrice": 197
+        }
+      ]
+    },
+    {
+      "number": 27,
+      "largeName": "製造業",
+      "middleName": "窯業・土石製品製造業",
+      "smallName": "その他の窯業・土石製品製造業",
+      "name": "その他の窯業・土石製品製造業",
+      "level": "SMALL",
+      "description": "窯業・土石製品製造業のうち、26に該当するもの以外のもの",
+      "dividend": 14.6,
+      "profit": 49,
+      "netAsset": 527,
+      "previousYearAveragePrice": 446,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 506,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 531,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 573,
+          "twoYearAveragePrice": 461
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 620,
+          "twoYearAveragePrice": 467
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 605,
+          "twoYearAveragePrice": 471
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 626,
+          "twoYearAveragePrice": 477
+        }
+      ]
+    },
+    {
+      "number": 28,
+      "largeName": "製造業",
+      "middleName": "鉄鋼業",
+      "smallName": "",
+      "name": "鉄鋼業",
+      "level": "MIDDLE",
+      "description": "鉱石、鉄くずなどから鉄及び鋼の製造を行うもの並びに鉄及び鋼の鋳造品、鍛造品、圧延鋼材、表面処理鋼材等の製造を行うもの",
+      "dividend": 10.3,
+      "profit": 46,
+      "netAsset": 481,
+      "previousYearAveragePrice": 310,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 328,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 341,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 370,
+          "twoYearAveragePrice": 309
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 382,
+          "twoYearAveragePrice": 312
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 367,
+          "twoYearAveragePrice": 314
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 364,
+          "twoYearAveragePrice": 316
+        }
+      ]
+    },
+    {
+      "number": 29,
+      "largeName": "製造業",
+      "middleName": "非鉄金属製造業",
+      "smallName": "",
+      "name": "非鉄金属製造業",
+      "level": "MIDDLE",
+      "description": "鉱石（粗鉱、精鉱）、金属くずなどを処理し、非鉄金属の製錬及び精製を行うもの、非鉄金属の合金製造、圧延、抽伸、押出しを行うもの並びに非鉄金属の鋳造、鍛造、その他の基礎製品の製造を行うもの",
+      "dividend": 7.8,
+      "profit": 41,
+      "netAsset": 403,
+      "previousYearAveragePrice": 402,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 585,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 586,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 662,
+          "twoYearAveragePrice": 365
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 803,
+          "twoYearAveragePrice": 386
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 835,
+          "twoYearAveragePrice": 409
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 888,
+          "twoYearAveragePrice": 434
+        }
+      ]
+    },
+    {
+      "number": 30,
+      "largeName": "製造業",
+      "middleName": "金属製品製造業",
+      "smallName": "",
+      "name": "金属製品製造業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 11.2,
+      "profit": 49,
+      "netAsset": 566,
+      "previousYearAveragePrice": 441,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 480,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 496,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 522,
+          "twoYearAveragePrice": 431
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 547,
+          "twoYearAveragePrice": 437
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 538,
+          "twoYearAveragePrice": 442
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 546,
+          "twoYearAveragePrice": 448
+        }
+      ]
+    },
+    {
+      "number": 31,
+      "largeName": "製造業",
+      "middleName": "金属製品製造業",
+      "smallName": "建設用・建築用金属製品製造業",
+      "name": "建設用・建築用金属製品製造業",
+      "level": "SMALL",
+      "description": "鉄骨、建設用金属製品、金属製サッシ・ドア、鉄骨系プレハブ住宅及び建築用金属製品の製造を行うもの並びに製缶板金業を営むもの",
+      "dividend": 7.1,
+      "profit": 45,
+      "netAsset": 421,
+      "previousYearAveragePrice": 307,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 317,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 320,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 339,
+          "twoYearAveragePrice": 293
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 351,
+          "twoYearAveragePrice": 296
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 353,
+          "twoYearAveragePrice": 300
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 339,
+          "twoYearAveragePrice": 303
+        }
+      ]
+    },
+    {
+      "number": 32,
+      "largeName": "製造業",
+      "middleName": "金属製品製造業",
+      "smallName": "その他の金属製品製造業",
+      "name": "その他の金属製品製造業",
+      "level": "SMALL",
+      "description": "金属製品製造業のうち、31に該当するもの以外のもの",
+      "dividend": 12.7,
+      "profit": 51,
+      "netAsset": 619,
+      "previousYearAveragePrice": 490,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 539,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 560,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 587,
+          "twoYearAveragePrice": 482
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 618,
+          "twoYearAveragePrice": 488
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 604,
+          "twoYearAveragePrice": 494
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 621,
+          "twoYearAveragePrice": 500
+        }
+      ]
+    },
+    {
+      "number": 33,
+      "largeName": "製造業",
+      "middleName": "はん用機械器具製造業",
+      "smallName": "",
+      "name": "はん用機械器具製造業",
+      "level": "MIDDLE",
+      "description": "はん用的に各種機械に組み込まれ、あるいは取付けをすることで用いられる機械器具の製造を行うもの。例えば、ボイラ・原動機、ポンプ・圧縮機器、一般産業用機械・装置の製造など",
+      "dividend": 11.8,
+      "profit": 66,
+      "netAsset": 532,
+      "previousYearAveragePrice": 573,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 646,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 667,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 711,
+          "twoYearAveragePrice": 549
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 765,
+          "twoYearAveragePrice": 561
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 747,
+          "twoYearAveragePrice": 571
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 746,
+          "twoYearAveragePrice": 580
+        }
+      ]
+    },
+    {
+      "number": 34,
+      "largeName": "製造業",
+      "middleName": "生産用機械器具製造業",
+      "smallName": "",
+      "name": "生産用機械器具製造業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 8.8,
+      "profit": 41,
+      "netAsset": 331,
+      "previousYearAveragePrice": 413,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 466,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 467,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 540,
+          "twoYearAveragePrice": 435
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 607,
+          "twoYearAveragePrice": 441
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 578,
+          "twoYearAveragePrice": 444
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 601,
+          "twoYearAveragePrice": 449
+        }
+      ]
+    },
+    {
+      "number": 35,
+      "largeName": "製造業",
+      "middleName": "生産用機械器具製造業",
+      "smallName": "金属加工機械製造業",
+      "name": "金属加工機械製造業",
+      "level": "SMALL",
+      "description": "金属工作機械、金属加工機械、金属工作機械用・金属加工機械用部分品・附属品（金型を除く）及び機械工具（粉末や金業を除く）の製造を行うもの",
+      "dividend": 9.1,
+      "profit": 30,
+      "netAsset": 356,
+      "previousYearAveragePrice": 319,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 340,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 350,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 365,
+          "twoYearAveragePrice": 316
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 396,
+          "twoYearAveragePrice": 319
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 385,
+          "twoYearAveragePrice": 322
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 385,
+          "twoYearAveragePrice": 324
+        }
+      ]
+    },
+    {
+      "number": 36,
+      "largeName": "製造業",
+      "middleName": "生産用機械器具製造業",
+      "smallName": "その他の生産用機械器具製造業",
+      "name": "その他の生産用機械器具製造業",
+      "level": "SMALL",
+      "description": "生産用機械器具製造業のうち、35に該当するもの以外のもの",
+      "dividend": 8.7,
+      "profit": 44,
+      "netAsset": 324,
+      "previousYearAveragePrice": 441,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 503,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 501,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 591,
+          "twoYearAveragePrice": 470
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 669,
+          "twoYearAveragePrice": 476
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 635,
+          "twoYearAveragePrice": 480
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 665,
+          "twoYearAveragePrice": 485
+        }
+      ]
+    },
+    {
+      "number": 37,
+      "largeName": "製造業",
+      "middleName": "業務用機械器具製造業",
+      "smallName": "",
+      "name": "業務用機械器具製造業",
+      "level": "MIDDLE",
+      "description": "業務用及びサービスの生産に供される機械器具の製造を行うもの",
+      "dividend": 14.3,
+      "profit": 82,
+      "netAsset": 530,
+      "previousYearAveragePrice": 679,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 743,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 754,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 786,
+          "twoYearAveragePrice": 686
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 826,
+          "twoYearAveragePrice": 693
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 801,
+          "twoYearAveragePrice": 698
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 816,
+          "twoYearAveragePrice": 704
+        }
+      ]
+    },
+    {
+      "number": 38,
+      "largeName": "製造業",
+      "middleName": "電子部品・デバイス・電子回路製造業",
+      "smallName": "",
+      "name": "電子部品・デバイス・電子回路製造業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 10.5,
+      "profit": 45,
+      "netAsset": 388,
+      "previousYearAveragePrice": 667,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 771,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 773,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 771,
+          "twoYearAveragePrice": 686
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 830,
+          "twoYearAveragePrice": 692
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 828,
+          "twoYearAveragePrice": 697
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 904,
+          "twoYearAveragePrice": 706
+        }
+      ]
+    },
+    {
+      "number": 39,
+      "largeName": "製造業",
+      "middleName": "電子部品・デバイス・電子回路製造業",
+      "smallName": "電子部品製造業",
+      "name": "電子部品製造業",
+      "level": "SMALL",
+      "description": "抵抗器、コンデンサ、変成器及び複合部品の製造、音響部品、磁気ヘッド及び小形モーターの製造並びにコネクタ、スイッチ及びリレーの製造を行うもの",
+      "dividend": 11.1,
+      "profit": 46,
+      "netAsset": 434,
+      "previousYearAveragePrice": 693,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 888,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 845,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 778,
+          "twoYearAveragePrice": 685
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 866,
+          "twoYearAveragePrice": 696
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 823,
+          "twoYearAveragePrice": 706
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 908,
+          "twoYearAveragePrice": 719
+        }
+      ]
+    },
+    {
+      "number": 40,
+      "largeName": "製造業",
+      "middleName": "電子部品・デバイス・電子回路製造業",
+      "smallName": "電子回路製造業",
+      "name": "電子回路製造業",
+      "level": "SMALL",
+      "description": "電子回路基板及び電子回路実装基板の製造を行うもの",
+      "dividend": 3.5,
+      "profit": 24,
+      "netAsset": 189,
+      "previousYearAveragePrice": 250,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 300,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 314,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 341,
+          "twoYearAveragePrice": 246
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 417,
+          "twoYearAveragePrice": 254
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 464,
+          "twoYearAveragePrice": 264
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 518,
+          "twoYearAveragePrice": 277
+        }
+      ]
+    },
+    {
+      "number": 41,
+      "largeName": "製造業",
+      "middleName": "電子部品・デバイス・電子回路製造業",
+      "smallName": "その他の電子部品・デバイス・電子回路製造業",
+      "name": "その他の電子部品・デバイス・電子回路製造業",
+      "level": "SMALL",
+      "description": "電子部品・デバイス・電子回路製造業のうち、39及び40に該当するもの以外のもの",
+      "dividend": 12.2,
+      "profit": 50,
+      "netAsset": 421,
+      "previousYearAveragePrice": 775,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 844,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 868,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 894,
+          "twoYearAveragePrice": 816
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 930,
+          "twoYearAveragePrice": 817
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 937,
+          "twoYearAveragePrice": 819
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 1015,
+          "twoYearAveragePrice": 825
+        }
+      ]
+    },
+    {
+      "number": 42,
+      "largeName": "製造業",
+      "middleName": "電気機械器具製造業",
+      "smallName": "",
+      "name": "電気機械器具製造業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 7.8,
+      "profit": 38,
+      "netAsset": 328,
+      "previousYearAveragePrice": 387,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 451,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 452,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 486,
+          "twoYearAveragePrice": 389
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 518,
+          "twoYearAveragePrice": 395
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 504,
+          "twoYearAveragePrice": 399
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 523,
+          "twoYearAveragePrice": 405
+        }
+      ]
+    },
+    {
+      "number": 43,
+      "largeName": "製造業",
+      "middleName": "電気機械器具製造業",
+      "smallName": "発電用・送電用・配電用電気機械器具製造業",
+      "name": "発電用・送電用・配電用電気機械器具製造業",
+      "level": "SMALL",
+      "description": "発電機・電動機・その他の回転電気機械、変圧器類（電子機器用を除く）、電力開閉装置、配電盤・電力制御装置及び配線器具・配線附属品の製造を行うもの",
+      "dividend": 6.7,
+      "profit": 45,
+      "netAsset": 371,
+      "previousYearAveragePrice": 322,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 406,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 414,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 440,
+          "twoYearAveragePrice": 303
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 466,
+          "twoYearAveragePrice": 310
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 469,
+          "twoYearAveragePrice": 317
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 475,
+          "twoYearAveragePrice": 325
+        }
+      ]
+    },
+    {
+      "number": 44,
+      "largeName": "製造業",
+      "middleName": "電気機械器具製造業",
+      "smallName": "電気計測器製造業",
+      "name": "電気計測器製造業",
+      "level": "SMALL",
+      "description": "電気計測器、工業計器及び医療用計測器の製造を行うもの",
+      "dividend": 10.3,
+      "profit": 42,
+      "netAsset": 339,
+      "previousYearAveragePrice": 558,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 630,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 623,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 693,
+          "twoYearAveragePrice": 574
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 755,
+          "twoYearAveragePrice": 582
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 727,
+          "twoYearAveragePrice": 588
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 750,
+          "twoYearAveragePrice": 595
+        }
+      ]
+    },
+    {
+      "number": 45,
+      "largeName": "製造業",
+      "middleName": "電気機械器具製造業",
+      "smallName": "その他の電気機械器具製造業",
+      "name": "その他の電気機械器具製造業",
+      "level": "SMALL",
+      "description": "電気機械器具製造業のうち、43及び44に該当するもの以外のもの",
+      "dividend": 6.5,
+      "profit": 31,
+      "netAsset": 299,
+      "previousYearAveragePrice": 295,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 342,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 345,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 356,
+          "twoYearAveragePrice": 297
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 370,
+          "twoYearAveragePrice": 300
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 358,
+          "twoYearAveragePrice": 303
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 380,
+          "twoYearAveragePrice": 306
+        }
+      ]
+    },
+    {
+      "number": 46,
+      "largeName": "製造業",
+      "middleName": "情報通信機械器具製造業",
+      "smallName": "",
+      "name": "情報通信機械器具製造業",
+      "level": "MIDDLE",
+      "description": "通信機械器具及び関連機器、映像・音響機械器具並びに電子計算機及び附属装置の製造を行うもの",
+      "dividend": 9.3,
+      "profit": 47,
+      "netAsset": 408,
+      "previousYearAveragePrice": 388,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 455,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 456,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 474,
+          "twoYearAveragePrice": 367
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 523,
+          "twoYearAveragePrice": 375
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 535,
+          "twoYearAveragePrice": 383
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 529,
+          "twoYearAveragePrice": 392
+        }
+      ]
+    },
+    {
+      "number": 47,
+      "largeName": "製造業",
+      "middleName": "輸送用機械器具製造業",
+      "smallName": "",
+      "name": "輸送用機械器具製造業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 9.7,
+      "profit": 50,
+      "netAsset": 531,
+      "previousYearAveragePrice": 357,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 414,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 424,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 449,
+          "twoYearAveragePrice": 345
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 471,
+          "twoYearAveragePrice": 352
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 447,
+          "twoYearAveragePrice": 356
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 442,
+          "twoYearAveragePrice": 360
+        }
+      ]
+    },
+    {
+      "number": 48,
+      "largeName": "製造業",
+      "middleName": "輸送用機械器具製造業",
+      "smallName": "自動車・同附属品製造業",
+      "name": "自動車・同附属品製造業",
+      "level": "SMALL",
+      "description": "自動車（二輪自動車を含む）、自動車車体・附随車及び自動車部分品・附属品の製造を行うもの",
+      "dividend": 10.6,
+      "profit": 53,
+      "netAsset": 576,
+      "previousYearAveragePrice": 351,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 404,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 414,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 434,
+          "twoYearAveragePrice": 339
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 446,
+          "twoYearAveragePrice": 344
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 422,
+          "twoYearAveragePrice": 348
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 418,
+          "twoYearAveragePrice": 351
+        }
+      ]
+    },
+    {
+      "number": 49,
+      "largeName": "製造業",
+      "middleName": "輸送用機械器具製造業",
+      "smallName": "その他の輸送用機械器具製造業",
+      "name": "その他の輸送用機械器具製造業",
+      "level": "SMALL",
+      "description": "輸送用機械器具製造業のうち、48に該当するもの以外のもの",
+      "dividend": 5.2,
+      "profit": 32,
+      "netAsset": 310,
+      "previousYearAveragePrice": 388,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 462,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 470,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 521,
+          "twoYearAveragePrice": 378
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 594,
+          "twoYearAveragePrice": 389
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 571,
+          "twoYearAveragePrice": 398
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 562,
+          "twoYearAveragePrice": 407
+        }
+      ]
+    },
+    {
+      "number": 50,
+      "largeName": "製造業",
+      "middleName": "その他の製造業",
+      "smallName": "",
+      "name": "その他の製造業",
+      "level": "MIDDLE",
+      "description": "製造業のうち、10から49に該当するもの以外のもの",
+      "dividend": 11.6,
+      "profit": 51,
+      "netAsset": 469,
+      "previousYearAveragePrice": 515,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 562,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 575,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 608,
+          "twoYearAveragePrice": 506
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 654,
+          "twoYearAveragePrice": 514
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 653,
+          "twoYearAveragePrice": 522
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 662,
+          "twoYearAveragePrice": 529
+        }
+      ]
+    },
+    {
+      "number": 51,
+      "largeName": "電気・ガス・熱供給・水道業",
+      "middleName": "",
+      "smallName": "",
+      "name": "電気・ガス・熱供給・水道業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 8.2,
+      "profit": 53,
+      "netAsset": 449,
+      "previousYearAveragePrice": 488,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 511,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 517,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 535,
+          "twoYearAveragePrice": 475
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 566,
+          "twoYearAveragePrice": 482
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 582,
+          "twoYearAveragePrice": 487
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 584,
+          "twoYearAveragePrice": 492
+        }
+      ]
+    },
+    {
+      "number": 52,
+      "largeName": "情報通信業",
+      "middleName": "",
+      "smallName": "",
+      "name": "情報通信業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 10.4,
+      "profit": 59,
+      "netAsset": 313,
+      "previousYearAveragePrice": 795,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 829,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 834,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 857,
+          "twoYearAveragePrice": 760
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 797,
+          "twoYearAveragePrice": 762
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 771,
+          "twoYearAveragePrice": 763
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 773,
+          "twoYearAveragePrice": 765
+        }
+      ]
+    },
+    {
+      "number": 53,
+      "largeName": "情報通信業",
+      "middleName": "情報サービス業",
+      "smallName": "",
+      "name": "情報サービス業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 13,
+      "profit": 66,
+      "netAsset": 329,
+      "previousYearAveragePrice": 870,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 910,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 925,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 954,
+          "twoYearAveragePrice": 831
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 883,
+          "twoYearAveragePrice": 833
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 858,
+          "twoYearAveragePrice": 834
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 862,
+          "twoYearAveragePrice": 838
+        }
+      ]
+    },
+    {
+      "number": 54,
+      "largeName": "情報通信業",
+      "middleName": "情報サービス業",
+      "smallName": "ソフトウェア業",
+      "name": "ソフトウェア業",
+      "level": "SMALL",
+      "description": "受託開発ソフトウェア業、組込みソフトウェア業、パッケージソフトウェア業及びゲームソフトウェア業を営むもの",
+      "dividend": 12.5,
+      "profit": 64,
+      "netAsset": 314,
+      "previousYearAveragePrice": 856,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 903,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 905,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 918,
+          "twoYearAveragePrice": 814
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 843,
+          "twoYearAveragePrice": 815
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 818,
+          "twoYearAveragePrice": 816
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 823,
+          "twoYearAveragePrice": 819
+        }
+      ]
+    },
+    {
+      "number": 55,
+      "largeName": "情報通信業",
+      "middleName": "情報サービス業",
+      "smallName": "情報処理・提供サービス業",
+      "name": "情報処理・提供サービス業",
+      "level": "SMALL",
+      "description": "受託計算サービス業、計算センター、データエントリー業、データベースサービス業、市場調査業、世論調査業及び社会調査業等を営むもの",
+      "dividend": 16.4,
+      "profit": 80,
+      "netAsset": 413,
+      "previousYearAveragePrice": 1045,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 1055,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 1136,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 1246,
+          "twoYearAveragePrice": 1018
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 1180,
+          "twoYearAveragePrice": 1025
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 1146,
+          "twoYearAveragePrice": 1030
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 1150,
+          "twoYearAveragePrice": 1037
+        }
+      ]
+    },
+    {
+      "number": 56,
+      "largeName": "情報通信業",
+      "middleName": "インターネット附随サービス業",
+      "smallName": "",
+      "name": "インターネット附随サービス業",
+      "level": "MIDDLE",
+      "description": "インターネットを通じて、情報の提供や、サーバ等の機能を利用させるサービスを提供するもの、アプリケーションを提供する事業又は音楽、映像等のコンテンツを配信する事業を行うもの及びインターネットを利用する上で必要なサポートサービスを提供するもの",
+      "dividend": 6.1,
+      "profit": 45,
+      "netAsset": 208,
+      "previousYearAveragePrice": 676,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 710,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 700,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 714,
+          "twoYearAveragePrice": 651
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 656,
+          "twoYearAveragePrice": 651
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 625,
+          "twoYearAveragePrice": 650
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 621,
+          "twoYearAveragePrice": 650
+        }
+      ]
+    },
+    {
+      "number": 57,
+      "largeName": "情報通信業",
+      "middleName": "映像・音声・文字情報制作業",
+      "smallName": "",
+      "name": "映像・音声・文字情報制作業",
+      "level": "MIDDLE",
+      "description": "映画、ビデオ又はテレビジョン番組の制作・配給を行うもの、レコード又はラジオ番組の制作を行うもの、新聞の発行又は書籍、定期刊行物等の出版を行うもの並びにこれらに附帯するサービスの提供を行うもの",
+      "dividend": 12,
+      "profit": 61,
+      "netAsset": 438,
+      "previousYearAveragePrice": 893,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 876,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 886,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 905,
+          "twoYearAveragePrice": 838
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 869,
+          "twoYearAveragePrice": 842
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 874,
+          "twoYearAveragePrice": 846
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 893,
+          "twoYearAveragePrice": 854
+        }
+      ]
+    },
+    {
+      "number": 58,
+      "largeName": "情報通信業",
+      "middleName": "その他の情報通信業",
+      "smallName": "",
+      "name": "その他の情報通信業",
+      "level": "MIDDLE",
+      "description": "情報通信業のうち、53から57に該当するもの以外のもの",
+      "dividend": 8.2,
+      "profit": 66,
+      "netAsset": 691,
+      "previousYearAveragePrice": 678,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 696,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 691,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 714,
+          "twoYearAveragePrice": 644
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 715,
+          "twoYearAveragePrice": 650
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 699,
+          "twoYearAveragePrice": 654
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 700,
+          "twoYearAveragePrice": 658
+        }
+      ]
+    },
+    {
+      "number": 59,
+      "largeName": "運輸業、郵便業",
+      "middleName": "",
+      "smallName": "",
+      "name": "運輸業、郵便業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 11.1,
+      "profit": 70,
+      "netAsset": 598,
+      "previousYearAveragePrice": 444,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 485,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 500,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 522,
+          "twoYearAveragePrice": 425
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 540,
+          "twoYearAveragePrice": 430
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 543,
+          "twoYearAveragePrice": 436
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 540,
+          "twoYearAveragePrice": 442
+        }
+      ]
+    },
+    {
+      "number": 60,
+      "largeName": "運輸業、郵便業",
+      "middleName": "道路貨物運送業",
+      "smallName": "",
+      "name": "道路貨物運送業",
+      "level": "MIDDLE",
+      "description": "自動車等により貨物の運送を行うもの",
+      "dividend": 12.3,
+      "profit": 66,
+      "netAsset": 556,
+      "previousYearAveragePrice": 486,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 538,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 557,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 584,
+          "twoYearAveragePrice": 455
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 591,
+          "twoYearAveragePrice": 462
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 567,
+          "twoYearAveragePrice": 469
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 561,
+          "twoYearAveragePrice": 475
+        }
+      ]
+    },
+    {
+      "number": 61,
+      "largeName": "運輸業、郵便業",
+      "middleName": "水運業",
+      "smallName": "",
+      "name": "水運業",
+      "level": "MIDDLE",
+      "description": "海洋、沿海、港湾、河川、湖沼において船舶により旅客又は貨物の運送を行うもの（港湾において、はしけによって貨物の運送を行うものを除く）",
+      "dividend": 22.3,
+      "profit": 133,
+      "netAsset": 846,
+      "previousYearAveragePrice": 505,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 524,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 531,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 556,
+          "twoYearAveragePrice": 496
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 576,
+          "twoYearAveragePrice": 499
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 653,
+          "twoYearAveragePrice": 506
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 667,
+          "twoYearAveragePrice": 516
+        }
+      ]
+    },
+    {
+      "number": 62,
+      "largeName": "運輸業、郵便業",
+      "middleName": "運輸に附帯するサービス業",
+      "smallName": "",
+      "name": "運輸に附帯するサービス業",
+      "level": "MIDDLE",
+      "description": "港湾運送業、貨物運送取扱業（集配利用運送業を除く）、運送代理店、こん包業及び運輸施設提供業等を営むもの",
+      "dividend": 9.4,
+      "profit": 54,
+      "netAsset": 624,
+      "previousYearAveragePrice": 352,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 400,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 409,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 445,
+          "twoYearAveragePrice": 331
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 468,
+          "twoYearAveragePrice": 338
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 472,
+          "twoYearAveragePrice": 345
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 460,
+          "twoYearAveragePrice": 351
+        }
+      ]
+    },
+    {
+      "number": 63,
+      "largeName": "運輸業、郵便業",
+      "middleName": "その他の運輸業、郵便業",
+      "smallName": "",
+      "name": "その他の運輸業、郵便業",
+      "level": "MIDDLE",
+      "description": "運輸業、郵便業のうち、60から62に該当するもの以外のもの",
+      "dividend": 6.7,
+      "profit": 58,
+      "netAsset": 517,
+      "previousYearAveragePrice": 442,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 479,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 496,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 506,
+          "twoYearAveragePrice": 428
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 527,
+          "twoYearAveragePrice": 432
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 522,
+          "twoYearAveragePrice": 436
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 522,
+          "twoYearAveragePrice": 441
+        }
+      ]
+    },
+    {
+      "number": 64,
+      "largeName": "卸売業",
+      "middleName": "",
+      "smallName": "",
+      "name": "卸売業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 13.4,
+      "profit": 64,
+      "netAsset": 546,
+      "previousYearAveragePrice": 507,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 542,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 554,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 577,
+          "twoYearAveragePrice": 505
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 604,
+          "twoYearAveragePrice": 509
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 597,
+          "twoYearAveragePrice": 512
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 587,
+          "twoYearAveragePrice": 516
+        }
+      ]
+    },
+    {
+      "number": 65,
+      "largeName": "卸売業",
+      "middleName": "各種商品卸売業",
+      "smallName": "",
+      "name": "各種商品卸売業",
+      "level": "MIDDLE",
+      "description": "各種商品の仕入卸売を行うもの。例えば、総合商社、貿易商社など",
+      "dividend": 21.8,
+      "profit": 98,
+      "netAsset": 643,
+      "previousYearAveragePrice": 703,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 880,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 932,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 1031,
+          "twoYearAveragePrice": 689
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 1174,
+          "twoYearAveragePrice": 712
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 1186,
+          "twoYearAveragePrice": 733
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 1181,
+          "twoYearAveragePrice": 753
+        }
+      ]
+    },
+    {
+      "number": 66,
+      "largeName": "卸売業",
+      "middleName": "繊維・衣服等卸売業",
+      "smallName": "",
+      "name": "繊維・衣服等卸売業",
+      "level": "MIDDLE",
+      "description": "繊維品及び衣服・身の回り品の仕入卸売を行うもの",
+      "dividend": 6.2,
+      "profit": 35,
+      "netAsset": 434,
+      "previousYearAveragePrice": 268,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 306,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 314,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 330,
+          "twoYearAveragePrice": 251
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 358,
+          "twoYearAveragePrice": 256
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 373,
+          "twoYearAveragePrice": 263
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 357,
+          "twoYearAveragePrice": 268
+        }
+      ]
+    },
+    {
+      "number": 67,
+      "largeName": "卸売業",
+      "middleName": "飲食料品卸売業",
+      "smallName": "",
+      "name": "飲食料品卸売業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 6.1,
+      "profit": 54,
+      "netAsset": 354,
+      "previousYearAveragePrice": 496,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 516,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 507,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 519,
+          "twoYearAveragePrice": 469
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 526,
+          "twoYearAveragePrice": 473
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 513,
+          "twoYearAveragePrice": 476
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 477,
+          "twoYearAveragePrice": 479
+        }
+      ]
+    },
+    {
+      "number": 68,
+      "largeName": "卸売業",
+      "middleName": "飲食料品卸売業",
+      "smallName": "農畜産物・水産物卸売業",
+      "name": "農畜産物・水産物卸売業",
+      "level": "SMALL",
+      "description": "米麦、雑穀・豆類、野菜、果実、食肉及び生鮮魚介等の卸売を行うもの",
+      "dividend": 3.7,
+      "profit": 34,
+      "netAsset": 303,
+      "previousYearAveragePrice": 252,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 285,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 271,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 272,
+          "twoYearAveragePrice": 226
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 275,
+          "twoYearAveragePrice": 229
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 266,
+          "twoYearAveragePrice": 232
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 259,
+          "twoYearAveragePrice": 235
+        }
+      ]
+    },
+    {
+      "number": 69,
+      "largeName": "卸売業",
+      "middleName": "飲食料品卸売業",
+      "smallName": "食料・飲料卸売業",
+      "name": "食料・飲料卸売業",
+      "level": "SMALL",
+      "description": "砂糖・味そ・しょう油、酒類、乾物、菓子・パン類、飲料、茶類及び牛乳・乳製品等の卸売を行うもの",
+      "dividend": 6.8,
+      "profit": 56,
+      "netAsset": 355,
+      "previousYearAveragePrice": 373,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 395,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 393,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 418,
+          "twoYearAveragePrice": 353
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 433,
+          "twoYearAveragePrice": 357
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 430,
+          "twoYearAveragePrice": 362
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 416,
+          "twoYearAveragePrice": 366
+        }
+      ]
+    },
+    {
+      "number": 70,
+      "largeName": "卸売業",
+      "middleName": "建築材料、鉱物・金属材料等卸売業",
+      "smallName": "",
+      "name": "建築材料、鉱物・金属材料等卸売業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 14.3,
+      "profit": 65,
+      "netAsset": 621,
+      "previousYearAveragePrice": 420,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 441,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 449,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 481,
+          "twoYearAveragePrice": 436
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 512,
+          "twoYearAveragePrice": 438
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 502,
+          "twoYearAveragePrice": 437
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 490,
+          "twoYearAveragePrice": 437
+        }
+      ]
+    },
+    {
+      "number": 71,
+      "largeName": "卸売業",
+      "middleName": "建築材料、鉱物・金属材料等卸売業",
+      "smallName": "化学製品卸売業",
+      "name": "化学製品卸売業",
+      "level": "SMALL",
+      "description": "塗料、プラスチック及びその他の化学製品の卸売を行うもの",
+      "dividend": 16.2,
+      "profit": 83,
+      "netAsset": 698,
+      "previousYearAveragePrice": 514,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 525,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 535,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 563,
+          "twoYearAveragePrice": 501
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 618,
+          "twoYearAveragePrice": 507
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 579,
+          "twoYearAveragePrice": 512
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 561,
+          "twoYearAveragePrice": 515
+        }
+      ]
+    },
+    {
+      "number": 72,
+      "largeName": "卸売業",
+      "middleName": "建築材料、鉱物・金属材料等卸売業",
+      "smallName": "その他の建築材料、鉱物・金属材料等卸売業",
+      "name": "その他の建築材料、鉱物・金属材料等卸売業",
+      "level": "SMALL",
+      "description": "建築材料、鉱物・金属材料等卸売業のうち、71に該当するもの以外のもの",
+      "dividend": 13.8,
+      "profit": 60,
+      "netAsset": 600,
+      "previousYearAveragePrice": 394,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 419,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 426,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 459,
+          "twoYearAveragePrice": 419
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 484,
+          "twoYearAveragePrice": 419
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 481,
+          "twoYearAveragePrice": 417
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 471,
+          "twoYearAveragePrice": 416
+        }
+      ]
+    },
+    {
+      "number": 73,
+      "largeName": "卸売業",
+      "middleName": "機械器具卸売業",
+      "smallName": "",
+      "name": "機械器具卸売業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 18.1,
+      "profit": 74,
+      "netAsset": 642,
+      "previousYearAveragePrice": 603,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 640,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 663,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 685,
+          "twoYearAveragePrice": 610
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 713,
+          "twoYearAveragePrice": 615
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 693,
+          "twoYearAveragePrice": 617
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 696,
+          "twoYearAveragePrice": 620
+        }
+      ]
+    },
+    {
+      "number": 74,
+      "largeName": "卸売業",
+      "middleName": "機械器具卸売業",
+      "smallName": "産業機械器具卸売業",
+      "name": "産業機械器具卸売業",
+      "level": "SMALL",
+      "description": "農業用機械器具、建設機械・鉱山機械、金属加工機械及び事務用機械器具等の卸売を行うもの",
+      "dividend": 15.7,
+      "profit": 70,
+      "netAsset": 626,
+      "previousYearAveragePrice": 581,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 621,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 638,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 658,
+          "twoYearAveragePrice": 577
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 686,
+          "twoYearAveragePrice": 582
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 658,
+          "twoYearAveragePrice": 586
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 649,
+          "twoYearAveragePrice": 590
+        }
+      ]
+    },
+    {
+      "number": 75,
+      "largeName": "卸売業",
+      "middleName": "機械器具卸売業",
+      "smallName": "電気機械器具卸売業",
+      "name": "電気機械器具卸売業",
+      "level": "SMALL",
+      "description": "",
+      "dividend": 20.7,
+      "profit": 77,
+      "netAsset": 710,
+      "previousYearAveragePrice": 635,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 669,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 703,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 731,
+          "twoYearAveragePrice": 669
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 764,
+          "twoYearAveragePrice": 671
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 752,
+          "twoYearAveragePrice": 672
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 769,
+          "twoYearAveragePrice": 674
+        }
+      ]
+    },
+    {
+      "number": 76,
+      "largeName": "卸売業",
+      "middleName": "機械器具卸売業",
+      "smallName": "その他の機械器具卸売業",
+      "name": "その他の機械器具卸売業",
+      "level": "SMALL",
+      "description": "機械器具卸売業のうち、74及び75に該当するもの以外のもの",
+      "dividend": 17.8,
+      "profit": 75,
+      "netAsset": 549,
+      "previousYearAveragePrice": 584,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 620,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 634,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 649,
+          "twoYearAveragePrice": 562
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 667,
+          "twoYearAveragePrice": 568
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 650,
+          "twoYearAveragePrice": 573
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 645,
+          "twoYearAveragePrice": 577
+        }
+      ]
+    },
+    {
+      "number": 77,
+      "largeName": "卸売業",
+      "middleName": "その他の卸売業",
+      "smallName": "",
+      "name": "その他の卸売業",
+      "level": "MIDDLE",
+      "description": "卸売業のうち、65から76に該当するもの以外のもの",
+      "dividend": 9.7,
+      "profit": 53,
+      "netAsset": 464,
+      "previousYearAveragePrice": 452,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 475,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 478,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 491,
+          "twoYearAveragePrice": 439
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 505,
+          "twoYearAveragePrice": 443
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 514,
+          "twoYearAveragePrice": 446
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 507,
+          "twoYearAveragePrice": 449
+        }
+      ]
+    },
+    {
+      "number": 78,
+      "largeName": "小売業",
+      "middleName": "",
+      "smallName": "",
+      "name": "小売業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 10.4,
+      "profit": 68,
+      "netAsset": 417,
+      "previousYearAveragePrice": 679,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 706,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 705,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 713,
+          "twoYearAveragePrice": 651
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 731,
+          "twoYearAveragePrice": 656
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 707,
+          "twoYearAveragePrice": 659
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 708,
+          "twoYearAveragePrice": 662
+        }
+      ]
+    },
+    {
+      "number": 79,
+      "largeName": "小売業",
+      "middleName": "各種商品小売業",
+      "smallName": "",
+      "name": "各種商品小売業",
+      "level": "MIDDLE",
+      "description": "百貨店、総合スーパーマーケット、コンビニエンスストア、ドラッグストア、ホームセンター、均一価格店など、衣食住に関わる各種商品の小売を行うもの",
+      "dividend": 11.4,
+      "profit": 77,
+      "netAsset": 506,
+      "previousYearAveragePrice": 730,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 732,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 743,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 747,
+          "twoYearAveragePrice": 728
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 756,
+          "twoYearAveragePrice": 728
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 719,
+          "twoYearAveragePrice": 727
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 719,
+          "twoYearAveragePrice": 726
+        }
+      ]
+    },
+    {
+      "number": 80,
+      "largeName": "小売業",
+      "middleName": "織物・衣服・身の回り品小売業",
+      "smallName": "",
+      "name": "織物・衣服・身の回り品小売業",
+      "level": "MIDDLE",
+      "description": "呉服、服地、衣服、靴、帽子、洋品雑貨及び小間物等の商品の小売を行うもの",
+      "dividend": 17.4,
+      "profit": 118,
+      "netAsset": 588,
+      "previousYearAveragePrice": 1361,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 1463,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 1448,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 1436,
+          "twoYearAveragePrice": 1273
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 1471,
+          "twoYearAveragePrice": 1288
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 1383,
+          "twoYearAveragePrice": 1296
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 1357,
+          "twoYearAveragePrice": 1303
+        }
+      ]
+    },
+    {
+      "number": 81,
+      "largeName": "小売業",
+      "middleName": "飲食料品小売業",
+      "smallName": "",
+      "name": "飲食料品小売業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 6.1,
+      "profit": 43,
+      "netAsset": 328,
+      "previousYearAveragePrice": 423,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 440,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 441,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 455,
+          "twoYearAveragePrice": 429
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 462,
+          "twoYearAveragePrice": 431
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 438,
+          "twoYearAveragePrice": 431
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 430,
+          "twoYearAveragePrice": 431
+        }
+      ]
+    },
+    {
+      "number": 82,
+      "largeName": "小売業",
+      "middleName": "機械器具小売業",
+      "smallName": "",
+      "name": "機械器具小売業",
+      "level": "MIDDLE",
+      "description": "自動車、自転車、電気機械器具など（それぞれの中古品を含む）及びその部分品、附属品の小売を行うもの",
+      "dividend": 11.8,
+      "profit": 74,
+      "netAsset": 487,
+      "previousYearAveragePrice": 495,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 529,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 544,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 565,
+          "twoYearAveragePrice": 472
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 562,
+          "twoYearAveragePrice": 477
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 555,
+          "twoYearAveragePrice": 482
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 566,
+          "twoYearAveragePrice": 487
+        }
+      ]
+    },
+    {
+      "number": 83,
+      "largeName": "小売業",
+      "middleName": "その他の小売業",
+      "smallName": "",
+      "name": "その他の小売業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 10.2,
+      "profit": 58,
+      "netAsset": 363,
+      "previousYearAveragePrice": 681,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 693,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 677,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 689,
+          "twoYearAveragePrice": 632
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 734,
+          "twoYearAveragePrice": 638
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 733,
+          "twoYearAveragePrice": 644
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 743,
+          "twoYearAveragePrice": 651
+        }
+      ]
+    },
+    {
+      "number": 84,
+      "largeName": "小売業",
+      "middleName": "その他の小売業",
+      "smallName": "医薬品・化粧品小売業",
+      "name": "医薬品・化粧品小売業",
+      "level": "SMALL",
+      "description": "医薬品小売業、薬局及び化粧品小売業を営むもの",
+      "dividend": 2.8,
+      "profit": 43,
+      "netAsset": 219,
+      "previousYearAveragePrice": 371,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 359,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 353,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 368,
+          "twoYearAveragePrice": 384
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 360,
+          "twoYearAveragePrice": 381
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 343,
+          "twoYearAveragePrice": 375
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 352,
+          "twoYearAveragePrice": 371
+        }
+      ]
+    },
+    {
+      "number": 85,
+      "largeName": "小売業",
+      "middleName": "その他の小売業",
+      "smallName": "その他の小売業",
+      "name": "その他の小売業",
+      "level": "SMALL",
+      "description": "小売業（無店舗小売業を除く）のうち、79から82及び84に該当するもの以外のもの",
+      "dividend": 12.4,
+      "profit": 64,
+      "netAsset": 411,
+      "previousYearAveragePrice": 780,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 799,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 781,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 792,
+          "twoYearAveragePrice": 713
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 851,
+          "twoYearAveragePrice": 723
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 854,
+          "twoYearAveragePrice": 732
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 865,
+          "twoYearAveragePrice": 742
+        }
+      ]
+    },
+    {
+      "number": 86,
+      "largeName": "小売業",
+      "middleName": "無店舗小売業",
+      "smallName": "",
+      "name": "無店舗小売業",
+      "level": "MIDDLE",
+      "description": "店舗を持たず、カタログや新聞・雑誌・テレビジョン・ラジオ・インターネット等で広告を行い、通信手段によって個人からの注文を受け商品を販売するもの、家庭等を訪問し個人への物品販売又は販売契約をするもの、自動販売機によって物品を販売するもの及びその他の店舗を持たないで小売を行うもの",
+      "dividend": 4.5,
+      "profit": 36,
+      "netAsset": 209,
+      "previousYearAveragePrice": 384,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 398,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 397,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 407,
+          "twoYearAveragePrice": 367
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 414,
+          "twoYearAveragePrice": 369
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 418,
+          "twoYearAveragePrice": 372
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 430,
+          "twoYearAveragePrice": 375
+        }
+      ]
+    },
+    {
+      "number": 87,
+      "largeName": "金融業、保険業",
+      "middleName": "",
+      "smallName": "",
+      "name": "金融業、保険業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 9.2,
+      "profit": 56,
+      "netAsset": 367,
+      "previousYearAveragePrice": 421,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 443,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 453,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 484,
+          "twoYearAveragePrice": 408
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 513,
+          "twoYearAveragePrice": 415
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 500,
+          "twoYearAveragePrice": 419
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 513,
+          "twoYearAveragePrice": 425
+        }
+      ]
+    },
+    {
+      "number": 88,
+      "largeName": "金融業、保険業",
+      "middleName": "銀行業",
+      "smallName": "",
+      "name": "銀行業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 4.3,
+      "profit": 24,
+      "netAsset": 316,
+      "previousYearAveragePrice": 205,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 242,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 260,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 289,
+          "twoYearAveragePrice": 186
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 329,
+          "twoYearAveragePrice": 194
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 308,
+          "twoYearAveragePrice": 201
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 327,
+          "twoYearAveragePrice": 208
+        }
+      ]
+    },
+    {
+      "number": 89,
+      "largeName": "金融業、保険業",
+      "middleName": "金融商品取引業、商品先物取引業",
+      "smallName": "",
+      "name": "金融商品取引業、商品先物取引業",
+      "level": "MIDDLE",
+      "description": "金融商品取引業、商品先物取引業及び商品投資顧問業等を営むもの（金融商品取引所及び商品取引所を除く）",
+      "dividend": 13.5,
+      "profit": 107,
+      "netAsset": 468,
+      "previousYearAveragePrice": 574,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 562,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 562,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 609,
+          "twoYearAveragePrice": 553
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 631,
+          "twoYearAveragePrice": 559
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 620,
+          "twoYearAveragePrice": 565
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 610,
+          "twoYearAveragePrice": 569
+        }
+      ]
+    },
+    {
+      "number": 90,
+      "largeName": "金融業、保険業",
+      "middleName": "その他の金融業、保険業",
+      "smallName": "",
+      "name": "その他の金融業、保険業",
+      "level": "MIDDLE",
+      "description": "金融業、保険業のうち、88及び89に該当するもの以外のもの",
+      "dividend": 16.1,
+      "profit": 78,
+      "netAsset": 393,
+      "previousYearAveragePrice": 755,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 773,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 777,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 795,
+          "twoYearAveragePrice": 759
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 810,
+          "twoYearAveragePrice": 762
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 811,
+          "twoYearAveragePrice": 762
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 833,
+          "twoYearAveragePrice": 765
+        }
+      ]
+    },
+    {
+      "number": 91,
+      "largeName": "不動産業、物品賃貸業",
+      "middleName": "",
+      "smallName": "",
+      "name": "不動産業、物品賃貸業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 11.2,
+      "profit": 77,
+      "netAsset": 416,
+      "previousYearAveragePrice": 558,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 573,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 568,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 591,
+          "twoYearAveragePrice": 524
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 617,
+          "twoYearAveragePrice": 531
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 608,
+          "twoYearAveragePrice": 537
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 605,
+          "twoYearAveragePrice": 541
+        }
+      ]
+    },
+    {
+      "number": 92,
+      "largeName": "不動産業、物品賃貸業",
+      "middleName": "不動産取引業",
+      "smallName": "",
+      "name": "不動産取引業",
+      "level": "MIDDLE",
+      "description": "不動産の売買、交換又は不動産の売買、貸借、交換の代理若しくは仲介を行うもの",
+      "dividend": 10.7,
+      "profit": 91,
+      "netAsset": 382,
+      "previousYearAveragePrice": 570,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 578,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 567,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 592,
+          "twoYearAveragePrice": 517
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 621,
+          "twoYearAveragePrice": 526
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 606,
+          "twoYearAveragePrice": 534
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 597,
+          "twoYearAveragePrice": 539
+        }
+      ]
+    },
+    {
+      "number": 93,
+      "largeName": "不動産業、物品賃貸業",
+      "middleName": "不動産賃貸業・管理業",
+      "smallName": "",
+      "name": "不動産賃貸業・管理業",
+      "level": "MIDDLE",
+      "description": "不動産の賃貸又は管理を行うもの",
+      "dividend": 10.9,
+      "profit": 55,
+      "netAsset": 383,
+      "previousYearAveragePrice": 556,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 571,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 572,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 594,
+          "twoYearAveragePrice": 531
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 617,
+          "twoYearAveragePrice": 537
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 618,
+          "twoYearAveragePrice": 543
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 628,
+          "twoYearAveragePrice": 550
+        }
+      ]
+    },
+    {
+      "number": 94,
+      "largeName": "不動産業、物品賃貸業",
+      "middleName": "物品賃貸業",
+      "smallName": "",
+      "name": "物品賃貸業",
+      "level": "MIDDLE",
+      "description": "産業用機械器具、事務用機械器具、自動車、スポーツ・娯楽用品及び映画・演劇用品等の物品の賃貸を行うもの",
+      "dividend": 13.1,
+      "profit": 73,
+      "netAsset": 517,
+      "previousYearAveragePrice": 553,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 568,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 560,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 579,
+          "twoYearAveragePrice": 556
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 594,
+          "twoYearAveragePrice": 556
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 591,
+          "twoYearAveragePrice": 556
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 587,
+          "twoYearAveragePrice": 556
+        }
+      ]
+    },
+    {
+      "number": 95,
+      "largeName": "専門・技術サービス業",
+      "middleName": "",
+      "smallName": "",
+      "name": "専門・技術サービス業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 7.7,
+      "profit": 47,
+      "netAsset": 266,
+      "previousYearAveragePrice": 527,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 573,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 578,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 612,
+          "twoYearAveragePrice": 536
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 625,
+          "twoYearAveragePrice": 536
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 592,
+          "twoYearAveragePrice": 534
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 581,
+          "twoYearAveragePrice": 534
+        }
+      ]
+    },
+    {
+      "number": 96,
+      "largeName": "専門・技術サービス業",
+      "middleName": "専門サービス業",
+      "smallName": "",
+      "name": "専門サービス業",
+      "level": "MIDDLE",
+      "description": "法務に関する事務、助言、相談、その他の法律的サービス、財務及び会計に関する監査、調査、相談のサービス、税務に関する書類の作成、相談のサービス及び他に分類されない自由業的、専門的なサービスを提供するもの（純粋持株会社を除く）",
+      "dividend": 9.6,
+      "profit": 69,
+      "netAsset": 268,
+      "previousYearAveragePrice": 792,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 797,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 781,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 781,
+          "twoYearAveragePrice": 875
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 731,
+          "twoYearAveragePrice": 851
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 673,
+          "twoYearAveragePrice": 825
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 659,
+          "twoYearAveragePrice": 806
+        }
+      ]
+    },
+    {
+      "number": 97,
+      "largeName": "専門・技術サービス業",
+      "middleName": "広告業",
+      "smallName": "",
+      "name": "広告業",
+      "level": "MIDDLE",
+      "description": "依頼人のために広告に係る総合的なサービスを提供するもの及び広告媒体のスペース又は時間を当該広告媒体企業と契約し、依頼人のために広告を行うもの",
+      "dividend": 5.9,
+      "profit": 35,
+      "netAsset": 211,
+      "previousYearAveragePrice": 376,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 391,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 398,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 429,
+          "twoYearAveragePrice": 361
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 424,
+          "twoYearAveragePrice": 364
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 402,
+          "twoYearAveragePrice": 366
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 397,
+          "twoYearAveragePrice": 367
+        }
+      ]
+    },
+    {
+      "number": 98,
+      "largeName": "専門・技術サービス業",
+      "middleName": "技術サービス業",
+      "smallName": "",
+      "name": "技術サービス業",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 9.1,
+      "profit": 45,
+      "netAsset": 337,
+      "previousYearAveragePrice": 489,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 599,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 613,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 679,
+          "twoYearAveragePrice": 470
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 757,
+          "twoYearAveragePrice": 483
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 732,
+          "twoYearAveragePrice": 494
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 720,
+          "twoYearAveragePrice": 505
+        }
+      ]
+    },
+    {
+      "number": 99,
+      "largeName": "専門・技術サービス業",
+      "middleName": "技術サービス業",
+      "smallName": "土木建築サービス業",
+      "name": "土木建築サービス業",
+      "level": "SMALL",
+      "description": "建設設計、設計監理などの土木・建築に関する専門的なサービス、基準点測量、地図を作成するための測量、土木測量、河川測量、境界測量などの専門的なサービス及び他に分類されない土木建築サービスを提供するもの",
+      "dividend": 9.2,
+      "profit": 46,
+      "netAsset": 268,
+      "previousYearAveragePrice": 384,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 422,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 443,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 474,
+          "twoYearAveragePrice": 360
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 555,
+          "twoYearAveragePrice": 369
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 596,
+          "twoYearAveragePrice": 381
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 584,
+          "twoYearAveragePrice": 392
+        }
+      ]
+    },
+    {
+      "number": 100,
+      "largeName": "専門・技術サービス業",
+      "middleName": "技術サービス業",
+      "smallName": "その他の技術サービス業",
+      "name": "その他の技術サービス業",
+      "level": "SMALL",
+      "description": "技術サービス業のうち、99に該当するもの以外のもの",
+      "dividend": 9,
+      "profit": 45,
+      "netAsset": 394,
+      "previousYearAveragePrice": 578,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 746,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 754,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 849,
+          "twoYearAveragePrice": 562
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 924,
+          "twoYearAveragePrice": 578
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 846,
+          "twoYearAveragePrice": 588
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 833,
+          "twoYearAveragePrice": 599
+        }
+      ]
+    },
+    {
+      "number": 101,
+      "largeName": "宿泊業、飲食サービス業",
+      "middleName": "",
+      "smallName": "",
+      "name": "宿泊業、飲食サービス業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 5,
+      "profit": 38,
+      "netAsset": 201,
+      "previousYearAveragePrice": 686,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 711,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 724,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 753,
+          "twoYearAveragePrice": 664
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 780,
+          "twoYearAveragePrice": 670
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 781,
+          "twoYearAveragePrice": 675
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 778,
+          "twoYearAveragePrice": 681
+        }
+      ]
+    },
+    {
+      "number": 102,
+      "largeName": "宿泊業、飲食サービス業",
+      "middleName": "飲食店",
+      "smallName": "",
+      "name": "飲食店",
+      "level": "MIDDLE",
+      "description": "",
+      "dividend": 5,
+      "profit": 39,
+      "netAsset": 191,
+      "previousYearAveragePrice": 728,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 753,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 766,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 795,
+          "twoYearAveragePrice": 703
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 827,
+          "twoYearAveragePrice": 709
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 828,
+          "twoYearAveragePrice": 716
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 826,
+          "twoYearAveragePrice": 722
+        }
+      ]
+    },
+    {
+      "number": 103,
+      "largeName": "宿泊業、飲食サービス業",
+      "middleName": "飲食店",
+      "smallName": "食堂、レストラン（専門料理店を除く）",
+      "name": "食堂、レストラン（専門料理店を除く）",
+      "level": "SMALL",
+      "description": "主食となる和洋中各種の料理をその場所で提供するもの（専門料理店、そば・うどん店、すし店など特定の料理をその場所で飲食させるものを除く）",
+      "dividend": 1.3,
+      "profit": 17,
+      "netAsset": 90,
+      "previousYearAveragePrice": 327,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 334,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 342,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 347,
+          "twoYearAveragePrice": 324
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 356,
+          "twoYearAveragePrice": 325
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 353,
+          "twoYearAveragePrice": 326
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 351,
+          "twoYearAveragePrice": 328
+        }
+      ]
+    },
+    {
+      "number": 104,
+      "largeName": "宿泊業、飲食サービス業",
+      "middleName": "飲食店",
+      "smallName": "専門料理店",
+      "name": "専門料理店",
+      "level": "SMALL",
+      "description": "日本料理店（そば・うどん店、すし店を除く）、料亭、中華料理店、ラーメン店及び焼肉店等を営むもの",
+      "dividend": 5.6,
+      "profit": 43,
+      "netAsset": 209,
+      "previousYearAveragePrice": 816,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 832,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 850,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 864,
+          "twoYearAveragePrice": 784
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 902,
+          "twoYearAveragePrice": 791
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 895,
+          "twoYearAveragePrice": 797
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 870,
+          "twoYearAveragePrice": 801
+        }
+      ]
+    },
+    {
+      "number": 105,
+      "largeName": "宿泊業、飲食サービス業",
+      "middleName": "飲食店",
+      "smallName": "その他の飲食店",
+      "name": "その他の飲食店",
+      "level": "SMALL",
+      "description": "飲食店のうち、103及び104に該当するもの以外のもの。例えば、そば・うどん店、すし店、酒場、ビヤホール、バー、キャバレー、ナイトクラブ、喫茶店など",
+      "dividend": 6,
+      "profit": 44,
+      "netAsset": 215,
+      "previousYearAveragePrice": 803,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 843,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 854,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 907,
+          "twoYearAveragePrice": 776
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 943,
+          "twoYearAveragePrice": 784
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 951,
+          "twoYearAveragePrice": 793
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 973,
+          "twoYearAveragePrice": 803
+        }
+      ]
+    },
+    {
+      "number": 106,
+      "largeName": "宿泊業、飲食サービス業",
+      "middleName": "その他の宿泊業、飲食サービス業",
+      "smallName": "",
+      "name": "その他の宿泊業、飲食サービス業",
+      "level": "MIDDLE",
+      "description": "宿泊業、飲食サービス業のうち、102から105に該当するもの以外のもの",
+      "dividend": 4.9,
+      "profit": 32,
+      "netAsset": 253,
+      "previousYearAveragePrice": 473,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 497,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 508,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 534,
+          "twoYearAveragePrice": 462
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 539,
+          "twoYearAveragePrice": 465
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 542,
+          "twoYearAveragePrice": 468
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 530,
+          "twoYearAveragePrice": 471
+        }
+      ]
+    },
+    {
+      "number": 107,
+      "largeName": "生活関連サービス業、娯楽業",
+      "middleName": "",
+      "smallName": "",
+      "name": "生活関連サービス業、娯楽業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 11.3,
+      "profit": 58,
+      "netAsset": 347,
+      "previousYearAveragePrice": 907,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 917,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 912,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 941,
+          "twoYearAveragePrice": 899
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 933,
+          "twoYearAveragePrice": 900
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 930,
+          "twoYearAveragePrice": 900
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 920,
+          "twoYearAveragePrice": 901
+        }
+      ]
+    },
+    {
+      "number": 108,
+      "largeName": "生活関連サービス業、娯楽業",
+      "middleName": "生活関連サービス業",
+      "smallName": "",
+      "name": "生活関連サービス業",
+      "level": "MIDDLE",
+      "description": "個人に対して身の回りの清潔を保持するためのサービスを提供するもの及び個人を対象としてサービスを提供するもののうち他に分類されないもの。例えば、洗濯業、理容業、美容業及び浴場業並びに旅行業、家事サービス業、衣服裁縫修理業など",
+      "dividend": 10.2,
+      "profit": 45,
+      "netAsset": 292,
+      "previousYearAveragePrice": 599,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 622,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 616,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 654,
+          "twoYearAveragePrice": 552
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 655,
+          "twoYearAveragePrice": 560
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 649,
+          "twoYearAveragePrice": 566
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 629,
+          "twoYearAveragePrice": 572
+        }
+      ]
+    },
+    {
+      "number": 109,
+      "largeName": "生活関連サービス業、娯楽業",
+      "middleName": "娯楽業",
+      "smallName": "",
+      "name": "娯楽業",
+      "level": "MIDDLE",
+      "description": "映画、演劇その他の興行及び娯楽を提供し、又は休養を与えるもの並びにこれに附帯するサービスを提供するもの",
+      "dividend": 12.8,
+      "profit": 77,
+      "netAsset": 423,
+      "previousYearAveragePrice": 1336,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 1327,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 1325,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 1339,
+          "twoYearAveragePrice": 1382
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 1320,
+          "twoYearAveragePrice": 1373
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 1320,
+          "twoYearAveragePrice": 1365
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 1325,
+          "twoYearAveragePrice": 1358
+        }
+      ]
+    },
+    {
+      "number": 110,
+      "largeName": "教育、学習支援業",
+      "middleName": "",
+      "smallName": "",
+      "name": "教育、学習支援業",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 16.5,
+      "profit": 77,
+      "netAsset": 351,
+      "previousYearAveragePrice": 752,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 751,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 744,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 749,
+          "twoYearAveragePrice": 753
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 721,
+          "twoYearAveragePrice": 750
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 708,
+          "twoYearAveragePrice": 747
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 715,
+          "twoYearAveragePrice": 746
+        }
+      ]
+    },
+    {
+      "number": 111,
+      "largeName": "医療、福祉",
+      "middleName": "",
+      "smallName": "",
+      "name": "医療、福祉",
+      "level": "LARGE",
+      "description": "保健衛生、社会保険、社会福祉及び介護に関するサービスを提供するもの（医療法人を除く）",
+      "dividend": 6.8,
+      "profit": 40,
+      "netAsset": 251,
+      "previousYearAveragePrice": 406,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 420,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 427,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 435,
+          "twoYearAveragePrice": 422
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 440,
+          "twoYearAveragePrice": 420
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 433,
+          "twoYearAveragePrice": 418
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 425,
+          "twoYearAveragePrice": 417
+        }
+      ]
+    },
+    {
+      "number": 112,
+      "largeName": "サービス業（他に分類されないもの）",
+      "middleName": "",
+      "smallName": "",
+      "name": "サービス業（他に分類されないもの）",
+      "level": "LARGE",
+      "description": "",
+      "dividend": 19.2,
+      "profit": 86,
+      "netAsset": 435,
+      "previousYearAveragePrice": 804,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 842,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 860,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 893,
+          "twoYearAveragePrice": 794
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 888,
+          "twoYearAveragePrice": 796
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 878,
+          "twoYearAveragePrice": 798
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 874,
+          "twoYearAveragePrice": 801
+        }
+      ]
+    },
+    {
+      "number": 113,
+      "largeName": "サービス業（他に分類されないもの）",
+      "middleName": "職業紹介・労働者派遣業",
+      "smallName": "",
+      "name": "職業紹介・労働者派遣業",
+      "level": "MIDDLE",
+      "description": "労働者に職業をあっせんするもの及び労働者派遣業を営むもの",
+      "dividend": 27.5,
+      "profit": 115,
+      "netAsset": 469,
+      "previousYearAveragePrice": 1020,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 1063,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 1086,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 1129,
+          "twoYearAveragePrice": 1023
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 1122,
+          "twoYearAveragePrice": 1023
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 1101,
+          "twoYearAveragePrice": 1022
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 1080,
+          "twoYearAveragePrice": 1022
+        }
+      ]
+    },
+    {
+      "number": 114,
+      "largeName": "サービス業（他に分類されないもの）",
+      "middleName": "その他の事業サービス業",
+      "smallName": "",
+      "name": "その他の事業サービス業",
+      "level": "MIDDLE",
+      "description": "サービス業（他に分類されないもの）のうち、113に該当するもの以外のもの",
+      "dividend": 13.4,
+      "profit": 65,
+      "netAsset": 410,
+      "previousYearAveragePrice": 651,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 685,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 700,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 726,
+          "twoYearAveragePrice": 632
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 723,
+          "twoYearAveragePrice": 635
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 720,
+          "twoYearAveragePrice": 639
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 728,
+          "twoYearAveragePrice": 644
+        }
+      ]
+    },
+    {
+      "number": 115,
+      "largeName": "その他の産業",
+      "middleName": "",
+      "smallName": "",
+      "name": "その他の産業",
+      "level": "LARGE",
+      "description": "１から114に該当するもの以外のもの",
+      "dividend": 10.8,
+      "profit": 57,
+      "netAsset": 420,
+      "previousYearAveragePrice": 574,
+      "monthlyPrices": [
+        {
+          "year": 2025,
+          "month": 11,
+          "price": 616,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "price": 624,
+          "twoYearAveragePrice": null
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "price": 652,
+          "twoYearAveragePrice": 560
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "price": 669,
+          "twoYearAveragePrice": 565
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "price": 654,
+          "twoYearAveragePrice": 569
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "price": 655,
+          "twoYearAveragePrice": 574
+        }
+      ]
+    }
+  ]
+}

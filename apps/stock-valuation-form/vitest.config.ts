@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-// 計算関数（calcTable*/calcShareholderJudgment/calcCompanySize）の単体テスト用設定。
+// 計算関数（calcTable*/calcShareholderJudgment/calcCompanySize）とサーバ側の単体テスト用設定。
 // 本体は src の '@' エイリアスを使うため、ここでも解決できるようにする。
 export default defineConfig({
   plugins: [react()],
@@ -13,6 +13,6 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'server/**/*.test.ts'],
   },
 });

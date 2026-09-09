@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "industry:save": "node scripts/industry-export.mjs --out prisma/industry-data",
     "industry:export": "node scripts/industry-export.mjs",
     "industry:import": "node scripts/industry-import.mjs"
   },

@@ -18,5 +18,7 @@
     "sourceMap": false,
     "declaration": false
   },
-  "include": ["server"]
+  "include": ["server"],
+  // テストは vitest が直接読む。dist-server に混ぜると本番イメージに無い vitest を import してしまう。
+  "exclude": ["server/**/__tests__/**"]
 }

@@ -1,7 +1,8 @@
 // テスト用の業種目データセット。
 //
-// 本番は API（DB）から取得するが、テストでは国税庁の公表値をそのまま持つ
-// src/data/*.json（サーバのseedと同じ原本）から組み立てて、期待値を実データに合わせる。
+// 本番は API（DB）から取得するが、テストでは国税庁の公表値を和暦キーのまま持つ
+// src/data/*.json から組み立てて、期待値を実データに合わせる。
+// （DBへの取込は prisma/industry-data/*.json 経由に移行済み。こちらはテスト専用の原本）
 
 import rawCategories from '../industryCategories.json';
 import rawMetrics from '../industryValuationMetrics.json';
