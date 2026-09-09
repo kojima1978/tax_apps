@@ -5,6 +5,13 @@
 // 書き出しは `npm run industry:save`（DB → 同ディレクトリ）。
 //
 // 個々の会社の情報はこのディレクトリには一切入らない。業種目データだけが Git に乗る。
+//
+// ここは **足すだけ** で、既存のデータは消さない。以前は SEED_FORCE=1 で全年分を
+// 消してから入れ直せるようにしていたが、環境変数はコンテナに残り続ける
+// （`docker compose restart` は environment を評価し直さない）ため、
+// 一度立てると再起動のたびに全消し→再取込が走った。しかもアーカイブの無い年分
+// （画面から登録して `industry:save` していないもの）は戻せない。
+// 入れ直しは年分を名指しする明示操作に移した ── `npm run industry:reseed`。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -38,17 +45,12 @@ function listArchiveFiles(dataDir: string): string[] {
 /**
  * 未登録の年分だけを取り込む。既にある年分には触れない
  * （画面から訂正した内容をファイルで上書きしてしまわないため）。
- * ファイルの内容で入れ直したいときは SEED_FORCE=1 を立てる（全年分を消してから取り込む）。
+ * ファイルの内容で入れ直したいときは `npm run industry:reseed`（年分を名指しする明示操作）。
  */
 export async function seedIndustryData(db: PrismaClient, dataDir: string): Promise<SeedResult> {
   const files = listArchiveFiles(dataDir);
   if (files.length === 0) {
     throw new Error(`業種目データのJSONが1件もありません: ${dataDir}`);
-  }
-
-  if (process.env.SEED_FORCE === '1') {
-    // 子テーブル（業種目・比準要素・月別株価）は onDelete: Cascade で一緒に消える。
-    await db.industryYear.deleteMany({});
   }
 
   const years: SeedYearResult[] = [];

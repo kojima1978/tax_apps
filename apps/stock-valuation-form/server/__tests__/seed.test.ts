@@ -144,17 +144,33 @@ describe('seedIndustryData', () => {
     expect(new Set(categories.map(({ yearId }) => yearId)).size).toBe(1);
   });
 
-  it('SEED_FORCE=1 なら全年分を消してから入れ直す', async () => {
+  it('環境変数では何も消さない（起動時に既存データを作り直す経路を持たない）', async () => {
+    // かつて SEED_FORCE=1 で全年分を消していた。環境変数はコンテナに残り続けるため
+    // 再起動のたびに全消し→再取込が走り、アーカイブの無い年分は戻せなくなる。
+    // 入れ直しは npm run industry:reseed（年分を名指しする明示操作）へ移した。
     write('令和', 8, 2026, 3);
-    const { db, years } = createFakeDb();
+    const { db, years, categories } = createFakeDb();
     years.set(2026, { id: 99, era: '令和', eraYear: 8, gregorianYear: 2026, label: '令和8年分' });
     process.env.SEED_FORCE = '1';
 
     const result = await seedIndustryData(db, dataDir);
 
-    expect(result.imported).toBe(1);
-    expect(result.skipped).toBe(0);
-    expect(years.get(2026)?.id).not.toBe(99);
+    expect(result.imported).toBe(0);
+    expect(result.skipped).toBe(1);
+    expect(years.get(2026)?.id).toBe(99);
+    expect(categories).toHaveLength(0);
+  });
+
+  it('アーカイブに無い年分は残る（起動時のシードは足すだけ）', async () => {
+    write('令和', 8, 2026, 3);
+    const { db, years } = createFakeDb();
+    // 画面から登録したまま industry:save していない年分。消すと戻す先が無い。
+    years.set(2025, { id: 77, era: '令和', eraYear: 7, gregorianYear: 2025, label: '令和7年分' });
+
+    await seedIndustryData(db, dataDir);
+
+    expect(years.get(2025)?.id).toBe(77);
+    expect([...years.keys()].sort()).toEqual([2025, 2026]);
   });
 
   it('JSONが1件も無ければ失敗する（空のまま起動させない）', async () => {

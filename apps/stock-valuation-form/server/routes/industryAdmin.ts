@@ -1,9 +1,12 @@
 // 業種目マスタ・業種目別株価等の書き込みAPI（管理画面 #industry-data 用）。
 //
 // 読み取りAPI（industry.ts）と分けてあるのは、こちらだけが DB を書き換えるため。
-// 削除は月別株価（1業種目単位・1ヶ月まるごと）だけに限る。年分そのものの削除は用意しない：
+// 削除は月別株価（1業種目単位・1ヶ月まるごと）だけに限る。「年分だけを消す」操作は用意しない：
 // 1つ消すと業種目115件と全月の株価が Cascade で道連れになるので、
 // そこまで戻したくなったらバックアップからのリストアで戻す（docker/scripts/backup.sh）。
+//
+// 例外は PUT /industry-years/:gregorianYear（入れ直し）だけ。消して終わりではなく
+// 同じトランザクションで年分アーカイブから作り直すので、空の穴が残ることはない。
 
 import { Hono } from 'hono';
 import { Prisma, type PrismaClient } from '@prisma/client';
@@ -19,6 +22,7 @@ import {
   asString,
   createIndustryYear,
   parseArchive,
+  replaceIndustryYear,
 } from '../industryArchive.js';
 
 /** 検証エラーは400、それ以外は投げ直して Hono の500に任せる。 */
@@ -71,6 +75,48 @@ export function createIndustryAdminRouter(db: PrismaClient) {
         },
         201,
       );
+    } catch (error) {
+      const { body, status } = toErrorResponse(error);
+      return c.json(body, status);
+    }
+  });
+
+  /**
+   * 登録済みの年分を、年分アーカイブの内容で入れ直す（`npm run industry:reseed` の実体）。
+   *
+   * `git pull` で prisma/industry-data の中身が直っても、起動時のシードは
+   * 登録済みの年分を読み飛ばすので反映されない。その出口がこれ。
+   *
+   * 消えるのは URL で名指しした1年分だけ。取り違えると115業種目と全月の株価が
+   * 消えて JSON の内容に置き換わるので、本体の元号から導いた西暦年が URL と
+   * 食い違っていたら実行しない（400）。未登録の年分は新規登録（POST）の役目。
+   */
+  router.put('/industry-years/:gregorianYear', async (c) => {
+    try {
+      const year = await findYear(c.req.param('gregorianYear'));
+      if (!year) {
+        return c.json(
+          { error: '指定された年分は登録されていません。新規登録は POST /industry-years です' },
+          404,
+        );
+      }
+
+      const archive = parseArchive(await c.req.json());
+      if (archive.gregorianYear !== year.gregorianYear) {
+        throw new ValidationError(
+          `本体は${archive.label}（${archive.gregorianYear}年）ですが、`
+          + `入れ直す対象は${year.label}（${year.gregorianYear}年）です`,
+        );
+      }
+
+      const replaced = await replaceIndustryYear(db, archive);
+
+      return c.json({
+        year: { id: replaced.id, label: replaced.label, gregorianYear: replaced.gregorianYear },
+        replaced: true,
+        categoryCount: replaced.categoryCount,
+        monthlyPriceCount: replaced.monthlyPriceCount,
+      });
     } catch (error) {
       const { body, status } = toErrorResponse(error);
       return c.json(body, status);

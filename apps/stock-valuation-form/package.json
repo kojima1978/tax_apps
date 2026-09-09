@@ -16,7 +16,8 @@
     "db:migrate": "prisma migrate deploy",
     "industry:save": "node scripts/industry-export.mjs --out prisma/industry-data",
     "industry:export": "node scripts/industry-export.mjs",
-    "industry:import": "node scripts/industry-import.mjs"
+    "industry:import": "node scripts/industry-import.mjs",
+    "industry:reseed": "node scripts/industry-reseed.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",

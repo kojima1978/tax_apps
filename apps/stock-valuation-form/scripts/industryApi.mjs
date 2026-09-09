@@ -64,6 +64,16 @@ export async function postJson(base, path, body) {
   return unwrap(response, `POST ${path}`);
 }
 
+/** 登録済みの年分をアーカイブの内容で入れ直す（PUT /industry-years/:gregorianYear）。 */
+export async function putJson(base, path, body) {
+  const response = await fetch(`${base}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return unwrap(response, `PUT ${path}`);
+}
+
 export function archiveFileName(label, gregorianYear) {
   return `業種目データ_${label}_${gregorianYear}.json`;
 }

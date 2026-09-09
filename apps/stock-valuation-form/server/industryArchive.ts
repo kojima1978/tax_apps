@@ -4,8 +4,11 @@
 // 同じ形のJSONを受け取るので、検証とDBへの書き込みをここに一本化する。
 // 形は書き出しAPI（routes/industry.ts の GET /industry-years/:gregorianYear/export）と対。
 
-import type { IndustryLevel, PrismaClient } from '@prisma/client';
+import type { IndustryLevel, Prisma, PrismaClient } from '@prisma/client';
 import { gregorianYearOf, industryYearLabel } from './wareki.js';
+
+/** `$transaction` のコールバックが受け取るクライアント（$transaction 等を持たない）。 */
+type TransactionClient = Prisma.TransactionClient;
 
 /** 115業種目 × (業種目 + 比準要素 + 月別株価) を1トランザクションで流すため、既定の5秒では足りない。 */
 export const BULK_TRANSACTION_OPTIONS = { timeout: 120_000, maxWait: 20_000 };
@@ -180,52 +183,45 @@ export interface CreatedYear {
   monthlyPriceCount: number;
 }
 
-/**
- * 検証済みの年分をまるごと新規登録する。業種目マスタ・B/C/D・前年平均・月別株価を
- * 1トランザクションで入れる（途中で落ちて中途半端な年分が残らないように）。
- * 同じ年分が既にあるときの振る舞いは呼び出し側で決める（APIは409、シードは読み飛ばし）。
- */
-export async function createIndustryYear(
-  db: PrismaClient,
-  archive: ParsedArchive,
-): Promise<CreatedYear> {
-  const created = await db.$transaction(async (tx) => {
-    const year = await tx.industryYear.create({
+/** 年分の本体を1つ書き込む。呼び出し側がトランザクションを持つ（新規登録と入れ直しで共用）。 */
+async function writeIndustryYear(tx: TransactionClient, archive: ParsedArchive) {
+  const year = await tx.industryYear.create({
+    data: {
+      era: archive.era,
+      eraYear: archive.eraYear,
+      gregorianYear: archive.gregorianYear,
+      label: archive.label,
+    },
+  });
+
+  for (const category of archive.categories) {
+    await tx.industryCategory.create({
       data: {
-        era: archive.era,
-        eraYear: archive.eraYear,
-        gregorianYear: archive.gregorianYear,
-        label: archive.label,
+        yearId: year.id,
+        number: category.number,
+        largeName: category.largeName,
+        middleName: category.middleName,
+        smallName: category.smallName,
+        name: category.name,
+        level: category.level,
+        description: category.description,
+        metric: {
+          create: {
+            dividend: category.dividend,
+            profit: category.profit,
+            netAsset: category.netAsset,
+            previousYearAveragePrice: category.previousYearAveragePrice,
+          },
+        },
+        monthlyPrices: { create: category.monthlyPrices },
       },
     });
+  }
 
-    for (const category of archive.categories) {
-      await tx.industryCategory.create({
-        data: {
-          yearId: year.id,
-          number: category.number,
-          largeName: category.largeName,
-          middleName: category.middleName,
-          smallName: category.smallName,
-          name: category.name,
-          level: category.level,
-          description: category.description,
-          metric: {
-            create: {
-              dividend: category.dividend,
-              profit: category.profit,
-              netAsset: category.netAsset,
-              previousYearAveragePrice: category.previousYearAveragePrice,
-            },
-          },
-          monthlyPrices: { create: category.monthlyPrices },
-        },
-      });
-    }
+  return year;
+}
 
-    return year;
-  }, BULK_TRANSACTION_OPTIONS);
-
+function countsOf(created: { id: number; label: string; gregorianYear: number }, archive: ParsedArchive): CreatedYear {
   return {
     id: created.id,
     label: created.label,
@@ -236,4 +232,44 @@ export async function createIndustryYear(
       0,
     ),
   };
+}
+
+/**
+ * 検証済みの年分をまるごと新規登録する。業種目マスタ・B/C/D・前年平均・月別株価を
+ * 1トランザクションで入れる（途中で落ちて中途半端な年分が残らないように）。
+ * 同じ年分が既にあるときの振る舞いは呼び出し側で決める（APIは409、シードは読み飛ばし）。
+ */
+export async function createIndustryYear(
+  db: PrismaClient,
+  archive: ParsedArchive,
+): Promise<CreatedYear> {
+  const created = await db.$transaction(
+    (tx) => writeIndustryYear(tx, archive),
+    BULK_TRANSACTION_OPTIONS,
+  );
+  return countsOf(created, archive);
+}
+
+/**
+ * 既にある年分を、アーカイブの内容で入れ直す（削除と登録で1トランザクション）。
+ *
+ * 消すのは **引数の年分だけ**。他の年分には触れないので、アーカイブの無い年分
+ * （画面から登録したまま `industry:save` していないもの）が巻き込まれることはない。
+ * 途中で落ちても消しただけの状態は残らない。
+ *
+ * この関数を呼ぶ経路は「その年分を入れ直す」と名指しできる場所に限る
+ * （PUT /industry-years/:gregorianYear と `npm run industry:reseed`）。
+ * 起動時のシードは決してここを通さない ── 環境変数の消し忘れで
+ * 再起動のたびにデータが作り直される、という壊れ方を作らないため。
+ */
+export async function replaceIndustryYear(
+  db: PrismaClient,
+  archive: ParsedArchive,
+): Promise<CreatedYear> {
+  const created = await db.$transaction(async (tx) => {
+    // 子テーブル（業種目・比準要素・月別株価）は onDelete: Cascade で一緒に消える。
+    await tx.industryYear.deleteMany({ where: { gregorianYear: archive.gregorianYear } });
+    return writeIndustryYear(tx, archive);
+  }, BULK_TRANSACTION_OPTIONS);
+  return countsOf(created, archive);
 }
