@@ -13,7 +13,10 @@ type Raw = (field: string) => string;
 const per50Line = (label: string, value: number | null, cap5: number | null) =>
   `${label} ${hv(value, 1)}千円 × 1,000 ÷ ⑤ ${hv(cap5)}株`;
 
-/** 単年と2年平均のどちらを採ったか（Ⓒ1・Ⓒ2）。自動選択なら「低い方」と理由まで書く */
+/**
+ * 単年と2年平均のどちらを採ったか（Ⓒ・Ⓒ1・Ⓒ2）。自動選択ならその向きも理由に書く。
+ * autoWhy が欄ごとに違うのは、Ⓒが株価に直結するのに対しⒸ1・Ⓒ2は判定専用で、有利な向きが逆になるため。
+ */
 function profitBaseLine(
   single: number | null,
   singleLabel: string,
@@ -21,17 +24,21 @@ function profitBaseLine(
   twoLabel: string,
   side: 'left' | 'right' | undefined,
   mode: string,
+  autoWhy: string,
 ): { line: string; value: number | null } {
   if (side === undefined) return { line: '採用する金額がまだ計算できません', value: null };
   const value = side === 'left' ? single : two;
   const label = side === 'left' ? singleLabel : twoLabel;
   const why = mode === 'single' || mode === 'avg'
-    ? 'ツールバーで選択中'
+    ? '様式の式をクリックして選択中'
     : single !== null && two !== null
-      ? '低い方を自動採用'
+      ? autoWhy
       : 'もう一方が計算できないため';
   return { line: `${label} ${hv(value, 1)}千円 を採用（${why}）`, value };
 }
+
+const AUTO_LOWER = '低い方を自動採用';
+const AUTO_NON_ZERO = '0を避ける方を自動採用';
 
 /** 第4表の1（1.資本金等の額等 ＋ 2.比準要素等の金額） */
 export function table4_1Hints(c: Calc, raw: Raw, medical: boolean): Record<string, string> {
@@ -47,12 +54,12 @@ export function table4_1Hints(c: Calc, raw: Raw, medical: boolean): Record<strin
   /** Ⓑ1・Ⓑ2（10銭未満切捨て）。医療法人は記載しない */
   const bHint = (label: string, value: number | null, result: number | null) =>
     (medical ? MEDICAL_NO_DIVIDEND : `${per50Line(label, value, c.cap5)}\n＝ ${ryen(result)}（10銭未満切捨て）`);
-  /** Ⓒ1・Ⓒ2（円未満切捨て・負数は0） */
+  /** Ⓒ・Ⓒ1・Ⓒ2（円未満切捨て・負数は0） */
   const cHint = (
     single: number | null, singleLabel: string, two: number | null, twoLabel: string,
-    side: 'left' | 'right' | undefined, mode: string, result: number | null,
+    side: 'left' | 'right' | undefined, mode: string, result: number | null, autoWhy: string,
   ) => {
-    const base = profitBaseLine(single, singleLabel, two, twoLabel, side, mode);
+    const base = profitBaseLine(single, singleLabel, two, twoLabel, side, mode, autoWhy);
     return `${base.line}\n${hv(base.value, 1)}千円 × 1,000 ÷ ⑤ ${hv(c.cap5)}株 ＝ ${rv(result)}円（円未満切捨て・負数は0）`;
   };
   /** Ⓓ1・Ⓓ2（円未満切捨て・負数は0） */
@@ -62,7 +69,13 @@ export function table4_1Hints(c: Calc, raw: Raw, medical: boolean): Record<strin
   const avg12 = c.p1 !== null && c.p2 !== null ? (c.p1 + c.p2) / 2 : null;
   const avg23 = c.p2 !== null && c.p3 !== null ? (c.p2 + c.p3) / 2 : null;
   const b1 = bHint('⑨', c.v9, c.b1);
-  const c1 = cHint(c.p1, '直前期 ㊁', avg12, '（㊁＋㋭）÷２', c.c1baseSide, raw('c1_mode'), c.c1);
+  const c1 = cHint(c.p1, '直前期 ㊁', avg12, '（㊁＋㋭）÷２', c.c1baseSide, raw('c1_mode'), c.c1, AUTO_NON_ZERO);
+  // ⒸはⒸ1と別に選べる。違う側を採っているときは、書き写し間違いと区別できるよう理由を添える。
+  const cv = cHint(c.p1, '直前期 ㊁', avg12, '（㊁＋㋭）÷２', c.cvSide, raw('c_mode'), c.Cv, AUTO_LOWER)
+    + (c.cvSide !== undefined && c.c1baseSide !== undefined && c.cvSide !== c.c1baseSide
+      ? `\n※ Ⓒ₁（${c.c1baseSide === 'left' ? '単年' : '２年平均'}）とは別の方法を採っています。`
+        + 'Ⓒ₁は比準要素数1／0の判定にだけ使う欄なので、選択は連動しません。'
+      : '');
   const d1 = dHint('㋣', c.t1, c.d1);
 
   return {
@@ -84,8 +97,8 @@ export function table4_1Hints(c: Calc, raw: Raw, medical: boolean): Record<strin
     '㋭': profit(['e25', 'e26', 'e27', 'e28', 'e29'], c.p2),
     '㋬': profit(['e32', 'e33', 'e34', 'e35', 'e36'], c.p3),
     C1: c1,
-    C2: cHint(c.p2, '直前々期 ㋭', avg23, '（㋭＋㋬）÷２', c.c2baseSide, raw('c2_mode'), c.c2),
-    C: `Ⓒ₁ ${rv(c.c1)}円 をそのまま記載します`,
+    C2: cHint(c.p2, '直前々期 ㋭', avg23, '（㋭＋㋬）÷２', c.c2baseSide, raw('c2_mode'), c.c2, AUTO_NON_ZERO),
+    C: cv,
 
     '㋣': `⑰ ${hs(raw('①'))}千円 ＋ ⑱ ${hs(raw('n53'))}千円 ＝ ${rv(c.t1, 1)}千円`,
     '㋠': `⑰ ${hs(raw('n56'))}千円 ＋ ⑱ ${hs(raw('n57'))}千円 ＝ ${rv(c.t2, 1)}千円`,

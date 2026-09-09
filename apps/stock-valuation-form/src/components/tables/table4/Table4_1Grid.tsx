@@ -224,29 +224,37 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
       default: return raw(f);
     }
   };
-  // Ⓒ₁・Ⓒ₂ は「単年」と「２年平均」のどちらを採るかを納税者が選ぶ（既定は低い方の自動選択）。
+  // Ⓒ・Ⓒ₁・Ⓒ₂ は「単年」と「２年平均」のどちらを採るかを納税者が選ぶ。
+  // 3欄とも用途が違う（Ⓒ＝比準要素、Ⓒ₁Ⓒ₂＝比準要素数1／0の判定要素）ので連動させない。
   // 選ぶ場所は様式のその式そのもの＝左の分数が単年、右の分数が２年平均。
-  // 同じ側をもう一度押すと自動（低い方）に戻る。
+  // 同じ側をもう一度押すと自動選択に戻る。自動の向きは欄で逆（calcTable4 の pickProfit 参照）。
   const pinnedSide = (field: string): 'left' | 'right' | undefined =>
     raw(field) === 'single' ? 'left' : raw(field) === 'avg' ? 'right' : undefined;
   const selectSide = (field: string) => (side: 'left' | 'right') => {
     const next = side === 'left' ? 'single' : 'avg';
     u(field, raw(field) === next ? '' : next);
   };
-  const modeProps = (field: string, single: string, avg: string) => ({
+  const modeProps = (field: string, single: string, avg: string, autoLabel: string) => ({
     pinnedSide: pinnedSide(field),
     onSelect: selectSide(field),
     labels: { left: `単年（${single}）`, right: `２年平均（${avg}）` },
+    autoLabel,
   });
+  const AUTO_LOWER = '自動（低い方）';
+  const AUTO_NON_ZERO = '自動（0を避ける方）';
   const cells = CELLS.map((cell) => {
     if (medical && cell.field && DIVIDEND_INPUT_FIELDS.has(cell.field)) {
       return { ...cell, readOnly: true, calculationRequired: false };
     }
+    // Ⓒ（比準要素）。Ⓒ₁と別に選べる
+    if (cell.kind === 'label' && cell.text?.startsWith('１株（50円）当たりの年利益金額［') && cell.alternativeFractions) {
+      return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.cvSide, ...modeProps('c_mode', '㊁÷⑤', '(㊁＋㋭)÷２÷⑤', AUTO_LOWER) } };
+    }
     if (cell.kind === 'label' && cell.text?.startsWith('㋥/⑤ 又は') && cell.alternativeFractions) {
-      return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.c1baseSide, ...modeProps('c1_mode', '㊁÷⑤', '(㊁＋㋭)÷２÷⑤') } };
+      return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.c1baseSide, ...modeProps('c1_mode', '㊁÷⑤', '(㊁＋㋭)÷２÷⑤', AUTO_NON_ZERO) } };
     }
     if (cell.kind === 'label' && cell.text?.startsWith('㋭/⑤ 又は') && cell.alternativeFractions) {
-      return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.c2baseSide, ...modeProps('c2_mode', '㋭÷⑤', '(㋭＋㋬)÷２÷⑤') } };
+      return { ...cell, alternativeFractions: { ...cell.alternativeFractions, selectedSide: c.c2baseSide, ...modeProps('c2_mode', '㋭÷⑤', '(㋭＋㋬)÷２÷⑤', AUTO_NON_ZERO) } };
     }
     return cell;
   });

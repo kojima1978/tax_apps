@@ -65,7 +65,7 @@ export function calcTable4(getField: TableProps['getField']) {
   const b2 = per50(v10) !== null ? fl10sen(per50(v10)!) : null;
   const Bv = b1;
 
-  // 2. 利益（⑯=⑪-⑫+⑬-⑭+⑮, C=単年と2年平均の低い方・円未満切捨て）
+  // 2. 利益（⑯=⑪-⑫+⑬-⑭+⑮・円未満切捨て）
   const profit = (a: string, b: string, c: string, d: string, e: string) => {
     const x = num(a);
     return x === null ? null : x - (num(b) ?? 0) + (num(c) ?? 0) - (num(d) ?? 0) + (num(e) ?? 0);
@@ -73,27 +73,43 @@ export function calcTable4(getField: TableProps['getField']) {
   const p1 = profit('e18', 'e19', 'e20', 'e21', 'e22');
   const p2 = profit('e25', 'e26', 'e27', 'e28', 'e29');
   const p3 = profit('e32', 'e33', 'e34', 'e35', 'e36');
-  // C1/C2は単年か2年平均かを納税者が選択（既定は低い方を自動選択）
-  const pickProfit = (single: number | null, two: number | null, mode: string) =>
-    mode === 'single' ? single : mode === 'avg' ? two : single === null ? null : two === null ? single : Math.min(single, two);
-  const pickProfitSide = (single: number | null, two: number | null, mode: string): 'left' | 'right' | undefined => {
+  // 年利益金額は「単年」と「２年平均」を納税義務者が選択できる。選択欄はⒸ・Ⓒ1・Ⓒ2の3つあり、
+  // 用途が違うので連動させない（Ⓒは類似業種比準価額の比準要素、Ⓒ1・Ⓒ2は比準要素数1／0の判定要素）。
+  // 未指定のときにどちらへ倒すかも用途ごとに逆になる:
+  //  ・Ⓒ       → 低い方。そのまま株価に効くため
+  //  ・Ⓒ1・Ⓒ2 → 0を避ける方。判定専用で、0にしても得することがないため
+  //    （比準要素数1に該当すると第6表④は min(純資産, 比準×0.25＋純資産×0.75) となり、
+  //      一般の評価会社の min(比準, 純資産) を下回らない）
+  type ProfitAuto = 'lower' | 'nonZero';
+  const pickProfit = (single: number | null, two: number | null, mode: string, auto: ProfitAuto) =>
+    mode === 'single' ? single
+      : mode === 'avg' ? two
+        : single === null ? null
+          : two === null ? single
+            : auto === 'lower' ? Math.min(single, two) : Math.max(single, two);
+  const pickProfitSide = (
+    single: number | null, two: number | null, mode: string, auto: ProfitAuto,
+  ): 'left' | 'right' | undefined => {
     if (mode === 'single') return 'left';
     if (mode === 'avg') return 'right';
     if (single === null && two === null) return undefined;
     if (single === null) return 'right';
     if (two === null) return 'left';
-    return single <= two ? 'left' : 'right';
+    return auto === 'lower' ? (single <= two ? 'left' : 'right') : (single >= two ? 'left' : 'right');
   };
   const avg12 = p1 !== null && p2 !== null ? (p1 + p2) / 2 : null;
   const avg23 = p2 !== null && p3 !== null ? (p2 + p3) / 2 : null;
-  const c1base = pickProfit(p1, avg12, raw('c1_mode'));
-  const c1baseSide = pickProfitSide(p1, avg12, raw('c1_mode'));
-  const c2base = pickProfit(p2, avg23, raw('c2_mode'));
-  const c2baseSide = pickProfitSide(p2, avg23, raw('c2_mode'));
-  // C1・C2・Ⓒが負数のときは0（記載要領3⑷⑸の注）
-  const c1 = per50(c1base) !== null ? Math.max(0, fl(per50(c1base)!)) : null;
-  const c2 = per50(c2base) !== null ? Math.max(0, fl(per50(c2base)!)) : null;
-  const Cv = c1;
+  // Ⓒ・Ⓒ1・Ⓒ2が負数のときは0（記載要領3⑷⑸の注）
+  const per50Profit = (base: number | null) => (per50(base) !== null ? Math.max(0, fl(per50(base)!)) : null);
+  const cvBase = pickProfit(p1, avg12, raw('c_mode'), 'lower');
+  const cvSide = pickProfitSide(p1, avg12, raw('c_mode'), 'lower');
+  const Cv = per50Profit(cvBase);
+  const c1base = pickProfit(p1, avg12, raw('c1_mode'), 'nonZero');
+  const c1baseSide = pickProfitSide(p1, avg12, raw('c1_mode'), 'nonZero');
+  const c2base = pickProfit(p2, avg23, raw('c2_mode'), 'nonZero');
+  const c2baseSide = pickProfitSide(p2, avg23, raw('c2_mode'), 'nonZero');
+  const c1 = per50Profit(c1base);
+  const c2 = per50Profit(c2base);
 
   // 2. 純資産（⑲=⑰+⑱, D=円未満切捨て）
   const na = (a: string, b: string) => { const x = num(a), y = num(b); return x === null && y === null ? null : (x ?? 0) + (y ?? 0); };
@@ -139,5 +155,5 @@ export function calcTable4(getField: TableProps['getField']) {
   const base28 = v27 ?? v26;
   const v28 = base28 !== null && modRatio2 !== null ? fl((base28 + (modPay ?? 0) * (modRatio ?? 0)) / (1 + modRatio2)) : null;
 
-  return { issued, treasuryShares, cap4, cap4disp, cap5, i1, i2, i3, v9, v10, b1, b2, Bv, p1, p2, p3, c1, c1baseSide, c2, c2baseSide, Cv, t1, t2, d1, d2, Dv, A1, A2, e1B, e1C, e1D, e2B, e2C, e2D, r21, r24, size, shin, p22, p25, v26, v27, v28 };
+  return { issued, treasuryShares, cap4, cap4disp, cap5, i1, i2, i3, v9, v10, b1, b2, Bv, p1, p2, p3, c1, c1baseSide, c2, c2baseSide, Cv, cvSide, t1, t2, d1, d2, Dv, A1, A2, e1B, e1C, e1D, e2B, e2C, e2D, r21, r24, size, shin, p22, p25, v26, v27, v28 };
 }

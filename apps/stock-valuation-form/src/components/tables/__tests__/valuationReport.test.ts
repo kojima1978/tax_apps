@@ -131,7 +131,7 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
     const basis = calcValuationReport(mkGetField({
       ...data,
       table4: {
-        '①': '10,000', e18: '10,000', e25: '6,000', c1_mode: 'avg',
+        '①': '10,000', e18: '10,000', e25: '6,000', c_mode: 'avg',
         n53: '30,000', f28: '1,000', f32: '1,000',
         r1sB1: '10', r1sB2: '80', r1sC: '25', r1sD: '100', '㋷': '300',
       },

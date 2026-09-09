@@ -1,5 +1,6 @@
 import type { TableId, TableProps } from '@/types/form';
 import { readWarekiDate } from '@/lib/wareki';
+import { calcTable4 } from '@/components/tables/table4/calcTable4';
 
 /**
  * 入力値どうしの食い違い（1件）。
@@ -32,6 +33,7 @@ const WATCHED: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', 'f14_y'], ['table1_1', 'f15_from_y'], ['table1_1', 'f15_to_y'],
   ['table2', 'f85_y'],
   ['table4', 'f28'], ['table4', 'f29'], ['table4', 'f32'], ['table4', 'f33'], ['table4', 'f36'], ['table4', 'f37'],
+  ['table4', 'e18'], ['table4', 'e25'],
 ];
 
 /** 年配当金額（⑥）と非経常的な配当金額（⑦）の3期分。⑦は⑥のうちの金額なので⑥を超えない */
@@ -106,6 +108,18 @@ export function consistencyIssues(getField: TableProps['getField']): Consistency
       add('table4_1', row.extra, `第４表の１ ⑦ 非経常的な配当金額（${row.period}）`,
         `${row.period}の非経常的な配当金額（⑦）が年配当金額（⑥）を超えています。⑦は⑥のうちの金額です。`);
     }
+  }
+
+  // ── 第4表の1：Ⓒ（比準要素）とⒸ₁（判定要素）で年利益金額の採り方が違う ──
+  // 用途が違う欄なので別々に選べる（連動規定は無い）。ただし完成した明細書の上では
+  // どちらを採ったか分からなくなるため、意図した組み合わせかを一度確認できるよう残す。
+  const t4 = calcTable4(getField);
+  if (t4.cvSide !== undefined && t4.c1baseSide !== undefined && t4.cvSide !== t4.c1baseSide) {
+    const how = (side: 'left' | 'right') => (side === 'left' ? '直前期の利益金額' : '直前期末以前2年間の平均額');
+    add('table4_1', 'e18', '第４表の１ １株（50円）当たりの年利益金額',
+      `Ⓒは「${how(t4.cvSide)}」、Ⓒ₁は「${how(t4.c1baseSide)}」を基にしています。`
+      + 'Ⓒ（類似業種比準価額の比準要素）とⒸ₁（比準要素数１の会社の判定要素）は納税義務者が別々に選べるため'
+      + '誤りではありませんが、意図した組み合わせかご確認ください。');
   }
 
   return issues;

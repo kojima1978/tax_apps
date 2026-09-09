@@ -442,6 +442,64 @@ describe('calcTable4 ④＝1株当たりの資本金等の額の端数処理（�
   });
 });
 
+describe('calcTable4 年利益金額の選択はⒸとⒸ₁で別々（用途が違うので連動しない）', () => {
+  // ①資本金等10,000千円 → ⑤=200,000株、per50 = 金額（千円）÷200。
+  // 直前期100千円・直前々期500千円 → 単年100千円（＝0円）／2年平均300千円（＝1円）。
+  const mk = (over: Record<string, string> = {}) => calcTable4(mkGetField({
+    table1_1: { '⑤': '200000', f63: '0' },
+    table4: { '①': '10000', e18: '100', e25: '500', r1sC: '25', ...over },
+  }));
+
+  it('未指定のときの自動は欄ごとに逆を向く（Ⓒは低い方、Ⓒ₁は0を避ける方）', () => {
+    const c = mk();
+    expect(c.Cv).toBe(0);            // min(100, 300) ＝ 100千円 → 0.5円 → 0円
+    expect(c.cvSide).toBe('left');
+    expect(c.c1).toBe(1);            // max(100, 300) ＝ 300千円 → 1.5円 → 1円
+    expect(c.c1baseSide).toBe('right');
+  });
+
+  it('片方を明示指定してももう片方は動かない', () => {
+    expect(mk({ c_mode: 'avg' })).toMatchObject({ Cv: 1, c1: 1 });
+    expect(mk({ c1_mode: 'single' })).toMatchObject({ Cv: 0, c1: 0 });
+    expect(mk({ c_mode: 'avg', c1_mode: 'single' })).toMatchObject({ Cv: 1, c1: 0 });
+  });
+
+  it('比準割合のⒸ/CはⒸ₁ではなくⒸで計算する', () => {
+    expect(mk().e1C).toBe(0);                    // Ⓒ₁が1円でもⒸが0円なら0
+    expect(mk({ c_mode: 'avg' }).e1C).toBe(0.04); // 1円 ÷ C 25円
+  });
+});
+
+describe('calcTable2 比準要素数1の判定はⒸ₁だけを見る（比準要素Ⓒとは独立）', () => {
+  // 配当は3期とも0、直前々期末の純資産も0にして⑵側は既にゼロ2つ。⑴側のゼロ数だけが判定を分ける。
+  const mk = (over: Record<string, string> = {}) => calcTable2(mkGetField({
+    table1_1: { '⑤': '200000', f63: '0' },
+    table4: {
+      '①': '10000',
+      f28: '0', f32: '0', f36: '0',
+      e18: '100', e25: '500', e32: '500',
+      n53: '0', n56: '0', n57: '0',
+      ...over,
+    },
+  }));
+
+  it('Ⓒ₁が2年平均で1円なら、株価に使うⒸが0円でも比準要素数1の会社にはならない', () => {
+    const c = mk();
+    expect(c.t4.Cv).toBe(0);
+    expect(c.t4.c1).toBe(1);
+    expect(c.j.s1).toBe(false);
+    expect(c.result).toBe(0);
+  });
+
+  it('Ⓒ₁を単年に固定すると⑴のゼロが2つになり比準要素数1の会社に該当する', () => {
+    const c = mk({ c1_mode: 'single' });
+    expect(c.t4.Cv).toBe(0);       // Ⓒ側は連動しないので0円のまま
+    expect(c.t4.c1).toBe(0);
+    expect(c.j.s1).toBe(true);
+    expect(c.result).toBe(1);
+  });
+});
+
 describe('医療法人（持分あり）の評価（評価通達194-2：配当要素Ⓑを除外）', () => {
   // ①資本金等10,000千円 → ⑤=200,000株、per50=金額×1000÷200,000
   // 利益 e18=10,000千円 → Ⓒ=50円、純資産 n53=30,000千円 → Ⓓ=(10,000+30,000)×1000÷200,000=200円

@@ -132,6 +132,7 @@ export interface GridCell {
     pinnedSide?: 'left' | 'right';              // 手で固定している側（自動選択なら undefined）
     onSelect?: (side: 'left' | 'right') => void; // 左右をクリックで選べるようにする
     labels?: { left: string; right: string };   // 読み上げ・ツールチップ用の説明
+    autoLabel?: string;                         // 固定を解除したときの既定の呼び名（欄ごとに向きが違う）
     suffix?: string;
   }; // 2つの分数を「又は」で並べる式
   companyRateExpression?: {
@@ -258,19 +259,20 @@ const CALCULATION_REQUIRED_BG = '#eaf6ff';
 export const PrintRenderContext = createContext(false);
 
 /**
- * 「又は」で2つの分数を並べる式（第4表の1 Ⓒ₁・Ⓒ₂ など）。
+ * 「又は」で2つの分数を並べる式（第4表の1 Ⓒ・Ⓒ₁・Ⓒ₂ など）。
  * onSelect があると左右をクリックで選べる。分数の文字は 11px 程度しかないため、
  * レイアウトを1pxも動かさずに当たり判定だけを外へ広げる（透明・印刷には出さない）。
  * 採用中の強調は様式にない着色なので画面限定。自動で選ばれた側は橙、手で固定した側は青で示す。
  */
 function AlternativeFractions({ spec, printRendering }: { spec: NonNullable<GridCell['alternativeFractions']>; printRendering: boolean }) {
   const pick = spec.onSelect;
+  const autoLabel = spec.autoLabel ?? '自動';
   const renderSide = (which: 'left' | 'right') => {
     const fraction = spec[which];
     const selected = spec.selectedSide === which;
     const pinned = spec.pinnedSide === which;
     const label = spec.labels?.[which] ?? `${fraction.numerator}÷${fraction.denominator}`;
-    const state = pinned ? '固定中' : selected ? '自動で採用中' : '未選択';
+    const state = pinned ? '固定中' : selected ? `${autoLabel}で採用中` : '未選択';
     return (
       <span
         className={pick ? 'gf-alt-pick' : undefined}
@@ -278,7 +280,7 @@ function AlternativeFractions({ spec, printRendering }: { spec: NonNullable<Grid
         tabIndex={pick ? 0 : undefined}
         aria-pressed={pick ? selected : undefined}
         aria-label={pick ? `${label}（${state}）` : undefined}
-        title={pick ? (pinned ? `${label}に固定中。クリックで自動（低い方）に戻す` : `クリックで${label}に固定`) : undefined}
+        title={pick ? (pinned ? `${label}に固定中。クリックで${autoLabel}に戻す` : `クリックで${label}に固定`) : undefined}
         onClick={pick ? () => pick(which) : undefined}
         onKeyDown={pick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(which); } } : undefined}
         style={{

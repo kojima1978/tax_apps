@@ -91,4 +91,15 @@ describe('consistencyIssues', () => {
     // 表示は第4表の1、データは table4 バケット
     expect(issues.map((i) => `${i.tab}.${i.field}`)).toEqual(['table4_1.f29', 'table4_1.f37']);
   });
+
+  it('ⒸとⒸ₁で年利益金額の採り方が分かれたら、意図した組み合わせかを残す', () => {
+    // ①10,000千円 → ⑤＝200,000株。直前期100千円・直前々期500千円。
+    // 自動どうしでもⒸは単年（低い方）、Ⓒ₁は2年平均（0を避ける方）になり採り方が分かれる。
+    const split = consistencyIssues(makeGetField({ table4: { '①': '10000', e18: '100', e25: '500' } }));
+    expect(split).toHaveLength(1);
+    expect(split[0]).toMatchObject({ tab: 'table4_1', field: 'e18' });
+    expect(split[0]!.message).toContain('別々に選べる');
+    // 同じ側を採っているなら出さない（誤りではないので、分かれたときだけ知らせる）
+    expect(messagesOf({ table4: { '①': '10000', e18: '100', e25: '500', c1_mode: 'single' } })).toEqual([]);
+  });
 });

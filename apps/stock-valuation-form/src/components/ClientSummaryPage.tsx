@@ -756,7 +756,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
             />
           </SectionTools>
           {!forecast.known ? (
-            <div className="summary-sensitivity-empty" role="note">第4表の①資本金等の額と比準要素（Ⓑ・Ⓒ・Ⓓ）を入力すると表示されます。</div>
+            <div className="summary-sensitivity-empty" role="note">第4表の①資本金等の額と判定要素（Ⓑ₁・Ⓒ₁・Ⓓ₁）を入力すると表示されます。</div>
           ) : (
             <>
               <p className="summary-forecast-lead">
