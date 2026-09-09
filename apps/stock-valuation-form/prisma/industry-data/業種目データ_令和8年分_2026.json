@@ -53,6 +53,18 @@
           "month": 4,
           "price": 763,
           "twoYearAveragePrice": 579
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 746,
+          "twoYearAveragePrice": 590
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 727,
+          "twoYearAveragePrice": 601
         }
       ]
     },
@@ -104,6 +116,18 @@
           "month": 4,
           "price": 681,
           "twoYearAveragePrice": 544
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 644,
+          "twoYearAveragePrice": 552
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 607,
+          "twoYearAveragePrice": 558
         }
       ]
     },
@@ -155,6 +179,18 @@
           "month": 4,
           "price": 916,
           "twoYearAveragePrice": 751
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 852,
+          "twoYearAveragePrice": 759
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 811,
+          "twoYearAveragePrice": 767
         }
       ]
     },
@@ -206,6 +242,18 @@
           "month": 4,
           "price": 620,
           "twoYearAveragePrice": 491
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 590,
+          "twoYearAveragePrice": 498
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 554,
+          "twoYearAveragePrice": 503
         }
       ]
     },
@@ -257,6 +305,18 @@
           "month": 4,
           "price": 695,
           "twoYearAveragePrice": 584
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 670,
+          "twoYearAveragePrice": 590
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 659,
+          "twoYearAveragePrice": 595
         }
       ]
     },
@@ -308,6 +368,18 @@
           "month": 4,
           "price": 1000,
           "twoYearAveragePrice": 676
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1029,
+          "twoYearAveragePrice": 698
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1044,
+          "twoYearAveragePrice": 720
         }
       ]
     },
@@ -359,6 +431,18 @@
           "month": 4,
           "price": 1014,
           "twoYearAveragePrice": 649
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1068,
+          "twoYearAveragePrice": 674
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1073,
+          "twoYearAveragePrice": 699
         }
       ]
     },
@@ -410,6 +494,18 @@
           "month": 4,
           "price": 992,
           "twoYearAveragePrice": 691
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1006,
+          "twoYearAveragePrice": 711
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1027,
+          "twoYearAveragePrice": 732
         }
       ]
     },
@@ -461,6 +557,18 @@
           "month": 4,
           "price": 609,
           "twoYearAveragePrice": 491
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 643,
+          "twoYearAveragePrice": 498
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 665,
+          "twoYearAveragePrice": 506
         }
       ]
     },
@@ -512,6 +620,18 @@
           "month": 4,
           "price": 814,
           "twoYearAveragePrice": 730
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 801,
+          "twoYearAveragePrice": 735
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 801,
+          "twoYearAveragePrice": 739
         }
       ]
     },
@@ -563,6 +683,18 @@
           "month": 4,
           "price": 578,
           "twoYearAveragePrice": 530
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 579,
+          "twoYearAveragePrice": 533
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 574,
+          "twoYearAveragePrice": 536
         }
       ]
     },
@@ -614,6 +746,18 @@
           "month": 4,
           "price": 1844,
           "twoYearAveragePrice": 1618
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1757,
+          "twoYearAveragePrice": 1629
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1743,
+          "twoYearAveragePrice": 1639
         }
       ]
     },
@@ -665,6 +809,18 @@
           "month": 4,
           "price": 628,
           "twoYearAveragePrice": 569
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 629,
+          "twoYearAveragePrice": 573
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 634,
+          "twoYearAveragePrice": 576
         }
       ]
     },
@@ -716,6 +872,18 @@
           "month": 4,
           "price": 526,
           "twoYearAveragePrice": 504
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 527,
+          "twoYearAveragePrice": 507
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 546,
+          "twoYearAveragePrice": 510
         }
       ]
     },
@@ -767,6 +935,18 @@
           "month": 4,
           "price": 377,
           "twoYearAveragePrice": 310
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 377,
+          "twoYearAveragePrice": 314
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 374,
+          "twoYearAveragePrice": 319
         }
       ]
     },
@@ -818,6 +998,18 @@
           "month": 4,
           "price": 272,
           "twoYearAveragePrice": 237
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 280,
+          "twoYearAveragePrice": 239
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 286,
+          "twoYearAveragePrice": 241
         }
       ]
     },
@@ -869,6 +1061,18 @@
           "month": 4,
           "price": 481,
           "twoYearAveragePrice": 449
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 471,
+          "twoYearAveragePrice": 452
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 477,
+          "twoYearAveragePrice": 455
         }
       ]
     },
@@ -920,6 +1124,18 @@
           "month": 4,
           "price": 566,
           "twoYearAveragePrice": 465
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 575,
+          "twoYearAveragePrice": 471
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 579,
+          "twoYearAveragePrice": 476
         }
       ]
     },
@@ -971,6 +1187,18 @@
           "month": 4,
           "price": 588,
           "twoYearAveragePrice": 418
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 663,
+          "twoYearAveragePrice": 429
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 669,
+          "twoYearAveragePrice": 439
         }
       ]
     },
@@ -1022,6 +1250,18 @@
           "month": 4,
           "price": 356,
           "twoYearAveragePrice": 301
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 350,
+          "twoYearAveragePrice": 305
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 352,
+          "twoYearAveragePrice": 308
         }
       ]
     },
@@ -1073,6 +1313,18 @@
           "month": 4,
           "price": 811,
           "twoYearAveragePrice": 679
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 746,
+          "twoYearAveragePrice": 686
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 712,
+          "twoYearAveragePrice": 690
         }
       ]
     },
@@ -1124,6 +1376,18 @@
           "month": 4,
           "price": 519,
           "twoYearAveragePrice": 433
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 548,
+          "twoYearAveragePrice": 439
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 566,
+          "twoYearAveragePrice": 445
         }
       ]
     },
@@ -1175,6 +1439,18 @@
           "month": 4,
           "price": 291,
           "twoYearAveragePrice": 248
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 294,
+          "twoYearAveragePrice": 250
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 301,
+          "twoYearAveragePrice": 252
         }
       ]
     },
@@ -1226,6 +1502,18 @@
           "month": 4,
           "price": 837,
           "twoYearAveragePrice": 700
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 836,
+          "twoYearAveragePrice": 706
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 854,
+          "twoYearAveragePrice": 713
         }
       ]
     },
@@ -1277,6 +1565,18 @@
           "month": 4,
           "price": 507,
           "twoYearAveragePrice": 394
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 516,
+          "twoYearAveragePrice": 399
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 530,
+          "twoYearAveragePrice": 404
         }
       ]
     },
@@ -1328,6 +1628,18 @@
           "month": 4,
           "price": 223,
           "twoYearAveragePrice": 197
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 217,
+          "twoYearAveragePrice": 199
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 210,
+          "twoYearAveragePrice": 201
         }
       ]
     },
@@ -1379,6 +1691,18 @@
           "month": 4,
           "price": 626,
           "twoYearAveragePrice": 477
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 642,
+          "twoYearAveragePrice": 483
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 664,
+          "twoYearAveragePrice": 490
         }
       ]
     },
@@ -1430,6 +1754,18 @@
           "month": 4,
           "price": 364,
           "twoYearAveragePrice": 316
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 391,
+          "twoYearAveragePrice": 319
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 404,
+          "twoYearAveragePrice": 323
         }
       ]
     },
@@ -1481,6 +1817,18 @@
           "month": 4,
           "price": 888,
           "twoYearAveragePrice": 434
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 883,
+          "twoYearAveragePrice": 459
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 805,
+          "twoYearAveragePrice": 480
         }
       ]
     },
@@ -1532,6 +1880,18 @@
           "month": 4,
           "price": 546,
           "twoYearAveragePrice": 448
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 616,
+          "twoYearAveragePrice": 456
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 673,
+          "twoYearAveragePrice": 466
         }
       ]
     },
@@ -1583,6 +1943,18 @@
           "month": 4,
           "price": 339,
           "twoYearAveragePrice": 303
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 326,
+          "twoYearAveragePrice": 305
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 320,
+          "twoYearAveragePrice": 307
         }
       ]
     },
@@ -1634,6 +2006,18 @@
           "month": 4,
           "price": 621,
           "twoYearAveragePrice": 500
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 721,
+          "twoYearAveragePrice": 510
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 801,
+          "twoYearAveragePrice": 523
         }
       ]
     },
@@ -1685,6 +2069,18 @@
           "month": 4,
           "price": 746,
           "twoYearAveragePrice": 580
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 785,
+          "twoYearAveragePrice": 592
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 786,
+          "twoYearAveragePrice": 602
         }
       ]
     },
@@ -1736,6 +2132,18 @@
           "month": 4,
           "price": 601,
           "twoYearAveragePrice": 449
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 641,
+          "twoYearAveragePrice": 455
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 692,
+          "twoYearAveragePrice": 463
         }
       ]
     },
@@ -1787,6 +2195,18 @@
           "month": 4,
           "price": 385,
           "twoYearAveragePrice": 324
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 414,
+          "twoYearAveragePrice": 328
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 420,
+          "twoYearAveragePrice": 332
         }
       ]
     },
@@ -1838,6 +2258,18 @@
           "month": 4,
           "price": 665,
           "twoYearAveragePrice": 485
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 708,
+          "twoYearAveragePrice": 492
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 772,
+          "twoYearAveragePrice": 501
         }
       ]
     },
@@ -1889,6 +2321,18 @@
           "month": 4,
           "price": 816,
           "twoYearAveragePrice": 704
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 828,
+          "twoYearAveragePrice": 711
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 821,
+          "twoYearAveragePrice": 717
         }
       ]
     },
@@ -1940,6 +2384,18 @@
           "month": 4,
           "price": 904,
           "twoYearAveragePrice": 706
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1159,
+          "twoYearAveragePrice": 726
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1376,
+          "twoYearAveragePrice": 753
         }
       ]
     },
@@ -1991,6 +2447,18 @@
           "month": 4,
           "price": 908,
           "twoYearAveragePrice": 719
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1178,
+          "twoYearAveragePrice": 744
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1386,
+          "twoYearAveragePrice": 773
         }
       ]
     },
@@ -2042,6 +2510,18 @@
           "month": 4,
           "price": 518,
           "twoYearAveragePrice": 277
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 643,
+          "twoYearAveragePrice": 294
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 676,
+          "twoYearAveragePrice": 312
         }
       ]
     },
@@ -2093,6 +2573,18 @@
           "month": 4,
           "price": 1015,
           "twoYearAveragePrice": 825
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1298,
+          "twoYearAveragePrice": 842
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1576,
+          "twoYearAveragePrice": 871
         }
       ]
     },
@@ -2144,6 +2636,18 @@
           "month": 4,
           "price": 523,
           "twoYearAveragePrice": 405
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 560,
+          "twoYearAveragePrice": 411
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 559,
+          "twoYearAveragePrice": 417
         }
       ]
     },
@@ -2195,6 +2699,18 @@
           "month": 4,
           "price": 475,
           "twoYearAveragePrice": 325
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 507,
+          "twoYearAveragePrice": 335
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 475,
+          "twoYearAveragePrice": 343
         }
       ]
     },
@@ -2246,6 +2762,18 @@
           "month": 4,
           "price": 750,
           "twoYearAveragePrice": 595
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 806,
+          "twoYearAveragePrice": 603
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 825,
+          "twoYearAveragePrice": 611
         }
       ]
     },
@@ -2297,6 +2825,18 @@
           "month": 4,
           "price": 380,
           "twoYearAveragePrice": 306
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 405,
+          "twoYearAveragePrice": 310
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 407,
+          "twoYearAveragePrice": 313
         }
       ]
     },
@@ -2348,6 +2888,18 @@
           "month": 4,
           "price": 529,
           "twoYearAveragePrice": 392
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 526,
+          "twoYearAveragePrice": 400
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 514,
+          "twoYearAveragePrice": 407
         }
       ]
     },
@@ -2399,6 +2951,18 @@
           "month": 4,
           "price": 442,
           "twoYearAveragePrice": 360
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 461,
+          "twoYearAveragePrice": 366
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 450,
+          "twoYearAveragePrice": 370
         }
       ]
     },
@@ -2450,6 +3014,18 @@
           "month": 4,
           "price": 418,
           "twoYearAveragePrice": 351
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 446,
+          "twoYearAveragePrice": 356
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 443,
+          "twoYearAveragePrice": 361
         }
       ]
     },
@@ -2501,6 +3077,18 @@
           "month": 4,
           "price": 562,
           "twoYearAveragePrice": 407
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 534,
+          "twoYearAveragePrice": 413
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 487,
+          "twoYearAveragePrice": 418
         }
       ]
     },
@@ -2552,6 +3140,18 @@
           "month": 4,
           "price": 662,
           "twoYearAveragePrice": 529
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 687,
+          "twoYearAveragePrice": 538
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 690,
+          "twoYearAveragePrice": 546
         }
       ]
     },
@@ -2603,6 +3203,18 @@
           "month": 4,
           "price": 584,
           "twoYearAveragePrice": 492
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 552,
+          "twoYearAveragePrice": 497
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 510,
+          "twoYearAveragePrice": 498
         }
       ]
     },
@@ -2654,6 +3266,18 @@
           "month": 4,
           "price": 773,
           "twoYearAveragePrice": 765
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 765,
+          "twoYearAveragePrice": 768
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 746,
+          "twoYearAveragePrice": 770
         }
       ]
     },
@@ -2705,6 +3329,18 @@
           "month": 4,
           "price": 862,
           "twoYearAveragePrice": 838
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 855,
+          "twoYearAveragePrice": 842
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 837,
+          "twoYearAveragePrice": 846
         }
       ]
     },
@@ -2756,6 +3392,18 @@
           "month": 4,
           "price": 823,
           "twoYearAveragePrice": 819
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 817,
+          "twoYearAveragePrice": 822
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 802,
+          "twoYearAveragePrice": 825
         }
       ]
     },
@@ -2807,6 +3455,18 @@
           "month": 4,
           "price": 1150,
           "twoYearAveragePrice": 1037
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1135,
+          "twoYearAveragePrice": 1045
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1102,
+          "twoYearAveragePrice": 1051
         }
       ]
     },
@@ -2858,6 +3518,18 @@
           "month": 4,
           "price": 621,
           "twoYearAveragePrice": 650
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 612,
+          "twoYearAveragePrice": 650
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 597,
+          "twoYearAveragePrice": 649
         }
       ]
     },
@@ -2909,6 +3581,18 @@
           "month": 4,
           "price": 893,
           "twoYearAveragePrice": 854
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 853,
+          "twoYearAveragePrice": 860
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 775,
+          "twoYearAveragePrice": 862
         }
       ]
     },
@@ -2960,6 +3644,18 @@
           "month": 4,
           "price": 700,
           "twoYearAveragePrice": 658
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 710,
+          "twoYearAveragePrice": 663
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 698,
+          "twoYearAveragePrice": 667
         }
       ]
     },
@@ -3011,6 +3707,18 @@
           "month": 4,
           "price": 540,
           "twoYearAveragePrice": 442
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 533,
+          "twoYearAveragePrice": 448
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 522,
+          "twoYearAveragePrice": 453
         }
       ]
     },
@@ -3062,6 +3770,18 @@
           "month": 4,
           "price": 561,
           "twoYearAveragePrice": 475
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 577,
+          "twoYearAveragePrice": 482
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 575,
+          "twoYearAveragePrice": 489
         }
       ]
     },
@@ -3113,6 +3833,18 @@
           "month": 4,
           "price": 667,
           "twoYearAveragePrice": 516
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 627,
+          "twoYearAveragePrice": 522
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 587,
+          "twoYearAveragePrice": 526
         }
       ]
     },
@@ -3164,6 +3896,18 @@
           "month": 4,
           "price": 460,
           "twoYearAveragePrice": 351
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 445,
+          "twoYearAveragePrice": 357
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 431,
+          "twoYearAveragePrice": 363
         }
       ]
     },
@@ -3215,6 +3959,18 @@
           "month": 4,
           "price": 522,
           "twoYearAveragePrice": 441
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 511,
+          "twoYearAveragePrice": 445
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 509,
+          "twoYearAveragePrice": 449
         }
       ]
     },
@@ -3266,6 +4022,18 @@
           "month": 4,
           "price": 587,
           "twoYearAveragePrice": 516
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 590,
+          "twoYearAveragePrice": 519
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 584,
+          "twoYearAveragePrice": 523
         }
       ]
     },
@@ -3317,6 +4085,18 @@
           "month": 4,
           "price": 1181,
           "twoYearAveragePrice": 753
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1222,
+          "twoYearAveragePrice": 774
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1088,
+          "twoYearAveragePrice": 791
         }
       ]
     },
@@ -3368,6 +4148,18 @@
           "month": 4,
           "price": 357,
           "twoYearAveragePrice": 268
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 374,
+          "twoYearAveragePrice": 274
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 392,
+          "twoYearAveragePrice": 281
         }
       ]
     },
@@ -3419,6 +4211,18 @@
           "month": 4,
           "price": 477,
           "twoYearAveragePrice": 479
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 444,
+          "twoYearAveragePrice": 480
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 439,
+          "twoYearAveragePrice": 480
         }
       ]
     },
@@ -3470,6 +4274,18 @@
           "month": 4,
           "price": 259,
           "twoYearAveragePrice": 235
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 244,
+          "twoYearAveragePrice": 237
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 246,
+          "twoYearAveragePrice": 239
         }
       ]
     },
@@ -3521,6 +4337,18 @@
           "month": 4,
           "price": 416,
           "twoYearAveragePrice": 366
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 399,
+          "twoYearAveragePrice": 370
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 399,
+          "twoYearAveragePrice": 373
         }
       ]
     },
@@ -3572,6 +4400,18 @@
           "month": 4,
           "price": 490,
           "twoYearAveragePrice": 437
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 496,
+          "twoYearAveragePrice": 438
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 489,
+          "twoYearAveragePrice": 439
         }
       ]
     },
@@ -3623,6 +4463,18 @@
           "month": 4,
           "price": 561,
           "twoYearAveragePrice": 515
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 559,
+          "twoYearAveragePrice": 518
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 551,
+          "twoYearAveragePrice": 520
         }
       ]
     },
@@ -3674,6 +4526,18 @@
           "month": 4,
           "price": 471,
           "twoYearAveragePrice": 416
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 478,
+          "twoYearAveragePrice": 416
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 472,
+          "twoYearAveragePrice": 417
         }
       ]
     },
@@ -3725,6 +4589,18 @@
           "month": 4,
           "price": 696,
           "twoYearAveragePrice": 620
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 722,
+          "twoYearAveragePrice": 624
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 729,
+          "twoYearAveragePrice": 629
         }
       ]
     },
@@ -3776,6 +4652,18 @@
           "month": 4,
           "price": 649,
           "twoYearAveragePrice": 590
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 662,
+          "twoYearAveragePrice": 593
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 677,
+          "twoYearAveragePrice": 597
         }
       ]
     },
@@ -3827,6 +4715,18 @@
           "month": 4,
           "price": 769,
           "twoYearAveragePrice": 674
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 835,
+          "twoYearAveragePrice": 679
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 840,
+          "twoYearAveragePrice": 685
         }
       ]
     },
@@ -3878,6 +4778,18 @@
           "month": 4,
           "price": 645,
           "twoYearAveragePrice": 577
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 623,
+          "twoYearAveragePrice": 581
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 621,
+          "twoYearAveragePrice": 584
         }
       ]
     },
@@ -3929,6 +4841,18 @@
           "month": 4,
           "price": 507,
           "twoYearAveragePrice": 449
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 482,
+          "twoYearAveragePrice": 451
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 468,
+          "twoYearAveragePrice": 453
         }
       ]
     },
@@ -3980,6 +4904,18 @@
           "month": 4,
           "price": 708,
           "twoYearAveragePrice": 662
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 697,
+          "twoYearAveragePrice": 666
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 697,
+          "twoYearAveragePrice": 670
         }
       ]
     },
@@ -4031,6 +4967,18 @@
           "month": 4,
           "price": 719,
           "twoYearAveragePrice": 726
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 687,
+          "twoYearAveragePrice": 724
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 687,
+          "twoYearAveragePrice": 722
         }
       ]
     },
@@ -4082,6 +5030,18 @@
           "month": 4,
           "price": 1357,
           "twoYearAveragePrice": 1303
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1343,
+          "twoYearAveragePrice": 1312
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1312,
+          "twoYearAveragePrice": 1320
         }
       ]
     },
@@ -4133,6 +5093,18 @@
           "month": 4,
           "price": 430,
           "twoYearAveragePrice": 431
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 404,
+          "twoYearAveragePrice": 430
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 397,
+          "twoYearAveragePrice": 429
         }
       ]
     },
@@ -4184,6 +5156,18 @@
           "month": 4,
           "price": 566,
           "twoYearAveragePrice": 487
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 578,
+          "twoYearAveragePrice": 493
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 591,
+          "twoYearAveragePrice": 499
         }
       ]
     },
@@ -4235,6 +5219,18 @@
           "month": 4,
           "price": 743,
           "twoYearAveragePrice": 651
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 742,
+          "twoYearAveragePrice": 658
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 763,
+          "twoYearAveragePrice": 666
         }
       ]
     },
@@ -4286,6 +5282,18 @@
           "month": 4,
           "price": 352,
           "twoYearAveragePrice": 371
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 324,
+          "twoYearAveragePrice": 366
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 329,
+          "twoYearAveragePrice": 362
         }
       ]
     },
@@ -4337,6 +5345,18 @@
           "month": 4,
           "price": 865,
           "twoYearAveragePrice": 742
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 870,
+          "twoYearAveragePrice": 752
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 897,
+          "twoYearAveragePrice": 764
         }
       ]
     },
@@ -4388,6 +5408,18 @@
           "month": 4,
           "price": 430,
           "twoYearAveragePrice": 375
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 427,
+          "twoYearAveragePrice": 379
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 411,
+          "twoYearAveragePrice": 382
         }
       ]
     },
@@ -4439,6 +5471,18 @@
           "month": 4,
           "price": 513,
           "twoYearAveragePrice": 425
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 516,
+          "twoYearAveragePrice": 430
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 515,
+          "twoYearAveragePrice": 435
         }
       ]
     },
@@ -4490,6 +5534,18 @@
           "month": 4,
           "price": 327,
           "twoYearAveragePrice": 208
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 339,
+          "twoYearAveragePrice": 215
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 346,
+          "twoYearAveragePrice": 223
         }
       ]
     },
@@ -4541,6 +5597,18 @@
           "month": 4,
           "price": 610,
           "twoYearAveragePrice": 569
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 601,
+          "twoYearAveragePrice": 573
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 592,
+          "twoYearAveragePrice": 576
         }
       ]
     },
@@ -4592,6 +5660,18 @@
           "month": 4,
           "price": 833,
           "twoYearAveragePrice": 765
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 829,
+          "twoYearAveragePrice": 769
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 819,
+          "twoYearAveragePrice": 771
         }
       ]
     },
@@ -4643,6 +5723,18 @@
           "month": 4,
           "price": 605,
           "twoYearAveragePrice": 541
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 585,
+          "twoYearAveragePrice": 545
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 572,
+          "twoYearAveragePrice": 548
         }
       ]
     },
@@ -4694,6 +5786,18 @@
           "month": 4,
           "price": 597,
           "twoYearAveragePrice": 539
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 576,
+          "twoYearAveragePrice": 542
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 557,
+          "twoYearAveragePrice": 546
         }
       ]
     },
@@ -4745,6 +5849,18 @@
           "month": 4,
           "price": 628,
           "twoYearAveragePrice": 550
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 610,
+          "twoYearAveragePrice": 554
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 598,
+          "twoYearAveragePrice": 558
         }
       ]
     },
@@ -4796,6 +5912,18 @@
           "month": 4,
           "price": 587,
           "twoYearAveragePrice": 556
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 573,
+          "twoYearAveragePrice": 557
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 580,
+          "twoYearAveragePrice": 558
         }
       ]
     },
@@ -4847,6 +5975,18 @@
           "month": 4,
           "price": 581,
           "twoYearAveragePrice": 534
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 563,
+          "twoYearAveragePrice": 534
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 552,
+          "twoYearAveragePrice": 535
         }
       ]
     },
@@ -4898,6 +6038,18 @@
           "month": 4,
           "price": 659,
           "twoYearAveragePrice": 806
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 643,
+          "twoYearAveragePrice": 791
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 653,
+          "twoYearAveragePrice": 779
         }
       ]
     },
@@ -4949,6 +6101,18 @@
           "month": 4,
           "price": 397,
           "twoYearAveragePrice": 367
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 389,
+          "twoYearAveragePrice": 369
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 379,
+          "twoYearAveragePrice": 371
         }
       ]
     },
@@ -5000,6 +6164,18 @@
           "month": 4,
           "price": 720,
           "twoYearAveragePrice": 505
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 694,
+          "twoYearAveragePrice": 515
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 672,
+          "twoYearAveragePrice": 525
         }
       ]
     },
@@ -5051,6 +6227,18 @@
           "month": 4,
           "price": 584,
           "twoYearAveragePrice": 392
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 590,
+          "twoYearAveragePrice": 403
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 590,
+          "twoYearAveragePrice": 414
         }
       ]
     },
@@ -5102,6 +6290,18 @@
           "month": 4,
           "price": 833,
           "twoYearAveragePrice": 599
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 782,
+          "twoYearAveragePrice": 609
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 740,
+          "twoYearAveragePrice": 618
         }
       ]
     },
@@ -5153,6 +6353,18 @@
           "month": 4,
           "price": 778,
           "twoYearAveragePrice": 681
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 750,
+          "twoYearAveragePrice": 686
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 733,
+          "twoYearAveragePrice": 690
         }
       ]
     },
@@ -5204,6 +6416,18 @@
           "month": 4,
           "price": 826,
           "twoYearAveragePrice": 722
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 804,
+          "twoYearAveragePrice": 728
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 787,
+          "twoYearAveragePrice": 733
         }
       ]
     },
@@ -5255,6 +6479,18 @@
           "month": 4,
           "price": 351,
           "twoYearAveragePrice": 328
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 348,
+          "twoYearAveragePrice": 329
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 345,
+          "twoYearAveragePrice": 330
         }
       ]
     },
@@ -5306,6 +6542,18 @@
           "month": 4,
           "price": 870,
           "twoYearAveragePrice": 801
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 823,
+          "twoYearAveragePrice": 805
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 823,
+          "twoYearAveragePrice": 808
         }
       ]
     },
@@ -5357,6 +6605,18 @@
           "month": 4,
           "price": 973,
           "twoYearAveragePrice": 803
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 967,
+          "twoYearAveragePrice": 813
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 928,
+          "twoYearAveragePrice": 821
         }
       ]
     },
@@ -5408,6 +6668,18 @@
           "month": 4,
           "price": 530,
           "twoYearAveragePrice": 471
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 473,
+          "twoYearAveragePrice": 472
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 456,
+          "twoYearAveragePrice": 473
         }
       ]
     },
@@ -5459,6 +6731,18 @@
           "month": 4,
           "price": 920,
           "twoYearAveragePrice": 901
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 885,
+          "twoYearAveragePrice": 900
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 878,
+          "twoYearAveragePrice": 899
         }
       ]
     },
@@ -5510,6 +6794,18 @@
           "month": 4,
           "price": 629,
           "twoYearAveragePrice": 572
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 607,
+          "twoYearAveragePrice": 576
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 563,
+          "twoYearAveragePrice": 579
         }
       ]
     },
@@ -5561,6 +6857,18 @@
           "month": 4,
           "price": 1325,
           "twoYearAveragePrice": 1358
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1273,
+          "twoYearAveragePrice": 1351
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1316,
+          "twoYearAveragePrice": 1345
         }
       ]
     },
@@ -5612,6 +6920,18 @@
           "month": 4,
           "price": 715,
           "twoYearAveragePrice": 746
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 714,
+          "twoYearAveragePrice": 744
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 690,
+          "twoYearAveragePrice": 741
         }
       ]
     },
@@ -5663,6 +6983,18 @@
           "month": 4,
           "price": 425,
           "twoYearAveragePrice": 417
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 419,
+          "twoYearAveragePrice": 415
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 408,
+          "twoYearAveragePrice": 414
         }
       ]
     },
@@ -5714,6 +7046,18 @@
           "month": 4,
           "price": 874,
           "twoYearAveragePrice": 801
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 855,
+          "twoYearAveragePrice": 804
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 828,
+          "twoYearAveragePrice": 806
         }
       ]
     },
@@ -5765,6 +7109,18 @@
           "month": 4,
           "price": 1080,
           "twoYearAveragePrice": 1022
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 1050,
+          "twoYearAveragePrice": 1023
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 1039,
+          "twoYearAveragePrice": 1024
         }
       ]
     },
@@ -5816,6 +7172,18 @@
           "month": 4,
           "price": 728,
           "twoYearAveragePrice": 644
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 717,
+          "twoYearAveragePrice": 650
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 680,
+          "twoYearAveragePrice": 653
         }
       ]
     },
@@ -5867,6 +7235,18 @@
           "month": 4,
           "price": 655,
           "twoYearAveragePrice": 574
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "price": 660,
+          "twoYearAveragePrice": 579
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "price": 659,
+          "twoYearAveragePrice": 584
         }
       ]
     }
