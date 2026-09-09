@@ -4,6 +4,7 @@ import { calcTable4 } from '@/components/tables/table4/calcTable4';
 import { calcTable5 } from '@/components/tables/table5/Table5Grid';
 import { calcShareholderJudgment } from '@/components/tables/Table1_1Grid';
 import { forcesSmallCompany, getValuationPurpose } from '@/lib/valuationPurpose';
+import { DEFAULT_ERA } from '@/lib/wareki';
 import type { TableProps } from '@/types/form';
 
 export type SummaryItem = {
@@ -27,12 +28,17 @@ export const RESULT_NAMES: Record<number, string> = {
   4: '開業後3年未満の会社等', 5: '開業前または休業中の会社', 6: '清算中の会社',
 };
 
+/**
+ * 評価基準日（第1表の1の課税時期）の表示。
+ * 元号プルダウンは未選択のままでも令和として表示・計算する取り決めなので、ここでも同じ既定に倒す。
+ * 空を「未入力」にすると、明細書には日付が出ているのにサマリーだけ未入力になる。
+ */
 const eraDate = (getField: TableProps['getField']) => {
-  const era = getField('table1_1', 'f14_g');
+  const era = getField('table1_1', 'f14_g') || DEFAULT_ERA;
   const year = getField('table1_1', 'f14_y');
   const month = getField('table1_1', 'f14_m');
   const day = getField('table1_1', 'f14_d');
-  return era && year && month && day ? `${era}${year}年${month}月${day}日` : '未入力';
+  return year && month && day ? `${era}${year}年${month}月${day}日` : '未入力';
 };
 
 const numberOf = (value: string): number | null => {

@@ -247,6 +247,28 @@ describe('calcClientSummary（お客様向けサマリー）', () => {
     expect(summary.sensitivity.adoptedBlock).toBe('第1業種目');
     expect(summary.sensitivity.items.map((item) => item.value)).toEqual([5, 2.5, 1.25]);
   });
+
+  describe('評価基準日（第1表の1の課税時期）', () => {
+    const dateOf = (over: Record<string, string>) =>
+      calcClientSummary(mkGetField({ table1_1: { f14_y: '7', f14_m: '5', f14_d: '21', ...over } }));
+
+    it('元号プルダウンが未選択でも令和として表示する（明細書側の表示と揃える）', () => {
+      // プルダウンは空欄でも「令和」と出す作りなので、ここで未入力にすると画面どうしで食い違う
+      const summary = dateOf({});
+      expect(summary.valuationDate).toBe('令和7年5月21日');
+      expect(summary.missing).not.toContain('評価基準日');
+    });
+
+    it('元号を明示していればその元号で表示する', () => {
+      expect(dateOf({ f14_g: '平成' }).valuationDate).toBe('平成7年5月21日');
+    });
+
+    it('年月日のどれかが欠けていれば未入力として扱う', () => {
+      const summary = dateOf({ f14_d: '' });
+      expect(summary.valuationDate).toBe('未入力');
+      expect(summary.missing).toContain('評価基準日');
+    });
+  });
 });
 
 describe('calcTable7（第7表の1：第5表との連動）', () => {
