@@ -508,8 +508,9 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
           <b>選択: {selList === 'a' ? '資産' : '負債'}{selR}行目</b>
           <button type="button" onClick={() => moveRow(selList, selR, selR - 1)} disabled={selR <= 1} style={opBtnStyle}>↑上に移動</button>
           <button type="button" onClick={() => moveRow(selList, selR, selR + 1)} disabled={selR >= totalRows} style={opBtnStyle}>↓下に移動</button>
-          <button type="button" onClick={() => insertRow(selList, selR)} style={opBtnStyle}>＋上に挿入</button>
-          <button type="button" onClick={() => insertRow(selList, selR + 1)} style={opBtnStyle}>＋下に挿入</button>
+          {/* 挿入は上方向だけ。行は総行数分が空行で並んでいるので末尾への追加は次の空行に
+              打てば済み、挿入が要るのは既存の行の前へ割り込ませたいときに限られる。 */}
+          <button type="button" onClick={() => insertRow(selList, selR)} title="選択行の上に空行を挿入" style={opBtnStyle}>＋挿入</button>
           <button type="button" onClick={() => deleteRow(selList, selR)} style={{ ...opBtnStyle, color: '#b91c1c', borderColor: '#b91c1c' }}>×削除</button>
           <button type="button" onClick={() => u('_sel', '')} style={opBtnStyle}>〇確定</button>
         </>
