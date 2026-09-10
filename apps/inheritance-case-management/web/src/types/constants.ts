@@ -85,10 +85,11 @@ export const REFERRER_MODE_OPTIONS = [
 
 // Expense description presets
 export const EXPENSE_DESCRIPTION_PRESETS = [
-    "戸籍謄本",
+    "戸籍謄本関係書類",
     "登記簿謄本",
     "固定資産評価証明書",
-    "残高証明書",
-    "取引履歴",
+    "金融機関関係書類",
+    "証券会社関係書類",
+    "保険会社関係書類",
     "交通費",
 ] as const

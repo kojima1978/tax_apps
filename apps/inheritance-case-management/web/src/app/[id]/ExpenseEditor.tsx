@@ -16,11 +16,12 @@ import * as XLSX from "xlsx-js-style"
 
 function exportExpensesExcel(expenses: Expense[], total: number, deceasedName: string, heirs: CaseHeir[]) {
     const partyRows = [
-        ["被相続人", deceasedName],
+        ["立替金明細"],
+        ["被相続人", deceasedName, "様"],
         ...heirs
             .slice()
             .sort((a, b) => a.sortOrder - b.sortOrder)
-            .map(heir => ["相続人", heir.person.name]),
+            .map(heir => ["相続人", heir.person.name, "様"]),
         [],
     ]
     const rows = [
@@ -30,16 +31,28 @@ function exportExpensesExcel(expenses: Expense[], total: number, deceasedName: s
         ["", "合計", total, ""],
     ]
     const worksheet = XLSX.utils.aoa_to_sheet(rows)
-    worksheet["!cols"] = [
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 28 },
-    ]
+    worksheet["!cols"] = [14, 14, 14, 28].map((minimumWidth, column) => {
+        const contentWidth = rows.reduce((maximum, row) => {
+            const value = row[column]
+            const text = typeof value === "number"
+                ? value.toLocaleString("ja-JP")
+                : String(value ?? "")
+            const width = Math.max(...text.split(/\r?\n/).map(line =>
+                Array.from(line).reduce((sum, character) =>
+                    sum + (/^[\u0020-\u007e\uff61-\uff9f]$/.test(character) ? 1 : 2), 0),
+            ))
+            return Math.max(maximum, width)
+        }, 0)
+        return { wch: Math.max(minimumWidth, contentWidth + 4) }
+    })
 
     const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:D1")
     const thinBorder = { style: "thin", color: { rgb: "000000" } }
     const expenseHeaderRow = partyRows.length
+    for (let row = 1; row < partyRows.length - 1; row++) {
+        const honorificCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 2 })]
+        honorificCell.s = { alignment: { horizontal: "left" } }
+    }
     for (let column = 0; column <= 3; column++) {
         const headerCell = worksheet[XLSX.utils.encode_cell({ r: expenseHeaderRow, c: column })]
         if (headerCell) {
@@ -47,7 +60,7 @@ function exportExpensesExcel(expenses: Expense[], total: number, deceasedName: s
         }
         const totalCell = worksheet[XLSX.utils.encode_cell({ r: range.e.r, c: column })]
         if (totalCell) {
-            totalCell.s = { ...totalCell.s, border: { top: thinBorder } }
+            totalCell.s = { ...totalCell.s, border: { top: { style: "double", color: { rgb: "000000" } } } }
         }
     }
     for (let row = expenseHeaderRow + 1; row <= range.e.r; row++) {
