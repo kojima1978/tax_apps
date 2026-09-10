@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { TableId } from '@/types/form';
 import { calcValuationBasis } from '../valuationReport';
-import { calcRetirementSimulation, RETIREMENT_AMOUNT_FIELD } from '../retirementSimulation';
+import { calcRetirementSimulation, RETIREMENT_AMOUNT_FIELD, RETIREMENT_INSURANCE_FIELD } from '../retirementSimulation';
 
-function fixture(amount = '5000') {
+function fixture(amount = '5000', proceeds = '') {
   const data: Partial<Record<TableId, Record<string, string>>> = {
-    table1_1: { '⑤': '1000', '⑥': '1000', '③': '1000', sh_1_5: '1000', [RETIREMENT_AMOUNT_FIELD]: amount },
+    table1_1: {
+      '⑤': '1000', '⑥': '1000', '③': '1000', sh_1_5: '1000',
+      [RETIREMENT_AMOUNT_FIELD]: amount, [RETIREMENT_INSURANCE_FIELD]: proceeds,
+    },
     table1_2: { gyoshu: 'その他', f22: '100000', f24: '5000', emp_regular: '3' },
     table4: { '①': '10000', e18: '10000', e25: '6000', n53: '30000', f28: '1000', f32: '1000', r1sB1: '10', r1sB2: '80', r1sC: '25', r1sD: '100', '㋷': '300' },
     table5: { a_1_1: '普通預金', a_1_2: '100000', a_1_3: '100000' },
@@ -64,6 +67,37 @@ describe('退職金支給後の試算（税軽減なし）', () => {
     expect(result.error).toBeNull();
     expect(result.bases[0]!.netAssetPrice).toBe(95000);
     expect(result.bases[0]!.size).toBe(current.size);
+  });
+  it('保険の解約益はⒸに乗らず、利益積立金額の増加としてだけ比準価額へ効く', () => {
+    const { data, get } = fixture('', '3000');
+    const after = calcRetirementSimulation(get);
+    expect(after.error).toBeNull();
+    // 保険は第5表に解約返戻金相当額で載っている前提なので、純資産価額は現在のまま。
+    expect(after.bases.map((b) => b.netAssetPrice)).toEqual([100000, 100000]);
+    // ⑪と⑫へ同額を立てた結果は、⑱だけ3,000千円増やした現在の評価と一致する。
+    data.table4!.n53 = '33000';
+    expect(after.bases[0]!.comparablePrice).toBe(calcValuationBasis(get, 'inheritance').comparablePrice);
+  });
+  it('⑫非経常的な利益金額の既存入力を上書きせず、解約益を積み増す', () => {
+    const { data, get } = fixture('', '3000');
+    data.table4!.e19 = '2000';
+    const after = calcRetirementSimulation(get);
+    data.table4!.n53 = '33000';
+    expect(after.bases[0]!.comparablePrice).toBe(calcValuationBasis(get, 'inheritance').comparablePrice);
+  });
+  it('解約益はⒸの目減りを埋め合わせず、Ⓓだけを押し戻す', () => {
+    const onlyPay = calcRetirementSimulation(fixture('5000').get);
+    const withGain = calcRetirementSimulation(fixture('5000', '5000').get);
+    // 退職金の損金算入でⒸが下がったぶんは戻らない（解約益は非経常的な利益なのでⒸに乗らない）。
+    // 一方Ⓓは相殺されて元に戻るので、比準価額は解約益のぶんだけ高くなる。
+    expect(withGain.bases[0]!.comparablePrice).toBeGreaterThan(onlyPay.bases[0]!.comparablePrice!);
+    expect(withGain.bases.map((b) => b.netAssetPrice)).toEqual([95000, 95000]);
+  });
+  it('不正な解約益もエラーにし、どちらの欄が原因かを返す', () => {
+    expect(calcRetirementSimulation(fixture('5000', '-1').get)).toMatchObject({
+      bases: [], error: expect.stringContaining('解約益'), errorField: RETIREMENT_INSURANCE_FIELD,
+    });
+    expect(calcRetirementSimulation(fixture('abc', '3000').get).errorField).toBe(RETIREMENT_AMOUNT_FIELD);
   });
   it('続紙の負債を保持し、表示外の古い行を試算へ混入させない', () => {
     const { data, get } = fixture();
