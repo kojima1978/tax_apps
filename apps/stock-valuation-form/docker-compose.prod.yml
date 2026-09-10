@@ -35,8 +35,17 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required for production}@svf-postgres:5432/${POSTGRES_DB:-stock_valuation}?schema=public
     command: ["node", "dist-server/index.js"]
     init: false
-    # `volumes: []` はマージされて base の開発用バインドが残るため !reset で無効化する
-    volumes: !reset []
+    # `volumes:` は既定でマージされ base の開発用バインドが残ってしまう。`!reset` は
+    # 中身を書いても空にされるタグなので、置き換えたいここでは `!override` を使う。
+    # ソースのバインドは落としたまま（本番のコードはイメージ同梱）、業種目データが
+    # ホストと行き来する経路だけ開ける。
+    volumes: !override
+      # 業種目データの原本（Git 管理下）。開けておかないと industry:save の書き戻しが
+      # コンテナの中だけで消え、industry:reseed と起動時シードはイメージへ焼き込まれた
+      # ビルド当時の原本を読む。どちらも成功したように見えるので気づけない。
+      - ./prisma/industry-data:/app/prisma/industry-data
+      # industry:export の書き出しを手元で受け取るための唯一の経路。
+      - ./output:/app/output
     healthcheck:
       test:
         - "CMD-SHELL"
