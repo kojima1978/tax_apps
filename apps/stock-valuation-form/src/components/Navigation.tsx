@@ -3,7 +3,7 @@ import { NAV_TABS, SUMMARY_TAB_ID } from '@/data/constants';
 import type { TableId } from '@/types/form';
 
 interface NavigationProps {
-  /** 表示中のタブ。サマリーを開いている間は SUMMARY_TAB_ID */
+  /** 表示中のタブ（サマリーを開いている間はこのナビごと出さない） */
   activeId: string;
   onSelect: (id: string) => void;
   /** 入力値のある表か（印刷ダイアログと同じ判定） */

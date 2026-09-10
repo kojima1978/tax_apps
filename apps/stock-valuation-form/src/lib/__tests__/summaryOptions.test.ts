@@ -103,7 +103,7 @@ describe('readSummaryOptions（保存値の読み取り）', () => {
 
   it('すべて表示へ戻す欄は全条件を空へ戻す', () => {
     const fields = resetSummaryOptionFields();
-    expect(fields).toHaveLength(13); // セクション8 + 絞り込み5
+    expect(fields).toHaveLength(14); // セクション9 + 絞り込み5
     expect(fields.every((f) => f.value === '')).toBe(true);
     const stored = Object.fromEntries(fields.map((f) => [f.field, f.value]));
     expect(changedOptionCount(readSummaryOptions(mkGetField(stored)))).toBe(0);

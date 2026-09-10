@@ -1,6 +1,7 @@
 import { memo, startTransition, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { MIRRORED_FIELDS, useFormData } from '@/hooks/useFormData';
+import { useHeightVar } from '@/hooks/useHeightVar';
 import { PrintRenderContext } from '@/components/ui/GridForm';
 import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
 import { Table1_2 } from '@/components/tables/table1-2';
@@ -77,6 +78,9 @@ export default function App() {
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
   const { formData, savedAt, getField, updateField, resetAll, exportJson, importJson, rolloverToNextYear } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
+  const topbarRef = useRef<HTMLDivElement>(null);
+  // 帳票の操作帯は上端に貼り付いている。その下へ重ねる帯（サマリー）のために高さを渡す
+  useHeightVar(topbarRef, '--app-topbar-height');
   const printRequestedRef = useRef(false);
   const printAll = printTarget === 'all';
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
@@ -326,13 +330,16 @@ export default function App() {
         横スクロールまたはピンチで拡大縮小できます。
       </div>
 
-      <div className="no-print app-topbar">
-        <Navigation
-          activeId={summaryOpen ? SUMMARY_TAB_ID : activeTab}
-          onSelect={goToNav}
-          hasData={hasData}
-          isJudgmentTarget={isJudgmentTarget}
-        />
+      <div className="no-print app-topbar" ref={topbarRef}>
+        {/* サマリーは帳票の外なので表切替は畳む。戻り口はサマリー側の「帳票入力へ戻る」に一本化する */}
+        {!summaryOpen && (
+          <Navigation
+            activeId={activeTab}
+            onSelect={goToNav}
+            hasData={hasData}
+            isJudgmentTarget={isJudgmentTarget}
+          />
+        )}
 
         <div className="app-toolbar" aria-label="帳票操作">
           {([

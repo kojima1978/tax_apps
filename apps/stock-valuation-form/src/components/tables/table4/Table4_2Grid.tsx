@@ -247,19 +247,41 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
   // 業種目は課税時期の属する年分のものを引く（業種目番号は年分ごとに振り直される）
   const era = getField('table1_1', 'f14_g');
   const eraYear = getField('table1_1', 'f14_y');
-  const linkedIndustryOptions = useMemo(
-    () => industryData
-      .forTaxPeriod({ era, eraYear, month: '' })
-      .similarIndustryOptions([industry1, industry2, industry3]),
-    [industryData, era, eraYear, industry1, industry2, industry3],
+  const industryView = useMemo(
+    () => industryData.forTaxPeriod({ era, eraYear, month: '' }),
+    [industryData, era, eraYear],
   );
+  const linkedIndustryOptions = useMemo(
+    () => industryView.similarIndustryOptions([industry1, industry2, industry3]),
+    [industryView, industry1, industry2, industry3],
+  );
+
+  /*
+    類似業種の候補は「第1表の1で選んだ業種目とその直上の分類」だけに絞ってある（評価通達181）。
+    そのため業種目が未選択だと候補が1件も作れず、プルダウンを開いても「類似業種を選択」しか出ない。
+    黙って空にすると原因が画面のどこにも出ないので、欄そのものに理由を出し、直す場所へ飛べるようにする。
+  */
+  const noChoice = useMemo(() => {
+    if (linkedIndustryOptions.length > 1) return null;
+    return industryView.year === undefined
+      ? { label: 'この年分の業種目データが未登録', jumpTo: undefined }
+      : {
+        label: '第1表の1で業種目を選択',
+        jumpTo: { tab: 'table1_1', field: 'f23', hint: '第1表の1の業種目（評価会社の事業内容）を選ぶと、その業種目と直上の分類が類似業種の候補になります。クリックで第1表の1へ移動します' },
+      };
+  }, [linkedIndustryOptions, industryView]);
+
   const linkedCells = useMemo(
-    () => CELLS.map((cell) => (
-      cell.field === 'r1gyonum' || cell.field === 'r2gyonum'
-        ? { ...cell, options: linkedIndustryOptions }
-        : cell
-    )),
-    [linkedIndustryOptions],
+    () => CELLS.map((cell) => {
+      if (cell.field === 'r1gyonum' || cell.field === 'r2gyonum') {
+        return { ...cell, options: noChoice ? [{ value: '', label: noChoice.label }] : linkedIndustryOptions };
+      }
+      if (noChoice?.jumpTo && (cell.field === 'r1gyo' || cell.field === 'r2gyo')) {
+        return { ...cell, jumpTo: noChoice.jumpTo };
+      }
+      return cell;
+    }),
+    [linkedIndustryOptions, noChoice],
   );
 
   // 類似業種の株価の月は第1表の1の課税時期(f14)の月から導出

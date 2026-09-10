@@ -81,6 +81,25 @@ const EMPTY_SIMILAR_INDUSTRY_METRICS: SimilarIndustryMetricValues = {
   twoYearAverage: '',
 };
 
+/** 西暦の年月。 */
+export interface YearMonth {
+  year: number;
+  month: number;
+}
+
+/**
+ * 月別株価の登録状況。
+ *
+ * 年分が登録されていても月別株価は毎月あとから追加されるので、課税時期が先の月だと
+ * 株価欄だけが黙って空になる。それを画面で説明するために持つ。
+ */
+export interface IndustryPriceCoverage {
+  /** 登録されている最終月。1件も無ければ undefined。 */
+  readonly latest: YearMonth | undefined;
+  /** 課税時期の月・前月・前々月のうち、株価が登録されていない月。月が未入力なら空。 */
+  readonly missing: readonly YearMonth[];
+}
+
 /** ある年分に対する参照ビュー。課税時期の月まで込みで束ねてある。 */
 export interface IndustryYearView {
   /** 参照している年分。データが1件も無ければ undefined。 */
@@ -93,6 +112,8 @@ export interface IndustryYearView {
   similarIndustryOptions(numbers: readonly string[]): SelectOption[];
   /** 第4表の2に転記する公表値。未公表の月は空文字を返す。 */
   metricValues(number: string): SimilarIndustryMetricValues;
+  /** 課税時期の月の株価が引けるか。第4表の2のA欄が空になる理由を出すために使う。 */
+  priceCoverage(): IndustryPriceCoverage;
 }
 
 export interface IndustryDataset {
@@ -164,6 +185,7 @@ const EMPTY_VIEW: IndustryYearView = {
   displayNameOf: () => '',
   similarIndustryOptions: () => [{ value: '', label: '類似業種を選択' }],
   metricValues: () => EMPTY_SIMILAR_INDUSTRY_METRICS,
+  priceCoverage: () => ({ latest: undefined, missing: [] }),
 };
 
 /**
@@ -196,6 +218,27 @@ function createYearView(index: YearIndex, monthRaw: string, exactYear: number | 
     const month = ((taxMonth - 1 - back + 12) % 12) + 1;
     const matches = prices.filter((price) => price.month === month);
     return matches.find((price) => price.year === year.gregorianYear) ?? matches[0];
+  };
+
+  /**
+   * その年分に登録されている月（年月の昇順）。
+   * 月別株価は業種目をまたいで同じ月がそろって入るので、全業種目をまとめて1本の暦として見る。
+   * 全業種目を舐めるので、登録状況を聞かれたときだけ作って使い回す。
+   */
+  let monthsCache: IndustryMonthlyPrice[] | undefined;
+  const registeredMonths = (): IndustryMonthlyPrice[] => {
+    if (monthsCache !== undefined) return monthsCache;
+
+    const byYearMonth = new Map<string, IndustryMonthlyPrice>();
+    for (const category of year.categories) {
+      for (const price of category.monthlyPrices) {
+        const key = `${price.year}-${price.month}`;
+        if (!byYearMonth.has(key)) byYearMonth.set(key, price);
+      }
+    }
+    monthsCache = Array.from(byYearMonth.values())
+      .sort((a, b) => a.year - b.year || a.month - b.month);
+    return monthsCache;
   };
 
   return {
@@ -265,6 +308,21 @@ function createYearView(index: YearIndex, monthRaw: string, exactYear: number | 
           : String(category.previousYearAveragePrice),
         twoYearAverage: String(priceRow(category.monthlyPrices, 0)?.twoYearAveragePrice ?? ''),
       };
+    },
+
+    priceCoverage: () => {
+      const months = registeredMonths();
+      const latest = months[months.length - 1];
+      if (!validMonth) return { latest, missing: [] };
+
+      // 引き方は株価欄と同じ priceRow に任せる。空になる欄と説明がずれないようにするため。
+      const missing = [0, 1, 2]
+        .filter((back) => priceRow(months, back) === undefined)
+        .map((back) => (exactYear !== null
+          ? monthsBefore(exactYear, taxMonth, back)
+          : { year: year.gregorianYear, month: ((taxMonth - 1 - back + 12) % 12) + 1 }));
+
+      return { latest, missing };
     },
   };
 }

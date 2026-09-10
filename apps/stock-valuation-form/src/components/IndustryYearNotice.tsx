@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { YearMonth } from '@/data/industryDataset';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
 import { categoryLabel, industryYearDiffs, type IndustryYearDiff } from '@/lib/industryYearAudit';
 import type { TableId, TableProps } from '@/types/form';
@@ -59,20 +60,39 @@ export function IndustryYearNotice({ getField, updateField, onJump }: Props) {
         </span>
       );
     }
-    return view.year
-      ? (
-        <span className="app-industry-year" title="課税時期の属する年分の業種目・株価を参照しています">
-          業種目 {view.year.label}
-        </span>
-      )
-      : (
-        <span
-          className="app-industry-year is-missing"
-          title="この年分の業種目データが未登録のため、業種目の選択肢と類似業種の株価は空欄になります。業種目データ管理から登録してください"
-        >
-          業種目 未登録
-        </span>
-      );
+    const shown = view.year;
+    if (shown) {
+      const coverage = view.priceCoverage();
+      const wareki = (at: YearMonth) =>
+        `${shown.era}${shown.eraYear + at.year - shown.gregorianYear}年${at.month}月`;
+
+      // 年分は登録済みでも、課税時期の月の株価はまだ公表・登録されていないことがある。
+      // そのときA欄（㋷㋦㋸）だけが黙って空になるので、どの月が無いのかをここで言う。
+      return coverage.missing.length === 0
+        ? (
+          <span className="app-industry-year" title="課税時期の属する年分の業種目・株価を参照しています">
+            業種目 {shown.label}
+          </span>
+        )
+        : (
+          <span
+            className="app-industry-year is-missing"
+            title={`${shown.label}の月別株価は${coverage.latest ? `${wareki(coverage.latest)}分まで` : '未登録'}です。`
+              + `${coverage.missing.map(wareki).join('・')}分が未登録のため、第4表の2の課税時期の属する月・前月・前々月の株価（㋷㋦㋸）とA欄が空欄になります。`
+              + '業種目データ管理から月別株価を登録してください'}
+          >
+            業種目 {shown.label}（{coverage.missing.map((at) => `${at.month}月`).join('・')}分の株価が未登録）
+          </span>
+        );
+    }
+    return (
+      <span
+        className="app-industry-year is-missing"
+        title="この年分の業種目データが未登録のため、業種目の選択肢と類似業種の株価は空欄になります。業種目データ管理から登録してください"
+      >
+        業種目 未登録
+      </span>
+    );
   }
 
   const changeTo = (diff: IndustryYearDiff, number: string) => {

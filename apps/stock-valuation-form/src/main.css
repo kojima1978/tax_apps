@@ -108,6 +108,13 @@
    * 折り返さずに収まる最小幅。これより狭くするとタブ列が横スクロールになる。
    */
   --app-content-width: 1580px;
+
+  /*
+   * 上端に貼り付いている帯の高さ。useHeightVar が実測値で上書きする。
+   * ここの値は描画前の目安（帳票の操作帯1行分、サマリーの帯2行分）。
+   */
+  --app-topbar-height: 46px;
+  --summary-bar-height: 96px;
 }
 
 /*
@@ -2483,6 +2490,19 @@ button.admin-chip:hover {
   .summary-price-group .summary-table-emphasis td { font-size: 17px; }
 }
 
+/* 金額の入力欄。何度も直す場所なので折りたたみの外に置く（印刷は no-print 側で落とす）。 */
+.summary-retirement-inputs {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin: -8px 0 16px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+}
+.summary-retirement-inputs > small { flex-basis: 100%; color: #64748b; font-size: 11px; line-height: 1.7; }
 .summary-retirement-field { display: flex; flex-direction: column; gap: 6px; color: #334155; font-size: 13px; max-width: 100%; }
 .summary-retirement-field input, .summary-retirement-field select { min-height: 40px; max-width: 100%; padding: 6px 10px; border: 1px solid #94a3b8; border-radius: 4px; background: #fff; color: #0f172a; font: inherit; }
 .summary-retirement-field input { width: 160px; text-align: right; }
@@ -2494,7 +2514,34 @@ button.admin-chip:hover {
 .summary-jump-nav button { min-height: 40px; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; color: #334155; background: #f8fafc; font: inherit; font-size: 12px; cursor: pointer; }
 .summary-jump-nav button:hover { background: #eff6ff; border-color: #93c5fd; color: #1e40af; }
 .summary-jump-nav button:focus-visible, .client-summary-wrap button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
-.client-summary-page h2 { scroll-margin-top: 170px; }
+
+/*
+  サマリーは全高が6画面分ほどあるので、戻る・印刷とジャンプナビは上端に残す。
+  ヘッダ（40px）と帳票の操作帯の下に重なるよう位置を取る。背景は .app-shell と同じ色にして
+  下を流れる本文を透かさない。z-index は帳票の操作帯（40）より下で、本文の sticky 要素より上。
+*/
+.client-summary-bar {
+  position: sticky;
+  top: calc(40px + var(--app-topbar-height));
+  z-index: 30;
+  margin: 0 0 14px;
+  padding: 8px 0;
+  background: #e5e5e5;
+}
+.client-summary-bar .client-summary-actions { margin-bottom: 6px; }
+.client-summary-bar .summary-jump-nav { margin: 0; }
+/* .app-main は帳票の横スクロール用に overflow:auto 。これがスクロールコンテナになると
+   中の sticky が効かないので、幅の収まるサマリーを開いている間だけ外す。 */
+.app-root:has(.client-summary-wrap) .app-main { overflow: visible; }
+
+/* 見出しへ飛んだときに固定帯の下へ出す（帯の高さは実測値） */
+.client-summary-page h2 { scroll-margin-top: calc(40px + var(--app-topbar-height) + var(--summary-bar-height) + 8px); }
+
+/* この幅から下は .app-topbar 自体が static なので、帯も普通に流す */
+@media screen and (max-width: 800px) {
+  .client-summary-bar { position: static; padding: 0; }
+  .client-summary-page h2 { scroll-margin-top: 48px; }
+}
 @media screen and (max-width: 700px) {
   .app-root:has(.client-summary-wrap) .app-header { position: static; height: auto; min-height: 44px; flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
   .app-root:has(.client-summary-wrap) .app-home-link { flex-shrink: 0; white-space: nowrap; min-height: 36px; }

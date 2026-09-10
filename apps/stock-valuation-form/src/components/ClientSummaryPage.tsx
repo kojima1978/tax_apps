@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { RetirementSimulation } from './RetirementSimulation';
+import { useHeightVar } from '@/hooks/useHeightVar';
 import { calcClientSummary } from '@/lib/clientSummary';
 import { calcNextYearForecast, type ElementForecast } from '@/lib/nextYearForecast';
 import {
@@ -356,6 +357,25 @@ function BasisOptions({ name, options, setOption }: { name: string; options: Sum
   );
 }
 
+/**
+ * 折りたたんだままでも何を選んでいるか分かるよう、見出しに現在の設定を添える。
+ * 設定を持たないセクションは既定の「出力する」だけなので、ここには書かない。
+ */
+/** 評価ベースと併記の設定は株価一覧・株主ごとの評価・条件別の試算で共有している。 */
+const basisSummary = (options: SummaryOptions) => [
+  BASIS_FILTERS.find((item) => item.value === options.basis)?.label,
+  options.showZeroProfit ? '利益0を併記' : null,
+  isAssumedProfitVisible(options) ? `利益${options.assumedProfit!.toLocaleString('ja-JP')}千円を併記` : null,
+].filter(Boolean).join(' ／ ');
+
+const SECTION_SUMMARY: Partial<Record<SummarySectionKey, (options: SummaryOptions) => string>> = {
+  prices: basisSummary,
+  holders: basisSummary,
+  scenarios: basisSummary,
+  actions: (options) => `優先度：${ACTION_FILTERS.find((item) => item.value === options.actionFilter)?.label}`,
+  forecast: (options) => (options.showForecastDetail ? '必要水準の明細あり' : '必要水準の明細なし'),
+};
+
 /** 見出しの直下に置く出力条件の行。印刷には出ない */
 function SectionTools({ sectionKey, options, setOption, children }: {
   sectionKey: SummarySectionKey;
@@ -366,13 +386,7 @@ function SectionTools({ sectionKey, options, setOption, children }: {
   return (
     <details className="summary-settings no-print">
       <summary>表示・印刷設定<span>
-        {sectionKey === 'prices' || sectionKey === 'holders'
-          ? [BASIS_FILTERS.find((item) => item.value === options.basis)?.label,
-            options.showZeroProfit ? '利益0を併記' : null,
-            isAssumedProfitVisible(options) ? `利益${options.assumedProfit!.toLocaleString('ja-JP')}千円を併記` : null].filter(Boolean).join(' ／ ')
-          : sectionKey === 'actions' ? `優先度：${ACTION_FILTERS.find((item) => item.value === options.actionFilter)?.label}`
-          : sectionKey === 'forecast' ? (options.showForecastDetail ? '必要水準の明細あり' : '必要水準の明細なし')
-          : '出力する'}
+        {SECTION_SUMMARY[sectionKey]?.(options) ?? '出力する'}
       </span></summary>
     <div className="summary-section-tools">
       <OptionCheck
@@ -455,6 +469,9 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
   const actions = filterActions(summary.actions, options.actionFilter);
   const availableSensitivity = summary.sensitivity.items.filter((item) => item.value !== null);
   const changedCount = changedOptionCount(options);
+  const barRef = useRef<HTMLDivElement>(null);
+  // 見出しへ飛んだときに帯の下へ出るよう、帯の高さを scroll-margin の計算へ渡す
+  useHeightVar(barRef, '--summary-bar-height');
 
   const renderPriceGroup = (group: typeof PRICE_GROUPS[number]) => {
             if (group.key === 'zero' && !options.showZeroProfit) return null;
@@ -513,48 +530,53 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
 
   return (
     <div className="client-summary-wrap">
-      <div className="client-summary-actions no-print">
-        <button type="button" onClick={onBack} className="summary-back-button">帳票入力へ戻る</button>
-        {changedCount > 0 && (
-          <span className="summary-options-reset">
-            <span className="summary-options-badge">{changedCount}件を既定から変更</span>
-            <button
-              type="button"
-              onClick={() => resetSummaryOptionFields().forEach(({ field, value }) => setOption(field, value))}
-            >
-              すべて出力に戻す
-            </button>
-          </span>
-        )}
-        <button type="button" onClick={onPrint} className="summary-print-button"><Icon name="print" />このサマリーを印刷</button>
+      {/*
+        6画面分ほどの縦長さがあるので、戻る・印刷とジャンプナビは1本の帯にまとめて上端へ貼り付ける。
+        帳票の操作帯（.app-topbar）の真下に重ねるので、帯自身の高さも見出しのスクロール位置用に実測して渡す。
+      */}
+      <div className="client-summary-bar no-print" ref={barRef}>
+        <div className="client-summary-actions">
+          <button type="button" onClick={onBack} className="summary-back-button">帳票入力へ戻る</button>
+          {changedCount > 0 && (
+            <span className="summary-options-reset">
+              <span className="summary-options-badge">{changedCount}件を既定から変更</span>
+              <button
+                type="button"
+                onClick={() => resetSummaryOptionFields().forEach(({ field, value }) => setOption(field, value))}
+              >
+                すべて出力に戻す
+              </button>
+            </span>
+          )}
+          <button type="button" onClick={onPrint} className="summary-print-button"><Icon name="print" />このサマリーを印刷</button>
+        </div>
+        <nav className="summary-jump-nav" aria-label="サマリー内の移動">
+          {([
+            ['prices', 'summary-prices-title', '現在の評価額'],
+            ['holders', 'summary-holders-title', '株主ごとの評価'],
+            ['scenarios', 'summary-scenarios-title', '条件別の試算'],
+            ['retirement', 'summary-retirement-title', '退職金の試算'],
+            ['sensitivity', 'summary-sensitivity-title', '比準要素の影響'],
+            ['sizes', 'summary-sizes-title', '会社規模別'],
+            ['forecast', 'summary-forecast-title', '来期の見通し'],
+            ['actions', 'summary-actions-title', '次の一手'],
+            ['note', 'summary-note-title', 'コメント'],
+          ] as const).filter(([key]) => options.sections[key]).map(([, id, label]) => (
+            <button type="button" key={id} onClick={() => {
+              const target = document.getElementById(id);
+              if (!target) return;
+              target.setAttribute('tabindex', '-1');
+              target.focus({ preventScroll: true });
+              target.scrollIntoView({ block: 'start', behavior: 'auto' });
+            }}>{label}</button>
+          ))}
+        </nav>
       </div>
 
       {/* 出力条件は各見出しの下に置く。設定は案件データ（第1表の1）に保存されるので、保存/読込・翌年度更新にも引き継がれる */}
       <p className="summary-options-hint no-print">
         各項目の「表示・印刷設定」を開くと、出力内容を変更できます。設定は案件データに保存されます。
       </p>
-
-      <nav className="summary-jump-nav no-print" aria-label="サマリー内の移動">
-        {([
-          ['prices', 'summary-prices-title', '現在の評価額'],
-          ['holders', 'summary-holders-title', '株主ごとの評価'],
-          ['prices', 'summary-scenarios-title', '条件別の試算'],
-          ['retirement', 'summary-retirement-title', '退職金の試算'],
-          ['sensitivity', 'summary-sensitivity-title', '比準要素の影響'],
-          ['sizes', 'summary-sizes-title', '会社規模別'],
-          ['forecast', 'summary-forecast-title', '来期の見通し'],
-          ['actions', 'summary-actions-title', '次の一手'],
-          ['note', 'summary-note-title', 'コメント'],
-        ] as const).filter(([key]) => options.sections[key]).map(([, id, label]) => (
-          <button type="button" key={id} onClick={() => {
-            const target = document.getElementById(id);
-            if (!target) return;
-            target.setAttribute('tabindex', '-1');
-            target.focus({ preventScroll: true });
-            target.scrollIntoView({ block: 'start', behavior: 'auto' });
-          }}>{label}</button>
-        ))}
-      </nav>
 
       <article className="client-summary-page" aria-labelledby="client-summary-title">
         <header className="summary-hero">
@@ -584,7 +606,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           </div>
           <SectionTools sectionKey="prices" options={options} setOption={setOption}>
             <BasisOptions name="summary-basis-prices" options={options} setOption={setOption} />
-            <small>評価ベース・「利益0の場合」・想定利益は株主ごとの評価にも反映されます。</small>
+            <small>評価ベース・「利益0の場合」・想定利益は株主ごとの評価・条件を変えた評価額にも反映されます。</small>
           </SectionTools>
           {PRICE_GROUPS.filter((group) => group.key === 'current').map(renderPriceGroup)}
         </section>
@@ -601,7 +623,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           </div>
           <SectionTools sectionKey="holders" options={options} setOption={setOption}>
             <BasisOptions name="summary-basis-holders" options={options} setOption={setOption} />
-            <small>評価ベース・「利益0の場合」・想定利益は株価一覧にも反映されます。</small>
+            <small>評価ベース・「利益0の場合」・想定利益は株価一覧・条件を変えた評価額にも反映されます。</small>
           </SectionTools>
           {report.shareholders.length ? (
             <div className="summary-table-scroll">
@@ -635,21 +657,34 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
           ) : (
             <div className="summary-sensitivity-empty" role="note">第1表の1に株主を入力すると表示されます。</div>
           )}
+          {/* 株主行はあっても株式数が空だと金額列が全行「算定未完了」になるので、何を入れれば埋まるかを言う */}
+          {report.shareholders.length > 0 && report.shareholders.every((row) => row.shares === null) && (
+            <p className="summary-price-group-note no-print">
+              株式数が未入力のため、金額はすべて「算定未完了」になっています。第1表の1の株主欄に各株主の株式数を入力してください。
+            </p>
+          )}
           <p className="summary-sensitivity-disclaimer">
             各行の株主を納税義務者とみなして株主判定をやり直した結果です。議決権割合5％未満の株主は、役員該当性や中心的な同族株主の有無により方式が変わるため「要確認」として両方の金額を表示しています。
           </p>
         </section>
         ) : <HiddenSection sectionKey="holders" setOption={setOption} />}
 
-        {options.sections.prices && (
+        {options.sections.scenarios ? (
           <section className="summary-prices" aria-labelledby="summary-scenarios-title">
             <div className="summary-sensitivity-heading">
-              <h2 id="summary-scenarios-title">条件を変えた評価額</h2>
+              <div>
+                <small>VALUATION SCENARIOS</small>
+                <h2 id="summary-scenarios-title">条件を変えた評価額</h2>
+              </div>
               <span>1株当たり</span>
             </div>
+            <SectionTools sectionKey="scenarios" options={options} setOption={setOption}>
+              <small>評価ベース・「利益0の場合」・想定利益の切替は株価一覧の設定で行います。</small>
+            </SectionTools>
             {PRICE_GROUPS.filter((group) => group.key !== 'current').map(renderPriceGroup)}
           </section>
-        )}
+        ) : <HiddenSection sectionKey="scenarios" setOption={setOption} />}
+
         {options.sections.retirement ? (
           <RetirementSimulation getField={getField} updateField={updateField} basis={options.basis} before={report.bases}
             onHide={() => setOption(sectionField('retirement'), toStoredFlag(false))} />
@@ -658,7 +693,10 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
         {options.sections.sensitivity ? (
         <section className="summary-sensitivity" aria-labelledby="summary-sensitivity-title">
           <div className="summary-sensitivity-heading">
-            <h2 id="summary-sensitivity-title">類似業種比準要素｜1円当たりの影響度</h2>
+            <div>
+              <small>SENSITIVITY PER YEN</small>
+              <h2 id="summary-sensitivity-title">類似業種比準要素｜1円当たりの影響度</h2>
+            </div>
             <span>{summary.sensitivity.adoptedBlock}を基準</span>
           </div>
           <SectionTools sectionKey="sensitivity" options={options} setOption={setOption} />

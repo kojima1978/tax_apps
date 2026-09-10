@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo } from 'react';
 import type { TableProps } from '@/types/form';
 import type { ValuationBasis } from '@/lib/valuationReport';
 import { filterBases, formatAssumedProfit, type BasisFilter } from '@/lib/summaryOptions';
@@ -24,37 +24,39 @@ const AMOUNT_FIELDS: { field: string; label: string; placeholder: string }[] = [
 
 export function RetirementSimulation({ getField, updateField, basis, before, onHide }: Props) {
   const texts = AMOUNT_FIELDS.map((item) => getField('table1_1', item.field));
-  const [settingsOpen, setSettingsOpen] = useState(() => texts.every((text) => !text));
   const errorId = useId();
   const result = useMemo(() => calcRetirementSimulation(getField), [getField]);
   const ready = result.bases.length > 0;
   const set = (field: string, value: string) => updateField('table1_1', field, value);
-  const headline = ready
-    ? [`支給額 ${sen(result.amount)}`, ...(result.proceeds ? [`解約益 ${sen(result.proceeds)}`] : []), '税軽減なし'].join(' ／ ')
-    : '退職金額・解約益を入力してください';
   return (
     <section className={`summary-retirement summary-prices${ready ? '' : ' no-print'}`} aria-labelledby="summary-retirement-title">
       <div className="summary-sensitivity-heading">
-        <h2 id="summary-retirement-title">退職金支給後のシミュレーション</h2>
+        <div>
+          <small>RETIREMENT PAYOUT</small>
+          <h2 id="summary-retirement-title">退職金支給後のシミュレーション</h2>
+        </div>
         <span>1株当たり</span>
       </div>
-      <details className="summary-settings no-print" open={settingsOpen} onToggle={(event) => setSettingsOpen(event.currentTarget.open)}>
-        <summary>表示・印刷設定<span>{headline}</span></summary>
+      <details className="summary-settings no-print">
+        <summary>表示・印刷設定<span>出力する</span></summary>
         <div className="summary-section-tools">
           <label className="summary-option"><input type="checkbox" checked onChange={onHide} />出力する</label>
-          {AMOUNT_FIELDS.map((item, index) => {
-            const invalid = result.errorField === item.field;
-            return (
-              <label className="summary-retirement-field" key={item.field}>{item.label}
-                <input aria-label={item.label} inputMode="numeric" value={texts[index]}
-                  onChange={(event) => set(item.field, formatAssumedProfit(event.target.value))}
-                  aria-invalid={invalid} aria-describedby={invalid ? errorId : undefined} placeholder={item.placeholder} />
-              </label>
-            );
-          })}
-          <small>帳票にまだ反映していない金額を入力してください。解約益は解約返戻金から資産計上額（保険積立金）を差し引いた雑収入で、全額損金型なら返戻金の全額です。支払原資・現預金残高は考慮しません。</small>
         </div>
       </details>
+      {/* 金額を直すたびに開き直さないよう、入力欄は折りたたみの外に出す（印刷には乗せない） */}
+      <div className="summary-retirement-inputs no-print">
+        {AMOUNT_FIELDS.map((item, index) => {
+          const invalid = result.errorField === item.field;
+          return (
+            <label className="summary-retirement-field" key={item.field}>{item.label}
+              <input aria-label={item.label} inputMode="numeric" value={texts[index]}
+                onChange={(event) => set(item.field, formatAssumedProfit(event.target.value))}
+                aria-invalid={invalid} aria-describedby={invalid ? errorId : undefined} placeholder={item.placeholder} />
+            </label>
+          );
+        })}
+        <small>帳票にまだ反映していない金額を入力してください。解約益は解約返戻金から資産計上額（保険積立金）を差し引いた雑収入で、全額損金型なら返戻金の全額です。支払原資・現預金残高は考慮しません。</small>
+      </div>
       {result.error && <p id={errorId} className="summary-retirement-error no-print" role="alert">{result.error}</p>}
       {texts.every((text) => !text) && <p className="summary-price-group-note no-print">支給額を入力すると、支給後の評価額を表示します。</p>}
       {ready && <>
