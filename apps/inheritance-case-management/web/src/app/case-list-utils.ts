@@ -17,6 +17,7 @@ const KPI_CARD_STATUS_VALUES: readonly string[] = [ONGOING_STATUS, COMPLETED_STA
 // KPI集計に渡さない絞り込みキー（カードの数値を互いに独立させる）
 const KPI_QUICK_FILTER_KEYS = [
     "deadlineSoon",
+    "deadlineOverdue",
     "caseAddedFrom",
     "caseAddedTo",
     "caseCompletedFrom",
@@ -24,16 +25,17 @@ const KPI_QUICK_FILTER_KEYS = [
 ] as const
 
 // 各KPIカードが占有するクエリパラメータ。カード切替時はこの範囲だけを解除する
-type KpiCardFilterKeys = "status" | "hideClosed" | "deadlineSoon" | "caseAddedFrom" | "caseAddedTo" | "caseCompletedFrom" | "caseCompletedTo"
+type KpiCardFilterKeys = "status" | "hideClosed" | "deadlineSoon" | "deadlineOverdue" | "caseAddedFrom" | "caseAddedTo" | "caseCompletedFrom" | "caseCompletedTo"
 const KPI_CARD_OWNED_KEYS: Record<KPICardFilterKey, readonly KpiCardFilterKeys[]> = {
     total: ["hideClosed"],
     ongoing: ["status", "hideClosed"],
     completed: ["status", "hideClosed"],
     deadlineSoon: ["deadlineSoon", "hideClosed"],
+    deadlineOverdue: ["deadlineOverdue", "hideClosed"],
     addedThisMonth: ["caseAddedFrom", "caseAddedTo", "hideClosed"],
     completedThisMonth: ["caseCompletedFrom", "caseCompletedTo", "hideClosed"],
 }
-const BOOLEAN_FILTER_KEYS = ["unassigned", "noReferrer", "deadlineSoon"] as const
+const BOOLEAN_FILTER_KEYS = ["unassigned", "noReferrer", "deadlineSoon", "deadlineOverdue"] as const
 const NUMBER_FILTER_KEYS = ["assigneeId", "internalReferrerId", "staffId", "fiscalYear"] as const
 
 type FilterOnlyQueryParams = Omit<CasesQueryParams, "page" | "pageSize" | "sortBy" | "sortOrder">
@@ -66,6 +68,7 @@ export function getThisMonthRange(): { from: string; to: string } {
 export function getActiveKpiFilter(params: CasesQueryParams): KPICardFilterKey | null {
     if (params.status === ONGOING_STATUS) return "ongoing"
     if (params.status === COMPLETED_STATUS_CSV) return "completed"
+    if (params.deadlineOverdue) return "deadlineOverdue"
     if (params.deadlineSoon) return "deadlineSoon"
     const { from, to } = getThisMonthRange()
     if (params.caseAddedFrom === from && params.caseAddedTo === to) return "addedThisMonth"
@@ -79,6 +82,7 @@ function getKpiCardFilterPatch(filter: KPICardFilterKey): Partial<CasesQueryPara
     switch (filter) {
         // 総案件数・期限間近・当月追加/完了はKPIの集計条件に合わせ、終了案件も含めて数える
         case "total": return { hideClosed: false }
+        case "deadlineOverdue": return { deadlineOverdue: true, hideClosed: false }
         case "deadlineSoon": return { deadlineSoon: true, hideClosed: false }
         case "addedThisMonth": return { caseAddedFrom: from, caseAddedTo: to, hideClosed: false }
         case "completedThisMonth": return { caseCompletedFrom: from, caseCompletedTo: to, hideClosed: false }
@@ -176,6 +180,7 @@ export function toCaseListUrlSearch(params: CasesQueryParams): string {
     if (params.unassigned) sp.set("unassigned", "true")
     if (params.noReferrer) sp.set("noReferrer", "true")
     if (params.deadlineSoon) sp.set("deadlineSoon", "true")
+    if (params.deadlineOverdue) sp.set("deadlineOverdue", "true")
     for (const key of DATE_FILTER_KEYS) {
         if (params[key]) sp.set(key, params[key])
     }
@@ -186,6 +191,7 @@ export function toCaseListUrlSearch(params: CasesQueryParams): string {
 }
 
 export function parseCaseListFilterValue(key: keyof CasesQueryParams, value: string | undefined) {
+    if (key === "hideClosed") return value === "true"
     if ((BOOLEAN_FILTER_KEYS as readonly string[]).includes(key)) {
         return value === "true" ? true : undefined
     }

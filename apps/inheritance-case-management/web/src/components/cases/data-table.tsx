@@ -26,6 +26,8 @@ import { CaseMobileList } from "./CaseMobileList"
 
 interface DataTableProps {
     columns: ColumnDef<CaseListItem>[]
+    selectedIds: Set<number>
+    onToggleSelected: (id: number) => void
     data: CaseListItem[]
     hasFilters?: boolean
     onClearFilters?: () => void
@@ -39,6 +41,8 @@ function getResponsiveColumnClass(columnId: string): string {
 function DataTableComponent({
     columns,
     data,
+    selectedIds,
+    onToggleSelected,
     hasFilters,
     onClearFilters,
 }: DataTableProps) {
@@ -69,9 +73,9 @@ function DataTableComponent({
 
     return (
         <div className="w-full">
-            {rows.length > 0 && <CaseMobileList data={data} />}
+            {rows.length > 0 && <CaseMobileList data={data} selectedIds={selectedIds} onToggleSelected={onToggleSelected} />}
             {rows.length === 0 && <div className="rounded-xl border md:hidden">{emptyState}</div>}
-            <div className="hidden w-full overflow-x-auto rounded-md border md:block">
+            <div className="hidden w-full overflow-x-auto rounded-md border bg-white md:block">
                 <Table className="w-full min-w-[920px] table-fixed text-xs">
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
@@ -101,7 +105,7 @@ function DataTableComponent({
                                 return (
                                 <TableRow
                                     key={row.id}
-                                    data-state={row.getIsSelected() && "selected"}
+                                    data-state={selectedIds.has(caseRow.id) ? "selected" : undefined}
                                     className={cn(
                                         index % 2 === 1 && "bg-muted/30",
                                         isEnded && "opacity-50"

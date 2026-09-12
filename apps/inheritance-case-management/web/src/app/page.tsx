@@ -22,8 +22,6 @@ import {
     calculateCaseListAmountTotals,
     CASE_LIST_PAGE_SIZE,
     getActiveKpiFilter,
-    getCaseListFilterDescription,
-    getCaseListFilters,
     getCaseListKpiFilters,
     getHasCaseFilters,
     parseCaseListFilterValue,
@@ -73,6 +71,19 @@ function InheritanceMockupPageContent() {
     const [showBulkDelete, setShowBulkDelete] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const cases = data?.data ?? EMPTY_CASES
+    const [selection, setSelection] = useState<{ data: typeof data; ids: Set<number> }>({ data: undefined, ids: new Set() })
+    // A newly fetched result clears selection, preventing hidden/stale targets.
+    const selectedIds = useMemo(() => selection.data === data ? selection.ids : new Set<number>(), [selection, data])
+    const onToggleSelected = useCallback((id: number) => {
+        setSelection(prev => {
+            const ids = new Set(prev.data === data ? prev.ids : [])
+            if (ids.has(id)) ids.delete(id); else ids.add(id)
+            return { data, ids }
+        })
+    }, [data])
+    const allSelected = cases.length > 0 && cases.every(c => selectedIds.has(c.id))
+    const onToggleAll = useCallback(() => setSelection({ data, ids: allSelected ? new Set() : new Set(cases.map(c => c.id)) }), [data, cases, allSelected])
+    const [deleteTargets, setDeleteTargets] = useState<CaseListItem[]>([])
     const pagination = data?.pagination
     const amountSort = queryParams.sortBy === "bestAmount" ? queryParams.sortOrder ?? "asc" : null
 
@@ -92,8 +103,8 @@ function InheritanceMockupPageContent() {
     const amountTotals = useMemo(() => calculateCaseListAmountTotals(cases), [cases])
     const rowNumberOffset = ((queryParams.page || 1) - 1) * (queryParams.pageSize || CASE_LIST_PAGE_SIZE)
     const tableColumns = useMemo(
-        () => createColumns({ amountSort, toggleAmountSort, rowNumberOffset }),
-        [amountSort, toggleAmountSort, rowNumberOffset]
+        () => createColumns({ amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll }),
+        [amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll]
     )
 
     const dataVersion = data?.pagination?.total
@@ -133,7 +144,8 @@ function InheritanceMockupPageContent() {
     const handleBulkDelete = useCallback(async () => {
         setIsDeleting(true)
         try {
-            await bulkDeleteCases(getCaseListFilters(queryParams))
+            await bulkDeleteCases(deleteTargets.map(c => c.id))
+            setSelection({ data: undefined, ids: new Set() })
             setShowBulkDelete(false)
             void refetch()
             void refetchKpis()
@@ -142,22 +154,17 @@ function InheritanceMockupPageContent() {
         } finally {
             setIsDeleting(false)
         }
-    }, [queryParams, refetch, refetchKpis, toast])
-
-    const filterDescription = useMemo(
-        () => getCaseListFilterDescription(queryParams, assignees),
-        [queryParams, assignees]
-    )
+    }, [deleteTargets, refetch, refetchKpis, toast])
 
     return (
-        <div className="container mx-auto max-w-[1600px] px-3 py-6 lg:px-4">
-            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <div className="case-workspace mx-auto min-h-screen max-w-[1600px] px-3 py-4 lg:px-6">
+            <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
                 <h1 className="text-xl font-bold">相続税申告案件一覧</h1>
                 <CaseListToolbar
                     isFetching={isFetching}
                     isExporting={isExporting}
                     hasFilters={hasFilters}
-                    totalCount={pagination?.total}
+                    selectedCount={selectedIds.size}
                     onRefresh={() => {
                         void refetch()
                         void refetchKpis()
@@ -166,13 +173,17 @@ function InheritanceMockupPageContent() {
                     onExport={() => {
                         void exportCSV(hasFilters ? queryParams : undefined)
                     }}
-                    onBulkDelete={() => setShowBulkDelete(true)}
+                    onBulkDelete={() => {
+                        setDeleteTargets(cases.filter(c => selectedIds.has(c.id)))
+                        setShowBulkDelete(true)
+                    }}
                 />
             </div>
 
             {kpiData && (
                 <KPICards
                     data={kpiData}
+                    scopeLabel={queryParams.fiscalYear ? `${queryParams.fiscalYear}年度` : queryParams.fiscalYears ? `${queryParams.fiscalYears.replaceAll(",", "・")}年度` : "全年度"}
                     activeFilter={activeKpiFilter}
                     onFilterClick={handleKpiFilterClick}
                 />
@@ -191,12 +202,18 @@ function InheritanceMockupPageContent() {
                 hasFilters={hasFilters}
             />
 
+            {selectedIds.size > 0 && <div className="mb-2 flex items-center gap-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900" aria-live="polite">
+                <span>{selectedIds.size}件を選択中</span>
+                <button type="button" className="min-h-11 px-2 underline" onClick={() => setSelection({ data, ids: new Set() })}>選択を解除</button>
+            </div>}
             <CaseListTableSection
                 isLoading={isLoading}
                 isError={isError}
                 error={error}
                 isFetching={isFetching}
                 cases={cases}
+                selectedIds={selectedIds}
+                onToggleSelected={onToggleSelected}
                 columns={tableColumns}
                 hasFilters={hasFilters}
                 amountTotals={amountTotals}
@@ -221,8 +238,8 @@ function InheritanceMockupPageContent() {
                 isOpen={showBulkDelete}
                 onClose={() => setShowBulkDelete(false)}
                 onConfirm={handleBulkDelete}
-                totalCount={pagination?.total ?? 0}
-                filterDescription={filterDescription}
+                totalCount={deleteTargets.length}
+                filterDescription={deleteTargets.map(c => c.deceasedName).join("、")}
                 isDeleting={isDeleting}
             />
         </div>

@@ -18,6 +18,10 @@ interface ColumnOptions {
     amountSort: "asc" | "desc" | null
     toggleAmountSort: () => void
     rowNumberOffset: number
+    selectedIds: Set<number>
+    onToggleSelected: (id: number) => void
+    allSelected: boolean
+    onToggleAll: () => void
 }
 
 function formatCompactWareki(date: string | Date): string {
@@ -77,8 +81,13 @@ function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onT
     )
 }
 
-export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }: ColumnOptions): ColumnDef<CaseListItem>[] {
+export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll }: ColumnOptions): ColumnDef<CaseListItem>[] {
     return [
+    {
+        id: "select", size: 32,
+        header: () => <label className="flex min-h-11 min-w-9 items-center justify-center"><input type="checkbox" aria-label="このページの案件をすべて選択" checked={allSelected} onChange={onToggleAll} className="h-4 w-4 accent-blue-700" /></label>,
+        cell: ({ row }) => <label className="flex min-h-11 min-w-9 items-center justify-center"><input type="checkbox" aria-label={`${row.original.deceasedName}様の案件を選択`} checked={selectedIds.has(row.original.id)} onChange={() => onToggleSelected(row.original.id)} className="h-4 w-4 accent-blue-700" /></label>,
+    },
     // ── 操作列：狭い画面でも常に左端に表示 ─────────────────────
     {
         id: "actions",
@@ -140,7 +149,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
     {
         accessorKey: "dateOfDeath",
         size: 145,
-        header: ({ column }) => <SortableHeader column={column}>日付</SortableHeader>,
+        header: ({ column }) => <SortableHeader column={column}>申告期限</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
             const deadline = getDeadlineDate(c.dateOfDeath)
@@ -156,13 +165,13 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
                     ? "text-foreground"
                     : deadlineStatus.className
             return (
-                    <div className="space-y-1 leading-tight" title="1行目：申告期限、2行目：残り日数と相続開始日">
-                    <div className={`grid grid-cols-[42px_minmax(0,1fr)] items-center gap-1 text-[11px] ${deadlineClassName}`}>
-                        <span className="truncate font-medium">申告期限</span>
+                    <div className="space-y-1 leading-tight" title="1行目：残り日数と申告期限、2行目：相続開始日">
+                    <div className={`grid grid-cols-[56px_minmax(0,1fr)] items-center gap-1 text-[11px] ${deadlineClassName}`}>
+                        <span className={`rounded px-1 py-0.5 text-[10px] font-medium ${!ended && !completed ? deadlineStatus.badgeClassName : "text-slate-600"}`}>{remainingLabel}</span>
                         <span className="tabular-nums">{deadlineDate}</span>
                     </div>
-                    <div className="grid grid-cols-[42px_minmax(0,1fr)] items-center gap-1 text-[11px] text-muted-foreground">
-                        <span className={`truncate font-medium ${!ended && !completed ? deadlineStatus.className : ""}`}>{remainingLabel}</span>
+                    <div className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-1 text-[11px] text-muted-foreground">
+                        <span className="whitespace-nowrap text-[10px]">相続開始</span>
                         <span className="tabular-nums">{inheritanceDate}</span>
                     </div>
                 </div>
@@ -189,11 +198,11 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset }:
             return (
                 <div className="min-w-0 leading-tight">
                     <div className="truncate text-xs font-medium text-foreground">
-                        {c.assignee?.name || <span className="text-muted-foreground">-</span>}
+                        <span className="mr-1 text-[10px] text-slate-500">担当</span>{c.assignee?.name || <span className="text-muted-foreground">-</span>}
                     </div>
                     {c.internalReferrer?.name && (
                         <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                            {c.internalReferrer.name}
+                            <span className="mr-1 text-[10px]">紹介</span>{c.internalReferrer.name}
                         </div>
                     )}
                 </div>

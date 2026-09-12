@@ -10,6 +10,7 @@ import { isAccepted } from "@/types/constants"
 import { RefreshCw } from "lucide-react"
 import { useRankingSort } from "@/hooks/use-ranking-sort"
 import { OverviewTab } from "./OverviewTab"
+import { MonthlyCaseActivity } from "./MonthlyCaseActivity"
 import { BreakdownTab } from "./BreakdownTab"
 import { ReferrerTab } from "./ReferrerTab"
 import dynamic from "next/dynamic"
@@ -269,6 +270,8 @@ export default function AnalyticsPage() {
                     })}
                 </div>
             </div>
+
+            <MonthlyCaseActivity years={selectedYears} />
 
             {/* Tab Navigation */}
             <div className="flex space-x-1 rounded-lg bg-muted p-1 w-fit">

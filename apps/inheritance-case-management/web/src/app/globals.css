@@ -8,8 +8,15 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-primary: #111111;
+  --color-primary: var(--primary, #111111);
   --color-primary-foreground: #ffffff;
+  --color-card: var(--card, #ffffff);
+  --color-muted: var(--muted, #f5f5f5);
+  --color-muted-foreground: var(--muted-foreground, #525252);
+  --color-input: var(--input, #d4d4d4);
+  --color-ring: var(--ring, #2563eb);
+  --color-accent: var(--accent, #f5f5f5);
+  --color-accent-foreground: var(--accent-foreground, #171717);
   --font-sans: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
@@ -43,3 +50,25 @@ body {
     animation: none;
   }
 }
+
+/* The case workspace prioritizes data and deadline warnings. */
+.case-workspace {
+  --primary: #1d4ed8;
+  --color-primary-foreground: #ffffff;
+  --color-background: #ffffff;
+  --card: #ffffff;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --input: #cbd5e1;
+  --ring: #2563eb;
+  --accent: #eff6ff;
+  --accent-foreground: #1e40af;
+  background: #f8fafc;
+  color: #0f172a;
+}
+:where(.case-workspace) :where([class*="border"]) { border-color: #e2e8f0; }
+.case-workspace .border-2 { border-width: 1px; }
+.case-workspace :where(button, summary, select, input[type="checkbox"]) { cursor: pointer; }
+.case-workspace :where(button) { box-shadow: none; }
+.case-workspace :where(thead) { background: #f1f5f9; }
+.case-workspace tr[data-state="selected"] { background: #eff6ff; }

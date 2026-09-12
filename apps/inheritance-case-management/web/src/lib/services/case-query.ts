@@ -1,8 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { toDate } from '@/lib/prisma-includes';
 import { normalizePersonSearchText } from '@/lib/person-search';
-import { ACCEPTED_STATUSES, COMPLETED_STATUSES } from '@/types/constants';
-import { addMonths } from './case-date-utils';
+import { buildDeadlineCondition } from './case-deadline-query';
 
 export interface CaseWhereParams {
   status?: string;
@@ -18,6 +17,7 @@ export interface CaseWhereParams {
   unassigned?: boolean;
   noReferrer?: boolean;
   deadlineSoon?: boolean;
+  deadlineOverdue?: boolean;
   department?: string;
   caseAddedFrom?: string;
   caseAddedTo?: string;
@@ -76,23 +76,6 @@ function applyStaffFilters(where: Prisma.InheritanceCaseWhereInput, params: Case
   }
 }
 
-function applyDeadlineSoon(where: Prisma.InheritanceCaseWhereInput) {
-  const now = new Date();
-  const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  // 受託済みかつ未完了（受託・手続中）・未分割を除く案件が対象
-  const activeAccepted = (ACCEPTED_STATUSES as readonly string[]).filter(
-    s => !(COMPLETED_STATUSES as readonly string[]).includes(s)
-  );
-  appendAnd(where, { status: { in: activeAccepted } });
-  appendAnd(where, { isUndivided: false });
-  appendAnd(where, {
-    dateOfDeath: {
-      gt: addMonths(now, -10),
-      lte: addMonths(in30Days, -10),
-    },
-  });
-}
-
 export function buildCaseWhereClause(params: CaseWhereParams): Prisma.InheritanceCaseWhereInput {
   const where: Prisma.InheritanceCaseWhereInput = {};
 
@@ -127,7 +110,10 @@ export function buildCaseWhereClause(params: CaseWhereParams): Prisma.Inheritanc
     where.assignee = { department: { name: params.department } };
   }
   if (params.deadlineSoon) {
-    applyDeadlineSoon(where);
+    appendAnd(where, buildDeadlineCondition('soon'));
+  }
+  if (params.deadlineOverdue) {
+    appendAnd(where, buildDeadlineCondition('overdue'));
   }
   if (params.caseAddedFrom || params.caseAddedTo) {
     where.caseAddedDate = {

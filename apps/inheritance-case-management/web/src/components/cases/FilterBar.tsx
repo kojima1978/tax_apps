@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { AssigneeFilter } from "./AssigneeFilter"
 import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
 import { MultiSelectDropdown } from "@/components/ui/MultiSelectDropdown"
-import { Search, X, Filter, SlidersHorizontal } from "lucide-react"
+import { Search, X, SlidersHorizontal } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { CASE_STATUS_FILTER_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
 import type { Assignee, Department } from "@/types/shared"
@@ -51,10 +52,10 @@ const STATIC_FILTER_DEFS: FilterDef[] = [
 ]
 
 export function FilterBar({
-    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onClearAll, assignees, departments, totalCount, hasFilters,
+    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onClearAll, assignees, departments, totalCount,
 }: FilterBarProps) {
     const [advancedOpen, setAdvancedOpen] = useState(() => Boolean(
-        queryParams.department || queryParams.assigneeId || queryParams.internalReferrerId
+        queryParams.department || queryParams.internalReferrerId
     ))
     const activeAssigneeOptions = useMemo(() => assignees.filter(a => a.active).map(a => ({ value: a.id, label: a.name })), [assignees])
 
@@ -109,7 +110,8 @@ export function FilterBar({
         internalReferrerId: (v) => `紹介者: ${assignees.find(a => a.id === v)?.name || v}`,
         staffId: (v) => `担当・紹介: ${assignees.find(a => a.id === v)?.name || v}`,
         referrerCompany: (v) => `紹介会社: ${v}`,
-        deadlineSoon: () => `期限間近`,
+        deadlineSoon: () => `14日以内`,
+        deadlineOverdue: () => `期限超過`,
         unassigned: () => `担当者: 未設定`,
         noReferrer: () => `紹介者: なし`,
     }
@@ -222,15 +224,19 @@ export function FilterBar({
 
     const advancedFilterCount = [
         queryParams.department,
-        queryParams.assigneeId,
         queryParams.internalReferrerId,
     ].filter(Boolean).length
 
+    // Values already visible in the search field and selectors need no duplicate chips.
+    const extraFilters = activeFilters.filter(f => !["search", "fiscalYear", "status", "assigneeId"].includes(f.key))
+    const canClear = activeFilters.some(f => f.key !== "fiscalYear")
+    const excludesClosed = queryParams.hideClosed && !queryParams.status && !queryParams.search
+
     return (
-        <section className="mb-4 space-y-3" aria-label="案件の検索と絞り込み">
+        <section className="mb-3 space-y-2" aria-label="案件の検索と絞り込み">
             {/* Row 1: 検索 + 件数表示 */}
             <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative min-w-0 flex-1 sm:max-w-sm">
+                <div className="relative min-w-[240px] flex-1">
                     <label htmlFor="case-search" className="sr-only">被相続人・相続人名で検索</label>
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -252,37 +258,9 @@ export function FilterBar({
                     )}
                 </div>
 
-                {hasFilters && totalCount !== undefined && (
-                    <span className="inline-flex min-h-8 items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary" aria-live="polite">
-                        <Filter className="h-3 w-3" />
-                        {totalCount}件表示
-                    </span>
-                )}
-            </div>
 
-            {/* フィルターチップ */}
-            {activeFilters.length > 0 && (
-                <div className="flex gap-1.5 flex-wrap items-center">
-                    {activeFilters.map(f => (
-                        <span key={f.key} className={`inline-flex items-center gap-1 rounded-full py-0.5 pl-2 pr-0.5 text-[11px] font-medium ${f.chipStyle}`}>
-                            {f.label}
-                            <button
-                                onClick={f.onClear}
-                                className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors hover:bg-black/10"
-                                aria-label={`${f.label}を解除`}
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
-                        </span>
-                    ))}
-                    <button onClick={onClearAll} className="min-h-11 cursor-pointer rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                        すべてクリア
-                    </button>
-                </div>
-            )}
-
-            <div className="flex flex-wrap items-center gap-2">
                 {filterDefs.slice(0, 2).map(renderFilter)}
+                <AssigneeFilter assignees={assignees} value={queryParams.assigneeId} onChange={value => onFilterChange("assigneeId", value)} />
                 <button
                     type="button"
                     onClick={() => setAdvancedOpen((open) => !open)}
@@ -298,12 +276,45 @@ export function FilterBar({
                         </span>
                     )}
                 </button>
+
+                {totalCount !== undefined && (
+                    <span className="whitespace-nowrap text-xs text-slate-600" aria-live="polite">
+                        <strong className="text-sm text-slate-800">{totalCount}件</strong>{excludesClosed ? "（終了除く）" : ""}
+                    </span>
+                )}
+                {canClear && <button type="button" onClick={onClearAll} className="min-h-11 px-2 text-xs text-slate-600 hover:text-blue-700">クリア</button>}
             </div>
+
+            {/* フィルターチップ */}
+            {extraFilters.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap items-center">
+                    {extraFilters.map(f => (
+                        <span key={f.key} className={`inline-flex items-center gap-1 rounded-full py-0.5 pl-2 pr-0.5 text-[11px] font-medium ${f.chipStyle}`}>
+                            {f.label}
+                            <button
+                                onClick={f.onClear}
+                                className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors hover:bg-black/10 sm:min-h-9 sm:min-w-9"
+                                aria-label={`${f.label}を解除`}
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </span>
+                    ))}
+                </div>
+            )}
+
 
             {advancedOpen && (
                 <div id="advanced-case-filters" className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/30 p-3">
                     <span className="w-full text-xs font-medium text-muted-foreground sm:w-auto">詳細条件</span>
-                    {filterDefs.slice(2).map(renderFilter)}
+                    {filterDefs.slice(2).filter(f => f.key !== "assigneeId").map(renderFilter)}
+                    <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
+                        <input type="checkbox" checked={!queryParams.hideClosed} disabled={!!queryParams.status || !!queryParams.search}
+                            onChange={e => onFilterChange("hideClosed", e.target.checked ? "false" : "true")}
+                            className="h-4 w-4 accent-blue-700" />
+                        終了案件も表示（見送り・入金済）
+                    </label>
+                    {(queryParams.status || queryParams.search) && <span className="text-xs text-slate-500">氏名・ステータス指定時は指定条件を優先します</span>}
                 </div>
             )}
         </section>

@@ -23,6 +23,8 @@ interface CaseListTableSectionProps {
     isError: boolean
     error: unknown
     isFetching: boolean
+    selectedIds: Set<number>
+    onToggleSelected: (id: number) => void
     cases: CaseListItem[]
     columns: ColumnDef<CaseListItem>[]
     hasFilters: boolean
@@ -39,6 +41,8 @@ export function CaseListTableSection({
     error,
     isFetching,
     cases,
+    selectedIds,
+    onToggleSelected,
     columns,
     hasFilters,
     amountTotals,
@@ -77,6 +81,8 @@ export function CaseListTableSection({
             <DataTable
                 columns={columns}
                 data={cases}
+                selectedIds={selectedIds}
+                onToggleSelected={onToggleSelected}
                 hasFilters={hasFilters}
                 onClearFilters={onClearFilters}
             />

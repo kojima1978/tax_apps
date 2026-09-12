@@ -223,6 +223,7 @@ export const listQuerySchema = z.object({
   unassigned: z.coerce.boolean().optional(),
   noReferrer: z.coerce.boolean().optional(),
   deadlineSoon: z.coerce.boolean().optional(),
+  deadlineOverdue: z.coerce.boolean().optional(),
   department: z.string().optional(),
   caseAddedFrom: dateQuerySchema,
   caseAddedTo: dateQuerySchema,
@@ -235,6 +236,8 @@ export const listQuerySchema = z.object({
   sortBy: sortFieldSchema.optional().default('dateOfDeath'),
   sortOrder: sortOrderSchema.optional().default('asc'),
 });
+
+export const selectedCaseIdsSchema = z.object({ ids: z.array(z.number().int().positive()).min(1).max(200) }).strict();
 
 // Type exports
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;

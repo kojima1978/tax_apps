@@ -7,9 +7,11 @@ import { calcBestGrossAmount } from "@/lib/case-amount-utils"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
 import { getCaseDetailHrefWithClosedSections } from "@/lib/case-detail-section-state"
-import { isHandlingEnded } from "@/types/constants"
+import { isCompleted, isHandlingEnded } from "@/types/constants"
 
 interface CaseMobileListProps {
+    selectedIds: Set<number>
+    onToggleSelected: (id: number) => void
     data: CaseListItem[]
 }
 
@@ -20,7 +22,7 @@ function formatDate(date: string | Date): string {
     return `${value.getFullYear()}/${month}/${day}`
 }
 
-export function CaseMobileList({ data }: CaseMobileListProps) {
+export function CaseMobileList({ data, selectedIds, onToggleSelected }: CaseMobileListProps) {
     return (
         <ul className="space-y-2 md:hidden" aria-label="案件一覧">
             {data.map((caseItem) => {
@@ -29,11 +31,14 @@ export function CaseMobileList({ data }: CaseMobileListProps) {
                 const isEnded = isHandlingEnded(caseItem.status, caseItem.isUndivided)
 
                 return (
-                    <li key={caseItem.id}>
+                    <li key={caseItem.id} className="relative">
+                        <label className="absolute left-2 top-2 z-10 flex h-11 w-11 items-center justify-center">
+                            <input type="checkbox" aria-label={`${caseItem.deceasedName}様の案件を選択`} checked={selectedIds.has(caseItem.id)} onChange={() => onToggleSelected(caseItem.id)} className="h-5 w-5 accent-blue-700" />
+                        </label>
                         <Link
                             href={getCaseDetailHrefWithClosedSections(caseItem.id)}
                             aria-label={`${caseItem.deceasedName}様の案件詳細を開く`}
-                            className={`block rounded-xl border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isEnded ? "opacity-65" : ""}`}
+                            className={`block rounded-xl border bg-card p-4 pl-14 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isEnded ? "opacity-65" : ""}`}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
@@ -56,8 +61,9 @@ export function CaseMobileList({ data }: CaseMobileListProps) {
                                         <CalendarClock className="h-4 w-4" aria-hidden="true" />
                                         申告期限
                                     </dt>
-                                    <dd className={`mt-1 font-medium tabular-nums ${isEnded ? "text-muted-foreground" : deadlineStatus.className}`}>
+                                    <dd className={`mt-1 font-medium tabular-nums ${isEnded || isCompleted(caseItem.status) ? "text-muted-foreground" : deadlineStatus.className}`}>
                                         {formatDate(deadline)}
+                                        {!isEnded && !isCompleted(caseItem.status) && <span className={`mt-1 block w-fit rounded px-1.5 py-0.5 text-xs ${deadlineStatus.badgeClassName}`}>{deadlineStatus.badge}</span>}
                                     </dd>
                                 </div>
                                 <div>

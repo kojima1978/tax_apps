@@ -22,7 +22,7 @@ export function BulkDeleteModal({
 }: BulkDeleteModalProps) {
   const [confirmInput, setConfirmInput] = useState("");
 
-  const isConfirmed = confirmInput === String(totalCount);
+  const isConfirmed = totalCount > 0 && confirmInput === String(totalCount);
 
   const handleClose = () => {
     setConfirmInput("");
@@ -35,12 +35,12 @@ export function BulkDeleteModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={`絞り込み中の${totalCount}件を削除`}>
+    <Modal isOpen={isOpen} onClose={handleClose} title={`選択した${totalCount}件を削除`}>
       <div className="space-y-4">
         <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
           <AlertTriangle className="h-6 w-6 shrink-0 text-red-700" />
           <p className="text-sm font-medium text-red-900">
-            {filterDescription} に一致する {totalCount}件を削除します
+            選択した {totalCount}件を削除します：{filterDescription}
           </p>
         </div>
 
