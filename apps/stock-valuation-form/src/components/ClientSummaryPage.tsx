@@ -16,11 +16,14 @@ import type { TableProps } from '@/types/form';
 type Props = Pick<TableProps, 'getField' | 'updateField'> & {
   onBack: () => void;
   onPrint: () => void;
+  /** 利益0・想定利益・退職金の試算の計算過程（別紙）へ切り替える */
+  onOpenWorksheet: () => void;
 };
 
-function Icon({ name }: { name: 'print' }) {
+export function Icon({ name }: { name: 'print' | 'worksheet' }) {
   const paths = {
     print: <><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></>,
+    worksheet: <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></>,
   };
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
@@ -455,7 +458,7 @@ function ShareholderRow({ row, columns }: { row: ShareholderValuationRow; column
   );
 }
 
-export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Props) {
+export function ClientSummaryPage({ getField, updateField, onBack, onPrint, onOpenWorksheet }: Props) {
   const summary = calcClientSummary(getField);
   const options = readSummaryOptions(getField);
   const report = calcValuationReport(getField, options.assumedProfit);
@@ -548,7 +551,12 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint }: Pr
               </button>
             </span>
           )}
-          <button type="button" onClick={onPrint} className="summary-print-button"><Icon name="print" />このサマリーを印刷</button>
+          <span className="summary-bar-buttons">
+            <button type="button" onClick={onOpenWorksheet} className="summary-worksheet-button" title="利益0・想定利益・退職金の試算を明細書の欄番号に沿って再計算した過程を表示します">
+              <Icon name="worksheet" />計算過程（別紙）
+            </button>
+            <button type="button" onClick={onPrint} className="summary-print-button"><Icon name="print" />このサマリーを印刷</button>
+          </span>
         </div>
         <nav className="summary-jump-nav" aria-label="サマリー内の移動">
           {([

@@ -33,7 +33,7 @@ export const RESULT_NAMES: Record<number, string> = {
  * 元号プルダウンは未選択のままでも令和として表示・計算する取り決めなので、ここでも同じ既定に倒す。
  * 空を「未入力」にすると、明細書には日付が出ているのにサマリーだけ未入力になる。
  */
-const eraDate = (getField: TableProps['getField']) => {
+export const eraDate = (getField: TableProps['getField']) => {
   const era = getField('table1_1', 'f14_g') || DEFAULT_ERA;
   const year = getField('table1_1', 'f14_y');
   const month = getField('table1_1', 'f14_m');

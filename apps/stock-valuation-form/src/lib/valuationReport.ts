@@ -47,7 +47,7 @@ export function withPurpose(
 const LATEST_PROFIT_INCOME = 'e18';
 const LATEST_PROFIT_ADJUST = new Set(['e19', 'e20', 'e21', 'e22']);
 
-function withProfit(getField: TableProps['getField'], amount: number): TableProps['getField'] {
+export function withProfit(getField: TableProps['getField'], amount: number): TableProps['getField'] {
   return (table, field) => {
     if (table !== 'table4') return getField(table, field);
     if (field === LATEST_PROFIT_INCOME) return String(amount);
@@ -128,7 +128,7 @@ export type ValuationBasis = {
   sizeLabel: string;
 };
 
-const BASIS_LABELS: Record<ValuationBasisKey, { label: string; note: string }> = {
+export const BASIS_LABELS: Record<ValuationBasisKey, { label: string; note: string }> = {
   inheritance: {
     label: '相続税評価額ベース',
     note: '評価差額に対する法人税額等相当額（38％）を控除',

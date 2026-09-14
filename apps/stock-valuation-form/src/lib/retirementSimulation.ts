@@ -3,6 +3,8 @@ import { calcValuationBasis, type ValuationBasis } from './valuationReport';
 
 export const RETIREMENT_AMOUNT_FIELD = '_summary_retirement_amount';
 export const RETIREMENT_INSURANCE_FIELD = '_summary_retirement_insurance_proceeds';
+/** 退職金を未払の負債として第5表へ足す仮想行の科目名 */
+export const RETIREMENT_LIABILITY_NAME = '退職金試算調整';
 
 type Getter = TableProps['getField'];
 
@@ -31,37 +33,22 @@ export type RetirementSimulation = {
 };
 
 /**
- * 直前期に退職金を全額損金算入し、保険の解約益を同じ期の益金とする試算。
- * 支払原資・資産構成・会社規模と法人税額は現状で固定する。
- * 解約は第5表へ持ち込まない ── 保険は解約返戻金相当額で相続税評価額に載っている
- * （財産評価基本通達214）ので、解約して現金に替わっても純資産価額は動かない。
+ * 直前期に退職金 pay（損金）と保険の解約益 gain（益金）を立てた getField を返す（金額は千円）。
+ * 試算の計算過程（別紙）も同じ getField で再計算するので、サマリーの金額と必ず一致する。
+ * 第4表の直前期の⑪・⑱が未入力なら、差し引く元がないので null。
  */
-export function calcRetirementSimulation(getField: Getter): RetirementSimulation {
-  const amountText = getField('table1_1', RETIREMENT_AMOUNT_FIELD);
-  const proceedsText = getField('table1_1', RETIREMENT_INSURANCE_FIELD);
-  const amount = numberOf(amountText);
-  const proceeds = numberOf(proceedsText);
-  const result: RetirementSimulation = { amount, proceeds, error: null, errorField: null, bases: [] };
-  // 退職金なしで保険だけ解約する場合もあるので、どちらか一方の入力で試算する。
-  if (!amountText.trim() && !proceedsText.trim()) return result;
-  const invalid = validate(RETIREMENT_AMOUNT_FIELD, amountText, amount, '退職金額')
-    ?? validate(RETIREMENT_INSURANCE_FIELD, proceedsText, proceeds, '保険の解約益');
-  if (invalid) return { ...result, ...invalid };
+export function withRetirement(getField: Getter, pay: number, gain: number): Getter | null {
   const income = numberOf(getField('table4', 'e18'));
   const retained = numberOf(getField('table4', 'n53'));
-  if (income === null || retained === null) {
-    return { ...result, error: '第4表の直前期の課税所得金額・利益積立金額を入力してください。' };
-  }
+  if (income === null || retained === null) return null;
   // ⑫非経常的な利益金額。様式でも未記入は0として⑯を計算するので、空欄は0で足す。
   const nonRecurring = numberOf(getField('table4', 'e19')) ?? 0;
-  const pay = amount ?? 0;
-  const gain = proceeds ?? 0;
   // 元の資産明細は動かさず、純資産の控除額を仮想の負債行として既存計算へ渡す。
   // 元の行がすべて埋まっていても上書きせず、計算中だけ続紙を1枚追加する。
   const pages = Math.max(1, Number(getField('table5', '_pages')) || 1);
   const lastRow = 15 + (pages - 1) * 23;
   // 既存の調整欄や前年実績を維持し、元データは書き換えない。
-  const adjusted: Getter = (table, field) => {
+  return (table, field) => {
     if (table === 'table4') {
       // ⑪法人税の課税所得金額。退職金は損金、解約益は益金として同じ直前期に立てる。
       if (field === 'e18') return String(income - pay + gain);
@@ -78,7 +65,7 @@ export function calcRetirementSimulation(getField: Getter): RetirementSimulation
       const match = /^([al])_(\d+)_(\d)$/.exec(field);
       if (match && Number(match[2]) > lastRow) {
         if (match[1] === 'l' && Number(match[2]) === lastRow + 1) {
-          if (match[3] === '1') return '退職金試算調整';
+          if (match[3] === '1') return RETIREMENT_LIABILITY_NAME;
           if (match[3] === '2' || match[3] === '3') return String(pay);
         }
         return '';
@@ -86,6 +73,29 @@ export function calcRetirementSimulation(getField: Getter): RetirementSimulation
     }
     return getField(table, field);
   };
+}
+
+/**
+ * 直前期に退職金を全額損金算入し、保険の解約益を同じ期の益金とする試算。
+ * 支払原資・資産構成・会社規模と法人税額は現状で固定する。
+ * 解約は第5表へ持ち込まない ── 保険は解約返戻金相当額で相続税評価額に載っている
+ * （財産評価基本通達214）ので、解約して現金に替わっても純資産価額は動かない。
+ */
+export function calcRetirementSimulation(getField: Getter): RetirementSimulation {
+  const amountText = getField('table1_1', RETIREMENT_AMOUNT_FIELD);
+  const proceedsText = getField('table1_1', RETIREMENT_INSURANCE_FIELD);
+  const amount = numberOf(amountText);
+  const proceeds = numberOf(proceedsText);
+  const result: RetirementSimulation = { amount, proceeds, error: null, errorField: null, bases: [] };
+  // 退職金なしで保険だけ解約する場合もあるので、どちらか一方の入力で試算する。
+  if (!amountText.trim() && !proceedsText.trim()) return result;
+  const invalid = validate(RETIREMENT_AMOUNT_FIELD, amountText, amount, '退職金額')
+    ?? validate(RETIREMENT_INSURANCE_FIELD, proceedsText, proceeds, '保険の解約益');
+  if (invalid) return { ...result, ...invalid };
+  const adjusted = withRetirement(getField, amount ?? 0, proceeds ?? 0);
+  if (!adjusted) {
+    return { ...result, error: '第4表の直前期の課税所得金額・利益積立金額を入力してください。' };
+  }
   result.bases = [calcValuationBasis(adjusted, 'inheritance'), calcValuationBasis(adjusted, 'special-market-value')];
   return result;
 }

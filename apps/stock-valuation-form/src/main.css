@@ -1104,6 +1104,7 @@
 }
 
 .summary-back-button,
+.summary-worksheet-button,
 .summary-print-button {
   min-height: 40px;
   display: inline-flex;
@@ -1135,6 +1136,18 @@
 
 .summary-print-button:hover { background: #1e40af; }
 .summary-print-button svg { width: 17px; height: 17px; }
+
+/* 印刷と計算過程（別紙）は右端にまとめる（間の「既定から変更」バッジの有無で位置が動かないように） */
+.summary-bar-buttons { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
+
+.summary-worksheet-button {
+  border: 1px solid #93c5fd;
+  background: #fff;
+  color: #1d4ed8;
+}
+
+.summary-worksheet-button:hover { background: #eff6ff; border-color: #60a5fa; }
+.summary-worksheet-button svg { width: 17px; height: 17px; }
 
 /* 出力条件（no-print なので印刷には出ない）。見出しの下に置き、見ているものをその場で外せるようにする */
 .summary-options-reset {
@@ -2559,4 +2572,85 @@ button.admin-chip:hover {
   .summary-jump-nav button { flex: 1 1 calc(33% - 4px); padding: 8px 6px; min-height: 44px; }
   .client-summary-page h2 { scroll-margin-top: 12px; }
   .summary-settings > summary span { display: block; margin: 6px 0 0 16px; line-height: 1.6; }
+}
+
+/* ============================================
+   試算の計算過程（お客様サマリーの別紙）
+   作業者の検算用なので、サマリーの装飾は持ち込まず罫線の表で素直に並べる
+   ============================================ */
+.calc-worksheet {
+  padding: 28px 32px 32px;
+  border-radius: 4px;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.16);
+}
+
+.calc-worksheet-header { padding-bottom: 14px; border-bottom: 2px solid #0f2744; }
+.calc-worksheet-kicker { margin: 0 0 4px; color: #475569; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+.calc-worksheet-header h1 { margin: 0; font-size: 22px; }
+.calc-worksheet-meta { margin: 6px 0 0; color: #475569; font-size: 12px; }
+.calc-worksheet-lead { margin: 10px 0 0; font-size: 12px; line-height: 1.7; }
+
+.calc-worksheet-sheet { margin-top: 36px; padding-top: 20px; border-top: 1px dashed #94a3b8; }
+.calc-worksheet-sheet-head h2 { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: 18px; }
+.calc-worksheet-sheet-head h2 span { padding: 2px 8px; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: 11px; }
+.calc-worksheet-sheet-head p { margin: 6px 0 0; font-size: 12px; line-height: 1.6; }
+
+.calc-worksheet-section { margin-top: 18px; }
+.calc-worksheet-section h3 { margin: 0 0 6px; font-size: 13px; }
+.calc-worksheet-note { margin: 0 0 6px; color: #475569; font-size: 11px; line-height: 1.6; }
+
+.calc-worksheet-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+.calc-worksheet-table th,
+.calc-worksheet-table td { padding: 5px 7px; border: 1px solid #cbd5e1; vertical-align: top; text-align: left; overflow-wrap: anywhere; }
+.calc-worksheet-table thead th { background: #f1f5f9; font-weight: 700; }
+.calc-worksheet-table tbody th { font-weight: 600; }
+.calc-worksheet-label-col { width: 24%; }
+.calc-worksheet-num-col { width: 12%; }
+.calc-worksheet-process-col { width: 52%; }
+.calc-worksheet-num { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* 算式ツールチップと同じ文言を改行ごとそのまま出す */
+.calc-worksheet-process { white-space: pre-line; line-height: 1.55; color: #334155; }
+.calc-worksheet-changed th,
+.calc-worksheet-changed td { background: #fef9c3; }
+.calc-worksheet-changed .calc-worksheet-trial { font-weight: 700; }
+.calc-worksheet-overview { table-layout: auto; }
+.calc-worksheet-skipped { color: #64748b; }
+
+.calc-worksheet-result { margin: 14px 0 0; padding: 10px 12px; border: 1px solid #0f2744; font-size: 13px; }
+
+@media screen and (max-width: 700px) {
+  .calc-worksheet { padding: 18px 12px; }
+  .calc-worksheet-table { font-size: 10px; }
+  .calc-worksheet-label-col { width: 26%; }
+  .calc-worksheet-num-col { width: 16%; }
+  .calc-worksheet-process-col { width: 42%; }
+}
+
+@media print {
+  /* 余白10mmの名前付きページはサマリーと共用（既定の @page は実寸様式のため margin: 0） */
+  .calc-worksheet {
+    page: summary;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body:has(.calc-worksheet) { background: #fff !important; }
+  /* サマリーと続けて刷るときも別紙は新しい用紙から。試算ごとにも用紙を分ける */
+  .client-summary-wrap + .calc-worksheet-wrap .calc-worksheet,
+  .calc-worksheet-sheet { break-before: page; }
+  .calc-worksheet-sheet { margin-top: 0; padding-top: 0; border-top: 0; }
+  .calc-worksheet-header h1 { font-size: 18px; }
+  .calc-worksheet-sheet-head h2 { font-size: 15px; }
+  .calc-worksheet-section { margin-top: 12px; }
+  .calc-worksheet-section h3 { font-size: 11px; break-after: avoid; }
+  .calc-worksheet-table { font-size: 8.5px; }
+  .calc-worksheet-table th,
+  .calc-worksheet-table td { padding: 3px 5px; }
+  .calc-worksheet-table thead { display: table-header-group; }
+  .calc-worksheet-table tr { break-inside: avoid; }
+  .calc-worksheet-result { font-size: 11px; break-inside: avoid; }
 }

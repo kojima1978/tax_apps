@@ -15,6 +15,7 @@ import { IndustryAdminPage } from '@/features/industryAdmin/IndustryAdminPage';
 import type { TableId, TableProps } from '@/types/form';
 import { NAV_TABS, SUMMARY_TAB_ID, TABS } from '@/data/constants';
 import { PrerequisitesChip, PrerequisitesDialog } from '@/components/PrerequisitesDialog';
+import { CalculationWorksheet } from '@/components/CalculationWorksheet';
 import { ClientSummaryPage } from '@/components/ClientSummaryPage';
 import { RequiredFieldNavigator } from '@/components/RequiredFieldNavigator';
 import { ConsistencyChecker } from '@/components/ConsistencyChecker';
@@ -75,6 +76,8 @@ const isTypingTarget = (target: EventTarget | null) => (
 export default function App() {
   const [activeTab, setActiveTab] = useState<TableId>('table1_1');
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // サマリーの中で「計算過程（別紙）」へ切り替えているか（サマリーを開き直したら本体から）
+  const [worksheetOpen, setWorksheetOpen] = useState(false);
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
   const { formData, savedAt, getField, updateField, resetAll, exportJson, importJson, rolloverToNextYear } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
@@ -93,6 +96,7 @@ export default function App() {
   );
   // お客様サマリーは様式ではないので、全表印刷では既定で外し、選びたいときだけ足す
   const [printSummary, setPrintSummary] = useState(false);
+  const [printWorksheet, setPrintWorksheet] = useState(false);
   // 自動転記欄から入力元へ飛ぶ前にいた場所（「戻る」用）
   const [jumpOrigin, setJumpOrigin] = useState<{ tab: TableId; fieldName: string | null } | null>(null);
 
@@ -112,10 +116,13 @@ export default function App() {
   const judgmentTargets = useMemo(() => new Set<TableId>(judgment.tables), [judgment]);
   const isJudgmentTarget = useCallback((tab: TableId) => judgmentTargets.has(tab), [judgmentTargets]);
 
-  const setAllSelection = (fn: (tab: TableId) => boolean, summary: boolean) => {
+  // extras は様式ではない出力（お客様サマリーと計算過程の別紙）をまとめて選ぶかどうか
+  const setAllSelection = (fn: (tab: TableId) => boolean, extras: boolean) => {
     setPrintSelection(Object.fromEntries(TABS.map((t) => [t.id, fn(t.id)])) as Record<TableId, boolean>);
-    setPrintSummary(summary);
+    setPrintSummary(extras);
+    setPrintWorksheet(extras);
   };
+  const hasPrintSelection = TABS.some((t) => printSelection[t.id]) || printSummary || printWorksheet;
 
   // 表へ移動し、指定の欄（name属性）をフォーカス＋一瞬ハイライトする
   const goToField = useCallback((tab: TableId, fieldName: string | null) => {
@@ -143,6 +150,7 @@ export default function App() {
       return;
     }
     setJumpOrigin(null);
+    setWorksheetOpen(false);
     setSummaryOpen(true);
   }, [goToTab]);
 
@@ -190,10 +198,10 @@ export default function App() {
     setPrintDialogOpen(true);
   }, [judgmentTargets]);
   const confirmPrintSelected = useCallback(() => {
-    if (!TABS.some((t) => printSelection[t.id]) && !printSummary) return;
+    if (!hasPrintSelection) return;
     setPrintDialogOpen(false);
     requestPrint('all');
-  }, [printSelection, printSummary, requestPrint]);
+  }, [hasPrintSelection, requestPrint]);
 
   useEffect(() => {
     if (!printDialogOpen) {
@@ -386,12 +394,22 @@ export default function App() {
 
       <div className="app-shell">
         <main className="app-main">
-          {summaryOpen && !printAll ? (
+          {summaryOpen && !printAll && worksheetOpen ? (
+            <CalculationWorksheet
+              getField={getField}
+              onBack={() => setWorksheetOpen(false)}
+              onPrint={() => requestPrint('current')}
+            />
+          ) : summaryOpen && !printAll ? (
             <ClientSummaryPage
               getField={getField}
               updateField={updateField}
               onBack={() => setSummaryOpen(false)}
               onPrint={() => requestPrint('current')}
+              onOpenWorksheet={() => {
+                setWorksheetOpen(true);
+                window.scrollTo(0, 0);
+              }}
             />
           ) : printAll ? (
             <>
@@ -401,8 +419,10 @@ export default function App() {
                 updateField={updateField}
                 onBack={() => setSummaryOpen(false)}
                 onPrint={() => requestPrint('current')}
+                onOpenWorksheet={() => setWorksheetOpen(true)}
               />
             )}
+            {printWorksheet && <CalculationWorksheet getField={getField} />}
             </>
           ) : SELF_PAGING.has(activeTab) ? (
             <ActiveTable {...tableProps} />
@@ -442,12 +462,19 @@ export default function App() {
             </div>
             <p style={{ fontSize: 12, color: '#444', margin: '0 0 10px' }}>第2表の判定結果：<strong>{judgment.name}</strong></p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '3px 4px', marginBottom: 4, borderBottom: '1px solid #eee', cursor: 'pointer' }}>
-                <input type="checkbox" checked={printSummary} onChange={(e) => setPrintSummary(e.target.checked)} />
-                <span style={{ fontWeight: 600 }}>お客様サマリー</span>
-                <span style={{ color: '#888', fontSize: 11 }}>入力済みデータから現状と打ち手を自動整理</span>
-                <span style={{ marginLeft: 'auto', color: '#888', fontSize: 11 }}>様式ではありません</span>
-              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 4, borderBottom: '1px solid #eee' }}>
+                {([
+                  { label: 'お客様サマリー', note: '入力済みデータから現状と打ち手を自動整理', checked: printSummary, set: setPrintSummary },
+                  { label: '計算過程（別紙）', note: '利益0・想定利益・退職金の試算を欄ごとに再計算', checked: printWorksheet, set: setPrintWorksheet },
+                ]).map(({ label, note, checked, set }) => (
+                  <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '3px 4px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={checked} onChange={(e) => set(e.target.checked)} />
+                    <span style={{ fontWeight: 600 }}>{label}</span>
+                    <span style={{ color: '#888', fontSize: 11 }}>{note}</span>
+                    <span style={{ marginLeft: 'auto', color: '#888', fontSize: 11 }}>様式ではありません</span>
+                  </label>
+                ))}
+              </div>
               {TABS.map((tab) => (
                 <label key={tab.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '3px 4px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={!!printSelection[tab.id]} onChange={(e) => setPrintSelection((p) => ({ ...p, [tab.id]: e.target.checked }))} />
@@ -462,7 +489,7 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
               <button type="button" onClick={() => setPrintDialogOpen(false)} className="app-tool-btn">キャンセル</button>
-              <button type="button" onClick={confirmPrintSelected} disabled={!TABS.some((t) => printSelection[t.id]) && !printSummary} className="app-tool-btn" style={{ fontWeight: 700 }}>印刷</button>
+              <button type="button" onClick={confirmPrintSelected} disabled={!hasPrintSelection} className="app-tool-btn" style={{ fontWeight: 700 }}>印刷</button>
             </div>
           </div>
         </div>
