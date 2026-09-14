@@ -14,6 +14,26 @@ export function formatCommaInteger(value: string): string {
   return normalizeInteger(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
+/**
+ * 末尾の0が用紙に固定印字されている整数欄の、入力部分だけを整形する。
+ *
+ * 例: 百円単位の保存値 `123456` と固定印字 `00` は、全体では
+ * `12,345,600` なので、入力部分は `12,345,6` と表示する。
+ */
+export function formatCommaIntegerBeforeSuffix(value: string, suffix: string): string {
+  const digits = normalizeInteger(value);
+  if (digits === '') return '';
+
+  const normalizedSuffix = suffix.replace(/，/g, ',');
+  const suffixDigits = normalizedSuffix.replace(/\D/g, '');
+  if (suffixDigits === '' || /[^0]/.test(suffixDigits)) return formatCommaInteger(value);
+
+  const full = formatCommaInteger(`${digits}${suffixDigits}`);
+  return full.endsWith(normalizedSuffix)
+    ? full.slice(0, -normalizedSuffix.length)
+    : formatCommaInteger(value);
+}
+
 /** 様式では還付額の頭に「△」を付ける。入力は - / △ のどちらでも受け付け、表示は △ に統一する。 */
 export function formatSignedCommaInteger(value: string): string {
   const raw = value.replace(/,/g, '').trim();

@@ -1,7 +1,9 @@
 import { useCallback, useContext, useId, useMemo, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { PrintRenderContext } from './printContext';
 import { lookupZipAddress } from '../../lib/zipAddress';
-import { cleanNumeric, displayNumeric, fixNumeric, normalizeInteger } from '../../lib/format';
+import {
+  cleanNumeric, displayNumeric, fixNumeric, formatCommaIntegerBeforeSuffix, normalizeInteger,
+} from '../../lib/format';
 import { suffixedName, type AutoFill, type CodeSuffix } from '../../lib/codeLink';
 import { formQrPath } from '../../lib/qrPath';
 import { FORM_QR_STAR, QR_SIZE } from '../../data/formQr';
@@ -236,8 +238,17 @@ function selectedOptionLabel(options: NonNullable<GridCell['options']>, value: s
  */
 function inputText(c: GridCell, g: (field: string) => string, readOnly: boolean): string {
   const raw = g(c.field!);
-  const value = displayNumeric(c, raw);
+  const value = c.commaInteger && typeof c.rightLabel === 'string'
+    ? formatCommaIntegerBeforeSuffix(raw, c.rightLabel)
+    : displayNumeric(c, raw);
   return readOnly && c.suffixByCode ? suffixedName(value, g(c.suffixByCode.field), c.suffixByCode) : value;
+}
+
+/** 固定印字の末尾桁まで含めてカンマ位置を決め、保存値は従来どおり上位桁だけにする。 */
+function cleanInputText(c: GridCell, raw: string): string {
+  return c.commaInteger && typeof c.rightLabel === 'string'
+    ? formatCommaIntegerBeforeSuffix(raw, c.rightLabel)
+    : cleanNumeric(c, raw);
 }
 
 /**
@@ -578,7 +589,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                   aria-label={c.ariaLabel ?? c.field}
                   title={c.hint}
                   value={inputText(c, g, readOnly)}
-                  onChange={(e) => u(c.field!, cleanNumeric(c, e.target.value))}
+                  onChange={(e) => u(c.field!, cleanInputText(c, e.target.value))}
                   onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, fixNumeric(c, g(c.field!))); }}
                   onKeyDown={onEnterNext}
                   inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger || c.commaNumber ? 'numeric' : undefined}
