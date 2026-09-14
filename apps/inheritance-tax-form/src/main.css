@@ -892,6 +892,85 @@ button {
   color: #64748b;
 }
 
+/* 第11表・第13表から作る、法定様式外の資産別税負担資料 */
+.asset-tax {
+  gap: 3mm;
+}
+
+.asset-tax__kicker {
+  display: block;
+  margin-bottom: 1mm;
+  color: #475569;
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.asset-tax__notice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8mm;
+  padding: 2mm 2.5mm;
+  border: 1px solid #94a3b8;
+  border-left: 3px solid #334155;
+  background: #f8fafc;
+  font-size: 7.5pt;
+  line-height: 1.45;
+}
+
+.asset-tax__caption {
+  padding: 0 0 1.5mm;
+  color: #0f172a;
+  font-size: 9pt;
+  font-weight: 700;
+  text-align: left;
+}
+
+.asset-tax__table th,
+.asset-tax__table td {
+  padding: 1.2mm 1mm;
+  font-size: 7pt;
+}
+
+.asset-tax__table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.asset-tax__synthetic {
+  color: #334155;
+  font-style: italic;
+}
+
+.asset-tax__people td:nth-child(n + 3) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.asset-tax__footnote {
+  margin: auto 0 0;
+  color: #475569;
+  font-size: 7pt;
+  line-height: 1.45;
+}
+
+.asset-tax__explain {
+  margin-top: 2mm;
+  padding: 3mm;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 8pt;
+  line-height: 1.6;
+}
+
+.asset-tax__explain h3,
+.asset-tax__explain p {
+  margin: 0;
+}
+
+.asset-tax__explain p + p {
+  margin-top: 1.5mm;
+}
+
 /* 様式の枠外に置く注記（注1・2・3 と適用年分） */
 .gov-footnote {
   display: flex;

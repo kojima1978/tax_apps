@@ -4,6 +4,7 @@ import { PrintRenderContext } from './components/ui/printContext';
 import { DetailPanel } from './components/DetailPanel';
 import { RowSortPanel, type RowSortColumn } from './components/RowSortPanel';
 import { Table11f1Worksheet } from './components/Table11f1Worksheet';
+import { AssetTaxWorksheet } from './components/AssetTaxWorksheet';
 import { PersonPanel } from './components/PersonPanel';
 import { giftYearOptions } from './data/codes';
 import type { FormRow } from './forms/geometry';
@@ -88,12 +89,13 @@ import { detailLabel, detailPrefix, heirIndex, heirLabel, heirPrefix, useFormDat
 import { usePrinting } from './hooks/usePrinting';
 import { useZipPrefecture } from './hooks/useZipPrefecture';
 import {
-  DETAIL_SOURCE, deriveLawful, detailSlots, detailValue, hasTable112, isEmptyDetail, lawfulMembers, remapTable14Confirm,
+  DETAIL_SOURCE, deriveLawful, detailShareCount, detailSlots, detailValue, hasTable112, isEmptyDetail, lawfulMembers, num, remapTable14Confirm,
   sameValues, TABLE11F1_UNIT, table10MinPages, table10Pages, table112Pages, table13MinPages, table13Pages, table14MinPages,
   table14Pages, table15Transferred, table42Pages, table4Pages, table88Pages, table9MinPages, table9Pages,
   type Values,
 } from './lib/calc';
 import { HEIR_ID } from './lib/heirRef';
+import { buildAssetTaxWorksheet, type AssetTaxSource } from './lib/assetTaxWorksheet';
 
 /** 第1表の転記欄。様式の選択状態にかかわらず直接入力させず、クリックで転記元を開く。 */
 const TABLE1_SOURCE_FOR_ROW: Readonly<Record<string, string>> = {
@@ -167,6 +169,7 @@ const FORMS: FormMeta[] = [
   { id: 'table1112f1c', label: '第11・11の2表の付表1（続）', note: '小規模宅地等の明細 4件目以降', auto: true },
   { id: 'table1112f1b', label: '第11・11の2表の付表1（別表１）', note: TABLE1112F1B_SUBTITLE },
   { id: 'table13', label: '第13表', note: '債務及び葬式費用の明細書' },
+  { id: 'assetTaxWorksheet', label: '（補助資料）', note: '資産別税負担一覧（内部検討用）' },
   { id: 'table14', label: '第14表', note: '純資産価額に加算される暦年課税分の贈与財産価額等の明細書' },
   { id: 'table15', label: '第15表', note: '相続財産の種類別価額表' },
   { id: 'table15cont', label: '第15表（続）', note: '財産を取得した人 2人目以降', auto: true },
@@ -182,6 +185,25 @@ const DETAIL_SPECS = {
 
 /** 付表は様式IDと枚数以外の作りが同じなので、レジストリから画面を組み立てる */
 const DETAIL_FORMS = Object.keys(DETAIL_SPECS) as (keyof typeof DETAIL_SPECS)[];
+
+/** 資産別補助資料に出す、付表1〜4の見分けやすい名称。 */
+function assetDescription(form: keyof typeof DETAIL_SPECS, item: Values): string {
+  const values = form === 'table11f1'
+    ? [item.kind, [item.pref, item.city, item.town, item.lot].filter(Boolean).join(' ')]
+    : form === 'table11f2'
+      ? [item.kind, item.issue, [item.broker, item.branch].filter(Boolean).join(' ')]
+      : form === 'table11f3'
+        ? [item.kind, [item.bank, item.branch].filter(Boolean).join(' '), item.account]
+        : [item.kind, item.assetName, item.place];
+  return values.map((value) => value?.trim()).filter(Boolean).join('／') || '（名称未入力）';
+}
+
+const ASSET_CATEGORY: Readonly<Record<keyof typeof DETAIL_SPECS, string>> = {
+  table11f1: '土地・家屋等',
+  table11f2: '有価証券',
+  table11f3: '現金・預貯金等',
+  table11f4: 'その他の財産',
+};
 
 /** 並べ替え画面の作り方。様式ごとに違うのは見出しと一覧に拾う欄だけ。 */
 interface RowSortTarget {
@@ -1055,6 +1077,43 @@ export default function App() {
     [data.heirs],
   );
   /**
+   * 第11表の資産明細と第1表の人別税額を結び、法定様式とは別の参考資料を作る。
+   * 所有者は g() を通すことで、保存中の固定IDも転記明細の人物番号も同じ番号にそろう。
+   */
+  const assetTaxData = useMemo(() => {
+    const assets: AssetTaxSource[] = [];
+    DETAIL_FORMS.forEach((form) => {
+      (detailRows[form] ?? []).forEach((item, itemIndex) => {
+        for (let share = 0; share < detailShareCount(item); share += 1) {
+          const prefix = detailPrefix(form, itemIndex);
+          const personIndex = num(g(`${prefix}who${share}`)) - 1;
+          const amount = num(g(`${prefix}amount${share}`));
+          if (personIndex < 0 || personIndex >= data.heirs.length || amount <= 0) continue;
+          assets.push({
+            id: `${form}-${itemIndex}-${share}`,
+            category: ASSET_CATEGORY[form],
+            description: assetDescription(form, item),
+            personIndex,
+            amount,
+          });
+        }
+      });
+    });
+    const people = data.heirs.map((heir, index) => {
+      const prefix = heirPrefix(index);
+      return {
+        name: heir.name ?? '',
+        declaredAssets: num(g(`${prefix}v1`)),
+        otherTaxBase: Math.max(0, num(g(`${prefix}v2`))) + Math.max(0, num(g(`${prefix}v5`))),
+        debtAndFuneral: num(g(`${prefix}v3`)),
+        taxablePrice: num(g(`${prefix}v6`)) * 1000,
+        taxBurden: num(g(`${prefix}v19`)),
+        payable: num(g(`${prefix}v21`)) * 100,
+      };
+    });
+    return buildAssetTaxWorksheet(assets, people);
+  }, [data.heirs, detailRows, g]);
+  /**
    * 第6表の氏名欄も選択式（③⑤の相続税額を第1表から自動転記するため）。
    * 人物の画面で登録した属性から候補を分けて並べるが、自動では埋めない（選ぶのは利用者）。
    */
@@ -1460,6 +1519,7 @@ export default function App() {
         ))}
       </>
     ),
+    assetTaxWorksheet: <AssetTaxWorksheet {...assetTaxData} />,
     table14: (
       <>
         {Array.from({ length: t14Pages }, (_, page) => (
