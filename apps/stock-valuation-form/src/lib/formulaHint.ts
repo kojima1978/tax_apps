@@ -22,8 +22,16 @@ export const hv = (v: number | null | undefined, digits = 0, empty = '未入力'
 /** 算式に埋める数値（計算結果側） */
 export const rv = (v: number | null | undefined, digits = 0): string => hv(v, digits, NOT_CALC);
 
-/** 文字列で持っている入力値をそのまま埋める（カンマ付きのまま。空なら「未入力」） */
-export const hs = (value: string): string => (value.trim() === '' ? '未入力' : value);
+/**
+ * 文字列で持っている入力値を埋める（空なら「未入力」）。
+ * 数値は3桁区切りにそろえる ── 読込んだJSONや試算で差し替えた値（String(数値)）はカンマなしで来るため。
+ * 小数部は入力の桁のまま残し、数値でないもの（業種目名など）はそのまま埋める。
+ */
+export const hs = (value: string): string => {
+  if (value.trim() === '') return '未入力';
+  const match = /^(-?)(\d+)(\.\d+)?$/.exec(value.replace(/,/g, '').trim());
+  return match ? `${match[1]}${match[2]!.replace(/\B(?=(\d{3})+$)/g, ',')}${match[3] ?? ''}` : value;
+};
 
 /** 円未満を銭で持つ値を「○円○銭」にする（入力側） */
 export const hyen = (v: number | null | undefined, empty = '未入力'): string => {

@@ -85,13 +85,20 @@ describe('退職金支給後の試算（税軽減なし）', () => {
     data.table4!.n53 = '33000';
     expect(after.bases[0]!.comparablePrice).toBe(calcValuationBasis(get, 'inheritance').comparablePrice);
   });
-  it('解約益はⒸの目減りを埋め合わせず、Ⓓだけを押し戻す', () => {
-    const onlyPay = calcRetirementSimulation(fixture('5000').get);
-    const withGain = calcRetirementSimulation(fixture('5000', '5000').get);
-    // 退職金の損金算入でⒸが下がったぶんは戻らない（解約益は非経常的な利益なのでⒸに乗らない）。
-    // 一方Ⓓは相殺されて元に戻るので、比準価額は解約益のぶんだけ高くなる。
-    expect(withGain.bases[0]!.comparablePrice).toBeGreaterThan(onlyPay.bases[0]!.comparablePrice!);
-    expect(withGain.bases.map((b) => b.netAssetPrice)).toEqual([95000, 95000]);
+  // 退職金は非経常的な損失として⑫で解約益・現在の⑫と相殺し、負数は0にする。
+  // 試算結果が「⑪・⑫・⑱をその値で入力した現在の評価」と一致することで、差し替え後の各欄を確かめる。
+  it.each([
+    // [退職金, 解約益, 現在の⑫, 試算後の⑪, ⑫, ⑱]
+    ['5000', '1200', '500', '6200', '0', '26200'], // 相殺しきれない退職金の残りだけⒸが下がる
+    ['5000', '5000', '', '10000', '0', '30000'], // 同額なら⑪⑫⑱とも現在のまま
+    ['2000', '5000', '1000', '13000', '4000', '33000'], // 解約益が多ければ残りが⑫に残り、Ⓒは動かない
+  ])('退職金%s・解約益%s・⑫%sは非経常的な損益として⑫で相殺する', (pay, gain, e19, e18After, e19After, n53After) => {
+    const { data, get } = fixture(pay, gain);
+    if (e19) data.table4!.e19 = e19;
+    const after = calcRetirementSimulation(get);
+    Object.assign(data.table4!, { e18: e18After, e19: e19After, n53: n53After });
+    expect(after.bases[0]!.comparablePrice).toBe(calcValuationBasis(get, 'inheritance').comparablePrice);
+    expect(after.bases.map((b) => b.netAssetPrice)).toEqual([100000 - Number(pay), 100000 - Number(pay)]);
   });
   it('不正な解約益もエラーにし、どちらの欄が原因かを返す', () => {
     expect(calcRetirementSimulation(fixture('5000', '-1').get)).toMatchObject({

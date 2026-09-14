@@ -80,7 +80,7 @@ export function RetirementSimulation({ getField, updateField, basis, before, onH
           </div>;
         })}
         <p className="summary-price-group-note">直前期に全額を損金算入する前提で、会社規模・資産構成は現状固定です。法人税の減額効果・受給者の税金・退任による株主区分の変化は含めません。帳票の手動判定・修正欄は引き継ぎます。</p>
-        {!!result.proceeds && <p className="summary-price-group-note">解約益は非経常的な利益として第4表の⑫にも計上するため、類似業種比準の年利益金額（Ⓒ）には乗らず、利益積立金額を通じてⒹにだけ効きます。保険は第5表に解約返戻金相当額で計上済みとみなし、純資産価額は動かしていません。</p>}
+        <p className="summary-price-group-note">退職金は非経常的な損失{result.proceeds ? '、保険の解約益は非経常的な利益' : ''}として第4表の⑫（非経常的な利益金額）で相殺します（負数になるときは0）。類似業種比準の年利益金額（Ⓒ）が下がるのは、退職金のうち{result.proceeds ? '解約益と' : ''}現在の⑫を超える部分だけです。{result.proceeds ? '保険は第5表に解約返戻金相当額で計上済みとみなし、純資産価額は動かしていません。' : ''}</p>
       </>}
     </section>
   );

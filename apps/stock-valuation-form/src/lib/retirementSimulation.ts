@@ -33,6 +33,14 @@ export type RetirementSimulation = {
 };
 
 /**
+ * 退職金支給後の⑫非経常的な利益金額。解約益（保険差益）を非経常的な利益、退職金を非経常的な損失として相殺する。
+ * 明細書の記載方法どおり⑫は非経常的な損失を控除した純額で、負数になるときは0（損失超過分をⒸへ足し戻さない）。
+ * 現在の⑫はすでに純額として入力されている前提で、そこへ加減する。
+ */
+export const nonRecurringAfterRetirement = (nonRecurring: number, pay: number, gain: number): number =>
+  Math.max(0, nonRecurring + gain - pay);
+
+/**
  * 直前期に退職金 pay（損金）と保険の解約益 gain（益金）を立てた getField を返す（金額は千円）。
  * 試算の計算過程（別紙）も同じ getField で再計算するので、サマリーの金額と必ず一致する。
  * 第4表の直前期の⑪・⑱が未入力なら、差し引く元がないので null。
@@ -52,10 +60,11 @@ export function withRetirement(getField: Getter, pay: number, gain: number): Get
     if (table === 'table4') {
       // ⑪法人税の課税所得金額。退職金は損金、解約益は益金として同じ直前期に立てる。
       if (field === 'e18') return String(income - pay + gain);
-      // ⑫非経常的な利益金額。解約益をここへも立てると ⑯＝⑪－⑫＋⑬－⑭＋⑮ で打ち消し合い、
-      // 類似業種比準のⒸ（年利益金額）が解約益で膨らまない。財産評価基本通達183(2)が
-      // 保険差益を非経常的な利益としてⒸから除くのと同じ扱いで、⑪だけに足すと株価が高く出る。
-      if (field === 'e19') return String(nonRecurring + gain);
+      // ⑫非経常的な利益金額。財産評価基本通達183(2)は保険差益を非経常的な利益としてⒸから除き、
+      // 同じ臨時的な事由で生じる退職金は非経常的な損失として⑫で相殺する。
+      // ⑯＝⑪－⑫＋⑬－⑭＋⑮ なので、Ⓒ（年利益金額）が下がるのは退職金のうち解約益と現在の⑫を超える部分だけになる。
+      // 退職金を⑪だけから引くと、同じ期の解約益があるときにⒸを下げすぎて株価が低く出る。
+      if (field === 'e19') return String(nonRecurringAfterRetirement(nonRecurring, pay, gain));
       // ⑱利益積立金額。こちらは経常・非経常を問わないので解約益がそのまま残り、
       // Ⓓ（1株当たりの純資産価額・帳簿価額）を通じて比準価額へ効く。
       if (field === 'n53') return String(retained - pay + gain);

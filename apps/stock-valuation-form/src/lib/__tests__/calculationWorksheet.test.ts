@@ -55,10 +55,30 @@ describe('試算の計算過程（別紙）', () => {
     const inputs = scenario(get, 'retirement')[0]!.sections[0]!.rows;
     expect(inputs.map((r) => [r.current, r.trial])).toEqual([
       ['10,000千円', '6,200千円'],
-      ['500千円', '1,700千円'],
+      ['500千円', '0千円'],
       ['30,000千円', '26,200千円'],
       ['－', '5,000千円'],
     ]);
+    // ⑫は 500 ＋ 1,200 － 5,000 が負数になるので0
+    expect(inputs[1]!.process).toContain('500 ＋ 解約益 1,200 － 退職金 5,000 ＝ △3,300千円（負数のため0千円）');
+  });
+
+  it('計算過程の数字は入力にカンマがなくても3桁ごとに区切る', () => {
+    // フィクスチャの入力はカンマなし。試算の getField も String(数値) を返すので、そのまま埋めると区切られない
+    const { get } = fixture({ [ASSUMED_PROFIT_FIELD]: '20000', [RETIREMENT_AMOUNT_FIELD]: '5000', [RETIREMENT_INSURANCE_FIELD]: '1200' });
+    const sheet = buildCalculationWorksheet(get);
+    const texts = sheet.scenarios.flatMap((s) => [s.description, ...s.sections.flatMap((sec) => [sec.note ?? '', ...sec.rows.flatMap((r) => [r.current, r.trial, r.process])])]);
+    const unseparated = texts.flatMap((t) => t.match(/(?<![\d.,])\d{4,}/g) ?? []);
+    expect(unseparated).toEqual([]);
+  });
+
+  it('負数の金額は明細書と同じく△で表す', () => {
+    const { get } = fixture({ [RETIREMENT_AMOUNT_FIELD]: '12000' });
+    const [income] = scenario(get, 'retirement')[0]!.sections[0]!.rows;
+    expect(income!.trial).toBe('△2,000千円');
+    expect(income!.process).toContain('10,000 － 退職金 12,000 ＋ 解約益 0 ＝ △2,000千円');
+    const texts = buildCalculationWorksheet(get).scenarios.flatMap((s) => s.sections.flatMap((sec) => sec.rows.flatMap((r) => [r.current, r.trial])));
+    expect(texts.filter((t) => /^-/.test(t))).toEqual([]);
   });
 
   it('評価ベースを絞ると退職金の試算もそのベースだけになる', () => {
