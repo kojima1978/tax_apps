@@ -95,7 +95,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     scenario, summary, successionAssets, loanBreakdown, estimatedInheritanceTax, otherTaxes, successionCosts,
   });
 
-  function openNewPosition(section: PositionSection = "ASSET") {
+  function openNewPosition(section: PositionSection) {
     setEditingPosition(null);
     setNewPositionSection(section);
     setModalOpen(true);

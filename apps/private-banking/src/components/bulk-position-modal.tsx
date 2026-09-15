@@ -542,7 +542,7 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
             </button>;
           })}</div>
         </div>)}</div>
-        <div className="bulk-help"><Table2 /><span>{isRealEstate ? "登録済み行の修正と新規行の追加を同じ表で行えます。金額は千円単位です。" : "登録済み行の修正と新規行の追加を同じ表で行えます。Excelから複数セルを貼り付けることもできます。"} Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の8種類だけです。事業用資産・その他資産・借入金・個人保証は「1件追加」から登録します。</span></div>
+        <div className="bulk-help"><Table2 /><span>{isRealEstate ? "登録済み行の修正と新規行の追加を同じ表で行えます。金額は千円単位です。" : "登録済み行の修正と新規行の追加を同じ表で行えます。Excelから複数セルを貼り付けることもできます。"} Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の8種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>
