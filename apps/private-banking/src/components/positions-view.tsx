@@ -151,6 +151,10 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
   };
   const hasClassificationControls = classifications.length > 1;
   const visibleTotal = visibleItems.reduce((sum, position) => sum + position.valueJpy, 0);
+  // 相続税負担額の合計は、表示中の各行の（丸め後の）負担額を足したもの。行の表示と合計が食い違わないようにする。
+  // 按分の対象外（偶発債務・相続税が未設定）で1件も値が無いときは、0円ではなく「—」を出す。
+  const visibleBurdens = visibleItems.map(taxBurden).filter((burden): burden is number => burden !== null);
+  const visibleBurdenTotal = visibleBurdens.length > 0 ? visibleBurdens.reduce((sum, burden) => sum + burden, 0) : null;
 
   async function movePosition(sourceId: number, targetId: number) {
     if (!canDrop(sourceId, targetId)) return;
@@ -258,14 +262,21 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
                 <td data-label="所在地・金融機関等" title={institutionOrPropertyAddress(p) || undefined}>{institutionOrPropertyAddress(p) || "—"}</td>
                 <td data-label="評価方法" title={valuationBreakdown(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationBreakdown(p) ? <small className="valuation-breakdown">{valuationBreakdown(p)}</small> : null}</td>
                 <td data-label="円換算時価" className="number"><DeemedAmounts position={p} />{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}</td>
-                <td data-label="相続税負担額" className="number">{burden === null ? <span className="tax-burden-empty">—</span> : <span className={burden < 0 ? "tax-burden-negative" : undefined}>{triangleYen(burden)}</span>}</td>
+                <td data-label="相続税負担額" className="number"><TaxBurdenAmount value={burden} /></td>
                 <td data-label="操作"><div className="table-actions"><button className="row-action edit" title="修正" aria-label={`${p.name}を修正`} onClick={() => onEdit(p)}><Pencil /><span className="sr-only">修正</span></button><button className="row-action delete" title="削除" aria-label={`${p.name}を削除`} onClick={() => onDelete(p)}><Trash2 /><span className="sr-only">削除</span></button></div></td>
               </tr>
             )})}
           </tbody>
-          <tfoot><tr><td className="position-total-row" colSpan={8}><div><span>{filterActive ? "表示中の合計" : "合計"}</span><strong>{yen.format(visibleTotal)}</strong></div></td></tr></tfoot>
+          {/* 合計も見出しと同じ列構成で並べ、金額を「円換算時価」「相続税負担額」の列の真下に揃える。
+              並び順・操作の列は印刷で消えるため、他の列とまとめず単独のセルにしておく。 */}
+          <tfoot><tr className="position-total-row"><td className="reorder-cell" /><th scope="row" colSpan={4} className="position-total-label">{filterActive ? "表示中の合計" : "合計"}</th><td data-label="円換算時価" className="number">{yen.format(visibleTotal)}</td><td data-label="相続税負担額" className="number"><TaxBurdenAmount value={visibleBurdenTotal} /></td><td className="actions-cell" /></tr></tfoot>
         </table>
       </div>
     </section>
   );
+}
+
+function TaxBurdenAmount({ value }: { value: number | null }) {
+  if (value === null) return <span className="tax-burden-empty">—</span>;
+  return <span className={value < 0 ? "tax-burden-negative" : undefined}>{triangleYen(value)}</span>;
 }

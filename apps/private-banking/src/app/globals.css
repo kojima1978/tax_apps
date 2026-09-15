@@ -242,8 +242,8 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .deemed-amount > small { color: var(--slate-500); font-weight: 700; white-space: nowrap; }
 .deemed-benefit-note { display: block; margin-top: 2px; color: var(--slate-500); font-size: 11px; font-weight: 600; white-space: nowrap; }
 .tax-burden-empty { color: var(--slate-500); }
-.position-table th:nth-child(4), .position-table td:nth-child(4) { text-align: left; }
-.position-table td:nth-child(4), .position-table td:nth-child(5) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.position-table th:nth-child(4), .position-table tbody td:nth-child(4) { text-align: left; }
+.position-table tbody td:nth-child(4), .position-table tbody td:nth-child(5) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .position-meta { display: none; }
 .valuation-breakdown { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .position-table thead th:last-child, .position-table tbody td:last-child, .position-table tfoot td:last-child { position: sticky; right: 0; z-index: 2; }
@@ -251,8 +251,7 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .position-table tbody td:last-child { background: #fff; box-shadow: -8px 0 14px -14px #172b3a99; }
 .position-table tbody tr:hover td:last-child { background: #fafcfd; }
 .position-table tfoot td:last-child { background: #f7f9fa; }
-.position-table tfoot .position-total-row { position: static; right: auto; box-shadow: none; }
-.position-total-row > div { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.position-table tfoot .position-total-label { color: var(--navy-950); background: #f7f9fa; border: 0; font-size: 12px; font-weight: 800; text-align: left; }
 .trend-panel .panel-header, .history-list-panel .panel-header { border-bottom: 1px solid var(--line); }
 .trend-guidance { margin: 0; padding: 10px 20px; color: #52635b; background: #f0fdf4; border-bottom: 1px solid #bbf7d0; font-size: 11px; }
 .trend-table { min-width: 1040px; table-layout: fixed; font-variant-numeric: tabular-nums; }
@@ -814,7 +813,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table th:nth-child(4) { width: 22%; }
   /* table-layout:fixed では display:none の列も「幅指定なしの1列」として残り、
      名称列に回るはずの余りを山分けしてしまう。幅0＋クリップで列ごと畳む。 */
-  .position-table th:nth-child(5), .position-table td:nth-child(5) { width: 0; max-width: 0; padding-inline: 0; overflow: hidden; white-space: nowrap; visibility: hidden; }
+  .position-table th:nth-child(5), .position-table tbody td:nth-child(5) { width: 0; max-width: 0; padding-inline: 0; overflow: hidden; white-space: nowrap; visibility: hidden; }
   .position-table th:nth-child(6) { width: 136px; }
   .position-table th:nth-child(7) { width: 108px; }
   .position-table .position-meta { max-width: 100%; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -827,7 +826,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table th, .position-table td { padding-inline: 5px; }
   .position-table th:nth-child(1) { width: 38px; }
   .position-table th:nth-child(2) { width: 72px; }
-  .position-table th:nth-child(4), .position-table td:nth-child(4) { width: 0; max-width: 0; padding-inline: 0; overflow: hidden; white-space: nowrap; visibility: hidden; }
+  .position-table th:nth-child(4), .position-table tbody td:nth-child(4) { width: 0; max-width: 0; padding-inline: 0; overflow: hidden; white-space: nowrap; visibility: hidden; }
   .position-table th:nth-child(6) { width: 116px; }
   .position-table th:nth-child(7) { width: 100px; }
   .position-table th:nth-child(8) { width: 78px; }
@@ -936,11 +935,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table .excluded { margin-left: auto; }
   .position-table .table-actions { width: 100%; }
   .position-table .row-action { flex: 0 0 44px; }
-  .position-table tfoot tr { padding: 12px; background: #f7f9fa; display: grid; grid-template-columns: 1fr auto; align-items: center; }
-  .position-table tfoot td { padding: 0; border: 0; }
-  .position-table tfoot td:first-child { grid-column: 1; }
-  .position-table tfoot td.number { grid-column: 2; }
-  .position-table tfoot td:last-child { display: none; }
+  /* カード表示では列が無いので、合計の見出しの下に金額を項目名つきで縦に並べる。 */
+  .position-table tfoot tr { padding: 12px; background: #f7f9fa; display: grid; gap: 6px; }
+  .position-table tfoot th, .position-table tfoot td { padding: 0; border: 0; }
+  .position-table tfoot .reorder-cell, .position-table tfoot .actions-cell { display: none; }
+  .position-table tfoot td.number { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .position-table tfoot td.number::before { content: attr(data-label); color: var(--slate-500); font-size: 11px; font-weight: 700; }
   .form-grid { grid-template-columns: 1fr; }
   .year-method-options { grid-template-columns: 1fr; }
   .benefit-recipient-row { grid-template-columns: minmax(0, 1fr) auto 44px; }
@@ -1261,21 +1261,22 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table th:nth-child(6) { width: 15.5%; }
   .position-table th:nth-child(7) { width: 9.5%; }
   .position-table thead .reorder-column,
-  .position-table tbody .reorder-cell,
+  .position-table .reorder-cell,
   .position-table thead .actions-column,
-  .position-table tbody td:has(.table-actions) { display: none; }
+  .position-table tbody td:has(.table-actions),
+  .position-table tfoot .actions-cell { display: none; }
   .position-table thead th:last-child,
   .position-table tbody td:last-child,
   .position-table tfoot td:last-child { position: static; box-shadow: none; }
-  .position-table td:nth-child(5), .valuation-breakdown { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
-  .position-table td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .position-table td:nth-child(2), .position-table td:nth-child(3) { overflow: hidden; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+  .position-table tbody td:nth-child(5), .valuation-breakdown { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  .position-table tbody td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .position-table tbody td:nth-child(2), .position-table tbody td:nth-child(3) { overflow: hidden; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
   .position-table td strong { font-size: 11px; }
   .position-table td small { font-size: 10px; line-height: 1.45; }
   .position-table tbody tr.is-classification-start td { border-top: 1.5pt solid var(--classification-border); padding-top: 7px; }
   .classification-label { min-height: 0; padding: 2px 4px; font-size: 10px; white-space: normal; }
   .category-tag { font-size: 10px; }
-  .position-table tfoot td { padding-block: 7px; font-size: 12px; }
+  .position-table tfoot th, .position-table tfoot td { padding-block: 7px; font-size: 12px; }
 
   .history-page-heading { display: none !important; }
   .trend-panel .panel-header p, .period-position-label { display: none !important; }
