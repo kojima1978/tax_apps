@@ -124,7 +124,7 @@ describe("buildBalanceView", () => {
   });
 
   it("小分類は0円の行を落とし、税金ありでは保険のラベルを死亡保険金に変える", () => {
-    expect(view("without-tax").subtotals.financial.map((item) => item.label)).toEqual(["預金", "生命保険"]);
+    expect(view("without-tax").subtotals.financial.map((item) => item.label)).toEqual(["預金", "生命保険（解約返戻金）"]);
     expect(view("with-tax").subtotals.financial.map((item) => item.label)).toEqual(["預金", "生命保険（死亡保険金）"]);
   });
 

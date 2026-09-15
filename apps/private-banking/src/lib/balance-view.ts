@@ -103,7 +103,7 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
     financial: nonZero([
       { label: "預金", value: displayedAssets.deposits },
       { label: "有価証券", value: displayedAssets.securities },
-      { label: `生命保険${taxIncluded ? "（死亡保険金）" : ""}`, value: displayedAssets.insurance },
+      { label: `生命保険${taxIncluded ? "（死亡保険金）" : "（解約返戻金）"}`, value: displayedAssets.insurance },
       { label: `退職金${taxIncluded ? "（死亡退職金）" : ""}`, value: displayedAssets.retirementAllowance },
     ]),
     realEstate: nonZero([
