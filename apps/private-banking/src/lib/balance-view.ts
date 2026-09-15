@@ -3,6 +3,7 @@ import {
   type Position,
   deemedBenefitJpy,
   deemedConfig,
+  hasDeemedBenefit,
   totals,
 } from "@/lib/portfolio-view";
 
@@ -21,8 +22,7 @@ export function successionAssetTotals(positions: Position[]) {
     // 生命保険と退職金はB/Sに解約返戻金（解約手当金）が載り、税金ありB/Sでは死亡給付金に置き換える。
     else if (deemedConfig(position)) {
       const benefitJpy = deemedBenefitJpy(position);
-      // 明示的な0円は入力済み。円換算額では空欄と区別できない。
-      if (position.assetDetails?.[deemedConfig(position)!.benefitKey] == null) deemedBenefitMissingCount += 1;
+      if (!hasDeemedBenefit(position)) deemedBenefitMissingCount += 1;
       if (position.category === "INSURANCE") { insurance += position.valueJpy; insuranceDeathBenefit += benefitJpy; }
       else { retirementAllowance += position.valueJpy; retirementDeathBenefit += benefitJpy; }
     }

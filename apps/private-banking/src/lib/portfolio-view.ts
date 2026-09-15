@@ -159,6 +159,11 @@ export const deemedBenefit = (position: Position) => {
   const config = deemedConfig(position);
   return config ? position.assetDetails?.[config.benefitKey] ?? 0 : 0;
 };
+/** 死亡保険金・死亡退職金が入力済みか。明示的な0円は入力済みとし、円換算額では空欄と区別できないので入力値で判定する。 */
+export const hasDeemedBenefit = (position: Position) => {
+  const config = deemedConfig(position);
+  return config !== null && position.assetDetails?.[config.benefitKey] != null;
+};
 /** 死亡保険金・死亡退職金の円換算額。B/Sの資産合計や明細の円換算時価はこちらを使う。 */
 export const deemedBenefitJpy = (position: Position) => {
   const benefit = deemedBenefit(position);

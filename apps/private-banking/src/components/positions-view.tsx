@@ -17,6 +17,7 @@ import {
   deemedBenefitJpy,
   deemedConfig,
   deemedInheritanceCategories,
+  hasDeemedBenefit,
   splitBenefit,
   fiscalYearLabel,
   institutionOrPropertyAddress,
@@ -41,11 +42,22 @@ function DeemedAmounts({ position }: { position: Position }) {
   if (!config) return <strong>{yen.format(position.valueJpy)}</strong>;
   // 1人が全額を受け取る場合も、受取人と割合を省略しない。
   const split = allocations.map((allocation) => `${allocation.recipient.trim() || "未設定"} ${allocation.numerator}/${allocation.denominator}`).join("、");
-  const benefitEntered = position.assetDetails?.[config.benefitKey] != null;
   return <>
     <span className="deemed-amount"><small>{config.surrenderLabel}</small><strong>{yen.format(position.valueJpy)}</strong></span>
-    {benefitEntered ? <span className="deemed-amount"><small>{config.label}</small><strong>{yen.format(benefitJpy)}</strong></span> : null}
+    {hasDeemedBenefit(position) ? <span className="deemed-amount"><small>{config.label}</small><strong>{yen.format(benefitJpy)}</strong></span> : null}
     {split ? <small className="deemed-benefit-note">受取人：{split}</small> : null}
+  </>;
+}
+
+/**
+ * 生命保険・退職金の相続税負担額を、円換算時価の2段と同じ高さに並べる。
+ * 課税されるのは死亡給付金だけで、解約返戻金（解約手当金）には相続税が掛からないことを段の位置で示す。
+ */
+function DeemedTaxBurden({ position, value }: { position: Position; value: number | null }) {
+  const config = deemedConfig(position)!;
+  return <>
+    <span className="deemed-amount deemed-tax-line"><small>対象外</small><span className="tax-burden-empty" aria-hidden="true">—</span><span className="sr-only">{config.surrenderLabel}に対応する相続税なし</span></span>
+    <span className="deemed-amount deemed-tax-line"><small className="deemed-tax-label">{config.label}</small><TaxBurdenAmount value={value} /></span>
   </>;
 }
 
@@ -115,10 +127,10 @@ export function AssetsView({ snapshot, snapshots, legalHeirNames, onSelectSnapsh
   };
   const orderedSnapshots = [...snapshots].sort((a, b) => b.fiscalYear - a.fiscalYear);
   const updatedAt = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(snapshot.updatedAt));
-  return <><section className="page-heading detail-page-heading"><div><p className="eyebrow">ASSET &amp; LIABILITY DETAILS</p><h2>資産・負債明細</h2><p className="detail-heading-meta"><span className={`detail-status ${snapshot.isCurrent ? "current" : "historical"}`}><span className="detail-status-screen">{snapshot.isCurrent ? "現在年度" : "過年度を編集中"}</span><span className="detail-status-print">{fiscalYearLabel(snapshot)}{snapshot.isCurrent ? "（現在）" : ""}</span></span><span className="detail-updated-at">最終更新 {updatedAt}</span>{!snapshot.isCurrent ? <span>現在年度のデータには影響しません</span> : null}</p></div><div className="page-heading-actions detail-page-actions">{onBack ? <button className="button secondary" onClick={onBack}>年度比較へ戻る</button> : null}{/* 年度（スナップショット）の操作と明細の入力は別レイヤーなので、グループを分けて誤操作を防ぐ。 */}<div className="year-action-group" role="group" aria-label="年度の操作"><label className="detail-year-selector"><span>表示年度</span><select aria-label="資産・負債明細の表示年度" value={snapshot.id} onChange={(event) => onSelectSnapshot(Number(event.target.value))}>{orderedSnapshots.map((item) => <option key={item.id} value={item.id}>{fiscalYearLabel(item)}{item.isCurrent ? "（現在）" : ""}</option>)}</select></label><button className="button secondary" onClick={onCreateNext}><CalendarPlus />年度を追加</button><button className="button secondary" onClick={onEditSettings}><Pencil />年度設定</button></div>{/* 1件ずつの追加は各表の「〜を追加」に任せ、ここには種類をまたぐ一括入力だけを置く。 */}<div className="entry-action-group" role="group" aria-label="明細の入力"><button className="button secondary" onClick={onBulkManage}><Table2 />まとめて入力</button></div></div></section><PositionTable key={`${snapshot.id}-ASSET-${snapshot.updatedAt}`} title="資産の部" section="ASSET" items={assets} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /><PositionTable key={`${snapshot.id}-LIABILITY-${snapshot.updatedAt}`} title="負債の部" section="LIABILITY" items={liabilities} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /><PositionTable key={`${snapshot.id}-CONTINGENT-${snapshot.updatedAt}`} title="偶発債務の部（B/S外）" section="CONTINGENT" items={contingencies} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} saving={saving} /></>;
+  return <><section className="page-heading detail-page-heading"><div><p className="eyebrow">ASSET &amp; LIABILITY DETAILS</p><h2>資産・負債明細</h2><p className="detail-heading-meta"><span className={`detail-status ${snapshot.isCurrent ? "current" : "historical"}`}><span className="detail-status-screen">{snapshot.isCurrent ? "現在年度" : "過年度を編集中"}</span><span className="detail-status-print">{fiscalYearLabel(snapshot)}{snapshot.isCurrent ? "（現在）" : ""}</span></span><span className="detail-updated-at">最終更新 {updatedAt}</span>{!snapshot.isCurrent ? <span>現在年度のデータには影響しません</span> : null}</p></div><div className="page-heading-actions detail-page-actions">{onBack ? <button className="button secondary" onClick={onBack}>年度比較へ戻る</button> : null}{/* 年度（スナップショット）の操作と明細の入力は別レイヤーなので、グループを分けて誤操作を防ぐ。 */}<div className="year-action-group" role="group" aria-label="年度の操作"><label className="detail-year-selector"><span>表示年度</span><select aria-label="資産・負債明細の表示年度" value={snapshot.id} onChange={(event) => onSelectSnapshot(Number(event.target.value))}>{orderedSnapshots.map((item) => <option key={item.id} value={item.id}>{fiscalYearLabel(item)}{item.isCurrent ? "（現在）" : ""}</option>)}</select></label><button className="button secondary" onClick={onCreateNext}><CalendarPlus />年度を追加</button><button className="button secondary" onClick={onEditSettings}><Pencil />年度設定</button></div>{/* 1件ずつの追加は各表の「〜を追加」に任せ、ここには種類をまたぐ一括入力だけを置く。 */}<div className="entry-action-group" role="group" aria-label="明細の入力"><button className="button secondary" onClick={onBulkManage}><Table2 />まとめて入力</button></div></div></section><PositionTable key={`${snapshot.id}-ASSET-${snapshot.updatedAt}`} title="資産の部" section="ASSET" items={assets} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} benefitBasedBurden={Boolean(calculation)} saving={saving} /><PositionTable key={`${snapshot.id}-LIABILITY-${snapshot.updatedAt}`} title="負債の部" section="LIABILITY" items={liabilities} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} benefitBasedBurden={Boolean(calculation)} saving={saving} /><PositionTable key={`${snapshot.id}-CONTINGENT-${snapshot.updatedAt}`} title="偶発債務の部（B/S外）" section="CONTINGENT" items={contingencies} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} benefitBasedBurden={Boolean(calculation)} saving={saving} /></>;
 }
 
-function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReorder, taxBurden, saving }: { title: string; section: PositionSection; items: Position[]; onAdd: (section: PositionSection) => void; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; taxBurden: (position: Position) => number | null; saving: boolean }) {
+function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReorder, taxBurden, benefitBasedBurden, saving }: { title: string; section: PositionSection; items: Position[]; onAdd: (section: PositionSection) => void; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; taxBurden: (position: Position) => number | null; benefitBasedBurden: boolean; saving: boolean }) {
   const [orderedItems, setOrderedItems] = useState(items);
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
@@ -275,6 +287,9 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
               const tone = classificationTone[classification] ?? "neutral";
               const isClassificationStart = index > 0 && middleClassification(visibleItems[index - 1]) !== classification;
               const burden = taxBurden(p);
+              // 相続税負担額を死亡給付金の段へ出すのは、按分基準が給付金になっている（連携計算値がある）ときだけ。
+              // 手動の想定相続税だけのときは解約返戻金で按分しているので、段を分けず従来どおり1つで出す。
+              const splitBurden = benefitBasedBurden && hasDeemedBenefit(p) && burden !== null;
               const canReorder = reorderableIds.has(p.id);
               return (
               <tr key={p.id} className={`classification-${tone} ${isClassificationStart ? "is-classification-start" : ""} ${draggedId === p.id ? "is-dragging" : ""} ${dropTargetId === p.id && draggedId !== p.id ? "is-drop-target" : ""}`} onDragOver={(event) => { if (draggedId === null || !canDrop(draggedId, p.id)) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropTargetId(p.id); }} onDragLeave={() => setDropTargetId((current) => current === p.id ? null : current)} onDrop={(event) => dropPosition(event, p.id)}>
@@ -284,8 +299,8 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
                   <small className="position-meta">{[institutionOrPropertyAddress(p), p.valuationMethod].filter(Boolean).join(" ／ ")}</small></td>
                 <td data-label="所在地・金融機関等" title={institutionOrPropertyAddress(p) || undefined}>{institutionOrPropertyAddress(p) || "—"}</td>
                 <td data-label="評価方法" title={valuationBreakdown(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationBreakdown(p) ? <small className="valuation-breakdown">{valuationBreakdown(p)}</small> : null}</td>
-                <td data-label="円換算時価" className="number"><DeemedAmounts position={p} />{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}</td>
-                <td data-label="相続税負担額" className="number"><TaxBurdenAmount value={burden} /></td>
+                <td data-label="円換算時価" className={`number ${splitBurden ? "deemed-cell" : ""}`}><DeemedAmounts position={p} />{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}</td>
+                <td data-label="相続税負担額" className={`number ${splitBurden ? "deemed-cell" : ""}`}>{splitBurden ? <DeemedTaxBurden position={p} value={burden} /> : <TaxBurdenAmount value={burden} />}</td>
                 <td data-label="操作"><div className="table-actions"><button className="row-action edit" title="修正" aria-label={`${p.name}を修正`} onClick={() => onEdit(p)}><Pencil /><span className="sr-only">修正</span></button><button className="row-action delete" title="削除" aria-label={`${p.name}を削除`} onClick={() => onDelete(p)}><Trash2 /><span className="sr-only">削除</span></button></div></td>
               </tr>
             )})}
