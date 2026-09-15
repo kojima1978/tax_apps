@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deemedAllocations, splitBenefit, type Position } from "@/lib/portfolio-view";
+import { deemedAllocations, positionCategoryLabel, propertyTypeOf, splitBenefit, type Position } from "@/lib/portfolio-view";
 
 const insurance = (assetDetails: Position["assetDetails"]) => ({ category: "INSURANCE", assetDetails } as Position);
 
@@ -45,5 +45,25 @@ describe("splitBenefit", () => {
   it("受取人がいなければ空、取り分が0なら0を返す", () => {
     expect(splitBenefit(1_000_000, [])).toEqual([]);
     expect(splitBenefit(1_000_000, allocations([[0, 1]]))).toEqual([0]);
+  });
+});
+
+describe("propertyTypeOf / positionCategoryLabel", () => {
+  const position = (fields: Partial<Position>) => ({ category: "HOME_REAL_ESTATE", valuationFormula: "MANUAL", assetDetails: null, ...fields } as Position);
+
+  it("保存した土地・建物の区分を優先する", () => {
+    expect(propertyTypeOf(position({ valuationFormula: "LAND_ROADSIDE", assetDetails: { propertyType: "BUILDING" } }))).toBe("BUILDING");
+    expect(positionCategoryLabel(position({ assetDetails: { propertyType: "LAND" } }))).toBe("居宅・土地");
+  });
+
+  it("区分を保存していない古い明細は、建物の算式なら建物、それ以外は土地とみなす", () => {
+    expect(propertyTypeOf(position({ category: "REAL_ESTATE", valuationFormula: "BUILDING" }))).toBe("BUILDING");
+    expect(positionCategoryLabel(position({ category: "REAL_ESTATE", valuationFormula: "BUILDING" }))).toBe("収益不動産・建物");
+    expect(propertyTypeOf(position({ valuationFormula: "MANUAL" }))).toBe("LAND");
+  });
+
+  it("不動産以外は区分を持たず、科目名だけを出す", () => {
+    expect(propertyTypeOf(position({ category: "DEPOSIT" }))).toBeNull();
+    expect(positionCategoryLabel(position({ category: "DEPOSIT" }))).toBe("預金・現金");
   });
 });

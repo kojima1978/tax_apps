@@ -9,8 +9,8 @@ import {
   type Position,
   type PositionSection,
   type PositionSortMode,
+  type PropertyType,
   type Snapshot,
-  categoryLabels,
   categoryRank,
   deemedAllocations,
   deemedBenefit,
@@ -22,6 +22,9 @@ import {
   institutionOrPropertyAddress,
   middleClassification,
   middleClassificationRank,
+  positionCategoryLabel,
+  propertyTypeLabels,
+  propertyTypeOf,
   valuationBreakdown,
 } from "@/lib/portfolio-view";
 
@@ -48,6 +51,16 @@ function DeemedAmounts({ position }: { position: Position }) {
 
 /** 追加ボタンの文言。表の見出しは「〜の部（B/S外）」まで含むので、ボタンでは短い呼び方にする。 */
 const sectionAddLabels: Record<PositionSection, string> = { ASSET: "資産", LIABILITY: "負債", CONTINGENT: "偶発債務" };
+
+/** 土地を建物より先に並べる。不動産以外（null）は同じ科目内に1種類しか無いので順位は問わない。 */
+const propertyTypes = Object.keys(propertyTypeLabels) as PropertyType[];
+const propertyTypeRank = (position: Position) => Math.max(propertyTypes.indexOf(propertyTypeOf(position) as PropertyType), 0);
+
+/** ドラッグで入れ替えられる範囲。同じ科目で、不動産はさらに土地・建物が同じもの同士に限る。 */
+const reorderGroup = (position: Position) => `${position.category}:${propertyTypeOf(position) ?? ""}`;
+
+/** 中分類の絞り込みの値。不動産の土地・建物は「不動産:LAND」のように中分類の後ろへ区分を付ける。 */
+const PROPERTY_FILTER_SEPARATOR = ":";
 
 const classificationTone: Record<string, string> = {
   金融資産: "financial",
@@ -119,35 +132,45 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
     const values = [...new Set(orderedItems.map(middleClassification))];
     return values.sort((a, b) => (middleClassificationRank.get(a) ?? Number.MAX_SAFE_INTEGER) - (middleClassificationRank.get(b) ?? Number.MAX_SAFE_INTEGER));
   }, [orderedItems]);
+  // 不動産は土地・建物でも絞り込めるよう、登録のある区分だけを中分類の直後に字下げして並べる。
+  const filterOptions = useMemo(() => classifications.flatMap((classification) => {
+    const types = propertyTypes.filter((type) => orderedItems.some((position) => middleClassification(position) === classification && propertyTypeOf(position) === type));
+    return [
+      { value: classification, label: classification },
+      ...types.map((type) => ({ value: `${classification}${PROPERTY_FILTER_SEPARATOR}${type}`, label: `└ ${propertyTypeLabels[type]}` })),
+    ];
+  }), [classifications, orderedItems]);
   const visibleItems = useMemo(() => {
+    const [filterClassification, filterPropertyType] = classificationFilter.split(PROPERTY_FILTER_SEPARATOR);
     const filtered = classificationFilter === "ALL"
       ? orderedItems
-      : orderedItems.filter((position) => middleClassification(position) === classificationFilter);
+      : orderedItems.filter((position) => middleClassification(position) === filterClassification && (!filterPropertyType || propertyTypeOf(position) === filterPropertyType));
     if (sortMode === "manual") return filtered;
     const manualIndex = new Map(orderedItems.map((position, index) => [position.id, index]));
     const direction = sortMode === "classification-asc" ? 1 : -1;
     return [...filtered].sort((a, b) => {
       const rankA = middleClassificationRank.get(middleClassification(a)) ?? Number.MAX_SAFE_INTEGER;
       const rankB = middleClassificationRank.get(middleClassification(b)) ?? Number.MAX_SAFE_INTEGER;
-      // 中分類が同じなら科目の既定順（預金・現金が先頭）で揃え、同じ科目の中だけ手動の並びを保つ。
+      // 中分類が同じなら科目の既定順（預金・現金が先頭）で揃え、不動産は同じ科目の中で土地→建物の順にする。
+      // その中だけ手動の並びを保つ。
       const categoryA = categoryRank.get(a.category) ?? Number.MAX_SAFE_INTEGER;
       const categoryB = categoryRank.get(b.category) ?? Number.MAX_SAFE_INTEGER;
-      return (rankA - rankB) * direction || categoryA - categoryB || (manualIndex.get(a.id) ?? 0) - (manualIndex.get(b.id) ?? 0);
+      return (rankA - rankB) * direction || categoryA - categoryB || propertyTypeRank(a) - propertyTypeRank(b) || (manualIndex.get(a.id) ?? 0) - (manualIndex.get(b.id) ?? 0);
     });
   }, [classificationFilter, orderedItems, sortMode]);
-  // 並び替えは同じ科目どうしの入れ替えに限る。科目をまたがなければ中分類の並びは崩れないので、
-  // 絞り込み中・中分類順で表示中でもドラッグを許可できる。
-  // 同じ科目の行が他に無い明細は入れ替え先が存在しないため、ハンドル自体を無効にする。
+  // 並び替えは同じ科目どうし（不動産は土地・建物も同じもの同士）の入れ替えに限る。この範囲を
+  // またがなければ中分類順の並びは崩れないので、絞り込み中・中分類順で表示中でもドラッグを許可できる。
+  // 入れ替え先が他に無い明細は、ハンドル自体を無効にする。
   const reorderableIds = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const position of visibleItems) counts.set(position.category, (counts.get(position.category) ?? 0) + 1);
-    return new Set(visibleItems.filter((position) => (counts.get(position.category) ?? 0) > 1).map((position) => position.id));
+    for (const position of visibleItems) counts.set(reorderGroup(position), (counts.get(reorderGroup(position)) ?? 0) + 1);
+    return new Set(visibleItems.filter((position) => (counts.get(reorderGroup(position)) ?? 0) > 1).map((position) => position.id));
   }, [visibleItems]);
   const canDrop = (sourceId: number, targetId: number) => {
     if (saving || sourceId === targetId || !reorderableIds.has(sourceId) || !reorderableIds.has(targetId)) return false;
     const source = visibleItems.find((position) => position.id === sourceId);
     const target = visibleItems.find((position) => position.id === targetId);
-    return source !== undefined && target !== undefined && source.category === target.category;
+    return source !== undefined && target !== undefined && reorderGroup(source) === reorderGroup(target);
   };
   const hasClassificationControls = classifications.length > 1;
   const visibleTotal = visibleItems.reduce((sum, position) => sum + position.valueJpy, 0);
@@ -196,9 +219,9 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
     const currentIndex = visibleItems.findIndex((position) => position.id === positionId);
     if (currentIndex < 0) return;
     const step = event.key === "ArrowUp" ? -1 : 1;
-    // 科目をまたぐ移動はできないので、隣接行が別科目なら同じ科目の行まで読み飛ばす。
+    // 科目（不動産は土地・建物）をまたぐ移動はできないので、隣接行が別の範囲なら同じ範囲の行まで読み飛ばす。
     for (let index = currentIndex + step; index >= 0 && index < visibleItems.length; index += step) {
-      if (visibleItems[index].category !== visibleItems[currentIndex].category) continue;
+      if (reorderGroup(visibleItems[index]) !== reorderGroup(visibleItems[currentIndex])) continue;
       void movePosition(positionId, visibleItems[index].id);
       return;
     }
@@ -207,7 +230,7 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
   const filterActive = classificationFilter !== "ALL";
   const sortLabel = sortMode === "manual" ? "登録順" : sortMode === "classification-asc" ? "中分類順" : "中分類の逆順";
   const reorderHint = `${sortLabel}・同じ科目内でドラッグして並び替え`;
-  const dragDisabledMessage = "同じ科目の明細が他に無いため並び替えできません";
+  const dragDisabledMessage = "同じ科目（不動産は土地・建物も同じ）の明細が他に無いため並び替えできません";
 
   return (
     <section className={`panel table-panel position-section ${section === "CONTINGENT" ? "contingent-section" : ""}`}>
@@ -222,7 +245,7 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
               <span>中分類</span>
               <select aria-label={`${title}の中分類を絞り込み`} value={classificationFilter} onChange={(event) => setClassificationFilter(event.target.value)}>
                 <option value="ALL">すべて</option>
-                {classifications.map((classification) => <option key={classification} value={classification}>{classification}</option>)}
+                {filterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
             <label>
@@ -255,9 +278,9 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
               const canReorder = reorderableIds.has(p.id);
               return (
               <tr key={p.id} className={`classification-${tone} ${isClassificationStart ? "is-classification-start" : ""} ${draggedId === p.id ? "is-dragging" : ""} ${dropTargetId === p.id && draggedId !== p.id ? "is-drop-target" : ""}`} onDragOver={(event) => { if (draggedId === null || !canDrop(draggedId, p.id)) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropTargetId(p.id); }} onDragLeave={() => setDropTargetId((current) => current === p.id ? null : current)} onDrop={(event) => dropPosition(event, p.id)}>
-                <td data-label="並び順" className="reorder-cell"><button type="button" className={`drag-handle ${saving ? "is-saving" : ""}`} draggable={!saving && canReorder} disabled={saving || !canReorder} aria-label={canReorder ? `${p.name}を並び替え。同じ科目の明細とのみ入れ替えできます。上下矢印キーでも移動できます` : dragDisabledMessage} title={canReorder ? "同じ科目内でドラッグして並び替え" : dragDisabledMessage} onDragStart={(event) => startDrag(event, p.id)} onDragEnd={() => { setDraggedId(null); setDropTargetId(null); }} onKeyDown={(event) => moveWithKeyboard(event, p.id)}><GripVertical /></button></td>
+                <td data-label="並び順" className="reorder-cell"><button type="button" className={`drag-handle ${saving ? "is-saving" : ""}`} draggable={!saving && canReorder} disabled={saving || !canReorder} aria-label={canReorder ? `${p.name}を並び替え。同じ科目（不動産は土地・建物も同じ）の明細とのみ入れ替えできます。上下矢印キーでも移動できます` : dragDisabledMessage} title={canReorder ? "同じ科目内でドラッグして並び替え（不動産は土地・建物別）" : dragDisabledMessage} onDragStart={(event) => startDrag(event, p.id)} onDragEnd={() => { setDraggedId(null); setDropTargetId(null); }} onKeyDown={(event) => moveWithKeyboard(event, p.id)}><GripVertical /></button></td>
                 <td data-label="中分類"><span className="classification-label middle">{classification}</span></td>
-                <td data-label="科目・名称">{section !== "CONTINGENT" ? <span className="category-tag">{categoryLabels[p.category]}</span> : null}<strong>{p.name}</strong>{/* 所在地・金融機関等を持たない科目（生命保険の証券番号未入力など）では、その区切りごと省いて評価方法だけ出す。 */}
+                <td data-label="科目・名称">{section !== "CONTINGENT" ? <span className="category-tag">{positionCategoryLabel(p)}</span> : null}<strong>{p.name}</strong>{/* 所在地・金融機関等を持たない科目（生命保険の証券番号未入力など）では、その区切りごと省いて評価方法だけ出す。 */}
                   <small className="position-meta">{[institutionOrPropertyAddress(p), p.valuationMethod].filter(Boolean).join(" ／ ")}</small></td>
                 <td data-label="所在地・金融機関等" title={institutionOrPropertyAddress(p) || undefined}>{institutionOrPropertyAddress(p) || "—"}</td>
                 <td data-label="評価方法" title={valuationBreakdown(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationBreakdown(p) ? <small className="valuation-breakdown">{valuationBreakdown(p)}</small> : null}</td>

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 export const CATEGORY_LABELS: Record<string, string> = {
   DEPOSIT: "預金・現金",
   SECURITIES: "有価証券",
-  HOME_REAL_ESTATE: "自宅",
+  HOME_REAL_ESTATE: "居宅",
   REAL_ESTATE: "収益不動産",
   IDLE_REAL_ESTATE: "遊休不動産",
   OTHER_REAL_ESTATE: "その他不動産",

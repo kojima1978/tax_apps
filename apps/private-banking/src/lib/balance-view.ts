@@ -107,7 +107,7 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
       { label: `退職金${taxIncluded ? "（死亡退職金）" : ""}`, value: displayedAssets.retirementAllowance },
     ]),
     realEstate: nonZero([
-      { label: "自宅", value: displayedAssets.homeRealEstate },
+      { label: "居宅", value: displayedAssets.homeRealEstate },
       { label: "収益不動産", value: displayedAssets.incomeRealEstate },
       { label: "遊休不動産", value: displayedAssets.idleRealEstate },
       { label: "その他不動産", value: displayedAssets.otherRealEstate },

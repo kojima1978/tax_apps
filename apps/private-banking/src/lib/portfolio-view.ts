@@ -52,7 +52,7 @@ export type BalanceScenario = "without-tax" | "with-tax";
 export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "details" | "history";
 
 export const categoryLabels: Record<string, string> = {
-  DEPOSIT: "預金・現金", SECURITIES: "有価証券", HOME_REAL_ESTATE: "自宅", REAL_ESTATE: "収益不動産", IDLE_REAL_ESTATE: "遊休不動産", OTHER_REAL_ESTATE: "その他不動産",
+  DEPOSIT: "預金・現金", SECURITIES: "有価証券", HOME_REAL_ESTATE: "居宅", REAL_ESTATE: "収益不動産", IDLE_REAL_ESTATE: "遊休不動産", OTHER_REAL_ESTATE: "その他不動産",
   PRIVATE_SHARES: "自社株", BUSINESS_ASSETS: "事業用資産", LOAN_RECEIVABLE: "貸付金", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金", COLLECTIBLES: "その他資産",
   LOAN_HOME: "住宅ローン", LOAN_INVESTMENT_PROPERTY: "不動産投資ローン", LOAN_SECURITIES: "証券担保ローン",
   LOAN_BUSINESS: "事業用借入", LOAN_OTHER: "その他借入金", LOAN: "その他借入金", GUARANTEE: "個人保証",
@@ -205,6 +205,25 @@ export function middleClassification(position: Position): string {
   return "借入金";
 }
 
+export type PropertyType = "LAND" | "BUILDING";
+export const propertyTypeLabels: Record<PropertyType, string> = { LAND: "土地", BUILDING: "建物" };
+/**
+ * 不動産の明細が土地か建物か。不動産以外は null。
+ * 資産区分を保存していない古い明細は、建物の算式かどうかで判定する。
+ * 1件ずつの入力画面・まとめて入力・明細一覧で判定を食い違わせないよう、この関数に揃える。
+ */
+export function propertyTypeOf(position: Pick<Position, "category" | "valuationFormula" | "assetDetails">): PropertyType | null {
+  if (!realEstateCategories.includes(position.category)) return null;
+  const saved = position.assetDetails?.propertyType ?? (position.valuationFormula === "BUILDING" ? "BUILDING" : "LAND");
+  return saved === "BUILDING" ? "BUILDING" : "LAND";
+}
+/** 明細一覧の科目見出し。不動産は「居宅・土地」のように土地か建物かを添える。 */
+export function positionCategoryLabel(position: Position): string {
+  const propertyType = propertyTypeOf(position);
+  const label = categoryLabels[position.category] ?? position.category;
+  return propertyType ? `${label}・${propertyTypeLabels[propertyType]}` : label;
+}
+
 export function institutionOrPropertyAddress(position: Position) {
   const isRealEstate = realEstateCategories.includes(position.category);
   if (isRealEstate) return position.assetDetails?.propertyAddress?.trim() ?? "";
@@ -318,7 +337,7 @@ export const trendChildRows: Record<TrendGroup, TrendRow[]> = {
     { label: "退職金", key: "retirementAllowance", child: true },
   ],
   realEstate: [
-    { label: "自宅", key: "homeRealEstate", child: true },
+    { label: "居宅", key: "homeRealEstate", child: true },
     { label: "収益不動産", key: "incomeRealEstate", child: true },
     { label: "遊休不動産", key: "idleRealEstate", child: true },
     { label: "その他不動産", key: "otherRealEstate", child: true },

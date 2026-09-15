@@ -23,6 +23,7 @@ import {
   otherAssetTypeLabels,
   positionSection,
   positionSectionLabels,
+  propertyTypeOf,
   realEstateCategories,
 } from "@/lib/portfolio-view";
 
@@ -249,7 +250,7 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   const [valuationMultiplier, setValuationMultiplier] = useState(position?.valuationMultiplier === null || position?.valuationMultiplier === undefined ? "" : String(position.valuationMultiplier));
   const [ownershipNumerator, setOwnershipNumerator] = useState(String(position?.ownershipNumerator ?? fallbackOwnershipNumerator));
   const [ownershipDenominator, setOwnershipDenominator] = useState(String(position?.ownershipDenominator ?? fallbackOwnershipDenominator));
-  const [propertyType, setPropertyType] = useState(assetDetails.propertyType ?? (position?.valuationFormula === "BUILDING" ? "BUILDING" : "LAND"));
+  const [propertyType, setPropertyType] = useState<string>((position ? propertyTypeOf(position) : null) ?? "LAND");
   // 生命保険は契約名を持たせず、保険会社を明細の名称として使う。
   const [institution, setInstitution] = useState(position?.institution ?? "");
 

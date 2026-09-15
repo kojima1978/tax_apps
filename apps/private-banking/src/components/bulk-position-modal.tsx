@@ -2,7 +2,7 @@
 
 import { AlertTriangle, CircleCheck, Copy, LoaderCircle, Plus, Table2, Trash2, X } from "lucide-react";
 import { ClipboardEvent, KeyboardEvent as ReactKeyboardEvent, useMemo, useState } from "react";
-import { compactYen, decimalToFraction, formatCommaNumberInput } from "@/lib/format";
+import { decimalToFraction, formatCommaNumberInput, yen } from "@/lib/format";
 import {
   type BulkPositionPayload,
   type Position,
@@ -14,13 +14,15 @@ import {
   deemedInheritanceCategories,
   landCategoryByValue,
   landCategoryOptions,
+  propertyTypeOf,
   realEstateCategories,
 } from "@/lib/portfolio-view";
 
 type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING" | "INSURANCE" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
 type BulkField = "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "note";
 type BulkRow = Record<BulkField, string> & { id: number; positionId: number | null; error: string; errorFields: BulkField[] };
-type BulkColumn = { key: BulkField; label: string; numeric?: boolean; required?: boolean; conditional?: boolean; kind?: "category" | "formula" | "landCategory" | "buildingType" | "accountType"; width?: string };
+/** conditional は「どの方式のときに使う欄か」。見出しの札と、使わない方式で無効にした欄の説明にそのまま出す。 */
+type BulkColumn = { key: BulkField; label: string; numeric?: boolean; required?: boolean; conditional?: string; kind?: "category" | "formula" | "landCategory" | "buildingType" | "accountType"; width?: string };
 
 const bulkEntryTypeLabels: Record<BulkEntryType, string> = { DEPOSIT: "現金・預貯金", SECURITIES: "有価証券", PRIVATE_SHARES: "自社株", LAND: "土地", BUILDING: "建物", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金", LOAN_RECEIVABLE: "貸付金" };
 /** タブの並びと区切り。明細一覧の中分類（assetCategoryGroups）と同じ順に並べ、画面間で探す位置を揃える。 */
@@ -91,6 +93,14 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
 const simpleEntryConfigOf = (type: BulkEntryType) => simpleEntryConfigs[type as SimpleEntryType] ?? null;
 /** 預金種類。貼り付け時のラベル照合にも使うので、選択肢と同じ並びを1箇所で持つ。 */
 const accountTypeOptions = [{ value: "ORDINARY", label: "普通預金" }, { value: "TIME", label: "定期預金" }, { value: "FOREIGN", label: "外貨預金" }, { value: "OTHER", label: "その他" }];
+/**
+ * 方式セレクトの表示名。以前は「路」「倍」「直」の1文字で、何を選んでいるか読めなかった。
+ * 貼り付け時のラベル照合にも使う（正式名称の「路線価方式」なども別途受け付ける）。
+ */
+const bulkFormulaLabels: Partial<Record<ValuationFormula, string>> = { STOCK: "株数×単価", LAND_ROADSIDE: "路線価", LAND_MULTIPLIER: "倍率", BUILDING: "固定資産税", MANUAL: "直接入力" };
+const bulkFormulaOptions = (entryType: BulkEntryType): ValuationFormula[] => entryType === "LAND" ? ["LAND_ROADSIDE", "LAND_MULTIPLIER", "MANUAL"]
+  : entryType === "BUILDING" ? ["BUILDING", "MANUAL"]
+    : ["STOCK", "MANUAL"];
 
 function createBulkRow(id: number, positionId: number | null = null): BulkRow {
   return {
@@ -113,8 +123,8 @@ function bulkEntryTypeForPosition(position: Position): BulkEntryType | null {
   }
   if (position.category === "SECURITIES" && ["STOCK", "MANUAL"].includes(position.valuationFormula)) return "SECURITIES";
   if (position.category === "PRIVATE_SHARES" && ["STOCK", "MANUAL"].includes(position.valuationFormula)) return "PRIVATE_SHARES";
-  if (!realEstateCategories.includes(position.category)) return null;
-  const propertyType = position.assetDetails?.propertyType ?? (position.valuationFormula === "BUILDING" ? "BUILDING" : "LAND");
+  const propertyType = propertyTypeOf(position);
+  if (propertyType === null) return null;
   if (propertyType === "BUILDING" && !["LAND_ROADSIDE", "LAND_MULTIPLIER"].includes(position.valuationFormula)) return "BUILDING";
   if (propertyType === "LAND" && position.valuationFormula !== "BUILDING") return "LAND";
   return null;
@@ -144,8 +154,8 @@ function bulkRowFromPosition(position: Position): BulkRow {
     quantity: bulkNumber(position.valuationQuantity, 6),
     unitPrice: bulkNumber(position.valuationUnitPrice),
     landArea: bulkNumber(position.landArea, 6),
-    roadsideValue: bulkNumber(position.roadsideValue === null ? null : position.roadsideValue / 1000),
-    fixedAssetTaxValue: bulkNumber(position.fixedAssetTaxValue === null ? null : position.fixedAssetTaxValue / 1000),
+    roadsideValue: bulkNumber(position.roadsideValue),
+    fixedAssetTaxValue: bulkNumber(position.fixedAssetTaxValue),
     multiplier: bulkNumber(position.valuationMultiplier) || "1.0",
     adjustmentRate: bulkNumber(position.adjustmentRate) || "1.0",
     ownershipNumerator: bulkNumber(position.ownershipNumerator ?? fallbackNumerator, 0),
@@ -213,7 +223,8 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
 
   const columns = useMemo<BulkColumn[]>(() => {
     if (simpleConfig) return simpleConfig.columns;
-    // 預金は常に直接入力なので方式列を出さない。金額は円単位（不動産のような千円単位にしない）。
+    // 預金は常に直接入力なので方式列を出さない。
+    // 金額はどの種類も円単位。以前は不動産だけ千円単位で、1件ずつの入力画面（円単位）と桁が食い違っていた。
     if (isDeposit) return [
       { key: "name", label: "名称", required: true, width: "170px" },
       { key: "institution", label: "金融機関", width: "150px" },
@@ -224,40 +235,40 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
     if (isStock) return [
       { key: "name", label: entryType === "PRIVATE_SHARES" ? "会社名" : "銘柄名", required: true, width: "190px" },
       { key: "institution", label: entryType === "PRIVATE_SHARES" ? "株式種類" : "証券会社", width: "150px" },
-      { key: "valuationFormula", label: "方式", required: true, kind: "formula", width: "56px" },
-      { key: "quantity", label: "株数・口数", numeric: true, conditional: true, width: "130px" },
-      { key: "unitPrice", label: "単価", numeric: true, conditional: true, width: "130px" },
-      { key: "adjustmentRate", label: "調整率", numeric: true, conditional: true, width: "100px" },
-      { key: "originalAmount", label: "直接入力額", numeric: true, conditional: true, width: "110px" },
+      { key: "valuationFormula", label: "方式", required: true, kind: "formula", width: "104px" },
+      { key: "quantity", label: "株数・口数", numeric: true, conditional: "株数×単価", width: "130px" },
+      { key: "unitPrice", label: "単価（円）", numeric: true, conditional: "株数×単価", width: "130px" },
+      { key: "adjustmentRate", label: "調整率", numeric: true, conditional: "株数×単価", width: "90px" },
+      { key: "originalAmount", label: "直接入力額（円）", numeric: true, conditional: "直接入力", width: "130px" },
       { key: "note", label: "メモ", width: "170px" },
     ];
     const basic: BulkColumn[] = [
-      { key: "category", label: "科目", required: true, kind: "category", width: "84px" },
-      { key: "name", label: "名称", required: true, width: "96px" },
-      { key: "address", label: "所在地", required: true, width: "184px" },
+      { key: "category", label: "科目", required: true, kind: "category", width: "132px" },
+      { key: "name", label: "名称", required: true, width: "120px" },
+      { key: "address", label: "所在地", required: true, width: "190px" },
     ];
     if (isLand) {
       basic.push(
-        { key: "landCategory", label: "地目", kind: "landCategory", width: "76px" },
-        { key: "landArea", label: "面積㎡", numeric: true, width: "56px" },
-        { key: "valuationFormula", label: "方式", required: true, kind: "formula", width: "50px" },
-        { key: "roadsideValue", label: "路線価（千円/㎡）", numeric: true, conditional: true, width: "80px" },
-        { key: "fixedAssetTaxValue", label: "固定資産税評価（千円）", numeric: true, width: "86px" },
-        { key: "multiplier", label: "倍率", numeric: true, conditional: true, width: "44px" },
+        { key: "landCategory", label: "地目", kind: "landCategory", width: "104px" },
+        { key: "landArea", label: "面積（㎡）", numeric: true, width: "84px" },
+        { key: "valuationFormula", label: "方式", required: true, kind: "formula", width: "96px" },
+        { key: "roadsideValue", label: "路線価（円/㎡）", numeric: true, conditional: "路線価", width: "104px" },
+        { key: "fixedAssetTaxValue", label: "固定資産税評価額（円）", numeric: true, width: "124px" },
+        { key: "multiplier", label: "倍率", numeric: true, conditional: "倍率", width: "64px" },
       );
     } else {
       basic.push(
-        { key: "buildingType", label: "用途", kind: "buildingType", width: "76px" },
-        { key: "valuationFormula", label: "方式", required: true, kind: "formula", width: "50px" },
-        { key: "fixedAssetTaxValue", label: "固定資産税評価（千円）", numeric: true, width: "86px" },
-        { key: "multiplier", label: "倍率", numeric: true, conditional: true, width: "44px" },
+        { key: "buildingType", label: "用途", kind: "buildingType", width: "104px" },
+        { key: "valuationFormula", label: "方式", required: true, kind: "formula", width: "112px" },
+        { key: "fixedAssetTaxValue", label: "固定資産税評価額（円）", numeric: true, width: "124px" },
+        { key: "multiplier", label: "倍率", numeric: true, conditional: "固定資産税", width: "64px" },
       );
     }
     basic.push(
-      { key: "adjustmentRate", label: "調整率", numeric: true, conditional: true, width: "44px" },
-      { key: "ownershipNumerator", label: "持分子", numeric: true, required: true, width: "44px" },
-      { key: "ownershipDenominator", label: "持分母", numeric: true, required: true, width: "44px" },
-      { key: "originalAmount", label: "直接入力額", numeric: true, conditional: true, width: "82px" },
+      { key: "adjustmentRate", label: "調整率", numeric: true, conditional: "直接入力以外", width: "64px" },
+      { key: "ownershipNumerator", label: "持分子", numeric: true, required: true, width: "60px" },
+      { key: "ownershipDenominator", label: "持分母", numeric: true, required: true, width: "60px" },
+      { key: "originalAmount", label: "直接入力額（円）", numeric: true, conditional: "直接入力", width: "124px" },
     );
     return basic;
   }, [entryType, isDeposit, isLand, isStock, simpleConfig]);
@@ -343,21 +354,23 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
     if (targetType === "DEPOSIT" || simpleEntryConfigOf(targetType)) return number(row.originalAmount);
     if (["SECURITIES", "PRIVATE_SHARES"].includes(targetType)) return row.valuationFormula === "MANUAL" ? number(row.originalAmount) : number(row.quantity) * number(row.unitPrice) * number(row.adjustmentRate);
     const share = number(row.ownershipDenominator) > 0 ? number(row.ownershipNumerator) / number(row.ownershipDenominator) : 0;
-    if (row.valuationFormula === "LAND_ROADSIDE") return number(row.landArea) * number(row.roadsideValue) * 1000 * number(row.adjustmentRate) * share;
-    if (["LAND_MULTIPLIER", "BUILDING"].includes(row.valuationFormula)) return number(row.fixedAssetTaxValue) * 1000 * number(row.multiplier) * number(row.adjustmentRate) * share;
+    if (row.valuationFormula === "LAND_ROADSIDE") return number(row.landArea) * number(row.roadsideValue) * number(row.adjustmentRate) * share;
+    if (["LAND_MULTIPLIER", "BUILDING"].includes(row.valuationFormula)) return number(row.fixedAssetTaxValue) * number(row.multiplier) * number(row.adjustmentRate) * share;
     return number(row.originalAmount);
   }
 
   function normalizedPastedValue(key: BulkField, value: string) {
     const trimmed = value.trim();
     if (key === "category") {
-      // 貼り付けは「自宅」などの表示ラベルで来る。ラベル→科目キーの対応は categoryLabels の逆引きで作る。
+      // 貼り付けは「居宅」などの表示ラベルで来る。ラベル→科目キーの対応は categoryLabels の逆引きで作る。
+      // 科目名を「自宅」から「居宅」へ改めたので、以前のExcelからの貼り付けも受け付けるよう旧名を残す。
+      if (trimmed === "自宅") return "HOME_REAL_ESTATE";
       return realEstateCategories.find((key) => categoryLabels[key] === trimmed) ?? trimmed;
     }
     if (key === "valuationFormula") {
       const formulas: Record<string, string> = {
-        路線価: "LAND_ROADSIDE", 路線価方式: "LAND_ROADSIDE", 倍率: "LAND_MULTIPLIER", 倍率方式: "LAND_MULTIPLIER",
-        固定資産税評価額: "BUILDING", 固定資産税評価額方式: "BUILDING", 直接入力: "MANUAL",
+        ...Object.fromEntries(Object.entries(bulkFormulaLabels).map(([formula, label]) => [label, formula])),
+        路線価方式: "LAND_ROADSIDE", 倍率方式: "LAND_MULTIPLIER", 固定資産税評価額: "BUILDING", 固定資産税評価額方式: "BUILDING",
       };
       return formulas[trimmed] ?? trimmed;
     }
@@ -471,10 +484,6 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
       return;
     }
     const numberOrNull = (value: string) => value ? Number(value.replace(/,/g, "")) : null;
-    const thousandYenOrNull = (value: string) => {
-      const amount = numberOrNull(value);
-      return amount === null ? null : amount * 1000;
-    };
     const payloads = bulkEntryTypes.flatMap((type) => activeRowsByType[type].map((row) => {
       const rowSimpleConfig = simpleEntryConfigOf(type);
       const rowIsDeposit = type === "DEPOSIT";
@@ -498,8 +507,8 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
         valuationUnitPrice: rowIsStock ? numberOrNull(row.unitPrice) : null,
         adjustmentRate: rowFormula === "MANUAL" ? null : numberOrNull(row.adjustmentRate),
         landArea: rowIsLand ? numberOrNull(row.landArea) : null,
-        roadsideValue: rowFormula === "LAND_ROADSIDE" ? (numberOrNull(row.roadsideValue) ?? 0) * 1000 : null,
-        fixedAssetTaxValue: rowIsRealEstate ? thousandYenOrNull(row.fixedAssetTaxValue) : null,
+        roadsideValue: rowFormula === "LAND_ROADSIDE" ? numberOrNull(row.roadsideValue) ?? 0 : null,
+        fixedAssetTaxValue: rowIsRealEstate ? numberOrNull(row.fixedAssetTaxValue) : null,
         valuationMultiplier: ["LAND_MULTIPLIER", "BUILDING"].includes(rowFormula) ? numberOrNull(row.multiplier) : null,
         ownershipNumerator: rowIsRealEstate ? numberOrNull(row.ownershipNumerator) : null,
         ownershipDenominator: rowIsRealEstate ? numberOrNull(row.ownershipDenominator) : null,
@@ -542,12 +551,12 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
             </button>;
           })}</div>
         </div>)}</div>
-        <div className="bulk-help"><Table2 /><span>{isRealEstate ? "登録済み行の修正と新規行の追加を同じ表で行えます。金額は千円単位です。" : "登録済み行の修正と新規行の追加を同じ表で行えます。Excelから複数セルを貼り付けることもできます。"} Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の8種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
+        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。金額はすべて円単位です。Excelから複数セルを貼り付けることもできます。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の8種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>
         <table className="bulk-entry-table">
-          <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional">方式別</em> : null}</th>)}<th className="bulk-calculated-value">評価額</th><th className="bulk-row-actions">操作・状態</th></tr></thead>
+          <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional" title={`方式が「${column.conditional}」の行で入力します`}>{column.conditional}</em> : null}</th>)}<th className="bulk-calculated-value">評価額</th><th className="bulk-row-actions">操作・状態</th></tr></thead>
           <tbody onPaste={handlePaste} onKeyDown={handleTableKeyDown}>{rows.map((row, rowIndex) => <tr key={row.id} className={row.error ? "has-error" : ""}>
             <th scope="row" className="bulk-row-number">{rowIndex + 1}{row.error ? <span className="sr-only">入力エラー</span> : null}</th>
             {columns.map((column) => {
@@ -559,16 +568,16 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
                 "aria-label": `${rowIndex + 1}行目 ${column.label}`,
                 "aria-invalid": row.errorFields.includes(column.key),
               };
-              return <td key={column.key} className={disabled ? "is-disabled" : ""}>
+              return <td key={column.key} className={disabled ? "is-disabled" : ""} title={disabled && column.conditional ? `方式が「${column.conditional}」の行で入力します` : undefined}>
                 {column.kind === "accountType" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{accountTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
                   : column.kind === "category" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{realEstateCategories.map((key) => <option key={key} value={key}>{categoryLabels[key]}</option>)}</select>
-                  : column.kind === "formula" ? <select {...commonProps} title={row.valuationFormula === "STOCK" ? "株数・口数から計算" : row.valuationFormula === "LAND_ROADSIDE" ? "路線価方式" : row.valuationFormula === "MANUAL" ? "直接入力" : "倍率方式"} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{isStock ? <option value="STOCK">算</option> : isLand ? <><option value="LAND_ROADSIDE">路</option><option value="LAND_MULTIPLIER">倍</option></> : <option value="BUILDING">倍</option>}<option value="MANUAL">直</option></select>
+                  : column.kind === "formula" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{bulkFormulaOptions(entryType).map((formula) => <option key={formula} value={formula}>{bulkFormulaLabels[formula]}</option>)}</select>
                     : column.kind === "landCategory" ? <><select {...commonProps} title={landCategoryByValue.get(row.landCategory as typeof landCategoryOptions[number]["value"])?.definition ?? "地目を選択"} aria-describedby={row.landCategory ? `bulk-land-category-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{landCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.landCategory ? <span id={`bulk-land-category-${row.id}`} className="sr-only">{landCategoryByValue.get(row.landCategory as typeof landCategoryOptions[number]["value"])?.definition}</span> : null}</>
                       : column.kind === "buildingType" ? <><select {...commonProps} title={buildingTypeByValue.get(row.buildingType as typeof buildingTypeOptions[number]["value"])?.definition ?? "建物種類を選択"} aria-describedby={row.buildingType ? `bulk-building-type-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{buildingTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.buildingType ? <span id={`bulk-building-type-${row.id}`} className="sr-only">{buildingTypeByValue.get(row.buildingType as typeof buildingTypeOptions[number]["value"])?.definition}</span> : null}</>
-                    : <input {...commonProps} type="text" inputMode={column.numeric ? "decimal" : undefined} disabled={disabled} onChange={(event) => updateRow(row.id, column.key, event.target.value, column.numeric)} />}
+                    : <input {...commonProps} type="text" inputMode={column.numeric ? "decimal" : undefined} disabled={disabled} placeholder={disabled ? "—" : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value, column.numeric)} />}
               </td>;
             })}
-            <td className="bulk-calculated-value"><strong>{compactYen(calculatedRowValue(row))}</strong>{row.error ? <small>{row.error}</small> : null}</td>
+            <td className="bulk-calculated-value">{/* 入力と同じ円単位で出す。万円表示だと入力した桁と見比べられない。 */}<strong>{yen.format(Math.round(calculatedRowValue(row)))}</strong>{row.error ? <small>{row.error}</small> : null}</td>
             <td className="bulk-row-actions"><div className="bulk-row-actions-content">
               <button type="button" className="icon-button" aria-label={`${rowIndex + 1}行目を複製`} title="行を複製" onClick={() => addRow(row.id, row)}><Copy /></button>
               {row.positionId === null ? <button type="button" className="icon-button danger" aria-label={`${rowIndex + 1}行目を削除`} title="新規行を削除" onClick={() => removeRow(row.id)}><Trash2 /></button> : null}
