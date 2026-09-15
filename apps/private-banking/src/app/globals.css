@@ -96,7 +96,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .page-heading > div > p:last-child { margin: 0; color: var(--slate-500); font-size: 13px; }
 .page-heading-actions { margin-left: auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .detail-year-selector { min-width: 150px; display: grid; gap: 4px; color: var(--slate-600); font-size: 11px; font-weight: 700; }
-.detail-year-selector select { height: 44px; min-height: 44px; padding: 8px 32px 8px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.detail-year-selector select { height: 38px; min-height: 38px; padding: 5px 32px 5px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .detail-heading-meta { min-height: 24px; display: flex; align-items: center; gap: 9px 12px; flex-wrap: wrap; }
 .detail-heading-meta > span:not(:last-child) { position: relative; }
 .detail-heading-meta > span:not(:last-child)::after { content: ""; position: absolute; top: 50%; right: -7px; width: 3px; height: 3px; border-radius: 50%; background: var(--slate-300); transform: translateY(-50%); }
@@ -105,11 +105,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .detail-heading-meta .detail-status.historical { color: #475569; background: var(--slate-100); }
 .detail-status-print { display: none; }
 .detail-page-actions { align-items: flex-end; }
-.detail-page-actions > .button { height: 44px; min-height: 44px; white-space: nowrap; }
+.detail-page-actions > .button { height: 38px; min-height: 38px; white-space: nowrap; }
 .entry-action-group { display: inline-flex; align-items: center; gap: 6px; padding-left: 10px; }
 /* 年度（スナップショット）の操作は明細の入力と粒度が違うので、区切り線で分ける。 */
 .year-action-group { display: inline-flex; align-items: flex-end; gap: 8px; padding-right: 10px; border-right: 1px solid var(--line); }
-.year-action-group .button { height: 44px; }
+.year-action-group .button, .entry-action-group .button { height: 38px; min-height: 38px; }
 .annual-year-status { min-height: 48px; margin-left: auto; padding: 7px 11px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; display: flex; align-items: center; gap: 9px; }
 .annual-year-status svg { width: 18px; height: 18px; flex: 0 0 auto; }
 .annual-year-status strong, .annual-year-status small { display: block; line-height: 1.4; }
