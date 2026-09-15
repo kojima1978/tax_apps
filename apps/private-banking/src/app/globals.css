@@ -360,7 +360,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .modal-layer { position: fixed; inset: 0; z-index: 60; padding: 24px; background: #071723b8; display: grid; place-items: center; overflow-y: auto; }
-.modal { width: min(720px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 24px 80px #0005; }
+/* 高さは実際に見えている範囲（dvh）で測る。vh はスマホのアドレスバーが隠れた状態の高さなので、
+   バーが出ているとモーダルの下端（保存・キャンセルのボタン）が画面外に押し出される。vh は dvh 非対応ブラウザ向けの予備。 */
+.modal { width: min(720px, 100%); max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 24px 80px #0005; }
 .modal > header { min-height: 84px; padding: 18px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
 .modal h2 { margin: 0; font-family: inherit; font-size: 22px; font-weight: 700; }
 .modal form { padding: 24px; }
@@ -369,7 +371,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .bulk-position-modal { width: min(1480px, 99vw); overflow: hidden; }
 .bulk-position-modal > header { min-height: 78px; }
 .bulk-position-modal > header p:last-child { margin: 4px 0 0; color: var(--slate-500); font-size: 12px; }
-.bulk-modal-body { max-height: calc(100vh - 150px); padding: 14px 10px 0; overflow: auto; }
+.bulk-modal-body { max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); padding: 14px 10px 0; overflow: auto; }
 .bulk-common-settings { padding: 14px; border: 1px solid #bbf7d0; border-radius: 9px; background: #f7fdf9; display: flex; flex-direction: column; gap: 10px; }
 .bulk-entry-tabs { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
 /* 中分類のまとまりが分かるよう、明細一覧と同じ区切りで見出しを載せる。 */
@@ -500,12 +502,14 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .client-empty svg { width: 22px; }
 .client-empty strong { color: var(--navy-950); font-size: 13px; }
 .client-empty span { font-size: 11px; }
-.client-create-form { padding: 22px !important; }
+.client-create-form { padding: 22px 22px 0 !important; }
 .client-modal-guidance { margin: 0 0 16px; color: var(--slate-600); font-size: 12px; line-height: 1.6; }
 .client-modal-error { margin: 0 0 14px; padding: 10px 12px; color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; }
 .client-modal-error svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .client-create-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.client-create-form footer { margin-top: 22px; padding-top: 17px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 9px; }
+/* 小さい画面では入力欄だけで画面が埋まり、ボタンがスクロールの先に隠れるので、操作行を下端に貼り付ける。
+   フォームの下余白は操作行が持つ（フォーム側に余白があると、スクロールしきったときだけ操作行がその分浮き上がる）。 */
+.client-create-form footer { position: sticky; bottom: 0; z-index: 2; margin: 22px -22px 0; padding: 16px 22px 22px; border-top: 1px solid var(--line); background: #fff; box-shadow: 0 -10px 18px -18px #172b3a66; display: flex; justify-content: flex-end; gap: 9px; }
 .client-create-form footer.client-edit-footer { justify-content: space-between; }
 .client-edit-footer-actions { display: flex; gap: 9px; }
 .text-button.danger-text-button { color: var(--danger); }
@@ -627,7 +631,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .family-editor-toolbar { padding: 14px 24px; background: #f7faf8; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .family-editor-toolbar p { margin: 0; color: var(--slate-600); font-size: 11px; }
 .family-editor-error { margin: 12px 24px 0; padding: 10px 12px; color: #7f1d1d; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; font-size: 11px; font-weight: 700; }
-.family-editor-table-scroll { max-height: calc(100vh - 365px); margin: 18px 24px 0; border: 1px solid var(--line); border-radius: 8px; overflow: auto; background: #fff; }
+.family-editor-table-scroll { max-height: calc(100vh - 365px); max-height: calc(100dvh - 365px); margin: 18px 24px 0; border: 1px solid var(--line); border-radius: 8px; overflow: auto; background: #fff; }
 .family-editor-table { width: 100%; min-width: 1180px; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .family-editor-table th { position: sticky; top: 0; z-index: 2; height: 48px; padding: 7px 6px; color: #345c4b; background: #edf7f0; border-right: 1px solid var(--line); border-bottom: 2px solid var(--line-strong); font-size: 11px; font-weight: 800; line-height: 1.4; text-align: left; white-space: nowrap; }
 .family-editor-table th:nth-child(1) { width: 80px; text-align: center; }
@@ -879,7 +883,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .family-editor-toolbar { padding-inline: 16px; align-items: stretch; flex-direction: column; }
   .family-editor-toolbar .button { width: 100%; }
   .family-editor-error { margin-inline: 16px; }
-  .family-editor-table-scroll { max-height: max(240px, calc(94vh - 390px)); margin-inline: 16px; border: 0; border-radius: 0; overflow-x: visible; background: transparent; }
+  .family-editor-table-scroll { max-height: max(240px, calc(94vh - 390px)); max-height: max(240px, calc(94dvh - 390px)); margin-inline: 16px; border: 0; border-radius: 0; overflow-x: visible; background: transparent; }
   .family-editor-table { min-width: 0; display: block; background: transparent; }
   .family-editor-table thead { display: none; }
   .family-editor-table tbody { display: grid; gap: 12px; }
@@ -970,9 +974,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .valuation-result small { grid-column: auto; text-align: left; }
   .form-grid .full { grid-column: auto; }
   .modal-layer { padding: 0; place-items: end center; }
-  .modal { max-height: 94vh; border-radius: 12px 12px 0 0; }
+  .modal { max-height: 94vh; max-height: 94dvh; border-radius: 12px 12px 0 0; }
+  /* 下から出るシートなので、画面下端のホームバーとボタンが重ならないよう末尾の操作行に余白を足す（端まで描画する表示のときだけ効く）。 */
+  .position-modal form > footer { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .client-create-form footer { padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
   .bulk-position-modal { width: 100%; }
-  .bulk-modal-body { max-height: calc(94vh - 78px); padding-inline: 12px; }
+  .bulk-modal-body { max-height: calc(94vh - 78px); max-height: calc(94dvh - 78px); padding-inline: 12px; }
   .bulk-help { width: 100%; }
   .bulk-modal-body > footer { margin-inline: -12px; padding-inline: 12px; }
   .client-switcher-toolbar { align-items: stretch; flex-direction: column; }
