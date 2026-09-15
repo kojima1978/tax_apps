@@ -1306,7 +1306,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .print-family-table th:nth-child(8) { width: 8%; }
   .print-family-table td.numeric { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .print-family-empty { min-height: 45mm; margin: 0; display: grid; place-items: center; color: #4a5761; font-size: 11.5px; }
-  .position-section { margin-bottom: 10px; overflow: visible; break-inside: auto; page-break-inside: auto; }
+  /* 角丸のままだと合計行の背景が角の線を覆って枠の最後が欠けるので、印刷では直角にする。
+     ページをまたぐときも各ページで枠の上下を閉じる（既定の slice だと切れ目の辺が開いたままになる）。 */
+  .position-section { margin-bottom: 10px; overflow: visible; border-radius: 0; break-inside: auto; page-break-inside: auto; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
   .position-section .panel-header { min-height: 38px; padding: 6px 10px; break-after: avoid-page; page-break-after: avoid; }
   .position-section .panel-header h3 { font-size: 13px; }
   .position-section .panel-header p { font-size: 9.5px; }
@@ -1323,13 +1325,14 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   /* 6列すべてに幅を振って合計100%にする。1列でも未指定だと table-layout:fixed が
      残り列の最小幅を捻出するために指定幅を一律で縮め、評価方法の算式が3行に折り返していた。
      版面277mm での表幅1037px を基準に、各列の実測必要幅（中分類77 / 科目・名称169 /
-     所在地241 / 評価方法233 / 円換算時価150 / 相続税負担額77px）を満たす配分。 */
+     所在地241 / 評価方法233 / 円換算時価150 / 相続税負担額77px）を満たす配分。
+     相続税負担額は合計行の太字（例「△￥60,177,059」）が枠線に接しないよう、評価方法から1.5%回している。 */
   .position-table th:nth-child(2) { width: 8.5%; }
   .position-table th:nth-child(3) { width: 17.5%; }
   .position-table th:nth-child(4) { width: 24%; }
-  .position-table th:nth-child(5) { width: 25%; }
+  .position-table th:nth-child(5) { width: 23.5%; }
   .position-table th:nth-child(6) { width: 15.5%; }
-  .position-table th:nth-child(7) { width: 9.5%; }
+  .position-table th:nth-child(7) { width: 11%; }
   .position-table thead .reorder-column,
   .position-table .reorder-cell,
   .position-table thead .actions-column,
