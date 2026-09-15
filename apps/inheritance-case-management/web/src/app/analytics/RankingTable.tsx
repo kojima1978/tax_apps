@@ -25,6 +25,7 @@ interface RankingTableProps {
 }
 
 export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSort, sortState, groupBy, showSubRows, showBreakdown, buildHref }: RankingTableProps) {
+    const breakdownColumns = showBreakdown && !groupBy
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
     const toggleSubRows = (name: string) => {
@@ -47,9 +48,9 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
             <th
                 key={col.label}
                 className={`p-3 ${align} ${sortable ? "cursor-pointer hover:text-foreground" : ""}`}
-                onClick={sortable ? () => onSort(col.sortKey!) : undefined}
+                aria-sort={sortable ? sortState?.col === col.sortKey ? sortState?.desc ? "descending" : "ascending" : "none" : undefined}
             >
-                {col.label}{indicator}
+                {sortable ? <button type="button" className="min-h-11 rounded px-1 focus-visible:ring-2 focus-visible:ring-blue-600" onClick={() => onSort(col.sortKey!)}>{col.label}{indicator}</button> : col.label}
             </th>
         )
     }
@@ -132,12 +133,12 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
                             ) : null}
                             {renderName(r.name)}
                         </div>
-                        {showBreakdown && (
-                            <div className={`text-xs text-muted-foreground font-normal mt-0.5 ${showSubRows ? "pl-8" : ""}`}>
-                                確定: {formatCurrency(r.confirmedFee ?? 0)}　見込: {formatCurrency(r.estimateFee ?? 0)}
-                            </div>
-                        )}
+
                     </td>
+                    {breakdownColumns && <>
+                        <td className="p-3 text-right tabular-nums">{formatCurrency(r.confirmedFee ?? 0)}</td>
+                        <td className="p-3 text-right tabular-nums text-slate-600">{formatCurrency(r.estimateFee ?? 0)}</td>
+                    </>}
                     <td className="p-3 text-right font-medium align-top">{formatCurrency(r.feeTotal)}</td>
                     <td className="p-3 text-center text-muted-foreground align-top">{r.count}</td>
                 </tr>
@@ -148,12 +149,12 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
                         <tr key={`${r.name}-${dept.name}`} className="bg-muted/30">
                             <td className="p-2 pl-6 text-xs text-muted-foreground">
                                 <div>{dept.name}</div>
-                                {showBreakdown && (
-                                    <div className="mt-0.5">
-                                        確定: {formatCurrency(dept.confirmedFee ?? 0)}　見込: {formatCurrency(dept.estimateFee ?? 0)}
-                                    </div>
-                                )}
+
                             </td>
+                            {breakdownColumns && <>
+                                <td className="p-2 text-right tabular-nums">{formatCurrency(dept.confirmedFee ?? 0)}</td>
+                                <td className="p-2 text-right tabular-nums text-slate-600">{formatCurrency(dept.estimateFee ?? 0)}</td>
+                            </>}
                             <td className="p-2 text-right text-xs text-muted-foreground align-top">{formatCurrency(dept.feeTotal)}</td>
                             <td className="p-2 text-center text-xs text-muted-foreground align-top">{dept.count}</td>
                         </tr>
@@ -164,16 +165,18 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
     }
 
     return (
-        <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-            <table className="w-full text-sm text-left">
+        <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
+            <table className="min-w-[720px] w-full text-sm text-left">
                 <colgroup>
                     <col />
+                    {breakdownColumns && <><col className="w-[160px]" /><col className="w-[160px]" /></>}
                     <col className="w-[180px]" />
                     <col className="w-[80px]" />
                 </colgroup>
                 <thead className="bg-muted text-muted-foreground">
                     <tr>
                         {renderTh(nameCol)}
+                        {breakdownColumns && <><th className="p-3 text-right">確定</th><th className="p-3 text-right">見込</th></>}
                         {renderTh(feeCol)}
                         {renderTh(countCol)}
                     </tr>

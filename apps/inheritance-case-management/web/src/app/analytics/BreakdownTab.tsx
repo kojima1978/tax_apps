@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
-import { ChevronRight, ChevronsUpDown, Info } from "lucide-react"
+import { ChevronRight, ChevronsUpDown } from "lucide-react"
+import { AnalyticsRules } from "./AnalyticsRules"
 import { formatCurrency } from "@/lib/analytics-utils"
 import type { RankingData } from "@/lib/analytics-utils"
 import { appendAnalyticsStatuses, appendSelectedYears } from "./drilldown-utils"
@@ -93,9 +94,9 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="space-y-4 pt-4">
-                <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,180px)_minmax(56px,80px)] items-end gap-3 border-b pb-2">
+        <div className="space-y-4">
+            <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-2">
                     <div>
                         <h2 className="text-xl font-semibold">部門・担当者</h2>
                     </div>
@@ -110,30 +111,22 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
                         {isAllExpanded ? "すべて閉じる" : "すべて開く"}
                     </button>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black" />確定 = 請求済・入金済の確定報酬額</span>
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-black/60" />見込 = 受託〜申告済の見積額</span>
-                    <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />見積前・見積中・見送りは集計対象外</span>
-                </div>
-                <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                    <table className="w-full text-sm text-left">
+                <AnalyticsRules />
+                <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
+                    <table className="min-w-[800px] w-full text-sm text-left">
                         <colgroup>
                             <col />
+                            <col className="w-[160px]" />
+                            <col className="w-[160px]" />
                             <col className="w-[180px]" />
                             <col className="w-[80px]" />
                         </colgroup>
                         <thead className="bg-muted text-muted-foreground">
                             <tr>
                                 <th className="p-3">部門 / 担当者</th>
-                                <th className="p-3 text-right">
-                                    <span className="group relative cursor-help">
-                                        売上合計
-                                        <Info className="inline-block ml-1 h-3.5 w-3.5 align-text-top" />
-                                        <span className="invisible group-hover:visible absolute right-0 top-full mt-1 z-10 w-56 rounded-lg border bg-popover p-3 text-xs font-normal text-popover-foreground shadow-md leading-relaxed text-left">
-                                            確定額（報酬額ベース）と見込額（見積額ベース）の合計です。各行の内訳で内訳を確認できます。
-                                        </span>
-                                    </span>
-                                </th>
+                                <th className="p-3 text-right">確定</th>
+                                <th className="p-3 text-right">見込</th>
+                                <th className="p-3 text-right">売上合計</th>
                                 <th className="p-3 text-center">件数</th>
                             </tr>
                         </thead>
@@ -166,13 +159,12 @@ function DepartmentRows({ group, isOpen, onToggle, selectedYears }: { group: Dep
         <>
             <tr
                 className="bg-muted/40 cursor-pointer hover:bg-muted/60 transition-colors"
-                onClick={onToggle}
             >
                 <td className="p-3 font-semibold">
                     <div className="flex items-center gap-2">
-                        <ChevronRight
+                        <button type="button" onClick={onToggle} aria-expanded={isOpen} aria-label={`${group.departmentName}の担当者を${isOpen ? "閉じる" : "表示"}`} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-600"><ChevronRight
                             className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
-                        />
+                        /></button>
                         <div>
                             <div>
                                 {isUnset ? (
@@ -185,13 +177,15 @@ function DepartmentRows({ group, isOpen, onToggle, selectedYears }: { group: Dep
                                     </Link>
                                 ) : group.departmentName}
                             </div>
-                            <div className="text-xs text-muted-foreground font-normal mt-0.5 space-y-0.5">
+                            {isOpen && <div className="text-xs text-muted-foreground font-normal mt-0.5 space-y-0.5">
                                 <div>担当: {formatCurrency(totals.assignedFee)} / {totals.assignedCount}件（確定: {formatCurrency(totals.assignedConfirmedFee)}　見込: {formatCurrency(totals.assignedEstimateFee)}）</div>
                                 <div>紹介: {formatCurrency(totals.referralFee)} / {totals.referralCount}件（確定: {formatCurrency(totals.referralConfirmedFee)}　見込: {formatCurrency(totals.referralEstimateFee)}）</div>
-                            </div>
+                            </div>}
                         </div>
                     </div>
                 </td>
+                <td className="p-3 text-right tabular-nums">{formatCurrency(totals.confirmedFee)}</td>
+                <td className="p-3 text-right tabular-nums text-slate-600">{formatCurrency(totals.estimateFee)}</td>
                 <td className="p-3 text-right font-semibold align-top">{formatCurrency(totals.feeTotal)}</td>
                 <td className="p-3 text-center text-muted-foreground font-semibold align-top">{totals.count}</td>
             </tr>
@@ -212,11 +206,13 @@ function DepartmentRows({ group, isOpen, onToggle, selectedYears }: { group: Dep
                                     r.name
                                 )}
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                            <details className="text-xs text-muted-foreground mt-1 space-y-0.5"><summary className="min-h-9 cursor-pointer py-2">担当・紹介の内訳</summary>
                                 <div>担当: {formatCurrency(r.assignedFee ?? 0)} / {r.assignedCount ?? 0}件（確定: {formatCurrency(r.assignedConfirmedFee ?? 0)}　見込: {formatCurrency(r.assignedEstimateFee ?? 0)}）</div>
                                 <div>紹介: {formatCurrency(r.referralFee ?? 0)} / {r.referralCount ?? 0}件（確定: {formatCurrency(r.referralConfirmedFee ?? 0)}　見込: {formatCurrency(r.referralEstimateFee ?? 0)}）</div>
-                            </div>
+                            </details>
                         </td>
+                        <td className="p-3 text-right tabular-nums">{formatCurrency(r.confirmedFee ?? 0)}</td>
+                        <td className="p-3 text-right tabular-nums text-slate-600">{formatCurrency(r.estimateFee ?? 0)}</td>
                         <td className="p-3 text-right font-medium align-top">{formatCurrency(r.feeTotal)}</td>
                         <td className="p-3 text-center text-muted-foreground align-top">{r.count + (r.referralCount ?? 0)}</td>
                     </tr>

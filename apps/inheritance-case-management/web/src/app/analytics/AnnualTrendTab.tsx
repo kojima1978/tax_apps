@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { CalendarDays, ChevronLeft, ChevronRight, Info } from "lucide-react"
 import { formatCurrency } from "@/lib/analytics-utils"
@@ -26,8 +27,8 @@ const CHART_DEFS = [
         title: "売上",
         dataKey: "feeTotal" as const,
         name: "売上",
-        stroke: "#111111",
-        height: 300,
+        stroke: "#1d4ed8",
+        height: 240,
         yAxisFormatter: formatMan,
         tooltipFormatter: (v: number) => [formatCurrency(v), "売上"] as [string, string],
         yAxisWidth: 80,
@@ -36,8 +37,8 @@ const CHART_DEFS = [
         title: "件数",
         dataKey: "count" as const,
         name: "件数",
-        stroke: "#525252",
-        height: 250,
+        stroke: "#0f766e",
+        height: 240,
         yAxisFormatter: (v: number) => `${v}`,
         tooltipFormatter: (v: number) => [`${v}件`, "件数"] as [string, string],
         yAxisWidth: 40,
@@ -73,17 +74,19 @@ export function AnnualTrendTab({
     onDepartmentChange,
 }: AnnualTrendTabProps) {
 
+    const [chartMode, setChartMode] = useState<"annual" | "monthly">("annual")
+    const modeLabel = chartMode === "annual" ? "直近12か月累計" : "月間実績"
     const xInterval = Math.max(0, Math.floor(data.length / 12) - 1)
     const currentMonth = getCurrentMonth()
     const newestFirst = [...data].reverse()
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="space-y-4 pt-4">
+        <div className="space-y-4">
+            <div className="space-y-3">
                 <div className="flex flex-col gap-3 border-b pb-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <h2 className="text-xl font-semibold">年計表（移動年計）</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">基準月を含む過去24か月の月間実績と直近12か月累計</p>
+                        <p className="mt-1 text-sm text-muted-foreground">入金日基準・社外紹介手数料控除後。基準月を含む過去24か月を表示</p>
                     </div>
                     <div className="flex flex-wrap items-end gap-1.5">
                         <label className="grid gap-1 text-xs font-medium text-muted-foreground" htmlFor="annual-department">
@@ -92,7 +95,7 @@ export function AnnualTrendTab({
                                 id="annual-department"
                                 value={selectedDepartment}
                                 onChange={event => onDepartmentChange(event.target.value)}
-                                className="h-9 rounded-md border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                className="h-11 rounded-md border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                                 <option value={ALL_DEPARTMENTS_VALUE}>全体</option>
                                 {departmentOptions.map(name => (
@@ -103,7 +106,7 @@ export function AnnualTrendTab({
                         <button
                             type="button"
                             onClick={() => onBaseMonthChange(shiftMonth(baseMonth, -1))}
-                            className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border bg-background transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-md border bg-background transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label="基準月を1か月戻す"
                         >
                             <ChevronLeft className="h-4 w-4" />
@@ -118,7 +121,7 @@ export function AnnualTrendTab({
                                     value={baseMonth}
                                     max={currentMonth}
                                     onChange={event => onBaseMonthChange(event.target.value)}
-                                    className="h-9 rounded-md border bg-background pl-8 pr-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    className="h-11 rounded-md border bg-background pl-8 pr-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 />
                             </span>
                         </label>
@@ -126,7 +129,7 @@ export function AnnualTrendTab({
                             type="button"
                             onClick={() => onBaseMonthChange(shiftMonth(baseMonth, 1))}
                             disabled={baseMonth >= currentMonth}
-                            className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border bg-background transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-md border bg-background transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label="基準月を1か月進める"
                         >
                             <ChevronRight className="h-4 w-4" />
@@ -135,7 +138,7 @@ export function AnnualTrendTab({
                             type="button"
                             onClick={() => onBaseMonthChange(currentMonth)}
                             disabled={baseMonth === currentMonth}
-                            className="h-9 cursor-pointer rounded-md border bg-background px-2.5 text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+                            className="h-11 cursor-pointer rounded-md border bg-background px-2.5 text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             当月
                         </button>
@@ -158,9 +161,13 @@ export function AnnualTrendTab({
                     </ul>
                 </details>
 
+                <div className="flex flex-wrap items-center gap-2" role="group" aria-label="グラフの集計単位">
+                    {([['annual', '直近12か月累計'], ['monthly', '月間実績']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={chartMode === value} onClick={() => setChartMode(value)} className={`min-h-11 rounded-lg px-3 text-sm ${chartMode === value ? "bg-blue-50 text-blue-800 ring-1 ring-blue-200" : "bg-white"}`}>{label}</button>)}
+                </div>
+                <div className="grid gap-4 xl:grid-cols-2">
                 {CHART_DEFS.map((chart) => (
                     <div key={chart.dataKey} className="space-y-2">
-                        <h3 className="text-lg font-medium">{chart.title}</h3>
+                        <h3 className="text-base font-semibold">{modeLabel}{chart.title}</h3>
                         <div className="bg-card rounded-lg border shadow-sm p-4">
                             <ResponsiveContainer width="100%" height={chart.height}>
                                 <LineChart data={data} margin={{ top: 10, right: 20, left: 20, bottom: 5 }}>
@@ -172,14 +179,14 @@ export function AnnualTrendTab({
                                         width={chart.yAxisWidth}
                                     />
                                     <Tooltip
-                                        formatter={chart.tooltipFormatter}
+                                        formatter={(value: number) => [chart.dataKey === "feeTotal" ? formatCurrency(value) : `${value}件`, `${modeLabel}${chart.name}`]}
                                         labelFormatter={(l) => `${l} 時点`}
                                     />
                                     <Legend />
                                     <Line
                                         type="monotone"
-                                        dataKey={chart.dataKey}
-                                        name={chart.name}
+                                        dataKey={chartMode === "annual" ? chart.dataKey : chart.dataKey === "feeTotal" ? "monthlyFee" : "monthlyCount"}
+                                        name={`${modeLabel}${chart.name}`}
                                         stroke={chart.stroke}
                                         strokeWidth={2.5}
                                         dot={{ r: 3 }}
@@ -191,13 +198,14 @@ export function AnnualTrendTab({
                     </div>
                 ))}
 
+                </div>
                 <section className="space-y-2" aria-labelledby="annual-monthly-list-heading">
                     <div className="flex items-baseline justify-between gap-3">
                         <h3 id="annual-monthly-list-heading" className="text-lg font-medium">基準月から過去24か月</h3>
                         <span className="text-xs text-muted-foreground">月をクリックすると案件一覧を表示</span>
                     </div>
-                    <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-                        <table className="w-full table-fixed text-left text-xs">
+                    <div className="overflow-x-auto rounded-lg border bg-card shadow-sm">
+                        <table className="min-w-[640px] w-full table-fixed text-left text-sm">
                             <colgroup>
                                 <col className="w-[16%]" />
                                 <col className="w-[23%]" />

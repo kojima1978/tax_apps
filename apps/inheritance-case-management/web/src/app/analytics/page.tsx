@@ -9,6 +9,7 @@ import { calcNet, calcReferralFee, getAnalyticsBaseType, aggregateCases, compute
 import { isAccepted } from "@/types/constants"
 import { RefreshCw } from "lucide-react"
 import { useRankingSort } from "@/hooks/use-ranking-sort"
+import { YearFilter } from "./YearFilter"
 import { OverviewTab } from "./OverviewTab"
 import { MonthlyCaseActivity } from "./MonthlyCaseActivity"
 import { BreakdownTab } from "./BreakdownTab"
@@ -89,7 +90,7 @@ export default function AnalyticsPage() {
         if (isAllYears) return "全期間"
         const sorted = [...selectedYears].sort((a, b) => a - b)
         if (sorted.length === 1) return `${sorted[0]}年度`
-        return `${sorted[0]}〜${sorted[sorted.length - 1]}年度`
+        return `${sorted.join("・")}年度`
     }, [selectedYears, isAllYears])
 
     const aggregation = useMemo(
@@ -238,53 +239,29 @@ export default function AnalyticsPage() {
     }
 
     return (
-        <div className="container mx-auto space-y-5 px-3 py-6 text-sm">
+        <div className="case-workspace analytics-workspace mx-auto min-h-screen max-w-[1600px] space-y-3 px-3 py-4 text-sm lg:px-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <h1 className="text-xl font-bold md:text-2xl">経営分析ダッシュボード</h1>
-                <div className="flex items-center gap-1 flex-wrap">
-                    <button
-                        onClick={() => setSelectedYears(new Set())}
-                        className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${isAllYears ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground"}`}
-                    >
-                        全期間
-                    </button>
-                    {years.map(y => {
-                        const active = selectedYears.has(y)
-                        return (
-                            <button
-                                key={y}
-                                onClick={() => {
-                                    const next = new Set(selectedYears)
-                                    if (active) {
-                                        next.delete(y)
-                                    } else {
-                                        next.add(y)
-                                    }
-                                    setSelectedYears(next)
-                                }}
-                                className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground"}`}
-                            >
-                                {y}
-                            </button>
-                        )
-                    })}
-                </div>
             </div>
 
-            <MonthlyCaseActivity years={selectedYears} />
-
             {/* Tab Navigation */}
-            <div className="flex space-x-1 rounded-lg bg-muted p-1 w-fit">
+            <div className="flex flex-wrap gap-1 border-b pb-2" aria-label="分析の表示切替">
                 {TABS.map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring ${activeTab === tab.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/50"}`}
+                        aria-pressed={activeTab === tab.id}
+                        className={`min-h-11 cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring ${activeTab === tab.id ? "bg-blue-50 text-blue-800 ring-1 ring-inset ring-blue-200" : "text-muted-foreground hover:bg-white"}`}
                     >
                         {tab.label}
                     </button>
                 ))}
             </div>
+
+            {activeTab !== "trend" && <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+                <YearFilter years={years} selected={selectedYears} onChange={setSelectedYears} />
+                {activeTab === "overview" && <MonthlyCaseActivity years={selectedYears} />}
+            </div>}
 
             {activeTab === "overview" && (
                 <OverviewTab

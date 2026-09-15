@@ -72,3 +72,11 @@ body {
 .case-workspace :where(button) { box-shadow: none; }
 .case-workspace :where(thead) { background: #f1f5f9; }
 .case-workspace tr[data-state="selected"] { background: #eff6ff; }
+
+.analytics-workspace :where(table, tr, th, td) { border-color: #e2e8f0; }
+.analytics-workspace :where(td) { font-variant-numeric: tabular-nums; }
+.analytics-workspace :where(tbody tr:hover) { background-color: #f8fafc; }
+.analytics-workspace :where(button, select, summary, a):focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
