@@ -1,7 +1,7 @@
 "use client";
 
-import { AlertTriangle, LoaderCircle, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { AlertTriangle, Info, LoaderCircle, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
+import { FormEvent, type ReactNode, useState } from "react";
 import { BuildingTypeField, CommaNumberInput, LandCategoryField, OwnershipFractionInput } from "@/components/form-fields";
 import { fxRateFor, positionCurrencies, type FxRates } from "@/lib/fx-rates";
 import { decimalToFraction, valuationNumber, yen } from "@/lib/format";
@@ -102,6 +102,25 @@ function fractionTotal(rows: Array<{ numerator: string; denominator: string }>) 
   return { numerator, denominator };
 }
 
+/** 補足説明は既定で畳んで見出しだけを出す。毎回全文が出ると、後ろの入力欄が画面の下へ押し出されるため。 */
+function FieldNote({ summary, children }: { summary: string; children: ReactNode }) {
+  return <details className="field-note"><summary><Info aria-hidden="true" />{summary}</summary><p>{children}</p></details>;
+}
+
+/** 名前で入力欄を探し、画面の中央へスクロールしてフォーカスする。 */
+function focusField(form: HTMLFormElement | null, fieldName: string) {
+  const field = form?.elements.namedItem(fieldName);
+  if (!(field instanceof HTMLElement)) return;
+  field.focus({ preventScroll: true });
+  field.scrollIntoView({ block: "center" });
+}
+
+type SourceItem = { label: string; value: string; fieldName: string };
+/** 評価の算式が不動産の情報から借りている値。未入力の値は、その入力欄へ移るボタンにする。 */
+function ValuationSourceSummary({ items }: { items: SourceItem[] }) {
+  return <div className="valuation-source-summary"><span>不動産の情報から使用</span><dl>{items.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value || <button type="button" className="source-missing-button" onClick={(event) => focusField(event.currentTarget.form, item.fieldName)}>未入力（入力する）</button>}</dd></div>)}</dl></div>;
+}
+
 type AllocationRow = { key: number; recipient: string; numerator: string; denominator: string };
 /** 全行が同じ取り分か（＝分数を手で触っていない状態か）。均等割りに直してよいかの判断に使う。 */
 const evenlySplit = (rows: AllocationRow[]) => rows.every((row) => row.numerator === rows[0].numerator && row.denominator === rows[0].denominator);
@@ -134,7 +153,7 @@ function BenefitRecipientsField({ benefitLabel, benefitName, benefitDefault, rec
     return evenlySplit(current) ? evenRows(next) : next;
   });
   return <div className="benefit-recipients wide">
-    <label>{benefitLabel}<CommaNumberInput name={benefitName} defaultValue="" value={benefit} onValueChange={setBenefit} maxFractionDigits={2} placeholder="" required={false} /></label>
+    <label>{benefitLabel}（円）<CommaNumberInput name={benefitName} defaultValue="" value={benefit} onValueChange={setBenefit} maxFractionDigits={2} placeholder="" required={false} /></label>
     <div className="benefit-recipient-rows" role="group" aria-label={`${benefitLabel}の受取人`}>
       <div className="benefit-recipient-heading"><span>受取人{multiple ? "と取り分" : ""}</span><button type="button" className="button secondary" onClick={addRow}><Plus />受取人を追加</button></div>
       {rows.map((row, index) => {
@@ -205,16 +224,16 @@ function AssetSpecificFields({
   onOwnershipNumeratorChange: (value: string) => void;
   onOwnershipDenominatorChange: (value: string) => void;
 }) {
-  if (realEstateCategories.includes(category)) return <fieldset key={category} className="asset-detail-fieldset full"><legend>不動産の基本情報</legend><div className="asset-detail-grid">
+  if (realEstateCategories.includes(category)) return <fieldset key={category} className="asset-detail-fieldset full"><legend>不動産の情報</legend><div className="asset-detail-grid">
     <label>資産区分<select name="assetDetail.propertyType" value={propertyType} onChange={(event) => onPropertyTypeChange(event.target.value)}><option value="LAND">土地</option><option value="BUILDING">建物</option></select></label>
     {propertyType === "LAND" ? <>
       <LandCategoryField defaultValue={details.landCategory ?? ""} />
       <label>面積（㎡）<CommaNumberInput name="landArea" defaultValue="" value={landArea} onValueChange={onLandAreaChange} maxFractionDigits={4} placeholder="" positive required={formula === "LAND_ROADSIDE"} /></label>
-      <label className="wide">小規模宅地等の特例（概算）<select name="assetDetail.smallLotType" defaultValue={details.smallLotType ?? ""}><option value="">適用しない</option><option value="RESIDENTIAL">特定居住用宅地（80%・限度330㎡）</option><option value="BUSINESS">特定事業用宅地（80%・限度400㎡）</option><option value="RENTAL">貸付事業用宅地（50%・限度200㎡）</option></select><small className="asset-detail-hint">選択すると相続税の概算計算で減額割合を反映します（限度面積を超える分は按分）。要件充足の可否は別途ご確認ください。</small></label>
+      <div className="wide"><label>小規模宅地等の特例（概算）<select name="assetDetail.smallLotType" defaultValue={details.smallLotType ?? ""}><option value="">適用しない</option><option value="RESIDENTIAL">特定居住用宅地（80%・限度330㎡）</option><option value="BUSINESS">特定事業用宅地（80%・限度400㎡）</option><option value="RENTAL">貸付事業用宅地（50%・限度200㎡）</option></select></label><FieldNote summary="特例の反映について">選択すると相続税の概算計算で減額割合を反映します（限度面積を超える分は按分）。要件充足の可否は別途ご確認ください。</FieldNote></div>
     </> : <BuildingTypeField defaultValue={details.buildingType ?? ""} />}
-    <label>固定資産税評価額<CommaNumberInput name="fixedAssetTaxValue" defaultValue="" value={fixedAssetTaxValue} onValueChange={onFixedAssetTaxValueChange} maxFractionDigits={2} placeholder="" positive required={formula === "LAND_MULTIPLIER" || formula === "BUILDING"} /></label>
+    <label>固定資産税評価額（円）<CommaNumberInput name="fixedAssetTaxValue" defaultValue="" value={fixedAssetTaxValue} onValueChange={onFixedAssetTaxValueChange} maxFractionDigits={2} placeholder="" positive required={formula === "LAND_MULTIPLIER" || formula === "BUILDING"} /></label>
     <OwnershipFractionInput numerator={ownershipNumerator} denominator={ownershipDenominator} onNumeratorChange={onOwnershipNumeratorChange} onDenominatorChange={onOwnershipDenominatorChange} />
-  </div><p className="asset-detail-note">土地と建物は別明細で登録します。面積・固定資産税評価額・持分は、選択した評価方法へ自動反映されます。</p></fieldset>;
+  </div><FieldNote summary="土地と建物の登録について">土地と建物は別明細で登録します。面積・固定資産税評価額・持分は、選択した評価方法へ自動反映されます。</FieldNote></fieldset>;
 
   if (category === "INSURANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>生命保険の情報</legend><div className="asset-detail-grid">
     <PersonSelect label="被保険者" name="assetDetail.insuredPerson" value={details.insuredPerson ?? ""} people={people} />
@@ -223,7 +242,7 @@ function AssetSpecificFields({
 
   if (category === "RETIREMENT_ALLOWANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>退職金の情報</legend><div className="asset-detail-grid">
     <BenefitRecipientsField benefitLabel="死亡退職金" benefitName="assetDetail.retirementAllowance" benefitDefault={String(details.retirementAllowance ?? "")} recipientName="assetDetail.retirementRecipient" allocationDefaults={allocationDefaults(details, "retirementRecipient")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数・生命保険金とは別枠）の対象です。" />
-  </div><p className="asset-detail-note">円換算時価には、生存中に解約した場合の解約返戻金（解約手当金）を入力します。死亡退職金は相続税の概算にだけ反映し、資産合計には含めません。</p></fieldset>;
+  </div><FieldNote summary="解約手当金と死亡退職金の扱い">円換算時価には、生存中に解約した場合の解約返戻金（解約手当金）を入力します。死亡退職金は相続税の概算にだけ反映し、資産合計には含めません。</FieldNote></fieldset>;
 
   return null;
 }
@@ -251,6 +270,8 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   const [ownershipNumerator, setOwnershipNumerator] = useState(String(position?.ownershipNumerator ?? fallbackOwnershipNumerator));
   const [ownershipDenominator, setOwnershipDenominator] = useState(String(position?.ownershipDenominator ?? fallbackOwnershipDenominator));
   const [propertyType, setPropertyType] = useState<string>((position ? propertyTypeOf(position) : null) ?? "LAND");
+  // 直接入力の金額。下の操作行に常に表示するため、入力欄の中ではなくここで持つ。
+  const [manualAmount, setManualAmount] = useState(position ? String(position.originalAmount) : "");
   // 生命保険は契約名を持たせず、保険会社を明細の名称として使う。
   const [institution, setInstitution] = useState(position?.institution ?? "");
 
@@ -299,9 +320,11 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
     : category === "LOAN_RECEIVABLE" ? "貸付先"
     : section === "ASSET" ? null
     : "金融機関・債権者";
-  const amountLabel = section === "LIABILITY" ? "借入残高" : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : deemedInheritanceCategories[category as DeemedCategory] ? deemedInheritanceCategories[category as DeemedCategory].surrenderLabel : category === "LOAN_RECEIVABLE" ? "貸付金残高" : category === "COLLECTIBLES" ? "評価額" : isPrivateShares ? (formula === "STOCK" ? "評価額（自動計算）" : "評価額（直接入力）") : isJpyOnly ? "評価額" : "通貨建て金額";
+  const amountLabel = section === "LIABILITY" ? "借入残高" : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : deemedInheritanceCategories[category as DeemedCategory] ? deemedInheritanceCategories[category as DeemedCategory].surrenderLabel : category === "LOAN_RECEIVABLE" ? "貸付金残高" : "評価額";
+  // 金額欄の見出しに付ける単位。外貨を選んだときは通貨コードにして、円で入れてしまう誤りを防ぐ。
+  const amountUnit = currency === "JPY" ? "円" : currency;
   const numericValue = (value: string) => Number(value) || 0;
-  const ownershipDisplay = `${ownershipNumerator || "—"} / ${ownershipDenominator || "—"}`;
+  const ownershipSource: SourceItem = { label: "持分", value: ownershipNumerator && ownershipDenominator ? `${ownershipNumerator} / ${ownershipDenominator}` : "", fieldName: ownershipNumerator ? "ownershipDenominator" : "ownershipNumerator" };
   const ownershipRatio = numericValue(ownershipDenominator) > 0 ? numericValue(ownershipNumerator) / numericValue(ownershipDenominator) : 0;
   let calculatedAmount = 0;
   if (formula === "STOCK") calculatedAmount = numericValue(quantity) * numericValue(unitPrice) * numericValue(adjustmentRate);
@@ -319,16 +342,24 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
     : section === "LIABILITY" ? "借入残高"
     : section === "CONTINGENT" ? "保証金額"
     : manualValuationMethods[category] ?? "直接入力";
+  const hasFormulaChoice = isStockCategory || isRealEstateCategory || isUnitRateCategory;
+  const valuationLegend = section !== "ASSET" ? "金額" : hasFormulaChoice && !isPrivateShares ? "評価額の計算方法" : "評価額";
+  const formatAmount = (value: number) => value.toLocaleString("ja-JP", { maximumFractionDigits: 2 });
+  // 操作行に出す金額。入力中の欄がどこにあっても、登録される金額をスクロールせずに確かめられるようにする。
+  // 算式の値がそろわず0になっている間は「0 円」と見せず未入力として扱う。
+  const summaryAmount = isCalculated ? (calculatedAmount === 0 ? null : calculatedAmount) : manualAmount === "" ? null : numericValue(manualAmount);
+  const summaryJpy = currency === "JPY" || summaryAmount === null ? null : fxRate === null ? "円換算レート未登録" : `円換算 ${yen.format(Math.round(summaryAmount * fxRate))}`;
   const formulaExpression = formula === "STOCK" ? "株数・口数 × 単価 × 調整率" : formula === "UNIT_RATE" ? "単価 × 調整率" : formula === "LAND_ROADSIDE" ? "面積 × 路線価 × 調整率 × 持分（分子 ÷ 分母）" : formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? "固定資産税評価額 × 倍率 × 調整率 × 持分（分子 ÷ 分母）" : "";
 
   return <div className="modal-layer" role="presentation"><div className="modal position-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <header><div><p className="eyebrow">{isEditing ? "EDIT POSITION" : "NEW POSITION"}</p><h2 id="modal-title">{isEditing ? "明細を修正" : "明細を追加"}</h2></div><button className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header>
     <form onSubmit={onSubmit}>
       <input type="hidden" name="side" value={section === "ASSET" ? "ASSET" : "LIABILITY"} />
-      <fieldset className="classification-fieldset"><legend>登録する区分</legend><div className="segment three-segment"><label><input type="radio" name="entrySection" value="ASSET" checked={section === "ASSET"} onChange={() => changeSection("ASSET")} /><span>資産の部</span></label><label><input type="radio" name="entrySection" value="LIABILITY" checked={section === "LIABILITY"} onChange={() => changeSection("LIABILITY")} /><span>負債の部</span></label><label><input type="radio" name="entrySection" value="CONTINGENT" checked={section === "CONTINGENT"} onChange={() => changeSection("CONTINGENT")} /><span>偶発債務の部</span></label></div></fieldset>
+      <fieldset className="classification-fieldset"><legend className="sr-only">登録する区分</legend><div className="classification-row"><span aria-hidden="true">登録する区分</span><div className="segment three-segment compact"><label><input type="radio" name="entrySection" value="ASSET" checked={section === "ASSET"} onChange={() => changeSection("ASSET")} /><span>資産の部</span></label><label><input type="radio" name="entrySection" value="LIABILITY" checked={section === "LIABILITY"} onChange={() => changeSection("LIABILITY")} /><span>負債の部</span></label><label><input type="radio" name="entrySection" value="CONTINGENT" checked={section === "CONTINGENT"} onChange={() => changeSection("CONTINGENT")} /><span>偶発債務の部</span></label></div></div></fieldset>
       {section === "ASSET" ? <p className="personal-owner-note"><ShieldCheck />オーナー本人が直接所有する個人資産を登録します。</p> : null}
       {section === "CONTINGENT" ? <p className="contingent-form-note"><AlertTriangle />偶発債務はB/S外として登録し、純資産の計算には含めません。</p> : null}
       <div className="form-grid">
+        <h3 className="form-section-heading full">基本情報</h3>
         {/* 中分類 → 科目 → 種類 → 名称 → 所在地・金融機関等 → 通貨 の順は全科目で共通。
             名称と場所の欄には、明細一覧の「科目・名称」「所在地・金融機関等」列に出る値がそのまま入る。 */}
         {section === "ASSET" ? <label>中分類<select aria-label="中分類" value={group} onChange={(event) => changeGroup(event.target.value as AssetGroupLabel)}>{assetCategoryGroups.map((assetGroup) => <option key={assetGroup.label} value={assetGroup.label}>{assetGroup.label}</option>)}</select><small className="asset-detail-hint">科目の選択肢がこの中分類の中だけに絞られます。</small></label> : null}
@@ -337,7 +368,7 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
         {isInsurance
           ? <input type="hidden" name="name" value={institution} />
           : <label>{nameLabel}<input name="name" required placeholder={category === "SECURITIES" ? "例：○○株式会社" : category === "PRIVATE_SHARES" ? "例：山田産業株式会社" : ""} defaultValue={position?.name ?? ""} /></label>}
-        {isInsurance ? <label>保険会社<span className="required-mark">必須</span><input name="institution" required value={institution} onChange={(event) => setInstitution(event.target.value)} placeholder="例：日本生命" /><small className="asset-detail-hint">明細の「科目・名称」にはこの保険会社名を表示します。</small></label> : null}
+        {isInsurance ? <label>保険会社<input name="institution" required value={institution} onChange={(event) => setInstitution(event.target.value)} placeholder="例：日本生命" /><small className="asset-detail-hint">明細の「科目・名称」にはこの保険会社名を表示します。</small></label> : null}
         {isRealEstateCategory ? <><label>所在地<input name="assetDetail.propertyAddress" required defaultValue={assetDetails.propertyAddress ?? ""} placeholder="例：東京都港区南青山1-2-3" /></label><input type="hidden" name="institution" value="" /></> : null}
         {isInsurance ? <label>証券番号<input name="assetDetail.policyNumber" defaultValue={assetDetails.policyNumber ?? ""} placeholder="例：1234567890" /><small className="asset-detail-hint">明細の「所在地・金融機関等」に表示します。</small></label> : null}
         {!isInsurance && !isRealEstateCategory ? (institutionLabel ? <label>{institutionLabel}<input name="institution" value={institution} onChange={(event) => setInstitution(event.target.value)} /></label> : <input type="hidden" name="institution" value="" />) : null}
@@ -361,19 +392,21 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
           onOwnershipNumeratorChange={setOwnershipNumerator}
           onOwnershipDenominatorChange={setOwnershipDenominator}
         /> : null}
-        {isStockCategory || isRealEstateCategory || isUnitRateCategory ? <fieldset className="valuation-formula-fieldset full"><legend>{isPrivateShares ? "評価額の自動計算" : "評価額の計算方法"}</legend>{isPrivateShares ? <><input type="hidden" name="valuationFormula" value={formula} /><label className="valuation-formula-check"><input type="checkbox" checked={formula === "STOCK"} onChange={(event) => setFormula(event.target.checked ? "STOCK" : "MANUAL")} /><span><strong>株数・単価から自動計算する</strong><small>外すと「評価額（直接入力）」に金額をそのまま入力できます。</small></span></label></> : <select name="valuationFormula" aria-label="評価額の計算方法" value={formula} onChange={(event) => setFormula(event.target.value as ValuationFormula)}>{isUnitRateCategory ? <option value="UNIT_RATE">単価×調整率</option> : null}<option value="MANUAL">金額を直接入力</option>{isStockCategory ? <option value="STOCK">株数・口数から計算</option> : null}{isRealEstateCategory && propertyType === "LAND" ? <><option value="LAND_ROADSIDE">路線価方式</option><option value="LAND_MULTIPLIER">倍率方式</option></> : null}{isRealEstateCategory && propertyType === "BUILDING" ? <option value="BUILDING">固定資産税評価額方式</option> : null}</select>}{formulaExpression ? <p className="valuation-formula-expression">{formulaExpression}</p> : null}
-          {formula === "STOCK" ? <div className="valuation-calculation-grid stock-formula"><label>株数・口数<CommaNumberInput name="valuationQuantity" defaultValue="" value={quantity} onValueChange={setQuantity} maxFractionDigits={6} placeholder="例：10,000" positive /></label><span aria-hidden="true">×</span><label>単価<CommaNumberInput name="valuationUnitPrice" defaultValue="" value={unitPrice} onValueChange={setUnitPrice} maxFractionDigits={2} placeholder="例：2,500" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div> : null}
-          {formula === "UNIT_RATE" ? <div className="valuation-calculation-grid real-estate-method-inputs"><label>単価<CommaNumberInput name="valuationUnitPrice" defaultValue="" value={unitPrice} onValueChange={setUnitPrice} maxFractionDigits={2} placeholder="例：3,000,000" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div> : null}
-          {formula === "LAND_ROADSIDE" ? <><div className="valuation-source-summary"><span>基本情報から使用</span><dl><div><dt>面積</dt><dd>{landArea ? `${valuationNumber.format(numericValue(landArea))}㎡` : "未入力"}</dd></div><div><dt>持分</dt><dd>{ownershipDisplay}</dd></div></dl></div><div className="valuation-calculation-grid real-estate-method-inputs"><label>路線価（円/㎡）<CommaNumberInput name="roadsideValue" defaultValue="" value={roadsideValue} onValueChange={setRoadsideValue} maxFractionDigits={2} placeholder="" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="" positive /></label></div></> : null}
-          {formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? <><div className="valuation-source-summary"><span>基本情報から使用</span><dl><div><dt>固定資産税評価額</dt><dd>{fixedAssetTaxValue ? yen.format(numericValue(fixedAssetTaxValue)) : "未入力"}</dd></div><div><dt>持分</dt><dd>{ownershipDisplay}</dd></div></dl></div><div className="valuation-calculation-grid real-estate-method-inputs"><label>倍率<CommaNumberInput name="valuationMultiplier" defaultValue="" value={valuationMultiplier} onValueChange={setValuationMultiplier} maxFractionDigits={6} placeholder="" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="" positive /></label></div></> : null}
+        <fieldset className="valuation-formula-fieldset full"><legend>{valuationLegend}</legend>{!hasFormulaChoice ? <input type="hidden" name="valuationFormula" value="MANUAL" /> : isPrivateShares ? <><input type="hidden" name="valuationFormula" value={formula} /><label className="valuation-formula-check"><input type="checkbox" checked={formula === "STOCK"} onChange={(event) => setFormula(event.target.checked ? "STOCK" : "MANUAL")} /><span><strong>株数・単価から自動計算する</strong><small>外すと評価額を直接入力できます。</small></span></label></> : <select name="valuationFormula" aria-label="評価額の計算方法" value={formula} onChange={(event) => setFormula(event.target.value as ValuationFormula)}>{isUnitRateCategory ? <option value="UNIT_RATE">単価×調整率</option> : null}<option value="MANUAL">金額を直接入力</option>{isStockCategory ? <option value="STOCK">株数・口数から計算</option> : null}{isRealEstateCategory && propertyType === "LAND" ? <><option value="LAND_ROADSIDE">路線価方式</option><option value="LAND_MULTIPLIER">倍率方式</option></> : null}{isRealEstateCategory && propertyType === "BUILDING" ? <option value="BUILDING">固定資産税評価額方式</option> : null}</select>}{formulaExpression ? <p className="valuation-formula-expression">{formulaExpression}</p> : null}
+          {formula === "STOCK" ? <div className="valuation-calculation-grid stock-formula"><label>株数・口数<CommaNumberInput name="valuationQuantity" defaultValue="" value={quantity} onValueChange={setQuantity} maxFractionDigits={6} placeholder="例：10,000" positive /></label><span aria-hidden="true">×</span><label>単価（{amountUnit}）<CommaNumberInput name="valuationUnitPrice" defaultValue="" value={unitPrice} onValueChange={setUnitPrice} maxFractionDigits={2} placeholder="例：2,500" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div> : null}
+          {formula === "UNIT_RATE" ? <div className="valuation-calculation-grid real-estate-method-inputs"><label>単価（{amountUnit}）<CommaNumberInput name="valuationUnitPrice" defaultValue="" value={unitPrice} onValueChange={setUnitPrice} maxFractionDigits={2} placeholder="例：3,000,000" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div> : null}
+          {formula === "LAND_ROADSIDE" ? <><ValuationSourceSummary items={[{ label: "面積", value: landArea ? `${valuationNumber.format(numericValue(landArea))}㎡` : "", fieldName: "landArea" }, ownershipSource]} /><div className="valuation-calculation-grid real-estate-method-inputs"><label>路線価（円/㎡）<CommaNumberInput name="roadsideValue" defaultValue="" value={roadsideValue} onValueChange={setRoadsideValue} maxFractionDigits={2} placeholder="" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div></> : null}
+          {formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? <><ValuationSourceSummary items={[{ label: "固定資産税評価額", value: fixedAssetTaxValue ? yen.format(numericValue(fixedAssetTaxValue)) : "", fieldName: "fixedAssetTaxValue" }, ownershipSource]} /><div className="valuation-calculation-grid real-estate-method-inputs"><label>倍率<CommaNumberInput name="valuationMultiplier" defaultValue="" value={valuationMultiplier} onValueChange={setValuationMultiplier} maxFractionDigits={6} placeholder="例：1.1" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div></> : null}
           {/* 円建ての科目は通貨表記と円換算見込を出さずに金額1行だけにする。 */}
-          {isCalculated ? <div className="valuation-result" aria-live="polite"><span>算式による評価額</span><strong>{calculatedAmount.toLocaleString("ja-JP", { maximumFractionDigits: 2 })}{currency === "JPY" ? "" : ` ${currency}`}</strong>{currency === "JPY" || fxRate === null ? null : <small>円換算見込 {yen.format(calculatedJpy)}</small>}</div> : null}
-        </fieldset> : <input type="hidden" name="valuationFormula" value="MANUAL" />}
-        <label>{amountLabel}<CommaNumberInput key={formula} name="originalAmount" defaultValue={isCalculated ? "" : position?.originalAmount ?? ""} value={isCalculated ? String(calculatedAmount) : undefined} maxFractionDigits={2} placeholder="" readOnly={isCalculated} hint={isCalculated ? "上の算式から自動計算されます" : undefined} /></label>
+          {/* 算式で計算するときは結果だけを見せ、同じ金額の読み取り専用欄は置かない。 */}
+          {isCalculated
+            ? <><div className="valuation-result"><span>算式による評価額</span><strong>{formatAmount(calculatedAmount)}{currency === "JPY" ? "" : ` ${currency}`}</strong>{currency === "JPY" || fxRate === null ? null : <small>円換算見込 {yen.format(calculatedJpy)}</small>}</div><input type="hidden" name="originalAmount" value={String(calculatedAmount)} /></>
+            : <label className="valuation-manual-amount">{amountLabel}（{amountUnit}）<CommaNumberInput name="originalAmount" defaultValue="" value={manualAmount} onValueChange={setManualAmount} maxFractionDigits={2} placeholder="" /></label>}
+        </fieldset>
         <input type="hidden" name="valuationMethod" value={fixedValuationMethod} />
         <label className="full">メモ<textarea name="note" rows={3} placeholder="評価日、根拠資料など" defaultValue={position?.note ?? ""} /></label>
       </div>
-      <footer><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>
+      <footer><div className="position-modal-summary" aria-live="polite"><span>{amountLabel}</span><strong>{summaryAmount === null ? "未入力" : `${formatAmount(summaryAmount)} ${amountUnit}`}</strong>{summaryJpy ? <small>{summaryJpy}</small> : null}</div><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>
     </form>
   </div></div>;
 }

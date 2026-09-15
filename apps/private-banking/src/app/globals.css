@@ -367,7 +367,24 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .modal h2 { margin: 0; font-family: inherit; font-size: 22px; font-weight: 700; }
 .modal form { padding: 24px; }
 .position-modal { width: min(840px, 100%); }
-.position-modal form > footer { position: sticky; bottom: -24px; z-index: 2; margin-inline: -24px; padding: 16px 24px 24px; background: #fff; box-shadow: 0 -10px 18px -18px #172b3a66; }
+/* 操作行は画面下に固定する。フォーム下端の余白を操作行の中へ移し、bottom:0 にしてスクロールしても位置が動かないようにする。 */
+.position-modal form { padding: 24px 24px 0; }
+.position-modal form > footer { position: sticky; bottom: 0; z-index: 2; margin: 24px -24px 0; padding: 14px 24px 20px; align-items: center; background: #fff; box-shadow: 0 -10px 18px -18px #172b3a66; }
+/* 登録される金額。入力欄がどこにあってもスクロールせずに確かめられるよう、操作行の左に置く。 */
+.position-modal-summary { min-width: 0; margin-right: auto; display: grid; gap: 1px; }
+.position-modal-summary span { color: var(--slate-500); font-size: 11px; font-weight: 700; }
+.position-modal-summary strong { color: var(--navy-950); overflow-wrap: anywhere; font-size: 18px; font-variant-numeric: tabular-nums; }
+.position-modal-summary small { color: var(--slate-500); font-size: 11px; }
+/* 必須の入力欄を持つ見出しに「必須」を自動で付ける。算式や区分で必須が切り替わっても表示が追従する。 */
+.position-modal .form-grid label:has(> :is(input, select, textarea):required) { display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; }
+.position-modal .form-grid label:has(> :is(input, select, textarea):required) > * { flex: 1 0 100%; order: 2; }
+.position-modal .form-grid label:has(> :is(input, select, textarea):required)::after,
+.position-modal .ownership-fraction-field:has(input:required) .ownership-fraction-title::after { content: "必須"; order: 1; margin-left: 6px; padding: 1px 5px; color: var(--danger); background: #fdf0ef; border-radius: 4px; font-size: 10px; font-weight: 700; line-height: 1.4; }
+/* 分子・分母の個別ラベルには付けず、見出しの1か所だけに出す（上の規則と詳細度をそろえ、後勝ちにする）。 */
+.position-modal .form-grid .ownership-fraction-inputs label:has(> input)::after { content: none; }
+/* 未入力のまま登録したときは欄を赤く囲む。移動先の欄が固定した操作行の下に隠れないよう余白を取る。 */
+.position-modal :is(input, select, textarea) { scroll-margin-block: 16px 120px; }
+.position-modal .form-grid :is(input, select, textarea):user-invalid { border-color: var(--danger); box-shadow: 0 0 0 3px #f8d7d5; }
 .bulk-position-modal { width: min(1480px, 99vw); overflow: hidden; }
 .bulk-position-modal > header { min-height: 78px; }
 .bulk-position-modal > header p:last-child { margin: 4px 0 0; color: var(--slate-500); font-size: 12px; }
@@ -552,17 +569,20 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .forecast-link a svg { width: 15px; height: 15px; }
 .forecast-link small { color: var(--slate-500); font-size: 11px; }
 .classification-fieldset { margin: 0; padding: 0; border: 0; }
-.classification-fieldset legend { margin-bottom: 5px; color: var(--slate-700); font-size: 12px; font-weight: 700; }
-.personal-owner-note { display: flex; align-items: center; gap: 7px; margin: 10px 0 0; padding: 9px 11px; color: #166534; background: #f0fdf4; border: 1px solid #d2ebd7; border-radius: 7px; font-size: 11px; font-weight: 700; line-height: 1.5; }
-.personal-owner-note svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.classification-row { display: flex; align-items: center; gap: 12px; }
+.classification-row > span { color: var(--slate-700); white-space: nowrap; font-size: 12px; font-weight: 700; }
+.personal-owner-note { display: flex; align-items: center; gap: 6px; margin: 8px 0 18px; color: #166534; font-size: 11px; font-weight: 700; line-height: 1.5; }
+.personal-owner-note svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .segment { margin-bottom: 20px; padding: 4px; background: var(--slate-100); border-radius: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .segment.three-segment { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.segment.compact { flex: 1; margin-bottom: 0; padding: 3px; }
+.segment.compact span { min-height: 34px; font-size: 12px; }
 .segment label { position: relative; }
 .segment input { position: absolute; opacity: 0; }
 .segment span { min-height: 42px; border-radius: 6px; display: grid; place-items: center; color: var(--slate-700); font-size: 13px; font-weight: 700; }
 .segment input:checked + span { color: var(--navy-900); background: white; box-shadow: 0 1px 5px #1a2b371a; }
 .segment input:focus-visible + span { outline: 3px solid #22c55e; }
-.contingent-form-note { margin: -8px 0 18px; padding: 10px 12px; color: #67501e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 7px; display: flex; align-items: center; gap: 8px; font-size: 11px; line-height: 1.55; }
+.contingent-form-note { margin: 8px 0 18px; padding: 10px 12px; color: #67501e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 7px; display: flex; align-items: center; gap: 8px; font-size: 11px; line-height: 1.55; }
 .contingent-form-note svg { width: 17px; height: 17px; flex: 0 0 auto; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-grid label { color: var(--slate-700); font-size: 12px; font-weight: 700; }
@@ -581,7 +601,15 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .valuation-formula-check strong { color: var(--navy-950); font-size: 12px; }
 .valuation-formula-check small { color: var(--slate-600); font-size: 11px; font-weight: 500; line-height: 1.5; }
 .land-category-definition, .building-type-definition, .asset-detail-hint { margin-top: 5px; color: var(--slate-500); font-size: 11px; font-weight: 500; line-height: 1.55; display: block; }
-.asset-detail-note { margin: 10px 0 0; padding-top: 9px; color: var(--slate-600); border-top: 1px solid #e2ece4; font-size: 11px; line-height: 1.6; }
+.form-section-heading { margin: 0 0 -6px; padding-bottom: 7px; color: #166534; border-bottom: 1px solid #e2ece4; font-size: 12px; font-weight: 800; }
+/* 長い補足説明は畳んでおき、見出しを押したときだけ開く。 */
+.field-note { margin-top: 6px; color: var(--slate-600); font-size: 11px; line-height: 1.6; }
+.field-note > summary { width: fit-content; min-height: 24px; color: var(--slate-500); display: flex; align-items: center; gap: 4px; font-weight: 700; list-style: none; cursor: pointer; }
+.field-note > summary::-webkit-details-marker { display: none; }
+.field-note > summary svg { width: 13px; height: 13px; flex: 0 0 auto; }
+.field-note > summary:hover, .field-note[open] > summary { color: #166534; }
+.field-note > p { margin: 4px 0 0; padding: 8px 10px; background: #fff; border: 1px solid #e2ece4; border-radius: 6px; }
+.asset-detail-fieldset > .field-note { margin-top: 10px; padding-top: 6px; border-top: 1px solid #e2ece4; }
 .valuation-formula-fieldset { min-width: 0; margin: 2px 0 4px; padding: 14px; background: #fafcfb; border: 1px solid var(--line); border-radius: 8px; }
 .valuation-formula-fieldset > legend { padding: 0 5px; color: var(--navy-950); font-size: 12px; font-weight: 800; }
 .valuation-formula-fieldset > select { width: 100%; min-height: 44px; padding: 9px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-weight: 700; }
@@ -598,6 +626,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .valuation-source-summary dt, .valuation-source-summary dd { margin: 0; }
 .valuation-source-summary dt { color: var(--slate-500); font-size: 11px; }
 .valuation-source-summary dd { color: var(--slate-950); overflow-wrap: anywhere; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.source-missing-button { padding: 0; color: #b45309; background: none; border: 0; font-size: 12px; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+.valuation-formula-fieldset > :is(select, .valuation-formula-check) ~ .valuation-manual-amount { margin-top: 12px; }
+.valuation-manual-amount { display: block; }
 .ownership-fraction-field { min-width: 0; }
 .ownership-fraction-title { color: var(--slate-700); display: block; font-size: 12px; font-weight: 700; }
 .ownership-fraction-inputs { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); align-items: end; gap: 4px; }
@@ -976,7 +1007,11 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .modal-layer { padding: 0; place-items: end center; }
   .modal { max-height: 94vh; max-height: 94dvh; border-radius: 12px 12px 0 0; }
   /* 下から出るシートなので、画面下端のホームバーとボタンが重ならないよう末尾の操作行に余白を足す（端まで描画する表示のときだけ効く）。 */
-  .position-modal form > footer { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .position-modal form > footer { padding-block: 10px calc(14px + env(safe-area-inset-bottom, 0px)); }
+  /* 狭い画面では入力欄の見える範囲を広く取るため、金額とボタンを1行に並べる。桁の多い金額はボタンを割らずに金額側で折り返す。 */
+  .position-modal-summary { flex: 1 1 0; }
+  .position-modal-summary strong { font-size: 15px; }
+  .classification-row { align-items: stretch; flex-direction: column; gap: 5px; }
   .client-create-form footer { padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
   .bulk-position-modal { width: 100%; }
   .bulk-modal-body { max-height: calc(94vh - 78px); max-height: calc(94dvh - 78px); padding-inline: 12px; }
