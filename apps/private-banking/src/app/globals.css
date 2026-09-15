@@ -1317,6 +1317,11 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table thead { display: table-header-group; }
   .position-table tfoot { display: table-row-group; }
   .position-table tr { break-inside: avoid; page-break-inside: avoid; }
+  /* 合計行だけが次ページへ送られて見出しと1行だけのページができないよう、直前の明細行と同じページに置く。
+     明細が3行以下だと見出し〜合計のすべての切れ目が避けられて枠の見出しだけが前ページに残るので、区画ごと送る。 */
+  .position-table tbody tr:last-child { break-after: avoid; page-break-after: avoid; }
+  .position-table tfoot tr { break-before: avoid; page-break-before: avoid; }
+  .position-section:not(:has(tbody tr:nth-child(4))) { break-inside: avoid; page-break-inside: avoid; }
   .position-table th, .position-table td { min-width: 0; padding: 5px 7px; box-sizing: border-box; }
   /* 印刷用の罫線色を明示し、白紙でも行・列の区切りを読み取れるようにする。 */
   .position-table td, .trend-table tbody th, .trend-table tbody td { border-bottom-color: var(--line); }
