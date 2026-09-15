@@ -28,6 +28,8 @@ describe("AssetsView（生命保険の相続税負担額）", () => {
     const lines = cell("相続税負担額").querySelectorAll(".deemed-amount");
     expect(lines).toHaveLength(2);
     expect(within(lines[0] as HTMLElement).getByText("解約返戻金に対応する相続税なし")).toBeTruthy();
+    expect(lines[0].textContent).toContain("—");
+    expect(lines[0].textContent).not.toContain("対象外");
     // 正味財産 = 預金5,000万円 + 死亡保険金5,000万円。相続税1,100万円のうち半分が死亡保険金の段に出る。
     expect(lines[1].textContent).toContain("5,500,000");
     expect(cell("円換算時価").querySelectorAll(".deemed-amount")).toHaveLength(2);

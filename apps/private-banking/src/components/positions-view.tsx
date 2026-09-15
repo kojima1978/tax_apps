@@ -56,7 +56,7 @@ function DeemedAmounts({ position }: { position: Position }) {
 function DeemedTaxBurden({ position, value }: { position: Position; value: number | null }) {
   const config = deemedConfig(position)!;
   return <>
-    <span className="deemed-amount deemed-tax-line"><small>対象外</small><span className="tax-burden-empty" aria-hidden="true">—</span><span className="sr-only">{config.surrenderLabel}に対応する相続税なし</span></span>
+    <span className="deemed-amount deemed-tax-line"><small className="deemed-tax-label" aria-hidden="true">{config.surrenderLabel}</small><span className="tax-burden-empty" aria-hidden="true">—</span><span className="sr-only">{config.surrenderLabel}に対応する相続税なし</span></span>
     <span className="deemed-amount deemed-tax-line"><small className="deemed-tax-label">{config.label}</small><TaxBurdenAmount value={value} /></span>
   </>;
 }

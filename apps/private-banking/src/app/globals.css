@@ -252,8 +252,8 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .tax-burden-empty { color: var(--slate-500); }
 /* 相続税負担額を円換算時価の2段と同じ高さに置く。行の中央揃えだと受取人の注記の分だけ段がずれるので、両列とも上端から並べる。 */
 .position-table td.deemed-cell { vertical-align: top; }
-/* 相続税負担額の段は右寄せ。左端に置くと「対象外」が隣の列の金額に続けて読めてしまう。
-   列幅が狭い表形式では2段目の名前を円換算時価の列に任せ、金額だけを出す。 */
+/* 相続税負担額の段は右寄せ。左端に置くと「—」が隣の列の金額に続けて読めてしまう。
+   列幅が狭い表形式では段の名前を円換算時価の列に任せ、「—」と金額だけを出す。 */
 .deemed-tax-line { justify-content: flex-end; }
 .deemed-tax-label { display: none; }
 .position-table th:nth-child(4), .position-table tbody td:nth-child(4) { text-align: left; }
