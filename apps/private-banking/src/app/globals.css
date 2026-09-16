@@ -121,7 +121,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .balance-report-series.screen-without-tax > .balance-report-with-tax,
 .balance-report-series.screen-with-tax > .balance-report-without-tax { display: none; }
-.balance-print-owner { display: none; }
 .panel { background: white; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 2px 4px #172b3a08; }
 .panel-header { min-height: 72px; padding: 17px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
 .panel-header h3 { margin: 0; color: var(--navy-950); font-family: inherit; font-size: 16px; font-weight: 700; }
@@ -1211,7 +1210,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .dashboard-grid { display: block; gap: 0; }
   .balance-report-series > .balance-panel { display: block !important; }
   .balance-report-series > .balance-panel + .balance-panel { break-before: page; page-break-before: always; }
-  .balance-print-owner { display: block; margin: 0 8px 5px; padding-top: 2mm; font-size: 13px; font-weight: 700; }
   .panel { break-inside: avoid; box-shadow: none; }
   .balance-panel { overflow: hidden; break-inside: auto; }
   .balance-panel .panel-header { min-height: 42px; padding: 7px 12px; }

@@ -355,7 +355,6 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
                     view={view}
                     headingSuffix={reportScenario}
                     subtitle={`${reportSnapshot.isCurrent ? "" : `${fiscalYearLabel(reportSnapshot)}・`}${view.taxIncluded ? "相続時予測（死亡保険金・税金を反映）" : "現在価値（保険は解約返戻金）"}`}
-                    ownerName={reportScenario === "with-tax" ? portfolio.household.name : null}
                     liabilities={summary.liabilities}
                     guarantees={summary.guarantees}
                     deemedBenefitMissingCount={successionAssets.deemedBenefitMissingCount}

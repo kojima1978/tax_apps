@@ -37,7 +37,6 @@ function renderPanel(scenario: BalanceScenario, overrides: Partial<Parameters<ty
     view={view}
     headingSuffix={scenario}
     subtitle="テスト"
-    ownerName={null}
     liabilities={summary.liabilities}
     guarantees={summary.guarantees}
     deemedBenefitMissingCount={0}

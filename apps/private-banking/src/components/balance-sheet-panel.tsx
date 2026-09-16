@@ -63,11 +63,10 @@ function BsCalloutNote({ callout, amountTotal, active, hover }: { callout: BsCal
  * ここは受け取った数値を描くだけにしている（税金なし・税金ありの2枚を同じ部品で出す）。
  * 面積が足りない区画は、区画に番号の印を付け、表の真下の同じ側へ注記を並べて補う。
  */
-export function BalanceSheetPanel({ view, headingSuffix, subtitle, ownerName, liabilities, guarantees, deemedBenefitMissingCount, action }: {
+export function BalanceSheetPanel({ view, headingSuffix, subtitle, liabilities, guarantees, deemedBenefitMissingCount, action }: {
   view: BalanceView;
   headingSuffix: string;
   subtitle: string;
-  ownerName: string | null;
   liabilities: number;
   guarantees: number;
   deemedBenefitMissingCount: number;
@@ -83,7 +82,6 @@ export function BalanceSheetPanel({ view, headingSuffix, subtitle, ownerName, li
   ] as const).map((entry) => ({ ...entry, callouts: callouts.filter((callout) => callout.side === entry.side) }));
 
   return <article className={`panel balance-panel print-section-balance balance-report-${headingSuffix}`}>
-    {ownerName ? <p className="balance-print-owner">{ownerName}</p> : null}
     <PanelHeader title="貸借対照表" subtitle={subtitle} action={action} />
     {taxIncluded && deemedBenefitMissingCount > 0 ? <p className="insurance-data-note" role="note"><AlertTriangle />死亡保険金・死亡退職金が未入力の明細 {deemedBenefitMissingCount}件は、税金ありB/Sでは0円として計算しています。</p> : null}
     <div className="classified-bs" role="group" aria-label={`貸借対照表・${taxIncluded ? "税金あり" : "税金なし"}`}>
