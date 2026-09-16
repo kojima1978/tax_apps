@@ -37,17 +37,18 @@ function MoneyRow({
   value,
   operator,
   emphasis,
-  note,
+  rate,
 }: {
   label: string;
   value: number;
   operator?: "−" | "＋" | "＝";
   emphasis?: "subtotal" | "total";
-  note?: string;
+  /** 税額の行に添える実効税率(%)。報告の要点なのでバッジで目立たせる。 */
+  rate?: number;
 }) {
   return <div className={`tax-calc-money-row ${emphasis ?? ""}`}>
     <span className="tax-calc-operator">{operator ?? ""}</span>
-    <span>{label}{note ? <small className="tax-calc-row-note">{note}</small> : null}</span>
+    <span>{label}{rate === undefined ? null : <small className="tax-calc-rate-badge">実効税率 <b>{rate.toFixed(1)}%</b></small>}</span>
     <strong>{value === 0 ? "0円" : compactYen(value)}</strong>
   </div>;
 }
@@ -174,7 +175,7 @@ export function InheritanceTaxReport({
           <MoneyRow label="相続税計算上の遺産額" value={calculation.estateValueJpy} operator="＝" emphasis="subtotal" />
           <MoneyRow label="基礎控除額" value={calculation.basicDeductionJpy} operator="−" />
           <MoneyRow label="課税遺産総額" value={calculation.taxableEstateJpy} operator="＝" emphasis="subtotal" />
-          <MoneyRow label="相続税の総額" value={calculation.totalTaxBeforeDeductionsJpy} note={`実効税率 ${calculation.effectiveTaxRateBeforeDeductions.toFixed(1)}%`} />
+          <MoneyRow label="相続税の総額" value={calculation.totalTaxBeforeDeductionsJpy} rate={calculation.effectiveTaxRateBeforeDeductions} />
           {surcharge > 0 ? <MoneyRow label="相続税額の2割加算" value={surcharge} operator="＋" /> : null}
           {spouseDeduction > 0 ? <MoneyRow label="配偶者の税額軽減" value={spouseDeduction} operator="−" /> : null}
           <MoneyRow label="相続税の納付税額（概算）" value={calculation.totalInheritanceTaxJpy} operator="＝" emphasis="total" />

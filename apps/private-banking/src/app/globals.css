@@ -782,10 +782,13 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .tax-calc-money-row { min-height: 28px; padding: 4px 2px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: baseline; gap: 4px; font-size: 11px; }
 .tax-calc-money-row strong { color: #263b34; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tax-calc-operator { color: #8b3a34; font-weight: 800; text-align: center; }
-.tax-calc-row-note { margin-left: 6px; color: #5b7268; font-weight: 700; font-size: 11px; white-space: nowrap; }
+/* 実効税率と納付税額は報告の要点。B/Sの税金区画と同じ赤で目立たせる。 */
+.tax-calc-rate-badge { margin-left: 8px; padding: 1px 8px; display: inline-block; color: #b91c1c; background: #fef2f2; border: 1px solid #b91c1c; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.tax-calc-rate-badge b { font-size: 14px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .tax-calc-money-row.subtotal { margin-top: 2px; border: 1px solid #8fc4aa; border-width: 1px 0; color: #14532d; background: #f0fdf4; font-weight: 800; }
-.tax-calc-money-row.total { margin-top: 6px; padding: 8px 5px; color: #123c31; background: #edf7f0; border: 2px solid #2f765e; font-size: 13px; font-weight: 900; }
-.tax-calc-money-row.total strong { color: #123c31; font-size: 16px; }
+.tax-calc-money-row.total { margin-top: 6px; padding: 8px 5px; align-items: center; color: #991b1b; background: #fef2f2; border: 2px solid #b91c1c; font-size: 13px; font-weight: 900; }
+.tax-calc-money-row.total strong { color: #b91c1c; font-size: 20px; }
+.tax-calc-money-row.total .tax-calc-operator { color: #b91c1c; }
 .tax-section-toolbar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 .tax-empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 24px; text-align: center; color: #5b7268; background: #f6faf8; border: 1px dashed #b7cabf; border-radius: 12px; }
 .tax-empty-state svg { width: 32px; height: 32px; color: #8fa79b; }
@@ -1275,7 +1278,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .tax-calc-money-row { min-height: 5.4mm; padding: .45mm .5mm; grid-template-columns: 4mm minmax(0, 1fr) auto; font-size: 9.5px; line-height: 1.4; }
   .tax-calc-money-row strong { font-size: 10px; }
   .tax-calc-money-row.total { margin-top: 1mm; padding: 1.1mm 1mm; font-size: 9.5px; }
-  .tax-calc-money-row.total strong { font-size: 11.5px; }
+  .tax-calc-money-row.total strong { font-size: 14px; }
+  .tax-calc-rate-badge { margin-left: 1.5mm; padding: 0 1.5mm; font-size: 8.5px; }
+  .tax-calc-rate-badge b { font-size: 10.5px; }
   .tax-calc-basis ol { padding: 1mm 2.5mm .5mm 7mm; }
   .tax-calc-basis li { padding: .8mm .4mm; font-size: 9.5px; line-height: 1.4; }
   .tax-calc-basis li p { margin-top: .3mm; font-size: 9px; line-height: 1.45; }
