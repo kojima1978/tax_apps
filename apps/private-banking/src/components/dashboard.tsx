@@ -349,10 +349,10 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         <header className="topbar">
           <button className="menu-button" aria-label="メニューを開く" onClick={() => setMenuOpen(true)}><Menu /></button>
           <div className="topbar-subject">
-            <Link className="back-to-list" href="/"><ChevronLeft />一覧に戻る</Link>
-            <button type="button" className="client-switcher-trigger" onClick={() => router.push(sectionHref("profile", null))} aria-label={`本人情報を開く。現在は${portfolio.household.name}`}><span><strong>{portfolio.household.name}</strong><em>{portfolio.household.clientCode}{portfolio.household.assignedStaff ? `・担当 ${portfolio.household.assignedStaff}` : ""}</em></span>{/* その場で直すのではなく本人情報タブへ移動するので、編集ではなく遷移のアイコンにする。 */}<ChevronRight /></button>
+            <Link className="back-to-list" href="/" title="一覧に戻る"><ChevronLeft /><span className="topbar-label">一覧に戻る</span></Link>
+            <button type="button" className="client-switcher-trigger" title={[portfolio.household.name, portfolio.household.clientCode, portfolio.household.assignedStaff ? `担当 ${portfolio.household.assignedStaff}` : ""].filter(Boolean).join("・")} onClick={() => router.push(sectionHref("profile", null))} aria-label={`本人情報を開く。現在は${portfolio.household.name}`}><span><strong>{portfolio.household.name}</strong><em>{portfolio.household.clientCode}{portfolio.household.assignedStaff ? `・担当 ${portfolio.household.assignedStaff}` : ""}</em></span>{/* その場で直すのではなく本人情報タブへ移動するので、編集ではなく遷移のアイコンにする。 */}<ChevronRight /></button>
           </div>
-          <div className="top-actions"><YearSwitcher snapshots={portfolio.snapshots} selected={reportSnapshot} onSelect={(snapshotId) => router.replace(sectionHref(section, snapshotId))} onCreate={() => setYearCreationSourceId(reportSnapshot.id)} onEditSettings={() => setSnapshotSettingsModalOpen(true)} /><button className="button secondary" onClick={() => setPrintGuideOpen(true)}><Printer />印刷・PDF出力</button></div>
+          <div className="top-actions"><YearSwitcher snapshots={portfolio.snapshots} selected={reportSnapshot} onSelect={(snapshotId) => router.replace(sectionHref(section, snapshotId))} onCreate={() => setYearCreationSourceId(reportSnapshot.id)} onEditSettings={() => setSnapshotSettingsModalOpen(true)} onPrint={() => setPrintGuideOpen(true)} /><button className="button secondary topbar-print" onClick={() => setPrintGuideOpen(true)} title="印刷・PDF出力"><Printer /><span className="topbar-label">印刷・PDF出力</span></button></div>
         </header>
 
         <main id="main-content" className="content">

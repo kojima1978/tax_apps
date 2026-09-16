@@ -4,8 +4,8 @@ import { LoaderCircle, MoreHorizontal, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 
-/** メニューの1項目。画面移動は `href`、その場の操作は `onSelect` で指定する。 */
-export type ActionMenuItem = { key: string; label: string; icon: LucideIcon; danger?: boolean } & (
+/** メニューの1項目。画面移動は `href`、その場の操作は `onSelect` で指定する。`className` は画面幅による出し分けなどに使う。 */
+export type ActionMenuItem = { key: string; label: string; icon: LucideIcon; danger?: boolean; className?: string } & (
   | { href: string; onSelect?: never }
   | { onSelect: () => void; href?: never }
 );
@@ -14,10 +14,12 @@ export type ActionMenuItem = { key: string; label: string; icon: LucideIcon; dan
  * 「⋯」などのボタンから開く操作メニュー。開いたら先頭の項目へフォーカスし、
  * Escape・外側のクリックで閉じる。上下矢印で項目間を移動できる。
  */
-export function ActionMenu({ id, label, items, busy = false, loading = false, trigger, triggerClassName = "icon-button", className = "" }: {
+export function ActionMenu({ id, label, items, heading, busy = false, loading = false, trigger, triggerClassName = "icon-button", className = "" }: {
   id: string;
   label: string;
   items: ActionMenuItem[];
+  /** 項目の上に出す補足（選べない表示だけの行）。読み上げは呼び出し側で別途用意する。 */
+  heading?: ReactNode;
   busy?: boolean;
   loading?: boolean;
   /** 省略時は「⋯」アイコンだけのボタンにする。 */
@@ -29,7 +31,8 @@ export function ActionMenu({ id, label, items, busy = false, loading = false, tr
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const menuItems = () => [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+  // 画面幅で隠している項目はフォーカスできないので、矢印キーの移動先から外す。
+  const menuItems = () => [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])].filter((element) => getComputedStyle(element).display !== "none");
 
   useEffect(() => {
     if (!open) return;
@@ -64,9 +67,13 @@ export function ActionMenu({ id, label, items, busy = false, loading = false, tr
       if (!busy && (event.key === "ArrowDown" || event.key === "ArrowUp")) { event.preventDefault(); setOpen(true); }
     }}>{loading ? <LoaderCircle className="spin" /> : trigger ?? <MoreHorizontal />}</button>
     {open ? <div ref={menuRef} className="action-menu-list" role="menu" id={id} aria-label={label} onKeyDown={moveFocus}>
-      {items.map(({ key, label: itemLabel, icon: Icon, danger, href, onSelect }) => href
-        ? <Link key={key} role="menuitem" className={danger ? "danger" : undefined} href={href} onClick={() => setOpen(false)}><Icon />{itemLabel}</Link>
-        : <button key={key} type="button" role="menuitem" className={danger ? "danger" : undefined} onClick={() => { close(); onSelect?.(); }}><Icon />{itemLabel}</button>)}
+      {heading ? <div className="action-menu-heading" aria-hidden="true">{heading}</div> : null}
+      {items.map(({ key, label: itemLabel, icon: Icon, danger, className: itemClassName, href, onSelect }) => {
+        const itemClass = [danger ? "danger" : "", itemClassName ?? ""].filter(Boolean).join(" ") || undefined;
+        return href
+          ? <Link key={key} role="menuitem" className={itemClass} href={href} onClick={() => setOpen(false)}><Icon />{itemLabel}</Link>
+          : <button key={key} type="button" role="menuitem" className={itemClass} onClick={() => { close(); onSelect?.(); }}><Icon />{itemLabel}</button>;
+      })}
     </div> : null}
   </div>;
 }
