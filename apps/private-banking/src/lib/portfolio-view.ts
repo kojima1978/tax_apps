@@ -55,7 +55,8 @@ export const categoryLabels: Record<string, string> = {
   DEPOSIT: "預金・現金", SECURITIES: "有価証券", HOME_REAL_ESTATE: "居宅", REAL_ESTATE: "収益不動産", IDLE_REAL_ESTATE: "遊休不動産", OTHER_REAL_ESTATE: "その他不動産",
   PRIVATE_SHARES: "自社株", BUSINESS_ASSETS: "事業用資産", LOAN_RECEIVABLE: "貸付金", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金", COLLECTIBLES: "その他資産",
   LOAN_HOME: "住宅ローン", LOAN_INVESTMENT_PROPERTY: "不動産投資ローン", LOAN_SECURITIES: "証券担保ローン",
-  LOAN_BUSINESS: "事業用借入", LOAN_OTHER: "その他借入金", LOAN: "その他借入金", GUARANTEE: "個人保証",
+  LOAN_BUSINESS: "事業用借入", LOAN_OTHER: "その他借入金", LOAN: "その他借入金",
+  LEASE_OBLIGATION: "リース債務", ACCOUNTS_PAYABLE: "未払金", DEPOSITS_RECEIVED: "預り敷金・保証金", GUARANTEE: "個人保証",
 };
 /** その他資産の資産種類。明細フォームの選択肢と一覧の表示ラベルを兼ねる。 */
 export const otherAssetTypeLabels: Record<string, string> = {
@@ -128,9 +129,12 @@ export const assetCategories: string[] = assetCategoryGroups.flatMap((group) => 
 /** 不動産の科目。所在地欄・持分・小規模宅地など、不動産だけの扱いをする箇所で使う。 */
 export const realEstateCategories: readonly string[] = assetCategoryGroups.find((group) => group.label === "不動産")!.categories;
 const assetGroupByCategory = new Map<string, AssetGroupLabel>(assetCategoryGroups.flatMap((group) => group.categories.map((category) => [category, group.label] as const)));
-/** 科目からその中分類を引く。資産以外（借入金・個人保証）は null。 */
+/** 科目からその中分類を引く。資産以外（借入金・その他負債・個人保証）は null。 */
 export const assetGroupOf = (category: string) => assetGroupByCategory.get(category) ?? null;
-export const liabilityCategories = ["LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER"];
+export const loanCategories = ["LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER"];
+/** 借入金ではない負債。B/S・推移表では「借入金」と分けて「その他負債」にまとめる。 */
+export const otherLiabilityCategories = ["LEASE_OBLIGATION", "ACCOUNTS_PAYABLE", "DEPOSITS_RECEIVED"];
+export const liabilityCategories = [...loanCategories, ...otherLiabilityCategories];
 
 export const fiscalYearLabel = (snapshot: Pick<Snapshot, "fiscalYear">) => `${snapshot.fiscalYear}年度`;
 
@@ -207,6 +211,7 @@ export function middleClassification(position: Position): string {
   const group = assetGroupOf(position.category);
   if (group) return group;
   if (position.category === "GUARANTEE") return "個人保証";
+  if (otherLiabilityCategories.includes(position.category)) return "その他負債";
   return "借入金";
 }
 
@@ -250,7 +255,7 @@ export function valuationBreakdown(position: Position) {
   return "";
 }
 
-const middleClassificationOrder = ["金融資産", "不動産", "事業用資産", "その他資産", "借入金", "個人保証"];
+const middleClassificationOrder = ["金融資産", "不動産", "事業用資産", "その他資産", "借入金", "その他負債", "個人保証"];
 export const middleClassificationRank = new Map(middleClassificationOrder.map((classification, index) => [classification, index]));
 /** 中分類が同じ明細を並べるときの科目順。科目の選択肢と同じ並びを使う（預金・現金が先頭）。 */
 export const categoryRank = new Map([...assetCategories, ...liabilityCategories, "GUARANTEE"].map((category, index) => [category, index]));
@@ -273,6 +278,7 @@ export function trendValues(snapshot: Snapshot) {
   let homeRealEstate = 0, incomeRealEstate = 0, idleRealEstate = 0, otherRealEstate = 0;
   let privateShares = 0, businessAssets = 0, loanReceivables = 0, otherAssets = 0;
   let loanHome = 0, loanInvestmentProperty = 0, loanSecurities = 0, loanBusiness = 0, loanOther = 0, guarantees = 0;
+  let leaseObligations = 0, accountsPayable = 0, depositsReceived = 0;
   for (const position of snapshot.positions) {
     if (position.side === "ASSET") {
       if (position.category === "DEPOSIT") deposits += position.valueJpy;
@@ -292,6 +298,9 @@ export function trendValues(snapshot: Snapshot) {
       else if (position.category === "LOAN_INVESTMENT_PROPERTY") loanInvestmentProperty += position.valueJpy;
       else if (position.category === "LOAN_SECURITIES") loanSecurities += position.valueJpy;
       else if (position.category === "LOAN_BUSINESS") loanBusiness += position.valueJpy;
+      else if (position.category === "LEASE_OBLIGATION") leaseObligations += position.valueJpy;
+      else if (position.category === "ACCOUNTS_PAYABLE") accountsPayable += position.valueJpy;
+      else if (position.category === "DEPOSITS_RECEIVED") depositsReceived += position.valueJpy;
       else loanOther += position.valueJpy;
     } else {
       guarantees += position.valueJpy;
@@ -301,22 +310,24 @@ export function trendValues(snapshot: Snapshot) {
   const realEstate = homeRealEstate + incomeRealEstate + idleRealEstate + otherRealEstate;
   const business = privateShares + businessAssets + loanReceivables;
   const borrowings = loanHome + loanInvestmentProperty + loanSecurities + loanBusiness + loanOther;
+  const otherLiabilities = leaseObligations + accountsPayable + depositsReceived;
   const inheritanceTax = snapshot.estimatedInheritanceTax;
   const otherTaxes = snapshot.otherTaxes;
   const taxes = inheritanceTax + otherTaxes;
-  const liabilities = borrowings + taxes;
+  const liabilities = borrowings + otherLiabilities + taxes;
   const assets = financial + realEstate + business + otherAssets;
   return {
     deposits, securities, insurance, retirementAllowance, financial,
     homeRealEstate, incomeRealEstate, idleRealEstate, otherRealEstate, realEstate,
     privateShares, businessAssets, loanReceivables, business, otherAssets, assets,
     inheritanceTax, otherTaxes, taxes,
-    loanHome, loanInvestmentProperty, loanSecurities, loanBusiness, loanOther, borrowings, liabilities,
+    loanHome, loanInvestmentProperty, loanSecurities, loanBusiness, loanOther, borrowings,
+    leaseObligations, accountsPayable, depositsReceived, otherLiabilities, liabilities,
     netWorth: assets - liabilities, guarantees,
   };
 }
 
-export type TrendGroup = "financial" | "realEstate" | "business" | "taxes" | "borrowings";
+export type TrendGroup = "financial" | "realEstate" | "business" | "taxes" | "borrowings" | "otherLiabilities";
 export type TrendRow = { label: string; key: keyof TrendValues; tone?: "section" | "total" | "net" | "outside"; group?: TrendGroup; child?: boolean };
 
 export const trendRows: TrendRow[] = [
@@ -329,6 +340,7 @@ export const trendRows: TrendRow[] = [
   { label: "負債の部", key: "liabilities", tone: "section" },
   { label: "税金", key: "taxes", group: "taxes" },
   { label: "借入金", key: "borrowings", group: "borrowings" },
+  { label: "その他負債", key: "otherLiabilities", group: "otherLiabilities" },
   { label: "負債合計", key: "liabilities", tone: "total" },
   { label: "純資産", key: "netWorth", tone: "net" },
   { label: "個人保証（B/S外）", key: "guarantees", tone: "outside" },
@@ -362,5 +374,10 @@ export const trendChildRows: Record<TrendGroup, TrendRow[]> = {
     { label: "証券担保ローン", key: "loanSecurities", child: true },
     { label: "事業用借入", key: "loanBusiness", child: true },
     { label: "その他借入金", key: "loanOther", child: true },
+  ],
+  otherLiabilities: [
+    { label: "リース債務", key: "leaseObligations", child: true },
+    { label: "未払金", key: "accountsPayable", child: true },
+    { label: "預り敷金・保証金", key: "depositsReceived", child: true },
   ],
 };

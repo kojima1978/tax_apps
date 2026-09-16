@@ -19,6 +19,7 @@ import {
   deemedInheritanceCategories,
   splitBenefit,
   liabilityCategories,
+  otherLiabilityCategories,
   middleClassification,
   otherAssetTypeLabels,
   positionSection,
@@ -41,6 +42,12 @@ const defaultFormulaByCategory: Record<string, ValuationFormula> = {
  * 以前は自由入力のテキスト欄だったが、既定の「手動入力」のまま保存されるだけで
  * 科目ごとに何を評価額としたのかが列から読み取れなかったため、科目から焼き込む。
  */
+/** その他負債の「相手先」欄の見出し。借入金は「金融機関・債権者」のまま。 */
+const otherLiabilityInstitutionLabels: Record<string, string> = {
+  LEASE_OBLIGATION: "リース会社",
+  ACCOUNTS_PAYABLE: "支払先",
+  DEPOSITS_RECEIVED: "預り先（賃借人など）",
+};
 const manualValuationMethods: Record<string, string> = {
   DEPOSIT: "残高",
   ...Object.fromEntries(Object.entries(deemedInheritanceCategories).map(([category, config]) => [category, config.surrenderLabel])),
@@ -319,8 +326,10 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
     : category === "BUSINESS_ASSETS" ? "保管・所在場所"
     : category === "LOAN_RECEIVABLE" ? "貸付先"
     : section === "ASSET" ? null
-    : "金融機関・債権者";
-  const amountLabel = section === "LIABILITY" ? "借入残高" : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : deemedInheritanceCategories[category as DeemedCategory] ? deemedInheritanceCategories[category as DeemedCategory].surrenderLabel : category === "LOAN_RECEIVABLE" ? "貸付金残高" : "評価額";
+    : otherLiabilityInstitutionLabels[category] ?? "金融機関・債権者";
+  // 借入金ではない負債（リース債務・未払金・預り敷金）は「借入残高」ではなく「残高」と呼ぶ。
+  const liabilityAmountLabel = otherLiabilityCategories.includes(category) ? "残高" : "借入残高";
+  const amountLabel = section === "LIABILITY" ? liabilityAmountLabel : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : deemedInheritanceCategories[category as DeemedCategory] ? deemedInheritanceCategories[category as DeemedCategory].surrenderLabel : category === "LOAN_RECEIVABLE" ? "貸付金残高" : "評価額";
   // 金額欄の見出しに付ける単位。外貨を選んだときは通貨コードにして、円で入れてしまう誤りを防ぐ。
   const amountUnit = currency === "JPY" ? "円" : currency;
   const numericValue = (value: string) => Number(value) || 0;
@@ -339,7 +348,7 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   const formulaLabel = formula === "STOCK" ? "株数・口数×単価×調整率" : formula === "UNIT_RATE" ? "単価×調整率" : formula === "LAND_ROADSIDE" ? "土地・路線価方式" : formula === "LAND_MULTIPLIER" ? "土地・倍率方式" : formula === "BUILDING" ? "建物・固定資産税評価額方式" : "手動入力";
   // 算式で計算する場合はその算式名、それ以外は科目から決まる表記（一括登録の表と同じ「直接入力」を既定とする）を評価方法として固定する。
   const fixedValuationMethod = isCalculated ? formulaLabel
-    : section === "LIABILITY" ? "借入残高"
+    : section === "LIABILITY" ? liabilityAmountLabel
     : section === "CONTINGENT" ? "保証金額"
     : manualValuationMethods[category] ?? "直接入力";
   const hasFormulaChoice = isStockCategory || isRealEstateCategory || isUnitRateCategory;

@@ -23,6 +23,9 @@ export const CATEGORY_LABELS: Record<string, string> = {
   LOAN_BUSINESS: "事業用借入",
   LOAN_OTHER: "その他借入金",
   LOAN: "その他借入金",
+  LEASE_OBLIGATION: "リース債務",
+  ACCOUNTS_PAYABLE: "未払金",
+  DEPOSITS_RECEIVED: "預り敷金・保証金",
   GUARANTEE: "個人保証",
 };
 

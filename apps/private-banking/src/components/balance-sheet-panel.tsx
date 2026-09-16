@@ -36,7 +36,7 @@ export function BalanceSheetPanel({ view, headingSuffix, subtitle, ownerName, li
   deemedBenefitMissingCount: number;
   action?: ReactNode;
 }) {
-  const { taxIncluded, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems, subtotals, clippedSubtotals } = view;
+  const { taxIncluded, liabilityAccounts, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems, subtotals, clippedSubtotals } = view;
 
   return <article className={`panel balance-panel print-section-balance balance-report-${headingSuffix}`}>
     {ownerName ? <p className="balance-print-owner">{ownerName}</p> : null}
@@ -69,10 +69,10 @@ export function BalanceSheetPanel({ view, headingSuffix, subtitle, ownerName, li
           <div className="bs-account-heading"><span>税金</span><strong><BsAmount value={displayedTaxes} total={displayedAssetTotal} /></strong></div>
           <BsSubtotals items={subtotals.taxes} total={displayedAssetTotal} />
         </div> : null}
-        {liabilities !== 0 ? <div className={`bs-account medium-liability grouped-account ${accountDensity(liabilities, fundingAreaTotal)}`} style={{ height: areaHeight(liabilities, fundingAreaTotal) }}>
-          <div className="bs-account-heading"><span>借入金</span><strong><BsAmount value={liabilities} total={displayedAssetTotal} /></strong></div>
-          <BsSubtotals items={subtotals.loans} total={displayedAssetTotal} />
-        </div> : null}
+        {liabilityAccounts.map((account) => <div key={account.label} className={`bs-account medium-liability grouped-account ${accountDensity(account.value, fundingAreaTotal)}`} style={{ height: areaHeight(account.value, fundingAreaTotal) }}>
+          <div className="bs-account-heading"><span>{account.label}</span><strong><BsAmount value={account.value} total={displayedAssetTotal} /></strong></div>
+          <BsSubtotals items={account.items} total={displayedAssetTotal} />
+        </div>)}
         {displayedSuccessionCosts !== 0 ? <div className={`bs-account forecast-account ${accountDensity(displayedSuccessionCosts, fundingAreaTotal)}`} aria-label={`承継関連費用 ${compactYen(displayedSuccessionCosts)}`} style={{ height: areaHeight(displayedSuccessionCosts, fundingAreaTotal) }}><div><span>承継関連費用</span><small className="bs-subcategories">承継時の諸費用</small></div><strong><BsAmount value={displayedSuccessionCosts} total={displayedAssetTotal} /></strong></div> : null}
         {displayedNetWorth !== 0 ? <div className={`bs-account net-assets ${accountDensity(displayedNetWorth, fundingAreaTotal)}`} style={{ height: areaHeight(displayedNetWorth, fundingAreaTotal) }}>
           <div><span>純資産</span><small>{taxIncluded ? "資産 − 負債 − 税金等" : "資産 − 負債"}</small></div><strong><BsAmount value={displayedNetWorth} total={displayedAssetTotal} /></strong>

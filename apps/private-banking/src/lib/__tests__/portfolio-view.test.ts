@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deemedAllocations, positionCategoryLabel, propertyTypeOf, splitBenefit, type Position } from "@/lib/portfolio-view";
+import { deemedAllocations, middleClassification, positionCategoryLabel, propertyTypeOf, splitBenefit, trendValues, type Position, type Snapshot } from "@/lib/portfolio-view";
 
 const insurance = (assetDetails: Position["assetDetails"]) => ({ category: "INSURANCE", assetDetails } as Position);
 
@@ -65,5 +65,27 @@ describe("propertyTypeOf / positionCategoryLabel", () => {
   it("不動産以外は区分を持たず、科目名だけを出す", () => {
     expect(propertyTypeOf(position({ category: "DEPOSIT" }))).toBeNull();
     expect(positionCategoryLabel(position({ category: "DEPOSIT" }))).toBe("預金・現金");
+  });
+});
+
+describe("その他負債（リース債務・未払金・預り敷金・保証金）", () => {
+  const liability = (category: string, valueJpy: number) => ({ side: "LIABILITY", category, valueJpy, includedInNetWorth: true } as Position);
+
+  it("借入金とは別の中分類「その他負債」に入れる", () => {
+    expect(middleClassification(liability("LOAN_HOME", 1))).toBe("借入金");
+    for (const category of ["LEASE_OBLIGATION", "ACCOUNTS_PAYABLE", "DEPOSITS_RECEIVED"]) {
+      expect(middleClassification(liability(category, 1))).toBe("その他負債");
+    }
+  });
+
+  it("推移表では借入金と分けて集計し、負債合計には両方を含める", () => {
+    const values = trendValues({
+      estimatedInheritanceTax: 0, otherTaxes: 0,
+      positions: [liability("LOAN_HOME", 30_000_000), liability("LEASE_OBLIGATION", 1_000_000), liability("ACCOUNTS_PAYABLE", 200_000), liability("DEPOSITS_RECEIVED", 3_000_000)],
+    } as unknown as Snapshot);
+    expect(values.borrowings).toBe(30_000_000);
+    expect(values.loanOther).toBe(0);
+    expect(values).toMatchObject({ leaseObligations: 1_000_000, accountsPayable: 200_000, depositsReceived: 3_000_000, otherLiabilities: 4_200_000 });
+    expect(values.liabilities).toBe(34_200_000);
   });
 });

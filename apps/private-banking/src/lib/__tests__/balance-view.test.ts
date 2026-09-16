@@ -74,7 +74,17 @@ describe("loanBreakdownTotals", () => {
       liability("GUARANTEE", 90_000_000, false),
       asset("DEPOSIT", 10_000_000),
     ]);
-    expect(result).toEqual({ home: 20_000_000, investmentProperty: 30_000_000, securities: 4_000_000, business: 6_000_000, other: 1_000_000 });
+    expect(result).toMatchObject({ home: 20_000_000, investmentProperty: 30_000_000, securities: 4_000_000, business: 6_000_000, other: 1_000_000, borrowings: 61_000_000, otherLiabilities: 0 });
+  });
+
+  it("リース債務・未払金・預り敷金は借入金に含めず、その他負債へ分ける", () => {
+    const result = loanBreakdownTotals([
+      liability("LOAN_OTHER", 1_000_000),
+      liability("LEASE_OBLIGATION", 2_000_000),
+      liability("ACCOUNTS_PAYABLE", 300_000),
+      liability("DEPOSITS_RECEIVED", 5_000_000),
+    ]);
+    expect(result).toMatchObject({ other: 1_000_000, borrowings: 1_000_000, leaseObligations: 2_000_000, accountsPayable: 300_000, depositsReceived: 5_000_000, otherLiabilities: 7_300_000 });
   });
 });
 
@@ -140,5 +150,19 @@ describe("buildBalanceView", () => {
     expect(result.clippedSubtotals.map((account) => account.label)).toEqual(["税金"]);
     // 金融資産（252px）と借入金（84px）は面積が十分なので枠内に描く。
     expect(result.clippedSubtotals.some((account) => account.label === "金融資産" || account.label === "借入金")).toBe(false);
+  });
+
+  it("その他負債は借入金と別の区画にし、登録が無ければ区画を出さない", () => {
+    expect(view("without-tax").liabilityAccounts.map((account) => account.label)).toEqual(["借入金"]);
+    const withOther = [...positions, liability("DEPOSITS_RECEIVED", 10_000_000)];
+    const result = buildBalanceView({
+      scenario: "without-tax", summary: totals(withOther), successionAssets: successionAssetTotals(withOther), loanBreakdown: loanBreakdownTotals(withOther),
+      estimatedInheritanceTax: 0, otherTaxes: 0, successionCosts: 0,
+    });
+    expect(result.liabilityAccounts).toEqual([
+      { label: "借入金", value: 30_000_000, items: [{ label: "住宅ローン", value: 30_000_000 }] },
+      { label: "その他負債", value: 10_000_000, items: [{ label: "預り敷金・保証金", value: 10_000_000 }] },
+    ]);
+    expect(result.displayedNetWorth).toBe(70_000_000);
   });
 });

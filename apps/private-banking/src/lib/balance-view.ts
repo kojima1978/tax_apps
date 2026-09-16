@@ -45,18 +45,25 @@ export function successionAssetTotals(positions: Position[]) {
   };
 }
 
-/** 借入金の内訳。個人保証はB/S外なので含めない（`totals` 側で分けている）。 */
+/** 負債の内訳（借入金とその他負債）。個人保証はB/S外なので含めない（`totals` 側で分けている）。 */
 export function loanBreakdownTotals(positions: Position[]) {
   let home = 0, investmentProperty = 0, securities = 0, business = 0, other = 0;
+  let leaseObligations = 0, accountsPayable = 0, depositsReceived = 0;
   for (const position of positions) {
     if (position.side !== "LIABILITY" || !position.includedInNetWorth) continue;
     if (position.category === "LOAN_HOME") home += position.valueJpy;
     else if (position.category === "LOAN_INVESTMENT_PROPERTY") investmentProperty += position.valueJpy;
     else if (position.category === "LOAN_SECURITIES") securities += position.valueJpy;
     else if (position.category === "LOAN_BUSINESS") business += position.valueJpy;
+    else if (position.category === "LEASE_OBLIGATION") leaseObligations += position.valueJpy;
+    else if (position.category === "ACCOUNTS_PAYABLE") accountsPayable += position.valueJpy;
+    else if (position.category === "DEPOSITS_RECEIVED") depositsReceived += position.valueJpy;
     else other += position.valueJpy;
   }
-  return { home, investmentProperty, securities, business, other };
+  return {
+    home, investmentProperty, securities, business, other, borrowings: home + investmentProperty + securities + business + other,
+    leaseObligations, accountsPayable, depositsReceived, otherLiabilities: leaseObligations + accountsPayable + depositsReceived,
+  };
 }
 
 /**
@@ -93,7 +100,8 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
     { side: "資産", label: "事業用資産", value: displayedAssets.business, areaTotal: displayedAssetTotal },
     { side: "資産", label: "その他資産", value: displayedAssets.otherAssets, areaTotal: displayedAssetTotal },
     { side: "負債・純資産", label: "税金", value: displayedTaxes, areaTotal: fundingAreaTotal },
-    { side: "負債・純資産", label: "借入金", value: summary.liabilities, areaTotal: fundingAreaTotal },
+    { side: "負債・純資産", label: "借入金", value: loanBreakdown.borrowings, areaTotal: fundingAreaTotal },
+    { side: "負債・純資産", label: "その他負債", value: loanBreakdown.otherLiabilities, areaTotal: fundingAreaTotal },
     { side: "負債・純資産", label: "承継関連費用", value: displayedSuccessionCosts, areaTotal: fundingAreaTotal },
     { side: "負債・純資産", label: "純資産", value: displayedNetWorth, areaTotal: fundingAreaTotal },
   ].filter((item) => item.value !== 0 && Math.abs(item.value) / Math.max(item.areaTotal, 1) < 0.04);
@@ -128,6 +136,11 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
       { label: "事業用借入", value: loanBreakdown.business },
       { label: "その他借入金", value: loanBreakdown.other },
     ]),
+    otherLiabilities: nonZero([
+      { label: "リース債務", value: loanBreakdown.leaseObligations },
+      { label: "未払金", value: loanBreakdown.accountsPayable },
+      { label: "預り敷金・保証金", value: loanBreakdown.depositsReceived },
+    ]),
   };
   // 区画の高さは金額比そのままなので、比率が小さい中分類では小分類が枠外にはみ出して切れる。
   // 印刷時の区画エリアは約420px、1区画に必要な高さは 見出し18px ＋ 小分類1行11px。
@@ -137,8 +150,14 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
     { side: "資産", label: "不動産", value: displayedAssets.realEstate, areaTotal: displayedAssetTotal, items: subtotals.realEstate },
     { side: "資産", label: "事業用資産", value: displayedAssets.business, areaTotal: displayedAssetTotal, items: subtotals.business },
     { side: "負債・純資産", label: "税金", value: displayedTaxes, areaTotal: fundingAreaTotal, items: subtotals.taxes },
-    { side: "負債・純資産", label: "借入金", value: summary.liabilities, areaTotal: fundingAreaTotal, items: subtotals.loans },
+    { side: "負債・純資産", label: "借入金", value: loanBreakdown.borrowings, areaTotal: fundingAreaTotal, items: subtotals.loans },
+    { side: "負債・純資産", label: "その他負債", value: loanBreakdown.otherLiabilities, areaTotal: fundingAreaTotal, items: subtotals.otherLiabilities },
   ].filter((account) => account.value !== 0 && account.items.length > 0
     && Math.abs(account.value) / Math.max(account.areaTotal, 1) * 420 < 18 + account.items.length * 11);
-  return { taxIncluded, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems, subtotals, clippedSubtotals };
+  // 借入金とその他負債は区画を分けて描く（その他負債は0円なら区画を出さない）。
+  const liabilityAccounts = [
+    { label: "借入金", value: loanBreakdown.borrowings, items: subtotals.loans },
+    { label: "その他負債", value: loanBreakdown.otherLiabilities, items: subtotals.otherLiabilities },
+  ].filter((account) => account.value !== 0);
+  return { taxIncluded, liabilityAccounts, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems, subtotals, clippedSubtotals };
 }
