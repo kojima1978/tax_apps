@@ -22,7 +22,7 @@ const positions = [
 const summary = totals(positions);
 const successionAssets = successionAssetTotals(positions);
 
-function renderPanel(scenario: BalanceScenario, overrides: Partial<Parameters<typeof BalanceSheetPanel>[0]> = {}) {
+function renderPanel(scenario: BalanceScenario, overrides: Partial<Parameters<typeof BalanceSheetPanel>[0]> = {}, taxes: { estimatedInheritanceTax?: number; otherTaxes?: number } = {}) {
   const view = buildBalanceView({
     scenario,
     summary,
@@ -31,6 +31,7 @@ function renderPanel(scenario: BalanceScenario, overrides: Partial<Parameters<ty
     estimatedInheritanceTax: 12_000_000,
     otherTaxes: 3_000_000,
     successionCosts: 5_000_000,
+    ...taxes,
   });
   render(<BalanceSheetPanel
     view={view}
@@ -45,10 +46,10 @@ function renderPanel(scenario: BalanceScenario, overrides: Partial<Parameters<ty
   return view;
 }
 
-// 中分類名は区画と番号一覧の両方に出るので、区画を見るときは B/S 本体に絞る。
+// 中分類名は区画と表の下の注記の両方に出るので、区画を見るときは B/S 本体に絞る。
 const chart = () => within(document.querySelector(".classified-bs") as HTMLElement);
 
-/** 区画の高さは金額比そのままなので、style から比率を読んで検証する。注記ラベルと取り違えないよう区画の見出しで探す。 */
+/** 区画の高さは金額比そのままなので、style から比率を読んで検証する。注記と取り違えないよう区画の見出しで探す。 */
 const areaOf = (label: string) => {
   const area = [...document.querySelectorAll<HTMLElement>(".classified-bs .bs-account")].find((element) => element.querySelector("span")?.textContent === label);
   if (!area) throw new Error(`区画が見つからない: ${label}`);
@@ -89,29 +90,35 @@ describe("BalanceSheetPanel", () => {
     expect(areaOf("純資産").area.className).toMatch(/^(?!.*(micro|compact|dense)-account).*$/);
   });
 
-  it("面積の小さい区画は、表の外の注記ラベルと番号一覧に金額つきで出す", () => {
-    renderPanel("with-tax");
-    const lane = document.querySelector(".bs-callout-lane.funding-lane") as HTMLElement;
-    expect(lane.querySelectorAll("path")).toHaveLength(1);
-    expect(within(lane).getByText("承継関連費用").closest(".bs-callout")?.textContent).toBe("①承継関連費用500万円3.3%");
-    expect(document.querySelector(".classified-bs")?.className).toBe("classified-bs has-funding-callouts");
-    const list = screen.getByRole("note", { name: "小さい区画・枠内に収まらない内訳の一覧" });
-    expect(within(list).getByText("承継関連費用").closest(".bs-callout-list-item")?.textContent).toBe("①負債・純資産承継関連費用500万円3.3%");
+  it("面積の小さい区画は番号の印を付け、表の真下の同じ側に注記を出す", () => {
+    renderPanel("with-tax", {}, { estimatedInheritanceTax: 2_000_000, otherTaxes: 1_000_000 });
+    const funding = document.querySelector(".funding-side .bs-account-area") as HTMLElement;
+    expect([...funding.querySelectorAll(".bs-callout-marker")].map((marker) => marker.textContent)).toEqual(["①", "②"]);
+    const notes = screen.getByRole("note", { name: "小さい区画・枠内に収まらない内訳の注記" });
+    // 表の下は資産・負債純資産の2列で、注記は区画と同じ側の列に入る。
+    expect(notes.previousElementSibling?.className).toBe("classified-bs");
+    expect(notes.querySelector(".asset-notes")?.textContent).toBe("");
+    const rows = [...notes.querySelectorAll(".funding-notes .bs-callout-note")];
+    expect(rows.map((row) => row.querySelector(".bs-callout-note-head")?.textContent)).toEqual(["①税金300万円2%", "②承継関連費用500万円3.3%"]);
+    // 小分類が枠に収まらない税金は、内訳を字下げして並べる。区画と同じ色の帯を出すため区画の色クラスを付ける。
+    expect(within(rows[0] as HTMLElement).getByText("相続税")).toBeTruthy();
+    expect(rows[0].className).toContain("tax-account");
   });
 
-  it("注記が無いときはレーンも番号一覧も出さない", () => {
+  it("注記が無いときは印も注記も出さない", () => {
     renderPanel("without-tax");
-    expect(document.querySelector(".bs-callout-lane")).toBeNull();
-    expect(screen.queryByRole("note", { name: "小さい区画・枠内に収まらない内訳の一覧" })).toBeNull();
+    expect(document.querySelector(".bs-callout-marker")).toBeNull();
+    expect(screen.queryByRole("note", { name: "小さい区画・枠内に収まらない内訳の注記" })).toBeNull();
   });
 
-  it("注記ラベルに触れると、対応する区画と引き出し線を強調する", () => {
+  it("注記に触れると、対応する区画と番号の印を強調する", () => {
     renderPanel("with-tax");
-    const label = document.querySelector(".bs-callout") as HTMLElement;
-    fireEvent.pointerEnter(label);
+    const note = document.querySelector(".bs-callout-note") as HTMLElement;
+    fireEvent.pointerEnter(note);
     expect(areaOf("承継関連費用").area.className).toContain("is-callout-active");
-    expect(document.querySelector(".bs-callout-lane path")?.getAttribute("class")).toBe("is-active");
-    fireEvent.pointerLeave(label);
+    expect(document.querySelector(".bs-callout-marker")?.className).toContain("is-active");
+    expect(note.className).toContain("is-active");
+    fireEvent.pointerLeave(note);
     expect(areaOf("承継関連費用").area.className).not.toContain("is-callout-active");
   });
 

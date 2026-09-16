@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBalanceView, layoutCallouts, loanBreakdownTotals, successionAssetTotals } from "@/lib/balance-view";
+import { buildBalanceView, loanBreakdownTotals, successionAssetTotals } from "@/lib/balance-view";
 import { type Position, totals } from "@/lib/portfolio-view";
 
 const asset = (category: string, valueJpy: number, assetDetails: Position["assetDetails"] = null) =>
@@ -138,11 +138,11 @@ describe("buildBalanceView", () => {
     expect(view("with-tax").subtotals.financial.map((item) => item.label)).toEqual(["預金", "生命保険（死亡保険金）"]);
   });
 
-  it("面積比4%未満の区画だけを、金額つきの注記に回す", () => {
+  it("面積比4%未満の区画だけを、表の下の注記に回す", () => {
     const result = view("with-tax");
-    // 承継関連費用 500万円 ÷ 1億5,000万円 = 3.3%。税金（10%）・借入金（20%）の上に積まれた位置の中央から線を引く。
+    // 承継関連費用 500万円 ÷ 1億5,000万円 = 3.3%。番号の印は税金（10%）・借入金（20%）の下に積まれた区画の中央に置く。
     expect(result.callouts).toHaveLength(1);
-    expect(result.callouts[0]).toMatchObject({ no: 1, key: "successionCosts", side: "funding", showAmount: true, items: [] });
+    expect(result.callouts[0]).toMatchObject({ no: 1, key: "successionCosts", side: "funding", tone: "forecast-account", value: 5_000_000, items: [] });
     expect(result.callouts[0].anchor).toBeCloseTo((0.1 + 0.2 + 5 / 150 / 2) * 100);
   });
 
@@ -154,14 +154,6 @@ describe("buildBalanceView", () => {
     expect(result.callouts[0].items.map((item) => item.label)).toEqual(["相続税", "その他税金"]);
     // 金融資産（252px）と借入金（84px）は面積が十分なので枠内に描く。
     expect(result.callouts.some((callout) => callout.label === "金融資産" || callout.label === "借入金")).toBe(false);
-  });
-
-  it("注記ラベルは区画の中央の高さに置き、表の上端からははみ出さない", () => {
-    const result = view("with-tax", { estimatedInheritanceTax: 2_000_000, otherTaxes: 1_000_000 });
-    const [tax, costs] = result.callouts;
-    // 税金は上端（中央1%）にあるので、1行目の中央（6px ÷ 420px）まで下げる。
-    expect(tax.labelY).toBeCloseTo(6 / 420 * 100);
-    expect(costs.labelY).toBeCloseTo(costs.anchor);
   });
 
   it("その他負債は借入金と別の区画にし、登録が無ければ区画を出さない", () => {
@@ -179,16 +171,3 @@ describe("buildBalanceView", () => {
   });
 });
 
-describe("layoutCallouts", () => {
-  it("重ならなければ希望の位置のまま置く", () => {
-    expect(layoutCallouts([{ top: 10, height: 5 }, { top: 40, height: 5 }])).toEqual([10, 40]);
-  });
-
-  it("重なるラベルは前のラベルの下へ押し下げる", () => {
-    expect(layoutCallouts([{ top: 10, height: 8 }, { top: 12, height: 8 }])).toEqual([10, 18]);
-  });
-
-  it("下端からはみ出す分は上へ詰める", () => {
-    expect(layoutCallouts([{ top: 90, height: 8 }, { top: 95, height: 8 }])).toEqual([84, 92]);
-  });
-});

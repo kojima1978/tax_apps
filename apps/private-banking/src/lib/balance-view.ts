@@ -17,40 +17,20 @@ export type BsAccount = { key: string; label: string; value: number; tone: strin
 export type BsSide = "asset" | "funding";
 export type BsCallout = BalanceView["callouts"][number];
 
-/** 印刷時の区画エリアの高さ(px)。一番狭い印刷に合わせて、小分類が枠内に収まるか・注記ラベルが重なるかを判定する。 */
+/** 印刷時の区画エリアの高さ(px)。一番狭い印刷に合わせて、小分類が枠内に収まるかを判定する。 */
 const PRINT_AREA_HEIGHT = 420;
-/** これ未満の面積比の区画は、文字が読めないので枠外へ注記する。 */
+/** これ未満の面積比の区画は、文字が読めないので表の下へ注記する。 */
 const SMALL_AREA_RATIO = 0.04;
-/** 注記ラベル1行分の高さ(px・印刷基準)と、ラベル同士の最小の隙間。 */
-const CALLOUT_LINE_HEIGHT = 12;
-const CALLOUT_GAP = 4;
-const toAreaPercent = (px: number) => px / PRINT_AREA_HEIGHT * 100;
 
 /**
- * 注記ラベルを重ならないように縦へ並べる。位置・高さはすべて区画エリアに対する%。
- * 上から順に前のラベルの下へ押し出し、下端からはみ出した分は下から順に上へ戻す。
- */
-export function layoutCallouts(labels: ReadonlyArray<{ top: number; height: number }>, limit = 100) {
-  const tops = labels.map((label) => Math.max(0, label.top));
-  for (let index = 1; index < tops.length; index += 1) {
-    tops[index] = Math.max(tops[index], tops[index - 1] + labels[index - 1].height);
-  }
-  for (let index = tops.length - 1; index >= 0; index -= 1) {
-    const bottom = index === tops.length - 1 ? limit : tops[index + 1];
-    tops[index] = Math.max(0, Math.min(tops[index], bottom - labels[index].height));
-  }
-  return tops;
-}
-
-/**
- * 片側（資産 / 負債・純資産）の区画から、枠外へ引き出し線で注記する区画を選び、ラベル位置を決める。
- * 面積の小さい区画は科目名と金額を、小分類が枠内に収まらない区画は内訳を注記する。
+ * 片側（資産 / 負債・純資産）の区画から、表の下へ注記する区画を選ぶ。
+ * 面積の小さい区画は科目名と金額を、小分類が枠内に収まらない区画はそれに加えて内訳を注記する。
  */
 function sideCallouts(side: BsSide, accounts: ReadonlyArray<BsAccount>, areaTotal: number) {
   let offset = 0;
-  const candidates = accounts.flatMap((account) => {
+  return accounts.flatMap((account) => {
     const ratio = Math.abs(account.value) / Math.max(areaTotal, 1);
-    // 引き出し線の起点は区画の縦方向の中央。区画は上から金額比の高さで積んでいる。
+    // 番号の印を置く高さは区画の縦方向の中央。区画は上から金額比の高さで積んでいる。
     const anchor = (offset + ratio / 2) * 100;
     offset += ratio;
     const items = account.items ?? [];
@@ -58,13 +38,8 @@ function sideCallouts(side: BsSide, accounts: ReadonlyArray<BsAccount>, areaTota
     // 1区画に必要な高さは 見出し18px ＋ 小分類1行11px。
     const clipped = items.length > 0 && ratio * PRINT_AREA_HEIGHT < 18 + items.length * 11;
     if (!small && !clipped) return [];
-    return [{ key: account.key, label: account.label, value: account.value, showAmount: small, items: clipped ? items : [], anchor }];
+    return [{ key: account.key, side, label: account.label, value: account.value, tone: account.tone, items: clipped ? items : [], anchor }];
   });
-  const heights = candidates.map((callout) => toAreaPercent((1 + (callout.showAmount ? 1 : 0) + callout.items.length) * CALLOUT_LINE_HEIGHT + CALLOUT_GAP));
-  // ラベルの1行目の中央を区画の中央にそろえるのが理想位置（重ならなければ線は水平になる）。
-  const firstLineCenter = toAreaPercent(CALLOUT_LINE_HEIGHT / 2);
-  const tops = layoutCallouts(candidates.map((callout, index) => ({ top: callout.anchor - firstLineCenter, height: heights[index] })));
-  return candidates.map((callout, index) => ({ ...callout, side, labelY: tops[index] + firstLineCenter }));
 }
 
 /** 中分類（金融資産・不動産・事業用資産）ごとの資産集計。貸借対照表の区画はこの数値で高さを決める。 */

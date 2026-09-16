@@ -3,7 +3,7 @@
 import { AlertTriangle, Calculator, LoaderCircle } from "lucide-react";
 import { ReactNode, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
-import { type BalanceView, type BsAccount, type BsCallout, type BsSide } from "@/lib/balance-view";
+import { type BalanceView, type BsAccount, type BsCallout } from "@/lib/balance-view";
 import { compactYen, percent } from "@/lib/format";
 
 const areaHeight = (value: number, total: number) => `${Math.abs(value) / Math.max(total, 1) * 100}%`;
@@ -16,11 +16,6 @@ const accountDensity = (value: number, total: number) => {
 const percentOf = (value: number, total: number) => percent.format(value / Math.max(total, 1) * 100);
 /** 注記番号は丸数字（①〜⑳）。それを超える件数は現実には無いが、念のため括弧つき数字で出す。 */
 const calloutMark = (no: number) => no <= 20 ? String.fromCharCode(0x2460 + no - 1) : `(${no})`;
-/** 引き出し線。レーンは縦横とも0〜100の座標で、資産側は x=100、負債・純資産側は x=0 が区画の端。 */
-const calloutPath = (side: BsSide, callout: BsCallout) => side === "asset"
-  ? `M100 ${callout.anchor} H92 L82 ${callout.labelY} H80`
-  : `M0 ${callout.anchor} H8 L18 ${callout.labelY} H20`;
-const SIDE_LABELS: Record<BsSide, string> = { asset: "資産", funding: "負債・純資産" };
 
 type CalloutHover = (key: string) => { onPointerEnter: () => void; onPointerLeave: () => void };
 
@@ -55,30 +50,18 @@ function BsAccountBlock({ account, areaTotal, amountTotal, hasCallout, active, h
   </div>;
 }
 
-/** 表の外側の注記レーン。区画の縦中央から引き出し線を引き、科目名・金額や小分類の内訳を書く。 */
-function BsCalloutLane({ side, callouts, amountTotal, activeKey, hover }: {
-  side: BsSide;
-  callouts: ReadonlyArray<BsCallout>;
-  amountTotal: number;
-  activeKey: string | null;
-  hover: CalloutHover;
-}) {
-  return <div className={`bs-callout-lane ${side}-lane`} role="note" aria-label={`${SIDE_LABELS[side]}の注記`}>
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      {callouts.map((callout) => <path key={callout.key} className={callout.key === activeKey ? "is-active" : undefined} d={calloutPath(side, callout)} vectorEffect="non-scaling-stroke" />)}
-    </svg>
-    {callouts.map((callout) => <div key={callout.key} className={`bs-callout${callout.key === activeKey ? " is-active" : ""}`} style={{ top: `${callout.labelY}%` }} {...hover(callout.key)}>
-      <strong><b>{calloutMark(callout.no)}</b>{callout.label}</strong>
-      {callout.showAmount ? <span>{compactYen(callout.value)}<em>{percentOf(callout.value, amountTotal)}%</em></span> : null}
-      {callout.items.map((item) => <small key={item.label}>{item.label} {compactYen(item.value)}</small>)}
-    </div>)}
+/** 表の下の注記1件。区画と同じ色の帯・番号で対応を示し、内訳があれば字下げして並べる。 */
+function BsCalloutNote({ callout, amountTotal, active, hover }: { callout: BsCallout; amountTotal: number; active: boolean; hover: CalloutHover }) {
+  return <div className={`bs-callout-note ${callout.tone}${active ? " is-active" : ""}`} {...hover(callout.key)}>
+    <div className="bs-callout-note-head"><b>{calloutMark(callout.no)}</b><strong>{callout.label}</strong><span className="bs-callout-note-amount"><BsAmount value={callout.value} total={amountTotal} /></span></div>
+    {callout.items.length > 0 ? <BsSubtotals items={callout.items} total={amountTotal} /> : null}
   </div>;
 }
 
 /**
  * 貸借対照表1枚。区画の高さは金額比そのままなので、表示値の計算は `buildBalanceView` に寄せ、
  * ここは受け取った数値を描くだけにしている（税金なし・税金ありの2枚を同じ部品で出す）。
- * 面積が足りない区画は、画面・印刷では表の外へ引き出し線で、スマホでは番号の印と一覧で補う。
+ * 面積が足りない区画は、区画に番号の印を付け、表の真下の同じ側へ注記を並べて補う。
  */
 export function BalanceSheetPanel({ view, headingSuffix, subtitle, ownerName, liabilities, guarantees, deemedBenefitMissingCount, action }: {
   view: BalanceView;
@@ -91,36 +74,35 @@ export function BalanceSheetPanel({ view, headingSuffix, subtitle, ownerName, li
   action?: ReactNode;
 }) {
   const { taxIncluded, assetAccounts, fundingAccounts, callouts, displayedAssetTotal, forecastAdjustments, displayedNetWorth, fundingAreaTotal } = view;
-  // 区画・注記ラベル・番号一覧のどれに触れても、同じ注記をまとめて強調する。
+  // 区画・番号の印・表の下の注記のどれに触れても、対応する組をまとめて強調する。
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const hover: CalloutHover = (key) => ({ onPointerEnter: () => setActiveKey(key), onPointerLeave: () => setActiveKey(null) });
   const sides = ([
     { side: "asset", headingId: `assets-heading-${headingSuffix}`, heading: "資産の部", accounts: assetAccounts, areaTotal: displayedAssetTotal, footerLabel: "資産合計", footerValue: displayedAssetTotal },
     { side: "funding", headingId: `funding-heading-${headingSuffix}`, heading: "負債・純資産の部", accounts: fundingAccounts, areaTotal: fundingAreaTotal, footerLabel: "負債・純資産合計", footerValue: liabilities + forecastAdjustments + displayedNetWorth },
   ] as const).map((entry) => ({ ...entry, callouts: callouts.filter((callout) => callout.side === entry.side) }));
-  const chartClassName = ["classified-bs", ...sides.filter((entry) => entry.callouts.length > 0).map((entry) => `has-${entry.side}-callouts`)].join(" ");
 
   return <article className={`panel balance-panel print-section-balance balance-report-${headingSuffix}`}>
     {ownerName ? <p className="balance-print-owner">{ownerName}</p> : null}
     <PanelHeader title="貸借対照表" subtitle={subtitle} action={action} />
     {taxIncluded && deemedBenefitMissingCount > 0 ? <p className="insurance-data-note" role="note"><AlertTriangle />死亡保険金・死亡退職金が未入力の明細 {deemedBenefitMissingCount}件は、税金ありB/Sでは0円として計算しています。</p> : null}
-    <div className={chartClassName} role="group" aria-label={`貸借対照表・${taxIncluded ? "税金あり" : "税金なし"}`}>
+    <div className="classified-bs" role="group" aria-label={`貸借対照表・${taxIncluded ? "税金あり" : "税金なし"}`}>
       {sides.map((entry) => <section key={entry.side} className={`classified-bs-side ${entry.side}-side`} aria-labelledby={entry.headingId}>
         <h4 id={entry.headingId}><span>{entry.heading}</span></h4>
         <div className="bs-account-area">
           {entry.accounts.map((account) => <BsAccountBlock key={account.key} account={account} areaTotal={entry.areaTotal} amountTotal={displayedAssetTotal} hasCallout={entry.callouts.some((callout) => callout.key === account.key)} active={account.key === activeKey} hover={hover} />)}
-          {entry.callouts.map((callout) => <span key={callout.key} className={`bs-callout-marker${callout.key === activeKey ? " is-active" : ""}`} style={{ top: `${callout.anchor}%` }} aria-hidden="true">{calloutMark(callout.no)}</span>)}
-          {entry.callouts.length > 0 ? <BsCalloutLane side={entry.side} callouts={entry.callouts} amountTotal={displayedAssetTotal} activeKey={activeKey} hover={hover} /> : null}
+          {entry.callouts.map((callout) => <span key={callout.key} className={`bs-callout-marker${callout.key === activeKey ? " is-active" : ""}`} style={{ top: `${callout.anchor}%` }} aria-hidden="true" {...hover(callout.key)}>{calloutMark(callout.no)}</span>)}
         </div>
         <footer><span>{entry.footerLabel}</span><strong>{compactYen(entry.footerValue)}</strong></footer>
       </section>)}
     </div>
-    {callouts.length > 0 ? <div className="bs-callout-list" role="note" aria-label="小さい区画・枠内に収まらない内訳の一覧">
-      {callouts.map((callout) => <span key={callout.key} className={`bs-callout-list-item${callout.key === activeKey ? " is-active" : ""}`} {...hover(callout.key)}>
-        <b>{calloutMark(callout.no)}</b><small>{SIDE_LABELS[callout.side]}</small><strong>{callout.label}</strong>
-        {callout.showAmount ? <span>{compactYen(callout.value)}<em>{percentOf(callout.value, displayedAssetTotal)}%</em></span> : null}
-        {callout.items.length > 0 ? <small className="bs-callout-list-items">{callout.items.map((item) => `${item.label} ${compactYen(item.value)}`).join("／")}</small> : null}
-      </span>)}
+    {callouts.length > 0 ? <div className="bs-callout-notes" role="note" aria-label="小さい区画・枠内に収まらない内訳の注記">
+      {sides.map((entry) => <div key={entry.side} className={`bs-callout-column ${entry.side}-notes`}>
+        {entry.callouts.length > 0 ? <>
+          <span className="bs-callout-column-title">{entry.heading}</span>
+          {entry.callouts.map((callout) => <BsCalloutNote key={callout.key} callout={callout} amountTotal={displayedAssetTotal} active={callout.key === activeKey} hover={hover} />)}
+        </> : null}
+      </div>)}
     </div> : null}
     <p className="guarantee-note" role="note">※ 個人保証残高（B/S外）：<strong>{compactYen(guarantees)}</strong></p>
   </article>;
