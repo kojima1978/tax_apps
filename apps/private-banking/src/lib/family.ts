@@ -135,3 +135,29 @@ export function ageOnDate(birthDate: string | null, referenceDate: string) {
   ) age -= 1;
   return age;
 }
+
+/** 相続税額の2割加算が原則かかる続柄か。配偶者と1親等の血族（子・父母）以外は対象になる。 */
+export function defaultSpecialTaxAddition(relationship: Relationship) {
+  return !(["SELF", "SPOUSE", "CHILD", "PARENT"] as Relationship[]).includes(relationship);
+}
+
+export type ShareValue = { numerator: number; denominator: number };
+
+/** 法定相続分の入力欄に出す文字。未入力は空欄。 */
+export function formatShareText(numerator: number | null, denominator: number | null) {
+  return numerator === null || denominator === null ? "" : `${numerator}/${denominator}`;
+}
+
+/**
+ * 「1/2」形式の入力を分子・分母に分ける。全角数字・全角スラッシュ・空白も受け付け、
+ * 分母を省いた「1」は 1/1 とみなす。空欄は null、読めない入力と分母0は "invalid"。
+ */
+export function parseShareText(text: string): ShareValue | null | "invalid" {
+  const normalized = text.normalize("NFKC").replace(/\s/g, "");
+  if (!normalized) return null;
+  const match = /^(\d+)(?:\/(\d+))?$/.exec(normalized);
+  if (!match) return "invalid";
+  const numerator = Number(match[1]);
+  const denominator = match[2] === undefined ? 1 : Number(match[2]);
+  return denominator === 0 ? "invalid" : { numerator, denominator };
+}

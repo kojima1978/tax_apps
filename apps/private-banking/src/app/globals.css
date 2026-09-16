@@ -714,48 +714,60 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .family-table td:first-child strong { color: var(--navy-950); font-size: 14px; }
 .family-relation { padding: 3px 8px; color: #166534; background: #dcfce7; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .family-fraction { color: var(--navy-950) !important; font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
-.family-editor-modal { width: min(1380px, calc(100vw - 48px)); }
-.family-editor-modal > form { padding: 0 0 24px; }
-.family-editor-toolbar { padding: 14px 24px; background: #f7faf8; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.family-editor-toolbar p { margin: 0; color: var(--slate-600); font-size: 11px; }
-.family-editor-error { margin: 12px 24px 0; padding: 10px 12px; color: #7f1d1d; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; font-size: 11px; font-weight: 700; }
-.family-editor-table-scroll { max-height: calc(100vh - 365px); max-height: calc(100dvh - 365px); margin: 18px 24px 0; border: 1px solid var(--line); border-radius: 8px; overflow: auto; background: #fff; }
-.family-editor-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
-.family-editor-table th { position: sticky; top: 0; z-index: 2; height: 48px; padding: 7px 6px; color: #345c4b; background: #edf7f0; border-right: 1px solid var(--line); border-bottom: 2px solid var(--line-strong); font-size: 12px; font-weight: 800; line-height: 1.4; text-align: left; white-space: nowrap; }
-.family-editor-table th:nth-child(1) { width: 80px; text-align: center; }
-.family-editor-table th:nth-child(2) { width: auto; }
-.family-editor-table th:nth-child(3) { width: 150px; }
-.family-editor-table th:nth-child(4), .family-editor-table th:nth-child(5) { width: 104px; }
-.family-editor-table th:nth-child(6), .family-editor-table th:nth-child(7) { width: 118px; }
-.family-editor-table th:nth-child(8) { width: 92px; }
-.family-editor-table th:nth-child(9) { width: 124px; }
-.family-editor-table th:nth-child(10) { width: 142px; }
-.family-editor-table th:nth-child(11) { width: 50px; text-align: center; }
-.family-editor-table td { height: 58px; padding: 6px; background: #fff; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); vertical-align: middle; }
-.family-editor-table tr:last-child td { border-bottom: 0; }
-.family-editor-table th:last-child, .family-editor-table td:last-child { border-right: 0; }
-.family-editor-table tbody tr:hover td { background: #f7fcf8; }
-.family-editor-table label { min-width: 0; display: block; }
-.family-editor-table input, .family-editor-table select { width: 100%; min-height: 44px; padding: 7px 8px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 5px; font-size: 13px; }
-.family-editor-table input::placeholder { color: #8b9690; }
-.family-editor-table .row-action { width: 32px; height: 32px; min-height: 32px; flex-basis: 32px; border-radius: 5px; cursor: pointer; }
-.family-editor-table .row-action.order-action { width: 26px; height: 28px; min-height: 28px; flex-basis: 26px; border-color: transparent; background: transparent; }
-.family-editor-table .row-action:hover { background: var(--slate-100); border-color: var(--field-border); }
-.family-editor-table .row-action:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 1px; }
-.family-editor-table .row-action:disabled { opacity: .28; cursor: not-allowed; }
-.family-editor-table .row-action svg { width: 13px; height: 13px; }
-.family-editor-table .row-action.danger { margin: auto; color: var(--danger); }
-.family-order-cell { display: flex; align-items: center; justify-content: center; gap: 1px; }
-.family-order-cell > strong { min-width: 18px; color: var(--navy-950); font-size: 13px; text-align: center; font-variant-numeric: tabular-nums; }
 .required-mark { margin-left: 5px; color: var(--danger); font-size: 10px; }
-.family-fraction-input { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 10px minmax(0, 1fr); align-items: end; gap: 3px; }
-.family-fraction-input b { min-height: 44px; display: grid; place-items: center; color: var(--slate-500); }
-.family-fraction-input input { text-align: center; }
-.family-add-button { min-height: 46px; margin: 14px 24px 0; padding: 0 16px; color: #166534; background: #f0fdf4; border: 1px dashed #86c99b; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; }
+/* 家族情報の入力。1人1枚のカードで、項目は「基本・相続・税額の加算・控除」にまとめる。
+   ダイアログ全体を1つのスクロールにし、操作帯は上端・保存ボタンは下端に固定する。 */
+.family-editor-modal { width: min(1380px, calc(100vw - 48px)); }
+.family-editor-modal > form { padding: 0; }
+.family-editor-modal:focus { outline: none; }
+.family-editor-toolbar { position: sticky; top: 0; z-index: 4; padding: 10px 24px; background: #f7faf8; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.family-editor-toolbar p { margin: 0; color: var(--slate-600); font-size: 11px; }
+.family-editor-toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.family-editor-toolbar .button { min-height: 36px; padding-inline: 12px; font-size: 12px; }
+.family-editor-toolbar .button svg { width: 15px; height: 15px; }
+.family-editor-confirm { margin: 12px 24px 0; padding: 8px 10px 8px 14px; border: 1px solid #f3d38a; border-radius: 8px; background: #fffbeb; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.family-editor-confirm p { flex: 1 1 260px; margin: 0; color: #78350f; font-size: 12px; font-weight: 700; }
+.family-editor-confirm .button { min-height: 34px; padding-inline: 12px; font-size: 12px; }
+.family-editor-error { flex: 1 1 100%; margin: 0; padding: 8px 12px; color: #7f1d1d; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; font-size: 12px; font-weight: 700; }
+.family-editor-footer-message { flex: 1 1 220px; margin: 0; color: var(--slate-700); font-size: 12px; font-weight: 700; }
+.family-editor-empty { margin: 0; padding: 28px 16px; color: var(--slate-500); border: 1px dashed var(--line-strong); border-radius: 9px; font-size: 12px; text-align: center; }
+.family-card-list { margin: 14px 24px 0; display: grid; gap: 10px; }
+/* 追加したカードへスクロールしたとき、固定の操作帯・保存ボタンに隠れないよう余白を取る。 */
+.family-card { border: 1px solid var(--line); border-radius: 9px; background: #fff; box-shadow: 0 1px 3px #172b3a0a; scroll-margin: 72px 0 96px; }
+.family-card:focus-within { border-color: #86c99b; box-shadow: 0 0 0 3px #dcfce7; }
+.family-card-header { min-height: 42px; padding: 4px 6px 4px 14px; background: #f7faf8; border-bottom: 1px solid var(--line); border-radius: 9px 9px 0 0; display: flex; align-items: center; gap: 10px; }
+.family-card-header h3 { flex: 1 1 auto; min-width: 0; margin: 0; display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.family-card-index { color: #166534; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.family-card-name { min-width: 0; color: var(--navy-950); font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.family-card-name.empty { color: var(--slate-500); font-weight: 600; }
+.family-card-relation { color: var(--slate-600); font-size: 11px; white-space: nowrap; }
+.family-card-actions { flex: 0 0 auto; display: flex; gap: 4px; }
+.family-card .row-action { width: 32px; height: 32px; flex-basis: 32px; border-radius: 6px; cursor: pointer; }
+.family-card .row-action svg { width: 15px; height: 15px; }
+.family-card .row-action:hover { background: var(--slate-100); border-color: var(--field-border); }
+.family-card .row-action:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 1px; }
+.family-card .row-action:disabled { opacity: .3; cursor: not-allowed; }
+.family-card .row-action.danger { color: var(--danger); }
+.family-card .row-action.danger:hover { border-color: #edcbc8; background: #fff7f6; }
+/* 3つのまとまりは項目数に応じて横幅を配分し、入りきらなければ次の段へ送る。 */
+.family-card-body { padding: 10px 14px 14px; display: flex; flex-wrap: wrap; gap: 12px 22px; }
+.family-card-section { flex: var(--field-count) 1 calc(var(--field-count) * 128px); min-width: 0; max-width: calc(var(--field-count) * 230px); }
+.family-card-section-title { margin: 0 0 6px; padding-bottom: 3px; color: #345c4b; border-bottom: 1px dotted var(--line-strong); font-size: 11px; font-weight: 800; }
+.family-card-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr)); gap: 8px 10px; }
+.family-field { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.family-field > label { color: var(--slate-600); font-size: 11px; font-weight: 700; line-height: 1.35; }
+.family-field input:not([type="checkbox"]), .family-field select { width: 100%; min-height: 36px; padding: 5px 8px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 5px; font-size: 12px; }
+.family-field input::placeholder { color: #9aa49f; }
+.family-field input[readonly] { color: var(--slate-600); background: #f4f6f5; border-style: dashed; }
+.family-field input:user-invalid { border-color: var(--danger); background: #fff7f6; }
+.family-field-hint { color: var(--slate-500); font-size: 11px; line-height: 1.35; }
+.family-check { display: inline-flex; align-items: center; gap: 5px; color: var(--slate-600); font-weight: 600; cursor: pointer; }
+.family-check input { width: 14px; height: 14px; margin: 0; accent-color: #16a34a; }
+.family-add-button { min-height: 42px; margin: 10px 24px 0; padding: 0 16px; color: #166534; background: #f0fdf4; border: 1px dashed #86c99b; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; }
 .family-add-button:hover { background: #dcfce7; border-color: #22a854; }
 .family-add-button:disabled { opacity: .55; cursor: not-allowed; }
 .family-add-button svg { width: 16px; height: 16px; }
-.family-editor-modal form > footer { margin-inline: 24px; }
+.family-editor-modal form > footer { position: sticky; bottom: 0; z-index: 4; margin: 16px 0 0; padding: 12px 24px; align-items: center; background: #fff; box-shadow: 0 -10px 18px -18px #172b3a66; }
 .field-help { margin-top: 5px; color: var(--slate-500); font-size: 11px; font-weight: 500; line-height: 1.5; }
 .snapshot-settings-grid .snapshot-date-field { grid-column: 1 / -1; }
 /* 円換算レートは明細ごとではなく年度設定でまとめて入力する。 */
@@ -942,29 +954,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   /* 並び順の列が38pxに縮むので、44pxのハンドルのままだと右へはみ出して見出しと中心がずれる。 */
   .position-table .drag-handle { width: 36px; }
 }
-/* 家族情報の入力は、表の形だと 1320px 未満で横スクロールになる。1人1枚のカードにして、
-   項目は「見出しの下に入力欄」の形で折り返して並べる（幅が狭いほど1段に並ぶ項目が減るだけ）。 */
-@media (max-width: 1320px) {
-  .family-editor-table-scroll { border: 0; border-radius: 0; overflow-x: visible; background: transparent; }
-  .family-editor-table { min-width: 0; display: block; background: transparent; }
-  .family-editor-table thead { display: none; }
-  .family-editor-table tbody { display: grid; gap: 12px; }
-  .family-editor-table tbody tr { position: relative; padding: 0 14px 14px; border: 1px solid var(--line); border-radius: 9px; background: #fff; box-shadow: 0 1px 3px #172b3a0a; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: 12px; }
-  .family-editor-table tbody tr:hover td { background: transparent; }
-  .family-editor-table tbody td { width: auto; min-width: 0; height: auto; padding: 0; border: 0; background: transparent; display: flex; flex-direction: column; gap: 4px; }
-  .family-editor-table tbody td::before { content: attr(data-label); color: var(--slate-600); font-size: 12px; font-weight: 800; }
-  /* 1段目は「何人目か・並び替え・削除」の見出し帯。削除ボタンは右上に置く。 */
-  .family-editor-table tbody td:first-child, .family-editor-table tbody tr:hover td:first-child { grid-column: 1 / -1; margin-inline: -14px; padding: 6px 60px 6px 14px; background: #f7faf8; border-bottom: 1px solid var(--line); border-radius: 9px 9px 0 0; }
-  .family-editor-table tbody td:first-child::before, .family-editor-table tbody td:last-child::before { content: none; }
-  .family-editor-table tbody td:last-child { position: absolute; top: 6px; right: 10px; }
-  .family-order-cell { flex-direction: row; justify-content: flex-start; gap: 6px; }
-  .family-order-cell > strong { margin-right: 6px; }
-  .family-order-cell > strong::after { content: "人目"; font-size: 12px; }
-  .family-editor-table .row-action, .family-editor-table .row-action.order-action { width: 40px; height: 40px; min-height: 40px; flex-basis: 40px; }
-  .family-editor-table .row-action.order-action { border-color: var(--line); background: #fff; }
-  .family-editor-table .row-action.danger { margin: 0; }
-  .family-editor-table .row-action svg { width: 16px; height: 16px; }
-}
 /* サイドバーありの本文幅ではヘッダーが収まらないので、文字をアイコンに畳んで顧客名を優先する。
    文字は見た目だけ隠して読み上げに残し、title でツールチップにも出す。 */
 @media (max-width: 1260px) {
@@ -1002,15 +991,17 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table-tools label { flex: 1 1 0; }
   .position-table-tools select { width: 100%; }
   .family-editor-modal { width: 100%; }
-  .family-editor-toolbar { padding-inline: 16px; align-items: stretch; flex-direction: column; }
-  .family-editor-toolbar .button { width: 100%; }
-  .family-editor-error { margin-inline: 16px; }
-  .family-editor-table-scroll { max-height: max(240px, calc(94vh - 390px)); max-height: max(240px, calc(94dvh - 390px)); margin-inline: 16px; }
+  /* 狭い画面では操作帯を固定すると入力欄が隠れるので、上端の固定をやめる。 */
+  .family-editor-toolbar { position: static; padding-inline: 16px; align-items: stretch; flex-direction: column; }
+  .family-editor-toolbar .button { width: 100%; min-height: 44px; }
+  .family-editor-confirm, .family-card-list { margin-inline: 16px; }
+  .family-card-body { padding-inline: 12px; }
   /* スマホで入力欄にフォーカスしたとき拡大されないよう 16px にする。 */
-  .family-editor-table input, .family-editor-table select { font-size: 16px; }
-  .family-editor-table .row-action, .family-editor-table .row-action.order-action { width: 44px; height: 44px; min-height: 44px; flex-basis: 44px; }
-  .family-add-button { margin-inline: 16px; }
-  .family-editor-modal form > footer { position: sticky; bottom: -24px; z-index: 5; margin-inline: 0; padding: 12px 16px; background: #fff; box-shadow: 0 -6px 14px #163d2920; }
+  .family-field input:not([type="checkbox"]), .family-field select { min-height: 44px; font-size: 16px; }
+  .family-check input { width: 20px; height: 20px; }
+  .family-card .row-action { width: 44px; height: 44px; flex-basis: 44px; }
+  .family-add-button { min-height: 46px; margin-inline: 16px; }
+  .family-editor-modal form > footer { padding: 12px 16px; }
 }
 @media (max-width: 600px) {
   .topbar h1 { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
