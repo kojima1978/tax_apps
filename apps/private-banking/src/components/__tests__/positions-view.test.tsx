@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssetsView } from "@/components/positions-view";
 import { type Position, type Snapshot } from "@/lib/portfolio-view";
 
@@ -15,7 +15,7 @@ function renderView(inheritanceTaxCalculation: Snapshot["inheritanceTaxCalculati
     positions: [position(1, "DEPOSIT", "普通預金", 50_000_000), position(2, "INSURANCE", "あおば生命", 5_000_000, insuranceDetails)],
   } as unknown as Snapshot;
   const noop = () => {};
-  render(<AssetsView snapshot={snapshot} snapshots={[snapshot]} legalHeirNames={new Set()} onSelectSnapshot={noop} onCreateNext={noop} onAdd={noop} onBulkManage={noop} onEdit={noop} onDelete={noop} onReorder={async () => true} onEditSettings={noop} saving={false} />);
+  render(<AssetsView snapshot={snapshot} legalHeirNames={new Set()} onAdd={noop} onBulkManage={noop} onEdit={noop} onDelete={noop} onReorder={async () => true} saving={false} />);
   const row = screen.getByText("あおば生命").closest("tr") as HTMLElement;
   return (label: string) => row.querySelector(`td[data-label="${label}"]`) as HTMLElement;
 }
@@ -44,5 +44,33 @@ describe("AssetsView（生命保険の相続税負担額）", () => {
     const cell = renderView(null, { deathBenefit: 50_000_000 });
     expect(cell("相続税負担額").querySelectorAll(".deemed-amount")).toHaveLength(0);
     expect(cell("相続税負担額").textContent).not.toBe("—");
+  });
+});
+
+describe("AssetsView（行の操作）", () => {
+  const snapshot = {
+    id: 1, fiscalYear: 2027, isCurrent: true, updatedAt: "2027-01-01T00:00:00Z", estimatedInheritanceTax: 0, inheritanceTaxCalculation: null,
+    positions: [position(1, "DEPOSIT", "普通預金", 50_000_000)],
+  } as unknown as Snapshot;
+  const renderRow = () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    render(<AssetsView snapshot={snapshot} legalHeirNames={new Set()} onAdd={() => {}} onBulkManage={() => {}} onEdit={onEdit} onDelete={onDelete} onReorder={async () => true} saving={false} />);
+    return { onEdit, onDelete, row: screen.getByRole("button", { name: "普通預金を修正" }).closest("tr") as HTMLElement };
+  };
+
+  it("行を押すと修正を開く", () => {
+    const { onEdit, row } = renderRow();
+    fireEvent.click(row.querySelector('td[data-label="円換算時価"]') as HTMLElement);
+    expect(onEdit).toHaveBeenCalledWith(snapshot.positions[0]);
+  });
+
+  it("削除ボタンは文字付きで、押しても修正は開かない", () => {
+    const { onEdit, onDelete } = renderRow();
+    const deleteButton = screen.getByRole("button", { name: "普通預金を削除" });
+    expect(deleteButton.textContent).toBe("削除");
+    fireEvent.click(deleteButton);
+    expect(onDelete).toHaveBeenCalledWith(snapshot.positions[0]);
+    expect(onEdit).not.toHaveBeenCalled();
   });
 });

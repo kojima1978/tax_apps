@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, DatabaseBackup, LoaderCircle, MoreHorizontal, Search, Trash2, UserPlus, X } from "lucide-react";
+import { AlertTriangle, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActionMenu, type ActionMenuItem } from "@/components/action-menu";
 import { ClientFields } from "@/components/client-fields";
 import { ClientDeleteModal } from "@/components/client-delete-modal";
-import { PortalLink } from "@/components/portal-link";
+import { AppBrand, PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary, filterClients, highlightRanges, searchTerms } from "@/lib/clients";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
@@ -163,7 +164,7 @@ export function ClientList() {
 
   return <div className="client-home">
     <header className="client-home-header">
-      <div className="brand"><PortalLink /><span>Personal Asset Balance Sheet</span></div>
+      <AppBrand />
     </header>
 
     <main className="client-home-main">
@@ -195,8 +196,8 @@ export function ClientList() {
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
         <Link className="button secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
       </div>
-      {/* 件数は画面には出さず、読み上げにだけ残す。 */}
-      <p className="sr-only" aria-live="polite">{filtered.length}件の顧客{terms.length > 0 && clients.length !== filtered.length ? `（全${clients.length}件中）` : ""}</p>
+      {/* 削除の通知が role="status" を使うので、件数は aria-live だけで読み上げる。 */}
+      <p className="client-count" aria-live="polite">{terms.length > 0 ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}</p>
 
       <div className="client-list" id="client-options" role="grid" aria-label="顧客">
         {filtered.map((client, index) => <div
@@ -236,32 +237,19 @@ export function ClientList() {
   </div>;
 }
 
+/** 顧客行の「⋯」メニューから直接開ける画面。顧客を開いてからサイドバーで選び直す手間を省く。 */
+const CLIENT_MENU_LINKS = [
+  { section: "balance", label: "貸借対照表を開く", icon: LayoutDashboard },
+  { section: "profile", label: "本人情報", icon: CircleUserRound },
+  { section: "positions", label: "資産・負債明細", icon: WalletCards },
+] as const;
+
 function ClientRowActions({ client, busy, loading, onDelete }: { client: ClientSummary; busy: boolean; loading: boolean; onDelete: () => void }) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const deleteRef = useRef<HTMLButtonElement>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    deleteRef.current?.focus();
-    const closeOutside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    return () => document.removeEventListener("pointerdown", closeOutside);
-  }, [open]);
-  return <div ref={rootRef} className="client-row-actions" onBlur={(event) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
-  }} onKeyDown={(event) => {
-    if (event.key === "Escape") { event.preventDefault(); setOpen(false); triggerRef.current?.focus(); }
-  }}>
-    <button ref={triggerRef} type="button" className="icon-button client-actions-trigger" aria-label={`${client.name}の操作`} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? `client-menu-${client.id}` : undefined} aria-busy={loading} aria-disabled={busy} onClick={() => { if (!busy) setOpen(!open); }} onKeyDown={(event) => {
-      if (!busy && (event.key === "ArrowDown" || event.key === "ArrowUp")) { event.preventDefault(); setOpen(true); }
-    }}>{loading ? <LoaderCircle className="spin" /> : <MoreHorizontal />}</button>
-    {open ? <div className="client-actions-menu" role="menu" id={`client-menu-${client.id}`} aria-label={`${client.name}の操作`}>
-      <button ref={deleteRef} type="button" role="menuitem" onClick={() => { setOpen(false); triggerRef.current?.focus(); onDelete(); }}><Trash2 />顧客を削除</button>
-    </div> : null}
-  </div>;
+  const items: ActionMenuItem[] = [
+    ...CLIENT_MENU_LINKS.map(({ section, label, icon }) => ({ key: section, label, icon, href: `/customers/${client.id}/${section}` })),
+    { key: "delete", label: "顧客を削除", icon: Trash2, danger: true, onSelect: onDelete },
+  ];
+  return <ActionMenu id={`client-menu-${client.id}`} label={`${client.name}の操作`} items={items} busy={busy} loading={loading} className="client-row-actions" />;
 }
 
 function ClientCreateModal({ error, saving, onClose, onSubmit }: {

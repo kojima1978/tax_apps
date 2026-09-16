@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  AlertTriangle, Calculator, ChevronLeft, ChevronRight, CircleUserRound, Clock3, DatabaseBackup, History, LayoutDashboard, Link2,
-  LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Printer, ShieldCheck, UsersRound, WalletCards, X,
+  Calculator, ChevronLeft, ChevronRight, CircleUserRound, DatabaseBackup, History, LayoutDashboard, Link2,
+  LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Printer, ShieldCheck, UsersRound, WalletCards, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -18,13 +18,17 @@ import { HistoryView } from "@/components/history-view";
 import { FamilyView } from "@/components/family-view";
 import { InheritanceTaxReport } from "@/components/inheritance-tax-report";
 import { PersonView } from "@/components/person-view";
-import { PortalLink } from "@/components/portal-link";
-import { DeletePositionModal, PositionModal } from "@/components/position-modal";
+import { AppBrand, PortalLink } from "@/components/portal-link";
+import { PositionModal } from "@/components/position-modal";
 import { AssetsView } from "@/components/positions-view";
 import { PRINT_SECTION_META, PrintFrontMatter } from "@/components/print-front-matter";
 import { PersonFamilyPrintView } from "@/components/print-person-family";
 import { SecondaryInheritanceSimulator } from "@/components/secondary-inheritance-simulator";
 import { usePortfolio } from "@/components/use-portfolio";
+import { ToastRegion, useToast } from "@/components/use-toast";
+import { useUndoableDelete } from "@/components/use-undoable-delete";
+import { YearSwitcher } from "@/components/year-switcher";
+import { API_BASE } from "@/lib/api";
 import { buildBalanceView, loanBreakdownTotals, successionAssetTotals } from "@/lib/balance-view";
 import { legalHeirNames, type FamilyMemberDraft } from "@/lib/family";
 import { dateJa, unformatNumberInput } from "@/lib/format";
@@ -61,7 +65,6 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   // 表ごとの「追加」から開いたときは、その表の区分を選んだ状態でモーダルを開く。
   const [newPositionSection, setNewPositionSection] = useState<PositionSection>("ASSET");
-  const [deletingPosition, setDeletingPosition] = useState<Position | null>(null);
   const [deletingSnapshot, setDeletingSnapshot] = useState<Snapshot | null>(null);
   const [forecastModalOpen, setForecastModalOpen] = useState(false);
   const searchParams = useSearchParams();
@@ -74,9 +77,27 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const [clientDeleteOpen, setClientDeleteOpen] = useState(false);
   const [clientSaved, setClientSaved] = useState(false);
   const [taxApiStatus, setTaxApiStatus] = useState<"idle" | "loading" | "success">("idle");
+  const { toast, showToast, dismissToast } = useToast();
+  // 明細の削除は確認ダイアログを出さず、「元に戻す」を押せる猶予を置いてから確定する。
+  const positionDelete = useUndoableDelete<Position>({
+    delayMs: 6_000,
+    commit: async (position) => {
+      const { ok } = await mutate(`/positions/${position.id}`, "DELETE", undefined, `${position.name}を削除できませんでした。`);
+      if (ok) await load();
+    },
+    commitOnUnload: (position) => { void fetch(`${API_BASE}/positions/${position.id}`, { method: "DELETE", keepalive: true }); },
+  });
 
   const current = portfolio?.snapshots.find((snapshot) => snapshot.isCurrent);
-  const workingSnapshot = portfolio?.snapshots.find((snapshot) => snapshot.id === workingSnapshotId) ?? current;
+  const selectedSnapshot = portfolio?.snapshots.find((snapshot) => snapshot.id === workingSnapshotId) ?? current;
+  // 削除の猶予中の明細は、確定前でも画面と集計から外しておく。
+  const pendingDeleteId = positionDelete.pending?.id;
+  const workingSnapshot = useMemo(
+    () => selectedSnapshot && pendingDeleteId !== undefined
+      ? { ...selectedSnapshot, positions: selectedSnapshot.positions.filter((position) => position.id !== pendingDeleteId) }
+      : selectedSnapshot,
+    [selectedSnapshot, pendingDeleteId],
+  );
   const summary = useMemo(() => totals(workingSnapshot?.positions ?? []), [workingSnapshot]);
   const successionAssets = useMemo(() => successionAssetTotals(workingSnapshot?.positions ?? []), [workingSnapshot]);
   // 非課税枠の判定に使う法定相続人の氏名。受取人を選ぶだけで判定できるよう、入力欄では持たせない。
@@ -171,6 +192,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     if (!ok) return;
     closePositionModal();
     await load();
+    showToast(editingPosition ? "明細を保存しました" : "明細を追加しました");
   }
 
   async function saveBulkPositions(positions: BulkPositionPayload[]) {
@@ -179,15 +201,13 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     if (!ok) return false;
     setBulkModalOpen(false);
     await load();
+    showToast("明細をまとめて保存しました");
     return true;
   }
 
-  async function deletePosition() {
-    if (!deletingPosition) return;
-    const { ok } = await mutate(`/positions/${deletingPosition.id}`, "DELETE", undefined, "削除できませんでした。");
-    if (!ok) return;
-    setDeletingPosition(null);
-    await load();
+  function deletePosition(position: Position) {
+    positionDelete.schedule(position);
+    showToast(`${position.name}を削除しました`, { durationMs: 6_000, action: { label: "元に戻す", onClick: positionDelete.undo } });
   }
 
   async function reorderPositions(snapshotId: number, section: PositionSection, orderedIds: number[]) {
@@ -207,6 +227,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     // 削除した年度を URL に残さない。
     if (workingSnapshotId === deletingSnapshot.id) router.replace(`/customers/${householdId}/${section}`);
     await load();
+    showToast(`${fiscalYearLabel(deletingSnapshot)}を削除しました`);
   }
 
   async function saveSnapshot(event: FormEvent<HTMLFormElement>) {
@@ -223,6 +244,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     if (!ok) return;
     setYearCreationSourceId(null);
     await load();
+    showToast(`${body.fiscalYear}年度を追加しました`);
   }
 
   async function saveSnapshotSettings(event: FormEvent<HTMLFormElement>) {
@@ -242,12 +264,12 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     if (!ok) return;
     setSnapshotSettingsModalOpen(false);
     await load();
+    showToast(`${fiscalYearLabel(workingSnapshot)}の年度設定を保存しました`);
   }
 
-  // 貸借対照表と明細は同じ年度を見せたいので、?snapshot= を引き継ぐ。
-  const snapshotAwareSections: Section[] = ["balance", "positions"];
+  // 表示年度はトップバーで全画面共通に選ぶので、どの画面へ移っても ?snapshot= を引き継ぐ。
   const sectionHref = (target: Section, snapshotId: number | null = workingSnapshotId) =>
-    `/customers/${householdId}/${target}${snapshotAwareSections.includes(target) && snapshotId ? `?snapshot=${snapshotId}` : ""}`;
+    `/customers/${householdId}/${target}${snapshotId ? `?snapshot=${snapshotId}` : ""}`;
 
   function editSnapshot(snapshotId: number) {
     router.push(sectionHref("positions", snapshotId));
@@ -261,6 +283,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     if (!ok) return;
     setForecastModalOpen(false);
     await load();
+    showToast("税金・費用を保存しました");
   }
 
   async function saveFamilyMembers(members: FamilyMemberDraft[]) {
@@ -303,8 +326,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     <div className="app-shell">
       <a href="#main-content" className="skip-link">本文へ移動</a>
       <aside className={`sidebar ${menuOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <div className="brand"><PortalLink /><span>Personal Asset Balance Sheet</span></div>
-        <button className="sidebar-toggle" aria-label={sidebarCollapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>{sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</button>
+        <AppBrand />
+        <button className="sidebar-toggle" aria-label={sidebarCollapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"} title={sidebarCollapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>{sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</button>
         <button className="close-menu" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)}><X /></button>
         <nav aria-label="メインメニュー">
           {SECTIONS.map(({ key, label, icon: Icon }) => <Link
@@ -329,11 +352,10 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             <Link className="back-to-list" href="/"><ChevronLeft />一覧に戻る</Link>
             <button type="button" className="client-switcher-trigger" onClick={() => router.push(sectionHref("profile", null))} aria-label={`本人情報を開く。現在は${portfolio.household.name}`}><span><strong>{portfolio.household.name}</strong><em>{portfolio.household.clientCode}{portfolio.household.assignedStaff ? `・担当 ${portfolio.household.assignedStaff}` : ""}</em></span>{/* その場で直すのではなく本人情報タブへ移動するので、編集ではなく遷移のアイコンにする。 */}<ChevronRight /></button>
           </div>
-          <div className="top-actions"><button type="button" className="as-of as-of-button" onClick={() => setSnapshotSettingsModalOpen(true)} aria-label={`${reportSnapshot.isCurrent ? "現在" : fiscalYearLabel(reportSnapshot)}のB/S基準日 ${dateJa(reportSnapshot.asOfDate)}。年度設定を開く`} aria-haspopup="dialog"><Clock3 /><small>{reportSnapshot.isCurrent ? "現在B/S基準日" : `${fiscalYearLabel(reportSnapshot)}基準日`}</small><strong>{dateJa(reportSnapshot.asOfDate)}</strong><Pencil className="as-of-edit-icon" aria-hidden="true" /></button><button className="button secondary" onClick={() => setPrintGuideOpen(true)}><Printer />印刷・PDF出力</button></div>
+          <div className="top-actions"><YearSwitcher snapshots={portfolio.snapshots} selected={reportSnapshot} onSelect={(snapshotId) => router.replace(sectionHref(section, snapshotId))} onCreate={() => setYearCreationSourceId(reportSnapshot.id)} onEditSettings={() => setSnapshotSettingsModalOpen(true)} /><button className="button secondary" onClick={() => setPrintGuideOpen(true)}><Printer />印刷・PDF出力</button></div>
         </header>
 
         <main id="main-content" className="content">
-          {error ? <div className="error-banner" role="alert"><AlertTriangle />{error}<button onClick={() => setError("")} aria-label="閉じる"><X /></button></div> : null}
           {printSections?.has("profile-family") ? <div id="print-section-profile-family" className="report-document print-only-document"><PersonFamilyPrintView household={portfolio.household} members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} /></div> : null}
           {(section === "balance" || printSections?.has("balance")) ? (
             <div id="print-section-balance" className={`report-document ${section !== "balance" ? "print-only-document" : ""} ${printSections && !printSections.has("balance") ? "print-excluded-document" : ""}`}>
@@ -341,9 +363,6 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
                 <div>
                   <p>個人資産・負債を時価で俯瞰します。</p>
                   {reportSnapshot.isCurrent ? null : <p className="detail-heading-meta"><span className="detail-status historical">過年度を表示中</span><span>基準日 {dateJa(reportSnapshot.asOfDate)}</span></p>}
-                </div>
-                <div className="page-heading-actions detail-page-actions">
-                  <label className="detail-year-selector"><span>表示年度</span><select aria-label="貸借対照表の表示年度" value={reportSnapshot.id} onChange={(event) => router.replace(sectionHref("balance", Number(event.target.value)))}>{[...portfolio.snapshots].sort((a, b) => b.fiscalYear - a.fiscalYear).map((item) => <option key={item.id} value={item.id}>{fiscalYearLabel(item)}{item.isCurrent ? "（現在）" : ""}</option>)}</select></label>
                 </div>
               </section>
               <section className={`dashboard-grid balance-report-series screen-${balanceScenario}`}>
@@ -386,17 +405,18 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
               : null}
           </div> : null}
 
-          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} snapshots={portfolio.snapshots} legalHeirNames={legalHeirNameSet} onSelectSnapshot={(snapshotId) => router.replace(sectionHref("positions", snapshotId))} onCreateNext={() => setYearCreationSourceId(workingSnapshot.id)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={setDeletingPosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onEditSettings={() => setSnapshotSettingsModalOpen(true)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
+          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
           {section === "family" ? <div className="report-document print-excluded-document"><FamilyView members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} saving={saving} onSave={saveFamilyMembers} /></div> : null}
           {(section === "history" || printSections?.has("history")) ? <div id="print-section-history" className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
           {section === "backup" ? <div className="report-document print-excluded-document"><BackupView scope="household" portfolio={portfolio} /></div> : null}
         </main>
       </div>
+      {/* 顧客削除のエラーは削除ダイアログの中に出すので、ここでは重ねて出さない。 */}
+      <ToastRegion toast={toast} error={clientDeleteOpen ? undefined : error} onDismissToast={dismissToast} onDismissError={() => setError("")} />
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
       {modalOpen ? <PositionModal position={editingPosition} defaultSection={newPositionSection} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
       {bulkModalOpen && workingSnapshot ? <BulkPositionModal snapshot={workingSnapshot} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /> : null}
-      {deletingPosition ? <DeletePositionModal position={deletingPosition} onClose={() => setDeletingPosition(null)} onDelete={() => void deletePosition()} saving={saving} /> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
       {forecastModalOpen ? <ForecastModal planning={portfolio.planning} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}

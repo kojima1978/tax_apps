@@ -102,3 +102,21 @@ describe("顧客一覧からの削除", () => {
     expect(screen.getByRole("link", { name: /テスト顧客B/ })).toBeTruthy();
   });
 });
+
+describe("顧客一覧の表示", () => {
+  it("操作メニューから顧客の各画面を直接開ける", async () => {
+    render(<ClientList />);
+    fireEvent.click(await screen.findByRole("button", { name: "テスト顧客Aの操作" }));
+    const menu = screen.getByRole("menu", { name: "テスト顧客Aの操作" });
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["貸借対照表を開く", "本人情報", "資産・負債明細", "顧客を削除"]);
+    expect(within(menu).getByRole("menuitem", { name: "本人情報" }).getAttribute("href")).toBe("/customers/1/profile");
+    expect(document.activeElement).toBe(within(menu).getByRole("menuitem", { name: "貸借対照表を開く" }));
+  });
+
+  it("件数を画面に出し、検索中は全件数も添える", async () => {
+    render(<ClientList />);
+    expect((await screen.findByText("全2件")).className).toBe("client-count");
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "PB-002" } });
+    expect(screen.getByText("1件（全2件中）")).toBeTruthy();
+  });
+});

@@ -82,7 +82,7 @@ export function BalanceSheetPanel({ view, headingSuffix, subtitle, liabilities, 
   ] as const).map((entry) => ({ ...entry, callouts: callouts.filter((callout) => callout.side === entry.side) }));
 
   return <article className={`panel balance-panel print-section-balance balance-report-${headingSuffix}`}>
-    <PanelHeader title="貸借対照表" subtitle={subtitle} action={action} />
+    <PanelHeader title={`貸借対照表（${taxIncluded ? "税金あり" : "税金なし"}）`} subtitle={subtitle} action={action} />
     {taxIncluded && deemedBenefitMissingCount > 0 ? <p className="insurance-data-note" role="note"><AlertTriangle />死亡保険金・死亡退職金が未入力の明細 {deemedBenefitMissingCount}件は、税金ありB/Sでは0円として計算しています。</p> : null}
     <div className="classified-bs" role="group" aria-label={`貸借対照表・${taxIncluded ? "税金あり" : "税金なし"}`}>
       {sides.map((entry) => <section key={entry.side} className={`classified-bs-side ${entry.side}-side`} aria-labelledby={entry.headingId}>
@@ -106,7 +106,7 @@ export function BalanceSheetPanel({ view, headingSuffix, subtitle, liabilities, 
   </article>;
 }
 
-/** 貸借対照表パネルのヘッダー右側。シナリオ切替と、現在年度だけ出す税金の操作をまとめる。 */
+/** 貸借対照表パネルのヘッダー右側。シナリオ切替と、税金ありを見ている現在年度だけ出す税金の操作をまとめる。 */
 export function BalanceScenarioActions({ taxIncluded, isCurrent, taxApiStatus, onSelectScenario, onCalculateTax, onOpenForecast }: {
   taxIncluded: boolean;
   isCurrent: boolean;
@@ -120,7 +120,8 @@ export function BalanceScenarioActions({ taxIncluded, isCurrent, taxApiStatus, o
       <button type="button" aria-pressed={!taxIncluded} onClick={() => onSelectScenario("without-tax")}><span>税金なし</span><small>メイン</small></button>
       <button type="button" aria-pressed={taxIncluded} onClick={() => onSelectScenario("with-tax")}><span>税金あり</span><small>サブ</small></button>
     </div>
-    {isCurrent ? <>
+    {/* 税金の操作は税金なしのB/Sには効かないので、税金ありを選んだときだけ出す。 */}
+    {isCurrent && taxIncluded ? <>
       <button className="text-button compact tax-api-button" type="button" onClick={onCalculateTax} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : "APIで相続税を計算"}</button>
       <button className="text-button compact" type="button" onClick={onOpenForecast}>税金を入力</button>
     </> : null}

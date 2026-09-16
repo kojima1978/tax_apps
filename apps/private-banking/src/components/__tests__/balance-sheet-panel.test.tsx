@@ -59,6 +59,7 @@ describe("BalanceSheetPanel", () => {
   it("税金なしでは税金・承継関連費用の区画を描かない", () => {
     renderPanel("without-tax");
     expect(screen.getByLabelText("貸借対照表・税金なし")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "貸借対照表（税金なし）" })).toBeTruthy();
     expect(screen.queryByText("税金")).toBeNull();
     expect(screen.queryByText("承継関連費用")).toBeNull();
     expect(screen.getByText("資産合計").nextElementSibling?.textContent).toBe("1億1,000万円");
@@ -153,14 +154,26 @@ describe("BalanceScenarioActions", () => {
     expect(within(group).getByText("税金あり").closest("button")?.getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("税金なしを選んでいるときは税金の操作ボタンを出さない", () => {
+    renderActions({ taxIncluded: false });
+    expect(screen.queryByText("APIで相続税を計算")).toBeNull();
+    expect(screen.queryByText("税金を入力")).toBeNull();
+  });
+
+  it("税金ありの現在年度では税金の操作ボタンを出す", () => {
+    renderActions({ taxIncluded: true });
+    expect(screen.getByText("APIで相続税を計算")).toBeTruthy();
+    expect(screen.getByText("税金を入力")).toBeTruthy();
+  });
+
   it("過去年度では税金の操作ボタンを出さない", () => {
-    renderActions({ isCurrent: false });
+    renderActions({ taxIncluded: true, isCurrent: false });
     expect(screen.queryByText("APIで相続税を計算")).toBeNull();
     expect(screen.queryByText("税金を入力")).toBeNull();
   });
 
   it("計算中はAPIボタンを押せなくする", () => {
-    renderActions({ taxApiStatus: "loading" });
+    renderActions({ taxIncluded: true, taxApiStatus: "loading" });
     expect((screen.getByText("計算中").closest("button") as HTMLButtonElement).disabled).toBe(true);
   });
 });

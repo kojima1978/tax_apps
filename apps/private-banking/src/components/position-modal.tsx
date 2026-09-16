@@ -20,10 +20,8 @@ import {
   splitBenefit,
   liabilityCategories,
   otherLiabilityCategories,
-  middleClassification,
   otherAssetTypeLabels,
   positionSection,
-  positionSectionLabels,
   propertyTypeOf,
   realEstateCategories,
 } from "@/lib/portfolio-view";
@@ -418,8 +416,4 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
       <footer><div className="position-modal-summary" aria-live="polite"><span>{amountLabel}</span><strong>{summaryAmount === null ? "未入力" : `${formatAmount(summaryAmount)} ${amountUnit}`}</strong>{summaryJpy ? <small>{summaryJpy}</small> : null}</div><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>
     </form>
   </div></div>;
-}
-
-export function DeletePositionModal({ position, onClose, onDelete, saving }: { position: Position; onClose: () => void; onDelete: () => void; saving: boolean }) {
-  return <div className="modal-layer" role="presentation"><div className="modal delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-modal-title" aria-describedby="delete-modal-description"><header><div><h2 id="delete-modal-title">この明細を削除しますか？</h2></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header><div className="delete-modal-body"><div className="delete-warning-icon"><AlertTriangle /></div><p id="delete-modal-description">削除すると、選択年度のB/Sから取り除かれます。この操作は取り消せません。</p><dl><div><dt>名称</dt><dd>{position.name}</dd></div><div><dt>区分</dt><dd>{positionSectionLabels[positionSection(position)]}・{middleClassification(position)}</dd></div><div><dt>円換算時価</dt><dd>{yen.format(position.valueJpy)}</dd></div></dl><footer><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="button" className="button danger-button" onClick={onDelete} disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Trash2 />}削除する</button></footer></div></div></div>;
 }
