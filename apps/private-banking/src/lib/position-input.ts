@@ -103,7 +103,12 @@ export const positionInputSchema = z.object({
   if (data.valuationFormula === "STOCK") {
     if (!stockCategories.has(data.category)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["valuationFormula"], message: "株式の算式を利用できない科目です。" });
     requirePositive(data.valuationQuantity, "valuationQuantity", "株数・口数");
-    requirePositive(data.valuationUnitPrice, "valuationUnitPrice", "単価");
+    // 自社株は債務超過などで株価が0円になることがあるので、単価だけ0円を認める（マイナスは不可）。
+    if (data.category === "PRIVATE_SHARES") {
+      if (data.valuationUnitPrice === null || data.valuationUnitPrice < 0) context.addIssue({ code: z.ZodIssueCode.custom, path: ["valuationUnitPrice"], message: "単価は0以上の数値を入力してください。" });
+    } else {
+      requirePositive(data.valuationUnitPrice, "valuationUnitPrice", "単価");
+    }
     requirePositive(data.adjustmentRate, "adjustmentRate", "調整率");
   }
   if (data.valuationFormula === "UNIT_RATE") {

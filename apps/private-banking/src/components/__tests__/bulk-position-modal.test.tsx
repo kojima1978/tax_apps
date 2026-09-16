@@ -159,6 +159,28 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     expect(savedPayloads(onSubmit)[0]?.data).toMatchObject({ originalAmount: 0, assetDetails: { deathBenefit } });
   });
 
+  it("自社株は株価（単価）0円で保存できる", async () => {
+    const onSubmit = renderModal();
+    selectEntryType("PRIVATE_SHARES");
+    typeIn(1, "会社名", "株式会社A");
+    typeIn(1, "株数・口数", "1,000");
+    typeIn(1, "単価（円）", "0");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(savedPayloads(onSubmit)[0]?.data).toMatchObject({ category: "PRIVATE_SHARES", valuationUnitPrice: 0, originalAmount: 0 });
+  });
+
+  it("有価証券の単価0円は今までどおり止める", async () => {
+    const onSubmit = renderModal();
+    selectEntryType("SECURITIES");
+    typeIn(1, "銘柄名", "上場株式");
+    typeIn(1, "株数・口数", "100");
+    typeIn(1, "単価（円）", "0");
+    save();
+    await screen.findByText("必須の数値は0より大きい値で入力してください。");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("保存済みの保険金0円を再表示しても空欄にならない", () => {
     renderModal([position({ category: "INSURANCE", name: "テスト生命", institution: "テスト生命", assetDetails: { deathBenefit: 0 } })]);
     expect(cell(1, "死亡保険金（円）").value).toBe("0");

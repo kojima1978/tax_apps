@@ -463,8 +463,9 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
       const number = (value: string) => Number(value.replace(/,/g, "")) || 0;
       const invalidNumberFields = requiredFields.filter((field) => {
         if (!numericFields.has(field) || !row[field].trim()) return false;
-        // 掛け捨て保険など、解約返戻金が0円の契約も登録できる。
-        return type === "INSURANCE" && field === "originalAmount" ? number(row[field]) < 0 : number(row[field]) <= 0;
+        // 掛け捨て保険など解約返戻金が0円の契約や、株価が0円の自社株も登録できる。
+        const allowsZero = (type === "INSURANCE" && field === "originalAmount") || (type === "PRIVATE_SHARES" && field === "unitPrice");
+        return allowsZero ? number(row[field]) < 0 : number(row[field]) <= 0;
       });
       if (invalidNumberFields.length > 0) {
         invalid = true;

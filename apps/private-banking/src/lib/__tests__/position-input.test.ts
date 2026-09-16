@@ -166,6 +166,14 @@ describe("positionInputSchema", () => {
     expect(positionInputSchema.safeParse({ ...stockInput, valuationUnitPrice: 0 }).success).toBe(false);
   });
 
+  it("自社株は単価0円を登録でき、マイナスや空欄は認めない", () => {
+    const privateShares = { ...stockInput, category: "PRIVATE_SHARES", name: "株式会社A" };
+    expect(positionInputSchema.safeParse({ ...privateShares, valuationUnitPrice: 0 }).success).toBe(true);
+    expect(positionInputSchema.safeParse({ ...privateShares, valuationUnitPrice: -1 }).success).toBe(false);
+    expect(positionInputSchema.safeParse({ ...privateShares, valuationUnitPrice: null }).success).toBe(false);
+    expect(positionInputSchema.safeParse({ ...privateShares, valuationUnitPrice: 0, valuationQuantity: 0 }).success).toBe(false);
+  });
+
   it("単価×調整率はその他資産でしか使えず、単価・調整率が0より大きいこと", () => {
     expect(positionInputSchema.safeParse({ ...unitRateInput, category: "DEPOSIT" }).success).toBe(false);
     expect(positionInputSchema.safeParse({ ...unitRateInput, valuationUnitPrice: 0 }).success).toBe(false);
