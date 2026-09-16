@@ -38,11 +38,15 @@ const emptyRow = (sortOrder: number): EditRow => ({
 const fraction = (numerator: number | null, denominator: number | null) =>
   numerator === null || denominator === null ? "－" : `${numerator} / ${denominator}`;
 
-/** 生年月日のセル。列幅が限られるので、和暦は西暦の下に小さく添える。 */
-function BirthDateCell({ value }: { value: string | null }) {
+/** 生年月日と年齢のセル。列幅が限られるので、和暦は西暦の下に小さく添える。 */
+function BirthDateCell({ value, age }: { value: string | null; age: number | null }) {
   if (!value) return <>－</>;
-  return <><span className="birth-date-gregorian">{dateJa(value)}</span><small className="birth-date-wareki">{dateWareki(value)}</small></>;
+  return <div className="family-cell-stack"><span className="birth-date-gregorian">{dateJa(value)}{age === null ? "" : `（${age}歳）`}</span><small className="birth-date-wareki">{dateWareki(value)}</small></div>;
 }
+
+/** 税額の加算・控除に関わる区分。該当するものだけを並べる。 */
+const taxAdjustmentLabel = (member: FamilyMember) =>
+  [member.specialTaxAddition ? "2割加算" : "", member.disabilityCategory === "NONE" ? "" : disabilityLabels[member.disabilityCategory]].filter(Boolean).join("・") || "－";
 
 function normalizeRows(members: FamilyMember[]): EditRow[] {
   const rows: EditRow[] = members
@@ -141,24 +145,22 @@ export function FamilyView({
       ) : (
         <div className="family-table-scroll">
           <table className="family-table">
+            {/* 横スクロールを出さないよう、関係の深い項目は1つのセルにまとめて7列にしている。 */}
             <thead><tr>
-              <th>氏名</th><th>フリガナ</th><th>続柄</th><th>取得原因</th>
+              <th>氏名</th><th>続柄</th><th>取得原因</th>
               <th>民法上の<br />法定相続分</th><th>税法上の<br />法定相続分</th>
-              <th>2割加算</th><th>障害者</th><th>生年月日</th><th>年齢</th>
+              <th>税額の<br />加算・控除</th><th>生年月日・年齢</th>
             </tr></thead>
             <tbody>{relatives.map((member) => {
               const age = ageOnDate(member.birthDate, referenceDate);
               return <tr key={member.id}>
-                <td data-label="氏名"><strong>{member.name}</strong></td>
-                <td data-label="フリガナ">{member.nameKana || "－"}</td>
+                <td data-label="氏名"><div className="family-cell-stack">{member.nameKana ? <small className="family-kana">{member.nameKana}</small> : null}<strong>{member.name}</strong></div></td>
                 <td data-label="続柄"><span className="family-relation">{relationshipLabels[member.relationship]}</span></td>
                 <td data-label="取得原因">{acquisitionReasonLabels[member.acquisitionReason]}</td>
                 <td data-label="民法上の法定相続分" className="family-fraction">{fraction(member.civilShareNumerator, member.civilShareDenominator)}</td>
                 <td data-label="税法上の法定相続分" className="family-fraction">{fraction(member.taxShareNumerator, member.taxShareDenominator)}</td>
-                <td data-label="2割加算">{member.specialTaxAddition ? "対象" : "－"}</td>
-                <td data-label="障害者">{disabilityLabels[member.disabilityCategory]}</td>
-                <td data-label="生年月日"><BirthDateCell value={member.birthDate} /></td>
-                <td data-label="年齢">{age === null ? "－" : `${age}歳`}</td>
+                <td data-label="税額の加算・控除">{taxAdjustmentLabel(member)}</td>
+                <td data-label="生年月日・年齢"><BirthDateCell value={member.birthDate} age={age} /></td>
               </tr>;
             })}</tbody>
           </table>
