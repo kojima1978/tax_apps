@@ -532,7 +532,7 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
   }
 
   return <div className="modal-layer" role="presentation"><div className="modal bulk-position-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
-    <header><div><p className="eyebrow">BULK MANAGE</p><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要8種類）</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <header><div><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要8種類）</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <div className="bulk-modal-body">
       <section className="bulk-common-settings" aria-label="共通条件">
         {/* 種類は絞り込みではなく入力シートの切替。どこに何件あるかを一覧できるよう、選択式ではなくタブで出す。 */}

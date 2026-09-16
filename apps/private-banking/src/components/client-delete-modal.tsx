@@ -32,7 +32,7 @@ export function ClientDeleteModal({ household, snapshotCount, positionCount, err
     if (event.shiftKey && (document.activeElement === first || document.activeElement?.tagName === "H2")) { event.preventDefault(); last.focus(); }
     if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }}><div ref={dialogRef} className="modal delete-modal snapshot-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="client-delete-title" aria-describedby="client-delete-description">
-    <header><div><p className="eyebrow danger-eyebrow">DELETE CLIENT</p><h2 id="client-delete-title" tabIndex={-1}>{household.name}を削除しますか？</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <header><div><h2 id="client-delete-title" tabIndex={-1}>{household.name}を削除しますか？</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <form onSubmit={onSubmit}>
       <div className="snapshot-delete-warning"><AlertTriangle /><div><strong>この顧客のすべての年度・明細が削除されます</strong><p id="client-delete-description">この操作は取り消せません。必要な場合は、先にバックアップ画面からこの顧客のデータを書き出してください。</p></div></div>
       {error ? <p className="client-modal-error" role="alert"><AlertTriangle />{error}</p> : null}

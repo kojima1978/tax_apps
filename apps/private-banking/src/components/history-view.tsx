@@ -53,7 +53,7 @@ export function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnaps
   }
 
   return <>
-    <section className="page-heading history-page-heading"><div><p className="eyebrow">ANNUAL COMPARISON</p><h2>3年度比較</h2></div><button className="button primary" onClick={onCreate} disabled={saving}><Plus />年度を追加</button></section>
+    <section className="page-heading history-page-heading"><div><h2>3年度比較</h2></div><button className="button primary" onClick={onCreate} disabled={saving}><Plus />年度を追加</button></section>
     <section className="panel table-panel trend-panel" aria-labelledby="trend-table-title">
       <PanelHeader title="3年度推移表" />
       {snapshots.length < 3 ? <p className="trend-guidance">3年度比較には、あと{3 - snapshots.length}年度分の登録が必要です。</p> : null}

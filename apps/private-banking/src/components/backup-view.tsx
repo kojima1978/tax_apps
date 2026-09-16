@@ -91,7 +91,7 @@ function HouseholdBackup({ portfolio: { household, snapshots, familyMembers } }:
   ];
 
   return <>
-    <BackupHeading eyebrow="BACKUP" description="この顧客のデータをJSONファイルへ書き出します。" />
+    <BackupHeading description="この顧客のデータをJSONファイルへ書き出します。" />
     <article className="panel backup-single">
       <PanelHeader title="この顧客のバックアップ" subtitle="別の環境へ移すとき・作業前に退避するときに使います" />
       <div className="backup-body">
@@ -136,7 +136,7 @@ function GlobalBackup() {
   useEffect(() => { void loadClients(); }, [loadClients]);
 
   return <>
-    <BackupHeading eyebrow="BACKUP & RESTORE" description="データをJSONファイルへ書き出し、必要なときに復元します。" />
+    <BackupHeading description="データをJSONファイルへ書き出し、必要なときに復元します。" />
     {/* よく使う個別を上、めったに使わない全体を下に置く。 */}
     <div className="backup-grid backup-grid-stacked">
       <article className="panel">
@@ -179,8 +179,8 @@ function GlobalBackup() {
   </>;
 }
 
-function BackupHeading({ eyebrow, description }: { eyebrow: string; description: string }) {
-  return <section className="page-heading"><div><p className="eyebrow">{eyebrow}</p><h2>バックアップ</h2><p>{description}</p></div></section>;
+function BackupHeading({ description }: { description: string }) {
+  return <section className="page-heading"><div><h2>バックアップ</h2><p>{description}</p></div></section>;
 }
 
 /** ファイル選択→内容の確認→復元（または取り込み）までの一連の操作。 */
@@ -289,7 +289,7 @@ function BackupConfirmModal({ preview, fileName, busy, error, onClose, onConfirm
 }) {
   const isFull = preview.kind === "full";
   return <div className="modal-layer" role="presentation"><div className="modal delete-modal" role="dialog" aria-modal="true" aria-labelledby="backup-confirm-title">
-    <header><div><p className={`eyebrow ${isFull ? "danger-eyebrow" : ""}`}>{isFull ? "RESTORE ALL" : "IMPORT CLIENT"}</p><h2 id="backup-confirm-title">{isFull ? "全データを置き換えますか？" : "新規顧客として取り込みますか？"}</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={busy}><X /></button></header>
+    <header><div><h2 id="backup-confirm-title">{isFull ? "全データを置き換えますか？" : "新規顧客として取り込みますか？"}</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={busy}><X /></button></header>
     <div className="delete-modal-body">
       <p>{isFull
         ? "現在登録されているすべての顧客・年度・明細を削除し、選択したファイルの内容へ置き換えます。この操作は取り消せません。"

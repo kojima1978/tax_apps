@@ -281,7 +281,7 @@ function ClientCreateModal({ error, saving, onClose, onSubmit }: {
   }
 
   return <div className="modal-layer" role="presentation"><div className="modal client-switcher-modal" role="dialog" aria-modal="true" aria-labelledby="client-create-title">
-    <header><div><p className="eyebrow">CLIENTS</p><h2 id="client-create-title">顧客を追加</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <header><div><h2 id="client-create-title">顧客を追加</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <form className="client-create-form" onSubmit={onSubmit}>
       <p className="client-modal-guidance">新しい顧客専用の貸借対照表を作成します。既存顧客のデータとは分離して保存されます。</p>
       {error ? <p className="client-modal-error" role="alert"><AlertTriangle />{error}</p> : null}

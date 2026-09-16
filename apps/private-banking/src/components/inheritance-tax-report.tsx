@@ -141,7 +141,6 @@ export function InheritanceTaxReport({
   return <section className="inheritance-tax-report" aria-labelledby="inheritance-tax-report-title">
     <header className="inheritance-tax-report-heading">
       <div>
-        <p className="eyebrow">INHERITANCE TAX ESTIMATE</p>
         <h2 id="inheritance-tax-report-title">相続税の概算</h2>
       </div>
       <dl>

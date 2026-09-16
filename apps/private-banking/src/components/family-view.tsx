@@ -118,7 +118,6 @@ export function FamilyView({
   return <>
     <section className="page-heading detail-page-heading">
       <div>
-        <p className="eyebrow">FAMILY RELATIONSHIP</p>
         <h2>親族関係</h2>
         <p>相続人の構成と法定相続分を管理します。年齢はB/S基準日時点です。</p>
       </div>
@@ -171,7 +170,7 @@ export function FamilyView({
       <div className="modal-layer" role="presentation">
         <div className="modal family-editor-modal" role="dialog" aria-modal="true" aria-labelledby="family-editor-title">
           <header>
-            <div><p className="eyebrow">FAMILY INFORMATION</p><h2 id="family-editor-title">家族情報の入力</h2></div>
+            <div><h2 id="family-editor-title">家族情報の入力</h2></div>
             <button type="button" className="icon-button" aria-label="閉じる" onClick={() => setEditing(false)} disabled={saving}><X /></button>
           </header>
           <form onSubmit={submit}>

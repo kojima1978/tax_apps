@@ -24,7 +24,7 @@ export function PersonFamilyPrintView({
 
   return <section className="print-person-family-section">
     <header className="detail-page-heading">
-      <div><p className="eyebrow">PERSONAL &amp; FAMILY INFORMATION</p><h2>本人・家族情報</h2></div>
+      <div><h2>本人・家族情報</h2></div>
     </header>
 
     <article className="panel print-profile-panel">

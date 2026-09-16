@@ -26,7 +26,6 @@ export function PersonView({
   return <>
     <section className="page-heading detail-page-heading">
       <div>
-        <p className="eyebrow">PERSONAL INFORMATION</p>
         <h2>本人情報</h2>
         <p>顧客本人の基本情報を管理します。</p>
       </div>
