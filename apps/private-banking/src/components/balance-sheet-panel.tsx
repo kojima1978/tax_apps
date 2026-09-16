@@ -69,7 +69,7 @@ export function BalanceSheetPanel({ view, headingSuffix, subtitle, ownerName, li
           <div className="bs-account-heading"><span>税金</span><strong><BsAmount value={displayedTaxes} total={displayedAssetTotal} /></strong></div>
           <BsSubtotals items={subtotals.taxes} total={displayedAssetTotal} />
         </div> : null}
-        {liabilityAccounts.map((account) => <div key={account.label} className={`bs-account medium-liability grouped-account ${accountDensity(account.value, fundingAreaTotal)}`} style={{ height: areaHeight(account.value, fundingAreaTotal) }}>
+        {liabilityAccounts.map((account) => <div key={account.label} className={`bs-account liability-account grouped-account ${accountDensity(account.value, fundingAreaTotal)}`} style={{ height: areaHeight(account.value, fundingAreaTotal) }}>
           <div className="bs-account-heading"><span>{account.label}</span><strong><BsAmount value={account.value} total={displayedAssetTotal} /></strong></div>
           <BsSubtotals items={account.items} total={displayedAssetTotal} />
         </div>)}
