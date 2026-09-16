@@ -198,15 +198,39 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .funding-side > footer { color: #166534; background: #dcfce7; }
 .classified-bs-side > footer span { font-size: 11px; font-weight: 700; }
 .classified-bs-side > footer strong { font-family: inherit; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bs-small-area-key { margin: 8px 32px 0; padding: 7px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: var(--slate-600); font-variant-numeric: tabular-nums; }
-.bs-small-area-key-title { margin-right: auto; color: var(--slate-500); font-size: 10px; font-weight: 700; letter-spacing: .08em; }
-.bs-small-area-key-item { min-width: 0; display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
-.bs-small-area-key-item small { color: var(--slate-500); font-size: 9px; }
-.bs-small-area-key-item strong { color: var(--navy-950); font-size: 11px; }
-.bs-small-area-key-item b { color: var(--navy-950); font-size: 11px; font-weight: 700; }
-.bs-small-area-key-item em { color: var(--slate-500); font-size: 9px; font-style: normal; font-weight: 600; }
-/* 小分類の枠外注記は印刷専用。画面は区画に余裕があり枠内で読める。 */
-.bs-subtotal-note { display: none; }
+/* 面積が足りない区画の注記。画面・印刷は表の外側のレーンへ引き出し線で、スマホは番号の印と一覧で示す。 */
+.classified-bs { --callout-lane: 150px; }
+.classified-bs.has-asset-callouts { padding-left: calc(var(--callout-lane) + 30px); }
+.classified-bs.has-funding-callouts { padding-right: calc(var(--callout-lane) + 30px); }
+.bs-account-area { position: relative; }
+.bs-callout-lane { position: absolute; top: 0; bottom: 0; width: var(--callout-lane); pointer-events: none; }
+.bs-callout-lane.asset-lane { right: calc(100% + 1px); }
+.bs-callout-lane.funding-lane { left: calc(100% + 1px); }
+.bs-callout-lane svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.bs-callout-lane path { fill: none; stroke: #94a3b8; stroke-width: 1; }
+.bs-callout-lane path.is-active { stroke: #c2410c; stroke-width: 2; }
+.bs-callout { position: absolute; margin-top: -6.5px; display: flex; flex-direction: column; line-height: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: auto; cursor: default; }
+.asset-lane .bs-callout { right: 20%; align-items: flex-end; text-align: right; padding-right: 3px; }
+.funding-lane .bs-callout { left: 20%; align-items: flex-start; padding-left: 3px; }
+.bs-callout strong { color: var(--navy-950); font-size: 11px; font-weight: 800; }
+.bs-callout strong b { margin-right: 2px; color: var(--slate-500); font-weight: 700; }
+.bs-callout span { color: var(--navy-950); font-size: 11px; font-weight: 700; }
+.bs-callout em { margin-left: 4px; color: var(--slate-500); font-size: 9px; font-style: normal; font-weight: 600; }
+.bs-callout small { color: var(--slate-700); font-size: 10px; }
+.bs-callout.is-active strong, .bs-callout.is-active strong b { color: #c2410c; }
+.bs-account.is-callout-active { outline: 2px solid #c2410c; outline-offset: -2px; }
+/* 番号の印と番号一覧はスマホ専用（下の max-width: 600px で表示する）。 */
+.bs-callout-marker { position: absolute; right: 4px; z-index: 1; min-width: 16px; height: 16px; margin-top: -8px; border-radius: 8px; color: white; background: #475569; display: none; place-items: center; font-size: 10px; font-weight: 700; line-height: 1; pointer-events: none; }
+.bs-callout-marker.is-active { background: #c2410c; }
+.bs-callout-list { margin: 8px 14px 0; padding: 7px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: none; flex-direction: column; gap: 5px; color: var(--slate-600); font-variant-numeric: tabular-nums; }
+.bs-callout-list-item { min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px; }
+.bs-callout-list-item b { color: var(--slate-500); font-size: 12px; font-weight: 700; }
+.bs-callout-list-item small { color: var(--slate-500); font-size: 9px; }
+.bs-callout-list-item strong { color: var(--navy-950); font-size: 11px; }
+.bs-callout-list-item span { color: var(--navy-950); font-size: 11px; font-weight: 700; }
+.bs-callout-list-item em { margin-left: 4px; color: var(--slate-500); font-size: 9px; font-style: normal; font-weight: 600; }
+.bs-callout-list-item .bs-callout-list-items { width: 100%; padding-left: 18px; color: var(--slate-700); font-size: 10px; }
+.bs-callout-list-item.is-active b, .bs-callout-list-item.is-active strong { color: #c2410c; }
 .guarantee-note { margin: 8px 32px 18px; color: var(--slate-500); font-size: 11px; text-align: right; }
 .guarantee-note strong { margin-left: 3px; color: var(--slate-700); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .table-panel { min-width: 0; max-width: 100%; margin-bottom: 18px; overflow: hidden; }
@@ -958,8 +982,10 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .annual-year-status { width: 100%; margin-left: 0; }
   .classified-bs { height: auto; padding: 18px 14px 0; grid-template-columns: 1fr; gap: 10px; }
   .classified-bs-side { height: 720px; min-height: 720px; }
-  .bs-small-area-key { margin-inline: 14px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-start; }
-  .bs-small-area-key-title { width: 100%; }
+  .classified-bs.has-asset-callouts, .classified-bs.has-funding-callouts { padding-inline: 14px; }
+  .bs-callout-lane { display: none; }
+  .bs-callout-marker { display: grid; }
+  .bs-callout-list { display: flex; }
   .bs-account, .bs-account.grouped-account, .bs-account.compact-account { min-height: 0; }
   .guarantee-note { margin: 8px 16px 18px; text-align: left; }
   .panel-header { align-items: flex-start; flex-direction: column; gap: 10px; }
@@ -1205,9 +1231,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .balance-panel .panel-header { min-height: 42px; padding: 7px 12px; }
   .balance-panel .panel-header h3 { font-size: 14px; }
   .balance-panel .panel-header p { font-size: 10.5px; }
-  .classified-bs { height: 120mm; padding: 9px 14px 0; gap: 9px; }
+  .classified-bs { --callout-lane: 130px; height: 120mm; padding: 9px 14px 0; gap: 9px; }
+  .classified-bs.has-asset-callouts { padding-left: calc(var(--callout-lane) + 14px); }
+  .classified-bs.has-funding-callouts { padding-right: calc(var(--callout-lane) + 14px); }
   .classified-bs, .classified-bs-side, .classified-bs-side > div, .bs-account, .bs-account-heading, .bs-subtotals, .bs-subtotals > div { min-width: 0; max-width: 100%; box-sizing: border-box; }
-  .classified-bs-side { overflow: hidden; }
+  /* 引き出し線とラベルは表の外に置くので、切り取らない。 */
+  .classified-bs-side { overflow: visible; }
   .classified-bs-side h4 { padding: 5px 9px; }
   .classified-bs-side h4 span { min-width: 0; max-width: 100%; font-size: 11.5px; white-space: normal; overflow-wrap: anywhere; }
   .bs-account, .bs-account.grouped-account { padding: 3px 9px; }
@@ -1228,12 +1257,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .classified-bs-side > footer { min-height: 26px; padding: 4px 9px; }
   .classified-bs-side > footer span { font-size: 10.5px; }
   .classified-bs-side > footer strong { font-size: 13.5px; }
-  .bs-small-area-key { margin: 4px 14px 0; padding: 3px 0; gap: 7px; }
-  .bs-subtotal-note { margin: 4px 14px 0; padding: 3px 0; border-top: 1px solid var(--line); display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; font-variant-numeric: tabular-nums; }
-  .bs-subtotal-note-title { width: 100%; color: #5b6660; font-size: 8.5px; font-weight: 700; letter-spacing: .08em; }
-  .bs-subtotal-note-item { min-width: 0; display: inline-flex; align-items: baseline; gap: 5px; }
-  .bs-subtotal-note-item strong { color: var(--navy-950); font-size: 9.5px; font-weight: 800; }
-  .bs-subtotal-note-item > span { color: #4b5751; font-size: 8.5px; font-weight: 600; }
+  .bs-callout { margin-top: -5.5px; line-height: 11px; }
+  .bs-callout strong, .bs-callout span { font-size: 9.5px; }
+  .bs-callout small, .bs-callout em { font-size: 8.5px; }
+  .bs-account.is-callout-active { outline: 0; }
+  .bs-callout-lane path.is-active { stroke: #94a3b8; stroke-width: 1; }
+  .bs-callout-marker, .bs-callout-list { display: none !important; }
   .guarantee-note { margin: 4px 15px 7px; font-size: 8.5px; }
   .guarantee-note strong { font-size: 9.5px; }
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { BalanceScenarioActions, BalanceSheetPanel } from "@/components/balance-sheet-panel";
 import { buildBalanceView, loanBreakdownTotals, successionAssetTotals } from "@/lib/balance-view";
@@ -45,12 +45,13 @@ function renderPanel(scenario: BalanceScenario, overrides: Partial<Parameters<ty
   return view;
 }
 
-// 中分類名は区画と枠外注記の両方に出るので、区画を見るときは B/S 本体に絞る。
+// 中分類名は区画と番号一覧の両方に出るので、区画を見るときは B/S 本体に絞る。
 const chart = () => within(document.querySelector(".classified-bs") as HTMLElement);
 
-/** 区画の高さは金額比そのままなので、style から比率を読んで検証する。 */
+/** 区画の高さは金額比そのままなので、style から比率を読んで検証する。注記ラベルと取り違えないよう区画の見出しで探す。 */
 const areaOf = (label: string) => {
-  const area = chart().getByText(label).closest(".bs-account") as HTMLElement;
+  const area = [...document.querySelectorAll<HTMLElement>(".classified-bs .bs-account")].find((element) => element.querySelector("span")?.textContent === label);
+  if (!area) throw new Error(`区画が見つからない: ${label}`);
   return { area, height: area.style.height };
 };
 
@@ -67,8 +68,8 @@ describe("BalanceSheetPanel", () => {
     renderPanel("with-tax");
     expect(screen.getByLabelText("貸借対照表・税金あり")).toBeTruthy();
     expect(chart().getByText("生命保険（死亡保険金）")).toBeTruthy();
-    expect(chart().getByText("税金")).toBeTruthy();
-    expect(chart().getByText("承継関連費用")).toBeTruthy();
+    expect(areaOf("税金").area).toBeTruthy();
+    expect(areaOf("承継関連費用").area).toBeTruthy();
     expect(screen.getByText("資産合計").nextElementSibling?.textContent).toBe("1億5,000万円");
   });
 
@@ -86,6 +87,32 @@ describe("BalanceSheetPanel", () => {
     // 承継関連費用は3.3%なので compact、純資産は66.7%なので詰めない。
     expect(areaOf("承継関連費用").area.className).toContain("compact-account");
     expect(areaOf("純資産").area.className).toMatch(/^(?!.*(micro|compact|dense)-account).*$/);
+  });
+
+  it("面積の小さい区画は、表の外の注記ラベルと番号一覧に金額つきで出す", () => {
+    renderPanel("with-tax");
+    const lane = document.querySelector(".bs-callout-lane.funding-lane") as HTMLElement;
+    expect(lane.querySelectorAll("path")).toHaveLength(1);
+    expect(within(lane).getByText("承継関連費用").closest(".bs-callout")?.textContent).toBe("①承継関連費用500万円3.3%");
+    expect(document.querySelector(".classified-bs")?.className).toBe("classified-bs has-funding-callouts");
+    const list = screen.getByRole("note", { name: "小さい区画・枠内に収まらない内訳の一覧" });
+    expect(within(list).getByText("承継関連費用").closest(".bs-callout-list-item")?.textContent).toBe("①負債・純資産承継関連費用500万円3.3%");
+  });
+
+  it("注記が無いときはレーンも番号一覧も出さない", () => {
+    renderPanel("without-tax");
+    expect(document.querySelector(".bs-callout-lane")).toBeNull();
+    expect(screen.queryByRole("note", { name: "小さい区画・枠内に収まらない内訳の一覧" })).toBeNull();
+  });
+
+  it("注記ラベルに触れると、対応する区画と引き出し線を強調する", () => {
+    renderPanel("with-tax");
+    const label = document.querySelector(".bs-callout") as HTMLElement;
+    fireEvent.pointerEnter(label);
+    expect(areaOf("承継関連費用").area.className).toContain("is-callout-active");
+    expect(document.querySelector(".bs-callout-lane path")?.getAttribute("class")).toBe("is-active");
+    fireEvent.pointerLeave(label);
+    expect(areaOf("承継関連費用").area.className).not.toContain("is-callout-active");
   });
 
   it("死亡給付金が未入力の明細があるときだけ、税金ありB/Sで注意書きを出す", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBalanceView, loanBreakdownTotals, successionAssetTotals } from "@/lib/balance-view";
+import { buildBalanceView, layoutCallouts, loanBreakdownTotals, successionAssetTotals } from "@/lib/balance-view";
 import { type Position, totals } from "@/lib/portfolio-view";
 
 const asset = (category: string, valueJpy: number, assetDetails: Position["assetDetails"] = null) =>
@@ -138,31 +138,57 @@ describe("buildBalanceView", () => {
     expect(view("with-tax").subtotals.financial.map((item) => item.label)).toEqual(["預金", "生命保険（死亡保険金）"]);
   });
 
-  it("面積比4%未満の区画だけを小区画の注記に回す", () => {
+  it("面積比4%未満の区画だけを、金額つきの注記に回す", () => {
     const result = view("with-tax");
-    // 承継関連費用 500万円 ÷ 1億5,000万円 = 3.3%
-    expect(result.smallAreaItems.map((item) => item.label)).toEqual(["承継関連費用"]);
+    // 承継関連費用 500万円 ÷ 1億5,000万円 = 3.3%。税金（10%）・借入金（20%）の上に積まれた位置の中央から線を引く。
+    expect(result.callouts).toHaveLength(1);
+    expect(result.callouts[0]).toMatchObject({ no: 1, key: "successionCosts", side: "funding", showAmount: true, items: [] });
+    expect(result.callouts[0].anchor).toBeCloseTo((0.1 + 0.2 + 5 / 150 / 2) * 100);
   });
 
-  it("小分類が枠内に収まらない中分類だけ、内訳を枠外注記へ回す", () => {
+  it("小分類が枠内に収まらない中分類は、内訳ごと注記に回す", () => {
     // 税金300万円は区画420pxのうち8.4pxしか取れず、小分類2行に必要な 18+22px に届かない。
     const result = view("with-tax", { estimatedInheritanceTax: 2_000_000, otherTaxes: 1_000_000 });
-    expect(result.clippedSubtotals.map((account) => account.label)).toEqual(["税金"]);
+    expect(result.callouts.map((callout) => callout.label)).toEqual(["税金", "承継関連費用"]);
+    expect(result.callouts.map((callout) => callout.no)).toEqual([1, 2]);
+    expect(result.callouts[0].items.map((item) => item.label)).toEqual(["相続税", "その他税金"]);
     // 金融資産（252px）と借入金（84px）は面積が十分なので枠内に描く。
-    expect(result.clippedSubtotals.some((account) => account.label === "金融資産" || account.label === "借入金")).toBe(false);
+    expect(result.callouts.some((callout) => callout.label === "金融資産" || callout.label === "借入金")).toBe(false);
+  });
+
+  it("注記ラベルは区画の中央の高さに置き、表の上端からははみ出さない", () => {
+    const result = view("with-tax", { estimatedInheritanceTax: 2_000_000, otherTaxes: 1_000_000 });
+    const [tax, costs] = result.callouts;
+    // 税金は上端（中央1%）にあるので、1行目の中央（6px ÷ 420px）まで下げる。
+    expect(tax.labelY).toBeCloseTo(6 / 420 * 100);
+    expect(costs.labelY).toBeCloseTo(costs.anchor);
   });
 
   it("その他負債は借入金と別の区画にし、登録が無ければ区画を出さない", () => {
-    expect(view("without-tax").liabilityAccounts.map((account) => account.label)).toEqual(["借入金"]);
+    expect(view("without-tax").fundingAccounts.map((account) => account.label)).toEqual(["借入金", "純資産"]);
     const withOther = [...positions, liability("DEPOSITS_RECEIVED", 10_000_000)];
     const result = buildBalanceView({
       scenario: "without-tax", summary: totals(withOther), successionAssets: successionAssetTotals(withOther), loanBreakdown: loanBreakdownTotals(withOther),
       estimatedInheritanceTax: 0, otherTaxes: 0, successionCosts: 0,
     });
-    expect(result.liabilityAccounts).toEqual([
+    expect(result.fundingAccounts.filter((account) => account.items).map(({ label, value, items }) => ({ label, value, items }))).toEqual([
       { label: "借入金", value: 30_000_000, items: [{ label: "住宅ローン", value: 30_000_000 }] },
       { label: "その他負債", value: 10_000_000, items: [{ label: "預り敷金・保証金", value: 10_000_000 }] },
     ]);
     expect(result.displayedNetWorth).toBe(70_000_000);
+  });
+});
+
+describe("layoutCallouts", () => {
+  it("重ならなければ希望の位置のまま置く", () => {
+    expect(layoutCallouts([{ top: 10, height: 5 }, { top: 40, height: 5 }])).toEqual([10, 40]);
+  });
+
+  it("重なるラベルは前のラベルの下へ押し下げる", () => {
+    expect(layoutCallouts([{ top: 10, height: 8 }, { top: 12, height: 8 }])).toEqual([10, 18]);
+  });
+
+  it("下端からはみ出す分は上へ詰める", () => {
+    expect(layoutCallouts([{ top: 90, height: 8 }, { top: 95, height: 8 }])).toEqual([84, 92]);
   });
 });

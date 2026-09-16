@@ -11,6 +11,62 @@ export type SuccessionAssets = ReturnType<typeof successionAssetTotals>;
 export type LoanBreakdown = ReturnType<typeof loanBreakdownTotals>;
 export type BalanceView = ReturnType<typeof buildBalanceView>;
 
+type BsItem = { label: string; value: number };
+/** 貸借対照表の区画1つ。`items` がある区画は小分類つき、無い区画は補足文（caption）つきで描く。 */
+export type BsAccount = { key: string; label: string; value: number; tone: string; items?: BsItem[]; caption?: string; captionClassName?: string };
+export type BsSide = "asset" | "funding";
+export type BsCallout = BalanceView["callouts"][number];
+
+/** 印刷時の区画エリアの高さ(px)。一番狭い印刷に合わせて、小分類が枠内に収まるか・注記ラベルが重なるかを判定する。 */
+const PRINT_AREA_HEIGHT = 420;
+/** これ未満の面積比の区画は、文字が読めないので枠外へ注記する。 */
+const SMALL_AREA_RATIO = 0.04;
+/** 注記ラベル1行分の高さ(px・印刷基準)と、ラベル同士の最小の隙間。 */
+const CALLOUT_LINE_HEIGHT = 12;
+const CALLOUT_GAP = 4;
+const toAreaPercent = (px: number) => px / PRINT_AREA_HEIGHT * 100;
+
+/**
+ * 注記ラベルを重ならないように縦へ並べる。位置・高さはすべて区画エリアに対する%。
+ * 上から順に前のラベルの下へ押し出し、下端からはみ出した分は下から順に上へ戻す。
+ */
+export function layoutCallouts(labels: ReadonlyArray<{ top: number; height: number }>, limit = 100) {
+  const tops = labels.map((label) => Math.max(0, label.top));
+  for (let index = 1; index < tops.length; index += 1) {
+    tops[index] = Math.max(tops[index], tops[index - 1] + labels[index - 1].height);
+  }
+  for (let index = tops.length - 1; index >= 0; index -= 1) {
+    const bottom = index === tops.length - 1 ? limit : tops[index + 1];
+    tops[index] = Math.max(0, Math.min(tops[index], bottom - labels[index].height));
+  }
+  return tops;
+}
+
+/**
+ * 片側（資産 / 負債・純資産）の区画から、枠外へ引き出し線で注記する区画を選び、ラベル位置を決める。
+ * 面積の小さい区画は科目名と金額を、小分類が枠内に収まらない区画は内訳を注記する。
+ */
+function sideCallouts(side: BsSide, accounts: ReadonlyArray<BsAccount>, areaTotal: number) {
+  let offset = 0;
+  const candidates = accounts.flatMap((account) => {
+    const ratio = Math.abs(account.value) / Math.max(areaTotal, 1);
+    // 引き出し線の起点は区画の縦方向の中央。区画は上から金額比の高さで積んでいる。
+    const anchor = (offset + ratio / 2) * 100;
+    offset += ratio;
+    const items = account.items ?? [];
+    const small = ratio < SMALL_AREA_RATIO;
+    // 1区画に必要な高さは 見出し18px ＋ 小分類1行11px。
+    const clipped = items.length > 0 && ratio * PRINT_AREA_HEIGHT < 18 + items.length * 11;
+    if (!small && !clipped) return [];
+    return [{ key: account.key, label: account.label, value: account.value, showAmount: small, items: clipped ? items : [], anchor }];
+  });
+  const heights = candidates.map((callout) => toAreaPercent((1 + (callout.showAmount ? 1 : 0) + callout.items.length) * CALLOUT_LINE_HEIGHT + CALLOUT_GAP));
+  // ラベルの1行目の中央を区画の中央にそろえるのが理想位置（重ならなければ線は水平になる）。
+  const firstLineCenter = toAreaPercent(CALLOUT_LINE_HEIGHT / 2);
+  const tops = layoutCallouts(candidates.map((callout, index) => ({ top: callout.anchor - firstLineCenter, height: heights[index] })));
+  return candidates.map((callout, index) => ({ ...callout, side, labelY: tops[index] + firstLineCenter }));
+}
+
 /** 中分類（金融資産・不動産・事業用資産）ごとの資産集計。貸借対照表の区画はこの数値で高さを決める。 */
 export function successionAssetTotals(positions: Position[]) {
   let deposits = 0, securities = 0, insurance = 0, insuranceDeathBenefit = 0, retirementAllowance = 0, retirementDeathBenefit = 0, deemedBenefitMissingCount = 0, privateShares = 0, businessAssets = 0, loanReceivables = 0;
@@ -94,17 +150,6 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
   const forecastAdjustments = displayedTaxes + displayedSuccessionCosts;
   const displayedNetWorth = displayedAssetTotal - summary.liabilities - forecastAdjustments;
   const fundingAreaTotal = summary.liabilities + forecastAdjustments + Math.abs(displayedNetWorth);
-  const smallAreaItems = [
-    { side: "資産", label: "金融資産", value: displayedAssets.financial, areaTotal: displayedAssetTotal },
-    { side: "資産", label: "不動産", value: displayedAssets.realEstate, areaTotal: displayedAssetTotal },
-    { side: "資産", label: "事業用資産", value: displayedAssets.business, areaTotal: displayedAssetTotal },
-    { side: "資産", label: "その他資産", value: displayedAssets.otherAssets, areaTotal: displayedAssetTotal },
-    { side: "負債・純資産", label: "税金", value: displayedTaxes, areaTotal: fundingAreaTotal },
-    { side: "負債・純資産", label: "借入金", value: loanBreakdown.borrowings, areaTotal: fundingAreaTotal },
-    { side: "負債・純資産", label: "その他負債", value: loanBreakdown.otherLiabilities, areaTotal: fundingAreaTotal },
-    { side: "負債・純資産", label: "承継関連費用", value: displayedSuccessionCosts, areaTotal: fundingAreaTotal },
-    { side: "負債・純資産", label: "純資産", value: displayedNetWorth, areaTotal: fundingAreaTotal },
-  ].filter((item) => item.value !== 0 && Math.abs(item.value) / Math.max(item.areaTotal, 1) < 0.04);
   // 小分類は枠内描画と枠外注記の両方から使うので、JSX に直書きせずデータで持つ。
   const nonZero = (items: { label: string; value: number }[]) => items.filter((item) => item.value !== 0);
   const subtotals = {
@@ -142,22 +187,23 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
       { label: "預り敷金・保証金", value: loanBreakdown.depositsReceived },
     ]),
   };
-  // 区画の高さは金額比そのままなので、比率が小さい中分類では小分類が枠外にはみ出して切れる。
-  // 印刷時の区画エリアは約420px、1区画に必要な高さは 見出し18px ＋ 小分類1行11px。
-  // 収まらない中分類だけ、小分類を枠外注記へ回す。
-  const clippedSubtotals = [
-    { side: "資産", label: "金融資産", value: displayedAssets.financial, areaTotal: displayedAssetTotal, items: subtotals.financial },
-    { side: "資産", label: "不動産", value: displayedAssets.realEstate, areaTotal: displayedAssetTotal, items: subtotals.realEstate },
-    { side: "資産", label: "事業用資産", value: displayedAssets.business, areaTotal: displayedAssetTotal, items: subtotals.business },
-    { side: "負債・純資産", label: "税金", value: displayedTaxes, areaTotal: fundingAreaTotal, items: subtotals.taxes },
-    { side: "負債・純資産", label: "借入金", value: loanBreakdown.borrowings, areaTotal: fundingAreaTotal, items: subtotals.loans },
-    { side: "負債・純資産", label: "その他負債", value: loanBreakdown.otherLiabilities, areaTotal: fundingAreaTotal, items: subtotals.otherLiabilities },
-  ].filter((account) => account.value !== 0 && account.items.length > 0
-    && Math.abs(account.value) / Math.max(account.areaTotal, 1) * 420 < 18 + account.items.length * 11);
-  // 借入金とその他負債は区画を分けて描く（その他負債は0円なら区画を出さない）。
-  const liabilityAccounts = [
-    { label: "借入金", value: loanBreakdown.borrowings, items: subtotals.loans },
-    { label: "その他負債", value: loanBreakdown.otherLiabilities, items: subtotals.otherLiabilities },
-  ].filter((account) => account.value !== 0);
-  return { taxIncluded, liabilityAccounts, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, smallAreaItems, subtotals, clippedSubtotals };
+  const nonZeroAccount = (account: BsAccount) => account.value !== 0;
+  // 区画は上から積む順に並べる。借入金とその他負債は区画を分ける（0円の区画は出さない）。
+  const assetAccounts: BsAccount[] = [
+    { key: "financial", label: "金融資産", value: displayedAssets.financial, tone: "financial-account", items: subtotals.financial },
+    { key: "realEstate", label: "不動産", value: displayedAssets.realEstate, tone: "real-estate-account", items: subtotals.realEstate },
+    { key: "business", label: "事業用資産", value: displayedAssets.business, tone: "business-account", items: subtotals.business },
+    { key: "otherAssets", label: "その他資産", value: displayedAssets.otherAssets, tone: "other-account" },
+  ].filter(nonZeroAccount);
+  const fundingAccounts: BsAccount[] = [
+    { key: "taxes", label: "税金", value: displayedTaxes, tone: "tax-account", items: subtotals.taxes },
+    { key: "loans", label: "借入金", value: loanBreakdown.borrowings, tone: "liability-account", items: subtotals.loans },
+    { key: "otherLiabilities", label: "その他負債", value: loanBreakdown.otherLiabilities, tone: "liability-account", items: subtotals.otherLiabilities },
+    { key: "successionCosts", label: "承継関連費用", value: displayedSuccessionCosts, tone: "forecast-account", caption: "承継時の諸費用", captionClassName: "bs-subcategories" },
+    { key: "netWorth", label: "純資産", value: displayedNetWorth, tone: "net-assets", caption: taxIncluded ? "資産 − 負債 − 税金等" : "資産 − 負債" },
+  ].filter(nonZeroAccount);
+  // 注記番号は資産側から通し番号にする（画面の引き出し線・スマホの番号付き一覧で共通）。
+  const callouts = [...sideCallouts("asset", assetAccounts, displayedAssetTotal), ...sideCallouts("funding", fundingAccounts, fundingAreaTotal)]
+    .map((callout, index) => ({ ...callout, no: index + 1 }));
+  return { taxIncluded, assetAccounts, fundingAccounts, callouts, displayedAssets, displayedAssetTotal, displayedTaxes, displayedSuccessionCosts, forecastAdjustments, displayedNetWorth, fundingAreaTotal, subtotals };
 }
