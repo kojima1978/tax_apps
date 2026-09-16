@@ -42,7 +42,6 @@ export function PrintFrontMatter({
 
       <section className="print-toc">
         <header>
-          <p>CONTENTS</p>
           <h2>目次</h2>
         </header>
         <ol>
@@ -53,10 +52,6 @@ export function PrintFrontMatter({
             </li>
           ))}
         </ol>
-        <footer>
-          <span>{household.name}</span>
-          <span>{fiscalYearLabel(snapshot)}・基準日 {dateJa(snapshot.asOfDate)}</span>
-        </footer>
       </section>
     </div>
   );
