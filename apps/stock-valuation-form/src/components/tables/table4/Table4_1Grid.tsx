@@ -124,7 +124,7 @@ const CELLS: GridCell[] = [
   ...mi('㋣', '㋣', 54.9, 2.68, 69.14, 92.43),
   { kind: 'label', text: '直 前 々 期', top: 57.58, left: 13.05, width: 6.25, height: 2.7 },
   ...ci('n56', 'G26', 57.58, 2.7, 21.19, 43.92, { calculationRequired: true }),
-  ...ci('n57', 'G28', 57.58, 2.7, 45.81, 67.24, { calculationRequired: true }),
+  ...ci('n57', 'G28', 57.58, 2.7, 45.81, 67.24, { calculationRequired: true, signedCommaInteger: true, commaInteger: false }),
   ...mi('㋠', '㋠', 57.58, 2.7, 69.14, 92.43),
   // ── 比準要素数1／0の会社の判定要素の金額（下部集約ブロック） ──
   { kind: 'label', text: '比 準 要 素 数 １ の 会 社 ・ 比 準 要 素 数 ０ の 会 社 の 判 定 要 素 の 金 額', top: 60.28, left: 9.67, width: 82.76, height: 2.46 },
