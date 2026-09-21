@@ -1,6 +1,6 @@
 # Tax Apps - docker/scripts ディレクトリ
 
-このディレクトリには Tax Apps の運用・バックアップ・監視を担う **18 ファイル** が含まれています。
+このディレクトリには Tax Apps の運用・バックアップ・監視を担う **24 ファイル**（`lib/` の2件を含む）が含まれています。
 
 詳しい操作手順は親ディレクトリの [`docker/README.md`](../README.md) を参照してください。本ファイルは scripts ディレクトリ内の各ファイルの役割を整理した目次です。
 
@@ -17,7 +17,14 @@
 ### 本体スクリプト
 
 - **`manage.sh`** ← **本体**
-  全アプリの起動・停止・再ビルド・ログ・状態確認・バックアップなどを統合管理する Bash 本体。13 個のアプリを正しい順序で起動・停止する。
+  全アプリの起動・停止・再ビルド・ログ・状態確認・バックアップなどを統合管理する Bash 本体。16 個のアプリを正しい順序で起動・停止する。
+  - `manage.sh test [app]`: **稼働中のコンテナの中で** テストを実行する。対象は冒頭の `TEST_TARGETS`
+    （`アプリ名:コンテナ名:コマンド`）で定義し、省略時は全件。ローカルに `node_modules` を作らないための経路で、
+    同じ一覧が `.github/workflows/ci.yml` の matrix と対になっている（**片方だけに足すと preflight が WARN を出す**）。
+  - `manage.sh prune`: 無人向けの掃除。**dangling イメージと古いビルドキャッシュだけ**を消す
+    （実体は `lib/ops-common.sh` の `ops_docker_prune`）。週次ドリルの最後からも同じ関数が呼ばれる。
+  - `manage.sh alert`: デスクトップの警告ファイルを `last-run` から作り直す（下記「失敗の見える化」）。
+    Docker に一切触れず操作ロックも取らないので、**エンジンが落ちている最中でも呼べる**。
 
 ### Windows 補助ラッパー
 
@@ -56,6 +63,34 @@
   - `BIND_TARGETS`: Bank Analyzer のアップロード、ITCM の Excel テンプレート（`.gitignore` 対象なので Git には無い）
   - `SETTINGS_TARGETS`: 各アプリの `.env`
 
+### 世代保持（GFS）
+
+保持は **日次7本 + 週次4本 + 月次6本**（`FULL_BACKUP_RETENTION_DAYS` /
+`WEEKLY_BACKUP_RETENTION_WEEKS` / `MONTHLY_BACKUP_RETENTION_MONTHS`）。
+
+日次7本だけでは「7日以内に気づけた障害」しか戻せない。取り込みミス・誤削除・DBの論理破損は
+静かに進むので、気づくまでに数週間かかることがあり、そのときには7本すべてが**壊れた後の状態**になっている。
+
+- 週次は各週（月曜起点）の最も新しい1本、月次は各月の最も新しい1本を「代表」として残す
+- 代表は日次と同じ実体を指すので、増える容量は**日次から落ちた代表のぶんだけ**
+- `pre-restore_*`（リストア直前の退避）は GFS の対象外で、従来どおり日数だけで消える
+
+### 外部コピー（別ドライブ／NAS）
+
+同じPCの `docker/backups/` にしか無いバックアップは、ドライブが壊れた瞬間にバックアップごと消える。
+ランサムウェアなら暗号化済みアーカイブごと持って行かれる。
+
+コピー先は **`~/.tax-apps/backup-external-dest`**（リポジトリ外のテキストファイル、1行目がパス）。
+
+- **未設定なら何もしない**。警告も記録も出さないので、使わない環境では存在しないのと同じ
+- 設定されているのに書けないときだけ `backup-external` に記録が残る
+  （`unavailable` = コピー先が見つからない / `failed` = コピーに失敗）。
+  「設定したつもりで効いていない」が一番危ないため
+- リポジトリ外に置くのは、**リポジトリが公開**で NAS 名やユーザー名を含むパスを載せられないから。
+  環境変数ではなくファイルなのは、スケジュールタスクが環境変数を持たずに起動するため
+  （`TAX_APPS_BACKUP_EXTERNAL_DEST` でも上書きできるが、手動実行向け）
+- コピー先でも同じ GFS で世代を絞る
+
 ### リストア訓練（drill）
 
 `verify` は「復号できてハッシュが一致する」ことまでしか保証しない。ダンプが本当にリストア可能な
@@ -66,6 +101,8 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 - SQLite: アーカイブを展開したコピーを稼働中コンテナの `/tmp` へ置き、readonly で開いて
   `integrity_check` とテーブル数を確認する（`better-sqlite3` がアプリイメージにしか無いため）。
 - **稼働中のDBには一切触れない**。ドリル用コンテナは `tax-apps-network` に繋がず、ポートも公開しない。
+- ドリルの最後に **Docker の掃除**（`ops_docker_prune`）がぶら下がっている。無人で走る週次タスクを
+  これ以上増やさないため ── タスクを1つ足すたびに「消えたのに誰も気づかない」対象が1つ増える。
 
 ### Windows 補助ラッパー
 
@@ -161,8 +198,8 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 
 ### 直近の実行結果（`docker/logs/last-run/`）
 
-無人で走るもの（`backup` / `drill` / `recover` / `watchdog`）は、終了時に成否を1件だけ
-`docker/logs/last-run/<名前>` へ書く。`status` と `preflight` が毎回これを読んで表示する。
+無人で走るもの（`backup` / `backup-external` / `drill` / `prune` / `recover` / `watchdog`）は、
+終了時に成否を1件だけ `docker/logs/last-run/<名前>` へ書く。`status` と `preflight` が毎回これを読んで表示する。
 
 ```
 status=ok
@@ -179,6 +216,33 @@ detail=daily ok=7 skipped=0
   （`docker-watchdog.ps1` の `Write-LastRunResult`）の両方から書くため **ASCII 固定**。
 - ロック待ちで諦めた回も `status=lock-timeout` として残る。**飛んだ回が記録に残らない**のが
   そもそもの問題だったため。
+- **見張る対象と鮮度のしきい値は `lib/ops-common.sh` の `OPS_WATCHED_RESULTS` 1箇所だけ**
+  （`名前:日本語ラベル:英語ラベル:これ以上古い成功は異常とみなす時間`）。以前は `status` と
+  `preflight` が別々に同じ表を持っていて、しかも preflight 側にはバックアップの行が無く、
+  `status=failed` でも preflight は素通りしていた。**無人処理を足したらここに1行足す**。
+- `backup-external` だけは「外部コピー先が設定されているときだけ見張る」
+  （`ops_watched_result_is_active`）。未設定は異常ではないため。
+
+### 失敗の見える化（デスクトップの警告ファイル）
+
+`last-run` に書くようにしたことで「飛んだ回」は残るようになったが、それが見えるのは
+`status` か `preflight` を**叩いた人だけ**で、毎日失敗し続けても画面には何も出ない。
+数ヶ月見逃した当のものがまさにこの状態だった。
+
+そこで異常が1件でもある間は、デスクトップに **`TAX-APPS-ALERT.txt`** を置き続ける。
+
+- 中身は `last-run` から毎回作り直す**派生物**。直れば次の自動実行で勝手に消えるので、
+  **消し忘れの嘘が残らない**
+- 異常の定義は「`status` が `ok` 以外」＝失敗、「最後の成功が古すぎる」＝停止。
+  **「一度も記録が無い」では出さない**（導入直後や未使用の項目で鳴り続けるため）
+- 内容が前回と変わったときだけ Windows のトースト通知を出す（`lib/notify-failure.ps1`）。
+  追加インストールは不要で、失敗しても運用は止めない
+- デスクトップの場所は OneDrive へリダイレクトされていることがあるので Windows に訊き、
+  結果を `docker/logs/desktop-path` に控える
+- `manage.sh alert` で手動でも作り直せる。**Docker に触れず操作ロックも取らない**ので、
+  エンジンが落ちている最中でも呼べる。`docker-watchdog.ps1` が終了直前に
+  `manage.bat alert` を呼ぶのはこのため ── 「Docker がそもそも上がらなかった」回は、
+  bash 側の処理が1つも走らないので、放っておくとウォッチドッグ自身の失敗が誰にも届かない
 
 ### 操作ロック（`manage.sh` / `backup.sh` 共通）
 
@@ -201,7 +265,7 @@ detail=daily ok=7 skipped=0
 
 | ファイル | 種別 | 役割 |
 |---|---|---|
-| `manage.sh` | 本体 (Bash) | 全アプリ統合管理 |
+| `manage.sh` | 本体 (Bash) | 全アプリ統合管理（起動・ビルド・テスト・掃除・preflight） |
 | `manage.bat` | 補助 (CMD) | manage.sh の Git Bash ラッパー |
 | `start-prod.bat` | ショートカット | 本番モード起動 |
 | `stop.bat` | ショートカット | 停止（削除はしない） |
@@ -220,7 +284,11 @@ detail=daily ok=7 skipped=0
 | `register-docker-watchdog-task.ps1` | 本体 (PS) | ウォッチドッグタスク登録 |
 | `register-docker-watchdog-task.bat` | 補助 (CMD) | 現在ユーザーへタスク登録（昇格不要） |
 | `unregister-docker-watchdog-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除（昇格不要） |
-| `lib/ops-common.sh` | 本体 (Bash) | manage.sh / backup.sh 共通の土台（ログ・操作ロック・直近結果） |
+| `register-startup-task.ps1` | 本体 (PS) | ログオン時の自動起動タスク登録 |
+| `register-startup-task.bat` | 補助 (CMD) | 現在ユーザーへタスク登録（昇格不要） |
+| `unregister-startup-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除（昇格不要） |
+| `lib/ops-common.sh` | 本体 (Bash) | manage.sh / backup.sh 共通の土台（ログ・操作ロック・直近結果・警告ファイル・掃除） |
+| `lib/notify-failure.ps1` | 本体 (PS) | Windows トースト通知（追加インストール不要・失敗しても運用を止めない） |
 
 ---
 
@@ -239,6 +307,9 @@ detail=daily ok=7 skipped=0
 | バックアップが復元できるか今すぐ試す | `restore-drill.bat` をダブルクリック |
 | 1日4回の Docker 監視を設定 | `register-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
+| テストを走らせる | `manage.bat test`（稼働中のコンテナの中で実行） |
+| バックアップを別ドライブ／NAS にも置く | `~/.tax-apps/backup-external-dest` の1行目にコピー先のパスを書く |
+| デスクトップの警告を消したい | 原因を直す。次の自動実行で消える（手動なら `manage.bat alert`） |
 
 ---
 

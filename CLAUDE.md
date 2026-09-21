@@ -42,6 +42,31 @@ compose を変えたら `manage.sh apply [app]` で反映する（`docker restar
   以前 `build` は base の `docker-compose.yml` 固定で、**本番稼働中のアプリを黙って
   dev サーバに作り替えていた**。モードを変えたいときだけ `start --prod` か個別の `-f` で叩くこと
 
+### Dockerfile（非 root）
+
+**`dev` ステージも本番と同じ非 root で動かす**。dev だけ root だと、コンテナ内から作られた
+ファイルが root 所有でホスト側に残り、本番（非 root）から触れなくなる。書き方は共通:
+
+```dockerfile
+COPY --chown=node:node . .
+RUN chown node:node /app /app/node_modules   # ← -R は付けない
+USER node
+```
+
+- `COPY --chown=` は**層を増やさない**（コピー時に所有者が決まる）。末尾に
+  `RUN chown -R node:node /app` を置くと `node_modules` がもう1層まるごとコピーされて
+  イメージが数百MB膨らむので、`chown` は**ディレクトリだけ**に絞る
+- `--chown` が要るのは `next dev` が起動時に `tsconfig.json` と `next-env.d.ts` を**書き換える**から
+  （root 所有のままだと `EACCES` で即落ちる）。Vite は `node_modules/.vite` だけ、
+  Next standalone は `.next/cache` だけ書く
+- **名前付きボリュームがイメージ側の所有者を引き継ぐのは空のときだけ**。root 時代に作られた
+  既存ボリュームは root 所有のまま残るので、切り替え時に一度だけ
+  `docker compose exec -u 0 <service> chown -R node:node <mount-point>` が要る
+- Windows の bind mount はマウント先ルートと Windows 側で作ったファイルが `0:0` の **0777** で
+  見えるので uid1000 でも書ける。ただし**root 時代にコンテナ内から作られた**ディレクトリは
+  `0:0` の 0755 で残るため、そこだけ一度 `chown -R` が要る（svf の `output/industry-export` が該当した）
+- **未対応**: `apps/stock-valuation-form` の `runner` ステージにだけ `USER` が無い（本番は root のまま）
+
 ### ソース同期（private-banking / inheritance-case-management）
 
 この2アプリは dev でもソースを bind mount せず、**イメージ同梱物 + `docker compose watch`** で動かす。
@@ -68,6 +93,30 @@ docker/scripts/manage.sh watch <app-name>
 - `restore-drill.bat`: Git Bash 経由で `backup.sh drill` を呼ぶ補助ラッパー（週次タスク用）
 - バックアップは `docker/backups/` を主保存先とし、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/all-apps/` に追加コピーする
 - **バックアップ対象は `backup.sh` 冒頭の4配列** (`PG_TARGETS` / `SQLITE_TARGETS` / `BIND_TARGETS` / `SETTINGS_TARGETS`) で定義する。バックアップ・リストア・ドリルはすべてここから生成されるので、DBやデータを持つアプリを足したら**必ず1行追加すること**
+- **保持は日次7 + 週次4 + 月次6（GFS）**。日次7本だけでは「7日以内に気づけた障害」しか戻せない。
+  取り込みミス・誤削除・論理破損は気づくまでに数週間かかることがあり、そのときには7本とも壊れた後になっている。
+  週次・月次の「代表」は日次と同じ実体なので、増える容量は**日次から落ちた代表のぶんだけ**
+- **外部コピー先は `~/.tax-apps/backup-external-dest`**（リポジトリ外、1行目がパス）。**未設定なら何もしない**
+  （警告も記録も出さない）。設定されているのに書けないときだけ `backup-external` に記録が残る ──
+  「設定したつもりで効いていない」が一番危ないため。リポジトリ外なのは**公開リポジトリに NAS 名や
+  ユーザー名を載せられない**から、環境変数でなくファイルなのは**スケジュールタスクが環境変数を持たずに起動する**から
+
+### テスト（manage.sh test / CI）
+
+**ローカルに `node_modules` を作らない**ため、テストは稼働中のコンテナの中で走らせる。
+
+```bash
+docker/scripts/manage.sh test              # 対象すべて
+docker/scripts/manage.sh test <app-name>   # 1アプリだけ
+```
+
+- 対象は `manage.sh` 冒頭の **`TEST_TARGETS`**（`アプリ名:コンテナ名:コマンド`）
+- 同じ一覧が `.github/workflows/ci.yml` の matrix と**対**になっている。手元の Docker が
+  止まっていても push した時点で必ず一度は回るようにするための、もう一方の経路
+- **片方だけに足すと `preflight` のチェック16が WARN を出す**（`package.json` の `test` ↔
+  `TEST_TARGETS` ↔ CI matrix を突き合わせている）。テストを足したら両方に1行
+- 止まっているアプリと**本番モードのアプリは「飛ばした」扱い**（本番イメージに vitest が無い）。
+  dev へ戻すのは `cd apps/<app> && docker compose up -d`（`build` はモードを踏襲するので prod のまま）
 
 ### 自動起動・自動復旧（Windows タスクスケジューラ）
 
@@ -99,6 +148,22 @@ docker/scripts/manage.sh watch <app-name>
   `manage.sh status` と `preflight` がこれを読んで「一度も記録が無い」「ok 以外」
   「古すぎる」を出す。**バックアップ・ドリル・復旧・ウォッチドッグの失敗が誰にも届かず
   数ヶ月見逃された**のが発端なので、無人処理を足したらここへの記録も必ず足すこと
+- **見張る対象と鮮度のしきい値は `OPS_WATCHED_RESULTS` 1箇所**（`lib/ops-common.sh`）。
+  以前は `status` と `preflight` が別々に同じ表を持っていて、preflight 側にバックアップの行が
+  無かったため `status=failed` でも素通りしていた。**無人処理を足したらここに1行足す**
+- **異常がある間はデスクトップに `TAX-APPS-ALERT.txt` を置き続ける**。記録を書いても、見えるのは
+  `status` / `preflight` を叩いた人だけで、毎日失敗し続けても画面には何も出ない ── これが
+  数ヶ月見逃した当のもの。中身は `last-run` から毎回作り直す**派生物**なので、直れば次の自動実行で
+  勝手に消える（消し忘れの嘘が残らない）。変化したときだけトースト通知も出す（追加インストール不要）。
+  **「一度も記録が無い」では出さない**（導入直後や未使用の項目で鳴り続けるため）
+- **`manage.sh alert` は Docker に触れず操作ロックも取らない**。`docker-watchdog.ps1` が終了直前に
+  これを呼ぶため ── 「Docker がそもそも上がらなかった」回は bash 側の処理が1つも走らないので、
+  放っておくとウォッチドッグ自身の失敗が誰にも届かない
+- **定期的な掃除は `ops_docker_prune`**（`manage.sh prune` / 週次ドリルの最後）。
+  **dangling イメージだけ**で `-a` は付けない（停止中のアプリのイメージまで消えて次の起動が再ビルドになる）。
+  **ボリュームには絶対に触らない**（`docker volume prune` は停止中コンテナのボリュームを未使用と
+  みなすので、アプリを止めている間に走ると DB ごと消える）。無人タスクを増やさないため
+  ドリルの後ろにぶら下げている ── 増やすほど「消えたのに誰も気づかない」対象が増える
 - **共通処理は `docker/scripts/lib/ops-common.sh` に置く**（色・ログローテーション・
   直近結果・操作ロック・`to_win_path` / `task_exists`）。`manage.sh` と `backup.sh` の
   両方から source する。**同じ実装を2つ持つとロックの意味が無くなる**（別々のロックを
@@ -125,7 +190,7 @@ docker/scripts/manage.sh watch <app-name>
 - `status.bat`: ワンクリックで状態確認
 - `register-startup-task.bat` / `register-docker-watchdog-task.bat`: 自動起動・自動復旧タスクの登録
   （`unregister-*.bat` で解除）
-- `backup-db.bat`: 暗号化された全体バックアップ（PostgreSQL 4件 + SQLite 3件 + アップロード + テンプレート + `.env` 4件 + JSONエクスポート。7日間保持、タスクスケジューラ対応）
+- `backup-db.bat`: 暗号化された全体バックアップ（PostgreSQL 4件 + SQLite 3件 + アップロード + テンプレート + `.env` 4件 + JSONエクスポート。日次7 + 週次4 + 月次6 で保持、タスクスケジューラ対応）
   - **暗号鍵 `~/.tax-apps/backup.key` の控えだけは手で取ること**。これを失うと
     `docker/backups/` の暗号化アーカイブは全部ただのゴミになる。鍵が無い状態で
     `backup.sh` を走らせても、暗号化済みのアーカイブが1つでもあれば新しい鍵を
@@ -160,12 +225,21 @@ docker/scripts/manage.sh recover
 # 状態確認
 docker/scripts/manage.sh status
 
+# テスト（稼働中のコンテナの中で実行・引数省略で対象すべて）
+docker/scripts/manage.sh test [app-name]
+
 # 全体バックアップ / リストア
 docker/scripts/manage.sh backup
 docker/scripts/manage.sh restore [dir]
 
 # リストア訓練（使い捨てDBへ実際に復元して検証。引数省略で最新が対象）
 docker/scripts/manage.sh drill
+
+# 無人向けの掃除（確認なし・ボリュームには触らない）
+docker/scripts/manage.sh prune
+
+# デスクトップの警告ファイルを作り直す（Docker 不要・ロックも取らない）
+docker/scripts/manage.sh alert
 ```
 
 ### 個別アプリのスクリプト（Docker内で実行）

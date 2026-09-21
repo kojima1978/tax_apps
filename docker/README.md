@@ -191,12 +191,15 @@ rd /s /q tax_apps
 | `./manage.sh watch <app>` | 指定アプリのソース変更をコンテナへ同期（対応アプリのみ・フォアグラウンド） |
 | `./manage.sh logs <app>` | 指定アプリのログ表示 |
 | `./manage.sh status` | 全アプリの状態表示 |
+| `./manage.sh test [app]` | **稼働中のコンテナの中で**テストを実行（省略時は対象すべて） |
 | `./manage.sh backup` | 全データベース・データをバックアップ |
 | `./manage.sh restore [dir]` | バックアップからリストア |
 | `./manage.sh verify <backup>` | バックアップの復号とSHA-256照合（上書きなし） |
 | `./manage.sh drill [backup]` | リストア訓練。使い捨てDBへ実際に復元して検証（既定は最新） |
 | `./manage.sh clean` | コンテナ・イメージ・ボリュームのクリーンアップ |
 | `./manage.sh clean-cache [--all]` | Docker Build Cache の安全な削除 |
+| `./manage.sh prune` | 無人向けの掃除（確認なし・**ボリュームには触らない**） |
+| `./manage.sh alert` | デスクトップの警告ファイルを作り直す（Docker 不要） |
 | `./manage.sh preflight` | 起動前環境チェック |
 
 ### アプリ名の指定
@@ -222,9 +225,29 @@ rd /s /q tax_apps
 ./manage.sh logs inheritance-tax-docs      # ログ確認
 ./manage.sh restart retirement-tax-calc   # 再起動
 ./manage.sh backup                        # バックアップ
+./manage.sh test                          # 対象アプリすべてのテストをコンテナ内で実行
+./manage.sh test stock-valuation-form     # 1アプリだけテスト
 ./manage.sh clean-cache                   # 7日以上未使用の Build Cache だけ削除
 ./manage.sh preflight                     # 起動前チェック
 ```
+
+### テスト
+
+テストは**ローカルに `node_modules` を作らない**ため、稼働中のコンテナの中で走らせます。
+
+```bash
+./manage.sh test                          # 対象すべて
+./manage.sh test private-banking          # 1アプリだけ
+```
+
+- 対象は `docker/scripts/manage.sh` 冒頭の **`TEST_TARGETS`**（`アプリ名:コンテナ名:コマンド`）で定義します
+- 同じ一覧が `.github/workflows/ci.yml` の matrix と**対**になっています。push したときに必ず一度は
+  回るようにするための、もう一方の経路です
+- **片方だけに足すと `preflight` のチェック16が WARN を出します**（`package.json` に `test` があるのに
+  `TEST_TARGETS` に無い、あるいは CI の matrix に無い、を検出）
+- 止まっているアプリと**本番モードで動いているアプリは「飛ばした」扱い**になります（本番イメージには
+  devDependencies＝vitest が入っていないため）。失敗にはしません。dev へ戻すには
+  `cd apps/<app> && docker compose up -d`（`manage.sh build` はモードを踏襲するので prod のままです）
 
 ### コマンドプロンプトの開き方
 
@@ -347,6 +370,33 @@ base → deps → dev        （開発サーバー）
 
 > Django（bank-analyzer）は `builder` → `production` → `dev` の順で、本番ステージ名は `production` です。
 
+#### 非 root で動かす
+
+本番ステージ（`runner` / `production`）は元から非 root（`node` / `nextjs` / `appuser`）でしたが、
+**`dev` ステージも非 root**に揃えてあります。dev だけ root だと、コンテナ内から作られたファイルが
+root 所有でホスト側に残り、**本番（非 root）から触れなくなる**ためです。
+
+書き方は全アプリ共通です。
+
+```dockerfile
+COPY --chown=node:node . .
+RUN chown node:node /app /app/node_modules
+USER node
+```
+
+- `COPY --chown=` は**層を増やしません**（コピー時に所有者が決まるだけ）。一方で
+  末尾に `RUN chown -R node:node /app` を置くと `node_modules` のツリーが丸ごともう1層コピーされ、
+  イメージが数百MB単位で膨らみます。そのため `chown` は**ディレクトリだけ**に絞っています
+- `COPY --chown` が要るのは、`next dev` が起動時に `tsconfig.json` と `next-env.d.ts` を**書き換える**ためです
+  （root 所有のままだと `EACCES` で即落ちます）。Vite は `node_modules/.vite` だけ、
+  Next standalone は `.next/cache` だけ書きます
+- **名前付きボリュームがイメージ側の所有者を引き継ぐのは、ボリュームが空のときだけ**です。
+  root で動いていた頃に作られた既存ボリュームは root 所有のまま残るので、切り替え時に一度だけ
+  `docker compose exec -u 0 <service> chown -R node:node <mount-point>` が要ります
+- Windows の bind mount は、マウント先のルートと Windows 側で作られたファイルが `0:0` の **0777** で
+  見えるため、uid 1000 でも書けます。ただし**root で動いていた頃にコンテナ内から作られた**
+  ディレクトリは `0:0` の 0755 で残るので、これも一度だけ `chown -R` が必要です
+
 ---
 
 ## コード更新時の対応（git pull）
@@ -414,7 +464,8 @@ DBなどの永続データは Docker Named Volume またはバインドマウン
 ./manage.sh backup
 ```
 
-`docker\backups\2026-02-22_153000.tar.gz.enc` のようなAES-256暗号化ファイルとして7日間保存されます。
+`docker\backups\2026-02-22_153000.tar.gz.enc` のようなAES-256暗号化ファイルとして保存されます
+（保持は**日次7本 + 週次4本 + 月次6本**。下記「世代保持」）。
 あわせて、リポジトリと同じ階層の `tax_apps_backup_latest\all-apps\` に最新1日分だけ追加コピーされます。
 
 | # | データ | 方式 | 備考 |
@@ -448,7 +499,41 @@ C:\Users\<user>\.tax-apps\backup.key   ← この1ファイルだけ、外部媒
 - どの鍵で暗号化したかの目印を `docker/backups/.backup-key-fingerprint`
   （sha256 の先頭16桁）に残します。鍵がすり替わると復号前に警告が出ます。
 
-> 全体バックアップの保持期間は既定で7日間です。変更する場合は `FULL_BACKUP_RETENTION_DAYS` を指定して `backup.sh` を実行してください。
+#### 世代保持（GFS）
+
+保持は **日次7本 + 週次4本 + 月次6本**です（`FULL_BACKUP_RETENTION_DAYS` /
+`WEEKLY_BACKUP_RETENTION_WEEKS` / `MONTHLY_BACKUP_RETENTION_MONTHS` で変更可）。
+
+日次7本だけでは「**7日以内に気づけた障害**」しか戻せません。取り込みミス・誤削除・DBの論理破損は
+静かに進むので、気づくまでに数週間かかることがあり、そのときには7本すべてが壊れた後の状態になっています。
+
+- 週次は各週（月曜起点）の最も新しい1本、月次は各月の最も新しい1本を「代表」として残します
+- 代表は日次と同じ実体を指すので、増える容量は**日次から落ちた代表のぶんだけ**です
+- `pre-restore_*`（リストア直前の退避）は対象外で、従来どおり日数だけで消えます
+
+#### 外部コピー（別ドライブ／NAS）
+
+同じPCの `docker\backups\` にしか無いバックアップは、**ドライブが壊れた瞬間にバックアップごと消えます**。
+ランサムウェアなら暗号化済みアーカイブごと持って行かれます。
+
+コピー先を設定すると、毎回のバックアップの最後に暗号化アーカイブが1本コピーされます。
+
+```
+C:\Users\<user>\.tax-apps\backup-external-dest   ← 1行目にコピー先のパスを書くだけ
+```
+
+```
+# 例（先頭が # の行と空行は無視されます）
+/d/tax-apps-backup
+```
+
+- **未設定なら何もしません**（警告も記録も出ません）。使わない環境では存在しないのと同じです
+- 設定されているのに書けないときだけ記録が残り、デスクトップの警告にも出ます。
+  「設定したつもりで効いていない」が一番危ないためです
+- 設定をリポジトリ外に置くのは、**リポジトリが公開**で NAS 名やユーザー名を含むパスを載せられないからです。
+  環境変数ではなくファイルなのは、スケジュールタスクが環境変数を持たずに起動するためです
+- コピー先でも同じ GFS（日次7 + 週次4 + 月次6）で世代を絞ります
+- **鍵は一緒に置かないこと**（上記「暗号鍵の保管」）。外部コピー先にも置かれるのは暗号化済みアーカイブだけです
 
 > DBを持つアプリを追加したら、`backup.sh` 冒頭の `PG_TARGETS` / `SQLITE_TARGETS` / `BIND_TARGETS` /
 > `SETTINGS_TARGETS` に1行足すこと。バックアップ・リストア・リストア訓練はすべてこの配列から生成されます。
@@ -487,6 +572,10 @@ PostgreSQL はコンテナ起動中に `psql` でリストア、SQLite はボリ
 - **稼働中のDBには一切触れません**。ドリル用コンテナは `tax-apps-network` に繋がず、ポートも公開しません
 
 1件でも失敗すると終了コード 1 を返します。
+
+ドリルが成功した後に **Docker の掃除**（`manage.sh prune` と同じ処理）が続けて走ります。
+無人で走る週次タスクをこれ以上増やさないためです ── タスクを1つ足すたびに
+「消えたのに誰も気づかない」対象が1つ増えます。掃除の成否も `prune` として別に記録されます。
 
 **タスクスケジューラへの登録手順:**
 
@@ -596,6 +685,30 @@ docker run -d --name autoheal-probe --label tax-apps.autoheal=true \
 ```
 
 unhealthy になった後に `.\docker-watchdog.bat` を実行すると、ログに `Restarting unhealthy Tax Apps container: autoheal-probe` → `Container restarted` が出ます。確認後は `docker rm -f autoheal-probe` で削除してください。
+
+### 失敗に気づくしくみ
+
+無人で走るもの（バックアップ・外部コピー・リストア訓練・掃除・復旧・ウォッチドッグ）は、
+終了時に成否を1件だけ `docker\logs\last-run\<名前>` へ書きます。`status` と `preflight` が毎回これを読みます。
+
+ただしそれが見えるのは `status` か `preflight` を**叩いた人だけ**です。毎日失敗し続けても画面には何も出ません。
+実際にそれで数ヶ月見逃しました。そこで異常が1件でもある間は、**デスクトップに `TAX-APPS-ALERT.txt` を置き続けます**。
+
+```
+TAX-APPS-ALERT.txt      ← 異常が1件でもある間だけ、デスクトップに置かれる
+```
+
+- 中身は `last-run` から毎回作り直す**派生物**です。直れば次の自動実行で勝手に消えるので、
+  **消し忘れの嘘が残りません**（自分で消しても、原因が直っていなければ次の実行でまた出ます）
+- 異常の定義は「`status` が `ok` 以外」＝失敗、「最後の成功が古すぎる」＝停止です。
+  **「一度も記録が無い」では出しません**（導入直後や未使用の項目で鳴り続けるため）
+- 内容が前回と変わったときだけ Windows のトースト通知も出ます（追加インストールは不要）
+- 見張る対象と鮮度のしきい値は `docker/scripts/lib/ops-common.sh` の **`OPS_WATCHED_RESULTS` 1箇所**だけです。
+  **無人処理を足したらここに1行足すこと**
+- 手動で作り直すには `./manage.sh alert`。**Docker に触れず操作ロックも取らない**ので、
+  エンジンが落ちている最中でも呼べます。ウォッチドッグが終了直前にこれを呼ぶのはそのためです
+  （「Docker がそもそも上がらなかった」回は bash 側の処理が1つも走らないので、
+  放っておくとウォッチドッグ自身の失敗が誰にも届きません）
 
 ---
 
@@ -766,17 +879,18 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 4 | Compose config 検証 | OK / WARN |
 | 5 | Nginx 設定ファイル存在確認 | OK / WARN |
 | 6 | ITCM `.env` ファイル存在確認 | OK / WARN |
-| 7 | 暗号化バックアップの鮮度・暗号鍵 | OK / WARN |
-| 8 | 平文バックアップディレクトリの残存 | OK / WARN |
-| 9 | ポート競合検出（16ポート、Tax Apps 自身の使用ポートは除外） | OK / WARN |
+| 7 | 暗号化バックアップの鮮度・暗号鍵・平文ディレクトリの残存 | OK / WARN |
+| 8 | スケジュールタスク2件（ウォッチドッグ・ログオン時の自動起動）の登録確認 | OK / WARN |
+| 9 | ポート競合検出（Tax Apps 自身の使用ポートは除外） | OK / WARN |
 | 10 | ホストディスク空き容量（5GB未満で警告） | OK / WARN |
 | 11 | Docker daemon メモリ（4GB未満で警告） | OK / WARN |
 | 12 | Docker ディスク使用量表示 | OK / WARN |
 | 13 | `docker-entrypoint.sh` を使うイメージの CRLF ガード（`FROM` の継承を辿って確認） | OK / WARN |
-| 14 | 無人処理の直近結果（ウォッチドッグ・復旧・リストア訓練の成否と経過時間） | OK / WARN |
+| 14 | 無人処理の直近結果（`OPS_WATCHED_RESULTS` の全件。成否と経過時間） | OK / WARN |
 | 15 | 一覧の取りこぼし（`apps/` と `APPS`、`VOLUMES` と実ボリューム、`backup.sh` の対象配列の突き合わせ） | OK / WARN |
+| 16 | テストの登録漏れ（`package.json` の `test` ↔ `TEST_TARGETS` ↔ CI の matrix） | OK / WARN |
 
-> 14 と 15 は「手書きの一覧がいつの間にか実体とズレる」「無人処理が黙って飛ぶ」の2つを見張るためのものです。実際に、週次のリストア訓練が2週続けてロック衝突で飛んでも `preflight` は何も言わず（当時はバックアップ**ファイルの日付**しか見ていなかった）、`VOLUMES` には存在しないボリュームが2件載る一方で実在するデータボリューム2件が抜けていました（`clean` が「全データを削除します」と表示しながら2アプリ分を残していた）。
+> 14・15・16 は「手書きの一覧がいつの間にか実体とズレる」「無人処理が黙って飛ぶ」を見張るためのものです。実際に、週次のリストア訓練が2週続けてロック衝突で飛んでも `preflight` は何も言わず（当時はバックアップ**ファイルの日付**しか見ていなかった）、`VOLUMES` には存在しないボリュームが2件載る一方で実在するデータボリューム2件が抜けていました（`clean` が「全データを削除します」と表示しながら2アプリ分を残していた）。
 
 ### Docker Build Cache Cleanup
 
@@ -786,6 +900,15 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 |:---------|:-----|
 | `./manage.sh clean-cache` | 7日以上使われていない Build Cache を削除 |
 | `./manage.sh clean-cache --all` | 未使用の Build Cache をすべて削除（次回ビルドは遅くなる可能性あり） |
+| `./manage.sh prune` | 無人向け。確認なしで dangling イメージ（30日以上前）とビルドキャッシュ（10GB まで）を削除 |
+
+`prune` は消していいものしか消しません。
+
+- **dangling イメージだけ**（`-a` は付けない）。`-a` は「停止中のコンテナが使うはずのイメージ」まで
+  消すため、prod で止めてあるアプリが次の起動でいきなり再ビルドになります
+- **ボリュームには絶対に触りません**。`docker volume prune` は停止中のコンテナのボリュームを
+  未使用とみなすので、アプリを止めている間に走ると DB ごと消えます
+- 週次のリストア訓練の最後から同じ処理が自動で呼ばれます（成否は `prune` として記録）
 
 ### Gateway 機能
 
