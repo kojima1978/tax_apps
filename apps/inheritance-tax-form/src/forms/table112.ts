@@ -64,11 +64,11 @@ const X = {
   DEC_L: 733,     // 「被相続人」ラベルの左端
   C4_R: 754,      // 1 ④の右端 ／ ⑧欄の左端
   G5_C: 778.5,    // 1 ⑤のコード枠の右端
-  P_R: 867.5,     // 2 所在場所等の右端
+  P_R: 867.5,     // 2 所在場所等の右端 ／ 2 数量のコード枠の左端 ／ E61 の右端
   HEAD_R: 843,    // 見出し「初めて贈与を受けた年分」の右端 ／ E61 の左端
   YEAR_L: 800,    // 「年分」ラベルの左端
-  C5_R: 892,      // 1 ⑤の右端 ／ 2 数量のコード枠の左端 ／ E01 の左端
-  G6_C: 916.5,    // 1 ⑥のコード枠の右端 ／ 2 数量のコード枠の右端 ／ 被相続人の氏名入力の左端
+  C5_R: 892,      // 1 ⑤の右端 ／ 2 数量のコード枠の右端 ／ E01 の左端
+  G6_C: 916.5,    // 1 ⑥のコード枠の右端 ／ 被相続人の氏名入力の左端
   OFF2_R: 1159,   // 提出税務署名入力の右端（「署」ラベルの左端）
   Q_R: 980.5,     // 2 数量の右端
   UNIT_C: 1005.5, // 2 （単位）のコード枠の右端
@@ -224,8 +224,8 @@ function headRows(common: string, p: string, who: string, yearOptions: GridCell[
       options: yearOptions, align: 'center',
     }),
     label(entry, col(X.YEAR_L, X.HEAD_R), '年分'),
-    code(entry, col(X.HEAD_R, X.G6_C), 'E61'),
-    mk(entry, col(X.G6_C, X.OFF2_R), {
+    code(entry, col(X.HEAD_R, X.P_R), 'E61'),
+    mk(entry, col(X.P_R, X.OFF2_R), {
       kind: 'input', field: `${p}t112Office`, ariaLabel: `${who}が相続時精算課税選択届出書を提出した税務署名`,
       optionGroups: TAX_OFFICE_GROUPS, align: 'left',
     }),
@@ -245,9 +245,10 @@ function sumHead(): GridCell[] {
   ];
   return [
     label(head, col(X.L, X.NO_R), '番号'),
-    // ①だけは下段に記入例が刷られている
+    // ①だけは下段に記入例が刷られていて、見出しとの間に区切りの罫線がある
     mk(head, col(X.NO_R, X.C1_R), {}),
-    label(upper, col(X.NO_R, X.C1_R), '①　　贈与を受けた年分', { noBorder: true, align: 'left', fontSize: 6.5 }),
+    label(upper, col(X.NO_R, X.C1_R), '①　　贈与を受けた年分',
+      { noBorderTop: true, noBorderLeft: true, noBorderRight: true, align: 'left', fontSize: 6.5 }),
     label(lower, col(X.NO_R, X.C1_R), '（例）　令和元年分', { noBorder: true, fontSize: 6.5 }),
     ...headCell(X.C1_R, X.C2_R, '②', '贈与税の申告書を提出した税務署名'),
     ...headCell(X.C2_R, X.C3_R, '③', '①の年分に被相続人から相続時精算課税に係る贈与を受けた財産の価額の合計額（円）'),
@@ -381,8 +382,8 @@ function detailRows(p: string, who: string, page: number): GridCell[] {
       mk(y, col(X.U_C, X.U_R), { kind: 'input', field: `${p}t112u${i}`, ariaLabel: `${item}の利用区分、銘柄等` }),
       code(y, col(X.U_R, X.P_C), e(28 + r * 6)),
       mk(y, col(X.P_C, X.P_R), { kind: 'input', field: `${p}t112p${i}`, ariaLabel: `${item}の所在場所等`, align: 'left' }),
-      code(y, col(X.P_R, X.G6_C), `C${String(1 + r).padStart(2, '0')}`),
-      mk(y, col(X.G6_C, X.Q_R), { kind: 'input', field: `${p}t112q${i}`, ariaLabel: `${item}の数量`, align: 'right' }),
+      code(y, col(X.P_R, X.C5_R), `C${String(1 + r).padStart(2, '0')}`),
+      mk(y, col(X.C5_R, X.Q_R), { kind: 'input', field: `${p}t112q${i}`, ariaLabel: `${item}の数量`, align: 'right' }),
       code(y, col(X.Q_R, X.UNIT_C), e(29 + r * 6)),
       mk(y, col(X.UNIT_C, X.C6_R), { kind: 'input', field: `${p}t112t${i}`, ariaLabel: `${item}の単位`, align: 'center' }),
       code(y, col(X.C6_R, X.G7_C), `G${35 + r * 2}`),

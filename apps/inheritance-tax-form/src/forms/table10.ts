@@ -131,11 +131,15 @@ const NOTES2: NonNullable<GridCell['numberedNotes']> = [
 /** 1の明細の「受取人の氏名」に添える案内（③は自動転記しないので注記で補う） */
 const TRANSFER_HINT = '相続人以外の人が受け取った退職手当金などは、その金額をそのまま第11表の付表4の「価額」欄に転記します。';
 
-/** 「1 …」「2 …」の章見出し（太字の見出しと、その下に続く説明文） */
+/**
+ * 「1 …」「2 …」の章見出し（太字の見出しと、その下に続く説明文）。
+ * 様式では見出しと説明文は1つの枠の中にあり、その間に罫線は無い。
+ * フォントが違うのでセルは2つに分けるが、境目の罫線は消す。
+ */
 function sectionHead(top: number, mid: number, bottom: number, heading: string, lead: string): GridCell[] {
   return [
-    label(row(top, mid), col(X.L, X.R), heading, { align: 'left', bold: true, fontSize: 9 }),
-    label(row(mid, bottom), col(X.L, X.R), lead, { align: 'left', fontSize: 7.5 }),
+    label(row(top, mid), col(X.L, X.R), heading, { align: 'left', bold: true, fontSize: 9, noBorderBottom: true }),
+    label(row(mid, bottom), col(X.L, X.R), lead, { align: 'left', fontSize: 7.5, noBorderTop: true }),
   ];
 }
 
@@ -168,9 +172,9 @@ function detailRows(rows: readonly FormRow[], whoOptions: GridCell['options']): 
         code(body, col(X.ADDR, X.C2), cd('E', e + 1)),
         mk(body, col(X.C2, X.NAME), { kind: 'input', field: `${f}name`, ariaLabel: `${who}の勤務先会社等の名称`, align: 'left' }),
 
-        // 「元号・年・月・日」の見出し帯は明細行ごとに繰り返される（第9表と同じ）
-        mk(head, col(X.NAME, X.D_C), {}),
-        label(head, col(X.D_C, X.ERA), '元号', { fontSize: 6 }),
+        // 「元号・年・月・日」の見出し帯は明細行ごとに繰り返される（第9表と同じ）。
+        // 見出し帯にコード欄は無いので「元号」は下のコード欄の幅まで含めて横に通す。
+        label(head, col(X.NAME, X.ERA), '元号', { fontSize: 6 }),
         label(head, col(X.ERA, X.Y), '年', { fontSize: 6 }),
         label(head, col(X.Y, X.M), '月', { fontSize: 6 }),
         label(head, col(X.M, X.DATE_R), '日', { fontSize: 6 }),

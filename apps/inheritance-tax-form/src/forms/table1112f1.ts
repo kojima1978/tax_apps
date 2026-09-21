@@ -381,9 +381,10 @@ function limitRows(ctx: Ctx): GridCell[] {
       mk(ctx.row(1421, 1464.5), col(left, right), { kind: 'label', fraction: LIMIT_RATES[k]! }),
     ]),
 
-    // ⑩ ⑤の小規模宅地等の面積の合計（全枚数を通した種類ごとの合計）
-    label(ctx.row(1464.5, 1500), col(X.L, X.BAND), '⑩'),
-    label(ctx.row(1464.5, 1500), col(X.BAND, 353), '⑤の小規模宅地等の面積の合計\n（㎡）', { align: 'left', fontSize: 7 }),
+    // ⑩ ⑤の小規模宅地等の面積の合計（全枚数を通した種類ごとの合計）。
+    // 左余白の縦罫は上の⑨までで止まり、この行では丸番号と項目名が1つの枠に入る
+    label(ctx.row(1464.5, 1500), col(X.L, X.BAND), '⑩', { noBorderRight: true }),
+    label(ctx.row(1464.5, 1500), col(X.BAND, 353), '⑤の小規模宅地等の面積の合計\n（㎡）', { align: 'left', fontSize: 7, noBorderLeft: true }),
     ...LIMIT_X.flatMap(([c0, c1, c2], k): GridCell[] => [
       code(ctx.row(1464.5, 1500), col(c0, c1), cd('C', 7 + k)),
       mk(ctx.row(1464.5, 1500), col(c1, c2), {

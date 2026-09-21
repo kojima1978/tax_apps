@@ -10,7 +10,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { RELATION_OPTIONS } from '../data/codes';
-import { code, label, mk } from './geometry';
+import { FRACTION_BAR_DY, code, fractionBar, label, mk } from './geometry';
 import { personAction } from './person';
 
 export const TABLE2_FORM_CODE = 'NTA0KSE020010020';
@@ -77,8 +77,10 @@ const X = {
   NAME_R: 231,  // 氏名入力の右端
   REL_C: 253,   // 続柄コード枠の右端
   REL_R: 319,   // 続柄入力の右端 ＝ ⑤欄の左端
+  BAR_L: 330,   // ⑤欄の分数の横線の左端（⑤欄の幅の中に左右対称に短く引かれている）
   FR_C: 341,    // ⑤欄のコード枠（G08/G09）の右端
   SUM_R: 363,   // 合計行「合計」ラベルの右端
+  BAR_R: 416,   // ⑤欄の分数の横線の右端
   D1: 427,      // 第1表ブロック境界（二重線の左）
   D1R: 431,     //   〃（二重線の右）
   N6_C: 451,    // ⑥のコード枠の右端
@@ -107,7 +109,7 @@ const RATE_X = [99, 253, 363, 473, 583, 693, 803, 913, 1032, 1142] as const;
 
 /**
  * 法定相続人1人分の行位置（実測px）。
- * ⑤欄は上段に分子・下段に分母を書き、その間に分数の横線（二重線）が入る。
+ * ⑤欄は上段に分子・下段に分母を書く。その間の細い帯（2〜3番目の値）の中に分数の横線が入る。
  */
 const LAW_Y: readonly (readonly [number, number, number, number])[] = [
   [631.5, 676.5, 691.0, 736.0],
@@ -235,6 +237,7 @@ function lawfulRow(i: number, ref?: LawfulRowRef): GridCell[] {
     code(all, col(X.NAME_R, X.REL_C), lawCode(i, 0)),
     code(upper, col(X.REL_R, X.FR_C), lawCode(i, 1)),
     mk(row(barTop, barBottom), col(X.REL_R, X.D1), {}),
+    fractionBar(row(barTop, barTop + FRACTION_BAR_DY), col(X.BAR_L, X.BAR_R)),
     code(lower, col(X.REL_R, X.FR_C), lawCode(i, 2)),
     code(all, col(X.D1R, X.N6_C), lawCode(i, 3)),
     code(all, col(X.N7_L, X.N7_C), lawCode(i, 4)),

@@ -12,7 +12,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { code, label, mk } from './geometry';
+import { FRACTION_BAR_DY, code, fractionBar, label, mk } from './geometry';
 
 export const TABLE1112F1B_FORM_CODE = 'NTA0KSE114010030';
 export const TABLE1112F1B_TITLE = '相続税の申告書　第11・11の2表の付表1（別表1）';
@@ -206,12 +206,13 @@ function ownerBlock(
       kind: 'input', field: `${prefix}p${b}who`, ariaLabel: `${who}の氏名`, options: whoOptions, align: 'left',
     }),
     label(nameY, col(537, 684), `${share}持分割合`),
-    // 分子・分数バー・分母の3段
+    // 分子・帯・分母の3段（帯の中に分数の横線を引く）
     code(row(blk.top, blk.bar[0]), col(684, 714), cd('G', gBase)),
     mk(row(blk.top, blk.bar[0]), col(714, 822), {
       kind: 'input', field: `${prefix}p${b}num`, ariaLabel: `${who}の持分割合の分子`,
     }),
     mk(row(blk.bar[0], blk.bar[1]), col(684, 822), {}),
+    fractionBar(row(blk.bar[0], blk.bar[0] + FRACTION_BAR_DY), col(714, 822)),
     code(row(blk.bar[1], blk.head), col(684, 714), cd('G', gBase + 1)),
     mk(row(blk.bar[1], blk.head), col(714, 822), {
       kind: 'input', field: `${prefix}p${b}den`, ariaLabel: `${who}の持分割合の分母`,

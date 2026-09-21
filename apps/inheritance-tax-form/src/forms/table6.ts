@@ -353,9 +353,9 @@ function block(b: Block, common: string, totals: string, options: Table6Options)
   const p = (i: number) => `${common}t6${b.k}${i}`;
   const fp = (i: number) => `${common}t6${b.k}f${i}`;
   return [
-    // 章見出し＋説明文
-    label(row(y.head[0], y.head[1]), col(LEFT, b.headSplit), b.head, { bold: true, fontSize: 9 }),
-    label(row(y.head[0], y.head[1]), col(b.headSplit, RIGHT), b.lead, { align: 'left', fontSize: 7 }),
+    // 章見出し＋説明文。様式では同じ枠の中に左右に並んでいて、境目に罫線は無い
+    label(row(y.head[0], y.head[1]), col(LEFT, b.headSplit), b.head, { bold: true, fontSize: 9, noBorderRight: true }),
+    label(row(y.head[0], y.head[1]), col(b.headSplit, RIGHT), b.lead, { align: 'left', fontSize: 7, noBorderLeft: true }),
 
     // 一般障害者（2列）／特別障害者（1列）の区分見出し。「計」は氏名行まで縦につながる
     ...(b.groups && y.groups !== undefined

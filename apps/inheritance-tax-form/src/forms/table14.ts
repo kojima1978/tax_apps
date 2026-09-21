@@ -272,9 +272,8 @@ function giftSection(
       ];
     }),
 
-    // 特定贈与財産の確認欄（角丸の枠。中の説明文と本文は罫線の内側なので再現する）
+    // 特定贈与財産の確認欄。説明文を囲っているのは罫線ではなく大かっこの字形なので枠は引かない
     mk(row(792.5, 984.5), col(LEFT, RIGHT), {}),
-    mk(row(792.5, 956.5), col(51.5, 1194.5), {}),
     label(row(792.5, 849), col(59.5, 1186.5), CONFIRM_LEAD, { noBorder: true, align: 'left', fontSize: 7 }),
     mk(row(849, 956.5), col(59.5, 1178), {}),
     label(row(849, 871.5), col(59.5, 232.5), '（受贈配偶者）', { noBorder: true, fontSize: 7 }),
@@ -431,7 +430,8 @@ function donationSection(
       : mk(totalY, col(704.5, D_CORP), {}),
     mk(totalY, col(D_CORP, D_PERSON), { diagonal: 'bltr' }),
     mk(totalY, col(D_PERSON, RIGHT), { diagonal: 'bltr' }),
-    label(row(1658.5, BOTTOM), col(LEFT, RIGHT), S3_FOOT, { noBorder: true, align: 'left', fontSize: 7 }),
+    // 3の枠はこの（注）の下辺で閉じる（左右の縦罫もここまで下りている）
+    label(row(1658.5, BOTTOM), col(LEFT, RIGHT), S3_FOOT, { noBorderTop: true, align: 'left', fontSize: 7 }),
   ];
 }
 

@@ -16,7 +16,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { code, label, mk } from './geometry';
+import { FRACTION_BAR_DY, code, fractionBar, label, mk } from './geometry';
 
 export const TABLE5_FORM_CODE = 'NTA0KSE050010020';
 export const TABLE5_TITLE = '相続税の申告書　第5表';
@@ -190,6 +190,8 @@ function fracRows(s: Section): GridCell[] {
       kind: 'input', field: s.numField, ariaLabel: `${s.who} 配偶者の法定相続分の分子`, integerDigits: 3, align: 'center',
       readOnly: s.shareReadOnly, navigateToForm: s.shareSource,
     }),
+    // 分子と分母の間の帯に引かれている分数の横線（分子欄の下端から少し下）
+    fractionBar(row(numB, numB + FRACTION_BAR_DY), col(FX.FCODE, FX.FRAC)),
     code(denY, col(FX.MUL, FX.FCODE), cd(s.base + 2)),
     mk(denY, col(FX.FCODE, FX.FRAC), {
       kind: 'input', field: s.denField, ariaLabel: `${s.who} 配偶者の法定相続分の分母`, integerDigits: 3, align: 'center',

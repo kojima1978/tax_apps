@@ -74,6 +74,20 @@ export function label(y: readonly [number, number], x: readonly [number, number]
   return mk(y, x, { kind: 'label', text, ...rest });
 }
 
+/** 分数の横線は、分子と分母を分ける帯の上端から 6px 下に引かれている（どの様式でも同じ） */
+export const FRACTION_BAR_DY = 6;
+
+/**
+ * 分数の横線（分子と分母の間の帯の中に、1本だけ引く線）。
+ *
+ * 線そのものを表すセルは無いので、**薄いセルの下辺**として引く。`y` には
+ * 「帯の上端 → 横線の位置」（＝ `row(帯の上端, 帯の上端 + FRACTION_BAR_DY)`）を渡し、
+ * 上・左・右の罫を消して帯のセルに重ねて置く。
+ */
+export function fractionBar(y: readonly [number, number], x: readonly [number, number]): GridCell {
+  return mk(y, x, { noBorderTop: true, noBorderLeft: true, noBorderRight: true });
+}
+
 // ════════════════════════════════════════════
 // 人物ブロック（1列 ＝ 財産を取得した人1人分）
 // ════════════════════════════════════════════
