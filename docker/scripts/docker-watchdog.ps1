@@ -551,6 +551,47 @@ function Invoke-TaxAppsRecoverySequence {
     Restart-UnhealthyTaxAppsContainers -DockerCli $DockerCli
 }
 
+# Rebuilds the Desktop alert file from every last-run record.
+#
+# The record alone reaches nobody. The alert file is derived state and is only
+# regenerated on the bash side (ops_refresh_failure_alert), which runs when a
+# bash script writes a result. A watchdog failure - Docker not coming up at all
+# - is exactly the case where no bash script gets that far, so the watchdog's
+# own bad result would sit there unseen. Ask for the refresh from here.
+#
+# "manage.sh alert" touches no Docker and takes no operation lock, so it is safe
+# to call while the engine is down.
+function Update-FailureAlert {
+    if ($DryRun) {
+        return
+    }
+
+    $manageBat = Join-Path $ScriptDir "manage.bat"
+    if (-not (Test-Path -LiteralPath $manageBat)) {
+        return
+    }
+
+    $oldNoPause = $env:TAX_APPS_NO_PAUSE
+    try {
+        $env:TAX_APPS_NO_PAUSE = "1"
+        $result = Invoke-ProcessWithTimeout `
+            -FilePath $manageBat `
+            -ArgumentList @("alert") `
+            -TimeoutSeconds 120
+
+        if ($result.TimedOut -or $result.ExitCode -ne 0) {
+            Write-WatchdogLog "WARN" "Could not refresh the desktop alert file."
+        }
+    }
+    catch {
+        # Never let the notification path fail the run it is reporting on.
+        Write-WatchdogLog "WARN" "Could not refresh the desktop alert file: $($_.Exception.Message)"
+    }
+    finally {
+        $env:TAX_APPS_NO_PAUSE = $oldNoPause
+    }
+}
+
 # Records the outcome, then leaves. "exit" inside try still runs the finally
 # block, so the watchdog lock is released either way.
 function Exit-Watchdog {
@@ -566,6 +607,7 @@ function Exit-Watchdog {
         $Detail = $script:RecoveryIssue
     }
     Write-LastRunResult -Name "watchdog" -Status $Status -Detail "mode=$mode $Detail".Trim()
+    Update-FailureAlert
     exit $Code
 }
 

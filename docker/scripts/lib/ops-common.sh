@@ -117,6 +117,10 @@ ops_write_last_result() {
     printf 'epoch=%s\n' "$(date +%s)"
     printf 'detail=%s\n' "$detail"
   } > "$OPS_LAST_RESULT_DIR/$name" 2>/dev/null || true
+
+  # 記録しただけでは誰にも届かない。デスクトップの警告ファイルを作り直す。
+  ops_refresh_failure_alert || true
+  return 0
 }
 
 ops_last_result_field() {
@@ -148,6 +152,218 @@ ops_format_last_result() {
   else
     printf '%s（%s・%s時間前）\n' "$status" "$at" "$age"
   fi
+}
+
+# ------------------------------------
+# 見張る対象の一覧
+# ------------------------------------
+# しきい値の表をここ1箇所に置く。以前は status と preflight が別々に同じ表を
+# 持っていて、しかも preflight 側にはバックアップの行が無かった
+# （バックアップだけは「ファイルの日付」で代用していたため、記録が
+# status=failed でも preflight は素通りしていた）。
+#
+# 形式: 名前:日本語ラベル:英語ラベル:これ以上古い成功は異常とみなす時間
+OPS_WATCHED_RESULTS=(
+  "backup:バックアップ:Daily backup:30"
+  "backup-external:バックアップの外部コピー:Off-machine backup copy:30"
+  "drill:リストア訓練:Restore drill:192"
+  "prune:Dockerの掃除:Docker prune:192"
+  "recover:復旧(recover):App recovery:48"
+  "watchdog:ウォッチドッグ:Docker watchdog:48"
+)
+
+# ------------------------------------
+# バックアップの外部コピー先
+# ------------------------------------
+# 置き場所がリポジトリの外なのは意図的。
+#   - リポジトリは公開なので、NAS 名やユーザー名を含むパスを載せられない
+#   - スケジュールタスクは環境変数を持たずに起動するので、環境変数だけでは効かない
+# 未設定なら外部コピーは何もしない（警告も出さない）。
+OPS_EXTERNAL_DEST_FILE="${TAX_APPS_BACKUP_EXTERNAL_DEST_FILE:-$HOME/.tax-apps/backup-external-dest}"
+
+ops_external_backup_dest() {
+  if [[ -n "${TAX_APPS_BACKUP_EXTERNAL_DEST:-}" ]]; then
+    printf '%s\n' "$TAX_APPS_BACKUP_EXTERNAL_DEST"
+    return 0
+  fi
+  [[ -s "$OPS_EXTERNAL_DEST_FILE" ]] || return 1
+  local line
+  line=$(grep -v '^[[:space:]]*#' "$OPS_EXTERNAL_DEST_FILE" 2>/dev/null |
+    grep -v '^[[:space:]]*$' | head -1 | tr -d '\r')
+  [[ -n "$line" ]] || return 1
+  printf '%s\n' "$line"
+}
+
+# 外部コピー先が未設定なら、その行は見張らない（未設定は異常ではない）。
+ops_watched_result_is_active() {
+  local name="$1"
+  if [[ "$name" == "backup-external" ]]; then
+    ops_external_backup_dest >/dev/null 2>&1 || return 1
+  fi
+  return 0
+}
+
+# ------------------------------------
+# 失敗をデスクトップに出す
+# ------------------------------------
+# last-run へ書くようにしたことで「飛んだ回」は残るようになったが、
+# それが見えるのは status か preflight を叩いた人だけで、毎日失敗し続けても
+# 画面には何も出ない。数ヶ月見逃した当のものがまさにこの状態だった。
+#
+# そこで異常が1件でもある間はデスクトップに警告ファイルを置き続ける。
+# 中身は last-run から毎回作り直す**派生物**なので、直れば次の自動実行で
+# 勝手に消える（消し忘れの嘘が残らない）。
+OPS_ALERT_STATE_FILE="${TAX_APPS_ALERT_STATE_FILE:-$OPS_LOG_DIR/alert-state}"
+OPS_ALERT_FILE_NAME="${TAX_APPS_ALERT_FILE_NAME:-TAX-APPS-ALERT.txt}"
+OPS_DESKTOP_CACHE_FILE="${TAX_APPS_DESKTOP_CACHE_FILE:-$OPS_LOG_DIR/desktop-path}"
+
+# デスクトップの場所。OneDrive へリダイレクトされていることがあるので
+# Windows に訊く。毎回 PowerShell を起こすと遅いので結果を控えておく。
+ops_desktop_dir() {
+  local cached=""
+  if [[ -s "$OPS_DESKTOP_CACHE_FILE" ]]; then
+    cached=$(tr -d '\r\n' < "$OPS_DESKTOP_CACHE_FILE")
+    [[ -d "$cached" ]] && { printf '%s\n' "$cached"; return 0; }
+  fi
+
+  local win=""
+  if command -v powershell.exe >/dev/null 2>&1; then
+    win=$(powershell.exe -NoProfile -Command \
+      '[Environment]::GetFolderPath("Desktop")' 2>/dev/null | tr -d '\r')
+  fi
+
+  local dir=""
+  if [[ -n "$win" ]]; then
+    dir=$(cygpath -u "$win" 2>/dev/null || printf '%s' "$win")
+  fi
+  [[ -d "$dir" ]] || dir="$HOME/Desktop"
+  [[ -d "$dir" ]] || return 1
+
+  mkdir -p "$(dirname "$OPS_DESKTOP_CACHE_FILE")" 2>/dev/null || true
+  printf '%s\n' "$dir" > "$OPS_DESKTOP_CACHE_FILE" 2>/dev/null || true
+  printf '%s\n' "$dir"
+}
+
+# 異常な行を1件1行で出す（何も無ければ何も出さない）。
+ops_collect_failures() {
+  local entry name ja _en stale status at age detail
+  for entry in "${OPS_WATCHED_RESULTS[@]}"; do
+    IFS=: read -r name ja _en stale <<< "$entry"
+    ops_watched_result_is_active "$name" || continue
+
+    if ! status=$(ops_last_result_field "$name" status); then
+      # 一度も完了していないものを異常にすると、導入直後や新しい PC で
+      # 必ず鳴る。preflight は出すが、こちらでは鳴らさない。
+      continue
+    fi
+
+    at=$(ops_last_result_field "$name" at || echo '?')
+    detail=$(ops_last_result_field "$name" detail || echo '')
+    age=$(ops_last_result_age_hours "$name" || echo '')
+
+    if [[ "$status" != "ok" ]]; then
+      printf '%s\t失敗\t%s: %s（%s）%s\n' "$name" "$ja" "$status" "$at" "${detail:+ $detail}"
+    elif [[ -n "$age" && "$age" -gt "$stale" ]]; then
+      printf '%s\t停止\t%s: 最後に成功したのは %s時間前（%s時間を超えました・%s）\n' \
+        "$name" "$ja" "$age" "$stale" "$at"
+    fi
+  done
+  return 0
+}
+
+ops_refresh_failure_alert() {
+  [[ -z "${TAX_APPS_NO_ALERT:-}" ]] || return 0
+
+  local failures signature previous=""
+  failures=$(ops_collect_failures)
+  signature=$(printf '%s' "$failures" | cut -f1,2 | sort | tr '\n' ',')
+  [[ -f "$OPS_ALERT_STATE_FILE" ]] && previous=$(tr -d '\r' < "$OPS_ALERT_STATE_FILE")
+
+  # 何も無く、前回も何も無かったなら触らない（デスクトップの場所すら調べない）
+  if [[ -z "$failures" && -z "$previous" ]]; then
+    return 0
+  fi
+
+  local desktop alert_file=""
+  if desktop=$(ops_desktop_dir); then
+    alert_file="$desktop/$OPS_ALERT_FILE_NAME"
+  fi
+
+  if [[ -z "$failures" ]]; then
+    [[ -n "$alert_file" && -f "$alert_file" ]] && rm -f "$alert_file" 2>/dev/null || true
+    rm -f "$OPS_ALERT_STATE_FILE" 2>/dev/null || true
+    return 0
+  fi
+
+  if [[ -n "$alert_file" ]]; then
+    {
+      printf '=========================================\n'
+      printf ' Tax Apps 自動処理の異常\n'
+      printf '=========================================\n\n'
+      printf 'このファイルは異常が続いている間だけ自動で置かれます。\n'
+      printf '直れば次の自動実行で自動的に消えます（手で消しても構いません）。\n\n'
+      printf '確認日時: %s\n\n' "$(date +'%Y-%m-%d %H:%M:%S')"
+      printf '%s\n' "$failures" | while IFS=$'\t' read -r _name kind line; do
+        [[ -n "$line" ]] || continue
+        printf '【%s】%s\n' "$kind" "$line"
+      done
+      printf '\n-----------------------------------------\n'
+      printf 'どうするか\n'
+      printf '  1. docker/scripts/status.bat をダブルクリックして状態を見る\n'
+      printf '  2. ログ: %s\n' "$(to_win_path "$OPS_LOG_DIR")"
+      printf '  3. 直近の記録: %s\n' "$(to_win_path "$OPS_LAST_RESULT_DIR")"
+    } > "$alert_file" 2>/dev/null || true
+  fi
+
+  mkdir -p "$(dirname "$OPS_ALERT_STATE_FILE")" 2>/dev/null || true
+  printf '%s' "$signature" > "$OPS_ALERT_STATE_FILE" 2>/dev/null || true
+
+  # 通知は「増えたとき」だけ。同じ失敗で1日4回鳴ると、すぐ誰も見なくなる。
+  if [[ "$signature" != "$previous" ]]; then
+    local count
+    count=$(printf '%s\n' "$failures" | grep -c . || true)
+    ops_show_toast "Tax Apps" "$count unattended job(s) need attention. See $OPS_ALERT_FILE_NAME on your Desktop."
+  fi
+  return 0
+}
+
+# トーストは出れば儲けもの。出す係は ASCII の .ps1 に任せる
+# （Windows PowerShell 5.1 は BOM の無い .ps1 を ANSI として読むため、
+# 日本語を入れた時点で解析が壊れる）。
+ops_show_toast() {
+  local title="$1" message="$2"
+  [[ -z "${TAX_APPS_NO_TOAST:-}" ]] || return 0
+  local script="$OPS_LIB_DIR/notify-failure.ps1"
+  [[ -f "$script" ]] || return 0
+  command -v powershell.exe >/dev/null 2>&1 || return 0
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(to_win_path "$script")" \
+    -Title "$title" -Message "$message" >/dev/null 2>&1 || true
+  return 0
+}
+
+# ------------------------------------
+# Docker の掃除
+# ------------------------------------
+# 定期的に走らせる前提なので、消していいものしか消さない。
+#
+#   - dangling イメージだけ（`-a` は付けない）。`-a` は「停止中のコンテナが
+#     使うはずのイメージ」まで消すため、prod で止めてあるアプリが次の起動で
+#     いきなり再ビルドになる
+#   - **ボリュームには絶対に触らない**。`docker volume prune` は停止中の
+#     コンテナのボリュームを未使用とみなすので、アプリを止めている間に
+#     走ると DB ごと消える
+ops_docker_prune() {
+  local image_until="${TAX_APPS_PRUNE_IMAGE_UNTIL:-720h}"
+  local cache_max="${TAX_APPS_PRUNE_CACHE_MAX:-10GB}"
+  local failed=0
+
+  echo "  dangling イメージ（${image_until} 以上前）:"
+  docker image prune --force --filter "until=$image_until" 2>&1 | sed 's/^/    /' || failed=1
+
+  echo "  ビルドキャッシュ（${cache_max} まで縮める）:"
+  docker builder prune --force --max-used-space "$cache_max" 2>&1 | sed 's/^/    /' || failed=1
+
+  [[ $failed -eq 0 ]]
 }
 
 # ------------------------------------

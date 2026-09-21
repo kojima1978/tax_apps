@@ -49,6 +49,17 @@ BACKUP_BASE="${BACKUP_BASE:-$SCRIPT_DIR/../backups}"
 LATEST_BACKUP_BASE="${LATEST_BACKUP_BASE:-$(cd "$PROJECT_ROOT/.." && pwd)/tax_apps_backup_latest}"
 LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
 FULL_BACKUP_RETENTION_DAYS="${FULL_BACKUP_RETENTION_DAYS:-${RETENTION_DAYS:-7}}"
+
+# 世代保持（GFS）。日次7本だけでは「7日以内に気づけた障害」しか戻せない。
+# 静かに壊れるもの（取り込みミス、誤削除、DBの論理破損）は気づくまでに数週間
+# かかることがあり、そのときには7本すべてが壊れた後の状態になっている。
+#   - 日次: 直近 N 日ぶんは全部残す
+#   - 週次: 各週（月曜起点）の最も新しい1本を N 週ぶん残す
+#   - 月次: 各月の最も新しい1本を N ヶ月ぶん残す
+# 週次・月次の「代表」は日次と同じ実体を指すので、増える容量は
+# 「日次から落ちた代表のぶんだけ」になる。
+WEEKLY_BACKUP_RETENTION_WEEKS="${WEEKLY_BACKUP_RETENTION_WEEKS:-4}"
+MONTHLY_BACKUP_RETENTION_MONTHS="${MONTHLY_BACKUP_RETENTION_MONTHS:-6}"
 BACKUP_KEY_FILE="${BACKUP_KEY_FILE:-$HOME/.tax-apps/backup.key}"
 BACKUP_ENCRYPTION_ITERATIONS="${BACKUP_ENCRYPTION_ITERATIONS:-200000}"
 # 鍵そのものではなく「どの鍵で暗号化したか」の目印。バックアップ側（リポジトリ内）
@@ -890,13 +901,18 @@ cmd_backup() {
     echo "  Resolve the errors and run the backup again."
   else
     copy_latest_backup_set "$LATEST_BACKUP_BASE/all-apps" "$backup_dir"
+
+    # 同じPCの中にしか無いうちは、ドライブが1台壊れれば全部消える。
+    # コピー先が未設定なら何もしない（設定は ~/.tax-apps/backup-external-dest）。
+    copy_backup_to_external "$backup_dir" || true
+
     if [[ "$backup_label" == "pre-restore" ]]; then
       echo "  Retention cleanup skipped during pre-restore safety backup."
     else
-      echo "  Retention: ${FULL_BACKUP_RETENTION_DAYS} days in $(to_win_path "$BACKUP_BASE")"
-      remove_old_dirs "$BACKUP_BASE" "????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
+      echo "  Retention: 日次${FULL_BACKUP_RETENTION_DAYS}日 + 週次${WEEKLY_BACKUP_RETENTION_WEEKS}週 + 月次${MONTHLY_BACKUP_RETENTION_MONTHS}ヶ月 in $(to_win_path "$BACKUP_BASE")"
+      prune_full_backups "$BACKUP_BASE"
+      # pre-restore はリストア直前の保険でしかないので世代に積まず、日数だけで消す。
       remove_old_dirs "$BACKUP_BASE" "pre-restore_????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
-      remove_old_files "$BACKUP_BASE" "????-??-??_??????.tar.gz.enc" "$FULL_BACKUP_RETENTION_DAYS"
       remove_old_files "$BACKUP_BASE" "pre-restore_????-??-??_??????.tar.gz.enc" "$FULL_BACKUP_RETENTION_DAYS"
     fi
     echo "  To restore: ./manage.sh restore $(basename "$backup_dir")"
@@ -1353,6 +1369,25 @@ cmd_drill() {
   ops_write_last_result "drill" "ok" \
     "$(basename "$archive") ok=$drill_ok skipped=$drill_skip"
   echo ""
+
+  run_weekly_prune
+}
+
+# 週次の掃除。ドリルの後ろにぶら下げているのは、これが
+# **無人で走る唯一の週次タスク**だから。専用のタスクを増やすと、
+# 増やしたぶんだけ「消えたのに誰も気づかない」対象が増える。
+#
+# manage.sh prune を呼ばず ops_docker_prune を直に呼ぶのは、この時点で
+# すでに drill として操作ロックを握っているため（再入できず自分と衝突する）。
+run_weekly_prune() {
+  print_banner "Docker Cleanup (weekly)"
+  if ops_docker_prune; then
+    ops_write_last_result "prune" "ok" "after drill"
+  else
+    warn "Docker の掃除に失敗しました（ドリル自体は成功しています）"
+    ops_write_last_result "prune" "failed" "after drill"
+  fi
+  echo ""
 }
 
 remove_old_files() {
@@ -1375,6 +1410,207 @@ remove_old_dirs() {
     while IFS= read -r folder; do
       echo "  Deleting: $(basename "$folder")"
     done
+}
+
+# ------------------------------------
+# 世代保持（GFS）
+# ------------------------------------
+# 判定は必ず**ファイル名の日付**で行う。mtime は当てにならない
+# （外部コピー・リストア・ウイルス対策のいずれでも書き換わりうる）。
+# 名前は is_full_backup_name が保証する YYYY-MM-DD_HHMMSS 形式なので、
+# 先頭10文字がそのまま日付になる。
+
+# その日付が属する週の始まり（月曜）を YYYY-MM-DD で返す。
+backup_week_key() {
+  local date_part="$1" dow
+  # %u = 1(月)〜7(日)。date -d が無い環境ではここで失敗する。
+  dow=$(date -d "$date_part" +%u 2>/dev/null) || return 1
+  date -d "$date_part -$((dow - 1)) days" +%Y-%m-%d 2>/dev/null || return 1
+}
+
+# 残すべきバックアップ名を1行ずつ出す。
+#
+# 「消す方」ではなく「残す方」を決めるのが要点。消す条件を並べると、
+# 条件の抜けがそのままデータの消失になる。残す集合を作って、
+# そこに無いものだけを消せば、抜けは「消し損ね」にしかならない。
+select_backups_to_keep() {
+  [[ $# -gt 0 ]] || return 0
+  local names=("$@")
+  local keep_days="$FULL_BACKUP_RETENTION_DAYS"
+  local keep_weeks="$WEEKLY_BACKUP_RETENTION_WEEKS"
+  local keep_months="$MONTHLY_BACKUP_RETENTION_MONTHS"
+
+  local today_epoch cutoff_daily
+  today_epoch=$(date +%s)
+  cutoff_daily=$(( today_epoch - keep_days * 86400 ))
+
+  local seen_weeks=() seen_months=()
+  local name date_part epoch week_key month_key k found
+
+  # 新しい順に見る。各週・各月で最初に出会ったものがその期間の代表。
+  local sorted=()
+  while IFS= read -r name; do
+    [[ -n "$name" ]] && sorted+=("$name")
+  done < <(printf '%s\n' "${names[@]}" | sort -r)
+
+  # 最新の1本だけは無条件で残す。
+  # 全部が保持期間より古い（＝しばらくバックアップが走っていなかった）場合、
+  # 素直に窓で判定すると残す集合が空になり、**次の1本が出来る前に
+  # 手持ちの全世代を消す**ことになる。時計のずれでも同じことが起きうる。
+  printf '%s\n' "${sorted[0]}"
+
+  for name in "${sorted[@]:1}"; do
+    date_part="${name:0:10}"
+    epoch=$(date -d "$date_part" +%s 2>/dev/null) || { printf '%s\n' "$name"; continue; }
+
+    # 1. 日次
+    if [[ $epoch -ge $cutoff_daily ]]; then
+      printf '%s\n' "$name"
+      continue
+    fi
+
+    # 2. 週次
+    if week_key=$(backup_week_key "$date_part"); then
+      if [[ $epoch -ge $(( today_epoch - keep_weeks * 7 * 86400 )) ]]; then
+        found=0
+        for k in ${seen_weeks[@]+"${seen_weeks[@]}"}; do
+          [[ "$k" == "$week_key" ]] && { found=1; break; }
+        done
+        if [[ $found -eq 0 ]]; then
+          seen_weeks+=("$week_key")
+          printf '%s\n' "$name"
+          continue
+        fi
+      fi
+    fi
+
+    # 3. 月次
+    month_key="${date_part:0:7}"
+    if [[ $epoch -ge $(( today_epoch - keep_months * 31 * 86400 )) ]]; then
+      found=0
+      for k in ${seen_months[@]+"${seen_months[@]}"}; do
+        [[ "$k" == "$month_key" ]] && { found=1; break; }
+      done
+      if [[ $found -eq 0 ]]; then
+        seen_months+=("$month_key")
+        printf '%s\n' "$name"
+        continue
+      fi
+    fi
+  done
+}
+
+# 通常のバックアップ（pre-restore を除く）に GFS を適用する。
+#
+# pre-restore_* はリストア直前の保険でしかなく、世代として積む意味が無いので
+# これまで通り日数だけで消す。
+prune_full_backups() {
+  local dir="$1"
+  [[ -d "$dir" ]] || return 0
+
+  # date -d が使えない環境（BSD date 等）では日付が一切引けない。
+  # そのときは従来の日数だけの方式へ落とす ── 黙って全部残すと
+  # ディスクが埋まり、黙って全部消すと復旧手段が消える。
+  if ! date -d "2020-01-01" +%s >/dev/null 2>&1; then
+    warn "date -d が使えないため世代保持を行いません（日数のみで削除します）"
+    remove_old_dirs "$dir" "????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
+    remove_old_files "$dir" "????-??-??_??????.tar.gz.enc" "$FULL_BACKUP_RETENTION_DAYS"
+    return 0
+  fi
+
+  local names=() entry base
+  while IFS= read -r entry; do
+    base=$(basename "$entry")
+    base="${base%.tar.gz.enc}"
+    is_full_backup_name "$base" || continue
+    [[ "$base" == pre-restore_* ]] && continue
+    names+=("$base")
+  done < <(find "$dir" -maxdepth 1 \( -name '????-??-??_??????' -o -name '????-??-??_??????.tar.gz.enc' \) 2>/dev/null)
+
+  [[ ${#names[@]} -eq 0 ]] && return 0
+
+  # 同じ世代がディレクトリと暗号化ファイルの両方で存在しうるので、名前で一意化する。
+  local unique=()
+  while IFS= read -r base; do
+    [[ -n "$base" ]] && unique+=("$base")
+  done < <(printf '%s\n' "${names[@]}" | sort -u)
+
+  local keep_list
+  keep_list=$(select_backups_to_keep "${unique[@]}")
+
+  local kept=0 removed=0
+  for base in "${unique[@]}"; do
+    if printf '%s\n' "$keep_list" | grep -qx "$base"; then
+      (( kept++ )) || true
+      continue
+    fi
+    [[ -d "$dir/$base" ]] && rm -rf "$dir/$base" 2>/dev/null || true
+    [[ -f "$dir/$base.tar.gz.enc" ]] && rm -f "$dir/$base.tar.gz.enc" 2>/dev/null || true
+    echo "  Deleting: $base"
+    (( removed++ )) || true
+  done
+
+  echo "  Kept: $kept generation(s)  Deleted: $removed"
+}
+
+# ------------------------------------
+# 外部（別ドライブ／NAS）へのコピー
+# ------------------------------------
+# 同じPCの docker/backups/ にしか無いバックアップは、ドライブが壊れた瞬間に
+# バックアップごと消える。ランサムウェアなら暗号化済みアーカイブごと持って行かれる。
+#
+# コピー先は ~/.tax-apps/backup-external-dest（リポジトリの外）に書く。
+# **未設定なら何もしない**（警告も記録も出さない）。設定されているのに
+# 書けないときだけ記録を残す ── 「設定したつもりで効いていない」が
+# 一番危ないため。
+copy_backup_to_external() {
+  local archive="$1"
+  local dest
+
+  if ! dest=$(ops_external_backup_dest); then
+    return 0
+  fi
+
+  echo ""
+  echo "External copy: $dest"
+
+  if [[ ! -d "$dest" ]]; then
+    warn "コピー先が見つかりません: $dest"
+    echo "  外付けドライブが外れているか、NAS に繋がっていない可能性があります。"
+    echo "  設定ファイル: $(to_win_path "$OPS_EXTERNAL_DEST_FILE")"
+    ops_write_last_result "backup-external" "unavailable" "dest not mounted"
+    return 1
+  fi
+
+  if ! cp "$archive" "$dest/"; then
+    warn "外部コピーに失敗しました: $(basename "$archive")"
+    ops_write_last_result "backup-external" "failed" "$(basename "$archive")"
+    return 1
+  fi
+
+  # コピー先でも世代を絞る。外部側は「最後の砦」なので日数は本体と揃える。
+  local ext_removed=0 entry base keep_list names=()
+  while IFS= read -r entry; do
+    base=$(basename "$entry")
+    base="${base%.tar.gz.enc}"
+    is_full_backup_name "$base" || continue
+    [[ "$base" == pre-restore_* ]] && continue
+    names+=("$base")
+  done < <(find "$dest" -maxdepth 1 -name '????-??-??_??????.tar.gz.enc' 2>/dev/null)
+
+  if [[ ${#names[@]} -gt 0 ]] && date -d "2020-01-01" +%s >/dev/null 2>&1; then
+    keep_list=$(select_backups_to_keep "${names[@]}")
+    for base in "${names[@]}"; do
+      printf '%s\n' "$keep_list" | grep -qx "$base" && continue
+      rm -f "$dest/$base.tar.gz.enc" 2>/dev/null || true
+      echo "  Deleting (external): $base"
+      (( ext_removed++ )) || true
+    done
+  fi
+
+  echo "  Copied: $(basename "$archive")"
+  ops_write_last_result "backup-external" "ok" "$(basename "$archive")"
+  return 0
 }
 
 COMMAND="${1:-help}"

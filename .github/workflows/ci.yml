@@ -1,0 +1,112 @@
+name: CI
+
+# テストは手元では manage.sh test（稼働中コンテナの中）で走らせる。
+# ここはその「もう一方の経路」── 手元の Docker が止まっていても、
+# push した時点で必ず一度は回ることを保証するためのもの。
+#
+# 対象アプリの一覧は docker/scripts/manage.sh の TEST_TARGETS と対になっている。
+# 片方だけに足すと preflight のチェック16が WARN を出す。
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+# 同じブランチへ連続で push したとき、古い実行は畳む。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      # 1つ落ちても他を止めない。どのアプリが壊れたかを一度に知りたいため。
+      fail-fast: false
+      matrix:
+        app:
+          - inheritance-tax-app
+          - inheritance-tax-form
+          - private-banking
+          - stock-valuation-form
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Dockerfile 側の ARG NODE_VERSION=22 に合わせる。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # stock-valuation-form だけ package-lock.json を持たないので ci が使えない。
+      # setup-node の cache は lock ファイルが前提なのでここでは使わない
+      # （lock 無しのアプリで must-have なファイルが無いと失敗する）。
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      # Prisma を使うアプリだけ。private-banking は postinstall で済むので
+      # --if-present で該当しないアプリを素通りさせる。
+      - name: Prisma client
+        run: npm run db:generate --if-present
+
+      - name: Test
+        run: npm test
+
+  compose:
+    name: compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # compose ファイルの構文と変数展開だけを見る（起動はしない）。
+      # prod の上書きは .env を要求するものがあり、.env は git に入らないので
+      # ここでは base だけを検証する。
+      - name: Validate every docker-compose.yml
+        run: |
+          set -euo pipefail
+          failed=0
+          for f in apps/*/docker-compose.yml docker/gateway/docker-compose.yml; do
+            [ -f "$f" ] || continue
+            if docker compose -f "$f" config >/dev/null; then
+              echo "ok   $f"
+            else
+              echo "FAIL $f"
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+  scripts:
+    name: shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 運用スクリプトは無人で走るため、構文エラーが「その回が丸ごと飛ぶ」に
+      # 直結する。最低限 bash -n は毎回通しておく。
+      - name: bash -n
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r f; do
+            if bash -n "$f"; then
+              echo "ok   $f"
+            else
+              echo "FAIL $f"
+              failed=1
+            fi
+          done < <(find docker apps -name '*.sh' -not -path '*/node_modules/*' | sort)
+          exit "$failed"

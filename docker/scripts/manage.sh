@@ -17,6 +17,9 @@
 #   ./manage.sh restore [dir]      バックアップからリストア
 #   ./manage.sh clean              コンテナ・イメージのクリーンアップ
 #   ./manage.sh clean-cache        古い Docker Build Cache の削除
+#   ./manage.sh prune              無人向けの掃除（確認なし・ボリュームは触らない）
+#   ./manage.sh test [app]         稼働中のコンテナの中でテストを実行
+#   ./manage.sh alert              デスクトップの警告ファイルを作り直す
 #   ./manage.sh preflight          起動前チェック
 #
 # ============================================
@@ -170,6 +173,37 @@ POSTGRES_APPS=(
   "private-banking:private-banking-postgres:private_banking:pb:pb_dev_password"
   "stock-valuation-form:svf-postgres:stock_valuation:svf:svf_dev_password"
 )
+
+# ------------------------------------
+# テストを持っているアプリ
+#
+# 「ローカルを汚さない」ため、テストは稼働中のコンテナの中で走らせる。
+# 手元に node_modules を作らずに済む唯一の経路がこれ。
+#
+# テストはあるのに実行する手順がどこにも無く、CI も無かったので、
+# 書かれたテストが一度も回らないまま放置されうる状態だった。
+#
+# 形式: アプリ名:コンテナ名:実行するコマンド
+# preflight のチェック16が、この一覧と package.json の test スクリプトを
+# 毎回突き合わせる（テストを足したのに載せ忘れると、そこで出る）。
+# ------------------------------------
+TEST_TARGETS=(
+  "inheritance-tax-app:inheritance-tax-app:npm test"
+  "inheritance-tax-form:inheritance-tax-form:npm test"
+  "private-banking:private-banking-app:npm test"
+  "stock-valuation-form:stock-valuation-form:npm test"
+)
+
+test_target_entry() {
+  local name="$1" entry
+  for entry in "${TEST_TARGETS[@]}"; do
+    if [[ "${entry%%:*}" == "$name" ]]; then
+      printf '%s\n' "$entry"
+      return 0
+    fi
+  done
+  return 1
+}
 
 # アプリ名から POSTGRES_APPS の行を引く。見つからなければ 1 を返す。
 postgres_app_entry() {
@@ -853,11 +887,20 @@ _print_autoheal_status() {
     echo "  スケジュールタスク: 確認不可（schtasks.exe が見つかりません）"
   fi
 
+  # 見る対象としきい値は lib/ops-common.sh の OPS_WATCHED_RESULTS が唯一の定義元。
+  # ここと preflight で表を二重持ちしていたときは、preflight 側にバックアップの
+  # 行が無く、status=failed のバックアップが preflight を素通りしていた。
   echo "  直近の実行結果:"
-  _print_last_run_line "    ウォッチドッグ" "watchdog" 48
-  _print_last_run_line "    復旧(recover) " "recover" 48
-  _print_last_run_line "    バックアップ  " "backup" 30
-  _print_last_run_line "    リストア訓練  " "drill" 192
+  local wr_entry wr_name wr_ja wr_stale
+  for wr_entry in "${OPS_WATCHED_RESULTS[@]}"; do
+    IFS=: read -r wr_name wr_ja _ wr_stale <<< "$wr_entry"
+    ops_watched_result_is_active "$wr_name" || continue
+    _print_last_run_line "    $wr_ja" "$wr_name" "$wr_stale"
+  done
+
+  if [ -f "$OPS_ALERT_STATE_FILE" ]; then
+    echo "  デスクトップの警告ファイル: 出ています（$OPS_ALERT_FILE_NAME）"
+  fi
 
   if [ -f "$STOP_MARKER" ]; then
     echo "  復旧の一時停止: ★有効 — 意図的な停止中とみなして復旧しません"
@@ -1124,6 +1167,154 @@ cmd_clean_cache() {
   echo ""
   echo "After:"
   print_docker_disk_usage
+}
+
+# ------------------------------------
+# test - 稼働中のコンテナの中でテストを走らせる
+# ------------------------------------
+# ホストに node_modules を作らないのが要点（CLAUDE.md の「ローカルを汚さない」）。
+# そのため前提は「そのアプリが dev モードで動いていること」の1つだけ。
+#
+# 本番モードのコンテナは `npm install --omit=dev` なので vitest が入っておらず、
+# 走らせると必ず落ちる。それは「テストが失敗した」ではないので、
+# 理由を書いて飛ばす（黙って飛ばすと、その方が見逃される）。
+_run_one_test() {
+  local app_name="$1" container="$2" command="$3"
+  local dir="$PROJECT_ROOT/apps/$app_name"
+
+  echo ""
+  echo "----------------------------------------"
+  echo "  $app_name"
+  echo "----------------------------------------"
+
+  if ! docker ps --format '{{.Names}}' | grep -qx "$container"; then
+    warn "飛ばしました: コンテナ $container が動いていません"
+    echo "  起動: docker/scripts/manage.sh start $app_name"
+    return 2
+  fi
+
+  local mode
+  mode=$(effective_app_mode "$dir")
+  if [[ "$mode" == "prod" ]]; then
+    warn "飛ばしました: 本番モードで稼働中（devDependencies が入っていません）"
+    # build はモードを踏襲するので、ここで案内すると prod のまま作り直すだけになる。
+    # dev へ戻すには base だけで up し直す必要がある。
+    echo "  dev へ戻して確認するには: cd apps/$app_name && docker compose up -d"
+    echo "  （CI では常に dev 相当で回っています: .github/workflows/ci.yml）"
+    return 2
+  fi
+
+  if docker exec "$container" sh -lc "$command"; then
+    ok "$app_name: 成功"
+    return 0
+  fi
+  err "$app_name: 失敗"
+  return 1
+}
+
+cmd_test() {
+  local target="${1:-}"
+  local entries=()
+
+  if [[ -n "$target" ]]; then
+    local dir entry
+    dir=$(resolve_app_dir "$target") || return 1
+    if ! entry=$(test_target_entry "$(basename "$dir")"); then
+      err "テストの登録がありません: $(basename "$dir")"
+      echo "  登録済み: $(printf '%s ' "${TEST_TARGETS[@]%%:*}")"
+      echo "  テストを足したら manage.sh の TEST_TARGETS へ1行追加してください。"
+      return 1
+    fi
+    entries=("$entry")
+  else
+    entries=("${TEST_TARGETS[@]}")
+  fi
+
+  print_banner "Tax Apps - Test"
+
+  local passed=0 failed=0 skipped=0
+  local failed_apps=()
+  local e app container command rc
+  for e in "${entries[@]}"; do
+    IFS=: read -r app container command <<< "$e"
+    rc=0
+    _run_one_test "$app" "$container" "$command" || rc=$?
+    case "$rc" in
+      0) ((++passed)) ;;
+      2) ((++skipped)) ;;
+      *) ((++failed)); failed_apps+=("$app") ;;
+    esac
+  done
+
+  echo ""
+  echo "========================================"
+  printf '  成功 %d / 失敗 %d / 飛ばした %d\n' "$passed" "$failed" "$skipped"
+  echo "========================================"
+
+  if [[ $failed -gt 0 ]]; then
+    err "失敗: ${failed_apps[*]}"
+    return 1
+  fi
+  return 0
+}
+
+# ------------------------------------
+# prune - 無人向けの掃除
+# ------------------------------------
+# clean-cache との違いは「誰も見ていない前提」。確認を訊かず、消していいものしか
+# 消さず、結果を last-run に残す。週次のリストア訓練の最後から呼ばれる。
+#
+# clean-cache は対話式で、しかもどのタスクからも呼ばれていなかったため、
+# 一度も自動では走っていない。その間に Build Cache とぶら下がりイメージで
+# 数十GB が積み上がっていた。
+cmd_prune() {
+  print_banner "Tax Apps - Docker Prune"
+  echo "  削除対象: どのイメージからも参照されていない層 と 古い Build Cache"
+  echo "  保持対象: コンテナ、使用中のイメージ、★ボリューム（DBデータ）"
+  echo ""
+  echo "Before:"
+  print_docker_disk_usage
+  echo ""
+
+  if ops_docker_prune; then
+    echo ""
+    echo "After:"
+    print_docker_disk_usage
+    ops_write_last_result prune ok "docker prune done"
+    return 0
+  fi
+
+  err "Docker の掃除に失敗しました"
+  ops_write_last_result prune failed "docker prune failed"
+  return 1
+}
+
+# ------------------------------------
+# alert - デスクトップの警告ファイルを作り直す
+# ------------------------------------
+# 中身は last-run からの派生物なので、いつ呼んでも同じ結果になる。
+# PowerShell 側（docker-watchdog.ps1）から呼ぶための入口でもある
+# ── 判定ロジックを PowerShell に複製すると、しきい値が必ずズレるため。
+cmd_alert() {
+  ops_refresh_failure_alert
+
+  local failures
+  failures=$(ops_collect_failures)
+  if [[ -z "$failures" ]]; then
+    ok "異常はありません（警告ファイルがあれば削除しました）"
+    return 0
+  fi
+
+  warn "異常があります:"
+  printf '%s\n' "$failures" | while IFS=$'\t' read -r _name kind line; do
+    [[ -n "$line" ]] || continue
+    echo "  【$kind】$line"
+  done
+  local desktop
+  if desktop=$(ops_desktop_dir); then
+    echo "  警告ファイル: $(to_win_path "$desktop/$OPS_ALERT_FILE_NAME")"
+  fi
+  return 0
 }
 
 # ------------------------------------
@@ -1456,11 +1647,14 @@ cmd_preflight() {
   # 7 で見ているのは「バックアップファイルが出来たか」だけで、復旧や
   # リストア訓練が成功したかは誰も見ていなかった。その結果、週次の訓練は
   # ロック衝突で2週続けて飛んだままログに残るだけになっていた。
+  #
+  # 対象としきい値は lib/ops-common.sh の OPS_WATCHED_RESULTS に集約した。
+  # ここに手書きの表を置いていたときは backup の行が抜けていて、
+  # status=failed のバックアップが preflight を素通りしていた。
   local lr_entry lr_name lr_label lr_stale lr_status lr_age lr_detail
-  for lr_entry in "watchdog:Docker watchdog:48" \
-                  "recover:App recovery:48" \
-                  "drill:Restore drill:192"; do
-    IFS=: read -r lr_name lr_label lr_stale <<< "$lr_entry"
+  for lr_entry in "${OPS_WATCHED_RESULTS[@]}"; do
+    IFS=: read -r lr_name _ lr_label lr_stale <<< "$lr_entry"
+    ops_watched_result_is_active "$lr_name" || continue
     if ! lr_status=$(ops_last_result_field "$lr_name" status); then
       warn "$lr_label has never recorded a result"
       echo "  Nothing has completed yet, or it always failed before reporting."
@@ -1557,6 +1751,43 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
+  # 16. テストの登録漏れ
+  #
+  # テストを書いたのに TEST_TARGETS へ足し忘れると、manage.sh test でも CI でも
+  # 走らない。「テストがある」と思い込んだまま一度も実行されない状態になるので、
+  # package.json 側を正として突き合わせる。
+  local test_drift=0 pkg pkg_app
+  while IFS= read -r pkg; do
+    grep -q '"test"[[:space:]]*:' "$pkg" || continue
+    pkg_app=$(basename "$(dirname "$pkg")")
+    if ! test_target_entry "$pkg_app" >/dev/null; then
+      warn "App has a test script but is not in TEST_TARGETS: $pkg_app"
+      echo "  manage.sh の TEST_TARGETS と .github/workflows/ci.yml の matrix へ追加してください。"
+      test_drift=1
+      ((++pf_warn))
+    fi
+  done < <(find "$PROJECT_ROOT/apps" -mindepth 2 -maxdepth 2 -name package.json 2>/dev/null | sort)
+
+  local tt_entry tt_app
+  for tt_entry in "${TEST_TARGETS[@]}"; do
+    tt_app="${tt_entry%%:*}"
+    if [[ ! -f "$PROJECT_ROOT/apps/$tt_app/package.json" ]]; then
+      warn "TEST_TARGETS lists an app that does not exist: $tt_app"
+      test_drift=1
+      ((++pf_warn))
+    elif ! grep -q "$tt_app" "$PROJECT_ROOT/.github/workflows/ci.yml" 2>/dev/null; then
+      warn "TEST_TARGETS app is not in the CI matrix: $tt_app"
+      echo "  .github/workflows/ci.yml の matrix へ追加してください。"
+      test_drift=1
+      ((++pf_warn))
+    fi
+  done
+
+  if [[ $test_drift -eq 0 ]]; then
+    ok "Test registry matches package.json and CI (${#TEST_TARGETS[@]} apps)"
+    ((++pf_ok))
+  fi
+
   # Summary
   print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
 
@@ -1587,7 +1818,7 @@ case "$COMMAND" in
   recover)
     acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 240)"
     ;;
-  start|stop|down|restart|build|apply|clean|clean-cache)
+  start|stop|down|restart|build|apply|clean|clean-cache|prune|test)
     acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 120)"
     ;;
 esac
@@ -1609,9 +1840,12 @@ case "$COMMAND" in
   drill)     "$SCRIPT_DIR/backup.sh" drill "${2:-}" ;;
   clean)     cmd_clean ;;
   clean-cache) cmd_clean_cache "${2:-}" ;;
+  prune)     cmd_prune ;;
+  test)      cmd_test "${2:-}" ;;
+  alert)     cmd_alert ;;
   preflight) cmd_preflight ;;
   *)
-    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|backup|restore|verify|drill|clean|clean-cache|preflight} [app-name]"
+    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|verify|drill|clean|clean-cache|prune|alert|preflight} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start              全アプリを起動（ネットワーク自動作成）"
@@ -1625,6 +1859,7 @@ case "$COMMAND" in
     echo "  watch <app>        ソース変更をコンテナへ同期（フォアグラウンド、Ctrl+C で終了）"
     echo "  logs <app>         指定アプリのログ表示"
     echo "  status             全アプリの状態表示"
+    echo "  test [app]         稼働中のコンテナの中でテストを実行（省略時は対象すべて）"
     echo ""
     echo "Operations:"
     echo "  backup             全データベース・データをバックアップ"
@@ -1633,6 +1868,8 @@ case "$COMMAND" in
     echo "  drill [backup]     リストア訓練（使い捨てDBへ実際に復元して検証。既定は最新）"
     echo "  clean              コンテナ・イメージのクリーンアップ"
     echo "  clean-cache [--all] Docker Build Cache の削除（通常は7日以上未使用のみ）"
+    echo "  prune              無人向けの掃除（確認なし・ボリュームは触らない）"
+    echo "  alert              デスクトップの警告ファイルを作り直す"
     echo "  preflight          起動前チェック"
     echo ""
     echo "Apps:"
