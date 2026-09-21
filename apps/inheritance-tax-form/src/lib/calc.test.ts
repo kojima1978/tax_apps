@@ -2,10 +2,23 @@ import { describe, expect, it } from 'vitest';
 import {
   DETAIL_VALUE_MANUAL,
   computeAll, detailAutoValue, detailGroupCount, detailShareAmounts, detailShareCount, detailSlots,
-  detailUnit, detailValue, moveDetailShare, moved, num, remapTable14Confirm, sameValues, table11f1Calc,
+  detailUnit, detailValue, hasTable112, moveDetailShare, moved, num, rateTax, remapTable14Confirm,
+  sameValues, table10MinPages, table10Pages, table112Pages, table11f1Calc, table13MinPages,
+  table13Pages, table14MinPages, table14Pages, table42Pages, table4Pages, table88Pages,
+  table9MinPages, table9Pages,
   type Values,
 } from './calc';
+import { TABLE10_DETAIL_FORM, TABLE10_ROWS } from '../forms/table10';
+import {
+  TABLE13_DEBT_FORM, TABLE13_DEBT_ROWS, TABLE13_FUNERAL_FORM, TABLE13_FUNERAL_ROWS, TABLE13_PERSONS,
+} from '../forms/table13';
+import {
+  TABLE14_BEQUEST_FORM, TABLE14_BEQUEST_ROWS, TABLE14_DONATION_FORM, TABLE14_DONATION_ROWS,
+  TABLE14_GIFT_FORM, TABLE14_GIFT_ROWS,
+} from '../forms/table14';
 import { TABLE15_KEY_BY_MARK, table15Key } from '../forms/table15';
+import { RATE_BRACKETS } from '../forms/table2';
+import { TABLE9_DETAIL_FORM, TABLE9_ROWS } from '../forms/table9';
 
 /** 法定相続人の印と法定相続分（1/3ずつ）。第2表④はこの印が付いた人だけが並ぶ */
 const third: Values = { isLawful: '1', lawNum: '1', lawDen: '3' };
@@ -748,5 +761,204 @@ describe('remapTable14Confirm（受贈財産の番号の振り直し）', () => 
     const common: Values = { t14c0Spouse: '甲' };
 
     expect(remapTable14Confirm(common, move(2, 0))).toBe(common);
+  });
+});
+
+/**
+ * 相続税の速算表（第2表の下部に印字されている表）。
+ *
+ * 段を1つ取り違えたり控除額を打ち間違えたりすると、全員の税額が黙って狂う。
+ * 金額は「法定相続分に応ずる取得金額」の千円単位。
+ */
+describe('相続税の速算表（rateTax）', () => {
+  it.each([
+    [10000, 1_000_000],
+    [30000, 4_000_000],
+    [50000, 8_000_000],
+    [100000, 23_000_000],
+    [200000, 63_000_000],
+    [300000, 108_000_000],
+    [600000, 258_000_000],
+  ])('%i千円ちょうどはその段で計算する', (thousand, expected) => {
+    expect(rateTax(thousand)).toBe(expected);
+  });
+
+  it.each([
+    [10001, 1_000_150],
+    [30001, 4_000_200],
+    [50001, 8_000_300],
+    [100001, 23_000_400],
+    [200001, 63_000_450],
+    [300001, 108_000_500],
+    [600001, 258_000_550],
+  ])('%i千円は1つ上の段で計算する（上限は「以下」）', (thousand, expected) => {
+    expect(rateTax(thousand)).toBe(expected);
+  });
+
+  it('段の境目では控除額が税率の上がり分をちょうど打ち消す', () => {
+    // 速算表は境目で連続するように控除額が決めてあるので、上限ちょうどの税額だけでは
+    // 「以下」と「未満」の取り違えが値に出ない（どちらの段で計算しても同額になる）。
+    // 境目の1千円上との差が次の段の税率ぶんになることで、各段の控除額を確かめる。
+    RATE_BRACKETS.forEach((bracket, i) => {
+      if (!Number.isFinite(bracket.limit)) return;
+      const next = RATE_BRACKETS[i + 1]!;
+      expect(rateTax(bracket.limit + 1) - rateTax(bracket.limit)).toBe(Math.round(1000 * next.rate));
+    });
+  });
+
+  it.each([0, -1, -100000])('取得金額が無ければ税額も0（%i）', (thousand) => {
+    expect(rateTax(thousand)).toBe(0);
+  });
+
+  it('いちばん下の段には控除額が無い', () => {
+    expect(rateTax(1)).toBe(100);
+  });
+});
+
+/** 明細1件。空行と区別できればよいので1欄だけ入れる */
+const detailRow = (): Values => ({ name: '甲' });
+
+/** 明細 n 件（`blanks` 件の空行を末尾に足せる） */
+const detailList = (n: number, blanks = 0): Values[] => [
+  ...Array.from({ length: n }, detailRow),
+  ...Array.from({ length: blanks }, (): Values => ({})),
+];
+
+/** 明細の件数から最低枚数が決まる様式 */
+interface DetailPagesCase {
+  /** テストの見出し */
+  name: string;
+  /** 明細の様式コード */
+  form: string;
+  /** 1枚に載る件数 */
+  perPage: number;
+  /** 手で指定した枚数を持つ共通欄のキー */
+  key: string;
+  min: (details: Record<string, Values[]>) => number;
+  pages: (common: Values, details: Record<string, Values[]>) => number;
+}
+
+const DETAIL_PAGES: DetailPagesCase[] = [
+  {
+    name: '第9表', form: TABLE9_DETAIL_FORM, perPage: TABLE9_ROWS, key: 't9Pages',
+    min: table9MinPages, pages: table9Pages,
+  },
+  {
+    name: '第10表', form: TABLE10_DETAIL_FORM, perPage: TABLE10_ROWS, key: 't10Pages',
+    min: table10MinPages, pages: table10Pages,
+  },
+  {
+    name: '第13表1（債務）', form: TABLE13_DEBT_FORM, perPage: TABLE13_DEBT_ROWS, key: 't13Pages',
+    min: (details) => table13MinPages(1, details),
+    pages: (common, details) => table13Pages(common, 1, details),
+  },
+  {
+    name: '第13表2（葬式費用）', form: TABLE13_FUNERAL_FORM, perPage: TABLE13_FUNERAL_ROWS, key: 't13Pages',
+    min: (details) => table13MinPages(1, details),
+    pages: (common, details) => table13Pages(common, 1, details),
+  },
+  {
+    name: '第14表1（贈与）', form: TABLE14_GIFT_FORM, perPage: TABLE14_GIFT_ROWS, key: 't14Pages',
+    min: table14MinPages, pages: table14Pages,
+  },
+  {
+    name: '第14表2（遺贈）', form: TABLE14_BEQUEST_FORM, perPage: TABLE14_BEQUEST_ROWS, key: 't14Pages',
+    min: table14MinPages, pages: table14Pages,
+  },
+  {
+    name: '第14表3（寄附）', form: TABLE14_DONATION_FORM, perPage: TABLE14_DONATION_ROWS, key: 't14Pages',
+    min: table14MinPages, pages: table14Pages,
+  },
+];
+
+// 枚数が足りないと、用紙に出ていない明細が集計にだけ効いてしまう。画面には出ているので、
+// 印刷するまで気付けない。最低枚数はその下限で、これを割る枚数には減らせない。
+describe.each(DETAIL_PAGES)('$name の枚数', ({ form, perPage, key, min, pages }) => {
+  it('明細が無ければ1枚', () => {
+    expect(min({})).toBe(1);
+    expect(pages({}, {})).toBe(1);
+  });
+
+  it('ちょうど1枚分なら1枚', () => {
+    expect(min({ [form]: detailList(perPage) })).toBe(1);
+  });
+
+  it('1件でも超えたら2枚', () => {
+    expect(min({ [form]: detailList(perPage + 1) })).toBe(2);
+  });
+
+  it('末尾の空行は枚数を増やさない（打って消しただけの行）', () => {
+    expect(min({ [form]: detailList(perPage, 3) })).toBe(1);
+  });
+
+  it('手で指定した枚数が最低枚数を下回っても最低枚数までしか減らない', () => {
+    expect(pages({ [key]: '1' }, { [form]: detailList(perPage + 1) })).toBe(2);
+  });
+
+  it('明細が収まっていれば手で指定した枚数を使う', () => {
+    expect(pages({ [key]: '3' }, { [form]: detailList(perPage) })).toBe(3);
+  });
+});
+
+describe('第13表の枚数は人数でも増える', () => {
+  it('1枚に載る人数までは1枚', () => {
+    expect(table13MinPages(TABLE13_PERSONS, {})).toBe(1);
+  });
+
+  it('人数が1人でも超えたら2枚', () => {
+    expect(table13MinPages(TABLE13_PERSONS + 1, {})).toBe(2);
+  });
+
+  it('人数と明細のうち多い方をとる', () => {
+    const details = { [TABLE13_DEBT_FORM]: detailList(TABLE13_DEBT_ROWS + 1) };
+
+    expect(table13MinPages(TABLE13_PERSONS, details)).toBe(2);
+  });
+});
+
+/**
+ * 明細の件数からは枚数が決まらない様式。
+ * 対象になるかどうかが相続人の一覧から分からないので、−／＋で増減する。
+ */
+const MANUAL_PAGES: [string, string, (values: Values) => number][] = [
+  ['第4表', 't4Pages', table4Pages],
+  ['第4表の2', 't42Pages', table42Pages],
+  ['第8の8表', 't88Pages', table88Pages],
+  ['第11の2表', 't112Pages', table112Pages],
+];
+
+describe.each(MANUAL_PAGES)('%s の枚数', (_name, key, pages) => {
+  it('未入力なら1枚', () => {
+    expect(pages({})).toBe(1);
+  });
+
+  it('指定した枚数を使う', () => {
+    expect(pages({ [key]: '3' })).toBe(3);
+  });
+
+  it.each(['0', '-2', '', 'あ'])('枚数にならない値（%s）は1枚に倒す', (value) => {
+    expect(pages({ [key]: value })).toBe(1);
+  });
+
+  it('小数は切り捨てる', () => {
+    expect(pages({ [key]: '2.7' })).toBe(2);
+  });
+});
+
+describe('第11の2表を印刷するか（hasTable112）', () => {
+  it('相続時精算課税の記入が1つでもあれば印刷する', () => {
+    expect(hasTable112({ t112a0: '1000000' })).toBe(true);
+  });
+
+  it('枚数だけ増やして中身が空なら印刷しない', () => {
+    expect(hasTable112({ t112Pages: '3' })).toBe(false);
+  });
+
+  it('自動転記される氏名は記入と数えない', () => {
+    expect(hasTable112({ name: '甲', isLawful: '1' })).toBe(false);
+  });
+
+  it('空白だけの欄は記入と数えない', () => {
+    expect(hasTable112({ t112a0: '   ' })).toBe(false);
   });
 });
