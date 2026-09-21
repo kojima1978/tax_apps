@@ -98,7 +98,7 @@ curl -s -o /dev/null -w 'code=%{http_code}\n' -H 'Host: evil.example' http://loc
 | Scenario | 期待する挙動 |
 | --- | --- |
 | Upstream app stopped | ゲートウェイは落ちず、502 で独自の 50x ページ（`html/50x.html` = 3519B） |
-| API upstream error | 上流の JSON がそのまま通り、HTML に差し替えられない（**例外あり・後述**） |
+| API upstream error | 上流の JSON がそのまま通り、HTML に差し替えられない |
 | Too many requests | 429 + `Retry-After: 30` + `html/429.html`（3428B） |
 | Too many connections | 同じく 429（`limit_conn_status 429`。既定の 503 ではない） |
 | Body size exceeded | 413。**独自ページは無い**（nginx 既定の 176B の本文） |
@@ -154,21 +154,26 @@ rm -f /tmp/53m.bin
 
 nginx は `Content-Length` を見て**本文を読む前に**断るので、上流には届かない。
 
-### 既知のずれ: stock-valuation-form の API
+**API の個別メッセージが消えていないか**
 
-`default.conf` の Vite 一括 location（正規表現）に `stock-valuation-form` が入っており、
-この location には `proxy_intercept_errors off` が無い。API を持つ他のアプリは
-`^~ /<app>/api/` の専用 location を立てて `off` にしているが、svf にはそれが無い。
+`default.conf` の Vite 一括 location（正規表現）は `proxy_intercept_errors off` を
+持たない。**バックエンドを持つアプリをこの一覧に入れたまま**にすると、上流が返した
+JSON が `404.html` などに差し替わる。API を持つアプリには必ず
+`^~ /<app>/api/` の専用 location を立てて `off` を書くこと。
 
 ```bash
-curl -s -o /dev/null -w 'status=%{http_code} size=%{size_download}\n' \
-  http://localhost/stock-valuation-form/api/industry/9999
-# status=404 size=2809   ← html/404.html と同じサイズ = 本文が差し替わっている
+curl -s -w '\nstatus=%{http_code} type=%{content_type}\n' \
+  'http://localhost/stock-valuation-form/api/industry-categories?year=9999'
+# {"error":"指定された年分は登録されていません"}
+# status=404 type=application/json        ← JSON のまま届いていれば正しい
+#
+# 壊れているときは text/html・size=2809（= html/404.html と同じサイズ）になる
 ```
 
-影響を受けるのは `error_page` にあるステータス（実際には 404 と、シード失敗時の
-`/api/health` の 503）だけ。フロントは `サーバがHTTP 404を返しました` に落ちるので
-壊れはしないが、`指定された年分は登録されていません` のような個別メッセージは失われる。
+実際に 2026-09-21 まで svf がこの状態だった（Vite 一括 location に入っていて専用
+location が無い唯一のバックエンド持ちアプリだった）。フロント側は
+`サーバがHTTP 404を返しました` に落ちるだけで**エラーにならない**ので、
+叩いて見る以外に気づく手段が無い。
 
 ## 4. Tuning knobs
 
