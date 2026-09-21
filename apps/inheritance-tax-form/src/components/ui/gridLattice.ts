@@ -95,6 +95,19 @@ export function snapDrift({ xs, ys, placed }: Lattice): SnapDrift[] {
     .sort((a, b) => b.drift - a.drift);
 }
 
+/**
+ * 格子へ寄せた結果、幅か高さが 0 になった罫線セル。
+ *
+ * 寄せは `SNAP_TOL`（％）以内の端を1本にまとめるので、それより細いセルは前後が同じ線に
+ * 落ちて消える。消えたセルの罫線は隣の線と重なって出るため、画面では「線が1本足りない」
+ * ではなく「線が少し太い」に見え、様式と並べても気づきにくい。
+ *
+ * 罫線を持たないセル（文字だけを重ねて置くセル）は潰れても見た目が変わらないので外す。
+ */
+export function collapsedCells({ placed }: Lattice): PlacedCell[] {
+  return placed.filter(({ c, cs, ce, rs, re }) => !c.noBorder && (cs === ce || rs === re));
+}
+
 /** 罫線の太さ（px）。太枠と破線は既定値が違う */
 export function borderWidthOf(c: GridCell): number {
   return c.borderWidth ?? (c.outline ? 1.5 : c.dashed ? 1 : 0.5);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { GridCell } from './GridForm';
-import { borderWidthOf, deriveLattice, nearestIndex, ruleSegments, snapLines } from './gridLattice';
+import {
+  borderWidthOf, collapsedCells, deriveLattice, nearestIndex, ruleSegments, snapLines,
+} from './gridLattice';
 
 const cell = (top: number, left: number, height: number, width: number, rest: Partial<GridCell> = {}): GridCell => (
   { top, left, height, width, ...rest }
@@ -92,5 +94,21 @@ describe('ruleSegments', () => {
     // 2本目のセルの左端は 40.1 だが、格子では 40 に寄る
     const { v } = ruleSegments([cell(0, 0, 100, 40), cell(0, 40.1, 100, 59.9)]);
     expect(v.map((s) => s.pos)).toEqual([0, 40, 100]);
+  });
+});
+
+describe('collapsedCells', () => {
+  it('寄せで幅（高さ） 0 になった罫線セルを拾う', () => {
+    // 2本目のセルは幅 0.1（％）で、左右の端が同じ線へ寄る
+    const cells = [cell(0, 0, 100, 40), cell(0, 40, 100, 0.1), cell(0, 40.1, 100, 59.9)];
+    expect(collapsedCells(deriveLattice(cells))).toHaveLength(1);
+    expect(collapsedCells(deriveLattice(cells))[0]!.c).toBe(cells[1]);
+  });
+
+  it('罫線を持たないセルは潰れても拾わない', () => {
+    const cells = [
+      cell(0, 0, 100, 40), cell(0, 40, 100, 0.1, { noBorder: true }), cell(0, 40.1, 100, 59.9),
+    ];
+    expect(collapsedCells(deriveLattice(cells))).toEqual([]);
   });
 });

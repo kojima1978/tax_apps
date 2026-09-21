@@ -1,4 +1,4 @@
-import { useCallback, useContext, useId, useMemo, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useContext, useEffect, useId, useMemo, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { PrintRenderContext } from './printContext';
 import { lookupZipAddress } from '../../lib/zipAddress';
 import {
@@ -7,7 +7,7 @@ import {
 import { suffixedName, type AutoFill, type CodeSuffix } from '../../lib/codeLink';
 import { formQrPath } from '../../lib/qrPath';
 import { FORM_QR_STAR, QR_SIZE } from '../../data/formQr';
-import { borderStyleOf, borderWidthOf, deriveLattice } from './gridLattice';
+import { borderStyleOf, borderWidthOf, collapsedCells, deriveLattice, type PlacedCell } from './gridLattice';
 
 /** 分数（分子と分母を横線で上下に組む）。⑨の減額割合「80／100」や「200／330」など様式どおりの縦組み */
 export interface Fraction {
@@ -318,14 +318,31 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
 
-  const { colTmpl, rowTmpl, placed } = useMemo(() => {
-    const { xs, ys, placed } = deriveLattice(cells);
+  const { colTmpl, rowTmpl, placed, collapsed } = useMemo(() => {
+    const lattice = deriveLattice(cells);
+    const { xs, ys, placed } = lattice;
     // minmax(0, …) を外すと fr の下限が min-content になり、罫線1本ぶんの細い列
     // （二重線の間など）が中身の分だけ広がって、他の列を押しのけて全体がずれる。
     const track = (ls: number[]) =>
       ls.slice(1).map((l, i) => `minmax(0, ${(l - ls[i]!).toFixed(3)}fr)`).join(' ');
-    return { colTmpl: track(xs), rowTmpl: track(ys), placed };
+    const collapsed: PlacedCell[] = import.meta.env.DEV ? collapsedCells(lattice) : [];
+    return { colTmpl: track(xs), rowTmpl: track(ys), placed, collapsed };
   }, [cells]);
+
+  // 開発ビルドだけの見張り。罫線は様式PDFと突き合わせて位置を決めているので、
+  // 格子へ寄せたときに潰れた罫線セルは「引いたはずの線が1本消えた」ということ。
+  // 画面では隣の線と重なって出るため見た目では気づけないので、ここで知らせる。
+  useEffect(() => {
+    if (collapsed.length === 0) return;
+    console.warn(
+      `[GridForm] ${title ?? formId ?? '様式'}: 罫線セル ${collapsed.length}個が格子で潰れました`,
+      collapsed.map(({ c, cs, ce }) => ({
+        潰れ方: cs === ce ? '幅 0' : '高さ 0',
+        top: c.top, left: c.left, width: c.width, height: c.height,
+        text: c.text, field: c.field,
+      })),
+    );
+  }, [collapsed, title, formId]);
 
   const gridRef = useRef<HTMLDivElement>(null);
   // Enter で次の入力欄（DOM順＝右→下）へフォーカス移動

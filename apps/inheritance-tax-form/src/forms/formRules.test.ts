@@ -9,7 +9,9 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_FORMS } from './allForms';
 import type { GridCell } from '../components/ui/GridForm';
-import { SNAP_TOL, deriveLattice, ruleSegments, snapDrift, type RuleSegment } from '../components/ui/gridLattice';
+import {
+  SNAP_TOL, collapsedCells, deriveLattice, ruleSegments, snapDrift, type RuleSegment,
+} from '../components/ui/gridLattice';
 
 /** 様式1件ずつを `it.each` に渡す（見出しは様式名） */
 const each = ALL_FORMS.map((form) => [form.name, form] as const);
@@ -48,11 +50,9 @@ describe('様式の格子', () => {
   });
 
   it.each(each)('%s に潰れた罫線セルが無い', (_name, form) => {
-    // 格子の同じ線に前後が寄ったセルは幅（高さ）0 で描かれる。罫線を持たないセル
-    // （文字だけを置く重ね書きのセル）は潰れても見えないので、罫線を持つものだけ見る。
-    const { placed } = deriveLattice(form.cells);
-    const collapsed = placed.filter(({ c, cs, ce, rs, re }) => !c.noBorder && (cs === ce || rs === re));
-    expect(collapsed.map((p) => p.c)).toEqual([]);
+    // 開発ビルドの `GridForm` が console へ出すのと同じ見方。
+    // 手元で気づかなかったときのためにこちらでも止める。
+    expect(collapsedCells(deriveLattice(form.cells)).map((p) => p.c)).toEqual([]);
   });
 });
 
