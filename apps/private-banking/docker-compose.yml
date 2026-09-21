@@ -3,12 +3,23 @@
 x-autoheal-labels: &autoheal-labels
   tax-apps.autoheal: "true"
 
+# コンテナ内で setuid ビット経由の特権取得を塞ぐ。アプリ側にその必要は無い。
+# 本番用の docker-compose.prod.yml 側にだけ書かれていたので、dev で動かしている間と
+# postgres 側は素通しだった。base に移して両モード・両サービスへ効かせる。
+# postgres の公式イメージは root で起動してから su-exec で postgres へ降りるが、
+# それは setuid ビットではなく root 権限での setuid() なのでこの設定と両立する
+# （使い捨てコンテナで実際に起動確認済み）。
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+
 services:
   private-banking-postgres:
     image: postgres:16-alpine
     container_name: private-banking-postgres
     restart: unless-stopped
     labels: *autoheal-labels
+    <<: *security-opts
     environment:
       TZ: Asia/Tokyo
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -30,6 +41,14 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # 他アプリの postgres と同じ枠。上限が無いと、この1コンテナだけ
+    # ホストの物理メモリ全量（約15.5GB）を使える状態だった。
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
 
   private-banking-web:
     build:
@@ -38,9 +57,15 @@ services:
     container_name: private-banking-app
     restart: unless-stopped
     labels: *autoheal-labels
+    <<: *security-opts
     environment:
       NODE_ENV: development
       TZ: Asia/Tokyo
+      # 下の memory 上限とセットで指定する。V8 の既定ヒープ上限はホストの物理メモリ
+      # （このマシンでは約15.5GB）から決まるため、コンテナ側にだけ上限を掛けると
+      # 「GC が走る前に cgroup の上限に当たって OOM kill」になりうる。
+      # itcm-web も同じ理由で同じ組み合わせにしてある。
+      NODE_OPTIONS: "--max-old-space-size=1536"
       # compose watch の sync は Docker デーモンがオーバーレイの上位層へ直接書くため、
       # コンテナ内の inotify にイベントが届かない。Next の dev サーバはルート表を
       # watchpack の監視結果から作る（setup-dev-bundler.js の knownFiles）ので、
@@ -99,6 +124,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # 同じ Next.js dev + Turbopack の itcm-web と同じ枠。実測は 0.9GB 前後。
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
 
 networks:
   tax-apps-network:

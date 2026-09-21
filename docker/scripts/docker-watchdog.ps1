@@ -23,8 +23,34 @@ $LogDir = Join-Path $DockerOpsDir "logs"
 $LogPath = Join-Path $LogDir "docker-watchdog.log"
 $StatePath = Join-Path $LogDir "docker-watchdog.state.json"
 $LockPath = Join-Path $LogDir "docker-watchdog.lock"
+$LastRunDir = Join-Path $LogDir "last-run"
+$LogMaxBytes = 1048576
+$LogKeep = 3
 
 New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+
+# This log is append-only and was never rotated; it had been growing since
+# 2026-05 and being long is one reason nobody read it.
+function Invoke-WatchdogLogRotation {
+    if (-not (Test-Path -LiteralPath $LogPath)) {
+        return
+    }
+
+    $size = (Get-Item -LiteralPath $LogPath).Length
+    if ($size -le $LogMaxBytes) {
+        return
+    }
+
+    for ($i = $LogKeep - 1; $i -ge 1; $i--) {
+        $from = "$LogPath.$i"
+        $to = "$LogPath.$($i + 1)"
+        if (Test-Path -LiteralPath $from) {
+            Move-Item -LiteralPath $from -Destination $to -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Move-Item -LiteralPath $LogPath -Destination "$LogPath.1" -Force -ErrorAction SilentlyContinue
+}
 
 function Write-WatchdogLog {
     param(
@@ -32,9 +58,43 @@ function Write-WatchdogLog {
         [string]$Message
     )
 
+    Invoke-WatchdogLogRotation
     $line = "{0} [{1}] {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Level, $Message
     Add-Content -LiteralPath $LogPath -Value $line -Encoding UTF8
     Write-Host $line
+}
+
+# Leaves one line that "manage.sh status" and "manage.sh preflight" print.
+#
+# Nobody reads the log of an unattended task. The watchdog's own outcome was
+# therefore invisible: it stopped being registered twice, and each time that
+# went unnoticed for months. Same file format as ops_write_last_result in
+# lib/ops-common.sh - ASCII only, so bash can read it back with sed.
+function Write-LastRunResult {
+    param(
+        [string]$Name,
+        [string]$Status,
+        [string]$Detail = ""
+    )
+
+    try {
+        New-Item -ItemType Directory -Path $LastRunDir -Force | Out-Null
+        # One field per line; an exception message with newlines would otherwise
+        # turn into lines that bash reads back as bogus fields.
+        $Detail = ($Detail -replace "`r?`n", " ").Trim()
+        $epoch = [int64]([datetime]::UtcNow - [datetime]"1970-01-01").TotalSeconds
+        $lines = @(
+            "status=$Status",
+            "at=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+            "epoch=$epoch",
+            "detail=$Detail"
+        )
+        Set-Content -LiteralPath (Join-Path $LastRunDir $Name) -Value $lines -Encoding ASCII
+    }
+    catch {
+        # Recording the result must never be the thing that fails the run.
+        Write-Host "Could not write the last-run record: $($_.Exception.Message)"
+    }
 }
 
 function Enter-WatchdogLock {
@@ -178,7 +238,7 @@ function Test-DockerHealthy {
 # removed ones can never be picked up there. "It did not come up" is almost
 # always that state, so starting is delegated to manage.sh recover.
 #
-# manage.sh recover is built for being called here unattended (twice a day):
+# manage.sh recover is built for being called here unattended (four times a day):
 #   - never rebuilds / only touches apps that are down / keeps the last dev-prod mode
 #   - does nothing right after stop, down or clean (an intentional shutdown)
 #
@@ -211,17 +271,21 @@ function Invoke-TaxAppsRecovery {
 
         if ($result.TimedOut) {
             Write-WatchdogLog "WARN" "manage.bat recover timed out after ${AppRecoveryTimeoutSeconds}s."
+            $script:RecoveryIssue = "recover timed out"
             return
         }
 
-        # While a manual start / stop is running, manage.sh rejects this via its
-        # operation lock. That is not a fault; leave it to the next run.
+        # manage.sh recover now waits for the operation lock instead of giving up,
+        # so a non-zero exit is a real failure. It used to be routine: the daily
+        # backup holds the same lock, and the two collided 25 times, each time
+        # dropping that run's recovery entirely.
         if ($result.ExitCode -ne 0) {
             $message = ($result.StdErr | Out-String).Trim()
             if ([string]::IsNullOrWhiteSpace($message)) {
                 $message = "manage.bat recover exited with code $($result.ExitCode)."
             }
             Write-WatchdogLog "WARN" $message
+            $script:RecoveryIssue = "recover exited $($result.ExitCode)"
             return
         }
 
@@ -241,9 +305,11 @@ function Invoke-TaxAppsRecovery {
             # the state that went unnoticed for three months.
             if ($summary -notmatch 'status=ok\b') {
                 Write-WatchdogLog "WARN" "manage.sh recover did not run: $summary"
+                $script:RecoveryIssue = $summary
             }
             elseif ($summary -notmatch 'skipped=0\b') {
                 Write-WatchdogLog "WARN" "manage.sh recover left apps down: $summary"
+                $script:RecoveryIssue = $summary
             }
             elseif ($summary -match 'recovered=0\b') {
                 Write-Verbose "manage.sh recover: $summary"
@@ -255,6 +321,7 @@ function Invoke-TaxAppsRecovery {
 
         if (-not $sawSummary) {
             Write-WatchdogLog "WARN" "manage.bat recover produced no RECOVER_RESULT line."
+            $script:RecoveryIssue = "no RECOVER_RESULT line"
         }
     }
     finally {
@@ -473,15 +540,36 @@ function Wait-DockerRecovery {
 #   2. Restart-UnhealthyTaxAppsContainers - restart ones that run but are unhealthy
 # Stage 2 does not act on what stage 1 just started (health is "starting" during
 # start_period, so they are not matched); those are picked up on the next run.
-# Since the periodic task now runs only twice a day, "the next run" is up to half
-# a day away: a container that starts but never turns healthy stays that way
-# until then. The logon task is the other chance to catch it.
+# That is why the periodic task runs four times a day rather than two: "the next
+# run" - the first chance to restart a container that came up but never turned
+# healthy - is four hours away instead of twelve. The logon task is the other
+# chance to catch it.
 function Invoke-TaxAppsRecoverySequence {
     param([string]$DockerCli)
 
     Invoke-TaxAppsRecovery
     Restart-UnhealthyTaxAppsContainers -DockerCli $DockerCli
 }
+
+# Records the outcome, then leaves. "exit" inside try still runs the finally
+# block, so the watchdog lock is released either way.
+function Exit-Watchdog {
+    param(
+        [int]$Code,
+        [string]$Status,
+        [string]$Detail = ""
+    )
+
+    $mode = if ($StartupMode) { "startup" } else { "periodic" }
+    if ($Status -eq "ok" -and $script:RecoveryIssue) {
+        $Status = "recover-warning"
+        $Detail = $script:RecoveryIssue
+    }
+    Write-LastRunResult -Name "watchdog" -Status $Status -Detail "mode=$mode $Detail".Trim()
+    exit $Code
+}
+
+$script:RecoveryIssue = ""
 
 Enter-WatchdogLock
 try {
@@ -490,7 +578,7 @@ try {
 
     if (Test-DockerHealthy -DockerCli $dockerCli) {
         Invoke-TaxAppsRecoverySequence -DockerCli $dockerCli
-        exit 0
+        Exit-Watchdog 0 "ok" "docker=healthy"
     }
 
     Write-WatchdogLog "INFO" "Retrying after ${RetryDelaySeconds}s."
@@ -498,7 +586,7 @@ try {
 
     if (Test-DockerHealthy -DockerCli $dockerCli) {
         Invoke-TaxAppsRecoverySequence -DockerCli $dockerCli
-        exit 0
+        Exit-Watchdog 0 "ok" "docker=healthy-on-retry"
     }
 
     if ($StartupMode) {
@@ -506,37 +594,38 @@ try {
 
         if (Wait-DockerRecovery -DockerCli $dockerCli) {
             Invoke-TaxAppsRecoverySequence -DockerCli $dockerCli
-            exit 0
+            Exit-Watchdog 0 "ok" "docker=started-at-logon"
         }
 
-        # Deliberately exit 0: the periodic run (daily at 08:00 / 20:00) is the one
-        # allowed to escalate to a full restart. Failing the logon task here would only
+        # Deliberately exit 0: the periodic run (see register-docker-watchdog-task.ps1)
+        # is the one allowed to escalate to a full restart. Failing the logon task would only
         # show a red task in Task Scheduler for a machine that recovers on its own.
+        # The last-run record still says it did not come up, so it is not silent.
         Write-WatchdogLog "WARN" "Docker did not become healthy within ${MaxRecoverySeconds}s at logon; leaving it to the periodic run."
-        exit 0
+        Exit-Watchdog 0 "docker-not-ready" "waited=${MaxRecoverySeconds}s"
     }
 
     if (Test-RestartCooldown) {
-        exit 0
+        Exit-Watchdog 0 "cooldown" "docker=unhealthy"
     }
 
     Restart-DockerDesktop
 
     if ($DryRun) {
-        exit 0
+        Exit-Watchdog 0 "dryrun" ""
     }
 
     if (Wait-DockerRecovery -DockerCli $dockerCli) {
         Invoke-TaxAppsRecoverySequence -DockerCli $dockerCli
-        exit 0
+        Exit-Watchdog 0 "ok" "docker=restarted"
     }
 
     Write-WatchdogLog "ERROR" "Docker did not become healthy within ${MaxRecoverySeconds}s."
-    exit 2
+    Exit-Watchdog 2 "docker-down" "restarted but unhealthy after ${MaxRecoverySeconds}s"
 }
 catch {
     Write-WatchdogLog "ERROR" $_.Exception.Message
-    exit 2
+    Exit-Watchdog 2 "error" $_.Exception.Message
 }
 finally {
     Exit-WatchdogLock

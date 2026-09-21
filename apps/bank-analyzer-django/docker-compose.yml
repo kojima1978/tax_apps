@@ -77,6 +77,10 @@ services:
     restart: unless-stopped
     logging: *default-logging
     labels: *autoheal-labels
+    # postgres の公式イメージは root で起動してから su-exec で postgres へ降りるが、
+    # それは setuid ビットではなく root 権限での setuid() なので no-new-privileges
+    # とは両立する（使い捨てコンテナで実際に起動確認済み）。
+    <<: *security-opts
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bankuser -d bank_analyzer"]
       <<: *healthcheck-defaults

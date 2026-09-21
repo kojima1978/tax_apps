@@ -16,5 +16,5 @@ services:
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
-    security_opt:
-      - no-new-privileges:true
+    # security_opt は base（docker-compose.yml）の x-security-opts へ移した。
+    # ここにだけ書いていたので、dev で動かしている間と postgres 側は素通しだった。

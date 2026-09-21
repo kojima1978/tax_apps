@@ -26,6 +26,13 @@ cd apps/<app-name> && docker compose -f docker-compose.yml -f docker-compose.pro
 cd apps/<app-name> && docker compose logs -f
 ```
 
+compose を新しく書くときは既存ファイルの**アンカーをそのまま写すこと**
+（`x-logging` / `x-autoheal-labels` / `x-healthcheck-defaults` / `x-security-opts` /
+`deploy.resources`）。全アプリの全サービスに `no-new-privileges` とメモリ上限が入っている。
+Node.js のアプリにメモリ上限を付けるときは `NODE_OPTIONS: --max-old-space-size=…` も一緒に置く
+（V8 の既定ヒープ上限はホストの物理メモリから決まるので、コンテナ側にだけ上限を掛けると
+GC の前に cgroup の上限へ当たって OOM kill になりうる）。どちらも**作り直して初めて効く**。
+
 ### ソース同期（private-banking / inheritance-case-management）
 
 この2アプリは dev でもソースを bind mount せず、**イメージ同梱物 + `docker compose watch`** で動かす。
@@ -60,7 +67,7 @@ docker/scripts/manage.sh watch <app-name>
 `stop.bat` を一度でも押すと以降のデーモン再起動では二度と復帰しない。タスクは2つで対になっている:
 
 - **`Tax Apps Startup`**（ログオン時・`register-startup-task.bat`）: Docker エンジンの起動を待ってから復旧
-- **`Tax Apps Docker Watchdog`**（毎日 8:00 / 20:00・`register-docker-watchdog-task.bat`）: 落ちたら直す係
+- **`Tax Apps Docker Watchdog`**（毎日 8:00 / 12:00 / 16:00 / 20:00・`register-docker-watchdog-task.bat`）: 落ちたら直す係
 
 どちらも**昇格不要**（`RunLevel Limited`）。以前は UAC 必須だったが、それが原因で
 一度消えると管理者ダブルクリックでしか戻せず、**実際に2回消えて数ヶ月間無防備だった**。
@@ -69,12 +76,28 @@ docker/scripts/manage.sh watch <app-name>
 - 復旧の実体は `manage.sh recover`。起動ロジックを PowerShell 側に複製せず、
   `APPS` 配列を唯一の定義元に保つ。`start` との違いは無人で定期的に呼ばれる前提から来る:
   **再ビルドしない / 落ちているアプリだけ / モードを踏襲 / 意図的な停止中は何もしない**
-- **実行間隔は「1日2回の固定時刻」**（`register-docker-watchdog-task.ps1` の `$DailyTimes`）。
+- **実行間隔は「1日4回の固定時刻」**（`register-docker-watchdog-task.ps1` の `$DailyTimes`）。
   `-Once + RepetitionInterval` を使わないのは、繰り返し間隔が「登録した瞬間」を起点にするため。
   `backup.sh` はタスク消失時に引数なしで自動再登録するので、その方式だと再登録のたびに
   実行時刻が深夜などへ勝手にずれる。Daily トリガーなら常に同じ時刻に落ちる。
   **間隔を変えるときは `$DailyTimes` の既定値を直すこと** — 登録済みタスクだけ変更しても、
-  次に `backup.sh` が再登録した時点で既定値に戻る
+  次に `backup.sh` が再登録した時点で既定値に戻る。
+  4回なのは**復旧が2回かかる設計**だから: ある回で起動したコンテナはまだ healthcheck の
+  `start_period` の中にいるので、unhealthy のまま固まった場合に再起動されるのは**次の回**。
+  1日2回だとその2回目が最大12時間先で、立ち上がったが healthy にならないコンテナが
+  ほぼ丸1日壊れたままになる。夜間の空きは機械自体が落ちているので放置する
+- **無人で走る処理は必ず結果を1件残す**（`docker/logs/last-run/<名前>`、`ops_write_last_result`）。
+  `manage.sh status` と `preflight` がこれを読んで「一度も記録が無い」「ok 以外」
+  「古すぎる」を出す。**バックアップ・ドリル・復旧・ウォッチドッグの失敗が誰にも届かず
+  数ヶ月見逃された**のが発端なので、無人処理を足したらここへの記録も必ず足すこと
+- **共通処理は `docker/scripts/lib/ops-common.sh` に置く**（色・ログローテーション・
+  直近結果・操作ロック・`to_win_path` / `task_exists`）。`manage.sh` と `backup.sh` の
+  両方から source する。**同じ実装を2つ持つとロックの意味が無くなる**（別々のロックを
+  取り合う形になる）ため、ロック周りは特にここ以外に書かないこと
+- **操作ロックは「待ってから諦める」**（`acquire_operation_lock <action> [秒]`）。
+  以前は取れなければ即座に終了していたので、ログオン直後に溜まったタスクが
+  衝突して**週次のドリルが2回連続で丸ごと飛んでいた**。端末から手で叩いたときは
+  待たず（`ops_default_lock_wait` が `[[ -t 1 ]]` で判定）、無人実行のときだけ待つ
 - **モードはアプリ単位で記録する**（`docker/logs/app-modes/`）。このリポジトリは実際には
   混在稼働していて、一部のアプリだけ個別に `-f docker-compose.prod.yml` 付きで起動されている。
   全体で1つのモードにすると、落ちた本番アプリを dev サーバとして作り直してしまう。
@@ -93,7 +116,11 @@ docker/scripts/manage.sh watch <app-name>
 - `status.bat`: ワンクリックで状態確認
 - `register-startup-task.bat` / `register-docker-watchdog-task.bat`: 自動起動・自動復旧タスクの登録
   （`unregister-*.bat` で解除）
-- `backup-db.bat`: 暗号化された全体バックアップ（PostgreSQL 3件 + SQLite 3件 + アップロード + テンプレート + `.env` + JSONエクスポート。7日間保持、タスクスケジューラ対応）
+- `backup-db.bat`: 暗号化された全体バックアップ（PostgreSQL 4件 + SQLite 3件 + アップロード + テンプレート + `.env` 4件 + JSONエクスポート。7日間保持、タスクスケジューラ対応）
+  - **暗号鍵 `~/.tax-apps/backup.key` の控えだけは手で取ること**。これを失うと
+    `docker/backups/` の暗号化アーカイブは全部ただのゴミになる。鍵が無い状態で
+    `backup.sh` を走らせても、暗号化済みのアーカイブが1つでもあれば新しい鍵を
+    黙って作らずに中断する（指紋を `docker/backups/.backup-key-fingerprint` と突き合わせる）
 - `restore-drill.bat`: 最新バックアップのリストア訓練（週次タスク対応）
 
 ```bash

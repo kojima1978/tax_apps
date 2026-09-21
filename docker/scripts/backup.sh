@@ -33,8 +33,17 @@ bootstrap_path
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-LOCK_DIR="${TMPDIR:-/tmp}/tax-apps-docker-ops.lock"
-LOCK_HELD=0
+
+# ログ出力・操作ロック・直近結果の記録は manage.sh と共有する。
+# 別実装にしておくと静かにズレる（実際、ロックの待ち方がズレていたせいで
+# 週次のリストア訓練が2週続けて丸ごと飛んでいた）ので実体は1箇所に置く。
+if [[ ! -f "$SCRIPT_DIR/lib/ops-common.sh" ]]; then
+  echo "[ERROR] lib/ops-common.sh が見つかりません: $SCRIPT_DIR/lib/ops-common.sh" >&2
+  exit 1
+fi
+# shellcheck source=lib/ops-common.sh
+source "$SCRIPT_DIR/lib/ops-common.sh"
+
 RESTORE_WORK_DIR=""
 BACKUP_BASE="${BACKUP_BASE:-$SCRIPT_DIR/../backups}"
 LATEST_BACKUP_BASE="${LATEST_BACKUP_BASE:-$(cd "$PROJECT_ROOT/.." && pwd)/tax_apps_backup_latest}"
@@ -42,6 +51,9 @@ LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
 FULL_BACKUP_RETENTION_DAYS="${FULL_BACKUP_RETENTION_DAYS:-${RETENTION_DAYS:-7}}"
 BACKUP_KEY_FILE="${BACKUP_KEY_FILE:-$HOME/.tax-apps/backup.key}"
 BACKUP_ENCRYPTION_ITERATIONS="${BACKUP_ENCRYPTION_ITERATIONS:-200000}"
+# 鍵そのものではなく「どの鍵で暗号化したか」の目印。バックアップ側（リポジトリ内）
+# に置いて、鍵ファイルが別物にすり替わったことを復号前に気づけるようにする。
+BACKUP_KEY_FINGERPRINT_FILE="${BACKUP_KEY_FINGERPRINT_FILE:-$BACKUP_BASE/.backup-key-fingerprint}"
 DRILL_PG_IMAGE="${DRILL_PG_IMAGE:-postgres:16-alpine}"
 DRILL_PG_CONTAINER="tax-apps-restore-drill"
 DRILL_PG_STARTED=0
@@ -78,9 +90,7 @@ SETTINGS_TARGETS=(
   "Stock Valuation Form .env:apps/stock-valuation-form/.env:stock-valuation-form-.env"
 )
 
-warn() { printf '\033[1;33m[WARN]\033[0m  %s\n' "$*"; }
-err() { printf '\033[1;31m[ERROR]\033[0m %s\n' "$*" >&2; }
-ok() { printf '\033[1;32m[OK]\033[0m    %s\n' "$*"; }
+# warn / err / ok・to_win_path・task_exists・操作ロックは lib/ops-common.sh にある。
 
 check_dependencies() {
   if ! command -v docker >/dev/null 2>&1; then
@@ -93,7 +103,9 @@ check_dependencies() {
   fi
 }
 
-release_operation_lock() {
+# ロック解放の直前に呼ばれるフック（lib/ops-common.sh の release_operation_lock から）。
+# 訓練用コンテナと復号した平文の後始末は、ロックを手放すより先に終わらせる必要がある。
+on_release_operation_lock() {
   if [[ "$DRILL_PG_STARTED" -eq 1 ]]; then
     docker rm -f "$DRILL_PG_CONTAINER" >/dev/null 2>&1 || true
     DRILL_PG_STARTED=0
@@ -102,10 +114,21 @@ release_operation_lock() {
     rm -rf "$RESTORE_WORK_DIR"
     RESTORE_WORK_DIR=""
   fi
-  if [[ "$LOCK_HELD" -eq 1 ]]; then
-    rm -rf "$LOCK_DIR"
-    LOCK_HELD=0
-  fi
+}
+
+# 鍵の指紋。鍵そのものは出さない（sha256 の先頭16桁だけ）。
+backup_key_fingerprint() {
+  [[ -s "$BACKUP_KEY_FILE" ]] || return 1
+  local sum
+  sum=$(sha256sum < "$BACKUP_KEY_FILE" 2>/dev/null | awk '{print $1}') || return 1
+  [[ -n "$sum" ]] || return 1
+  printf '%s\n' "${sum:0:16}"
+}
+
+# 既に暗号化アーカイブが1つでもあるか。
+has_encrypted_backups() {
+  [[ -d "$BACKUP_BASE" ]] || return 1
+  compgen -G "$BACKUP_BASE/*.tar.gz.enc" >/dev/null 2>&1
 }
 
 ensure_backup_encryption_key() {
@@ -115,6 +138,22 @@ ensure_backup_encryption_key() {
   fi
 
   if [[ ! -s "$BACKUP_KEY_FILE" ]]; then
+    # 鍵が無いときに黙って作り直してはいけない。
+    #
+    # 以前はここで無条件に新しい鍵を生成していた。PC を入れ替えたり
+    # ユーザープロファイルが飛んだりして鍵だけ失われると、翌日のバックアップが
+    # 何事もなく成功し、しかし過去のアーカイブは全て復号できない塊に変わる。
+    # しかもそれに気づけるのは、いざ復元が必要になった当日だけだった。
+    if has_encrypted_backups; then
+      err "Backup key is missing, but encrypted backups already exist."
+      err "  Key file: $(to_win_path "$BACKUP_KEY_FILE")"
+      err "  Backups : $(to_win_path "$BACKUP_BASE")"
+      err "既存のアーカイブはこの鍵でしか復号できません。オフライン保管した控えを"
+      err "この場所へ戻してください。新しい鍵を作ると過去の分は永久に読めなくなります。"
+      err "本当に作り直してよい場合のみ、既存の *.tar.gz.enc を退避してから再実行してください。"
+      return 1
+    fi
+
     local old_umask
     old_umask=$(umask)
     umask 077
@@ -124,6 +163,25 @@ ensure_backup_encryption_key() {
     umask "$old_umask"
     ok "Created backup key outside repository: $(to_win_path "$BACKUP_KEY_FILE")"
     warn "Store a secure offline copy of this key. Encrypted backups cannot be restored without it."
+    warn "控えの置き場所（推奨）: USB メモリなど、この PC とは別の媒体。"
+    warn "リポジトリ内・同じディスク上のバックアップ先には置かないこと（同時に失われます）。"
+  fi
+
+  # どの鍵で暗号化したかをバックアップ側に残し、次回以降すり替わりを検出する。
+  local fp recorded
+  fp=$(backup_key_fingerprint || echo "")
+  if [[ -n "$fp" ]]; then
+    mkdir -p "$BACKUP_BASE" 2>/dev/null || true
+    if [[ -s "$BACKUP_KEY_FINGERPRINT_FILE" ]]; then
+      recorded=$(tr -d '\r\n' < "$BACKUP_KEY_FINGERPRINT_FILE")
+      if [[ -n "$recorded" && "$recorded" != "$fp" ]]; then
+        warn "Backup key changed (recorded $recorded, now $fp)."
+        warn "これより前のアーカイブは古い鍵でしか復号できません。両方とも保管してください。"
+        printf '%s\n' "$fp" > "$BACKUP_KEY_FINGERPRINT_FILE" 2>/dev/null || true
+      fi
+    else
+      printf '%s\n' "$fp" > "$BACKUP_KEY_FINGERPRINT_FILE" 2>/dev/null || true
+    fi
   fi
 
   if command -v powershell.exe >/dev/null 2>&1; then
@@ -213,6 +271,12 @@ extract_encrypted_backup() {
     -md sha256 -pass "file:$key_path" -in "$archive" |
     tar xzf - -C "$RESTORE_WORK_DIR"; then
     err "Could not decrypt backup. Check BACKUP_KEY_FILE."
+    err "  Key file   : $(to_win_path "$BACKUP_KEY_FILE")"
+    err "  Key finger : $(backup_key_fingerprint || echo 'unreadable')"
+    if [[ -s "$BACKUP_KEY_FINGERPRINT_FILE" ]]; then
+      err "  Recorded   : $(tr -d '\r\n' < "$BACKUP_KEY_FINGERPRINT_FILE")"
+      err "この2つが食い違っていれば、鍵がこのアーカイブのものではありません。"
+    fi
     rm -rf "$RESTORE_WORK_DIR"
     RESTORE_WORK_DIR=""
     return 1
@@ -225,40 +289,6 @@ extract_encrypted_backup() {
     return 1
   fi
   EXTRACTED_BACKUP_PATH="$RESTORE_WORK_DIR/$archive_name"
-}
-
-acquire_operation_lock() {
-  local action="${1:-backup}"
-  local owner_pid=""
-
-  if [[ -f "$LOCK_DIR/owner" ]]; then
-    owner_pid="$(sed -n 's/^pid=//p' "$LOCK_DIR/owner" | head -1)"
-  fi
-
-  if [[ -n "$owner_pid" ]] && ! kill -0 "$owner_pid" 2>/dev/null; then
-    warn "Removing stale operation lock: $LOCK_DIR"
-    rm -rf "$LOCK_DIR"
-  fi
-
-  if mkdir "$LOCK_DIR" 2>/dev/null; then
-    LOCK_HELD=1
-    {
-      echo "pid=$$"
-      echo "action=$action"
-      echo "started_at=$(date -Is 2>/dev/null || date)"
-      echo "script=$0"
-    } > "$LOCK_DIR/owner"
-    trap release_operation_lock EXIT INT TERM
-    return 0
-  fi
-
-  err "Another Tax Apps Docker operation is already running."
-  if [[ -f "$LOCK_DIR/owner" ]]; then
-    sed 's/^/  /' "$LOCK_DIR/owner" >&2 || true
-  else
-    err "Lock directory: $LOCK_DIR"
-  fi
-  return 1
 }
 
 print_banner() {
@@ -295,15 +325,6 @@ path_size() {
     wc -c < "$path" | tr -d ' '
   else
     dir_size "$path"
-  fi
-}
-
-to_win_path() {
-  local path="$1"
-  if command -v cygpath >/dev/null 2>&1; then
-    cygpath -w "$path"
-  else
-    printf '%s\n' "$path"
   fi
 }
 
@@ -461,11 +482,24 @@ restore_postgres() {
     docker exec "$container" psql -U "$pg_user" -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$db_name' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
     docker exec "$container" psql -U "$pg_user" -d postgres -c "DROP DATABASE IF EXISTS $db_name;" >/dev/null 2>&1
     docker exec "$container" psql -U "$pg_user" -d postgres -c "CREATE DATABASE $db_name;" >/dev/null 2>&1
-    if docker exec -i "$container" psql -U "$pg_user" -d "$db_name" < "$backup_dir/$dump_file.sql" >/dev/null 2>&1; then
+    # ON_ERROR_STOP=1 が無いと psql は途中のエラーを無視して 0 を返す。
+    # 本物のデータを入れ直すこちら側にこそ必要で、訓練(cmd_drill)には
+    # 最初から付いていたのにここだけ抜けていた。出力も捨てない ──
+    # 半分だけ復元された DB に [OK] と表示するのが最悪のふるまいなので。
+    # 暗号化バックアップの場合 $backup_dir は終了時に消える作業ディレクトリなので、
+    # ログは docker/logs 側へ出す。
+    local psql_log
+    mkdir -p "$OPS_LOG_DIR" 2>/dev/null || true
+    psql_log="$OPS_LOG_DIR/restore-${dump_file}.log"
+    if docker exec -i "$container" psql -U "$pg_user" -d "$db_name" -q -v ON_ERROR_STOP=1 \
+      < "$backup_dir/$dump_file.sql" > "$psql_log" 2>&1; then
       ok "$dump_file.sql"
+      rm -f "$psql_log"
       (( restore_ok++ )) || true
     else
-      err "$label restore failed"
+      err "$label restore failed - データベースは不完全な状態です"
+      sed -n '1,20p' "$psql_log" | sed 's/^/    /' >&2 || true
+      err "  Full log: $(to_win_path "$psql_log")"
       (( restore_fail++ )) || true
     fi
   elif [[ -f "$backup_dir/$dump_file-volume.tar.gz" ]]; then
@@ -735,21 +769,13 @@ STARTUP_TASK_NAME="Tax Apps Startup"
 
 log_to_watchdog() {
   local level="$1" message="$2"
-  local log_dir="$SCRIPT_DIR/../logs"
-  mkdir -p "$log_dir" 2>/dev/null || return 0
+  mkdir -p "$OPS_LOG_DIR" 2>/dev/null || return 0
+  ops_rotate_log "$OPS_LOG_DIR/docker-watchdog.log"
   printf '%s [%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$level" "$message" \
-    >> "$log_dir/docker-watchdog.log" 2>/dev/null || true
+    >> "$OPS_LOG_DIR/docker-watchdog.log" 2>/dev/null || true
 }
 
-# タスクの存在確認。必ずこれを経由すること。
-#
-# `schtasks.exe /Query` を Git Bash から直接呼ぶと壊れる。MSYS は `/` 始まりの
-# 引数をパスとみなして変換するため、`/Query` が `C:/Program Files/Git/Query` に
-# 化け、存在するタスクでも常に「未登録」と判定される。しかも schtasks は
-# 使い方エラーで exit 0 を返すので、素朴な `|| echo 未登録` では気づけない。
-task_exists() {
-  MSYS2_ARG_CONV_EXCL='*' schtasks.exe /Query /TN "$1" >/dev/null 2>&1
-}
+# task_exists() は lib/ops-common.sh にある（MSYS の引数変換対策込み）。
 
 _ensure_task() {
   local task_name="$1" script_name="$2" bat_name="$3"
@@ -843,6 +869,7 @@ cmd_backup() {
       (( backup_fail++ )) || true
       print_summary_banner "Backup Failed" "$backup_fail"
       echo "  Plain backup retained for recovery: $backup_dir/"
+      ops_write_last_result "backup" "encrypt-failed" "${backup_label:-daily} plain=$(basename "$backup_dir")"
       return 1
     fi
     backup_dir="$ENCRYPTED_BACKUP_PATH"
@@ -856,6 +883,7 @@ cmd_backup() {
   if [[ $backup_ok -eq 0 ]]; then
     warn "No data was backed up. Removing empty directory."
     rm -rf "$backup_dir"
+    ops_write_last_result "backup" "no-data" "${backup_label:-daily} ok=0"
     return 1
   elif [[ $backup_fail -gt 0 ]]; then
     warn "Incomplete encrypted backup was not promoted to the latest-backup directory."
@@ -874,6 +902,16 @@ cmd_backup() {
     echo "  To restore: ./manage.sh restore $(basename "$backup_dir")"
   fi
   echo ""
+
+  # 成否を1件だけ記録する。無人実行の標準出力は誰も読まないので、
+  # manage.sh の status / preflight から見えるのはこの記録だけ。
+  if [[ $backup_fail -eq 0 ]]; then
+    ops_write_last_result "backup" "ok" \
+      "${backup_label:-daily} ok=$backup_ok skipped=$backup_skip"
+  else
+    ops_write_last_result "backup" "failed" \
+      "${backup_label:-daily} ok=$backup_ok skipped=$backup_skip failed=$backup_fail"
+  fi
 
   # バックアップの成否とは独立に、毎回ウォッチドッグの生存を確認する
   ensure_watchdog_task
@@ -1266,20 +1304,28 @@ cmd_drill() {
       -print 2>/dev/null | sort | tail -1)
     if [[ -z "$archive" ]]; then
       err "No encrypted backup found. Run: ./manage.sh backup"
+      ops_write_last_result "drill" "no-backup" "対象の暗号化バックアップがありません"
       return 1
     fi
   fi
 
   if [[ ! -f "$archive" || "$archive" != *.tar.gz.enc ]]; then
     err "Encrypted backup not found: $requested"
+    ops_write_last_result "drill" "no-backup" "requested=$requested"
     return 1
   fi
 
   echo "Target: $(basename "$archive")"
   echo ""
 
-  extract_encrypted_backup "$archive" || return 1
-  verify_backup_manifest "$EXTRACTED_BACKUP_PATH" || return 1
+  if ! extract_encrypted_backup "$archive"; then
+    ops_write_last_result "drill" "decrypt-failed" "$(basename "$archive")"
+    return 1
+  fi
+  if ! verify_backup_manifest "$EXTRACTED_BACKUP_PATH"; then
+    ops_write_last_result "drill" "manifest-failed" "$(basename "$archive")"
+    return 1
+  fi
   echo ""
 
   drill_ok=0
@@ -1298,10 +1344,14 @@ cmd_drill() {
   echo ""
   if [[ $drill_fail -gt 0 ]]; then
     err "This backup is NOT safely restorable. Investigate before relying on it."
+    ops_write_last_result "drill" "failed" \
+      "$(basename "$archive") ok=$drill_ok skipped=$drill_skip failed=$drill_fail"
     echo ""
     return 1
   fi
   ok "All drilled databases restored cleanly."
+  ops_write_last_result "drill" "ok" \
+    "$(basename "$archive") ok=$drill_ok skipped=$drill_skip"
   echo ""
 }
 
@@ -1329,9 +1379,22 @@ remove_old_dirs() {
 
 COMMAND="${1:-help}"
 case "$COMMAND" in
-  backup|restore|verify|drill|itcm)
+  # 無人で走る3つは待つ。ログオン直後に日次バックアップ・週次ドリル・
+  # ウォッチドッグが -StartWhenAvailable でまとめて起き、必ず誰かが負ける。
+  # 数分待てば全部順番に通るので、その回を捨てる理由が無い。
+  # 待ち時間はタスク側の ExecutionTimeLimit より十分短くしてある。
+  backup|drill|itcm)
     check_dependencies
-    acquire_operation_lock "$COMMAND"
+    # itcm は backup-db.bat が使う歴史的な別名でしかない。ロックの持ち主表示も
+    # 直近結果の記録も backup に寄せる（itcm 名義で記録すると status から見えない）。
+    lock_action="$COMMAND"
+    if [[ "$lock_action" == "itcm" ]]; then lock_action="backup"; fi
+    acquire_operation_lock "$lock_action" "$(ops_default_lock_wait 900)" || exit 1
+    ;;
+  # restore / verify は人が見ている前提なので待たない。
+  restore|verify)
+    check_dependencies
+    acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 120)" || exit 1
     ;;
 esac
 

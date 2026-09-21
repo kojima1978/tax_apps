@@ -157,7 +157,7 @@ rd /s /q tax_apps
 | `status.bat` | Windows (CMD) | ワンクリックで状態確認 |
 | `docker-watchdog.ps1` | Windows PowerShell | Docker Desktop の応答確認・自動再起動・unhealthy コンテナ再起動 |
 | `docker-watchdog.bat` | Windows (CMD) | 手動実行用の watchdog ラッパー（`-DryRun` 等の動作確認用。タスクスケジューラからは `.ps1` が直接呼ばれる） |
-| `register-docker-watchdog-task.ps1` | Windows PowerShell | Docker watchdog タスクを登録（既定 1日2回 8:00/20:00、`-Unregister` で解除） |
+| `register-docker-watchdog-task.ps1` | Windows PowerShell | Docker watchdog タスクを登録（既定 1日4回 8:00/12:00/16:00/20:00、`-Unregister` で解除） |
 | `register-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク登録のラッパー（ダブルクリックで登録。昇格不要） |
 | `unregister-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク解除のラッパー（ダブルクリックで解除。昇格不要） |
 
@@ -171,7 +171,7 @@ rd /s /q tax_apps
 | 本番モード起動 | `start-prod.bat` | ダブルクリックするだけで全アプリを本番モードで起動 |
 | 停止 | `stop.bat` | ダブルクリックするだけで全アプリを停止 |
 | 状態確認 | `status.bat` | ダブルクリックするだけで状態を確認 |
-| 自動バックアップ | `backup-db.bat` | `backup.sh itcm` を呼び出す補助。PostgreSQL 3件・SQLite 3件・アップロード・テンプレート・設定・JSONエクスポートを7日間保持 |
+| 自動バックアップ | `backup-db.bat` | `backup.sh itcm` を呼び出す補助。PostgreSQL 4件・SQLite 3件・アップロード・テンプレート・設定・JSONエクスポートを7日間保持 |
 | リストア訓練 | `restore-drill.bat` | 最新のバックアップを使い捨て環境へ実際に復元し、本当に戻せるか検証 |
 | Docker自動復旧 | `docker-watchdog.bat` | `docker info` が連続失敗した場合に Docker Desktop を再起動し、unhealthy コンテナも再起動 |
 
@@ -416,18 +416,36 @@ DBなどの永続データは Docker Named Volume またはバインドマウン
 `docker\backups\2026-02-22_153000.tar.gz.enc` のようなAES-256暗号化ファイルとして7日間保存されます。
 あわせて、リポジトリと同じ階層の `tax_apps_backup_latest\all-apps\` に最新1日分だけ追加コピーされます。
 
-暗号鍵は既定でリポジトリ外の `~/.tax-apps/backup.key` に初回実行時に作成されます。鍵を失うと復元できないため、アクセス制限した外部媒体へ鍵だけを別途保管してください。バックアップファイルと鍵を同じ場所へコピーしないでください。
-
 | # | データ | 方式 | 備考 |
 |:--|:------|:-----|:-----|
 | 1 | ITCM PostgreSQL | `pg_dump`（SQLダンプ） | コンテナ停止中はボリューム tar バックアップ |
 | 2 | Bank Analyzer PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
 | 3 | Private Banking PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
-| 4 | SQLite 3アプリ | `better-sqlite3 backup` + `PRAGMA integrity_check` | 稼働中も整合性のあるスナップショットを取得 |
-| 5 | Bank Analyzer データフォルダ | `cp` | `apps/bank-analyzer-django/data/` |
-| 6 | ITCM Excel テンプレート | `cp` | `apps/inheritance-case-management/templates/`。`.gitignore` 対象なので Git には無い |
-| 7 | 設定ファイル | `cp` | ITCM .env, Bank Analyzer .env, Private Banking .env |
-| 8 | Bank Analyzer 案件別JSON | `manage.py export_case_json_backups` | 画面のJSONバックアップと同じ形式 |
+| 4 | Stock Valuation Form PostgreSQL | `pg_dump`（SQLダンプ） | 同上。業種目マスタと各社データ |
+| 5 | SQLite 3アプリ | `better-sqlite3 backup` + `PRAGMA integrity_check` | 稼働中も整合性のあるスナップショットを取得 |
+| 6 | Bank Analyzer データフォルダ | `cp` | `apps/bank-analyzer-django/data/` |
+| 7 | ITCM Excel テンプレート | `cp` | `apps/inheritance-case-management/templates/`。`.gitignore` 対象なので Git には無い |
+| 8 | 設定ファイル | `cp` | ITCM / Bank Analyzer / Private Banking / Stock Valuation Form の `.env` |
+| 9 | Bank Analyzer 案件別JSON | `manage.py export_case_json_backups` | 画面のJSONバックアップと同じ形式 |
+
+#### 暗号鍵の保管（ここだけは自動化できない）
+
+暗号鍵は既定でリポジトリ外の `~/.tax-apps/backup.key` に初回実行時に作成されます。
+**鍵を失うと、7日分のバックアップすべてが復元不能な塊になります。**
+
+```
+C:\Users\<user>\.tax-apps\backup.key   ← この1ファイルだけ、外部媒体へ控えを取る
+```
+
+- アクセス制限した**外部媒体**（USBメモリ等）へ鍵**だけ**を保管してください。
+- **バックアップファイルと鍵を同じ場所に置かないこと。** 同じディスクに置けば、ディスクが
+  飛んだときに両方同時に失われ、暗号化した意味がなくなります。
+- 鍵が無い状態でバックアップを実行しても、**もう新しい鍵は自動生成されません**。
+  既存の `*.tar.gz.enc` が1つでもあればエラーで止まります。以前は黙って新しい鍵を作っていて、
+  翌日のバックアップは何事もなく成功する一方、過去のアーカイブは全て読めなくなっていました
+  （しかも気づけるのは、いざ復元が必要になった当日だけ）。
+- どの鍵で暗号化したかの目印を `docker/backups/.backup-key-fingerprint`
+  （sha256 の先頭16桁）に残します。鍵がすり替わると復号前に警告が出ます。
 
 > 全体バックアップの保持期間は既定で7日間です。変更する場合は `FULL_BACKUP_RETENTION_DAYS` を指定して `backup.sh` を実行してください。
 
@@ -493,11 +511,13 @@ backup-db.bat                              # Windows補助。ダブルクリッ�
 
 **タスクスケジューラへの登録手順:**
 
-`register-backup-task.bat` をダブルクリックすると、現在ユーザーの最小権限で `Tax Apps Daily Backup` が毎日3:00に登録されます。管理者権限は不要です。`manage.sh preflight` は暗号化バックアップが26時間以上更新されていない場合に警告します。
+`register-backup-task.bat` をダブルクリックすると、現在ユーザーの最小権限で `Tax Apps Daily Backup` が毎日3:00に登録されます。管理者権限は不要です。実行結果は `docker\logs\backup.log` に追記されます。`manage.sh preflight` は暗号化バックアップが26時間以上更新されていない場合と、直近の実行が失敗していた場合に警告します。
+
+> PCが3:00に起動していない場合、`-StartWhenAvailable` によりログオン直後にまとめて実行されます。そのとき週次のリストア訓練やウォッチドッグと重なりますが、いずれも操作ロックを待つので順番に成立します（以前は負けた側がその回を丸ごと捨てていました）。
 
 > OneDrive等の同期フォルダに保存する場合は、`backup.sh` 実行時に `BACKUP_BASE` または `LATEST_BACKUP_BASE` を指定してください。
 
-### Docker Desktop Watchdog（1日2回 8:00 / 20:00）
+### Docker Desktop Watchdog（1日4回 8:00 / 12:00 / 16:00 / 20:00）
 
 Docker Desktop 自体がクラッシュ、または `docker info` に応答しない状態になった場合に、Docker Desktop の再起動を試みる watchdog を用意しています。
 
@@ -525,10 +545,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-t
 | 項目 | 内容 |
 |:-----|:-----|
 | タスク名 | `Tax Apps Docker Watchdog` |
-| 実行時刻 | 毎日 8:00 / 20:00（`-DailyTimes "06:00","18:00"` のように変更可）。PC 停止中に時刻を跨いだ場合は `StartWhenAvailable` で次の機会に実行 |
+| 実行時刻 | 毎日 8:00 / 12:00 / 16:00 / 20:00（`-DailyTimes "06:00","18:00"` のように変更可）。PC 停止中に時刻を跨いだ場合は `StartWhenAvailable` で次の機会に実行 |
 | 実行条件 | ログオン中の現在ユーザーで実行（`RunLevel=Limited` で昇格不要） |
 | 多重起動 | 新しいインスタンスを開始しない |
-| ログ | `docker\logs\docker-watchdog.log` |
+| ログ | `docker\logs\docker-watchdog.log`（1MB でローテーション・`.1`〜`.3` を保持） |
+| 直近結果 | `docker\logs\last-run\watchdog`（`manage.sh status` / `preflight` が表示） |
 | 状態ファイル | `docker\logs\docker-watchdog.state.json`（直近の再起動時刻を記録） |
 | 監視判定 | `docker info` が2回連続で失敗（タイムアウト or 非0終了）したら復旧処理を実行 |
 | 復旧手順 | ① Docker関連プロセス kill（`Docker Desktop`, `com.docker.backend`, `com.docker.build`, `docker-sandbox`, `docker`） → ② `com.docker.service` 再起動（管理者権限が必要） → ③ `wsl --shutdown` で WSL バックエンドをリセット → ④ `Docker Desktop.exe` 起動 → ⑤ 最大300秒間 healthy 待機 |
@@ -540,9 +561,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-t
 .\docker-watchdog.bat -DryRun
 ```
 
-> 既定では Docker Desktop の復旧だけを行い、Tax Apps の `start --prod` は自動実行しません。コンテナ復帰は Compose の `restart: unless-stopped` に任せます。
-> Docker 復旧後に Tax Apps も起動したい場合は、登録時に `-StartAppsAfterRecovery` を付けます。
+> Docker が正常なときも毎回 `manage.sh recover` を呼び、落ちているアプリだけを起動し直します（再ビルドせず、アプリごとの dev/prod モードを踏襲し、`stop` 直後など意図的な停止中は何もしません）。`restart: unless-stopped` は `stop` したコンテナを「手動停止」として記録してしまい二度と復帰しないため、これが無いと復旧経路が1つも生きていない状態になります。
 > 登録時に既存タスクがある場合は自動的に上書き更新され、登録後に次回実行時刻が表示されます。
+
+> **なぜ1日4回か**: 復旧は設計上2回の実行で1組になります。1回目が起動したコンテナは healthcheck の `start_period` 中なので `unhealthy` として拾われず、再起動の対象になるのは次の実行です。2回/日だとその「次」が最大12時間先で、起動はしたが healthy にならないコンテナが半日放置されていました。変更は `register-docker-watchdog-task.ps1` の `$DailyTimes` の**既定値**を直すこと（登録済みタスクだけ変えても、`backup.sh` がタスク消失時に引数なしで再登録した時点で既定値に戻ります）。
 
 #### 配線の確認（重要）
 
@@ -749,6 +771,11 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 10 | ホストディスク空き容量（5GB未満で警告） | OK / WARN |
 | 11 | Docker daemon メモリ（4GB未満で警告） | OK / WARN |
 | 12 | Docker ディスク使用量表示 | OK / WARN |
+| 13 | `docker-entrypoint.sh` を使うイメージの CRLF ガード（`FROM` の継承を辿って確認） | OK / WARN |
+| 14 | 無人処理の直近結果（ウォッチドッグ・復旧・リストア訓練の成否と経過時間） | OK / WARN |
+| 15 | 一覧の取りこぼし（`apps/` と `APPS`、`VOLUMES` と実ボリューム、`backup.sh` の対象配列の突き合わせ） | OK / WARN |
+
+> 14 と 15 は「手書きの一覧がいつの間にか実体とズレる」「無人処理が黙って飛ぶ」の2つを見張るためのものです。実際に、週次のリストア訓練が2週続けてロック衝突で飛んでも `preflight` は何も言わず（当時はバックアップ**ファイルの日付**しか見ていなかった）、`VOLUMES` には存在しないボリュームが2件載る一方で実在するデータボリューム2件が抜けていました（`clean` が「全データを削除します」と表示しながら2アプリ分を残していた）。
 
 ### Docker Build Cache Cleanup
 
@@ -774,12 +801,24 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 設定 | 内容 |
 |:-----|:-----|
 | ログローテーション | 10MB × 3ファイル |
-| リソース制限 | deploy.resources による memory limit/reservation（Gateway/Portal は 256M/64M）と PID 上限（256） |
-| 実行時保護 | Gateway/Portal は非root、read-only root filesystem、全 capability drop、no-new-privileges |
+| リソース制限 | deploy.resources による memory limit/reservation（Gateway/Portal は 256M/64M）と PID 上限（256）。**全アプリの全サービスに上限あり** |
+| 実行時保護 | **全アプリの全サービスに `no-new-privileges`**（各 compose の `x-security-opts` アンカー）。Gateway/Portal はさらに非root、read-only root filesystem、全 capability drop |
 | ヘルスチェック | 全サービスに設定。コンテナ内の自己診断は IPv6 誤判定を避けるため `127.0.0.1` を使用 |
 | 自動復旧 | `tax-apps.autoheal=true` ラベル付きの unhealthy コンテナを、ホスト側の `docker-watchdog.ps1` が再起動（Docker socket はコンテナへ渡さない）。ラベルとスケジュールタスク登録の**両方**が必要で、配線状況は `manage.sh status` の末尾で確認する（[配線の確認](#配線の確認重要)） |
 | 依存関係管理 | service_healthy 条件 |
 | 外部ネットワーク | `tax-apps-network` で全コンテナ間通信 |
+
+> **新しいアプリを足すときの2点**
+>
+> - `security_opt` と memory 上限は `x-security-opts` / `deploy.resources` を既存 compose からそのまま写す。
+>   以前は bank-analyzer とゲートウェイにしか `no-new-privileges` が無く、private-banking は
+>   本番用の override にだけ書かれていた（＝dev で動かしている間と postgres 側は素通し）。
+> - **Node.js のアプリに memory 上限を付けるときは `NODE_OPTIONS: --max-old-space-size=…` を必ず一緒に置く。**
+>   V8 の既定ヒープ上限はホストの物理メモリから決まるので、コンテナ側にだけ上限を掛けると
+>   「GC が走る前に cgroup の上限へ当たって OOM kill」になりうる。上限の 3/4 程度を目安にする。
+>
+> どちらも**コンテナを作り直して初めて効く**（`docker compose up -d` / `manage.sh build <app>`）。
+> `docker restart` では反映されない。
 
 ### ヘルスチェック方式
 

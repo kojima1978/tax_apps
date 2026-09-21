@@ -12,21 +12,33 @@
 # could only ever be (re)created by an elevated double-click, so once it went
 # missing it stayed missing. It has already silently disappeared twice.
 #
-# Schedule: twice a day at fixed times, not a short repetition interval.
+# Schedule: several fixed times a day, not a short repetition interval.
 #
-# Fixed times are used instead of "-Once + RepetitionInterval 12h" on purpose.
+# Fixed times are used instead of "-Once + RepetitionInterval" on purpose.
 # A repetition interval is anchored to whenever the task happened to be
 # registered, so re-registering it (backup.sh does that automatically when the
-# task goes missing) silently moves both daily runs to a new, possibly
+# task goes missing) silently moves every run to a new, possibly
 # middle-of-the-night, clock time. Daily triggers always land on the same hours
 # no matter when they were created.
 #
-# StartWhenAvailable covers the machine being off at 08:00 / 20:00: the missed
+# Four times during the working day rather than two. Recovery takes two runs to
+# fully settle by design: a container started by one run is still inside its
+# health start_period, so an unhealthy one is only restarted by the NEXT run.
+# At two runs a day that second chance was up to twelve hours away, which meant
+# a container that came up but never turned healthy stayed broken for most of a
+# day. Four runs makes the gap four hours; the overnight gap is left alone
+# because the machine is usually off then anyway.
+#
+# Changing the cadence means changing the default below. Editing the registered
+# task alone does not stick: backup.sh re-registers this task with no arguments
+# whenever it finds it missing, which restores whatever is written here.
+#
+# StartWhenAvailable covers the machine being off at those times: the missed
 # occurrence runs at the next opportunity.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$TaskName = "Tax Apps Docker Watchdog",
-    [string[]]$DailyTimes = @("08:00", "20:00"),
+    [string[]]$DailyTimes = @("08:00", "12:00", "16:00", "20:00"),
     [switch]$Unregister
 )
 
@@ -79,11 +91,10 @@ $trigger = foreach ($at in $parsedTimes) {
 
 # ExecutionTimeLimit is 30 minutes because a single run can legitimately take a
 # long time: Wait-DockerRecovery waits up to MaxRecoverySeconds (300s) and
-# "manage.sh recover" up to AppRecoveryTimeoutSeconds (600s), plus the docker
-# info checks and the unhealthy-container restarts. At the old 15-minute cadence
-# a killed run was cheap - the next one came 15 minutes later. Now the next run
-# is half a day away, and being killed mid-recover can leave manage.sh's
-# operation lock held, so the limit must not cut a legitimate run short.
+# "manage.sh recover" up to AppRecoveryTimeoutSeconds (600s) - which now includes
+# waiting out a backup that holds the shared operation lock - plus the docker
+# info checks and the unhealthy-container restarts. Being killed mid-recover can
+# leave that lock held, so the limit must not cut a legitimate run short.
 $settings = New-ScheduledTaskSettingsSet `
     -MultipleInstances IgnoreNew `
     -StartWhenAvailable `
@@ -97,7 +108,7 @@ $principal = New-ScheduledTaskPrincipal `
     -RunLevel Limited
 
 $timesLabel = ($DailyTimes -join ", ")
-$description = "Checks Docker Desktop daily at $timesLabel, restarts it when docker info does not respond, starts Tax Apps containers that are not running, and restarts unhealthy ones."
+$description = "Checks Docker Desktop at $timesLabel, restarts it when docker info does not respond, starts Tax Apps containers that are not running, and restarts unhealthy ones."
 
 $existingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 $isUpdate = $null -ne $existingTask

@@ -116,8 +116,9 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
     5. 最大 300 秒間 healthy 待機
   - **クールダウン**: 直近 45 分以内に再起動済みなら復旧をスキップ
   - **状態ファイル**: `docker/logs/docker-watchdog.state.json`（直近の再起動時刻を記録）
-  - **ログ**: `docker/logs/docker-watchdog.log`
+  - **ログ**: `docker/logs/docker-watchdog.log`（1MB でローテーション・`.1`〜`.3` を保持）
   - **ロック**: `docker/logs/docker-watchdog.lock`（多重起動防止）
+  - **直近結果**: `docker/logs/last-run/watchdog`（`manage.sh status` / `preflight` が読む。下記参照）
 
 ### Windows 補助ラッパー
 
@@ -127,13 +128,17 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 ### タスク登録（定期監視）
 
 - **`register-docker-watchdog-task.ps1`** ← **本体**
-  デフォルト 15 分間隔で `docker-watchdog.ps1` を実行する Windows スケジュールタスクを `RunLevel=Highest`（管理者権限）で登録する PowerShell。要管理者権限。`-Unregister` スイッチで削除も可能。`-StartAppsAfterRecovery` スイッチで Docker 復旧後に Tax Apps を自動起動。
+  `docker-watchdog.ps1` を **1日4回の固定時刻**（既定 08:00 / 12:00 / 16:00 / 20:00 = `$DailyTimes`）で実行する Windows スケジュールタスクを登録する PowerShell。**昇格不要**（`RunLevel Limited`）。`-Unregister` スイッチで削除。
+  - **なぜ固定時刻か**: `-Once + RepetitionInterval` は繰り返しの起点が「登録した瞬間」になる。`backup.sh` はタスクが消えていると引数なしで再登録するため、その方式だと再登録のたびに実行時刻が深夜などへ勝手にずれる。
+  - **なぜ4回か**: 復旧は設計上2回の実行で1組になる。1回目が起動したコンテナは healthcheck の `start_period` 中で `unhealthy` にならないので、再起動の対象になるのは**次の実行**。2回/日だとその「次」が最大12時間先で、起動はしたが healthy にならないコンテナが半日放置されていた。
+  - **間隔を変えるときは `$DailyTimes` の既定値を直すこと**。登録済みタスクだけ変えても、次に `backup.sh` が再登録した時点で既定値に戻る。
 
 - **`register-docker-watchdog-task.bat`**
-  `register-docker-watchdog-task.ps1` を呼ぶ **UAC 自己昇格ラッパー**。ダブルクリック → UAC 昇格 → 登録。
+  `register-docker-watchdog-task.ps1` を呼ぶラッパー。ダブルクリックで登録（**UAC 不要**）。
+  - 昇格が要らなくなったのは意図的。昇格必須だった頃は「消えたら管理者ダブルクリックでしか戻せない」状態で、**実際に2回消えて数ヶ月間無防備だった**。
 
 - **`unregister-docker-watchdog-task.bat`**
-  `register-docker-watchdog-task.ps1 -Unregister` を呼ぶ UAC 自己昇格ラッパー。ダブルクリック → UAC 昇格 → タスク削除。
+  `register-docker-watchdog-task.ps1 -Unregister` を呼ぶラッパー。ダブルクリックでタスク削除。
 
 ### 登録状況の確認（重要）
 
@@ -145,9 +150,50 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 自動復旧（ウォッチドッグ）:
   スケジュールタスク: 登録済み（Tax Apps Docker Watchdog）
   autoheal ラベル: 稼働中の healthcheck 付きコンテナすべてに付与済み
+  直近の実行結果:
+    ウォッチドッグ: ok（2026-09-21 08:00・3時間前） mode=periodic docker=healthy
+    復旧(recover) : ok（2026-09-21 08:00・3時間前） recovered=0 skipped=0
+    バックアップ  : ok（2026-09-21 07:58・3時間前） daily ok=7 skipped=0
+    リストア訓練  : ★lock-timeout（2026-09-20 08:13・27時間前） waited=0s owner=backup
 ```
 
-★ が付いていたらその項目が未配線。ラベルは compose を直して `up -d` で再作成、タスクは `register-docker-watchdog-task.bat` をダブルクリックで登録する。
+★ が付いていたらその項目が未配線、または失敗している。ラベルは compose を直して `up -d` で再作成、タスクは `register-docker-watchdog-task.bat` をダブルクリックで登録する。
+
+### 直近の実行結果（`docker/logs/last-run/`）
+
+無人で走るもの（`backup` / `drill` / `recover` / `watchdog`）は、終了時に成否を1件だけ
+`docker/logs/last-run/<名前>` へ書く。`status` と `preflight` が毎回これを読んで表示する。
+
+```
+status=ok
+at=2026-09-21 07:58:12
+epoch=1758409092
+detail=daily ok=7 skipped=0
+```
+
+- **なぜログでは足りなかったか**: 無人タスクの出力は誰も読まない。週次のリストア訓練は
+  ロック衝突で2週続けて丸ごと飛んでいたが、`restore-drill.log` に1行残っただけで
+  `preflight` は何も言わなかった（当時見ていたのはバックアップ**ファイルの日付**だけで、
+  訓練やウォッチドッグの成否は対象外）。
+- 書式は Bash（`lib/ops-common.sh` の `ops_write_last_result`）と PowerShell
+  （`docker-watchdog.ps1` の `Write-LastRunResult`）の両方から書くため **ASCII 固定**。
+- ロック待ちで諦めた回も `status=lock-timeout` として残る。**飛んだ回が記録に残らない**のが
+  そもそもの問題だったため。
+
+### 操作ロック（`manage.sh` / `backup.sh` 共通）
+
+`docker compose` の同時実行を防ぐ排他。実体は `lib/ops-common.sh` にあり、両スクリプトが
+同じディレクトリ（`%TEMP%/tax-apps-docker-ops.lock`）を使う。
+
+- **取れなかったときは待つ**。当初は「人が手で start / stop している最中」を想定して即
+  エラー終了していたが、実際の衝突相手はほぼ常に**同じスケジューラから起きた無人処理**だった。
+  PC が深夜に起動していないため `-StartWhenAvailable` の遅延実行で日次バックアップ・週次訓練・
+  ウォッチドッグがログオン直後の数分に固まり、負けた側がその回まるごと消えていた
+  （ドリルは2週連続、ウォッチドッグの復旧は通算25回）。
+- **端末から叩いたときは待たない**（`[[ -t 1 ]]` で判定）。人が見ている前で数分黙って
+  固まるより、その場で言った方がいい。`TAX_APPS_LOCK_WAIT=<秒>` で上書きできる。
+- 持ち主のプロセスが死んでいるロックだけ自動で片付ける。**生きているロックは奪わない** ──
+  `clean` は確認プロンプトの入力待ちの間ずっとロックを握るため。
 
 ---
 
@@ -172,8 +218,9 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 | `docker-watchdog.ps1` | 本体 (PS) | Docker Desktop daemon 監視/復旧、unhealthy コンテナ再起動 |
 | `docker-watchdog.bat` | 補助 (CMD) | 手動実行用ラッパー |
 | `register-docker-watchdog-task.ps1` | 本体 (PS) | ウォッチドッグタスク登録 |
-| `register-docker-watchdog-task.bat` | 補助 (CMD) | UAC 自己昇格 → 登録 |
-| `unregister-docker-watchdog-task.bat` | 補助 (CMD) | UAC 自己昇格 → タスク削除 |
+| `register-docker-watchdog-task.bat` | 補助 (CMD) | 現在ユーザーへタスク登録（昇格不要） |
+| `unregister-docker-watchdog-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除（昇格不要） |
+| `lib/ops-common.sh` | 本体 (Bash) | manage.sh / backup.sh 共通の土台（ログ・操作ロック・直近結果） |
 
 ---
 
@@ -190,8 +237,8 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 | 毎週日曜 04:00 のリストア訓練を設定 | `register-restore-drill-task.bat` をダブルクリック |
 | リストア訓練タスクを削除 | `unregister-restore-drill-task.bat` をダブルクリック |
 | バックアップが復元できるか今すぐ試す | `restore-drill.bat` をダブルクリック |
-| 15 分ごとの Docker 監視を設定 | `register-docker-watchdog-task.bat` をダブルクリック → UAC「はい」 |
-| 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック → UAC「はい」 |
+| 1日4回の Docker 監視を設定 | `register-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
+| 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 
 ---
 

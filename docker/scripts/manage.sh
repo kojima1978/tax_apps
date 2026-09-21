@@ -43,8 +43,16 @@ bootstrap_path
 # プロジェクトルート（docker/ の親ディレクトリ）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-LOCK_DIR="${TMPDIR:-/tmp}/tax-apps-docker-ops.lock"
-LOCK_HELD=0
+
+# ログ出力・操作ロック・直近結果の記録は backup.sh と共有する。
+# 片方だけ直すと静かにズレる（実際、ロックの挙動がズレていたせいで
+# 週次のリストア訓練が2週間まるごと飛んでいた）ので実体は1箇所に置く。
+if [[ ! -f "$SCRIPT_DIR/lib/ops-common.sh" ]]; then
+  echo "[ERROR] lib/ops-common.sh が見つかりません: $SCRIPT_DIR/lib/ops-common.sh" >&2
+  exit 1
+fi
+# shellcheck source=lib/ops-common.sh
+source "$SCRIPT_DIR/lib/ops-common.sh"
 
 # 「意図的に停止した」ことを示すマーカー。stop / down で作成し、start で消す。
 #
@@ -81,17 +89,7 @@ NETWORK_NAME="tax-apps-network"
 WATCHDOG_TASK_NAME="Tax Apps Docker Watchdog"
 STARTUP_TASK_NAME="Tax Apps Startup"
 
-# タスクの存在確認。必ずこれを経由すること。
-#
-# `schtasks.exe /Query` を Git Bash から直接呼ぶと壊れる。MSYS は `/` 始まりの
-# 引数をパスとみなして変換するため、`/Query` が `C:/Program Files/Git/Query` に
-# 化け、存在するタスクでも常に「未登録」と判定される。しかも schtasks は
-# 使い方エラーで exit 0 を返すので、素朴な `|| echo 未登録` では気づけない。
-task_exists() {
-  MSYS2_ARG_CONV_EXCL='*' schtasks.exe /Query /TN "$1" >/dev/null 2>&1
-}
-
-# バックアップディレクトリ
+# task_exists() は lib/ops-common.sh にある（MSYS の引数変換対策込み）。
 
 # ------------------------------------
 # アプリ一覧（起動順序を考慮）
@@ -116,15 +114,29 @@ APPS=(
   "docker/gateway"
 )
 
-# データボリューム一覧
+# データボリューム一覧（clean の Step 2 で削除する対象）
+#
+# 手書きなので実体からズレる。実際 bank-analyzer-sqlite と tax-docs-data は
+# どこにも存在しないまま残っていて（tax-docs は読み取り専用 bind だけで
+# ボリュームを持たない）、逆に insurance-app と inheritance-tax-docs の
+# SQLite ボリュームは載っていなかった ── つまり「全データを削除します」と
+# 表示しながら2アプリ分だけ残していた。
+# preflight のチェック14が、この配列と実際のボリュームの差を毎回突き合わせる。
 VOLUMES=(
   "inheritance-case-management_postgres_data"
   "bank-analyzer-postgres"
-  "bank-analyzer-sqlite"
-  "tax-docs-data"
   "medical-stock-valuation-data"
+  "insurance-app-data"
+  "inheritance-tax-docs-data"
   "private-banking_private_banking_postgres"
   "stock-valuation-form-postgres"
+)
+
+# データではないボリューム（バックアップ対象にもしないし、上の一覧にも入れない）。
+# preflight のチェック14で「バックアップ漏れ」と誤検知しないための除外。
+NON_DATA_VOLUMES=(
+  # Next.js の .next ビルドキャッシュ。消えても再ビルドで戻る。
+  "private-banking_private_banking_next"
 )
 
 # ------------------------------------
@@ -166,51 +178,8 @@ check_dependencies() {
 # ------------------------------------
 # ユーティリティ
 # ------------------------------------
-log() { echo -e "\033[1;36m[manage]\033[0m $*"; }
-warn() { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
-err() { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
-ok() { echo -e "\033[1;32m[OK]\033[0m    $*"; }
-
-release_operation_lock() {
-  if [[ "$LOCK_HELD" -eq 1 ]]; then
-    rm -rf "$LOCK_DIR"
-    LOCK_HELD=0
-  fi
-}
-
-acquire_operation_lock() {
-  local action="${1:-operation}"
-  local owner_pid=""
-
-  if [[ -f "$LOCK_DIR/owner" ]]; then
-    owner_pid="$(sed -n 's/^pid=//p' "$LOCK_DIR/owner" | head -1)"
-  fi
-
-  if [[ -n "$owner_pid" ]] && ! kill -0 "$owner_pid" 2>/dev/null; then
-    warn "Removing stale operation lock: $LOCK_DIR"
-    rm -rf "$LOCK_DIR"
-  fi
-
-  if mkdir "$LOCK_DIR" 2>/dev/null; then
-    LOCK_HELD=1
-    {
-      echo "pid=$$"
-      echo "action=$action"
-      echo "started_at=$(date -Is 2>/dev/null || date)"
-      echo "script=$0"
-    } > "$LOCK_DIR/owner"
-    trap release_operation_lock EXIT INT TERM
-    return 0
-  fi
-
-  err "Another Tax Apps Docker operation is already running."
-  if [[ -f "$LOCK_DIR/owner" ]]; then
-    sed 's/^/  /' "$LOCK_DIR/owner" >&2 || true
-  else
-    err "Lock directory: $LOCK_DIR"
-  fi
-  return 1
-}
+# warn / err / ok と操作ロックは lib/ops-common.sh にある。
+log() { printf '%s[manage]%s %s\n' "$OPS_C_INFO" "$OPS_C_OFF" "$*"; }
 
 set_stop_marker() {
   local reason="$1"
@@ -558,7 +527,7 @@ cmd_down() {
 # ------------------------------------
 # recover - 落ちているアプリだけを起動し直す（ウォッチドッグ用）
 #
-# start との違いは意図的で、どれもウォッチドッグから無人で（1日2回＋
+# start との違いは意図的で、どれもウォッチドッグから無人で（1日4回＋
 # ログオン時に）呼ばれることに由来する:
 #   - --build しない。再ビルドは数分かかるうえ、dev/prod のイメージを
 #     作り替えて別物を起動してしまう
@@ -614,8 +583,12 @@ _do_recover() {
 # ウォッチドッグがログに残すための1行。ここだけ ASCII で出すのは、
 # 呼び出し側が Windows PowerShell で、日本語のログ行はコンソールの
 # コードページ次第で化けて拾えなくなるため。
+#
+# 同じ内容を last-run にも残す。ウォッチドッグのログは誰も開かないが、
+# last-run は status と preflight が毎回読んで表示するので目に入る。
 recover_result() {
   echo "RECOVER_RESULT status=$1 recovered=$2 skipped=$3"
+  ops_write_last_result "recover" "$1" "recovered=$2 skipped=$3"
 }
 
 cmd_recover() {
@@ -626,7 +599,10 @@ cmd_recover() {
     return 0
   fi
 
-  preflight_quick || return 1
+  if ! preflight_quick; then
+    recover_result "preflight-failed" 0 0
+    return 1
+  fi
 
   # 復旧の前に、今動いているアプリのモードを採取しておく。次に落ちたときの
   # 判断材料はこれしかない（落ちてからでは調べようがない）。
@@ -709,14 +685,46 @@ _do_status() {
 # docker-watchdog.ps1 を呼ぶ」の2段構え。どちらが欠けても復旧は起きないが、
 # 欠けていること自体はどこにも現れない（実際にタスク未登録のまま数ヶ月
 # 気づかなかったことがある）ので、status で毎回見えるようにしておく。
+# 無人で走る処理の「前回どうだったか」を1行で出す。
+#
+# タスクが登録されているかどうかは別に見ているが、登録されていても
+# 失敗し続けていれば同じこと。実際、週次のリストア訓練はタスクが正常に
+# 登録されたまま2週続けてロック衝突で飛び、ログに1行残るだけで
+# 誰も気づかなかった。ここに出していれば status を叩いた時点で分かる。
+_print_last_run_line() {
+  local label="$1" name="$2" stale_hours="$3"
+  local status at age detail mark=""
+
+  if ! status=$(ops_last_result_field "$name" status); then
+    echo "  $label: ★記録なし（まだ一度も完了していません）"
+    return
+  fi
+
+  at=$(ops_last_result_field "$name" at || echo "?")
+  age=$(ops_last_result_age_hours "$name" || echo "")
+  detail=$(ops_last_result_field "$name" detail || echo "")
+
+  if [[ "$status" != "ok" ]]; then
+    mark="★"
+  elif [[ -n "$age" && "$age" -gt "$stale_hours" ]]; then
+    mark="★"
+  fi
+
+  printf '  %s: %s%s（%s' "$label" "$mark" "$status" "$at"
+  [[ -n "$age" ]] && printf '・%s時間前' "$age"
+  printf '）'
+  [[ -n "$detail" ]] && printf ' %s' "$detail"
+  printf '\n'
+}
+
 _print_autoheal_status() {
   echo "自動復旧（ウォッチドッグ）:"
 
   if command -v schtasks.exe >/dev/null 2>&1; then
     if task_exists "$WATCHDOG_TASK_NAME"; then
-      echo "  復旧タスク（1日2回 8:00/20:00）: 登録済み（$WATCHDOG_TASK_NAME）"
+      echo "  復旧タスク（1日4回 8:00/12:00/16:00/20:00）: 登録済み（$WATCHDOG_TASK_NAME）"
     else
-      echo "  復旧タスク（1日2回 8:00/20:00）: ★未登録 — 停止しても unhealthy でも自動復旧されません"
+      echo "  復旧タスク（1日4回 8:00/12:00/16:00/20:00）: ★未登録 — 停止しても unhealthy でも自動復旧されません"
       echo "    登録: docker/scripts/register-docker-watchdog-task.bat をダブルクリック"
     fi
 
@@ -729,6 +737,12 @@ _print_autoheal_status() {
   else
     echo "  スケジュールタスク: 確認不可（schtasks.exe が見つかりません）"
   fi
+
+  echo "  直近の実行結果:"
+  _print_last_run_line "    ウォッチドッグ" "watchdog" 48
+  _print_last_run_line "    復旧(recover) " "recover" 48
+  _print_last_run_line "    バックアップ  " "backup" 30
+  _print_last_run_line "    リストア訓練  " "drill" 192
 
   if [ -f "$STOP_MARKER" ]; then
     echo "  復旧の一時停止: ★有効 — 意図的な停止中とみなして復旧しません"
@@ -1322,6 +1336,107 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
+  # 14. 無人で走る処理の直近結果
+  #
+  # 7 で見ているのは「バックアップファイルが出来たか」だけで、復旧や
+  # リストア訓練が成功したかは誰も見ていなかった。その結果、週次の訓練は
+  # ロック衝突で2週続けて飛んだままログに残るだけになっていた。
+  local lr_entry lr_name lr_label lr_stale lr_status lr_age lr_detail
+  for lr_entry in "watchdog:Docker watchdog:48" \
+                  "recover:App recovery:48" \
+                  "drill:Restore drill:192"; do
+    IFS=: read -r lr_name lr_label lr_stale <<< "$lr_entry"
+    if ! lr_status=$(ops_last_result_field "$lr_name" status); then
+      warn "$lr_label has never recorded a result"
+      echo "  Nothing has completed yet, or it always failed before reporting."
+      ((++pf_warn))
+      continue
+    fi
+    lr_detail=$(ops_last_result_field "$lr_name" detail || echo "")
+    lr_age=$(ops_last_result_age_hours "$lr_name" || echo "")
+    if [[ "$lr_status" != "ok" ]]; then
+      warn "$lr_label last result: $lr_status ${lr_detail:+($lr_detail)}"
+      echo "  Log: $(to_win_path "$OPS_LAST_RESULT_DIR/$lr_name")"
+      ((++pf_warn))
+    elif [[ -n "$lr_age" && "$lr_age" -gt "$lr_stale" ]]; then
+      warn "$lr_label last succeeded ${lr_age} hours ago (over ${lr_stale}h)"
+      ((++pf_warn))
+    else
+      ok "$lr_label last result: ok (${lr_age:-?}h ago)"
+      ((++pf_ok))
+    fi
+  done
+
+  # 15. 一覧の取りこぼし検査
+  #
+  # APPS / VOLUMES / backup.sh の対象配列はどれも手書きで、互いを照合する
+  # 仕組みが無かった。実際に3種類のズレが同時に起きていた:
+  #   - apps/family-tree-sample と apps/portal が APPS に無い（どちらも稼働中）
+  #   - VOLUMES の bank-analyzer-sqlite と tax-docs-data は実在しない
+  #   - insurance-app / inheritance-tax-docs のボリュームが VOLUMES に無い
+  # アプリを足したときに気づけるよう、ここで毎回突き合わせる。
+  local drift=0 dir_entry app_name listed a vol proj
+
+  while IFS= read -r dir_entry; do
+    [[ -n "$dir_entry" ]] || continue
+    if [[ ! -f "$dir_entry/docker-compose.yml" && ! -f "$dir_entry/compose.yaml" && ! -f "$dir_entry/compose.yml" ]]; then
+      continue
+    fi
+    app_name=$(basename "$dir_entry")
+    listed=0
+    for a in "${APPS[@]}"; do
+      if [[ "$(basename "$a")" == "$app_name" ]]; then listed=1; break; fi
+    done
+    if [[ $listed -eq 0 ]]; then
+      warn "App directory is not in APPS: apps/$app_name"
+      echo "  manage.sh の start / stop / recover / status がこのアプリを一切見ません。"
+      drift=1
+      ((++pf_warn))
+    elif [[ ! -f "$dir_entry/docker-compose.yml" ]]; then
+      warn "App uses compose.yaml, not docker-compose.yml: apps/$app_name"
+      echo "  for_each_app は docker-compose.yml しか見ないため黙って飛ばされます。"
+      drift=1
+      ((++pf_warn))
+    fi
+  done < <(find "$PROJECT_ROOT/apps" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+
+  for vol in "${VOLUMES[@]}"; do
+    if ! docker volume inspect "$vol" >/dev/null 2>&1; then
+      warn "VOLUMES lists a volume that does not exist: $vol"
+      echo "  clean で空振りします。名前が変わったか、もう使われていません。"
+      drift=1
+      ((++pf_warn))
+    elif ! grep -q ":$vol:" "$SCRIPT_DIR/backup.sh"; then
+      warn "Data volume is not covered by backup.sh: $vol"
+      echo "  clean で消えるのにバックアップされません。backup.sh の対象配列へ追加してください。"
+      drift=1
+      ((++pf_warn))
+    fi
+  done
+
+  # 実在するのにどの一覧にも載っていないボリューム
+  for a in "${APPS[@]}"; do
+    proj=$(basename "$a")
+    while IFS= read -r vol; do
+      [[ -n "$vol" ]] || continue
+      listed=0
+      for v in "${VOLUMES[@]}" "${NON_DATA_VOLUMES[@]}"; do
+        if [[ "$v" == "$vol" ]]; then listed=1; break; fi
+      done
+      if [[ $listed -eq 0 ]]; then
+        warn "Volume is in neither VOLUMES nor NON_DATA_VOLUMES: $vol ($proj)"
+        echo "  データなら VOLUMES と backup.sh へ、キャッシュなら NON_DATA_VOLUMES へ。"
+        drift=1
+        ((++pf_warn))
+      fi
+    done < <(docker volume ls --filter "label=com.docker.compose.project=$proj" --format '{{.Name}}' 2>/dev/null)
+  done
+
+  if [[ $drift -eq 0 ]]; then
+    ok "App and volume registries are consistent"
+    ((++pf_ok))
+  fi
+
   # Summary
   print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
 
@@ -1345,8 +1460,15 @@ check_dependencies
 
 COMMAND="${1:-help}"
 case "$COMMAND" in
-  start|stop|down|restart|build|clean|clean-cache|recover)
-    acquire_operation_lock "$COMMAND"
+  # recover はウォッチドッグから無人で呼ばれ、日次バックアップと鉢合わせるのが
+  # 常態だった（通算25回、その都度その回の復旧が丸ごと消えていた）。待てば済むので待つ。
+  # ただし呼び出し側 docker-watchdog.ps1 の AppRecoveryTimeoutSeconds に
+  # 殺される前に復旧本体を終える必要があるため、待ち時間は控えめにする。
+  recover)
+    acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 240)"
+    ;;
+  start|stop|down|restart|build|clean|clean-cache)
+    acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 120)"
     ;;
 esac
 

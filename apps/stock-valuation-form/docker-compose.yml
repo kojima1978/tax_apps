@@ -27,6 +27,14 @@ x-healthcheck-defaults: &healthcheck-defaults
   retries: 5
   start_period: 120s
 
+# コンテナ内で setuid ビット経由の特権取得を塞ぐ。アプリ側にその必要は無い。
+# postgres の公式イメージは root で起動してから su-exec で postgres へ降りるが、
+# それは setuid ビットではなく root 権限での setuid() なのでこの設定と両立する
+# （使い捨てコンテナで実際に起動確認済み）。
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+
 services:
   # ===========================================
   # PostgreSQL（類似業種の業種目マスタ・業種目別株価等）
@@ -50,6 +58,7 @@ services:
     shm_size: 128m
     logging: *default-logging
     labels: *autoheal-labels
+    <<: *security-opts
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-stock_valuation}"]
       interval: 5s
@@ -110,6 +119,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     labels: *autoheal-labels
+    <<: *security-opts
     healthcheck:
       # API 側の health は seed 失敗も 503 で返す。業種目マスタが空のまま
       # 静かに動き続けるのを防ぐため、Vite の生存確認と両方を見る。

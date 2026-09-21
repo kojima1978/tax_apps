@@ -27,6 +27,14 @@ x-healthcheck-defaults: &healthcheck-defaults
   retries: 5
   start_period: 30s
 
+# コンテナ内で setuid ビット経由の特権取得を塞ぐ。アプリ側にその必要は無い。
+# postgres の公式イメージは root で起動してから su-exec で postgres へ降りるが、
+# それは setuid ビットではなく root 権限での setuid() なのでこの設定と両立する
+# （使い捨てコンテナで実際に起動確認済み）。
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+
 services:
   # ===========================================
   # PostgreSQL
@@ -50,6 +58,7 @@ services:
     shm_size: 128m
     logging: *default-logging
     labels: *autoheal-labels
+    <<: *security-opts
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-inheritance_tax_db}"]
       interval: 5s
@@ -140,6 +149,7 @@ services:
     init: true
     stop_grace_period: 15s
     logging: *default-logging
+    <<: *security-opts
     healthcheck:
       test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3020/itcm/api/health');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
       <<: *healthcheck-defaults
