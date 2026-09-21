@@ -7,6 +7,7 @@ import {
 import { suffixedName, type AutoFill, type CodeSuffix } from '../../lib/codeLink';
 import { formQrPath } from '../../lib/qrPath';
 import { FORM_QR_STAR, QR_SIZE } from '../../data/formQr';
+import { borderStyleOf, borderWidthOf, deriveLattice } from './gridLattice';
 
 /** 分数（分子と分母を横線で上下に組む）。⑨の減額割合「80／100」や「200／330」など様式どおりの縦組み */
 export interface Fraction {
@@ -141,24 +142,6 @@ const SPACES = new RegExp('[ 　]', 'g');
 const FORM_FONT = '"Noto Sans JP", "Yu Gothic", "MS PGothic", sans-serif';
 
 /**
- * 近接する境界線を統合（tol％以内は同一線とみなす）。
- * 実測値の誤差は最大でも 0.05％ 程度なのに対し、様式には高さ 0.66％ の帯（見出し帯の上の
- * 空白帯）が実在する。tol を大きく取るとその帯が潰れて 0 幅の行になる。
- * さらに様式の二重線は 4px（150dpi 実測）＝ 用紙の 0.23〜0.28％ しかないので、
- * 0.3％ では二重線まで 1 本に潰れてしまう（第5表・第11の2表・第11表の付表1〜4）。
- * 実測誤差の 3 倍を確保しつつ二重線を残せる 0.15％ とする。
- */
-function snapLines(values: number[], tol = 0.15): number[] {
-  const sorted = [...values].sort((a, b) => a - b);
-  const lines: number[] = [];
-  for (const v of sorted) {
-    const last = lines[lines.length - 1];
-    if (last === undefined || v - last > tol) lines.push(v);
-  }
-  return lines;
-}
-
-/**
  * 文字サイズの自動決定に使う様式の描画寸法（px）。
  * グリッドは画面でも印刷でも A4 幅から余白を引いた約 733px 幅で描かれる（実測値）。
  */
@@ -210,12 +193,6 @@ function measureFontSize(text: string, c: GridCell, vertical: boolean): number {
     return rows * size * LINE_HEIGHT <= across;
   };
   return FONT_STEPS.find(fits) ?? FONT_STEPS[FONT_STEPS.length - 1]!;
-}
-
-function nearestIndex(lines: number[], v: number): number {
-  let best = 0, bd = Infinity;
-  lines.forEach((l, i) => { const d = Math.abs(l - v); if (d < bd) { bd = d; best = i; } });
-  return best;
 }
 
 /** 入力できる欄か（自動計算＝readOnly の欄はカーソル移動でスキップする） */
@@ -342,21 +319,12 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
   const inputPrefix = formId ?? `grid-${generatedId}`;
 
   const { colTmpl, rowTmpl, placed } = useMemo(() => {
-    const xs = snapLines(cells.flatMap((c) => [c.left, c.left + c.width]));
-    const ys = snapLines(cells.flatMap((c) => [c.top, c.top + c.height]));
-    return {
-      // minmax(0, …) を外すと fr の下限が min-content になり、罫線1本ぶんの細い列
-      // （二重線の間など）が中身の分だけ広がって、他の列を押しのけて全体がずれる。
-      colTmpl: xs.slice(1).map((x, i) => `minmax(0, ${(x - xs[i]!).toFixed(3)}fr)`).join(' '),
-      rowTmpl: ys.slice(1).map((y, i) => `minmax(0, ${(y - ys[i]!).toFixed(3)}fr)`).join(' '),
-      placed: cells.map((c) => ({
-        c,
-        cs: nearestIndex(xs, c.left) + 1,
-        ce: nearestIndex(xs, c.left + c.width) + 1,
-        rs: nearestIndex(ys, c.top) + 1,
-        re: nearestIndex(ys, c.top + c.height) + 1,
-      })),
-    };
+    const { xs, ys, placed } = deriveLattice(cells);
+    // minmax(0, …) を外すと fr の下限が min-content になり、罫線1本ぶんの細い列
+    // （二重線の間など）が中身の分だけ広がって、他の列を押しのけて全体がずれる。
+    const track = (ls: number[]) =>
+      ls.slice(1).map((l, i) => `minmax(0, ${(l - ls[i]!).toFixed(3)}fr)`).join(' ');
+    return { colTmpl: track(xs), rowTmpl: track(ys), placed };
   }, [cells]);
 
   const gridRef = useRef<HTMLDivElement>(null);
@@ -393,8 +361,8 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     // 複合欄は入力欄が複数あるので、読み取り専用の灰色は欄ごとではなくセル全体に敷く
     const readOnlyComposite = composite && readOnly && !printRendering;
     const editable = Boolean(c.selectValue || c.toggleField || editableComposite || (c.kind === 'input' && c.field && !readOnly));
-    const borderStyle = c.dashed ? 'dashed' : 'solid';
-    const borderWidth = c.borderWidth ?? (c.outline ? 1.5 : c.dashed ? 1 : 0.5);
+    const borderStyle = borderStyleOf(c);
+    const borderWidth = borderWidthOf(c);
     const borderLine = `${borderWidth}px ${borderStyle} #000`;
     const selectCell = () => {
       if (c.toggleField) u(c.toggleField, g(c.toggleField) === '1' ? '' : '1');
