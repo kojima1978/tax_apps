@@ -132,6 +132,24 @@ VOLUMES=(
   "stock-valuation-form-postgres"
 )
 
+# manage.sh の管理外として、意図的に APPS へ載せていない apps/ 直下のディレクトリ。
+#
+# preflight のチェック15は「APPS への載せ忘れ」を拾うためのものなので、
+# 意図的な除外が混ざっていると WARN が常時1件出たままになり、本当の
+# 載せ忘れが起きても区別がつかなくなる。除外する理由はここに書くこと。
+UNMANAGED_APPS=(
+  # 試作。compose.yaml で独立して動かしていて、起動も停止も手で行う。
+  "family-tree-sample"
+)
+
+is_unmanaged_app() {
+  local name="$1" entry
+  for entry in "${UNMANAGED_APPS[@]}"; do
+    [[ "$name" == "$entry" ]] && return 0
+  done
+  return 1
+}
+
 # データではないボリューム（バックアップ対象にもしないし、上の一覧にも入れない）。
 # preflight のチェック14で「バックアップ漏れ」と誤検知しないための除外。
 NON_DATA_VOLUMES=(
@@ -232,6 +250,21 @@ detect_app_mode() {
   esac
 }
 
+# そのアプリを起動するときの `-f` の並びを COMPOSE_FILES に組む。
+#
+# prod のアプリを base だけで作り直すと dev サーバに化ける。この1点を
+# 各コマンドで手書きしていると必ずどれかが取りこぼすので（実際 build が
+# 取りこぼしていて、本番稼働中の8アプリに build を掛けると黙って dev に
+# 落ちる状態だった）、モード→ファイル列の変換はここだけに置く。
+COMPOSE_FILES=()
+compose_files_for_app() {
+  local dir="$1" mode="$2"
+  COMPOSE_FILES=(-f "$dir/docker-compose.yml")
+  if [[ "$mode" == "prod" && -f "$dir/docker-compose.prod.yml" ]]; then
+    COMPOSE_FILES+=(-f "$dir/docker-compose.prod.yml")
+  fi
+}
+
 app_mode_file() {
   printf '%s/%s\n' "$APP_MODE_DIR" "$(basename "$1")"
 }
@@ -244,6 +277,15 @@ read_app_mode() {
     prod|dev) printf '%s\n' "$mode" ;;
     *) return 0 ;;
   esac
+}
+
+# そのアプリの「今のモード」。動いているならラベルが最も確か（manage.sh を
+# 通らない起動があるため）で、落ちているなら記録に頼る。どちらも無ければ空。
+effective_app_mode() {
+  local dir="$1" mode
+  mode=$(detect_app_mode "$dir")
+  [[ -z "$mode" ]] && mode=$(read_app_mode "$dir")
+  printf '%s\n' "$mode"
 }
 
 _snapshot_one_mode() {
@@ -570,12 +612,9 @@ _do_recover() {
   RECOVER_TARGETS=$((RECOVER_TARGETS + 1))
   warn "  復旧: $name（稼働 $running / 定義 $expected・モード $mode［$mode_source］）"
 
-  local compose_files=(-f "$dir/docker-compose.yml")
-  if [[ "$mode" == "prod" && -f "$dir/docker-compose.prod.yml" ]]; then
-    compose_files+=(-f "$dir/docker-compose.prod.yml")
-  fi
+  compose_files_for_app "$dir" "$mode"
 
-  if ! docker compose "${compose_files[@]}" up -d --no-build --remove-orphans; then
+  if ! docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans; then
     err "  復旧に失敗しました: $name"
   fi
 }
@@ -634,9 +673,85 @@ cmd_restart() {
 cmd_build() {
   require_app_arg "build" "${1:-}"
   ensure_network
-  log "$(basename "$RESOLVED_DIR") を再ビルドして起動します..."
-  docker compose -f "$RESOLVED_DIR/docker-compose.yml" up -d --build --remove-orphans
-  log "$(basename "$RESOLVED_DIR") のビルドが完了しました"
+  local name; name=$(basename "$RESOLVED_DIR")
+
+  # モードを踏襲する。以前はここが base の docker-compose.yml 固定で、
+  # 本番モードで動いているアプリに build を掛けると黙って dev サーバとして
+  # 作り直していた（このリポジトリは実際に混在稼働している）。
+  # モードを変えたいときは start --prod か、個別に -f を並べて叩くこと。
+  local mode; mode=$(effective_app_mode "$RESOLVED_DIR")
+  if [[ -z "$mode" ]]; then
+    mode="dev"
+    warn "$name: モードの記録も稼働中コンテナも無いため dev として扱います"
+  fi
+
+  [[ "$mode" == "prod" ]] && { ensure_postgres_production_env "$name" "$RESOLVED_DIR" || return 1; }
+  compose_files_for_app "$RESOLVED_DIR" "$mode"
+
+  log "$name を再ビルドして起動します（モード $mode）..."
+  docker compose "${COMPOSE_FILES[@]}" up -d --build --remove-orphans
+  log "$name のビルドが完了しました"
+}
+
+# ------------------------------------
+# apply - compose の変更を稼働中のコンテナへ反映する
+#
+# security_opt やメモリ上限のような compose 側の設定は、コンテナを
+# 作り直して初めて効く。`docker restart` では反映されない。
+#
+# build との違い:
+#   - イメージを作り直さない（--no-build）。数分かかる再ビルドを17アプリ分
+#     回さずに済む。逆に言うとソースの変更は入らない（それは build / watch）
+#   - 停止中のアプリには触らない。これは「反映」であって「起動」ではないので、
+#     stop.bat を押した直後に走らせても停止操作を壊さない
+#   - モードはアプリ単位で踏襲する（compose_files_for_app）
+# ------------------------------------
+APPLY_OK=0
+APPLY_SKIPPED=0
+APPLY_FAILED=0
+
+_do_apply() {
+  local dir="$1" name="$2"
+  local running
+
+  running=$(docker compose -f "$dir/docker-compose.yml" ps --status running --services 2>/dev/null | grep -c . || true)
+  if [[ "${running:-0}" -eq 0 ]]; then
+    APPLY_SKIPPED=$((APPLY_SKIPPED + 1))
+    log "  スキップ（停止中）: $name"
+    return 0
+  fi
+
+  local mode; mode=$(effective_app_mode "$dir")
+  [[ -z "$mode" ]] && mode="dev"
+  compose_files_for_app "$dir" "$mode"
+
+  log "  反映[$mode]: $name"
+  if docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans; then
+    APPLY_OK=$((APPLY_OK + 1))
+  else
+    APPLY_FAILED=$((APPLY_FAILED + 1))
+    err "  反映に失敗しました: $name"
+  fi
+}
+
+cmd_apply() {
+  ensure_network
+  # モード記録は動いているうちにしか採れない。作り直す前に採っておく。
+  snapshot_app_modes
+
+  if [[ -n "${1:-}" ]]; then
+    require_app_arg "apply" "$1"
+    print_banner "compose の変更を反映: $(basename "$RESOLVED_DIR")"
+    _do_apply "$RESOLVED_DIR" "$(basename "$RESOLVED_DIR")"
+  else
+    print_banner "compose の変更を全アプリへ反映（再ビルドなし）"
+    for_each_app _do_apply
+  fi
+
+  echo ""
+  log "反映: $APPLY_OK / スキップ（停止中）: $APPLY_SKIPPED / 失敗: $APPLY_FAILED"
+  [[ $APPLY_FAILED -gt 0 ]] && return 1
+  return 0
 }
 
 cmd_watch() {
@@ -1383,6 +1498,11 @@ cmd_preflight() {
       continue
     fi
     app_name=$(basename "$dir_entry")
+    if is_unmanaged_app "$app_name"; then
+      ok "App directory is intentionally unmanaged: apps/$app_name"
+      ((++pf_ok))
+      continue
+    fi
     listed=0
     for a in "${APPS[@]}"; do
       if [[ "$(basename "$a")" == "$app_name" ]]; then listed=1; break; fi
@@ -1467,7 +1587,7 @@ case "$COMMAND" in
   recover)
     acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 240)"
     ;;
-  start|stop|down|restart|build|clean|clean-cache)
+  start|stop|down|restart|build|apply|clean|clean-cache)
     acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 120)"
     ;;
 esac
@@ -1479,6 +1599,7 @@ case "$COMMAND" in
   down)      cmd_down ;;
   restart)   cmd_restart "${2:-}" ;;
   build)     cmd_build "${2:-}" ;;
+  apply)     cmd_apply "${2:-}" ;;
   watch)     cmd_watch "${2:-}" ;;
   logs)      cmd_logs "${2:-}" ;;
   status)    cmd_status ;;
@@ -1490,7 +1611,7 @@ case "$COMMAND" in
   clean-cache) cmd_clean_cache "${2:-}" ;;
   preflight) cmd_preflight ;;
   *)
-    echo "Usage: $0 {start|recover|stop|down|restart|build|watch|logs|status|backup|restore|verify|drill|clean|clean-cache|preflight} [app-name]"
+    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|backup|restore|verify|drill|clean|clean-cache|preflight} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start              全アプリを起動（ネットワーク自動作成）"
@@ -1499,7 +1620,8 @@ case "$COMMAND" in
     echo "  stop               全アプリを停止"
     echo "  down               全アプリを停止してコンテナ削除"
     echo "  restart <app>      指定アプリのみ再起動"
-    echo "  build <app>        指定アプリを再ビルドして起動"
+    echo "  build <app>        指定アプリを再ビルドして起動（稼働中のモードを踏襲）"
+    echo "  apply [app]        compose の変更をコンテナへ反映（再ビルドなし・停止中は触らない）"
     echo "  watch <app>        ソース変更をコンテナへ同期（フォアグラウンド、Ctrl+C で終了）"
     echo "  logs <app>         指定アプリのログ表示"
     echo "  status             全アプリの状態表示"

@@ -31,7 +31,16 @@ compose を新しく書くときは既存ファイルの**アンカーをその�
 `deploy.resources`）。全アプリの全サービスに `no-new-privileges` とメモリ上限が入っている。
 Node.js のアプリにメモリ上限を付けるときは `NODE_OPTIONS: --max-old-space-size=…` も一緒に置く
 （V8 の既定ヒープ上限はホストの物理メモリから決まるので、コンテナ側にだけ上限を掛けると
-GC の前に cgroup の上限へ当たって OOM kill になりうる）。どちらも**作り直して初めて効く**。
+GC の前に cgroup の上限へ当たって OOM kill になりうる）。どちらも**作り直して初めて効く**ので、
+compose を変えたら `manage.sh apply [app]` で反映する（`docker restart` では反映されない）。
+
+- **`apply` は再ビルドしない**。イメージはそのままにコンテナだけ作り直すので、17アプリ分でも
+  数十秒で終わる。逆にソースの変更は入らない（それは `build` と `watch` の仕事）
+- **停止中のアプリには触らない**。`apply` は「反映」であって「起動」ではないので、
+  `stop` した直後に叩いても停止操作を壊さない
+- **`build` も `apply` も、そのアプリが今動いているモードを踏襲する**（`compose_files_for_app`）。
+  以前 `build` は base の `docker-compose.yml` 固定で、**本番稼働中のアプリを黙って
+  dev サーバに作り替えていた**。モードを変えたいときだけ `start --prod` か個別の `-f` で叩くこと
 
 ### ソース同期（private-banking / inheritance-case-management）
 
@@ -130,8 +139,11 @@ docker/scripts/manage.sh start
 # 全アプリ本番モード起動
 docker/scripts/manage.sh start --prod
 
-# 特定アプリのみ再ビルド
+# 特定アプリのみ再ビルド（稼働中のモードを踏襲）
 docker/scripts/manage.sh build <app-name>
+
+# compose の変更をコンテナへ反映（再ビルドなし・引数なしで全アプリ）
+docker/scripts/manage.sh apply [app-name]
 
 # ソース変更をコンテナへ同期（対応アプリのみ・フォアグラウンド）
 docker/scripts/manage.sh watch <app-name>

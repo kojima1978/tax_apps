@@ -186,7 +186,8 @@ rd /s /q tax_apps
 | `./manage.sh stop` | 全アプリを停止（逆順） |
 | `./manage.sh down` | 全アプリを停止してコンテナ削除（逆順） |
 | `./manage.sh restart <app>` | 指定アプリのみ再起動 |
-| `./manage.sh build <app>` | 指定アプリを再ビルドして起動 |
+| `./manage.sh build <app>` | 指定アプリを再ビルドして起動（**稼働中のモードを踏襲**） |
+| `./manage.sh apply [app]` | compose の変更をコンテナへ反映（再ビルドなし・停止中は触らない・引数なしで全アプリ） |
 | `./manage.sh watch <app>` | 指定アプリのソース変更をコンテナへ同期（対応アプリのみ・フォアグラウンド） |
 | `./manage.sh logs <app>` | 指定アプリのログ表示 |
 | `./manage.sh status` | 全アプリの状態表示 |
@@ -200,7 +201,7 @@ rd /s /q tax_apps
 
 ### アプリ名の指定
 
-`restart`, `build`, `logs` コマンドではアプリ名を**部分一致**で指定できます:
+`restart`, `build`, `apply`, `logs` コマンドではアプリ名を**部分一致**で指定できます:
 
 ```bash
 ./manage.sh restart bank-analyzer-django  # フルネーム
@@ -817,8 +818,8 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 >   V8 の既定ヒープ上限はホストの物理メモリから決まるので、コンテナ側にだけ上限を掛けると
 >   「GC が走る前に cgroup の上限へ当たって OOM kill」になりうる。上限の 3/4 程度を目安にする。
 >
-> どちらも**コンテナを作り直して初めて効く**（`docker compose up -d` / `manage.sh build <app>`）。
-> `docker restart` では反映されない。
+> どちらも**コンテナを作り直して初めて効く**。反映は `./manage.sh apply [app]`（再ビルドなし、
+> アプリごとの dev/prod モードを踏襲、停止中のアプリには触らない）。`docker restart` では反映されない。
 
 ### ヘルスチェック方式
 
