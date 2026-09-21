@@ -16,7 +16,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { FRACTION_BAR_DY, blank, code, fractionBar, label, mk, sheetScale } from './geometry';
+import { FRACTION_BAR_DY, blank, code, decedentNameRow, fractionBar, label, mk, sheetScale } from './geometry';
 
 export const TABLE5_FORM_CODE = 'NTA0KSE050010020';
 export const TABLE5_TITLE = '相続税の申告書　第5表';
@@ -428,12 +428,7 @@ export function buildTable5(common: string, totals: string): GridCell[] {
   };
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
-    label(row(TOP, 271.5), col(DX.L, DX.CODE), '被相続人'),
-    code(row(TOP, 271.5), col(DX.CODE, DX.INPUT), 'E01'),
-    mk(row(TOP, 271.5), col(DX.INPUT, RIGHT), {
-      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
-      readOnly: true, navigateToForm: 'table1',
-    }),
+    ...decedentNameRow(row(TOP, 271.5), col, [DX.L, DX.CODE, DX.INPUT, RIGHT], common),
 
     label(row(271.5, 315), col(LEFT, RIGHT), DECL, { align: 'left' }),
     gap(315, 322.5),

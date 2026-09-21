@@ -12,7 +12,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { FRACTION_BAR_DY, blank, code, fractionBar, label, mk, sheetScale } from './geometry';
+import { FRACTION_BAR_DY, blank, code, decedentNameRow, fractionBar, label, mk, sheetScale } from './geometry';
 
 export const TABLE1112F1B_FORM_CODE = 'NTA0KSE114010030';
 export const TABLE1112F1B_TITLE = '相続税の申告書　第11・11の2表の付表1（別表1）';
@@ -306,12 +306,7 @@ export function buildTable1112f1b(
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
     blank(row(182, 210.5), col(LEFT, 736)),
-    label(row(182, 210.5), col(736, 925), '被相続人'),
-    code(row(182, 210.5), col(925, 955), 'E01'),
-    mk(row(182, 210.5), col(955, RIGHT), {
-      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
-      readOnly: true, navigateToForm: 'table1',
-    }),
+    ...decedentNameRow(row(182, 210.5), col, [736, 925, 955, RIGHT], common),
 
     label(row(210.5, 304.5), col(LEFT, RIGHT), INTRO, { align: 'left', fontSize: 6.5 }),
     blank(row(304.5, 310), col(LEFT, RIGHT)),

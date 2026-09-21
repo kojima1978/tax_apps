@@ -14,7 +14,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { blank, code, dateSelect, label, mk, sheetScale, type FormRow } from './geometry';
+import { blank, code, dateSelect, decedentNameRow, label, mk, sheetScale, type FormRow } from './geometry';
 
 export const TABLE13_FORM_CODE = 'NTA0KSE130010020';
 export const TABLE13_TITLE = '相続税の申告書　第13表';
@@ -369,12 +369,7 @@ export function buildTable13(
   const decY = row(181.5, 215.5);
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
-    label(decY, col(DEC.L, DEC.CODE), '被相続人'),
-    code(decY, col(DEC.CODE, DEC.INPUT), 'E01'),
-    mk(decY, col(DEC.INPUT, X.R), {
-      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
-      readOnly: true, navigateToForm: 'table1',
-    }),
+    ...decedentNameRow(decY, col, [DEC.L, DEC.CODE, DEC.INPUT, X.R], common),
 
     ...sectionHead(215.5, 262.5, '1　債務の明細', DEBT_LEAD),
     ...debtRows(rows.debt, last, whoOptions),

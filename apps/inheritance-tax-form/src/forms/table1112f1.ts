@@ -14,7 +14,7 @@
  */
 
 import type { Fraction, GridCell } from '../components/ui/GridForm';
-import { axisScale, blank, code, label, mk } from './geometry';
+import { axisScale, blank, code, decedentNameRow, label, mk } from './geometry';
 
 export const TABLE1112F1_FORM_CODE = 'NTA0KSE112010030';
 export const TABLE1112F1_TITLE = '相続税の申告書　第11・11の2表の付表1';
@@ -436,12 +436,7 @@ export function buildTable1112f1(
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
     blank(decY, col(X.L, DEC.L)),
-    label(decY, col(DEC.L, DEC.CODE), '被相続人'),
-    code(decY, col(DEC.CODE, DEC.INPUT), 'E01'),
-    mk(decY, col(DEC.INPUT, X.R), {
-      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
-      readOnly: true, navigateToForm: 'table1',
-    }),
+    ...decedentNameRow(decY, col, [DEC.L, DEC.CODE, DEC.INPUT, X.R], common),
 
     ...(s.intro ? [label(row(s.intro[0], s.intro[1]), col(X.L, X.R), INTRO, { align: 'left', fontSize: 7 })] : []),
     ...agreeRows(ctx, s, sheet),

@@ -10,7 +10,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { RELATION_OPTIONS } from '../data/codes';
-import { FRACTION_BAR_DY, code, fractionBar, label, mk, rule, sheetScale } from './geometry';
+import { FRACTION_BAR_DY, code, decedentNameRow, fractionBar, label, mk, rule, sheetScale } from './geometry';
 import { personAction } from './person';
 
 export const TABLE2_FORM_CODE = 'NTA0KSE020010020';
@@ -344,9 +344,7 @@ export function buildTable2(
 ): GridCell[] {
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
-    label(row(237.5, 267.5), col(X.DEC_LBL, X.DEC_L), '被相続人'),
-    code(row(237.5, 267.5), col(X.DEC_L, X.DEC_C), 'E01'),
-    mk(row(237.5, 267.5), col(X.DEC_C, X.R), { kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10, readOnly: true, navigateToForm: 'table1' }),
+    ...decedentNameRow(row(237.5, 267.5), col, [X.DEC_LBL, X.DEC_L, X.DEC_C, X.R], common),
 
     label(row(267.5, 343.5), col(X.L, X.R), TABLE2_LEAD, { align: 'left', fontSize: 7 }),
 

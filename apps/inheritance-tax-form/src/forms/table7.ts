@@ -21,7 +21,7 @@
 import type { GridCell } from '../components/ui/GridForm';
 import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS } from '../data/codes';
 import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
-import { blank, code, fractionBar, label, mk, sheetScale } from './geometry';
+import { blank, code, decedentNameRow, fractionBar, label, mk, sheetScale } from './geometry';
 
 export const TABLE7_FORM_CODE = 'NTA0KSE070010030';
 export const TABLE7_TITLE = '相続税の申告書　第7表';
@@ -504,12 +504,7 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）。左側は罫線の無い余白
     blank(row(Y.decedent[0], Y.decedent[1]), col(LEFT, X.DEC_L)),
-    label(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_L, X.DEC_C), '被相続人'),
-    code(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_C, X.DEC_I), 'E01'),
-    mk(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_I, RIGHT), {
-      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
-      readOnly: true, navigateToForm: 'table1',
-    }),
+    ...decedentNameRow(row(Y.decedent[0], Y.decedent[1]), col, [X.DEC_L, X.DEC_C, X.DEC_I, RIGHT], common),
 
     label(row(Y.lead[0], Y.lead[1]), col(LEFT, RIGHT), LEAD, { align: 'left', fontSize: 7.5 }),
     label(row(Y.chapter1[0], Y.chapter1[1]), col(LEFT, RIGHT), '1　相次相続控除額の総額の計算', { align: 'left', bold: true, fontSize: 9 }),

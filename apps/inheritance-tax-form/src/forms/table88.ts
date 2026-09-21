@@ -18,7 +18,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { blank, code, label, mk, sheetScale } from './geometry';
+import { blank, code, decedentNameRow, label, mk, sheetScale } from './geometry';
 
 export const TABLE88_FORM_CODE = 'NTA0KSE088010010';
 export const TABLE88_TITLE = '相続税の申告書　第8の8表';
@@ -294,17 +294,7 @@ export function buildTable88(
   };
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
-    label(row(TOP, 254), col(DX.L, DX.CODE), '被相続人'),
-    code(row(TOP, 254), col(DX.CODE, DX.INPUT), 'E01'),
-    mk(row(TOP, 254), col(DX.INPUT, RIGHT), {
-      kind: 'input',
-      field: `${common}name`,
-      ariaLabel: '被相続人の氏名',
-      align: 'left',
-      fontSize: 10,
-      readOnly: true,
-      navigateToForm: 'table1',
-    }),
+    ...decedentNameRow(row(TOP, 254), col, [DX.L, DX.CODE, DX.INPUT, RIGHT], common),
 
     ...section(credit, common, totals, page, options),
     // 1と2の枠の間（罫線の無い帯）

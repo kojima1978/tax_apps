@@ -10,7 +10,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, dateSelect, label, mk, sheetScale } from './geometry';
+import { code, dateSelect, decedentNameRow, label, mk, sheetScale } from './geometry';
 
 export const TABLE11_FORM_CODE = 'NTA0KSE160010010';
 export const TABLE11_TITLE = '相続税の申告書　第11表';
@@ -244,12 +244,7 @@ function sumRows(people: Table11Person[]): GridCell[] {
 export function buildTable11(common: string, people: Table11Person[]): GridCell[] {
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
-    label(row(110, 170.5), col(X.DEC_L, X.ALL_Y), '被相続人の氏名'),
-    code(row(110, 170.5), col(X.ALL_Y, X.E_R), 'E01'),
-    mk(row(110, 170.5), col(X.E_R, X.DEC_R), {
-      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
-      readOnly: true, navigateToForm: 'table1',
-    }),
+    ...decedentNameRow(row(110, 170.5), col, [X.DEC_L, X.ALL_Y, X.E_R, X.DEC_R], common, { text: '被相続人の氏名' }),
 
     notes(row(179, 302.5), TABLE11_LEAD),
 

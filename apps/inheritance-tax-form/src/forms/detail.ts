@@ -16,7 +16,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import type { AutoFill, CodeSuffix } from '../lib/codeLink';
-import { blank, code, label, mk, rule, sheetScale, type SheetFrame, type SheetScale } from './geometry';
+import { blank, code, decedentNameRow, label, mk, rule, sheetScale, type SheetFrame, type SheetScale } from './geometry';
 
 /** 1枚に載る財産の数（＝組の数） */
 export const DETAIL_GROUPS = 8;
@@ -325,16 +325,11 @@ export function buildDetail(
   const f = spec.frame;
   const s = scaleOf(f);
   const nameY = s.row(f.name[0], f.name[1]);
-  const [nameL, codeL, codeR, nameR] = f.nameX;
+  const [nameL, , , nameR] = f.nameX;
   return [
     // 被相続人の氏名（表の外・右寄せ）
     blank(nameY, s.col(f.left, nameL)),
-    label(nameY, s.col(nameL, codeL), '被相続人の氏名', { fontSize: 7 }),
-    code(nameY, s.col(codeL, codeR), 'E01'),
-    mk(nameY, s.col(codeR, nameR), {
-      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left',
-      readOnly: true, navigateToForm: 'table1',
-    }),
+    ...decedentNameRow(nameY, s.col, f.nameX, common, { text: '被相続人の氏名', labelFontSize: 7, fontSize: 'auto' }),
     blank(nameY, s.col(nameR, f.right)),
     blank(s.row(f.name[1], f.lead[0]), s.col(f.left, f.right)),
 

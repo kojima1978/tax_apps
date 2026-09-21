@@ -10,7 +10,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { code, label, mk, sheetScale } from './geometry';
+import { code, decedentNameRow, label, mk, sheetScale } from './geometry';
 
 export const TABLE15_FORM_CODE = 'NTA0KSE150010030';
 export const TABLE15CONT_FORM_CODE = 'NTA0KSE151010030';
@@ -230,12 +230,7 @@ export function buildTable15(
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
     label(row(TOP, HEAD_TOP), col(X.L, X.CODE_L), '（単位：円）', { noBorder: true, align: 'left' }),
-    label(row(TOP, HEAD_TOP), col(X.CODE_L, X.NAME_LC), '被相続人'),
-    code(row(TOP, HEAD_TOP), col(X.NAME_LC, X.DEC_C), 'E01'),
-    mk(row(TOP, HEAD_TOP), col(X.DEC_C, X.MID), {
-      kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left', fontSize: 10,
-      readOnly: true, navigateToForm: 'table1',
-    }),
+    ...decedentNameRow(row(TOP, HEAD_TOP), col, [X.CODE_L, X.NAME_LC, X.DEC_C, X.MID], common),
 
     // 表頭
     label(headY, col(X.L, X.KIND), '種類'),

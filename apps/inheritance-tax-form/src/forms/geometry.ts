@@ -380,6 +380,46 @@ export function decedentColumn(x: number, y: PersonY, p: string): GridCell[] {
   ];
 }
 
+export interface DecedentNameOptions {
+  /** ラベルの文字（第11表と付表だけ「氏名」まで入る） */
+  text?: string;
+  /** ラベルの文字の大きさ（付表だけ小さい。既定は枠に合わせる） */
+  labelFontSize?: number;
+  /** 氏名の文字の大きさ。'auto' は枠に合わせる（付表） */
+  fontSize?: number | 'auto';
+}
+
+/**
+ * 第1表以外のどの様式にもある「被相続人 E01 氏名」の帯。
+ *
+ * 氏名は第1表の共通欄そのもので、ここからは直せない（クリックで第1表へ飛ぶ）。
+ * 様式によって違うのは3本の縦線の位置とラベルの文言だけなので、それだけを受け取る。
+ * 帯の左に余白（罫線の無い領域）がある様式は、呼ぶ側で `blank` を1つ足す。
+ *
+ * @param y   帯の上下（％）
+ * @param col その様式の 実測px → ％（横）
+ * @param xs  左から ラベル左・コード左・氏名左・氏名右（実測px）
+ * @param p   共通欄のフィールド接頭辞（'c.'）
+ */
+export function decedentNameRow(
+  y: readonly [number, number],
+  col: (a: number, b: number) => [number, number],
+  xs: readonly [number, number, number, number],
+  p: string,
+  { text = '被相続人', labelFontSize, fontSize = 10 }: DecedentNameOptions = {},
+): GridCell[] {
+  const [labelL, codeL, nameL, nameR] = xs;
+  return [
+    label(y, col(labelL, codeL), text, labelFontSize === undefined ? {} : { fontSize: labelFontSize }),
+    code(y, col(codeL, nameL), 'E01'),
+    mk(y, col(nameL, nameR), {
+      kind: 'input', field: `${p}name`, ariaLabel: '被相続人の氏名', align: 'left',
+      ...(fontSize === 'auto' ? {} : { fontSize }),
+      readOnly: true, navigateToForm: 'table1',
+    }),
+  ];
+}
+
 /**
  * 人物ブロック左側のラベル列（0〜21.81％）。両様式で完全に同じ。
  * 見出し帯の左（0〜21.81％）は様式に罫線が無い。
