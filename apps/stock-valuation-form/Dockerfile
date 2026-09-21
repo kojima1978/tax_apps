@@ -92,6 +92,13 @@ COPY docker-entrypoint.sh ./
 # a Windows checkout whose Git settings converted line endings to CRLF.
 RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
 
+# 本番も非 root。/app 配下へは実行中に何も書かないので chown は要らない
+# （書き込み先は compose の bind mount 2つ、./output と ./prisma/industry-data
+# だけ。どちらも Windows 側の実体が 0777 で見えるので uid1000 で書ける）。
+# entrypoint の prisma は npx ではなく node_modules を直接叩くため、
+# $HOME/.npm を用意する必要もない。
+USER node
+
 EXPOSE ${APP_PORT}
 ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
 CMD ["node", "dist-server/index.js"]

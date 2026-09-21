@@ -65,7 +65,10 @@ USER node
 - Windows の bind mount はマウント先ルートと Windows 側で作ったファイルが `0:0` の **0777** で
   見えるので uid1000 でも書ける。ただし**root 時代にコンテナ内から作られた**ディレクトリは
   `0:0` の 0755 で残るため、そこだけ一度 `chown -R` が要る（svf の `output/industry-export` が該当した）
-- **未対応**: `apps/stock-valuation-form` の `runner` ステージにだけ `USER` が無い（本番は root のまま）
+- 本番ステージで `/app` 配下へ何も書かないアプリは `chown` すら要らず `USER node` の1行で済む
+  （svf がこれ。書き込み先は `./output` と `./prisma/industry-data` の bind mount だけで、
+  entrypoint の prisma も `npx` ではなく `node_modules` を直接叩くので `$HOME/.npm` も不要）。
+  **これで全アプリ・全ステージが非 root**
 
 ### ソース同期（private-banking / inheritance-case-management）
 
