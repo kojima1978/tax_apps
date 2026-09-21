@@ -16,7 +16,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import type { AutoFill, CodeSuffix } from '../lib/codeLink';
-import { code, label, mk, sheetScale, type SheetFrame, type SheetScale } from './geometry';
+import { blank, code, label, mk, rule, sheetScale, type SheetFrame, type SheetScale } from './geometry';
 
 /** 1枚に載る財産の数（＝組の数） */
 export const DETAIL_GROUPS = 8;
@@ -328,24 +328,24 @@ export function buildDetail(
   const [nameL, codeL, codeR, nameR] = f.nameX;
   return [
     // 被相続人の氏名（表の外・右寄せ）
-    mk(nameY, s.col(f.left, nameL), { noBorder: true }),
+    blank(nameY, s.col(f.left, nameL)),
     label(nameY, s.col(nameL, codeL), '被相続人の氏名', { fontSize: 7 }),
     code(nameY, s.col(codeL, codeR), 'E01'),
     mk(nameY, s.col(codeR, nameR), {
       kind: 'input', field: `${common}name`, ariaLabel: '被相続人の氏名', align: 'left',
       readOnly: true, navigateToForm: 'table1',
     }),
-    mk(nameY, s.col(nameR, f.right), { noBorder: true }),
-    mk(s.row(f.name[1], f.lead[0]), s.col(f.left, f.right), { noBorder: true }),
+    blank(nameY, s.col(nameR, f.right)),
+    blank(s.row(f.name[1], f.lead[0]), s.col(f.left, f.right)),
 
     label(s.row(f.lead[0], f.lead[1]), s.col(f.left, f.right), spec.lead, { fontSize: 7.5, align: 'left' }),
-    mk(s.row(f.lead[1], f.band[0]), s.col(f.left, f.right), { noBorder: true }),
+    blank(s.row(f.lead[1], f.band[0]), s.col(f.left, f.right)),
 
     ...headCells(spec, s),
     // 見出しと1組目の間の空白帯（様式に罫線が無い）
-    mk(s.row(f.head[3], f.groupTops[0]!), s.col(f.left, f.right), { noBorder: true }),
+    blank(s.row(f.head[3], f.groupTops[0]!), s.col(f.left, f.right)),
     // 「財産の明細」と「分割が確定した財産」を分ける二重線
-    mk(s.row(f.band[0], f.groupTops[DETAIL_GROUPS]!), s.col(f.midR, f.splitR), {}),
+    rule(s.row(f.band[0], f.groupTops[DETAIL_GROUPS]!), s.col(f.midR, f.splitR)),
 
     ...items.flatMap((item, g) => groupCells(spec, share, s, g, item)),
   ];

@@ -7,7 +7,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import {
-  CALC_ORDER, GENERIC_ROWS, V, calcBands, calcRowRanges, calcRows, code,
+  CALC_ORDER, GENERIC_ROWS, V, blank, calcBands, calcRowRanges, calcRows, code,
   flag, label, mk, personColumn, personLabelColumn, type PersonCodes, type PersonY,
 } from './geometry';
 import { COMMON } from './table1';
@@ -79,7 +79,7 @@ function topRows(): GridCell[] {
     label(r12, [V.L, V.LBL_C], '修正申告の場合、右欄に\n「1」と記入します。', { noWrap: true }),
     code(r12, [V.LBL_C, V.CODE_C], 'G01'),
     mk(r12, [V.CODE_C, V.NUM], flag(`${COMMON}amend`, '修正申告の場合は1')),
-    mk(r12, [V.NUM, EXT_L[0]], { noBorder: true }),
+    blank(r12, [V.NUM, EXT_L[0]]),
     ...EXT_L.flatMap((left, i): GridCell[] => {
       const right = i === 0 ? V.MID : V.R;
       return [
@@ -87,10 +87,10 @@ function topRows(): GridCell[] {
         label(r2, [left, right], '年　　月　　日'),
       ];
     }),
-    mk(r12, [V.MID, EXT_L[1]], { noBorder: true }),
+    blank(r12, [V.MID, EXT_L[1]]),
 
     // 見出し帯の上の空白帯（様式に罫線が無い）
-    mk([y(249), y(258.5)], [V.L, V.R], { noBorder: true }),
+    blank([y(249), y(258.5)], [V.L, V.R]),
   ];
 }
 

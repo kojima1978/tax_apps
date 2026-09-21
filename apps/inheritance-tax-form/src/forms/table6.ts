@@ -22,7 +22,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { code, label, mk, sheetScale } from './geometry';
+import { blank, code, label, mk, sheetScale } from './geometry';
 
 export const TABLE6_FORM_CODE = 'NTA0KSE060010030';
 export const TABLE6_TITLE = '相続税の申告書　第6表';
@@ -528,7 +528,7 @@ export function buildTable6(common: string, totals: string, options: Table6Optio
   };
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）。左側は罫線の無い余白。
-    mk(row(TOP, 234.5), col(LEFT, DX.L), { noBorder: true }),
+    blank(row(TOP, 234.5), col(LEFT, DX.L)),
     label(row(TOP, 234.5), col(DX.L, DX.CODE), '被相続人'),
     code(row(TOP, 234.5), col(DX.CODE, DX.INPUT), 'E01'),
     mk(row(TOP, 234.5), col(DX.INPUT, RIGHT), {
@@ -538,7 +538,7 @@ export function buildTable6(common: string, totals: string, options: Table6Optio
 
     ...block(minor, common, totals, options),
     // 段と段の境の二重罫線の間（罫線の無い帯）
-    mk(row(903.5, 909), col(LEFT, RIGHT), { noBorder: true }),
+    blank(row(903.5, 909), col(LEFT, RIGHT)),
     ...block(disabled, common, totals, options),
   ];
 }

@@ -14,7 +14,7 @@
  */
 
 import type { Fraction, GridCell } from '../components/ui/GridForm';
-import { axisScale, code, label, mk } from './geometry';
+import { axisScale, blank, code, label, mk } from './geometry';
 
 export const TABLE1112F1_FORM_CODE = 'NTA0KSE112010030';
 export const TABLE1112F1_TITLE = '相続税の申告書　第11・11の2表の付表1';
@@ -435,7 +435,7 @@ export function buildTable1112f1(
   const decY = row(s.top, s.intro?.[0] ?? s.agreeHead[0]);
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
-    mk(decY, col(X.L, DEC.L), { noBorder: true }),
+    blank(decY, col(X.L, DEC.L)),
     label(decY, col(DEC.L, DEC.CODE), '被相続人'),
     code(decY, col(DEC.CODE, DEC.INPUT), 'E01'),
     mk(decY, col(DEC.INPUT, X.R), {
@@ -459,6 +459,6 @@ export function buildTable1112f1(
     ...legendRows(ctx, s),
     ...items.flatMap((item, n) => detailBlock(ctx, s, n, item)),
     mk(row(s.notes[0], s.notes[1]), col(X.L, X.R), { kind: 'label', numberedNotes: NOTES, align: 'left', fontSize: 7 }),
-    ...(s.limit === true ? [mk(row(1318.5, 1324), col(X.L, X.R), { noBorder: true }), ...limitRows(ctx)] : []),
+    ...(s.limit === true ? [blank(row(1318.5, 1324), col(X.L, X.R)), ...limitRows(ctx)] : []),
   ];
 }

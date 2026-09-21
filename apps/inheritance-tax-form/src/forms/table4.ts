@@ -17,7 +17,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { code, label, mk, sheetScale } from './geometry';
+import { blank, code, label, mk, sheetScale } from './geometry';
 
 export const TABLE4_FORM_CODE = 'NTA0KSE040010040';
 export const TABLE4_TITLE = '相続税の申告書　第4表';
@@ -184,7 +184,7 @@ export function buildTable4(
 
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）。左側は罫線の無い余白
-    mk(row(Y.decedent[0], Y.decedent[1]), col(LEFT, X.DEC_L), { noBorder: true }),
+    blank(row(Y.decedent[0], Y.decedent[1]), col(LEFT, X.DEC_L)),
     label(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_L, X.DEC_C), '被相続人'),
     code(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_C, X.DEC_I), 'E01'),
     mk(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_I, RIGHT), {

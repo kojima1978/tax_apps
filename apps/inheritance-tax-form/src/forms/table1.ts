@@ -9,7 +9,7 @@ import type { GridCell } from '../components/ui/GridForm';
 import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS } from '../data/codes';
 import { TAX_OFFICES } from '../data/taxOffices';
 import {
-  CALC_ORDER, GENERIC_ROWS, V, calcBands, calcRowRanges, calcRows, code, decedentColumn,
+  CALC_ORDER, GENERIC_ROWS, V, blank, calcBands, calcRowRanges, calcRows, code, decedentColumn,
   flag, label, mk, personColumn, personLabelColumn, type PersonCodes, type PersonY,
 } from './geometry';
 
@@ -169,7 +169,7 @@ function topRows(officeOptions: GridCell['options']): GridCell[] {
     mk(r12, [X.AMEND_CODE, X.EXT_L], flag(`${COMMON}amend`, '修正申告の場合は1')),
 
     // 見出し帯の上の空白帯（様式に罫線が無い）
-    mk([y(233), y(242.5)], [V.L, V.R], { noBorder: true }),
+    blank([y(233), y(242.5)], [V.L, V.R]),
   ];
 }
 

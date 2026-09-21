@@ -10,7 +10,8 @@ import { describe, expect, it } from 'vitest';
 import { ALL_FORMS } from './allForms';
 import type { GridCell } from '../components/ui/GridForm';
 import {
-  SNAP_TOL, collapsedCells, deriveLattice, ruleSegments, snapDrift, type RuleSegment,
+  SNAP_TOL, collapsedCells, deriveLattice, ruleSegments, snapDrift, unmarkedRuleCells,
+  type RuleSegment,
 } from '../components/ui/gridLattice';
 
 /** 様式1件ずつを `it.each` に渡す（見出しは様式名） */
@@ -53,6 +54,13 @@ describe('様式の格子', () => {
     // 開発ビルドの `GridForm` が console へ出すのと同じ見方。
     // 手元で気づかなかったときのためにこちらでも止める。
     expect(collapsedCells(deriveLattice(form.cells)).map((p) => p.c)).toEqual([]);
+  });
+
+  it.each(each)('%s の細いセルに罫線セルの印が付いている', (_name, form) => {
+    // 文字が入らない細さのセルは、罫線を引くためだけに置いたセルのはず。
+    // 印（`rule`）が無いと内側余白が残り、枠が割り当てた幅をはみ出して
+    // 「様式に無い罫線」として見えてしまう。細さで判定するのをやめた代わりの見張り。
+    expect(unmarkedRuleCells(form.cells)).toEqual([]);
   });
 });
 

@@ -10,7 +10,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { RELATION_OPTIONS } from '../data/codes';
-import { FRACTION_BAR_DY, code, fractionBar, label, mk, sheetScale } from './geometry';
+import { FRACTION_BAR_DY, code, fractionBar, label, mk, rule, sheetScale } from './geometry';
 import { personAction } from './person';
 
 export const TABLE2_FORM_CODE = 'NTA0KSE020010020';
@@ -353,10 +353,10 @@ export function buildTable2(
     ...taxableEstateRows(totals),
 
     // ①②③ブロックと④以下のブロックを分ける二重線
-    mk(row(518, 522), col(X.L, X.R), {}),
+    rule(row(518, 522), col(X.L, X.R)),
     // 第1表ブロック・第3表ブロックの境界（二重線）
-    mk(row(522, 1329), col(X.D1, X.D1R), {}),
-    mk(row(522, 1329), col(X.D3, X.D3R), {}),
+    rule(row(522, 1329), col(X.D1, X.D1R)),
+    rule(row(522, 1329), col(X.D3, X.D3R)),
 
     ...lawfulHead(),
     ...LAW_Y.map((_, i) => lawfulRow(i, rows[i])).flat(),

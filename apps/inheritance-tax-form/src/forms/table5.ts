@@ -16,7 +16,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { FRACTION_BAR_DY, code, fractionBar, label, mk, sheetScale } from './geometry';
+import { FRACTION_BAR_DY, blank, code, fractionBar, label, mk, sheetScale } from './geometry';
 
 export const TABLE5_FORM_CODE = 'NTA0KSE050010020';
 export const TABLE5_TITLE = '相続税の申告書　第5表';
@@ -355,7 +355,7 @@ function bottomRows(s: Section): GridCell[] {
 }
 
 /** 罫線の無い帯（章と章の間など）。GridForm の行分割に合わせて空セルで埋める。 */
-const gap = (a: number, b: number): GridCell => mk(row(a, b), col(LEFT, RIGHT), { noBorder: true });
+const gap = (a: number, b: number): GridCell => blank(row(a, b), col(LEFT, RIGHT));
 
 function section(s: Section): GridCell[] {
   return [...headRow(s), ...fracRows(s), ...sixRows(s), ...quadRows(s), ...bottomRows(s)];

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { GridCell } from './GridForm';
 import {
   borderWidthOf, collapsedCells, deriveLattice, nearestIndex, ruleSegments, snapLines,
+  unmarkedRuleCells,
 } from './gridLattice';
 
 const cell = (top: number, left: number, height: number, width: number, rest: Partial<GridCell> = {}): GridCell => (
@@ -110,5 +111,16 @@ describe('collapsedCells', () => {
       cell(0, 0, 100, 40), cell(0, 40, 100, 0.1, { noBorder: true }), cell(0, 40.1, 100, 59.9),
     ];
     expect(collapsedCells(deriveLattice(cells))).toEqual([]);
+  });
+});
+
+describe('unmarkedRuleCells', () => {
+  it('細いのに罫線セルの印が無いセルを拾う', () => {
+    const thin = { ...cell(0, 40, 100, 0.1) };
+    expect(unmarkedRuleCells([cell(0, 0, 100, 40), thin])).toEqual([thin]);
+  });
+
+  it('印が付いていれば細くても拾わない', () => {
+    expect(unmarkedRuleCells([{ ...cell(0, 40, 100, 0.1), rule: true }])).toEqual([]);
   });
 });

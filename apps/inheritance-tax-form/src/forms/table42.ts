@@ -22,7 +22,7 @@
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
 import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
-import { code, label, mk, sheetScale } from './geometry';
+import { blank, code, label, mk, sheetScale } from './geometry';
 
 export const TABLE42_FORM_CODE = 'NTA0KSE041010010';
 export const TABLE42_TITLE = '相続税の申告書　第4表の2';
@@ -230,7 +230,7 @@ export function buildTable42(
 
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）。左側は罫線の無い余白
-    mk(row(Y.decedent[0], Y.decedent[1]), col(LEFT, X.DEC_L), { noBorder: true }),
+    blank(row(Y.decedent[0], Y.decedent[1]), col(LEFT, X.DEC_L)),
     label(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_L, X.DEC_C), '被相続人'),
     code(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_C, X.DEC_I), 'E01'),
     mk(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_I, RIGHT), {

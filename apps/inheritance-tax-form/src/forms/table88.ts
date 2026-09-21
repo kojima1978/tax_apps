@@ -18,7 +18,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { code, label, mk, sheetScale } from './geometry';
+import { blank, code, label, mk, sheetScale } from './geometry';
 
 export const TABLE88_FORM_CODE = 'NTA0KSE088010010';
 export const TABLE88_TITLE = '相続税の申告書　第8の8表';
@@ -308,7 +308,7 @@ export function buildTable88(
 
     ...section(credit, common, totals, page, options),
     // 1と2の枠の間（罫線の無い帯）
-    mk(row(775, 798.5), col(LEFT, RIGHT), { noBorder: true }),
+    blank(row(775, 798.5), col(LEFT, RIGHT)),
     ...section(deferral, common, totals, page, options),
   ];
 }

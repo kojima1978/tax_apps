@@ -14,7 +14,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, dateSelect, label, mk, sheetScale, type FormRow } from './geometry';
+import { blank, code, dateSelect, label, mk, sheetScale, type FormRow } from './geometry';
 
 export const TABLE13_FORM_CODE = 'NTA0KSE130010020';
 export const TABLE13_TITLE = '相続税の申告書　第13表';
@@ -380,12 +380,12 @@ export function buildTable13(
     ...debtRows(rows.debt, last, whoOptions),
 
     // 1と2の間の細い空き帯（罫線は上下のセルが持つ）
-    mk(row(666.5, 672.0), col(X.L, X.R), { noBorder: true }),
+    blank(row(666.5, 672.0), col(X.L, X.R)),
 
     ...sectionHead(672.0, 710.5, '2　葬式費用の明細', FUNERAL_LEAD),
     ...funeralRows(rows.funeral, last, whoOptions),
 
-    mk(row(1159.5, 1165.0), col(X.L, X.R), { noBorder: true }),
+    blank(row(1159.5, 1165.0), col(X.L, X.R)),
 
     label(row(1165.0, 1202.0), col(X.L, X.R), '3　債務及び葬式費用の合計額', { align: 'left', bold: true, fontSize: 9 }),
     ...sumRows(totals, rows.people, last),

@@ -12,7 +12,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { FRACTION_BAR_DY, code, fractionBar, label, mk, sheetScale } from './geometry';
+import { FRACTION_BAR_DY, blank, code, fractionBar, label, mk, sheetScale } from './geometry';
 
 export const TABLE1112F1B_FORM_CODE = 'NTA0KSE114010030';
 export const TABLE1112F1B_TITLE = '相続税の申告書　第11・11の2表の付表1（別表1）';
@@ -305,7 +305,7 @@ export function buildTable1112f1b(
 ): GridCell[] {
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）
-    mk(row(182, 210.5), col(LEFT, 736), { noBorder: true }),
+    blank(row(182, 210.5), col(LEFT, 736)),
     label(row(182, 210.5), col(736, 925), '被相続人'),
     code(row(182, 210.5), col(925, 955), 'E01'),
     mk(row(182, 210.5), col(955, RIGHT), {
@@ -314,12 +314,12 @@ export function buildTable1112f1b(
     }),
 
     label(row(210.5, 304.5), col(LEFT, RIGHT), INTRO, { align: 'left', fontSize: 6.5 }),
-    mk(row(304.5, 310), col(LEFT, RIGHT), { noBorder: true }),
+    blank(row(304.5, 310), col(LEFT, RIGHT)),
     ...section1(prefix),
-    mk(row(610, 615.5), col(LEFT, RIGHT), { noBorder: true }),
+    blank(row(610, 615.5), col(LEFT, RIGHT)),
     ...sectionHead([615.5, 786], 0.13, SEC2_HEAD, SEC2_BODY),
     ...ownerBlock(totals, prefix, sheet, 0, whoOptions),
-    mk(row(1240, 1244), col(LEFT, RIGHT), { noBorder: true }),
+    blank(row(1240, 1244), col(LEFT, RIGHT)),
     ...ownerBlock(totals, prefix, sheet, 1, whoOptions),
   ];
 }

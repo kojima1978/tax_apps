@@ -96,6 +96,25 @@ export function snapDrift({ xs, ys, placed }: Lattice): SnapDrift[] {
 }
 
 /**
+ * 文字が入らない細さ（％）。用紙の描画幅は 700〜800px 程度なので、
+ * 幅1％（≒7px）・高さ0.5％（≒5px）を下回るセルには文字も入力も置けない。
+ */
+const RULE_W = 1;
+const RULE_H = 0.5;
+
+/**
+ * 細すぎるのに罫線セル（`rule`）の印が無いセル。
+ *
+ * `rule` のセルだけが内側余白を落とす。印を忘れると余白と罫線の合計（＝枠の最小寸法）が
+ * 割り当てた幅を超えて、右（下）へ数px はみ出し「様式に無い罫線」として見えてしまう。
+ * 細さは「罫線のためのセルのはず」という手がかりに過ぎないので、判定には使わず
+ * 印の付け忘れを見張るのにだけ使う。
+ */
+export function unmarkedRuleCells(cells: readonly GridCell[]): GridCell[] {
+  return cells.filter((c) => !c.rule && (c.width < RULE_W || c.height < RULE_H));
+}
+
+/**
  * 格子へ寄せた結果、幅か高さが 0 になった罫線セル。
  *
  * 寄せは `SNAP_TOL`（％）以内の端を1本にまとめるので、それより細いセルは前後が同じ線に

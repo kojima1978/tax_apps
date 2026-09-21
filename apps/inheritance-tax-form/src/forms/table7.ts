@@ -21,7 +21,7 @@
 import type { GridCell } from '../components/ui/GridForm';
 import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS } from '../data/codes';
 import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
-import { code, label, mk, sheetScale } from './geometry';
+import { blank, code, fractionBar, label, mk, sheetScale } from './geometry';
 
 export const TABLE7_FORM_CODE = 'NTA0KSE070010030';
 export const TABLE7_TITLE = '相続税の申告書　第7表';
@@ -305,8 +305,8 @@ function formulaRows(common: string, totals: string): GridCell[] {
     mk(upper, col(X.FRAC_V, X.D2), {
       kind: 'input', field: `${totals}v4`, ariaLabel: '⑧の金額', commaInteger: true, readOnly: true,
     }),
-    mk(row(mid1, bar), col(X.FRAC, X.D2), { noBorderTop: true, noBorderRight: true, noBorderLeft: true }),
-    mk(row(bar, mid2), col(X.FRAC, X.D2), { noBorder: true }),
+    fractionBar(row(mid1, bar), col(X.FRAC, X.D2)),
+    blank(row(bar, mid2), col(X.FRAC, X.D2)),
     label(lower, col(X.FRAC, X.FRAC_C), '（⑦の金額）\n（円）', { fontSize: 7 }),
     code(lower, col(X.FRAC_C, X.FRAC_V), 'G09'),
     mk(lower, col(X.FRAC_V, X.D2), {
@@ -322,9 +322,9 @@ function formulaRows(common: string, totals: string): GridCell[] {
     }),
     label(upper, col(X.BOX_R, X.D3), '年', { noBorderTop: true, noBorderBottom: true, noBorderLeft: true, borderRightWidth: 1, align: 'center' }),
     // ④の年数／10年 の分数の横線。左のコード枠（G10）の下には引かない
-    label(row(mid1, bar), col(X.BOX_L, X.BOX_C), '', { noBorder: true }),
-    label(row(mid1, bar), col(X.BOX_C, X.BOX_R), '', { noBorderTop: true, noBorderRight: true, noBorderLeft: true }),
-    label(row(bar, mid2), col(X.BOX_L, X.BOX_R), '', { noBorder: true }),
+    blank(row(mid1, bar), col(X.BOX_L, X.BOX_C)),
+    fractionBar(row(mid1, bar), col(X.BOX_C, X.BOX_R)),
+    blank(row(bar, mid2), col(X.BOX_L, X.BOX_R)),
     label(row(mid1, mid2), col(X.BOX_R, X.D3), '＝', { noBorderTop: true, noBorderBottom: true, noBorderLeft: true, borderRightWidth: 1 }),
     label(lower, col(X.BOX_L, X.BOX_R), String(TABLE7_SPAN), { noBorderTop: true, noBorderRight: true, noBorderLeft: true, borderBottomWidth: 1 }),
     label(lower, col(X.BOX_R, X.D3), '年', { noBorderTop: true, noBorderLeft: true, borderRightWidth: 1, borderBottomWidth: 1, align: 'center' }),
@@ -503,7 +503,7 @@ export function buildTable7(common: string, totals: string, options: GridCell['o
   };
   return [
     // 被相続人（第1表の氏名と同じ欄を共有する）。左側は罫線の無い余白
-    mk(row(Y.decedent[0], Y.decedent[1]), col(LEFT, X.DEC_L), { noBorder: true }),
+    blank(row(Y.decedent[0], Y.decedent[1]), col(LEFT, X.DEC_L)),
     label(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_L, X.DEC_C), '被相続人'),
     code(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_C, X.DEC_I), 'E01'),
     mk(row(Y.decedent[0], Y.decedent[1]), col(X.DEC_I, RIGHT), {

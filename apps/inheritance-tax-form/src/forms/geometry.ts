@@ -105,6 +105,31 @@ export function label(y: readonly [number, number], x: readonly [number, number]
   return mk(y, x, { kind: 'label', text, ...rest });
 }
 
+/**
+ * 罫線のためだけに置くセル（二重線の間・分数の横線など）。文字も入力も持たない。
+ *
+ * `GridForm` は罫線をセルの辺として引くので、様式に1本だけ引かれている線は
+ * 「その位置に辺が来る極細のセル」として置くことになる。内側余白を持たないため、
+ * 割り当てた幅が数pxでも枠がはみ出さない（`GridCell.rule` 参照）。
+ */
+export function rule(
+  y: readonly [number, number],
+  x: readonly [number, number],
+  rest: Partial<GridCell> = {},
+): GridCell {
+  return mk(y, x, { rule: true, ...rest });
+}
+
+/**
+ * 罫線も文字も持たない埋めセル（章と章の間の帯・二重線の間・表の外の余白）。
+ *
+ * `GridForm` の格子はセルの辺から組み立てるので、様式に罫線が無い領域も
+ * 「そこに辺がある」ことを示すセルで埋めておく必要がある。
+ */
+export function blank(y: readonly [number, number], x: readonly [number, number]): GridCell {
+  return rule(y, x, { noBorder: true });
+}
+
 /** 分数の横線は、分子と分母を分ける帯の上端から 6px 下に引かれている（どの様式でも同じ） */
 export const FRACTION_BAR_DY = 6;
 
@@ -116,7 +141,7 @@ export const FRACTION_BAR_DY = 6;
  * 上・左・右の罫を消して帯のセルに重ねて置く。
  */
 export function fractionBar(y: readonly [number, number], x: readonly [number, number]): GridCell {
-  return mk(y, x, { noBorderTop: true, noBorderLeft: true, noBorderRight: true });
+  return rule(y, x, { noBorderTop: true, noBorderLeft: true, noBorderRight: true });
 }
 
 // ════════════════════════════════════════════
@@ -363,7 +388,7 @@ export function personLabelColumn(y: PersonY): GridCell[] {
   const nameSpan: [number, number] = [y.furigana[0], y.name[1]];
   const birthSpan: [number, number] = [y.birthHead[0], y.birth[1]];
   return [
-    mk(y.head, [V.L, V.LBL], { noBorder: true }),
+    blank(y.head, [V.L, V.LBL]),
     label(y.furigana, [V.L, V.LBL_A], 'フリガナ'),
     label(y.name, [V.L, V.LBL_A], '氏名', { fontSize: 11 }),
     label(nameSpan, [V.LBL_A, V.LBL], '参考記載の\n場合「1」\nと記入（注1）', { fontSize: 7, align: 'left' }),
