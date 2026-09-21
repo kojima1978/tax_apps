@@ -74,12 +74,22 @@ jobs:
       # compose ファイルの構文と変数展開だけを見る（起動はしない）。
       # prod の上書きは .env を要求するものがあり、.env は git に入らないので
       # ここでは base だけを検証する。
+      #
+      # .env が git に入らない以上、CI には存在しない。itcm の base は
+      # POSTGRES_PASSWORD を `:?` で必須にしているので、そのままだと
+      # 「構文が壊れている」ではなく「CI に .env が無い」で毎回落ちる。
+      # manage.sh start と同じく .env.example から作って埋める ──
+      # これで「.env.example が compose の要求を満たしているか」も一緒に見る。
       - name: Validate every docker-compose.yml
         run: |
           set -euo pipefail
           failed=0
           for f in apps/*/docker-compose.yml docker/gateway/docker-compose.yml; do
             [ -f "$f" ] || continue
+            d=$(dirname "$f")
+            if [ ! -f "$d/.env" ] && [ -f "$d/.env.example" ]; then
+              cp "$d/.env.example" "$d/.env"
+            fi
             if docker compose -f "$f" config >/dev/null; then
               echo "ok   $f"
             else
