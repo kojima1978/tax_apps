@@ -95,6 +95,7 @@ import {
   type Values,
 } from './lib/calc';
 import { HEIR_ID } from './lib/heirRef';
+import { pageCount } from './lib/storedData';
 import { buildAssetTaxWorksheet, type AssetTaxSource } from './lib/assetTaxWorksheet';
 
 /** 第1表の転記欄。様式の選択状態にかかわらず直接入力させず、クリックで転記元を開く。 */
@@ -1001,8 +1002,9 @@ export default function App() {
     [lawfulPeople],
   );
   const table5Cells = useMemo(() => buildTable5(COMMON, TOTALS), []);
-  const contPages = Math.ceil(Math.max(0, data.heirs.length - 1) / 2);
-  const heirPages = 1 + contPages;
+  const heirPages = pageCount(data.heirs.length);
+  /** 第1表（続）の枚数（1人目は第1表に載るので、2人目以降が2人ずつ） */
+  const contPages = heirPages - 1;
   const table11Pages = Math.max(1, Math.ceil(data.heirs.length / TABLE11_ROWS));
   /**
    * 付表の割り付け。財産の並び順を様式の組へ配る。
