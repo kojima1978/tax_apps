@@ -16,7 +16,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { FRACTION_BAR_DY, code, fractionBar, label, mk } from './geometry';
+import { FRACTION_BAR_DY, code, fractionBar, label, mk, sheetScale } from './geometry';
 
 export const TABLE5_FORM_CODE = 'NTA0KSE050010020';
 export const TABLE5_TITLE = '相続税の申告書　第5表';
@@ -28,19 +28,11 @@ const BOTTOM = 1642;
 const LEFT = 59.5;
 const RIGHT = 1178.5;
 
-/** 表の縦横比（GridForm の aspectRatio に渡す） */
-export const TABLE5_ASPECT = `${RIGHT - LEFT} / ${BOTTOM - TOP}`;
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col, aspect } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 表の縦横比（GridForm の aspectRatio に渡す） */
+export const TABLE5_ASPECT = aspect;
 
 /** 「課税価格の合計額のうち配偶者の法定相続分相当額」の行の縦罫線 */
 const FX = {

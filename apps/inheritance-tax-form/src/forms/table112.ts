@@ -14,7 +14,7 @@
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
 import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
-import { code, dateSelect, label, mk } from './geometry';
+import { code, dateSelect, label, mk, sheetScale } from './geometry';
 
 export const TABLE112_FORM_CODE = 'NTA0KSE111010040';
 export const TABLE112_TITLE = '相続税の申告書　第11の2表';
@@ -28,16 +28,8 @@ const BOTTOM = 1622.5;
 const LEFT = 35.5;
 const RIGHT = 1203;
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
 /** 縦罫線の実測px（1と2で共有する線が多いので1つの表にまとめる） */
 const X = {

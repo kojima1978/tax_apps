@@ -18,7 +18,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { code, label, mk } from './geometry';
+import { code, label, mk, sheetScale } from './geometry';
 
 export const TABLE88_FORM_CODE = 'NTA0KSE088010010';
 export const TABLE88_TITLE = '相続税の申告書　第8の8表';
@@ -42,19 +42,11 @@ const BOTTOM = 1693.5;
 const LEFT = 65.5;
 const RIGHT = 1172.5;
 
-/** 表の縦横比（GridForm の aspectRatio に渡す） */
-export const TABLE88_ASPECT = `${RIGHT - LEFT} / ${BOTTOM - TOP}`;
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col, aspect } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 表の縦横比（GridForm の aspectRatio に渡す） */
+export const TABLE88_ASPECT = aspect;
 
 /** 列の縦罫線（1・2で共通）。1人目と2人目でコード枠＋入力の並びが繰り返される。 */
 const X = {

@@ -14,7 +14,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, dateSelect, label, mk, type FormRow } from './geometry';
+import { code, dateSelect, label, mk, sheetScale, type FormRow } from './geometry';
 
 export const TABLE13_FORM_CODE = 'NTA0KSE130010020';
 export const TABLE13_TITLE = '相続税の申告書　第13表';
@@ -44,19 +44,11 @@ const BOTTOM = 1693.5;
 const LEFT = 106.5;
 const RIGHT = 1201.5;
 
-/** 表の縦横比（GridForm の aspectRatio に渡す） */
-export const TABLE13_ASPECT = `${RIGHT - LEFT} / ${BOTTOM - TOP}`;
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col, aspect } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 表の縦横比（GridForm の aspectRatio に渡す） */
+export const TABLE13_ASPECT = aspect;
 
 /** 縦罫線の実測px */
 const X = {

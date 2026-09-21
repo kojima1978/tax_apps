@@ -16,7 +16,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import type { AutoFill, CodeSuffix } from '../lib/codeLink';
-import { code, label, mk } from './geometry';
+import { code, label, mk, sheetScale, type SheetFrame, type SheetScale } from './geometry';
 
 /** 1枚に載る財産の数（＝組の数） */
 export const DETAIL_GROUPS = 8;
@@ -149,26 +149,27 @@ export interface DetailShareCodes {
   amount: [DetailCode, DetailCode, DetailCode];
 }
 
+/**
+ * 明細の外枠（実測px）。上辺は氏名欄の上、下辺は組の先頭の並びの末尾（＝最後の組の下辺）。
+ * 他の様式は外枠を4つの定数で持つが、付表1〜4は組の位置から決まるのでここで組み立てる。
+ */
+function frameOf(frame: DetailFrame): SheetFrame {
+  return {
+    top: frame.name[0],
+    bottom: frame.groupTops[frame.groupTops.length - 1]!,
+    left: frame.left,
+    right: frame.right,
+  };
+}
+
 /** 用紙の縦横比（`aspect-ratio` にそのまま渡す）。様式ごとに版の大きさが違う。 */
 export function detailAspect(spec: DetailSpec): string {
-  const f = spec.frame;
-  const bottom = f.groupTops[f.groupTops.length - 1]!;
-  return `${f.right - f.left} / ${bottom - f.name[0]}`;
+  return sheetScale(frameOf(spec.frame)).aspect;
 }
 
-/** 実測px → ％ の変換をまとめたもの（様式ごとに基準が違うため spec から作る） */
-interface Scale {
-  row: (a: number, b: number) => [number, number];
-  col: (a: number, b: number) => [number, number];
-}
-
-function scaleOf(frame: DetailFrame): Scale {
-  const top = frame.name[0];
-  const bottom = frame.groupTops[frame.groupTops.length - 1]!;
-  return {
-    row: (a, b) => [((a - top) / (bottom - top)) * 100, ((b - top) / (bottom - top)) * 100],
-    col: (a, b) => [((a - frame.left) / (frame.right - frame.left)) * 100, ((b - frame.left) / (frame.right - frame.left)) * 100],
-  };
+/** 実測px → ％ の変換（様式ごとに基準が違うため spec から作る） */
+function scaleOf(frame: DetailFrame): SheetScale {
+  return sheetScale(frameOf(frame));
 }
 
 /** 組 g の横罫線（実測px）。先頭が組の上辺、末尾が組の下辺。 */
@@ -192,7 +193,7 @@ type CellAction = Pick<GridCell, 'action'> | Pick<GridCell, 'navigateToForm'>;
 
 /** 明細欄1つ（コード枠＋入力欄） */
 function fieldCells(
-  spec: DetailSpec, s: Scale, f: DetailField, y: [number, number], g: number, prefix: string, who: string,
+  spec: DetailSpec, s: SheetScale, f: DetailField, y: [number, number], g: number, prefix: string, who: string,
   act: CellAction,
 ): GridCell[] {
   const cells: GridCell[] = [];
@@ -228,7 +229,7 @@ const SHARE_ROWS = [0, 1, 2] as const;
  * 続きの組は※のとおり「項番」「取得した人の番号」「取得財産の価額」以外は記入しないため、
  * 明細欄は識別コードと罫線だけを置いて入力欄を作らない。
  */
-function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: number, item: DetailItem): GridCell[] {
+function groupCells(spec: DetailSpec, share: DetailShareCodes, s: SheetScale, g: number, item: DetailItem): GridCell[] {
   const f = spec.frame;
   const { prefix, label: who, base, first, index, edit, source } = item;
   // 転記された明細は入力画面を持たない。押すと転記元の様式へ移る
@@ -272,7 +273,7 @@ function groupCells(spec: DetailSpec, share: DetailShareCodes, s: Scale, g: numb
 }
 
 /** 表の見出し（「財産の明細」「分割が確定した財産」と小見出しの3段） */
-function headCells(spec: DetailSpec, s: Scale): GridCell[] {
+function headCells(spec: DetailSpec, s: SheetScale): GridCell[] {
   const f = spec.frame;
   const head = (i: number, j: number): [number, number] => s.row(f.head[i]!, f.head[j]!);
   const band = s.row(f.band[0], f.band[1]);

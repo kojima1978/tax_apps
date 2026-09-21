@@ -15,7 +15,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, dateSelect, label, mk, type FormRow } from './geometry';
+import { code, dateSelect, label, mk, sheetScale, type FormRow } from './geometry';
 
 export const TABLE9_FORM_CODE = 'NTA0KSE090010020';
 export const TABLE9_TITLE = '相続税の申告書　第9表';
@@ -40,19 +40,11 @@ const BOTTOM = 1682;
 const LEFT = 12;
 const RIGHT = 1227;
 
-/** 表の縦横比（GridForm の aspectRatio に渡す） */
-export const TABLE9_ASPECT = `${RIGHT - LEFT} / ${BOTTOM - TOP}`;
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col, aspect } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 表の縦横比（GridForm の aspectRatio に渡す） */
+export const TABLE9_ASPECT = aspect;
 
 /** 縦罫線の実測px（1と2で共有している線があるのでまとめて持つ） */
 const X = {

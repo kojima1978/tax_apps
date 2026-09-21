@@ -10,7 +10,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { RELATION_OPTIONS } from '../data/codes';
-import { FRACTION_BAR_DY, code, fractionBar, label, mk } from './geometry';
+import { FRACTION_BAR_DY, code, fractionBar, label, mk, sheetScale } from './geometry';
 import { personAction } from './person';
 
 export const TABLE2_FORM_CODE = 'NTA0KSE020010020';
@@ -56,16 +56,8 @@ const BOTTOM = 1549;
 const LEFT = 77;
 const RIGHT = 1142;
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
 /** 縦罫線の実測px */
 const X = {

@@ -10,7 +10,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { code, label, mk } from './geometry';
+import { code, label, mk, sheetScale } from './geometry';
 
 export const TABLE15_FORM_CODE = 'NTA0KSE150010030';
 export const TABLE15CONT_FORM_CODE = 'NTA0KSE151010030';
@@ -19,7 +19,6 @@ export const TABLE15CONT_TITLE = '相続税の申告書　第15表（続）';
 export const TABLE15_SUBTITLE = '相続財産の種類別価額表';
 export const TABLE15CONT_SUBTITLE = '相続財産の種類別価額表（続）';
 export const TABLE15_EDITION = '（令和6年1月分以降用）（R8.7）';
-export const TABLE15_ASPECT = '1078 / 1434';
 
 /** （続）1枚に載る人数 */
 export const TABLE15CONT_PERSONS = 2;
@@ -29,16 +28,11 @@ const BOTTOM = 1629;
 const LEFT = 78.5;
 const RIGHT = 1156.5;
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col, aspect } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
+
+/** 表の縦横比（GridForm の aspectRatio に渡す） */
+export const TABLE15_ASPECT = aspect;
 
 /** 縦罫線の実測px */
 const X = {

@@ -17,7 +17,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, dateSelect, label, mk, type FormRow } from './geometry';
+import { code, dateSelect, label, mk, sheetScale, type FormRow } from './geometry';
 
 export const TABLE14_FORM_CODE = 'NTA0KSE141010040';
 export const TABLE14_TITLE = '相続税の申告書　第14表';
@@ -63,19 +63,11 @@ const BOTTOM = 1682.5;
 const LEFT = 39;
 const RIGHT = 1199;
 
-/** 表の縦横比（GridForm の aspectRatio に渡す） */
-export const TABLE14_ASPECT = `${RIGHT - LEFT} / ${BOTTOM - TOP}`;
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col, aspect } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 表の縦横比（GridForm の aspectRatio に渡す） */
+export const TABLE14_ASPECT = aspect;
 
 /** 様式のコード（E02・G01 のように系列ごとに2桁で振られる） */
 const cd = (series: string, n: number): string => `${series}${String(n).padStart(2, '0')}`;

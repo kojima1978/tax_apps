@@ -21,7 +21,7 @@
 import type { GridCell } from '../components/ui/GridForm';
 import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS } from '../data/codes';
 import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
-import { code, label, mk } from './geometry';
+import { code, label, mk, sheetScale } from './geometry';
 
 export const TABLE7_FORM_CODE = 'NTA0KSE070010030';
 export const TABLE7_TITLE = '相続税の申告書　第7表';
@@ -42,19 +42,11 @@ const BOTTOM = 1632.5;
 const LEFT = 58.5;
 const RIGHT = 1177.5;
 
-/** 表の縦横比（GridForm の aspectRatio に渡す） */
-export const TABLE7_ASPECT = `${RIGHT - LEFT} / ${BOTTOM - TOP}`;
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col, aspect } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 表の縦横比（GridForm の aspectRatio に渡す） */
+export const TABLE7_ASPECT = aspect;
 
 /** 全角空白1つ（テンプレートリテラルに直接書くと no-irregular-whitespace に引っかかる） */
 const SP = '　';

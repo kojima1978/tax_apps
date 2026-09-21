@@ -14,7 +14,7 @@
  */
 
 import type { Fraction, GridCell } from '../components/ui/GridForm';
-import { code, label, mk } from './geometry';
+import { axisScale, code, label, mk } from './geometry';
 
 export const TABLE1112F1_FORM_CODE = 'NTA0KSE112010030';
 export const TABLE1112F1_TITLE = '相続税の申告書　第11・11の2表の付表1';
@@ -47,11 +47,8 @@ export const KIND_OPTIONS: GridCell['options'] = [
 const LEFT = 95;
 const RIGHT = 1213;
 
-/** 実測px → ％（横）。本表・（続）で共用する。 */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 実測px → ％（横）。縦は用紙ごとに違うのでここは横だけ。本表・（続）で共用する。 */
+const col = axisScale(LEFT, RIGHT);
 
 /** 縦罫線の実測px */
 const X = {
@@ -433,10 +430,7 @@ export function buildTable1112f1(
   common: string, totals: string, sheet: number, items: F1Item[], whoOptions: GridCell['options'],
 ): GridCell[] {
   const s = sheetOf(sheet);
-  const row = (a: number, b: number): [number, number] => [
-    ((a - s.top) / (s.bottom - s.top)) * 100,
-    ((b - s.top) / (s.bottom - s.top)) * 100,
-  ];
+  const row = axisScale(s.top, s.bottom);
   const ctx: Ctx = { row, common, totals, whoOptions };
   const decY = row(s.top, s.intro?.[0] ?? s.agreeHead[0]);
   return [

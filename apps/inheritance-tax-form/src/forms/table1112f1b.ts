@@ -12,7 +12,7 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { FRACTION_BAR_DY, code, fractionBar, label, mk } from './geometry';
+import { FRACTION_BAR_DY, code, fractionBar, label, mk, sheetScale } from './geometry';
 
 export const TABLE1112F1B_FORM_CODE = 'NTA0KSE114010030';
 export const TABLE1112F1B_TITLE = '相続税の申告書　第11・11の2表の付表1（別表1）';
@@ -40,16 +40,11 @@ const RIGHT = 1222.5;
 const TOP = 182;
 const BOTTOM = 1696.5;
 
-export const TABLE1112F1B_ASPECT = `${RIGHT - LEFT} / ${BOTTOM - TOP}`;
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col, aspect } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 表の縦横比（GridForm の aspectRatio に渡す） */
+export const TABLE1112F1B_ASPECT = aspect;
 
 const cd = (series: string, n: number): string => `${series}${String(n).padStart(2, '0')}`;
 

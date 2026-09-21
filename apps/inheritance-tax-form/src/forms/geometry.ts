@@ -39,6 +39,37 @@ export const V = {
 export const COL_W = V.MID - V.LBL;
 
 /**
+ * 様式の外枠（実測px）。
+ *
+ * セルの位置は様式PNG（150dpi）から検出した実測pxで書き、外枠の内側を 0〜100％ として
+ * `GridForm` に渡す。様式ごとに違うのはこの4辺だけで、px→％ の式はどの様式でも同じ。
+ */
+export interface SheetFrame {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
+export interface SheetScale {
+  /** 実測px → ％（縦） */
+  row: (a: number, b: number) => [number, number];
+  /** 実測px → ％（横） */
+  col: (a: number, b: number) => [number, number];
+  /** 表の縦横比（`GridForm` の `aspectRatio` に渡す） */
+  aspect: string;
+}
+
+/** 1軸だけの 実測px → ％。`a`〜`b` の内側を 0〜100％ に引き伸ばす。 */
+export function axisScale(a: number, b: number): (from: number, to: number) => [number, number] {
+  return (from, to) => [((from - a) / (b - a)) * 100, ((to - a) / (b - a)) * 100];
+}
+
+export function sheetScale({ top, bottom, left, right }: SheetFrame): SheetScale {
+  return { row: axisScale(top, bottom), col: axisScale(left, right), aspect: `${right - left} / ${bottom - top}` };
+}
+
+/**
  * 様式1枚に載る1行の在りか。
  *
  * 明細は「行そのもの」を1要素とする配列（`FormData.details`）で持ち、その要素を指す

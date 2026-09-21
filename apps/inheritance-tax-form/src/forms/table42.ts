@@ -22,7 +22,7 @@
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
 import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
-import { code, label, mk } from './geometry';
+import { code, label, mk, sheetScale } from './geometry';
 
 export const TABLE42_FORM_CODE = 'NTA0KSE041010010';
 export const TABLE42_TITLE = '相続税の申告書　第4表の2';
@@ -55,19 +55,11 @@ const BOTTOM = 1690;
 const LEFT = 29.5;
 const RIGHT = 1180.5;
 
-/** 表の縦横比（GridForm の aspectRatio に渡す） */
-export const TABLE42_ASPECT = `${RIGHT - LEFT} / ${BOTTOM - TOP}`;
+/** 実測px → ％（外枠の内側を 0〜100％ として扱う） */
+const { row, col, aspect } = sheetScale({ top: TOP, bottom: BOTTOM, left: LEFT, right: RIGHT });
 
-/** 実測px → ％（縦） */
-const row = (a: number, b: number): [number, number] => [
-  ((a - TOP) / (BOTTOM - TOP)) * 100,
-  ((b - TOP) / (BOTTOM - TOP)) * 100,
-];
-/** 実測px → ％（横） */
-const col = (a: number, b: number): [number, number] => [
-  ((a - LEFT) / (RIGHT - LEFT)) * 100,
-  ((b - LEFT) / (RIGHT - LEFT)) * 100,
-];
+/** 表の縦横比（GridForm の aspectRatio に渡す） */
+export const TABLE42_ASPECT = aspect;
 
 /** 縦罫線（実測px） */
 const X = {
