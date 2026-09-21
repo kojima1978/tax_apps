@@ -14,8 +14,21 @@ RUN --mount=type=cache,id=npm-store-private-banking,target=/root/.npm npm ci
 FROM deps AS dev
 # ポーリング設定は docker-compose.yml 側に集約する（理由はそちらのコメント参照）。
 ENV NODE_ENV=development HOSTNAME=0.0.0.0 TZ=Asia/Tokyo
-COPY . .
+# COPY の --chown は層を増やさない。next dev は起動時に tsconfig.json と
+# next-env.d.ts を書き換えるので、root 所有のままだと EACCES で落ちる。
+COPY --chown=node:node . .
 RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
+
+# dev サーバも非 root で動かす（runner は元から USER nextjs）。
+# /app/.next は compose の名前付きボリューム(private_banking_next)の
+# マウント先。**空のボリュームはイメージ側の所有者を引き継ぐ**ので、
+# ここで作って node に渡しておく。既存のボリュームは root 所有のまま残るため
+# 一度だけ作り直すか chown が要る。
+# node_modules を `chown -R` しないのはツリーがもう1層コピーされるため。
+RUN mkdir -p /app/.next && \
+    chown node:node /app /app/node_modules /app/.next
+USER node
+
 EXPOSE 3025
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["npm", "run", "dev"]

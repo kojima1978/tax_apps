@@ -29,8 +29,22 @@ RUN npx prisma generate
 FROM deps AS dev
 ARG APP_PORT
 ENV NODE_ENV=development TZ=Asia/Tokyo PORT=3114
-COPY . .
+# COPY の --chown は層を増やさないので、丸ごと node 所有で持ち込む。
+COPY --chown=node:node . .
 RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
+
+# dev サーバも非 root で動かす。node_modules を `chown -R` しないのは
+# ツリーがもう1層まるごとコピーされるため。Vite が .vite を作れるように
+# ディレクトリのパーミッションだけ渡す。
+#
+# 書き込み可の bind mount（./output と ./prisma/industry-data）は Windows 側の
+# 実体が 0777 で見えるので uid1000 でも書ける。ただし**過去に root で動いていた
+# 頃にコンテナ内から作られたディレクトリ**（output/industry-export など）は
+# 0:0 の 0755 で残るため、一度だけ `docker compose exec -u 0 <svc> chown -R 1000:1000 /app/output`
+# が要る。
+RUN chown node:node /app /app/node_modules
+USER node
+
 EXPOSE ${APP_PORT}
 ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
 CMD ["npm", "run", "dev:all"]

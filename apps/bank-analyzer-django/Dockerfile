@@ -168,8 +168,12 @@ CMD ["python", "-m", "pytest", "--tb=short", "-v"]
 # ------------------------------------------
 FROM production AS dev
 
-# Run as root for volume mount write permissions
-USER root
+# production の USER appuser をそのまま引き継ぐ（ここで root へ戻さない）。
+# 以前は「マウントしたボリュームへ書けるように」root で動かしていたが、
+# Windows の bind mount は 0777 で見えるので appuser のままでも ./data へ書ける
+# （./analyzer と ./bank_project は :ro なので読めれば足りる）。
+# dev だけ root だと、root で作られたファイルがホスト側に残って
+# 本番（appuser）から触れなくなる。
 
 # Enable Django debug mode
 ENV DJANGO_DEBUG=True

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # =============================================================================
-# Vite Static App - Shared Dockerfile (10アプリ共有)
+# Vite Static App - Shared Dockerfile (7アプリ共有)
 # Multi-stage build for development and production (Vite + nginx)
 # =============================================================================
 #
@@ -53,7 +53,18 @@ RUN --mount=type=cache,id=${NPM_CACHE_ID},target=/root/.npm \
 FROM deps AS dev
 ARG APP_PORT
 ENV NODE_ENV=development TZ=Asia/Tokyo APP_PORT=${APP_PORT}
-COPY . .
+
+# --chown を付けて node 所有で持ち込む（COPY の --chown は層を増やさない）。
+COPY --chown=node:node . .
+
+# dev サーバも非 root で動かす（runner は元から USER nginx）。
+# node_modules を `chown -R` しないのは、ツリー全体がもう1層まるごとコピーされ、
+# このファイルを共有する全アプリのイメージがその分だけ増えるため。
+# Vite が書くのは node_modules/.vite（依存の事前バンドル）なので、
+# その入れ物になるディレクトリのパーミッションだけを渡せば足りる。
+RUN chown node:node /app /app/node_modules
+USER node
+
 EXPOSE ${APP_PORT}
 CMD npm run dev -- --host --port ${APP_PORT}
 

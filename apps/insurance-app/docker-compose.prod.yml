@@ -20,7 +20,10 @@ services:
       NODE_ENV: production
       NODE_OPTIONS: "--max-old-space-size=128"
       NEXT_TELEMETRY_DISABLED: "1"
-    user: root
+    # かつてここに `user: root` があった。理由は書かれていなかったが、
+    # イメージ側が `USER node` なのを compose だけで打ち消していたので、
+    # SQLite のボリュームに root 所有のファイルが溜まっていた。
+    # ボリュームを node(1000:1000) に直したうえで外してある。
     init: false
     mem_limit: 192m
     # !override で base の volumes を置換する（通常のリストはマージされ、

@@ -35,7 +35,16 @@ ENV NODE_ENV=development HOSTNAME=0.0.0.0 TZ=Asia/Tokyo
 RUN npx prisma generate
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
-COPY . .
+# COPY の --chown は層を増やさない。next dev は起動時に tsconfig.json と
+# next-env.d.ts を書き換えるので、root 所有のままだと EACCES で落ちる。
+COPY --chown=node:node . .
+
+# dev サーバも非 root で動かす（runner は元から USER nextjs）。
+# /app に .next を作り、entrypoint の npx が $HOME/.npm を使う。
+# node_modules を `chown -R` しないのはツリーがもう1層コピーされるため。
+RUN chown node:node /app /app/node_modules
+USER node
+
 EXPOSE 3020
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["npm", "run", "dev"]
