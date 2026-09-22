@@ -18,7 +18,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import { ERA_OPTIONS } from '../data/codes';
-import { code, dateSelect, decedentNameRow, label, mk, sheetScale, type FormRow } from './geometry';
+import { FRACTION_BAR_DY, code, dateSelect, decedentNameRow, fractionBar, label, mk, sheetScale, type FormRow } from './geometry';
 
 export const TABLE10_FORM_CODE = 'NTA0KSE100010020';
 export const TABLE10_TITLE = '相続税の申告書　第10表';
@@ -75,6 +75,9 @@ const P = {
   V3_C: 957.5,   // ③のコード枠の右端 ＝ 限度額行のⒶ枠の左端
   B_CODE: 396.5, // 合計行のⒷのコード枠（G23）の右端
 } as const;
+
+/** ②の見出しに組まれている分数「各人の①／Ⓑ」の位置（横線は実測 y=1157・x=834〜890） */
+const FRAC = { L: 834, R: 890, BAR: 1157 } as const;
 
 /** 退職手当金などの非課税限度額の行（1029.5〜1128）の縦割り */
 const LIM = {
@@ -220,7 +223,12 @@ function personRows(totals: string, page: number, last: boolean, whoOptions: Gri
   return [
     label(cols, col(X.L, P.NAME_R), '退職手当金などを\n受け取った相続人の氏名'),
     label(cols, col(P.NAME_R, P.V1_R), '①　受け取った退職手当金などの金額(円)'),
-    label(cols, col(P.V1_R, P.V2_R), '②　非課税金額(円)　(Ⓐ×各人の①／Ⓑ)'),
+    // ②の「各人の①／Ⓑ」は様式では分数に組んである（左の文字・分子・横線・分母・閉じ括弧に分ける）
+    label(cols, col(P.V1_R, FRAC.L), '②　非課税金額(円)　(Ⓐ×', { noBorderRight: true }),
+    label(row(1128, FRAC.BAR - FRACTION_BAR_DY), col(FRAC.L, FRAC.R), '各人の①', { noBorderLeft: true, noBorderRight: true, noBorderBottom: true }),
+    fractionBar(row(FRAC.BAR - FRACTION_BAR_DY, FRAC.BAR), col(FRAC.L, FRAC.R)),
+    label(row(FRAC.BAR, PERSON_Y[0]), col(FRAC.L, FRAC.R), 'Ⓑ', { noBorderLeft: true, noBorderRight: true, noBorderTop: true }),
+    label(cols, col(FRAC.R, P.V2_R), ')', { noBorderLeft: true, align: 'left' }),
     label(cols, col(P.V2_R, X.R), '③　課税金額(円)\n（①−②）'),
 
     ...Array.from({ length: TABLE10_ROWS }, (_unused, r): GridCell[] => {
