@@ -12,6 +12,11 @@ import { Hono } from 'hono';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   BULK_TRANSACTION_OPTIONS,
+  createIndustryYear,
+  parseArchive,
+  replaceIndustryYear,
+} from '../industryArchive.js';
+import {
   ValidationError,
   asArray,
   asFiniteNumber,
@@ -20,18 +25,8 @@ import {
   asNullableInt,
   asRecord,
   asString,
-  createIndustryYear,
-  parseArchive,
-  replaceIndustryYear,
-} from '../industryArchive.js';
-
-/** 検証エラーは400、それ以外は投げ直して Hono の500に任せる。 */
-function toErrorResponse(error: unknown) {
-  if (error instanceof ValidationError) {
-    return { body: { error: error.message, detail: error.detail }, status: 400 as const };
-  }
-  throw error;
-}
+  toErrorResponse,
+} from '../validation.js';
 
 export function createIndustryAdminRouter(db: PrismaClient) {
   const router = new Hono();

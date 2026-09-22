@@ -6,6 +6,17 @@
 
 import type { IndustryLevel, Prisma, PrismaClient } from '@prisma/client';
 import { gregorianYearOf, industryYearLabel } from './wareki.js';
+import {
+  ValidationError,
+  asArray,
+  asFiniteNumber,
+  asInt,
+  asMonth,
+  asNullableInt,
+  asRecord,
+  asString,
+  optionalString,
+} from './validation.js';
 
 /** `$transaction` のコールバックが受け取るクライアント（$transaction 等を持たない）。 */
 type TransactionClient = Prisma.TransactionClient;
@@ -15,59 +26,6 @@ export const BULK_TRANSACTION_OPTIONS = { timeout: 120_000, maxWait: 20_000 };
 
 const LEVELS: readonly IndustryLevel[] = ['LARGE', 'MIDDLE', 'SMALL'];
 
-/** 入力の不備。APIでは400、シードでは起動失敗（health 503）に落ちる。 */
-export class ValidationError extends Error {
-  constructor(message: string, readonly detail?: unknown) {
-    super(message);
-  }
-}
-
-export function asRecord(value: unknown, what: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new ValidationError(`${what}はオブジェクトで指定してください`);
-  }
-  return value as Record<string, unknown>;
-}
-
-export function asArray(value: unknown, what: string): unknown[] {
-  if (!Array.isArray(value)) throw new ValidationError(`${what}は配列で指定してください`);
-  return value;
-}
-
-export function asInt(value: unknown, what: string): number {
-  if (typeof value !== 'number' || !Number.isInteger(value)) {
-    throw new ValidationError(`${what}は整数で指定してください`);
-  }
-  return value;
-}
-
-export function asFiniteNumber(value: unknown, what: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new ValidationError(`${what}は数値で指定してください`);
-  }
-  return value;
-}
-
-export function asString(value: unknown, what: string): string {
-  if (typeof value !== 'string') throw new ValidationError(`${what}は文字列で指定してください`);
-  return value;
-}
-
-export function optionalString(value: unknown, what: string, fallback = ''): string {
-  return value === undefined || value === null ? fallback : asString(value, what);
-}
-
-export function asMonth(value: unknown, what: string): number {
-  const month = asInt(value, what);
-  if (month < 1 || month > 12) throw new ValidationError(`${what}は1〜12で指定してください`);
-  return month;
-}
-
-/** 株価・利益・純資産は円単位の非負整数。null は「未公表」の意味で通す。 */
-export function asNullableInt(value: unknown, what: string): number | null {
-  if (value === undefined || value === null) return null;
-  return asInt(value, what);
-}
 
 export interface ParsedMonthlyPrice {
   year: number;

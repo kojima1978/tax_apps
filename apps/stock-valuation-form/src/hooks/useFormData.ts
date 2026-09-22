@@ -363,6 +363,32 @@ function looksLikeFormData(value: unknown): value is FormData {
   return tables.length > 0;
 }
 
+/**
+ * JSONファイルを読み、この明細書のデータか検査して返す。
+ * 現在の帳票への読込（importJson）と、案件の新規作成の両方から使う。
+ */
+export function readFormDataFile(file: File): Promise<FormData> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました。'));
+    reader.onload = (e) => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(e.target?.result as string);
+      } catch {
+        reject(new Error('ファイルの読み込みに失敗しました。'));
+        return;
+      }
+      if (!looksLikeFormData(parsed)) {
+        reject(new Error('この明細書のデータファイルではないようです。読み込みを中止しました。'));
+        return;
+      }
+      resolve(parsed);
+    };
+    reader.readAsText(file);
+  });
+}
+
 function loadFromStorage(industry: IndustryDataset): FormData {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -433,34 +459,28 @@ export function useFormData() {
   }, [exportJson, formData]);
 
   const importJson = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      let data: FormData;
-      try {
-        const parsed: unknown = JSON.parse(e.target?.result as string);
-        if (!looksLikeFormData(parsed)) {
-          alert('この明細書のデータファイルではないようです。読み込みを中止しました。');
-          return;
+    void readFormDataFile(file).then(
+      (data) => {
+        // 入力済みのデータを黙って消さない。破棄する前に現在のデータをJSONで自動保存する
+        if (hasAnyInput(formData)) {
+          const message = [
+            '現在入力されているデータを破棄して読み込みます。',
+            '',
+            '破棄する前に現在のデータをJSONファイルとして自動保存します。よろしいですか？',
+          ].join('\n');
+          if (!window.confirm(message)) return;
+          exportJson();
         }
-        data = parsed;
-      } catch {
-        alert('ファイルの読み込みに失敗しました。');
-        return;
-      }
-      // 入力済みのデータを黙って消さない。破棄する前に現在のデータをJSONで自動保存する
-      if (hasAnyInput(formData)) {
-        const message = [
-          '現在入力されているデータを破棄して読み込みます。',
-          '',
-          '破棄する前に現在のデータをJSONファイルとして自動保存します。よろしいですか？',
-        ].join('\n');
-        if (!window.confirm(message)) return;
-        exportJson();
-      }
-      setFormData(normalizeFormData(data, industry));
-    };
-    reader.readAsText(file);
+        setFormData(normalizeFormData(data, industry));
+      },
+      (cause: unknown) => alert(cause instanceof Error ? cause.message : String(cause)),
+    );
   }, [exportJson, formData, industry]);
+
+  /** 帳票の中身をまるごと入れ替える（案件を開く・白紙の案件を作る）。 */
+  const replaceAll = useCallback((data: FormData) => {
+    setFormData(normalizeFormData(data, industry));
+  }, [industry]);
 
   /** 翌事業年度更新（実行前に現在データをJSONで自動バックアップ） */
   const rolloverToNextYear = useCallback(() => {
@@ -484,5 +504,5 @@ export function useFormData() {
   /** Table-scoped selector — stable reference per table while that table's data is unchanged */
   const tableData = useMemo(() => formData, [formData]);
 
-  return { formData, tableData, savedAt, updateField, getField, resetAll, exportJson, importJson, rolloverToNextYear };
+  return { formData, tableData, savedAt, updateField, getField, resetAll, exportJson, importJson, replaceAll, rolloverToNextYear };
 }

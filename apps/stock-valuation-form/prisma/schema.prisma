@@ -116,3 +116,31 @@ model IndustryMonthlyPrice {
   @@unique([categoryId, year, month])
   @@index([year, month])
 }
+
+/// 評価する会社1社ぶんの入力データ（案件）。
+///
+/// 様式の欄そのものは `data` に JSON のまま持ち、列には出さない。列に分解すると
+/// 様式が改訂されるたびにDBの移行が必要になり、様式への追従の足かせになるため。
+/// 列に出すのは一覧の表示と並べ替えに要るものだけ。
+///
+/// ここに入るのは評価先の会社の情報なので、業種目データ（prisma/industry-data/）の
+/// ような Git 管理のアーカイブへは**書き出さない**。持ち出しは画面のJSON保存で行う。
+model ValuationCase {
+  id Int @id @default(autoincrement())
+
+  /// 会社名。様式の「会社名」欄の写しで、フロントが保存時に一緒に送る。
+  companyName String @default("")
+  /// 課税時期（「令和8年3月15日」のような表示用の文字列）。一覧で案件を見分けるために持つ。
+  taxPeriod String @default("")
+
+  /// 評価明細書の入力値そのもの（表ID → 欄名 → 値）。
+  data Json
+
+  /// ゴミ箱。消したように見せて実体は残す（1社ぶんの入力が誤操作で消えるのを防ぐ）。
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([archivedAt, updatedAt])
+}

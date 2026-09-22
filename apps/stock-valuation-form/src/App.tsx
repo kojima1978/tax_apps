@@ -1,6 +1,6 @@
 import { memo, startTransition, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Navigation } from '@/components/Navigation';
-import { MIRRORED_FIELDS, useFormData } from '@/hooks/useFormData';
+import { MIRRORED_FIELDS, hasAnyInput, useFormData } from '@/hooks/useFormData';
 import { useHeightVar } from '@/hooks/useHeightVar';
 import { PrintRenderContext } from '@/components/ui/GridForm';
 import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
@@ -12,6 +12,10 @@ import { Table5 } from '@/components/tables/table5';
 import { Table6 } from '@/components/tables/table6';
 import { Table7_1, Table7_2, Table7_3 } from '@/components/tables/table7';
 import { IndustryAdminPage } from '@/features/industryAdmin/IndustryAdminPage';
+import { CaseDialog } from '@/features/cases/CaseDialog';
+import { CaseMigrationDialog } from '@/features/cases/CaseMigrationDialog';
+import { useCases } from '@/features/cases/useCases';
+import { caseDisplayName, saveStatusLabel } from '@/features/cases/caseLabels';
 import type { TableId, TableProps } from '@/types/form';
 import { NAV_TABS, SUMMARY_TAB_ID, TABS } from '@/data/constants';
 import { PrerequisitesChip, PrerequisitesDialog } from '@/components/PrerequisitesDialog';
@@ -79,7 +83,7 @@ export default function App() {
   // サマリーの中で「計算過程（別紙）」へ切り替えているか（サマリーを開き直したら本体から）
   const [worksheetOpen, setWorksheetOpen] = useState(false);
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
-  const { formData, savedAt, getField, updateField, resetAll, exportJson, importJson, rolloverToNextYear } = useFormData();
+  const { formData, savedAt, getField, updateField, resetAll, exportJson, importJson, replaceAll, rolloverToNextYear } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
   const topbarRef = useRef<HTMLDivElement>(null);
   // 帳票の操作帯は上端に貼り付いている。その下へ重ねる帯（サマリー）のために高さを渡す
@@ -99,6 +103,22 @@ export default function App() {
   const [printWorksheet, setPrintWorksheet] = useState(false);
   // 自動転記欄から入力元へ飛ぶ前にいた場所（「戻る」用）
   const [jumpOrigin, setJumpOrigin] = useState<{ tab: TableId; fieldName: string | null } | null>(null);
+  const [casesOpen, setCasesOpen] = useState(false);
+
+  // 案件に入れていない入力を捨てる前の確認。JSON読込・リセットと同じく、破棄の前に書き出す
+  const confirmDiscardDraft = useCallback(() => {
+    if (!hasAnyInput(formData)) return true;
+    const message = [
+      'この端末にだけ残っている入力を破棄して案件を切り替えます。',
+      '',
+      '破棄する前に現在のデータをJSONファイルとして自動保存します。よろしいですか？',
+    ].join('\n');
+    if (!window.confirm(message)) return false;
+    exportJson();
+    return true;
+  }, [exportJson, formData]);
+
+  const caseStore = useCases({ formData, getField, replaceAll, confirmDiscard: confirmDiscardDraft });
 
   // 表に（UI状態 _* と他表からの転記先を除く）入力値があるか。第4表の1／2は共通バケット table4 を参照する
   const hasData = useCallback(
@@ -218,7 +238,7 @@ export default function App() {
     // 日本語入力の変換中は横取りしない（変換の確定・候補選択を奪ってしまうため）
     if (event.isComposing) return;
     // ダイアログを開いている間と印刷準備中は、背後の表が勝手に動かないよう止める
-    if (printDialogOpen || prereqOpen || printTarget !== null) return;
+    if (printDialogOpen || prereqOpen || casesOpen || printTarget !== null) return;
 
     const ctrl = event.ctrlKey || event.metaKey;
     if (ctrl && event.key === 's') {
@@ -310,10 +330,16 @@ export default function App() {
         <div className="app-header-title">取引相場のない株式の評価明細書</div>
         <div className="app-header-right">
           <PrerequisitesChip getField={getField} onClick={() => setPrereqOpen(true)} />
+          <button
+            type="button"
+            className={`app-tool-btn app-case-chip${caseStore.currentId === null ? ' is-unlinked' : ''}`}
+            onClick={() => setCasesOpen(true)}
+            title="会社ごとに入力を保存し、案件を切り替えます"
+          >
+            案件：{caseStore.currentCase ? caseDisplayName(caseStore.currentCase) : '未選択'}
+          </button>
           <span className="app-autosave" aria-live="polite">
-            {savedAt
-              ? `自動保存済み ${savedAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`
-              : '入力するとこの端末に自動保存されます'}
+            {saveStatusLabel(caseStore.currentId !== null, caseStore.status, caseStore.savedAt, savedAt)}
           </span>
           <button
             type="button"
@@ -446,6 +472,16 @@ export default function App() {
       )}
 
       {shortcutsOpen && <ShortcutHelp onClose={() => setShortcutsOpen(false)} />}
+
+      {casesOpen && (
+        <CaseDialog
+          store={caseStore}
+          hasInput={hasAnyInput(formData)}
+          onClose={() => setCasesOpen(false)}
+        />
+      )}
+
+      {caseStore.migrationOffer && !casesOpen && <CaseMigrationDialog store={caseStore} />}
 
       {printDialogOpen && (() => {
         const judgmentSet = judgmentTargets;

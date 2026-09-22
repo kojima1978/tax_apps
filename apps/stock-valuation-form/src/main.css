@@ -383,22 +383,6 @@
   gap: 4px;
 }
 
-/* 自動転記欄から飛んだ後の「戻る」 */
-.app-tool-btn-back {
-  color: #92400e;
-  border-color: #fcd34d;
-  background: #fffbeb;
-  font-weight: 700;
-}
-
-/* 必須入力欄のナビゲータ */
-.app-tool-btn-required {
-  color: #1d4ed8;
-  border-color: #93c5fd;
-  background: #eff6ff;
-  font-weight: 700;
-}
-
 .app-required-done {
   align-self: center;
   font-size: 10px;
@@ -439,6 +423,42 @@
 
 .app-tool-btn-danger:hover {
   background: #ffebee;
+}
+
+/*
+ * 以下の色違いはすべて .app-tool-btn の上書きなので、必ずこの位置（基本形の後）に置くこと。
+ * 詳細度が同じなので、前に置くと background と border-color が丸ごと打ち消されて無言で死ぬ。
+ */
+
+/* 自動転記欄から飛んだ後の「戻る」 */
+.app-tool-btn-back {
+  color: #92400e;
+  border-color: #fcd34d;
+  background: #fffbeb;
+  font-weight: 700;
+}
+
+.app-tool-btn-back:hover {
+  background: #fef3c7;
+}
+
+/* 押してほしい側のボタン。必須入力欄のナビゲータとダイアログの主ボタン（「この年分に合わせる」・案件への誘導）で共用する */
+.app-tool-btn-primary,
+.app-tool-btn-required,
+.industry-diff-primary {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  font-weight: 700;
+}
+
+.app-tool-btn-primary:hover,
+.app-tool-btn-required:hover,
+.industry-diff-primary:hover {
+  background: #dbeafe;
+}
+
+.app-tool-btn-required {
+  color: #1d4ed8;
 }
 
 /* 前提条件チップ（ツールバー先頭・常時表示）。紙面に出ない計算根拠なので状態を出し続ける */
@@ -663,12 +683,6 @@
   margin-top: 8px;
 }
 
-.industry-diff-primary {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  font-weight: 700;
-}
-
 /* キーボードショートカット一覧（画面のみ。様式の外に出すので印刷には出ない） */
 .shortcut-dialog {
   width: min(460px, 100%);
@@ -730,6 +744,155 @@
   color: #6b7280;
   font-size: 11px;
   line-height: 1.45;
+}
+
+/* 案件チップ（ツールバー・常時表示）。いまの入力がどこに残るかは前提条件と同じく紙面に出ないので出し続ける */
+.app-case-chip {
+  max-width: 16em;
+  overflow: hidden;
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.app-case-chip:hover {
+  background: #dcfce7;
+}
+
+/* 案件を選んでいない間はこの端末にしか残らない。控えめだが地の色とは分かるようにする */
+.app-case-chip.is-unlinked {
+  border-color: #cbd5e1;
+  border-style: dashed;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 400;
+}
+
+.app-case-chip.is-unlinked:hover {
+  background: #f1f5f9;
+}
+
+/* 案件（会社ごとの保存）の一覧 */
+.case-dialog {
+  width: min(680px, 100%);
+}
+
+.case-error {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.case-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.case-archived-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: #6b7280;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.case-archived-toggle input {
+  accent-color: #1d4ed8;
+}
+
+.case-empty {
+  margin: 0;
+  padding: 16px 10px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.case-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.case-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* いま編集している案件。一覧のどれへ自動保存されているかを取り違えないように目立たせる */
+.case-row.is-current {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.case-row.is-archived {
+  border-style: dashed;
+  background: #f8fafc;
+  color: #6b7280;
+}
+
+.case-row-main {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  flex: 1;
+  gap: 4px 10px;
+  min-width: 0;
+}
+
+.case-row-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.case-row.is-archived .case-row-name {
+  font-weight: 400;
+}
+
+.case-row-period,
+.case-row-updated {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.case-row-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* 端末にだけ残っている入力を案件へ移す誘導（起動時に一度だけ） */
+.case-migration-dialog {
+  width: min(520px, 100%);
+}
+
+.case-migration-actions {
+  gap: 8px;
 }
 
 .valuation-purpose-heading {
