@@ -31,8 +31,13 @@ compose を新しく書くときは既存ファイルの**アンカーをその�
 `deploy.resources`）。全アプリの全サービスに `no-new-privileges` とメモリ上限が入っている。
 Node.js のアプリにメモリ上限を付けるときは `NODE_OPTIONS: --max-old-space-size=…` も一緒に置く
 （V8 の既定ヒープ上限はホストの物理メモリから決まるので、コンテナ側にだけ上限を掛けると
-GC の前に cgroup の上限へ当たって OOM kill になりうる）。どちらも**作り直して初めて効く**ので、
-compose を変えたら `manage.sh apply [app]` で反映する（`docker restart` では反映されない）。
+GC の前に cgroup の上限へ当たって OOM kill になりうる）。値は上限の7割程度、1コンテナで
+Node を2本動かすなら合計が上限を下回るように割る。**`preflight` のチェック17が
+dev の compose を毎回突き合わせる**（上限があるのに `NODE_OPTIONS` が無い／ヒープ上限が
+コンテナの上限以上、のどちらでも WARN）。本番側は上限を絞り直すファイルだけ手当てが要る
+（`environment` はマージされるので、base の値が残ると本番の小さい上限を超える）。
+どちらも**作り直して初めて効く**ので、compose を変えたら `manage.sh apply [app]` で反映する
+（`docker restart` では反映されない）。
 
 - **`apply` は再ビルドしない**。イメージはそのままにコンテナだけ作り直すので、17アプリ分でも
   数十秒で終わる。逆にソースの変更は入らない（それは `build` と `watch` の仕事）

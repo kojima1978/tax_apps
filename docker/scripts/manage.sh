@@ -1788,6 +1788,71 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
+  # 17. メモリ上限と V8 のヒープ上限のズレ
+  #
+  # V8 の既定ヒープ上限はホストの物理メモリから決まるため、コンテナ側にだけ
+  # メモリ上限を掛けると GC が走る前に cgroup の上限へ当たって OOM kill になる。
+  # 実際に11アプリが上限だけ掛かった状態で、型チェック付きの lint が
+  # ヒープを使い切って core dump していた。CLAUDE.md に明文の規約があるのに
+  # 突き合わせる仕組みが無かったので、新しいアプリを足したときに気づけるよう
+  # ここで毎回見る。dev の compose だけを対象にする（本番ステージは nginx の
+  # アプリが多く、Node が動かないところまで拾うと嘘の警告になる）。
+  local heap_drift=0 heap_line heap_app heap_svc heap_kind heap_detail
+  while IFS=$'\t' read -r heap_app heap_svc heap_kind heap_detail; do
+    [[ -n "$heap_app" ]] || continue
+    if [[ "$heap_kind" == "missing" ]]; then
+      warn "Memory limit without NODE_OPTIONS: $heap_app / $heap_svc ($heap_detail)"
+      echo "  NODE_OPTIONS: \"--max-old-space-size=…\" を environment へ足してください（上限の7割程度）。"
+    else
+      warn "NODE_OPTIONS heap cap is not below the memory limit: $heap_app / $heap_svc ($heap_detail)"
+      echo "  ヒープ上限がコンテナの上限以上だと、GC より先に cgroup の上限へ当たります。"
+    fi
+    heap_drift=1
+    ((++pf_warn))
+  done < <(
+    for heap_line in "$PROJECT_ROOT"/apps/*/docker-compose.yml; do
+      [[ -f "$heap_line" ]] || continue
+      awk -v app="$(basename "$(dirname "$heap_line")")" '
+        function mb(v) {
+          gsub(/"/, "", v)
+          if (v ~ /[Gg]$/) { sub(/[Gg]$/, "", v); return v * 1024 }
+          sub(/[Mm]$/, "", v); return v + 0
+        }
+        /^services:/ { in_svc = 1; next }
+        /^[^ \t#]/   { in_svc = 0 }
+        in_svc != 1  { next }
+        /^  [A-Za-z0-9_-]+:[ \t]*$/ {
+          svc = $1; sub(/:$/, "", svc); order[++n] = svc; in_lim = 0; next
+        }
+        svc == ""    { next }
+        /^      NODE_ENV:/ { is_node[svc] = 1 }
+        /--max-old-space-size=/ {
+          match($0, /--max-old-space-size=[0-9]+/)
+          cap[svc] = substr($0, RSTART + 21, RLENGTH - 21) + 0
+        }
+        /^        limits:/       { in_lim = 1; next }
+        /^        reservations:/ { in_lim = 0; next }
+        in_lim == 1 && /^          memory:/ { lim[svc] = mb($2); in_lim = 0 }
+        END {
+          for (i = 1; i <= n; i++) {
+            s = order[i]
+            if (!(s in is_node) || !(s in lim)) continue
+            if (!(s in cap)) {
+              printf "%s\t%s\tmissing\tlimit %dMB\n", app, s, lim[s]
+            } else if (cap[s] >= lim[s]) {
+              printf "%s\t%s\ttoo-large\theap %dMB >= limit %dMB\n", app, s, cap[s], lim[s]
+            }
+          }
+        }
+      ' "$heap_line"
+    done
+  )
+
+  if [[ $heap_drift -eq 0 ]]; then
+    ok "Node services cap the V8 heap below their memory limit"
+    ((++pf_ok))
+  fi
+
   # Summary
   print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
 

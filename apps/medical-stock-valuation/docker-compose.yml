@@ -69,6 +69,7 @@ services:
     environment:
       <<: *common-env
       NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=384"
       WATCHPACK_POLLING: "true"
       PORT: "3010"
     init: true

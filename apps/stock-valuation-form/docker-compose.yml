@@ -103,6 +103,7 @@ services:
     environment:
       <<: *common-env
       NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=384"
       # dev は Vite が 3014 を占めるので API は 3114。本番は 3014 に一本化する。
       PORT: "3114"
       # `tsx watch` は内蔵 chokidar をこの環境変数でポーリングに切り替える。

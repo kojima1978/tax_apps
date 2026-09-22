@@ -10,6 +10,9 @@ services:
       target: runner
     environment:
       NODE_ENV: production
+      # base の 384 は dev の 512M 前提。本番はこのファイルで上限を 128M へ絞るため
+      # ヒープ上限も絞り直す（environment はマージされるので上書きしないと残る）。
+      NODE_OPTIONS: "--max-old-space-size=96"
     init: false
     # `volumes: []` はマージされて base の開発用バインドが残るため !reset で無効化する
     volumes: !reset []

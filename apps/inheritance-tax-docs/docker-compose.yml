@@ -68,6 +68,7 @@ services:
     environment:
       <<: *common-env
       NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=384"
       DATABASE_PATH: "/app/data/resources.sqlite"
       DATA_DIR: "/app/data"
     init: true
