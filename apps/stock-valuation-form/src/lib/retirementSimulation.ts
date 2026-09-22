@@ -1,5 +1,6 @@
 import type { TableProps } from '@/types/form';
 import { calcValuationBasis, type ValuationBasis } from './valuationReport';
+import { table5PageCountOf, table5RowCount } from './table5Rows';
 
 export const RETIREMENT_AMOUNT_FIELD = '_summary_retirement_amount';
 export const RETIREMENT_INSURANCE_FIELD = '_summary_retirement_insurance_proceeds';
@@ -53,8 +54,8 @@ export function withRetirement(getField: Getter, pay: number, gain: number): Get
   const nonRecurring = numberOf(getField('table4', 'e19')) ?? 0;
   // 元の資産明細は動かさず、純資産の控除額を仮想の負債行として既存計算へ渡す。
   // 元の行がすべて埋まっていても上書きせず、計算中だけ続紙を1枚追加する。
-  const pages = Math.max(1, Number(getField('table5', '_pages')) || 1);
-  const lastRow = 15 + (pages - 1) * 23;
+  const pages = table5PageCountOf(getField);
+  const lastRow = table5RowCount(getField);
   // 既存の調整欄や前年実績を維持し、元データは書き換えない。
   return (table, field) => {
     if (table === 'table4') {

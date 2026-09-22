@@ -1,4 +1,5 @@
 import type { FormData } from '@/types/form';
+import { table5RowCount } from '@/lib/table5Rows';
 
 // ══ 翌事業年度更新 ══
 // 新しい事業年度の評価に移行するためにデータを繰り越す。
@@ -83,10 +84,12 @@ const T6_CLEAR = [
 const T8_CLEAR = ['⑱', '⑲'] as const;
 
 // 第5表: 資産・負債の金額列（相続税評価額_2/帳簿価額_3）。科目_1と備考_4は維持。
-const T5_MAX_ROWS = 38; // 本表15行＋続紙23行
+// 行数は続紙の枚数で決まる。固定値にすると、続紙を増やした会社では、はみ出した行だけ
+// 前年の金額が残ったまま翌年へ持ち越される。
 function clearTable5Amounts(table: Record<string, string>): Record<string, string> {
+  const rows = table5RowCount((_table, field) => table[field] ?? '');
   const fields: string[] = ['_sel'];
-  for (let row = 1; row <= T5_MAX_ROWS; row++) {
+  for (let row = 1; row <= rows; row++) {
     for (const prefix of ['a', 'l']) {
       fields.push(`${prefix}_${row}_2`, `${prefix}_${row}_3`);
     }

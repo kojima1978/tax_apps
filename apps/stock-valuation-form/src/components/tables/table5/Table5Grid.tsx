@@ -5,15 +5,20 @@ import { companyFloatBox } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 import { getValuationPurpose, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
 import { table5Hints } from './formulaHints';
+import {
+  TABLE5_CONT_ROWS as CONT_ROWS,
+  TABLE5_MAIN_ROWS as MAIN_ROWS,
+  TABLE5_MAX_PAGES as MAX_PAGES,
+  table5PageCountOf as pageCountOf,
+  table5TotalRowsOf as totalRowsOf,
+} from '@/lib/table5Rows';
 import { withFormulaHints } from '@/lib/formulaHint';
 
 const T = 'table5' as const;
 
 // ── 資産の部・負債の部の繰り返し入力行（空行）を自動生成 ──
 // 本表（1ページ目）は15行＋合計欄、続紙（2ページ目以降）は合計欄なしで23行（令和8年様式 第5表続）。
-const MAIN_ROWS = 15;       // 本表のデータ行数
-const CONT_ROWS = 23;       // 続紙のデータ行数
-const MAX_PAGES = 2;        // 本表1＋続紙1枚まで（＝最大38行）
+// 行数と枚数の上限は @/lib/table5Rows（表の外からも使うため）。
 const ROW_TOP = 22.39;      // 本表データ1行目の上端%（r08-08実測）
 const TOTAL_TOP = 63.02;    // 本表 合計行の上端%
 const PITCH = (TOTAL_TOP - ROW_TOP) / MAIN_ROWS;
@@ -24,15 +29,12 @@ const CORPORATE_TAX_RATE = 0.38; // 評価差額に対する法人税額等相�
 
 /** ページpの先頭行番号（1始まり） */
 const pageStartRow = (p: number) => (p === 0 ? 1 : MAIN_ROWS + (p - 1) * CONT_ROWS + 1);
-/** pageCountページ分の総行数 */
-const totalRowsOf = (pageCount: number) => MAIN_ROWS + Math.max(0, pageCount - 1) * CONT_ROWS;
 const COMPUTED_FIELDS = new Set([
   '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫',
   'イ', 'ロ', 'ハ',
 ]);
 
 const parseNum = (value: string) => Number(value.replace(/,/g, '')) || 0;
-const pageCountOf = (getField: TableProps['getField']) => Math.max(1, Number(getField(T, '_pages')) || 1);
 
 function isExcludedLiability(name: string) {
   return /引当金|準備金/.test(name.trim());
@@ -239,7 +241,16 @@ const CONT_LIAB_COLS: Col[] = [
   { code: [74.7, 76.59], input: [76.59, 86.18] },
   { code: [86.18, 88.07], input: [88.07, 91.9] },
 ];
+// 続紙1枚は約380セル。ページ番号以外に依存しないので、入力のたびに作り直さず使い回す。
+const contPageCache = new Map<number, GridCell[]>();
 function continuationPageCells(pageIndex: number): GridCell[] {
+  const cached = contPageCache.get(pageIndex);
+  if (cached) return cached;
+  const cells = buildContinuationPageCells(pageIndex);
+  contPageCache.set(pageIndex, cells);
+  return cells;
+}
+function buildContinuationPageCells(pageIndex: number): GridCell[] {
   const startRow = pageStartRow(pageIndex);
   return [
     { kind: 'cell', top: 14.99, left: 7.7, width: 84.2, height: 78.71 },
@@ -440,7 +451,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
     let rows = readRows(prefix, total);
     if (rows[total - 1]?.some((v) => v.trim() !== '')) {
       if (!canAddPage) {
-        window.alert('続紙は1枚までです。最終行にデータがあるため、これ以上行を追加できません。');
+        window.alert(`続紙は${MAX_PAGES - 1}枚（明細${totalRowsOf(MAX_PAGES)}行）までです。最終行にデータがあるため、これ以上行を追加できません。`);
         return;
       }
       u('_pages', String(pageCount + 1));
@@ -565,7 +576,9 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
       ))}
       {canAddPage && (
         <SheetOps
-          label={`明細が${MAIN_ROWS}行を超えるときは続紙に記入します`}
+          label={pageCount === 1
+            ? `明細が${MAIN_ROWS}行を超えるときは続紙に記入します`
+            : `続紙${pageCount - 1}枚（明細${totalRows}行）。足りなければさらに追加できます`}
           action={{ text: `＋ 続紙を追加（明細${CONT_ROWS}行分）`, title: '続紙を追加', onClick: addPage }}
         />
       )}

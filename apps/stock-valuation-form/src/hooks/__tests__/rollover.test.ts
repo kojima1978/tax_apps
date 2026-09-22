@@ -117,6 +117,24 @@ describe('rolloverFormData（翌事業年度更新）', () => {
     expect(rolled.table4.r1gyonum).toBe('99');
   });
 
+  it('続紙を増やした会社では、続紙の金額も消して科目は残す', () => {
+    const data = baseData();
+    // 続紙2枚（明細61行）。本表＋続紙1枚の38行までしか消さないと、39行目以降に前年の金額が残る。
+    Object.assign(data.table5, {
+      _pages: '3',
+      a_45_1: '建物', a_45_2: '9,000', a_45_3: '8,000', a_45_4: '',
+      l_61_1: '長期借入金', l_61_2: '7,000', l_61_3: '7,000',
+    });
+    const r = rolloverFormData(data);
+    expect(r.table5.a_45_1).toBe('建物');
+    expect(r.table5.a_45_2).toBe('');
+    expect(r.table5.a_45_3).toBe('');
+    expect(r.table5.l_61_1).toBe('長期借入金');
+    expect(r.table5.l_61_2).toBe('');
+    expect(r.table5.l_61_3).toBe('');
+    expect(r.table5._pages).toBe('3'); // 用紙の枚数は維持
+  });
+
   it('日付が空欄・非数値ならそのまま', () => {
     const data = baseData();
     data.table1_1.f14_y = '';
