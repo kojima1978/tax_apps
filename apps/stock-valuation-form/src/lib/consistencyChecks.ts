@@ -1,6 +1,9 @@
 import type { TableId, TableProps } from '@/types/form';
 import { readWarekiDate } from '@/lib/wareki';
 import { calcTable4 } from '@/components/tables/table4/calcTable4';
+import { calcTable5Detail } from '@/components/tables/table5/Table5Grid';
+import { table5RowCount } from '@/lib/table5Rows';
+import { RETIREMENT_AMOUNT_FIELD } from '@/lib/retirementSimulation';
 
 /**
  * 入力値どうしの食い違い（1件）。
@@ -27,6 +30,29 @@ const parseNum = (value: string): number | null => {
 /** 空欄（判定不能）は false。両方そろっているときだけ比べる */
 const over = (a: number | null, b: number | null): boolean => a !== null && b !== null && a > b;
 
+/**
+ * 「大きく違う」の線引き。差が大きい方の半分を超えたとき（＝片方がもう片方の2倍以上）。
+ *
+ * 突き合わせる相手はどれも直前期末の金額で、第5表は課税時期現在の金額。仮決算の有無・
+ * 課税時期までの増減・税務簿価との差で1〜3割動くのは様式どおりなので、そこまで拾うと
+ * 毎回出て読まれなくなる。桁と単位（千円）の取り違えだけが残る幅にしてある。
+ */
+const farApart = (a: number, b: number): boolean => {
+  const scale = Math.max(Math.abs(a), Math.abs(b));
+  return scale > 0 && Math.abs(a - b) / scale > 0.5;
+};
+
+const sen = (value: number): string => `${value.toLocaleString('ja-JP')}千円`;
+
+/** 第5表の負債で科目に「退職」を含む最初の行（無ければ0）。 */
+function retirementLiabilityRow(getField: TableProps['getField']): number {
+  const rows = table5RowCount(getField);
+  for (let row = 1; row <= rows; row++) {
+    if (getField('table5', `l_${row}_1`).includes('退職')) return row;
+  }
+  return 0;
+}
+
 /** 「問題なし」を出してよいか（＝チェック対象の欄に何か入っているか）の判定に使う欄 */
 const WATCHED: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', '①'], ['table1_1', '③'], ['table1_1', '⑤'], ['table1_1', '⑥'], ['table1_1', 'f63'],
@@ -34,6 +60,7 @@ const WATCHED: ReadonlyArray<readonly [TableId, string]> = [
   ['table2', 'f85_y'],
   ['table4', 'f28'], ['table4', 'f29'], ['table4', 'f32'], ['table4', 'f33'], ['table4', 'f36'], ['table4', 'f37'],
   ['table4', 'e18'], ['table4', 'e25'],
+  ['table1_2', 'f22'], ['table4', '①'], ['table4', 'n53'], ['table5', 'a_1_1'], ['table5', 'l_1_1'],
 ];
 
 /** 年配当金額（⑥）と非経常的な配当金額（⑦）の3期分。⑦は⑥のうちの金額なので⑥を超えない */
@@ -120,6 +147,52 @@ export function consistencyIssues(getField: TableProps['getField']): Consistency
       `Ⓒは「${how(t4.cvSide)}」、Ⓒ₁は「${how(t4.c1baseSide)}」を基にしています。`
       + 'Ⓒ（類似業種比準価額の比準要素）とⒸ₁（比準要素数１の会社の判定要素）は納税義務者が別々に選べるため'
       + '誤りではありませんが、意図した組み合わせかご確認ください。');
+  }
+
+  // ── 第5表と他表のつながり ──
+  //
+  // 第5表は課税時期現在の資産・負債だが、課税時期に仮決算を行わない場合は直前期末の
+  // 資産・負債を基に計算して差し支えない（第5表の記載要領）。実務ではそちらが通例なので、
+  // 直前期末の金額を書く他表の欄と近い値になる。一致を求めるものではないため、
+  // 桁や単位を取り違えたときだけ出す。
+  const t5 = calcTable5Detail(getField);
+
+  const totalAssetsBook = num('table1_2', 'f22');
+  if (t5.hasAssetInput && t5.assetBook > 0 && totalAssetsBook !== null && totalAssetsBook > 0
+    && farApart(t5.assetBook, totalAssetsBook)) {
+    add('table1_2', 'f22', '第１表の２ 直前期末の総資産価額（帳簿価額）',
+      `第５表の②（資産の帳簿価額の合計）${sen(t5.assetBook)}と、`
+      + `直前期末の総資産価額（帳簿価額）${sen(totalAssetsBook)}が大きく違います。`
+      + '課税時期に仮決算を行わず直前期末の資産・負債で第５表を作成した場合は一致します。'
+      + '桁や単位（千円）の取り違えがないかご確認ください。');
+  }
+
+  // ⑲（⑰資本金等の額＋⑱利益積立金額）は直前期末の税務上の純資産価額。
+  // 第5表の②－④も同じ貸借対照表から来るので、桁が合っていれば近い値になる。
+  const netBook5 = t5.assetBook - t5.liabilityBook;
+  if (t5.hasAssetInput && t5.hasLiabilityInput && netBook5 > 0 && t4.t1 !== null && t4.t1 > 0
+    && farApart(netBook5, t4.t1)) {
+    add('table4_1', 'n53', '第４表の１ ⑱ 利益積立金額（直前期）',
+      `第４表の１の⑲（⑰資本金等の額＋⑱利益積立金額）${sen(t4.t1)}と、`
+      + `第５表の②－④（帳簿価額の資産合計－負債合計）${sen(netBook5)}が大きく違います。`
+      + 'ただし第５表の負債からは引当金・準備金を除いており（評価通達186）、'
+      + '税務上の簿価との差もあるため、一致しなくて構いません。');
+  }
+
+  // ── 退職金試算と第5表の二重反映 ──
+  // 試算の入力欄は「帳票にまだ反映していない金額」を入れるところなので、
+  // 第5表に退職金の負債が載っているなら、その分が二重に引かれた株価になっている。
+  const retirementPay = parseNum(getField('table1_1', RETIREMENT_AMOUNT_FIELD));
+  if (retirementPay !== null && retirementPay > 0) {
+    const row = retirementLiabilityRow(getField);
+    if (row > 0) {
+      const name = getField('table5', `l_${row}_1`).trim();
+      add('table5', `l_${row}_1`, `第５表 負債の部 ${name}`,
+        `退職金支給後のシミュレーションに${sen(retirementPay)}が入っていますが、`
+        + `第５表の負債にも「${name}」が計上されています。`
+        + 'シミュレーションの欄は帳票にまだ反映していない金額を入れるところなので、'
+        + '両方にあると退職金が二重に引かれた株価になります。');
+    }
   }
 
   return issues;
