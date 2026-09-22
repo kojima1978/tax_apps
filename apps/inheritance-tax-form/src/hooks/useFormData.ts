@@ -5,7 +5,7 @@
  * ここは画面からの読み書き（`g` / `u`）と、計算・並べ替え・人物や明細の増減を受け持つ。
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DETAIL_AUTO_VALUE, DETAIL_SOURCE, TABLE11F1_UNIT,
   computeAll, detailAutoValue, detailShareAmounts, detailShareCount, detailUnit,
@@ -15,8 +15,8 @@ import {
   HEIR_ID, detailHeirRefKind, heirRefMap, isTotalsHeirRef, newHeirId, resolveHeirRefs,
 } from '../lib/heirRef';
 import {
-  MAX_HEIRS, emptyData, isFormData, loadStored, normalize, saveStored, withDetailForms,
-  type FormData,
+  MAX_HEIRS, emptyData, isFormData, loadStored, normalize, rescueEntries, saveStored,
+  withDetailForms, type FormData,
 } from '../lib/storedData';
 
 /** 財産を取得した人 i 番目のフィールド接頭辞 */
@@ -64,10 +64,46 @@ function splitDetailScope(scope: string): [string, number] | null {
   return Number.isInteger(index) && index >= 0 ? [scope.slice(0, hash), index] : null;
 }
 
-export function useFormData() {
-  const [data, setData] = useState<FormData>(loadStored);
+/** 文字列をファイルとして書き出す（申告データと退避データで同じ手順） */
+function download(filename: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
-  useEffect(() => { saveStored(data); }, [data]);
+/** 書き出すファイル名に使う日付（`2026-09-22`） */
+const today = (): string => new Date().toISOString().slice(0, 10);
+
+export function useFormData() {
+  const [loaded] = useState(loadStored);
+  const [data, setData] = useState<FormData>(loaded.data);
+  /**
+   * 自動保存が効いていないか（容量超過・privacy モード）。
+   * 画面は「このブラウザに自動保存されます」と約束しているので、
+   * 効いていないことは必ず表に出す。
+   */
+  const [saveFailed, setSaveFailed] = useState(false);
+  /**
+   * 最後に保存した内容。初期値を読み込んだものにして、読み込んだ直後の書き戻しを飛ばす。
+   * 「1回目だけ飛ばす」印では足りない ── StrictMode は effect を2度走らせるので、
+   * 2度目が素通りして原本を空で潰す（実際にそうなった）。参照で見れば何度呼ばれても同じ。
+   */
+  const savedRef = useRef(loaded.data);
+  /**
+   * 退避してある生データ（読めなかった原本と移行前の控え）。
+   * 増えるのは `loadStored` の中だけなので、開いた時点の一覧で足りる。
+   */
+  const [rescue] = useState(rescueEntries);
+
+  useEffect(() => {
+    // 読み込んだものをそのまま保存し直す意味は無く、読めなかったときは原本を空で潰すだけになる
+    if (savedRef.current === data) return;
+    savedRef.current = data;
+    setSaveFailed(!saveStored(data));
+  }, [data]);
 
   /**
    * 計算に渡す前に、氏名欄が持つIDを「何人目か」へ直す。
@@ -299,14 +335,19 @@ export function useFormData() {
   const reset = useCallback(() => setData(emptyData()), []);
 
   const exportJson = useCallback(() => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `相続税申告書_${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    download(`相続税申告書_${today()}.json`, JSON.stringify(data, null, 2));
   }, [data]);
+
+  /**
+   * 退避してある生データを書き出す。
+   * 読めなかったものをそのまま出すので、中身は整形しない
+   * （このアプリで読み直せなくても、手で直せば使えることがある）。
+   */
+  const exportRescue = useCallback((key: string) => {
+    const entry = rescueEntries().find((item) => item.key === key);
+    if (entry === undefined) return;
+    download(`相続税申告書_${entry.label}_${today()}.json`, entry.raw);
+  }, []);
 
   const importJson = useCallback(async (file: File): Promise<boolean> => {
     try {
@@ -322,5 +363,10 @@ export function useFormData() {
   return {
     data, detailRows, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
     toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs: MAX_HEIRS,
+    saveFailed,
+    /** 読めない保存データがあり、空から始めたか（原本は退避してある） */
+    salvaged: loaded.salvaged,
+    rescue,
+    exportRescue,
   };
 }

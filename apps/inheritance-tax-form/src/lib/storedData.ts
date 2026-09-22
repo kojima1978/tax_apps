@@ -47,6 +47,12 @@ export interface FormData {
 export const STORAGE_KEY = 'inheritance-tax-form:v1';
 /** 移行前のデータの退避先（付表のまとめ直しは元に戻せないため） */
 export const BACKUP_KEY = 'inheritance-tax-form:v1-backup';
+/**
+ * 読めなかったデータの退避先。
+ * 読めないものは空のデータで始めるしかないが、そのまま入力を続けると次の自動保存で
+ * 原本が空に上書きされて二度と取り出せない。手を付ける前にここへ取り置く。
+ */
+export const SALVAGE_KEY = 'inheritance-tax-form:v1-salvage';
 /** 現在の保存形式 */
 export const DATA_VERSION = 7;
 /** 第1表に1人＋第1表（続）10枚に2人ずつ */
@@ -214,24 +220,61 @@ export function normalize(input: Partial<FormData>): FormData {
   };
 }
 
-export function loadStored(): FormData {
+/** `loadStored` の結果 */
+export interface LoadResult {
+  data: FormData;
+  /**
+   * 読めない保存データがあり、その原本を `SALVAGE_KEY` へ退避したか。
+   * 空のデータで始めたことを画面で知らせる判断に使う（黙って始めると、
+   * 前回の入力が消えたことに気づく機会がない）。
+   */
+  salvaged: boolean;
+}
+
+/**
+ * 読めなかった原本を退避する。
+ * 既に退避があるときは上書きしない ── 壊れたまま何度か開くと、
+ * 2回目以降の退避で最初の原本を潰してしまう。
+ *
+ * @returns 退避してあるものがあるか（もともとあった場合も true）
+ */
+function salvage(raw: string): boolean {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyData();
-    const parsed: unknown = JSON.parse(raw);
-    if (!isFormData(parsed)) return emptyData();
-    try {
-      // 付表のまとめ直しは元に戻せないので、移行前のものを1回だけ退避しておく
-      if (parsed.version !== DATA_VERSION && localStorage.getItem(BACKUP_KEY) === null) {
-        localStorage.setItem(BACKUP_KEY, raw);
-      }
-    } catch {
-      // 退避できなくても読み込み自体は続ける
-    }
-    return normalize(parsed);
+    if (localStorage.getItem(SALVAGE_KEY) !== null) return true;
+    localStorage.setItem(SALVAGE_KEY, raw);
+    return true;
   } catch {
-    return emptyData();
+    return false;
   }
+}
+
+export function loadStored(): LoadResult {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    // localStorage 自体が使えない（privacy モードなど）。保存も効かないので saveStored 側で表に出る
+    return { data: emptyData(), salvaged: false };
+  }
+  // 何も保存されていない（初回）。退避するものも知らせることも無い
+  if (raw === null || raw === '') return { data: emptyData(), salvaged: false };
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (isFormData(parsed)) {
+      try {
+        // 付表のまとめ直しは元に戻せないので、移行前のものを1回だけ退避しておく
+        if (parsed.version !== DATA_VERSION && localStorage.getItem(BACKUP_KEY) === null) {
+          localStorage.setItem(BACKUP_KEY, raw);
+        }
+      } catch {
+        // 退避できなくても読み込み自体は続ける
+      }
+      return { data: normalize(parsed), salvaged: false };
+    }
+  } catch {
+    // 下の退避へ落ちる（JSON として壊れている／移行の途中で落ちた）
+  }
+  return { data: emptyData(), salvaged: salvage(raw) };
 }
 
 /**
@@ -245,4 +288,35 @@ export function saveStored(data: FormData): boolean {
   } catch {
     return false;
   }
+}
+
+/** 退避してある生データ1件 */
+export interface RescueEntry {
+  key: string;
+  /** 画面の表示とファイル名に使う呼び名 */
+  label: string;
+  raw: string;
+}
+
+/**
+ * 退避してある生データ（読めなかった原本と、保存形式の移行前の控え）。
+ *
+ * どちらも今まで書くだけで、画面から辿る道が一本も無かった。
+ * 取り出せない控えは無いのと同じなので、書き出しの入口をここから作る。
+ */
+export function rescueEntries(): RescueEntry[] {
+  const sources = [
+    [SALVAGE_KEY, '読み込めなかったデータ'],
+    [BACKUP_KEY, '移行前のデータ'],
+  ] as const;
+  const out: RescueEntry[] = [];
+  for (const [key, label] of sources) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw !== null && raw !== '') out.push({ key, label, raw });
+    } catch {
+      // 1件読めなくても残りは返す
+    }
+  }
+  return out;
 }

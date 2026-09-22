@@ -91,6 +91,7 @@ export default function App() {
   const {
     data, detailRows, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
     moveDetailItem, toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs,
+    saveFailed, salvaged, rescue, exportRescue,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
@@ -102,6 +103,8 @@ export default function App() {
   const [editingPerson, setEditingPerson] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  /** 「読めなかった」知らせを閉じたか。1度読んだら邪魔なので閉じられるようにする */
+  const [salvageNoticeClosed, setSalvageNoticeClosed] = useState(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
   const { printing, print } = usePrinting();
 
@@ -759,8 +762,11 @@ export default function App() {
     if (!await importJson(file)) window.alert('このファイルは読み込めませんでした。');
   };
 
+  /** その他メニューを畳む（中の項目を押したあとは開いたままにしない） */
+  const closeMenu = () => menuRef.current?.removeAttribute('open');
+
   const openResetDialog = () => {
-    menuRef.current?.removeAttribute('open');
+    closeMenu();
     setResetDialogOpen(true);
   };
 
@@ -786,7 +792,10 @@ export default function App() {
           </a>
           <div className="app-title">
             相続税の申告書
-            <small>入力内容はこのブラウザに自動保存されます</small>
+            {/* 自動保存を約束している一文なので、効いていないときは同じ場所で取り消す */}
+            {saveFailed
+              ? <small className="app-title__warn">自動保存できていません。「データを保存」でファイルに控えてください</small>
+              : <small>入力内容はこのブラウザに自動保存されます</small>}
           </div>
         </div>
         <div className="app-toolbar">
@@ -797,6 +806,17 @@ export default function App() {
           <details ref={menuRef} className="app-menu">
             <summary className="app-btn" aria-label="その他の操作">その他</summary>
             <div className="app-menu__panel">
+              {/* 退避してあるものがあるときだけ出す。書き出せなければ取り置いた意味が無い */}
+              {rescue.map((entry) => (
+                <button
+                  key={entry.key}
+                  type="button"
+                  className="app-menu__item"
+                  onClick={() => { closeMenu(); exportRescue(entry.key); }}
+                >
+                  {entry.label}を書き出す
+                </button>
+              ))}
               <button type="button" className="app-menu__danger" onClick={openResetDialog}>
                 申告データをクリア
               </button>
@@ -804,6 +824,25 @@ export default function App() {
           </details>
         </div>
       </header>
+
+      {/* 空で開いたことを1度は必ず伝える。黙って始めると前回の入力が消えたと気づけない */}
+      {salvaged && !salvageNoticeClosed && (
+        <div className="app-notice no-print" role="alert">
+          <span>
+            前回の保存データが読み込めなかったため、空の状態で開いています。
+            読めなかったデータは残してあるので、「その他」から書き出せます。
+          </span>
+          <button
+            type="button"
+            className="app-notice__close"
+            onClick={() => setSalvageNoticeClosed(true)}
+            aria-label="この知らせを閉じる"
+            title="閉じる"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {resetDialogOpen && <ResetDialog onCancel={() => setResetDialogOpen(false)} onConfirm={confirmReset} />}
 

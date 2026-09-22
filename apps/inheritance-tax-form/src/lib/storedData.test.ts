@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { DETAIL_METHOD, TABLE11F1_MULTIPLE, TABLE11F1_ROUTE_PRICE, type Values } from './calc';
 import { HEIR_ID } from './heirRef';
 import {
-  BACKUP_KEY, DATA_VERSION, DEFAULT_USED, MAX_HEIRS, STORAGE_KEY,
-  emptyData, isFormData, loadStored, migrate, normalize, pageCount, saveStored,
+  BACKUP_KEY, DATA_VERSION, DEFAULT_USED, MAX_HEIRS, SALVAGE_KEY, STORAGE_KEY,
+  emptyData, isFormData, loadStored, migrate, normalize, pageCount, rescueEntries, saveStored,
   type FormData,
 } from './storedData';
 import { TABLE10_DETAIL_FORM } from '../forms/table10';
@@ -13,11 +13,16 @@ import { TABLE9_DETAIL_FORM } from '../forms/table9';
 const store = new Map<string, string>();
 /** 容量超過や privacy モードの再現（保存だけが失敗する） */
 let refuseSave = false;
+/** localStorage 自体を触れない再現（読みからして投げる） */
+let refuseRead = false;
 
 Object.defineProperty(globalThis, 'localStorage', {
   configurable: true,
   value: {
-    getItem: (key: string): string | null => store.get(key) ?? null,
+    getItem: (key: string): string | null => {
+      if (refuseRead) throw new Error('SecurityError');
+      return store.get(key) ?? null;
+    },
     setItem: (key: string, value: string): void => {
       if (refuseSave) throw new Error('QuotaExceededError');
       store.set(key, value);
@@ -28,6 +33,7 @@ Object.defineProperty(globalThis, 'localStorage', {
 beforeEach(() => {
   store.clear();
   refuseSave = false;
+  refuseRead = false;
 });
 
 const BROKEN: [string, unknown][] = [
@@ -277,16 +283,46 @@ describe('保存と読み込み（loadStored / saveStored）', () => {
     expect(data.version).toBe(DATA_VERSION);
   };
 
-  it('何も保存されていなければ空のデータ', () => {
-    expectEmpty(loadStored());
-  });
-
-  it.each([['壊れた JSON', '{'], ['形が違うデータ', '{"heirs":[]}'], ['空文字', '']])(
-    '読めないものは空のデータで始める（%s）', (_name, raw) => {
-      store.set(STORAGE_KEY, raw);
-      expectEmpty(loadStored());
+  it.each([['何も保存されていない', undefined], ['空文字', '']] as const)(
+    '始めるものが無ければ空のデータ（知らせるものも無い・%s）', (_name, raw) => {
+      if (raw !== undefined) store.set(STORAGE_KEY, raw);
+      const result = loadStored();
+      expectEmpty(result.data);
+      expect(result.salvaged).toBe(false);
+      expect(store.has(SALVAGE_KEY)).toBe(false);
     },
   );
+
+  it.each([['壊れた JSON', '{'], ['形が違うデータ', '{"heirs":[]}']])(
+    '読めないものは原本を退避してから空のデータで始める（%s）', (_name, raw) => {
+      store.set(STORAGE_KEY, raw);
+      const result = loadStored();
+      expectEmpty(result.data);
+      // 空で始めたことを画面で知らせる合図。黙って始めると消えたことに気づけない
+      expect(result.salvaged).toBe(true);
+      expect(store.get(SALVAGE_KEY)).toBe(raw);
+    },
+  );
+
+  it('退避も1回だけ（壊れたまま2回開いても最初の原本を潰さない）', () => {
+    store.set(SALVAGE_KEY, '最初に退避した原本');
+    store.set(STORAGE_KEY, '{');
+    expect(loadStored().salvaged).toBe(true);
+    expect(store.get(SALVAGE_KEY)).toBe('最初に退避した原本');
+  });
+
+  it('退避すらできなければ知らせない（退避してあると嘘をつかない）', () => {
+    store.set(STORAGE_KEY, '{');
+    refuseSave = true;
+    expect(loadStored().salvaged).toBe(false);
+  });
+
+  it('localStorage 自体が使えなければ空のデータ（保存の失敗として表に出る）', () => {
+    refuseRead = true;
+    const result = loadStored();
+    expectEmpty(result.data);
+    expect(result.salvaged).toBe(false);
+  });
 
   it('保存した内容を読み戻せる', () => {
     const data: FormData = {
@@ -294,7 +330,7 @@ describe('保存と読み込み（loadStored / saveStored）', () => {
       used: ['table1'], details: { table11f1: [{ kind: '宅地' }] }, version: DATA_VERSION,
     };
     expect(saveStored(data)).toBe(true);
-    expect(loadStored()).toEqual({ ...data, used: ['table1', 'table11f1', 'table11'] });
+    expect(loadStored()).toEqual({ data: { ...data, used: ['table1', 'table11f1', 'table11'] }, salvaged: false });
   });
 
   it('旧版を読んだときは移行前のものを退避する（まとめ直しは元に戻せない）', () => {
@@ -320,12 +356,37 @@ describe('保存と読み込み（loadStored / saveStored）', () => {
   it('退避できなくても読み込みは続ける', () => {
     store.set(STORAGE_KEY, '{"common":{},"heirs":[{"name":"甲"}],"version":1}');
     refuseSave = true;
-    expect(loadStored().heirs[0]?.name).toBe('甲');
+    expect(loadStored().data.heirs[0]?.name).toBe('甲');
   });
 
   it('保存できなければ false を返す（入力自体は続けられる）', () => {
     refuseSave = true;
     expect(saveStored(emptyData())).toBe(false);
+  });
+});
+
+describe('退避データの取り出し（rescueEntries）', () => {
+  it('何も退避されていなければ空', () => {
+    expect(rescueEntries()).toEqual([]);
+  });
+
+  it('読めなかった原本と移行前の控えを、その順で返す', () => {
+    store.set(BACKUP_KEY, '移行前');
+    store.set(SALVAGE_KEY, '読めなかったもの');
+    expect(rescueEntries()).toEqual([
+      { key: SALVAGE_KEY, label: '読み込めなかったデータ', raw: '読めなかったもの' },
+      { key: BACKUP_KEY, label: '移行前のデータ', raw: '移行前' },
+    ]);
+  });
+
+  it('空文字は無かったものとして扱う', () => {
+    store.set(SALVAGE_KEY, '');
+    expect(rescueEntries()).toEqual([]);
+  });
+
+  it('localStorage が触れなければ空（呼び出し側は落ちない）', () => {
+    refuseRead = true;
+    expect(rescueEntries()).toEqual([]);
   });
 });
 
