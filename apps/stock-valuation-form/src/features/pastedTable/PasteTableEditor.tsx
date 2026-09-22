@@ -1,4 +1,4 @@
-import { DELIMITER_LABELS, type Delimiter, type FieldDef } from './parsePastedTable';
+import { DELIMITER_LABELS, type Delimiter, type FieldDef } from './parseTable';
 import type { PastedTableState } from './usePastedTable';
 
 const DELIMITERS = Object.keys(DELIMITER_LABELS) as Delimiter[];

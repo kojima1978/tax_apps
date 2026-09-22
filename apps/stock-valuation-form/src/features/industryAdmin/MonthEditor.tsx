@@ -27,8 +27,8 @@ import {
   type MonthlyPriceField,
   type RowIssue,
 } from './parsePastedTable';
-import { PasteTableEditor } from './PasteTableEditor';
-import { usePastedTable } from './usePastedTable';
+import { PasteTableEditor } from '@/features/pastedTable/PasteTableEditor';
+import { usePastedTable } from '@/features/pastedTable/usePastedTable';
 
 const PLACEHOLDER = `国税庁の「業種目別株価等」の表をコピーして貼り付けてください。
 例（タブ区切り）:

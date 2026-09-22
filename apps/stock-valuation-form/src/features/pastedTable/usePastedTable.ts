@@ -7,7 +7,7 @@ import {
   type Delimiter,
   type FieldDef,
   type PastedTable,
-} from './parsePastedTable';
+} from './parseTable';
 
 export interface PastedTableState<K extends string> {
   text: string;
@@ -27,9 +27,13 @@ export interface PastedTableState<K extends string> {
  *
  * 区切りと列の割り当ては貼り付けるたびに推測し直すが、ユーザーが手で選び直した後は
  * その選択を尊重する（推測が外れる表を直したそばから上書きされると直せないため）。
+ *
+ * `guess` は項目ごとの事情（見出しの無い表の読み方など）を足したいときに差し替える。
+ * 推測をやり直す条件に入るので、参照が毎回変わらないもの（モジュール直下の関数）を渡すこと。
  */
 export function usePastedTable<K extends string>(
   fields: ReadonlyArray<FieldDef<K>>,
+  guess: (table: PastedTable, fields: ReadonlyArray<FieldDef<K>>) => ColumnAssignment<K> = guessAssignment,
 ): PastedTableState<K> {
   const [text, setTextRaw] = useState('');
   const [delimiter, setDelimiterRaw] = useState<Delimiter>('tab');
@@ -57,8 +61,8 @@ export function usePastedTable<K extends string>(
   }, [delimiterAuto, text]);
 
   useEffect(() => {
-    if (assignmentAuto) setAssignment(guessAssignment(table, fields));
-  }, [assignmentAuto, table, fields]);
+    if (assignmentAuto) setAssignment(guess(table, fields));
+  }, [assignmentAuto, guess, table, fields]);
 
   const setColumn = useCallback((key: K, column: number | undefined) => {
     setAssignmentAuto(false);

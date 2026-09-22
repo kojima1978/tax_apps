@@ -1,6 +1,14 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { GridForm, type GridCell } from '@/components/ui/GridForm';
 import { SheetOps } from '@/components/ui/SheetOps';
+import { Table5PasteDialog } from '@/features/table5Paste/Table5PasteDialog';
+import {
+  type ApplyMode,
+  type BalanceSheetRow,
+  type BalanceSheetSide,
+  lastUsedRow,
+  planApply,
+} from '@/features/table5Paste/parseBalanceSheet';
 import { companyFloatBox } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 import { getValuationPurpose, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
@@ -394,6 +402,7 @@ export function table5Calculated(d: ReturnType<typeof calcTable5Detail>) {
 
 /** 第5表（CSSグリッド方式・続紙対応・行の選択／上下移動／挿入／削除） */
 export function Table5Grid({ getField, updateField, onJump }: TableProps) {
+  const [pasteOpen, setPasteOpen] = useState(false);
   const pageCount = pageCountOf(getField);
   const totalRows = totalRowsOf(pageCount);
   const detail = calcTable5Detail(getField);
@@ -498,6 +507,31 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
     u('_sel', `${prefix}:${to}`);
   };
 
+  // 決算書・試算表からの貼り付け取込。続紙は必要なら増やし、余れば減らす。
+  // 収まらないときは取り込まず、何行余ったかを画面に返す（黙って切り捨てない）。
+  const applyPaste = (side: BalanceSheetSide, incoming: BalanceSheetRow[], mode: ApplyMode): string | null => {
+    const other = side === 'a' ? 'l' : 'a';
+    const plan = planApply({
+      existing: readRows(side, totalRows),
+      incoming,
+      mode,
+      otherUsed: lastUsedRow(readRows(other, totalRows)),
+      mainRows: MAIN_ROWS,
+      contRows: CONT_ROWS,
+      maxPages: MAX_PAGES,
+    });
+    if (plan.overflow > 0) {
+      return `第５表の明細は本表${MAIN_ROWS}行＋続紙${CONT_ROWS}行×${MAX_PAGES - 1}枚の計${plan.capacity}行までです。`
+        + `${plan.overflow}行が入りきらないため、取り込みませんでした。`;
+    }
+    if (plan.pages !== pageCount) u('_pages', String(plan.pages));
+    // ページが減るときは、消える続紙の行も空にしてから書き込む。
+    const total = Math.max(totalRows, plan.rows.length);
+    writeRows(side, Array.from({ length: total }, (_, i) => plan.rows[i] ?? ['', '', '', '']));
+    u('_sel', '');
+    return null;
+  };
+
   const sel = getField(T, '_sel');
   const [selP, selRStr] = sel.split(':');
   const selR = Number(selRStr);
@@ -506,6 +540,17 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
 
   // 帯オーバーレイ用の小さめボタン（枠線は様式の罫線と同じ 0.5px）
   const opBtnStyle = { fontSize: 9, padding: '0 3px', cursor: 'pointer', border: '0.5px solid #000', borderRadius: 0, background: '#fff', lineHeight: 1.3, boxSizing: 'border-box' } as const;
+  const pasteButton = (
+    <button
+      type="button"
+      className="app-tool-btn"
+      style={{ fontSize: 10, padding: '1px 6px' }}
+      title="決算書・試算表からコピーした明細を貼り付けて取り込みます"
+      onClick={() => setPasteOpen(true)}
+    >
+      貼り付けで取り込む
+    </button>
+  );
   const specialRuleNotice = purpose === 'inheritance' ? null : (
     <span className="no-print" role="note" style={{ marginLeft: 6, padding: '1px 5px', border: '1px solid #d97706', background: '#fffbeb', color: '#78350f', fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap' }}>
       所基通59－6(4)／法基通9－1－14(3)：法人税額等相当額を控除しない
@@ -553,7 +598,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
                 title="第５表　１株当たりの純資産価額（相続税評価額）の計算明細書"
                 formCode="NTA0VNA220010010"
                 headerExtra={companyFloatBox(g, u, T, { widthPct: 40, aspect: 8.9, labelFrac: 0.33, onJump })}
-                toolbar={specialRuleNotice}
+                toolbar={<>{pasteButton}{specialRuleNotice}</>}
                 overlay={rowOpsOverlay}
                 onJump={jump}
               />
@@ -574,6 +619,9 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
           </div>
         </Fragment>
       ))}
+      {pasteOpen && (
+        <Table5PasteDialog onApply={applyPaste} onClose={() => setPasteOpen(false)} />
+      )}
       {canAddPage && (
         <SheetOps
           label={pageCount === 1

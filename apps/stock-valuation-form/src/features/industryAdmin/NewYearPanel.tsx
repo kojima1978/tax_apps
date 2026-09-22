@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import type { IndustryYear } from '@/data/industryDataset';
 import { AdminAlert } from './AdminAlert';
 import { createIndustryYear, fetchIndustryCategories } from './api';
-import { PasteTableEditor } from './PasteTableEditor';
+import { PasteTableEditor } from '@/features/pastedTable/PasteTableEditor';
 import {
   categoryFieldsFor,
   extractCategoryRows,
   type CategoryField,
   type CategoryTemplate,
 } from './parsePastedTable';
-import { usePastedTable } from './usePastedTable';
+import { usePastedTable } from '@/features/pastedTable/usePastedTable';
 
 const PLACEHOLDER = `国税庁の「類似業種比準価額計算上の業種目及び業種目別株価等」の表を貼り付けてください。
 例（タブ区切り・見出し行を含めてよい）:
