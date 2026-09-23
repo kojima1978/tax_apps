@@ -13,6 +13,7 @@ import {
 import { basisMixNote, calcValuationReport, type ShareholderValuationRow, type ValuationBasis, type ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
 import { NEGATIVE_MARK, formatAmount, formatDecimal } from '@/lib/numberFormat';
+import { formatRatePercent } from '@/lib/corporateTaxRate';
 
 type Props = Pick<TableProps, 'getField' | 'updateField'> & {
   onBack: () => void;
@@ -116,7 +117,8 @@ const PRICE_ROWS: {
   {
     key: 'netAssetDeducted',
     label: '純資産価額',
-    note: '評価差額に対する法人税額等相当額（38％）を控除・第5表⑪',
+    note: '評価差額に対する法人税額等相当額を控除・第5表⑪',
+    noteOf: (b) => `評価差額に対する法人税額等相当額（${formatRatePercent(b.corporateTaxRatePercent)}％）を控除・第5表⑪`,
     basis: 'inheritance',
     scope: 'inheritance',
     cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),
@@ -155,7 +157,8 @@ const PRICE_ROWS: {
   {
     key: 'netAssetZeroProfit',
     label: '純資産価額',
-    note: '現在と同額（この試算では純資産を変更しません）・38％控除あり',
+    note: '現在と同額（この試算では純資産を変更しません）・法人税額等相当額の控除あり',
+    noteOf: (b) => `現在と同額（この試算では純資産を変更しません）・${formatRatePercent(b.corporateTaxRatePercent)}％控除あり`,
     basis: 'inheritance',
     scope: 'inheritance',
     zeroProfit: true,
@@ -184,7 +187,8 @@ const PRICE_ROWS: {
   {
     key: 'netAssetAssumed',
     label: '純資産価額',
-    note: '現在と同額（この試算では純資産を変更しません）・38％控除あり',
+    note: '現在と同額（この試算では純資産を変更しません）・法人税額等相当額の控除あり',
+    noteOf: (b) => `現在と同額（この試算では純資産を変更しません）・${formatRatePercent(b.corporateTaxRatePercent)}％控除あり`,
     basis: 'inheritance',
     scope: 'inheritance',
     assumedProfit: true,
@@ -204,7 +208,8 @@ const PRICE_ROWS: {
   {
     key: 'netAssetGross',
     label: '純資産価額',
-    note: '評価差額に対する法人税額等相当額（38％）の控除なし・第5表⑪',
+    note: '評価差額に対する法人税額等相当額の控除なし・第5表⑪',
+    noteOf: (b) => `評価差額に対する法人税額等相当額（${formatRatePercent(b.corporateTaxRatePercent)}％）の控除なし・第5表⑪`,
     basis: 'special-market-value',
     scope: 'special-market-value',
     cell: (b) => ({ text: yenOrDash(b.netAssetPrice) }),

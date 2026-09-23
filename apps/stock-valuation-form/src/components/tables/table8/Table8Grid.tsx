@@ -10,12 +10,13 @@ import type { TableId, TableProps } from '@/types/form';
 import { forcesSmallCompany, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
 import { fractionalWriters } from '@/lib/fractionalAmount';
 import { formatAmount, stripAmountFormatting } from '@/lib/numberFormat';
+import {
+  corporateTaxEquivalentOf,
+  formatRatePercent,
+  getCorporateTaxRatePercent,
+} from '@/lib/corporateTaxRate';
 
 const T = 'table8' as const;
-
-// ── 端数処理 ──
-const CORPORATE_TAX_RATE = 0.38;                 // 評価差額に対する法人税額等相当額（令和8年様式：38％）
-const fl = (v: number) => Math.floor(v + 1e-9);  // 表示単位未満切捨て
 
 /** S1の金額の適用区分（該当行のハイライト用） */
 interface S1Class {
@@ -31,7 +32,9 @@ interface S1Class {
  * 様式どおり「番号＋ラベルのヘッダー行（単位は右下）」＋「空欄の値行」の2段構成。
  * 入力欄には番号・単位を表示しない（C01〜C10 の識別コードのみ独立セル）。
  */
-function buildCells(cls: S1Class): GridCell[] {
+function buildCells(cls: S1Class, ratePercent: number): GridCell[] {
+  // 率は年分で変わるので、刷られる文字も計算に使った率から組み立てる（ラベルだけ38％のまま残さない）
+  const ratePct = formatRatePercent(ratePercent);
   const lText = cls.lRate === null ? '0.＿' : cls.lRate.toFixed(2);
   // 修正計算ブロックのヘッダーセル（番号＋ラベル、右下に単位）
   const head = (text: string, unit: string, top: number, h: number, left: number, right: number): GridCell =>
@@ -62,7 +65,7 @@ function buildCells(cls: S1Class): GridCell[] {
   { field: '⑥', kind: 'input', readOnly: true, top: 25.93, left: 64.3, width: 27.08, height: 2.79, align: 'right' },
   // 行3: ⑦ ⑧ ⑨（ヘッダー 28.72-32.71 / 値 32.71-35.50）
   head('⑦　評価差額に相当する金額\n　　（③－⑥）', '（千円）', 28.72, 3.99, 14.02, 39.16),
-  head('⑧　評価差額に対する法人税額等相当額\n　　（⑦×38％）', '（千円）', 28.72, 3.99, 39.16, 64.3),
+  head(`⑧　評価差額に対する法人税額等相当額\n　　（⑦×${ratePct}％）`, '（千円）', 28.72, 3.99, 39.16, 64.3),
   head('⑨　課税時期現在の修正純資産価額\n　　（相続税評価額）（③－⑧）', '（千円）', 28.72, 3.99, 64.3, 91.38),
   { field: '⑦', kind: 'input', readOnly: true, top: 32.71, left: 14.02, width: 25.14, height: 2.79, align: 'right' },
   { field: '⑧', kind: 'input', readOnly: true, top: 32.71, left: 39.16, width: 25.14, height: 2.79, align: 'right' },
@@ -119,7 +122,7 @@ function buildCells(cls: S1Class): GridCell[] {
   head('⑱　課税時期現在の株式等の価額の合計額\n　　（第５表の㋑の金額）', '（千円）', 71.79, 4.11, 10.15, 31.43),
   head('⑲　株式等の帳簿価額の合計額\n　　（第５表の㋺＋（㊁－㋭）の金額）（注）', '（千円）', 71.79, 4.11, 31.43, 52.7),
   head('⑳　株式等に係る評価差額に相当\n　　する金額（⑱－⑲）', '（千円）', 71.79, 4.11, 52.7, 72.04),
-  head('㉑　⑳の評価差額に対する法人税額\n　　等相当額（⑳×38％）', '（千円）', 71.79, 4.11, 72.04, 91.38),
+  head(`㉑　⑳の評価差額に対する法人税額\n　　等相当額（⑳×${ratePct}％）`, '（千円）', 71.79, 4.11, 72.04, 91.38),
   { field: '⑱', kind: 'input', commaInteger: true, top: 75.9, left: 10.15, width: 21.28, height: 2.73, align: 'right' },
   { field: '⑲', kind: 'input', commaInteger: true, top: 75.9, left: 31.43, width: 21.27, height: 2.73, align: 'right' },
   { field: '⑳', kind: 'input', readOnly: true, top: 75.9, left: 52.7, width: 19.34, height: 2.73, align: 'right' },
@@ -167,6 +170,7 @@ export function calcTable8(getField: TableProps['getField']) {
   const size = calcCompanySize((f) => getField('table1_2', f), forcesSmallCompany(getField)).result;
   const isHijun1 = calcTable2(getField).j.s1 === true;
   const specialMarketValueRules = usesSpecialMarketValueRules(getField);
+  const corporateTaxRatePercent = getCorporateTaxRatePercent(getField);
 
   // ── 1. S1の金額（続）純資産価額（相続税評価額）の修正計算 ──
   const v1 = t5['⑤'] ?? null;                                  // ① 相続税評価額純資産（第5表⑤）
@@ -176,7 +180,7 @@ export function calcTable8(getField: TableProps['getField']) {
   const v5: number | null = num('⑤') ?? stockBook;              // ⑤ 株式等の帳簿価額（第5表㋺＋（㊁－㋭）・上書き可）
   const v6 = v4 !== null && v5 !== null ? v4 - v5 : null;       // ⑥ ④－⑤
   const v7 = v3 !== null && v6 !== null ? Math.max(0, v3 - v6) : null; // ⑦ 評価差額（負数→0）
-  const v8 = v7 !== null ? (specialMarketValueRules ? 0 : fl(v7 * CORPORATE_TAX_RATE)) : null;  // ⑧ 法人税額等相当額
+  const v8 = v7 !== null ? (specialMarketValueRules ? 0 : corporateTaxEquivalentOf(v7, corporateTaxRatePercent)) : null;  // ⑧ 法人税額等相当額
   const v9 = v3 !== null && v8 !== null ? v3 - v8 : null;       // ⑨ 修正純資産価額（③－⑧）
   const v10 = t5['⑩'] ?? null;                                 // ⑩ 発行済株式数（第5表⑩）
   // ⑪⑭⑯⑰㉔㉖は円未満切捨て。切捨てで0になるときは分数等（課税時期基準）で記載する
@@ -203,7 +207,7 @@ export function calcTable8(getField: TableProps['getField']) {
   const v18: number | null = num('⑱') ?? t5['イ'] ?? null;     // ⑱ 株式等の相続税評価額（第5表イ・上書き可）
   const v19: number | null = num('⑲') ?? stockBook;            // ⑲ 株式等の帳簿価額（第5表㋺＋（㊁－㋭）・上書き可）
   const v20 = v18 !== null && v19 !== null ? Math.max(0, v18 - v19) : null; // ⑳ 評価差額（負数→0）
-  const v21 = v20 !== null ? (specialMarketValueRules ? 0 : fl(v20 * CORPORATE_TAX_RATE)) : null; // ㉑ 法人税額等相当額
+  const v21 = v20 !== null ? (specialMarketValueRules ? 0 : corporateTaxEquivalentOf(v20, corporateTaxRatePercent)) : null; // ㉑ 法人税額等相当額
   const v22 = v18 !== null && v21 !== null ? v18 - v21 : null;  // ㉒ S2純資産価額相当額（⑱－㉑）
   const v23 = t5['⑩'] ?? null;                                 // ㉓ 発行済株式数（第5表⑩）
   const v24 = atTaxTime(v22 !== null && v23 !== null && v23 > 0 ? (v22 * 1000) / v23 : null).value; // ㉔ S2の金額（円）
@@ -221,7 +225,7 @@ export function calcTable8(getField: TableProps['getField']) {
     lRate,
   };
 
-  return { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, s1, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, cls, t5Stock: t5['ロ'] ?? null, inKind };
+  return { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, s1, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, cls, corporateTaxRatePercent, t5Stock: t5['ロ'] ?? null, inKind };
 }
 
 /** 第8表（CSSグリッド方式・完成版） */
@@ -271,6 +275,6 @@ export function Table8Grid({ getField, updateField, onJump }: TableProps) {
   const gCompany = (f: string) => (f === 'company' ? getField('table7', 'company') : g(f));
   const uCompany = (f: string, v: string) => (f === 'company' ? updateField('table7', 'company', v) : u(f, v));
   // 自動計算欄には「実際に使った値」と、⑭〜⑰のどれを使うかの理由をホバーで出す
-  const hintedCells = withFormulaHints(buildCells(cls), table8Hints(c, usesSpecialMarketValueRules(getField)));
+  const hintedCells = withFormulaHints(buildCells(cls, c.corporateTaxRatePercent), table8Hints(c, usesSpecialMarketValueRules(getField)));
   return <GridForm cells={hintedCells} g={g} u={u} formId={T} width="100%" title="第７表の３　株式等保有特定会社の株式の価額の計算明細書（続）" formCode="NTA0VNA240030010" headerExtra={companyFloatBox(gCompany, uCompany, T, { widthPct: 42, aspect: 9, labelFrac: 0.33, onJump })} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }

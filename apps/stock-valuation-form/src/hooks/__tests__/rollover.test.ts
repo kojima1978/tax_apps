@@ -135,6 +135,15 @@ describe('rolloverFormData（翌事業年度更新）', () => {
     expect(r.table5._pages).toBe('3'); // 用紙の枚数は維持
   });
 
+  // 率の上書きを持ち越すと、年をまたいだ翌年が去年の率のまま黙って計算される
+  it('法人税額等相当額の率の上書きは翌年へ持ち越さない', () => {
+    const data = baseData();
+    data.table1_1._corporate_tax_rate = '37';
+    const r = rolloverFormData(data);
+    expect(r.table1_1._corporate_tax_rate).toBe('');
+    expect(r.table1_1.f14_y).toBe('9'); // 年は進んでいる（既定は年分から決め直される）
+  });
+
   it('日付が空欄・非数値ならそのまま', () => {
     const data = baseData();
     data.table1_1.f14_y = '';

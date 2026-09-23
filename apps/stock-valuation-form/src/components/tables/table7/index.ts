@@ -3,6 +3,6 @@
 // 計算本体は calcTable7.ts（様式の描画を持たない共通モジュール）。
 export { Table7_1Grid as Table7_1 } from './Table7_1Grid';
 export { Table7_2Grid as Table7_2 } from './Table7_2Grid';
-// 第7表の3（旧第8表＝S1純資産修正＋S2＋株式の価額、令和8年様式：38%・第7表の2参照・Cコード）
+// 第7表の3（旧第8表＝S1純資産修正＋S2＋株式の価額、令和8年様式：法人税額等相当額の率は corporateTaxRate.ts・第7表の2参照・Cコード）
 export { Table8Grid as Table7_3 } from '../table8/Table8Grid';
 export { calcTable7 } from './calcTable7';

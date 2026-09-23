@@ -18,7 +18,7 @@ describe('第5表のセル定義：符号と小数が表示で落ちないこと
   });
 
   it('資産・負債の金額欄は符号付き（控除項目はマイナスで入る）', () => {
-    const cells = [...mainPageCells, ...continuationPageCells(1)]
+    const cells = [...mainPageCells(38), ...continuationPageCells(1)]
       .filter((c) => c.field && AMOUNT_FIELD.test(c.field));
     expect(cells.length).toBeGreaterThan(0);
     for (const cell of cells) {
@@ -27,9 +27,17 @@ describe('第5表のセル定義：符号と小数が表示で落ちないこと
     }
   });
 
+  // 率は年分で変わる。ラベルを '38％' のまま焼き込むと、37％で計算した紙に38％と刷られる
+  it('⑧のラベルは計算に使う率をそのまま出す', () => {
+    const label = (pct: number) => mainPageCells(pct).find((c) => c.kind === 'label' && c.text?.includes('⑧ 評価差額に対する法人税額等相当額'))?.text;
+    expect(label(38)).toContain('（⑦×38％）');
+    expect(label(37)).toContain('（⑦×37％）');
+    expect(label(37.5)).toContain('（⑦×37.5％）');
+  });
+
   it('計算欄は読み取り専用で、整形済みの文字列をそのまま出す', () => {
     for (const field of COMPUTED) {
-      const cell = mainPageCells.find((c) => c.field === field && c.kind === 'input');
+      const cell = mainPageCells(38).find((c) => c.field === field && c.kind === 'input');
       expect(cell, field).toBeDefined();
       expect(cell!.readOnly, field).toBe(true);
       expect(cell!.commaInteger, field).toBeFalsy();

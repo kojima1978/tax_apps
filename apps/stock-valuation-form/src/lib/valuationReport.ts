@@ -14,6 +14,7 @@ import {
 } from '@/lib/valuationPurpose';
 import type { TableProps } from '@/types/form';
 import { stripAmountFormatting } from '@/lib/numberFormat';
+import { formatRatePercent, getCorporateTaxRatePercent } from '@/lib/corporateTaxRate';
 
 // ══ お客様報告用の株価集計 ══
 // 既存の calcTableN はすべて getField を引数に取るので、getField をプロキシして
@@ -134,12 +135,15 @@ export type ValuationBasis = {
   /** 会社規模の判定結果（0=小会社 1〜3=中会社 4=大会社。未判定は null） */
   size: number | null;
   sizeLabel: string;
+  /** 評価差額に対する法人税額等相当額の割合（％）。年分と前提条件で変わる */
+  corporateTaxRatePercent: number;
 };
 
 export const BASIS_LABELS: Record<ValuationBasisKey, { label: string; note: string }> = {
   inheritance: {
     label: '相続税評価額ベース',
-    note: '評価差額に対する法人税額等相当額（38％）を控除',
+    // 率は年分で変わるので、率まで書く注記は basisNote で組み立てる（ここは率の入らない言い方）
+    note: '評価差額に対する法人税額等相当額を控除',
   },
   'special-market-value': {
     label: '所得税・法人税ベース',
@@ -168,6 +172,16 @@ const SPECIAL_MIX_NOTES: Record<number, string> = {
   5: '第6表⑧：純資産価額 100％',
   6: '清算分配見込額により評価（第3表・第6表は使用しません）',
 };
+
+/**
+ * ベースごとの注記。相続税評価額ベースだけ法人税額等相当額の割合が入る。
+ * 率は課税時期の年分（と前提条件の上書き）で変わるので、文字列に焼き込まない。
+ */
+export function basisNote(key: ValuationBasisKey, ratePercent: number): string {
+  return key === 'inheritance'
+    ? `評価差額に対する法人税額等相当額（${formatRatePercent(ratePercent)}％）を控除`
+    : BASIS_LABELS[key].note;
+}
 
 export function basisMixNote(basis: ValuationBasis): string | null {
   if (basis.classification !== 0) return SPECIAL_MIX_NOTES[basis.classification] ?? null;
@@ -201,9 +215,12 @@ export function calcValuationBasis(
   const t6assumed = gfAssumed && calcTable6(gfAssumed);
   const classification = t6.t2.result;
   const size = calcCompanySize((field) => gf('table1_2', field), forcesSmallCompany(gf)).result;
+  const corporateTaxRatePercent = getCorporateTaxRatePercent(gf);
   return {
     key,
     ...BASIS_LABELS[key],
+    note: basisNote(key, corporateTaxRatePercent),
+    corporateTaxRatePercent,
     comparablePrice: t4.v28 ?? t4.v27 ?? t4.v26,
     comparablePriceZeroProfit: t4zero.v28 ?? t4zero.v27 ?? t4zero.v26,
     comparablePriceAssumed: t4assumed ? t4assumed.v28 ?? t4assumed.v27 ?? t4assumed.v26 : null,

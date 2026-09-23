@@ -1,5 +1,6 @@
 import type { FormData } from '@/types/form';
 import { table5RowCount } from '@/lib/table5Rows';
+import { CORPORATE_TAX_RATE_FIELD } from '@/lib/corporateTaxRate';
 
 // ══ 翌事業年度更新 ══
 // 新しい事業年度の評価に移行するためにデータを繰り越す。
@@ -7,6 +8,8 @@ import { table5RowCount } from '@/lib/table5Rows';
 // ・期別データ（直前期/直前々期/直前々期の前期）を1期ずらして順送り（直前期欄は空欄に）
 // ・毎年入れ直す数値（第5表の金額、会社規模判定、価額修正・権利関係、類似業種の株価）はクリア
 // ・会社情報・株主構成・業種目番号・第5表の科目などは維持
+// ・法人税額等相当額の率の上書きは外す（年分が変われば既定も変わる。持ち越すと、
+//   年をまたいだ翌年の評価が去年の率のまま黙って計算される）
 // 適用後は normalizeFormData を通すこと（表間連動と類似業種マスタの再連動が走る）。
 
 /** 和暦年の文字列を+1する（空欄・数値でない場合はそのまま） */
@@ -113,6 +116,9 @@ export function rolloverFormData(data: FormData): FormData {
     const bumped = bumpYear(table1_1[f]);
     if (bumped !== undefined) table1_1[f] = bumped;
   }
+
+  // 率の上書きは年分ごとの例外なので翌年へは持ち越さない（課税時期の年分から決め直す）
+  if (table1_1[CORPORATE_TAX_RATE_FIELD]) table1_1[CORPORATE_TAX_RATE_FIELD] = '';
 
   // 第4表: 期別の順送り＋直前期・修正欄のクリア
   const table4 = clearFields(shift(data.table4, T4_SHIFT), T4_CLEAR);

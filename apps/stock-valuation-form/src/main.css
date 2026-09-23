@@ -544,6 +544,41 @@
   accent-color: #1d4ed8;
 }
 
+/* 法人税額等相当額の割合。年分から決まる既定を placeholder に出し、上書きしたときだけ値が入る */
+.prereq-rate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #334155;
+}
+
+.prereq-rate input {
+  width: 80px;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: right;
+}
+
+.prereq-rate.is-invalid input {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.prereq-rate-unit {
+  margin-left: -4px;
+}
+
+.prereq-rate-note {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 .prereq-actions {
   display: flex;
   justify-content: flex-end;

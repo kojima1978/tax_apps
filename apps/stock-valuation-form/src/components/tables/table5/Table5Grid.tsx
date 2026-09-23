@@ -15,6 +15,11 @@ import { fractionalWriters } from '@/lib/fractionalAmount';
 import { formatAmount } from '@/lib/numberFormat';
 import type { TableId, TableProps } from '@/types/form';
 import { getValuationPurpose, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
+import {
+  corporateTaxEquivalentOf,
+  formatRatePercent,
+  getCorporateTaxRatePercent,
+} from '@/lib/corporateTaxRate';
 import { table5Hints } from './formulaHints';
 import {
   TABLE5_CONT_ROWS as CONT_ROWS,
@@ -37,7 +42,6 @@ const PITCH = (TOTAL_TOP - ROW_TOP) / MAIN_ROWS;
 const CONT_ROW_TOP = 22.59; // 続紙データ1行目の上端%（r08-09実測）
 const CONT_BOTTOM = 93.7;   // 続紙データ最終行の下端%（＝外枠の底）
 const CONT_PITCH = (CONT_BOTTOM - CONT_ROW_TOP) / CONT_ROWS;
-const CORPORATE_TAX_RATE = 0.38; // 評価差額に対する法人税額等相当額の割合（令和8年様式⑧: ⑦×38％）
 
 /** ページpの先頭行番号（1始まり） */
 const pageStartRow = (p: number) => (p === 0 ? 1 : MAIN_ROWS + (p - 1) * CONT_ROWS + 1);
@@ -182,7 +186,7 @@ function calcRow(label: string, aria: string, code: string, field: string, unit:
 }
 
 /** 本表（1ページ目）のグリッドセル：15行＋合計欄＋計算欄（座標は r08-08 の罫線実測値） */
-function pageCells(pageIndex: number): GridCell[] {
+function pageCells(pageIndex: number, ratePercent: number): GridCell[] {
   const startRow = pageStartRow(pageIndex);
   const showCodes = true; // 本表は識別コードあり（負債base=30）
   const CALC2_X: [number, number, number, number, number] = [6.77, 34.17, 36.1, 49.32, 51.09];  // 2.セクション列
@@ -246,7 +250,8 @@ function pageCells(pageIndex: number): GridCell[] {
   ...calcRow('⑤ 相続税評価額による純資産価額\n　（①－③）', '⑤ 相続税評価額による純資産価額', 'G70', '⑤', '千円', 80.23, 82.85, CALC2_X),
   ...calcRow('⑥ 帳簿価額による純資産価額\n　【{②＋(ニ－ホ)－④}、マイナスの場合は０】', '⑥ 帳簿価額による純資産価額', 'G71', '⑥', '千円', 82.85, 85.47, CALC2_X),
   ...calcRow('⑦ 評価差額に相当する金額\n　（⑤－⑥、マイナスの場合は０）', '⑦ 評価差額に相当する金額', 'G72', '⑦', '千円', 85.47, 88.09, CALC2_X),
-  ...calcRow('⑧ 評価差額に対する法人税額等相当額\n　（⑦×38％）', '⑧ 評価差額に対する法人税額等相当額', 'G73', '⑧', '千円', 88.09, 91.85, CALC2_X),
+  // 率は年分で変わるので、刷られる文字も計算に使った率から組み立てる（ラベルだけ38％のまま残さない）
+  ...calcRow(`⑧ 評価差額に対する法人税額等相当額\n　（⑦×${formatRatePercent(ratePercent)}％）`, '⑧ 評価差額に対する法人税額等相当額', 'G73', '⑧', '千円', 88.09, 91.85, CALC2_X),
   // ── 3. 1株当たりの純資産価額の計算 ──
   { kind: 'label', text: '３．１株当たりの純資産価額の計算', semanticRole: 'columnheader', ariaLabel: '1株当たりの純資産価額の計算', top: 78.46, left: 51.41, width: 41.42, height: 1.77, align: 'left', fontSize: 8.5, bold: true },
   ...calcRow('⑨ 課税時期現在の純資産価額\n　（相続税評価額）（⑤－⑧）', '⑨ 課税時期現在の純資産価額', 'G74', '⑨', '千円', 80.23, 82.85, CALC3_X),
@@ -260,11 +265,19 @@ function pageCells(pageIndex: number): GridCell[] {
 // 本表（1ページ目）：計算値欄を読み取り専用に。
 // 整形は g() の formatAmount 側で済んでいるので、ここでは掛け直さない
 // （commaInteger を被せると⑤の△も⑪の分数等の小数も数字以外として落ちる）。
-export const mainPageCells: GridCell[] = pageCells(0).map((cell) => (
-  cell.field && COMPUTED_FIELDS.has(cell.field)
-    ? { ...cell, readOnly: true }
-    : cell
-));
+// ⑧のラベルにだけ率が入るので、率ごとに1回作って使い回す（入力のたびには作り直さない）。
+const mainPageCache = new Map<number, GridCell[]>();
+export function mainPageCells(ratePercent: number): GridCell[] {
+  const cached = mainPageCache.get(ratePercent);
+  if (cached) return cached;
+  const cells = pageCells(0, ratePercent).map((cell) => (
+    cell.field && COMPUTED_FIELDS.has(cell.field)
+      ? { ...cell, readOnly: true }
+      : cell
+  ));
+  mainPageCache.set(ratePercent, cells);
+  return cells;
+}
 
 // 続紙（2ページ目以降）＝令和8年様式 第5表続：合計欄なしで23行のデータ行のみ（識別コード E01-E92/G01-G92）。
 // 座標は r08-09 の罫線実測値。
@@ -371,9 +384,10 @@ export function calcTable5Detail(getField: TableProps['getField']) {
   const netBook = Math.max(0, assetBook + applicableInKindDifference - liabilityBook);
   const evaluationDifference = Math.max(0, netEval - netBook);
   const specialMarketValueRules = usesSpecialMarketValueRules(getField);
+  const corporateTaxRatePercent = getCorporateTaxRatePercent(getField);
   const corporateTaxEquivalent = specialMarketValueRules
     ? 0
-    : Math.floor(evaluationDifference * CORPORATE_TAX_RATE);
+    : corporateTaxEquivalentOf(evaluationDifference, corporateTaxRatePercent);
   const currentNet = netEval - corporateTaxEquivalent;
 
   const issuedShares = parseNum(
@@ -410,7 +424,8 @@ export function calcTable5Detail(getField: TableProps['getField']) {
     assetEval, assetBook, stockEval, stockBook, landEval, liabilityEval, liabilityBook,
     hasAssetInput, hasLiabilityInput, hasCalculationInput,
     inKindEval, inKindBook, inKindRatio, applicableInKindDifference,
-    netEval, netBook, evaluationDifference, specialMarketValueRules, corporateTaxEquivalent, currentNet,
+    netEval, netBook, evaluationDifference, specialMarketValueRules,
+    corporateTaxRatePercent, corporateTaxEquivalent, currentNet,
     issuedShares, treasuryShares, currentShares, netPerShare,
     groupVotes, totalVotes, votingRatio, netPerShare80,
     netPerShareDisp: netPerShareF.text, netPerShare80Disp: netPerShare80F.text,
@@ -453,7 +468,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   const calculated = table5Calculated(detail);
   const purpose = getValuationPurpose(getField);
   // 自動計算欄には「実際に使った値」をホバーで出す（通達の判定で0になった欄はその理由も）
-  const hintedMainCells = withFormulaHints(mainPageCells, table5Hints(detail));
+  const hintedMainCells = withFormulaHints(mainPageCells(detail.corporateTaxRatePercent), table5Hints(detail));
 
   const g = (f: string) => {
     if (COMPUTED_FIELDS.has(f)) {

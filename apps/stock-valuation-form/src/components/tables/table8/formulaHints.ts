@@ -1,5 +1,6 @@
 import { FRACTION_NOTE_TAX_TIME, hf, hv, rf, rv } from '@/lib/formulaHint';
 import type { calcTable8 } from './Table8Grid';
+import { formatRatePercent } from '@/lib/corporateTaxRate';
 
 // 第7表の3（第8表）の自動計算欄に出すツールチップ。
 // ⑭〜⑰は「4つのうち1つだけが埋まる」欄で、どれが埋まるかは第2表の判定と第1表の2の会社規模で決まる。
@@ -46,7 +47,7 @@ export function table8Hints(c: Calc, specialMarketValueRules: boolean): Record<s
     '⑥': `④ ${hv(c.v4, 1)} － ⑤ ${hv(c.v5, 1)} ＝ ${rv(c.v6, 1)}千円`,
     '⑦': `③ ${hv(c.v3, 1)} － ⑥ ${hv(c.v6, 1)} ＝ ${rv(c.v7, 1)}千円（マイナスのときは0）`,
     '⑧': specialMarketValueRules ? NO_TAX_DEDUCTION
-      : `⑦ ${hv(c.v7, 1)}千円 × 38％ ＝ ${rv(c.v8, 1)}千円（端数切捨て）`,
+      : `⑦ ${hv(c.v7, 1)}千円 × ${formatRatePercent(c.corporateTaxRatePercent)}％ ＝ ${rv(c.v8, 1)}千円（端数切捨て）`,
     '⑨': `③ ${hv(c.v3, 1)} － ⑧ ${hv(c.v8, 1)} ＝ ${rv(c.v9, 1)}千円`,
     '⑩': `第５表の⑩（課税時期現在の発行済株式数）${rv(c.v10)}株`,
     '⑪': c.v9 !== null && c.v9 < 0
@@ -76,7 +77,7 @@ export function table8Hints(c: Calc, specialMarketValueRules: boolean): Record<s
     '⑲': stockBookHint(c, c.v19),
     '⑳': `⑱ ${hv(c.v18, 1)} － ⑲ ${hv(c.v19, 1)} ＝ ${rv(c.v20, 1)}千円（マイナスのときは0）`,
     '㉑': specialMarketValueRules ? NO_TAX_DEDUCTION
-      : `⑳ ${hv(c.v20, 1)}千円 × 38％ ＝ ${rv(c.v21, 1)}千円（端数切捨て）`,
+      : `⑳ ${hv(c.v20, 1)}千円 × ${formatRatePercent(c.corporateTaxRatePercent)}％ ＝ ${rv(c.v21, 1)}千円（端数切捨て）`,
     '㉒': `⑱ ${hv(c.v18, 1)} － ㉑ ${hv(c.v21, 1)} ＝ ${rv(c.v22, 1)}千円`,
     '㉓': `第５表の⑩（課税時期現在の発行済株式数）${rv(c.v23)}株`,
     '㉔': `㉒ ${hv(c.v22, 1)}千円 × 1,000 ÷ ㉓ ${hv(c.v23)}株 ＝ ${rf(c.v24)}円${FRACTION_NOTE_TAX_TIME}`,
