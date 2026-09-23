@@ -32,6 +32,7 @@ jobs:
         app:
           - inheritance-tax-app
           - inheritance-tax-form
+          - mcp-server
           - private-banking
           - stock-valuation-form
     defaults:
@@ -75,6 +76,10 @@ jobs:
       # prod の上書きは .env を要求するものがあり、.env は git に入らないので
       # ここでは base だけを検証する。
       #
+      # --profile '*' が要るのは、profiles 付きのサービス（MCP サーバー）が
+      # 既定では対象から外れるため。付けないと services が空のまま素通りして、
+      # 「検証している」と言いながら1行も見ていないことになる。
+      #
       # .env が git に入らない以上、CI には存在しない。itcm の base は
       # POSTGRES_PASSWORD を `:?` で必須にしているので、そのままだと
       # 「構文が壊れている」ではなく「CI に .env が無い」で毎回落ちる。
@@ -90,7 +95,7 @@ jobs:
             if [ ! -f "$d/.env" ] && [ -f "$d/.env.example" ]; then
               cp "$d/.env.example" "$d/.env"
             fi
-            if docker compose -f "$f" config >/dev/null; then
+            if docker compose --profile '*' -f "$f" config >/dev/null; then
               echo "ok   $f"
             else
               echo "FAIL $f"

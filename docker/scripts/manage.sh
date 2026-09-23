@@ -143,6 +143,12 @@ VOLUMES=(
 UNMANAGED_APPS=(
   # 試作。compose.yaml で独立して動かしていて、起動も停止も手で行う。
   "family-tree-sample"
+  # MCP サーバー。常駐しない ── MCP クライアント（Claude Desktop など）が
+  # 必要なときだけ docker run で起動し、終われば消える。compose のサービスには
+  # profiles: ["mcp"] が付いているので start / recover に載せても何も起動しない
+  # （載せると status が「落ちている」と言い続けることになる）。
+  # テストだけは TEST_TARGETS の run@ 形式で使い捨てコンテナから回る。
+  "mcp-server"
 )
 
 is_unmanaged_app() {
@@ -184,11 +190,18 @@ POSTGRES_APPS=(
 # 書かれたテストが一度も回らないまま放置されうる状態だった。
 #
 # 形式: アプリ名:コンテナ名:実行するコマンド
+#
+# コンテナ名を `run@<サービス名>` と書くと、稼働中のコンテナを探す代わりに
+# compose の使い捨てコンテナ（docker compose run --rm）で回す。常駐しない
+# アプリ（MCP サーバー）にはこれしか経路が無い ── 「コンテナが動いていないので
+# 飛ばしました」が毎回出るだけの登録は、登録していないのと変わらない。
+#
 # preflight のチェック16が、この一覧と package.json の test スクリプトを
 # 毎回突き合わせる（テストを足したのに載せ忘れると、そこで出る）。
 # ------------------------------------
 TEST_TARGETS=(
   "inheritance-tax-app:inheritance-tax-app:npm test"
+  "mcp-server:run@mcp-server-test:npm test"
   "inheritance-tax-form:inheritance-tax-form:npm test"
   "private-banking:private-banking-app:npm test"
   "stock-valuation-form:stock-valuation-form:npm test"
@@ -1187,6 +1200,22 @@ _run_one_test() {
   echo "  $app_name"
   echo "----------------------------------------"
 
+  # run@<サービス名>: 常駐しないアプリ。稼働中のコンテナが存在しないので、
+  # compose の使い捨てコンテナで回す。下の「動いていないから飛ばす」判定を
+  # 通すと毎回必ず飛ばされ、登録してあるのに一度も走らない状態になる。
+  #   --profile '*' : profiles 付きのサービスを対象に含める
+  #   --no-deps     : 他のサービスを巻き込まない
+  #   --build       : ソースを変えた直後に古いイメージで回らないようにする
+  if [[ "$container" == run@* ]]; then
+    local service="${container#run@}"
+    if (cd "$dir" && docker compose --profile '*' run --rm -T --no-deps --build "$service" sh -lc "$command"); then
+      ok "$app_name: 成功"
+      return 0
+    fi
+    err "$app_name: 失敗"
+    return 1
+  fi
+
   if ! docker ps --format '{{.Names}}' | grep -qx "$container"; then
     warn "飛ばしました: コンテナ $container が動いていません"
     echo "  起動: docker/scripts/manage.sh start $app_name"
@@ -1218,12 +1247,17 @@ cmd_test() {
 
   if [[ -n "$target" ]]; then
     local dir entry
-    dir=$(resolve_app_dir "$target") || return 1
-    if ! entry=$(test_target_entry "$(basename "$dir")"); then
-      err "テストの登録がありません: $(basename "$dir")"
-      echo "  登録済み: $(printf '%s ' "${TEST_TARGETS[@]%%:*}")"
-      echo "  テストを足したら manage.sh の TEST_TARGETS へ1行追加してください。"
-      return 1
+    # まず TEST_TARGETS を名前でそのまま引く。resolve_app_dir は APPS しか見ないので、
+    # 常駐しないアプリ（MCP サーバー・UNMANAGED_APPS）はそこで弾かれてしまう。
+    # 見つからなければ従来どおり部分一致で APPS から解決する。
+    if ! entry=$(test_target_entry "$target"); then
+      dir=$(resolve_app_dir "$target") || return 1
+      if ! entry=$(test_target_entry "$(basename "$dir")"); then
+        err "テストの登録がありません: $(basename "$dir")"
+        echo "  登録済み: $(printf '%s ' "${TEST_TARGETS[@]%%:*}")"
+        echo "  テストを足したら manage.sh の TEST_TARGETS へ1行追加してください。"
+        return 1
+      fi
     fi
     entries=("$entry")
   else

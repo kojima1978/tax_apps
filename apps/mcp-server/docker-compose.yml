@@ -1,0 +1,105 @@
+# ============================================
+# tax-apps MCP サーバー（stdio）- Docker Compose
+# ============================================
+# このアプリは常駐しない。MCP クライアント（Claude Desktop など）が必要なときだけ
+# `docker run -i --rm --network tax-apps-network tax-apps-mcp` で起動し、
+# 終われば消える。だから profiles で通常の起動対象から外してある
+# （manage.sh start / recover は profiles 付きのサービスを起動しない）。
+#
+# Usage:
+#   イメージのビルド: docker compose --profile mcp build
+#   テスト:           docker/scripts/manage.sh test mcp-server
+#                     （使い捨てコンテナで走る。稼働中のコンテナが要らない唯一の対象）
+#   接続先を変える:   SVF_API_BASE 環境変数
+# ============================================
+
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# コンテナ内で setuid ビット経由の特権取得を塞ぐ。アプリ側にその必要は無い。
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  # ===========================================
+  # MCP サーバー本体（MCP クライアントが起動するのはこちら）
+  #
+  # 通信は stdin/stdout なので ports も healthcheck も無い。
+  # 常駐しないので restart も autoheal のラベルも付けない
+  # （終了＝正常なので、再起動されると無限に立ち上がり続ける）。
+  #
+  # 機能:
+  #   - describe_fields      書き込める欄の辞書（株式評価明細書が配る実体をそのまま）
+  #   - list_cases / get_case 案件の一覧と現在値
+  #   - set_fields           第4表の1の欄へ書き込む（既定は試算）
+  #   - import_balance_sheet 第5表の明細を入れ替える（既定は試算）
+  # ===========================================
+  mcp-server:
+    build:
+      context: .
+      target: runner
+    image: tax-apps-mcp
+    container_name: tax-apps-mcp
+    profiles: ["mcp"]
+    networks:
+      - tax-apps-network
+    environment:
+      <<: *common-env
+      NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=192"
+      # 株式評価明細書のAPI。3014 は dev（Vite のプロキシ）でも本番（Node 直）でも
+      # 同じパスで通るので、モードによって書き換えなくてよい。
+      SVF_API_BASE: "http://stock-valuation-form:3014/stock-valuation-form/api"
+    stdin_open: true
+    tty: false
+    init: true
+    restart: "no"
+    logging: *default-logging
+    <<: *security-opts
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+  # ===========================================
+  # テスト用（manage.sh test / 手元での動作確認）
+  #
+  # 本番イメージには vitest も tsx も入っていないので、dev ステージを別サービスに
+  # 分けてある。TEST_TARGETS の `run@mcp-server-test` がこれを使い捨てで起動する。
+  # ===========================================
+  mcp-server-test:
+    build:
+      context: .
+      target: dev
+    image: tax-apps-mcp-dev
+    profiles: ["mcp"]
+    networks:
+      - tax-apps-network
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=384"
+    init: true
+    restart: "no"
+    logging: *default-logging
+    <<: *security-opts
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true

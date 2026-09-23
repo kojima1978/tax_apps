@@ -1,0 +1,11 @@
+{
+  // 本番イメージ用。テストを外すのは、dist に混ざると本番に無い vitest を
+  // import してしまうため（株式評価明細書の tsconfig.server.json と同じ理由）。
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist"
+  },
+  "include": ["src"],
+  "exclude": ["src/__tests__/**"]
+}

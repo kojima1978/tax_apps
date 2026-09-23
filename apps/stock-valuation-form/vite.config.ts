@@ -22,6 +22,12 @@ export default defineConfig({
   server: {
     port: 3014,
     host: true,
+    // 同じ Docker ネットワークの他コンテナ（MCP サーバー）がサービス名で叩くため。
+    // Vite の既定はブラウザからの DNS リバインディング対策で localhost 以外の Host を
+    // 403 で弾くので、このコンテナ自身の名前だけを通す。ゲートウェイ経由の
+    // アクセスは Host がブラウザ側のもの（localhost）になるため元から通っている。
+    // 本番は Node が直接配信するのでこの経路自体が無い（dev サーバ専用の設定）。
+    allowedHosts: ['stock-valuation-form'],
     // Windows の bind mount(Windows→WSL2) はコンテナ内の inotify にイベントを届けないことがあり、
     // Vite が変更に気付かないまま古いモジュールを返し続ける（304 になるのでブラウザ側も更新されない）。
     // dev サーバ専用の設定なので本番ビルドには影響しない。
