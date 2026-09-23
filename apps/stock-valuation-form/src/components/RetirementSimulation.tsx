@@ -1,6 +1,6 @@
 import { useId, useMemo } from 'react';
 import type { TableProps } from '@/types/form';
-import type { ValuationBasis } from '@/lib/valuationReport';
+import { basisMixNote, type ValuationBasis } from '@/lib/valuationReport';
 import { filterBases, formatAssumedProfit, type BasisFilter } from '@/lib/summaryOptions';
 import { calcRetirementSimulation, RETIREMENT_AMOUNT_FIELD, RETIREMENT_INSURANCE_FIELD } from '@/lib/retirementSimulation';
 import { formatAmount } from '@/lib/numberFormat';
@@ -64,17 +64,18 @@ export function RetirementSimulation({ getField, updateField, basis, before, onH
         <p className="summary-price-group-note">退職金 {sen(result.amount)}を支給{result.proceeds ? `し、保険の解約益 ${sen(result.proceeds)}を同じ期に計上` : ''}した場合（支払原資は考慮しない）</p>
         {filterBases(result.bases, basis).map((after) => {
           const current = before.find((item) => item.key === after.key);
-          const rate = after.size === null ? null : after.size === 4 ? 1 : after.size === 0 ? 0.5 : after.lRate;
+          // 併用割合は株価一覧と同じ判定で出す（特定の評価会社は会社規模によらない）
+          const mixNote = basisMixNote(after);
           return <div className="summary-price-group" key={after.key}>
             <h3 className="summary-forecast-subhead" id={`retirement-${after.key}`}>{after.label}</h3>
             <div className="summary-table-scroll">
               <table className="summary-table" aria-labelledby={`retirement-${after.key}`}>
                 <thead><tr><th scope="col">評価項目</th><th scope="col" className="summary-holders-num">金額・内容</th></tr></thead>
                 <tbody>
-                  <tr className="summary-company-size"><th scope="row">会社の規模</th><td className="summary-holders-num">{after.sizeLabel}{rate !== null && <small>類似業種 {(rate * 100).toLocaleString('ja-JP')}％・純資産 {((1 - rate) * 100).toLocaleString('ja-JP', { maximumFractionDigits: 2 })}％（併用する場合）</small>}</td></tr>
+                  <tr className="summary-company-size"><th scope="row">会社の規模</th><td className="summary-holders-num">{after.sizeLabel}{mixNote && <small>{mixNote}</small>}</td></tr>
                   <tr><th scope="row">類似業種比準価額</th><td className="summary-holders-num">{money(after.comparablePrice)}</td></tr>
                   <tr><th scope="row">純資産価額</th><td className="summary-holders-num">{money(after.netAssetPrice)}</td></tr>
-                  <tr className="summary-table-emphasis"><th scope="row">原則的評価方式による評価額</th><td className="summary-holders-num">{money(after.gensoku)}<small className="summary-price-difference">{difference(current?.gensoku ?? null, after.gensoku)}</small></td></tr>
+                  <tr className="summary-table-emphasis"><th scope="row">原則的評価方式による評価額{after.classification !== 0 && <small>{after.classificationName}</small>}</th><td className="summary-holders-num">{money(after.gensoku)}<small className="summary-price-difference">{difference(current?.gensoku ?? null, after.gensoku)}</small></td></tr>
                 </tbody>
               </table>
             </div>

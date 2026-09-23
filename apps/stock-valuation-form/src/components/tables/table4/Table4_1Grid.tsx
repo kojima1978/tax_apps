@@ -120,7 +120,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑱　利 益 積 立 金 額', top: 52.11, left: 43.92, width: 23.32, height: 2.79 },
   { kind: 'label', text: '⑲　純資産価額（⑰＋⑱）', top: 52.11, left: 67.24, width: 25.19, height: 2.79, fontSize: 7 },
   { kind: 'label', text: '直　前　期', top: 54.9, left: 13.05, width: 6.25, height: 2.68 },
-  ...ci('n52', 'G25', 54.9, 2.68, 21.19, 43.92, { readOnly: true, jumpTo: { tab: 'table4', field: '①', hint: 'クリックで入力元（第４表の１①・直前期末の資本金等の額）へ移動します' } }),
+  ...ci('n52', 'G25', 54.9, 2.68, 21.19, 43.92, { readOnly: true, jumpTo: { tab: 'table4_1', field: '①', hint: 'クリックで入力元（第４表の１①・直前期末の資本金等の額）へ移動します' } }),
   ...ci('n53', 'G27', 54.9, 2.68, 45.81, 67.24, { calculationRequired: true, signedCommaInteger: true, commaInteger: false }),
   ...mi('㋣', '㋣', 54.9, 2.68, 69.14, 92.43),
   { kind: 'label', text: '直 前 々 期', top: 57.58, left: 13.05, width: 6.25, height: 2.7 },

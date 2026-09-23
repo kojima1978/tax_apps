@@ -39,6 +39,13 @@ export function hijunYoso1Price(comparable: number | null, netAsset: number | nu
 }
 
 /** 第6表の自動計算（お客様サマリー・来期予測からも参照する） */
+/**
+ * 第2表の判定結果（1〜5）と、第6表で記載する株式の区分（④〜⑧）の対応。
+ * 判定6（清算中の会社）はどの区分にも当たらない。
+ * 様式の行を出し分ける側（第6表）と、金額を拾う側（お客様サマリー）の両方から使う。
+ */
+export const KUBUN_BY_RESULT: Record<number, string> = { 1: '④', 2: '⑤', 3: '⑥', 4: '⑦', 5: '⑧' };
+
 export function calcTable6(getField: TableProps['getField']) {
   const raw = (f: string) => getField(T, f);
   const num = (f: string) => numOf(raw(f));

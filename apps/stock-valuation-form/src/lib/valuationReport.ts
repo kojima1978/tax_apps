@@ -1,6 +1,8 @@
 import { calcTable3 } from '@/components/tables/table3/Table3Grid';
 import { calcTable4 } from '@/components/tables/table4/calcTable4';
 import { calcTable5 } from '@/components/tables/table5/Table5Grid';
+import { KUBUN_BY_RESULT, calcTable6 } from '@/components/tables/table6/calcTable6';
+import { RESULT_NAMES } from '@/components/tables/table2/Table2Grid';
 import { SIZE_OVERRIDE_FIELD, calcCompanySize } from '@/components/tables/table1-2/Table1_2Grid';
 import { calcShareholderJudgment, totalShOf } from '@/components/tables/Table1_1Grid';
 import { SIZE_NAMES } from '@/lib/clientSummary';
@@ -114,9 +116,14 @@ export type ValuationBasis = {
   comparablePriceAssumed: number | null;
   /** 1株当たり純資産価額（第5表 ⑪） */
   netAssetPrice: number | null;
-  /** Lの割合（中会社のみ。大会社・小会社は null） */
+  /** Lの割合（中会社のみ。大会社・小会社は null。特定の評価会社では価額に使わない） */
   lRate: number | null;
-  /** 原則的評価方式による価額（第3表） */
+  /** 第2表の特定の評価会社の判定（0=一般 1=比準要素数1 … 6=清算中） */
+  classification: number;
+  classificationName: string;
+  /** 特定の評価会社のときに用いた第6表の区分記号（④〜⑧。一般・清算中は null） */
+  gensokuKubun: string | null;
+  /** 原則的評価方式による価額（一般は第3表、特定の評価会社は第6表） */
   gensoku: number | null;
   /** 年利益金額を0としたときの原則的評価方式による価額 */
   gensokuZeroProfit: number | null;
@@ -140,6 +147,37 @@ export const BASIS_LABELS: Record<ValuationBasisKey, { label: string; note: stri
   },
 };
 
+/**
+ * 特定の評価会社に当たるときの原則的評価額は第6表から採る。
+ * 第3表の gensoku（⑩→⑧→④⑤⑦）に対応するのが第6表の jun（純資産価額方式等の最終価額）。
+ * 清算中の会社はどちらの表でも算定しないので null のまま返る。
+ */
+const gensokuOf = (t3: { gensoku: number | null }, t6: { t2: { result: number }; jun: number | null }) =>
+  t6.t2.result === 0 ? t3.gensoku : t6.jun;
+
+/**
+ * 併用割合の説明。一般の評価会社は会社規模（Lの割合）だが、
+ * 特定の評価会社は規模によらず第6表の算定方法欄のとおりに決まる。
+ * 株価一覧と退職金の試算の両方から同じ文を使う。
+ */
+const SPECIAL_MIX_NOTES: Record<number, string> = {
+  1: '第6表④：純資産価額と（類似業種比準価額 × 25％＋純資産価額 × 75％）のいずれか低い方',
+  2: '第6表⑤：第7表の3の㊘（S1＋S2方式）',
+  3: '第6表⑥：純資産価額 100％',
+  4: '第6表⑦：純資産価額 100％',
+  5: '第6表⑧：純資産価額 100％',
+  6: '清算分配見込額により評価（第3表・第6表は使用しません）',
+};
+
+export function basisMixNote(basis: ValuationBasis): string | null {
+  if (basis.classification !== 0) return SPECIAL_MIX_NOTES[basis.classification] ?? null;
+  if (basis.size === null) return null;
+  const rate = basis.lRate ?? (basis.size === 4 ? 1 : basis.size === 0 ? 0.5 : null);
+  if (rate === null) return null;
+  const pct = (v: number) => (v * 100).toLocaleString('ja-JP', { maximumFractionDigits: 2 });
+  return `類似業種 ${pct(rate)}％・純資産 ${pct(1 - rate)}％`;
+}
+
 /** 指定した評価目的での株価一式 */
 export function calcValuationBasis(
   getField: TableProps['getField'],
@@ -156,6 +194,12 @@ export function calcValuationBasis(
   const t4zero = calcTable4(gfZero);
   const t4assumed = gfAssumed && calcTable4(gfAssumed);
   const t5 = calcTable5(gf);
+  // 特定の評価会社に当たるときは第3表を使わない。判定は利益を差し替えると変わりうる
+  // （比準要素数１の判定は財産を見る）ので、試算ごとに第6表も通す。
+  const t6 = calcTable6(gf);
+  const t6zero = calcTable6(gfZero);
+  const t6assumed = gfAssumed && calcTable6(gfAssumed);
+  const classification = t6.t2.result;
   const size = calcCompanySize((field) => gf('table1_2', field), forcesSmallCompany(gf)).result;
   return {
     key,
@@ -165,10 +209,14 @@ export function calcValuationBasis(
     comparablePriceAssumed: t4assumed ? t4assumed.v28 ?? t4assumed.v27 ?? t4assumed.v26 : null,
     netAssetPrice: t5['⑪'] ?? null,
     lRate: t3.lRate,
-    gensoku: t3.gensoku,
-    gensokuZeroProfit: t3zero.gensoku,
-    gensokuAssumed: t3assumed ? t3assumed.gensoku : null,
-    haitoKangen: t3.haitoKangen,
+    classification,
+    classificationName: RESULT_NAMES[classification] ?? RESULT_NAMES[0]!,
+    gensokuKubun: KUBUN_BY_RESULT[classification] ?? null,
+    gensoku: gensokuOf(t3, t6),
+    gensokuZeroProfit: gensokuOf(t3zero, t6zero),
+    gensokuAssumed: t3assumed && t6assumed ? gensokuOf(t3assumed, t6assumed) : null,
+    // 配当還元価額の上限は「原則的評価額」なので、こちらも使う表を揃える
+    haitoKangen: classification === 0 ? t3.haitoKangen : t6.v26 ?? t6.v25,
     size,
     sizeLabel: size === null ? '判定未完了' : SIZE_NAMES[size] ?? '判定未完了',
   };
@@ -263,8 +311,10 @@ export type SizeScenario = {
   sizeLabel: string;
   /** 類似業種比準価額（第4表 ㉘→㉗→㉖） */
   comparablePrice: number | null;
-  /** 原則的評価方式による価額（第3表） */
+  /** 原則的評価方式による価額（一般は第3表、特定の評価会社は第6表） */
   gensoku: number | null;
+  /** その規模での第2表の判定（0=一般。規模で土地保有特定会社の判定が変わる） */
+  classification: number;
   /** 第1表の2の判定と一致する規模か */
   current: boolean;
 };
@@ -282,12 +332,16 @@ export function calcSizeScenarios(
 ): SizeScenario[] {
   const gf = withPurpose(getField, 'inheritance');
   return SIZE_ORDER.map((size) => {
-    const t3 = calcTable3(withSize(gf, size));
+    // 土地保有特定会社の判定基準は会社規模で変わるので、規模ごとに第2表から引き直す
+    const sized = withSize(gf, size);
+    const t3 = calcTable3(sized);
+    const t6 = calcTable6(sized);
     return {
       size,
       sizeLabel: SIZE_NAMES[size] ?? '',
       comparablePrice: t3.v1,
-      gensoku: t3.gensoku,
+      gensoku: gensokuOf(t3, t6),
+      classification: t6.t2.result,
       current: size === currentSize,
     };
   });

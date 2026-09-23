@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { TableId } from '@/types/form';
-import { calcValuationReport } from '@/lib/valuationReport';
+import { basisMixNote, calcValuationReport } from '@/lib/valuationReport';
 
 type Data = Partial<Record<TableId, Record<string, string>>>;
 const mkGetField = (data: Data) => (table: TableId, field: string): string => data[table]?.[field] ?? '';
@@ -247,5 +247,62 @@ describe('calcValuationReport（お客様報告：株価一覧・株主ごとの
     }));
     expect(large.bases[0]!.size).toBe(4);
     expect(large.bases[1]!.size).toBe(0);
+  });
+});
+
+// 比準要素数１の会社の最小構成（大会社）。
+// 資本金等の額 10,000千円 → ⑤（1株50円当たりの発行済株式数）= 200,000株。
+// ①年配当・年利益が第(1)も第(2)もゼロなので、第2表の判定は「１．比準要素数１の会社」になる。
+const hijun1Data: Data = {
+  table1_1: { '⑤': '200000', f63: '0', '⑥': '200000', '③': '200000', sh_1_1: '甲', sh_1_4: '150000', sh_1_5: '150000' },
+  table1_2: { gyoshu: 'その他', f22: '100000', f24: '50000', emp_regular: '80' }, // 大会社（斟配率0.7）
+  table4: {
+    '①': '10000',
+    f28: '0', f32: '0', f36: '0',          // 年配当：Ⓑ₁もⒷ₂も 0
+    e18: '100', e25: '100', e32: '100',    // 年利益：Ⓒ₁もⒸ₂も 0（per50 の下限は200千円）
+    n53: '0', n56: '10000', n57: '0',      // 純資産：Ⓕ₁=Ⓕ₂=50
+    '㋷': '300', r1sB1: '5', r1sC: '20', r1sD: '250',
+  },
+  table5: {
+    a_1_1: '現金', a_1_2: '100000', a_1_3: '100000',
+    l_1_1: '借入金', l_1_2: '20000', l_1_3: '20000',
+  },
+};
+
+describe('特定の評価会社（比準要素数１）の原則的評価額は第6表から採る', () => {
+  const report = calcValuationReport(mkGetField(hijun1Data));
+  const souzoku = report.bases[0]!;
+
+  it('第2表の判定と、使った第6表の区分を持つ', () => {
+    expect(souzoku.classification).toBe(1);
+    expect(souzoku.classificationName).toBe('１．比準要素数１の会社');
+    expect(souzoku.gensokuKubun).toBe('④');
+  });
+
+  it('第3表④（大会社）ではなく、第6表④の金額になる', () => {
+    expect(souzoku.comparablePrice).toBe(12);   // 類似業種比準価額
+    expect(souzoku.netAssetPrice).toBe(400);    // 1株当たり純資産価額
+    // 第3表④（大会社）= min(12, 400) = 12 だが、第6表④ = min(400, 12×0.25＋400×0.75) = 303
+    expect(souzoku.gensoku).toBe(303);
+  });
+
+  it('株主ごとの評価額も同じ基準価額を使う', () => {
+    const kou = report.shareholders[0]!;
+    expect(kou.method).toBe('gensoku');
+    expect(kou.amounts[0]!.gensokuTotal).toBe(150000 * 303);
+  });
+
+  it('会社規模を変えた株価も第6表基準で揃える', () => {
+    const at = (size: number) => report.sizeScenarios.find((s) => s.size === size)!;
+    expect(report.sizeScenarios.every((s) => s.classification === 1)).toBe(true);
+    // 現在の判定（大会社）の行は株価一覧と一致する
+    expect(at(4).current).toBe(true);
+    expect(at(4).gensoku).toBe(souzoku.gensoku);
+    // 規模が下がると類似業種比準価額が下がるので、④は純資産価額側へ寄る
+    expect(at(0).gensoku!).toBeLessThan(at(4).gensoku!);
+  });
+
+  it('併用割合の説明は会社規模ではなく第6表の算定方法を指す', () => {
+    expect(basisMixNote(souzoku)).toContain('第6表④');
   });
 });

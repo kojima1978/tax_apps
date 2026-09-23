@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import { RetirementSimulation } from './RetirementSimulation';
 import { useHeightVar } from '@/hooks/useHeightVar';
-import { calcClientSummary } from '@/lib/clientSummary';
+import { RESULT_NAMES, calcClientSummary } from '@/lib/clientSummary';
 import { calcNextYearForecast, type ElementForecast } from '@/lib/nextYearForecast';
 import {
   ACTION_FIELD, ACTION_FILTERS, ASSUMED_PROFIT_FIELD, ASSUMED_PROFIT_OFF_FIELD, BASIS_FIELD, BASIS_FILTERS,
@@ -10,7 +10,7 @@ import {
   readSummaryOptions, resetSummaryOptionFields,
   sectionField, toStoredFlag, type RowScope, type SummaryOptions, type SummarySectionKey,
 } from '@/lib/summaryOptions';
-import { calcValuationReport, type ShareholderValuationRow, type ValuationBasis, type ValuationBasisKey } from '@/lib/valuationReport';
+import { basisMixNote, calcValuationReport, type ShareholderValuationRow, type ValuationBasis, type ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
 import { NEGATIVE_MARK, formatAmount, formatDecimal } from '@/lib/numberFormat';
 
@@ -43,6 +43,9 @@ function pendingPrice(key: string, basis: ValuationBasis | undefined): string {
   if (key.startsWith('comparable')) return '第4表の入力・算定結果を確認してください';
   if (key.startsWith('netAsset')) return '第5表の入力・算定結果を確認してください';
   if (basis?.size === null) return '第1表の2で会社規模を判定してください';
+  // 特定の評価会社は第3表を使わないので、見を向ける先も第6表にする
+  if (basis && basis.classification === 6) return '清算中の会社は清算分配見込額により評価します';
+  if (basis && basis.classification !== 0) return '第6表の判定・算定結果を確認してください';
   return '第3表の判定・算定結果を確認してください';
 }
 
@@ -75,6 +78,12 @@ const SIZE_SCALE = [
   { size: 4, name: '大会社', rate: 1 },
 ] as const;
 
+// 原則的評価額の出どころ。一般の評価会社は第3表、特定の評価会社は第6表の該当区分。
+const gensokuSource = (b: ValuationBasis): string =>
+  b.classification === 0 ? '会社規模に応じた第3表の最終価額'
+    : b.classification === 6 ? `${b.classificationName}　清算分配見込額により評価`
+      : `${b.classificationName}　第6表${b.gensokuKubun ?? ''}の最終価額`;
+
 /** 「利益3,000千円の場合」のように、試算に使った額を条件名にする */
 const assumedProfitCase = (amount: number) => `利益${formatAmount(amount)}千円の場合`;
 
@@ -83,6 +92,8 @@ const PRICE_ROWS: {
   key: string;
   label: string;
   note: string;
+  /** 第2表の判定で説明が変わる行（原則的評価額）だけ、note を差し替える */
+  noteOf?: (basis: ValuationBasis) => string;
   emphasis?: boolean;
   /** 金額を読み取るベース */
   basis: ValuationBasisKey;
@@ -114,6 +125,7 @@ const PRICE_ROWS: {
     key: 'gensokuInheritance',
     label: '原則的評価方式による評価額',
     note: '会社規模に応じた第3表の最終価額',
+    noteOf: gensokuSource,
     emphasis: true,
     basis: 'inheritance',
     scope: 'inheritance',
@@ -127,8 +139,8 @@ const PRICE_ROWS: {
     scope: 'common',
     cell: (b) => {
       const size = SIZE_SCALE.find((s) => s.size === b.size);
-      const rate = b.lRate ?? size?.rate;
-      return { text: size?.name ?? '－', sub: rate === undefined ? undefined : `類似業種 ${(rate * 100).toLocaleString('ja-JP')}％・純資産 ${((1 - rate) * 100).toLocaleString('ja-JP', { maximumFractionDigits: 2 })}％` };
+      // 特定の評価会社は会社規模による併用割合を用いない（basisMixNote が判定で切り替える）
+      return { text: size?.name ?? '－', sub: basisMixNote(b) ?? undefined };
     },
   },
   {
@@ -153,6 +165,7 @@ const PRICE_ROWS: {
     key: 'gensokuInheritanceZeroProfit',
     label: '原則的評価方式による評価額',
     note: '直前期の年利益金額をゼロとして再計算した場合の第3表の最終価額',
+    noteOf: (b) => `直前期の年利益金額をゼロとして再計算（${gensokuSource(b)}）`,
     emphasis: true,
     basis: 'inheritance',
     scope: 'inheritance',
@@ -181,6 +194,7 @@ const PRICE_ROWS: {
     key: 'gensokuInheritanceAssumed',
     label: '原則的評価方式による評価額',
     note: '直前期の年利益金額を想定額に置き換えて再計算した場合の第3表の最終価額',
+    noteOf: (b) => `直前期の年利益金額を想定額に置き換えて再計算（${gensokuSource(b)}）`,
     emphasis: true,
     basis: 'inheritance',
     scope: 'inheritance',
@@ -509,9 +523,10 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint, onOp
                   const pending = text === '算定未完了' || text === '－' || text === '判定未完了';
                   const sizeRow = priceRow.key.startsWith('companySize');
                   const trialValue = group.key === 'zero' ? basis?.gensokuZeroProfit : basis?.gensokuAssumed;
+                  const note = basis && priceRow.noteOf ? priceRow.noteOf(basis) : priceRow.note;
                   return (
                     <tr key={priceRow.key} className={priceRow.emphasis ? 'summary-table-emphasis' : sizeRow ? 'summary-company-size' : undefined}>
-                      <th scope="row">{priceRow.label}{priceRow.note && <small>{priceRow.note}</small>}</th>
+                      <th scope="row">{priceRow.label}{note && <small>{note}</small>}</th>
                       <td className="summary-holders-num">
                         {pending ? (sizeRow || basis?.size === null && priceRow.emphasis ? '判定待ち' : '算定未完了') : text}
                         {pending ? <small>{pendingPrice(priceRow.key, basis)}</small> : sub && <small>{sub}</small>}
@@ -766,8 +781,10 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint, onOp
                       <th scope="row">
                         {scenario.sizeLabel}
                         {scenario.current && <span className="summary-size-current">現在の判定</span>}
+                        {/* 土地保有特定会社の判定基準は規模で変わるので、規模ごとに評価区分を出す */}
+                        {scenario.classification !== 0 && <small>{RESULT_NAMES[scenario.classification]}</small>}
                       </th>
-                      <td className="summary-holders-num">{scale ? scale.rate.toFixed(2) : '－'}</td>
+                      <td className="summary-holders-num">{scenario.classification !== 0 ? '－' : scale ? scale.rate.toFixed(2) : '－'}</td>
                       <td className="summary-holders-num">{yenOrDash(scenario.comparablePrice)}</td>
                       <td className="summary-holders-num">{yenOrDash(report.bases.find((basis) => basis.key === 'inheritance')?.netAssetPrice ?? null)}</td>
                       <td className="summary-holders-num">{yenOrDash(scenario.gensoku)}</td>

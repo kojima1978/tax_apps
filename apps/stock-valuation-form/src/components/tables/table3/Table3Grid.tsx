@@ -4,6 +4,8 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { calcShareholderJudgment } from '../Table1_1Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
+import { FormScopeNotice } from '../FormScopeNotice';
+import { calcTable2, RESULT_NAMES } from '../table2/Table2Grid';
 import { methodPickCell, rightsTotal } from '../shared';
 import { table3Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
@@ -90,7 +92,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '①　類 似 業 種 比 準 価 額\n（第４表の２の㉖、㉘又は㉜の金額）', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 6.5, top: 14.36, left: 19.34, width: 23.45, height: 3.87 },
   { kind: 'label', text: '②　１株当たりの純資産価額\n（第５表の⑪の金額）', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 6.5, top: 14.36, left: 42.79, width: 23.29, height: 3.87 },
   { kind: 'label', text: '③　１株当たりの純資産価額の80％相当額\n（第５表の⑫の記載がある場合のその金額）', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 6.5, top: 14.36, left: 66.08, width: 26.26, height: 3.87 },
-  { field: '①', kind: 'input', readOnly: true, jumpTo: { tab: 'table4', field: '㉖', hint: 'クリックで転記元（第４表の類似業種比準価額）へ移動します' }, top: 18.23, left: 19.34, width: 23.45, height: 2.6, align: 'right' },
+  { field: '①', kind: 'input', readOnly: true, jumpTo: { tab: 'table4_2', field: '㉖', hint: 'クリックで転記元（第４表の２の類似業種比準価額）へ移動します' }, top: 18.23, left: 19.34, width: 23.45, height: 2.6, align: 'right' },
   { field: '②', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑪', hint: 'クリックで転記元（第５表の⑪・1株当たりの純資産価額）へ移動します' }, top: 18.23, left: 42.79, width: 23.29, height: 2.6, align: 'right' },
   { field: '③', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: '⑫', hint: 'クリックで転記元（第５表の⑫・1株当たりの純資産価額の80％相当額）へ移動します' }, top: 18.23, left: 66.08, width: 26.26, height: 2.6, align: 'right' },
   { kind: 'label', text: '１株当たりの価額の計算', verticalSectionHeading: { number: '１', text: '株当たりの価額の計算', compact: true }, top: 20.83, left: 10.27, width: 1.82, height: 13.13 },
@@ -180,7 +182,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '⑯　１株当たりの資本金等の\n額を50円とした場合の発行\n済株式数（⑬÷50円）', bottomLabel: '（株）', bottomLabelAlign: 'right', fontSize: 6, top: 49.03, left: 58.34, width: 17.37, height: 3.96 },
   { kind: 'label', text: '⑰　１株当たりの\n資本金等の額\n（⑬÷（⑭－⑮））', bottomLabel: '（円）', bottomLabelAlign: 'right', fontSize: 6, top: 49.03, left: 75.71, width: 16.63, height: 3.96 },
   { kind: 'cell', codeLabel: 'G02', top: 52.99, left: 10.27, width: 1.82, height: 2.62 },
-  { field: '⑬', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: '①', hint: 'クリックで入力元（第４表の１・①直前期末の資本金等の額）へ移動します' }, top: 52.99, left: 12.09, width: 15.23, height: 2.62, align: 'right' },
+  { field: '⑬', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4_1', field: '①', hint: 'クリックで入力元（第４表の１・①直前期末の資本金等の額）へ移動します' }, top: 52.99, left: 12.09, width: 15.23, height: 2.62, align: 'right' },
   { kind: 'cell', codeLabel: 'G03', top: 52.99, left: 27.32, width: 2.29, height: 2.62 },
   { field: '⑭', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table1_1', field: '⑤', hint: 'クリックで入力元（第１表の１⑤・発行済株式数）へ移動します' }, top: 52.99, left: 29.61, width: 13.18, height: 2.62, align: 'right' },
   { kind: 'cell', codeLabel: 'G04', top: 52.99, left: 42.79, width: 2.86, height: 2.62 },
@@ -197,17 +199,17 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '㉑　年平均配当金額\n（（㋑＋㋺）÷２）', top: 57.55, left: 73.89, width: 18.45, height: 2.05, fontSize: 6.5 },
   { kind: 'label', text: '直　前　期', top: 59.6, left: 10.27, width: 9.07, height: 2.59 },
   { kind: 'cell', codeLabel: 'G05', top: 59.6, left: 19.34, width: 1.81, height: 2.59 },
-  { field: 'f55', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: 'f28', hint: 'クリックで入力元（第４表・⑥年配当金額・直前期）へ移動します' }, top: 59.6, left: 21.15, width: 16.2, height: 2.59, align: 'right' },
+  { field: 'f55', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4_1', field: 'f28', hint: 'クリックで入力元（第４表の１・⑥年配当金額・直前期）へ移動します' }, top: 59.6, left: 21.15, width: 16.2, height: 2.59, align: 'right' },
   { kind: 'cell', codeLabel: 'G07', top: 59.6, left: 37.35, width: 1.81, height: 2.59 },
-  { field: 'f56', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: 'f29', hint: 'クリックで入力元（第４表・⑦非経常的な配当金額・直前期）へ移動します' }, top: 59.6, left: 39.16, width: 15.55, height: 2.59, align: 'right' },
+  { field: 'f56', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4_1', field: 'f29', hint: 'クリックで入力元（第４表の１・⑦非経常的な配当金額・直前期）へ移動します' }, top: 59.6, left: 39.16, width: 15.55, height: 2.59, align: 'right' },
   { kind: 'label', text: '㋑', top: 59.6, left: 54.71, width: 1.82, height: 2.59 },
   { kind: 'cell', codeLabel: 'G09', top: 59.6, left: 56.53, width: 1.81, height: 2.59 },
   { field: 'イ', kind: 'input', readOnly: true, top: 59.6, left: 58.34, width: 15.55, height: 2.59, align: 'right' },
   { kind: 'label', text: '直 前 々 期', top: 62.19, left: 10.27, width: 9.07, height: 2.6 },
   { kind: 'cell', codeLabel: 'G06', top: 62.19, left: 19.34, width: 1.81, height: 2.6 },
-  { field: 'f59', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: 'f32', hint: 'クリックで入力元（第４表・⑥年配当金額・直前々期）へ移動します' }, top: 62.19, left: 21.15, width: 16.2, height: 2.6, align: 'right' },
+  { field: 'f59', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4_1', field: 'f32', hint: 'クリックで入力元（第４表の１・⑥年配当金額・直前々期）へ移動します' }, top: 62.19, left: 21.15, width: 16.2, height: 2.6, align: 'right' },
   { kind: 'cell', codeLabel: 'G08', top: 62.19, left: 37.35, width: 1.81, height: 2.6 },
-  { field: 'f60', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4', field: 'f33', hint: 'クリックで入力元（第４表・⑦非経常的な配当金額・直前々期）へ移動します' }, top: 62.19, left: 39.16, width: 15.55, height: 2.6, align: 'right' },
+  { field: 'f60', kind: 'input', commaInteger: true, readOnly: true, jumpTo: { tab: 'table4_1', field: 'f33', hint: 'クリックで入力元（第４表の１・⑦非経常的な配当金額・直前々期）へ移動します' }, top: 62.19, left: 39.16, width: 15.55, height: 2.6, align: 'right' },
   { kind: 'label', text: '㋺', top: 62.19, left: 54.71, width: 1.82, height: 2.6 },
   { kind: 'cell', codeLabel: 'G10', top: 62.19, left: 56.53, width: 1.81, height: 2.6 },
   { field: 'ロ', kind: 'input', readOnly: true, top: 62.19, left: 58.34, width: 15.55, height: 2.6, align: 'right' },
@@ -500,6 +502,15 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
   });
   // 自動計算欄には「実際に使った値」をホバーで出す（会社規模・適用方式の分岐もここで伝える）
   const hintedCells = withFormulaHints(cells, table3Hints(calc, raw, getField));
+  // この表は入力に関係なく最後まで計算するので、特定の評価会社でも完成した金額が並ぶ。
+  // 使わない表であることを様式の外側（画面だけ）に出す。
+  const t2 = calcTable2(getField);
+  const scopeNotice = t2.result === 0 ? null : (
+    <FormScopeNotice
+      tone="warn"
+      text={`第２表の判定：${RESULT_NAMES[t2.result] ?? ''} ─ この表は使用しません（${t2.result === 6 ? '清算分配見込額' : '第６表'}で評価します）`}
+    />
+  );
   const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(hintedCells, g, u, T, onJump);
-  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA200010010" headerExtra={headerExtra} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
+  return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第３表　一般の評価会社の株式及び株式に関する権利の価額の計算明細書" formCode="NTA0VNA200010010" headerExtra={headerExtra} toolbar={scopeNotice} onJump={onJump && ((t) => onJump({ tab: t.tab as TableId, field: t.field }))} />;
 }
