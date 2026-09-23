@@ -376,7 +376,8 @@ const CELLS: GridCell[] = [
   // ── 会社情報ヘッダー ──（氏名欄は本表の外＝headerExtra の浮遊枠に分離）
   { kind: 'label', text: '会　社　名', top: 19.43, left: 10.48, width: 7.21, height: 2.56 },
   { kind: 'cell', codeLabel: 'E01', top: 19.43, left: 17.69, width: 1.81, height: 2.56 },
-  { field: 'f12', kind: 'input', top: 19.43, left: 19.5, width: 18.13, height: 2.56, align: 'left' },
+  // 社名は長さが読めないので、枠に入らないぶんは字を縮めて1行に収める（切れた末尾のまま提出しない）
+  { field: 'f12', kind: 'input', top: 19.43, left: 19.5, width: 18.13, height: 2.56, align: 'left', fitText: true },
   { kind: 'label', text: '本　店　の\n所　在　地', top: 19.43, left: 37.63, width: 7.25, height: 2.56, fontSize: 8 },
   { kind: 'cell', codeLabel: 'H04', top: 19.43, left: 44.88, width: 1.82, height: 2.56 },
   { field: 'f18', kind: 'input', top: 19.43, left: 46.7, width: 41.78, height: 2.56, align: 'left' },

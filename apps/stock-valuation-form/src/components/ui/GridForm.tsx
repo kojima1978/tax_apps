@@ -2,6 +2,7 @@ import { FORM_GEOMETRY, type FormGeometry, type MmRect } from './formGeometry';
 import { QR_SIZE } from '@/data/formQr';
 import { formatCommaInteger, formatSignedCommaInteger, normalizeInteger } from '@/lib/numberFormat';
 import { formQrPath } from '@/lib/qrPath';
+import { useFitFontSize } from '@/hooks/useFitFontSize';
 import { DEFAULT_ERA } from '@/lib/wareki';
 import { createContext, useContext, useMemo, useRef, useCallback, useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 
@@ -25,6 +26,7 @@ export interface GridCell {
   forceVertical?: boolean;           // セル比率にかかわらず縦書きにする
   bold?: boolean;
   noWrap?: boolean;                  // 明示改行以外では折り返さない
+  fitText?: boolean;                 // 枠に入りきらない自由入力（会社名など）を1行のまま縮めて収める
   cornerLabel?: string;             // 入力欄の左上に表示する固定ラベル
   cornerLabelTop?: number;          // 固定ラベルの上端位置（px）
   codeLabel?: string;               // 様式の識別コード（E01/G04等）をセル左上に小さく表示
@@ -307,6 +309,55 @@ function AlternativeFractions({ spec, printRendering }: { spec: NonNullable<Grid
         {spec.suffix && <span>{spec.suffix}</span>}
       </span>
     </span>
+  );
+}
+
+/**
+ * 会社名のように長さの読めない自由入力。枠に入りきらないぶんだけ字を縮め、1行のまま全部見せる。
+ * 既定の入力欄は枠が overflow:hidden なので、はみ出したぶんは画面でも印刷でも黙って切れる ──
+ * 提出物で社名の末尾が消えるのがいちばん困る。
+ * 数字用の書式（カンマ区切り・桁数制限など）は持たない。縮める必要があるのは桁数の決まっていない文字列だけ。
+ */
+function FitTextField({ id, name, ariaLabel, title, value, onChange, onKeyDown, readOnly, align, baseFontSize, highlighted, calculationRequired, printRendering }: {
+  id: string;
+  name: string;
+  ariaLabel: string;
+  title?: string;
+  value: string;
+  onChange: (value: string) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
+  readOnly: boolean;
+  align: 'left' | 'center' | 'right';
+  baseFontSize: number;
+  highlighted: boolean;
+  calculationRequired: boolean;
+  printRendering: boolean;
+}) {
+  const { ref, fontSize } = useFitFontSize(value, baseFontSize);
+  const background = readOnly ? (highlighted ? '#fff3b0' : '#f7f7f7') : !printRendering && calculationRequired ? CALCULATION_REQUIRED_BG : 'transparent';
+  const style: CSSProperties = { width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: align, fontSize, background, padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' };
+  if (printRendering) {
+    return (
+      <div ref={ref} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: align === 'left' ? 'flex-start' : align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+        {value}
+      </div>
+    );
+  }
+  return (
+    <input
+      ref={ref}
+      id={id}
+      name={name}
+      aria-label={ariaLabel}
+      aria-required={calculationRequired || undefined}
+      title={title}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
+      readOnly={readOnly}
+      tabIndex={readOnly ? -1 : undefined}
+      style={style}
+    />
   );
 }
 
@@ -781,6 +832,22 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                     return <option key={o.value || 'blank'} value={o.value}>{label}</option>;
                   })}
                 </select>
+              : c.kind === 'input' && c.field && c.fitText
+              ? <FitTextField
+                  id={`${inputPrefix}-${c.field}-${i}`}
+                  name={`${inputPrefix}.${c.field}`}
+                  ariaLabel={c.ariaLabel ?? c.field}
+                  title={cellHint(c)}
+                  value={g(c.field)}
+                  onChange={(next) => u(c.field!, next)}
+                  onKeyDown={onEnterNext}
+                  readOnly={readOnly}
+                  align={c.align ?? 'right'}
+                  baseFontSize={fontSize}
+                  highlighted={highlighted}
+                  calculationRequired={c.calculationRequired === true}
+                  printRendering={printRendering}
+                />
               : c.kind === 'input' && c.field
               ? <>
                   {c.cornerLabel && <span style={{ position: 'absolute', top: c.cornerLabelTop ?? 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}

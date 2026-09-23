@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { GridCell } from '@/components/ui/GridForm';
+import { useFitFontSize } from '@/hooks/useFitFontSize';
 import type { TableProps } from '@/types/form';
 
 // ══ 会社名の独立浮遊枠ヘルパー（令和8年様式）══
@@ -10,6 +11,43 @@ import type { TableProps } from '@/types/form';
 
 const isCompanyCell = (c: GridCell): boolean =>
   c.field === 'company' || (c.kind === 'label' && !!c.text && c.text.replace(/[\s　]/g, '') === '会社名');
+
+const COMPANY_FONT_SIZE = 11;
+
+/** 浮遊枠の中身。入口が2つ（本表からの分離・続紙）あるが、違うのは枠の幾何値だけなので実体は1つ。 */
+function CompanyNameBox({ g, u, formId, widthPct, aspect, labelFrac, onJump }: {
+  g: (f: string) => string;
+  u: (f: string, v: string) => void;
+  formId: string;
+  widthPct: number;
+  aspect: number;
+  labelFrac: number;
+  onJump?: TableProps['onJump'];
+}): ReactNode {
+  const name = g('company');
+  // 長い社名がこの枠で切れないよう、入りきらないぶんだけ字を縮める
+  const { ref, fontSize } = useFitFontSize(name, COMPANY_FONT_SIZE);
+
+  return (
+    <div style={{ display: 'flex', padding: '3mm 0 4mm', fontFamily: '"Noto Sans JP", sans-serif' }}>
+      <div className="gf-float-box" role="group" aria-label="会社名" style={{ marginLeft: 'auto', width: `${widthPct.toFixed(2)}%`, aspectRatio: `${aspect.toFixed(3)} / 1`, display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
+        <div style={{ flex: `0 0 ${(labelFrac * 100).toFixed(1)}%`, borderRight: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, letterSpacing: '0.4em', paddingLeft: '0.4em' }}>会社名</div>
+        <input
+          ref={ref}
+          id={`${formId}-company`}
+          name={`${formId}.company`}
+          aria-label="会社名"
+          title={name ? `${name}（クリックで第１表の１の会社名入力欄へ移動します）` : 'クリックで第１表の１の会社名入力欄へ移動します'}
+          value={name}
+          onChange={(e) => u('company', e.target.value)}
+          onClick={() => onJump?.({ tab: 'table1_1', field: 'f12' })}
+          readOnly
+          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: '#f7f7f7', padding: '0 6px', fontSize, fontFamily: 'inherit', cursor: onJump ? 'pointer' : 'default' }}
+        />
+      </div>
+    </div>
+  );
+}
 
 export interface CompanyFloatHeader {
   /** 会社名セルを除いた本表セル */
@@ -59,22 +97,7 @@ export function extractCompanyFloatHeader(
     : 0.35;
 
   const headerExtra = (
-    <div style={{ display: 'flex', padding: '3mm 0 4mm', fontFamily: '"Noto Sans JP", sans-serif' }}>
-      <div className="gf-float-box" role="group" aria-label="会社名" style={{ marginLeft: 'auto', width: `${(boxWidthFrac * 100).toFixed(2)}%`, aspectRatio: `${boxAspect.toFixed(3)} / 1`, display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
-        <div style={{ flex: `0 0 ${(split * 100).toFixed(1)}%`, borderRight: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, letterSpacing: '0.4em', paddingLeft: '0.4em' }}>会社名</div>
-        <input
-          id={`${formId}-company`}
-          name={`${formId}.company`}
-          aria-label="会社名"
-          title="クリックで第１表の１の会社名入力欄へ移動します"
-          value={g('company')}
-          onChange={(e) => u('company', e.target.value)}
-          onClick={() => onJump?.({ tab: 'table1_1', field: 'f12' })}
-          readOnly
-          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: '#f7f7f7', padding: '0 6px', fontSize: 11, fontFamily: 'inherit', cursor: onJump ? 'pointer' : 'default' }}
-        />
-      </div>
-    </div>
+    <CompanyNameBox g={g} u={u} formId={formId} widthPct={boxWidthFrac * 100} aspect={boxAspect} labelFrac={split} onJump={onJump} />
   );
   return { mainCells, headerExtra, aspectRatio };
 }
@@ -90,22 +113,5 @@ export function companyFloatBox(
   opts: { widthPct: number; aspect: number; labelFrac?: number; onJump?: TableProps['onJump'] } = { widthPct: 41, aspect: 9 },
 ): ReactNode {
   const { widthPct, aspect, labelFrac = 0.36, onJump } = opts;
-  return (
-    <div style={{ display: 'flex', padding: '3mm 0 4mm', fontFamily: '"Noto Sans JP", sans-serif' }}>
-      <div className="gf-float-box" role="group" aria-label="会社名" style={{ marginLeft: 'auto', width: `${widthPct}%`, aspectRatio: `${aspect} / 1`, display: 'flex', border: '1.5px solid #000', boxSizing: 'border-box' }}>
-        <div style={{ flex: `0 0 ${(labelFrac * 100).toFixed(1)}%`, borderRight: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, letterSpacing: '0.4em', paddingLeft: '0.4em' }}>会社名</div>
-        <input
-          id={`${formId}-company`}
-          name={`${formId}.company`}
-          aria-label="会社名"
-          title="クリックで第１表の１の会社名入力欄へ移動します"
-          value={g('company')}
-          onChange={(e) => u('company', e.target.value)}
-          onClick={() => onJump?.({ tab: 'table1_1', field: 'f12' })}
-          readOnly
-          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: '#f7f7f7', padding: '0 6px', fontSize: 11, fontFamily: 'inherit', cursor: onJump ? 'pointer' : 'default' }}
-        />
-      </div>
-    </div>
-  );
+  return <CompanyNameBox g={g} u={u} formId={formId} widthPct={widthPct} aspect={aspect} labelFrac={labelFrac} onJump={onJump} />;
 }
