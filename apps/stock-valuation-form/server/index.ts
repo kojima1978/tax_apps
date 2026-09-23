@@ -10,6 +10,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { prisma } from './db.js';
 import { createCaseRouter } from './routes/cases.js';
+import { createFieldCatalogRouter } from './routes/fieldCatalog.js';
 import { createIndustryRouter } from './routes/industry.js';
 import { createIndustryAdminRouter } from './routes/industryAdmin.js';
 import { seedIndustryData } from './seed.js';
@@ -34,6 +35,7 @@ app.get(`${BASE_PATH}/api/health`, (c) =>
 );
 
 app.route(`${BASE_PATH}/api`, createCaseRouter(prisma));
+app.route(`${BASE_PATH}/api`, createFieldCatalogRouter());
 app.route(`${BASE_PATH}/api`, createIndustryRouter(prisma));
 app.route(`${BASE_PATH}/api`, createIndustryAdminRouter(prisma));
 
