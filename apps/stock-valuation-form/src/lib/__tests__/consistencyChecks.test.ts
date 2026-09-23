@@ -3,6 +3,7 @@ import { consistencyIssues, hasCheckableInput } from '@/lib/consistencyChecks';
 import type { TableId } from '@/types/form';
 import { RETIREMENT_AMOUNT_FIELD } from '@/lib/retirementSimulation';
 import { sampleGetField } from '@/__tests__/walkthrough/sampleCompany';
+import { calcTable5 } from '@/components/tables/table5/Table5Grid';
 
 /** 表ごとの値から getField を作る（未設定の欄は空文字） */
 const makeGetField = (data: Partial<Record<TableId, Record<string, string>>>) =>
@@ -143,7 +144,7 @@ describe('第5表と他表のつながり', () => {
     }));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ tab: 'table4_1', field: 'n53' });
-    expect(issues[0]!.message).toContain('評価通達186');
+    expect(issues[0]!.message).toContain('記載方法等 第５表 2⑶');
   });
 
   it('引当金の除外や税務簿価の差で収まる範囲なら出さない', () => {
@@ -179,5 +180,29 @@ describe('第5表と他表のつながり', () => {
     // 2年間の平均、Ⓒ₁は直前期を基にしている）。誤りではないため文言も確認を促すだけ。
     const issues = consistencyIssues(sampleGetField);
     expect(issues.map((i) => `${i.tab}.${i.field}`)).toEqual(['table4_1.e18']);
+  });
+});
+
+describe('第5表：様式に書かない欄・書かない資産', () => {
+  it('現物出資等受入れ資産が①の20％以下なら、その欄は記載しない', () => {
+    // ①＝250,000千円に対して30,000千円＝12.0％
+    const issues = consistencyIssues(makeGetField({ table5: { ...ASSETS, 'ニ': '30000' } }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ tab: 'table5', field: 'ニ' });
+    expect(issues[0]!.message).toContain('20％以下');
+  });
+
+  it('20％を超えていれば記載する欄なので何も出さない', () => {
+    expect(messagesOf({ table5: { ...ASSETS, 'ニ': '60000' } })).toEqual([]);
+  });
+
+  it('繰延資産・繰延税金資産は財産性の確認を促すだけで、合計からは外さない', () => {
+    const table5 = detail('a', [['現金預金', '100000', '100000'], ['繰延税金資産', '5000', '5000']]);
+    const issues = consistencyIssues(makeGetField({ table5 }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ tab: 'table5', field: 'a_2_1' });
+    expect(issues[0]!.message).toContain('財産性');
+    // 財産性の有無は科目名では決まらない。黙って落とすと純資産価額が実際より小さく出る
+    expect(calcTable5(makeGetField({ table5 }))['①']).toBe(105000);
   });
 });

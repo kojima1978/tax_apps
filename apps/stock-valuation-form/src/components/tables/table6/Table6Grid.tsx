@@ -6,6 +6,7 @@ import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import { methodPickCell } from '../shared';
 import type { TableId, TableProps } from '@/types/form';
+import { formatAmount as fmt, formatDecimal, formatSenPart as senPart, formatYenPart as yenPart } from '@/lib/numberFormat';
 
 const T = 'table6' as const;
 
@@ -14,7 +15,6 @@ const T = 'table6' as const;
 // 土地保有特定/開業後3年未満/開業前休業中）＝④⑤⑥⑦⑧。⑤=第7表の3の㉗（旧第8表、データはtable8バケット）。
 // 保存フィールド名（mod9_div/mod10_pay等）は旧名を維持。識別コード（J/G/C）を独立セルで再現。
 
-const fl = (v: number) => Math.floor(v + 1e-9);
 
 // 円・銭サブセル付き金額入力（[コード][円値][円][銭値][銭]）
 function yenSenInput(code: string, yenField: string, senField: string, top: number, height: number, codeL: number, yenL: number, yenUnitL: number, senL: number, senUnitL: number, end: number, props: Partial<GridCell> = {}): GridCell[] {
@@ -188,7 +188,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '円', top: 93.59, left: 50.6, width: 1.86, height: 3.48, fontSize: 7 },
   { kind: 'label', text: '㊱　株式に関する\n権利の評価額', fontSize: 7, top: 93.59, left: 52.46, width: 11.0, height: 3.48 },
   { kind: 'cell', codeLabel: 'J06', top: 93.59, left: 63.46, width: 2.86, height: 3.48 },
-  { field: '㊱円', kind: 'input', readOnly: true, multiline: true, fontSize: 7, top: 93.59, left: 66.32, width: 14.7, height: 3.48, align: 'right' },
+  { field: '㊱円', kind: 'input', readOnly: true, top: 93.59, left: 66.32, width: 14.7, height: 3.48, align: 'right' },
   { kind: 'label', text: '円', top: 93.59, left: 81.02, width: 1.81, height: 3.48, fontSize: 7 },
   { field: '㊱銭', kind: 'input', readOnly: true, top: 93.59, left: 82.83, width: 7.34, height: 3.48, align: 'right' },
   { kind: 'label', text: '銭', top: 93.59, left: 90.17, width: 2.26, height: 3.48, fontSize: 7 },
@@ -200,10 +200,7 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
   const u = (f: string, v: string) => updateField(T, f, v);
 
   const num = (f: string) => numOf(raw(f));
-  const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
-  const fmtDec1 = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP', { maximumFractionDigits: 1 }));
-  const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
-  const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
+  const fmtDec1 = (v: number | null) => formatDecimal(v, 1);
 
   // 計算は calcTable6 に集約（お客様サマリー・来期の見通しからも同じ関数を呼ぶ）
   const {
@@ -212,31 +209,20 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
     cap, issued, treasury, v18, sharesNet, v19disp,
     ia, ro, v23, v24, v24raw, v24Floored, v25, v26,
     medical, mode, useHaito, finalPrice,
-    expDiv, expTax, v29, baseRight, v32, v33, v34,
+    expDiv, expTax, v29, baseRight, v32, v33, v34, rights,
+    p4disp, v10disp, v14disp, v25disp, v32disp, v33disp,
   } = calcTable6(getField);
 
-  const RIGHTS = [
-    { key: 'right_haito', mark: '㉙', name: '配当期待権', yen: v29 === null ? null : `㉙ ${fl(v29).toLocaleString('ja-JP')}` },
-    { key: 'right_wariate', mark: '㉜', name: '株式の割当てを受ける権利', yen: v32 === null ? null : `㉜ ${v32.toLocaleString('ja-JP')}` },
-    { key: 'right_kabunushi', mark: '㉝', name: '株主となる権利', yen: v33 === null ? null : `㉝ ${v33.toLocaleString('ja-JP')}` },
-    { key: 'right_musho', mark: '㉞', name: '株式無償交付期待権', yen: v34 === null ? null : `㉞ ${v34.toLocaleString('ja-JP')}` },
-  ];
-  // 様式の㊱欄は［円］［銭］に分かれる。銭が生じるのは配当期待権のみなので、
-  // 円欄に権利ごとの円部分を、銭欄に配当期待権の銭部分を表示する。
-  const selectedRights = RIGHTS.filter((r) => raw(r.key) === '1');
-  const rightsYenText = selectedRights.map((r) => r.yen ?? `${r.mark} －`).join('\n');
-  const rightsSenText = selectedRights.some((r) => r.key === 'right_haito') && v29 !== null
-    ? String(Math.round((v29 - fl(v29)) * 100)).padStart(2, '0') : '';
 
   const g = (f: string): string => {
     switch (f) {
       case '①': return fmt(v1); case '②': return fmt(v2); case '③': return fmt(v3);
-      case '④': return fmt(p4); case '⑤': return getField('table8', '㉗');
+      case '④': return p4disp; case '⑤': return getField('table8', '㉗');
       case '⑥': return fmt(p6); case '⑦': return fmt(p7); case '⑧': return fmt(p8);
       case 'mod9_div': return yenPart(num('mod9_div'));
       case 'mod9_div_sen': return raw('mod9_div_sen').trim() !== '' ? raw('mod9_div_sen') : senPart(num('mod9_div'));
-      case '⑩': return fmt(v10);
-      case '⑭': return fmt(v14);
+      case '⑩': return v10disp;
+      case '⑭': return v14disp;
       case '⑮': return raw('⑮').trim() !== '' ? raw('⑮') : getField('table4', '①');
       case '⑯': return raw('⑯').trim() !== '' ? raw('⑯') : getField('table4', '②');
       case '⑰': return raw('⑰').trim() !== '' ? raw('⑰') : getField('table4', '③');
@@ -246,17 +232,17 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
       case '㋑': return fmtDec1(ia); case '㋺': return fmtDec1(ro);
       case '㉓': return fmtDec1(v23);
       case '㉔円': return yenPart(v24); case '㉔銭': return senPart(v24);
-      case '㉕': return fmt(v25); case '㉖': return fmt(v26);
+      case '㉕': return v25disp; case '㉖': return fmt(v26);
       case 'exp_div': return yenPart(num('exp_div'));
       case 'exp_div_sen': return raw('exp_div_sen').trim() !== '' ? raw('exp_div_sen') : senPart(num('exp_div'));
       case 'exp_tax': return yenPart(num('exp_tax'));
       case 'exp_tax_sen': return raw('exp_tax_sen').trim() !== '' ? raw('exp_tax_sen') : senPart(num('exp_tax'));
       case '㉙円': return yenPart(v29); case 'f82': return senPart(v29);
-      case '㉚': return fmt(baseRight); case '㉜': return fmt(v32);
-      case '㉝': return fmt(v33); case '㉞': return fmt(v34);
+      case '㉚': return fmt(baseRight); case '㉜': return v32disp;
+      case '㉝': return v33disp; case '㉞': return fmt(v34);
       case '㉟': return finalPrice === null ? '' : fmt(finalPrice);
-      case '㊱円': return rightsYenText;
-      case '㊱銭': return rightsSenText;
+      case '㊱円': return rights.yen;
+      case '㊱銭': return rights.sen;
       default: return raw(f);
     }
   };
@@ -290,7 +276,7 @@ export function Table6Grid({ getField, updateField, onJump }: TableProps) {
     ia, ro, v23, v24raw, v24, v24Floored, v25, jun,
     method, baseRight, finalPrice,
     expDiv, expTax, v29, v32, v33, v34,
-    rightsLabels: selectedRights.map((r) => `${r.mark} ${r.name}`).join('、'),
+    p4disp, v10disp, v14disp, v25disp, v32disp, v33disp, rights,
   });
   const cells = withFormulaHints(CELLS, hints).map((cell) => {
     if (cell.kind === 'label' && cell.text === 'この金額が２円50銭未満の場合は\n２円50銭とします。') {

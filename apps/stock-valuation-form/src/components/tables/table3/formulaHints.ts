@@ -1,6 +1,10 @@
-import { hs, hv, hyen, rv, ryen } from '@/lib/formulaHint';
+import {
+  FRACTION_NOTE_PREV_END, FRACTION_NOTE_TAX_TIME,
+  hs, hv, hyen, rd, rv, ryen,
+} from '@/lib/formulaHint';
 import type { TableProps } from '@/types/form';
 import type { calcTable3 } from './Table3Grid';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 // 第3表の自動計算欄に出すツールチップ。
 // 会社規模でどの欄を使うか・配当還元と原則のどちらを採ったかが値だけでは見えないので、
@@ -10,7 +14,7 @@ type Calc = ReturnType<typeof calcTable3>;
 type Raw = (field: string) => string;
 
 const parse = (s: string): number | null => {
-  const v = s.replace(/,/g, '').trim();
+  const v = stripAmountFormatting(s);
   return v === '' || isNaN(Number(v)) ? null : Number(v);
 };
 
@@ -44,35 +48,50 @@ export function table3Hints(c: Calc, raw: Raw, getField: TableProps['getField'])
     + (c.v22Floored ? '\n２円50銭未満のため、下限の ２円50銭 を記載します' : '');
   const v27Hint = `㉕ ${hyen(expDiv)} － ㉖ ${hyen(expTax)} ＝ ${ryen(c.v27)}（円未満2位まで）`;
 
+  // ㉞は発生している権利の合計。どれを合計したか（何が足りないか）が値だけでは見えない
+  const rightsHint = c.rights.selected.length === 0
+    ? '発生している権利を左の区分名（配当期待権など）から選ぶと、その合計額を㉞に記載します'
+    : c.rights.selected.map((r) => `${r.mark} ${r.name} ${r.value === null ? '（未計算）' : ryen(r.value)}`).join('\n')
+      + (c.rights.missing.length > 0
+        ? `\n→ ${c.rights.missing.map((r) => r.mark).join('・')}が未計算のため合計できません`
+        : `\n合計 ${ryen(c.rights.total)}（表示単位未満の端数があっても切り捨てずに記載します）`);
+
   return {
     '①': '第４表の比準価額。修正後があればそちらを使います（㉜→㉘→㉖の順）',
     '④': `イ ${rv(c.v1)}円 と ロ ${rv(c.v2)}円 のうち低い方 ＝ ${rv(c.v4)}円（大会社）`,
     '⑤': `（イ ${rv(c.v1)}円 と ロ ${rv(c.v2)}円 の低い方 ${rv(lowBase)}円）× L ${c.lRate ?? '－'}`
-      + `\n＋ ${rv(c.iSmall)}円 ×（1 － L ${c.lRate ?? '－'}）＝ ${rv(c.v5)}円（円未満切捨て・中会社）`,
+      + `\n＋ ${rv(c.iSmall)}円 ×（1 － L ${c.lRate ?? '－'}）＝ ${rd(c.v5disp)}円（中会社）`
+      + `\n${FRACTION_NOTE_TAX_TIME}`,
     '⑥': `（イ ${rv(c.v1)}円 × 0.5 ＋ ロ ${rv(c.iSmall)}円 × 0.5 ＝ ${rv(blended)}円）と ロ ${rv(c.iSmall)}円`
-      + `\nのうち低い方 ＝ ${rv(c.v6)}円（円未満切捨て・小会社）`,
+      + `\nのうち低い方 ＝ ${rd(c.v6disp)}円（小会社）`
+      + `\n${FRACTION_NOTE_TAX_TIME}`,
     L割合: 'Ｌの割合は第１表の２の会社規模の判定に連動します（中会社 大＝0.90／中＝0.75／小＝0.60）',
-    '⑧': `${baseLabel} ${rv(base)}円 － ⑦ ${hyen(mod1Div)} ＝ ${rv(c.v8)}円（円未満切捨て）`,
+    '⑧': `${baseLabel} ${rv(base)}円 － ⑦ ${hyen(mod1Div)} ＝ ${rd(c.v8disp)}円`
+      + `\n${FRACTION_NOTE_TAX_TIME}`,
     '⑫': `${c.v8 !== null ? '⑧' : baseLabel} ${rv(base12)}円 ＋ ⑨ ${hs(raw('mod2_pay'))}円 × ⑩ ${hs(raw('mod2_ratio'))}株`
-      + `\n÷（1株 ＋ ⑪ ${hs(raw('mod2_ratio2'))}株）＝ ${rv(c.v12)}円（円未満切捨て）`,
+      + `\n÷（1株 ＋ ⑪ ${hs(raw('mod2_ratio2'))}株）＝ ${rd(c.v12disp)}円`
+      + `\n${FRACTION_NOTE_TAX_TIME}`,
 
     '⑯': `⑬ ${hs(v13)}千円 × 1,000 ÷ 50円 ＝ ${rv(c.v16)}株`,
     '⑰': `⑬ ${hs(v13)}千円 × 1,000 ÷ （⑭ ${hv(issued)}株 － ⑮ ${hv(parse(c.linkedTreasuryShares) ?? 0)}株 ＝ ${rv(sharesNet)}株）`
-      + `\n＝ ${c.v17disp === '' ? '（未計算）' : c.v17disp}円（円未満切捨て。切捨てで0になるときは株数の桁に合わせた小数位で記載）`,
+      + `\n＝ ${rd(c.v17disp)}円${FRACTION_NOTE_PREV_END}`,
     イ: `⑱ ${hs(getField('table4', 'f28'))}千円 － ⑲ ${hs(getField('table4', 'f29'))}千円 ＝ ${rv(c.ia, 1)}千円`,
     ロ: `⑱ ${hs(getField('table4', 'f32'))}千円 － ⑲ ${hs(getField('table4', 'f33'))}千円 ＝ ${rv(c.ro, 1)}千円`,
     '㉑': `（イ ${hv(c.ia, 1)} ＋ ロ ${hv(c.ro, 1)}）÷ 2 ＝ ${rv(c.v21, 1)}千円`,
     '㉒円': v22Hint, '㉒銭': v22Hint,
-    '㉓': `㉒ ${ryen(c.v22)} ÷ 10％ × ⑰ ${c.v17disp === '' ? '（未計算）' : c.v17disp}円 ÷ 50円 ＝ ${rv(c.v23)}円（円未満切捨て）`,
+    '㉓': `㉒ ${ryen(c.v22)} ÷ 10％ × ⑰ ${rd(c.v17disp)}円 ÷ 50円 ＝ ${rd(c.v23disp)}円`
+      + `\n${FRACTION_NOTE_PREV_END}`,
     '㉔': c.v23 !== null && c.gensoku !== null && c.v23 > c.gensoku
       ? `㉓ ${rv(c.v23)}円 が原則的評価方式の価額 ${rv(c.gensoku)}円 を上回るため、${rv(c.gensoku)}円 を記載します`
       : `㉓ ${rv(c.v23)}円 をそのまま記載します（原則的評価方式の価額 ${rv(c.gensoku)}円 以下）`,
 
     '㉗円': v27Hint, f72: v27Hint,
     '㉘': `適用方式は${method}。その価額 ${rv(c.base28)}円 を記載します`,
-    '㉚': `㉘ ${rv(c.base28)}円 － ㉙ ${hs(raw('r22_pay'))}円 ＝ ${rv(c.v30)}円（円未満切捨て）`,
-    '㉛': `㉘ ${rv(c.base28)}円 の円未満を切り捨てた ${rv(c.v31)}円`,
+    '㉚': `㉘ ${rv(c.base28)}円 － ㉙ ${hs(raw('r22_pay'))}円 ＝ ${rd(c.v30disp)}円`
+      + `\n${FRACTION_NOTE_TAX_TIME}`,
+    '㉛': `㉘ ${rv(c.base28)}円 の円未満を切り捨てた ${rd(c.v31disp)}円\n${FRACTION_NOTE_TAX_TIME}`,
     '㉜': `㉘ ${rv(c.base28)}円 と同額`,
     '㉝': `適用方式は${method}\n記載する価額 ${rv(c.finalPrice)}円`,
+    '㉞円': rightsHint, '㉞銭': rightsHint,
   };
 }

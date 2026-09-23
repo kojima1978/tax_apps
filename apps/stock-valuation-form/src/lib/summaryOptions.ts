@@ -6,7 +6,7 @@
  * 未設定＝すべて表示になるよう、真偽値は「隠す側」を '1' として持つ（既存データは全部表示のまま）。
  */
 import type { ActionItem } from '@/lib/clientSummary';
-import { formatSignedCommaInteger } from '@/lib/numberFormat';
+import { formatSignedCommaInteger, stripAmountFormatting } from '@/lib/numberFormat';
 import type { ValuationBasis, ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
 
@@ -77,7 +77,7 @@ export const formatAssumedProfit = formatSignedCommaInteger;
 
 /** 想定利益の入力値を千円の数値へ。欠損（マイナス）も想定利益として受け付ける */
 export function parseAssumedProfit(text: string): number | null {
-  const normalized = text.replace(/[,\s]/g, '');
+  const normalized = stripAmountFormatting(text).replace(/\s/g, '');
   if (normalized === '') return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;

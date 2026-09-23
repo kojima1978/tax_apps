@@ -8,6 +8,8 @@ import { withFormulaHints } from '@/lib/formulaHint';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import type { TableId, TableProps } from '@/types/form';
 import { forcesSmallCompany, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
+import { fractionalWriters } from '@/lib/fractionalAmount';
+import { formatAmount, stripAmountFormatting } from '@/lib/numberFormat';
 
 const T = 'table8' as const;
 
@@ -148,7 +150,7 @@ function buildCells(cls: S1Class): GridCell[] {
 export function calcTable8(getField: TableProps['getField']) {
   const raw = (f: string) => getField(T, f);
   const parseNum = (value: string): number | null => {
-    const s = value.replace(/,/g, '').trim();
+    const s = stripAmountFormatting(value);
     if (s === '') return null;
     const v = Number(s);
     return isNaN(v) ? null : v;
@@ -177,7 +179,13 @@ export function calcTable8(getField: TableProps['getField']) {
   const v8 = v7 !== null ? (specialMarketValueRules ? 0 : fl(v7 * CORPORATE_TAX_RATE)) : null;  // ⑧ 法人税額等相当額
   const v9 = v3 !== null && v8 !== null ? v3 - v8 : null;       // ⑨ 修正純資産価額（③－⑧）
   const v10 = t5['⑩'] ?? null;                                 // ⑩ 発行済株式数（第5表⑩）
-  const v11 = v9 !== null && v10 !== null && v10 > 0 ? fl((v9 * 1000) / v10) : null; // ⑪ 修正後1株純資産（円）
+  // ⑪⑭⑯⑰㉔㉖は円未満切捨て。切捨てで0になるときは分数等（課税時期基準）で記載する
+  // （記載方法等 第7表の3 3⑴⑵⑶・4）
+  const { atTaxTime } = fractionalWriters(getField);
+  // ⑪は株式そのものの評価額なので、⑨（修正純資産価額）がマイナスでも
+  // マイナスの評価額は付かず、0とする（第5表⑪と同じ扱い）。
+  const v11raw = v9 !== null && v10 !== null && v10 > 0 ? (v9 * 1000) / v10 : null;
+  const v11 = atTaxTime(v11raw === null ? null : Math.max(0, v11raw)).value; // ⑪ 修正後1株純資産（円）
 
   // 1株当たりのS1の金額の基となる金額
   const v12 = t7.s1Hijun;   // ⑫ 修正後の類似業種比準価額（第7表㉔㉕㉖）
@@ -185,10 +193,10 @@ export function calcTable8(getField: TableProps['getField']) {
 
   // 1株当たりのS1の金額（区分別）
   const lRate = size === 3 ? 0.9 : size === 2 ? 0.75 : size === 1 ? 0.6 : null;
-  const v14 = v13 !== null ? (v12 !== null ? Math.min(v13, fl(v12 * 0.25 + v13 * 0.75)) : v13) : null; // 比準要素数1
+  const v14 = atTaxTime(v13 !== null ? (v12 !== null ? Math.min(v13, v12 * 0.25 + v13 * 0.75) : v13) : null).value; // 比準要素数1
   const v15 = v12 !== null ? (v13 !== null ? Math.min(v12, v13) : v12) : v13;                          // 大会社
-  const v16 = v12 !== null && v13 !== null && lRate !== null ? fl(Math.min(v12, v13) * lRate + v13 * (1 - lRate)) : null; // 中会社
-  const v17 = v13 !== null ? (v12 !== null ? Math.min(v13, fl(v12 * 0.5 + v13 * 0.5)) : v13) : null;   // 小会社
+  const v16 = atTaxTime(v12 !== null && v13 !== null && lRate !== null ? Math.min(v12, v13) * lRate + v13 * (1 - lRate) : null).value; // 中会社
+  const v17 = atTaxTime(v13 !== null ? (v12 !== null ? Math.min(v13, v12 * 0.5 + v13 * 0.5) : v13) : null).value;   // 小会社
   const s1 = isHijun1 ? v14 : size === 4 ? v15 : size === 3 || size === 2 || size === 1 ? v16 : size === 0 ? v17 : null;
 
   // ── 2. S2の金額 ──
@@ -198,11 +206,11 @@ export function calcTable8(getField: TableProps['getField']) {
   const v21 = v20 !== null ? (specialMarketValueRules ? 0 : fl(v20 * CORPORATE_TAX_RATE)) : null; // ㉑ 法人税額等相当額
   const v22 = v18 !== null && v21 !== null ? v18 - v21 : null;  // ㉒ S2純資産価額相当額（⑱－㉑）
   const v23 = t5['⑩'] ?? null;                                 // ㉓ 発行済株式数（第5表⑩）
-  const v24 = v22 !== null && v23 !== null && v23 > 0 ? fl((v22 * 1000) / v23) : null; // ㉔ S2の金額（円）
+  const v24 = atTaxTime(v22 !== null && v23 !== null && v23 > 0 ? (v22 * 1000) / v23 : null).value; // ㉔ S2の金額（円）
 
   // ── 3. 株式等保有特定会社の株式の価額 ──
   const v25 = t5['⑫'] ?? t5['⑪'] ?? null;                     // ㉕ 1株純資産（⑫があれば⑫）
-  const v26 = s1 !== null && v24 !== null ? s1 + v24 : null;   // ㉖ S1＋S2
+  const v26 = atTaxTime(s1 !== null && v24 !== null ? s1 + v24 : null).value;   // ㉖ S1＋S2
   const v27 = v25 !== null && v26 !== null ? Math.min(v25, v26) : null; // ㉗ ㉕と㉖の低い方
 
   const cls: S1Class = {
@@ -221,7 +229,8 @@ export function Table8Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
-  const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
+  // ⑪⑭⑯⑰㉔㉖は分数等（小数）になることがあり、その値は⑬⑮㉖㉗へもそのまま流れる
+  const fmt = (v: number | null) => formatAmount(v);
   const c = calcTable8(getField);
   const cls = c.cls;
 

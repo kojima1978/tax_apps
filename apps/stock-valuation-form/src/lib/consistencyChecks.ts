@@ -1,9 +1,10 @@
 import type { TableId, TableProps } from '@/types/form';
 import { readWarekiDate } from '@/lib/wareki';
 import { calcTable4 } from '@/components/tables/table4/calcTable4';
-import { calcTable5Detail } from '@/components/tables/table5/Table5Grid';
+import { calcTable5Detail, isNonEvaluableAsset } from '@/components/tables/table5/Table5Grid';
 import { table5RowCount } from '@/lib/table5Rows';
 import { RETIREMENT_AMOUNT_FIELD } from '@/lib/retirementSimulation';
+import { formatAmount, stripAmountFormatting } from '@/lib/numberFormat';
 
 /**
  * 入力値どうしの食い違い（1件）。
@@ -21,7 +22,7 @@ export interface ConsistencyIssue {
 }
 
 const parseNum = (value: string): number | null => {
-  const text = value.replace(/,/g, '').trim();
+  const text = stripAmountFormatting(value);
   if (text === '') return null;
   const n = Number(text);
   return Number.isFinite(n) ? n : null;
@@ -42,7 +43,7 @@ const farApart = (a: number, b: number): boolean => {
   return scale > 0 && Math.abs(a - b) / scale > 0.5;
 };
 
-const sen = (value: number): string => `${value.toLocaleString('ja-JP')}千円`;
+const sen = (value: number): string => `${formatAmount(value)}千円`;
 
 /** 第5表の負債で科目に「退職」を含む最初の行（無ければ0）。 */
 function retirementLiabilityRow(getField: TableProps['getField']): number {
@@ -175,8 +176,29 @@ export function consistencyIssues(getField: TableProps['getField']): Consistency
     add('table4_1', 'n53', '第４表の１ ⑱ 利益積立金額（直前期）',
       `第４表の１の⑲（⑰資本金等の額＋⑱利益積立金額）${sen(t4.t1)}と、`
       + `第５表の②－④（帳簿価額の資産合計－負債合計）${sen(netBook5)}が大きく違います。`
-      + 'ただし第５表の負債からは引当金・準備金を除いており（評価通達186）、'
+      + 'ただし第５表の負債からは引当金・準備金・繰延税金負債を除いており（記載方法等 第５表 2⑶）、'
       + '税務上の簿価との差もあるため、一致しなくて構いません。');
+  }
+
+  // ── 第5表：現物出資等受入れ資産の価額の合計額（㋥㋭） ──
+  // ①に占める割合が20％以下のときは記載しない（記載方法等 第5表 2⑴（注））。
+  // 20％以下なら差額を加算しない（評価通達186－2注3）ので株価には効かないが、
+  // 様式の上では書かない欄なので、消してよいことを出す。
+  if (t5.inKindEval > 0 && t5.assetEval > 0 && t5.inKindRatio <= 20) {
+    add('table5', 'ニ', '第５表 現物出資等受入れ資産の価額の合計額',
+      `現物出資等受入れ資産の相続税評価額が「相続税評価額」の合計（①）の${t5.inKindRatio.toFixed(1)}％（20％以下）です。`
+      + 'この場合は「現物出資等受入れ資産の価額の合計額」欄を記載しません（記載方法等 第５表 2⑴（注））。');
+  }
+
+  // ── 第5表：評価の対象とならない資産（記載方法等 第5表 2⑴ホ） ──
+  // 財産性があるかどうかは科目名では決まらないので、自動では外さず確認だけ促す。
+  for (let row = 1, rows = table5RowCount(getField); row <= rows; row++) {
+    const assetName = getField('table5', `a_${row}_1`).trim();
+    if (assetName !== '' && isNonEvaluableAsset(assetName)) {
+      add('table5', `a_${row}_1`, `第５表 資産の部 ${assetName}`,
+        `「${assetName}」に財産性が無ければ評価の対象とならないため、資産の部に記載しません`
+        + '（記載方法等 第５表 2⑴ホ。財産性のない創立費・新株発行費等の繰延資産、繰延税金資産）。');
+    }
   }
 
   // ── 退職金試算と第5表の二重反映 ──

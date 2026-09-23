@@ -9,7 +9,10 @@ import { calcTable2 } from '../table2/Table2Grid';
 import { calcTable4 } from '../table4/calcTable4';
 import { calcTable5 } from '../table5/Table5Grid';
 import { calcShareholderJudgment } from '../Table1_1Grid';
+import { rightsTotal } from '../shared';
 import type { TableProps } from '@/types/form';
+import { fractionalWriters } from '@/lib/fractionalAmount';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 const T = 'table6' as const;
 
@@ -18,20 +21,21 @@ const fl10sen = (v: number) => Math.floor(v * 10 + 1e-7) / 10;
 const fl2sen = (v: number) => Math.floor(v * 100 + 1e-7) / 100;
 
 export const numOf = (s: string): number | null => {
-  const t = s.replace(/,/g, '').trim();
+  const t = stripAmountFormatting(s);
   if (t === '') return null;
   const n = Number(t);
   return isNaN(n) ? null : n;
 };
 
 /**
- * ④ 比準要素数１の会社の株式。
+ * ④ 比準要素数１の会社の株式（切捨て前）。
  * 次のうち低い方 ── イ：②（③があるときは③）／ロ：①×0.25＋イ×0.75。
  * 来期に比準要素数１となった場合の試算でも同じ式を使うため関数に切り出している。
+ * 切捨ては呼び出し側で行う（切捨てて0になるときは分数等で記載するため）。
  */
 export function hijunYoso1Price(comparable: number | null, netAsset: number | null): number | null {
   if (netAsset === null) return null;
-  return comparable === null ? fl(netAsset) : fl(Math.min(netAsset, comparable * 0.25 + netAsset * 0.75));
+  return comparable === null ? netAsset : Math.min(netAsset, comparable * 0.25 + netAsset * 0.75);
 }
 
 /** 第6表の自動計算（お客様サマリー・来期予測からも参照する） */
@@ -56,7 +60,10 @@ export function calcTable6(getField: TableProps['getField']) {
   const v2 = t5['⑪'] ?? null;             // ②
   const v3 = t5['⑫'] ?? null;             // ③（80%相当額）
   const iValue = v3 ?? v2;
-  const p4 = hijunYoso1Price(v1, iValue);                // ④
+  // 切捨てで0になる欄は分数等で記載する（記載方法等 第6表 1・2⑵イ・3⑴⑶・4）
+  const { atTaxTime, atPrevEnd } = fractionalWriters(getField);
+  const f4 = atTaxTime(hijunYoso1Price(v1, iValue));     // ④
+  const p4 = f4.value;
   const p5 = numOf(getField('table8', '㉗'));           // ⑤ 第7表の3の㉗
   const p6 = iValue === null ? null : fl(iValue);        // ⑥
   const p7 = iValue === null ? null : fl(iValue);        // ⑦
@@ -66,10 +73,13 @@ export function calcTable6(getField: TableProps['getField']) {
 
   // 修正（⑩＝base－配当金額、⑭＝(⑩(なければbase)＋⑪×⑫)÷(1株＋⑬)）
   const mod9Div = amountWithSen('mod9_div', 'mod9_div_sen');
-  const v10 = base !== null && mod9Div !== null ? fl(base - mod9Div) : null;
+  const f10 = atTaxTime(base !== null && mod9Div !== null ? base - mod9Div : null);
+  const v10 = f10.value;
   const mod10Pay = num('mod10_pay'), mod10Ratio = num('mod10_ratio'), mod10Ratio2 = num('mod10_ratio2');
   const base14 = v10 ?? base;
-  const v14 = base14 !== null && mod10Ratio2 !== null ? fl((base14 + (mod10Pay ?? 0) * (mod10Ratio ?? 0)) / (1 + mod10Ratio2)) : null;
+  const f14 = atTaxTime(base14 !== null && mod10Ratio2 !== null
+    ? (base14 + (mod10Pay ?? 0) * (mod10Ratio ?? 0)) / (1 + mod10Ratio2) : null);
+  const v14 = f14.value;
   const jun = v14 ?? v10 ?? base; // 純資産価額方式等の最終価額
 
   // 2. 配当還元方式（⑮⑯⑰は第4表①②③を初期表示・手入力上書き可）
@@ -79,13 +89,11 @@ export function calcTable6(getField: TableProps['getField']) {
   const treasury = numOf(effStr('⑰', '③'));
   const v18 = cap !== null ? fl(cap * 20) : null; // ⑱=⑮×1000÷50
   const sharesNet = issued !== null ? issued - (treasury ?? 0) : null;
-  let v19: number | null = null;
-  let v19disp = '';
-  if (cap !== null && sharesNet !== null && sharesNet > 0) {
-    const v = (cap * 1000) / sharesNet;
-    if (fl(v) > 0) { v19 = fl(v); v19disp = v19.toLocaleString('ja-JP'); }
-    else { const m = Math.pow(10, String(Math.floor(sharesNet)).length); v19 = Math.floor(v * m + 1e-9) / m; v19disp = String(v19); }
-  }
+  const f19 = atPrevEnd(
+    cap !== null && sharesNet !== null && sharesNet > 0 ? (cap * 1000) / sharesNet : null,
+  );
+  const v19 = f19.value;
+  const v19disp = f19.text;
   const t4num = (f: string) => numOf(getField('table4', f));
   const subT4 = (a: string, b: string) => { const x = t4num(a); return x === null ? null : x - (t4num(b) ?? 0); };
   const ia = subT4('f28', 'f29');  // ㋑
@@ -94,7 +102,8 @@ export function calcTable6(getField: TableProps['getField']) {
   const v24raw = v23 !== null && v18 !== null && v18 > 0 ? fl10sen((v23 * 1000) / v18) : null; // ㉔切上前
   const v24 = v24raw === null ? null : Math.max(2.5, v24raw);
   const v24Floored = v24raw !== null && v24raw < 2.5;
-  const v25 = v24 !== null && v19 !== null ? fl((v24 * v19) / 5) : null; // ㉕=㉔÷10%×⑲÷50円
+  const f25 = atPrevEnd(v24 !== null && v19 !== null ? (v24 * v19) / 5 : null); // ㉕=㉔÷10%×⑲÷50円
+  const v25 = f25.value;
   const v26 = v25 === null ? null : jun !== null && v25 > jun ? jun : v25; // ㉖
 
   // 医療法人（持分あり）は配当がないため配当還元方式を適用しない
@@ -108,9 +117,19 @@ export function calcTable6(getField: TableProps['getField']) {
   const expTax = amountWithSen('exp_tax', 'exp_tax_sen');
   const v29 = expDiv !== null ? fl2sen(expDiv - (expTax ?? 0)) : null; // ㉙配当期待権
   const baseRight = useHaito === null ? null : useHaito ? v26 ?? v25 : jun; // ⑭(配当還元は㉖)
-  const v32 = baseRight !== null ? fl(baseRight - (num('r24_pay') ?? 0)) : null; // ㉜
-  const v33 = baseRight === null ? null : fl(baseRight); // ㉝
+  const f32 = atTaxTime(baseRight !== null ? baseRight - (num('r24_pay') ?? 0) : null); // ㉜
+  const v32 = f32.value;
+  const f33 = atTaxTime(baseRight); // ㉝
+  const v33 = f33.value;
   const v34 = baseRight; // ㉞
+  // ㊱株式に関する権利の評価額: 発生している権利の金額を合計する
+  // （記載方法等 第6表 5 → 第3表 5⑵。端数があっても切り捨てない）
+  const rights = rightsTotal([
+    { key: 'right_haito', mark: '㉙', name: '配当期待権', value: v29 },
+    { key: 'right_wariate', mark: '㉜', name: '株式の割当てを受ける権利', value: v32 },
+    { key: 'right_kabunushi', mark: '㉝', name: '株主となる権利', value: v33 },
+    { key: 'right_musho', mark: '㉞', name: '株式無償交付期待権', value: v34 },
+  ], (key) => raw(key) === '1');
 
   return {
     t2, t4, t5, judge,
@@ -120,6 +139,9 @@ export function calcTable6(getField: TableProps['getField']) {
     cap, issued, treasury, v18, sharesNet, v19, v19disp,
     ia, ro, v23, v24, v24raw, v24Floored, v25, v26,
     medical, mode, useHaito, finalPrice,
-    expDiv, expTax, v29, baseRight, v32, v33, v34,
+    expDiv, expTax, v29, baseRight, v32, v33, v34, rights,
+    // 切捨てで0になったとき分数等で書く欄は、様式へ入れる文字列も併せて返す
+    p4disp: f4.text, v10disp: f10.text, v14disp: f14.text,
+    v25disp: f25.text, v32disp: f32.text, v33disp: f33.text,
   };
 }

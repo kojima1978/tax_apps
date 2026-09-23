@@ -4,13 +4,13 @@ import { table7_1Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
+import { formatAmount as fmt, formatSenPart as senPart, formatYenPart as yenPart } from '@/lib/numberFormat';
 
 // ══ 第7表の1（令和8年4月1日以降用）══
 // 旧第7表の前半（受取配当金等収受割合の計算 ＋ Ⓑ-ⓑ／Ⓒ-ⓒ／Ⓓ-ⓓ の金額＝①〜⑰）。
 // データは 'table7' バケット共通、計算は calcTable7 を再利用。S1の類似業種比準価額（⑱〜㉚）は第7表の2へ分離。
 
 const T = 'table7' as const;
-const fl = (v: number) => Math.floor(v + 1e-9);
 
 // [コード][円値][円][銭値][銭] の金額入力
 function yenSen(code: string, yenField: string, senField: string, top: number, h: number, codeL: number, yenL: number, yenU: number, senL: number, senU: number, end: number): GridCell[] {
@@ -120,9 +120,6 @@ const CELLS: GridCell[] = [
 export function Table7_1Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
-  const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
-  const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
-  const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
 
   const c = calcTable7(getField);
 

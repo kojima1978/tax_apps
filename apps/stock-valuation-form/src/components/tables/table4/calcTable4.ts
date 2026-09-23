@@ -7,6 +7,8 @@
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import type { TableProps } from '@/types/form';
 import { forcesSmallCompany } from '@/lib/valuationPurpose';
+import { fractionalWriters } from '@/lib/fractionalAmount';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 // ── 端数処理（第4表記載要領） ──
 const fl = (v: number) => Math.floor(v + 1e-9);                 // 円未満切捨て
@@ -17,7 +19,7 @@ const fl2 = (v: number) => Math.floor(v * 100 + 1e-7) / 100;    // 小数点以�
 export function calcTable4(getField: TableProps['getField']) {
   const raw = (f: string) => getField('table4', f);
   const parseNum = (value: string): number | null => {
-    const s = value.replace(/,/g, '').trim();
+    const s = stripAmountFormatting(value);
     if (s === '') return null;
     const v = Number(s);
     return isNaN(v) ? null : v;
@@ -32,20 +34,13 @@ export function calcTable4(getField: TableProps['getField']) {
     getField('table1_1', 'f63') || getField('table1_1', 'treasury_shares'),
   );
   const sharesNet = issued !== null ? issued - (treasuryShares ?? 0) : null; // ②－③
-  // ④: 円未満切捨て。切捨てで0となる場合は発行済株式数(②－③)の桁数の小数位未満を切捨てて記載（記載要領の端数処理の例）
-  let cap4: number | null = null;
-  let cap4disp = '';
-  if (cap !== null && sharesNet !== null && sharesNet > 0) {
-    const v = (cap * 1000) / sharesNet;
-    if (fl(v) > 0) {
-      cap4 = fl(v);
-      cap4disp = cap4.toLocaleString('ja-JP');
-    } else {
-      const m = Math.pow(10, String(Math.floor(sharesNet)).length);
-      cap4 = Math.floor(v * m + 1e-9) / m;
-      cap4disp = String(cap4);
-    }
-  }
+  // ④: 円未満切捨て。切捨てで0となる場合は分数等（直前期末基準）で記載（記載方法等 第4表の1 2⑴）
+  const { atTaxTime, atPrevEnd } = fractionalWriters(getField);
+  const cap4f = atPrevEnd(
+    cap !== null && sharesNet !== null && sharesNet > 0 ? (cap * 1000) / sharesNet : null,
+  );
+  const cap4 = cap4f.value;
+  const cap4disp = cap4f.text;
   const cap5 = cap !== null ? fl(cap * 20) : null; // ⑤株 = ①×1000÷50
   const per50 = (kc: number | null) => (kc !== null && cap5 !== null && cap5 > 0 ? (kc * 1000) / cap5 : null); // 千円→1株50円当たり円
 
@@ -146,14 +141,24 @@ export function calcTable4(getField: TableProps['getField']) {
   const price = (A: number | null, r: number | null) => (A !== null && r !== null && shin !== null ? fl10sen(A * r * shin) : null);
   const p22 = price(A1, r21), p25 = price(A2, r24);
   const minP = p22 !== null && p25 !== null ? Math.min(p22, p25) : p22 ?? p25;
-  const v26 = minP !== null && cap4 !== null ? fl((minP * cap4) / 50) : null;
+  // ㉖1株当たりの比準価額（切捨てで0になるときは分数等（直前期末基準）・記載方法等 第4表の2 3⑹）
+  const f26 = atPrevEnd(minP !== null && cap4 !== null ? (minP * cap4) / 50 : null);
+  const v26 = f26.value;
 
-  // 比準価額の修正: ㉗=㉖－1株当たりの配当金額、㉘=(㉗(ないときは㉖)＋払込金額×割当株式数)÷(1＋割当・交付株式数)
+  // 比準価額の修正: ㉘=㉖－1株当たりの配当金額（直前期末基準）、
+  // ㉜=(㉘(ないときは㉖)＋払込金額×割当株式数)÷(1＋割当・交付株式数)（課税時期基準）
+  // ※内部名 v27/v28 は旧様式の㉗㉘から据え置き。様式上の記号は㉘/㉜（記載方法等 第4表の2 4）
   const modDiv = senPair('mod_div', 'mod_div_sen');
-  const v27 = v26 !== null && modDiv !== null ? fl(v26 - modDiv) : null;
+  const f27 = atPrevEnd(v26 !== null && modDiv !== null ? v26 - modDiv : null);
+  const v27 = f27.value;
   const modPay = senPair('mod_pay', 'mod_pay_sen'), modRatio = num('mod_ratio'), modRatio2 = num('mod_ratio2');
   const base28 = v27 ?? v26;
-  const v28 = base28 !== null && modRatio2 !== null ? fl((base28 + (modPay ?? 0) * (modRatio ?? 0)) / (1 + modRatio2)) : null;
+  const f28 = atTaxTime(
+    base28 !== null && modRatio2 !== null
+      ? (base28 + (modPay ?? 0) * (modRatio ?? 0)) / (1 + modRatio2)
+      : null,
+  );
+  const v28 = f28.value;
 
-  return { issued, treasuryShares, cap4, cap4disp, cap5, i1, i2, i3, v9, v10, b1, b2, Bv, p1, p2, p3, c1, c1baseSide, c2, c2baseSide, Cv, cvSide, t1, t2, d1, d2, Dv, A1, A2, e1B, e1C, e1D, e2B, e2C, e2D, r21, r24, size, shin, p22, p25, v26, v27, v28 };
+  return { issued, treasuryShares, cap4, cap4disp, cap5, i1, i2, i3, v9, v10, b1, b2, Bv, p1, p2, p3, c1, c1baseSide, c2, c2baseSide, Cv, cvSide, t1, t2, d1, d2, Dv, A1, A2, e1B, e1C, e1D, e2B, e2C, e2D, r21, r24, size, shin, p22, p25, v26, v27, v28, v26disp: f26.text, v27disp: f27.text, v28disp: f28.text };
 }

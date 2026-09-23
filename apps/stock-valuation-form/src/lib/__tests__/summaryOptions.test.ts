@@ -87,13 +87,19 @@ describe('readSummaryOptions（保存値の読み取り）', () => {
     expect(restored).toMatchObject({ showAssumedProfit: true, assumedProfit: 5000 });
   });
 
-  it('想定利益の入力は3桁区切りへ整形する（欠損のマイナスは残す）', () => {
+  it('想定利益の入力は3桁区切りへ整形する（欠損は明細書と同じ△で書く）', () => {
     expect(formatAssumedProfit('3000')).toBe('3,000');
     expect(formatAssumedProfit('1234567')).toBe('1,234,567');
-    expect(formatAssumedProfit('-2000')).toBe('-2,000');
-    expect(formatAssumedProfit('-')).toBe('-');
+    expect(formatAssumedProfit('-2000')).toBe('△2,000');
+    expect(formatAssumedProfit('△2000')).toBe('△2,000');
+    expect(formatAssumedProfit('-')).toBe('△');
     expect(formatAssumedProfit('12a3')).toBe('123');
     expect(formatAssumedProfit('')).toBe('');
+  });
+
+  it('△で保存された想定利益も、△に切り替える前の「-」も読める', () => {
+    expect(readSummaryOptions(mkGetField({ [ASSUMED_PROFIT_FIELD]: '△2,000' })).assumedProfit).toBe(-2000);
+    expect(readSummaryOptions(mkGetField({ [ASSUMED_PROFIT_FIELD]: '-2,000' })).assumedProfit).toBe(-2000);
   });
 
   it('チェックボックスの値は表示なら空、非表示なら1で保存する', () => {

@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { TableId } from '@/types/form';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
-import { calcShareholderJudgment, stockTypeNameOf } from '../Table1_1Grid';
-import { calcTable5 } from '../table5/Table5Grid';
+import { calcShareholderJudgment, stockTypeNameOf, totalShOf } from '../Table1_1Grid';
+import { calcTable5, calcTable5Detail } from '../table5/Table5Grid';
+import { rightsTotal } from '../shared';
 import { calcTable2 } from '../table2/Table2Grid';
 import { calcTable8 } from '../table8/Table8Grid';
 import { calcTable7 } from '../table7/calcTable7';
@@ -385,6 +386,20 @@ describe('calcTable8（第8表：S1の続き・S2・株式の価額／第5表と
     expect(c.v11).toBe(40000); // 40000千円 ×1000 ÷ 1000株
   });
 
+  it('⑨がマイナスでも⑪は0（株式にマイナスの評価額は付かない・第5表⑪と同じ扱い）', () => {
+    const t = calcTable8(mkGetField({
+      table5: {
+        a_1_1: '株式', a_1_2: '60000', a_1_3: '40000', a_1_4: '株式等',
+        a_2_1: '現金', a_2_2: '10000', a_2_3: '10000',
+        l_1_1: '借入金', l_1_2: '100000', l_1_3: '100000',
+      },
+      table1_1: { '⑤': '1000', f63: '0', sh_1_5: '600', '⑥': '1000' },
+    }));
+    expect(t.v9).toBe(-90000); // 債務超過である事実は⑨に残す
+    expect(t.v11).toBe(0);
+    expect(t.v13).toBe(0);     // ⑬＝⑪
+  });
+
   it('2.S2の金額（株式等の評価差額に対する法人税額等相当額38%控除・令和8年様式）', () => {
     expect(c.v18).toBe(60000);            // 株式等（相続税評価額）＝第5表イ
     expect(c.v19).toBe(40000);            // 株式等（帳簿価額）＝第5表ロ
@@ -629,5 +644,125 @@ describe('医療法人（持分あり）の評価（評価通達194-2：配当�
       table5: {},
     }));
     expect(cMedical.j.s1).toBe(false); // C・Dとも0でない → 非該当
+  });
+});
+
+describe('rightsTotal（第3表㉞・第6表㊱：株式に関する権利の評価額の合計）', () => {
+  const items = [
+    { key: 'right_haito', mark: '㉗', name: '配当期待権', value: 12.5 },
+    { key: 'right_wariate', mark: '㉚', name: '株式の割当てを受ける権利', value: 30 },
+    { key: 'right_kabunushi', mark: '㉛', name: '株主となる権利', value: null },
+  ];
+
+  it('発生している権利はそれぞれの金額を合計して1つの欄に書く', () => {
+    const r = rightsTotal(items, (k) => k !== 'right_kabunushi');
+    expect(r.total).toBe(42.5);
+    expect(r.yen).toBe('42');
+    expect(r.sen).toBe('50'); // 端数は切り捨てずそのまま（記載方法等 第3表 5⑵）
+  });
+
+  it('1銭に満たない端数まで出たときも切り捨てず［円］欄へそのまま書く', () => {
+    const r = rightsTotal([{ key: 'a', mark: '㉚', name: '割当てを受ける権利', value: 0.0005 }], () => true);
+    expect(r.total).toBe(0.0005);
+    expect(r.yen).toBe('0.0005');
+    expect(r.sen).toBe('');
+  });
+
+  it('発生しているのに価額の出ていない権利があれば合計しない', () => {
+    // 0として足すと、実際より小さい金額を様式へ印字してしまう
+    const r = rightsTotal(items, () => true);
+    expect(r.total).toBeNull();
+    expect(r.yen).toBe('');
+    expect(r.missing.map((m) => m.mark)).toEqual(['㉛']);
+  });
+
+  it('権利が1つも発生していなければ空欄のまま', () => {
+    expect(rightsTotal(items, () => false)).toMatchObject({ total: null, yen: '', sen: '' });
+  });
+});
+
+describe('totalShOf（第1表の1：続紙の株主数）', () => {
+  it('続紙1枚につき13名ずつ増える（様式に枚数の定めは無い）', () => {
+    expect(totalShOf(mkGetField({}))).toBe(5);
+    expect(totalShOf(mkGetField({ table1_1: { _shpages: '1' } }))).toBe(18);
+    expect(totalShOf(mkGetField({ table1_1: { _shpages: '10' } }))).toBe(135);
+  });
+});
+
+describe('calcTable5（第5表：負債の除外・マイナスの扱い・分数等）', () => {
+  it('繰延税金負債も引当金・準備金と同じく負債に含めない（記載方法等 第5表 2⑶）', () => {
+    const t = calcTable5(mkGetField({
+      table5: {
+        a_1_1: '現金', a_1_2: '10000', a_1_3: '10000',
+        l_1_1: '買掛金', l_1_2: '3000', l_1_3: '3000',
+        l_2_1: '繰延税金負債', l_2_2: '4000', l_2_3: '4000',
+      },
+      table1_1: { '⑤': '1000', f63: '0' },
+    }));
+    expect(t['③']).toBe(3000);
+    expect(t['④']).toBe(3000);
+    expect(t['⑤']).toBe(7000); // 繰延税金負債の4,000千円は引かれない
+  });
+
+  it('債務超過でも⑤はマイナスのまま記載する（0にするのは⑥と⑦だけ・記載方法等 第5表 3）', () => {
+    const t = calcTable5(mkGetField({
+      table5: {
+        a_1_1: '現金', a_1_2: '10000', a_1_3: '10000',
+        l_1_1: '借入金', l_1_2: '30000', l_1_3: '30000',
+      },
+      table1_1: { '⑤': '1000', f63: '0' },
+    }));
+    expect(t['⑤']).toBe(-20000);
+    expect(t['⑥']).toBe(0);
+    expect(t['⑦']).toBe(0);
+    expect(t['⑧']).toBe(0);
+    expect(t['⑨']).toBe(-20000); // ⑤を0にすると債務超過が消え、株価が実際より高く出る
+    // ⑤⑨はマイナスのままだが、株式そのものの評価額である⑪にマイナスは無い
+    expect(t['⑪']).toBe(0);
+  });
+
+  it('⑫の議決権割合は続紙の株主も数える', () => {
+    const table5 = { a_1_1: '現金', a_1_2: '10000', a_1_3: '10000' };
+    // 本表の株主400＋続紙の株主200、議決権の総数1,000
+    const votes = { '⑤': '1000', f63: '0', '⑥': '1000', sh_1_5: '400', sh_6_5: '200' };
+    // 続紙が無ければ6人目は様式に無いので数えない → 40％（50％以下）なので⑫を書く
+    const without = calcTable5Detail(mkGetField({ table5, table1_1: votes }));
+    expect(without.groupVotes).toBe(400);
+    expect(without.votingRatio).toBe(40);
+    expect(without.netPerShare80).toBe(8000);
+    // 続紙を足すと60％になり、⑫は書かない欄になる
+    const withPage = calcTable5Detail(mkGetField({ table5, table1_1: { ...votes, _shpages: '1' } }));
+    expect(withPage.groupVotes).toBe(600);
+    expect(withPage.votingRatio).toBe(60);
+    expect(withPage.netPerShare80).toBeNull();
+  });
+
+  it('⑪は切り捨てて0になるとき分数等（課税時期基準）で書く', () => {
+    const d = calcTable5Detail(mkGetField({
+      table5: { a_1_1: '現金', a_1_2: '1', a_1_3: '1' },
+      table1_1: { '⑤': '2000000', f63: '0' },
+    }));
+    // 1,000円 ÷ 2,000,000株＝0.0005円。株式数が7桁なので小数第7位まで残す
+    expect(d.netPerShare).toBe(0.0005);
+    expect(d.netPerShareDisp).toBe('0.0005');
+  });
+});
+
+describe('calcTable8（第7表の3：分数等で書く欄）', () => {
+  it('⑪㉔㉖は分数等で書き、その値のまま㉗へ引き継ぐ', () => {
+    const c = calcTable8(mkGetField({
+      table5: {
+        a_1_1: '株式', a_1_2: '1', a_1_3: '1', a_1_4: '株式等',
+        a_2_1: '現金', a_2_2: '1', a_2_3: '1',
+      },
+      table1_1: { '⑤': '2000000', f63: '0' },
+      table1_2: { gyoshu: 'その他', f22: '10000', f24: '5000', emp_regular: '3' }, // 小会社
+    }));
+    expect(c.v9).toBe(1);        // ⑨ 1千円
+    expect(c.v11).toBe(0.0005);  // ⑪ 1,000円 ÷ 2,000,000株
+    expect(c.v24).toBe(0.0005);  // ㉔ S2の金額
+    expect(c.v26).toBe(0.001);   // ㉖ S1＋S2（足す前に切り捨てない）
+    expect(c.v25).toBe(0.001);   // ㉕ 第5表の⑪（2,000円 ÷ 2,000,000株）も分数等で入る
+    expect(c.v27).toBe(0.001);   // ㉗ ㉕と㉖の低い方
   });
 });

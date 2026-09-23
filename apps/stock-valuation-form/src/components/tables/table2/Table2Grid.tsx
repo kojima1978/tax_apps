@@ -6,6 +6,7 @@ import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 import { forcesSmallCompany } from '@/lib/valuationPurpose';
 import { readWarekiDate } from '@/lib/wareki';
+import { formatAmount as fmt, formatSenPart as senPart, formatYenPart as yenPart, stripAmountFormatting } from '@/lib/numberFormat';
 
 const T = 'table2' as const;
 
@@ -93,7 +94,7 @@ function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
   const j = c.j;
   const flags = flagStates(c);
   const fieldIsZero = (g: (field: string) => string, field: string) => {
-    const value = g(field).replace(/,/g, '').trim();
+    const value = stripAmountFormatting(g(field));
     return value !== '' && Number(value) === 0;
   };
   const jc = (top: number, height: number, code: string, text: string, codeL: number, boxL: number, textL: number, textEnd: number, textProps?: Partial<GridCell>) =>
@@ -291,7 +292,7 @@ export function calcTable2(getField: TableProps['getField']) {
   // 3. 土地保有特定会社（⑥=⑤/④、大70%/中90%/小会社は総資産帳簿基準で70or90、基準未満は該当なし）
   const a05 = t5['ハ'] ?? null;
   const landRatio = a01 !== null && a01 > 0 && a05 !== null ? fl((a05 / a01) * 100) : null;
-  const numOf = (s: string): number | null => { const t = s.replace(/,/g, '').trim(); if (t === '') return null; const n = Number(t); return isNaN(n) ? null : n; };
+  const numOf = (s: string): number | null => { const t = stripAmountFormatting(s); if (t === '') return null; const n = Number(t); return isNaN(n) ? null : n; };
   const assetBook = numOf(getField('table1_2', 'f22')); // 千円
   const gyo = getField('table1_2', 'gyoshu');
   const landIndustryPrefix =
@@ -363,9 +364,6 @@ export function Table2Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
-  const fmt = (v: number | null | undefined) => (v === null || v === undefined ? '' : v.toLocaleString('ja-JP'));
-  const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
-  const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
 
   const c = calcTable2(getField);
   const flags = flagStates(c);

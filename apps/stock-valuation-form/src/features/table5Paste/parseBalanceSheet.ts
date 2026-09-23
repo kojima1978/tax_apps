@@ -23,6 +23,7 @@ import {
   parseDecimal,
   toHalfWidth,
 } from '@/features/pastedTable/parseTable';
+import { isNonEvaluableAsset } from '@/components/tables/table5/Table5Grid';
 
 /** 様式のフィールド接頭辞に合わせる（a_1_1 … / l_1_1 …）。 */
 export type BalanceSheetSide = 'a' | 'l';
@@ -164,6 +165,14 @@ export function extractBalanceSheetRows(
     if (note !== '' && side === 'a' && !ASSET_NOTES.includes(toHalfWidth(note))) {
       notices.push({ line, reason: `${name}：備考「${note}」は選択肢（株式等・土地等）に無いため空欄にしました` });
       note = '';
+    }
+    // 繰延資産・繰延税金資産は「財産性が無ければ記載しない」欄（記載方法等 第5表 2⑴ホ）。
+    // 財産性の有無は科目名では決まらないので、落とさずに取り込んで確認だけ促す。
+    if (side === 'a' && isNonEvaluableAsset(name)) {
+      notices.push({
+        line,
+        reason: `${name}：財産性が無ければ評価の対象とならないため記載しません（記載方法等 第５表 2⑴ホ）。取り込みますが要否をご確認ください`,
+      });
     }
 
     rows.push({ line, name, evaluated: evaluated.text ?? '', book: book.text ?? '', note });

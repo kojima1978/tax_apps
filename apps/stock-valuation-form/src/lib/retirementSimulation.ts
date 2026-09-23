@@ -1,6 +1,7 @@
 import type { TableProps } from '@/types/form';
 import { calcValuationBasis, type ValuationBasis } from './valuationReport';
 import { table5PageCountOf, table5RowCount } from './table5Rows';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 export const RETIREMENT_AMOUNT_FIELD = '_summary_retirement_amount';
 export const RETIREMENT_INSURANCE_FIELD = '_summary_retirement_insurance_proceeds';
@@ -11,7 +12,7 @@ type Getter = TableProps['getField'];
 
 const numberOf = (text: string): number | null => {
   if (!text.trim()) return null;
-  const value = Number(text.replace(/,/g, ''));
+  const value = Number(stripAmountFormatting(text));
   return Number.isFinite(value) ? value : null;
 };
 

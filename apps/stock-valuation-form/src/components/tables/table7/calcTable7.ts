@@ -9,6 +9,7 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import type { TableProps } from '@/types/form';
 import { forcesSmallCompany } from '@/lib/valuationPurpose';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 // ── 端数処理（第7表記載要領＝第4表の記載方法等4に準ずる） ──
 const fl = (v: number) => Math.floor(v + 1e-9);                 // 円未満切捨て
@@ -21,7 +22,7 @@ const fl3 = (v: number) => Math.floor(v * 1000 + 1e-7) / 1000;  // 小数点以�
 export function calcTable7(getField: TableProps['getField']) {
   const raw = (f: string) => getField('table7', f);
   const parseNum = (value: string): number | null => {
-    const s = value.replace(/,/g, '').trim();
+    const s = stripAmountFormatting(value);
     if (s === '') return null;
     const v = Number(s);
     return isNaN(v) ? null : v;

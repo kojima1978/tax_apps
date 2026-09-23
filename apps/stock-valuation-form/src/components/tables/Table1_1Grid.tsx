@@ -4,6 +4,7 @@ import { SheetOps } from '@/components/ui/SheetOps';
 import { companyFloatBox } from './companyFloatHeader';
 import type { TableProps } from '@/types/form';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 const T = 'table1_1' as const;
 
@@ -26,7 +27,15 @@ const INDUSTRY_NUMBER_FIELDS = new Set(['f23', 'f26', 'f29']);
 // ── 株主テーブルの繰り返し行 ──
 const SH_ROWS = 5;  // 本表の株主数（1人=2行）
 const CONT_SH = 13; // 続紙1ページあたりの株主数（令和8年様式 第1表の1続）
-const MAX_SH_PAGES = 1; // 続紙は1枚まで（＝株主 最大18名）
+/**
+ * 続紙の上限枚数（本表5名＋続紙13名×10枚＝最大135名）。
+ *
+ * 続紙は公表様式をそのまま複製したもので、枚数の定めは様式側に無い。以前は1枚（18名）
+ * までとしていたが、株主が19名以上の同族会社は珍しくなく、19名目から先を書けないのは
+ * 様式の定めではなくこのアプリの都合だった。上限は描画量から決めている ── 用紙は
+ * 必要になったときだけ作られるので、届かない限り費用は増えない。
+ */
+const MAX_SH_PAGES = 10;
 /** 続紙ページ数（_shpages。0=本表のみ） */
 const shPageCountOf = (getField: TableProps['getField']) => Math.max(0, Number(getField('table1_1', '_shpages')) || 0);
 /** 総株主数（本表5＋続紙13×ページ） */
@@ -187,7 +196,7 @@ const JUDGE_FLAGS: Record<string, (g: (f: string) => string) => boolean> = {
 export function calcShareholderJudgment(getField: TableProps['getField']) {
   const gf = (f: string) => getField('table1_1', f);
   const g2 = (f: string) => getField('table1_2', f);
-  const n = (s: string) => Number(s.replace(/,/g, '')) || 0;
+  const n = (s: string) => Number(stripAmountFormatting(s)) || 0;
   let votes = 0;
   const totalSh = totalShOf(getField); // 本表＋続紙の全株主
   for (let r = 1; r <= totalSh; r++) votes += n(gf(`sh_${r}_5`));
@@ -600,7 +609,7 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   const cells = useMemo(() => {
     const options = industryData.forTaxPeriod({ era, eraYear, month: '' }).options;
     // 取引金額の構成比が累計100％に達したら、それより下の業種目番号は入力しなくてよい
-    const pct = (value: string) => Number(value.replace(/,/g, '')) || 0;
+    const pct = (value: string) => Number(stripAmountFormatting(value)) || 0;
     const optional = new Set<string>();
     if (pct(ratio1) >= 100) { optional.add('f26'); optional.add('f29'); }
     else if (pct(ratio1) + pct(ratio2) >= 100) optional.add('f29');
@@ -647,7 +656,7 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   const sumShareholderVotes = () => {
     let total = 0;
     for (let row = 1; row <= totalSh; row++) {
-      total += Number(getField(T, `sh_${row}_5`).replace(/,/g, '')) || 0;
+      total += Number(stripAmountFormatting(getField(T, `sh_${row}_5`))) || 0;
     }
     return total > 0 ? String(total) : '';
   };
@@ -655,9 +664,9 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   // 議決権割合＝分子÷⑥（議決権の総数）。50%超51%未満は51に切上げ、その他は切捨て
   const percentage = (numeratorField: string, roundUpOver50 = false) => {
     const numeratorRaw = numeratorField === '①' ? sumShareholderVotes() : getField(T, numeratorField);
-    const denominator = Number(getField(T, '⑥').replace(/,/g, ''));
+    const denominator = Number(stripAmountFormatting(getField(T, '⑥')));
     if (numeratorRaw === '' || denominator <= 0) return '';
-    const raw = (Number(numeratorRaw.replace(/,/g, '')) / denominator) * 100;
+    const raw = (Number(stripAmountFormatting(numeratorRaw)) / denominator) * 100;
     if (roundUpOver50 && raw > 50 && raw < 51) return '51';
     return String(Math.floor(raw));
   };
@@ -709,7 +718,7 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
     if (stockTypeCodeMatch) updateField(T, `sh_${stockTypeCodeMatch[1]}_8`, '');
   };
 
-  // 続紙の追加／削除（株主が5名を超える場合。続紙は1枚まで＝最大18名）。
+  // 続紙の追加／削除（株主が5名を超える場合。続紙は MAX_SH_PAGES 枚まで）。
   // 操作は用紙と用紙のあいだの帯（.sheet-ops）に置く。本表の5人目を埋めて下へスクロールした
   // 自然な視線の先に追加ボタンが現れ、削除ボタンは消す対象の直上に来る。
   const SH_FIELDS = ['1', '2', '2k', '3', '3k', '4', '5', '6', '7', '8', '9'] as const;
@@ -772,7 +781,7 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
       ))}
       {canAdd && (
         <SheetOps
-          label={`株主が${SH_ROWS + 1}名以上のときは続紙に記入します`}
+          label={`株主が${totalSh + 1}名以上のときは続紙に記入します`}
           action={{ text: `＋ 続紙を追加（株主${CONT_SH}名分）`, title: '続紙を追加', onClick: addShPage }}
         />
       )}

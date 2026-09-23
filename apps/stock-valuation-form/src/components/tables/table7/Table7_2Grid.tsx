@@ -5,6 +5,7 @@ import { table7_2Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
+import { formatAmount as fmt, formatSenPart as senPart, formatYenPart as yenPart, stripAmountFormatting } from '@/lib/numberFormat';
 
 // ══ 第7表の2（令和8年4月1日以降用）══
 // 旧第7表の後半（S1の類似業種比準価額の計算＝⑱〜㉚)。第4表の2と同レイアウトだが評価会社行は
@@ -12,10 +13,9 @@ import type { TableId, TableProps } from '@/types/form';
 // 座標は r08-12 の罫線実測値（ブロック1/2で行高が微差のため行Y座標テーブル方式）。
 
 const T = 'table7' as const;
-const fl = (v: number) => Math.floor(v + 1e-9);
 
 const minValueHighlight = (fields: string[], target: string) => (g: (field: string) => string) => {
-  const values = fields.map((field) => ({ field, value: Number(g(field).replace(/,/g, '').trim()) })).filter(({ field, value }) => g(field).trim() !== '' && !isNaN(value));
+  const values = fields.map((field) => ({ field, value: Number(stripAmountFormatting(g(field))) })).filter(({ field, value }) => g(field).trim() !== '' && !isNaN(value));
   if (values.length === 0) return false;
   const min = Math.min(...values.map(({ value }) => value));
   return values.some(({ field, value }) => field === target && value === min);
@@ -251,9 +251,6 @@ export function Table7_2Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const table4Raw = (f: string) => getField('table4', f);
   const u = (f: string, v: string) => updateField(T, f, v);
-  const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
-  const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
-  const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
 
   const c = calcTable7(getField);
   void calcTable4; // calcTable7 が内部で参照

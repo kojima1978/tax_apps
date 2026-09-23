@@ -1,5 +1,9 @@
-import { MEDICAL_NO_DIVIDEND, MEDICAL_NO_SECOND_INDUSTRY, hs, hv, hyen, rv, ryen } from '@/lib/formulaHint';
+import {
+  FRACTION_NOTE_PREV_END, FRACTION_NOTE_TAX_TIME,
+  MEDICAL_NO_DIVIDEND, MEDICAL_NO_SECOND_INDUSTRY, hs, hv, hyen, rd, rv, ryen,
+} from '@/lib/formulaHint';
 import type { calcTable4 } from './calcTable4';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 // 第4表の1・第4表の2の自動計算欄に出すツールチップ。
 // calcTable4 が「実際に採用した値」と「なぜその分岐になったか」を文にする。
@@ -80,7 +84,7 @@ export function table4_1Hints(c: Calc, raw: Raw, medical: boolean): Record<strin
 
   return {
     '④': `① ${hs(raw('①'))}千円 × 1,000 ÷ （② ${hv(c.issued)}株 － ③ ${hv(c.treasuryShares ?? 0)}株 ＝ ${rv(net)}株）`
-      + `\n＝ ${c.cap4disp === '' ? '（未計算）' : c.cap4disp}円（円未満切捨て。切捨てで0になるときは株数の桁に合わせた小数位で記載）`,
+      + `\n＝ ${rd(c.cap4disp)}円${FRACTION_NOTE_PREV_END}`,
     '⑤': `① ${hs(raw('①'))}千円 × 1,000 ÷ 50円 ＝ ${rv(c.cap5)}株`,
 
     '㋑': dividend('f28', 'f29', c.i1),
@@ -121,9 +125,9 @@ export const PRICE_LABELS = ['課税時期の属する月', 'その前月', 'そ
 export function table4_2Hints(c: Calc, raw: Raw, medical: boolean, taxMonth: string): Record<string, string> {
   const hints: Record<string, string> = {};
   const senPair = (yen: string, sen: string) => {
-    const v = raw(yen).replace(/,/g, '').trim();
+    const v = stripAmountFormatting(raw(yen));
     if (v === '' || isNaN(Number(v))) return null;
-    return Number(v) + Number(raw(sen).replace(/,/g, '').trim() || 0) / 100;
+    return Number(v) + Number(stripAmountFormatting(raw(sen)) || 0) / 100;
   };
 
   const blocks = [
@@ -189,14 +193,14 @@ export function table4_2Hints(c: Calc, raw: Raw, medical: boolean, taxMonth: str
 
   const minPrice = c.p22 !== null && c.p25 !== null ? Math.min(c.p22, c.p25) : c.p22 ?? c.p25;
   const modDiv = senPair('mod_div', 'mod_div_sen');
-  const capLine = `× 第４表の１の④ ${c.cap4disp === '' ? '（未計算）' : c.cap4disp}円 ÷ 50円 ＝ ${rv(c.v26)}円（円未満切捨て）`;
+  const capLine = `× 第４表の１の④ ${rd(c.cap4disp)}円 ÷ 50円 ＝ ${rd(c.v26disp)}円${FRACTION_NOTE_PREV_END}`;
   hints['㉖'] = medical
     ? `㉒ ${ryen(c.p22)}\n${capLine}\n医療法人（持分あり）は類似業種が1つなので、㉕とは比べません`
     : `㉒ ${ryen(c.p22)} と ㉕ ${ryen(c.p25)} のうち低い方 ${ryen(minPrice)}\n${capLine}`;
-  hints['㉘'] = `㉖ ${rv(c.v26)}円 － ㉗ ${hyen(modDiv)} ＝ ${rv(c.v27)}円（円未満切捨て）`;
-  hints['㉜'] = `${c.v27 !== null ? `㉘ ${rv(c.v27)}円` : `㉖ ${rv(c.v26)}円`}`
+  hints['㉘'] = `㉖ ${rd(c.v26disp)}円 － ㉗ ${hyen(modDiv)} ＝ ${rd(c.v27disp)}円${FRACTION_NOTE_PREV_END}`;
+  hints['㉜'] = `${c.v27 !== null ? `㉘ ${rd(c.v27disp)}円` : `㉖ ${rd(c.v26disp)}円`}`
     + ` ＋ ㉙ ${hyen(senPair('mod_pay', 'mod_pay_sen'))} × ㉚ ${hs(raw('mod_ratio'))}株`
-    + `\n÷（1株 ＋ ㉛ ${hs(raw('mod_ratio2'))}株）＝ ${rv(c.v28)}円（円未満切捨て）`;
+    + `\n÷（1株 ＋ ㉛ ${hs(raw('mod_ratio2'))}株）＝ ${rd(c.v28disp)}円${FRACTION_NOTE_TAX_TIME}`;
 
   return hints;
 }

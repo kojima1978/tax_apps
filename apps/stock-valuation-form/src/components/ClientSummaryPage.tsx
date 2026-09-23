@@ -12,6 +12,7 @@ import {
 } from '@/lib/summaryOptions';
 import { calcValuationReport, type ShareholderValuationRow, type ValuationBasis, type ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
+import { NEGATIVE_MARK, formatAmount, formatDecimal } from '@/lib/numberFormat';
 
 type Props = Pick<TableProps, 'getField' | 'updateField'> & {
   onBack: () => void;
@@ -29,7 +30,7 @@ export function Icon({ name }: { name: 'print' | 'worksheet' }) {
 }
 
 
-const yenOrDash = (value: number | null) => value === null ? '算定未完了' : `${value.toLocaleString('ja-JP')}円`;
+const yenOrDash = (value: number | null) => value === null ? '算定未完了' : `${formatAmount(value)}円`;
 
 function PriceDifference({ current, value }: { current: number | null; value: number | null }) {
   if (current === null || value === null) return <small>現在との差：比較に必要な金額が未算定です</small>;
@@ -51,7 +52,7 @@ const PRIORITY_CLASS: Record<'高' | '中' | '低', string> = { 高: 'high', 中
 // 来期の見通し：現在との差。株価が上がる（＝不利になる）方向を赤で示す
 function DiffCell({ diff, rate }: { diff: number | null; rate: number | null }) {
   if (diff === null) return <>－</>;
-  const sign = diff > 0 ? '+' : diff < 0 ? '−' : '±';
+  const sign = diff > 0 ? '+' : diff < 0 ? NEGATIVE_MARK : '±';
   const tone = diff > 0 ? 'summary-forecast-diff-up' : diff < 0 ? 'summary-forecast-diff-down' : undefined;
   return (
     <>
@@ -63,7 +64,7 @@ function DiffCell({ diff, rate }: { diff: number | null; rate: number | null }) 
 
 const elementValueOf = (element: ElementForecast) => element.excluded
   ? '評価対象外'
-  : element.current === null ? '－' : `${element.current.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}円`;
+  : element.current === null ? '－' : `${formatDecimal(element.current, 2)}円`;
 
 // 会社規模と、その規模で用いる類似業種比準価額の割合（小会社0.50・中会社L・大会社1.00）
 const SIZE_SCALE = [
@@ -75,7 +76,7 @@ const SIZE_SCALE = [
 ] as const;
 
 /** 「利益3,000千円の場合」のように、試算に使った額を条件名にする */
-const assumedProfitCase = (amount: number) => `利益${amount.toLocaleString('ja-JP')}千円の場合`;
+const assumedProfitCase = (amount: number) => `利益${formatAmount(amount)}千円の場合`;
 
 // 株価一覧の行。ベースの違いは行のラベル側に持たせ、表は「項目｜金額」の2列で並べる。
 const PRICE_ROWS: {
@@ -368,7 +369,7 @@ function BasisOptions({ name, options, setOption }: { name: string; options: Sum
 const basisSummary = (options: SummaryOptions) => [
   BASIS_FILTERS.find((item) => item.value === options.basis)?.label,
   options.showZeroProfit ? '利益0を併記' : null,
-  isAssumedProfitVisible(options) ? `利益${options.assumedProfit!.toLocaleString('ja-JP')}千円を併記` : null,
+  isAssumedProfitVisible(options) ? `利益${formatAmount(options.assumedProfit!)}千円を併記` : null,
 ].filter(Boolean).join(' ／ ');
 
 const SECTION_SUMMARY: Partial<Record<SummarySectionKey, (options: SummaryOptions) => string>> = {

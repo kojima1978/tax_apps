@@ -4,11 +4,13 @@ import { calcTable5 } from '../table5/Table5Grid';
 import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { calcShareholderJudgment } from '../Table1_1Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
-import { methodPickCell } from '../shared';
+import { methodPickCell, rightsTotal } from '../shared';
 import { table3Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
 import type { TableId, TableProps } from '@/types/form';
 import { forcesSmallCompany } from '@/lib/valuationPurpose';
+import { fractionalWriters } from '@/lib/fractionalAmount';
+import { formatAmount as fmt, formatDecimal, formatSenPart as senPart, formatYenPart as yenPart, stripAmountFormatting } from '@/lib/numberFormat';
 
 const T = 'table3' as const;
 
@@ -54,7 +56,7 @@ function yenSenInput(
 
 // ── フィールド読み取り（計算関数とコンポーネントで共用） ──
 const numOf = (s: string): number | null => {
-  const t = s.replace(/,/g, '').trim();
+  const t = stripAmountFormatting(s);
   if (t === '') return null;
   const n = Number(t);
   return isNaN(n) ? null : n;
@@ -270,7 +272,7 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '円', top: 90.46, left: 51.09, width: 1.81, height: 3.44, fontSize: 7 },
   { kind: 'label', text: '㉞　株式に関する\n権利の評価額', fontSize: 7, top: 90.46, left: 52.9, width: 10.88, height: 3.44 },
   { kind: 'cell', codeLabel: 'J06', top: 90.46, left: 63.78, width: 2.3, height: 3.44 },
-  { field: '㉞円', kind: 'input', readOnly: true, multiline: true, fontSize: 7, top: 90.46, left: 66.08, width: 15.0, height: 3.44, align: 'right' },
+  { field: '㉞円', kind: 'input', readOnly: true, top: 90.46, left: 66.08, width: 15.0, height: 3.44, align: 'right' },
   { kind: 'label', text: '円', top: 90.46, left: 81.08, width: 1.8, height: 3.44, fontSize: 7 },
   { field: '㉞銭', kind: 'input', readOnly: true, top: 90.46, left: 82.88, width: 7.23, height: 3.44, align: 'right' },
   { kind: 'label', text: '銭', top: 90.46, left: 90.11, width: 2.23, height: 3.44, fontSize: 7 },
@@ -295,20 +297,30 @@ export function calcTable3(getField: TableProps['getField']) {
   const v1 = t4.v28 ?? t4.v27 ?? t4.v26;  // ①=第4表の比準価額（修正後があればそれ）
   const v2 = t5['⑪'] ?? null;             // ②=第5表の⑪
   const v3 = t5['⑫'] ?? null;             // ③=第5表の⑫（80%相当額）
+  // 切捨てで0になる欄は分数等で記載する（記載方法等 第3表 2⑴⑵イ・3⑴ロ⑶・4）
+  const { atTaxTime, atPrevEnd } = fractionalWriters(getField);
+
   const v4 = v1 !== null && v2 !== null ? Math.min(v1, v2) : v2 ?? v1; // ④大会社
   const lRate = size === 3 ? 0.9 : size === 2 ? 0.75 : size === 1 ? 0.6 : null; // Lの割合（第1表の2連動）
   const lowBase = v1 !== null && v2 !== null ? Math.min(v1, v2) : null;
   const netForMid = v3 ?? v2;
-  const v5 = lRate !== null && lowBase !== null && netForMid !== null ? fl(lowBase * lRate + netForMid * (1 - lRate)) : null; // ⑤中会社
+  const f5 = atTaxTime(lRate !== null && lowBase !== null && netForMid !== null // ⑤中会社
+    ? lowBase * lRate + netForMid * (1 - lRate) : null);
+  const v5 = f5.value;
   const iSmall = v3 ?? v2;
-  const v6 = iSmall === null ? null : v1 === null ? fl(iSmall) : fl(Math.min(iSmall, v1 * 0.5 + iSmall * 0.5)); // ⑥小会社
+  const f6 = atTaxTime(iSmall === null ? null // ⑥小会社
+    : v1 === null ? iSmall : Math.min(iSmall, v1 * 0.5 + iSmall * 0.5));
+  const v6 = f6.value;
   const base = size === 4 ? v4 : size === 0 ? v6 : size !== null ? v5 : null; // 会社規模に応じた株式の価額
   // 修正（⑧=（④⑤又は⑥）－⑦、⑫=(⑧(なければ④⑤⑥)＋⑨×⑩)÷(1株＋⑪)）
   const mod1Div = amountWithSen('mod1_div', 'mod1_div_sen');
-  const v8 = base !== null && mod1Div !== null ? fl(base - mod1Div) : null;
+  const f8 = atTaxTime(base !== null && mod1Div !== null ? base - mod1Div : null);
+  const v8 = f8.value;
   const mod2Pay = num('mod2_pay'), mod2Ratio = num('mod2_ratio'), mod2Ratio2 = num('mod2_ratio2');
   const base12 = v8 ?? base;
-  const v12 = base12 !== null && mod2Ratio2 !== null ? fl((base12 + (mod2Pay ?? 0) * (mod2Ratio ?? 0)) / (1 + mod2Ratio2)) : null;
+  const f12 = atTaxTime(base12 !== null && mod2Ratio2 !== null
+    ? (base12 + (mod2Pay ?? 0) * (mod2Ratio ?? 0)) / (1 + mod2Ratio2) : null);
+  const v12 = f12.value;
   const gensoku = v12 ?? v8 ?? base; // 原則的評価方式の最終価額
 
   // 2. 配当還元方式（⑬は第4表①、⑭は第1表の1⑤、⑮は第1表の1の自己株式数f63から転記）
@@ -318,21 +330,13 @@ export function calcTable3(getField: TableProps['getField']) {
   const v14c = numOf(getField('table1_1', '⑤'));
   const v15c = numOf(linkedTreasuryShares); // ⑮＝第1表の1の自己株式数（f63）を転記
   const v16 = v13c !== null ? fl(v13c * 20) : null; // ⑯=⑬×1000÷50
-  // ⑰: 円未満切捨て。0となる場合は(⑭－⑮)の桁数の小数（記載要領）
+  // ⑰: 円未満切捨て。0となる場合は分数等（直前期末基準）で記載（記載方法等 第3表 3⑴ロ）
   const sharesNet3 = v14c !== null ? v14c - (v15c ?? 0) : null;
-  let v17: number | null = null;
-  let v17disp = '';
-  if (v13c !== null && sharesNet3 !== null && sharesNet3 > 0) {
-    const v = (v13c * 1000) / sharesNet3;
-    if (fl(v) > 0) {
-      v17 = fl(v);
-      v17disp = v17.toLocaleString('ja-JP');
-    } else {
-      const m = Math.pow(10, String(Math.floor(sharesNet3)).length);
-      v17 = Math.floor(v * m + 1e-9) / m;
-      v17disp = String(v17);
-    }
-  }
+  const f17 = atPrevEnd(
+    v13c !== null && sharesNet3 !== null && sharesNet3 > 0 ? (v13c * 1000) / sharesNet3 : null,
+  );
+  const v17 = f17.value;
+  const v17disp = f17.text;
   // ⑱⑲年配当金額は第4表⑥⑦から転記（直前期=f28/f29、直前々期=f32/f33）
   const t4num = (f: string) => numOf(getField('table4', f));
   const subT4 = (a: string, b: string) => { const x = t4num(a); return x === null ? null : x - (t4num(b) ?? 0); };
@@ -343,7 +347,8 @@ export function calcTable3(getField: TableProps['getField']) {
   const v22raw = v21 !== null && v16 !== null && v16 > 0 ? fl10sen((v21 * 1000) / v16) : null; // 切上げ前の計算値
   const v22 = v22raw === null ? null : Math.max(2.5, v22raw);
   const v22Floored = v22raw !== null && v22raw < 2.5; // 計算値が2円50銭未満→下限を適用
-  const v23 = v22 !== null && v17 !== null ? fl((v22 * v17) / 5) : null; // ㉓=㉒÷10%×⑰÷50円
+  const f23 = atPrevEnd(v22 !== null && v17 !== null ? (v22 * v17) / 5 : null); // ㉓=㉒÷10%×⑰÷50円
+  const v23 = f23.value;
   const v24 = v23 === null ? null : gensoku !== null && v23 > gensoku ? gensoku : v23; // ㉔
 
   // 適用方式（自動=第1表の1・第1表の2の株主判定に連動、様式の区分見出しをクリックして手動固定も可）
@@ -359,9 +364,18 @@ export function calcTable3(getField: TableProps['getField']) {
   const v27 = expDiv !== null ? fl2sen(expDiv - (expTax ?? 0)) : null; // ㉗配当期待権（円未満2位）
   const base28 = useHaito === null ? null : useHaito ? v24 ?? v23 : gensoku; // ⑫(配当還元の場合は㉔)
   const r22Pay = num('r22_pay');
-  const v30 = base28 !== null && r22Pay !== null ? fl(base28 - r22Pay) : null; // ㉚
-  const v31 = base28 === null ? null : fl(base28);                            // ㉛
+  const f30 = atTaxTime(base28 !== null && r22Pay !== null ? base28 - r22Pay : null); // ㉚
+  const v30 = f30.value;
+  const f31 = atTaxTime(base28);                                                      // ㉛
+  const v31 = f31.value;
   const v32 = base28; // ㉜
+  // ㉞株式に関する権利の評価額: 発生している権利の金額を合計する（記載方法等 第3表 5⑵）
+  const rights = rightsTotal([
+    { key: 'right_haito', mark: '㉗', name: '配当期待権', value: v27 },
+    { key: 'right_wariate', mark: '㉚', name: '株式の割当てを受ける権利', value: v30 },
+    { key: 'right_kabunushi', mark: '㉛', name: '株主となる権利', value: v31 },
+    { key: 'right_musho', mark: '㉜', name: '株式無償交付期待権', value: v32 },
+  ], (key) => raw(key) === '1');
 
   return {
     v1, v2, v3, v4, v5, v6, size, lRate, iSmall, v8, v12, base,
@@ -369,7 +383,10 @@ export function calcTable3(getField: TableProps['getField']) {
     linkedTreasuryShares, v16, v17, v17disp, ia, ro, v21, v22, v22raw, v22Floored,
     v23, v24,                   // ㉓=配当還元の計算値、㉔=原則を超える場合に原則で頭打ちした額
     haitoKangen: v24 ?? v23,    // 配当還元方式による価額
-    v27, base28, v30, v31, v32,
+    v27, base28, v30, v31, v32, rights,
+    // 切捨てで0になったとき分数等で書く欄は、様式へ入れる文字列も併せて返す
+    v5disp: f5.text, v6disp: f6.text, v8disp: f8.text, v12disp: f12.text,
+    v23disp: f23.text, v30disp: f30.text, v31disp: f31.text,
     judge, medical, useHaito, finalPrice,
   };
 }
@@ -379,31 +396,17 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
   const { raw, num } = fieldReaders(getField);
   const u = (f: string, v: string) => updateField(T, f, v);
 
-  const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
-  const fmtDec1 = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP', { maximumFractionDigits: 1 }));
-  const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
-  const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
+  const fmtDec1 = (v: number | null) => formatDecimal(v, 1);
 
   const calc = calcTable3(getField);
   const {
-    v1, v2, v3, v4, v5, v6, size, lRate, iSmall, v8, v12,
+    v1, v2, v3, v4, size, lRate, iSmall,
     linkedTreasuryShares, v16, v17disp, ia, ro, v21, v22, v22raw, v22Floored,
-    v23, v24, v27, base28, v30, v31, v32, finalPrice, medical, useHaito,
+    v24, v27, base28, v32, finalPrice, medical, useHaito, rights,
+    v5disp, v6disp, v8disp, v12disp, v23disp, v30disp, v31disp,
   } = calc;
 
 
-  // 4. 株式に関する権利の評価額: 発生している権利（クリック指定）の金額をそれぞれ別に記載（記載要領）
-  const RIGHTS = [
-    { key: 'right_haito', label: '配当期待権', mark: '㉗', yen: v27 === null ? null : `㉗ ${fl(v27).toLocaleString('ja-JP')}` },
-    { key: 'right_wariate', label: '割当てを受ける権利', mark: '㉚', yen: v30 === null ? null : `㉚ ${v30.toLocaleString('ja-JP')}` },
-    { key: 'right_kabunushi', label: '株主となる権利', mark: '㉛', yen: v31 === null ? null : `㉛ ${v31.toLocaleString('ja-JP')}` },
-    { key: 'right_musho', label: '無償交付期待権', mark: '㉜', yen: v32 === null ? null : `㉜ ${v32.toLocaleString('ja-JP')}` },
-  ];
-  // 様式の㉞欄は［円］［銭］に分かれる。銭が生じるのは配当期待権のみなので、
-  // 円欄に権利ごとの円部分を、銭欄に配当期待権の銭部分を表示する。
-  const selectedRights = RIGHTS.filter((r) => raw(r.key) === '1');
-  const rightsYenText = selectedRights.map((r) => r.yen ?? `${r.mark} －`).join('\n');
-  const rightsSenText = selectedRights.some((r) => r.key === 'right_haito') && v27 !== null ? senPart(v27) : '';
 
   const g = (f: string): string => {
     switch (f) {
@@ -425,13 +428,13 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
         if (iSmall === blended) return 'イ・ロ';
         return iSmall < blended ? 'イ' : 'ロ';
       }
-      case '⑤': return size !== null && size > 0 && size < 4 ? fmt(v5) : '';
-      case '⑥': return size === 0 ? fmt(v6) : '';
+      case '⑤': return size !== null && size > 0 && size < 4 ? v5disp : '';
+      case '⑥': return size === 0 ? v6disp : '';
       case 'L割合': return lRate === null ? '' : lRate.toFixed(2);
       case 'mod1_div': return yenPart(num('mod1_div'));
       case 'mod1_div_sen': return raw('mod1_div_sen').trim() !== '' ? raw('mod1_div_sen') : senPart(num('mod1_div'));
-      case '⑧': return fmt(v8);
-      case '⑫': return fmt(v12);
+      case '⑧': return v8disp;
+      case '⑫': return v12disp;
       case '⑬': return getField('table4', '①');
       case '⑭': return getField('table1_1', '⑤');
       case '⑮': return linkedTreasuryShares;
@@ -446,7 +449,7 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
       case '㉑': return fmtDec1(v21);
       case '㉒円': return yenPart(v22);
       case '㉒銭': return senPart(v22);
-      case '㉓': return fmt(v23);
+      case '㉓': return v23disp;
       case '㉔': return fmt(v24);
       case 'exp_div': return yenPart(num('exp_div'));
       case 'exp_div_sen': return raw('exp_div_sen').trim() !== '' ? raw('exp_div_sen') : senPart(num('exp_div'));
@@ -454,12 +457,12 @@ export function Table3Grid({ getField, updateField, onJump }: TableProps) {
       case 'exp_tax_sen': return raw('exp_tax_sen').trim() !== '' ? raw('exp_tax_sen') : senPart(num('exp_tax'));
       case '㉗円': return yenPart(v27); case 'f72': return senPart(v27);
       case '㉘': return fmt(base28);
-      case '㉚': return fmt(v30);
-      case '㉛': return fmt(v31);
+      case '㉚': return v30disp;
+      case '㉛': return v31disp;
       case '㉜': return fmt(v32);
       case '㉝': return finalPrice === null ? '' : fmt(finalPrice);
-      case '㉞円': return rightsYenText;
-      case '㉞銭': return rightsSenText;
+      case '㉞円': return rights.yen;
+      case '㉞銭': return rights.sen;
       default: return raw(f);
     }
   };

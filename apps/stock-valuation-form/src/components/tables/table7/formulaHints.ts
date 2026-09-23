@@ -1,6 +1,7 @@
 import { MEDICAL_NO_DIVIDEND, MEDICAL_NO_SECOND_INDUSTRY, hs, hv, hyen, rv, ryen } from '@/lib/formulaHint';
 import { PRICE_LABELS, shinLabel } from '../table4/formulaHints';
 import type { calcTable7 } from './calcTable7';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 // 第7表の1・第7表の2の自動計算欄に出すツールチップ。
 // この2表は値のほとんどが第4表・第5表からの転記なので、「どこから来た数字か」を最初に書く。
@@ -63,9 +64,9 @@ export function table7_1Hints(c: Calc, raw: Raw, medical: boolean): Record<strin
 export function table7_2Hints(c: Calc, raw: Raw, t4raw: Raw, medical: boolean): Record<string, string> {
   const hints: Record<string, string> = {};
   const senPair = (get: Raw, yen: string, sen: string) => {
-    const v = get(yen).replace(/,/g, '').trim();
+    const v = stripAmountFormatting(get(yen));
     if (v === '' || isNaN(Number(v))) return null;
-    return Number(v) + Number(get(sen).replace(/,/g, '').trim() || 0) / 100;
+    return Number(v) + Number(stripAmountFormatting(get(sen)) || 0) / 100;
   };
 
   // 株価欄は [この表のフィールド名, 表示記号, 第4表の2のフィールド名] の3つ組。

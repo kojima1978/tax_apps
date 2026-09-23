@@ -4,6 +4,7 @@ import { table4_1Hints } from './formulaHints';
 import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
+import { formatAmount as fmt, formatDecimal, formatSenPart as senPart, formatYenPart as yenPart } from '@/lib/numberFormat';
 
 // ══ 第4表の1（令和8年4月1日以降用）══
 // 旧第4表の前半（1.資本金等の計算 ＋ 2.比準要素等の金額の計算 ＋ 判定要素の金額の集約ブロック）。
@@ -182,17 +183,13 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '円', top: 76.58, left: 90.53, width: 1.9, height: 3.7, fontSize: 7 },
 ];
 
-const fl = (v: number) => Math.floor(v + 1e-9);
 
 /** 第4表の1（1.資本金等 ＋ 2.比準要素等の金額の計算） */
 export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
-  const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
-  const fmtDec1 = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP', { maximumFractionDigits: 1 }));
-  const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
-  const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
+  const fmtDec1 = (v: number | null) => formatDecimal(v, 1);
 
   const c = calcTable4(getField);
   // 医療法人（持分あり）は剰余金の配当ができないため、年配当金額は入力させず表示もしない。

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Icon } from './ClientSummaryPage';
 import { buildCalculationWorksheet, type WorksheetScenario, type WorksheetSection } from '@/lib/calculationWorksheet';
 import type { TableProps } from '@/types/form';
+import { NEGATIVE_MARK, formatAmount } from '@/lib/numberFormat';
 
 type Props = Pick<TableProps, 'getField'> & {
   /** 画面表示のときだけ渡す。全表印刷に差し込むときは操作帯を出さない */
@@ -9,13 +10,13 @@ type Props = Pick<TableProps, 'getField'> & {
   onPrint?: () => void;
 };
 
-const yen = (value: number | null) => value === null ? '算定未完了' : `${value.toLocaleString('ja-JP')}円`;
+const yen = (value: number | null) => value === null ? '算定未完了' : `${formatAmount(value)}円`;
 
 function difference(scenario: WorksheetScenario): string {
   const { currentPrice, trialPrice } = scenario;
   if (currentPrice === null || trialPrice === null) return '－';
   const diff = trialPrice - currentPrice;
-  return diff === 0 ? '±0円' : `${diff > 0 ? '＋' : '－'}${Math.abs(diff).toLocaleString('ja-JP')}円`;
+  return diff === 0 ? '±0円' : `${diff > 0 ? '＋' : NEGATIVE_MARK}${Math.abs(diff).toLocaleString('ja-JP')}円`;
 }
 
 const WORKSHEET_COLUMNS = [

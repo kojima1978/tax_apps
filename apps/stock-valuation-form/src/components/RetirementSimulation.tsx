@@ -3,14 +3,15 @@ import type { TableProps } from '@/types/form';
 import type { ValuationBasis } from '@/lib/valuationReport';
 import { filterBases, formatAssumedProfit, type BasisFilter } from '@/lib/summaryOptions';
 import { calcRetirementSimulation, RETIREMENT_AMOUNT_FIELD, RETIREMENT_INSURANCE_FIELD } from '@/lib/retirementSimulation';
+import { formatAmount } from '@/lib/numberFormat';
 
 type Props = Pick<TableProps, 'getField' | 'updateField'> & {
   basis: BasisFilter;
   before: ValuationBasis[];
   onHide: () => void;
 };
-const money = (n: number | null) => n === null ? '算定未完了' : `${n.toLocaleString('ja-JP')}円`;
-const sen = (n: number | null) => `${(n ?? 0).toLocaleString('ja-JP')}千円`;
+const money = (n: number | null) => n === null ? '算定未完了' : `${formatAmount(n)}円`;
+const sen = (n: number | null) => `${formatAmount(n ?? 0)}千円`;
 const difference = (now: number | null, after: number | null) => {
   if (now === null || after === null) return '比較に必要な金額が未算定です';
   const diff = after - now;

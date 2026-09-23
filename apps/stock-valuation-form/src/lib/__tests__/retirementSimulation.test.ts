@@ -48,6 +48,9 @@ describe('退職金支給後の試算（税軽減なし）', () => {
   });
   it('未入力は結果を作らず、資金残高を超える支給額でも試算する', () => {
     expect(calcRetirementSimulation(fixture('').get)).toMatchObject({ bases: [], error: null });
+    // 100,001千円を支給すると資産100,000千円を1,000千円下回る。⑤⑨（純資産価額）は
+    // マイナスのまま記載するが（マイナスを 0 にするのは⑥と⑦だけ・記載方法等 第5表 3）、
+    // 1株当たりの評価額（⑪）にマイナスは無いので 0 となる
     const result = calcRetirementSimulation(fixture('100001').get);
     expect(result.error).toBeNull();
     expect(result.bases.map((b) => b.netAssetPrice)).toEqual([0, 0]);

@@ -3,6 +3,7 @@ import type { TableProps } from '@/types/form';
 import { calcShareholderJudgment } from '../Table1_1Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import { forcesSmallCompany } from '@/lib/valuationPurpose';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 const T = 'table1_2' as const;
 
@@ -41,7 +42,7 @@ const rank = (v: number, th: readonly [number, number, number, number]) =>
   v >= th[0] ? 4 : v >= th[1] ? 3 : v >= th[2] ? 2 : v >= th[3] ? 1 : 0;
 
 const parseNumber = (value: string): number | null => {
-  const s = value.replace(/,/g, '').trim();
+  const s = stripAmountFormatting(value);
   if (s === '') return null;
   const n = Number(s);
   return isNaN(n) ? null : n;

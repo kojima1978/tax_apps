@@ -1,4 +1,4 @@
-import { hv, rv } from '@/lib/formulaHint';
+import { FRACTION_NOTE_TAX_TIME, hf, hv, rf, rv } from '@/lib/formulaHint';
 import type { calcTable8 } from './Table8Grid';
 
 // 第7表の3（第8表）の自動計算欄に出すツールチップ。
@@ -49,24 +49,26 @@ export function table8Hints(c: Calc, specialMarketValueRules: boolean): Record<s
       : `⑦ ${hv(c.v7, 1)}千円 × 38％ ＝ ${rv(c.v8, 1)}千円（端数切捨て）`,
     '⑨': `③ ${hv(c.v3, 1)} － ⑧ ${hv(c.v8, 1)} ＝ ${rv(c.v9, 1)}千円`,
     '⑩': `第５表の⑩（課税時期現在の発行済株式数）${rv(c.v10)}株`,
-    '⑪': `⑨ ${hv(c.v9, 1)}千円 × 1,000 ÷ ⑩ ${hv(c.v10)}株 ＝ ${rv(c.v11)}円（円未満切捨て）`,
+    '⑪': c.v9 !== null && c.v9 < 0
+      ? `⑨ ${hv(c.v9, 1)}千円がマイナスのため、0円とします（株式にマイナスの評価額は付かないため）`
+      : `⑨ ${hv(c.v9, 1)}千円 × 1,000 ÷ ⑩ ${hv(c.v10)}株 ＝ ${rf(c.v11)}円${FRACTION_NOTE_TAX_TIME}`,
 
-    '⑫': `第７表の２の比準価額 ${rv(c.v12)}円（㉚ → ㉖ → ㉔ の順に、記載のあるものを使います）`,
-    '⑬': `⑪ ${rv(c.v11)}円 と同じ金額です`,
+    '⑫': `第７表の２の比準価額 ${rf(c.v12)}円（㉚ → ㉖ → ㉔ の順に、記載のあるものを使います）`,
+    '⑬': `⑪ ${rf(c.v11)}円 と同じ金額です`,
     '⑭': cls.hijun1
-      ? `⑬ ${rv(c.v13)}円 と（⑫ ${hv(c.v12)}円 × 0.25 ＋ ⑬ ${hv(c.v13)}円 × 0.75）のうち低い方`
-        + `\n＝ ${rv(c.v14)}円（円未満切捨て）`
+      ? `⑬ ${rf(c.v13)}円 と（⑫ ${hf(c.v12)}円 × 0.25 ＋ ⑬ ${hf(c.v13)}円 × 0.75）のうち低い方`
+        + `\n＝ ${rf(c.v14)}円${FRACTION_NOTE_TAX_TIME}`
       : notPicked,
     '⑮': cls.big
-      ? `⑫ ${hv(c.v12)}円 と ⑬ ${hv(c.v13)}円 のうち低い方 ＝ ${rv(c.v15)}円`
+      ? `⑫ ${hf(c.v12)}円 と ⑬ ${hf(c.v13)}円 のうち低い方 ＝ ${rf(c.v15)}円`
       : notPicked,
     '⑯': cls.mid
-      ? `（⑫ ${hv(c.v12)}円 と ⑬ ${hv(c.v13)}円 の低い方）× Ｌ ${lText} ＋ ⑬ ${hv(c.v13)}円 ×（1 － ${lText}）`
-        + `\n＝ ${rv(c.v16)}円（円未満切捨て。Ｌの割合は第１表の２の会社規模で決まります）`
+      ? `（⑫ ${hf(c.v12)}円 と ⑬ ${hf(c.v13)}円 の低い方）× Ｌ ${lText} ＋ ⑬ ${hf(c.v13)}円 ×（1 － ${lText}）`
+        + `\n＝ ${rf(c.v16)}円${FRACTION_NOTE_TAX_TIME}\nＬの割合は第１表の２の会社規模で決まります`
       : notPicked,
     '⑰': cls.small
-      ? `⑬ ${rv(c.v13)}円 と（⑫ ${hv(c.v12)}円 × 0.5 ＋ ⑬ ${hv(c.v13)}円 × 0.5）のうち低い方`
-        + `\n＝ ${rv(c.v17)}円（円未満切捨て）`
+      ? `⑬ ${rf(c.v13)}円 と（⑫ ${hf(c.v12)}円 × 0.5 ＋ ⑬ ${hf(c.v13)}円 × 0.5）のうち低い方`
+        + `\n＝ ${rf(c.v17)}円${FRACTION_NOTE_TAX_TIME}`
       : notPicked,
 
     '⑱': `第５表のイ（株式等の相続税評価額の合計額）${rv(c.v18, 1)}千円`
@@ -77,11 +79,11 @@ export function table8Hints(c: Calc, specialMarketValueRules: boolean): Record<s
       : `⑳ ${hv(c.v20, 1)}千円 × 38％ ＝ ${rv(c.v21, 1)}千円（端数切捨て）`,
     '㉒': `⑱ ${hv(c.v18, 1)} － ㉑ ${hv(c.v21, 1)} ＝ ${rv(c.v22, 1)}千円`,
     '㉓': `第５表の⑩（課税時期現在の発行済株式数）${rv(c.v23)}株`,
-    '㉔': `㉒ ${hv(c.v22, 1)}千円 × 1,000 ÷ ㉓ ${hv(c.v23)}株 ＝ ${rv(c.v24)}円（円未満切捨て）`,
+    '㉔': `㉒ ${hv(c.v22, 1)}千円 × 1,000 ÷ ㉓ ${hv(c.v23)}株 ＝ ${rf(c.v24)}円${FRACTION_NOTE_TAX_TIME}`,
 
-    '㉕': `第５表の⑫（記載がないときは⑪）の1株当たりの純資産価額 ${rv(c.v25)}円`,
-    '㉖': `S1の金額 ${rv(c.s1)}円（${picked ?? '⑭〜⑰が未確定'}）＋ S2の金額 ㉔ ${hv(c.v24)}円`
-      + `\n＝ ${rv(c.v26)}円`,
-    '㉗': `㉕ ${hv(c.v25)}円 と ㉖ ${hv(c.v26)}円 のうち低い方 ＝ ${rv(c.v27)}円`,
+    '㉕': `第５表の⑫（記載がないときは⑪）の1株当たりの純資産価額 ${rf(c.v25)}円`,
+    '㉖': `S1の金額 ${rf(c.s1)}円（${picked ?? '⑭〜⑰が未確定'}）＋ S2の金額 ㉔ ${hf(c.v24)}円`
+      + `\n＝ ${rf(c.v26)}円${FRACTION_NOTE_TAX_TIME}`,
+    '㉗': `㉕ ${hf(c.v25)}円 と ㉖ ${hf(c.v26)}円 のうち低い方 ＝ ${rf(c.v27)}円`,
   };
 }

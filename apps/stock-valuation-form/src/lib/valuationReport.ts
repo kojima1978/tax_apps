@@ -11,6 +11,7 @@ import {
   type ValuationPurpose,
 } from '@/lib/valuationPurpose';
 import type { TableProps } from '@/types/form';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 // ══ お客様報告用の株価集計 ══
 // 既存の calcTableN はすべて getField を引数に取るので、getField をプロキシして
@@ -93,7 +94,7 @@ function asTaxpayer(getField: TableProps['getField'], row: number): TableProps['
 }
 
 const numberOf = (value: string): number | null => {
-  const normalized = value.replace(/,/g, '').trim();
+  const normalized = stripAmountFormatting(value);
   if (!normalized) return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;

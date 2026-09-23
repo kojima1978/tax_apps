@@ -4,6 +4,7 @@
 // 起動時に全年分をまとめて取得し、以降の参照はすべてこの層でメモリ上から行う。
 
 import { DEFAULT_ERA } from '@/lib/wareki';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 export type IndustryLevel = 'LARGE' | 'MIDDLE' | 'SMALL';
 
@@ -194,7 +195,7 @@ const EMPTY_VIEW: IndustryYearView = {
 function createYearView(index: YearIndex, monthRaw: string, exactYear: number | null): IndustryYearView {
   const { year, byNumber, largeByName, middleByPath, options } = index;
 
-  const taxMonth = Number(monthRaw.replace(/,/g, '').trim());
+  const taxMonth = Number(stripAmountFormatting(monthRaw));
   const validMonth = Number.isInteger(taxMonth) && taxMonth >= 1 && taxMonth <= 12;
 
   /**

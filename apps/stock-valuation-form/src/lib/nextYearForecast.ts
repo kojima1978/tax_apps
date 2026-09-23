@@ -18,6 +18,7 @@ import { calcTable3 } from '@/components/tables/table3/Table3Grid';
 import { calcTable6 } from '@/components/tables/table6/calcTable6';
 import { RESULT_NAMES } from '@/lib/clientSummary';
 import type { TableProps } from '@/types/form';
+import { formatAmount } from '@/lib/numberFormat';
 
 export type ElementKey = 'B' | 'C' | 'D';
 
@@ -76,7 +77,7 @@ const D_LABEL = 'Ⓓ₁ 純資産価額（帳簿価額）';
 
 /** 必要額は千円未満を切り上げる（下回るとゼロ判定になるため） */
 const ceilThousand = (v: number) => Math.max(0, Math.ceil(v - 1e-9));
-const fmt = (v: number) => v.toLocaleString('ja-JP');
+const fmt = (v: number) => formatAmount(v);
 
 export function calcNextYearForecast(getField: TableProps['getField']): NextYearForecast {
   const t2 = calcTable2(getField);

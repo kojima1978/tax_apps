@@ -10,6 +10,7 @@ import { RETIREMENT_LIABILITY_NAME, calcRetirementSimulation, nonRecurringAfterR
 import { filterBases, readSummaryOptions } from '@/lib/summaryOptions';
 import { BASIS_LABELS, withProfit, withPurpose, type ValuationBasisKey } from '@/lib/valuationReport';
 import type { TableProps } from '@/types/form';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 // ══ 試算の計算過程（別紙） ══
 // サマリーの「利益0」「想定利益」「退職金」の金額を、作業者が様式の欄番号で追えるように並べる。
@@ -62,7 +63,7 @@ export type CalculationWorksheet = {
 };
 
 const numberOf = (value: string): number | null => {
-  const normalized = value.replace(/,/g, '').trim();
+  const normalized = stripAmountFormatting(value);
   if (!normalized) return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
@@ -70,14 +71,11 @@ const numberOf = (value: string): number | null => {
 
 type Unit = '千円' | '円' | '円銭' | '割合' | '株';
 
-/** 金額の負数は明細書の書き方に合わせて△で表す（hv・rv の出力に被せる） */
-const tri = (text: string): string => text.replace(/^-/, '△');
-
 const show = (value: number | null, unit: Unit, empty = '－'): string => {
   if (value === null) return empty;
   if (unit === '円銭') return hyen(value);
   if (unit === '割合') return value.toFixed(2);
-  return `${tri(hv(value, unit === '千円' ? 1 : 0))}${unit}`;
+  return `${hv(value, unit === '千円' ? 1 : 0)}${unit}`;
 };
 
 /** 現在・試算の両側で計算した各表 */
@@ -145,11 +143,11 @@ function profitInputSection(amount: number, current: Getter, trial: Getter): Wor
     title: '1. 差し替えた入力（第４表の１ 直前期）',
     note: '直前々期以前の実績と第５表・会社規模は現在のままです。',
     rows: inputRows([
-      { field: 'e18', label: '⑪ 法人税の課税所得金額', process: `直前期の年利益金額を ${tri(hv(amount))}千円 とするため、⑪を ${tri(hv(amount))}千円 に置き換え` },
+      { field: 'e18', label: '⑪ 法人税の課税所得金額', process: `直前期の年利益金額を ${hv(amount)}千円 とするため、⑪を ${hv(amount)}千円 に置き換え` },
       ...PROFIT_ADJUST_FIELDS.map(({ field, label }) => ({
         field,
         label,
-        process: `⑯＝⑪－⑫＋⑬－⑭＋⑮ が ⑪ の ${tri(hv(amount))}千円 と一致するよう 0千円 に置き換え`,
+        process: `⑯＝⑪－⑫＋⑬－⑭＋⑮ が ⑪ の ${hv(amount)}千円 と一致するよう 0千円 に置き換え`,
       })),
     ], current, trial),
   };
@@ -172,15 +170,15 @@ function retirementInputSection(pay: number, gain: number, current: Getter): Wor
     note: '支払原資・資産構成・会社規模は現在のままです。保険の解約は資産の置き換えなので第５表では動かしません（保険は解約返戻金相当額で評価済み）。',
     rows: [
       row('第４表の１ ⑪ 法人税の課税所得金額（直前期）', income, plusMinus(income),
-        `${tri(hv(income))} － 退職金 ${hv(pay)} ＋ 解約益 ${hv(gain)} ＝ ${tri(rv(plusMinus(income)))}千円`
+        `${hv(income)} － 退職金 ${hv(pay)} ＋ 解約益 ${hv(gain)} ＝ ${rv(plusMinus(income))}千円`
         + '\n退職金は損金、保険の解約益は益金として直前期に計上'),
       row('第４表の１ ⑫ 非経常的な利益金額（直前期）', now('e19'), nonRecurringAfterRetirement(nonRecurring, pay, gain),
-        `${hv(nonRecurring)} ＋ 解約益 ${hv(gain)} － 退職金 ${hv(pay)} ＝ ${tri(hv(netNonRecurring))}千円`
+        `${hv(nonRecurring)} ＋ 解約益 ${hv(gain)} － 退職金 ${hv(pay)} ＝ ${hv(netNonRecurring)}千円`
         + (netNonRecurring < 0 ? '（負数のため0千円）' : '')
         + '\n保険差益は非経常的な利益、退職金は非経常的な損失として相殺（評価通達183(2)）'
         + '\n⑫は非経常的な損失を控除した純額で、負数になるときは0（明細書の記載方法）'),
       row('第４表の１ ⑱ 利益積立金額（直前期）', retained, plusMinus(retained),
-        `${tri(hv(retained))} － 退職金 ${hv(pay)} ＋ 解約益 ${hv(gain)} ＝ ${tri(rv(plusMinus(retained)))}千円`),
+        `${hv(retained)} － 退職金 ${hv(pay)} ＋ 解約益 ${hv(gain)} ＝ ${rv(plusMinus(retained))}千円`),
       row(`第５表 負債「${RETIREMENT_LIABILITY_NAME}」`, null, pay,
         `未払退職金として、相続税評価額・帳簿価額とも ${hv(pay)}千円 を負債の部に追加`, '－'),
     ],
@@ -345,7 +343,7 @@ export function buildCalculationWorksheet(getField: Getter): CalculationWorkshee
     key: 'assumed-profit', title: '想定利益の場合', basis: 'inheritance',
     description: options.assumedProfit === null
       ? '第４表の１の直前期の年利益金額を想定利益に置き換えて再計算します。'
-      : `第４表の１の直前期の年利益金額を想定利益 ${tri(hv(options.assumedProfit))}千円 として、類似業種比準価額と原則的評価方式による価額を再計算します。`,
+      : `第４表の１の直前期の年利益金額を想定利益 ${hv(options.assumedProfit)}千円 として、類似業種比準価額と原則的評価方式による価額を再計算します。`,
   };
   if (options.assumedProfit === null) {
     scenarios.push(skippedScenario(assumedHead, 'サマリーの想定利益が未入力のため省略'));

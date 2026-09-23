@@ -6,6 +6,7 @@ import { calcShareholderJudgment } from '@/components/tables/Table1_1Grid';
 import { forcesSmallCompany, getValuationPurpose } from '@/lib/valuationPurpose';
 import { DEFAULT_ERA } from '@/lib/wareki';
 import type { TableProps } from '@/types/form';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 export type SummaryItem = {
   title: string;
@@ -42,7 +43,7 @@ export const eraDate = (getField: TableProps['getField']) => {
 };
 
 const numberOf = (value: string): number | null => {
-  const normalized = value.replace(/,/g, '').trim();
+  const normalized = stripAmountFormatting(value);
   if (!normalized) return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;

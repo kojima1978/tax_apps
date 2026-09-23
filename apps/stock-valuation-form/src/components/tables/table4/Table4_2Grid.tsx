@@ -6,6 +6,7 @@ import { withFormulaHints } from '@/lib/formulaHint';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
+import { formatAmount as fmt, formatSenPart as senPart, formatYenPart as yenPart, stripAmountFormatting } from '@/lib/numberFormat';
 
 // ══ 第4表の2（令和8年4月1日以降用）══
 // 旧第4表の後半（3.類似業種比準価額の計算＋比準価額の修正）。
@@ -15,7 +16,7 @@ const T = 'table4' as const;
 
 const minValueHighlight = (fields: string[], target: string) => (g: (field: string) => string) => {
   const values = fields
-    .map((field) => ({ field, value: Number(g(field).replace(/,/g, '').trim()) }))
+    .map((field) => ({ field, value: Number(stripAmountFormatting(g(field))) }))
     .filter(({ field, value }) => g(field).trim() !== '' && !isNaN(value));
   if (values.length === 0) return false;
   const min = Math.min(...values.map(({ value }) => value));
@@ -227,16 +228,12 @@ const CELLS: GridCell[] = [
   { field: '㉜', kind: 'input', readOnly: true, top: 89.23, left: 79.52, width: 13.39, height: 2.74, align: 'right' },
 ];
 
-const fl = (v: number) => Math.floor(v + 1e-9);
 
 /** 第4表の2（3.類似業種比準価額の計算＋修正） */
 export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
   const raw = (f: string) => getField(T, f);
   const u = (f: string, v: string) => updateField(T, f, v);
 
-  const fmt = (v: number | null) => (v === null ? '' : v.toLocaleString('ja-JP'));
-  const yenPart = (v: number | null) => (v === null ? '' : fl(v).toLocaleString('ja-JP'));
-  const senPart = (v: number | null) => (v === null ? '' : String(Math.round((v - fl(v)) * 100)).padStart(2, '0'));
 
   const c = calcTable4(getField);
 
@@ -286,7 +283,7 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
 
   // 類似業種の株価の月は第1表の1の課税時期(f14)の月から導出
   const taxMonthRaw = getField('table1_1', 'f14_m');
-  const taxMonth = Number(taxMonthRaw.replace(/,/g, '').trim());
+  const taxMonth = Number(stripAmountFormatting(taxMonthRaw));
   const taxMonthValid = taxMonthRaw.trim() !== '' && Number.isInteger(taxMonth) && taxMonth >= 1 && taxMonth <= 12;
   const prevMonth = (back: number): string => (taxMonthValid ? String(((taxMonth - 1 - back + 12) % 12) + 1) : '');
 
@@ -316,9 +313,10 @@ export function Table4_2Grid({ getField, updateField, onJump }: TableProps) {
       case 'r1size': case 'r2size': return c.size === 4 ? 'large' : c.size === 0 ? 'small' : c.size === null ? '' : 'medium';
       case '㉒': return yenPart(c.p22); case 'r1px': return senPart(c.p22);
       case '㉕': return yenPart(c.p25); case 'r2px': return senPart(c.p25);
-      case '㉖': return fmt(c.v26);
-      case '㉘': return fmt(c.v27);
-      case '㉜': return fmt(c.v28);
+      // ㉖㉘㉜は切捨てで0になるとき分数等で記載するため、表示は calcTable4 の文字列を使う
+      case '㉖': return c.v26disp;
+      case '㉘': return c.v27disp;
+      case '㉜': return c.v28disp;
       default: return raw(f);
     }
   };

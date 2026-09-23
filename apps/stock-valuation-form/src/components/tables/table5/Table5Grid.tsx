@@ -10,6 +10,9 @@ import {
   planApply,
 } from '@/features/table5Paste/parseBalanceSheet';
 import { companyFloatBox } from '../companyFloatHeader';
+import { totalShOf } from '../Table1_1Grid';
+import { fractionalWriters } from '@/lib/fractionalAmount';
+import { formatAmount } from '@/lib/numberFormat';
 import type { TableId, TableProps } from '@/types/form';
 import { getValuationPurpose, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
 import { table5Hints } from './formulaHints';
@@ -21,6 +24,7 @@ import {
   table5TotalRowsOf as totalRowsOf,
 } from '@/lib/table5Rows';
 import { withFormulaHints } from '@/lib/formulaHint';
+import { stripAmountFormatting } from '@/lib/numberFormat';
 
 const T = 'table5' as const;
 
@@ -42,10 +46,34 @@ const COMPUTED_FIELDS = new Set([
   'イ', 'ロ', 'ハ',
 ]);
 
-const parseNum = (value: string) => Number(value.replace(/,/g, '')) || 0;
+const parseNum = (value: string) => Number(stripAmountFormatting(value)) || 0;
 
+/**
+ * 純資産価額の計算上「負債に該当しないもの」（記載方法等 第5表 2⑶）。
+ *
+ * 「貸倒引当金、退職給与引当金、納税引当金及びその他の引当金、準備金並びに繰延税金負債に
+ * 相当する金額は、負債に該当しないものとします」── 引当金・準備金は名称に必ず含まれるので
+ * 部分一致で足りるが、繰延税金は資産側にも同名の科目（繰延税金資産）があるため
+ * 「負債」まで含めて判定する（資産の部の行はそもそもここを通らないが、負債の部に
+ * 「繰延税金資産」を相殺表示している決算書があるため）。
+ */
 function isExcludedLiability(name: string) {
-  return /引当金|準備金/.test(name.trim());
+  return /引当金|準備金|繰延税金負債/.test(name.trim());
+}
+
+/**
+ * 純資産価額の計算上「評価の対象とならないもの」（記載方法等 第5表 2⑴ホ）。
+ *
+ * 「評価の対象とならないもの（例えば、財産性のない創立費、新株発行費等の繰延資産、
+ * 繰延税金資産）については、記載しません」── 繰延資産は科目名が費目そのもの（創立費・
+ * 開業費…）で「繰延資産」の語を含まないため個別に並べる。
+ *
+ * 負債側の isExcludedLiability と違い、**合計から自動で外しはしない**。除外の条件が
+ * 「財産性がない」で、それは科目名からは決まらないため ── 財産性のある繰延資産まで
+ * 黙って落とすと純資産価額が実際より小さく出る。確認事項として出すだけにとどめる。
+ */
+export function isNonEvaluableAsset(name: string) {
+  return /繰延税金資産|繰延資産|創立費|開業費|開発費|株式交付費|新株発行費|社債発行費/.test(name.trim());
 }
 
 // 各列 = [識別コードの独立セル][入力欄]（r08-08/r08-09 の罫線実測値。code/input は [left, right]%）
@@ -112,7 +140,8 @@ function dataRows(prefix: 'a' | 'l', cols: Col[], startRow: number, showCodes: b
         field: `${prefix}_${row}_${ci + 1}`,
         kind: 'input',
         options: prefix === 'a' && ci === 3 ? ['', '株式等', '土地等'] : undefined,
-        commaInteger: isAmount,
+        // 貸倒引当金のような控除項目はマイナスで入る。commaInteger は符号を落とすので使えない
+        signedCommaInteger: isAmount,
         contextMenu: isAmount ? [
           { label: '相続税評価額 → 帳簿価額にコピー', copyFrom: `${prefix}_${row}_2`, copyTo: `${prefix}_${row}_3` },
           { label: '帳簿価額 → 相続税評価額にコピー', copyFrom: `${prefix}_${row}_3`, copyTo: `${prefix}_${row}_2` },
@@ -228,10 +257,12 @@ function pageCells(pageIndex: number): GridCell[] {
   ];
 }
 
-// 本表（1ページ目）：計算値欄を読み取り専用に
-const mainPageCells: GridCell[] = pageCells(0).map((cell) => (
+// 本表（1ページ目）：計算値欄を読み取り専用に。
+// 整形は g() の formatAmount 側で済んでいるので、ここでは掛け直さない
+// （commaInteger を被せると⑤の△も⑪の分数等の小数も数字以外として落ちる）。
+export const mainPageCells: GridCell[] = pageCells(0).map((cell) => (
   cell.field && COMPUTED_FIELDS.has(cell.field)
-    ? { ...cell, readOnly: true, commaInteger: true }
+    ? { ...cell, readOnly: true }
     : cell
 ));
 
@@ -251,7 +282,7 @@ const CONT_LIAB_COLS: Col[] = [
 ];
 // 続紙1枚は約380セル。ページ番号以外に依存しないので、入力のたびに作り直さず使い回す。
 const contPageCache = new Map<number, GridCell[]>();
-function continuationPageCells(pageIndex: number): GridCell[] {
+export function continuationPageCells(pageIndex: number): GridCell[] {
   const cached = contPageCache.get(pageIndex);
   if (cached) return cached;
   const cells = buildContinuationPageCells(pageIndex);
@@ -320,7 +351,7 @@ export function calcTable5Detail(getField: TableProps['getField']) {
     const liabilityBookRaw = getField(T, `l_${row}_3`);
     const liabilityNote = getField(T, `l_${row}_4`);
     hasLiabilityInput ||= Boolean(liabilityName || liabilityEvalRaw || liabilityBookRaw || liabilityNote);
-    // 評価通達186により、引当金及び準備金は純資産価額計算上の負債に含めない。
+    // 引当金・準備金・繰延税金負債は純資産価額計算上の負債に含めない（記載方法等 第5表 2⑶）。
     if (!isExcludedLiability(liabilityName)) {
       liabilityEval += parseNum(liabilityEvalRaw);
       liabilityBook += parseNum(liabilityBookRaw);
@@ -333,7 +364,10 @@ export function calcTable5Detail(getField: TableProps['getField']) {
   const inKindRatio = assetEval > 0 ? (inKindEval / assetEval) * 100 : 0;
   // 評価通達186-2注3により、現物出資等受入れ資産が総資産の20％以下なら差額を加算しない。
   const applicableInKindDifference = inKindRatio > 20 ? inKindEval - inKindBook : 0;
-  const netEval = Math.max(0, assetEval - liabilityEval);
+  // ⑤はマイナスのまま記載する。様式が「マイナスの場合は0」を刷っているのは⑥と⑦だけで
+  // （記載方法等 第5表 3も⑥⑦のみ）、⑤を0にすると⑨＝⑤－⑧まで0に寄って
+  // 債務超過の会社の純資産価額が実際より高く出る。
+  const netEval = assetEval - liabilityEval;
   const netBook = Math.max(0, assetBook + applicableInKindDifference - liabilityBook);
   const evaluationDifference = Math.max(0, netEval - netBook);
   const specialMarketValueRules = usesSpecialMarketValueRules(getField);
@@ -349,19 +383,28 @@ export function calcTable5Detail(getField: TableProps['getField']) {
     getField('table1_1', 'f63') || getField('table1_1', 'treasury_shares'),
   );
   const currentShares = Math.max(0, issuedShares - treasuryShares);
-  const netPerShare = currentShares > 0
-    ? Math.floor((currentNet * 1000) / currentShares)
-    : null;
+  // ⑪⑫は切捨てで0になるとき分数等（課税時期基準）で記載する（記載方法等 第5表 4⑵）
+  const { atTaxTime } = fractionalWriters(getField);
+  // ⑤⑨はマイナスのまま残すが、⑪は株式そのものの評価額なので
+  // 債務超過（⑨がマイナス）でもマイナスの評価額は付かず、0とする。
+  // 債務超過である事実は⑤⑨に残るので、情報は落ちない。
+  const netPerShareRaw = currentShares > 0 ? (currentNet * 1000) / currentShares : null;
+  const netPerShareF = atTaxTime(netPerShareRaw === null ? null : Math.max(0, netPerShareRaw));
+  const netPerShare = netPerShareF.value;
 
+  // ⑫は「同族株主等の議決権割合が50％以下の場合」に記載する（記載方法等 第5表 4）。
+  // 分子は第1表の1の①と同じ集計なので、続紙の株主も含めて totalShOf で走査する
+  // （固定10行のままだと続紙の株主の議決権が落ち、50％超の会社に⑫が出てしまう）。
   let groupVotes = 0;
-  for (let row = 1; row <= 10; row++) {
+  for (let row = 1, rows = totalShOf(getField); row <= rows; row++) {
     groupVotes += parseNum(getField('table1_1', `sh_${row}_5`));
   }
   const totalVotes = parseNum(getField('table1_1', '⑥'));
   const votingRatio = totalVotes > 0 ? (groupVotes / totalVotes) * 100 : null;
-  const netPerShare80 = votingRatio !== null && votingRatio <= 50 && netPerShare !== null
-    ? Math.floor(netPerShare * 0.8)
-    : null;
+  const netPerShare80F = atTaxTime(
+    votingRatio !== null && votingRatio <= 50 && netPerShare !== null ? netPerShare * 0.8 : null,
+  );
+  const netPerShare80 = netPerShare80F.value;
 
   return {
     assetEval, assetBook, stockEval, stockBook, landEval, liabilityEval, liabilityBook,
@@ -370,6 +413,7 @@ export function calcTable5Detail(getField: TableProps['getField']) {
     netEval, netBook, evaluationDifference, specialMarketValueRules, corporateTaxEquivalent, currentNet,
     issuedShares, treasuryShares, currentShares, netPerShare,
     groupVotes, totalVotes, votingRatio, netPerShare80,
+    netPerShareDisp: netPerShareF.text, netPerShare80Disp: netPerShare80F.text,
   };
 }
 
@@ -414,7 +458,7 @@ export function Table5Grid({ getField, updateField, onJump }: TableProps) {
   const g = (f: string) => {
     if (COMPUTED_FIELDS.has(f)) {
       const value = calculated[f];
-      return value === null || value === undefined ? '' : String(value);
+      return formatAmount(value);
     }
     return getField(T, f);
   };
