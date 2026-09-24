@@ -45,7 +45,7 @@ function sideCallouts(side: BsSide, accounts: ReadonlyArray<BsAccount>, areaTota
 /** 中分類（金融資産・不動産・事業用資産）ごとの資産集計。貸借対照表の区画はこの数値で高さを決める。 */
 export function successionAssetTotals(positions: Position[]) {
   let deposits = 0, securities = 0, insurance = 0, insuranceDeathBenefit = 0, retirementAllowance = 0, retirementDeathBenefit = 0, deemedBenefitMissingCount = 0, privateShares = 0, businessAssets = 0, loanReceivables = 0;
-  let homeRealEstate = 0, incomeRealEstate = 0, idleRealEstate = 0, otherRealEstate = 0, otherAssets = 0;
+  let homeRealEstate = 0, incomeRealEstate = 0, businessRealEstate = 0, idleRealEstate = 0, otherRealEstate = 0, otherAssets = 0;
   for (const position of positions) {
     if (position.side !== "ASSET") continue;
     if (position.category === "DEPOSIT") deposits += position.valueJpy;
@@ -62,6 +62,7 @@ export function successionAssetTotals(positions: Position[]) {
     else if (position.category === "LOAN_RECEIVABLE") loanReceivables += position.valueJpy;
     else if (position.category === "HOME_REAL_ESTATE") homeRealEstate += position.valueJpy;
     else if (position.category === "REAL_ESTATE") incomeRealEstate += position.valueJpy;
+    else if (position.category === "BUSINESS_REAL_ESTATE") businessRealEstate += position.valueJpy;
     else if (position.category === "IDLE_REAL_ESTATE") idleRealEstate += position.valueJpy;
     else if (position.category === "OTHER_REAL_ESTATE") otherRealEstate += position.valueJpy;
     else otherAssets += position.valueJpy;
@@ -71,8 +72,8 @@ export function successionAssetTotals(positions: Position[]) {
     deposits, securities, insurance, insuranceDeathBenefit, retirementAllowance, retirementDeathBenefit, deemedBenefitMissingCount,
     business: privateShares + businessAssets + loanReceivables,
     privateShares, businessAssets, loanReceivables,
-    realEstate: homeRealEstate + incomeRealEstate + idleRealEstate + otherRealEstate,
-    homeRealEstate, incomeRealEstate, idleRealEstate, otherRealEstate, otherAssets,
+    realEstate: homeRealEstate + incomeRealEstate + businessRealEstate + idleRealEstate + otherRealEstate,
+    homeRealEstate, incomeRealEstate, businessRealEstate, idleRealEstate, otherRealEstate, otherAssets,
   };
 }
 
@@ -137,6 +138,7 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
     realEstate: nonZero([
       { label: "居宅", value: displayedAssets.homeRealEstate },
       { label: "収益不動産", value: displayedAssets.incomeRealEstate },
+      { label: "事業用不動産", value: displayedAssets.businessRealEstate },
       { label: "遊休不動産", value: displayedAssets.idleRealEstate },
       { label: "その他不動産", value: displayedAssets.otherRealEstate },
     ]),

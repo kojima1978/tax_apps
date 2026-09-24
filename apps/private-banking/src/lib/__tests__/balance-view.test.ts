@@ -22,6 +22,21 @@ describe("successionAssetTotals", () => {
     expect(result.business).toBe(21_000_000);
   });
 
+  it("事業用不動産は不動産の合計に入り、B/Sの小分類にも出る", () => {
+    const positions = [asset("REAL_ESTATE", 30_000_000), asset("BUSINESS_REAL_ESTATE", 20_000_000)];
+    const successionAssets = successionAssetTotals(positions);
+    expect(successionAssets.businessRealEstate).toBe(20_000_000);
+    expect(successionAssets.realEstate).toBe(50_000_000);
+
+    const result = buildBalanceView({
+      scenario: "without-tax", summary: totals(positions), successionAssets,
+      loanBreakdown: loanBreakdownTotals(positions), estimatedInheritanceTax: 0, otherTaxes: 0, successionCosts: 0,
+    });
+    const realEstate = result.assetAccounts.find((account) => account.key === "realEstate")!;
+    expect(realEstate.value).toBe(50_000_000);
+    expect(realEstate.items?.map((item) => item.label)).toEqual(["収益不動産", "事業用不動産"]);
+  });
+
   it("生命保険・退職金は解約返戻金と死亡給付金の両方を持つ", () => {
     const result = successionAssetTotals([
       asset("INSURANCE", 5_000_000, { deathBenefit: 30_000_000 }),

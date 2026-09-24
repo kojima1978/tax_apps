@@ -68,6 +68,24 @@ describe("propertyTypeOf / positionCategoryLabel", () => {
   });
 });
 
+describe("事業用不動産", () => {
+  const asset = (category: string, valueJpy: number) => ({ side: "ASSET", category, valueJpy, includedInNetWorth: true } as Position);
+
+  it("中分類は不動産で、推移表でも不動産の内訳として集計する", () => {
+    const realEstate = asset("BUSINESS_REAL_ESTATE", 20_000_000);
+    expect(middleClassification(realEstate)).toBe("不動産");
+    expect(propertyTypeOf({ category: "BUSINESS_REAL_ESTATE", valuationFormula: "LAND_ROADSIDE", assetDetails: null } as Position)).toBe("LAND");
+
+    const values = trendValues({
+      estimatedInheritanceTax: 0, otherTaxes: 0,
+      positions: [asset("REAL_ESTATE", 30_000_000), realEstate],
+    } as unknown as Snapshot);
+    expect(values.businessRealEstate).toBe(20_000_000);
+    expect(values.realEstate).toBe(50_000_000);
+    expect(values.otherAssets).toBe(0);
+  });
+});
+
 describe("その他負債（リース債務・未払金・預り敷金・保証金）", () => {
   const liability = (category: string, valueJpy: number) => ({ side: "LIABILITY", category, valueJpy, includedInNetWorth: true } as Position);
 

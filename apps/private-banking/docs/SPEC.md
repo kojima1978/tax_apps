@@ -180,7 +180,7 @@
 
 #### 資産
 
-`DEPOSIT`、`SECURITIES`、`HOME_REAL_ESTATE`、`REAL_ESTATE`、`IDLE_REAL_ESTATE`、`PRIVATE_SHARES`、`BUSINESS_ASSETS`、`LOAN_RECEIVABLE`、`INSURANCE`、`COLLECTIBLES`
+`DEPOSIT`、`SECURITIES`、`HOME_REAL_ESTATE`、`REAL_ESTATE`、`BUSINESS_REAL_ESTATE`、`IDLE_REAL_ESTATE`、`PRIVATE_SHARES`、`BUSINESS_ASSETS`、`LOAN_RECEIVABLE`、`INSURANCE`、`COLLECTIBLES`
 
 #### 負債・偶発債務
 
@@ -191,7 +191,7 @@
 | 中分類 | 対象科目 |
 |---|---|
 | 金融資産 | 預金・現金、有価証券、生命保険 |
-| 不動産 | 自宅、収益不動産、遊休不動産 |
+| 不動産 | 居宅、収益不動産、事業用不動産、遊休不動産、その他不動産 |
 | 事業用資産 | 自社株、事業用資産、貸付金 |
 | その他資産 | その他資産 |
 | 借入金 | 各借入金 |
