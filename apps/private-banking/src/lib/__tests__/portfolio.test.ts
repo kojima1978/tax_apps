@@ -10,7 +10,7 @@ const prismaMock = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
-const { CATEGORY_LABELS, getPortfolio } = await import("@/lib/portfolio");
+const { getPortfolio } = await import("@/lib/portfolio");
 
 /** Decimal は toString() しか使わないので、テストでは同じ振る舞いの値で代用する。 */
 const decimal = (value: number) => ({ toString: () => String(value) }) as unknown as Prisma.Decimal;
@@ -163,12 +163,5 @@ describe("getPortfolio", () => {
       where: { householdId: 7 },
       orderBy: [{ isCurrent: "desc" }, { fiscalYear: "desc" }],
     }));
-  });
-});
-
-describe("CATEGORY_LABELS", () => {
-  it("負債側の科目にも日本語名がある", () => {
-    expect(CATEGORY_LABELS.LOAN_HOME).toBe("住宅ローン");
-    expect(CATEGORY_LABELS.GUARANTEE).toBe("個人保証");
   });
 });

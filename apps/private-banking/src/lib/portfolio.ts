@@ -4,32 +4,6 @@ import { parseFxRates } from "@/lib/fx-rates";
 import { parseInheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 import { prisma } from "@/lib/prisma";
 
-export const CATEGORY_LABELS: Record<string, string> = {
-  DEPOSIT: "預金・現金",
-  SECURITIES: "有価証券",
-  HOME_REAL_ESTATE: "居宅",
-  REAL_ESTATE: "収益不動産",
-  BUSINESS_REAL_ESTATE: "事業用不動産",
-  IDLE_REAL_ESTATE: "遊休不動産",
-  OTHER_REAL_ESTATE: "その他不動産",
-  PRIVATE_SHARES: "自社株",
-  BUSINESS_ASSETS: "事業用資産",
-  LOAN_RECEIVABLE: "貸付金",
-  INSURANCE: "生命保険",
-  RETIREMENT_ALLOWANCE: "退職金",
-  COLLECTIBLES: "その他資産",
-  LOAN_HOME: "住宅ローン",
-  LOAN_INVESTMENT_PROPERTY: "不動産投資ローン",
-  LOAN_SECURITIES: "証券担保ローン",
-  LOAN_BUSINESS: "事業用借入",
-  LOAN_OTHER: "その他借入金",
-  LOAN: "その他借入金",
-  LEASE_OBLIGATION: "リース債務",
-  ACCOUNTS_PAYABLE: "未払金",
-  DEPOSITS_RECEIVED: "預り敷金・保証金",
-  GUARANTEE: "個人保証",
-};
-
 const toNumber = (value: Prisma.Decimal) => Number(value.toString());
 
 export async function getPortfolio(householdId?: number) {

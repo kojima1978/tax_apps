@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deemedAllocations, middleClassification, positionCategoryLabel, propertyTypeOf, splitBenefit, trendValues, type Position, type Snapshot } from "@/lib/portfolio-view";
+import { categoryLabels, deemedAllocations, middleClassification, positionCategoryLabel, propertyTypeOf, splitBenefit, trendValues, type Position, type Snapshot } from "@/lib/portfolio-view";
 
 const insurance = (assetDetails: Position["assetDetails"]) => ({ category: "INSURANCE", assetDetails } as Position);
 
@@ -65,6 +65,11 @@ describe("propertyTypeOf / positionCategoryLabel", () => {
   it("不動産以外は区分を持たず、科目名だけを出す", () => {
     expect(propertyTypeOf(position({ category: "DEPOSIT" }))).toBeNull();
     expect(positionCategoryLabel(position({ category: "DEPOSIT" }))).toBe("預金・現金");
+  });
+
+  it("負債側の科目にも日本語名がある", () => {
+    expect(categoryLabels.LOAN_HOME).toBe("住宅ローン");
+    expect(categoryLabels.GUARANTEE).toBe("個人保証");
   });
 });
 
