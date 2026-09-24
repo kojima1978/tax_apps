@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ageOnDate, defaultSpecialTaxAddition, familyComposition, formatShareText, legalShareFor, parseShareText } from "@/lib/family";
+import { type FamilyMember, ageOnDate, defaultSpecialTaxAddition, familyComposition, formatShareText, legalShareFor, parseShareText, taxAdjustmentsFor } from "@/lib/family";
 
 const member = (relationship: "SELF" | "SPOUSE" | "CHILD" | "PARENT" | "SIBLING", acquisitionReason = "INHERITANCE") => ({
   relationship,
@@ -70,5 +70,62 @@ describe("defaultSpecialTaxAddition", () => {
   it("配偶者・子・父母は対象外、それ以外の親族は対象", () => {
     expect(["SPOUSE", "CHILD", "PARENT"].map((value) => defaultSpecialTaxAddition(value as never))).toEqual([false, false, false]);
     expect(["GRANDCHILD", "SIBLING", "NIECE_NEPHEW", "OTHER"].map((value) => defaultSpecialTaxAddition(value as never))).toEqual([true, true, true, true]);
+  });
+});
+
+describe("taxAdjustmentsFor", () => {
+  const relative = (overrides: Partial<FamilyMember>): FamilyMember => ({
+    id: 1, name: "", nameKana: "", relationship: "CHILD", acquisitionReason: "INHERITANCE",
+    civilShareNumerator: null, civilShareDenominator: null, taxShareNumerator: null, taxShareDenominator: null,
+    specialTaxAddition: false, disabilityCategory: "NONE", birthDate: null, note: "", sortOrder: 0,
+    ...overrides,
+  });
+  const adjustments = (member: FamilyMember, members: FamilyMember[]) => taxAdjustmentsFor(member, members, "2026-01-01");
+
+  it("配偶者は配偶者税額控除、18歳未満の子は未成年者控除、障害者区分のある子は障害者控除が該当あり", () => {
+    const spouse = relative({ id: 1, relationship: "SPOUSE", birthDate: "1960-05-01" });
+    const minor = relative({ id: 2, birthDate: "2010-01-02" });
+    const disabled = relative({ id: 3, birthDate: "1990-01-01", disabilityCategory: "SPECIAL" });
+    const members = [spouse, minor, disabled];
+
+    expect(adjustments(spouse, members)).toEqual({ specialTaxAddition: false, spouseCredit: true, minorCredit: false, disabilityCredit: false });
+    expect(adjustments(minor, members)).toEqual({ specialTaxAddition: false, spouseCredit: false, minorCredit: true, disabilityCredit: false });
+    expect(adjustments(disabled, members)).toEqual({ specialTaxAddition: false, spouseCredit: false, minorCredit: false, disabilityCredit: true });
+  });
+
+  it("18歳の誕生日を迎えていれば未成年者控除は該当なし", () => {
+    const child = relative({ birthDate: "2008-01-01" });
+    expect(adjustments(child, [child]).minorCredit).toBe(false);
+    const dayBefore = relative({ birthDate: "2008-01-02" });
+    expect(adjustments(dayBefore, [dayBefore]).minorCredit).toBe(true);
+  });
+
+  it("相続人でない親族は、年齢や障害者区分にかかわらず控除の対象にしない", () => {
+    // 子（第1順位）がいるので、後順位の父母・兄弟姉妹は相続人にならない
+    const child = relative({ id: 1 });
+    const parent = relative({ id: 2, relationship: "PARENT", birthDate: "1940-01-01", disabilityCategory: "GENERAL" });
+    const sibling = relative({ id: 3, relationship: "SIBLING", birthDate: "2015-01-01", specialTaxAddition: true });
+    const members = [child, parent, sibling];
+
+    expect(adjustments(parent, members)).toEqual({ specialTaxAddition: false, spouseCredit: false, minorCredit: false, disabilityCredit: false });
+    // 2割加算は登録値そのままなので、相続人でなくても該当ありのまま出す
+    expect(adjustments(sibling, members)).toEqual({ specialTaxAddition: true, spouseCredit: false, minorCredit: false, disabilityCredit: false });
+  });
+
+  it("子と同順位の孫は相続人として扱う（代襲相続の登録を想定）", () => {
+    const child = relative({ id: 1 });
+    const grandchild = relative({ id: 2, relationship: "GRANDCHILD", birthDate: "2015-01-01", specialTaxAddition: true });
+    expect(adjustments(grandchild, [child, grandchild])).toEqual({ specialTaxAddition: true, spouseCredit: false, minorCredit: true, disabilityCredit: false });
+  });
+
+  it("相続で取得しない配偶者は配偶者税額控除の対象にしない（概算計算と同じ基準）", () => {
+    const spouse = relative({ id: 1, relationship: "SPOUSE", acquisitionReason: "GIFT", birthDate: "1960-05-01" });
+    const child = relative({ id: 2 });
+    expect(adjustments(spouse, [spouse, child]).spouseCredit).toBe(false);
+  });
+
+  it("生年月日が未登録の相続人は、未成年者控除を判定できないので null", () => {
+    const child = relative({ birthDate: null });
+    expect(adjustments(child, [child]).minorCredit).toBeNull();
   });
 });

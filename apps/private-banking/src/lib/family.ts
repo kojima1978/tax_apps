@@ -141,6 +141,34 @@ export function defaultSpecialTaxAddition(relationship: Relationship) {
   return !(["SELF", "SPOUSE", "CHILD", "PARENT"] as Relationship[]).includes(relationship);
 }
 
+/** 未成年者控除の基準年齢。これに達していない相続人が対象になる。 */
+export const MINOR_CREDIT_AGE = 18;
+
+/**
+ * 税額の加算・控除の該当有無。印刷の家族一覧に出す4項目で、判定の定義元はここだけにする。
+ *
+ * 2割加算は登録値そのままだが、残る3つは導出になる。配偶者の税額軽減・未成年者控除・
+ * 障害者控除はいずれも相続人が対象で、「相続人か」は法定相続分が付くかどうかと同じなので
+ * `legalShareFor` の結果で判定する（概算計算が相続人を拾う基準と揃える）。
+ *
+ * 未成年者控除だけは、生年月日が未登録だと年齢が出ず判定できないため `null` を返す。
+ * 該当なしと言い切ると、登録漏れが「対象外」に見えてしまう。
+ */
+export function taxAdjustmentsFor(
+  member: Pick<FamilyMember, "relationship" | "acquisitionReason" | "specialTaxAddition" | "disabilityCategory" | "birthDate">,
+  members: Pick<FamilyMemberDraft, "relationship" | "acquisitionReason">[],
+  referenceDate: string,
+) {
+  const isHeir = legalShareFor(member, members) !== null;
+  const age = ageOnDate(member.birthDate, referenceDate);
+  return {
+    specialTaxAddition: member.specialTaxAddition,
+    spouseCredit: isHeir && member.relationship === "SPOUSE",
+    minorCredit: !isHeir ? false : age === null ? null : age < MINOR_CREDIT_AGE,
+    disabilityCredit: isHeir && member.disabilityCategory !== "NONE",
+  };
+}
+
 export type ShareValue = { numerator: number; denominator: number };
 
 /** 法定相続分の入力欄に出す文字。未入力は空欄。 */

@@ -1345,14 +1345,16 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .print-family-table tr { break-inside: avoid; page-break-inside: avoid; }
   .print-family-table th { padding: 5px 4px; color: #234b3d; background: #edf7f0; border: 1px solid var(--line-strong); font-size: 10px; line-height: 1.4; text-align: left; }
   .print-family-table td { padding: 5px 4px; color: #263b34; border: 1px solid var(--line); overflow-wrap: anywhere; }
-  .print-family-table th:nth-child(1) { width: 18%; }
-  .print-family-table th:nth-child(2) { width: 10%; }
-  .print-family-table th:nth-child(3), .print-family-table th:nth-child(4) { width: 14%; }
-  .print-family-table th:nth-child(5) { width: 9%; }
-  .print-family-table th:nth-child(6) { width: 13%; }
-  .print-family-table th:nth-child(7) { width: 14%; }
-  .print-family-table th:nth-child(8) { width: 8%; }
+  .print-family-table th:nth-child(1) { width: 15%; }
+  .print-family-table th:nth-child(2) { width: 8%; }
+  .print-family-table th:nth-child(3), .print-family-table th:nth-child(4) { width: 11%; }
+  .print-family-table th:nth-child(5) { width: 12%; }
+  .print-family-table th:nth-child(6) { width: 6%; }
+  /* 税額の加算・控除の4列。中身は「該当あり」「該当なし」だけなので等幅で揃える。 */
+  .print-family-table th:nth-child(n+7) { width: 9.25%; }
   .print-family-table td.numeric { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .print-family-table td.applicability { text-align: center; white-space: nowrap; }
+  .print-family-note { margin: 5px 0 0; color: #4a5761; font-size: 9.5px; line-height: 1.6; }
   .print-family-empty { min-height: 45mm; margin: 0; display: grid; place-items: center; color: #4a5761; font-size: 11.5px; }
   /* 角丸のままだと合計行の背景が角の線を覆って枠の最後が欠けるので、印刷では直角にする。
      ページをまたぐときも各ページで枠の上下を閉じる（既定の slice だと切れ目の辺が開いたままになる）。 */
