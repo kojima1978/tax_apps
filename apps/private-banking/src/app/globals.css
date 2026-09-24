@@ -543,7 +543,10 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .delete-warning-icon svg { width: 22px; height: 22px; }
 .delete-modal-body > p { margin: 0 0 18px; color: var(--slate-700); font-size: 13px; line-height: 1.7; }
 .print-guide-modal { width: min(480px, 100%); }
-.client-switcher-modal { width: min(720px, 100%); overflow: hidden; }
+/* overflow は指定しない。中に自前のスクロール領域を持たないフォームなので、`.modal` の
+   max-height + overflow-y: auto をそのまま使う（hidden にすると背の低い画面や1列に畳んだ
+   狭い画面で下の入力欄が切れたまま辿れなくなる。実測 1280x450 で106px、390x700 で122px）。 */
+.client-switcher-modal { width: min(720px, 100%); }
 .client-switcher-body { padding: 18px 22px 22px; }
 .client-switcher-toolbar { display: flex; align-items: center; gap: 10px; }
 .client-switcher-toolbar > label { min-width: 0; flex: 1; position: relative; }
