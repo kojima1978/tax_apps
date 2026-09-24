@@ -69,8 +69,12 @@ export function parseCaseInput(raw: unknown, what = 'リクエスト本体'): Pa
   };
 }
 
-/** URL の :id。整数以外は400に倒す（Prisma まで持ち込まない）。 */
-export function parseCaseId(param: string): number {
+/**
+ * URL の :id。整数以外は400に倒す（Prisma まで持ち込まない）。
+ * 引数が undefined を許すのは、ルートのパス型が失われた Context からも同じ検証を通せるようにするため
+ * （Hono の `param()` はパス型が無いと `string | undefined` を返す）。欠けていれば整数でないので弾かれる。
+ */
+export function parseCaseId(param: string | undefined): number {
   const id = Number(param);
   if (!Number.isInteger(id) || id <= 0) {
     throw new ValidationError('案件IDは正の整数で指定してください');

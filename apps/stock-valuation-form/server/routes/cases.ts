@@ -46,6 +46,18 @@ function guard(handler: (c: Context) => Promise<Response>) {
   };
 }
 
+/**
+ * パス変数の :id を案件IDとして読む。
+ *
+ * guard がハンドラを素の Context で受けるため、router.get('/cases/:id', …) が持っていた
+ * パスの型がここでは失われ、Hono の param() は `string | undefined` を返す
+ * （実際にはルート側が :id の存在を保証している）。guard を汎用にしてパス型を保つ手もあるが、
+ * 推論が文脈頼みで外れても黙って string に戻るだけなので、型を偽らずそのまま検証へ渡す。
+ */
+function caseIdOf(c: Context): number {
+  return parseCaseId(c.req.param('id'));
+}
+
 export function createCaseRouter(db: PrismaClient) {
   const router = new Hono();
 
@@ -58,8 +70,8 @@ export function createCaseRouter(db: PrismaClient) {
   }
 
   /** 案件を1件引く。ゴミ箱の中も引ける（復元・完全削除に要るため）。 */
-  async function findCase(param: string) {
-    return db.valuationCase.findUnique({ where: { id: parseCaseId(param) } });
+  async function findCase(c: Context) {
+    return db.valuationCase.findUnique({ where: { id: caseIdOf(c) } });
   }
 
   // 一覧。既定はゴミ箱を除く。?includeArchived=1 でゴミ箱も含める。
@@ -77,7 +89,7 @@ export function createCaseRouter(db: PrismaClient) {
 
   // 1件（入力データまで）。
   router.get('/cases/:id', guard(async (c) => {
-    const found = await findCase(c.req.param('id'));
+    const found = await findCase(c);
     if (!found) return c.json({ error: '指定された案件は存在しません' }, 404);
     return c.json({ case: toCaseResponse(found) });
   }));
@@ -94,7 +106,7 @@ export function createCaseRouter(db: PrismaClient) {
 
   // 上書き。自動保存がここを叩く。
   router.put('/cases/:id', guard(async (c) => {
-    const id = parseCaseId(c.req.param('id'));
+    const id = caseIdOf(c);
     const input = parseCaseInput(await readJson(c.req.raw));
 
     const existing = await db.valuationCase.findUnique({ where: { id }, select: { id: true } });
@@ -110,7 +122,7 @@ export function createCaseRouter(db: PrismaClient) {
 
   // 複製。前期の入力を土台に翌年度ぶんを作る、といった使い方を想定している。
   router.post('/cases/:id/duplicate', guard(async (c) => {
-    const source = await findCase(c.req.param('id'));
+    const source = await findCase(c);
     if (!source) return c.json({ error: '指定された案件は存在しません' }, 404);
 
     const created = await db.valuationCase.create({
@@ -126,7 +138,7 @@ export function createCaseRouter(db: PrismaClient) {
 
   // ゴミ箱から戻す。
   router.post('/cases/:id/restore', guard(async (c) => {
-    const found = await findCase(c.req.param('id'));
+    const found = await findCase(c);
     if (!found) return c.json({ error: '指定された案件は存在しません' }, 404);
 
     const restored = await db.valuationCase.update({
@@ -139,7 +151,7 @@ export function createCaseRouter(db: PrismaClient) {
 
   // 既定はゴミ箱へ。?purge=1 のときだけ完全に消す。
   router.delete('/cases/:id', guard(async (c) => {
-    const found = await findCase(c.req.param('id'));
+    const found = await findCase(c);
     if (!found) return c.json({ error: '指定された案件は存在しません' }, 404);
 
     if (c.req.query('purge') === '1') {

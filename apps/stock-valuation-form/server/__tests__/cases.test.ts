@@ -85,6 +85,12 @@ describe('parseCaseId', () => {
   it.each(['0', '-1', '1.5', 'abc', ''])('%s は弾く', (param) => {
     expect(() => parseCaseId(param)).toThrow(ValidationError);
   });
+
+  // ルートのパス型が失われた Context からは undefined で渡りうる（Hono の param の戻り値）。
+  // 素通りさせると Prisma に NaN が届くので、ここで400に倒す。
+  it('undefined も弾く', () => {
+    expect(() => parseCaseId(undefined)).toThrow(ValidationError);
+  });
 });
 
 describe('copiedCaseName', () => {

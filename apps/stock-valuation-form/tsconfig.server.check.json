@@ -1,0 +1,18 @@
+{
+  // 型検査だけのための設定。tsconfig.server.json との違いは2つだけで、
+  // どちらも「emit しないから許されること」に由来する。
+  //
+  //  1. noEmit ── dist-server を作らない
+  //  2. exclude を空に戻す ── テストも型検査の対象にする
+  //
+  // 本体側がテストを除いているのは「dist-server に vitest を持ち込まない」ためで、
+  // 出力を作らないこちらではその理由が無い。除いたままだと server/**/__tests__ を
+  // 型検査する設定がどこにも無くなる（src 側は tsc -b がテストごと見ている）。
+  //
+  // include は継承する。ここで書き直すと本体側と静かに食い違うため。
+  "extends": "./tsconfig.server.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "exclude": []
+}
