@@ -1248,12 +1248,16 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .print-toc { padding: 10mm 16mm 7mm; display: flex; flex-direction: column; color: #172c25; background: #fff; }
   .print-toc header { padding-bottom: 7mm; border-bottom: 2px solid #285f4d; }
   .print-toc header h2 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 25px; font-weight: 600; }
-  .print-toc ol { margin: 8mm 0 0; padding: 0; list-style: none; }
+  .print-toc ol { margin: 8mm 0; padding: 0; list-style: none; }
   .print-toc li { min-height: 21mm; padding: 4mm 2mm; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 17mm 1fr; align-items: center; }
   .print-toc-index { color: #2f765e; font-family: Georgia, serif; font-size: 17px; }
   .print-toc-copy { display: flex; flex-direction: column; gap: 1.5mm; }
   .print-toc-copy strong { color: #123c31; font-size: 14px; }
   .print-toc-copy small { color: #4a5761; font-size: 10.5px; }
+  /* 免責は目次ページの下端（margin-top: auto）。毎ページに固定で重ねると明細表と
+     かぶるため、ページ内固定ではなくフローの最後に置いている。 */
+  .print-disclaimer { margin: auto 0 0; padding: 4mm 5mm; color: #3f4c56; border: 1px solid var(--line); border-left: 2.5px solid #2f765e; background: #fbfcfc; font-size: 9.5px; line-height: 1.75; }
+  .print-disclaimer strong { margin: 0 0 1.5mm; color: #123c31; font-size: 10px; display: block; }
   .print-only-document { display: block !important; }
   .print-excluded-document { display: none !important; }
   .report-document:not(.print-excluded-document) + .report-document:not(.print-excluded-document) { break-before: page; page-break-before: always; }

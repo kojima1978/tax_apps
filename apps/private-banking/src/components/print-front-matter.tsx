@@ -10,7 +10,7 @@ export const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: strin
   { key: "history", title: "年度比較", description: "年度ごとの残高推移と比較" },
 ];
 
-/** 印刷時だけ出す表紙と目次。画面では `aria-hidden` で読み飛ばす。 */
+/** 印刷時だけ出す表紙と目次（目次ページの下端に免責事項）。画面では `aria-hidden` で読み飛ばす。 */
 export function PrintFrontMatter({
   household,
   snapshot,
@@ -52,6 +52,12 @@ export function PrintFrontMatter({
             </li>
           ))}
         </ol>
+        {/* 免責は目次ページの下端に置く（CSS の margin-top: auto）。印刷対象の選び方に
+            関わらず出す ── 資産の評価方法にも掛かる内容で、税額の表だけの注記ではないため。 */}
+        <p className="print-disclaimer">
+          <strong>【免責事項】</strong>
+          本結果はご提供いただいた情報に基づく簡易的なシミュレーションであり、計算結果の正確性や確実性を保証するものではありません。資産の評価方法や控除の適用等により実際の税額は変動します。
+        </p>
       </section>
     </div>
   );
