@@ -48,9 +48,9 @@ import {
 const SECTIONS = [
   { key: "profile", label: "本人情報", icon: CircleUserRound },
   { key: "family", label: "親族関係", icon: UsersRound },
+  { key: "tax", label: "相続税の概算", icon: Calculator },
   { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
   { key: "positions", label: "資産・負債明細", icon: WalletCards },
-  { key: "tax", label: "相続税の概算", icon: Calculator },
   { key: "history", label: "年度比較", icon: History },
   { key: "backup", label: "バックアップ", icon: DatabaseBackup },
 ] as const satisfies ReadonlyArray<{ key: Section; label: string; icon: typeof LayoutDashboard }>;
@@ -357,6 +357,21 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
 
         <main id="main-content" className="content">
           {printSections?.has("profile-family") ? <div id="print-section-profile-family" className="report-document print-only-document"><PersonFamilyPrintView household={portfolio.household} members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} /></div> : null}
+          {(section === "tax" || printSections?.has("tax-calculation")) ? <div
+            id="print-section-tax-calculation"
+            className={`report-document tax-calculation-document ${section !== "tax" ? "print-only-document" : ""} ${printSections && !printSections.has("tax-calculation") ? "print-excluded-document" : ""}`}
+          >
+            {section === "tax" && reportSnapshot.isCurrent ? <div className="tax-section-toolbar">
+              <button className="button secondary tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : reportSnapshot.inheritanceTaxCalculation ? "APIで再計算" : "APIで相続税を計算"}</button>
+            </div> : null}
+            {reportSnapshot.inheritanceTaxCalculation
+              ? <>
+                <InheritanceTaxReport household={portfolio.household} snapshot={reportSnapshot} planning={portfolio.planning} familyMembers={portfolio.familyMembers} calculation={reportSnapshot.inheritanceTaxCalculation} onRecalculate={section === "tax" && reportSnapshot.isCurrent ? () => void calculateInheritanceTaxViaApi() : undefined} recalculating={taxApiStatus === "loading"} />
+                {section === "tax" && portfolio.planning.hasSpouse && portfolio.planning.heirRank === "rank1" ? <SecondaryInheritanceSimulator householdId={portfolio.household.id} /> : null}
+              </>
+              : section === "tax" ? <div className="tax-empty-state" role="note"><Calculator /><p>まだ相続税の概算を計算していません。</p><p>{reportSnapshot.isCurrent ? "上のボタンから、現在のB/Sと親族関係をもとに概算税額を計算できます。" : "概算は現在年度のB/Sで計算してください。"}</p></div>
+              : null}
+          </div> : null}
           {(section === "balance" || printSections?.has("balance")) ? (
             <div id="print-section-balance" className={`report-document ${section !== "balance" ? "print-only-document" : ""} ${printSections && !printSections.has("balance") ? "print-excluded-document" : ""}`}>
               <section className="page-heading detail-page-heading">
@@ -389,21 +404,6 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
               </section>
             </div>
           ) : null}
-          {(section === "tax" || printSections?.has("tax-calculation")) ? <div
-            id="print-section-tax-calculation"
-            className={`report-document tax-calculation-document ${section !== "tax" ? "print-only-document" : ""} ${printSections && !printSections.has("tax-calculation") ? "print-excluded-document" : ""}`}
-          >
-            {section === "tax" && reportSnapshot.isCurrent ? <div className="tax-section-toolbar">
-              <button className="button secondary tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : reportSnapshot.inheritanceTaxCalculation ? "APIで再計算" : "APIで相続税を計算"}</button>
-            </div> : null}
-            {reportSnapshot.inheritanceTaxCalculation
-              ? <>
-                <InheritanceTaxReport household={portfolio.household} snapshot={reportSnapshot} planning={portfolio.planning} familyMembers={portfolio.familyMembers} calculation={reportSnapshot.inheritanceTaxCalculation} onRecalculate={section === "tax" && reportSnapshot.isCurrent ? () => void calculateInheritanceTaxViaApi() : undefined} recalculating={taxApiStatus === "loading"} />
-                {section === "tax" && portfolio.planning.hasSpouse && portfolio.planning.heirRank === "rank1" ? <SecondaryInheritanceSimulator householdId={portfolio.household.id} /> : null}
-              </>
-              : section === "tax" ? <div className="tax-empty-state" role="note"><Calculator /><p>まだ相続税の概算を計算していません。</p><p>{reportSnapshot.isCurrent ? "上のボタンから、現在のB/Sと親族関係をもとに概算税額を計算できます。" : "概算は現在年度のB/Sで計算してください。"}</p></div>
-              : null}
-          </div> : null}
 
           {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}

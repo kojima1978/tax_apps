@@ -12,8 +12,8 @@ import { defaultAsOfDate } from "@/lib/snapshot-date";
 export function PrintGuideModal({ section, taxCalculationAvailable, onClose, onPrint }: { section: Section; taxCalculationAvailable: boolean; onClose: () => void; onPrint: (sections: PrintSection[]) => void }) {
   const options: Array<{ value: PrintSection; label: string; disabled?: boolean }> = [
     { value: "profile-family", label: "本人・家族情報" },
-    { value: "balance", label: "貸借対照表" },
     { value: "tax-calculation", label: "相続税の概算", disabled: !taxCalculationAvailable },
+    { value: "balance", label: "貸借対照表" },
     { value: "details", label: "資産・負債明細" },
     { value: "history", label: "年度比較" },
   ];

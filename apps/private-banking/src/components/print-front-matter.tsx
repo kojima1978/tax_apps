@@ -4,8 +4,8 @@ import { type Portfolio, type PrintSection, type Snapshot, fiscalYearLabelWithWa
 /** 印刷に含められるセクション。目次の並びもこの順に従う。 */
 export const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: string; description: string }> = [
   { key: "profile-family", title: "本人・家族情報", description: "本人の基本情報と親族構成、法定相続分および年齢" },
-  { key: "balance", title: "貸借対照表", description: "現在価値と相続時予測による資産・負債の構成" },
   { key: "tax-calculation", title: "相続税の概算", description: "概算税額および計算根拠" },
+  { key: "balance", title: "貸借対照表", description: "現在価値と相続時予測による資産・負債の構成" },
   { key: "details", title: "資産・負債明細", description: "資産、負債および保証債務の明細" },
   { key: "history", title: "年度比較", description: "年度ごとの残高推移と比較" },
 ];
