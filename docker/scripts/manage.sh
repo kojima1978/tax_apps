@@ -410,7 +410,8 @@ resolve_app_dir() {
 }
 
 # require_app_arg <command_name> <app_name>
-# resolve_app_dir + ensure_network を一括実行。RESOLVED_DIR を設定。
+# resolve_app_dir でアプリを特定し RESOLVED_DIR を設定する。
+# ネットワークの用意はしない（ensure_network は各コマンド側で呼ぶ）。
 require_app_arg() {
   local _cmd_name="$1"
   local app_name="${2:?アプリ名を指定してください}"
@@ -579,11 +580,68 @@ _do_compose_action() {
   docker compose -f "$dir/docker-compose.yml" "$action"
 }
 
+# start <app> の実体。全アプリ版と分けてあるのは、全体にしか意味の無い後始末
+# （停止マーカーの解除・全体モードの記録）を1アプリの都合で動かさないため。
+#
+# このリポジトリは混在稼働なので「1アプリだけモードを変える」は常用の操作だが、
+# 以前はその口が無く、案内も「個別に -f を並べて叩く」だった。その経路は
+# ensure_postgres_production_env（本番パスワードの生成と ALTER ROLE）を丸ごと
+# 飛ばすため、本番の entrypoint が開発用の既定パスワードを弾いて restart ループになる。
+_start_one_app() {
+  local app_name="$1" prod_mode="$2"
+  require_app_arg "start" "$app_name" || return 1
+  local name; name=$(basename "$RESOLVED_DIR")
+
+  if [[ $prod_mode -eq 1 ]]; then
+    log "$name を本番モードで起動します..."
+  else
+    log "$name を起動します..."
+  fi
+
+  # 起動そのものは全アプリ版と同じコールバックを通す（本番の下ごしらえもこの中）
+  _do_start "$RESOLVED_DIR" "$name" "$prod_mode"
+
+  # モードの記録はこのコマンドの責任。status / recover を待つと、それまで
+  # app-modes は古い側のまま残る。build と recover はそこを見て作り直すので、
+  # 記録が古いと切り替えたはずのアプリが元のモードへ引き戻される。
+  _snapshot_one_mode "$RESOLVED_DIR" "$name"
+
+  # 全体の停止マーカーは解除しない。「全部止めた」印を1アプリの起動で消すと
+  # ウォッチドッグが残り全部も起こしてしまう。ただし黙ると「起こしたのに
+  # 落ちても復旧されない」ことが誰にも見えないので、必ず出す。
+  if [[ -f "$STOP_MARKER" ]]; then
+    warn "$name: 全体の停止マーカーがあるため、落ちてもウォッチドッグは復旧しません"
+    warn "  復旧を再開するには manage.sh start（アプリ名なし）を実行してください"
+  fi
+
+  local mode
+  if [[ $prod_mode -eq 1 ]]; then mode="prod"; else mode="dev"; fi
+  compose_files_for_app "$RESOLVED_DIR" "$mode"
+  docker compose "${COMPOSE_FILES[@]}" ps
+}
+
 cmd_start() {
   local prod_mode=0
-  [[ "${1:-}" == "--prod" ]] && prod_mode=1
+  local app=""
+  # --prod とアプリ名は順不同（start --prod svf も start svf --prod も通す）
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --prod) prod_mode=1 ;;
+      "")     ;;
+      -*)     err "不明なオプション: $1"; return 1 ;;
+      *)      app="$1" ;;
+    esac
+    shift
+  done
+
   preflight_quick
   ensure_network
+
+  if [[ -n "$app" ]]; then
+    _start_one_app "$app" "$prod_mode"
+    return
+  fi
+
   # 起動を指示した時点で「意図的な停止」は解除する（ウォッチドッグの復旧を再開させる）
   clear_stop_marker
   if [[ $prod_mode -eq 1 ]]; then write_start_mode "prod"; else write_start_mode "dev"; fi
@@ -725,7 +783,8 @@ cmd_build() {
   # モードを踏襲する。以前はここが base の docker-compose.yml 固定で、
   # 本番モードで動いているアプリに build を掛けると黙って dev サーバとして
   # 作り直していた（このリポジトリは実際に混在稼働している）。
-  # モードを変えたいときは start --prod か、個別に -f を並べて叩くこと。
+  # モードを変えたいときは start --prod <app>（1アプリ）か start --prod（全アプリ）。
+  # 個別に -f を並べて叩くのは不可 ── 本番パスワードの生成と ALTER ROLE が飛ぶ。
   local mode; mode=$(effective_app_mode "$RESOLVED_DIR")
   if [[ -z "$mode" ]]; then
     mode="dev"
@@ -1923,7 +1982,7 @@ case "$COMMAND" in
 esac
 
 case "$COMMAND" in
-  start)     cmd_start "${2:-}" ;;
+  start)     cmd_start "${@:2}" ;;
   recover)   cmd_recover ;;
   stop)      cmd_stop ;;
   down)      cmd_down ;;
@@ -1947,8 +2006,8 @@ case "$COMMAND" in
     echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|verify|drill|clean|clean-cache|prune|alert|preflight} [app-name]"
     echo ""
     echo "Commands:"
-    echo "  start              全アプリを起動（ネットワーク自動作成）"
-    echo "  start --prod       全アプリを本番モードで起動"
+    echo "  start [app]        起動（アプリ名を省略すると全アプリ・ネットワーク自動作成）"
+    echo "  start --prod [app] 本番モードで起動（アプリ名を指定するとそのアプリだけ切り替え）"
     echo "  recover            落ちているアプリだけを起動し直す（ウォッチドッグ用・再ビルドなし）"
     echo "  stop               全アプリを停止"
     echo "  down               全アプリを停止してコンテナ削除"

@@ -45,7 +45,15 @@ dev の compose を毎回突き合わせる**（上限があるのに `NODE_OPTI
   `stop` した直後に叩いても停止操作を壊さない
 - **`build` も `apply` も、そのアプリが今動いているモードを踏襲する**（`compose_files_for_app`）。
   以前 `build` は base の `docker-compose.yml` 固定で、**本番稼働中のアプリを黙って
-  dev サーバに作り替えていた**。モードを変えたいときだけ `start --prod` か個別の `-f` で叩くこと
+  dev サーバに作り替えていた**。モードを変えるのは `start` の仕事で、**1アプリだけなら
+  `manage.sh start --prod <app>`（dev へ戻すのは `manage.sh start <app>`）**。
+  **個別に `-f docker-compose.prod.yml` を並べて叩くのは不可** ── 本番パスワードの生成と
+  `ALTER ROLE`（`ensure_postgres_production_env`）が飛ぶので、本番の entrypoint が開発用の
+  既定パスワードを弾いて restart ループになる。`start` はモードの記録
+  （`docker/logs/app-modes/<app>`）もその場で更新するが、生の compose は更新しないため、
+  記録が古いまま `build` や `recover` が走ると切り替えたはずのアプリが元のモードへ引き戻される。
+  アプリ名を付けた `start` は**全体の停止マーカーを解除しない**（1アプリの起動で全アプリの
+  自動復旧を再開させないため）。マーカーがある間は復旧対象外になる旨を警告で出す
 
 ### Dockerfile（非 root）
 
@@ -127,7 +135,7 @@ docker/scripts/manage.sh test <app-name>   # 1アプリだけ
   常駐しないアプリ（MCP サーバー）はこれしか経路が無い ── 「コンテナが動いていないので
   飛ばしました」が毎回出るだけの登録は、登録していないのと変わらない
 - 止まっているアプリと**本番モードのアプリは「飛ばした」扱い**（本番イメージに vitest が無い）。
-  dev へ戻すのは `cd apps/<app> && docker compose up -d`（`build` はモードを踏襲するので prod のまま）
+  dev へ戻すのは `manage.sh start <app>`（`build` はモードを踏襲するので prod のまま）
 
 ### MCP サーバー（外部の AI ツールから書き込む）
 
@@ -241,6 +249,10 @@ docker/scripts/manage.sh start
 
 # 全アプリ本番モード起動
 docker/scripts/manage.sh start --prod
+
+# 1アプリだけモードを切り替えて起動（混在稼働はこちら）
+docker/scripts/manage.sh start --prod <app-name>
+docker/scripts/manage.sh start <app-name>
 
 # 特定アプリのみ再ビルド（稼働中のモードを踏襲）
 docker/scripts/manage.sh build <app-name>
