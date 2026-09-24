@@ -3,13 +3,14 @@
 import { CalendarDays, CalendarPlus, Pencil, Printer } from "lucide-react";
 import { useMemo } from "react";
 import { ActionMenu, type ActionMenuItem } from "@/components/action-menu";
-import { dateJa } from "@/lib/format";
+import { dateJaWithWareki } from "@/lib/format";
 import { type Snapshot, fiscalYearLabel } from "@/lib/portfolio-view";
 
 /**
  * トップバーの表示年度の切替。どの画面でも同じ年度を見るよう、選んだ年度は URL（?snapshot=）で引き継ぐ。
  * 年度そのものの操作（追加・設定）は頻度が低いので、横の「⋯」メニューにまとめる。
  * 狭い画面では基準日をメニューの先頭へ、印刷をメニューの中へ移す（出し分けは CSS）。
+ * 基準日は和暦を併記する（西暦・和暦どちらで聞かれても答えられるように）。
  */
 export function YearSwitcher({ snapshots, selected, onSelect, onCreate, onEditSettings, onPrint }: {
   snapshots: Snapshot[];
@@ -20,7 +21,7 @@ export function YearSwitcher({ snapshots, selected, onSelect, onCreate, onEditSe
   onPrint: () => void;
 }) {
   const orderedSnapshots = useMemo(() => [...snapshots].sort((a, b) => b.fiscalYear - a.fiscalYear), [snapshots]);
-  const asOfLabel = `基準日 ${dateJa(selected.asOfDate)}`;
+  const asOfLabel = `基準日 ${dateJaWithWareki(selected.asOfDate)}`;
   const menuItems: ActionMenuItem[] = [
     { key: "create", label: "年度を追加", icon: CalendarPlus, onSelect: onCreate },
     { key: "settings", label: `${fiscalYearLabel(selected)}の年度設定`, icon: Pencil, onSelect: onEditSettings },
