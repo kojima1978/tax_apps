@@ -1,5 +1,5 @@
-import { dateJa } from "@/lib/format";
-import { type Portfolio, type PrintSection, type Snapshot, fiscalYearLabel } from "@/lib/portfolio-view";
+import { dateJaWithWareki } from "@/lib/format";
+import { type Portfolio, type PrintSection, type Snapshot, fiscalYearLabelWithWareki } from "@/lib/portfolio-view";
 
 /** 印刷に含められるセクション。目次の並びもこの順に従う。 */
 export const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: string; description: string }> = [
@@ -33,8 +33,8 @@ export function PrintFrontMatter({
           <dl>
             <div><dt>顧客名</dt><dd>{household.name}</dd></div>
             <div><dt>顧客コード</dt><dd>{household.clientCode}</dd></div>
-            <div><dt>対象年度</dt><dd>{fiscalYearLabel(snapshot)}</dd></div>
-            <div><dt>B/S基準日</dt><dd>{dateJa(snapshot.asOfDate)}</dd></div>
+            <div><dt>対象年度</dt><dd>{fiscalYearLabelWithWareki(snapshot)}</dd></div>
+            <div><dt>B/S基準日</dt><dd>{dateJaWithWareki(snapshot.asOfDate)}</dd></div>
           </dl>
         </div>
         <p className="print-cover-confidential">CONFIDENTIAL</p>

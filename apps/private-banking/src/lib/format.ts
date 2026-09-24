@@ -65,5 +65,9 @@ export const dateJa = (date: string) => new Intl.DateTimeFormat("ja-JP", { year:
 const warekiFormat = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", { era: "long", year: "numeric", month: "long", day: "numeric" });
 export const dateWareki = (date: string) => warekiFormat.format(new Date(`${date}T00:00:00`));
 
+/** 和暦の年だけ（「令和9年」）。`year: "numeric"` なので改元年は「令和元年」になる。 */
+const warekiYearFormat = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", { era: "long", year: "numeric" });
+export const yearWareki = (date: string) => warekiYearFormat.format(new Date(`${date}T00:00:00`));
+
 /** 西暦（和暦）の1行表記。1行に収まる場所で使う。 */
 export const dateJaWithWareki = (date: string) => `${dateJa(date)}（${dateWareki(date)}）`;

@@ -1,4 +1,4 @@
-import { decimalToFraction, valuationNumber } from "@/lib/format";
+import { decimalToFraction, valuationNumber, yearWareki } from "@/lib/format";
 import type { FamilyMember } from "@/lib/family";
 import type { FxRates } from "@/lib/fx-rates";
 import type { InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
@@ -137,6 +137,13 @@ export const otherLiabilityCategories = ["LEASE_OBLIGATION", "ACCOUNTS_PAYABLE",
 export const liabilityCategories = [...loanCategories, ...otherLiabilityCategories];
 
 export const fiscalYearLabel = (snapshot: Pick<Snapshot, "fiscalYear">) => `${snapshot.fiscalYear}年度`;
+/**
+ * 年度の「西暦（和暦）」表記。和暦は年度の数字ではなく基準日から求める
+ * （改元年を外さないため。基準日が 2019-12-31 なら令和元年度、2019-01-01 なら平成31年度）。
+ * 幅に余裕のある印刷物で使う。画面の年度セレクタは選択肢が長くなるので西暦のままにしている。
+ */
+export const fiscalYearLabelWithWareki = (snapshot: Pick<Snapshot, "fiscalYear" | "asOfDate">) =>
+  `${fiscalYearLabel(snapshot)}（${yearWareki(snapshot.asOfDate)}度）`;
 
 export function positionSection(position: Position): PositionSection {
   if (position.side === "ASSET") return "ASSET";

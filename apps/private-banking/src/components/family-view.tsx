@@ -3,7 +3,7 @@
 import { Pencil, Plus, UsersRound } from "lucide-react";
 import { useState } from "react";
 import { FamilyEditorModal } from "@/components/family-editor-modal";
-import { dateJa, dateWareki } from "@/lib/format";
+import { BirthDate } from "@/components/birth-date";
 import {
   type FamilyMember,
   type FamilyMemberDraft,
@@ -15,12 +15,6 @@ import {
 
 const fraction = (numerator: number | null, denominator: number | null) =>
   numerator === null || denominator === null ? "－" : `${numerator} / ${denominator}`;
-
-/** 生年月日と年齢のセル。列幅が限られるので、和暦は西暦の下に小さく添える。 */
-function BirthDateCell({ value, age }: { value: string | null; age: number | null }) {
-  if (!value) return <>－</>;
-  return <div className="family-cell-stack"><span className="birth-date-gregorian">{dateJa(value)}{age === null ? "" : `（${age}歳）`}</span><small className="birth-date-wareki">{dateWareki(value)}</small></div>;
-}
 
 /** 税額の加算・控除に関わる区分。該当するものだけを並べる。 */
 const taxAdjustmentLabel = (member: FamilyMember) =>
@@ -82,7 +76,7 @@ export function FamilyView({
                 <td data-label="民法上の法定相続分" className="family-fraction">{fraction(member.civilShareNumerator, member.civilShareDenominator)}</td>
                 <td data-label="税法上の法定相続分" className="family-fraction">{fraction(member.taxShareNumerator, member.taxShareDenominator)}</td>
                 <td data-label="税額の加算・控除">{taxAdjustmentLabel(member)}</td>
-                <td data-label="生年月日・年齢"><BirthDateCell value={member.birthDate} age={age} /></td>
+                <td data-label="生年月日・年齢"><BirthDate value={member.birthDate} age={age} /></td>
               </tr>;
             })}</tbody>
           </table>
