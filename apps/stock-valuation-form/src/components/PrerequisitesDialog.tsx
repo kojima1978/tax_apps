@@ -6,13 +6,6 @@ import {
   VALUATION_PURPOSE_FIELD,
   type ValuationPurpose,
 } from '@/lib/valuationPurpose';
-import {
-  CORPORATE_TAX_RATE_FIELD,
-  defaultCorporateTaxRatePercent,
-  formatRatePercent,
-  parseCorporateTaxRatePercent,
-  taxTimeYear,
-} from '@/lib/corporateTaxRate';
 
 type Props = Pick<TableProps, 'getField' | 'updateField'>;
 
@@ -38,24 +31,20 @@ const OPTIONS: ReadonlyArray<{
   },
 ];
 
-/** 前提条件（評価目的・会社の種類）の現在値。チップの表示とダイアログで共有する。 */
+/**
+ * 前提条件（評価目的・会社の種類）の現在値。チップの表示とダイアログで共有する。
+ *
+ * 法人税額等相当額の割合はここには無い。率だけを別画面で持つと、様式に刷られる
+ * 「（⑦×○％）」の出どころが紙面の外になる ── 年分どおりでない率を使うときは
+ * 第5表⑧の金額を直接書き換える（@/lib/corporateTaxRate）。
+ */
 function readPrerequisites(getField: TableProps['getField']) {
   const purpose = getValuationPurpose(getField);
-  const rateRaw = getField('table1_1', CORPORATE_TAX_RATE_FIELD);
-  const rateDefault = defaultCorporateTaxRatePercent(getField);
-  const rateOverride = parseCorporateTaxRatePercent(rateRaw);
   return {
     purpose,
     special: purpose !== 'inheritance',
     centralHolder: getField('table1_1', SPECIAL_CENTRAL_HOLDER_FIELD) === '1',
     medical: getField('table1_1', MEDICAL_FIELD) === '1',
-    rateRaw,
-    rateDefault,
-    rateOverride,
-    /** 実際に第5表⑧・第7表の3⑧㉑で使う率 */
-    rate: rateOverride ?? rateDefault,
-    /** 入力はあるのに率として読めない（既定に戻して計算している） */
-    rateInvalid: rateRaw.trim() !== '' && rateOverride === null,
   };
 }
 
@@ -64,11 +53,9 @@ function readPrerequisites(getField: TableProps['getField']) {
  * 評価目的は帳票の紙面に現れないまま計算根拠を変えるため、設定画面へ隠さず現在値を出し続ける。
  */
 export function PrerequisitesChip({ getField, onClick }: Pick<Props, 'getField'> & { onClick: () => void }) {
-  const { special, centralHolder, medical, rate, rateDefault } = readPrerequisites(getField);
+  const { special, centralHolder, medical } = readPrerequisites(getField);
   const tags = [
     special ? '所得税・法人税ベース' : '相続税・贈与税ベース',
-    // 率は既定と違うときだけ出す（特例計算では法人税額等相当額をそもそも控除しないので出さない）
-    ...(!special && rate !== rateDefault ? [`法人税額等${formatRatePercent(rate)}％`] : []),
     ...(centralHolder ? ['常に小会社'] : []),
     ...(medical ? ['医療法人'] : []),
   ];
@@ -77,7 +64,7 @@ export function PrerequisitesChip({ getField, onClick }: Pick<Props, 'getField'>
       type="button"
       className={`app-tool-btn app-prereq-chip${special ? ' is-special' : ''}`}
       onClick={onClick}
-      title="評価目的（適用する通達）・法人税額等相当額の割合・会社の種類を設定します。会社規模の判定・純資産価額・類似業種比準の計算が切り替わります"
+      title="評価目的（適用する通達）・会社の種類を設定します。会社規模の判定・純資産価額・類似業種比準の計算が切り替わります"
     >
       <span className="app-prereq-chip-label">前提条件</span>
       {tags.join('／')}
@@ -87,8 +74,7 @@ export function PrerequisitesChip({ getField, onClick }: Pick<Props, 'getField'>
 
 /** 前提条件ダイアログ。計算の土台になる選択をここ1か所に集約する。 */
 export function PrerequisitesDialog({ getField, updateField, onClose }: Props & { onClose: () => void }) {
-  const { purpose, special, centralHolder, medical, rateRaw, rateDefault, rate, rateInvalid } = readPrerequisites(getField);
-  const taxYear = taxTimeYear(getField);
+  const { purpose, special, centralHolder, medical } = readPrerequisites(getField);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -158,39 +144,6 @@ export function PrerequisitesDialog({ getField, updateField, onClose }: Props & 
             </ul>
           </div>
         )}
-
-        <h3 className="prereq-section-title">評価差額に対する法人税額等相当額の割合</h3>
-        <div className={`prereq-rate${rateInvalid ? ' is-invalid' : ''}`}>
-          <label htmlFor="table1_1-corporate-tax-rate">第5表⑧・第7表の3⑧㉑に使う率</label>
-          <input
-            id="table1_1-corporate-tax-rate"
-            name="table1_1._corporate_tax_rate"
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            value={rateRaw}
-            placeholder={formatRatePercent(rateDefault)}
-            onChange={(e) => updateField('table1_1', CORPORATE_TAX_RATE_FIELD, e.target.value)}
-          />
-          <span className="prereq-rate-unit">％</span>
-          {rateRaw !== '' && (
-            <button type="button" className="app-tool-btn" onClick={() => updateField('table1_1', CORPORATE_TAX_RATE_FIELD, '')}>
-              既定（{formatRatePercent(rateDefault)}％）に戻す
-            </button>
-          )}
-        </div>
-        <p className="prereq-rate-note">
-          空欄なら課税時期（第1表の1 ⑭）の年分から決まります。令和7年分以前は37％、令和8年分以降は38％。
-          {taxYear === null
-            ? '　課税時期が未入力のため、この様式の年分の38％を既定にしています。'
-            : `　課税時期は${taxYear}年なので既定は${formatRatePercent(rateDefault)}％です。`}
-          {rateInvalid
-            ? '　入力された値を率として読めないため、既定で計算しています。'
-            : rate !== rateDefault
-              ? `　現在は${formatRatePercent(rate)}％で計算しています。様式に刷られる「（⑦×○％）」もこの率になります。`
-              : ''}
-          {special && '　なお所得税・法人税の時価評価では法人税額等相当額を控除しないため、この率は使いません。'}
-        </p>
 
         <h3 className="prereq-section-title">会社の種類</h3>
         <label className={`valuation-purpose-option prereq-medical${medical ? ' is-selected' : ''}`}>

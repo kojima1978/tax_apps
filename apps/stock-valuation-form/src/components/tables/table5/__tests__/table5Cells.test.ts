@@ -27,12 +27,26 @@ describe('第5表のセル定義：符号と小数が表示で落ちないこと
     }
   });
 
-  // 率は年分で変わる。ラベルを '38％' のまま焼き込むと、37％で計算した紙に38％と刷られる
-  it('⑧のラベルは計算に使う率をそのまま出す', () => {
-    const label = (pct: number) => mainPageCells(pct).find((c) => c.kind === 'label' && c.text?.includes('⑧ 評価差額に対する法人税額等相当額'))?.text;
-    expect(label(38)).toContain('（⑦×38％）');
-    expect(label(37)).toContain('（⑦×37％）');
-    expect(label(37.5)).toContain('（⑦×37.5％）');
+  // 率は課税時期と⑧のラベルの入力欄で変わる。'38％' のまま焼き込むと、37％で計算した紙に38％と刷られる
+  it('⑧のラベルの率は計算に使う率をそのまま出す（未入力のときの表示＝印刷される値）', () => {
+    const expr = (pct: number) => mainPageCells(pct)
+      .find((c) => c.kind === 'label' && c.inlineRateExpression)?.inlineRateExpression;
+    expect(expr(38)!.lines).toEqual(['⑧ 評価差額に対する法人税額等相当額']);
+    expect(expr(38)!.fallback).toBe('38');
+    expect(expr(37)!.fallback).toBe('37');
+    expect(expr(37.5)!.fallback).toBe('37.5');
+    // 入力欄の前後を合わせると様式どおりの「（⑦×○％）」になる
+    expect(`${expr(38)!.prefix}38${expr(38)!.suffix}`).toContain('（⑦×38％）');
+  });
+
+  // 率を年分どおりにしない場面（経過措置・個別の取扱い）のために率だけは直せる。
+  // ラベルの中に置くのは、セルを分けると様式に無い縦罫線が増えるため
+  // （goToField が [name] で引くので、第7表の3からの遷移先としても field 名が要る）
+  it('率の入力欄は⑧のラベルの中にある（別セルにしない）', () => {
+    const cells = mainPageCells(38);
+    const expr = cells.find((c) => c.kind === 'label' && c.inlineRateExpression)!.inlineRateExpression!;
+    expect(expr.field).toBe('_corporate_tax_rate');
+    expect(cells.some((c) => c.field === expr.field)).toBe(false);
   });
 
   it('計算欄は読み取り専用で、整形済みの文字列をそのまま出す', () => {

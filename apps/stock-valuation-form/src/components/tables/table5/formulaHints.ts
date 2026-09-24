@@ -37,7 +37,10 @@ export function table5Hints(d: Detail): Record<string, string> {
     '⑦': `⑤ ${rv(d.netEval)} － ⑥ ${rv(d.netBook)} ＝ ${rv(d.evaluationDifference)}千円（マイナスのときは0）`,
     '⑧': d.specialMarketValueRules
       ? '所得税・法人税の時価評価（中心的な同族株主に該当する場合）では、評価差額に対する法人税額等相当額を控除しないため0とします'
-      : `⑦ ${rv(d.evaluationDifference)}千円 × ${formatRatePercent(d.corporateTaxRatePercent)}％ ＝ ${rv(d.corporateTaxEquivalent)}千円（端数切捨て）`,
+      : `⑦ ${rv(d.evaluationDifference)}千円 × ${formatRatePercent(d.corporateTaxRatePercent)}％ ＝ ${rv(d.corporateTaxEquivalent)}千円（端数切捨て）`
+        + (d.corporateTaxOverridden
+          ? '\n率は「（⑦×○％）」に入力された値です（空欄に戻すと課税時期から決まる率に戻ります）'
+          : '\n率は課税時期から決まります。「（⑦×○％）」の○を書き換えると任意の率で計算できます'),
     '⑨': `⑤ ${rv(d.netEval)} － ⑧ ${rv(d.corporateTaxEquivalent)} ＝ ${rv(d.currentNet)}千円`,
     '⑩': `第１表の１⑤ ${rv(d.issuedShares)}株 － 自己株式 ${rv(d.treasuryShares)}株 ＝ ${rv(d.currentShares)}株`,
     '⑪': d.currentNet < 0

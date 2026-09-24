@@ -143,6 +143,13 @@ export interface GridCell {
     rateField: string;
     sizeField: string;
   }; // 類似業種比準価額の会社規模別斟酌率
+  inlineRateExpression?: {
+    lines: string[];        // 入力欄より前の行（そのまま出す）
+    prefix: string;         // 入力欄と同じ行の左側（例: '　（⑦×'）
+    field: string;          // 率の入力欄
+    suffix: string;         // 右側（例: '％）'）
+    fallback: string;       // 未入力のときに使う率（既定）。印刷にもこれが出る
+  }; // ラベルの中に率の入力欄を1つ埋め込む式（第5表⑧の「（⑦×38％）」）
   verticalSectionHeading?: {
     number: string;
     text: string;
@@ -576,6 +583,11 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
         const isDragHandle = dragId !== undefined;
         const dragOver = isDragHandle && dragOverId === dragId;
         const interactive = selectable || toggleField || isDragHandle;
+        // 罫線だけのセル（外枠など）は意味づけのDOMグループに入らないぶん、入力欄より後ろへ回ることがある。
+        // 重なった側が上になるので、そのままだと欄のクリックを吸い取って入力も遷移もできなくなる
+        // （第７表の３の外枠が全欄を覆っていた）。中身を持たないセルは当たり判定から外す。
+        const decorationOnly = c.kind === 'cell' && !interactive && !raw && c.field === undefined
+          && c.codeLabel === undefined && c.diagonal === undefined && cellHint(c) === undefined;
         const selectCell = () => {
           if (toggleField) {
             u(toggleField, g(toggleField) === '1' ? '' : '1');
@@ -653,6 +665,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             boxShadow: dragOver ? 'inset 0 0 0 1.5px #2563eb' : highlighted ? `inset 0 0 0 1.5px ${pinned ? '#2563eb' : '#d97706'}` : undefined,
             cursor: isDragHandle ? 'grab' : interactive ? 'pointer' : undefined,
             userSelect: interactive ? 'none' : undefined,
+            pointerEvents: decorationOnly ? 'none' : undefined,
             touchAction: isDragHandle ? 'none' : undefined,
             padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
             lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: 'center',
@@ -866,6 +879,21 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, writingMode: 'vertical-rl' }}>{c.verticalSectionHeading.text.replace(/[ 　]/g, '')}</span>
                     </>
                   )}
+                </span>
+              ) : c.kind === 'label' && c.inlineRateExpression ? (
+                // 率の入力欄をラベルの中に置く。別セルに分けると様式に無い縦罫線が増えるため
+                // （セルは1つずつ枠線を引く）。未入力のときは既定の率を薄く出し、印刷にもそれが出る。
+                // 100を超える打ち間違いはその場で受け取らない ── 読む側は計算に使われない率を
+                // 受け取ったまま刷ってしまい、紙の上で算式と金額が食い違う。
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', width: '100%', height: '100%', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+                  {c.inlineRateExpression.lines.map((line) => <span key={line}>{line}</span>)}
+                  <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                    <span>{c.inlineRateExpression.prefix}</span>
+                    {printRendering
+                      ? <span>{g(c.inlineRateExpression.field) || c.inlineRateExpression.fallback}</span>
+                      : <input id={`${inputPrefix}-${c.inlineRateExpression.field}`} name={`${inputPrefix}.${c.inlineRateExpression.field}`} aria-label={c.ariaLabel ? `${c.ariaLabel}の率（％）` : c.inlineRateExpression.field} title={cellHint(c)} value={g(c.inlineRateExpression.field)} placeholder={c.inlineRateExpression.fallback} onChange={(e) => { const next = sanitizeDecimal(e.target.value, 2); if (next === '' || Number(next) <= 100) u(c.inlineRateExpression!.field, next); }} onKeyDown={onEnterNext} inputMode="decimal" style={{ width: '2.6em', minWidth: 0, border: 'none', borderBottom: '1px solid #aaa', outline: 'none', textAlign: 'center', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />}
+                    <span>{c.inlineRateExpression.suffix}</span>
+                  </span>
                 </span>
               ) : c.kind === 'label' && c.companyRateExpression ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.2em', width: '98%', height: '100%', lineHeight: 1.15, whiteSpace: 'nowrap' }}>

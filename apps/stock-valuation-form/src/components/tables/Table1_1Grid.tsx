@@ -322,9 +322,9 @@ function shareholderRows(): GridCell[] {
     out.push({ kind: 'cell', codeLabel: codes.roleName, top: topA, left: X.roleECode, width: +(X.roleECodeEnd - X.roleECode).toFixed(2), height: hA });
     out.push({ field: `sh_${r}_3`, kind: 'input', readOnlyWhen: (g) => g(`sh_${r}_3k`) !== '16', ariaLabel: `株主${r}の会社における役職名（役職コードから自動表示。16：その他のときのみ入力可）`, top: topA, left: X.role, width: +(X.roleEnd - X.role).toFixed(2), height: hA, align: 'left' });
     out.push({ kind: 'cell', codeLabel: codes.shares, top: topA, left: X.numCode1, width: +(X.numCode1End - X.numCode1).toFixed(2), height: hA });
-    out.push({ field: `sh_${r}_4`, kind: 'input', commaInteger: true, top: topA, left: X.num1, width: +(X.num1End - X.num1).toFixed(2), height: hA, align: 'right' });
+    out.push({ field: `sh_${r}_4`, kind: 'input', calculationRequired: r === 1, commaInteger: true, top: topA, left: X.num1, width: +(X.num1End - X.num1).toFixed(2), height: hA, align: 'right' });
     out.push({ kind: 'cell', codeLabel: codes.undiv, top: topA, left: X.numCode2, width: +(X.numCode2End - X.numCode2).toFixed(2), height: hA });
-    out.push({ field: `sh_${r}_7`, kind: 'input', commaInteger: true, top: topA, left: X.num2, width: +(X.num2End - X.num2).toFixed(2), height: hA, align: 'right' });
+    out.push({ field: `sh_${r}_7`, kind: 'input', calculationRequired: r === 1, commaInteger: true, top: topA, left: X.num2, width: +(X.num2End - X.num2).toFixed(2), height: hA, align: 'right' });
     // 下段: [G番号][続柄コード選択][E番号][続柄(自動表示)]（1行目=納税義務者固定） [G番号][株式種類コード選択][E番号][株式の種類] [G番号][㋩議決権数] [G番号][㋥割合(自動)]
     if (r === 1) {
       out.push({ kind: 'label', text: '納税義務者', top: topB, left: X.name, width: +(X.nameEnd - X.name).toFixed(2), height: hB });
@@ -439,7 +439,8 @@ const CELLS: GridCell[] = [
   { kind: 'label', text: '自己株式の株式数', top: 66.81, left: X.name, width: 21.75, height: 2.59 },
   { kind: 'cell', diagonal: 'bltr', top: 66.81, left: X.gCode, width: 25.39, height: 2.59 },
   { kind: 'cell', codeLabel: 'G38', top: 66.81, left: X.numCode1, width: 1.81, height: 2.59 },
-  { field: 'f63', kind: 'input', commaInteger: true, top: 66.81, left: X.num1, width: 12.69, height: 2.59 },
+  // 自己株式数は第5表⑩（発行済株式数－自己株式数）の計算に要る
+  { field: 'f63', kind: 'input', calculationRequired: true, commaInteger: true, top: 66.81, left: X.num1, width: 12.69, height: 2.59 },
   { kind: 'cell', diagonal: 'bltr', top: 66.81, left: X.numCode2, width: 14.59, height: 2.59 },
   // 合計ブロック（①②/③④/⑤⑥）
   { kind: 'label', text: '納税義務者の属する同族関係者グループの議決権の合計数', top: 69.4, left: X.name, width: 47.14, height: 4.05 },

@@ -766,3 +766,54 @@ describe('calcTable8（第7表の3：分数等で書く欄）', () => {
     expect(c.v27).toBe(0.001);   // ㉗ ㉕と㉖の低い方
   });
 });
+
+// 率そのものを入力させる欄は無い。年分どおりでない率を使うときは⑧の金額を直接書き換え、
+// そこから逆算した率が第7表の3（⑧㉑）へ渡る。⑦は表ごとに別の金額なので、
+// 金額をそのまま配ると別の表で誤った控除額になる ── 渡るのが率であることを固定する。
+describe('第5表⑧の率の上書き（第7表の3への連動）', () => {
+  // 第5表⑦＝50,000／第7表の3の⑦＝30,000／⑳＝20,000 と3つとも違う値にしてある
+  // ── 連動するのは率だけで、金額はそれぞれの表の⑦・⑳から計算し直すことを見るため。
+  const data: Data = {
+    table5: {
+      a_1_1: '株式', a_1_2: '60000', a_1_3: '40000', a_1_4: '株式等',
+      a_2_1: '土地', a_2_2: '40000', a_2_3: '10000', a_2_4: '土地等',
+    },
+    table1_1: { '⑤': '1000', f63: '0', sh_1_5: '600', '⑥': '1000' },
+  };
+  const overridden: Data = { ...data, table5: { ...data.table5, _corporate_tax_rate: '30' } };
+
+  it('未入力なら年分どおりの率（令和8年様式は38％）', () => {
+    const d = calcTable5Detail(mkGetField(data));
+    expect(d.evaluationDifference).toBe(50000);
+    expect(d.corporateTaxRatePercent).toBe(38);
+    expect(d.corporateTaxOverridden).toBe(false);
+    expect(d.corporateTaxEquivalent).toBe(Math.floor(50000 * 0.38)); // 19000
+  });
+
+  it('率を入れると⑧はその率で計算し直す（金額は自動計算のまま）', () => {
+    const d = calcTable5Detail(mkGetField(overridden));
+    expect(d.corporateTaxRatePercent).toBe(30);
+    expect(d.corporateTaxOverridden).toBe(true);
+    expect(d.corporateTaxEquivalent).toBe(Math.floor(50000 * 0.3)); // 15000
+    expect(calcTable5(mkGetField(overridden))['⑨']).toBe(100000 - 15000);
+  });
+
+  it('第7表の3へ渡るのは率だけで、金額は各表の⑦⑳から計算し直す', () => {
+    const c = calcTable8(mkGetField(overridden));
+    expect(c.corporateTaxRatePercent).toBe(30);
+    expect(c.v7).toBe(30000);                          // 第5表の⑦（50,000）とは別の金額
+    expect(c.v8).toBe(Math.floor(30000 * 0.3));        // 9000
+    expect(c.v20).toBe(20000);
+    expect(c.v21).toBe(Math.floor(20000 * 0.3));       // 6000
+    expect(c.v22).toBe(60000 - 6000);
+  });
+
+  it('特例的評価（所得税・法人税の時価）では率によらず控除しない', () => {
+    const d = calcTable5Detail(mkGetField({
+      ...overridden,
+      table1_1: { ...data.table1_1, _valuation_purpose: 'special-market-value' },
+    }));
+    expect(d.corporateTaxEquivalent).toBe(0);
+    expect(d.corporateTaxRatePercent).toBe(30); // ラベルは入力どおり（控除しないので使わない）
+  });
+});

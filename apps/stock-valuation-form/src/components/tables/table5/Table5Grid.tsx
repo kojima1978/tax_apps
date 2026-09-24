@@ -16,9 +16,11 @@ import { formatAmount } from '@/lib/numberFormat';
 import type { TableId, TableProps } from '@/types/form';
 import { getValuationPurpose, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
 import {
+  CORPORATE_TAX_RATE_FIELD,
   corporateTaxEquivalentOf,
   formatRatePercent,
   getCorporateTaxRatePercent,
+  parseCorporateTaxRatePercent,
 } from '@/lib/corporateTaxRate';
 import { table5Hints } from './formulaHints';
 import {
@@ -45,6 +47,8 @@ const CONT_PITCH = (CONT_BOTTOM - CONT_ROW_TOP) / CONT_ROWS;
 
 /** ページpの先頭行番号（1始まり） */
 const pageStartRow = (p: number) => (p === 0 ? 1 : MAIN_ROWS + (p - 1) * CONT_ROWS + 1);
+// 自動計算だけの欄（読み取り専用）。⑧も金額は自動計算で、直接書き換えられるのは
+// ラベル「（⑦×○％）」の率だけ（率を年分どおりにしない場面＝経過措置・個別の取扱いがある）。
 const COMPUTED_FIELDS = new Set([
   '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫',
   'イ', 'ロ', 'ハ',
@@ -175,10 +179,10 @@ function totalItem(mark: string, code: string, field: string, top: number, bandH
 }
 
 /** 2./3.セクションの1行（[ラベル][Gコード][値][単位]） */
-function calcRow(label: string, aria: string, code: string, field: string, unit: string, top: number, bottom: number, x: [number, number, number, number, number], props?: Partial<GridCell>): GridCell[] {
+function calcRow(label: string, aria: string, code: string, field: string, unit: string, top: number, bottom: number, x: [number, number, number, number, number], props?: Partial<GridCell>, labelProps?: Partial<GridCell>): GridCell[] {
   const h = +(bottom - top).toFixed(2);
   return [
-    { kind: 'label', text: label, semanticRole: 'rowheader', ariaLabel: aria, top, left: x[0], width: +(x[1] - x[0]).toFixed(2), height: h, align: 'left', fontSize: 6.5 },
+    { kind: 'label', text: label, semanticRole: 'rowheader', ariaLabel: aria, top, left: x[0], width: +(x[1] - x[0]).toFixed(2), height: h, align: 'left', fontSize: 6.5, ...labelProps },
     { kind: 'cell', codeLabel: code, top, left: x[1], width: +(x[2] - x[1]).toFixed(2), height: h },
     { field, kind: 'input', top, left: x[2], width: +(x[3] - x[2]).toFixed(2), height: h, align: 'right', ...props },
     { kind: 'label', text: unit, top, left: x[3], width: +(x[4] - x[3]).toFixed(2), height: h, fontSize: 7 },
@@ -250,8 +254,20 @@ function pageCells(pageIndex: number, ratePercent: number): GridCell[] {
   ...calcRow('⑤ 相続税評価額による純資産価額\n　（①－③）', '⑤ 相続税評価額による純資産価額', 'G70', '⑤', '千円', 80.23, 82.85, CALC2_X),
   ...calcRow('⑥ 帳簿価額による純資産価額\n　【{②＋(ニ－ホ)－④}、マイナスの場合は０】', '⑥ 帳簿価額による純資産価額', 'G71', '⑥', '千円', 82.85, 85.47, CALC2_X),
   ...calcRow('⑦ 評価差額に相当する金額\n　（⑤－⑥、マイナスの場合は０）', '⑦ 評価差額に相当する金額', 'G72', '⑦', '千円', 85.47, 88.09, CALC2_X),
-  // 率は年分で変わるので、刷られる文字も計算に使った率から組み立てる（ラベルだけ38％のまま残さない）
-  ...calcRow(`⑧ 評価差額に対する法人税額等相当額\n　（⑦×${formatRatePercent(ratePercent)}％）`, '⑧ 評価差額に対する法人税額等相当額', 'G73', '⑧', '千円', 88.09, 91.85, CALC2_X),
+  // 「（⑦×○％）」の○はそのまま入力欄。率を年分どおりにしない場面（経過措置・個別の取扱い）が
+  // あるので直せるようにしてあるが、金額（⑧）は率からの自動計算のまま
+  // （金額を直接入れられると、刷られる算式と印字された金額がずれる）。未入力なら課税時期から決まる率。
+  ...calcRow('⑧ 評価差額に対する法人税額等相当額', '⑧ 評価差額に対する法人税額等相当額', 'G73', '⑧', '千円', 88.09, 91.85, CALC2_X,
+    undefined,
+    {
+      inlineRateExpression: {
+        lines: ['⑧ 評価差額に対する法人税額等相当額'],
+        prefix: '　（⑦×',
+        field: CORPORATE_TAX_RATE_FIELD,
+        suffix: '％）',
+        fallback: formatRatePercent(ratePercent),
+      },
+    }),
   // ── 3. 1株当たりの純資産価額の計算 ──
   { kind: 'label', text: '３．１株当たりの純資産価額の計算', semanticRole: 'columnheader', ariaLabel: '1株当たりの純資産価額の計算', top: 78.46, left: 51.41, width: 41.42, height: 1.77, align: 'left', fontSize: 8.5, bold: true },
   ...calcRow('⑨ 課税時期現在の純資産価額\n　（相続税評価額）（⑤－⑧）', '⑨ 課税時期現在の純資産価額', 'G74', '⑨', '千円', 80.23, 82.85, CALC3_X),
@@ -384,7 +400,12 @@ export function calcTable5Detail(getField: TableProps['getField']) {
   const netBook = Math.max(0, assetBook + applicableInKindDifference - liabilityBook);
   const evaluationDifference = Math.max(0, netEval - netBook);
   const specialMarketValueRules = usesSpecialMarketValueRules(getField);
+  // 率は⑧のラベル「（⑦×○％）」で直せる（未入力なら課税時期から決まる既定）。
+  // 金額は率からの自動計算のままで、同じ率を第7表の3（⑧㉑）へも配る
+  // ── 第7表の3の⑦は第5表の⑦と別の金額なので、連動させられるのは金額ではなく率のほう。
   const corporateTaxRatePercent = getCorporateTaxRatePercent(getField);
+  const corporateTaxOverridden = parseCorporateTaxRatePercent(getField(T, CORPORATE_TAX_RATE_FIELD)) !== null;
+  // 特例的評価（所得税・法人税の時価）では法人税額等相当額を控除しない。
   const corporateTaxEquivalent = specialMarketValueRules
     ? 0
     : corporateTaxEquivalentOf(evaluationDifference, corporateTaxRatePercent);
@@ -425,7 +446,7 @@ export function calcTable5Detail(getField: TableProps['getField']) {
     hasAssetInput, hasLiabilityInput, hasCalculationInput,
     inKindEval, inKindBook, inKindRatio, applicableInKindDifference,
     netEval, netBook, evaluationDifference, specialMarketValueRules,
-    corporateTaxRatePercent, corporateTaxEquivalent, currentNet,
+    corporateTaxOverridden, corporateTaxRatePercent, corporateTaxEquivalent, currentNet,
     issuedShares, treasuryShares, currentShares, netPerShare,
     groupVotes, totalVotes, votingRatio, netPerShare80,
     netPerShareDisp: netPerShareF.text, netPerShare80Disp: netPerShare80F.text,

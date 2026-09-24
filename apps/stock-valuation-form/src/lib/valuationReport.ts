@@ -1,6 +1,6 @@
 import { calcTable3 } from '@/components/tables/table3/Table3Grid';
 import { calcTable4 } from '@/components/tables/table4/calcTable4';
-import { calcTable5 } from '@/components/tables/table5/Table5Grid';
+import { calcTable5Detail, table5Calculated } from '@/components/tables/table5/Table5Grid';
 import { KUBUN_BY_RESULT, calcTable6 } from '@/components/tables/table6/calcTable6';
 import { RESULT_NAMES } from '@/components/tables/table2/Table2Grid';
 import { SIZE_OVERRIDE_FIELD, calcCompanySize } from '@/components/tables/table1-2/Table1_2Grid';
@@ -14,7 +14,7 @@ import {
 } from '@/lib/valuationPurpose';
 import type { TableProps } from '@/types/form';
 import { stripAmountFormatting } from '@/lib/numberFormat';
-import { formatRatePercent, getCorporateTaxRatePercent } from '@/lib/corporateTaxRate';
+import { formatRatePercent } from '@/lib/corporateTaxRate';
 
 // ══ お客様報告用の株価集計 ══
 // 既存の calcTableN はすべて getField を引数に取るので、getField をプロキシして
@@ -175,7 +175,7 @@ const SPECIAL_MIX_NOTES: Record<number, string> = {
 
 /**
  * ベースごとの注記。相続税評価額ベースだけ法人税額等相当額の割合が入る。
- * 率は課税時期の年分（と前提条件の上書き）で変わるので、文字列に焼き込まない。
+ * 率は課税時期（と第5表⑧のラベルに入れた率）で変わるので、文字列に焼き込まない。
  */
 export function basisNote(key: ValuationBasisKey, ratePercent: number): string {
   return key === 'inheritance'
@@ -207,7 +207,10 @@ export function calcValuationBasis(
   const t4 = calcTable4(gf);
   const t4zero = calcTable4(gfZero);
   const t4assumed = gfAssumed && calcTable4(gfAssumed);
-  const t5 = calcTable5(gf);
+  // 率は第5表の計算の中で決まる（⑧のラベル「（⑦×○％）」に入力があればその率）ので、
+  // 表示値と一緒に途中経過から受け取る ── 同じ判断を2箇所に持たない
+  const t5d = calcTable5Detail(gf);
+  const t5 = table5Calculated(t5d);
   // 特定の評価会社に当たるときは第3表を使わない。判定は利益を差し替えると変わりうる
   // （比準要素数１の判定は財産を見る）ので、試算ごとに第6表も通す。
   const t6 = calcTable6(gf);
@@ -215,7 +218,7 @@ export function calcValuationBasis(
   const t6assumed = gfAssumed && calcTable6(gfAssumed);
   const classification = t6.t2.result;
   const size = calcCompanySize((field) => gf('table1_2', field), forcesSmallCompany(gf)).result;
-  const corporateTaxRatePercent = getCorporateTaxRatePercent(gf);
+  const corporateTaxRatePercent = t5d.corporateTaxRatePercent;
   return {
     key,
     ...BASIS_LABELS[key],

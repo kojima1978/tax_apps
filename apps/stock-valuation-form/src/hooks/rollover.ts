@@ -87,11 +87,13 @@ const T6_CLEAR = [
 const T8_CLEAR = ['⑱', '⑲'] as const;
 
 // 第5表: 資産・負債の金額列（相続税評価額_2/帳簿価額_3）。科目_1と備考_4は維持。
+// 法人税額等相当額の率の上書きも落とす ── 率は課税時期から決め直すので、
+// 去年の率が残っていると翌年もその率のまま計算される。
 // 行数は続紙の枚数で決まる。固定値にすると、続紙を増やした会社では、はみ出した行だけ
 // 前年の金額が残ったまま翌年へ持ち越される。
 function clearTable5Amounts(table: Record<string, string>): Record<string, string> {
   const rows = table5RowCount((_table, field) => table[field] ?? '');
-  const fields: string[] = ['_sel'];
+  const fields: string[] = ['_sel', CORPORATE_TAX_RATE_FIELD];
   for (let row = 1; row <= rows; row++) {
     for (const prefix of ['a', 'l']) {
       fields.push(`${prefix}_${row}_2`, `${prefix}_${row}_3`);
@@ -116,9 +118,6 @@ export function rolloverFormData(data: FormData): FormData {
     const bumped = bumpYear(table1_1[f]);
     if (bumped !== undefined) table1_1[f] = bumped;
   }
-
-  // 率の上書きは年分ごとの例外なので翌年へは持ち越さない（課税時期の年分から決め直す）
-  if (table1_1[CORPORATE_TAX_RATE_FIELD]) table1_1[CORPORATE_TAX_RATE_FIELD] = '';
 
   // 第4表: 期別の順送り＋直前期・修正欄のクリア
   const table4 = clearFields(shift(data.table4, T4_SHIFT), T4_CLEAR);

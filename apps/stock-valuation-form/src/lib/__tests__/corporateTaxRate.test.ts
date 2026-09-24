@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { TableProps } from '@/types/form';
 import {
-  CORPORATE_TAX_RATE_FIELD,
   corporateTaxEquivalentOf,
   defaultCorporateTaxRatePercent,
   formatRatePercent,
@@ -10,17 +9,26 @@ import {
   taxTimeYear,
 } from '../corporateTaxRate';
 
-// 率が年分で変わる（令和7年分＝37％ / 令和8年分＝38％）ことがこの機能の全部なので、
-// 境目の1年ぶんと、上書きが効く／効かない条件をここで固定する。
+// 率が課税時期で変わる（令和8年4月1日以後の取得分＝38％／それより前＝37％）ことと、
+// 第5表⑧のラベル「（⑦×○％）」で率を上書きできることがこの機能の全部なので、
+// 境目の前後と、上書きとして受け付ける入力の範囲をここで固定する。
 const gf = (data: Record<string, string>): TableProps['getField'] =>
   ((table: string, field: string) => data[`${table}.${field}`] ?? '') as TableProps['getField'];
 
+const taxTime = (year: string, month = '') => ({ 'table1_1.f14_g': '令和', 'table1_1.f14_y': year, 'table1_1.f14_m': month });
+
 describe('法人税額等相当額の割合', () => {
-  describe('課税時期の年分から決まる既定', () => {
-    it('令和7年分は37％、令和8年分は38％（境目で切り替わる）', () => {
-      expect(defaultCorporateTaxRatePercent(gf({ 'table1_1.f14_g': '令和', 'table1_1.f14_y': '7' }))).toBe(37);
-      expect(defaultCorporateTaxRatePercent(gf({ 'table1_1.f14_g': '令和', 'table1_1.f14_y': '8' }))).toBe(38);
-      expect(defaultCorporateTaxRatePercent(gf({ 'table1_1.f14_g': '令和', 'table1_1.f14_y': '9' }))).toBe(38);
+  describe('課税時期から決まる既定', () => {
+    it('令和8年4月1日が境目（3月までは37％、4月からは38％）', () => {
+      expect(defaultCorporateTaxRatePercent(gf(taxTime('8', '3')))).toBe(37);
+      expect(defaultCorporateTaxRatePercent(gf(taxTime('8', '4')))).toBe(38);
+      expect(defaultCorporateTaxRatePercent(gf(taxTime('8', '12')))).toBe(38);
+    });
+
+    it('令和7年以前は月によらず37％、令和9年以降は38％', () => {
+      expect(defaultCorporateTaxRatePercent(gf(taxTime('7', '12')))).toBe(37);
+      expect(defaultCorporateTaxRatePercent(gf(taxTime('7')))).toBe(37);
+      expect(defaultCorporateTaxRatePercent(gf(taxTime('9', '1')))).toBe(38);
     });
 
     it('元号を省いても令和として読む（画面の既定が令和）', () => {
@@ -36,35 +44,42 @@ describe('法人税額等相当額の割合', () => {
       expect(defaultCorporateTaxRatePercent(gf({}))).toBe(38);
     });
 
-    it('月日が未入力でも年だけで決まる（日付を入れ切る前から率が確定してよい）', () => {
-      expect(taxTimeYear(gf({ 'table1_1.f14_g': '令和', 'table1_1.f14_y': '7' }))).toBe(2025);
-      expect(defaultCorporateTaxRatePercent(gf({ 'table1_1.f14_g': '令和', 'table1_1.f14_y': '7' }))).toBe(37);
+    it('令和8年で月だけ未入力なら改正後の38％（年内の大半が4月以後）', () => {
+      expect(taxTimeYear(gf(taxTime('8')))).toBe(2026);
+      expect(defaultCorporateTaxRatePercent(gf(taxTime('8')))).toBe(38);
+    });
+
+    it('日は見ない（境目が1日なので年と月だけで決まる）', () => {
+      const march = { ...taxTime('8', '3'), 'table1_1.f14_d': '' };
+      expect(defaultCorporateTaxRatePercent(gf(march))).toBe(37);
+      expect(defaultCorporateTaxRatePercent(gf({ ...march, 'table1_1.f14_d': '31' }))).toBe(37);
     });
   });
 
-  describe('前提条件からの上書き', () => {
-    it('数字・％付き・小数を受け付ける', () => {
+  describe('第5表の率の上書き', () => {
+    it('％として読めるものを上書きにする（％記号付き・小数・0も可）', () => {
       expect(parseCorporateTaxRatePercent('37')).toBe(37);
       expect(parseCorporateTaxRatePercent(' 37.5 ')).toBe(37.5);
-      expect(parseCorporateTaxRatePercent('38％')).toBe(38);
-      expect(parseCorporateTaxRatePercent('38%')).toBe(38);
+      expect(parseCorporateTaxRatePercent('37％')).toBe(37);
+      expect(parseCorporateTaxRatePercent('37%')).toBe(37);
       expect(parseCorporateTaxRatePercent('0')).toBe(0);
     });
 
-    it('空・数字でない・範囲外は上書きなし（黙って異常な率で計算しない）', () => {
+    it('空欄・数字でないもの・0〜100の外は上書きなし（既定へ戻す）', () => {
+      // 範囲外を黙って使うと、桁を打ち間違えた率でそのまま計算して印刷まで通ってしまう
       expect(parseCorporateTaxRatePercent('')).toBeNull();
       expect(parseCorporateTaxRatePercent('   ')).toBeNull();
-      expect(parseCorporateTaxRatePercent('三八')).toBeNull();
+      expect(parseCorporateTaxRatePercent('％')).toBeNull();
       expect(parseCorporateTaxRatePercent('-1')).toBeNull();
       expect(parseCorporateTaxRatePercent('101')).toBeNull();
     });
 
-    it('上書きがあればそれ、無ければ年分の既定', () => {
-      const year7 = { 'table1_1.f14_g': '令和', 'table1_1.f14_y': '7' };
-      expect(getCorporateTaxRatePercent(gf(year7))).toBe(37);
-      expect(getCorporateTaxRatePercent(gf({ ...year7, [`table1_1.${CORPORATE_TAX_RATE_FIELD}`]: '38' }))).toBe(38);
-      // 読めない入力は既定へ戻る
-      expect(getCorporateTaxRatePercent(gf({ ...year7, [`table1_1.${CORPORATE_TAX_RATE_FIELD}`]: 'あ' }))).toBe(37);
+    it('入力があればその率、無ければ課税時期の既定（第7表の3へ配るのもこの値）', () => {
+      const march = taxTime('8', '3');
+      expect(getCorporateTaxRatePercent(gf(march))).toBe(37);
+      expect(getCorporateTaxRatePercent(gf({ ...march, 'table5._corporate_tax_rate': '30' }))).toBe(30);
+      // 範囲外は無視して既定に戻る
+      expect(getCorporateTaxRatePercent(gf({ ...march, 'table5._corporate_tax_rate': '300' }))).toBe(37);
     });
   });
 

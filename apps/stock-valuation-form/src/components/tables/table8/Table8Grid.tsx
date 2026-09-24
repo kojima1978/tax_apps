@@ -10,11 +10,7 @@ import type { TableId, TableProps } from '@/types/form';
 import { forcesSmallCompany, usesSpecialMarketValueRules } from '@/lib/valuationPurpose';
 import { fractionalWriters } from '@/lib/fractionalAmount';
 import { formatAmount, stripAmountFormatting } from '@/lib/numberFormat';
-import {
-  corporateTaxEquivalentOf,
-  formatRatePercent,
-  getCorporateTaxRatePercent,
-} from '@/lib/corporateTaxRate';
+import { CORPORATE_TAX_RATE_FIELD, corporateTaxEquivalentOf, formatRatePercent } from '@/lib/corporateTaxRate';
 
 const T = 'table8' as const;
 
@@ -33,7 +29,8 @@ interface S1Class {
  * 入力欄には番号・単位を表示しない（C01〜C10 の識別コードのみ独立セル）。
  */
 function buildCells(cls: S1Class, ratePercent: number): GridCell[] {
-  // 率は年分で変わるので、刷られる文字も計算に使った率から組み立てる（ラベルだけ38％のまま残さない）
+  // 率は第5表で決まる（課税時期の年分か、⑧のラベルに入力された率）。
+  // 刷られる文字も計算に使った率から組み立てる（ラベルだけ38％のまま残さない）
   const ratePct = formatRatePercent(ratePercent);
   const lText = cls.lRate === null ? '0.＿' : cls.lRate.toFixed(2);
   // 修正計算ブロックのヘッダーセル（番号＋ラベル、右下に単位）
@@ -68,7 +65,7 @@ function buildCells(cls: S1Class, ratePercent: number): GridCell[] {
   head(`⑧　評価差額に対する法人税額等相当額\n　　（⑦×${ratePct}％）`, '（千円）', 28.72, 3.99, 39.16, 64.3),
   head('⑨　課税時期現在の修正純資産価額\n　　（相続税評価額）（③－⑧）', '（千円）', 28.72, 3.99, 64.3, 91.38),
   { field: '⑦', kind: 'input', readOnly: true, top: 32.71, left: 14.02, width: 25.14, height: 2.79, align: 'right' },
-  { field: '⑧', kind: 'input', readOnly: true, top: 32.71, left: 39.16, width: 25.14, height: 2.79, align: 'right' },
+  { field: '⑧', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: CORPORATE_TAX_RATE_FIELD, hint: `クリックで率の入力欄（第５表 ⑧「（⑦×${ratePct}％）」）へ移動します。そこで率を書き換えると、この欄も同じ率で計算し直します（金額はこの表の⑦⑳から計算するので第５表⑧とは別です）` }, top: 32.71, left: 39.16, width: 25.14, height: 2.79, align: 'right' },
   { field: '⑨', kind: 'input', readOnly: true, top: 32.71, left: 64.3, width: 27.08, height: 2.79, align: 'right' },
   // 行4: ⑩ ⑪（ヘッダー 35.50-39.60 / 値 39.60-42.39）＋（注）
   head('⑩　課税時期現在の発行済株式数\n　　（第５表の⑩の株式数）', '（株）', 35.5, 4.1, 14.02, 39.16),
@@ -126,7 +123,7 @@ function buildCells(cls: S1Class, ratePercent: number): GridCell[] {
   { field: '⑱', kind: 'input', commaInteger: true, top: 75.9, left: 10.15, width: 21.28, height: 2.73, align: 'right' },
   { field: '⑲', kind: 'input', commaInteger: true, top: 75.9, left: 31.43, width: 21.27, height: 2.73, align: 'right' },
   { field: '⑳', kind: 'input', readOnly: true, top: 75.9, left: 52.7, width: 19.34, height: 2.73, align: 'right' },
-  { field: '㉑', kind: 'input', readOnly: true, top: 75.9, left: 72.04, width: 19.34, height: 2.73, align: 'right' },
+  { field: '㉑', kind: 'input', readOnly: true, jumpTo: { tab: 'table5', field: CORPORATE_TAX_RATE_FIELD, hint: `クリックで率の入力欄（第５表 ⑧「（⑦×${ratePct}％）」）へ移動します。そこで率を書き換えると、この欄も同じ率で計算し直します（金額はこの表の⑦⑳から計算するので第５表⑧とは別です）` }, top: 75.9, left: 72.04, width: 19.34, height: 2.73, align: 'right' },
   // 行2: ㉒ ㉓ ㉔（ヘッダー 78.63-82.45 / 値 82.45-85.07）＋（注）
   head('㉒　Ｓ2の純資産価額相当額\n　　（⑱－㉑）', '（千円）', 78.63, 3.82, 10.15, 31.43),
   head('㉓　課税時期現在の発行済株式数\n　　（第５表の⑩の株式数）', '（株）', 78.63, 3.82, 31.43, 52.7),
@@ -170,7 +167,9 @@ export function calcTable8(getField: TableProps['getField']) {
   const size = calcCompanySize((f) => getField('table1_2', f), forcesSmallCompany(getField)).result;
   const isHijun1 = calcTable2(getField).j.s1 === true;
   const specialMarketValueRules = usesSpecialMarketValueRules(getField);
-  const corporateTaxRatePercent = getCorporateTaxRatePercent(getField);
+  // 率は第5表側で決まる（⑧のラベル「（⑦×○％）」に入力があればその率）。
+  // ⑦は第5表の⑦と別の金額なので、連動するのは金額ではなく率のほう。
+  const corporateTaxRatePercent = t5d.corporateTaxRatePercent;
 
   // ── 1. S1の金額（続）純資産価額（相続税評価額）の修正計算 ──
   const v1 = t5['⑤'] ?? null;                                  // ① 相続税評価額純資産（第5表⑤）
