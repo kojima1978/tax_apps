@@ -109,11 +109,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .detail-page-actions > .button { height: 38px; min-height: 38px; white-space: nowrap; }
 .entry-action-group { display: inline-flex; align-items: center; gap: 6px; padding-left: 10px; }
 .entry-action-group .button { height: 38px; min-height: 38px; }
-.annual-year-status { min-height: 48px; margin-left: auto; padding: 7px 11px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; display: flex; align-items: center; gap: 9px; }
-.annual-year-status svg { width: 18px; height: 18px; flex: 0 0 auto; }
-.annual-year-status strong, .annual-year-status small { display: block; line-height: 1.4; }
-.annual-year-status strong { font-size: 12px; font-weight: 800; }
-.annual-year-status small { color: #52635b; font-size: 11px; }
 .text-button { min-height: 44px; padding: 0 10px; border: 0; color: var(--navy-800); background: transparent; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
 .text-button:hover { color: var(--gold-600); }
 .text-button svg { width: 17px; }
@@ -338,12 +333,9 @@ td small { color: var(--slate-500); font-size: 11px; }
 .row-delete-button:disabled { opacity: .5; cursor: not-allowed; }
 .row-delete-button svg { width: 13px; height: 13px; }
 .position-table tbody tr.is-classification-start td { padding-top: 17px; border-top: 2px solid var(--classification-border); }
-.classification-label.major { color: #166534; background: #ecfdf5; border-color: #bbf7d0; }
 .number { text-align: right; white-space: nowrap; }
 .emphasis { color: var(--navy-800); font-weight: 800; }
-.excluded { display: inline-block; width: max-content; margin-top: 3px; padding: 0 5px; color: #7e5c1c; background: var(--gold-100); border-radius: 3px; }
-.liquidity, .current-badge { display: inline-flex; min-width: 27px; justify-content: center; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-.liquidity.high { color: #24583d; background: #e1f0e8; }.liquidity.medium { color: #67501e; background: #f7efd9; }.liquidity.low { color: #6e4240; background: #f4e6e5; }
+.current-badge { display: inline-flex; min-width: 27px; justify-content: center; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
 .current-badge { color: #24583d; background: #e1f0e8; }
 tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 800; }
 .icon-button { width: 44px; height: 44px; border: 0; border-radius: 7px; color: var(--slate-700); background: transparent; display: inline-grid; place-items: center; }
@@ -353,7 +345,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .table-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; white-space: nowrap; }
 .row-action { width: 44px; height: 44px; flex: 0 0 44px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--slate-700); display: inline-grid; place-items: center; transition: color .2s, border-color .2s, background-color .2s; }
 .row-action svg { width: 16px; height: 16px; }
-.row-action.edit:hover { color: var(--navy-800); border-color: #86efac; background: #f0fdf4; }
 .row-action.delete:hover { color: var(--danger); border-color: #edcbc8; background: #fff7f6; }
 .reorder-column { text-align: center; }
 .reorder-cell { text-align: center; }
@@ -465,10 +456,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .bulk-help svg { width: 18px; height: 18px; color: #16a34a; flex: 0 0 auto; }
 .bulk-form-error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 7px; color: #991b1b; background: #fef2f2; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .bulk-form-error svg { width: 17px; height: 17px; }
-.bulk-empty-state { min-height: 210px; margin-top: 14px; padding: 28px; border: 1px dashed var(--field-border); border-radius: 8px; color: var(--slate-600); background: #fafcfb; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; }
-.bulk-empty-state svg { width: 25px; height: 25px; color: #16a34a; }
-.bulk-empty-state strong { color: var(--navy-950); font-size: 14px; }
-.bulk-empty-state span { font-size: 11px; }
 .bulk-table-scroll { margin-top: 14px; border: 1px solid var(--field-border); border-radius: 8px; background: white; overflow: auto; }
 .bulk-entry-table { min-width: max-content; width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .bulk-entry-table th, .bulk-entry-table td { height: 44px; padding: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -539,20 +526,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .year-create-note span { font-size: 12px; font-weight: 700; line-height: 1.55; }
 .delete-modal { width: min(520px, 100%); }
 .delete-modal-body { padding: 24px; }
-.delete-warning-icon { width: 48px; height: 48px; margin-bottom: 14px; border-radius: 50%; color: var(--danger); background: #fdf0ef; display: grid; place-items: center; }
-.delete-warning-icon svg { width: 22px; height: 22px; }
 .delete-modal-body > p { margin: 0 0 18px; color: var(--slate-700); font-size: 13px; line-height: 1.7; }
 .print-guide-modal { width: min(480px, 100%); }
 /* overflow は指定しない。中に自前のスクロール領域を持たないフォームなので、`.modal` の
    max-height + overflow-y: auto をそのまま使う（hidden にすると背の低い画面や1列に畳んだ
    狭い画面で下の入力欄が切れたまま辿れなくなる。実測 1280x450 で106px、390x700 で122px）。 */
 .client-switcher-modal { width: min(720px, 100%); }
-.client-switcher-body { padding: 18px 22px 22px; }
-.client-switcher-toolbar { display: flex; align-items: center; gap: 10px; }
-.client-switcher-toolbar > label { min-width: 0; flex: 1; position: relative; }
-.client-switcher-toolbar > label svg { position: absolute; left: 12px; top: 50%; width: 17px; height: 17px; color: var(--slate-500); transform: translateY(-50%); pointer-events: none; }
-.client-switcher-toolbar input { width: 100%; min-height: 44px; padding: 9px 12px 9px 38px; border: 1px solid var(--field-border); border-radius: 7px; font: inherit; font-size: 12px; }
-.client-switcher-toolbar input:focus { border-color: #22c55e; outline: 3px solid #bbf7d0; }
 .client-list { max-height: min(460px, 55vh); border: 1px solid var(--line); border-radius: 9px; overflow-y: auto; }
 .client-list-item { width: 100%; min-height: 68px; padding: 10px 13px; color: var(--navy-950); background: #fff; border: 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 11px; text-align: left; cursor: pointer; transition: background-color .2s; }
 .client-list-item:last-child { border-bottom: 0; }
@@ -566,8 +545,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .client-list-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .client-list-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--slate-500); font-size: 11px; }
 .client-list-year { color: var(--slate-700); font-size: 11px; font-weight: 700; white-space: nowrap; }
-.client-current-badge { padding: 4px 7px; color: #166534; background: #dcfce7; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.client-current-badge svg { width: 12px; height: 12px; }
 .client-empty { min-height: 180px; color: var(--slate-500); display: grid; place-items: center; align-content: center; gap: 5px; text-align: center; }
 .client-empty svg { width: 22px; }
 .client-empty strong { color: var(--navy-950); font-size: 13px; }
@@ -580,8 +557,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 /* 小さい画面では入力欄だけで画面が埋まり、ボタンがスクロールの先に隠れるので、操作行を下端に貼り付ける。
    フォームの下余白は操作行が持つ（フォーム側に余白があると、スクロールしきったときだけ操作行がその分浮き上がる）。 */
 .client-create-form footer { position: sticky; bottom: 0; z-index: 2; margin: 22px -22px 0; padding: 16px 22px 22px; border-top: 1px solid var(--line); background: #fff; box-shadow: 0 -10px 18px -18px #172b3a66; display: flex; justify-content: flex-end; gap: 9px; }
-.client-create-form footer.client-edit-footer { justify-content: space-between; }
-.client-edit-footer-actions { display: flex; gap: 9px; }
 .text-button.danger-text-button { color: var(--danger); }
 .text-button.danger-text-button:hover { color: #852f2b; }
 .text-button.danger-text-button:disabled { color: #b98d8a; }
@@ -617,10 +592,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .snapshot-delete-confirm small { color: var(--slate-500); font-size: 11px; font-weight: 500; line-height: 1.5; }
 .form-intro { margin: 0 0 18px; color: var(--slate-700); font-size: 11px; line-height: 1.7; }
 .sync-status { margin: 14px 0 0; color: var(--slate-500); font-size: 11px; }
-.forecast-link { margin-top: 18px; padding: 12px 14px; background: #f5f8f6; border: 1px solid var(--line); border-radius: 7px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.forecast-link a { color: var(--navy-800); display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
-.forecast-link a svg { width: 15px; height: 15px; }
-.forecast-link small { color: var(--slate-500); font-size: 11px; }
 .classification-fieldset { margin: 0; padding: 0; border: 0; }
 .classification-row { display: flex; align-items: center; gap: 12px; }
 .classification-row > span { color: var(--slate-700); white-space: nowrap; font-size: 12px; font-weight: 700; }
@@ -669,7 +640,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .valuation-formula-expression { margin: 7px 2px 0; color: #166534; font-size: 11px; font-weight: 700; line-height: 1.5; }
 .valuation-calculation-grid { margin-top: 12px; display: grid; align-items: start; gap: 8px; }
 .valuation-calculation-grid.stock-formula { grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 20px minmax(0, 1fr); }
-.valuation-calculation-grid.real-estate-formula { grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr) 16px minmax(0, 1fr) 16px minmax(0, 1fr); }
 .valuation-calculation-grid.real-estate-method-inputs { grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr); }
 .valuation-calculation-grid > span { min-height: 68px; color: var(--slate-500); display: grid; place-items: center; font-size: 16px; font-weight: 700; }
 .valuation-source-summary { margin-top: 11px; padding: 10px 12px; background: #fff; border: 1px solid #dbe6de; border-radius: 7px; }
@@ -895,7 +865,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .tax-calc-heir-summary .left { text-align: left; }
 .tax-calc-heir-summary tbody tr:last-child th, .tax-calc-heir-summary tbody tr:last-child td { border-bottom: 0; }
 .tax-calc-heir-summary td strong { color: #14532d; }
-.tax-calc-no-tax { margin: 0; padding: 20px; color: #166534; background: #f0fdf4; font-size: 12px; font-weight: 800; text-align: center; }
 .tax-calc-notes { margin-top: 10px; color: var(--slate-500); font-size: 11px; line-height: 1.55; }
 .tax-calc-notes p { margin: 2px 0; }
 .print-section-options label[aria-disabled="true"] { color: var(--slate-400); background: var(--slate-50); cursor: not-allowed; }
@@ -1036,7 +1005,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .entry-action-group { width: 100%; padding-left: 0; }
   .entry-action-group .button { flex: 1 1 0; }
   .position-table-actions { width: 100%; align-items: stretch; flex-direction: column; }
-  .annual-year-status { width: 100%; margin-left: 0; }
   .classified-bs { height: auto; padding: 18px 14px 0; grid-template-columns: 1fr; gap: 10px; }
   .classified-bs-side { height: 720px; min-height: 720px; }
   .bs-callout-notes { margin-inline: 14px; grid-template-columns: 1fr; gap: 8px; }
@@ -1049,7 +1017,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .balance-scenario-switch button { min-width: 0; flex: 1 1 0; }
   .tax-api-button { flex: 1 1 auto; justify-content: center; }
   .insurance-data-note { margin-inline: 14px; }
-  .forecast-link { align-items: flex-start; flex-direction: column; }
   .table-scroll { overflow: visible; }
   .trend-scroll, .history-list-panel .table-scroll { overflow-x: auto; }
   .trend-panel .panel-header, .history-list-panel .panel-header { padding: 16px; }
@@ -1076,7 +1043,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table .position-empty-row td { min-height: 88px; display: grid; grid-template-columns: 1fr; place-items: center; text-align: center; }
   .position-table .position-empty-row td::before { content: none; }
   .position-table .category-tag { text-align: right; }
-  .position-table .excluded { margin-left: auto; }
   .position-table .table-actions { width: 100%; }
   .row-delete-button { min-height: 44px; margin-left: auto; padding-inline: 14px; }
   /* カード表示では列が無いので、合計の見出しの下に金額を項目名つきで縦に並べる。 */
@@ -1091,7 +1057,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .benefit-recipient-amount { grid-column: 1 / -1; text-align: left; }
   .asset-detail-grid { grid-template-columns: 1fr; }
   .asset-detail-grid .wide { grid-column: auto; }
-  .valuation-calculation-grid.stock-formula, .valuation-calculation-grid.real-estate-formula, .valuation-calculation-grid.real-estate-method-inputs { grid-template-columns: 1fr; }
+  .valuation-calculation-grid.stock-formula, .valuation-calculation-grid.real-estate-method-inputs { grid-template-columns: 1fr; }
   .valuation-source-summary dl { grid-template-columns: 1fr; }
   .valuation-calculation-grid > span { display: none; }
   .valuation-result { grid-template-columns: 1fr; }
@@ -1110,8 +1076,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .bulk-modal-body { max-height: calc(94vh - 78px); max-height: calc(94dvh - 78px); padding-inline: 12px; }
   .bulk-help { width: 100%; }
   .bulk-modal-body > footer { margin-inline: -12px; padding-inline: 12px; }
-  .client-switcher-toolbar { align-items: stretch; flex-direction: column; }
-  .client-switcher-toolbar .button { width: 100%; }
   .client-create-grid { grid-template-columns: 1fr; }
   .client-list-year { display: none; }
   .delete-modal dl > div { grid-template-columns: 88px 1fr; }
@@ -1363,7 +1327,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .tax-calc-heir-summary table { margin-top: .6mm; font-size: 9px; }
   .tax-calc-heir-summary th, .tax-calc-heir-summary td { padding: .8mm .6mm; }
   .tax-calc-heir-summary thead th { font-size: 8.5px; }
-  .tax-calc-no-tax { padding: 5mm; font-size: 9.5px; }
   .tax-calc-notes { margin-top: 2mm; font-size: 8.5px; line-height: 1.45; }
   .tax-calc-notes p { margin: .5mm 0; }
   .print-person-family-section { break-inside: avoid; page-break-inside: avoid; }
