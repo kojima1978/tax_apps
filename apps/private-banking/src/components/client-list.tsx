@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, UserPlus, WalletCards, X } from "lucide-react";
+import { AlertTriangle, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, Upload, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionMenu, type ActionMenuItem } from "@/components/action-menu";
 import { ClientFields } from "@/components/client-fields";
 import { ClientDeleteModal } from "@/components/client-delete-modal";
+import { DateInput } from "@/components/date-input";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary, filterClients, highlightRanges, searchTerms } from "@/lib/clients";
@@ -195,6 +196,7 @@ export function ClientList() {
         </label>
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
         <Link className="button secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
+        <Link className="button secondary" href="/restore"><Upload />データ復元</Link>
       </div>
       {/* 削除の通知が role="status" を使うので、件数は aria-live だけで読み上げる。 */}
       <p className="client-count" aria-live="polite">{terms.length > 0 ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}</p>
@@ -214,15 +216,13 @@ export function ClientList() {
             href={clientHref(client.id)}
             onFocus={() => setActiveIndex(index)}
           >
-          <span className="client-avatar" aria-hidden="true">{client.name.slice(0, 1)}</span>
-          <span className="client-list-main">
-            <strong><Highlighted text={client.name} terms={terms} /></strong>
-            <small>
-              <Highlighted text={client.clientCode} terms={terms} />
-              {client.nameKana ? <> ・ <Highlighted text={client.nameKana} terms={terms} /></> : null}
-              {client.assignedStaff ? <> ・ 担当 <Highlighted text={client.assignedStaff} terms={terms} /></> : " ・ 担当者未設定"}
-            </small>
-          </span>
+          {/* 1行に収める。イニシャルの丸は情報を持たないので置かず、その位置に顧客コードを出す。 */}
+          <span className="client-list-code"><Highlighted text={client.clientCode} terms={terms} /></span>
+          <strong className="client-list-name"><Highlighted text={client.name} terms={terms} /></strong>
+          <small className="client-list-meta">
+            {client.nameKana ? <><Highlighted text={client.nameKana} terms={terms} /> ・ </> : null}
+            {client.assignedStaff ? <>担当 <Highlighted text={client.assignedStaff} terms={terms} /></> : "担当者未設定"}
+          </small>
           <span className="client-list-year">{client.latestFiscalYear ? `${client.latestFiscalYear}年度` : "年度なし"}</span>
           <ChevronRight />
           </Link></div>
@@ -276,7 +276,11 @@ function ClientCreateModal({ error, saving, onClose, onSubmit }: {
       <div className="form-grid client-create-grid">
         <ClientFields autoFocus />
         <label>開始年度<input name="fiscalYear" type="number" min="1900" max="2200" value={fiscalYear} onChange={(event) => changeFiscalYear(event.target.value)} required /></label>
-        <label>B/S基準日<input name="asOfDate" type="date" min={`${fiscalYear}-01-01`} max={`${fiscalYear}-12-31`} value={asOfDate} onChange={(event) => setAsOfDate(event.target.value)} aria-describedby="client-as-of-date-help" required /><small id="client-as-of-date-help" className="field-help">初期値は年度の1月1日です。必要な場合だけ変更してください。</small></label>
+        <div className="date-field">
+          <label htmlFor="client-as-of-date">B/S基準日</label>
+          <DateInput id="client-as-of-date" name="asOfDate" label="B/S基準日" min={`${fiscalYear}-01-01`} max={`${fiscalYear}-12-31`} value={asOfDate} onChange={setAsOfDate} describedBy="client-as-of-date-help" required />
+          <small id="client-as-of-date-help" className="field-help">初期値は年度の1月1日です。必要な場合だけ変更してください。</small>
+        </div>
       </div>
       <footer>
         <button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button>

@@ -2,7 +2,7 @@
 
 import { AlertTriangle, CircleCheck, Download, FileJson, LoaderCircle, Upload, X } from "lucide-react";
 import Link from "next/link";
-import { ChangeEvent, DragEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary } from "@/lib/clients";
@@ -18,14 +18,14 @@ const RESTORE_TEXT = {
     pickerTitle: "全体バックアップファイルを選択",
     pickerHint: "すべての顧客を置き換えて復元します",
     action: "全データを置き換える",
-    mismatch: "これは顧客単位のファイルです。「個別書き出し・復元」から取り込んでください。",
+    mismatch: "これは顧客単位のファイルです。「顧客を1件取り込む」から取り込んでください。",
     failure: "復元できませんでした。",
   },
   household: {
     pickerTitle: "顧客ファイルを選択",
     pickerHint: "既存の顧客を消さずに1件追加します",
     action: "新規顧客として取り込む",
-    mismatch: "これは全体バックアップファイルです。「全体書き出し・復元」から復元してください。",
+    mismatch: "これは全体バックアップファイルです。「全体を復元する」から復元してください。",
     failure: "取り込めませんでした。",
   },
 } as const;
@@ -64,8 +64,8 @@ function readBackupPreview(payload: unknown): BackupPreview {
 }
 
 /**
- * バックアップ画面。
- * scope="global" は顧客一覧配下（全体書き出し・復元／個別書き出し・復元）、
+ * バックアップ画面。書き出しだけを扱う（復元は RestoreView の別画面）。
+ * scope="global" は顧客一覧配下（全体書き出し／個別書き出し）、
  * scope="household" は顧客ページ配下（その顧客だけの書き出し）で使う。
  */
 export function BackupView(props: { scope: "global" } | { scope: "household"; portfolio: Portfolio }) {
@@ -108,39 +108,37 @@ function HouseholdBackup({ portfolio: { household, snapshots, familyMembers } }:
         </div>
         {exported ? <p className="backup-message success" role="status"><CircleCheck />書き出しました（{exported}）。</p> : null}
         <p className="backup-note" role="note"><AlertTriangle />取り込むと<strong>常に新規顧客として追加</strong>されます。このファイルでこの顧客を上書きすることはできません。</p>
-        <p className="backup-inline-link"><Link href="/backup"><FileJson />復元・取り込みはバックアップ画面から</Link></p>
+        <p className="backup-inline-link"><Link href="/restore"><FileJson />復元・取り込みはデータ復元画面から</Link></p>
       </div>
     </article>
   </>;
 }
 
-/** 顧客一覧配下。全顧客ぶんと顧客1件ぶんの両方を扱う。 */
+/** 顧客一覧配下。全顧客ぶんと顧客1件ぶんの書き出しを扱う。 */
 function GlobalBackup() {
   const [clients, setClients] = useState<ClientSummary[] | null>(null);
   const [exportTargetId, setExportTargetId] = useState("");
 
-  const loadClients = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE}/clients`, { cache: "no-store" });
-      if (!response.ok) throw new Error();
-      const list = await response.json() as ClientSummary[];
-      setClients(list);
-      // 復元後に顧客が入れ替わることがあるため、選択が消えていたら先頭へ戻す。
-      setExportTargetId((current) => list.some((client) => String(client.id) === current) ? current : String(list[0]?.id ?? ""));
-    } catch {
-      setClients([]);
-    }
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch(`${API_BASE}/clients`, { cache: "no-store" });
+        if (!response.ok) throw new Error();
+        const list = await response.json() as ClientSummary[];
+        setClients(list);
+        setExportTargetId(String(list[0]?.id ?? ""));
+      } catch {
+        setClients([]);
+      }
+    })();
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void loadClients(); }, [loadClients]);
-
   return <>
-    <BackupHeading description="データをJSONファイルへ書き出し、必要なときに復元します。" />
+    <BackupHeading description="データをJSONファイルへ書き出します。復元は「データ復元」画面で行います。" />
     {/* よく使う個別を上、めったに使わない全体を下に置く。 */}
     <div className="backup-grid backup-grid-stacked">
       <article className="panel">
-        <PanelHeader title="個別書き出し・復元" subtitle="顧客を1件ずつ扱います" />
+        <PanelHeader title="個別書き出し" subtitle="顧客を1件ずつ書き出します" />
         <div className="backup-body">
           <div className="backup-option">
             <div>
@@ -161,30 +159,57 @@ function GlobalBackup() {
                 ? <span className="backup-option-status">登録されている顧客がありません。</span>
                 : <a className="button primary" href={`${API_BASE}/backup?householdId=${exportTargetId}`} download><Download />顧客を書き出す</a>}
           </div>
-          <RestoreSlot expected="household" onCompleted={loadClients} />
         </div>
       </article>
       <article className="panel">
-        <PanelHeader title="全体書き出し・復元" subtitle="すべての顧客をまとめて扱います" />
+        <PanelHeader title="全体書き出し" subtitle="すべての顧客をまとめて書き出します" />
         <div className="backup-body">
           <div className="backup-option">
             <div><strong>全顧客をまとめて書き出す</strong><span>すべての顧客・年度・明細を1つのファイルに保存します。障害時の復旧用です。</span></div>
             <a className="button primary" href={`${API_BASE}/backup`} download><Download />全体を書き出す</a>
           </div>
-          <RestoreSlot expected="full" onCompleted={loadClients} />
+        </div>
+      </article>
+    </div>
+    <p className="backup-inline-link"><Link href="/restore"><FileJson />バックアップファイルからの復元・取り込み</Link></p>
+  </>;
+}
+
+/**
+ * データ復元画面。顧客一覧の「データ復元」から開く。
+ * 書き出し（バックアップ画面）とは別画面にしてある ── 同じ画面に並べると、
+ * 書き出すつもりで全体復元（現在のデータを消して置き換える）に触れる余地が残る。
+ */
+export function RestoreView() {
+  return <>
+    <BackupHeading title="データ復元" description="バックアップファイル（JSON）を読み込んで復元します。" />
+    {/* よく使う個別の取り込みを上、めったに使わない全体復元を下に置く。 */}
+    <div className="backup-grid backup-grid-stacked">
+      <article className="panel">
+        <PanelHeader title="顧客を1件取り込む" subtitle="既存の顧客を消さずに1件追加します" />
+        <div className="backup-body">
+          <RestoreSlot expected="household" />
+          <p className="backup-note" role="note"><AlertTriangle />取り込むと<strong>常に新規顧客として追加</strong>されます。既存の顧客を上書きすることはできません。</p>
+        </div>
+      </article>
+      <article className="panel">
+        <PanelHeader title="全体を復元する" subtitle="すべての顧客をまとめて置き換えます" />
+        <div className="backup-body">
+          <RestoreSlot expected="full" />
           <p className="backup-note" role="note"><AlertTriangle />全体バックアップの復元は<strong>現在のすべての顧客データを削除して置き換えます</strong>。実行前に現在のデータを書き出しておいてください。</p>
         </div>
       </article>
     </div>
+    <p className="backup-inline-link"><Link href="/backup"><Download />書き出しはバックアップ画面から</Link></p>
   </>;
 }
 
-function BackupHeading({ description }: { description: string }) {
-  return <section className="page-heading"><div><h2>バックアップ</h2><p>{description}</p></div></section>;
+function BackupHeading({ title = "バックアップ", description }: { title?: string; description: string }) {
+  return <section className="page-heading"><div><h2>{title}</h2><p>{description}</p></div></section>;
 }
 
 /** ファイル選択→内容の確認→復元（または取り込み）までの一連の操作。 */
-function RestoreSlot({ expected, onCompleted }: { expected: BackupKind; onCompleted: () => Promise<void> | void }) {
+function RestoreSlot({ expected }: { expected: BackupKind }) {
   const [selected, setSelected] = useState<SelectedFile | null>(null);
   const [fileError, setFileError] = useState("");
   const [confirming, setConfirming] = useState(false);
@@ -242,7 +267,6 @@ function RestoreSlot({ expected, onCompleted }: { expected: BackupKind; onComple
       setCompleted(expected === "full"
         ? `全データを復元しました（顧客${households}件・年度${snapshots}件・明細${positions}件）。`
         : `「${result?.household?.name ?? "顧客"}」を新規顧客として取り込みました。${result?.renamedClientCode ? `顧客コードが重複したため ${result.renamedClientCode} に変更しています。` : ""}`);
-      await onCompleted();
     } catch (error) {
       setFileError(error instanceof Error ? error.message : "処理できませんでした。");
     } finally {

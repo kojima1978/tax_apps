@@ -1,4 +1,4 @@
-import { decimalToFraction, valuationNumber, yearWareki } from "@/lib/format";
+import { decimalToFraction, eraYearWareki, valuationNumber } from "@/lib/format";
 import type { FamilyMember } from "@/lib/family";
 import type { FxRates } from "@/lib/fx-rates";
 import type { InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
@@ -143,7 +143,7 @@ export const fiscalYearLabel = (snapshot: Pick<Snapshot, "fiscalYear">) => `${sn
  * 幅に余裕のある印刷物で使う。画面の年度セレクタは選択肢が長くなるので西暦のままにしている。
  */
 export const fiscalYearLabelWithWareki = (snapshot: Pick<Snapshot, "fiscalYear" | "asOfDate">) =>
-  `${fiscalYearLabel(snapshot)}（${yearWareki(snapshot.asOfDate)}度）`;
+  `${snapshot.fiscalYear}（${eraYearWareki(snapshot.asOfDate)}）年度`;
 
 export function positionSection(position: Position): PositionSection {
   if (position.side === "ASSET") return "ASSET";

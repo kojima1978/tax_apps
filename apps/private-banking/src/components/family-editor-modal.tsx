@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp, Calculator, LoaderCircle, Pencil, Plus, Trash2, X } from "lucide-react";
 import { type CSSProperties, FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { DateInput } from "@/components/date-input";
 import { ToastRegion, useToast } from "@/components/use-toast";
 import { type FamilyEditRow, MAX_FAMILY_ROWS, familyDraftsFromRows, useFamilyEditor } from "@/components/use-family-editor";
 import {
@@ -17,20 +18,25 @@ import {
 /** 「1/2」形式。全角の数字・スラッシュも受け付ける（最終的な判定は parseShareText）。 */
 const SHARE_PATTERN = String.raw`\s*[0-9０-９]+\s*(?:[\/／]\s*[0-9０-９]+\s*)?`;
 
-type FieldProps = { id: string; label: string; index: number; required?: boolean; hint?: ReactNode; children: ReactNode };
+/**
+ * `size` は欄の横幅の要求度。`narrow` は選択肢や「1/2」だけで足りる欄、
+ * `wide` は和暦入力（元号＋年月日の4欄）が入る生年月日。
+ * まとまり側の `weight` はここでの合計と釣り合わせる。
+ */
+type FieldProps = { id: string; label: string; index: number; required?: boolean; hint?: ReactNode; size?: "narrow" | "wide"; children: ReactNode };
 
 /** 見出しの下に入力欄を置く1項目。読み上げでは「1人目の氏名」のように何人目かを添える。 */
-function Field({ id, label, index, required, hint, children }: FieldProps) {
-  return <div className="family-field">
+function Field({ id, label, index, required, hint, size, children }: FieldProps) {
+  return <div className={`family-field${size ? ` ${size}` : ""}`}>
     <label htmlFor={id}><span className="sr-only">{index + 1}人目の</span>{label}{required ? <span className="required-mark" aria-hidden="true">必須</span> : null}</label>
     {children}
     {hint ? <small className="family-field-hint">{hint}</small> : null}
   </div>;
 }
 
-/** カードの中の項目のまとまり。項目数に応じて横幅を配分し、狭い画面では折り返す。 */
-function Section({ title, fieldCount, children }: { title: string; fieldCount: number; children: ReactNode }) {
-  return <div className="family-card-section" role="group" aria-label={title} style={{ "--field-count": fieldCount } as CSSProperties}>
+/** カードの中の項目のまとまり。`weight`（中の欄の幅の要求度の合計）で横幅を配分し、狭い画面では折り返す。 */
+function Section({ title, weight, children }: { title: string; weight: number; children: ReactNode }) {
+  return <div className="family-card-section" role="group" aria-label={title} style={{ "--field-weight": weight } as CSSProperties}>
     <p className="family-card-section-title" aria-hidden="true">{title}</p>
     <div className="family-card-fields">{children}</div>
   </div>;
@@ -63,32 +69,32 @@ function FamilyCard({ row, index, total, referenceDate, onUpdate, onMove, onRemo
       </div>
     </header>
     <div className="family-card-body">
-      <Section title="基本" fieldCount={4}>
+      <Section title="基本" weight={4.2}>
         <Field id={id("name")} label="氏名" index={index} required>
           <input id={id("name")} required maxLength={100} value={row.name} autoComplete="off" onChange={(event) => onUpdate({ name: event.target.value })} />
         </Field>
         <Field id={id("kana")} label="フリガナ" index={index}>
           <input id={id("kana")} maxLength={100} value={row.nameKana} autoComplete="off" onChange={(event) => onUpdate({ nameKana: event.target.value })} />
         </Field>
-        <Field id={id("relationship")} label="続柄" index={index} required>
+        <Field id={id("relationship")} label="続柄" index={index} required size="narrow">
           <select id={id("relationship")} required value={row.relationship} onChange={(event) => onUpdate({ relationship: event.target.value as FamilyEditRow["relationship"] })}>
             {relativeRelationshipOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </Field>
-        <Field id={id("birth")} label="生年月日" index={index} hint={age === null ? undefined : `基準日時点 ${age}歳`}>
-          <input id={id("birth")} type="date" value={row.birthDate ?? ""} onChange={(event) => onUpdate({ birthDate: event.target.value || null })} />
+        <Field id={id("birth")} label="生年月日" index={index} size="wide" hint={age === null ? undefined : `基準日時点 ${age}歳`}>
+          <DateInput id={id("birth")} label="生年月日" defaultMode="WAREKI" value={row.birthDate ?? ""} onChange={(next) => onUpdate({ birthDate: next || null })} />
         </Field>
       </Section>
-      <Section title="相続" fieldCount={3}>
-        <Field id={id("reason")} label="取得原因" index={index} required>
+      <Section title="相続" weight={2.1}>
+        <Field id={id("reason")} label="取得原因" index={index} required size="narrow">
           <select id={id("reason")} required value={row.acquisitionReason} onChange={(event) => onUpdate({ acquisitionReason: event.target.value as FamilyEditRow["acquisitionReason"] })}>
             {acquisitionReasonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </Field>
-        <Field id={id("civil")} label="民法上の法定相続分" index={index}>
-          <input id={id("civil")} inputMode="numeric" autoComplete="off" placeholder="例 1/2" pattern={SHARE_PATTERN} title="「1/2」の形で入力してください" value={row.civilShare} onChange={(event) => onUpdate({ civilShare: event.target.value })} />
+        <Field id={id("civil")} label="民法上の法定相続分" index={index} size="narrow">
+          <input id={id("civil")} className="family-share-input" inputMode="numeric" autoComplete="off" placeholder="例 1/2" pattern={SHARE_PATTERN} title="「1/2」の形で入力してください" value={row.civilShare} onChange={(event) => onUpdate({ civilShare: event.target.value })} />
         </Field>
-        <Field id={id("tax")} label="税法上の法定相続分" index={index} hint={
+        <Field id={id("tax")} label="税法上の法定相続分" index={index} size="narrow" hint={
           <label className="family-check">
             <input type="checkbox" checked={row.taxSameAsCivil} onChange={(event) => onUpdate(event.target.checked
               ? { taxSameAsCivil: true }
@@ -97,19 +103,19 @@ function FamilyCard({ row, index, total, referenceDate, onUpdate, onMove, onRemo
           </label>
         }>
           {row.taxSameAsCivil
-            ? <input id={id("tax")} readOnly value={row.civilShare} placeholder="－" aria-describedby={id("tax-same")} />
-            : <input id={id("tax")} inputMode="numeric" autoComplete="off" placeholder="例 1/2" pattern={SHARE_PATTERN} title="「1/2」の形で入力してください" value={row.taxShare} onChange={(event) => onUpdate({ taxShare: event.target.value })} />}
+            ? <input id={id("tax")} className="family-share-input" readOnly value={row.civilShare} placeholder="－" aria-describedby={id("tax-same")} />
+            : <input id={id("tax")} className="family-share-input" inputMode="numeric" autoComplete="off" placeholder="例 1/2" pattern={SHARE_PATTERN} title="「1/2」の形で入力してください" value={row.taxShare} onChange={(event) => onUpdate({ taxShare: event.target.value })} />}
           {row.taxSameAsCivil ? <span id={id("tax-same")} className="sr-only">民法上と同じ値を使います</span> : null}
         </Field>
       </Section>
-      <Section title="税額の加算・控除" fieldCount={2}>
-        <Field id={id("addition")} label="2割加算" index={index}>
+      <Section title="税額の加算・控除" weight={1.4}>
+        <Field id={id("addition")} label="2割加算" index={index} size="narrow">
           <select id={id("addition")} value={String(row.specialTaxAddition)} onChange={(event) => onUpdate({ specialTaxAddition: event.target.value === "true" })}>
             <option value="false">対象外</option>
             <option value="true">対象</option>
           </select>
         </Field>
-        <Field id={id("disability")} label="障害者" index={index}>
+        <Field id={id("disability")} label="障害者" index={index} size="narrow">
           <select id={id("disability")} value={row.disabilityCategory} onChange={(event) => onUpdate({ disabilityCategory: event.target.value as FamilyEditRow["disabilityCategory"] })}>
             {disabilityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>

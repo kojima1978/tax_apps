@@ -1,3 +1,4 @@
+import { PersonName } from "@/components/person-name";
 import { dateJaWithWareki } from "@/lib/format";
 import { type Portfolio, type PrintSection, type Snapshot, fiscalYearLabelWithWareki } from "@/lib/portfolio-view";
 
@@ -31,7 +32,7 @@ export function PrintFrontMatter({
           <h1>個人資産・負債管理レポート</h1>
           <span className="print-cover-rule" />
           <dl>
-            <div><dt>顧客名</dt><dd>{household.name}</dd></div>
+            <div><dt>顧客名</dt><dd><PersonName name={household.name} /></dd></div>
             <div><dt>顧客コード</dt><dd>{household.clientCode}</dd></div>
             <div><dt>対象年度</dt><dd>{fiscalYearLabelWithWareki(snapshot)}</dd></div>
             <div><dt>B/S基準日</dt><dd>{dateJaWithWareki(snapshot.asOfDate)}</dd></div>

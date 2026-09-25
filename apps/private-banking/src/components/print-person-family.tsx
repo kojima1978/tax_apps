@@ -1,4 +1,5 @@
 import { BirthDate } from "@/components/birth-date";
+import { PersonName } from "@/components/person-name";
 import {
   type FamilyMember,
   ageOnDate,
@@ -34,7 +35,7 @@ export function PersonFamilyPrintView({
     <article className="panel print-profile-panel">
       <header><h3>本人情報</h3></header>
       <dl className="print-profile-grid">
-        <div><dt>氏名</dt><dd>{household.name}</dd></div>
+        <div><dt>氏名</dt><dd><PersonName name={household.name} /></dd></div>
         <div><dt>生年月日</dt><dd><BirthDate value={household.birthDate} /></dd></div>
         <div><dt>年齢</dt><dd>{personAge === null ? "－" : `${personAge}歳`}</dd></div>
       </dl>
@@ -53,7 +54,7 @@ export function PersonFamilyPrintView({
           const age = ageOnDate(member.birthDate, referenceDate);
           const adjustments = taxAdjustmentsFor(member, members, referenceDate);
           return <tr key={member.id}>
-            <td><strong>{member.name}</strong></td>
+            <td><strong><PersonName name={member.name} /></strong></td>
             <td>{relationshipLabels[member.relationship]}</td>
             <td className="numeric">{fraction(member.civilShareNumerator, member.civilShareDenominator)}</td>
             <td className="numeric">{fraction(member.taxShareNumerator, member.taxShareDenominator)}</td>

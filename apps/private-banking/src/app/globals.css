@@ -35,29 +35,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .skip-link:focus { top: 16px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .app-shell { min-height: 100vh; }
-.sidebar { position: fixed; inset: 0 auto 0 0; z-index: 30; width: var(--sidebar); padding: 22px 14px 18px; color: var(--slate-950); background: #f0fdf4; border-right: 1px solid #bbf7d0; display: flex; flex-direction: column; }
-.brand { display: flex; align-items: center; gap: 10px; padding: 0 6px 20px; border-bottom: 1px solid #bbf7d0; }
-.brand-mark { width: 38px; height: 38px; flex: 0 0 auto; border-radius: 8px; display: grid; place-items: center; color: #15803d; background: #fff; border: 1px solid #86efac; }
-.brand-mark svg { width: 20px; }
+/* 高さの低い画面でも全項目が見えるように詰めている（実測590px→473px）。
+   それでも足りない場合（拡大表示など）に切り落とさないよう、縦スクロールも許す。 */
+.sidebar { position: fixed; inset: 0 auto 0 0; z-index: 30; width: var(--sidebar); padding: 14px 14px 12px; color: var(--slate-950); background: #f0fdf4; border-right: 1px solid #bbf7d0; display: flex; flex-direction: column; overflow-y: auto; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 6px 10px; border-bottom: 1px solid #bbf7d0; }
+.brand-mark { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 8px; display: grid; place-items: center; color: #15803d; background: #fff; border: 1px solid #86efac; }
+.brand-mark svg { width: 17px; }
 /* ブランドマークは業務支援ポータルへ戻るリンクを兼ねる。 */
 .portal-link { cursor: pointer; transition: color .2s, background-color .2s, border-color .2s; }
 .portal-link:hover { color: #166534; background: #dcfce7; border-color: #16a34a; }
 .portal-link:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 2px; }
-.brand strong { display: block; font-family: inherit; font-size: 15px; font-weight: 700; letter-spacing: .01em; }
-.brand span { display: block; color: #52635b; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
-.sidebar nav { display: grid; gap: 4px; padding-top: 18px; }
-.nav-button, .side-link { width: 100%; min-height: 44px; border: 0; border-radius: 7px; padding: 0 11px; color: #52635b; background: transparent; display: flex; align-items: center; gap: 10px; font-size: 14px; transition: color .2s, background-color .2s; }
+.brand strong { display: block; font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+.brand span { display: block; color: #52635b; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.sidebar nav { display: grid; gap: 3px; padding-top: 10px; }
+.nav-button, .side-link { width: 100%; min-height: 38px; border: 0; border-radius: 7px; padding: 0 11px; color: #52635b; background: transparent; display: flex; align-items: center; gap: 10px; font-size: 13px; transition: color .2s, background-color .2s; }
 .nav-button:hover, .side-link:hover { color: #166534; background: #dcfce7; }
 .nav-button.active { color: #166534; background: #fff; box-shadow: inset 3px 0 #22c55e, 0 1px 4px #16653412; }
-.nav-button svg, .side-link svg { width: 18px; height: 18px; }
+.nav-button svg, .side-link svg { width: 17px; height: 17px; }
 .side-link svg:last-child { width: 15px; margin-left: auto; }
-.side-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid #bbf7d0; }
-.side-section > p { margin: 0 10px 6px; color: #829088; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
-.security-note { margin-top: auto; display: flex; align-items: center; gap: 9px; padding: 10px; border: 1px solid #bbf7d0; border-radius: 7px; background: #fff; }
-.security-note svg { width: 19px; color: #16a34a; }
+.side-section { margin-top: 12px; padding-top: 10px; border-top: 1px solid #bbf7d0; }
+.side-section > p { margin: 0 10px 4px; color: #829088; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.security-note { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid #bbf7d0; border-radius: 7px; background: #fff; }
+.security-note svg { width: 17px; color: #16a34a; }
 .security-note strong, .security-note span { display: block; }
-.security-note strong { font-size: 12px; }
-.security-note span { color: #78877f; font-size: 11px; }
+.security-note strong { font-size: 11px; }
+.security-note span { color: #78877f; font-size: 10px; }
 .close-menu, .menu-button, .sidebar-toggle { display: none; }
 .main-area { min-width: 0; min-height: 100vh; margin-left: var(--sidebar); }
 /* トップバーは1行に収める（縦積みにせず、画面の高さを本文へ回す）。 */
@@ -215,6 +217,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .guarantee-note { margin: 8px 32px 18px; color: var(--slate-500); font-size: 11px; text-align: right; }
 .guarantee-note strong { margin-left: 3px; color: var(--slate-700); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .table-panel { min-width: 0; max-width: 100%; margin-bottom: 18px; overflow: hidden; }
+/* 氏名の敬称。画面では入力した氏名そのままを出し、印刷にだけ「様」を出す。 */
+.print-honorific { display: none; }
 .table-scroll { width: 100%; max-width: 100%; overflow-x: auto; }
 .position-table-actions { display: flex; align-items: flex-end; gap: 10px; }
 .position-table-actions .table-add-button { min-height: 38px; padding: 0 12px; font-size: 12px; }
@@ -533,17 +537,17 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
    狭い画面で下の入力欄が切れたまま辿れなくなる。実測 1280x450 で106px、390x700 で122px）。 */
 .client-switcher-modal { width: min(720px, 100%); }
 .client-list { max-height: min(460px, 55vh); border: 1px solid var(--line); border-radius: 9px; overflow-y: auto; }
-.client-list-item { width: 100%; min-height: 68px; padding: 10px 13px; color: var(--navy-950); background: #fff; border: 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 11px; text-align: left; cursor: pointer; transition: background-color .2s; }
+.client-list-item { width: 100%; min-height: 44px; padding: 8px 13px; color: var(--navy-950); background: #fff; border: 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 11px; text-align: left; cursor: pointer; transition: background-color .2s; }
 .client-list-item:last-child { border-bottom: 0; }
 .client-list-item:hover { background: #f7fcf8; }
 .client-list-item:focus-visible { position: relative; z-index: 1; outline: 3px solid #86efac; outline-offset: -3px; }
 .client-list-item.active { background: #f0fdf4; }
 .client-list-item:disabled { cursor: wait; opacity: .65; }
 .client-list-item > svg { width: 16px; color: var(--slate-500); flex: 0 0 auto; }
-.client-avatar { width: 38px; height: 38px; color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto; font-size: 14px; font-weight: 800; }
-.client-list-main { min-width: 0; flex: 1; display: grid; gap: 2px; }
-.client-list-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-.client-list-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--slate-500); font-size: 11px; }
+/* 1行表示。顧客コードは左端に固定幅で置き（氏名の頭が揃う）、フリガナ・担当者は氏名の右へ流す。 */
+.client-list-code { flex: 0 0 auto; width: 88px; color: var(--slate-600); font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-list-name { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.client-list-meta { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--slate-500); font-size: 11px; }
 .client-list-year { color: var(--slate-700); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .client-empty { min-height: 180px; color: var(--slate-500); display: grid; place-items: center; align-content: center; gap: 5px; text-align: center; }
 .client-empty svg { width: 22px; }
@@ -613,6 +617,35 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .form-grid input, .form-grid select, .form-grid textarea { width: 100%; min-height: 44px; margin-top: 5px; padding: 9px 11px; color: var(--slate-950); background: white; border: 1px solid var(--field-border); border-radius: 6px; }
 .form-grid .number-input-hint { min-height: 15px; margin-top: 3px; color: var(--slate-500); display: block; font-size: 11px; font-weight: 500; line-height: 1.5; }
 .form-grid input[readonly] { color: #166534; background: #f0fdf4; border-color: #bbf7d0; font-weight: 800; }
+
+/* 西暦・和暦を切り替えられる日付欄（生年月日、B/S基準日）。
+   ブラウザ標準のカレンダーは年の一覧が西暦だけなので、和暦で入力する経路を横に並べる。
+   親の枠（.form-grid / .person-form-grid / .family-field）が input へ width:100% を掛けてくるため、
+   同じ詳細度で打ち消してから横並びにする。
+   切り替えボタンは項目名の右端へ逃がす（和暦は元号＋年月日の4欄あり、
+   入力欄と同じ行に置くと欄の幅に入りきらず2段へ折り返す）。 */
+.date-field { position: relative; min-width: 0; }
+.date-field > label { display: block; padding-right: 46px; }
+.family-field:has(.date-input) { position: relative; }
+.family-field:has(.date-input) > label { padding-right: 42px; }
+.date-input { min-width: 0; margin-top: 5px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.date-input-unit { display: inline-flex; align-items: center; gap: 2px; color: var(--slate-600); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.date-input .date-input-date { flex: 1 1 148px; width: auto; min-width: 0; margin-top: 0; }
+.date-input .date-input-era { flex: 0 0 auto; width: auto; min-width: 58px; margin-top: 0; padding-right: 4px; }
+/* 年・月・日は桁数が決まっているので上下ボタンは出さない（幅を食うだけ）。 */
+.date-input .date-input-number { flex: 0 0 auto; width: 44px; margin-top: 0; padding-right: 6px; padding-left: 6px; text-align: right; font-variant-numeric: tabular-nums; appearance: textfield; }
+.date-input-number::-webkit-outer-spin-button, .date-input-number::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.date-input-mode { position: absolute; top: -1px; right: 0; min-height: 18px; padding: 0 7px; color: var(--slate-600); background: #f4f6f5; border: 1px solid var(--field-border); border-radius: 4px; font-size: 10px; font-weight: 800; }
+.date-input-mode:hover { color: var(--navy-900); background: #e9efec; }
+.date-input-mode:disabled { opacity: .55; cursor: not-allowed; }
+/* 親族カードは1行が狭いので、欄の高さに合わせて詰める。 */
+.family-field .date-input { gap: 3px; margin-top: 0; }
+.family-field .date-input .date-input-date { flex: 1 1 110px; width: auto; min-height: 36px; margin-top: 0; }
+.family-field .date-input .date-input-era { width: auto; min-width: 52px; min-height: 36px; margin-top: 0; }
+.family-field .date-input .date-input-number { width: 38px; min-height: 36px; margin-top: 0; padding: 5px 4px; }
+.person-form-grid .date-input .date-input-date, .person-form-grid .date-input .date-input-era { min-height: 44px; margin-top: 0; }
+.person-form-grid .date-input .date-input-number { min-height: 44px; margin-top: 0; width: 50px; }
+.person-form-grid .date-input { margin-top: 7px; }
 .asset-detail-fieldset { min-width: 0; margin: 2px 0 4px; padding: 14px; background: #fbfdfb; border: 1px solid var(--line); border-radius: 8px; }
 .asset-detail-fieldset > legend { padding: 0 5px; color: #166534; font-size: 12px; font-weight: 800; }
 .asset-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
@@ -726,16 +759,21 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .family-card .row-action.danger:hover { border-color: #edcbc8; background: #fff7f6; }
 /* 3つのまとまりは項目数に応じて横幅を配分し、入りきらなければ次の段へ送る。 */
 .family-card-body { padding: 10px 14px 14px; display: flex; flex-wrap: wrap; gap: 12px 22px; }
-.family-card-section { flex: var(--field-count) 1 calc(var(--field-count) * 128px); min-width: 0; max-width: calc(var(--field-count) * 230px); }
+.family-card-section { flex: var(--field-weight) 1 calc(var(--field-weight) * 128px); min-width: 0; max-width: calc(var(--field-weight) * 230px); }
 .family-card-section-title { margin: 0 0 6px; padding-bottom: 3px; color: #345c4b; border-bottom: 1px dotted var(--line-strong); font-size: 11px; font-weight: 800; }
-.family-card-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr)); gap: 8px 10px; }
-.family-field { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.family-card-fields { display: flex; flex-wrap: wrap; gap: 8px 10px; }
+.family-field { flex: 1 1 120px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+/* 選択肢か「1/2」だけの欄は狭くて足りる。和暦入力が入る生年月日だけ広く取る。 */
+.family-field.narrow { flex: .7 1 88px; }
+.family-field.wide { flex: 1.5 1 210px; }
 .family-field > label { color: var(--slate-600); font-size: 11px; font-weight: 700; line-height: 1.35; }
 .family-field input:not([type="checkbox"]), .family-field select { width: 100%; min-height: 36px; padding: 5px 8px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 5px; font-size: 12px; }
 .family-field input::placeholder { color: #9aa49f; }
 .family-field input[readonly] { color: var(--slate-600); background: #f4f6f5; border-style: dashed; }
 .family-field input:user-invalid { border-color: var(--danger); background: #fff7f6; }
 .family-field-hint { color: var(--slate-500); font-size: 11px; line-height: 1.35; }
+/* 相続分は「1/2」の数字なので右に寄せる。 */
+.family-share-input { text-align: right; font-variant-numeric: tabular-nums; }
 .family-check { display: inline-flex; align-items: center; gap: 5px; color: var(--slate-600); font-weight: 600; cursor: pointer; }
 .family-check input { width: 14px; height: 14px; margin: 0; accent-color: #16a34a; }
 .family-add-button { min-height: 42px; margin: 10px 24px 0; padding: 0 16px; color: #166534; background: #f0fdf4; border: 1px dashed #86c99b; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; }
@@ -854,8 +892,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .tax-calc-assumptions strong { font-size: 11px; }
 .tax-calc-assumptions p { margin: 3px 0 0; font-size: 11px; line-height: 1.55; }
 /* 生年月日は西暦を主・和暦を下段に添える（列幅を広げずに両方読めるようにする）。 */
-.birth-date-gregorian { display: block; white-space: nowrap; }
-.birth-date-wareki { display: block; color: var(--slate-500); font-size: 10px; font-weight: 600; white-space: nowrap; }
+.birth-date-full { display: block; }
+.birth-date-age { display: block; color: var(--slate-500); font-size: 10px; font-weight: 600; }
 .tax-calc-heir-summary { margin: 4px 12px 0; padding: 8px 10px 5px; border: 1px solid #dbe8e1; border-radius: 6px; }
 .tax-calc-heir-summary > strong { color: #7c2d2d; font-size: 11px; }
 .tax-calc-heir-summary table { width: 100%; margin-top: 4px; border-collapse: collapse; font-size: 11px; }
@@ -871,7 +909,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 
 @media (min-width: 821px) {
   .sidebar, .main-area { transition: width .2s ease, margin-left .2s ease; }
-  .sidebar-toggle { position: absolute; z-index: 2; top: 64px; right: -19px; width: 38px; height: 38px; cursor: pointer; padding: 0; color: #166534; background: #fff; border: 1px solid #bbf7d0; border-radius: 50%; box-shadow: 0 2px 8px #1665341f; display: grid; place-items: center; }
+  /* ブランド帯の下端の線に重ねる（帯の高さを詰めたぶん上へ）。 */
+  .sidebar-toggle { position: absolute; z-index: 2; top: 37px; right: -19px; width: 38px; height: 38px; cursor: pointer; padding: 0; color: #166534; background: #fff; border: 1px solid #bbf7d0; border-radius: 50%; box-shadow: 0 2px 8px #1665341f; display: grid; place-items: center; }
   .sidebar-toggle:hover { background: #dcfce7; }
   .sidebar-toggle svg { width: 18px; height: 18px; }
   .sidebar.collapsed { width: var(--sidebar-collapsed); padding-inline: 10px; }
@@ -956,6 +995,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .bulk-entry-tab-group { padding-right: 0; border-right: none; }
   .sidebar { transform: translateX(-100%); transition: transform .25s ease; box-shadow: 12px 0 34px #07172333; }
   .sidebar.open { transform: translateX(0); }
+  /* 指で触るドロワーになるので、行の高さは詰めない。 */
+  .nav-button, .side-link { min-height: 44px; font-size: 14px; }
   .close-menu { position: absolute; right: 8px; top: 8px; width: 44px; height: 44px; border: 0; color: var(--navy-950); background: transparent; display: grid; place-items: center; }
   .main-area { margin-left: 0; }
   .menu-button { width: 44px; height: 44px; border: 0; border-radius: 7px; color: var(--navy-900); background: var(--slate-100); display: grid; place-items: center; }
@@ -1156,14 +1197,10 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .client-search input:focus { border-color: #22c55e; outline: 3px solid #bbf7d0; }
 /* 追加ボタンは検索バーより一回り小さくし、縮んで重ならないよう固定幅にする。 */
 .client-home-toolbar .button { flex: 0 0 auto; min-height: 38px; padding: 0 13px; font-size: 12px; }
-.client-home-toolbar .button svg { width: 15px; height: 15px; }
+.client-home-toolbar .button svg { width: 13px; height: 13px; }
 .client-home-main .client-list { margin-top: 14px; max-height: none; background: #fff; }
 /* 一覧の1行はコンパクトに保つ。 */
-.client-home-main .client-list-item { min-height: 52px; padding: 7px 12px; gap: 10px; text-decoration: none; }
-.client-home-main .client-avatar { width: 30px; height: 30px; font-size: 12px; }
-.client-home-main .client-list-main { gap: 0; }
-.client-home-main .client-list-main strong { font-size: 13px; }
-.client-home-main .client-list-main small { font-size: 11px; }
+.client-home-main .client-list-item { min-height: 42px; padding: 5px 12px; gap: 10px; text-decoration: none; }
 .client-list-item.highlighted { background: #f0fdf4; box-shadow: inset 3px 0 #22c55e; }
 .client-home-main .client-list { overflow: visible; }
 .client-list-row { display: flex; align-items: center; border-bottom: 1px solid var(--line); border-radius: 8px; }
@@ -1321,7 +1358,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .tax-calc-assumptions { margin: 1mm 2.5mm 2mm; padding: 1.5mm 2mm; }
   .tax-calc-assumptions strong { font-size: 9.5px; }
   .tax-calc-assumptions p { margin-top: .5mm; font-size: 9px; line-height: 1.45; }
-  .birth-date-wareki { font-size: 9px; }
+  .birth-date-age { font-size: 9px; }
   .tax-calc-heir-summary { margin: 1mm 2.5mm 0; padding: 1.2mm 1.6mm .6mm; border-radius: 1px; }
   .tax-calc-heir-summary > strong { font-size: 9.5px; }
   .tax-calc-heir-summary table { margin-top: .6mm; font-size: 9px; }
@@ -1329,37 +1366,45 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .tax-calc-heir-summary thead th { font-size: 8.5px; }
   .tax-calc-notes { margin-top: 2mm; font-size: 8.5px; line-height: 1.45; }
   .tax-calc-notes p { margin: .5mm 0; }
+  /* 氏名には必ず敬称を付ける。 */
+  .print-honorific { display: inline; }
   .print-person-family-section { break-inside: avoid; page-break-inside: avoid; }
-  .print-profile-panel, .print-family-panel { box-shadow: none; overflow: visible; }
+  /* 枠の幅は他のページと揃える（用紙いっぱい）。詰めるのではなく、行の高さと余白でゆとりを出す。 */
+  .print-profile-panel, .print-family-panel { width: 100%; max-width: 100%; box-shadow: none; overflow: visible; }
   .print-profile-panel { margin-bottom: 4mm; }
   .print-profile-panel > header, .print-family-panel > header { min-height: 38px; padding: 6px 10px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; justify-content: space-between; }
   .print-profile-panel > header h3, .print-family-panel > header h3 { margin: 0; color: #123c31; font-size: 13px; }
   .print-profile-panel > header p, .print-family-panel > header p { margin: 0; color: #4a5761; font-size: 10.5px; }
-  .print-profile-grid { margin: 0; padding: 4mm 7mm; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8mm; }
-  .print-profile-grid > div { min-height: 12mm; padding: 3mm 2mm; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 22mm minmax(0, 1fr); align-items: baseline; }
+  .print-profile-grid { margin: 0; padding: 5mm 9mm; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12mm; }
+  /* 項目名を値の上に置く。横に並べると値の欄が半分以下になり、
+     「1962（昭和37）年7月16日」が2行に折り返していた。 */
+  .print-profile-grid > div { min-height: 15mm; padding: 3mm 2mm; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; justify-content: center; gap: 1.2mm; }
   .print-profile-grid dt { color: #4a5761; font-size: 10.5px; font-weight: 700; }
   .print-profile-grid dd { min-width: 0; margin: 0; color: #172c25; font-size: 13.5px; font-weight: 700; overflow-wrap: anywhere; }
   .print-family-panel { break-inside: auto; page-break-inside: auto; }
   .print-family-table { width: 100%; max-width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10.5px; }
   .print-family-table thead { display: table-header-group; }
   .print-family-table tr { break-inside: avoid; page-break-inside: avoid; }
-  .print-family-table th { padding: 5px 4px; color: #234b3d; background: #edf7f0; border: 1px solid var(--line-strong); font-size: 10px; line-height: 1.4; text-align: left; }
-  .print-family-table td { padding: 5px 4px; color: #263b34; border: 1px solid var(--line); overflow-wrap: anywhere; }
+  .print-family-table th { padding: 7px 7px; color: #234b3d; background: #edf7f0; border: 1px solid var(--line-strong); font-size: 10px; line-height: 1.4; text-align: left; }
+  .print-family-table td { padding: 8px 7px; color: #263b34; border: 1px solid var(--line); overflow-wrap: anywhere; }
   .print-family-table th:nth-child(1) { width: 15%; }
-  .print-family-table th:nth-child(2) { width: 8%; }
-  .print-family-table th:nth-child(3), .print-family-table th:nth-child(4) { width: 11%; }
-  .print-family-table th:nth-child(5) { width: 12%; }
+  .print-family-table th:nth-child(2) { width: 7%; }
+  .print-family-table th:nth-child(3), .print-family-table th:nth-child(4) { width: 9%; }
+  /* 生年月日は「1978（昭和53）年12月22日」が1行に収まる幅を取る。 */
+  .print-family-table th:nth-child(5) { width: 16%; }
   .print-family-table th:nth-child(6) { width: 6%; }
   /* 税額の加算・控除の4列。中身は「該当あり」「該当なし」だけなので等幅で揃える。 */
-  .print-family-table th:nth-child(n+7) { width: 9.25%; }
+  .print-family-table th:nth-child(n+7) { width: 9.5%; }
   .print-family-table td.numeric { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .print-family-table td.applicability { text-align: center; white-space: nowrap; }
   .print-family-note { margin: 5px 0 0; color: #4a5761; font-size: 9.5px; line-height: 1.6; }
   .print-family-empty { min-height: 45mm; margin: 0; display: grid; place-items: center; color: #4a5761; font-size: 11.5px; }
-  /* 角丸のままだと合計行の背景が角の線を覆って枠の最後が欠けるので、印刷では直角にする。
-     ページをまたぐときも各ページで枠の上下を閉じる（既定の slice だと切れ目の辺が開いたままになる）。 */
-  .position-section { margin-bottom: 10px; overflow: visible; border-radius: 0; break-inside: auto; page-break-inside: auto; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-  .position-section .panel-header { min-height: 38px; padding: 6px 10px; break-after: avoid-page; page-break-after: avoid; }
+  /* 枠はパネルの外周では引かない。表がページをまたぐと外周が切れ目で開いてしまい
+     （Chrome は block の box-decoration-break: clone を実装していないので clone 指定は効かない）、
+     続きのページは左右の線だけが宙に伸びた状態になる。見出し帯と各セルの罫線で枠を組むと、
+     ページの切れ目でも四辺が閉じる（見出しは繰り返される thead が上辺になる）。 */
+  .position-section { margin-bottom: 10px; overflow: visible; border: 0; border-radius: 0; break-inside: auto; page-break-inside: auto; }
+  .position-section .panel-header { min-height: 38px; padding: 6px 10px; border: 1px solid var(--line-strong); border-bottom: 0; break-after: avoid-page; page-break-after: avoid; }
   .position-section .panel-header h3 { font-size: 13px; }
   .position-section .panel-header p { font-size: 9.5px; }
   .position-section .table-scroll { overflow: visible; }
@@ -1373,9 +1418,13 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table tfoot tr { break-before: avoid; page-break-before: avoid; }
   .position-section:not(:has(tbody tr:nth-child(4))) { break-inside: avoid; page-break-inside: avoid; }
   .position-table th, .position-table td { min-width: 0; padding: 5px 7px; box-sizing: border-box; }
-  /* 印刷用の罫線色を明示し、白紙でも行・列の区切りを読み取れるようにする。 */
-  .position-table td, .trend-table tbody th, .trend-table tbody td { border-bottom-color: var(--line); }
-  .position-table th, .trend-table thead th { border-bottom-color: var(--line-strong); }
+  /* 印刷用の罫線を明示し、白紙でも行・列の区切りを読み取れるようにする。
+     セルの四辺を引くのは枠づくりも兼ねている（上の .position-section 参照）。 */
+  .position-table td { border: 1px solid var(--line); }
+  .position-table th { border: 1px solid var(--line-strong); }
+  .position-table tfoot th, .position-table tfoot td { border: 1px solid var(--line-strong); }
+  .trend-table tbody th, .trend-table tbody td { border-bottom-color: var(--line); }
+  .trend-table thead th { border-bottom-color: var(--line-strong); }
   .position-table th { font-size: 11px; }
   /* 6列すべてに幅を振って合計100%にする。1列でも未指定だと table-layout:fixed が
      残り列の最小幅を捻出するために指定幅を一律で縮め、評価方法の算式が3行に折り返していた。
@@ -1405,6 +1454,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .classification-label { min-height: 0; padding: 2px 4px; font-size: 10px; white-space: normal; }
   .category-tag { font-size: 10px; }
   .position-table tfoot th, .position-table tfoot td { padding-block: 7px; font-size: 12px; }
+  /* 画面用の「合計」見出しは border:0（.position-table tfoot .position-total-label）で
+     こちらより詳細度が高いので、同じ詳細度で引き直す。 */
+  .position-table tfoot .position-total-label { border: 1px solid var(--line-strong); }
 
   .history-page-heading { display: none !important; }
   .trend-panel .panel-header p, .period-position-label { display: none !important; }

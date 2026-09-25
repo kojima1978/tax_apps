@@ -1,4 +1,5 @@
 import { AlertTriangle, Calculator, LoaderCircle, RefreshCw, ShieldCheck } from "lucide-react";
+import { PersonName } from "@/components/person-name";
 import { legalHeirRoster } from "@/lib/family";
 import { compactYen, dateJa } from "@/lib/format";
 import type { InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
@@ -95,7 +96,7 @@ function HeirSummary({
           // 併記すると誰の行かを読むのに余計な情報になる。
           const name = nameOf(heir.id);
           return <tr key={heir.id ?? index}>
-            <th scope="row">{name ?? heir.label}</th>
+            <th scope="row">{name ? <PersonName name={name} /> : heir.label}</th>
             {columns.map((column) => {
               const text = column.text(heir, effectiveTaxRate);
               return <td key={column.key} className={column.left ? "left" : undefined}>{column.emphasis ? <strong>{text}</strong> : text}</td>;
@@ -145,7 +146,7 @@ export function InheritanceTaxReport({
         <h2 id="inheritance-tax-report-title">相続税の概算</h2>
       </div>
       <dl>
-        <div><dt>対象</dt><dd>{household.name}</dd></div>
+        <div><dt>対象</dt><dd><PersonName name={household.name} /></dd></div>
         <div><dt>年度</dt><dd>{fiscalYearLabel(snapshot)}</dd></div>
         <div><dt>計算日時</dt><dd>{calculatedAt}</dd></div>
         <div><dt>計算ルール</dt><dd>{calculation.calculationVersion}</dd></div>

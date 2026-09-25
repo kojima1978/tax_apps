@@ -2,6 +2,7 @@
 
 import { AlertTriangle, ChevronRight, CircleCheck, LoaderCircle, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { DateInput } from "@/components/date-input";
 import { compactYen } from "@/lib/format";
 import { foreignCurrencies } from "@/lib/fx-rates";
 import { type Portfolio, type PrintSection, type Section, type Snapshot, fiscalYearLabel, trendValues } from "@/lib/portfolio-view";
@@ -90,7 +91,11 @@ export function YearCreationModal({ snapshots, initialSourceId, onClose, onSubmi
       <div className={`form-grid year-creation-grid ${creationMode === "BLANK" ? "blank-mode" : ""}`}>
         {creationMode === "COPY" ? <label>コピー元年度<select name="sourceSnapshotId" value={sourceId} onChange={(event) => changeSource(Number(event.target.value))} disabled={saving}>{orderedSnapshots.map((snapshot) => <option key={snapshot.id} value={snapshot.id}>{fiscalYearLabel(snapshot)}{snapshot.isCurrent ? "（現在）" : ""}</option>)}</select></label> : <input type="hidden" name="sourceSnapshotId" value={sourceId} />}
         <label>作成年度<input name="fiscalYear" type="number" min="1900" max="2200" step="1" value={fiscalYear} onChange={(event) => changeFiscalYear(event.target.value)} required disabled={saving} /></label>
-        <label>B/S基準日<input name="asOfDate" type="date" min={validTargetYear ? `${targetYear}-01-01` : undefined} max={validTargetYear ? `${targetYear}-12-31` : undefined} value={asOfDate} onChange={(event) => setAsOfDate(event.target.value)} aria-describedby="year-as-of-date-help" required disabled={saving} /><small id="year-as-of-date-help" className="field-help">初期値は年度の1月1日です。</small></label>
+        <div className="date-field">
+          <label htmlFor="year-as-of-date">B/S基準日</label>
+          <DateInput id="year-as-of-date" name="asOfDate" label="B/S基準日" min={validTargetYear ? `${targetYear}-01-01` : undefined} max={validTargetYear ? `${targetYear}-12-31` : undefined} value={asOfDate} onChange={setAsOfDate} describedBy="year-as-of-date-help" required disabled={saving} />
+          <small id="year-as-of-date-help" className="field-help">初期値は年度の1月1日です。</small>
+        </div>
       </div>
       {validTargetYear && creationMode === "COPY" ? <div className="year-copy-preview" aria-label={`${source.fiscalYear}年度から${targetYear}年度へコピー`}><span>{source.fiscalYear}年度</span><ChevronRight /><strong>{targetYear}年度</strong></div> : null}
       {validTargetYear && creationMode === "BLANK" ? <div className="year-blank-preview" aria-label={`${targetYear}年度を空の状態で作成`}><strong>{targetYear}年度</strong><span>資産・負債・偶発債務 0件／税金 0円</span></div> : null}

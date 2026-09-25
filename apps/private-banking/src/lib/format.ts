@@ -69,5 +69,13 @@ export const dateWareki = (date: string) => warekiFormat.format(new Date(`${date
 const warekiYearFormat = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", { era: "long", year: "numeric" });
 export const yearWareki = (date: string) => warekiYearFormat.format(new Date(`${date}T00:00:00`));
 
-/** 西暦（和暦）の1行表記。1行に収まる場所で使う。 */
-export const dateJaWithWareki = (date: string) => `${dateJa(date)}（${dateWareki(date)}）`;
+/** 和暦の元号＋年から「年」を外したもの（「昭和53」「令和元」）。括弧の中に入れる用。 */
+export const eraYearWareki = (date: string) => yearWareki(date).replace(/年$/, "");
+
+/**
+ * 「1978（昭和53）年12月22日」。西暦を主に、和暦は年だけを括弧で添える。
+ * 月日は西暦と和暦で同じなので繰り返さない（「1978年12月22日（昭和53年12月22日）」は
+ * 同じ月日が2回出て長く、欄をまたいで折り返していた）。
+ */
+export const dateJaWithWareki = (date: string) =>
+  `${Number(date.slice(0, 4))}（${eraYearWareki(date)}）年${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日`;

@@ -2,6 +2,7 @@
 
 import { CalendarDays, CircleCheck, CircleUserRound, LoaderCircle, Save, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
+import { DateInput } from "@/components/date-input";
 import { ageOnDate } from "@/lib/family";
 import { dateJaWithWareki } from "@/lib/format";
 import type { Portfolio } from "@/lib/portfolio-view";
@@ -43,7 +44,10 @@ export function PersonView({
         <div className="person-form-grid">
           <label>氏名<span className="required-mark">必須</span><input name="name" required maxLength={100} defaultValue={household.name} autoComplete="name" /></label>
           <label>フリガナ<input name="nameKana" maxLength={100} defaultValue={household.nameKana} /></label>
-          <label>生年月日<input name="birthDate" type="date" defaultValue={household.birthDate ?? ""} aria-describedby="person-birth-date-help" /></label>
+          <div className="date-field">
+            <label htmlFor="person-birth-date">生年月日</label>
+            <DateInput id="person-birth-date" name="birthDate" label="生年月日" defaultMode="WAREKI" defaultValue={household.birthDate ?? ""} describedBy="person-birth-date-help" />
+          </div>
           <label>顧客コード<span className="required-mark">必須</span><input name="clientCode" required maxLength={30} pattern="(?:[A-Za-z0-9_]|-)+" defaultValue={household.clientCode} /></label>
           <label>担当者<input name="assignedStaff" maxLength={100} defaultValue={household.assignedStaff} placeholder="例：佐藤税理士" /></label>
         </div>

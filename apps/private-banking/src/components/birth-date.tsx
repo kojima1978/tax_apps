@@ -1,14 +1,13 @@
-import { dateJa, dateWareki } from "@/lib/format";
+import { dateJaWithWareki } from "@/lib/format";
 
 /**
- * 生年月日の表示。西暦を主、和暦を下段に小さく添える。
- * 1行の「西暦（和暦）」は欄幅が足りないと和暦の途中で折り返すため（印刷の本人情報で発生）、
- * 画面・印刷ともここを通して必ず2段で出す。`age` を渡すと西暦の後ろに「（68歳）」を足す。
+ * 生年月日の表示。「1978（昭和53）年12月22日」の1行で、`age` を渡すと年齢を下段に添える。
+ * 画面・印刷ともここを通す（欄幅は場所ごとに違うので、折り返しは禁止しない）。
  */
 export function BirthDate({ value, age = null }: { value: string | null; age?: number | null }) {
   if (!value) return <>－</>;
   return <span className="birth-date">
-    <span className="birth-date-gregorian">{dateJa(value)}{age === null ? "" : `（${age}歳）`}</span>
-    <small className="birth-date-wareki">{dateWareki(value)}</small>
+    <span className="birth-date-full">{dateJaWithWareki(value)}</span>
+    {age === null ? null : <small className="birth-date-age">{age}歳</small>}
   </span>;
 }
