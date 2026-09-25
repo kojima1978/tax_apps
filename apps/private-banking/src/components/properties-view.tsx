@@ -105,11 +105,11 @@ export function PropertiesView() {
         {rows === null ? <p className="properties-loading" role="status"><LoaderCircle className="spin" />読み込み中です…</p> : <table className="properties-table">
           <thead><tr>
             <th>顧客</th><th>科目・区分</th><th>名称・所在地</th><th>地目・用途</th>
-            <th className="number">面積</th><th className="number">持分</th><th>小規模宅地等</th><th className="number">評価額</th>
+            <th className="number">面積</th><th className="number">持分</th><th className="number">評価額</th>
           </tr></thead>
           <tbody>
             {filtered.length === 0
-              ? <tr className="properties-empty-row"><td colSpan={8}>{rows.length === 0 ? "不動産の明細はまだ登録されていません。" : "条件に一致する不動産はありません。"}</td></tr>
+              ? <tr className="properties-empty-row"><td colSpan={7}>{rows.length === 0 ? "不動産の明細はまだ登録されていません。" : "条件に一致する不動産はありません。"}</td></tr>
               : filtered.map((row) => <tr key={row.positionId}>
                 <td data-label="顧客">
                   <Link className="properties-client-link" href={`/customers/${row.householdId}/positions`}>
@@ -125,12 +125,11 @@ export function PropertiesView() {
                 <td data-label="地目・用途"><Highlighted text={row.useLabel || "－"} terms={terms} /></td>
                 <td data-label="面積" className="number">{areaText(row.area)}</td>
                 <td data-label="持分" className="number">{row.ownership}</td>
-                <td data-label="小規模宅地等">{row.smallLotLabel || "－"}</td>
                 <td data-label="評価額" className="number">{yen.format(row.valueJpy)}</td>
               </tr>)}
           </tbody>
           <tfoot><tr>
-            <th scope="row" colSpan={7}>{narrowed ? "表示中の合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
+            <th scope="row" colSpan={6}>{narrowed ? "表示中の合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
             <td className="number">{yen.format(total)}</td>
           </tr></tfoot>
         </table>}

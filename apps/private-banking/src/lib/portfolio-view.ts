@@ -114,14 +114,13 @@ export const buildingTypeOptions = [
   { value: "SUBSTATION", label: "変電所", definition: "電圧を変換し送配電するエネルギーインフラ施設" },
 ] as const;
 export const buildingTypeByValue: ReadonlyMap<string, typeof buildingTypeOptions[number]> = new Map(buildingTypeOptions.map((option) => [option.value, option]));
-/** 小規模宅地等の特例の区分。明細フォームの選択肢と不動産一覧の表示で同じ文言を使う。
+/** 小規模宅地等の特例の区分。明細フォームの選択肢に使う。
     減額割合・限度面積は概算計算側（lib/inheritance-tax-integration）が持つ。 */
 export const smallLotTypeOptions = [
   { value: "RESIDENTIAL", label: "特定居住用宅地", detail: "80%・限度330㎡" },
   { value: "BUSINESS", label: "特定事業用宅地", detail: "80%・限度400㎡" },
   { value: "RENTAL", label: "貸付事業用宅地", detail: "50%・限度200㎡" },
 ] as const;
-export const smallLotTypeByValue: ReadonlyMap<string, typeof smallLotTypeOptions[number]> = new Map(smallLotTypeOptions.map((option) => [option.value, option]));
 // 資産の中分類と、その中に属する科目。明細フォームの2段選択（中分類→科目）、明細一覧の並び順（categoryRank・
 // middleClassification）、B/Sの小分類がすべてこの1箇所から決まる。同じ並びを複数箇所に書くと、科目を足したときに
 // 中分類の判定だけ漏れて「その他資産」に落ちる事故が起きるため、唯一の定義元にしている。

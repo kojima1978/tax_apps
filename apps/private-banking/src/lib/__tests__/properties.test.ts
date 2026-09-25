@@ -30,7 +30,7 @@ const owner = (fields: Partial<PropertyOwner> = {}): PropertyOwner => ({
 
 describe("toPropertyRow", () => {
   it("土地は地目と地積を出す", () => {
-    const row = toPropertyRow(position({ assetDetails: { propertyType: "LAND", propertyAddress: "東京都港区1-2-3", landCategory: "RESIDENTIAL", smallLotType: "RESIDENTIAL" } }), owner());
+    const row = toPropertyRow(position({ assetDetails: { propertyType: "LAND", propertyAddress: "東京都港区1-2-3", landCategory: "RESIDENTIAL" } }), owner());
     expect(row).toMatchObject({
       clientName: "山田 太郎",
       categoryLabel: "居宅",
@@ -39,7 +39,6 @@ describe("toPropertyRow", () => {
       useLabel: "宅地",
       area: 180,
       ownership: "1/2",
-      smallLotLabel: "特定居住用宅地",
       valueJpy: 50_000_000,
     });
     expect(row.valuationDetail).toContain("持分1/2");
