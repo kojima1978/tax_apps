@@ -242,6 +242,23 @@ function selectedOptionLabel(
   return typeof option === 'string' ? option : option?.label ?? '';
 }
 
+/**
+ * 閉じた <select> が画面に出している値。
+ *
+ * 保存値がどの選択肢とも一致しないとき、ブラウザも React も**先頭の選択肢**を選んで表示する。
+ * 元号のように空の選択肢を持たない欄は未選択のまま使われることが多く（第1表の1の課税時期・
+ * 直前期、第2表の開業年月日）、印刷が保存値をそのまま刷ると**画面には「令和」が出ているのに
+ * 印刷だけ空欄**になる。判定計算・案件名・年分の引き当ても未選択を `DEFAULT_ERA` に倒しており、
+ * 旧方式の日付欄（DateFields）の印刷も同じなので、4列プルダウンの印刷だけが食い違っていた。
+ */
+export function selectDisplayValue(
+  options: NonNullable<GridCell['options']>,
+  value: string,
+): string {
+  const values = options.map((option) => (typeof option === 'string' ? option : option.value));
+  return values.includes(value) ? value : values[0] ?? '';
+}
+
 function nearestIndex(lines: number[], v: number): number {
   let best = 0, bd = Infinity;
   lines.forEach((l, i) => { const d = Math.abs(l - v); if (d < bd) { bd = d; best = i; } });
@@ -843,7 +860,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                 {g(c.field)}
               </div>
             ) : c.kind === 'input' && c.field && c.options
-              ? printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 6, backgroundColor: readOnly ? '#f7f7f7' : 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{g(c.field)}</div> : <select id={selectId} name={`${inputPrefix}.${c.field}`} aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(c.options, g(c.field))}` : ''}`} aria-required={c.calculationRequired || undefined} title={selectedOptionLabel(c.options, g(c.field)) || undefined} value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} onFocus={() => setOpenSelectId(selectId)} onBlur={() => setOpenSelectId((prev) => (prev === selectId ? null : prev))} disabled={readOnly} tabIndex={readOnly ? -1 : undefined} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: selectExpanded ? 'left' : (c.align ?? 'left'), fontSize: 6, color: 'inherit', opacity: 1, WebkitTextFillColor: 'inherit', backgroundColor: readOnly ? '#f7f7f7' : c.calculationRequired ? CALCULATION_REQUIRED_BG : 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: readOnly ? 'none' : SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: readOnly ? 'default' : 'pointer' }}>
+              ? printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 6, backgroundColor: readOnly ? '#f7f7f7' : 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{selectDisplayValue(c.options, g(c.field))}</div> : <select id={selectId} name={`${inputPrefix}.${c.field}`} aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(c.options, g(c.field))}` : ''}`} aria-required={c.calculationRequired || undefined} title={selectedOptionLabel(c.options, g(c.field)) || undefined} value={g(c.field)} onChange={(e) => u(c.field!, e.target.value)} onKeyDown={onEnterNext} onFocus={() => setOpenSelectId(selectId)} onBlur={() => setOpenSelectId((prev) => (prev === selectId ? null : prev))} disabled={readOnly} tabIndex={readOnly ? -1 : undefined} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: selectExpanded ? 'left' : (c.align ?? 'left'), fontSize: 6, color: 'inherit', opacity: 1, WebkitTextFillColor: 'inherit', backgroundColor: readOnly ? '#f7f7f7' : c.calculationRequired ? CALCULATION_REQUIRED_BG : 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: readOnly ? 'none' : SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: readOnly ? 'default' : 'pointer' }}>
                   {c.options.map((option) => {
                     const o = typeof option === 'string' ? { value: option, label: option } : option;
                     const label = c.compactSelectedOption && !selectExpanded && o.value !== '' && o.value === g(c.field!) ? o.value : o.label;

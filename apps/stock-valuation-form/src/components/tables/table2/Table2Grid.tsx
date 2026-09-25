@@ -20,7 +20,8 @@ const fl = (v: number) => Math.floor(v + 1e-9);
 
 // ── 和暦日付の4列プルダウン（第1表の1と同方式・第2表の列位置） ──
 const numOptions = (n: number) => ['', ...Array.from({ length: n }, (_, i) => String(i + 1))];
-const DATE_OPTS = {
+// g だけ空の選択肢を置かない（未選択でも令和として扱う）。先頭は DEFAULT_ERA と揃えること
+export const DATE_OPTS = {
   g: ['令和', '平成', '昭和'],
   y: numOptions(64),
   m: numOptions(12),
