@@ -1434,8 +1434,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
      ページの切れ目でも四辺が閉じる（見出しは繰り返される thead が上辺になる）。 */
   /* 罫線は黒。画面用の淡いグレーは家庭用プリンタやコピー機で飛びやすく、
      行・列の区切りという罫線の役目を果たせない。区画ごと変数を差し替えて
-     見出し帯・各セル・中分類の区切り線をまとめて黒にする。 */
-  .position-section { --line: #000; --line-strong: #000; --classification-border: #000; }
+     見出し帯と各セルの罫線をまとめて黒にする。 */
+  .position-section { --line: #000; --line-strong: #000; }
+  /* 中分類の色（水色・金・緑）は行ごとに変数を差し替えているため（.position-table tbody tr）、
+     区画に指定しても届かない。中分類の区切り線とラベルの枠はこの変数を使うので、行の側で黒にする。 */
+  .position-section .position-table tbody tr,
+  .position-section .position-table tbody tr[class] { --classification-border: #000; }
   .position-section { margin-bottom: 10px; overflow: visible; border: 0; border-radius: 0; break-inside: auto; page-break-inside: auto; }
   .position-section .panel-header { min-height: 38px; padding: 6px 10px; border: 1px solid var(--line-strong); border-bottom: 0; break-after: avoid-page; page-break-after: avoid; }
   .position-section .panel-header h3 { font-size: 13px; }
