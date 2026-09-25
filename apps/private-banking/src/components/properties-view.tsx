@@ -1,24 +1,23 @@
 "use client";
 
-import { AlertTriangle, ChevronLeft, ChevronRight, Download, LoaderCircle, Search } from "lucide-react";
+import { AlertTriangle, Download, LoaderCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Highlighted } from "@/components/highlighted";
+import { ListPager, PageSizeSelect } from "@/components/list-pager";
 import { PanelHeader } from "@/components/panel-header";
 import { API_BASE } from "@/lib/api";
 import { searchTerms } from "@/lib/clients";
 import { yen } from "@/lib/format";
+import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import { categoryLabels, propertyTypeLabels, realEstateCategories } from "@/lib/portfolio-view";
 import {
   PROPERTY_FILTER_ALL,
-  PROPERTY_PAGE_SIZES,
-  PROPERTY_PAGE_SIZE_DEFAULT,
   type PropertyFilters,
   type PropertyRow,
   filterProperties,
   propertiesCsv,
   propertiesCsvFileName,
-  propertyPage,
 } from "@/lib/properties";
 
 /** 絞り込みの選択欄。科目・区分を同じ形で並べる。 */
@@ -51,7 +50,7 @@ export function PropertiesView() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<PropertyFilters>({ category: PROPERTY_FILTER_ALL, propertyType: PROPERTY_FILTER_ALL });
-  const [pageSize, setPageSize] = useState<number>(PROPERTY_PAGE_SIZE_DEFAULT);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -73,7 +72,7 @@ export function PropertiesView() {
   const clientCount = useMemo(() => new Set(filtered.map((row) => row.householdId)).size, [filtered]);
   const narrowed = terms.length > 0 || filters.category !== PROPERTY_FILTER_ALL || filters.propertyType !== PROPERTY_FILTER_ALL;
   // 描画するのはこのページのぶんだけ。全件を並べると行数に比例して表示が遅くなる。
-  const paged = useMemo(() => propertyPage(filtered, page, pageSize), [filtered, page, pageSize]);
+  const paged = useMemo(() => pageSlice(filtered, page, pageSize), [filtered, page, pageSize]);
 
   // 絞り込んだ結果をそのまま書き出す（画面に出ているものと中身を一致させる）。
   const downloadCsv = () => {
@@ -118,12 +117,7 @@ export function PropertiesView() {
               {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>)}
-          <label>
-            <span>表示件数</span>
-            <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
-              {PROPERTY_PAGE_SIZES.map((size) => <option key={size} value={size}>{size}件</option>)}
-            </select>
-          </label>
+          <PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>}
       />
       <div className="table-scroll">
@@ -161,18 +155,15 @@ export function PropertiesView() {
           </tr></tfoot>
         </table>}
       </div>
-      {filtered.length === 0 ? null : <nav className="properties-pager" aria-label="不動産一覧のページ切り替え">
-        <p>{filtered.length}件中 {paged.from + 1}〜{paged.from + paged.rows.length}件目</p>
-        <div>
-          <button type="button" className="button secondary" onClick={() => setPage(paged.current - 1)} disabled={paged.current <= 1}>
-            <ChevronLeft />前へ
-          </button>
-          <span aria-live="polite">{paged.current} / {paged.last}ページ</span>
-          <button type="button" className="button secondary" onClick={() => setPage(paged.current + 1)} disabled={paged.current >= paged.last}>
-            次へ<ChevronRight />
-          </button>
-        </div>
-      </nav>}
+      {filtered.length === 0 ? null : <ListPager
+        label="不動産一覧のページ切り替え"
+        total={filtered.length}
+        from={paged.from}
+        shown={paged.rows.length}
+        current={paged.current}
+        last={paged.last}
+        onChange={setPage}
+      />}
     </article>
   </>;
 }

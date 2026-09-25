@@ -7,11 +7,13 @@ import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useS
 import { ActionMenu, type ActionMenuItem } from "@/components/action-menu";
 import { ClientFields } from "@/components/client-fields";
 import { Highlighted } from "@/components/highlighted";
+import { ListPager, PageSizeSelect } from "@/components/list-pager";
 import { ClientDeleteModal } from "@/components/client-delete-modal";
 import { DateInput } from "@/components/date-input";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary, filterClients, searchTerms } from "@/lib/clients";
+import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 import { type Portfolio } from "@/lib/portfolio-view";
 
@@ -25,6 +27,7 @@ export function ClientList() {
   const [clients, setClients] = useState<ClientSummary[] | null>(null);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -56,6 +59,9 @@ export function ClientList() {
   const filtered = useMemo(() => filterClients(clients ?? [], terms), [clients, terms]);
   // 絞り込みで件数が減っても範囲外を指さないようにする。
   const highlightedIndex = filtered.length === 0 ? -1 : Math.min(activeIndex, filtered.length - 1);
+  // 描画するのはこのページのぶんだけ。ページは選択中の行から決めるので、
+  // 矢印キーでの移動は絞り込んだ全件を通して回り、ページは後から付いてくる。
+  const paged = useMemo(() => pageSlice(filtered, Math.floor(Math.max(highlightedIndex, 0) / pageSize) + 1, pageSize), [filtered, highlightedIndex, pageSize]);
 
   function moveHighlight(delta: number) {
     if (filtered.length === 0) return;
@@ -186,10 +192,15 @@ export function ClientList() {
         <Link className="button secondary" href="/restore"><Upload />データ復元</Link>
       </div>
       {/* 削除の通知が role="status" を使うので、件数は aria-live だけで読み上げる。 */}
-      <p className="client-count" aria-live="polite">{terms.length > 0 ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}</p>
+      <div className="client-list-tools">
+        <p className="client-count" aria-live="polite">{terms.length > 0 ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}</p>
+        <div className="position-table-tools">
+          <PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setActiveIndex(0); }} />
+        </div>
+      </div>
 
       <div className="client-list" id="client-options" role="grid" aria-label="顧客">
-        {filtered.map((client, index) => <div
+        {paged.rows.map((client, indexInPage) => { const index = paged.from + indexInPage; return <div
           key={client.id}
           id={`client-option-${client.id}`}
           role="row"
@@ -214,8 +225,17 @@ export function ClientList() {
           <ChevronRight />
           </Link></div>
           <div role="gridcell"><ClientRowActions client={client} busy={deleteLoadingId !== null} loading={deleteLoadingId === client.id} onDelete={() => { void requestDelete(client); }} /></div>
-        </div>)}
+        </div>; })}
       </div>
+      {filtered.length === 0 ? null : <ListPager
+        label="顧客一覧のページ切り替え"
+        total={filtered.length}
+        from={paged.from}
+        shown={paged.rows.length}
+        current={paged.current}
+        last={paged.last}
+        onChange={(page) => setActiveIndex((page - 1) * pageSize)}
+      />}
       {filtered.length === 0 ? <div className="client-empty"><Search /><strong>該当する顧客がありません</strong><span>{clients.length === 0 ? "「顧客を追加」から登録してください。" : "検索条件を変更してください。"}</span></div> : null}
     </main>
 

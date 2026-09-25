@@ -7,8 +7,6 @@ import {
   filterProperties,
   propertiesCsv,
   propertiesCsvFileName,
-  propertyPage,
-  propertyPageCount,
   propertyRows,
   toPropertyRow,
 } from "@/lib/properties";
@@ -137,25 +135,5 @@ describe("propertiesCsv", () => {
 describe("propertiesCsvFileName", () => {
   it("JST の日時を付ける", () => {
     expect(propertiesCsvFileName(new Date("2026-09-25T15:30:00.000Z"))).toBe("private-banking-properties-20260926-0030.csv");
-  });
-});
-
-describe("propertyPage", () => {
-  const rows = Array.from({ length: 12 }, (_, index) => index + 1);
-
-  it("0件でも1ページと数える", () => {
-    expect(propertyPageCount(0, 50)).toBe(1);
-    expect(propertyPage([], 1, 50)).toEqual({ current: 1, last: 1, from: 0, rows: [] });
-  });
-
-  it("ページ番号ぶんだけ切り出す", () => {
-    expect(propertyPageCount(12, 5)).toBe(3);
-    expect(propertyPage(rows, 2, 5)).toEqual({ current: 2, last: 3, from: 5, rows: [6, 7, 8, 9, 10] });
-    expect(propertyPage(rows, 3, 5).rows).toEqual([11, 12]);
-  });
-
-  it("範囲外のページ番号は端へ寄せる（絞り込みで件数が減ったとき空振りにしない）", () => {
-    expect(propertyPage(rows, 9, 5)).toMatchObject({ current: 3, from: 10 });
-    expect(propertyPage(rows, 0, 5)).toMatchObject({ current: 1, from: 0 });
   });
 });
