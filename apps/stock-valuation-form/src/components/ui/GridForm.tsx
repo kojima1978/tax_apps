@@ -1,4 +1,4 @@
-import { FORM_GEOMETRY, type FormGeometry, type MmRect } from './formGeometry';
+import { FORM_GEOMETRY, printFitScale, type FormGeometry, type MmRect } from './formGeometry';
 import { QR_SIZE } from '@/data/formQr';
 import { formatCommaInteger, formatSignedCommaInteger, normalizeInteger } from '@/lib/numberFormat';
 import { formQrPath } from '@/lib/qrPath';
@@ -505,10 +505,15 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
     fontFamily: '"Noto Sans JP", sans-serif',
   });
 
+  // 印刷のときだけ、下端が用紙の印字可能域を外れる様式を紙の上端を基準に縮める。
+  // 原本に忠実な位置のままだと第1表の1（枠の下端295.2mm）は実機で最下段が消える。
+  // 縮めるのはこの外枠ごとなので、様式ID枠・題名・QR・本表がまとめて同じ比率で動く。
+  const printFit = geometry && printRendering ? printFitScale(geometry) : 1;
+
   return (
     // .gov-page（A4・overflow:hidden）の内側で縦フレックス。ヘッダーは縮まず、本表が残り高さにぴったり収まる。
     // 実寸モードでは全要素を mm 絶対配置にするため、フレックスではなく位置指定の基準箱にする。
-    <div style={geometry ? { position: 'relative', width: '100%', height: '100%' } : { width, margin: '0 auto', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <div style={geometry ? { position: 'relative', width: '100%', height: '100%', ...(printFit < 1 ? { transform: `scale(${printFit})`, transformOrigin: 'top left' } : {}) } : { width, margin: '0 auto', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {geometry ? (
         <>
           {formCode && geometry.formCodeBox && (
