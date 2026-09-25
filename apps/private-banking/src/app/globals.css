@@ -1059,7 +1059,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .tax-api-button { flex: 1 1 auto; justify-content: center; }
   .insurance-data-note { margin-inline: 14px; }
   .table-scroll { overflow: visible; }
-  .trend-scroll, .history-list-panel .table-scroll { overflow-x: auto; }
+  .trend-scroll, .history-list-panel .table-scroll, .properties-panel .table-scroll { overflow-x: auto; }
   .trend-panel .panel-header, .history-list-panel .panel-header { padding: 16px; }
   .trend-guidance { padding-inline: 16px; }
   .position-table { min-width: 0; display: block; background: var(--background); }
@@ -1211,6 +1211,18 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .client-row-actions { margin-right: 6px; }
 .client-row-actions .action-menu-trigger { width: 44px; height: 44px; }
 .client-count { margin: 10px 2px 6px; color: var(--slate-500); font-size: 12px; font-weight: 700; }
+/* 不動産一覧（全顧客横断）。列が多いので表は横スクロールさせ、名称・所在地だけ折り返して読ませる。 */
+.properties-panel { margin-top: 14px; }
+.properties-table { width: 100%; min-width: 1020px; }
+.properties-table th, .properties-table td { vertical-align: top; }
+.properties-table td { font-size: 13px; }
+.properties-table td small { margin-top: 2px; }
+.properties-table tfoot th { padding: 14px 16px; color: var(--navy-950); background: #f7f9fa; border: 0; font-size: 12px; font-weight: 800; text-align: right; }
+.properties-client-link { color: inherit; text-decoration: none; }
+.properties-client-link:hover strong { color: #15803d; text-decoration: underline; text-underline-offset: 2px; }
+.properties-empty-row td { height: 88px; color: var(--slate-500); text-align: center; }
+.properties-loading { margin: 0; padding: 34px 16px; color: var(--slate-500); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; }
+.properties-loading svg { width: 16px; height: 16px; }
 .client-delete-notice { color: #166534; padding: 10px 12px; background: #f0fdf4; border-radius: 8px; }
 .client-list-item mark { padding: 0 1px; color: #14532d; background: #fde68a; border-radius: 2px; }
 .client-home-main .security-note { margin-top: 26px; }
@@ -1275,11 +1287,13 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .topbar h1 { font-size: 13px; }
   .content { width: calc(100% - 2mm); max-width: calc(100% - 2mm); margin: 0 2mm 0 0; padding: 1mm 0 0; overflow-x: clip; }
   .content, .dashboard-grid, .panel, .table-scroll, table { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .properties-table { min-width: 0; font-size: 10px; }
   .page-heading:not(.detail-page-heading) { display: none; }
   .dashboard-grid { display: block; gap: 0; }
   .balance-report-series > .balance-panel { display: block !important; }
   .balance-report-series > .balance-panel + .balance-panel { break-before: page; page-break-before: always; }
-  .panel { break-inside: avoid; box-shadow: none; }
+  /* 印刷では角を丸めない。丸めると角の内側へ罫線が食い込み、枠に接した文字が欠ける。 */
+  .panel { border-radius: 0; break-inside: avoid; box-shadow: none; }
   .balance-panel { overflow: hidden; break-inside: auto; }
   .balance-panel .panel-header { min-height: 42px; padding: 7px 12px; }
   .balance-panel .panel-header h3 { font-size: 14px; }
@@ -1403,6 +1417,10 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
      （Chrome は block の box-decoration-break: clone を実装していないので clone 指定は効かない）、
      続きのページは左右の線だけが宙に伸びた状態になる。見出し帯と各セルの罫線で枠を組むと、
      ページの切れ目でも四辺が閉じる（見出しは繰り返される thead が上辺になる）。 */
+  /* 罫線は黒。画面用の淡いグレーは家庭用プリンタやコピー機で飛びやすく、
+     行・列の区切りという罫線の役目を果たせない。区画ごと変数を差し替えて
+     見出し帯・各セル・中分類の区切り線をまとめて黒にする。 */
+  .position-section { --line: #000; --line-strong: #000; --classification-border: #000; }
   .position-section { margin-bottom: 10px; overflow: visible; border: 0; border-radius: 0; break-inside: auto; page-break-inside: auto; }
   .position-section .panel-header { min-height: 38px; padding: 6px 10px; border: 1px solid var(--line-strong); border-bottom: 0; break-after: avoid-page; page-break-after: avoid; }
   .position-section .panel-header h3 { font-size: 13px; }

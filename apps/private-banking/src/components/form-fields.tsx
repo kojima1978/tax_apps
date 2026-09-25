@@ -45,7 +45,7 @@ export function OwnershipFractionInput({ numerator, denominator, onNumeratorChan
 
 export function LandCategoryField({ defaultValue }: { defaultValue: string }) {
   const [value, setValue] = useState(defaultValue);
-  const selected = landCategoryByValue.get(value as typeof landCategoryOptions[number]["value"]);
+  const selected = landCategoryByValue.get(value);
   const legacyValue = value && !selected ? value : "";
   return <label className="land-category-field">地目
     <select name="assetDetail.landCategory" value={value} title={selected?.definition ?? ""} onChange={(event) => setValue(event.target.value)}>
@@ -59,7 +59,7 @@ export function LandCategoryField({ defaultValue }: { defaultValue: string }) {
 
 export function BuildingTypeField({ defaultValue }: { defaultValue: string }) {
   const [value, setValue] = useState(defaultValue);
-  const selected = buildingTypeByValue.get(value as typeof buildingTypeOptions[number]["value"]);
+  const selected = buildingTypeByValue.get(value);
   const legacyValue = value && !selected ? value : "";
   return <label className="building-type-field">建物種類
     <select name="assetDetail.buildingType" value={value} title={selected?.definition ?? ""} onChange={(event) => setValue(event.target.value)}>

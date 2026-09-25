@@ -1,16 +1,17 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, Upload, UserPlus, WalletCards, X } from "lucide-react";
+import { AlertTriangle, Building2, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, Upload, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionMenu, type ActionMenuItem } from "@/components/action-menu";
 import { ClientFields } from "@/components/client-fields";
+import { Highlighted } from "@/components/highlighted";
 import { ClientDeleteModal } from "@/components/client-delete-modal";
 import { DateInput } from "@/components/date-input";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
-import { ClientSummary, filterClients, highlightRanges, searchTerms } from "@/lib/clients";
+import { ClientSummary, filterClients, searchTerms } from "@/lib/clients";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 import { type Portfolio } from "@/lib/portfolio-view";
 
@@ -18,21 +19,6 @@ import { type Portfolio } from "@/lib/portfolio-view";
 export const CLIENT_HOME_SECTION = "balance";
 
 export const clientHref = (householdId: number) => `/customers/${householdId}/${CLIENT_HOME_SECTION}`;
-
-/** 検索語に一致した部分を <mark> で強調する。 */
-function Highlighted({ text, terms }: { text: string; terms: string[] }) {
-  const ranges = useMemo(() => highlightRanges(text, terms), [text, terms]);
-  if (ranges.length === 0) return <>{text}</>;
-  const parts: React.ReactNode[] = [];
-  let cursor = 0;
-  ranges.forEach(([start, end], index) => {
-    if (start > cursor) parts.push(text.slice(cursor, start));
-    parts.push(<mark key={index}>{text.slice(start, end)}</mark>);
-    cursor = end;
-  });
-  if (cursor < text.length) parts.push(text.slice(cursor));
-  return <>{parts}</>;
-}
 
 export function ClientList() {
   const router = useRouter();
@@ -195,6 +181,7 @@ export function ClientList() {
           />
         </label>
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
+        <Link className="button secondary" href="/properties"><Building2 />不動産一覧</Link>
         <Link className="button secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
         <Link className="button secondary" href="/restore"><Upload />データ復元</Link>
       </div>

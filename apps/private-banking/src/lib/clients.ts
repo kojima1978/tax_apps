@@ -51,11 +51,19 @@ export function searchTerms(query: string) {
   return query.split(/\s+/).map(normalizeSearchText).filter((term) => term.length > 0);
 }
 
-export function matchesClient(client: ClientSummary, terms: string[]) {
+/**
+ * 正規化した項目のどれかに検索語がすべて含まれるか。
+ * 検索語はすべて（AND）、いずれかの項目に含まれていればヒットとみなす。
+ * 顧客一覧と不動産一覧で同じ当たり方にするため、判定はここだけに置く。
+ */
+export function matchesSearchTerms(values: string[], terms: string[]) {
   if (terms.length === 0) return true;
-  const fields = CLIENT_SEARCH_FIELDS.map((field) => normalizeSearchText(client[field]));
-  // 検索語はすべて（AND）、いずれかの項目に含まれていればヒットとみなす。
+  const fields = values.map(normalizeSearchText);
   return terms.every((term) => fields.some((field) => field.includes(term)));
+}
+
+export function matchesClient(client: ClientSummary, terms: string[]) {
+  return matchesSearchTerms(CLIENT_SEARCH_FIELDS.map((field) => client[field]), terms);
 }
 
 export function filterClients(clients: ClientSummary[], terms: string[]) {

@@ -6,6 +6,7 @@ import { ChangeEvent, DragEvent, useEffect, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary } from "@/lib/clients";
+import { fileTimestamp } from "@/lib/format";
 import type { Portfolio } from "@/lib/portfolio-view";
 
 export type BackupKind = "full" | "household";
@@ -73,10 +74,7 @@ export function BackupView(props: { scope: "global" } | { scope: "household"; po
 }
 
 /** サーバ側（api/backup）と同じ規則でファイル名を組み立てる。 */
-function exportFileName(clientCode: string) {
-  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString();
-  return `private-banking-${clientCode}-${jst.slice(0, 4)}${jst.slice(5, 7)}${jst.slice(8, 10)}-${jst.slice(11, 13)}${jst.slice(14, 16)}.json`;
-}
+const exportFileName = (clientCode: string) => `private-banking-${clientCode}-${fileTimestamp()}.json`;
 
 /** 顧客ページ配下。この顧客ぶんの書き出しだけを扱う。 */
 function HouseholdBackup({ portfolio: { household, snapshots, familyMembers } }: { portfolio: Portfolio }) {

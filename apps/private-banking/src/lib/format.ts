@@ -8,6 +8,12 @@ export const triangleYen = (value: number) => value < 0 ? `△${yen.format(Math.
 
 export const valuationNumber = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 6 });
 
+/** 書き出しファイルの名前に使う日時（JST の YYYYMMDD-HHMM）。JSONとCSVで同じ付け方に揃える。 */
+export const fileTimestamp = (now: Date = new Date()) => {
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString();
+  return `${jst.slice(0, 4)}${jst.slice(5, 7)}${jst.slice(8, 10)}-${jst.slice(11, 13)}${jst.slice(14, 16)}`;
+};
+
 /** 億・万円で丸めた表示。B/Sの区画やサマリーで使う。 */
 export const compactYen = (value: number) => {
   const manYen = Math.round(value / 10000);

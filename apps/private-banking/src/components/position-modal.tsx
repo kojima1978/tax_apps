@@ -24,6 +24,7 @@ import {
   positionSection,
   propertyTypeOf,
   realEstateCategories,
+  smallLotTypeOptions,
 } from "@/lib/portfolio-view";
 
 /** 外貨建てで登録しうる科目。これ以外（不動産・自社株・借入金・偶発債務など）は円建てのみなので通貨欄を出さず JPY 固定にする。 */
@@ -234,7 +235,7 @@ function AssetSpecificFields({
     {propertyType === "LAND" ? <>
       <LandCategoryField defaultValue={details.landCategory ?? ""} />
       <label>面積（㎡）<CommaNumberInput name="landArea" defaultValue="" value={landArea} onValueChange={onLandAreaChange} maxFractionDigits={4} placeholder="" positive required={formula === "LAND_ROADSIDE"} /></label>
-      <div className="wide"><label>小規模宅地等の特例（概算）<select name="assetDetail.smallLotType" defaultValue={details.smallLotType ?? ""}><option value="">適用しない</option><option value="RESIDENTIAL">特定居住用宅地（80%・限度330㎡）</option><option value="BUSINESS">特定事業用宅地（80%・限度400㎡）</option><option value="RENTAL">貸付事業用宅地（50%・限度200㎡）</option></select></label><FieldNote summary="特例の反映について">選択すると相続税の概算計算で減額割合を反映します（限度面積を超える分は按分）。要件充足の可否は別途ご確認ください。</FieldNote></div>
+      <div className="wide"><label>小規模宅地等の特例（概算）<select name="assetDetail.smallLotType" defaultValue={details.smallLotType ?? ""}><option value="">適用しない</option>{smallLotTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}（{option.detail}）</option>)}</select></label><FieldNote summary="特例の反映について">選択すると相続税の概算計算で減額割合を反映します（限度面積を超える分は按分）。要件充足の可否は別途ご確認ください。</FieldNote></div>
     </> : <BuildingTypeField defaultValue={details.buildingType ?? ""} />}
     <label>固定資産税評価額（円）<CommaNumberInput name="fixedAssetTaxValue" defaultValue="" value={fixedAssetTaxValue} onValueChange={onFixedAssetTaxValueChange} maxFractionDigits={2} placeholder="" positive required={formula === "LAND_MULTIPLIER" || formula === "BUILDING"} /></label>
     <OwnershipFractionInput numerator={ownershipNumerator} denominator={ownershipDenominator} onNumeratorChange={onOwnershipNumeratorChange} onDenominatorChange={onOwnershipDenominatorChange} />

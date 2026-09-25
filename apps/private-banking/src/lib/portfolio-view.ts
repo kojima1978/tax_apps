@@ -87,7 +87,7 @@ export const landCategoryOptions = [
   { value: "PARK", label: "公園", definition: "公衆の憩いの場、または遊楽のために設けられた土地" },
   { value: "MISCELLANEOUS", label: "雑種地", definition: "他の22種類のいずれにも該当しない土地（駐車場、資材置場、ゴルフ場など）" },
 ] as const;
-export const landCategoryByValue = new Map(landCategoryOptions.map((option) => [option.value, option]));
+export const landCategoryByValue: ReadonlyMap<string, typeof landCategoryOptions[number]> = new Map(landCategoryOptions.map((option) => [option.value, option]));
 export const buildingTypeOptions = [
   { value: "RESIDENCE", label: "居宅", definition: "一般的な戸建て住宅や、分譲マンションの専有部分（一室）" },
   { value: "APARTMENT", label: "共同住宅", definition: "賃貸マンションやアパートなど、建物全体を一括で登記する場合" },
@@ -113,7 +113,15 @@ export const buildingTypeOptions = [
   { value: "POWER_PLANT", label: "発電所", definition: "電力を発生させるエネルギーインフラ施設" },
   { value: "SUBSTATION", label: "変電所", definition: "電圧を変換し送配電するエネルギーインフラ施設" },
 ] as const;
-export const buildingTypeByValue = new Map(buildingTypeOptions.map((option) => [option.value, option]));
+export const buildingTypeByValue: ReadonlyMap<string, typeof buildingTypeOptions[number]> = new Map(buildingTypeOptions.map((option) => [option.value, option]));
+/** 小規模宅地等の特例の区分。明細フォームの選択肢と不動産一覧の表示で同じ文言を使う。
+    減額割合・限度面積は概算計算側（lib/inheritance-tax-integration）が持つ。 */
+export const smallLotTypeOptions = [
+  { value: "RESIDENTIAL", label: "特定居住用宅地", detail: "80%・限度330㎡" },
+  { value: "BUSINESS", label: "特定事業用宅地", detail: "80%・限度400㎡" },
+  { value: "RENTAL", label: "貸付事業用宅地", detail: "50%・限度200㎡" },
+] as const;
+export const smallLotTypeByValue: ReadonlyMap<string, typeof smallLotTypeOptions[number]> = new Map(smallLotTypeOptions.map((option) => [option.value, option]));
 // 資産の中分類と、その中に属する科目。明細フォームの2段選択（中分類→科目）、明細一覧の並び順（categoryRank・
 // middleClassification）、B/Sの小分類がすべてこの1箇所から決まる。同じ並びを複数箇所に書くと、科目を足したときに
 // 中分類の判定だけ漏れて「その他資産」に落ちる事故が起きるため、唯一の定義元にしている。
@@ -251,10 +259,15 @@ export function institutionOrPropertyAddress(position: Position) {
   return position.institution.trim();
 }
 
+/** 持分の「1/2」表示。分子・分母が未保存の明細は小数の持分から分数へ戻す。 */
+export function ownershipFraction(position: Pick<Position, "ownershipShare" | "ownershipNumerator" | "ownershipDenominator">) {
+  const [fallbackNumerator, fallbackDenominator] = decimalToFraction(position.ownershipShare);
+  return `${valuationNumber.format(position.ownershipNumerator ?? fallbackNumerator)}/${valuationNumber.format(position.ownershipDenominator ?? fallbackDenominator)}`;
+}
+
 export function valuationBreakdown(position: Position) {
   const number = (value: number | null) => valuationNumber.format(value ?? 0);
-  const [fallbackNumerator, fallbackDenominator] = decimalToFraction(position.ownershipShare);
-  const ownership = `${valuationNumber.format(position.ownershipNumerator ?? fallbackNumerator)}/${valuationNumber.format(position.ownershipDenominator ?? fallbackDenominator)}`;
+  const ownership = ownershipFraction(position);
   if (position.valuationFormula === "STOCK") return `${number(position.valuationQuantity)}株・口 × ${number(position.valuationUnitPrice)} × ${number(position.adjustmentRate)}`;
   if (position.valuationFormula === "UNIT_RATE") return `${number(position.valuationUnitPrice)}円 × ${number(position.adjustmentRate)}`;
   if (position.valuationFormula === "LAND_ROADSIDE") return `${number(position.landArea)}㎡ × ${number(position.roadsideValue)}円/㎡ × ${number(position.adjustmentRate)} × 持分${ownership}`;

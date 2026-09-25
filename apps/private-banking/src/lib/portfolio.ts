@@ -1,10 +1,39 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type Position as PositionRecord } from "@prisma/client";
 import { familyComposition, type AcquisitionReason, type Relationship } from "@/lib/family";
 import { parseFxRates } from "@/lib/fx-rates";
 import { parseInheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
+import type { AssetDetails, Position, ValuationFormula } from "@/lib/portfolio-view";
 import { prisma } from "@/lib/prisma";
 
 const toNumber = (value: Prisma.Decimal) => Number(value.toString());
+const toOptionalNumber = (value: Prisma.Decimal | null) => value === null ? null : toNumber(value);
+
+/**
+ * DB の明細を画面・API で扱う形（Decimal は number、日時は文字列）へ直す。
+ * 顧客1件のポートフォリオと不動産一覧の両方がこの変換を通るので、
+ * 片方だけ Decimal のままになって金額の計算が文字列連結になる事故を防ぐ。
+ */
+export function toPositionView(position: PositionRecord): Position & { snapshotId: number; sortOrder: number; createdAt: string; updatedAt: string } {
+  return {
+    ...position,
+    side: position.side as Position["side"],
+    valuationFormula: position.valuationFormula as ValuationFormula,
+    assetDetails: (position.assetDetails ?? null) as AssetDetails | null,
+    originalAmount: toNumber(position.originalAmount),
+    fxRate: toNumber(position.fxRate),
+    valueJpy: toNumber(position.valueJpy),
+    valuationQuantity: toOptionalNumber(position.valuationQuantity),
+    valuationUnitPrice: toOptionalNumber(position.valuationUnitPrice),
+    adjustmentRate: toOptionalNumber(position.adjustmentRate),
+    landArea: toOptionalNumber(position.landArea),
+    roadsideValue: toOptionalNumber(position.roadsideValue),
+    fixedAssetTaxValue: toOptionalNumber(position.fixedAssetTaxValue),
+    valuationMultiplier: toOptionalNumber(position.valuationMultiplier),
+    ownershipShare: toOptionalNumber(position.ownershipShare),
+    createdAt: position.createdAt.toISOString(),
+    updatedAt: position.updatedAt.toISOString(),
+  };
+}
 
 export async function getPortfolio(householdId?: number) {
   // 顧客は画面から作成する。ここでテストデータを自動生成すると、
@@ -78,24 +107,7 @@ export async function getPortfolio(householdId?: number) {
       otherTaxes: toNumber(snapshot.otherTaxes),
       fxRates: parseFxRates(snapshot.fxRates),
       updatedAt: snapshot.updatedAt.toISOString(),
-      positions: snapshot.positions.map((position) => ({
-        ...position,
-        originalAmount: toNumber(position.originalAmount),
-        fxRate: toNumber(position.fxRate),
-        valueJpy: toNumber(position.valueJpy),
-        valuationQuantity: position.valuationQuantity ? toNumber(position.valuationQuantity) : null,
-        valuationUnitPrice: position.valuationUnitPrice ? toNumber(position.valuationUnitPrice) : null,
-        adjustmentRate: position.adjustmentRate ? toNumber(position.adjustmentRate) : null,
-        landArea: position.landArea ? toNumber(position.landArea) : null,
-        roadsideValue: position.roadsideValue ? toNumber(position.roadsideValue) : null,
-        fixedAssetTaxValue: position.fixedAssetTaxValue ? toNumber(position.fixedAssetTaxValue) : null,
-        valuationMultiplier: position.valuationMultiplier ? toNumber(position.valuationMultiplier) : null,
-        ownershipShare: position.ownershipShare ? toNumber(position.ownershipShare) : null,
-        ownershipNumerator: position.ownershipNumerator,
-        ownershipDenominator: position.ownershipDenominator,
-        createdAt: position.createdAt.toISOString(),
-        updatedAt: position.updatedAt.toISOString(),
-      })),
+      positions: snapshot.positions.map(toPositionView),
     })),
   };
 }
