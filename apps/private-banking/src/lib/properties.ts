@@ -117,6 +117,25 @@ export function filterProperties(rows: PropertyRow[], terms: string[], filters: 
     && matchesProperty(row, terms));
 }
 
+/** 1ページの表示件数。既定は50件（全件描画をやめる一方で、ページ送りの回数も増やしすぎない）。 */
+export const PROPERTY_PAGE_SIZES = [25, 50, 100] as const;
+export const PROPERTY_PAGE_SIZE_DEFAULT = 50;
+
+/** 件数から最後のページ番号を出す。0件でも1ページと数える（ページ番号を0にしない）。 */
+export const propertyPageCount = (count: number, size: number) => Math.max(1, Math.ceil(count / size));
+
+/**
+ * 表示するページを切り出す。ページ番号が範囲外なら端へ寄せて返す
+ * （絞り込みで件数が減ったとき、前のページ番号のまま空振りにならないように）。
+ * 合計とCSVは絞り込んだ全件が対象なので、ここで切るのは表示する行だけ。
+ */
+export function propertyPage<T>(rows: T[], page: number, size: number) {
+  const last = propertyPageCount(rows.length, size);
+  const current = Math.min(Math.max(1, Math.trunc(page)), last);
+  const from = (current - 1) * size;
+  return { current, last, from, rows: rows.slice(from, from + size) };
+}
+
 /** CSVの列。見出しと値をここだけで決め、列を足すときに片方を直し忘れないようにする。 */
 export const PROPERTY_CSV_COLUMNS: ReadonlyArray<{ header: string; value: (row: PropertyRow) => string }> = [
   { header: "顧客コード", value: (row) => row.clientCode },

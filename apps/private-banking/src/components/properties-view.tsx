@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Download, LoaderCircle, Search } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, LoaderCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Highlighted } from "@/components/highlighted";
@@ -11,11 +11,14 @@ import { yen } from "@/lib/format";
 import { categoryLabels, propertyTypeLabels, realEstateCategories } from "@/lib/portfolio-view";
 import {
   PROPERTY_FILTER_ALL,
+  PROPERTY_PAGE_SIZES,
+  PROPERTY_PAGE_SIZE_DEFAULT,
   type PropertyFilters,
   type PropertyRow,
   filterProperties,
   propertiesCsv,
   propertiesCsvFileName,
+  propertyPage,
 } from "@/lib/properties";
 
 /** 絞り込みの選択欄。科目・区分を同じ形で並べる。 */
@@ -36,6 +39,8 @@ export function PropertiesView() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<PropertyFilters>({ category: PROPERTY_FILTER_ALL, propertyType: PROPERTY_FILTER_ALL });
+  const [pageSize, setPageSize] = useState<number>(PROPERTY_PAGE_SIZE_DEFAULT);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     void (async () => {
@@ -55,6 +60,8 @@ export function PropertiesView() {
   const total = useMemo(() => filtered.reduce((sum, row) => sum + row.valueJpy, 0), [filtered]);
   const clientCount = useMemo(() => new Set(filtered.map((row) => row.householdId)).size, [filtered]);
   const narrowed = terms.length > 0 || filters.category !== PROPERTY_FILTER_ALL || filters.propertyType !== PROPERTY_FILTER_ALL;
+  // 描画するのはこのページのぶんだけ。全件を並べると行数に比例して表示が遅くなる。
+  const paged = useMemo(() => propertyPage(filtered, page, pageSize), [filtered, page, pageSize]);
 
   // 絞り込んだ結果をそのまま書き出す（画面に出ているものと中身を一致させる）。
   const downloadCsv = () => {
@@ -75,7 +82,7 @@ export function PropertiesView() {
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => { setQuery(event.target.value); setPage(1); }}
           placeholder="顧客名・所在地・名称・地目・担当者で検索"
         />
       </label>
@@ -93,12 +100,18 @@ export function PropertiesView() {
             <span>{field.label}</span>
             <select
               value={filters[field.key]}
-              onChange={(event) => setFilters((current) => ({ ...current, [field.key]: event.target.value }))}
+              onChange={(event) => { setFilters((current) => ({ ...current, [field.key]: event.target.value })); setPage(1); }}
             >
               <option value={PROPERTY_FILTER_ALL}>すべて</option>
               {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>)}
+          <label>
+            <span>表示件数</span>
+            <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
+              {PROPERTY_PAGE_SIZES.map((size) => <option key={size} value={size}>{size}件</option>)}
+            </select>
+          </label>
         </div>}
       />
       <div className="table-scroll">
@@ -110,7 +123,7 @@ export function PropertiesView() {
           <tbody>
             {filtered.length === 0
               ? <tr className="properties-empty-row"><td colSpan={7}>{rows.length === 0 ? "不動産の明細はまだ登録されていません。" : "条件に一致する不動産はありません。"}</td></tr>
-              : filtered.map((row) => <tr key={row.positionId}>
+              : paged.rows.map((row) => <tr key={row.positionId}>
                 <td data-label="顧客">
                   <Link className="properties-client-link" href={`/customers/${row.householdId}/positions`}>
                     <strong><Highlighted text={row.clientName} terms={terms} /></strong>
@@ -129,11 +142,23 @@ export function PropertiesView() {
               </tr>)}
           </tbody>
           <tfoot><tr>
-            <th scope="row" colSpan={6}>{narrowed ? "表示中の合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
+            <th scope="row" colSpan={6}>{narrowed ? "絞り込みの合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
             <td className="number">{yen.format(total)}</td>
           </tr></tfoot>
         </table>}
       </div>
+      {filtered.length === 0 ? null : <nav className="properties-pager" aria-label="不動産一覧のページ切り替え">
+        <p>{filtered.length}件中 {paged.from + 1}〜{paged.from + paged.rows.length}件目</p>
+        <div>
+          <button type="button" className="button secondary" onClick={() => setPage(paged.current - 1)} disabled={paged.current <= 1}>
+            <ChevronLeft />前へ
+          </button>
+          <span aria-live="polite">{paged.current} / {paged.last}ページ</span>
+          <button type="button" className="button secondary" onClick={() => setPage(paged.current + 1)} disabled={paged.current >= paged.last}>
+            次へ<ChevronRight />
+          </button>
+        </div>
+      </nav>}
     </article>
   </>;
 }
