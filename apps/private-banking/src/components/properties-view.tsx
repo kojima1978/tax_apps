@@ -30,6 +30,9 @@ const filterFields = [
 /** 面積は㎡までの整数・小数をそのまま出す（未入力は「－」）。 */
 const areaText = (area: number | null) => area === null ? "－" : `${area.toLocaleString("ja-JP", { maximumFractionDigits: 2 })}㎡`;
 
+/** 金額の未入力は「－」。0円の入力と区別する（路線価方式の土地は固定資産税評価額を持たない）。 */
+const yenText = (value: number | null) => value === null ? "－" : yen.format(value);
+
 /**
  * 全顧客の不動産一覧。現在年度のB/Sにある不動産の明細を横断で見て、
  * 絞り込んだ結果をそのままCSVへ書き出す。顧客ごとの明細を開き直す手間を省くための画面。
@@ -118,11 +121,12 @@ export function PropertiesView() {
         {rows === null ? <p className="properties-loading" role="status"><LoaderCircle className="spin" />読み込み中です…</p> : <table className="properties-table">
           <thead><tr>
             <th>顧客</th><th>科目・区分</th><th>名称・所在地</th><th>地目・用途</th>
-            <th className="number">面積</th><th className="number">持分</th><th className="number">評価額</th>
+            <th className="number">面積</th><th className="number">持分</th>
+            <th className="number">固定資産税評価額</th><th className="number">評価額</th>
           </tr></thead>
           <tbody>
             {filtered.length === 0
-              ? <tr className="properties-empty-row"><td colSpan={7}>{rows.length === 0 ? "不動産の明細はまだ登録されていません。" : "条件に一致する不動産はありません。"}</td></tr>
+              ? <tr className="properties-empty-row"><td colSpan={8}>{rows.length === 0 ? "不動産の明細はまだ登録されていません。" : "条件に一致する不動産はありません。"}</td></tr>
               : paged.rows.map((row) => <tr key={row.positionId}>
                 <td data-label="顧客">
                   <Link className="properties-client-link" href={`/customers/${row.householdId}/positions`}>
@@ -138,11 +142,12 @@ export function PropertiesView() {
                 <td data-label="地目・用途"><Highlighted text={row.useLabel || "－"} terms={terms} /></td>
                 <td data-label="面積" className="number">{areaText(row.area)}</td>
                 <td data-label="持分" className="number">{row.ownership}</td>
+                <td data-label="固定資産税評価額" className="number">{yenText(row.fixedAssetTaxValue)}</td>
                 <td data-label="評価額" className="number">{yen.format(row.valueJpy)}</td>
               </tr>)}
           </tbody>
           <tfoot><tr>
-            <th scope="row" colSpan={6}>{narrowed ? "絞り込みの合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
+            <th scope="row" colSpan={7}>{narrowed ? "絞り込みの合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
             <td className="number">{yen.format(total)}</td>
           </tr></tfoot>
         </table>}

@@ -37,6 +37,7 @@ export type PropertyRow = PropertyOwner & {
   useLabel: string;
   area: number | null;
   ownership: string;
+  fixedAssetTaxValue: number | null;
   valueJpy: number;
   valuationMethod: string;
   valuationDetail: string;
@@ -73,6 +74,7 @@ export function toPropertyRow(position: Position, owner: PropertyOwner): Propert
     useLabel: propertyUseLabel(position, propertyType),
     area: areaOf(position, propertyType),
     ownership: ownershipFraction(position),
+    fixedAssetTaxValue: position.fixedAssetTaxValue,
     valueJpy: position.valueJpy,
     valuationMethod: position.valuationMethod,
     valuationDetail: valuationBreakdown(position),
@@ -151,6 +153,7 @@ export const PROPERTY_CSV_COLUMNS: ReadonlyArray<{ header: string; value: (row: 
   { header: "地目・用途", value: (row) => row.useLabel },
   { header: "面積（㎡）", value: (row) => row.area === null ? "" : String(row.area) },
   { header: "持分", value: (row) => row.ownership },
+  { header: "固定資産税評価額（円）", value: (row) => row.fixedAssetTaxValue === null ? "" : String(row.fixedAssetTaxValue) },
   { header: "評価額（円）", value: (row) => String(row.valueJpy) },
   { header: "評価方法", value: (row) => row.valuationMethod },
   { header: "算式", value: (row) => row.valuationDetail },

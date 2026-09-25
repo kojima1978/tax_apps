@@ -48,14 +48,18 @@ describe("toPropertyRow", () => {
 
   it("建物は建物用途と床面積を出す", () => {
     const row = toPropertyRow(position({
-      category: "REAL_ESTATE", name: "賃貸アパート", valuationFormula: "BUILDING", landArea: null,
+      category: "REAL_ESTATE", name: "賃貸アパート", valuationFormula: "BUILDING", landArea: null, fixedAssetTaxValue: 12_000_000,
       assetDetails: { propertyType: "BUILDING", propertyAddress: "千葉県船橋市4-5", buildingType: "APARTMENT", floorArea: 245.5 },
     }), owner());
-    expect(row).toMatchObject({ categoryLabel: "収益不動産", propertyTypeLabel: "建物", useLabel: "共同住宅", area: 245.5 });
+    expect(row).toMatchObject({ categoryLabel: "収益不動産", propertyTypeLabel: "建物", useLabel: "共同住宅", area: 245.5, fixedAssetTaxValue: 12_000_000 });
   });
 
   it("未入力の面積は 0 と区別して null にする", () => {
     expect(toPropertyRow(position({ landArea: null }), owner()).area).toBeNull();
+  });
+
+  it("固定資産税評価額を持たない評価方法では null にする（路線価方式の土地）", () => {
+    expect(toPropertyRow(position({}), owner()).fixedAssetTaxValue).toBeNull();
   });
 });
 
@@ -118,6 +122,11 @@ describe("propertiesCsv", () => {
     const cells = csv.split("\r\n")[1];
     expect(cells).toContain('"A""棟"');
     expect(cells).toContain('"備考,あり"');
+  });
+
+  it("固定資産税評価額は列として書き出し、未入力は空欄にする", () => {
+    expect(csv.split("\r\n")[0]).toContain('"固定資産税評価額（円）","評価額（円）"');
+    expect(propertiesCsv(propertyRows([{ position: position({ valuationFormula: "BUILDING", fixedAssetTaxValue: 8_000_000 }), owner: owner() }])).split("\r\n")[1]).toContain('"8000000"');
   });
 
   it("明細が無くても見出しだけは書き出す", () => {

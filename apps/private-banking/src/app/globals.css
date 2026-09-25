@@ -1213,19 +1213,20 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .client-count { margin: 10px 2px 6px; color: var(--slate-500); font-size: 12px; font-weight: 700; }
 /* 不動産一覧（全顧客横断）。列が多いので表は横スクロールさせ、名称・所在地だけ折り返して読ませる。 */
 .properties-panel { margin-top: 14px; }
-.properties-table { width: 100%; min-width: 820px; }
-.properties-table th, .properties-table td { padding-inline: 7px; vertical-align: top; }
-.properties-table th { padding-block: 9px; letter-spacing: 0; }
-.properties-table td { padding-block: 9px; font-size: 11.5px; }
-.properties-table td small { margin-top: 2px; font-size: 10px; line-height: 1.4; }
+.properties-table { width: 100%; min-width: 860px; }
+.properties-table th, .properties-table td { padding-inline: 5px; vertical-align: top; }
+.properties-table th { padding-block: 8px; letter-spacing: 0; }
+.properties-table td { padding-block: 8px; font-size: 11px; }
+.properties-table td small { margin-top: 1px; font-size: 9.5px; line-height: 1.35; }
 /* 名称・所在地（3列目）だけ幅を決めず、残りを受け持たせる。 */
-.properties-table th:nth-child(1) { width: 16%; }
-.properties-table th:nth-child(2) { width: 104px; }
-.properties-table th:nth-child(4) { width: 78px; }
-.properties-table th:nth-child(5) { width: 92px; }
-.properties-table th:nth-child(6) { width: 88px; }
-.properties-table th:nth-child(7) { width: 112px; }
-.properties-table tfoot th { padding: 10px 7px; color: var(--navy-950); background: #f7f9fa; border: 0; font-size: 11px; font-weight: 800; text-align: right; }
+.properties-table th:nth-child(1) { width: 13%; }
+.properties-table th:nth-child(2) { width: 84px; }
+.properties-table th:nth-child(4) { width: 62px; }
+.properties-table th:nth-child(5) { width: 74px; }
+.properties-table th:nth-child(6) { width: 52px; }
+.properties-table th:nth-child(7) { width: 104px; }
+.properties-table th:nth-child(8) { width: 100px; }
+.properties-table tfoot th { padding: 9px 5px; color: var(--navy-950); background: #f7f9fa; border: 0; font-size: 11px; font-weight: 800; text-align: right; }
 /* ページ切り替え。合計行のすぐ下に置き、何件目を見ているかを左に出す。 */
 .properties-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--line); }
 .properties-pager p { margin: 0; color: var(--slate-500); font-size: 11px; font-weight: 600; }
@@ -1302,7 +1303,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .topbar h1 { font-size: 13px; }
   .content { width: calc(100% - 2mm); max-width: calc(100% - 2mm); margin: 0 2mm 0 0; padding: 1mm 0 0; overflow-x: clip; }
   .content, .dashboard-grid, .panel, .table-scroll, table { min-width: 0; max-width: 100%; box-sizing: border-box; }
-  .properties-table { min-width: 0; font-size: 10px; }
+  .properties-table { min-width: 0; font-size: 9px; }
   .page-heading:not(.detail-page-heading) { display: none; }
   .dashboard-grid { display: block; gap: 0; }
   .balance-report-series > .balance-panel { display: block !important; }
