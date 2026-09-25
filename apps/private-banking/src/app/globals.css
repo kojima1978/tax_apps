@@ -1224,6 +1224,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .properties-table th:nth-child(4) { width: 62px; }
 .properties-table th:nth-child(5) { width: 74px; }
 .properties-table th:nth-child(6) { width: 52px; }
+/* 持分だけ折り返しを許す（`.number` の nowrap のままだと分母の大きい行の幅で列が決まる）。 */
+.properties-table td:nth-child(6) { white-space: normal; }
 .properties-table th:nth-child(7) { width: 104px; }
 .properties-table th:nth-child(8) { width: 100px; }
 .properties-table tfoot th { padding: 9px 5px; color: var(--navy-950); background: #f7f9fa; border: 0; font-size: 11px; font-weight: 800; text-align: right; }

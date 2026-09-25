@@ -34,6 +34,15 @@ const areaText = (area: number | null) => area === null ? "－" : `${area.toLoca
 const yenText = (value: number | null) => value === null ? "－" : yen.format(value);
 
 /**
+ * 持分はスラッシュの後だけ折り返せるようにする。分母の大きい行（9,006/534,683 など）が
+ * 1行で収まらないと列がその幅まで広がってしまうため。数字の途中では切らない。
+ */
+const ownershipText = (ownership: string) => {
+  const [numerator, ...rest] = ownership.split("/");
+  return rest.length === 0 ? ownership : <>{numerator}/<wbr />{rest.join("/")}</>;
+};
+
+/**
  * 全顧客の不動産一覧。現在年度のB/Sにある不動産の明細を横断で見て、
  * 絞り込んだ結果をそのままCSVへ書き出す。顧客ごとの明細を開き直す手間を省くための画面。
  */
@@ -141,7 +150,7 @@ export function PropertiesView() {
                 </td>
                 <td data-label="地目・用途"><Highlighted text={row.useLabel || "－"} terms={terms} /></td>
                 <td data-label="面積" className="number">{areaText(row.area)}</td>
-                <td data-label="持分" className="number">{row.ownership}</td>
+                <td data-label="持分" className="number">{ownershipText(row.ownership)}</td>
                 <td data-label="固定資産税評価額" className="number">{yenText(row.fixedAssetTaxValue)}</td>
                 <td data-label="評価額" className="number">{yen.format(row.valueJpy)}</td>
               </tr>)}
