@@ -328,6 +328,9 @@ td small { color: var(--slate-500); font-size: 11px; }
 .position-table .category-tag { font-size: 10px; }
 .position-table tbody tr.position-row { cursor: pointer; }
 .position-table tbody tr.position-row:hover td { background: #f7fcf8; }
+/* 不動産一覧から送られてきた行の目印。クラスは 2.4 秒で外れる。 */
+@keyframes position-spotlight { from { background: #d9f7e4; box-shadow: inset 0 0 0 1px #86efac; } to { background: #f7fcf8; box-shadow: inset 0 0 0 1px transparent; } }
+.position-table tbody tr.position-row.is-spotlight td { animation: position-spotlight 2.4s ease-out forwards; }
 .position-name-button { display: block; max-width: 100%; padding: 0; color: var(--navy-950); background: transparent; border: 0; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
 .position-name-button:hover { color: #15803d; text-decoration: underline; text-underline-offset: 2px; }
 .position-name-button:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 1px; border-radius: 3px; }
@@ -1242,8 +1245,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .list-pager span { color: var(--navy-950); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .list-pager .button { min-height: 32px; padding: 5px 10px; font-size: 11px; }
 .list-pager .button:disabled { opacity: .45; cursor: not-allowed; }
-.properties-client-link { color: inherit; text-decoration: none; }
-.properties-client-link:hover strong { color: #15803d; text-decoration: underline; text-underline-offset: 2px; }
+/* 行のどこを押してもその明細へ移る。名称と顧客名はリンクなので、キーボードでも辿れる。 */
+.properties-table tbody tr.properties-row { cursor: pointer; }
+.properties-table tbody tr.properties-row:hover td { background: #f7fcf8; }
+.properties-client-link, .properties-position-link { color: inherit; text-decoration: none; }
+.properties-client-link:hover strong, .properties-position-link:hover strong { color: #15803d; text-decoration: underline; text-underline-offset: 2px; }
+.properties-client-link:focus-visible, .properties-position-link:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 1px; border-radius: 3px; }
 .properties-empty-row td { height: 88px; color: var(--slate-500); text-align: center; }
 .properties-loading { margin: 0; padding: 34px 16px; color: var(--slate-500); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; }
 .properties-loading svg { width: 16px; height: 16px; }

@@ -7,6 +7,7 @@ import {
   filterProperties,
   propertiesCsv,
   propertiesCsvFileName,
+  propertyPositionHref,
   propertyRows,
   toPropertyRow,
 } from "@/lib/properties";
@@ -58,6 +59,12 @@ describe("toPropertyRow", () => {
 
   it("固定資産税評価額を持たない評価方法では null にする（路線価方式の土地）", () => {
     expect(toPropertyRow(position({}), owner()).fixedAssetTaxValue).toBeNull();
+  });
+});
+
+describe("propertyPositionHref", () => {
+  it("その明細を開くURLにする（一覧は現在年度だけなので年度は付けない）", () => {
+    expect(propertyPositionHref(toPropertyRow(position({ id: 7 }), owner({ householdId: 3 })))).toBe("/customers/3/positions?position=7");
   });
 });
 

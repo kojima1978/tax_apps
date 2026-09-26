@@ -65,6 +65,15 @@ describe("AssetsView（行の操作）", () => {
     expect(onEdit).toHaveBeenCalledWith(snapshot.positions[0]);
   });
 
+  it("送られてきた明細の行に目印を付ける（修正は開かない）", () => {
+    const onEdit = vi.fn();
+    render(<AssetsView snapshot={snapshot} legalHeirNames={new Set()} onAdd={() => {}} onBulkManage={() => {}} onEdit={onEdit} onDelete={() => {}} onReorder={async () => true} saving={false} spotlightId={1} />);
+    // 不動産一覧からの送り先は id で探すので、行に id が付いていること自体が要件。
+    const row = document.getElementById("position-1") as HTMLElement;
+    expect(row.classList.contains("is-spotlight")).toBe(true);
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+
   it("削除ボタンは文字付きで、押しても修正は開かない", () => {
     const { onEdit, onDelete } = renderRow();
     const deleteButton = screen.getByRole("button", { name: "普通預金を削除" });

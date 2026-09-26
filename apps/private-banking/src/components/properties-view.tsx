@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Download, LoaderCircle, Search } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Highlighted } from "@/components/highlighted";
 import { ListPager, PageSizeSelect } from "@/components/list-pager";
@@ -18,6 +19,7 @@ import {
   filterProperties,
   propertiesCsv,
   propertiesCsvFileName,
+  propertyPositionHref,
 } from "@/lib/properties";
 
 /** 絞り込みの選択欄。科目・区分を同じ形で並べる。 */
@@ -52,6 +54,7 @@ export function PropertiesView() {
   const [filters, setFilters] = useState<PropertyFilters>({ category: PROPERTY_FILTER_ALL, propertyType: PROPERTY_FILTER_ALL });
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
   const [page, setPage] = useState(1);
+  const router = useRouter();
 
   useEffect(() => {
     void (async () => {
@@ -130,7 +133,11 @@ export function PropertiesView() {
           <tbody>
             {filtered.length === 0
               ? <tr className="properties-empty-row"><td colSpan={8}>{rows.length === 0 ? "不動産の明細はまだ登録されていません。" : "条件に一致する不動産はありません。"}</td></tr>
-              : paged.rows.map((row) => <tr key={row.positionId}>
+              : paged.rows.map((row) => <tr key={row.positionId} className="properties-row" onClick={(event) => {
+                // 行のどこを押してもその明細へ送る。行の中のリンク（顧客名・名称）はそちらを優先する。
+                if ((event.target as HTMLElement).closest("a")) return;
+                router.push(propertyPositionHref(row));
+              }}>
                 <td data-label="顧客">
                   <Link className="properties-client-link" href={`/customers/${row.householdId}/positions`}>
                     <strong><Highlighted text={row.clientName} terms={terms} /></strong>
@@ -139,7 +146,9 @@ export function PropertiesView() {
                 </td>
                 <td data-label="科目・区分"><span className="category-tag">{row.categoryLabel}</span>{row.propertyTypeLabel}</td>
                 <td data-label="名称・所在地">
-                  <strong><Highlighted text={row.name} terms={terms} /></strong>
+                  <Link className="properties-position-link" href={propertyPositionHref(row)}>
+                    <strong><Highlighted text={row.name} terms={terms} /></strong>
+                  </Link>
                   <small><Highlighted text={row.address} terms={terms} /></small>
                 </td>
                 <td data-label="地目・用途"><Highlighted text={row.useLabel || "－"} terms={terms} /></td>

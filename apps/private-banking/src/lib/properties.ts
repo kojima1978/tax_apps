@@ -44,6 +44,12 @@ export type PropertyRow = PropertyOwner & {
   note: string;
 };
 
+/**
+ * その明細を開くためのURL。一覧に載るのは各顧客の現在年度の明細だけなので、
+ * 年度（?snapshot=）は付けない（付けなければ明細画面は現在年度を開く）。
+ */
+export const propertyPositionHref = (row: PropertyRow) => `/customers/${row.householdId}/positions?position=${row.positionId}`;
+
 /** 検索対象になる項目。表示側のハイライトもこの項目に対して行う。 */
 export const PROPERTY_SEARCH_FIELDS = [
   "clientName", "clientNameKana", "clientCode", "assignedStaff",
