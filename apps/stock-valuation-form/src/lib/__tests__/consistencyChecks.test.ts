@@ -102,8 +102,33 @@ describe('consistencyIssues', () => {
     expect(split).toHaveLength(1);
     expect(split[0]).toMatchObject({ tab: 'table4_1', field: 'e18' });
     expect(split[0]!.message).toContain('別々に選べる');
-    // 同じ側を採っているなら出さない（誤りではないので、分かれたときだけ知らせる）
-    expect(messagesOf({ table4: { '①': '10000', e18: '100', e25: '500', c1_mode: 'single' } })).toEqual([]);
+    // 同じ側を採っているなら出さない（誤りではないので、分かれたときだけ知らせる）。
+    // 手で固定したこと自体は別の確認事項になるので、ここでは採り方の食い違いだけを見る
+    const pinned = messagesOf({ table4: { '①': '10000', e18: '100', e25: '500', c1_mode: 'single' } });
+    expect(pinned.filter((m) => m.includes('別々に選べる'))).toEqual([]);
+  });
+
+  it('年利益金額の採り方を手で固定していたら、自動に戻せることを出す', () => {
+    // 固定は案件データに残り様式には出ないので、開き直した人が気づける口がここしかない
+    expect(messagesOf({ table4: { c1_mode: 'single' } })).toEqual([
+      'Ⓒ₁（比準要素数１・０の会社の判定要素）は「直前期の利益金額」に手で固定しています。'
+      + '自動（0を避ける方）に戻すには、第４表の１のⒸ₁の算式で、固定中の分数をもう一度クリックしてください。',
+    ]);
+    // Ⓒは自動の向きが逆（低い方）。Ⓒ₂は直前々期基準
+    expect(messagesOf({ table4: { c_mode: 'avg' } })[0]).toContain('「直前期末以前2年間の平均額」に手で固定');
+    expect(messagesOf({ table4: { c_mode: 'avg' } })[0]).toContain('自動（低い方）に戻すには');
+    expect(messagesOf({ table4: { c2_mode: 'single' } })[0]).toContain('「直前々期の利益金額」に手で固定');
+    // 3欄それぞれ独立に出る。移動先は直前期＝㊁の欄、直前々期＝㋭の欄
+    // （ⒸとⒸ₁で採り方を分けると採り方の食い違いの確認事項も並ぶので、ここは同じ側で固定する）
+    const all = consistencyIssues(makeGetField({ table4: { c_mode: 'single', c1_mode: 'single', c2_mode: 'single' } }));
+    expect(all.map((i) => i.field)).toEqual(['e18', 'e18', 'e25']);
+    expect(all.map((i) => i.where)).toEqual([
+      '第４表の１ Ⓒ 年利益金額の採り方',
+      '第４表の１ Ⓒ₁ 年利益金額の採り方',
+      '第４表の１ Ⓒ₂ 年利益金額の採り方',
+    ]);
+    // 自動（空）に戻せば消える
+    expect(messagesOf({ table4: { c_mode: '', c1_mode: '', c2_mode: '' } })).toEqual([]);
   });
 });
 

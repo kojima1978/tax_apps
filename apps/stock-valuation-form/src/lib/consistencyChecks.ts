@@ -72,6 +72,23 @@ const DIVIDEND_ROWS = [
 ] as const;
 
 /**
+ * 年利益金額の「単年 / ２年平均」を手で固定している欄（第4表の1のⒸ・Ⓒ₁・Ⓒ₂）。
+ *
+ * 固定は案件データ（c_mode / c1_mode / c2_mode）に残るが、様式の上には何も出ない。
+ * 解除の道は「固定中の分数をもう一度クリック」だけで、反対側を押しても固定が移るだけなので、
+ * 何か月か後に開いた人は自動（Ⓒは低い方、Ⓒ₁Ⓒ₂は0を避ける方）が効いていないことに気づけない。
+ * 誤りではないので確認事項として出すだけにする。
+ */
+const PROFIT_MODE_PINS = [
+  { field: 'c_mode', jump: 'e18', name: 'Ⓒ', role: '類似業種比準価額の比準要素', auto: '低い方',
+    single: '直前期の利益金額', avg: '直前期末以前2年間の平均額' },
+  { field: 'c1_mode', jump: 'e18', name: 'Ⓒ₁', role: '比準要素数１・０の会社の判定要素', auto: '0を避ける方',
+    single: '直前期の利益金額', avg: '直前期末以前2年間の平均額' },
+  { field: 'c2_mode', jump: 'e25', name: 'Ⓒ₂', role: '比準要素数１・０の会社の判定要素', auto: '0を避ける方',
+    single: '直前々期の利益金額', avg: '直前々期末以前2年間の平均額' },
+] as const;
+
+/**
  * 入力値の整合チェック。様式の記載を妨げないよう、あくまで「確認事項」の一覧を返す。
  * 移動先には手入力できる欄を指定する（自動計算欄へ飛ばしても直せないため）。
  * 表示は「第４表の１」でもデータは table4 に入るので、読み出しはバケット側で行う。
@@ -148,6 +165,15 @@ export function consistencyIssues(getField: TableProps['getField']): Consistency
       `Ⓒは「${how(t4.cvSide)}」、Ⓒ₁は「${how(t4.c1baseSide)}」を基にしています。`
       + 'Ⓒ（類似業種比準価額の比準要素）とⒸ₁（比準要素数１の会社の判定要素）は納税義務者が別々に選べるため'
       + '誤りではありませんが、意図した組み合わせかご確認ください。');
+  }
+
+  // ── 第4表の1：年利益金額の採り方を手で固定している（自動に戻せることを出す） ──
+  for (const pin of PROFIT_MODE_PINS) {
+    const mode = getField('table4', pin.field);
+    if (mode !== 'single' && mode !== 'avg') continue;
+    add('table4_1', pin.jump, `第４表の１ ${pin.name} 年利益金額の採り方`,
+      `${pin.name}（${pin.role}）は「${mode === 'single' ? pin.single : pin.avg}」に手で固定しています。`
+      + `自動（${pin.auto}）に戻すには、第４表の１の${pin.name}の算式で、固定中の分数をもう一度クリックしてください。`);
   }
 
   // ── 第5表と他表のつながり ──
