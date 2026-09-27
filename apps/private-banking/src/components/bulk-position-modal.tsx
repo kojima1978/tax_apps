@@ -19,7 +19,7 @@ import {
 } from "@/lib/portfolio-view";
 
 type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING" | "INSURANCE" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
-type BulkField = "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "note";
+type BulkField = "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "floorArea" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "note";
 type BulkRow = Record<BulkField, string> & { id: number; positionId: number | null; error: string; errorFields: BulkField[] };
 /** conditional は「どの方式のときに使う欄か」。見出しの札と、使わない方式で無効にした欄の説明にそのまま出す。 */
 type BulkColumn = { key: BulkField; label: string; numeric?: boolean; required?: boolean; conditional?: string; kind?: "category" | "formula" | "landCategory" | "buildingType" | "accountType"; width?: string };
@@ -106,7 +106,7 @@ function createBulkRow(id: number, positionId: number | null = null): BulkRow {
   return {
     id, positionId, error: "", errorFields: [], category: "REAL_ESTATE", valuationFormula: "STOCK", name: "", institution: "",
     accountType: "ORDINARY", policyNumber: "", insuredPerson: "", benefit: "", recipient: "", address: "", landCategory: "", buildingType: "",
-    quantity: "", unitPrice: "", landArea: "", roadsideValue: "", fixedAssetTaxValue: "", multiplier: "1.0",
+    floorArea: "", quantity: "", unitPrice: "", landArea: "", roadsideValue: "", fixedAssetTaxValue: "", multiplier: "1.0",
     adjustmentRate: "1.0", ownershipNumerator: "1", ownershipDenominator: "1", originalAmount: "", note: "",
   };
 }
@@ -151,6 +151,7 @@ function bulkRowFromPosition(position: Position): BulkRow {
     address: details.propertyAddress ?? "",
     landCategory: details.landCategory ?? "",
     buildingType: details.buildingType ?? "",
+    floorArea: bulkNumber(details.floorArea),
     quantity: bulkNumber(position.valuationQuantity, 6),
     unitPrice: bulkNumber(position.valuationUnitPrice),
     landArea: bulkNumber(position.landArea, 6),
@@ -259,6 +260,7 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
     } else {
       basic.push(
         { key: "buildingType", label: "用途", kind: "buildingType", width: "104px" },
+        { key: "floorArea", label: "床面積（㎡）", numeric: true, width: "84px" },
         { key: "valuationFormula", label: "方式", required: true, kind: "formula", width: "112px" },
         { key: "fixedAssetTaxValue", label: "固定資産税評価額（円）", numeric: true, width: "124px" },
         { key: "multiplier", label: "倍率", numeric: true, conditional: "固定資産税", width: "64px" },
@@ -447,11 +449,11 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
     const fieldLabels: Partial<Record<BulkField, string>> = {
       category: "科目", valuationFormula: "方式", name: "名称", institution: "金融機関等", address: "所在地",
       policyNumber: "証券番号", insuredPerson: "被保険者", benefit: "給付金額", recipient: "受取人",
-      quantity: "株数・口数", unitPrice: "単価", landArea: "面積", roadsideValue: "路線価",
+      quantity: "株数・口数", unitPrice: "単価", landArea: "面積", floorArea: "床面積", roadsideValue: "路線価",
       fixedAssetTaxValue: "固定資産税評価", multiplier: "倍率", adjustmentRate: "調整率",
       ownershipNumerator: "持分子", ownershipDenominator: "持分母", originalAmount: "直接入力額",
     };
-    const numericFields = new Set<BulkField>(["quantity", "unitPrice", "landArea", "roadsideValue", "fixedAssetTaxValue", "multiplier", "adjustmentRate", "ownershipNumerator", "ownershipDenominator", "originalAmount"]);
+    const numericFields = new Set<BulkField>(["quantity", "unitPrice", "landArea", "floorArea", "roadsideValue", "fixedAssetTaxValue", "multiplier", "adjustmentRate", "ownershipNumerator", "ownershipDenominator", "originalAmount"]);
     const checkedRowsByType = Object.fromEntries(bulkEntryTypes.map((type) => [type, rowsByType[type].map((row) => {
       if (!activeRowsByType[type].includes(row)) return { ...row, error: "", errorFields: [] };
       const requiredFields = requiredFieldsForRow(row, type);
@@ -522,7 +524,8 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
           : {
             propertyType: rowIsLand ? "LAND" : "BUILDING",
             propertyAddress: row.address.trim(),
-            ...(rowIsLand ? { landCategory: row.landCategory.trim() } : { buildingType: row.buildingType.trim() }),
+            // 床面積は未入力なら項目ごと持たせない（0㎡として残さない）。
+            ...(rowIsLand ? { landCategory: row.landCategory.trim() } : { buildingType: row.buildingType.trim(), ...(numberOrNull(row.floorArea) === null ? {} : { floorArea: numberOrNull(row.floorArea) }) }),
           },
         note: row.note.trim(),
       };

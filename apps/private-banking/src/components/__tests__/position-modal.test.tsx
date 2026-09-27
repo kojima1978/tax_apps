@@ -42,6 +42,19 @@ describe("PositionModal（明細を追加）", () => {
     expect(submitted[0]).toMatchObject({ originalAmount: "86400000", valuationFormula: "LAND_ROADSIDE" });
   });
 
+  it("建物では床面積を入力でき、評価額の計算には使わない", () => {
+    const { form, submitted, summary } = renderModal();
+    fireEvent.change(screen.getByLabelText("中分類"), { target: { value: "不動産" } });
+    fireEvent.change(screen.getByLabelText("資産区分"), { target: { value: "BUILDING" } });
+    typeIn("床面積（㎡）", "120.5");
+    typeIn("固定資産税評価額（円）", "8000000");
+    typeIn("倍率", "1.1");
+    typeIn("調整率", "1.0");
+    expect(summary()).toBe("8,800,000 円");
+    fireEvent.submit(form);
+    expect(submitted[0]).toMatchObject({ "assetDetail.floorArea": "120.5", valuationFormula: "BUILDING" });
+  });
+
   it("算式が使う値が未入力なら、その入力欄へ移るボタンを出す", () => {
     renderModal();
     fireEvent.change(screen.getByLabelText("中分類"), { target: { value: "不動産" } });

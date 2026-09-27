@@ -226,6 +226,29 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     }));
   });
 
+  it("建物は床面積を列として出し、assetDetails へ入れる", async () => {
+    const onSubmit = renderModal();
+    selectEntryType("BUILDING");
+    typeIn(1, "名称", "自宅家屋");
+    typeIn(1, "所在地", "東京都港区1-2-3");
+    typeIn(1, "床面積（㎡）", "120.5");
+    typeIn(1, "固定資産税評価額（円）", "8,000,000");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).toMatchObject({ propertyType: "BUILDING", floorArea: 120.5 });
+  });
+
+  it("床面積が空欄の建物は、項目ごと持たせない", async () => {
+    const onSubmit = renderModal();
+    selectEntryType("BUILDING");
+    typeIn(1, "名称", "倉庫");
+    typeIn(1, "所在地", "東京都港区1-2-4");
+    typeIn(1, "固定資産税評価額（円）", "3,000,000");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).not.toHaveProperty("floorArea");
+  });
+
   it("種類をまたいで入力した行をまとめて保存する", async () => {
     const onSubmit = renderModal();
     selectEntryType("INSURANCE");

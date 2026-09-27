@@ -236,10 +236,14 @@ function AssetSpecificFields({
       <LandCategoryField defaultValue={details.landCategory ?? ""} />
       <label>面積（㎡）<CommaNumberInput name="landArea" defaultValue="" value={landArea} onValueChange={onLandAreaChange} maxFractionDigits={4} placeholder="" positive required={formula === "LAND_ROADSIDE"} /></label>
       <div className="wide"><label>小規模宅地等の特例（概算）<select name="assetDetail.smallLotType" defaultValue={details.smallLotType ?? ""}><option value="">適用しない</option>{smallLotTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}（{option.detail}）</option>)}</select></label><FieldNote summary="特例の反映について">選択すると相続税の概算計算で減額割合を反映します（限度面積を超える分は按分）。要件充足の可否は別途ご確認ください。</FieldNote></div>
-    </> : <BuildingTypeField defaultValue={details.buildingType ?? ""} />}
+    </> : <>
+      <BuildingTypeField defaultValue={details.buildingType ?? ""} />
+      {/* 建物は固定資産税評価額から評価するので、床面積は計算に使わない（記録と一覧表示のため）。 */}
+      <label>床面積（㎡）<CommaNumberInput name="assetDetail.floorArea" defaultValue={details.floorArea ?? ""} maxFractionDigits={2} placeholder="" positive required={false} /></label>
+    </>}
     <label>固定資産税評価額（円）<CommaNumberInput name="fixedAssetTaxValue" defaultValue="" value={fixedAssetTaxValue} onValueChange={onFixedAssetTaxValueChange} maxFractionDigits={2} placeholder="" positive required={formula === "LAND_MULTIPLIER" || formula === "BUILDING"} /></label>
     <OwnershipFractionInput numerator={ownershipNumerator} denominator={ownershipDenominator} onNumeratorChange={onOwnershipNumeratorChange} onDenominatorChange={onOwnershipDenominatorChange} />
-  </div><FieldNote summary="土地と建物の登録について">土地と建物は別明細で登録します。面積・固定資産税評価額・持分は、選択した評価方法へ自動反映されます。</FieldNote></fieldset>;
+  </div><FieldNote summary="土地と建物の登録について">土地と建物は別明細で登録します。面積・固定資産税評価額・持分は、選択した評価方法へ自動反映されます。建物の床面積は記録用で、評価額の計算には使いません。</FieldNote></fieldset>;
 
   if (category === "INSURANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>生命保険の情報</legend><div className="asset-detail-grid">
     <PersonSelect label="被保険者" name="assetDetail.insuredPerson" value={details.insuredPerson ?? ""} people={people} />
