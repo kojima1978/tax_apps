@@ -37,7 +37,7 @@ export type PositionSection = "ASSET" | "LIABILITY" | "CONTINGENT";
 export type PositionSortMode = "manual" | "classification-asc" | "classification-desc";
 export type ValuationFormula = "MANUAL" | "STOCK" | "UNIT_RATE" | "LAND_ROADSIDE" | "LAND_MULTIPLIER" | "BUILDING";
 export type Portfolio = {
-  household: { id: number; clientCode: string; name: string; nameKana: string; birthDate: string | null; assignedStaff: string; currency: string };
+  household: { id: number; clientCode: string; name: string; nameKana: string; birthDate: string | null; assignedStaff: string; relatedCompany: string; currency: string };
   planning: {
     estimatedInheritanceTax: number; otherTaxes: number; successionCosts: number; inheritanceTaxUpdatedAt: string | null;
     hasSpouse: boolean; heirRank: "none" | "rank1" | "rank2" | "rank3"; heirCount: number;

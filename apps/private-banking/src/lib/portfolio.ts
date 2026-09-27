@@ -69,6 +69,7 @@ export async function getPortfolio(householdId?: number) {
       nameKana: household.nameKana,
       birthDate: household.birthDate?.toISOString().slice(0, 10) ?? null,
       assignedStaff: household.assignedStaff,
+      relatedCompany: household.relatedCompany,
       currency: household.currency,
     },
     planning: {

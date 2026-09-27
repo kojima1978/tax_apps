@@ -4,11 +4,12 @@ export type ClientSummary = {
   name: string;
   nameKana: string;
   assignedStaff: string;
+  relatedCompany: string;
   latestFiscalYear: number | null;
 };
 
 /** 顧客の検索対象になる項目。表示側のハイライトもこの順で扱う。 */
-export const CLIENT_SEARCH_FIELDS = ["name", "nameKana", "clientCode", "assignedStaff"] as const;
+export const CLIENT_SEARCH_FIELDS = ["name", "nameKana", "clientCode", "assignedStaff", "relatedCompany"] as const;
 
 const KATAKANA_OFFSET = 0x60;
 

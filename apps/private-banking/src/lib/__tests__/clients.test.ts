@@ -14,6 +14,7 @@ const client = (overrides: Partial<ClientSummary> = {}): ClientSummary => ({
   name: "山田 太郎",
   nameKana: "ヤマダ タロウ",
   assignedStaff: "佐藤",
+  relatedCompany: "",
   latestFiscalYear: 2025,
   ...overrides,
 });
@@ -68,6 +69,13 @@ describe("matchesClient", () => {
     expect(matchesClient(client(), searchTerms("pb-000001"))).toBe(true);
   });
 
+  it("関連法人の名称でも当たる（部分一致・法人のカナは持たない）", () => {
+    const withCompany = client({ relatedCompany: "株式会社山田商店" });
+    expect(matchesClient(withCompany, searchTerms("山田商店"))).toBe(true);
+    expect(matchesClient(withCompany, searchTerms("株式会社"))).toBe(true);
+    expect(matchesClient(client(), searchTerms("山田商店"))).toBe(false);
+  });
+
   it("複数の検索語は AND、項目はまたいでよい", () => {
     expect(matchesClient(client(), searchTerms("やまだ 佐藤"))).toBe(true);
     expect(matchesClient(client(), searchTerms("やまだ 鈴木"))).toBe(false);
@@ -78,6 +86,7 @@ describe("filterClients", () => {
   const clients = [
     client({ id: 1, name: "山田 太郎", nameKana: "ヤマダ タロウ", clientCode: "PB-000001" }),
     client({ id: 2, name: "鈴木 花子", nameKana: "スズキ ハナコ", clientCode: "PB-000002", assignedStaff: "田中" }),
+    client({ id: 3, name: "高橋 次郎", nameKana: "タカハシ ジロウ", clientCode: "PB-000003", relatedCompany: "有限会社タカハシ工務店" }),
   ];
 
   it("検索語なしでは元の配列をそのまま返す", () => {
@@ -86,6 +95,10 @@ describe("filterClients", () => {
 
   it("一致する顧客だけ残す", () => {
     expect(filterClients(clients, searchTerms("すずき")).map((item) => item.id)).toEqual([2]);
+  });
+
+  it("関連法人で絞り込める", () => {
+    expect(filterClients(clients, searchTerms("工務店")).map((item) => item.id)).toEqual([3]);
   });
 });
 

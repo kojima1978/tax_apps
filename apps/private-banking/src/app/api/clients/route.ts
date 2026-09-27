@@ -3,6 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { defaultAsOfDate, isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
 
+/** 顧客一覧（ClientSummary）が必要とする列。GET・POST・PATCH で同じ形を返す。 */
+const clientSummarySelect = { id: true, clientCode: true, name: true, nameKana: true, assignedStaff: true, relatedCompany: true } as const;
+
 const clientFieldsSchema = z.object({
   name: z.string().trim().min(1, "顧客名を入力してください。").max(100),
   nameKana: z.string().trim().max(100).optional().default(""),
@@ -26,6 +29,8 @@ const createClientSchema = clientFieldsSchema.extend({
 
 const updateClientSchema = clientFieldsSchema.extend({
   id: z.coerce.number().int().positive(),
+  // 関連法人は本人情報の画面だけで編集する（検索と記録のためだけの任意項目）。
+  relatedCompany: z.string().trim().max(100).optional().default(""),
   birthDate: z.string().default("").refine(
     (value) => value === "" || parseDateOnlyUtc(value) !== null,
     "生年月日は正しい日付を入力してください。",
@@ -41,11 +46,7 @@ const deleteClientSchema = z.object({
 export async function GET() {
   const clients = await prisma.household.findMany({
     select: {
-      id: true,
-      clientCode: true,
-      name: true,
-      nameKana: true,
-      assignedStaff: true,
+      ...clientSummarySelect,
       snapshots: { orderBy: { fiscalYear: "desc" }, take: 1, select: { fiscalYear: true } },
     },
     orderBy: [{ name: "asc" }, { id: "asc" }],
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
           },
         },
       },
-      select: { id: true, clientCode: true, name: true, nameKana: true, assignedStaff: true },
+      select: clientSummarySelect,
     });
     return NextResponse.json({ ...created, latestFiscalYear: parsed.data.fiscalYear }, { status: 201 });
   } catch (error) {
@@ -97,7 +98,7 @@ export async function PATCH(request: Request) {
         birthDate: birthDate ? parseDateOnlyUtc(birthDate) : null,
         clientCode: fields.clientCode.toUpperCase(),
       },
-      select: { id: true, clientCode: true, name: true, nameKana: true, assignedStaff: true },
+      select: clientSummarySelect,
     });
     return NextResponse.json(updated);
   } catch (error) {

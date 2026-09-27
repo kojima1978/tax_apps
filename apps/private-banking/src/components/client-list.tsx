@@ -183,7 +183,7 @@ export function ClientList() {
             value={query}
             onChange={(event) => { setQuery(event.target.value); setActiveIndex(0); }}
             onKeyDown={handleSearchKeys}
-            placeholder="顧客名・カナ・顧客コード・担当者で検索"
+            placeholder="顧客名・カナ・顧客コード・担当者・関連法人で検索"
           />
         </label>
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
@@ -220,6 +220,7 @@ export function ClientList() {
           <small className="client-list-meta">
             {client.nameKana ? <><Highlighted text={client.nameKana} terms={terms} /> ・ </> : null}
             {client.assignedStaff ? <>担当 <Highlighted text={client.assignedStaff} terms={terms} /></> : "担当者未設定"}
+            {client.relatedCompany ? <> ・ 関連法人 <Highlighted text={client.relatedCompany} terms={terms} /></> : null}
           </small>
           <span className="client-list-year">{client.latestFiscalYear ? `${client.latestFiscalYear}年度` : "年度なし"}</span>
           <ChevronRight />

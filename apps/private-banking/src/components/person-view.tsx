@@ -36,7 +36,7 @@ export function PersonView({
       <header className="panel-header">
         <div>
           <h3 id="person-information-title">基本情報</h3>
-          <p>氏名・生年月日・担当情報</p>
+          <p>氏名・生年月日・担当情報・関連法人</p>
         </div>
         <CircleUserRound aria-hidden="true" />
       </header>
@@ -50,6 +50,8 @@ export function PersonView({
           </div>
           <label>顧客コード<span className="required-mark">必須</span><input name="clientCode" required maxLength={30} pattern="(?:[A-Za-z0-9_]|-)+" defaultValue={household.clientCode} /></label>
           <label>担当者<input name="assignedStaff" maxLength={100} defaultValue={household.assignedStaff} placeholder="例：佐藤税理士" /></label>
+          {/* 関連法人は任意。顧客一覧の検索対象になるだけで、計算や印刷には使わない。 */}
+          <label>関連法人<input name="relatedCompany" maxLength={100} defaultValue={household.relatedCompany} placeholder="例：株式会社山田商店" /></label>
         </div>
         <div id="person-birth-date-help" className="person-reference-note">
           <CalendarDays aria-hidden="true" />

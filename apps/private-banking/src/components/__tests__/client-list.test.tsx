@@ -7,8 +7,8 @@ const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const clients = [
-  { id: 1, name: "テスト顧客A", clientCode: "PB-001", nameKana: "", assignedStaff: "", latestFiscalYear: 2026 },
-  { id: 2, name: "テスト顧客B", clientCode: "PB-002", nameKana: "", assignedStaff: "", latestFiscalYear: 2026 },
+  { id: 1, name: "テスト顧客A", clientCode: "PB-001", nameKana: "", assignedStaff: "", relatedCompany: "", latestFiscalYear: 2026 },
+  { id: 2, name: "テスト顧客B", clientCode: "PB-002", nameKana: "", assignedStaff: "", relatedCompany: "", latestFiscalYear: 2026 },
 ];
 const portfolio = { household: clients[0], snapshots: [{ positions: [{ id: 1 }, { id: 2 }] }, { positions: [{ id: 3 }] }] };
 const response = (data: unknown, ok = true) => ({ ok, json: async () => data });
@@ -116,6 +116,18 @@ describe("顧客一覧の表示", () => {
     expect(document.activeElement).toBe(within(menu).getByRole("menuitem", { name: "貸借対照表を開く" }));
   });
 
+  it("関連法人を行に出し、その名称で検索できる", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response([
+      { ...clients[0], relatedCompany: "株式会社テスト商店" },
+      clients[1],
+    ])));
+    render(<ClientList />);
+    expect((await screen.findByText(/関連法人 株式会社テスト商店/)).className).toBe("client-list-meta");
+    fireEvent.change(searchBox(), { target: { value: "テスト商店" } });
+    expect(rowCount()).toBe(1);
+    expect(screen.getByRole("link", { name: /テスト顧客A/ })).toBeTruthy();
+  });
+
   it("件数を画面に出し、検索中は全件数も添える", async () => {
     render(<ClientList />);
     expect((await screen.findByText("全2件")).className).toBe("client-count");
@@ -127,7 +139,7 @@ describe("顧客一覧の表示", () => {
 describe("顧客一覧のページ切り替え", () => {
   const many = Array.from({ length: 30 }, (_, index) => ({
     id: index + 1, name: `顧客${index + 1}`, clientCode: `PB-${String(index + 1).padStart(3, "0")}`,
-    nameKana: "", assignedStaff: "", latestFiscalYear: 2026,
+    nameKana: "", assignedStaff: "", relatedCompany: "", latestFiscalYear: 2026,
   }));
 
   beforeEach(() => { vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(many))); });
