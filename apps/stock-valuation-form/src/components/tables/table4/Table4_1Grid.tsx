@@ -18,6 +18,13 @@ const CW = 1.89; // 標準コード／記号セル幅
 /** 医療法人（持分あり）では入力させない年配当金額の入力欄（⑥⑦の3期分） */
 const DIVIDEND_INPUT_FIELDS = new Set(['f28', 'f29', 'f32', 'f33', 'f36', 'f37']);
 
+/** 年利益金額の「単年／２年平均」を手で固定する欄（Ⓒ＝比準要素、Ⓒ₁Ⓒ₂＝比準要素数１／０の判定要素） */
+const PROFIT_MODE_FIELDS = [
+  { field: 'c_mode', name: 'Ⓒ' },
+  { field: 'c1_mode', name: 'Ⓒ₁' },
+  { field: 'c2_mode', name: 'Ⓒ₂' },
+] as const;
+
 /** [コードセル][値入力] を生成（コード左＝値左−CW） */
 function ci(field: string, code: string, top: number, h: number, valL: number, valEnd: number, extra: Partial<GridCell> = {}): GridCell[] {
   return [
@@ -242,6 +249,21 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
   const cells = CELLS.map((cell) => {
     if (medical && cell.field && DIVIDEND_INPUT_FIELDS.has(cell.field)) {
       return { ...cell, readOnly: true, calculationRequired: false };
+    }
+    // 年利益金額の列見出し。この列の3欄（Ⓒ₁・Ⓒ₂・Ⓒ）のどれかを手で固定している間だけ出す。
+    // 固定は案件データに残るだけで様式の上には何も出ないので、戻す口を様式の上にも置く
+    // （整合性チェックは「気づく」口、こちらは「戻す」口）。印刷には出ない
+    if (cell.kind === 'label' && cell.text === '１株（50円）当たりの年利益金額の計算') {
+      const pinned = PROFIT_MODE_FIELDS.filter((p) => pinnedSide(p.field) !== undefined);
+      if (pinned.length === 0) return cell;
+      return {
+        ...cell,
+        rightButton: {
+          label: '自動に戻す',
+          title: `${pinned.map((p) => p.name).join('・')}を手で固定中。押すとⒸ・Ⓒ₁・Ⓒ₂とも自動（Ⓒは低い方、Ⓒ₁Ⓒ₂は0を避ける方）に戻します`,
+          onClick: () => PROFIT_MODE_FIELDS.forEach((p) => u(p.field, '')),
+        },
+      };
     }
     // Ⓒ（比準要素）。Ⓒ₁と別に選べる
     if (cell.kind === 'label' && cell.text?.startsWith('１株（50円）当たりの年利益金額［') && cell.alternativeFractions) {

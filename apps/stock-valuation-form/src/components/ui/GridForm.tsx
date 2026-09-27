@@ -35,6 +35,7 @@ export interface GridCell {
   bottomLabelAlign?: 'left' | 'right'; // セル下部の固定注記の配置
   bottomSegments?: { text: string; width: number }[]; // 直下の複数セル幅に合わせた下部注記
   rightLabel?: string;               // セルの右端中央に表示する固定ラベル
+  rightButton?: { label: string; title?: string; onClick: () => void }; // セルの右端中央に置く操作ボタン（様式には無いので画面だけ）
   integerDigits?: number;            // 数字のみの最大桁数
   commaInteger?: boolean;            // 整数を3桁区切りカンマで表示
   signedCommaInteger?: boolean;      // マイナスを許可する整数を3桁区切りカンマで表示
@@ -670,7 +671,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             gridColumn: c.exactPosition ? undefined : `${cs} / ${ce}`,
             gridRow: c.exactPosition ? undefined : `${rs} / ${re}`,
             border: isDragHandle ? '0.5px solid #64748b' : '0.5px solid #000',
-            position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.codeLabel || c.topRightLabel || c.bottomLabel || c.bottomSegments || c.rightLabel ? 'relative' : undefined,
+            position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.codeLabel || c.topRightLabel || c.bottomLabel || c.bottomSegments || c.rightLabel || c.rightButton ? 'relative' : undefined,
             top: c.exactPosition ? `${((c.top - bounds.top) / bounds.height) * 100}%` : undefined,
             left: c.exactPosition ? `${((c.left - bounds.left) / bounds.width) * 100}%` : undefined,
             width: c.exactPosition ? `${(c.width / bounds.width) * 100}%` : undefined,
@@ -697,6 +698,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             {c.bottomLabel && <span style={{ position: 'absolute', right: 2, bottom: 2, left: 2, fontSize: 6, lineHeight: 1, textAlign: c.bottomLabelAlign ?? 'left', pointerEvents: 'none' }}>{c.bottomLabel}</span>}
             {c.bottomSegments && <span style={{ position: 'absolute', right: 0, bottom: 2, left: 0, display: 'grid', gridTemplateColumns: c.bottomSegments.map((segment) => `${segment.width}fr`).join(' '), fontSize: 6, lineHeight: 1, pointerEvents: 'none' }}>{c.bottomSegments.map((segment, segmentIndex) => <span key={`${segment.text}-${segmentIndex}`} style={{ boxSizing: 'border-box', paddingRight: 2, textAlign: 'right' }}>{segment.text}</span>)}</span>}
             {c.rightLabel && <span style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.rightLabel}</span>}
+            {c.rightButton && !printRendering && <button type="button" title={c.rightButton.title} aria-label={c.rightButton.title ? `${c.rightButton.label}（${c.rightButton.title}）` : undefined} onClick={c.rightButton.onClick} style={{ position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)', fontSize: 6, lineHeight: 1.1, padding: '1px 3px', border: '0.7px solid #2563eb', borderRadius: 2, background: '#eff6ff', color: '#2563eb', fontFamily: 'inherit', whiteSpace: 'nowrap', cursor: 'pointer', zIndex: 2 }}>{c.rightButton.label}</button>}
             {c.diagonal ? (
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
                 <line x1="0" y1={c.diagonal === 'bltr' ? 100 : 0} x2="100" y2={c.diagonal === 'bltr' ? 0 : 100} stroke="#000" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
