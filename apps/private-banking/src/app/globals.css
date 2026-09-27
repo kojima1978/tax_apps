@@ -1307,7 +1307,11 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .print-disclaimer strong { margin: 0 0 1.5mm; color: #123c31; font-size: 10px; display: block; }
   .print-only-document { display: block !important; }
   .print-excluded-document { display: none !important; }
-  .report-document:not(.print-excluded-document) + .report-document:not(.print-excluded-document) { break-before: page; page-break-before: always; }
+  /* 印刷対象外の文書は DOM に残る（上の display:none）ため、隣接（+）で判定すると
+     間に挟まった非表示の文書で鎖が切れ、改ページが消える。本人情報や親族関係の画面から
+     印刷すると年度比較が資産・負債明細の途中から始まっていたのがこれ。
+     「後ろにまだ印刷対象がある文書」の後ろで切ると、非表示の文書を飛ばして判定できる。 */
+  .report-document:not(.print-excluded-document):has(~ .report-document:not(.print-excluded-document)) { break-after: page; page-break-after: always; }
   html, body { width: 100%; max-width: 100%; overflow-x: clip; }
   body { overflow-y: visible; background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .sidebar, .top-actions, .menu-button, .back-to-list, .text-button, .balance-scenario-switch, .error-banner, .toast-region, .skip-link, .client-switcher-trigger > svg, .client-switcher-trigger small, .client-switcher-trigger em { display: none !important; }
