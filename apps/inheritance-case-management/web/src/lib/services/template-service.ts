@@ -32,8 +32,88 @@ const INVOICE_OVERRIDES: Record<string, string> = {
 
 export type DocType = 'estimate' | 'invoice' | 'invoice-request';
 
+/** mm → インチ（Excel の余白指定はインチ） */
+const mm = (value: number) => value / 25.4;
+
+/**
+ * 印刷範囲（テンプレートの実内容範囲）。
+ * 明示しないと書式だけ残った空白行・列まで印刷対象に入り、白紙の2ページ目ができる。
+ * 行番号に $ を付けてあるのは ExcelJS が列だけに $ を補って定義名にするため
+ * （'A1:O46' だと `$A1:$O46` という行が相対参照の印刷範囲になる）。
+ */
+const PRINT_AREAS: Record<DocType, string> = {
+  estimate: 'A$1:O$46',
+  invoice: 'A$1:O$46',
+  'invoice-request': 'A$1:AB$32',
+};
+
+/** 発行日セル（テンプレートは =TODAY() 数式。指定された発行日で上書きする） */
+const ISSUE_DATE_CELLS: Record<DocType, string> = {
+  estimate: 'L3',
+  invoice: 'L3',
+  'invoice-request': 'B4',
+};
+
+/** 出力ファイルのシート名 */
+const SHEET_NAMES: Record<DocType, string> = {
+  estimate: '見積書',
+  invoice: '請求書',
+  'invoice-request': '請求書発行依頼票',
+};
+
+/** 依頼票の切り取り線の位置（行20の下端・A列からAB列まで） */
+const CUT_LINE_ROW = 20;
+const CUT_LINE_LAST_COLUMN = 28; // AB
+
+/**
+ * A4縦1ページに収まる印刷設定を書き込む。
+ *
+ * テンプレート側の固定倍率（依頼票78% / 見積書100%）には頼らず毎回上書きする。
+ * 固定倍率はテンプレートを差し替えたり行が1行増えた時点で破綻し、実際に見積書・請求書は
+ * 100%固定のため内容(約29.7cm)が印刷領域(約28.2cm)を超えて縦2ページへ割れていた。
+ * ExcelJS は printerSettings を出力しないので、用紙サイズは paperSize 属性だけが根拠になる。
+ */
+function applyPrintSetup(ws: ExcelJS.Worksheet, docType: DocType) {
+  ws.pageSetup = {
+    ...ws.pageSetup,
+    paperSize: 9, // A4
+    orientation: 'portrait',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 1,
+    // fitToPage が有効な間 Excel は倍率を見ないが、テンプレートの固定倍率を残すと
+    // 「1ページに収める」を外した瞬間に元の倍率へ戻るので消しておく
+    scale: undefined,
+    printArea: PRINT_AREAS[docType],
+    horizontalCentered: true,
+    margins: {
+      left: mm(10),
+      right: mm(10),
+      top: mm(10),
+      bottom: mm(10),
+      header: mm(5),
+      footer: mm(5),
+    },
+  };
+}
+
+/**
+ * 発行日を書き込む。テンプレートは =TODAY() 数式なので、そのままだと
+ * 画面で選んだ発行日ではなく「ファイルを開いた日」が印刷される。
+ * 表示書式（和暦）はセル側に付いているので値だけ差し替える。
+ */
+function fillIssueDate(ws: ExcelJS.Worksheet, docType: DocType, issueDate?: string) {
+  if (!issueDate || !/^\d{4}-\d{2}-\d{2}$/.test(issueDate)) return;
+  // UTC 基準で作る（ローカルタイムだとシリアル値が前日へずれる）
+  const date = new Date(`${issueDate}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return;
+  ws.getCell(ISSUE_DATE_CELLS[docType]).value = date;
+}
+
 export interface GenerateTemplateInput {
   docType: DocType;
+  /** 発行日 (YYYY-MM-DD)。省略時はテンプレートの =TODAY() のまま */
+  issueDate?: string;
   addresseeName: string;
   deceasedName: string;
   propertyValue: number;
@@ -118,7 +198,6 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
       const expenseTitleCell = ws.getCell('B42');
       expenseTitleCell.value = ' ４．立替金費用（戸籍謄本・不動産登記事項閲覧・残高証明書発行手数料等）';
       expenseTitleCell.font = { ...expenseTitleCell.font, name: 'ＭＳ 明朝', size: 10, bold: true };
-      ws.name = '請求書';
     }
 
     fillEstimateInvoiceAddressee(ws, input.addresseeName);
@@ -144,6 +223,11 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
     }
   }
 
+  // 仕上げ（3種共通・テンプレート側の設定には頼らない）
+  ws.name = SHEET_NAMES[input.docType];
+  fillIssueDate(ws, input.docType, input.issueDate);
+  applyPrintSetup(ws, input.docType);
+
   try {
     await workbook.xlsx.writeFile(tmpPath);
     const buffer = await readFile(tmpPath);
@@ -162,11 +246,6 @@ function fillInvoiceRequest(ws: ExcelJS.Worksheet, input: GenerateTemplateInput)
   if (input.assigneeName) {
     ws.getCell('W3').value = input.assigneeName;
   }
-
-  // B4: 発行日
-  // テンプレートは =TODAY() 数式 → 指定日で上書き
-  // (発行日は addresseeName と同じリクエストで送られてくる前提、
-  //  export-excel.ts 側で issueDate を Date に変換して送る)
 
   // C5: 請求先（被相続人名付き）
   const addressee = input.deceasedName
@@ -193,4 +272,13 @@ function fillInvoiceRequest(ws: ExcelJS.Worksheet, input: GenerateTemplateInput)
 
   // H15: 立替金合計
   ws.getCell('H15').value = input.expensesTotal;
+
+  // A20:AB20: 切り取り線
+  // テンプレートは破線の図形（xl/drawings）で引いているが ExcelJS は図形を書き出せず
+  // 生成ファイルからは消える。行20は空の余白行で罫線も無いため、その下端に破線を引いて代替する。
+  const cutLineRow = ws.getRow(CUT_LINE_ROW);
+  for (let col = 1; col <= CUT_LINE_LAST_COLUMN; col++) {
+    const cell = cutLineRow.getCell(col);
+    cell.border = { ...cell.border, bottom: { style: 'dashed', color: { argb: 'FF000000' } } };
+  }
 }

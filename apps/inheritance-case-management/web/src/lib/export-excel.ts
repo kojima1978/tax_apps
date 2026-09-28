@@ -33,6 +33,7 @@ async function checkTemplateExists(docType: DocumentType): Promise<boolean> {
 async function generateFromTemplate(
   docType: DocumentType,
   data: {
+    issueDate: string;
     addresseeName: string;
     deceasedName: string;
     propertyValue: number;
@@ -106,6 +107,7 @@ export async function exportDocument(params: ExportParams): Promise<void> {
     ? (addresseeNames[0] || '')
     : formatEstimateInvoiceAddressee(addresseeNames);
   const blob = await generateFromTemplate(docType, {
+    issueDate: params.issueDate,
     addresseeName,
     deceasedName: caseData.deceasedName,
     propertyValue: caseData.propertyValue || 0,
