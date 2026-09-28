@@ -25,6 +25,10 @@
     （実体は `lib/ops-common.sh` の `ops_docker_prune`）。週次ドリルの最後からも同じ関数が呼ばれる。
   - `manage.sh alert`: デスクトップの警告ファイルを `last-run` から作り直す（下記「失敗の見える化」）。
     Docker に一切触れず操作ロックも取らないので、**エンジンが落ちている最中でも呼べる**。
+  - `manage.sh due`: **期限切れの無人処理だけ**を実行する（実体は `backup.sh due`）。
+    何を実行するかはスケジュールではなく `last-run` の記録が決める ——
+    前回の成功から20時間以上経っていればバックアップ、168時間以上経っていれば週次リストア訓練。
+    ウォッチドッグがデスクトップの警告を書き直す**前**に呼ぶ入口で、手で叩いても同じ（二重には走らない）。
 
 ### Windows 補助ラッパー
 
@@ -55,6 +59,7 @@
   - `backup.sh restore [dir]`: バックアップからのリストア
   - `backup.sh verify <file>`: データを上書きせず復号とSHA-256検証
   - `backup.sh drill [file]`: リストア訓練。引数省略で最新のバックアップが対象
+  - `backup.sh due`: 期限切れのものだけ実行（バックアップ20時間・訓練168時間）。ウォッチドッグ用
   - 暗号鍵: `~/.tax-apps/backup.key`（リポジトリ外、別媒体への保管必須）
 
   対象は `backup.sh` 冒頭の 4 つの配列で定義する。DBを持つアプリを追加したら、ここに1行足すこと。
@@ -165,10 +170,11 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 ### タスク登録（定期監視）
 
 - **`register-docker-watchdog-task.ps1`** ← **本体**
-  `docker-watchdog.ps1` を **1日4回の固定時刻**（既定 08:00 / 12:00 / 16:00 / 20:00 = `$DailyTimes`）で実行する Windows スケジュールタスクを登録する PowerShell。**昇格不要**（`RunLevel Limited`）。`-Unregister` スイッチで削除。
-  - **なぜ固定時刻か**: `-Once + RepetitionInterval` は繰り返しの起点が「登録した瞬間」になる。`backup.sh` はタスクが消えていると引数なしで再登録するため、その方式だと再登録のたびに実行時刻が深夜などへ勝手にずれる。
-  - **なぜ4回か**: 復旧は設計上2回の実行で1組になる。1回目が起動したコンテナは healthcheck の `start_period` 中で `unhealthy` にならないので、再起動の対象になるのは**次の実行**。2回/日だとその「次」が最大12時間先で、起動はしたが healthy にならないコンテナが半日放置されていた。
-  - **間隔を変えるときは `$DailyTimes` の既定値を直すこと**。登録済みタスクだけ変えても、次に `backup.sh` が再登録した時点で既定値に戻る。
+  `docker-watchdog.ps1` を **4時間毎・0時起点の繰り返し**（既定 `$IntervalHours = 4` → 0:00 / 4:00 / 8:00 / 12:00 / 16:00 / 20:00）で実行する Windows スケジュールタスクを登録する PowerShell。**昇格不要**（`RunLevel Limited`）。`-Unregister` スイッチで削除。
+  - **なぜ固定時刻（Daily）ではなく繰り返しか**: 一度は「1日4回の Daily トリガー」にしていたが、これは誤りだった。Daily トリガーはその時刻に PC が起きていなければ `StartWhenAvailable` の追いつき実行しか頼りが無く、**この PC ではそれが当てにならない** —— 2026-09-28 は 08/12/16/20 の4回すべてが追いつきもせず捨てられ、`NextRunTime` が翌日へ飛んだ。繰り返しトリガーにはその失敗の形が無く、復帰後は間隔以内に必ず次の tick が来る。
+  - **アンカーを `(Get-Date).Date`（= 0:00）に固定しているのが要点**。当初 Daily へ逃げた理由は「`-Once -At (Get-Date)` は登録した瞬間が起点なので、`backup.sh` がタスク消失時に引数なしで再登録するたびに実行時刻が深夜へ勝手にずれる」だったが、起点を日付の0時に固定すれば何度再登録しても同じ時刻に落ちる。
+  - **なぜ4時間か**: 復旧は設計上2回の実行で1組になる。1回目が起動したコンテナは healthcheck の `start_period` 中で `unhealthy` にならないので、再起動の対象になるのは**次の実行**。2回/日だとその「次」が最大12時間先で、起動はしたが healthy にならないコンテナが半日放置されていた。
+  - **間隔を変えるときは `$IntervalHours` の既定値を直すこと**。登録済みタスクだけ変えても、次に `backup.sh` が再登録した時点で既定値に戻る。24 を割り切る値（1/2/3/4/6/8/12）しか受け付けない —— 割り切れないと毎日 tick の時刻がずれていく。
 
 - **`register-docker-watchdog-task.bat`**
   `register-docker-watchdog-task.ps1` を呼ぶラッパー。ダブルクリックで登録（**UAC 不要**）。
@@ -185,7 +191,10 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 
 ```
 自動復旧（ウォッチドッグ）:
-  スケジュールタスク: 登録済み（Tax Apps Docker Watchdog）
+  復旧・無人処理（4時間毎・0時起点）: 登録済み（Tax Apps Docker Watchdog）
+  ログオン時の起動と復旧: 登録済み（Tax Apps Startup）
+  日次バックアップ（3:00）: 登録済み（Tax Apps Daily Backup）
+  週次リストア訓練（日 4:00）: 登録済み（Tax Apps Weekly Restore Drill）
   autoheal ラベル: 稼働中の healthcheck 付きコンテナすべてに付与済み
   直近の実行結果:
     ウォッチドッグ: ok（2026-09-21 08:00・3時間前） mode=periodic docker=healthy
@@ -194,7 +203,9 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
     リストア訓練  : ★lock-timeout（2026-09-20 08:13・27時間前） waited=0s owner=backup
 ```
 
-★ が付いていたらその項目が未配線、または失敗している。ラベルは compose を直して `up -d` で再作成、タスクは `register-docker-watchdog-task.bat` をダブルクリックで登録する。
+★ が付いていたらその項目が未配線、または失敗している。ラベルは compose を直して `up -d` で再作成、タスクは表示された `register-*.bat` をダブルクリックで登録する。
+
+見張る4件は `lib/ops-common.sh` の **`OPS_SCHEDULED_TASKS`** 1箇所で定義し、`manage.sh status` / `manage.sh preflight` / `backup.sh` の自動再登録がそこから生成される。以前は3箇所が別々に名前を持っていて、**`backup.sh` 側の一覧にバックアップタスク自身とドリルの行が無かった** —— 見張り役の `backup.sh` を起こすタスクが消えると自己修復ごと止まる循環依存になっていた。タスクを増やしたらここへ1行足すこと。
 
 ### 直近の実行結果（`docker/logs/last-run/`）
 
@@ -305,7 +316,7 @@ detail=daily ok=7 skipped=0
 | 毎週日曜 04:00 のリストア訓練を設定 | `register-restore-drill-task.bat` をダブルクリック |
 | リストア訓練タスクを削除 | `unregister-restore-drill-task.bat` をダブルクリック |
 | バックアップが復元できるか今すぐ試す | `restore-drill.bat` をダブルクリック |
-| 1日4回の Docker 監視を設定 | `register-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
+| 4時間毎の Docker 監視＋無人処理を設定 | `register-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | テストを走らせる | `manage.bat test`（稼働中のコンテナの中で実行） |
 | バックアップを別ドライブ／NAS にも置く | `~/.tax-apps/backup-external-dest` の1行目にコピー先のパスを書く |

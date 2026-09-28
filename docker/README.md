@@ -157,7 +157,7 @@ rd /s /q tax_apps
 | `status.bat` | Windows (CMD) | ワンクリックで状態確認 |
 | `docker-watchdog.ps1` | Windows PowerShell | Docker Desktop の応答確認・自動再起動・unhealthy コンテナ再起動 |
 | `docker-watchdog.bat` | Windows (CMD) | 手動実行用の watchdog ラッパー（`-DryRun` 等の動作確認用。タスクスケジューラからは `.ps1` が直接呼ばれる） |
-| `register-docker-watchdog-task.ps1` | Windows PowerShell | Docker watchdog タスクを登録（既定 1日4回 8:00/12:00/16:00/20:00、`-Unregister` で解除） |
+| `register-docker-watchdog-task.ps1` | Windows PowerShell | Docker watchdog タスクを登録（既定 4時間毎・0時起点、`-Unregister` で解除） |
 | `register-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク登録のラッパー（ダブルクリックで登録。昇格不要） |
 | `unregister-docker-watchdog-task.bat` | Windows (CMD) | watchdog タスク解除のラッパー（ダブルクリックで解除。昇格不要） |
 
@@ -603,13 +603,13 @@ backup-db.bat                              # Windows補助。ダブルクリッ�
 
 `register-backup-task.bat` をダブルクリックすると、現在ユーザーの最小権限で `Tax Apps Daily Backup` が毎日3:00に登録されます。管理者権限は不要です。実行結果は `docker\logs\backup.log` に追記されます。`manage.sh preflight` は暗号化バックアップが26時間以上更新されていない場合と、直近の実行が失敗していた場合に警告します。
 
-> PCが3:00に起動していない場合、`-StartWhenAvailable` によりログオン直後にまとめて実行されます。そのとき週次のリストア訓練やウォッチドッグと重なりますが、いずれも操作ロックを待つので順番に成立します（以前は負けた側がその回を丸ごと捨てていました）。
+> **このタスクだけに頼っていません。** PC が 3:00 に起動していない場合の `-StartWhenAvailable` の追いつき実行は、この PC では当てになりません（記録に残る9回のうち定刻に走ったのは1回だけ、2026-09-22 と 2026-09-28 は追いつきもせず丸ごと失われました）。いまは**ウォッチドッグが4時間毎に「前回の成功から20時間以上経っていれば取る」**（`manage.sh due`）ので、PC を使った日には必ず1回取れます。3:00 のタスクは定刻に取れる日のための二重化で、どちらが先に走っても新しい成功記録がある側はスキップします。重なった場合も操作ロックを待つので順番に成立します。
 
 > OneDrive等の同期フォルダに保存する場合は、`backup.sh` 実行時に `BACKUP_BASE` または `LATEST_BACKUP_BASE` を指定してください。
 
-### Docker Desktop Watchdog（1日4回 8:00 / 12:00 / 16:00 / 20:00）
+### Docker Desktop Watchdog（4時間毎・0時起点）
 
-Docker Desktop 自体がクラッシュ、または `docker info` に応答しない状態になった場合に、Docker Desktop の再起動を試みる watchdog を用意しています。
+Docker Desktop 自体がクラッシュ、または `docker info` に応答しない状態になった場合に、Docker Desktop の再起動を試みる watchdog を用意しています。あわせて**期限切れの無人処理（日次バックアップ・週次リストア訓練）を実行する役**でもあります。
 
 **かんたん登録（推奨）**: `register-docker-watchdog-task.bat` をダブルクリックするだけ（昇格不要）。
 
@@ -635,7 +635,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-t
 | 項目 | 内容 |
 |:-----|:-----|
 | タスク名 | `Tax Apps Docker Watchdog` |
-| 実行時刻 | 毎日 8:00 / 12:00 / 16:00 / 20:00（`-DailyTimes "06:00","18:00"` のように変更可）。PC 停止中に時刻を跨いだ場合は `StartWhenAvailable` で次の機会に実行 |
+| 実行時刻 | 0:00 起点で4時間毎（`-IntervalHours 6` のように変更可・24 を割り切る値のみ）。PC 停止中に tick を跨いだ場合は、復帰後の次の tick（最大4時間後）で実行 |
 | 実行条件 | ログオン中の現在ユーザーで実行（`RunLevel=Limited` で昇格不要） |
 | 多重起動 | 新しいインスタンスを開始しない |
 | ログ | `docker\logs\docker-watchdog.log`（1MB でローテーション・`.1`〜`.3` を保持） |
@@ -654,7 +654,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-t
 > Docker が正常なときも毎回 `manage.sh recover` を呼び、落ちているアプリだけを起動し直します（再ビルドせず、アプリごとの dev/prod モードを踏襲し、`stop` 直後など意図的な停止中は何もしません）。`restart: unless-stopped` は `stop` したコンテナを「手動停止」として記録してしまい二度と復帰しないため、これが無いと復旧経路が1つも生きていない状態になります。
 > 登録時に既存タスクがある場合は自動的に上書き更新され、登録後に次回実行時刻が表示されます。
 
-> **なぜ1日4回か**: 復旧は設計上2回の実行で1組になります。1回目が起動したコンテナは healthcheck の `start_period` 中なので `unhealthy` として拾われず、再起動の対象になるのは次の実行です。2回/日だとその「次」が最大12時間先で、起動はしたが healthy にならないコンテナが半日放置されていました。変更は `register-docker-watchdog-task.ps1` の `$DailyTimes` の**既定値**を直すこと（登録済みタスクだけ変えても、`backup.sh` がタスク消失時に引数なしで再登録した時点で既定値に戻ります）。
+> **なぜ「固定時刻」ではなく「繰り返し」か**: Daily トリガーは、その時刻に PC が起きていなければ `StartWhenAvailable` の追いつき実行しか頼りがありません。この PC ではそれが当てにならず、2026-09-28 は 08/12/16/20 の**4回すべてが追いつきもせず捨てられ**、`NextRunTime` が翌日へ飛びました。繰り返しトリガーにはその失敗の形がなく、復帰後は間隔以内に必ず次の tick が来ます。アンカーを `(Get-Date).Date`（= 0:00）に固定しているのが要点で、これで「`-Once -At (Get-Date)` は登録した瞬間が起点なので再登録のたびに実行時刻が深夜へずれる」という当初の問題も起きません。
+>
+> **なぜ4時間か**: 復旧は設計上2回の実行で1組になります。1回目が起動したコンテナは healthcheck の `start_period` 中なので `unhealthy` として拾われず、再起動の対象になるのは次の実行です。2回/日だとその「次」が最大12時間先で、起動はしたが healthy にならないコンテナが半日放置されていました。変更は `register-docker-watchdog-task.ps1` の `$IntervalHours` の**既定値**を直すこと（登録済みタスクだけ変えても、`backup.sh` がタスク消失時に引数なしで再登録した時点で既定値に戻ります）。
+>
+> **無人処理の実行役でもあります**: 復旧のあとに `manage.sh due` を呼び、前回の成功から20時間以上経っていればバックアップ、168時間以上経っていれば週次リストア訓練を実行します。**これはデスクトップの警告ファイルを書き直す前**に行われます。以前はバックアップとウォッチドッグが別々のスケジューラで競走していて、ログオン直後のウォッチドッグが「バックアップがまだ一度も走れていない時点」で「バックアップ停止」を警告していました。
 
 #### 配線の確認（重要）
 

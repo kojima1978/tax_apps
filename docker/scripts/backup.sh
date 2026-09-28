@@ -775,8 +775,6 @@ backup_bank_analyzer_json() {
 # 検知したその場で直せる。結果は必ずウォッチドッグのログにも残す — 無人実行
 # では標準出力は誰も読まないため。
 # ------------------------------------
-WATCHDOG_TASK_NAME="Tax Apps Docker Watchdog"
-STARTUP_TASK_NAME="Tax Apps Startup"
 
 log_to_watchdog() {
   local level="$1" message="$2"
@@ -819,10 +817,15 @@ ensure_watchdog_task() {
   command -v schtasks.exe >/dev/null 2>&1 || return 0
   command -v powershell.exe >/dev/null 2>&1 || return 0
 
-  _ensure_task "$WATCHDOG_TASK_NAME" \
-    "register-docker-watchdog-task.ps1" "register-docker-watchdog-task.bat"
-  _ensure_task "$STARTUP_TASK_NAME" \
-    "register-startup-task.ps1" "register-startup-task.bat"
+  # 対象は lib/ops-common.sh の OPS_SCHEDULED_TASKS。以前はバックアップタスク
+  # 自身とドリルが抜けていて、見張り役の backup.sh を起こすタスクが消えると
+  # 自己修復ごと止まる循環依存になっていた。いまはウォッチドッグが
+  # backup.sh due を呼ぶ経路があるので、そちらからも消失を検知して直せる。
+  local entry name base
+  for entry in "${OPS_SCHEDULED_TASKS[@]}"; do
+    IFS='|' read -r name base _ _ <<< "$entry"
+    _ensure_task "$name" "$base.ps1" "$base.bat"
+  done
 }
 
 cmd_backup() {
@@ -1378,7 +1381,7 @@ cmd_drill() {
 # 増やしたぶんだけ「消えたのに誰も気づかない」対象が増える。
 #
 # manage.sh prune を呼ばず ops_docker_prune を直に呼ぶのは、この時点で
-# すでに drill として操作ロックを握っているため（再入できず自分と衝突する）。
+# すでに操作ロック（drill もしくは due）を握っているため（再入できず自分と衝突する）。
 run_weekly_prune() {
   print_banner "Docker Cleanup (weekly)"
   if ops_docker_prune; then
@@ -1613,13 +1616,96 @@ copy_backup_to_external() {
   return 0
 }
 
+# ------------------------------------
+# 期限切れの無人処理をまとめて実行する（ウォッチドッグからの入口）
+# ------------------------------------
+# なぜ時刻トリガーに任せないのか: ここのタスクはすべて LogonType Interactive
+# なので、ログオンセッションが無い間は1つも動かない。つまり「毎日 3:00」の
+# ようなトリガーは、その時刻に PC が起きていなければ StartWhenAvailable の
+# 追いつき実行だけが頼りになる。この PC ではそれが当てにならず、記録に残る
+# 9回のバックアップのうち定刻(3:00)に走ったのは1回だけ、2026-09-22 と
+# 2026-09-28 は追いつきもせず丸ごと失われた。
+#
+# そこで「いつ走るか」をスケジュールから last-run の記録へ移す。タスクの役目は
+# ウォッチドッグを起こすことだけで、何を実行するかは前回の成功時刻が決める。
+# 起こされる回数が増えても、しきい値より新しい成功があればスキップするので
+# 二重取得にはならない（「日次」が「PCを使った日に1回」になる）。
+#
+# **しきい値は OPS_WATCHED_RESULTS の警告しきい値より必ず小さくすること**
+# （backup: 20h < 30h / drill: 168h < 192h）。逆転すると「警告を出してから
+# 実行する」順序になり、デスクトップの警告が毎回ウソをつく。
+DUE_BACKUP_HOURS="${TAX_APPS_DUE_BACKUP_HOURS:-20}"
+DUE_DRILL_HOURS="${TAX_APPS_DUE_DRILL_HOURS:-168}"
+
+# 記録が無い（一度も成功していない）ときは期限切れとして扱う。
+_due_needed() {
+  local name="$1" threshold="$2" age status
+  status=$(ops_last_result_field "$name" status) || return 0
+  [[ "$status" == "ok" ]] || return 0
+  age=$(ops_last_result_age_hours "$name") || return 0
+  [[ "$age" -ge "$threshold" ]]
+}
+
+# cmd_backup / cmd_drill を if の条件に直接置くと、bash はその中まで errexit を
+# 止める。途中の想定外の失敗が無視されて最後の集計だけで ok になりうるので、
+# サブシェルで set -e を張り直してから終了コードだけ受け取る。
+_due_run() {
+  local rc=0
+  set +e
+  ( set -e; "$@" )
+  rc=$?
+  set -e
+  return "$rc"
+}
+
+cmd_due() {
+  print_banner "Tax Apps - Due Unattended Work"
+
+  # タスクの生存確認は cmd_backup の中からだけでなくここでも呼ぶ。両方
+  # スキップした回でも通るようにするため（スキップした日に確認が飛ぶと、
+  # タスクが消えたことに気づく経路がその日だけ欠ける）。
+  ensure_watchdog_task
+
+  local status="ok" backup_state="skip" drill_state="skip"
+
+  if _due_needed "backup" "$DUE_BACKUP_HOURS"; then
+    if _due_run cmd_backup; then
+      backup_state="ran"
+    else
+      backup_state="failed"
+      status="failed"
+    fi
+  else
+    echo "バックアップ: ${DUE_BACKUP_HOURS}時間以内に成功しているのでスキップ（$(ops_format_last_result backup)）"
+    echo ""
+  fi
+
+  # バックアップの後に回すのは、直前に取れた最新のアーカイブで訓練できるから。
+  if _due_needed "drill" "$DUE_DRILL_HOURS"; then
+    if _due_run cmd_drill; then
+      drill_state="ran"
+    else
+      drill_state="failed"
+      status="failed"
+    fi
+  else
+    echo "リストア訓練: ${DUE_DRILL_HOURS}時間以内に成功しているのでスキップ（$(ops_format_last_result drill)）"
+    echo ""
+  fi
+
+  # ウォッチドッグ(PowerShell)が読む唯一の行。日本語のログ行はコンソールの
+  # コードページ次第で拾えないため、連絡は ASCII 1行に限る。
+  echo "DUE_RESULT status=$status backup=$backup_state drill=$drill_state"
+  [[ "$status" == "ok" ]]
+}
+
 COMMAND="${1:-help}"
 case "$COMMAND" in
   # 無人で走る3つは待つ。ログオン直後に日次バックアップ・週次ドリル・
   # ウォッチドッグが -StartWhenAvailable でまとめて起き、必ず誰かが負ける。
   # 数分待てば全部順番に通るので、その回を捨てる理由が無い。
   # 待ち時間はタスク側の ExecutionTimeLimit より十分短くしてある。
-  backup|drill|itcm)
+  backup|drill|itcm|due)
     check_dependencies
     # itcm は backup-db.bat が使う歴史的な別名でしかない。ロックの持ち主表示も
     # 直近結果の記録も backup に寄せる（itcm 名義で記録すると status から見えない）。
@@ -1642,8 +1728,10 @@ case "$COMMAND" in
   # Keep the historical command name used by backup-db.bat, but create the
   # same encrypted, restorable full backup as the main backup command.
   itcm)    cmd_backup ;;
+  # 期限切れのものだけを実行する。ウォッチドッグからの入口。
+  due)     cmd_due ;;
   *)
-    echo "Usage: $0 {backup|restore [backup]|verify <backup>|drill [backup]|itcm}"
+    echo "Usage: $0 {backup|restore [backup]|verify <backup>|drill [backup]|due|itcm}"
     exit 1
     ;;
 esac

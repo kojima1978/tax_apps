@@ -5,8 +5,14 @@ param(
     [int]$CooldownMinutes = 45,
     [int]$MaxRecoverySeconds = 300,
     [int]$AppRecoveryTimeoutSeconds = 600,
+    # Overdue unattended work (the day's backup, the weekly restore drill) runs
+    # inside this run. 3600s is not a normal duration - a backup takes about 40
+    # seconds and a drill about 15 - it is headroom for the shared operation lock
+    # and for a cold Docker still settling.
+    [int]$DueWorkTimeoutSeconds = 3600,
     [switch]$SkipAppRecovery,
     [switch]$SkipContainerHealthRecovery,
+    [switch]$SkipDueWork,
     # Used by the logon task. Right after logon, Docker Desktop is usually mid-startup
     # rather than broken, so killing it and restarting WSL - what the periodic run does -
     # would only make the first boot slower and flakier. In this mode we start Docker
@@ -535,20 +541,115 @@ function Wait-DockerRecovery {
     return $false
 }
 
+# Runs whatever unattended work is overdue, before this run reports anything.
+#
+# Why the watchdog does this at all: every scheduled task here is
+# LogonType Interactive, so nothing runs without a logon session, and a task
+# whose only trigger is a clock time the machine is rarely on for depends
+# entirely on StartWhenAvailable catch-up. That catch-up is unreliable on this
+# machine - of nine recorded backups exactly one ran at its scheduled 03:00, and
+# 2026-09-22 and 2026-09-28 were lost outright.
+#
+# So the schedule stops deciding what runs. Task Scheduler's job is only to wake
+# this script; the last-run records decide what is due. "manage.bat due" is the
+# bash side of that (backup.sh due), and it skips work that already succeeded
+# recently, so being woken repeatedly is harmless.
+#
+# This must happen BEFORE Update-FailureAlert. The two used to be separate
+# schedulers racing each other: the logon watchdog published the desktop alert
+# about a minute after logon, while the backup was still waiting for its own
+# catch-up that then never came - so the alert said "backup stopped" on a day the
+# backup had not yet had any chance to run. Doing the work first, in one process,
+# removes the race instead of widening the threshold to hide it.
+function Invoke-DueUnattendedWork {
+    if ($SkipDueWork) {
+        return
+    }
+
+    $manageBat = Join-Path $ScriptDir "manage.bat"
+    if (-not (Test-Path -LiteralPath $manageBat)) {
+        Write-WatchdogLog "WARN" "manage.bat not found; due work skipped."
+        $script:DueWorkIssue = "manage.bat not found"
+        return
+    }
+
+    if ($DryRun) {
+        Write-WatchdogLog "INFO" "DryRun is enabled; due work skipped."
+        return
+    }
+
+    $oldNoPause = $env:TAX_APPS_NO_PAUSE
+    try {
+        $env:TAX_APPS_NO_PAUSE = "1"
+        $result = Invoke-ProcessWithTimeout `
+            -FilePath $manageBat `
+            -ArgumentList @("due") `
+            -TimeoutSeconds $DueWorkTimeoutSeconds
+
+        if ($result.TimedOut) {
+            Write-WatchdogLog "WARN" "manage.bat due timed out after ${DueWorkTimeoutSeconds}s."
+            $script:DueWorkIssue = "due timed out"
+            return
+        }
+
+        # One ASCII summary line, for the same reason as RECOVER_RESULT: matching
+        # the Japanese log lines would depend on the console code page.
+        $stdout = ($result.StdOut | Out-String)
+        $sawSummary = $false
+        foreach ($line in ($stdout -split "`r?`n")) {
+            if ($line -notmatch 'DUE_RESULT\s+(.+)$') { continue }
+            $sawSummary = $true
+            $summary = $Matches[1].Trim()
+
+            if ($summary -notmatch 'status=ok\b') {
+                Write-WatchdogLog "WARN" "Overdue unattended work failed: $summary"
+                $script:DueWorkIssue = $summary
+            }
+            elseif ($summary -match '=ran\b') {
+                # Worth a line: this is the run that actually took the backup.
+                Write-WatchdogLog "INFO" "Overdue unattended work: $summary"
+            }
+            else {
+                Write-Verbose "Overdue unattended work: $summary"
+            }
+        }
+
+        if (-not $sawSummary) {
+            # A non-zero exit without a summary line means it did not even get
+            # started (missing bash, lock timeout); the failures it does reach
+            # write their own last-run records.
+            Write-WatchdogLog "WARN" "manage.bat due produced no DUE_RESULT line (exit $($result.ExitCode))."
+            $script:DueWorkIssue = "no DUE_RESULT line"
+        }
+    }
+    catch {
+        Write-WatchdogLog "WARN" "Could not run overdue unattended work: $($_.Exception.Message)"
+        $script:DueWorkIssue = "due failed to start"
+    }
+    finally {
+        $env:TAX_APPS_NO_PAUSE = $oldNoPause
+    }
+}
+
 # Recovery has two stages, and the order matters:
 #   1. Invoke-TaxAppsRecovery             - start containers that are not running
 #   2. Restart-UnhealthyTaxAppsContainers - restart ones that run but are unhealthy
 # Stage 2 does not act on what stage 1 just started (health is "starting" during
 # start_period, so they are not matched); those are picked up on the next run.
-# That is why the periodic task runs four times a day rather than two: "the next
-# run" - the first chance to restart a container that came up but never turned
-# healthy - is four hours away instead of twelve. The logon task is the other
-# chance to catch it.
+# That is why the periodic task repeats every four hours rather than twice a
+# day: "the next run" - the first chance to restart a container that came up but
+# never turned healthy - is four hours away instead of twelve. The logon task is
+# the other chance to catch it.
+#
+# The overdue unattended work goes last, once the apps are up: the backup dumps
+# databases out of running containers, so doing it first would back up whatever
+# happened to be running.
 function Invoke-TaxAppsRecoverySequence {
     param([string]$DockerCli)
 
     Invoke-TaxAppsRecovery
     Restart-UnhealthyTaxAppsContainers -DockerCli $DockerCli
+    Invoke-DueUnattendedWork
 }
 
 # Rebuilds the Desktop alert file from every last-run record.
@@ -606,12 +707,20 @@ function Exit-Watchdog {
         $Status = "recover-warning"
         $Detail = $script:RecoveryIssue
     }
+    # Kept separate from recover-warning: a backup that ran and failed writes its
+    # own last-run record, so what this flags is the case where "due" never got
+    # far enough to write one - which would otherwise be invisible.
+    elseif ($Status -eq "ok" -and $script:DueWorkIssue) {
+        $Status = "due-warning"
+        $Detail = $script:DueWorkIssue
+    }
     Write-LastRunResult -Name "watchdog" -Status $Status -Detail "mode=$mode $Detail".Trim()
     Update-FailureAlert
     exit $Code
 }
 
 $script:RecoveryIssue = ""
+$script:DueWorkIssue = ""
 
 Enter-WatchdogLock
 try {

@@ -68,12 +68,18 @@ if ($DelayMinutes -gt 0) {
     $trigger.Delay = "PT${DelayMinutes}M"
 }
 
+# ExecutionTimeLimit is 90 minutes, not 30. This run waits up to
+# MaxRecoverySeconds (900s) for the Docker engine to come up, then starts every
+# app, and then performs whatever unattended work is overdue - the day's backup
+# and, once a week, the restore drill. On this machine the logon run is in
+# practice the only one of those that happens, so it must not be cut short:
+# being killed mid-backup leaves the shared operation lock held.
 $settings = New-ScheduledTaskSettingsSet `
     -MultipleInstances IgnoreNew `
     -StartWhenAvailable `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 90)
 
 $principal = New-ScheduledTaskPrincipal `
     -UserId $currentUser `

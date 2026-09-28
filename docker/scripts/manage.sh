@@ -15,6 +15,7 @@
 #   ./manage.sh down               全アプリを停止してコンテナ削除
 #   ./manage.sh backup             全データベース・データをバックアップ
 #   ./manage.sh restore [dir]      バックアップからリストア
+#   ./manage.sh due                期限切れの無人処理だけ実行（ウォッチドッグ用）
 #   ./manage.sh clean              コンテナ・イメージのクリーンアップ
 #   ./manage.sh clean-cache        古い Docker Build Cache の削除
 #   ./manage.sh prune              無人向けの掃除（確認なし・ボリュームは触らない）
@@ -89,8 +90,6 @@ NETWORK_NAME="tax-apps-network"
 #
 # この2つが自動起動の全経路。ウォッチドッグが「落ちたら直す」係、スタートアップが
 # 「ログオン時に上げる」係で、片方欠けても症状は同じ（起動しない）ので必ず対で見る。
-WATCHDOG_TASK_NAME="Tax Apps Docker Watchdog"
-STARTUP_TASK_NAME="Tax Apps Startup"
 
 # task_exists() は lib/ops-common.sh にある（MSYS の引数変換対策込み）。
 
@@ -674,7 +673,7 @@ cmd_down() {
 # ------------------------------------
 # recover - 落ちているアプリだけを起動し直す（ウォッチドッグ用）
 #
-# start との違いは意図的で、どれもウォッチドッグから無人で（1日4回＋
+# start との違いは意図的で、どれもウォッチドッグから無人で（4時間毎＋
 # ログオン時に）呼ばれることに由来する:
 #   - --build しない。再ビルドは数分かかるうえ、dev/prod のイメージを
 #     作り替えて別物を起動してしまう
@@ -942,19 +941,16 @@ _print_autoheal_status() {
   echo "自動復旧（ウォッチドッグ）:"
 
   if command -v schtasks.exe >/dev/null 2>&1; then
-    if task_exists "$WATCHDOG_TASK_NAME"; then
-      echo "  復旧タスク（1日4回 8:00/12:00/16:00/20:00）: 登録済み（$WATCHDOG_TASK_NAME）"
-    else
-      echo "  復旧タスク（1日4回 8:00/12:00/16:00/20:00）: ★未登録 — 停止しても unhealthy でも自動復旧されません"
-      echo "    登録: docker/scripts/register-docker-watchdog-task.bat をダブルクリック"
-    fi
-
-    if task_exists "$STARTUP_TASK_NAME"; then
-      echo "  起動タスク（ログオン時）: 登録済み（$STARTUP_TASK_NAME）"
-    else
-      echo "  起動タスク（ログオン時）: ★未登録 — 再起動後は次の定期実行（最大12時間後）までアプリが上がりません"
-      echo "    登録: docker/scripts/register-startup-task.bat をダブルクリック"
-    fi
+    local entry name base label consequence
+    for entry in "${OPS_SCHEDULED_TASKS[@]}"; do
+      IFS='|' read -r name base label consequence <<< "$entry"
+      if task_exists "$name"; then
+        echo "  $label: 登録済み（$name）"
+      else
+        echo "  $label: ★未登録 — $consequence"
+        echo "    登録: docker/scripts/$base.bat をダブルクリック"
+      fi
+    done
   else
     echo "  スケジュールタスク: 確認不可（schtasks.exe が見つかりません）"
   fi
@@ -1630,23 +1626,18 @@ cmd_preflight() {
   # Docker が落ちても停止したコンテナがあっても誰も直さないため、preflight と
   # status の両方から見えるようにしておく（過去に数ヶ月間気づかなかった）。
   if command -v schtasks.exe >/dev/null 2>&1; then
-    if task_exists "$WATCHDOG_TASK_NAME"; then
-      ok "Docker watchdog task is registered"
-      ((++pf_ok))
-    else
-      warn "Docker watchdog task is NOT registered: $WATCHDOG_TASK_NAME"
-      echo "  Register it: docker/scripts/register-docker-watchdog-task.bat"
-      ((++pf_warn))
-    fi
-
-    if task_exists "$STARTUP_TASK_NAME"; then
-      ok "Logon startup task is registered"
-      ((++pf_ok))
-    else
-      warn "Logon startup task is NOT registered: $STARTUP_TASK_NAME"
-      echo "  Register it: docker/scripts/register-startup-task.bat"
-      ((++pf_warn))
-    fi
+    local task_entry task_name task_base
+    for task_entry in "${OPS_SCHEDULED_TASKS[@]}"; do
+      IFS='|' read -r task_name task_base _ _ <<< "$task_entry"
+      if task_exists "$task_name"; then
+        ok "Scheduled task is registered: $task_name"
+        ((++pf_ok))
+      else
+        warn "Scheduled task is NOT registered: $task_name"
+        echo "  Register it: docker/scripts/$task_base.bat"
+        ((++pf_warn))
+      fi
+    done
   fi
 
   # 9. Port conflicts
@@ -1996,6 +1987,8 @@ case "$COMMAND" in
   restore)   "$SCRIPT_DIR/backup.sh" restore "${2:-}" ;;
   verify)    "$SCRIPT_DIR/backup.sh" verify "${2:-}" ;;
   drill)     "$SCRIPT_DIR/backup.sh" drill "${2:-}" ;;
+  # ウォッチドッグからの入口。何を実行するかは last-run の記録が決める。
+  due)       "$SCRIPT_DIR/backup.sh" due ;;
   clean)     cmd_clean ;;
   clean-cache) cmd_clean_cache "${2:-}" ;;
   prune)     cmd_prune ;;
@@ -2003,7 +1996,7 @@ case "$COMMAND" in
   alert)     cmd_alert ;;
   preflight) cmd_preflight ;;
   *)
-    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|verify|drill|clean|clean-cache|prune|alert|preflight} [app-name]"
+    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|verify|drill|due|clean|clean-cache|prune|alert|preflight} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start [app]        起動（アプリ名を省略すると全アプリ・ネットワーク自動作成）"
@@ -2024,6 +2017,7 @@ case "$COMMAND" in
     echo "  restore [dir]      バックアップからリストア"
     echo "  verify <backup>    バックアップの復号とハッシュ照合"
     echo "  drill [backup]     リストア訓練（使い捨てDBへ実際に復元して検証。既定は最新）"
+    echo "  due                期限切れの無人処理だけ実行（バックアップ・訓練。ウォッチドッグ用）"
     echo "  clean              コンテナ・イメージのクリーンアップ"
     echo "  clean-cache [--all] Docker Build Cache の削除（通常は7日以上未使用のみ）"
     echo "  prune              無人向けの掃除（確認なし・ボリュームは触らない）"

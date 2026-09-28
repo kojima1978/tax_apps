@@ -12,33 +12,42 @@
 # could only ever be (re)created by an elevated double-click, so once it went
 # missing it stayed missing. It has already silently disappeared twice.
 #
-# Schedule: several fixed times a day, not a short repetition interval.
+# Schedule: a repetition interval anchored to midnight.
 #
-# Fixed times are used instead of "-Once + RepetitionInterval" on purpose.
-# A repetition interval is anchored to whenever the task happened to be
-# registered, so re-registering it (backup.sh does that automatically when the
-# task goes missing) silently moves every run to a new, possibly
-# middle-of-the-night, clock time. Daily triggers always land on the same hours
-# no matter when they were created.
+# This used to be four fixed Daily triggers, and that was wrong. A Daily trigger
+# only fires if the machine happens to be running at that exact minute;
+# otherwise the occurrence depends on StartWhenAvailable catching it up, and on
+# this machine catch-up is unreliable - on 2026-09-28 all four occurrences
+# (08/12/16/20) were dropped outright and NextRunTime simply moved to the next
+# day. A repetition interval does not have that failure mode: after the machine
+# wakes, the next tick arrives within the interval no matter what was missed.
 #
-# Four times during the working day rather than two. Recovery takes two runs to
-# fully settle by design: a container started by one run is still inside its
-# health start_period, so an unhealthy one is only restarted by the NEXT run.
-# At two runs a day that second chance was up to twelve hours away, which meant
-# a container that came up but never turned healthy stayed broken for most of a
-# day. Four runs makes the gap four hours; the overnight gap is left alone
-# because the machine is usually off then anyway.
+# Anchoring to midnight is what makes a repetition safe here. The original
+# reason for moving to Daily triggers was that "-Once -At (Get-Date)" anchors
+# every tick to the moment of registration, and backup.sh re-registers this task
+# automatically when it goes missing - so the run times wandered, sometimes into
+# the middle of the night. "-Once -At (Get-Date).Date" pins the anchor to 00:00,
+# so the ticks land on the same clock times (00/04/08/12/16/20 at the default
+# interval) however many times the task is re-created.
+#
+# Four hours rather than twelve: recovery takes two runs to fully settle by
+# design. A container started by one run is still inside its health
+# start_period, so an unhealthy one is only restarted by the NEXT run. At two
+# runs a day that second chance was up to twelve hours away, which meant a
+# container that came up but never turned healthy stayed broken for most of a
+# day.
+#
+# The start boundary is in the past, so Windows starts the task shortly after
+# registration. That is intended - the watchdog is idempotent and cheap, and a
+# run right after re-registration is the run you most want.
 #
 # Changing the cadence means changing the default below. Editing the registered
 # task alone does not stick: backup.sh re-registers this task with no arguments
 # whenever it finds it missing, which restores whatever is written here.
-#
-# StartWhenAvailable covers the machine being off at those times: the missed
-# occurrence runs at the next opportunity.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$TaskName = "Tax Apps Docker Watchdog",
-    [string[]]$DailyTimes = @("08:00", "12:00", "16:00", "20:00"),
+    [int]$IntervalHours = 4,
     [switch]$Unregister
 )
 
@@ -57,18 +66,14 @@ if ($Unregister) {
     return
 }
 
-if (-not $DailyTimes -or $DailyTimes.Count -lt 1) {
-    throw "DailyTimes must contain at least one time of day."
+# Reject an interval that does not divide the day evenly: the ticks would land
+# on different clock times each day, which is the wandering-schedule problem
+# that the midnight anchor exists to prevent.
+if ($IntervalHours -lt 1 -or $IntervalHours -gt 12) {
+    throw "IntervalHours must be between 1 and 12: $IntervalHours"
 }
-
-# Parse up front so a typo fails here rather than registering a task with a
-# trigger at some unintended hour.
-$parsedTimes = foreach ($time in $DailyTimes) {
-    $parsed = [datetime]::MinValue
-    if (-not [datetime]::TryParse($time, [ref]$parsed)) {
-        throw "DailyTimes contains a value that is not a time of day: $time"
-    }
-    (Get-Date).Date.AddHours($parsed.Hour).AddMinutes($parsed.Minute)
+if ((24 % $IntervalHours) -ne 0) {
+    throw "IntervalHours must divide 24 evenly (1, 2, 3, 4, 6, 8, 12): $IntervalHours"
 }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -85,30 +90,36 @@ $action = New-ScheduledTaskAction `
     -Argument $taskArgs `
     -WorkingDirectory $ScriptDir
 
-$trigger = foreach ($at in $parsedTimes) {
-    New-ScheduledTaskTrigger -Daily -At $at
-}
+# RepetitionDuration has to be given explicitly: without it a "-Once" trigger
+# with a repetition stops after one day.
+$trigger = New-ScheduledTaskTrigger `
+    -Once `
+    -At (Get-Date).Date `
+    -RepetitionInterval (New-TimeSpan -Hours $IntervalHours) `
+    -RepetitionDuration (New-TimeSpan -Days 3650)
 
-# ExecutionTimeLimit is 30 minutes because a single run can legitimately take a
-# long time: Wait-DockerRecovery waits up to MaxRecoverySeconds (300s) and
-# "manage.sh recover" up to AppRecoveryTimeoutSeconds (600s) - which now includes
-# waiting out a backup that holds the shared operation lock - plus the docker
-# info checks and the unhealthy-container restarts. Being killed mid-recover can
-# leave that lock held, so the limit must not cut a legitimate run short.
+# ExecutionTimeLimit is 90 minutes because a single run can legitimately take a
+# long time: Wait-DockerRecovery waits up to MaxRecoverySeconds (300s),
+# "manage.sh recover" up to AppRecoveryTimeoutSeconds (600s) - which includes
+# waiting out a backup that holds the shared operation lock - and the run now
+# also performs any overdue unattended work (manage.sh due: the day's backup and
+# the weekly restore drill, up to DueWorkTimeoutSeconds). Being killed mid-run
+# can leave the operation lock held, so the limit must not cut a legitimate run
+# short.
 $settings = New-ScheduledTaskSettingsSet `
     -MultipleInstances IgnoreNew `
     -StartWhenAvailable `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 90)
 
 $principal = New-ScheduledTaskPrincipal `
     -UserId ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name) `
     -LogonType Interactive `
     -RunLevel Limited
 
-$timesLabel = ($DailyTimes -join ", ")
-$description = "Checks Docker Desktop at $timesLabel, restarts it when docker info does not respond, starts Tax Apps containers that are not running, and restarts unhealthy ones."
+$scheduleLabel = "every $IntervalHours hour(s) from 00:00"
+$description = "Checks Docker Desktop $scheduleLabel, restarts it when docker info does not respond, starts Tax Apps containers that are not running, restarts unhealthy ones, and runs any overdue unattended work (backup / restore drill)."
 
 $existingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 $isUpdate = $null -ne $existingTask
@@ -130,7 +141,7 @@ if ($PSCmdlet.ShouldProcess($TaskName, "Register scheduled task")) {
 
     $label = if ($isUpdate) { "Updated" } else { "Registered" }
     Write-Host "$label scheduled task: $TaskName"
-    Write-Host "  Schedule  : daily at $timesLabel"
+    Write-Host "  Schedule  : $scheduleLabel"
     Write-Host "  Script    : $WatchdogScript"
     Write-Host "  RunLevel  : Limited (no UAC elevation required)"
     Write-Host "  Next run  : $((Get-ScheduledTaskInfo -TaskName $TaskName).NextRunTime)"

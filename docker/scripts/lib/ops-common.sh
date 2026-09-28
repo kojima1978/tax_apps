@@ -72,6 +72,24 @@ task_exists() {
 }
 
 # ------------------------------------
+# 見張るスケジュールタスクの一覧
+# ------------------------------------
+# タスク名|登録スクリプトの基底名|日本語の説明|未登録だと何が起きるか
+#
+# 表をここ1箇所に置くのは OPS_WATCHED_RESULTS と同じ理由。以前は manage.sh の
+# status と preflight、backup.sh の ensure が別々に名前を持っていて、
+# **backup.sh の ensure にはバックアップタスク自身とドリルの行が無かった**。
+# つまり見張り役の backup.sh を起こすタスクが消えても、誰も直さなかった。
+#
+# タスクを増やしたらここへ1行足す（3箇所が自動でついてくる）。
+OPS_SCHEDULED_TASKS=(
+  "Tax Apps Docker Watchdog|register-docker-watchdog-task|復旧・無人処理（4時間毎・0時起点）|停止しても unhealthy でも自動復旧されず、バックアップも走りません"
+  "Tax Apps Startup|register-startup-task|ログオン時の起動と復旧|再起動後は次の定期実行（最大4時間後）までアプリが上がりません"
+  "Tax Apps Daily Backup|register-backup-task|日次バックアップ（3:00）|定刻のバックアップが無くなります（ウォッチドッグの due が肩代わりします）"
+  "Tax Apps Weekly Restore Drill|register-restore-drill-task|週次リストア訓練（日 4:00）|定刻の訓練が無くなります（ウォッチドッグの due が肩代わりします）"
+)
+
+# ------------------------------------
 # ログのローテーション
 # ------------------------------------
 # 追記しかしないログは黙って伸び続ける。docker-watchdog.log は
@@ -318,7 +336,7 @@ ops_refresh_failure_alert() {
   mkdir -p "$(dirname "$OPS_ALERT_STATE_FILE")" 2>/dev/null || true
   printf '%s' "$signature" > "$OPS_ALERT_STATE_FILE" 2>/dev/null || true
 
-  # 通知は「増えたとき」だけ。同じ失敗で1日4回鳴ると、すぐ誰も見なくなる。
+  # 通知は「増えたとき」だけ。同じ失敗で4時間毎に鳴ると、すぐ誰も見なくなる。
   if [[ "$signature" != "$previous" ]]; then
     local count
     count=$(printf '%s\n' "$failures" | grep -c . || true)
