@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type { BackupData, BackupTableCounts } from '@/types/backup';
+import { todayIsoDate } from '@/lib/date-utils';
 
 export async function exportBackup(): Promise<void> {
   const data = await apiClient<BackupData>('/backup');
@@ -8,7 +9,7 @@ export async function exportBackup(): Promise<void> {
   const blob = new Blob([bom + json], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  const date = new Date().toISOString().split('T')[0];
+  const date = todayIsoDate();
   link.href = url;
   link.download = `itcm-backup-${date}.json`;
   document.body.appendChild(link);

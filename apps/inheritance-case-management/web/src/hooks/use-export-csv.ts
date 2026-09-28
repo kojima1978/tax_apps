@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getAllCases } from "@/lib/api/cases";
 import type { CasesQueryParams } from "@/lib/api/cases";
 import { exportCasesToCSV } from "@/lib/export-csv";
+import { todayIsoDate } from "@/lib/date-utils";
 
 export function useExportCSV() {
   const [isExporting, setIsExporting] = useState(false);
@@ -18,7 +19,7 @@ export function useExportCSV() {
       const hasFilters = Object.values(filters).some((v) => v !== undefined);
       const allCases = await getAllCases(hasFilters ? filters : undefined);
       const filename = hasFilters
-        ? `案件一覧_フィルタ済_${new Date().toISOString().split("T")[0]}.csv`
+        ? `案件一覧_フィルタ済_${todayIsoDate()}.csv`
         : undefined;
       exportCasesToCSV(allCases, filename);
     } catch (e) {

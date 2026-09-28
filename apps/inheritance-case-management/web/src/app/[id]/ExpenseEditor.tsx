@@ -8,6 +8,7 @@ import { Download, GripVertical, Trash2 } from "lucide-react"
 import type { CaseHeir, Expense } from "@/types/shared"
 import { EXPENSE_DESCRIPTION_PRESETS } from "@/types/constants"
 import { formatCurrency } from "@/lib/analytics-utils"
+import { todayIsoDate } from "@/lib/date-utils"
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -72,14 +73,10 @@ function exportExpensesExcel(expenses: Expense[], total: number, deceasedName: s
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, "立替金")
-    XLSX.writeFile(workbook, `立替金_${new Date().toISOString().split("T")[0]}.xlsx`)
+    XLSX.writeFile(workbook, `立替金_${todayIsoDate()}.xlsx`)
 }
 
 const OTHER_VALUE = "__other__"
-
-function today(): string {
-    return new Date().toISOString().split("T")[0]
-}
 
 function isPresetValue(value: string): boolean {
     return (EXPENSE_DESCRIPTION_PRESETS as readonly string[]).includes(value)
@@ -240,7 +237,7 @@ export function ExpenseEditor({ expenses, deceasedName, heirs, onChange }: Expen
     const itemIds = useMemo(() => itemsWithIds.map(e => e._id), [itemsWithIds])
 
     const handleAdd = () => {
-        onChange([...expenses, { date: today(), description: "", amount: 0 }])
+        onChange([...expenses, { date: todayIsoDate(), description: "", amount: 0 }])
     }
 
     const handleDelete = (index: number) => {

@@ -1,6 +1,7 @@
 import type { InheritanceCase, HeirPerson, CaseHeir, ProgressStep } from "@/types/shared";
 import { formatId } from "@/types/shared";
 import { ageOnDate } from "@/lib/age";
+import { todayIsoDate } from "@/lib/date-utils";
 import { normalizePersonAddressParts } from "@/lib/person-address";
 import { MAX_HEIR_COLUMNS } from "./import-csv";
 import { formatPostalCodeForInput } from "./postal-code-format";
@@ -253,7 +254,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
   // BOM for Excel compatibility
   downloadCSVBlob(
     csvContent,
-    filename || `案件一覧_${new Date().toISOString().split("T")[0]}.csv`
+    filename || `案件一覧_${todayIsoDate()}.csv`
   );
 }
 
@@ -301,7 +302,7 @@ export function exportHeirPersonsToCSV(
 
   downloadCSVBlob(
     csvContent,
-    filename || `相続人マスタ_${new Date().toISOString().split("T")[0]}.csv`
+    filename || `相続人マスタ_${todayIsoDate()}.csv`
   );
 }
 
@@ -348,6 +349,6 @@ export function exportCaseHeirsToCSV(
   const safeName = deceasedName.trim() || "案件";
   downloadCSVBlob(
     csvContent,
-    filename || `相続人_${safeName}_${new Date().toISOString().split("T")[0]}.csv`
+    filename || `相続人_${safeName}_${todayIsoDate()}.csv`
   );
 }

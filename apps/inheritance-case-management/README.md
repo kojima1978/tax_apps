@@ -376,6 +376,19 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 | 適用済み migration の削除 | 本番/共有環境の履歴と合わなくなる |
 | 生成後 migration SQL の不用意な手編集 | checksum 不一致の原因になる |
 
+## 日付の扱い
+
+`YYYY-MM-DD` の「今日」は置き場所ごとに使う関数が決まっています。`new Date().toISOString()` が返すのは **UTC の日付** なので、先頭10文字をそのまま取ると日本時間の 00:00〜09:00 だけ前日になります（帳票の発行日・立替金の日付・相続開始日の既定値が実際に1日ずれていました）。
+
+| 場所 | 使うもの |
+| --- | --- |
+| ブラウザ（画面の既定値、ダウンロードするファイル名） | `lib/date-utils.ts` の `todayIsoDate()` |
+| サーバ（route handler / service） | `lib/services/case-date-utils.ts` の `todayDate()` |
+
+サーバ側がローカル日付でよいのは、compose で `TZ: Asia/Tokyo` を渡しているためです。
+
+`@db.Date` の列は UTC 0時で保存する約束なので、DB との出し入れの変換（`lib/prisma-includes.ts` の `toDate` / `toDateStr`）と、その値どうしの日付計算（`components/cases/FilterBar.tsx`）は UTC のままで正しく、ローカル日付に変えると逆にずれます。
+
 ## 主要 API
 
 | API | 概要 |

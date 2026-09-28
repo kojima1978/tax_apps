@@ -4,6 +4,7 @@ import { EditCaseForm } from "../[id]/edit-case-form"
 import { Suspense } from "react"
 import type { InheritanceCase } from "@/types/shared"
 import { DEFAULT_PROGRESS_STEPS } from "@/lib/progress-utils"
+import { todayIsoDate } from "@/lib/date-utils"
 import Link from "next/link"
 import { ChevronRight } from "lucide-react"
 
@@ -11,7 +12,7 @@ const emptyCase: InheritanceCase = {
     id: 0,
     deceasedName: "",
     deceasedNameKana: "",
-    dateOfDeath: new Date().toISOString().split("T")[0],
+    dateOfDeath: todayIsoDate(),
     status: "見積前",
     taxAmount: 0,
     assigneeId: null,

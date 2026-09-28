@@ -11,7 +11,7 @@ import {
     isMilestoneTriggered,
     type MilestoneDateField,
 } from "@/types/constants"
-import { todayIsoDate } from "./progress-editor-utils"
+import { todayIsoDate } from "@/lib/date-utils"
 
 interface ProgressStatusSummaryProps {
     formData: InheritanceCase

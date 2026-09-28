@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/Label"
 import { Modal } from "@/components/ui/Modal"
 import type { InheritanceCase } from "@/types/shared"
 import { exportDocument } from "@/lib/export-excel"
+import { todayIsoDate } from "@/lib/date-utils"
 import { useToast } from "@/components/ui/Toast"
 
 type DocumentType = "estimate" | "invoice" | "invoice-request"
@@ -28,7 +29,7 @@ interface DocumentExportModalProps {
 
 export function DocumentExportModal({ isOpen, onClose, caseData, docType }: DocumentExportModalProps) {
     const toast = useToast()
-    const today = new Date().toISOString().split("T")[0]
+    const today = todayIsoDate()
     const supportsCollectiveAddressee = docType === "estimate" || docType === "invoice"
     const [issueDate, setIssueDate] = useState(today)
     const [addresseeMode, setAddresseeMode] = useState<AddresseeMode>(

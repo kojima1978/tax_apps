@@ -6,10 +6,7 @@ import { updateCase } from "@/lib/api/cases"
 import { toProgressSteps, toProgressItems } from "@/lib/case-converters"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useToast } from "@/components/ui/Toast"
-
-function todayStr(): string {
-    return new Date().toISOString().slice(0, 10)
-}
+import { todayIsoDate } from "@/lib/date-utils"
 
 function isOptionalVisitStep(stepName: string): boolean {
     const match = stepName.match(/^(\d+)回目訪問$/)
@@ -30,7 +27,7 @@ export function ProgressDots({ caseData }: { caseData: InheritanceCase }) {
         if (currentSteps.length === 0) return
 
         const target = currentSteps[stepIndex]
-        const today = todayStr()
+        const today = todayIsoDate()
         const newDate = target.date ? null : today
         const message = target.date
             ? `${target.name} の完了日（${target.date}）を削除しますか？`

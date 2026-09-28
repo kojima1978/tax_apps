@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react"
 import type { ProgressStep } from "@/types/shared"
+import { todayIsoDate } from "@/lib/date-utils"
 import {
     PointerSensor,
     KeyboardSensor,
@@ -51,7 +52,7 @@ export function useProgressSteps({ steps, onChange }: UseProgressStepsOptions) {
     }, [])
 
     const setTodayForChecked = useCallback(() => {
-        const today = new Date().toISOString().split("T")[0]
+        const today = todayIsoDate()
         onChange(steps.map((s) => (checkedIds.has(s.id) ? { ...s, date: today } : s)))
         setCheckedIds(new Set())
     }, [steps, checkedIds, onChange])
