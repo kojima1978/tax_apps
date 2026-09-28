@@ -61,6 +61,21 @@ const SHEET_NAMES: Record<DocType, string> = {
   'invoice-request': '請求書発行依頼票',
 };
 
+/**
+ * 「1ページに収める」を外したときに使われる倍率。
+ * fitToPage と scale は同時に保存できる（Excel 自身もそうしていて、チェックを
+ * 外したときの値として覚えている）。書かないと 100% 扱いになり、依頼票は横が
+ * 7.6mm はみ出して右端3列（Z・AA・AB）が2ページ目へ落ちる。
+ * 余白10mmの印刷領域(190x277mm)に収まる倍率は実寸から:
+ *   見積書・請求書 175.7 x 297.5mm → 93%（縦が制約）… 余裕を見て 90
+ *   依頼票         197.6 x 198.0mm → 96%（横が制約）… 余裕を見て 95
+ */
+const FALLBACK_SCALES: Record<DocType, number> = {
+  estimate: 90,
+  invoice: 90,
+  'invoice-request': 95,
+};
+
 /** 依頼票の切り取り線の位置（行20の下端・A列からAB列まで） */
 const CUT_LINE_ROW = 20;
 const CUT_LINE_LAST_COLUMN = 28; // AB
@@ -81,9 +96,10 @@ function applyPrintSetup(ws: ExcelJS.Worksheet, docType: DocType) {
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 1,
-    // fitToPage が有効な間 Excel は倍率を見ないが、テンプレートの固定倍率を残すと
-    // 「1ページに収める」を外した瞬間に元の倍率へ戻るので消しておく
-    scale: undefined,
+    // fitToPage が有効な間 Excel は倍率を見ないが、「1ページに収める」を外した
+    // 瞬間にこの値へ落ちる。テンプレートの固定倍率（依頼票78% / 見積書100%）は
+    // ここで上書きして消す
+    scale: FALLBACK_SCALES[docType],
     printArea: PRINT_AREAS[docType],
     horizontalCentered: true,
     margins: {
