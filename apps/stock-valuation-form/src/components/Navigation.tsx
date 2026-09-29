@@ -50,27 +50,12 @@ export function Navigation({ activeId, onSelect, hasData, isJudgmentTarget }: Na
         <button type="button" className="table-nav-button" onClick={() => move(1)} disabled={!hasNext}>
           次へ
         </button>
-        {/* 表セレクトはタブ列が横スクロールになる狭い画面用（広い画面ではタブ列と重複するので隠す） */}
-        <label className="table-select-label" htmlFor="table-selector">
-          表
-        </label>
-        <select
-          id="table-selector"
-          name="app.activeTable"
-          className="table-select"
-          value={activeId}
-          onChange={(event) => onSelect(event.target.value)}
-          aria-label="表示する表"
-        >
-          {NAV_TABS.map((tab) => {
-            const { entered, target } = stateOf(tab);
-            return (
-              <option key={tab.id} value={tab.id}>
-                {entered ? '●' : '　'}{tab.label}　{tab.subtitle}{target ? '（記載対象）' : ''}
-              </option>
-            );
-          })}
-        </select>
+        {/*
+          「表」セレクトは廃止した。タブ列が横スクロールになる狭い画面用に足したものだが、
+          広い画面では隠している一方で狭い画面ではタブ列と**同時に**出ていて、同じ物が2段に並んでいた。
+          副題を外してタブが小さくなった今は幅420pxでもタブ列の総幅が427px（＝31px送れば全部見える）
+          なので、狭い画面でもタブ列だけで足りる。サマリー画面はこのナビごと出していない。
+        */}
       </div>
 
       {/* 現在の表はタブ列で強調しているので画面には出さない（読み上げ用にだけ残す） */}
@@ -94,12 +79,17 @@ export function Navigation({ activeId, onSelect, hasData, isJudgmentTarget }: Na
               aria-label={`${tab.label} ${tab.subtitle}（${state}）`}
               title={`${tab.label} ${tab.subtitle}／${state}`}
             >
+              {/*
+                副題（「株主判定・会社規模」など）は出さない。開いた様式の1行目に
+                「第１表の１　評価上の株主の判定及び会社規模の判定の明細書」と刷ってあり、
+                タブに要るのは「どれを開くか」の見分けだけ。副題は title（マウスを乗せると出る）と
+                aria-label（読み上げ）に残してあるので、様式名からも探せる。
+              */}
               <span className="table-tab-label-row">
                 <span className="table-tab-label">{tab.label}</span>
                 {target && <span className="table-tab-flag" aria-hidden="true">対象</span>}
                 {entered && <span className="table-tab-dot" aria-hidden="true" />}
               </span>
-              <span className="table-tab-subtitle">{tab.subtitle}</span>
             </button>
           );
         })}

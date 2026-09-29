@@ -335,13 +335,26 @@ function migrateTable1_1R8(data: FormData): FormData {
   };
 }
 
-export function normalizeFormData(data: FormData, industry: IndustryDataset): FormData {
-  const completeData = Object.keys(initialFormData).reduce<FormData>((next, table) => ({
+/**
+ * 足りない表・欄を骨格（initialFormData）で埋める。
+ *
+ * サーバは表や欄の名前を検査せずに保存する（様式の改訂でサーバを直さずに済むように。
+ * server/cases.ts）ので、画面以外が書いた案件（MCP サーバ）や古い版の JSON には表がまるごと
+ * 無いことがある。全部の表が揃っている前提の処理（rolloverFormData の順送りなど）へ
+ * 渡す前には必ずここを通すこと。
+ */
+export function completeFormData(data: FormData): FormData {
+  return Object.keys(initialFormData).reduce<FormData>((next, table) => ({
     ...next,
     [table]: { ...initialFormData[table as TableId], ...(data[table as TableId] ?? {}) },
   }), initialFormData);
+}
 
-  return normalizeIndustryFields(normalizeLinkedFields(migrateTable1_1R8(completeData)), industry);
+export function normalizeFormData(data: FormData, industry: IndustryDataset): FormData {
+  return normalizeIndustryFields(
+    normalizeLinkedFields(migrateTable1_1R8(completeFormData(data))),
+    industry,
+  );
 }
 
 /** UI状態（_*）を除いて1つでも入力があるか */
@@ -482,24 +495,47 @@ export function useFormData() {
     setFormData(normalizeFormData(data, industry));
   }, [industry]);
 
-  /** 翌事業年度更新（実行前に現在データをJSONで自動バックアップ） */
-  const rolloverToNextYear = useCallback(() => {
+  /**
+   * 翌事業年度更新。
+   *
+   * `adoptNext` が渡されていれば順送り後の内容をそちらへ渡す（翌事業年度の案件を新しく作り、
+   * いまの内容は前年分の案件としてそのまま残す経路）。順送りは第５表の金額や類似業種の株価を
+   * クリアするので、同じ案件を上書きすると仕上がった前年の評価がどこにも残らない。
+   *
+   * 渡されていないのは案件に紐づいていないときだけ。残す先が無いので、その場で書き換える前に
+   * JSONで手元に控える（従来の挙動）。
+   */
+  const rolloverToNextYear = useCallback((adoptNext?: (next: FormData) => void) => {
+    const keepsPrevious = adoptNext !== undefined;
     const message = [
       '翌事業年度への更新を行います。',
       '',
-      '・課税時期・直前期（自/至）の年を1年進めます',
+      ...(keepsPrevious
+        ? [
+            '・いまの内容は前年分の案件としてそのまま残します',
+            '・課税時期・直前期（自/至）の年を1年進めた案件を新しく作ります',
+          ]
+        : ['・課税時期・直前期（自/至）の年を1年進めます']),
       '・直前期の数値を直前々期へ順送りし、直前期欄を空欄にします',
       '　（第４表の配当/利益/純資産、第７表の受取配当金等）',
       '・第５表の金額、会社規模判定の数値、価額修正・株式に関する権利、',
       '　類似業種の株価をクリアします（業種目番号・科目は維持）',
       '・会社名・株主構成などの基本情報は維持します',
       '',
-      '実行前に現在のデータをJSONファイルとして自動保存します。よろしいですか？',
+      keepsPrevious
+        ? 'よろしいですか？'
+        : '実行前に現在のデータをJSONファイルとして自動保存します。よろしいですか？',
     ].join('\n');
     if (!window.confirm(message)) return;
+
+    const next = normalizeFormData(rolloverFormData(formData), industry);
+    if (adoptNext !== undefined) {
+      adoptNext(next);
+      return;
+    }
     exportJson();
-    setFormData((prev) => normalizeFormData(rolloverFormData(prev), industry));
-  }, [exportJson, industry]);
+    setFormData(next);
+  }, [exportJson, formData, industry]);
 
   /** Table-scoped selector — stable reference per table while that table's data is unchanged */
   const tableData = useMemo(() => formData, [formData]);

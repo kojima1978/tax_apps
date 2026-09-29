@@ -59,6 +59,31 @@ export function parseCaseData(raw: unknown, what = 'data'): CaseFormData {
   );
 }
 
+/**
+ * 上書きが弾かれたときの文言。画面側もこれをそのまま出す（言い回しを2つ持たない）。
+ */
+export const CASE_CONFLICT_MESSAGE = '別の端末で更新されました。読み直してください';
+
+/**
+ * 上書きの前提（PUT の expectedUpdatedAt）。読んだときの updatedAt をそのまま返してもらい、
+ * サーバ側の現在値と食い違えば上書きしない。
+ *
+ * 省略は「前提なし」＝これまでどおりの上書き。画面を持たない書き手（MCP サーバ）は前提を
+ * 持ちようがなく、必須にするとそちらが一切書けなくなる。画面側は必ず付けるので、
+ * 取込の直後に開きっぱなしの画面から自動保存が飛んできた場合はここで止まる。
+ */
+export function parseExpectedUpdatedAt(raw: unknown, what = 'リクエスト本体'): Date | null {
+  const body = asRecord(raw, what);
+  const value = body.expectedUpdatedAt;
+  if (value === undefined || value === null || value === '') return null;
+
+  const parsed = new Date(asString(value, 'expectedUpdatedAt'));
+  if (Number.isNaN(parsed.getTime())) {
+    throw new ValidationError('expectedUpdatedAt は日時で指定してください');
+  }
+  return parsed;
+}
+
 /** 保存（POST）・上書き（PUT）のリクエスト本体。 */
 export function parseCaseInput(raw: unknown, what = 'リクエスト本体'): ParsedCaseInput {
   const body = asRecord(raw, what);
@@ -95,6 +120,7 @@ export interface CaseRow {
   id: number;
   companyName: string;
   taxPeriod: string;
+  companyKey: string | null;
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -106,6 +132,7 @@ export function toCaseSummary(row: CaseRow) {
     id: row.id,
     companyName: row.companyName,
     taxPeriod: row.taxPeriod,
+    companyKey: row.companyKey,
     archivedAt: row.archivedAt === null ? null : row.archivedAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

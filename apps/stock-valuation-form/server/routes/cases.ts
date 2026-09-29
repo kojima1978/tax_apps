@@ -10,12 +10,15 @@
 // 削除は論理削除（ゴミ箱）が既定。1社ぶんの入力を消すのは取り返しがつかないため、
 // 完全削除は ?purge=1 を明示したときだけ行う。
 
+import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
 import type { PrismaClient } from '@prisma/client';
 import {
+  CASE_CONFLICT_MESSAGE,
   copiedCaseName,
   parseCaseId,
   parseCaseInput,
+  parseExpectedUpdatedAt,
   toCaseResponse,
   toCaseSummary,
 } from '../cases.js';
@@ -26,6 +29,7 @@ const SUMMARY_COLUMNS = {
   id: true,
   companyName: true,
   taxPeriod: true,
+  companyKey: true,
   archivedAt: true,
   createdAt: true,
   updatedAt: true,
@@ -74,6 +78,26 @@ export function createCaseRouter(db: PrismaClient) {
     return db.valuationCase.findUnique({ where: { id: caseIdOf(c) } });
   }
 
+  /**
+   * 案件の会社キーを返す。まだ無ければその場で振って元の案件にも書き込む。
+   *
+   * キーは「この案件とあの案件は同じ会社」という関係が生まれた瞬間（翌年度更新・複製）に
+   * 初めて要るので、新規作成では振らない。振ってしまうと、同じ会社を手で2回作ったときに
+   * 別々のキーを持ってしまい、会社名が同じでも二度と1つにまとまらなくなる。
+   */
+  async function ensureCompanyKey(id: number): Promise<string | null> {
+    const source = await db.valuationCase.findUnique({
+      where: { id },
+      select: { id: true, companyKey: true },
+    });
+    if (!source) return null;
+    if (source.companyKey !== null) return source.companyKey;
+
+    const companyKey = randomUUID();
+    await db.valuationCase.update({ where: { id: source.id }, data: { companyKey } });
+    return companyKey;
+  }
+
   // 一覧。既定はゴミ箱を除く。?includeArchived=1 でゴミ箱も含める。
   router.get('/cases', async (c) => {
     const includeArchived = c.req.query('includeArchived') === '1';
@@ -94,11 +118,22 @@ export function createCaseRouter(db: PrismaClient) {
     return c.json({ case: toCaseResponse(found) });
   }));
 
-  // 新規保存。
+  // 新規保存。?relatedTo=<案件ID> を付けると、その案件と同じ会社として作る（翌年度更新）。
   router.post('/cases', guard(async (c) => {
     const input = parseCaseInput(await readJson(c.req.raw));
+
+    // 会社キーは本体では受け取らない。関係の元になる案件を指してもらい、こちらで揃える
+    // （client が勝手な値を送れると、別の会社の年分に紛れ込ませられる）。
+    const relatedTo = c.req.query('relatedTo');
+    const companyKey = relatedTo === undefined
+      ? null
+      : await ensureCompanyKey(parseCaseId(relatedTo));
+    if (relatedTo !== undefined && companyKey === null) {
+      return c.json({ error: '指定された案件は存在しません' }, 404);
+    }
+
     const created = await db.valuationCase.create({
-      data: input,
+      data: { ...input, companyKey },
       select: SUMMARY_COLUMNS,
     });
     return c.json({ case: toCaseSummary(created) }, 201);
@@ -107,10 +142,20 @@ export function createCaseRouter(db: PrismaClient) {
   // 上書き。自動保存がここを叩く。
   router.put('/cases/:id', guard(async (c) => {
     const id = caseIdOf(c);
-    const input = parseCaseInput(await readJson(c.req.raw));
+    const body = await readJson(c.req.raw);
+    const input = parseCaseInput(body);
+    const expected = parseExpectedUpdatedAt(body);
 
-    const existing = await db.valuationCase.findUnique({ where: { id }, select: { id: true } });
+    const existing = await db.valuationCase.findUnique({ where: { id }, select: SUMMARY_COLUMNS });
     if (!existing) return c.json({ error: '指定された案件は存在しません' }, 404);
+
+    // 楽観ロック。読んだときから動いていれば上書きしない。data をまるごと入れ替えるAPIなので、
+    // 突き合わせが無いと後から届いたほうだけが残り、消えたことが誰にも見えない。
+    // 前提から更新までの隙間に別の書き込みが入る余地は残るが、ここで止めたいのは
+    // 「古い画面が数秒ごとに送り続けること」なので、同時到着まで直列化はしない。
+    if (expected !== null && existing.updatedAt.getTime() !== expected.getTime()) {
+      return c.json({ error: CASE_CONFLICT_MESSAGE, case: toCaseSummary(existing) }, 409);
+    }
 
     const updated = await db.valuationCase.update({
       where: { id },
@@ -129,6 +174,8 @@ export function createCaseRouter(db: PrismaClient) {
       data: {
         companyName: copiedCaseName(source.companyName),
         taxPeriod: source.taxPeriod,
+        // 複製は同じ会社の別の年分を作る操作なので、会社キーを引き継ぐ（無ければ元にも振る）。
+        companyKey: await ensureCompanyKey(source.id),
         data: source.data ?? {},
       },
       select: SUMMARY_COLUMNS,

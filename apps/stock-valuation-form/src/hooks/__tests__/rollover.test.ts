@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { initialFormData, type FormData } from '@/types/form';
 import { TEST_INDUSTRY_DATASET } from '@/data/__tests__/industryFixture';
 import { rolloverFormData } from '../rollover';
-import { normalizeFormData } from '../useFormData';
+import { completeFormData, normalizeFormData } from '../useFormData';
 
 /** テスト用の入力データを組み立てる */
 function baseData(): FormData {
@@ -142,6 +142,23 @@ describe('rolloverFormData（翌事業年度更新）', () => {
     const r = rolloverFormData(data);
     expect(r.table5._corporate_tax_rate).toBe('');
     expect(r.table1_1.f14_y).toBe('9'); // 年は進んでいる（率は課税時期から決め直される）
+  });
+
+  // サーバは表の名前を検査せずに保存するので、MCP サーバが作った案件などは
+  // 表がまるごと無いことがある。そのまま順送りへ渡すと落ちる（年分の追加ができなくなる）。
+  it('表が欠けたデータでも completeFormData を通せば順送りできる', () => {
+    const partial = {
+      table1_1: { f12: '部分的な会社', f14_y: '8' },
+      table5: { a_1_1: '現金預金', a_1_2: '999' },
+    } as unknown as FormData;
+
+    expect(() => rolloverFormData(partial)).toThrow();
+
+    const r = rolloverFormData(completeFormData(partial));
+    expect(r.table1_1.f12).toBe('部分的な会社');
+    expect(r.table1_1.f14_y).toBe('9');
+    expect(r.table5.a_1_1).toBe('現金預金'); // 科目は残る
+    expect(r.table5.a_1_2).toBe('');                 // 金額は毎年入れ直す
   });
 
   it('日付が空欄・非数値ならそのまま', () => {

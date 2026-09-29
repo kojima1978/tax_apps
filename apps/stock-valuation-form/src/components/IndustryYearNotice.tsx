@@ -79,7 +79,7 @@ export function IndustryYearNotice({ getField, updateField, onJump }: Props) {
             className="app-industry-year is-missing"
             title={`${shown.label}の月別株価は${coverage.latest ? `${wareki(coverage.latest)}分まで` : '未登録'}です。`
               + `${coverage.missing.map(wareki).join('・')}分が未登録のため、第4表の2の課税時期の属する月・前月・前々月の株価（㋷㋦㋸）とA欄が空欄になります。`
-              + '業種目データ管理から月別株価を登録してください'}
+              + '会社の一覧（← 一覧）の「業種目データ管理」から月別株価を登録してください'}
           >
             業種目 {shown.label}（{coverage.missing.map((at) => `${at.month}月`).join('・')}分の株価が未登録）
           </span>
@@ -88,7 +88,7 @@ export function IndustryYearNotice({ getField, updateField, onJump }: Props) {
     return (
       <span
         className="app-industry-year is-missing"
-        title="この年分の業種目データが未登録のため、業種目の選択肢と類似業種の株価は空欄になります。業種目データ管理から登録してください"
+        title="この年分の業種目データが未登録のため、業種目の選択肢と類似業種の株価は空欄になります。会社の一覧（← 一覧）の「業種目データ管理」から登録してください"
       >
         業種目 未登録
       </span>

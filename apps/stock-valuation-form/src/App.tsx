@@ -12,10 +12,12 @@ import { Table5 } from '@/components/tables/table5';
 import { Table6 } from '@/components/tables/table6';
 import { Table7_1, Table7_2, Table7_3 } from '@/components/tables/table7';
 import { IndustryAdminPage } from '@/features/industryAdmin/IndustryAdminPage';
-import { CaseDialog } from '@/features/cases/CaseDialog';
-import { CaseMigrationDialog } from '@/features/cases/CaseMigrationDialog';
+import { CasesPage } from '@/features/cases/CasesPage';
+import { CompanyPage } from '@/features/cases/CompanyPage';
+import { groupKeyOfCaseId } from '@/features/cases/caseGroups';
+import { ADMIN_HASH, CASES_HASH, FORM_HASH, companyHash, resolveRoute } from '@/features/cases/screen';
 import { useCases } from '@/features/cases/useCases';
-import { caseDisplayName, saveStatusLabel } from '@/features/cases/caseLabels';
+import { formHeaderTitle, saveStatusLabel } from '@/features/cases/caseLabels';
 import type { TableId, TableProps } from '@/types/form';
 import { NAV_TABS, SUMMARY_TAB_ID, TABS } from '@/data/constants';
 import { PrerequisitesChip, PrerequisitesDialog } from '@/components/PrerequisitesDialog';
@@ -26,9 +28,6 @@ import { ConsistencyChecker } from '@/components/ConsistencyChecker';
 import { IndustryYearNotice } from '@/components/IndustryYearNotice';
 import { ShortcutHelp } from '@/components/ShortcutHelp';
 import { focusAndFlash } from '@/lib/focusField';
-
-// 業種目データ管理は帳票と同居させない別画面。ハッシュで切り替える。
-const ADMIN_HASH = '#industry-data';
 
 const TABLE_COMPONENTS: Record<TableId, React.ComponentType<TableProps>> = {
   table1_1: Table1_1,
@@ -94,7 +93,9 @@ export default function App() {
   const [printPrepared, setPrintPrepared] = useState(false);
   const [prereqOpen, setPrereqOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(() => window.location.hash === ADMIN_HASH);
+  // 帳票・会社一覧・年度一覧・業種目データ管理の切り替え（判定は features/cases/screen.ts）。
+  const [route, setRoute] = useState(() => resolveRoute(window.location.hash));
+  const screen = route.screen;
   const [printSelection, setPrintSelection] = useState<Record<TableId, boolean>>(
     () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
   );
@@ -103,7 +104,6 @@ export default function App() {
   const [printWorksheet, setPrintWorksheet] = useState(false);
   // 自動転記欄から入力元へ飛ぶ前にいた場所（「戻る」用）
   const [jumpOrigin, setJumpOrigin] = useState<{ tab: TableId; fieldName: string | null } | null>(null);
-  const [casesOpen, setCasesOpen] = useState(false);
 
   // 案件に入れていない入力を捨てる前の確認。JSON読込・リセットと同じく、破棄の前に書き出す
   const confirmDiscardDraft = useCallback(() => {
@@ -119,6 +119,17 @@ export default function App() {
   }, [exportJson, formData]);
 
   const caseStore = useCases({ formData, getField, replaceAll, confirmDiscard: confirmDiscardDraft });
+
+  // 翌年度更新は前年分を案件として残し、順送りした内容の案件へ移る。案件に紐づいていないとき
+  // （自動作成が届いていないとき）だけ従来どおりその場で書き換える ── 残す先が無いので、
+  // JSONで手元に控えるしかない。
+  const startNextYear = useCallback(() => {
+    rolloverToNextYear(
+      caseStore.currentId === null
+        ? undefined
+        : (next) => { void caseStore.createNextYear(next); },
+    );
+  }, [caseStore, rolloverToNextYear]);
 
   // 表に（UI状態 _* と他表からの転記先を除く）入力値があるか。第4表の1／2は共通バケット table4 を参照する
   const hasData = useCallback(
@@ -196,10 +207,18 @@ export default function App() {
   const ActiveTable = TABLE_COMPONENTS[activeTab];
 
   useEffect(() => {
-    const syncAdmin = () => setAdminOpen(window.location.hash === ADMIN_HASH);
-    window.addEventListener('hashchange', syncAdmin);
-    return () => window.removeEventListener('hashchange', syncAdmin);
+    const syncRoute = () => setRoute(resolveRoute(window.location.hash));
+    window.addEventListener('hashchange', syncRoute);
+    return () => window.removeEventListener('hashchange', syncRoute);
   }, []);
+
+  // 帳票から一覧へ戻る先。開いている案件があればその会社の年分の一覧、無ければ会社の一覧。
+  // 案件の印は一覧を辿って決める（案件だけを見て作った印は実在の塊と一致しないことがある）。
+  const listHash = useMemo(() => {
+    if (caseStore.currentId === null) return CASES_HASH;
+    const key = groupKeyOfCaseId(caseStore.cases, caseStore.currentId);
+    return key === null ? CASES_HASH : companyHash(key);
+  }, [caseStore.cases, caseStore.currentId]);
 
   const finishPrint = useCallback(() => {
     printRequestedRef.current = false;
@@ -237,8 +256,10 @@ export default function App() {
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // 日本語入力の変換中は横取りしない（変換の確定・候補選択を奪ってしまうため）
     if (event.isComposing) return;
+    // 帳票以外の画面（案件一覧・業種目データ管理）では帳票の操作を効かせない
+    if (screen !== 'form') return;
     // ダイアログを開いている間と印刷準備中は、背後の表が勝手に動かないよう止める
-    if (printDialogOpen || prereqOpen || casesOpen || printTarget !== null) return;
+    if (printDialogOpen || prereqOpen || printTarget !== null) return;
 
     const ctrl = event.ctrlKey || event.metaKey;
     if (ctrl && event.key === 's') {
@@ -266,7 +287,7 @@ export default function App() {
       event.preventDefault();
       setShortcutsOpen((open) => !open);
     }
-  }, [activeTab, exportJson, goToNav, prereqOpen, printDialogOpen, printTarget, requestPrint, summaryOpen]);
+  }, [activeTab, exportJson, goToNav, prereqOpen, printDialogOpen, printTarget, requestPrint, screen, summaryOpen]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -312,51 +333,81 @@ export default function App() {
   };
 
   // 帳票の入力状態は残したまま画面だけ差し替える（フックはすべて上で呼び終えている）。
-  if (adminOpen) {
-    return <IndustryAdminPage onClose={() => { window.location.hash = ''; }} />;
+  if (screen === 'admin') {
+    // 入口は会社の一覧（トップ）だけなので、戻り先もそこの1つ。帳票・年分の一覧には置かない
+    // ―― 業種目マスタは会社に紐づかないもので、入力中にやる作業ではない。
+    return (
+      <IndustryAdminPage
+        backLabel="← 会社の一覧に戻る"
+        onClose={() => { window.location.hash = CASES_HASH; }}
+      />
+    );
   }
+
+  if (route.screen === 'company') {
+    return (
+      <CompanyPage
+        store={caseStore}
+        groupKey={route.groupKey}
+        onBack={() => { window.location.hash = CASES_HASH; }}
+        onEnterForm={() => { window.location.hash = FORM_HASH; }}
+      />
+    );
+  }
+
+  if (screen === 'cases') {
+    return (
+      <CasesPage
+        store={caseStore}
+        hasInput={hasAnyInput(formData)}
+        onEnterForm={() => { window.location.hash = FORM_HASH; }}
+        onOpenCompany={(groupKey) => { window.location.hash = companyHash(groupKey); }}
+        onOpenAdmin={() => { window.location.hash = ADMIN_HASH; }}
+      />
+    );
+  }
+
+  // 見出しに出す案件名。様式の欄から作るので、会社名・課税時期を打った先から変わる。
+  const headerTitle = formHeaderTitle(caseStore.currentId, getField);
 
   return (
     <PrintRenderContext.Provider value={printTarget !== null}>
     <div className="app-root" style={{ fontFamily: '"Noto Sans JP", sans-serif' }}>
       <header className="no-print app-header">
-        <a href="/" className="app-home-link" title="ポータルに戻る">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
-            <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          </svg>
-          ポータル
-        </a>
-        <div className="app-header-title">取引相場のない株式の評価明細書</div>
+        <button
+          type="button"
+          className="app-tool-btn app-back-btn"
+          onClick={() => { window.location.hash = listHash; }}
+          title={listHash === CASES_HASH
+            ? '会社の一覧に戻ります（入力は自動で保存されます）'
+            : 'この会社の年分の一覧に戻ります（入力は自動で保存されます）'}
+        >
+          ← 一覧
+        </button>
+        {/* 見出しの位置はアプリ名ではなく案件名。押せない案件チップを別に置くのはやめた */}
+        <div
+          className="app-header-title"
+          title={caseStore.currentId === null
+            ? 'まだ案件に入っていません（入力を続けると自動で案件になります）'
+            : `いま入力を書き戻している案件です：${headerTitle}`}
+        >
+          {headerTitle}
+        </div>
         <div className="app-header-right">
-          <PrerequisitesChip getField={getField} onClick={() => setPrereqOpen(true)} />
-          <button
-            type="button"
-            className={`app-tool-btn app-case-chip${caseStore.currentId === null ? ' is-unlinked' : ''}`}
-            onClick={() => setCasesOpen(true)}
-            title="会社ごとに入力を保存し、案件を切り替えます"
-          >
-            案件：{caseStore.currentCase ? caseDisplayName(caseStore.currentCase) : '未選択'}
-          </button>
           <span className="app-autosave" aria-live="polite">
             {saveStatusLabel(caseStore.currentId !== null, caseStore.status, caseStore.savedAt, savedAt)}
           </span>
-          <button
-            type="button"
-            className="app-tool-btn"
-            onClick={() => { window.location.hash = ADMIN_HASH; }}
-            title="類似業種比準価額に使う業種目マスタ・業種目別株価等を登録・訂正します"
-          >
-            業種目データ管理
-          </button>
-          <button
-            type="button"
-            className="app-tool-btn"
-            onClick={() => setShortcutsOpen(true)}
-            title="キーボードショートカットの一覧を表示します（? キー）"
-          >
-            ショートカット
-          </button>
+          {/* ぶつかっている間は自動保存を止めてあるので、直す口を保存表示の隣に出す。 */}
+          {caseStore.status === 'conflict' && (
+            <button
+              type="button"
+              className="app-tool-btn"
+              onClick={() => void caseStore.reloadCurrent()}
+              title="別の端末がこの案件を更新したため保存を止めています。サーバの内容で開き直します（この画面のまだ保存できていない入力は失われます）"
+            >
+              読み直す
+            </button>
+          )}
         </div>
       </header>
 
@@ -375,11 +426,17 @@ export default function App() {
           />
         )}
 
+        {/*
+          左＝操作、右＝状態。状態（前提条件・必須未入力・確認事項・業種目）は以前ヘッダの右端と
+          ここの右端に割れていて、引っかかりを2箇所見に行く必要があった。操作の左端は「← 一覧」・
+          タブ列と同じ位置に揃える（右寄せだったのは広い画面だけで、800px以下では元から左寄せ）。
+        */}
         <div className="app-toolbar" aria-label="帳票操作">
+          <div className="app-toolbar-actions">
           {([
             { label: '保存 (JSON)', onClick: exportJson, title: 'Ctrl+S' },
             { label: '読込 (JSON)', onClick: () => importRef.current?.click() },
-            { label: '翌年度更新', onClick: rolloverToNextYear, title: '直前期の数値を直前々期へ順送りして翌事業年度の評価に移行します（実行前に自動バックアップ）' },
+            { label: '翌年度更新', onClick: startNextYear, title: '直前期の数値を直前々期へ順送りした翌事業年度の案件を作って移ります（前年分は案件として残ります）' },
             { label: '全表印刷', onClick: openPrintDialog },
             { label: '現在の表を印刷', onClick: () => requestPrint('current'), title: 'Ctrl+P' },
             { label: '全データリセット', onClick: resetAll, danger: true },
@@ -404,16 +461,31 @@ export default function App() {
               ◂ {TABS.find((t) => t.id === jumpOrigin.tab)?.label ?? '前の表'}へ戻る
             </button>
           )}
-          {!summaryOpen && <RequiredFieldNavigator watch={`${activeTab}:${printTarget ?? ''}:${JSON.stringify(formData)}`} />}
-          {!summaryOpen && <ConsistencyChecker getField={getField} onJump={(tab, field) => handleJump({ tab, field })} />}
-          {!summaryOpen && (
-            <IndustryYearNotice
-              getField={getField}
-              updateField={updateField}
-              onJump={(tab, field) => handleJump({ tab, field })}
-            />
-          )}
+          {/* ヘッダから降ろした。毎日押すものではないうえ ? キーでも開くので、上段は案件と保存の表示に空ける */}
+          <button
+            type="button"
+            className="app-tool-btn"
+            onClick={() => setShortcutsOpen(true)}
+            title="キーボードショートカットの一覧を表示します（? キー）"
+          >
+            ショートカット
+          </button>
           <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+          </div>
+
+          <div className="app-toolbar-status">
+            {/* 前提条件はヘッダから降ろした。押すと様式全体の前提（相続税・贈与税ベース等）を変える */}
+            <PrerequisitesChip getField={getField} onClick={() => setPrereqOpen(true)} />
+            {!summaryOpen && <RequiredFieldNavigator watch={`${activeTab}:${printTarget ?? ''}:${JSON.stringify(formData)}`} />}
+            {!summaryOpen && <ConsistencyChecker getField={getField} onJump={(tab, field) => handleJump({ tab, field })} />}
+            {!summaryOpen && (
+              <IndustryYearNotice
+                getField={getField}
+                updateField={updateField}
+                onJump={(tab, field) => handleJump({ tab, field })}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -472,16 +544,6 @@ export default function App() {
       )}
 
       {shortcutsOpen && <ShortcutHelp onClose={() => setShortcutsOpen(false)} />}
-
-      {casesOpen && (
-        <CaseDialog
-          store={caseStore}
-          hasInput={hasAnyInput(formData)}
-          onClose={() => setCasesOpen(false)}
-        />
-      )}
-
-      {caseStore.migrationOffer && !casesOpen && <CaseMigrationDialog store={caseStore} />}
 
       {printDialogOpen && (() => {
         const judgmentSet = judgmentTargets;

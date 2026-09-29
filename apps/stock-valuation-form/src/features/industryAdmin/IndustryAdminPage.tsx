@@ -26,7 +26,7 @@ const PANELS: ReadonlyArray<{ id: PanelId; label: string; description: string }>
  * 業種目データ管理画面。帳票とは別画面（`#industry-data`）で開く。
  * 削除は用意していない（誤操作の影響が大きいため、取り消しはバックアップからの復元で行う）。
  */
-export function IndustryAdminPage({ onClose }: { onClose: () => void }) {
+export function IndustryAdminPage({ onClose, backLabel = '← 帳票に戻る' }: { onClose: () => void; backLabel?: string }) {
   const dataset = useIndustryDataset();
   const reload = useReloadIndustryDataset();
   const [panel, setPanel] = useState<PanelId>('list');
@@ -56,7 +56,7 @@ export function IndustryAdminPage({ onClose }: { onClose: () => void }) {
     <div className="app-root admin-root" style={{ fontFamily: '"Noto Sans JP", sans-serif' }}>
       <header className="app-header">
         <button type="button" className="app-home-link admin-back" onClick={onClose}>
-          ← 帳票に戻る
+          {backLabel}
         </button>
         <div className="app-header-title">業種目データ管理</div>
       </header>

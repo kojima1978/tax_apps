@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { selectDisplayValue } from '@/components/ui/GridForm';
-import { ERA_OPTS } from '@/components/tables/Table1_1Grid';
 import { DATE_OPTS } from '@/components/tables/table2/Table2Grid';
-import { DEFAULT_ERA } from '@/lib/wareki';
+import { DEFAULT_ERA, ERA_OPTS } from '@/lib/wareki';
 
 // 印刷はプルダウンを文字に置き換えて刷る。置き換えた結果が画面の <select> と食い違うと、
 // 「画面には出ているのに刷ると空欄」になり、提出するまで気づけない。

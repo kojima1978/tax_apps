@@ -132,6 +132,12 @@ model ValuationCase {
   companyName String @default("")
   /// 課税時期（「令和8年3月15日」のような表示用の文字列）。一覧で案件を見分けるために持つ。
   taxPeriod String @default("")
+  /// 同じ会社の年分をまとめるための印。翌年度更新・複製で引き継ぎ、そのときに初めて振る。
+  ///
+  /// 会社マスタは作らない（様式の会社名欄と二重管理になる）。代わりに「この案件とあの案件は
+  /// 同じ会社」という関係だけをここに残す。会社名を書き直しても年分が離れ離れにならず、
+  /// 同名の別会社も混ざらない。振られていない案件は今までどおり会社名で名寄せする。
+  companyKey String?
 
   /// 評価明細書の入力値そのもの（表ID → 欄名 → 値）。
   data Json
@@ -143,4 +149,5 @@ model ValuationCase {
   updatedAt DateTime @updatedAt
 
   @@index([archivedAt, updatedAt])
+  @@index([companyKey])
 }

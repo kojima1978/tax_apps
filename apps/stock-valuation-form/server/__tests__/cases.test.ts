@@ -9,6 +9,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import {
+  CASE_CONFLICT_MESSAGE,
   copiedCaseName,
   parseCaseData,
   parseCaseId,
@@ -112,6 +113,7 @@ describe('toCaseSummary / toCaseResponse', () => {
     id: 1,
     companyName: '株式会社テスト',
     taxPeriod: '令和8年3月15日',
+    companyKey: null,
     archivedAt: null,
     createdAt: new Date('2026-09-01T00:00:00.000Z'),
     updatedAt: new Date('2026-09-02T00:00:00.000Z'),
@@ -289,6 +291,70 @@ describe('createCaseRouter', () => {
 
     expect(res.status).toBe(404);
     expect(rows).toHaveLength(0);
+  });
+
+  it('前提が一致すれば上書きできる', async () => {
+    const { rows, client } = fakeDb([
+      { data: { table1_1: { f12: '旧' } }, updatedAt: new Date('2026-09-20T01:00:00.000Z') },
+    ]);
+
+    const res = await createCaseRouter(client).request('/cases/1', {
+      ...json({
+        data: { table1_1: { f12: '新' } },
+        expectedUpdatedAt: '2026-09-20T01:00:00.000Z',
+      }),
+      method: 'PUT',
+    });
+
+    expect(res.status).toBe(200);
+    expect(rows[0]!.data).toEqual({ table1_1: { f12: '新' } });
+  });
+
+  it('前提が古ければ409にして上書きしない（後から届いたほうだけが残るのを止める）', async () => {
+    const { rows, client } = fakeDb([
+      { data: { table1_1: { f12: '別の端末が入れた値' } }, updatedAt: new Date('2026-09-20T02:00:00.000Z') },
+    ]);
+
+    const res = await createCaseRouter(client).request('/cases/1', {
+      ...json({
+        data: { table1_1: { f12: '古い画面の値' } },
+        expectedUpdatedAt: '2026-09-20T01:00:00.000Z',
+      }),
+      method: 'PUT',
+    });
+    const body = (await res.json()) as { error: string; case: { updatedAt: string } };
+
+    expect(res.status).toBe(409);
+    expect(body.error).toBe(CASE_CONFLICT_MESSAGE);
+    // 突き合わせ直すための現在値を返す。中身（data）は返さない ── 上書きを止めただけで、
+    // どちらが正しいかはサーバには決められない。
+    expect(body.case.updatedAt).toBe('2026-09-20T02:00:00.000Z');
+    expect(rows[0]!.data).toEqual({ table1_1: { f12: '別の端末が入れた値' } });
+  });
+
+  it('前提を付けなければこれまでどおり上書きする（画面を持たないMCPサーバのため）', async () => {
+    const { rows, client } = fakeDb([
+      { data: { table1_1: { f12: '旧' } }, updatedAt: new Date('2026-09-20T02:00:00.000Z') },
+    ]);
+
+    const res = await createCaseRouter(client).request('/cases/1', {
+      ...json({ data: { table1_1: { f12: '新' } } }),
+      method: 'PUT',
+    });
+
+    expect(res.status).toBe(200);
+    expect(rows[0]!.data).toEqual({ table1_1: { f12: '新' } });
+  });
+
+  it('前提が日時として読めなければ400', async () => {
+    const { client } = fakeDb([{ data: {} }]);
+
+    const res = await createCaseRouter(client).request('/cases/1', {
+      ...json({ data: {}, expectedUpdatedAt: 'きのう' }),
+      method: 'PUT',
+    });
+
+    expect(res.status).toBe(400);
   });
 
   it('上書きで入力データが入れ替わる', async () => {

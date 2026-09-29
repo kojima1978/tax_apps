@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { TableId } from '@/types/form';
 import {
+  APP_TITLE,
   caseDisplayName,
   caseLabelsOf,
+  formHeaderTitle,
   formatSavedAt,
   saveStatusLabel,
   taxPeriodLabel,
@@ -63,6 +65,27 @@ describe('caseDisplayName', () => {
   });
 });
 
+describe('formHeaderTitle', () => {
+  const typed = fields({ f12: '甲田製作所', f14_y: '8', f14_m: '3', f14_d: '15' });
+
+  it('案件に入っていれば会社名と課税時期を見出しにする', () => {
+    expect(formHeaderTitle(12, typed)).toBe('甲田製作所（令和8年3月15日）');
+  });
+
+  it('課税時期がまだなら会社名だけ（空の括弧を出さない）', () => {
+    expect(formHeaderTitle(12, fields({ f12: '甲田製作所' }))).toBe('甲田製作所');
+  });
+
+  it('会社名を入れる前でも案件は見分けられる', () => {
+    expect(formHeaderTitle(12, fields({ f14_y: '8' }))).toBe('（会社名未入力 #12）（令和8年）');
+  });
+
+  it('案件に入る前だけアプリ名に戻す', () => {
+    // 入力はあっても案件に入っていなければ案件名として出さない（保存先が端末だけなので）。
+    expect(formHeaderTitle(null, typed)).toBe(APP_TITLE);
+  });
+});
+
 describe('formatSavedAt', () => {
   it('Date でも ISO 文字列でも同じ形にする（一覧はサーバからの文字列を渡す）', () => {
     const date = new Date(2026, 8, 22, 9, 5);
@@ -79,22 +102,31 @@ describe('saveStatusLabel', () => {
   const at = new Date(2026, 8, 22, 9, 5);
 
   it('案件未選択のときは保存先がこの端末だけだと分かる文言にする', () => {
-    expect(saveStatusLabel(false, 'idle', null, null)).toBe('入力するとこの端末に自動保存されます');
+    expect(saveStatusLabel(false, 'idle', null, null)).toBe('入力すると自動で案件に保存されます');
     expect(saveStatusLabel(false, 'idle', null, at)).toBe('この端末のみに保存 09:05（案件未選択）');
+  });
+
+  it('案件を作れなかったときは未選択のままでもそれが分かる（端末にしか無いことを隠さない）', () => {
+    expect(saveStatusLabel(false, 'error', null, at)).toBe('案件を作れませんでした（この端末のみに保存）');
   });
 
   it('案件未選択なら案件側の状態は出さない（保存されていないのに保存中と読めてしまう）', () => {
     expect(saveStatusLabel(false, 'saving', at, at)).toBe('この端末のみに保存 09:05（案件未選択）');
   });
 
+  // 「案件へ」は付けない（どの案件かは見出しに出ている。formHeaderTitle）。
   it('案件を選んでいる間は書き戻しの状態をそのまま出す', () => {
-    expect(saveStatusLabel(true, 'pending', at, at)).toBe('案件へ保存します…');
-    expect(saveStatusLabel(true, 'saving', at, at)).toBe('案件へ保存中…');
-    expect(saveStatusLabel(true, 'error', at, at)).toBe('案件へ保存できませんでした');
-    expect(saveStatusLabel(true, 'saved', at, at)).toBe('案件に保存済み 09:05');
+    expect(saveStatusLabel(true, 'pending', at, at)).toBe('保存します…');
+    expect(saveStatusLabel(true, 'saving', at, at)).toBe('保存中…');
+    expect(saveStatusLabel(true, 'error', at, at)).toBe('保存できませんでした');
+    expect(saveStatusLabel(true, 'saved', at, at)).toBe('保存済み 09:05');
   });
 
   it('保存時刻がまだ無い（開いた直後）でも案件に入っていることは伝える', () => {
-    expect(saveStatusLabel(true, 'idle', null, at)).toBe('案件に保存済み');
+    expect(saveStatusLabel(true, 'idle', null, at)).toBe('保存済み');
+  });
+
+  it('上書きを止めている間は止まっていることを出す（ここだけは短くしない）', () => {
+    expect(saveStatusLabel(true, 'conflict', at, at)).toBe('別の端末で更新されました（保存を止めています）');
   });
 });

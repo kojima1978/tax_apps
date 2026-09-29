@@ -5,6 +5,7 @@ import { companyFloatBox } from './companyFloatHeader';
 import type { TableProps } from '@/types/form';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
 import { stripAmountFormatting } from '@/lib/numberFormat';
+import { DAY_OPTS, ERA_OPTS, MONTH_OPTS, YEAR_OPTS } from '@/lib/wareki';
 
 const T = 'table1_1' as const;
 
@@ -262,12 +263,7 @@ export function calcShareholderJudgment(getField: TableProps['getField']) {
 
 // ── 和暦日付の4列プルダウン（元号｜年｜月｜日を様式の列に合わせて分割） ──
 // 保存キーは従来の複合入力と同じ `${prefix}_g/_y/_m/_d`（元号未選択は令和扱い）
-const numOptions = (n: number) => ['', ...Array.from({ length: n }, (_, i) => String(i + 1))];
-// 空の選択肢を置かない（未選択でも令和として扱う様式の運用に合わせる）。先頭は DEFAULT_ERA と揃えること
-export const ERA_OPTS = ['令和', '平成'];
-const YEAR_OPTS = numOptions(64);
-const MONTH_OPTS = numOptions(12);
-const DAY_OPTS = numOptions(31);
+// 選択肢は案件を作るダイアログと共通（@/lib/wareki）。
 // 数字（年月日）は様式どおり右詰め。元号は文字なので既定（左詰め）のまま
 const DATE_COLS = [
   { suffix: '_g', left: 19.5, width: 5.44, options: ERA_OPTS, align: undefined },

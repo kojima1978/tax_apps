@@ -207,30 +207,6 @@
   min-width: 0;
 }
 
-.table-select-label {
-  color: #475569;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.table-select-label,
-.table-select {
-  display: none;
-}
-
-.table-select {
-  width: min(420px, 48vw);
-  height: 28px;
-  padding: 2px 28px 2px 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  background: #fff;
-  color: #1f2937;
-  font-size: 12px;
-}
-
-.table-select:focus-visible,
 .table-nav-button:focus-visible,
 .table-tab-button:focus-visible,
 .app-tool-btn:focus-visible {
@@ -239,13 +215,14 @@
 }
 
 .table-nav-button {
-  height: 28px;
-  padding: 0 10px;
+  /* タブと同じ高さに揃える（この行の高さは背の高い方で決まる）。 */
+  height: 24px;
+  padding: 0 8px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   background: #fff;
   color: #334155;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -279,15 +256,37 @@
   padding-bottom: 2px;
 }
 
+/* 既定のスクロールバーは帯を15px押し広げる。タブ自体が38pxなので帯の1/4以上が余白になっていた。 */
+.table-tab-list::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-tab-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.table-tab-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Chromium は scrollbar-width を書くと ::-webkit-scrollbar を無視するので、効かない側にだけ渡す。 */
+@supports not selector(::-webkit-scrollbar) {
+  .table-tab-list {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+}
+
 .table-tab-button {
   position: relative;
-  min-width: 108px;
-  height: 38px;
+  /* 副題を出していた頃は2行ぶんの高さ（38px）と最小幅108pxが要ったが、今は文字1行ぶん。 */
+  min-width: 0;
+  height: 24px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1px;
-  padding: 4px 8px;
+  padding: 0 6px;
   border: 1px solid #d6d6d6;
   border-radius: 4px;
   background: #fff;
@@ -314,7 +313,7 @@
 }
 
 .table-tab-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -368,19 +367,26 @@
   flex-shrink: 0;
 }
 
-.table-tab-subtitle {
-  font-size: 9px;
-  line-height: 1.1;
-  opacity: 0.72;
-  white-space: nowrap;
-}
-
 .app-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  gap: 4px 8px;
+}
+
+/* 左＝操作、右＝状態。左端は「← 一覧」・タブ列と揃える（以前はこの行だけ右寄せだった）。 */
+.app-toolbar-actions,
+.app-toolbar-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
+  min-width: 0;
+}
+
+.app-toolbar-status {
+  margin-left: auto;
 }
 
 .app-required-done {
@@ -401,7 +407,8 @@
 
 .app-tool-btn {
   height: 28px;
-  padding: 0 8px;
+  /* 11個前後が1行に並ぶ帯なので、左右2pxずつでも40px以上効く（10pxの文字に8pxの余白は広い）。 */
+  padding: 0 6px;
   border: 1px solid #ccc;
   border-radius: 4px;
   background: #fff;
@@ -746,37 +753,93 @@
   line-height: 1.45;
 }
 
-/* 案件チップ（ツールバー・常時表示）。いまの入力がどこに残るかは前提条件と同じく紙面に出ないので出し続ける */
-.app-case-chip {
-  max-width: 16em;
-  overflow: hidden;
+/* 帳票から一覧へ戻る口。左端に置くのは、戻り先が上の階層だから */
+.app-back-btn {
+  flex: none;
+  font-weight: 700;
+}
+
+/* 案件（会社ごとの保存）を選ぶトップページと、その一覧 */
+.cases-root {
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+/* 上の操作帯と本文パネルの左端を揃える（admin-shell と同じ列） */
+.cases-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px max(16px, calc((100% - var(--app-content-width)) / 2));
+}
+
+.cases-lead {
+  max-width: 900px;
+  margin: 0;
+}
+
+.cases-panel {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* 続きから開く。いま自動保存されている先なので、一覧の is-current と同じ緑で示す */
+.cases-resume {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   border-color: #86efac;
   background: #f0fdf4;
-  color: #166534;
-  font-weight: 600;
-  text-overflow: ellipsis;
 }
 
-.app-case-chip:hover {
-  background: #dcfce7;
+.cases-resume-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-/* 案件を選んでいない間はこの端末にしか残らない。控えめだが地の色とは分かるようにする */
-.app-case-chip.is-unlinked {
-  border-color: #cbd5e1;
-  border-style: dashed;
-  background: #f8fafc;
-  color: #475569;
-  font-weight: 400;
+.cases-resume-name {
+  font-size: 14px;
+  font-weight: 700;
 }
 
-.app-case-chip.is-unlinked:hover {
-  background: #f1f5f9;
+.cases-resume-note {
+  color: #4b5563;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
-/* 案件（会社ごとの保存）の一覧 */
-.case-dialog {
-  width: min(680px, 100%);
+.cases-enter-btn {
+  flex: none;
+  font-weight: 700;
+}
+
+/* パネルの最後の行に来るときは下の余白を足さない（枠との間が空きすぎる） */
+.cases-panel .case-actions:last-child {
+  margin-bottom: 0;
+}
+
+.cases-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.cases-filter input {
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
 }
 
 .case-error {
@@ -796,6 +859,81 @@
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 10px;
+}
+
+/* 案件を作るダイアログ。訊くのは会社と課税時期だけなので、様式の確認（880px）より狭い。 */
+.new-case-dialog {
+  width: min(520px, 100%);
+}
+
+.new-case-title {
+  margin-top: 0;
+  font-size: 13px;
+}
+
+.new-case-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.new-case-label {
+  width: 56px;
+  flex: none;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.new-case-select,
+.new-case-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+/* 選んだ会社の名前は打ち直させないので、入力欄ではなく文字として出す。 */
+.new-case-fixed {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.new-case-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.new-case-date select {
+  padding: 4px 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.new-case-note {
+  margin-top: 10px;
+}
+
+.new-case-actions {
+  align-items: center;
+  gap: 8px;
+}
+
+.new-case-hint {
+  margin-right: auto;
+  color: #6b7280;
+  font-size: 11px;
 }
 
 .case-archived-toggle {
@@ -830,6 +968,12 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* 会社一覧の右端に出す年分の数（操作ではないのでボタンの形にしない） */
+.case-group-count {
+  color: #6b7280;
+  font-size: 11px;
 }
 
 .case-row {
@@ -879,20 +1023,74 @@
   font-size: 11px;
 }
 
+/* 行そのものが「開く」。一覧に来る用はほとんど開くことなので、押す的を行いっぱいに広げる */
+.case-row-open {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.case-row-open:hover .case-row-name {
+  text-decoration: underline;
+}
+
+.case-row-open:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .case-row-actions {
   display: flex;
+  align-items: center;
   flex: none;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px;
 }
 
-/* 端末にだけ残っている入力を案件へ移す誘導（起動時に一度だけ） */
-.case-migration-dialog {
-  width: min(520px, 100%);
+/* 行の中の副次的な操作（複製・ゴミ箱へ・復元・完全に削除）。
+   「開く」と同じ大きさのボタンが3つ並ぶと押し間違えるので、文字だけの控えめな形にする */
+.case-row-quiet {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: #4b5563;
+  font-family: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
-.case-migration-actions {
-  gap: 8px;
+.case-row-quiet:hover {
+  color: #1d4ed8;
+}
+
+.case-row-quiet.is-danger:hover {
+  color: #b91c1c;
+}
+
+.case-row-quiet:disabled {
+  color: #9ca3af;
+  cursor: default;
+  text-decoration: none;
+}
+
+/* 年度一覧の見出し（← 会社の一覧／会社名） */
+.cases-crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cases-company-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .valuation-purpose-heading {
@@ -1073,16 +1271,6 @@
     flex-wrap: wrap;
   }
 
-  .table-select-label,
-  .table-select {
-    display: inline-block;
-  }
-
-  .table-select {
-    width: calc(100vw - 160px);
-    min-width: 180px;
-  }
-
   .app-autosave {
     display: none;
   }
@@ -1090,6 +1278,11 @@
   .app-toolbar {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  /* 折り返した先で右端に飛ばさない（操作の続きとして読めるようにする）。 */
+  .app-toolbar-status {
+    margin-left: 0;
   }
 
   .app-main {
@@ -2724,10 +2917,6 @@ button.admin-chip:hover {
   .app-root:has(.client-summary-wrap) .app-header-title { flex: 1; }
   .app-root:has(.client-summary-wrap) .app-header-right { width: 100%; margin-left: 0; flex-wrap: wrap; }
   .app-root:has(.client-summary-wrap) .app-topbar { position: static; }
-  .app-root:has(.client-summary-wrap) .table-tab-list { display: none; }
-  .app-root:has(.client-summary-wrap) .table-select { display: block; width: 100%; min-width: 0; height: 40px; }
-  .app-root:has(.client-summary-wrap) .table-nav-controls { width: 100%; }
-  .app-root:has(.client-summary-wrap) .table-nav-button { min-height: 40px; flex-shrink: 0; }
   .app-root:has(.client-summary-wrap) .mobile-hint { display: none; }
   .client-summary-actions { flex-wrap: wrap; }
   .summary-options-reset { flex-wrap: wrap; order: 3; width: 100%; }

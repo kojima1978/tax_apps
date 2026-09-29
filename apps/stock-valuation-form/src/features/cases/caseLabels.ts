@@ -6,7 +6,7 @@
 import { DEFAULT_ERA } from '@/lib/wareki';
 import type { TableProps } from '@/types/form';
 
-export type CaseSaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
+export type CaseSaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error' | 'conflict';
 
 const pad2 = (value: number) => String(value).padStart(2, '0');
 
@@ -39,6 +39,30 @@ export function caseDisplayName(item: { id: number; companyName: string }): stri
   return name === '' ? `（会社名未入力 #${item.id}）` : name;
 }
 
+/** アプリ名。画面ごとに書き写すと直し忘れるので1箇所に置く。 */
+export const APP_TITLE = '取引相場のない株式の評価明細書';
+
+/**
+ * 帳票画面のヘッダ中央の見出し。いま書き戻している案件の名前を出し、案件に入る前だけ
+ * アプリ名に戻す。
+ *
+ * 「どの会社のどの年分に書いているか」は第5表を打っている間も見えている必要があるが、
+ * そのために押せない案件チップを右側へ別立てしていたのはやめた（ボタンの形をしていて
+ * 押せない）。アプリ名は用紙にもブラウザのタブにも出ているので、見出しの位置は案件名に譲る。
+ *
+ * 名前は保存済みの案件ではなく打っている様式の欄から作る。一覧を読み込む前は案件の中身が
+ * 手元に無く、案件に入っているのに「未選択」と出てしまうため（前のチップがそうだった）。
+ */
+export function formHeaderTitle(
+  currentId: number | null,
+  getField: TableProps['getField'],
+): string {
+  if (currentId === null) return APP_TITLE;
+  const { companyName, taxPeriod } = caseLabelsOf(getField);
+  const name = caseDisplayName({ id: currentId, companyName });
+  return taxPeriod === '' ? name : `${name}（${taxPeriod}）`;
+}
+
 /** 一覧の更新日時。 */
 export function formatSavedAt(value: Date | string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -51,8 +75,13 @@ const hhmm = (date: Date) => `${pad2(date.getHours())}:${pad2(date.getMinutes())
 /**
  * ヘッダの保存表示。
  *
- * 案件を選んでいるかどうかで保存先の意味が変わる（選んでいなければこの端末のブラウザにしか
- * 残らず、毎日のバックアップにも入らない）ので、同じ「自動保存」でも文言を分ける。
+ * 案件に紐づいているかどうかで保存先の意味が変わる（紐づいていなければこの端末のブラウザに
+ * しか残らず、毎日のバックアップにも入らない）ので、同じ「自動保存」でも文言を分ける。
+ * 案件は自動で作られるので、紐づいていない状態は作る前か、作れなかったときだけ。
+ *
+ * 紐づいている側は「案件へ」を付けない。どの案件に書いているかは見出し（formHeaderTitle）に
+ * 出ているので、1行に同じことを2度書かない。付けるのは端末にしか残らない側だけで、
+ * そこは短くすると危ないことが伝わらなくなる。
  */
 export function saveStatusLabel(
   linked: boolean,
@@ -61,19 +90,24 @@ export function saveStatusLabel(
   localSavedAt: Date | null,
 ): string {
   if (!linked) {
+    // 作れなかったことは黙って隠さない（隠すと端末にしか無いまま気づけない）。
+    if (status === 'error') return '案件を作れませんでした（この端末のみに保存）';
     return localSavedAt === null
-      ? '入力するとこの端末に自動保存されます'
+      ? '入力すると自動で案件に保存されます'
       : `この端末のみに保存 ${hhmm(localSavedAt)}（案件未選択）`;
   }
 
   switch (status) {
     case 'pending':
-      return '案件へ保存します…';
+      return '保存します…';
     case 'saving':
-      return '案件へ保存中…';
+      return '保存中…';
     case 'error':
-      return '案件へ保存できませんでした';
+      return '保存できませんでした';
+    // 上書きを止めた状態。直るまで自動保存も止まるので、止まっていることを必ず出す。
+    case 'conflict':
+      return '別の端末で更新されました（保存を止めています）';
     default:
-      return caseSavedAt === null ? '案件に保存済み' : `案件に保存済み ${hhmm(caseSavedAt)}`;
+      return caseSavedAt === null ? '保存済み' : `保存済み ${hhmm(caseSavedAt)}`;
   }
 }

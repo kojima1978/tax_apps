@@ -8,6 +8,11 @@ export interface CaseSummary {
   id: number;
   companyName: string;
   taxPeriod: string;
+  /**
+   * 同じ会社の年分をまとめる印（サーバが振る）。翌年度更新・複製で引き継ぐ。
+   * 振られていない案件は null で、そのときは会社名で名寄せする（caseGroups）。
+   */
+  companyKey: string | null;
   /** ゴミ箱に入れた日時。入っていなければ null。 */
   archivedAt: string | null;
   createdAt: string;
@@ -24,10 +29,25 @@ export interface CaseInput {
   data: FormData;
 }
 
+/**
+ * 上書きが弾かれた（読んだときから別の端末が更新していた）。
+ * 呼び出し側が「もう一度送る」ではなく「読み直す」へ倒せるよう、他の失敗と型で分ける。
+ */
+export class CaseConflictError extends Error {
+  constructor(message: string, readonly current: CaseSummary | null) {
+    super(message);
+    this.name = 'CaseConflictError';
+  }
+}
+
 async function unwrap<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(body?.error ?? `サーバがHTTP ${response.status}を返しました`);
+    const body = (await response.json().catch(() => null)) as
+      | { error?: string; case?: CaseSummary }
+      | null;
+    const message = body?.error ?? `サーバがHTTP ${response.status}を返しました`;
+    if (response.status === 409) throw new CaseConflictError(message, body?.case ?? null);
+    throw new Error(message);
   }
   return (await response.json()) as T;
 }
@@ -52,12 +72,26 @@ export async function fetchCase(id: number): Promise<CaseDetail> {
   return (await request<{ case: CaseDetail }>('GET', `/cases/${id}`)).case;
 }
 
-export async function createCase(input: CaseInput): Promise<CaseSummary> {
-  return (await request<{ case: CaseSummary }>('POST', '/cases', input)).case;
+/**
+ * 新しい案件を作る。`relatedTo` にいまの案件のIDを渡すと、その案件と同じ会社として作られる
+ * （翌年度更新。会社キーはサーバが揃えるので、こちらは関係の元を指すだけ）。
+ */
+export async function createCase(input: CaseInput, relatedTo?: number): Promise<CaseSummary> {
+  const query = relatedTo === undefined ? '' : `?relatedTo=${relatedTo}`;
+  return (await request<{ case: CaseSummary }>('POST', `/cases${query}`, input)).case;
 }
 
-export async function updateCase(id: number, input: CaseInput): Promise<CaseSummary> {
-  return (await request<{ case: CaseSummary }>('PUT', `/cases/${id}`, input)).case;
+/**
+ * 上書き。`expectedUpdatedAt` は最後に見た updatedAt で、サーバ側が動いていれば
+ * CaseConflictError になる（null なら突き合わせ無し）。
+ */
+export async function updateCase(
+  id: number,
+  input: CaseInput,
+  expectedUpdatedAt: string | null,
+): Promise<CaseSummary> {
+  const body = { ...input, expectedUpdatedAt };
+  return (await request<{ case: CaseSummary }>('PUT', `/cases/${id}`, body)).case;
 }
 
 export async function duplicateCase(id: number): Promise<CaseSummary> {
