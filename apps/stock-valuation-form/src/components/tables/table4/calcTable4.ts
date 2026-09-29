@@ -68,21 +68,31 @@ export function calcTable4(getField: TableProps['getField']) {
   const p1 = profit('e18', 'e19', 'e20', 'e21', 'e22');
   const p2 = profit('e25', 'e26', 'e27', 'e28', 'e29');
   const p3 = profit('e32', 'e33', 'e34', 'e35', 'e36');
+  const avg12 = p1 !== null && p2 !== null ? (p1 + p2) / 2 : null;
+  const avg23 = p2 !== null && p3 !== null ? (p2 + p3) / 2 : null;
+  // Ⓒ・Ⓒ1・Ⓒ2が負数のときは0（記載要領3⑷⑸の注）
+  const per50Profit = (base: number | null) => (per50(base) !== null ? Math.max(0, fl(per50(base)!)) : null);
+
   // 年利益金額は「単年」と「２年平均」を納税義務者が選択できる。選択欄はⒸ・Ⓒ1・Ⓒ2の3つあり、
   // 用途が違うので連動させない（Ⓒは類似業種比準価額の比準要素、Ⓒ1・Ⓒ2は比準要素数1／0の判定要素）。
-  // 未指定のときにどちらへ倒すかも用途ごとに逆になる:
+  // 未指定のときにどちらへ倒すかも用途ごとに変わる:
   //  ・Ⓒ       → 低い方。そのまま株価に効くため
-  //  ・Ⓒ1・Ⓒ2 → 0を避ける方。判定専用で、0にしても得することがないため
+  //  ・Ⓒ1・Ⓒ2 → 0を避けて低い方。判定は0かどうかしか見ない（第2表は0の個数を数えるだけ）ので
+  //    金額の大小はどこにも効かず、0にしても得することがない
   //    （比準要素数1に該当すると第6表④は min(純資産, 比準×0.25＋純資産×0.75) となり、
-  //      一般の評価会社の min(比準, 純資産) を下回らない）
+  //      一般の評価会社の min(比準, 純資産) を下回らない）。
+  //    それなら隣り合うⒸと同じ数字にしておく方が読みやすいので、Ⓒと分かれるのは
+  //    低い方が0になるときだけにする。
   type ProfitAuto = 'lower' | 'nonZero';
-  const pickProfit = (single: number | null, two: number | null, mode: string, auto: ProfitAuto) =>
-    mode === 'single' ? single
-      : mode === 'avg' ? two
-        : single === null ? null
-          : two === null ? single
-            : auto === 'lower' ? Math.min(single, two) : Math.max(single, two);
-  const pickProfitSide = (
+  /**
+   * どちらの分数を採るか。金額ではなく側を決めるのは、値と選択中の表示を別々の規則で書くと
+   * 食い違うため（金額は下の profitOf で側から引く）。
+   *
+   * 0かどうかが決まるのは50円換算・円未満切捨ての後なので（元の利益が正でも ÷⑤ で0円になる）、
+   * 'nonZero' の比較は per50Profit を通した値で行う。元の金額で「低い方」を採ると、
+   * 切り捨てて0になる側を掴むことがある。
+   */
+  const profitSide = (
     single: number | null, two: number | null, mode: string, auto: ProfitAuto,
   ): 'left' | 'right' | undefined => {
     if (mode === 'single') return 'left';
@@ -90,21 +100,23 @@ export function calcTable4(getField: TableProps['getField']) {
     if (single === null && two === null) return undefined;
     if (single === null) return 'right';
     if (two === null) return 'left';
-    return auto === 'lower' ? (single <= two ? 'left' : 'right') : (single >= two ? 'left' : 'right');
+    const low = (): 'left' | 'right' => (single <= two ? 'left' : 'right');
+    if (auto === 'lower') return low();
+    const zeroSingle = per50Profit(single) === 0;
+    const zeroTwo = per50Profit(two) === 0;
+    if (zeroSingle !== zeroTwo) return zeroSingle ? 'right' : 'left';
+    return low();  // どちらも0／どちらも0でない → 低い方（Ⓒと同じ数字になる）
   };
-  const avg12 = p1 !== null && p2 !== null ? (p1 + p2) / 2 : null;
-  const avg23 = p2 !== null && p3 !== null ? (p2 + p3) / 2 : null;
-  // Ⓒ・Ⓒ1・Ⓒ2が負数のときは0（記載要領3⑷⑸の注）
-  const per50Profit = (base: number | null) => (per50(base) !== null ? Math.max(0, fl(per50(base)!)) : null);
-  const cvBase = pickProfit(p1, avg12, raw('c_mode'), 'lower');
-  const cvSide = pickProfitSide(p1, avg12, raw('c_mode'), 'lower');
-  const Cv = per50Profit(cvBase);
-  const c1base = pickProfit(p1, avg12, raw('c1_mode'), 'nonZero');
-  const c1baseSide = pickProfitSide(p1, avg12, raw('c1_mode'), 'nonZero');
-  const c2base = pickProfit(p2, avg23, raw('c2_mode'), 'nonZero');
-  const c2baseSide = pickProfitSide(p2, avg23, raw('c2_mode'), 'nonZero');
-  const c1 = per50Profit(c1base);
-  const c2 = per50Profit(c2base);
+  /** 側が決まれば金額は自動的に決まる。 */
+  const profitOf = (single: number | null, two: number | null, side: 'left' | 'right' | undefined) =>
+    side === 'right' ? two : side === 'left' ? single : null;
+
+  const cvSide = profitSide(p1, avg12, raw('c_mode'), 'lower');
+  const Cv = per50Profit(profitOf(p1, avg12, cvSide));
+  const c1baseSide = profitSide(p1, avg12, raw('c1_mode'), 'nonZero');
+  const c1 = per50Profit(profitOf(p1, avg12, c1baseSide));
+  const c2baseSide = profitSide(p2, avg23, raw('c2_mode'), 'nonZero');
+  const c2 = per50Profit(profitOf(p2, avg23, c2baseSide));
 
   // 2. 純資産（⑲=⑰+⑱, D=円未満切捨て）
   const na = (a: string, b: string) => { const x = num(a), y = num(b); return x === null && y === null ? null : (x ?? 0) + (y ?? 0); };

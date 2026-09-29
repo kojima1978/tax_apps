@@ -110,7 +110,7 @@ export function calcNextYearForecast(getField: TableProps['getField']): NextYear
       : `来期の年配当金額が ${fmt(reqB)}千円以上であれば、来期のⒷ₁はゼロになりません（今期は ${fmt(t4.i1 as number)}千円。直前期・直前々期の2年平均で判定します）。`;
 
   // Ⓒ₁: 単年と2年平均のどちらを採るかで必要額が変わる（第4表の1の選択欄）。
-  // 判定専用の欄なので自動は「0を避ける方」を採る。どちらか一方を満たせば足りるので必要額は小さい方。
+  // 判定専用の欄なので自動は「0を避けて低い方」を採る。どちらか一方を満たせば足りるので必要額は小さい方。
   const cMode = getField('table4', 'c1_mode');
   const reqCSingle = oneYen !== null ? ceilThousand(oneYen) : null;
   const reqCAvg = oneYen !== null && t4.p1 !== null ? ceilThousand(oneYen * 2 - t4.p1) : null;
@@ -128,7 +128,7 @@ export function calcNextYearForecast(getField: TableProps['getField']): NextYear
         ? `来期の年利益金額が ${fmt(reqC)}千円以上であれば、来期のⒸ₁はゼロになりません（第4表の1で「直前期の利益金額」を選択中）。`
         : cMode === 'avg'
           ? `来期の年利益金額が ${fmt(reqC)}千円以上であれば、来期のⒸ₁はゼロになりません（第4表の1で「2年平均」を選択中。今期の ${fmt(t4.p1 as number)}千円との平均で判定します）。`
-          : `来期の年利益金額が ${fmt(reqC)}千円以上であれば、来期のⒸ₁はゼロになりません（Ⓒ₁は0を避ける方を自動で採るため、単年 ${fmt(reqCSingle as number)}千円・2年平均 ${fmt(reqCAvg as number)}千円のどちらか一方を満たせば足ります）。`;
+          : `来期の年利益金額が ${fmt(reqC)}千円以上であれば、来期のⒸ₁はゼロになりません（Ⓒ₁は0を避けて低い方を自動で採るため、単年 ${fmt(reqCSingle as number)}千円・2年平均 ${fmt(reqCAvg as number)}千円のどちらか一方を満たせば足ります）。`;
 
   // Ⓓ: 来期末の資本金等の額＋利益積立金額（単年で判定するため繰り上がりの影響を受けない）
   const reqD = oneYen !== null ? ceilThousand(oneYen) : null;

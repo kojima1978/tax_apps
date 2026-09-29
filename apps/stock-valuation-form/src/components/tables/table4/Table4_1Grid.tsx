@@ -245,7 +245,7 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
     autoLabel,
   });
   const AUTO_LOWER = '自動（低い方）';
-  const AUTO_NON_ZERO = '自動（0を避ける方）';
+  const AUTO_NON_ZERO = '自動（0を避けて低い方）';
   const cells = CELLS.map((cell) => {
     if (medical && cell.field && DIVIDEND_INPUT_FIELDS.has(cell.field)) {
       return { ...cell, readOnly: true, calculationRequired: false };
@@ -260,7 +260,7 @@ export function Table4_1Grid({ getField, updateField, onJump }: TableProps) {
         ...cell,
         rightButton: {
           label: '自動に戻す',
-          title: `${pinned.map((p) => p.name).join('・')}を手で固定中。押すとⒸ・Ⓒ₁・Ⓒ₂とも自動（Ⓒは低い方、Ⓒ₁Ⓒ₂は0を避ける方）に戻します`,
+          title: `${pinned.map((p) => p.name).join('・')}を手で固定中。押すとⒸ・Ⓒ₁・Ⓒ₂とも自動（Ⓒは低い方、Ⓒ₁Ⓒ₂は0を避けて低い方）に戻します`,
           onClick: () => PROFIT_MODE_FIELDS.forEach((p) => u(p.field, '')),
         },
       };

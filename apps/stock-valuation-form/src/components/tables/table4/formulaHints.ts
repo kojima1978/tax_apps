@@ -42,7 +42,7 @@ function profitBaseLine(
 }
 
 const AUTO_LOWER = '低い方を自動採用';
-const AUTO_NON_ZERO = '0を避ける方を自動採用';
+const AUTO_NON_ZERO = '0を避けて低い方を自動採用';
 
 /** 第4表の1（1.資本金等の額等 ＋ 2.比準要素等の金額） */
 export function table4_1Hints(c: Calc, raw: Raw, medical: boolean): Record<string, string> {

@@ -17,7 +17,7 @@ const base: Data = {
     '①': '10000',
     // 配当: 直前期0・直前々期0・直前々期の前1,000千円 → Ⓑ₁=0、Ⓑ₂=2.5
     f28: '0', f32: '0', f36: '1000',
-    // 利益: 100 / 100 / 300千円 → Ⓒ₁=0（単年も2年平均も100千円なので0を避ける方でも0）、Ⓒ₂=1
+    // 利益: 100 / 100 / 300千円 → Ⓒ₁=0（単年も2年平均も100千円なので0を避けて低い方でも0）、Ⓒ₂=1
     e18: '100', e25: '100', e32: '300',
     // 純資産: 資本金等10,000＋利益積立金0 → Ⓓ₁=50、Ⓓ₂=50
     n53: '0', n56: '10000', n57: '0',
@@ -50,7 +50,7 @@ describe('calcNextYearForecast（来期の見通し：比準要素数1・比準�
     const [b, c, d] = f.elements;
     // Ⓑ₁: 2年平均が20千円以上 → 来期の配当は 20×2－0 ＝ 40千円以上
     expect(b).toMatchObject({ key: 'B', excluded: false, current: 0, isZeroNow: true, baseNow: 0, required: 40 });
-    // Ⓒ₁: 0を避ける方の自動選択なので、単年200千円・2年平均400－100＝300千円のどちらか一方で足りる
+    // Ⓒ₁: 0を避けて低い方の自動選択なので、単年200千円・2年平均400－100＝300千円のどちらか一方で足りる
     expect(c).toMatchObject({ key: 'C', current: 0, isZeroNow: true, baseNow: 100, required: 200 });
     expect(c!.requiredNote).toContain('2年平均 300千円');
     expect(c!.requiredNote).toContain('どちらか一方');
@@ -72,7 +72,7 @@ describe('calcNextYearForecast（来期の見通し：比準要素数1・比準�
 
 describe('calcNextYearForecast（繰り上がりによる否定的な断定）', () => {
   it('今期の⑴のゼロが1つなら、来期に比準要素数1の会社となることはない', () => {
-    // 利益を400千円にすると自動選択（0を避ける方）で単年400千円が採られⒸ₁が2になり、ゼロは Ⓑ₁ だけ
+    // 利益を400千円にすると自動選択（0を避けて低い方）で単年400千円が採られⒸ₁が2になり、ゼロは Ⓑ₁ だけ
     const f = calcNextYearForecast(mkGetField(withTable4({ e18: '400' })));
     expect(f.zerosNow).toBe(1);
     expect(f.carryOverMet).toBe(false);
@@ -85,7 +85,7 @@ describe('calcNextYearForecast（繰り上がりによる否定的な断定）',
 
   it('今期の利益だけで2年平均が基準を満たすなら、自動選択がその側を採るので必要額は0になる', () => {
     // 利益400千円 → 2年平均側の必要額は 200×2－400 ＝ 0千円（来期が無利益でも2年平均でⒸ₁は非ゼロ）。
-    // Ⓒ₁は判定専用なので自動は0を避ける方を採る。必要額は小さい方＝0千円。
+    // Ⓒ₁は判定専用なので自動は0を避けて低い方を採る。必要額は小さい方＝0千円。
     const auto = calcNextYearForecast(mkGetField(withTable4({ e18: '400' })));
     expect(auto.elements[1]).toMatchObject({ key: 'C', required: 0 });
     expect(auto.elements[1]!.requiredNote).toContain('ゼロになることはありません');
