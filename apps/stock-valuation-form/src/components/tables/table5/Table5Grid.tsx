@@ -148,6 +148,10 @@ function dataRows(prefix: 'a' | 'l', cols: Col[], startRow: number, showCodes: b
         field: `${prefix}_${row}_${ci + 1}`,
         kind: 'input',
         options: prefix === 'a' && ci === 3 ? ['', '株式等', '土地等'] : undefined,
+        // 科目名は試算表から貼り付けると長くなる（欄に入るのは資産12字・負債10字）。
+        // 何もしないと画面は末尾が隠れ、印刷は overflow:hidden で黙って切れるので、
+        // 会社名欄と同じく入りきらないぶんだけ字を縮めて1行に収める。
+        fitText: ci === 0,
         // 貸倒引当金のような控除項目はマイナスで入る。commaInteger は符号を落とすので使えない
         signedCommaInteger: isAmount,
         contextMenu: isAmount ? [
