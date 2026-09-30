@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CircleCheck, Copy, LoaderCircle, Plus, Table2, Trash2, X } from "lucide-react";
 import { ClipboardEvent, KeyboardEvent as ReactKeyboardEvent, useMemo, useState } from "react";
+import { personSelectOptions } from "@/lib/family";
 import { decimalToFraction, formatCommaNumberInput, yen } from "@/lib/format";
 import {
   type BulkPositionPayload,
@@ -21,8 +22,11 @@ import {
 type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING" | "INSURANCE" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
 type BulkField = "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "floorArea" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "note";
 type BulkRow = Record<BulkField, string> & { id: number; positionId: number | null; error: string; errorFields: BulkField[] };
-/** conditional は「どの方式のときに使う欄か」。見出しの札と、使わない方式で無効にした欄の説明にそのまま出す。 */
-type BulkColumn = { key: BulkField; label: string; numeric?: boolean; required?: boolean; conditional?: string; kind?: "category" | "formula" | "landCategory" | "buildingType" | "accountType"; width?: string };
+/**
+ * conditional は「どの方式のときに使う欄か」。見出しの札と、使わない方式で無効にした欄の説明にそのまま出す。
+ * legalHeirMark は受取人欄に出す印。非課税枠は法定相続人が受け取る分にしか効かないので、選んだその場で当否を見せる。
+ */
+type BulkColumn = { key: BulkField; label: string; numeric?: boolean; required?: boolean; conditional?: string; kind?: "category" | "formula" | "landCategory" | "buildingType" | "accountType" | "person"; legalHeirMark?: boolean; width?: string };
 
 const bulkEntryTypeLabels: Record<BulkEntryType, string> = { DEPOSIT: "現金・預貯金", SECURITIES: "有価証券", PRIVATE_SHARES: "自社株", LAND: "土地", BUILDING: "建物", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金", LOAN_RECEIVABLE: "貸付金" };
 /** タブの並びと区切り。明細一覧の中分類（assetCategoryGroups）と同じ順に並べ、画面間で探す位置を揃える。 */
@@ -55,10 +59,10 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
     columns: [
       { key: "institution", label: "保険会社", required: true, width: "170px" },
       { key: "policyNumber", label: "証券番号", width: "130px" },
-      { key: "insuredPerson", label: "被保険者", width: "120px" },
+      { key: "insuredPerson", label: "被保険者", kind: "person", width: "130px" },
       { key: "originalAmount", label: "解約返戻金（円）", numeric: true, required: true, width: "140px" },
       { key: "benefit", label: "死亡保険金（円）", numeric: true, width: "140px" },
-      { key: "recipient", label: "受取人", width: "120px" },
+      { key: "recipient", label: "受取人", kind: "person", legalHeirMark: true, width: "150px" },
       { key: "note", label: "メモ", width: "150px" },
     ],
     details: (row) => ({ policyNumber: row.policyNumber.trim(), insuredPerson: row.insuredPerson.trim(), beneficiary: row.recipient.trim(), deathBenefit: bulkNumberOrNull(row.benefit) }),
@@ -72,7 +76,7 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
       { key: "institution", label: "支給元・勤務先", width: "150px" },
       { key: "originalAmount", label: "解約手当金（円）", numeric: true, required: true, width: "140px" },
       { key: "benefit", label: "死亡退職金（円）", numeric: true, width: "140px" },
-      { key: "recipient", label: "受取人", width: "120px" },
+      { key: "recipient", label: "受取人", kind: "person", legalHeirMark: true, width: "150px" },
       { key: "note", label: "メモ", width: "150px" },
     ],
     details: (row) => ({ retirementRecipient: row.recipient.trim(), retirementAllowance: bulkNumberOrNull(row.benefit) }),
@@ -188,8 +192,12 @@ const bulkRowIsFilledNew = (row: BulkRow) => row.positionId === null && Boolean(
 /** 行の内容だけを比べるための文字列。id と検証結果は保存内容と関係しないので落とす。 */
 const bulkRowContent = (row: BulkRow) => JSON.stringify({ ...row, id: 0, error: "", errorFields: [] });
 
-export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
+export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, onSubmit, saving }: {
   snapshot: Snapshot;
+  /** 被保険者・受取人の選択肢。本人と親族関係タブの登録者。 */
+  people: string[];
+  /** 受取人が非課税枠の対象かを判定するための法定相続人の氏名。 */
+  legalHeirNames: ReadonlySet<string>;
   onClose: () => void;
   onSubmit: (positions: BulkPositionPayload[]) => Promise<boolean>;
   saving: boolean;
@@ -565,6 +573,11 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
             <th scope="row" className="bulk-row-number">{rowIndex + 1}{row.error ? <span className="sr-only">入力エラー</span> : null}</th>
             {columns.map((column) => {
               const disabled = fieldIsDisabled(row, column.key);
+              const personName = column.kind === "person" ? row[column.key].trim() : "";
+              /* 受取人が法定相続人かどうか。非課税枠はその分にしか効かないので、行が並ぶ表の中でも印1つで当否が分かるようにする。
+                 親族関係タブが空のうちは判定しようがないため何も出さない。 */
+              const heirMark = column.legalHeirMark && people.length > 0 && personName !== "" ? (legalHeirNames.has(personName) ? "legal-heir-ok" : "warning") : "";
+              const heirNote = heirMark === "legal-heir-ok" ? "法定相続人のため非課税枠の対象です" : heirMark === "warning" ? "法定相続人ではないため非課税枠の対象外です" : "";
               const commonProps = {
                 value: row[column.key],
                 "data-row-id": row.id,
@@ -573,7 +586,8 @@ export function BulkPositionModal({ snapshot, onClose, onSubmit, saving }: {
                 "aria-invalid": row.errorFields.includes(column.key),
               };
               return <td key={column.key} className={disabled ? "is-disabled" : ""} title={disabled && column.conditional ? `方式が「${column.conditional}」の行で入力します` : undefined}>
-                {column.kind === "accountType" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{accountTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+                {column.kind === "person" ? <span className="bulk-person-cell"><select {...commonProps} title={people.length === 0 ? "親族関係タブに登録すると選択肢に表示されます" : heirNote || undefined} aria-describedby={heirNote ? `bulk-heir-${row.id}-${column.key}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{personSelectOptions(people, row[column.key]).map((name) => <option key={name} value={name}>{name}</option>)}</select>{column.legalHeirMark ? <b aria-hidden="true" className={`bulk-person-mark ${heirMark}`}>{heirMark === "legal-heir-ok" ? <CircleCheck /> : heirMark === "warning" ? <AlertTriangle /> : null}</b> : null}{heirNote ? <span id={`bulk-heir-${row.id}-${column.key}`} className="sr-only">{heirNote}</span> : null}</span>
+                  : column.kind === "accountType" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{accountTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
                   : column.kind === "category" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{realEstateCategories.map((key) => <option key={key} value={key}>{categoryLabels[key]}</option>)}</select>
                   : column.kind === "formula" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{bulkFormulaOptions(entryType).map((formula) => <option key={formula} value={formula}>{bulkFormulaLabels[formula]}</option>)}</select>
                     : column.kind === "landCategory" ? <><select {...commonProps} title={landCategoryByValue.get(row.landCategory)?.definition ?? "地目を選択"} aria-describedby={row.landCategory ? `bulk-land-category-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{landCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.landCategory ? <span id={`bulk-land-category-${row.id}`} className="sr-only">{landCategoryByValue.get(row.landCategory)?.definition}</span> : null}</>

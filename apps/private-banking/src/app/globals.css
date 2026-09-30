@@ -476,6 +476,13 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .bulk-entry-table tbody td { padding: 4px; }
 .bulk-entry-table tbody input, .bulk-entry-table tbody select { width: 100%; height: 35px; padding: 0 7px; border: 1px solid #d3dcd7; border-radius: 5px; color: var(--navy-950); background: #fff; font-size: 12px; }
 .bulk-entry-table tbody select { padding-right: 22px; cursor: pointer; }
+/* 被保険者・受取人の欄。印は行の高さ(44px)を変えないよう select の右に固定幅で並べ、印の有無で欄幅がずれないように場所だけ常に確保する。 */
+.bulk-entry-table .bulk-person-cell { display: flex; align-items: center; gap: 3px; }
+.bulk-entry-table .bulk-person-cell select { flex: 1; min-width: 0; }
+.bulk-person-mark { flex: none; display: flex; align-items: center; justify-content: center; width: 15px; height: 15px; }
+.bulk-person-mark svg { width: 15px; height: 15px; }
+.bulk-person-mark.legal-heir-ok { color: #168642; }
+.bulk-person-mark.warning { color: #b45309; }
 .bulk-entry-table tbody input:hover, .bulk-entry-table tbody select:hover { border-color: #9fb3a9; }
 .bulk-entry-table tbody input:focus, .bulk-entry-table tbody select:focus { position: relative; z-index: 2; border-color: #16a34a; outline: 0; box-shadow: 0 0 0 3px #bbf7d0; }
 .bulk-entry-table tbody input[aria-invalid="true"], .bulk-entry-table tbody select[aria-invalid="true"] { border-color: #ef8e86; background-color: #fff8f7; box-shadow: 0 0 0 1px #ef8e86; }

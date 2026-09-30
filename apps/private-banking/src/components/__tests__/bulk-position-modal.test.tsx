@@ -21,9 +21,13 @@ const snapshotOf = (positions: Position[]): Snapshot => ({
   fxRates: {} as Snapshot["fxRates"], updatedAt: "2026-08-29T00:00:00.000Z", positions,
 });
 
-function renderModal(positions: Position[] = []) {
+/** 親族関係タブの登録者。配偶者と長男が法定相続人、本人（被相続人）と兄は違う。 */
+const people = ["本人", "配偶者", "長男", "兄"];
+const heirs: ReadonlySet<string> = new Set(["配偶者", "長男"]);
+
+function renderModal(positions: Position[] = [], peopleNames: string[] = people, legalHeirNames: ReadonlySet<string> = heirs) {
   const onSubmit = vi.fn<(payloads: BulkPositionPayload[]) => Promise<boolean>>(async () => true);
-  render(<BulkPositionModal snapshot={snapshotOf(positions)} onClose={() => {}} onSubmit={onSubmit} saving={false} />);
+  render(<BulkPositionModal snapshot={snapshotOf(positions)} people={peopleNames} legalHeirNames={legalHeirNames} onClose={() => {}} onSubmit={onSubmit} saving={false} />);
   return onSubmit;
 }
 
@@ -211,6 +215,34 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
       category: "RETIREMENT_ALLOWANCE", name: "役員退職慰労金", institution: "株式会社A", originalAmount: 2_000_000,
       assetDetails: { retirementRecipient: "配偶者", retirementAllowance: 15_000_000 },
     }));
+  });
+
+  it.each([
+    ["配偶者", "法定相続人のため非課税枠の対象です"],
+    ["兄", "法定相続人ではないため非課税枠の対象外です"],
+  ])("受取人に%sを選ぶと、非課税枠の対象かどうかをその場で出す", (recipient, note) => {
+    renderModal();
+    selectEntryType("INSURANCE");
+    typeIn(1, "受取人", recipient);
+    expect(screen.getByText(note)).toBeTruthy();
+  });
+
+  it("受取人を選んでいない行には非課税枠の判定を出さない", () => {
+    renderModal();
+    selectEntryType("RETIREMENT_ALLOWANCE");
+    expect(screen.queryByText(/非課税枠の対象/)).toBeNull();
+  });
+
+  it("選択肢に無い受取人が登録済みでも、選択肢に足して保存で消さない", async () => {
+    const onSubmit = renderModal([position({
+      id: 7, category: "INSURANCE", name: "◇◇生命", institution: "◇◇生命", originalAmount: 1_000_000, valueJpy: 1_000_000,
+      assetDetails: { beneficiary: "旧姓の受取人", deathBenefit: 5_000_000 },
+    })]);
+    selectEntryType("INSURANCE");
+    expect(cell(1, "受取人").value).toBe("旧姓の受取人");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(savedPayloads(onSubmit)[0]?.data.assetDetails).toMatchObject({ beneficiary: "旧姓の受取人" });
   });
 
   it("貸付金は残高をそのまま評価額にする", async () => {

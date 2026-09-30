@@ -3,6 +3,7 @@
 import { AlertTriangle, Info, LoaderCircle, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { FormEvent, type ReactNode, useState } from "react";
 import { BuildingTypeField, CommaNumberInput, LandCategoryField, OwnershipFractionInput } from "@/components/form-fields";
+import { personSelectOptions } from "@/lib/family";
 import { fxRateFor, positionCurrencies, type FxRates } from "@/lib/fx-rates";
 import { decimalToFraction, valuationNumber, yen } from "@/lib/format";
 import {
@@ -73,7 +74,7 @@ const categoryTypeFields: Record<string, { label: string; name: string; fallback
  */
 function PersonSelect({ label, name, value, people, legalHeirNames, exemptionNote }: { label: string; name: string; value: string; people: string[]; legalHeirNames?: ReadonlySet<string>; exemptionNote?: string }) {
   const [selected, setSelected] = useState(value);
-  const options = people.includes(value) || value === "" ? people : [value, ...people];
+  const options = personSelectOptions(people, value);
   const isLegalHeir = legalHeirNames?.has(selected.trim()) ?? false;
   return <label>{label}<select name={name} value={selected} onChange={(event) => setSelected(event.target.value)}>
     <option value="">未選択</option>
@@ -84,11 +85,6 @@ function PersonSelect({ label, name, value, people, legalHeirNames, exemptionNot
     : isLegalHeir
       ? `法定相続人のため${exemptionNote}`
       : "法定相続人ではないため非課税枠の対象外です。親族関係タブの続柄と取得原因（相続）をご確認ください。"}</small> : null}</label>;
-}
-
-/** 受取人の選択肢。既存データの自由入力値は選択肢に足して保全する。 */
-function personOptions(people: string[], value: string) {
-  return people.includes(value) || value === "" ? people : [value, ...people];
 }
 
 /** 編集中の明細から受取人行の初期値を作る。配列が無ければ従来の受取人へ 1/1。 */
@@ -167,7 +163,7 @@ function BenefitRecipientsField({ benefitLabel, benefitName, benefitDefault, rec
         return <div key={row.key} className="benefit-recipient-row">
           <select aria-label={multiple ? `受取人${index + 1}` : "受取人"} name={`assetDetail.benefitAllocation.${index}.recipient`} value={row.recipient} onChange={(event) => updateRow(row.key, { recipient: event.target.value })}>
             <option value="">未選択</option>
-            {personOptions(people, row.recipient).map((person) => <option key={person} value={person}>{person}</option>)}
+            {personSelectOptions(people, row.recipient).map((person) => <option key={person} value={person}>{person}</option>)}
           </select>
           {multiple ? <>
             <span className="benefit-recipient-fraction">

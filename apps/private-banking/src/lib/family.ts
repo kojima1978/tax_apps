@@ -99,6 +99,15 @@ export function legalHeirNames(members: Pick<FamilyMemberDraft, "name" | "relati
   return new Set([...spouseNames, ...heirNames]);
 }
 
+/**
+ * 氏名の select に並べる選択肢。既存データの自由入力値は選択肢に足して保全する。
+ * 選択肢から外れた名前を黙って落とすと、開いて保存し直しただけで受取人が消え、
+ * 非課税枠の判定（法定相続人かどうか）が変わってしまう。
+ */
+export function personSelectOptions(people: string[], value: string) {
+  return people.includes(value) || value === "" ? people : [value, ...people];
+}
+
 function share(numerator: number, denominator: number) {
   return { numerator, denominator };
 }
