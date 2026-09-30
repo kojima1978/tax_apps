@@ -282,6 +282,11 @@
   position: relative;
   /* 副題を出していた頃は2行ぶんの高さ（38px）と最小幅108pxが要ったが、今は文字1行ぶん。 */
   min-width: 0;
+  /*
+    縮ませない。既定（flex: 0 1 auto）だと幅が足りないときに左右の余白から削られ、
+    幅900pxで1タブ54px→45pxまで詰まる。折り返しをやめた分は横スクロールで送る。
+  */
+  flex: none;
   height: 24px;
   display: flex;
   flex-direction: column;
@@ -1263,8 +1268,13 @@
     flex-direction: column;
   }
 
+  /*
+    折り返さない。「表」セレクトがあった頃は 前へ・次へ・セレクト とタブ列を2段に分ける必要が
+    あったが、セレクトを廃止した今は折り返しても2段目にタブ列が来るだけで、ヘッダが32px高くなる
+    見返りが無い。タブ列は overflow-x: auto なので、入り切らなければ横へ送れる。
+  */
   .table-nav {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .table-nav-controls {
