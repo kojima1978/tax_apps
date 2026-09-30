@@ -557,7 +557,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   }
 
   return <div className="modal-layer" role="presentation"><div className="modal bulk-position-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
-    <header><div><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要8種類）</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <header><div><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要{bulkEntryTypes.length}種類）</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <div className="bulk-modal-body">
       <section className="bulk-common-settings" aria-label="共通条件">
         {/* 種類は絞り込みではなく入力シートの切替。どこに何件あるかを一覧できるよう、選択式ではなくタブで出す。 */}
@@ -577,7 +577,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
             </button>;
           })}</div>
         </div>)}</div>
-        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。金額はすべて円単位です。Excelから複数セルを貼り付けることもできます。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の9種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
+        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。金額はすべて円単位です。Excelから複数セルを貼り付けることもできます。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の{bulkEntryTypes.length}種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>
