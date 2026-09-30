@@ -49,6 +49,18 @@ describe("successionAssetTotals", () => {
     expect(result.deemedBenefitMissingCount).toBe(0);
   });
 
+  it("生命保険契約に関する権利は金融資産に入り、みなし相続財産としては数えない", () => {
+    const result = successionAssetTotals([
+      asset("DEPOSIT", 10_000_000),
+      asset("INSURANCE_RIGHTS", 3_000_000, { insuredPerson: "山田 花子" }),
+    ]);
+    expect(result.insuranceRights).toBe(3_000_000);
+    expect(result.insurance).toBe(0);
+    expect(result.financial).toBe(13_000_000);
+    // 保険事故が起きていないので、死亡給付金の未入力としても数えない。
+    expect(result.deemedBenefitMissingCount).toBe(0);
+  });
+
   it("死亡給付金が未入力のみなし相続財産を数える", () => {
     const result = successionAssetTotals([
       asset("INSURANCE", 5_000_000, { deathBenefit: 30_000_000 }),
@@ -151,6 +163,22 @@ describe("buildBalanceView", () => {
   it("小分類は0円の行を落とし、税金ありでは保険のラベルを死亡保険金に変える", () => {
     expect(view("without-tax").subtotals.financial.map((item) => item.label)).toEqual(["預金", "生命保険（解約返戻金）"]);
     expect(view("with-tax").subtotals.financial.map((item) => item.label)).toEqual(["預金", "生命保険（死亡保険金）"]);
+  });
+
+  it("生命保険契約に関する権利は税金ありでも解約返戻金のまま残す", () => {
+    const rightsPositions = [asset("DEPOSIT", 40_000_000), asset("INSURANCE_RIGHTS", 10_000_000, { insuredPerson: "山田 花子" })];
+    const rightsView = (scenario: "without-tax" | "with-tax") => buildBalanceView({
+      scenario, summary: totals(rightsPositions), successionAssets: successionAssetTotals(rightsPositions),
+      loanBreakdown: loanBreakdownTotals(rightsPositions), estimatedInheritanceTax: 0, otherTaxes: 0, successionCosts: 0,
+    });
+    for (const scenario of ["without-tax", "with-tax"] as const) {
+      const result = rightsView(scenario);
+      expect(result.displayedAssets.insuranceRights).toBe(10_000_000);
+      expect(result.displayedAssets.financial).toBe(50_000_000);
+      expect(result.displayedAssetTotal).toBe(50_000_000);
+      // どちらのシナリオでも同じ評価額なので、科目名に括弧書きを付けない。
+      expect(result.subtotals.financial.map((item) => item.label)).toEqual(["預金", "生命保険契約に関する権利"]);
+    }
   });
 
   it("面積比4%未満の区画だけを、表の下の注記に回す", () => {

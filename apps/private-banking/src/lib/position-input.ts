@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { realEstateCategories } from "@/lib/portfolio-view";
 
-const positionCategorySchema = z.enum(["DEPOSIT", "SECURITIES", "HOME_REAL_ESTATE", "REAL_ESTATE", "BUSINESS_REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "INSURANCE", "RETIREMENT_ALLOWANCE", "COLLECTIBLES", "LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER", "LOAN", "LEASE_OBLIGATION", "ACCOUNTS_PAYABLE", "DEPOSITS_RECEIVED", "GUARANTEE"]);
+const positionCategorySchema = z.enum(["DEPOSIT", "SECURITIES", "HOME_REAL_ESTATE", "REAL_ESTATE", "BUSINESS_REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "INSURANCE", "INSURANCE_RIGHTS", "RETIREMENT_ALLOWANCE", "COLLECTIBLES", "LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER", "LOAN", "LEASE_OBLIGATION", "ACCOUNTS_PAYABLE", "DEPOSITS_RECEIVED", "GUARANTEE"]);
 const valuationFormulaSchema = z.enum(["MANUAL", "STOCK", "UNIT_RATE", "LAND_ROADSIDE", "LAND_MULTIPLIER", "BUILDING"]);
 const optionalNonnegativeNumber = z.preprocess(
   (value) => value === "" || value === undefined ? null : value,
@@ -193,7 +193,8 @@ export function normalizedValuationMethod(data: PositionInput) {
 }
 
 export function liquidityForCategory(category: z.infer<typeof positionCategorySchema>) {
-  if (["DEPOSIT", "SECURITIES", "INSURANCE"].includes(category)) return "HIGH" as const;
+  // 生命保険契約に関する権利は解約すればそのまま現金になるので、生命保険と同じ換金性に置く。
+  if (["DEPOSIT", "SECURITIES", "INSURANCE", "INSURANCE_RIGHTS"].includes(category)) return "HIGH" as const;
   // 退職金（小規模企業共済など）は解約手当金として換金できるが、請求手続きを要するので中位に置く。
   if (category === "RETIREMENT_ALLOWANCE") return "MEDIUM" as const;
   if (category === "LOAN_RECEIVABLE" || category === "LOAN" || category.startsWith("LOAN_")) return "MEDIUM" as const;

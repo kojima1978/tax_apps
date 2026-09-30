@@ -274,7 +274,7 @@ describe("normalizedValuationMethod", () => {
 });
 
 describe("liquidityForCategory", () => {
-  it.each(["DEPOSIT", "SECURITIES", "INSURANCE"] as const)("%s は換金性が高い", (category) => {
+  it.each(["DEPOSIT", "SECURITIES", "INSURANCE", "INSURANCE_RIGHTS"] as const)("%s は換金性が高い", (category) => {
     expect(liquidityForCategory(category)).toBe("HIGH");
   });
 

@@ -89,6 +89,27 @@ describe("createInheritanceTaxRequest", () => {
     });
   });
 
+  it("生命保険契約に関する権利は本来の相続財産として課税価格に残す", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      snapshots: [{
+        ...portfolio.snapshots[0],
+        positions: [
+          ...portfolio.snapshots[0].positions,
+          { side: "ASSET", category: "INSURANCE_RIGHTS", valueJpy: 10_000_000, fxRate: 1, assetDetails: { insuredPerson: "山田 花子" } },
+        ],
+      }],
+    } as Portfolio);
+
+    // 金融資産として集計され、みなし相続財産の契約一覧には入らない（非課税枠の対象外）。
+    expect(result.source.financialAssetsJpy).toBe(10_000_000);
+    // 科目の無い土台の資産だけがその他資産に残る（新しい科目が分類漏れで流れ込んでいない）。
+    expect(result.source.otherAssetsJpy).toBe(100_005_000);
+    expect(result.request.lifeInsurance).toBeUndefined();
+    // 解約返戻金が差し引かれず、そのまま課税価格へ乗る（8,000万5,000円 + 1,000万円）。
+    expect(result.request.estateValueJpy).toBe(90_010_000);
+  });
+
   it("退職金の解約手当金・死亡退職金・非課税枠対象をAPIへ渡す", () => {
     const result = createInheritanceTaxRequest({
       ...portfolio,

@@ -19,7 +19,7 @@ import {
   realEstateCategories,
 } from "@/lib/portfolio-view";
 
-type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING" | "INSURANCE" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
+type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING" | "INSURANCE" | "INSURANCE_RIGHTS" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
 type BulkField = "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "floorArea" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "note";
 type BulkRow = Record<BulkField, string> & { id: number; positionId: number | null; error: string; errorFields: BulkField[] };
 /**
@@ -28,10 +28,10 @@ type BulkRow = Record<BulkField, string> & { id: number; positionId: number | nu
  */
 type BulkColumn = { key: BulkField; label: string; numeric?: boolean; required?: boolean; conditional?: string; kind?: "category" | "formula" | "landCategory" | "buildingType" | "accountType" | "person"; legalHeirMark?: boolean; width?: string };
 
-const bulkEntryTypeLabels: Record<BulkEntryType, string> = { DEPOSIT: "現金・預貯金", SECURITIES: "有価証券", PRIVATE_SHARES: "自社株", LAND: "土地", BUILDING: "建物", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金", LOAN_RECEIVABLE: "貸付金" };
+const bulkEntryTypeLabels: Record<BulkEntryType, string> = { DEPOSIT: "現金・預貯金", SECURITIES: "有価証券", PRIVATE_SHARES: "自社株", LAND: "土地", BUILDING: "建物", INSURANCE: "生命保険", INSURANCE_RIGHTS: "生命保険契約に関する権利", RETIREMENT_ALLOWANCE: "退職金", LOAN_RECEIVABLE: "貸付金" };
 /** タブの並びと区切り。明細一覧の中分類（assetCategoryGroups）と同じ順に並べ、画面間で探す位置を揃える。 */
 const bulkEntryGroups: { label: string; types: BulkEntryType[] }[] = [
-  { label: "金融資産", types: ["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"] },
+  { label: "金融資産", types: ["DEPOSIT", "SECURITIES", "INSURANCE", "INSURANCE_RIGHTS", "RETIREMENT_ALLOWANCE"] },
   { label: "不動産", types: ["LAND", "BUILDING"] },
   { label: "事業用資産", types: ["PRIVATE_SHARES", "LOAN_RECEIVABLE"] },
 ];
@@ -44,7 +44,7 @@ const bulkNumberOrNull = (value: string) => value ? Number(value.replace(/,/g, "
  * 列・必須項目・保存内容の違いをここだけに持たせ、表側に科目ごとの分岐を増やさない。
  * 生命保険は個別モーダルと同じく保険会社名を名称として保存する。
  */
-type SimpleEntryType = "INSURANCE" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
+type SimpleEntryType = "INSURANCE" | "INSURANCE_RIGHTS" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
 const simpleEntryConfigs: Record<SimpleEntryType, {
   nameFrom: BulkField;
   valuationMethod: string;
@@ -66,6 +66,20 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
       { key: "note", label: "メモ", width: "150px" },
     ],
     details: (row) => ({ policyNumber: row.policyNumber.trim(), insuredPerson: row.insuredPerson.trim(), beneficiary: row.recipient.trim(), deathBenefit: bulkNumberOrNull(row.benefit) }),
+  },
+  // 生命保険契約に関する権利は保険事故が起きていないので、死亡保険金と受取人の列を持たない。
+  INSURANCE_RIGHTS: {
+    nameFrom: "institution",
+    valuationMethod: "解約返戻金",
+    required: ["institution", "originalAmount"],
+    columns: [
+      { key: "institution", label: "保険会社", required: true, width: "170px" },
+      { key: "policyNumber", label: "証券番号", width: "130px" },
+      { key: "insuredPerson", label: "被保険者", kind: "person", width: "150px" },
+      { key: "originalAmount", label: "解約返戻金（円）", numeric: true, required: true, width: "150px" },
+      { key: "note", label: "メモ", width: "200px" },
+    ],
+    details: (row) => ({ policyNumber: row.policyNumber.trim(), insuredPerson: row.insuredPerson.trim() }),
   },
   RETIREMENT_ALLOWANCE: {
     nameFrom: "name",
@@ -563,7 +577,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
             </button>;
           })}</div>
         </div>)}</div>
-        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。金額はすべて円単位です。Excelから複数セルを貼り付けることもできます。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の8種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
+        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。金額はすべて円単位です。Excelから複数セルを貼り付けることもできます。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の9種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>

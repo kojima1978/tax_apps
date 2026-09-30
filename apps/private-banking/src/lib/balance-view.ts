@@ -44,7 +44,7 @@ function sideCallouts(side: BsSide, accounts: ReadonlyArray<BsAccount>, areaTota
 
 /** 中分類（金融資産・不動産・事業用資産）ごとの資産集計。貸借対照表の区画はこの数値で高さを決める。 */
 export function successionAssetTotals(positions: Position[]) {
-  let deposits = 0, securities = 0, insurance = 0, insuranceDeathBenefit = 0, retirementAllowance = 0, retirementDeathBenefit = 0, deemedBenefitMissingCount = 0, privateShares = 0, businessAssets = 0, loanReceivables = 0;
+  let deposits = 0, securities = 0, insurance = 0, insuranceDeathBenefit = 0, insuranceRights = 0, retirementAllowance = 0, retirementDeathBenefit = 0, deemedBenefitMissingCount = 0, privateShares = 0, businessAssets = 0, loanReceivables = 0;
   let homeRealEstate = 0, incomeRealEstate = 0, businessRealEstate = 0, idleRealEstate = 0, otherRealEstate = 0, otherAssets = 0;
   for (const position of positions) {
     if (position.side !== "ASSET") continue;
@@ -57,6 +57,8 @@ export function successionAssetTotals(positions: Position[]) {
       if (position.category === "INSURANCE") { insurance += position.valueJpy; insuranceDeathBenefit += benefitJpy; }
       else { retirementAllowance += position.valueJpy; retirementDeathBenefit += benefitJpy; }
     }
+    // 生命保険契約に関する権利は保険事故が起きていないので置き換えが無い。税金ありB/Sでも解約返戻金のまま残す。
+    else if (position.category === "INSURANCE_RIGHTS") insuranceRights += position.valueJpy;
     else if (position.category === "PRIVATE_SHARES") privateShares += position.valueJpy;
     else if (position.category === "BUSINESS_ASSETS") businessAssets += position.valueJpy;
     else if (position.category === "LOAN_RECEIVABLE") loanReceivables += position.valueJpy;
@@ -68,8 +70,8 @@ export function successionAssetTotals(positions: Position[]) {
     else otherAssets += position.valueJpy;
   }
   return {
-    financial: deposits + securities + insurance + retirementAllowance,
-    deposits, securities, insurance, insuranceDeathBenefit, retirementAllowance, retirementDeathBenefit, deemedBenefitMissingCount,
+    financial: deposits + securities + insurance + insuranceRights + retirementAllowance,
+    deposits, securities, insurance, insuranceDeathBenefit, insuranceRights, retirementAllowance, retirementDeathBenefit, deemedBenefitMissingCount,
     business: privateShares + businessAssets + loanReceivables,
     privateShares, businessAssets, loanReceivables,
     realEstate: homeRealEstate + incomeRealEstate + businessRealEstate + idleRealEstate + otherRealEstate,
@@ -118,7 +120,7 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
     ...successionAssets,
     insurance: displayedInsurance,
     retirementAllowance: displayedRetirement,
-    financial: successionAssets.deposits + successionAssets.securities + displayedInsurance + displayedRetirement,
+    financial: successionAssets.deposits + successionAssets.securities + displayedInsurance + successionAssets.insuranceRights + displayedRetirement,
   };
   const displayedAssetTotal = summary.assets - successionAssets.insurance - successionAssets.retirementAllowance + displayedInsurance + displayedRetirement;
   const displayedTaxes = taxIncluded ? estimatedInheritanceTax + otherTaxes : 0;
@@ -133,6 +135,8 @@ export function buildBalanceView({ scenario, summary, successionAssets, loanBrea
       { label: "預金", value: displayedAssets.deposits },
       { label: "有価証券", value: displayedAssets.securities },
       { label: `生命保険${taxIncluded ? "（死亡保険金）" : "（解約返戻金）"}`, value: displayedAssets.insurance },
+      // 契約に関する権利はどちらのシナリオでも解約返戻金相当額なので、科目名に括弧書きを付けない。
+      { label: "生命保険契約に関する権利", value: displayedAssets.insuranceRights },
       { label: `退職金${taxIncluded ? "（死亡退職金）" : "（解約手当金）"}`, value: displayedAssets.retirementAllowance },
     ]),
     realEstate: nonZero([

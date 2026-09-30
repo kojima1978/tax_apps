@@ -1,12 +1,10 @@
 import { legalHeirRoster } from "@/lib/family";
-import { deemedAllocations, deemedBenefit, realEstateCategories, splitBenefit, type Portfolio } from "@/lib/portfolio-view";
+import { businessCategories, deemedAllocations, deemedBenefit, financialCategories, realEstateCategories, splitBenefit, type Portfolio } from "@/lib/portfolio-view";
 
 const JPY_PER_MAN_YEN = 10_000;
 // 死亡保険金・死亡退職金の受取人。相続税APIは相続人を人数でしか持たないので、
 // 配偶者か・何番目の相続人か・法定相続人以外か、の3択で渡す。
 type DeemedRecipient = { kind: "spouse" } | { kind: "heir"; index: number } | { kind: "other" };
-const financialCategories = new Set(["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"]);
-const businessCategories = new Set(["PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE"]);
 // 小規模宅地等の特例（概算）：宅地区分ごとの減額割合と限度面積。限度面積を超える分は面積按分で減額する。
 const smallLotRules: Record<string, { rate: number; capSqm: number }> = {
   RESIDENTIAL: { rate: 0.8, capSqm: 330 },
@@ -58,9 +56,9 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
   for (const position of current.positions) {
     if (position.side === "ASSET") {
       assets += position.valueJpy;
-      if (financialCategories.has(position.category)) financialAssetsJpy += position.valueJpy;
+      if (financialCategories.includes(position.category)) financialAssetsJpy += position.valueJpy;
       else if (realEstateCategories.includes(position.category)) realEstateJpy += position.valueJpy;
-      else if (businessCategories.has(position.category)) businessAssetsJpy += position.valueJpy;
+      else if (businessCategories.includes(position.category)) businessAssetsJpy += position.valueJpy;
       else otherAssetsJpy += position.valueJpy;
       const smallLotRule = smallLotRules[position.assetDetails?.smallLotType ?? ""];
       if (smallLotRule && realEstateCategories.includes(position.category)) {

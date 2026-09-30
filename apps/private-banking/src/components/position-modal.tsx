@@ -10,7 +10,6 @@ import {
   type AssetDetails,
   type AssetGroupLabel,
   type BenefitAllocation,
-  type DeemedCategory,
   type Position,
   type PositionSection,
   type ValuationFormula,
@@ -29,7 +28,7 @@ import {
 } from "@/lib/portfolio-view";
 
 /** 外貨建てで登録しうる科目。これ以外（不動産・自社株・借入金・偶発債務など）は円建てのみなので通貨欄を出さず JPY 固定にする。 */
-const foreignCurrencyCategories = ["DEPOSIT", "SECURITIES", "INSURANCE", "BUSINESS_ASSETS"];
+const foreignCurrencyCategories = ["DEPOSIT", "SECURITIES", "INSURANCE", "INSURANCE_RIGHTS", "BUSINESS_ASSETS"];
 /** 中分類に属する科目。科目セレクトの選択肢と、中分類を切り替えたときの既定科目に使う。 */
 const groupCategories = (label: AssetGroupLabel): readonly string[] => assetCategoryGroups.find((group) => group.label === label)!.categories;
 /** 科目を選び直したときの既定の算式。ここに無い科目は金額を直接入力する。 */
@@ -50,6 +49,8 @@ const otherLiabilityInstitutionLabels: Record<string, string> = {
 };
 const manualValuationMethods: Record<string, string> = {
   DEPOSIT: "残高",
+  // 生命保険契約に関する権利は保険事故が起きていないので、解約返戻金相当額がそのまま評価額になる。
+  INSURANCE_RIGHTS: "解約返戻金",
   ...Object.fromEntries(Object.entries(deemedInheritanceCategories).map(([category, config]) => [category, config.surrenderLabel])),
 };
 /**
@@ -246,6 +247,12 @@ function AssetSpecificFields({
     <BenefitRecipientsField benefitLabel="死亡保険金" benefitName="assetDetail.deathBenefit" benefitDefault={String(details.deathBenefit ?? "")} recipientName="assetDetail.beneficiary" allocationDefaults={allocationDefaults(details, "beneficiary")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数）の対象です。" />
   </div></fieldset>;
 
+  // 生命保険契約に関する権利は保険事故が起きていないので、死亡保険金も受取人も存在しない。
+  // 欄を出すと入れられてしまい、非課税枠の対象だと誤解させるため被保険者だけにする。
+  if (category === "INSURANCE_RIGHTS") return <fieldset key={category} className="asset-detail-fieldset full"><legend>生命保険契約に関する権利の情報</legend><div className="asset-detail-grid">
+    <PersonSelect label="被保険者" name="assetDetail.insuredPerson" value={details.insuredPerson ?? ""} people={people} />
+  </div><FieldNote summary="生命保険契約に関する権利の扱い">被相続人が保険料を負担し、被保険者が被相続人以外（配偶者・子など）の契約です。相続開始時点で保険事故が起きていないため死亡保険金は支払われず、解約返戻金相当額が<strong>本来の相続財産</strong>として課税価格に入ります。生命保険金の非課税枠（500万円 × 法定相続人数）の対象ではありません。円換算時価には解約返戻金相当額を入力します。</FieldNote></fieldset>;
+
   if (category === "RETIREMENT_ALLOWANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>退職金の情報</legend><div className="asset-detail-grid">
     <BenefitRecipientsField benefitLabel="死亡退職金" benefitName="assetDetail.retirementAllowance" benefitDefault={String(details.retirementAllowance ?? "")} recipientName="assetDetail.retirementRecipient" allocationDefaults={allocationDefaults(details, "retirementRecipient")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数・生命保険金とは別枠）の対象です。" />
   </div><FieldNote summary="解約手当金と死亡退職金の扱い">円換算時価には、生存中に解約した場合の解約返戻金（解約手当金）を入力します。死亡退職金は相続税の概算にだけ反映し、資産合計には含めません。</FieldNote></fieldset>;
@@ -312,7 +319,8 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   const isJpyOnly = !foreignCurrencyCategories.includes(category);
   const isUnitRateCategory = category === "COLLECTIBLES";
   const isRealEstateCategory = realEstateCategories.includes(category);
-  const isInsurance = category === "INSURANCE";
+  // 生命保険契約に関する権利も同じ保険契約なので、名称の代わりに保険会社を使い証券番号の欄を出す。
+  const isInsurance = category === "INSURANCE" || category === "INSURANCE_RIGHTS";
   const typeField = section === "ASSET" ? categoryTypeFields[category] ?? null : null;
   const nameLabel = category === "SECURITIES" ? "銘柄名" : category === "PRIVATE_SHARES" ? "会社名" : category === "LOAN_RECEIVABLE" ? "貸付金名" : category === "COLLECTIBLES" ? "資産名" : category === "RETIREMENT_ALLOWANCE" ? "制度名・契約名" : "名称";
   // 「所在地・金融機関等」欄の見出し。生命保険（証券番号）と不動産（所在地）はここではなく専用の欄で出す。
@@ -328,7 +336,8 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
     : otherLiabilityInstitutionLabels[category] ?? "金融機関・債権者";
   // 借入金ではない負債（リース債務・未払金・預り敷金）は「借入残高」ではなく「残高」と呼ぶ。
   const liabilityAmountLabel = otherLiabilityCategories.includes(category) ? "残高" : "借入残高";
-  const amountLabel = section === "LIABILITY" ? liabilityAmountLabel : section === "CONTINGENT" ? "保証金額" : category === "DEPOSIT" ? "残高" : deemedInheritanceCategories[category as DeemedCategory] ? deemedInheritanceCategories[category as DeemedCategory].surrenderLabel : category === "LOAN_RECEIVABLE" ? "貸付金残高" : "評価額";
+  // 金額欄の見出しは貸付金を除いて「評価方法」と同じ表から引く（科目を足したときに片方だけ漏れるのを防ぐ）。
+  const amountLabel = section === "LIABILITY" ? liabilityAmountLabel : section === "CONTINGENT" ? "保証金額" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : manualValuationMethods[category] ?? "評価額";
   // 金額欄の見出しに付ける単位。外貨を選んだときは通貨コードにして、円で入れてしまう誤りを防ぐ。
   const amountUnit = currency === "JPY" ? "円" : currency;
   const numericValue = (value: string) => Number(value) || 0;

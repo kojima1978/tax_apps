@@ -35,12 +35,13 @@ function renderModal(positions: Position[] = [], peopleNames: string[] = people,
 const savedPayloads = (onSubmit: ReturnType<typeof renderModal>) =>
   (onSubmit.mock.calls[0]?.[0] ?? []) as Array<{ id: number | null; data: Record<string, unknown> }>;
 
-/** 種類の切替。タブのラベルは件数や状態が続くので、種類名の前方一致で選ぶ。 */
+/** 種類の切替。タブのラベルは件数や状態が続くので、種類名＋区切りの「・」までの前方一致で選ぶ。 */
 const entryTypeLabels: Record<string, string> = {
-  DEPOSIT: "現金・預貯金", SECURITIES: "有価証券", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金",
+  DEPOSIT: "現金・預貯金", SECURITIES: "有価証券", INSURANCE: "生命保険", INSURANCE_RIGHTS: "生命保険契約に関する権利", RETIREMENT_ALLOWANCE: "退職金",
   LAND: "土地", BUILDING: "建物", PRIVATE_SHARES: "自社株", LOAN_RECEIVABLE: "貸付金",
 };
-const entryTab = (value: string) => screen.getByRole("tab", { name: new RegExp(`^${entryTypeLabels[value]}`) });
+// 「生命保険」は「生命保険契約に関する権利」の前方一致でもあるので、区切りまで含めて突き合わせる。
+const entryTab = (value: string) => screen.getByRole("tab", { name: new RegExp(`^${entryTypeLabels[value]}・`) });
 const selectEntryType = (value: string) => fireEvent.click(entryTab(value));
 const cell = (rowIndex: number, label: string) => screen.getByLabelText(`${rowIndex}行目 ${label}`) as HTMLInputElement;
 const typeIn = (rowIndex: number, label: string, value: string) => fireEvent.change(cell(rowIndex, label), { target: { value } });
@@ -50,7 +51,7 @@ describe("BulkPositionModal（種類タブ）", () => {
   it("タブを明細一覧と同じ中分類順に並べ、登録済み件数を出す", () => {
     renderModal([position({ id: 5, category: "INSURANCE", name: "○○生命", institution: "○○生命", originalAmount: 1_000_000, valueJpy: 1_000_000 })]);
     expect(screen.getAllByRole("tab").map((tab) => tab.getAttribute("aria-label"))).toEqual([
-      "現金・預貯金・登録済み0件", "有価証券・登録済み0件", "生命保険・登録済み1件", "退職金・登録済み0件",
+      "現金・預貯金・登録済み0件", "有価証券・登録済み0件", "生命保険・登録済み1件", "生命保険契約に関する権利・登録済み0件", "退職金・登録済み0件",
       "土地・登録済み0件", "建物・登録済み0件", "自社株・登録済み0件", "貸付金・登録済み0件",
     ]);
     // 登録済みのある種類を最初に開く。

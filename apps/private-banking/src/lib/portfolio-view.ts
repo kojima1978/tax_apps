@@ -53,7 +53,7 @@ export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "d
 
 export const categoryLabels: Record<string, string> = {
   DEPOSIT: "預金・現金", SECURITIES: "有価証券", HOME_REAL_ESTATE: "居宅", REAL_ESTATE: "収益不動産", BUSINESS_REAL_ESTATE: "事業用不動産", IDLE_REAL_ESTATE: "遊休不動産", OTHER_REAL_ESTATE: "その他不動産",
-  PRIVATE_SHARES: "自社株", BUSINESS_ASSETS: "事業用資産", LOAN_RECEIVABLE: "貸付金", INSURANCE: "生命保険", RETIREMENT_ALLOWANCE: "退職金", COLLECTIBLES: "その他資産",
+  PRIVATE_SHARES: "自社株", BUSINESS_ASSETS: "事業用資産", LOAN_RECEIVABLE: "貸付金", INSURANCE: "生命保険", INSURANCE_RIGHTS: "生命保険契約に関する権利", RETIREMENT_ALLOWANCE: "退職金", COLLECTIBLES: "その他資産",
   LOAN_HOME: "住宅ローン", LOAN_INVESTMENT_PROPERTY: "不動産投資ローン", LOAN_SECURITIES: "証券担保ローン",
   LOAN_BUSINESS: "事業用借入", LOAN_OTHER: "その他借入金", LOAN: "その他借入金",
   LEASE_OBLIGATION: "リース債務", ACCOUNTS_PAYABLE: "未払金", DEPOSITS_RECEIVED: "預り敷金・保証金", GUARANTEE: "個人保証",
@@ -125,8 +125,13 @@ export const smallLotTypeOptions = [
 // middleClassification）、B/Sの小分類がすべてこの1箇所から決まる。同じ並びを複数箇所に書くと、科目を足したときに
 // 中分類の判定だけ漏れて「その他資産」に落ちる事故が起きるため、唯一の定義元にしている。
 // 生命保険・退職金も金融資産なので預金・有価証券に続ける。
+// 生命保険契約に関する権利（被相続人が契約者で被保険者は別人。相続開始時点で保険事故が起きていない）は
+// 生命保険とは別の科目にする。解約すれば現金になるので金融資産だが、死亡保険金は発生しないため
+// みなし相続財産ではなく本来の相続財産で、解約返戻金相当額がそのまま課税価格に残る。
+// 生命保険の科目に混ぜると deemedInheritanceCategories の置き換え（B/Sの死亡保険金への差し替え・
+// 非課税枠・未入力警告）が丸ごと効いてしまい、死亡保険金が空欄なので0円に消える。
 export const assetCategoryGroups = [
-  { label: "金融資産", categories: ["DEPOSIT", "SECURITIES", "INSURANCE", "RETIREMENT_ALLOWANCE"] },
+  { label: "金融資産", categories: ["DEPOSIT", "SECURITIES", "INSURANCE", "INSURANCE_RIGHTS", "RETIREMENT_ALLOWANCE"] },
   { label: "不動産", categories: ["HOME_REAL_ESTATE", "REAL_ESTATE", "BUSINESS_REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE"] },
   { label: "事業用資産", categories: ["PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE"] },
   { label: "その他資産", categories: ["COLLECTIBLES"] },
@@ -135,6 +140,10 @@ export type AssetGroupLabel = typeof assetCategoryGroups[number]["label"];
 export const assetCategories: string[] = assetCategoryGroups.flatMap((group) => [...group.categories]);
 /** 不動産の科目。所在地欄・持分・小規模宅地など、不動産だけの扱いをする箇所で使う。 */
 export const realEstateCategories: readonly string[] = assetCategoryGroups.find((group) => group.label === "不動産")!.categories;
+/** 中分類の科目を引く。同じ並びを別の場所に書き写すと、科目を足したときにそちらだけ漏れる。 */
+const categoriesOfGroup = (label: AssetGroupLabel): readonly string[] => assetCategoryGroups.find((group) => group.label === label)!.categories;
+export const financialCategories: readonly string[] = categoriesOfGroup("金融資産");
+export const businessCategories: readonly string[] = categoriesOfGroup("事業用資産");
 const assetGroupByCategory = new Map<string, AssetGroupLabel>(assetCategoryGroups.flatMap((group) => group.categories.map((category) => [category, group.label] as const)));
 /** 科目からその中分類を引く。資産以外（借入金・その他負債・個人保証）は null。 */
 export const assetGroupOf = (category: string) => assetGroupByCategory.get(category) ?? null;
@@ -252,7 +261,7 @@ export function institutionOrPropertyAddress(position: Position) {
   const isRealEstate = realEstateCategories.includes(position.category);
   if (isRealEstate) return position.assetDetails?.propertyAddress?.trim() ?? "";
   // 生命保険は保険会社名を明細の名称に使っているので、この欄には証券番号を出す。
-  if (position.category === "INSURANCE") return position.assetDetails?.policyNumber?.trim() ?? "";
+  if (position.category === "INSURANCE" || position.category === "INSURANCE_RIGHTS") return position.assetDetails?.policyNumber?.trim() ?? "";
   // その他資産は保管先を持たせないので、この欄には資産種類を出す。
   if (position.category === "COLLECTIBLES") return otherAssetTypeLabels[position.assetDetails?.otherAssetType ?? ""] ?? "";
   return position.institution.trim();
@@ -293,7 +302,7 @@ export function totals(positions: Position[]) {
 export type TrendValues = ReturnType<typeof trendValues>;
 
 export function trendValues(snapshot: Snapshot) {
-  let deposits = 0, securities = 0, insurance = 0, retirementAllowance = 0;
+  let deposits = 0, securities = 0, insurance = 0, insuranceRights = 0, retirementAllowance = 0;
   let homeRealEstate = 0, incomeRealEstate = 0, businessRealEstate = 0, idleRealEstate = 0, otherRealEstate = 0;
   let privateShares = 0, businessAssets = 0, loanReceivables = 0, otherAssets = 0;
   let loanHome = 0, loanInvestmentProperty = 0, loanSecurities = 0, loanBusiness = 0, loanOther = 0, guarantees = 0;
@@ -303,6 +312,7 @@ export function trendValues(snapshot: Snapshot) {
       if (position.category === "DEPOSIT") deposits += position.valueJpy;
       else if (position.category === "SECURITIES") securities += position.valueJpy;
       else if (position.category === "INSURANCE") insurance += position.valueJpy;
+      else if (position.category === "INSURANCE_RIGHTS") insuranceRights += position.valueJpy;
       else if (position.category === "RETIREMENT_ALLOWANCE") retirementAllowance += position.valueJpy;
       else if (position.category === "HOME_REAL_ESTATE") homeRealEstate += position.valueJpy;
       else if (position.category === "REAL_ESTATE") incomeRealEstate += position.valueJpy;
@@ -326,7 +336,7 @@ export function trendValues(snapshot: Snapshot) {
       guarantees += position.valueJpy;
     }
   }
-  const financial = deposits + securities + insurance + retirementAllowance;
+  const financial = deposits + securities + insurance + insuranceRights + retirementAllowance;
   const realEstate = homeRealEstate + incomeRealEstate + businessRealEstate + idleRealEstate + otherRealEstate;
   const business = privateShares + businessAssets + loanReceivables;
   const borrowings = loanHome + loanInvestmentProperty + loanSecurities + loanBusiness + loanOther;
@@ -337,7 +347,7 @@ export function trendValues(snapshot: Snapshot) {
   const liabilities = borrowings + otherLiabilities + taxes;
   const assets = financial + realEstate + business + otherAssets;
   return {
-    deposits, securities, insurance, retirementAllowance, financial,
+    deposits, securities, insurance, insuranceRights, retirementAllowance, financial,
     homeRealEstate, incomeRealEstate, businessRealEstate, idleRealEstate, otherRealEstate, realEstate,
     privateShares, businessAssets, loanReceivables, business, otherAssets, assets,
     inheritanceTax, otherTaxes, taxes,
@@ -371,6 +381,7 @@ export const trendChildRows: Record<TrendGroup, TrendRow[]> = {
     { label: "預金・現金", key: "deposits", child: true },
     { label: "有価証券", key: "securities", child: true },
     { label: "生命保険", key: "insurance", child: true },
+    { label: "生命保険契約に関する権利", key: "insuranceRights", child: true },
     { label: "退職金", key: "retirementAllowance", child: true },
   ],
   realEstate: [
