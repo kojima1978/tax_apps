@@ -181,7 +181,10 @@ export function calculatedOwnershipShare(data: PositionInput) {
   return Math.round(data.ownershipNumerator / data.ownershipDenominator * 1_000_000) / 1_000_000;
 }
 
-export function normalizedValuationMethod(data: PositionInput) {
+// 引数を PositionInput そのままにせず2項目に絞ってあるのは、バックアップの復元
+// （lib/backup.ts）が JSON から読んだ行でもこの1本を呼べるようにするため。
+// 評価方法の文字列を組み立てる場所を増やすと、また経路によって割れる。
+export function normalizedValuationMethod(data: { category: string; valuationFormula: string }) {
   if (data.valuationFormula === "STOCK") return "単価×株数・口数×調整率";
   if (data.valuationFormula === "UNIT_RATE") return `${unitRateBaseLabel(data.category)}×調整率`;
   if (data.valuationFormula === "LAND_ROADSIDE") return "路線価方式";

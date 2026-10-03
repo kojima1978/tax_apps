@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { FamilyMember, Household, Position, Snapshot } from "@prisma/client";
 import { z } from "zod";
 import { parseFxRates } from "@/lib/fx-rates";
+import { normalizedValuationMethod } from "@/lib/position-input";
 import { prisma } from "@/lib/prisma";
 
 export const BACKUP_SCHEMA_VERSION = 1;
@@ -215,7 +216,10 @@ const positionFieldsSchema = z.object({
   valueJpy: decimalLike,
   liquidity: z.string().default("MEDIUM"),
   includedInNetWorth: z.boolean().default(true),
-  valuationMethod: z.string().default("手動入力"),
+  // 列を持たない旧バックアップでも取り込めるようにしておく。既定値をここに書くと
+  // 評価方法の文字列がサーバ側1箇所という前提が崩れるので、無ければ下の
+  // positionData で算式と科目から引き直す。
+  valuationMethod: z.string().optional(),
   valuationFormula: z.string().default("MANUAL"),
   valuationQuantity: nullableDecimalLike,
   valuationUnitPrice: nullableDecimalLike,
@@ -322,7 +326,8 @@ function snapshotData(row: SnapshotFields) {
   };
 }
 
-function positionData(row: PositionFields) {
+// 評価方法の引き直しを単体で確かめられるよう export している（lib/__tests__/backup.test.ts）。
+export function positionData(row: PositionFields) {
   return {
     side: row.side,
     category: row.category,
@@ -334,7 +339,9 @@ function positionData(row: PositionFields) {
     valueJpy: toDecimal(row.valueJpy),
     liquidity: row.liquidity,
     includedInNetWorth: row.includedInNetWorth,
-    valuationMethod: row.valuationMethod,
+    // 持っている値はそのまま戻す（復元は書き出した内容を再現するもので、
+    // ここで作り直すとバックアップと復元後で中身が変わる）。欠けている旧バックアップだけ引き直す。
+    valuationMethod: row.valuationMethod ?? normalizedValuationMethod(row),
     valuationFormula: row.valuationFormula,
     valuationQuantity: toDecimalOrNull(row.valuationQuantity),
     valuationUnitPrice: toDecimalOrNull(row.valuationUnitPrice),
