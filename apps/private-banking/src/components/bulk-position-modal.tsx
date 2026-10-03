@@ -115,7 +115,7 @@ const accountTypeOptions = [{ value: "ORDINARY", label: "普通預金" }, { valu
  * 方式セレクトの表示名。以前は「路」「倍」「直」の1文字で、何を選んでいるか読めなかった。
  * 貼り付け時のラベル照合にも使う（正式名称の「路線価方式」なども別途受け付ける）。
  */
-const bulkFormulaLabels: Partial<Record<ValuationFormula, string>> = { STOCK: "株数×単価", LAND_ROADSIDE: "路線価", LAND_MULTIPLIER: "倍率", BUILDING: "固定資産税", MANUAL: "直接入力" };
+const bulkFormulaLabels: Partial<Record<ValuationFormula, string>> = { STOCK: "単価×株数", LAND_ROADSIDE: "路線価", LAND_MULTIPLIER: "倍率", BUILDING: "固定資産税", MANUAL: "直接入力" };
 const bulkFormulaOptions = (entryType: BulkEntryType): ValuationFormula[] => entryType === "LAND" ? ["LAND_ROADSIDE", "LAND_MULTIPLIER", "MANUAL"]
   : entryType === "BUILDING" ? ["BUILDING", "MANUAL"]
     : ["STOCK", "MANUAL"];
@@ -259,9 +259,9 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
       { key: "name", label: entryType === "PRIVATE_SHARES" ? "会社名" : "銘柄名", required: true, width: "190px" },
       { key: "institution", label: entryType === "PRIVATE_SHARES" ? "株式種類" : "証券会社", width: "150px" },
       { key: "valuationFormula", label: "方式", required: true, kind: "formula", width: "104px" },
-      { key: "quantity", label: "株数・口数", numeric: true, conditional: "株数×単価", width: "130px" },
-      { key: "unitPrice", label: "単価（円）", numeric: true, conditional: "株数×単価", width: "130px" },
-      { key: "adjustmentRate", label: "調整率", numeric: true, conditional: "株数×単価", width: "90px" },
+      { key: "unitPrice", label: "単価（円）", numeric: true, conditional: "単価×株数", width: "130px" },
+      { key: "quantity", label: "株数・口数", numeric: true, conditional: "単価×株数", width: "130px" },
+      { key: "adjustmentRate", label: "調整率", numeric: true, conditional: "単価×株数", width: "90px" },
       { key: "originalAmount", label: "直接入力額（円）", numeric: true, conditional: "直接入力", width: "130px" },
       { key: "note", label: "メモ", width: "170px" },
     ];
@@ -395,6 +395,8 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
       const formulas: Record<string, string> = {
         ...Object.fromEntries(Object.entries(bulkFormulaLabels).map(([formula, label]) => [label, formula])),
         路線価方式: "LAND_ROADSIDE", 倍率方式: "LAND_MULTIPLIER", 固定資産税評価額: "BUILDING", 固定資産税評価額方式: "BUILDING",
+        // 株式の算式の並びを「単価×株数」へ改めたので、以前のExcelからの貼り付けも受け付けるよう旧表記を残す。
+        "株数×単価": "STOCK",
       };
       return formulas[trimmed] ?? trimmed;
     }
@@ -526,7 +528,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         fxRate: 1,
         // 評価方法は自由入力をやめ、個別モーダルと同じく科目・算式から決める。
         valuationMethod: rowSimpleConfig ? rowSimpleConfig.valuationMethod : rowIsDeposit ? "残高"
-          : rowFormula === "STOCK" ? "株数・口数×単価×調整率" : rowFormula === "LAND_ROADSIDE" ? "路線価方式" : rowFormula === "LAND_MULTIPLIER" ? "倍率方式" : rowFormula === "BUILDING" ? "建物・固定資産税評価額方式" : "直接入力",
+          : rowFormula === "STOCK" ? "単価×株数・口数×調整率" : rowFormula === "LAND_ROADSIDE" ? "路線価方式" : rowFormula === "LAND_MULTIPLIER" ? "倍率方式" : rowFormula === "BUILDING" ? "建物・固定資産税評価額方式" : "直接入力",
         valuationFormula: rowFormula,
         valuationQuantity: rowIsStock ? numberOrNull(row.quantity) : null,
         valuationUnitPrice: rowIsStock ? numberOrNull(row.unitPrice) : null,

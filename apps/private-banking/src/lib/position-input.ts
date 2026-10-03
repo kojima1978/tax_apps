@@ -184,7 +184,7 @@ export function calculatedOwnershipShare(data: PositionInput) {
 }
 
 export function normalizedValuationMethod(data: PositionInput) {
-  if (data.valuationFormula === "STOCK") return "株数・口数×単価×調整率";
+  if (data.valuationFormula === "STOCK") return "単価×株数・口数×調整率";
   if (data.valuationFormula === "UNIT_RATE") return "単価×調整率";
   if (data.valuationFormula === "LAND_ROADSIDE") return "路線価方式";
   if (data.valuationFormula === "LAND_MULTIPLIER") return "倍率方式";

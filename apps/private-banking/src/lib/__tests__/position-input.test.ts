@@ -89,7 +89,7 @@ const buildingInput = {
 };
 
 describe("calculatedOriginalAmount", () => {
-  it("株式は 株数×単価×調整率（持分は掛けない）", () => {
+  it("株式は 単価×株数×調整率（持分は掛けない）", () => {
     expect(calculatedOriginalAmount(parse(stockInput))).toBe(2450000);
   });
 
@@ -162,7 +162,7 @@ describe("positionInputSchema", () => {
     expect(noShare.success).toBe(false);
   });
 
-  it("株式の算式は株数・単価・調整率が0より大きいこと", () => {
+  it("株式の算式は単価・株数・調整率が0より大きいこと", () => {
     expect(positionInputSchema.safeParse({ ...stockInput, valuationUnitPrice: 0 }).success).toBe(false);
   });
 
@@ -257,7 +257,7 @@ describe("calculatedOwnershipShare", () => {
 
 describe("normalizedValuationMethod", () => {
   const methodCases: Array<{ input: Record<string, unknown>; expected: string }> = [
-    { input: stockInput, expected: "株数・口数×単価×調整率" },
+    { input: stockInput, expected: "単価×株数・口数×調整率" },
     { input: landRoadsideInput, expected: "路線価方式" },
     { input: landMultiplierInput, expected: "倍率方式" },
     { input: buildingInput, expected: "建物・固定資産税評価額方式" },
