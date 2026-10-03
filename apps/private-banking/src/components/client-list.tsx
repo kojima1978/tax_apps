@@ -12,7 +12,7 @@ import { ClientDeleteModal } from "@/components/client-delete-modal";
 import { DateInput } from "@/components/date-input";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
-import { ClientSummary, filterClients, searchTerms } from "@/lib/clients";
+import { CLIENT_SORT_DEFAULT, CLIENT_SORT_MODES, type ClientSortMode, ClientSummary, filterClients, searchTerms, sortClients } from "@/lib/clients";
 import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 import { type Portfolio } from "@/lib/portfolio-view";
@@ -28,6 +28,7 @@ export function ClientList() {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
+  const [sortMode, setSortMode] = useState<ClientSortMode>(CLIENT_SORT_DEFAULT);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +57,10 @@ export function ClientList() {
   useEffect(() => { void load(); }, [load]);
 
   const terms = useMemo(() => searchTerms(query), [query]);
-  const filtered = useMemo(() => filterClients(clients ?? [], terms), [clients, terms]);
+  const matched = useMemo(() => filterClients(clients ?? [], terms), [clients, terms]);
+  // 以降はすべて「絞り込んで並べ替えた後」のこの1本だけを見る。矢印キーでの移動・
+  // ページ送り・件数が並び替えと食い違わないようにするため。
+  const filtered = useMemo(() => sortClients(matched, sortMode), [matched, sortMode]);
   // 絞り込みで件数が減っても範囲外を指さないようにする。
   const highlightedIndex = filtered.length === 0 ? -1 : Math.min(activeIndex, filtered.length - 1);
   // 描画するのはこのページのぶんだけ。ページは選択中の行から決めるので、
@@ -195,6 +199,12 @@ export function ClientList() {
       <div className="client-list-tools">
         <p className="client-count" aria-live="polite">{terms.length > 0 ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}</p>
         <div className="position-table-tools">
+          <label>
+            <span>表示順</span>
+            <select aria-label="顧客一覧の表示順" value={sortMode} onChange={(event) => { setSortMode(event.target.value as ClientSortMode); setActiveIndex(0); }}>
+              {CLIENT_SORT_MODES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
           <PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setActiveIndex(0); }} />
         </div>
       </div>

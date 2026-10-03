@@ -1228,7 +1228,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .client-count { margin: 0 2px; color: var(--slate-500); font-size: 12px; font-weight: 700; }
 /* 件数と表示件数を1行に並べる。 */
 .client-list-tools { margin: 10px 2px 6px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.client-list-tools .position-table-tools select { min-width: 96px; min-height: 32px; }
+/* 「年度の新しい順」が入る幅。表示件数（「25件」）だけなら 96px で足りていた。 */
+.client-list-tools .position-table-tools select { min-width: 128px; min-height: 32px; }
 /* 不動産一覧（全顧客横断）。列が多いので表は横スクロールさせ、名称・所在地だけ折り返して読ませる。 */
 .properties-panel { margin-top: 14px; }
 .properties-table { width: 100%; min-width: 860px; }

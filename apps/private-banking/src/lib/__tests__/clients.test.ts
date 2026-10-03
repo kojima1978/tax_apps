@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  type ClientSortMode,
   type ClientSummary,
   filterClients,
   highlightRanges,
   matchesClient,
   normalizeSearchText,
   searchTerms,
+  sortClients,
 } from "@/lib/clients";
 
 const client = (overrides: Partial<ClientSummary> = {}): ClientSummary => ({
@@ -99,6 +101,78 @@ describe("filterClients", () => {
 
   it("関連法人で絞り込める", () => {
     expect(filterClients(clients, searchTerms("工務店")).map((item) => item.id)).toEqual([3]);
+  });
+});
+
+describe("sortClients", () => {
+  const ids = (clients: ClientSummary[], mode: ClientSortMode) => sortClients(clients, mode).map((item) => item.id);
+
+  it("カナ順に並べる（漢字の文字コード順とは別物）", () => {
+    // 文字コードでは 和(U+548C) < 青(U+9752) だが、カナでは アオキ < ワダ。
+    const clients = [
+      client({ id: 1, name: "和田 一郎", nameKana: "ワダ イチロウ" }),
+      client({ id: 2, name: "青木 次郎", nameKana: "アオキ ジロウ" }),
+    ];
+    expect(ids(clients, "kana")).toEqual([2, 1]);
+  });
+
+  it("カナはひらがな・半角カナでも同じ位置に並ぶ", () => {
+    const clients = [
+      client({ id: 1, nameKana: "ワダ イチロウ" }),
+      client({ id: 2, nameKana: "あおき じろう" }),
+      client({ id: 3, nameKana: "ｲﾄｳ ｻﾌﾞﾛｳ" }),
+    ];
+    expect(ids(clients, "kana")).toEqual([2, 3, 1]);
+  });
+
+  it("カナが空なら氏名で代わりに並べる", () => {
+    const clients = [
+      client({ id: 1, name: "ワダ イチロウ", nameKana: "" }),
+      client({ id: 2, name: "アオキ ジロウ", nameKana: "" }),
+    ];
+    expect(ids(clients, "kana")).toEqual([2, 1]);
+  });
+
+  it("顧客コードは桁が揃っていなくても数値として並ぶ", () => {
+    const clients = [
+      client({ id: 1, clientCode: "0006" }),
+      client({ id: 2, clientCode: "005" }),
+      client({ id: 3, clientCode: "0003" }),
+    ];
+    expect(ids(clients, "code")).toEqual([3, 2, 1]);
+  });
+
+  it("年度は新しい順に並べ、年度なしは末尾へ置く", () => {
+    const clients = [
+      client({ id: 1, latestFiscalYear: 2024 }),
+      client({ id: 2, latestFiscalYear: null }),
+      client({ id: 3, latestFiscalYear: 2026 }),
+    ];
+    expect(ids(clients, "year-desc")).toEqual([3, 1, 2]);
+  });
+
+  it("年度なしだけでも比較が壊れない（null 同士で NaN にしない）", () => {
+    const clients = [client({ id: 2, latestFiscalYear: null }), client({ id: 1, latestFiscalYear: null })];
+    expect(ids(clients, "year-desc")).toEqual([1, 2]);
+  });
+
+  it("登録の新しい順は id の降順", () => {
+    const clients = [client({ id: 1 }), client({ id: 3 }), client({ id: 2 })];
+    expect(ids(clients, "newest")).toEqual([3, 2, 1]);
+  });
+
+  it("同じ値のときは id の昇順で決着させる（ページ送りで行がぶれないように）", () => {
+    const clients = [
+      client({ id: 5, nameKana: "ヤマダ タロウ" }),
+      client({ id: 3, nameKana: "ヤマダ タロウ" }),
+    ];
+    expect(ids(clients, "kana")).toEqual([3, 5]);
+  });
+
+  it("元の配列は並べ替えない", () => {
+    const clients = [client({ id: 1, nameKana: "ワダ イチロウ" }), client({ id: 2, nameKana: "アオキ ジロウ" })];
+    sortClients(clients, "kana");
+    expect(clients.map((item) => item.id)).toEqual([1, 2]);
   });
 });
 

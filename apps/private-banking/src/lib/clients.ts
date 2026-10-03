@@ -71,6 +71,53 @@ export function filterClients(clients: ClientSummary[], terms: string[]) {
   return terms.length === 0 ? clients : clients.filter((client) => matchesClient(client, terms));
 }
 
+/** 顧客一覧の並び替え。選択肢と並べ方をここだけに置く（表示側は value を渡すだけ）。 */
+export const CLIENT_SORT_MODES = [
+  { value: "kana", label: "カナ順" },
+  { value: "code", label: "コード順" },
+  { value: "year-desc", label: "年度の新しい順" },
+  { value: "newest", label: "登録の新しい順" },
+] as const;
+
+export type ClientSortMode = typeof CLIENT_SORT_MODES[number]["value"];
+
+/**
+ * 既定はカナ順。DB の `name` 昇順（＝漢字のコードポイント順）は人間には無意味な並びで、
+ * 一覧を開いた人がどこを探せばよいか分からなくなるため、既定で並べ直す。
+ */
+export const CLIENT_SORT_DEFAULT: ClientSortMode = "kana";
+
+/**
+ * 比較器は1つだけ作る（行数×比較回数で呼ばれるため、比較のたびに new しない）。
+ * `numeric` は顧客コードのため。桁が揃っていなくても数値として並ぶので
+ * （"0003" → "005" → "0006"）、コードを数字だけに置き換えた後もそのまま効く。
+ */
+const collator = new Intl.Collator("ja", { numeric: true });
+
+/**
+ * カナ順の並べ替えキー。ひらがな・半角カナ・全角半角の違いは検索と同じ規則で吸収する。
+ * カナは任意入力なので、空のときは漢字名で代替する（カナ順の中に混ぜる以上これしかない）。
+ */
+const kanaSortKey = (client: ClientSummary) => normalizeSearchText(client.nameKana || client.name);
+
+/** 年度なしは必ず末尾へ。null 同士を引き算すると NaN になり比較が壊れるので、数値へ寄せる。 */
+const fiscalYearRank = (client: ClientSummary) => client.latestFiscalYear ?? 0;
+
+function compareClients(left: ClientSummary, right: ClientSummary, mode: ClientSortMode) {
+  if (mode === "code") return collator.compare(left.clientCode, right.clientCode);
+  if (mode === "year-desc") return fiscalYearRank(right) - fiscalYearRank(left);
+  if (mode === "newest") return right.id - left.id;
+  return collator.compare(kanaSortKey(left), kanaSortKey(right));
+}
+
+/**
+ * 一覧の並び替え。どのモードでも最後は id の昇順で決着させる ──
+ * 同じ値で順序がぶれると、ページ送りしたときに行が重複したり抜け落ちたりする。
+ */
+export function sortClients(clients: ClientSummary[], mode: ClientSortMode) {
+  return [...clients].sort((left, right) => compareClients(left, right, mode) || left.id - right.id);
+}
+
 /** 表示文字列のうち検索語に一致する範囲を、元の文字位置で返す（重なりは連結する）。 */
 export function highlightRanges(text: string, terms: string[]) {
   if (!text || terms.length === 0) return [] as Array<[number, number]>;
