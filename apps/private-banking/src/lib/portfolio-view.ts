@@ -188,6 +188,28 @@ export const deemedInheritanceCategories = {
 } as const;
 export type DeemedCategory = keyof typeof deemedInheritanceCategories;
 export const deemedConfig = (position: Position) => deemedInheritanceCategories[position.category as DeemedCategory] ?? null;
+
+/**
+ * 算式を使わない資産の評価方法。明細一覧の「評価方法」列にそのまま出る。
+ * 金額欄の見出しにも使うが、そちらは貸付金だけ別扱いなので manualValuationLabel とは分けてある。
+ */
+export const manualAssetValuationMethods: Record<string, string> = {
+  DEPOSIT: "残高",
+  // 生命保険契約に関する権利は保険事故が起きていないので、解約返戻金相当額がそのまま評価額になる。
+  INSURANCE_RIGHTS: "解約返戻金",
+  ...Object.fromEntries(Object.entries(deemedInheritanceCategories).map(([category, config]) => [category, config.surrenderLabel])),
+};
+/**
+ * 算式を使わない明細の評価方法を科目から決める。保存するのはサーバ側のこの1本だけ。
+ * 以前は個別モーダル・まとめて入力・入力スキーマの既定値がそれぞれ文字列を組み立てていて、
+ * サーバはそれを素通ししていたため、同じ預金でも経路によって「残高」と「手動入力」に割れていた。
+ * 入力側から文字列を受け取らないようにして、経路を増やしても割れないようにする。
+ */
+export const manualValuationLabel = (category: string) =>
+  category === "GUARANTEE" ? "保証金額"
+  : otherLiabilityCategories.includes(category) ? "残高"
+  : liabilityCategories.includes(category) || category === "LOAN" ? "借入残高"
+  : manualAssetValuationMethods[category] ?? "直接入力";
 /** 死亡保険金・死亡退職金の入力額（現地通貨建て。円換算前）。 */
 export const deemedBenefit = (position: Position) => {
   const config = deemedConfig(position);

@@ -12,7 +12,6 @@ import {
   buildingTypeByValue,
   buildingTypeOptions,
   categoryLabels,
-  deemedInheritanceCategories,
   landCategoryByValue,
   landCategoryOptions,
   propertyTypeOf,
@@ -47,14 +46,12 @@ const bulkNumberOrNull = (value: string) => value ? Number(value.replace(/,/g, "
 type SimpleEntryType = "INSURANCE" | "INSURANCE_RIGHTS" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
 const simpleEntryConfigs: Record<SimpleEntryType, {
   nameFrom: BulkField;
-  valuationMethod: string;
   columns: BulkColumn[];
   required: BulkField[];
   details: (row: BulkRow) => Record<string, string | number | null>;
 }> = {
   INSURANCE: {
     nameFrom: "institution",
-    valuationMethod: deemedInheritanceCategories.INSURANCE.surrenderLabel,
     required: ["institution", "originalAmount"],
     columns: [
       { key: "institution", label: "保険会社", required: true, width: "170px" },
@@ -70,7 +67,6 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
   // 生命保険契約に関する権利は保険事故が起きていないので、死亡保険金と受取人の列を持たない。
   INSURANCE_RIGHTS: {
     nameFrom: "institution",
-    valuationMethod: "解約返戻金",
     required: ["institution", "originalAmount"],
     columns: [
       { key: "institution", label: "保険会社", required: true, width: "170px" },
@@ -83,7 +79,6 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
   },
   RETIREMENT_ALLOWANCE: {
     nameFrom: "name",
-    valuationMethod: deemedInheritanceCategories.RETIREMENT_ALLOWANCE.surrenderLabel,
     required: ["name", "originalAmount"],
     columns: [
       { key: "name", label: "制度名・契約名", required: true, width: "180px" },
@@ -97,7 +92,6 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
   },
   LOAN_RECEIVABLE: {
     nameFrom: "name",
-    valuationMethod: "直接入力",
     required: ["name", "originalAmount"],
     columns: [
       { key: "name", label: "名称", required: true, width: "200px" },
@@ -526,9 +520,6 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         currency: "JPY",
         originalAmount: calculatedRowValue(row, type),
         fxRate: 1,
-        // 評価方法は自由入力をやめ、個別モーダルと同じく科目・算式から決める。
-        valuationMethod: rowSimpleConfig ? rowSimpleConfig.valuationMethod : rowIsDeposit ? "残高"
-          : rowFormula === "STOCK" ? "単価×株数・口数×調整率" : rowFormula === "LAND_ROADSIDE" ? "路線価方式" : rowFormula === "LAND_MULTIPLIER" ? "倍率方式" : rowFormula === "BUILDING" ? "建物・固定資産税評価額方式" : "直接入力",
         valuationFormula: rowFormula,
         valuationQuantity: rowIsStock ? numberOrNull(row.quantity) : null,
         valuationUnitPrice: rowIsStock ? numberOrNull(row.unitPrice) : null,

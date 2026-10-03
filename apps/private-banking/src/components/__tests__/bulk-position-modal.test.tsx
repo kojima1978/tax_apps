@@ -255,7 +255,7 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(savedPayloads(onSubmit)[0]?.data).toEqual(expect.objectContaining({
       category: "LOAN_RECEIVABLE", name: "役員貸付金", originalAmount: 8_000_000,
-      valuationMethod: "直接入力", assetDetails: {},
+      assetDetails: {},
     }));
   });
 

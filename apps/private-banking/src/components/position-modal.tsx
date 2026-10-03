@@ -16,13 +16,13 @@ import {
   assetCategoryGroups,
   assetGroupOf,
   categoryLabels,
-  deemedInheritanceCategories,
   splitBenefit,
   liabilityCategories,
   otherLiabilityCategories,
   otherAssetTypeLabels,
   positionSection,
   propertyTypeOf,
+  manualAssetValuationMethods,
   realEstateCategories,
   smallLotTypeOptions,
   unitRateBaseLabel,
@@ -38,22 +38,11 @@ const defaultFormulaByCategory: Record<string, ValuationFormula> = {
   SECURITIES: "STOCK", PRIVATE_SHARES: "STOCK", COLLECTIBLES: "UNIT_RATE",
   ...Object.fromEntries(realEstateCategories.map((category) => [category, "LAND_ROADSIDE" as const])),
 };
-/**
- * 算式を使わない科目の評価方法。明細一覧の「評価方法」列にそのまま出る。
- * 以前は自由入力のテキスト欄だったが、既定の「手動入力」のまま保存されるだけで
- * 科目ごとに何を評価額としたのかが列から読み取れなかったため、科目から焼き込む。
- */
 /** その他負債の「相手先」欄の見出し。借入金は「金融機関・債権者」のまま。 */
 const otherLiabilityInstitutionLabels: Record<string, string> = {
   LEASE_OBLIGATION: "リース会社",
   ACCOUNTS_PAYABLE: "支払先",
   DEPOSITS_RECEIVED: "預り先（賃借人など）",
-};
-const manualValuationMethods: Record<string, string> = {
-  DEPOSIT: "残高",
-  // 生命保険契約に関する権利は保険事故が起きていないので、解約返戻金相当額がそのまま評価額になる。
-  INSURANCE_RIGHTS: "解約返戻金",
-  ...Object.fromEntries(Object.entries(deemedInheritanceCategories).map(([category, config]) => [category, config.surrenderLabel])),
 };
 /**
  * 科目のすぐ下に置く「種類」欄。詳細がこの1項目しかない科目は fieldset を畳んで
@@ -341,7 +330,7 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   // 借入金ではない負債（リース債務・未払金・預り敷金）は「借入残高」ではなく「残高」と呼ぶ。
   const liabilityAmountLabel = otherLiabilityCategories.includes(category) ? "残高" : "借入残高";
   // 金額欄の見出しは貸付金を除いて「評価方法」と同じ表から引く（科目を足したときに片方だけ漏れるのを防ぐ）。
-  const amountLabel = section === "LIABILITY" ? liabilityAmountLabel : section === "CONTINGENT" ? "保証金額" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : manualValuationMethods[category] ?? "評価額";
+  const amountLabel = section === "LIABILITY" ? liabilityAmountLabel : section === "CONTINGENT" ? "保証金額" : category === "LOAN_RECEIVABLE" ? "貸付金残高" : manualAssetValuationMethods[category] ?? "評価額";
   // 金額欄の見出しに付ける単位。外貨を選んだときは通貨コードにして、円で入れてしまう誤りを防ぐ。
   const amountUnit = currency === "JPY" ? "円" : currency;
   const numericValue = (value: string) => Number(value) || 0;
@@ -357,12 +346,6 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   // 円換算レートは明細ではなく年度設定で持つ。未登録の外貨は登録できないよう保存ボタンを止める。
   const fxRate = fxRateFor(fxRates, currency);
   const calculatedJpy = Math.round(calculatedAmount * (fxRate ?? 0));
-  const formulaLabel = formula === "STOCK" ? "単価×株数・口数×調整率" : formula === "UNIT_RATE" ? `${unitRateLabel}×調整率` : formula === "LAND_ROADSIDE" ? "土地・路線価方式" : formula === "LAND_MULTIPLIER" ? "土地・倍率方式" : formula === "BUILDING" ? "建物・固定資産税評価額方式" : "手動入力";
-  // 算式で計算する場合はその算式名、それ以外は科目から決まる表記（一括登録の表と同じ「直接入力」を既定とする）を評価方法として固定する。
-  const fixedValuationMethod = isCalculated ? formulaLabel
-    : section === "LIABILITY" ? liabilityAmountLabel
-    : section === "CONTINGENT" ? "保証金額"
-    : manualValuationMethods[category] ?? "直接入力";
   const hasFormulaChoice = isStockCategory || isRealEstateCategory || isUnitRateCategory;
   const valuationLegend = section !== "ASSET" ? "金額" : hasFormulaChoice && !isPrivateShares ? "評価額の計算方法" : "評価額";
   const formatAmount = (value: number) => value.toLocaleString("ja-JP", { maximumFractionDigits: 2 });
@@ -424,7 +407,6 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
             ? <><div className="valuation-result"><span>算式による評価額</span><strong>{formatAmount(calculatedAmount)}{currency === "JPY" ? "" : ` ${currency}`}</strong>{currency === "JPY" || fxRate === null ? null : <small>円換算見込 {yen.format(calculatedJpy)}</small>}</div><input type="hidden" name="originalAmount" value={String(calculatedAmount)} /></>
             : <label className="valuation-manual-amount">{amountLabel}（{amountUnit}）<CommaNumberInput name="originalAmount" defaultValue="" value={manualAmount} onValueChange={setManualAmount} maxFractionDigits={2} placeholder="" /></label>}
         </fieldset>
-        <input type="hidden" name="valuationMethod" value={fixedValuationMethod} />
         <label className="full">メモ<textarea name="note" rows={3} placeholder="評価日、根拠資料など" defaultValue={position?.note ?? ""} /></label>
       </div>
       <footer><div className="position-modal-summary" aria-live="polite"><span>{amountLabel}</span><strong>{summaryAmount === null ? "未入力" : `${formatAmount(summaryAmount)} ${amountUnit}`}</strong>{summaryJpy ? <small>{summaryJpy}</small> : null}</div><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>

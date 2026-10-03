@@ -290,9 +290,28 @@ describe("normalizedValuationMethod", () => {
     expect(normalizedValuationMethod(parse(input))).toBe(expected);
   });
 
-  it("手動入力は入力された評価方法名をそのまま使う", () => {
+  // 算式を使わない明細は科目から決める。入力側が送ってきた文字列を使っていた頃は、
+  // 経路によって同じ預金が「残高」と「手動入力」に割れていた。
+  const manualCases: Array<{ category: string; expected: string }> = [
+    { category: "DEPOSIT", expected: "残高" },
+    { category: "INSURANCE", expected: "解約返戻金" },
+    { category: "INSURANCE_RIGHTS", expected: "解約返戻金" },
+    { category: "RETIREMENT_ALLOWANCE", expected: "解約手当金" },
+    { category: "SECURITIES", expected: "直接入力" },
+    { category: "BUSINESS_ASSETS", expected: "直接入力" },
+    { category: "LOAN_HOME", expected: "借入残高" },
+    { category: "LEASE_OBLIGATION", expected: "残高" },
+    { category: "GUARANTEE", expected: "保証金額" },
+  ];
+
+  it.each(manualCases)("算式を使わない $category は科目から $expected を決める", ({ category, expected }) => {
+    const side = ["LOAN_HOME", "LEASE_OBLIGATION", "GUARANTEE"].includes(category) ? "LIABILITY" : "ASSET";
+    expect(normalizedValuationMethod(parse({ side, category, name: "明細", originalAmount: 1 }))).toBe(expected);
+  });
+
+  it("入力側が送ってきた評価方法名は使わない", () => {
     const data = parse({ side: "ASSET", category: "DEPOSIT", name: "普通預金", originalAmount: 1, valuationMethod: "残高証明" });
-    expect(normalizedValuationMethod(data)).toBe("残高証明");
+    expect(normalizedValuationMethod(data)).toBe("残高");
   });
 });
 

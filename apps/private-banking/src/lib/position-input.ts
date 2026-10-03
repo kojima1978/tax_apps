@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { realEstateCategories, unitRateBaseLabel, unitRateCategories } from "@/lib/portfolio-view";
+import { manualValuationLabel, realEstateCategories, unitRateBaseLabel, unitRateCategories } from "@/lib/portfolio-view";
 
 const positionCategorySchema = z.enum(["DEPOSIT", "SECURITIES", "HOME_REAL_ESTATE", "REAL_ESTATE", "BUSINESS_REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "INSURANCE", "INSURANCE_RIGHTS", "RETIREMENT_ALLOWANCE", "COLLECTIBLES", "LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER", "LOAN", "LEASE_OBLIGATION", "ACCOUNTS_PAYABLE", "DEPOSITS_RECEIVED", "GUARANTEE"]);
 const valuationFormulaSchema = z.enum(["MANUAL", "STOCK", "UNIT_RATE", "LAND_ROADSIDE", "LAND_MULTIPLIER", "BUILDING"]);
@@ -81,7 +81,6 @@ export const positionInputSchema = z.object({
   currency: z.string().trim().length(3).default("JPY"),
   originalAmount: z.coerce.number().nonnegative(),
   fxRate: z.coerce.number().positive().default(1),
-  valuationMethod: z.string().trim().max(100).default("手動入力"),
   valuationFormula: valuationFormulaSchema.default("MANUAL"),
   valuationQuantity: optionalNonnegativeNumber,
   valuationUnitPrice: optionalNonnegativeNumber,
@@ -188,7 +187,7 @@ export function normalizedValuationMethod(data: PositionInput) {
   if (data.valuationFormula === "LAND_ROADSIDE") return "路線価方式";
   if (data.valuationFormula === "LAND_MULTIPLIER") return "倍率方式";
   if (data.valuationFormula === "BUILDING") return "建物・固定資産税評価額方式";
-  return data.valuationMethod;
+  return manualValuationLabel(data.category);
 }
 
 export function liquidityForCategory(category: z.infer<typeof positionCategorySchema>) {
