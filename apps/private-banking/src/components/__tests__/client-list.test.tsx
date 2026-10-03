@@ -40,7 +40,9 @@ describe("顧客一覧からの削除", () => {
     expect(within(dialog).getByText("3件")).toBeTruthy();
     expect(within(dialog).getByText("この顧客のすべての年度・明細が削除されます")).toBeTruthy();
     const input = within(dialog).getByRole("textbox");
-    expect(document.activeElement).toBe(within(dialog).getByRole("heading"));
+    // 確認画面は fetch の後に出るので、DOM が見えた時点ではまだ見出しへフォーカスを移す useEffect が走っていない。
+    // act() の外で起きた更新は findByRole が先に解決しうるため、フォーカスの確認は waitFor で待つ。
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole("heading")));
     fireEvent.change(input, { target: { value: "PB-002" } });
     expect((within(dialog).getByRole("button", { name: "顧客を削除" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.submit(dialog.querySelector("form")!);
