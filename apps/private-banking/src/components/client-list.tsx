@@ -3,7 +3,7 @@
 import { AlertTriangle, Building2, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, Upload, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, FormEvent, KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionMenu, type ActionMenuItem } from "@/components/action-menu";
 import { ClientFields } from "@/components/client-fields";
 import { Highlighted } from "@/components/highlighted";
@@ -12,7 +12,7 @@ import { ClientDeleteModal } from "@/components/client-delete-modal";
 import { DateInput } from "@/components/date-input";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
-import { CLIENT_SORT_DEFAULT, CLIENT_SORT_MODES, type ClientSortMode, ClientSummary, filterClients, searchTerms, sortClients } from "@/lib/clients";
+import { CLIENT_SORT_DEFAULT, CLIENT_SORT_MODES, type ClientSortMode, ClientSummary, filterClients, searchTerms, sharedFiscalYear, showsUnassignedStaff, sortClients } from "@/lib/clients";
 import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 import { type Portfolio } from "@/lib/portfolio-view";
@@ -21,6 +21,19 @@ import { type Portfolio } from "@/lib/portfolio-view";
 export const CLIENT_HOME_SECTION = "balance";
 
 export const clientHref = (householdId: number) => `/customers/${householdId}/${CLIENT_HOME_SECTION}`;
+
+/**
+ * 行の補足（カナ・担当・関連法人）。空の項目は区切りごと出さないので、
+ * 文字列を連結せず配列にして ・ で繋ぐ（繋ぎ方を1箇所に寄せるため）。
+ */
+function metaParts(client: ClientSummary, terms: string[], showsUnassigned: boolean) {
+  const parts: ReactNode[] = [];
+  if (client.nameKana) parts.push(<Highlighted text={client.nameKana} terms={terms} />);
+  if (client.assignedStaff) parts.push(<>担当 <Highlighted text={client.assignedStaff} terms={terms} /></>);
+  else if (showsUnassigned) parts.push("担当者未設定");
+  if (client.relatedCompany) parts.push(<>関連法人 <Highlighted text={client.relatedCompany} terms={terms} /></>);
+  return parts;
+}
 
 export function ClientList() {
   const router = useRouter();
@@ -61,6 +74,9 @@ export function ClientList() {
   // 以降はすべて「絞り込んで並べ替えた後」のこの1本だけを見る。矢印キーでの移動・
   // ページ送り・件数が並び替えと食い違わないようにするため。
   const filtered = useMemo(() => sortClients(matched, sortMode), [matched, sortMode]);
+  // 次の2つは絞り込みの前（全件）で決める。検索のたびに欄が出入りすると行の形が変わるため。
+  const sharedYear = useMemo(() => sharedFiscalYear(clients ?? []), [clients]);
+  const showsUnassigned = useMemo(() => showsUnassignedStaff(clients ?? []), [clients]);
   // 絞り込みで件数が減っても範囲外を指さないようにする。
   const highlightedIndex = filtered.length === 0 ? -1 : Math.min(activeIndex, filtered.length - 1);
   // 描画するのはこのページのぶんだけ。ページは選択中の行から決めるので、
@@ -197,7 +213,10 @@ export function ClientList() {
       </div>
       {/* 削除の通知が role="status" を使うので、件数は aria-live だけで読み上げる。 */}
       <div className="client-list-tools">
-        <p className="client-count" aria-live="polite">{terms.length > 0 ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}</p>
+        <p className="client-count" aria-live="polite">
+          {terms.length > 0 ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}
+          {sharedYear ? `・すべて${sharedYear}年度` : null}
+        </p>
         <div className="position-table-tools">
           <label>
             <span>表示順</span>
@@ -228,11 +247,10 @@ export function ClientList() {
           <span className="client-list-code"><Highlighted text={client.clientCode} terms={terms} /></span>
           <strong className="client-list-name"><Highlighted text={client.name} terms={terms} /></strong>
           <small className="client-list-meta">
-            {client.nameKana ? <><Highlighted text={client.nameKana} terms={terms} /> ・ </> : null}
-            {client.assignedStaff ? <>担当 <Highlighted text={client.assignedStaff} terms={terms} /></> : "担当者未設定"}
-            {client.relatedCompany ? <> ・ 関連法人 <Highlighted text={client.relatedCompany} terms={terms} /></> : null}
+            {metaParts(client, terms, showsUnassigned).map((part, partIndex) => <Fragment key={partIndex}>{partIndex > 0 ? " ・ " : null}{part}</Fragment>)}
           </small>
-          <span className="client-list-year">{client.latestFiscalYear ? `${client.latestFiscalYear}年度` : "年度なし"}</span>
+          {/* 全件同じ年度なら件数の横に1回だけ出しているので、行には出さない。 */}
+          {sharedYear ? null : <span className="client-list-year">{client.latestFiscalYear ? `${client.latestFiscalYear}年度` : "年度なし"}</span>}
           <ChevronRight />
           </Link></div>
           <div role="gridcell"><ClientRowActions client={client} busy={deleteLoadingId !== null} loading={deleteLoadingId === client.id} onDelete={() => { void requestDelete(client); }} /></div>

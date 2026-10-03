@@ -7,6 +7,8 @@ import {
   matchesClient,
   normalizeSearchText,
   searchTerms,
+  sharedFiscalYear,
+  showsUnassignedStaff,
   sortClients,
 } from "@/lib/clients";
 
@@ -173,6 +175,42 @@ describe("sortClients", () => {
     const clients = [client({ id: 1, nameKana: "ワダ イチロウ" }), client({ id: 2, nameKana: "アオキ ジロウ" })];
     sortClients(clients, "kana");
     expect(clients.map((item) => item.id)).toEqual([1, 2]);
+  });
+});
+
+describe("sharedFiscalYear", () => {
+  it("全員が同じ年度ならその年度を返す（行ごとに出す必要が無い）", () => {
+    expect(sharedFiscalYear([client({ id: 1 }), client({ id: 2 })])).toBe(2025);
+  });
+
+  it("年度がばらついていたら null（行ごとに出させる）", () => {
+    expect(sharedFiscalYear([client({ id: 1 }), client({ id: 2, latestFiscalYear: 2024 })])).toBeNull();
+  });
+
+  it("年度なしが混ざっていたら null（「年度なし」は目印なので消さない）", () => {
+    expect(sharedFiscalYear([client({ id: 1 }), client({ id: 2, latestFiscalYear: null })])).toBeNull();
+  });
+
+  it("全員が年度なしでも null（出すべき共通の年度が無い）", () => {
+    expect(sharedFiscalYear([client({ latestFiscalYear: null })])).toBeNull();
+  });
+
+  it("0件なら null", () => {
+    expect(sharedFiscalYear([])).toBeNull();
+  });
+});
+
+describe("showsUnassignedStaff", () => {
+  it("担当者が1人も居なければ出さない", () => {
+    expect(showsUnassignedStaff([client({ assignedStaff: "" }), client({ assignedStaff: "  " })])).toBe(false);
+  });
+
+  it("誰か1人でも居れば出す（空いている行の目印になる）", () => {
+    expect(showsUnassignedStaff([client({ assignedStaff: "" }), client({ assignedStaff: "佐藤" })])).toBe(true);
+  });
+
+  it("0件なら出さない", () => {
+    expect(showsUnassignedStaff([])).toBe(false);
   });
 });
 

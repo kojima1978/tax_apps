@@ -132,9 +132,45 @@ describe("顧客一覧の表示", () => {
 
   it("件数を画面に出し、検索中は全件数も添える", async () => {
     render(<ClientList />);
-    expect((await screen.findByText("全2件")).className).toBe("client-count");
+    // 全件が同じ年度のときは年度が1回だけ付く（下の「年度」のテストを参照）。
+    expect((await screen.findByText("全2件・すべて2026年度")).className).toBe("client-count");
     fireEvent.change(searchBox(), { target: { value: "PB-002" } });
-    expect(screen.getByText("1件（全2件中）")).toBeTruthy();
+    expect(screen.getByText("1件（全2件中）・すべて2026年度")).toBeTruthy();
+  });
+
+  it("担当者を1人も登録していなければ「担当者未設定」を出さない", async () => {
+    render(<ClientList />);
+    await screen.findByRole("link", { name: /テスト顧客A/ });
+    expect(screen.queryByText("担当者未設定")).toBeNull();
+  });
+
+  it("誰か1人でも担当者が付いていれば、空いている行に「担当者未設定」を出す", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response([{ ...clients[0], assignedStaff: "佐藤" }, clients[1]])));
+    render(<ClientList />);
+    expect((await screen.findByText("担当 佐藤")).className).toBe("client-list-meta");
+    expect(screen.getAllByText("担当者未設定")).toHaveLength(1);
+  });
+
+  it("カナが空でも区切りだけが残らない", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response([
+      { ...clients[0], nameKana: "", relatedCompany: "株式会社テスト商店" },
+    ])));
+    render(<ClientList />);
+    expect((await screen.findByText("関連法人 株式会社テスト商店")).className).toBe("client-list-meta");
+  });
+
+  it("全員が同じ年度なら行には出さず、件数の横へ1回だけ出す", async () => {
+    render(<ClientList />);
+    await screen.findByRole("link", { name: /テスト顧客A/ });
+    expect(document.querySelectorAll(".client-list-year")).toHaveLength(0);
+  });
+
+  it("年度がばらついていれば行ごとに出し、件数には添えない", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response([clients[0], { ...clients[1], latestFiscalYear: null }])));
+    render(<ClientList />);
+    expect((await screen.findByText("全2件")).className).toBe("client-count");
+    expect(screen.getByText("2026年度")).toBeTruthy();
+    expect(screen.getByText("年度なし")).toBeTruthy();
   });
 });
 

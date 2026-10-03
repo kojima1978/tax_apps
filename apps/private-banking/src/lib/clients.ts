@@ -118,6 +118,24 @@ export function sortClients(clients: ClientSummary[], mode: ClientSortMode) {
   return [...clients].sort((left, right) => compareClients(left, right, mode) || left.id - right.id);
 }
 
+/**
+ * 全員が同じ年度なら、行ごとの年度は情報を持たない（同じ「2026年度」が並ぶだけ）ので、
+ * その共通の年度を返す（表示側は件数の横へ1回だけ出す）。年度なしが混ざっていたら
+ * それ自体が目印なので、null を返して行ごとに出させる。
+ */
+export function sharedFiscalYear(clients: ClientSummary[]) {
+  const first = clients[0]?.latestFiscalYear ?? null;
+  return first !== null && clients.every((client) => client.latestFiscalYear === first) ? first : null;
+}
+
+/**
+ * 「担当者未設定」を出すかどうか。担当者を1人も登録していない運用では全行に並ぶだけで
+ * 何も伝えないため、誰か1人でも登録されているときだけ「空いている」ことの目印として出す。
+ */
+export function showsUnassignedStaff(clients: ClientSummary[]) {
+  return clients.some((client) => client.assignedStaff.trim().length > 0);
+}
+
 /** 表示文字列のうち検索語に一致する範囲を、元の文字位置で返す（重なりは連結する）。 */
 export function highlightRanges(text: string, terms: string[]) {
   if (!text || terms.length === 0) return [] as Array<[number, number]>;
