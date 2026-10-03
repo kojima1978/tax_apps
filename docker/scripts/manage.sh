@@ -1241,11 +1241,30 @@ cmd_clean_cache() {
 # test - 稼働中のコンテナの中でテストを走らせる
 # ------------------------------------
 # ホストに node_modules を作らないのが要点（CLAUDE.md の「ローカルを汚さない」）。
-# そのため前提は「そのアプリが dev モードで動いていること」の1つだけ。
 #
 # 本番モードのコンテナは `npm install --omit=dev` なので vitest が入っておらず、
-# 走らせると必ず落ちる。それは「テストが失敗した」ではないので、
-# 理由を書いて飛ばす（黙って飛ばすと、その方が見逃される）。
+# 中では走らせられない。以前はそこで「飛ばしました」と出して終わりにしていたが、
+# それだとモードを切り替えた時点でテストが黙って動かなくなる
+# （stock-valuation-form が実際にそうなっていて、一度も走っていなかった）。
+# dev ステージを使う使い捨てサービス `<アプリ名>-test` があればそちらで回し、
+# 無いときだけ理由を書いて飛ばす（黙って飛ばすと、その方が見逃される）。
+# 使い捨てコンテナでテストを回す。常駐しないアプリ（run@）と、本番モードで
+# 稼働中のアプリ（dev ステージの <アプリ名>-test）で同じ経路を使う。
+#   -f は渡さない : base だけ＝dev ステージ。prod の上書きを混ぜない
+#   --profile '*' : profiles 付きのサービスを対象に含める
+#   --no-deps     : 他のサービスを巻き込まない（稼働中の本番コンテナに触らない）
+#   --build       : ソースを変えた直後に古いイメージで回らないようにする
+_run_test_throwaway() {
+  local dir="$1" service="$2" command="$3"
+  (cd "$dir" && docker compose --profile '*' run --rm -T --no-deps --build "$service" sh -lc "$command")
+}
+
+# compose にそのサービスが定義されているか（profiles 付きのものも含めて見る）。
+compose_has_service() {
+  local dir="$1" service="$2"
+  (cd "$dir" && docker compose --profile '*' config --services 2>/dev/null) | grep -qx "$service"
+}
+
 _run_one_test() {
   local app_name="$1" container="$2" command="$3"
   local dir="$PROJECT_ROOT/apps/$app_name"
@@ -1256,14 +1275,10 @@ _run_one_test() {
   echo "----------------------------------------"
 
   # run@<サービス名>: 常駐しないアプリ。稼働中のコンテナが存在しないので、
-  # compose の使い捨てコンテナで回す。下の「動いていないから飛ばす」判定を
+  # 使い捨てコンテナで回す。下の「動いていないから飛ばす」判定を
   # 通すと毎回必ず飛ばされ、登録してあるのに一度も走らない状態になる。
-  #   --profile '*' : profiles 付きのサービスを対象に含める
-  #   --no-deps     : 他のサービスを巻き込まない
-  #   --build       : ソースを変えた直後に古いイメージで回らないようにする
   if [[ "$container" == run@* ]]; then
-    local service="${container#run@}"
-    if (cd "$dir" && docker compose --profile '*' run --rm -T --no-deps --build "$service" sh -lc "$command"); then
+    if _run_test_throwaway "$dir" "${container#run@}" "$command"; then
       ok "$app_name: 成功"
       return 0
     fi
@@ -1280,10 +1295,21 @@ _run_one_test() {
   local mode
   mode=$(effective_app_mode "$dir")
   if [[ "$mode" == "prod" ]]; then
+    local test_service="${app_name}-test"
+    if compose_has_service "$dir" "$test_service"; then
+      log "本番モードで稼働中のため、dev ステージの使い捨てコンテナで回します（$test_service）"
+      if _run_test_throwaway "$dir" "$test_service" "$command"; then
+        ok "$app_name: 成功"
+        return 0
+      fi
+      err "$app_name: 失敗"
+      return 1
+    fi
     warn "飛ばしました: 本番モードで稼働中（devDependencies が入っていません）"
-    # build はモードを踏襲するので、ここで案内すると prod のまま作り直すだけになる。
-    # dev へ戻すには base だけで up し直す必要がある。
-    echo "  dev へ戻して確認するには: cd apps/$app_name && docker compose up -d"
+    # build はモードを踏襲するので、ここで prod のまま作り直すよう案内しても意味がない。
+    echo "  使い捨てコンテナで回すには docker-compose.yml へ $test_service を足してください"
+    echo "  （例: apps/mcp-server, apps/stock-valuation-form）"
+    echo "  dev へ戻して確認するには: docker/scripts/manage.sh start $app_name"
     echo "  （CI では常に dev 相当で回っています: .github/workflows/ci.yml）"
     return 2
   fi

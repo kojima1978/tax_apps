@@ -136,6 +136,51 @@ services:
         reservations:
           memory: 256M
 
+  # ===========================================
+  # テスト用（manage.sh test / 手元での動作確認）
+  #
+  # このアプリは本番モードで常駐しているので、稼働中のコンテナには
+  # devDependencies（vitest・tsc）が入っていない。dev ステージを別サービスへ
+  # 分けておき、manage.sh test が本番モードを見つけたら使い捨てで回す。
+  #
+  # image を明示しているのが要点。本体のサービスは image 名を持たないので
+  # compose が自動命名し、dev と runner が同じタグを共有してしまう
+  # （そのまま dev ステージをビルドすると、次の apply / recover が
+  # 本番コンテナを dev イメージから作り直す）。
+  #
+  # ソースは bind mount せずイメージ同梱物を使う（run の --build で取り込む）。
+  # `tsc -b` が .tsbuildinfo を書くので、読み取り専用マウントとは相性が悪い。
+  # DB は要らない（CI も postgres 無しで npm test を回している）。
+  # ===========================================
+  stock-valuation-form-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        APP_PORT: "3014"
+    image: stock-valuation-form-test
+    profiles: ["test"]
+    networks:
+      - tax-apps-network
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=1400"
+      # prisma のスキーマ読み込みが env("DATABASE_URL") を必須にするため、
+      # 接続しないとしても値そのものは要る。
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-svf_dev_password}@svf-postgres:5432/${POSTGRES_DB:-stock_valuation}?schema=public
+    init: true
+    restart: "no"
+    logging: *default-logging
+    <<: *security-opts
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 256M
+
 networks:
   tax-apps-network:
     external: true
