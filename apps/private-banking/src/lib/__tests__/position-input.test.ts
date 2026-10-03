@@ -46,6 +46,16 @@ const unitRateInput = {
   adjustmentRate: 0.8,
 };
 
+const businessAssetRateInput = {
+  side: "ASSET",
+  category: "BUSINESS_ASSETS",
+  name: "機械装置",
+  originalAmount: 0,
+  valuationFormula: "UNIT_RATE",
+  valuationUnitPrice: 2000000,
+  adjustmentRate: 0.7,
+};
+
 const landRoadsideInput = {
   side: "ASSET",
   category: "REAL_ESTATE",
@@ -95,6 +105,10 @@ describe("calculatedOriginalAmount", () => {
 
   it("その他資産は 単価×調整率（株数は掛けない）", () => {
     expect(calculatedOriginalAmount(parse(unitRateInput))).toBe(2400000);
+  });
+
+  it("事業用資産は 簿価×調整率", () => {
+    expect(calculatedOriginalAmount(parse(businessAssetRateInput))).toBe(1400000);
   });
 
   it("路線価方式は 面積×路線価×調整率×持分", () => {
@@ -174,10 +188,16 @@ describe("positionInputSchema", () => {
     expect(positionInputSchema.safeParse({ ...privateShares, valuationUnitPrice: 0, valuationQuantity: 0 }).success).toBe(false);
   });
 
-  it("単価×調整率はその他資産でしか使えず、単価・調整率が0より大きいこと", () => {
+  it("単価×調整率はその他資産と事業用資産でしか使えず、単価・調整率が0より大きいこと", () => {
     expect(positionInputSchema.safeParse({ ...unitRateInput, category: "DEPOSIT" }).success).toBe(false);
     expect(positionInputSchema.safeParse({ ...unitRateInput, valuationUnitPrice: 0 }).success).toBe(false);
     expect(positionInputSchema.safeParse({ ...unitRateInput, adjustmentRate: 0 }).success).toBe(false);
+    expect(positionInputSchema.safeParse(businessAssetRateInput).success).toBe(true);
+    expect(positionInputSchema.safeParse({ ...businessAssetRateInput, valuationUnitPrice: 0 }).success).toBe(false);
+  });
+
+  it("事業用資産は金額の直接入力でも登録できる", () => {
+    expect(positionInputSchema.safeParse({ side: "ASSET", category: "BUSINESS_ASSETS", name: "農業所得", originalAmount: 205103 }).success).toBe(true);
   });
 
   it("その他資産は金額の直接入力でも登録できる", () => {
@@ -258,6 +278,9 @@ describe("calculatedOwnershipShare", () => {
 describe("normalizedValuationMethod", () => {
   const methodCases: Array<{ input: Record<string, unknown>; expected: string }> = [
     { input: stockInput, expected: "単価×株数・口数×調整率" },
+    { input: unitRateInput, expected: "単価×調整率" },
+    // 同じ UNIT_RATE でも事業用資産は「簿価×調整率」と出して、翌年の担当者が明細一覧の列だけで算出根拠を読めるようにする。
+    { input: businessAssetRateInput, expected: "簿価×調整率" },
     { input: landRoadsideInput, expected: "路線価方式" },
     { input: landMultiplierInput, expected: "倍率方式" },
     { input: buildingInput, expected: "建物・固定資産税評価額方式" },

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { realEstateCategories } from "@/lib/portfolio-view";
+import { realEstateCategories, unitRateBaseLabel, unitRateCategories } from "@/lib/portfolio-view";
 
 const positionCategorySchema = z.enum(["DEPOSIT", "SECURITIES", "HOME_REAL_ESTATE", "REAL_ESTATE", "BUSINESS_REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "INSURANCE", "INSURANCE_RIGHTS", "RETIREMENT_ALLOWANCE", "COLLECTIBLES", "LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER", "LOAN", "LEASE_OBLIGATION", "ACCOUNTS_PAYABLE", "DEPOSITS_RECEIVED", "GUARANTEE"]);
 const valuationFormulaSchema = z.enum(["MANUAL", "STOCK", "UNIT_RATE", "LAND_ROADSIDE", "LAND_MULTIPLIER", "BUILDING"]);
@@ -70,8 +70,7 @@ const assetDetailsSchema = z.object({
 }).default({});
 const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
 const stockCategories = new Set(["SECURITIES", "PRIVATE_SHARES"]);
-/** 単価×調整率で評価する科目。今のところその他資産だけ。 */
-const unitRateCategories = new Set(["COLLECTIBLES"]);
+const unitRateCategorySet = new Set(unitRateCategories);
 const realEstateCategorySet = new Set(realEstateCategories);
 
 export const positionInputSchema = z.object({
@@ -112,8 +111,8 @@ export const positionInputSchema = z.object({
     requirePositive(data.adjustmentRate, "adjustmentRate", "調整率");
   }
   if (data.valuationFormula === "UNIT_RATE") {
-    if (!unitRateCategories.has(data.category)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["valuationFormula"], message: "単価×調整率を利用できない科目です。" });
-    requirePositive(data.valuationUnitPrice, "valuationUnitPrice", "単価");
+    if (!unitRateCategorySet.has(data.category)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["valuationFormula"], message: "単価×調整率を利用できない科目です。" });
+    requirePositive(data.valuationUnitPrice, "valuationUnitPrice", unitRateBaseLabel(data.category));
     requirePositive(data.adjustmentRate, "adjustmentRate", "調整率");
   }
   if (data.valuationFormula === "LAND_ROADSIDE") {
@@ -185,7 +184,7 @@ export function calculatedOwnershipShare(data: PositionInput) {
 
 export function normalizedValuationMethod(data: PositionInput) {
   if (data.valuationFormula === "STOCK") return "単価×株数・口数×調整率";
-  if (data.valuationFormula === "UNIT_RATE") return "単価×調整率";
+  if (data.valuationFormula === "UNIT_RATE") return `${unitRateBaseLabel(data.category)}×調整率`;
   if (data.valuationFormula === "LAND_ROADSIDE") return "路線価方式";
   if (data.valuationFormula === "LAND_MULTIPLIER") return "倍率方式";
   if (data.valuationFormula === "BUILDING") return "建物・固定資産税評価額方式";

@@ -140,6 +140,13 @@ export type AssetGroupLabel = typeof assetCategoryGroups[number]["label"];
 export const assetCategories: string[] = assetCategoryGroups.flatMap((group) => [...group.categories]);
 /** 不動産の科目。所在地欄・持分・小規模宅地など、不動産だけの扱いをする箇所で使う。 */
 export const realEstateCategories: readonly string[] = assetCategoryGroups.find((group) => group.label === "不動産")!.categories;
+/** 単価×調整率で評価する科目。事業用資産は同じ算式を「簿価×調整率」と呼び替えて使う。 */
+export const unitRateCategories: readonly string[] = ["COLLECTIBLES", "BUSINESS_ASSETS"];
+/**
+ * 単価×調整率の左側の欄の呼び名。事業用資産は簿価に調整率を掛けて評価するので「簿価」と出す。
+ * 入力欄の見出し・算式の説明・保存する評価方法をここ1箇所から出して、呼び名がずれないようにする。
+ */
+export const unitRateBaseLabel = (category: string) => category === "BUSINESS_ASSETS" ? "簿価" : "単価";
 /** 中分類の科目を引く。同じ並びを別の場所に書き写すと、科目を足したときにそちらだけ漏れる。 */
 const categoriesOfGroup = (label: AssetGroupLabel): readonly string[] => assetCategoryGroups.find((group) => group.label === label)!.categories;
 export const financialCategories: readonly string[] = categoriesOfGroup("金融資産");
