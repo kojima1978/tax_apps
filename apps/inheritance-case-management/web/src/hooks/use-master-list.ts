@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useToast } from "@/components/ui/Toast"
+import { parseError } from "@/hooks/use-error-handler"
 
 type SortOrder = "asc" | "desc"
 type MasterListItem = { id: number; active: boolean }
@@ -112,25 +113,34 @@ export function useMasterList<T extends MasterListItem, C, U>(
 
     const [isSaving, setIsSaving] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
+    // 読み込みに失敗したことを持つ。握り潰すと空の一覧として描かれ、
+    // 「まだ1件も登録していない」と「読めなかった」が画面で区別できない。
+    const [loadError, setLoadError] = useState<string | null>(null)
     const isDirty = useMemo(
         () => hasUnsavedChanges(originalItems, items, deletedIds),
         [deletedIds, items, originalItems],
     )
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await configRef.current.fetchAll()
-                setOriginalItems(data)
-                setItems(data)
-            } catch (e) {
-                console.error(e)
-            } finally {
-                setIsLoading(false)
-            }
+    const reload = useCallback(async () => {
+        setIsLoading(true)
+        try {
+            const data = await configRef.current.fetchAll()
+            setOriginalItems(data)
+            setItems(data)
+            setDeletedIds(new Set())
+            setLoadError(null)
+        } catch (e) {
+            console.error(e)
+            const info = parseError(e)
+            setLoadError(info.status ? `${info.message}（HTTP ${info.status}）` : info.message)
+        } finally {
+            setIsLoading(false)
         }
-        load()
     }, [])
+
+    useEffect(() => {
+        void reload()
+    }, [reload])
 
     useEffect(() => {
         if (!isDirty) return
@@ -294,6 +304,8 @@ export function useMasterList<T extends MasterListItem, C, U>(
         isDirty,
         isSaving,
         isLoading,
+        loadError,
+        reload,
         searchQuery,
         showInactive,
         handleSearchChange,

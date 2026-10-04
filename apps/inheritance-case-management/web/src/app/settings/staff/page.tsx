@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { MasterBreadcrumb } from "@/components/master-list/MasterBreadcrumb"
+import { MasterLoadError } from "@/components/master-list/MasterLoadError"
+import { parseError } from "@/hooks/use-error-handler"
 import { useToast } from "@/components/ui/Toast"
 import type { Department, Assignee } from "@/types/shared"
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from "@/lib/api/departments"
@@ -27,6 +29,8 @@ function StaffContent() {
     const [departments, setDepartments] = useState<Department[]>([])
     const [assignees, setAssignees] = useState<Assignee[]>([])
     const [loading, setLoading] = useState(true)
+    // トーストは消えるので、読めなかったことは帯で残す（空の一覧と区別が付かなくなる）。
+    const [loadError, setLoadError] = useState<string | null>(null)
     const [showInactive, setShowInactive] = useState(false)
 
     const [addingDept, setAddingDept] = useState(false)
@@ -48,7 +52,10 @@ function StaffContent() {
             const [d, a] = await Promise.all([getDepartments(), getAssignees()])
             setDepartments(d.sort((a, b) => a.sortOrder - b.sortOrder))
             setAssignees(a)
-        } catch {
+            setLoadError(null)
+        } catch (e) {
+            const info = parseError(e)
+            setLoadError(info.status ? `${info.message}（HTTP ${info.status}）` : info.message)
             toast.error("データの取得に失敗しました")
         } finally {
             setLoading(false)
@@ -224,6 +231,12 @@ function StaffContent() {
                 </div>
                 <h1 className="text-2xl font-bold">担当者管理</h1>
             </div>
+
+            {loadError && (
+                <div className="mb-6">
+                    <MasterLoadError label="担当者・部署" message={loadError} onReload={reload} />
+                </div>
+            )}
 
             <StaffToolbar
                 activeDepts={activeDepts}

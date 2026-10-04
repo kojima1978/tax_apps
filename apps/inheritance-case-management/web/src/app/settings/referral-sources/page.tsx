@@ -4,6 +4,8 @@ import { Suspense, useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Network } from "lucide-react"
 import { MasterBreadcrumb } from "@/components/master-list/MasterBreadcrumb"
+import { MasterLoadError } from "@/components/master-list/MasterLoadError"
+import { parseError } from "@/hooks/use-error-handler"
 import { useToast } from "@/components/ui/Toast"
 import type { Company, CompanyBranch, MergeResult, Referrer } from "@/types/shared"
 import { createCompany, deleteCompany, getCompanies, mergeCompanies, updateCompany } from "@/lib/api/companies"
@@ -29,6 +31,8 @@ function ReferralSourcesContent() {
     const [branches, setBranches] = useState<CompanyBranch[]>([])
     const [referrers, setReferrers] = useState<Referrer[]>([])
     const [loading, setLoading] = useState(true)
+    // トーストは消えるので、読めなかったことは帯で残す（空の一覧と区別が付かなくなる）。
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     const [expanded, setExpanded] = useState<Set<number>>(new Set())
     const [selected, setSelected] = useState<ReferralTreeNode | null>(null)
@@ -52,7 +56,10 @@ function ReferralSourcesContent() {
             setCompanies(companyData.filter(company => company.active).sort((a, b) => a.name.localeCompare(b.name)))
             setBranches(branchData.filter(branch => branch.active))
             setReferrers(referrerData.filter(referrer => referrer.active))
-        } catch {
+            setLoadError(null)
+        } catch (e) {
+            const info = parseError(e)
+            setLoadError(info.status ? `${info.message}（HTTP ${info.status}）` : info.message)
             toast.error("データの取得に失敗しました")
         } finally {
             setLoading(false)
@@ -225,6 +232,12 @@ function ReferralSourcesContent() {
                 </div>
                 <h1 className="text-2xl font-bold">紹介元管理</h1>
             </div>
+
+            {loadError && (
+                <div className="mb-6">
+                    <MasterLoadError label="紹介元" message={loadError} onReload={reload} />
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
                 <ReferralSourceTree

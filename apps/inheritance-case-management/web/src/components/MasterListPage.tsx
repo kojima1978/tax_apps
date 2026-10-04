@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/Label"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import { MasterBreadcrumb } from "@/components/master-list/MasterBreadcrumb"
 import { MasterListTable } from "@/components/master-list/MasterListTable"
+import { MasterLoadError } from "@/components/master-list/MasterLoadError"
 import { MasterSearchControl } from "@/components/master-list/MasterSearchControl"
 import { Pagination } from "@/components/cases/Pagination"
 import type { ColumnDef, MasterListItem } from "@/components/master-list/types"
@@ -20,6 +21,9 @@ interface MasterListPageProps<T extends MasterListItem> {
     isDirty: boolean
     isSaving: boolean
     isLoading: boolean
+    /** 一覧の読み込みに失敗した理由。空の一覧と区別して出すために受け取る。 */
+    loadError?: string | null
+    onReload?: () => void
     items: T[]
     filteredItems: T[]
     searchValue?: string
@@ -56,6 +60,8 @@ export function getMasterListPageProps<T extends MasterListItem>(
         isDirty: boolean
         isSaving: boolean
         isLoading: boolean
+        loadError: string | null
+        reload: () => void
         items: T[]
         filteredAndSortedItems: T[]
         searchQuery: string
@@ -75,7 +81,7 @@ export function getMasterListPageProps<T extends MasterListItem>(
         handlePageSizeChange: (size: number) => void
     }
 ): Pick<MasterListPageProps<T>,
-    'returnTo' | 'isDirty' | 'isSaving' | 'isLoading' | 'items' | 'filteredItems' |
+    'returnTo' | 'isDirty' | 'isSaving' | 'isLoading' | 'loadError' | 'onReload' | 'items' | 'filteredItems' |
     'searchValue' | 'onSearchChange' | 'showInactive' | 'onToggleShowInactive' | 'editingId' | 'onCancelEdit' |
     'onToggleActive' | 'onPermanentDelete' | 'onSave' | 'onSort' |
     'page' | 'pageSize' | 'totalPages' | 'onPageChange' | 'onPageSizeChange'
@@ -85,6 +91,8 @@ export function getMasterListPageProps<T extends MasterListItem>(
         isDirty: ml.isDirty,
         isSaving: ml.isSaving,
         isLoading: ml.isLoading,
+        loadError: ml.loadError,
+        onReload: ml.reload,
         items: ml.items,
         filteredItems: ml.filteredAndSortedItems,
         searchValue: ml.searchQuery,
@@ -112,6 +120,8 @@ export function MasterListPage<T extends MasterListItem>({
     isDirty,
     isSaving,
     isLoading,
+    loadError,
+    onReload,
     items,
     filteredItems,
     searchValue,
@@ -200,6 +210,9 @@ export function MasterListPage<T extends MasterListItem>({
                     </div>
                     {isLoading ? (
                         <p className="text-muted-foreground text-sm">読み込み中...</p>
+                    ) : loadError ? (
+                        /* 「登録されていません」と出すと読めなかったことが隠れる。理由と読み直す口を出す。 */
+                        <MasterLoadError label={`${entityLabel}の一覧`} message={loadError} onReload={onReload} />
                     ) : items.length === 0 ? (
                         <p className="text-muted-foreground text-sm">{entityLabel}が登録されていません。</p>
                     ) : filteredItems.length === 0 ? (
