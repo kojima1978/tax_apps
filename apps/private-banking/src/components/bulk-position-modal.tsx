@@ -18,6 +18,7 @@ import {
   landCategoryOptions,
   propertyTypeOf,
   realEstateCategories,
+  valuationFromFormula,
 } from "@/lib/portfolio-view";
 
 type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING" | "INSURANCE" | "INSURANCE_RIGHTS" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
@@ -417,14 +418,20 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
     });
   }
 
+  /**
+   * 行の評価額。算式そのものは明細一覧・個別モーダルと共通の valuationFromFormula に任せ、
+   * ここでは算式を持たない科目（預金・生命保険・退職金・貸付金）と直接入力だけを見る。
+   * 以前は同じ掛け算をこのファイルにも書いていた（算式の3つ目の写し）。
+   */
   function calculatedRowValue(row: BulkRow, targetType: BulkEntryType = entryType) {
     const number = (value: string) => Number(value.replace(/,/g, "")) || 0;
     if (targetType === "DEPOSIT" || simpleEntryConfigOf(targetType)) return number(row.originalAmount);
-    if (["SECURITIES", "PRIVATE_SHARES"].includes(targetType)) return row.valuationFormula === "MANUAL" ? number(row.originalAmount) : number(row.quantity) * number(row.unitPrice) * number(row.adjustmentRate);
-    const share = number(row.ownershipDenominator) > 0 ? number(row.ownershipNumerator) / number(row.ownershipDenominator) : 0;
-    if (row.valuationFormula === "LAND_ROADSIDE") return number(row.landArea) * number(row.roadsideValue) * number(row.adjustmentRate) * share;
-    if (["LAND_MULTIPLIER", "BUILDING"].includes(row.valuationFormula)) return number(row.fixedAssetTaxValue) * number(row.multiplier) * number(row.adjustmentRate) * share;
-    return number(row.originalAmount);
+    return valuationFromFormula(row.valuationFormula as ValuationFormula, {
+      valuationQuantity: number(row.quantity), valuationUnitPrice: number(row.unitPrice), adjustmentRate: number(row.adjustmentRate),
+      landArea: number(row.landArea), roadsideValue: number(row.roadsideValue),
+      fixedAssetTaxValue: number(row.fixedAssetTaxValue), valuationMultiplier: number(row.multiplier),
+      ownershipNumerator: number(row.ownershipNumerator), ownershipDenominator: number(row.ownershipDenominator),
+    }) ?? number(row.originalAmount);
   }
 
   function normalizedPastedValue(key: BulkField, value: string) {
