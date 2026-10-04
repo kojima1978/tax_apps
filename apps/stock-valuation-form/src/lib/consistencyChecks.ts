@@ -1,5 +1,5 @@
 import type { TableId, TableProps } from '@/types/form';
-import { readWarekiDate } from '@/lib/wareki';
+import { readWarekiDate, warekiDateReason } from '@/lib/wareki';
 import { calcTable4 } from '@/components/tables/table4/calcTable4';
 import { calcTable5Detail, isNonEvaluableAsset } from '@/components/tables/table5/Table5Grid';
 import { table5RowCount } from '@/lib/table5Rows';
@@ -53,6 +53,14 @@ function retirementLiabilityRow(getField: TableProps['getField']): number {
   }
   return 0;
 }
+
+/** 和暦の4列プルダウンを置いている日付欄（元号の期間外・実在しない日付の確認対象）。 */
+const WAREKI_DATES: ReadonlyArray<{ tab: TableId; prefix: string; where: string }> = [
+  { tab: 'table1_1', prefix: 'f14', where: '第１表の１ 課税時期' },
+  { tab: 'table1_1', prefix: 'f15_from', where: '第１表の１ 直前期（自）' },
+  { tab: 'table1_1', prefix: 'f15_to', where: '第１表の１ 直前期（至）' },
+  { tab: 'table2', prefix: 'f85', where: '第２表 開業年月日' },
+];
 
 /** 「問題なし」を出してよいか（＝チェック対象の欄に何か入っているか）の判定に使う欄 */
 const WATCHED: ReadonlyArray<readonly [TableId, string]> = [
@@ -125,6 +133,17 @@ export function consistencyIssues(getField: TableProps['getField']): Consistency
   if (shares5 !== null && over(votes6, shares5 - (selfShares ?? 0))) {
     add('table1_1', '⑥', '第１表の１ ⑥ 議決権の総数',
       '議決権の総数（⑥）が「発行済株式数（⑤）－自己株式数」を超えています。自己株式に議決権はありません。');
+  }
+
+  // ── 西暦に直せない日付（元号の期間外・実在しない日付） ──
+  // 選択肢は選んだ元号・年月に合わせて狭めてあるが、前に保存した案件・MCP やJSON取込から
+  // 入った値はそのまま残る。読めない日付は下の前後関係も第2表の判定も黙って飛ばされるので、
+  // 「入っているのに見られていない」ことがここだけで分かるようにする。
+  for (const date of WAREKI_DATES) {
+    const reason = warekiDateReason((field) => getField(date.tab, field), date.prefix);
+    if (reason !== null) {
+      add(date.tab, `${date.prefix}_y`, date.where, `日付として読めません。${reason}`);
+    }
   }
 
   // ── 日付の前後関係（直前期は課税時期の直前に終了した事業年度） ──

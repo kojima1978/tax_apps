@@ -5,6 +5,7 @@ import {
   applyCaseProfile,
   emptyCaseProfile,
   isCaseProfileReady,
+  dropImpossibleParts,
   nextTaxPeriod,
   parseTaxPeriod,
 } from '../newCase';
@@ -95,5 +96,33 @@ describe('nextTaxPeriod', () => {
   // プルダウンに無い年を入れると、画面は先頭の選択肢を出すのに保存値は別、という食い違いになる。
   it('選択肢に無い年になるときは空欄から', () => {
     expect(nextTaxPeriod('令和64年3月15日').year).toBe('');
+  });
+
+  // 元号年に1を足すだけだと平成32年（存在しない年）が初期値になっていた。
+  it('改元をまたぐときは元号も進める', () => {
+    expect(nextTaxPeriod('平成31年3月15日')).toEqual({ era: '令和', year: '2', month: '3', day: '15' });
+    expect(nextTaxPeriod('平成30年4月1日')).toEqual({ era: '平成', year: '31', month: '4', day: '1' });
+    expect(nextTaxPeriod('平成30年5月1日')).toEqual({ era: '令和', year: '1', month: '5', day: '1' });
+  });
+});
+
+describe('dropImpossibleParts', () => {
+  const profile = (era: string, year: string, month: string, day: string) =>
+    ({ companyName: 'テスト', era, year, month, day });
+
+  it('その元号に無い年は落とす', () => {
+    expect(dropImpossibleParts(profile('平成', '40', '3', '15')))
+      .toEqual(profile('平成', '', '3', '15'));
+  });
+
+  it('その月に無い日は落とす', () => {
+    expect(dropImpossibleParts(profile('令和', '8', '2', '31')))
+      .toEqual(profile('令和', '8', '2', ''));
+  });
+
+  it('ある組み合わせはそのまま', () => {
+    expect(dropImpossibleParts(profile('令和', '8', '3', '15')))
+      .toEqual(profile('令和', '8', '3', '15'));
+    expect(dropImpossibleParts(profile('令和', '', '', ''))).toEqual(profile('令和', '', '', ''));
   });
 });

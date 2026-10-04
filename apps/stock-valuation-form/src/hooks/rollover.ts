@@ -1,6 +1,7 @@
 import type { FormData } from '@/types/form';
 import { table5RowCount } from '@/lib/table5Rows';
 import { CORPORATE_TAX_RATE_FIELD } from '@/lib/corporateTaxRate';
+import { DEFAULT_ERA, nextWarekiYear } from '@/lib/wareki';
 
 // ══ 翌事業年度更新 ══
 // 新しい事業年度の評価に移行するためにデータを繰り越す。
@@ -12,13 +13,22 @@ import { CORPORATE_TAX_RATE_FIELD } from '@/lib/corporateTaxRate';
 //   年をまたいだ翌年の評価が去年の率のまま黙って計算される）
 // 適用後は normalizeFormData を通すこと（表間連動と類似業種マスタの再連動が走る）。
 
-/** 和暦年の文字列を+1する（空欄・数値でない場合はそのまま） */
-function bumpYear(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined;
-  const trimmed = value.trim();
-  const n = Number(trimmed);
-  if (trimmed === '' || !Number.isInteger(n)) return value;
-  return String(n + 1);
+/**
+ * 和暦日付（`${prefix}_g/_y/_m/_d`）を1年進める。空欄・数値でない年・進められない年はそのまま。
+ *
+ * 元号年に1を足すだけでは済まない ── 平成31年の翌年は平成32年ではなく令和2年。
+ * 元号をまたぐときは `_g` も直す（未選択は令和として扱う運用なので、空欄のままで済むなら触らない）。
+ */
+function bumpWarekiYear(table: Record<string, string>, prefix: string): void {
+  const current = table[`${prefix}_y`];
+  if (current === undefined) return;
+  const year = Number(current.trim());
+  if (current.trim() === '' || !Number.isInteger(year)) return;
+  const era = table[`${prefix}_g`] ?? '';
+  const next = nextWarekiYear(era, year, Number(table[`${prefix}_m`]), Number(table[`${prefix}_d`]));
+  if (next === null) return;
+  table[`${prefix}_y`] = next.year;
+  if (era !== '' || next.era !== DEFAULT_ERA) table[`${prefix}_g`] = next.era;
 }
 
 /** table 内の複数フィールドを空欄にする */
@@ -114,10 +124,7 @@ const DIVIDEND_LINKS: ReadonlyArray<readonly ['table3' | 'table6', string, strin
 export function rolloverFormData(data: FormData): FormData {
   // 日付を1年進める（課税時期・直前期 自/至）
   const table1_1 = { ...data.table1_1 };
-  for (const f of ['f14_y', 'f15_from_y', 'f15_to_y']) {
-    const bumped = bumpYear(table1_1[f]);
-    if (bumped !== undefined) table1_1[f] = bumped;
-  }
+  for (const prefix of ['f14', 'f15_from', 'f15_to']) bumpWarekiYear(table1_1, prefix);
 
   // 第4表: 期別の順送り＋直前期・修正欄のクリア
   const table4 = clearFields(shift(data.table4, T4_SHIFT), T4_CLEAR);

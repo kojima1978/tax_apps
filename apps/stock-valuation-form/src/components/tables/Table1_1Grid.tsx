@@ -5,7 +5,7 @@ import { companyFloatBox } from './companyFloatHeader';
 import type { TableProps } from '@/types/form';
 import { useIndustryDataset } from '@/data/IndustryDataProvider';
 import { stripAmountFormatting } from '@/lib/numberFormat';
-import { DAY_OPTS, ERA_OPTS, MONTH_OPTS, YEAR_OPTS } from '@/lib/wareki';
+import { DEFAULT_ERA, ERA_OPTS, MONTH_OPTS, dayOptionsFor, warekiDateOptions, yearOptionsFor } from '@/lib/wareki';
 
 const T = 'table1_1' as const;
 
@@ -265,12 +265,17 @@ export function calcShareholderJudgment(getField: TableProps['getField']) {
 // 保存キーは従来の複合入力と同じ `${prefix}_g/_y/_m/_d`（元号未選択は令和扱い）
 // 選択肢は案件を作るダイアログと共通（@/lib/wareki）。
 // 数字（年月日）は様式どおり右詰め。元号は文字なので既定（左詰め）のまま
+// 年と日はここでは一番広い範囲（元号の既定・月未選択）を置き、選んだ元号・年月に合わせて
+// Table1_1Grid 側で狭める（warekiDateOptions）。
 const DATE_COLS = [
   { suffix: '_g', left: 19.5, width: 5.44, options: ERA_OPTS, align: undefined },
-  { suffix: '_y', left: 24.94, width: 5.44, options: YEAR_OPTS, align: 'right' },
+  { suffix: '_y', left: 24.94, width: 5.44, options: yearOptionsFor(DEFAULT_ERA), align: 'right' },
   { suffix: '_m', left: 30.38, width: 5.44, options: MONTH_OPTS, align: 'right' },
-  { suffix: '_d', left: 35.82, width: 5.44, options: DAY_OPTS, align: 'right' },
+  { suffix: '_d', left: 35.82, width: 5.44, options: dayOptionsFor(DEFAULT_ERA, '', ''), align: 'right' },
 ] as const;
+
+/** 和暦日付の4列プルダウンを置いている欄（選択肢を元号・年月に合わせて狭める対象）。 */
+const DATE_PREFIXES = ['f14', 'f15_from', 'f15_to'] as const;
 
 function dateSelectCells(prefix: string, top: number, height: number, code: string, calculationRequired = false): GridCell[] {
   return [
@@ -605,6 +610,15 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
   const eraYear = getField(T, 'f14_y');
   const ratio1 = getField(T, 'f24');
   const ratio2 = getField(T, 'f27');
+  // 日付欄の年・日の選択肢（平成40年・2月31日を選べないようにする）。getField は formData が
+  // 変わるたびに作り直されるので、元号や月を変えればここも作り直される
+  const dateOptions = useMemo(
+    () => new Map<string, string[]>(DATE_PREFIXES.flatMap((prefix) => {
+      const narrowed = warekiDateOptions((field) => getField(T, field), prefix);
+      return [[`${prefix}_y`, narrowed.year], [`${prefix}_d`, narrowed.day]];
+    })),
+    [getField],
+  );
   const cells = useMemo(() => {
     const options = industryData.forTaxPeriod({ era, eraYear, month: '' }).options;
     // 取引金額の構成比が累計100％に達したら、それより下の業種目番号は入力しなくてよい
@@ -612,12 +626,15 @@ export function Table1_1Grid({ getField, updateField, onJump }: TableProps) {
     const optional = new Set<string>();
     if (pct(ratio1) >= 100) { optional.add('f26'); optional.add('f29'); }
     else if (pct(ratio1) + pct(ratio2) >= 100) optional.add('f29');
-    return CELLS.map((cell) => (
-      cell.field !== undefined && INDUSTRY_NUMBER_FIELDS.has(cell.field)
-        ? { ...cell, options, calculationRequired: !optional.has(cell.field) }
-        : cell
-    ));
-  }, [industryData, era, eraYear, ratio1, ratio2]);
+    return CELLS.map((cell) => {
+      if (cell.field === undefined) return cell;
+      if (INDUSTRY_NUMBER_FIELDS.has(cell.field)) {
+        return { ...cell, options, calculationRequired: !optional.has(cell.field) };
+      }
+      const narrowed = dateOptions.get(cell.field);
+      return narrowed === undefined ? cell : { ...cell, options: narrowed };
+    });
+  }, [industryData, era, eraYear, ratio1, ratio2, dateOptions]);
 
   const reorderShareholderRows = useCallback((activeId: string, overId: string) => {
     const fromRow = Number(activeId);

@@ -7,10 +7,11 @@
 // 探す手がかりにならず、打ち間違いの種が1つ増えるだけになる。
 
 import { useState } from 'react';
-import { DAY_OPTS, ERA_OPTS, MONTH_OPTS, YEAR_OPTS } from '@/lib/wareki';
+import { ERA_OPTS, MONTH_OPTS, dayOptionsFor, yearOptionsFor } from '@/lib/wareki';
 import {
   type CaseProfile,
   type NewCaseCompany,
+  dropImpossibleParts,
   emptyCaseProfile,
   isCaseProfileReady,
   nextTaxPeriod,
@@ -49,7 +50,9 @@ export function NewCaseDialog({ companies, fixedCompanyKey, busy, onCancel, onSu
   const ready = isCaseProfileReady(profile);
   const title = fixedCompanyKey === undefined ? '新しい案件' : 'この会社に年分を追加';
 
-  const set = (patch: Partial<CaseProfile>) => setProfile((prev) => ({ ...prev, ...patch }));
+  // 元号・月を変えたときに、その組み合わせに無くなった年・日は落とす（平成40年・2月31日を作らせない）
+  const set = (patch: Partial<CaseProfile>) =>
+    setProfile((prev) => dropImpossibleParts({ ...prev, ...patch }));
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -122,13 +125,13 @@ export function NewCaseDialog({ companies, fixedCompanyKey, busy, onCancel, onSu
             <select id="new-case-era" name="newCase.era" value={profile.era} disabled={busy}
               onChange={(event) => set({ era: event.target.value })}><Options values={ERA_OPTS} /></select>
             <select id="new-case-year" name="newCase.year" value={profile.year} disabled={busy}
-              onChange={(event) => set({ year: event.target.value })}><Options values={YEAR_OPTS} /></select>
+              onChange={(event) => set({ year: event.target.value })}><Options values={yearOptionsFor(profile.era, profile.year)} /></select>
             <span>年</span>
             <select id="new-case-month" name="newCase.month" value={profile.month} disabled={busy}
               onChange={(event) => set({ month: event.target.value })}><Options values={MONTH_OPTS} /></select>
             <span>月</span>
             <select id="new-case-day" name="newCase.day" value={profile.day} disabled={busy}
-              onChange={(event) => set({ day: event.target.value })}><Options values={DAY_OPTS} /></select>
+              onChange={(event) => set({ day: event.target.value })}><Options values={dayOptionsFor(profile.era, profile.year, profile.month, profile.day)} /></select>
             <span>日</span>
           </div>
         </div>

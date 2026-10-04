@@ -5,7 +5,7 @@ import { calcCompanySize } from '../table1-2/Table1_2Grid';
 import { extractCompanyFloatHeader } from '../companyFloatHeader';
 import type { TableId, TableProps } from '@/types/form';
 import { forcesSmallCompany } from '@/lib/valuationPurpose';
-import { readWarekiDate } from '@/lib/wareki';
+import { DEFAULT_ERA, dayOptionsFor, readWarekiDate, warekiDateOptions, yearOptionsFor } from '@/lib/wareki';
 import { formatAmount as fmt, formatSenPart as senPart, formatYenPart as yenPart, stripAmountFormatting } from '@/lib/numberFormat';
 
 const T = 'table2' as const;
@@ -21,11 +21,12 @@ const fl = (v: number) => Math.floor(v + 1e-9);
 // ── 和暦日付の4列プルダウン（第1表の1と同方式・第2表の列位置） ──
 const numOptions = (n: number) => ['', ...Array.from({ length: n }, (_, i) => String(i + 1))];
 // g だけ空の選択肢を置かない（未選択でも令和として扱う）。先頭は DEFAULT_ERA と揃えること
+// y と d は一番広い範囲を置き、選んだ元号・年月に合わせて buildCells 側で狭める
 export const DATE_OPTS = {
   g: ['令和', '平成', '昭和'],
-  y: numOptions(64),
+  y: yearOptionsFor(DEFAULT_ERA),
   m: numOptions(12),
-  d: numOptions(31),
+  d: dayOptionsFor(DEFAULT_ERA, '', ''),
 } as const;
 
 /** 第2表の判定結果（ハイライト・「１」記入枠の表示に使用） */
@@ -91,7 +92,11 @@ function judgeCells(
 }
 
 /** 第2表のグリッドセル（令和8年様式・罫線座標はPNGからの機械抽出） */
-function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
+function buildCells(
+  c: ReturnType<typeof calcTable2>,
+  /** 開業年月日の年・日の選択肢（元号・年月に合わせて狭めたもの）。 */
+  openDateOptions: { year: string[]; day: string[] },
+): GridCell[] {
   const j = c.j;
   const flags = flagStates(c);
   const fieldIsZero = (g: (field: string) => string, field: string) => {
@@ -211,9 +216,9 @@ function buildCells(c: ReturnType<typeof calcTable2>): GridCell[] {
     { kind: 'label', text: '日', top: 63.08, left: 41.94, width: 6.09, height: 1.45, fontSize: 7 },
     { kind: 'cell', codeLabel: 'N01', top: 64.53, left: 21.39, width: 2.34, height: 4.24 },
     { field: 'f85_g', kind: 'input', options: [...DATE_OPTS.g], top: 64.53, left: 23.73, width: 6.53, height: 4.24 },
-    { field: 'f85_y', kind: 'input', options: [...DATE_OPTS.y], top: 64.53, left: 30.26, width: 4.75, height: 4.24 },
+    { field: 'f85_y', kind: 'input', options: openDateOptions.year, top: 64.53, left: 30.26, width: 4.75, height: 4.24 },
     { field: 'f85_m', kind: 'input', options: [...DATE_OPTS.m], top: 64.53, left: 35.01, width: 6.93, height: 4.24 },
-    { field: 'f85_d', kind: 'input', options: [...DATE_OPTS.d], top: 64.53, left: 41.94, width: 6.09, height: 4.24 },
+    { field: 'f85_d', kind: 'input', options: openDateOptions.day, top: 64.53, left: 41.94, width: 6.09, height: 4.24 },
     { kind: 'label', text: '判定\n基準', top: 61.65, left: 48.03, width: 3.06, height: 2.88, fontSize: 7 },
     { kind: 'label', text: '課 税 時 期 に お い て 開 業 後 ３ 年 未 満', top: 61.65, left: 51.09, width: 42.5, height: 1.43 },
     { kind: 'label', text: 'で　あ　る', highlightWhen: () => j.s4a === true, top: 63.08, left: 51.09, width: 20.75, height: 1.45 },
@@ -386,6 +391,7 @@ export function Table2Grid({ getField, updateField, onJump }: TableProps) {
     }
   };
 
-  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(buildCells(c), g, u, T, onJump);
+  const { mainCells, headerExtra, aspectRatio } = extractCompanyFloatHeader(
+    buildCells(c, warekiDateOptions(raw, 'f85')), g, u, T, onJump);
   return <GridForm cells={mainCells} g={g} u={u} formId={T} width="100%" aspectRatio={aspectRatio} title="第２表　特定の評価会社の判定の明細書" formCode="NTA0VNA190010010" headerExtra={headerExtra} />;
 }

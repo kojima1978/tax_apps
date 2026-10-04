@@ -52,6 +52,7 @@ export function taxPeriodOrder(label: string): number | null {
   const matched = /^(\D*)(\d+)年(?:(\d+)月(?:(\d+)日)?)?$/.exec(label.trim());
   if (matched === null) return null;
   const year = westernYear(matched[1] || DEFAULT_ERA, Number(matched[2]));
+  if (year === null) return null;
   return year * 10000 + Number(matched[3] ?? 0) * 100 + Number(matched[4] ?? 0);
 }
 

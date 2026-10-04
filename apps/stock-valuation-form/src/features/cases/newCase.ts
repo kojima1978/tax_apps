@@ -8,7 +8,7 @@
 // 「評価したことのある会社」から選べば会社名を打ち直さずに済む ── キーを持たない案件同士は
 // 会社名で寄せるので、空白以外が1文字でも違うと塊が割れる（caseGroups.ts）。
 
-import { DEFAULT_ERA, YEAR_OPTS } from '@/lib/wareki';
+import { DEFAULT_ERA, dayOptionsFor, nextWarekiYear, yearOptionsFor } from '@/lib/wareki';
 import type { FormData } from '@/types/form';
 import { type GroupableCase, groupCasesByCompany } from './caseGroups';
 
@@ -98,14 +98,30 @@ export function parseTaxPeriod(label: string): TaxPeriodInput | null {
 }
 
 /**
- * 同じ会社の「次の年分」の初期値。年を1つ進め、月日はそのまま（rollover.ts と同じ規則）。
+ * 同じ会社の「次の年分」の初期値。1年進め、月日はそのまま（rollover.ts と同じ規則）。
  *
- * 読めないラベル・選択肢に無い年になるときは空欄から始める ── プルダウンに無い値を入れると
+ * 進めるのは元号年ではなく日付（nextWarekiYear）── 平成31年の翌年は平成32年ではなく
+ * 令和2年で、元号年に1を足すだけだと存在しない年分が初期値になる。
+ *
+ * 読めないラベル・入れられない年になるときは空欄から始める ── プルダウンに無い値を入れると
  * 画面は先頭の選択肢を出すのに保存値は別、という食い違いになる。
  */
 export function nextTaxPeriod(label: string): TaxPeriodInput {
   const parsed = parseTaxPeriod(label);
   if (parsed === null) return emptyTaxPeriod();
-  const next = String(Number(parsed.year) + 1);
-  return YEAR_OPTS.includes(next) ? { ...parsed, year: next } : emptyTaxPeriod();
+  const next = nextWarekiYear(parsed.era, Number(parsed.year), Number(parsed.month), Number(parsed.day));
+  return next === null ? emptyTaxPeriod() : { ...parsed, era: next.era, year: next.year };
+}
+
+/**
+ * その組み合わせに無くなった年・日を落とす。
+ *
+ * プルダウンは選んだ元号・年月に合わせて狭めてあるので、ここで落ちるのは「先に入れておいた値が、
+ * 後から変えた元号・月に無くなった」ときだけ（平成に変えたのに年が40、2月に変えたのに日が31）。
+ * 案件を作る口でそれを残すと、西暦に直せない課税時期の案件が最初から出来てしまう。
+ */
+export function dropImpossibleParts(profile: CaseProfile): CaseProfile {
+  const year = yearOptionsFor(profile.era).includes(profile.year) ? profile.year : '';
+  const day = dayOptionsFor(profile.era, year, profile.month).includes(profile.day) ? profile.day : '';
+  return { ...profile, year, day };
 }
