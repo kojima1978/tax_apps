@@ -1,7 +1,9 @@
 "use client";
 
 import { AlertTriangle, LoaderCircle, Trash2, X } from "lucide-react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useState } from "react";
+
+import { useModalDialog } from "@/components/use-modal-dialog";
 
 export function ClientDeleteModal({ household, snapshotCount, positionCount, error, saving, onClose, onSubmit }: {
   household: { name: string; clientCode: string };
@@ -13,25 +15,11 @@ export function ClientDeleteModal({ household, snapshotCount, positionCount, err
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const [confirmation, setConfirmation] = useState("");
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const previousFocus = document.activeElement as HTMLElement | null;
-    // 小さい画面でも警告文が飛ばされないよう、入力欄ではなく見出しへ移す。
-    dialogRef.current?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
-    return () => { if (previousFocus?.isConnected) previousFocus.focus(); };
-  }, []);
+  // 小さい画面でも警告文が飛ばされないよう、開いたときのフォーカスは入力欄ではなく見出しへ移す。
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); }, initialFocus: "h2" });
   const confirmationMatches = confirmation.toUpperCase() === household.clientCode.toUpperCase();
 
-  return <div className="modal-layer" role="presentation" onKeyDown={(event) => {
-    if (event.key === "Escape") { event.preventDefault(); if (!saving) onClose(); }
-    if (event.key !== "Tab") return;
-    const controls = dialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)");
-    if (!controls?.length) { event.preventDefault(); return; }
-    const first = controls[0];
-    const last = controls[controls.length - 1];
-    if (event.shiftKey && (document.activeElement === first || document.activeElement?.tagName === "H2")) { event.preventDefault(); last.focus(); }
-    if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-  }}><div ref={dialogRef} className="modal delete-modal snapshot-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="client-delete-title" aria-describedby="client-delete-description">
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} className="modal delete-modal snapshot-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="client-delete-title" aria-describedby="client-delete-description">
     <header><div><h2 id="client-delete-title" tabIndex={-1}>{household.name}を削除しますか？</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <form onSubmit={onSubmit}>
       <div className="snapshot-delete-warning"><AlertTriangle /><div><strong>この顧客のすべての年度・明細が削除されます</strong><p id="client-delete-description">この操作は取り消せません。必要な場合は、先にバックアップ画面からこの顧客のデータを書き出してください。</p></div></div>

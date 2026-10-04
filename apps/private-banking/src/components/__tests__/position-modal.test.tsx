@@ -128,3 +128,16 @@ describe("PositionModal（受取人ごとの分数）", () => {
   });
 });
 
+describe("PositionModal（モーダルの作法）", () => {
+  it("開いたらフォーカスをモーダルの中へ移す", () => {
+    const { container } = renderModal();
+    expect(document.activeElement).toBe(container.querySelector(".position-modal"));
+  });
+
+  it("Escape で閉じる", () => {
+    const onClose = vi.fn();
+    const { container } = renderModal(onClose);
+    fireEvent.keyDown(container.querySelector(".modal-layer")!, { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+  });
+});

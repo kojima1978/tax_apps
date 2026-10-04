@@ -3,6 +3,7 @@
 import { AlertTriangle, Info, LoaderCircle, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { FormEvent, type ReactNode, useEffect, useState } from "react";
 import { BuildingTypeField, CommaNumberInput, LandCategoryField, OwnershipFractionInput } from "@/components/form-fields";
+import { useModalDialog } from "@/components/use-modal-dialog";
 import { personSelectOptions } from "@/lib/family";
 import { fxRateFor, positionCurrencies, type FxRates } from "@/lib/fx-rates";
 import { decimalToFraction, valuationNumber, yen } from "@/lib/format";
@@ -278,6 +279,9 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   const [institution, setInstitution] = useState(position?.institution ?? "");
   // 受取人ごとの分数の合計が1かどうか。受取人欄（BenefitRecipientsField）から受け取る。
   const [benefitAllocationValid, setBenefitAllocationValid] = useState(true);
+  // 開いたときのフォーカスと Tab の巡回、Escape での閉じ方。Escape は「閉じる」「キャンセル」と同じ扱いで、
+  // どちらも確認を挟まず入力を捨てるので、Escape を足しても失うものは増えない。
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); } });
 
   // 区分の切替も科目の切替を通す。以前は setCategory を直に呼んでいたため通貨が JPY へ戻らず、
   // 外貨預金から負債へ切り替えると「借入残高（USD）」と見せたまま JPY で保存され、
@@ -368,7 +372,7 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   const summaryJpy = currency === "JPY" || summaryAmount === null ? null : fxRate === null ? "円換算レート未登録" : `円換算 ${yen.format(Math.round(summaryAmount * fxRate))}`;
   const formulaExpression = formula === "STOCK" ? "単価 × 株数・口数 × 調整率" : formula === "UNIT_RATE" ? `${unitRateLabel} × 調整率` : formula === "LAND_ROADSIDE" ? "路線価 × 調整率 × 面積 × 持分（分子 ÷ 分母）" : formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? "固定資産税評価額 × 倍率 × 調整率 × 持分（分子 ÷ 分母）" : "";
 
-  return <div className="modal-layer" role="presentation"><div className="modal position-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal position-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <header><div><h2 id="modal-title">{isEditing ? "明細を修正" : "明細を追加"}</h2></div><button className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header>
     <form onSubmit={onSubmit}>
       <input type="hidden" name="side" value={section === "ASSET" ? "ASSET" : "LIABILITY"} />
@@ -423,7 +427,9 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
         </fieldset>
         <label className="full">メモ<textarea name="note" rows={3} placeholder="評価日、根拠資料など" defaultValue={position?.note ?? ""} /></label>
       </div>
-      <footer><div className="position-modal-summary" aria-live="polite"><span>{amountLabel}</span><strong>{summaryAmount === null ? "未入力" : `${formatAmount(summaryAmount)} ${amountUnit}`}</strong>{summaryJpy ? <small>{summaryJpy}</small> : null}</div><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null || !benefitAllocationValid}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>
+      {/* 直接入力のときは今打った金額をそのまま読み上げるだけなので黙らせ、
+          複数の欄から決まる算式のときだけ読み上げる。 */}
+      <footer><div className="position-modal-summary" aria-live={isCalculated ? "polite" : undefined}><span>{amountLabel}</span><strong>{summaryAmount === null ? "未入力" : `${formatAmount(summaryAmount)} ${amountUnit}`}</strong>{summaryJpy ? <small>{summaryJpy}</small> : null}</div><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null || !benefitAllocationValid}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>
     </form>
   </div></div>;
 }
