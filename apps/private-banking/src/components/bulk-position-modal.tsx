@@ -5,6 +5,7 @@ import { ClipboardEvent, KeyboardEvent as ReactKeyboardEvent, useMemo, useState 
 import { personSelectOptions } from "@/lib/family";
 import { decimalToFraction, formatCommaNumberInput, yen } from "@/lib/format";
 import {
+  type AssetDetails,
   type BulkPositionPayload,
   type Position,
   type Snapshot,
@@ -103,6 +104,24 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
   },
 };
 const simpleEntryConfigOf = (type: BulkEntryType) => simpleEntryConfigs[type as SimpleEntryType] ?? null;
+/**
+ * 表が列として持っている assetDetails のキー。保存ではこれだけを入れ替え、
+ * 列の無い項目（証券種類・小規模宅地等の特例・保険種類など）は登録済みの値をそのまま残す。
+ * 以前は assetDetails をまるごと作り直していたので、1行も触らずに保存しただけで
+ * それらが消えていた（登録済みの行は編集の有無に関わらず全件送られるため）。
+ */
+const ownedDetailKeys: Record<BulkEntryType, Array<keyof AssetDetails>> = {
+  DEPOSIT: ["accountType"],
+  // 証券種類に列は無い。新規行の既定値としてだけ入れ、登録済みの行では触らない。
+  SECURITIES: [],
+  PRIVATE_SHARES: ["shareClass"],
+  LAND: ["propertyType", "propertyAddress", "landCategory"],
+  BUILDING: ["propertyType", "propertyAddress", "buildingType", "floorArea"],
+  INSURANCE: ["policyNumber", "insuredPerson", "beneficiary", "deathBenefit"],
+  INSURANCE_RIGHTS: ["policyNumber", "insuredPerson"],
+  RETIREMENT_ALLOWANCE: ["retirementRecipient", "retirementAllowance"],
+  LOAN_RECEIVABLE: [],
+};
 /** 預金種類。貼り付け時のラベル照合にも使うので、選択肢と同じ並びを1箇所で持つ。 */
 const accountTypeOptions = [{ value: "ORDINARY", label: "普通預金" }, { value: "TIME", label: "定期預金" }, { value: "FOREIGN", label: "外貨預金" }, { value: "OTHER", label: "その他" }];
 /**
@@ -125,12 +144,14 @@ function createBulkRow(id: number, positionId: number | null = null): BulkRow {
 
 function bulkEntryTypeForPosition(position: Position): BulkEntryType | null {
   if (position.side !== "ASSET") return null;
-  // 外貨預金は一括保存が通貨をJPY・レート1で上書きしてしまうので、表では扱わず個別モーダルに任せる。
-  if (position.category === "DEPOSIT") return position.valuationFormula === "MANUAL" && position.currency === "JPY" ? "DEPOSIT" : null;
+  // 表に通貨の列は無く、保存は通貨をJPY・レート1で固定するので、外貨建ての明細は個別モーダルに任せる。
+  // 以前は預金と生命保険等にしかこの判定が無く、外貨建ての有価証券が表に出て保存で円建てへ化けた。
+  if (position.currency !== "JPY") return null;
+  if (position.category === "DEPOSIT") return position.valuationFormula === "MANUAL" ? "DEPOSIT" : null;
   if (simpleEntryConfigOf(position.category as BulkEntryType)) {
     // 受取人を複数に按分している明細は表に列が無く、一括保存で按分が消えるので個別モーダルに任せる。
     const allocations = position.assetDetails?.benefitAllocations;
-    if (position.valuationFormula !== "MANUAL" || position.currency !== "JPY" || (Array.isArray(allocations) && allocations.length > 0)) return null;
+    if (position.valuationFormula !== "MANUAL" || (Array.isArray(allocations) && allocations.length > 0)) return null;
     return position.category as BulkEntryType;
   }
   if (position.category === "SECURITIES" && ["STOCK", "MANUAL"].includes(position.valuationFormula)) return "SECURITIES";
@@ -505,6 +526,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
       return;
     }
     const numberOrNull = (value: string) => value ? Number(value.replace(/,/g, "")) : null;
+    const positionsById = new Map(snapshot.positions.map((position) => [position.id, position]));
     const payloads = bulkEntryTypes.flatMap((type) => activeRowsByType[type].map((row) => {
       const rowSimpleConfig = simpleEntryConfigOf(type);
       const rowIsDeposit = type === "DEPOSIT";
@@ -512,6 +534,11 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
       const rowIsLand = type === "LAND";
       const rowIsRealEstate = ["LAND", "BUILDING"].includes(type);
       const rowFormula = row.valuationFormula as ValuationFormula;
+      // 表が書き換えるキーだけを入れ替え、列の無い項目は登録済みの値を残す。
+      const storedDetails = (row.positionId === null ? null : positionsById.get(row.positionId)?.assetDetails) ?? {};
+      const owned = new Set<string>(ownedDetailKeys[type]);
+      const mergedDetails = (tableDetails: AssetDetails) =>
+        ({ ...Object.fromEntries(Object.entries(storedDetails).filter(([key]) => !owned.has(key))), ...tableDetails } as AssetDetails);
       const data = {
         side: "ASSET",
         category: rowIsStock || rowIsDeposit || rowSimpleConfig ? type : row.category,
@@ -530,18 +557,19 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         valuationMultiplier: ["LAND_MULTIPLIER", "BUILDING"].includes(rowFormula) ? numberOrNull(row.multiplier) : null,
         ownershipNumerator: rowIsRealEstate ? numberOrNull(row.ownershipNumerator) : null,
         ownershipDenominator: rowIsRealEstate ? numberOrNull(row.ownershipDenominator) : null,
-        assetDetails: rowSimpleConfig
+        assetDetails: mergedDetails(rowSimpleConfig
           ? rowSimpleConfig.details(row)
           : rowIsDeposit
           ? { accountType: row.accountType.trim() }
           : rowIsStock
-          ? type === "SECURITIES" ? { securityType: "STOCK" } : { shareClass: row.institution.trim() }
+          // 証券種類は表に列が無い。登録済みなら元の値、新規行だけ個別モーダルと同じ既定値を入れる。
+          ? type === "SECURITIES" ? (row.positionId === null ? { securityType: "LISTED_STOCK" } : {}) : { shareClass: row.institution.trim() }
           : {
             propertyType: rowIsLand ? "LAND" : "BUILDING",
             propertyAddress: row.address.trim(),
             // 床面積は未入力なら項目ごと持たせない（0㎡として残さない）。
             ...(rowIsLand ? { landCategory: row.landCategory.trim() } : { buildingType: row.buildingType.trim(), ...(numberOrNull(row.floorArea) === null ? {} : { floorArea: numberOrNull(row.floorArea) }) }),
-          },
+          }),
         note: row.note.trim(),
       };
       return { id: row.positionId, data };

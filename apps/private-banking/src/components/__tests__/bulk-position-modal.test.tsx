@@ -295,3 +295,63 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     expect(savedPayloads(onSubmit).map((payload) => payload.data.category)).toEqual(["INSURANCE", "LOAN_RECEIVABLE"]);
   });
 });
+
+describe("BulkPositionModal（表に列の無い項目）", () => {
+  it("証券種類を残したまま保存し、新規行には個別モーダルと同じ既定値を入れる", async () => {
+    const onSubmit = renderModal([position({
+      id: 7, category: "SECURITIES", name: "○○投信", institution: "××証券", valuationFormula: "MANUAL",
+      originalAmount: 5_000_000, valueJpy: 5_000_000, assetDetails: { securityType: "FUND", securityCode: "1234" },
+    })]);
+    selectEntryType("SECURITIES");
+    // 1行も触らずに保存しただけで証券種類が消えていた（登録済みの行は編集の有無に関わらず全件送られる）。
+    typeIn(2, "銘柄名", "△△株式");
+    fireEvent.change(cell(2, "方式"), { target: { value: "MANUAL" } });
+    typeIn(2, "直接入力額（円）", "1000000");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    const [existing, added] = savedPayloads(onSubmit);
+    expect(existing.data.assetDetails).toEqual({ securityType: "FUND", securityCode: "1234" });
+    expect(added.data.assetDetails).toEqual({ securityType: "LISTED_STOCK" });
+  });
+
+  it("小規模宅地等の特例は残し、表にある地目だけを入れ替える", async () => {
+    const onSubmit = renderModal([position({
+      id: 8, category: "HOME_REAL_ESTATE", name: "自宅土地", valuationFormula: "LAND_ROADSIDE",
+      landArea: 180, roadsideValue: 600_000, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 1,
+      originalAmount: 108_000_000, valueJpy: 108_000_000,
+      assetDetails: { propertyType: "LAND", propertyAddress: "A市B町1-1", landCategory: "RESIDENTIAL", smallLotType: "SPECIFIC_RESIDENTIAL" },
+    })]);
+    selectEntryType("LAND");
+    fireEvent.change(cell(1, "地目"), { target: { value: "MISCELLANEOUS" } });
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).toEqual({
+      propertyType: "LAND", propertyAddress: "A市B町1-1", landCategory: "MISCELLANEOUS", smallLotType: "SPECIFIC_RESIDENTIAL",
+    });
+  });
+
+  it("床面積を空にしたら項目ごと消し、構造は残す", async () => {
+    const onSubmit = renderModal([position({
+      id: 9, category: "REAL_ESTATE", name: "貸家", valuationFormula: "BUILDING",
+      fixedAssetTaxValue: 8_000_000, valuationMultiplier: 1.1, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 1,
+      originalAmount: 8_800_000, valueJpy: 8_800_000,
+      assetDetails: { propertyType: "BUILDING", propertyAddress: "A市B町2-2", buildingType: "APARTMENT", floorArea: 120.5, buildingStructure: "RC" },
+    })]);
+    selectEntryType("BUILDING");
+    typeIn(1, "床面積（㎡）", "");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).toEqual({
+      propertyType: "BUILDING", propertyAddress: "A市B町2-2", buildingType: "APARTMENT", buildingStructure: "RC",
+    });
+  });
+
+  it("外貨建ての明細は表に出さず、個別モーダルに任せる", () => {
+    // 保存は通貨をJPY・レート1で固定するので、表に出すと 100,000 USD が 100,000 円へ化ける。
+    renderModal([position({
+      id: 10, category: "SECURITIES", name: "US Treasury", currency: "USD", valuationFormula: "MANUAL",
+      originalAmount: 100_000, fxRate: 150, valueJpy: 15_000_000,
+    })]);
+    expect(entryTab("SECURITIES").getAttribute("aria-label")).toBe("有価証券・登録済み0件");
+  });
+});
