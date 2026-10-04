@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { categoryLabels, deemedAllocations, middleClassification, positionCategoryLabel, propertyTypeOf, splitBenefit, trendValues, type Position, type Snapshot } from "@/lib/portfolio-view";
+import { categoryLabels, deemedAllocations, middleClassification, positionCategoryLabel, printSectionForSection, propertyTypeOf, splitBenefit, trendValues, unprintableSections, type Position, type Section, type Snapshot } from "@/lib/portfolio-view";
 
 const insurance = (assetDetails: Position["assetDetails"]) => ({ category: "INSURANCE", assetDetails } as Position);
 
@@ -110,5 +110,26 @@ describe("その他負債（リース債務・未払金・預り敷金・保証�
     expect(values.loanOther).toBe(0);
     expect(values).toMatchObject({ leaseObligations: 1_000_000, accountsPayable: 200_000, depositsReceived: 3_000_000, otherLiabilities: 4_200_000 });
     expect(values.liabilities).toBe(34_200_000);
+  });
+});
+
+describe("印刷の対象", () => {
+  it("画面ごとに対応する様式を返し、様式が無い画面では null を返す", () => {
+    const expected: Record<Section, ReturnType<typeof printSectionForSection>> = {
+      profile: "profile-family", family: "profile-family", balance: "balance",
+      positions: "details", tax: "tax-calculation", history: "history", backup: null,
+    };
+    for (const [section, printSection] of Object.entries(expected)) {
+      expect(printSectionForSection(section as Section)).toBe(printSection);
+    }
+  });
+
+  it("相続税は未計算のとき、年度比較は年度が1つのときだけ選べない", () => {
+    const calculated = { inheritanceTaxCalculation: {} } as unknown as Snapshot;
+    const notCalculated = { inheritanceTaxCalculation: null } as unknown as Snapshot;
+    expect(unprintableSections(calculated, 2)).toEqual({});
+    expect(Object.keys(unprintableSections(notCalculated, 2))).toEqual(["tax-calculation"]);
+    expect(Object.keys(unprintableSections(calculated, 1))).toEqual(["history"]);
+    expect(Object.keys(unprintableSections(notCalculated, 1)).sort()).toEqual(["history", "tax-calculation"]);
   });
 });

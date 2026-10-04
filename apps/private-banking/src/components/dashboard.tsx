@@ -42,7 +42,9 @@ import {
   type Section,
   type Snapshot,
   fiscalYearLabel,
+  printSectionForSection,
   totals,
+  unprintableSections,
 } from "@/lib/portfolio-view";
 
 /** サイドバーのメニュー。key はそのまま URL の `/customers/<id>/<key>` になる。 */
@@ -332,16 +334,17 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   }
   // 表示中の年度。?snapshot= が無効なときは現在年度にフォールバックする。
   const reportSnapshot = workingSnapshot ?? current;
-  const currentPrintSection: PrintSection | null =
-    section === "profile" || section === "family" ? "profile-family"
-        : section === "balance" ? "balance"
-          : section === "positions" ? "details"
-            : section === "tax" ? "tax-calculation"
-              : section === "history" ? "history"
-                : null;
+  // 中身が無い様式は印刷の対象から外す（相続税は未計算、年度比較は年度が1つのとき）。
+  const printUnavailable = unprintableSections(reportSnapshot, portfolio.snapshots.length);
+  // ブラウザの印刷（Ctrl+P）はダイアログを通らないので、表示中の画面に対応する様式だけが対象になる。
+  const naturalPrintSection = printSectionForSection(section);
+  const currentPrintSection: PrintSection | null = naturalPrintSection && !printUnavailable[naturalPrintSection] ? naturalPrintSection : null;
   const includedPrintSections = printSections
     ? PRINT_SECTION_META.map(({ key }) => key).filter((key) => printSections.has(key))
     : currentPrintSection ? [currentPrintSection] : [];
+  /* 表紙・目次と本文は必ずこの一覧だけから作る。別々に判定していたときは、本人情報の画面から
+     Ctrl+P すると目次に「本人・家族情報」が載るのに本文が1ページも出なかった。 */
+  const printIncludes = (key: PrintSection) => includedPrintSections.includes(key);
 
   return (
     <div className="app-shell">
@@ -366,7 +369,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       </aside>
 
       <div className={`main-area ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-        <PrintFrontMatter household={portfolio.household} snapshot={reportSnapshot} sections={includedPrintSections} />
+        {includedPrintSections.length > 0 ? <PrintFrontMatter household={portfolio.household} snapshot={reportSnapshot} sections={includedPrintSections} /> : null}
         <header className="topbar">
           <button className="menu-button" aria-label="メニューを開く" onClick={() => setMenuOpen(true)}><Menu /></button>
           <div className="topbar-subject">
@@ -377,10 +380,12 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
         </header>
 
         <main id="main-content" className="content">
-          {printSections?.has("profile-family") ? <div id="print-section-profile-family" className="report-document print-only-document"><PersonFamilyPrintView household={portfolio.household} members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} /></div> : null}
-          {(section === "tax" || printSections?.has("tax-calculation")) ? <div
+          {/* 表紙だけが出て中身が1ページも無い印刷にならないよう、対象が無いことを紙の上でも言う。 */}
+          {includedPrintSections.length === 0 ? <p className="print-empty-notice">この画面に印刷できる内容はありません。右上の「印刷・PDF出力」から対象を選んでください。</p> : null}
+          {printIncludes("profile-family") ? <div id="print-section-profile-family" className="report-document print-only-document"><PersonFamilyPrintView household={portfolio.household} members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} /></div> : null}
+          {(section === "tax" || printIncludes("tax-calculation")) ? <div
             id="print-section-tax-calculation"
-            className={`report-document tax-calculation-document ${section !== "tax" ? "print-only-document" : ""} ${printSections && !printSections.has("tax-calculation") ? "print-excluded-document" : ""}`}
+            className={`report-document tax-calculation-document ${section !== "tax" ? "print-only-document" : ""} ${printIncludes("tax-calculation") ? "" : "print-excluded-document"}`}
           >
             {section === "tax" && reportSnapshot.isCurrent ? <div className="tax-section-toolbar">
               <button className="button secondary tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxCalcLabel(taxApiStatus, Boolean(reportSnapshot.inheritanceTaxCalculation))}</button>
@@ -393,8 +398,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
               : section === "tax" ? <div className="tax-empty-state" role="note"><Calculator /><p>まだ相続税の概算を計算していません。</p><p>{reportSnapshot.isCurrent ? "上のボタンから、現在のB/Sと親族関係をもとに概算税額を計算できます。" : "概算は現在年度のB/Sで計算してください。"}</p></div>
               : null}
           </div> : null}
-          {(section === "balance" || printSections?.has("balance")) ? (
-            <div id="print-section-balance" className={`report-document ${section !== "balance" ? "print-only-document" : ""} ${printSections && !printSections.has("balance") ? "print-excluded-document" : ""}`}>
+          {(section === "balance" || printIncludes("balance")) ? (
+            <div id="print-section-balance" className={`report-document ${section !== "balance" ? "print-only-document" : ""} ${printIncludes("balance") ? "" : "print-excluded-document"}`}>
               <section className="page-heading detail-page-heading">
                 <div>
                   <p>個人資産・負債を時価で俯瞰します。</p>
@@ -426,10 +431,10 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             </div>
           ) : null}
 
-          {(section === "positions" || printSections?.has("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printSections && !printSections.has("details") ? "print-excluded-document" : ""}`}><AssetsView snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} spotlightId={spotlightId} /></div> : null}
+          {(section === "positions" || printIncludes("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printIncludes("details") ? "" : "print-excluded-document"}`}><AssetsView snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} spotlightId={spotlightId} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
           {section === "family" ? <div className="report-document print-excluded-document"><FamilyView members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} saving={saving} onSave={saveFamilyMembers} /></div> : null}
-          {(section === "history" || printSections?.has("history")) ? <div id="print-section-history" className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printSections && !printSections.has("history") ? "print-excluded-document" : ""}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
+          {(section === "history" || printIncludes("history")) ? <div id="print-section-history" className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printIncludes("history") ? "" : "print-excluded-document"}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
           {section === "backup" ? <div className="report-document print-excluded-document"><BackupView scope="household" portfolio={portfolio} /></div> : null}
         </main>
       </div>
@@ -443,7 +448,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}
       {snapshotSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal snapshot={workingSnapshot} onClose={() => setSnapshotSettingsModalOpen(false)} onSubmit={saveSnapshotSettings} saving={saving} /> : null}
       {clientDeleteOpen ? <ClientDeleteModal household={portfolio.household} snapshotCount={portfolio.snapshots.length} positionCount={portfolio.snapshots.reduce((count, snapshot) => count + snapshot.positions.length, 0)} error={error} saving={saving} onClose={() => setClientDeleteOpen(false)} onSubmit={deleteClient} /> : null}
-      {printGuideOpen ? <PrintGuideModal section={section} taxCalculationAvailable={reportSnapshot.inheritanceTaxCalculation !== null} onClose={() => setPrintGuideOpen(false)} onPrint={(sections) => {
+      {printGuideOpen ? <PrintGuideModal section={section} unavailable={printUnavailable} onClose={() => setPrintGuideOpen(false)} onPrint={(sections) => {
         setPrintSections(new Set(sections));
         const cleanup = () => { setPrintSections(null); };
         window.addEventListener("afterprint", cleanup, { once: true });

@@ -589,6 +589,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .print-section-options label:hover { background: #f8fdf9; border-color: #86efac; }
 .print-section-options input { width: 18px; height: 18px; margin: 0; accent-color: #16a34a; cursor: pointer; }
 .print-section-options input:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 2px; }
+/* チェックボックスの並びの最後に右寄せで置く。5つを1つずつ押させない。 */
+.print-select-all { justify-self: end; }
 .print-guide-modal .print-guide-example { margin-bottom: 0; padding: 12px 14px; color: #365247; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; font-size: 11px; }
 .print-only-document { display: none; }
 .delete-modal dl { margin: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -1283,7 +1285,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .client-home-toolbar .button { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
-.print-front-matter { display: none; }
+.print-front-matter, .print-empty-notice { display: none; }
 @page {
   size: A4 landscape;
   margin: 10mm 10mm 15mm;
@@ -1297,6 +1299,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 @media print {
   :root { --line: #6f7f75; --line-strong: #415a4a; --field-border: #6f7f75; }
   .print-front-matter { display: block !important; }
+  /* 印刷できる中身が1つも無い画面（バックアップなど）の断り書き。表紙・目次は出さない。 */
+  .print-empty-notice { display: block !important; margin: 0; padding: 20mm 0; color: #3f4c56; font-size: 11.5px; text-align: center; }
   .print-cover, .print-toc { min-height: 178mm; box-sizing: border-box; break-after: page; page-break-after: always; }
   .print-cover { padding: 10mm 12mm 7mm; border: 1px solid var(--line); display: flex; flex-direction: column; color: #0f2f26; background: #fff; }
   .print-cover-mark { font-size: 9.5px; font-weight: 700; letter-spacing: .24em; }

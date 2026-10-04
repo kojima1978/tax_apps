@@ -3,28 +3,23 @@
 import { AlertTriangle, ChevronRight, CircleCheck, LoaderCircle, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { DateInput } from "@/components/date-input";
+import { PRINT_SECTION_META } from "@/components/print-front-matter";
 import { compactYen } from "@/lib/format";
 import { foreignCurrencies } from "@/lib/fx-rates";
-import { type Portfolio, type PrintSection, type Section, type Snapshot, fiscalYearLabel, trendValues } from "@/lib/portfolio-view";
+import { type Portfolio, type PrintSection, type Section, type Snapshot, fiscalYearLabel, printSectionForSection, trendValues } from "@/lib/portfolio-view";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 
 /** ダッシュボード全体で使うモーダル群（顧客・年度・印刷・相続税）。 */
 
-export function PrintGuideModal({ section, taxCalculationAvailable, onClose, onPrint }: { section: Section; taxCalculationAvailable: boolean; onClose: () => void; onPrint: (sections: PrintSection[]) => void }) {
-  const options: Array<{ value: PrintSection; label: string; disabled?: boolean }> = [
-    { value: "profile-family", label: "本人・家族情報" },
-    { value: "tax-calculation", label: "相続税の概算", disabled: !taxCalculationAvailable },
-    { value: "balance", label: "貸借対照表" },
-    { value: "details", label: "資産・負債明細" },
-    { value: "history", label: "年度比較" },
-  ];
-  const defaultSection: PrintSection =
-    section === "profile" || section === "family" ? "profile-family"
-        : section === "balance" ? "balance"
-          : section === "positions" ? "details"
-            : section === "tax" ? (taxCalculationAvailable ? "tax-calculation" : "balance")
-              : "history";
+export function PrintGuideModal({ section, unavailable, onClose, onPrint }: { section: Section; unavailable: Partial<Record<PrintSection, string>>; onClose: () => void; onPrint: (sections: PrintSection[]) => void }) {
+  // 並びは目次と同じ（PRINT_SECTION_META）。選べない理由は呼び出し側から受け取る。
+  const options = PRINT_SECTION_META.map(({ key, title }) => ({ value: key, label: title, disabledNote: unavailable[key] }));
+  // 開いている画面に対応する様式を既定にする。それが選べないときだけ貸借対照表にする。
+  const natural = printSectionForSection(section);
+  const defaultSection: PrintSection = natural && !unavailable[natural] ? natural : "balance";
   const [selected, setSelected] = useState<Set<PrintSection>>(() => new Set([defaultSection]));
+  const selectable = options.filter((option) => !option.disabledNote).map((option) => option.value);
+  const allSelected = selectable.every((value) => selected.has(value));
 
   function toggleSection(section: PrintSection) {
     setSelected((current) => {
@@ -38,8 +33,13 @@ export function PrintGuideModal({ section, taxCalculationAvailable, onClose, onP
     <header><div><h2 id="print-guide-title">印刷・PDF出力</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header>
     <div className="delete-modal-body">
       <p id="print-guide-description">印刷する資料を選択してください。</p>
-      <fieldset className="print-section-options"><legend>印刷対象</legend>{options.map((option) => <label key={option.value} aria-disabled={option.disabled}><input type="checkbox" checked={selected.has(option.value)} disabled={option.disabled} onChange={() => toggleSection(option.value)} /><span>{option.label}{option.disabled ? "（計算後に選択可）" : ""}</span></label>)}</fieldset>
-      <p className="print-guide-example">「ページ」から、すべて・範囲（1-3）・個別ページ（1,3,5）を選択してください。</p>
+      <fieldset className="print-section-options">
+        <legend>印刷対象</legend>
+        {options.map((option) => <label key={option.value} aria-disabled={Boolean(option.disabledNote)}><input type="checkbox" checked={selected.has(option.value)} disabled={Boolean(option.disabledNote)} onChange={() => toggleSection(option.value)} /><span>{option.label}{option.disabledNote ? `（${option.disabledNote}）` : ""}</span></label>)}
+        <button type="button" className="text-button compact print-select-all" onClick={() => setSelected(allSelected ? new Set() : new Set(selectable))}>{allSelected ? "すべて外す" : "すべて選ぶ"}</button>
+      </fieldset>
+      {/* 表紙と目次は選んだ様式だけを載せて必ず付く。PDF はブラウザの印刷画面から作る。 */}
+      <p className="print-guide-example">表紙と目次を付けて、選んだ順に印刷します。PDFにするときは、このあと開くブラウザの印刷画面で「送信先」に「PDFに保存」を選んでください。</p>
       <footer><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="button" className="button primary" disabled={selected.size === 0} onClick={() => onPrint([...selected])}><Printer />選択して印刷</button></footer>
     </div>
   </div></div>;

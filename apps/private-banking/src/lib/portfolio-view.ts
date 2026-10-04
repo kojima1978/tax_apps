@@ -51,6 +51,25 @@ export type BulkPositionPayload = Record<string, unknown>;
 export type BalanceScenario = "without-tax" | "with-tax";
 export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "details" | "history";
 
+/** 画面に対応する印刷の様式。対応する様式が無い画面（バックアップ）は null。 */
+export const printSectionForSection = (section: Section): PrintSection | null =>
+  section === "profile" || section === "family" ? "profile-family"
+    : section === "balance" ? "balance"
+      : section === "positions" ? "details"
+        : section === "tax" ? "tax-calculation"
+          : section === "history" ? "history"
+            : null;
+
+/**
+ * 中身が無くて印刷できない様式と、選べない理由。印刷ダイアログの選択肢と、
+ * ブラウザの印刷（Ctrl+P）が作る表紙・目次の両方がここだけを見る。
+ * 片方でしか判定しないと「目次に載っているのに本文が1ページも出ない」組み合わせができる。
+ */
+export const unprintableSections = (snapshot: Snapshot, snapshotCount: number): Partial<Record<PrintSection, string>> => ({
+  ...(snapshot.inheritanceTaxCalculation ? {} : { "tax-calculation": "計算後に選択可" }),
+  ...(snapshotCount >= 2 ? {} : { history: "2年度目から選択可" }),
+});
+
 export const categoryLabels: Record<string, string> = {
   DEPOSIT: "預金・現金", SECURITIES: "有価証券", HOME_REAL_ESTATE: "居宅", REAL_ESTATE: "収益不動産", BUSINESS_REAL_ESTATE: "事業用不動産", IDLE_REAL_ESTATE: "遊休不動産", OTHER_REAL_ESTATE: "その他不動産",
   PRIVATE_SHARES: "自社株", BUSINESS_ASSETS: "事業用資産", LOAN_RECEIVABLE: "貸付金", INSURANCE: "生命保険", INSURANCE_RIGHTS: "生命保険契約に関する権利", RETIREMENT_ALLOWANCE: "退職金", COLLECTIBLES: "その他資産",
