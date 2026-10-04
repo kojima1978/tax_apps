@@ -16,7 +16,9 @@ import {
   assetCategoryGroups,
   assetGroupOf,
   categoryLabels,
+  fractionTotal,
   splitBenefit,
+  valuationFromFormula,
   liabilityCategories,
   otherLiabilityCategories,
   otherAssetTypeLabels,
@@ -86,16 +88,6 @@ function allocationDefaults(details: AssetDetails, recipientKey: "beneficiary" |
   return [{ recipient: details[recipientKey] ?? "", numerator: 1, denominator: 1 }];
 }
 
-const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
-/** 分数の合計を通分した整数で返す。1/3 を3人分足しても誤差が出ないようにする。 */
-function fractionTotal(rows: Array<{ numerator: string; denominator: string }>) {
-  const fractions = rows.map((row) => ({ numerator: Number(row.numerator) || 0, denominator: Number(row.denominator) || 0 }));
-  if (fractions.some((fraction) => fraction.denominator <= 0)) return null;
-  const denominator = fractions.reduce((lcm, fraction) => lcm / gcd(lcm, fraction.denominator) * fraction.denominator, 1);
-  const numerator = fractions.reduce((sum, fraction) => sum + fraction.numerator * (denominator / fraction.denominator), 0);
-  return { numerator, denominator };
-}
-
 /** 補足説明は既定で畳んで見出しだけを出す。毎回全文が出ると、後ろの入力欄が画面の下へ押し出されるため。 */
 function FieldNote({ summary, children }: { summary: string; children: ReactNode }) {
   return <details className="field-note"><summary><Info aria-hidden="true" />{summary}</summary><p>{children}</p></details>;
@@ -133,7 +125,7 @@ function BenefitRecipientsField({ benefitLabel, benefitName, benefitDefault, rec
     key: index, recipient: allocation.recipient, numerator: String(allocation.numerator), denominator: String(allocation.denominator),
   })));
   const multiple = rows.length > 1;
-  const total = fractionTotal(rows);
+  const total = fractionTotal(rows.map((row) => ({ numerator: Number(row.numerator) || 0, denominator: Number(row.denominator) || 0 })));
   const totalIsOne = total !== null && total.numerator === total.denominator;
   const benefitAmount = Number(benefit.replace(/,/g, "")) || 0;
   const amounts = splitBenefit(benefitAmount, rows.map((row) => ({ recipient: row.recipient, numerator: Number(row.numerator) || 0, denominator: Number(row.denominator) || 1 })));
@@ -335,13 +327,14 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   const amountUnit = currency === "JPY" ? "円" : currency;
   const numericValue = (value: string) => Number(value) || 0;
   const ownershipSource: SourceItem = { label: "持分", value: ownershipNumerator && ownershipDenominator ? `${ownershipNumerator} / ${ownershipDenominator}` : "", fieldName: ownershipNumerator ? "ownershipDenominator" : "ownershipNumerator" };
-  const ownershipRatio = numericValue(ownershipDenominator) > 0 ? numericValue(ownershipNumerator) / numericValue(ownershipDenominator) : 0;
-  let calculatedAmount = 0;
-  if (formula === "STOCK") calculatedAmount = numericValue(quantity) * numericValue(unitPrice) * numericValue(adjustmentRate);
-  if (formula === "UNIT_RATE") calculatedAmount = numericValue(unitPrice) * numericValue(adjustmentRate);
-  if (formula === "LAND_ROADSIDE") calculatedAmount = numericValue(landArea) * numericValue(roadsideValue) * numericValue(adjustmentRate) * ownershipRatio;
-  if (formula === "LAND_MULTIPLIER" || formula === "BUILDING") calculatedAmount = numericValue(fixedAssetTaxValue) * numericValue(valuationMultiplier) * numericValue(adjustmentRate) * ownershipRatio;
-  calculatedAmount = Math.round(calculatedAmount * 100) / 100;
+  // 算式はサーバの保存処理と共有する（portfolio-view の valuationFromFormula）。
+  // 式を画面側にも書くと、片方だけ直したときに「操作行に出た金額と保存された金額が違う」になる。
+  const calculatedAmount = valuationFromFormula(formula, {
+    valuationQuantity: numericValue(quantity), valuationUnitPrice: numericValue(unitPrice), adjustmentRate: numericValue(adjustmentRate),
+    landArea: numericValue(landArea), roadsideValue: numericValue(roadsideValue),
+    fixedAssetTaxValue: numericValue(fixedAssetTaxValue), valuationMultiplier: numericValue(valuationMultiplier),
+    ownershipNumerator: numericValue(ownershipNumerator), ownershipDenominator: numericValue(ownershipDenominator),
+  }) ?? 0;
   const isCalculated = formula !== "MANUAL";
   // 円換算レートは明細ではなく年度設定で持つ。未登録の外貨は登録できないよう保存ボタンを止める。
   const fxRate = fxRateFor(fxRates, currency);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { manualValuationLabel, realEstateCategories, unitRateBaseLabel, unitRateCategories } from "@/lib/portfolio-view";
+import { fractionTotal, manualValuationLabel, realEstateCategories, unitRateBaseLabel, unitRateCategories, valuationFromFormula } from "@/lib/portfolio-view";
 
 const positionCategorySchema = z.enum(["DEPOSIT", "SECURITIES", "HOME_REAL_ESTATE", "REAL_ESTATE", "BUSINESS_REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "INSURANCE", "INSURANCE_RIGHTS", "RETIREMENT_ALLOWANCE", "COLLECTIBLES", "LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER", "LOAN", "LEASE_OBLIGATION", "ACCOUNTS_PAYABLE", "DEPOSITS_RECEIVED", "GUARANTEE"]);
 const valuationFormulaSchema = z.enum(["MANUAL", "STOCK", "UNIT_RATE", "LAND_ROADSIDE", "LAND_MULTIPLIER", "BUILDING"]);
@@ -68,7 +68,6 @@ const assetDetailsSchema = z.object({
   benefitAllocations: optionalBenefitAllocations,
   otherAssetType: optionalDetailText,
 }).default({});
-const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
 const stockCategories = new Set(["SECURITIES", "PRIVATE_SHARES"]);
 const unitRateCategorySet = new Set(unitRateCategories);
 const realEstateCategorySet = new Set(realEstateCategories);
@@ -130,10 +129,10 @@ export const positionInputSchema = z.object({
   // 浮動小数だと 1/3 × 3 が 1 にならないので、通分した整数で判定する。
   const allocations = data.assetDetails.benefitAllocations ?? [];
   if (allocations.length > 0) {
-    const denominator = allocations.reduce((lcm, allocation) => lcm / gcd(lcm, allocation.denominator) * allocation.denominator, 1);
-    const numerator = allocations.reduce((sum, allocation) => sum + allocation.numerator * (denominator / allocation.denominator), 0);
-    if (numerator !== denominator) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "benefitAllocations"], message: `受取人ごとの分数の合計を1にしてください（現在 ${numerator}/${denominator}）。` });
+    const total = fractionTotal(allocations);
+    if (total === null || total.numerator !== total.denominator) {
+      const current = total === null ? "" : `（現在 ${total.numerator}/${total.denominator}）`;
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "benefitAllocations"], message: `受取人ごとの分数の合計を1にしてください${current}。` });
     }
   }
   if (realEstateCategorySet.has(data.category)) {
@@ -165,15 +164,8 @@ export function positionInputErrorMessage(error: z.ZodError) {
 }
 
 export function calculatedOriginalAmount(data: PositionInput) {
-  let value = data.originalAmount;
-  const ownershipRatio = data.ownershipNumerator !== null && data.ownershipDenominator !== null
-    ? data.ownershipNumerator / data.ownershipDenominator
-    : 0;
-  if (data.valuationFormula === "STOCK") value = data.valuationQuantity! * data.valuationUnitPrice! * data.adjustmentRate!;
-  if (data.valuationFormula === "UNIT_RATE") value = data.valuationUnitPrice! * data.adjustmentRate!;
-  if (data.valuationFormula === "LAND_ROADSIDE") value = data.landArea! * data.roadsideValue! * data.adjustmentRate! * ownershipRatio;
-  if (data.valuationFormula === "LAND_MULTIPLIER" || data.valuationFormula === "BUILDING") value = data.fixedAssetTaxValue! * data.valuationMultiplier! * data.adjustmentRate! * ownershipRatio;
-  return Math.round(value * 100) / 100;
+  // 算式は画面のプレビューと共有する（portfolio-view）。直接入力は入力された金額をそのまま使う。
+  return valuationFromFormula(data.valuationFormula, data) ?? Math.round(data.originalAmount * 100) / 100;
 }
 
 export function calculatedOwnershipShare(data: PositionInput) {

@@ -256,6 +256,44 @@ export const deemedAllocations = (position: Position): BenefitAllocation[] => {
   return [{ recipient: (position.assetDetails?.[config.recipientKey] ?? "").trim(), numerator: 1, denominator: 1 }];
 };
 
+/** 分数の通分に使う最大公約数。受取人ごとの取り分と、持分の約分が共有する。 */
+export const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+
+/**
+ * 分数の合計を通分した整数で返す。1/3 を3人分足しても誤差が出ないようにする。
+ * 分母に0以下が混ざっていれば null（＝合計を判定できない）。1行以上を渡すこと。
+ */
+export function fractionTotal(fractions: Array<{ numerator: number; denominator: number }>) {
+  if (fractions.some((fraction) => fraction.denominator <= 0)) return null;
+  const denominator = fractions.reduce((lcm, fraction) => lcm / gcd(lcm, fraction.denominator) * fraction.denominator, 1);
+  const numerator = fractions.reduce((sum, fraction) => sum + fraction.numerator * (denominator / fraction.denominator), 0);
+  return { numerator, denominator };
+}
+
+/** 評価の算式が使う値。入力中の文字列を数値にした画面側と、検証済みのサーバ側の両方から渡す。 */
+export type ValuationNumbers = {
+  valuationQuantity?: number | null; valuationUnitPrice?: number | null; adjustmentRate?: number | null;
+  landArea?: number | null; roadsideValue?: number | null; fixedAssetTaxValue?: number | null; valuationMultiplier?: number | null;
+  ownershipNumerator?: number | null; ownershipDenominator?: number | null;
+};
+
+/**
+ * 評価方法ごとの算式。モーダルの操作行に出すプレビューと、保存する金額の両方がここだけを使う。
+ * 式を2箇所に置くと、片方だけ直したときに「画面に出た金額と保存された金額が違う」になる。
+ * 算式を持たない直接入力（MANUAL）は null を返すので、呼び出し側が入力値を使う。
+ */
+export function valuationFromFormula(formula: ValuationFormula, values: ValuationNumbers): number | null {
+  const at = (key: keyof ValuationNumbers) => values[key] ?? 0;
+  const denominator = at("ownershipDenominator");
+  const ownershipRatio = denominator > 0 ? at("ownershipNumerator") / denominator : 0;
+  const amount = formula === "STOCK" ? at("valuationQuantity") * at("valuationUnitPrice") * at("adjustmentRate")
+    : formula === "UNIT_RATE" ? at("valuationUnitPrice") * at("adjustmentRate")
+      : formula === "LAND_ROADSIDE" ? at("landArea") * at("roadsideValue") * at("adjustmentRate") * ownershipRatio
+        : formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? at("fixedAssetTaxValue") * at("valuationMultiplier") * at("adjustmentRate") * ownershipRatio
+          : null;
+  return amount === null ? null : Math.round(amount * 100) / 100;
+}
+
 /**
  * 給付金を受取人ごとの分数で割り振る。丸めた各行の合計が総額とずれないよう、
  * 端数（unit 単位に満たない分）は最大剰余法で取り分の大きい行から配る。

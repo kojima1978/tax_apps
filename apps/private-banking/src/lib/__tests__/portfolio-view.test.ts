@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { categoryLabels, deemedAllocations, middleClassification, positionCategoryLabel, printSectionForSection, propertyTypeOf, splitBenefit, trendValues, unprintableSections, type Position, type Section, type Snapshot } from "@/lib/portfolio-view";
+import { categoryLabels, deemedAllocations, fractionTotal, middleClassification, positionCategoryLabel, printSectionForSection, propertyTypeOf, splitBenefit, trendValues, unprintableSections, valuationFromFormula, type Position, type Section, type Snapshot } from "@/lib/portfolio-view";
 
 const insurance = (assetDetails: Position["assetDetails"]) => ({ category: "INSURANCE", assetDetails } as Position);
 
@@ -131,5 +131,38 @@ describe("印刷の対象", () => {
     expect(Object.keys(unprintableSections(notCalculated, 2))).toEqual(["tax-calculation"]);
     expect(Object.keys(unprintableSections(calculated, 1))).toEqual(["history"]);
     expect(Object.keys(unprintableSections(notCalculated, 1)).sort()).toEqual(["history", "tax-calculation"]);
+  });
+});
+
+describe("fractionTotal", () => {
+  it("分母が違っても通分して合計する", () => {
+    expect(fractionTotal([{ numerator: 1, denominator: 2 }, { numerator: 1, denominator: 3 }])).toEqual({ numerator: 5, denominator: 6 });
+  });
+
+  it("1/3 を3人分足しても誤差を出さず、合計が1だと分かる", () => {
+    const total = fractionTotal([1, 2, 3].map(() => ({ numerator: 1, denominator: 3 })))!;
+    expect(total.numerator).toBe(total.denominator);
+  });
+
+  it("分母が0以下なら合計を判定しない", () => {
+    expect(fractionTotal([{ numerator: 1, denominator: 0 }])).toBeNull();
+  });
+});
+
+describe("valuationFromFormula", () => {
+  it("直接入力は算式を持たない", () => {
+    expect(valuationFromFormula("MANUAL", { valuationUnitPrice: 100 })).toBeNull();
+  });
+
+  it("算式ごとに評価額を計算し、小数第2位で丸める", () => {
+    expect(valuationFromFormula("STOCK", { valuationUnitPrice: 2500, valuationQuantity: 10000, adjustmentRate: 1 })).toBe(25000000);
+    expect(valuationFromFormula("UNIT_RATE", { valuationUnitPrice: 3000000, adjustmentRate: 0.7 })).toBe(2100000);
+    expect(valuationFromFormula("LAND_ROADSIDE", { landArea: 180, roadsideValue: 600000, adjustmentRate: 0.8, ownershipNumerator: 1, ownershipDenominator: 2 })).toBe(43200000);
+    expect(valuationFromFormula("BUILDING", { fixedAssetTaxValue: 8000000, valuationMultiplier: 1.1, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 1 })).toBe(8800000);
+    expect(valuationFromFormula("UNIT_RATE", { valuationUnitPrice: 1, adjustmentRate: 0.3333 })).toBe(0.33);
+  });
+
+  it("持分の分母が未入力なら0にする（割合を1とみなして過大評価しない）", () => {
+    expect(valuationFromFormula("LAND_ROADSIDE", { landArea: 180, roadsideValue: 600000, adjustmentRate: 1 })).toBe(0);
   });
 });
