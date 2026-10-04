@@ -87,3 +87,17 @@ export function parseInheritanceTaxCalculation(value: unknown): InheritanceTaxCa
   const parsed = inheritanceTaxCalculationSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
+
+/** 相続税を計算するボタンの状態。success は押した直後の短い表示。 */
+export type TaxCalcStatus = "idle" | "loading" | "success";
+
+/**
+ * 相続税を計算するボタンの文言。同じ操作のボタンが3箇所（B/Sパネル・税金タブ・
+ * 再計算を促す警告）にあるので、文言はここだけで決める。「API」「連携」のような
+ * 内部の作りの言葉は出さない ── 使う人に見えているのは計算そのものだけ。
+ */
+export function taxCalcLabel(status: TaxCalcStatus, calculated: boolean) {
+  if (status === "loading") return "計算中";
+  if (status === "success") return "計算しました";
+  return calculated ? "再計算" : "相続税を計算";
+}

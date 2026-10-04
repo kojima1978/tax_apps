@@ -9,6 +9,7 @@ import {
   propertiesCsvFileName,
   propertyPositionHref,
   propertyRows,
+  sortProperties,
   toPropertyRow,
 } from "@/lib/properties";
 
@@ -142,5 +143,31 @@ describe("propertiesCsv", () => {
 describe("propertiesCsvFileName", () => {
   it("JST の日時を付ける", () => {
     expect(propertiesCsvFileName(new Date("2026-09-25T15:30:00.000Z"))).toBe("private-banking-properties-20260926-0030.csv");
+  });
+});
+
+describe("sortProperties", () => {
+  // 漢字の「山田／阿部／井上」はコードポイント順とカナ順が一致しないので、既定の並びの検証に使える。
+  const row = (id: number, clientName: string, clientNameKana: string, valueJpy: number) =>
+    toPropertyRow(position({ id, valueJpy }), owner({ householdId: id, clientName, clientNameKana }));
+  const rows = [row(1, "山田 太郎", "ヤマダタロウ", 30_000_000), row(2, "阿部 花子", "アベハナコ", 80_000_000), row(3, "井上 一郎", "イノウエイチロウ", 80_000_000)];
+  const ids = (mode: Parameters<typeof sortProperties>[1]) => sortProperties(rows, mode).map((sorted) => sorted.positionId);
+
+  it("既定は顧客のカナ順（漢字のコードポイント順にしない）", () => {
+    expect(ids("client")).toEqual([2, 3, 1]);
+  });
+
+  it("評価額の大きい順・小さい順で並べ替える", () => {
+    expect(ids("value-desc")).toEqual([2, 3, 1]);
+    expect(ids("value-asc")).toEqual([1, 2, 3]);
+  });
+
+  it("同じ金額の行は元の並びのまま残す", () => {
+    expect(sortProperties([rows[2], rows[1]], "value-desc").map((sorted) => sorted.positionId)).toEqual([3, 2]);
+  });
+
+  it("元の配列は変えない", () => {
+    sortProperties(rows, "value-asc");
+    expect(rows.map((sorted) => sorted.positionId)).toEqual([1, 2, 3]);
   });
 });

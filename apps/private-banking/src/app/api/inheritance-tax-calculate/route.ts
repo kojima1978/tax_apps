@@ -46,12 +46,12 @@ export async function POST(request: Request) {
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
-    return NextResponse.json({ error: "相続税計算APIへ接続できませんでした。" }, { status: 502 });
+    return NextResponse.json({ error: "相続税の計算サービスへ接続できませんでした。" }, { status: 502 });
   }
 
   const calculation = inheritanceTaxApiCalculationSchema.safeParse(await calculationResponse.json().catch(() => null));
   if (!calculationResponse.ok || !calculation.success) {
-    return NextResponse.json({ error: "相続税計算APIで計算できませんでした。" }, { status: 502 });
+    return NextResponse.json({ error: "相続税を計算できませんでした。" }, { status: 502 });
   }
 
   const estimatedInheritanceTax = new Prisma.Decimal(calculation.data.totalInheritanceTaxJpy);

@@ -34,7 +34,7 @@ export type Snapshot = {
   otherTaxes: number; fxRates: FxRates; updatedAt: string; positions: Position[];
 };
 export type PositionSection = "ASSET" | "LIABILITY" | "CONTINGENT";
-export type PositionSortMode = "manual" | "classification-asc" | "classification-desc";
+export type PositionSortMode = "manual" | "classification-asc" | "classification-desc" | "value-desc" | "value-asc";
 export type ValuationFormula = "MANUAL" | "STOCK" | "UNIT_RATE" | "LAND_ROADSIDE" | "LAND_MULTIPLIER" | "BUILDING";
 export type Portfolio = {
   household: { id: number; clientCode: string; name: string; nameKana: string; birthDate: string | null; assignedStaff: string; relatedCompany: string; currency: string };

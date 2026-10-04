@@ -249,15 +249,16 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .position-table th:nth-child(2) { width: 92px; }
 .position-table th:nth-child(3) { width: 18%; }
 .position-table th:nth-child(4) { width: 21%; }
-.position-table th:nth-child(5) { width: 12%; }
+.position-table th:nth-child(5) { width: 15%; }
 .position-table th:nth-child(6) { width: 118px; }
 .position-table th:nth-child(7) { width: 118px; }
-.position-table th:nth-child(8) { width: 88px; }
+/* 操作列は「…」1つ（44px）＋左右の余白ぶん。空いた28pxは評価方法へ回している。 */
+.position-table th:nth-child(8) { width: 60px; }
 /* 解約返戻金と死亡給付金の2段。ラベルは左、金額は右端で縦に揃える。 */
 .deemed-amount { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .deemed-amount + .deemed-amount { margin-top: 2px; }
 .deemed-amount > small { color: var(--slate-500); font-weight: 700; white-space: nowrap; }
-.deemed-benefit-note { display: block; margin-top: 2px; color: var(--slate-500); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.deemed-benefit-note { display: block; margin-top: 2px; color: var(--slate-500); font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tax-burden-empty { color: var(--slate-500); }
 /* 相続税負担額を円換算時価の2段と同じ高さに置く。行の中央揃えだと受取人の注記の分だけ段がずれるので、両列とも上端から並べる。 */
 .position-table td.deemed-cell { vertical-align: top; }
@@ -266,7 +267,11 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .deemed-tax-line { justify-content: flex-end; }
 .deemed-tax-label { display: none; }
 .position-table th:nth-child(4), .position-table tbody td:nth-child(4) { text-align: left; }
-.position-table tbody td:nth-child(4), .position-table tbody td:nth-child(5) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.position-table tbody td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 評価方法は「相続税評価額（路線価方式）」のように長い名前が多く、1行だと大半が途中で切れる。
+   title の補助は印刷にもホバーできない環境にも出ないので、画面では2行まで折り返して読み切れるようにする。 */
+.position-table tbody td:nth-child(5) { overflow: hidden; }
+.position-table tbody td:nth-child(5) > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .position-meta { display: none; }
 .valuation-breakdown { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .position-table thead th:last-child, .position-table tbody td:last-child, .position-table tfoot td:last-child { position: sticky; right: 0; z-index: 2; }
@@ -278,8 +283,10 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .trend-panel .panel-header, .history-list-panel .panel-header { border-bottom: 1px solid var(--line); }
 .trend-guidance { margin: 0; padding: 10px 20px; color: #52635b; background: #f0fdf4; border-bottom: 1px solid #bbf7d0; font-size: 11px; }
 .trend-table { min-width: 1040px; table-layout: fixed; font-variant-numeric: tabular-nums; }
+/* 年度が2つしか無いときは列も1つ減るので、最小幅も1列ぶん詰める。残りの列幅は
+   table-layout: fixed が等分するので、列数ごとの指定は要らない。 */
+.trend-table.trend-columns-2 { min-width: 840px; }
 .trend-table thead th:first-child { width: 24%; }
-.trend-table thead th:not(:first-child) { width: 19%; }
 .trend-table thead span, .trend-table thead small { display: block; }
 .trend-table thead span { color: var(--slate-700); font-size: 11px; }
 .trend-table thead small { margin-top: 2px; color: var(--slate-500); font-size: 11px; font-weight: 500; letter-spacing: 0; }
@@ -334,11 +341,6 @@ td small { color: var(--slate-500); font-size: 11px; }
 .position-name-button { display: block; max-width: 100%; padding: 0; color: var(--navy-950); background: transparent; border: 0; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
 .position-name-button:hover { color: #15803d; text-decoration: underline; text-underline-offset: 2px; }
 .position-name-button:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 1px; border-radius: 3px; }
-.row-delete-button { min-height: 34px; padding: 0 9px; color: var(--danger); background: #fff; border: 1px solid #edcbc8; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 11px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: background-color .2s, border-color .2s; }
-.row-delete-button:hover { background: #fff7f6; border-color: #e3a9a4; }
-.row-delete-button:focus-visible { outline: 3px solid #fecaca; outline-offset: 1px; }
-.row-delete-button:disabled { opacity: .5; cursor: not-allowed; }
-.row-delete-button svg { width: 13px; height: 13px; }
 .position-table tbody tr.is-classification-start td { padding-top: 17px; border-top: 2px solid var(--classification-border); }
 .number { text-align: right; white-space: nowrap; }
 .emphasis { color: var(--navy-800); font-weight: 800; }
@@ -363,12 +365,17 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .drag-handle:disabled { opacity: .45; cursor: not-allowed; }
 .drag-handle.is-saving:disabled { cursor: wait; }
 .drag-handle svg { width: 19px; height: 19px; }
+/* 入れ替え先が無い行はハンドルを出さない。無効なハンドルを並べると、押せるものと押せないものが
+   同じ形で並んで、どれが動かせるのか見ただけでは分からなくなる（12件中8件が無効だった）。 */
+.drag-handle-placeholder { display: inline-block; width: 44px; }
 .position-table tbody tr.is-dragging { opacity: .45; }
 .position-table tbody tr.is-drop-target td { background: #f0fdf4; border-top: 2px solid #22c55e; }
 .position-table tbody tr.is-drop-target td:last-child { background: #f0fdf4; }
 .position-table .position-empty-row td { height: 88px; color: var(--slate-500); text-align: center; }
-.position-empty-state { display: grid; justify-items: center; gap: 10px; }
-.position-empty-state p { margin: 0; color: var(--slate-500); font-size: 13px; }
+.list-empty-state { display: grid; justify-items: center; gap: 10px; }
+.list-empty-state p { margin: 0; color: var(--slate-500); font-size: 13px; }
+/* 明細一覧は空の行（88px）が高さを作るが、年度比較は表ごと出さないので自前で余白を取る。 */
+.trend-empty-state { padding: 44px 20px; }
 .position-section.contingent-section .panel-header p::after { content: "・純資産計算の対象外"; }
 .icon-button svg { width: 18px; }
 .action-menu { position: relative; }
@@ -434,7 +441,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 /* 未入力のまま登録したときは欄を赤く囲む。移動先の欄が固定した操作行の下に隠れないよう余白を取る。 */
 .position-modal :is(input, select, textarea) { scroll-margin-block: 16px 120px; }
 .position-modal .form-grid :is(input, select, textarea):user-invalid { border-color: var(--danger); box-shadow: 0 0 0 3px #f8d7d5; }
-.bulk-position-modal { width: min(1480px, 99vw); overflow: hidden; }
+/* 幅は vw ではなく親（.modal-layer）に対する % で取る。vw は縦スクロールバーの幅を含むうえ
+   .modal-layer の padding を無視するので、置き場所より広くなって右端（保存ボタン）が画面外へ出る。 */
+.bulk-position-modal { width: min(1480px, 100%); overflow: hidden; }
 .bulk-position-modal > header { min-height: 78px; }
 .bulk-position-modal > header p:last-child { margin: 4px 0 0; color: var(--slate-500); font-size: 12px; }
 .bulk-modal-body { max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); padding: 14px 10px 0; overflow: auto; }
@@ -975,10 +984,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table th:nth-child(4), .position-table tbody td:nth-child(4) { width: 0; max-width: 0; padding-inline: 0; overflow: hidden; white-space: nowrap; visibility: hidden; }
   .position-table th:nth-child(6) { width: 116px; }
   .position-table th:nth-child(7) { width: 100px; }
-  .position-table th:nth-child(8) { width: 78px; }
-  .row-delete-button { padding-inline: 6px; }
+  .position-table th:nth-child(8) { width: 58px; }
   /* 並び順の列が38pxに縮むので、44pxのハンドルのままだと右へはみ出して見出しと中心がずれる。 */
-  .position-table .drag-handle { width: 36px; }
+  .position-table .drag-handle, .position-table .drag-handle-placeholder { width: 36px; }
 }
 /* 和暦を併記した基準日はここから下だと顧客名を大きく削るので（実測で113px増）、
    見た目だけ隠して年度メニューの見出しに出す。読み上げと title には残す。 */
@@ -1098,7 +1106,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table .position-empty-row td::before { content: none; }
   .position-table .category-tag { text-align: right; }
   .position-table .table-actions { width: 100%; }
-  .row-delete-button { min-height: 44px; margin-left: auto; padding-inline: 14px; }
   /* カード表示では列が無いので、合計の見出しの下に金額を項目名つきで縦に並べる。 */
   .position-table tfoot tr { padding: 12px; background: #f7f9fa; display: grid; gap: 6px; }
   .position-table tfoot th, .position-table tfoot td { padding: 0; border: 0; }
@@ -1126,7 +1133,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-modal-summary strong { font-size: 15px; }
   .classification-row { align-items: stretch; flex-direction: column; gap: 5px; }
   .client-create-form footer { padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
-  .bulk-position-modal { width: 100%; }
   .bulk-modal-body { max-height: calc(94vh - 78px); max-height: calc(94dvh - 78px); padding-inline: 12px; }
   .bulk-help { width: 100%; }
   .bulk-modal-body > footer { margin-inline: -12px; padding-inline: 12px; }
@@ -1389,7 +1395,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .detail-status-screen, .detail-updated-at { display: none !important; }
   .detail-status-print { display: inline; }
   .detail-status.current::after { display: none !important; }
-  .detail-page-actions, .position-table-actions, .position-table-tools, .list-pager, .position-empty-state .button, .tax-section-toolbar, .tax-calc-recalc, .secondary-sim { display: none !important; }
+  .detail-page-actions, .position-table-actions, .position-table-tools, .list-pager, .list-empty-state .button, .tax-section-toolbar, .tax-calc-recalc, .secondary-sim { display: none !important; }
   /* 「14件・登録順・ドラッグで並び替え」は画面操作の案内なので印刷では出さない */
   .position-section .panel-header p { display: none !important; }
   .tax-calculation-document { margin-top: 0; }
@@ -1514,6 +1520,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table tbody td:last-child,
   .position-table tfoot td:last-child { position: static; box-shadow: none; }
   .position-table tbody td:nth-child(5), .valuation-breakdown { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  .position-table tbody td:nth-child(5) > span { display: block; -webkit-line-clamp: unset; line-clamp: unset; overflow: visible; }
   .position-table tbody td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .position-table tbody td:nth-child(2), .position-table tbody td:nth-child(3) { overflow: hidden; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
   .position-table td strong { font-size: 11px; }

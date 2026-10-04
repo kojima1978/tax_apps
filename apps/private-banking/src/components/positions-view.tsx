@@ -1,7 +1,8 @@
 "use client";
 
-import { GripVertical, Plus, Table2, Trash2 } from "lucide-react";
+import { GripVertical, Pencil, Plus, Table2, Trash2 } from "lucide-react";
 import { DragEvent, KeyboardEvent, useMemo, useState } from "react";
+import { ActionMenu } from "@/components/action-menu";
 import { PanelHeader } from "@/components/panel-header";
 import { triangleYen, yen } from "@/lib/format";
 import {
@@ -74,6 +75,21 @@ const reorderGroup = (position: Position) => `${position.category}:${propertyTyp
 /** 中分類の絞り込みの値。不動産の土地・建物は「不動産:LAND」のように中分類の後ろへ区分を付ける。 */
 const PROPERTY_FILTER_SEPARATOR = ":";
 
+/**
+ * 表示順の選択肢。中分類の2つは、中分類が1種類しかない表では並べ替えても何も変わらないので出さない。
+ * 評価額順はどの表でも意味があるため、中分類が1種類でも選べる。
+ */
+const POSITION_SORT_MODES = [
+  { value: "manual", label: "登録順", needsClassifications: false },
+  { value: "classification-asc", label: "中分類順", needsClassifications: true },
+  { value: "classification-desc", label: "中分類の逆順", needsClassifications: true },
+  { value: "value-desc", label: "評価額の大きい順", needsClassifications: false },
+  { value: "value-asc", label: "評価額の小さい順", needsClassifications: false },
+] as const satisfies ReadonlyArray<{ value: PositionSortMode; label: string; needsClassifications: boolean }>;
+
+/** 評価額で並べているか。この間は手動の並び替えができない（入れ替えても表示は金額順のまま変わらない）。 */
+const isValueSort = (mode: PositionSortMode) => mode === "value-desc" || mode === "value-asc";
+
 const classificationTone: Record<string, string> = {
   金融資産: "financial",
   不動産: "real-estate",
@@ -135,7 +151,7 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [classificationFilter, setClassificationFilter] = useState("ALL");
-  // 既定は中分類順。ただし中分類が1種類しかない表は表示順セレクト自体が出ないため、
+  // 既定は中分類順。ただし中分類が1種類しかない表は中分類順の選択肢自体を出さないため、
   // 既定を中分類順にするとドラッグ並び替えに戻す手段が無くなる。その場合だけ登録順で開く。
   const [sortMode, setSortMode] = useState<PositionSortMode>(() => new Set(items.map(middleClassification)).size > 1 ? "classification-asc" : "manual");
 
@@ -158,6 +174,11 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
       : orderedItems.filter((position) => middleClassification(position) === filterClassification && (!filterPropertyType || propertyTypeOf(position) === filterPropertyType));
     if (sortMode === "manual") return filtered;
     const manualIndex = new Map(orderedItems.map((position, index) => [position.id, index]));
+    // 金額が同じ明細は登録順のまま残す（並びがぶれるとページ送りや合計との対応が追えなくなる）。
+    if (isValueSort(sortMode)) {
+      const valueDirection = sortMode === "value-desc" ? -1 : 1;
+      return [...filtered].sort((a, b) => (a.valueJpy - b.valueJpy) * valueDirection || (manualIndex.get(a.id) ?? 0) - (manualIndex.get(b.id) ?? 0));
+    }
     const direction = sortMode === "classification-asc" ? 1 : -1;
     return [...filtered].sort((a, b) => {
       const rankA = middleClassificationRank.get(middleClassification(a)) ?? Number.MAX_SAFE_INTEGER;
@@ -173,10 +194,12 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
   // またがなければ中分類順の並びは崩れないので、絞り込み中・中分類順で表示中でもドラッグを許可できる。
   // 入れ替え先が他に無い明細は、ハンドル自体を無効にする。
   const reorderableIds = useMemo(() => {
+    // 金額順で並べている間に入れ替えても表示は変わらないので、ハンドル自体を出さない。
+    if (isValueSort(sortMode)) return new Set<number>();
     const counts = new Map<string, number>();
     for (const position of visibleItems) counts.set(reorderGroup(position), (counts.get(reorderGroup(position)) ?? 0) + 1);
     return new Set(visibleItems.filter((position) => (counts.get(reorderGroup(position)) ?? 0) > 1).map((position) => position.id));
-  }, [visibleItems]);
+  }, [sortMode, visibleItems]);
   const canDrop = (sourceId: number, targetId: number) => {
     if (saving || sourceId === targetId || !reorderableIds.has(sourceId) || !reorderableIds.has(targetId)) return false;
     const source = visibleItems.find((position) => position.id === sourceId);
@@ -184,6 +207,9 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
     return source !== undefined && target !== undefined && reorderGroup(source) === reorderGroup(target);
   };
   const hasClassificationControls = classifications.length > 1;
+  const sortOptions = POSITION_SORT_MODES.filter((mode) => hasClassificationControls || !mode.needsClassifications);
+  // 1件しか無い表は、絞り込んでも並べ替えても結果が同じなので操作を出さない。
+  const hasSortControls = items.length > 1;
   const visibleTotal = visibleItems.reduce((sum, position) => sum + position.valueJpy, 0);
   // 相続税負担額の合計は、表示中の各行の（丸め後の）負担額を足したもの。行の表示と合計が食い違わないようにする。
   // 按分の対象外（偶発債務・相続税が未設定）で1件も値が無いときは、0円ではなく「—」を出す。
@@ -239,8 +265,8 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
   }
 
   const filterActive = classificationFilter !== "ALL";
-  const sortLabel = sortMode === "manual" ? "登録順" : sortMode === "classification-asc" ? "中分類順" : "中分類の逆順";
-  const reorderHint = `${sortLabel}・同じ科目内でドラッグして並び替え`;
+  const sortLabel = POSITION_SORT_MODES.find((mode) => mode.value === sortMode)?.label ?? "登録順";
+  const reorderHint = isValueSort(sortMode) ? sortLabel : `${sortLabel}・同じ科目内でドラッグして並び替え`;
   const dragDisabledMessage = "同じ科目（不動産は土地・建物も同じ）の明細が他に無いため並び替えできません";
 
   return (
@@ -250,21 +276,19 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
         subtitle={`${visibleItems.length === items.length ? `${items.length}件` : `${visibleItems.length}/${items.length}件表示`}・${reorderHint}`}
         action={(
           <div className="position-table-actions">
-          {hasClassificationControls ? (
+          {hasSortControls ? (
           <div className="position-table-tools" aria-label={`${title}の表示設定`}>
-            <label>
+            {hasClassificationControls ? <label>
               <span>中分類</span>
               <select aria-label={`${title}の中分類を絞り込み`} value={classificationFilter} onChange={(event) => setClassificationFilter(event.target.value)}>
                 <option value="ALL">すべて</option>
                 {filterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
-            </label>
+            </label> : null}
             <label>
               <span>表示順</span>
-              <select aria-label={`${title}の中分類の並び順`} value={sortMode} onChange={(event) => setSortMode(event.target.value as PositionSortMode)}>
-                <option value="manual">登録順</option>
-                <option value="classification-asc">中分類順</option>
-                <option value="classification-desc">中分類の逆順</option>
+              <select aria-label={`${title}の表示順`} value={sortMode} onChange={(event) => setSortMode(event.target.value as PositionSortMode)}>
+                {sortOptions.map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}
               </select>
             </label>
           </div>
@@ -280,7 +304,7 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
           <thead><tr><th className="reorder-column"><span className="sr-only">並び順</span></th><th>中分類</th><th>科目・名称</th><th>所在地・金融機関等</th><th>評価方法</th><th className="number">円換算時価</th><th className="number">相続税負担額</th><th className="actions-column">操作</th></tr></thead>
           <tbody>
             {visibleItems.length === 0 ? <tr className="position-empty-row"><td colSpan={8}>{/* 未登録と「絞り込みの結果0件」は別物。未登録のときだけ最初の1件への入口を出す。 */items.length === 0
-              ? <div className="position-empty-state"><p>まだ{sectionAddLabels[section]}の明細がありません。</p><button type="button" className="button primary" onClick={() => onAdd(section)}><Plus />{sectionAddLabels[section]}を追加</button></div>
+              ? <div className="list-empty-state"><p>まだ{sectionAddLabels[section]}の明細がありません。</p><button type="button" className="button primary" onClick={() => onAdd(section)}><Plus />{sectionAddLabels[section]}を追加</button></div>
               : "該当する明細はありません。"}</td></tr> : visibleItems.map((p, index) => {
               const classification = middleClassification(p);
               const tone = classificationTone[classification] ?? "neutral";
@@ -296,7 +320,9 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
                 if ((event.target as HTMLElement).closest("button, a, input, select, label")) return;
                 onEdit(p);
               }}>
-                <td data-label="並び順" className="reorder-cell"><button type="button" className={`drag-handle ${saving ? "is-saving" : ""}`} draggable={!saving && canReorder} disabled={saving || !canReorder} aria-label={canReorder ? `${p.name}を並び替え。同じ科目（不動産は土地・建物も同じ）の明細とのみ入れ替えできます。上下矢印キーでも移動できます` : dragDisabledMessage} title={canReorder ? "同じ科目内でドラッグして並び替え（不動産は土地・建物別）" : dragDisabledMessage} onDragStart={(event) => startDrag(event, p.id)} onDragEnd={() => { setDraggedId(null); setDropTargetId(null); }} onKeyDown={(event) => moveWithKeyboard(event, p.id)}><GripVertical /></button></td>
+                <td data-label="並び順" className="reorder-cell" title={canReorder ? undefined : dragDisabledMessage}>{canReorder
+                  ? <button type="button" className={`drag-handle ${saving ? "is-saving" : ""}`} draggable={!saving} disabled={saving} aria-label={`${p.name}を並び替え。同じ科目（不動産は土地・建物も同じ）の明細とのみ入れ替えできます。上下矢印キーでも移動できます`} title="同じ科目内でドラッグして並び替え（不動産は土地・建物別）" onDragStart={(event) => startDrag(event, p.id)} onDragEnd={() => { setDraggedId(null); setDropTargetId(null); }} onKeyDown={(event) => moveWithKeyboard(event, p.id)}><GripVertical /></button>
+                  : <span className="drag-handle-placeholder" aria-hidden="true" />}</td>
                 <td data-label="中分類"><span className="classification-label middle">{classification}</span></td>
                 <td data-label="科目・名称">{section !== "CONTINGENT" ? <span className="category-tag">{positionCategoryLabel(p)}</span> : null}<button type="button" className="position-name-button" onClick={() => onEdit(p)} aria-label={`${p.name}を修正`}>{p.name}</button>{/* 所在地・金融機関等を持たない科目（生命保険の証券番号未入力など）では、その区切りごと省いて評価方法だけ出す。 */}
                   <small className="position-meta">{[institutionOrPropertyAddress(p), p.valuationMethod].filter(Boolean).join(" ／ ")}</small></td>
@@ -304,7 +330,15 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
                 <td data-label="評価方法" title={valuationBreakdown(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationBreakdown(p) ? <small className="valuation-breakdown">{valuationBreakdown(p)}</small> : null}</td>
                 <td data-label="円換算時価" className={`number ${splitBurden ? "deemed-cell" : ""}`}><DeemedAmounts position={p} />{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}</td>
                 <td data-label="相続税負担額" className={`number ${splitBurden ? "deemed-cell" : ""}`}>{splitBurden ? <DeemedTaxBurden position={p} value={burden} /> : <TaxBurdenAmount value={burden} />}</td>
-                <td data-label="操作"><div className="table-actions"><button type="button" className="row-delete-button" aria-label={`${p.name}を削除`} onClick={() => onDelete(p)} disabled={saving}><Trash2 />削除</button></div></td>
+                <td data-label="操作"><div className="table-actions"><ActionMenu
+                  id={`position-menu-${p.id}`}
+                  label={`${p.name}の操作`}
+                  busy={saving}
+                  items={[
+                    { key: "edit", label: "明細を修正", icon: Pencil, onSelect: () => onEdit(p) },
+                    { key: "delete", label: "明細を削除", icon: Trash2, danger: true, onSelect: () => onDelete(p) },
+                  ]}
+                /></div></td>
               </tr>
             )})}
           </tbody>

@@ -2,7 +2,7 @@ import { AlertTriangle, Calculator, LoaderCircle, RefreshCw, ShieldCheck } from 
 import { PersonName } from "@/components/person-name";
 import { legalHeirRoster } from "@/lib/family";
 import { compactYen, dateJa } from "@/lib/format";
-import type { InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
+import { taxCalcLabel, type InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 import { fiscalYearLabel, totals, type Portfolio, type Snapshot } from "@/lib/portfolio-view";
 
 type HeirCalculation = InheritanceTaxCalculation["heirs"][number];
@@ -153,7 +153,7 @@ export function InheritanceTaxReport({
       </dl>
     </header>
 
-    {isStale ? <p className="tax-calc-stale" role="alert"><AlertTriangle /><span>計算後にB/Sまたは家族情報が変更されています。最新条件で再計算してください。</span>{onRecalculate ? <button type="button" className="tax-calc-recalc" onClick={onRecalculate} disabled={recalculating}>{recalculating ? <LoaderCircle className="spin" /> : <RefreshCw />}{recalculating ? "再計算中" : "再計算"}</button> : null}</p> : null}
+    {isStale ? <p className="tax-calc-stale" role="alert"><AlertTriangle /><span>計算後にB/Sまたは家族情報が変更されています。最新条件で再計算してください。</span>{onRecalculate ? <button type="button" className="tax-calc-recalc" onClick={onRecalculate} disabled={recalculating}>{recalculating ? <LoaderCircle className="spin" /> : <RefreshCw />}{taxCalcLabel(recalculating ? "loading" : "idle", true)}</button> : null}</p> : null}
 
     <div className="tax-calc-columns">
       <article className="tax-calc-statement">

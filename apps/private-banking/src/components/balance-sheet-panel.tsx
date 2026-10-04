@@ -5,6 +5,7 @@ import { ReactNode, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
 import { type BalanceView, type BsAccount, type BsCallout } from "@/lib/balance-view";
 import { compactYen, percent } from "@/lib/format";
+import { taxCalcLabel, type TaxCalcStatus } from "@/lib/inheritance-tax-calculation";
 
 const areaHeight = (value: number, total: number) => `${Math.abs(value) / Math.max(total, 1) * 100}%`;
 const accountDensity = (value: number, total: number) => {
@@ -110,7 +111,7 @@ export function BalanceSheetPanel({ view, headingSuffix, subtitle, liabilities, 
 export function BalanceScenarioActions({ taxIncluded, isCurrent, taxApiStatus, onSelectScenario, onCalculateTax, onOpenForecast }: {
   taxIncluded: boolean;
   isCurrent: boolean;
-  taxApiStatus: "idle" | "loading" | "success";
+  taxApiStatus: TaxCalcStatus;
   onSelectScenario: (scenario: "without-tax" | "with-tax") => void;
   onCalculateTax: () => void;
   onOpenForecast: () => void;
@@ -122,7 +123,7 @@ export function BalanceScenarioActions({ taxIncluded, isCurrent, taxApiStatus, o
     </div>
     {/* 税金の操作は税金なしのB/Sには効かないので、税金ありを選んだときだけ出す。 */}
     {isCurrent && taxIncluded ? <>
-      <button className="text-button compact tax-api-button" type="button" onClick={onCalculateTax} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : "APIで相続税を計算"}</button>
+      <button className="text-button compact tax-api-button" type="button" onClick={onCalculateTax} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxCalcLabel(taxApiStatus, false)}</button>
       <button className="text-button compact" type="button" onClick={onOpenForecast}>税金を入力</button>
     </> : null}
   </div>;

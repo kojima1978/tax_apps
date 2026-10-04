@@ -156,23 +156,23 @@ describe("BalanceScenarioActions", () => {
 
   it("税金なしを選んでいるときは税金の操作ボタンを出さない", () => {
     renderActions({ taxIncluded: false });
-    expect(screen.queryByText("APIで相続税を計算")).toBeNull();
+    expect(screen.queryByText("相続税を計算")).toBeNull();
     expect(screen.queryByText("税金を入力")).toBeNull();
   });
 
   it("税金ありの現在年度では税金の操作ボタンを出す", () => {
     renderActions({ taxIncluded: true });
-    expect(screen.getByText("APIで相続税を計算")).toBeTruthy();
+    expect(screen.getByText("相続税を計算")).toBeTruthy();
     expect(screen.getByText("税金を入力")).toBeTruthy();
   });
 
   it("過去年度では税金の操作ボタンを出さない", () => {
     renderActions({ taxIncluded: true, isCurrent: false });
-    expect(screen.queryByText("APIで相続税を計算")).toBeNull();
+    expect(screen.queryByText("相続税を計算")).toBeNull();
     expect(screen.queryByText("税金を入力")).toBeNull();
   });
 
-  it("計算中はAPIボタンを押せなくする", () => {
+  it("計算中は計算ボタンを押せなくする", () => {
     renderActions({ taxIncluded: true, taxApiStatus: "loading" });
     expect((screen.getByText("計算中").closest("button") as HTMLButtonElement).disabled).toBe(true);
   });

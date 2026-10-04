@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         ...integration.request,
         spouseAcquisition: { mode: "custom", value: percent, unit: "percent" },
       });
-      if (!primary) return NextResponse.json({ error: "相続税計算APIで計算できませんでした。" }, { status: 502 });
+      if (!primary) return NextResponse.json({ error: "相続税を計算できませんでした。" }, { status: 502 });
       const spouseAcquiredJpy = primary.heirs.find((heir) => heir.type === "spouse")?.acquisitionAmountJpy ?? 0;
 
       // 二次相続：配偶者の固有財産 ＋ 一次で取得した財産を、子のみで相続すると仮定。
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
         familyComposition: { hasSpouse: false, selectedRank: "rank1", heirCount: familyComposition.heirCount },
         spouseAcquisition: { mode: "legal" },
       });
-      if (!secondary) return NextResponse.json({ error: "相続税計算APIで計算できませんでした。" }, { status: 502 });
+      if (!secondary) return NextResponse.json({ error: "相続税を計算できませんでした。" }, { status: 502 });
 
       scenarios.push({
         spouseSharePercent: percent,
@@ -98,6 +98,6 @@ export async function POST(request: Request) {
       scenarios,
     });
   } catch {
-    return NextResponse.json({ error: "相続税計算APIへ接続できませんでした。" }, { status: 502 });
+    return NextResponse.json({ error: "相続税の計算サービスへ接続できませんでした。" }, { status: 502 });
   }
 }

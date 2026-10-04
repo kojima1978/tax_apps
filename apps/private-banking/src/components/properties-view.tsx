@@ -14,12 +14,16 @@ import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import { categoryLabels, propertyTypeLabels, realEstateCategories } from "@/lib/portfolio-view";
 import {
   PROPERTY_FILTER_ALL,
+  PROPERTY_SORT_DEFAULT,
+  PROPERTY_SORT_MODES,
   type PropertyFilters,
   type PropertyRow,
+  type PropertySortMode,
   filterProperties,
   propertiesCsv,
   propertiesCsvFileName,
   propertyPositionHref,
+  sortProperties,
 } from "@/lib/properties";
 
 /** 絞り込みの選択欄。科目・区分を同じ形で並べる。 */
@@ -52,6 +56,7 @@ export function PropertiesView() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<PropertyFilters>({ category: PROPERTY_FILTER_ALL, propertyType: PROPERTY_FILTER_ALL });
+  const [sortMode, setSortMode] = useState<PropertySortMode>(PROPERTY_SORT_DEFAULT);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
   const [page, setPage] = useState(1);
   const router = useRouter();
@@ -70,7 +75,9 @@ export function PropertiesView() {
   }, []);
 
   const terms = useMemo(() => searchTerms(query), [query]);
-  const filtered = useMemo(() => filterProperties(rows ?? [], terms, filters), [rows, terms, filters]);
+  const matched = useMemo(() => filterProperties(rows ?? [], terms, filters), [rows, terms, filters]);
+  // 並び替えは絞り込みの後ろに1段だけ入れ、下流（合計・CSV・ページ送り）へは filtered だけを渡す。
+  const filtered = useMemo(() => sortProperties(matched, sortMode), [matched, sortMode]);
   const total = useMemo(() => filtered.reduce((sum, row) => sum + row.valueJpy, 0), [filtered]);
   const clientCount = useMemo(() => new Set(filtered.map((row) => row.householdId)).size, [filtered]);
   const narrowed = terms.length > 0 || filters.category !== PROPERTY_FILTER_ALL || filters.propertyType !== PROPERTY_FILTER_ALL;
@@ -109,7 +116,7 @@ export function PropertiesView() {
       <PanelHeader
         title="登録している不動産"
         subtitle="各顧客の現在年度のB/Sにある不動産です"
-        action={<div className="position-table-tools" aria-label="不動産一覧の絞り込み">
+        action={<div className="position-table-tools" aria-label="不動産一覧の絞り込みと並び順">
           {filterFields.map((field) => <label key={field.key}>
             <span>{field.label}</span>
             <select
@@ -120,6 +127,12 @@ export function PropertiesView() {
               {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>)}
+          <label>
+            <span>表示順</span>
+            <select value={sortMode} onChange={(event) => { setSortMode(event.target.value as PropertySortMode); setPage(1); }}>
+              {PROPERTY_SORT_MODES.map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}
+            </select>
+          </label>
           <PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>}
       />

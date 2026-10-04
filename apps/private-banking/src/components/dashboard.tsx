@@ -31,6 +31,7 @@ import { YearSwitcher } from "@/components/year-switcher";
 import { API_BASE } from "@/lib/api";
 import { buildBalanceView, loanBreakdownTotals, successionAssetTotals } from "@/lib/balance-view";
 import { legalHeirNames, type FamilyMemberDraft } from "@/lib/family";
+import { taxCalcLabel, type TaxCalcStatus } from "@/lib/inheritance-tax-calculation";
 import { dateJa, unformatNumberInput } from "@/lib/format";
 import {
   type BalanceScenario,
@@ -86,7 +87,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const [printSections, setPrintSections] = useState<Set<PrintSection> | null>(null);
   const [clientDeleteOpen, setClientDeleteOpen] = useState(false);
   const [clientSaved, setClientSaved] = useState(false);
-  const [taxApiStatus, setTaxApiStatus] = useState<"idle" | "loading" | "success">("idle");
+  const [taxApiStatus, setTaxApiStatus] = useState<TaxCalcStatus>("idle");
   const { toast, showToast, dismissToast } = useToast();
   // 明細の削除は確認ダイアログを出さず、「元に戻す」を押せる猶予を置いてから確定する。
   const positionDelete = useUndoableDelete<Position>({
@@ -382,7 +383,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             className={`report-document tax-calculation-document ${section !== "tax" ? "print-only-document" : ""} ${printSections && !printSections.has("tax-calculation") ? "print-excluded-document" : ""}`}
           >
             {section === "tax" && reportSnapshot.isCurrent ? <div className="tax-section-toolbar">
-              <button className="button secondary tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxApiStatus === "success" ? "連携しました" : taxApiStatus === "loading" ? "計算中" : reportSnapshot.inheritanceTaxCalculation ? "APIで再計算" : "APIで相続税を計算"}</button>
+              <button className="button secondary tax-api-button" type="button" onClick={() => void calculateInheritanceTaxViaApi()} disabled={taxApiStatus === "loading"} aria-live="polite">{taxApiStatus === "loading" ? <LoaderCircle className="spin" /> : <Calculator />}{taxCalcLabel(taxApiStatus, Boolean(reportSnapshot.inheritanceTaxCalculation))}</button>
             </div> : null}
             {reportSnapshot.inheritanceTaxCalculation
               ? <>

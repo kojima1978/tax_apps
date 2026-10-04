@@ -1,5 +1,5 @@
 import { fileTimestamp } from "@/lib/format";
-import { matchesSearchTerms } from "@/lib/clients";
+import { matchesSearchTerms, normalizeSearchText } from "@/lib/clients";
 import {
   type Position,
   type PropertyType,
@@ -123,6 +123,39 @@ export function filterProperties(rows: PropertyRow[], terms: string[], filters: 
     (filters.category === PROPERTY_FILTER_ALL || row.category === filters.category)
     && (filters.propertyType === PROPERTY_FILTER_ALL || row.propertyType === filters.propertyType)
     && matchesProperty(row, terms));
+}
+
+/** 不動産一覧の並び替え。選択肢と並べ方をここだけに置く（表示側は value を渡すだけ）。 */
+export const PROPERTY_SORT_MODES = [
+  { value: "client", label: "顧客順（カナ）" },
+  { value: "value-desc", label: "評価額の大きい順" },
+  { value: "value-asc", label: "評価額の小さい順" },
+] as const;
+
+export type PropertySortMode = typeof PROPERTY_SORT_MODES[number]["value"];
+
+/**
+ * 既定は顧客順。APIの `orderBy` は顧客名の昇順＝漢字のコードポイント順で、
+ * 顧客一覧と同じく人間には無意味な並びなので、画面側でカナ順へ並べ直す。
+ */
+export const PROPERTY_SORT_DEFAULT: PropertySortMode = "client";
+
+/** 比較器は1つだけ作る（行数×比較回数で呼ばれるため、比較のたびに new しない）。 */
+const collator = new Intl.Collator("ja", { numeric: true });
+
+/** カナは任意入力なので、空のときは漢字名で代替する（顧客一覧の kanaSortKey と同じ規則）。 */
+const ownerSortKey = (row: PropertyRow) => normalizeSearchText(row.clientNameKana || row.clientName);
+
+/**
+ * 同じ顧客・同じ金額の行は 0 を返して元の順（APIの `sortOrder`＝明細画面の並び）のまま残す。
+ * 配列の並び替えは安定なので、これで並びがぶれることはない。
+ */
+export function sortProperties(rows: PropertyRow[], mode: PropertySortMode) {
+  const sorted = [...rows];
+  if (mode === "value-desc") sorted.sort((left, right) => right.valueJpy - left.valueJpy);
+  else if (mode === "value-asc") sorted.sort((left, right) => left.valueJpy - right.valueJpy);
+  else sorted.sort((left, right) => collator.compare(ownerSortKey(left), ownerSortKey(right)));
+  return sorted;
 }
 
 /** CSVの列。見出しと値をここだけで決め、列を足すときに片方を直し忘れないようにする。 */

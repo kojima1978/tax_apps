@@ -74,12 +74,57 @@ describe("AssetsView（行の操作）", () => {
     expect(onEdit).not.toHaveBeenCalled();
   });
 
-  it("削除ボタンは文字付きで、押しても修正は開かない", () => {
+  it("削除は行の「…」メニューの中にあり、押しても修正は開かない", () => {
     const { onEdit, onDelete } = renderRow();
-    const deleteButton = screen.getByRole("button", { name: "普通預金を削除" });
-    expect(deleteButton.textContent).toBe("削除");
-    fireEvent.click(deleteButton);
+    // 顧客一覧と同じく、常時出ているのは「…」だけ。開くまで削除は見えない。
+    expect(screen.queryByRole("menuitem", { name: "明細を削除" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "普通預金の操作" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "明細を削除" }));
     expect(onDelete).toHaveBeenCalledWith(snapshot.positions[0]);
     expect(onEdit).not.toHaveBeenCalled();
+  });
+
+  it("「…」メニューからも修正を開ける", () => {
+    const { onEdit } = renderRow();
+    fireEvent.click(screen.getByRole("button", { name: "普通預金の操作" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "明細を修正" }));
+    expect(onEdit).toHaveBeenCalledWith(snapshot.positions[0]);
+  });
+
+  it("入れ替え先が無い明細には並び替えハンドルを出さない", () => {
+    const { row } = renderRow();
+    // 同じ科目の明細が1件しか無い＝動かしようがない。無効なハンドルを並べず場所だけ空ける。
+    expect(row.querySelector(".drag-handle")).toBeNull();
+    expect(row.querySelector(".drag-handle-placeholder")).toBeTruthy();
+  });
+});
+
+describe("AssetsView（表示順）", () => {
+  const snapshot = {
+    id: 1, fiscalYear: 2027, isCurrent: true, updatedAt: "2027-01-01T00:00:00Z", estimatedInheritanceTax: 0, inheritanceTaxCalculation: null,
+    positions: [position(1, "DEPOSIT", "普通預金", 30_000_000), position(2, "DEPOSIT", "定期預金", 80_000_000), position(3, "DEPOSIT", "外貨預金", 50_000_000)],
+  } as unknown as Snapshot;
+  const renderList = () => {
+    render(<AssetsView snapshot={snapshot} legalHeirNames={new Set()} onAdd={() => {}} onBulkManage={() => {}} onEdit={() => {}} onDelete={() => {}} onReorder={async () => true} saving={false} />);
+    return () => [...document.querySelectorAll(".position-name-button")].map((element) => element.textContent);
+  };
+
+  it("中分類が1種類でも評価額順は選べる（中分類の並べ替えは出さない）", () => {
+    const names = renderList();
+    const select = screen.getByLabelText("資産の部の表示順") as HTMLSelectElement;
+    expect([...select.options].map((option) => option.value)).toEqual(["manual", "value-desc", "value-asc"]);
+    expect(names()).toEqual(["普通預金", "定期預金", "外貨預金"]);
+    fireEvent.change(select, { target: { value: "value-desc" } });
+    expect(names()).toEqual(["定期預金", "外貨預金", "普通預金"]);
+    fireEvent.change(select, { target: { value: "value-asc" } });
+    expect(names()).toEqual(["普通預金", "外貨預金", "定期預金"]);
+  });
+
+  it("評価額順で並べている間はハンドルを出さない（入れ替えても表示が変わらないため）", () => {
+    renderList();
+    expect(document.querySelectorAll(".drag-handle")).toHaveLength(3);
+    fireEvent.change(screen.getByLabelText("資産の部の表示順"), { target: { value: "value-desc" } });
+    expect(document.querySelectorAll(".drag-handle")).toHaveLength(0);
+    expect(document.querySelectorAll(".drag-handle-placeholder")).toHaveLength(3);
   });
 });
