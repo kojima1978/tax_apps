@@ -41,31 +41,59 @@ describe('CSVの行分割', () => {
 });
 
 describe('日付の正規化', () => {
+  /** 読めた日付（読めなければ理由つきで落とす） */
+  const iso = (value: string): string => {
+    const result = normalizeDate(value);
+    expect(result.reason).toBeNull();
+    return result.value;
+  };
+
   it('すでに YYYY-MM-DD ならそのまま', () => {
-    expect(normalizeDate('2026-07-04')).toBe('2026-07-04');
+    expect(iso('2026-07-04')).toBe('2026-07-04');
   });
 
   it('Excel が書く YYYY/M/D と YYYY.M.D を0詰めする', () => {
-    expect(normalizeDate('2026/7/4')).toBe('2026-07-04');
-    expect(normalizeDate('2026/07/04')).toBe('2026-07-04');
-    expect(normalizeDate('2026.7.4')).toBe('2026-07-04');
+    expect(iso('2026/7/4')).toBe('2026-07-04');
+    expect(iso('2026/07/04')).toBe('2026-07-04');
+    expect(iso('2026.7.4')).toBe('2026-07-04');
   });
 
   it('和暦は元号1文字・略記・正式名のどれでも読む', () => {
-    expect(normalizeDate('R4.1.21')).toBe('2022-01-21');
-    expect(normalizeDate('令4.1.21')).toBe('2022-01-21');
-    expect(normalizeDate('令和4.1.21')).toBe('2022-01-21');
-    expect(normalizeDate('H31.4.30')).toBe('2019-04-30');
-    expect(normalizeDate('S64.1.7')).toBe('1989-01-07');
-    expect(normalizeDate('T15.12.24')).toBe('1926-12-24');
-    expect(normalizeDate('M45.7.29')).toBe('1912-07-29');
+    expect(iso('R4.1.21')).toBe('2022-01-21');
+    expect(iso('令4.1.21')).toBe('2022-01-21');
+    expect(iso('令和4.1.21')).toBe('2022-01-21');
+    expect(iso('H31.4.30')).toBe('2019-04-30');
+    expect(iso('S64.1.7')).toBe('1989-01-07');
+    expect(iso('T15.12.24')).toBe('1926-12-24');
+    expect(iso('M45.7.29')).toBe('1912-07-29');
   });
 
   it('読めない形はそのまま返す（握り潰して空にしない）', () => {
     // 後段の zod 検証でエラー行として見えるようにするため。
-    expect(normalizeDate('令和四年一月')).toBe('令和四年一月');
-    expect(normalizeDate('')).toBe('');
-    expect(normalizeDate('不明')).toBe('不明');
+    expect(normalizeDate('令和四年一月')).toEqual({ value: '令和四年一月', reason: null });
+    expect(normalizeDate('')).toEqual({ value: '', reason: null });
+    expect(normalizeDate('不明')).toEqual({ value: '不明', reason: null });
+  });
+
+  // 以前は形だけを見ていたので、ここの値はすべて「それらしい YYYY-MM-DD」になって
+  // zod の正規表現も素通りし、黙って別の日付としてDBに入っていた。
+  it('実在しない日付は正規化せず理由を返す', () => {
+    expect(normalizeDate('2026/2/31')).toEqual({ value: '2026/2/31', reason: '2月31日はありません' });
+    expect(normalizeDate('2026-02-31')).toEqual({ value: '2026-02-31', reason: '2月31日はありません' });
+    expect(normalizeDate('R4.2.31')).toEqual({ value: 'R4.2.31', reason: '2月31日はありません' });
+    expect(normalizeDate('2026/13/1').reason).toBe('13月1日はありません');
+    expect(iso('2024/2/29')).toBe('2024-02-29'); // 閏年は通す
+  });
+
+  it('その元号に無い年は正規化せず理由を返す', () => {
+    expect(normalizeDate('H40.1.1')).toEqual({
+      value: 'H40.1.1',
+      reason: '平成は31年4月30日までです',
+    });
+    // 改元日の1日またぎ（平成は31年4月30日まで、令和は元年5月1日から）
+    expect(normalizeDate('H31.5.1').reason).toBe('平成は31年4月30日までです');
+    expect(normalizeDate('R1.4.30').reason).toBe('令和は元年5月1日からです');
+    expect(normalizeDate('S64.1.8').reason).toBe('昭和は64年1月7日までです');
   });
 });
 

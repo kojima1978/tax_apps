@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { convertWareki, eraLastYear, formatWareki, gregorianToWareki, warekiToGregorian } from './japanese-era';
+import {
+  ERA_TEXT_PATTERN,
+  convertWareki,
+  eraCodeFromText,
+  eraLastYear,
+  formatWareki,
+  gregorianToWareki,
+  isRealIsoDate,
+  warekiToGregorian,
+} from './japanese-era';
 
 const wareki = (value: string) => {
   const w = gregorianToWareki(value);
@@ -121,5 +130,42 @@ describe('和暦の表示', () => {
     expect(formatWareki(undefined)).toBe('');
     expect(formatWareki('')).toBe('');
     expect(formatWareki('2026/07/04')).toBe('');
+  });
+});
+
+describe('日付の文字列を確かめる', () => {
+  it('形が合っていても実在しない日付は false', () => {
+    expect(isRealIsoDate('2026-07-04')).toBe(true);
+    expect(isRealIsoDate('2024-02-29')).toBe(true);
+    expect(isRealIsoDate('2026-02-31')).toBe(false);
+    expect(isRealIsoDate('2026-13-01')).toBe(false);
+    expect(isRealIsoDate('2026-00-10')).toBe(false);
+  });
+
+  it('形そのものが違うものも false', () => {
+    expect(isRealIsoDate('2026/07/04')).toBe(false);
+    expect(isRealIsoDate('2026-7-4')).toBe(false);
+    expect(isRealIsoDate('')).toBe(false);
+  });
+});
+
+describe('元号の書き方から元号を引く', () => {
+  it('正式名・1文字・略号・コードのどれでも引ける', () => {
+    for (const text of ['令和', '令', 'R', 'r', 'reiwa']) {
+      expect(eraCodeFromText(text), text).toBe('reiwa');
+    }
+    expect(eraCodeFromText('明治')).toBe('meiji');
+    expect(eraCodeFromText(' 平成 ')).toBe('heisei');
+  });
+
+  it('知らない書き方は undefined', () => {
+    expect(eraCodeFromText('大化')).toBeUndefined();
+    expect(eraCodeFromText('')).toBeUndefined();
+  });
+
+  it('正規表現の断片は長い書き方を先に置く（「令和4」の「和」が余らない）', () => {
+    const matched = new RegExp(String.raw`^(${ERA_TEXT_PATTERN})(\d+)$`).exec('令和4');
+    expect(matched?.[1]).toBe('令和');
+    expect(matched?.[2]).toBe('4');
   });
 });

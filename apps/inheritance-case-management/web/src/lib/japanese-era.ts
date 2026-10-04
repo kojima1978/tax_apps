@@ -2,17 +2,18 @@
 export interface JapaneseEra {
   code: 'reiwa' | 'heisei' | 'showa' | 'taisho' | 'meiji';
   label: string;       // 表示用（令和・平成・昭和・大正・明治）
+  initial: string;     // 1文字の略号（R・H・S・T・M）。CSVや手書きの「R4.1.21」を読むのに使う
   startYear: number;   // 元年の西暦
   startDate: string;   // YYYY-MM-DD（元号開始日）
   endDate?: string;    // YYYY-MM-DD（元号終了日、現行元号は undefined）
 }
 
 export const JAPANESE_ERAS: JapaneseEra[] = [
-  { code: 'reiwa',  label: '令和', startYear: 2019, startDate: '2019-05-01' },
-  { code: 'heisei', label: '平成', startYear: 1989, startDate: '1989-01-08', endDate: '2019-04-30' },
-  { code: 'showa',  label: '昭和', startYear: 1926, startDate: '1926-12-25', endDate: '1989-01-07' },
-  { code: 'taisho', label: '大正', startYear: 1912, startDate: '1912-07-30', endDate: '1926-12-24' },
-  { code: 'meiji',  label: '明治', startYear: 1868, startDate: '1868-10-23', endDate: '1912-07-29' },
+  { code: 'reiwa',  label: '令和', initial: 'R', startYear: 2019, startDate: '2019-05-01' },
+  { code: 'heisei', label: '平成', initial: 'H', startYear: 1989, startDate: '1989-01-08', endDate: '2019-04-30' },
+  { code: 'showa',  label: '昭和', initial: 'S', startYear: 1926, startDate: '1926-12-25', endDate: '1989-01-07' },
+  { code: 'taisho', label: '大正', initial: 'T', startYear: 1912, startDate: '1912-07-30', endDate: '1926-12-24' },
+  { code: 'meiji',  label: '明治', initial: 'M', startYear: 1868, startDate: '1868-10-23', endDate: '1912-07-29' },
 ];
 
 /**
@@ -34,6 +35,37 @@ function toIsoDate(year: number, month: number, day: number): string | null {
   if (dt.getUTCFullYear() !== year || dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) return null;
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
+
+/**
+ * 実在する日付の `YYYY-MM-DD` か。
+ *
+ * 形だけを正規表現で見ると `2026-02-31` が通ってしまう ── 検証もDBも素通りして、
+ * 日付として読んだ瞬間に3月3日へ化ける値が残る。保存する前に必ずここを通す。
+ */
+export function isRealIsoDate(value: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m !== null && toIsoDate(Number(m[1]), Number(m[2]), Number(m[3])) === value;
+}
+
+/**
+ * 「R」「令」「令和」のような元号の書き方から元号コードを引く（CSV取込・手入力用）。
+ * 対応表を別に持つと元号を足したとき片方だけ古いまま残るので、JAPANESE_ERAS から作る。
+ */
+export function eraCodeFromText(text: string): JapaneseEra['code'] | undefined {
+  const key = text.trim();
+  const era = JAPANESE_ERAS.find(
+    e => key === e.code || key === e.label || key === e.label.slice(0, 1) || key.toUpperCase() === e.initial
+  );
+  return era?.code;
+}
+
+/**
+ * 元号の書き方を並べた正規表現の断片（`令和|令|R|平成|…`）。
+ * 長い書き方を先に置く（`令` が先だと `令和4.1.21` の「和」が余る）。
+ */
+export const ERA_TEXT_PATTERN = JAPANESE_ERAS
+  .flatMap(e => [e.label, e.label.slice(0, 1), e.initial])
+  .join('|');
 
 /** 元号の開始日・終了日を「31年4月30日」の形に（元年は「元」） */
 function eraDateLabel(era: JapaneseEra, date: string): string {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MAX_SUMMARY_LENGTH } from './constants';
 import { normalizePostalCodeDigits } from '@/lib/postal-code-format';
+import { isRealIsoDate } from '@/lib/japanese-era';
 
 /** 入力された郵便番号を 7 桁数字に正規化 + バリデート（空 OR 7 桁数字のみ許可） */
 const postalCodeSchema = z
@@ -9,6 +10,15 @@ const postalCodeSchema = z
   .default('')
   .transform(v => normalizePostalCodeDigits(v))
   .refine(v => v === '' || /^\d{7}$/.test(v), '郵便番号は7桁の数字で入力してください');
+
+/**
+ * `YYYY-MM-DD` の日付。形だけでなく**実在する日付か**も見る。
+ *
+ * 正規表現だけだと `2026-02-31` が通る ── 日付として読んだ瞬間に3月3日へ化ける値が
+ * そのままDBに残り、どこにも警告が出ない。CSV取込・APIのどちらから来ても同じ門で止める。
+ */
+const isoDate = (label = '日付形式が正しくありません（YYYY-MM-DD）') =>
+  z.string().refine(v => isRealIsoDate(v), label);
 
 // Status Schema (internal - used by createCaseSchema/listQuerySchema)
 const caseStatusSchema = z.enum(['見積前', '見積中', '見送り', '受託', '手続中', '最終確認', '申告済', '請求済', '入金済']);
@@ -27,7 +37,7 @@ const heirImportSchema = z.object({
   address: z.string().optional(),
   addressFromPostalCode: z.string().optional(),
   addressManual: z.string().optional(),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '生年月日はYYYY-MM-DD形式で入力してください').optional(),
+  dateOfBirth: isoDate('生年月日はYYYY-MM-DD形式の実在する日付で入力してください').optional(),
   relationship: z.string().max(20).optional(),
   memo: z.string().optional(),
 });
@@ -50,7 +60,7 @@ const progressStepSchema = z.object({
 
 // Expense Schema (internal - used by createCaseSchema)
 const expenseSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）'),
+  date: isoDate(),
   description: z.string().min(1, '内容は必須です').max(200, '内容は200文字以内で入力してください'),
   amount: z.number().int().min(0, '金額は0以上を入力してください'),
   memo: z.string().max(500, '備考は500文字以内で入力してください').nullable().optional(),
@@ -65,7 +75,7 @@ const specialAdditionSchema = z.object({
 export const createCaseSchema = z.object({
   deceasedName: z.string().min(1, '被相続人氏名は必須です').max(100, '被相続人氏名は100文字以内で入力してください'),
   deceasedNameKana: z.string().max(100, '被相続人フリガナは100文字以内で入力してください').optional().default(''),
-  dateOfDeath: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）'),
+  dateOfDeath: isoDate(),
   fiscalYear: z.number().int('年度は整数で入力してください').min(2000, '年度は2000年以上を入力してください').max(2100, '年度は2100年以下を入力してください'),
   status: caseStatusSchema.optional().default('見積前'),
   isUndivided: z.boolean().optional().default(false),
@@ -89,10 +99,10 @@ export const createCaseSchema = z.object({
   feeCalcSnapshot: z.record(z.any()).nullable().optional(),
   summary: z.string().max(MAX_SUMMARY_LENGTH, `特記事項は${MAX_SUMMARY_LENGTH}文字以内で入力してください`).nullable().optional(),
   memo: z.string().nullable().optional(),
-  caseAddedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
-  caseCompletedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
-  billedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
-  paidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付形式が正しくありません（YYYY-MM-DD）').nullable().optional(),
+  caseAddedDate: isoDate().nullable().optional(),
+  caseCompletedDate: isoDate().nullable().optional(),
+  billedDate: isoDate().nullable().optional(),
+  paidDate: isoDate().nullable().optional(),
   heirs: z.array(heirSchema).max(10, '相続人は最大10件までです').optional(),
   relatedParties: z.array(relatedPartySchema).max(20, '関係者は最大20件までです').optional(),
   progress: z.array(progressStepSchema).optional(),
@@ -176,7 +186,7 @@ export const createHeirPersonSchema = personBaseSchema.extend({
     .optional()
     .nullable()
     .transform(v => (v && v.trim() !== '' ? v : null))
-    .refine(v => v === null || /^\d{4}-\d{2}-\d{2}$/.test(v), '生年月日はYYYY-MM-DD形式で入力してください'),
+    .refine(v => v === null || isRealIsoDate(v), '生年月日はYYYY-MM-DD形式の実在する日付で入力してください'),
 });
 export const updateHeirPersonSchema = createHeirPersonSchema.partial().extend({
   active: z.boolean().optional(),
@@ -203,7 +213,7 @@ const sortFieldSchema = z.enum([
 ]);
 
 const sortOrderSchema = z.enum(['asc', 'desc']);
-const dateQuerySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
+const dateQuerySchema = isoDate().optional();
 
 // Query Params Schema
 export const listQuerySchema = z.object({

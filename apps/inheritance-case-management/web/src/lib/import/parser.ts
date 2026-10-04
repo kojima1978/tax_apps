@@ -1,3 +1,5 @@
+import { ERA_TEXT_PATTERN, convertWareki, eraCodeFromText, isRealIsoDate } from '@/lib/japanese-era';
+
 // ── CSV text parser ──────────────────────────────────
 
 export function parseCSVText(text: string): string[][] {
@@ -60,31 +62,51 @@ export function parseCSVText(text: string): string[][] {
 
 // ── Helpers ──────────────────────────────────
 
-/** Japanese era → Western year offset (令和=2018, 平成=1988, 昭和=1925, 大正=1911, 明治=1867) */
-const ERA_OFFSETS: Record<string, number> = {
-  'R': 2018, '令': 2018, '令和': 2018,
-  'H': 1988, '平': 1988, '平成': 1988,
-  'S': 1925, '昭': 1925, '昭和': 1925,
-  'T': 1911, '大': 1911, '大正': 1911,
-  'M': 1867, '明': 1867, '明治': 1867,
-};
+/**
+ * 日付の正規化の結果。
+ *
+ * 読めなかった値は生のまま返す（検証がそのまま弾く）。`reason` はそれを**なぜ**弾いたかで、
+ * 取込の警告に出す ── 「平成40年1月1日」を黙って 2028-01-01 に直していた頃は、
+ * 入れた本人にも見直す手がかりが無かった。
+ */
+export interface NormalizedDate {
+  /** 読めたときだけ `YYYY-MM-DD`。読めなければ入力された値のまま。 */
+  value: string;
+  /** 日付として読めなかった理由。読めたとき・そもそも日付の形をしていない値（「不明」）は null。 */
+  reason: string | null;
+}
 
-/** Normalize date string to YYYY-MM-DD (handles Excel's YYYY/M/D and Japanese era R4.1.21) */
-export function normalizeDate(value: string): string {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const westernMatch = value.match(/^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$/);
-  if (westernMatch) {
-    return `${westernMatch[1]}-${westernMatch[2].padStart(2, '0')}-${westernMatch[3].padStart(2, '0')}`;
+/** 西暦の `YYYY/M/D`・`YYYY.M.D`・`YYYY-MM-DD`（Excel が書き出す形） */
+const WESTERN_DATE_RE = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/;
+
+/** 和暦の `R4.1.21`・`令和4/1/21`。元号の書き方は JAPANESE_ERAS から作る */
+const ERA_DATE_RE = new RegExp(String.raw`^(${ERA_TEXT_PATTERN})(\d{1,2})[-/.](\d{1,2})[-/.](\d{1,2})$`);
+
+/**
+ * 日付の文字列を `YYYY-MM-DD` に正規化する（Excel の `YYYY/M/D` と和暦の `R4.1.21` に対応）。
+ *
+ * 実在しない日付と元号の範囲外は正規化せず、理由を付けて生値のまま返す。以前は形だけを見ていたため
+ * `R4.2.31` が `2022-02-31` になり（検証の正規表現も素通りする）、`H40.1.1` は元号を無視して
+ * 2028-01-01 として取り込まれていた。
+ */
+export function normalizeDate(value: string): NormalizedDate {
+  const western = WESTERN_DATE_RE.exec(value);
+  if (western) {
+    const iso = `${western[1]}-${western[2].padStart(2, '0')}-${western[3].padStart(2, '0')}`;
+    return isRealIsoDate(iso)
+      ? { value: iso, reason: null }
+      : { value, reason: `${Number(western[2])}月${Number(western[3])}日はありません` };
   }
-  const eraMatch = value.match(/^(R|H|S|T|M|令和?|平成?|昭和?|大正?|明治?)(\d{1,2})[./](\d{1,2})[./](\d{1,2})$/);
-  if (eraMatch) {
-    const offset = ERA_OFFSETS[eraMatch[1]];
-    if (offset !== undefined) {
-      const year = offset + parseInt(eraMatch[2], 10);
-      return `${year}-${eraMatch[3].padStart(2, '0')}-${eraMatch[4].padStart(2, '0')}`;
-    }
+
+  const era = ERA_DATE_RE.exec(value);
+  const code = era ? eraCodeFromText(era[1]) : undefined;
+  if (era && code) {
+    const result = convertWareki(code, Number(era[2]), Number(era[3]), Number(era[4]));
+    return result.ok ? { value: result.value, reason: null } : { value, reason: result.reason };
   }
-  return value;
+
+  // 日付の形をしていない値（「不明」「令和四年一月」）はそのまま通す ── 取込の検証で弾かれる
+  return { value, reason: null };
 }
 
 export function parseOptionalNumber(value: string, round = false): number | undefined {

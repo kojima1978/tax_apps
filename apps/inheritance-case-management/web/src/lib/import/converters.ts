@@ -7,6 +7,29 @@ import {
 } from './types';
 import { normalizeDate, parseOptionalNumber } from './parser';
 
+// ── 日付欄の警告 ──────────────────────────────────
+
+/**
+ * フィールド名 → CSVの見出し。警告に「どの列か」を出すために引く。
+ * 見出しの表を2つ持つと片方だけ古くなるので CSV_HEADER_MAP から作る
+ * （同じフィールドに複数の見出しがある列は先に書いてあるものを使う）。
+ */
+const FIELD_HEADERS = new Map(
+  Object.entries(CSV_HEADER_MAP)
+    .reverse()
+    .map(([header, field]) => [field, header])
+);
+
+/**
+ * 日付として読めなかった値の警告。どの列・何を入れたか・なぜ読めないかを並べる。
+ *
+ * 読めない値は正規化されずに生のまま進むので検証でも弾かれるが、そちらの文面は
+ * 「日付形式が正しくありません（YYYY-MM-DD）」で、元号の範囲外なのか実在しない日付なのかが分からない。
+ */
+function dateWarning(field: string, raw: string, reason: string): string {
+  return `${FIELD_HEADERS.get(field) ?? field}「${raw}」は日付として読めません（${reason}）`;
+}
+
 // ── Column map builder ──────────────────────────────────
 
 export function buildColumnMaps(headers: string[]): ColumnMaps {
@@ -94,9 +117,12 @@ export function rowToInput(
       case 'deceasedNameKana':
         if (value) obj[fieldName] = value;
         break;
-      case 'dateOfDeath':
-        obj[fieldName] = normalizeDate(value);
+      case 'dateOfDeath': {
+        const date = normalizeDate(value);
+        if (date.reason) rowWarnings.push(dateWarning(fieldName, value, date.reason));
+        obj[fieldName] = date.value;
         break;
+      }
       case 'fiscalYear':
         obj[fieldName] = value ? Number(value) : undefined;
         break;
@@ -178,7 +204,11 @@ export function rowToInput(
       case 'caseCompletedDate':
       case 'billedDate':
       case 'paidDate':
-        if (value) obj[fieldName] = normalizeDate(value);
+        if (value) {
+          const date = normalizeDate(value);
+          if (date.reason) rowWarnings.push(dateWarning(fieldName, value, date.reason));
+          obj[fieldName] = date.value;
+        }
         break;
     }
   }
@@ -239,14 +269,16 @@ export function rowToInput(
     for (let i = 1; i <= MAX_HEIR_COLUMNS; i++) {
       const c = heirMap.get(i);
       if (c && (c.name || c.phone || c.postalCode || c.address || c.dateOfBirth || c.relationship || c.memo)) {
-        const dob = c.dateOfBirth ? normalizeDate(c.dateOfBirth) : '';
+        const dob = c.dateOfBirth ? normalizeDate(c.dateOfBirth) : { value: '', reason: null };
+        // 読めない値も生のまま入れる（落とすと「生年月日の無い相続人」として通ってしまう）
+        if (dob.reason) rowWarnings.push(`相続人${i}_生年月日「${c.dateOfBirth}」は日付として読めません（${dob.reason}）`);
         heirs.push({
           name: c.name || '',
           phone: c.phone || '',
           postalCode: c.postalCode || '',
           address: c.address || '',
           addressManual: c.address || '',
-          ...(dob ? { dateOfBirth: dob } : {}),
+          ...(dob.value ? { dateOfBirth: dob.value } : {}),
           ...(c.relationship ? { relationship: c.relationship } : {}),
           memo: c.memo || '',
         });

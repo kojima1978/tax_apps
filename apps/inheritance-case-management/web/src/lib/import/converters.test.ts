@@ -58,6 +58,30 @@ describe('1行をフォームの入力値へ', () => {
     expect(obj.billedDate).toBeUndefined();
   });
 
+  it('読めない日付は正規化せず、どの列がなぜ読めないか警告に出す', () => {
+    // 生値のまま進めるので後段の zod がエラー行にする。ここで出すのは「なぜ」の部分。
+    const { obj, rowWarnings } = parse(['死亡日', '受託日'], ['H40.1.1', '2026/2/31']);
+    expect(obj.dateOfDeath).toBe('H40.1.1');
+    expect(obj.caseAddedDate).toBe('2026/2/31');
+    expect(rowWarnings).toEqual([
+      '死亡日「H40.1.1」は日付として読めません（平成は31年4月30日までです）',
+      '受託日「2026/2/31」は日付として読めません（2月31日はありません）',
+    ]);
+  });
+
+  it('相続人の生年月日が読めなければ生値のまま警告に出す', () => {
+    // 黙って落とすと「生年月日の無い相続人」として取り込まれてしまう。
+    // 本文の日付と同じく生値で進め、後段の zod にその行を止めさせる。
+    const { obj, rowWarnings } = parse(
+      ['相続人1_氏名', '相続人1_生年月日'],
+      ['山田太郎', 'S64.1.8']
+    );
+    expect((obj.heirs as { dateOfBirth?: string }[])[0].dateOfBirth).toBe('S64.1.8');
+    expect(rowWarnings).toEqual([
+      '相続人1_生年月日「S64.1.8」は日付として読めません（昭和は64年1月7日までです）',
+    ]);
+  });
+
   it('遺産未分割は「はい/true/1/○」だけ真', () => {
     for (const v of ['はい', 'true', '1', '○']) {
       expect(parse(['遺産未分割'], [v]).obj.isUndivided, v).toBe(true);
