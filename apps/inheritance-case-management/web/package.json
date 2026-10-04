@@ -8,7 +8,8 @@
     "start": "next start -p 3020",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "npm run typecheck",
+    "test": "npm run typecheck && vitest run",
+    "test:watch": "vitest",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
@@ -47,7 +48,8 @@
     "prisma": "6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.19.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^3.2.4"
   },
   "overrides": {
     "exceljs": {

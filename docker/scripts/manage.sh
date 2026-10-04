@@ -209,7 +209,6 @@ TEST_TARGETS=(
   "inheritance-tax-form:inheritance-tax-form:npm test"
   "private-banking:private-banking-app:npm test"
   "stock-valuation-form:stock-valuation-form:npm test"
-  # テストはまだ無く、test の中身は型検査だけ。
   "inheritance-case-management:itcm-frontend:npm test"
 )
 
