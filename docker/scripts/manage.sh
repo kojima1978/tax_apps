@@ -195,8 +195,13 @@ POSTGRES_APPS=(
 # アプリ（MCP サーバー）にはこれしか経路が無い ── 「コンテナが動いていないので
 # 飛ばしました」が毎回出るだけの登録は、登録していないのと変わらない。
 #
-# preflight のチェック16が、この一覧と package.json の test スクリプトを
-# 毎回突き合わせる（テストを足したのに載せ忘れると、そこで出る）。
+# 型検査もここから走る。各アプリの `test` が `npm run typecheck && vitest run`
+# の形になっていて、vitest は型を見ないのでこれが唯一の経路 ── dev モードは
+# `next build` / `vite build` を通らないため、型エラーは誰にも届かないまま master に入る。
+# 実際に private-banking の typecheck は EACCES で落ちたまま何ヶ月も気づかれなかった。
+#
+# preflight のチェック16が、この一覧と package.json の test / typecheck スクリプトを
+# 毎回突き合わせる（テストや型検査を足したのに載せ忘れると、そこで出る）。
 # ------------------------------------
 TEST_TARGETS=(
   "inheritance-tax-app:inheritance-tax-app:npm test"
@@ -204,7 +209,23 @@ TEST_TARGETS=(
   "inheritance-tax-form:inheritance-tax-form:npm test"
   "private-banking:private-banking-app:npm test"
   "stock-valuation-form:stock-valuation-form:npm test"
+  # テストはまだ無く、test の中身は型検査だけ。
+  "inheritance-case-management:itcm-frontend:npm test"
 )
+
+# アプリの package.json。itcm（web/）や portal（app/）のように
+# apps/<app>/ の1つ下にあるものも拾う。見つからなければ 1 を返す。
+app_package_json() {
+  local app="$1" candidate
+  for candidate in "$PROJECT_ROOT/apps/$app/package.json" "$PROJECT_ROOT/apps/$app"/*/package.json; do
+    if [[ -f "$candidate" ]]; then
+      printf '%s
+' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
 
 test_target_entry() {
   local name="$1" entry
@@ -1861,27 +1882,41 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
-  # 16. テストの登録漏れ
+  # 16. テスト・型検査の登録漏れ
   #
   # テストを書いたのに TEST_TARGETS へ足し忘れると、manage.sh test でも CI でも
   # 走らない。「テストがある」と思い込んだまま一度も実行されない状態になるので、
   # package.json 側を正として突き合わせる。
-  local test_drift=0 pkg pkg_app
+  #
+  # 型検査も同じ形で漏れる。vitest は型を見ず、dev モードは build を通らないので、
+  # typecheck が test から呼ばれていなければ誰も走らせない ── private-banking は
+  # スクリプトが EACCES で落ちる状態のまま、それに気づく経路が無かった。
+  #
+  # 走査は apps/<app>/package.json と、その1つ下（itcm の web/、portal の app/）。
+  # アプリ名は apps/ 直下のディレクトリ名で、TEST_TARGETS の1列目と揃う。
+  local test_drift=0 pkg pkg_app pkg_test
   while IFS= read -r pkg; do
-    grep -q '"test"[[:space:]]*:' "$pkg" || continue
-    pkg_app=$(basename "$(dirname "$pkg")")
-    if ! test_target_entry "$pkg_app" >/dev/null; then
+    pkg_app=${pkg#"$PROJECT_ROOT/apps/"}
+    pkg_app=${pkg_app%%/*}
+    pkg_test=$(grep -o '"test"[[:space:]]*:[[:space:]]*"[^"]*"' "$pkg" || true)
+    if [[ -n "$pkg_test" ]] && ! test_target_entry "$pkg_app" >/dev/null; then
       warn "App has a test script but is not in TEST_TARGETS: $pkg_app"
       echo "  manage.sh の TEST_TARGETS と .github/workflows/ci.yml の matrix へ追加してください。"
       test_drift=1
       ((++pf_warn))
     fi
-  done < <(find "$PROJECT_ROOT/apps" -mindepth 2 -maxdepth 2 -name package.json 2>/dev/null | sort)
+    if grep -q '"typecheck"[[:space:]]*:' "$pkg" && [[ "$pkg_test" != *typecheck* && "$pkg_test" != *tsc* ]]; then
+      warn "App has a typecheck script that its test script never runs: $pkg_app"
+      echo "  package.json の test を \"npm run typecheck && vitest run\" の形にしてください。"
+      test_drift=1
+      ((++pf_warn))
+    fi
+  done < <(find "$PROJECT_ROOT/apps" -mindepth 2 -maxdepth 3 -name package.json -not -path '*/node_modules/*' 2>/dev/null | sort)
 
   local tt_entry tt_app
   for tt_entry in "${TEST_TARGETS[@]}"; do
     tt_app="${tt_entry%%:*}"
-    if [[ ! -f "$PROJECT_ROOT/apps/$tt_app/package.json" ]]; then
+    if ! app_package_json "$tt_app" >/dev/null; then
       warn "TEST_TARGETS lists an app that does not exist: $tt_app"
       test_drift=1
       ((++pf_warn))

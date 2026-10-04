@@ -135,7 +135,17 @@ docker/scripts/manage.sh test <app-name>   # 1アプリだけ
 - 同じ一覧が `.github/workflows/ci.yml` の matrix と**対**になっている。手元の Docker が
   止まっていても push した時点で必ず一度は回るようにするための、もう一方の経路
 - **片方だけに足すと `preflight` のチェック16が WARN を出す**（`package.json` の `test` ↔
-  `TEST_TARGETS` ↔ CI matrix を突き合わせている）。テストを足したら両方に1行
+  `TEST_TARGETS` ↔ CI matrix を突き合わせている）。テストを足したら両方に1行。
+  走査は `apps/<app>/package.json` とその1つ下まで（itcm の `web/`、portal の `app/`）
+- **型検査も `test` の中で走らせる**。`package.json` の `test` は
+  `npm run typecheck && vitest run` の形にすること（型検査しか無いアプリは `npm run typecheck` だけ）。
+  **vitest は型を見ず、dev モードは `next build` / `vite build` を通らない**ので、
+  ここから呼ばなければ型エラーの出る場所が1つも無い ── private-banking は `typecheck` が
+  `prisma generate` 込みで、非 root では `EACCES`（`/app/node_modules/.prisma` は root 所有）で
+  落ちる状態のまま誰にも届いていなかった。**実行時に `prisma generate` しないこと** ──
+  クライアントは `npm ci` の `postinstall` でイメージに入っており、実行時に作り直すと
+  書き込み層に残って `build` でも `apply` でも戻らない。`typecheck` スクリプトがあるのに
+  `test` が呼んでいなければチェック16が WARN を出す
 - **コンテナ名を `run@<サービス名>` と書くと使い捨てコンテナで回す**（`docker compose run --rm`）。
   常駐しないアプリ（MCP サーバー）はこれしか経路が無い ── 「コンテナが動いていないので
   飛ばしました」が毎回出るだけの登録は、登録していないのと変わらない
@@ -148,6 +158,9 @@ docker/scripts/manage.sh test <app-name>   # 1アプリだけ
   **stock-valuation-form の526件が一度も走っていなかった**
 - 止まっているアプリと、`<アプリ名>-test` が無い本番モードのアプリは「飛ばした」扱い。
   dev へ戻すのは `manage.sh start <app>`（`build` はモードを踏襲するので prod のまま）
+- **`package.json` を直したら `manage.sh build <app>` が要る**。ソースを bind mount している
+  アプリでもマウントしているのは `src` などだけで、`package.json` はイメージ同梱。
+  作り直さないとコンテナは古いスクリプトを走らせ続ける（＝直したはずの型検査が回らない）
 
 ### MCP サーバー（外部の AI ツールから書き込む）
 

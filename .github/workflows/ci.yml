@@ -6,6 +6,9 @@ name: CI
 #
 # 対象アプリの一覧は docker/scripts/manage.sh の TEST_TARGETS と対になっている。
 # 片方だけに足すと preflight のチェック16が WARN を出す。
+#
+# 型検査もこの経路で回る（各アプリの test が typecheck を呼ぶ）。dev モードは
+# build を通らないため、ここと manage.sh test 以外に型エラーが出る場所が無い。
 
 on:
   push:
@@ -28,16 +31,18 @@ jobs:
     strategy:
       # 1つ落ちても他を止めない。どのアプリが壊れたかを一度に知りたいため。
       fail-fast: false
+      # dir は package.json のある場所。itcm だけ apps/<app>/ の1つ下にある。
       matrix:
-        app:
-          - inheritance-tax-app
-          - inheritance-tax-form
-          - mcp-server
-          - private-banking
-          - stock-valuation-form
+        include:
+          - { app: inheritance-case-management, dir: apps/inheritance-case-management/web }
+          - { app: inheritance-tax-app, dir: apps/inheritance-tax-app }
+          - { app: inheritance-tax-form, dir: apps/inheritance-tax-form }
+          - { app: mcp-server, dir: apps/mcp-server }
+          - { app: private-banking, dir: apps/private-banking }
+          - { app: stock-valuation-form, dir: apps/stock-valuation-form }
     defaults:
       run:
-        working-directory: apps/${{ matrix.app }}
+        working-directory: ${{ matrix.dir }}
 
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +68,8 @@ jobs:
       - name: Prisma client
         run: npm run db:generate --if-present
 
+      # 型検査は各アプリの test スクリプトの中（npm run typecheck && vitest run）。
+      # vitest は型を見ないので、分けるとどちらかだけ走る形に必ず崩れる。
       - name: Test
         run: npm test
 
