@@ -1276,6 +1276,16 @@ button {
   color: #64748b;
 }
 
+/* 成り立たない組合せ（元号に無い年・実在しない日付）の知らせ。用紙側のセルの赤と同じ色 */
+.dpanel__note--error {
+  color: #b91c1c;
+}
+
+.dpanel__input--error {
+  border-color: #b91c1c;
+  background: #fef2f2;
+}
+
 /* 1行に複数の欄が並ぶもの（生年月日・郵便番号・電話番号） */
 .dpanel__parts {
   display: flex;

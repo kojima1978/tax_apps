@@ -26,8 +26,146 @@ export const ERA_YEAR_OPTIONS = [
   }),
 ];
 
-/** 元号コード → 元年の西暦。和暦と西暦を行き来する箇所はここを唯一の定義元にする。 */
-export const ERA_BASE_YEAR: Record<string, number> = { 1: 1868, 2: 1912, 3: 1926, 4: 1989, 5: 2019 };
+/** 元号コードごとの期間。元年の西暦と改元日（`YYYY-MM-DD`）。`endDate` が無いものは続いている元号。 */
+interface EraPeriod {
+  /** 元年の西暦（西暦 ＝ startYear ＋ 元号年 − 1） */
+  readonly startYear: number;
+  readonly startDate: string;
+  readonly endDate?: string;
+}
+
+/**
+ * 元号の期間。和暦と西暦を行き来する箇所はここを唯一の定義元にする。
+ *
+ * 改元日まで持つのは、元号の切り替わる年に期間外の日付（平成31年5月1日）を通さないため。
+ * 元号年の選択肢は元号によらず1〜99年、日は1〜31日を並べているので、平成40年も2月31日も
+ * 選べてしまう ── 範囲を見ないと平成40年が令和10年として黙って計算に入り、
+ * 満年齢（第6表の未成年者・障害者控除）と相次相続控除の年数がその西暦で変わる。
+ */
+const ERA_PERIODS: Record<string, EraPeriod> = {
+  1: { startYear: 1868, startDate: '1868-10-23', endDate: '1912-07-29' },
+  2: { startYear: 1912, startDate: '1912-07-30', endDate: '1926-12-24' },
+  3: { startYear: 1926, startDate: '1926-12-25', endDate: '1989-01-07' },
+  4: { startYear: 1989, startDate: '1989-01-08', endDate: '2019-04-30' },
+  5: { startYear: 2019, startDate: '2019-05-01' },
+};
+
+/** 元号コード → 元年の西暦。 */
+export const ERA_BASE_YEAR: Record<string, number> = Object.fromEntries(
+  Object.entries(ERA_PERIODS).map(([code, period]) => [code, period.startYear]),
+);
+
+/** 元号コード → 元号名（「4」→「平成」）。知らないコードは空文字。 */
+const eraLabel = (code: string): string => ERA_CODES.find((c) => c.value === code)?.label ?? '';
+
+/** その元号で入れられる元号年の上限。続いている元号は undefined（上限が決まらない）。 */
+export function eraLastYear(code: string): number | undefined {
+  const period = ERA_PERIODS[code.trim()];
+  if (period === undefined || period.endDate === undefined) return undefined;
+  return Number(period.endDate.slice(0, 4)) - period.startYear + 1;
+}
+
+/** 実在する日付なら `YYYY-MM-DD`、実在しなければ null（2月31日を3月3日へ読み替えない）。 */
+function toIsoDate(year: number, month: number, day: number): string | null {
+  if (year < 1 || year > 9999 || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  // Date.UTC は2桁の年を1900年代へ読み替えるので setUTCFullYear で組む
+  const dt = new Date(0);
+  dt.setUTCFullYear(year, month - 1, day);
+  if (dt.getUTCFullYear() !== year || dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) return null;
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** 元号の日付を「31年4月30日」の形にする（理由の文面用。元号名は呼び出し側で付ける）。 */
+function eraDateLabel(code: string, iso: string): string {
+  const period = ERA_PERIODS[code];
+  const [yyyy = 0, mm = 0, dd = 0] = iso.split('-').map(Number);
+  const eraYear = period === undefined ? yyyy : yyyy - period.startYear + 1;
+  return `${eraYear === 1 ? '元' : eraYear}年${mm}月${dd}日`;
+}
+
+/** 日付欄のうち、どの欄が原因で西暦に直せないか。 */
+export interface EraDateFault {
+  /** 年・月・日のどの欄を赤くするか（元号そのものの誤りは隣の年欄に出す） */
+  part: 'y' | 'm' | 'd';
+  reason: string;
+}
+
+export type EraDateResult =
+  | { ok: true; year: number; month: number; day: number }
+  | ({ ok: false } & EraDateFault);
+
+/**
+ * 元号コード・元号年・月・日を西暦の年月日に直す。直せないときは原因の欄と理由を返す。
+ *
+ * 弾くのは3種類: 知らない元号コード・その元号に無い年（平成40年・平成31年5月1日）・
+ * 実在しない日付（2月31日）。様式の日付欄を西暦として読む処理はすべてここを通す。
+ */
+export function convertEraDate(era: string, year: number, month: number, day: number): EraDateResult {
+  const code = era.trim();
+  const period = ERA_PERIODS[code];
+  if (period === undefined) return { ok: false, part: 'y', reason: '元号を選んでください。' };
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return { ok: false, part: 'y', reason: '年月日は整数で入れてください。' };
+  }
+  if (year < 1) return { ok: false, part: 'y', reason: '年は1以上で入れてください。' };
+  const name = eraLabel(code);
+  const until = `${name}は${period.endDate === undefined ? '' : eraDateLabel(code, period.endDate)}までです。`;
+  // 元号年の上限を先に見る（西暦が4桁を超えると「実在しない日付」に見えてしまうため）
+  const lastYear = eraLastYear(code);
+  if (lastYear !== undefined && year > lastYear) return { ok: false, part: 'y', reason: until };
+
+  const iso = toIsoDate(period.startYear + year - 1, month, day);
+  if (iso === null) {
+    return month < 1 || month > 12
+      ? { ok: false, part: 'm', reason: `${month}月はありません。` }
+      : { ok: false, part: 'd', reason: `${month}月${day}日はありません。` };
+  }
+  // 改元の年は日付まで見る（平成31年5月1日は令和元年5月1日）。直す先は元号なので理由に元号名を入れる
+  if (iso < period.startDate) {
+    return { ok: false, part: 'y', reason: `${name}は${eraDateLabel(code, period.startDate)}からです。` };
+  }
+  if (period.endDate !== undefined && iso > period.endDate) return { ok: false, part: 'y', reason: until };
+  return { ok: true, year: period.startYear + year - 1, month, day };
+}
+
+/**
+ * 元号コード＋元号年 → 西暦年。その元号に無い年なら undefined。
+ *
+ * 月日を見ないので改元の年は元号の期間を確かめられない ── 日付として読むなら `convertEraDate`。
+ * 「年分」だけが要る場所（相続時精算課税の贈与年分）用。
+ */
+export function eraWesternYear(era: string, year: number): number | undefined {
+  const period = ERA_PERIODS[era.trim()];
+  if (period === undefined || !Number.isInteger(year) || year < 1) return undefined;
+  const lastYear = eraLastYear(era);
+  if (lastYear !== undefined && year > lastYear) return undefined;
+  return period.startYear + year - 1;
+}
+
+/**
+ * その西暦年を含む元号（元号コードと元年の西暦）。明治より前は undefined。
+ *
+ * 改元の年は新しい元号を返す（2019年＝令和元年）。贈与税の「年分」の扱いに合わせたもので、
+ * 日付としての元号を決めるものではない ── 日付なら `convertEraDate` を使う。
+ */
+export function eraForWesternYear(year: number): { code: string; startYear: number } | undefined {
+  const found = Object.entries(ERA_PERIODS).reverse().find(([, period]) => period.startYear <= year);
+  return found === undefined ? undefined : { code: found[0], startYear: found[1].startYear };
+}
+
+/**
+ * 日付欄（`${prefix}Era` / `${prefix}Y` / `${prefix}M` / `${prefix}D`）が
+ * 西暦に直せない理由。直せるとき・4欄が揃っていない入力途中は null。
+ */
+export function eraDateFault(g: (field: string) => string, prefix: string): EraDateFault | null {
+  const era = g(`${prefix}Era`).trim();
+  const year = Number(g(`${prefix}Y`));
+  const month = Number(g(`${prefix}M`));
+  const day = Number(g(`${prefix}D`));
+  if (era === '' || !year || !month || !day) return null;
+  const result = convertEraDate(era, year, month, day);
+  return result.ok ? null : { part: result.part, reason: result.reason };
+}
 
 /** 相続時精算課税制度が創設された年（平成15年）。これより前の年分は存在しない */
 const GIFT_YEAR_FIRST = 2003;
@@ -49,9 +187,7 @@ function giftYearLabel(year: number): string {
  * 相続開始年月日が未入力のうちは今年を上限にしておく（後から入れれば絞られる）。
  */
 export function giftYearOptions(startEra: string, startYear: string): { value: string; label: string }[] {
-  const base = ERA_BASE_YEAR[startEra.trim()];
-  const year = Number(startYear);
-  const start = base !== undefined && Number.isInteger(year) && year > 0 ? base + year - 1 : new Date().getFullYear();
+  const start = eraWesternYear(startEra, Number(startYear)) ?? new Date().getFullYear();
   const last = Math.max(start, GIFT_YEAR_FIRST);
   return [
     { value: '', label: '' },

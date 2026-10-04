@@ -10,7 +10,7 @@ import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS } from '../da
 import { TAX_OFFICES } from '../data/taxOffices';
 import {
   CALC_ORDER, GENERIC_ROWS, V, blank, calcBands, calcRowRanges, calcRows, code, decedentColumn,
-  flag, label, mk, personColumn, personLabelColumn, type PersonCodes, type PersonY,
+  eraDateCheck, flag, label, mk, personColumn, personLabelColumn, type PersonCodes, type PersonY,
 } from './geometry';
 
 export const TABLE1_FORM_CODE = 'NTA1KSE010010030';
@@ -153,14 +153,17 @@ function topRows(officeOptions: GridCell['options']): GridCell[] {
     mk(r2, [X.ERA_R, X.YEAR_R], {
       kind: 'input', field: `${COMMON}startY`, ariaLabel: '相続開始年月日（年）',
       options: ERA_YEAR_OPTIONS, align: 'center',
+      ...eraDateCheck(`${COMMON}start`, 'y'),
     }),
     mk(r2, [X.YEAR_R, X.MONTH_R], {
       kind: 'input', field: `${COMMON}startM`, ariaLabel: '相続開始年月日（月）',
       options: MONTH_OPTIONS, align: 'center',
+      ...eraDateCheck(`${COMMON}start`, 'm'),
     }),
     mk(r2, [X.MONTH_R, X.DAY_R], {
       kind: 'input', field: `${COMMON}startD`, ariaLabel: '相続開始年月日（日）',
       options: DAY_OPTIONS, align: 'center',
+      ...eraDateCheck(`${COMMON}start`, 'd'),
     }),
 
     // 修正申告の場合の「1」

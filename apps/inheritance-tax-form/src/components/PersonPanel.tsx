@@ -10,6 +10,7 @@
  * まとめて書き戻すと関係のない欄まで巻き込む恐れがある。
  */
 
+import { eraDateFault } from '../data/codes';
 import { lookupZipAddress } from '../lib/zipAddress';
 import {
   PERSON_ADDRESS_PARTS, PERSON_ATTRS, PERSON_BIRTH_PARTS, PERSON_CAUSES, PERSON_FIELDS, PERSON_TEL_PARTS,
@@ -85,14 +86,16 @@ export function PersonPanel({
     label: string,
     options: readonly { value: string; label: string }[],
     // 幅の狭い欄（生年月日）は未選択の表示を短くする。隣の「年」「月」「日」で何の欄かは分かる
-    { style, placeholder = '（未選択）' }: { style?: { width: string }; placeholder?: string } = {},
+    { style, placeholder = '（未選択）', invalid = false }:
+      { style?: { width: string }; placeholder?: string; invalid?: boolean } = {},
   ) => (
     <select
       id={`ppanel-${field}`}
-      className="dpanel__input"
+      className={invalid ? 'dpanel__input dpanel__input--error' : 'dpanel__input'}
       style={style}
       value={get(field)}
       aria-label={label}
+      aria-invalid={invalid || undefined}
       onChange={(e) => set(field, e.target.value)}
     >
       <option value="">{placeholder}</option>
@@ -170,13 +173,19 @@ export function PersonPanel({
         return fraction(field.field, field.name);
       case 'causes':
         return <span className="dpanel__checks">{PERSON_CAUSES.map((cause) => checkbox(cause.field, cause.name))}</span>;
-      case 'birth':
+      case 'birth': {
+        // 元号に無い年・実在しない日付（平成40年・2月31日）は、選択肢が元号・月によらず
+        // 1〜99年・1〜31日なので選べてしまう。年齢が空欄になるだけでは理由が分からないため、
+        // どの欄がなぜ成り立たないかをここに出す（用紙側のセルも同じ理由で赤くなる）。
+        const fault = eraDateFault(get, 'birth');
         return (
           <span className="dpanel__parts">
             {PERSON_BIRTH_PARTS.map((part) => (
               <span className="dpanel__part" key={part.field}>
                 {select(part.field, `生年月日（${part.name}）`, part.options, {
-                  style: boxWidth(part.chars, true), placeholder: '―',
+                  style: boxWidth(part.chars, true),
+                  placeholder: '―',
+                  invalid: fault !== null && part.field === `birth${fault.part.toUpperCase()}`,
                 })}
                 <span className="dpanel__unit">{part.name === '元号' ? '' : part.name}</span>
               </span>
@@ -191,8 +200,10 @@ export function PersonPanel({
               />
               <span className="dpanel__unit">歳</span>
             </span>
+            {fault !== null && <span className="dpanel__note dpanel__note--error">{fault.reason}</span>}
           </span>
         );
+      }
       case 'zip':
         return (
           <span className="dpanel__parts">

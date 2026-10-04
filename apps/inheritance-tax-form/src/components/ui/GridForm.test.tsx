@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import { GridForm, type GridCell } from './GridForm';
 import { PrintRenderContext } from './printContext';
+import { dateSelect, mk } from '../../forms/geometry';
+import { ERA_OPTIONS } from '../../data/codes';
 
 afterEach(cleanup);
 
@@ -83,6 +85,13 @@ function Harness({ cells, initial, spy, onNavigate, onAction }: HarnessProps) {
 const inputOf = (container: HTMLElement, field: string) => {
   const el = container.querySelector<HTMLInputElement>(`input[name="t.${field}"]`);
   if (el === null) throw new Error(`入力欄が無い: ${field}`);
+  return el;
+};
+
+/** 選択式の欄も name で引く（選択肢があるセルは <select> になる） */
+const selectOf = (container: HTMLElement, field: string) => {
+  const el = container.querySelector<HTMLSelectElement>(`select[name="t.${field}"]`);
+  if (el === null) throw new Error(`選択欄が無い: ${field}`);
   return el;
 };
 
@@ -208,6 +217,17 @@ describe('GridForm のクリックで動くセル', () => {
   });
 });
 
+/**
+ * 日付の4欄（元号・年・月・日）。様式と同じ `dateSelect` で組み立てる
+ * ── 欄名から確認する組を割り出す（`startY` → `start`）ところまで通すため。
+ */
+const dateCells = (): GridCell[] => [
+  mk([0, 10], [0, 25], { kind: 'input', field: 'startEra', ariaLabel: '相続開始年月日の元号', options: ERA_OPTIONS }),
+  mk([0, 10], [25, 50], dateSelect('y', 'startY', '相続開始年月日（年）')),
+  mk([0, 10], [50, 75], dateSelect('m', 'startM', '相続開始年月日（月）')),
+  mk([0, 10], [75, 100], dateSelect('d', 'startD', '相続開始年月日（日）')),
+];
+
 describe('GridForm の記入内容の検査', () => {
   it('組合せが不正になった欄に aria-invalid と理由を出す', () => {
     const { container } = render(<Harness cells={fixtureCells()} />);
@@ -224,6 +244,34 @@ describe('GridForm の記入内容の検査', () => {
     // 氏名を入れると消える
     fireEvent.change(inputOf(container, 'name'), { target: { value: '国税 太郎' } });
     expect(cellOf(container, '記入漏れの確認').getAttribute('aria-invalid')).toBeNull();
+  });
+
+  it('西暦に直せない日付は原因の欄だけを赤くし、理由をその値から作る', () => {
+    // 年・日の選択肢は元号・月によらず 1〜99年・1〜31日なので、平成40年も2月31日も選べる。
+    // 理由は入れた値で変わる（「平成は…」「2月31日は…」）ので、欄に固定の文面は置けない。
+    const { container } = render(<Harness cells={dateCells()} initial={{ startEra: '4', startY: '40', startM: '1', startD: '1' }} />);
+    const year = cellOf(container, '相続開始年月日（年）');
+    expect(year.getAttribute('aria-invalid')).toBe('true');
+    expect(year.getAttribute('title')).toBe('平成は31年4月30日までです。');
+    // 原因でない欄は赤くしない（直す場所が分からなくなる）
+    expect(cellOf(container, '相続開始年月日（月）').getAttribute('aria-invalid')).toBeNull();
+
+    // 年を入れ直すと消え、今度は日付そのものが成り立たない
+    fireEvent.change(selectOf(container, 'startY'), { target: { value: '30' } });
+    expect(cellOf(container, '相続開始年月日（年）').getAttribute('aria-invalid')).toBeNull();
+
+    fireEvent.change(selectOf(container, 'startM'), { target: { value: '2' } });
+    fireEvent.change(selectOf(container, 'startD'), { target: { value: '31' } });
+    const day = cellOf(container, '相続開始年月日（日）');
+    expect(day.getAttribute('aria-invalid')).toBe('true');
+    expect(day.getAttribute('title')).toBe('2月31日はありません。');
+  });
+
+  it('入力途中（4欄が揃わないうち）は赤くしない', () => {
+    const { container } = render(<Harness cells={dateCells()} initial={{ startEra: '4', startY: '40' }} />);
+    for (const who of ['年', '月', '日']) {
+      expect(cellOf(container, `相続開始年月日（${who}）`).getAttribute('aria-invalid')).toBeNull();
+    }
   });
 });
 

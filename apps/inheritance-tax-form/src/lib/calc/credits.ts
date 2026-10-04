@@ -3,7 +3,7 @@
  * 第4表、第4表の2、第5表、第6表、第7表、第8の8表。
  */
 
-import { ERA_BASE_YEAR } from '../../data/codes';
+import { convertEraDate, eraForWesternYear, eraWesternYear } from '../../data/codes';
 import { DISABILITY_GENERAL, DISABILITY_SPECIAL } from '../../forms/person';
 import { TABLE4_PERSONS, TABLE4_RATE } from '../../forms/table4';
 import { TABLE42_BLOCKS, TABLE42_CREDIT_ROWS, TABLE42_PERSONS } from '../../forms/table42';
@@ -15,37 +15,19 @@ import { TABLE7_ROWS, TABLE7_SPAN } from '../../forms/table7';
 import { TABLE88_CREDIT_ROWS, TABLE88_DEFERRAL_ROWS, TABLE88_PERSONS } from '../../forms/table88';
 import { type Values, filled, num, str, yen } from './values';
 
-const ERA_START_YEARS: Record<string, number> = {
-  '1': 1868,
-  '2': 1912,
-  '3': 1926,
-  '4': 1989,
-  '5': 2019,
-};
-
-/** 相続開始日当日の満年齢。日付が不足・不正な場合は空欄にする。 */
+/**
+ * 相続開始日当日の満年齢。日付が不足・不正な場合は空欄にする。
+ *
+ * 西暦に直すのは `convertEraDate`（元号の期間と実在しない日付をそこで弾く）。以前はここに
+ * 元年の西暦の対応表と日付の確認を別に持っていて、平成40年を令和10年として数えていた。
+ */
 export function ageAtInheritanceStart(common: Values, heir: Values): number | undefined {
-  const startEra = ERA_START_YEARS[common.startEra ?? ''];
-  const birthEra = ERA_START_YEARS[heir.birthEra ?? ''];
-  const startY = num(common.startY);
-  const startM = num(common.startM);
-  const startD = num(common.startD);
-  const birthY = num(heir.birthY);
-  const birthM = num(heir.birthM);
-  const birthD = num(heir.birthD);
-  if (startEra === undefined || birthEra === undefined
-    || startY < 1 || birthY < 1 || startM < 1 || startD < 1 || birthM < 1 || birthD < 1) return undefined;
+  const start = eraDate(common, 'start');
+  const birth = eraDate(heir, 'birth');
+  if (start === undefined || birth === undefined) return undefined;
 
-  const startYear = startEra + startY - 1;
-  const birthYear = birthEra + birthY - 1;
-  const validDate = (year: number, month: number, day: number): boolean => {
-    const date = new Date(Date.UTC(year, month - 1, day));
-    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
-  };
-  if (!validDate(startYear, startM, startD) || !validDate(birthYear, birthM, birthD)) return undefined;
-
-  let age = startYear - birthYear;
-  if (startM < birthM || (startM === birthM && startD < birthD)) age -= 1;
+  let age = start.y - birth.y;
+  if (start.m < birth.m || (start.m === birth.m && start.d < birth.d)) age -= 1;
   return age >= 0 ? age : undefined;
 }
 
@@ -260,14 +242,15 @@ export function computeTable6(common: Values, heirs: Values[]): Table6 {
 
 interface YMD { y: number; m: number; d: number }
 
-/** 元号・年・月・日の欄から西暦の日付を組み立てる。1つでも欠けていれば undefined */
+/**
+ * 元号・年・月・日の欄から西暦の日付を組み立てる。
+ * 1つでも欠けている・その元号に無い年・実在しない日付なら undefined（別の日に読み替えない）。
+ */
 function eraDate(values: Values, p: string): YMD | undefined {
-  const base = ERA_BASE_YEAR[(values[`${p}Era`] ?? '').trim()];
-  const y = num(values[`${p}Y`]);
-  const m = num(values[`${p}M`]);
-  const d = num(values[`${p}D`]);
-  if (base === undefined || y <= 0 || m <= 0 || d <= 0) return undefined;
-  return { y: base + y - 1, m, d };
+  const result = convertEraDate(
+    values[`${p}Era`] ?? '', num(values[`${p}Y`]), num(values[`${p}M`]), num(values[`${p}D`]),
+  );
+  return result.ok ? { y: result.year, m: result.month, d: result.day } : undefined;
 }
 
 /** 満年数（1年未満切捨て） */
@@ -431,30 +414,18 @@ export function computeTable42(common: Values, pages: number): Table42 {
   const out: Values = {};
   const v12 = new Map<number, string>();
 
-  const eraStarts = [
-    { code: '1', year: 1868 },
-    { code: '2', year: 1912 },
-    { code: '3', year: 1926 },
-    { code: '4', year: 1989 },
-    { code: '5', year: 2019 },
-  ] as const;
-  const startEra = eraStarts.find((era) => era.code === common.startEra);
-  const startYear = num(common.startY);
-  const startGregorianYear = startEra !== undefined && startYear > 0
-    ? startEra.year + startYear - 1
-    : undefined;
+  // 元号の対応表はここに持たない（`codes.ts` が唯一の定義元）。その元号に無い年は undefined
+  const startGregorianYear = eraWesternYear(common.startEra ?? '', num(common.startY));
 
   for (let page = 0; page < pages; page += 1) {
     for (let b = 0; b < TABLE42_BLOCKS; b += 1) {
       const prefix = `t42y${page}b${b}`;
       const targetYear = startGregorianYear === undefined ? undefined : startGregorianYear - b - 1;
-      const era = targetYear === undefined
-        ? undefined
-        : [...eraStarts].reverse().find((candidate) => candidate.year <= targetYear);
+      const era = targetYear === undefined ? undefined : eraForWesternYear(targetYear);
       out[`${prefix}Era`] = era?.code ?? '';
       out[`${prefix}Y`] = era === undefined || targetYear === undefined
         ? ''
-        : String(targetYear - era.year + 1).padStart(2, '0');
+        : String(targetYear - era.startYear + 1).padStart(2, '0');
     }
   }
 

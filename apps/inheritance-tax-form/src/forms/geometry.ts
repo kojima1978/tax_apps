@@ -8,7 +8,7 @@
 
 import type { GridCell } from '../components/ui/GridForm';
 import {
-  DAY_OPTIONS, ERA_NOTE, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS, RELATION_OPTIONS,
+  DAY_OPTIONS, ERA_NOTE, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS, RELATION_OPTIONS, eraDateFault,
 } from '../data/codes';
 import { personAction } from './person';
 
@@ -222,9 +222,46 @@ export const flag = (field: string, ariaLabel: string): Partial<GridCell> => ({
 });
 
 /**
+ * 日付欄（元号・年・月・日）が西暦に直せないときのエラー表示。
+ *
+ * 選択肢は元号によらず1〜99年、日は1〜31日を並べているので、平成40年も2月31日も選べる。
+ * 入れさせないには選んだ元号・月に合わせて選択肢を狭めるほかないが、選択肢はセルを組む時点で
+ * 決まる（そこでは入力値を見られない）ので、入れた後に赤で知らせる口をここに置く。
+ * 理由は欄ごとに変わるので関数で返す（年＝元号の範囲、月日＝実在しない日付）。
+ *
+ * @param prefix `${prefix}Era` / `Y` / `M` / `D` の共通接頭辞
+ */
+export const eraDateCheck = (
+  prefix: string, part: 'y' | 'm' | 'd',
+): Pick<GridCell, 'invalidWhen' | 'invalidMessage'> => ({
+  invalidWhen: (g) => eraDateFault(g, prefix)?.part === part,
+  invalidMessage: (g) => eraDateFault(g, prefix)?.reason ?? '',
+});
+
+/**
+ * 1つの欄に複数の確認を重ねる（先に当てはまったものの理由を出す）。
+ *
+ * 日付欄は「西暦に直せるか」と「前後関係が逆でないか」のように別の確認が重なる。
+ * `invalidWhen` は欄に1つしか置けないので、後から足した確認で先のものを黙って
+ * 上書きしないよう、重ねるときは必ずここを通す。
+ */
+export const anyInvalid = (
+  ...checks: Pick<GridCell, 'invalidWhen' | 'invalidMessage'>[]
+): Pick<GridCell, 'invalidWhen' | 'invalidMessage'> => ({
+  invalidWhen: (g) => checks.some((c) => c.invalidWhen?.(g) ?? false),
+  invalidMessage: (g) => {
+    const hit = checks.find((c) => c.invalidWhen?.(g) ?? false);
+    return (typeof hit?.invalidMessage === 'function' ? hit.invalidMessage(g) : hit?.invalidMessage) ?? '';
+  },
+});
+
+/**
  * 年・月・日の入力欄。手入力ではなく選択式にそろえる（元号がプルダウンなのに
  * 年月日だけ手入力だと様式ごとに入力方法が食い違うため）。
  * 保存値は整数文字列のままなので、既存の保存JSONと互換。
+ *
+ * 欄名は `${prefix}Y` / `M` / `D` で固定（元号は `${prefix}Era`）。西暦に直せない
+ * 組合せの確認をここでまとめて付けるため、この並び以外の欄名では呼ばないこと。
  */
 export const dateSelect = (
   part: 'y' | 'm' | 'd', field: string, ariaLabel: string,
@@ -234,6 +271,7 @@ export const dateSelect = (
   ariaLabel,
   align: 'center',
   options: part === 'y' ? ERA_YEAR_OPTIONS : part === 'm' ? MONTH_OPTIONS : DAY_OPTIONS,
+  ...eraDateCheck(field.slice(0, -1), part),
 });
 
 /** 生年月日（元号・年・月・日）と年齢。左右どちらの列でも割付は同じ。 */
@@ -253,14 +291,17 @@ function birthCells(
     mk(y.birth, [at(O.eraR), at(O.yearR)], {
       kind: 'input', field: `${p}birthY`, ariaLabel: `${who}の生年月日（年）`, align: 'center',
       ...(useDateSelects ? { options: ERA_YEAR_OPTIONS } : { integerDigits: 2 }),
+      ...eraDateCheck(`${p}birth`, 'y'),
     }),
     mk(y.birth, [at(O.yearR), at(O.monthR)], {
       kind: 'input', field: `${p}birthM`, ariaLabel: `${who}の生年月日（月）`, align: 'center',
       ...(useDateSelects ? { options: MONTH_OPTIONS } : { integerDigits: 2 }),
+      ...eraDateCheck(`${p}birth`, 'm'),
     }),
     mk(y.birth, [at(O.monthR), at(O.dayR)], {
       kind: 'input', field: `${p}birthD`, ariaLabel: `${who}の生年月日（日）`, align: 'center',
       ...(useDateSelects ? { options: DAY_OPTIONS } : { integerDigits: 2 }),
+      ...eraDateCheck(`${p}birth`, 'd'),
     }),
     code(y.birth, [at(O.dayR), at(O.refCode)], ageCode),
     mk(y.birth, [at(O.refCode), at(O.end)], {

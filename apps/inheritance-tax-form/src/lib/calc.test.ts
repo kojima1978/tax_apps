@@ -190,6 +190,41 @@ describe('computeAll 第1表G32の年齢', () => {
     const result = computeAll(start, [{ birthEra: '4', birthY: '17' }]);
     expect(result.heirs[0]?.age).toBe('');
   });
+
+  it('その元号に無い年・実在しない日付は空欄にする（別の日として数えない）', () => {
+    // 平成40年を令和10年（2028年）として数えると、生年が相続開始年より後になっても
+    // それらしい年齢が出てしまう。選択肢には並んでいる値なので実際に入れられる。
+    expect(computeAll(start, [{ birthEra: '4', birthY: '40', birthM: '1', birthD: '1' }]).heirs[0]?.age).toBe('');
+    expect(computeAll(start, [{ birthEra: '4', birthY: '31', birthM: '5', birthD: '1' }]).heirs[0]?.age).toBe('');
+    expect(computeAll(start, [{ birthEra: '5', birthY: '6', birthM: '2', birthD: '31' }]).heirs[0]?.age).toBe('');
+    // 相続開始日の側が成り立たないときも同じ
+    expect(computeAll(
+      { startEra: '4', startY: '40', startM: '1', startD: '1' },
+      [{ birthEra: '4', birthY: '17', birthM: '8', birthD: '16' }],
+    ).heirs[0]?.age).toBe('');
+  });
+});
+
+describe('computeAll 第7表③の年数', () => {
+  const amounts = { t7v5: '1000', t7v6: '100' };
+
+  it('①前の相続から②今回の相続までの満年数（1年未満切捨て）', () => {
+    const result = computeAll(
+      { ...amounts, startEra: '5', startY: '7', startM: '8', startD: '15', t7pEra: '5', t7pY: '2', t7pM: '8', t7pD: '16' },
+      [], ['table7'],
+    );
+    expect(result.totals.t7v3).toBe('4');
+    expect(result.totals.t7v4).toBe('6');
+  });
+
+  it('成り立たない日付なら年数を出さない（平成40年を令和10年として数えない）', () => {
+    const result = computeAll(
+      { ...amounts, startEra: '5', startY: '7', startM: '8', startD: '15', t7pEra: '4', t7pY: '40', t7pM: '1', t7pD: '1' },
+      [], ['table7'],
+    );
+    expect(result.totals.t7v3).toBe('');
+    expect(result.totals.t7v4).toBe('');
+  });
 });
 
 describe('computeAll 第6表①の年齢転記', () => {

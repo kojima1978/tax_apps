@@ -87,7 +87,8 @@ export interface GridCell {
   action?: string;
   navigateToForm?: string | ((g: (field: string) => string) => string | undefined); // 転記元の様式ID（入力値に応じた切替可）
   invalidWhen?: (g: (field: string) => string) => boolean; // 入力値の組合せが不正なときのエラー表示
-  invalidMessage?: string;           // エラー理由（title・アクセシブル名）
+  /** エラー理由（title・アクセシブル名）。入力値で理由が変わる欄は関数で返す */
+  invalidMessage?: string | ((g: (field: string) => string) => string);
   options?: (string | { value: string; label: string })[]; // 選択式入力の候補（空文字は未選択）
   optionGroups?: readonly { label: string; options: readonly { value: string; label: string }[] }[]; // optgroup 付きの選択肢
   compactSelectedOption?: boolean;   // 印刷はコードのみ（狭いコード記入枠用。画面では選択肢の名称ごと出す）
@@ -369,6 +370,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
     const readOnly = c.readOnly === true;
     const highlighted = c.highlightWhen?.(g) ?? false;
     const invalid = !printRendering && (c.invalidWhen?.(g) ?? false);
+    const invalidMessage = typeof c.invalidMessage === 'function' ? c.invalidMessage(g) : c.invalidMessage;
     const navigateToForm = typeof c.navigateToForm === 'function' ? c.navigateToForm(g) : c.navigateToForm;
     const action = printRendering ? undefined : c.action;
     // 入力欄を持たないセル（項番など）はボタンそのものにする。入力欄を載せたセルはクリックだけ受ける
@@ -414,7 +416,7 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
         aria-checked={c.toggleField ? g(c.toggleField) === '1' : undefined}
         aria-pressed={c.selectValue ? g(c.selectValue.field) === c.selectValue.value : undefined}
         aria-invalid={invalid || undefined}
-        title={invalid ? c.invalidMessage : undefined}
+        title={invalid ? invalidMessage : undefined}
         onClick={interactive ? selectCell : undefined}
         onKeyDown={interactive ? (event) => {
           if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectCell(); }

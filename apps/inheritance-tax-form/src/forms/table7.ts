@@ -19,9 +19,11 @@
  */
 
 import type { GridCell } from '../components/ui/GridForm';
-import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS } from '../data/codes';
+import { DAY_OPTIONS, ERA_OPTIONS, ERA_YEAR_OPTIONS, MONTH_OPTIONS, convertEraDate } from '../data/codes';
 import { TAX_OFFICE_GROUPS } from '../data/taxOffices';
-import { blank, code, decedentNameRow, fractionBar, label, mk, sheetScale } from './geometry';
+import {
+  anyInvalid, blank, code, decedentNameRow, eraDateCheck, fractionBar, label, mk, sheetScale,
+} from './geometry';
 
 export const TABLE7_FORM_CODE = 'NTA0KSE070010030';
 export const TABLE7_TITLE = '相続税の申告書　第7表';
@@ -149,14 +151,6 @@ const NOTES: NonNullable<GridCell['numberedNotes']> = [
   },
 ];
 
-const ERA_START_YEARS: Readonly<Record<string, number>> = {
-  '1': 1868,
-  '2': 1912,
-  '3': 1926,
-  '4': 1989,
-  '5': 2019,
-};
-
 interface EraDateParts {
   era: string;
   year: string;
@@ -164,22 +158,16 @@ interface EraDateParts {
   day: string;
 }
 
-/** 元号付き年月日を比較し、current が previous より前なら true。未入力・不正日は比較しない。 */
+/**
+ * 元号付き年月日を比較し、current が previous より前なら true。未入力・不正日は比較しない。
+ *
+ * 西暦に直すのは `convertEraDate`（元号の期間と実在しない日付をそこで弾く）。以前はここに
+ * 元年の西暦の対応表を別に持っていたため、平成40年と令和10年が同じ日として並んでいた。
+ */
 export function isCurrentInheritanceBeforePrevious(current: EraDateParts, previous: EraDateParts): boolean {
   const toOrdinal = ({ era, year, month, day }: EraDateParts): number | undefined => {
-    const eraStart = ERA_START_YEARS[era];
-    const eraYear = Number(year);
-    const monthNumber = Number(month);
-    const dayNumber = Number(day);
-    if (eraStart === undefined || !Number.isInteger(eraYear) || eraYear < 1
-      || !Number.isInteger(monthNumber) || !Number.isInteger(dayNumber)) return undefined;
-
-    const gregorianYear = eraStart + eraYear - 1;
-    const date = new Date(Date.UTC(gregorianYear, monthNumber - 1, dayNumber));
-    if (date.getUTCFullYear() !== gregorianYear
-      || date.getUTCMonth() !== monthNumber - 1
-      || date.getUTCDate() !== dayNumber) return undefined;
-    return gregorianYear * 10000 + monthNumber * 100 + dayNumber;
+    const result = convertEraDate(era, Number(year), Number(month), Number(day));
+    return result.ok ? result.year * 10000 + result.month * 100 + result.day : undefined;
   };
 
   const currentOrdinal = toOrdinal(current);
@@ -243,13 +231,23 @@ function dateValues(
   const day: Partial<GridCell> = readOnly
     ? { integerDigits: 2, readOnly: true }
     : { options: DAY_OPTIONS };
+  // ②は第1表からの転記なので日付の確認は付けない（第1表側で赤くなる）
+  const check = (part: 'y' | 'm' | 'd'): Pick<GridCell, 'invalidWhen' | 'invalidMessage'> => {
+    if (readOnly) return {};
+    const era = eraDateCheck(p, part);
+    return part === 'y' && validation !== undefined ? anyInvalid(era, validation) : era;
+  };
   return [
     mk(y, col(x[1], x[2]), { kind: 'input', field: `${p}Era`, ariaLabel: `${who}（元号）`, ...era }),
     mk(y, col(x[2], x[3]), {
-      kind: 'input', field: `${p}Y`, ariaLabel: `${who}（年）`, align: 'center', ...year, ...validation,
+      kind: 'input', field: `${p}Y`, ariaLabel: `${who}（年）`, align: 'center', ...year, ...check('y'),
     }),
-    mk(y, col(x[3], x[4]), { kind: 'input', field: `${p}M`, ariaLabel: `${who}（月）`, align: 'center', ...month }),
-    mk(y, col(x[4], x[5]), { kind: 'input', field: `${p}D`, ariaLabel: `${who}（日）`, align: 'center', ...day }),
+    mk(y, col(x[3], x[4]), {
+      kind: 'input', field: `${p}M`, ariaLabel: `${who}（月）`, align: 'center', ...month, ...check('m'),
+    }),
+    mk(y, col(x[4], x[5]), {
+      kind: 'input', field: `${p}D`, ariaLabel: `${who}（日）`, align: 'center', ...day, ...check('d'),
+    }),
   ];
 }
 
