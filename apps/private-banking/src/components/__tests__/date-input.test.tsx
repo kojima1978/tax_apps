@@ -20,6 +20,9 @@ const field = (name: string) => screen.getByLabelText(name) as HTMLInputElement;
 const era = () => screen.getByLabelText("生年月日の元号") as HTMLSelectElement;
 const change = (name: string, value: string) => fireEvent.change(screen.getByLabelText(name), { target: { value } });
 const toggleTo = (mode: "和暦" | "西暦") => fireEvent.click(screen.getByRole("button", { name: `生年月日を${mode}で入力する` }));
+/** 欄の下に出る理由。読み上げ用の節は値が空でも置いたままにする（後から差すと通知されない）ので、文字で見る。
+    西暦モードには節そのものが無いため、無い場合も空として扱う。 */
+const alertText = () => screen.queryByRole("alert")?.textContent ?? "";
 
 /** 和暦モードで年月日を順に入れる（打ち込む順そのまま）。 */
 const typeWareki = (eraYear: string, month: string, day: string) => {
@@ -82,6 +85,30 @@ describe("DateInput", () => {
     expect(onChange).toHaveBeenLastCalledWith("");
     expect(submitted()).toBe("");
     expect(field("生年月日の日").validationMessage).toContain("昭和64年1月8日 は存在しません");
+  });
+
+  it("理由は送信を待たずに欄の下へ出し、直すと消える", () => {
+    // `setCustomValidity` は送信ボタンを押すまで何も言わない。隠し欄が空になったことも見えないため、
+    // 押すまで気づけないのを埋めるのがこの表示。
+    renderInput({ defaultMode: "WAREKI" });
+    expect(alertText()).toBe("");
+    typeWareki("53", "2", "31");
+    expect(alertText()).toContain("昭和53年2月31日 は存在しません");
+    expect(field("生年月日の日").getAttribute("aria-invalid")).toBe("true");
+    expect(era().getAttribute("aria-invalid")).toBe("true");
+    change("生年月日の日", "28");
+    expect(alertText()).toBe("");
+    expect(field("生年月日の日").getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("西暦へ戻したら和暦の欄に残っていた理由は出さない", () => {
+    // `parts` には切り替える前の値が残る。西暦側は min/max がそのまま効くので、
+    // 見せても直すところの無い赤字になる。
+    renderInput({ defaultMode: "WAREKI" });
+    typeWareki("53", "2", "31");
+    expect(alertText()).toContain("は存在しません");
+    toggleTo("西暦");
+    expect(alertText()).toBe("");
   });
 
   it("和暦モードの範囲外は日欄に境界の日付を添えて載せる", () => {

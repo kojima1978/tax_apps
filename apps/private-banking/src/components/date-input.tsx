@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { dateJa } from "@/lib/format";
 import { type EraCode, eraMaxYear, eraOf, eras, isoToWareki, warekiToIso } from "@/lib/wareki";
 
@@ -36,6 +36,9 @@ const composeIso = (parts: Parts) => parts.eraYear && parts.month && parts.day
  * - 西暦モードは `type="date"` の `required` / `min` / `max` がそのまま効く
  * - 和暦モードは年月日欄に `required` を置き、実在しない日付と `min`/`max` 超過は
  *   `setCustomValidity` で日欄に載せる（送信時に標準の吹き出しが出て止まる）
+ *
+ * 加えて**理由はその場で欄の下に出す**。`setCustomValidity` は送信ボタンを押すまで何も言わず、
+ * 「令和8年2月31日」を入れた人には隠し欄が空になったことも見えないため、押すまで気づけない。
  */
 export function DateInput({
   id,
@@ -75,6 +78,7 @@ export function DateInput({
   // 外からの変更と区別しないと打ち込んだ月日が消える。
   const [emittedValue, setEmittedValue] = useState(current);
   const dayRef = useRef<HTMLInputElement>(null);
+  const errorId = `${useId()}-error`;
 
   if (current !== emittedValue) {
     setEmittedValue(current);
@@ -103,9 +107,15 @@ export function DateInput({
         : upperLimit && composed > upperLimit ? `${dateJa(upperLimit)} 以前で入力してください。`
           : "";
 
+  // 西暦モードでは出さない。`type="date"` の min/max がそのまま効くうえ、`parts` には
+  // 切り替える前の値が残るので、見せると直すところの無い赤字になる。
+  const warekiMessage = mode === "WAREKI" ? validationMessage : "";
+
   useEffect(() => {
-    dayRef.current?.setCustomValidity(validationMessage);
-  }, [validationMessage]);
+    dayRef.current?.setCustomValidity(warekiMessage);
+  }, [warekiMessage]);
+
+  const describedByIds = [describedBy, warekiMessage ? errorId : null].filter(Boolean).join(" ") || undefined;
 
   const numberField = (
     part: "eraYear" | "month" | "day",
@@ -125,7 +135,8 @@ export function DateInput({
       required={required}
       disabled={disabled}
       aria-label={`${label}の${unit}`}
-      aria-describedby={describedBy}
+      aria-describedby={describedByIds}
+      aria-invalid={warekiMessage ? true : undefined}
       onChange={(event) => changeParts({ [part]: event.target.value })}
     />
     <span aria-hidden="true">{unit}</span>
@@ -140,7 +151,8 @@ export function DateInput({
           value={parts.code}
           disabled={disabled}
           aria-label={`${label}の元号`}
-          aria-describedby={describedBy}
+          aria-describedby={describedByIds}
+          aria-invalid={warekiMessage ? true : undefined}
           onChange={(event) => changeParts({ code: event.target.value as EraCode })}
         >
           {eras.map((era) => <option key={era.code} value={era.code}>{era.label}</option>)}
@@ -148,6 +160,10 @@ export function DateInput({
         {numberField("eraYear", "年", eraMaxYear(parts.code))}
         {numberField("month", "月", 12)}
         {numberField("day", "日", 31, dayRef)}
+        {/* 節は空でも置いたままにする（後から差すと読み上げに乗らないことがある）。
+            CSS ではなく `hidden` で消すのは、理由が無いときに「空の警告」として
+            読み上げ・検索（getByRole）へ出ないようにするため。 */}
+        <p id={errorId} className="date-input-error" role="alert" hidden={!warekiMessage}>{warekiMessage}</p>
       </>
       : <input
         id={id}

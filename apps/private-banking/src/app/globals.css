@@ -656,6 +656,10 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 /* 年・月・日は桁数が決まっているので上下ボタンは出さない（幅を食うだけ）。 */
 .date-input .date-input-number { flex: 0 0 auto; width: 44px; margin-top: 0; padding-right: 6px; padding-left: 6px; text-align: right; font-variant-numeric: tabular-nums; appearance: textfield; }
 .date-input-number::-webkit-outer-spin-button, .date-input-number::-webkit-inner-spin-button { appearance: none; margin: 0; }
+/* 実在しない日付・範囲外の理由は、押すまで何も言わない setCustomValidity と別に欄の下へ出す。
+   4欄の下へ回り込ませるため flex の行を独立させる（理由が無いときは hidden で消える）。 */
+.date-input-error { flex: 1 0 100%; margin: 0; color: var(--danger); font-size: 11px; font-weight: 700; line-height: 1.45; }
+.date-input :is(input, select)[aria-invalid="true"] { border-color: var(--danger); background: #fff7f6; }
 .date-input-mode { position: absolute; top: -1px; right: 0; min-height: 18px; padding: 0 7px; color: var(--slate-600); background: #f4f6f5; border: 1px solid var(--field-border); border-radius: 4px; font-size: 10px; font-weight: 800; }
 .date-input-mode:hover { color: var(--navy-900); background: #e9efec; }
 .date-input-mode:disabled { opacity: .55; cursor: not-allowed; }
