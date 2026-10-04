@@ -109,14 +109,31 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     expect(screen.getAllByText("登録済").length).toBe(1);
   });
 
-  it("受取人を按分している保険は表に出さず、個別モーダルに任せる", () => {
+  it("受取人を複数に按分している保険は表に出さず、個別モーダルに任せる", () => {
     renderModal([position({
       id: 6, category: "INSURANCE", name: "△△生命", institution: "△△生命", originalAmount: 1_000_000, valueJpy: 1_000_000,
-      assetDetails: { deathBenefit: 10_000_000, benefitAllocations: [{ recipient: "長男", numerator: 1, denominator: 2 }] },
+      assetDetails: { deathBenefit: 10_000_000, benefitAllocations: [{ recipient: "長男", numerator: 1, denominator: 2 }, { recipient: "配偶者", numerator: 1, denominator: 2 }] },
     })]);
     selectEntryType("INSURANCE");
     expect(screen.queryByText("登録済")).toBeNull();
     expect(cell(1, "保険会社").value).toBe("");
+  });
+
+  it("受取人が1人なら按分の配列があっても表に出し、直したら配列も書き換える", async () => {
+    // 個別モーダルは受取人が1人でも必ず 1/1 の配列を書く。以前は1件でも配列があれば除いていたため、
+    // 画面から登録した生命保険・退職金がすべて表から漏れていた。
+    const onSubmit = renderModal([position({
+      id: 6, category: "INSURANCE", name: "△△生命", institution: "△△生命", originalAmount: 1_000_000, valueJpy: 1_000_000,
+      assetDetails: { beneficiary: "長男", deathBenefit: 10_000_000, benefitAllocations: [{ recipient: "長男", numerator: 1, denominator: 1 }] },
+    })]);
+    selectEntryType("INSURANCE");
+    expect(cell(1, "受取人").value).toBe("長男");
+    fireEvent.change(cell(1, "受取人"), { target: { value: "配偶者" } });
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).toMatchObject({
+      beneficiary: "配偶者", benefitAllocations: [{ recipient: "配偶者", numerator: 1, denominator: 1 }],
+    });
   });
 
   it("必須が欠けている行はエラーを出し、保存しない", async () => {
@@ -148,7 +165,7 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
       data: expect.objectContaining({
         side: "ASSET", category: "INSURANCE", name: "□□生命", institution: "□□生命",
         currency: "JPY", originalAmount: 4_000_000, fxRate: 1, valuationFormula: "MANUAL",
-        assetDetails: { policyNumber: "P-9", insuredPerson: "本人", beneficiary: "配偶者", deathBenefit: 30_000_000 },
+        assetDetails: { policyNumber: "P-9", insuredPerson: "本人", beneficiary: "配偶者", deathBenefit: 30_000_000, benefitAllocations: [{ recipient: "配偶者", numerator: 1, denominator: 1 }] },
       }),
     }]);
   });
@@ -214,7 +231,7 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(savedPayloads(onSubmit)[0]?.data).toEqual(expect.objectContaining({
       category: "RETIREMENT_ALLOWANCE", name: "役員退職慰労金", institution: "株式会社A", originalAmount: 2_000_000,
-      assetDetails: { retirementRecipient: "配偶者", retirementAllowance: 15_000_000 },
+      assetDetails: { retirementRecipient: "配偶者", retirementAllowance: 15_000_000, benefitAllocations: [{ recipient: "配偶者", numerator: 1, denominator: 1 }] },
     }));
   });
 

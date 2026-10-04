@@ -6,6 +6,7 @@ import { personSelectOptions } from "@/lib/family";
 import { decimalToFraction, formatCommaNumberInput, yen } from "@/lib/format";
 import {
   type AssetDetails,
+  type BenefitAllocation,
   type BulkPositionPayload,
   type Position,
   type Snapshot,
@@ -38,6 +39,10 @@ const bulkEntryGroups: { label: string; types: BulkEntryType[] }[] = [
 const bulkEntryTypes: BulkEntryType[] = bulkEntryGroups.flatMap((group) => group.types);
 
 const bulkNumberOrNull = (value: string) => value ? Number(value.replace(/,/g, "")) : null;
+/** 保存時に組み立てる assetDetails。空欄の数値欄は null で送るので、AssetDetails より緩い。 */
+type BulkAssetDetails = { [K in keyof AssetDetails]: AssetDetails[K] | null };
+/** 表の受取人欄（1列）を、個別モーダルと同じ受取人ごとの分数へ直す。取り分は常に 1/1。 */
+const soleAllocation = (recipient: string): BenefitAllocation[] => [{ recipient: recipient.trim(), numerator: 1, denominator: 1 }];
 
 /**
  * 算式を持たず金額を直接入れるだけの科目（生命保険・退職金・貸付金）。
@@ -49,7 +54,7 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
   nameFrom: BulkField;
   columns: BulkColumn[];
   required: BulkField[];
-  details: (row: BulkRow) => Record<string, string | number | null>;
+  details: (row: BulkRow) => BulkAssetDetails;
 }> = {
   INSURANCE: {
     nameFrom: "institution",
@@ -63,7 +68,9 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
       { key: "recipient", label: "受取人", kind: "person", legalHeirMark: true, width: "150px" },
       { key: "note", label: "メモ", width: "150px" },
     ],
-    details: (row) => ({ policyNumber: row.policyNumber.trim(), insuredPerson: row.insuredPerson.trim(), beneficiary: row.recipient.trim(), deathBenefit: bulkNumberOrNull(row.benefit) }),
+    // 受取人は1人（複数へ按分している明細は表に出さない）。従来の受取人欄と 1/1 の配列を両方そろえて、
+    // 表で受取人を直したときに古い按分が残らないようにする。
+    details: (row) => ({ policyNumber: row.policyNumber.trim(), insuredPerson: row.insuredPerson.trim(), beneficiary: row.recipient.trim(), deathBenefit: bulkNumberOrNull(row.benefit), benefitAllocations: soleAllocation(row.recipient) }),
   },
   // 生命保険契約に関する権利は保険事故が起きていないので、死亡保険金と受取人の列を持たない。
   INSURANCE_RIGHTS: {
@@ -89,7 +96,7 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
       { key: "recipient", label: "受取人", kind: "person", legalHeirMark: true, width: "150px" },
       { key: "note", label: "メモ", width: "150px" },
     ],
-    details: (row) => ({ retirementRecipient: row.recipient.trim(), retirementAllowance: bulkNumberOrNull(row.benefit) }),
+    details: (row) => ({ retirementRecipient: row.recipient.trim(), retirementAllowance: bulkNumberOrNull(row.benefit), benefitAllocations: soleAllocation(row.recipient) }),
   },
   LOAN_RECEIVABLE: {
     nameFrom: "name",
@@ -117,9 +124,9 @@ const ownedDetailKeys: Record<BulkEntryType, Array<keyof AssetDetails>> = {
   PRIVATE_SHARES: ["shareClass"],
   LAND: ["propertyType", "propertyAddress", "landCategory"],
   BUILDING: ["propertyType", "propertyAddress", "buildingType", "floorArea"],
-  INSURANCE: ["policyNumber", "insuredPerson", "beneficiary", "deathBenefit"],
+  INSURANCE: ["policyNumber", "insuredPerson", "beneficiary", "deathBenefit", "benefitAllocations"],
   INSURANCE_RIGHTS: ["policyNumber", "insuredPerson"],
-  RETIREMENT_ALLOWANCE: ["retirementRecipient", "retirementAllowance"],
+  RETIREMENT_ALLOWANCE: ["retirementRecipient", "retirementAllowance", "benefitAllocations"],
   LOAN_RECEIVABLE: [],
 };
 /** 預金種類。貼り付け時のラベル照合にも使うので、選択肢と同じ並びを1箇所で持つ。 */
@@ -149,9 +156,11 @@ function bulkEntryTypeForPosition(position: Position): BulkEntryType | null {
   if (position.currency !== "JPY") return null;
   if (position.category === "DEPOSIT") return position.valuationFormula === "MANUAL" ? "DEPOSIT" : null;
   if (simpleEntryConfigOf(position.category as BulkEntryType)) {
-    // 受取人を複数に按分している明細は表に列が無く、一括保存で按分が消えるので個別モーダルに任せる。
+    // 表の受取人は1列しか無いので、複数へ按分している明細だけを個別モーダルに任せる。
+    // 以前は1件でも按分の配列があれば除いていたが、個別モーダルは受取人が1人でも必ず 1/1 の配列を書くため、
+    // 画面から登録した生命保険・退職金がすべて表から漏れていた（登録済み0件と出る）。
     const allocations = position.assetDetails?.benefitAllocations;
-    if (position.valuationFormula !== "MANUAL" || (Array.isArray(allocations) && allocations.length > 0)) return null;
+    if (position.valuationFormula !== "MANUAL" || (Array.isArray(allocations) && allocations.length > 1)) return null;
     return position.category as BulkEntryType;
   }
   if (position.category === "SECURITIES" && ["STOCK", "MANUAL"].includes(position.valuationFormula)) return "SECURITIES";
@@ -537,8 +546,8 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
       // 表が書き換えるキーだけを入れ替え、列の無い項目は登録済みの値を残す。
       const storedDetails = (row.positionId === null ? null : positionsById.get(row.positionId)?.assetDetails) ?? {};
       const owned = new Set<string>(ownedDetailKeys[type]);
-      const mergedDetails = (tableDetails: AssetDetails) =>
-        ({ ...Object.fromEntries(Object.entries(storedDetails).filter(([key]) => !owned.has(key))), ...tableDetails } as AssetDetails);
+      const mergedDetails = (tableDetails: BulkAssetDetails) =>
+        ({ ...Object.fromEntries(Object.entries(storedDetails).filter(([key]) => !owned.has(key))), ...tableDetails } as BulkAssetDetails);
       const data = {
         side: "ASSET",
         category: rowIsStock || rowIsDeposit || rowSimpleConfig ? type : row.category,
