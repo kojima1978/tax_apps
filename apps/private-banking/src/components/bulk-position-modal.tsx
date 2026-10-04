@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CircleCheck, Copy, LoaderCircle, Plus, Table2, Trash2, X } from "lucide-react";
 import { ClipboardEvent, KeyboardEvent as ReactKeyboardEvent, useMemo, useState } from "react";
+import { useModalDialog } from "@/components/use-modal-dialog";
 import { personSelectOptions } from "@/lib/family";
 import { decimalToFraction, formatCommaNumberInput, yen } from "@/lib/format";
 import {
@@ -285,6 +286,22 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   const savedRows = bulkEntryTypes.flatMap((type) => savedRowsByType[type]);
   const savedExistingCount = savedRows.filter((row) => row.positionId !== null).length;
   const savedNewCount = savedRows.length - savedExistingCount;
+  /**
+   * 開いたときのフォーカスは表の先頭ではなく、いま開いている種類のタブへ移す。
+   * この表は9種類ぶんの入力先を持っていて、まずどの種類を編集しているかが要るため。
+   * 入力の途中で Escape を押しても捨てない（9種類ぶんの入力が一度に消えるので、確認を挟む）。
+   */
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({
+    initialFocus: ".bulk-entry-tab.is-active",
+    onEscape: () => {
+      if (saving) return;
+      if (savedRows.length > 0) {
+        setFormError("未保存の編集があります。「変更をまとめて保存」か「キャンセル」を選んでください。");
+        return;
+      }
+      onClose();
+    },
+  });
   const errorCounts = useMemo(() => Object.fromEntries(
     bulkEntryTypes.map((type) => [type, rowsByType[type].filter((row) => row.error).length]),
   ) as Record<BulkEntryType, number>, [rowsByType]);
@@ -608,7 +625,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
     await onSubmit(payloads);
   }
 
-  return <div className="modal-layer" role="presentation"><div className="modal bulk-position-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal bulk-position-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
     <header><div><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要{bulkEntryTypes.length}種類）</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <div className="bulk-modal-body">
       <section className="bulk-common-settings" aria-label="共通条件">
@@ -629,7 +646,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
             </button>;
           })}</div>
         </div>)}</div>
-        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。金額はすべて円単位です。Excelから複数セルを貼り付けることもできます。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の{bulkEntryTypes.length}種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
+        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。金額はすべて円単位です。Excelから複数セルを貼り付けることもできます（貼り付けは文字を打てる欄から始めてください。科目・方式・地目・建物種類・預金種類の選択欄では受け付けません）。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の{bulkEntryTypes.length}種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>

@@ -419,3 +419,32 @@ describe("BulkPositionModal（保存の対象）", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });
+
+describe("BulkPositionModal（モーダルの作法）", () => {
+  function renderWithClose() {
+    const onClose = vi.fn();
+    const { container } = render(<BulkPositionModal snapshot={snapshotOf([])} people={people} legalHeirNames={heirs} onClose={onClose} onSubmit={async () => true} saving={false} />);
+    return { onClose, pressEscape: () => fireEvent.keyDown(container.querySelector(".modal-layer")!, { key: "Escape" }) };
+  }
+
+  it("開いたら、いま編集している種類のタブへフォーカスを移す", () => {
+    renderWithClose();
+    // 9種類ぶんの入力先があるので、先頭のセルではなく「どの種類か」へ移す。
+    expect(document.activeElement).toBe(entryTab("SECURITIES"));
+  });
+
+  it("未保存の編集が無ければ Escape で閉じる", () => {
+    const { onClose, pressEscape } = renderWithClose();
+    pressEscape();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("未保存の編集があるときは Escape で閉じず、理由を出す", () => {
+    const { onClose, pressEscape } = renderWithClose();
+    selectEntryType("LOAN_RECEIVABLE");
+    typeIn(1, "名称", "役員貸付金");
+    pressEscape();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toContain("未保存の編集があります");
+  });
+});
