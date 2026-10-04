@@ -1394,14 +1394,18 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .guarantee-note strong { font-size: 9.5px; }
 
   .detail-page-heading { margin: 0 0 8px; padding: 0 2mm; display: flex; align-items: flex-end; flex-direction: row; }
+  /* 「個人資産・負債を時価で俯瞰します。」のような画面向けの説明は紙に要らない。
+     基準日や「過年度を表示中」は印刷しても意味があるので .detail-heading-meta だけ残す。 */
+  .detail-page-heading > div > p:not(.detail-heading-meta) { display: none !important; }
   .detail-page-heading h2 { margin: 1px 0 2px; font-size: 18px; }
   .detail-heading-meta { gap: 6px; font-size: 9.5px; }
   .detail-status-screen, .detail-updated-at { display: none !important; }
   .detail-status-print { display: inline; }
   .detail-status.current::after { display: none !important; }
   .detail-page-actions, .position-table-actions, .position-table-tools, .list-pager, .list-empty-state .button, .tax-section-toolbar, .tax-calc-recalc, .secondary-sim { display: none !important; }
-  /* 「14件・登録順・ドラッグで並び替え」は画面操作の案内なので印刷では出さない */
-  .position-section .panel-header p { display: none !important; }
+  /* 件数・絞り込み・並び順は「どの範囲をどの順で刷ったか」なので紙にも残す。
+     ドラッグの案内だけは画面の操作方法なので消す。 */
+  .screen-only-hint { display: none !important; }
   .tax-calculation-document { margin-top: 0; }
   .inheritance-tax-report { width: 100%; height: auto; max-height: 174mm; padding: 4mm 5mm 3mm; border: 1px solid var(--line); border-radius: 0; box-shadow: none; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
   .inheritance-tax-report-heading { min-height: 18mm; padding: 0 1mm 3mm; gap: 8mm; }
@@ -1537,7 +1541,10 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
      こちらより詳細度が高いので、同じ詳細度で引き直す。 */
   .position-table tfoot .position-total-label { border: 1px solid var(--line-strong); }
 
-  .history-page-heading { display: none !important; }
+  /* 目次は「年度比較」なので、紙の見出しもそれに揃える（年度を追加するボタンだけ消す）。
+     すぐ下の .page-heading:not(.detail-page-heading) に負けるので display を明示する。 */
+  .history-page-heading { display: flex !important; margin: 0 0 8px; padding: 0 2mm; }
+  .history-page-heading h2 { margin: 1px 0 2px; font-size: 18px; }
   .trend-panel .panel-header p, .period-position-label { display: none !important; }
   .history-page-heading .button, .history-list-panel, .trend-guidance, .period-edit { display: none !important; }
   .trend-panel { margin-bottom: 0; overflow: visible; break-inside: auto; page-break-inside: auto; }
@@ -1553,6 +1560,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .trend-table .trend-expandable + .trend-child { break-before: avoid; page-break-before: avoid; }
   .trend-table thead th:first-child, .trend-table tbody th { width: 28%; max-width: 28%; min-width: 0; }
   .trend-table thead th.period-selector, .trend-table thead th.trend-change-column { width: 18%; }
+  /* 年度が2つのときは列が1本減る。3列前提の幅のままだと18%余って列が間延びする。 */
+  .trend-columns-2 thead th.period-selector, .trend-columns-2 thead th.trend-change-column { width: 24%; }
   .trend-table th, .trend-table td { min-width: 0; padding: 6px 9px; box-sizing: border-box; }
   .trend-table thead span { font-size: 11px; }
   .trend-table thead small { font-size: 10px; }

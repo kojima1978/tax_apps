@@ -266,14 +266,22 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
 
   const filterActive = classificationFilter !== "ALL";
   const sortLabel = POSITION_SORT_MODES.find((mode) => mode.value === sortMode)?.label ?? "登録順";
-  const reorderHint = isValueSort(sortMode) ? sortLabel : `${sortLabel}・同じ科目内でドラッグして並び替え`;
+  const filterLabel = filterOptions.find((option) => option.value === classificationFilter)?.label;
   const dragDisabledMessage = "同じ科目（不動産は土地・建物も同じ）の明細が他に無いため並び替えできません";
+  /* 件数・絞り込み・並び順は紙にも残す（印刷したものがどの範囲・どの順なのか後から分からなくなるため）。
+     ドラッグの案内だけは画面の操作方法なので印刷では消す。 */
+  const subtitle = <>
+    {visibleItems.length === items.length ? `${items.length}件` : `${visibleItems.length}/${items.length}件表示`}
+    {filterActive && filterLabel ? `・${filterLabel}のみ` : ""}
+    {`・${sortLabel}`}
+    {isValueSort(sortMode) ? null : <span className="screen-only-hint">・同じ科目内でドラッグして並び替え</span>}
+  </>;
 
   return (
     <section className={`panel table-panel position-section ${section === "CONTINGENT" ? "contingent-section" : ""}`}>
       <PanelHeader
         title={title}
-        subtitle={`${visibleItems.length === items.length ? `${items.length}件` : `${visibleItems.length}/${items.length}件表示`}・${reorderHint}`}
+        subtitle={subtitle}
         action={(
           <div className="position-table-actions">
           {hasSortControls ? (

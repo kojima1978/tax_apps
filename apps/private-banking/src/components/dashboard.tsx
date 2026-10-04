@@ -402,6 +402,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             <div id="print-section-balance" className={`report-document ${section !== "balance" ? "print-only-document" : ""} ${printIncludes("balance") ? "" : "print-excluded-document"}`}>
               <section className="page-heading detail-page-heading">
                 <div>
+                  <h2>貸借対照表</h2>
                   <p>個人資産・負債を時価で俯瞰します。</p>
                   {reportSnapshot.isCurrent ? null : <p className="detail-heading-meta"><span className="detail-status historical">過年度を表示中</span><span>基準日 {dateJa(reportSnapshot.asOfDate)}</span></p>}
                 </div>
