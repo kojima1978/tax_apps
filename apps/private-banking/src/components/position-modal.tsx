@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, Info, LoaderCircle, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
-import { FormEvent, type ReactNode, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useState } from "react";
 import { BuildingTypeField, CommaNumberInput, LandCategoryField, OwnershipFractionInput } from "@/components/form-fields";
 import { personSelectOptions } from "@/lib/family";
 import { fxRateFor, positionCurrencies, type FxRates } from "@/lib/fx-rates";
@@ -116,9 +116,10 @@ const evenRows = (rows: AllocationRow[]) => rows.map((row) => ({ ...row, numerat
  * 死亡保険金・死亡退職金の給付金額と、その受取人。受取人が複数のときは分数で割り振る。
  * 受取人1人のときは分数欄を出さず 1/1 として扱い、従来どおりの入力のままにする。
  */
-function BenefitRecipientsField({ benefitLabel, benefitName, benefitDefault, recipientName, allocationDefaults, people, legalHeirNames, exemptionNote }: {
+function BenefitRecipientsField({ benefitLabel, benefitName, benefitDefault, recipientName, allocationDefaults, people, legalHeirNames, exemptionNote, onValidChange }: {
   benefitLabel: string; benefitName: string; benefitDefault: string; recipientName: string;
   allocationDefaults: BenefitAllocation[]; people: string[]; legalHeirNames: ReadonlySet<string>; exemptionNote: string;
+  onValidChange: (valid: boolean) => void;
 }) {
   const [benefit, setBenefit] = useState(benefitDefault);
   const [rows, setRows] = useState<AllocationRow[]>(() => allocationDefaults.map((allocation, index) => ({
@@ -127,6 +128,9 @@ function BenefitRecipientsField({ benefitLabel, benefitName, benefitDefault, rec
   const multiple = rows.length > 1;
   const total = fractionTotal(rows.map((row) => ({ numerator: Number(row.numerator) || 0, denominator: Number(row.denominator) || 0 })));
   const totalIsOne = total !== null && total.numerator === total.denominator;
+  // 合計が1でないまま登録ボタンを押せると、サーバの検証まで行ってから画面に出ているのと同じ警告を見ることになる。
+  // 受取人欄が消えるとき（科目を変えたとき）に true へ戻すのが要点で、残したままだと登録ボタンが二度と戻らない。
+  useEffect(() => { onValidChange(totalIsOne); return () => onValidChange(true); }, [totalIsOne, onValidChange]);
   const benefitAmount = Number(benefit.replace(/,/g, "")) || 0;
   const amounts = splitBenefit(benefitAmount, rows.map((row) => ({ recipient: row.recipient, numerator: Number(row.numerator) || 0, denominator: Number(row.denominator) || 1 })));
   const updateRow = (key: number, patch: Partial<AllocationRow>) => setRows((current) => current.map((row) => row.key === key ? { ...row, ...patch } : row));
@@ -193,6 +197,7 @@ function AssetSpecificFields({
   ownershipDenominator,
   onOwnershipNumeratorChange,
   onOwnershipDenominatorChange,
+  onBenefitAllocationValidChange,
 }: {
   category: string;
   details: AssetDetails;
@@ -209,6 +214,7 @@ function AssetSpecificFields({
   ownershipDenominator: string;
   onOwnershipNumeratorChange: (value: string) => void;
   onOwnershipDenominatorChange: (value: string) => void;
+  onBenefitAllocationValidChange: (valid: boolean) => void;
 }) {
   if (realEstateCategories.includes(category)) return <fieldset key={category} className="asset-detail-fieldset full"><legend>不動産の情報</legend><div className="asset-detail-grid">
     <label>資産区分<select name="assetDetail.propertyType" value={propertyType} onChange={(event) => onPropertyTypeChange(event.target.value)}><option value="LAND">土地</option><option value="BUILDING">建物</option></select></label>
@@ -227,7 +233,7 @@ function AssetSpecificFields({
 
   if (category === "INSURANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>生命保険の情報</legend><div className="asset-detail-grid">
     <PersonSelect label="被保険者" name="assetDetail.insuredPerson" value={details.insuredPerson ?? ""} people={people} />
-    <BenefitRecipientsField benefitLabel="死亡保険金" benefitName="assetDetail.deathBenefit" benefitDefault={String(details.deathBenefit ?? "")} recipientName="assetDetail.beneficiary" allocationDefaults={allocationDefaults(details, "beneficiary")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数）の対象です。" />
+    <BenefitRecipientsField benefitLabel="死亡保険金" benefitName="assetDetail.deathBenefit" benefitDefault={String(details.deathBenefit ?? "")} recipientName="assetDetail.beneficiary" allocationDefaults={allocationDefaults(details, "beneficiary")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数）の対象です。" onValidChange={onBenefitAllocationValidChange} />
   </div></fieldset>;
 
   // 生命保険契約に関する権利は保険事故が起きていないので、死亡保険金も受取人も存在しない。
@@ -237,7 +243,7 @@ function AssetSpecificFields({
   </div><FieldNote summary="生命保険契約に関する権利の扱い">被相続人が保険料を負担し、被保険者が被相続人以外（配偶者・子など）の契約です。相続開始時点で保険事故が起きていないため死亡保険金は支払われず、解約返戻金相当額が<strong>本来の相続財産</strong>として課税価格に入ります。生命保険金の非課税枠（500万円 × 法定相続人数）の対象ではありません。円換算時価には解約返戻金相当額を入力します。</FieldNote></fieldset>;
 
   if (category === "RETIREMENT_ALLOWANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>退職金の情報</legend><div className="asset-detail-grid">
-    <BenefitRecipientsField benefitLabel="死亡退職金" benefitName="assetDetail.retirementAllowance" benefitDefault={String(details.retirementAllowance ?? "")} recipientName="assetDetail.retirementRecipient" allocationDefaults={allocationDefaults(details, "retirementRecipient")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数・生命保険金とは別枠）の対象です。" />
+    <BenefitRecipientsField benefitLabel="死亡退職金" benefitName="assetDetail.retirementAllowance" benefitDefault={String(details.retirementAllowance ?? "")} recipientName="assetDetail.retirementRecipient" allocationDefaults={allocationDefaults(details, "retirementRecipient")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数・生命保険金とは別枠）の対象です。" onValidChange={onBenefitAllocationValidChange} />
   </div><FieldNote summary="解約手当金と死亡退職金の扱い">円換算時価には、生存中に解約した場合の解約返戻金（解約手当金）を入力します。死亡退職金は相続税の概算にだけ反映し、資産合計には含めません。</FieldNote></fieldset>;
 
   return null;
@@ -270,12 +276,16 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   const [manualAmount, setManualAmount] = useState(position ? String(position.originalAmount) : "");
   // 生命保険は契約名を持たせず、保険会社を明細の名称として使う。
   const [institution, setInstitution] = useState(position?.institution ?? "");
+  // 受取人ごとの分数の合計が1かどうか。受取人欄（BenefitRecipientsField）から受け取る。
+  const [benefitAllocationValid, setBenefitAllocationValid] = useState(true);
 
+  // 区分の切替も科目の切替を通す。以前は setCategory を直に呼んでいたため通貨が JPY へ戻らず、
+  // 外貨預金から負債へ切り替えると「借入残高（USD）」と見せたまま JPY で保存され、
+  // レート未登録の通貨では通貨欄ごと消えて（＝直す手段が画面に無い状態で）登録ボタンが止まっていた。
   function changeSection(nextSection: PositionSection) {
     setSection(nextSection);
     setGroup("金融資産");
-    setCategory(defaultCategoryOf(nextSection));
-    setFormula("MANUAL");
+    changeCategory(defaultCategoryOf(nextSection));
   }
 
   function changeGroup(nextGroup: AssetGroupLabel) {
@@ -288,6 +298,16 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
     if (!foreignCurrencyCategories.includes(nextCategory)) setCurrency("JPY");
     if (realEstateCategories.includes(nextCategory)) setPropertyType("LAND");
     setFormula(defaultFormulaByCategory[nextCategory] ?? "MANUAL");
+    // 算式の内訳は科目ごとの値なので持ち越さない。上場株式の単価が骨とう品の「時価」へそのまま入ると、
+    // 気づかないまま相続税の概算まで誤った額で進む。通貨・資産区分と揃えて、科目の既定へ戻す。
+    // 直接入力の金額と所在地・金融機関等は、どの科目でも同じ意味を持つので残す。
+    setQuantity("");
+    setUnitPrice("");
+    setAdjustmentRate("1.0");
+    setLandArea("");
+    setRoadsideValue("");
+    setFixedAssetTaxValue("");
+    setValuationMultiplier("");
   }
 
   function changePropertyType(nextPropertyType: string) {
@@ -388,6 +408,7 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
           ownershipDenominator={ownershipDenominator}
           onOwnershipNumeratorChange={setOwnershipNumerator}
           onOwnershipDenominatorChange={setOwnershipDenominator}
+          onBenefitAllocationValidChange={setBenefitAllocationValid}
         /> : null}
         <fieldset className="valuation-formula-fieldset full"><legend>{valuationLegend}</legend>{!hasFormulaChoice ? <input type="hidden" name="valuationFormula" value="MANUAL" /> : isPrivateShares ? <><input type="hidden" name="valuationFormula" value={formula} /><label className="valuation-formula-check"><input type="checkbox" checked={formula === "STOCK"} onChange={(event) => setFormula(event.target.checked ? "STOCK" : "MANUAL")} /><span><strong>単価・株数から自動計算する</strong><small>外すと評価額を直接入力できます。</small></span></label></> : <select name="valuationFormula" aria-label="評価額の計算方法" value={formula} onChange={(event) => setFormula(event.target.value as ValuationFormula)}>{isUnitRateCategory ? <option value="UNIT_RATE">{unitRateLabel}×調整率</option> : null}<option value="MANUAL">金額を直接入力</option>{isStockCategory ? <option value="STOCK">単価・株数から計算</option> : null}{isRealEstateCategory && propertyType === "LAND" ? <><option value="LAND_ROADSIDE">路線価方式</option><option value="LAND_MULTIPLIER">倍率方式</option></> : null}{isRealEstateCategory && propertyType === "BUILDING" ? <option value="BUILDING">固定資産税評価額方式</option> : null}</select>}{formulaExpression ? <p className="valuation-formula-expression">{formulaExpression}</p> : null}
           {formula === "STOCK" ? <div className="valuation-calculation-grid stock-formula"><label>単価（{amountUnit}）<CommaNumberInput name="valuationUnitPrice" defaultValue="" value={unitPrice} onValueChange={setUnitPrice} maxFractionDigits={2} placeholder="例：2,500" positive={!isPrivateShares} /></label><span aria-hidden="true">×</span><label>株数・口数<CommaNumberInput name="valuationQuantity" defaultValue="" value={quantity} onValueChange={setQuantity} maxFractionDigits={6} placeholder="例：10,000" positive /></label><span aria-hidden="true">×</span><label>調整率<CommaNumberInput name="adjustmentRate" defaultValue="" value={adjustmentRate} onValueChange={setAdjustmentRate} maxFractionDigits={2} placeholder="例：1.0" positive /></label></div> : null}
@@ -402,7 +423,7 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
         </fieldset>
         <label className="full">メモ<textarea name="note" rows={3} placeholder="評価日、根拠資料など" defaultValue={position?.note ?? ""} /></label>
       </div>
-      <footer><div className="position-modal-summary" aria-live="polite"><span>{amountLabel}</span><strong>{summaryAmount === null ? "未入力" : `${formatAmount(summaryAmount)} ${amountUnit}`}</strong>{summaryJpy ? <small>{summaryJpy}</small> : null}</div><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>
+      <footer><div className="position-modal-summary" aria-live="polite"><span>{amountLabel}</span><strong>{summaryAmount === null ? "未入力" : `${formatAmount(summaryAmount)} ${amountUnit}`}</strong>{summaryJpy ? <small>{summaryJpy}</small> : null}</div><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null || !benefitAllocationValid}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>
     </form>
   </div></div>;
 }
