@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { formatWareki, gregorianToWareki, warekiToGregorian } from './japanese-era';
+import { convertWareki, eraLastYear, formatWareki, gregorianToWareki, warekiToGregorian } from './japanese-era';
 
 const wareki = (value: string) => {
   const w = gregorianToWareki(value);
   return w ? `${w.era.label}${w.eraYear}` : null;
+};
+
+const reason = (...args: Parameters<typeof convertWareki>) => {
+  const result = convertWareki(...args);
+  return result.ok ? null : result.reason;
 };
 
 describe('西暦→和暦', () => {
@@ -23,6 +28,13 @@ describe('西暦→和暦', () => {
     expect(gregorianToWareki('2026/07/04')).toBeNull();
     expect(gregorianToWareki('2026-7-4')).toBeNull();
     expect(gregorianToWareki('')).toBeNull();
+  });
+
+  it('書式は合っていても実在しない日付は null（読み替えて別の日を出さない）', () => {
+    expect(gregorianToWareki('2026-02-31')).toBeNull();
+    expect(gregorianToWareki('2026-13-01')).toBeNull();
+    expect(gregorianToWareki('2026-00-10')).toBeNull();
+    expect(wareki('2024-02-29')).toBe('令和6'); // 閏年は通る
   });
 });
 
@@ -45,12 +57,56 @@ describe('和暦→西暦', () => {
       expect(warekiToGregorian(w.era.code, w.eraYear, w.month, w.day)).toBe(value);
     }
   });
+});
 
-  it('元号の範囲は見ていない（既知の穴）', () => {
-    // 「平成40年」は存在しないが通り、読み直すと令和10年になる。
-    // 画面（JpDateInput）の年は自由入力なので、ここを塞ぐなら元号ごとの上限が要る。
-    expect(warekiToGregorian('heisei', 40, 1, 1)).toBe('2028-01-01');
-    expect(wareki('2028-01-01')).toBe('令和10');
+describe('元号の範囲', () => {
+  it('元号ごとの年の上限（画面の入力欄の max に使う）', () => {
+    expect(eraLastYear('heisei')).toBe(31);
+    expect(eraLastYear('showa')).toBe(64);
+    expect(eraLastYear('taisho')).toBe(15);
+    expect(eraLastYear('meiji')).toBe(45);
+    expect(eraLastYear('reiwa')).toBeUndefined(); // 現行元号に上限は無い
+  });
+
+  it('存在しない元号年は通さない（平成40年＝令和10年に化けない）', () => {
+    expect(warekiToGregorian('heisei', 40, 1, 1)).toBeNull();
+    expect(reason('heisei', 40, 1, 1)).toBe('平成は31年4月30日までです');
+  });
+
+  it('改元日の1日またぎも弾く', () => {
+    expect(warekiToGregorian('heisei', 31, 4, 30)).toBe('2019-04-30');
+    expect(warekiToGregorian('heisei', 31, 5, 1)).toBeNull();
+    expect(reason('heisei', 31, 5, 1)).toBe('平成は31年4月30日までです');
+
+    expect(warekiToGregorian('showa', 64, 1, 7)).toBe('1989-01-07');
+    expect(reason('showa', 64, 1, 8)).toBe('昭和は64年1月7日までです');
+  });
+
+  it('元号の開始日より前も弾く（理由は「元年」で出す）', () => {
+    expect(warekiToGregorian('heisei', 1, 1, 8)).toBe('1989-01-08');
+    expect(reason('heisei', 1, 1, 7)).toBe('平成は元年1月8日からです');
+    expect(reason('meiji', 1, 10, 22)).toBe('明治は元年10月23日からです');
+  });
+
+  it('現行元号には上限が無い', () => {
+    expect(warekiToGregorian('reiwa', 50, 1, 1)).toBe('2068-01-01');
+  });
+});
+
+describe('実在しない日付', () => {
+  it('2月31日・13月は理由付きで弾く', () => {
+    expect(reason('reiwa', 8, 2, 31)).toBe('2月31日はありません');
+    expect(reason('reiwa', 8, 13, 1)).toBe('13月1日はありません');
+  });
+
+  it('閏日は閏年だけ通す', () => {
+    expect(warekiToGregorian('reiwa', 2, 2, 29)).toBe('2020-02-29');
+    expect(warekiToGregorian('reiwa', 3, 2, 29)).toBeNull();
+  });
+
+  it('整数以外は整数で入れるよう促す', () => {
+    expect(reason('reiwa', 8.5, 7, 4)).toBe('年月日は整数で入れてください');
+    expect(reason('reiwa', 8, Number.NaN, 4)).toBe('年月日は整数で入れてください');
   });
 });
 

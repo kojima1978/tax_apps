@@ -4,8 +4,9 @@ import { useState } from "react"
 import { Input } from "./Input"
 import {
     JAPANESE_ERAS,
+    convertWareki,
+    eraLastYear,
     gregorianToWareki,
-    warekiToGregorian,
     type JapaneseEra,
 } from "@/lib/japanese-era"
 
@@ -39,79 +40,104 @@ function WarekiDateFields({ value, onChange, id, className, disabled, onSwitchMo
     const [eraYear, setEraYear] = useState<string>(initial.eraYear)
     const [month, setMonth] = useState<string>(initial.month)
     const [day, setDay] = useState<string>(initial.day)
+    const [error, setError] = useState<string | null>(null)
 
-    const commitWareki = (code: JapaneseEra["code"], y: string, m: string, d: string) => {
-        const yi = Number(y), mi = Number(m), di = Number(d)
-        if (!y || !m || !d || !Number.isFinite(yi) || !Number.isFinite(mi) || !Number.isFinite(di)) {
-            onChange("")
-            return
+    // 自分が出した値が親から返ってきただけなのか、外から別の値が入ったのかを見分ける。
+    // 入力途中に値が空になるたび入力欄を作り直すと、打ちかけの月日と下の理由まで消える。
+    const [emitted, setEmitted] = useState<string | null>(null)
+    const [lastValue, setLastValue] = useState(value)
+    if (value !== lastValue) {
+        setLastValue(value)
+        if (value !== emitted) {
+            const parts = getWarekiInputParts(value)
+            setEraCode(parts.eraCode)
+            setEraYear(parts.eraYear)
+            setMonth(parts.month)
+            setDay(parts.day)
+            setError(null)
         }
-        const result = warekiToGregorian(code, yi, mi, di)
-        onChange(result ?? "")
+    }
+
+    // 誤った日付は保存しない（値は空にする）が、空にした理由は欄の下に出す。
+    // 「平成4年」から「平成40年」へ打ち替える途中は必ず一度おかしな値を通るので、
+    // 黙って消すと「入れたのに保存されない」になる。
+    const commitWareki = (code: JapaneseEra["code"], y: string, m: string, d: string) => {
+        // どれかが空のうちは「入力途中」なので理由も出さない
+        const result = (!y || !m || !d) ? null : convertWareki(code, Number(y), Number(m), Number(d))
+        setError(result && !result.ok ? result.reason : null)
+        const next = result?.ok ? result.value : ""
+        setEmitted(next)
+        onChange(next)
     }
 
     return (
-        <div className={`flex items-center gap-1 ${className ?? ""}`}>
-            <select
-                id={id}
-                value={eraCode}
-                disabled={disabled}
-                onChange={(e) => {
-                    const v = e.target.value as JapaneseEra["code"]
-                    setEraCode(v)
-                    commitWareki(v, eraYear, month, day)
-                }}
-                className="h-10 rounded-md border-2 border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-                {JAPANESE_ERAS.map(e => (
-                    <option key={e.code} value={e.code}>{e.label}</option>
-                ))}
-            </select>
-            <Input
-                type="number"
-                min={1}
-                max={99}
-                inputMode="numeric"
-                value={eraYear}
-                disabled={disabled}
-                onChange={(e) => { setEraYear(e.target.value); commitWareki(eraCode, e.target.value, month, day) }}
-                className="w-16 text-center"
-                placeholder="年"
-            />
-            <span className="text-sm text-muted-foreground">年</span>
-            <Input
-                type="number"
-                min={1}
-                max={12}
-                inputMode="numeric"
-                value={month}
-                disabled={disabled}
-                onChange={(e) => { setMonth(e.target.value); commitWareki(eraCode, eraYear, e.target.value, day) }}
-                className="w-14 text-center"
-                placeholder="月"
-            />
-            <span className="text-sm text-muted-foreground">月</span>
-            <Input
-                type="number"
-                min={1}
-                max={31}
-                inputMode="numeric"
-                value={day}
-                disabled={disabled}
-                onChange={(e) => { setDay(e.target.value); commitWareki(eraCode, eraYear, month, e.target.value) }}
-                className="w-14 text-center"
-                placeholder="日"
-            />
-            <span className="text-sm text-muted-foreground">日</span>
-            <button
-                type="button"
-                className="ml-1 px-2 text-xs text-muted-foreground hover:text-foreground"
-                onClick={onSwitchMode}
-                title="西暦入力に切替"
-                disabled={disabled}
-            >
-                西暦
-            </button>
+        <div className={className}>
+            <div className="flex items-center gap-1">
+                <select
+                    id={id}
+                    value={eraCode}
+                    disabled={disabled}
+                    onChange={(e) => {
+                        const v = e.target.value as JapaneseEra["code"]
+                        setEraCode(v)
+                        commitWareki(v, eraYear, month, day)
+                    }}
+                    className="h-10 rounded-md border-2 border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                    {JAPANESE_ERAS.map(e => (
+                        <option key={e.code} value={e.code}>{e.label}</option>
+                    ))}
+                </select>
+                <Input
+                    type="number"
+                    min={1}
+                    max={eraLastYear(eraCode) ?? 99}
+                    inputMode="numeric"
+                    value={eraYear}
+                    disabled={disabled}
+                    aria-invalid={error ? true : undefined}
+                    onChange={(e) => { setEraYear(e.target.value); commitWareki(eraCode, e.target.value, month, day) }}
+                    className="w-16 text-center"
+                    placeholder="年"
+                />
+                <span className="text-sm text-muted-foreground">年</span>
+                <Input
+                    type="number"
+                    min={1}
+                    max={12}
+                    inputMode="numeric"
+                    value={month}
+                    disabled={disabled}
+                    onChange={(e) => { setMonth(e.target.value); commitWareki(eraCode, eraYear, e.target.value, day) }}
+                    className="w-14 text-center"
+                    placeholder="月"
+                />
+                <span className="text-sm text-muted-foreground">月</span>
+                <Input
+                    type="number"
+                    min={1}
+                    max={31}
+                    inputMode="numeric"
+                    value={day}
+                    disabled={disabled}
+                    onChange={(e) => { setDay(e.target.value); commitWareki(eraCode, eraYear, month, e.target.value) }}
+                    className="w-14 text-center"
+                    placeholder="日"
+                />
+                <span className="text-sm text-muted-foreground">日</span>
+                <button
+                    type="button"
+                    className="ml-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={onSwitchMode}
+                    title="西暦入力に切替"
+                    disabled={disabled}
+                >
+                    西暦
+                </button>
+            </div>
+            {error && (
+                <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>
+            )}
         </div>
     )
 }
@@ -126,7 +152,6 @@ export function JpDateInput({ value, onChange, id, className, disabled }: JpDate
     if (mode === "wareki") {
         return (
             <WarekiDateFields
-                key={value || "empty"}
                 value={value}
                 onChange={onChange}
                 id={id}
