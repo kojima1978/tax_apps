@@ -225,8 +225,18 @@ function initialRows(snapshot: Snapshot, entryType: BulkEntryType) {
   return [...existingRows, createEmptyRow(nextId, entryType)];
 }
 
-/** 保存対象になる新規行かどうか。フッターの件数とタブの印で同じ判定を使う。 */
-const bulkRowIsFilledNew = (row: BulkRow) => row.positionId === null && Boolean(row.name.trim() || row.institution.trim() || row.address.trim());
+/** 既定値を持つ列。行を1つ足しただけで埋まるので、入力の有無を見るときは外す。 */
+const bulkDefaultedFields = new Set<BulkField>(["category", "valuationFormula", "accountType", "multiplier", "adjustmentRate", "ownershipNumerator", "ownershipDenominator"]);
+/** 入力の有無を見る列。列を足したときに書き漏らさないよう、行の形から引いて作る。 */
+const bulkTouchableFields = (Object.keys(createBulkRow(0)) as Array<keyof BulkRow>)
+  .filter((key): key is BulkField => !["id", "positionId", "error", "errorFields"].includes(key) && !bulkDefaultedFields.has(key as BulkField));
+/**
+ * 保存対象になる新規行かどうか。フッターの件数・タブの印・保存の対象で同じ判定を使う。
+ * 以前は名称・金融機関・所在地の3つしか見ておらず、保存側はさらに別の条件を持っていたので、
+ * 金額だけ入れた行は「新規0件」と出るのに検証でエラーになり、単価・面積・床面積・証券番号・
+ * 被保険者・受取人・メモだけを入れた行は何も言わずに捨てられていた。
+ */
+const bulkRowIsFilledNew = (row: BulkRow) => row.positionId === null && bulkTouchableFields.some((field) => row[field].trim());
 /** 行の内容だけを比べるための文字列。id と検証結果は保存内容と関係しないので落とす。 */
 const bulkRowContent = (row: BulkRow) => JSON.stringify({ ...row, id: 0, error: "", errorFields: [] });
 
@@ -256,14 +266,24 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   const isBuilding = entryType === "BUILDING";
   const isRealEstate = isLand || isBuilding;
   const simpleConfig = simpleEntryConfigOf(entryType);
-  const totalExistingCount = bulkEntryTypes.reduce((count, type) => count + entryCounts[type], 0);
-  const activeNewRowCount = bulkEntryTypes.reduce((count, type) => count + rowsByType[type].filter(bulkRowIsFilledNew).length, 0);
-  /** 種類ごとの未保存の編集。タブを切り替えても入力は残り一緒に保存されるので、見えていない種類の分も数える。 */
-  const editedCounts = useMemo(() => Object.fromEntries(bulkEntryTypes.map((type) => {
+  /**
+   * 保存の対象になる行。登録済みは開いたときから内容が変わった行だけ、新規は入力のある行だけ。
+   * 以前は登録済みの行を編集の有無に関わらず全件送っていたので、1行も触らずに保存しただけで
+   * 全件が更新され、表に列の無い項目を失う経路になっていた。
+   * タブを切り替えても入力は残り一緒に保存されるので、見えていない種類の分も数える。
+   */
+  const savedRowsByType = useMemo(() => Object.fromEntries(bulkEntryTypes.map((type) => {
     const initialContents = new Map(initialRowsByType[type].map((row) => [row.positionId, bulkRowContent(row)]));
-    return [type, rowsByType[type].filter((row) => bulkRowIsFilledNew(row)
-      || (row.positionId !== null && initialContents.get(row.positionId) !== bulkRowContent(row))).length];
-  })) as Record<BulkEntryType, number>, [initialRowsByType, rowsByType]);
+    return [type, rowsByType[type].filter((row) => row.positionId === null
+      ? bulkRowIsFilledNew(row)
+      : initialContents.get(row.positionId) !== bulkRowContent(row))];
+  })) as Record<BulkEntryType, BulkRow[]>, [initialRowsByType, rowsByType]);
+  const editedCounts = useMemo(() => Object.fromEntries(
+    bulkEntryTypes.map((type) => [type, savedRowsByType[type].length]),
+  ) as Record<BulkEntryType, number>, [savedRowsByType]);
+  const savedRows = bulkEntryTypes.flatMap((type) => savedRowsByType[type]);
+  const savedExistingCount = savedRows.filter((row) => row.positionId !== null).length;
+  const savedNewCount = savedRows.length - savedExistingCount;
   const errorCounts = useMemo(() => Object.fromEntries(
     bulkEntryTypes.map((type) => [type, rowsByType[type].filter((row) => row.error).length]),
   ) as Record<BulkEntryType, number>, [rowsByType]);
@@ -484,13 +504,8 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
 
   async function submitBulk() {
     setFormError("");
-    const activeRowsByType = Object.fromEntries(bulkEntryTypes.map((type) => [
-      type,
-      rowsByType[type].filter((row) => row.positionId !== null || row.name.trim() || row.institution.trim() || row.address.trim() || row.quantity || row.fixedAssetTaxValue || row.roadsideValue || row.originalAmount),
-    ])) as Record<BulkEntryType, BulkRow[]>;
-    const activeRowCount = bulkEntryTypes.reduce((count, type) => count + activeRowsByType[type].length, 0);
-    if (activeRowCount === 0) {
-      setFormError("編集または追加する明細を1行以上入力してください。");
+    if (savedRows.length === 0) {
+      setFormError("保存する変更がありません。登録済みの明細を直すか、新しい行を入力してください。");
       return;
     }
     let invalid = false;
@@ -503,7 +518,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
     };
     const numericFields = new Set<BulkField>(["quantity", "unitPrice", "landArea", "floorArea", "roadsideValue", "fixedAssetTaxValue", "multiplier", "adjustmentRate", "ownershipNumerator", "ownershipDenominator", "originalAmount"]);
     const checkedRowsByType = Object.fromEntries(bulkEntryTypes.map((type) => [type, rowsByType[type].map((row) => {
-      if (!activeRowsByType[type].includes(row)) return { ...row, error: "", errorFields: [] };
+      if (!savedRowsByType[type].includes(row)) return { ...row, error: "", errorFields: [] };
       const requiredFields = requiredFieldsForRow(row, type);
       const missingFields = requiredFields.filter((field) => !row[field].trim());
       // 生命保険・退職金・貸付金は列名が科目ごとに違うので、エラー文でも画面の見出しをそのまま使う。
@@ -536,7 +551,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
     }
     const numberOrNull = (value: string) => value ? Number(value.replace(/,/g, "")) : null;
     const positionsById = new Map(snapshot.positions.map((position) => [position.id, position]));
-    const payloads = bulkEntryTypes.flatMap((type) => activeRowsByType[type].map((row) => {
+    const payloads = bulkEntryTypes.flatMap((type) => savedRowsByType[type].map((row) => {
       const rowSimpleConfig = simpleEntryConfigOf(type);
       const rowIsDeposit = type === "DEPOSIT";
       const rowIsStock = ["SECURITIES", "PRIVATE_SHARES"].includes(type);
@@ -649,7 +664,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         </table>
       </div>
       <button type="button" className="button secondary bulk-add-row" onClick={() => addRow()}><Plus />新しい行を追加</button>
-      <footer><span>保存対象：登録済み {totalExistingCount}件・新規 {activeNewRowCount}件（全{bulkEntryTypes.length}種類の合計）</span><div><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="button" className="button primary" onClick={() => void submitBulk()} disabled={saving || rows.length === 0}>{saving ? <LoaderCircle className="spin" /> : <CircleCheck />}変更をまとめて保存</button></div></footer>
+      <footer><span>保存対象：編集 {savedExistingCount}件・新規 {savedNewCount}件（全{bulkEntryTypes.length}種類の合計）</span><div><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="button" className="button primary" onClick={() => void submitBulk()} disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <CircleCheck />}変更をまとめて保存</button></div></footer>
     </div>
   </div></div>;
 }

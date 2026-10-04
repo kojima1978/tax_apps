@@ -258,6 +258,7 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     })]);
     selectEntryType("INSURANCE");
     expect(cell(1, "受取人").value).toBe("旧姓の受取人");
+    typeIn(1, "証券番号", "P-7");
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(savedPayloads(onSubmit)[0]?.data.assetDetails).toMatchObject({ beneficiary: "旧姓の受取人" });
@@ -320,7 +321,7 @@ describe("BulkPositionModal（表に列の無い項目）", () => {
       originalAmount: 5_000_000, valueJpy: 5_000_000, assetDetails: { securityType: "FUND", securityCode: "1234" },
     })]);
     selectEntryType("SECURITIES");
-    // 1行も触らずに保存しただけで証券種類が消えていた（登録済みの行は編集の有無に関わらず全件送られる）。
+    typeIn(1, "直接入力額（円）", "6,000,000");
     typeIn(2, "銘柄名", "△△株式");
     fireEvent.change(cell(2, "方式"), { target: { value: "MANUAL" } });
     typeIn(2, "直接入力額（円）", "1000000");
@@ -370,5 +371,51 @@ describe("BulkPositionModal（表に列の無い項目）", () => {
       originalAmount: 100_000, fxRate: 150, valueJpy: 15_000_000,
     })]);
     expect(entryTab("SECURITIES").getAttribute("aria-label")).toBe("有価証券・登録済み0件");
+  });
+});
+
+describe("BulkPositionModal（保存の対象）", () => {
+  const securities = () => position({
+    id: 11, category: "SECURITIES", name: "○○株式", institution: "××証券", valuationFormula: "MANUAL",
+    originalAmount: 5_000_000, valueJpy: 5_000_000, assetDetails: { securityType: "LISTED_STOCK" },
+  });
+
+  it("1行も直さずに保存したら、何も送らず理由を出す", async () => {
+    const onSubmit = renderModal([securities()]);
+    save();
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("保存する変更がありません"));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("直した行だけを送る", async () => {
+    const onSubmit = renderModal([securities(), position({ ...securities(), id: 12, name: "△△株式" })]);
+    selectEntryType("SECURITIES");
+    typeIn(2, "銘柄名", "△△株式（訂正）");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(savedPayloads(onSubmit).map((payload) => payload.id)).toEqual([12]);
+  });
+
+  it("既定値しか入っていない行は数えず、どれか1つでも入れたら新規1件として数える", () => {
+    renderModal();
+    selectEntryType("BUILDING");
+    const footer = () => screen.getByText(/^保存対象：/).textContent;
+    expect(footer()).toBe("保存対象：編集 0件・新規 0件（全9種類の合計）");
+    // 以前は名称・金融機関・所在地の3つしか見ておらず、固定資産税評価額だけを入れた行は
+    // 「新規0件」と出るのに検証でエラーになっていた。
+    typeIn(1, "固定資産税評価額（円）", "8,000,000");
+    expect(footer()).toBe("保存対象：編集 0件・新規 1件（全9種類の合計）");
+    expect(entryTab("BUILDING").getAttribute("aria-label")).toContain("未保存の編集1件");
+  });
+
+  it("メモだけを入れた行も捨てずにエラーで知らせる", async () => {
+    const onSubmit = renderModal();
+    selectEntryType("DEPOSIT");
+    // 以前はこの行が保存の対象から外れ、何も言わずに消えていた。
+    typeIn(1, "メモ", "あとで金額を確認");
+    save();
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("入力エラー"));
+    expect(screen.getByText("名称・残高を入力してください。")).toBeTruthy();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
