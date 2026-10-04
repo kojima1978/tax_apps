@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultAsOfDate,
   isAsOfDateForFiscalYear,
+  isRealDateOnly,
   parseDateOnlyUtc,
 } from "@/lib/snapshot-date";
 
@@ -14,6 +15,13 @@ describe("snapshot date", () => {
     expect(parseDateOnlyUtc("2028-02-29")?.toISOString()).toBe("2028-02-29T00:00:00.000Z");
     expect(parseDateOnlyUtc("2027-02-29")).toBeNull();
     expect(parseDateOnlyUtc("2027-2-9")).toBeNull();
+  });
+
+  it("実在する日付かどうかだけを見る口（日付を受け取る経路の共通の番人）", () => {
+    expect(isRealDateOnly("2026-07-04")).toBe(true);
+    expect(isRealDateOnly("2026-02-31")).toBe(false);
+    expect(isRealDateOnly("2026-13-01")).toBe(false);
+    expect(isRealDateOnly("")).toBe(false);
   });
 
   it("基準日が対象年度内にあることを確認する", () => {

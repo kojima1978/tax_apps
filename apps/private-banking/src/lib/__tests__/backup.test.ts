@@ -43,3 +43,27 @@ describe("バックアップの復元：評価方法", () => {
     expect(positionData(restoredPosition({ valuationMethod: "倍率方式" })).valuationMethod).toBe("倍率方式");
   });
 });
+
+describe("バックアップの復元：日付", () => {
+  /** 顧客バックアップ1件を組み立てる（日付だけを差し替える）。 */
+  const backup = (overrides: { birthDate?: string | null; asOfDate?: string }) => ({
+    schemaVersion: 1,
+    kind: "household",
+    household: { clientCode: "TEST-1", name: "テスト", birthDate: overrides.birthDate ?? null },
+    snapshots: [{ label: "現状", asOfDate: overrides.asOfDate ?? "2026-04-01", fiscalYear: 2026, positions: [] }],
+  });
+
+  it("実在しない日付のファイルは取り込まない（3月3日として保存しない）", () => {
+    // 通すと `new Date("2026-02-31T00:00:00.000Z")` が 3月3日 になり、
+    // 取り込んだ時点で元のファイルと中身が違う（どこで変わったか後から辿れない）。
+    expect(householdBackupSchema.safeParse(backup({ birthDate: "1974-02-31" })).success).toBe(false);
+    expect(householdBackupSchema.safeParse(backup({ asOfDate: "2026-02-31" })).success).toBe(false);
+    expect(householdBackupSchema.safeParse(backup({ asOfDate: "2026-13-01" })).success).toBe(false);
+  });
+
+  it("日時で書かれた旧いファイルは日付の部分だけ取り込む", () => {
+    const parsed = householdBackupSchema.parse(backup({ birthDate: "1974-03-03T00:00:00.000Z", asOfDate: "2026-04-01T00:00:00.000Z" }));
+    expect(parsed.household.birthDate).toBe("1974-03-03");
+    expect(parsed.snapshots[0].asOfDate).toBe("2026-04-01");
+  });
+});

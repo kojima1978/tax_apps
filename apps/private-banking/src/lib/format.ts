@@ -1,5 +1,7 @@
 /** 画面表示・入力欄で共通に使う数値と日付の整形。 */
 
+import { parseDateOnlyUtc } from "./snapshot-date";
+
 export const yen = new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 });
 export const percent = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 });
 
@@ -61,19 +63,33 @@ export const decimalToFraction = (value: number | null): [number, number] => {
   return [numerator / divisor, denominator / divisor];
 };
 
-export const dateJa = (date: string) => new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric" }).format(new Date(`${date}T00:00:00`));
+/**
+ * `YYYY-MM-DD` を整形する共通の入口。実在しない日付は空文字にする。
+ *
+ * `new Date("2026-02-31T00:00:00")` は 3月3日 になり、`"2026-13-01"` は Invalid Date で
+ * Intl が RangeError を投げる（画面がその場で落ちる）。どちらも黙って通すと、
+ * 入れたのと違う日が印刷物にまで載るので、整形の手前で止める。
+ */
+const formatDateOnly = (date: string, format: Intl.DateTimeFormat) => {
+  const parsed = parseDateOnlyUtc(date);
+  // UTC の 0 時で組んだ Date を JST のまま整形すると前日になるので、タイムゾーンも UTC で読む
+  return parsed === null ? "" : format.format(parsed);
+};
+
+const jaFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+export const dateJa = (date: string) => formatDateOnly(date, jaFormat);
 
 /**
  * 和暦表記。`era: "long"` と `year: "numeric"` の組み合わせで改元年が「令和元年」になる
  * （`era: "short"` だと「令和1年」）。生年月日は西暦と和暦のどちらで聞かれても答えられるよう、
  * 画面・印刷とも西暦に和暦を添えて出す。
  */
-const warekiFormat = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", { era: "long", year: "numeric", month: "long", day: "numeric" });
-export const dateWareki = (date: string) => warekiFormat.format(new Date(`${date}T00:00:00`));
+const warekiFormat = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", { era: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+export const dateWareki = (date: string) => formatDateOnly(date, warekiFormat);
 
 /** 和暦の年だけ（「令和9年」）。`year: "numeric"` なので改元年は「令和元年」になる。 */
-const warekiYearFormat = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", { era: "long", year: "numeric" });
-export const yearWareki = (date: string) => warekiYearFormat.format(new Date(`${date}T00:00:00`));
+const warekiYearFormat = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", { era: "long", year: "numeric", timeZone: "UTC" });
+export const yearWareki = (date: string) => formatDateOnly(date, warekiYearFormat);
 
 /** 和暦の元号＋年から「年」を外したもの（「昭和53」「令和元」）。括弧の中に入れる用。 */
 export const eraYearWareki = (date: string) => yearWareki(date).replace(/年$/, "");
@@ -84,4 +100,6 @@ export const eraYearWareki = (date: string) => yearWareki(date).replace(/年$/, 
  * 同じ月日が2回出て長く、欄をまたいで折り返していた）。
  */
 export const dateJaWithWareki = (date: string) =>
-  `${Number(date.slice(0, 4))}（${eraYearWareki(date)}）年${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日`;
+  parseDateOnlyUtc(date) === null
+    ? ""
+    : `${Number(date.slice(0, 4))}（${eraYearWareki(date)}）年${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日`;

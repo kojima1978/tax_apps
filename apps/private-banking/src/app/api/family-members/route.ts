@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { familyComposition } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
+import { parseDateOnlyUtc } from "@/lib/snapshot-date";
 
 const optionalFractionPart = z.union([z.number(), z.string()]).transform((value) => {
   if (value === "") return null;
@@ -21,7 +22,8 @@ const familyMemberSchema = z.object({
   taxShareDenominator: optionalFractionPart.nullable(),
   specialTaxAddition: z.boolean(),
   disabilityCategory: z.enum(["NONE", "GENERAL", "SPECIAL"]),
-  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  // 形だけでなく実在する日付か見る（`2026-02-31` は `new Date` が 3月3日 へ繰り上げる）
+  birthDate: z.string().refine((value) => parseDateOnlyUtc(value) !== null, "生年月日は正しい日付を入力してください。").nullable(),
   note: z.string().trim().max(500).default(""),
   sortOrder: z.number().int().min(0),
 }).superRefine((member, context) => {
@@ -70,7 +72,7 @@ export async function PUT(request: Request) {
           taxShareDenominator: member.taxShareDenominator,
           specialTaxAddition: member.specialTaxAddition,
           disabilityCategory: member.disabilityCategory,
-          birthDate: member.birthDate ? new Date(`${member.birthDate}T00:00:00.000Z`) : null,
+          birthDate: member.birthDate ? parseDateOnlyUtc(member.birthDate) : null,
           note: member.note,
           sortOrder: index,
         })),

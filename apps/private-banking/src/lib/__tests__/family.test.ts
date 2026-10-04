@@ -44,6 +44,15 @@ describe("ageOnDate", () => {
     expect(ageOnDate("1974-03-03", "2024-03-02")).toBe(49);
     expect(ageOnDate("1974-03-03", "2024-03-03")).toBe(50);
   });
+
+  it("実在しない日付は年齢を出さない（別の日として数えない）", () => {
+    // `new Date("2026-02-31T00:00:00Z")` は 3月3日 になるので、自分で組むと
+    // 2月31日 生まれが3月3日生まれとして数えられる（未成年者控除の判定が変わる）。
+    expect(ageOnDate("1974-02-31", "2024-03-01")).toBeNull();
+    expect(ageOnDate("1974-03-03", "2024-02-31")).toBeNull();
+    expect(ageOnDate("1974-13-01", "2024-03-01")).toBeNull();
+    expect(ageOnDate("2024-02-29", "2024-03-01")).toBe(0);
+  });
 });
 
 describe("parseShareText", () => {

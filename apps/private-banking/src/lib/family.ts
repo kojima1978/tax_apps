@@ -1,3 +1,5 @@
+import { parseDateOnlyUtc } from "./snapshot-date";
+
 export const relationshipOptions = [
   { value: "SELF", label: "本人" },
   { value: "SPOUSE", label: "配偶者" },
@@ -132,11 +134,17 @@ export function legalShareFor(member: Pick<FamilyMemberDraft, "relationship">, m
   return share(groupNumerator, commonDenominator * composition.heirCount);
 }
 
+/**
+ * 基準日当日の満年齢。日付が実在しなければ null（別の日の年齢を出さない）。
+ *
+ * 実在の確認は `parseDateOnlyUtc` に任せる ── `new Date("2026-02-31T00:00:00Z")` は
+ * 3月3日 になるので、自分で組むと 2月31日 生まれが3月3日生まれとして数えられる。
+ */
 export function ageOnDate(birthDate: string | null, referenceDate: string) {
   if (!birthDate) return null;
-  const birth = new Date(`${birthDate}T00:00:00Z`);
-  const reference = new Date(`${referenceDate}T00:00:00Z`);
-  if (Number.isNaN(birth.getTime()) || birth > reference) return null;
+  const birth = parseDateOnlyUtc(birthDate);
+  const reference = parseDateOnlyUtc(referenceDate);
+  if (birth === null || reference === null || birth > reference) return null;
   let age = reference.getUTCFullYear() - birth.getUTCFullYear();
   if (
     reference.getUTCMonth() < birth.getUTCMonth()

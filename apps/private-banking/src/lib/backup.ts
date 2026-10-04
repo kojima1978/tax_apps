@@ -4,6 +4,7 @@ import { z } from "zod";
 import { parseFxRates } from "@/lib/fx-rates";
 import { normalizedValuationMethod } from "@/lib/position-input";
 import { prisma } from "@/lib/prisma";
+import { parseDateOnlyUtc } from "@/lib/snapshot-date";
 
 export const BACKUP_SCHEMA_VERSION = 1;
 
@@ -174,12 +175,23 @@ const decimalLike = z.union([z.string(), z.number()]);
 const nullableDecimalLike = decimalLike.nullable().optional();
 const timestamp = z.string().min(1);
 
+/**
+ * 取り込むファイルの `YYYY-MM-DD`。実在しない日付はここで弾く。
+ *
+ * 通すと `new Date("2026-02-31T00:00:00.000Z")` が 3月3日 として保存され、
+ * 取り込んだ時点で元のファイルと中身が違う（どこで変わったのか後から辿れない）。
+ */
+const dateOnlyText = z.string()
+  // 旧いファイルは日時（`2026-01-01T00:00:00.000Z`）で書かれていることがあるので日付の部分だけ見る
+  .transform((value) => value.slice(0, 10))
+  .refine((value) => parseDateOnlyUtc(value) !== null, "日付は YYYY-MM-DD で、実在する日付にしてください。");
+
 const householdFieldsSchema = z.object({
   clientCode: z.string().trim().min(1).max(30),
   name: z.string().trim().min(1).max(100),
   // かなは後から追加した項目のため、旧バックアップファイルでも取り込めるよう既定値を持たせる。
   nameKana: z.string().max(100).default(""),
-  birthDate: z.string().nullable().default(null),
+  birthDate: dateOnlyText.nullable().default(null),
   assignedStaff: z.string().max(100).default(""),
   // 関連法人も後から追加した項目のため既定値を持たせる。
   relatedCompany: z.string().max(100).default(""),
@@ -195,7 +207,7 @@ const householdFieldsSchema = z.object({
 
 const snapshotFieldsSchema = z.object({
   label: z.string().max(100),
-  asOfDate: z.string().min(10),
+  asOfDate: dateOnlyText,
   fiscalYear: z.number().int().min(1900).max(2200),
   isCurrent: z.boolean().default(false),
   estimatedInheritanceTax: decimalLike.default(0),
@@ -247,7 +259,7 @@ const familyMemberFieldsSchema = z.object({
   taxShareDenominator: z.number().int().positive().nullable().optional(),
   specialTaxAddition: z.boolean().default(false),
   disabilityCategory: z.string().default("NONE"),
-  birthDate: z.string().min(10).nullable().optional(),
+  birthDate: dateOnlyText.nullable().optional(),
   note: z.string().default(""),
   sortOrder: z.number().int().default(0),
 });
@@ -283,7 +295,12 @@ export type BackupCounts = { households: number; snapshots: number; positions: n
 
 const toDecimal = (value: string | number) => new Prisma.Decimal(value);
 const toDecimalOrNull = (value: string | number | null | undefined) => value === null || value === undefined || value === "" ? null : new Prisma.Decimal(value);
-const toDateOnly = (value: string) => new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
+/** 取り込み用の日付。スキーマ（`dateOnlyText`）を通った値だけが来る。 */
+const toDateOnly = (value: string) => {
+  const parsed = parseDateOnlyUtc(value);
+  if (parsed === null) throw new BackupError(`日付「${value}」は実在しません。`);
+  return parsed;
+};
 const toJson = (value: Record<string, unknown> | null | undefined) =>
   value === null || value === undefined ? Prisma.DbNull : value as Prisma.InputJsonValue;
 

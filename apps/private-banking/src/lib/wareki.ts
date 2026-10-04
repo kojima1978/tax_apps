@@ -5,7 +5,12 @@
  * ここが持つのは「入力された元号・年・月・日を西暦へ組み立てる」ぶんだけにする。
  * 元号の知識が2箇所になるため、各元号の開始日・終了日が Intl の出力と一致することを
  * テストで縛っている（`__tests__/wareki.test.ts`）。
+ *
+ * 日付が実在するかは自分で数えず `isRealDateOnly`（`snapshot-date.ts`）に任せる。
+ * ここが持つのは元号の期間だけにする。
  */
+
+import { isRealDateOnly } from "./snapshot-date";
 
 /** 明治以降の元号。開始日・終了日は改元日そのもの（改元は年の途中に起きる）。 */
 export const eras = [
@@ -50,15 +55,20 @@ export function warekiToIso(code: EraCode, eraYear: number, month: number, day: 
   if (!Number.isInteger(day) || day < 1 || day > 31) return null;
   const year = eraStartYear(code) + eraYear - 1;
   const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  const date = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== iso) return null;
+  if (!isRealDateOnly(iso)) return null;
   if (iso < era.startDate || ("endDate" in era && era.endDate && iso > era.endDate)) return null;
   return iso;
 }
 
-/** `YYYY-MM-DD` → 元号・元号年・月・日。明治より前は扱わないので null。 */
+/**
+ * `YYYY-MM-DD` → 元号・元号年・月・日。明治より前は扱わないので null。
+ *
+ * 実在しない日付（取込・API から入った「2026-02-31」など）も null。形だけ見て通すと
+ * 和暦の欄に「令和8年2月31日」が並び、西暦へ戻すときに `warekiToIso` が弾くので
+ * 打ち直すまで保存できない ── 入っている値が出ないほうが、直すべき欄として分かる。
+ */
 export function isoToWareki(iso: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  if (!isRealDateOnly(iso)) return null;
   const era = eras.find((candidate) => iso >= candidate.startDate && (!("endDate" in candidate) || !candidate.endDate || iso <= candidate.endDate));
   if (!era) return null;
   return {

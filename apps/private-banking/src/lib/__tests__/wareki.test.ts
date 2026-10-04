@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dateJaWithWareki, dateWareki } from "@/lib/format";
+import { dateJa, dateJaWithWareki, dateWareki, yearWareki } from "@/lib/format";
 import { type EraCode, eraMaxYear, eras, isoToWareki, warekiToIso } from "@/lib/wareki";
 
 describe("dateJaWithWareki", () => {
@@ -100,5 +100,32 @@ describe("isoToWareki", () => {
     expect(isoToWareki("1868-10-22")).toBeNull();
     expect(isoToWareki("")).toBeNull();
     expect(isoToWareki("1987-3-21")).toBeNull();
+  });
+
+  it("形は合っていても実在しない日付は null（和暦の欄に 2月31日 を出さない）", () => {
+    // 取込・API から入った値は `YYYY-MM-DD` の形をしていても暦に無いことがある。
+    // 形だけ見て通すと「令和8年2月31日」が欄に並び、西暦へ戻すときだけ弾かれる。
+    expect(isoToWareki("2026-02-31")).toBeNull();
+    expect(isoToWareki("2026-13-01")).toBeNull();
+    expect(isoToWareki("2026-00-10")).toBeNull();
+    expect(isoToWareki("2024-02-29")).toEqual({ code: "REIWA", eraYear: 6, month: 2, day: 29 });
+  });
+});
+
+describe("日付の整形", () => {
+  it("実在する日付はそのまま出す（タイムゾーンで前日にならない）", () => {
+    expect(dateJa("2026-01-01")).toBe("2026年1月1日");
+    expect(dateWareki("1978-12-22")).toBe("昭和53年12月22日");
+    expect(yearWareki("2019-05-01")).toBe("令和元年");
+  });
+
+  it("実在しない日付は空文字にする（別の日を出さず、画面も落とさない）", () => {
+    // `new Date("2026-02-31T00:00:00")` は 3月3日 になり、`2026-13-01` は Invalid Date で
+    // Intl が RangeError を投げる（印刷プレビューがその場で落ちていた）。
+    expect(dateJa("2026-02-31")).toBe("");
+    expect(dateWareki("2026-02-31")).toBe("");
+    expect(dateJaWithWareki("2026-02-31")).toBe("");
+    expect(dateJa("2026-13-01")).toBe("");
+    expect(dateJaWithWareki("")).toBe("");
   });
 });
