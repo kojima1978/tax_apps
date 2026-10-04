@@ -44,7 +44,7 @@ function ExportSection({ years }: { years: readonly IndustryYear[] }) {
     setError(null);
     try {
       const archive = await fetchIndustryYearArchive(gregorianYear);
-      downloadJson(archiveFileName(archive.label, archive.gregorianYear), archive);
+      downloadJson(archiveFileName(archive.label), archive);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {

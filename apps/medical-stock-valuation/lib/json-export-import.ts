@@ -1,5 +1,6 @@
 import { FormData } from './types';
 import { toWareki } from './date-utils';
+import { exportFileName } from './export-filename';
 
 const VALUATION_TYPE = 'valuation-data';
 const VALUATION_VERSION = '1.0';
@@ -78,10 +79,9 @@ export function exportValuationJson(formData: FormData): void {
     },
   };
 
-  const reiwa = formData.fiscalYear ? toWareki(formData.fiscalYear) : '不明';
-  const company = formData.companyName || '不明';
-  const filename = `${company}_${reiwa}年度_評価データ.json`;
-  downloadJson(exportData, filename);
+  // 年度が未入力なら年度の段を落とす（`不明年度` と刷るより、無い方が後から探しやすい）。
+  const fiscalYearPart = formData.fiscalYear ? `${toWareki(formData.fiscalYear)}年度評価データ` : '評価データ';
+  downloadJson(exportData, exportFileName([formData.companyName ?? '', fiscalYearPart], 'json'));
 }
 
 export function validateValuationImport(data: unknown): FormData | null {

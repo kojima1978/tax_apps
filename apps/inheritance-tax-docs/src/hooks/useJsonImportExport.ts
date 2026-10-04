@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { EditableDocumentList, EditableDocument, EditableCategory, DocListType, SpecificName, Trash } from '@/constants';
 import { DOC_LIST_TYPE_LABELS } from '@/constants';
 import { generateId } from '@/utils/editableListUtils';
+import { exportFileName } from '@/utils/exportFileName';
 
 type SetDocumentList = React.Dispatch<React.SetStateAction<EditableDocumentList>>;
 type SetTrash = React.Dispatch<React.SetStateAction<Trash>>;
@@ -292,10 +293,7 @@ export const useJsonImportExport = ({
 
     const link = document.createElement('a');
     link.href = url;
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const typePart = DOC_LIST_TYPE_LABELS[docListType];
-    const customerPart = clientName ? `_${clientName}` : '';
-    link.download = `${typePart}_書類リスト${customerPart}_${date}.json`;
+    link.download = exportFileName([clientName, `${DOC_LIST_TYPE_LABELS[docListType]}書類リスト`], 'json');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

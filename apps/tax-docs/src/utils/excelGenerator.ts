@@ -1,6 +1,7 @@
 import type XLSX from 'xlsx-js-style';
 import { COMPANY_INFO, getFullAddress, getContactLine, type DocumentGroup } from '@/constants';
 import { toCircledNumber } from '@/utils/helpers';
+import { exportFileName } from '@/utils/exportFileName';
 
 // 共通ボーダー定義
 const thinBorder = { style: 'thin', color: { rgb: 'E5E7EB' } } as const;
@@ -170,6 +171,6 @@ export async function generateGiftTaxExcel(
 
     XLSX.utils.book_append_sheet(wb, ws, '必要書類リスト');
 
-    const fileName = `贈与税申告_必要書類_${currentDate.replace(/\//g, '')}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    // 名前は見出しから作る（所得税でも「贈与税申告」と付いていたのを揃える）。
+    XLSX.writeFile(wb, exportFileName([customerName, title], 'xlsx'));
 }

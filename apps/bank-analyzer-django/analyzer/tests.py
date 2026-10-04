@@ -23,7 +23,7 @@ from .services import (
 )
 from .templatetags.japanese_date import wareki, wareki_short, wareki_month_short, wareki_year, get_japanese_era
 from .handlers import parse_amount
-from .views import sanitize_filename
+from .views import export_filename, sanitize_filename, wareki_stamp
 from .lib.importer import _convert_japanese_date
 from .lib.llm_classifier import classify_by_rules
 from .lib.constants import normalize_patterns
@@ -1292,6 +1292,61 @@ class SanitizeFilenameTest(TestCase):
     def test_empty_name(self):
         """空の名前"""
         self.assertEqual(sanitize_filename(''), 'export')
+
+
+class ExportFilenameTest(TestCase):
+    """export_filename / wareki_stamp のテスト"""
+
+    def test_wareki_stamp(self):
+        """元号1文字＋元号年2桁＋月2桁＋日2桁にする"""
+        self.assertEqual(wareki_stamp(date(2026, 10, 5)), 'R081005')
+
+    def test_wareki_stamp_pads_era_year(self):
+        """元号年を0埋めする（しないと令和9年と令和10年の並びが入れ替わる）"""
+        self.assertEqual(wareki_stamp(date(2027, 1, 2)), 'R090102')
+        self.assertEqual(wareki_stamp(date(2028, 1, 2)), 'R100102')
+
+    def test_wareki_stamp_era_boundary(self):
+        """改元日は元号が切り替わる"""
+        self.assertEqual(wareki_stamp(date(1989, 1, 7)), 'S640107')
+        self.assertEqual(wareki_stamp(date(1989, 1, 8)), 'H010108')
+        self.assertEqual(wareki_stamp(date(2019, 4, 30)), 'H310430')
+        self.assertEqual(wareki_stamp(date(2019, 5, 1)), 'R010501')
+
+    def test_order(self):
+        """和暦_名前_アプリ名の順に並べる"""
+        self.assertEqual(
+            export_filename('取引データ', 'csv', date(2026, 10, 5)),
+            'R081005_取引データ_預貯金分析.csv',
+        )
+
+    def test_multiple_parts(self):
+        """名前を複数渡すと間に並べる"""
+        self.assertEqual(
+            export_filename(['テスト案件', '月次入出金'], 'xlsx', date(2026, 10, 5)),
+            'R081005_テスト案件_月次入出金_預貯金分析.xlsx',
+        )
+
+    def test_drops_empty_parts(self):
+        """空の要素は落とす（名前が無い案件でも段が空かない）"""
+        self.assertEqual(
+            export_filename(['', '全取引'], 'csv', date(2026, 10, 5)),
+            'R081005_全取引_預貯金分析.csv',
+        )
+
+    def test_sanitizes_parts(self):
+        """使えない文字と区切りの_は名前から落とす"""
+        self.assertEqual(
+            export_filename('山田/太郎:A_B', 'csv', date(2026, 10, 5)),
+            'R081005_山田太郎A B_預貯金分析.csv',
+        )
+
+    def test_extension_dot_is_optional(self):
+        """拡張子は先頭の.を付けても付けなくても同じ"""
+        self.assertEqual(
+            export_filename('バックアップ', '.json', date(2026, 10, 5)),
+            'R081005_バックアップ_預貯金分析.json',
+        )
 
 
 class ConvertJapaneseDateTest(TestCase):

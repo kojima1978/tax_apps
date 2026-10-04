@@ -22,7 +22,7 @@ from ..lib.text_utils import df_filter_by_keyword
 from ..services import AnalysisService
 from ..templatetags.japanese_date import wareki, wareki_month_short
 from ._helpers import (
-    sanitize_filename, set_download_filename, build_filter_state,
+    export_filename, set_download_filename, build_filter_state,
     build_filtered_filename, require_transactions, prepare_export_df,
     build_csv_response, get_export_columns,
 )
@@ -101,7 +101,7 @@ def export_json(request: HttpRequest, pk: int) -> HttpResponse:
         json.dumps(export_data, ensure_ascii=False, indent=2),
         content_type='application/json; charset=utf-8'
     )
-    filename = f"{sanitize_filename(case.name)}_backup.json"
+    filename = export_filename([case.name, 'バックアップ'], 'json')
     set_download_filename(response, filename)
 
     logger.info(f"JSONエクスポート完了: case_id={pk}, transactions={len(transactions_data)}")
@@ -125,9 +125,9 @@ def export_csv(request: HttpRequest, pk: int, export_type: str) -> HttpResponse:
         filter_field, suffix = config_entry
         if filter_field:
             df = df[df[filter_field]].copy()
-        filename = f"{sanitize_filename(case.name)}_{suffix}.csv"
+        filename = export_filename([case.name, suffix], 'csv')
     else:
-        filename = f"{sanitize_filename(case.name)}_取引データ.csv"
+        filename = export_filename([case.name, '取引データ'], 'csv')
 
     if df.empty:
         messages.warning(request, "該当するデータがありません。")
@@ -249,7 +249,7 @@ def export_xlsx_by_category(request: HttpRequest, pk: int) -> HttpResponse:
         buf.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    filename = f"{sanitize_filename(case.name)}_分類別取引.xlsx"
+    filename = export_filename([case.name, '分類別取引'], 'xlsx')
     set_download_filename(response, filename)
     return response
 
@@ -326,7 +326,7 @@ def export_monthly_cashflow_xlsx(request: HttpRequest, pk: int) -> HttpResponse:
         buf.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    filename = f"{sanitize_filename(case.name)}_月次入出金.xlsx"
+    filename = export_filename([case.name, '月次入出金'], 'xlsx')
     set_download_filename(response, filename)
     logger.info(f"月次入出金Excel出力: case_id={pk}, months={len(monthly_stats)}")
     return response

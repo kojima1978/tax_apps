@@ -6,7 +6,7 @@ import { ChangeEvent, DragEvent, useEffect, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary } from "@/lib/clients";
-import { fileTimestamp } from "@/lib/format";
+import { householdBackupFileName } from "@/lib/format";
 import type { Portfolio } from "@/lib/portfolio-view";
 
 export type BackupKind = "full" | "household";
@@ -73,9 +73,6 @@ export function BackupView(props: { scope: "global" } | { scope: "household"; po
   return props.scope === "global" ? <GlobalBackup /> : <HouseholdBackup portfolio={props.portfolio} />;
 }
 
-/** サーバ側（api/backup）と同じ規則でファイル名を組み立てる。 */
-const exportFileName = (clientCode: string) => `private-banking-${clientCode}-${fileTimestamp()}.json`;
-
 /** 顧客ページ配下。この顧客ぶんの書き出しだけを扱う。 */
 function HouseholdBackup({ portfolio: { household, snapshots, familyMembers } }: { portfolio: Portfolio }) {
   const [exported, setExported] = useState("");
@@ -85,7 +82,7 @@ function HouseholdBackup({ portfolio: { household, snapshots, familyMembers } }:
     { label: "年度", value: years.length === 0 ? "なし" : `${years.length}件（${Math.min(...years) === Math.max(...years) ? `${years[0]}年度` : `${Math.min(...years)}〜${Math.max(...years)}年度`}）` },
     { label: "明細", value: `${snapshots.reduce((total, snapshot) => total + snapshot.positions.length, 0)}件` },
     { label: "親族関係", value: `${familyMembers.length}件` },
-    { label: "ファイル名", value: `private-banking-${household.clientCode}-<日時>.json` },
+    { label: "ファイル名", value: householdBackupFileName(household.clientCode, household.name) },
   ];
 
   return <>
@@ -101,7 +98,7 @@ function HouseholdBackup({ portfolio: { household, snapshots, familyMembers } }:
             className="button primary"
             href={`${API_BASE}/backup?householdId=${household.id}`}
             download
-            onClick={() => setExported(exportFileName(household.clientCode))}
+            onClick={() => setExported(householdBackupFileName(household.clientCode, household.name))}
           ><Download />顧客を書き出す</a>
         </div>
         {exported ? <p className="backup-message success" role="status"><CircleCheck />書き出しました（{exported}）。</p> : null}

@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import { exportValuationJson, readJsonFile, validateValuationImport } from '@/lib/json-export-import';
 import { FormData } from '@/lib/types';
+import { exportFileName } from '@/lib/export-filename';
 
 type SavedValuation = {
   id: string;
@@ -122,7 +123,7 @@ export function useSavedData() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `medical-backup_${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = exportFileName('全体バックアップ', 'json');
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

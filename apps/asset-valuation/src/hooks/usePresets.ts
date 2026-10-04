@@ -6,6 +6,7 @@ import type {
   PresetExportData,
 } from '@/types';
 import { downloadJsonFile } from '@/utils/fileDownload';
+import { exportFileName } from '@/utils/exportFileName';
 import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 
 const STORAGE_KEY = 'asset-valuation-presets';
@@ -38,7 +39,7 @@ export function usePresets() {
 
   const exportPresetsToJson = useCallback(() => {
     const data: PresetExportData = { version: '1.0', presets };
-    downloadJsonFile(data, 'mapping-presets.json');
+    downloadJsonFile(data, exportFileName('列の対応づけ', 'json'));
   }, [presets]);
 
   const importPresetsFromJson = useCallback(

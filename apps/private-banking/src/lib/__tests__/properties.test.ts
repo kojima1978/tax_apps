@@ -141,8 +141,9 @@ describe("propertiesCsv", () => {
 });
 
 describe("propertiesCsvFileName", () => {
-  it("JST の日時を付ける", () => {
-    expect(propertiesCsvFileName(new Date("2026-09-25T15:30:00.000Z"))).toBe("private-banking-properties-20260926-0030.csv");
+  it("和暦の日付印とアプリ名を付ける（日付は JST で数える）", () => {
+    // 日本時間では 2026-09-26 00:30。UTC のまま数えると前日の名前になる。
+    expect(propertiesCsvFileName(new Date("2026-09-25T15:30:00.000Z"))).toBe("R080926_不動産一覧_資産・負債管理.csv");
   });
 });
 

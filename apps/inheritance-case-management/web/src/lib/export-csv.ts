@@ -1,10 +1,10 @@
 import type { InheritanceCase, HeirPerson, CaseHeir, ProgressStep } from "@/types/shared";
 import { formatId } from "@/types/shared";
 import { ageOnDate } from "@/lib/age";
-import { todayIsoDate } from "@/lib/date-utils";
 import { normalizePersonAddressParts } from "@/lib/person-address";
 import { MAX_HEIR_COLUMNS } from "./import-csv";
 import { formatPostalCodeForInput } from "./postal-code-format";
+import { exportFileName } from "@/lib/export-filename";
 
 function downloadCSVBlob(csvContent: string, filename: string) {
   const bom = "\uFEFF";
@@ -106,7 +106,7 @@ export function downloadCSVTemplate() {
     TEMPLATE_SAMPLE_ROW.join(","),
   ].join("\n");
 
-  downloadCSVBlob(csvContent, "案件取込テンプレート.csv");
+  downloadCSVBlob(csvContent, exportFileName("案件取込テンプレート", "csv"));
 }
 
 function escapeCSVCell(value: string | number): string {
@@ -252,10 +252,7 @@ export function exportCasesToCSV(cases: InheritanceCase[], filename?: string) {
   ].join("\n");
 
   // BOM for Excel compatibility
-  downloadCSVBlob(
-    csvContent,
-    filename || `案件一覧_${todayIsoDate()}.csv`
-  );
+  downloadCSVBlob(csvContent, filename || exportFileName("案件一覧", "csv"));
 }
 
 export function exportHeirPersonsToCSV(
@@ -300,10 +297,7 @@ export function exportHeirPersonsToCSV(
     ...rows.map((row) => row.map(escapeCSVCell).join(",")),
   ].join("\n");
 
-  downloadCSVBlob(
-    csvContent,
-    filename || `相続人マスタ_${todayIsoDate()}.csv`
-  );
+  downloadCSVBlob(csvContent, filename || exportFileName("相続人マスタ", "csv"));
 }
 
 /** 案件の相続人一覧をCSV出力（続柄・案件メモなど案件固有情報を含む） */
@@ -347,8 +341,5 @@ export function exportCaseHeirsToCSV(
   ].join("\n");
 
   const safeName = deceasedName.trim() || "案件";
-  downloadCSVBlob(
-    csvContent,
-    filename || `相続人_${safeName}_${todayIsoDate()}.csv`
-  );
+  downloadCSVBlob(csvContent, filename || exportFileName([safeName, "相続人一覧"], "csv"));
 }

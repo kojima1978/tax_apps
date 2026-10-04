@@ -9,16 +9,10 @@ import type { InheritanceCase } from "@/types/shared"
 import { exportDocument } from "@/lib/export-excel"
 import { todayIsoDate } from "@/lib/date-utils"
 import { useToast } from "@/components/ui/Toast"
+import { DOCUMENT_TYPE_LABELS, type DocumentType } from "@/lib/document-types"
 
-type DocumentType = "estimate" | "invoice" | "invoice-request"
 type AddresseeMode = "heirs-respective" | "selected-heirs" | "custom"
 const MAX_ESTIMATE_INVOICE_ADDRESSEES = 3
-
-const DOC_TYPE_LABELS: Record<DocumentType, string> = {
-    estimate: "見積書",
-    invoice: "請求書",
-    "invoice-request": "請求書発行依頼票",
-}
 
 interface DocumentExportModalProps {
     isOpen: boolean
@@ -110,7 +104,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
                 addresseeNames,
                 issueDate,
             })
-            toast.success(`${DOC_TYPE_LABELS[docType]}を出力しました`)
+            toast.success(`${DOCUMENT_TYPE_LABELS[docType]}を出力しました`)
             onClose()
         } catch (e) {
             console.error(e)
@@ -121,7 +115,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`${DOC_TYPE_LABELS[docType]}の出力`}>
+        <Modal isOpen={isOpen} onClose={onClose} title={`${DOCUMENT_TYPE_LABELS[docType]}の出力`}>
             <div className="space-y-4">
                 {/* 発行日 */}
                 <div className="space-y-2">
@@ -253,7 +247,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
                         キャンセル
                     </Button>
                     <Button onClick={handleExport} disabled={isExporting}>
-                        {isExporting ? "出力中..." : `${DOC_TYPE_LABELS[docType]}を出力`}
+                        {isExporting ? "出力中..." : `${DOCUMENT_TYPE_LABELS[docType]}を出力`}
                     </Button>
                 </div>
             </div>

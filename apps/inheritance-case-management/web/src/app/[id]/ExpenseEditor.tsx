@@ -9,6 +9,7 @@ import type { CaseHeir, Expense } from "@/types/shared"
 import { EXPENSE_DESCRIPTION_PRESETS } from "@/types/constants"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { todayIsoDate } from "@/lib/date-utils"
+import { exportFileName } from "@/lib/export-filename"
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -73,7 +74,7 @@ function exportExpensesExcel(expenses: Expense[], total: number, deceasedName: s
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, "立替金")
-    XLSX.writeFile(workbook, `立替金_${todayIsoDate()}.xlsx`)
+    XLSX.writeFile(workbook, exportFileName([deceasedName, "立替金"], "xlsx"))
 }
 
 const OTHER_VALUE = "__other__"

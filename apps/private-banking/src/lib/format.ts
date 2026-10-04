@@ -1,5 +1,6 @@
 /** 画面表示・入力欄で共通に使う数値と日付の整形。 */
 
+import { exportFileName } from "./export-filename";
 import { parseDateOnlyUtc } from "./snapshot-date";
 
 export const yen = new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 });
@@ -10,11 +11,14 @@ export const triangleYen = (value: number) => value < 0 ? `△${yen.format(Math.
 
 export const valuationNumber = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 6 });
 
-/** 書き出しファイルの名前に使う日時（JST の YYYYMMDD-HHMM）。JSONとCSVで同じ付け方に揃える。 */
-export const fileTimestamp = (now: Date = new Date()) => {
-  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString();
-  return `${jst.slice(0, 4)}${jst.slice(5, 7)}${jst.slice(8, 10)}-${jst.slice(11, 13)}${jst.slice(14, 16)}`;
-};
+/**
+ * 顧客1件ぶんのバックアップのファイル名。
+ *
+ * サーバ（`api/backup` の Content-Disposition）と画面の表示の両方で要るので、
+ * ここに置いて1つにする（別々に組み立てると、片方だけ古い名前を言う）。
+ */
+export const householdBackupFileName = (clientCode: string, name: string, now?: Date) =>
+  exportFileName([clientCode, name, "バックアップ"], "json", now);
 
 /** 億・万円で丸めた表示。B/Sの区画やサマリーで使う。 */
 export const compactYen = (value: number) => {

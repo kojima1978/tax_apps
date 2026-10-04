@@ -160,7 +160,7 @@ export const useInheritanceTaxGuide = () => {
       personInCharge,
       personInChargeContact,
       excelTitle: `${DOC_LIST_TYPE_LABELS[docListType]} 資料準備ガイド`,
-      filenamePrefix: `${DOC_LIST_TYPE_LABELS[docListType]}_必要書類`,
+      filenamePrefix: `${DOC_LIST_TYPE_LABELS[docListType]}必要書類`,
     });
   }, [documentList, clientName, deceasedName, personInCharge, personInChargeContact, docListType]);
 

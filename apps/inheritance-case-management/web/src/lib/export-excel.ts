@@ -7,8 +7,8 @@
 import type { InheritanceCase } from '@/types/shared';
 import { formatReferrerLabel } from '@/types/shared';
 import { apiClient } from './api/client';
-
-type DocumentType = 'estimate' | 'invoice' | 'invoice-request';
+import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@/lib/document-types';
+import { exportFileName } from '@/lib/export-filename';
 
 interface ExportParams {
   caseData: InheritanceCase;
@@ -63,12 +63,6 @@ async function generateFromTemplate(
   return res.blob();
 }
 
-const DOC_TYPE_FILE_LABELS: Record<DocumentType, string> = {
-  estimate: '見積書',
-  invoice: '請求書',
-  'invoice-request': '請求書発行依頼票',
-};
-
 const MAX_ESTIMATE_INVOICE_ADDRESSEES = 3;
 const HONORIFIC_SUFFIX_PATTERN = /(?:様|御中|各位)$/;
 
@@ -91,9 +85,12 @@ function formatEstimateInvoiceAddressee(addresseeNames: string[]): string {
 export async function exportDocument(params: ExportParams): Promise<void> {
   const { caseData, docType, addresseeNames } = params;
 
-  const typeLabel = DOC_TYPE_FILE_LABELS[docType];
-  const dateStr = params.issueDate.replace(/-/g, '');
-  const fileName = `${typeLabel}_${caseData.deceasedName}_${dateStr}.xlsx`;
+  // 日付印は作った日ではなく発行日。控えを並べたときに帳票の日付と合う。
+  const fileName = exportFileName(
+    [caseData.deceasedName, DOCUMENT_TYPE_LABELS[docType]],
+    'xlsx',
+    new Date(`${params.issueDate}T00:00:00+09:00`),
+  );
 
   const hasTemplate = await checkTemplateExists(docType);
   if (!hasTemplate) {

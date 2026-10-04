@@ -2,6 +2,7 @@ import { readFile, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import ExcelJS from 'exceljs';
+import type { DocumentType } from '@/lib/document-types';
 
 const TEMPLATE_DIR = path.join(process.cwd(), 'templates');
 
@@ -30,7 +31,7 @@ const INVOICE_OVERRIDES: Record<string, string> = {
   E44: '　阿波銀行（銀行コード：0172）蔵本支店（店番号：117）\n　普通預金 №１１３５４１７　ゼイ）マスエージェント\n　（振込手数料はお客様にてご負担をお願い致します。）',
 };
 
-export type DocType = 'estimate' | 'invoice' | 'invoice-request';
+export type DocType = DocumentType;
 
 /** mm → インチ（Excel の余白指定はインチ） */
 const mm = (value: number) => value / 25.4;

@@ -48,7 +48,7 @@ from .passbook_inventory import (
 from .settings import settings_view
 
 # ユーティリティ（テスト等から参照）
-from ._helpers import sanitize_filename
+from ._helpers import export_filename, sanitize_filename, wareki_stamp
 
 # ハンドラー（urls.py から直接参照されるもの）
 from ..handlers import (

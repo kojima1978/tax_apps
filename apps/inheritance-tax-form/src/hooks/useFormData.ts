@@ -18,6 +18,7 @@ import {
   MAX_HEIRS, emptyData, isFormData, loadStored, normalize, rescueEntries, saveStored,
   withDetailForms, type FormData,
 } from '../lib/storedData';
+import { exportFileName } from '../lib/exportFileName';
 
 /** 財産を取得した人 i 番目のフィールド接頭辞 */
 export const heirPrefix = (i: number): string => `h${i}.`;
@@ -74,8 +75,8 @@ function download(filename: string, text: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** 書き出すファイル名に使う日付（`2026-09-22`） */
-const today = (): string => new Date().toISOString().slice(0, 10);
+/** 書き出すファイル名に出す名前。被相続人の氏名を入れる前のものもあるので、無ければ付けない。 */
+const decedentName = (data: FormData): string => data.common.name ?? '';
 
 export function useFormData() {
   const [loaded] = useState(loadStored);
@@ -335,7 +336,7 @@ export function useFormData() {
   const reset = useCallback(() => setData(emptyData()), []);
 
   const exportJson = useCallback(() => {
-    download(`相続税申告書_${today()}.json`, JSON.stringify(data, null, 2));
+    download(exportFileName([decedentName(data), '申告データ'], 'json'), JSON.stringify(data, null, 2));
   }, [data]);
 
   /**
@@ -346,7 +347,7 @@ export function useFormData() {
   const exportRescue = useCallback((key: string) => {
     const entry = rescueEntries().find((item) => item.key === key);
     if (entry === undefined) return;
-    download(`相続税申告書_${entry.label}_${today()}.json`, entry.raw);
+    download(exportFileName(['退避データ', entry.label], 'json'), entry.raw);
   }, []);
 
   const importJson = useCallback(async (file: File): Promise<boolean> => {

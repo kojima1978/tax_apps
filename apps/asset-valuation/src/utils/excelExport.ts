@@ -4,6 +4,7 @@ import { CATEGORY_CONFIG, groupByLabel } from '@/types';
 import { RATE_TABLE } from '@/data/rateTable';
 import { compareAssetNo } from '@/utils/formatters';
 import { calcWithin3YearsDate, getCalculationTooltip } from '@/utils/calculation';
+import { exportFileName } from '@/utils/exportFileName';
 
 /** 列ヘッダー */
 const COLUMN_HEADERS = [
@@ -461,8 +462,8 @@ export function exportToExcel(
   // ---- 残価率表シート（本表H列の数式参照先） ----
   XLSX.utils.book_append_sheet(wb, createRateTableSheet(), RATE_SHEET_NAME);
 
-  const dateStr = taxDate.replace(/-/g, '');
-  XLSX.writeFile(wb, `${caseName}_減価償却資産評価_${dateStr}.xlsx`);
+  // 課税時期は中身の見出しに出るので、ファイル名の日付は書き出した日に揃える。
+  XLSX.writeFile(wb, exportFileName(caseName, 'xlsx'));
 }
 
 /**

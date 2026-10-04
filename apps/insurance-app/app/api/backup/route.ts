@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { getDb, closeDb } from '@/lib/db';
+import { exportFileName } from '@/lib/export-filename';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,15 +28,13 @@ export function GET() {
     const dbPath = getDatabasePath();
     const buffer = readFileSync(dbPath);
 
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
-    const filename = `insurance-backup-${ts}.sqlite`;
+    const filename = exportFileName('全体バックアップ', 'sqlite');
 
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${filename}"`,
+        // 名前に日本語が入るので `filename*` で UTF-8 のまま渡す。
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
         'Content-Length': String(buffer.length),
       },
     });

@@ -1,4 +1,5 @@
 import type { CustomDocumentItem, DocChanges } from '../constants/documents';
+import { exportFileName } from './exportFileName';
 
 // JSONデータのバージョン
 const DATA_VERSION = '1.0.0';
@@ -167,13 +168,9 @@ export function downloadAsJson(data: ExportData, filenamePrefix?: string): void 
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
 
-  const date = new Date().toISOString().split('T')[0];
-  const prefix = filenamePrefix || data.appName || 'docs';
-  const filename = `${prefix}-${date}.json`;
-
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename;
+  a.download = exportFileName(filenamePrefix || data.appName || '書類リスト', 'json');
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

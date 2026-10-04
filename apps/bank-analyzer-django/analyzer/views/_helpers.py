@@ -1,5 +1,6 @@
 """共通ユーティリティ関数"""
 import re
+from datetime import date
 from typing import Optional
 from urllib.parse import quote
 
@@ -7,9 +8,11 @@ from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
+from django.utils.timezone import localdate
 import pandas as pd
 
 from ..handlers import FIELD_LABELS, parse_amount
+from ..lib.constants import ERAS
 from ..templatetags.japanese_date import wareki
 
 ITEMS_PER_PAGE = 100
@@ -40,6 +43,49 @@ def sanitize_filename(name: str) -> str:
     """ファイル名に使用できない文字を除去する"""
     sanitized = re.sub(r'[\\/:*?"<>|]', '_', name)
     return sanitized.strip('_. ') or 'export'
+
+
+APP_NAME = "預貯金分析"
+
+
+def sanitize_filename_part(name: str) -> str:
+    """`export_filename` の1区切りぶんを整える。
+
+    使えない文字を落とし、区切りに使う `_` は空白へ寄せる
+    （名前の中に `_` が入ると段が1つ増えたように見える）。
+    """
+    cleaned = re.sub(r'[\\/:*?"<>|]', '', name)
+    return re.sub(r'[\s_]+', ' ', cleaned).strip()
+
+
+def wareki_stamp(d: Optional[date] = None) -> str:
+    """和暦の日付印（2026-10-05 -> R081005）。
+
+    元号1文字＋元号年2桁＋月2桁＋日2桁。同じ元号の中では文字列順＝日付順になる。
+    既定の日付は `localdate()`（settings の Asia/Tokyo）で取るので、
+    コンテナの TZ が UTC でも前日の日付にならない。
+    """
+    d = d or localdate()
+    for era_start, _name, abbr in ERAS:
+        if d >= era_start:
+            return f"{abbr}{d.year - era_start.year + 1:02d}{d.month:02d}{d.day:02d}"
+    # 明治以前は元号が無いので西暦で代用する（相続の資料で出てくることはない）。
+    return f"{d.year:04d}{d.month:02d}{d.day:02d}"
+
+
+def export_filename(subject, extension: str, d: Optional[date] = None) -> str:
+    """ダウンロードのファイル名を `R081005_名前_アプリ名.ext` の形に揃える。
+
+    先頭を和暦の日付印にするのは、申告書の控えと同じ並びで探せるようにするため。
+    末尾にアプリ名を付けるのは、フォルダに溜まった控えがどの画面から出たものかを
+    後から見分けるため。他のアプリ（TypeScript 側の `exportFileName`）と同じ付け方。
+
+    `subject` は「何についての控えか」── 案件名があるならそれ、無ければ内容の名前。
+    リストを渡すと `_` で並べる（空の要素は落ちる）。
+    """
+    parts = subject if isinstance(subject, (list, tuple)) else [subject]
+    middle = [p for p in (sanitize_filename_part(str(p)) for p in parts) if p]
+    return "_".join([wareki_stamp(d), *middle, APP_NAME]) + "." + extension.lstrip(".")
 
 
 def set_download_filename(response: HttpResponse, filename: str) -> None:
@@ -146,10 +192,9 @@ def build_filtered_filename(
             filter_desc.append(f"{amount_min}円以上")
         elif amount_max:
             filter_desc.append(f"{amount_max}円以下")
-    sanitized = sanitize_filename(case_name)
     if filter_desc:
-        return f"{sanitized}_絞込_{'-'.join(filter_desc)}.csv"
-    return f"{sanitized}_全取引.csv"
+        return export_filename([case_name, f"絞込 {'-'.join(filter_desc)}"], 'csv')
+    return export_filename([case_name, '全取引'], 'csv')
 
 
 def require_transactions(request: HttpRequest, transactions, pk: int, redirect_view: str = 'analysis-dashboard') -> Optional[HttpResponse]:

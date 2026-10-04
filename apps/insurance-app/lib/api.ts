@@ -1,6 +1,7 @@
 import type { AppState, AgencyMaster, CsvImportResult } from '@/types';
 import { getSampleAgency, getSampleFamilyMembers, getSamplePolicies } from '@/lib/sampleData';
 import { DEFAULT_POLICY_PROMPT } from '@/lib/policyPrompt';
+import { appStateFileName } from '@/lib/export-filename';
 
 export interface CaseSummary {
   id: string;
@@ -240,22 +241,13 @@ function downloadJson(data: unknown, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-function timestamp(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-}
-
 async function readJsonFile(file: File): Promise<unknown> {
   const text = await file.text();
   return JSON.parse(text);
 }
 
 export function downloadAppStateJson(state: AppState, extras: ExportExtras = {}): void {
-  const primary = state.familyMembers.find(m => m.relationship === '本人') ?? state.familyMembers[0];
-  const namePart = (primary?.name ?? '').replace(/[\\/:*?"<>| -]/g, '').trim().slice(0, 30);
-  const base = namePart ? `insurance-app-state-${namePart}-${timestamp()}` : `insurance-app-state-${timestamp()}`;
-  downloadJson(buildExportData(state, extras), `${base}.json`);
+  downloadJson(buildExportData(state, extras), appStateFileName(state.familyMembers));
 }
 
 export function fetchCases(): Promise<CaseSummary[]> {

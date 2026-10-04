@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, X, AlertTriangle, FileUp, Download } from 'lucide-react';
 import { importCsv } from '@/lib/api';
+import { exportFileName } from '@/lib/export-filename';
 import type { CsvImportResult, AppState } from '@/types';
 
 interface Props {
@@ -56,7 +57,7 @@ export default function CsvImportDialog({ caseId, onClose, onImported }: Props) 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = '保険証券_取込テンプレート.csv';
+    a.download = exportFileName('保険証券取込テンプレート', 'csv');
     a.click();
     URL.revokeObjectURL(url);
   };

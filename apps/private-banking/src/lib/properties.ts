@@ -1,4 +1,4 @@
-import { fileTimestamp } from "@/lib/format";
+import { exportFileName } from "@/lib/export-filename";
 import { matchesSearchTerms, normalizeSearchText } from "@/lib/clients";
 import {
   type Position,
@@ -193,5 +193,5 @@ export function propertiesCsv(rows: PropertyRow[]) {
   return `﻿${lines.map((cells) => cells.join(",")).join("\r\n")}\r\n`;
 }
 
-/** 書き出したCSVのファイル名。バックアップのJSONと同じ日時の付け方に揃える。 */
-export const propertiesCsvFileName = (now: Date = new Date()) => `private-banking-properties-${fileTimestamp(now)}.csv`;
+/** 書き出したCSVのファイル名。バックアップのJSONと同じ付け方に揃える。 */
+export const propertiesCsvFileName = (now?: Date) => exportFileName("不動産一覧", "csv", now);

@@ -4,6 +4,7 @@ import { parseCsvFile } from '@/utils/csvParser';
 import type { CsvData } from '@/utils/csvParser';
 import type { CaseData } from '@/types';
 import { validateCaseData } from '@/utils/validators';
+import { exportFileName } from '@/utils/exportFileName';
 
 interface Props {
   onCsvLoaded: (data: CsvData) => void;
@@ -74,7 +75,7 @@ export function CsvImportStep({
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = '減価償却資産_取込テンプレート.csv';
+    anchor.download = exportFileName('取込テンプレート', 'csv');
     anchor.click();
     URL.revokeObjectURL(url);
   };

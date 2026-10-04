@@ -5,6 +5,7 @@ import { Download, Loader2 } from 'lucide-react';
 import { FormData, CalculationResult } from '@/lib/types';
 import { formatSen, formatYen } from '@/lib/utils';
 import { toWareki } from '@/lib/date-utils';
+import { exportFileName } from '@/lib/export-filename';
 import { setupExcelWorkbook, applyHeaderStyle, FILLS, ALL_THIN_BORDERS, COMPANY_INFO } from '@/lib/excel-styles';
 import { useExcelExport } from '@/hooks/useExcelExport';
 import { BTN } from '@/lib/button-styles';
@@ -186,9 +187,7 @@ export default function ResultsExcelExport({ formData, result }: Props) {
 
     // ファイル保存
     const buffer = await workbook.xlsx.writeBuffer();
-    const company = formData.companyName || '不明';
-    const filename = `出資持分評価_${company}_${reiwa}.xlsx`;
-    saveAs(new Blob([buffer]), filename);
+    saveAs(new Blob([buffer]), exportFileName([formData.companyName ?? '', `${reiwa}出資持分評価`], 'xlsx'));
   }, [formData, result]);
 
   const { isExporting, handleExport } = useExcelExport(exportFn);

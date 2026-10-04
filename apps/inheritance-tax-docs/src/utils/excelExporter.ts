@@ -2,6 +2,7 @@ import type { EditableDocumentList } from '@/constants';
 import { EXCEL_STYLES as styles, pushMergedRow, pushEmptyRow } from '../constants/excelStyles';
 import { COMPANY_INFO, getFullAddress, getContactLine } from '@/constants';
 import { formatDate, toCircledNumber } from './helpers';
+import { exportFileName } from './exportFileName';
 
 interface ExcelExportParams {
   documentList: EditableDocumentList;
@@ -27,7 +28,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
     personInChargeContact,
     hideSubmitted = false,
     excelTitle = '相続税申告 資料準備ガイド',
-    filenamePrefix = '相続税申告_必要書類',
+    filenamePrefix = '相続税申告必要書類',
   } = params;
   const exportDate = formatDate(new Date());
 
@@ -164,10 +165,5 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
 
   XLSX.utils.book_append_sheet(wb, ws, '必要書類リスト');
 
-  // ファイル名生成
-  let fileName = filenamePrefix;
-  if (clientName) fileName += `_${clientName}`;
-  fileName += `_${exportDate.replace(/\//g, '')}.xlsx`;
-
-  XLSX.writeFile(wb, fileName);
+  XLSX.writeFile(wb, exportFileName([clientName, filenamePrefix], 'xlsx'));
 }

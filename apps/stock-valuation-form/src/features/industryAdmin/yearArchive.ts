@@ -11,6 +11,7 @@ import type {
   YearArchiveCategory,
 } from './api';
 import type { IndustryLevel } from '@/data/industryDataset';
+import { exportFileName } from '@/lib/exportFileName';
 
 /** server/routes/industry.ts の ARCHIVE_FORMAT_VERSION と対応させる。 */
 export const ARCHIVE_FORMAT_VERSION = 1;
@@ -197,8 +198,8 @@ export function parseYearArchive(text: string): ParseResult {
   };
 }
 
-export function archiveFileName(label: string, gregorianYear: number): string {
-  return `業種目データ_${label}_${gregorianYear}.json`;
+export function archiveFileName(label: string, date?: Date): string {
+  return exportFileName(['業種目データ', label], 'json', date);
 }
 
 /** ブラウザにファイルとして落とす。サーバに置き場を作らずに済ませるための最小実装。 */

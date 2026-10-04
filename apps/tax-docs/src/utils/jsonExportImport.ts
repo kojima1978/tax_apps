@@ -1,5 +1,6 @@
 import type { EditableDocumentList, SubItem, TaxType } from '@/constants';
 import { TAX_TYPE_LABELS } from '@/constants';
+import { exportFileName } from '@/utils/exportFileName';
 
 // インポートファイルの最大サイズ（5MB）
 const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
@@ -43,10 +44,7 @@ export const exportToJson = (
 
   const link = document.createElement('a');
   link.href = url;
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const typePart = TAX_TYPE_LABELS[taxType];
-  const customerPart = customerName ? `_${customerName}` : '';
-  link.download = `${typePart}_書類リスト${customerPart}_${date}.json`;
+  link.download = exportFileName([customerName, `${TAX_TYPE_LABELS[taxType]}書類リスト`], 'json');
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

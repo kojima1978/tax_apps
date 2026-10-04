@@ -1,4 +1,5 @@
 import type { Asset, CaseData } from '@/types';
+import { exportFileName } from '@/utils/exportFileName';
 
 /** JSONデータをファイルとしてダウンロード */
 export function downloadJsonFile(data: unknown, filename: string): void {
@@ -29,5 +30,5 @@ export function exportCaseJson(
     assets,
     ...(categoryOrder?.length ? { categoryOrder } : {}),
   };
-  downloadJsonFile(data, `${caseName || '案件データ'}.json`);
+  downloadJsonFile(data, exportFileName(caseName || '案件データ', 'json'));
 }

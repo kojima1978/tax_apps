@@ -17,7 +17,7 @@ from openpyxl.worksheet.properties import PageSetupProperties
 from ..models import Account, Case, Transaction
 from ..lib.constants import ERAS
 from ..templatetags.japanese_date import get_japanese_era, wareki as wareki_func
-from ._helpers import sanitize_filename, set_download_filename
+from ._helpers import export_filename, set_download_filename
 
 logger = logging.getLogger(__name__)
 
@@ -576,7 +576,7 @@ def export_passbook_inventory(request: HttpRequest, pk: int) -> HttpResponse:
         buf.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    filename = f"{sanitize_filename(case.name)}_通帳有無一覧表.xlsx"
+    filename = export_filename([case.name, '通帳有無一覧表'], 'xlsx')
     set_download_filename(response, filename)
     return response
 

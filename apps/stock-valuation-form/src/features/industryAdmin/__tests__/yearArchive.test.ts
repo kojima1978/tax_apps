@@ -136,7 +136,8 @@ describe('groupMonthlyPricesByMonth', () => {
 });
 
 describe('archiveFileName', () => {
-  it('年分と西暦が入った名前にする', () => {
-    expect(archiveFileName('令和8年分', 2026)).toBe('業種目データ_令和8年分_2026.json');
+  it('和暦の日付印・年分・アプリ名を並べた名前にする', () => {
+    expect(archiveFileName('令和8年分', new Date('2026-10-05T12:00:00+09:00')))
+      .toBe('R081005_業種目データ_令和8年分_株式評価明細書.json');
   });
 });

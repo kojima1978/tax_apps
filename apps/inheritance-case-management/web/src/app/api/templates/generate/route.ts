@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { generateTemplate } from '@/lib/services/template-service';
 import type { GenerateTemplateInput } from '@/lib/services/template-service';
+import { DOCUMENT_TYPE_LABELS } from '@/lib/document-types';
+import { exportFileName } from '@/lib/export-filename';
 
 export async function POST(request: Request) {
   try {
@@ -16,10 +18,13 @@ export async function POST(request: Request) {
 
     const buffer = await generateTemplate(body);
 
+    // 画面からの保存では呼び出し側が名前を付け直すが、API を直接叩いたときにも中身の分かる名前にする。
+    const fileName = exportFileName([body.deceasedName, DOCUMENT_TYPE_LABELS[docType]], 'xlsx');
+
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="generated.xlsx"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
       },
     });
   } catch (e) {

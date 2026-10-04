@@ -4,6 +4,8 @@ import { useIndustryDataset } from '@/data/IndustryDataProvider';
 import type { IndustryDataset, IndustryYearView } from '@/data/industryDataset';
 import { rolloverFormData } from './rollover';
 import { INDUSTRY_NUMBER_TARGETS, syncIndustryStamps } from '@/lib/industryYearAudit';
+import { caseLabelsOf } from '@/features/cases/caseLabels';
+import { exportFileName } from '@/lib/exportFileName';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
 
@@ -449,7 +451,9 @@ export function useFormData() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `stock-valuation-${new Date().toISOString().slice(0, 10)}.json`;
+    // 名前に出すのは会社名。どの欄が会社名かは caseLabels が持っている（ここで書き写さない）。
+    // 打つ前に落とした控えもあるので、空なら中身の名前に落とす。
+    a.download = exportFileName(caseLabelsOf(readerOf(formData)).companyName || '入力データ', 'json');
     a.click();
     URL.revokeObjectURL(url);
   }, [formData]);

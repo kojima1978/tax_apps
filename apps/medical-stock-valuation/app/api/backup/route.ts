@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
 import { withErrorHandler } from '@/lib/api-utils';
+import { exportFileName } from '@/lib/export-filename';
 import type {
   Company,
   User,
@@ -74,7 +75,8 @@ export async function GET() {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="medical-backup_${new Date().toISOString().slice(0, 10)}.json"`,
+        // 名前に日本語が入るので `filename*` で UTF-8 のまま渡す。
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(exportFileName('全体バックアップ', 'json'))}`,
       },
     });
   }, 'バックアップのエクスポートに失敗しました');
