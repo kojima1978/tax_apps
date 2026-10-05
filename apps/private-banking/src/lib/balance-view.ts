@@ -17,10 +17,31 @@ export type BsAccount = { key: string; label: string; value: number; tone: strin
 export type BsSide = "asset" | "funding";
 export type BsCallout = BalanceView["callouts"][number];
 
-/** 印刷時の区画エリアの高さ(px)。一番狭い印刷に合わせて、小分類が枠内に収まるかを判定する。 */
-const PRINT_AREA_HEIGHT = 420;
-/** これ未満の面積比の区画は、文字が読めないので表の下へ注記する。 */
-const SMALL_AREA_RATIO = 0.04;
+/**
+ * 区画エリア（科目を積む領域）の高さ(px)。一番狭いのは画面で、印刷ではない。
+ * 画面は `.classified-bs` の `clamp(420px, calc(100dvh - 330px), 720px)` の下限 420px から
+ * 見出し（32.6px）と合計欄（35px）を引いた実測 326px。ウィンドウの縦が 750px 以下なら幅に
+ * よらずここへ張り付くので、普通のノートPCでは常にこの高さ。印刷は `height: 120mm`（約453px）
+ * から同じものを引いて約400px あり、画面より広い。
+ */
+const AREA_HEIGHT = 326;
+/** これ未満の面積比の区画は中身を出さない（micro-account）。 */
+export const MICRO_AREA_RATIO = 0.02;
+/** これ未満の面積比の区画は、文字が読めないので表の下へ注記する（compact-account）。 */
+export const SMALL_AREA_RATIO = 0.04;
+/** これ未満の面積比の区画は、字と余白を詰めて描く（dense-account）。 */
+export const DENSE_AREA_RATIO = 0.22;
+
+/**
+ * 小分類つきの区画が内訳まで出し切るのに要る高さ(px)。globals.css の密度クラスごとの実測値。
+ * 詰めない区画: 上下余白18 ＋ 見出し29 ＋ 内訳の枠12（上余白7・罫線1・上余白4）＋ 下罫線2 ＋ 1行19px。
+ * dense-account: 上下余白6 ＋ 見出し12 ＋ 内訳の枠2 ＋ 1行10px。ただし4行以上は
+ * `:has(.bs-subtotals > div:nth-child(4))` で更に詰まり、見出し10 ＋ 1行13px になる。
+ */
+function requiredHeight(ratio: number, itemCount: number) {
+  if (ratio >= DENSE_AREA_RATIO) return 61 + itemCount * 19;
+  return itemCount >= 4 ? 18 + itemCount * 13 : 20 + itemCount * 10;
+}
 
 /**
  * 片側（資産 / 負債・純資産）の区画から、表の下へ注記する区画を選ぶ。
@@ -35,8 +56,10 @@ function sideCallouts(side: BsSide, accounts: ReadonlyArray<BsAccount>, areaTota
     offset += ratio;
     const items = account.items ?? [];
     const small = ratio < SMALL_AREA_RATIO;
-    // 1区画に必要な高さは 見出し18px ＋ 小分類1行11px。
-    const clipped = items.length > 0 && ratio * PRINT_AREA_HEIGHT < 18 + items.length * 11;
+    // 内訳が枠に収まらない区画は内訳ごと注記へ回す。一番狭い状態に合わせて判定するので、
+    // 縦に余裕のあるウィンドウでは切れていなくても注記が出る。画面と印刷で同じ番号を使うため、
+    // 描画後のDOMではなく面積比から決めている（余る注記は重複で済むが、欠けると情報が消える）。
+    const clipped = items.length > 0 && ratio * AREA_HEIGHT < requiredHeight(ratio, items.length);
     if (!small && !clipped) return [];
     return [{ key: account.key, side, label: account.label, value: account.value, tone: account.tone, items: clipped ? items : [], anchor }];
   });

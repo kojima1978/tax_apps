@@ -3,16 +3,18 @@
 import { AlertTriangle, Calculator, LoaderCircle } from "lucide-react";
 import { ReactNode, useState } from "react";
 import { PanelHeader } from "@/components/panel-header";
-import { type BalanceView, type BsAccount, type BsCallout } from "@/lib/balance-view";
+import { DENSE_AREA_RATIO, MICRO_AREA_RATIO, SMALL_AREA_RATIO, type BalanceView, type BsAccount, type BsCallout } from "@/lib/balance-view";
 import { compactYen, percent } from "@/lib/format";
 import { taxCalcLabel, type TaxCalcStatus } from "@/lib/inheritance-tax-calculation";
 
 const areaHeight = (value: number, total: number) => `${Math.abs(value) / Math.max(total, 1) * 100}%`;
+// 密度の境目は balance-view.ts と共有する。あちらは「内訳が枠に収まるか」をこのクラスごとの
+// 寸法で判定しているので、境目が片方だけ動くと注記が出る区画と詰まる区画がずれる。
 const accountDensity = (value: number, total: number) => {
   const ratio = Math.abs(value) / Math.max(total, 1);
-  if (ratio < 0.02) return "micro-account";
-  if (ratio < 0.04) return "compact-account";
-  return ratio < 0.22 ? "dense-account" : "";
+  if (ratio < MICRO_AREA_RATIO) return "micro-account";
+  if (ratio < SMALL_AREA_RATIO) return "compact-account";
+  return ratio < DENSE_AREA_RATIO ? "dense-account" : "";
 };
 const percentOf = (value: number, total: number) => percent.format(value / Math.max(total, 1) * 100);
 /** 注記番号は丸数字（①〜⑳）。それを超える件数は現実には無いが、念のため括弧つき数字で出す。 */

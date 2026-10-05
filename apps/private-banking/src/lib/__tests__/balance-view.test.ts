@@ -181,22 +181,35 @@ describe("buildBalanceView", () => {
     }
   });
 
-  it("面積比4%未満の区画だけを、表の下の注記に回す", () => {
+  it("面積比4%未満の区画を、表の下の注記に回す", () => {
     const result = view("with-tax");
     // 承継関連費用 500万円 ÷ 1億5,000万円 = 3.3%。番号の印は税金（10%）・借入金（20%）の下に積まれた区画の中央に置く。
-    expect(result.callouts).toHaveLength(1);
-    expect(result.callouts[0]).toMatchObject({ no: 1, key: "successionCosts", side: "funding", tone: "forecast-account", value: 5_000_000, items: [] });
-    expect(result.callouts[0].anchor).toBeCloseTo((0.1 + 0.2 + 5 / 150 / 2) * 100);
+    const costs = result.callouts.find((callout) => callout.key === "successionCosts")!;
+    expect(costs).toMatchObject({ no: 2, side: "funding", tone: "forecast-account", value: 5_000_000, items: [] });
+    expect(costs.anchor).toBeCloseTo((0.1 + 0.2 + 5 / 150 / 2) * 100);
   });
 
   it("小分類が枠内に収まらない中分類は、内訳ごと注記に回す", () => {
-    // 税金300万円は区画420pxのうち8.4pxしか取れず、小分類2行に必要な 18+22px に届かない。
+    // 税金1,500万円は区画326pxのうち32.6pxしか取れず、字を詰めても小分類2行に必要な 20+20px に届かない。
+    const taxes = view("with-tax").callouts.find((callout) => callout.key === "taxes")!;
+    expect(taxes).toMatchObject({ no: 1, side: "funding", value: 15_000_000 });
+    expect(taxes.items.map((item) => item.label)).toEqual(["相続税", "その他税金"]);
+
+    // 税金300万円（2%）は面積も小さいので、どちらの理由でも注記に出る。
     const result = view("with-tax", { estimatedInheritanceTax: 2_000_000, otherTaxes: 1_000_000 });
     expect(result.callouts.map((callout) => callout.label)).toEqual(["税金", "承継関連費用"]);
     expect(result.callouts.map((callout) => callout.no)).toEqual([1, 2]);
     expect(result.callouts[0].items.map((item) => item.label)).toEqual(["相続税", "その他税金"]);
-    // 金融資産（252px）と借入金（84px）は面積が十分なので枠内に描く。
+    // 金融資産（195.6px に小分類2行の99px）と借入金（65.2px に詰めた1行の30px）は枠内に収まる。
     expect(result.callouts.some((callout) => callout.label === "金融資産" || callout.label === "借入金")).toBe(false);
+  });
+
+  it("内訳が収まるかは密度クラスと同じ境目で切り替える", () => {
+    // 面積比22%以上は字を詰めないので、小分類2行に 61+38=99px 要る。30.4%（99/326）が境目。
+    const spacious = view("with-tax", { estimatedInheritanceTax: 40_000_000, otherTaxes: 8_000_000 });
+    expect(spacious.callouts.some((callout) => callout.key === "taxes")).toBe(false);
+    const tight = view("with-tax", { estimatedInheritanceTax: 36_000_000, otherTaxes: 8_000_000 });
+    expect(tight.callouts.find((callout) => callout.key === "taxes")?.items).toHaveLength(2);
   });
 
   it("その他負債は借入金と別の区画にし、登録が無ければ区画を出さない", () => {

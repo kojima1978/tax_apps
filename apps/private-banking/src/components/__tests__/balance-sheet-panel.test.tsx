@@ -113,10 +113,11 @@ describe("BalanceSheetPanel", () => {
 
   it("注記に触れると、対応する区画と番号の印を強調する", () => {
     renderPanel("with-tax");
-    const note = document.querySelector(".bs-callout-note") as HTMLElement;
+    // 注記は複数出るので（税金は内訳が枠に収まらない）、強調が番号どうし対応していることを見るために科目で選ぶ。
+    const note = [...document.querySelectorAll<HTMLElement>(".bs-callout-note")].find((row) => row.textContent?.includes("承継関連費用"))!;
     fireEvent.pointerEnter(note);
     expect(areaOf("承継関連費用").area.className).toContain("is-callout-active");
-    expect(document.querySelector(".bs-callout-marker")?.className).toContain("is-active");
+    expect(document.querySelector(".bs-callout-marker.is-active")?.textContent).toBe("②");
     expect(note.className).toContain("is-active");
     fireEvent.pointerLeave(note);
     expect(areaOf("承継関連費用").area.className).not.toContain("is-callout-active");
