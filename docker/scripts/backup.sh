@@ -1372,25 +1372,35 @@ cmd_drill() {
   ops_write_last_result "drill" "ok" \
     "$(basename "$archive") ok=$drill_ok skipped=$drill_skip"
   echo ""
-
-  run_weekly_prune
 }
 
-# 週次の掃除。ドリルの後ろにぶら下げているのは、これが
-# **無人で走る唯一の週次タスク**だから。専用のタスクを増やすと、
-# 増やしたぶんだけ「消えたのに誰も気づかない」対象が増える。
+# 定期的な掃除。専用のスケジュールタスクは作らず、既に起きている
+# ウォッチドッグ（cmd_due）に乗せる ── 無人タスクを増やすほど
+# 「消えたのに誰も気づかない」対象が増える。
+#
+# ただし**ドリルの付属物にしてはいけない**。以前はこれを cmd_drill の
+# 最後の1行として呼んでいた。ドリル自身の記録はその手前で書かれるので、
+# 2026-10-04 にドリル成功の直後（ビルドキャッシュの削除中）にプロセスが
+# 落ちたとき、ドリルは ok のまま掃除だけ記録を失った。そして掃除を呼ぶ
+# 経路が「次に成功する週次ドリル」しか無かったため、4時間毎に
+# ウォッチドッグが起きているのに**9日間直せなかった**（警告しきい値 192h に
+# 対して唯一の駆動元が 168h 周期＝余裕が無く、ドリルを1回取りこぼすだけで
+# 警告が確定する）。いまは cmd_due の独立した項目なので、中断されても
+# 数時間後の次の回で再試行される。
 #
 # manage.sh prune を呼ばず ops_docker_prune を直に呼ぶのは、この時点で
-# すでに操作ロック（drill もしくは due）を握っているため（再入できず自分と衝突する）。
-run_weekly_prune() {
-  print_banner "Docker Cleanup (weekly)"
+# すでに操作ロック（due）を握っているため（再入できず自分と衝突する）。
+run_scheduled_prune() {
+  print_banner "Docker Cleanup"
   if ops_docker_prune; then
-    ops_write_last_result "prune" "ok" "after drill"
-  else
-    warn "Docker の掃除に失敗しました（ドリル自体は成功しています）"
-    ops_write_last_result "prune" "failed" "after drill"
+    ops_write_last_result "prune" "ok" "scheduled"
+    echo ""
+    return 0
   fi
+  warn "Docker の掃除に失敗しました"
+  ops_write_last_result "prune" "failed" "scheduled"
   echo ""
+  return 1
 }
 
 remove_old_files() {
@@ -1632,10 +1642,14 @@ copy_backup_to_external() {
 # 二重取得にはならない（「日次」が「PCを使った日に1回」になる）。
 #
 # **しきい値は OPS_WATCHED_RESULTS の警告しきい値より必ず小さくすること**
-# （backup: 20h < 30h / drill: 168h < 192h）。逆転すると「警告を出してから
-# 実行する」順序になり、デスクトップの警告が毎回ウソをつく。
+# （backup: 20h < 30h / drill: 168h < 192h / prune: 144h < 192h）。
+# 逆転すると「警告を出してから実行する」順序になり、デスクトップの警告が
+# 毎回ウソをつく。掃除だけ警告しきい値から2日離してあるのは、以前これが
+# ドリルの付属物で、駆動元の周期（168h）と警告しきい値（192h）がほぼ
+# 同じだったために1回取りこぼすだけで必ず警告が出ていたから。
 DUE_BACKUP_HOURS="${TAX_APPS_DUE_BACKUP_HOURS:-20}"
 DUE_DRILL_HOURS="${TAX_APPS_DUE_DRILL_HOURS:-168}"
+DUE_PRUNE_HOURS="${TAX_APPS_DUE_PRUNE_HOURS:-144}"
 
 # 記録が無い（一度も成功していない）ときは期限切れとして扱う。
 _due_needed() {
@@ -1666,7 +1680,7 @@ cmd_due() {
   # タスクが消えたことに気づく経路がその日だけ欠ける）。
   ensure_watchdog_task
 
-  local status="ok" backup_state="skip" drill_state="skip"
+  local status="ok" backup_state="skip" drill_state="skip" prune_state="skip"
 
   if _due_needed "backup" "$DUE_BACKUP_HOURS"; then
     if _due_run cmd_backup; then
@@ -1693,9 +1707,23 @@ cmd_due() {
     echo ""
   fi
 
+  # 掃除はバックアップ・ドリルの成否に関わらず判定する。ドリルが失敗した回に
+  # 掃除まで一緒に止まると、駆動元が1つしか無かった以前の形に戻ってしまう。
+  if _due_needed "prune" "$DUE_PRUNE_HOURS"; then
+    if _due_run run_scheduled_prune; then
+      prune_state="ran"
+    else
+      prune_state="failed"
+      status="failed"
+    fi
+  else
+    echo "Dockerの掃除: ${DUE_PRUNE_HOURS}時間以内に成功しているのでスキップ（$(ops_format_last_result prune)）"
+    echo ""
+  fi
+
   # ウォッチドッグ(PowerShell)が読む唯一の行。日本語のログ行はコンソールの
   # コードページ次第で拾えないため、連絡は ASCII 1行に限る。
-  echo "DUE_RESULT status=$status backup=$backup_state drill=$drill_state"
+  echo "DUE_RESULT status=$status backup=$backup_state drill=$drill_state prune=$prune_state"
   [[ "$status" == "ok" ]]
 }
 
