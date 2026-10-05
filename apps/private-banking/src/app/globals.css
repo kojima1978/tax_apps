@@ -42,7 +42,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .brand-mark { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 8px; display: grid; place-items: center; color: #15803d; background: #fff; border: 1px solid #86efac; }
 .brand-mark svg { width: 17px; }
 /* ブランドマークは業務支援ポータルへ戻るリンクを兼ねる。 */
-.portal-link { cursor: pointer; transition: color .2s, background-color .2s, border-color .2s; }
+.portal-link { position: relative; cursor: pointer; transition: color .2s, background-color .2s, border-color .2s; }
+/* 見た目は 30px の角丸マークのまま、押せる範囲だけツールバーと同じ 44px へ広げる。
+   マーク自体を大きくしないのは、サイドバーの縦を詰めて全項目を収めている（.sidebar のコメント）ため
+   8px でも増やすと一番下の項目が切れること、ブランドの見た目が画面ごとに変わることの2つを避けるため。
+   inset は枠線の内側（パディングボックス）が起点なので、28px + 8px × 2 = 44px。角丸はマークの 8px に
+   同じ 8px を足して同心にする。広がる 8px はサイドバーの余白・ブランド行の下余白（実測で最初の
+   ナビ項目まで8px余る）の中に収まり、他に押せるものは無い。 */
+.portal-link::after { content: ""; position: absolute; inset: -8px; border-radius: 16px; }
 .portal-link:hover { color: #166534; background: #dcfce7; border-color: #16a34a; }
 .portal-link:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 2px; }
 .brand strong { display: block; font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: .01em; }
@@ -279,6 +286,8 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .position-table tbody td:nth-child(5) { overflow: hidden; }
 .position-table tbody td:nth-child(5) > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .position-meta { display: none; }
+/* 所在地が無い科目では span ごと出さないので、区切りは隣り合ったときだけ付ける。 */
+.position-meta-place + .position-meta-method::before { content: " ／ "; }
 .valuation-breakdown { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .position-table thead th:last-child, .position-table tbody td:last-child, .position-table tfoot td:last-child { position: sticky; right: 0; z-index: 2; }
 .position-table thead th:last-child { z-index: 3; background: #fafbfc; box-shadow: -8px 0 14px -14px #172b3a99; }
@@ -984,6 +993,14 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table th:nth-child(6) { width: 136px; }
   .position-table th:nth-child(7) { width: 108px; }
   .position-table .position-meta { max-width: 100%; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+/* 評価方法だけを畳む 1081〜1260px では所在地の列が生きているので、補助行にも所在地を出すと
+   同じ文字列が1行に2回並ぶ。1080px 以下は所在地の列ごと畳むため補助行が唯一の出口になるので、
+   この帯だけで消す（上の帯に書くと下の帯まで消えてしまう）。 */
+@media screen and (min-width: 1081px) and (max-width: 1260px) {
+  /* 隣接セレクタは display:none でも当たるので、区切りも明示的に消す（先頭に「／」だけが残る）。 */
+  .position-table .position-meta-place { display: none; }
+  .position-table .position-meta-place + .position-meta-method::before { content: none; }
 }
 /* 1080px 以下では 760px 版も収まらない（サイドバーありで本文 500px まで縮む）。
    「所在地・金融機関等」は科目・名称の補助行に同じ内容が出ているので列ごと落とし、
