@@ -1382,6 +1382,16 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .balance-panel .panel-header h3 { font-size: 14px; }
   .balance-panel .panel-header p { font-size: 10.5px; }
   .classified-bs { height: 120mm; padding: 9px 14px 0; gap: 9px; }
+  /* 注記は区画エリアの下へ積むので、同じ側に2つ以上並ぶとA4横1枚に収まらなくなる。1枚に
+     使えるのは 699px で、区画より上（表題・パネル見出し）に132px、合計欄から下（個人保証の行と
+     余白）に31px 要るため、区画と注記で分け合えるのは 536px。注記が1つなら 120mm(453px) の
+     ままで足りるが、2つ3つ積むと注記だけで120px前後になり、縮めないと4ページ目へこぼれる
+     （中身は消えないが、注記が途中で切られた数行だけのページが出る。顧客8・9で実測）。
+     縮めた先の 106mm(401px) から見出し29.4px と合計欄30.6px を引くと区画エリアは約332px で、
+     balance-view.ts の AREA_HEIGHT（画面の下限326px）を上回る。**これより小さくしないこと** ──
+     下回ると「一番狭いのは画面」という注記の判定前提が崩れ、印刷だけ注記の無い切れた区画が
+     できる。内訳3行の注記が3つ並ぶような回はこの高さでも収まらないので、縮めずにこぼす。 */
+  .balance-panel:has(.bs-callout-column > .bs-callout-note + .bs-callout-note) .classified-bs { height: 106mm; }
   .classified-bs, .classified-bs-side, .classified-bs-side > div, .bs-account, .bs-account-heading, .bs-subtotals, .bs-subtotals > div { min-width: 0; max-width: 100%; box-sizing: border-box; }
   /* 番号の印は区画の左端からはみ出して置くので、切り取らない。 */
   .classified-bs-side { overflow: visible; }
