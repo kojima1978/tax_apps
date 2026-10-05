@@ -155,13 +155,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .bs-money { text-align: right; }
 .bs-percent { color: var(--slate-500); font-size: 9px; font-style: normal; font-weight: 600; text-align: right; }
 .bs-account.grouped-account { min-height: 0; padding-block: 9px; display: block; }
-.bs-account.compact-account { min-height: 0; padding: 1px 13px; gap: 4px; }
-.bs-account.compact-account span, .bs-account.compact-account strong { font-size: 9px; line-height: 1; }
-.bs-account.compact-account .bs-percent { font-size: 9px; }
-.bs-account.compact-account small { display: none; }
-.bs-account.grouped-account.compact-account .bs-subtotals { display: none; }
+/* 面積比 2〜4% の区画は 9px 1行＋上下余白で 11px 要るのに箱が 8px しか取れず、
+   .bs-account が overflow:hidden なので科目名が上下で切れたまま残っていた。この帯は
+   balance-view.ts の SMALL_AREA_RATIO と同じ範囲で、表の下へ必ず注記が出ている
+   （＝切れた文字を残しても読めるものは増えない）ので、中身は畳んで区画の帯だけ残す。
+   番号の印は .bs-account-area の子なので、ここで消えない。 */
+.bs-account.compact-account { min-height: 0; padding: 0 13px; }
+.bs-account.compact-account > *, .bs-account.micro-account > * { display: none; }
 .bs-account.micro-account { padding: 0; border-bottom: 0; }
-.bs-account.micro-account > * { display: none; }
 .bs-account-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .bs-subtotals { margin: 7px 0 0; padding: 4px 0 0 8px; border-top: 1px solid var(--line); border-left: 2px solid var(--line); }
 .bs-subtotals > div { min-height: 19px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -254,6 +255,11 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .position-table th:nth-child(7) { width: 118px; }
 /* 操作列は「…」1つ（44px）＋左右の余白ぶん。空いた28pxは評価方法へ回している。 */
 .position-table th:nth-child(8) { width: 60px; }
+/* 相続税が未計算・0円の年度と偶発債務の部では、相続税負担額が全行「—」になる。情報を持たない列は
+   出さず、空いた幅を科目・名称や所在地へ回す。この列は見出し・明細・合計のどの行でも colSpan に
+   またがれていないため、3つとも消せば列そのものが消える（第5列のように幅0で畳む必要はない）。
+   nth-child は DOM 上の位置を見るので、他の列の幅指定はずれない。 */
+.position-table.without-tax-burden .tax-burden-column { display: none; }
 /* 解約返戻金と死亡給付金の2段。ラベルは左、金額は右端で縦に揃える。 */
 .deemed-amount { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .deemed-amount + .deemed-amount { margin-top: 2px; }

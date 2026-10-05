@@ -330,7 +330,10 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   }
 
   if (!portfolio || !current) {
-    return <main className="initial-loader"><PortalLink /><LoaderCircle className="spin" /><p>{error || "貸借対照表を読み込んでいます"}</p>{error ? <button className="button secondary" onClick={() => void load()}>再読み込み</button> : null}</main>;
+    // 読み込み中の文言は開いている画面の名前で出す。固定で「貸借対照表」と出していたころは、
+    // 親族関係や本人情報のURLを直接開くと見出しと違うものを待っているように見えていた。
+    const loadingLabel = SECTIONS.find((item) => item.key === section)?.label ?? "データ";
+    return <main className="initial-loader"><PortalLink /><LoaderCircle className="spin" /><p>{error || `${loadingLabel}を読み込んでいます`}</p>{error ? <button className="button secondary" onClick={() => void load()}>再読み込み</button> : null}</main>;
   }
   // 表示中の年度。?snapshot= が無効なときは現在年度にフォールバックする。
   const reportSnapshot = workingSnapshot ?? current;

@@ -2,6 +2,7 @@
 
 import { Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { ActionMenu } from "@/components/action-menu";
 import { PanelHeader } from "@/components/panel-header";
 import { compactYen, dateJa } from "@/lib/format";
 import {
@@ -77,7 +78,16 @@ export function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnaps
     </section>
     <section className="panel table-panel history-list-panel">
       <PanelHeader title="年度一覧" subtitle={`${snapshots.length}年度`} />
-      <div className="table-scroll"><table className="history-table"><thead><tr><th>基準日</th><th>状態</th><th className="number">資産合計</th><th className="number">負債合計</th><th className="number">純資産</th><th className="number">個人保証</th><th className="number">相続税（実効税率）</th><th className="actions-column">操作</th></tr></thead><tbody>{[...orderedSnapshots].reverse().map((snapshot) => { const s = trendValues(snapshot); const calc = snapshot.inheritanceTaxCalculation; return <tr key={snapshot.id}><td><strong>{dateJa(snapshot.asOfDate)}</strong></td><td>{snapshot.isCurrent ? <span className="current-badge">現在</span> : snapshot.label}</td><td className="number">{compactYen(s.assets)}</td><td className="number">{compactYen(s.liabilities)}</td><td className="number emphasis">{compactYen(s.netWorth)}</td><td className="number">{compactYen(s.guarantees)}</td><td className="number">{calc ? <><strong>{compactYen(calc.totalInheritanceTaxJpy)}</strong><small className="history-tax-rate">実効税率 {calc.effectiveTaxRate.toFixed(1)}%</small></> : <span className="history-tax-empty">未計算</span>}</td><td><div className="table-actions"><button type="button" className="row-action delete" title={`${snapshot.fiscalYear}年度を削除`} aria-label={`${snapshot.fiscalYear}年度のデータを削除`} onClick={() => onDeleteSnapshot(snapshot)}><Trash2 /><span className="sr-only">年度を削除</span></button></div></td></tr>; })}</tbody></table></div>
+      <div className="table-scroll"><table className="history-table"><thead><tr><th>基準日</th><th>状態</th><th className="number">資産合計</th><th className="number">負債合計</th><th className="number">純資産</th><th className="number">個人保証</th><th className="number">相続税（実効税率）</th><th className="actions-column">操作</th></tr></thead><tbody>{[...orderedSnapshots].reverse().map((snapshot) => { const s = trendValues(snapshot); const calc = snapshot.inheritanceTaxCalculation; return <tr key={snapshot.id}><td><strong>{dateJa(snapshot.asOfDate)}</strong></td><td>{snapshot.isCurrent ? <span className="current-badge">現在</span> : snapshot.label}</td><td className="number">{compactYen(s.assets)}</td><td className="number">{compactYen(s.liabilities)}</td><td className="number emphasis">{compactYen(s.netWorth)}</td><td className="number">{compactYen(s.guarantees)}</td><td className="number">{calc ? <><strong>{compactYen(calc.totalInheritanceTaxJpy)}</strong><small className="history-tax-rate">実効税率 {calc.effectiveTaxRate.toFixed(1)}%</small></> : <span className="history-tax-empty">未計算</span>}</td><td><div className="table-actions">{/* 行の操作は顧客一覧・資産負債明細と同じ「…」1つに揃える。削除だけを剥き出しのボタンで置いていたため、
+                この表だけ消す操作がワンクリックで並んでいた。 */}<ActionMenu
+                  id={`snapshot-menu-${snapshot.id}`}
+                  label={`${fiscalYearLabel(snapshot)}の操作`}
+                  busy={saving}
+                  items={[
+                    { key: "edit", label: "この年度を修正", icon: Pencil, onSelect: () => onEditSnapshot(snapshot.id) },
+                    { key: "delete", label: "年度データを削除", icon: Trash2, danger: true, onSelect: () => onDeleteSnapshot(snapshot) },
+                  ]}
+                /></div></td></tr>; })}</tbody></table></div>
     </section>
   </>;
 }
