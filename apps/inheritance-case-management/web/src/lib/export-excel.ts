@@ -6,7 +6,7 @@
  */
 import type { InheritanceCase } from '@/types/shared';
 import { formatReferrerLabel } from '@/types/shared';
-import { apiClient } from './api/client';
+import { API_URL, apiClient } from './api/client';
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@/lib/document-types';
 import { exportFileName } from '@/lib/export-filename';
 
@@ -50,8 +50,7 @@ async function generateFromTemplate(
     referralFeeAmount?: number;
   },
 ): Promise<Blob> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/itcm/api-v1';
-  const res = await fetch(`${apiUrl}/templates/generate/`, {
+  const res = await fetch(`${API_URL}/templates/generate/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ docType, ...data }),

@@ -65,7 +65,7 @@ export function BasicInfoSection({
                             placeholder={`特記事項を入力（${MAX_SUMMARY_LENGTH}文字以内）`}
                             maxLength={MAX_SUMMARY_LENGTH}
                         />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
                             {(formData.summary || "").length}/{MAX_SUMMARY_LENGTH}
                         </span>
                     </div>

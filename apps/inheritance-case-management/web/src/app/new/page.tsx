@@ -46,7 +46,7 @@ export default function NewCasePage() {
 
             <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-6">
                 <div className="mb-8 border-b pb-4">
-                    <h1 className="text-2xl font-bold tracking-tight">新規案件登録</h1>
+                    <h1 className="text-xl font-bold tracking-tight">新規案件登録</h1>
                     <p className="text-muted-foreground">基本情報を入力して案件を登録します</p>
                 </div>
 

@@ -161,7 +161,7 @@ export function MasterListPage<T extends MasterListItem>({
 
             <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <h1 className="text-2xl font-bold">{title}</h1>
+                    <h1 className="text-xl font-bold">{title}</h1>
                     {isDirty && <span className="text-sm text-gray-700 font-bold">※ 未保存の変更あり</span>}
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto">

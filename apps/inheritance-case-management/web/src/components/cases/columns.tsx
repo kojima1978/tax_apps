@@ -41,23 +41,38 @@ function formatSlashDate(date: string | Date): string {
     return `${value.getFullYear()}/${month}/${day}`
 }
 
-// ── Status color bar (left border) ──────────────────────────
-const STATUS_BORDER_COLORS: Record<CaseStatus, string> = {
-    '見積前': 'border-l-gray-300',
-    '見積中': 'border-l-gray-400',
-    '見送り': 'border-l-gray-300',
-    '受託': 'border-l-gray-500',
-    '手続中': 'border-l-gray-600',
-    '最終確認': 'border-l-gray-800',
-    '申告済': 'border-l-gray-700',
-    '請求済': 'border-l-neutral-500',
-    '入金済': 'border-l-neutral-700',
+// ── Status color bar (left border) ────────────────────────
+// グレー9段階は隣り合う段階を肉眼で区別できず、さらに「見積前」と「見送り」が同じ色で
+// 全く同じ表示だった。読み取れる粒度まで粗くして「受託前 / 進行中 / 完了」の3段階にまとめ、
+// 打ち切った「見送り」だけ破線で別扱いにする。
+//
+// Tailwind の border-l-* は使えない。globals.css の
+// `:where(.case-workspace) :where([class*="border"]) { border-color: #e2e8f0 }` が
+// レイヤの外側にあるため、@layer utilities の Tailwind ユーティリティを
+// 詳細度に関係なく上書きする（実測: どのステータスも slate-200 で描かれていた）。
+type StatusBorder = { color: string; style: 'solid' | 'dashed' }
+
+const STATUS_BORDER_BEFORE: StatusBorder = { color: '#cbd5e1', style: 'solid' }
+const STATUS_BORDER_ONGOING: StatusBorder = { color: '#475569', style: 'solid' }
+const STATUS_BORDER_DONE: StatusBorder = { color: '#0f172a', style: 'solid' }
+const STATUS_BORDER_DECLINED: StatusBorder = { color: '#94a3b8', style: 'dashed' }
+
+const STATUS_BORDERS: Record<CaseStatus, StatusBorder> = {
+    '見積前': STATUS_BORDER_BEFORE,
+    '見積中': STATUS_BORDER_BEFORE,
+    '見送り': STATUS_BORDER_DECLINED,
+    '受託': STATUS_BORDER_ONGOING,
+    '手続中': STATUS_BORDER_ONGOING,
+    '最終確認': STATUS_BORDER_ONGOING,
+    '申告済': STATUS_BORDER_DONE,
+    '請求済': STATUS_BORDER_DONE,
+    '入金済': STATUS_BORDER_DONE,
 }
 
 // ── Mini badge for stacked cells ─────────────────────────────
 function MiniBadge({ label, style }: { label: string; style: { dot: string; bg: string; text: string } }) {
     return (
-        <span className={`inline-flex max-w-[92px] items-center gap-1 truncate rounded-full border border-black/10 px-1.5 py-0.5 text-[10px] font-medium leading-none ${style.bg} ${style.text}`}>
+        <span className={`inline-flex max-w-[92px] items-center gap-1 truncate rounded-full border border-black/10 px-1.5 py-0.5 text-[11px] font-medium leading-none ${style.bg} ${style.text}`}>
             <span className={`h-1 w-1 rounded-full ${style.dot}`} />
             <span className="truncate">{label}</span>
         </span>
@@ -125,9 +140,12 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
         header: ({ column }) => <SortableHeader column={column}>被相続人</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
-            const borderColor = STATUS_BORDER_COLORS[c.status as CaseStatus] || "border-l-gray-300"
+            const border = STATUS_BORDERS[c.status as CaseStatus] || STATUS_BORDER_BEFORE
             return (
-                <div className={`min-w-0 border-l-3 pl-2 ${borderColor}`}>
+                <div
+                    className="min-w-0 pl-2"
+                    style={{ borderLeftWidth: 3, borderLeftColor: border.color, borderLeftStyle: border.style }}
+                >
                     <div className="min-w-0 leading-tight">
                         {c.deceasedNameKana && (
                             <div className="truncate text-[11px] text-muted-foreground">{c.deceasedNameKana}</div>
@@ -148,7 +166,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
     // ── 第2列：時間管理（デッドライン） ───────────────────────
     {
         accessorKey: "dateOfDeath",
-        size: 145,
+        size: 190,
         header: ({ column }) => <SortableHeader column={column}>申告期限</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
@@ -164,14 +182,19 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
                 : completed
                     ? "text-foreground"
                     : deadlineStatus.className
+            // 以前は各行が何の日付かを title 属性でしか説明していなかった。
+            // 行の意味は見出しラベルで示し、残り日数は日付の後ろへ回す。
             return (
-                    <div className="space-y-1 leading-tight" title="1行目：残り日数と申告期限、2行目：相続開始日">
-                    <div className={`grid grid-cols-[56px_minmax(0,1fr)] items-center gap-1 text-[11px] ${deadlineClassName}`}>
-                        <span className={`rounded px-1 py-0.5 text-[10px] font-medium ${!ended && !completed ? deadlineStatus.badgeClassName : "text-slate-600"}`}>{remainingLabel}</span>
-                        <span className="tabular-nums">{deadlineDate}</span>
+                    <div className="space-y-1 leading-tight">
+                    <div className={`grid grid-cols-[44px_minmax(0,1fr)] items-center gap-1 text-[11px] ${deadlineClassName}`}>
+                        <span className="whitespace-nowrap text-[11px] font-normal text-muted-foreground">期限</span>
+                        <span className="flex items-center gap-1">
+                            <span className="tabular-nums">{deadlineDate}</span>
+                            <span className={`shrink-0 rounded px-1 py-0.5 text-[11px] font-medium ${!ended && !completed ? deadlineStatus.badgeClassName : "text-slate-600"}`}>{remainingLabel}</span>
+                        </span>
                     </div>
-                    <div className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-1 text-[11px] text-muted-foreground">
-                        <span className="whitespace-nowrap text-[10px]">相続開始</span>
+                    <div className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-1 text-[11px] text-muted-foreground">
+                        <span className="whitespace-nowrap text-[11px]">相続開始</span>
                         <span className="tabular-nums">{inheritanceDate}</span>
                     </div>
                 </div>
@@ -198,11 +221,11 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
             return (
                 <div className="min-w-0 leading-tight">
                     <div className="truncate text-xs font-medium text-foreground">
-                        <span className="mr-1 text-[10px] text-slate-500">担当</span>{c.assignee?.name || <span className="text-muted-foreground">-</span>}
+                        <span className="mr-1 text-[11px] text-slate-500">担当</span>{c.assignee?.name || <span className="text-muted-foreground">-</span>}
                     </div>
                     {c.internalReferrer?.name && (
                         <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                            <span className="mr-1 text-[10px]">紹介</span>{c.internalReferrer.name}
+                            <span className="mr-1 text-[11px]">紹介</span>{c.internalReferrer.name}
                         </div>
                     )}
                 </div>
@@ -254,7 +277,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
             const hasMemo = c.hasMemo
             return (
                 <div className="min-w-0 leading-tight">
-                    <div className="whitespace-nowrap text-xs font-medium text-foreground">{c.summary || "-"}</div>
+                    <div className="truncate text-xs font-medium text-foreground" title={c.summary || undefined}>{c.summary || "-"}</div>
                     <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                         <span>{c.fiscalYear}年度</span>
                         {hasMemo && <FileText className="h-3 w-3 text-muted-foreground/60" />}

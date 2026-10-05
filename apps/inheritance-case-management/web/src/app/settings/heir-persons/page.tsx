@@ -218,7 +218,7 @@ function HeirPersonsContent() {
                     <div className="px-4 py-3 space-y-3">
                         <div className="grid items-end gap-x-4 gap-y-1.5 sm:grid-cols-2">
                             <div className="space-y-0.5">
-                                <Label htmlFor={fieldId("nameKana")} className="text-[10px] text-muted-foreground">フリガナ</Label>
+                                <Label htmlFor={fieldId("nameKana")} className="text-[11px] text-muted-foreground">フリガナ</Label>
                                 <Input
                                     id={fieldId("nameKana")}
                                     value={ml.editingFields.nameKana || ""}

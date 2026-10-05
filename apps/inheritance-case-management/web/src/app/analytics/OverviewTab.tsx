@@ -68,7 +68,7 @@ export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTa
                     <div key={card.detail} className={`rounded-lg p-4 shadow-sm ${card.cardClass} ${'isPrimary' in card && card.isPrimary ? "relative overflow-hidden" : ""}`}>
                         <div className="mb-1.5 font-medium leading-tight text-muted-foreground">
                             <span className="block text-xs">{card.title}</span>
-                            <span className="block text-[10px]">{card.detail}</span>
+                            <span className="block text-[11px]">{card.detail}</span>
                         </div>
                         <div className="flex items-baseline gap-2">
                             <div className={card.valueClass}>{formatCurrency(cardData[i].net)}</div>
@@ -98,7 +98,7 @@ export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTa
                                 {PERFORMANCE_HEADERS.map((header) => (
                                     <th key={`${header.title}-${header.detail || ""}`} className={`p-2 align-middle ${header.title === "件数" ? "text-center" : "text-right"}`}>
                                         <span className="block whitespace-nowrap text-xs">{header.title}</span>
-                                        {header.detail && <span className="block whitespace-nowrap text-[10px] font-normal">{header.detail}</span>}
+                                        {header.detail && <span className="block whitespace-nowrap text-[11px] font-normal">{header.detail}</span>}
                                     </th>
                                 ))}
                             </tr>
@@ -106,7 +106,7 @@ export function OverviewTab({ summaryTotals, annualData, yearLabel }: OverviewTa
                         <tbody className="divide-y">
                             {annualData.map(d => (
                                 <tr key={d.year}>
-                                    <td className="p-2 font-medium">{d.year}年度<span className="ml-1 text-[10px] text-muted-foreground">({fiscalYearWareki(d.year)})</span></td>
+                                    <td className="p-2 font-medium">{d.year}年度<span className="ml-1 text-[11px] text-muted-foreground">({fiscalYearWareki(d.year)})</span></td>
                                     <td className="p-2 text-right text-sm font-bold">{formatCurrency(d.feeTotal + d.estimateTotal)}</td>
                                     <td className="p-2 text-right">{formatCurrency(d.feeTotal)}</td>
                                     <td className="p-2 text-right text-muted-foreground">{formatCurrency(d.estimateTotal)}</td>

@@ -27,7 +27,7 @@ export function FinancialSection({
                 <div className="space-y-1.5">
                     <Label htmlFor="propertyValue" className="text-xs">
                         遺産総額
-                        <span className="ml-1 text-[6px] font-normal leading-tight text-muted-foreground">
+                        <span className="ml-1 text-[11px] font-normal leading-tight text-muted-foreground">
                             （生前贈与加算額を含み、債務控除、非課税及び各種特例適用前）
                         </span>
                     </Label>

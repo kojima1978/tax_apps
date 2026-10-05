@@ -96,7 +96,7 @@ function BackupContent() {
         <span className="text-foreground font-medium">バックアップ / リストア</span>
       </nav>
 
-      <h1 className="text-2xl font-bold mb-8">バックアップ / リストア</h1>
+      <h1 className="text-xl font-bold mb-8">バックアップ / リストア</h1>
 
       {/* Export Section */}
       <section className="border rounded-xl p-6 mb-6">

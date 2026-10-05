@@ -37,7 +37,7 @@ export function CollapsibleSection({ title, icon: Icon, defaultOpen = true, isOp
                     {Icon && <Icon className={cn("text-muted-foreground", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />}
                     <span className={cn("font-semibold", compact ? "text-xs" : "text-sm")}>{title}</span>
                     {badge && (
-                        <span className={cn("bg-primary/10 text-primary rounded-full", compact ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-xs")}>{badge}</span>
+                        <span className={cn("bg-primary/10 text-primary rounded-full", compact ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-0.5 text-xs")}>{badge}</span>
                     )}
                 </div>
                 <ChevronDown className={cn(compact ? "h-3.5 w-3.5" : "h-4 w-4", "text-muted-foreground transition-transform duration-200", isOpen && "rotate-180")} />

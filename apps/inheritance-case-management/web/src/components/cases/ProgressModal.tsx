@@ -49,7 +49,7 @@ function SortableRow({
                 <div className="font-medium text-xs truncate">{step.name}</div>
                 <div>
                     <input type="date" value={step.date || ""} onChange={(e) => onDateChange(e.target.value)} className="w-full text-xs border rounded px-1.5 py-1 bg-background" />
-                    {step.date && <div className="text-[10px] text-muted-foreground mt-0.5">{toWareki(step.date)}</div>}
+                    {step.date && <div className="text-[11px] text-muted-foreground mt-0.5">{toWareki(step.date)}</div>}
                 </div>
                 <div>
                     <input type="text" value={step.memo || ""} onChange={(e) => onMemoChange(e.target.value)} placeholder="-" className="w-full text-xs border rounded px-1.5 py-1 bg-background" />

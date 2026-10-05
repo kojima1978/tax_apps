@@ -25,7 +25,7 @@ export function RelatedPartyCard({ party, index, onEdit, onRemove, onMemoChange 
                             <div className="flex items-center gap-2">
                                 <span className="truncate text-sm font-medium">{party.person.name}</span>
                                 {party.person.profession && (
-                                    <span className="inline-flex shrink-0 items-center rounded border border-border bg-muted/40 px-1.5 py-0 text-[10px] text-muted-foreground">{party.person.profession}</span>
+                                    <span className="inline-flex shrink-0 items-center rounded border border-border bg-muted/40 px-1.5 py-0 text-[11px] text-muted-foreground">{party.person.profession}</span>
                                 )}
                             </div>
                             {party.person.nameKana && (

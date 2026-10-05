@@ -230,7 +230,7 @@ function ReferralSourcesContent() {
                 <div className="p-2.5 rounded-lg bg-white text-black border border-black/10">
                     <Network className="h-6 w-6" />
                 </div>
-                <h1 className="text-2xl font-bold">紹介元管理</h1>
+                <h1 className="text-xl font-bold">紹介元管理</h1>
             </div>
 
             {loadError && (

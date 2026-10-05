@@ -46,7 +46,7 @@ const SETTINGS_MENU_ITEMS: { href: string; icon: LucideIcon; iconClass: string; 
 export default function SettingsMenuPage() {
     return (
         <div className="container mx-auto py-10 max-w-2xl px-4">
-            <h1 className="text-2xl font-bold mb-6">設定</h1>
+            <h1 className="text-xl font-bold mb-6">設定</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {SETTINGS_MENU_ITEMS.map((item) => (

@@ -20,7 +20,7 @@ import { FinancialSection } from "./FinancialSection"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { DocumentExportModal } from "./DocumentExportModal"
 import { AuditLogSection } from "./AuditLogSection"
-import { ListChecks, Receipt, Users, Briefcase, StickyNote, FileText, ChevronsUpDown } from "lucide-react"
+import { ListChecks, Receipt, Users, Briefcase, StickyNote, FileText } from "lucide-react"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { useSectionState } from "@/hooks/use-section-state"
@@ -44,6 +44,7 @@ import {
 } from "./case-form-draft"
 import { shouldCloseCaseDetailSections } from "@/lib/case-detail-section-state"
 import { CaseSectionNavigation, type CaseSectionNavigationItem } from "./CaseSectionNavigation"
+import { CaseDetailHeader } from "./CaseDetailHeader"
 
 const CLOSED_SECTION_DEFAULTS = Object.fromEntries(
     SECTION_IDS.map((id) => [id, false]),
@@ -199,19 +200,11 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         <div className="space-y-2 text-xs [&_input:not([type=checkbox])]:h-9 [&_input:not([type=checkbox])]:text-xs [&_select]:text-xs [&_textarea]:text-xs">
             {!isCreateMode && (
                 <>
-                    <div className="mb-2 flex items-center justify-between border-b pb-2">
-                        <h1 className="text-lg font-bold tracking-tight">案件詳細</h1>
-                        <div className="flex justify-end">
-                            <button
-                                type="button"
-                                onClick={sections.toggleAll}
-                                className="flex min-h-9 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                            >
-                                <ChevronsUpDown className="h-3.5 w-3.5" />
-                                {sections.allOpen ? "すべて閉じる" : "すべて開く"}
-                            </button>
-                        </div>
-                    </div>
+                    <CaseDetailHeader
+                        formData={formData}
+                        allOpen={sections.allOpen}
+                        onToggleAll={sections.toggleAll}
+                    />
                     <CaseSectionNavigation
                         items={caseSectionNavigationItems}
                         onOpenSection={sections.open}
@@ -313,6 +306,8 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 <div id="case-audit-log" className="scroll-mt-28">
                     <AuditLogSection
                         caseId={formData.id}
+                        assignees={assignees}
+                        referrers={referrers}
                         isOpen={sections.isOpen("auditLog")}
                         onToggle={() => sections.toggle("auditLog")}
                         refreshKey={auditRefreshKey}

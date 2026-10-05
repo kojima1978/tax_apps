@@ -28,7 +28,7 @@ function FieldBadge({ children, variant = "required" }: { children: React.ReactN
     return (
         <span
             className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-medium leading-none",
+                "rounded-full px-2 py-0.5 text-[11px] font-medium leading-none",
                 variant === "required" ? "bg-white text-black border border-black/10" : "bg-muted text-muted-foreground",
             )}
         >

@@ -66,7 +66,7 @@ export function InlineSummaryCell({ caseData }: { caseData: InheritanceCase }) {
                     className="w-full rounded border bg-background px-1.5 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary"
                     disabled={isSaving}
                 />
-                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground">
+                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
                     {value.length}/{MAX_SUMMARY_LENGTH}
                 </span>
             </div>

@@ -117,8 +117,8 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
             >
                 <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold">
                     <span>特別業務報酬額</span>
-                    <span className="text-[10px] font-normal text-muted-foreground">{specialAdditions.length}/2件</span>
-                    <span className="ml-auto text-[10px] font-normal text-muted-foreground group-open:hidden">必要な場合のみ入力</span>
+                    <span className="text-[11px] font-normal text-muted-foreground">{specialAdditions.length}/2件</span>
+                    <span className="ml-auto text-[11px] font-normal text-muted-foreground group-open:hidden">必要な場合のみ入力</span>
                 </summary>
                 <div className="mt-2 space-y-2 border-t pt-2">
                     <div className="flex justify-end">
@@ -149,7 +149,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                     <div className="mr-1 text-right">
-                        <div className="text-[10px] text-muted-foreground">差引額</div>
+                        <div className="text-[11px] text-muted-foreground">差引額</div>
                         <div className="text-sm font-bold">{formatCurrency(netEstimate)}</div>
                     </div>
                     <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={applyToEstimate}>

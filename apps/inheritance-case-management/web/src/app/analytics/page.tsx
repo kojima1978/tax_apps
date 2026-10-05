@@ -241,7 +241,7 @@ export default function AnalyticsPage() {
     return (
         <div className="case-workspace analytics-workspace mx-auto min-h-screen max-w-[1600px] space-y-3 px-3 py-4 text-sm lg:px-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <h1 className="text-xl font-bold md:text-2xl">経営分析ダッシュボード</h1>
+                <h1 className="text-xl font-bold">経営分析ダッシュボード</h1>
             </div>
 
             {/* Tab Navigation */}

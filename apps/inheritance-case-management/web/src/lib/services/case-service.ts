@@ -325,7 +325,8 @@ export type OptimisticLockError = { code: 'NOT_FOUND' | 'CONFLICT' };
 
 export async function updateCase(id: number, data: Record<string, unknown>): Promise<ReturnType<typeof serializeCase>> {
   const updated = await prisma.$transaction(async (tx) => {
-    const before = await tx.inheritanceCase.findUnique({ where: { id } });
+    // 変更履歴で子レコードの件数差分を取るため、関連も込みで取得する
+    const before = await tx.inheritanceCase.findUnique({ where: { id }, include: CASE_INCLUDE });
     if (!before) {
       throw { _optimisticLock: true, code: 'NOT_FOUND' } as { _optimisticLock: true } & OptimisticLockError;
     }

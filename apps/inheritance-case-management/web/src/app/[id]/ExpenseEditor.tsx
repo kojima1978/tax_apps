@@ -272,7 +272,7 @@ export function ExpenseEditor({ expenses, deceasedName, heirs, onChange }: Expen
             </div>
 
             {expenses.length > 0 && (
-                <div className="hidden grid-cols-[auto_112px_105px_minmax(125px,1fr)_minmax(110px,0.8fr)_auto] gap-1.5 px-2 text-[10px] text-muted-foreground sm:grid">
+                <div className="hidden grid-cols-[auto_112px_105px_minmax(125px,1fr)_minmax(110px,0.8fr)_auto] gap-1.5 px-2 text-[11px] text-muted-foreground sm:grid">
                     <span className="w-4" /><span>日付</span><span>金額</span><span>内容</span><span>メモ</span><span className="w-8" />
                 </div>
             )}

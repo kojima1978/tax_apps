@@ -1,45 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
 import { ClipboardList } from "lucide-react"
 import { getCaseAuditLogs } from "@/lib/api/cases"
-import type { AuditLogEntry } from "@/types/shared"
-
-const FIELD_LABELS: Record<string, string> = {
-    deceasedName: "被相続人氏名",
-    dateOfDeath: "死亡日",
-    status: "ステータス",
-    isUndivided: "遺産未分割",
-    taxAmount: "申告納税額",
-    feeAmount: "報酬額",
-    estimateAmount: "見積額",
-    propertyValue: "遺産総額",
-    referralFeeRate: "紹介料率",
-    referralFeeAmount: "紹介料額",
-    estimateReferralFeeAmount: "見積紹介料額",
-    isReferralFeeManual: "請求書紹介料の手動設定",
-    isEstimateReferralFeeManual: "見積書紹介料の手動設定",
-    landRosenkaCount: "土地数（路線価）",
-    landBairitsuCount: "土地数（倍率）",
-    unlistedStockCount: "非上場株式数",
-    feeCalculationHeirCount: "報酬計算上の相続人数",
-    discountAmount: "値引額",
-    summary: "特記事項",
-    memo: "メモ",
-    caseAddedDate: "受託日",
-    caseCompletedDate: "申告日",
-    billedDate: "請求日",
-    paidDate: "入金日",
-    assigneeId: "担当者",
-    internalReferrerId: "社内紹介者",
-    referrerId: "紹介者",
-    fiscalYear: "年度",
-}
-
-function getFieldLabel(field: string): string {
-    return FIELD_LABELS[field] || field
-}
+import { formatWareki } from "@/lib/japanese-era"
+import { formatCurrency } from "@/lib/analytics-utils"
+import { getAuditFieldKind, getAuditFieldLabel, type AuditFieldKind } from "@/types/audit-fields"
+import type { Assignee, AuditLogEntry, Referrer } from "@/types/shared"
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
     CREATE: { label: "作成", color: "text-black bg-white border-black/20" },
@@ -47,12 +15,64 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
     DELETE: { label: "削除", color: "text-black bg-white border-black/10" },
 }
 
-function formatValue(value: unknown): string {
-    if (value === null || value === undefined) return "—"
-    if (typeof value === "number") {
-        return value.toLocaleString("ja-JP")
+const EMPTY = "—"
+
+function referrerLabel(referrer: Referrer): string {
+    const company = referrer.company?.name || ""
+    return referrer.branch?.name ? `${company} / ${referrer.branch.name}` : company
+}
+
+function objectLabel(value: Record<string, unknown>): string {
+    if (typeof value.name === "string" && value.name) return value.name
+    const company = value.company as { name?: string } | undefined
+    const branch = value.branch as { name?: string } | undefined
+    if (company?.name) return branch?.name ? `${company.name} / ${branch.name}` : company.name
+    return "(内容あり)"
+}
+
+/**
+ * 変更履歴の値を人間が読める形にする。
+ * 以前はすべて `String(value)` に落としていたため、担当者が内部ID、遺産未分割が
+ * `true`、日付が ISO 文字列、子レコードが `[object Object]` のまま出ていた。
+ */
+function formatValue(
+    value: unknown,
+    kind: AuditFieldKind,
+    masters: { assigneeNames: Map<number, string>; referrerNames: Map<number, string> },
+): string {
+    if (value === null || value === undefined || value === "") return EMPTY
+
+    // 旧形式の履歴にはリレーションが生のオブジェクトのまま残っている。
+    // 今は記録しないが、過去分を `[object Object]` のまま出さないようにここで吸収する。
+    if (Array.isArray(value)) return `${value.length}件`
+    if (typeof value === "object") return objectLabel(value as Record<string, unknown>)
+
+    switch (kind) {
+        case "boolean":
+            return value ? "あり" : "なし"
+        case "date": {
+            const iso = String(value).slice(0, 10)
+            return formatWareki(iso) || iso
+        }
+        case "currency":
+            return typeof value === "number" ? formatCurrency(value) : String(value)
+        case "percent":
+            return `${value}%`
+        case "count":
+            return String(value)
+        case "relation":
+            return typeof value === "number" ? `${value}件` : EMPTY
+        case "assignee": {
+            const id = Number(value)
+            return masters.assigneeNames.get(id) || `ID:${id}`
+        }
+        case "referrer": {
+            const id = Number(value)
+            return masters.referrerNames.get(id) || `ID:${id}`
+        }
+        default:
+            return typeof value === "number" ? value.toLocaleString("ja-JP") : String(value)
     }
-    return String(value)
 }
 
 function formatDateTime(iso: string): string {
@@ -64,15 +84,22 @@ function formatDateTime(iso: string): string {
 
 interface AuditLogSectionProps {
     caseId: number
+    assignees: Assignee[]
+    referrers: Referrer[]
     isOpen?: boolean
     onToggle?: () => void
     refreshKey?: number
 }
 
-export function AuditLogSection({ caseId, isOpen, onToggle, refreshKey }: AuditLogSectionProps) {
+export function AuditLogSection({ caseId, assignees, referrers, isOpen, onToggle, refreshKey }: AuditLogSectionProps) {
     const [logs, setLogs] = useState<AuditLogEntry[]>([])
     const [hasLoaded, setHasLoaded] = useState(false)
     const isLoading = !!isOpen && !hasLoaded
+
+    const masters = useMemo(() => ({
+        assigneeNames: new Map(assignees.map((a) => [a.id, a.name])),
+        referrerNames: new Map(referrers.map((r) => [r.id, referrerLabel(r)])),
+    }), [assignees, referrers])
 
     useEffect(() => {
         if (!isOpen || hasLoaded) return
@@ -103,21 +130,35 @@ export function AuditLogSection({ caseId, isOpen, onToggle, refreshKey }: AuditL
                         return (
                             <div key={log.id} className="border rounded-lg px-3 py-2 text-xs">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className={`px-1.5 py-0.5 rounded border text-[10px] font-medium ${actionInfo.color}`}>
+                                    <span className={`px-1.5 py-0.5 rounded border text-[11px] font-medium ${actionInfo.color}`}>
                                         {actionInfo.label}
                                     </span>
                                     <span className="text-muted-foreground">{formatDateTime(log.changedAt)}</span>
                                 </div>
                                 {log.changes && log.changes.length > 0 && (
                                     <div className="space-y-0.5 mt-1">
-                                        {log.changes.map((c, i) => (
-                                            <div key={i} className="flex items-baseline gap-1 text-slate-600">
-                                                <span className="font-medium text-slate-700 shrink-0">{getFieldLabel(c.field)}</span>
-                                                <span className="text-gray-500 line-through truncate max-w-[120px]" title={formatValue(c.old)}>{formatValue(c.old)}</span>
-                                                <span className="text-muted-foreground">→</span>
-                                                <span className="text-gray-800 truncate max-w-[120px]" title={formatValue(c.new)}>{formatValue(c.new)}</span>
-                                            </div>
-                                        ))}
+                                        {log.changes.map((c, i) => {
+                                            const kind = getAuditFieldKind(c.field)
+                                            const oldText = formatValue(c.old, kind, masters)
+                                            const newText = formatValue(c.new, kind, masters)
+                                            // 子レコードは件数しか持たないので、件数が変わらない場合は
+                                            // 「→」を出さずに「内容を変更」と書く（3件 → 3件 を避ける）
+                                            const sameCount = kind === "relation" && oldText === newText
+                                            return (
+                                                <div key={i} className="flex items-baseline gap-1 text-slate-600">
+                                                    <span className="font-medium text-slate-700 shrink-0">{getAuditFieldLabel(c.field)}</span>
+                                                    {sameCount ? (
+                                                        <span className="text-gray-800">内容を変更（{newText}）</span>
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-gray-500 line-through truncate max-w-[120px]" title={oldText}>{oldText}</span>
+                                                            <span className="text-muted-foreground">→</span>
+                                                            <span className="text-gray-800 truncate max-w-[120px]" title={newText}>{newText}</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 )}
                             </div>

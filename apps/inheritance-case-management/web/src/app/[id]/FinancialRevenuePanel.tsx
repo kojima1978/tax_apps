@@ -99,12 +99,12 @@ export function FinancialRevenuePanel({
                         <div className="flex items-center justify-between gap-2">
                             <Label htmlFor="estimateReferralFeeAmount" className="text-xs">
                                 紹介料額
-                                <span className="ml-1 text-[9px] text-muted-foreground">
+                                <span className="ml-1 text-[11px] text-muted-foreground">
                                     {formData.isEstimateReferralFeeManual ? "手動" : "自動"}
                                 </span>
                             </Label>
                             {formData.isEstimateReferralFeeManual && (
-                                <Button type="button" variant="ghost" className="h-6 px-1.5 text-[9px]" onClick={() => recalculateReferralAmount("estimate")}>
+                                <Button type="button" variant="ghost" className="h-6 px-1.5 text-[11px]" onClick={() => recalculateReferralAmount("estimate")}>
                                     率から再計算
                                 </Button>
                             )}
@@ -138,12 +138,12 @@ export function FinancialRevenuePanel({
                         <div className="flex items-center justify-between gap-2">
                             <Label htmlFor="referralFeeAmount" className="text-xs">
                                 紹介料額
-                                <span className="ml-1 text-[9px] text-muted-foreground">
+                                <span className="ml-1 text-[11px] text-muted-foreground">
                                     {formData.isReferralFeeManual ? "手動" : "自動"}
                                 </span>
                             </Label>
                             {formData.isReferralFeeManual && (
-                                <Button type="button" variant="ghost" className="h-6 px-1.5 text-[9px]" onClick={() => recalculateReferralAmount("fee")}>
+                                <Button type="button" variant="ghost" className="h-6 px-1.5 text-[11px]" onClick={() => recalculateReferralAmount("fee")}>
                                     率から再計算
                                 </Button>
                             )}

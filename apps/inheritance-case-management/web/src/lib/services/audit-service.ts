@@ -1,73 +1,12 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { getAuditFieldLabel, type FieldChange } from '@/types/audit-fields';
 
 type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
 
-export interface FieldChange {
-  field: string;
-  old: unknown;
-  new: unknown;
-}
-
-const FIELD_LABELS: Record<string, string> = {
-  deceasedName: '被相続人氏名',
-  deceasedNameKana: '被相続人フリガナ',
-  dateOfDeath: '死亡日',
-  status: 'ステータス',
-  isUndivided: '遺産未分割',
-  taxAmount: '申告納税額',
-  feeAmount: '報酬額',
-  estimateAmount: '見積額',
-  propertyValue: '遺産総額',
-  referralFeeRate: '紹介料率',
-  referralFeeAmount: '紹介料額',
-  estimateReferralFeeAmount: '見積紹介料額',
-  isReferralFeeManual: '請求書紹介料の手動設定',
-  isEstimateReferralFeeManual: '見積書紹介料の手動設定',
-  landRosenkaCount: '土地数（路線価）',
-  landBairitsuCount: '土地数（倍率）',
-  unlistedStockCount: '非上場株式数',
-  feeCalculationHeirCount: '報酬計算上の相続人数',
-  discountAmount: '値引額',
-  summary: '特記事項',
-  memo: 'メモ',
-  caseAddedDate: '受託日',
-  caseCompletedDate: '申告日',
-  billedDate: '請求日',
-  paidDate: '入金日',
-  assigneeId: '担当者',
-  internalReferrerId: '社内紹介者',
-  referrerId: '紹介者',
-  fiscalYear: '年度',
-};
-
-export function getFieldLabel(field: string): string {
-  return FIELD_LABELS[field] || field;
-}
-
-const SKIP_FIELDS = new Set(['updatedAt', 'createdAt', 'updatedBy', 'createdBy', 'feeCalcSnapshot']);
-
-function normalize(v: unknown): unknown {
-  if (v instanceof Date) return v.toISOString();
-  if (v === undefined) return null;
-  return v;
-}
-
-export function diffScalar(
-  oldObj: Record<string, unknown>,
-  newObj: Record<string, unknown>,
-): FieldChange[] {
-  const changes: FieldChange[] = [];
-  for (const key of Object.keys(newObj)) {
-    if (SKIP_FIELDS.has(key)) continue;
-    const o = normalize(oldObj[key]);
-    const n = normalize(newObj[key]);
-    if (JSON.stringify(o) !== JSON.stringify(n)) {
-      changes.push({ field: key, old: o, new: n });
-    }
-  }
-  return changes;
-}
+export type { FieldChange };
+export { getAuditFieldLabel as getFieldLabel };
+export { diffScalar } from './audit-diff';
 
 export async function writeAuditLog(
   tx: TxClient,

@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/itcm/api-v1';
+// API の入口。既定値を複数箇所に書かないこと
+// （ゲートウェイが /itcm/api-v1 → /itcm/api へ書き換える契約に依存する値）。
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || '/itcm/api-v1';
 
 function normalizeEndpoint(endpoint: string): string {
   const [pathname, query = ''] = endpoint.split('?');
