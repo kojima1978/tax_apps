@@ -214,8 +214,15 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
+
+    # Secure 属性の付いた Cookie は HTTPS でしか保存・送信されない。このツールは
+    # HTTP のゲートウェイ（社内LAN）越しに使うので、DEBUG=False だけで有効にすると
+    # CSRF トークンもセッション Cookie もブラウザに残らず、画面は出るのに保存・取込・
+    # ログインがすべて失敗する（しかも原因が画面に出ない）。HTTPS を張ったときだけ
+    # DJANGO_SECURE_COOKIES=True を設定する。
+    _secure_cookies = os.environ.get('DJANGO_SECURE_COOKIES', 'False').lower() == 'true'
+    CSRF_COOKIE_SECURE = _secure_cookies
+    SESSION_COOKIE_SECURE = _secure_cookies
 
 # ロギング設定
 LOGGING = {

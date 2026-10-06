@@ -172,11 +172,30 @@ NON_DATA_VOLUMES=(
 # 既存の DB ボリュームのロールにも ALTER ROLE で反映する（環境変数だけでは
 # 作成済みのロールのパスワードは変わらないため）。
 #
-# 形式: アプリ名:postgresコンテナ名:既定DB名:パスワード接頭辞:開発用の既定パスワード
+# 形式: アプリ名:postgresのサービス名:既定DB名:パスワード接頭辞:開発用の既定パスワード[:キー名[:DBユーザー名]]
+#
+# 6番目・7番目は省略可。省略すると .env の POSTGRES_PASSWORD / POSTGRES_USER を見る。
+# Django のように .env のキー名が違う（DB_PASSWORD）アプリや、ユーザー名を compose に
+# 直接書いていて .env に無いアプリのために開けてある。
 # ------------------------------------
 POSTGRES_APPS=(
   "private-banking:private-banking-postgres:private_banking:pb:pb_dev_password"
   "stock-valuation-form:svf-postgres:stock_valuation:svf:svf_dev_password"
+  "bank-analyzer-django:bank-analyzer-db:bank_analyzer:ba:dev-password-change-in-production:DB_PASSWORD:bankuser"
+)
+
+# ------------------------------------
+# 本番起動の前に .env へ用意しておく生成シークレット（DBのパスワード以外）
+#
+# 各アプリの entrypoint は、開発用の既定値のまま本番で起動されるのを拒否する。
+# 弾かれた側は restart を繰り返すだけで画面には何も出ないので、起動の前に
+# ここで一意の値を作って .env へ書き戻す。DB のパスワードは既存ロールへの
+# ALTER ROLE も要るため POSTGRES_APPS 側で面倒を見る。
+#
+# 形式: アプリ名:キー名:接頭辞:開発用の既定値
+# ------------------------------------
+PROD_SECRETS=(
+  "bank-analyzer-django:DJANGO_SECRET_KEY:ba_secret:dev-secret-key-not-for-production"
 )
 
 # ------------------------------------
@@ -500,49 +519,77 @@ set_env_value() {
   mv "$tmp_file" "$env_file"
 }
 
-ensure_postgres_password() {
-  local name="$1" dir="$2" prefix="$3" dev_password="$4"
+ensure_env_file() {
+  local name="$1" dir="$2"
   local env_file="$dir/.env"
   local example_file="$dir/.env.example"
-  local password
 
-  if [[ ! -f "$env_file" ]]; then
-    if [[ ! -f "$example_file" ]]; then
-      err "$name: .env and .env.example are missing"
-      return 1
-    fi
-    cp "$example_file" "$env_file"
-    log "  .env を作成しました: $name"
+  [[ -f "$env_file" ]] && return 0
+  if [[ ! -f "$example_file" ]]; then
+    err "$name: .env and .env.example are missing"
+    return 1
+  fi
+  cp "$example_file" "$env_file"
+  log "  .env を作成しました: $name"
+}
+
+# .env の <key> が開発用の既定値のままなら、一意の値を生成して書き戻す。
+# 本番の entrypoint は既定値を弾くので、ここを通さずに本番で起動すると
+# restart ループになる（画面には何も出ない）。
+ensure_generated_secret() {
+  local name="$1" env_file="$2" key="$3" prefix="$4" dev_value="$5"
+  local value generated
+
+  value=$(read_env_value "$env_file" "$key")
+  if [[ -n "$value" && "$value" != "change-me" && "$value" != "$dev_value" && ${#value} -ge 24 ]]; then
+    return 0
   fi
 
-  password=$(read_env_value "$env_file" "POSTGRES_PASSWORD")
-  if [[ -z "$password" || "$password" == "change-me" || "$password" == "$dev_password" || ${#password} -lt 24 ]]; then
-    password="${prefix}_$(od -An -N24 -tx1 /dev/urandom | tr -d '[:space:]')"
-    if [[ ${#password} -lt 40 ]]; then
-      err "$name: failed to generate a production database password"
-      return 1
-    fi
-    set_env_value "$env_file" "POSTGRES_PASSWORD" "$password"
-    chmod 600 "$env_file" 2>/dev/null || true
-    ok "$name: generated a unique production database password"
+  generated="${prefix}_$(od -An -N24 -tx1 /dev/urandom | tr -d '[:space:]')"
+  if [[ ${#generated} -lt 40 ]]; then
+    err "$name: failed to generate a production value for $key"
+    return 1
   fi
+  set_env_value "$env_file" "$key" "$generated"
+  chmod 600 "$env_file" 2>/dev/null || true
+  ok "$name: generated a unique production value for $key"
+}
+
+# PROD_SECRETS に載っているキーを .env へ用意する。載っていなければ何もしない。
+ensure_prod_secrets() {
+  local name="$1" dir="$2"
+  local entry s_app s_key s_prefix s_dev
+
+  for entry in "${PROD_SECRETS[@]}"; do
+    IFS=':' read -r s_app s_key s_prefix s_dev <<< "$entry"
+    [[ "$s_app" == "$name" ]] || continue
+    ensure_env_file "$name" "$dir" || return 1
+    ensure_generated_secret "$name" "$dir/.env" "$s_key" "$s_prefix" "$s_dev" || return 1
+  done
 }
 
 # POSTGRES_APPS に載っているアプリなら、本番起動の前にパスワードを用意して
 # 既存ロールへ反映する。載っていなければ何もしない。
 ensure_postgres_production_env() {
   local name="$1" dir="$2"
-  local entry container default_db prefix dev_password
+  local entry container default_db prefix dev_password password_key fixed_user
   local env_file="$dir/.env"
   local password db_user db_name escaped_password
 
   entry=$(postgres_app_entry "$name") || return 0
-  IFS=':' read -r _ container default_db prefix dev_password <<< "$entry"
+  IFS=':' read -r _ container default_db prefix dev_password password_key fixed_user <<< "$entry"
+  password_key="${password_key:-POSTGRES_PASSWORD}"
 
-  ensure_postgres_password "$name" "$dir" "$prefix" "$dev_password" || return 1
-  password=$(read_env_value "$env_file" "POSTGRES_PASSWORD")
+  ensure_env_file "$name" "$dir" || return 1
+  ensure_generated_secret "$name" "$env_file" "$password_key" "$prefix" "$dev_password" || return 1
+  password=$(read_env_value "$env_file" "$password_key")
 
-  db_user=$(read_env_value "$env_file" "POSTGRES_USER")
+  # ユーザー名を compose に直接書いているアプリは .env に無いので設定側から取る。
+  if [[ -n "$fixed_user" ]]; then
+    db_user="$fixed_user"
+  else
+    db_user=$(read_env_value "$env_file" "POSTGRES_USER")
+  fi
   db_name=$(read_env_value "$env_file" "POSTGRES_DB")
   db_user="${db_user:-postgres}"
   db_name="${db_name:-$default_db}"
@@ -563,6 +610,14 @@ ensure_postgres_production_env() {
   ok "$name: database credentials are synchronized"
 }
 
+# 本番起動の下ごしらえ。.env の生成シークレットを用意してから、DB の既存ロールへ
+# 反映する。どの表にも載っていないアプリでは何もしない。
+ensure_production_env() {
+  local name="$1" dir="$2"
+  ensure_prod_secrets "$name" "$dir" || return 1
+  ensure_postgres_production_env "$name" "$dir" || return 1
+}
+
 # --- start用コールバック ---
 _do_start() {
   local dir="$1" name="$2" prod_mode="$3"
@@ -577,15 +632,23 @@ _do_start() {
     log "  .env を作成しました: $name"
   fi
   if [[ $prod_mode -eq 1 ]]; then
-    ensure_postgres_production_env "$name" "$dir"
     local prod_compose="$dir/docker-compose.prod.yml"
-    if [[ -f "$prod_compose" ]]; then
-      log "  起動[本番]: $name"
-      docker compose -f "$dir/docker-compose.yml" -f "$prod_compose" up -d --build --remove-orphans
-    else
-      log "  起動[本番]: $name"
-      docker compose -f "$dir/docker-compose.yml" up -d --build --remove-orphans
+    # オーバーレイが無いアプリを「本番で起動した」と書かないこと。
+    # 以前はどちらの枝でも 起動[本番] と出していたので、オーバーレイを持たない
+    # bank-analyzer-django は start --prod のたびに成功したように見えて、
+    # 実際には Django の開発サーバのまま上がり続けていた。モードの記録
+    # （app-modes）とコンテナは dev で正しく、嘘をついていたのは出力だけなので、
+    # 両方を並べて比べる人がいない限り気づけない。
+    if [[ ! -f "$prod_compose" ]]; then
+      warn "$name: docker-compose.prod.yml が無いため開発モードで起動します"
+      warn "  本番で動かすには他のアプリと同じ形のオーバーレイを作ってください"
+      log "  起動: $name"
+      docker compose -f "$dir/docker-compose.yml" up -d --remove-orphans
+      return
     fi
+    ensure_production_env "$name" "$dir" || return 1
+    log "  起動[本番]: $name"
+    docker compose -f "$dir/docker-compose.yml" -f "$prod_compose" up -d --build --remove-orphans
   else
     log "  起動: $name"
     docker compose -f "$dir/docker-compose.yml" up -d --remove-orphans
@@ -604,7 +667,7 @@ _do_compose_action() {
 #
 # このリポジトリは混在稼働なので「1アプリだけモードを変える」は常用の操作だが、
 # 以前はその口が無く、案内も「個別に -f を並べて叩く」だった。その経路は
-# ensure_postgres_production_env（本番パスワードの生成と ALTER ROLE）を丸ごと
+# ensure_production_env（本番シークレットの生成と ALTER ROLE）を丸ごと
 # 飛ばすため、本番の entrypoint が開発用の既定パスワードを弾いて restart ループになる。
 _start_one_app() {
   local app_name="$1" prod_mode="$2"
@@ -810,7 +873,7 @@ cmd_build() {
     warn "$name: モードの記録も稼働中コンテナも無いため dev として扱います"
   fi
 
-  [[ "$mode" == "prod" ]] && { ensure_postgres_production_env "$name" "$RESOLVED_DIR" || return 1; }
+  [[ "$mode" == "prod" ]] && { ensure_production_env "$name" "$RESOLVED_DIR" || return 1; }
   compose_files_for_app "$RESOLVED_DIR" "$mode"
 
   log "$name を再ビルドして起動します（モード $mode）..."
@@ -1995,6 +2058,30 @@ cmd_preflight() {
 
   if [[ $heap_drift -eq 0 ]]; then
     ok "Node services cap the V8 heap below their memory limit"
+    ((++pf_ok))
+  fi
+
+  # 18. 本番オーバーレイの欠け
+  #
+  # manage.sh が知っている本番の形は -f docker-compose.prod.yml の重ね合わせ1つだけ
+  # （compose_files_for_app）。オーバーレイを持たないアプリは start --prod でも
+  # dev のまま上がるので、「全アプリ本番モード」と言いながら1つだけ開発サーバが
+  # 残り続ける。実際に bank-analyzer-django は本番サービスを compose の profiles で
+  # 表現していて、その形は manage.sh からは一度も届かなかった。
+  local prod_overlay_missing=0 pf_app pf_dir
+  for pf_app in "${APPS[@]}"; do
+    pf_dir="$PROJECT_ROOT/$pf_app"
+    [[ -f "$pf_dir/docker-compose.yml" ]] || continue
+    if [[ ! -f "$pf_dir/docker-compose.prod.yml" ]]; then
+      warn "Production overlay is missing: $(basename "$pf_app")"
+      echo "  start --prod でも開発モードのまま上がります。他のアプリと同じ形の docker-compose.prod.yml を作ってください。"
+      prod_overlay_missing=1
+      ((++pf_warn))
+    fi
+  done
+
+  if [[ $prod_overlay_missing -eq 0 ]]; then
+    ok "All managed apps have a production overlay"
     ((++pf_ok))
   fi
 

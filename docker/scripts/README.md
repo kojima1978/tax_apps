@@ -24,6 +24,21 @@
   - `manage.sh prune`: 掃除。**dangling イメージと古いビルドキャッシュだけ**を消す
     （実体は `lib/ops-common.sh` の `ops_docker_prune`）。これは手で叩くための口で、
     無人側は `due` が同じ関数を独立した項目として呼ぶ（144時間しきい値）。
+  - `manage.sh start --prod [app]`: 本番モードで起動する。**`manage.sh` が知っている本番の形は
+    `docker-compose.prod.yml` のオーバーレイ1つだけ**（モード→ファイル列の変換は
+    `compose_files_for_app` の1箇所）。`profiles` で隠した別サービスとして本番を建てても
+    どの経路からも届かないので、**オーバーレイが無いアプリは「本番で起動した」と書かずに
+    WARN を出して dev として上げる** —— bank-analyzer-django がその形で、
+    `start --prod` は「起動[本番]」と出しながら Django の開発サーバを上げ続けていた
+    （モード記録とコンテナは dev で正しく、出力だけが嘘をついていた）。
+    `preflight` のチェック18が `APPS` 全アプリ分のオーバーレイの有無を毎回突き合わせる。
+  - 本番で必須のシークレットは**2つの表**から用意する（`ensure_production_env`）。DB の
+    パスワードは **`POSTGRES_APPS`**（既存ロールへ `ALTER ROLE` も当てるため。`.env` のキー名が
+    `POSTGRES_PASSWORD` でないアプリは6番目にキー名、DB ユーザー名が固定なら7番目に書く）、
+    それ以外は **`PROD_SECRETS`**（Django の `DJANGO_SECRET_KEY` など）。開発用の既定値のままなら
+    一意の値を生成して `.env` へ書き戻す —— 各アプリの entrypoint は既定値のままの本番起動を
+    拒否し、弾かれた側は restart を繰り返すだけで画面には何も出ない。
+    **`-f docker-compose.prod.yml` を手で並べて叩くとこれが丸ごと飛ぶ。**
   - `manage.sh alert`: デスクトップの警告ファイルを `last-run` から作り直す（下記「失敗の見える化」）。
     Docker に一切触れず操作ロックも取らないので、**エンジンが落ちている最中でも呼べる**。
   - `manage.sh due`: **期限切れの無人処理だけ**を実行する（実体は `backup.sh due`）。

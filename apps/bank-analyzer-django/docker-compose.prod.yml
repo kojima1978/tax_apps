@@ -1,0 +1,58 @@
+# ============================================
+# 銀行取引分析ツール - Production Override
+# ============================================
+# Usage: docker/scripts/manage.sh start --prod bank-analyzer-django
+#
+# -f を手で並べて叩かないこと。manage.sh 経由でないと、本番用の
+# DJANGO_SECRET_KEY / DB_PASSWORD の生成と ALTER ROLE（ensure_production_env）が
+# 丸ごと飛ぶため、下の `:?` で起動が失敗する（または既存ロールと食い違う）。
+# ============================================
+
+# base の既定値（dev-secret-key-not-for-production / dev-password-change-in-production）は
+# 開発専用で、本番の docker-entrypoint.sh はこれを見つけると exit 1 する。
+# 未設定のまま静かに起動されるより、compose の段階で止める。
+x-prod-secret-key: &prod-secret-key ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required for production}
+x-prod-db-password: &prod-db-password ${DB_PASSWORD:?DB_PASSWORD is required for production}
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 1G
+    reservations:
+      memory: 256M
+
+services:
+  bank-analyzer-db:
+    environment:
+      POSTGRES_PASSWORD: *prod-db-password
+
+  bank-analyzer-django:
+    # 本番ステージの CMD が gunicorn なので command の上書きは要らない
+    # （runserver は dev ステージの CMD）。
+    build:
+      target: production
+    environment:
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: *prod-secret-key
+      DB_PASSWORD: *prod-db-password
+      # ゲートウェイは `server_name localhost _` で任意のホスト名を受け、
+      # `proxy_set_header Host $host` でブラウザが打ったホストをそのまま渡す。
+      # コンテナのポートは 127.0.0.1 にしか出していないので入口はゲートウェイだけ、
+      # つまり LAN の IP で開く経路を残すには dev と同じ `*` が要る。
+      # 社内 LAN の外へ出すときは .env の DJANGO_ALLOWED_HOSTS で具体名に絞ること。
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,bank-analyzer,*}
+      # Secure 属性付きの Cookie は HTTPS でしか保存・送信されない。このゲートウェイは
+      # HTTP(80) なので、有効にすると CSRF トークンもセッションも届かず、
+      # 画面は出るのに保存と取込が全部 403 になる。HTTPS を張ったときだけ True。
+      DJANGO_SECURE_COOKIES: ${DJANGO_SECURE_COOKIES:-False}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-300}
+    # base の開発用バインド（./analyzer, ./bank_project）を落とす。本番のコードは
+    # イメージ同梱。`volumes: []` はマージされて base 側が残るので !override で
+    # 置き換え、ユーザー設定（分類パターン等）の ./data だけを開ける。
+    volumes: !override
+      - ./data:/app/data
+    # collectstatic + migrate を通ってから gunicorn が上がるので dev より長く待つ。
+    healthcheck:
+      start_period: 45s
+    deploy: *prod-deploy

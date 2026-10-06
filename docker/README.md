@@ -349,7 +349,7 @@ docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-anal
 | Asset Valuation | `runner` | nginx:1.27-alpine | あり |
 | Medical Stock | `runner` | Node.js standalone | あり |
 | Stock Valuation Form | `runner` | nginx:1.27-alpine | あり |
-| Bank Analyzer | `production` | Gunicorn | なし（`--profile production` で起動） |
+| Bank Analyzer | `production` | Gunicorn | あり |
 | ITCM | `runner` | Node.js standalone + tini | あり |
 
 ### Dockerfile マルチステージ構成

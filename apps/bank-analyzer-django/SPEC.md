@@ -224,6 +224,5 @@ Views → Handlers → Services → Lib → Models → PostgreSQL
 | サービス | 説明 | ポート |
 |---------|------|--------|
 | `bank-analyzer-db` | PostgreSQL 16 + pgvector | 5432（内部） |
-| `bank-analyzer-django` | Django runserver（開発） | 3007 |
+| `bank-analyzer-django` | 開発: Django runserver / 本番: Gunicorn | 3007 |
 | `test` | pytest テストランナー | - |
-| `bank-analyzer-prod` | Gunicorn（本番） | 3007 |

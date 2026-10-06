@@ -52,13 +52,27 @@ dev の compose を毎回突き合わせる**（上限があるのに `NODE_OPTI
   以前 `build` は base の `docker-compose.yml` 固定で、**本番稼働中のアプリを黙って
   dev サーバに作り替えていた**。モードを変えるのは `start` の仕事で、**1アプリだけなら
   `manage.sh start --prod <app>`（dev へ戻すのは `manage.sh start <app>`）**。
-  **個別に `-f docker-compose.prod.yml` を並べて叩くのは不可** ── 本番パスワードの生成と
-  `ALTER ROLE`（`ensure_postgres_production_env`）が飛ぶので、本番の entrypoint が開発用の
+  **個別に `-f docker-compose.prod.yml` を並べて叩くのは不可** ── 本番シークレットの生成と
+  `ALTER ROLE`（`ensure_production_env`）が飛ぶので、本番の entrypoint が開発用の
   既定パスワードを弾いて restart ループになる。`start` はモードの記録
   （`docker/logs/app-modes/<app>`）もその場で更新するが、生の compose は更新しないため、
   記録が古いまま `build` や `recover` が走ると切り替えたはずのアプリが元のモードへ引き戻される。
   アプリ名を付けた `start` は**全体の停止マーカーを解除しない**（1アプリの起動で全アプリの
   自動復旧を再開させないため）。マーカーがある間は復旧対象外になる旨を警告で出す
+- **`manage.sh` が知っている本番の形は `docker-compose.prod.yml` のオーバーレイ1つだけ**。
+  本番サービスを base の中に別サービスとして建てて `profiles` で隠す形は、どの経路からも
+  届かない ── bank-analyzer-django がそれで、`start --prod` は「起動[本番]」と出しながら
+  **Django の開発サーバを上げ続けていた**（モード記録とコンテナは dev で正しく、
+  出力だけが嘘をついていたので、両方を並べて見るまで気づけなかった）。
+  いまは**オーバーレイが無いアプリを「本番で起動した」と書かない**（WARN を出して
+  dev として上げる）し、**`preflight` のチェック18**が `APPS` 全アプリ分の
+  オーバーレイの有無を毎回突き合わせる。本番モードを足すときはオーバーレイを作ること
+- **本番で必須のシークレットは2つの表から用意する**（`manage.sh`）。DB のパスワードは
+  **`POSTGRES_APPS`**（既存ロールへの `ALTER ROLE` も要るため）、それ以外は
+  **`PROD_SECRETS`**（Django の `DJANGO_SECRET_KEY` など）。どちらも開発用の既定値のままなら
+  一意の値を生成して `.env` へ書き戻す ── 各アプリの entrypoint は既定値のままの本番起動を
+  拒否し、弾かれた側は restart を繰り返すだけで画面には何も出ない。`.env` のキー名が
+  `POSTGRES_PASSWORD` ではないアプリは `POSTGRES_APPS` の6番目にキー名を書く
 
 ### Dockerfile（非 root）
 

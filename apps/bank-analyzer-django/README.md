@@ -259,16 +259,29 @@ docker/scripts/manage.sh restart bank-analyzer-django
 
 ### 本番環境
 
-本番起動前に `.env` で `DJANGO_SECRET_KEY` と `DB_PASSWORD` を必ず設定してください。
-どちらかが未設定の場合、コンテナは安全のため起動を中止します。
+本番モードは `docker-compose.prod.yml` を重ねて**同じ `bank-analyzer-django` サービスを
+`production` ステージ（gunicorn）で作り直す**形です（他の14アプリと同じ）。
+サービス名もコンテナ名も変わらないので、ゲートウェイの upstream もバックアップの
+コンテナ名もそのまま通ります。
 
 ```bash
-# manage.bat 経由（推奨）
-manage.bat start --prod
+# このアプリだけ本番へ
+docker/scripts/manage.sh start --prod bank-analyzer-django
 
-# profile 指定（スタンドアロン本番起動）
-docker compose --profile production up -d bank-analyzer-prod
+# 開発モードへ戻す
+docker/scripts/manage.sh start bank-analyzer-django
+
+# 全アプリまとめて本番へ（manage.bat 経由でも同じ）
+docker/scripts/manage.sh start --prod
 ```
+
+**`-f docker-compose.prod.yml` を手で並べて叩かないこと。** `manage.sh` 側が
+`DJANGO_SECRET_KEY` と `DB_PASSWORD` を生成して `.env` へ書き戻し、既存の
+PostgreSQL ロールへ `ALTER ROLE` を当てています（`ensure_production_env`）。
+これが飛ぶと `.env` の開発用の既定値のままになり、本番の entrypoint が
+それを弾いて起動を中止します（`restart: unless-stopped` なので restart ループになり、
+画面には何も出ません）。同じ理由で `.env` の `DB_PASSWORD` を手で書き換えると
+DB のロールと食い違って繋がらなくなります。
 
 ## 画面構成
 
@@ -399,9 +412,8 @@ docker compose --profile production up -d bank-analyzer-prod
 | サービス | 説明 | ポート |
 |---------|------|--------|
 | `bank-analyzer-db` | PostgreSQL 16 (Alpine) | 5432（内部） |
-| `bank-analyzer-django` | Django runserver（開発モード） | 3007 |
+| `bank-analyzer-django` | 開発: Django runserver / 本番: Gunicorn | 3007 |
 | `test` | テストランナー（オンデマンド） | — |
-| `bank-analyzer-prod` | Gunicorn（本番モード） | 3007 |
 
 ### 開発環境
 
@@ -413,19 +425,28 @@ docker compose --profile production up -d bank-analyzer-prod
 - **初期化**: tini（PID 1としてシグナル処理）
 - **マイグレーション**: エントリポイントで自動実行
 
-### 本番環境（`--profile production`）
+### 本番環境（`docker-compose.prod.yml`）
 
-- **WSGIサーバー**: Gunicorn（2ワーカー）
+- **WSGIサーバー**: Gunicorn（`GUNICORN_WORKERS` 既定2ワーカー / `GUNICORN_TIMEOUT` 既定300秒）
 - **ビルドターゲット**: `production`（非rootユーザー実行）
+- **ソースマウント**: なし（コードはイメージ同梱。`./data` だけ残す）
 - **リソース制限**: メモリ 1GB
 - **ログローテーション**: 10MB × 3ファイル
 - **セキュリティ**: `no-new-privileges`
+- **`DJANGO_ALLOWED_HOSTS`**: 本番でも `*` を含めた既定値（下記「LAN経由アクセス時の注意」）。
+  `DEBUG=False` のとき Django の既定は空で、空だと `settings.py` が起動時に例外を投げる
+- **`DJANGO_SECURE_COOKIES`**: 既定 `False`。ゲートウェイは HTTP(80) なので、
+  `True` にすると Secure 属性付きの CSRF / セッション Cookie がブラウザに保存されず、
+  **すべての保存・取込・ログインが 403 になる**（原因が画面に出ない）。
+  HTTPS で公開するときだけ `True` にする
 
 ## LAN経由アクセス時の注意
 
 社内LAN IPアドレス（例: `http://192.168.x.x/bank-analyzer/`）からアクセスする場合:
 
-- **ALLOWED_HOSTS**: 開発モードでは `*`（ワイルドカード）を設定済み。IPアドレス変更時も対応不要
+- **ALLOWED_HOSTS**: 開発・本番どちらも `*`（ワイルドカード）を含む既定値。IPアドレス変更時も対応不要
+  （ポートは `127.0.0.1:3007` にしか bind しておらず、外からの入口は nginx ゲートウェイだけ。
+  そのゲートウェイが任意の `Host` を受けるので、ここを絞ると LAN からのアクセスが落ちる）
 - **COOPヘッダー**: HTTP環境ではブラウザ警告が出るため `SECURE_CROSS_ORIGIN_OPENER_POLICY = None` で無効化済み（`settings.py`）
 - **CSRF**: `DevCsrfTrustedOriginMiddleware` が開発環境（`DEBUG=True`）でリクエストの `Origin` ヘッダーを自動的に `CSRF_TRUSTED_ORIGINS` に追加するため、ポート番号やLAN IPの違いによるCSRF 403エラーは発生しない
 
