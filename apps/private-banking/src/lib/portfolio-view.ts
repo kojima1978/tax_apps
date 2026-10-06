@@ -64,10 +64,14 @@ export const printSectionForSection = (section: Section): PrintSection | null =>
  * 中身が無くて印刷できない様式と、選べない理由。印刷ダイアログの選択肢と、
  * ブラウザの印刷（Ctrl+P）が作る表紙・目次の両方がここだけを見る。
  * 片方でしか判定しないと「目次に載っているのに本文が1ページも出ない」組み合わせができる。
+ *
+ * 年度比較は年度が1つでも選べる（以前は「2年度目から選択可」で外していた）。
+ * 比べる相手が無いことも報告の中身なので、刷る側を差し替えて出す ──
+ * 推移表の代わりに「前年度のデータが無い」の1行、その下に年度一覧（1行）。
+ * history-view.tsx の `trend-print-note` と globals.css の印刷側が対になっている。
  */
-export const unprintableSections = (snapshot: Snapshot, snapshotCount: number): Partial<Record<PrintSection, string>> => ({
+export const unprintableSections = (snapshot: Snapshot): Partial<Record<PrintSection, string>> => ({
   ...(snapshot.inheritanceTaxCalculation ? {} : { "tax-calculation": "計算後に選択可" }),
-  ...(snapshotCount >= 2 ? {} : { history: "2年度目から選択可" }),
 });
 
 export const categoryLabels: Record<string, string> = {

@@ -390,6 +390,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .list-empty-state { display: grid; justify-items: center; gap: 10px; }
 .list-empty-state p { margin: 0; color: var(--slate-500); font-size: 13px; }
 /* 明細一覧は空の行（88px）が高さを作るが、年度比較は表ごと出さないので自前で余白を取る。 */
+.trend-print-note { display: none; }
 .trend-empty-state { padding: 44px 20px; }
 .position-section.contingent-section .panel-header p::after { content: "・純資産計算の対象外"; }
 .icon-button svg { width: 18px; }
@@ -1584,7 +1585,21 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .history-page-heading { display: flex !important; margin: 0 0 8px; padding: 0 2mm; }
   .history-page-heading h2 { margin: 1px 0 2px; font-size: 18px; }
   .trend-panel .panel-header p, .period-position-label { display: none !important; }
-  .history-page-heading .button, .history-list-panel, .trend-guidance, .period-edit { display: none !important; }
+  .history-page-heading .button, .trend-guidance, .period-edit { display: none !important; }
+  /* 年度一覧は推移表があるときは紙に出さない（同じ数字が2通りの形で並ぶだけ）。年度が1つで
+     推移表の出ない回だけ `history-list-print` が付くので、そのときは隠さない。 */
+  .history-list-panel:not(.history-list-print) { display: none !important; }
+  /* 紙では「年度を追加」できないので、空状態ごと1行の注記へ差し替える。 */
+  .trend-empty-state { display: none !important; }
+  .trend-print-note { display: block !important; margin: 10px 10px 12px; font-size: 11.5px; color: var(--navy-700); }
+  .history-list-panel { margin-bottom: 0; overflow: visible; }
+  .history-list-panel .panel-header { min-height: 38px; padding: 6px 10px; break-after: avoid; page-break-after: avoid; }
+  .history-list-panel .panel-header h3 { font-size: 13px; }
+  .history-list-panel .table-scroll { overflow: visible; }
+  .history-table { width: 100%; max-width: 100%; min-width: 0; table-layout: fixed; font-size: 11px; }
+  .history-table th, .history-table td { padding: 6px 9px; font-size: 11px; }
+  /* 操作の「…」は紙では押せない。列ごと落とす（中身だけ消すと空の列が残る）。 */
+  .history-table th:last-child, .history-table td:last-child { display: none !important; }
   .trend-panel { margin-bottom: 0; overflow: visible; break-inside: auto; page-break-inside: auto; }
   .trend-panel .panel-header { min-height: 38px; padding: 6px 10px; break-after: avoid; page-break-after: avoid; }
   .trend-panel .panel-header h3 { font-size: 13px; }

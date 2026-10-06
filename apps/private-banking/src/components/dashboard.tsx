@@ -337,8 +337,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   }
   // 表示中の年度。?snapshot= が無効なときは現在年度にフォールバックする。
   const reportSnapshot = workingSnapshot ?? current;
-  // 中身が無い様式は印刷の対象から外す（相続税は未計算、年度比較は年度が1つのとき）。
-  const printUnavailable = unprintableSections(reportSnapshot, portfolio.snapshots.length);
+  // 中身が無い様式は印刷の対象から外す（いまは相続税が未計算のときだけ）。
+  const printUnavailable = unprintableSections(reportSnapshot);
   // ブラウザの印刷（Ctrl+P）はダイアログを通らないので、表示中の画面に対応する様式だけが対象になる。
   const naturalPrintSection = printSectionForSection(section);
   const currentPrintSection: PrintSection | null = naturalPrintSection && !printUnavailable[naturalPrintSection] ? naturalPrintSection : null;

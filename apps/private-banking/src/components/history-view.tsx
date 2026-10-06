@@ -61,6 +61,9 @@ export function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnaps
     <section className="panel table-panel trend-panel" aria-label="年度推移表">
       <PanelHeader title="年度推移表" subtitle={columnCount >= 2 ? `${columnCount}年度` : undefined} />
       {snapshots.length === 2 ? <p className="trend-guidance">もう1年度登録すると、3年度を並べて比べられます。</p> : null}
+      {/* 年度が1つのときの紙だけの1行。画面は空状態（追加ボタン付き）を出すが、紙にボタンは刷れないので
+          「比べる相手が無い」ことだけを文字で残す。どちらも出るのは columnCount < 2 のときだけ。 */}
+      {columnCount < 2 ? <p className="trend-print-note">前年度のデータが無いため、年度の比較はありません。</p> : null}
       {columnCount < 2 ? <div className="list-empty-state trend-empty-state"><p>年度を追加すると、前の年度と並べて比べられます。</p><button className="button primary" onClick={onCreate} disabled={saving}><Plus />年度を追加</button></div> : <div className="table-scroll trend-scroll">
         <table className={`trend-table trend-columns-${columnCount}`}>
           <caption className="sr-only">貸借対照表の年度推移</caption>
@@ -76,7 +79,9 @@ export function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnaps
         </table>
       </div>}
     </section>
-    <section className="panel table-panel history-list-panel">
+    {/* 年度一覧は普段は画面だけ（紙には推移表があれば足りる）。年度が1つで推移表が出ない回だけ、
+        紙にも1行の一覧を載せる（`history-list-print` を見て globals.css が印刷の display を戻す）。 */}
+    <section className={`panel table-panel history-list-panel${columnCount < 2 ? " history-list-print" : ""}`}>
       <PanelHeader title="年度一覧" subtitle={`${snapshots.length}年度`} />
       <div className="table-scroll"><table className="history-table"><thead><tr><th>基準日</th><th>状態</th><th className="number">資産合計</th><th className="number">負債合計</th><th className="number">純資産</th><th className="number">個人保証</th><th className="number">相続税（実効税率）</th><th className="actions-column">操作</th></tr></thead><tbody>{[...orderedSnapshots].reverse().map((snapshot) => { const s = trendValues(snapshot); const calc = snapshot.inheritanceTaxCalculation; return <tr key={snapshot.id}><td><strong>{dateJa(snapshot.asOfDate)}</strong></td><td>{snapshot.isCurrent ? <span className="current-badge">現在</span> : snapshot.label}</td><td className="number">{compactYen(s.assets)}</td><td className="number">{compactYen(s.liabilities)}</td><td className="number emphasis">{compactYen(s.netWorth)}</td><td className="number">{compactYen(s.guarantees)}</td><td className="number">{calc ? <><strong>{compactYen(calc.totalInheritanceTaxJpy)}</strong><small className="history-tax-rate">実効税率 {calc.effectiveTaxRate.toFixed(1)}%</small></> : <span className="history-tax-empty">未計算</span>}</td><td><div className="table-actions">{/* 行の操作は顧客一覧・資産負債明細と同じ「…」1つに揃える。削除だけを剥き出しのボタンで置いていたため、
                 この表だけ消す操作がワンクリックで並んでいた。 */}<ActionMenu

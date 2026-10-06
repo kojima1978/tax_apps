@@ -124,13 +124,11 @@ describe("印刷の対象", () => {
     }
   });
 
-  it("相続税は未計算のとき、年度比較は年度が1つのときだけ選べない", () => {
+  it("選べないのは相続税が未計算のときだけ（年度比較は年度が1つでも選べる）", () => {
     const calculated = { inheritanceTaxCalculation: {} } as unknown as Snapshot;
     const notCalculated = { inheritanceTaxCalculation: null } as unknown as Snapshot;
-    expect(unprintableSections(calculated, 2)).toEqual({});
-    expect(Object.keys(unprintableSections(notCalculated, 2))).toEqual(["tax-calculation"]);
-    expect(Object.keys(unprintableSections(calculated, 1))).toEqual(["history"]);
-    expect(Object.keys(unprintableSections(notCalculated, 1)).sort()).toEqual(["history", "tax-calculation"]);
+    expect(unprintableSections(calculated)).toEqual({});
+    expect(Object.keys(unprintableSections(notCalculated))).toEqual(["tax-calculation"]);
   });
 });
 
