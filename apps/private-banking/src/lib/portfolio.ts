@@ -38,9 +38,11 @@ export function toPositionView(position: PositionRecord): Position & { snapshotI
 export async function getPortfolio(householdId?: number) {
   // 顧客は画面から作成する。ここでテストデータを自動生成すると、
   // 顧客を全件削除したあとにテスト顧客が復活してしまう。
+  // 担当者は台帳（Staff）にあるので、名前を出すには毎回ここで引く。
+  const staffInclude = { include: { staff: { select: { name: true } } } } as const;
   const household = householdId === undefined
-    ? await prisma.household.findFirst({ orderBy: { id: "asc" } })
-    : await prisma.household.findUnique({ where: { id: householdId } });
+    ? await prisma.household.findFirst({ orderBy: { id: "asc" }, ...staffInclude })
+    : await prisma.household.findUnique({ where: { id: householdId }, ...staffInclude });
   if (!household) throw new Error("HOUSEHOLD_NOT_FOUND");
   const snapshots = await prisma.snapshot.findMany({
     where: { householdId: household.id },
@@ -68,7 +70,8 @@ export async function getPortfolio(householdId?: number) {
       name: household.name,
       nameKana: household.nameKana,
       birthDate: household.birthDate?.toISOString().slice(0, 10) ?? null,
-      assignedStaff: household.assignedStaff,
+      staffId: household.staffId,
+      assignedStaff: household.staff?.name ?? "",
       relatedCompany: household.relatedCompany,
       currency: household.currency,
     },

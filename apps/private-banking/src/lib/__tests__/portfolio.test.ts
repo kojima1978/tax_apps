@@ -15,13 +15,17 @@ const { getPortfolio } = await import("@/lib/portfolio");
 /** Decimal は toString() しか使わないので、テストでは同じ振る舞いの値で代用する。 */
 const decimal = (value: number) => ({ toString: () => String(value) }) as unknown as Prisma.Decimal;
 
+/** 担当者は台帳から名前だけを引く。問い合わせの形まで含めて確かめる。 */
+const staffInclude = { include: { staff: { select: { name: true } } } };
+
 const household = {
   id: 7,
   clientCode: "PB-000007",
   name: "山田 太郎",
   nameKana: "ヤマダ タロウ",
   birthDate: new Date("1970-05-10T00:00:00.000Z"),
-  assignedStaff: "佐藤",
+  staffId: 3,
+  staff: { name: "佐藤" },
   currency: "JPY",
   estimatedInheritanceTax: decimal(12000000),
   otherTaxes: decimal(500000),
@@ -83,14 +87,14 @@ describe("getPortfolio", () => {
   it("指定した顧客が見つからなければエラーにする", async () => {
     prismaMock.household.findUnique.mockResolvedValue(null);
     await expect(getPortfolio(999)).rejects.toThrow("HOUSEHOLD_NOT_FOUND");
-    expect(prismaMock.household.findUnique).toHaveBeenCalledWith({ where: { id: 999 } });
+    expect(prismaMock.household.findUnique).toHaveBeenCalledWith({ where: { id: 999 }, ...staffInclude });
     expect(prismaMock.household.findFirst).not.toHaveBeenCalled();
   });
 
   it("顧客IDの指定がなければ先頭の顧客を使う", async () => {
     prismaMock.household.findFirst.mockResolvedValue(household);
     const portfolio = await getPortfolio();
-    expect(prismaMock.household.findFirst).toHaveBeenCalledWith({ orderBy: { id: "asc" } });
+    expect(prismaMock.household.findFirst).toHaveBeenCalledWith({ orderBy: { id: "asc" }, ...staffInclude });
     expect(portfolio.household.id).toBe(7);
   });
 
@@ -104,6 +108,7 @@ describe("getPortfolio", () => {
       name: "山田 太郎",
       nameKana: "ヤマダ タロウ",
       birthDate: "1970-05-10",
+      staffId: 3,
       assignedStaff: "佐藤",
       currency: "JPY",
     });

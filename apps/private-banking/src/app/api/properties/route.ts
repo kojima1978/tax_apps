@@ -16,7 +16,7 @@ export async function GET() {
         select: {
           fiscalYear: true,
           asOfDate: true,
-          household: { select: { id: true, clientCode: true, name: true, nameKana: true, assignedStaff: true } },
+          household: { select: { id: true, clientCode: true, name: true, nameKana: true, staff: { select: { name: true } } } },
         },
       },
     },
@@ -30,7 +30,7 @@ export async function GET() {
       clientCode: snapshot.household.clientCode,
       clientName: snapshot.household.name,
       clientNameKana: snapshot.household.nameKana,
-      assignedStaff: snapshot.household.assignedStaff,
+      assignedStaff: snapshot.household.staff?.name ?? "",
       fiscalYear: snapshot.fiscalYear,
       asOfDate: snapshot.asOfDate.toISOString().slice(0, 10),
     },

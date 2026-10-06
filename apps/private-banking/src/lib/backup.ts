@@ -23,14 +23,18 @@ function omit<T extends Record<string, unknown>, K extends keyof T & string>(sou
   return Object.fromEntries(Object.entries(source).filter(([key]) => !keys.includes(key as K))) as Omit<T, K>;
 }
 
-function serializeHousehold(household: Household) {
+/**
+ * バックアップの担当者は**名前の文字列**のまま持つ（台帳の ID は持たない）。
+ * ファイルの形を変えずに済み、台帳ごと失った環境へ戻しても名前から作り直せる。
+ */
+function serializeHousehold(household: Household & { staff: { name: string } | null }) {
   return {
     id: household.id,
     clientCode: household.clientCode,
     name: household.name,
     nameKana: household.nameKana,
     birthDate: household.birthDate ? dateOnly(household.birthDate) : null,
-    assignedStaff: household.assignedStaff,
+    assignedStaff: household.staff?.name ?? "",
     relatedCompany: household.relatedCompany,
     currency: household.currency,
     estimatedInheritanceTax: decimalText(household.estimatedInheritanceTax),
@@ -121,7 +125,7 @@ function serializeFamilyMember(member: FamilyMember) {
 /** 全顧客ぶんをテーブル単位で書き出す（ID・シーケンスまで含めた完全復元用）。 */
 export async function exportAll() {
   const [households, snapshots, positions, familyMembers] = await Promise.all([
-    prisma.household.findMany({ orderBy: { id: "asc" } }),
+    prisma.household.findMany({ orderBy: { id: "asc" }, include: { staff: { select: { name: true } } } }),
     prisma.snapshot.findMany({ orderBy: { id: "asc" } }),
     prisma.position.findMany({ orderBy: { id: "asc" } }),
     prisma.familyMember.findMany({ orderBy: { id: "asc" } }),
@@ -146,6 +150,7 @@ export async function exportHousehold(householdId: number) {
   const household = await prisma.household.findUnique({
     where: { id: householdId },
     include: {
+      staff: { select: { name: true } },
       familyMembers: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
       snapshots: {
         orderBy: { fiscalYear: "asc" },
@@ -309,13 +314,29 @@ type SnapshotFields = z.infer<typeof snapshotFieldsSchema>;
 type PositionFields = z.infer<typeof positionFieldsSchema>;
 type FamilyMemberFields = z.infer<typeof familyMemberFieldsSchema>;
 
-function householdData(row: HouseholdFields) {
+/**
+ * バックアップの担当者名を台帳（Staff）へ引き当てる。無い名前はその場で作る。
+ * 台帳はバックアップのテーブル一覧に入れていない ── 担当者が付いている顧客を戻せば
+ * 名前から復元できるので、**台帳そのものは消さない**（どの顧客にも付いていない
+ * 担当者を、顧客の復元で道連れにしないため）。
+ */
+async function resolveStaffIds(tx: Prisma.TransactionClient, rows: readonly HouseholdFields[]) {
+  const names = [...new Set(rows.map((row) => row.assignedStaff.trim()).filter((name) => name !== ""))];
+  const ids = new Map<string, number>();
+  for (const name of names) {
+    const staff = await tx.staff.upsert({ where: { name }, update: {}, create: { name }, select: { id: true } });
+    ids.set(name, staff.id);
+  }
+  return (row: HouseholdFields) => ids.get(row.assignedStaff.trim()) ?? null;
+}
+
+function householdData(row: HouseholdFields, staffId: number | null) {
   return {
     clientCode: row.clientCode,
     name: row.name,
     nameKana: row.nameKana,
     birthDate: row.birthDate === null ? null : toDateOnly(row.birthDate),
-    assignedStaff: row.assignedStaff,
+    staffId,
     relatedCompany: row.relatedCompany,
     currency: row.currency,
     estimatedInheritanceTax: toDecimal(row.estimatedInheritanceTax),
@@ -416,8 +437,9 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
     await tx.household.deleteMany();
 
     if (households.length > 0) {
+      const staffIdOf = await resolveStaffIds(tx, households);
       await tx.household.createMany({
-        data: households.map((row) => ({ id: row.id, ...householdData(row), createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt) })),
+        data: households.map((row) => ({ id: row.id, ...householdData(row, staffIdOf(row)), createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt) })),
       });
     }
     if (snapshots.length > 0) {
@@ -474,9 +496,10 @@ export async function importHousehold(backup: HouseholdBackup) {
   const currentFiscalYear = declaredCurrent.length === 1 ? declaredCurrent[0].fiscalYear : latestFiscalYear;
 
   const clientCode = await availableClientCode(backup.household.clientCode.toUpperCase());
+  const staffIdOf = await resolveStaffIds(prisma, [backup.household]);
   const created = await prisma.household.create({
     data: {
-      ...householdData(backup.household),
+      ...householdData(backup.household, staffIdOf(backup.household)),
       clientCode,
       snapshots: {
         create: backup.snapshots.map((snapshot) => ({

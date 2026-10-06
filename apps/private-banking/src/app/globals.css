@@ -601,6 +601,45 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 /* 小さい画面では入力欄だけで画面が埋まり、ボタンがスクロールの先に隠れるので、操作行を下端に貼り付ける。
    フォームの下余白は操作行が持つ（フォーム側に余白があると、スクロールしきったときだけ操作行がその分浮き上がる）。 */
 .client-create-form footer { position: sticky; bottom: 0; z-index: 2; margin: 22px -22px 0; padding: 16px 22px 22px; border-top: 1px solid var(--line); background: #fff; box-shadow: 0 -10px 18px -18px #172b3a66; display: flex; justify-content: flex-end; gap: 9px; }
+/* 担当者を選ぶ欄（顧客の新規登録と本人情報で共用）。見た目は周りの入力欄に合わせ、
+   台帳に無い人を足すための「＋ 新しい担当者」だけ下に添える。 */
+.staff-field { min-width: 0; }
+.staff-field > label { display: block; color: var(--slate-700); font-size: 12px; font-weight: 700; }
+.staff-field select { width: 100%; min-height: 44px; margin-top: 5px; padding: 9px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 14px; }
+.person-form-grid .staff-field > label { font-size: 11px; font-weight: 800; }
+.person-form-grid .staff-field select { margin-top: 7px; }
+.staff-field-add-button { min-height: 32px; padding: 0 4px; font-size: 11px; }
+.staff-field-add-button svg { width: 14px; height: 14px; }
+.staff-field-add { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.staff-field-add input { min-width: 0; flex: 1 1 140px; min-height: 38px; padding: 7px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
+.staff-field-add .button { min-height: 38px; padding: 0 12px; font-size: 12px; }
+.staff-field-add .text-button { min-height: 38px; font-size: 12px; }
+.staff-field-note { display: block; margin-top: 4px; font-size: 11px; font-weight: 700; }
+.staff-field-note.is-error { color: var(--danger); }
+
+/* 担当者の台帳。顧客一覧の「担当者」から開く。 */
+.staff-modal { width: min(760px, 100%); }
+.staff-modal > header p { margin: 4px 0 0; color: var(--slate-600); font-size: 12px; }
+.staff-modal-body { padding: 24px; }
+.staff-modal > footer { margin-top: 0; padding: 16px 24px 20px; }
+.staff-modal-notice { margin: 0 0 14px; padding: 10px 12px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; font-size: 11px; font-weight: 700; }
+.staff-modal .staff-new-form { margin-bottom: 18px; padding: 0 0 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.staff-new-form > div { min-width: 0; flex: 1 1 160px; }
+.staff-new-form label { display: block; margin-bottom: 5px; color: var(--slate-700); font-size: 11px; font-weight: 800; }
+.staff-new-form input { width: 100%; min-height: 44px; padding: 9px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 14px; }
+.staff-modal-loading, .staff-modal-empty { margin: 0; padding: 24px 0; color: var(--slate-500); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; font-weight: 700; }
+.staff-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.staff-row { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.staff-row.is-retired { background: #f8fafc; }
+.staff-row-fields { min-width: 0; flex: 1 1 260px; display: flex; gap: 8px; }
+.staff-row-fields input { min-width: 0; flex: 1 1 50%; min-height: 40px; padding: 7px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
+.staff-row-meta { color: var(--slate-500); font-size: 11px; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.staff-retired-tag { padding: 0 6px; color: #fff; background: var(--slate-500); border-radius: 999px; font-size: 10px; font-weight: 800; line-height: 1.6; }
+.staff-row-actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.staff-row-actions .button { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.staff-row-actions .text-button { min-height: 36px; padding: 0 8px; font-size: 12px; }
+.staff-row-actions svg { width: 15px; height: 15px; }
+.staff-row-confirm { color: var(--danger); font-size: 11px; font-weight: 800; }
 .text-button.danger-text-button { color: var(--danger); }
 .text-button.danger-text-button:hover { color: #852f2b; }
 .text-button.danger-text-button:disabled { color: #b98d8a; }

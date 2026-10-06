@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Building2, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, Upload, UserPlus, WalletCards, X } from "lucide-react";
+import { AlertTriangle, Building2, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, FormEvent, KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9,6 +9,7 @@ import { ClientFields } from "@/components/client-fields";
 import { Highlighted } from "@/components/highlighted";
 import { ListPager, PageSizeSelect } from "@/components/list-pager";
 import { ClientDeleteModal } from "@/components/client-delete-modal";
+import { StaffModal } from "@/components/staff-modal";
 import { DateInput } from "@/components/date-input";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
@@ -49,6 +50,7 @@ export function ClientList() {
   const [deleteError, setDeleteError] = useState("");
   const [deleteLoadingId, setDeleteLoadingId] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
+  const [editingStaff, setEditingStaff] = useState(false);
   const deleteBusy = useRef(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Array<HTMLAnchorElement | null>>([]);
@@ -207,6 +209,8 @@ export function ClientList() {
           />
         </label>
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
+        {/* 担当者の台帳はここだけから開く。顧客の欄では選ぶだけにして、名前の揺れを1箇所で止める。 */}
+        <button type="button" className="button secondary" onClick={() => { setError(""); setEditingStaff(true); }}><UserCog />担当者</button>
         <Link className="button secondary" href="/properties"><Building2 />不動産一覧</Link>
         <Link className="button secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
         <Link className="button secondary" href="/restore"><Upload />データ復元</Link>
@@ -268,6 +272,8 @@ export function ClientList() {
       {filtered.length === 0 ? <div className="client-empty"><Search /><strong>該当する顧客がありません</strong><span>{clients.length === 0 ? "「顧客を追加」から登録してください。" : "検索条件を変更してください。"}</span></div> : null}
     </main>
 
+    {/* 改名・退職は一覧の「担当 ○○」に出るので、変更があった回だけ読み直す。 */}
+    {editingStaff ? <StaffModal onClose={(changed) => { setEditingStaff(false); if (changed) void load(); }} /> : null}
     {creating ? <ClientCreateModal error={error} saving={saving} onClose={() => setCreating(false)} onSubmit={createClient} /> : null}
     {deleting ? <ClientDeleteModal household={deleting.household} snapshotCount={deleting.snapshots.length} positionCount={deleting.snapshots.reduce((count, snapshot) => count + snapshot.positions.length, 0)} error={deleteError} saving={saving} onClose={() => setDeleting(null)} onSubmit={deleteClient} /> : null}
   </div>;

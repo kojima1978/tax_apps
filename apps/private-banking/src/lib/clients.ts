@@ -3,6 +3,8 @@ export type ClientSummary = {
   clientCode: string;
   name: string;
   nameKana: string;
+  staffId: number | null;
+  /** 担当者の名前。台帳（Staff）から引いた表示用の値で、検索とCSVはこれを使う。 */
   assignedStaff: string;
   relatedCompany: string;
   latestFiscalYear: number | null;

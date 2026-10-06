@@ -18,6 +18,7 @@ const client = (overrides: Partial<ClientSummary> = {}): ClientSummary => ({
   clientCode: "PB-000001",
   name: "山田 太郎",
   nameKana: "ヤマダ タロウ",
+  staffId: 1,
   assignedStaff: "佐藤",
   relatedCompany: "",
   latestFiscalYear: 2025,

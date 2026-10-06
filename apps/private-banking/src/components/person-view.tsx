@@ -3,6 +3,7 @@
 import { CalendarDays, CircleCheck, CircleUserRound, LoaderCircle, Save, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
 import { DateInput } from "@/components/date-input";
+import { StaffSelect } from "@/components/staff-select";
 import { ageOnDate } from "@/lib/family";
 import { dateJaWithWareki } from "@/lib/format";
 import type { Portfolio } from "@/lib/portfolio-view";
@@ -49,7 +50,7 @@ export function PersonView({
             <DateInput id="person-birth-date" name="birthDate" label="生年月日" defaultMode="WAREKI" defaultValue={household.birthDate ?? ""} describedBy="person-birth-date-help" />
           </div>
           <label>顧客コード<span className="required-mark">必須</span><input name="clientCode" required maxLength={30} pattern="(?:[A-Za-z0-9_]|-)+" defaultValue={household.clientCode} /></label>
-          <label>担当者<input name="assignedStaff" maxLength={100} defaultValue={household.assignedStaff} placeholder="例：佐藤税理士" /></label>
+          <StaffSelect id="person-staff" defaultValue={household.staffId} defaultLabel={household.assignedStaff} />
           {/* 関連法人は任意。顧客一覧の検索対象になるだけで、計算や印刷には使わない。 */}
           <label>関連法人<input name="relatedCompany" maxLength={100} defaultValue={household.relatedCompany} placeholder="例：株式会社山田商店" /></label>
         </div>

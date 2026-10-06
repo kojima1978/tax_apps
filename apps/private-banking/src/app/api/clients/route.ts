@@ -4,13 +4,29 @@ import { prisma } from "@/lib/prisma";
 import { defaultAsOfDate, isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
 
 /** 顧客一覧（ClientSummary）が必要とする列。GET・POST・PATCH で同じ形を返す。 */
-const clientSummarySelect = { id: true, clientCode: true, name: true, nameKana: true, assignedStaff: true, relatedCompany: true } as const;
+const clientSummarySelect = { id: true, clientCode: true, name: true, nameKana: true, relatedCompany: true, staffId: true, staff: { select: { name: true } } } as const;
+/**
+ * 担当者は台帳（Staff）にしか無いので、画面へは名前だけを `assignedStaff` として出す。
+ * 検索もCSVも文字列のまま使えるが、出所は台帳1本になる（自由入力の揺れが起きない）。
+ */
+const toClientSummary = <T extends { staff: { name: string } | null }>({ staff, ...client }: T) => ({ ...client, assignedStaff: staff?.name ?? "" });
+
+/**
+ * 担当者は台帳（Staff）の id で受け取る。画面のフォームは `FormData` をそのまま JSON に
+ * しているので、未選択の `<select>` は空文字で届く ── `z.coerce.number()` はこれを 0 と
+ * 読んで弾いてしまうため、空文字・未送信はここで「未設定（null）」へ寄せる。
+ */
+const staffIdSchema = z.preprocess(
+  (value) => (value === "" || value === undefined ? null : value),
+  z.coerce.number().int().positive().nullable(),
+).default(null);
 
 const clientFieldsSchema = z.object({
   name: z.string().trim().min(1, "顧客名を入力してください。").max(100),
   nameKana: z.string().trim().max(100).optional().default(""),
   clientCode: z.string().trim().min(1, "顧客コードを入力してください。").max(30).regex(/^[A-Za-z0-9_-]+$/, "顧客コードは半角英数字・ハイフン・アンダースコアで入力してください。"),
-  assignedStaff: z.string().trim().max(100).optional().default(""),
+  // 担当者は台帳から選ぶ。未設定は null。
+  staffId: staffIdSchema,
 });
 
 const createClientSchema = clientFieldsSchema.extend({
@@ -51,7 +67,7 @@ export async function GET() {
     },
     orderBy: [{ name: "asc" }, { id: "asc" }],
   });
-  return NextResponse.json(clients.map(({ snapshots, ...client }) => ({ ...client, latestFiscalYear: snapshots[0]?.fiscalYear ?? null })));
+  return NextResponse.json(clients.map(({ snapshots, ...client }) => ({ ...toClientSummary(client), latestFiscalYear: snapshots[0]?.fiscalYear ?? null })));
 }
 
 export async function POST(request: Request) {
@@ -65,7 +81,7 @@ export async function POST(request: Request) {
         name: parsed.data.name,
         nameKana: parsed.data.nameKana,
         clientCode: parsed.data.clientCode.toUpperCase(),
-        assignedStaff: parsed.data.assignedStaff,
+        staffId: parsed.data.staffId,
         snapshots: {
           create: {
             label: "現在",
@@ -77,10 +93,11 @@ export async function POST(request: Request) {
       },
       select: clientSummarySelect,
     });
-    return NextResponse.json({ ...created, latestFiscalYear: parsed.data.fiscalYear }, { status: 201 });
+    return NextResponse.json({ ...toClientSummary(created), latestFiscalYear: parsed.data.fiscalYear }, { status: 201 });
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
-      return NextResponse.json({ error: "この顧客コードはすでに使用されています。" }, { status: 409 });
+    if (typeof error === "object" && error !== null && "code" in error) {
+      if (error.code === "P2002") return NextResponse.json({ error: "この顧客コードはすでに使用されています。" }, { status: 409 });
+      if (error.code === "P2003") return NextResponse.json({ error: "担当者を選び直してください。" }, { status: 400 });
     }
     throw error;
   }
@@ -100,11 +117,12 @@ export async function PATCH(request: Request) {
       },
       select: clientSummarySelect,
     });
-    return NextResponse.json(updated);
+    return NextResponse.json(toClientSummary(updated));
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error) {
       if (error.code === "P2002") return NextResponse.json({ error: "この顧客コードはすでに使用されています。" }, { status: 409 });
       if (error.code === "P2025") return NextResponse.json({ error: "顧客が見つかりません。" }, { status: 404 });
+      if (error.code === "P2003") return NextResponse.json({ error: "担当者を選び直してください。" }, { status: 400 });
     }
     throw error;
   }

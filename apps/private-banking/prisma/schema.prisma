@@ -14,7 +14,9 @@ model Household {
   name                    String     @default("山田 太郎（サンプル）")
   nameKana                String     @default("")
   birthDate               DateTime?  @db.Date
-  assignedStaff           String     @default("")
+  /// 担当者。台帳（Staff）を参照する。未設定を許す。
+  staffId                 Int?
+  staff                   Staff?     @relation(fields: [staffId], references: [id], onDelete: SetNull)
   /// 関連法人の名称。検索と記録のためだけに持ち、計算には使わない。
   relatedCompany          String     @default("")
   currency                String     @default("JPY")
@@ -29,6 +31,20 @@ model Household {
   snapshots               Snapshot[]
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
+
+  @@index([staffId])
+}
+
+/// 担当者の台帳。名前を一意にして登録揺れ（「佐藤」と「佐藤税理士」）を止める。
+model Staff {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  nameKana   String      @default("")
+  /// 退職。候補からは外すが、担当していた顧客の表示はそのまま残す。
+  isActive   Boolean     @default(true)
+  households Household[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }
 
 model FamilyMember {

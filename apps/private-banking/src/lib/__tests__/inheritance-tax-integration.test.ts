@@ -3,7 +3,7 @@ import type { Portfolio } from "@/lib/portfolio-view";
 import { createInheritanceTaxRequest } from "@/lib/inheritance-tax-integration";
 
 const portfolio = {
-  household: { id: 7, clientCode: "PB-000007", name: "山田 太郎", nameKana: "", birthDate: null, assignedStaff: "", currency: "JPY" },
+  household: { id: 7, clientCode: "PB-000007", name: "山田 太郎", nameKana: "", birthDate: null, staffId: null, assignedStaff: "", currency: "JPY" },
   planning: {
     estimatedInheritanceTax: 0,
     otherTaxes: 0,
