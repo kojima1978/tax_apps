@@ -340,6 +340,11 @@ td strong, td small { display: block; }
 td strong { color: var(--navy-950); }
 td small { color: var(--slate-500); font-size: 11px; }
 .category-tag { display: block; color: var(--gold-600); font-size: 11px; font-weight: 800; }
+/* 土地・建物は科目名に続けた独立のタグ。土地は塗りつぶし、建物は枠線だけにして、
+   色の出ない白黒印刷でも形で見分けられるようにする（文字の違いは1字しかない）。 */
+.property-type-tag { display: inline-block; margin-left: 5px; padding: 0 5px; border: 1px solid var(--gold-600); border-radius: 999px; font-size: 10px; font-weight: 800; line-height: 1.5; vertical-align: 1px; }
+.property-type-tag.is-land { color: #fff; background: var(--gold-600); }
+.property-type-tag.is-building { color: var(--gold-600); background: #fff; }
 .classification-label { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 8px; color: var(--slate-700); background: #f4f7f5; border: 1px solid var(--line); border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .position-table tbody tr { --classification-text: #4b5563; --classification-bg: #f3f4f6; --classification-border: #d1d5db; }
 .position-table tbody tr.classification-financial { --classification-text: #245676; --classification-bg: #eef6fb; --classification-border: #b7d3e4; }
@@ -1575,6 +1580,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table tbody tr.is-classification-start td { border-top: 1.5pt solid var(--classification-border); padding-top: 7px; }
   .classification-label { min-height: 0; padding: 2px 4px; font-size: 10px; white-space: normal; }
   .category-tag { font-size: 10px; }
+  .property-type-tag { margin-left: 4px; padding: 0 4px; font-size: 9px; }
   .position-table tfoot th, .position-table tfoot td { padding-block: 7px; font-size: 12px; }
   /* 画面用の「合計」見出しは border:0（.position-table tfoot .position-total-label）で
      こちらより詳細度が高いので、同じ詳細度で引き直す。 */

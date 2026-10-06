@@ -11,7 +11,7 @@ import { API_BASE } from "@/lib/api";
 import { searchTerms } from "@/lib/clients";
 import { yen } from "@/lib/format";
 import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
-import { categoryLabels, propertyTypeLabels, realEstateCategories } from "@/lib/portfolio-view";
+import { categoryLabels, propertyAreaText, propertyTypeLabels, realEstateCategories } from "@/lib/portfolio-view";
 import {
   PROPERTY_FILTER_ALL,
   PROPERTY_SORT_DEFAULT,
@@ -33,7 +33,7 @@ const filterFields = [
 ] as const satisfies ReadonlyArray<{ key: keyof PropertyFilters; label: string; options: ReadonlyArray<{ value: string; label: string }> }>;
 
 /** 面積は㎡までの整数・小数をそのまま出す（未入力は「－」）。 */
-const areaText = (area: number | null) => area === null ? "－" : `${area.toLocaleString("ja-JP", { maximumFractionDigits: 2 })}㎡`;
+const areaText = (area: number | null) => area === null ? "－" : propertyAreaText(area);
 
 /** 金額の未入力は「－」。0円の入力と区別する（路線価方式の土地は固定資産税評価額を持たない）。 */
 const yenText = (value: number | null) => value === null ? "－" : yen.format(value);

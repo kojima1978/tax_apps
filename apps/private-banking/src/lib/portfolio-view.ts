@@ -340,11 +340,24 @@ export function propertyTypeOf(position: Pick<Position, "category" | "valuationF
   const saved = position.assetDetails?.propertyType ?? (position.valuationFormula === "BUILDING" ? "BUILDING" : "LAND");
   return saved === "BUILDING" ? "BUILDING" : "LAND";
 }
-/** 明細一覧の科目見出し。不動産は「居宅・土地」のように土地か建物かを添える。 */
-export function positionCategoryLabel(position: Position): string {
+/** 土地は地積、建物は床面積。どちらも未入力なら null（0㎡と区別する）。 */
+export function propertyArea(position: Pick<Position, "landArea" | "assetDetails">, propertyType: PropertyType) {
+  return propertyType === "LAND" ? position.landArea : position.assetDetails?.floorArea ?? null;
+}
+const propertyAreaLabels: Record<PropertyType, string> = { LAND: "地積", BUILDING: "床面積" };
+/** 面積の表示。小数は2桁まで。 */
+export const propertyAreaText = (area: number) => `${area.toLocaleString("ja-JP", { maximumFractionDigits: 2 })}㎡`;
+/**
+ * 明細一覧の評価方法に添える面積（「地積 197.97㎡」）。不動産以外と未入力は空。
+ * 面積を計算に使う算式は路線価方式だけなので、そこは算式の中に出ている数字が本体 ──
+ * 同じ数字を2度並べないようここでは出さない。倍率方式と建物は面積を計算に使わないが、
+ * 様式や登記と突き合わせるのに要るので、算式の外（括弧）へ出して「記録」だと分かる形にする。
+ */
+export function propertyAreaNote(position: Position): string {
   const propertyType = propertyTypeOf(position);
-  const label = categoryLabels[position.category] ?? position.category;
-  return propertyType ? `${label}・${propertyTypeLabels[propertyType]}` : label;
+  if (!propertyType || position.valuationFormula === "LAND_ROADSIDE") return "";
+  const area = propertyArea(position, propertyType);
+  return area === null ? "" : `${propertyAreaLabels[propertyType]} ${propertyAreaText(area)}`;
 }
 
 export function institutionOrPropertyAddress(position: Position) {
@@ -371,6 +384,18 @@ export function valuationBreakdown(position: Position) {
   if (position.valuationFormula === "LAND_ROADSIDE") return `${number(position.landArea)}㎡ × ${number(position.roadsideValue)}円/㎡ × ${number(position.adjustmentRate)} × 持分${ownership}`;
   if (position.valuationFormula === "LAND_MULTIPLIER" || position.valuationFormula === "BUILDING") return `${number(position.fixedAssetTaxValue)}円 × ${number(position.valuationMultiplier)} × ${number(position.adjustmentRate)} × 持分${ownership}`;
   return "";
+}
+
+/**
+ * 明細一覧の「評価方法」の下に出す1行。算式に面積を括弧で添える。
+ * 面積だけを別の列にすると不動産以外の行で空く列が増えるので、ここへ寄せている。
+ * CSV（lib/properties.ts）は面積の列を別に持っているので、そちらは算式だけを使う。
+ */
+export function valuationDetailLine(position: Position): string {
+  const breakdown = valuationBreakdown(position);
+  const area = propertyAreaNote(position);
+  if (!area) return breakdown;
+  return breakdown ? `${breakdown}（${area}）` : area;
 }
 
 const middleClassificationOrder = ["金融資産", "不動産", "事業用資産", "その他資産", "借入金", "その他負債", "個人保証"];

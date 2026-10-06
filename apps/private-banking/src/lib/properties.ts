@@ -9,6 +9,7 @@ import {
   institutionOrPropertyAddress,
   landCategoryByValue,
   ownershipFraction,
+  propertyArea,
   propertyTypeLabels,
   propertyTypeOf,
   valuationBreakdown,
@@ -61,11 +62,6 @@ const propertyUseLabel = (position: Position, propertyType: PropertyType) => pro
   ? landCategoryByValue.get(position.assetDetails?.landCategory ?? "")?.label ?? ""
   : buildingTypeByValue.get(position.assetDetails?.buildingType ?? "")?.label ?? "";
 
-/** 土地は地積、建物は床面積。どちらも未入力なら null（0㎡と区別する）。 */
-const areaOf = (position: Position, propertyType: PropertyType) => propertyType === "LAND"
-  ? position.landArea
-  : position.assetDetails?.floorArea ?? null;
-
 export function toPropertyRow(position: Position, owner: PropertyOwner): PropertyRow {
   const propertyType = propertyTypeOf(position) ?? "LAND";
   return {
@@ -78,7 +74,7 @@ export function toPropertyRow(position: Position, owner: PropertyOwner): Propert
     name: position.name,
     address: institutionOrPropertyAddress(position),
     useLabel: propertyUseLabel(position, propertyType),
-    area: areaOf(position, propertyType),
+    area: propertyArea(position, propertyType),
     ownership: ownershipFraction(position),
     fixedAssetTaxValue: position.fixedAssetTaxValue,
     valueJpy: position.valueJpy,

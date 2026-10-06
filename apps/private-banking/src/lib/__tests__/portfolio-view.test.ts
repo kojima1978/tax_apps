@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { categoryLabels, deemedAllocations, fractionTotal, middleClassification, positionCategoryLabel, printSectionForSection, propertyTypeOf, splitBenefit, trendValues, unprintableSections, valuationFromFormula, type Position, type Section, type Snapshot } from "@/lib/portfolio-view";
+import { categoryLabels, deemedAllocations, fractionTotal, middleClassification, printSectionForSection, propertyTypeOf, valuationDetailLine, splitBenefit, trendValues, unprintableSections, valuationFromFormula, type Position, type Section, type Snapshot } from "@/lib/portfolio-view";
 
 const insurance = (assetDetails: Position["assetDetails"]) => ({ category: "INSURANCE", assetDetails } as Position);
 
@@ -48,23 +48,39 @@ describe("splitBenefit", () => {
   });
 });
 
-describe("propertyTypeOf / positionCategoryLabel", () => {
+describe("propertyTypeOf / valuationDetailLine", () => {
   const position = (fields: Partial<Position>) => ({ category: "HOME_REAL_ESTATE", valuationFormula: "MANUAL", assetDetails: null, ...fields } as Position);
 
   it("保存した土地・建物の区分を優先する", () => {
     expect(propertyTypeOf(position({ valuationFormula: "LAND_ROADSIDE", assetDetails: { propertyType: "BUILDING" } }))).toBe("BUILDING");
-    expect(positionCategoryLabel(position({ assetDetails: { propertyType: "LAND" } }))).toBe("居宅・土地");
+    expect(propertyTypeOf(position({ assetDetails: { propertyType: "LAND" } }))).toBe("LAND");
   });
 
   it("区分を保存していない古い明細は、建物の算式なら建物、それ以外は土地とみなす", () => {
     expect(propertyTypeOf(position({ category: "REAL_ESTATE", valuationFormula: "BUILDING" }))).toBe("BUILDING");
-    expect(positionCategoryLabel(position({ category: "REAL_ESTATE", valuationFormula: "BUILDING" }))).toBe("収益不動産・建物");
     expect(propertyTypeOf(position({ valuationFormula: "MANUAL" }))).toBe("LAND");
   });
 
-  it("不動産以外は区分を持たず、科目名だけを出す", () => {
+  it("不動産以外は区分を持たない", () => {
     expect(propertyTypeOf(position({ category: "DEPOSIT" }))).toBeNull();
-    expect(positionCategoryLabel(position({ category: "DEPOSIT" }))).toBe("預金・現金");
+  });
+
+  it("面積を計算に使わない算式では、算式の後ろに括弧で面積を添える", () => {
+    const land = position({ valuationFormula: "LAND_MULTIPLIER", landArea: 197.97, fixedAssetTaxValue: 5_569_216, valuationMultiplier: 1.1, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 1 });
+    expect(valuationDetailLine(land)).toBe("5,569,216円 × 1.1 × 1 × 持分1/1（地積 197.97㎡）");
+    const building = position({ valuationFormula: "BUILDING", assetDetails: { propertyType: "BUILDING", floorArea: 120.5 }, fixedAssetTaxValue: 3_000_000, valuationMultiplier: 1, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 2 });
+    expect(valuationDetailLine(building)).toBe("3,000,000円 × 1 × 1 × 持分1/2（床面積 120.5㎡）");
+  });
+
+  it("路線価方式は算式の中に地積が出ているので、同じ数字を2度出さない", () => {
+    const land = position({ valuationFormula: "LAND_ROADSIDE", landArea: 197.97, roadsideValue: 150_000, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 1 });
+    expect(valuationDetailLine(land)).toBe("197.97㎡ × 150,000円/㎡ × 1 × 持分1/1");
+  });
+
+  it("算式を持たない不動産は面積だけ、面積が無ければ空になる", () => {
+    expect(valuationDetailLine(position({ landArea: 88.4 }))).toBe("地積 88.4㎡");
+    expect(valuationDetailLine(position({ landArea: null }))).toBe("");
+    expect(valuationDetailLine(position({ category: "DEPOSIT" }))).toBe("");
   });
 
   it("負債側の科目にも日本語名がある", () => {

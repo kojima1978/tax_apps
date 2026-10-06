@@ -12,6 +12,7 @@ import {
   type PositionSortMode,
   type PropertyType,
   type Snapshot,
+  categoryLabels,
   categoryRank,
   deemedAllocations,
   deemedBenefit,
@@ -24,10 +25,9 @@ import {
   institutionOrPropertyAddress,
   middleClassification,
   middleClassificationRank,
-  positionCategoryLabel,
   propertyTypeLabels,
   propertyTypeOf,
-  valuationBreakdown,
+  valuationDetailLine,
 } from "@/lib/portfolio-view";
 
 const JPY_PER_MAN_YEN = 10_000;
@@ -326,6 +326,7 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
               // 手動の想定相続税だけのときは解約返戻金で按分しているので、段を分けず従来どおり1つで出す。
               const splitBurden = benefitBasedBurden && hasDeemedBenefit(p) && burden !== null;
               const canReorder = reorderableIds.has(p.id);
+              const propertyType = propertyTypeOf(p);
               return (
               <tr key={p.id} id={`position-${p.id}`} className={`position-row classification-${tone} ${isClassificationStart ? "is-classification-start" : ""} ${draggedId === p.id ? "is-dragging" : ""} ${dropTargetId === p.id && draggedId !== p.id ? "is-drop-target" : ""} ${spotlightId === p.id ? "is-spotlight" : ""}`} onDragOver={(event) => { if (draggedId === null || !canDrop(draggedId, p.id)) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropTargetId(p.id); }} onDragLeave={() => setDropTargetId((current) => current === p.id ? null : current)} onDrop={(event) => dropPosition(event, p.id)} onClick={(event) => {
                 // 行のどこを押しても修正を開く。行の中のボタン（並び替え・削除など）は、それぞれの操作を優先する。
@@ -336,12 +337,12 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
                   ? <button type="button" className={`drag-handle ${saving ? "is-saving" : ""}`} draggable={!saving} disabled={saving} aria-label={`${p.name}を並び替え。同じ科目（不動産は土地・建物も同じ）の明細とのみ入れ替えできます。上下矢印キーでも移動できます`} title="同じ科目内でドラッグして並び替え（不動産は土地・建物別）" onDragStart={(event) => startDrag(event, p.id)} onDragEnd={() => { setDraggedId(null); setDropTargetId(null); }} onKeyDown={(event) => moveWithKeyboard(event, p.id)}><GripVertical /></button>
                   : <span className="drag-handle-placeholder" aria-hidden="true" />}</td>
                 <td data-label="中分類"><span className="classification-label middle">{classification}</span></td>
-                <td data-label="科目・名称">{section !== "CONTINGENT" ? <span className="category-tag">{positionCategoryLabel(p)}</span> : null}<button type="button" className="position-name-button" onClick={() => onEdit(p)} aria-label={`${p.name}を修正`}>{p.name}</button>{/* 所在地・金融機関等を持たない科目（生命保険の証券番号未入力など）では、その区切りごと省いて評価方法だけ出す。
+                <td data-label="科目・名称">{section !== "CONTINGENT" ? <span className="category-tag">{categoryLabels[p.category] ?? p.category}{/* 土地か建物かは科目名に続けた別のタグで出す。「居宅・土地」と1つの文字列にしていた頃は、印刷では10pxの文字が1字違うだけで、土地と建物が並ぶ顧客ほど見分けが付かなかった。 */}{propertyType ? <span className={`property-type-tag ${propertyType === "BUILDING" ? "is-building" : "is-land"}`}>{propertyTypeLabels[propertyType]}</span> : null}</span> : null}<button type="button" className="position-name-button" onClick={() => onEdit(p)} aria-label={`${p.name}を修正`}>{p.name}</button>{/* 所在地・金融機関等を持たない科目（生命保険の証券番号未入力など）では、その区切りごと省いて評価方法だけ出す。
                   区切りを CSS 側（.position-meta-place + .position-meta-method::before）で出しているのは、所在地の列が
                   生きている幅では補助行の所在地だけを畳むため。span を消せば区切りも一緒に消える。 */}
                   <small className="position-meta">{institutionOrPropertyAddress(p) ? <span className="position-meta-place">{institutionOrPropertyAddress(p)}</span> : null}{p.valuationMethod ? <span className="position-meta-method">{p.valuationMethod}</span> : null}</small></td>
                 <td data-label="所在地・金融機関等" title={institutionOrPropertyAddress(p) || undefined}>{institutionOrPropertyAddress(p) || "—"}</td>
-                <td data-label="評価方法" title={valuationBreakdown(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationBreakdown(p) ? <small className="valuation-breakdown">{valuationBreakdown(p)}</small> : null}</td>
+                <td data-label="評価方法" title={valuationDetailLine(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationDetailLine(p) ? <small className="valuation-breakdown">{valuationDetailLine(p)}</small> : null}</td>
                 <td data-label="円換算時価" className={`number ${splitBurden ? "deemed-cell" : ""}`}><DeemedAmounts position={p} />{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}</td>
                 <td data-label="相続税負担額" className={`number tax-burden-column ${splitBurden ? "deemed-cell" : ""}`}>{splitBurden ? <DeemedTaxBurden position={p} value={burden} /> : <TaxBurdenAmount value={burden} />}</td>
                 <td data-label="操作"><div className="table-actions"><ActionMenu
