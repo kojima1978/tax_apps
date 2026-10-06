@@ -113,9 +113,10 @@ describe("顧客一覧の表示", () => {
     render(<ClientList />);
     fireEvent.click(await screen.findByRole("button", { name: "テスト顧客Aの操作" }));
     const menu = screen.getByRole("menu", { name: "テスト顧客Aの操作" });
-    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["貸借対照表を開く", "本人情報", "資産・負債明細", "顧客を削除"]);
+    // 並びはサイドバー（dashboard.tsx の SECTIONS）と同じ順。
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["本人情報", "貸借対照表", "資産・負債明細", "顧客を削除"]);
     expect(within(menu).getByRole("menuitem", { name: "本人情報" }).getAttribute("href")).toBe("/customers/1/profile");
-    expect(document.activeElement).toBe(within(menu).getByRole("menuitem", { name: "貸借対照表を開く" }));
+    expect(document.activeElement).toBe(within(menu).getByRole("menuitem", { name: "本人情報" }));
   });
 
   it("関連法人を行に出し、その名称で検索できる", async () => {

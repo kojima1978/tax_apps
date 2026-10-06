@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CLIENT_SORT_DEFAULT,
   type ClientSortMode,
   type ClientSummary,
   filterClients,
@@ -133,6 +134,15 @@ describe("sortClients", () => {
       client({ id: 2, name: "アオキ ジロウ", nameKana: "" }),
     ];
     expect(ids(clients, "kana")).toEqual([2, 1]);
+  });
+
+  it("既定はコード順（カナ順とは別の並びになる）", () => {
+    const clients = [
+      client({ id: 1, clientCode: "0002", nameKana: "アオキ ジロウ" }),
+      client({ id: 2, clientCode: "0001", nameKana: "ワダ イチロウ" }),
+    ];
+    expect(ids(clients, CLIENT_SORT_DEFAULT)).toEqual([2, 1]);
+    expect(ids(clients, "kana")).toEqual([1, 2]);
   });
 
   it("顧客コードは桁が揃っていなくても数値として並ぶ", () => {

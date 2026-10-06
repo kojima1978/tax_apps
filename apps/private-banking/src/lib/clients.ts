@@ -73,8 +73,8 @@ export function filterClients(clients: ClientSummary[], terms: string[]) {
 
 /** 顧客一覧の並び替え。選択肢と並べ方をここだけに置く（表示側は value を渡すだけ）。 */
 export const CLIENT_SORT_MODES = [
-  { value: "kana", label: "カナ順" },
   { value: "code", label: "コード順" },
+  { value: "kana", label: "カナ順" },
   { value: "year-desc", label: "年度の新しい順" },
   { value: "newest", label: "登録の新しい順" },
 ] as const;
@@ -82,10 +82,13 @@ export const CLIENT_SORT_MODES = [
 export type ClientSortMode = typeof CLIENT_SORT_MODES[number]["value"];
 
 /**
- * 既定はカナ順。DB の `name` 昇順（＝漢字のコードポイント順）は人間には無意味な並びで、
- * 一覧を開いた人がどこを探せばよいか分からなくなるため、既定で並べ直す。
+ * 既定はコード順。顧客コードは実務で使っている背番号で、一覧でも行に出している
+ * （＝並びの根拠が画面から見える）。DB の `name` 昇順（＝漢字のコードポイント順）のままだと
+ * 人間には無意味な並びになるので、どちらにせよ既定で並べ直す必要がある。
+ * 内部の id で並べる選択肢は作らない ── 画面のどこにも出していない番号なので、
+ * 「なぜこの順なのか」が利用者から見えない（コードとも登録順とも一致しない）。
  */
-export const CLIENT_SORT_DEFAULT: ClientSortMode = "kana";
+export const CLIENT_SORT_DEFAULT: ClientSortMode = "code";
 
 /**
  * 比較器は1つだけ作る（行数×比較回数で呼ばれるため、比較のたびに new しない）。

@@ -273,10 +273,14 @@ export function ClientList() {
   </div>;
 }
 
-/** 顧客行の「⋯」メニューから直接開ける画面。顧客を開いてからサイドバーで選び直す手間を省く。 */
+/**
+ * 顧客行の「⋯」メニューから直接開ける画面。顧客を開いてからサイドバーで選び直す手間を省く。
+ * 並びと名前は顧客を開いた後のサイドバー（dashboard.tsx の SECTIONS）に揃える ──
+ * 同じ行き先が2通りの順で並んでいると、どちらの画面でも読み直すことになる。
+ */
 const CLIENT_MENU_LINKS = [
-  { section: "balance", label: "貸借対照表を開く", icon: LayoutDashboard },
   { section: "profile", label: "本人情報", icon: CircleUserRound },
+  { section: "balance", label: "貸借対照表", icon: LayoutDashboard },
   { section: "positions", label: "資産・負債明細", icon: WalletCards },
 ] as const;
 
