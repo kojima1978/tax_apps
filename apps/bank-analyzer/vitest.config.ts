@@ -12,5 +12,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'server/**/*.test.ts'],
+    // DB を伴うテスト用の PostgreSQL を1つ立てる（各ファイルはその複製を使う）
+    globalSetup: ['./server/__tests__/setup/postgres.ts'],
   },
 });

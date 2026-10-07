@@ -148,13 +148,15 @@ services:
   #
   # ソースは bind mount せずイメージ同梱物を使う（run の --build で取り込む）。
   # `tsc -b` が .tsbuildinfo を書くので、読み取り専用マウントとは相性が悪い。
-  # DB にはつながない（entrypoint の migrate deploy も飛ばす）。
+  # 本体の DB にはつながない（entrypoint の migrate deploy も飛ばす）。
+  # DB を伴うテストは、イメージに入れた PostgreSQL をテストのたびに
+  # コンテナの中で立てて使う（test ステージ・server/__tests__/setup/postgres.ts）。
   # ===========================================
   bank-analyzer-test:
     build:
       context: .
       dockerfile: Dockerfile
-      target: dev
+      target: test
       args:
         APP_PORT: "3008"
     image: bank-analyzer-test
@@ -167,7 +169,7 @@ services:
       NODE_OPTIONS: "--max-old-space-size=1400"
       BANK_ANALYZER_SKIP_MIGRATE: "1"
       # prisma のスキーマ読み込みが env("DATABASE_URL") を必須にするため、
-      # 接続しないとしても値そのものは要る。
+      # 接続しないとしても値そのものは要る（テストは自前の DB の URL を渡す）。
       DATABASE_URL: postgresql://bankuser:unused@bank-analyzer-next-db:5432/bank_analyzer?schema=public
     init: true
     restart: "no"

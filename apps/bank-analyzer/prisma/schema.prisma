@@ -149,3 +149,13 @@ model ClassificationChange {
   @@index([transactionId], map: "analyzer_classificationchange_transaction_id_6a4f7c8a")
   @@map("analyzer_classificationchange")
 }
+
+/// 全体の設定（Django 版の data/user_settings.json の最上位のキーごとに1行）。
+/// 値が json（jsonb ではない）なのは、分類パターンのカテゴリーの順番を保つため。
+model AppSetting {
+  key       String   @id @db.VarChar(100)
+  value     Json     @db.Json
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("analyzer_appsetting")
+}

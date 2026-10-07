@@ -27,7 +27,7 @@ COPY prisma ./prisma
 RUN npx prisma generate
 
 # =============================================================================
-# 開発（テスト用サービス bank-analyzer-test もこのステージ）
+# 開発（テスト用サービス bank-analyzer-test はこの上の test ステージ）
 # =============================================================================
 FROM deps AS dev
 ARG APP_PORT
@@ -47,6 +47,18 @@ USER node
 EXPOSE ${APP_PORT}
 ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
 CMD ["npm", "run", "dev:all"]
+
+# =============================================================================
+# テスト（bank-analyzer-test）: dev に PostgreSQL を足したもの
+#
+# DB を伴うテストは本物の PostgreSQL で回す（server/__tests__/setup/postgres.ts が
+# 走るたびに initdb して終わったら消す）。dev の本体や本番には入れない。
+# contrib は pg_trgm（摘要の部分一致検索のインデックス）がマイグレーションに要るため。
+# =============================================================================
+FROM dev AS test
+USER root
+RUN apk add --no-cache postgresql16 postgresql16-contrib
+USER node
 
 # =============================================================================
 # ビルド（フロント + サーバ）
