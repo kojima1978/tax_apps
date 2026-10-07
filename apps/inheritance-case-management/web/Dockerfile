@@ -60,6 +60,18 @@ ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["npm", "run", "dev"]
 
 # =============================================================================
+# Prisma CLI stage - 本番イメージに同梱する CLI 専用の依存ツリー
+# =============================================================================
+# **バージョンを読む package.json を WORKDIR へ置かないこと**。その場所で
+# `npm install <pkg>` を叩くと package.json の dependencies / devDependencies まで
+# 一緒に入り、CLI 専用のはずのツリーがアプリ全部に膨らむ。
+FROM base AS prisma-cli
+COPY package.json /tmp/app-package.json
+RUN --mount=type=cache,id=npm-store-itcm-web,target=/root/.npm \
+    npm install --no-save --no-package-lock \
+      prisma@$(node -p "require('/tmp/app-package.json').devDependencies.prisma")
+
+# =============================================================================
 # Builder stage - Build the production application
 # =============================================================================
 FROM deps AS builder
@@ -90,7 +102,9 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3020 \
     HOSTNAME=0.0.0.0 \
-    TZ=Asia/Tokyo
+    TZ=Asia/Tokyo \
+    HOME=/tmp \
+    NPM_CONFIG_CACHE=/tmp/.npm
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache libc6-compat tini tzdata && \
@@ -104,6 +118,11 @@ COPY --from=builder --chown=1001:1001 --link /app/.next/standalone ./
 COPY --from=builder --chown=1001:1001 --link /app/.next/static ./.next/static
 COPY --from=builder --chown=1001:1001 --link /app/public ./public
 COPY --from=builder --chown=1001:1001 --link /app/prisma ./prisma
+# Prisma CLI をイメージに同梱（standalone 出力には含まれないため）。
+# 隔離ディレクトリに置き、standalone 側の @prisma/client を上書きしない。
+# これで起動時の `npx -y prisma@6` が不要になる ── あれは毎回レジストリから
+# 372MB を書き込み層へ取り（実測10秒）、ネットが無い間は本番が起動できなかった。
+COPY --from=prisma-cli --chown=1001:1001 --link /app/node_modules /app/prisma-cli/node_modules
 COPY --from=builder --chown=1001:1001 --link /app/docker-entrypoint.sh /docker-entrypoint.sh
 RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 

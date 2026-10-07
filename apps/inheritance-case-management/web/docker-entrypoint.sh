@@ -3,13 +3,25 @@ set -e
 
 echo "=== ITCM Starting ==="
 
+# Prisma CLI の場所を解決する。
+# 本番(runner)は同梱した隔離ディレクトリ、開発(dev)は通常の node_modules。
+# 以前は `npx -y prisma@6` を叩いていたが、runner にはローカルの prisma が
+# 無いため毎回レジストリから取得していた（実測 372MB・10秒）。レジストリへ
+# 届かない間は migrate が「不明なエラー」で exit 1 になり、本番が起動できなかった。
+# `prisma@6` は浮いた指定でもあり、イメージを作り直さずに CLI だけ版が変わりえた。
+if [ -f /app/prisma-cli/node_modules/prisma/build/index.js ]; then
+  PRISMA_CLI=/app/prisma-cli/node_modules/prisma/build/index.js
+else
+  PRISMA_CLI=/app/node_modules/prisma/build/index.js
+fi
+
 # Run migrations with retry (DB接続待ち用) + エラー診断
 echo "Running Prisma migrations..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 
 while true; do
-  MIGRATE_OUTPUT=$(npx -y prisma@6 migrate deploy 2>&1) && break
+  MIGRATE_OUTPUT=$(node "$PRISMA_CLI" migrate deploy 2>&1) && break
   RETRY_COUNT=$((RETRY_COUNT + 1))
 
   # DB接続エラー → リトライ（PostgreSQL起動待ち）
