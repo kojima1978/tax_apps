@@ -45,11 +45,14 @@ CMD ["npm", "run", "dev"]
 
 # 本番イメージに同梱する Prisma CLI 専用の依存ツリー。
 # アプリ本体の node_modules とは分離し、CLI の推移的依存(effect 等)も揃える。
+# **バージョンを読む package.json を WORKDIR へ置かないこと**。その場所で
+# `npm install <pkg>` を叩くと package.json の dependencies / devDependencies まで
+# 一緒に入り、CLI 専用のはずのツリーが 773MB（アプリ全部）に膨らむ。
 FROM base AS prisma-cli
-COPY package.json ./
+COPY package.json /tmp/app-package.json
 RUN --mount=type=cache,id=npm-store-private-banking,target=/root/.npm \
     npm install --no-save --no-package-lock \
-      prisma@$(node -p "require('./package.json').devDependencies.prisma")
+      prisma@$(node -p "require('/tmp/app-package.json').devDependencies.prisma")
 
 FROM deps AS builder
 ENV NODE_ENV=production
