@@ -1,0 +1,82 @@
+// 分類の既定値（Django 版 analyzer/lib/constants.py・lib/config/defaults.py）。
+//
+// 分類パターンは「カテゴリー → キーワードの並び」。カテゴリーの順番は結果に効く
+// （キーワード数が同じカテゴリー同士は先に書いた方が勝つ）ので、保存するときも順番を保つこと。
+// PostgreSQL の jsonb はオブジェクトのキーを並べ替えるので、そのまま入れてはいけない。
+
+export const UNCATEGORIZED = '未分類';
+export const OTHER_CATEGORY = 'その他';
+export const GIFT_CATEGORY = '贈与・教育費';
+
+export const STANDARD_CATEGORIES = [
+  '生活費', '給与', '年金', GIFT_CATEGORY, '税金', '修繕・資本', '事業・不動産', '関連会社',
+  '銀行・利息・手数料', '証券・株式・配当', '保険会社', '通帳間移動', OTHER_CATEGORY, UNCATEGORIZED,
+] as const;
+
+// 古いカテゴリー名 → いまの名前
+export const CATEGORY_RENAMES: Readonly<Record<string, string>> = {
+  '証券・株式': '証券・株式・配当',
+  '銀行': '銀行・利息・手数料',
+  '贈与': GIFT_CATEGORY,
+};
+
+export const normalizeCategory = (category: string): string => CATEGORY_RENAMES[category] ?? category;
+
+export type Patterns = Readonly<Record<string, readonly string[]>>;
+
+export const DEFAULT_PATTERNS: Patterns = {
+  '生活費': [
+    'イオン', 'セブン', 'ローソン', 'ファミマ', 'スーパー', 'マート',
+    '電気', 'ガス', '水道', '東京電力', '東電', '関西電力', '関電',
+    'NTT', 'ドコモ', 'DOCOMO', 'ソフトバンク', 'au', '通信', '電話',
+    'NHK', '薬局', 'ドラッグ', '病院', '医院', 'クリニック', '介護',
+    'ガソリン', 'ENEOS', '出光', '昭和シェル',
+    'マクドナルド', 'スターバックス', 'スタバ', 'コンビニ',
+  ],
+  '給与': ['給与', '給料', '賞与', 'ボーナス', '報酬', '振込給与'],
+  '年金': [
+    '年金', '厚生年金', '国民年金', '共済年金', '企業年金', '基金',
+    '老齢年金', '遺族年金', '障害年金', '日本年金機構', '厚生労働省',
+  ],
+  [GIFT_CATEGORY]: ['振込'], // 閾値以上の振込を贈与候補とする
+  '関連会社': ['商事', '物産', '興業', '実業', '有限会社', '株式会社'],
+  '事業・不動産': [
+    '家賃', '賃料', '地代', 'テナント', '不動産', 'マンション',
+    '駐車場', '売上', '仕入', '経費', '事業', 'リース',
+  ],
+  '銀行・利息・手数料': ['定期預金', '定期', '積立'],
+  '証券・株式・配当': [
+    '証券', '野村', '大和', 'SMBC', 'みずほ証券', '楽天証券', 'SBI',
+    '投資信託', '株式', '債券', 'ファンド', '配当',
+  ],
+  '保険会社': ['生命保険', '損保', '保険', '共済', 'かんぽ', '日本生命', '第一生命'],
+  '通帳間移動': ['振替', '口座振替', '資金移動', '自己口座', '本人口座', '自分宛', '同一名義'],
+  [OTHER_CATEGORY]: ['手数料', '利息', 'ATM', '時間外', '引出', '預入'],
+};
+
+// 贈与判定の閾値（円）。出金がこれ以上の「振込」を贈与候補にする。
+export const DEFAULT_GIFT_THRESHOLD = 1_000_000;
+
+export type FuzzyConfig = {
+  enabled: boolean;
+  threshold: number; // 0〜100
+  useTokenSetRatio: boolean; // false なら partial_ratio
+};
+
+export const DEFAULT_FUZZY_CONFIG: FuzzyConfig = {
+  enabled: true,
+  threshold: 90,
+  useTokenSetRatio: true,
+};
+
+// 古いカテゴリー名をいまの名前へ寄せ、同じカテゴリーのキーワードの重複を除く（出てきた順）。
+export function normalizePatterns(patterns: Patterns | null | undefined): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const [category, keywords] of Object.entries(patterns ?? {})) {
+    const name = normalizeCategory(category);
+    const list = out.get(name) ?? [];
+    out.set(name, list);
+    for (const kw of keywords ?? []) if (!list.includes(kw)) list.push(kw);
+  }
+  return out;
+}
