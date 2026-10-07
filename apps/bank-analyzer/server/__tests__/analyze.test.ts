@@ -10,8 +10,8 @@ const tx = (id: number, accountNumber: string, date: string, amountOut: number, 
 describe('資金移動', () => {
   it('手数料を差し引いた入金と組む', () => {
     expect(detectTransfers([tx(1, '1111111', '2024-04-01', 1_000_000, 0), tx(26, '2222222', '2024-04-01', 0, 999_560)], S)).toEqual([
-      { id: 1, transferTo: '2222222 (2024-04-01) 手数料440円' },
-      { id: 26, transferTo: '1111111 (2024-04-01) 手数料440円' },
+      { id: 1, transferTo: '2222222 (2024-04-01) 手数料440円', partnerId: 26 },
+      { id: 26, transferTo: '1111111 (2024-04-01) 手数料440円', partnerId: 1 },
     ]);
   });
 
@@ -35,8 +35,8 @@ describe('資金移動', () => {
       tx(9, 'A', '2024-05-20', 50000, 0), tx(10, 'A', '2024-05-20', 0, 50000),
     ], S);
     expect(r).toEqual([
-      { id: 7, transferTo: 'B (2024-05-21)' }, { id: 31, transferTo: 'A (2024-05-20)' },
-      { id: 9, transferTo: 'B (2024-05-20)' }, { id: 30, transferTo: 'A (2024-05-20)' },
+      { id: 7, transferTo: 'B (2024-05-21)', partnerId: 31 }, { id: 31, transferTo: 'A (2024-05-20)', partnerId: 7 },
+      { id: 9, transferTo: 'B (2024-05-20)', partnerId: 30 }, { id: 30, transferTo: 'A (2024-05-20)', partnerId: 9 },
     ]);
   });
 });

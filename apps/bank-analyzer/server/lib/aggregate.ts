@@ -220,7 +220,7 @@ export type TransferEndpoint = {
   category: string;
 };
 
-export type TransferPair = { source: TransferEndpoint; destination: TransferEndpoint | null };
+export type TransferPair = { source: TransferEndpoint; destination: TransferEndpoint };
 
 const endpoint = (t: AnalysisTx, amount: number): TransferEndpoint => ({
   id: t.id,
@@ -236,9 +236,10 @@ const endpoint = (t: AnalysisTx, amount: number): TransferEndpoint => ({
 // 出金ごとに相手の入金を並べる。保存してある印ではなく、表示のたびに案件の全取引で判定し直す
 // （Django 版のとおり。取込のたびに付けた印は外れないので、保存値とは食い違いうる）。
 //
-// 相手の入金は「印の付いた入金のうち、transfer_to の口座で、金額が許容誤差以内の最初のもの」。
-// 判定で実際に組んだ相手とは限らない（Django 版のとおり）── 同じ口座へ同じ額を何度も移していると、
-// 2回目以降の出金にも1回目の入金が並ぶ。
+// 相手の入金は判定で実際に組んだもの。Django 版は「印の付いた入金のうち、transfer_to の口座で、
+// 金額が許容誤差以内の最初のもの」を並べていたので、同じ口座へ同じ額を何度も移していると
+// 2回目以降の出金にも1回目の入金が並んでいた（実データで74組中60組が3日より離れた入金を指していた）。
+// 意図して直した違い（計画書 段階4の結果）。
 export function transferPairs(
   txs: readonly AnalysisTx[],
   settings: Pick<AnalysisSettings, 'transferTolerance' | 'transferDaysWindow' | 'transferDateMode'>,
@@ -249,32 +250,26 @@ export function transferPairs(
     detectTransfers(
       dated.map((t) => ({ id: t.id, accountNumber: t.accountNumber ?? '', date: t.date!, amountOut: t.amountOut, amountIn: t.amountIn })),
       settings,
-    ).map((m) => [m.id, m.transferTo]),
+    ).map((m) => [m.id, m.partnerId]),
   );
-  const flagged = dated.filter((t) => matches.has(t.id));
-  const inflows = flagged.filter((t) => t.amountIn > 0);
+  const byId = new Map(dated.map((t) => [t.id, t]));
 
-  let pairs: TransferPair[] = flagged
-    .filter((t) => t.amountOut > 0)
+  let pairs: TransferPair[] = dated
+    .filter((t) => matches.has(t.id) && t.amountOut > 0)
     .map((out) => {
-      const destAccount = matches.get(out.id)!.split(' ')[0];
-      const dest = inflows.find(
-        (c) => c.accountNumber === destAccount && Math.abs(c.amountIn - out.amountOut) <= settings.transferTolerance,
-      );
-      return { source: endpoint(out, out.amountOut), destination: dest ? endpoint(dest, dest.amountIn) : null };
+      const dest = byId.get(matches.get(out.id)!)!;
+      return { source: endpoint(out, out.amountOut), destination: endpoint(dest, dest.amountIn) };
     });
 
   const cats = f.transferCategory ?? [];
   if (cats.length) {
-    const has = (p: TransferPair) => cats.includes(p.source.category) || (!!p.destination && cats.includes(p.destination.category));
-    const hasNot = (p: TransferPair) =>
-      !cats.includes(p.source.category) && (!p.destination || !cats.includes(p.destination.category));
-    pairs = pairs.filter(f.transferCategoryMode === 'exclude' ? hasNot : has);
+    const has = (p: TransferPair) => cats.includes(p.source.category) || cats.includes(p.destination.category);
+    pairs = pairs.filter((p) => (f.transferCategoryMode === 'exclude' ? !has(p) : has(p)));
   }
 
   const keywords = splitKeywords(f.keyword ?? '');
   if (keywords.length) {
-    const hit = (e: TransferEndpoint | null, kw: string) => !!e && matchesAllKeywords(e.description, [kw]);
+    const hit = (e: TransferEndpoint, kw: string) => matchesAllKeywords(e.description, [kw]);
     pairs = pairs.filter((p) => keywords.every((kw) => hit(p.source, kw) || hit(p.destination, kw)));
   }
 

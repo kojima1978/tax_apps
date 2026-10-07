@@ -112,8 +112,7 @@ const FILTER_VARIANTS: Record<string, TransactionFilter> = {
 };
 
 // Django 版は資金移動の日付を pandas の Timestamp のまま出していた
-const endpointShape = (e: TransferEndpoint | null) =>
-  e && {
+const endpointShape = (e: TransferEndpoint) => ({
     id: e.id,
     date: `${e.date}T00:00:00`,
     bank_name: e.bankName,
@@ -122,7 +121,7 @@ const endpointShape = (e: TransferEndpoint | null) =>
     amount: e.amount,
     description: e.description,
     category: e.category,
-  };
+  });
 
 const scoreShape = (s: { category: string; score: number }) => ({ category: s.category, score: s.score });
 
@@ -138,7 +137,8 @@ function analysisShape(data: ReturnType<typeof analysisData<Row>>): Json {
       count: a.count,
       last_date: a.lastDate,
     })),
-    transfer_pairs: data.transferPairs.map((p) => ({ source: endpointShape(p.source), destination: endpointShape(p.destination) })),
+    // 相手の入金は Django 版と意図して変えた（下の「資金移動の相手」）。突き合わせるのは出金側だけ
+    transfer_pairs: data.transferPairs.map((p) => ({ source: endpointShape(p.source) })),
     all_txs: data.allTxs.map((t) => t.id),
     duplicate_txs: data.duplicateTxs.map((t) => ({ ...t.raw, dup_group_idx: t.dupGroupIdx })),
     flagged_txs: data.flaggedTxs.map((t) => t.id),
@@ -184,7 +184,9 @@ type PairJson = { source: { id: number; date: string } };
 const byPairDateId = (a: PairJson, b: PairJson) =>
   a.source.date === b.source.date ? a.source.id - b.source.id : a.source.date < b.source.date ? -1 : 1;
 const sameDayUnordered = (shape: Json): Json =>
-  shape.transfer_pairs ? { ...shape, transfer_pairs: [...(shape.transfer_pairs as PairJson[])].sort(byPairDateId) } : shape;
+  shape.transfer_pairs
+    ? { ...shape, transfer_pairs: (shape.transfer_pairs as PairJson[]).map(({ source }) => ({ source })).sort(byPairDateId) }
+    : shape;
 
 // ---------------------------------------------------------------------------
 
@@ -228,6 +230,23 @@ describe.each(SCENARIOS)('%s', (name) => {
     // 記録の絞り込みはどれも日付順（sort_amount_desc も読めずに日付順になる）
     expect(actual.transfer_pairs ?? []).toEqual(sameDayUnordered(actual).transfer_pairs ?? []);
     expect(sameDayUnordered(actual)).toEqual(sameDayUnordered(expectedAnalysis[variant]!));
+  });
+
+  // Django 版は相手に「同じ口座・金額が許容誤差以内の最初の入金」を並べていた。React 版は判定で
+  // 組んだ入金なので、別の口座・許容誤差・期間内に収まり、同じ入金を2つの出金が指すことは無い
+  it('資金移動の相手は判定で組んだ入金', () => {
+    const S = DEFAULT_ANALYSIS_SETTINGS;
+    const pairs = transferPairs(rows, S);
+    const day = (d: string) => Date.parse(`${d}T00:00:00Z`) / 86_400_000;
+    for (const { source, destination } of pairs) {
+      expect(destination.accountNumber).not.toBe(source.accountNumber);
+      expect(Math.abs(destination.amount - source.amount)).toBeLessThanOrEqual(S.transferTolerance);
+      const days = day(destination.date) - day(source.date);
+      expect(days).toBeGreaterThanOrEqual(0);
+      expect(days).toBeLessThanOrEqual(S.transferDaysWindow);
+    }
+    const destIds = pairs.map((p) => p.destination.id);
+    expect(new Set(destIds).size).toBe(destIds.length);
   });
 
   it.each(['', '振替', 'ATM'])('未分類のまとめ（キーワード "%s"）', (keyword) => {
@@ -328,7 +347,7 @@ describe('記録に無い形', () => {
     ]);
   });
 
-  it('同じ口座へ同じ額を2回移すと、2回目の出金にも1回目の入金が並ぶ（Django 版のとおり）', () => {
+  it('同じ口座へ同じ額を2回移すと、それぞれ自分の入金と組む（Django 版は2回目にも1回目の入金を並べた）', () => {
     const other = { accountNumber: '222', bankName: 'B銀行' };
     const txs = [
       tx(1, { amountOut: 50000 }),
@@ -337,6 +356,6 @@ describe('記録に無い形', () => {
       tx(4, { ...other, date: '2024-05-01', amountIn: 50000 }),
     ];
     const pairs = transferPairs(txs, DEFAULT_ANALYSIS_SETTINGS);
-    expect(pairs.map((p) => [p.source.id, p.destination?.id])).toEqual([[1, 2], [3, 2]]);
+    expect(pairs.map((p) => [p.source.id, p.destination.id])).toEqual([[1, 2], [3, 4]]);
   });
 });

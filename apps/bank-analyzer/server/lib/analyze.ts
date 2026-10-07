@@ -45,7 +45,8 @@ export type TransferInput = {
   amountIn: number;
 };
 
-export type TransferMatch = { id: number; transferTo: string };
+// partnerId は判定で実際に組んだ相手の取引（出金側なら入金、入金側なら出金）
+export type TransferMatch = { id: number; transferTo: string; partnerId: number };
 
 const DAY_MS = 86_400_000;
 const dayNumber = (date: string) => Math.round(Date.parse(`${date}T00:00:00Z`) / DAY_MS);
@@ -61,7 +62,7 @@ export function detectTransfers(
     .map((t) => ({ ...t, day: dayNumber(t.date) }))
     .sort((a, b) => a.day - b.day || a.id - b.id);
   const matchedIn = new Set<number>();
-  const result = new Map<number, string>();
+  const result = new Map<number, { transferTo: string; partnerId: number }>();
 
   for (const out of rows) {
     if (!(out.amountOut > 0)) continue;
@@ -84,9 +85,9 @@ export function detectTransfers(
     if (!best) continue;
     const fee = Math.trunc(out.amountOut - best.row.amountIn);
     const feeInfo = fee > 0 ? ` 手数料${fmtYen(fee)}円` : '';
-    result.set(out.id, `${best.row.accountNumber} (${best.row.date})${feeInfo}`);
-    result.set(best.row.id, `${out.accountNumber} (${out.date})${feeInfo}`);
+    result.set(out.id, { transferTo: `${best.row.accountNumber} (${best.row.date})${feeInfo}`, partnerId: best.row.id });
+    result.set(best.row.id, { transferTo: `${out.accountNumber} (${out.date})${feeInfo}`, partnerId: out.id });
     matchedIn.add(best.row.id);
   }
-  return [...result].map(([id, transferTo]) => ({ id, transferTo }));
+  return [...result].map(([id, m]) => ({ id, ...m }));
 }
