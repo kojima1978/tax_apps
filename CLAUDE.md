@@ -275,6 +275,21 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
   みなすので、アプリを止めている間に走ると DB ごと消える）。専用のスケジュールタスクは作らず
   既に起きているウォッチドッグに乗せる ── 無人タスクを増やすほど「消えたのに誰も気づかない」
   対象が増える
+- **ビルドキャッシュの prune に絞り込みのフラグを渡してはいけない**。Docker Desktop の
+  builder（driver=docker）では `--max-used-space` / `--reserved-space` / `--filter until=…`
+  のどれを渡しても**何も消さずに終了コード 0 を返す**（実測）。ここは
+  `--max-used-space 10GB` だったため、**毎回成功を記録しながら1バイトも消さず 61.22GB まで
+  積み上がっていた**（素の `docker builder prune --force` に替えた途端 19.06GB 消えた）。
+  素の prune は刻めないので、**`docker buildx du` の Private が上限
+  （`TAX_APPS_PRUNE_CACHE_MAX` 既定10GB）を超えたときだけ丸ごと落とす**形にしてある。
+  見るのは Reclaimable ではなく **Private** ── Reclaimable はイメージと共有している層を
+  含むので、落としてもそのぶんは減らない（`docker system df` の Build Cache の
+  RECLAIMABLE 列と一致するのは Private）。対話式の `clean-cache` も同じ理由でフラグ無し
+- **`docker ... | sed` の後ろの `|| failed=1` は死んでいる**（パイプの終了コードは sed のもの）。
+  掃除は長らくこの形で、**docker が落ちている回でも `ok` を記録していた**。
+  コマンド置換で受けてから `|| rc=$?` で見るか、`PIPESTATUS` を読むこと。
+  消した量は `OPS_PRUNE_DETAIL` に入れて `last-run` の detail に残す
+  （`manage.sh status` に `images 0B / cache 68.47MB kept` のように出る）
 - **無人処理を「別の無人処理の付属物」にしてはいけない**。掃除は長らく `cmd_drill` の
   最後の1行だった。ドリル自身の記録はその手前で書かれるので、2026-10-04 にドリル成功の直後
   （ビルドキャッシュの削除中）にプロセスが落ちたとき、**ドリルは ok のまま掃除だけ記録を失った**。

@@ -1276,9 +1276,14 @@ cmd_clean() {
 # ------------------------------------
 # clean-cache - Docker Build Cache の安全な削除
 # ------------------------------------
+# **絞り込みのフラグは渡さない**。Docker Desktop の builder では
+# `--filter until=...` も `--max-used-space` も何も消さずに成功するため
+# （実測・2026-10-07。詳細は ops-common.sh の ops_docker_prune のコメント）、
+# ここは長く「7日以上使われていないものを削除」と表示しながら 0B しか消して
+# いなかった。素の prune に替えてある。
 cmd_clean_cache() {
   local mode="${1:-}"
-  local prune_args=(builder prune --force --filter "until=168h")
+  local prune_args=(builder prune --force)
 
   print_banner "Tax Apps - Docker Build Cache Cleanup"
   echo "  削除対象: Docker Build Cache のみ"
@@ -1287,7 +1292,7 @@ cmd_clean_cache() {
 
   case "$mode" in
     "")
-      echo "  モード: 7日以上使われていない Build Cache を削除"
+      echo "  モード: 使われていない Build Cache を削除（イメージと共有している層は残る）"
       ;;
     --all)
       warn "モード: 未使用の Build Cache をすべて削除"
@@ -1486,12 +1491,12 @@ cmd_prune() {
     echo ""
     echo "After:"
     print_docker_disk_usage
-    ops_write_last_result prune ok "docker prune done"
+    ops_write_last_result prune ok "${OPS_PRUNE_DETAIL:-docker prune done}"
     return 0
   fi
 
   err "Docker の掃除に失敗しました"
-  ops_write_last_result prune failed "docker prune failed"
+  ops_write_last_result prune failed "${OPS_PRUNE_DETAIL:-docker prune failed}"
   return 1
 }
 

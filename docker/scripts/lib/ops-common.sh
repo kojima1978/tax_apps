@@ -359,6 +359,26 @@ ops_show_toast() {
   return 0
 }
 
+# "19.06GB" / "512MB" / "0B" → バイト数。docker の表示は 1000 進（units.HumanSize）。
+ops_size_to_bytes() {
+  awk -v s="${1:-0}" 'BEGIN {
+    if (match(s, /[0-9.]+/) == 0) { print 0; exit }
+    n = substr(s, RSTART, RLENGTH) + 0
+    u = substr(s, RSTART + RLENGTH)
+    gsub(/[^A-Za-z]/, "", u)
+    m = 1
+    if (u == "kB" || u == "KB") m = 1000
+    else if (u == "MB") m = 1000 * 1000
+    else if (u == "GB") m = 1000 * 1000 * 1000
+    else if (u == "TB") m = 1000 * 1000 * 1000 * 1000
+    else if (u == "KiB") m = 1024
+    else if (u == "MiB") m = 1024 * 1024
+    else if (u == "GiB") m = 1024 * 1024 * 1024
+    else if (u == "TiB") m = 1024 * 1024 * 1024 * 1024
+    printf "%.0f", n * m
+  }'
+}
+
 # ------------------------------------
 # Docker の掃除
 # ------------------------------------
@@ -370,17 +390,82 @@ ops_show_toast() {
 #   - **ボリュームには絶対に触らない**。`docker volume prune` は停止中の
 #     コンテナのボリュームを未使用とみなすので、アプリを止めている間に
 #     走ると DB ごと消える
+#
+# **ビルドキャッシュに絞り込みのフラグを渡してはいけない**（実測・2026-10-07）。
+# Docker Desktop の builder（driver=docker / buildkit v0.33.1 / server 29.8.2）では
+# `--max-used-space` / `--reserved-space` / `--filter until=...` のどれを渡しても
+# **`Total: 0B` で何も消さず、終了コードは 0**。以前ここは
+# `docker builder prune --force --max-used-space 10GB` で、毎回成功を記録しながら
+# 1バイトも消しておらず、61.22GB まで積み上がっていた（フラグを外した素の
+# `docker builder prune --force` に替えた途端 19.06GB 消えた）。
+#
+# 素の prune は「掃除できる分」を全部落とす。日常的に効かせると次のビルドが
+# 毎回全やり直しになるので、**上限を超えたときだけ呼ぶ**形で
+# `--max-used-space` の意図だけを残している（刻んで消す手段が無い）。
+#
+# 見るのは `docker buildx du` の **Private**。Reclaimable はイメージと共有して
+# いる層（Shared）を含むので、prune してもそのぶんは減らない
+# （`docker system df` の Build Cache RECLAIMABLE 列と一致するのは Private）。
 ops_docker_prune() {
   local image_until="${TAX_APPS_PRUNE_IMAGE_UNTIL:-720h}"
   local cache_max="${TAX_APPS_PRUNE_CACHE_MAX:-10GB}"
   local failed=0
+  local img_detail="images ?" cache_detail="cache ?"
+  OPS_PRUNE_DETAIL=""
 
   echo "  dangling イメージ（${image_until} 以上前）:"
-  docker image prune --force --filter "until=$image_until" 2>&1 | sed 's/^/    /' || failed=1
+  local img_out="" img_rc=0 img_freed="" img_deleted=0
+  img_out=$(docker image prune --force --filter "until=$image_until" 2>&1) || img_rc=$?
+  if [[ $img_rc -ne 0 ]]; then
+    printf '%s\n' "$img_out" | tail -5 | sed 's/^/    /'
+    failed=1
+    img_detail="images failed"
+  else
+    img_freed=$(printf '%s\n' "$img_out" | awk -F': ' '/reclaimed space/ { print $2 }' | head -1)
+    img_deleted=$(printf '%s\n' "$img_out" | grep -c '^deleted:') || img_deleted=0
+    echo "    削除: ${img_freed:-0B}（${img_deleted}層）"
+    img_detail="images ${img_freed:-0B}"
+  fi
 
-  echo "  ビルドキャッシュ（${cache_max} まで縮める）:"
-  docker builder prune --force --max-used-space "$cache_max" 2>&1 | sed 's/^/    /' || failed=1
+  echo "  ビルドキャッシュ（掃除できる分が ${cache_max} を超えたら落とす）:"
+  local du_out="" du_rc=0 private_raw="" private_bytes=0 limit_bytes=0
+  du_out=$(docker buildx du 2>&1) || du_rc=$?
+  if [[ $du_rc -ne 0 ]]; then
+    printf '%s\n' "$du_out" | tail -5 | sed 's/^/    /'
+    failed=1
+    cache_detail="cache failed"
+  else
+    private_raw=$(printf '%s\n' "$du_out" | awk '/^Private:/ { print $2 }' | head -1)
+    if [[ -z "$private_raw" ]]; then
+      # 出力形式が変わったら黙って素通りさせない（それが今回の原因そのもの）
+      echo "    サイズを読めませんでした（docker buildx du の Private 行が無い）"
+      failed=1
+      cache_detail="cache unreadable"
+    else
+      private_bytes=$(ops_size_to_bytes "$private_raw")
+      limit_bytes=$(ops_size_to_bytes "$cache_max")
+      if [[ "$private_bytes" -gt "$limit_bytes" ]]; then
+        echo "    掃除できる分 ${private_raw} > 上限 ${cache_max} → まとめて落とします"
+        local prune_out="" prune_rc=0 freed="" deleted=0
+        prune_out=$(docker builder prune --force 2>&1) || prune_rc=$?
+        if [[ $prune_rc -ne 0 ]]; then
+          printf '%s\n' "$prune_out" | tail -5 | sed 's/^/    /'
+          failed=1
+          cache_detail="cache failed"
+        else
+          freed=$(printf '%s\n' "$prune_out" | awk '/^Total:/ { print $2 }' | head -1)
+          deleted=$(printf '%s\n' "$prune_out" | grep -cE '^[0-9a-z]{20,}') || deleted=0
+          echo "    削除: ${freed:-0B}（${deleted}件）"
+          cache_detail="cache ${freed:-0B} freed"
+        fi
+      else
+        echo "    掃除できる分 ${private_raw} <= 上限 ${cache_max} → 残します"
+        cache_detail="cache ${private_raw} kept"
+      fi
+    fi
+  fi
 
+  OPS_PRUNE_DETAIL="${img_detail} / ${cache_detail}"
   [[ $failed -eq 0 ]]
 }
 

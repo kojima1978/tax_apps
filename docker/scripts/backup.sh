@@ -1393,12 +1393,12 @@ cmd_drill() {
 run_scheduled_prune() {
   print_banner "Docker Cleanup"
   if ops_docker_prune; then
-    ops_write_last_result "prune" "ok" "scheduled"
+    ops_write_last_result "prune" "ok" "scheduled / ${OPS_PRUNE_DETAIL:-done}"
     echo ""
     return 0
   fi
   warn "Docker の掃除に失敗しました"
-  ops_write_last_result "prune" "failed" "scheduled"
+  ops_write_last_result "prune" "failed" "scheduled / ${OPS_PRUNE_DETAIL:-failed}"
   echo ""
   return 1
 }
