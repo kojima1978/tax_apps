@@ -4,7 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import { validateBalance } from '../lib/balance.js';
 import { parseStatementDate, toIsoDate } from '../lib/dates.js';
+import { buildDuplicateWarning, buildExistingIndex, markDuplicates } from '../lib/dedup.js';
 import { parseAmount } from '../lib/import/loadStatement.js';
+import { pyRound } from '../lib/pyRound.js';
 import { matchesAllKeywords, normalizeText, splitKeywords } from '../lib/text.js';
 
 describe('parseStatementDate', () => {
@@ -134,5 +136,97 @@ describe('validateBalance', () => {
       ['2021-04-02', null],
       ['2021-04-01', null],
     ]);
+  });
+});
+
+describe('pyRound', () => {
+  it.each([
+    [0.125, 2, 0.12],
+    [0.375, 2, 0.38],
+    [2.675, 2, 2.67], // 2.675 は実際には 2.67499… なので切り捨て
+    [12.5, 0, 12],
+    [13.5, 0, 14],
+    [0.5, 0, 0],
+    [-2.5, 0, -2],
+    [1 / 3, 2, 0.33],
+    [2 / 3, 2, 0.67],
+    [100, 0, 100],
+  ])('round(%d, %d) = %d', (x, n, expected) => {
+    expect(pyRound(x, n)).toBe(expected);
+  });
+});
+
+describe('markDuplicates', () => {
+  const tx = (date: string, amountOut: number, balance: number | null, description = 'ATM') => ({
+    accountNumber: '1111111',
+    date,
+    amountOut,
+    amountIn: 0,
+    description,
+    balance,
+  });
+
+  it('DB にある件数までを重複にし、残高まで一致する行を先に選ぶ', () => {
+    const index = buildExistingIndex([tx('2024-04-01', 1000, 9000)]);
+    const { rows, duplicateCount } = markDuplicates(
+      [tx('2024-04-01', 1000, 8000), tx('2024-04-01', 1000, 9000)],
+      index,
+      '',
+    );
+    expect(duplicateCount).toBe(1);
+    expect(rows.map((r) => [r.isDuplicate, r.dupConfidence])).toEqual([
+      [false, null],
+      [true, 'high'],
+    ]);
+  });
+
+  it('残高が合わなければ low。索引は消費されるので2回目は重複にならない', () => {
+    const index = buildExistingIndex([tx('2024-04-01', 1000, 9000)]);
+    const first = markDuplicates([tx('2024-04-01', 1000, null)], index, '');
+    expect(first.rows[0]).toMatchObject({ isDuplicate: true, dupConfidence: 'low' });
+    const second = markDuplicates([tx('2024-04-01', 1000, 9000)], index, '');
+    expect(second.duplicateCount).toBe(0);
+  });
+
+  it('摘要の前後の空白は無視し、口座番号が無い行は既定の番号で比べる', () => {
+    const index = buildExistingIndex([tx('2024-04-01', 1000, 9000)]);
+    const { duplicateCount } = markDuplicates(
+      [{ ...tx('2024-04-01', 1000, 9000, ' ATM '), accountNumber: null }],
+      index,
+      '1111111',
+    );
+    expect(duplicateCount).toBe(1);
+  });
+
+  it('口座番号の先頭の 0 は別の番号として扱う', () => {
+    const index = buildExistingIndex([{ ...tx('2024-04-01', 1000, 9000), accountNumber: '12345' }]);
+    const { duplicateCount } = markDuplicates([{ ...tx('2024-04-01', 1000, 9000), accountNumber: '0012345' }], index, '');
+    expect(duplicateCount).toBe(0);
+  });
+});
+
+describe('buildDuplicateWarning', () => {
+  const rows = (pattern: string) => [...pattern].map((c) => ({ isDuplicate: c === 'x' }));
+
+  it('3行続けば連続の注意', () => {
+    expect(buildDuplicateWarning(rows('.xxx.'), 3, 5)?.message).toBe(
+      '既存データと 3 行連続で一致しています。重複インポートの可能性が高いです。',
+    );
+  });
+
+  it('続かなくても3割以上なら割合の注意（Python と同じ丸め）', () => {
+    const w = buildDuplicateWarning(rows('x.x.x...'), 3, 8);
+    expect(w).toEqual({
+      maxRun: 1,
+      ratio: 0.38,
+      duplicateCount: 3,
+      message: '8 件中 3 件（38%）が既存データと一致しています。',
+    });
+  });
+
+  it('少なければ出さない', () => {
+    expect(buildDuplicateWarning(rows('x.x.......'), 2, 10)).toBeNull();
+    expect(buildDuplicateWarning(rows('x.x.x.....'), 3, 10)).toEqual(expect.objectContaining({ ratio: 0.3 }));
+    expect(buildDuplicateWarning(rows('x.x.x......'), 3, 11)).toBeNull();
   });
 });
