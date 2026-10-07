@@ -379,6 +379,29 @@ ops_size_to_bytes() {
   }'
 }
 
+# バイト数 → "6.66GB" のような表示（1000進で docker の表示に合わせる）
+ops_bytes_to_size() {
+  awk -v b="${1:-0}" 'BEGIN {
+    b = b + 0
+    if (b >= 1000000000) { printf "%.2fGB", b / 1000000000; exit }
+    if (b >= 1000000) { printf "%.2fMB", b / 1000000; exit }
+    if (b >= 1000) { printf "%.2fkB", b / 1000; exit }
+    printf "%dB", b
+  }'
+}
+
+# docker system df の Images SIZE 列（バイト）。
+# **イメージを消した量は docker 自身の数字を信じてはいけない** ──
+# この環境（Docker Desktop / containerd image store）では
+# `docker image prune` が50層消して 6.66GB 減らしながら
+# `Total reclaimed space: 0B` と報告する（実測・2026-10-07）。
+# 前後の df の差を自分で取る。
+ops_docker_images_size_bytes() {
+  local raw=""
+  raw=$(docker system df 2>/dev/null | awk '/^Images/ { print $4 }' | head -1)
+  ops_size_to_bytes "${raw:-0}"
+}
+
 # ------------------------------------
 # Docker の掃除
 # ------------------------------------
@@ -387,6 +410,12 @@ ops_size_to_bytes() {
 #   - dangling イメージだけ（`-a` は付けない）。`-a` は「停止中のコンテナが
 #     使うはずのイメージ」まで消すため、prod で止めてあるアプリが次の起動で
 #     いきなり再ビルドになる
+#   - dangling の保持は **168h**（`TAX_APPS_PRUNE_IMAGE_UNTIL`）。掃除の周期
+#     （`DUE_PRUNE_HOURS` 既定144h）より長くしてあるので、どの dangling も
+#     最低1周は残る＝「直前のビルドに戻す」余地は常にある。以前は 720h で、
+#     **248件・UNIQUE SIZE 合計 18.3GB を1ヶ月抱えていた**（720h より古いのは
+#     5件だけ＝実質まるごと保持）。720h には由来の記録が無く、何も消して
+#     いなかったキャッシュ行と同じコミットで置かれた既定値
 #   - **ボリュームには絶対に触らない**。`docker volume prune` は停止中の
 #     コンテナのボリュームを未使用とみなすので、アプリを止めている間に
 #     走ると DB ごと消える
@@ -407,7 +436,7 @@ ops_size_to_bytes() {
 # いる層（Shared）を含むので、prune してもそのぶんは減らない
 # （`docker system df` の Build Cache RECLAIMABLE 列と一致するのは Private）。
 ops_docker_prune() {
-  local image_until="${TAX_APPS_PRUNE_IMAGE_UNTIL:-720h}"
+  local image_until="${TAX_APPS_PRUNE_IMAGE_UNTIL:-168h}"
   local cache_max="${TAX_APPS_PRUNE_CACHE_MAX:-10GB}"
   local failed=0
   local img_detail="images ?" cache_detail="cache ?"
@@ -415,16 +444,19 @@ ops_docker_prune() {
 
   echo "  dangling イメージ（${image_until} 以上前）:"
   local img_out="" img_rc=0 img_freed="" img_deleted=0
+  local img_before=0 img_after=0
+  img_before=$(ops_docker_images_size_bytes)
   img_out=$(docker image prune --force --filter "until=$image_until" 2>&1) || img_rc=$?
   if [[ $img_rc -ne 0 ]]; then
     printf '%s\n' "$img_out" | tail -5 | sed 's/^/    /'
     failed=1
     img_detail="images failed"
   else
-    img_freed=$(printf '%s\n' "$img_out" | awk -F': ' '/reclaimed space/ { print $2 }' | head -1)
+    img_after=$(ops_docker_images_size_bytes)
+    img_freed=$(ops_bytes_to_size "$(( img_before > img_after ? img_before - img_after : 0 ))")
     img_deleted=$(printf '%s\n' "$img_out" | grep -c '^deleted:') || img_deleted=0
-    echo "    削除: ${img_freed:-0B}（${img_deleted}層）"
-    img_detail="images ${img_freed:-0B}"
+    echo "    削除: ${img_freed}（${img_deleted}層）"
+    img_detail="images ${img_freed}"
   fi
 
   echo "  ビルドキャッシュ（掃除できる分が ${cache_max} を超えたら落とす）:"

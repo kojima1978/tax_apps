@@ -271,6 +271,8 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
   放っておくとウォッチドッグ自身の失敗が誰にも届かない
 - **定期的な掃除は `ops_docker_prune`**（手で叩くなら `manage.sh prune`、無人は `due` の3番目）。
   **dangling イメージだけ**で `-a` は付けない（停止中のアプリのイメージまで消えて次の起動が再ビルドになる）。
+  **dangling の保持は168h**（`TAX_APPS_PRUNE_IMAGE_UNTIL`）── 掃除の周期（144h）より長いので
+  どの dangling も最低1周は残る。以前は720hで、**248件・UNIQUE SIZE 18.3GB を1ヶ月抱えていた**。
   **ボリュームには絶対に触らない**（`docker volume prune` は停止中コンテナのボリュームを未使用と
   みなすので、アプリを止めている間に走ると DB ごと消える）。専用のスケジュールタスクは作らず
   既に起きているウォッチドッグに乗せる ── 無人タスクを増やすほど「消えたのに誰も気づかない」
