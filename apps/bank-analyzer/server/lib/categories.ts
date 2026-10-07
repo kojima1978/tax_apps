@@ -22,6 +22,13 @@ export const CATEGORY_RENAMES: Readonly<Record<string, string>> = {
 
 export const normalizeCategory = (category: string): string => CATEGORY_RENAMES[category] ?? category;
 
+// 標準カテゴリーの順 → 知らないカテゴリーは後ろに文字コード順
+export function sortCategories(categories: Iterable<string>): string[] {
+  const order = new Map<string, number>(STANDARD_CATEGORIES.map((c, i) => [c, i]));
+  const rank = (c: string) => order.get(c) ?? order.size;
+  return [...new Set(categories)].sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0));
+}
+
 export type Patterns = Readonly<Record<string, readonly string[]>>;
 
 export const DEFAULT_PATTERNS: Patterns = {

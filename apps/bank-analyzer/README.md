@@ -69,3 +69,9 @@ npx prisma migrate deploy
 計算部分を移すたびに、ここと突き合わせるテストを足していく。**実データの正解は
 リポジトリ外**（`~/.tax-apps/bank-analyzer-golden/`）にあり、リポジトリは公開なので
 ここへは入れない。
+
+集計（`aggregate.test.ts`）は実データの正解でも回せる（手で叩く。結果の中身は出さない）:
+
+```bash
+MSYS_NO_PATHCONV=1 docker compose --profile test run --rm --no-deps -e BANK_ANALYZER_GOLDEN_DIR=/golden -v "$(cygpath -w ~/.tax-apps/bank-analyzer-golden):/golden:ro" bank-analyzer-test npx vitest run server/__tests__/aggregate.test.ts
+```
