@@ -11,7 +11,17 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY package*.json ./
-RUN --mount=type=cache,id=npm-portal,target=/root/.npm npm ci
+RUN --mount=type=cache,id=npm-portal,target=/root/.npm npm ci && \
+    # npm ci はロックファイルの os/cpu だけで絞り込む。lockfileVersion 3 には
+    # libc フィールドが無く（npm 10.9 でも書き出さない）、musl 用と glibc 用の
+    # ネイティブバイナリが両方入る。Alpine(musl) では glibc 用は使われないので消す。
+    # 同じ RUN 層で消さないとイメージは縮まない。
+    rm -rf node_modules/@next/swc-linux-x64-gnu \
+           node_modules/@img/sharp-libvips-linux-x64 \
+           node_modules/@img/sharp-linux-x64 \
+           node_modules/@tailwindcss/oxide-linux-x64-gnu \
+           node_modules/lightningcss-linux-x64-gnu \
+           node_modules/@unrs/resolver-binding-linux-x64-gnu
 COPY --link . .
 RUN --mount=type=cache,id=next-portal,target=/app/.next/cache \
     npm run build

@@ -22,7 +22,16 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,id=npm-store-insurance,target=/root/.npm \
-    npm ci
+    npm ci && \
+    # npm ci はロックファイルの os/cpu だけで絞り込む。lockfileVersion 3 には
+    # libc フィールドが無く（npm 10.9 でも書き出さない）、musl 用と glibc 用の
+    # ネイティブバイナリが両方入る。Alpine(musl) では glibc 用は使われないので消す。
+    # 同じ RUN 層で消さないとイメージは縮まない。
+    # sharp の glibc 用は standalone のトレースにも入るので本番にも効く。
+    rm -rf node_modules/@next/swc-linux-x64-gnu \
+           node_modules/@img/sharp-libvips-linux-x64 \
+           node_modules/@img/sharp-linux-x64 \
+           node_modules/@unrs/resolver-binding-linux-x64-gnu
 
 # =============================================================================
 # Development - hot reload

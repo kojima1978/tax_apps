@@ -16,7 +16,9 @@ RUN --mount=type=cache,id=npm-store-private-banking,target=/root/.npm npm ci && 
     # 同じ RUN 層で消さないとイメージは縮まない。
     rm -rf node_modules/@next/swc-linux-x64-gnu \
            node_modules/@img/sharp-libvips-linux-x64 \
-           node_modules/@img/sharp-linux-x64 && \
+           node_modules/@img/sharp-linux-x64 \
+           node_modules/@unrs/resolver-binding-linux-x64-gnu \
+           node_modules/@rollup/rollup-linux-x64-gnu && \
     # lucide-react の UMD は CDN 配信用（package.json の unpkg だけが指す）。
     # dist/cjs は main が指しており、vitest(vite) のパッケージ解決に必要なので残す。
     rm -rf node_modules/lucide-react/dist/umd

@@ -6,7 +6,12 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,id=npm-store-inheritance-tax-app,target=/root/.npm npm ci
+RUN --mount=type=cache,id=npm-store-inheritance-tax-app,target=/root/.npm npm ci && \
+    # npm ci はロックファイルの os/cpu だけで絞り込む。lockfileVersion 3 には
+    # libc フィールドが無く（npm 10.9 でも書き出さない）、musl 用と glibc 用の
+    # ネイティブバイナリが両方入る。Alpine(musl) では glibc 用は使われないので消す。
+    # 同じ RUN 層で消さないとイメージは縮まない。
+    rm -rf node_modules/@rollup/rollup-linux-x64-gnu
 
 FROM deps AS dev
 ENV NODE_ENV=development TZ=Asia/Tokyo APP_PORT=3004

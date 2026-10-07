@@ -45,7 +45,18 @@ FROM base AS deps
 ARG NPM_CACHE_ID=npm-store-app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,id=${NPM_CACHE_ID},target=/root/.npm \
-    npm ci
+    npm ci && \
+    # npm ci はロックファイルの os/cpu だけで絞り込む。lockfileVersion 3 には
+    # libc フィールドが無く（npm 10.9 でも書き出さない）、musl 用と glibc 用の
+    # ネイティブバイナリが両方入る。Alpine(musl) では glibc 用は使われないので消す。
+    # 同じ RUN 層で消さないとイメージは縮まない。
+    rm -rf node_modules/@rollup/rollup-linux-x64-gnu \
+           node_modules/lightningcss-linux-x64-gnu \
+           node_modules/@tailwindcss/oxide-linux-x64-gnu && \
+    # @napi-rs/lzma は rollup の optionalDependencies に gnu 版しか並んでおらず
+    # musl 版が存在しない。musl 上では読み込み自体が失敗する（__memcpy_chk が
+    # 見つからない）ので、rollup が require していない以上ただの死荷重。
+    rm -rf node_modules/@napi-rs/lzma-linux-x64-gnu
 
 # =============================================================================
 # Development stage - For local development with hot reload

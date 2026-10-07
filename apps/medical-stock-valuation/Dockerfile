@@ -31,7 +31,11 @@ RUN --mount=type=cache,id=npm-store-medical-stock-valuation,target=/root/.npm \
     rm -rf node_modules/@next/swc-linux-x64-gnu \
            node_modules/@img/sharp-libvips-linux-x64 \
            node_modules/@img/sharp-linux-x64 && \
-    # Next.js は ESM を使用 — UMD/CJS ビルドは不要
+    # Next.js は ESM を使用 — UMD/CJS ビルドは不要。
+    # ただし dist/cjs は package.json の main が指しており（exports は無い）、
+    # vitest(vite) のパッケージ解決はそこを見る。このアプリにテストを足すなら
+    # dist/cjs の行を消すこと（残すと「Failed to resolve entry for package
+    # "lucide-react"」でテストファイルが収集できない）。
     rm -rf node_modules/lucide-react/dist/umd \
            node_modules/lucide-react/dist/cjs
 
