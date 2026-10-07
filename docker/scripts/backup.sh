@@ -799,7 +799,7 @@ _ensure_task() {
   local register_script="$SCRIPT_DIR/$script_name"
   if [[ ! -f "$register_script" ]]; then
     log_to_watchdog "ERROR" "$script_name not found; cannot re-register '$task_name'."
-    return 0
+    return 1
   fi
 
   if powershell.exe -NoProfile -ExecutionPolicy Bypass \
@@ -810,6 +810,7 @@ _ensure_task() {
   else
     err "Failed to re-register the scheduled task: $task_name"
     log_to_watchdog "ERROR" "Failed to re-register '$task_name'. Run $bat_name manually."
+    return 1
   fi
 }
 
@@ -821,11 +822,32 @@ ensure_watchdog_task() {
   # 自身とドリルが抜けていて、見張り役の backup.sh を起こすタスクが消えると
   # 自己修復ごと止まる循環依存になっていた。いまはウォッチドッグが
   # backup.sh due を呼ぶ経路があるので、そちらからも消失を検知して直せる。
+  #
+  # 再登録に失敗したことを1件記録する。ここが無かったために、タスクが
+  # 消えたまま直せていない状態が数ヶ月誰にも届かなかった ── 失敗は
+  # watchdog.log に1行出るだけで、last-run を見る status / preflight と
+  # デスクトップの警告にはどちらにも現れなかった。
   local entry name base
+  local failed=()
   for entry in "${OPS_SCHEDULED_TASKS[@]}"; do
     IFS='|' read -r name base _ _ <<< "$entry"
-    _ensure_task "$name" "$base.ps1" "$base.bat"
+    if ! _ensure_task "$name" "$base.ps1" "$base.bat"; then
+      failed+=("$name")
+    fi
   done
+
+  if [[ ${#failed[@]} -gt 0 ]]; then
+    ops_write_last_result "scheduled-tasks" "register-failed" \
+      "$(IFS=','; echo "${failed[*]}")"
+  else
+    ops_write_last_result "scheduled-tasks" "ok" \
+      "${#OPS_SCHEDULED_TASKS[@]} 件を確認"
+  fi
+
+  # 呼び出し元（cmd_backup / cmd_due）は errexit の下で裸で呼ぶので、
+  # ここで非0を返すとタスクが1つ消えているだけでバックアップ本体が
+  # 中断する。知らせる口は上の記録で足りている。
+  return 0
 }
 
 cmd_backup() {
@@ -1365,6 +1387,16 @@ cmd_drill() {
     err "This backup is NOT safely restorable. Investigate before relying on it."
     ops_write_last_result "drill" "failed" \
       "$(basename "$archive") ok=$drill_ok skipped=$drill_skip failed=$drill_fail"
+    echo ""
+    return 1
+  fi
+  # 1件も復元していない回を ok と書かない（cmd_backup の no-data と同じ扱い）。
+  # 全部 skip でも drill_fail は 0 なので、ここが無いと「訓練は成功している」
+  # という記録だけが残り、実際には何も検証していない状態が隠れる。
+  if [[ $drill_ok -eq 0 ]]; then
+    warn "Nothing was actually restored; this drill verified nothing."
+    ops_write_last_result "drill" "no-data" \
+      "$(basename "$archive") ok=0 skipped=$drill_skip"
     echo ""
     return 1
   fi

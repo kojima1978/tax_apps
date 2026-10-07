@@ -287,11 +287,22 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
   見るのは Reclaimable ではなく **Private** ── Reclaimable はイメージと共有している層を
   含むので、落としてもそのぶんは減らない（`docker system df` の Build Cache の
   RECLAIMABLE 列と一致するのは Private）。対話式の `clean-cache` も同じ理由でフラグ無し
-- **`docker ... | sed` の後ろの `|| failed=1` は死んでいる**（パイプの終了コードは sed のもの）。
-  掃除は長らくこの形で、**docker が落ちている回でも `ok` を記録していた**。
-  コマンド置換で受けてから `|| rc=$?` で見るか、`PIPESTATUS` を読むこと。
-  消した量は `OPS_PRUNE_DETAIL` に入れて `last-run` の detail に残す
-  （`manage.sh status` に `images 0B / cache 68.47MB kept` のように出る）
+- **消した量は `OPS_PRUNE_DETAIL` に入れて `last-run` の detail に残す**
+  （`manage.sh status` に `images 0B / cache 68.47MB kept` のように出る）。
+  成功したかどうかだけでは、上の「フラグを渡すと無言で何もしない」が見えない
+- **終了コードを握り潰す書き方をしないこと**。`docker ... | sed` のようなパイプは
+  `set -o pipefail`（`manage.sh` / `backup.sh` の両方で有効）が無ければ sed の
+  終了コードしか返さない。有効なので現状は検知できているが、`lib/ops-common.sh` 自身は
+  `set` を持たない（呼び出し側のオプションに乗っている）ので、確実にしたいときは
+  コマンド置換で受けてから `|| rc=$?` で見るか `PIPESTATUS` を読む
+- **無人処理が「失敗したのに ok」と書ける経路を残さないこと**。終了コードで見分けられない
+  失敗があるなら、件数を detail に書いてウォッチドッグ側で見る。`manage.sh recover` が
+  これで、1アプリの `docker compose up` が失敗してもコマンド自体は成功するため
+  **`failed=N` を summary 行に出して**ウォッチドッグが拾う（以前は err を1行出すだけで、
+  記録には「復旧しました」しか残らなかった）。同じ形の見落としを
+  `Restart-UnhealthyTaxAppsContainers`（再起動の失敗・4時間後もまだ unhealthy）と
+  `ensure_watchdog_task`（タスクの再登録の失敗）にも足してある ── 後者は
+  **数ヶ月タスクが消えたままだった当のもので、失敗は watchdog.log の1行だけだった**
 - **無人処理を「別の無人処理の付属物」にしてはいけない**。掃除は長らく `cmd_drill` の
   最後の1行だった。ドリル自身の記録はその手前で書かれるので、2026-10-04 にドリル成功の直後
   （ビルドキャッシュの削除中）にプロセスが落ちたとき、**ドリルは ok のまま掃除だけ記録を失った**。

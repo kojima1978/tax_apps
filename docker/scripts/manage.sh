@@ -773,6 +773,7 @@ cmd_down() {
 # ------------------------------------
 RECOVER_TARGETS=0
 RECOVER_SKIPPED=0
+RECOVER_FAILED=0
 
 _do_recover() {
   local dir="$1" name="$2" fallback_mode="$3"
@@ -808,7 +809,12 @@ _do_recover() {
 
   compose_files_for_app "$dir" "$mode"
 
+  # 失敗はここで数える。以前は err を1行出すだけで、記録には
+  # status=ok recovered=1（＝試した数）しか残らなかった ── 4時間毎に
+  # 「復旧しました」と書きながらアプリは落ちたまま、という prune と
+  # 同じ形の握り潰しになっていた。
   if ! docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans; then
+    RECOVER_FAILED=$((RECOVER_FAILED + 1))
     err "  復旧に失敗しました: $name"
   fi
 }
@@ -819,21 +825,23 @@ _do_recover() {
 #
 # 同じ内容を last-run にも残す。ウォッチドッグのログは誰も開かないが、
 # last-run は status と preflight が毎回読んで表示するので目に入る。
+# recovered は「起動に成功した数」。failed を別に出すのは、ウォッチドッグが
+# 終了コードでは失敗を見分けられないため（1アプリ失敗してもコマンド自体は成功する）。
 recover_result() {
-  echo "RECOVER_RESULT status=$1 recovered=$2 skipped=$3"
-  ops_write_last_result "recover" "$1" "recovered=$2 skipped=$3"
+  echo "RECOVER_RESULT status=$1 recovered=$2 skipped=$3 failed=${4:-0}"
+  ops_write_last_result "recover" "$1" "recovered=$2 skipped=$3 failed=${4:-0}"
 }
 
 cmd_recover() {
   if [[ -f "$STOP_MARKER" ]]; then
     log "意図的な停止中のため復旧しません（解除するには start）"
     sed 's/^/  /' "$STOP_MARKER" 2>/dev/null || true
-    recover_result "stopped-intentionally" 0 0
+    recover_result "stopped-intentionally" 0 0 0
     return 0
   fi
 
   if ! preflight_quick; then
-    recover_result "preflight-failed" 0 0
+    recover_result "preflight-failed" 0 0 0
     return 1
   fi
 
@@ -844,16 +852,19 @@ cmd_recover() {
   ensure_network
   RECOVER_TARGETS=0
   RECOVER_SKIPPED=0
+  RECOVER_FAILED=0
   for_each_app _do_recover "$(read_start_mode)"
 
+  local recovered=$(( RECOVER_TARGETS - RECOVER_FAILED ))
   if [[ $RECOVER_TARGETS -eq 0 ]]; then
     log "復旧が必要なアプリはありません"
   else
-    log "$RECOVER_TARGETS 件のアプリを復旧しました"
+    log "$recovered 件のアプリを復旧しました（対象 $RECOVER_TARGETS 件）"
   fi
+  [[ $RECOVER_FAILED -gt 0 ]] && warn "$RECOVER_FAILED 件は起動に失敗しました（落ちたままです）"
   [[ $RECOVER_SKIPPED -gt 0 ]] && warn "$RECOVER_SKIPPED 件はモード不明のため見送りました"
 
-  recover_result "ok" "$RECOVER_TARGETS" "$RECOVER_SKIPPED"
+  recover_result "ok" "$recovered" "$RECOVER_SKIPPED" "$RECOVER_FAILED"
 }
 
 cmd_restart() {

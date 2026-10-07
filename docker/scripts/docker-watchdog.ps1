@@ -103,6 +103,43 @@ function Write-LastRunResult {
     }
 }
 
+# Reads back the detail line of a last-run record. The record is the only
+# memory this script has between runs: the state file belongs to the Docker
+# Desktop restart cooldown and is rewritten wholesale by Save-RestartState.
+function Read-LastRunDetail {
+    param([string]$Name)
+
+    $file = Join-Path $LastRunDir $Name
+    if (-not (Test-Path -LiteralPath $file)) {
+        return ""
+    }
+
+    try {
+        foreach ($line in (Get-Content -LiteralPath $file)) {
+            if ($line -match '^detail=(.*)$') {
+                return $Matches[1]
+            }
+        }
+    }
+    catch {
+        return ""
+    }
+    return ""
+}
+
+# Recovery has three stages and any of them can leave something broken, so the
+# issue is appended rather than assigned: the stage that runs last must not
+# erase what an earlier one found.
+function Add-RecoveryIssue {
+    param([string]$Issue)
+
+    if ([string]::IsNullOrWhiteSpace($script:RecoveryIssue)) {
+        $script:RecoveryIssue = $Issue
+        return
+    }
+    $script:RecoveryIssue = "$($script:RecoveryIssue); $Issue"
+}
+
 function Enter-WatchdogLock {
     if (Test-Path -LiteralPath $LockPath) {
         $age = (Get-Date) - (Get-Item -LiteralPath $LockPath).LastWriteTime
@@ -277,7 +314,7 @@ function Invoke-TaxAppsRecovery {
 
         if ($result.TimedOut) {
             Write-WatchdogLog "WARN" "manage.bat recover timed out after ${AppRecoveryTimeoutSeconds}s."
-            $script:RecoveryIssue = "recover timed out"
+            Add-RecoveryIssue "recover timed out"
             return
         }
 
@@ -291,7 +328,7 @@ function Invoke-TaxAppsRecovery {
                 $message = "manage.bat recover exited with code $($result.ExitCode)."
             }
             Write-WatchdogLog "WARN" $message
-            $script:RecoveryIssue = "recover exited $($result.ExitCode)"
+            Add-RecoveryIssue "recover exited $($result.ExitCode)"
             return
         }
 
@@ -311,11 +348,19 @@ function Invoke-TaxAppsRecovery {
             # the state that went unnoticed for three months.
             if ($summary -notmatch 'status=ok\b') {
                 Write-WatchdogLog "WARN" "manage.sh recover did not run: $summary"
-                $script:RecoveryIssue = $summary
+                Add-RecoveryIssue $summary
+            }
+            elseif ($summary -match 'failed=[1-9]') {
+                # "docker compose up" failed for an app that was down. The
+                # command itself still exits 0, so neither the exit code nor
+                # status=ok shows it; without this the record read
+                # "recovered=1" every four hours while the app stayed down.
+                Write-WatchdogLog "WARN" "manage.sh recover could not start apps: $summary"
+                Add-RecoveryIssue $summary
             }
             elseif ($summary -notmatch 'skipped=0\b') {
                 Write-WatchdogLog "WARN" "manage.sh recover left apps down: $summary"
-                $script:RecoveryIssue = $summary
+                Add-RecoveryIssue $summary
             }
             elseif ($summary -match 'recovered=0\b') {
                 Write-Verbose "manage.sh recover: $summary"
@@ -327,7 +372,7 @@ function Invoke-TaxAppsRecovery {
 
         if (-not $sawSummary) {
             Write-WatchdogLog "WARN" "manage.bat recover produced no RECOVER_RESULT line."
-            $script:RecoveryIssue = "no RECOVER_RESULT line"
+            Add-RecoveryIssue "no RECOVER_RESULT line"
         }
     }
     finally {
@@ -354,6 +399,8 @@ function Restart-UnhealthyTaxAppsContainers {
 
     if ($result.TimedOut) {
         Write-WatchdogLog "WARN" "docker ps for unhealthy containers timed out."
+        Add-RecoveryIssue "autoheal check timed out"
+        Write-LastRunResult -Name "autoheal" -Status "check-failed" -Detail "docker ps timed out"
         return
     }
 
@@ -363,6 +410,8 @@ function Restart-UnhealthyTaxAppsContainers {
             $message = "docker ps exited with code $($result.ExitCode)."
         }
         Write-WatchdogLog "WARN" "Could not check unhealthy containers. $message"
+        Add-RecoveryIssue "autoheal check failed"
+        Write-LastRunResult -Name "autoheal" -Status "check-failed" -Detail $message
         return
     }
 
@@ -371,13 +420,30 @@ function Restart-UnhealthyTaxAppsContainers {
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     )
 
+    if ($DryRun) {
+        if ($containers.Count -gt 0) {
+            Write-WatchdogLog "INFO" "DryRun is enabled; container restarts skipped."
+        }
+        return
+    }
+
+    # The previous run's record is the only memory of what was unhealthy last
+    # time. A container that is unhealthy again, four hours after it was
+    # restarted, is not recovering - and that state used to reach nobody: the
+    # restart was logged as INFO and the watchdog's own record stayed "ok", so
+    # "unhealthy for three weeks" never showed up on the Desktop.
+    $previous = Read-LastRunDetail -Name "autoheal"
+
+    if ($containers.Count -eq 0) {
+        Write-LastRunResult -Name "autoheal" -Status "ok" -Detail "unhealthy=0"
+        return
+    }
+
+    $restarted = @()
+    $failed = @()
+
     foreach ($container in $containers) {
         Write-WatchdogLog "WARN" "Restarting unhealthy Tax Apps container: $container"
-
-        if ($DryRun) {
-            Write-WatchdogLog "INFO" "DryRun is enabled; container restart skipped."
-            continue
-        }
 
         $restart = Invoke-ProcessWithTimeout `
             -FilePath $DockerCli `
@@ -386,15 +452,38 @@ function Restart-UnhealthyTaxAppsContainers {
 
         if (-not $restart.TimedOut -and $restart.ExitCode -eq 0) {
             Write-WatchdogLog "INFO" "Container restarted: $container"
+            $restarted += $container
         }
         elseif ($restart.TimedOut) {
             Write-WatchdogLog "WARN" "docker restart timed out: $container"
+            $failed += $container
         }
         else {
             $message = ($restart.StdErr | Out-String).Trim()
             Write-WatchdogLog "WARN" "docker restart failed for $container. $message"
+            $failed += $container
         }
     }
+
+    $detail = "unhealthy=$($containers.Count) restarted=$($restarted.Count) failed=$($failed.Count) [$($containers -join ',')]"
+
+    if ($failed.Count -gt 0) {
+        Add-RecoveryIssue "restart failed: $($failed -join ',')"
+        Write-LastRunResult -Name "autoheal" -Status "restart-failed" -Detail $detail
+        return
+    }
+
+    $recurring = @($containers | Where-Object { $previous -like "*$_*" })
+    if ($recurring.Count -gt 0) {
+        Write-WatchdogLog "WARN" "Unhealthy again since the previous run: $($recurring -join ',')"
+        Add-RecoveryIssue "unhealthy again: $($recurring -join ',')"
+        Write-LastRunResult -Name "autoheal" -Status "unhealthy-again" -Detail $detail
+        return
+    }
+
+    # Restarted cleanly and for the first time: no alert, but the record keeps
+    # the names so the next run can tell whether the restart actually helped.
+    Write-LastRunResult -Name "autoheal" -Status "ok" -Detail $detail
 }
 
 function Get-WatchdogState {

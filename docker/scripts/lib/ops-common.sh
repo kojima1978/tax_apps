@@ -188,6 +188,10 @@ OPS_WATCHED_RESULTS=(
   "prune:Dockerの掃除:Docker prune:192"
   "recover:復旧(recover):App recovery:48"
   "watchdog:ウォッチドッグ:Docker watchdog:48"
+  # 以下2件はウォッチドッグが4時間毎に書く。48時間は「12回連続で
+  # 書けていない」に相当する（＝ウォッチドッグ自体が止まっている）。
+  "scheduled-tasks:スケジュールタスクの生存確認:Scheduled tasks:48"
+  "autoheal:unhealthy の自動再起動:Unhealthy autoheal:48"
 )
 
 # ------------------------------------
