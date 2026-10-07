@@ -1,17 +1,18 @@
-// API の組み立て。DB を外から渡す形にしてあるのは、テストで DB 無しに回すため
-// （テスト用サービスは DB につながない）。起動は index.ts。
+// API の組み立て。DB を外から渡す形にしてあるのは、テストで使い捨ての DB や
+// 差し替えを渡すため。起動は index.ts。
 
 import { Hono } from 'hono';
 import type { PrismaClient } from '@prisma/client';
-import { toDateString, toId } from './json.js';
+import { caseRouter } from './routes/common.js';
+import { caseRoutes } from './routes/cases.js';
+import { categoryRoutes } from './routes/categories.js';
+import { transactionRoutes } from './routes/transactions.js';
 
 // 並行稼働の間の仮のパス。切り替え（段階7）で '/bank-analyzer' に戻す。
 // vite.config.ts の base と必ずそろえること。
 export const BASE_PATH = '/bank-analyzer-next';
 
-export type AppDb = Pick<PrismaClient, '$queryRaw' | 'case'>;
-
-export function createApp(db: AppDb) {
+export function createApp(db: PrismaClient) {
   const app = new Hono();
 
   // DB まで届くかを見る。届かないまま「起動はしている」状態で動き続けると、
@@ -27,27 +28,17 @@ export function createApp(db: AppDb) {
     }
   });
 
-  // 案件一覧。並び順は Django 版と同じ（作成日時の新しい順）。
-  app.get(`${BASE_PATH}/api/cases`, async (c) => {
-    const cases = await db.case.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        referenceDate: true,
-        _count: { select: { transactions: true } },
-      },
-    });
-    return c.json(
-      cases.map((row) => ({
-        id: toId(row.id),
-        name: row.name,
-        createdAt: row.createdAt.toISOString(),
-        referenceDate: toDateString(row.referenceDate),
-        transactionCount: row._count.transactions,
-      })),
-    );
+  // /api/cases 以下はすべて1つのルーターに載せる（routes/common.ts）
+  const cases = caseRouter(db);
+  caseRoutes(cases, db);
+  transactionRoutes(cases, db);
+  categoryRoutes(cases, db);
+  app.route(`${BASE_PATH}/api/cases`, cases);
+
+  // 例外の中身（SQL や内部のパス）は画面に出さない。ログにだけ残す。
+  app.onError((error, c) => {
+    console.error('[api] 処理中にエラー:', error);
+    return c.json({ success: false, error: 'サーバーエラーが発生しました' }, 500);
   });
 
   return app;
