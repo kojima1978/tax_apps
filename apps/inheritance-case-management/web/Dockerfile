@@ -24,7 +24,17 @@ FROM base AS deps
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN --mount=type=cache,id=npm-store-itcm-web,target=/root/.npm \
-    npm ci
+    npm ci && \
+    # npm ci はロックファイルの os/cpu だけで絞り込む。lockfileVersion 3 には
+    # libc フィールドが無く（npm 10.9 でも書き出さない）、musl 用と glibc 用の
+    # ネイティブバイナリが両方入る。Alpine(musl) では glibc 用は使われないので消す。
+    # 同じ RUN 層で消さないとイメージは縮まない。
+    rm -rf node_modules/@next/swc-linux-x64-gnu \
+           node_modules/@img/sharp-libvips-linux-x64 \
+           node_modules/@img/sharp-linux-x64 && \
+    # lucide-react の UMD は CDN 配信用（package.json の unpkg だけが指す）。
+    # dist/cjs は main が指しており、vitest(vite) のパッケージ解決に必要なので残す。
+    rm -rf node_modules/lucide-react/dist/umd
 
 # =============================================================================
 # Development stage - For local development with hot reload
