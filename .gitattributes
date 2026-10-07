@@ -10,3 +10,8 @@ Dockerfile* text eol=lf
 # 上と同じ事故の入口なので、向きを明示して固定しておく。
 *.bat text eol=crlf
 *.ps1 text eol=crlf
+
+# 正解の記録の入力・出力は1バイトでも変わると突き合わせが壊れる（改行コードも試験の対象）。
+# 変換させずにそのまま持ち運ぶ。
+apps/bank-analyzer/test-data/golden/inputs/files/** -text
+apps/bank-analyzer/test-data/golden/expected/** -text

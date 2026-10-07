@@ -1,0 +1,42 @@
+{
+ "allow_multiple_false": {
+  "error": "EncodingError",
+  "type": "encoding",
+  "type_label": "文字コードエラー",
+  "message": "ファイルの読み込みに失敗しました。",
+  "suggestion": "以下の対処法をお試しください:\n1. Excelで開き、「名前を付けて保存」で「CSV UTF-8」形式を選択\n2. テキストエディタで開き、UTF-8またはShift-JISで保存し直す\n3. ファイルが破損していないか確認する",
+  "line_number": null,
+  "column_name": null,
+  "expected_value": null,
+  "actual_value": "ファイルヘッダ: E5B9B4E69C88E697",
+  "sample_values": [],
+  "tried_encodings": [
+   "utf-8-sig",
+   "utf-8",
+   "cp932",
+   "shift_jis",
+   "excel",
+   "cp932_replace"
+  ]
+ },
+ "allow_multiple_true": {
+  "error": "EncodingError",
+  "type": "encoding",
+  "type_label": "文字コードエラー",
+  "message": "ファイルの読み込みに失敗しました。",
+  "suggestion": "以下の対処法をお試しください:\n1. Excelで開き、「名前を付けて保存」で「CSV UTF-8」形式を選択\n2. テキストエディタで開き、UTF-8またはShift-JISで保存し直す\n3. ファイルが破損していないか確認する",
+  "line_number": null,
+  "column_name": null,
+  "expected_value": null,
+  "actual_value": "ファイルヘッダ: E5B9B4E69C88E697",
+  "sample_values": [],
+  "tried_encodings": [
+   "utf-8-sig",
+   "utf-8",
+   "cp932",
+   "shift_jis",
+   "excel",
+   "cp932_replace"
+  ]
+ }
+}

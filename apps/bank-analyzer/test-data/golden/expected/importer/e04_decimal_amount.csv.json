@@ -1,0 +1,98 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "利息",
+    "amount_out": 0,
+    "amount_in": 100,
+    "balance": 100100
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "ATM",
+    "amount_out": 1000,
+    "amount_in": 0,
+    "balance": 99100
+   }
+  ],
+  "validated": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "利息",
+    "amount_out": 0,
+    "amount_in": 100,
+    "balance": 100100,
+    "calc_balance": 100100,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "ATM",
+    "amount_out": 1000,
+    "amount_in": 0,
+    "balance": 99100,
+    "calc_balance": 99100,
+    "is_balance_error": false
+   }
+  ]
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "利息",
+    "amount_out": 0,
+    "amount_in": 100,
+    "balance": 100100
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "ATM",
+    "amount_out": 1000,
+    "amount_in": 0,
+    "balance": 99100
+   }
+  ],
+  "validated": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "利息",
+    "amount_out": 0,
+    "amount_in": 100,
+    "balance": 100100,
+    "calc_balance": 100100,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "ATM",
+    "amount_out": 1000,
+    "amount_in": 0,
+    "balance": 99100,
+    "calc_balance": 99100,
+    "is_balance_error": false
+   }
+  ]
+ }
+}

@@ -1,0 +1,22 @@
+[
+ {
+  "month": "1989-01-01",
+  "total_out": 2,
+  "total_in": 0
+ },
+ {
+  "month": "2019-04-01",
+  "total_out": 1,
+  "total_in": 0
+ },
+ {
+  "month": "2019-05-01",
+  "total_out": 1,
+  "total_in": 0
+ },
+ {
+  "month": "2021-04-01",
+  "total_out": 135636,
+  "total_in": 1800100
+ }
+]

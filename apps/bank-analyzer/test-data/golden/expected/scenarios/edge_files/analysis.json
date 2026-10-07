@@ -1,0 +1,1965 @@
+{
+ "default": {
+  "account_summary": [
+   {
+    "account_number": "9000002",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000004",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000005",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-15"
+   },
+   {
+    "account_number": "9000006",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000007",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000008",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000013",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 6,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000017",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000019",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000020",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000024",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "12345",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 24,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000013",
+     "amount": 1,
+     "description": "ゼロ埋め",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 7,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000004",
+     "amount": 100,
+     "description": "利息",
+     "category": "その他"
+    }
+   }
+  ],
+  "all_txs": [
+   20,
+   21,
+   22,
+   23,
+   1,
+   4,
+   7,
+   11,
+   14,
+   17,
+   24,
+   26,
+   29,
+   32,
+   35,
+   38,
+   41,
+   2,
+   5,
+   8,
+   12,
+   15,
+   18,
+   25,
+   27,
+   30,
+   33,
+   36,
+   39,
+   42,
+   3,
+   6,
+   9,
+   13,
+   16,
+   19,
+   28,
+   31,
+   34,
+   37,
+   40,
+   43,
+   10
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店"
+  ],
+  "accounts": [
+   "1111111",
+   "12345",
+   "7654321",
+   "9000002",
+   "9000004",
+   "9000005",
+   "9000006",
+   "9000007",
+   "9000008",
+   "9000013",
+   "9000017",
+   "9000019",
+   "9000020",
+   "9000024"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111",
+    "12345",
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [],
+  "ai_groups": [],
+  "suggestions_count": 0,
+  "unclassified_count": 10,
+  "fuzzy_threshold": 90
+ },
+ "keyword_halfwidth": {
+  "account_summary": [
+   {
+    "account_number": "9000002",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000004",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000005",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-15"
+   },
+   {
+    "account_number": "9000006",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000007",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000008",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000013",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 6,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000017",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000019",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000020",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000024",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "12345",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   }
+  ],
+  "transfer_pairs": [],
+  "all_txs": [],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店"
+  ],
+  "accounts": [
+   "1111111",
+   "12345",
+   "7654321",
+   "9000002",
+   "9000004",
+   "9000005",
+   "9000006",
+   "9000007",
+   "9000008",
+   "9000013",
+   "9000017",
+   "9000019",
+   "9000020",
+   "9000024"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111",
+    "12345",
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [],
+  "ai_groups": [],
+  "suggestions_count": 0,
+  "unclassified_count": 10,
+  "fuzzy_threshold": 90
+ },
+ "keyword_multi": {
+  "account_summary": [
+   {
+    "account_number": "9000002",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000004",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000005",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-15"
+   },
+   {
+    "account_number": "9000006",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000007",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000008",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000013",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 6,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000017",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000019",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000020",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000024",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "12345",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   }
+  ],
+  "transfer_pairs": [],
+  "all_txs": [],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店"
+  ],
+  "accounts": [
+   "1111111",
+   "12345",
+   "7654321",
+   "9000002",
+   "9000004",
+   "9000005",
+   "9000006",
+   "9000007",
+   "9000008",
+   "9000013",
+   "9000017",
+   "9000019",
+   "9000020",
+   "9000024"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111",
+    "12345",
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [],
+  "ai_groups": [],
+  "suggestions_count": 0,
+  "unclassified_count": 10,
+  "fuzzy_threshold": 90
+ },
+ "amount_out_range": {
+  "account_summary": [
+   {
+    "account_number": "9000002",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000004",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000005",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-15"
+   },
+   {
+    "account_number": "9000006",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000007",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000008",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000013",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 6,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000017",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000019",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000020",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000024",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "12345",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 24,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000013",
+     "amount": 1,
+     "description": "ゼロ埋め",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 7,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000004",
+     "amount": 100,
+     "description": "利息",
+     "category": "その他"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   4,
+   11,
+   14,
+   17,
+   29,
+   32,
+   35,
+   38,
+   41
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店"
+  ],
+  "accounts": [
+   "1111111",
+   "12345",
+   "7654321",
+   "9000002",
+   "9000004",
+   "9000005",
+   "9000006",
+   "9000007",
+   "9000008",
+   "9000013",
+   "9000017",
+   "9000019",
+   "9000020",
+   "9000024"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111",
+    "12345",
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [],
+  "ai_groups": [],
+  "suggestions_count": 0,
+  "unclassified_count": 10,
+  "fuzzy_threshold": 90
+ },
+ "amount_both_min": {
+  "account_summary": [
+   {
+    "account_number": "9000002",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000004",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000005",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-15"
+   },
+   {
+    "account_number": "9000006",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000007",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000008",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000013",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 6,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000017",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000019",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000020",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000024",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "12345",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 24,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000013",
+     "amount": 1,
+     "description": "ゼロ埋め",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 7,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000004",
+     "amount": 100,
+     "description": "利息",
+     "category": "その他"
+    }
+   }
+  ],
+  "all_txs": [],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店"
+  ],
+  "accounts": [
+   "1111111",
+   "12345",
+   "7654321",
+   "9000002",
+   "9000004",
+   "9000005",
+   "9000006",
+   "9000007",
+   "9000008",
+   "9000013",
+   "9000017",
+   "9000019",
+   "9000020",
+   "9000024"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111",
+    "12345",
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [],
+  "ai_groups": [],
+  "suggestions_count": 0,
+  "unclassified_count": 10,
+  "fuzzy_threshold": 90
+ },
+ "amount_both_max": {
+  "account_summary": [
+   {
+    "account_number": "9000002",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000004",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000005",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-15"
+   },
+   {
+    "account_number": "9000006",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000007",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000008",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000013",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 6,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000017",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000019",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000020",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000024",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "12345",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 24,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000013",
+     "amount": 1,
+     "description": "ゼロ埋め",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 7,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000004",
+     "amount": 100,
+     "description": "利息",
+     "category": "その他"
+    }
+   }
+  ],
+  "all_txs": [
+   20,
+   21,
+   22,
+   23,
+   7,
+   24,
+   8,
+   25,
+   27,
+   39,
+   9,
+   10
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店"
+  ],
+  "accounts": [
+   "1111111",
+   "12345",
+   "7654321",
+   "9000002",
+   "9000004",
+   "9000005",
+   "9000006",
+   "9000007",
+   "9000008",
+   "9000013",
+   "9000017",
+   "9000019",
+   "9000020",
+   "9000024"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111",
+    "12345",
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [],
+  "ai_groups": [],
+  "suggestions_count": 0,
+  "unclassified_count": 10,
+  "fuzzy_threshold": 90
+ },
+ "category_exclude": {
+  "account_summary": [
+   {
+    "account_number": "9000002",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000004",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000005",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-15"
+   },
+   {
+    "account_number": "9000006",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000007",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000008",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000013",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 6,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000017",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000019",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000020",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000024",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "12345",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 24,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000013",
+     "amount": 1,
+     "description": "ゼロ埋め",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 7,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000004",
+     "amount": 100,
+     "description": "利息",
+     "category": "その他"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   4,
+   7,
+   11,
+   14,
+   17,
+   29,
+   32,
+   35,
+   38,
+   41,
+   2,
+   5,
+   8,
+   12,
+   15,
+   18,
+   30,
+   33,
+   36,
+   42,
+   3,
+   6,
+   9,
+   13,
+   16,
+   19,
+   31,
+   34,
+   37,
+   40,
+   43,
+   10
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店"
+  ],
+  "accounts": [
+   "1111111",
+   "12345",
+   "7654321",
+   "9000002",
+   "9000004",
+   "9000005",
+   "9000006",
+   "9000007",
+   "9000008",
+   "9000013",
+   "9000017",
+   "9000019",
+   "9000020",
+   "9000024"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111",
+    "12345",
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [],
+  "ai_groups": [],
+  "suggestions_count": 0,
+  "unclassified_count": 10,
+  "fuzzy_threshold": 90
+ },
+ "date_range": {
+  "account_summary": [
+   {
+    "account_number": "9000002",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000004",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000005",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-15"
+   },
+   {
+    "account_number": "9000006",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000007",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000008",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000013",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 6,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000017",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000019",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000020",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000024",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "12345",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 24,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000013",
+     "amount": 1,
+     "description": "ゼロ埋め",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 7,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000004",
+     "amount": 100,
+     "description": "利息",
+     "category": "その他"
+    }
+   }
+  ],
+  "all_txs": [],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店"
+  ],
+  "accounts": [
+   "1111111",
+   "12345",
+   "7654321",
+   "9000002",
+   "9000004",
+   "9000005",
+   "9000006",
+   "9000007",
+   "9000008",
+   "9000013",
+   "9000017",
+   "9000019",
+   "9000020",
+   "9000024"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111",
+    "12345",
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [],
+  "ai_groups": [],
+  "suggestions_count": 0,
+  "unclassified_count": 10,
+  "fuzzy_threshold": 90
+ },
+ "sort_amount_desc": {
+  "account_summary": [
+   {
+    "account_number": "9000002",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000004",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000005",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 2,
+    "last_date": "2021-04-15"
+   },
+   {
+    "account_number": "9000006",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000007",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000008",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000013",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 6,
+    "last_date": "2021-04-02"
+   },
+   {
+    "account_number": "9000017",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000019",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000020",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "9000024",
+    "holder": null,
+    "bank_name": "",
+    "branch_name": "",
+    "account_type": "",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "12345",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 3,
+    "last_date": "2021-04-03"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 24,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000013",
+     "amount": 1,
+     "description": "ゼロ埋め",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 7,
+     "date": "2021-04-01T00:00:00",
+     "bank_name": "",
+     "branch_name": "",
+     "account_number": "9000004",
+     "amount": 100,
+     "description": "利息",
+     "category": "その他"
+    }
+   }
+  ],
+  "all_txs": [
+   20,
+   21,
+   22,
+   23,
+   1,
+   4,
+   7,
+   11,
+   14,
+   17,
+   24,
+   26,
+   29,
+   32,
+   35,
+   38,
+   41,
+   2,
+   5,
+   8,
+   12,
+   15,
+   18,
+   25,
+   27,
+   30,
+   33,
+   36,
+   39,
+   42,
+   3,
+   6,
+   9,
+   13,
+   16,
+   19,
+   28,
+   31,
+   34,
+   37,
+   40,
+   43,
+   10
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店"
+  ],
+  "accounts": [
+   "1111111",
+   "12345",
+   "7654321",
+   "9000002",
+   "9000004",
+   "9000005",
+   "9000006",
+   "9000007",
+   "9000008",
+   "9000013",
+   "9000017",
+   "9000019",
+   "9000020",
+   "9000024"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111",
+    "12345",
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [],
+  "ai_groups": [],
+  "suggestions_count": 0,
+  "unclassified_count": 10,
+  "fuzzy_threshold": 90
+ }
+}

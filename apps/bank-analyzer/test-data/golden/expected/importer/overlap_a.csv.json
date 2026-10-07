@@ -1,0 +1,438 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "bank_name",
+   "branch_name",
+   "account_number",
+   "account_type",
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "csv_metadata": {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通"
+   },
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "振込 サンプルシンキン",
+    "amount_out": 1000000,
+    "amount_in": 0,
+    "balance": 4000000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 1
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-05T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 3680000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-10T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "balance": 3480000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-15T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 150000,
+    "amount_in": 0,
+    "balance": 3330000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-07-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 5000,
+    "amount_in": 0,
+    "balance": 2487212
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-07-02T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 2484212
+   }
+  ],
+  "validated": [
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "振込 サンプルシンキン",
+    "amount_out": 1000000,
+    "amount_in": 0,
+    "balance": 4000000,
+    "calc_balance": 4000000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "calc_balance": 3990000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 1,
+    "calc_balance": 3980000,
+    "is_balance_error": true
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-05T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 3680000,
+    "calc_balance": -299999,
+    "is_balance_error": true
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-10T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "balance": 3480000,
+    "calc_balance": 3480000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-15T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 150000,
+    "amount_in": 0,
+    "balance": 3330000,
+    "calc_balance": 3330000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-07-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 5000,
+    "amount_in": 0,
+    "balance": 2487212,
+    "calc_balance": 3325000,
+    "is_balance_error": true
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-07-02T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 2484212,
+    "calc_balance": 2484212,
+    "is_balance_error": false
+   }
+  ]
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "bank_name",
+   "branch_name",
+   "account_number",
+   "account_type",
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "csv_metadata": {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通"
+   },
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "振込 サンプルシンキン",
+    "amount_out": 1000000,
+    "amount_in": 0,
+    "balance": 4000000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 1
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-05T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 3680000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-10T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "balance": 3480000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-15T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 150000,
+    "amount_in": 0,
+    "balance": 3330000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-07-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 5000,
+    "amount_in": 0,
+    "balance": 2487212
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-07-02T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 2484212
+   }
+  ],
+  "validated": [
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "振込 サンプルシンキン",
+    "amount_out": 1000000,
+    "amount_in": 0,
+    "balance": 4000000,
+    "calc_balance": 4000000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "calc_balance": 3990000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 1,
+    "calc_balance": 3980000,
+    "is_balance_error": true
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-05T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 3680000,
+    "calc_balance": -299999,
+    "is_balance_error": true
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-10T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "balance": 3480000,
+    "calc_balance": 3480000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-04-15T00:00:00",
+    "description": "振替 駅前",
+    "amount_out": 150000,
+    "amount_in": 0,
+    "balance": 3330000,
+    "calc_balance": 3330000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-07-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 5000,
+    "amount_in": 0,
+    "balance": 2487212,
+    "calc_balance": 3325000,
+    "is_balance_error": true
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2024-07-02T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 2484212,
+    "calc_balance": 2484212,
+    "is_balance_error": false
+   }
+  ]
+ }
+}

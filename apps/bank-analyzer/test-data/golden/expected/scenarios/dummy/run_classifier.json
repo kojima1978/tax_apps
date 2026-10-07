@@ -1,0 +1,636 @@
+{
+ "return": 0,
+ "transactions": [
+  {
+   "id": 1,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 2,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 3,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 4,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 5,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 6,
+   "category": "年金",
+   "classification_score": 0
+  },
+  {
+   "id": 7,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 8,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 9,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 10,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 11,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 12,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 13,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 14,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 15,
+   "category": "年金",
+   "classification_score": 0
+  },
+  {
+   "id": 16,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 17,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 18,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 19,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 20,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 21,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 22,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 23,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 24,
+   "category": "年金",
+   "classification_score": 0
+  },
+  {
+   "id": 25,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 26,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 27,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 28,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 29,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 30,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 31,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 32,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 33,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 34,
+   "category": "年金",
+   "classification_score": 0
+  },
+  {
+   "id": 35,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 36,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 37,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 38,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 39,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 40,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 41,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 42,
+   "category": "年金",
+   "classification_score": 0
+  },
+  {
+   "id": 43,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 44,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 45,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 46,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 47,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 48,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 49,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 50,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 51,
+   "category": "年金",
+   "classification_score": 0
+  },
+  {
+   "id": 52,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 53,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 54,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 55,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 56,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 57,
+   "category": "関連会社",
+   "classification_score": 0
+  },
+  {
+   "id": 58,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 59,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 60,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 61,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 62,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 63,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 64,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 65,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 66,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 67,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 68,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 69,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 70,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 71,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 72,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 73,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 74,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 75,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 76,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 77,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 78,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 79,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 80,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 81,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 82,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 83,
+   "category": "関連会社",
+   "classification_score": 0
+  },
+  {
+   "id": 84,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 85,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 86,
+   "category": "保険会社",
+   "classification_score": 0
+  },
+  {
+   "id": 87,
+   "category": "証券・株式・配当",
+   "classification_score": 0
+  },
+  {
+   "id": 88,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 89,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 90,
+   "category": "保険会社",
+   "classification_score": 0
+  },
+  {
+   "id": 91,
+   "category": "証券・株式・配当",
+   "classification_score": 0
+  },
+  {
+   "id": 92,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 93,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 94,
+   "category": "証券・株式・配当",
+   "classification_score": 0
+  },
+  {
+   "id": 95,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 96,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 97,
+   "category": "保険会社",
+   "classification_score": 0
+  },
+  {
+   "id": 98,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 99,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 100,
+   "category": "保険会社",
+   "classification_score": 0
+  },
+  {
+   "id": 101,
+   "category": "証券・株式・配当",
+   "classification_score": 0
+  },
+  {
+   "id": 102,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 103,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 104,
+   "category": "証券・株式・配当",
+   "classification_score": 0
+  },
+  {
+   "id": 105,
+   "category": "保険会社",
+   "classification_score": 0
+  },
+  {
+   "id": 106,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 107,
+   "category": "保険会社",
+   "classification_score": 0
+  },
+  {
+   "id": 108,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 109,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 110,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 111,
+   "category": "証券・株式・配当",
+   "classification_score": 0
+  },
+  {
+   "id": 112,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 113,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 114,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 115,
+   "category": "保険会社",
+   "classification_score": 0
+  },
+  {
+   "id": 116,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 117,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 118,
+   "category": "保険会社",
+   "classification_score": 0
+  },
+  {
+   "id": 119,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 120,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 121,
+   "category": "証券・株式・配当",
+   "classification_score": 0
+  },
+  {
+   "id": 122,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 123,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 124,
+   "category": "保険会社",
+   "classification_score": 0
+  },
+  {
+   "id": 125,
+   "category": "証券・株式・配当",
+   "classification_score": 0
+  },
+  {
+   "id": 126,
+   "category": "未分類",
+   "classification_score": 0
+  }
+ ],
+ "changes": []
+}

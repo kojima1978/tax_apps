@@ -1,0 +1,226 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "1989-01-07T00:00:00",
+    "description": "昭和最終日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 999
+   },
+   {
+    "date": "1989-01-08T00:00:00",
+    "description": "平成初日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 998
+   },
+   {
+    "date": "2019-04-30T00:00:00",
+    "description": "平成最終日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 997
+   },
+   {
+    "date": "2019-05-01T00:00:00",
+    "description": "令和初日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 996
+   },
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "ゼロ埋め",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 995
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "スラッシュ",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 994
+   }
+  ],
+  "validated": [
+   {
+    "date": "1989-01-07T00:00:00",
+    "description": "昭和最終日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 999,
+    "calc_balance": 999,
+    "is_balance_error": false
+   },
+   {
+    "date": "1989-01-08T00:00:00",
+    "description": "平成初日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 998,
+    "calc_balance": 998,
+    "is_balance_error": false
+   },
+   {
+    "date": "2019-04-30T00:00:00",
+    "description": "平成最終日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 997,
+    "calc_balance": 997,
+    "is_balance_error": false
+   },
+   {
+    "date": "2019-05-01T00:00:00",
+    "description": "令和初日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 996,
+    "calc_balance": 996,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "ゼロ埋め",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 995,
+    "calc_balance": 995,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "スラッシュ",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 994,
+    "calc_balance": 994,
+    "is_balance_error": false
+   }
+  ]
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "1989-01-07T00:00:00",
+    "description": "昭和最終日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 999
+   },
+   {
+    "date": "1989-01-08T00:00:00",
+    "description": "平成初日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 998
+   },
+   {
+    "date": "2019-04-30T00:00:00",
+    "description": "平成最終日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 997
+   },
+   {
+    "date": "2019-05-01T00:00:00",
+    "description": "令和初日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 996
+   },
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "ゼロ埋め",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 995
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "スラッシュ",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 994
+   }
+  ],
+  "validated": [
+   {
+    "date": "1989-01-07T00:00:00",
+    "description": "昭和最終日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 999,
+    "calc_balance": 999,
+    "is_balance_error": false
+   },
+   {
+    "date": "1989-01-08T00:00:00",
+    "description": "平成初日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 998,
+    "calc_balance": 998,
+    "is_balance_error": false
+   },
+   {
+    "date": "2019-04-30T00:00:00",
+    "description": "平成最終日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 997,
+    "calc_balance": 997,
+    "is_balance_error": false
+   },
+   {
+    "date": "2019-05-01T00:00:00",
+    "description": "令和初日",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 996,
+    "calc_balance": 996,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "ゼロ埋め",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 995,
+    "calc_balance": 995,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "スラッシュ",
+    "amount_out": 1,
+    "amount_in": 0,
+    "balance": 994,
+    "calc_balance": 994,
+    "is_balance_error": false
+   }
+  ]
+ }
+}

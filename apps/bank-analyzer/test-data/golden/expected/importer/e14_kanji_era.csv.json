@@ -1,0 +1,32 @@
+{
+ "allow_multiple_false": {
+  "error": "DateParseError",
+  "type": "data",
+  "type_label": "データエラー",
+  "message": "日付の変換に失敗しました（1件）",
+  "suggestion": "日付は以下の形式で入力してください:\n- 西暦: 2024-01-01, 2024/01/01\n- 和暦: H28.6.3, R5/4/1\n\n変換できない値の例:\n  行2: 令和3年4月1日",
+  "line_number": 2,
+  "column_name": "日付",
+  "expected_value": "YYYY-MM-DD, YYYY/MM/DD, H○○.○.○",
+  "actual_value": "令和3年4月1日",
+  "sample_values": [
+   "令和3年4月1日"
+  ],
+  "tried_encodings": []
+ },
+ "allow_multiple_true": {
+  "error": "DateParseError",
+  "type": "data",
+  "type_label": "データエラー",
+  "message": "日付の変換に失敗しました（1件）",
+  "suggestion": "日付は以下の形式で入力してください:\n- 西暦: 2024-01-01, 2024/01/01\n- 和暦: H28.6.3, R5/4/1\n\n変換できない値の例:\n  行2: 令和3年4月1日",
+  "line_number": 2,
+  "column_name": "日付",
+  "expected_value": "YYYY-MM-DD, YYYY/MM/DD, H○○.○.○",
+  "actual_value": "令和3年4月1日",
+  "sample_values": [
+   "令和3年4月1日"
+  ],
+  "tried_encodings": []
+ }
+}

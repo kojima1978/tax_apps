@@ -1,0 +1,201 @@
+{
+ "(none)": {
+  "groups": [
+   {
+    "description": "昭和最終日",
+    "count": 1,
+    "total_out": 1,
+    "total_in": 0,
+    "tx_ids": [
+     20
+    ],
+    "first_tx_id": 20,
+    "samples": [
+     {
+      "date": "1989-01-07",
+      "bank_name": "",
+      "amount_out": 1,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "平成初日",
+    "count": 1,
+    "total_out": 1,
+    "total_in": 0,
+    "tx_ids": [
+     21
+    ],
+    "first_tx_id": 21,
+    "samples": [
+     {
+      "date": "1989-01-08",
+      "bank_name": "",
+      "amount_out": 1,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "平成最終日",
+    "count": 1,
+    "total_out": 1,
+    "total_in": 0,
+    "tx_ids": [
+     22
+    ],
+    "first_tx_id": 22,
+    "samples": [
+     {
+      "date": "2019-04-30",
+      "bank_name": "",
+      "amount_out": 1,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "令和初日",
+    "count": 1,
+    "total_out": 1,
+    "total_in": 0,
+    "tx_ids": [
+     23
+    ],
+    "first_tx_id": 23,
+    "samples": [
+     {
+      "date": "2019-05-01",
+      "bank_name": "",
+      "amount_out": 1,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "ゼロ埋め",
+    "count": 1,
+    "total_out": 1,
+    "total_in": 0,
+    "tx_ids": [
+     24
+    ],
+    "first_tx_id": 24,
+    "samples": [
+     {
+      "date": "2021-04-01",
+      "bank_name": "",
+      "amount_out": 1,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "カンマ",
+    "count": 1,
+    "total_out": 1234,
+    "total_in": 0,
+    "tx_ids": [
+     26
+    ],
+    "first_tx_id": 26,
+    "samples": [
+     {
+      "date": "2021-04-01",
+      "bank_name": "",
+      "amount_out": 1234,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "スラッシュ",
+    "count": 1,
+    "total_out": 1,
+    "total_in": 0,
+    "tx_ids": [
+     25
+    ],
+    "first_tx_id": 25,
+    "samples": [
+     {
+      "date": "2021-04-02",
+      "bank_name": "",
+      "amount_out": 1,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "空白",
+    "count": 1,
+    "total_out": 500,
+    "total_in": 0,
+    "tx_ids": [
+     27
+    ],
+    "first_tx_id": 27,
+    "samples": [
+     {
+      "date": "2021-04-02",
+      "bank_name": "",
+      "amount_out": 500,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "（摘要なし）",
+    "count": 1,
+    "total_out": 1000,
+    "total_in": 0,
+    "tx_ids": [
+     39
+    ],
+    "first_tx_id": 39,
+    "samples": [
+     {
+      "date": "2021-04-02",
+      "bank_name": "",
+      "amount_out": 1000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "負号",
+    "count": 1,
+    "total_out": -100,
+    "total_in": 0,
+    "tx_ids": [
+     28
+    ],
+    "first_tx_id": 28,
+    "samples": [
+     {
+      "date": "2021-04-03",
+      "bank_name": "",
+      "amount_out": -100,
+      "amount_in": 0
+     }
+    ]
+   }
+  ],
+  "tx_total": 10,
+  "max_group_count": 1,
+  "group_suggestions": {}
+ },
+ "振替": {
+  "groups": [],
+  "tx_total": 0,
+  "max_group_count": 1,
+  "group_suggestions": {}
+ },
+ "ATM": {
+  "groups": [],
+  "tx_total": 0,
+  "max_group_count": 1,
+  "group_suggestions": {}
+ }
+}

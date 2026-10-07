@@ -1,0 +1,28 @@
+{
+ "allow_multiple_false": {
+  "error": "FormatError",
+  "type": "format",
+  "type_label": "ファイル形式エラー",
+  "message": "CSVに必要なカラムがありません。",
+  "suggestion": "CSVファイルに以下のカラムが含まれているか確認してください:\n- 年月日（または日付）\n- 摘要\n- 払戻（または払戻額）\n- お預り（またはお預り額）\n- 差引残高（または残高）",
+  "line_number": null,
+  "column_name": null,
+  "expected_value": "必須カラム: 摘要",
+  "actual_value": "検出されたカラム: 日付, 払戻額, お預り額, 差引残高",
+  "sample_values": [],
+  "tried_encodings": []
+ },
+ "allow_multiple_true": {
+  "error": "FormatError",
+  "type": "format",
+  "type_label": "ファイル形式エラー",
+  "message": "CSVに必要なカラムがありません。",
+  "suggestion": "CSVファイルに以下のカラムが含まれているか確認してください:\n- 年月日（または日付）\n- 摘要\n- 払戻（または払戻額）\n- お預り（またはお預り額）\n- 差引残高（または残高）",
+  "line_number": null,
+  "column_name": null,
+  "expected_value": "必須カラム: 摘要",
+  "actual_value": "検出されたカラム: 日付, 払戻額, お預り額, 差引残高",
+  "sample_values": [],
+  "tried_encodings": []
+ }
+}

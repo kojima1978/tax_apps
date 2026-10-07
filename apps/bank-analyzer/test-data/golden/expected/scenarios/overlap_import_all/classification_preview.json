@@ -1,0 +1,14 @@
+[
+ {
+  "tx_id": 10,
+  "date": "2024-04-30",
+  "description": "振込 ヤマダジロウ",
+  "amount_out": 999999,
+  "amount_in": 0,
+  "current_category": "未分類",
+  "proposed_category": "贈与・教育費",
+  "matched_keyword": "振込",
+  "match_type": "partial",
+  "score": 75
+ }
+]

@@ -1,0 +1,1794 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2024-01-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 12500,
+    "amount_in": 0,
+    "balance": 8487500
+   },
+   {
+    "date": "2024-01-15T00:00:00",
+    "description": "NTTドコモ",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 8479000
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 8759000
+   },
+   {
+    "date": "2024-01-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 45000,
+    "amount_in": 0,
+    "balance": 8714000
+   },
+   {
+    "date": "2024-02-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 13200,
+    "amount_in": 0,
+    "balance": 8700800
+   },
+   {
+    "date": "2024-02-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 8850800
+   },
+   {
+    "date": "2024-02-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9130800
+   },
+   {
+    "date": "2024-02-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 52000,
+    "amount_in": 0,
+    "balance": 9078800
+   },
+   {
+    "date": "2024-03-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 11800,
+    "amount_in": 0,
+    "balance": 9067000
+   },
+   {
+    "date": "2024-03-10T00:00:00",
+    "description": "三井住友カード",
+    "amount_out": 35000,
+    "amount_in": 0,
+    "balance": 9032000
+   },
+   {
+    "date": "2024-03-15T00:00:00",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "balance": 8532000
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 8812000
+   },
+   {
+    "date": "2024-03-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 48000,
+    "amount_in": 0,
+    "balance": 8764000
+   },
+   {
+    "date": "2024-04-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 10500,
+    "amount_in": 0,
+    "balance": 8753500
+   },
+   {
+    "date": "2024-04-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 8903500
+   },
+   {
+    "date": "2024-04-22T00:00:00",
+    "description": "カクテイシンコク カンプキン",
+    "amount_out": 0,
+    "amount_in": 185000,
+    "balance": 9088500
+   },
+   {
+    "date": "2024-04-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9368500
+   },
+   {
+    "date": "2024-04-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 38000,
+    "amount_in": 0,
+    "balance": 9330500
+   },
+   {
+    "date": "2024-05-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 11200,
+    "amount_in": 0,
+    "balance": 9319300
+   },
+   {
+    "date": "2024-05-20T00:00:00",
+    "description": "ローソン銀行ATM",
+    "amount_out": 40000,
+    "amount_in": 0,
+    "balance": 9279300
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9559300
+   },
+   {
+    "date": "2024-05-31T00:00:00",
+    "description": "住民税",
+    "amount_out": 48000,
+    "amount_in": 0,
+    "balance": 9511300
+   },
+   {
+    "date": "2024-06-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 14500,
+    "amount_in": 0,
+    "balance": 9496800
+   },
+   {
+    "date": "2024-06-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 9646800
+   },
+   {
+    "date": "2024-06-20T00:00:00",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "balance": 9446800
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9726800
+   },
+   {
+    "date": "2024-06-30T00:00:00",
+    "description": "自動車税",
+    "amount_out": 39500,
+    "amount_in": 0,
+    "balance": 9687300
+   },
+   {
+    "date": "2024-07-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 16800,
+    "amount_in": 0,
+    "balance": 9670500
+   },
+   {
+    "date": "2024-07-20T00:00:00",
+    "description": "セブン銀行ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 9640500
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9920500
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "賞与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 650000,
+    "balance": 10570500
+   },
+   {
+    "date": "2024-07-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 61000,
+    "amount_in": 0,
+    "balance": 10509500
+   },
+   {
+    "date": "2024-08-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 18200,
+    "amount_in": 0,
+    "balance": 10491300
+   },
+   {
+    "date": "2024-08-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 10641300
+   },
+   {
+    "date": "2024-08-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 10921300
+   },
+   {
+    "date": "2024-08-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 47000,
+    "amount_in": 0,
+    "balance": 10874300
+   },
+   {
+    "date": "2024-09-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 15500,
+    "amount_in": 0,
+    "balance": 10858800
+   },
+   {
+    "date": "2024-09-20T00:00:00",
+    "description": "ローソン銀行ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 10828800
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11108800
+   },
+   {
+    "date": "2024-09-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 39000,
+    "amount_in": 0,
+    "balance": 11069800
+   },
+   {
+    "date": "2024-10-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 12800,
+    "amount_in": 0,
+    "balance": 11057000
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 11207000
+   },
+   {
+    "date": "2024-10-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11487000
+   },
+   {
+    "date": "2024-10-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 43000,
+    "amount_in": 0,
+    "balance": 11444000
+   },
+   {
+    "date": "2024-11-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 13500,
+    "amount_in": 0,
+    "balance": 11430500
+   },
+   {
+    "date": "2024-11-15T00:00:00",
+    "description": "NTTドコモ",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 11422000
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "セブン銀行ATM",
+    "amount_out": 50000,
+    "amount_in": 0,
+    "balance": 11372000
+   },
+   {
+    "date": "2024-11-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11652000
+   },
+   {
+    "date": "2024-11-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 58000,
+    "amount_in": 0,
+    "balance": 11594000
+   },
+   {
+    "date": "2024-12-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 11579000
+   },
+   {
+    "date": "2024-12-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 11729000
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "フリコミ ヤマダハナコ",
+    "amount_out": 0,
+    "amount_in": 1200000,
+    "balance": 12929000
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 13209000
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "賞与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 720000,
+    "balance": 13929000
+   },
+   {
+    "date": "2024-12-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 65000,
+    "amount_in": 0,
+    "balance": 13864000
+   }
+  ],
+  "validated": [
+   {
+    "date": "2024-01-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 12500,
+    "amount_in": 0,
+    "balance": 8487500,
+    "calc_balance": 8487500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-15T00:00:00",
+    "description": "NTTドコモ",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 8479000,
+    "calc_balance": 8479000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 8759000,
+    "calc_balance": 8759000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 45000,
+    "amount_in": 0,
+    "balance": 8714000,
+    "calc_balance": 8714000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 13200,
+    "amount_in": 0,
+    "balance": 8700800,
+    "calc_balance": 8700800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 8850800,
+    "calc_balance": 8850800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9130800,
+    "calc_balance": 9130800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 52000,
+    "amount_in": 0,
+    "balance": 9078800,
+    "calc_balance": 9078800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 11800,
+    "amount_in": 0,
+    "balance": 9067000,
+    "calc_balance": 9067000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-10T00:00:00",
+    "description": "三井住友カード",
+    "amount_out": 35000,
+    "amount_in": 0,
+    "balance": 9032000,
+    "calc_balance": 9032000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-15T00:00:00",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "balance": 8532000,
+    "calc_balance": 8532000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 8812000,
+    "calc_balance": 8812000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 48000,
+    "amount_in": 0,
+    "balance": 8764000,
+    "calc_balance": 8764000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 10500,
+    "amount_in": 0,
+    "balance": 8753500,
+    "calc_balance": 8753500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 8903500,
+    "calc_balance": 8903500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-22T00:00:00",
+    "description": "カクテイシンコク カンプキン",
+    "amount_out": 0,
+    "amount_in": 185000,
+    "balance": 9088500,
+    "calc_balance": 9088500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9368500,
+    "calc_balance": 9368500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 38000,
+    "amount_in": 0,
+    "balance": 9330500,
+    "calc_balance": 9330500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 11200,
+    "amount_in": 0,
+    "balance": 9319300,
+    "calc_balance": 9319300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-20T00:00:00",
+    "description": "ローソン銀行ATM",
+    "amount_out": 40000,
+    "amount_in": 0,
+    "balance": 9279300,
+    "calc_balance": 9279300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9559300,
+    "calc_balance": 9559300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-31T00:00:00",
+    "description": "住民税",
+    "amount_out": 48000,
+    "amount_in": 0,
+    "balance": 9511300,
+    "calc_balance": 9511300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 14500,
+    "amount_in": 0,
+    "balance": 9496800,
+    "calc_balance": 9496800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 9646800,
+    "calc_balance": 9646800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-20T00:00:00",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "balance": 9446800,
+    "calc_balance": 9446800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9726800,
+    "calc_balance": 9726800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-30T00:00:00",
+    "description": "自動車税",
+    "amount_out": 39500,
+    "amount_in": 0,
+    "balance": 9687300,
+    "calc_balance": 9687300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 16800,
+    "amount_in": 0,
+    "balance": 9670500,
+    "calc_balance": 9670500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-20T00:00:00",
+    "description": "セブン銀行ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 9640500,
+    "calc_balance": 9640500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9920500,
+    "calc_balance": 9920500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "賞与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 650000,
+    "balance": 10570500,
+    "calc_balance": 10570500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 61000,
+    "amount_in": 0,
+    "balance": 10509500,
+    "calc_balance": 10509500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 18200,
+    "amount_in": 0,
+    "balance": 10491300,
+    "calc_balance": 10491300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 10641300,
+    "calc_balance": 10641300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 10921300,
+    "calc_balance": 10921300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 47000,
+    "amount_in": 0,
+    "balance": 10874300,
+    "calc_balance": 10874300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 15500,
+    "amount_in": 0,
+    "balance": 10858800,
+    "calc_balance": 10858800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-20T00:00:00",
+    "description": "ローソン銀行ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 10828800,
+    "calc_balance": 10828800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11108800,
+    "calc_balance": 11108800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 39000,
+    "amount_in": 0,
+    "balance": 11069800,
+    "calc_balance": 11069800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 12800,
+    "amount_in": 0,
+    "balance": 11057000,
+    "calc_balance": 11057000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 11207000,
+    "calc_balance": 11207000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11487000,
+    "calc_balance": 11487000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 43000,
+    "amount_in": 0,
+    "balance": 11444000,
+    "calc_balance": 11444000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 13500,
+    "amount_in": 0,
+    "balance": 11430500,
+    "calc_balance": 11430500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-15T00:00:00",
+    "description": "NTTドコモ",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 11422000,
+    "calc_balance": 11422000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "セブン銀行ATM",
+    "amount_out": 50000,
+    "amount_in": 0,
+    "balance": 11372000,
+    "calc_balance": 11372000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11652000,
+    "calc_balance": 11652000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 58000,
+    "amount_in": 0,
+    "balance": 11594000,
+    "calc_balance": 11594000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 11579000,
+    "calc_balance": 11579000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 11729000,
+    "calc_balance": 11729000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "フリコミ ヤマダハナコ",
+    "amount_out": 0,
+    "amount_in": 1200000,
+    "balance": 12929000,
+    "calc_balance": 12929000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 13209000,
+    "calc_balance": 13209000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "賞与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 720000,
+    "balance": 13929000,
+    "calc_balance": 13929000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 65000,
+    "amount_in": 0,
+    "balance": 13864000,
+    "calc_balance": 13864000,
+    "is_balance_error": false
+   }
+  ]
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2024-01-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 12500,
+    "amount_in": 0,
+    "balance": 8487500
+   },
+   {
+    "date": "2024-01-15T00:00:00",
+    "description": "NTTドコモ",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 8479000
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 8759000
+   },
+   {
+    "date": "2024-01-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 45000,
+    "amount_in": 0,
+    "balance": 8714000
+   },
+   {
+    "date": "2024-02-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 13200,
+    "amount_in": 0,
+    "balance": 8700800
+   },
+   {
+    "date": "2024-02-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 8850800
+   },
+   {
+    "date": "2024-02-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9130800
+   },
+   {
+    "date": "2024-02-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 52000,
+    "amount_in": 0,
+    "balance": 9078800
+   },
+   {
+    "date": "2024-03-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 11800,
+    "amount_in": 0,
+    "balance": 9067000
+   },
+   {
+    "date": "2024-03-10T00:00:00",
+    "description": "三井住友カード",
+    "amount_out": 35000,
+    "amount_in": 0,
+    "balance": 9032000
+   },
+   {
+    "date": "2024-03-15T00:00:00",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "balance": 8532000
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 8812000
+   },
+   {
+    "date": "2024-03-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 48000,
+    "amount_in": 0,
+    "balance": 8764000
+   },
+   {
+    "date": "2024-04-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 10500,
+    "amount_in": 0,
+    "balance": 8753500
+   },
+   {
+    "date": "2024-04-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 8903500
+   },
+   {
+    "date": "2024-04-22T00:00:00",
+    "description": "カクテイシンコク カンプキン",
+    "amount_out": 0,
+    "amount_in": 185000,
+    "balance": 9088500
+   },
+   {
+    "date": "2024-04-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9368500
+   },
+   {
+    "date": "2024-04-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 38000,
+    "amount_in": 0,
+    "balance": 9330500
+   },
+   {
+    "date": "2024-05-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 11200,
+    "amount_in": 0,
+    "balance": 9319300
+   },
+   {
+    "date": "2024-05-20T00:00:00",
+    "description": "ローソン銀行ATM",
+    "amount_out": 40000,
+    "amount_in": 0,
+    "balance": 9279300
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9559300
+   },
+   {
+    "date": "2024-05-31T00:00:00",
+    "description": "住民税",
+    "amount_out": 48000,
+    "amount_in": 0,
+    "balance": 9511300
+   },
+   {
+    "date": "2024-06-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 14500,
+    "amount_in": 0,
+    "balance": 9496800
+   },
+   {
+    "date": "2024-06-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 9646800
+   },
+   {
+    "date": "2024-06-20T00:00:00",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "balance": 9446800
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9726800
+   },
+   {
+    "date": "2024-06-30T00:00:00",
+    "description": "自動車税",
+    "amount_out": 39500,
+    "amount_in": 0,
+    "balance": 9687300
+   },
+   {
+    "date": "2024-07-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 16800,
+    "amount_in": 0,
+    "balance": 9670500
+   },
+   {
+    "date": "2024-07-20T00:00:00",
+    "description": "セブン銀行ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 9640500
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9920500
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "賞与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 650000,
+    "balance": 10570500
+   },
+   {
+    "date": "2024-07-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 61000,
+    "amount_in": 0,
+    "balance": 10509500
+   },
+   {
+    "date": "2024-08-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 18200,
+    "amount_in": 0,
+    "balance": 10491300
+   },
+   {
+    "date": "2024-08-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 10641300
+   },
+   {
+    "date": "2024-08-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 10921300
+   },
+   {
+    "date": "2024-08-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 47000,
+    "amount_in": 0,
+    "balance": 10874300
+   },
+   {
+    "date": "2024-09-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 15500,
+    "amount_in": 0,
+    "balance": 10858800
+   },
+   {
+    "date": "2024-09-20T00:00:00",
+    "description": "ローソン銀行ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 10828800
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11108800
+   },
+   {
+    "date": "2024-09-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 39000,
+    "amount_in": 0,
+    "balance": 11069800
+   },
+   {
+    "date": "2024-10-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 12800,
+    "amount_in": 0,
+    "balance": 11057000
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 11207000
+   },
+   {
+    "date": "2024-10-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11487000
+   },
+   {
+    "date": "2024-10-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 43000,
+    "amount_in": 0,
+    "balance": 11444000
+   },
+   {
+    "date": "2024-11-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 13500,
+    "amount_in": 0,
+    "balance": 11430500
+   },
+   {
+    "date": "2024-11-15T00:00:00",
+    "description": "NTTドコモ",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 11422000
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "セブン銀行ATM",
+    "amount_out": 50000,
+    "amount_in": 0,
+    "balance": 11372000
+   },
+   {
+    "date": "2024-11-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11652000
+   },
+   {
+    "date": "2024-11-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 58000,
+    "amount_in": 0,
+    "balance": 11594000
+   },
+   {
+    "date": "2024-12-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 11579000
+   },
+   {
+    "date": "2024-12-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 11729000
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "フリコミ ヤマダハナコ",
+    "amount_out": 0,
+    "amount_in": 1200000,
+    "balance": 12929000
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 13209000
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "賞与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 720000,
+    "balance": 13929000
+   },
+   {
+    "date": "2024-12-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 65000,
+    "amount_in": 0,
+    "balance": 13864000
+   }
+  ],
+  "validated": [
+   {
+    "date": "2024-01-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 12500,
+    "amount_in": 0,
+    "balance": 8487500,
+    "calc_balance": 8487500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-15T00:00:00",
+    "description": "NTTドコモ",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 8479000,
+    "calc_balance": 8479000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 8759000,
+    "calc_balance": 8759000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 45000,
+    "amount_in": 0,
+    "balance": 8714000,
+    "calc_balance": 8714000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 13200,
+    "amount_in": 0,
+    "balance": 8700800,
+    "calc_balance": 8700800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 8850800,
+    "calc_balance": 8850800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9130800,
+    "calc_balance": 9130800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 52000,
+    "amount_in": 0,
+    "balance": 9078800,
+    "calc_balance": 9078800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 11800,
+    "amount_in": 0,
+    "balance": 9067000,
+    "calc_balance": 9067000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-10T00:00:00",
+    "description": "三井住友カード",
+    "amount_out": 35000,
+    "amount_in": 0,
+    "balance": 9032000,
+    "calc_balance": 9032000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-15T00:00:00",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "balance": 8532000,
+    "calc_balance": 8532000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 8812000,
+    "calc_balance": 8812000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 48000,
+    "amount_in": 0,
+    "balance": 8764000,
+    "calc_balance": 8764000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 10500,
+    "amount_in": 0,
+    "balance": 8753500,
+    "calc_balance": 8753500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 8903500,
+    "calc_balance": 8903500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-22T00:00:00",
+    "description": "カクテイシンコク カンプキン",
+    "amount_out": 0,
+    "amount_in": 185000,
+    "balance": 9088500,
+    "calc_balance": 9088500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9368500,
+    "calc_balance": 9368500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 38000,
+    "amount_in": 0,
+    "balance": 9330500,
+    "calc_balance": 9330500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 11200,
+    "amount_in": 0,
+    "balance": 9319300,
+    "calc_balance": 9319300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-20T00:00:00",
+    "description": "ローソン銀行ATM",
+    "amount_out": 40000,
+    "amount_in": 0,
+    "balance": 9279300,
+    "calc_balance": 9279300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9559300,
+    "calc_balance": 9559300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-31T00:00:00",
+    "description": "住民税",
+    "amount_out": 48000,
+    "amount_in": 0,
+    "balance": 9511300,
+    "calc_balance": 9511300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 14500,
+    "amount_in": 0,
+    "balance": 9496800,
+    "calc_balance": 9496800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 9646800,
+    "calc_balance": 9646800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-20T00:00:00",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "balance": 9446800,
+    "calc_balance": 9446800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9726800,
+    "calc_balance": 9726800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-30T00:00:00",
+    "description": "自動車税",
+    "amount_out": 39500,
+    "amount_in": 0,
+    "balance": 9687300,
+    "calc_balance": 9687300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 16800,
+    "amount_in": 0,
+    "balance": 9670500,
+    "calc_balance": 9670500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-20T00:00:00",
+    "description": "セブン銀行ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 9640500,
+    "calc_balance": 9640500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 9920500,
+    "calc_balance": 9920500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "賞与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 650000,
+    "balance": 10570500,
+    "calc_balance": 10570500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 61000,
+    "amount_in": 0,
+    "balance": 10509500,
+    "calc_balance": 10509500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 18200,
+    "amount_in": 0,
+    "balance": 10491300,
+    "calc_balance": 10491300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 10641300,
+    "calc_balance": 10641300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 10921300,
+    "calc_balance": 10921300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 47000,
+    "amount_in": 0,
+    "balance": 10874300,
+    "calc_balance": 10874300,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 15500,
+    "amount_in": 0,
+    "balance": 10858800,
+    "calc_balance": 10858800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-20T00:00:00",
+    "description": "ローソン銀行ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 10828800,
+    "calc_balance": 10828800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11108800,
+    "calc_balance": 11108800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 39000,
+    "amount_in": 0,
+    "balance": 11069800,
+    "calc_balance": 11069800,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 12800,
+    "amount_in": 0,
+    "balance": 11057000,
+    "calc_balance": 11057000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 11207000,
+    "calc_balance": 11207000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11487000,
+    "calc_balance": 11487000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 43000,
+    "amount_in": 0,
+    "balance": 11444000,
+    "calc_balance": 11444000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 13500,
+    "amount_in": 0,
+    "balance": 11430500,
+    "calc_balance": 11430500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-15T00:00:00",
+    "description": "NTTドコモ",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 11422000,
+    "calc_balance": 11422000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "セブン銀行ATM",
+    "amount_out": 50000,
+    "amount_in": 0,
+    "balance": 11372000,
+    "calc_balance": 11372000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 11652000,
+    "calc_balance": 11652000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 58000,
+    "amount_in": 0,
+    "balance": 11594000,
+    "calc_balance": 11594000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-05T00:00:00",
+    "description": "東京電力",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 11579000,
+    "calc_balance": 11579000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-15T00:00:00",
+    "description": "年金",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 11729000,
+    "calc_balance": 11729000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "フリコミ ヤマダハナコ",
+    "amount_out": 0,
+    "amount_in": 1200000,
+    "balance": 12929000,
+    "calc_balance": 12929000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "給与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 13209000,
+    "calc_balance": 13209000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "賞与 カ)ヤマダショウジ",
+    "amount_out": 0,
+    "amount_in": 720000,
+    "balance": 13929000,
+    "calc_balance": 13929000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-27T00:00:00",
+    "description": "イオンカード",
+    "amount_out": 65000,
+    "amount_in": 0,
+    "balance": 13864000,
+    "calc_balance": 13864000,
+    "is_balance_error": false
+   }
+  ]
+ }
+}

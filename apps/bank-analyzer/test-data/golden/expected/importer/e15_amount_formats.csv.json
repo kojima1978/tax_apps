@@ -1,0 +1,32 @@
+{
+ "allow_multiple_false": {
+  "error": "AmountParseError",
+  "type": "data",
+  "type_label": "データエラー",
+  "message": "払戻額の変換に失敗しました（1件）",
+  "suggestion": "払戻額は数値で入力してください:\n- カンマ区切りは自動的に除去されます（例: 1,234,567）\n- 空欄は0として扱われます\n- 文字列や記号が含まれていないか確認してください\n\n変換できない値の例:\n  行5: １２３",
+  "line_number": 5,
+  "column_name": "払戻額",
+  "expected_value": "数値（例: 12345 または 1,234,567）",
+  "actual_value": "１２３",
+  "sample_values": [
+   "１２３"
+  ],
+  "tried_encodings": []
+ },
+ "allow_multiple_true": {
+  "error": "AmountParseError",
+  "type": "data",
+  "type_label": "データエラー",
+  "message": "払戻額の変換に失敗しました（1件）",
+  "suggestion": "払戻額は数値で入力してください:\n- カンマ区切りは自動的に除去されます（例: 1,234,567）\n- 空欄は0として扱われます\n- 文字列や記号が含まれていないか確認してください\n\n変換できない値の例:\n  行5: １２３",
+  "line_number": 5,
+  "column_name": "払戻額",
+  "expected_value": "数値（例: 12345 または 1,234,567）",
+  "actual_value": "１２３",
+  "sample_values": [
+   "１２３"
+  ],
+  "tried_encodings": []
+ }
+}

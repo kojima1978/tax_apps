@@ -1,0 +1,21 @@
+{
+ "name": "重複も取り込む",
+ "reference_date": null,
+ "custom_patterns": {},
+ "accounts": [
+  {
+   "id": "?3",
+   "account_number": "1111111",
+   "bank_name": "テスト銀行",
+   "branch_name": "本店",
+   "account_type": "普通",
+   "holder": null,
+   "passbook_balance": null,
+   "certificate_balance": null,
+   "has_accrued_interest": false,
+   "passbook_years": {},
+   "inventory_remarks": "",
+   "print_order": 0
+  }
+ ]
+}

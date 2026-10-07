@@ -1,0 +1,49 @@
+{
+ "name": "ダミー3口座",
+ "reference_date": "2024-03-31",
+ "custom_patterns": {},
+ "accounts": [
+  {
+   "id": "?6",
+   "account_number": "1234567",
+   "bank_name": "みずほ銀行",
+   "branch_name": "",
+   "account_type": "",
+   "holder": null,
+   "passbook_balance": null,
+   "certificate_balance": null,
+   "has_accrued_interest": false,
+   "passbook_years": {},
+   "inventory_remarks": "",
+   "print_order": 0
+  },
+  {
+   "id": "?7",
+   "account_number": "10234567",
+   "bank_name": "ゆうちょ銀行",
+   "branch_name": "",
+   "account_type": "",
+   "holder": null,
+   "passbook_balance": null,
+   "certificate_balance": null,
+   "has_accrued_interest": false,
+   "passbook_years": {},
+   "inventory_remarks": "",
+   "print_order": 0
+  },
+  {
+   "id": "?8",
+   "account_number": "7654321",
+   "bank_name": "三菱UFJ銀行",
+   "branch_name": "",
+   "account_type": "",
+   "holder": null,
+   "passbook_balance": null,
+   "certificate_balance": null,
+   "has_accrued_interest": false,
+   "passbook_years": {},
+   "inventory_remarks": "",
+   "print_order": 0
+  }
+ ]
+}

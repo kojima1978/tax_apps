@@ -1,0 +1,221 @@
+{
+ "return": 0,
+ "transactions": [
+  {
+   "id": 1,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 2,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 3,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 4,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 5,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 6,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 7,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 8,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 9,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 10,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 11,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 12,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 13,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 14,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 15,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 16,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 17,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 18,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 19,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 20,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 21,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 22,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 23,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 24,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 25,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 26,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 27,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 28,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 29,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 30,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 31,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 32,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 33,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 34,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 35,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 36,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 37,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 38,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 39,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 40,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 41,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 42,
+   "category": "給与",
+   "classification_score": 0
+  },
+  {
+   "id": 43,
+   "category": "生活費",
+   "classification_score": 0
+  }
+ ],
+ "changes": []
+}

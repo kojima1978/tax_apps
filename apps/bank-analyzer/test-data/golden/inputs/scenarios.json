@@ -1,0 +1,72 @@
+[
+ {
+  "name": "transfer",
+  "case": {
+   "name": "資金移動の境界",
+   "reference_date": "2024-06-30",
+   "custom_patterns": {"生活費": ["イオン", "ｾﾌﾞﾝ"], "事業・不動産": ["マンシヨン"], "家族": ["ヤマダジロウ"]}
+  },
+  "steps": [
+   {"parse": ["transfer_a.csv", "transfer_b.csv"], "commit": "skip"},
+   {"parse": ["overlap_a.csv"], "commit": "skip"},
+   {"parse": ["transfer_a.csv"]},
+   {"flag": {"2": "ATM の二重払い？", "9": "", "28": "家賃の入金"}}
+  ]
+ },
+ {
+  "name": "overlap_import_all",
+  "case": {"name": "重複も取り込む"},
+  "steps": [
+   {"parse": ["transfer_a.csv"], "commit": "skip"},
+   {"parse": ["overlap_a.csv"], "commit": "import"}
+  ]
+ },
+ {
+  "name": "multi_account",
+  "case": {"name": "1ファイルに2口座"},
+  "steps": [
+   {"parse": ["multi_account.csv"], "commit": "skip"}
+  ]
+ },
+ {
+  "name": "dummy",
+  "case": {"name": "ダミー3口座", "reference_date": "2024-03-31"},
+  "steps": [
+   {"parse": ["みずほ銀行_新宿支店_1234567.csv", "ゆうちょ銀行_〇一八店_10234567.csv", "三菱UFJ銀行_渋谷支店_7654321.csv"], "commit": "skip"},
+   {"parse": ["みずほ銀行_新宿支店_1234567.csv"]}
+  ]
+ },
+ {
+  "name": "edge_files",
+  "case": {"name": "境界ケース"},
+  "steps": [
+   {"parse": ["e01_leading_zero_account.csv"], "commit": "skip"},
+   {"parse": ["e02_blank_balance.csv"], "commit": "skip"},
+   {"parse": ["e03_mixed_wareki_seireki.csv"], "commit": "skip"},
+   {"parse": ["e04_decimal_amount.csv"], "commit": "skip"},
+   {"parse": ["e05_us_date.csv"], "commit": "skip"},
+   {"parse": ["e06_cp932_crlf.csv"], "commit": "skip"},
+   {"parse": ["e08_title_row.csv"], "commit": "skip"},
+   {"parse": ["e09_no_balance_column.csv"], "commit": "skip"},
+   {"parse": ["e10_missing_description.csv"], "commit": "skip"},
+   {"parse": ["e11_bad_amount.csv"], "commit": "skip"},
+   {"parse": ["e12_bad_date.csv"], "commit": "skip"},
+   {"parse": ["e13_wareki_variants.csv"], "commit": "skip"},
+   {"parse": ["e13a_wareki_only.csv"], "commit": "skip"},
+   {"parse": ["e13b_seireki_only.csv"], "commit": "skip"},
+   {"parse": ["e14_kanji_era.csv"], "commit": "skip"},
+   {"parse": ["e15_amount_formats.csv"], "commit": "skip"},
+   {"parse": ["e15b_amount_formats_ascii.csv"], "commit": "skip"},
+   {"parse": ["e16_header_variants.csv"], "commit": "skip"},
+   {"parse": ["e17_unsorted_dates.csv"], "commit": "skip"},
+   {"parse": ["e18_balance_mismatch.csv"], "commit": "skip"},
+   {"parse": ["e19_header_only.csv"], "commit": "skip"},
+   {"parse": ["e20_multi_bank.csv"], "commit": "skip"},
+   {"parse": ["e21_blank_row.csv"], "commit": "skip"},
+   {"parse": ["e23_blank_description.csv"], "commit": "skip"},
+   {"parse": ["e22_excel.xlsx"], "commit": "skip"},
+   {"parse": ["e24_excel_dates.xlsx"], "commit": "skip"},
+   {"parse": ["e07_utf8bom_crlf.csv", "e04_decimal_amount.csv"]}
+  ]
+ }
+]

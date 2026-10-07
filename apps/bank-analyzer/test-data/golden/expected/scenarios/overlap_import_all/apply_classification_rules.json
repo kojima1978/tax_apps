@@ -1,0 +1,149 @@
+{
+ "return": 1,
+ "transactions": [
+  {
+   "id": 1,
+   "category": "贈与・教育費",
+   "classification_score": 0
+  },
+  {
+   "id": 2,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 3,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 4,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 5,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 6,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 7,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 8,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 9,
+   "category": "贈与・教育費",
+   "classification_score": 0
+  },
+  {
+   "id": 10,
+   "category": "贈与・教育費",
+   "classification_score": 0
+  },
+  {
+   "id": 11,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 12,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 13,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 14,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 15,
+   "category": "生活費",
+   "classification_score": 0
+  },
+  {
+   "id": 16,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 17,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 18,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 19,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 20,
+   "category": "銀行・利息・手数料",
+   "classification_score": 0
+  },
+  {
+   "id": 21,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 22,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 23,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 24,
+   "category": "未分類",
+   "classification_score": 0
+  },
+  {
+   "id": 25,
+   "category": "事業・不動産",
+   "classification_score": 0
+  },
+  {
+   "id": 26,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 27,
+   "category": "生活費",
+   "classification_score": 0
+  }
+ ],
+ "changes": [
+  {
+   "transaction_identifier": 10,
+   "transaction_description": "振込 ヤマダジロウ",
+   "old_category": "未分類",
+   "new_category": "贈与・教育費",
+   "source": "classification_rule"
+  }
+ ]
+}

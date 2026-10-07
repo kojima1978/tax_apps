@@ -1,0 +1,44 @@
+{
+ "(none)": {
+  "groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "count": 1,
+    "total_out": 0,
+    "total_in": 999560,
+    "tx_ids": [
+     10
+    ],
+    "first_tx_id": 10,
+    "samples": [
+     {
+      "date": "2024-04-01",
+      "bank_name": "サンプル信用金庫",
+      "amount_out": 0,
+      "amount_in": 999560
+     }
+    ]
+   }
+  ],
+  "tx_total": 1,
+  "max_group_count": 1,
+  "group_suggestions": {
+   "振込 テストギンコウ": {
+    "category": "贈与・教育費",
+    "score": 100.0
+   }
+  }
+ },
+ "振替": {
+  "groups": [],
+  "tx_total": 0,
+  "max_group_count": 1,
+  "group_suggestions": {}
+ },
+ "ATM": {
+  "groups": [],
+  "tx_total": 0,
+  "max_group_count": 1,
+  "group_suggestions": {}
+ }
+}

@@ -1,0 +1,206 @@
+{
+ "(none)": {
+  "groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "count": 1,
+    "total_out": 0,
+    "total_in": 999560,
+    "tx_ids": [
+     26
+    ],
+    "first_tx_id": 26,
+    "samples": [
+     {
+      "date": "2024-04-01",
+      "bank_name": "サンプル信用金庫",
+      "amount_out": 0,
+      "amount_in": 999560
+     }
+    ]
+   },
+   {
+    "description": "ﾈﾝｷﾝ ｺｳｾｲﾛｳﾄﾞｳｼｮｳ",
+    "count": 1,
+    "total_out": 0,
+    "total_in": 500000,
+    "tx_ids": [
+     11
+    ],
+    "first_tx_id": 11,
+    "samples": [
+     {
+      "date": "2024-05-01",
+      "bank_name": "テスト銀行",
+      "amount_out": 0,
+      "amount_in": 500000
+     }
+    ]
+   },
+   {
+    "description": "ｶ)ﾔﾏﾀﾞｼｮｳｼﾞ ｷﾕｳﾖ",
+    "count": 1,
+    "total_out": 0,
+    "total_in": 499999,
+    "tx_ids": [
+     12
+    ],
+    "first_tx_id": 12,
+    "samples": [
+     {
+      "date": "2024-05-02",
+      "bank_name": "テスト銀行",
+      "amount_out": 0,
+      "amount_in": 499999
+     }
+    ]
+   },
+   {
+    "description": "ﾃﾞﾝｷﾘﾖｳ",
+    "count": 1,
+    "total_out": 8800,
+    "total_in": 0,
+    "tx_ids": [
+     13
+    ],
+    "first_tx_id": 13,
+    "samples": [
+     {
+      "date": "2024-05-10",
+      "bank_name": "テスト銀行",
+      "amount_out": 8800,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "ａｕ　料金",
+    "count": 1,
+    "total_out": 4300,
+    "total_in": 0,
+    "tx_ids": [
+     16
+    ],
+    "first_tx_id": 16,
+    "samples": [
+     {
+      "date": "2024-05-13",
+      "bank_name": "テスト銀行",
+      "amount_out": 4300,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "ニホンセイメイ",
+    "count": 1,
+    "total_out": 12000,
+    "total_in": 0,
+    "tx_ids": [
+     17
+    ],
+    "first_tx_id": 17,
+    "samples": [
+     {
+      "date": "2024-05-14",
+      "bank_name": "テスト銀行",
+      "amount_out": 12000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "ノムラショウケン",
+    "count": 1,
+    "total_out": 200000,
+    "total_in": 0,
+    "tx_ids": [
+     18
+    ],
+    "first_tx_id": 18,
+    "samples": [
+     {
+      "date": "2024-05-15",
+      "bank_name": "テスト銀行",
+      "amount_out": 200000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "固定資産税",
+    "count": 1,
+    "total_out": 45000,
+    "total_in": 0,
+    "tx_ids": [
+     19
+    ],
+    "first_tx_id": 19,
+    "samples": [
+     {
+      "date": "2024-05-16",
+      "bank_name": "テスト銀行",
+      "amount_out": 45000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "ｺｳｻﾞﾌﾘｶｴ ｶｰﾄﾞ",
+    "count": 1,
+    "total_out": 33000,
+    "total_in": 0,
+    "tx_ids": [
+     22
+    ],
+    "first_tx_id": 22,
+    "samples": [
+     {
+      "date": "2024-05-19",
+      "bank_name": "テスト銀行",
+      "amount_out": 33000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "カード",
+    "count": 1,
+    "total_out": 2000,
+    "total_in": 0,
+    "tx_ids": [
+     23
+    ],
+    "first_tx_id": 23,
+    "samples": [
+     {
+      "date": "2024-05-20",
+      "bank_name": "テスト銀行",
+      "amount_out": 2000,
+      "amount_in": 0
+     }
+    ]
+   }
+  ],
+  "tx_total": 10,
+  "max_group_count": 1,
+  "group_suggestions": {
+   "振込 テストギンコウ": {
+    "category": "贈与・教育費",
+    "score": 100.0
+   }
+  }
+ },
+ "振替": {
+  "groups": [],
+  "tx_total": 0,
+  "max_group_count": 1,
+  "group_suggestions": {}
+ },
+ "ATM": {
+  "groups": [],
+  "tx_total": 0,
+  "max_group_count": 1,
+  "group_suggestions": {}
+ }
+}

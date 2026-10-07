@@ -1,0 +1,1378 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2024-01-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15350000
+   },
+   {
+    "date": "2024-01-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15332000
+   },
+   {
+    "date": "2024-01-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 15032000
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15017000
+   },
+   {
+    "date": "2024-02-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15167000
+   },
+   {
+    "date": "2024-02-15T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 15160500
+   },
+   {
+    "date": "2024-02-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 85000,
+    "balance": 15245500
+   },
+   {
+    "date": "2024-03-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15395500
+   },
+   {
+    "date": "2024-03-16T00:00:00",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "balance": 15895500
+   },
+   {
+    "date": "2024-03-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 250000,
+    "amount_in": 0,
+    "balance": 15645500
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15630500
+   },
+   {
+    "date": "2024-04-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15780500
+   },
+   {
+    "date": "2024-04-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15762500
+   },
+   {
+    "date": "2024-04-30T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 15582500
+   },
+   {
+    "date": "2024-05-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15732500
+   },
+   {
+    "date": "2024-05-15T00:00:00",
+    "description": "第一生命",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 15722500
+   },
+   {
+    "date": "2024-05-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 62000,
+    "balance": 15784500
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15769500
+   },
+   {
+    "date": "2024-06-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15919500
+   },
+   {
+    "date": "2024-06-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "balance": 15419500
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 15413000
+   },
+   {
+    "date": "2024-07-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15563000
+   },
+   {
+    "date": "2024-07-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15545000
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15530000
+   },
+   {
+    "date": "2024-07-31T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 15350000
+   },
+   {
+    "date": "2024-08-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15500000
+   },
+   {
+    "date": "2024-08-20T00:00:00",
+    "description": "SBI証券 売却代金",
+    "amount_out": 0,
+    "amount_in": 820000,
+    "balance": 16320000
+   },
+   {
+    "date": "2024-08-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16305000
+   },
+   {
+    "date": "2024-09-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16455000
+   },
+   {
+    "date": "2024-09-11T00:00:00",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 16155000
+   },
+   {
+    "date": "2024-09-15T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 16148500
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16133500
+   },
+   {
+    "date": "2024-10-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16283500
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 16265500
+   },
+   {
+    "date": "2024-10-31T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 16085500
+   },
+   {
+    "date": "2024-11-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16235500
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 400000,
+    "amount_in": 0,
+    "balance": 15835500
+   },
+   {
+    "date": "2024-11-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15820500
+   },
+   {
+    "date": "2024-12-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15970500
+   },
+   {
+    "date": "2024-12-15T00:00:00",
+    "description": "第一生命",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 15960500
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 95000,
+    "balance": 16055500
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16040500
+   }
+  ],
+  "validated": [
+   {
+    "date": "2024-01-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15350000,
+    "calc_balance": 15350000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15332000,
+    "calc_balance": 15332000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 15032000,
+    "calc_balance": 15032000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15017000,
+    "calc_balance": 15017000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15167000,
+    "calc_balance": 15167000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-15T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 15160500,
+    "calc_balance": 15160500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 85000,
+    "balance": 15245500,
+    "calc_balance": 15245500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15395500,
+    "calc_balance": 15395500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-16T00:00:00",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "balance": 15895500,
+    "calc_balance": 15895500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 250000,
+    "amount_in": 0,
+    "balance": 15645500,
+    "calc_balance": 15645500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15630500,
+    "calc_balance": 15630500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15780500,
+    "calc_balance": 15780500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15762500,
+    "calc_balance": 15762500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-30T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 15582500,
+    "calc_balance": 15582500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15732500,
+    "calc_balance": 15732500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-15T00:00:00",
+    "description": "第一生命",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 15722500,
+    "calc_balance": 15722500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 62000,
+    "balance": 15784500,
+    "calc_balance": 15784500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15769500,
+    "calc_balance": 15769500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15919500,
+    "calc_balance": 15919500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "balance": 15419500,
+    "calc_balance": 15419500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 15413000,
+    "calc_balance": 15413000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15563000,
+    "calc_balance": 15563000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15545000,
+    "calc_balance": 15545000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15530000,
+    "calc_balance": 15530000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-31T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 15350000,
+    "calc_balance": 15350000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15500000,
+    "calc_balance": 15500000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-20T00:00:00",
+    "description": "SBI証券 売却代金",
+    "amount_out": 0,
+    "amount_in": 820000,
+    "balance": 16320000,
+    "calc_balance": 16320000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16305000,
+    "calc_balance": 16305000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16455000,
+    "calc_balance": 16455000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-11T00:00:00",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 16155000,
+    "calc_balance": 16155000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-15T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 16148500,
+    "calc_balance": 16148500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16133500,
+    "calc_balance": 16133500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16283500,
+    "calc_balance": 16283500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 16265500,
+    "calc_balance": 16265500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-31T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 16085500,
+    "calc_balance": 16085500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16235500,
+    "calc_balance": 16235500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 400000,
+    "amount_in": 0,
+    "balance": 15835500,
+    "calc_balance": 15835500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15820500,
+    "calc_balance": 15820500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15970500,
+    "calc_balance": 15970500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-15T00:00:00",
+    "description": "第一生命",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 15960500,
+    "calc_balance": 15960500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 95000,
+    "balance": 16055500,
+    "calc_balance": 16055500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16040500,
+    "calc_balance": 16040500,
+    "is_balance_error": false
+   }
+  ]
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2024-01-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15350000
+   },
+   {
+    "date": "2024-01-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15332000
+   },
+   {
+    "date": "2024-01-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 15032000
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15017000
+   },
+   {
+    "date": "2024-02-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15167000
+   },
+   {
+    "date": "2024-02-15T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 15160500
+   },
+   {
+    "date": "2024-02-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 85000,
+    "balance": 15245500
+   },
+   {
+    "date": "2024-03-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15395500
+   },
+   {
+    "date": "2024-03-16T00:00:00",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "balance": 15895500
+   },
+   {
+    "date": "2024-03-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 250000,
+    "amount_in": 0,
+    "balance": 15645500
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15630500
+   },
+   {
+    "date": "2024-04-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15780500
+   },
+   {
+    "date": "2024-04-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15762500
+   },
+   {
+    "date": "2024-04-30T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 15582500
+   },
+   {
+    "date": "2024-05-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15732500
+   },
+   {
+    "date": "2024-05-15T00:00:00",
+    "description": "第一生命",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 15722500
+   },
+   {
+    "date": "2024-05-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 62000,
+    "balance": 15784500
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15769500
+   },
+   {
+    "date": "2024-06-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15919500
+   },
+   {
+    "date": "2024-06-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "balance": 15419500
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 15413000
+   },
+   {
+    "date": "2024-07-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15563000
+   },
+   {
+    "date": "2024-07-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15545000
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15530000
+   },
+   {
+    "date": "2024-07-31T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 15350000
+   },
+   {
+    "date": "2024-08-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15500000
+   },
+   {
+    "date": "2024-08-20T00:00:00",
+    "description": "SBI証券 売却代金",
+    "amount_out": 0,
+    "amount_in": 820000,
+    "balance": 16320000
+   },
+   {
+    "date": "2024-08-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16305000
+   },
+   {
+    "date": "2024-09-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16455000
+   },
+   {
+    "date": "2024-09-11T00:00:00",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 16155000
+   },
+   {
+    "date": "2024-09-15T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 16148500
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16133500
+   },
+   {
+    "date": "2024-10-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16283500
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 16265500
+   },
+   {
+    "date": "2024-10-31T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 16085500
+   },
+   {
+    "date": "2024-11-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16235500
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 400000,
+    "amount_in": 0,
+    "balance": 15835500
+   },
+   {
+    "date": "2024-11-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15820500
+   },
+   {
+    "date": "2024-12-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15970500
+   },
+   {
+    "date": "2024-12-15T00:00:00",
+    "description": "第一生命",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 15960500
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 95000,
+    "balance": 16055500
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16040500
+   }
+  ],
+  "validated": [
+   {
+    "date": "2024-01-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15350000,
+    "calc_balance": 15350000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15332000,
+    "calc_balance": 15332000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 15032000,
+    "calc_balance": 15032000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15017000,
+    "calc_balance": 15017000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15167000,
+    "calc_balance": 15167000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-15T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 15160500,
+    "calc_balance": 15160500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 85000,
+    "balance": 15245500,
+    "calc_balance": 15245500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15395500,
+    "calc_balance": 15395500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-16T00:00:00",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "balance": 15895500,
+    "calc_balance": 15895500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 250000,
+    "amount_in": 0,
+    "balance": 15645500,
+    "calc_balance": 15645500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15630500,
+    "calc_balance": 15630500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15780500,
+    "calc_balance": 15780500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15762500,
+    "calc_balance": 15762500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-30T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 15582500,
+    "calc_balance": 15582500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15732500,
+    "calc_balance": 15732500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-15T00:00:00",
+    "description": "第一生命",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 15722500,
+    "calc_balance": 15722500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 62000,
+    "balance": 15784500,
+    "calc_balance": 15784500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15769500,
+    "calc_balance": 15769500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15919500,
+    "calc_balance": 15919500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "balance": 15419500,
+    "calc_balance": 15419500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 15413000,
+    "calc_balance": 15413000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15563000,
+    "calc_balance": 15563000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 15545000,
+    "calc_balance": 15545000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15530000,
+    "calc_balance": 15530000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-31T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 15350000,
+    "calc_balance": 15350000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15500000,
+    "calc_balance": 15500000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-20T00:00:00",
+    "description": "SBI証券 売却代金",
+    "amount_out": 0,
+    "amount_in": 820000,
+    "balance": 16320000,
+    "calc_balance": 16320000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16305000,
+    "calc_balance": 16305000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16455000,
+    "calc_balance": 16455000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-11T00:00:00",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "balance": 16155000,
+    "calc_balance": 16155000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-15T00:00:00",
+    "description": "損保ジャパン",
+    "amount_out": 6500,
+    "amount_in": 0,
+    "balance": 16148500,
+    "calc_balance": 16148500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16133500,
+    "calc_balance": 16133500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16283500,
+    "calc_balance": 16283500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "日本生命",
+    "amount_out": 18000,
+    "amount_in": 0,
+    "balance": 16265500,
+    "calc_balance": 16265500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-31T00:00:00",
+    "description": "固定資産税",
+    "amount_out": 180000,
+    "amount_in": 0,
+    "balance": 16085500,
+    "calc_balance": 16085500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 16235500,
+    "calc_balance": 16235500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "野村證券",
+    "amount_out": 400000,
+    "amount_in": 0,
+    "balance": 15835500,
+    "calc_balance": 15835500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 15820500,
+    "calc_balance": 15820500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-10T00:00:00",
+    "description": "家賃収入 マンションカンリ",
+    "amount_out": 0,
+    "amount_in": 150000,
+    "balance": 15970500,
+    "calc_balance": 15970500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-15T00:00:00",
+    "description": "第一生命",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 15960500,
+    "calc_balance": 15960500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "SBI証券 配当金",
+    "amount_out": 0,
+    "amount_in": 95000,
+    "balance": 16055500,
+    "calc_balance": 16055500,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "管理費",
+    "amount_out": 15000,
+    "amount_in": 0,
+    "balance": 16040500,
+    "calc_balance": 16040500,
+    "is_balance_error": false
+   }
+  ]
+ }
+}

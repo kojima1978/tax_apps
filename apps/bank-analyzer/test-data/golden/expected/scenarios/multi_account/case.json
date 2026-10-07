@@ -1,0 +1,35 @@
+{
+ "name": "1ファイルに2口座",
+ "reference_date": null,
+ "custom_patterns": {},
+ "accounts": [
+  {
+   "id": "?5",
+   "account_number": "2222222",
+   "bank_name": "サンプル信用金庫",
+   "branch_name": "駅前支店",
+   "account_type": "普通",
+   "holder": null,
+   "passbook_balance": null,
+   "certificate_balance": null,
+   "has_accrued_interest": false,
+   "passbook_years": {},
+   "inventory_remarks": "",
+   "print_order": 0
+  },
+  {
+   "id": "?4",
+   "account_number": "1111111",
+   "bank_name": "テスト銀行",
+   "branch_name": "本店",
+   "account_type": "普通",
+   "holder": null,
+   "passbook_balance": null,
+   "certificate_balance": null,
+   "has_accrued_interest": false,
+   "passbook_years": {},
+   "inventory_remarks": "",
+   "print_order": 0
+  }
+ ]
+}

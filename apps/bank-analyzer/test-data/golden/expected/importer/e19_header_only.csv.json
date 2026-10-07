@@ -1,0 +1,30 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [],
+  "validated": []
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [],
+  "validated": []
+ }
+}

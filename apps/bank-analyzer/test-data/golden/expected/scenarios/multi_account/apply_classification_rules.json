@@ -1,0 +1,104 @@
+{
+ "return": 1,
+ "transactions": [
+  {
+   "id": 1,
+   "category": "贈与・教育費",
+   "classification_score": 0
+  },
+  {
+   "id": 2,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 3,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 4,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 5,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 6,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 7,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 8,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 9,
+   "category": "贈与・教育費",
+   "classification_score": 0
+  },
+  {
+   "id": 10,
+   "category": "贈与・教育費",
+   "classification_score": 0
+  },
+  {
+   "id": 11,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 12,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 13,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 14,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 15,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 16,
+   "category": "通帳間移動",
+   "classification_score": 0
+  },
+  {
+   "id": 17,
+   "category": "その他",
+   "classification_score": 0
+  },
+  {
+   "id": 18,
+   "category": "給与",
+   "classification_score": 0
+  }
+ ],
+ "changes": [
+  {
+   "transaction_identifier": 10,
+   "transaction_description": "振込 テストギンコウ",
+   "old_category": "未分類",
+   "new_category": "贈与・教育費",
+   "source": "classification_rule"
+  }
+ ]
+}

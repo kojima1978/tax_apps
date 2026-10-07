@@ -1,0 +1,456 @@
+{
+ "(none)": {
+  "groups": [
+   {
+    "description": "管理費",
+    "count": 8,
+    "total_out": 120000,
+    "total_in": 0,
+    "tx_ids": [
+     88,
+     95,
+     102,
+     108,
+     112,
+     116,
+     122,
+     126
+    ],
+    "first_tx_id": 88,
+    "samples": [
+     {
+      "date": "2024-01-25",
+      "bank_name": "三菱UFJ銀行",
+      "amount_out": 15000,
+      "amount_in": 0
+     },
+     {
+      "date": "2024-03-25",
+      "bank_name": "三菱UFJ銀行",
+      "amount_out": 15000,
+      "amount_in": 0
+     },
+     {
+      "date": "2024-05-25",
+      "bank_name": "三菱UFJ銀行",
+      "amount_out": 15000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "フリコミ タナカイチロウ",
+    "count": 5,
+    "total_out": 0,
+    "total_in": 500000,
+    "tx_ids": [
+     56,
+     62,
+     69,
+     77,
+     82
+    ],
+    "first_tx_id": 56,
+    "samples": [
+     {
+      "date": "2024-01-10",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 100000
+     },
+     {
+      "date": "2024-03-25",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 100000
+     },
+     {
+      "date": "2024-07-10",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 100000
+     }
+    ]
+   },
+   {
+    "description": "固定資産税",
+    "count": 3,
+    "total_out": 540000,
+    "total_in": 0,
+    "tx_ids": [
+     98,
+     109,
+     119
+    ],
+    "first_tx_id": 98,
+    "samples": [
+     {
+      "date": "2024-04-30",
+      "bank_name": "三菱UFJ銀行",
+      "amount_out": 180000,
+      "amount_in": 0
+     },
+     {
+      "date": "2024-07-31",
+      "bank_name": "三菱UFJ銀行",
+      "amount_out": 180000,
+      "amount_in": 0
+     },
+     {
+      "date": "2024-10-31",
+      "bank_name": "三菱UFJ銀行",
+      "amount_out": 180000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "フリコミ スズキジロウ",
+    "count": 2,
+    "total_out": 0,
+    "total_in": 600000,
+    "tx_ids": [
+     59,
+     73
+    ],
+    "first_tx_id": 59,
+    "samples": [
+     {
+      "date": "2024-02-10",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 300000
+     },
+     {
+      "date": "2024-08-20",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 300000
+     }
+    ]
+   },
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "count": 2,
+    "total_out": 500000,
+    "total_in": 300000,
+    "tx_ids": [
+     11,
+     74
+    ],
+    "first_tx_id": 11,
+    "samples": [
+     {
+      "date": "2024-03-15",
+      "bank_name": "みずほ銀行",
+      "amount_out": 500000,
+      "amount_in": 0
+     },
+     {
+      "date": "2024-09-12",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 300000
+     }
+    ]
+   },
+   {
+    "description": "デンシンフリコミ",
+    "count": 2,
+    "total_out": 270000,
+    "total_in": 0,
+    "tx_ids": [
+     61,
+     81
+    ],
+    "first_tx_id": 61,
+    "samples": [
+     {
+      "date": "2024-03-15",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 120000,
+      "amount_in": 0
+     },
+     {
+      "date": "2024-11-20",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 150000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "count": 2,
+    "total_out": 0,
+    "total_in": 699560,
+    "tx_ids": [
+     93,
+     67
+    ],
+    "first_tx_id": 93,
+    "samples": [
+     {
+      "date": "2024-03-16",
+      "bank_name": "三菱UFJ銀行",
+      "amount_out": 0,
+      "amount_in": 500000
+     },
+     {
+      "date": "2024-06-21",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 199560
+     }
+    ]
+   },
+   {
+    "description": "フリコミ ヤマダタロウ",
+    "count": 2,
+    "total_out": 0,
+    "total_in": 3500000,
+    "tx_ids": [
+     63,
+     80
+    ],
+    "first_tx_id": 63,
+    "samples": [
+     {
+      "date": "2024-04-10",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 1500000
+     },
+     {
+      "date": "2024-11-10",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 2000000
+     }
+    ]
+   },
+   {
+    "description": "コクゼイ",
+    "count": 2,
+    "total_out": 220000,
+    "total_in": 0,
+    "tx_ids": [
+     66,
+     75
+    ],
+    "first_tx_id": 66,
+    "samples": [
+     {
+      "date": "2024-05-25",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 125000,
+      "amount_in": 0
+     },
+     {
+      "date": "2024-09-20",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 95000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "count": 2,
+    "total_out": 500000,
+    "total_in": 0,
+    "tx_ids": [
+     25,
+     114
+    ],
+    "first_tx_id": 25,
+    "samples": [
+     {
+      "date": "2024-06-20",
+      "bank_name": "みずほ銀行",
+      "amount_out": 200000,
+      "amount_in": 0
+     },
+     {
+      "date": "2024-09-11",
+      "bank_name": "三菱UFJ銀行",
+      "amount_out": 300000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "三井住友カード",
+    "count": 1,
+    "total_out": 35000,
+    "total_in": 0,
+    "tx_ids": [
+     10
+    ],
+    "first_tx_id": 10,
+    "samples": [
+     {
+      "date": "2024-03-10",
+      "bank_name": "みずほ銀行",
+      "amount_out": 35000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "カ)サトウ建設",
+    "count": 1,
+    "total_out": 350000,
+    "total_in": 0,
+    "tx_ids": [
+     64
+    ],
+    "first_tx_id": 64,
+    "samples": [
+     {
+      "date": "2024-04-20",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 350000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "カクテイシンコク カンプキン",
+    "count": 1,
+    "total_out": 0,
+    "total_in": 185000,
+    "tx_ids": [
+     16
+    ],
+    "first_tx_id": 16,
+    "samples": [
+     {
+      "date": "2024-04-22",
+      "bank_name": "みずほ銀行",
+      "amount_out": 0,
+      "amount_in": 185000
+     }
+    ]
+   },
+   {
+    "description": "フリコミ サトウサブロウ",
+    "count": 1,
+    "total_out": 0,
+    "total_in": 200000,
+    "tx_ids": [
+     65
+    ],
+    "first_tx_id": 65,
+    "samples": [
+     {
+      "date": "2024-05-15",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 0,
+      "amount_in": 200000
+     }
+    ]
+   },
+   {
+    "description": "住民税",
+    "count": 1,
+    "total_out": 48000,
+    "total_in": 0,
+    "tx_ids": [
+     22
+    ],
+    "first_tx_id": 22,
+    "samples": [
+     {
+      "date": "2024-05-31",
+      "bank_name": "みずほ銀行",
+      "amount_out": 48000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "自動車税",
+    "count": 1,
+    "total_out": 39500,
+    "total_in": 0,
+    "tx_ids": [
+     27
+    ],
+    "first_tx_id": 27,
+    "samples": [
+     {
+      "date": "2024-06-30",
+      "bank_name": "みずほ銀行",
+      "amount_out": 39500,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "電信振込",
+    "count": 1,
+    "total_out": 85000,
+    "total_in": 0,
+    "tx_ids": [
+     72
+    ],
+    "first_tx_id": 72,
+    "samples": [
+     {
+      "date": "2024-08-10",
+      "bank_name": "ゆうちょ銀行",
+      "amount_out": 85000,
+      "amount_in": 0
+     }
+    ]
+   },
+   {
+    "description": "フリコミ ヤマダハナコ",
+    "count": 1,
+    "total_out": 0,
+    "total_in": 1200000,
+    "tx_ids": [
+     52
+    ],
+    "first_tx_id": 52,
+    "samples": [
+     {
+      "date": "2024-12-20",
+      "bank_name": "みずほ銀行",
+      "amount_out": 0,
+      "amount_in": 1200000
+     }
+    ]
+   }
+  ],
+  "tx_total": 38,
+  "max_group_count": 8,
+  "group_suggestions": {
+   "振込 ミツビシUFJギンコウ": {
+    "category": "贈与・教育費",
+    "score": 100.0
+   },
+   "振込 ミズホギンコウ": {
+    "category": "贈与・教育費",
+    "score": 100.0
+   },
+   "振込 ユウチョギンコウ": {
+    "category": "贈与・教育費",
+    "score": 100.0
+   }
+  }
+ },
+ "振替": {
+  "groups": [],
+  "tx_total": 0,
+  "max_group_count": 1,
+  "group_suggestions": {}
+ },
+ "ATM": {
+  "groups": [],
+  "tx_total": 0,
+  "max_group_count": 1,
+  "group_suggestions": {}
+ }
+}

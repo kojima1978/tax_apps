@@ -1,0 +1,962 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2024-01-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 3900000
+   },
+   {
+    "date": "2024-01-20T00:00:00",
+    "description": "カ)ABC商事",
+    "amount_out": 55000,
+    "amount_in": 0,
+    "balance": 3845000
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 3815000
+   },
+   {
+    "date": "2024-02-10T00:00:00",
+    "description": "フリコミ スズキジロウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 4115000
+   },
+   {
+    "date": "2024-02-20T00:00:00",
+    "description": "振込手数料",
+    "amount_out": 440,
+    "amount_in": 0,
+    "balance": 4114560
+   },
+   {
+    "date": "2024-03-15T00:00:00",
+    "description": "デンシンフリコミ",
+    "amount_out": 120000,
+    "amount_in": 0,
+    "balance": 3994560
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 4094560
+   },
+   {
+    "date": "2024-04-10T00:00:00",
+    "description": "フリコミ ヤマダタロウ",
+    "amount_out": 0,
+    "amount_in": 1500000,
+    "balance": 5594560
+   },
+   {
+    "date": "2024-04-20T00:00:00",
+    "description": "カ)サトウ建設",
+    "amount_out": 350000,
+    "amount_in": 0,
+    "balance": 5244560
+   },
+   {
+    "date": "2024-05-15T00:00:00",
+    "description": "フリコミ サトウサブロウ",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 5444560
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "コクゼイ",
+    "amount_out": 125000,
+    "amount_in": 0,
+    "balance": 5319560
+   },
+   {
+    "date": "2024-06-21T00:00:00",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "balance": 5519120
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 50000,
+    "amount_in": 0,
+    "balance": 5469120
+   },
+   {
+    "date": "2024-07-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 5569120
+   },
+   {
+    "date": "2024-07-15T00:00:00",
+    "description": "ヤマグチ病院",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 5560620
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 20000,
+    "amount_in": 0,
+    "balance": 5540620
+   },
+   {
+    "date": "2024-08-10T00:00:00",
+    "description": "電信振込",
+    "amount_out": 85000,
+    "amount_in": 0,
+    "balance": 5455620
+   },
+   {
+    "date": "2024-08-20T00:00:00",
+    "description": "フリコミ スズキジロウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 5755620
+   },
+   {
+    "date": "2024-09-12T00:00:00",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 6055620
+   },
+   {
+    "date": "2024-09-20T00:00:00",
+    "description": "コクゼイ",
+    "amount_out": 95000,
+    "amount_in": 0,
+    "balance": 5960620
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 5930620
+   },
+   {
+    "date": "2024-10-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 6030620
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "カ)タカハシ薬局",
+    "amount_out": 3200,
+    "amount_in": 0,
+    "balance": 6027420
+   },
+   {
+    "date": "2024-10-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 20000,
+    "amount_in": 0,
+    "balance": 6007420
+   },
+   {
+    "date": "2024-11-10T00:00:00",
+    "description": "フリコミ ヤマダタロウ",
+    "amount_out": 0,
+    "amount_in": 2000000,
+    "balance": 8007420
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "デンシンフリコミ",
+    "amount_out": 150000,
+    "amount_in": 0,
+    "balance": 7857420
+   },
+   {
+    "date": "2024-12-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 7957420
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "カ)ABC商事",
+    "amount_out": 55000,
+    "amount_in": 0,
+    "balance": 7902420
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 7872420
+   }
+  ],
+  "validated": [
+   {
+    "date": "2024-01-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 3900000,
+    "calc_balance": 3900000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-20T00:00:00",
+    "description": "カ)ABC商事",
+    "amount_out": 55000,
+    "amount_in": 0,
+    "balance": 3845000,
+    "calc_balance": 3845000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 3815000,
+    "calc_balance": 3815000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-10T00:00:00",
+    "description": "フリコミ スズキジロウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 4115000,
+    "calc_balance": 4115000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-20T00:00:00",
+    "description": "振込手数料",
+    "amount_out": 440,
+    "amount_in": 0,
+    "balance": 4114560,
+    "calc_balance": 4114560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-15T00:00:00",
+    "description": "デンシンフリコミ",
+    "amount_out": 120000,
+    "amount_in": 0,
+    "balance": 3994560,
+    "calc_balance": 3994560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 4094560,
+    "calc_balance": 4094560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-10T00:00:00",
+    "description": "フリコミ ヤマダタロウ",
+    "amount_out": 0,
+    "amount_in": 1500000,
+    "balance": 5594560,
+    "calc_balance": 5594560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-20T00:00:00",
+    "description": "カ)サトウ建設",
+    "amount_out": 350000,
+    "amount_in": 0,
+    "balance": 5244560,
+    "calc_balance": 5244560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-15T00:00:00",
+    "description": "フリコミ サトウサブロウ",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 5444560,
+    "calc_balance": 5444560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "コクゼイ",
+    "amount_out": 125000,
+    "amount_in": 0,
+    "balance": 5319560,
+    "calc_balance": 5319560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-21T00:00:00",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "balance": 5519120,
+    "calc_balance": 5519120,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 50000,
+    "amount_in": 0,
+    "balance": 5469120,
+    "calc_balance": 5469120,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 5569120,
+    "calc_balance": 5569120,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-15T00:00:00",
+    "description": "ヤマグチ病院",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 5560620,
+    "calc_balance": 5560620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 20000,
+    "amount_in": 0,
+    "balance": 5540620,
+    "calc_balance": 5540620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-10T00:00:00",
+    "description": "電信振込",
+    "amount_out": 85000,
+    "amount_in": 0,
+    "balance": 5455620,
+    "calc_balance": 5455620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-20T00:00:00",
+    "description": "フリコミ スズキジロウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 5755620,
+    "calc_balance": 5755620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-12T00:00:00",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 6055620,
+    "calc_balance": 6055620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-20T00:00:00",
+    "description": "コクゼイ",
+    "amount_out": 95000,
+    "amount_in": 0,
+    "balance": 5960620,
+    "calc_balance": 5960620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 5930620,
+    "calc_balance": 5930620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 6030620,
+    "calc_balance": 6030620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "カ)タカハシ薬局",
+    "amount_out": 3200,
+    "amount_in": 0,
+    "balance": 6027420,
+    "calc_balance": 6027420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 20000,
+    "amount_in": 0,
+    "balance": 6007420,
+    "calc_balance": 6007420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-10T00:00:00",
+    "description": "フリコミ ヤマダタロウ",
+    "amount_out": 0,
+    "amount_in": 2000000,
+    "balance": 8007420,
+    "calc_balance": 8007420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "デンシンフリコミ",
+    "amount_out": 150000,
+    "amount_in": 0,
+    "balance": 7857420,
+    "calc_balance": 7857420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 7957420,
+    "calc_balance": 7957420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "カ)ABC商事",
+    "amount_out": 55000,
+    "amount_in": 0,
+    "balance": 7902420,
+    "calc_balance": 7902420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 7872420,
+    "calc_balance": 7872420,
+    "is_balance_error": false
+   }
+  ]
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2024-01-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 3900000
+   },
+   {
+    "date": "2024-01-20T00:00:00",
+    "description": "カ)ABC商事",
+    "amount_out": 55000,
+    "amount_in": 0,
+    "balance": 3845000
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 3815000
+   },
+   {
+    "date": "2024-02-10T00:00:00",
+    "description": "フリコミ スズキジロウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 4115000
+   },
+   {
+    "date": "2024-02-20T00:00:00",
+    "description": "振込手数料",
+    "amount_out": 440,
+    "amount_in": 0,
+    "balance": 4114560
+   },
+   {
+    "date": "2024-03-15T00:00:00",
+    "description": "デンシンフリコミ",
+    "amount_out": 120000,
+    "amount_in": 0,
+    "balance": 3994560
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 4094560
+   },
+   {
+    "date": "2024-04-10T00:00:00",
+    "description": "フリコミ ヤマダタロウ",
+    "amount_out": 0,
+    "amount_in": 1500000,
+    "balance": 5594560
+   },
+   {
+    "date": "2024-04-20T00:00:00",
+    "description": "カ)サトウ建設",
+    "amount_out": 350000,
+    "amount_in": 0,
+    "balance": 5244560
+   },
+   {
+    "date": "2024-05-15T00:00:00",
+    "description": "フリコミ サトウサブロウ",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 5444560
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "コクゼイ",
+    "amount_out": 125000,
+    "amount_in": 0,
+    "balance": 5319560
+   },
+   {
+    "date": "2024-06-21T00:00:00",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "balance": 5519120
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 50000,
+    "amount_in": 0,
+    "balance": 5469120
+   },
+   {
+    "date": "2024-07-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 5569120
+   },
+   {
+    "date": "2024-07-15T00:00:00",
+    "description": "ヤマグチ病院",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 5560620
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 20000,
+    "amount_in": 0,
+    "balance": 5540620
+   },
+   {
+    "date": "2024-08-10T00:00:00",
+    "description": "電信振込",
+    "amount_out": 85000,
+    "amount_in": 0,
+    "balance": 5455620
+   },
+   {
+    "date": "2024-08-20T00:00:00",
+    "description": "フリコミ スズキジロウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 5755620
+   },
+   {
+    "date": "2024-09-12T00:00:00",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 6055620
+   },
+   {
+    "date": "2024-09-20T00:00:00",
+    "description": "コクゼイ",
+    "amount_out": 95000,
+    "amount_in": 0,
+    "balance": 5960620
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 5930620
+   },
+   {
+    "date": "2024-10-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 6030620
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "カ)タカハシ薬局",
+    "amount_out": 3200,
+    "amount_in": 0,
+    "balance": 6027420
+   },
+   {
+    "date": "2024-10-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 20000,
+    "amount_in": 0,
+    "balance": 6007420
+   },
+   {
+    "date": "2024-11-10T00:00:00",
+    "description": "フリコミ ヤマダタロウ",
+    "amount_out": 0,
+    "amount_in": 2000000,
+    "balance": 8007420
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "デンシンフリコミ",
+    "amount_out": 150000,
+    "amount_in": 0,
+    "balance": 7857420
+   },
+   {
+    "date": "2024-12-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 7957420
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "カ)ABC商事",
+    "amount_out": 55000,
+    "amount_in": 0,
+    "balance": 7902420
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 7872420
+   }
+  ],
+  "validated": [
+   {
+    "date": "2024-01-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 3900000,
+    "calc_balance": 3900000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-20T00:00:00",
+    "description": "カ)ABC商事",
+    "amount_out": 55000,
+    "amount_in": 0,
+    "balance": 3845000,
+    "calc_balance": 3845000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-01-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 3815000,
+    "calc_balance": 3815000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-10T00:00:00",
+    "description": "フリコミ スズキジロウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 4115000,
+    "calc_balance": 4115000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-02-20T00:00:00",
+    "description": "振込手数料",
+    "amount_out": 440,
+    "amount_in": 0,
+    "balance": 4114560,
+    "calc_balance": 4114560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-15T00:00:00",
+    "description": "デンシンフリコミ",
+    "amount_out": 120000,
+    "amount_in": 0,
+    "balance": 3994560,
+    "calc_balance": 3994560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-03-25T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 4094560,
+    "calc_balance": 4094560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-10T00:00:00",
+    "description": "フリコミ ヤマダタロウ",
+    "amount_out": 0,
+    "amount_in": 1500000,
+    "balance": 5594560,
+    "calc_balance": 5594560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-04-20T00:00:00",
+    "description": "カ)サトウ建設",
+    "amount_out": 350000,
+    "amount_in": 0,
+    "balance": 5244560,
+    "calc_balance": 5244560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-15T00:00:00",
+    "description": "フリコミ サトウサブロウ",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 5444560,
+    "calc_balance": 5444560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-05-25T00:00:00",
+    "description": "コクゼイ",
+    "amount_out": 125000,
+    "amount_in": 0,
+    "balance": 5319560,
+    "calc_balance": 5319560,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-21T00:00:00",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "balance": 5519120,
+    "calc_balance": 5519120,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-06-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 50000,
+    "amount_in": 0,
+    "balance": 5469120,
+    "calc_balance": 5469120,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 5569120,
+    "calc_balance": 5569120,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-15T00:00:00",
+    "description": "ヤマグチ病院",
+    "amount_out": 8500,
+    "amount_in": 0,
+    "balance": 5560620,
+    "calc_balance": 5560620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-07-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 20000,
+    "amount_in": 0,
+    "balance": 5540620,
+    "calc_balance": 5540620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-10T00:00:00",
+    "description": "電信振込",
+    "amount_out": 85000,
+    "amount_in": 0,
+    "balance": 5455620,
+    "calc_balance": 5455620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-08-20T00:00:00",
+    "description": "フリコミ スズキジロウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 5755620,
+    "calc_balance": 5755620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-12T00:00:00",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 6055620,
+    "calc_balance": 6055620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-20T00:00:00",
+    "description": "コクゼイ",
+    "amount_out": 95000,
+    "amount_in": 0,
+    "balance": 5960620,
+    "calc_balance": 5960620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-09-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 5930620,
+    "calc_balance": 5930620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 6030620,
+    "calc_balance": 6030620,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-15T00:00:00",
+    "description": "カ)タカハシ薬局",
+    "amount_out": 3200,
+    "amount_in": 0,
+    "balance": 6027420,
+    "calc_balance": 6027420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-10-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 20000,
+    "amount_in": 0,
+    "balance": 6007420,
+    "calc_balance": 6007420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-10T00:00:00",
+    "description": "フリコミ ヤマダタロウ",
+    "amount_out": 0,
+    "amount_in": 2000000,
+    "balance": 8007420,
+    "calc_balance": 8007420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-11-20T00:00:00",
+    "description": "デンシンフリコミ",
+    "amount_out": 150000,
+    "amount_in": 0,
+    "balance": 7857420,
+    "calc_balance": 7857420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-10T00:00:00",
+    "description": "フリコミ タナカイチロウ",
+    "amount_out": 0,
+    "amount_in": 100000,
+    "balance": 7957420,
+    "calc_balance": 7957420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-20T00:00:00",
+    "description": "カ)ABC商事",
+    "amount_out": 55000,
+    "amount_in": 0,
+    "balance": 7902420,
+    "calc_balance": 7902420,
+    "is_balance_error": false
+   },
+   {
+    "date": "2024-12-25T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 7872420,
+    "calc_balance": 7872420,
+    "is_balance_error": false
+   }
+  ]
+ }
+}

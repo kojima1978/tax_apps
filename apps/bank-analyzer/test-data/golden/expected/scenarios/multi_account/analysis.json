@@ -1,0 +1,1835 @@
+{
+ "default": {
+  "account_summary": [
+   {
+    "account_number": "2222222",
+    "holder": null,
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-05-25"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-04-28"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 1,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 1000000,
+     "description": "振込 サンプルシンキン",
+     "category": "贈与・教育費"
+    },
+    "destination": {
+     "id": 10,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 999560,
+     "description": "振込 テストギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 4,
+     "date": "2024-04-05T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 300000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 11,
+     "date": "2024-04-08T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 300000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   },
+   {
+    "source": {
+     "id": 7,
+     "date": "2024-04-20T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 50000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 15,
+     "date": "2024-04-22T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 50000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   2,
+   3,
+   10,
+   4,
+   11,
+   5,
+   12,
+   6,
+   13,
+   7,
+   14,
+   15,
+   16,
+   8,
+   9,
+   17,
+   18
+  ],
+  "duplicate_txs": [
+   {
+    "id": 2,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   },
+   {
+    "id": 3,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3980000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   }
+  ],
+  "flagged_txs": [],
+  "banks": [
+   "サンプル信用金庫",
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店",
+   "駅前支店"
+  ],
+  "accounts": [
+   "1111111",
+   "2222222"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111"
+   ],
+   "サンプル信用金庫": [
+    "2222222"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 10,
+    "date": "2024-04-01",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     10
+    ],
+    "total_out": 0,
+    "total_in": 999560,
+    "count": 1,
+    "sample_date": "2024-04-01"
+   }
+  ],
+  "suggestions_count": 1,
+  "unclassified_count": 1,
+  "fuzzy_threshold": 90
+ },
+ "keyword_halfwidth": {
+  "account_summary": [
+   {
+    "account_number": "2222222",
+    "holder": null,
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-05-25"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-04-28"
+   }
+  ],
+  "transfer_pairs": [],
+  "all_txs": [],
+  "duplicate_txs": [
+   {
+    "id": 2,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   },
+   {
+    "id": 3,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3980000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   }
+  ],
+  "flagged_txs": [],
+  "banks": [
+   "サンプル信用金庫",
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店",
+   "駅前支店"
+  ],
+  "accounts": [
+   "1111111",
+   "2222222"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111"
+   ],
+   "サンプル信用金庫": [
+    "2222222"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 10,
+    "date": "2024-04-01",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     10
+    ],
+    "total_out": 0,
+    "total_in": 999560,
+    "count": 1,
+    "sample_date": "2024-04-01"
+   }
+  ],
+  "suggestions_count": 1,
+  "unclassified_count": 1,
+  "fuzzy_threshold": 90
+ },
+ "keyword_multi": {
+  "account_summary": [
+   {
+    "account_number": "2222222",
+    "holder": null,
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-05-25"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-04-28"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 4,
+     "date": "2024-04-05T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 300000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 11,
+     "date": "2024-04-08T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 300000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   },
+   {
+    "source": {
+     "id": 7,
+     "date": "2024-04-20T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 50000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 15,
+     "date": "2024-04-22T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 50000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   }
+  ],
+  "all_txs": [
+   11,
+   12,
+   13,
+   14,
+   15,
+   16
+  ],
+  "duplicate_txs": [
+   {
+    "id": 2,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   },
+   {
+    "id": 3,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3980000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   }
+  ],
+  "flagged_txs": [],
+  "banks": [
+   "サンプル信用金庫",
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店",
+   "駅前支店"
+  ],
+  "accounts": [
+   "1111111",
+   "2222222"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111"
+   ],
+   "サンプル信用金庫": [
+    "2222222"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 10,
+    "date": "2024-04-01",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     10
+    ],
+    "total_out": 0,
+    "total_in": 999560,
+    "count": 1,
+    "sample_date": "2024-04-01"
+   }
+  ],
+  "suggestions_count": 1,
+  "unclassified_count": 1,
+  "fuzzy_threshold": 90
+ },
+ "amount_out_range": {
+  "account_summary": [
+   {
+    "account_number": "2222222",
+    "holder": null,
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-05-25"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-04-28"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 1,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 1000000,
+     "description": "振込 サンプルシンキン",
+     "category": "贈与・教育費"
+    },
+    "destination": {
+     "id": 10,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 999560,
+     "description": "振込 テストギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 4,
+     "date": "2024-04-05T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 300000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 11,
+     "date": "2024-04-08T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 300000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   },
+   {
+    "source": {
+     "id": 7,
+     "date": "2024-04-20T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 50000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 15,
+     "date": "2024-04-22T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 50000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   }
+  ],
+  "all_txs": [
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   17
+  ],
+  "duplicate_txs": [
+   {
+    "id": 2,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   },
+   {
+    "id": 3,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3980000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   }
+  ],
+  "flagged_txs": [],
+  "banks": [
+   "サンプル信用金庫",
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店",
+   "駅前支店"
+  ],
+  "accounts": [
+   "1111111",
+   "2222222"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111"
+   ],
+   "サンプル信用金庫": [
+    "2222222"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 10,
+    "date": "2024-04-01",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     10
+    ],
+    "total_out": 0,
+    "total_in": 999560,
+    "count": 1,
+    "sample_date": "2024-04-01"
+   }
+  ],
+  "suggestions_count": 1,
+  "unclassified_count": 1,
+  "fuzzy_threshold": 90
+ },
+ "amount_both_min": {
+  "account_summary": [
+   {
+    "account_number": "2222222",
+    "holder": null,
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-05-25"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-04-28"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 1,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 1000000,
+     "description": "振込 サンプルシンキン",
+     "category": "贈与・教育費"
+    },
+    "destination": {
+     "id": 10,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 999560,
+     "description": "振込 テストギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 4,
+     "date": "2024-04-05T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 300000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 11,
+     "date": "2024-04-08T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 300000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   },
+   {
+    "source": {
+     "id": 7,
+     "date": "2024-04-20T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 50000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 15,
+     "date": "2024-04-22T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 50000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   10,
+   9
+  ],
+  "duplicate_txs": [
+   {
+    "id": 2,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   },
+   {
+    "id": 3,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3980000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   }
+  ],
+  "flagged_txs": [],
+  "banks": [
+   "サンプル信用金庫",
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店",
+   "駅前支店"
+  ],
+  "accounts": [
+   "1111111",
+   "2222222"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111"
+   ],
+   "サンプル信用金庫": [
+    "2222222"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 10,
+    "date": "2024-04-01",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     10
+    ],
+    "total_out": 0,
+    "total_in": 999560,
+    "count": 1,
+    "sample_date": "2024-04-01"
+   }
+  ],
+  "suggestions_count": 1,
+  "unclassified_count": 1,
+  "fuzzy_threshold": 90
+ },
+ "amount_both_max": {
+  "account_summary": [
+   {
+    "account_number": "2222222",
+    "holder": null,
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-05-25"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-04-28"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 1,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 1000000,
+     "description": "振込 サンプルシンキン",
+     "category": "贈与・教育費"
+    },
+    "destination": {
+     "id": 10,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 999560,
+     "description": "振込 テストギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 4,
+     "date": "2024-04-05T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 300000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 11,
+     "date": "2024-04-08T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 300000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   },
+   {
+    "source": {
+     "id": 7,
+     "date": "2024-04-20T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 50000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 15,
+     "date": "2024-04-22T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 50000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   }
+  ],
+  "all_txs": [],
+  "duplicate_txs": [
+   {
+    "id": 2,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   },
+   {
+    "id": 3,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3980000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   }
+  ],
+  "flagged_txs": [],
+  "banks": [
+   "サンプル信用金庫",
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店",
+   "駅前支店"
+  ],
+  "accounts": [
+   "1111111",
+   "2222222"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111"
+   ],
+   "サンプル信用金庫": [
+    "2222222"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 10,
+    "date": "2024-04-01",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     10
+    ],
+    "total_out": 0,
+    "total_in": 999560,
+    "count": 1,
+    "sample_date": "2024-04-01"
+   }
+  ],
+  "suggestions_count": 1,
+  "unclassified_count": 1,
+  "fuzzy_threshold": 90
+ },
+ "category_exclude": {
+  "account_summary": [
+   {
+    "account_number": "2222222",
+    "holder": null,
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-05-25"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-04-28"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 1,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 1000000,
+     "description": "振込 サンプルシンキン",
+     "category": "贈与・教育費"
+    },
+    "destination": {
+     "id": 10,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 999560,
+     "description": "振込 テストギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 4,
+     "date": "2024-04-05T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 300000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 11,
+     "date": "2024-04-08T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 300000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   },
+   {
+    "source": {
+     "id": 7,
+     "date": "2024-04-20T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 50000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 15,
+     "date": "2024-04-22T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 50000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   2,
+   3,
+   4,
+   11,
+   5,
+   12,
+   6,
+   13,
+   7,
+   14,
+   15,
+   16,
+   8,
+   9,
+   17,
+   18
+  ],
+  "duplicate_txs": [
+   {
+    "id": 2,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   },
+   {
+    "id": 3,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3980000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   }
+  ],
+  "flagged_txs": [],
+  "banks": [
+   "サンプル信用金庫",
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店",
+   "駅前支店"
+  ],
+  "accounts": [
+   "1111111",
+   "2222222"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111"
+   ],
+   "サンプル信用金庫": [
+    "2222222"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 10,
+    "date": "2024-04-01",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     10
+    ],
+    "total_out": 0,
+    "total_in": 999560,
+    "count": 1,
+    "sample_date": "2024-04-01"
+   }
+  ],
+  "suggestions_count": 1,
+  "unclassified_count": 1,
+  "fuzzy_threshold": 90
+ },
+ "date_range": {
+  "account_summary": [
+   {
+    "account_number": "2222222",
+    "holder": null,
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-05-25"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-04-28"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 1,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 1000000,
+     "description": "振込 サンプルシンキン",
+     "category": "贈与・教育費"
+    },
+    "destination": {
+     "id": 10,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 999560,
+     "description": "振込 テストギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 4,
+     "date": "2024-04-05T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 300000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 11,
+     "date": "2024-04-08T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 300000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   },
+   {
+    "source": {
+     "id": 7,
+     "date": "2024-04-20T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 50000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 15,
+     "date": "2024-04-22T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 50000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   }
+  ],
+  "all_txs": [
+   6,
+   13,
+   7,
+   14,
+   15,
+   16,
+   8,
+   9,
+   17
+  ],
+  "duplicate_txs": [
+   {
+    "id": 2,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   },
+   {
+    "id": 3,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3980000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   }
+  ],
+  "flagged_txs": [],
+  "banks": [
+   "サンプル信用金庫",
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店",
+   "駅前支店"
+  ],
+  "accounts": [
+   "1111111",
+   "2222222"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111"
+   ],
+   "サンプル信用金庫": [
+    "2222222"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 10,
+    "date": "2024-04-01",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     10
+    ],
+    "total_out": 0,
+    "total_in": 999560,
+    "count": 1,
+    "sample_date": "2024-04-01"
+   }
+  ],
+  "suggestions_count": 1,
+  "unclassified_count": 1,
+  "fuzzy_threshold": 90
+ },
+ "sort_amount_desc": {
+  "account_summary": [
+   {
+    "account_number": "2222222",
+    "holder": null,
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-05-25"
+   },
+   {
+    "account_number": "1111111",
+    "holder": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_type": "普通",
+    "count": 9,
+    "last_date": "2024-04-28"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 1,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 1000000,
+     "description": "振込 サンプルシンキン",
+     "category": "贈与・教育費"
+    },
+    "destination": {
+     "id": 10,
+     "date": "2024-04-01T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 999560,
+     "description": "振込 テストギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 4,
+     "date": "2024-04-05T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 300000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 11,
+     "date": "2024-04-08T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 300000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   },
+   {
+    "source": {
+     "id": 7,
+     "date": "2024-04-20T00:00:00",
+     "bank_name": "テスト銀行",
+     "branch_name": "本店",
+     "account_number": "1111111",
+     "amount": 50000,
+     "description": "振替 駅前",
+     "category": "通帳間移動"
+    },
+    "destination": {
+     "id": 15,
+     "date": "2024-04-22T00:00:00",
+     "bank_name": "サンプル信用金庫",
+     "branch_name": "駅前支店",
+     "account_number": "2222222",
+     "amount": 50000,
+     "description": "振替 本店",
+     "category": "通帳間移動"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   2,
+   3,
+   10,
+   4,
+   11,
+   5,
+   12,
+   6,
+   13,
+   7,
+   14,
+   15,
+   16,
+   8,
+   9,
+   17,
+   18
+  ],
+  "duplicate_txs": [
+   {
+    "id": 2,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3990000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   },
+   {
+    "id": 3,
+    "date": "2024-04-01",
+    "description": "ATM",
+    "description_search": "atm",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 3980000,
+    "is_large": false,
+    "is_transfer": false,
+    "transfer_to": null,
+    "category": "その他",
+    "classification_score": 0,
+    "is_flagged": false,
+    "memo": null,
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通",
+    "holder": null,
+    "dup_group_idx": 0
+   }
+  ],
+  "flagged_txs": [],
+  "banks": [
+   "サンプル信用金庫",
+   "テスト銀行"
+  ],
+  "branches": [
+   "本店",
+   "駅前支店"
+  ],
+  "accounts": [
+   "1111111",
+   "2222222"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "テスト銀行": [
+    "1111111"
+   ],
+   "サンプル信用金庫": [
+    "2222222"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 10,
+    "date": "2024-04-01",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 テストギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     10
+    ],
+    "total_out": 0,
+    "total_in": 999560,
+    "count": 1,
+    "sample_date": "2024-04-01"
+   }
+  ],
+  "suggestions_count": 1,
+  "unclassified_count": 1,
+  "fuzzy_threshold": 90
+ }
+}

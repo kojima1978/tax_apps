@@ -1,0 +1,130 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 90000
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "給与",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 290000
+   },
+   {
+    "date": "2021-04-03T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 287000
+   }
+  ],
+  "validated": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 90000,
+    "calc_balance": 90000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "給与",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 290000,
+    "calc_balance": 290000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-03T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 287000,
+    "calc_balance": 287000,
+    "is_balance_error": false
+   }
+  ]
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 90000
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "給与",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 290000
+   },
+   {
+    "date": "2021-04-03T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 287000
+   }
+  ],
+  "validated": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 90000,
+    "calc_balance": 90000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "給与",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 290000,
+    "calc_balance": 290000,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-03T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 287000,
+    "calc_balance": 287000,
+    "is_balance_error": false
+   }
+  ]
+ }
+}

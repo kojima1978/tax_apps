@@ -1,0 +1,86 @@
+[
+ {
+  "tx_id": 74,
+  "date": "2024-09-12",
+  "description": "振込 ミツビシUFJギンコウ",
+  "amount_out": 0,
+  "amount_in": 300000,
+  "current_category": "未分類",
+  "proposed_category": "贈与・教育費",
+  "matched_keyword": "振込",
+  "match_type": "partial",
+  "score": 73
+ },
+ {
+  "tx_id": 114,
+  "date": "2024-09-11",
+  "description": "振込 ユウチョギンコウ",
+  "amount_out": 300000,
+  "amount_in": 0,
+  "current_category": "未分類",
+  "proposed_category": "贈与・教育費",
+  "matched_keyword": "振込",
+  "match_type": "partial",
+  "score": 74
+ },
+ {
+  "tx_id": 72,
+  "date": "2024-08-10",
+  "description": "電信振込",
+  "amount_out": 85000,
+  "amount_in": 0,
+  "current_category": "未分類",
+  "proposed_category": "贈与・教育費",
+  "matched_keyword": "振込",
+  "match_type": "partial",
+  "score": 82
+ },
+ {
+  "tx_id": 67,
+  "date": "2024-06-21",
+  "description": "振込 ミズホギンコウ",
+  "amount_out": 0,
+  "amount_in": 199560,
+  "current_category": "未分類",
+  "proposed_category": "贈与・教育費",
+  "matched_keyword": "振込",
+  "match_type": "partial",
+  "score": 75
+ },
+ {
+  "tx_id": 25,
+  "date": "2024-06-20",
+  "description": "振込 ユウチョギンコウ",
+  "amount_out": 200000,
+  "amount_in": 0,
+  "current_category": "未分類",
+  "proposed_category": "贈与・教育費",
+  "matched_keyword": "振込",
+  "match_type": "partial",
+  "score": 74
+ },
+ {
+  "tx_id": 93,
+  "date": "2024-03-16",
+  "description": "振込 ミズホギンコウ",
+  "amount_out": 0,
+  "amount_in": 500000,
+  "current_category": "未分類",
+  "proposed_category": "贈与・教育費",
+  "matched_keyword": "振込",
+  "match_type": "partial",
+  "score": 75
+ },
+ {
+  "tx_id": 11,
+  "date": "2024-03-15",
+  "description": "振込 ミツビシUFJギンコウ",
+  "amount_out": 500000,
+  "amount_in": 0,
+  "current_category": "未分類",
+  "proposed_category": "贈与・教育費",
+  "matched_keyword": "振込",
+  "match_type": "partial",
+  "score": 73
+ }
+]

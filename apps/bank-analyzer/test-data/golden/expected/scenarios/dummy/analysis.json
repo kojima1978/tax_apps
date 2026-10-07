@@ -1,0 +1,2554 @@
+{
+ "default": {
+  "account_summary": [
+   {
+    "account_number": "1234567",
+    "holder": null,
+    "bank_name": "みずほ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 55,
+    "last_date": "2024-12-27"
+   },
+   {
+    "account_number": "10234567",
+    "holder": null,
+    "bank_name": "ゆうちょ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 29,
+    "last_date": "2024-12-25"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "三菱UFJ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 42,
+    "last_date": "2024-12-25"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 11,
+     "date": "2024-03-15T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 500000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 93,
+     "date": "2024-03-16T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 500000,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 25,
+     "date": "2024-06-20T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 200000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 67,
+     "date": "2024-06-21T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 199560,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 114,
+     "date": "2024-09-11T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 300000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 74,
+     "date": "2024-09-12T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 300000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   56,
+   85,
+   2,
+   86,
+   57,
+   87,
+   3,
+   58,
+   88,
+   4,
+   5,
+   59,
+   89,
+   6,
+   90,
+   60,
+   91,
+   7,
+   8,
+   9,
+   10,
+   92,
+   11,
+   61,
+   93,
+   94,
+   12,
+   62,
+   95,
+   13,
+   14,
+   63,
+   96,
+   15,
+   97,
+   64,
+   16,
+   17,
+   18,
+   98,
+   19,
+   99,
+   65,
+   100,
+   20,
+   101,
+   21,
+   66,
+   102,
+   22,
+   23,
+   103,
+   24,
+   25,
+   104,
+   67,
+   26,
+   68,
+   105,
+   27,
+   28,
+   69,
+   106,
+   70,
+   107,
+   29,
+   30,
+   31,
+   71,
+   108,
+   32,
+   109,
+   33,
+   72,
+   110,
+   34,
+   73,
+   111,
+   35,
+   112,
+   36,
+   37,
+   113,
+   114,
+   74,
+   115,
+   38,
+   75,
+   39,
+   76,
+   116,
+   40,
+   41,
+   77,
+   117,
+   42,
+   78,
+   118,
+   43,
+   79,
+   44,
+   119,
+   45,
+   80,
+   120,
+   46,
+   47,
+   81,
+   121,
+   48,
+   122,
+   49,
+   50,
+   82,
+   123,
+   51,
+   124,
+   52,
+   83,
+   125,
+   53,
+   54,
+   84,
+   126,
+   55
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "みずほ銀行",
+   "ゆうちょ銀行",
+   "三菱UFJ銀行"
+  ],
+  "branches": [],
+  "accounts": [
+   "10234567",
+   "1234567",
+   "7654321"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "みずほ銀行": [
+    "1234567"
+   ],
+   "ゆうちょ銀行": [
+    "10234567"
+   ],
+   "三菱UFJ銀行": [
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 74,
+    "date": "2024-09-12",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 114,
+    "date": "2024-09-11",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 67,
+    "date": "2024-06-21",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 25,
+    "date": "2024-06-20",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 93,
+    "date": "2024-03-16",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 11,
+    "date": "2024-03-15",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     74,
+     11
+    ],
+    "total_out": 500000,
+    "total_in": 300000,
+    "count": 2,
+    "sample_date": "2024-09-12"
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     114,
+     25
+    ],
+    "total_out": 500000,
+    "total_in": 0,
+    "count": 2,
+    "sample_date": "2024-09-11"
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     67,
+     93
+    ],
+    "total_out": 0,
+    "total_in": 699560,
+    "count": 2,
+    "sample_date": "2024-06-21"
+   }
+  ],
+  "suggestions_count": 6,
+  "unclassified_count": 38,
+  "fuzzy_threshold": 90
+ },
+ "keyword_halfwidth": {
+  "account_summary": [
+   {
+    "account_number": "1234567",
+    "holder": null,
+    "bank_name": "みずほ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 55,
+    "last_date": "2024-12-27"
+   },
+   {
+    "account_number": "10234567",
+    "holder": null,
+    "bank_name": "ゆうちょ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 29,
+    "last_date": "2024-12-25"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "三菱UFJ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 42,
+    "last_date": "2024-12-25"
+   }
+  ],
+  "transfer_pairs": [],
+  "all_txs": [
+   56,
+   59,
+   61,
+   62,
+   63,
+   65,
+   69,
+   73,
+   77,
+   80,
+   81,
+   82,
+   52
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "みずほ銀行",
+   "ゆうちょ銀行",
+   "三菱UFJ銀行"
+  ],
+  "branches": [],
+  "accounts": [
+   "10234567",
+   "1234567",
+   "7654321"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "みずほ銀行": [
+    "1234567"
+   ],
+   "ゆうちょ銀行": [
+    "10234567"
+   ],
+   "三菱UFJ銀行": [
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 74,
+    "date": "2024-09-12",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 114,
+    "date": "2024-09-11",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 67,
+    "date": "2024-06-21",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 25,
+    "date": "2024-06-20",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 93,
+    "date": "2024-03-16",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 11,
+    "date": "2024-03-15",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     74,
+     11
+    ],
+    "total_out": 500000,
+    "total_in": 300000,
+    "count": 2,
+    "sample_date": "2024-09-12"
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     114,
+     25
+    ],
+    "total_out": 500000,
+    "total_in": 0,
+    "count": 2,
+    "sample_date": "2024-09-11"
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     67,
+     93
+    ],
+    "total_out": 0,
+    "total_in": 699560,
+    "count": 2,
+    "sample_date": "2024-06-21"
+   }
+  ],
+  "suggestions_count": 6,
+  "unclassified_count": 38,
+  "fuzzy_threshold": 90
+ },
+ "keyword_multi": {
+  "account_summary": [
+   {
+    "account_number": "1234567",
+    "holder": null,
+    "bank_name": "みずほ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 55,
+    "last_date": "2024-12-27"
+   },
+   {
+    "account_number": "10234567",
+    "holder": null,
+    "bank_name": "ゆうちょ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 29,
+    "last_date": "2024-12-25"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "三菱UFJ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 42,
+    "last_date": "2024-12-25"
+   }
+  ],
+  "transfer_pairs": [],
+  "all_txs": [],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "みずほ銀行",
+   "ゆうちょ銀行",
+   "三菱UFJ銀行"
+  ],
+  "branches": [],
+  "accounts": [
+   "10234567",
+   "1234567",
+   "7654321"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "みずほ銀行": [
+    "1234567"
+   ],
+   "ゆうちょ銀行": [
+    "10234567"
+   ],
+   "三菱UFJ銀行": [
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 74,
+    "date": "2024-09-12",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 114,
+    "date": "2024-09-11",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 67,
+    "date": "2024-06-21",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 25,
+    "date": "2024-06-20",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 93,
+    "date": "2024-03-16",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 11,
+    "date": "2024-03-15",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     74,
+     11
+    ],
+    "total_out": 500000,
+    "total_in": 300000,
+    "count": 2,
+    "sample_date": "2024-09-12"
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     114,
+     25
+    ],
+    "total_out": 500000,
+    "total_in": 0,
+    "count": 2,
+    "sample_date": "2024-09-11"
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     67,
+     93
+    ],
+    "total_out": 0,
+    "total_in": 699560,
+    "count": 2,
+    "sample_date": "2024-06-21"
+   }
+  ],
+  "suggestions_count": 6,
+  "unclassified_count": 38,
+  "fuzzy_threshold": 90
+ },
+ "amount_out_range": {
+  "account_summary": [
+   {
+    "account_number": "1234567",
+    "holder": null,
+    "bank_name": "みずほ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 55,
+    "last_date": "2024-12-27"
+   },
+   {
+    "account_number": "10234567",
+    "holder": null,
+    "bank_name": "ゆうちょ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 29,
+    "last_date": "2024-12-25"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "三菱UFJ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 42,
+    "last_date": "2024-12-25"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 11,
+     "date": "2024-03-15T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 500000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 93,
+     "date": "2024-03-16T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 500000,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 25,
+     "date": "2024-06-20T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 200000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 67,
+     "date": "2024-06-21T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 199560,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 114,
+     "date": "2024-09-11T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 300000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 74,
+     "date": "2024-09-12T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 300000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   86,
+   57,
+   87,
+   58,
+   88,
+   4,
+   5,
+   8,
+   9,
+   10,
+   61,
+   94,
+   95,
+   13,
+   14,
+   97,
+   18,
+   98,
+   19,
+   100,
+   20,
+   66,
+   102,
+   22,
+   23,
+   25,
+   68,
+   27,
+   28,
+   107,
+   29,
+   71,
+   108,
+   32,
+   109,
+   33,
+   72,
+   112,
+   36,
+   37,
+   114,
+   38,
+   75,
+   76,
+   116,
+   40,
+   41,
+   118,
+   79,
+   44,
+   119,
+   45,
+   47,
+   81,
+   122,
+   49,
+   50,
+   124,
+   83,
+   84,
+   126,
+   55
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "みずほ銀行",
+   "ゆうちょ銀行",
+   "三菱UFJ銀行"
+  ],
+  "branches": [],
+  "accounts": [
+   "10234567",
+   "1234567",
+   "7654321"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "みずほ銀行": [
+    "1234567"
+   ],
+   "ゆうちょ銀行": [
+    "10234567"
+   ],
+   "三菱UFJ銀行": [
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 74,
+    "date": "2024-09-12",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 114,
+    "date": "2024-09-11",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 67,
+    "date": "2024-06-21",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 25,
+    "date": "2024-06-20",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 93,
+    "date": "2024-03-16",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 11,
+    "date": "2024-03-15",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     74,
+     11
+    ],
+    "total_out": 500000,
+    "total_in": 300000,
+    "count": 2,
+    "sample_date": "2024-09-12"
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     114,
+     25
+    ],
+    "total_out": 500000,
+    "total_in": 0,
+    "count": 2,
+    "sample_date": "2024-09-11"
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     67,
+     93
+    ],
+    "total_out": 0,
+    "total_in": 699560,
+    "count": 2,
+    "sample_date": "2024-06-21"
+   }
+  ],
+  "suggestions_count": 6,
+  "unclassified_count": 38,
+  "fuzzy_threshold": 90
+ },
+ "amount_both_min": {
+  "account_summary": [
+   {
+    "account_number": "1234567",
+    "holder": null,
+    "bank_name": "みずほ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 55,
+    "last_date": "2024-12-27"
+   },
+   {
+    "account_number": "10234567",
+    "holder": null,
+    "bank_name": "ゆうちょ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 29,
+    "last_date": "2024-12-25"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "三菱UFJ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 42,
+    "last_date": "2024-12-25"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 11,
+     "date": "2024-03-15T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 500000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 93,
+     "date": "2024-03-16T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 500000,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 25,
+     "date": "2024-06-20T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 200000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 67,
+     "date": "2024-06-21T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 199560,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 114,
+     "date": "2024-09-11T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 300000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 74,
+     "date": "2024-09-12T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 300000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    }
+   }
+  ],
+  "all_txs": [
+   11,
+   93,
+   63,
+   104,
+   31,
+   111,
+   80,
+   52,
+   54
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "みずほ銀行",
+   "ゆうちょ銀行",
+   "三菱UFJ銀行"
+  ],
+  "branches": [],
+  "accounts": [
+   "10234567",
+   "1234567",
+   "7654321"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "みずほ銀行": [
+    "1234567"
+   ],
+   "ゆうちょ銀行": [
+    "10234567"
+   ],
+   "三菱UFJ銀行": [
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 74,
+    "date": "2024-09-12",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 114,
+    "date": "2024-09-11",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 67,
+    "date": "2024-06-21",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 25,
+    "date": "2024-06-20",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 93,
+    "date": "2024-03-16",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 11,
+    "date": "2024-03-15",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     74,
+     11
+    ],
+    "total_out": 500000,
+    "total_in": 300000,
+    "count": 2,
+    "sample_date": "2024-09-12"
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     114,
+     25
+    ],
+    "total_out": 500000,
+    "total_in": 0,
+    "count": 2,
+    "sample_date": "2024-09-11"
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     67,
+     93
+    ],
+    "total_out": 0,
+    "total_in": 699560,
+    "count": 2,
+    "sample_date": "2024-06-21"
+   }
+  ],
+  "suggestions_count": 6,
+  "unclassified_count": 38,
+  "fuzzy_threshold": 90
+ },
+ "amount_both_max": {
+  "account_summary": [
+   {
+    "account_number": "1234567",
+    "holder": null,
+    "bank_name": "みずほ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 55,
+    "last_date": "2024-12-27"
+   },
+   {
+    "account_number": "10234567",
+    "holder": null,
+    "bank_name": "ゆうちょ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 29,
+    "last_date": "2024-12-25"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "三菱UFJ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 42,
+    "last_date": "2024-12-25"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 11,
+     "date": "2024-03-15T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 500000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 93,
+     "date": "2024-03-16T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 500000,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 25,
+     "date": "2024-06-20T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 200000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 67,
+     "date": "2024-06-21T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 199560,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 114,
+     "date": "2024-09-11T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 300000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 74,
+     "date": "2024-09-12T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 300000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    }
+   }
+  ],
+  "all_txs": [
+   60
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "みずほ銀行",
+   "ゆうちょ銀行",
+   "三菱UFJ銀行"
+  ],
+  "branches": [],
+  "accounts": [
+   "10234567",
+   "1234567",
+   "7654321"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "みずほ銀行": [
+    "1234567"
+   ],
+   "ゆうちょ銀行": [
+    "10234567"
+   ],
+   "三菱UFJ銀行": [
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 74,
+    "date": "2024-09-12",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 114,
+    "date": "2024-09-11",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 67,
+    "date": "2024-06-21",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 25,
+    "date": "2024-06-20",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 93,
+    "date": "2024-03-16",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 11,
+    "date": "2024-03-15",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     74,
+     11
+    ],
+    "total_out": 500000,
+    "total_in": 300000,
+    "count": 2,
+    "sample_date": "2024-09-12"
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     114,
+     25
+    ],
+    "total_out": 500000,
+    "total_in": 0,
+    "count": 2,
+    "sample_date": "2024-09-11"
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     67,
+     93
+    ],
+    "total_out": 0,
+    "total_in": 699560,
+    "count": 2,
+    "sample_date": "2024-06-21"
+   }
+  ],
+  "suggestions_count": 6,
+  "unclassified_count": 38,
+  "fuzzy_threshold": 90
+ },
+ "category_exclude": {
+  "account_summary": [
+   {
+    "account_number": "1234567",
+    "holder": null,
+    "bank_name": "みずほ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 55,
+    "last_date": "2024-12-27"
+   },
+   {
+    "account_number": "10234567",
+    "holder": null,
+    "bank_name": "ゆうちょ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 29,
+    "last_date": "2024-12-25"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "三菱UFJ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 42,
+    "last_date": "2024-12-25"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 11,
+     "date": "2024-03-15T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 500000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 93,
+     "date": "2024-03-16T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 500000,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 25,
+     "date": "2024-06-20T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 200000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 67,
+     "date": "2024-06-21T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 199560,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 114,
+     "date": "2024-09-11T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 300000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 74,
+     "date": "2024-09-12T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 300000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   85,
+   2,
+   86,
+   57,
+   87,
+   3,
+   58,
+   4,
+   5,
+   89,
+   6,
+   90,
+   60,
+   91,
+   7,
+   8,
+   9,
+   92,
+   94,
+   12,
+   13,
+   14,
+   96,
+   15,
+   97,
+   17,
+   18,
+   19,
+   99,
+   100,
+   20,
+   101,
+   21,
+   23,
+   103,
+   24,
+   104,
+   26,
+   68,
+   105,
+   28,
+   106,
+   70,
+   107,
+   29,
+   30,
+   31,
+   71,
+   32,
+   33,
+   110,
+   34,
+   111,
+   35,
+   36,
+   37,
+   113,
+   115,
+   38,
+   39,
+   76,
+   40,
+   41,
+   117,
+   42,
+   78,
+   118,
+   43,
+   79,
+   44,
+   45,
+   120,
+   46,
+   47,
+   121,
+   48,
+   49,
+   50,
+   123,
+   51,
+   124,
+   83,
+   125,
+   53,
+   54,
+   84,
+   55
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "みずほ銀行",
+   "ゆうちょ銀行",
+   "三菱UFJ銀行"
+  ],
+  "branches": [],
+  "accounts": [
+   "10234567",
+   "1234567",
+   "7654321"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "みずほ銀行": [
+    "1234567"
+   ],
+   "ゆうちょ銀行": [
+    "10234567"
+   ],
+   "三菱UFJ銀行": [
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 74,
+    "date": "2024-09-12",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 114,
+    "date": "2024-09-11",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 67,
+    "date": "2024-06-21",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 25,
+    "date": "2024-06-20",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 93,
+    "date": "2024-03-16",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 11,
+    "date": "2024-03-15",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     74,
+     11
+    ],
+    "total_out": 500000,
+    "total_in": 300000,
+    "count": 2,
+    "sample_date": "2024-09-12"
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     114,
+     25
+    ],
+    "total_out": 500000,
+    "total_in": 0,
+    "count": 2,
+    "sample_date": "2024-09-11"
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     67,
+     93
+    ],
+    "total_out": 0,
+    "total_in": 699560,
+    "count": 2,
+    "sample_date": "2024-06-21"
+   }
+  ],
+  "suggestions_count": 6,
+  "unclassified_count": 38,
+  "fuzzy_threshold": 90
+ },
+ "date_range": {
+  "account_summary": [
+   {
+    "account_number": "1234567",
+    "holder": null,
+    "bank_name": "みずほ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 55,
+    "last_date": "2024-12-27"
+   },
+   {
+    "account_number": "10234567",
+    "holder": null,
+    "bank_name": "ゆうちょ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 29,
+    "last_date": "2024-12-25"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "三菱UFJ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 42,
+    "last_date": "2024-12-25"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 11,
+     "date": "2024-03-15T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 500000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 93,
+     "date": "2024-03-16T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 500000,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 25,
+     "date": "2024-06-20T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 200000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 67,
+     "date": "2024-06-21T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 199560,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 114,
+     "date": "2024-09-11T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 300000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 74,
+     "date": "2024-09-12T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 300000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    }
+   }
+  ],
+  "all_txs": [
+   15,
+   97,
+   64,
+   16,
+   17,
+   18,
+   98,
+   19,
+   99,
+   65,
+   100
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "みずほ銀行",
+   "ゆうちょ銀行",
+   "三菱UFJ銀行"
+  ],
+  "branches": [],
+  "accounts": [
+   "10234567",
+   "1234567",
+   "7654321"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "みずほ銀行": [
+    "1234567"
+   ],
+   "ゆうちょ銀行": [
+    "10234567"
+   ],
+   "三菱UFJ銀行": [
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 74,
+    "date": "2024-09-12",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 114,
+    "date": "2024-09-11",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 67,
+    "date": "2024-06-21",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 25,
+    "date": "2024-06-20",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 93,
+    "date": "2024-03-16",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 11,
+    "date": "2024-03-15",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     74,
+     11
+    ],
+    "total_out": 500000,
+    "total_in": 300000,
+    "count": 2,
+    "sample_date": "2024-09-12"
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     114,
+     25
+    ],
+    "total_out": 500000,
+    "total_in": 0,
+    "count": 2,
+    "sample_date": "2024-09-11"
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     67,
+     93
+    ],
+    "total_out": 0,
+    "total_in": 699560,
+    "count": 2,
+    "sample_date": "2024-06-21"
+   }
+  ],
+  "suggestions_count": 6,
+  "unclassified_count": 38,
+  "fuzzy_threshold": 90
+ },
+ "sort_amount_desc": {
+  "account_summary": [
+   {
+    "account_number": "1234567",
+    "holder": null,
+    "bank_name": "みずほ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 55,
+    "last_date": "2024-12-27"
+   },
+   {
+    "account_number": "10234567",
+    "holder": null,
+    "bank_name": "ゆうちょ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 29,
+    "last_date": "2024-12-25"
+   },
+   {
+    "account_number": "7654321",
+    "holder": null,
+    "bank_name": "三菱UFJ銀行",
+    "branch_name": "",
+    "account_type": "",
+    "count": 42,
+    "last_date": "2024-12-25"
+   }
+  ],
+  "transfer_pairs": [
+   {
+    "source": {
+     "id": 11,
+     "date": "2024-03-15T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 500000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 93,
+     "date": "2024-03-16T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 500000,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 25,
+     "date": "2024-06-20T00:00:00",
+     "bank_name": "みずほ銀行",
+     "branch_name": "",
+     "account_number": "1234567",
+     "amount": 200000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 67,
+     "date": "2024-06-21T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 199560,
+     "description": "振込 ミズホギンコウ",
+     "category": "未分類"
+    }
+   },
+   {
+    "source": {
+     "id": 114,
+     "date": "2024-09-11T00:00:00",
+     "bank_name": "三菱UFJ銀行",
+     "branch_name": "",
+     "account_number": "7654321",
+     "amount": 300000,
+     "description": "振込 ユウチョギンコウ",
+     "category": "未分類"
+    },
+    "destination": {
+     "id": 74,
+     "date": "2024-09-12T00:00:00",
+     "bank_name": "ゆうちょ銀行",
+     "branch_name": "",
+     "account_number": "10234567",
+     "amount": 300000,
+     "description": "振込 ミツビシUFJギンコウ",
+     "category": "未分類"
+    }
+   }
+  ],
+  "all_txs": [
+   1,
+   56,
+   85,
+   2,
+   86,
+   57,
+   87,
+   3,
+   58,
+   88,
+   4,
+   5,
+   59,
+   89,
+   6,
+   90,
+   60,
+   91,
+   7,
+   8,
+   9,
+   10,
+   92,
+   11,
+   61,
+   93,
+   94,
+   12,
+   62,
+   95,
+   13,
+   14,
+   63,
+   96,
+   15,
+   97,
+   64,
+   16,
+   17,
+   18,
+   98,
+   19,
+   99,
+   65,
+   100,
+   20,
+   101,
+   21,
+   66,
+   102,
+   22,
+   23,
+   103,
+   24,
+   25,
+   104,
+   67,
+   26,
+   68,
+   105,
+   27,
+   28,
+   69,
+   106,
+   70,
+   107,
+   29,
+   30,
+   31,
+   71,
+   108,
+   32,
+   109,
+   33,
+   72,
+   110,
+   34,
+   73,
+   111,
+   35,
+   112,
+   36,
+   37,
+   113,
+   114,
+   74,
+   115,
+   38,
+   75,
+   39,
+   76,
+   116,
+   40,
+   41,
+   77,
+   117,
+   42,
+   78,
+   118,
+   43,
+   79,
+   44,
+   119,
+   45,
+   80,
+   120,
+   46,
+   47,
+   81,
+   121,
+   48,
+   122,
+   49,
+   50,
+   82,
+   123,
+   51,
+   124,
+   52,
+   83,
+   125,
+   53,
+   54,
+   84,
+   126,
+   55
+  ],
+  "duplicate_txs": [],
+  "flagged_txs": [],
+  "banks": [
+   "みずほ銀行",
+   "ゆうちょ銀行",
+   "三菱UFJ銀行"
+  ],
+  "branches": [],
+  "accounts": [
+   "10234567",
+   "1234567",
+   "7654321"
+  ],
+  "categories": [
+   "生活費",
+   "給与",
+   "年金",
+   "贈与・教育費",
+   "税金",
+   "修繕・資本",
+   "事業・不動産",
+   "関連会社",
+   "銀行・利息・手数料",
+   "証券・株式・配当",
+   "保険会社",
+   "通帳間移動",
+   "その他",
+   "未分類"
+  ],
+  "bank_to_accounts": {
+   "みずほ銀行": [
+    "1234567"
+   ],
+   "ゆうちょ銀行": [
+    "10234567"
+   ],
+   "三菱UFJ銀行": [
+    "7654321"
+   ]
+  },
+  "ai_suggestions": [
+   {
+    "tx_id": 74,
+    "date": "2024-09-12",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 114,
+    "date": "2024-09-11",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 300000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 67,
+    "date": "2024-06-21",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 199560,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 25,
+    "date": "2024-06-20",
+    "description": "振込 ユウチョギンコウ",
+    "amount_out": 200000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 93,
+    "date": "2024-03-16",
+    "description": "振込 ミズホギンコウ",
+    "amount_out": 0,
+    "amount_in": 500000,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   },
+   {
+    "tx_id": 11,
+    "date": "2024-03-15",
+    "description": "振込 ミツビシUFJギンコウ",
+    "amount_out": 500000,
+    "amount_in": 0,
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": []
+   }
+  ],
+  "ai_groups": [
+   {
+    "description": "振込 ミツビシUFJギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     74,
+     11
+    ],
+    "total_out": 500000,
+    "total_in": 300000,
+    "count": 2,
+    "sample_date": "2024-09-12"
+   },
+   {
+    "description": "振込 ユウチョギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     114,
+     25
+    ],
+    "total_out": 500000,
+    "total_in": 0,
+    "count": 2,
+    "sample_date": "2024-09-11"
+   },
+   {
+    "description": "振込 ミズホギンコウ",
+    "suggested_category": "贈与・教育費",
+    "score": 100.0,
+    "alternative_suggestions": [],
+    "tx_ids": [
+     67,
+     93
+    ],
+    "total_out": 0,
+    "total_in": 699560,
+    "count": 2,
+    "sample_date": "2024-06-21"
+   }
+  ],
+  "suggestions_count": 6,
+  "unclassified_count": 38,
+  "fuzzy_threshold": 90
+ }
+}

@@ -1,0 +1,130 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "カンマ",
+    "amount_out": 1234,
+    "amount_in": 0,
+    "balance": 98766
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "空白",
+    "amount_out": 500,
+    "amount_in": 0,
+    "balance": 98266
+   },
+   {
+    "date": "2021-04-03T00:00:00",
+    "description": "負号",
+    "amount_out": -100,
+    "amount_in": 0,
+    "balance": 98366
+   }
+  ],
+  "validated": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "カンマ",
+    "amount_out": 1234,
+    "amount_in": 0,
+    "balance": 98766,
+    "calc_balance": 98766,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "空白",
+    "amount_out": 500,
+    "amount_in": 0,
+    "balance": 98266,
+    "calc_balance": 98266,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-03T00:00:00",
+    "description": "負号",
+    "amount_out": -100,
+    "amount_in": 0,
+    "balance": 98366,
+    "calc_balance": 98366,
+    "is_balance_error": false
+   }
+  ]
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "カンマ",
+    "amount_out": 1234,
+    "amount_in": 0,
+    "balance": 98766
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "空白",
+    "amount_out": 500,
+    "amount_in": 0,
+    "balance": 98266
+   },
+   {
+    "date": "2021-04-03T00:00:00",
+    "description": "負号",
+    "amount_out": -100,
+    "amount_in": 0,
+    "balance": 98366
+   }
+  ],
+  "validated": [
+   {
+    "date": "2021-04-01T00:00:00",
+    "description": "カンマ",
+    "amount_out": 1234,
+    "amount_in": 0,
+    "balance": 98766,
+    "calc_balance": 98766,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-02T00:00:00",
+    "description": "空白",
+    "amount_out": 500,
+    "amount_in": 0,
+    "balance": 98266,
+    "calc_balance": 98266,
+    "is_balance_error": false
+   },
+   {
+    "date": "2021-04-03T00:00:00",
+    "description": "負号",
+    "amount_out": -100,
+    "amount_in": 0,
+    "balance": 98366,
+    "calc_balance": 98366,
+    "is_balance_error": false
+   }
+  ]
+ }
+}

@@ -1,0 +1,486 @@
+{
+ "allow_multiple_false": {
+  "columns": [
+   "bank_name",
+   "branch_name",
+   "account_number",
+   "account_type",
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "csv_metadata": {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": "2222222",
+    "account_type": "普通"
+   },
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "balance": 1999560
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-08T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 2299560
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-14T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 2499560
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-15T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 148999,
+    "balance": 2648559
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-20T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 50500,
+    "balance": 2699059
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-22T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 50000,
+    "balance": 2749059
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-24T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 80000,
+    "balance": 2829059
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-05-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 2799059
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-05-25T00:00:00",
+    "description": "給与 カ)サンプルコウギョウ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 3079059
+   }
+  ],
+  "validated": [
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "balance": 1999560,
+    "calc_balance": 1999560,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-08T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 2299560,
+    "calc_balance": 2299560,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-14T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 2499560,
+    "calc_balance": 2499560,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-15T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 148999,
+    "balance": 2648559,
+    "calc_balance": 2648559,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-20T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 50500,
+    "balance": 2699059,
+    "calc_balance": 2699059,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-22T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 50000,
+    "balance": 2749059,
+    "calc_balance": 2749059,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-24T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 80000,
+    "balance": 2829059,
+    "calc_balance": 2829059,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-05-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 2799059,
+    "calc_balance": 2799059,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-05-25T00:00:00",
+    "description": "給与 カ)サンプルコウギョウ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 3079059,
+    "calc_balance": 3079059,
+    "is_balance_error": false
+   }
+  ]
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "bank_name",
+   "branch_name",
+   "account_number",
+   "account_type",
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "csv_metadata": {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": "2222222",
+    "account_type": "普通"
+   },
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "balance": 1999560
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-08T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 2299560
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-14T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 2499560
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-15T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 148999,
+    "balance": 2648559
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-20T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 50500,
+    "balance": 2699059
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-22T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 50000,
+    "balance": 2749059
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-24T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 80000,
+    "balance": 2829059
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-05-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 2799059
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-05-25T00:00:00",
+    "description": "給与 カ)サンプルコウギョウ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 3079059
+   }
+  ],
+  "validated": [
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-01T00:00:00",
+    "description": "振込 テストギンコウ",
+    "amount_out": 0,
+    "amount_in": 999560,
+    "balance": 1999560,
+    "calc_balance": 1999560,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-08T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 300000,
+    "balance": 2299560,
+    "calc_balance": 2299560,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-14T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 2499560,
+    "calc_balance": 2499560,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-15T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 148999,
+    "balance": 2648559,
+    "calc_balance": 2648559,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-20T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 50500,
+    "balance": 2699059,
+    "calc_balance": 2699059,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-22T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 50000,
+    "balance": 2749059,
+    "calc_balance": 2749059,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-04-24T00:00:00",
+    "description": "振替 本店",
+    "amount_out": 0,
+    "amount_in": 80000,
+    "balance": 2829059,
+    "calc_balance": 2829059,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-05-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 30000,
+    "amount_in": 0,
+    "balance": 2799059,
+    "calc_balance": 2799059,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 2222222,
+    "account_type": "普通",
+    "date": "2024-05-25T00:00:00",
+    "description": "給与 カ)サンプルコウギョウ",
+    "amount_out": 0,
+    "amount_in": 280000,
+    "balance": 3079059,
+    "calc_balance": 3079059,
+    "is_balance_error": false
+   }
+  ]
+ }
+}

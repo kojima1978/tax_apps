@@ -1,0 +1,1361 @@
+[
+ {
+  "parse": [
+   "e01_leading_zero_account.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e01_leading_zero_account.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "テスト銀行",
+      "branch_name": "本店",
+      "account_type": "普通",
+      "account_number": "12345"
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "bank_name": "テスト銀行",
+       "branch_name": "本店",
+       "account_number": 12345,
+       "account_type": "普通",
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "bank_name": "テスト銀行",
+       "branch_name": "本店",
+       "account_number": 12345,
+       "account_type": "普通",
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": 290000,
+       "calc_balance": 290000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "bank_name": "テスト銀行",
+       "branch_name": "本店",
+       "account_number": 12345,
+       "account_type": "普通",
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 287000,
+       "calc_balance": 287000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "commit_status": 302,
+  "transaction_count": 3
+ },
+ {
+  "parse": [
+   "e02_blank_balance.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e02_blank_balance.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": 0,
+       "calc_balance": 290000,
+       "is_balance_error": true,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 287000,
+       "calc_balance": -3000,
+       "is_balance_error": true,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000002",
+  "commit_status": 302,
+  "transaction_count": 6
+ },
+ {
+  "parse": [
+   "e03_mixed_wareki_seireki.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e03_mixed_wareki_seireki.csv' のエラー: 日付の変換に失敗しました（1件）",
+   "error_details": {
+    "type": "data",
+    "type_label": "データエラー",
+    "message": "日付の変換に失敗しました（1件）",
+    "suggestion": "日付は以下の形式で入力してください:\n- 西暦: 2024-01-01, 2024/01/01\n- 和暦: H28.6.3, R5/4/1\n\n変換できない値の例:\n  行3: 2021/4/2",
+    "line_number": 3,
+    "column_name": "日付",
+    "expected_value": "YYYY-MM-DD, YYYY/MM/DD, H○○.○.○",
+    "actual_value": "2021/4/2",
+    "sample_values": [
+     "2021/4/2"
+    ],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e04_decimal_amount.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e04_decimal_amount.csv",
+     "row_count": 2,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "利息",
+       "amount_out": 0,
+       "amount_in": 100,
+       "balance": 100100,
+       "calc_balance": 100100,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "ATM",
+       "amount_out": 1000,
+       "amount_in": 0,
+       "balance": 99100,
+       "calc_balance": 99100,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000004",
+  "commit_status": 302,
+  "transaction_count": 8
+ },
+ {
+  "parse": [
+   "e05_us_date.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e05_us_date.csv",
+     "row_count": 2,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-03",
+       "description": "ATM",
+       "amount_out": 1000,
+       "amount_in": 0,
+       "balance": 99000,
+       "calc_balance": 99000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-15",
+       "description": "ATM",
+       "amount_out": 1000,
+       "amount_in": 0,
+       "balance": 98000,
+       "calc_balance": 98000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000005",
+  "commit_status": 302,
+  "transaction_count": 10
+ },
+ {
+  "parse": [
+   "e06_cp932_crlf.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e06_cp932_crlf.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": 290000,
+       "calc_balance": 290000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 287000,
+       "calc_balance": 287000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000006",
+  "commit_status": 302,
+  "transaction_count": 13
+ },
+ {
+  "parse": [
+   "e08_title_row.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e08_title_row.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": 290000,
+       "calc_balance": 290000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 287000,
+       "calc_balance": 287000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000007",
+  "commit_status": 302,
+  "transaction_count": 16
+ },
+ {
+  "parse": [
+   "e09_no_balance_column.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e09_no_balance_column.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": false,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": null,
+       "calc_balance": null,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": null,
+       "calc_balance": null,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": null,
+       "calc_balance": null,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000008",
+  "commit_status": 302,
+  "transaction_count": 19
+ },
+ {
+  "parse": [
+   "e10_missing_description.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e10_missing_description.csv' のエラー: CSVに必要なカラムがありません。",
+   "error_details": {
+    "type": "format",
+    "type_label": "ファイル形式エラー",
+    "message": "CSVに必要なカラムがありません。",
+    "suggestion": "CSVファイルに以下のカラムが含まれているか確認してください:\n- 年月日（または日付）\n- 摘要\n- 払戻（または払戻額）\n- お預り（またはお預り額）\n- 差引残高（または残高）",
+    "line_number": null,
+    "column_name": null,
+    "expected_value": "必須カラム: 摘要",
+    "actual_value": "検出されたカラム: 日付, 払戻額, お預り額, 差引残高",
+    "sample_values": [],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e11_bad_amount.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e11_bad_amount.csv' のエラー: 払戻額の変換に失敗しました（2件）",
+   "error_details": {
+    "type": "data",
+    "type_label": "データエラー",
+    "message": "払戻額の変換に失敗しました（2件）",
+    "suggestion": "払戻額は数値で入力してください:\n- カンマ区切りは自動的に除去されます（例: 1,234,567）\n- 空欄は0として扱われます\n- 文字列や記号が含まれていないか確認してください\n\n変換できない値の例:\n  行2: abc\n  行3: △100",
+    "line_number": 2,
+    "column_name": "払戻額",
+    "expected_value": "数値（例: 12345 または 1,234,567）",
+    "actual_value": "abc",
+    "sample_values": [
+     "abc",
+     "△100"
+    ],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e12_bad_date.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e12_bad_date.csv' のエラー: 日付の変換に失敗しました（2件）",
+   "error_details": {
+    "type": "data",
+    "type_label": "データエラー",
+    "message": "日付の変換に失敗しました（2件）",
+    "suggestion": "日付は以下の形式で入力してください:\n- 西暦: 2024-01-01, 2024/01/01\n- 和暦: H28.6.3, R5/4/1\n\n変換できない値の例:\n  行2: R3.13.1\n  行3: 2021-02-30",
+    "line_number": 2,
+    "column_name": "日付",
+    "expected_value": "YYYY-MM-DD, YYYY/MM/DD, H○○.○.○",
+    "actual_value": "R3.13.1",
+    "sample_values": [
+     "R3.13.1",
+     "2021-02-30"
+    ],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e13_wareki_variants.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e13_wareki_variants.csv' のエラー: 日付の変換に失敗しました（1件）",
+   "error_details": {
+    "type": "data",
+    "type_label": "データエラー",
+    "message": "日付の変換に失敗しました（1件）",
+    "suggestion": "日付は以下の形式で入力してください:\n- 西暦: 2024-01-01, 2024/01/01\n- 和暦: H28.6.3, R5/4/1\n\n変換できない値の例:\n  行9: 2021/4/4",
+    "line_number": 9,
+    "column_name": "日付",
+    "expected_value": "YYYY-MM-DD, YYYY/MM/DD, H○○.○.○",
+    "actual_value": "2021/4/4",
+    "sample_values": [
+     "2021/4/4"
+    ],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e13a_wareki_only.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e13a_wareki_only.csv",
+     "row_count": 6,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "1989-01-07",
+       "description": "昭和最終日",
+       "amount_out": 1,
+       "amount_in": 0,
+       "balance": 999,
+       "calc_balance": 999,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "1989-01-08",
+       "description": "平成初日",
+       "amount_out": 1,
+       "amount_in": 0,
+       "balance": 998,
+       "calc_balance": 998,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2019-04-30",
+       "description": "平成最終日",
+       "amount_out": 1,
+       "amount_in": 0,
+       "balance": 997,
+       "calc_balance": 997,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2019-05-01",
+       "description": "令和初日",
+       "amount_out": 1,
+       "amount_in": 0,
+       "balance": 996,
+       "calc_balance": 996,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-01",
+       "description": "ゼロ埋め",
+       "amount_out": 1,
+       "amount_in": 0,
+       "balance": 995,
+       "calc_balance": 995,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "スラッシュ",
+       "amount_out": 1,
+       "amount_in": 0,
+       "balance": 994,
+       "calc_balance": 994,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000013",
+  "commit_status": 302,
+  "transaction_count": 25
+ },
+ {
+  "parse": [
+   "e13b_seireki_only.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e13b_seireki_only.csv' のエラー: 日付の変換に失敗しました（2件）",
+   "error_details": {
+    "type": "data",
+    "type_label": "データエラー",
+    "message": "日付の変換に失敗しました（2件）",
+    "suggestion": "日付は以下の形式で入力してください:\n- 西暦: 2024-01-01, 2024/01/01\n- 和暦: H28.6.3, R5/4/1\n\n変換できない値の例:\n  行3: 2021/4/4\n  行4: 2021/04/05",
+    "line_number": 3,
+    "column_name": "日付",
+    "expected_value": "YYYY-MM-DD, YYYY/MM/DD, H○○.○.○",
+    "actual_value": "2021/4/4",
+    "sample_values": [
+     "2021/4/4",
+     "2021/04/05"
+    ],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e14_kanji_era.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e14_kanji_era.csv' のエラー: 日付の変換に失敗しました（1件）",
+   "error_details": {
+    "type": "data",
+    "type_label": "データエラー",
+    "message": "日付の変換に失敗しました（1件）",
+    "suggestion": "日付は以下の形式で入力してください:\n- 西暦: 2024-01-01, 2024/01/01\n- 和暦: H28.6.3, R5/4/1\n\n変換できない値の例:\n  行2: 令和3年4月1日",
+    "line_number": 2,
+    "column_name": "日付",
+    "expected_value": "YYYY-MM-DD, YYYY/MM/DD, H○○.○.○",
+    "actual_value": "令和3年4月1日",
+    "sample_values": [
+     "令和3年4月1日"
+    ],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e15_amount_formats.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e15_amount_formats.csv' のエラー: 払戻額の変換に失敗しました（1件）",
+   "error_details": {
+    "type": "data",
+    "type_label": "データエラー",
+    "message": "払戻額の変換に失敗しました（1件）",
+    "suggestion": "払戻額は数値で入力してください:\n- カンマ区切りは自動的に除去されます（例: 1,234,567）\n- 空欄は0として扱われます\n- 文字列や記号が含まれていないか確認してください\n\n変換できない値の例:\n  行5: １２３",
+    "line_number": 5,
+    "column_name": "払戻額",
+    "expected_value": "数値（例: 12345 または 1,234,567）",
+    "actual_value": "１２３",
+    "sample_values": [
+     "１２３"
+    ],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e15b_amount_formats_ascii.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e15b_amount_formats_ascii.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "カンマ",
+       "amount_out": 1234,
+       "amount_in": 0,
+       "balance": 98766,
+       "calc_balance": 98766,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "空白",
+       "amount_out": 500,
+       "amount_in": 0,
+       "balance": 98266,
+       "calc_balance": 98266,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-03",
+       "description": "負号",
+       "amount_out": -100,
+       "amount_in": 0,
+       "balance": 98366,
+       "calc_balance": 98366,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000017",
+  "commit_status": 302,
+  "transaction_count": 28
+ },
+ {
+  "parse": [
+   "e16_header_variants.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e16_header_variants.csv' のエラー: ファイルの読み込みに失敗しました。",
+   "error_details": {
+    "type": "encoding",
+    "type_label": "文字コードエラー",
+    "message": "ファイルの読み込みに失敗しました。",
+    "suggestion": "以下の対処法をお試しください:\n1. Excelで開き、「名前を付けて保存」で「CSV UTF-8」形式を選択\n2. テキストエディタで開き、UTF-8またはShift-JISで保存し直す\n3. ファイルが破損していないか確認する",
+    "line_number": null,
+    "column_name": null,
+    "expected_value": null,
+    "actual_value": "ファイルヘッダ: E5B9B4E69C88E697",
+    "sample_values": [],
+    "tried_encodings": [
+     "utf-8-sig",
+     "utf-8",
+     "cp932",
+     "shift_jis",
+     "excel",
+     "cp932_replace"
+    ]
+   }
+  }
+ },
+ {
+  "parse": [
+   "e17_unsorted_dates.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e17_unsorted_dates.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": 290000,
+       "calc_balance": 290000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 297000,
+       "calc_balance": 287000,
+       "is_balance_error": true,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000019",
+  "commit_status": 302,
+  "transaction_count": 31
+ },
+ {
+  "parse": [
+   "e18_balance_mismatch.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e18_balance_mismatch.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": 999999,
+       "calc_balance": 290000,
+       "is_balance_error": true,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 287000,
+       "calc_balance": 996999,
+       "is_balance_error": true,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000020",
+  "commit_status": 302,
+  "transaction_count": 34
+ },
+ {
+  "parse": [
+   "e19_header_only.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e19_header_only.csv",
+     "row_count": 0,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": []
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000021",
+  "commit_status": 302,
+  "transaction_count": 34
+ },
+ {
+  "parse": [
+   "e20_multi_bank.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e20_multi_bank.csv - テスト銀行 (1111111)",
+     "original_filename": "e20_multi_bank.csv",
+     "row_count": 2,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "テスト銀行",
+      "branch_name": "本店",
+      "account_type": "普通",
+      "account_number": 1111111
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "bank_name": "テスト銀行",
+       "branch_name": "本店",
+       "account_number": 1111111,
+       "account_type": "普通",
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "bank_name": "テスト銀行",
+       "branch_name": "本店",
+       "account_number": 1111111,
+       "account_type": "普通",
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": 290000,
+       "calc_balance": 290000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ],
+     "is_split": true
+    },
+    {
+     "filename": "e20_multi_bank.csv - サンプル信用金庫 (1111111)",
+     "original_filename": "e20_multi_bank.csv",
+     "row_count": 1,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "サンプル信用金庫",
+      "branch_name": "駅前支店",
+      "account_type": "普通",
+      "account_number": 1111111
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "bank_name": "サンプル信用金庫",
+       "branch_name": "駅前支店",
+       "account_number": 1111111,
+       "account_type": "普通",
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 287000,
+       "calc_balance": 287000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ],
+     "is_split": true
+    }
+   ]
+  },
+  "commit": "skip",
+  "commit_status": 302,
+  "transaction_count": 37
+ },
+ {
+  "parse": [
+   "e21_blank_row.csv"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e21_blank_row.csv' のエラー: 日付の変換に失敗しました（1件）",
+   "error_details": {
+    "type": "data",
+    "type_label": "データエラー",
+    "message": "日付の変換に失敗しました（1件）",
+    "suggestion": "日付は以下の形式で入力してください:\n- 西暦: 2024-01-01, 2024/01/01\n- 和暦: H28.6.3, R5/4/1\n\n変換できない値の例:\n  行3: nan",
+    "line_number": 3,
+    "column_name": "日付",
+    "expected_value": "YYYY-MM-DD, YYYY/MM/DD, H○○.○.○",
+    "actual_value": "nan",
+    "sample_values": [
+     "nan"
+    ],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e23_blank_description.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e23_blank_description.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": null,
+       "amount_out": 1000,
+       "amount_in": 0,
+       "balance": 89000,
+       "calc_balance": 89000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 287000,
+       "calc_balance": 86000,
+       "is_balance_error": true,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "typed_account": "9000024",
+  "commit_status": 302,
+  "transaction_count": 40
+ },
+ {
+  "parse": [
+   "e22_excel.xlsx"
+  ],
+  "status": 400,
+  "response": {
+   "success": false,
+   "error": "ファイル 'e22_excel.xlsx' のエラー: 日付の変換に失敗しました（1件）",
+   "error_details": {
+    "type": "data",
+    "type_label": "データエラー",
+    "message": "日付の変換に失敗しました（1件）",
+    "suggestion": "日付は以下の形式で入力してください:\n- 西暦: 2024-01-01, 2024/01/01\n- 和暦: H28.6.3, R5/4/1\n\n変換できない値の例:\n  行3: R3.4.2",
+    "line_number": 3,
+    "column_name": "日付",
+    "expected_value": "YYYY-MM-DD, YYYY/MM/DD, H○○.○.○",
+    "actual_value": "R3.4.2",
+    "sample_values": [
+     "R3.4.2"
+    ],
+    "tried_encodings": []
+   }
+  }
+ },
+ {
+  "parse": [
+   "e24_excel_dates.xlsx"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e24_excel_dates.xlsx",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "テスト銀行",
+      "branch_name": "本店",
+      "account_type": "普通",
+      "account_number": "7654321"
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "bank_name": "テスト銀行",
+       "branch_name": "本店",
+       "account_number": 7654321,
+       "account_type": "普通",
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "bank_name": "テスト銀行",
+       "branch_name": "本店",
+       "account_number": 7654321,
+       "account_type": "普通",
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": 290000,
+       "calc_balance": 290000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "bank_name": "テスト銀行",
+       "branch_name": "本店",
+       "account_number": 7654321,
+       "account_type": "普通",
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 287000,
+       "calc_balance": 287000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  },
+  "commit": "skip",
+  "commit_status": 302,
+  "transaction_count": 43
+ },
+ {
+  "parse": [
+   "e07_utf8bom_crlf.csv",
+   "e04_decimal_amount.csv"
+  ],
+  "status": 200,
+  "response": {
+   "success": true,
+   "files": [
+    {
+     "filename": "e07_utf8bom_crlf.csv",
+     "row_count": 3,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "ATM",
+       "amount_out": 10000,
+       "amount_in": 0,
+       "balance": 90000,
+       "calc_balance": 90000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "給与",
+       "amount_out": 0,
+       "amount_in": 200000,
+       "balance": 290000,
+       "calc_balance": 290000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-03",
+       "description": "イオン",
+       "amount_out": 3000,
+       "amount_in": 0,
+       "balance": 287000,
+       "calc_balance": 287000,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    },
+    {
+     "filename": "e04_decimal_amount.csv",
+     "row_count": 2,
+     "duplicate_count": 0,
+     "duplicate_run": 0,
+     "warning": null,
+     "detected_account": {
+      "bank_name": "",
+      "branch_name": "",
+      "account_type": "",
+      "account_number": ""
+     },
+     "has_balance": true,
+     "rows": [
+      {
+       "date": "2021-04-01",
+       "description": "利息",
+       "amount_out": 0,
+       "amount_in": 100,
+       "balance": 100100,
+       "calc_balance": 100100,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      },
+      {
+       "date": "2021-04-02",
+       "description": "ATM",
+       "amount_out": 1000,
+       "amount_in": 0,
+       "balance": 99100,
+       "calc_balance": 99100,
+       "is_balance_error": false,
+       "is_duplicate": false,
+       "dup_confidence": null
+      }
+     ]
+    }
+   ]
+  }
+ }
+]

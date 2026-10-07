@@ -1,0 +1,116 @@
+{
+ "allow_multiple_false": {
+  "error": "MultipleBankError",
+  "type": "validation",
+  "type_label": "検証エラー",
+  "message": "このファイルには2種類の銀行名が含まれています",
+  "suggestion": "1回のインポートでは1つの銀行のデータのみ取り込み可能です。\n銀行ごとにCSVファイルを分割してアップロードしてください。\n\n検出された銀行名:\n  - テスト銀行: 2件\n  - サンプル信用金庫: 1件",
+  "line_number": null,
+  "column_name": null,
+  "expected_value": "1つの銀行名",
+  "actual_value": "2種類の銀行名",
+  "sample_values": [
+   "テスト銀行",
+   "サンプル信用金庫"
+  ],
+  "tried_encodings": []
+ },
+ "allow_multiple_true": {
+  "columns": [
+   "bank_name",
+   "branch_name",
+   "account_number",
+   "account_type",
+   "date",
+   "description",
+   "amount_out",
+   "amount_in",
+   "balance"
+  ],
+  "attrs": {
+   "csv_metadata": {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": "1111111",
+    "account_type": "普通"
+   },
+   "has_balance": true
+  },
+  "rows": [
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2021-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 90000
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2021-04-02T00:00:00",
+    "description": "給与",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 290000
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2021-04-03T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 287000
+   }
+  ],
+  "validated": [
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2021-04-01T00:00:00",
+    "description": "ATM",
+    "amount_out": 10000,
+    "amount_in": 0,
+    "balance": 90000,
+    "calc_balance": 90000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "テスト銀行",
+    "branch_name": "本店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2021-04-02T00:00:00",
+    "description": "給与",
+    "amount_out": 0,
+    "amount_in": 200000,
+    "balance": 290000,
+    "calc_balance": 290000,
+    "is_balance_error": false
+   },
+   {
+    "bank_name": "サンプル信用金庫",
+    "branch_name": "駅前支店",
+    "account_number": 1111111,
+    "account_type": "普通",
+    "date": "2021-04-03T00:00:00",
+    "description": "イオン",
+    "amount_out": 3000,
+    "amount_in": 0,
+    "balance": 287000,
+    "calc_balance": 287000,
+    "is_balance_error": false
+   }
+  ]
+ }
+}
