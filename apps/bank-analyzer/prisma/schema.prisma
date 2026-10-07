@@ -1,0 +1,151 @@
+// 銀行取引分析のスキーマ。
+//
+// Django 版（apps/bank-analyzer-django/analyzer/models.py）が作った表をそのまま使う。
+// データは移し替えず、表名・列名・制約名・インデックス名を Django の実物に合わせてある
+// （@@map / @map / map:）。切り替えのときは今の DB ボリュームへこのアプリをつなぐだけで済む。
+//
+// マイグレーションは手書き（`prisma migrate dev` は使わない）:
+//   - 20261007000000_django_baseline … Django が作った表そのもの。既存の DB では
+//     `prisma migrate resolve --applied` で適用済み扱いにする（README 参照）
+//   - 20261007000001_db_defaults_and_cascade … Django がアプリ側で埋めていた既定値と
+//     削除の連鎖を DB に持たせる。Django は常に値を明示し、子から順に消すので影響しない
+//
+// Prisma の定義に書けないもの（マイグレーションの SQL にだけある）:
+//   - analyzer_case.name の varchar_pattern_ops インデックス（Django の LIKE 用）
+//   - PositiveBigIntegerField の CHECK (>= 0)
+//
+// id は Django の BigAutoField なので BigInt。JSON へ出すときは server/json.ts で数値にする。
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// 案件（相続人ごとなど、分析の単位）。
+model Case {
+  id             BigInt    @id @default(autoincrement())
+  name           String    @unique(map: "analyzer_case_name_key") @db.VarChar(255)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// 案件ごとの分類パターン（{分類名: [キーワード, ...]}）
+  customPatterns Json      @default("{}") @map("custom_patterns")
+  /// 基準日（相続開始日など）
+  referenceDate  DateTime? @map("reference_date") @db.Date
+
+  accounts              Account[]
+  transactions          Transaction[]
+  deletionBackups       DeletionBackup[]
+  classificationChanges ClassificationChange[]
+
+  @@map("analyzer_case")
+}
+
+/// 口座。案件内では口座番号だけで識別している（銀行が違っても同じ番号なら1口座）。
+model Account {
+  id                 BigInt  @id @default(autoincrement())
+  caseId             BigInt  @map("case_id")
+  accountNumber      String  @map("account_number") @db.VarChar(255)
+  bankName           String? @map("bank_name") @db.VarChar(255)
+  branchName         String? @map("branch_name") @db.VarChar(255)
+  accountType        String? @map("account_type") @db.VarChar(50)
+  holder             String? @db.VarChar(255)
+  passbookBalance    Int?    @map("passbook_balance")
+  certificateBalance Int?    @map("certificate_balance")
+  hasAccruedInterest Boolean @default(false) @map("has_accrued_interest")
+  /// 通帳有無（年別）
+  passbookYears      Json    @default("{}") @map("passbook_years")
+  inventoryRemarks   String  @default("") @map("inventory_remarks")
+  printOrder         Int     @default(0) @map("print_order")
+
+  case         Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([caseId, accountNumber], map: "unique_case_account")
+  @@index([caseId], map: "analyzer_account_case_id_eeba72e1")
+  @@map("analyzer_account")
+}
+
+/// 取引（通帳の1行）。
+model Transaction {
+  id                  BigInt    @id @default(autoincrement())
+  caseId              BigInt    @map("case_id")
+  accountId           BigInt?   @map("account_id")
+  date                DateTime? @db.Date
+  description         String?   @db.VarChar(255)
+  /// 摘要を NFKC + 小文字化した検索用の列。既定値を持たせていないのは、
+  /// 書き込むたびに必ずアプリ側で作らせるため（Django も save() で毎回作り直している）。
+  descriptionSearch   String    @map("description_search")
+  amountOut           Int       @default(0) @map("amount_out")
+  amountIn            Int       @default(0) @map("amount_in")
+  balance             Int?
+  isLarge             Boolean   @default(false) @map("is_large")
+  isTransfer          Boolean   @default(false) @map("is_transfer")
+  transferTo          String?   @map("transfer_to") @db.VarChar(255)
+  category            String    @default("未分類") @db.VarChar(100)
+  classificationScore Int       @default(0) @map("classification_score")
+  isFlagged           Boolean   @default(false) @map("is_flagged")
+  memo                String?
+
+  case                  Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  account               Account?               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  classificationChanges ClassificationChange[]
+
+  @@index([caseId, date], map: "analyzer_tr_case_id_ff6ea7_idx")
+  @@index([caseId, accountId], map: "analyzer_tr_case_id_cfc7bb_idx")
+  @@index([category], map: "analyzer_tr_categor_07dd04_idx")
+  @@index([caseId, isFlagged], map: "analyzer_tr_case_id_ca6c16_idx")
+  @@index([caseId, category], map: "analyzer_tr_case_id_96ba3a_idx")
+  @@index([caseId, isLarge], map: "analyzer_tr_case_id_4d6dc2_idx")
+  @@index([caseId, isTransfer], map: "analyzer_tr_case_id_0b746a_idx")
+  @@index([accountId], map: "analyzer_transaction_account_id_new_4de071e4")
+  @@index([caseId], map: "analyzer_transaction_case_id_c94f6f84")
+  @@index([descriptionSearch(ops: raw("gin_trgm_ops"))], type: Gin, map: "analyzer_tx_desc_trgm")
+  @@map("analyzer_transaction")
+}
+
+/// 範囲削除の控え（復元用）。
+model DeletionBackup {
+  id              BigInt    @id @default(autoincrement())
+  caseId          BigInt    @map("case_id")
+  startId         BigInt    @map("start_id")
+  endId           BigInt    @map("end_id")
+  transactionData Json      @default("[]") @map("transaction_data")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  restoredAt      DateTime? @map("restored_at") @db.Timestamptz(6)
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId], map: "analyzer_deletionbackup_case_id_43d64ad8")
+  @@map("analyzer_deletionbackup")
+}
+
+/// 分類の変更履歴（取り消し用）。同じ操作で変わった行は changeGroup でまとまる。
+model ClassificationChange {
+  id                     BigInt    @id @default(autoincrement())
+  caseId                 BigInt    @map("case_id")
+  transactionId          BigInt?   @map("transaction_id")
+  /// 取引が消えても履歴に残す元の取引 ID
+  transactionIdentifier  BigInt    @map("transaction_identifier")
+  transactionDescription String    @default("") @map("transaction_description") @db.VarChar(255)
+  oldCategory            String    @map("old_category") @db.VarChar(100)
+  newCategory            String    @map("new_category") @db.VarChar(100)
+  changeGroup            String    @map("change_group") @db.Uuid
+  source                 String    @default("manual") @db.VarChar(50)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  revertedAt             DateTime? @map("reverted_at") @db.Timestamptz(6)
+
+  case        Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([caseId, createdAt], map: "analyzer_cl_case_id_18f699_idx")
+  @@index([caseId, revertedAt], map: "analyzer_cl_case_id_855c2c_idx")
+  @@index([caseId], map: "analyzer_classificationchange_case_id_521737b8")
+  @@index([changeGroup], map: "analyzer_classificationchange_change_group_5b2b2622")
+  @@index([transactionId], map: "analyzer_classificationchange_transaction_id_6a4f7c8a")
+  @@map("analyzer_classificationchange")
+}

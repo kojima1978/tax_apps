@@ -182,6 +182,20 @@ URL 31本を Hono の API に置き換える。画面の HTML を返していた
 - 本番コンテナにも `data/user_settings.json` は無い（全案件が既定のパターン）
 - pytest 135件成功（`dump_golden` 追加後）
 
+## 段階2の結果（2026-10-07）
+
+- `apps/bank-analyzer` を作成（非 root の Dockerfile、compose は既存アンカーを写し `NODE_OPTIONS` 付き、
+  本番オーバーレイあり）。並走名は `bank-analyzer-next` / 3008 / `/bank-analyzer-next/`（ゲートウェイ経由で表示を確認）
+- manage.sh では **`UNMANAGED_APPS`** に置いた（利用者のいない移行中の画面を自動起動・復旧・
+  バックアップに載せないため）。段階7で `APPS` へ移す。テストは `TEST_TARGETS` の
+  `run@bank-analyzer-test` と CI の matrix に入れた（型検査込み 20件成功、preflight WARN 0）
+- マイグレーションは手書き2本: Django のスキーマそのもの（`pg_dump -s` と完全一致を確認）と、
+  既定値・`ON DELETE CASCADE` を DB へ移すもの
+- **切替の予行**: 本番 DB の複製に `migrate resolve --applied <baseline>` → `migrate deploy` を流し、
+  件数不変（6案件・28口座・4,184件）、`analyzer_*` に残る差は Django の LIKE 索引1件だけ（想定どおり）。
+  Prisma から見ると Django 自身の表（`auth_*` など）は「スキーマに無い表」なので、
+  **本番 DB に `db push` / `migrate dev` は叩かない**（README に記載）
+
 ## 9. 着手の順番
 
 この計画で承認をもらえたら、**段階1（正解の記録）だけ**を先に行い、結果を見せてから段階2へ進む。

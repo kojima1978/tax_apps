@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-server
+.git
+.gitignore
+*.tsbuildinfo
+coverage
+README.md
+.env
+# test-data は落とさない。test-data/golden は Django 版の正解の記録で、
+# テスト用サービス（bank-analyzer-test）がイメージの中から毎回読む。
+# 本番の runner は dist / dist-server / prisma しか持ち込まないので入らない。
+# make_inputs.py が作る一時ファイルだけは除く。
+test-data/**/__pycache__

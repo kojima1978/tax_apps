@@ -34,6 +34,7 @@ jobs:
       # dir は package.json のある場所。itcm だけ apps/<app>/ の1つ下にある。
       matrix:
         include:
+          - { app: bank-analyzer, dir: apps/bank-analyzer }
           - { app: inheritance-case-management, dir: apps/inheritance-case-management/web }
           - { app: inheritance-tax-app, dir: apps/inheritance-tax-app }
           - { app: inheritance-tax-form, dir: apps/inheritance-tax-form }

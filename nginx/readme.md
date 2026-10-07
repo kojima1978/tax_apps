@@ -104,6 +104,8 @@ nginx/
 | `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Django + PostgreSQL) |
 | `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API |
 | `/bank-analyzer/static/` | `bank-analyzer:3007` | 銀行分析 静的ファイル |
+| `/bank-analyzer-next/` | `bank-analyzer-next:3008` | 銀行分析 React 版（移行中。Vite 一括側） |
+| `/bank-analyzer-next/api/` | `bank-analyzer-next:3008` | 銀行分析 React 版 API（100M・300s は Django 版と同じ） |
 | `/gift-tax-docs/` | → `/tax-docs/` | 301リダイレクト（旧URL互換） |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
 

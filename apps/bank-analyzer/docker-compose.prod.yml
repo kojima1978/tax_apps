@@ -1,0 +1,48 @@
+# ============================================
+# 銀行取引分析（React 版）- Production Override
+# ============================================
+# 起動は docker/scripts/manage.sh start --prod <app> から行うこと
+# （本番シークレットの生成と ALTER ROLE がそちらにあるため）。
+# 並行稼働の間は manage.sh の管理外なので、手で重ねるのは動作確認のときだけ。
+# ============================================
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 384M
+    reservations:
+      memory: 96M
+
+# base の既定値（ba_next_dev_password）は開発専用。`.env` を置き忘れたまま本番起動すると
+# 既定パスワードのまま動いてしまうので、本番では未設定なら起動を失敗させる。
+x-prod-password: &prod-password ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required for production}
+
+services:
+  bank-analyzer-next-db:
+    environment:
+      POSTGRES_PASSWORD: *prod-password
+
+  bank-analyzer-next:
+    build:
+      target: runner
+    environment:
+      TZ: Asia/Tokyo
+      NODE_ENV: production
+      # base の 384 が残ると上限（384M）を超えるので、ここで絞り直す。
+      NODE_OPTIONS: "--max-old-space-size=256"
+      # 本番は Node が dist と API の両方を 3008 で配信する（Vite は動かない）。
+      PORT: "3008"
+      CHOKIDAR_USEPOLLING: "false"
+      POSTGRES_PASSWORD: *prod-password
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bankuser}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required for production}@bank-analyzer-next-db:5432/${POSTGRES_DB:-bank_analyzer}?schema=public
+    command: ["node", "dist-server/index.js"]
+    init: false
+    # `volumes:` は既定でマージされ base の開発用バインドが残ってしまう。
+    # 本番のコードはイメージ同梱なので全部落とす。
+    volumes: !reset []
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "wget --no-verbose --tries=1 --spider http://127.0.0.1:3008/bank-analyzer-next/api/health || exit 1"
+      start_period: 30s
+    deploy: *prod-deploy

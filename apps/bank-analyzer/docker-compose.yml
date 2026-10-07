@@ -1,0 +1,189 @@
+# ============================================
+# 銀行取引分析（React 版）- Docker Compose
+# ============================================
+# apps/bank-analyzer-django の移行先。計画は
+# apps/bank-analyzer-django/REACT_MIGRATION_PLAN.md。
+#
+# Django 版と並べて動かす間は、名前・ポート・パスを全部ずらしてある:
+#   コンテナ bank-analyzer-next / 3008 / /bank-analyzer-next/
+#   DB       bank-analyzer-next-postgres（Django 版の DB とは別物・中身は空から）
+# サービス名に bank-analyzer を使わないのは、共有ネットワーク上でそれが
+# DNS 名になり、Django 版のコンテナ（bank-analyzer）と取り合うため。
+#
+# Usage:
+#   開発:     docker compose up -d
+#   再ビルド: docker compose up -d --build
+#   ログ:     docker compose logs -f
+#   テスト:   docker/scripts/manage.sh test bank-analyzer
+# ============================================
+
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-autoheal-labels: &autoheal-labels
+  tax-apps.autoheal: "true"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s
+
+# コンテナ内で setuid ビット経由の特権取得を塞ぐ。アプリ側にその必要は無い。
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  # ===========================================
+  # PostgreSQL（並行稼働の間だけの専用 DB）
+  # Port: 5432（内部のみ）
+  #
+  # 本番の取引データは Django 版の bank-analyzer-postgres にある。
+  # 突き合わせ（段階6）ではその複製をここへ復元して使い、本番の DB には
+  # 2つのアプリから同時に書かせない。
+  # ===========================================
+  bank-analyzer-next-db:
+    image: postgres:16-alpine
+    container_name: bank-analyzer-next-postgres
+    networks:
+      - tax-apps-network
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      POSTGRES_USER: ${POSTGRES_USER:-bankuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ba_next_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-bank_analyzer}
+    volumes:
+      - bank_analyzer_next_pgdata:/var/lib/postgresql/data
+    shm_size: 128m
+    logging: *default-logging
+    labels: *autoheal-labels
+    <<: *security-opts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bankuser} -d ${POSTGRES_DB:-bank_analyzer}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  # ===========================================
+  # フロントエンド + API（Vite + Hono/Prisma）
+  # Port: 3008（dev は Vite。API は同一コンテナの 3108 へプロキシ）
+  # ===========================================
+  bank-analyzer-next:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        APP_PORT: "3008"
+    container_name: bank-analyzer-next
+    networks:
+      - tax-apps-network
+    ports:
+      - "127.0.0.1:3008:3008"
+    volumes:
+      - ./src:/app/src:ro
+      - ./server:/app/server:ro
+      - ./prisma:/app/prisma:ro
+      - ./index.html:/app/index.html:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      # Vite と tsx の2本で 384M ずつ。合計が上限（1G）を下回るように割る。
+      NODE_OPTIONS: "--max-old-space-size=384"
+      # dev は Vite が 3008 を占めるので API は 3108。本番は 3008 に一本化する。
+      PORT: "3108"
+      # `tsx watch` は内蔵 chokidar をこの環境変数でポーリングに切り替える。
+      # Vite 側は vite.config.ts の server.watch で別に指定が要る（watcher が2つあるため）。
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bankuser}:${POSTGRES_PASSWORD:-ba_next_dev_password}@bank-analyzer-next-db:5432/${POSTGRES_DB:-bank_analyzer}?schema=public
+    depends_on:
+      bank-analyzer-next-db:
+        condition: service_healthy
+    command: ["npm", "run", "dev:all"]
+    init: true
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *autoheal-labels
+    <<: *security-opts
+    healthcheck:
+      # API の health は DB に問い合わせる。Vite の生存確認と両方を見る。
+      test:
+        - "CMD-SHELL"
+        - "wget --no-verbose --tries=1 --spider http://127.0.0.1:3108/bank-analyzer-next/api/health && wget --no-verbose --tries=1 --spider http://127.0.0.1:3008/bank-analyzer-next/ || exit 1"
+      <<: *healthcheck-defaults
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  # ===========================================
+  # テスト用（manage.sh test / 手元での動作確認）
+  #
+  # dev ステージを別サービスに分けてあるので、本体が止まっていても
+  # 本番モードでも同じ形で回る（manage.sh の TEST_TARGETS は run@ 形式）。
+  #
+  # image を明示しているのが要点。本体のサービスは image 名を持たないので
+  # compose が自動命名し、dev と runner が同じタグを共有してしまう
+  # （そのまま dev ステージをビルドすると、次の apply / recover が
+  # 本番コンテナを dev イメージから作り直す）。
+  #
+  # ソースは bind mount せずイメージ同梱物を使う（run の --build で取り込む）。
+  # `tsc -b` が .tsbuildinfo を書くので、読み取り専用マウントとは相性が悪い。
+  # DB にはつながない（entrypoint の migrate deploy も飛ばす）。
+  # ===========================================
+  bank-analyzer-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        APP_PORT: "3008"
+    image: bank-analyzer-test
+    profiles: ["test"]
+    networks:
+      - tax-apps-network
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=1400"
+      BANK_ANALYZER_SKIP_MIGRATE: "1"
+      # prisma のスキーマ読み込みが env("DATABASE_URL") を必須にするため、
+      # 接続しないとしても値そのものは要る。
+      DATABASE_URL: postgresql://bankuser:unused@bank-analyzer-next-db:5432/bank_analyzer?schema=public
+    init: true
+    restart: "no"
+    logging: *default-logging
+    <<: *security-opts
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 256M
+
+networks:
+  tax-apps-network:
+    external: true
+
+volumes:
+  bank_analyzer_next_pgdata:
+    name: bank-analyzer-next-postgres

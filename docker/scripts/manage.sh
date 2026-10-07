@@ -148,6 +148,11 @@ UNMANAGED_APPS=(
   # （載せると status が「落ちている」と言い続けることになる）。
   # テストだけは TEST_TARGETS の run@ 形式で使い捨てコンテナから回る。
   "mcp-server"
+  # 銀行分析の React 版。Django 版（APPS の bank-analyzer-django）からの移行中で、
+  # 両方を並べて動かしている（名前・ポート・パスは bank-analyzer-next / 3008）。
+  # まだ利用者のいない画面なので、自動起動・復旧・バックアップには載せない。
+  # 移行計画の段階7（切替）で APPS へ移し、Django 版を外す。
+  "bank-analyzer"
 )
 
 is_unmanaged_app() {
@@ -229,6 +234,8 @@ TEST_TARGETS=(
   "private-banking:private-banking-app:npm test"
   "stock-valuation-form:stock-valuation-form:npm test"
   "inheritance-case-management:itcm-frontend:npm test"
+  # 移行中で常駐を前提にしないため、使い捨てコンテナで回す（UNMANAGED_APPS を参照）
+  "bank-analyzer:run@bank-analyzer-test:npm test"
 )
 
 # アプリの package.json。itcm（web/）や portal（app/）のように
