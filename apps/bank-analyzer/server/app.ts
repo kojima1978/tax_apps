@@ -7,6 +7,7 @@ import { caseRouter } from './routes/common.js';
 import { caseRoutes } from './routes/cases.js';
 import { categoryRoutes } from './routes/categories.js';
 import { classificationRoutes } from './routes/classification.js';
+import { importRoutes } from './routes/imports.js';
 import { transactionRoutes } from './routes/transactions.js';
 
 // 並行稼働の間の仮のパス。切り替え（段階7）で '/bank-analyzer' に戻す。
@@ -35,6 +36,7 @@ export function createApp(db: PrismaClient) {
   transactionRoutes(cases, db);
   categoryRoutes(cases, db);
   classificationRoutes(cases, db);
+  importRoutes(cases, db);
   app.route(`${BASE_PATH}/api/cases`, cases);
 
   // 例外の中身（SQL や内部のパス）は画面に出さない。ログにだけ残す。
