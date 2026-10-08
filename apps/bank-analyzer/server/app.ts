@@ -8,6 +8,7 @@ import { caseRouter } from './routes/common.js';
 import { caseRoutes } from './routes/cases.js';
 import { categoryRoutes } from './routes/categories.js';
 import { classificationRoutes } from './routes/classification.js';
+import { dashboardRoutes } from './routes/dashboard.js';
 import { exportRoutes } from './routes/exports.js';
 import { importRoutes } from './routes/imports.js';
 import { passbookInventoryRoutes } from './routes/passbookInventory.js';
@@ -44,6 +45,7 @@ export function createApp(db: PrismaClient) {
   backupExportRoutes(cases, db);
   exportRoutes(cases, db);
   passbookInventoryRoutes(cases, db);
+  dashboardRoutes(cases, db);
   app.route(`${BASE_PATH}/api/cases`, cases);
   app.route(`${BASE_PATH}/api/backups`, backupImportRouter(db));
   app.route(`${BASE_PATH}/api/settings`, settingsRouter(db));

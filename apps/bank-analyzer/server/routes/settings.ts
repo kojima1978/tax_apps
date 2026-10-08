@@ -9,8 +9,7 @@
 import { Hono } from 'hono';
 import type { PrismaClient } from '@prisma/client';
 import { isRecord } from '../input.js';
-import { sortCategories } from '../lib/categories.js';
-import { applyGlobalPatternChanges, getAppSettings, getGlobalPatterns, saveAnalysisParams } from '../services/settings.js';
+import { applyGlobalPatternChanges, getAppSettings, getGlobalPatterns, patternList, saveAnalysisParams } from '../services/settings.js';
 import { fail, ok, readBody } from './common.js';
 
 // /cases の下に置かないのは、案件を探すミドルウェア（'/:caseId/*'）が当たるため（backupImportRouter と同じ）
@@ -19,10 +18,7 @@ export function settingsRouter(db: PrismaClient) {
 
   r.get('/', async (c) => {
     const [settings, patterns] = await Promise.all([getAppSettings(db), getGlobalPatterns(db)]);
-    return ok(c, {
-      settings,
-      patterns: sortCategories(patterns.keys()).map((category) => ({ category, keywords: patterns.get(category) ?? [] })),
-    });
+    return ok(c, { settings, patterns: patternList(patterns) });
   });
 
   r.put('/analysis', async (c) => {

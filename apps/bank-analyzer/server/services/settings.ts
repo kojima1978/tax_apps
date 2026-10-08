@@ -18,6 +18,7 @@ import {
   DEFAULT_PATTERNS,
   normalizeCategory,
   normalizePatterns,
+  sortCategories,
   type FuzzyConfig,
   type Patterns,
 } from '../lib/categories.js';
@@ -368,6 +369,10 @@ export async function applyGlobalPatternChanges(db: PrismaClient, changes: Patte
 }
 
 export const patternsToObject = toObject;
+
+// 画面に出す形: 標準の分類順（知らないカテゴリーは後ろ）に並べた配列
+export const patternList = (p: PatternMap) =>
+  sortCategories(p.keys()).map((category) => ({ category, keywords: p.get(category) ?? [] }));
 
 // ---------------------------------------------------------------------------
 // JSON バックアップ（Django の load_user_settings / save_user_settings）

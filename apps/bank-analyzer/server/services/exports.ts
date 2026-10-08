@@ -43,7 +43,7 @@ export type ExportRow = {
 };
 
 // 案件の取引を日付 → id の順で（日付の無いものは最後）
-async function loadRows(db: PrismaClient, caseId: bigint): Promise<ExportRow[]> {
+export async function loadRows(db: PrismaClient, caseId: bigint): Promise<ExportRow[]> {
   const rows = await db.transaction.findMany({
     where: { caseId },
     include: { account: true },
