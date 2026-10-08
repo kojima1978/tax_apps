@@ -202,6 +202,10 @@ export function AiTab({ dash, reload }: Props) {
     onDismiss: () => dismiss(row),
   });
 
+  // 下限を下げれば出る候補。いちばん高い点まで下げる先を出す（それより下は似ていないものが増える）
+  const hiddenBest = dash.hiddenScores[0];
+  const reveal = hiddenBest === undefined ? null : { cutoff: Math.floor(hiddenBest), count: dash.hiddenScores.filter((n) => n >= Math.floor(hiddenBest)).length };
+
   const bulk95 = dash.bulkCounts[String(HIGH)] ?? 0;
   const bulk85 = dash.bulkCounts[String(MID)] ?? 0;
 
@@ -289,7 +293,9 @@ export function AiTab({ dash, reload }: Props) {
                     <strong className="tabular-nums">{num(groups.length)}</strong>グループ / <strong className="tabular-nums">{num(shownCount)}</strong>件
                   </>
                 )}
-                <small className="ml-2 text-slate-500">下限 {dash.suggestionCutoff}%</small>
+                <small className="ml-2 text-slate-500">
+                  下限 {dash.suggestionCutoff}%{dash.hiddenScores.length > 0 && `（下限未満 ${num(dash.hiddenScores.length)}件）`}
+                </small>
               </span>
               <div className="flex rounded-md border border-slate-300" role="group" aria-label="表示の切り替え">
                 {(
@@ -318,8 +324,20 @@ export function AiTab({ dash, reload }: Props) {
             )}
             {(flat ? rows.length : groups.length) === 0 ? (
               <div className="px-4 py-10 text-center text-sm text-slate-600" role="status">
-                <p className="font-semibold">候補はありません</p>
-                <p className="mt-1 text-xs">下限を下げるか、下のパターンにキーワードを登録すると候補が出ます。</p>
+                <p className="font-semibold">下限 {dash.suggestionCutoff}% 以上の候補はありません</p>
+                {reveal ? (
+                  <>
+                    <p className="mt-1 text-xs">
+                      下限未満に{num(dash.hiddenScores.length)}件あります（最高 {pct(hiddenBest ?? 0)}%）。信頼度が低いので、分類は1件ずつ確かめてください。
+                    </p>
+                    <button type="button" className="btn btn-secondary btn-sm mt-3" onClick={() => applyCutoff(reveal.cutoff)}>
+                      <SlidersHorizontal size={14} />
+                      下限を{reveal.cutoff}%にして{num(reveal.count)}件を表示
+                    </button>
+                  </>
+                ) : (
+                  <p className="mt-1 text-xs">登録済みのキーワードに似た摘要がありません。下のパターンにキーワードを登録すると候補が出ます。</p>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">

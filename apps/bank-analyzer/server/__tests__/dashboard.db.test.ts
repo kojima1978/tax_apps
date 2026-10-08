@@ -125,6 +125,11 @@ describe('分析画面', () => {
     const strict = (await get(`/${caseId}/dashboard?tab=ai&cutoff=100`)).body;
     expect(strict.suggestionCutoff).toBe(100);
     expect(strict.aiSuggestions.every((s: Body) => s.score === 100)).toBe(true);
+    // 下限で落ちた候補は点数だけ返る（下限を下げれば出るものの件数と最高点を画面が出す）
+    expect(strict.hiddenScores.every((n: number) => n >= 1 && n < 100)).toBe(true);
+    const loose = (await get(`/${caseId}/dashboard?tab=ai&cutoff=1`)).body;
+    expect(strict.aiSuggestions.length + strict.hiddenScores.length).toBe(loose.aiSuggestions.length);
+    expect(loose.hiddenScores).toEqual([]);
     expect((await get(`/${caseId}/dashboard?tab=ai&cutoff=abc`)).body.suggestionCutoff).toBe(80);
     // 画面上部の未分類の件数はこのタブでも上書きしない
     expect(ai.unclassifiedCount).toBe(cleanup.unclassifiedCount);

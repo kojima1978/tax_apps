@@ -89,6 +89,8 @@ export type TabData = {
     fuzzyThreshold: number;
     suggestionCutoff: number;
     defaultCutoff: number;
+    // 下限より下の候補の点数（高い順。新しい100件の中）
+    hiddenScores: number[];
     bulkCounts: Record<string, number>;
     targetCount: number;
     globalPatterns: PatternItem[];

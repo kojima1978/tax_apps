@@ -236,6 +236,16 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
       // 件数の2つは画面上部（どのタブでも同じ値）と名前が重なるので、ここでは上書きしない。
       // 上書きすると、付箋付きの未分類がある案件でこのタブだけ「未分類」の件数が変わっていた
       const { unclassifiedCount: targetCount, suggestionsCount: _shown, ...ai } = aiSuggestions(ordered, classifier, cutoff);
+      // 下限より下にある候補の点数（高い順）。下限の既定は80%前後なので、キーワードと摘要の離れた案件では
+      // 「候補はありません」としか出ず、下限を下げれば出ることが分からなかった。画面はここから
+      // 「下限未満に N件（最高 M%）」と、下げる先を出す（1点未満＝似ていないものは数えない）
+      const hiddenScores =
+        cutoff > 1
+          ? aiSuggestions(ordered, classifier, 1)
+              .aiSuggestions.map((s) => s.score)
+              .filter((score) => score < cutoff)
+              .sort((a, b) => b - a)
+          : [];
       const high = ai.aiGroups.filter((g) => g.score >= HIGH_CONFIDENCE);
       // 一括適用で当たる件数（全件。画面の一覧は新しい100件まで）
       const candidates = suggestionUpdates(ordered, classifier, Math.min(...BULK_SCORES));
@@ -243,6 +253,7 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
         ...ai,
         suggestionCutoff: cutoff,
         defaultCutoff,
+        hiddenScores,
         // 候補を探す対象（未分類のうち付箋の無いもの）
         targetCount,
         bulkCounts: Object.fromEntries(BULK_SCORES.map((m) => [m, candidates.filter((u) => (u.classificationScore ?? 0) >= m).length])),
