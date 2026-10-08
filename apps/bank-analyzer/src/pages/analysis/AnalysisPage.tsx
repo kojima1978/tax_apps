@@ -37,6 +37,7 @@ import { num } from '../../lib/format';
 import { AllTab } from './AllTab';
 import { UnclassifiedTab } from './UnclassifiedTab';
 import { AiTab } from './AiTab';
+import { FlaggedTab } from './FlaggedTab';
 import { TransfersTab } from './TransfersTab';
 import { CleanupTab } from './CleanupTab';
 import { OverviewTab } from './OverviewTab';
@@ -124,6 +125,8 @@ function TabContent({ dash, reload }: { dash: Exclude<Dashboard, { noData: true 
       return <TransfersTab dash={dash as DashboardSummary & TabData['transfers']} reload={reload} />;
     case 'cleanup':
       return <CleanupTab dash={dash as DashboardSummary & TabData['cleanup']} reload={reload} />;
+    case 'flagged':
+      return <FlaggedTab dash={dash as DashboardSummary & TabData['flagged']} reload={reload} />;
     default:
       return <p className="card p-6 text-sm text-slate-500">この画面は準備中です。</p>;
   }

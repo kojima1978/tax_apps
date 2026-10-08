@@ -94,6 +94,18 @@ describe('CSV', () => {
     ]);
   });
 
+  it('付箋付きは画面と同じキーワード・並びで出す', async () => {
+    const { caseId, ids } = await seedCase(db(), 'ZZQ架空質問', [
+      { date: '2025-05-01', description: 'ZZQ質問あ', amountOut: 100 },
+      { date: '2025-05-02', description: 'ZZQ質問い', amountOut: 300 },
+      { date: '2025-05-03', description: 'ZZQ別件', amountOut: 200 },
+    ]);
+    await db().transaction.updateMany({ where: { id: { in: ids } }, data: { isFlagged: true } });
+    const desc = (lines: string[]) => lines.slice(1).map((l) => l.split(',')[5]);
+    expect(desc(await csvLines(await get(`/${caseId}/export/csv/flagged?sort=amount_out_desc`)))).toEqual(['ZZQ質問い', 'ZZQ別件', 'ZZQ質問あ']);
+    expect(desc(await csvLines(await get(`/${caseId}/export/csv/flagged?keyword=${encodeURIComponent('質問')}`)))).toEqual(['ZZQ質問あ', 'ZZQ質問い']);
+  });
+
   it('資金移動は画面と同じく判定し直した組を、出金→入金の順に。取込時の印は見ない・絞り込みも画面と同じ', async () => {
     const { caseId, ids } = await seedCase(db(), 'ZZQ架空移動', [
       { date: '2025-05-02', description: 'ZZQ移動出', amountOut: 30000, accountNumber: '7654321' },

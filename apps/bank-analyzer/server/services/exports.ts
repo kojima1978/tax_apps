@@ -13,13 +13,24 @@
 // - 資金移動の CSV は取込のときに付けた印（is_transfer）で選んでいたが、画面の一覧は表示のたびに
 //   判定し直している（段階4）。印は付け直されないので、直接入力した取引や設定を変えた後は
 //   画面に出ている組が CSV に無かった。画面と同じ判定・同じ絞り込みで、組ごとに出金→入金の順に出す
+// - 質問候補の CSV はキーワードで絞り込んでいる最中でも全件を、日付順で出していた。
+//   画面と同じキーワード・同じ並びで出す
 
 import ExcelJS from 'exceljs';
 import type { PrismaClient } from '@prisma/client';
-import { filterTransactions, monthlyCashflow, parseAmountInput, transferPairs, type TransactionFilter } from '../lib/aggregate.js';
+import {
+  filterTransactions,
+  monthlyCashflow,
+  parseAmountInput,
+  parseSort,
+  sortTransactions,
+  transferPairs,
+  type TransactionFilter,
+} from '../lib/aggregate.js';
 import { sortCategories } from '../lib/categories.js';
 import { warekiMonthShort, warekiShort } from '../lib/dates.js';
 import { exportFileName } from '../lib/exportFileName.js';
+import { matchesAllKeywords, splitKeywords } from '../lib/text.js';
 import { toDateString, toId } from '../json.js';
 import { getAppSettings } from './settings.js';
 
@@ -142,15 +153,27 @@ export const CSV_TYPES = {
 export type CsvType = keyof typeof CSV_TYPES;
 export const isCsvType = (value: string): value is CsvType => Object.hasOwn(CSV_TYPES, value);
 
-// filter は資金移動だけが使う（画面の資金移動タブと同じ絞り込み・並び）
+// filter は資金移動と質問候補が使う（画面のタブと同じ絞り込み・並び）
 export async function exportCsv(db: PrismaClient, caseId: bigint, type: CsvType, filter: TransactionFilter = {}): Promise<ExportResult> {
   const all = await loadRows(db, caseId);
   if (all.length === 0) return { ok: false, error: NO_DATA };
   const spec = CSV_TYPES[type];
-  const rows = type === 'transfers' ? await transferRows(db, all, filter) : all.filter(spec.select);
+  const rows =
+    type === 'transfers'
+      ? await transferRows(db, all, filter)
+      : type === 'flagged'
+        ? flaggedRows(all, filter)
+        : all.filter(spec.select);
   if (rows.length === 0) return { ok: false, error: NO_MATCH };
   const filename = exportFileName([await caseName(db, caseId), spec.suffix], 'csv');
   return { ok: true, file: buildCsv(rows, columns({ memo: spec.memo }), filename) };
+}
+
+// 質問候補タブと同じ: 摘要のキーワード（すべて含む）と並び
+function flaggedRows(all: ExportRow[], filter: TransactionFilter): ExportRow[] {
+  const kws = splitKeywords(filter.keyword ?? '');
+  const rows = all.filter((r) => r.isFlagged && (kws.length === 0 || matchesAllKeywords(r.description, kws)));
+  return sortTransactions(rows, parseSort(filter.sort));
 }
 
 async function transferRows(db: PrismaClient, all: ExportRow[], filter: TransactionFilter): Promise<ExportRow[]> {
