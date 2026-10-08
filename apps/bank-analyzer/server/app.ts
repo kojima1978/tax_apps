@@ -8,6 +8,7 @@ import { caseRouter } from './routes/common.js';
 import { caseRoutes } from './routes/cases.js';
 import { categoryRoutes } from './routes/categories.js';
 import { classificationRoutes } from './routes/classification.js';
+import { exportRoutes } from './routes/exports.js';
 import { importRoutes } from './routes/imports.js';
 import { transactionRoutes } from './routes/transactions.js';
 
@@ -39,6 +40,7 @@ export function createApp(db: PrismaClient) {
   classificationRoutes(cases, db);
   importRoutes(cases, db);
   backupExportRoutes(cases, db);
+  exportRoutes(cases, db);
   app.route(`${BASE_PATH}/api/cases`, cases);
   app.route(`${BASE_PATH}/api/backups`, backupImportRouter(db));
 

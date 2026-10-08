@@ -58,3 +58,27 @@ export function parseStatementDate(value: string): string | null {
 
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// 和暦の短い表記（Django 版 templatetags/japanese_date.py の wareki(…, 'short') と
+// wareki_month_short）。'YYYY-MM-DD' を受けて `R6.1.26` / `R6.1`。元年も数字で書く。
+// 日付が無ければ '-'、明治より前は西暦のまま。
+// ---------------------------------------------------------------------------
+
+function eraOf(iso: string) {
+  const era = ERAS.find((e) => iso >= e.start);
+  const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+  return { prefix: era ? `${era.abbr}${y - era.firstYear + 1}` : String(y), m, d };
+}
+
+export function warekiShort(iso: string | null): string {
+  if (!iso) return '-';
+  const { prefix, m, d } = eraOf(iso);
+  return `${prefix}.${m}.${d}`;
+}
+
+export function warekiMonthShort(iso: string | null): string {
+  if (!iso) return '-';
+  const { prefix, m } = eraOf(iso);
+  return `${prefix}.${m}`;
+}
