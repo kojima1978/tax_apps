@@ -5,6 +5,9 @@
 // - 分類別の集計で件数が同じ分類の並びは DB 任せだった。標準の分類順で揃える
 // - 資金移動の組は Django 版では相手の入金が無いこともあった（destination が空）。
 //   こちらは判定で実際に組んだものだけなので、金額差は常に出す
+// - 分類候補の件数（suggestionsCount）をどのタブでも返す。Django 版は候補のタブを開いたときしか
+//   数えず、ほかのタブではサイドバーの件数が常に 0、概要の「次に行う作業」も候補が無い前提の
+//   案内になっていた
 
 import type { PrismaClient } from '@prisma/client';
 import {
@@ -269,6 +272,7 @@ export async function getDashboard(db: PrismaClient, caseId: bigint, q: Dashboar
     classifiedPct: pyRound((classifiedCount / txs.length) * 100, 1),
     unclassifiedCount,
     flaggedCount: txs.filter((t) => t.isFlagged).length,
+    suggestionsCount: aiSuggestions(txs, classifier).suggestionsCount,
     latestClassificationChange: classificationChange,
     options: filterOptions(txs, classifier),
     ...(await tabData(db, caseId, q, txs, referenceDate)),

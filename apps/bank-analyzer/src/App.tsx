@@ -13,6 +13,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { NoticeProvider } from './components/Notice';
+import { AnalysisPage } from './pages/analysis/AnalysisPage';
 import { CaseListPage } from './pages/CaseListPage';
 import { DirectInputPage } from './pages/DirectInputPage';
 import { ImportWizardPage } from './pages/ImportWizardPage';
@@ -31,7 +32,7 @@ export default function App() {
             <Route index element={<CaseListPage />} />
             <Route path="import-json" element={<JsonImportPage />} />
             <Route path="settings" element={<PendingPage title="設定" />} />
-            <Route path="cases/:caseId" element={<PendingPage title="分析画面" />} />
+            <Route path="cases/:caseId" element={<AnalysisPage />} />
             <Route path="cases/:caseId/import" element={<ImportWizardPage />} />
             <Route path="cases/:caseId/direct" element={<DirectInputPage />} />
             <Route path="cases/:caseId/classify" element={<PendingPage title="自動分類のプレビュー" />} />

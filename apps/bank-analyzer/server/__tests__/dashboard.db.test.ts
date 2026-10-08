@@ -116,6 +116,9 @@ describe('分析画面', () => {
     expect(ai).toHaveProperty('highConfidenceTxCount');
     expect(ai.globalPatterns[0].category).toBe('生活費');
     expect(ai.casePatterns).toEqual([]);
+    // 候補の件数はどのタブでも同じ値（Django 版は候補のタブ以外で 0 だった）
+    expect(cleanup.suggestionsCount).toBe(ai.suggestionsCount);
+    expect(flagged.suggestionsCount).toBe(ai.suggestionsCount);
   });
 
   it('知らない案件は 404', async () => {
