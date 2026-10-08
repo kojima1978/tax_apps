@@ -368,3 +368,38 @@ export async function applyGlobalPatternChanges(db: PrismaClient, changes: Patte
 }
 
 export const patternsToObject = toObject;
+
+// ---------------------------------------------------------------------------
+// JSON バックアップ（Django の load_user_settings / save_user_settings）
+// ---------------------------------------------------------------------------
+
+// 外から届いた分類パターン（{分類名: [キーワード, ...]}）。形が違えば null、合えば古い名前を寄せた形
+export function parsePatterns(value: unknown): Patterns | null {
+  const p = asPatterns(value);
+  if (!p) return null;
+  const valid = Object.values(p).every((kws: unknown) => Array.isArray(kws) && kws.every((k) => typeof k === 'string'));
+  return valid ? toObject(normalizePatterns(p)) : null;
+}
+
+// 保存されている設定をそのまま（Django の user_settings.json と同じ形）
+export const readAllSettings = readRaw;
+
+// バックアップの設定で置き換える。Django はファイルごと書き換えていたので、バックアップに
+// 無いキーは消す（＝既定値に戻る）。分類パターンだけは形を確かめ、古いカテゴリー名を寄せて入れる。
+// 戻り値は失敗の理由（null なら成功）。呼び出し側のトランザクションの中で使う。
+export async function replaceAllSettings(tx: Tx, settings: unknown): Promise<string | null> {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return '設定データが正しくありません';
+  const values = { ...(settings as Record<string, unknown>) };
+  if (KEY.patterns in values) {
+    const patterns = parsePatterns(values[KEY.patterns]);
+    if (!patterns) return '設定データの分類パターンが正しくありません';
+    values[KEY.patterns] = patterns;
+  }
+  await lockGlobalPatterns(tx);
+  await tx.appSetting.deleteMany({ where: { key: { notIn: Object.keys(values) } } });
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && value !== null) await writeRaw(tx, key, value);
+    else await tx.appSetting.deleteMany({ where: { key } });
+  }
+  return null;
+}

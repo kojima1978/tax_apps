@@ -3,6 +3,7 @@
 
 import { Hono } from 'hono';
 import type { PrismaClient } from '@prisma/client';
+import { backupExportRoutes, backupImportRouter } from './routes/backup.js';
 import { caseRouter } from './routes/common.js';
 import { caseRoutes } from './routes/cases.js';
 import { categoryRoutes } from './routes/categories.js';
@@ -37,7 +38,9 @@ export function createApp(db: PrismaClient) {
   categoryRoutes(cases, db);
   classificationRoutes(cases, db);
   importRoutes(cases, db);
+  backupExportRoutes(cases, db);
   app.route(`${BASE_PATH}/api/cases`, cases);
+  app.route(`${BASE_PATH}/api/backups`, backupImportRouter(db));
 
   // 例外の中身（SQL や内部のパス）は画面に出さない。ログにだけ残す。
   app.onError((error, c) => {
