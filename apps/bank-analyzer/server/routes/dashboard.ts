@@ -3,7 +3,7 @@
 
 import type { PrismaClient } from '@prisma/client';
 import { filterFromQuery } from '../filterQuery.js';
-import { DASHBOARD_TABS, getDashboard, parsePerPage, type DashboardTab } from '../services/dashboard.js';
+import { DASHBOARD_TABS, getDashboard, parseCutoff, parsePerPage, type DashboardTab } from '../services/dashboard.js';
 import { ok, type CaseRouter } from './common.js';
 
 export function dashboardRoutes(r: CaseRouter, db: PrismaClient) {
@@ -21,6 +21,7 @@ export function dashboardRoutes(r: CaseRouter, db: PrismaClient) {
         page: q.get('page'),
         unclassifiedPage: q.get('unclassified_page'),
         groupPage: q.get('group_page'),
+        cutoff: parseCutoff(q.get('cutoff')),
       }),
     );
   });

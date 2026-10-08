@@ -116,15 +116,21 @@ export function classifyByRules(text: string, amountOut: number, settings: Class
   return { category: UNCATEGORIZED, score: 0 };
 }
 
+// 候補として出す点数の下限の既定値（設定の閾値から下げる。下限あり）
+export const suggestionCutoff = (fuzzy: Pick<FuzzyConfig, 'threshold'>) =>
+  Math.max(fuzzy.threshold - SUGGESTION_THRESHOLD_OFFSET, SUGGESTION_THRESHOLD_MIN);
+
 // 分類画面の候補（点数の高い順に topN 件）。カテゴリーごとに案件固有・共通の高い方を取り、
 // 同点なら案件固有を先に出す。贈与もここでは候補に入る（閾値は見ない）。
+// cutoff はこの点数未満を候補にしない（省略時は設定の閾値から決める ── suggestionCutoff）
 export function fuzzySuggestions(
   text: string,
   settings: Pick<ClassifierSettings, 'globalPatterns' | 'casePatterns' | 'fuzzy'>,
   topN = 3,
+  cutoff = suggestionCutoff(settings.fuzzy),
 ): Classification[] {
   if (!text || !settings.fuzzy.enabled) return [];
-  const threshold = Math.max(settings.fuzzy.threshold - SUGGESTION_THRESHOLD_OFFSET, SUGGESTION_THRESHOLD_MIN);
+  const threshold = cutoff;
   const scorer = scorerOf(settings.fuzzy);
   const scores = new Map<string, { score: number; priority: number }>();
 
@@ -240,6 +246,28 @@ export function classifyUnclassified(
       const hit = matchWithPriority(t.description!, settings.casePatterns, globalPatterns);
       if (hit) updates.push({ id: t.id, category: hit.category });
     }
+  }
+  return updates;
+}
+
+// 未分類（要確認の印が付いていない）取引それぞれの第1候補のうち、点数が minScore 以上のもの。
+// 分類候補タブの一覧（fuzzySuggestions）と同じ計算なので、「95%以上を一括適用」で当たるのは
+// 画面に出ている候補そのもの（画面は新しい100件までだが、こちらは全件）。同じ摘要は1回だけ計算する。
+export function suggestionUpdates(
+  transactions: readonly ClassifiableTransaction[],
+  settings: Pick<ClassifierSettings, 'globalPatterns' | 'casePatterns' | 'fuzzy'>,
+  minScore: number,
+): ClassificationUpdate[] {
+  const cache = new Map<string, Classification | null>();
+  const updates: ClassificationUpdate[] = [];
+  for (const t of transactions) {
+    if (t.category !== UNCATEGORIZED || t.isFlagged || !t.description) continue;
+    let top = cache.get(t.description);
+    if (top === undefined) {
+      top = fuzzySuggestions(t.description, settings, 1, minScore)[0] ?? null;
+      cache.set(t.description, top);
+    }
+    if (top) updates.push({ id: t.id, category: top.category, classificationScore: Math.trunc(top.score) });
   }
   return updates;
 }

@@ -87,6 +87,10 @@ export type TabData = {
     highConfidenceGroups: AiGroup[];
     highConfidenceTxCount: number;
     fuzzyThreshold: number;
+    suggestionCutoff: number;
+    defaultCutoff: number;
+    bulkCounts: Record<string, number>;
+    targetCount: number;
     globalPatterns: PatternItem[];
     casePatterns: PatternItem[];
   };

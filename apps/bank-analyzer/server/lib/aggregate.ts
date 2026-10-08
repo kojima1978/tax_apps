@@ -340,12 +340,13 @@ const classifierPatterns = (s: Pick<ClassifierSettings, 'globalPatterns' | 'case
 export function aiSuggestions(
   txs: readonly AnalysisTx[],
   classifier: Pick<ClassifierSettings, 'globalPatterns' | 'casePatterns' | 'fuzzy'>,
+  cutoff?: number,
 ) {
   const unclassified = txs.filter((t) => t.category === UNCATEGORIZED && !t.isFlagged);
   const suggestions: AiSuggestion[] = [];
   for (const t of [...unclassified].sort(newestFirst).slice(0, AI_SUGGESTION_LIMIT)) {
     if (!t.description) continue;
-    const [main, ...alternatives] = fuzzySuggestions(t.description, classifier, 3);
+    const [main, ...alternatives] = fuzzySuggestions(t.description, classifier, 3, cutoff);
     if (!main) continue;
     suggestions.push({
       txId: t.id,

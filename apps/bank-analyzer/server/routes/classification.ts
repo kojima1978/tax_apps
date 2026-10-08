@@ -88,7 +88,7 @@ export function classificationRoutes(r: CaseRouter, db: PrismaClient) {
     const minScore = parseMinScore((await readBody(c)).minScore);
     if (minScore === null) return fail(c, '信頼度は0〜100の整数で指定してください');
     const { count, changeGroup } = await bulkApplyAiSuggestions(db, c.get('caseId'), minScore);
-    return ok(c, { count, changeGroup, message: `信頼度${minScore}%以上の${count}件にAI分類を適用しました。` });
+    return ok(c, { count, changeGroup, message: `信頼度${minScore}%以上の候補${count}件を適用しました。` });
   });
 
   // --- キーワード ---

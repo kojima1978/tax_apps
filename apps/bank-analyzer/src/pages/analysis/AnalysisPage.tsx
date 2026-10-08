@@ -36,6 +36,7 @@ import { api } from '../../lib/api';
 import { num } from '../../lib/format';
 import { AllTab } from './AllTab';
 import { UnclassifiedTab } from './UnclassifiedTab';
+import { AiTab } from './AiTab';
 import { OverviewTab } from './OverviewTab';
 import { TABS, type Dashboard, type DashboardSummary, type OverviewData, type Tab, type TabData } from './types';
 
@@ -115,6 +116,8 @@ function TabContent({ dash, reload }: { dash: Exclude<Dashboard, { noData: true 
       return <AllTab dash={dash as DashboardSummary & TabData['all']} reload={reload} />;
     case 'unclassified':
       return <UnclassifiedTab dash={dash as DashboardSummary & TabData['unclassified']} reload={reload} />;
+    case 'ai':
+      return <AiTab dash={dash as DashboardSummary & TabData['ai']} reload={reload} />;
     default:
       return <p className="card p-6 text-sm text-slate-500">この画面は準備中です。</p>;
   }

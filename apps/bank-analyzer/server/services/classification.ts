@@ -11,7 +11,10 @@ import {
   classifyUnclassified,
   matchScore,
   matchWithPriority,
+  suggestionUpdates,
+  type ClassifiableTransaction,
   type ClassificationUpdate,
+  type ClassifierSettings,
   type MatchType,
 } from '../lib/classify.js';
 import { toDateString, toId } from '../json.js';
@@ -50,28 +53,30 @@ async function writeUpdates(tx: Tx, caseId: bigint, updates: ClassificationUpdat
 async function classifyCase(
   db: PrismaClient,
   caseId: bigint,
-  options: { useFuzzy: boolean; minScore?: number },
+  decide: (targets: ClassifiableTransaction[], settings: ClassifierSettings) => ClassificationUpdate[],
   source: string,
 ): Promise<ApplyResult> {
   const settings = await getClassifierSettings(db, caseId);
   return db.$transaction(async (tx) => {
     await lockCase(tx, caseId);
-    const updates = classifyUnclassified(await loadTargets(tx, caseId), settings, options);
-    return writeUpdates(tx, caseId, updates, source);
+    return writeUpdates(tx, caseId, decide(await loadTargets(tx, caseId), settings), source);
   });
 }
 
 // 「自動分類」: あいまい一致まで使い、点数も残す
 export const runClassifier = (db: PrismaClient, caseId: bigint) =>
-  classifyCase(db, caseId, { useFuzzy: true }, 'auto_classifier');
+  classifyCase(db, caseId, (t, s) => classifyUnclassified(t, s, { useFuzzy: true }), 'auto_classifier');
 
 // 「ルール適用」: キーワードが含まれるかだけを見る
 export const applyClassificationRules = (db: PrismaClient, caseId: bigint) =>
-  classifyCase(db, caseId, { useFuzzy: false }, 'classification_rule');
+  classifyCase(db, caseId, (t, s) => classifyUnclassified(t, s, { useFuzzy: false }), 'classification_rule');
 
-// 点数が min 以上のものだけ一括で当てる
+// 分類候補の第1候補のうち、点数が min 以上のものを一括で当てる。
+// Django は「自動分類」と同じ判定（classify_by_rules: 閾値は設定のまま・贈与は金額で判定・
+// 「その他」も当てる）で当てていて、画面の候補（下げた閾値の fuzzy 候補）と別物だった。
+// 「85%以上」を押しても画面に出ている 85〜89 点の候補は当たらず、画面に無い分類が当たることもあった
 export const bulkApplyAiSuggestions = (db: PrismaClient, caseId: bigint, minScore: number) =>
-  classifyCase(db, caseId, { useFuzzy: true, minScore }, 'ai_bulk');
+  classifyCase(db, caseId, (t, s) => suggestionUpdates(t, s, minScore), 'ai_bulk');
 
 export type PreviewItem = {
   txId: number;

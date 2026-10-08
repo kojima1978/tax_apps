@@ -449,24 +449,43 @@ export function TxAddDialog({
 // パターン登録（摘要のキーワード → 分類）
 // ---------------------------------------------------------------------------
 
-export type PatternTarget = { description: string; category: string };
+// apply: 登録と同時に、この案件の未分類でキーワードを含むものをまとめて分類する（分類候補タブ）
+export type PatternScope = 'global' | 'case';
+export type PatternTarget = { description: string; category: string; apply?: boolean; scope?: PatternScope; note?: string };
+export type PatternApplied = { count: number; keyword: string; changeGroup: string | null; message: string };
+type Impact = { currentCaseCount: number; otherCasesCount: number; totalCount: number };
 
-export function PatternAddDialog({ caseId, target, onClose }: { caseId: number; target: PatternTarget | null; onClose: () => void }) {
+const IMPACT_DELAY_MS = 300;
+
+export function PatternAddDialog({
+  caseId,
+  target,
+  onClose,
+  onApplied,
+}: {
+  caseId: number;
+  target: PatternTarget | null;
+  onClose: () => void;
+  onApplied?: (res: PatternApplied) => void;
+}) {
   const notice = useNotice();
   const [keyword, setKeyword] = useState('');
-  const [scope, setScope] = useState<'global' | 'case'>('global');
+  const [scope, setScope] = useState<PatternScope>('global');
   const [existing, setExisting] = useState<{ globalKeywords: string[]; caseKeywords: string[] } | 'error' | null>(null);
+  const [impact, setImpact] = useState<{ keyword: string; value: Impact } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const candidates = target ? keywordCandidates(target.description) : [];
+  const apply = target?.apply === true;
 
   useEffect(() => {
     if (!target) return;
     setKeyword(keywordCandidates(target.description)[0] ?? target.description);
-    setScope('global');
+    setScope(target.scope ?? 'global');
     setError(null);
     setExisting(null);
+    setImpact(null);
     let cancelled = false;
     api
       .get<{ globalKeywords: string[]; caseKeywords: string[] }>(`/cases/${caseId}/patterns/keywords?category=${encodeURIComponent(target.category)}`)
@@ -477,11 +496,27 @@ export function PatternAddDialog({ caseId, target, onClose }: { caseId: number; 
     };
   }, [caseId, target]);
 
+  // キーワードが未分類の何件に当たるか（打ち終えるのを少し待ってから聞く）
+  const kw = keyword.trim();
+  useEffect(() => {
+    if (!target || !kw) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      api
+        .get<Impact>(`/cases/${caseId}/patterns/impact?keyword=${encodeURIComponent(kw)}`)
+        .then((value) => !cancelled && setImpact({ keyword: kw, value }))
+        .catch(() => !cancelled && setImpact(null));
+    }, IMPACT_DELAY_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [caseId, target, kw]);
+
   if (!target) return null;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const kw = keyword.trim();
     if (!kw) {
       setError('キーワードを入力してください');
       return;
@@ -489,8 +524,15 @@ export function PatternAddDialog({ caseId, target, onClose }: { caseId: number; 
     setBusy(true);
     setError(null);
     try {
-      const res = await api.post<{ message: string }>(`/cases/${caseId}/patterns/add`, { category: target.category, keyword: kw, scope });
-      notice.success(res.message);
+      const body = { category: target.category, keyword: kw, scope };
+      if (apply) {
+        const res = await api.post<{ count: number; changeGroup: string | null; message: string }>(`/cases/${caseId}/patterns/classify-and-register`, body);
+        notice.success(res.message);
+        onApplied?.({ ...res, keyword: kw });
+      } else {
+        const res = await api.post<{ message: string }>(`/cases/${caseId}/patterns/add`, body);
+        notice.success(res.message);
+      }
       onClose();
     } catch (err) {
       setError(errorMessage(err));
@@ -499,18 +541,20 @@ export function PatternAddDialog({ caseId, target, onClose }: { caseId: number; 
     }
   };
 
+  const shownImpact = impact && impact.keyword === kw ? impact.value : null;
+
   return (
     <Dialog
       open
       onClose={onClose}
-      title="分類パターンに追加"
+      title={apply ? '分類してパターンに登録' : '分類パターンに追加'}
       footer={
         <>
           <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>
             キャンセル
           </button>
           <button type="submit" form="patternAddForm" className="btn btn-primary" disabled={busy}>
-            {busy ? '追加中…' : '追加'}
+            {busy ? '登録中…' : apply ? '登録して分類' : '追加'}
           </button>
         </>
       }
@@ -519,6 +563,7 @@ export function PatternAddDialog({ caseId, target, onClose }: { caseId: number; 
         <div>
           <span className="label">摘要</span>
           <p className="rounded bg-slate-50 px-3 py-2 break-all">{target.description}</p>
+          {target.note && <p className="mt-1 text-xs text-slate-500">{target.note}</p>}
         </div>
         <div className="flex items-center gap-2">
           <span className="font-medium text-slate-600">登録先の分類</span>
@@ -576,7 +621,17 @@ export function PatternAddDialog({ caseId, target, onClose }: { caseId: number; 
             </div>
           )}
           <input id="patternKeyword" className="input" value={keyword} onChange={(e) => setKeyword(e.target.value)} autoComplete="off" data-autofocus />
-          <p className="mt-1 text-xs text-slate-500">摘要にこの文字を含む取引が、次の自動分類から「{target.category}」になります。</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {apply
+              ? `この案件の未分類で摘要にこの文字を含む取引を、いま「${target.category}」に分類し、次の自動分類からも使います。`
+              : `摘要にこの文字を含む取引が、次の自動分類から「${target.category}」になります。`}
+          </p>
+          <p className="mt-1 text-xs text-slate-700" aria-live="polite">
+            {shownImpact &&
+              (scope === 'global'
+                ? `未分類のうち当たるもの: この案件 ${num(shownImpact.currentCaseCount)}件・ほかの案件 ${num(shownImpact.otherCasesCount)}件`
+                : `未分類のうち当たるもの: この案件 ${num(shownImpact.currentCaseCount)}件`)}
+          </p>
         </div>
         <fieldset>
           <legend className="label">適用範囲</legend>

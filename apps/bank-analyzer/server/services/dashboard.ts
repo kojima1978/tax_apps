@@ -25,6 +25,7 @@ import {
   type TransactionFilter,
 } from '../lib/aggregate.js';
 import { UNCATEGORIZED, sortCategories } from '../lib/categories.js';
+import { suggestionCutoff, suggestionUpdates } from '../lib/classify.js';
 import { warekiMonthShort } from '../lib/dates.js';
 import { pyRound } from '../lib/pyRound.js';
 import { matchesAllKeywords, splitKeywords } from '../lib/text.js';
@@ -41,6 +42,8 @@ export const PER_PAGE_OPTIONS = [25, 50, 100, 200] as const;
 export const DEFAULT_PER_PAGE = 100;
 const GROUP_PER_PAGE = 50;
 const HIGH_CONFIDENCE = 95;
+// 分類候補タブの一括適用ボタン（Django と同じ2段）
+export const BULK_SCORES = [95, 85] as const;
 
 export type DashboardQuery = {
   tab: DashboardTab;
@@ -49,6 +52,8 @@ export type DashboardQuery = {
   page: string | null;
   unclassifiedPage: string | null;
   groupPage: string | null;
+  // 分類候補タブの「候補に出す点数の下限」（null は設定から決める）
+  cutoff?: number | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -56,6 +61,13 @@ export type DashboardQuery = {
 // ---------------------------------------------------------------------------
 
 export type Page<T> = { items: T[]; total: number; page: number; pageCount: number; perPage: number };
+
+// 分類候補タブの下限（0〜100 の整数。それ以外は設定から決める）
+export function parseCutoff(v: string | null): number | null {
+  if (v === null || !/^\d{1,3}$/.test(v.trim())) return null;
+  const n = Number(v.trim());
+  return n <= 100 ? n : null;
+}
 
 export function paginate<T>(items: readonly T[], page: string | null, perPage: number): Page<T> {
   const pageCount = Math.max(1, Math.ceil(items.length / perPage));
@@ -197,6 +209,8 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
       const classifier = await getClassifierSettings(db, caseId);
       // Django は高信頼度の候補を分類候補タブにしか渡しておらず、ここの「高信頼度候補」は常に0だった
       const high = aiSuggestions(ordered, classifier).aiGroups.filter((g) => g.score >= HIGH_CONFIDENCE);
+      // 件数は「まとめて適用」で当たる件数（新しい100件に限らない全件）
+      const highCount = suggestionUpdates(ordered, classifier, HIGH_CONFIDENCE).length;
       return {
         unclassifiedTxs: { ...page, items: page.items.map(row) },
         unclassifiedGroups: groupPage,
@@ -205,7 +219,7 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
         maxGroupCount: grouped.maxGroupCount,
         groupSuggestions: groupSuggestions(groupPage.items, classifier),
         highConfidenceGroups: high,
-        highConfidenceTxCount: high.reduce((n, g) => n + g.count, 0),
+        highConfidenceTxCount: highCount,
       };
     }
 
@@ -215,12 +229,25 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
         getGlobalPatterns(db),
         getCasePatterns(db, caseId),
       ]);
-      const ai = aiSuggestions(ordered, classifier);
+      // Django の閾値スライダーは URL へ値を載せるだけで、計算側が設定の閾値で上書きしていた
+      // （{'threshold': 値, **設定}）ため、何を選んでも同じ候補が出ていた
+      const defaultCutoff = suggestionCutoff(classifier.fuzzy);
+      const cutoff = q.cutoff ?? defaultCutoff;
+      // 件数の2つは画面上部（どのタブでも同じ値）と名前が重なるので、ここでは上書きしない。
+      // 上書きすると、付箋付きの未分類がある案件でこのタブだけ「未分類」の件数が変わっていた
+      const { unclassifiedCount: targetCount, suggestionsCount: _shown, ...ai } = aiSuggestions(ordered, classifier, cutoff);
       const high = ai.aiGroups.filter((g) => g.score >= HIGH_CONFIDENCE);
+      // 一括適用で当たる件数（全件。画面の一覧は新しい100件まで）
+      const candidates = suggestionUpdates(ordered, classifier, Math.min(...BULK_SCORES));
       return {
         ...ai,
+        suggestionCutoff: cutoff,
+        defaultCutoff,
+        // 候補を探す対象（未分類のうち付箋の無いもの）
+        targetCount,
+        bulkCounts: Object.fromEntries(BULK_SCORES.map((m) => [m, candidates.filter((u) => (u.classificationScore ?? 0) >= m).length])),
         highConfidenceGroups: high,
-        highConfidenceTxCount: high.reduce((n, g) => n + g.count, 0),
+        highConfidenceTxCount: candidates.filter((u) => (u.classificationScore ?? 0) >= HIGH_CONFIDENCE).length,
         globalPatterns: patternList(globalPatterns),
         casePatterns: patternList(casePatterns),
       };

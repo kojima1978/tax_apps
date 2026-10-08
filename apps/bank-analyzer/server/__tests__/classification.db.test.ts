@@ -93,7 +93,31 @@ describe('自動分類（あいまい一致）', () => {
 
     expect((await call('POST', `/${caseId}/classify/bulk-suggestions`, { minScore: '101' })).status).toBe(400);
     const bulk = await call('POST', `/${caseId}/classify/bulk-suggestions`, {});
-    expect(bulk.json).toMatchObject({ count: 0, message: '信頼度95%以上の0件にAI分類を適用しました。' });
+    expect(bulk.json).toMatchObject({ count: 0, message: '信頼度95%以上の候補0件を適用しました。' });
+  });
+
+  it('候補の一括適用は分類候補タブに出ている第1候補をそのまま当てる（「その他」は当てない）', async () => {
+    const { caseId, ids } = await seedCase(db(), '架空 太郎', [
+      { description: 'ZZQ架空商会' },
+      { description: 'ZZQ架空商事' },
+      { description: 'ZZQ架空' },
+      { description: 'ZZQ雑費' },
+    ]);
+    await addCaseKeyword(caseId, '生活費', 'ZZQ架空商会');
+    await addCaseKeyword(caseId, 'その他', 'ZZQ雑費');
+
+    const ai = await call('GET', `/${caseId}/dashboard?tab=ai&cutoff=0`);
+    const expected = new Map<number, string>();
+    for (const s of ai.json.aiSuggestions as Json[]) if (s.score >= 85) expected.set(s.txId, s.suggestedCategory);
+    expect(expected.size).toBeGreaterThan(0);
+    expect(ai.json.bulkCounts['85']).toBe(expected.size);
+
+    const bulk = await call('POST', `/${caseId}/classify/bulk-suggestions`, { minScore: 85 });
+    expect(bulk.json.count).toBe(expected.size);
+    const rows = await db().transaction.findMany({ where: { caseId }, orderBy: { id: 'asc' } });
+    for (const r of rows) expect([Number(r.id), r.category]).toEqual([Number(r.id), expected.get(Number(r.id)) ?? '未分類']);
+    // 「自動分類」の判定なら「その他」のキーワードで当たる行。候補には出ないので当てない
+    expect(rows.find((r) => r.id === ids[3])?.category).toBe('未分類');
   });
 
   it('提案を1件採ると点数は 100。変わらなければ点数も触らない', async () => {

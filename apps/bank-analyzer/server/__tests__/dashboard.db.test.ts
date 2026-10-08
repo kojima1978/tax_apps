@@ -119,6 +119,15 @@ describe('分析画面', () => {
     expect(ai).toHaveProperty('highConfidenceTxCount');
     expect(ai.globalPatterns[0].category).toBe('生活費');
     expect(ai.casePatterns).toEqual([]);
+    // 下限は設定の閾値（既定 90）から決まり、URL の cutoff で変えられる
+    expect(ai.defaultCutoff).toBe(80);
+    expect(ai.suggestionCutoff).toBe(80);
+    const strict = (await get(`/${caseId}/dashboard?tab=ai&cutoff=100`)).body;
+    expect(strict.suggestionCutoff).toBe(100);
+    expect(strict.aiSuggestions.every((s: Body) => s.score === 100)).toBe(true);
+    expect((await get(`/${caseId}/dashboard?tab=ai&cutoff=abc`)).body.suggestionCutoff).toBe(80);
+    // 画面上部の未分類の件数はこのタブでも上書きしない
+    expect(ai.unclassifiedCount).toBe(cleanup.unclassifiedCount);
     // 候補の件数はどのタブでも同じ値（Django 版は候補のタブ以外で 0 だった）
     expect(cleanup.suggestionsCount).toBe(ai.suggestionsCount);
     expect(flagged.suggestionsCount).toBe(ai.suggestionsCount);
