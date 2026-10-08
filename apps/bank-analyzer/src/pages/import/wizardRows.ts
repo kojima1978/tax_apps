@@ -7,6 +7,9 @@
 // - 残高の誤差は直すたびに数え直す（Django 版は「残高を再計算」ボタンを押すまで古いままだった）
 // - 行は key で追う。Django 版は挿入した行の番号（10000〜）と配列の位置がずれ、
 //   挿入より後の行を直すと別の行に書き込まれていた
+// - 何も書いていない行（日付だけの行も。挿入した行は上の日付を写すので）は「未入力」として
+//   見せて送らない。Django 版は日付だけの行を 0 円の取引として登録していた。
+//   逆に日付だけ空で他が埋まっている行はエラーにする（Django 版は黙って捨てていた）
 
 import { parseAmountValue, parseDateValue } from '../../../server/input';
 import { chainBalance } from '../../../server/lib/balance';
@@ -45,6 +48,8 @@ export type EditFile = {
 };
 
 export type CheckedRow = EditRow & {
+  // 何も書いていない行。取り込まない
+  blank: boolean;
   error: string | null;
   calcBalance: number | null;
   isBalanceError: boolean;
@@ -56,6 +61,10 @@ let nextKey = 1;
 export const newKey = () => nextKey++;
 
 // 出金・入金の 0 は空欄で見せる（通帳と同じ）。残高の 0 は 0 と書く
+export const isBlankRow = (r: EditRow) => [r.description, r.amountOut, r.amountIn, r.balance].every((v) => v.trim() === '');
+
+export const blankRow = (date = ''): EditRow => ({ key: newKey(), date, description: '', amountOut: '', amountIn: '', balance: '', dup: null });
+
 const amountText = (n: number) => (n === 0 ? '' : String(n));
 
 export function toEditFiles(previews: PreviewFile[]): EditFile[] {
@@ -105,20 +114,20 @@ function rowError(r: EditRow): { error: string | null; amountOut: number; amount
   };
 }
 
-// 画面の並び順のまま突き合わせる（行を動かしたら、その順で数え直す）
+// 画面の並び順のまま突き合わせる（行を動かしたら、その順で数え直す）。未入力の行は飛ばす
 export function checkRows(rows: EditRow[], hasBalance: boolean): CheckedRow[] {
-  const parsed = rows.map(rowError);
+  const filled = rows.filter((r) => !isBlankRow(r));
+  const parsed = filled.map(rowError);
   const chained = hasBalance ? chainBalance(parsed) : parsed.map((p) => ({ ...p, calcBalance: null, isBalanceError: false }));
-  return rows.map((r, i) => ({
-    ...r,
-    error: chained[i]!.error,
-    calcBalance: chained[i]!.calcBalance,
-    isBalanceError: chained[i]!.isBalanceError,
-  }));
+  const byKey = new Map(filled.map((r, i) => [r.key, chained[i]!]));
+  return rows.map((r) => {
+    const c = byKey.get(r.key);
+    return { ...r, blank: !c, error: c?.error ?? null, calcBalance: c?.calcBalance ?? null, isBalanceError: c?.isBalanceError ?? false };
+  });
 }
 
 // 取込（POST /cases/:id/import/commit）に送る形。金額は文字のまま送り、サーバが同じ規則で読む
 export const toCommitFile = (f: EditFile) => ({
   account: f.account,
-  rows: f.rows.map(({ date, description, amountOut, amountIn, balance }) => ({ date, description, amountOut, amountIn, balance })),
+  rows: f.rows.filter((r) => !isBlankRow(r)).map(({ date, description, amountOut, amountIn, balance }) => ({ date, description, amountOut, amountIn, balance })),
 });

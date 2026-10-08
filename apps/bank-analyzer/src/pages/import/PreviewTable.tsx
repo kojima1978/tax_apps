@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
-import { num } from '../../lib/format';
+import { num, warekiShort } from '../../lib/format';
 import { accountLabel } from './AccountForm';
 import type { WizardFiles } from './useWizardFiles';
 import type { CheckedRow, EditFile } from './wizardRows';
@@ -10,6 +10,12 @@ import type { CheckedRow, EditFile } from './wizardRows';
 const BADGE = 'inline-block rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap';
 
 function RowStatus({ r }: { r: CheckedRow }) {
+  if (r.blank)
+    return (
+      <span className={`${BADGE} bg-slate-100 text-slate-500`} title="摘要・金額が空の行は取り込みません">
+        未入力
+      </span>
+    );
   const badges = [];
   if (r.error)
     badges.push(
@@ -37,6 +43,7 @@ function RowStatus({ r }: { r: CheckedRow }) {
   return <div className="flex flex-col items-start gap-0.5">{badges}</div>;
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CELL_INPUT = 'input px-1.5 py-1 text-sm';
 const AMOUNT_COLUMNS = [
   { key: 'amountOut', label: '出金' },
@@ -83,7 +90,7 @@ export function PreviewTable({ file, rows, actions }: Props) {
           {file.filename}
           <span className="ml-2 text-sm font-normal text-slate-500">{accountLabel(file.account)}</span>
         </h3>
-        <span className="text-sm text-slate-500">{num(rows.length)}行</span>
+        <span className="text-sm text-slate-500">{num(rows.filter((r) => !r.blank).length)}行</span>
       </div>
 
       {file.warning && <p className="mb-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">{file.warning}</p>}
@@ -149,7 +156,7 @@ export function PreviewTable({ file, rows, actions }: Props) {
               <tr
                 key={r.key}
                 id={rowId(r.key)}
-                className={r.error ? 'bg-red-50' : r.isBalanceError ? 'bg-amber-50' : r.dup ? 'bg-slate-50 text-slate-500' : undefined}
+                className={r.error ? 'bg-red-50' : r.isBalanceError ? 'bg-amber-50' : r.dup || r.blank ? 'bg-slate-50 text-slate-500' : undefined}
               >
                 <td>
                   <input type="checkbox" aria-label={`${i + 1}行目を選ぶ`} checked={selected.has(r.key)} onChange={() => toggle(r.key)} />
@@ -165,6 +172,7 @@ export function PreviewTable({ file, rows, actions }: Props) {
                     value={r.date}
                     onChange={(e) => actions.updateRow(file.key, r.key, { date: e.target.value })}
                   />
+                  {ISO_DATE.test(r.date) && <div className="mt-0.5 text-xs text-slate-500">{warekiShort(r.date)}</div>}
                 </td>
                 <td>
                   <input

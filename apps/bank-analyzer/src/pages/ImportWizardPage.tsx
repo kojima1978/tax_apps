@@ -108,7 +108,7 @@ export function ImportWizardPage() {
 
   const checked = useMemo(() => new Map(wizard.files.map((f) => [f.key, checkRows(f.rows, f.hasBalance)])), [wizard.files]);
   const summary = useMemo(() => {
-    const all = [...checked.values()].flat();
+    const all = [...checked.values()].flat().filter((r) => !r.blank);
     const duplicates = all.filter((r) => r.dup).length;
     return {
       rows: all.length,

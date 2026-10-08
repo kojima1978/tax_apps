@@ -3,7 +3,7 @@
 
 import { useCallback, useState } from 'react';
 import type { DuplicateMark, DuplicateWarning } from '../../../server/lib/dedup';
-import { newKey, type AccountFields, type EditFile, type EditRow } from './wizardRows';
+import { blankRow, isBlankRow, type AccountFields, type EditFile, type EditRow } from './wizardRows';
 
 export type DuplicateCheck = { marks: DuplicateMark[]; warning: DuplicateWarning | null };
 
@@ -40,8 +40,7 @@ export function useWizardFiles() {
     (fileKey: number, rowKey: number) =>
       updateFile(fileKey, (f) => {
         const i = f.rows.findIndex((r) => r.key === rowKey);
-        const row: EditRow = { key: newKey(), date: f.rows[i]?.date ?? '', description: '', amountOut: '', amountIn: '', balance: '', dup: null };
-        return { ...f, rows: [...f.rows.slice(0, i + 1), row, ...f.rows.slice(i + 1)] };
+        return { ...f, rows: [...f.rows.slice(0, i + 1), blankRow(f.rows[i]?.date), ...f.rows.slice(i + 1)] };
       }),
     [updateFile],
   );
@@ -59,25 +58,35 @@ export function useWizardFiles() {
     [updateFile],
   );
 
-  // POST /cases/:id/import/check の結果を当てる。送ったときと同じ並び（ファイル・行）で返ってくる
+  // POST /cases/:id/import/check の結果を当てる。送ったときと同じ並び（ファイル・行）で返ってくる。
+  // 未入力の行は送っていない（toCommitFile）ので飛ばして数える
   const applyDuplicateCheck = useCallback((results: DuplicateCheck[]) => {
     setFiles((list) =>
       list.map((f, i) => {
         const result = results[i];
-        if (!result || result.marks.length !== f.rows.length) return f;
+        const filled = f.rows.filter((r) => !isBlankRow(r));
+        if (!result || result.marks.length !== filled.length) return f;
+        const marks = new Map(filled.map((r, j) => [r.key, result.marks[j]!]));
         return {
           ...f,
           warning: result.warning?.message ?? null,
-          rows: f.rows.map((r, j) => {
-            const m = result.marks[j]!;
-            return { ...r, dup: m.isDuplicate ? (m.dupConfidence ?? 'high') : null };
+          rows: f.rows.map((r) => {
+            const m = marks.get(r.key);
+            return { ...r, dup: m?.isDuplicate ? (m.dupConfidence ?? 'high') : null };
           }),
         };
       }),
     );
   }, []);
 
-  return { files, setFiles, setAccount, updateRow, deleteRows, insertBelow, move, applyDuplicateCheck };
+  // 行を末尾に足す（直接入力）
+  const appendRows = useCallback(
+    (fileKey: number, count: number) =>
+      updateFile(fileKey, (f) => ({ ...f, rows: [...f.rows, ...Array.from({ length: count }, () => blankRow())] })),
+    [updateFile],
+  );
+
+  return { files, setFiles, setAccount, updateRow, deleteRows, insertBelow, move, applyDuplicateCheck, appendRows };
 }
 
 export type WizardFiles = ReturnType<typeof useWizardFiles>;

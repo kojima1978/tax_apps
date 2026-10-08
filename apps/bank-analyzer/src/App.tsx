@@ -14,6 +14,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { NoticeProvider } from './components/Notice';
 import { CaseListPage } from './pages/CaseListPage';
+import { DirectInputPage } from './pages/DirectInputPage';
 import { ImportWizardPage } from './pages/ImportWizardPage';
 import { JsonImportPage } from './pages/JsonImportPage';
 import { NotFoundPage, PendingPage } from './pages/PendingPage';
@@ -32,7 +33,7 @@ export default function App() {
             <Route path="settings" element={<PendingPage title="設定" />} />
             <Route path="cases/:caseId" element={<PendingPage title="分析画面" />} />
             <Route path="cases/:caseId/import" element={<ImportWizardPage />} />
-            <Route path="cases/:caseId/direct" element={<PendingPage title="直接入力" />} />
+            <Route path="cases/:caseId/direct" element={<DirectInputPage />} />
             <Route path="cases/:caseId/classify" element={<PendingPage title="自動分類のプレビュー" />} />
             <Route path="cases/:caseId/passbooks" element={<PendingPage title="通帳有無一覧" />} />
             <Route path="*" element={<NotFoundPage />} />
