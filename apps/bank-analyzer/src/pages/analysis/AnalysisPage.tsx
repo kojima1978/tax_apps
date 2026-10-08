@@ -34,8 +34,9 @@ import { useAction } from '../../hooks/useAction';
 import { useApiData } from '../../hooks/useApiData';
 import { api } from '../../lib/api';
 import { num } from '../../lib/format';
+import { AllTab } from './AllTab';
 import { OverviewTab } from './OverviewTab';
-import { TABS, type Dashboard, type DashboardSummary, type OverviewData, type Tab } from './types';
+import { TABS, type Dashboard, type DashboardSummary, type OverviewData, type Tab, type TabData } from './types';
 
 type NavItem = { tab: Tab; label: string; icon: ComponentType<LucideProps>; badge?: (d: DashboardSummary) => { count: number; tone: string } };
 
@@ -109,6 +110,8 @@ function TabContent({ dash, reload }: { dash: Exclude<Dashboard, { noData: true 
   switch (dash.activeTab) {
     case 'overview':
       return <OverviewTab dash={dash as DashboardSummary & OverviewData} reload={reload} />;
+    case 'all':
+      return <AllTab dash={dash as DashboardSummary & TabData['all']} reload={reload} />;
     default:
       return <p className="card p-6 text-sm text-slate-500">この画面は準備中です。</p>;
   }
