@@ -1,0 +1,12 @@
+// 画面で使う API の応答の形（server/services の戻り値に合わせる）
+
+export type CaseSummary = {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  referenceDate: string | null;
+  transactionCount: number;
+  unclassifiedCount: number;
+  accountCount: number;
+};

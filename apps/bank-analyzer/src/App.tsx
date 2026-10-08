@@ -1,42 +1,44 @@
-import { useEffect, useState } from 'react';
-import { fetchCases, type CaseSummary } from './api';
+// 画面の並び（Django の urls.py の画面側）。API は server/app.ts
+//
+//   /                      案件一覧（?new=1 で新規作成のダイアログ）
+//   /import-json           JSON バックアップから復元
+//   /settings              全体の設定
+//   /letter                お客様配布用文書（印刷用・ヘッダーなし）
+//   /cases/:id             分析画面（?tab=… で7タブ）
+//   /cases/:id/import      取込ウィザード
+//   /cases/:id/direct      直接入力
+//   /cases/:id/classify    自動分類のプレビュー
+//   /cases/:id/passbooks   通帳有無一覧
 
-// 段階2（土台）の確認用の画面。画面・API・DB が1本につながっていることだけを見せる。
-// 本来の画面（案件一覧 → 取込ウィザード → 分析）は段階5で作る。
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { Layout } from './components/Layout';
+import { NoticeProvider } from './components/Notice';
+import { CaseListPage } from './pages/CaseListPage';
+import { JsonImportPage } from './pages/JsonImportPage';
+import { NotFoundPage, PendingPage } from './pages/PendingPage';
+
+// vite.config.ts の base（'/bank-analyzer-next/'）から末尾の / を落としたもの
+const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '');
+
 export default function App() {
-  const [cases, setCases] = useState<CaseSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchCases()
-      .then(setCases)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, []);
-
   return (
-    <main className="mx-auto max-w-3xl p-6 text-slate-800">
-      <h1 className="text-xl font-bold">銀行取引分析（React 版・移行中）</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        いまお使いの画面は <a className="text-blue-700 underline" href="/bank-analyzer/">/bank-analyzer/</a> です。
-        こちらは移行作業中の新しい版で、まだ機能はありません。
-      </p>
-
-      <section className="mt-6">
-        <h2 className="font-semibold">案件</h2>
-        {error !== null && <p className="mt-2 text-red-700">{error}</p>}
-        {error === null && cases === null && <p className="mt-2 text-slate-500">読み込み中…</p>}
-        {cases !== null && cases.length === 0 && <p className="mt-2 text-slate-500">案件はまだありません。</p>}
-        {cases !== null && cases.length > 0 && (
-          <ul className="mt-2 divide-y divide-slate-200 rounded border border-slate-200">
-            {cases.map((c) => (
-              <li key={c.id} className="flex justify-between px-3 py-2">
-                <span>{c.name}</span>
-                <span className="text-sm text-slate-500">{c.transactionCount.toLocaleString()} 件</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+    <BrowserRouter basename={BASENAME}>
+      <NoticeProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<CaseListPage />} />
+            <Route path="import-json" element={<JsonImportPage />} />
+            <Route path="settings" element={<PendingPage title="設定" />} />
+            <Route path="cases/:caseId" element={<PendingPage title="分析画面" />} />
+            <Route path="cases/:caseId/import" element={<PendingPage title="取込ウィザード" />} />
+            <Route path="cases/:caseId/direct" element={<PendingPage title="直接入力" />} />
+            <Route path="cases/:caseId/classify" element={<PendingPage title="自動分類のプレビュー" />} />
+            <Route path="cases/:caseId/passbooks" element={<PendingPage title="通帳有無一覧" />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+          <Route path="letter" element={<PendingPage title="お客様配布用文書" />} />
+        </Routes>
+      </NoticeProvider>
+    </BrowserRouter>
   );
 }

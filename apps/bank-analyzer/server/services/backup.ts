@@ -240,9 +240,14 @@ export function parseBackup(data: unknown): Parsed<Backup> {
     accounts.push(parsed.value);
   }
 
+  // 取引の無いファイルは弾く。書き出しは取引0件の案件には何も出さない（exportCaseJson が null）ので、
+  // ここに来るのは別物のJSON ── Django 版は `?? []` で受け、エラー応答 `{"success":false,…}` まで
+  // 「インポート案件として0件を復元」の空案件にしていた
   const transactions: ImportTx[] = [];
-  const rawTransactions = data.transactions ?? [];
+  const rawTransactions = data.transactions;
+  if (rawTransactions === undefined) return failed('取引データが含まれていません。書き出したバックアップファイルを選んでください');
   if (!Array.isArray(rawTransactions)) return failed('取引データが正しくありません');
+  if (rawTransactions.length === 0) return failed('取引データが0件です');
   for (const [i, t] of rawTransactions.entries()) {
     const parsed = isRecord(t) ? parseTransaction(t) : failed('データが正しくありません');
     if (!parsed.ok) return failed(`取引${i + 1}件目: ${parsed.error}`);

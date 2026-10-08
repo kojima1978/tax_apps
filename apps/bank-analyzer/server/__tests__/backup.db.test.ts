@@ -118,6 +118,15 @@ describe('読み込み', () => {
     expect(await casesNamed('ZZQ架空壊れ')).toHaveLength(0);
   });
 
+  it('取引の無いファイルは弾く（Django 版はエラー応答の JSON まで空の「インポート案件」にした）', async () => {
+    const before = await db().case.count();
+    expect((await importJson({ success: false, error: 'エクスポートするデータがありません。' })).json.error).toBe(
+      '取引データが含まれていません。書き出したバックアップファイルを選んでください',
+    );
+    expect((await importJson({ case: { name: 'ZZQ架空空' }, transactions: [] })).json.error).toBe('取引データが0件です');
+    expect(await db().case.count()).toBe(before);
+  });
+
   it('未対応のバージョン・JSON でないファイル・拡張子違いは弾く', async () => {
     expect((await importJson({ version: '2.0' })).json.error).toBe('未対応のバージョン: 2.0');
     expect((await importJson(null, { raw: '{壊れ' })).json.error).toBe('JSONファイルを読めませんでした');
