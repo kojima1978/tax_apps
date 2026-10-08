@@ -78,6 +78,8 @@ export type TabData = {
     unclassifiedTxTotal: number;
     maxGroupCount: number;
     groupSuggestions: Record<string, { category: string; score: number }>;
+    highConfidenceGroups: AiGroup[];
+    highConfidenceTxCount: number;
   };
   ai: {
     aiSuggestions: AiSuggestion[];

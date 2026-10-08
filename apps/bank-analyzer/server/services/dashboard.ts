@@ -195,6 +195,8 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
       const grouped = unclassifiedGroups(unclassified, q.filter.keyword);
       const groupPage = paginate(grouped.groups, q.groupPage, GROUP_PER_PAGE);
       const classifier = await getClassifierSettings(db, caseId);
+      // Django は高信頼度の候補を分類候補タブにしか渡しておらず、ここの「高信頼度候補」は常に0だった
+      const high = aiSuggestions(ordered, classifier).aiGroups.filter((g) => g.score >= HIGH_CONFIDENCE);
       return {
         unclassifiedTxs: { ...page, items: page.items.map(row) },
         unclassifiedGroups: groupPage,
@@ -202,6 +204,8 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
         unclassifiedTxTotal: grouped.txTotal,
         maxGroupCount: grouped.maxGroupCount,
         groupSuggestions: groupSuggestions(groupPage.items, classifier),
+        highConfidenceGroups: high,
+        highConfidenceTxCount: high.reduce((n, g) => n + g.count, 0),
       };
     }
 

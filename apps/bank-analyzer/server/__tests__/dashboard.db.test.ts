@@ -89,6 +89,9 @@ describe('分析画面', () => {
     expect(body.unclassifiedGroups.items[0]).toMatchObject({ description: 'ZZQ謎の出金', count: 2 });
     expect(body.unclassifiedGroupCount).toBe(1);
     expect(body.unclassifiedTxTotal).toBe(2);
+    // 高信頼度の候補もこのタブで出す（Django は渡しておらず常に0だった）
+    expect(Array.isArray(body.highConfidenceGroups)).toBe(true);
+    expect(typeof body.highConfidenceTxCount).toBe('number');
   });
 
   it('資金移動: 組と金額差・まとめ', async () => {
