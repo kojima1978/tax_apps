@@ -1,6 +1,7 @@
 // 全体の設定と分類パターン。保存の形は Django の user_settings.json と同じキー・同じ値。
 
 import { describe, expect, it } from 'vitest';
+import { BASE_PATH, createApp } from '../app.js';
 import { DEFAULT_PATTERNS } from '../lib/categories.js';
 import {
   addPattern,
@@ -150,5 +151,52 @@ describe('案件固有のパターン', () => {
       { action: 'unknown' },
     ]);
     expect(r).toEqual({ savedCount: 2, totalCount: 4, errors: null });
+  });
+});
+
+describe('設定画面の API', () => {
+  const API = `${BASE_PATH}/api/settings`;
+  const call = (path: string, method = 'GET', body?: unknown) =>
+    createApp(db()).request(`${API}${path}`, {
+      method,
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+  it('読む: 分析パラメータと、標準の並びに並べた全体のパターン', async () => {
+    await db().appSetting.create({ data: { key: 'CLASSIFICATION_PATTERNS', value: { 'ZZQ架空分類': ['k'], '生活費': ['a'], '給与': ['x'] } } });
+    const res = await call('');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { settings: { largeAmountThreshold: number }; patterns: { category: string; keywords: string[] }[] };
+    expect(body.settings.largeAmountThreshold).toBe(500000);
+    expect(body.patterns.map((p) => p.category)).toEqual(['生活費', '給与', 'ZZQ架空分類']);
+    expect(body.patterns[2]).toEqual({ category: 'ZZQ架空分類', keywords: ['k'] });
+  });
+
+  it('分析パラメータ: 保存して返す。誤りは欄ごとに 400 で返し、何も保存しない', async () => {
+    const params = {
+      largeAmountThreshold: 300000, transferDaysWindow: 5, transferTolerance: 0, transferDateMode: 'both',
+      giftThreshold: 2000000, fuzzyEnabled: true, fuzzyThreshold: 80,
+    };
+    const saved = await call('/analysis', 'PUT', params);
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toMatchObject({ success: true, settings: { largeAmountThreshold: 300000, transferDateMode: 'both' } });
+
+    const bad = await call('/analysis', 'PUT', { ...params, largeAmountThreshold: 1, transferDaysWindow: 99 });
+    expect(bad.status).toBe(400);
+    const err = (await bad.json()) as { success: boolean; errors: Record<string, string> };
+    expect(err.success).toBe(false);
+    expect(Object.keys(err.errors)).toEqual(['transferDaysWindow']);
+    expect(await stored('LARGE_AMOUNT_THRESHOLD')).toBe(300000);
+  });
+
+  it('パターンの一括変更: 変わった件数を返す。空なら弾く', async () => {
+    const res = await call('/patterns/bulk', 'POST', { changes: [{ action: 'add', category: '生活費', keyword: 'ZZQ架空キー' }] });
+    expect(await res.json()).toEqual({ success: true, savedCount: 1 });
+    expect((await getGlobalPatterns(db())).get('生活費')).toContain('ZZQ架空キー');
+
+    const empty = await call('/patterns/bulk', 'POST', { changes: [] });
+    expect(empty.status).toBe(400);
+    expect(await empty.json()).toEqual({ success: false, error: '変更がありません' });
   });
 });
