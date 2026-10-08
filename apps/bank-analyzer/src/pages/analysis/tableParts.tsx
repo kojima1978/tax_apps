@@ -1,5 +1,5 @@
 // 取引の表で使う部品（保存状態・分類の選択・並び替えの見出し・ページ送り）。
-// 取引一覧・未分類・質問候補のタブで共通
+// 取引一覧・未分類・資金移動・質問候補のタブで共通
 
 import { useMemo } from 'react';
 import type { useSearchParams } from 'react-router-dom';
@@ -43,7 +43,7 @@ export function CategoryCell({
   failed,
   onChange,
 }: {
-  t: TxRow;
+  t: Pick<TxRow, 'category'> & { description: string | null };
   categories: string[];
   saving: boolean;
   failed: boolean;

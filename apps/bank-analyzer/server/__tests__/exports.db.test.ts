@@ -84,7 +84,7 @@ describe('CSV', () => {
     ]);
   });
 
-  it('付箋付きはメモの列を足し、資金移動は資金移動の取引だけ', async () => {
+  it('付箋付きはメモの列を足す', async () => {
     const { caseId } = await seed();
     const flagged = await get(`/${caseId}/export/csv/flagged`);
     expect(fileName(flagged)).toMatch(/_ZZQ架空商会_付箋付き取引_預貯金分析\.csv$/);
@@ -92,8 +92,23 @@ describe('CSV', () => {
       '日付,銀行名,支店名,種別,口座番号,摘要,払戻,お預り,残高,分類,メモ',
       'R7.4.1,架空銀行,本店,普通,1234567,ZZQ架空出金,600000,0,10000,生活費,架空メモ',
     ]);
+  });
+
+  it('資金移動は画面と同じく判定し直した組を、出金→入金の順に。取込時の印は見ない・絞り込みも画面と同じ', async () => {
+    const { caseId, ids } = await seedCase(db(), 'ZZQ架空移動', [
+      { date: '2025-05-02', description: 'ZZQ移動出', amountOut: 30000, accountNumber: '7654321' },
+      { date: '2025-05-02', description: 'ZZQ移動入', amountIn: 30000, accountNumber: '1234567' },
+      // 印だけ付いていて相手のいない出金（取込のあとで相手が消えた、など）
+      { date: '2025-06-01', description: 'ZZQ印だけ', amountOut: 777, accountNumber: '7654321' },
+    ]);
+    await db().transaction.update({ where: { id: ids[2]! }, data: { isTransfer: true } });
     const transfers = await csvLines(await get(`/${caseId}/export/csv/transfers`));
-    expect(transfers.slice(1)).toEqual(['R7.5.2,架空銀行,本店,普通,7654321,ZZQ移動,30000,0,3,資金移動']);
+    expect(transfers.slice(1)).toEqual([
+      'R7.5.2,架空銀行,本店,普通,7654321,ZZQ移動出,30000,0,,未分類',
+      'R7.5.2,架空銀行,本店,普通,1234567,ZZQ移動入,0,30000,,未分類',
+    ]);
+    const none = await get(`/${caseId}/export/csv/transfers?keyword=${encodeURIComponent('存在しない')}`);
+    expect(await errorOf(none)).toBe('該当するデータがありません。');
   });
 
   it('取引が無い・該当なし・知らない種類は弾く', async () => {

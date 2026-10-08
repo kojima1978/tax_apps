@@ -10,10 +10,13 @@
 //   15,000円なら「1万円以上」と中身と違う名前になっていた。万で割り切れないときは円で書く
 // - 書き出しの種類（transfers / flagged / all）に無いものは「取引データ」として全件を
 //   出していた。知らない種類は弾く
+// - 資金移動の CSV は取込のときに付けた印（is_transfer）で選んでいたが、画面の一覧は表示のたびに
+//   判定し直している（段階4）。印は付け直されないので、直接入力した取引や設定を変えた後は
+//   画面に出ている組が CSV に無かった。画面と同じ判定・同じ絞り込みで、組ごとに出金→入金の順に出す
 
 import ExcelJS from 'exceljs';
 import type { PrismaClient } from '@prisma/client';
-import { filterTransactions, monthlyCashflow, parseAmountInput, type TransactionFilter } from '../lib/aggregate.js';
+import { filterTransactions, monthlyCashflow, parseAmountInput, transferPairs, type TransactionFilter } from '../lib/aggregate.js';
 import { sortCategories } from '../lib/categories.js';
 import { warekiMonthShort, warekiShort } from '../lib/dates.js';
 import { exportFileName } from '../lib/exportFileName.js';
@@ -130,7 +133,8 @@ function buildCsv(rows: readonly ExportRow[], cols: readonly Column[], filename:
 }
 
 export const CSV_TYPES = {
-  transfers: { suffix: '資金移動', select: (r: ExportRow) => r.isTransfer, memo: false },
+  // 資金移動は印ではなく判定し直した組から選ぶ（exportCsv）
+  transfers: { suffix: '資金移動', select: () => false, memo: false },
   flagged: { suffix: '付箋付き取引', select: (r: ExportRow) => r.isFlagged, memo: true },
   all: { suffix: '全取引', select: () => true, memo: false },
 } as const;
@@ -138,14 +142,20 @@ export const CSV_TYPES = {
 export type CsvType = keyof typeof CSV_TYPES;
 export const isCsvType = (value: string): value is CsvType => Object.hasOwn(CSV_TYPES, value);
 
-export async function exportCsv(db: PrismaClient, caseId: bigint, type: CsvType): Promise<ExportResult> {
+// filter は資金移動だけが使う（画面の資金移動タブと同じ絞り込み・並び）
+export async function exportCsv(db: PrismaClient, caseId: bigint, type: CsvType, filter: TransactionFilter = {}): Promise<ExportResult> {
   const all = await loadRows(db, caseId);
   if (all.length === 0) return { ok: false, error: NO_DATA };
   const spec = CSV_TYPES[type];
-  const rows = all.filter(spec.select);
+  const rows = type === 'transfers' ? await transferRows(db, all, filter) : all.filter(spec.select);
   if (rows.length === 0) return { ok: false, error: NO_MATCH };
   const filename = exportFileName([await caseName(db, caseId), spec.suffix], 'csv');
   return { ok: true, file: buildCsv(rows, columns({ memo: spec.memo }), filename) };
+}
+
+async function transferRows(db: PrismaClient, all: ExportRow[], filter: TransactionFilter): Promise<ExportRow[]> {
+  const byId = new Map(all.map((r) => [r.id, r]));
+  return transferPairs(all, await getAppSettings(db), filter).flatMap((p) => [byId.get(p.source.id)!, byId.get(p.destination.id)!]);
 }
 
 // 絞り込み条件をファイル名に残す（Django 版の build_filtered_filename）。条件が無ければ「全取引」

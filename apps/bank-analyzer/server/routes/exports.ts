@@ -33,7 +33,7 @@ export function exportRoutes(r: CaseRouter, db: PrismaClient) {
   r.get('/:caseId/export/csv/:type', async (c) => {
     const type = c.req.param('type');
     if (!isCsvType(type)) return fail(c, '書き出しの種類が正しくありません', 404);
-    return respond(c, await exportCsv(db, c.get('caseId'), type));
+    return respond(c, await exportCsv(db, c.get('caseId'), type, filterFromQuery(new URL(c.req.url).searchParams)));
   });
 
   r.get('/:caseId/export/xlsx/categories', async (c) => respond(c, await exportCategoryXlsx(db, c.get('caseId'))));

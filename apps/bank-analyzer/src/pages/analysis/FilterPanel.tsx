@@ -370,7 +370,7 @@ function DetailForm({
   );
 }
 
-function CheckList({
+export function CheckList({
   label,
   items,
   checked,
