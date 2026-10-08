@@ -64,6 +64,32 @@ describe('プレビュー', () => {
   });
 });
 
+describe('重複の判定し直し', () => {
+  it('画面で決めた口座で判定する。全ファイルで1つの索引を取り合い、書き込まない', async () => {
+    const { caseId } = await seedCase(db(), '架空 太郎', [
+      { date: '2025-04-01', description: 'ZZQ架空商会', amountOut: 1000, balance: 9000 },
+    ]);
+    const row = { date: '2025-04-01', description: 'ZZQ架空商会', amountOut: '1,000', amountIn: '', balance: '9000' };
+    // ファイル名に口座番号が無いとプレビューでは重複にならない
+    const preview = await upload(caseId, { file_0: csvFile('ZZQ架空通帳.csv', 'R7.4.1,ZZQ架空商会,1000,,9000\n') });
+    expect(preview.json.files[0].duplicateCount).toBe(0);
+
+    const res = await call('POST', `/${caseId}/import/check`, {
+      files: [
+        { account: account('1234567'), rows: [row] },
+        { account: account('1234567'), rows: [row] },
+        { account: account('7654321'), rows: [row] },
+      ],
+    });
+    expect(res.json.files.map((f: Json) => f.marks.map((m: Json) => m.isDuplicate))).toEqual([[true], [false], [false]]);
+    expect(res.json.files[0].marks[0].dupConfidence).toBe('high');
+    expect(await rowsOf(caseId)).toHaveLength(1);
+    expect((await call('POST', `/${caseId}/import/check`, { files: [{ account: account('1'), rows: [{ date: 'x' }] }] })).json.error).toBe(
+      'ファイル1 行1: 日付の形式が正しくありません（YYYY-MM-DD）',
+    );
+  });
+});
+
 describe('確定', () => {
   const seedExisting = () =>
     seedCase(db(), '架空 太郎', [{ date: '2025-04-01', description: 'ZZQ架空商会', amountOut: 1000, balance: 9000 }]);

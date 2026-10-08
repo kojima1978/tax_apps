@@ -2,7 +2,7 @@
 // ファイル単位の突き合わせは importer.test.ts。
 
 import { describe, expect, it } from 'vitest';
-import { validateBalance } from '../lib/balance.js';
+import { chainBalance, validateBalance } from '../lib/balance.js';
 import { parseStatementDate, toIsoDate } from '../lib/dates.js';
 import { buildDuplicateWarning, buildExistingIndex, markDuplicates } from '../lib/dedup.js';
 import { parseAmount } from '../lib/import/loadStatement.js';
@@ -135,6 +135,22 @@ describe('validateBalance', () => {
     expect(result.map((r) => [r.date, r.calcBalance])).toEqual([
       ['2021-04-02', null],
       ['2021-04-01', null],
+    ]);
+  });
+});
+
+describe('chainBalance', () => {
+  it('並べ替えずに渡された順で突き合わせる（取込ウィザードで行を動かした後の数え直し）', () => {
+    const rows = [
+      { amountOut: 0, amountIn: 0, balance: 1000 },
+      { amountOut: 0, amountIn: 100, balance: 1100 },
+      { amountOut: 50, amountIn: 0, balance: 1050 },
+    ];
+    expect(chainBalance(rows).map((r) => r.isBalanceError)).toEqual([false, false, false]);
+    expect(chainBalance([rows[0]!, rows[2]!, rows[1]!]).map((r) => [r.calcBalance, r.isBalanceError])).toEqual([
+      [1000, false],
+      [950, true],
+      [1150, true],
     ]);
   });
 });

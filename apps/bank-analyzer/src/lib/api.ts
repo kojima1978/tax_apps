@@ -9,6 +9,8 @@ export class ApiError extends Error {
     readonly status: number,
     // 欄ごとの誤り（設定の保存など）
     readonly errors: Record<string, string> = {},
+    // 取込の読み取りエラーの詳細（行番号・直し方など。server/lib/import/errors.ts の toDict）
+    readonly details: unknown = null,
   ) {
     super(message);
   }
@@ -35,10 +37,10 @@ async function request<T>(method: string, path: string, body?: Body): Promise<T>
   } catch {
     // 本文が JSON でない（ゲートウェイの 502 など）
   }
-  const obj = (data ?? {}) as { success?: boolean; error?: unknown; errors?: unknown };
+  const obj = (data ?? {}) as { success?: boolean; error?: unknown; errors?: unknown; details?: unknown };
   if (!res.ok || obj.success === false) {
     const message = typeof obj.error === 'string' ? obj.error : `処理に失敗しました（${res.status}）`;
-    throw new ApiError(message, res.status, (obj.errors as Record<string, string> | undefined) ?? {});
+    throw new ApiError(message, res.status, (obj.errors as Record<string, string> | undefined) ?? {}, obj.details ?? null);
   }
   return data as T;
 }

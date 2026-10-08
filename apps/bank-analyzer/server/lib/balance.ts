@@ -26,10 +26,14 @@ export function validateBalance<T extends BalanceInput>(rows: T[], hasBalance: b
   if (!hasBalance) return rows.map((r) => ({ ...r, calcBalance: null, isBalanceError: false }));
 
   // Array.prototype.sort は安定ソート（ES2019〜）
-  const sorted = [...rows].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return chainBalance([...rows].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)));
+}
 
+// 並べ替えずに、渡された順で突き合わせる。取込ウィザードの画面が、行を動かした・直した後に
+// 同じ規則で数え直すのに使う（サーバとは別の規則で赤くすると、画面と取込結果が食い違う）
+export function chainBalance<T extends Omit<BalanceInput, 'date'>>(rows: T[]): BalanceChecked<T>[] {
   let prev: number | null = null;
-  return sorted.map((r) => {
+  return rows.map((r) => {
     if (prev === null) {
       // 起点。書かれた残高をそのまま使う（空欄ならまだ起点が無い）。
       prev = r.balance;

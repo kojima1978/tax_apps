@@ -38,10 +38,29 @@ export async function listCases(db: PrismaClient): Promise<CaseSummary[]> {
   }));
 }
 
+// 口座は取込ウィザード・直接入力の「既存の口座から選ぶ」に使う（通帳有無一覧と同じ並び）
 export async function getCase(db: PrismaClient, caseId: bigint) {
-  const c = await db.case.findUnique({ where: { id: caseId } });
+  const c = await db.case.findUnique({
+    where: { id: caseId },
+    include: {
+      accounts: {
+        select: { bankName: true, branchName: true, accountType: true, accountNumber: true },
+        orderBy: [{ printOrder: 'asc' }, { bankName: 'asc' }, { branchName: 'asc' }, { accountNumber: 'asc' }],
+      },
+    },
+  });
   if (!c) return null;
-  return { id: toId(c.id), name: c.name, referenceDate: toDateString(c.referenceDate) };
+  return {
+    id: toId(c.id),
+    name: c.name,
+    referenceDate: toDateString(c.referenceDate),
+    accounts: c.accounts.map((a) => ({
+      bankName: a.bankName ?? '',
+      branchName: a.branchName ?? '',
+      accountType: a.accountType ?? '',
+      accountNumber: a.accountNumber,
+    })),
+  };
 }
 
 const NAME_MAX = 255;

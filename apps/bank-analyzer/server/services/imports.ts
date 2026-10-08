@@ -14,7 +14,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { detectTransfers, isLargeAmount, type AnalysisSettings } from '../lib/analyze.js';
 import { classifyTransactions } from '../lib/classify.js';
-import { buildExistingIndex, type DedupFields } from '../lib/dedup.js';
+import { buildDuplicateWarning, buildExistingIndex, markDuplicates, type DedupFields, type DuplicateMark, type DuplicateWarning } from '../lib/dedup.js';
 import { normalizeText } from '../lib/text.js';
 import { selectRowsToCommit, type CommitAccount, type CommitRow } from '../lib/wizard.js';
 import { toDateString, toId } from '../json.js';
@@ -142,4 +142,24 @@ export async function commitWizard(
     },
     { timeout: IMPORT_TIMEOUT_MS },
   );
+}
+
+// 取込ウィザードの手順3に入るときの重複の判定し直し（書き込まない）。
+// プレビューの判定はファイルから読めた口座番号で行うので、ファイル名にも中身にも口座番号が無い・
+// 手順2で別の口座を選んだファイルは、取込済みの取引と同じ行でも「重複 0件」と出ていた
+// （確定時はサーバが判定し直すので入り方は正しいが、画面の見込みの件数が食い違う。Django 版も同じ）。
+// 確定（commitWizard）と同じく、画面で決めた口座で・全ファイルで1つの索引を取り合って判定する。
+export async function checkWizardDuplicates(
+  db: PrismaClient,
+  caseId: bigint,
+  files: WizardFile[],
+): Promise<{ marks: DuplicateMark[]; warning: DuplicateWarning | null }[]> {
+  const index = buildExistingIndex((await loadCaseRows(db, caseId)) satisfies DedupFields[]);
+  return files.map((f) => {
+    const marked = markDuplicates(f.rows, index, f.account.accountNumber);
+    return {
+      marks: marked.rows.map(({ isDuplicate, dupConfidence }) => ({ isDuplicate, dupConfidence })),
+      warning: buildDuplicateWarning(marked.rows, marked.duplicateCount, f.rows.length),
+    };
+  });
 }

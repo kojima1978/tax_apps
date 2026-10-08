@@ -11,7 +11,7 @@ import { StatementImportError } from '../lib/import/errors.js';
 import { buildPreview, type CommitAccount, type CommitRow, type PreviewFile } from '../lib/wizard.js';
 import { toDateString } from '../json.js';
 import { isRecord, optionalText, parseAmountValue, parseDateValue, type Parsed } from '../input.js';
-import { commitRows, commitWizard, type ImportRow, type WizardFile } from '../services/imports.js';
+import { checkWizardDuplicates, commitRows, commitWizard, type ImportRow, type WizardFile } from '../services/imports.js';
 import { fail, ok, readBody, type CaseRouter } from './common.js';
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -136,6 +136,13 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
     }
     if (previews.length === 0) return fail(c, 'ファイルが見つかりません');
     return ok(c, { files: previews });
+  });
+
+  // 手順3に入るときに、画面で決めた口座で重複を判定し直す（書き込まない）。送る形は確定と同じ
+  r.post('/:caseId/import/check', async (c) => {
+    const files = parseWizardFiles((await readBody(c)).files);
+    if (!files.ok) return fail(c, files.error);
+    return ok(c, { files: await checkWizardDuplicates(db, c.get('caseId'), files.value) });
   });
 
   // 確定。skipDuplicates を省けば重複は除外する（Django 版は常に除外していた）

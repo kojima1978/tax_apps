@@ -10,3 +10,11 @@ export type CaseSummary = {
   unclassifiedCount: number;
   accountCount: number;
 };
+
+// GET /cases/:id（server/services/cases.ts の getCase）
+export type CaseDetail = {
+  id: number;
+  name: string;
+  referenceDate: string | null;
+  accounts: { bankName: string; branchName: string; accountType: string; accountNumber: string }[];
+};

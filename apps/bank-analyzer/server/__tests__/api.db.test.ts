@@ -35,6 +35,10 @@ describe('案件', () => {
       { name: '架空 花子', transactionCount: 0, unclassifiedCount: 0, accountCount: 0 },
     ]);
 
+    // 1件の取得は既存の口座つき（取込ウィザードで選ぶ）
+    const jiro = list.json[0];
+    expect((await call('GET', `/${jiro.id}`)).json.case.accounts.map((a: Json) => a.accountNumber).sort()).toEqual(['1234567', '7654321']);
+
     expect((await call('PATCH', '/1', { name: '架空 次郎' })).status).toBe(400);
     expect((await call('PATCH', '/1', { name: '架空 三郎' })).json.name).toBe('架空 三郎');
     expect((await call('PATCH', '/99', { name: 'x' })).status).toBe(404);
