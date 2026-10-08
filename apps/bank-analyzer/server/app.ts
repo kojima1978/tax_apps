@@ -10,6 +10,7 @@ import { categoryRoutes } from './routes/categories.js';
 import { classificationRoutes } from './routes/classification.js';
 import { exportRoutes } from './routes/exports.js';
 import { importRoutes } from './routes/imports.js';
+import { passbookInventoryRoutes } from './routes/passbookInventory.js';
 import { transactionRoutes } from './routes/transactions.js';
 
 // 並行稼働の間の仮のパス。切り替え（段階7）で '/bank-analyzer' に戻す。
@@ -41,6 +42,7 @@ export function createApp(db: PrismaClient) {
   importRoutes(cases, db);
   backupExportRoutes(cases, db);
   exportRoutes(cases, db);
+  passbookInventoryRoutes(cases, db);
   app.route(`${BASE_PATH}/api/cases`, cases);
   app.route(`${BASE_PATH}/api/backups`, backupImportRouter(db));
 

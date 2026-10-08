@@ -232,7 +232,7 @@ function addTransactionSheet(
   });
 }
 
-async function xlsxFile(wb: ExcelJS.Workbook, filename: string): Promise<ExportFile> {
+export async function xlsxFile(wb: ExcelJS.Workbook, filename: string): Promise<ExportFile> {
   return { filename, contentType: XLSX_TYPE, body: new Uint8Array(await wb.xlsx.writeBuffer()) };
 }
 

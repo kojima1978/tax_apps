@@ -82,3 +82,18 @@ export function warekiMonthShort(iso: string | null): string {
   const { prefix, m } = eraOf(iso);
   return `${prefix}.${m}`;
 }
+
+// その年の1月1日の元号で `R6`（Django 版 passbook_inventory._wareki_abbr）。通帳有無一覧の年の見出し
+export function warekiYearAbbr(year: number): string {
+  return eraOf(`${String(year).padStart(4, '0')}-01-01`).prefix;
+}
+
+// 和暦の長い表記（Django 版 wareki(…, 'full')）。`令和6年1月26日`、1年目は `令和元年`。
+// 明治より前は `1850年1月2日`
+export function warekiFull(iso: string): string {
+  const era = ERAS.find((e) => iso >= e.start);
+  const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+  if (!era) return `${y}年${m}月${d}日`;
+  const n = y - era.firstYear + 1;
+  return `${era.name}${n === 1 ? '元' : n}年${m}月${d}日`;
+}
