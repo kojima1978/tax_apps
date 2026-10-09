@@ -19,6 +19,7 @@ import { ClassifyPreviewPage } from './pages/ClassifyPreviewPage';
 import { DirectInputPage } from './pages/DirectInputPage';
 import { ImportWizardPage } from './pages/ImportWizardPage';
 import { JsonImportPage } from './pages/JsonImportPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage, PendingPage } from './pages/PendingPage';
 
 // vite.config.ts の base（'/bank-analyzer-next/'）から末尾の / を落としたもの
@@ -32,7 +33,7 @@ export default function App() {
           <Route element={<Layout />}>
             <Route index element={<CaseListPage />} />
             <Route path="import-json" element={<JsonImportPage />} />
-            <Route path="settings" element={<PendingPage title="設定" />} />
+            <Route path="settings" element={<SettingsPage />} />
             <Route path="cases/:caseId" element={<AnalysisPage />} />
             <Route path="cases/:caseId/import" element={<ImportWizardPage />} />
             <Route path="cases/:caseId/direct" element={<DirectInputPage />} />
