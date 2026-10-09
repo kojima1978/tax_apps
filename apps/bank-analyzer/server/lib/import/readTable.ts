@@ -2,8 +2,14 @@
 // （それは loadStatement.ts）。Django 版の _detect_and_read_file に当たる。
 //
 // 文字コードの試し方は Django 版と同じ順: UTF-8（BOM 付き/無し）→ Shift_JIS（cp932）→
-// 置換しながら Shift_JIS。どれも「見出しに 銀行名 / 日付 / 支店名 のどれかがあるか」で
+// 置換しながら Shift_JIS。どれも「見出しに 銀行名 / 日付 / 年月日 / 支店名 のどれかがあるか」で
 // 当たりを判定し、1行目に無ければ2行目を見出しとして試す（表題行のあるファイル）。
+//
+// Django 版との違い（切替後に直したもの。計画書 §3 の #10）:
+// - 見出しが `年月日` のファイルは当たりにならず、文字コードのエラーで止まっていた
+//   → `年月日` も見出しの目印にする。見出しは全角・半角と空白の違いを無視して比べる
+// - 文字コードとしては読めたのに見出しが見つからないときも「文字コードエラー」と出していた
+//   → 読めた場合は「見出しの行が見つかりません」と、読めた1行目を添えて知らせる
 //
 // pandas と違って値はすべて文字列のまま持つ。口座番号 `0012345` の先頭の 0 が
 // 消えていた（計画書 §3 の #1）のは、pandas が数字だけの列を数値に読んでいたため。
@@ -27,7 +33,13 @@ export type Table = {
   rows: TableRow[];
 };
 
-const HEADER_KEYWORDS = ['銀行名', '日付', '支店名'] as const;
+const HEADER_KEYWORDS = ['銀行名', '日付', '年月日', '支店名'] as const;
+
+// 見出しを比べるときの形。全角英数字・全角空白を半角へ（NFKC）、空白はすべて除く
+// （`差引 残高` や `お預り額　` を同じ列として読む）。表示には元の文字のまま使う。
+export function headerKey(name: string): string {
+  return name.normalize('NFKC').replace(/\s+/g, '');
+}
 
 // Django 版が失敗のときに出していた試行の一覧。CSV ではすべて失敗したときにしか
 // 出ないので、常にこの6つになる（Excel として読む試行は CSV では意味が無いので
@@ -64,11 +76,26 @@ export function readTable(bytes: Uint8Array): Table {
     () => decode(bytes, 'shift_jis', true),
     () => decode(bytes, 'shift_jis', false),
   ];
-  for (const strategy of strategies) {
+  // 文字コードとしては読めた最初の結果（見出しが見つからないときの知らせに使う）
+  let decoded: CsvRecord[] | null = null;
+  for (const [i, strategy] of strategies.entries()) {
     const text = strategy();
     if (text === null) continue;
-    const table = tableFromRecords(parseCsv(text));
+    const records = parseCsv(text);
+    const table = tableFromRecords(records);
     if (table !== null) return table;
+    // 置換しながら読んだもの（最後の試し）は文字化けしていても通るので数えない
+    if (decoded === null && i < strategies.length - 1) decoded = records;
+  }
+  if (decoded !== null) {
+    const first = decoded.find((r) => r.fields.some((f) => f.trim() !== ''));
+    throw new FormatError('見出しの行が見つかりません。', {
+      suggestion:
+        '1行目（表題の行があるときは2行目）に、列名を並べた見出しの行を置いてください。\n' +
+        '見出しには「日付」（または「年月日」）の列が必要です。',
+      foundColumns: first?.fields.map((f) => f.trim()).filter((f) => f !== ''),
+      lineNumber: first?.line,
+    });
   }
   throw new EncodingError('ファイルの読み込みに失敗しました。', CSV_TRIED, headHex);
 }
@@ -83,7 +110,7 @@ function decode(bytes: Uint8Array, encoding: string, fatal: boolean): string | n
 }
 
 function hasHeaderKeyword(cells: string[]): boolean {
-  return cells.some((c) => HEADER_KEYWORDS.some((kw) => c.includes(kw)));
+  return cells.some((c) => HEADER_KEYWORDS.some((kw) => headerKey(c).includes(kw)));
 }
 
 type CsvRecord = { line: number; fields: string[] };

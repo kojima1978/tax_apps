@@ -6,7 +6,10 @@
 //    和暦と西暦の混在、`2021-04-03` と `2021/4/4` の混在でもファイルごと失敗していた
 //  - #5 `04/03/2021`（月/日/年）は読まない。日本の通帳では出ない書式で、
 //    pandas は黙って4月3日と読んでいた
-// 読めない書式（`令和3年4月1日` など）は Django と同じく読めない（§3 の #10）。
+//
+// 切替後に読めるようにしたもの（§3 の #10。Django 版は読めなかった）:
+//  - `令和3年4月1日` / `令和元年5月1日` / `R3年4月1日`、`2021年4月1日`
+//  - 全角の数字・記号（`Ｒ３．４．１`、`２０２１／４／１`）。読む前に NFKC で半角へそろえる
 
 // 元号（Django 版 constants.py の ERA_DATA）。開始日は表示側（和暦表記）で使う。
 export const ERAS = [
@@ -25,6 +28,13 @@ const ERA_FIRST_YEAR: Record<string, number> = Object.fromEntries(
 // （re.match の挙動）。元号の範囲（R1.4.1 は平成）は Django 版でも確かめていない。
 const WAREKI = /^([MTSHR])(\d+)[./](\d+)[./](\d+)/;
 
+// `令和3年4月1日` / `令和元年5月1日` / `R3年4月1日`。後ろに曜日などが続いてもよい。
+const ERA_NAME_TO_ABBR: Record<string, string> = Object.fromEntries(ERAS.map((e) => [e.name, e.abbr]));
+const WAREKI_KANJI = /^(明治|大正|昭和|平成|令和|[MTSHR])\s*(元|\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日/;
+
+// `2021年4月1日`。後ろに曜日などが続いてもよい（年が4桁なので取り違えは起きない）。
+const SEIREKI_KANJI = /^(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/;
+
 // `2021-04-03` / `2021/4/4` / `2021.4.5`。後ろに時刻が付いていてもよい（Excel から
 // 文字列で書き出された日時）。年が4桁でないもの（`04/03/2021` など）は読まない。
 const SEIREKI = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?$/;
@@ -42,7 +52,20 @@ export function toIsoDate(year: number, month: number, day: number): string | nu
 
 // 日付欄の1つの値を 'YYYY-MM-DD' にする。読めなければ null。
 export function parseStatementDate(value: string): string | null {
-  const text = value.trim();
+  const text = value.normalize('NFKC').trim();
+
+  const k = WAREKI_KANJI.exec(text);
+  if (k) {
+    const [, era, y, m, d] = k;
+    const abbr = ERA_NAME_TO_ABBR[era!] ?? era!;
+    return toIsoDate(ERA_FIRST_YEAR[abbr]! + (y === '元' ? 1 : Number(y)) - 1, Number(m), Number(d));
+  }
+
+  const sk = SEIREKI_KANJI.exec(text);
+  if (sk) {
+    const [, y, m, d] = sk;
+    return toIsoDate(Number(y), Number(m), Number(d));
+  }
 
   const w = WAREKI.exec(text);
   if (w) {

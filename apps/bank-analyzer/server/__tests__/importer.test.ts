@@ -223,6 +223,33 @@ const DEVIATIONS: Record<string, (django: Outcome) => Outcome | ((actual: Outcom
       TEST_BANK,
     ),
 
+  // #10 漢字の年月日・全角数字の金額・見出しの言い換えを読む（Django 版はどれもファイルごとエラー）
+  'e14_kanji_era.csv': () => success([['2021-04-01', 'ATM', 1000, 0, 99000, 99000, false]]),
+  'e15_amount_formats.csv': () =>
+    success([
+      ['2021-04-01', 'カンマ', 1234, 0, 98766, 98766, false],
+      ['2021-04-02', '空白', 500, 0, 98266, 98266, false],
+      ['2021-04-03', '負号', -100, 0, 98366, 98366, false],
+      ['2021-04-04', '全角数字', 123, 0, 98243, 98243, false],
+    ]),
+  'e16_header_variants.csv': () =>
+    success([
+      ['2021-04-01', 'ATM', 10000, 0, 90000, 90000, false],
+      ['2021-04-02', '給与', 0, 200000, 290000, 290000, false],
+      ['2021-04-03', 'イオン', 3000, 0, 287000, 287000, false],
+    ]),
+
+  // △ は負号として読むようになったので、読めないのは abc の1件だけ
+  'e11_bad_amount.csv': () => (actual) => {
+    expect(actual).toMatchObject({
+      error: 'AmountParseError',
+      message: '払戻額の変換に失敗しました（1件）',
+      line_number: 2,
+      actual_value: 'abc',
+      sample_values: ['abc'],
+    });
+  },
+
   // #4 小数は切り捨てずにエラー
   'e04_decimal_amount.csv': () => (actual) => {
     expect(actual).toMatchObject({
@@ -320,5 +347,21 @@ describe('取込: 正解に無い入力', () => {
 
   it('金額の 100.0 は整数として受ける', () => {
     expect(loadStatement(csv(`${HEADER}R3.4.1,ATM,"1,000.0",,9000\n`)).rows[0]!.amountOut).toBe(1000);
+  });
+
+  // #10
+  it('見出しの中の空白（全角も）は無視する', () => {
+    const st = loadStatement(csv('日　付,摘 要,払戻額,お預り額,差引残高\nR3.4.1,ATM,1000,,9000\n'));
+    expect(st.rows[0]).toMatchObject({ date: '2021-04-01', description: 'ATM', amountOut: 1000 });
+  });
+
+  it('見出しの無い CSV は文字コードではなく見出しのエラー', () => {
+    try {
+      loadStatement(csv('R3.4.1,ATM,1000,,9000\n'));
+      expect.unreachable();
+    } catch (e) {
+      expect((e as Error).name).toBe('FormatError');
+      expect((e as StatementImportError).toDict().message).toContain('見出しの行が見つかりません');
+    }
   });
 });

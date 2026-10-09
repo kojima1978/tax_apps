@@ -10,6 +10,11 @@
 //  #3 日付は行ごとに判定する。何も書かれていない行は読み飛ばす
 //  #4 小数の金額はエラーにする（黙って切り捨てない）
 //  #5 `04/03/2021` は読まない（dates.ts）
+//
+// 切替後に読めるようにしたもの（§3 の #10。Django 版はどれもファイルごと失敗していた）:
+//  - 列名 `年月日` / `払戻` / `お預り` / `残高`、全角や空白の混じった列名（readTable.ts の headerKey）
+//  - 全角数字の金額（`１２３`）、`△` / `▲` の負号、`円` / `¥` の付いた金額
+//  - `令和3年4月1日` / `2021年4月1日` の日付（dates.ts）
 
 import { parseStatementDate } from '../dates.js';
 import {
@@ -20,11 +25,9 @@ import {
   MultipleBankError,
   type AmountColumn,
 } from './errors.js';
-import { readTable, type Cell } from './readTable.js';
+import { headerKey, readTable, type Cell } from './readTable.js';
 
-// 列名の表記ゆれ。`年月日` / `払戻` / `お預り` / `残高` はここにあっても、見出しを探す
-// キーワード（銀行名・日付・支店名）に当たらないので CSV では読めない ── Django 版と同じ
-// （計画書 §3 の #10。直すのは切替後）。
+// 列名の表記ゆれ。比べるのは headerKey を通した形（全角・空白の違いは無視）。
 const COLUMN_RENAME_MAP: Record<string, StandardColumn> = {
   年月日: 'date',
   日付: 'date',
@@ -110,7 +113,7 @@ export function loadStatement(bytes: Uint8Array, options: LoadOptions = {}): Sta
   const index = new Map<StandardColumn, number>();
   const columns: StandardColumn[] = [];
   table.header.forEach((name, i) => {
-    const std = COLUMN_RENAME_MAP[name];
+    const std = COLUMN_RENAME_MAP[headerKey(name)];
     if (std && !index.has(std)) {
       index.set(std, i);
       columns.push(std);
@@ -228,8 +231,8 @@ function checkSingleValue(
   if (counts.size > 1) throw new ErrorClass([...counts.keys()], counts);
 }
 
-// 金額。カンマと前後の空白を除いて、ASCII の数字だけを読む（全角数字・`△` は
-// Django 版と同じく読めない ── §3 の #10）。値なしは value: null。
+// 金額。全角は半角へ（NFKC）、カンマ・空白・`円`・`¥` を除き、`△` / `▲` / `−` は負号として読む。
+// 値なしは value: null。エラーに出す raw はファイルに書かれていたままの値。
 type AmountResult = { ok: true; value: number | null } | { ok: false; raw: string; decimal: boolean };
 
 const NUMBER = /^[+-]?(?:\d+\.?\d*|\.\d+)$/;
@@ -241,8 +244,13 @@ export function parseAmount(cell: Cell): AmountResult {
       ? { ok: true, value: cell }
       : { ok: false, raw: String(cell), decimal: true };
   }
-  const cleaned = cell.replaceAll(',', '').trim();
-  if (cleaned === '') return { ok: true, value: null };
+  const stripped = cell.normalize('NFKC').replace(/[,\s]/g, '');
+  if (stripped === '') return { ok: true, value: null };
+  // 記号だけ（`円` や `¥` だけの欄）は空欄ではなく読めない値
+  const cleaned = stripped
+    .replace(/^([+-]?)[¥\\]/, '$1')
+    .replace(/円$/, '')
+    .replace(/^[△▲−]/, '-');
   if (!NUMBER.test(cleaned)) return { ok: false, raw: cell, decimal: false };
   const n = Number(cleaned);
   // `100.0` のように小数部が 0 なら値は変わらないので受ける。

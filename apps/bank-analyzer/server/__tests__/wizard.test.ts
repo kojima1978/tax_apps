@@ -53,6 +53,9 @@ const READABLE_IN_REACT = new Set([
   'e03_mixed_wareki_seireki.csv', // #3
   'e13_wareki_variants.csv', // #3
   'e13b_seireki_only.csv', // #3
+  'e14_kanji_era.csv', // #10
+  'e15_amount_formats.csv', // #10
+  'e16_header_variants.csv', // #10
   'e21_blank_row.csv', // #3
   'e22_excel.xlsx', // #3
 ]);
