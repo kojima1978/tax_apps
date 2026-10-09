@@ -16,12 +16,13 @@ import { NoticeProvider } from './components/Notice';
 import { AnalysisPage } from './pages/analysis/AnalysisPage';
 import { CaseListPage } from './pages/CaseListPage';
 import { ClassifyPreviewPage } from './pages/ClassifyPreviewPage';
+import { CustomerLetterPage } from './pages/CustomerLetterPage';
 import { DirectInputPage } from './pages/DirectInputPage';
 import { ImportWizardPage } from './pages/ImportWizardPage';
 import { JsonImportPage } from './pages/JsonImportPage';
 import { PassbookInventoryPage } from './pages/PassbookInventoryPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { NotFoundPage, PendingPage } from './pages/PendingPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 // vite.config.ts の base（'/bank-analyzer-next/'）から末尾の / を落としたもの
 const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -42,7 +43,7 @@ export default function App() {
             <Route path="cases/:caseId/passbooks" element={<PassbookInventoryPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
-          <Route path="letter" element={<PendingPage title="お客様配布用文書" />} />
+          <Route path="letter" element={<CustomerLetterPage />} />
         </Routes>
       </NoticeProvider>
     </BrowserRouter>
