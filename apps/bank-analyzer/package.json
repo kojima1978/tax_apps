@@ -14,7 +14,8 @@
     "test": "npm run typecheck && vitest run",
     "test:watch": "vitest",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy"
+    "db:migrate": "prisma migrate deploy",
+    "backup:json": "if [ -x node_modules/.bin/tsx ]; then node_modules/.bin/tsx server/scripts/exportJsonBackups.ts; else node dist-server/scripts/exportJsonBackups.js; fi"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",

@@ -405,7 +405,9 @@ docker/scripts/manage.sh alert
   - **登録済みの年分をアーカイブの内容で入れ直す**: `docker compose exec stock-valuation-form npm run industry:reseed`（引数なしは**何をするかの一覧だけ**でDBは変わらない。実行は `-- --yes`、年を絞るなら `-- 2026 --yes`）。`git pull` で `prisma/industry-data` の中身が直っても起動時のシードは登録済みの年分を読み飛ばすので、その反映口がこれ。**触るのはアーカイブのある年分だけ**で、ファイルの無い年分（画面から登録して `industry:save` していないもの）には手を出さず一覧に「触れない」として出す。起動時に環境変数で全年分を消して入れ直す仕組み（`SEED_FORCE`）は廃止した ── 環境変数はコンテナに残り続け（`docker compose restart` は environment を評価し直さない）、再起動のたびに全消し→再取込が走るため
   - **公表PDF（国税庁の別紙）からの取込**: PDFを `./output` に置いて `docker compose exec stock-valuation-form npm run industry:pdf -- output/<file>.pdf`。奇数ページ＝業種目マスタ＋B・C・D＋前年11月分・12月分、偶数ページ＝当年の各月株価（上段）と2年平均（下段）という構造を座標で読み、アーカイブと同じ形のJSONにする。**登録済みアーカイブとの差分まで出す**のが本体で、「増えた月」と「名称・内容・B・C・Dが改訂されていないこと」を確かめてから次に叩くコマンドを指示する。別紙は毎月更新されるが増えるのは月の列だけなので、通常は `-- <pdf> --only-new-months` で増えた月だけのファイルを作り → `industry:import -- <file> --months-only` → `industry:save`。マスタが改訂されていた場合だけアーカイブを差し替えて `industry:reseed`。変換は `pdfjs-dist`（devDependencies）に依存するので**開発イメージでしか動かない**（本番は `npm install --omit=dev`）
   - 業種目データの持ち運び: `npm run industry:export`（全年分を `output/industry-export/` へ。手元への控え用）/ `npm run industry:import -- <file>`。管理画面の「JSONで入出力」タブと同じ経路。「年分だけを消す」APIは無いので、登録済みの年分へは `--months-only` で月別株価だけ上書きする（まるごと入れ直すなら上の `industry:reseed`）
-- Django (bank-analyzer-django): `python manage.py runserver 0.0.0.0:3007`
+- 銀行取引分析 (bank-analyzer): `npm run dev:all`（Vite 3007 + API 3107 を並走）/ `npm run build` + `npm run build:server`。本番は Node が 3007 で両方を配信
+  - Django 版（`apps/bank-analyzer-django`）の置き換え。段階7（2026-10-10）で名前・ポート・DB ボリュームをそのまま引き継いだので、**2つは同時に起動できない**（コンテナ名が同じ）。Django 版は切り戻し用に `UNMANAGED_APPS` へ退避してあるだけで、自動起動・復旧・バックアップには載っていない
+  - 夜間バックアップの JSON は `npm run backup:json`（出力先は環境変数 `OUTPUT_DIR`）。`backup.sh` が稼働中のコンテナの中で呼ぶ。**ファイル名と中身は Django 版の管理コマンドと同じ形に保つこと** ── 過去のバックアップと同じフォルダに並び、どちらも画面の「JSONから復元」で読める（`version` は `1.0` / `1.1` の両対応）
 
 ## コーディング規約
 

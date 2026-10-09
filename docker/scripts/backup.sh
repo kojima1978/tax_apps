@@ -72,7 +72,7 @@ DRILL_PG_STARTED=0
 # label:container:pg_user:db_name:volume:dump_file:restart_hint
 PG_TARGETS=(
   "ITCM PostgreSQL:itcm-postgres:postgres:inheritance_tax_db:inheritance-case-management_postgres_data:itcm-postgres:inheritance-case-management"
-  "Bank Analyzer PostgreSQL:bank-analyzer-postgres:bankuser:bank_analyzer:bank-analyzer-postgres:bank-analyzer-postgres:bank-analyzer-django"
+  "Bank Analyzer PostgreSQL:bank-analyzer-postgres:bankuser:bank_analyzer:bank-analyzer-postgres:bank-analyzer-postgres:bank-analyzer"
   "Private Banking PostgreSQL:private-banking-postgres:postgres:private_banking:private-banking_private_banking_postgres:private-banking-postgres:private-banking"
   "Stock Valuation Form PostgreSQL:svf-postgres:postgres:stock_valuation:stock-valuation-form-postgres:svf-postgres:stock-valuation-form"
 )
@@ -86,7 +86,9 @@ SQLITE_TARGETS=(
 
 # label:source_path:backup_dir_name
 BIND_TARGETS=(
-  "bank-analyzer upload:apps/bank-analyzer-django/data:bank-analyzer-upload"
+  # bank-analyzer の data/（Django 版が CSV を置いていた場所）は React 版では使わない。
+  # 取込んだ中身はそのまま DB に入るので、PG_TARGETS と JSON の書き出しで足りる。
+  #
   # 見積書・請求書の Excel テンプレート。.gitignore 対象なので Git には無く、
   # バックアップから外すとディスク上の1コピーしか残らない。
   "ITCM Excel templates:apps/inheritance-case-management/templates:itcm-templates"
@@ -95,7 +97,7 @@ BIND_TARGETS=(
 # label:source_path:backup_file_name
 SETTINGS_TARGETS=(
   "ITCM .env:apps/inheritance-case-management/.env:itcm-.env"
-  "Bank Analyzer .env:apps/bank-analyzer-django/.env:bank-analyzer-.env"
+  "Bank Analyzer .env:apps/bank-analyzer/.env:bank-analyzer-.env"
   # prod は POSTGRES_PASSWORD が必須(`:?`)なので、これが無いと本番が起動できない。
   "Private Banking .env:apps/private-banking/.env:private-banking-.env"
   "Stock Valuation Form .env:apps/stock-valuation-form/.env:stock-valuation-form-.env"
@@ -737,7 +739,10 @@ backup_bank_analyzer_json() {
     return
   fi
 
-  if ! docker exec "$container" sh -c "rm -rf '$temp_dir' && mkdir -p '$temp_dir' && python manage.py export_case_json_backups --output-dir '$temp_dir'" >/dev/null 2>&1; then
+  # 書き出しはアプリの中の CLI（server/scripts/exportJsonBackups.ts）。npm run では
+  # 引数を渡せないので出力先は環境変数で渡す。dev と本番で入口が違う（tsx かビルド済みか）
+  # 切り分けは package.json の backup:json が持っている。
+  if ! docker exec "$container" sh -c "rm -rf '$temp_dir' && mkdir -p '$temp_dir' && OUTPUT_DIR='$temp_dir' npm run --silent backup:json" >/dev/null 2>&1; then
     err "Bank Analyzer JSON export failed"
     (( backup_fail++ )) || true
     return
@@ -1108,7 +1113,7 @@ cmd_restore() {
   if [[ $restore_ok -gt 0 ]]; then
     echo "  [NOTE] Restart apps to apply restored data:"
     echo "    ./manage.sh restart inheritance-case-management"
-    echo "    ./manage.sh restart bank-analyzer-django"
+    echo "    ./manage.sh restart bank-analyzer"
     echo "    ./manage.sh restart private-banking"
     echo ""
   fi

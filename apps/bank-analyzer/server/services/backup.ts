@@ -28,8 +28,13 @@ const SUPPORTED_VERSIONS = ['1.0', '1.1'];
 // 書き出し
 // ---------------------------------------------------------------------------
 
-// 取引が無ければ null（Django 版と同じく書き出さない）
-export async function exportCaseJson(db: PrismaClient, caseId: bigint) {
+// 取引が無ければ null（画面からの書き出しは Django 版と同じく何も出さない）。
+// `allowEmpty` は夜間バックアップ用（Django の管理コマンドは取引0件の案件も1本書き出していた）
+export async function exportCaseJson(
+  db: PrismaClient,
+  caseId: bigint,
+  options: { allowEmpty?: boolean } = {},
+) {
   const c = await db.case.findUnique({ where: { id: caseId } });
   if (!c) return null;
   const [transactions, accounts, totals, settings] = await Promise.all([
@@ -49,7 +54,7 @@ export async function exportCaseJson(db: PrismaClient, caseId: bigint) {
     db.transaction.aggregate({ where: { caseId }, _sum: { amountIn: true, amountOut: true } }),
     readAllSettings(db),
   ]);
-  if (transactions.length === 0) return null;
+  if (transactions.length === 0 && !options.allowEmpty) return null;
 
   return {
     name: c.name,
@@ -240,9 +245,10 @@ export function parseBackup(data: unknown): Parsed<Backup> {
     accounts.push(parsed.value);
   }
 
-  // 取引の無いファイルは弾く。書き出しは取引0件の案件には何も出さない（exportCaseJson が null）ので、
+  // 取引の無いファイルは弾く。画面からの書き出しは取引0件の案件には何も出さないので、
   // ここに来るのは別物のJSON ── Django 版は `?? []` で受け、エラー応答 `{"success":false,…}` まで
   // 「インポート案件として0件を復元」の空案件にしていた
+  // （夜間バックアップは Django 版と同じく取引0件の案件も書き出すが、それを戻す意味は無い）
   const transactions: ImportTx[] = [];
   const rawTransactions = data.transactions;
   if (rawTransactions === undefined) return failed('取引データが含まれていません。書き出したバックアップファイルを選んでください');

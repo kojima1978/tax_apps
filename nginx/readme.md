@@ -101,11 +101,8 @@ nginx/
 | `/depreciation-calc/` | `depreciation-calc:3015` | 減価償却計算 (Vite) |
 | `/asset-valuation/` | `asset-valuation:3017` | 減価償却資産評価 (Vite) |
 | `/stock-valuation-form/` | `stock-valuation-form:3014` | 株式評価明細書 (Vite) |
-| `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Django + PostgreSQL) |
-| `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API |
-| `/bank-analyzer/static/` | `bank-analyzer:3007` | 銀行分析 静的ファイル |
-| `/bank-analyzer-next/` | `bank-analyzer-next:3008` | 銀行分析 React 版（移行中。Vite 一括側） |
-| `/bank-analyzer-next/api/` | `bank-analyzer-next:3008` | 銀行分析 React 版 API（100M・300s は Django 版と同じ） |
+| `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Vite 一括側) |
+| `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API（100M・300s。CSV の取込がここを通る） |
 | `/gift-tax-docs/` | → `/tax-docs/` | 301リダイレクト（旧URL互換） |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
 
@@ -163,7 +160,7 @@ proxy_send_timeout 60s;
 proxy_read_timeout 60s;
 ```
 
-**注意**: `bank-analyzer` は CSV解析・RapidFuzz分類処理のため `proxy_read_timeout 300s` に設定済み
+**注意**: `bank-analyzer` は CSV の解析と分類に時間がかかるため `/api/` だけ `proxy_read_timeout 300s` に設定済み
 
 ### アドレスとルーティングの分離
 

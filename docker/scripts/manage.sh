@@ -99,7 +99,7 @@ NETWORK_NAME="tax-apps-network"
 # ------------------------------------
 APPS=(
   "apps/inheritance-case-management"
-  "apps/bank-analyzer-django"
+  "apps/bank-analyzer"
   "apps/tax-docs"
   "apps/medical-stock-valuation"
   "apps/insurance-app"
@@ -148,11 +148,12 @@ UNMANAGED_APPS=(
   # （載せると status が「落ちている」と言い続けることになる）。
   # テストだけは TEST_TARGETS の run@ 形式で使い捨てコンテナから回る。
   "mcp-server"
-  # 銀行分析の React 版。Django 版（APPS の bank-analyzer-django）からの移行中で、
-  # 両方を並べて動かしている（名前・ポート・パスは bank-analyzer-next / 3008）。
-  # まだ利用者のいない画面なので、自動起動・復旧・バックアップには載せない。
-  # 移行計画の段階7（切替）で APPS へ移し、Django 版を外す。
-  "bank-analyzer"
+  # 銀行分析の Django 版。React 版（APPS の bank-analyzer）へ切り替え済み
+  # （移行計画の段階7、2026-10-10）。compose は同じコンテナ名
+  # （bank-analyzer / bank-analyzer-postgres）と同じ DB ボリュームを持つので、
+  # 2つは同時に起動できない ── 切り戻し用に置いてあるだけで、自動起動・復旧・
+  # バックアップに載せると React 版と取り合いになる。段階8で削除する。
+  "bank-analyzer-django"
 )
 
 is_unmanaged_app() {
@@ -186,7 +187,7 @@ NON_DATA_VOLUMES=(
 POSTGRES_APPS=(
   "private-banking:private-banking-postgres:private_banking:pb:pb_dev_password"
   "stock-valuation-form:svf-postgres:stock_valuation:svf:svf_dev_password"
-  "bank-analyzer-django:bank-analyzer-db:bank_analyzer:ba:dev-password-change-in-production:DB_PASSWORD:bankuser"
+  "bank-analyzer:bank-analyzer-db:bank_analyzer:ba:ba_dev_password:POSTGRES_PASSWORD:bankuser"
 )
 
 # ------------------------------------
@@ -198,9 +199,13 @@ POSTGRES_APPS=(
 # ALTER ROLE も要るため POSTGRES_APPS 側で面倒を見る。
 #
 # 形式: アプリ名:キー名:接頭辞:開発用の既定値
+#
+# いまは該当なしで空。唯一の登録だった Django 版 bank-analyzer の
+# DJANGO_SECRET_KEY が、React 版への切替（段階7）で要らなくなった
+# （React 版が持つのは DB のパスワードだけなので POSTGRES_APPS 側で足りる）。
+# 開発用の既定値のままの本番起動を拒否するアプリを足したら、ここに1行。
 # ------------------------------------
 PROD_SECRETS=(
-  "bank-analyzer-django:DJANGO_SECRET_KEY:ba_secret:dev-secret-key-not-for-production"
 )
 
 # ------------------------------------
@@ -234,7 +239,8 @@ TEST_TARGETS=(
   "private-banking:private-banking-app:npm test"
   "stock-valuation-form:stock-valuation-form:npm test"
   "inheritance-case-management:itcm-frontend:npm test"
-  # 移行中で常駐を前提にしないため、使い捨てコンテナで回す（UNMANAGED_APPS を参照）
+  # 本番モードで動かすので、dev ステージの使い捨てサービスで回す
+  # （本番イメージに vitest は無い）
   "bank-analyzer:run@bank-analyzer-test:npm test"
 )
 

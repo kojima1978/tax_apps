@@ -4,9 +4,8 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  // 並行稼働の間の仮のパス。切り替え（段階7）で '/bank-analyzer/' に戻す。
-  // server/app.ts の BASE_PATH と必ずそろえること。
-  base: '/bank-analyzer-next/',
+  // server/app.ts の BASE_PATH と必ずそろえること（フロントのパスは全部ここから来る）。
+  base: '/bank-analyzer/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -22,7 +21,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3008,
+    port: 3007,
     host: true,
     // Windows の bind mount(Windows→WSL2) はコンテナ内の inotify にイベントを届けないことがあり、
     // Vite が変更に気付かないまま古いモジュールを返し続ける。dev サーバ専用の設定。
@@ -32,9 +31,9 @@ export default defineConfig({
       binaryInterval: 1000,
     },
     proxy: {
-      // 開発時は Vite が 3008、API サーバが 3108（同一コンテナ内）。
-      // 本番は dist ごと API サーバが 3008 で配信するのでプロキシは使わない。
-      '/bank-analyzer-next/api': 'http://127.0.0.1:3108',
+      // 開発時は Vite が 3007、API サーバが 3107（同一コンテナ内）。
+      // 本番は dist ごと API サーバが 3007 で配信するのでプロキシは使わない。
+      '/bank-analyzer/api': 'http://127.0.0.1:3107',
     },
   },
 });

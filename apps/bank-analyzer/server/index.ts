@@ -1,7 +1,7 @@
 // 銀行取引分析 — バックエンド（Hono + Prisma）
 //
-// 開発時は Vite が 3008 で動き、/bank-analyzer-next/api だけがこのサーバ（3108）へ
-// プロキシされる（vite.config.ts）。本番はこのサーバが API と dist の両方を 3008 で配信する。
+// 開発時は Vite が 3007 で動き、/bank-analyzer/api だけがこのサーバ（3107）へ
+// プロキシされる（vite.config.ts）。本番はこのサーバが API と dist の両方を 3007 で配信する。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +10,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { prisma } from './db.js';
 import { BASE_PATH, createApp } from './app.js';
 
-const PORT = Number(process.env.PORT ?? 3008);
+const PORT = Number(process.env.PORT ?? 3007);
 const DIST_RELATIVE = process.env.DIST_DIR ?? './dist';
 const DIST_DIR = path.resolve(DIST_RELATIVE);
 

@@ -15,9 +15,8 @@ import { passbookInventoryRoutes } from './routes/passbookInventory.js';
 import { settingsRouter } from './routes/settings.js';
 import { transactionRoutes } from './routes/transactions.js';
 
-// 並行稼働の間の仮のパス。切り替え（段階7）で '/bank-analyzer' に戻す。
 // vite.config.ts の base と必ずそろえること。
-export const BASE_PATH = '/bank-analyzer-next';
+export const BASE_PATH = '/bank-analyzer';
 
 export function createApp(db: PrismaClient) {
   const app = new Hono();

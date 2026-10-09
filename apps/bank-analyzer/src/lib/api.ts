@@ -1,4 +1,4 @@
-// API の呼び出し口。パスは vite.config.ts の base から来る（'/bank-analyzer-next/'）。
+// API の呼び出し口。パスは vite.config.ts の base から来る（'/bank-analyzer/'）。
 // 応答の形は server/routes/common.ts: 成功 { success: true, ... } / 失敗 { success: false, error, errors? }
 
 export const API_BASE = `${import.meta.env.BASE_URL}api`;

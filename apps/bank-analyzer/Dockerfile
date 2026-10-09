@@ -2,17 +2,14 @@
 
 # =============================================================================
 # 銀行取引分析 — Vite フロントエンド + Hono/Prisma バックエンド
-# （apps/bank-analyzer-django の移行先。構成は stock-valuation-form と同じ）
+# （構成は stock-valuation-form と同じ）
 #
-# dev    : Vite(3008) と API サーバ(3108) を並走させる。API だけ Vite がプロキシする。
-# runner : ビルド済みの dist と API を Node が 3008 でまとめて配信する。
-#
-# ポートとパス（3008 / /bank-analyzer-next/）は Django 版と並べて動かす間の仮のもの。
-# 切り替え（計画書の段階7）で 3007 / /bank-analyzer/ に戻す。
+# dev    : Vite(3007) と API サーバ(3107) を並走させる。API だけ Vite がプロキシする。
+# runner : ビルド済みの dist と API を Node が 3007 でまとめて配信する。
 # =============================================================================
 
 ARG NODE_VERSION=22
-ARG APP_PORT=3008
+ARG APP_PORT=3007
 
 # =============================================================================
 # 依存関係 + Prisma Client 生成
@@ -31,7 +28,7 @@ RUN npx prisma generate
 # =============================================================================
 FROM deps AS dev
 ARG APP_PORT
-ENV NODE_ENV=development TZ=Asia/Tokyo PORT=3108
+ENV NODE_ENV=development TZ=Asia/Tokyo PORT=3107
 # COPY の --chown は層を増やさないので、丸ごと node 所有で持ち込む。
 # test-data/golden（Django 版の正解の記録）もここで入る。テストが毎回読むため
 # .dockerignore では落とさない。

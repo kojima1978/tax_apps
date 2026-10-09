@@ -24,7 +24,7 @@ import { PassbookInventoryPage } from './pages/PassbookInventoryPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
-// vite.config.ts の base（'/bank-analyzer-next/'）から末尾の / を落としたもの
+// vite.config.ts の base（'/bank-analyzer/'）から末尾の / を落としたもの
 const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 export default function App() {

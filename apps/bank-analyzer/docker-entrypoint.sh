@@ -3,7 +3,7 @@ set -e
 
 if [ "${NODE_ENV:-development}" = "production" ]; then
   case "${POSTGRES_PASSWORD:-}" in
-    ""|change-me|ba_next_dev_password)
+    ""|change-me|ba_dev_password)
       echo "ERROR: 本番では強固な POSTGRES_PASSWORD が必要です。" >&2
       exit 1
       ;;
