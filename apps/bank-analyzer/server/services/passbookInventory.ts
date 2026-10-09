@@ -15,6 +15,9 @@
 //   重複した ID が混ざっていれば何も書かない
 // - 相続開始日が無い案件の通帳残高（自動）は、日付の無い取引の残高を最新として拾っていた
 //   （PostgreSQL の降順は NULL が先頭）。日付のある取引を先に見る
+// - 通帳残高が「自動（取引から拾った残高）」なのか「手で入れた値」なのか区別できなかった
+//   （Django 版は欄に自動の値を入れて出すので、消すと数字が消えたように見えた）。手で入れた値を
+//   `manualBalance` として別に返す
 // - 口座リストの CSV は1行目を見出しとして読む（取引の取込と同じ読み方だと、見出しに「銀行名」
 //   「支店名」が無い「金融機関,店舗名,…」のようなファイルを読めない。Django 版の pandas.read_csv と同じ）
 
@@ -49,6 +52,8 @@ export type InventoryRow = {
   accountType: string;
   accountNumber: string;
   years: { year: number; has: boolean }[];
+  // 手で入れた値（入れていなければ null）。画面はこれで「自動」かどうかを見分ける
+  manualBalance: number | null;
   // 手で入れた値が無ければ自動（相続開始日以前で最後の残高）
   passbookBalance: number | null;
   autoBalance: number | null;
@@ -131,6 +136,7 @@ export async function getInventory(db: PrismaClient, caseId: bigint): Promise<In
         const s = saved[String(year)];
         return { year, has: s === undefined || s === null ? Boolean(txYears?.has(year)) : Boolean(s) };
       }),
+      manualBalance: a.passbookBalance,
       passbookBalance,
       autoBalance,
       certificateBalance: a.certificateBalance,
@@ -346,7 +352,12 @@ export async function updateField(db: PrismaClient, caseId: bigint, accountId: b
   ]);
   const autoBalance = (await autoBalances(db, caseId, c.referenceDate, accountId)).get(accountId) ?? null;
   const passbookBalance = saved.passbookBalance ?? autoBalance;
-  return { passbookBalance, autoBalance, balanceMatch: balanceMatch(passbookBalance, saved.certificateBalance) };
+  return {
+    manualBalance: saved.passbookBalance,
+    passbookBalance,
+    autoBalance,
+    balanceMatch: balanceMatch(passbookBalance, saved.certificateBalance),
+  };
 }
 
 // 並び順を書く。案件に無い口座・重複した ID があれば何も書かず false

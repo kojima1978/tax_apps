@@ -84,9 +84,12 @@ describe('欄の書き込み', () => {
       balanceMatch: '○', passbookBalance: 800,
     });
     expect((await call(path, { method: 'PATCH', body: { field: 'passbookBalance', value: '1,000' } })).json).toMatchObject({
-      balanceMatch: '×', passbookBalance: 1000, autoBalance: 800,
+      balanceMatch: '×', passbookBalance: 1000, autoBalance: 800, manualBalance: 1000,
     });
-    expect((await call(path, { method: 'PATCH', body: { field: 'passbookBalance', value: '' } })).json.passbookBalance).toBe(800);
+    // 空にすると手で入れた値が消え（画面は欄を空にして「自動」と出す）、残高は自動へ戻る
+    expect((await call(path, { method: 'PATCH', body: { field: 'passbookBalance', value: '' } })).json).toMatchObject({
+      passbookBalance: 800, manualBalance: null,
+    });
   });
 
   it('年の通帳有無は1キーずつ書き、取引のある年でも「無」にできる', async () => {

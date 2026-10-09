@@ -19,6 +19,7 @@ import { ClassifyPreviewPage } from './pages/ClassifyPreviewPage';
 import { DirectInputPage } from './pages/DirectInputPage';
 import { ImportWizardPage } from './pages/ImportWizardPage';
 import { JsonImportPage } from './pages/JsonImportPage';
+import { PassbookInventoryPage } from './pages/PassbookInventoryPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage, PendingPage } from './pages/PendingPage';
 
@@ -38,7 +39,7 @@ export default function App() {
             <Route path="cases/:caseId/import" element={<ImportWizardPage />} />
             <Route path="cases/:caseId/direct" element={<DirectInputPage />} />
             <Route path="cases/:caseId/classify" element={<ClassifyPreviewPage />} />
-            <Route path="cases/:caseId/passbooks" element={<PendingPage title="通帳有無一覧" />} />
+            <Route path="cases/:caseId/passbooks" element={<PassbookInventoryPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
           <Route path="letter" element={<PendingPage title="お客様配布用文書" />} />
