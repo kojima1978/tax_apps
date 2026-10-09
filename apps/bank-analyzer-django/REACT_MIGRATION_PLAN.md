@@ -462,7 +462,8 @@ docker compose exec -T bank-analyzer-next-db psql -U bankuser -d postgres -c 'DR
 - **お客様配布用文書**（`/letter`）: 題が「預金取引確認のご案内」に変わる固定の文面
 
 原本の複製（`bank_analyzer_real`）は段階6を回し直すために dev の PostgreSQL に残してある。
-**実データなので、段階7で切り替えたら落とすこと**（`DROP DATABASE … WITH (FORCE)`）。
+**実データなので、段階7で切り替えたら落とすこと** ── 2026-10-10 に
+ボリューム `bank-analyzer-next-postgres` ごと削除した。
 
 気づいたが**Django と同じなのでそのままにしたもの**:
 
@@ -471,6 +472,62 @@ docker compose exec -T bank-analyzer-next-db psql -U bankuser -d postgres -c 'DR
   縮小も `@page` も無い（`@page` があるのはお客様配布用文書だけ）。質問候補は 260mm で A4横に収まる
 - 取込ウィザードで重複の行を削除しても「8 行連続で一致しています」の警告は残る（上の数字の
   カードは減る）。Django も `fileData.warning` を作り直さないので同じ
+
+## 段階7の結果（2026-10-10）
+
+Django 版の名前・ポート・DB ボリュームをそのまま引き継いだ。**データは1バイトも移していない**
+（同じボリューム `bank-analyzer-postgres` を名前で指しているだけなので、切り戻しは Django 版を
+上げ直すだけで済む）。
+
+### 直したもの（`dd5feafe`）
+
+- 新アプリの識別子: compose プロジェクト / サービス / コンテナ名 `bank-analyzer`、3007（dev の API は
+  3107）、`/bank-analyzer/`、DB は `bank-analyzer-db` / `bank-analyzer-postgres`、dev の既定パスワードは
+  `ba_dev_password`
+- `manage.sh`: `APPS` を `apps/bank-analyzer` へ。Django 版は切り戻し用に `UNMANAGED_APPS` へ退避
+  （＝自動起動・復旧・バックアップには載らない）。`POSTGRES_APPS` に `.env` のキー名
+  `POSTGRES_PASSWORD` と DB ユーザー `bankuser` を書く。`PROD_SECRETS` は空になった
+  （`DJANGO_SECRET_KEY` が最後の1件だった）
+- `backup.sh`: `PG_TARGETS` のコンテナ名、Django の `data/`（`BIND_TARGETS`）の削除、
+  `SETTINGS_TARGETS` の `.env`、`backup_bank_analyzer_json` が呼ぶ先を `npm run backup:json`
+  （`server/scripts/exportJsonBackups.ts`）へ
+- JSON の書き出しは Django の管理コマンドと同じ形に揃えた ── 4桁ゼロ埋め + 案件名 + `_backup.json`、
+  `indent=2` で末尾の改行なし、**取引0件の案件も1本出す**（`exportCaseJson` の `allowEmpty`）。
+  Django の `sanitize_filename` は全アプリ共通のファイル名規則とは別物なので、こちらに書き写した
+- ゲートウェイ: 並走用の upstream（`bank-analyzer-next`）と Django 向けの3つの location を削除し、
+  `/bank-analyzer/api/` を新アプリへ。パスは `vite.config.ts` と `server/app.ts` が持つので
+  `rewrite` も `/static/` も要らない
+
+### 切り替えの手順（実際にこの順で行った）
+
+1. Django 版を停止（`docker compose down`。**`-v` は付けない**。ボリュームが消える）
+2. 新アプリの DB だけ先に上げる
+3. 使い捨てコンテナから `migrate resolve --applied 20261007000000_django_baseline`
+   ── entrypoint の `migrate deploy` より先に済ませないと、1本目が Django の表を作りにかかって
+   失敗し restart ループになる。この時点のロールのパスワードはまだ Django 時代のもの
+4. `manage.sh start --prod bank-analyzer` ── シークレットの生成と `ALTER ROLE` はここで走る
+5. `nginx -s reload`
+
+③と④の間に自動復旧（4時間毎）が挟まると、モードの記録が無いアプリを dev として上げてしまうので
+①〜④は続けて行う。直前に `pg_dump -Fc` をリポジトリ外（`~/.tax-apps/bank-analyzer-pre-cutover/`）へ
+取ってある（実データなのでリポジトリには置かない）。
+
+### 確認したこと
+
+- マイグレーション3本すべて `ok`。増えた表は `_prisma_migrations` と `analyzer_appsetting` の2つだけ
+- 件数は切替前と同一: 案件6 / 口座28 / 取引4184 / 分類変更履歴1122 / 削除済み通帳0
+- ゲートウェイ経由で `/bank-analyzer/api/health` 200、画面 200（`<title>銀行取引分析</title>`、
+  資産は `/bank-analyzer/assets/…`）、`/bank-analyzer` → 301 → `/bank-analyzer/`、
+  `/bank-analyzer/api/cases` 200 で6案件・取引件数の内訳も一致
+- `manage.sh status` / `preflight` ともエラーなし。モードの記録は `prod`
+- `backup.sh` を通しで1回: 11項目すべて OK（PostgreSQL 4件・SQLite 3件・テンプレート・`.env` 4件・
+  **JSON 6件**）、失敗0。JSON はファイル名・`version`（`1.1`）・末尾改行なしまで Django 版と同じ形
+
+### 片付けたもの
+
+- 並走用のボリューム `bank-analyzer-next-postgres`（実データの複製 `bank_analyzer_real` が入っていた）
+- 並走用のイメージ `bank-analyzer-bank-analyzer-next:latest`
+- Django 版のイメージとディレクトリは切り戻し用に残置（段階8 で削除）
 
 ## 9. 着手の順番
 
