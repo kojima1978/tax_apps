@@ -15,6 +15,7 @@ import { Layout } from './components/Layout';
 import { NoticeProvider } from './components/Notice';
 import { AnalysisPage } from './pages/analysis/AnalysisPage';
 import { CaseListPage } from './pages/CaseListPage';
+import { ClassifyPreviewPage } from './pages/ClassifyPreviewPage';
 import { DirectInputPage } from './pages/DirectInputPage';
 import { ImportWizardPage } from './pages/ImportWizardPage';
 import { JsonImportPage } from './pages/JsonImportPage';
@@ -35,7 +36,7 @@ export default function App() {
             <Route path="cases/:caseId" element={<AnalysisPage />} />
             <Route path="cases/:caseId/import" element={<ImportWizardPage />} />
             <Route path="cases/:caseId/direct" element={<DirectInputPage />} />
-            <Route path="cases/:caseId/classify" element={<PendingPage title="自動分類のプレビュー" />} />
+            <Route path="cases/:caseId/classify" element={<ClassifyPreviewPage />} />
             <Route path="cases/:caseId/passbooks" element={<PendingPage title="通帳有無一覧" />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

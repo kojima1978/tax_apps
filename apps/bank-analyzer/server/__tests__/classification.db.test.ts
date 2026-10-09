@@ -61,19 +61,38 @@ describe('ルール適用', () => {
 
     // 画面で選んだ後、適用する前に手で分類された
     await db().transaction.update({ where: { id: ids[0] }, data: { category: '給与' } });
-    const res = await call('POST', `/${caseId}/classify/apply-selected`, { ids: ids.map(String) });
-    expect(res.json).toMatchObject({ count: 1, message: '1件の取引を分類しました。' });
+    const items = ids.map((id) => ({ id: String(id), category: '生活費' }));
+    const res = await call('POST', `/${caseId}/classify/apply-selected`, { items });
+    expect(res.json).toMatchObject({ count: 1, skipped: 2, message: '1件の取引を分類しました。（2件は一覧を開いた後に分類かキーワードが変わったため見送りました）' });
     expect(await categoriesOf(db(), ids)).toEqual(['給与', '生活費', '未分類']);
 
-    expect((await call('POST', `/${caseId}/classify/apply-selected`, { ids: [] })).json.error).toBe('適用する取引が選択されていません。');
-    expect((await call('POST', `/${caseId}/classify/apply-selected`, { ids: ['x'] })).status).toBe(400);
+    expect((await call('POST', `/${caseId}/classify/apply-selected`, { items: [] })).json.error).toBe('適用する取引が選択されていません。');
+    expect((await call('POST', `/${caseId}/classify/apply-selected`, { items: [{ id: 'x', category: '生活費' }] })).status).toBe(400);
+    expect((await call('POST', `/${caseId}/classify/apply-selected`, { items: [{ id: '1' }] })).status).toBe(400);
+    expect((await call('POST', `/${caseId}/classify/apply-selected`, { ids: ['1'] })).status).toBe(400);
+  });
+
+  it('一覧を開いた後にキーワードが変わり、提案と違う分類になる取引は見送る', async () => {
+    const { caseId, ids } = await seedCase(db(), '架空 太郎', [{ description: 'ZZQ架空商会 振込' }, { description: 'ZZQ別件' }]);
+    await addCaseKeyword(caseId, '生活費', 'ZZQ架空商会');
+    await addCaseKeyword(caseId, '給与', 'ZZQ別件');
+    const preview = await call('GET', `/${caseId}/classify/preview`);
+    const items = preview.json.items.map((i: Json) => ({ id: String(i.txId), category: i.proposedCategory }));
+
+    // 画面を開いたまま、案件のキーワードを入れ替えた（「ZZQ架空商会」は贈与になった）
+    expect((await call('POST', `/${caseId}/patterns/delete`, { category: '生活費', keyword: 'ZZQ架空商会', scope: 'case' })).status).toBe(200);
+    await addCaseKeyword(caseId, '贈与', 'ZZQ架空商会');
+
+    const res = await call('POST', `/${caseId}/classify/apply-selected`, { items });
+    expect(res.json).toMatchObject({ count: 1, skipped: 1 });
+    expect(await categoriesOf(db(), ids)).toEqual(['未分類', '給与']);
   });
 
   it('ほかの案件の取引 ID を選んでも触らない', async () => {
     const mine = await seedCase(db(), '架空 太郎', [{ description: 'ZZQ架空商会' }]);
     const other = await seedCase(db(), '架空 次郎', [{ description: 'ZZQ架空商会' }]);
     await addCaseKeyword(mine.caseId, '生活費', 'ZZQ架空商会');
-    const result = await applySelectedClassifications(db(), mine.caseId, [...mine.ids, ...other.ids]);
+    const result = await applySelectedClassifications(db(), mine.caseId, [...mine.ids, ...other.ids].map((id) => ({ id, category: '生活費' })));
     expect(result.count).toBe(1);
     expect(await categoriesOf(db(), other.ids)).toEqual(['未分類']);
   });

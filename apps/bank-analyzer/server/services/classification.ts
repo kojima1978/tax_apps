@@ -119,17 +119,26 @@ export async function classificationPreview(db: PrismaClient, caseId: bigint): P
   return items;
 }
 
-// プレビューで選んだ取引にだけ当てる（その時点でまだ未分類のものだけ）
-export async function applySelectedClassifications(db: PrismaClient, caseId: bigint, ids: bigint[]): Promise<ApplyResult> {
-  if (ids.length === 0) return NO_RESULT;
+// プレビューで選んだ取引にだけ当てる（その時点でまだ未分類で、画面に出した分類のままのものだけ）。
+// Django は ID だけを受け取って当てる瞬間に照合し直していたので、一覧を開いた後にキーワードが
+// 足されたり並びが変わったりすると、画面で確かめたのとは別の分類が黙って入った。
+export type SelectedClassification = { id: bigint; category: string };
+
+export async function applySelectedClassifications(
+  db: PrismaClient,
+  caseId: bigint,
+  selected: SelectedClassification[],
+): Promise<ApplyResult> {
+  if (selected.length === 0) return NO_RESULT;
+  const expected = new Map(selected.map((s) => [String(s.id), s.category]));
   const settings = await getClassifierSettings(db, caseId);
   return db.$transaction(async (tx) => {
     await lockCase(tx, caseId);
-    const targets = await loadTargets(tx, caseId, ids);
+    const targets = await loadTargets(tx, caseId, selected.map((s) => s.id));
     const updates: ClassificationUpdate[] = [];
     for (const t of targets) {
       const hit = t.description ? matchWithPriority(t.description, settings.casePatterns, settings.globalPatterns) : null;
-      if (hit) updates.push({ id: t.id, category: hit.category });
+      if (hit && hit.category === expected.get(String(t.id))) updates.push({ id: t.id, category: hit.category });
     }
     return writeUpdates(tx, caseId, updates, 'classification_preview');
   });

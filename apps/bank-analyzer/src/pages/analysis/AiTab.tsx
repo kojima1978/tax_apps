@@ -227,11 +227,11 @@ export function AiTab({ dash, reload }: Props) {
                   未分類 <strong className="tabular-nums">{num(dash.targetCount)}</strong>件（付箋付きを除く）の摘要を、登録済みのキーワードと突き合わせた候補です。
                 </p>
                 <p className="text-xs text-slate-600">
-                  キーワードと完全に一致する取引の分類は
+                  摘要にキーワードをそのまま含む取引は
                   <Link to={`/cases/${caseId}/classify`} className="mx-1 text-blue-700 underline">
                     自動分類のプレビュー
                   </Link>
-                  から行えます。
+                  で、当たる分類を確かめてからまとめて当てられます。
                 </p>
               </div>
             </div>

@@ -4,7 +4,7 @@
 
 import type { PrismaClient } from '@prisma/client';
 import { parseId } from '../json.js';
-import { isRecord, optionalText, parseIdList } from '../input.js';
+import { isRecord, optionalText } from '../input.js';
 import {
   applyClassificationRules,
   applySelectedClassifications,
@@ -14,6 +14,7 @@ import {
   classifyAndRegisterPattern,
   patternImpact,
   runClassifier,
+  type SelectedClassification,
 } from '../services/classification.js';
 import {
   addPattern,
@@ -41,6 +42,22 @@ function parseMinScore(v: unknown): number | null {
   return n <= 100 ? n : null;
 }
 
+// 選んだ取引と、画面に出した分類の組。ID が重なっていたら弾く
+function parseSelected(v: unknown): SelectedClassification[] | null {
+  if (!Array.isArray(v)) return null;
+  const out: SelectedClassification[] = [];
+  const seen = new Set<string>();
+  for (const item of v) {
+    if (!isRecord(item)) return null;
+    const id = parseId(typeof item.id === 'string' ? item.id.trim() : item.id);
+    const category = optionalText(item.category);
+    if (id === null || !category || seen.has(String(id))) return null;
+    seen.add(String(id));
+    out.push({ id, category });
+  }
+  return out;
+}
+
 export function classificationRoutes(r: CaseRouter, db: PrismaClient) {
   // --- 自動分類 ---
 
@@ -65,13 +82,15 @@ export function classificationRoutes(r: CaseRouter, db: PrismaClient) {
 
   r.get('/:caseId/classify/preview', async (c) => ok(c, { items: await classificationPreview(db, c.get('caseId')) }));
 
+  // items: [{ id, category }]。category は画面に出した提案（当てる瞬間の照合と食い違えば見送る）
   r.post('/:caseId/classify/apply-selected', async (c) => {
-    const raw = (await readBody(c)).ids;
-    const ids = parseIdList(raw);
-    if (!ids) return fail(c, '取引IDが正しくありません');
-    if (ids.length === 0) return fail(c, '適用する取引が選択されていません。');
-    const { count, changeGroup } = await applySelectedClassifications(db, c.get('caseId'), ids);
-    return ok(c, { count, changeGroup, message: `${count}件の取引を分類しました。` });
+    const selected = parseSelected((await readBody(c)).items);
+    if (!selected) return fail(c, '取引IDが正しくありません');
+    if (selected.length === 0) return fail(c, '適用する取引が選択されていません。');
+    const { count, changeGroup } = await applySelectedClassifications(db, c.get('caseId'), selected);
+    const skipped = selected.length - count;
+    const note = skipped > 0 ? `（${skipped}件は一覧を開いた後に分類かキーワードが変わったため見送りました）` : '';
+    return ok(c, { count, skipped, changeGroup, message: `${count}件の取引を分類しました。${note}` });
   });
 
   r.post('/:caseId/classify/suggestion', async (c) => {
