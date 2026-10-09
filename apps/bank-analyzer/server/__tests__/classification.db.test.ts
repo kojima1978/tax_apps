@@ -210,4 +210,13 @@ describe('キーワード', () => {
     expect(await classifyAndRegisterPattern(db(), mine.caseId, 'case', '給与', '  ')).toBeNull();
     expect(await categoriesOf(db(), mine.ids)).toEqual(['生活費', '未分類']);
   });
+
+  it('登録＋分類・影響件数は分類と同じ規則で照合し、当てた取引の ID を返す（§3 #8）', async () => {
+    const mine = await seedCase(db(), '架空 太郎', [{ description: 'ＺＺＱ　ｶｸｳ' }, { description: 'zzq かくう' }, { description: '別の摘要' }]);
+    const impact = await call('GET', `/${mine.caseId}/patterns/impact?keyword=${encodeURIComponent('ZZQ カクウ')}`);
+    expect(impact.json).toMatchObject({ currentCaseCount: 2 });
+    const res = await call('POST', `/${mine.caseId}/patterns/classify-and-register`, { category: '生活費', keyword: 'ZZQ カクウ', scope: 'case' });
+    expect(res.json).toMatchObject({ count: 2, txIds: mine.ids.slice(0, 2).map(Number) });
+    expect(await categoriesOf(db(), mine.ids)).toEqual(['生活費', '生活費', '未分類']);
+  });
 });

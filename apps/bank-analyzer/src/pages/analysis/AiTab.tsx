@@ -160,12 +160,8 @@ export function AiTab({ dash, reload }: Props) {
   };
 
   const onPatternApplied = (res: PatternApplied) => {
-    // サーバーはこの案件の未分類でキーワードを含むものを全部当てるので、画面でも同じものを隠す
-    const kw = res.keyword.toLowerCase();
-    hide(
-      setApplied,
-      dash.aiSuggestions.filter((s) => s.description.toLowerCase().includes(kw)).map((s) => s.txId),
-    );
+    // サーバーが当てた取引をそのまま隠す（照合の規則はサーバーにだけ置く）
+    hide(setApplied, res.txIds);
     scheduleReload();
   };
 

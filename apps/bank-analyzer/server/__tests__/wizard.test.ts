@@ -204,6 +204,9 @@ const TX_DEVIATIONS: Record<string, Record<number, Json>> = {
     // 相手だった e04_decimal_amount.csv の「利息 100円」の入金を React 版は取り込まない（#4）
     24: { is_transfer: false, transfer_to: null },
   },
+  // 全角の「ａｕ」・半角カナの「ｾﾌﾞﾝｲﾚﾌﾞﾝ」が「au」「セブン」のキーワードに当たる（#8）
+  transfer: { 16: { category: '生活費' } },
+  overlap_import_all: { 14: { category: '生活費' }, 16: { category: '生活費' } },
 };
 
 type TxRecord = DedupFields & {

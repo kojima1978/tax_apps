@@ -452,7 +452,7 @@ export function TxAddDialog({
 // apply: 登録と同時に、この案件の未分類でキーワードを含むものをまとめて分類する（分類候補タブ）
 export type PatternScope = 'global' | 'case';
 export type PatternTarget = { description: string; category: string; apply?: boolean; scope?: PatternScope; note?: string };
-export type PatternApplied = { count: number; keyword: string; changeGroup: string | null; message: string };
+export type PatternApplied = { count: number; txIds: number[]; keyword: string; changeGroup: string | null; message: string };
 type Impact = { currentCaseCount: number; otherCasesCount: number; totalCount: number };
 
 const IMPACT_DELAY_MS = 300;
@@ -526,7 +526,7 @@ export function PatternAddDialog({
     try {
       const body = { category: target.category, keyword: kw, scope };
       if (apply) {
-        const res = await api.post<{ count: number; changeGroup: string | null; message: string }>(`/cases/${caseId}/patterns/classify-and-register`, body);
+        const res = await api.post<Omit<PatternApplied, 'keyword'>>(`/cases/${caseId}/patterns/classify-and-register`, body);
         notice.success(res.message);
         onApplied?.({ ...res, keyword: kw });
       } else {

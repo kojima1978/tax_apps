@@ -6,7 +6,12 @@
 //   3. あいまい一致（案件固有 → 共通）
 //   4. 「その他」のキーワード
 // 「ルール適用」ボタン（matchWithPriority）は 1 だけを、書いた順に、贈与の閾値も見ずに当てる。
-// 2つの経路で結果が違うのは Django 版のとおり（計画書 §3 #8 で「そのまま」と決めた）。
+// 2つの経路で結果が違うのは Django 版のとおり。
+//
+// 照合はどの経路も、摘要とキーワードの両方を normalizeText（絞り込み検索の description_search 列と
+// 同じ規則: NFKC・小文字・カタカナ→ひらがな）でそろえてから行う（計画書 §3 #8。切替後に直した）。
+// Django 版は生の文字列で比べていて、全角の「ＮＨＫ」が「NHK」のキーワードに、半角カナの摘要が
+// 全角カナのキーワードに当たらなかった。保存してあるキーワードそのものは書き換えない。
 
 import {
   GIFT_CATEGORY,
@@ -17,6 +22,7 @@ import {
   type Patterns,
 } from './categories.js';
 import { extractOne, partialRatio, tokenSetRatio } from './fuzz.js';
+import { normalizeText } from './text.js';
 
 export type ClassifierSettings = {
   globalPatterns: Patterns;
@@ -43,14 +49,23 @@ function categoriesByKeywordCount(patterns: Map<string, string[]>): string[] {
     .map(([cat]) => cat);
 }
 
+// 照合用のパターン（キーワードを normalizeText でそろえる）。そろえて重なったものも数え直さない ──
+// カテゴリーを見る順はキーワードの数で決まるので、登録したままの数を保つ。
+function matchablePatterns(patterns: Patterns | null | undefined): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const [category, keywords] of normalizePatterns(patterns)) out.set(category, keywords.map(normalizeText));
+  return out;
+}
+
 const mergedKeywords = (category: string, ...patterns: Map<string, string[]>[]): string[] =>
   patterns.flatMap((p) => p.get(category) ?? []);
 
 const scorerOf = (fuzzy: FuzzyConfig) => (fuzzy.useTokenSetRatio ? tokenSetRatio : partialRatio);
 
-function substringMatch(patterns: Map<string, string[]>, textLower: string): string | null {
+// text とキーワードはどちらも normalizeText 済み
+function substringMatch(patterns: Map<string, string[]>, text: string): string | null {
   for (const category of categoriesByKeywordCount(patterns)) {
-    if (patterns.get(category)!.some((kw) => textLower.includes(kw.toLowerCase()))) return category;
+    if (patterns.get(category)!.some((kw) => text.includes(kw))) return category;
   }
   return null;
 }
@@ -92,12 +107,12 @@ function fuzzyMatch(
 
 export function classifyByRules(text: string, amountOut: number, settings: ClassifierSettings): Classification {
   if (!text) return { category: UNCATEGORIZED, score: 0 };
-  const casePatterns = normalizePatterns(settings.casePatterns);
-  const globalPatterns = normalizePatterns(settings.globalPatterns);
-  const textLower = text.toLowerCase();
-  const contains = (kw: string) => textLower.includes(kw.toLowerCase());
+  const casePatterns = matchablePatterns(settings.casePatterns);
+  const globalPatterns = matchablePatterns(settings.globalPatterns);
+  const key = normalizeText(text);
+  const contains = (kw: string) => key.includes(kw);
 
-  const bySubstring = substringMatch(casePatterns, textLower) ?? substringMatch(globalPatterns, textLower);
+  const bySubstring = substringMatch(casePatterns, key) ?? substringMatch(globalPatterns, key);
   if (bySubstring) return { category: bySubstring, score: 100 };
 
   // 閾値未満の振込はここでは決めず、あいまい一致へ進む
@@ -106,7 +121,7 @@ export function classifyByRules(text: string, amountOut: number, settings: Class
   }
 
   if (settings.fuzzy.enabled) {
-    const hit = fuzzyMatch(text, casePatterns, globalPatterns, settings.fuzzy);
+    const hit = fuzzyMatch(key, casePatterns, globalPatterns, settings.fuzzy);
     if (hit) return hit;
   }
 
@@ -130,6 +145,7 @@ export function fuzzySuggestions(
   cutoff = suggestionCutoff(settings.fuzzy),
 ): Classification[] {
   if (!text || !settings.fuzzy.enabled) return [];
+  const key = normalizeText(text);
   const threshold = cutoff;
   const scorer = scorerOf(settings.fuzzy);
   const scores = new Map<string, { score: number; priority: number }>();
@@ -137,14 +153,14 @@ export function fuzzySuggestions(
   const evaluate = (patterns: Map<string, string[]>, priority: number) => {
     for (const [category, keywords] of patterns) {
       if (category === OTHER_CATEGORY || category === UNCATEGORIZED || keywords.length === 0) continue;
-      const hit = extractOne(text, keywords, scorer, threshold);
+      const hit = extractOne(key, keywords, scorer, threshold);
       if (!hit) continue;
       const prev = scores.get(category);
       if (!prev || hit.score > prev.score) scores.set(category, { score: hit.score, priority });
     }
   };
-  evaluate(normalizePatterns(settings.casePatterns), 1);
-  evaluate(normalizePatterns(settings.globalPatterns), 0);
+  evaluate(matchablePatterns(settings.casePatterns), 1);
+  evaluate(matchablePatterns(settings.globalPatterns), 0);
 
   return [...scores]
     .sort(([, a], [, b]) => b.score - a.score || b.priority - a.priority)
@@ -178,14 +194,15 @@ export type MatchType = 'exact' | 'partial' | 'case';
 export type PatternMatch = { category: string; keyword: string; matchType: MatchType };
 
 // 書いた順に見て最初に当たったキーワード（摘要と同じなら exact、含まれれば partial）。
+// 比べるのは normalizeText でそろえた形、返すのは登録してあるままのキーワード。
 export function matchPattern(description: string, patterns: Patterns): PatternMatch | null {
   if (!description) return null;
-  const lower = description.toLowerCase();
+  const key = normalizeText(description);
   for (const [category, keywords] of Object.entries(patterns)) {
     for (const keyword of keywords) {
-      const kw = keyword.toLowerCase();
-      if (kw === lower) return { category, keyword, matchType: 'exact' };
-      if (lower.includes(kw)) return { category, keyword, matchType: 'partial' };
+      const kw = normalizeText(keyword);
+      if (kw === key) return { category, keyword, matchType: 'exact' };
+      if (key.includes(kw)) return { category, keyword, matchType: 'partial' };
     }
   }
   return null;

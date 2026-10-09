@@ -15,7 +15,7 @@ React 版はこれと突き合わせて作る（`apps/bank-analyzer-django/REACT
 | `inputs/scenarios.json` | 案件を作って取込ウィザードに流す手順 |
 | `inputs/fuzzy_texts.txt` | 表記ゆれ照合・分類にかける摘要の一覧 |
 | `expected/importer/` | ファイルごとの `load_csv` と残高チェックの結果 |
-| `expected/fuzzy.json` / `classify.json` | rapidfuzz の点数・分類結果（正規化しない生の文字列で照合している点に注意） |
+| `expected/fuzzy.json` / `classify.json` | rapidfuzz の点数・分類結果（正規化しない生の文字列で照合している点に注意。React 版は切替後に正規化するようにした ── 計画書 §3 #8） |
 | `expected/scenarios/<名前>/` | 各シナリオの取込の応答（`steps.json`）、取引、月次表、分析画面、出力（CSV / Excel のセル / JSON）ほか |
 
 ID は出現順の連番（`?1`, `?2` …）に置き換え、作成日時や出力ファイル名の日付は落としてある。
@@ -87,6 +87,8 @@ docker rm -f ba-golden-pg
 - **分類は文字の正規化をしない**: キーワード一致も rapidfuzz も生の文字列で照合する
   （半角カナの摘要は全角のキーワードに当たらない）。NFKC はキーワード絞り込み用の
   検索列にだけ掛かっている
+  （React 版は切替後に、分類も摘要・キーワードの両方を検索列と同じ規則でそろえるようにした ──
+  計画書 §3 #8。違ってよい行はテストの `N8_RESULTS` / `N8_ADDED` / `TX_DEVIATIONS`）
 - **同じ口座番号は銀行が違っても1口座にまとまる**（`e20_multi_bank.csv`）。口座は
   案件内で口座番号だけで識別している
 - `e15`: 全角数字の金額 `１２３` はファイルごと失敗。`e16`: 列名 `年月日` / `払戻` /

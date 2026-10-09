@@ -177,6 +177,23 @@ function analysisShape(data: ReturnType<typeof analysisData<Row>>): Json {
   return shaped;
 }
 
+// 分析画面の候補（AI 分類の一覧とそのまとめ）から #8 で増えた分を取り除く。
+// 絞り込みで外れた取引は候補にも出ないので、増えた分は N8_ADDED の一部でよい
+function withoutN8(name: string, shape: Json): Json {
+  const added = N8_ADDED[name] ?? {};
+  type Suggestion = { tx_id: number; suggested_category: string };
+  type Group = { tx_ids: number[]; suggested_category: string };
+  const s = splitN8(name, shape.ai_suggestions as Suggestion[], (x) => [x.tx_id], (x) => x.suggested_category);
+  for (const [id, category] of Object.entries(s.removed)) expect(category).toBe(added[Number(id)]);
+  const out: Json = { ...shape, ai_suggestions: s.rest, suggestions_count: (shape.suggestions_count as number) - Object.keys(s.removed).length };
+  if (shape.ai_groups) {
+    const g = splitN8(name, shape.ai_groups as Group[], (x) => x.tx_ids, (x) => x.suggested_category);
+    expect(g.removed).toEqual(s.removed);
+    out.ai_groups = g.rest;
+  }
+  return out;
+}
+
 // 資金移動の一覧の同じ日どうしの並びは問わない。Django 版は pandas の sort_values("date")
 // （安定でない quicksort）で並べていたので、同じ日の順は決まった規則を持たない
 // （実データの1案件で入れ替わっていた）。React 版は (日付, id) の順。
@@ -187,6 +204,29 @@ const sameDayUnordered = (shape: Json): Json =>
   shape.transfer_pairs
     ? { ...shape, transfer_pairs: (shape.transfer_pairs as PairJson[]).map(({ source }) => ({ source })).sort(byPairDateId) }
     : shape;
+
+// 計画書 §3 #8（切替後に直した）: 分類の照合は摘要とキーワードの両方を normalizeText でそろえる。
+// Django 版では全角の「ａｕ　料金」・半角カナの「ｾﾌﾞﾝｲﾚﾌﾞﾝ」がキーワードに当たらず、記録の正解にも
+// 候補として出てこない。ここに書いた取引だけは React 版で候補に増えてよい ── 増えた分を取り除いた
+// 残りが Django 版と一致し、増えた分がここに書いたとおりであることを確かめる。
+// （transactions.json は取込を Django 版で済ませた後の形なので、分類そのものは未分類のまま）
+const N8_ADDED: Record<string, Record<number, string>> = {
+  transfer: { 16: '生活費' },
+  overlap_import_all: { 14: '生活費', 16: '生活費' },
+};
+
+// 増えた候補を取り除き、取り除いたもの（取引の id → カテゴリー）を返す
+function splitN8<T>(name: string, items: T[], idOf: (t: T) => number[], categoryOf: (t: T) => string) {
+  const added = N8_ADDED[name] ?? {};
+  const rest: T[] = [];
+  const removed: Record<number, string> = {};
+  for (const item of items) {
+    const ids = idOf(item).filter((id) => id in added);
+    if (ids.length === 0) rest.push(item);
+    else for (const id of ids) removed[id] = categoryOf(item);
+  }
+  return { rest, removed };
+}
 
 // ---------------------------------------------------------------------------
 
@@ -217,7 +257,9 @@ describe.each(SCENARIOS)('%s', (name) => {
       match_type: p.matchType,
       score: p.score,
     }));
-    expect(actual).toEqual(read(name, 'classification_preview.json'));
+    const { rest, removed } = splitN8(name, actual, (p) => [p.tx_id], (p) => p.proposed_category);
+    expect(rest).toEqual(read(name, 'classification_preview.json'));
+    expect(removed).toEqual(N8_ADDED[name] ?? {});
   });
 
   const expectedAnalysis = read(name, 'analysis.json') as Record<string, Json>;
@@ -226,7 +268,7 @@ describe.each(SCENARIOS)('%s', (name) => {
       { transactions: rows, accounts, classifier, analysis: DEFAULT_ANALYSIS_SETTINGS },
       FILTER_VARIANTS[variant],
     );
-    const actual = analysisShape(data);
+    const actual = withoutN8(name, analysisShape(data));
     // 記録の絞り込みはどれも日付順（sort_amount_desc も読めずに日付順になる）
     expect(actual.transfer_pairs ?? []).toEqual(sameDayUnordered(actual).transfer_pairs ?? []);
     expect(sameDayUnordered(actual)).toEqual(sameDayUnordered(expectedAnalysis[variant]!));
@@ -266,6 +308,13 @@ describe.each(SCENARIOS)('%s', (name) => {
       max_group_count: maxGroupCount,
       group_suggestions: groupSuggestions(groups, classifier),
     };
+    // #8 で増えた候補（摘要ごと）を取り除いて比べる
+    const n8Descriptions = new Set(
+      groups.filter((g) => g.txIds.some((id) => id in (N8_ADDED[name] ?? {}))).map((g) => g.description),
+    );
+    const suggestions = actual.group_suggestions;
+    for (const d of n8Descriptions) if (d in suggestions) expect(suggestions[d]!.category).toBe('生活費');
+    actual.group_suggestions = Object.fromEntries(Object.entries(suggestions).filter(([d]) => !n8Descriptions.has(d)));
     expect(actual).toEqual(read(name, 'unclassified_groups.json')[keyword || '(none)']);
   });
 });

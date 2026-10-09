@@ -17,6 +17,7 @@ import {
   type ClassifierSettings,
   type MatchType,
 } from '../lib/classify.js';
+import { normalizeText } from '../lib/text.js';
 import { toDateString, toId } from '../json.js';
 import { applyChanges, lockCase, type ApplyResult, type Tx } from './classificationHistory.js';
 import { addPattern, getClassifierSettings, type PatternScope } from './settings.js';
@@ -156,7 +157,11 @@ export async function applySuggestion(db: PrismaClient, caseId: bigint, txId: bi
   });
 }
 
+// キーワードの照合先。分類と同じ規則（normalizeText）でそろえた description_search 列を見る（§3 #8）
+const keywordWhere = (keyword: string) => ({ descriptionSearch: { contains: normalizeText(keyword) } });
+
 // キーワードを登録し、その案件でキーワードを含む未分類の取引をまとめて分類する。
+// 当てた取引の ID も返す（画面はそれで候補の一覧から隠す。画面側で照合し直すと規則がずれる）。
 // Django はキーワードが空で登録できなくても分類だけは進めていた（空文字は全件に含まれるので
 // 未分類の全件が1つの分類になる）。ここでは登録できなければ何もしない。
 export async function classifyAndRegisterPattern(
@@ -165,22 +170,23 @@ export async function classifyAndRegisterPattern(
   scope: PatternScope,
   category: string,
   keyword: string,
-): Promise<ApplyResult | null> {
+): Promise<(ApplyResult & { txIds: number[] }) | null> {
   const kw = keyword.trim();
   if (!kw || !(await addPattern(db, scope, caseId, category, kw))) return null;
   return db.$transaction(async (tx) => {
     await lockCase(tx, caseId);
     const rows = await tx.transaction.findMany({
-      where: { ...targetWhere(caseId), description: { contains: kw, mode: 'insensitive' } },
+      where: { ...targetWhere(caseId), ...keywordWhere(kw) },
       select: { id: true },
     });
-    return applyChanges(tx, caseId, new Map(rows.map((r) => [String(r.id), category])), 'pattern_registration');
+    const result = await applyChanges(tx, caseId, new Map(rows.map((r) => [String(r.id), category])), 'pattern_registration');
+    return { ...result, txIds: rows.map((r) => toId(r.id)) };
   });
 }
 
 // キーワードを登録したら未分類の何件に当たるか（この案件 / ほかの案件）
 export async function patternImpact(db: PrismaClient, caseId: bigint, keyword: string) {
-  const where = { category: UNCATEGORIZED, isFlagged: false, description: { contains: keyword, mode: 'insensitive' as const } };
+  const where = { category: UNCATEGORIZED, isFlagged: false, ...keywordWhere(keyword) };
   const [currentCaseCount, otherCasesCount] = await Promise.all([
     db.transaction.count({ where: { ...where, caseId } }),
     db.transaction.count({ where: { ...where, caseId: { not: caseId } } }),

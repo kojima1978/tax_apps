@@ -60,8 +60,32 @@ describe('rapidfuzz の点数（fuzzy.json）', () => {
   });
 });
 
+// 計画書 §3 #8（切替後に直した）: 照合は摘要とキーワードの両方を normalizeText でそろえる。
+// Django 版で当たらなかった全角・半角カナ・ひらがなの摘要が当たるようになる。違ってよいのはここだけ
+// （label/摘要 → React 版の結果。書いていない欄は Django 版のまま）。
+// docomo は「ルール適用」と同じく元から当たっていたが、あいまい一致は大文字小文字を区別していた
+const hit = (category: string): Verdict => [category, 100];
+const allOut = (v: Verdict) => ({ out_0: v, out_999999: v, out_1000000: v });
+const N8_RESULTS: Record<string, Partial<Record<'out_0' | 'out_999999' | 'out_1000000' | 'suggestions', unknown>>> = {
+  'global_only/ＡＴＭ': allOut(hit('その他')),
+  'with_case_patterns/ＡＴＭ': allOut(hit('その他')),
+  // 既定の照合は token_set_ratio なので、空白の無い摘要は候補に出ない（分類はキーワード一致で決まる）
+  'global_only/ｾﾌﾞﾝｲﾚﾌﾞﾝ': allOut(hit('生活費')),
+  'global_only/いおん': { ...allOut(hit('生活費')), suggestions: [hit('生活費')] },
+  'with_case_patterns/いおん': { ...allOut(hit('生活費')), suggestions: [hit('生活費')] },
+  'global_only/ａｕ　料金': { ...allOut(hit('生活費')), suggestions: [hit('生活費')] },
+  'with_case_patterns/ａｕ　料金': { ...allOut(hit('生活費')), suggestions: [hit('生活費')] },
+  'global_only/docomo ご利用料金': { suggestions: [hit('生活費')] },
+  'with_case_patterns/docomo ご利用料金': { suggestions: [hit('生活費')] },
+};
+
 describe('分類（classify.json）', () => {
-  describe.each(Object.entries(classifyGolden))('%s', (_label, golden) => {
+  it('N8_RESULTS に書いた行は記録に実在する', () => {
+    const rows = Object.entries(classifyGolden).flatMap(([label, g]) => g.rows.map((r) => `${label}/${r.text}`));
+    for (const key of Object.keys(N8_RESULTS)) expect(rows).toContain(key);
+  });
+
+  describe.each(Object.entries(classifyGolden))('%s', (label, golden) => {
     const settings: ClassifierSettings = {
       globalPatterns: DEFAULT_PATTERNS,
       casePatterns: golden.case_patterns,
@@ -88,6 +112,7 @@ describe('分類（classify.json）', () => {
         out_999999: row.out_999999,
         out_1000000: row.out_1000000,
         suggestions: row.suggestions,
+        ...N8_RESULTS[`${label}/${text}`],
       });
     });
   });
@@ -196,6 +221,21 @@ describe('取込・ボタンからの分類', () => {
     const txs = [{ id: 1, description: 'ｾﾌﾞﾝｲﾚﾌﾞﾝ', amountOut: 0, category: '未分類', isFlagged: false }];
     const s = { ...settings, casePatterns: { '生活費': ['ｾﾌﾞﾝ'] } };
     expect(classifyUnclassified(txs, s, { useFuzzy: true })).toEqual([{ id: 1, category: '生活費', classificationScore: 100 }]);
+  });
+
+  it('照合は摘要とキーワードの両方を normalizeText でそろえる（§3 #8。Django は大文字小文字だけ）', () => {
+    const s = (p: Patterns) => ({ ...settings, casePatterns: p });
+    // 全角英字の摘要と半角のキーワード
+    expect(classifyByRules('ＮＨＫ　受信料', 0, s({ '生活費': ['NHK'] })).category).toBe('生活費');
+    // 半角カナの摘要と全角カナのキーワード、その逆
+    expect(classifyByRules('ﾌﾘｺﾐ ｱｲﾁ', 0, s({ '家族': ['アイチ'] })).category).toBe('家族');
+    expect(classifyByRules('フリコミ アイチ', 0, s({ '家族': ['ｱｲﾁ'] })).category).toBe('家族');
+    // ひらがなとカタカナ
+    expect(classifyByRules('でんき代', 0, s({ '生活費': ['デンキ'] })).category).toBe('生活費');
+    // 返すキーワードは登録したままの形（画面の「一致したキーワード」に出る）
+    expect(matchWithPriority('ＮＨＫ', { '生活費': ['NHK'] }, {})).toEqual({ category: '生活費', keyword: 'NHK', matchType: 'case' });
+    // あいまい一致の候補も同じ規則で探す
+    expect(fuzzySuggestions('ｾﾌﾞﾝｲﾚﾌﾞﾝ', s({ '生活費': ['セブンイレブン'] }), 1, 90)[0]?.category).toBe('生活費');
   });
 
   it('プレビューの信頼度', () => {

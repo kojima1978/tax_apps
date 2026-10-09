@@ -209,6 +209,7 @@ export function classificationRoutes(r: CaseRouter, db: PrismaClient) {
     if (!result) return fail(c, `キーワード「${keyword}」を登録できませんでした。`);
     return ok(c, {
       count: result.count,
+      txIds: result.txIds,
       category,
       keyword,
       scope,
