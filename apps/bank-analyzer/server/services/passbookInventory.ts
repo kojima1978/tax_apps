@@ -29,7 +29,7 @@ import { warekiFull, warekiYearAbbr } from '../lib/dates.js';
 import { exportFileName } from '../lib/exportFileName.js';
 import { FormatError } from '../lib/import/errors.js';
 import { fileHeaderHex, parseCsv, readTable, type Cell } from '../lib/import/readTable.js';
-import { xlsxFile, type ExportFile } from './exports.js';
+import { blankToNull, xlsxFile, type ExportFile } from './exports.js';
 
 export const DEFAULT_REMARKS = '取引履歴なし・残高証明書あり';
 
@@ -397,7 +397,7 @@ type CellStyle = { font?: Partial<ExcelJS.Font>; alignment?: Partial<ExcelJS.Ali
 
 function put(ws: ExcelJS.Worksheet, row: number, col: number, value: ExcelJS.CellValue, style: CellStyle, border = true) {
   const cell = ws.getCell(row, col);
-  cell.value = value;
+  cell.value = blankToNull(value);
   Object.assign(cell, style);
   if (border) cell.border = THIN;
   return cell;

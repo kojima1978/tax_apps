@@ -387,6 +387,46 @@ Django 版から直したもの:
 
 残したもの: 見出しが `年月日` の CSV は文字コードエラーになる（§3 の #10。直すのは切替後）。
 
+## 段階6の結果（2026-10-09）
+
+### 突き合わせ
+
+本番 DB（`bank_analyzer_real`）の**複製**に新アプリをつないで、段階1の正解と比べた。
+テストは `apps/bank-analyzer/server/__tests__/real.db.test.ts` の1本で **73件すべて一致**。
+
+実データなので、次の2つが揃ったときだけ走る（CI にも `TEST_TARGETS` にも入れない。
+環境変数が無いときは `describe.skipIf` で丸ごと飛ぶ）:
+
+```bash
+cd apps/bank-analyzer && MSYS_NO_PATHCONV=1 docker compose --profile test run --rm --no-deps   -v "$(pwd -W)/server:/app/server:ro" -v "C:/Users/sashi/.tax-apps/bank-analyzer-golden:/golden:ro"   -e BANK_ANALYZER_REAL_DB_URL="postgresql://bankuser:ba_next_dev_password@bank-analyzer-next-db:5432/bank_analyzer_real"   -e BANK_ANALYZER_GOLDEN_DIR=/golden   bank-analyzer-test node_modules/.bin/vitest run server/__tests__/real.db.test.ts
+```
+
+- **原本には触らない**。`CREATE DATABASE … TEMPLATE "bank_analyzer_real"` で describe ごとに複製を作り、
+  終わりに `DROP DATABASE … WITH (FORCE)`。書き込みの2本（`apply_classification_rules` /
+  `run_classifier`）も複製の上で実行して捨てる。原本に接続したままだと TEMPLATE は弾かれる
+- 見たのは**実データで一度も確かめていないもの**だけ: `case.json` / `transactions.json`（DB の行そのもの）、
+  `exports.json`（CSV 4本・Excel 3本・JSON）、書き込み2本。月次・分析画面・未分類のまとめ・
+  ルール適用のプレビューは段階3で実データごと通してある（入力が一致すれば同じことを二度やるだけ）
+
+ここで**新しく見つかった差**（どちらも新アプリ側を直した）:
+
+| 見つかったもの | 直し方 |
+|---|---|
+| Django の CSV は**データ行ごとに BOM が付く**。`content_type` が `charset=utf-8-sig` なので `HttpResponse.write()` のたびに BOM が書かれ、pandas は1行ずつ書く（Excel は先頭だけ見るので画面では気づけない） | 新アプリは先頭に1つだけ。正解側は比べる前に各セルの BOM を落とす |
+| Excel の空のセルに**空文字**を書いていた。openpyxl は空文字を渡しても空のセルとして書くので、Django の出力とはファイルの中身が違う（画面では同じに見えるが、読み取る側では「空ではない文字列」になる） | `blankToNull`（`services/exports.ts`）を分類別シートと通帳有無一覧の両方に通す。通帳有無一覧で69件、分類別で109件 |
+
+意図的な差で**比べ方を変えたもの**:
+
+- **資金移動の CSV**（§段階3の結果「資金移動の一覧の『相手』」）。Django の行は取込のときに付けた
+  印（`is_transfer`）の並びで、印は付け直されないので古い行が混じる（case_05 は相手のいない行が1つ残って
+  **35行＝奇数**）。相手の選び方も「印の付いた入金のうち最初のもの」なので、正解の
+  `analysis.json` では**同じ入金が5つの出金の相手として並ぶ**（case_03 の取引 482）。
+  → 比べるのは (1) 出金側の行と並びが正解の組と一致 (2) 入金側は Django が印を付けた行のどれかで、
+  2つの出金が同じ行を指さない (3) 出金→入金の順に2行ずつ。入金の組み合わせ自体は段階3で確かめてある
+- **同じ日の中の並び**は比べない（§段階3の結果）。case_02 の R6.11.6 の2件が入れ替わる
+- 書き出せないときの応答（Django は分析画面へ 302・新アプリは 400 の JSON）
+- JSON 書き出しの `case` に `custom_patterns` が増える（6案件すべて `{}`）
+
 ## 9. 着手の順番
 
 この計画で承認をもらえたら、**段階1（正解の記録）だけ**を先に行い、結果を見せてから段階2へ進む。

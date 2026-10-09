@@ -206,8 +206,8 @@ describe('Excel', () => {
     expect([ws.getCell('F2').value, ws.getCell('F3').value, ws.getCell('I2').value, ws.getCell('M2').value]).toEqual(['2023', '(R5)', '通帳\n残高', '備考']);
     // 相続開始日（2019-05-01）以前に残高のある取引が無いので、通帳残高は空
     expect([4, 5].map((r) => ['A', 'E', 'F', 'G', 'I', 'J', 'K', 'L'].map((col) => ws.getCell(`${col}${r}`).value))).toEqual([
-      [1, '1234567', '○', '', null, '残高証明なし', null, '□ 有'],
-      [2, '7654321', '', '○', null, '証明のみ', 50, '☑ 有'],
+      [1, '1234567', '○', null, null, '残高証明なし', null, '□ 有'],
+      [2, '7654321', null, '○', null, '証明のみ', 50, '☑ 有'],
     ]);
     expect(ws.getCell('A15').value).toBe(12);
     expect(ws.getCell('J15').value).toBe('残高証明なし');

@@ -243,6 +243,11 @@ export function largeAmountLabel(threshold: number): string {
     : `${threshold.toLocaleString('ja-JP')}円以上`;
 }
 
+// Excel の空のセル。openpyxl は空文字を渡しても空のセルとして書くので（Django と同じ中身にする）、
+// 空文字はここで落とす。Excel の画面では同じに見えるが、空文字は「空ではない文字列」として
+// ファイルに残るので、読み取る側（pandas・他の表計算）では別物になる
+export const blankToNull = <T>(v: T): T | null => (v === '' ? null : v);
+
 function addTransactionSheet(
   wb: ExcelJS.Workbook,
   used: Set<string>,
@@ -256,7 +261,7 @@ function addTransactionSheet(
     ...(tabColor ? { properties: { tabColor: { argb: `FF${tabColor}` } } } : {}),
   });
   ws.addRow(cols.map((c) => c.label));
-  for (const r of rows) ws.addRow(cols.map((c) => c.value(r)));
+  for (const r of rows) ws.addRow(cols.map((c) => blankToNull(c.value(r))));
   cols.forEach((c, i) => {
     if (!c.amount) return;
     ws.getColumn(i + 1).eachCell((cell, rowNumber) => {
