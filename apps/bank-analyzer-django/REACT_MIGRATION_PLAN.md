@@ -141,8 +141,37 @@ URL 31本を Hono の API に置き換える。画面の HTML を返していた
 
 ### 段階8: Django を片付ける
 
-2〜4週間問題が出なければ `apps/bank-analyzer-django` を削除し、DB から Django 自身の表
-（`auth_*` / `django_*`）を消す。
+**2026-10-24 以降**（切替＝2026-10-10 から2週間）に、問題が出ていなければ行う。
+着手には改めて承認を取る。
+
+**切り戻しができなくなる境目は(2)**。そこから先は切替前の `pg_dump`（リポジトリ外）を
+`pg_restore` する以外に戻る道が無い。(1)は(2)より先に済ませること。
+
+1. **この計画書を外へ出す**。消すディレクトリの中にあるので、そのまま削除すると移行の記録が
+   丸ごと消える。`apps/bank-analyzer/` 側へ移す（別環境での切替手順は
+   `apps/bank-analyzer/README.md` へ先に移してある）
+2. **DB から Django 自身の表を落とす**。`auth_group` / `auth_group_permissions` /
+   `auth_permission` / `auth_user` / `auth_user_groups` / `auth_user_user_permissions` /
+   `django_admin_log` / `django_content_type` / `django_migrations` / `django_session` の10表。
+   **マイグレーションを手で書いて `migrate deploy` で流す**（`db push` は禁止）。
+   entrypoint が起動時に `migrate deploy` を流すので、**書いた時点で次の起動に入る**
+   ＝ 書く日と実行する日は同じになる。落とし終われば `migrate diff` の出力は
+   `DROP INDEX "analyzer_case_name_2f00419f_like"` の1件だけになる
+3. `manage.sh` の `UNMANAGED_APPS` から外し、`preflight` の
+   「intentionally unmanaged: apps/bank-analyzer-django」が消えることを確かめる
+4. `apps/bank-analyzer-django/` を削除。`data/`（Django が CSV を置いていた場所）は
+   夜間バックアップの `BIND_TARGETS` から既に外れているので `backup.sh` 側の手当ては要らない
+   （取込んだ中身は DB に入っている）。消す前に中身を一度見ること
+5. イメージを消す: `bank-analyzer-django-bank-analyzer-django` と `bank-analyzer-django-test`。
+   **`bank-analyzer-django-test` を消すと段階1の正解データを作り直せなくなる**
+   （`apps/bank-analyzer/test-data/golden/README.md` の手順がこのイメージを使う）。
+   正解の JSON 自体はリポジトリに残るので突き合わせは続けられるが、その旨を
+   golden の README に書き足すこと
+6. モード記録 `docker/logs/app-modes/bank-analyzer-django` を削除
+7. 参照を直す: `README.md` / `docker/README.md` / `docker/specs/manage-script-spec.md` /
+   `apps/bank-analyzer/README.md` / `apps/bank-analyzer/test-data/golden/README.md` / `CLAUDE.md`。
+   **`manage.sh` と `docker/scripts/README.md` の「本番オーバーレイが無い例」としての言及は
+   教訓なので消さない**（過去形に直すだけ。チェック18が生まれた理由がそれ）
 
 ## 6. DB の扱い
 
