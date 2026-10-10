@@ -151,8 +151,13 @@ cd tax_apps
 
 2. **Windowsファイアウォールでポート80を許可**（管理者権限のPowerShellで実行）:
    ```powershell
-   New-NetFirewallRule -DisplayName "Tax Apps Gateway (HTTP)" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+   New-NetFirewallRule -DisplayName "Tax Apps Gateway (HTTP)" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow -Profile Private,Domain -RemoteAddress LocalSubnet
    ```
+   アプリにはログインが無く、**送信元を絞れるのはこのルールだけ**（Docker Desktop の中継で
+   nginx からは全接続が同じアドレスに見えるため、nginx 側の allow/deny は効かない）。
+   `-Profile` と `-RemoteAddress` を外すと、外出先の公衆 Wi-Fi でも同じ店の誰からでも開ける。
+   事務所のネットワークが「パブリック」と判定されていると繋がらないので、その場合は
+   Windows の設定でそのネットワークを「プライベート」にする。
 
 3. **LAN内の他PCからアクセス**:
    ```

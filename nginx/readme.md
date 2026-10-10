@@ -282,8 +282,12 @@ curl -I http://localhost/itcm/
 
    ```powershell
    # 管理者権限のPowerShellで実行
-   New-NetFirewallRule -DisplayName "Tax Apps Gateway (HTTP)" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+   New-NetFirewallRule -DisplayName "Tax Apps Gateway (HTTP)" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow -Profile Private,Domain -RemoteAddress LocalSubnet
    ```
+
+   `-Profile` / `-RemoteAddress` は外さないこと。Docker Desktop の中継で nginx の
+   `$remote_addr` は全接続が `172.18.0.1` になり（実測）、nginx 側では送信元を絞れない。
+   ログインの無いアプリを守っているのはこのルールだけ。
 
 設定後、`http://<ホストPCのIPアドレス>/` でアクセスできます。nginx側の設定変更は不要です（`proxy_set_header Host $host` によりどのIPでも正しく動作）。
 
