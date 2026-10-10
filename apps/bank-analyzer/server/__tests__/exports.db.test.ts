@@ -151,6 +151,34 @@ describe('CSV', () => {
     const nothing = await get(`/${caseId}/export/csv-filtered?keyword=${encodeURIComponent('存在しない')}`);
     expect(nothing.status).toBe(400);
   });
+
+  it('スプレッドシート用: ISO の日付・口座1列・資金移動は判定し直した組（絞り込みの外の相手とも）・相続開始との前後', async () => {
+    const { caseId } = await seedCase(db(), 'ZZQ架空表計算', [
+      { date: '2025-05-02', description: 'ZZQ移動出', amountOut: 30000, accountNumber: '7654321' },
+      { date: '2025-05-02', description: 'ZZQ移動入', amountIn: 30000, accountNumber: '1234567' },
+      { date: '2025-05-10', description: 'ZZQ当日', amountOut: 100, isFlagged: true, memo: '架空メモ' },
+      { date: '2025-06-01', description: 'ZZQ後', amountIn: 5, balance: 9 },
+      { date: null, description: 'ZZQ日付なし', amountOut: 1 },
+    ]);
+    await db().case.update({ where: { id: caseId }, data: { referenceDate: new Date('2025-05-10T00:00:00Z') } });
+
+    const res = await get(`/${caseId}/export/csv-sheet`);
+    expect(fileName(res)).toMatch(/_ZZQ架空表計算_スプレッドシート用_全取引_預貯金分析\.csv$/);
+    expect(await csvLines(res)).toEqual([
+      '日付,曜日,口座,摘要,払戻,お預り,残高,分類,付箋,資金移動,相続開始との関係,相続開始までの日数,年月,メモ',
+      '2025-05-02,金,架空銀行 本店 普通 7654321,ZZQ移動出,30000,0,,未分類,,○,前,8,2025-05,',
+      '2025-05-02,金,架空銀行 本店 普通 1234567,ZZQ移動入,0,30000,,未分類,,○,前,8,2025-05,',
+      '2025-05-10,土,架空銀行 本店 普通 1234567,ZZQ当日,100,0,,未分類,○,,当日,0,2025-05,架空メモ',
+      '2025-06-01,日,架空銀行 本店 普通 1234567,ZZQ後,0,5,9,未分類,,,後,-22,2025-06,',
+      ',,架空銀行 本店 普通 1234567,ZZQ日付なし,1,0,,未分類,,,,,,',
+    ]);
+
+    // 入金側を絞り込みで外しても、出金側の資金移動の印は残る
+    const filtered = await csvLines(await get(`/${caseId}/export/csv-sheet?amount_type=out&keyword=${encodeURIComponent('移動')}`));
+    expect(filtered.slice(1)).toEqual(['2025-05-02,金,架空銀行 本店 普通 7654321,ZZQ移動出,30000,0,,未分類,,○,前,8,2025-05,']);
+
+    expect((await get(`/${caseId}/export/csv-sheet?keyword=${encodeURIComponent('存在しない')}`)).status).toBe(400);
+  });
 });
 
 describe('Excel', () => {

@@ -308,6 +308,9 @@ export function AllTab({ dash, reload }: Props) {
                   <DownloadButton path={`/cases/${caseId}/export/csv-filtered`} params={filterOnly(params)} className="menu-item">
                     絞込結果CSV（{num(total)}件）
                   </DownloadButton>
+                  <DownloadButton path={`/cases/${caseId}/export/csv-sheet`} params={filterOnly(params)} className="menu-item">
+                    スプレッドシート用CSV（{num(total)}件）
+                  </DownloadButton>
                   <DownloadButton path={`/cases/${caseId}/export/csv/all`} className="menu-item">
                     全データCSV
                   </DownloadButton>

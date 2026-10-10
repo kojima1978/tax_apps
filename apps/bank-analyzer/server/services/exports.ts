@@ -210,6 +210,64 @@ export async function exportFilteredCsv(db: PrismaClient, caseId: bigint, filter
 }
 
 // ---------------------------------------------------------------------------
+// スプレッドシート用 CSV（Google スプレッドシートに読み込んで Gemini などに分析させる前提）
+//
+// 見出し1行 + 1取引1行の平らな表にする。人が読む CSV との違い:
+// - 日付は和暦ではなく ISO（`2025-04-01`）。和暦の文字列は表計算でも AI でも日付として扱えない
+// - 口座は1列にまとめる（「どの口座か」を1つの値で数えられるように）
+// - 画面では見えている「資金移動の組」「相続開始との前後」を列として持たせる。資金移動は
+//   取込時の印ではなく画面と同じ判定し直し（絞り込みの外にいる相手とも組になる）
+// - 合計行・結合セルは入れない（集計は読み込んだ側でやる）
+// ---------------------------------------------------------------------------
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+const DAY_MS = 86_400_000;
+const dayNumber = (iso: string) => Date.parse(`${iso}T00:00:00Z`) / DAY_MS;
+
+export function weekdayOf(iso: string | null): string | null {
+  return iso ? WEEKDAYS[new Date(`${iso}T00:00:00Z`).getUTCDay()]! : null;
+}
+
+// 相続開始日から見た位置と、開始日までの日数（開始日より後は負）
+export function relationToReference(date: string | null, referenceDate: string | null): { side: string | null; days: number | null } {
+  if (!date || !referenceDate) return { side: null, days: null };
+  const days = dayNumber(referenceDate) - dayNumber(date);
+  return { side: days > 0 ? '前' : days === 0 ? '当日' : '後', days };
+}
+
+const mark = (on: boolean) => (on ? '○' : null);
+
+export async function exportSheetCsv(db: PrismaClient, caseId: bigint, filter: TransactionFilter): Promise<ExportResult> {
+  const all = await loadRows(db, caseId);
+  const rows = filterTransactions(all, filter);
+  if (rows.length === 0) return { ok: false, error: NO_DATA };
+
+  const c = await db.case.findUniqueOrThrow({ where: { id: caseId }, select: { name: true, referenceDate: true } });
+  const referenceDate = toDateString(c.referenceDate);
+  const transferIds = new Set(transferPairs(all, await getAppSettings(db)).flatMap((p) => [p.source.id, p.destination.id]));
+  const relation = (r: ExportRow) => relationToReference(r.date, referenceDate);
+
+  const cols: Column[] = [
+    { label: '日付', value: (r) => r.date },
+    { label: '曜日', value: (r) => weekdayOf(r.date) },
+    { label: '口座', value: (r) => [r.bankName, r.branchName, r.accountType, r.accountNumber].filter(Boolean).join(' ') || null },
+    COLUMNS.description,
+    COLUMNS.amountOut,
+    COLUMNS.amountIn,
+    COLUMNS.balance,
+    COLUMNS.category,
+    { label: '付箋', value: (r) => mark(r.isFlagged) },
+    { label: '資金移動', value: (r) => mark(transferIds.has(r.id)) },
+    { label: '相続開始との関係', value: (r) => relation(r).side },
+    { label: '相続開始までの日数', value: (r) => relation(r).days },
+    { label: '年月', value: (r) => r.date?.slice(0, 7) ?? null },
+    COLUMNS.memo,
+  ];
+  const filename = exportFileName([c.name, 'スプレッドシート用', filteredSubject(filter)], 'csv');
+  return { ok: true, file: buildCsv(rows, cols, filename) };
+}
+
+// ---------------------------------------------------------------------------
 // Excel
 // ---------------------------------------------------------------------------
 

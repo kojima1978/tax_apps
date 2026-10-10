@@ -13,6 +13,7 @@ import {
   exportCsv,
   exportFilteredCsv,
   exportMonthlyXlsx,
+  exportSheetCsv,
   isCsvType,
   type ExportFile,
   type ExportResult,
@@ -28,6 +29,10 @@ export function exportRoutes(r: CaseRouter, db: PrismaClient) {
   // 絞り込み条件付き（分析画面の取引一覧と同じクエリ）
   r.get('/:caseId/export/csv-filtered', async (c) =>
     respond(c, await exportFilteredCsv(db, c.get('caseId'), filterFromQuery(new URL(c.req.url).searchParams))),
+  );
+
+  r.get('/:caseId/export/csv-sheet', async (c) =>
+    respond(c, await exportSheetCsv(db, c.get('caseId'), filterFromQuery(new URL(c.req.url).searchParams))),
   );
 
   r.get('/:caseId/export/csv/:type', async (c) => {
