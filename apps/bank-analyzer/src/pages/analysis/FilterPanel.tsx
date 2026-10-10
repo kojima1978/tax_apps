@@ -330,7 +330,7 @@ function DetailForm({
             onChange={(v) => set(key, v)}
             extra={
               key === 'category' && (
-                <div className="flex gap-3 text-xs">
+                <span className="flex gap-1.5">
                   {(
                     [
                       ['include', '含める'],
@@ -342,7 +342,7 @@ function DetailForm({
                       {l}
                     </label>
                   ))}
-                </div>
+                </span>
               )
             }
           />
@@ -435,6 +435,7 @@ export function CheckList({
   items: string[];
   checked: string[];
   onChange: (v: string[]) => void;
+  // 見出しの行の右側に置くもの（分類の含める／除外する）
   extra?: React.ReactNode;
 }) {
   const [q, setQ] = useState('');
@@ -443,17 +444,19 @@ export function CheckList({
   return (
     <fieldset className="min-w-0">
       <legend className="label flex w-full items-center justify-between">
-        <span>
+        <span className="whitespace-nowrap">
           {label}
           {checked.length > 0 && <span className="ml-1 text-xs text-blue-700">{checked.length}件選択</span>}
         </span>
-        {checked.length > 0 && (
-          <button type="button" className="text-xs font-normal text-blue-700 underline" onClick={() => onChange([])}>
-            選択解除
-          </button>
-        )}
+        <span className="flex items-center gap-1.5 text-xs font-normal whitespace-nowrap">
+          {extra}
+          {checked.length > 0 && (
+            <button type="button" className="rounded p-0.5 text-blue-700 hover:bg-blue-50" aria-label={`${label}の選択を解除`} title="選択解除" onClick={() => onChange([])}>
+              <X size={14} />
+            </button>
+          )}
+        </span>
       </legend>
-      {extra}
       <input type="search" className="input my-1 py-1 text-xs" placeholder={`${label}を絞り込む`} aria-label={`${label}を絞り込む`} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="max-h-40 overflow-y-auto rounded border border-slate-200 p-1">
         {shown.length === 0 ? (
