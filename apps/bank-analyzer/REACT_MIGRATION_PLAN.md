@@ -431,6 +431,12 @@ Django 版から直したもの:
 cd apps/bank-analyzer && MSYS_NO_PATHCONV=1 docker compose --profile test run --rm --no-deps   -v "$(pwd -W)/server:/app/server:ro" -v "C:/Users/sashi/.tax-apps/bank-analyzer-golden:/golden:ro"   -e BANK_ANALYZER_REAL_DB_URL="postgresql://bankuser:ba_next_dev_password@bank-analyzer-next-db:5432/bank_analyzer_real"   -e BANK_ANALYZER_GOLDEN_DIR=/golden   bank-analyzer-test node_modules/.bin/vitest run server/__tests__/real.db.test.ts
 ```
 
+> **2026-10-10 以降、このテストは役目を終えている（再実行しない）**。上のコマンドの接続先
+> （`bank-analyzer-next-db` / `bank_analyzer_real`）は段階7で削除済み。比べる相手は段階1で
+> Django が書き出した正解なので、切替後に案件・取引・分類が変わった本番 DB では一致しないのが正しい
+> （#8・#10 の修正で分類や取込の結果も意図して変えている）。ファイルは移行時の検証記録として残す。
+> 環境変数が無ければ丸ごと飛ぶので、置いておいても CI や `manage.sh test` には影響しない
+
 - **原本には触らない**。`CREATE DATABASE … TEMPLATE "bank_analyzer_real"` で describe ごとに複製を作り、
   終わりに `DROP DATABASE … WITH (FORCE)`。書き込みの2本（`apply_classification_rules` /
   `run_classifier`）も複製の上で実行して捨てる。原本に接続したままだと TEMPLATE は弾かれる
