@@ -36,7 +36,6 @@ const emptySheet = (): EditFile => ({
   isSplit: false,
   detected: false,
   hasBalance: true,
-  warning: null,
   account: { ...EMPTY_ACCOUNT },
   rows: Array.from({ length: INITIAL_ROWS }, () => blankRow()),
 });

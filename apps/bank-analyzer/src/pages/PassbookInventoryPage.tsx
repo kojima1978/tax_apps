@@ -14,6 +14,8 @@
 // - 並び替えがドラッグだけで、キーボードでは動かせなかった（失敗も黙って捨てていた）
 //   → 上下のボタンにして、失敗したら元の並びへ戻す
 // - 口座の追加・取込はページごと再読込で、結果はメッセージだけだった → その場で一覧へ反映する
+// - 印刷は「用紙に合わせて縮小」を手で選ぶ前提だった（年が24年分あると表は 559mm 幅で、
+//   A4横にも収まらず右が切れる）。題も印刷されなかった → A4横で、表を用紙の幅へ縮めて刷る
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -23,6 +25,7 @@ import { FileDrop } from '../components/FileDrop';
 import { Breadcrumb } from '../components/Layout';
 import { useNotice } from '../components/Notice';
 import { useApiData } from '../hooks/useApiData';
+import { usePrintFit } from '../hooks/usePrintFit';
 import { api, errorMessage } from '../lib/api';
 import { num, warekiShort } from '../lib/format';
 
@@ -73,6 +76,10 @@ const fixed = (i: number, extra = '', head = false) => ({
   style: { left: FIXED[i]!.left, minWidth: FIXED[i]!.width, maxWidth: FIXED[i]!.width },
 });
 
+// @page は Tailwind で書けないのでここだけ CSS。余白 8mm なので印刷できる幅は 297 − 16 = 281mm
+const PAGE_CSS = '@media print { @page { size: A4 landscape; margin: 8mm; } }';
+const PRINTABLE_WIDTH_MM = 281;
+
 const MATCH_CLASS: Record<BalanceMatch, string> = {
   '○': 'text-emerald-700',
   '×': 'font-bold text-red-700',
@@ -88,6 +95,8 @@ export function PassbookInventoryPage() {
   );
 
   const rows = data?.rows ?? [];
+  const tableBox = useRef<HTMLDivElement>(null);
+  usePrintFit(tableBox, PRINTABLE_WIDTH_MM);
   const years = data?.years ?? [];
 
   // 合計はサーバと同じ数え方（自動の通帳残高も含める）。欄の文字から数え直さない
@@ -142,7 +151,8 @@ export function PassbookInventoryPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[120rem] space-y-4 px-4 py-6">
+    <div className="mx-auto max-w-[120rem] space-y-4 px-4 py-6 print:space-y-2 print:p-0">
+      <style>{PAGE_CSS}</style>
       <Breadcrumb
         items={[{ label: '案件一覧', to: '/' }, { label: data?.caseName ?? '案件', to: `/cases/${caseId}` }, { label: '通帳有無一覧' }]}
       />
@@ -163,6 +173,8 @@ export function PassbookInventoryPage() {
           </DownloadButton>
         </div>
       </div>
+
+      <h1 className="hidden text-base font-bold print:block">通帳有無一覧表　{data?.caseName}</h1>
 
       {error && <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
       {loading && !data && <p className="py-8 text-center text-slate-500">読み込み中…</p>}
@@ -186,13 +198,13 @@ export function PassbookInventoryPage() {
 
           <AddAccountCard caseId={caseId} onDone={reload} />
 
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden print:overflow-visible print:border-0 print:shadow-none">
             {rows.length === 0 ? (
               <p className="py-10 text-center text-sm text-slate-500">
                 口座がありません。取引を取り込むか、上の「残高証明書だけの口座」から追加してください。
               </p>
             ) : (
-              <div className="overflow-x-auto">
+              <div ref={tableBox} className="overflow-x-auto print:overflow-visible">
                 <table className="table-base">
                   <thead>
                     <tr>

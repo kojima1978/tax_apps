@@ -10,9 +10,12 @@
 // - 何も書いていない行（日付だけの行も。挿入した行は上の日付を写すので）は「未入力」として
 //   見せて送らない。Django 版は日付だけの行を 0 円の取引として登録していた。
 //   逆に日付だけ空で他が埋まっている行はエラーにする（Django 版は黙って捨てていた）
+// - 「既存データと N 行連続で一致しています」の注意は、いまの行から数え直す（duplicateWarning）。
+//   Django 版は読み込んだときの文をそのまま持っていたので、重複の行を消しても注意が残った
 
 import { parseAmountValue, parseDateValue } from '../../../server/input';
 import { chainBalance } from '../../../server/lib/balance';
+import { buildDuplicateWarning } from '../../../server/lib/dedup';
 import type { PreviewFile } from '../../../server/lib/wizard';
 
 export type AccountFields = {
@@ -42,7 +45,6 @@ export type EditFile = {
   // 口座番号をファイルから読めたか
   detected: boolean;
   hasBalance: boolean;
-  warning: string | null;
   account: AccountFields;
   rows: EditRow[];
 };
@@ -74,7 +76,6 @@ export function toEditFiles(previews: PreviewFile[]): EditFile[] {
     isSplit: p.isSplit === true,
     detected: p.detectedAccount.accountNumber !== '',
     hasBalance: p.hasBalance,
-    warning: p.warning?.message ?? null,
     account: { ...p.detectedAccount },
     rows: p.rows.map((r) => ({
       key: newKey(),
@@ -131,3 +132,11 @@ export const toCommitFile = (f: EditFile) => ({
   account: f.account,
   rows: f.rows.filter((r) => !isBlankRow(r)).map(({ date, description, amountOut, amountIn, balance }) => ({ date, description, amountOut, amountIn, balance })),
 });
+
+// 重複の注意（サーバのプレビューと同じ規則）。未入力の行は数えない
+export function duplicateWarning(rows: CheckedRow[]): string | null {
+  const filled = rows.filter((r) => !r.blank);
+  const marks = filled.map((r) => ({ isDuplicate: r.dup !== null }));
+  const count = marks.filter((m) => m.isDuplicate).length;
+  return buildDuplicateWarning(marks, count, filled.length)?.message ?? null;
+}

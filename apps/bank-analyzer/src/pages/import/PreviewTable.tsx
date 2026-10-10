@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide
 import { num, warekiShort } from '../../lib/format';
 import { accountLabel } from './AccountForm';
 import type { WizardFiles } from './useWizardFiles';
-import type { CheckedRow, EditFile } from './wizardRows';
+import { duplicateWarning, type CheckedRow, type EditFile } from './wizardRows';
 
 const BADGE = 'inline-block rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap';
 
@@ -60,6 +60,8 @@ export function PreviewTable({ file, rows, actions }: Props) {
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const [cursor, setCursor] = useState(-1);
   const problems = useMemo(() => rows.flatMap((r, i) => (r.error || r.isBalanceError ? [i] : [])), [rows]);
+  // 行を消したり直したりしたら数え直す（読み込んだときの文を出し続けない）
+  const warning = useMemo(() => duplicateWarning(rows), [rows]);
   const duplicateKeys = useMemo(() => rows.filter((r) => r.dup).map((r) => r.key), [rows]);
   const rowId = (key: number) => `row-${file.key}-${key}`;
 
@@ -93,7 +95,7 @@ export function PreviewTable({ file, rows, actions }: Props) {
         <span className="text-sm text-slate-500">{num(rows.filter((r) => !r.blank).length)}行</span>
       </div>
 
-      {file.warning && <p className="mb-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">{file.warning}</p>}
+      {warning && <p className="mb-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">{warning}</p>}
       {!file.hasBalance && (
         <p className="mb-2 rounded bg-slate-100 px-3 py-2 text-sm text-slate-700">このファイルには残高の列がありません。残高の突き合わせはできません。</p>
       )}

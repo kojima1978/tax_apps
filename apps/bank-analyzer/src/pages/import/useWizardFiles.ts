@@ -69,7 +69,6 @@ export function useWizardFiles() {
         const marks = new Map(filled.map((r, j) => [r.key, result.marks[j]!]));
         return {
           ...f,
-          warning: result.warning?.message ?? null,
           rows: f.rows.map((r) => {
             const m = marks.get(r.key);
             return { ...r, dup: m?.isDuplicate ? (m.dupConfidence ?? 'high') : null };
