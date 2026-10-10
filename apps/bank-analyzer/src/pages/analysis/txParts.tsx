@@ -2,8 +2,9 @@
 // 取引一覧・未分類・質問候補のタブで共通
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Bookmark, BookmarkX, CalendarDays, ChevronRight, Pencil, Tags, Trash2 } from 'lucide-react';
+import { Bookmark, BookmarkX, CalendarDays, ChevronRight, Coins, Pencil, Tags, Trash2 } from 'lucide-react';
 import { num } from '../../lib/format';
+import type { SameKey } from './FilterPanel';
 import type { TxRow } from './types';
 
 // 基準日（相続開始日）より前・当日・後
@@ -52,8 +53,8 @@ export type RowMenuActions = {
   pattern: (t: TxRow) => void;
   category: (t: TxRow, category: string) => void;
   remove: (t: TxRow) => void;
-  // その日の取引だけを取引一覧に出す（日付の無い行では出さない）
-  showDay: (date: string) => void;
+  // その日・その金額の取引だけを取引一覧に出す（日付・金額の無い行では出さない）
+  showSame: (key: SameKey, value: string) => void;
 };
 
 export function RowContextMenu({
@@ -111,6 +112,8 @@ export function RowContextMenu({
       {label}
     </button>
   );
+  // 払戻・お預りのどちらか入っている方（両方 0 の行では出さない）
+  const amount = tx.amountOut || tx.amountIn;
   const title = tx.description.length > 20 ? `${tx.description.slice(0, 20)}…` : tx.description || '（摘要なし）';
 
   return (
@@ -126,7 +129,8 @@ export function RowContextMenu({
       {item('編集', Pencil, () => actions.edit(tx))}
       {item(tx.isFlagged ? '付箋を外す' : '付箋を付ける', tx.isFlagged ? BookmarkX : Bookmark, () => actions.flag(tx))}
       {item('パターン追加', Tags, () => actions.pattern(tx))}
-      {tx.date && item('この日の取引だけ表示', CalendarDays, () => actions.showDay(tx.date!))}
+      {tx.date && item('この日の取引だけ表示', CalendarDays, () => actions.showSame('date', tx.date!))}
+      {amount > 0 && item('この金額の取引だけ表示', Coins, () => actions.showSame('amount', String(amount)))}
       <button type="button" role="menuitem" aria-expanded={sub} className="menu-item" onClick={() => setSub((v) => !v)}>
         <ChevronRight size={14} aria-hidden="true" className={sub ? 'rotate-90' : ''} />
         分類変更

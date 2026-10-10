@@ -34,7 +34,7 @@ import { useNotice } from '../../components/Notice';
 import { useAction } from '../../hooks/useAction';
 import { api, errorMessage } from '../../lib/api';
 import { num, warekiShort } from '../../lib/format';
-import { useShowDay } from './FilterPanel';
+import { useShowSame } from './FilterPanel';
 import { CategoryCell, Pagination, SaveState, SortHeader, UNCATEGORIZED } from './tableParts';
 import { PatternAddDialog, TxEditDialog, type PatternTarget } from './TxDialogs';
 import { AccountCell, RefDateBadge, RowContextMenu, amountCell, type RowMenuActions } from './txParts';
@@ -78,7 +78,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
   const notice = useNotice();
   const { busy, run } = useAction();
   const [params, setParams] = useSearchParams();
-  const showDay = useShowDay(params, setParams);
+  const showSame = useShowSame(params, setParams);
   const grouped = params.get('view') === 'grouped';
   const keyword = params.get('keyword') ?? '';
   const page = dash.unclassifiedTxs;
@@ -242,8 +242,8 @@ export function UnclassifiedTab({ dash, reload }: Props) {
     pattern: openPattern,
     category: (t, c) => void classifyTx(t, c),
     remove: (t) => setDeleteIds([t.id]),
-    // 取引一覧タブへ移って、その日の全取引を出す
-    showDay,
+    // 取引一覧タブへ移って、その日・その金額の全取引を出す
+    showSame,
   };
 
   const toggleSelect = (id: number) =>

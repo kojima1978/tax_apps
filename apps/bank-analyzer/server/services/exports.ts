@@ -195,7 +195,8 @@ export function filteredSubject(f: TransactionFilter): string {
   // 0 円は「条件なし」と同じ扱い（Django 版と同じ）
   const min = parseAmountInput(f.amountMin) || null;
   const max = parseAmountInput(f.amountMax) || null;
-  if (min && max) parts.push(`${min}〜${max}円`);
+  if (min && min === max) parts.push(`${min}円`);
+  else if (min && max) parts.push(`${min}〜${max}円`);
   else if (min) parts.push(`${min}円以上`);
   else if (max) parts.push(`${max}円以下`);
   return parts.length ? `絞込 ${parts.join('-')}` : '全取引';

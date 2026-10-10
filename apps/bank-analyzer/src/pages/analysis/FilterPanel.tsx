@@ -78,7 +78,8 @@ function chipsOf(params: URLSearchParams): Chip[] {
   const min = params.get('amount_min');
   const max = params.get('amount_max');
   if (min || max) {
-    chips.push({ key: 'amount', label: `金額: ${min ? yenLabel(min) : ''}〜${max ? yenLabel(max) : ''}`, remove: removeKeys('amount_min', 'amount_max') });
+    const label = min && min === max ? `金額: ${yenLabel(min)}` : `金額: ${min ? yenLabel(min) : ''}〜${max ? yenLabel(max) : ''}`;
+    chips.push({ key: 'amount', label, remove: removeKeys('amount_min', 'amount_max') });
   }
   const from = params.get('date_from');
   const to = params.get('date_to');
@@ -208,14 +209,17 @@ export function useClearFilters(params: URLSearchParams, setParams: SetURLSearch
     });
 }
 
-// 右クリックの「この日の取引だけ表示」。ほかの条件は外して、その1日の全口座の取引を出す
-export function useShowDay(params: URLSearchParams, setParams: SetURLSearchParams) {
+// 右クリックの「この日の取引だけ表示」「この金額の取引だけ表示」。ほかの条件は外して、
+// 範囲の両端に同じ値を入れる。金額は入出金を問わない（口座間の移動の相手側も出る）
+const SAME_KEYS = { date: ['date_from', 'date_to'], amount: ['amount_min', 'amount_max'] } as const;
+export type SameKey = keyof typeof SAME_KEYS;
+
+export function useShowSame(params: URLSearchParams, setParams: SetURLSearchParams) {
   const update = useFilterParams(params, setParams);
-  return (date: string) =>
+  return (key: SameKey, value: string) =>
     update((q) => {
       for (const k of FILTER_KEYS) q.delete(k);
-      q.set('date_from', date);
-      q.set('date_to', date);
+      for (const k of SAME_KEYS[key]) q.set(k, value);
     });
 }
 
@@ -233,6 +237,8 @@ type Draft = {
   dateFrom: string;
   dateTo: string;
   amountType: 'both' | 'out' | 'in';
+  // ちょうど: 欄を1つにして min と max に同じ金額を入れる
+  exactAmount: boolean;
   amountMin: string;
   amountMax: string;
 };
@@ -240,6 +246,7 @@ type Draft = {
 function draftOf(params: URLSearchParams): Draft {
   const type = params.get('amount_type');
   const from = params.get('date_from') ?? '';
+  const min = params.get('amount_min') ?? '';
   return {
     singleDay: from !== '' && from === params.get('date_to'),
     bank: params.getAll('bank').filter(Boolean),
@@ -249,7 +256,8 @@ function draftOf(params: URLSearchParams): Draft {
     dateFrom: from,
     dateTo: params.get('date_to') ?? '',
     amountType: type === 'out' || type === 'in' ? type : 'both',
-    amountMin: withCommas(params.get('amount_min') ?? ''),
+    exactAmount: min !== '' && min === params.get('amount_max'),
+    amountMin: withCommas(min),
     amountMax: withCommas(params.get('amount_max') ?? ''),
   };
 }
@@ -273,6 +281,11 @@ function DetailForm({
       const day = s.dateFrom || s.dateTo;
       return { ...s, singleDay: on, dateFrom: day, dateTo: day };
     });
+  const toggleExactAmount = (on: boolean) =>
+    setD((s) => {
+      const amount = s.amountMin || s.amountMax;
+      return { ...s, exactAmount: on, amountMin: amount, amountMax: amount };
+    });
 
   // 銀行を選んでいれば、口座はその銀行のものだけ（選択済みの口座は残す）
   const accounts = useMemo(() => {
@@ -292,7 +305,7 @@ function DetailForm({
         ['date_to', d.singleDay ? d.dateFrom : d.dateTo],
         ['amount_type', d.amountType === 'both' ? '' : d.amountType],
         ['amount_min', digits(d.amountMin)],
-        ['amount_max', digits(d.amountMax)],
+        ['amount_max', digits(d.exactAmount ? d.amountMin : d.amountMax)],
       ];
       for (const [k, v] of single) (v ? q.set(k, v) : q.delete(k));
     });
@@ -366,27 +379,24 @@ function DetailForm({
             ))}
           </select>
         </div>
-        {(
-          [
-            ['amountMin', '金額（以上）'],
-            ['amountMax', '金額（以下）'],
-          ] as const
-        ).map(([k, l]) => (
-          <div key={k}>
-            <label className="label" htmlFor={`f-${k}`}>
-              {l}
+        <fieldset className="col-span-2 min-w-0">
+          <legend className="label flex w-full items-center justify-between">
+            <span>金額</span>
+            <label className="flex items-center gap-1 text-xs font-normal">
+              <input type="checkbox" checked={d.exactAmount} onChange={(e) => toggleExactAmount(e.target.checked)} />
+              ちょうど
             </label>
-            <input
-              id={`f-${k}`}
-              className="input text-right tabular-nums"
-              inputMode="numeric"
-              placeholder="円"
-              value={d[k]}
-              onChange={(e) => set(k, e.target.value)}
-              onBlur={(e) => set(k, withCommas(e.target.value))}
-            />
-          </div>
-        ))}
+          </legend>
+          {d.exactAmount ? (
+            <AmountInput label="金額" value={d.amountMin} onChange={(v) => set('amountMin', v)} />
+          ) : (
+            <div className="flex items-center gap-1">
+              <AmountInput label="金額（以上）" value={d.amountMin} onChange={(v) => set('amountMin', v)} />
+              <span className="text-slate-500">〜</span>
+              <AmountInput label="金額（以下）" value={d.amountMax} onChange={(v) => set('amountMax', v)} />
+            </div>
+          )}
+        </fieldset>
       </div>
       <div className="flex justify-end gap-2">
         <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>
@@ -397,6 +407,20 @@ function DetailForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function AmountInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      className="input min-w-0 text-right tabular-nums"
+      inputMode="numeric"
+      placeholder="円"
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={(e) => onChange(withCommas(e.target.value))}
+    />
   );
 }
 
