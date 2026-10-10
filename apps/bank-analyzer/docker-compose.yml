@@ -1,8 +1,8 @@
 # ============================================
 # 銀行取引分析 - Docker Compose
 # ============================================
-# Django 版（apps/bank-analyzer-django）からの移行先。移行の記録は
-# apps/bank-analyzer-django/REACT_MIGRATION_PLAN.md。
+# Django 版（旧 apps/bank-analyzer-django。段階8で削除）の置き換え。移行の記録は
+# apps/bank-analyzer/REACT_MIGRATION_PLAN.md。
 #
 # コンテナ bank-analyzer / 3007 / /bank-analyzer/、DB は bank-analyzer-postgres。
 # **DB のボリュームは Django 版のものをそのまま引き継いでいる**（データは移し替えない）。

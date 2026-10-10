@@ -148,12 +148,6 @@ UNMANAGED_APPS=(
   # （載せると status が「落ちている」と言い続けることになる）。
   # テストだけは TEST_TARGETS の run@ 形式で使い捨てコンテナから回る。
   "mcp-server"
-  # 銀行分析の Django 版。React 版（APPS の bank-analyzer）へ切り替え済み
-  # （移行計画の段階7、2026-10-10）。compose は同じコンテナ名
-  # （bank-analyzer / bank-analyzer-postgres）と同じ DB ボリュームを持つので、
-  # 2つは同時に起動できない ── 切り戻し用に置いてあるだけで、自動起動・復旧・
-  # バックアップに載せると React 版と取り合いになる。段階8で削除する。
-  "bank-analyzer-django"
 )
 
 is_unmanaged_app() {
@@ -648,7 +642,7 @@ _do_start() {
     local prod_compose="$dir/docker-compose.prod.yml"
     # オーバーレイが無いアプリを「本番で起動した」と書かないこと。
     # 以前はどちらの枝でも 起動[本番] と出していたので、オーバーレイを持たない
-    # bank-analyzer-django は start --prod のたびに成功したように見えて、
+    # bank-analyzer-django（段階8で削除済み）は start --prod のたびに成功したように見えて、
     # 実際には Django の開発サーバのまま上がり続けていた。モードの記録
     # （app-modes）とコンテナは dev で正しく、嘘をついていたのは出力だけなので、
     # 両方を並べて比べる人がいない限り気づけない。
@@ -1560,8 +1554,8 @@ cmd_alert() {
 #
 # 検査する不変条件は「entrypoint を ENTRYPOINT/CMD に指定しているステージは、
 # 自分か祖先のどこかで必ずガードを通っていること」。FROM の継承を辿るのは、
-# bank-analyzer-django のように親でガードして子で CMD だけ差し替える書き方が
-# 実在するため（辿らないと誤検知になる）。
+# 親でガードして子で CMD だけ差し替える書き方があるため（以前の bank-analyzer-django
+# がそうだった。辿らないと誤検知になる）。
 #
 # ガードを欠くステージ名を1行ずつ出力する。無ければ何も出力しない。
 dockerfile_missing_crlf_guard() {

@@ -2,8 +2,14 @@
 
 銀行取引分析（bank-analyzer）が **Django 版で動いている別の PC** を、React 版へ切り替えるための
 作業手順。メインの PC では 2026-10-10 にこの順で切り替え済み（記録は
-`apps/bank-analyzer-django/REACT_MIGRATION_PLAN.md` の「段階7の結果」、技術的な背景は
+`REACT_MIGRATION_PLAN.md` の「段階7の結果」「段階8の結果」、技術的な背景は
 `README.md` の「DB とマイグレーション」）。
+
+- **Django 版はリポジトリから削除済み**（段階8）。`git pull` すると `apps/bank-analyzer-django` は
+  Git の管理外のファイル（`.env` と `data/`）だけを残して消える。**Django 版はまだ動いたまま**
+  （コンテナは消えない）なので、止めるのは手順3でコンテナ名を指定して行う
+- **切替（手順4）で Django 自身の表（`auth_*` / `django_*`）も消える**。そこから先は
+  Django 版へ戻すには 1-5 で取る控えを `pg_restore` するしかない
 
 - **データは移し替えない**。新旧どちらも同じ DB ボリューム `bank-analyzer-postgres` を
   名前で指しているので、新アプリをそこへつなぎ直すだけ
@@ -56,6 +62,7 @@ docker inspect bank-analyzer --format '{{index .Config.Labels "com.docker.compos
 | `docker volume ls` | `bank-analyzer-postgres` がある | **中止して相談**（名前で引き継げないので `pg_dump` → `pg_restore` の手順になる） |
 | `docker ps` | `bank-analyzer` と `bank-analyzer-postgres` が Up | Django 版が動いていないなら、まず動いている状態に戻してから |
 | `docker inspect` | 起動に使った compose ファイルの一覧 | ── **控えておく**（切り戻しで同じ形に戻すため。`docker-compose.prod.yml` が入っていれば本番モード） |
+| `docker ps` に他の名前 | `bank-analyzer` で始まるのは上の2つだけ | 他にもあれば中止して相談（手順3の (1) はこの2つだけを止める） |
 
 ### 1-2. DB の形が新アプリの前提と合っているか
 
@@ -89,7 +96,8 @@ select (select count(*) from analyzer_case)                 as cases,
 grep '^DB_PASSWORD=' apps/bank-analyzer-django/.env
 ```
 
-1行出ればよい（手順3で使う）。**何も出なければ中止して相談**。
+1行出ればよい（手順3で使う。このファイルは Git の管理外なので `git pull` の後も残る）。
+**何も出なければ中止して相談**。
 
 ### 1-5. DB の控えを取る
 
@@ -132,8 +140,11 @@ cd ../..
 ## 3. 切り替える（(1)〜(5) を続けて）
 
 ```bash
-# (1) Django 版を止める ── -v は絶対に付けない（DB のボリュームが消える）
-cd apps/bank-analyzer-django && docker compose down && cd ../..
+# (1) Django 版を止めて消す（compose ファイルは git pull で消えているので、コンテナ名で指定する）
+#     消えるのはコンテナだけで、DB のボリューム bank-analyzer-postgres は残る。
+#     docker volume rm / docker compose down -v は絶対に叩かない
+docker stop bank-analyzer bank-analyzer-postgres
+docker rm bank-analyzer bank-analyzer-postgres
 
 # (2) 新アプリの DB だけ先に上げる（中身は Django 版のまま）
 cd apps/bank-analyzer && docker compose up -d bank-analyzer-db && cd ../..
@@ -156,7 +167,8 @@ cd ../..
   起動と失敗を繰り返す
 
 ```bash
-# (4) 本番モードで起動（パスワードの生成・付け替えと、残りの DB 変更はここで自動で走る）
+# (4) 本番モードで起動（パスワードの生成・付け替えと、残りの DB 変更はここで自動で走る。
+#     Django 自身の表を消すのもここ ── ここから先は控えの pg_restore でしか Django 版へ戻れない）
 docker/scripts/manage.sh start --prod bank-analyzer
 
 # (5) ゲートウェイに設定を読み直させる
@@ -208,7 +220,8 @@ docker exec bank-analyzer-postgres psql -U bankuser -d bank_analyzer -c \
   "select migration_name, finished_at is not null as ok from _prisma_migrations order by migration_name"
 ```
 
-3行（`..._django_baseline` / `..._db_defaults_and_cascade` / `..._app_settings`）がすべて `ok = t`。
+4行（`..._django_baseline` / `..._db_defaults_and_cascade` / `..._app_settings` /
+`..._drop_django_tables`）がすべて `ok = t`。
 
 ### 4-4. 夜間バックアップが通るか
 
@@ -221,7 +234,7 @@ docker/scripts/manage.sh backup
 
 ### 4-5. （任意）DB の形の突き合わせ
 
-**読み取りだけ。出てきた SQL は絶対に流さないこと**（Django 自身の表を消す文が含まれている）。
+**読み取りだけ。出てきた SQL は流さないこと**。
 
 ```bash
 NEW_PW=$(grep '^POSTGRES_PASSWORD=' apps/bank-analyzer/.env | cut -d= -f2- | tr -d '\r')
@@ -230,14 +243,28 @@ MSYS_NO_PATHCONV=1 docker compose --profile test run --rm --no-deps \
   -e BANK_ANALYZER_SKIP_MIGRATE=1 \
   -e TARGET_URL="postgresql://bankuser:${NEW_PW}@bank-analyzer-db:5432/bank_analyzer?schema=public" \
   bank-analyzer-test sh -c 'node /app/node_modules/prisma/build/index.js migrate diff \
-  --from-url "$TARGET_URL" --to-schema-datamodel /app/prisma/schema.prisma --script' \
-  | grep -i 'analyzer_'
+  --from-url "$TARGET_URL" --to-schema-datamodel /app/prisma/schema.prisma --script'
 cd ../..
 ```
 
-出るのが `DROP INDEX "analyzer_case_name_2f00419f_like";` の **1行だけ** なら想定どおり
+出る SQL 文が `DROP INDEX "analyzer_case_name_2f00419f_like";` の **1つだけ** なら想定どおり
 （Django が自動で付けた索引で、Prisma では表せないだけ。消さずに置いておく）。
 それ以外の行が出たら相談。
+
+---
+
+## 5. 片付け
+
+4 の確認が全部済んだら、Django 版の残りを消す（DB からは手順4で Django の表が消えているので、
+これらはもう切り戻しの役に立たない。切り戻しに要るのは 1-5 の控えだけ）:
+
+```bash
+rm -rf apps/bank-analyzer-django                     # 残っているのは Git の管理外の .env と data/ だけ
+rm -f docker/logs/app-modes/bank-analyzer-django
+docker rmi bank-analyzer-django-bank-analyzer-django bank-analyzer-django-test   # 無いと言われたらそれでよい
+```
+
+`~/.tax-apps/bank-analyzer-pre-cutover/` は**消さない**（Django 版の DB の最後の控え）。
 
 ---
 
@@ -245,23 +272,25 @@ cd ../..
 
 ### 手順3の (1)〜(3) までで止めた場合
 
-パスワードはまだ Django 時代のまま、表も変わっていない。新アプリの DB を落として Django 版を上げ直す:
+パスワードはまだ Django 時代のまま、表も変わっていない。Django 版のソースは `git pull` で消えているので、
+最後にあったコミットから一時的に取り出して上げ直す:
 
 ```bash
 cd apps/bank-analyzer && docker compose down && cd ../..        # -v は付けない
+git checkout 4962355e -- apps/bank-analyzer-django              # 一時的な取り出し。コミットしない
 cd apps/bank-analyzer-django
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d   # 1-1 で控えた形に合わせる（dev なら -f を付けない）
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build   # 1-1 で控えた形に合わせる（dev なら -f を付けない）
 cd ../..
 ```
 
-ただしリポジトリは `git pull` 後の状態なので、このままだとウォッチドッグとバックアップが
+ただしリポジトリのほかの部分は `git pull` 後の状態なので、このままだとウォッチドッグとバックアップが
 React 版を前提に動いて失敗し続ける。**その日のうちに相談**（やり直すか、リポジトリを戻すかを決める）。
 
 ### 手順4まで進んだ後
 
-DB のパスワードは新しい値に付け替わっており、`manage.sh` も React 版を前提にしているので、
+DB のパスワードは新しい値に付け替わり、Django 自身の表（ログインやセッションの表）も消えているので、
 Django 版を上げ直すだけでは戻らない。**自分で戻そうとせず相談すること**。
-データは同じボリュームに残っていて、切替前の控え（`~/.tax-apps/bank-analyzer-pre-cutover/`）もある。
+取引などのデータは同じボリュームに残っていて、切替前の控え（`~/.tax-apps/bank-analyzer-pre-cutover/`）もある。
 
 ---
 
@@ -271,8 +300,7 @@ Django 版を上げ直すだけでは戻らない。**自分で戻そうとせ�
 - `prisma db push` / `prisma migrate dev` を本番の DB に対して叩く（Django 自身の表を消しにかかる）
 - `-f docker-compose.prod.yml` を並べて新アプリを手で起動する（パスワードの生成と付け替えが飛び、
   起動と失敗を繰り返す。本番起動は必ず `manage.sh start --prod bank-analyzer`）
-- `apps/bank-analyzer-django` のディレクトリや Django 版のイメージを消す
-  （切り戻し用。片付けは切替から2週間ほど様子を見てから、別途の手順で行う）
+- 1-5 の控えを取らずに手順4へ進む（手順4で Django の表が消えるので、控えが唯一の戻り道になる）
 
 ## Django のデータが無い PC の場合
 

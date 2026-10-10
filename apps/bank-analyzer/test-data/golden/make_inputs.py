@@ -6,7 +6,7 @@
     python make_inputs.py <出力先 inputs/files>
 
 Shift_JIS と xlsx を作るために Python で書いている（openpyxl が要る。
-bank-analyzer-django のイメージに入っている）。
+旧 bank-analyzer-django のイメージに入っていた。作り直し方は README）。
 """
 import sys
 from pathlib import Path

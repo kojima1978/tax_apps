@@ -1,7 +1,7 @@
 # 正解の記録（golden）
 
-Django 版 bank-analyzer（`apps/bank-analyzer-django`）の挙動を JSON に書き出したもの。
-React 版はこれと突き合わせて作る（`apps/bank-analyzer-django/REACT_MIGRATION_PLAN.md` の段階1）。
+Django 版 bank-analyzer（旧 `apps/bank-analyzer-django`。段階8で削除済み）の挙動を JSON に書き出したもの。
+React 版はこれと突き合わせて作る（`apps/bank-analyzer/REACT_MIGRATION_PLAN.md` の段階1）。
 
 **ここに入っている取引・口座・人名はすべて架空**。実データの記録はリポジトリ外
 （`~/.tax-apps/bank-analyzer-golden/`）にあり、コミットしない（リポジトリは公開）。
@@ -22,6 +22,16 @@ ID は出現順の連番（`?1`, `?2` …）に置き換え、作成日時や出
 2回続けて作っても1バイトも変わらないことを確認済み。
 
 ## 作り直し方
+
+**Django 版は段階8（2026-10-10）でディレクトリもイメージも消したので、このままでは作り直せない。**
+正解の JSON はここに残っているので、突き合わせ（テスト）はそのまま回る。
+どうしても作り直すときは、Django 版を最後にあったコミットから取り出してイメージを作ってから
+下の手順を流す（`apps/bank-analyzer-django` はコミットせずに消すこと）:
+
+```bash
+git checkout 4962355e -- apps/bank-analyzer-django
+cd apps/bank-analyzer-django && cp .env.example .env && docker compose --profile test build test
+```
 
 Django のイメージ（`bank-analyzer-django-test:latest`）と使い捨ての PostgreSQL で動かす。
 本番の DB には触らない（`dump_golden synthetic` は案件が1件でもある DB では動かない）。

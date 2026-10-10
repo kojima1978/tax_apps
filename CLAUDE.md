@@ -61,7 +61,7 @@ dev の compose を毎回突き合わせる**（上限があるのに `NODE_OPTI
   自動復旧を再開させないため）。マーカーがある間は復旧対象外になる旨を警告で出す
 - **`manage.sh` が知っている本番の形は `docker-compose.prod.yml` のオーバーレイ1つだけ**。
   本番サービスを base の中に別サービスとして建てて `profiles` で隠す形は、どの経路からも
-  届かない ── bank-analyzer-django がそれで、`start --prod` は「起動[本番]」と出しながら
+  届かない ── bank-analyzer-django（段階8で削除済み）がそれで、`start --prod` は「起動[本番]」と出しながら
   **Django の開発サーバを上げ続けていた**（モード記録とコンテナは dev で正しく、
   出力だけが嘘をついていたので、両方を並べて見るまで気づけなかった）。
   いまは**オーバーレイが無いアプリを「本番で起動した」と書かない**（WARN を出して
@@ -406,7 +406,8 @@ docker/scripts/manage.sh alert
   - **公表PDF（国税庁の別紙）からの取込**: PDFを `./output` に置いて `docker compose exec stock-valuation-form npm run industry:pdf -- output/<file>.pdf`。奇数ページ＝業種目マスタ＋B・C・D＋前年11月分・12月分、偶数ページ＝当年の各月株価（上段）と2年平均（下段）という構造を座標で読み、アーカイブと同じ形のJSONにする。**登録済みアーカイブとの差分まで出す**のが本体で、「増えた月」と「名称・内容・B・C・Dが改訂されていないこと」を確かめてから次に叩くコマンドを指示する。別紙は毎月更新されるが増えるのは月の列だけなので、通常は `-- <pdf> --only-new-months` で増えた月だけのファイルを作り → `industry:import -- <file> --months-only` → `industry:save`。マスタが改訂されていた場合だけアーカイブを差し替えて `industry:reseed`。変換は `pdfjs-dist`（devDependencies）に依存するので**開発イメージでしか動かない**（本番は `npm install --omit=dev`）
   - 業種目データの持ち運び: `npm run industry:export`（全年分を `output/industry-export/` へ。手元への控え用）/ `npm run industry:import -- <file>`。管理画面の「JSONで入出力」タブと同じ経路。「年分だけを消す」APIは無いので、登録済みの年分へは `--months-only` で月別株価だけ上書きする（まるごと入れ直すなら上の `industry:reseed`）
 - 銀行取引分析 (bank-analyzer): `npm run dev:all`（Vite 3007 + API 3107 を並走）/ `npm run build` + `npm run build:server`。本番は Node が 3007 で両方を配信
-  - Django 版（`apps/bank-analyzer-django`）の置き換え。段階7（2026-10-10）で名前・ポート・DB ボリュームをそのまま引き継いだので、**2つは同時に起動できない**（コンテナ名が同じ）。Django 版は切り戻し用に `UNMANAGED_APPS` へ退避してあるだけで、自動起動・復旧・バックアップには載っていない
+  - Django 版の置き換え。段階7（2026-10-10）で名前・ポート・DB ボリュームをそのまま引き継ぎ、段階8（同日）で Django 版のディレクトリと DB の `auth_*` / `django_*` を削除した（コードは `4962355e` に残る）。まだ Django 版で動いている別の PC の切替手順は `apps/bank-analyzer/CUTOVER.md`
+  - **DB は Django が作った表（`analyzer_*`）をそのまま使う**。スキーマの変更はマイグレーションを手で書いて `migrate deploy`（entrypoint が起動時に流す）。`prisma db push` / `migrate dev` は本番 DB に叩かない
   - 夜間バックアップの JSON は `npm run backup:json`（出力先は環境変数 `OUTPUT_DIR`）。`backup.sh` が稼働中のコンテナの中で呼ぶ。**ファイル名と中身は Django 版の管理コマンドと同じ形に保つこと** ── 過去のバックアップと同じフォルダに並び、どちらも画面の「JSONから復元」で読める（`version` は `1.0` / `1.1` の両対応）
 
 ## コーディング規約

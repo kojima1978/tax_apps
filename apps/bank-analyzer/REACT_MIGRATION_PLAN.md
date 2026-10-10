@@ -143,6 +143,7 @@ URL 31本を Hono の API に置き換える。画面の HTML を返していた
 
 **2026-10-24 以降**（切替＝2026-10-10 から2週間）に、問題が出ていなければ行う。
 着手には改めて承認を取る。
+→ 承認を得て前倒しし、2026-10-10 に行った（末尾の「段階8の結果」）。
 
 **切り戻しができなくなる境目は(2)**。そこから先は切替前の `pg_dump`（リポジトリ外）を
 `pg_restore` する以外に戻る道が無い。(1)は(2)より先に済ませること。
@@ -556,7 +557,7 @@ Django 版の名前・ポート・DB ボリュームをそのまま引き継い�
 
 - 並走用のボリューム `bank-analyzer-next-postgres`（実データの複製 `bank_analyzer_real` が入っていた）
 - 並走用のイメージ `bank-analyzer-bank-analyzer-next:latest`
-- Django 版のイメージとディレクトリは切り戻し用に残置（段階8 で削除）
+- Django 版のイメージとディレクトリは切り戻し用に残置（段階8 で削除した）
 
 ## 切替後に直したもの
 
@@ -602,6 +603,21 @@ Django 版ではファイルごとエラーになっていた書式を読む（`
 正解との突き合わせは、`classify.json` の該当行を `N8_RESULTS`（`classify.test.ts`）、
 シナリオの `ａｕ　料金` / `ｾﾌﾞﾝｲﾚﾌﾞﾝ` を `N8_ADDED`（`aggregate.test.ts`）と
 `TX_DEVIATIONS`（`wizard.test.ts`）に書いた。増えた候補を取り除いた残りは Django 版と一致する。
+
+## 段階8の結果（2026-10-10）
+
+予定（2026-10-24 以降）を前倒しして、切替と同じ日に行った。
+
+- 消す前の控え: `~/.tax-apps/bank-analyzer-pre-stage8/bank_analyzer.dump`（`pg_dump -Fc`）と
+  `counts-before.txt`（リポジトリ外）
+- `analyzer_*` から Django の表への外部キーが無いことを本番 DB で確かめてから、
+  マイグレーション `20261010000000_drop_django_tables` で10表を落とした
+  （`DROP TABLE IF EXISTS`。baseline から作った新しい DB にはもともと無い）
+- この計画書を `apps/bank-analyzer/` へ移し、`apps/bank-analyzer-django/`
+  （無視されていた `.env` と `data/dummy_csv` を含む）、`UNMANAGED_APPS` の行、
+  モード記録、イメージ2つを削除。参照は全部直した
+- **Django 版のコードは `4962355e` に残っている**。正解データを作り直すときや、
+  まだ切り替えていない環境で切り戻すときはそこから取り出す（golden の README・`CUTOVER.md`）
 
 ## 9. 着手の順番
 

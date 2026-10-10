@@ -1,6 +1,6 @@
 // 銀行取引分析のスキーマ。
 //
-// Django 版（apps/bank-analyzer-django/analyzer/models.py）が作った表をそのまま使う。
+// Django 版（旧 apps/bank-analyzer-django/analyzer/models.py）が作った表をそのまま使う。
 // データは移し替えず、表名・列名・制約名・インデックス名を Django の実物に合わせてある
 // （@@map / @map / map:）。切り替えのときは今の DB ボリュームへこのアプリをつなぐだけで済む。
 //

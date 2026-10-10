@@ -1,2 +1,0 @@
-# Ensure shell scripts always have LF line endings (required by Docker COPY --chmod)
-*.sh text eol=lf

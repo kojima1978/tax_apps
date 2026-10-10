@@ -46,7 +46,7 @@
 ┌───────────────┐         ┌─────────────────┐         ┌───────────────────┐
 │  Portal App   │         │  Frontend Apps  │         │   Backend APIs    │
 │  (nginx:alpine│         │  (Next.js/Vite) │         │  (Express/        │
-│   Port 3000)  │         │                 │         │   Django)         │
+│   Port 3000)  │         │                 │         │   Hono)           │
 └───────────────┘         └─────────────────┘         └─────────┬─────────┘
                                                                 │
                                                        ┌────────┴────────┐
@@ -207,7 +207,7 @@ rd /s /q tax_apps
 `restart`, `build`, `apply`, `logs` コマンドではアプリ名を**部分一致**で指定できます:
 
 ```bash
-./manage.sh restart bank-analyzer-django  # フルネーム
+./manage.sh restart inheritance-tax-docs  # フルネーム
 ./manage.sh restart bank-analyzer         # 部分一致
 ./manage.sh logs gift-tax-sim             # 部分一致
 ./manage.sh build retirement              # 部分一致
@@ -311,7 +311,6 @@ Compose コマンドの直接実行ではなく `manage.sh start --prod` を使�
 
 ```bash
 docker compose -f apps\inheritance-tax-docs\docker-compose.yml -f apps\inheritance-tax-docs\docker-compose.prod.yml up -d --build --remove-orphans
-docker compose -f apps\bank-analyzer-django\docker-compose.yml -f apps\bank-analyzer-django\docker-compose.prod.yml up -d --build --remove-orphans
 ```
 
 ### 開発モードに戻す
@@ -367,8 +366,6 @@ base → deps → dev        （開発サーバー）
 | `dev` | 開発サーバー（ホットリロード） | node:22-alpine |
 | `builder` | 本番ビルド（`npm run build`） | node:22-alpine |
 | `runner` | 本番サーバー | nginx:1.27-alpine / node:22-alpine |
-
-> Django（bank-analyzer）は `builder` → `production` → `dev` の順で、本番ステージ名は `production` です。
 
 #### 非 root で動かす
 
@@ -450,12 +447,6 @@ DBなどの永続データは Docker Named Volume またはバインドマウン
 | `bank-analyzer-postgres` | bank-analyzer-postgres | 銀行分析用 PostgreSQL |
 | `medical-stock-valuation-data` | medical-stock-valuation | 医療法人株式 SQLite |
 
-バインドマウント:
-
-| パス | サービス | 内容 |
-|:-----|:---------|:-----|
-| `apps/bank-analyzer-django/data/` | bank-analyzer | アップロードファイル・ユーザー設定 |
-
 データを完全に削除したい場合は `./manage.sh clean` の Step 2 を実行してください。
 
 ### バックアップ
@@ -475,10 +466,9 @@ DBなどの永続データは Docker Named Volume またはバインドマウン
 | 3 | Private Banking PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
 | 4 | Stock Valuation Form PostgreSQL | `pg_dump`（SQLダンプ） | 同上。業種目マスタと各社データ |
 | 5 | SQLite 3アプリ | `better-sqlite3 backup` + `PRAGMA integrity_check` | 稼働中も整合性のあるスナップショットを取得 |
-| 6 | Bank Analyzer データフォルダ | `cp` | `apps/bank-analyzer-django/data/` |
-| 7 | ITCM Excel テンプレート | `cp` | `apps/inheritance-case-management/templates/`。`.gitignore` 対象なので Git には無い |
-| 8 | 設定ファイル | `cp` | ITCM / Bank Analyzer / Private Banking / Stock Valuation Form の `.env` |
-| 9 | Bank Analyzer 案件別JSON | `manage.py export_case_json_backups` | 画面のJSONバックアップと同じ形式 |
+| 6 | ITCM Excel テンプレート | `cp` | `apps/inheritance-case-management/templates/`。`.gitignore` 対象なので Git には無い |
+| 7 | 設定ファイル | `cp` | ITCM / Bank Analyzer / Private Banking / Stock Valuation Form の `.env` |
+| 8 | Bank Analyzer 案件別JSON | `npm run backup:json` | 画面のJSONバックアップと同じ形式 |
 
 #### 暗号鍵の保管（ここだけは自動化できない）
 
@@ -554,7 +544,7 @@ PostgreSQL はコンテナ起動中に `psql` でリストア、SQLite はボリ
 
 ```bash
 ./manage.sh restart inheritance-case-management
-./manage.sh restart bank-analyzer-django
+./manage.sh restart bank-analyzer
 ./manage.sh restart private-banking
 ```
 
@@ -805,7 +795,7 @@ docker network create tax-apps-network
 | Tax Docs | http://localhost/tax-docs/ | 3002 | Vite | 確定申告 必要書類 |
 | Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | Vite | 相続税 資料ガイド |
 | Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | Vite | 相続税計算 |
-| Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 銀行分析 |
+| Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | React + Hono + PostgreSQL | 銀行分析 |
 | Medical Stock | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人株式評価 |
 | Shares Valuation | http://localhost/shares/ | 3012 | Vite | 非上場株式評価 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
@@ -830,7 +820,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | # | アプリ | 備考 |
 |:--|:------|:-----|
 | 1 | inheritance-case-management | PostgreSQL + Next.js |
-| 2 | bank-analyzer-django | PostgreSQL + Django |
+| 2 | bank-analyzer | PostgreSQL + Hono + React |
 | 3 | tax-docs | Vite |
 | 4 | medical-stock-valuation | SQLite + Next.js |
 | 5 | insurance-app | SQLite + Next.js |
@@ -858,7 +848,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3002 | Tax Docs Frontend | apps/tax-docs |
 | 3003 | Inheritance Tax Docs | apps/inheritance-tax-docs |
 | 3004 | Inheritance Tax App | apps/inheritance-tax-app |
-| 3007 | Bank Analyzer | apps/bank-analyzer-django |
+| 3007 | Bank Analyzer | apps/bank-analyzer |
 | 3010 | Medical Stock Valuation | apps/medical-stock-valuation |
 | 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
 | 3030 | Insurance App | apps/insurance-app |
@@ -958,7 +948,6 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | Portal (prod) | `wget --spider` | nginx:alpine 内蔵 |
 | Next.js / Express 系 (dev) | `node -e "fetch(...)"` | Node.js 内蔵 |
 | Vite 系 (dev) | `wget --spider` | BusyBox 内蔵 |
-| Django | `curl --fail` | Dockerfile に curl 追加 |
 | PostgreSQL | `pg_isready -U <user> -d <db>` | PostgreSQL 内蔵 |
 
 ### 技術スタック
@@ -966,11 +955,10 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | カテゴリ | 技術 |
 |:---------|:-----|
 | Frontend | Next.js 16.1, React 19, Vite 6.3〜7.3 |
-| Backend | Next.js API Routes, Django 5.x |
+| Backend | Next.js API Routes, Hono, Express |
 | Database | PostgreSQL 16 Alpine, SQLite |
 | Infrastructure | Docker, Nginx 1.27 |
 | Node.js | v22 LTS |
-| Python | 3.12 (Django) |
 
 ### ディレクトリ構造
 
@@ -1011,9 +999,9 @@ tax_apps/
 │   ├── inheritance-tax-form/   # 相続税の申告書 第1表
 │   │   ├── docker-compose.yml
 │   │   └── docker-compose.prod.yml
-│   └── bank-analyzer-django/   # 銀行分析
-│       ├── data/               #   アップロードデータ（バインドマウント）
-│       └── docker-compose.yml  #   PostgreSQL + Django + テスト
+│   └── bank-analyzer/          # 銀行分析
+│       ├── docker-compose.yml  #   PostgreSQL + Hono/React + テスト
+│       └── docker-compose.prod.yml
 ├── docker/                     # Docker 管理
 │   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（9アプリ共有）
 │   ├── gateway/                # Gateway Compose プロジェクト

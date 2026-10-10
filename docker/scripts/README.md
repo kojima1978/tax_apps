@@ -28,7 +28,7 @@
     `docker-compose.prod.yml` のオーバーレイ1つだけ**（モード→ファイル列の変換は
     `compose_files_for_app` の1箇所）。`profiles` で隠した別サービスとして本番を建てても
     どの経路からも届かないので、**オーバーレイが無いアプリは「本番で起動した」と書かずに
-    WARN を出して dev として上げる** —— bank-analyzer-django がその形で、
+    WARN を出して dev として上げる** —— bank-analyzer-django（段階8で削除済み）がその形で、
     `start --prod` は「起動[本番]」と出しながら Django の開発サーバを上げ続けていた
     （モード記録とコンテナは dev で正しく、出力だけが嘘をついていた）。
     `preflight` のチェック18が `APPS` 全アプリ分のオーバーレイの有無を毎回突き合わせる。

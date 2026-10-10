@@ -82,7 +82,7 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 | # | 変数名 | パス | 説明 | ポート |
 |:--|:-------|:-----|:-----|:-------|
 | 1 | `APP_1` | `apps\inheritance-case-management` | 案件管理 (PostgreSQL + Next.js + Prisma) | 3020/3022 |
-| 2 | `APP_2` | `apps\bank-analyzer-django` | 銀行分析 (PostgreSQL + Django) | 3007 |
+| 2 | `APP_2` | `apps\bank-analyzer` | 銀行分析 (PostgreSQL + Hono + React) | 3007 |
 | 3 | `APP_3` | `apps\tax-docs` | 所得税・贈与税書類リスト (Vite) | 3002 |
 | 4 | `APP_4` | `apps\medical-stock-valuation` | 医療法人株式 (SQLite + Next.js) | 3010 |
 | 5 | `APP_5` | `apps\insurance-app` | 保険管理 (SQLite + Next.js) | 3030 |
@@ -147,7 +147,7 @@ backup/restore コマンドで扱うデータソースは、manage.sh 内の定�
 | # | label | container | pg_user | db_name | volume | dump_file | restart_hint |
 |:--|:------|:----------|:--------|:--------|:-------|:----------|:-------------|
 | 1 | ITCM PostgreSQL | itcm-postgres | postgres | inheritance_tax_db | inheritance-case-management_postgres_data | itcm-postgres | inheritance-case-management |
-| 2 | Bank Analyzer PostgreSQL | bank-analyzer-postgres | bankuser | bank_analyzer | bank-analyzer-postgres | bank-analyzer-postgres | bank-analyzer-django |
+| 2 | Bank Analyzer PostgreSQL | bank-analyzer-postgres | bankuser | bank_analyzer | bank-analyzer-postgres | bank-analyzer-postgres | bank-analyzer |
 
 ### 4.2 SQLite ターゲット
 
@@ -173,7 +173,7 @@ backup/restore コマンドで扱うデータソースは、manage.sh 内の定�
 
 | # | label | src_relative_path | backup_dirname |
 |:--|:------|:------------------|:---------------|
-| 1 | bank-analyzer upload | apps/bank-analyzer-django/data | bank-analyzer-upload |
+| 1 | ITCM Excel templates | apps/inheritance-case-management/templates | itcm-templates |
 
 ### 4.4 設定ファイルターゲット
 
@@ -495,7 +495,7 @@ manage.sh preflight
 
 | 入力 | 一致結果 | 動作 |
 |:-----|:---------|:-----|
-| `bank-analyzer` | 1件 (`bank-analyzer-django`) | 正常解決 |
+| `bank-analyzer` | 1件 (`bank-analyzer`) | 正常解決 |
 | `tax-docs` | 1件 (`tax-docs`) | 正常解決 |
 | `tax` | 複数件 (tax-docs, retirement-tax-calc 等) | エラー + 候補表示 |
 | `inheritance` | 複数件 | エラー + 候補表示 |
@@ -531,7 +531,7 @@ manage.sh の `resolve_app_dir()` では、部分一致で複数件ヒットし�
 | 3a | Bank Analyzer SQLite | `bank-analyzer-sqlite` | ボリューム tar | `bank-analyzer-sqlite.tar.gz` |
 | ~~3b~~ | ~~Tax Docs SQLite~~ | ~~`tax-docs-data`~~ | ~~ボリューム tar~~ | ~~`tax-docs-data.tar.gz`~~ ※廃止済み |
 | 3c | Medical Stock SQLite | `medical-stock-valuation-data` | ボリューム tar | `medical-stock-valuation-data.tar.gz` |
-| 4 | アップロードデータ | `apps/bank-analyzer-django/data/` | `robocopy` (bat) / `cp -r` (sh) | `bank-analyzer-upload/` |
+| ~~4~~ | ~~アップロードデータ~~ | ~~`apps/bank-analyzer-django/data/`~~ | ~~`robocopy` (bat) / `cp -r` (sh)~~ | ~~`bank-analyzer-upload/`~~ ※廃止済み（React 版は使わない） |
 | 5 | 設定ファイル | `apps/inheritance-case-management/.env` | `copy` / `cp` | `itcm-.env` |
 
 ### PostgreSQL バックアップ フォールバック
@@ -627,7 +627,7 @@ manage.sh の `resolve_app_dir()` では、部分一致で複数件ヒットし�
 ```
 [NOTE] Restart apps to apply restored data:
   manage.bat restart inheritance-case-management
-  manage.bat restart bank-analyzer-django
+  manage.bat restart bank-analyzer
 ```
 
 ---

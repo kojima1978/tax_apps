@@ -28,7 +28,7 @@
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
 | 減価償却資産評価 | `/asset-valuation/` | http://localhost/asset-valuation/ | 3017 | Vite + React | 相続税申告の減価償却資産評価 |
 | 株式評価明細書 | `/stock-valuation-form/` | http://localhost/stock-valuation-form/ | 3014 | Vite + React | 取引相場のない株式の評価明細書 |
-| 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | Django + PostgreSQL | 預金移動分析 |
+| 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | React + Hono + PostgreSQL | 預金移動分析 |
 
 ### 本番モード イメージサイズ
 
@@ -37,7 +37,7 @@
 | nginx (静的) | Vite/Next.js アプリ + gateway | ~59-60MB |
 | Next.js standalone | 医療法人株式評価 | ~240MB |
 | Next.js + Prisma | 案件管理 | ~333MB |
-| Django + Gunicorn | 銀行分析 | ~465MB |
+| Node + Prisma | 銀行分析 | ~590MB |
 
 ## ディレクトリ構造
 
@@ -58,7 +58,7 @@ tax_apps/
 │   ├── stock-valuation-form/          # 株式評価明細書 (Vite)
 │   ├── medical-stock-valuation/       # 医療法人株式評価 (Next.js + SQLite)
 │   ├── inheritance-case-management/   # 案件管理 (Next.js + Prisma + PostgreSQL)
-│   └── bank-analyzer-django/          # 銀行分析 (Django)
+│   └── bank-analyzer/                 # 銀行分析 (Vite + Hono + Prisma + PostgreSQL)
 ├── docker/                            # Docker共通設定
 │   ├── gateway/                       # Nginx Gateway の docker-compose.yml
 │   ├── scripts/                       # 管理スクリプト
@@ -226,25 +226,26 @@ POSTGRES_PASSWORD=postgres_dev_2024
 POSTGRES_DB=inheritance_tax_db
 ```
 
-### Bank Analyzer (Django)
+### Bank Analyzer
 
-`apps/bank-analyzer-django/.env` に設定（`.env.example` から自動作成）:
+`apps/bank-analyzer/.env` に設定（`.env.example` から自動作成。本番起動時は `manage.sh` が
+`POSTGRES_PASSWORD` を生成して書き戻す）:
 
 ```env
-DJANGO_SECRET_KEY=dev-secret-key-not-for-production
-DJANGO_DEBUG=True
-DB_PASSWORD=dev-password-change-in-production
+POSTGRES_USER=bankuser
+POSTGRES_PASSWORD=change-me
+POSTGRES_DB=bank_analyzer
 ```
 
 ## 技術スタック
 
-- **フロントエンド**: Vite 6〜7 + React 19, Next.js 16+, Django Templates (Bootstrap 5)
-- **バックエンド**: Next.js API Routes, Django
-- **ORM**: Prisma (案件管理)
+- **フロントエンド**: Vite 6〜7 + React 19, Next.js 16+
+- **バックエンド**: Next.js API Routes, Hono, Express
+- **ORM**: Prisma
 - **データベース**: SQLite, PostgreSQL 16 Alpine
 - **スタイリング**: Tailwind CSS v4
 - **アイコン**: lucide-react
-- **本番サーバー**: nginx:1.27-alpine (静的サイト), Gunicorn (Django)
+- **本番サーバー**: nginx:1.27-alpine (静的サイト), Node.js
 - **コンテナ**: Docker Compose（アプリ毎の独立構成 + prod override パターン）
 
 > **Note**: データベースファイル（`*.db`, `*.sqlite3`）と `.env` ファイルは git 管理外です。
@@ -300,8 +301,6 @@ LAN IPアドレス経由（例: `http://192.168.x.x/`）でアクセスする場
 | 問題 | 対応済み | 対象 |
 |------|---------|------|
 | `crypto.randomUUID()` が使えない | `crypto.getRandomValues()` ベースのフォールバック実装 | inheritance-tax-app, inheritance-tax-docs |
-| Django の `ALLOWED_HOSTS` エラー (400) | ワイルドカード `*` を許可（開発モード） | bank-analyzer-django |
-| Django の COOP ヘッダー警告 | `SECURE_CROSS_ORIGIN_OPENER_POLICY = None` で無効化 | bank-analyzer-django |
 
 > `localhost` からのアクセスではこれらの問題は発生しません。
 
