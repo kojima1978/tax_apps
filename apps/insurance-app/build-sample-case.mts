@@ -68,7 +68,7 @@ const state = {
     { id: M2, name: 'サンプル　花子', nameKana: 'サンプル　ハナコ', relationship: '配偶者', birthDate: '1980-09-20', gender: 'female' },
     { id: M3, name: 'サンプル　一郎', nameKana: 'サンプル　イチロウ', relationship: '長男', birthDate: '2008-04-03', gender: 'male' },
   ],
-  agency: { name: '税理士法人マスエージェント', representative: '児嶋', phone: '088' },
+  agency: { name: '税理士法人マスエージェント', representative: 'サンプル　担当', phone: '088' },
   valuationSettings: { usdJpyRate: 160, fxRateDate: '2026-08-01' },
   policies: [
     {

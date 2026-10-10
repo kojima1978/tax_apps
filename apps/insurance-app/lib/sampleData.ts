@@ -11,9 +11,9 @@ export function getSampleFamilyMembers(): FamilyMember[] {
 
 export function getSampleAgency(): Agency {
   return {
-    name: '新日本プロレス',
-    representative: '橋本 信也',
-    phone: '050-3317-0226',
+    name: 'サンプル保険代理店',
+    representative: '代理 太郎',
+    phone: '03-1234-5678',
   };
 }
 
