@@ -82,7 +82,10 @@ function chipsOf(params: URLSearchParams): Chip[] {
   }
   const from = params.get('date_from');
   const to = params.get('date_to');
-  if (from || to) chips.push({ key: 'date', label: `期間: ${from ? warekiShort(from) : ''}〜${to ? warekiShort(to) : ''}`, remove: removeKeys('date_from', 'date_to') });
+  if (from || to) {
+    const label = from && from === to ? `日付: ${warekiShort(from)}` : `期間: ${from ? warekiShort(from) : ''}〜${to ? warekiShort(to) : ''}`;
+    chips.push({ key: 'date', label, remove: removeKeys('date_from', 'date_to') });
+  }
   return chips;
 }
 
@@ -205,6 +208,17 @@ export function useClearFilters(params: URLSearchParams, setParams: SetURLSearch
     });
 }
 
+// 右クリックの「この日の取引だけ表示」。ほかの条件は外して、その1日の全口座の取引を出す
+export function useShowDay(params: URLSearchParams, setParams: SetURLSearchParams) {
+  const update = useFilterParams(params, setParams);
+  return (date: string) =>
+    update((q) => {
+      for (const k of FILTER_KEYS) q.delete(k);
+      q.set('date_from', date);
+      q.set('date_to', date);
+    });
+}
+
 // ---------------------------------------------------------------------------
 // 詳細条件（開いている間は下書きを持ち、「適用」で URL へ）
 // ---------------------------------------------------------------------------
@@ -214,6 +228,8 @@ type Draft = {
   account: string[];
   category: string[];
   categoryMode: 'include' | 'exclude';
+  // 1日だけ: 欄を1つにして from と to に同じ日を入れる
+  singleDay: boolean;
   dateFrom: string;
   dateTo: string;
   amountType: 'both' | 'out' | 'in';
@@ -223,12 +239,14 @@ type Draft = {
 
 function draftOf(params: URLSearchParams): Draft {
   const type = params.get('amount_type');
+  const from = params.get('date_from') ?? '';
   return {
+    singleDay: from !== '' && from === params.get('date_to'),
     bank: params.getAll('bank').filter(Boolean),
     account: params.getAll('account').filter(Boolean),
     category: params.getAll('category').filter(Boolean),
     categoryMode: params.get('category_mode') === 'exclude' ? 'exclude' : 'include',
-    dateFrom: params.get('date_from') ?? '',
+    dateFrom: from,
     dateTo: params.get('date_to') ?? '',
     amountType: type === 'out' || type === 'in' ? type : 'both',
     amountMin: withCommas(params.get('amount_min') ?? ''),
@@ -249,6 +267,12 @@ function DetailForm({
 }) {
   const [d, setD] = useState<Draft>(() => draftOf(params));
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((s) => ({ ...s, [k]: v }));
+  // 入っている方の日付を引き継ぐ。外したときは同じ日が両方に入った期間として残る
+  const toggleSingleDay = (on: boolean) =>
+    setD((s) => {
+      const day = s.dateFrom || s.dateTo;
+      return { ...s, singleDay: on, dateFrom: day, dateTo: day };
+    });
 
   // 銀行を選んでいれば、口座はその銀行のものだけ（選択済みの口座は残す）
   const accounts = useMemo(() => {
@@ -265,7 +289,7 @@ function DetailForm({
       const single: [string, string][] = [
         ['category_mode', d.category.length && d.categoryMode === 'exclude' ? 'exclude' : ''],
         ['date_from', d.dateFrom],
-        ['date_to', d.dateTo],
+        ['date_to', d.singleDay ? d.dateFrom : d.dateTo],
         ['amount_type', d.amountType === 'both' ? '' : d.amountType],
         ['amount_min', digits(d.amountMin)],
         ['amount_max', digits(d.amountMax)],
@@ -312,18 +336,24 @@ function DetailForm({
         ))}
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <div>
-          <label className="label" htmlFor="fDateFrom">
-            期間（から）
-          </label>
-          <input id="fDateFrom" type="date" className="input" value={d.dateFrom} onChange={(e) => set('dateFrom', e.target.value)} />
-        </div>
-        <div>
-          <label className="label" htmlFor="fDateTo">
-            期間（まで）
-          </label>
-          <input id="fDateTo" type="date" className="input" value={d.dateTo} onChange={(e) => set('dateTo', e.target.value)} />
-        </div>
+        <fieldset className="col-span-2 min-w-0">
+          <legend className="label flex w-full items-center justify-between">
+            <span>{d.singleDay ? '日付' : '期間'}</span>
+            <label className="flex items-center gap-1 text-xs font-normal">
+              <input type="checkbox" checked={d.singleDay} onChange={(e) => toggleSingleDay(e.target.checked)} />
+              1日だけ
+            </label>
+          </legend>
+          {d.singleDay ? (
+            <input type="date" className="input" aria-label="日付" value={d.dateFrom} onChange={(e) => set('dateFrom', e.target.value)} />
+          ) : (
+            <div className="flex items-center gap-1">
+              <input type="date" className="input min-w-0" aria-label="期間（から）" value={d.dateFrom} onChange={(e) => set('dateFrom', e.target.value)} />
+              <span className="text-slate-500">〜</span>
+              <input type="date" className="input min-w-0" aria-label="期間（まで）" value={d.dateTo} onChange={(e) => set('dateTo', e.target.value)} />
+            </div>
+          )}
+        </fieldset>
         <div>
           <label className="label" htmlFor="fAmountType">
             入出金

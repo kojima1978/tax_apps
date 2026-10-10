@@ -32,7 +32,7 @@ import { useNotice } from '../../components/Notice';
 import { useAction } from '../../hooks/useAction';
 import { api, errorMessage } from '../../lib/api';
 import { num, warekiShort } from '../../lib/format';
-import { FilterPanel, filterOnly, hasFilter, useClearFilters } from './FilterPanel';
+import { FilterPanel, filterOnly, hasFilter, useClearFilters, useShowDay } from './FilterPanel';
 import { CategoryCell, Pagination, SaveState, SortHeader, UNCATEGORIZED } from './tableParts';
 import { PatternAddDialog, TxAddDialog, TxEditDialog, type PatternTarget } from './TxDialogs';
 import { AccountCell, RefDateBadge, RowContextMenu, amountCell, type RowMenuActions } from './txParts';
@@ -59,6 +59,7 @@ export function AllTab({ dash, reload }: Props) {
   const { busy, run } = useAction();
   const [params, setParams] = useSearchParams();
   const clearFilters = useClearFilters(params, setParams);
+  const showDay = useShowDay(params, setParams);
   const page = dash.allTxs;
 
   // 一覧はサーバーの1ページ分の写し。分類の変更は先に画面へ出し、失敗したら戻す
@@ -189,6 +190,7 @@ export function AllTab({ dash, reload }: Props) {
     pattern: openPattern,
     category: (t, c) => void saveCategory(t, c),
     remove: setDeleteTx,
+    showDay,
   };
 
   const toggleCompact = () => {
