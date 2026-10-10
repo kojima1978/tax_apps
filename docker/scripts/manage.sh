@@ -2108,6 +2108,37 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
+  # 19. ゲートウェイに外から届くファイアウォールの穴
+  #
+  # アプリにはログインが無く、ゲートウェイ（0.0.0.0:80）へ来る接続を送信元で絞れるのは
+  # Windows ファイアウォールだけ（Docker Desktop の中継で nginx の $remote_addr は全接続が
+  # 172.18.0.1 になり、nginx の allow/deny は効かない）。80番で実際に待ち受けているのは
+  # com.docker.backend.exe で、Docker Desktop の初回起動時の許可ダイアログが作る
+  # 「Docker Desktop Backend」は全ポート・全送信元を許可する。ポート80のルールを
+  # LocalSubnet に絞っても、こちらが残っていれば素通りになる（2026-10-10 に実際そうだった）。
+  # Docker Desktop の更新で作り直されうるので毎回見る。
+  if command -v powershell.exe >/dev/null 2>&1; then
+    local fw_open
+    # shellcheck disable=SC2016  # $_ は PowerShell 側の変数
+    fw_open=$(powershell.exe -NoProfile -Command '
+      [Console]::OutputEncoding = [Text.Encoding]::UTF8
+      Get-NetFirewallRule -Enabled True -Direction Inbound -Action Allow | Where-Object {
+        ($_ | Get-NetFirewallAddressFilter).RemoteAddress -contains "Any" -and (
+          ($_ | Get-NetFirewallApplicationFilter).Program -match "docker|wsl" -or
+          ($_ | Get-NetFirewallPortFilter).LocalPort -contains "80")
+      } | ForEach-Object { "{0} ({1})" -f $_.DisplayName, $_.Profile } | Sort-Object -Unique' 2>/dev/null | tr -d '\r') || fw_open=""
+    if [[ -n "$fw_open" ]]; then
+      warn "Firewall lets any remote address reach the gateway"
+      while IFS= read -r line; do echo "  - $line"; done <<< "$fw_open"
+      echo "  送信元を LAN に絞ってください（管理者の PowerShell）:"
+      echo "  Get-NetFirewallRule -DisplayName '<上の名前>' | Set-NetFirewallRule -EdgeTraversalPolicy Block -RemoteAddress LocalSubnet"
+      ((++pf_warn))
+    else
+      ok "Firewall limits the gateway to the local subnet"
+      ((++pf_ok))
+    fi
+  fi
+
   # Summary
   print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
 

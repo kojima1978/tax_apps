@@ -135,6 +135,12 @@ docker/scripts/manage.sh watch <app-name>
   （警告も記録も出さない）。設定されているのに書けないときだけ `backup-external` に記録が残る ──
   「設定したつもりで効いていない」が一番危ないため。リポジトリ外なのは**公開リポジトリに NAS 名や
   ユーザー名を載せられない**から、環境変数でなくファイルなのは**スケジュールタスクが環境変数を持たずに起動する**から
+- **LAN 公開の守りは Windows ファイアウォールだけ**。アプリにログインは無く、Docker Desktop の中継で
+  nginx の `$remote_addr` は全接続が `172.18.0.1` になる（実測）ので **nginx の allow/deny は効かない**。
+  80番で待ち受けるのは `com.docker.backend.exe` で、Docker が作る「Docker Desktop Backend」
+  （全ポート・全送信元）が残っているとゲートウェイのルールを LocalSubnet に絞っても素通りになる。
+  両方 `-RemoteAddress LocalSubnet` にしてあり、**`preflight` のチェック19**が全送信元に戻っていないか毎回見る
+  （Docker Desktop の更新で作り直されうる）
 
 ### テスト（manage.sh test / CI）
 
