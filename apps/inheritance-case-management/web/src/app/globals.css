@@ -72,6 +72,18 @@ body {
 .case-workspace :where(button) { box-shadow: none; }
 .case-workspace :where(thead) { background: #f1f5f9; }
 .case-workspace tr[data-state="selected"] { background: #eff6ff; }
+.case-list-readable :where(td) { padding-block: 12px; }
+.case-list-readable :where(.text-xs, .text-\[11px\]) { font-size: 13px; line-height: 1.5; }
+
+.case-workspace [data-last-opened="true"] { background: #eff6ff; outline: 2px solid #2563eb; outline-offset: -2px; }
+.case-detail-readable :where(.text-xs, .text-\[11px\]) { font-size: 14px; line-height: 1.6; }
+.case-detail-readable :where(input:not([type="checkbox"]):not([type="radio"]), select) { min-height: 44px; font-size: 14px; }
+.case-detail-readable :where(textarea) { font-size: 14px; line-height: 1.6; }
+.case-detail-readable :where(button[aria-expanded]) { min-height: 44px; }
+.case-detail-readable :where(button, select, summary, a):focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+@media (max-width: 639px) {
+  .case-detail-readable :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { font-size: 16px; }
+}
 
 .analytics-workspace :where(table, tr, th, td) { border-color: #e2e8f0; }
 .analytics-workspace :where(td) { font-variant-numeric: tabular-nums; }

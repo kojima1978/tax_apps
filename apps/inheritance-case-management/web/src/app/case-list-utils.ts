@@ -111,7 +111,7 @@ export function applyKpiCardFilter(params: CasesQueryParams, filter: KPICardFilt
     return { ...next, ...getKpiCardFilterPatch(filter) }
 }
 
-export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQueryParams {
+export function parseCaseListUrlParams(searchParams: URLSearchParams, applyDefaultYear = true): CasesQueryParams {
     const params: CasesQueryParams = {
         page: 1,
         pageSize: CASE_LIST_PAGE_SIZE,
@@ -146,11 +146,11 @@ export function parseCaseListUrlParams(searchParams: URLSearchParams): CasesQuer
     if (sortBy === "bestAmount") params.sortBy = sortBy
     if (sortOrder === "asc" || sortOrder === "desc") params.sortOrder = sortOrder
 
-    if (fiscalYear) {
+    if (fiscalYear && fiscalYear !== "all") {
         params.fiscalYear = Number(fiscalYear)
     } else if (fiscalYears) {
         params.fiscalYears = fiscalYears
-    } else if (!getHasCaseFilters(params)) {
+    } else if (applyDefaultYear && fiscalYear !== "all" && !getHasCaseFilters(params)) {
         params.fiscalYear = new Date().getFullYear()
     }
     // 終了案件（見送り・入金済）の表示制御:
@@ -169,6 +169,7 @@ export function toCaseListUrlSearch(params: CasesQueryParams): string {
     const sp = new URLSearchParams()
     if (params.fiscalYear) sp.set("fiscalYear", String(params.fiscalYear))
     if (params.fiscalYears) sp.set("fiscalYears", params.fiscalYears)
+    if (!params.fiscalYear && !params.fiscalYears) sp.set("fiscalYear", "all")
     if (params.search) sp.set("search", params.search)
     if (params.status) sp.set("status", params.status)
     if (params.hideClosed === false) sp.set("hideClosed", "false")

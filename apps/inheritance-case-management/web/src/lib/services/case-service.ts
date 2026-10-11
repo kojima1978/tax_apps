@@ -23,6 +23,16 @@ export { buildCaseWhereClause } from './case-query';
 
 type CaseListRecord = Prisma.InheritanceCaseGetPayload<{ select: typeof CASE_LIST_SELECT }>;
 
+async function getFilteredAmountTotals(where: Prisma.InheritanceCaseWhereInput) {
+  const [confirmedResult, estimateResult] = await Promise.all([
+    prisma.inheritanceCase.aggregate({ where: { AND: [where, { feeAmount: { gt: 0 } }] }, _sum: { feeAmount: true } }),
+    prisma.inheritanceCase.aggregate({ where: { AND: [where, { OR: [{ feeAmount: null }, { feeAmount: { lte: 0 } }] }] }, _sum: { estimateAmount: true } }),
+  ]);
+  const confirmed = confirmedResult._sum.feeAmount ?? 0;
+  const estimate = estimateResult._sum.estimateAmount ?? 0;
+  return { confirmed, estimate, total: confirmed + estimate };
+}
+
 function serializeCaseListItem(caseItem: CaseListRecord): CaseListItem {
   return {
     id: caseItem.id,
@@ -38,6 +48,8 @@ function serializeCaseListItem(caseItem: CaseListRecord): CaseListItem {
     hasMemo: Boolean(caseItem.memo),
     caseAddedDate: toDateStr(caseItem.caseAddedDate),
     caseCompletedDate: toDateStr(caseItem.caseCompletedDate),
+    billedDate: toDateStr(caseItem.billedDate),
+    paidDate: toDateStr(caseItem.paidDate),
     assignee: caseItem.assignee,
     internalReferrer: caseItem.internalReferrer,
   };
@@ -214,6 +226,12 @@ export async function listCases(params: {
       const cases = allCases.toSorted(compareByBestAmount).slice(skip, skip + pageSize);
       return {
         data: cases.map(serializeCaseListItem),
+        amountTotals: allCases.reduce((totals, item) => {
+          if ((item.feeAmount ?? 0) > 0) totals.confirmed += item.feeAmount ?? 0;
+          else totals.estimate += item.estimateAmount ?? 0;
+          totals.total = totals.confirmed + totals.estimate;
+          return totals;
+        }, { confirmed: 0, estimate: 0, total: 0 }),
         pagination: { page, pageSize, total: allCases.length, totalPages: Math.ceil(allCases.length / pageSize) },
       };
     }
@@ -242,12 +260,14 @@ export async function listCases(params: {
         take: pageSize,
       });
 
-  const [total, cases] = await Promise.all([
+  const [total, cases, amountTotals] = await Promise.all([
     prisma.inheritanceCase.count({ where }),
     casesPromise,
+    view === 'list' ? getFilteredAmountTotals(where) : Promise.resolve(undefined),
   ]);
 
   return {
+    ...(amountTotals && { amountTotals }),
     data: view === 'list'
       ? (cases as CaseListRecord[]).map(serializeCaseListItem)
       : cases.map(serializeCase),

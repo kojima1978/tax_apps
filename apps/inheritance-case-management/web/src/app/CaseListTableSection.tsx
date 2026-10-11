@@ -29,6 +29,9 @@ interface CaseListTableSectionProps {
     columns: ColumnDef<CaseListItem>[]
     hasFilters: boolean
     amountTotals: CaseListAmountTotals
+    filteredAmountTotals?: CaseListAmountTotals
+    density?: "standard" | "compact"
+    visibleColumnIds?: readonly string[]
     pagination?: CaseListPagination
     onClearFilters: () => void
     onRetry: () => void
@@ -46,6 +49,9 @@ export function CaseListTableSection({
     columns,
     hasFilters,
     amountTotals,
+    filteredAmountTotals,
+    density,
+    visibleColumnIds,
     pagination,
     onClearFilters,
     onRetry,
@@ -69,17 +75,28 @@ export function CaseListTableSection({
                     </div>
                 </div>
             )}
-            {cases.length > 0 && (
-                <div className="mb-2 flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border bg-muted/50 px-3 py-2 text-xs md:mb-0 md:justify-end md:rounded-b-none">
+            {(cases.length > 0 || filteredAmountTotals) && (
+                <div className="mb-2 space-y-2 rounded-lg border bg-muted/50 px-3 py-2 text-xs md:mb-0 md:rounded-b-none">
+                    {filteredAmountTotals && <div className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="検索条件に一致する全件の売上合計">
+                        <span className="font-medium">条件一致の全件合計</span>
+                        <span className="text-sm font-bold">{formatCurrency(filteredAmountTotals.total)}</span>
+                        <span>確定 {formatCurrency(filteredAmountTotals.confirmed)}</span>
+                        <span>見込 {formatCurrency(filteredAmountTotals.estimate)}</span>
+                        <span className="text-muted-foreground">/ {pagination?.total ?? cases.length}件（紹介料控除前）</span>
+                    </div>}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="font-medium text-muted-foreground">このページの売上合計</span>
                     <span className="font-bold">{formatCurrency(amountTotals.total)}</span>
                     <span className="text-black">確定 {formatCurrency(amountTotals.confirmed)}</span>
                     <span className="text-black/70">見込 {formatCurrency(amountTotals.estimate)}</span>
                     <span className="text-muted-foreground">/ {cases.length}件</span>
+                    </div>
                 </div>
             )}
             <DataTable
                 columns={columns}
+                density={density}
+                visibleColumnIds={visibleColumnIds}
                 data={cases}
                 selectedIds={selectedIds}
                 onToggleSelected={onToggleSelected}

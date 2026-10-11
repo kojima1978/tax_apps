@@ -269,6 +269,17 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
     },
     // ── 第6列：補足と年度 ──────────────────────────────────────
     {
+        id: "paymentDates",
+        size: 120,
+        header: () => <span>請求・入金日</span>,
+        cell: ({ row }) => (
+            <div className="space-y-1 text-xs tabular-nums">
+                <div><span className="mr-1 text-muted-foreground">請求</span>{row.original.billedDate ? formatSlashDate(row.original.billedDate) : "未入力"}</div>
+                <div><span className="mr-1 text-muted-foreground">入金</span>{row.original.paidDate ? formatSlashDate(row.original.paidDate) : "未入力"}</div>
+            </div>
+        ),
+    },
+    {
         accessorKey: "summary",
         size: 105,
         header: () => <span className="inline-flex items-center h-8">特記事項</span>,

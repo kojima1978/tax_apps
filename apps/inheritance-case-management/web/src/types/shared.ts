@@ -172,6 +172,8 @@ export interface CaseListItem {
   hasMemo: boolean;
   caseAddedDate?: string | null;
   caseCompletedDate?: string | null;
+  billedDate?: string | null;
+  paidDate?: string | null;
   assignee?: Pick<Assignee, 'id' | 'name'> | null;
   internalReferrer?: Pick<Assignee, 'id' | 'name'> | null;
 }
@@ -235,6 +237,7 @@ interface Pagination {
 export interface PaginatedResponse<T> {
   data: T[];
   pagination: Pagination;
+  amountTotals?: { confirmed: number; estimate: number; total: number };
 }
 
 // Audit Log

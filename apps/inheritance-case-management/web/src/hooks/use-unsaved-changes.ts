@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 /**
  * フォームの未保存変更を検知し、ブラウザ離脱時に警告を表示するフック
  */
-export function useUnsavedChanges<T>(currentData: T) {
-  const [baseline, setBaseline] = useState<string>(() => JSON.stringify(currentData));
+export function useUnsavedChanges<T>(currentData: T, initialBaseline: T = currentData) {
+  const [baseline, setBaseline] = useState<string>(() => JSON.stringify(initialBaseline));
 
   const isDirty = JSON.stringify(currentData) !== baseline;
+  const baselineData = useMemo(() => JSON.parse(baseline) as T, [baseline]);
 
   // ベースラインをリセット（保存成功後に呼ぶ）
   const resetBaseline = useCallback((newData: T) => {
@@ -28,5 +29,5 @@ export function useUnsavedChanges<T>(currentData: T) {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty]);
 
-  return { isDirty, resetBaseline };
+  return { isDirty, resetBaseline, baselineData };
 }

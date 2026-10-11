@@ -6,9 +6,9 @@ import { getThisMonthRange } from "@/app/case-list-utils"
 
 export function MonthlyCaseActivity({ years }: { years: Set<number> }) {
     const fiscalYears = [...years].sort().join(",")
-    const { data, isError } = useCaseKpis(fiscalYears ? { fiscalYears } : undefined)
+    const { data, isError, refetch } = useCaseKpis(fiscalYears ? { fiscalYears } : undefined)
     const { from, to } = getThisMonthRange()
-    if (isError) return <p className="text-sm text-red-700">当月の案件集計を取得できませんでした。</p>
+    if (isError) return <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-red-700">当月の案件集計を取得できませんでした。<button type="button" className="min-h-11 rounded-md border px-3" onClick={() => void refetch()}>再試行</button></div>
     return <section aria-label="当月の案件活動" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
         <h2 className="text-xs font-medium">当月 <span className="font-normal text-slate-600">（{from.slice(0, 7).replace("-", "年")}月・選択年度が対象）</span></h2>
         <div className="flex items-center gap-3">

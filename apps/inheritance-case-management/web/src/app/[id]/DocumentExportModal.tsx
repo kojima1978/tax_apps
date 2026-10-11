@@ -10,6 +10,7 @@ import { exportDocument } from "@/lib/export-excel"
 import { todayIsoDate } from "@/lib/date-utils"
 import { useToast } from "@/components/ui/Toast"
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from "@/lib/document-types"
+import { formatCurrency } from "@/lib/analytics-utils"
 
 type AddresseeMode = "heirs-respective" | "selected-heirs" | "custom"
 const MAX_ESTIMATE_INVOICE_ADDRESSEES = 3
@@ -19,9 +20,11 @@ interface DocumentExportModalProps {
     onClose: () => void
     caseData: InheritanceCase
     docType: DocumentType
+    hasUnsavedChanges?: boolean
+    onSave?: () => Promise<boolean>
 }
 
-export function DocumentExportModal({ isOpen, onClose, caseData, docType }: DocumentExportModalProps) {
+export function DocumentExportModal({ isOpen, onClose, caseData, docType, hasUnsavedChanges = false, onSave }: DocumentExportModalProps) {
     const toast = useToast()
     const today = todayIsoDate()
     const supportsCollectiveAddressee = docType === "estimate" || docType === "invoice"
@@ -32,6 +35,9 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
     const [selectedHeirs, setSelectedHeirs] = useState<Set<number>>(new Set())
     const [customName, setCustomName] = useState("")
     const [isExporting, setIsExporting] = useState(false)
+    const [saveFirst, setSaveFirst] = useState(false)
+    const [hasConfirmed, setHasConfirmed] = useState(false)
+    const expensesTotal = (caseData.expenses || []).reduce((sum, item) => sum + (item.amount || 0), 0)
 
     const heirs = useMemo(() => caseData.heirs || [], [caseData.heirs])
     const selectedHeirNames = useMemo(
@@ -45,6 +51,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
             if (next.has(index)) {
                 next.delete(index)
             } else {
+                if (!supportsCollectiveAddressee) { next.clear(); setCustomName("") }
                 if (supportsCollectiveAddressee && next.size >= MAX_ESTIMATE_INVOICE_ADDRESSEES) {
                     toast.warning(`宛先は最大${MAX_ESTIMATE_INVOICE_ADDRESSEES}人まで選択できます`)
                     return prev
@@ -57,9 +64,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
 
     const addresseeNames = useMemo(() => {
         if (!supportsCollectiveAddressee) {
-            const names = [...selectedHeirNames]
-            if (customName.trim()) names.push(customName.trim())
-            return names
+            return customName.trim() ? [customName.trim()] : selectedHeirNames.slice(0, 1)
         }
         if (supportsCollectiveAddressee && addresseeMode === "heirs-respective") {
             return ["相続人各位"]
@@ -73,7 +78,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
 
     const addresseePreview = useMemo(() => {
         if (!supportsCollectiveAddressee) {
-            return addresseeNames.length > 0 ? `${addresseeNames.join("、")}　様` : ""
+            return addresseeNames[0] || ""
         }
         if (supportsCollectiveAddressee && addresseeMode === "heirs-respective") {
             return "相続人各位"
@@ -87,6 +92,8 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
     }, [supportsCollectiveAddressee, addresseeMode, selectedHeirNames, customName, addresseeNames])
 
     const handleExport = async () => {
+        if (!issueDate) { toast.warning("発行日を入力してください"); return }
+        if (!hasConfirmed) { toast.warning("出力内容の確認にチェックしてください"); return }
         if (addresseeNames.length === 0) {
             toast.warning("宛先を1件以上選択または入力してください")
             return
@@ -98,6 +105,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
 
         setIsExporting(true)
         try {
+            if (hasUnsavedChanges && saveFirst && onSave && !(await onSave())) return
             await exportDocument({
                 caseData,
                 docType,
@@ -115,7 +123,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`${DOCUMENT_TYPE_LABELS[docType]}の出力`}>
+        <Modal isOpen={isOpen} onClose={() => { if (!isExporting) onClose() }} title={`${DOCUMENT_TYPE_LABELS[docType]}の出力`} panelClassName="case-workspace max-w-2xl">
             <div className="space-y-4">
                 {/* 発行日 */}
                 <div className="space-y-2">
@@ -176,7 +184,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
                     )}
                     {heirs.length > 0 ? (
                         <div className="space-y-1">
-                            {heirs.length > 1 && (
+                            {heirs.length > 1 && supportsCollectiveAddressee && (
                                 <div className="flex gap-2 pb-1">
                                     <button
                                         type="button"
@@ -228,7 +236,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
                     <Input
                         id="customName"
                         value={customName}
-                        onChange={(e) => setCustomName(e.target.value)}
+                        onChange={(e) => { setCustomName(e.target.value); if (!supportsCollectiveAddressee) setSelectedHeirs(new Set()) }}
                         placeholder="例: 山田 花子"
                     />
                 </div>
@@ -241,12 +249,34 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType }: Docu
                     </div>
                 )}
 
+                <section aria-label="帳票の出力内容確認" className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                    <h3 className="font-semibold">出力内容の確認</h3>
+                    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+                        <dt>被相続人</dt><dd className="break-words font-medium">{caseData.deceasedName}</dd>
+                        <dt>発行日</dt><dd>{issueDate || "未入力"}</dd>
+                        <dt>宛先</dt><dd className="whitespace-pre-line break-words">{addresseePreview || "未選択"}</dd>
+                        {docType === "invoice-request" ? <><dt>報酬額（税抜）</dt><dd className="font-semibold tabular-nums">{formatCurrency(caseData.feeAmount || 0)}</dd></> : <>
+                            <dt>遺産総額</dt><dd>{formatCurrency(caseData.propertyValue || 0)}</dd>
+                            <dt>加算対象</dt><dd>土地（路線価）{caseData.landRosenkaCount || 0}区分・土地（倍率）{caseData.landBairitsuCount || 0}区分・非上場株式{caseData.unlistedStockCount || 0}社・相続人{caseData.feeCalculationHeirCount || 0}名</dd>
+                            <dt>特別業務報酬額</dt><dd>{(caseData.specialAdditions || []).slice(0, 2).map(item => `${item.description || "内容未入力"}：${formatCurrency(item.amount || 0)}`).join("、") || "なし"}</dd>
+                            <dt>値引額</dt><dd>{formatCurrency(Math.abs(caseData.discountAmount || 0))}</dd>
+                        </>}
+                        {docType !== "estimate" && <><dt>立替金</dt><dd>{formatCurrency(expensesTotal)}（{caseData.expenses?.length || 0}件）</dd></>}
+                        {docType === "invoice-request" && <><dt>紹介料</dt><dd>{formatCurrency(caseData.referralFeeAmount || 0)}</dd></>}
+                    </dl>
+                    <p className="text-xs text-slate-600">{docType === "invoice-request" ? "依頼票は入力済みの報酬額・紹介料を出力します。宛先は1件です。" : "見積書・請求書は上記の入力値を使い、Excelテンプレートの計算式で報酬・消費税・合計を計算します。手入力した見積額・報酬額は使用しません。最終金額はExcelの帳票で確認してください。"}</p>
+                </section>
+                <div role="status" className={`rounded-md border p-3 text-sm ${hasUnsavedChanges ? "border-amber-200 bg-amber-50 text-amber-900" : "bg-slate-50"}`}>
+                    {hasUnsavedChanges ? "未保存の変更を含む現在の入力内容を出力します。" : "保存済みの内容を出力します。"}
+                    {hasUnsavedChanges && onSave && <label className="mt-2 flex min-h-11 items-center gap-2"><input type="checkbox" checked={saveFirst} onChange={event => setSaveFirst(event.target.checked)} />先に案件を保存してから出力する</label>}
+                </div>
+                <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={hasConfirmed} onChange={event => setHasConfirmed(event.target.checked)} />宛名・発行日・金額を確認しました</label>
                 {/* アクション */}
                 <div className="flex justify-end gap-3 pt-2">
-                    <Button variant="ghost" onClick={onClose}>
+                    <Button variant="ghost" onClick={onClose} disabled={isExporting}>
                         キャンセル
                     </Button>
-                    <Button onClick={handleExport} disabled={isExporting}>
+                    <Button onClick={handleExport} disabled={isExporting || !hasConfirmed || !issueDate || addresseeNames.length === 0}>
                         {isExporting ? "出力中..." : `${DOCUMENT_TYPE_LABELS[docType]}を出力`}
                     </Button>
                 </div>

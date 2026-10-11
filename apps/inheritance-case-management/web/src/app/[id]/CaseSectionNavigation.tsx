@@ -12,9 +12,10 @@ export interface CaseSectionNavigationItem {
 interface CaseSectionNavigationProps {
     items: readonly CaseSectionNavigationItem[]
     onOpenSection: (sectionKey: string) => void
+    changedSections?: readonly string[]
 }
 
-export function CaseSectionNavigation({ items, onOpenSection }: CaseSectionNavigationProps) {
+export function CaseSectionNavigation({ items, onOpenSection, changedSections = [] }: CaseSectionNavigationProps) {
     const [activeId, setActiveId] = useState(items[0]?.id ?? "")
 
     useEffect(() => {
@@ -92,6 +93,7 @@ export function CaseSectionNavigation({ items, onOpenSection }: CaseSectionNavig
                             )}
                         >
                             {item.label}
+                            {changedSections.includes(item.sectionKey) && <span className="ml-1 rounded bg-amber-100 px-1 text-[11px] text-amber-900">変更あり</span>}
                         </a>
                     )
                 })}

@@ -31,6 +31,8 @@ interface DataTableProps {
     data: CaseListItem[]
     hasFilters?: boolean
     onClearFilters?: () => void
+    density?: "standard" | "compact"
+    visibleColumnIds?: readonly string[]
 }
 
 function getResponsiveColumnClass(columnId: string): string {
@@ -45,6 +47,8 @@ function DataTableComponent({
     onToggleSelected,
     hasFilters,
     onClearFilters,
+    density = "standard",
+    visibleColumnIds,
 }: DataTableProps) {
     // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
@@ -73,10 +77,10 @@ function DataTableComponent({
 
     return (
         <div className="w-full">
-            {rows.length > 0 && <CaseMobileList data={data} selectedIds={selectedIds} onToggleSelected={onToggleSelected} />}
+            {rows.length > 0 && <CaseMobileList data={data} selectedIds={selectedIds} onToggleSelected={onToggleSelected} visibleColumnIds={visibleColumnIds} />}
             {rows.length === 0 && <div className="rounded-xl border md:hidden">{emptyState}</div>}
             <div className="hidden w-full overflow-x-auto rounded-md border bg-white md:block">
-                <Table className="w-full min-w-[920px] table-fixed text-xs">
+                <Table className={cn("w-full table-fixed", columns.length > 6 ? "min-w-[920px]" : "min-w-[680px]", density === "standard" ? "case-list-readable text-sm" : "text-xs")}>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
@@ -105,6 +109,7 @@ function DataTableComponent({
                                 return (
                                 <TableRow
                                     key={row.id}
+                                    data-case-id={caseRow.id}
                                     data-state={selectedIds.has(caseRow.id) ? "selected" : undefined}
                                     className={cn(
                                         index % 2 === 1 && "bg-muted/30",

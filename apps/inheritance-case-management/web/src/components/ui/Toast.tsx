@@ -58,12 +58,12 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
   const style = TOAST_STYLES[toast.type];
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${style.container} animate-slide-in`}>
+    <div role={toast.type === 'error' ? 'alert' : 'status'} className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${style.container} animate-slide-in`}>
       {style.icon}
       <span className="flex-1 text-sm font-medium">{toast.message}</span>
       <button
         onClick={() => onRemove(toast.id)}
-        className="p-1 hover:bg-black/10 rounded transition-colors"
+        className="flex h-11 w-11 shrink-0 items-center justify-center hover:bg-black/10 rounded transition-colors focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="通知を閉じる"
       >
         <X className="w-4 h-4" />
@@ -96,7 +96,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       {toasts.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        <div className="pointer-events-none fixed top-16 right-4 z-50 flex max-w-[calc(100vw-2rem)] flex-col gap-2">
           {toasts.map((toast) => (
             <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
           ))}

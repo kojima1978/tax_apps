@@ -72,8 +72,10 @@ describe('URL から絞り込み条件を読む', () => {
 });
 
 describe('URL へ書き戻す', () => {
-  it('既定値は書かない（URLを短く保ち、既定の変更に追従させる）', () => {
-    expect(toCaseListUrlSearch({ page: 1, pageSize: CASE_LIST_PAGE_SIZE, hideClosed: true })).toBe('');
+  it('全年度は明示し、再読み込みで当年度に戻らない', () => {
+    const search = toCaseListUrlSearch({ page: 1, pageSize: CASE_LIST_PAGE_SIZE, hideClosed: true });
+    expect(search).toBe('fiscalYear=all');
+    expect(parse(search).fiscalYear).toBeUndefined();
   });
 
   it('既定から外れたものだけ書く', () => {

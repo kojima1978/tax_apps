@@ -1,13 +1,17 @@
 "use client"
 
-import { useCallback, useEffect, useState, useMemo } from "react"
+import { useCallback, useState, useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
-import type { InheritanceCase, Assignee } from "@/types/shared"
+import type { Assignee } from "@/types/shared"
 import type { RankingData } from "@/lib/analytics-utils"
 import { calcNet, calcReferralFee, getAnalyticsBaseType, aggregateCases, computeRollingAnnual, LABEL_UNSET } from "@/lib/analytics-utils"
 import { isAccepted } from "@/types/constants"
 import { RefreshCw } from "lucide-react"
+import { ErrorDisplay } from "@/components/ui/ErrorDisplay"
+import { Button } from "@/components/ui/Button"
+import { parseError } from "@/hooks/use-error-handler"
 import { useRankingSort } from "@/hooks/use-ranking-sort"
 import { YearFilter } from "./YearFilter"
 import { OverviewTab } from "./OverviewTab"
@@ -34,52 +38,32 @@ function getCurrentMonth(): string {
 }
 
 export default function AnalyticsPage() {
-    const [data, setData] = useState<InheritanceCase[]>([])
-    const [assigneesData, setAssigneesData] = useState<Assignee[]>([])
-    const [deptMap, setDeptMap] = useState<Map<string, string>>(new Map())
+    const { data: loaded, isPending: isLoading, isFetching, error: loadError, refetch } = useQuery({
+        queryKey: ["cases", "analytics"],
+        queryFn: async () => {
+            const [cases, assignees] = await Promise.all([getAllCases(), getAssignees()])
+            return { cases, assignees }
+        },
+    })
+    const data = useMemo(() => loaded?.cases ?? [], [loaded])
+    const assigneesData = useMemo(() => loaded?.assignees ?? [], [loaded])
+    const deptMap = useMemo(() => new Map(assigneesData.map(a => [a.name, a.department?.name || LABEL_UNSET])), [assigneesData])
     const currentYear = new Date().getFullYear()
-    const [selectedYears, setSelectedYears] = useState<Set<number>>(new Set([currentYear]))
+    const [requestedYears, setSelectedYears] = useState<Set<number>>(new Set([currentYear]))
     const [activeTab, setActiveTab] = useState<TabId>("overview")
-    const [years, setYears] = useState<number[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [annualBaseMonth, setAnnualBaseMonth] = useState(getCurrentMonth)
+    const years = useMemo(() => Array.from(new Set(data.map(c => c.fiscalYear))).sort((a, b) => b - a), [data])
+    const selectedYears = useMemo(() => {
+        if (requestedYears.size === 0 || years.length === 0) return requestedYears
+        const available = [...requestedYears].filter(year => years.includes(year))
+        return new Set(available.length > 0 ? available : [years[0]])
+    }, [requestedYears, years])
+    const [annualBaseMonth, setAnnualBaseMonth] = useState(() => {
+        const value = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("baseMonth") : null
+        return value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && value <= getCurrentMonth() ? value : getCurrentMonth()
+    })
     const [annualDepartment, setAnnualDepartment] = useState(ALL_DEPARTMENTS_VALUE)
 
     const isAllYears = selectedYears.size === 0
-
-    useEffect(() => {
-        const load = async () => {
-            setIsLoading(true)
-            try {
-                const [cases, assignees] = await Promise.all([getAllCases(), getAssignees()])
-                setData(cases)
-                setAssigneesData(assignees)
-
-                const map = new Map<string, string>()
-                assignees.forEach(a => map.set(a.name, a.department?.name || LABEL_UNSET))
-                setDeptMap(map)
-
-                const uniqueYears = Array.from(new Set(cases.map(c => c.fiscalYear))).sort((a, b) => b - a)
-                setYears(uniqueYears)
-                const cy = new Date().getFullYear()
-                if (!uniqueYears.includes(cy)) {
-                    setSelectedYears(uniqueYears.length > 0 ? new Set([uniqueYears[0]]) : new Set())
-                }
-            } catch (error) {
-                console.error("Failed to load analytics data:", error)
-            } finally {
-                setIsLoading(false)
-            }
-        }
-        load()
-    }, [])
-
-    useEffect(() => {
-        const value = new URLSearchParams(window.location.search).get("baseMonth")
-        if (value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && value <= getCurrentMonth()) {
-            setAnnualBaseMonth(value)
-        }
-    }, [])
 
     const filteredData = useMemo(() => {
         if (isAllYears) return data
@@ -238,10 +222,15 @@ export default function AnalyticsPage() {
         )
     }
 
+    if (loadError) {
+        return <div className="container mx-auto px-4 py-10"><h1 className="text-xl font-bold">経営分析ダッシュボード</h1><ErrorDisplay error={parseError(loadError)} onRetry={() => void refetch()} /></div>
+    }
+
     return (
         <div className="case-workspace analytics-workspace mx-auto min-h-screen max-w-[1600px] space-y-3 px-3 py-4 text-sm lg:px-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <h1 className="text-xl font-bold">経営分析ダッシュボード</h1>
+                <Button type="button" variant="outline" disabled={isFetching} onClick={() => void refetch()}><RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />{isFetching ? "更新中…" : "データを更新"}</Button>
             </div>
 
             {/* Tab Navigation */}

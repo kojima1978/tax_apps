@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, use, Suspense } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import type { InheritanceCase } from "@/types/shared"
 import { Button } from "@/components/ui/Button"
@@ -11,13 +11,10 @@ import { getCase, deleteCase } from "@/lib/api/cases"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { useToast } from "@/components/ui/Toast"
 import { Trash2, ChevronRight } from "lucide-react"
-import { shouldCloseCaseDetailSections } from "@/lib/case-detail-section-state"
+import { getCaseListReturnHref } from "@/lib/case-list-navigation"
 
 function EditCaseFormPanel({ caseItem }: { caseItem: InheritanceCase }) {
-    const searchParams = useSearchParams()
-    const sectionStateKey = shouldCloseCaseDetailSections(searchParams) ? "closed" : "default"
-
-    return <EditCaseForm key={`${caseItem.id}-${sectionStateKey}`} initialData={caseItem} />
+    return <EditCaseForm key={caseItem.id} initialData={caseItem} />
 }
 
 export default function InheritanceCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -70,7 +67,7 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
         }
     }
 
-    if (isLoading) {
+    if (isLoading || (caseItem && String(caseItem.id) !== id)) {
         return <div className="p-10 text-center">読み込み中...</div>
     }
 
@@ -79,10 +76,13 @@ export default function InheritanceCaseDetailPage({ params }: { params: Promise<
     }
 
     return (
-        <div className="container mx-auto max-w-7xl px-2.5 py-3 lg:px-3">
+        <div className="case-workspace container mx-auto max-w-7xl px-2.5 py-3 lg:px-3">
             <div className="mb-2 flex items-center justify-between gap-2">
                 <nav className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                    <Link href="/" className="hover:text-foreground transition-colors">案件一覧</Link>
+                    <Link href={getCaseListReturnHref(caseItem.id)} className="hover:text-foreground transition-colors" onClick={event => {
+                        event.preventDefault()
+                        document.querySelector<HTMLButtonElement>('nav[aria-label="案件の移動"] button')?.click()
+                    }}>案件一覧</Link>
                     <ChevronRight className="h-3.5 w-3.5" />
                     <span className="truncate text-foreground font-medium">{caseItem.deceasedName || "案件詳細"}</span>
                 </nav>

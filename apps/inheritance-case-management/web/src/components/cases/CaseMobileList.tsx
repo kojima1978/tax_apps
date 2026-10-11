@@ -13,6 +13,7 @@ interface CaseMobileListProps {
     selectedIds: Set<number>
     onToggleSelected: (id: number) => void
     data: CaseListItem[]
+    visibleColumnIds?: readonly string[]
 }
 
 function formatDate(date: string | Date): string {
@@ -22,7 +23,8 @@ function formatDate(date: string | Date): string {
     return `${value.getFullYear()}/${month}/${day}`
 }
 
-export function CaseMobileList({ data, selectedIds, onToggleSelected }: CaseMobileListProps) {
+export function CaseMobileList({ data, selectedIds, onToggleSelected, visibleColumnIds }: CaseMobileListProps) {
+    const shows = (id: string) => !visibleColumnIds || visibleColumnIds.includes(id)
     return (
         <ul className="space-y-2 md:hidden" aria-label="案件一覧">
             {data.map((caseItem) => {
@@ -31,7 +33,7 @@ export function CaseMobileList({ data, selectedIds, onToggleSelected }: CaseMobi
                 const isEnded = isHandlingEnded(caseItem.status, caseItem.isUndivided)
 
                 return (
-                    <li key={caseItem.id} className="relative">
+                    <li key={caseItem.id} data-case-id={caseItem.id} className="relative">
                         <label className="absolute left-2 top-2 z-10 flex h-11 w-11 items-center justify-center">
                             <input type="checkbox" aria-label={`${caseItem.deceasedName}様の案件を選択`} checked={selectedIds.has(caseItem.id)} onChange={() => onToggleSelected(caseItem.id)} className="h-5 w-5 accent-blue-700" />
                         </label>
@@ -48,15 +50,15 @@ export function CaseMobileList({ data, selectedIds, onToggleSelected }: CaseMobi
                                     <p className="truncate text-base font-bold">{caseItem.deceasedName}</p>
                                 </div>
                                 <div className="flex shrink-0 items-center gap-2">
-                                    <span className="rounded-full border bg-muted px-2 py-1 text-xs font-medium">
+                                    {shows("status") && <span className="rounded-full border bg-muted px-2 py-1 text-xs font-medium">
                                         {caseItem.status}
-                                    </span>
+                                    </span>}
                                     <ChevronRight className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                                 </div>
                             </div>
 
                             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                <div>
+                                {shows("dateOfDeath") && <div>
                                     <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <CalendarClock className="h-4 w-4" aria-hidden="true" />
                                         申告期限
@@ -65,25 +67,29 @@ export function CaseMobileList({ data, selectedIds, onToggleSelected }: CaseMobi
                                         {formatDate(deadline)}
                                         {!isEnded && !isCompleted(caseItem.status) && <span className={`mt-1 block w-fit rounded px-1.5 py-0.5 text-xs ${deadlineStatus.badgeClassName}`}>{deadlineStatus.badge}</span>}
                                     </dd>
-                                </div>
-                                <div>
+                                </div>}
+                                {shows("assignee") && <div>
                                     <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <UserRound className="h-4 w-4" aria-hidden="true" />
                                         担当
                                     </dt>
                                     <dd className="mt-1 truncate font-medium">{caseItem.assignee?.name || "未設定"}</dd>
-                                </div>
-                                <div>
+                                </div>}
+                                {shows("amount") && <div>
                                     <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <CircleDollarSign className="h-4 w-4" aria-hidden="true" />
                                         売上
                                     </dt>
                                     <dd className="mt-1 font-medium tabular-nums">{formatCurrency(calcBestGrossAmount(caseItem))}</dd>
-                                </div>
-                                <div>
+                                </div>}
+                                {shows("summary") && <div>
                                     <dt className="text-xs text-muted-foreground">年度・特記事項</dt>
                                     <dd className="mt-1 truncate font-medium">{caseItem.fiscalYear}年度・{caseItem.summary || "なし"}</dd>
-                                </div>
+                                </div>}
+                                {shows("paymentDates") && <div className="col-span-2">
+                                    <dt className="text-xs text-muted-foreground">請求・入金日</dt>
+                                    <dd className="mt-1 font-medium tabular-nums">請求 {caseItem.billedDate ? formatDate(caseItem.billedDate) : "未入力"} / 入金 {caseItem.paidDate ? formatDate(caseItem.paidDate) : "未入力"}</dd>
+                                </div>}
                             </dl>
                         </Link>
                     </li>

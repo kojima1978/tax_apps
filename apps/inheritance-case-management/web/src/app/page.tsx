@@ -1,6 +1,7 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { readCaseListNavigation, saveCaseListNavigation } from "@/lib/case-list-navigation"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createColumns } from "@/components/cases/columns"
 import { FilterBar } from "@/components/cases/FilterBar"
@@ -17,6 +18,10 @@ import type { CasesQueryParams } from "@/lib/api/cases"
 import type { CaseListItem } from "@/types/shared"
 import { CaseListTableSection } from "./CaseListTableSection"
 import { CaseListToolbar } from "./CaseListToolbar"
+import { CaseListPreferences } from "./CaseListPreferences"
+import { CaseShortcuts } from "@/components/cases/CaseShortcuts"
+import { useWorkspacePreferences } from "@/hooks/use-workspace-preferences"
+import { LIST_VIEWS } from "@/lib/workspace-preferences"
 import {
     applyKpiCardFilter,
     calculateCaseListAmountTotals,
@@ -43,6 +48,8 @@ function InheritanceMockupPageContent() {
     const toast = useToast()
     const router = useRouter()
     const searchParams = useSearchParams()
+    const { preferences } = useWorkspacePreferences()
+    const visibleColumnIds: readonly string[] = preferences.columns ?? LIST_VIEWS[preferences.listView].columns
 
     const [queryParams, setQueryParams] = useState<CasesQueryParams>(() => parseCaseListUrlParams(searchParams))
     const [searchInput, setSearchInput] = useState(() => searchParams.get("search") || "")
@@ -71,6 +78,18 @@ function InheritanceMockupPageContent() {
     const [showBulkDelete, setShowBulkDelete] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const cases = data?.data ?? EMPTY_CASES
+    const restoredPosition = useRef(false)
+    useEffect(() => {
+        if (isLoading || isFetching || restoredPosition.current) return
+        const context = readCaseListNavigation()
+        if (!context || context.query !== toCaseListUrlSearch(queryParams)) { restoredPosition.current = true; return }
+        const frame = requestAnimationFrame(() => {
+            restoredPosition.current = true
+            document.querySelectorAll(`[data-case-id="${context.openedId}"]`).forEach(row => row.setAttribute("data-last-opened", "true"))
+            window.scrollTo({ top: context.scrollY, behavior: "instant" })
+        })
+        return () => cancelAnimationFrame(frame)
+    }, [isLoading, isFetching, queryParams])
     const [selection, setSelection] = useState<{ data: typeof data; ids: Set<number> }>({ data: undefined, ids: new Set() })
     // A newly fetched result clears selection, preventing hidden/stale targets.
     const selectedIds = useMemo(() => selection.data === data ? selection.ids : new Set<number>(), [selection, data])
@@ -103,8 +122,11 @@ function InheritanceMockupPageContent() {
     const amountTotals = useMemo(() => calculateCaseListAmountTotals(cases), [cases])
     const rowNumberOffset = ((queryParams.page || 1) - 1) * (queryParams.pageSize || CASE_LIST_PAGE_SIZE)
     const tableColumns = useMemo(
-        () => createColumns({ amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll }),
-        [amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll]
+        () => createColumns({ amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll }).filter(column => {
+            const id = column.id ?? ("accessorKey" in column ? column.accessorKey : "")
+            return !["dateOfDeath", "status", "assignee", "amount", "paymentDates", "summary"].includes(String(id)) || visibleColumnIds.includes(String(id))
+        }),
+        [amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll, visibleColumnIds]
     )
 
     const dataVersion = data?.pagination?.total
@@ -119,7 +141,7 @@ function InheritanceMockupPageContent() {
     const hasFilters = useMemo(() => getHasCaseFilters(queryParams), [queryParams])
 
     const handleSearch = useCallback(() => {
-        setQueryParams((prev) => ({ ...prev, search: searchInput, page: 1 }))
+        setQueryParams((prev) => (prev.search ?? "") === searchInput ? prev : ({ ...prev, search: searchInput, page: 1 }))
     }, [searchInput])
 
     const handleFilterChange = useCallback((key: keyof CasesQueryParams, value: string | undefined) => {
@@ -157,7 +179,15 @@ function InheritanceMockupPageContent() {
     }, [deleteTargets, refetch, refetchKpis, toast])
 
     return (
-        <div className="case-workspace mx-auto min-h-screen max-w-[1600px] px-3 py-4 lg:px-6">
+        <div className="case-workspace mx-auto min-h-screen max-w-[1600px] px-3 py-4 lg:px-6" onClickCapture={event => {
+            const anchor = (event.target as HTMLElement).closest("a")
+            if (!anchor) return
+            const match = new URL(anchor.href).pathname.match(/\/(\d+)\/?$/)
+            if (!match) return
+            const openedId = Number(match[1])
+            if (!cases.some(item => item.id === openedId)) return
+            saveCaseListNavigation({ query: toCaseListUrlSearch(queryParams), scrollY: window.scrollY, openedId, cases: cases.map(item => ({ id: item.id, name: item.deceasedName })) })
+        }}>
             <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
                 <h1 className="text-xl font-bold">相続税申告案件一覧</h1>
                 <CaseListToolbar
@@ -189,6 +219,21 @@ function InheritanceMockupPageContent() {
                 />
             )}
 
+            <div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label="対応待ち案件">
+                <span className="text-xs font-semibold text-muted-foreground">対応待ち</span>
+                {[{ label: "申告済・未請求", status: "申告済" }, { label: "請求済・未入金", status: "請求済" }, { label: "担当者未設定", status: null }].map(item => {
+                    const active = item.status ? queryParams.status === item.status : Boolean(queryParams.unassigned)
+                    return <button key={item.label} type="button" aria-pressed={active} className={`min-h-11 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-blue-50 text-blue-800" : "bg-white hover:bg-muted"}`} onClick={() => setQueryParams(prev => ({ ...prev,
+                        status: active ? undefined : item.status ?? undefined,
+                        unassigned: !active && !item.status ? true : undefined,
+                        ...(!active && !item.status ? { assigneeId: undefined, staffId: undefined } : {}),
+                        deadlineSoon: undefined, deadlineOverdue: undefined,
+                        caseAddedFrom: undefined, caseAddedTo: undefined, caseCompletedFrom: undefined, caseCompletedTo: undefined,
+                        hideClosed: true, page: 1,
+                    }))}>{item.label}</button>
+                })}
+            </div>
+
             <FilterBar
                 queryParams={queryParams}
                 searchInput={searchInput}
@@ -201,6 +246,12 @@ function InheritanceMockupPageContent() {
                 totalCount={pagination?.total}
                 hasFilters={hasFilters}
             />
+
+            <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="一覧の便利機能">
+                <CaseListPreferences params={{ ...queryParams, search: searchInput }} onApply={params => { setQueryParams(params); setSearchInput(params.search ?? "") }} />
+                <CaseShortcuts />
+                {preferences.savedSearches.slice(0, 3).map(item => <button type="button" key={item.id} className="min-h-11 max-w-full truncate rounded-full border bg-white px-3 text-sm text-blue-800 hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { const params = parseCaseListUrlParams(new URLSearchParams(item.query), false); setQueryParams(params); setSearchInput(params.search ?? "") }}>{item.name}</button>)}
+            </div>
 
             {selectedIds.size > 0 && <div className="mb-2 flex items-center gap-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900" aria-live="polite">
                 <span>{selectedIds.size}件を選択中</span>
@@ -217,6 +268,9 @@ function InheritanceMockupPageContent() {
                 columns={tableColumns}
                 hasFilters={hasFilters}
                 amountTotals={amountTotals}
+                filteredAmountTotals={data?.amountTotals}
+                density={preferences.density}
+                visibleColumnIds={visibleColumnIds}
                 pagination={pagination}
                 onClearFilters={handleClearAll}
                 onRetry={() => {

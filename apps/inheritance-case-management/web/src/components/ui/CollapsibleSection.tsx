@@ -43,6 +43,8 @@ export function CollapsibleSection({ title, icon: Icon, defaultOpen = true, isOp
                 <ChevronDown className={cn(compact ? "h-3.5 w-3.5" : "h-4 w-4", "text-muted-foreground transition-transform duration-200", isOpen && "rotate-180")} />
             </button>
             <div
+                inert={!isOpen}
+                aria-hidden={!isOpen}
                 className={cn(
                     "grid transition-[grid-template-rows] duration-200 ease-in-out",
                     isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"

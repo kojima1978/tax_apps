@@ -32,6 +32,8 @@ export const CASE_LIST_SELECT = {
   memo: true,
   caseAddedDate: true,
   caseCompletedDate: true,
+  billedDate: true,
+  paidDate: true,
   assignee: { select: { id: true, name: true } },
   internalReferrer: { select: { id: true, name: true } },
 } satisfies Prisma.InheritanceCaseSelect;
