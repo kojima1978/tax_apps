@@ -83,6 +83,8 @@ export function ClientList() {
     || (qualityFilter === "attention" && qualityIssuesFor(client).length > 0)
     || (qualityFilter === "critical" && qualityIssuesFor(client).some((issue) => issue.severity === "critical"))), [matched, qualityFilter]);
   const filtered = useMemo(() => sortClients(qualityMatched, sortMode), [qualityMatched, sortMode]);
+  const qualityFilterLabel = qualityFilter === "attention" ? "要確認" : qualityFilter === "critical" ? "重要な不備" : "";
+  const listIsFiltered = terms.length > 0 || qualityFilter !== "all";
   // 次の2つは絞り込みの前（全件）で決める。検索のたびに欄が出入りすると行の形が変わるため。
   const sharedYear = useMemo(() => sharedFiscalYear(clients ?? []), [clients]);
   const showsUnassigned = useMemo(() => showsUnassignedStaff(clients ?? []), [clients]);
@@ -247,7 +249,8 @@ export function ClientList() {
       {/* 削除の通知が role="status" を使うので、件数は aria-live だけで読み上げる。 */}
       <div className="client-list-tools">
         <p className="client-count" aria-live="polite">
-          {terms.length > 0 ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}
+          {qualityFilterLabel ? `${qualityFilterLabel}・` : null}
+          {listIsFiltered ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}
           {sharedYear ? `・すべて${sharedYear}年度` : null}
         </p>
         <div className="position-table-tools">

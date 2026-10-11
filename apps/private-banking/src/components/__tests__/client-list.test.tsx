@@ -151,6 +151,18 @@ describe("顧客一覧の表示", () => {
     expect(screen.getByText("1件（全2件中）・すべて2026年度")).toBeTruthy();
   });
 
+  it("確認状況で絞り込んだ件数と条件名を表示する", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response([
+      { ...clients[0], qualityIssues: [{ code: "assets-missing", label: "資産明細なし", severity: "critical", href: "positions" }] },
+      { ...clients[1], qualityIssues: [] },
+    ])));
+    render(<ClientList />);
+    await screen.findByRole("link", { name: /テスト顧客A/ });
+    fireEvent.change(screen.getByRole("combobox", { name: "顧客の確認状況" }), { target: { value: "critical" } });
+    expect(screen.getByText("重要な不備・1件（全2件中）・すべて2026年度")).toBeTruthy();
+    expect(rowCount()).toBe(1);
+  });
+
   it("担当者を1人も登録していなければ「担当者未設定」を出さない", async () => {
     render(<ClientList />);
     await screen.findByRole("link", { name: /テスト顧客A/ });
