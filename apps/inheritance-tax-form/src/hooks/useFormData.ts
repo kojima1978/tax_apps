@@ -87,6 +87,8 @@ export function useFormData() {
    * 効いていないことは必ず表に出す。
    */
   const [saveFailed, setSaveFailed] = useState(false);
+  /** この画面を開いてから最後に自動保存できた時刻。 */
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   /**
    * 最後に保存した内容。初期値を読み込んだものにして、読み込んだ直後の書き戻しを飛ばす。
    * 「1回目だけ飛ばす」印では足りない ── StrictMode は effect を2度走らせるので、
@@ -103,7 +105,9 @@ export function useFormData() {
     // 読み込んだものをそのまま保存し直す意味は無く、読めなかったときは原本を空で潰すだけになる
     if (savedRef.current === data) return;
     savedRef.current = data;
-    setSaveFailed(!saveStored(data));
+    const saved = saveStored(data);
+    setSaveFailed(!saved);
+    if (saved) setSavedAt(Date.now());
   }, [data]);
 
   /**
@@ -364,7 +368,7 @@ export function useFormData() {
   return {
     data, detailRows, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem, moveDetailItem,
     toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs: MAX_HEIRS,
-    saveFailed,
+    saveFailed, savedAt,
     /** 読めない保存データがあり、空から始めたか（原本は退避してある） */
     salvaged: loaded.salvaged,
     rescue,

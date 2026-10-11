@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import App from './App';
 import { STORAGE_KEY } from './lib/storedData';
 
@@ -157,4 +157,54 @@ describe('用紙の枚数の増減', () => {
     expect(pageButton(container, 'ページを増やす').disabled).toBe(true);
     expect(pageButton(container, 'ページを減らす').disabled).toBe(false);
   }, 120_000);
+});
+
+describe('PC作業支援', () => {
+  it('様式一覧を閉じると再展開ボタンだけが残る', () => {
+    seed();
+    const { container } = render(<App />);
+    const content = container.querySelector<HTMLElement>('.app-sidebar__content')!;
+    const closeButton = container.querySelector<HTMLButtonElement>('button[aria-label="様式一覧を閉じる"]')!;
+
+    expect(content.hidden).toBe(false);
+    fireEvent.click(closeButton);
+    expect(content.hidden).toBe(true);
+    expect(container.querySelector('button[aria-label="様式一覧を開く"]')).not.toBeNull();
+  }, 60_000);
+
+  it('様式を検索・絞り込みできる', () => {
+    seed();
+    const { container } = render(<App />);
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    fireEvent.change(search, { target: { value: '生命保険' } });
+    expect(formButtons(container).map((button) => button.textContent)).toEqual([
+      expect.stringContaining('第9表'),
+    ]);
+
+    fireEvent.change(search, { target: { value: '' } });
+    const printFilter = Array.from(container.querySelectorAll<HTMLButtonElement>('.form-filter'))
+      .find((button) => button.textContent === '印刷対象')!;
+    fireEvent.click(printFilter);
+    expect(formButtons(container).every((button) => !button.textContent?.includes('未使用'))).toBe(true);
+  }, 60_000);
+
+  it('要確認項目から入力欄へ移動し、印刷前に対象を確認できる', async () => {
+    seed();
+    const { container } = render(<App />);
+    const issuesButton = Array.from(container.querySelectorAll<HTMLButtonElement>('.app-toolbar button'))
+      .find((button) => button.textContent?.startsWith('要確認'))!;
+    fireEvent.click(issuesButton);
+
+    const officeIssue = Array.from(container.querySelectorAll<HTMLButtonElement>('.issue-list button'))
+      .find((button) => button.textContent?.includes('提出先税務署'))!;
+    fireEvent.click(officeIssue);
+    await waitFor(() => expect(document.activeElement?.getAttribute('name')).toBe('t1.c.office'));
+
+    const printButton = Array.from(container.querySelectorAll<HTMLButtonElement>('.app-toolbar button'))
+      .find((button) => button.textContent?.includes('様式を印刷'))!;
+    fireEvent.click(printButton);
+    expect(container.querySelector('[aria-labelledby="print-dialog-title"]')).not.toBeNull();
+    expect(container.querySelectorAll('.print-form-list li').length).toBeGreaterThan(0);
+  }, 60_000);
 });

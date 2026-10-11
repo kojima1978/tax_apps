@@ -45,35 +45,39 @@ export interface FormMeta {
   required?: boolean;
   /** 人数に応じて自動で付く様式（チェックを持たない） */
   auto?: boolean;
+  /** 作業用サイドバーでまとめる区分。印刷順は FORMS の並びを維持する。 */
+  group: 'basic' | 'assets';
+  /** 法定様式ではない補助資料。印刷確認で明示する。 */
+  support?: boolean;
 }
 
 export const FORMS: FormMeta[] = [
-  { id: 'table1', label: '第1表', note: '相続税の申告書', required: true },
-  { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true },
-  { id: 'table2', label: '第2表', note: '相続税の総額の計算書' },
-  { id: 'table4', label: '第4表', note: '相続税額の加算金額の計算書' },
-  { id: 'table42', label: '第4表の2', note: '暦年課税分の贈与税額控除額の計算書' },
-  { id: 'table5', label: '第5表', note: '配偶者に対する相続税額の軽減額の計算書' },
-  { id: 'table6', label: '第6表', note: '未成年者控除額・障害者控除額の計算書' },
-  { id: 'table7', label: '第7表', note: '相次相続控除額の計算書' },
-  { id: 'table88', label: '第8の8表', note: '税額控除額及び納税猶予税額の内訳書' },
-  { id: 'table9', label: '第9表', note: '生命保険金などの明細書' },
-  { id: 'table10', label: '第10表', note: '退職手当金などの明細書' },
-  { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表' },
-  { id: 'table11f1', label: '第11表の付表1', note: '財産の明細書（土地・家屋等用）' },
-  { id: 'table11f1calc', label: '（補助資料）', note: '第11表の付表1　単価（円）又は倍数の計算根拠' },
-  { id: 'table11f2', label: '第11表の付表2', note: '財産の明細書（有価証券用）' },
-  { id: 'table11f3', label: '第11表の付表3', note: '財産の明細書（現金・預貯金等用）' },
-  { id: 'table11f4', label: '第11表の付表4', note: '財産の明細書（事業用・家庭用・その他）' },
-  { id: 'table112', label: '第11の2表', note: '相続時精算課税適用財産の明細書' },
-  { id: 'table1112f1', label: '第11・11の2表の付表1', note: '小規模宅地等についての課税価格の計算明細書' },
-  { id: 'table1112f1c', label: '第11・11の2表の付表1（続）', note: '小規模宅地等の明細 4件目以降', auto: true },
-  { id: 'table1112f1b', label: '第11・11の2表の付表1（別表１）', note: TABLE1112F1B_SUBTITLE },
-  { id: 'table13', label: '第13表', note: '債務及び葬式費用の明細書' },
-  { id: 'assetTaxWorksheet', label: '（補助資料）', note: '資産別税負担一覧（内部検討用）' },
-  { id: 'table14', label: '第14表', note: '純資産価額に加算される暦年課税分の贈与財産価額等の明細書' },
-  { id: 'table15', label: '第15表', note: '相続財産の種類別価額表' },
-  { id: 'table15cont', label: '第15表（続）', note: '財産を取得した人 2人目以降', auto: true },
+  { id: 'table1', label: '第1表', note: '相続税の申告書', required: true, group: 'basic' },
+  { id: 'table1cont', label: '第1表（続）', note: '財産を取得した人 2人目以降', auto: true, group: 'basic' },
+  { id: 'table2', label: '第2表', note: '相続税の総額の計算書', group: 'basic' },
+  { id: 'table4', label: '第4表', note: '相続税額の加算金額の計算書', group: 'basic' },
+  { id: 'table42', label: '第4表の2', note: '暦年課税分の贈与税額控除額の計算書', group: 'basic' },
+  { id: 'table5', label: '第5表', note: '配偶者に対する相続税額の軽減額の計算書', group: 'basic' },
+  { id: 'table6', label: '第6表', note: '未成年者控除額・障害者控除額の計算書', group: 'basic' },
+  { id: 'table7', label: '第7表', note: '相次相続控除額の計算書', group: 'basic' },
+  { id: 'table88', label: '第8の8表', note: '税額控除額及び納税猶予税額の内訳書', group: 'basic' },
+  { id: 'table9', label: '第9表', note: '生命保険金などの明細書', group: 'assets' },
+  { id: 'table10', label: '第10表', note: '退職手当金などの明細書', group: 'assets' },
+  { id: 'table11', label: '第11表', note: '相続税がかかる財産の合計表', group: 'assets' },
+  { id: 'table11f1', label: '第11表の付表1', note: '財産の明細書（土地・家屋等用）', group: 'assets' },
+  { id: 'table11f1calc', label: '（補助資料）', note: '第11表の付表1　単価（円）又は倍数の計算根拠', group: 'assets', support: true },
+  { id: 'table11f2', label: '第11表の付表2', note: '財産の明細書（有価証券用）', group: 'assets' },
+  { id: 'table11f3', label: '第11表の付表3', note: '財産の明細書（現金・預貯金等用）', group: 'assets' },
+  { id: 'table11f4', label: '第11表の付表4', note: '財産の明細書（事業用・家庭用・その他）', group: 'assets' },
+  { id: 'table112', label: '第11の2表', note: '相続時精算課税適用財産の明細書', group: 'assets' },
+  { id: 'table1112f1', label: '第11・11の2表の付表1', note: '小規模宅地等についての課税価格の計算明細書', group: 'assets' },
+  { id: 'table1112f1c', label: '第11・11の2表の付表1（続）', note: '小規模宅地等の明細 4件目以降', auto: true, group: 'assets' },
+  { id: 'table1112f1b', label: '第11・11の2表の付表1（別表１）', note: TABLE1112F1B_SUBTITLE, group: 'assets' },
+  { id: 'table13', label: '第13表', note: '債務及び葬式費用の明細書', group: 'assets' },
+  { id: 'assetTaxWorksheet', label: '（補助資料）', note: '資産別税負担一覧（内部検討用）', group: 'assets', support: true },
+  { id: 'table14', label: '第14表', note: '純資産価額に加算される暦年課税分の贈与財産価額等の明細書', group: 'assets' },
+  { id: 'table15', label: '第15表', note: '相続財産の種類別価額表', group: 'assets' },
+  { id: 'table15cont', label: '第15表（続）', note: '財産を取得した人 2人目以降', auto: true, group: 'assets' },
 ];
 
 /** 付表（財産の明細書）の様式ID → 割付。様式を足したらここに1行追加する。 */

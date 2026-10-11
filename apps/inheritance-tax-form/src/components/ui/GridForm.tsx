@@ -453,6 +453,15 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
         }}
       >
         {invalid && <span className="gf-cell__error no-print" aria-hidden="true">エラー</span>}
+        {action !== undefined && (
+          <span className="gf-cell__edit-cue no-print" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+            </svg>
+            編集
+          </span>
+        )}
         {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
         {c.centeredPrefix && <span style={{ position: 'absolute', top: '50%', left: 2, transform: 'translateY(-50%)', lineHeight: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>{c.centeredPrefix}</span>}
         {c.rightLabel && (

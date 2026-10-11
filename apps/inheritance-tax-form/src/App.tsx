@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 import type { GridCell } from './components/ui/GridForm';
 import { PrintRenderContext } from './components/ui/printContext';
 import { DetailPanel } from './components/DetailPanel';
@@ -70,12 +70,17 @@ import {
 import { HEIR_ID } from './lib/heirRef';
 import { pageCount } from './lib/storedData';
 import { buildAssetTaxWorksheet, type AssetTaxSource } from './lib/assetTaxWorksheet';
+import { workspaceIssues, type WorkspaceIssue } from './lib/workspace';
 
 /**
  * サイドバーの開閉状態の保存先。申告内容（inheritance-tax-form:v1）とは別キーにして、
  * JSON保存/読込・クリアの対象から外す（画面の見た目であって申告内容ではないため）。
  */
 const SIDEBAR_KEY = 'inheritance-tax-form:sidebar';
+const FORM_GROUPS = [
+  { id: 'basic', label: '基本・税額計算' },
+  { id: 'assets', label: '財産・債務・補助資料' },
+] as const;
 
 function loadSidebarOpen(): boolean {
   try {
@@ -91,7 +96,7 @@ export default function App() {
   const {
     data, detailRows, g, u, addHeir, removeHeir, moveHeir, setHeir, addDetailPage, setDetailCount, setDetailItem, removeDetailItem,
     moveDetailItem, toggleUsed, reset, exportJson, importJson, requiredForms, maxHeirs,
-    saveFailed, salvaged, rescue, exportRescue,
+    saveFailed, savedAt, salvaged, rescue, exportRescue,
   } = useFormData();
   const fileRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState('table1');
@@ -103,9 +108,18 @@ export default function App() {
   const [editingPerson, setEditingPerson] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [issuePanelOpen, setIssuePanelOpen] = useState(false);
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [formFilter, setFormFilter] = useState<'all' | 'used' | 'issues'>('all');
+  const [formSearch, setFormSearch] = useState('');
+  const [openGroups, setOpenGroups] = useState<Record<(typeof FORM_GROUPS)[number]['id'], boolean>>({ basic: true, assets: true });
+  const [zoom, setZoom] = useState(1);
   /** 「読めなかった」知らせを閉じたか。1度読んだら邪魔なので閉じられるようにする */
   const [salvageNoticeClosed, setSalvageNoticeClosed] = useState(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const overlayTriggerRef = useRef<HTMLElement | null>(null);
+  const pendingFocusRef = useRef<string | null>(null);
   const { printing, print } = usePrinting();
 
   useEffect(() => {
@@ -135,14 +149,28 @@ export default function App() {
    */
   const personBackup = useRef<Values>({});
   const openPerson = useCallback((index: number) => {
+    overlayTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     personBackup.current = data.heirs[index] ?? {};
     setEditingPerson(index);
   }, [data.heirs]);
+  const restoreOverlayFocus = useCallback(() => {
+    const target = overlayTriggerRef.current;
+    overlayTriggerRef.current = null;
+    window.setTimeout(() => target?.focus(), 0);
+  }, []);
   /** 用紙の人物ブロックのクリック → その人の基本情報の画面を開く */
   const onPersonAction = useCallback((action: string) => {
     const prefix = personActionPrefix(action);
     if (prefix !== undefined) openPerson(heirIndex(prefix));
   }, [openPerson]);
+  const openDetail = useCallback((form: DetailForm, index: number) => {
+    overlayTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setEditing({ form, index });
+  }, []);
+  const closeDetail = useCallback(() => {
+    setEditing(null);
+    restoreOverlayFocus();
+  }, [restoreOverlayFocus]);
   /** 人物の画面の「取消」。開いた時から変わっている時だけ確認する */
   const cancelPerson = useCallback(() => {
     if (editingPerson === null) return;
@@ -151,7 +179,8 @@ export default function App() {
       && !window.confirm('この画面で入力した内容を、開いた時の状態に戻します。よろしいですか？')) return;
     setHeir(editingPerson, personBackup.current);
     setEditingPerson(null);
-  }, [editingPerson, data.heirs, setHeir]);
+    restoreOverlayFocus();
+  }, [editingPerson, data.heirs, setHeir, restoreOverlayFocus]);
   const table1Cells = useMemo(
     () => buildTable1(heirPrefix(0), TABLE1_TRANSFERRED_ROWS, officeOptions, TABLE1_SOURCE_FOR_ROW),
     [officeOptions],
@@ -371,6 +400,93 @@ export default function App() {
     if (form.auto) return (autoPages[form.id] ?? 0) > 0;
     return data.used.includes(form.id);
   };
+
+  const issues = useMemo(() => workspaceIssues(data), [data]);
+  const issueCountByForm = useMemo(() => {
+    const counts = new Map<string, number>();
+    issues.forEach((issue) => counts.set(issue.formId, (counts.get(issue.formId) ?? 0) + 1));
+    return counts;
+  }, [issues]);
+  const printForms = FORMS.filter(used);
+  const navigationForms = useMemo(
+    () => FORMS.filter((form) => !form.auto
+      || (form.id === 'table1cont' && contPages > 0)
+      || (form.id === 'table1112f1c' && f1ContPages > 0)
+      || (form.id === 'table15cont' && t15ContPages > 0)),
+    [contPages, f1ContPages, t15ContPages],
+  );
+  const activeIndex = navigationForms.findIndex((form) => form.id === active);
+  const activeForm = FORMS.find((form) => form.id === active) ?? FORMS[0]!;
+
+  const moveActive = useCallback((direction: -1 | 1) => {
+    setActive((current) => {
+      const index = navigationForms.findIndex((form) => form.id === current);
+      const next = Math.min(navigationForms.length - 1, Math.max(0, index + direction));
+      return navigationForms[next]?.id ?? current;
+    });
+  }, [navigationForms]);
+
+  const fitFormWidth = useCallback(() => {
+    const main = mainRef.current;
+    const page = main?.querySelector<HTMLElement>('.gov-page');
+    if (!main || !page) return;
+    const available = main.clientWidth - 32;
+    const naturalWidth = page.offsetWidth;
+    setZoom(Math.max(0.65, Math.min(1.4, available / naturalWidth)));
+  }, []);
+
+  const jumpToIssue = useCallback((issue: WorkspaceIssue) => {
+    setIssuePanelOpen(false);
+    setActive(issue.formId);
+    if (issue.personIndex !== undefined) {
+      window.setTimeout(() => openPerson(issue.personIndex!), 0);
+      return;
+    }
+    pendingFocusRef.current = issue.field ?? null;
+  }, [openPerson]);
+
+  useEffect(() => {
+    const field = pendingFocusRef.current;
+    if (field === null) return;
+    pendingFocusRef.current = null;
+    window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(`[name$=".${field}"]`);
+      target?.focus();
+      target?.scrollIntoView?.({ block: 'center', inline: 'center' });
+    }, 0);
+  }, [active, issuePanelOpen]);
+
+  useEffect(() => {
+    const onShortcut = (event: globalThis.KeyboardEvent) => {
+      if (event.ctrlKey && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        exportJson();
+      } else if (event.ctrlKey && event.key.toLowerCase() === 'p') {
+        event.preventDefault();
+        setPrintDialogOpen(true);
+      } else if (event.altKey && event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveActive(-1);
+      } else if (event.altKey && event.key === 'ArrowDown') {
+        event.preventDefault();
+        moveActive(1);
+      }
+    };
+    window.addEventListener('keydown', onShortcut);
+    return () => window.removeEventListener('keydown', onShortcut);
+  }, [exportJson, moveActive]);
+
+  useEffect(() => {
+    if (!issuePanelOpen && !printDialogOpen) return;
+    window.setTimeout(() => document.querySelector<HTMLElement>('.workspace-dialog button')?.focus(), 0);
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setIssuePanelOpen(false);
+      setPrintDialogOpen(false);
+    };
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, [issuePanelOpen, printDialogOpen]);
 
   /** ページ増減の操作。枚数を共通欄に持つ様式は形が同じなので、欄名と今の枚数だけ渡す */
   const pageStepper = (field: string, count: number, min = 1) => ({
@@ -723,7 +839,7 @@ export default function App() {
         detail={(
           <>
             財産{DETAIL_GROUPS}件／ページ
-            <button type="button" className="app-btn" onClick={() => setEditing({ form: id, index: (data.details[id] ?? []).length })}>
+            <button type="button" className="app-btn" onClick={() => openDetail(id, (data.details[id] ?? []).length)}>
               財産を追加
             </button>
             <button type="button" className="app-btn" onClick={() => setSorting(id)}>
@@ -734,7 +850,7 @@ export default function App() {
         )}
       >
         {(page) => (
-          <DetailPage form={id} page={page} items={detailLayout[id]!.pageItems[page]!} g={g} u={u} onNavigate={setActive} onEdit={(index) => setEditing({ form: id, index })} />
+          <DetailPage form={id} page={page} items={detailLayout[id]!.pageItems[page]!} g={g} u={u} onNavigate={setActive} onEdit={(index) => openDetail(id, index)} />
         )}
       </PageList>
     )])),
@@ -781,6 +897,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link no-print" href="#form-workspace">入力欄へ移動</a>
       <header className="app-topbar no-print">
         <div className="app-topbar__left">
           <a className="app-home-link" href="/" title="ポータルに戻る" aria-label="ポータルに戻る">
@@ -793,16 +910,32 @@ export default function App() {
           <div className="app-title">
             相続税の申告書
             {/* 自動保存を約束している一文なので、効いていないときは同じ場所で取り消す */}
-            {saveFailed
-              ? <small className="app-title__warn">自動保存できていません。「データを保存」でファイルに控えてください</small>
-              : <small>入力内容はこのブラウザに自動保存されます</small>}
+            {saveFailed ? (
+              <small className="app-title__warn">自動保存できていません。バックアップを書き出してください</small>
+            ) : (
+              <small className="save-state" role="status">
+                <span className="save-state__dot" aria-hidden="true" />
+                {savedAt === null
+                  ? 'このブラウザに自動保存'
+                  : `保存済み ${new Date(savedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`}
+              </small>
+            )}
           </div>
         </div>
         <div className="app-toolbar">
-          <button type="button" className="app-btn" onClick={exportJson}>データを保存</button>
-          <button type="button" className="app-btn" onClick={() => fileRef.current?.click()}>保存データを読み込む</button>
+          <button
+            type="button"
+            className={`app-btn app-issues-button${issues.length > 0 ? ' app-issues-button--warning' : ''}`}
+            onClick={() => setIssuePanelOpen(true)}
+          >
+            {issues.length > 0 ? `要確認 ${issues.length}件` : '確認事項なし'}
+          </button>
+          <button type="button" className="app-btn" onClick={exportJson} title="Ctrl+S">バックアップを書き出す</button>
+          <button type="button" className="app-btn" onClick={() => fileRef.current?.click()}>バックアップから復元</button>
           <input ref={fileRef} type="file" accept="application/json,.json" onChange={onPickFile} hidden aria-label="保存データファイルを選択" />
-          <button type="button" className="app-btn app-btn--primary" onClick={print}>印刷</button>
+          <button type="button" className="app-btn app-btn--primary" onClick={() => setPrintDialogOpen(true)} title="Ctrl+P">
+            選択した{printForms.length}様式を印刷
+          </button>
           <details ref={menuRef} className="app-menu">
             <summary className="app-btn" aria-label="その他の操作">その他</summary>
             <div className="app-menu__panel">
@@ -868,55 +1001,214 @@ export default function App() {
               </svg>
             </button>
           </div>
-          <ul className="form-list">
-            {FORMS.map((form) => {
-              // 明細を入れた付表と第11表は印を外せない。印は集計・転記のスイッチも兼ねていて、
-              // 外すと入力したものが第11表にも第1表①にも出てこなくなるため
-              const byDetails = requiredForms.includes(form.id);
-              return (
-              <li key={form.id} className={`form-item${active === form.id ? ' form-item--active' : ''}`}>
-                <input
-                  type="checkbox"
-                  className="form-item__check"
-                  checked={used(form)}
-                  disabled={form.required || form.auto || byDetails}
-                  title={byDetails ? '入力した明細があるため、この様式は外せません' : undefined}
-                  onChange={() => toggleUsed(form.id)}
-                  aria-label={`${form.label}を使用する`}
-                />
-                <button type="button" className="form-item__btn" onClick={() => setActive(form.id)}>
-                  <span className="form-item__label">{form.label}</span>
-                  <small>{form.note}</small>
+          <div className="app-sidebar__content" hidden={!sidebarOpen}>
+          <div className="form-tools">
+            <label className="form-search">
+              <span className="sr-only">様式を検索</span>
+              <input
+                type="search"
+                value={formSearch}
+                onChange={(event) => setFormSearch(event.target.value)}
+                placeholder="様式名を検索"
+              />
+            </label>
+            <div className="form-filters" role="group" aria-label="様式の絞り込み">
+              {([
+                ['all', 'すべて'], ['used', '印刷対象'], ['issues', '要確認'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={formFilter === value ? 'form-filter form-filter--active' : 'form-filter'}
+                  onClick={() => setFormFilter(value)}
+                  aria-pressed={formFilter === value}
+                >
+                  {label}
                 </button>
-              </li>
+              ))}
+            </div>
+          </div>
+          <nav aria-label="申告書の様式">
+            {FORM_GROUPS.map((group) => {
+              const forms = FORMS.filter((form) => {
+                if (form.group !== group.id) return false;
+                if (formSearch.trim() !== '' && !`${form.label} ${form.note}`.includes(formSearch.trim())) return false;
+                if (formFilter === 'used' && !used(form)) return false;
+                if (formFilter === 'issues' && !issueCountByForm.has(form.id)) return false;
+                return true;
+              });
+              if (forms.length === 0) return null;
+              return (
+                <details
+                  className="form-group"
+                  key={group.id}
+                  open={openGroups[group.id]}
+                  onToggle={(event) => {
+                    const next = event.currentTarget.open;
+                    setOpenGroups((current) => current[group.id] === next ? current : { ...current, [group.id]: next });
+                  }}
+                >
+                  <summary>{group.label}<span>{forms.length}</span></summary>
+                  <ul className="form-list">
+                    {forms.map((form) => {
+                      // 明細を入れた付表と第11表は、集計元でもあるため印刷対象から外せない。
+                      const byDetails = requiredForms.includes(form.id);
+                      const count = issueCountByForm.get(form.id) ?? 0;
+                      const selected = used(form);
+                      return (
+                        <li key={form.id} className={`form-item${active === form.id ? ' form-item--active' : ''}`}>
+                          <input
+                            type="checkbox"
+                            className="form-item__check"
+                            checked={selected}
+                            disabled={form.required || form.auto || byDetails}
+                            title={byDetails ? '入力した明細があるため、この様式は外せません' : undefined}
+                            onChange={() => toggleUsed(form.id)}
+                            aria-label={`${form.label}を使用する`}
+                          />
+                          <button type="button" className="form-item__btn" onClick={() => setActive(form.id)}>
+                            <span className="form-item__line">
+                              <span className="form-item__label">{form.label}</span>
+                              <span className={`form-status${count > 0 ? ' form-status--warning' : selected ? ' form-status--used' : ''}`}>
+                                {count > 0
+                                  ? `要確認 ${count}`
+                                  : selected
+                                    ? form.id === 'table1' && issues.length === 0 ? '確認済' : form.required ? '必須' : form.auto ? '自動' : '印刷対象'
+                                    : '未使用'}
+                              </span>
+                            </span>
+                            <small>{form.note}</small>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
               );
             })}
-          </ul>
+          </nav>
           <p className="form-list__hint">
             チェックした様式だけを印刷します。第1表（続）・第15表（続）は財産を取得した人が2人以上のときに自動で付きます。
             付表に明細を入れると、その付表と第11表には自動でチェックが付きます（外すと第11表・第1表①へ集計されなくなるため）。
           </p>
+          </div>
         </aside>
 
         <PrintRenderContext.Provider value={printing}>
-        <main className="app-main">
-          {FORMS.map((form) => (
-            <section
-              key={form.id}
-              className={[
-                'form-pages',
-                active === form.id ? '' : 'form-pages--hidden',
-                used(form) ? '' : 'form-pages--unused',
-              ].filter(Boolean).join(' ')}
-            >
-              {/* 画面には選択中の様式だけを置く。全様式を隠して置いておくと、
-                  1文字打つたびに24様式ぶん（セル5,000個超）を描き直すことになる。 */}
-              {active === form.id || (printing && used(form)) ? pages[form.id] : null}
-            </section>
-          ))}
+        <main className="app-main" id="form-workspace" ref={mainRef} tabIndex={-1}>
+          <div className="workspace-bar no-print">
+            <div className="workspace-bar__nav">
+              <button type="button" className="icon-btn" onClick={() => moveActive(-1)} disabled={activeIndex <= 0} aria-label="前の様式" title="前の様式（Alt+↑）">←</button>
+              <div className="workspace-bar__title">
+                <strong>{activeForm.label}</strong>
+                <span>{activeForm.note}</span>
+              </div>
+              <button type="button" className="icon-btn" onClick={() => moveActive(1)} disabled={activeIndex >= navigationForms.length - 1} aria-label="次の様式" title="次の様式（Alt+↓）">→</button>
+            </div>
+            <div className="input-legend" aria-label="入力欄の凡例">
+              <span><i className="legend-swatch legend-swatch--input" />入力可能</span>
+              <span><i className="legend-swatch legend-swatch--auto" />自動計算</span>
+              <span><i className="legend-swatch legend-swatch--edit" />クリックして編集</span>
+            </div>
+            <div className="zoom-controls" aria-label="表示倍率">
+              <button type="button" className="icon-btn" onClick={() => setZoom((value) => Math.max(0.65, +(value - 0.1).toFixed(2)))} aria-label="縮小">−</button>
+              <output aria-live="polite">{Math.round(zoom * 100)}%</output>
+              <button type="button" className="icon-btn" onClick={() => setZoom((value) => Math.min(1.4, +(value + 0.1).toFixed(2)))} aria-label="拡大">＋</button>
+              <button type="button" className="app-btn" onClick={fitFormWidth}>幅に合わせる</button>
+            </div>
+          </div>
+          <div className="form-zoom" style={{ '--workspace-zoom': zoom } as CSSProperties}>
+            {FORMS.map((form) => (
+              <section
+                key={form.id}
+                className={[
+                  'form-pages',
+                  active === form.id ? '' : 'form-pages--hidden',
+                  used(form) ? '' : 'form-pages--unused',
+                ].filter(Boolean).join(' ')}
+              >
+                {/* 画面には選択中の様式だけを置く。全様式を隠して置いておくと、
+                    1文字打つたびに24様式ぶん（セル5,000個超）を描き直すことになる。 */}
+                {active === form.id || (printing && used(form)) ? pages[form.id] : null}
+              </section>
+            ))}
+          </div>
         </main>
         </PrintRenderContext.Provider>
       </div>
+
+      {issuePanelOpen && (
+        <div className="workspace-dialog no-print" role="dialog" aria-modal="true" aria-labelledby="issue-panel-title">
+          <div className="workspace-dialog__box workspace-dialog__box--narrow">
+            <div className="workspace-dialog__head">
+              <div>
+                <h2 id="issue-panel-title">要確認項目</h2>
+                <p>中核項目の入力状況です。項目を選ぶと入力位置へ移動します。</p>
+              </div>
+              <button type="button" className="icon-btn" onClick={() => setIssuePanelOpen(false)} aria-label="閉じる">×</button>
+            </div>
+            <div className="workspace-dialog__body">
+              {issues.length === 0 ? (
+                <p className="workspace-empty">現在、確認が必要な中核項目はありません。</p>
+              ) : (
+                <ul className="issue-list">
+                  {issues.map((issue) => (
+                    <li key={issue.id}>
+                      <button type="button" onClick={() => jumpToIssue(issue)}>
+                        <span className="issue-list__mark" aria-hidden="true">!</span>
+                        <span>{issue.message}<small>{FORMS.find((form) => form.id === issue.formId)?.label}</small></span>
+                        <span aria-hidden="true">→</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="workspace-dialog__foot">
+              <button type="button" className="app-btn app-btn--primary" onClick={() => setIssuePanelOpen(false)}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {printDialogOpen && (
+        <div className="workspace-dialog no-print" role="dialog" aria-modal="true" aria-labelledby="print-dialog-title">
+          <div className="workspace-dialog__box">
+            <div className="workspace-dialog__head">
+              <div>
+                <h2 id="print-dialog-title">印刷する様式の確認</h2>
+                <p>{printForms.length}様式を印刷します。左のチェックで対象を変更できます。</p>
+              </div>
+              <button type="button" className="icon-btn" onClick={() => setPrintDialogOpen(false)} aria-label="閉じる">×</button>
+            </div>
+            <div className="workspace-dialog__body">
+              {issues.length > 0 && (
+                <button type="button" className="print-warning" onClick={() => { setPrintDialogOpen(false); setIssuePanelOpen(true); }}>
+                  要確認項目が{issues.length}件あります。内容を確認する
+                </button>
+              )}
+              <ul className="print-form-list">
+                {printForms.map((form) => (
+                  <li key={form.id}>
+                    <strong>{form.label}</strong><span>{form.note}</span>
+                    {form.support && <em>補助資料</em>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="workspace-dialog__foot">
+              <button type="button" className="app-btn" onClick={() => setPrintDialogOpen(false)}>戻る</button>
+              <button
+                type="button"
+                className="app-btn app-btn--primary"
+                onClick={() => { setPrintDialogOpen(false); window.setTimeout(print, 0); }}
+              >
+                {printForms.length}様式を印刷
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editing && (
         <DetailPanel
@@ -927,9 +1219,9 @@ export default function App() {
           item={data.details[editing.form]?.[editing.index] ?? {}}
           heirs={detailHeirOptions}
           previous={previousDetail}
-          onSubmit={(item) => { setDetailItem(editing.form, editing.index, item); setEditing(null); }}
-          onDelete={() => { removeDetailItem(editing.form, editing.index); setEditing(null); }}
-          onCancel={() => setEditing(null)}
+          onSubmit={(item) => { setDetailItem(editing.form, editing.index, item); closeDetail(); }}
+          onDelete={() => { removeDetailItem(editing.form, editing.index); closeDetail(); }}
+          onCancel={closeDetail}
         />
       )}
 
@@ -961,7 +1253,7 @@ export default function App() {
             // その人が載っている用紙へ移る（1人目は第1表、2人目からは第1表（続））
             setActive(index === 0 ? 'table1' : 'table1cont');
           }}
-          onClose={() => setEditingPerson(null)}
+          onClose={() => { setEditingPerson(null); restoreOverlayFocus(); }}
           onCancel={cancelPerson}
         />
       )}
