@@ -774,6 +774,17 @@ cmd_down() {
 RECOVER_TARGETS=0
 RECOVER_SKIPPED=0
 RECOVER_FAILED=0
+RECOVER_NOIMAGE=0
+
+# そのアプリの compose が使うイメージのうち、ローカルに無いものを並べる。
+# COMPOSE_FILES を先に決めてから呼ぶこと（本番オーバーレイでイメージ名が変わる）。
+_app_missing_images() {
+  local img
+  while read -r img; do
+    [[ -z "$img" ]] && continue
+    docker image inspect "$img" >/dev/null 2>&1 || echo "$img"
+  done < <(docker compose "${COMPOSE_FILES[@]}" config --images 2>/dev/null)
+}
 
 _do_recover() {
   local dir="$1" name="$2" fallback_mode="$3"
@@ -813,9 +824,31 @@ _do_recover() {
   # status=ok recovered=1（＝試した数）しか残らなかった ── 4時間毎に
   # 「復旧しました」と書きながらアプリは落ちたまま、という prune と
   # 同じ形の握り潰しになっていた。
+  # up --no-build が原理的に通らない形が1つある: イメージそのものが無い場合。
+  # 2026-10-11 は13アプリがこれになっていて（コンテナもイメージも消えていた）、
+  # recover を呼べたとしても失敗を13回積み上げるだけだった。先に見分けて、
+  # 唯一の直し方を名前で出す。
+  local missing; missing=$(_app_missing_images | paste -sd" " -)
+  if [[ -n "$missing" ]]; then
+    RECOVER_FAILED=$((RECOVER_FAILED + 1))
+    RECOVER_NOIMAGE=$((RECOVER_NOIMAGE + 1))
+    err "  復旧できません: $name（イメージがありません: $missing）"
+    err "    recover は --no-build なので直せません。build $name を実行してください"
+    return 0
+  fi
+
   if ! docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans; then
     RECOVER_FAILED=$((RECOVER_FAILED + 1))
     err "  復旧に失敗しました: $name"
+    return 0
+  fi
+
+  # up が 0 を返しても起動しているとは限らない（作成で止まる・すぐ落ちる）。
+  # 終了コードだけ見て ok と書く形は、このリポジトリで何度も失敗を隠してきた。
+  running=$(docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null | grep -c . || true)
+  if [[ "${running:-0}" -lt "$expected" ]]; then
+    RECOVER_FAILED=$((RECOVER_FAILED + 1))
+    err "  復旧後も起動していません: $name（稼働 ${running:-0} / 定義 $expected）"
   fi
 }
 
@@ -827,9 +860,13 @@ _do_recover() {
 # last-run は status と preflight が毎回読んで表示するので目に入る。
 # recovered は「起動に成功した数」。failed を別に出すのは、ウォッチドッグが
 # 終了コードでは失敗を見分けられないため（1アプリ失敗してもコマンド自体は成功する）。
+#
+# noimage は failed の内訳。イメージごと無いアプリは --no-build では
+# 永久に直らないので、「失敗」だけでは4時間毎に同じ失敗が積み上がるだけで
+# 直し方（build）がどこにも出ない。
 recover_result() {
-  echo "RECOVER_RESULT status=$1 recovered=$2 skipped=$3 failed=${4:-0}"
-  ops_write_last_result "recover" "$1" "recovered=$2 skipped=$3 failed=${4:-0}"
+  echo "RECOVER_RESULT status=$1 recovered=$2 skipped=$3 failed=${4:-0} noimage=${5:-0}"
+  ops_write_last_result "recover" "$1" "recovered=$2 skipped=$3 failed=${4:-0} noimage=${5:-0}"
 }
 
 cmd_recover() {
@@ -862,9 +899,10 @@ cmd_recover() {
     log "$recovered 件のアプリを復旧しました（対象 $RECOVER_TARGETS 件）"
   fi
   [[ $RECOVER_FAILED -gt 0 ]] && warn "$RECOVER_FAILED 件は起動に失敗しました（落ちたままです）"
+  [[ $RECOVER_NOIMAGE -gt 0 ]] && warn "うち $RECOVER_NOIMAGE 件はイメージが無く、build でしか直りません"
   [[ $RECOVER_SKIPPED -gt 0 ]] && warn "$RECOVER_SKIPPED 件はモード不明のため見送りました"
 
-  recover_result "ok" "$recovered" "$RECOVER_SKIPPED" "$RECOVER_FAILED"
+  recover_result "ok" "$recovered" "$RECOVER_SKIPPED" "$RECOVER_FAILED" "$RECOVER_NOIMAGE"
 }
 
 cmd_restart() {
@@ -1050,6 +1088,16 @@ _print_autoheal_status() {
       else
         echo "  $label: ★未登録 — $consequence"
         echo "    登録: docker/scripts/$base.bat をダブルクリック"
+      fi
+    done
+
+    # 役目を終えたタスクが残っていると、固定時刻にもう1つ無人処理が起きて
+    # 同じ操作ロックを取り合う（それで消えていた復旧が通算25回ある）。
+    for entry in "${OPS_RETIRED_TASKS[@]}"; do
+      IFS='|' read -r name label base <<< "$entry"
+      if task_exists "$name"; then
+        echo "  $label: ★廃止済みのタスクが残っています（$name）"
+        echo "    解除: docker/scripts/$base.bat をダブルクリック"
       fi
     done
   else
@@ -1771,6 +1819,24 @@ cmd_preflight() {
         ((++pf_warn))
       fi
     done
+
+    # 廃止したタスクの取り残し。無人処理の駆動元はウォッチドッグ1つだけに
+    # してあるので、固定時刻のタスクが生き残っている PC では競走が続く。
+    local retired_left=0
+    for task_entry in "${OPS_RETIRED_TASKS[@]}"; do
+      IFS='|' read -r task_name _ task_base <<< "$task_entry"
+      if task_exists "$task_name"; then
+        warn "A retired scheduled task is still registered: $task_name"
+        echo "  無人処理の駆動元はウォッチドッグ1つに統合済みです。操作ロックを取り合うので解除してください。"
+        echo "  Unregister it: docker/scripts/$task_base.bat"
+        retired_left=1
+        ((++pf_warn))
+      fi
+    done
+    if [[ $retired_left -eq 0 ]]; then
+      ok "No retired scheduled task is left registered"
+      ((++pf_ok))
+    fi
   fi
 
   # 9. Port conflicts
@@ -2137,6 +2203,93 @@ cmd_preflight() {
       ok "Firewall limits the gateway to the local subnet"
       ((++pf_ok))
     fi
+  fi
+
+  # 20. 記録されたモードがあるのに上がっていないアプリ
+  #
+  # 2026-10-11、13アプリがコンテナもイメージも無い状態で落ちていたのに、
+  # preflight の全項目が通った ── 「上がっているべきものが上がっているか」を
+  # 見る項目が1つも無かった。ここが開いている限り、警告を増やしても
+  # 「落ちているのに静か」は塞がらない。
+  #
+  # 落ち方は3つあり、直し方が別なので区別して出す:
+  #   イメージが無い → recover(--no-build) では永久に直らない。build が要る
+  #   作成のまま     → 作り直しが要る（apply も build も差分が無ければ何もしない）
+  #   ただ落ちている → recover で足りる
+  if [[ -f "$STOP_MARKER" ]]; then
+    echo "  アプリは意図的に停止中です（起動状況のチェックは行いません）"
+  else
+    local down_apps=0 pf_name pf_mode pf_exp pf_run pf_missing pf_created
+    for pf_app in "${APPS[@]}"; do
+      pf_dir="$PROJECT_ROOT/$pf_app"
+      [[ -f "$pf_dir/docker-compose.yml" ]] || continue
+      pf_name=$(basename "$pf_app")
+
+      # 一度も start していないアプリは「落ちている」ではない（チェック15が別に見る）。
+      pf_mode=$(read_app_mode "$pf_dir")
+      [[ -z "$pf_mode" || "$pf_mode" == "unknown" ]] && continue
+
+      compose_files_for_app "$pf_dir" "$pf_mode"
+      pf_exp=$(docker compose "${COMPOSE_FILES[@]}" config --services 2>/dev/null | grep -c . || true)
+      pf_run=$(docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null | grep -c . || true)
+      pf_exp=${pf_exp:-0}
+      pf_run=${pf_run:-0}
+      [[ "$pf_exp" -eq 0 || "$pf_run" -ge "$pf_exp" ]] && continue
+
+      down_apps=1
+      ((++pf_warn))
+      warn "Not running although its mode is recorded: $pf_name ($pf_run/$pf_exp, mode $pf_mode)"
+
+      pf_missing=$(_app_missing_images | paste -sd" " -)
+      if [[ -n "$pf_missing" ]]; then
+        echo "  イメージがありません: $pf_missing"
+        echo "  recover は --no-build なので直りません: manage.sh build $pf_name"
+        continue
+      fi
+
+      pf_created=$(docker compose "${COMPOSE_FILES[@]}" ps -a --format '{{.Name}} {{.State}}' 2>/dev/null \
+        | awk '$2 == "created" { print $1 }' | paste -sd" " -)
+      if [[ -n "$pf_created" ]]; then
+        echo "  作成のまま止まっています: $pf_created"
+        echo "  書き込み層ごと作り直してください: cd $pf_app && docker compose up -d --force-recreate"
+        continue
+      fi
+
+      echo "  manage.sh recover で起動し直せます（モードはそのまま踏襲されます）"
+    done
+
+    if [[ $down_apps -eq 0 ]]; then
+      ok "Every app with a recorded mode is running"
+      ((++pf_ok))
+    fi
+  fi
+
+  # 21. 持ち主の死んだウォッチドッグのロック
+  #
+  # 殺された回のロックは残る。次の回がそれを見て「killed」を記録し自分で片付けるが、
+  # 次の回が来るまでは最大4時間ある。手で見るときに分かるようにしておく
+  # （ロックが残っている間、自動復旧は1回も走っていない）。
+  local wd_lock="$PROJECT_ROOT/docker/logs/docker-watchdog.lock"
+  if [[ -f "$wd_lock" ]]; then
+    local wd_pid wd_alive
+    wd_pid=$(sed -n 's/^pid=\([0-9]\+\)$/\1/p;s/^\([0-9]\+\)$/\1/p' "$wd_lock" | head -1)
+    wd_alive=0
+    if [[ -n "$wd_pid" ]] && command -v powershell.exe >/dev/null 2>&1; then
+      powershell.exe -NoProfile -Command "exit [int](-not (Get-Process -Id $wd_pid -ErrorAction SilentlyContinue))" >/dev/null 2>&1 \
+        && wd_alive=1
+    fi
+    if [[ "$wd_alive" -eq 1 ]]; then
+      ok "A watchdog run is in progress (pid $wd_pid)"
+      ((++pf_ok))
+    else
+      warn "A watchdog lock is left behind by a dead process (pid ${wd_pid:-unknown})"
+      echo "  この間、自動復旧は走っていません。次の実行が killed として記録し、片付けます。"
+      echo "  すぐ戻したいなら: rm '$wd_lock'"
+      ((++pf_warn))
+    fi
+  else
+    ok "No watchdog lock is left behind"
+    ((++pf_ok))
   fi
 
   # Summary

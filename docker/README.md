@@ -148,10 +148,9 @@ rd /s /q tax_apps
 | `manage.sh` | Linux / Git Bash | 全機能搭載（本体） |
 | `manage.bat` | Windows (CMD) | `manage.sh` を Git Bash 経由で呼び出す補助ラッパー（ダブルクリックで開発モード起動） |
 | `backup.sh` | Linux / Git Bash | 全体バックアップ/リストア/リストア訓練の本体 |
-| `backup-db.bat` | Windows (CMD) | `backup.sh itcm` を Git Bash 経由で呼び出す補助ラッパー |
-| `restore-drill.bat` | Windows (CMD) | `backup.sh drill` を Git Bash 経由で呼び出す補助ラッパー |
-| `register-restore-drill-task.ps1` | Windows PowerShell | 週次リストア訓練タスクを登録（`-Unregister` で解除） |
-| `register-restore-drill-task.bat` / `unregister-restore-drill-task.bat` | Windows (CMD) | 上記 `.ps1` のダブルクリック用ラッパー |
+| `backup-db.bat` | Windows (CMD) | `backup.sh itcm` を Git Bash 経由で呼び出す補助ラッパー（**手で叩くときの入口**。スケジュールタスクからは呼ばれない） |
+| `restore-drill.bat` | Windows (CMD) | `backup.sh drill` を Git Bash 経由で呼び出す補助ラッパー（同じく手動の入口） |
+| `unregister-backup-task.bat` / `unregister-restore-drill-task.bat` | Windows (CMD) | **廃止したタスクを既存 PC から外す**ためだけに残してあるラッパー（登録側は削除済み） |
 | `start-prod.bat` | Windows (CMD) | ワンクリックで本番モード起動 |
 | `stop.bat` | Windows (CMD) | ワンクリックで全アプリ停止 |
 | `status.bat` | Windows (CMD) | ワンクリックで状態確認 |
@@ -171,8 +170,8 @@ rd /s /q tax_apps
 | 本番モード起動 | `start-prod.bat` | ダブルクリックするだけで全アプリを本番モードで起動 |
 | 停止 | `stop.bat` | ダブルクリックするだけで全アプリを停止 |
 | 状態確認 | `status.bat` | ダブルクリックするだけで状態を確認 |
-| 自動バックアップ | `backup-db.bat` | `backup.sh itcm` を呼び出す補助。PostgreSQL 4件・SQLite 3件・アップロード・テンプレート・設定・JSONエクスポートを7日間保持 |
-| リストア訓練 | `restore-drill.bat` | 最新のバックアップを使い捨て環境へ実際に復元し、本当に戻せるか検証 |
+| バックアップ（手動） | `backup-db.bat` | `backup.sh itcm` を呼び出す補助。PostgreSQL 4件・SQLite 3件・アップロード・テンプレート・設定・JSONエクスポート。無人実行はウォッチドッグの `due` 経由 |
+| リストア訓練（手動） | `restore-drill.bat` | 最新のバックアップを使い捨て環境へ実際に復元し、本当に戻せるか検証。無人実行は同じく `due` 経由 |
 | Docker自動復旧 | `docker-watchdog.bat` | `docker info` が連続失敗した場合に Docker Desktop を再起動し、unhealthy コンテナも再起動 |
 
 > 詳細操作は下記「コマンド一覧」を参照してください。Windows のコマンドプロンプトから実行する場合は、補助ラッパーとして `manage.bat` に読み替えできます。
@@ -567,17 +566,23 @@ PostgreSQL はコンテナ起動中に `psql` でリストア、SQLite はボリ
 無人で走る週次タスクをこれ以上増やさないためです ── タスクを1つ足すたびに
 「消えたのに誰も気づかない」対象が1つ増えます。掃除の成否も `prune` として別に記録されます。
 
-**タスクスケジューラへの登録手順:**
+**専用のスケジュールタスクはありません（2026-10-11 に廃止）。**
 
-`register-restore-drill-task.bat` をダブルクリックすると、`Tax Apps Weekly Restore Drill` が毎週日曜4:00（日次バックアップの直後）に登録されます。実行結果は `docker\logs\restore-drill.log` に追記されます。
+以前は `Tax Apps Weekly Restore Drill` が毎週日曜4:00に登録されていましたが、固定時刻のタスクは
+ログオン直後にウォッチドッグと同時に発火して**同じ操作ロックを取り合い、どちらかの回が丸ごと消えて**
+いました（通算25回）。いまはウォッチドッグが4時間毎に「前回の成功から168時間以上経っていれば取る」
+（`manage.sh due`）ので、駆動元は1つだけです。既に登録済みの PC では
+`unregister-restore-drill-task.bat` で外してください（`manage.sh status` と `preflight` が
+残っていることを警告します）。手で今すぐ試すなら `restore-drill.bat`。
 
 ### 自動バックアップ（タスクスケジューラ）
 
 `backup-db.bat` は互換コマンド `backup.sh itcm` を通じて、通常の `backup` と同じ暗号化済み全体バックアップを作成します。
+**無人実行はウォッチドッグの `due` 経由**で、この入口は手で叩くとき用です。
 
 ```bash
 ./backup.sh itcm                           # Git Bashで実行（本体）
-backup-db.bat                              # Windows補助。ダブルクリックまたはタスクスケジューラ用
+backup-db.bat                              # Windows補助。手でダブルクリックするとき用
 ```
 
 | 項目 | 内容 |
@@ -586,20 +591,26 @@ backup-db.bat                              # Windows補助。ダブルクリッ�
 | SQLite方式 | オンラインバックアップ後に `PRAGMA integrity_check` |
 | 暗号化 | AES-256-CBC、PBKDF2（200,000 iterations） |
 | 保存先 | `docker\backups\YYYY-MM-DD_HHMMSS.tar.gz.enc` |
-| 保持期間 | 7日間（古い暗号化ファイルは自動削除） |
+| 保持期間 | 日次7 + 週次4 + 月次6（GFS。古い暗号化ファイルは自動削除） |
 | 追加保存先 | `tax_apps_backup_latest\all-apps\`（最新1日分） |
 
-**タスクスケジューラへの登録手順:**
+**専用のスケジュールタスクはありません（2026-10-11 に廃止）。**
 
-`register-backup-task.bat` をダブルクリックすると、現在ユーザーの最小権限で `Tax Apps Daily Backup` が毎日3:00に登録されます。管理者権限は不要です。実行結果は `docker\logs\backup.log` に追記されます。`manage.sh preflight` は暗号化バックアップが26時間以上更新されていない場合と、直近の実行が失敗していた場合に警告します。
-
-> **このタスクだけに頼っていません。** PC が 3:00 に起動していない場合の `-StartWhenAvailable` の追いつき実行は、この PC では当てになりません（記録に残る9回のうち定刻に走ったのは1回だけ、2026-09-22 と 2026-09-28 は追いつきもせず丸ごと失われました）。いまは**ウォッチドッグが4時間毎に「前回の成功から20時間以上経っていれば取る」**（`manage.sh due`）ので、PC を使った日には必ず1回取れます。3:00 のタスクは定刻に取れる日のための二重化で、どちらが先に走っても新しい成功記録がある側はスキップします。重なった場合も操作ロックを待つので順番に成立します。
+以前は `Tax Apps Daily Backup` が毎日3:00に登録されていましたが、PC が 3:00 に起動していない場合の
+`-StartWhenAvailable` の追いつき実行はこの PC では当てになりませんでした ── **記録に残る9回のうち
+定刻に走ったのは1回だけ**で、2026-09-22 と 2026-09-28 は追いつきもせず丸ごと失われています。
+定刻に意味が無いのに、ログオン直後にウォッチドッグと同時に発火して**同じ操作ロックを取り合う**
+害だけが残っていたので（通算25回ぶんの復旧がそれで消えていた）、二重化をやめて駆動元を
+ウォッチドッグ1つに統合しました。**4時間毎に「前回の成功から20時間以上経っていれば取る」**
+（`manage.sh due`）ので、PC を使った日には必ず1回取れます。`manage.sh preflight` は暗号化
+バックアップが30時間以上更新されていない場合と、直近の実行が失敗していた場合に警告します。
+既に登録済みの PC では `unregister-backup-task.bat` で外してください。
 
 > OneDrive等の同期フォルダに保存する場合は、`backup.sh` 実行時に `BACKUP_BASE` または `LATEST_BACKUP_BASE` を指定してください。
 
 ### Docker Desktop Watchdog（4時間毎・0時起点）
 
-Docker Desktop 自体がクラッシュ、または `docker info` に応答しない状態になった場合に、Docker Desktop の再起動を試みる watchdog を用意しています。あわせて**期限切れの無人処理（日次バックアップ・週次リストア訓練）を実行する役**でもあります。
+Docker Desktop 自体がクラッシュ、または `docker info` に応答しない状態になった場合に、Docker Desktop の再起動を試みる watchdog を用意しています。あわせて**期限切れの無人処理（バックアップ20時間・リストア訓練168時間・掃除144時間）を実行する唯一の役**でもあります。
 
 **かんたん登録（推奨）**: `register-docker-watchdog-task.bat` をダブルクリックするだけ（昇格不要）。
 
@@ -1014,10 +1025,10 @@ tax_apps/
 │   │   ├── start-prod.bat      #   ワンクリック本番モード起動
 │   │   ├── stop.bat            #   ワンクリック停止
 │   │   ├── status.bat          #   ワンクリック状態確認
-│   │   ├── backup-db.bat       #   backup.sh itcm を呼び出す Windows 補助ラッパー
-│   │   ├── restore-drill.bat   #   backup.sh drill を呼び出す Windows 補助ラッパー
-│   │   ├── register-restore-drill-task.ps1 #  週次リストア訓練タスク登録
-│   │   ├── register-restore-drill-task.bat #  タスク登録ラッパー
+│   │   ├── backup-db.bat       #   backup.sh itcm を呼び出す Windows 補助ラッパー（手動の入口）
+│   │   ├── restore-drill.bat   #   backup.sh drill を呼び出す Windows 補助ラッパー（手動の入口）
+│   │   ├── unregister-backup-task.bat      #  廃止したタスクの解除用
+│   │   ├── unregister-restore-drill-task.bat #  廃止したタスクの解除用
 │   │   ├── docker-watchdog.ps1 #   Docker Desktop 監視/復旧本体
 │   │   ├── docker-watchdog.bat #   watchdog Windows 補助ラッパー
 │   │   ├── register-docker-watchdog-task.ps1 #  タスクスケジューラ登録

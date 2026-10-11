@@ -124,8 +124,10 @@ docker/scripts/manage.sh watch <app-name>
 - `manage.sh`: 起動、停止、再ビルド、ログ、状態確認などの管理本体
 - `backup.sh`: 全体バックアップ/リストア/リストア訓練の本体
 - `manage.bat`: Git Bash 経由で `manage.sh` を呼ぶ補助ラッパー
-- `backup-db.bat`: Git Bash 経由で `backup.sh itcm` を呼ぶ補助ラッパー（日次タスク用。中身は通常の `backup` と同じ）
-- `restore-drill.bat`: Git Bash 経由で `backup.sh drill` を呼ぶ補助ラッパー（週次タスク用）
+- `backup-db.bat`: Git Bash 経由で `backup.sh itcm` を呼ぶ補助ラッパー（中身は通常の `backup` と同じ）
+- `restore-drill.bat`: Git Bash 経由で `backup.sh drill` を呼ぶ補助ラッパー
+  - どちらも**スケジュールタスクからは呼ばれない**（2026-10-11 に固定時刻のタスクを廃止）。
+    無人実行はウォッチドッグの `due` 経由で、この2つは手で叩くときの入口
 - バックアップは `docker/backups/` を主保存先とし、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/all-apps/` に追加コピーする
 - **バックアップ対象は `backup.sh` 冒頭の4配列** (`PG_TARGETS` / `SQLITE_TARGETS` / `BIND_TARGETS` / `SETTINGS_TARGETS`) で定義する。バックアップ・リストア・ドリルはすべてここから生成されるので、DBやデータを持つアプリを足したら**必ず1行追加すること**
 - **保持は日次7 + 週次4 + 月次6（GFS）**。日次7本だけでは「7日以内に気づけた障害」しか戻せない。
@@ -221,7 +223,20 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
 どちらも**昇格不要**（`RunLevel Limited`）。以前は UAC 必須だったが、それが原因で
 一度消えると管理者ダブルクリックでしか戻せず、**実際に2回消えて数ヶ月間無防備だった**。
 さらに `backup.sh` が実行時にタスクの存在を確認し、消えていれば自動で再登録する
-（対象は `OPS_SCHEDULED_TASKS` の4件）。
+（対象は `OPS_SCHEDULED_TASKS` の2件）。
+
+- **無人処理の駆動元はウォッチドッグ1つだけ**。以前は `Tax Apps Daily Backup`（3:00）と
+  `Tax Apps Weekly Restore Drill`（日 4:00）が別のタスクとして登録されていたが、2026-10-11 に廃止した。
+  固定時刻のタスクはこの PC では追いつき実行が当てにならず（記録に残る9回のバックアップのうち
+  **定刻に走ったのは1回だけ**）、代わりにログオン直後に3つ同時に発火して**1つの操作ロックを
+  取り合い、通算25回ぶんの復旧が丸ごと消えていた**。意味の無い定刻のために競走だけ起こしていた
+  ので、残す理由が無い。いまは `cmd_due` が `last-run` の鮮度で判定する（下の「いつ走るか」）。
+  廃止済みのタスクは **`OPS_RETIRED_TASKS`**（`lib/ops-common.sh`）に残してあり、
+  **登録されたまま残っている PC では `status` と `preflight` の両方が警告する** ──
+  表から消しただけでは既存の登録は黙って動き続け、「競走が1台だけ残っている」が一番たちが悪い。
+  自動では消さない（無人処理がスケジュールタスクを勝手に削る形はそれ自体が怖い）ので、
+  解除は `unregister-backup-task.bat` / `unregister-restore-drill-task.bat`。
+  **登録する口（`register-*-task.bat`）は削除済み**で、`.ps1` は `-Unregister` 以外を拒む
 
 - 復旧の実体は `manage.sh recover`。起動ロジックを PowerShell 側に複製せず、
   `APPS` 配列を唯一の定義元に保つ。`start` との違いは無人で定期的に呼ばれる前提から来る:
@@ -260,6 +275,30 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
   競走していて、ログオン直後のウォッチドッグが**バックアップがまだ一度も走れていない時点で**
   「バックアップ停止」をデスクトップに出していた。しきい値を緩めて隠すのではなく、
   1つのプロセスで順番を固定して競走そのものを消している
+- **殺された回も必ず記録を残す**。タスクスケジューラは `ExecutionTimeLimit` を超えた回を
+  コンソール制御イベントで終わらせる（`LastTaskResult=3221225786` = `STATUS_CONTROL_C_EXIT`）。
+  これは **PowerShell の `finally` を飛ばす**ので、ロック解放・`last-run` への記録・
+  デスクトップ警告のどれも通らない ── 2026-10-11 に4つのタスクのうち3つがこの終わり方をしていて、
+  **13アプリが落ちているのに `last-run` は全部 `ok` のまま**だった。守りは3枚:
+  `Console.CancelKeyPress` / `AppDomain.ProcessExit` の即時記録、**次の回が残ったロックから
+  死を見つけて `killed` を記録する**（これが保証の本体。`TerminateProcess` には前者が間に合わない）、
+  生きている持ち主が45分以上握っていたら `lock-stuck` を記録して警告。
+  **ハンドラは必ずコンパイル済みの C#（`Add-Type`）で書くこと** ── どちらのイベントも
+  ランスペースの付いていないスレッドで発火するため、**スクリプトブロックを
+  デリゲートにキャストすると無言で何もしない**（実測。記録もロック解放も一切起きなかった）
+- **内側のタイムアウトは外側より必ず小さく保つ**（`docker-watchdog.ps1`）。
+  `AppRecoveryTimeoutSeconds`(600) + `DueWorkTimeoutSeconds`(1200) ≒ 35分 <
+  ウォッチドッグのロックの陳腐化(45分) < タスクの `ExecutionTimeLimit`(90分)。
+  以前は due が3600・ロックが30分で**逆転していた**ため、長いが正当な回が自分のロックを
+  次の回に奪われ、ログには `Removing stale watchdog lock` が2日で4回出ていた。
+  ロックの持ち主は **PID の生存も見る**（bash 側のロックは元からそうだった）。
+  Windows は PID を再利用するのでプロセス名も確かめる
+- **子プロセスは「木ごと」殺し、パイプは待つ前から読む**（`Invoke-ProcessWithTimeout`）。
+  `Stop-Process` は直接の子（`cmd.exe`）しか終わらせず、**実際に詰まっている Git Bash の孫が
+  生き残って共有の操作ロックを握り続ける**ので `taskkill /T /F`。また
+  `WaitForExit` の後からパイプを読むと数KBで固まるため（`recover` は17アプリ分で遥かに超える）、
+  `ReadToEndAsync()` を**待つ前に**始める。`Start-Process -PassThru` は `ExitCode` を
+  返さないので使わない（実測）
 - **無人で走る処理は必ず結果を1件残す**（`docker/logs/last-run/<名前>`、`ops_write_last_result`）。
   `manage.sh status` と `preflight` がこれを読んで「一度も記録が無い」「ok 以外」
   「古すぎる」を出す。**バックアップ・ドリル・復旧・ウォッチドッグの失敗が誰にも届かず
@@ -309,6 +348,22 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
   `Restart-UnhealthyTaxAppsContainers`（再起動の失敗・4時間後もまだ unhealthy）と
   `ensure_watchdog_task`（タスクの再登録の失敗）にも足してある ── 後者は
   **数ヶ月タスクが消えたままだった当のもので、失敗は watchdog.log の1行だけだった**
+- **「直し方」まで出さない失敗は4時間毎に同じ失敗を積み上げるだけ**。`recover` は
+  `up -d --no-build` なので、**イメージそのものが無いアプリは何回走っても直らない**。
+  2026-10-11 は13アプリがこれ（コンテナもイメージも消えていた）で、`recover` を呼べたとしても
+  失敗を13回積むだけだった。いまは先に `docker compose config --images` と
+  `docker image inspect` で見分け、`RECOVER_RESULT` に **`noimage=N`** を足して
+  「`build <app>` が要る」と名前で出す（ウォッチドッグもこの内訳を見てアラートに書く）。
+  **`up` が 0 を返しても起動しているとは限らない**（作成で止まる・すぐ落ちる）ので、
+  `ps --status running --services` の件数を定義サービス数と突き合わせてから ok にする
+- **`preflight` のチェック20は「上がっているべきものが上がっているか」を見る**。
+  2026-10-11、13アプリがコンテナもイメージも無い状態で落ちていたのに **preflight の
+  全項目が通った** ── この向きの項目が1つも無かった。モードが記録されているアプリ
+  （一度も `start` していないものはチェック15の担当）について稼働サービス数を数え、
+  落ち方を3つに分けて直し方ごと出す: イメージが無い（`build` が要る）／作成のまま
+  （`up -d --force-recreate`）／ただ落ちている（`recover` で足りる）。
+  停止マーカーがある間は何も言わない。**チェック21**はウォッチドッグのロックが
+  死んだプロセスのまま残っていないかを見る（残っている間、自動復旧は1回も走っていない）
 - **無人処理を「別の無人処理の付属物」にしてはいけない**。掃除は長らく `cmd_drill` の
   最後の1行だった。ドリル自身の記録はその手前で書かれるので、2026-10-04 にドリル成功の直後
   （ビルドキャッシュの削除中）にプロセスが落ちたとき、**ドリルは ok のまま掃除だけ記録を失った**。
@@ -343,12 +398,12 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
 - `status.bat`: ワンクリックで状態確認
 - `register-startup-task.bat` / `register-docker-watchdog-task.bat`: 自動起動・自動復旧タスクの登録
   （`unregister-*.bat` で解除）
-- `backup-db.bat`: 暗号化された全体バックアップ（PostgreSQL 4件 + SQLite 3件 + アップロード + テンプレート + `.env` 4件 + JSONエクスポート。日次7 + 週次4 + 月次6 で保持、タスクスケジューラ対応）
+- `backup-db.bat`: 暗号化された全体バックアップ（PostgreSQL 4件 + SQLite 3件 + アップロード + テンプレート + `.env` 4件 + JSONエクスポート。日次7 + 週次4 + 月次6 で保持。無人実行はウォッチドッグの `due` 経由で、これは手動の入口）
   - **暗号鍵 `~/.tax-apps/backup.key` の控えだけは手で取ること**。これを失うと
     `docker/backups/` の暗号化アーカイブは全部ただのゴミになる。鍵が無い状態で
     `backup.sh` を走らせても、暗号化済みのアーカイブが1つでもあれば新しい鍵を
     黙って作らずに中断する（指紋を `docker/backups/.backup-key-fingerprint` と突き合わせる）
-- `restore-drill.bat`: 最新バックアップのリストア訓練（週次タスク対応）
+- `restore-drill.bat`: 最新バックアップのリストア訓練（無人実行は `due` 経由。これは手動の入口）
 
 ```bash
 # 全アプリ起動（開発モード）

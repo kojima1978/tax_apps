@@ -82,11 +82,29 @@ task_exists() {
 # つまり見張り役の backup.sh を起こすタスクが消えても、誰も直さなかった。
 #
 # タスクを増やしたらここへ1行足す（3箇所が自動でついてくる）。
+#
+# 無人処理の駆動元はウォッチドッグ1つだけにしてある。日次バックアップと
+# 週次ドリルにも固定時刻のタスクがあったが、2026-10-11 の調査で
+# **全部が同時に起きて1つの操作ロックを取り合っていた**ことが分かった
+# （ログオン直後に3つ同時に発火し、通算25回ぶんの復旧がそれで消えていた）。
+# さらに固定時刻のタスクは追いつき実行が当てにならず、記録に残る9回の
+# バックアップのうち定刻に走ったのは1回だけだった ── 固定時刻に意味が無い
+# のに競走だけ起こしていたので、残す理由が無い。
+# 「いつ走るか」は cmd_due が last-run の鮮度で決める（20h/168h/144h）。
 OPS_SCHEDULED_TASKS=(
-  "Tax Apps Docker Watchdog|register-docker-watchdog-task|復旧・無人処理（4時間毎・0時起点）|停止しても unhealthy でも自動復旧されず、バックアップも走りません"
+  "Tax Apps Docker Watchdog|register-docker-watchdog-task|復旧・無人処理（4時間毎・0時起点）|停止しても unhealthy でも自動復旧されず、バックアップも訓練も掃除も走りません"
   "Tax Apps Startup|register-startup-task|ログオン時の起動と復旧|再起動後は次の定期実行（最大4時間後）までアプリが上がりません"
-  "Tax Apps Daily Backup|register-backup-task|日次バックアップ（3:00）|定刻のバックアップが無くなります（ウォッチドッグの due が肩代わりします）"
-  "Tax Apps Weekly Restore Drill|register-restore-drill-task|週次リストア訓練（日 4:00）|定刻の訓練が無くなります（ウォッチドッグの due が肩代わりします）"
+)
+
+# 役目を終えたタスク（タスク名|日本語の説明|解除スクリプトの基底名）
+#
+# 上の表から消しただけでは、**既に登録されている PC では黙って動き続ける**。
+# 消したはずの競走が1台だけ残っているのが一番たちが悪いので、残っていたら
+# status と preflight の両方から見えるようにしておく。自動では消さない
+# （無人処理がスケジュールタスクを勝手に削る形は、それ自体が怖い）。
+OPS_RETIRED_TASKS=(
+  "Tax Apps Daily Backup|日次バックアップ（3:00）|unregister-backup-task"
+  "Tax Apps Weekly Restore Drill|週次リストア訓練（日 4:00）|unregister-restore-drill-task"
 )
 
 # ------------------------------------

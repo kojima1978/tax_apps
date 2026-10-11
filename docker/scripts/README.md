@@ -132,31 +132,34 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 ### Windows 補助ラッパー
 
 - **`backup-db.bat`**
-  `backup.sh itcm` を Git Bash 経由で呼ぶ ASCII ラッパー。ダブルクリックでも、タスクスケジューラからでも実行可能。
+  `backup.sh itcm` を Git Bash 経由で呼ぶ ASCII ラッパー。**手でダブルクリックするとき用**。
+  スケジュールタスクからは呼ばれない（無人実行はウォッチドッグの `due` 経由）。
 
 - **`restore-drill.bat`**
-  `backup.sh drill` を Git Bash 経由で呼ぶ ASCII ラッパー。
+  `backup.sh drill` を Git Bash 経由で呼ぶ ASCII ラッパー。同じく手動の入口。
 
-### タスク登録（自動定期バックアップ）
+### 廃止したタスク登録（バックアップ・リストア訓練）
 
-- **`register-backup-task.ps1`** ← **本体**
-  毎日指定時刻（デフォルト 03:00）に `backup-db.bat` を実行する Windows スケジュールタスクを現在ユーザーの最小権限で登録する PowerShell。`-Unregister` スイッチで削除も可能。
+**2026-10-11 に廃止**。`Tax Apps Daily Backup`（毎日3:00）と
+`Tax Apps Weekly Restore Drill`（毎週日曜4:00）は固定時刻のスケジュールタスクだったが、
 
-- **`register-backup-task.bat`**
-  `register-backup-task.ps1` を呼ぶラッパー。UACなしで登録。
+- PC が深夜に起きていないので定刻にはほぼ走らず（記録に残る9回のうち定刻は1回だけ）、
+- ログオン直後にウォッチドッグと同時に発火して**同じ操作ロックを取り合い、負けた回が
+  丸ごと消えていた**（ドリルは2週連続、復旧は通算25回）
 
-- **`unregister-backup-task.bat`**
-  `register-backup-task.ps1 -Unregister` を呼ぶラッパー。UACなしでタスク削除。
+という状態だった。定刻に意味が無いのに競走だけ起こしていたので、無人処理の駆動元は
+**ウォッチドッグ1つ**に統合した。何をいつ走らせるかは `manage.sh due` が `last-run` の
+鮮度で決める（バックアップ20時間・訓練168時間・掃除144時間）。
 
-### タスク登録（週次リストア訓練）
+- **`register-backup-task.ps1`** / **`register-restore-drill-task.ps1`**
+  `-Unregister` 専用として残してある。引数なしで呼ぶと廃止の旨を出して終了コード 1 を返す。
+  登録側の `.bat`（`register-backup-task.bat` / `register-restore-drill-task.bat`）は削除済み。
 
-- **`register-restore-drill-task.ps1`** ← **本体**
-  毎週（デフォルト 日曜 04:00、日次バックアップの直後）に `restore-drill.bat` を実行する
-  スケジュールタスクを登録する PowerShell。出力は `docker/logs/restore-drill.log` に追記される。
-  `-Unregister` スイッチで削除も可能。
-
-- **`register-restore-drill-task.bat`** / **`unregister-restore-drill-task.bat`**
-  上記 `.ps1` を呼ぶ ASCII ラッパー。
+- **`unregister-backup-task.bat`** / **`unregister-restore-drill-task.bat`**
+  **既に登録済みの PC から外すための入口**。表から消すだけでは、登録済みの PC では
+  黙って動き続けて競走も残る。残っていたら `manage.sh status` と `preflight` の両方が
+  `OPS_RETIRED_TASKS`（`lib/ops-common.sh`）を見て警告する。自動では消さない ──
+  無人処理がスケジュールタスクを勝手に削る形は、それ自体が怖い。
 
 ---
 
@@ -213,8 +216,6 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 自動復旧（ウォッチドッグ）:
   復旧・無人処理（4時間毎・0時起点）: 登録済み（Tax Apps Docker Watchdog）
   ログオン時の起動と復旧: 登録済み（Tax Apps Startup）
-  日次バックアップ（3:00）: 登録済み（Tax Apps Daily Backup）
-  週次リストア訓練（日 4:00）: 登録済み（Tax Apps Weekly Restore Drill）
   autoheal ラベル: 稼働中の healthcheck 付きコンテナすべてに付与済み
   直近の実行結果:
     ウォッチドッグ: ok（2026-09-21 08:00・3時間前） mode=periodic docker=healthy
@@ -284,7 +285,9 @@ detail=daily ok=7 skipped=0
   エラー終了していたが、実際の衝突相手はほぼ常に**同じスケジューラから起きた無人処理**だった。
   PC が深夜に起動していないため `-StartWhenAvailable` の遅延実行で日次バックアップ・週次訓練・
   ウォッチドッグがログオン直後の数分に固まり、負けた側がその回まるごと消えていた
-  （ドリルは2週連続、ウォッチドッグの復旧は通算25回）。
+  （ドリルは2週連続、ウォッチドッグの復旧は通算25回）。**2026-10-11 に固定時刻のタスクを
+  廃止して駆動元をウォッチドッグ1つにしたので、この衝突の源そのものは無くなっている**
+  （待つ仕組みは、手の操作と重なる場合のために残す）。
 - **端末から叩いたときは待たない**（`[[ -t 1 ]]` で判定）。人が見ている前で数分黙って
   固まるより、その場で言った方がいい。`TAX_APPS_LOCK_WAIT=<秒>` で上書きできる。
 - 持ち主のプロセスが死んでいるロックだけ自動で片付ける。**生きているロックは奪わない** ──
@@ -302,14 +305,12 @@ detail=daily ok=7 skipped=0
 | `stop.bat` | ショートカット | 停止（削除はしない） |
 | `status.bat` | ショートカット | 状態確認 |
 | `backup.sh` | 本体 (Bash) | バックアップ/リストア本体 |
-| `backup-db.bat` | 補助 (CMD) | backup.sh itcm の Git Bash ラッパー |
-| `restore-drill.bat` | 補助 (CMD) | backup.sh drill の Git Bash ラッパー |
-| `register-backup-task.ps1` | 本体 (PS) | バックアップタスク登録 |
-| `register-backup-task.bat` | 補助 (CMD) | 現在ユーザーへタスク登録 |
-| `unregister-backup-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除 |
-| `register-restore-drill-task.ps1` | 本体 (PS) | 週次リストア訓練タスク登録 |
-| `register-restore-drill-task.bat` | 補助 (CMD) | 現在ユーザーへタスク登録 |
-| `unregister-restore-drill-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除 |
+| `backup-db.bat` | 補助 (CMD) | backup.sh itcm の Git Bash ラッパー（手動の入口） |
+| `restore-drill.bat` | 補助 (CMD) | backup.sh drill の Git Bash ラッパー（手動の入口） |
+| `register-backup-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
+| `unregister-backup-task.bat` | 補助 (CMD) | 廃止したタスクを既存 PC から削除 |
+| `register-restore-drill-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
+| `unregister-restore-drill-task.bat` | 補助 (CMD) | 廃止したタスクを既存 PC から削除 |
 | `docker-watchdog.ps1` | 本体 (PS) | Docker Desktop daemon 監視/復旧、unhealthy コンテナ再起動 |
 | `docker-watchdog.bat` | 補助 (CMD) | 手動実行用ラッパー |
 | `register-docker-watchdog-task.ps1` | 本体 (PS) | ウォッチドッグタスク登録 |
@@ -331,10 +332,9 @@ detail=daily ok=7 skipped=0
 | 本番モードで起動 | `start-prod.bat` をダブルクリック |
 | 停止 | `stop.bat` をダブルクリック |
 | 状態確認 | `status.bat` をダブルクリック |
-| 毎日 03:00 の自動バックアップを設定 | `register-backup-task.bat` をダブルクリック |
-| バックアップタスクを削除 | `unregister-backup-task.bat` をダブルクリック |
-| 毎週日曜 04:00 のリストア訓練を設定 | `register-restore-drill-task.bat` をダブルクリック |
-| リストア訓練タスクを削除 | `unregister-restore-drill-task.bat` をダブルクリック |
+| 今すぐバックアップを取る | `backup-db.bat` をダブルクリック |
+| 廃止した日次バックアップタスクを外す | `unregister-backup-task.bat` をダブルクリック |
+| 廃止した週次リストア訓練タスクを外す | `unregister-restore-drill-task.bat` をダブルクリック |
 | バックアップが復元できるか今すぐ試す | `restore-drill.bat` をダブルクリック |
 | 4時間毎の Docker 監視＋無人処理を設定 | `register-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック（昇格不要） |

@@ -5,11 +5,13 @@ param(
     [int]$CooldownMinutes = 45,
     [int]$MaxRecoverySeconds = 300,
     [int]$AppRecoveryTimeoutSeconds = 600,
-    # Overdue unattended work (the day's backup, the weekly restore drill) runs
-    # inside this run. 3600s is not a normal duration - a backup takes about 40
-    # seconds and a drill about 15 - it is headroom for the shared operation lock
-    # and for a cold Docker still settling.
-    [int]$DueWorkTimeoutSeconds = 3600,
+    # Overdue unattended work (the day's backup, the weekly restore drill, the
+    # periodic prune) runs inside this run. A backup takes about 40 seconds and
+    # a drill about 15; the rest is headroom for the shared operation lock and
+    # for a cold Docker still settling. It used to be 3600, which with recover's
+    # 600 put the worst case past this run's own lock window (45 min) - a long
+    # but legitimate run would lose its lock to the next one.
+    [int]$DueWorkTimeoutSeconds = 1200,
     [switch]$SkipAppRecovery,
     [switch]$SkipContainerHealthRecovery,
     [switch]$SkipDueWork,
@@ -140,22 +142,256 @@ function Add-RecoveryIssue {
     $script:RecoveryIssue = "$($script:RecoveryIssue); $Issue"
 }
 
+# The lock file carries the owner's PID and start time, not just a bare PID,
+# because the next run has to tell "still working" from "was killed". Task
+# Scheduler ends a run that exceeds ExecutionTimeLimit with a console control
+# event (LastTaskResult 0xC000013A = STATUS_CONTROL_C_EXIT), and that bypasses
+# PowerShell's finally block: the lock file, the last-run record and the desktop
+# alert are all left exactly as the dying run left them. That is how 13 apps
+# stayed down for a day with nothing on screen - the run that was supposed to
+# report the failure was the one that got killed.
+$script:LockHeld = $false
+$script:ExitGuardsRegistered = $false
+
+# Every internal timeout has to fit inside this window, and this window inside
+# the task's ExecutionTimeLimit (90 min). Docker checks + recover (600s) +
+# due work (1200s) comes to roughly 35 minutes.
+$LockStaleMinutes = 45
+
+function Read-WatchdogLockInfo {
+    $info = [pscustomobject]@{ OwnerPid = 0; Started = $null; Mode = "" }
+
+    try {
+        $raw = Get-Content -LiteralPath $LockPath -ErrorAction Stop
+    }
+    catch {
+        return $info
+    }
+
+    foreach ($line in @($raw)) {
+        $text = "$line".Trim()
+        if ($text -match '^pid=(\d+)$') { $info.OwnerPid = [int]$Matches[1]; continue }
+        if ($text -match '^mode=(.*)$') { $info.Mode = $Matches[1]; continue }
+        if ($text -match '^started=(.+)$') {
+            $parsed = [datetime]::MinValue
+            if ([datetime]::TryParse($Matches[1], [ref]$parsed)) { $info.Started = $parsed }
+            continue
+        }
+        # Locks written before this format held a bare PID and nothing else.
+        if ($text -match '^\d+$' -and $info.OwnerPid -eq 0) { $info.OwnerPid = [int]$text }
+    }
+
+    return $info
+}
+
+# The bash operation lock has cleared dead owners by PID for a long time; this
+# one only ever looked at the file's age, so a killed run kept its successors
+# out for 30 minutes. The 10:11 logon recovery deferred to a dead PID and did
+# nothing at all.
+function Test-WatchdogOwnerAlive {
+    param([int]$OwnerPid)
+
+    if ($OwnerPid -le 0) { return $false }
+
+    try {
+        $process = Get-Process -Id $OwnerPid -ErrorAction Stop
+    }
+    catch {
+        return $false
+    }
+
+    # Windows reuses PIDs. Only a PowerShell process can be a watchdog run.
+    return ($process.ProcessName -like "*powershell*")
+}
+
+# A run that vanished without releasing its lock has to leave evidence, and the
+# only thing certain to still be running is the NEXT run. This is the guaranteed
+# path; the handlers in Register-WatchdogExitGuards are only a faster one.
+function Write-KilledPredecessorResult {
+    param([pscustomobject]$Info)
+
+    $startedText = if ($Info.Started) { $Info.Started.ToString("yyyy-MM-dd HH:mm:ss") } else { "unknown" }
+    $resultPath = Join-Path $LastRunDir "watchdog"
+
+    if ($Info.Started -and (Test-Path -LiteralPath $resultPath)) {
+        try {
+            $match = Select-String -LiteralPath $resultPath -Pattern '^epoch=(\d+)$' -ErrorAction Stop |
+                Select-Object -First 1
+            if ($match) {
+                $epoch = [int64]$match.Matches[0].Groups[1].Value
+                $recordedAt = ([datetime]"1970-01-01").AddSeconds($epoch).ToLocalTime()
+                # A record newer than the dead run's start means that run did
+                # reach Exit-Watchdog and only the lock file survived. Do not
+                # overwrite a result it already wrote.
+                if ($recordedAt -gt $Info.Started) { return }
+            }
+        }
+        catch { }
+    }
+
+    Write-LastRunResult -Name "watchdog" -Status "killed" -Detail "owner pid $($Info.OwnerPid) left its lock behind; started=$startedText"
+}
+
+# Immediate reporting for a run that gets killed. .NET hands a console control
+# event to CancelKeyPress before the default handler ends the process, and
+# ProcessExit covers Environment.Exit, so both are places where the lock can
+# still be released and a result still written.
+#
+# The handler is compiled C#, not a scriptblock: both events fire on a thread
+# with no runspace attached, and a scriptblock delegate there fails silently.
+# That was measured - a scriptblock version of this guard left no record and no
+# released lock at all. Pure .NET calls have no such dependency.
+#
+# This is only the fast path. If it never gets to run (TerminateProcess leaves
+# no chance), Enter-WatchdogLock in the NEXT run still reports the death from
+# the leftover lock file, which is the guarantee.
+$WatchdogGuardSource = @"
+using System;
+using System.IO;
+using System.Text;
+using System.Threading;
+
+public static class TaxAppsWatchdogGuard
+{
+    static string _lockFile;
+    static string _resultFile;
+    static string _logFile;
+    static string _mode;
+    static int _ownerPid;
+    static int _reported;
+
+    public static void Install(string lockFile, string resultFile, string logFile, string mode, int ownerPid)
+    {
+        _lockFile = lockFile;
+        _resultFile = resultFile;
+        _logFile = logFile;
+        _mode = mode;
+        _ownerPid = ownerPid;
+
+        Console.CancelKeyPress += delegate(object sender, ConsoleCancelEventArgs e)
+        {
+            Report("a console control event (task end or Ctrl+C)");
+        };
+
+        AppDomain.CurrentDomain.ProcessExit += delegate(object sender, EventArgs e)
+        {
+            // A clean run released its lock in the finally block, so a lock
+            // that is still here means this run never got that far.
+            if (File.Exists(_lockFile))
+            {
+                Report("process exit without cleanup");
+            }
+        };
+    }
+
+    // Called once the run has released the lock itself and written its own
+    // result, so a later ProcessExit cannot overwrite it.
+    public static void Disarm()
+    {
+        Interlocked.Exchange(ref _reported, 1);
+    }
+
+    static void Report(string reason)
+    {
+        if (Interlocked.Exchange(ref _reported, 1) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            string stamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            long epoch = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+            string[] lines = new string[] {
+                "status=killed",
+                "at=" + stamp,
+                "epoch=" + epoch.ToString(),
+                "detail=mode=" + _mode + " terminated by " + reason + " (pid " + _ownerPid.ToString() + ")"
+            };
+            File.WriteAllLines(_resultFile, lines, Encoding.ASCII);
+            File.AppendAllText(_logFile, stamp + " [ERROR] Watchdog run terminated by " + reason
+                + "; lock released and result recorded." + Environment.NewLine);
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            File.Delete(_lockFile);
+        }
+        catch
+        {
+        }
+    }
+}
+"@
+
+function Register-WatchdogExitGuards {
+    if ($script:ExitGuardsRegistered) { return }
+
+    try {
+        if (-not ("TaxAppsWatchdogGuard" -as [type])) {
+            Add-Type -TypeDefinition $WatchdogGuardSource -ErrorAction Stop
+        }
+        $runMode = if ($StartupMode) { "startup" } else { "periodic" }
+        [TaxAppsWatchdogGuard]::Install($LockPath, (Join-Path $LastRunDir "watchdog"), $LogPath, $runMode, $PID)
+        $script:ExitGuardsRegistered = $true
+    }
+    catch {
+        # Not fatal: the next run reports the death from the leftover lock file.
+        Write-WatchdogLog "WARN" "Could not install the kill guard: $($_.Exception.Message)"
+    }
+}
+
+function Disarm-WatchdogExitGuards {
+    if (-not $script:ExitGuardsRegistered) { return }
+
+    try {
+        [TaxAppsWatchdogGuard]::Disarm()
+    }
+    catch { }
+}
+
 function Enter-WatchdogLock {
     if (Test-Path -LiteralPath $LockPath) {
+        $info = Read-WatchdogLockInfo
         $age = (Get-Date) - (Get-Item -LiteralPath $LockPath).LastWriteTime
-        if ($age.TotalMinutes -lt 30) {
-            Write-WatchdogLog "WARN" "Another watchdog run appears active; skipping."
+        $ageMinutes = [int]$age.TotalMinutes
+
+        if (Test-WatchdogOwnerAlive -OwnerPid $info.OwnerPid) {
+            # Skip rather than clear it: the bash operation lock would serialize
+            # us anyway, and two watchdogs fighting over Docker Desktop is worse
+            # than one late run. The task's own time limit ends a wedged run.
+            if ($ageMinutes -ge $LockStaleMinutes) {
+                Write-WatchdogLog "ERROR" "Watchdog pid $($info.OwnerPid) has held the lock for $ageMinutes minutes; skipping this run."
+                Write-LastRunResult -Name "watchdog" -Status "lock-stuck" -Detail "owner pid $($info.OwnerPid) held the lock for $ageMinutes min"
+                Update-FailureAlert
+                exit 0
+            }
+
+            Write-WatchdogLog "WARN" "Another watchdog run (pid $($info.OwnerPid)) is active; skipping."
             exit 0
         }
 
-        Write-WatchdogLog "WARN" "Removing stale watchdog lock."
+        Write-WatchdogLog "WARN" "Previous watchdog run (pid $($info.OwnerPid), age $ageMinutes min) left its lock behind; it did not exit cleanly."
+        Write-KilledPredecessorResult -Info $info
         Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue
     }
 
-    New-Item -ItemType File -Path $LockPath -Value $PID -ErrorAction Stop | Out-Null
+    $mode = if ($StartupMode) { "startup" } else { "periodic" }
+    $lines = @("pid=$PID", "started=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')", "mode=$mode")
+    Set-Content -LiteralPath $LockPath -Value $lines -Encoding ASCII -ErrorAction Stop
+    $script:LockHeld = $true
+    Register-WatchdogExitGuards
 }
 
 function Exit-WatchdogLock {
+    # Only the run that took the lock may remove it. Without this guard the
+    # finally block of a run that skipped would delete the live owner's lock.
+    if (-not $script:LockHeld) { return }
+    $script:LockHeld = $false
+    Disarm-WatchdogExitGuards
     Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue
 }
 
@@ -188,6 +424,23 @@ function Join-ProcessArguments {
     return ($quoted -join " ")
 }
 
+# Stop-Process ends only the process it is given. These children are cmd.exe
+# wrappers around Git Bash, so the grandchild that is actually stuck survives
+# and keeps holding the shared operation lock - and a hung Git Bash fork
+# (dofork ... errno 11) is exactly what set off the outage this guards against.
+function Stop-ProcessTree {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) { return }
+
+    try {
+        & taskkill.exe /PID $ProcessId /T /F | Out-Null
+    }
+    catch { }
+
+    Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+}
+
 function Invoke-ProcessWithTimeout {
     param(
         [string]$FilePath,
@@ -206,21 +459,34 @@ function Invoke-ProcessWithTimeout {
     try {
         [void]$process.Start()
 
-        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-            return [pscustomobject]@{
-                TimedOut = $true
-                ExitCode = $null
-                StdOut = $process.StandardOutput.ReadToEnd()
-                StdErr = $process.StandardError.ReadToEnd()
-            }
+        # Start draining both pipes before waiting. Reading them only after
+        # WaitForExit - what this used to do - deadlocks as soon as the child
+        # writes more than the pipe buffer holds (a few KB), and
+        # "manage.bat recover" prints far more than that across 16 apps. The
+        # timeout then fires on a child that is merely blocked on a full pipe,
+        # so a perfectly healthy run is indistinguishable from a hang.
+        $outTask = $process.StandardOutput.ReadToEndAsync()
+        $errTask = $process.StandardError.ReadToEndAsync()
+
+        $timedOut = -not $process.WaitForExit($TimeoutSeconds * 1000)
+        if ($timedOut) {
+            Stop-ProcessTree -ProcessId $process.Id
+            [void]$process.WaitForExit(10000)
         }
 
+        $stdOut = ""
+        $stdErr = ""
+        if ($outTask.Wait(10000)) { $stdOut = [string]$outTask.Result }
+        if ($errTask.Wait(10000)) { $stdErr = [string]$errTask.Result }
+
+        $exitCode = $null
+        if (-not $timedOut) { $exitCode = $process.ExitCode }
+
         return [pscustomobject]@{
-            TimedOut = $false
-            ExitCode = $process.ExitCode
-            StdOut = $process.StandardOutput.ReadToEnd()
-            StdErr = $process.StandardError.ReadToEnd()
+            TimedOut = $timedOut
+            ExitCode = $exitCode
+            StdOut = $stdOut
+            StdErr = $stdErr
         }
     }
     finally {
@@ -349,6 +615,14 @@ function Invoke-TaxAppsRecovery {
             if ($summary -notmatch 'status=ok\b') {
                 Write-WatchdogLog "WARN" "manage.sh recover did not run: $summary"
                 Add-RecoveryIssue $summary
+            }
+            elseif ($summary -match 'noimage=[1-9]') {
+                # The image itself is gone, so recover - which is "up --no-build"
+                # by design - can never fix this app, however often it runs. Name
+                # the one command that does, because the alert this feeds is all
+                # anyone sees. On 2026-10-11 thirteen apps were in this state.
+                Write-WatchdogLog "WARN" "manage.sh recover found apps with no image; run 'manage.sh build <app>': $summary"
+                Add-RecoveryIssue "$summary (needs manage.sh build)"
             }
             elseif ($summary -match 'failed=[1-9]') {
                 # "docker compose up" failed for an app that was down. The

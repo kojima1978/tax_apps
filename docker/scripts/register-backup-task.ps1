@@ -20,6 +20,16 @@ if ($Unregister) {
     return
 }
 
+# このタスクは廃止した。無人処理の駆動元はウォッチドッグ1つだけで、
+# 何をいつ走らせるかは manage.sh due が last-run の鮮度で決める。
+# 固定時刻のタスクを戻すと、同じ操作ロックをウォッチドッグと取り合って
+# どちらかの回が丸ごと消える（2026-10-11 の調査で通算25回あった）。
+# -Unregister だけ残してあるのは、既に登録済みの PC から外すため。
+Write-Host "This scheduled task has been retired."
+Write-Host "Unattended work is driven only by 'Tax Apps Docker Watchdog' (manage.sh due)."
+Write-Host "To remove an existing registration, run this script with -Unregister."
+exit 1
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BackupBat = Join-Path $ScriptDir "backup-db.bat"
 
