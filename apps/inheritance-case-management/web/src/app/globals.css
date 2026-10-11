@@ -27,6 +27,22 @@ body {
   font-family: var(--font-sans);
 }
 
+.settings-workspace {
+  --primary: #1d4ed8;
+  --muted-foreground: #475569;
+  --muted: #f1f5f9;
+  --input: #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  min-height: calc(100vh - 56px);
+}
+.settings-workspace :where(a, button, summary, input, select, textarea):focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.settings-workspace :where(button, summary) { cursor: pointer; }
+.settings-workspace button:disabled { cursor: not-allowed; }
+
 @keyframes slide-in {
   from {
     transform: translateX(100%);
@@ -88,6 +104,10 @@ body {
 .analytics-workspace :where(table, tr, th, td) { border-color: #e2e8f0; }
 .analytics-workspace :where(td) { font-variant-numeric: tabular-nums; }
 .analytics-workspace :where(tbody tr:hover) { background-color: #f8fafc; }
+.analytics-workspace :where(.text-xs, .text-\[11px\]) { font-size: 13px; line-height: 1.5; }
+.analytics-workspace :where(th, td) { padding-block: 12px; }
+.analytics-workspace :where(td, dd) { font-variant-numeric: tabular-nums; }
+.analytics-workspace :where([role="region"]):focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .analytics-workspace :where(button, select, summary, a):focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;

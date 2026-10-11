@@ -46,6 +46,7 @@ export function ReferrerTab({ sortedCompanyRanking, companySort, onCompanySort, 
                     </div>
                 </div>
                 <AnalyticsRules referral />
+                <p className="text-sm text-slate-600">会社名から対象案件を開けます。支店の内訳は展開して確認できます。</p>
                 <div className="space-y-2">
                     <RankingTable
                         data={sortedCompanyRanking}

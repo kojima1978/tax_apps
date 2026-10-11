@@ -74,7 +74,7 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
     const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
     const allNames = useMemo(() => departmentGroups.map(g => g.departmentName), [departmentGroups])
-    const isAllExpanded = expanded.size === allNames.length
+    const isAllExpanded = allNames.length > 0 && allNames.every(name => expanded.has(name))
     const staffTotal = useMemo(
         () => calcDeptTotals(departmentGroups.flatMap(group => group.assignees)).feeTotal,
         [departmentGroups],
@@ -104,16 +104,35 @@ export function BreakdownTab({ departmentGroups, selectedYears }: BreakdownTabPr
                         合計 {formatCurrency(staffTotal)}
                     </div>
                     <button
+                        type="button"
+                        disabled={allNames.length === 0}
                         onClick={toggleAll}
-                        className="flex items-center justify-self-end gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        className="flex min-h-11 items-center justify-self-end gap-1 rounded-md px-3 text-sm text-muted-foreground hover:bg-blue-50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-50"
                     >
                         <ChevronsUpDown className="h-3.5 w-3.5" />
                         {isAllExpanded ? "すべて閉じる" : "すべて開く"}
                     </button>
                 </div>
                 <AnalyticsRules />
-                <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
+                <p className="text-sm text-slate-600">担当分と社内紹介分を合算した部門売上です。件数は担当・紹介の延べ件数を表示します。</p>
+                {departmentGroups.length === 0 && <div className="rounded-xl border bg-white p-8 text-center text-slate-600">選択年度の部門・担当者実績はありません。</div>}
+                <div className="space-y-3 md:hidden" aria-label="部門・担当者のモバイル表示">{departmentGroups.map(group => {
+                    const totals = calcDeptTotals(group.assignees)
+                    const isOpen = expanded.has(group.departmentName)
+                    return <section key={group.departmentName} className="overflow-hidden rounded-xl border bg-white">
+                        <button type="button" className="flex min-h-14 w-full items-center justify-between gap-3 bg-slate-50 p-4 text-left font-semibold focus-visible:ring-2 focus-visible:ring-blue-600" aria-expanded={isOpen} aria-controls={`department-mobile-${encodeURIComponent(group.departmentName)}`} onClick={() => toggle(group.departmentName)}>{group.departmentName}<ChevronRight className={`h-4 w-4 shrink-0 ${isOpen ? "rotate-90" : ""}`} /></button>
+                        <div className="p-4"><dl className="grid grid-cols-2 gap-3 text-sm"><div><dt className="text-slate-600">売上合計</dt><dd className="font-bold tabular-nums text-blue-900">{formatCurrency(totals.feeTotal)}</dd></div><div><dt className="text-slate-600">延べ件数</dt><dd className="font-semibold">{totals.count}件</dd></div><div><dt className="text-slate-600">確定</dt><dd className="tabular-nums">{formatCurrency(totals.confirmedFee)}</dd></div><div><dt className="text-slate-600">見込</dt><dd className="tabular-nums">{formatCurrency(totals.estimateFee)}</dd></div></dl></div>
+                        <div id={`department-mobile-${encodeURIComponent(group.departmentName)}`} hidden={!isOpen} className="divide-y border-t">{group.assignees.map(row => <div key={row.name} className="p-4">
+                            {row.assigneeId !== Number.MAX_SAFE_INTEGER ? <Link href={buildCaseListUrl(row.assigneeId, selectedYears)} className="inline-flex min-h-11 items-center font-semibold text-blue-800 underline underline-offset-4">{row.name} →</Link> : <Link href={buildUnassignedUrl(selectedYears)} className="inline-flex min-h-11 items-center font-semibold text-blue-800 underline underline-offset-4">{row.name} →</Link>}
+                            <p className="text-sm font-semibold tabular-nums">{formatCurrency(row.feeTotal)} / {row.count + (row.referralCount ?? 0)}件</p>
+                            <dl className="mt-2 grid grid-cols-2 gap-2 text-sm"><div><dt className="text-slate-600">確定</dt><dd>{formatCurrency(row.confirmedFee ?? 0)}</dd></div><div><dt className="text-slate-600">見込</dt><dd>{formatCurrency(row.estimateFee ?? 0)}</dd></div></dl>
+                            <details className="mt-2 text-sm text-slate-600"><summary className="min-h-11 cursor-pointer py-3">担当・紹介の内訳</summary><p>担当 {formatCurrency(row.assignedFee ?? 0)} / {row.assignedCount ?? 0}件</p><p>紹介 {formatCurrency(row.referralFee ?? 0)} / {row.referralCount ?? 0}件</p></details>
+                        </div>)}</div>
+                    </section>
+                })}</div>
+                <div className="hidden overflow-x-auto rounded-lg border bg-card shadow-sm md:block" role="region" aria-label="部門・担当者の実績表" tabIndex={0}>
                     <table className="min-w-[800px] w-full text-sm text-left">
+                        <caption className="sr-only">部門・担当者別の確定売上・見込売上・延べ件数</caption>
                         <colgroup>
                             <col />
                             <col className="w-[160px]" />

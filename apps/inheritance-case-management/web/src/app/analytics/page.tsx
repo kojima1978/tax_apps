@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState, useMemo } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { getAllCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
@@ -19,11 +19,9 @@ import { MonthlyCaseActivity } from "./MonthlyCaseActivity"
 import { BreakdownTab } from "./BreakdownTab"
 import { ReferrerTab } from "./ReferrerTab"
 import dynamic from "next/dynamic"
-const AnnualTrendTab = dynamic(() => import("./AnnualTrendTab").then(m => m.AnnualTrendTab), { ssr: false })
+import { parseAnalyticsView, updateAnalyticsUrl, ALL_DEPARTMENTS_VALUE, type AnalyticsTab as TabId } from "./analytics-view-state"
+const AnnualTrendTab = dynamic(() => import("./AnnualTrendTab").then(m => m.AnnualTrendTab), { ssr: false, loading: () => <div role="status" className="rounded-xl border bg-white p-8 text-center text-slate-600">年計表を読み込み中…</div> })
 
-const ALL_DEPARTMENTS_VALUE = "__all__"
-
-type TabId = "overview" | "trend" | "breakdown" | "referrer"
 
 const TABS: { id: TabId; label: string }[] = [
     { id: "overview", label: "売上・件数" },
@@ -38,7 +36,7 @@ function getCurrentMonth(): string {
 }
 
 export default function AnalyticsPage() {
-    const { data: loaded, isPending: isLoading, isFetching, error: loadError, refetch } = useQuery({
+    const { data: loaded, dataUpdatedAt, isPending: isLoading, isFetching, error: loadError, refetch } = useQuery({
         queryKey: ["cases", "analytics"],
         queryFn: async () => {
             const [cases, assignees] = await Promise.all([getAllCases(), getAssignees()])
@@ -49,19 +47,17 @@ export default function AnalyticsPage() {
     const assigneesData = useMemo(() => loaded?.assignees ?? [], [loaded])
     const deptMap = useMemo(() => new Map(assigneesData.map(a => [a.name, a.department?.name || LABEL_UNSET])), [assigneesData])
     const currentYear = new Date().getFullYear()
-    const [requestedYears, setSelectedYears] = useState<Set<number>>(new Set([currentYear]))
-    const [activeTab, setActiveTab] = useState<TabId>("overview")
+    const [initialView] = useState(() => parseAnalyticsView(typeof window === "undefined" ? "" : window.location.search, currentYear, getCurrentMonth()))
+    const [requestedYears, setSelectedYears] = useState<Set<number>>(() => new Set(initialView.years))
+    const [activeTab, setActiveTab] = useState<TabId>(initialView.tab)
     const years = useMemo(() => Array.from(new Set(data.map(c => c.fiscalYear))).sort((a, b) => b - a), [data])
     const selectedYears = useMemo(() => {
         if (requestedYears.size === 0 || years.length === 0) return requestedYears
         const available = [...requestedYears].filter(year => years.includes(year))
         return new Set(available.length > 0 ? available : [years[0]])
     }, [requestedYears, years])
-    const [annualBaseMonth, setAnnualBaseMonth] = useState(() => {
-        const value = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("baseMonth") : null
-        return value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && value <= getCurrentMonth() ? value : getCurrentMonth()
-    })
-    const [annualDepartment, setAnnualDepartment] = useState(ALL_DEPARTMENTS_VALUE)
+    const [annualBaseMonth, setAnnualBaseMonth] = useState(initialView.baseMonth)
+    const [annualDepartment, setAnnualDepartment] = useState(initialView.department)
 
     const isAllYears = selectedYears.size === 0
 
@@ -104,7 +100,23 @@ export default function AnalyticsPage() {
             .map(([name]) => name)
     }, [assigneesData, data])
 
-    const annualDepartmentName = annualDepartment === ALL_DEPARTMENTS_VALUE ? undefined : annualDepartment
+    const validAnnualDepartment = annualDepartmentOptions.includes(annualDepartment) ? annualDepartment : ALL_DEPARTMENTS_VALUE
+    const annualDepartmentName = validAnnualDepartment === ALL_DEPARTMENTS_VALUE ? undefined : validAnnualDepartment
+
+    useEffect(() => {
+        if (!loaded) return
+        const query = updateAnalyticsUrl(window.location.search, { tab: activeTab, years: [...selectedYears], baseMonth: annualBaseMonth, department: validAnnualDepartment }, getCurrentMonth())
+        if (window.location.search.slice(1) !== query) window.history.replaceState(window.history.state, "", `${window.location.pathname}?${query}`)
+    }, [loaded, activeTab, selectedYears, annualBaseMonth, validAnnualDepartment])
+
+    useEffect(() => {
+        const onPopState = () => {
+            const view = parseAnalyticsView(window.location.search, currentYear, getCurrentMonth())
+            setActiveTab(view.tab); setSelectedYears(new Set(view.years)); setAnnualBaseMonth(view.baseMonth); setAnnualDepartment(view.department)
+        }
+        window.addEventListener("popstate", onPopState)
+        return () => window.removeEventListener("popstate", onPopState)
+    }, [currentYear])
 
     const rollingAnnualData = useMemo(
         () => computeRollingAnnual(data, annualBaseMonth, annualDepartmentName, deptMap),
@@ -116,10 +128,6 @@ export default function AnalyticsPage() {
         const normalized = value > getCurrentMonth() ? getCurrentMonth() : value
         setAnnualBaseMonth(normalized)
 
-        const url = new URL(window.location.href)
-        if (normalized === getCurrentMonth()) url.searchParams.delete("baseMonth")
-        else url.searchParams.set("baseMonth", normalized)
-        window.history.replaceState(null, "", `${url.pathname}${url.search}`)
     }, [])
 
     const { sorted: sortedCompanyRanking, sort: companySort, handleSort: handleCompanySort } = useRankingSort(aggregation.companyRanking)
@@ -228,37 +236,52 @@ export default function AnalyticsPage() {
 
     return (
         <div className="case-workspace analytics-workspace mx-auto min-h-screen max-w-[1600px] space-y-3 px-3 py-4 text-sm lg:px-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <h1 className="text-xl font-bold">経営分析ダッシュボード</h1>
-                <Button type="button" variant="outline" disabled={isFetching} onClick={() => void refetch()}><RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />{isFetching ? "更新中…" : "データを更新"}</Button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h1 className="text-xl font-bold sm:text-2xl">経営分析ダッシュボード</h1><p className="mt-1 text-sm text-slate-600">売上の見通しから、部門・紹介者ごとの内訳まで確認できます。</p></div>
+                <div className="flex flex-wrap items-center gap-3"><span role="status" className="text-xs text-slate-600">{isFetching ? "最新データを取得中…" : `最終更新 ${new Date(dataUpdatedAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" })}`}</span><Button type="button" variant="outline" disabled={isFetching} onClick={() => void refetch()}><RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />{isFetching ? "更新中…" : "データを更新"}</Button></div>
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex flex-wrap gap-1 border-b pb-2" aria-label="分析の表示切替">
-                {TABS.map(tab => (
+            <div className="sticky top-14 z-20 rounded-xl border bg-white shadow-sm">
+            <div className="flex gap-1 overflow-x-auto p-2" role="tablist" aria-label="分析の表示切替">
+                {TABS.map((tab, index) => (
                     <button
                         key={tab.id}
+                        type="button"
+                        id={`analytics-tab-${tab.id}`}
+                        role="tab"
+                        aria-selected={activeTab === tab.id}
+                        aria-controls={`analytics-panel-${tab.id}`}
+                        tabIndex={activeTab === tab.id ? 0 : -1}
                         onClick={() => setActiveTab(tab.id)}
-                        aria-pressed={activeTab === tab.id}
-                        className={`min-h-11 cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring ${activeTab === tab.id ? "bg-blue-50 text-blue-800 ring-1 ring-inset ring-blue-200" : "text-muted-foreground hover:bg-white"}`}
+                        onKeyDown={event => {
+                            const next = event.key === "ArrowRight" ? (index + 1) % TABS.length : event.key === "ArrowLeft" ? (index + TABS.length - 1) % TABS.length : event.key === "Home" ? 0 : event.key === "End" ? TABS.length - 1 : null
+                            if (next === null) return
+                            event.preventDefault(); setActiveTab(TABS[next].id); document.getElementById(`analytics-tab-${TABS[next].id}`)?.focus()
+                        }}
+                        className={`min-h-11 shrink-0 cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring ${activeTab === tab.id ? "bg-blue-700 text-white" : "text-muted-foreground hover:bg-slate-50"}`}
                     >
                         {tab.label}
                     </button>
                 ))}
             </div>
 
-            {activeTab !== "trend" && <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+            {activeTab !== "trend" ? <div className="border-t px-3 py-2">
                 <YearFilter years={years} selected={selectedYears} onChange={setSelectedYears} />
-                {activeTab === "overview" && <MonthlyCaseActivity years={selectedYears} />}
-            </div>}
+            </div> : <p className="border-t px-3 py-2 text-sm text-slate-600">入金日基準 · {annualBaseMonth.replace("-", "年")}月までの24か月 · {annualDepartmentName || "全部門"}</p>}
+            </div>
+
+            <div id={`analytics-panel-${activeTab}`} role="tabpanel" aria-labelledby={`analytics-tab-${activeTab}`} className="space-y-4">
 
             {activeTab === "overview" && (
                 <OverviewTab
                     summaryTotals={summaryTotals}
                     annualData={aggregation.annualData}
                     yearLabel={yearLabel}
+                    selectedYears={selectedYears}
                 />
             )}
+            {activeTab === "overview" && <MonthlyCaseActivity years={selectedYears} />}
 
             {activeTab === "trend" && (
                 <AnnualTrendTab
@@ -266,7 +289,7 @@ export default function AnalyticsPage() {
                     baseMonth={annualBaseMonth}
                     onBaseMonthChange={handleAnnualBaseMonthChange}
                     departmentOptions={annualDepartmentOptions}
-                    selectedDepartment={annualDepartment}
+                    selectedDepartment={validAnnualDepartment}
                     onDepartmentChange={setAnnualDepartment}
                 />
             )}
@@ -286,6 +309,7 @@ export default function AnalyticsPage() {
                     selectedYears={selectedYears}
                 />
             )}
+            </div>
         </div>
     )
 }

@@ -90,10 +90,10 @@ function BackupContent() {
   return (
     <div className="container mx-auto py-10 max-w-2xl px-4">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-6">
+      <nav aria-label="パンくず" className="flex items-center gap-1 text-sm text-muted-foreground mb-6">
         <Link href="/settings" className="hover:text-foreground transition-colors">設定</Link>
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground font-medium">バックアップ / リストア</span>
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        <span aria-current="page" className="text-foreground font-medium">バックアップ / リストア</span>
       </nav>
 
       <h1 className="text-xl font-bold mb-8">バックアップ / リストア</h1>
@@ -118,8 +118,11 @@ function BackupContent() {
         </p>
 
         {/* File Drop Zone */}
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors mb-4 ${
+        <button
+          type="button"
+          aria-label="バックアップのJSONファイルを選択"
+          disabled={restoring}
+          className={`block w-full border-2 border-dashed rounded-lg p-6 sm:p-8 text-center cursor-pointer transition-colors mb-4 ${
             dragging ? "border-primary bg-primary/5" : "border-muted-foreground/30 hover:border-primary/50"
           }`}
           onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
@@ -127,11 +130,12 @@ function BackupContent() {
           onDrop={handleDrop}
           onClick={() => fileRef.current?.click()}
         >
-          <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
+          <Upload className="h-8 w-8 mx-auto mb-2 text-blue-700" aria-hidden="true" />
+          <span className="block text-sm text-muted-foreground">
             JSONファイルをドラッグ＆ドロップ、またはクリックして選択
-          </p>
-          {fileName && <p className="text-sm mt-2 font-medium">{fileName}</p>}
+          </span>
+          {fileName && <span className="block break-all text-sm mt-2 font-medium">{fileName}</span>}
+        </button>
           <input
             ref={fileRef}
             type="file"
@@ -139,11 +143,10 @@ function BackupContent() {
             className="hidden"
             onChange={handleFileChange}
           />
-        </div>
 
         {/* Parse Error */}
         {parseError && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-white text-black border border-black/10 text-sm mb-4">
+          <div role="alert" className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-800 border border-red-200 text-sm mb-4">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             {parseError}
           </div>
@@ -180,18 +183,21 @@ function BackupContent() {
             </table>
 
             {/* Warning */}
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-white text-black border border-black/10 text-sm">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-sm">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>リストアを実行すると、現在の全データが削除され、アップロードしたデータに置き換わります。</span>
             </div>
 
             {/* Confirmation Input */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label htmlFor="restore-confirm-count" className="text-sm font-medium">
                 確認のため、案件数「<span className="font-mono font-bold">{caseCount}</span>」を入力してください
               </label>
               <input
+                id="restore-confirm-count"
                 type="text"
+                inputMode="numeric"
+                autoComplete="off"
                 value={confirmInput}
                 onChange={(e) => setConfirmInput(e.target.value)}
                 placeholder={String(caseCount)}

@@ -165,7 +165,17 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
     }
 
     return (
-        <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
+        <>
+        <div className="space-y-3 md:hidden" aria-label="紹介者実績のモバイル表示">
+            {onSort && <div className="flex flex-wrap items-center gap-2" role="group" aria-label="紹介者の並べ替え"><span className="text-sm text-slate-600">並べ替え</span>{[feeCol, countCol].filter(col => col.sortKey).map(col => <button key={col.sortKey} type="button" aria-pressed={sortState?.col === col.sortKey} className="min-h-11 rounded-lg border bg-white px-3 text-sm text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600" onClick={() => onSort(col.sortKey!)}>{col.label}{sortState?.col === col.sortKey ? sortState?.desc ? " ↓" : " ↑" : ""}</button>)}</div>}
+            {data.length === 0 && <p className="rounded-xl border bg-white p-6 text-center text-sm text-slate-600">選択年度の紹介者実績はありません。</p>}
+            {data.map(row => <article key={row.name} className="rounded-xl border bg-white p-4">
+                <h3 className="text-base font-semibold">{renderName(row.name)}</h3>
+                <dl className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-slate-600">{feeCol.label}</dt><dd className="font-bold tabular-nums text-blue-900">{formatCurrency(row.feeTotal)}</dd></div><div><dt className="text-slate-600">件数</dt><dd className="font-semibold">{row.count}件</dd></div>{breakdownColumns && <><div><dt className="text-slate-600">確定</dt><dd className="tabular-nums">{formatCurrency(row.confirmedFee ?? 0)}</dd></div><div><dt className="text-slate-600">見込</dt><dd className="tabular-nums">{formatCurrency(row.estimateFee ?? 0)}</dd></div></>}</dl>
+                {showSubRows && !!row.departments?.length && <details className="mt-3 text-sm"><summary className="min-h-11 cursor-pointer py-3 text-blue-800">支店の内訳（{row.departments.length}件）</summary><ul className="divide-y">{row.departments.map(dept => <li key={dept.name} className="flex flex-wrap justify-between gap-2 py-3"><span>{dept.name}</span><span className="tabular-nums">{formatCurrency(dept.feeTotal)} / {dept.count}件</span></li>)}</ul></details>}
+            </article>)}
+        </div>
+        <div className="hidden overflow-x-auto rounded-lg border bg-card shadow-sm md:block" role="region" aria-label="紹介者別実績表" tabIndex={0}>
             <table className="min-w-[720px] w-full text-sm text-left">
                 <colgroup>
                     <col />
@@ -182,9 +192,11 @@ export function RankingTable({ data, columns: [nameCol, feeCol, countCol], onSor
                     </tr>
                 </thead>
                 <tbody className="divide-y">
+                    {rows.length === 0 && <tr><td colSpan={breakdownColumns ? 5 : 3} className="p-6 text-center text-slate-600">選択年度の紹介者実績はありません。</td></tr>}
                     {rows}
                 </tbody>
             </table>
         </div>
+        </>
     )
 }

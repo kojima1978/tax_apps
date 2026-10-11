@@ -6,7 +6,7 @@ export function appendSelectedYears(params: URLSearchParams, selectedYears: Set<
         params.set("fiscalYear", String(years[0]))
     } else if (years.length > 1) {
         params.set("fiscalYears", years.join(","))
-    }
+    } else params.set("fiscalYear", "all")
 }
 
 export function appendAnalyticsStatuses(params: URLSearchParams) {

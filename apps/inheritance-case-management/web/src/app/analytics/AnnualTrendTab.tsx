@@ -79,6 +79,10 @@ export function AnnualTrendTab({
     const xInterval = Math.max(0, Math.floor(data.length / 12) - 1)
     const currentMonth = getCurrentMonth()
     const newestFirst = [...data].reverse()
+    const latest = data.at(-1)
+    const previous = data.at(-2)
+    const yearAgo = data.at(-13)
+    const deltaLabel = (value: number, count = false) => `${value > 0 ? "+" : value < 0 ? "−" : "±"}${count ? `${Math.abs(value)}件` : formatCurrency(Math.abs(value))}`
 
     return (
         <div className="space-y-4">
@@ -145,6 +149,15 @@ export function AnnualTrendTab({
                     </div>
                 </div>
 
+                {latest && <section aria-label="基準月の実績サマリー" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                        { label: "直近12か月の売上", value: formatCurrency(latest.feeTotal), detail: yearAgo ? `前年同月差 ${deltaLabel(latest.feeTotal - yearAgo.feeTotal)}` : "", primary: true },
+                        { label: "直近12か月の件数", value: `${latest.count}件`, detail: yearAgo ? `前年同月差 ${deltaLabel(latest.count - yearAgo.count, true)}` : "" },
+                        { label: `${latest.label}の売上`, value: formatCurrency(latest.monthlyFee), detail: previous ? `前月差 ${deltaLabel(latest.monthlyFee - previous.monthlyFee)}` : "" },
+                        { label: `${latest.label}の件数`, value: `${latest.monthlyCount}件`, detail: previous ? `前月差 ${deltaLabel(latest.monthlyCount - previous.monthlyCount, true)}` : "" },
+                    ].map(item => <div key={item.label} className={`min-w-0 rounded-xl border p-4 ${item.primary ? "bg-blue-700 text-white" : "bg-white"}`}><h3 className="text-sm font-medium">{item.label}</h3><p className="mt-2 break-all text-2xl font-bold tabular-nums">{item.value}</p><p className={`mt-2 text-xs ${item.primary ? "text-blue-100" : "text-slate-600"}`}>{item.detail}</p></div>)}
+                </section>}
+
                 <details className="group rounded-lg border bg-muted/30 text-sm">
                     <summary className="flex cursor-pointer list-none items-center gap-1.5 p-3 font-medium">
                         <Info className="h-4 w-4 text-muted-foreground" />
@@ -170,7 +183,7 @@ export function AnnualTrendTab({
                         <h3 className="text-base font-semibold">{modeLabel}{chart.title}</h3>
                         <div className="bg-card rounded-lg border shadow-sm p-4">
                             <ResponsiveContainer width="100%" height={chart.height}>
-                                <LineChart data={data} margin={{ top: 10, right: 20, left: 20, bottom: 5 }}>
+                                <LineChart data={data} margin={{ top: 10, right: 8, left: 0, bottom: 5 }} accessibilityLayer>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                                     <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={xInterval} />
                                     <YAxis
@@ -189,6 +202,7 @@ export function AnnualTrendTab({
                                         name={`${modeLabel}${chart.name}`}
                                         stroke={chart.stroke}
                                         strokeWidth={2.5}
+                                        isAnimationActive={false}
                                         dot={{ r: 3 }}
                                         activeDot={{ r: 5 }}
                                     />
@@ -204,8 +218,10 @@ export function AnnualTrendTab({
                         <h3 id="annual-monthly-list-heading" className="text-lg font-medium">基準月から過去24か月</h3>
                         <span className="text-xs text-muted-foreground">月をクリックすると案件一覧を表示</span>
                     </div>
-                    <div className="overflow-x-auto rounded-lg border bg-card shadow-sm">
+                    <p className="text-xs text-slate-600 md:hidden">表は横にスクロールできます。数値の単位は円・件です。</p>
+                    <div className="overflow-x-auto rounded-lg border bg-card shadow-sm" role="region" aria-label="月別実績表・横スクロール可能" tabIndex={0}>
                         <table className="min-w-[640px] w-full table-fixed text-left text-sm">
+                            <caption className="sr-only">基準月までの24か月の月間実績と直近12か月累計</caption>
                             <colgroup>
                                 <col className="w-[16%]" />
                                 <col className="w-[23%]" />
