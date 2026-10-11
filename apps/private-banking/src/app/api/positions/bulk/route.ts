@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fxRateFor, missingFxRateMessage, parseFxRates, type FxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
+import { writeActivityLog } from "@/lib/activity-log";
 import {
   calculatedOriginalAmount,
   calculatedOwnershipShare,
@@ -12,6 +13,8 @@ import {
 } from "@/lib/position-input";
 
 const bulkEntryCategories = new Set(["DEPOSIT", "SECURITIES", "PRIVATE_SHARES", "HOME_REAL_ESTATE", "REAL_ESTATE", "BUSINESS_REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE", "INSURANCE", "INSURANCE_RIGHTS", "RETIREMENT_ALLOWANCE", "LOAN_RECEIVABLE"]);
+
+const findSnapshot = (id: number) => prisma.snapshot.findUnique({ where: { id }, include: { household: { select: { id: true, name: true, clientCode: true } } } });
 
 /**
  * 円換算レートは明細ではなく年度に登録した値を使う。
@@ -80,7 +83,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const snapshot = await prisma.snapshot.findUnique({ where: { id: parsed.data.snapshotId } });
+  const snapshot = await findSnapshot(parsed.data.snapshotId);
   if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
 
   const resolvedRates = fxRatesForRows(parseFxRates(snapshot.fxRates), parsed.data.positions.map((data) => data.currency));
@@ -117,6 +120,7 @@ export async function POST(request: Request) {
       sortOrder += 1;
     }
     await tx.snapshot.update({ where: { id: snapshot.id }, data: { updatedAt: new Date() } });
+    await writeActivityLog(tx, { householdId: snapshot.household.id, householdName: snapshot.household.name, clientCode: snapshot.household.clientCode, action: "CREATE", entityType: "POSITION", entityId: snapshot.id, summary: `明細を${createdIds.length}件まとめて登録` });
     return createdIds;
   });
 
@@ -135,7 +139,7 @@ export async function PUT(request: Request) {
     );
   }
 
-  const snapshot = await prisma.snapshot.findUnique({ where: { id: parsed.data.snapshotId }, select: { id: true, fxRates: true } });
+  const snapshot = await findSnapshot(parsed.data.snapshotId);
   if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
 
   const resolvedRates = fxRatesForRows(parseFxRates(snapshot.fxRates), parsed.data.positions.map((position) => position.data.currency));
@@ -171,6 +175,7 @@ export async function PUT(request: Request) {
       });
     }
     await tx.snapshot.update({ where: { id: snapshot.id }, data: { updatedAt: new Date() } });
+    await writeActivityLog(tx, { householdId: snapshot.household.id, householdName: snapshot.household.name, clientCode: snapshot.household.clientCode, action: "UPDATE", entityType: "POSITION", entityId: snapshot.id, summary: `明細を${requestedIds.length}件まとめて更新` });
   });
 
   return NextResponse.json({ ids: requestedIds, count: requestedIds.length });
@@ -188,7 +193,7 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const snapshot = await prisma.snapshot.findUnique({ where: { id: parsed.data.snapshotId }, select: { id: true, fxRates: true } });
+  const snapshot = await findSnapshot(parsed.data.snapshotId);
   if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
 
   const resolvedRates = fxRatesForRows(parseFxRates(snapshot.fxRates), parsed.data.positions.map((position) => position.data.currency));
@@ -244,6 +249,7 @@ export async function PATCH(request: Request) {
       }
     }
     await tx.snapshot.update({ where: { id: snapshot.id }, data: { updatedAt: new Date() } });
+    await writeActivityLog(tx, { householdId: snapshot.household.id, householdName: snapshot.household.name, clientCode: snapshot.household.clientCode, action: "UPDATE", entityType: "POSITION", entityId: snapshot.id, summary: `表で明細を${updatedIds.length}件更新・${createdIds.length}件登録` });
     return { updatedIds, createdIds };
   });
 

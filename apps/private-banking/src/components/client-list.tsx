@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Building2, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
+import { AlertTriangle, Building2, ChevronRight, CircleUserRound, ClipboardCheck, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, FormEvent, KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,11 +17,13 @@ import { CLIENT_SORT_DEFAULT, CLIENT_SORT_MODES, type ClientSortMode, ClientSumm
 import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 import { type Portfolio } from "@/lib/portfolio-view";
+import { compactYen } from "@/lib/format";
 
 /** 顧客ページのうち、一覧から最初に開く画面。 */
 export const CLIENT_HOME_SECTION = "balance";
 
 export const clientHref = (householdId: number) => `/customers/${householdId}/${CLIENT_HOME_SECTION}`;
+const qualityIssuesFor = (client: ClientSummary) => client.qualityIssues ?? [];
 
 /**
  * 行の補足（カナ・担当・関連法人）。空の項目は区切りごと出さないので、
@@ -43,6 +45,7 @@ export function ClientList() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
   const [sortMode, setSortMode] = useState<ClientSortMode>(CLIENT_SORT_DEFAULT);
+  const [qualityFilter, setQualityFilter] = useState<"all" | "attention" | "critical">("all");
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -75,7 +78,10 @@ export function ClientList() {
   const matched = useMemo(() => filterClients(clients ?? [], terms), [clients, terms]);
   // 以降はすべて「絞り込んで並べ替えた後」のこの1本だけを見る。矢印キーでの移動・
   // ページ送り・件数が並び替えと食い違わないようにするため。
-  const filtered = useMemo(() => sortClients(matched, sortMode), [matched, sortMode]);
+  const qualityMatched = useMemo(() => matched.filter((client) => qualityFilter === "all"
+    || (qualityFilter === "attention" && qualityIssuesFor(client).length > 0)
+    || (qualityFilter === "critical" && qualityIssuesFor(client).some((issue) => issue.severity === "critical"))), [matched, qualityFilter]);
+  const filtered = useMemo(() => sortClients(qualityMatched, sortMode), [qualityMatched, sortMode]);
   // 次の2つは絞り込みの前（全件）で決める。検索のたびに欄が出入りすると行の形が変わるため。
   const sharedYear = useMemo(() => sharedFiscalYear(clients ?? []), [clients]);
   const showsUnassigned = useMemo(() => showsUnassignedStaff(clients ?? []), [clients]);
@@ -185,6 +191,13 @@ export function ClientList() {
     <main className="client-home-main">
       <section className="page-heading"><div><h1>顧客一覧</h1></div></section>
 
+      <section className="client-overview" aria-label="顧客管理の状況">
+        <div><span>管理顧客</span><strong>{clients.length}件</strong></div>
+        <div><span>要確認</span><strong>{clients.filter((client) => qualityIssuesFor(client).length > 0).length}件</strong></div>
+        <div><span>重要な不備</span><strong>{clients.filter((client) => qualityIssuesFor(client).some((issue) => issue.severity === "critical")).length}件</strong></div>
+        <div><span>純資産合計</span><strong>{compactYen(clients.reduce((sum, client) => sum + (client.netWorth ?? 0), 0))}</strong></div>
+      </section>
+
       {error ? <div className="error-banner" role="alert"><AlertTriangle />{error}<button onClick={() => setError("")} aria-label="閉じる"><X /></button></div> : null}
       {notice ? <p className="client-delete-notice" role="status">{notice}</p> : null}
 
@@ -211,6 +224,7 @@ export function ClientList() {
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
         {/* 担当者の台帳はここだけから開く。顧客の欄では選ぶだけにして、名前の揺れを1箇所で止める。 */}
         <button type="button" className="button secondary" onClick={() => { setError(""); setEditingStaff(true); }}><UserCog />担当者</button>
+        <Link className="button secondary" href="/quality"><ClipboardCheck />データ品質</Link>
         <Link className="button secondary" href="/properties"><Building2 />不動産一覧</Link>
         <Link className="button secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
         <Link className="button secondary" href="/restore"><Upload />データ復元</Link>
@@ -222,6 +236,14 @@ export function ClientList() {
           {sharedYear ? `・すべて${sharedYear}年度` : null}
         </p>
         <div className="position-table-tools">
+          <label>
+            <span>確認状況</span>
+            <select aria-label="顧客の確認状況" value={qualityFilter} onChange={(event) => { setQualityFilter(event.target.value as typeof qualityFilter); setActiveIndex(0); }}>
+              <option value="all">すべて</option>
+              <option value="attention">要確認</option>
+              <option value="critical">重要な不備</option>
+            </select>
+          </label>
           <label>
             <span>表示順</span>
             <select aria-label="顧客一覧の表示順" value={sortMode} onChange={(event) => { setSortMode(event.target.value as ClientSortMode); setActiveIndex(0); }}>
@@ -253,6 +275,11 @@ export function ClientList() {
           <small className="client-list-meta">
             {metaParts(client, terms, showsUnassigned).map((part, partIndex) => <Fragment key={partIndex}>{partIndex > 0 ? " ・ " : null}{part}</Fragment>)}
           </small>
+          <span className="client-list-financial"><strong>{compactYen(client.netWorth ?? 0)}</strong><small>純資産</small></span>
+          <span className="client-list-updated"><strong>{client.latestUpdatedAt ? new Date(client.latestUpdatedAt).toLocaleDateString("ja-JP") : "未更新"}</strong><small>最終更新</small></span>
+          <span className={`client-quality-badge ${qualityIssuesFor(client).some((issue) => issue.severity === "critical") ? "critical" : qualityIssuesFor(client).length > 0 ? "warning" : "complete"}`}>
+            {qualityIssuesFor(client).length > 0 ? `要確認 ${qualityIssuesFor(client).length}件` : "確認済み"}
+          </span>
           {/* 全件同じ年度なら件数の横に1回だけ出しているので、行には出さない。 */}
           {sharedYear ? null : <span className="client-list-year">{client.latestFiscalYear ? `${client.latestFiscalYear}年度` : "年度なし"}</span>}
           <ChevronRight />

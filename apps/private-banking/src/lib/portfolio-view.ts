@@ -46,7 +46,7 @@ export type Portfolio = {
   snapshots: Snapshot[];
 };
 /** サイドバーのメニュー key。そのまま URL の `/customers/<id>/<key>` になる。 */
-export type Section = "balance" | "positions" | "tax" | "profile" | "family" | "history" | "backup";
+export type Section = "balance" | "positions" | "tax" | "profile" | "family" | "history" | "scenarios" | "activity" | "backup";
 export type BulkPositionPayload = Record<string, unknown>;
 export type BalanceScenario = "without-tax" | "with-tax";
 export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "details" | "history";
@@ -482,11 +482,11 @@ export const trendRows: TrendRow[] = [
   { label: "事業用資産", key: "business", group: "business" },
   { label: "その他資産", key: "otherAssets" },
   { label: "資産合計", key: "assets", tone: "total" },
-  { label: "負債の部", key: "liabilities", tone: "section" },
+  { label: "負債・税金等", key: "liabilities", tone: "section" },
   { label: "税金", key: "taxes", group: "taxes" },
   { label: "借入金", key: "borrowings", group: "borrowings" },
   { label: "その他負債", key: "otherLiabilities", group: "otherLiabilities" },
-  { label: "負債合計", key: "liabilities", tone: "total" },
+  { label: "負債・税金等合計", key: "liabilities", tone: "total" },
   { label: "純資産", key: "netWorth", tone: "net" },
   { label: "個人保証（B/S外）", key: "guarantees", tone: "outside" },
 ];

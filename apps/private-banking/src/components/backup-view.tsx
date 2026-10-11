@@ -10,7 +10,16 @@ import { householdBackupFileName } from "@/lib/format";
 import type { Portfolio } from "@/lib/portfolio-view";
 
 export type BackupKind = "full" | "household";
-type BackupPreview = { kind: BackupKind; exportedAt: string | null; subject: string; households: number; snapshots: number; positions: number };
+type BackupPreview = {
+  kind: BackupKind;
+  exportedAt: string | null;
+  subject: string;
+  households: number;
+  snapshots: number;
+  positions: number;
+  planningScenarios: number;
+  activityLogs: number;
+};
 type SelectedFile = { fileName: string; payload: unknown; preview: BackupPreview };
 
 /** 復元欄は「全体」「個別」で同じ部品を使い、文言だけ差し替える。 */
@@ -37,6 +46,10 @@ function backupTimestamp(value: string | null) {
   return Number.isNaN(parsed.getTime()) ? "不明" : parsed.toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function previewContents(preview: BackupPreview) {
+  return `顧客${preview.households}件 / 年度${preview.snapshots}件 / 明細${preview.positions}件 / シナリオ${preview.planningScenarios}件 / 操作履歴${preview.activityLogs}件`;
+}
+
 function readBackupPreview(payload: unknown): BackupPreview {
   if (payload === null || typeof payload !== "object") throw new Error("バックアップファイルとして読み込めませんでした。");
   const backup = payload as Record<string, unknown>;
@@ -47,7 +60,19 @@ function readBackupPreview(payload: unknown): BackupPreview {
     const data = backup.data as Record<string, unknown> | undefined;
     const households = data?.households, snapshots = data?.snapshots, positions = data?.positions;
     if (!Array.isArray(households) || !Array.isArray(snapshots) || !Array.isArray(positions)) throw new Error("全体バックアップの中身が壊れています。");
-    return { kind: "full", exportedAt, subject: `${households.length}件の顧客（全体）`, households: households.length, snapshots: snapshots.length, positions: positions.length };
+    const planningScenarios = data?.planningScenarios, activityLogs = data?.activityLogs;
+    if (planningScenarios !== undefined && !Array.isArray(planningScenarios)) throw new Error("全体バックアップのシナリオが壊れています。");
+    if (activityLogs !== undefined && !Array.isArray(activityLogs)) throw new Error("全体バックアップの操作履歴が壊れています。");
+    return {
+      kind: "full",
+      exportedAt,
+      subject: `${households.length}件の顧客（全体）`,
+      households: households.length,
+      snapshots: snapshots.length,
+      positions: positions.length,
+      planningScenarios: planningScenarios?.length ?? 0,
+      activityLogs: activityLogs?.length ?? 0,
+    };
   }
 
   if (backup.kind === "household") {
@@ -58,7 +83,19 @@ function readBackupPreview(payload: unknown): BackupPreview {
       const rows = (snapshot as Record<string, unknown> | null)?.positions;
       return total + (Array.isArray(rows) ? rows.length : 0);
     }, 0);
-    return { kind: "household", exportedAt, subject: `${household.name ?? "顧客"}（${household.clientCode ?? "コード不明"}）`, households: 1, snapshots: snapshots.length, positions };
+    const planningScenarios = backup.planningScenarios, activityLogs = backup.activityLogs;
+    if (planningScenarios !== undefined && !Array.isArray(planningScenarios)) throw new Error("顧客データのシナリオが壊れています。");
+    if (activityLogs !== undefined && !Array.isArray(activityLogs)) throw new Error("顧客データの操作履歴が壊れています。");
+    return {
+      kind: "household",
+      exportedAt,
+      subject: `${household.name ?? "顧客"}（${household.clientCode ?? "コード不明"}）`,
+      households: 1,
+      snapshots: snapshots.length,
+      positions,
+      planningScenarios: planningScenarios?.length ?? 0,
+      activityLogs: activityLogs?.length ?? 0,
+    };
   }
 
   throw new Error("バックアップの種類を判別できませんでした。");
@@ -138,7 +175,7 @@ function GlobalBackup() {
           <div className="backup-option">
             <div>
               <strong>顧客を選んで書き出す</strong>
-              <span>選んだ顧客の全年度・明細・親族関係を1件ぶんのファイルに保存します。</span>
+              <span>選んだ顧客の全年度・明細・親族関係・シナリオ・操作履歴を1件ぶんのファイルに保存します。</span>
               {clients && clients.length > 0 ? <select
                 className="backup-client-select"
                 aria-label="書き出す顧客"
@@ -160,7 +197,7 @@ function GlobalBackup() {
         <PanelHeader title="全体書き出し" subtitle="すべての顧客をまとめて書き出します" />
         <div className="backup-body">
           <div className="backup-option">
-            <div><strong>全顧客をまとめて書き出す</strong><span>すべての顧客・年度・明細を1つのファイルに保存します。障害時の復旧用です。</span></div>
+            <div><strong>全顧客をまとめて書き出す</strong><span>すべての顧客・年度・明細・シナリオ・操作履歴を1つのファイルに保存します。障害時の復旧用です。</span></div>
             <a className="button primary" href={`${API_BASE}/backup`} download><Download />全体を書き出す</a>
           </div>
         </div>
@@ -287,7 +324,7 @@ function RestoreSlot({ expected }: { expected: BackupKind }) {
         <div><dt>ファイル</dt><dd>{selected.fileName}</dd></div>
         <div><dt>作成日時</dt><dd>{backupTimestamp(selected.preview.exportedAt)}</dd></div>
         <div><dt>対象</dt><dd>{selected.preview.subject}</dd></div>
-        <div><dt>内容</dt><dd>顧客{selected.preview.households}件 / 年度{selected.preview.snapshots}件 / 明細{selected.preview.positions}件</dd></div>
+        <div><dt>内容</dt><dd>{previewContents(selected.preview)}</dd></div>
       </dl>
       <div className="backup-preview-actions">
         <button type="button" className="button secondary" onClick={() => setSelected(null)}>選び直す</button>
@@ -316,7 +353,7 @@ function BackupConfirmModal({ preview, fileName, busy, error, onClose, onConfirm
       <dl>
         <div><dt>ファイル</dt><dd>{fileName}</dd></div>
         <div><dt>対象</dt><dd>{preview.subject}</dd></div>
-        <div><dt>内容</dt><dd>顧客{preview.households}件 / 年度{preview.snapshots}件 / 明細{preview.positions}件</dd></div>
+        <div><dt>内容</dt><dd>{previewContents(preview)}</dd></div>
       </dl>
       {isFull ? <p className="backup-message warning" role="note"><AlertTriangle />先に<a href={`${API_BASE}/backup`} download>現在のデータを書き出す</a>ことをおすすめします。</p> : null}
       {error ? <p className="backup-message error" role="alert"><AlertTriangle />{error}</p> : null}

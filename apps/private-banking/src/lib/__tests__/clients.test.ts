@@ -22,6 +22,13 @@ const client = (overrides: Partial<ClientSummary> = {}): ClientSummary => ({
   assignedStaff: "佐藤",
   relatedCompany: "",
   latestFiscalYear: 2025,
+  latestAsOfDate: "2025-01-01T00:00:00.000Z",
+  latestUpdatedAt: "2025-01-01T00:00:00.000Z",
+  assets: 0,
+  registeredLiabilities: 0,
+  netWorth: 0,
+  estimatedInheritanceTax: 0,
+  qualityIssues: [],
   ...overrides,
 });
 

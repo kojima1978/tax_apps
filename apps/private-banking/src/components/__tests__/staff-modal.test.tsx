@@ -9,7 +9,7 @@ const response = (data: unknown, ok = true) => ({ ok, json: async () => data });
 const row = (name: string) => screen.getByRole("textbox", { name: `${name}の担当者名` }).closest(".staff-row") as HTMLElement;
 let rows: Staff[];
 let fetchMock: ReturnType<typeof vi.fn>;
-let onClose: ReturnType<typeof vi.fn>;
+let onClose: ReturnType<typeof vi.fn<(changed: boolean) => void>>;
 
 beforeEach(() => {
   rows = [

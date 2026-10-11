@@ -4,6 +4,7 @@ import { z } from "zod";
 import { parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
 import { defaultAsOfDate, isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
+import { writeActivityLog } from "@/lib/activity-log";
 
 const duplicateYearMessage = (fiscalYear: number) =>
   `${fiscalYear}年度はすでに登録されています。同一年度には1件だけ登録できます。`;
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
 
   const source = await prisma.snapshot.findUnique({
     where: { id: sourceSnapshotId },
-    include: { positions: true },
+    include: { positions: true, household: { select: { id: true, name: true, clientCode: true } } },
   });
   if (!source) {
     return NextResponse.json({ error: "コピー元のB/Sが見つかりません。" }, { status: 404 });
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
         }
       }
 
-      return tx.snapshot.create({
+      const newSnapshot = await tx.snapshot.create({
         data: {
           householdId: source.householdId,
           label: becomesCurrent ? "現在" : `${fiscalYear}年度`,
@@ -98,6 +99,8 @@ export async function POST(request: Request) {
         },
         select: { id: true, fiscalYear: true, isCurrent: true },
       });
+      await writeActivityLog(tx, { householdId: source.household.id, householdName: source.household.name, clientCode: source.household.clientCode, action: "CREATE", entityType: "SNAPSHOT", entityId: newSnapshot.id, summary: `${fiscalYear}年度を${creationMode === "COPY" ? "前年度コピーで" : "空の年度として"}作成` });
+      return newSnapshot;
     });
 
     return NextResponse.json({ ok: true, creationMode, snapshot: created }, { status: 201 });

@@ -133,7 +133,7 @@ describe("印刷の対象", () => {
   it("画面ごとに対応する様式を返し、様式が無い画面では null を返す", () => {
     const expected: Record<Section, ReturnType<typeof printSectionForSection>> = {
       profile: "profile-family", family: "profile-family", balance: "balance",
-      positions: "details", tax: "tax-calculation", history: "history", backup: null,
+      positions: "details", tax: "tax-calculation", history: "history", scenarios: null, activity: null, backup: null,
     };
     for (const [section, printSection] of Object.entries(expected)) {
       expect(printSectionForSection(section as Section)).toBe(printSection);

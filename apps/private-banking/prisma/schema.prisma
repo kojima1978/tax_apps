@@ -29,10 +29,48 @@ model Household {
   heirCount               Int        @default(1)
   familyMembers           FamilyMember[]
   snapshots               Snapshot[]
+  activityLogs            ActivityLog[]
+  planningScenarios       PlanningScenario[]
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
 
   @@index([staffId])
+}
+
+/// 重要な登録・更新・削除の記録。顧客削除後も操作の事実を残すため関連は SetNull。
+model ActivityLog {
+  id            Int        @id @default(autoincrement())
+  householdId   Int?
+  household     Household? @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  householdName String
+  clientCode    String
+  action        String
+  entityType    String
+  entityId      String?
+  summary       String
+  actor         String     @default("ローカル利用者")
+  details       Json?
+  createdAt     DateTime   @default(now())
+
+  @@index([householdId, createdAt])
+  @@index([createdAt])
+}
+
+/// 現在のB/Sを動かさずに比較できる保存済みプラン。
+model PlanningScenario {
+  id                    Int       @id @default(autoincrement())
+  householdId           Int
+  household             Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name                  String
+  assetChangePercent    Decimal   @default(0) @db.Decimal(8, 2)
+  liabilityChangePercent Decimal  @default(0) @db.Decimal(8, 2)
+  inheritanceTaxJpy     Decimal   @default(0) @db.Decimal(24, 0)
+  successionCostsJpy    Decimal   @default(0) @db.Decimal(24, 0)
+  note                  String    @default("")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([householdId, updatedAt])
 }
 
 /// 担当者の台帳。名前を一意にして登録揺れ（「佐藤」と「佐藤税理士」）を止める。

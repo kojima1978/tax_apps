@@ -3,6 +3,7 @@ import { z } from "zod";
 import { familyComposition } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnlyUtc } from "@/lib/snapshot-date";
+import { writeActivityLog } from "@/lib/activity-log";
 
 const optionalFractionPart = z.union([z.number(), z.string()]).transform((value) => {
   if (value === "") return null;
@@ -52,7 +53,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "入力内容を確認してください。" }, { status: 400 });
   }
 
-  const household = await prisma.household.findUnique({ where: { id: parsed.data.householdId }, select: { id: true } });
+  const household = await prisma.household.findUnique({ where: { id: parsed.data.householdId }, select: { id: true, name: true, clientCode: true } });
   if (!household) return NextResponse.json({ error: "顧客が見つかりません。" }, { status: 404 });
 
   const composition = familyComposition(parsed.data.members);
@@ -79,6 +80,7 @@ export async function PUT(request: Request) {
       });
     }
     await tx.household.update({ where: { id: household.id }, data: composition });
+    await writeActivityLog(tx, { householdId: household.id, householdName: household.name, clientCode: household.clientCode, action: "UPDATE", entityType: "FAMILY", entityId: household.id, summary: `親族情報を${parsed.data.members.length}名で更新` });
   });
 
   return NextResponse.json({ ok: true, composition });

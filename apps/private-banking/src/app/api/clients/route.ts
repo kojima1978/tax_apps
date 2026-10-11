@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { defaultAsOfDate, isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
+import { CLIENT_QUALITY_LABELS, type ClientQualityIssue } from "@/lib/clients";
+import { writeActivityLog } from "@/lib/activity-log";
 
 /** 顧客一覧（ClientSummary）が必要とする列。GET・POST・PATCH で同じ形を返す。 */
 const clientSummarySelect = { id: true, clientCode: true, name: true, nameKana: true, relatedCompany: true, staffId: true, staff: { select: { name: true } } } as const;
@@ -63,11 +65,58 @@ export async function GET() {
   const clients = await prisma.household.findMany({
     select: {
       ...clientSummarySelect,
-      snapshots: { orderBy: { fiscalYear: "desc" }, take: 1, select: { fiscalYear: true } },
+      birthDate: true,
+      inheritanceTaxUpdatedAt: true,
+      updatedAt: true,
+      familyMembers: { select: { id: true, updatedAt: true } },
+      snapshots: { orderBy: { fiscalYear: "desc" }, take: 1, select: {
+        fiscalYear: true, asOfDate: true, updatedAt: true, estimatedInheritanceTax: true,
+        inheritanceTaxCalculation: true,
+        positions: { select: { side: true, valueJpy: true, includedInNetWorth: true, updatedAt: true } },
+      } },
     },
     orderBy: [{ name: "asc" }, { id: "asc" }],
   });
-  return NextResponse.json(clients.map(({ snapshots, ...client }) => ({ ...toClientSummary(client), latestFiscalYear: snapshots[0]?.fiscalYear ?? null })));
+  return NextResponse.json(clients.map(({ snapshots, familyMembers, birthDate, inheritanceTaxUpdatedAt, updatedAt, ...client }) => {
+    const snapshot = snapshots[0];
+    let assets = 0;
+    let registeredLiabilities = 0;
+    let latestUpdate = snapshot && snapshot.updatedAt > updatedAt ? snapshot.updatedAt : updatedAt;
+    for (const member of familyMembers) {
+      if (member.updatedAt > latestUpdate) latestUpdate = member.updatedAt;
+    }
+    for (const position of snapshot?.positions ?? []) {
+      if (position.side === "ASSET") assets += Number(position.valueJpy);
+      else if (position.includedInNetWorth) registeredLiabilities += Number(position.valueJpy);
+      if (position.updatedAt > latestUpdate) latestUpdate = position.updatedAt;
+    }
+    const qualityIssues: ClientQualityIssue[] = [];
+    const addIssue = (code: ClientQualityIssue["code"], severity: ClientQualityIssue["severity"], href: ClientQualityIssue["href"]) => qualityIssues.push({ code, label: CLIENT_QUALITY_LABELS[code], severity, href });
+    if (!client.staffId) addIssue("staff-missing", "warning", "profile");
+    if (!birthDate) addIssue("birth-date-missing", "warning", "profile");
+    if (familyMembers.length === 0) addIssue("family-missing", "critical", "family");
+    if (assets === 0) addIssue("assets-missing", "critical", "positions");
+    if (snapshot && !snapshot.inheritanceTaxCalculation) addIssue("tax-not-calculated", "warning", "tax");
+    else if (
+      snapshot
+      && inheritanceTaxUpdatedAt
+      && (
+        snapshot.positions.some((position) => position.updatedAt > inheritanceTaxUpdatedAt)
+        || familyMembers.some((member) => member.updatedAt > inheritanceTaxUpdatedAt)
+      )
+    ) addIssue("tax-recalculation-required", "critical", "tax");
+    return {
+      ...toClientSummary(client),
+      latestFiscalYear: snapshot?.fiscalYear ?? null,
+      latestAsOfDate: snapshot?.asOfDate.toISOString().slice(0, 10) ?? null,
+      latestUpdatedAt: snapshot ? latestUpdate.toISOString() : null,
+      assets,
+      registeredLiabilities,
+      netWorth: assets - registeredLiabilities,
+      estimatedInheritanceTax: Number(snapshot?.estimatedInheritanceTax ?? 0),
+      qualityIssues,
+    };
+  }));
 }
 
 export async function POST(request: Request) {
@@ -93,7 +142,19 @@ export async function POST(request: Request) {
       },
       select: clientSummarySelect,
     });
-    return NextResponse.json({ ...toClientSummary(created), latestFiscalYear: parsed.data.fiscalYear }, { status: 201 });
+    await writeActivityLog(prisma, { householdId: created.id, householdName: created.name, clientCode: created.clientCode, action: "CREATE", entityType: "CLIENT", entityId: created.id, summary: "顧客を登録" });
+    return NextResponse.json({
+      ...toClientSummary(created), latestFiscalYear: parsed.data.fiscalYear,
+      latestAsOfDate: asOfDate.toISOString().slice(0, 10), latestUpdatedAt: new Date().toISOString(),
+      assets: 0, registeredLiabilities: 0, netWorth: 0, estimatedInheritanceTax: 0,
+      qualityIssues: [
+        ...(!created.staffId ? [{ code: "staff-missing", label: CLIENT_QUALITY_LABELS["staff-missing"], severity: "warning", href: "profile" } as const] : []),
+        { code: "birth-date-missing", label: CLIENT_QUALITY_LABELS["birth-date-missing"], severity: "warning", href: "profile" } as const,
+        { code: "family-missing", label: CLIENT_QUALITY_LABELS["family-missing"], severity: "critical", href: "family" } as const,
+        { code: "assets-missing", label: CLIENT_QUALITY_LABELS["assets-missing"], severity: "critical", href: "positions" } as const,
+        { code: "tax-not-calculated", label: CLIENT_QUALITY_LABELS["tax-not-calculated"], severity: "warning", href: "tax" } as const,
+      ],
+    }, { status: 201 });
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error) {
       if (error.code === "P2002") return NextResponse.json({ error: "この顧客コードはすでに使用されています。" }, { status: 409 });
@@ -117,6 +178,7 @@ export async function PATCH(request: Request) {
       },
       select: clientSummarySelect,
     });
+    await writeActivityLog(prisma, { householdId: updated.id, householdName: updated.name, clientCode: updated.clientCode, action: "UPDATE", entityType: "CLIENT", entityId: updated.id, summary: "本人情報を更新" });
     return NextResponse.json(toClientSummary(updated));
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error) {
@@ -138,6 +200,7 @@ export async function DELETE(request: Request) {
     if (household.clientCode !== parsed.data.confirmationClientCode.toUpperCase()) {
       return { status: 400, error: "入力した顧客コードが削除対象と一致しません。" } as const;
     }
+    await writeActivityLog(tx, { householdId: household.id, householdName: household.name, clientCode: household.clientCode, action: "DELETE", entityType: "CLIENT", entityId: household.id, summary: "顧客と配下データを削除" });
     // 年度・明細は onDelete: Cascade で一緒に消える。
     await tx.household.delete({ where: { id: household.id } });
     return { status: 200, name: household.name } as const;

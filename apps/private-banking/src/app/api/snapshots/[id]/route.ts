@@ -4,6 +4,7 @@ import { z } from "zod";
 import { fxRateFor, missingFxRateMessage, parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
 import { isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
+import { writeActivityLog } from "@/lib/activity-log";
 
 const snapshotSettingsSchema = z.object({
   asOfDate: z.string(),
@@ -25,7 +26,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
   }
 
-  const snapshot = await prisma.snapshot.findUnique({ where: { id: snapshotId } });
+  const snapshot = await prisma.snapshot.findUnique({ where: { id: snapshotId }, include: { household: { select: { id: true, name: true, clientCode: true } } } });
   if (!snapshot) return NextResponse.json({ error: "対象年度が見つかりません。" }, { status: 404 });
   if (!isAsOfDateForFiscalYear(parsed.data.asOfDate, snapshot.fiscalYear)) {
     return NextResponse.json({ error: "B/S基準日は対象年度内の正しい日付を入力してください。" }, { status: 400 });
@@ -65,6 +66,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         data: { estimatedInheritanceTax, otherTaxes, inheritanceTaxUpdatedAt: new Date() },
       });
     }
+    await writeActivityLog(tx, { householdId: snapshot.household.id, householdName: snapshot.household.name, clientCode: snapshot.household.clientCode, action: "UPDATE", entityType: "SNAPSHOT", entityId: snapshot.id, summary: `${snapshot.fiscalYear}年度の設定を更新` });
   });
   return NextResponse.json({ ok: true });
 }
@@ -78,7 +80,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const snapshot = await tx.snapshot.findUnique({ where: { id: snapshotId } });
+    const snapshot = await tx.snapshot.findUnique({ where: { id: snapshotId }, include: { household: { select: { id: true, name: true, clientCode: true } } } });
     if (!snapshot) return { status: 404, error: "対象年度が見つかりません。" } as const;
     if (snapshot.fiscalYear !== parsed.data.confirmationFiscalYear) {
       return { status: 400, error: "入力した年度が削除対象と一致しません。" } as const;
@@ -89,6 +91,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
       return { status: 409, error: "唯一の年度は削除できません。先に別の年度を作成してください。" } as const;
     }
 
+    await writeActivityLog(tx, { householdId: snapshot.household.id, householdName: snapshot.household.name, clientCode: snapshot.household.clientCode, action: "DELETE", entityType: "SNAPSHOT", entityId: snapshot.id, summary: `${snapshot.fiscalYear}年度を削除` });
     await tx.snapshot.delete({ where: { id: snapshot.id } });
 
     let promotedFiscalYear: number | null = null;

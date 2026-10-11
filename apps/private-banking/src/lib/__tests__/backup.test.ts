@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { householdBackupSchema, positionData } from "@/lib/backup";
+import { fullBackupSchema, householdBackupSchema, positionData } from "@/lib/backup";
 
 // 評価方法は算式と科目から決まる派生値なので、復元経路にも既定の文字列を置けない。
 // 以前は取り込みスキーマが `.default("手動入力")` を持っていて、ここだけが
@@ -65,5 +65,44 @@ describe("バックアップの復元：日付", () => {
     const parsed = householdBackupSchema.parse(backup({ birthDate: "1974-03-03T00:00:00.000Z", asOfDate: "2026-04-01T00:00:00.000Z" }));
     expect(parsed.household.birthDate).toBe("1974-03-03");
     expect(parsed.snapshots[0].asOfDate).toBe("2026-04-01");
+  });
+});
+
+describe("バックアップの復元：追加データ", () => {
+  it("旧い顧客バックアップではシナリオと操作履歴を空配列として扱う", () => {
+    const parsed = householdBackupSchema.parse({
+      schemaVersion: 1,
+      kind: "household",
+      household: { clientCode: "TEST-1", name: "テスト" },
+      snapshots: [{ label: "現状", asOfDate: "2026-04-01", fiscalYear: 2026 }],
+    });
+
+    expect(parsed.planningScenarios).toEqual([]);
+    expect(parsed.activityLogs).toEqual([]);
+  });
+
+  it("顧客バックアップのシナリオと操作履歴を検証して保持する", () => {
+    const parsed = householdBackupSchema.parse({
+      schemaVersion: 1,
+      kind: "household",
+      household: { clientCode: "TEST-1", name: "テスト" },
+      snapshots: [{ label: "現状", asOfDate: "2026-04-01", fiscalYear: 2026 }],
+      planningScenarios: [{ name: "承継案", assetChangePercent: "5.50", inheritanceTaxJpy: "1000000" }],
+      activityLogs: [{ action: "CREATE", entityType: "SCENARIO", summary: "承継案を登録", createdAt: "2026-04-02T03:00:00.000Z" }],
+    });
+
+    expect(parsed.planningScenarios[0]).toEqual(expect.objectContaining({ name: "承継案", assetChangePercent: "5.50" }));
+    expect(parsed.activityLogs[0]).toEqual(expect.objectContaining({ action: "CREATE", summary: "承継案を登録" }));
+  });
+
+  it("旧い全体バックアップでも追加テーブルを空配列として扱う", () => {
+    const parsed = fullBackupSchema.parse({
+      schemaVersion: 1,
+      kind: "full",
+      data: { households: [], snapshots: [], positions: [], familyMembers: [] },
+    });
+
+    expect(parsed.data.planningScenarios).toEqual([]);
+    expect(parsed.data.activityLogs).toEqual([]);
   });
 });

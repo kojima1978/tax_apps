@@ -6,6 +6,7 @@ import { createInheritanceTaxRequest } from "@/lib/inheritance-tax-integration";
 import { getPortfolio } from "@/lib/portfolio";
 import type { Portfolio } from "@/lib/portfolio-view";
 import { prisma } from "@/lib/prisma";
+import { writeActivityLog } from "@/lib/activity-log";
 
 const inputSchema = z.object({
   householdId: z.coerce.number().int().positive(),
@@ -77,19 +78,20 @@ export async function POST(request: Request) {
         : []),
     ],
   };
-  await prisma.$transaction([
-    prisma.household.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.household.update({
       where: { id: portfolio.household.id },
       data: { estimatedInheritanceTax, inheritanceTaxUpdatedAt },
-    }),
-    prisma.snapshot.update({
+    });
+    await tx.snapshot.update({
       where: { id: integration.snapshotId },
       data: {
         estimatedInheritanceTax,
         inheritanceTaxCalculation: calculationRecord as Prisma.InputJsonValue,
       },
-    }),
-  ]);
+    });
+    await writeActivityLog(tx, { householdId: portfolio.household.id, householdName: portfolio.household.name, clientCode: portfolio.household.clientCode, action: "CALCULATE", entityType: "TAX", entityId: integration.snapshotId, summary: `相続税概算を再計算（${calculation.data.totalInheritanceTaxJpy.toLocaleString("ja-JP")}円）` });
+  });
 
   return NextResponse.json({
     estimatedInheritanceTax: calculation.data.totalInheritanceTaxJpy,

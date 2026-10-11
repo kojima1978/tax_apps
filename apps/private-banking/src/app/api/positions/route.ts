@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { fxRateFor, missingFxRateMessage, parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
 import { calculatedOriginalAmount, calculatedOwnershipShare, liquidityForCategory, normalizedValuationMethod, positionInputErrorMessage, positionInputSchema } from "@/lib/position-input";
+import { writeActivityLog } from "@/lib/activity-log";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -16,6 +17,8 @@ export async function POST(request: Request) {
   }
   const snapshot = await prisma.snapshot.findUnique({ where: { id: requestedSnapshotId } });
   if (!snapshot) return NextResponse.json({ error: "対象年度のB/Sがありません。" }, { status: 404 });
+  const household = await prisma.household.findUnique({ where: { id: snapshot.householdId }, select: { id: true, name: true, clientCode: true } });
+  if (!household) return NextResponse.json({ error: "顧客が見つかりません。" }, { status: 404 });
 
   const data = parsed.data;
   // 円換算レートは明細ではなく年度に登録した値を使う。
@@ -48,6 +51,7 @@ export async function POST(request: Request) {
       },
     });
     await tx.snapshot.update({ where: { id: snapshot.id }, data: { updatedAt: new Date() } });
+    await writeActivityLog(tx, { householdId: household.id, householdName: household.name, clientCode: household.clientCode, action: "CREATE", entityType: "POSITION", entityId: created.id, summary: `明細「${created.name}」を登録`, details: { snapshotId: snapshot.id, category: created.category, valueJpy } });
     return created;
   });
   return NextResponse.json({ id: position.id }, { status: 201 });

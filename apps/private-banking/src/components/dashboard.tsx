@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Calculator, ChevronLeft, ChevronRight, CircleUserRound, DatabaseBackup, History, LayoutDashboard, Link2,
+  Activity, Calculator, ChevronLeft, ChevronRight, CircleUserRound, DatabaseBackup, GitCompareArrows, History, LayoutDashboard, Link2,
   LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Printer, ShieldCheck, UsersRound, WalletCards, X,
 } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +21,8 @@ import { PersonView } from "@/components/person-view";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { PositionModal } from "@/components/position-modal";
 import { AssetsView } from "@/components/positions-view";
+import { ActivityView } from "@/components/activity-view";
+import { ScenarioView } from "@/components/scenario-view";
 import { PRINT_SECTION_META, PrintFrontMatter } from "@/components/print-front-matter";
 import { PersonFamilyPrintView } from "@/components/print-person-family";
 import { SecondaryInheritanceSimulator } from "@/components/secondary-inheritance-simulator";
@@ -54,7 +56,9 @@ const SECTIONS = [
   { key: "tax", label: "相続税の概算", icon: Calculator },
   { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
   { key: "positions", label: "資産・負債明細", icon: WalletCards },
+  { key: "scenarios", label: "シナリオ比較", icon: GitCompareArrows },
   { key: "history", label: "年度比較", icon: History },
+  { key: "activity", label: "操作履歴", icon: Activity },
   { key: "backup", label: "バックアップ", icon: DatabaseBackup },
 ] as const satisfies ReadonlyArray<{ key: Section; label: string; icon: typeof LayoutDashboard }>;
 
@@ -438,7 +442,9 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
           {(section === "positions" || printIncludes("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printIncludes("details") ? "" : "print-excluded-document"}`}><AssetsView snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} spotlightId={spotlightId} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
           {section === "family" ? <div className="report-document print-excluded-document"><FamilyView members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} saving={saving} onSave={saveFamilyMembers} /></div> : null}
+          {section === "scenarios" ? <div className="report-document print-excluded-document"><ScenarioView householdId={portfolio.household.id} assets={summary.assets} liabilities={summary.liabilities} defaultTax={reportSnapshot.estimatedInheritanceTax} /></div> : null}
           {(section === "history" || printIncludes("history")) ? <div id="print-section-history" className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printIncludes("history") ? "" : "print-excluded-document"}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
+          {section === "activity" ? <div className="report-document print-excluded-document"><ActivityView householdId={portfolio.household.id} /></div> : null}
           {section === "backup" ? <div className="report-document print-excluded-document"><BackupView scope="household" portfolio={portfolio} /></div> : null}
         </main>
       </div>

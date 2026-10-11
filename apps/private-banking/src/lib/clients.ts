@@ -8,6 +8,37 @@ export type ClientSummary = {
   assignedStaff: string;
   relatedCompany: string;
   latestFiscalYear: number | null;
+  latestAsOfDate: string | null;
+  latestUpdatedAt: string | null;
+  assets: number;
+  registeredLiabilities: number;
+  netWorth: number;
+  estimatedInheritanceTax: number;
+  qualityIssues: ClientQualityIssue[];
+};
+
+export type ClientQualityIssueCode =
+  | "staff-missing"
+  | "birth-date-missing"
+  | "family-missing"
+  | "assets-missing"
+  | "tax-not-calculated"
+  | "tax-recalculation-required";
+
+export type ClientQualityIssue = {
+  code: ClientQualityIssueCode;
+  label: string;
+  severity: "warning" | "critical";
+  href: "profile" | "family" | "positions" | "tax";
+};
+
+export const CLIENT_QUALITY_LABELS: Record<ClientQualityIssueCode, string> = {
+  "staff-missing": "担当者未設定",
+  "birth-date-missing": "生年月日未登録",
+  "family-missing": "親族情報未登録",
+  "assets-missing": "資産明細なし",
+  "tax-not-calculated": "相続税未計算",
+  "tax-recalculation-required": "相続税の再計算が必要",
 };
 
 /** 顧客の検索対象になる項目。表示側のハイライトもこの順で扱う。 */
