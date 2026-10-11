@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActivityView } from "@/components/activity-view";
 
@@ -25,5 +25,19 @@ describe("操作履歴", () => {
     render(<ActivityView householdId={8} />);
     expect((await screen.findByRole("alert")).textContent).toContain("操作履歴を読み込めませんでした");
     expect(screen.getByText("まだ操作履歴はありません")).toBeTruthy();
+  });
+
+  it("概要を検索し、操作種別と期間で絞り込む", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => [
+      { id: 2, action: "CALCULATE", entityType: "TAX", summary: "相続税を再計算", actor: "システム", createdAt: "2026-10-11T01:30:00.000Z" },
+      { id: 1, action: "UPDATE", entityType: "POSITION", summary: "資産明細を更新", actor: "担当者", createdAt: "2026-10-10T01:30:00.000Z" },
+    ] }));
+    render(<ActivityView householdId={8} />);
+    await screen.findByText("相続税を再計算");
+    fireEvent.change(screen.getByRole("searchbox", { name: "検索" }), { target: { value: "資産" } });
+    expect(screen.queryByText("相続税を再計算")).toBeNull();
+    expect(screen.getByText("資産明細を更新")).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "操作" }), { target: { value: "CALCULATE" } });
+    expect(screen.getByText("該当する操作履歴はありません")).toBeTruthy();
   });
 });

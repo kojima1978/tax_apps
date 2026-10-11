@@ -8,6 +8,7 @@ import { API_BASE } from "@/lib/api";
 import { ClientSummary } from "@/lib/clients";
 import { householdBackupFileName } from "@/lib/format";
 import type { Portfolio } from "@/lib/portfolio-view";
+import { useModalDialog } from "@/components/use-modal-dialog";
 
 export type BackupKind = "full" | "household";
 type BackupPreview = {
@@ -344,7 +345,8 @@ function BackupConfirmModal({ preview, fileName, busy, error, onClose, onConfirm
   onConfirm: () => void;
 }) {
   const isFull = preview.kind === "full";
-  return <div className="modal-layer" role="presentation"><div className="modal delete-modal" role="dialog" aria-modal="true" aria-labelledby="backup-confirm-title">
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!busy) onClose(); }, initialFocus: ".button.secondary" });
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal delete-modal" role="dialog" aria-modal="true" aria-labelledby="backup-confirm-title" aria-busy={busy}>
     <header><div><h2 id="backup-confirm-title">{isFull ? "全データを置き換えますか？" : "新規顧客として取り込みますか？"}</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={busy}><X /></button></header>
     <div className="delete-modal-body">
       <p>{isFull

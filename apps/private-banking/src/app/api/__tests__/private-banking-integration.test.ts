@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GET as getActivity } from "@/app/api/activity/route";
 import { GET as getClients } from "@/app/api/clients/route";
+import { POST as bulkAssignStaff } from "@/app/api/clients/bulk-staff/route";
 import { DELETE as deleteScenario, GET as getScenarios, POST as createScenario, PUT as updateScenario } from "@/app/api/scenarios/route";
 import { exportHousehold, householdBackupSchema, importHousehold } from "@/lib/backup";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 const runIntegrationTests = process.env.RUN_INTEGRATION_TESTS === "1";
 const clientCode = "INTEGRATION-TEST";
 let householdId = 0;
+let staffId = 0;
 
 const jsonRequest = (url: string, method: string, body: unknown) => new Request(url, {
   method,
@@ -39,6 +41,7 @@ describe.runIf(runIntegrationTests)("private-banking API integration", () => {
   afterAll(async () => {
     await prisma.activityLog.deleteMany({ where: { clientCode: { startsWith: clientCode } } });
     await prisma.household.deleteMany({ where: { clientCode: { startsWith: clientCode } } });
+    if (staffId) await prisma.staff.deleteMany({ where: { id: staffId } });
   });
 
   it("実DBの顧客データから品質上の不備を判定する", async () => {
@@ -124,5 +127,15 @@ describe.runIf(runIntegrationTests)("private-banking API integration", () => {
     expect(restored.planningScenarios[0]).toEqual(expect.objectContaining({ name: "バックアップ対象案", note: "復元確認" }));
     expect(restored.activityLogs).toHaveLength(3);
     expect(restored.activityLogs.every((log) => log.clientCode === `${clientCode}-2`)).toBe(true);
+  });
+
+  it("担当者未設定の顧客へ担当者を一括設定し、履歴も残す", async () => {
+    const staff = await prisma.staff.create({ data: { name: `統合テスト担当-${Date.now()}`, nameKana: "トウゴウテスト" } });
+    staffId = staff.id;
+    const response = await bulkAssignStaff(jsonRequest("http://integration.test/api/clients/bulk-staff", "POST", { householdIds: [householdId], staffId }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(expect.objectContaining({ count: 1, staffName: staff.name }));
+    expect(await prisma.household.findUnique({ where: { id: householdId }, select: { staffId: true } })).toEqual({ staffId });
+    expect(await prisma.activityLog.findFirst({ where: { householdId, summary: { contains: staff.name } } })).not.toBeNull();
   });
 });

@@ -8,10 +8,12 @@ import { compactYen } from "@/lib/format";
 import { foreignCurrencies } from "@/lib/fx-rates";
 import { type Portfolio, type PrintSection, type Section, type Snapshot, fiscalYearLabel, printSectionForSection, trendValues } from "@/lib/portfolio-view";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
+import { useModalDialog } from "@/components/use-modal-dialog";
 
 /** ダッシュボード全体で使うモーダル群（顧客・年度・印刷・相続税）。 */
 
 export function PrintGuideModal({ section, unavailable, onClose, onPrint }: { section: Section; unavailable: Partial<Record<PrintSection, string>>; onClose: () => void; onPrint: (sections: PrintSection[]) => void }) {
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: onClose, initialFocus: 'input[type="checkbox"]' });
   // 並びは目次と同じ（PRINT_SECTION_META）。選べない理由は呼び出し側から受け取る。
   const options = PRINT_SECTION_META.map(({ key, title }) => ({ value: key, label: title, disabledNote: unavailable[key] }));
   // 開いている画面に対応する様式を既定にする。それが選べないときだけ貸借対照表にする。
@@ -29,7 +31,7 @@ export function PrintGuideModal({ section, unavailable, onClose, onPrint }: { se
     });
   }
 
-  return <div className="modal-layer" role="presentation"><div className="modal delete-modal print-guide-modal" role="dialog" aria-modal="true" aria-labelledby="print-guide-title" aria-describedby="print-guide-description">
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal delete-modal print-guide-modal" role="dialog" aria-modal="true" aria-labelledby="print-guide-title" aria-describedby="print-guide-description">
     <header><div><h2 id="print-guide-title">印刷・PDF出力</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header>
     <div className="delete-modal-body">
       <p id="print-guide-description">印刷する資料を選択してください。</p>
@@ -53,6 +55,7 @@ export function YearCreationModal({ snapshots, initialSourceId, onClose, onSubmi
   onEditExisting: (snapshotId: number) => void;
   saving: boolean;
 }) {
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); }, initialFocus: 'input[name="creationMode"]' });
   const orderedSnapshots = [...snapshots].sort((a, b) => b.fiscalYear - a.fiscalYear || b.id - a.id);
   const initialSource = snapshots.find((snapshot) => snapshot.id === initialSourceId) ?? orderedSnapshots[0];
   const [creationMode, setCreationMode] = useState<"COPY" | "BLANK">("COPY");
@@ -80,7 +83,7 @@ export function YearCreationModal({ snapshots, initialSourceId, onClose, onSubmi
     if (Number.isInteger(year) && year >= 1900 && year <= 2200) setAsOfDate(defaultAsOfDate(year));
   }
 
-  return <div className="modal-layer" role="presentation"><div className="modal year-creation-modal" role="dialog" aria-modal="true" aria-labelledby="year-creation-title">
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal year-creation-modal" role="dialog" aria-modal="true" aria-labelledby="year-creation-title" aria-busy={saving}>
     <header><div><h2 id="year-creation-title">年度を追加</h2></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <form onSubmit={onSubmit}>
       <p className="form-intro">作成方法と年度を選択してください。同じ年度は1件だけ登録できます。</p>
@@ -112,6 +115,7 @@ export function DeleteSnapshotModal({ snapshot, snapshotCount, onClose, onSubmit
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   saving: boolean;
 }) {
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); }, initialFocus: snapshotCount > 1 ? 'input[name="confirmationFiscalYear"]' : 'button' });
   const [confirmation, setConfirmation] = useState("");
   const canDelete = snapshotCount > 1;
   const confirmationMatches = confirmation === String(snapshot.fiscalYear);
@@ -119,7 +123,7 @@ export function DeleteSnapshotModal({ snapshot, snapshotCount, onClose, onSubmit
   const assetCount = snapshot.positions.filter((position) => position.side === "ASSET").length;
   const liabilityCount = snapshot.positions.filter((position) => position.side === "LIABILITY").length;
 
-  return <div className="modal-layer" role="presentation"><div className="modal delete-modal snapshot-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="snapshot-delete-title" aria-describedby="snapshot-delete-description">
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal delete-modal snapshot-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="snapshot-delete-title" aria-describedby="snapshot-delete-description" aria-busy={saving}>
     <header><div><h2 id="snapshot-delete-title">{canDelete ? `${snapshot.fiscalYear}年度を削除しますか？` : "この年度は削除できません"}</h2></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <form onSubmit={onSubmit}>
       <div className="snapshot-delete-warning"><AlertTriangle /><div><strong>{canDelete ? "年度内のデータがすべて削除されます" : "少なくとも1年度の登録が必要です"}</strong><p id="snapshot-delete-description">{canDelete ? "資産・負債明細と年度別の税金を一括削除します。この操作は取り消せません。" : "先に別の年度を作成してから、もう一度削除してください。"}</p></div></div>
@@ -131,10 +135,12 @@ export function DeleteSnapshotModal({ snapshot, snapshotCount, onClose, onSubmit
 }
 
 export function SnapshotSettingsModal({ snapshot, onClose, onSubmit, saving }: { snapshot: Snapshot; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
-  return <div className="modal-layer" role="presentation"><div className="modal snapshot-tax-modal" role="dialog" aria-modal="true" aria-labelledby="snapshot-settings-title"><header><div><h2 id="snapshot-settings-title">{fiscalYearLabel(snapshot)}の年度設定</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header><form onSubmit={onSubmit}><p className="form-intro">B/S基準日と、この年度の税額を修正します。</p><div className="form-grid snapshot-settings-grid"><label className="snapshot-date-field">B/S基準日<input name="asOfDate" type="date" min={`${snapshot.fiscalYear}-01-01`} max={`${snapshot.fiscalYear}-12-31`} defaultValue={snapshot.asOfDate} aria-describedby="snapshot-as-of-date-help" required /><small id="snapshot-as-of-date-help" className="field-help">対象年度内の日付を指定してください。</small></label><label>相続税<input name="estimatedInheritanceTax" type="number" min="0" step="1" defaultValue={snapshot.estimatedInheritanceTax} required /></label><label>その他税金<input name="otherTaxes" type="number" min="0" step="1" defaultValue={snapshot.otherTaxes} required /></label></div><fieldset className="fx-rate-fieldset"><legend>円換算レート（1通貨あたりの円）</legend><p className="field-help">この年度の外貨建て明細は、ここで登録したレートで円換算します。使わない通貨は空欄のままで構いません。</p><div className="fx-rate-grid">{foreignCurrencies.map((code) => <label key={code}>{code}<input name={`fxRate.${code}`} type="number" min="0" step="0.000001" defaultValue={snapshot.fxRates[code] ?? ""} placeholder="例：150.25" /></label>)}</div></fieldset><footer><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button></footer></form></div></div>;
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); }, initialFocus: 'input[name="asOfDate"]' });
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal snapshot-tax-modal" role="dialog" aria-modal="true" aria-labelledby="snapshot-settings-title" aria-busy={saving}><header><div><h2 id="snapshot-settings-title">{fiscalYearLabel(snapshot)}の年度設定</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header><form onSubmit={onSubmit}><p className="form-intro">B/S基準日と、この年度の税額を修正します。</p><div className="form-grid snapshot-settings-grid"><label className="snapshot-date-field">B/S基準日<input name="asOfDate" type="date" min={`${snapshot.fiscalYear}-01-01`} max={`${snapshot.fiscalYear}-12-31`} defaultValue={snapshot.asOfDate} aria-describedby="snapshot-as-of-date-help" required /><small id="snapshot-as-of-date-help" className="field-help">対象年度内の日付を指定してください。</small></label><label>相続税<input name="estimatedInheritanceTax" type="number" min="0" step="1" defaultValue={snapshot.estimatedInheritanceTax} required /></label><label>その他税金<input name="otherTaxes" type="number" min="0" step="1" defaultValue={snapshot.otherTaxes} required /></label></div><fieldset className="fx-rate-fieldset"><legend>円換算レート（1通貨あたりの円）</legend><p className="field-help">この年度の外貨建て明細は、ここで登録したレートで円換算します。使わない通貨は空欄のままで構いません。</p><div className="fx-rate-grid">{foreignCurrencies.map((code) => <label key={code}>{code}<input name={`fxRate.${code}`} type="number" min="0" step="0.000001" defaultValue={snapshot.fxRates[code] ?? ""} placeholder="例：150.25" /></label>)}</div></fieldset><footer><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button></footer></form></div></div>;
 }
 
 /** 税金あり貸借対照表で使う金額を手入力する。相続人の構成は親族関係タブが唯一の入力先なのでここでは扱わない。 */
 export function ForecastModal({ planning, onClose, onSubmit, saving }: { planning: Portfolio["planning"]; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
-  return <div className="modal-layer" role="presentation"><div className="modal forecast-modal" role="dialog" aria-modal="true" aria-labelledby="forecast-modal-title"><header><div><h2 id="forecast-modal-title">税金・費用の入力</h2></div><button className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header><form onSubmit={onSubmit}><p className="form-intro">「税金あり」の貸借対照表で差し引く金額です。ここで入力した金額は、次に相続税を計算するまで保持されます。</p><div className="form-grid"><label>想定相続税<input name="estimatedInheritanceTax" type="number" min="0" step="1" defaultValue={planning.estimatedInheritanceTax} required /></label><label>その他税金<input name="otherTaxes" type="number" min="0" step="1" defaultValue={planning.otherTaxes} required /></label><label>承継関連費用<input name="successionCosts" type="number" min="0" step="1" defaultValue={planning.successionCosts} required /></label></div>{planning.inheritanceTaxUpdatedAt ? <p className="sync-status">前回の計算：{new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(planning.inheritanceTaxUpdatedAt))}</p> : null}<footer><button type="button" className="button secondary" onClick={onClose}>キャンセル</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button></footer></form></div></div>;
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); }, initialFocus: 'input[name="estimatedInheritanceTax"]' });
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal forecast-modal" role="dialog" aria-modal="true" aria-labelledby="forecast-modal-title" aria-busy={saving}><header><div><h2 id="forecast-modal-title">税金・費用の入力</h2></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header><form onSubmit={onSubmit}><p className="form-intro">「税金あり」の貸借対照表で差し引く金額です。ここで入力した金額は、次に相続税を計算するまで保持されます。</p><div className="form-grid"><label>想定相続税<input name="estimatedInheritanceTax" type="number" min="0" step="1" defaultValue={planning.estimatedInheritanceTax} required /></label><label>その他税金<input name="otherTaxes" type="number" min="0" step="1" defaultValue={planning.otherTaxes} required /></label><label>承継関連費用<input name="successionCosts" type="number" min="0" step="1" defaultValue={planning.successionCosts} required /></label></div>{planning.inheritanceTaxUpdatedAt ? <p className="sync-status">前回の計算：{new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(planning.inheritanceTaxUpdatedAt))}</p> : null}<footer><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button></footer></form></div></div>;
 }

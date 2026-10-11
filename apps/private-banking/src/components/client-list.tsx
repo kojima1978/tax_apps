@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Building2, ChevronRight, CircleUserRound, ClipboardCheck, DatabaseBackup, LayoutDashboard, LoaderCircle, Search, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
+import { AlertTriangle, Building2, ChevronRight, CircleUserRound, ClipboardCheck, DatabaseBackup, LayoutDashboard, LoaderCircle, Menu, Search, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, FormEvent, KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,6 +18,7 @@ import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 import { type Portfolio } from "@/lib/portfolio-view";
 import { compactYen } from "@/lib/format";
+import { useModalDialog } from "@/components/use-modal-dialog";
 
 /** 顧客ページのうち、一覧から最初に開く画面。 */
 export const CLIENT_HOME_SECTION = "balance";
@@ -192,9 +193,9 @@ export function ClientList() {
       <section className="page-heading"><div><h1>顧客一覧</h1></div></section>
 
       <section className="client-overview" aria-label="顧客管理の状況">
-        <div><span>管理顧客</span><strong>{clients.length}件</strong></div>
-        <div><span>要確認</span><strong>{clients.filter((client) => qualityIssuesFor(client).length > 0).length}件</strong></div>
-        <div><span>重要な不備</span><strong>{clients.filter((client) => qualityIssuesFor(client).some((issue) => issue.severity === "critical")).length}件</strong></div>
+        <button type="button" aria-pressed={qualityFilter === "all"} onClick={() => { setQualityFilter("all"); setActiveIndex(0); }}><span>管理顧客</span><strong>{clients.length}件</strong></button>
+        <button type="button" aria-pressed={qualityFilter === "attention"} onClick={() => { setQualityFilter("attention"); setActiveIndex(0); }}><span>要確認</span><strong>{clients.filter((client) => qualityIssuesFor(client).length > 0).length}件</strong></button>
+        <button type="button" aria-pressed={qualityFilter === "critical"} onClick={() => { setQualityFilter("critical"); setActiveIndex(0); }}><span>重要な不備</span><strong>{clients.filter((client) => qualityIssuesFor(client).some((issue) => issue.severity === "critical")).length}件</strong></button>
         <div><span>純資産合計</span><strong>{compactYen(clients.reduce((sum, client) => sum + (client.netWorth ?? 0), 0))}</strong></div>
       </section>
 
@@ -223,11 +224,25 @@ export function ClientList() {
         </label>
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
         {/* 担当者の台帳はここだけから開く。顧客の欄では選ぶだけにして、名前の揺れを1箇所で止める。 */}
-        <button type="button" className="button secondary" onClick={() => { setError(""); setEditingStaff(true); }}><UserCog />担当者</button>
-        <Link className="button secondary" href="/quality"><ClipboardCheck />データ品質</Link>
-        <Link className="button secondary" href="/properties"><Building2 />不動産一覧</Link>
-        <Link className="button secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
-        <Link className="button secondary" href="/restore"><Upload />データ復元</Link>
+        <button type="button" className="button secondary client-toolbar-secondary" onClick={() => { setError(""); setEditingStaff(true); }}><UserCog />担当者</button>
+        <Link className="button secondary client-toolbar-secondary" href="/quality"><ClipboardCheck />データ品質</Link>
+        <Link className="button secondary client-toolbar-secondary" href="/properties"><Building2 />不動産一覧</Link>
+        <Link className="button secondary client-toolbar-secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
+        <Link className="button secondary client-toolbar-secondary" href="/restore"><Upload />データ復元</Link>
+        <ActionMenu
+          id="client-toolbar-menu"
+          label="その他の操作"
+          className="client-toolbar-mobile-menu"
+          triggerClassName="button secondary"
+          trigger={<><Menu />その他</>}
+          items={[
+            { key: "staff", label: "担当者", icon: UserCog, onSelect: () => { setError(""); setEditingStaff(true); } },
+            { key: "quality", label: "データ品質", icon: ClipboardCheck, href: "/quality" },
+            { key: "properties", label: "不動産一覧", icon: Building2, href: "/properties" },
+            { key: "backup", label: "バックアップ", icon: DatabaseBackup, href: "/backup" },
+            { key: "restore", label: "データ復元", icon: Upload, href: "/restore" },
+          ]}
+        />
       </div>
       {/* 削除の通知が role="status" を使うので、件数は aria-live だけで読み上げる。 */}
       <div className="client-list-tools">
@@ -334,6 +349,7 @@ function ClientCreateModal({ error, saving, onClose, onSubmit }: {
   const currentYear = new Date().getFullYear();
   const [fiscalYear, setFiscalYear] = useState(String(currentYear));
   const [asOfDate, setAsOfDate] = useState(defaultAsOfDate(currentYear));
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); }, initialFocus: 'input[name="name"]' });
 
   function changeFiscalYear(value: string) {
     setFiscalYear(value);
@@ -341,13 +357,13 @@ function ClientCreateModal({ error, saving, onClose, onSubmit }: {
     if (Number.isInteger(year) && year >= 1900 && year <= 2200) setAsOfDate(defaultAsOfDate(year));
   }
 
-  return <div className="modal-layer" role="presentation"><div className="modal client-switcher-modal" role="dialog" aria-modal="true" aria-labelledby="client-create-title">
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal client-switcher-modal" role="dialog" aria-modal="true" aria-labelledby="client-create-title" aria-busy={saving}>
     <header><div><h2 id="client-create-title">顧客を追加</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <form className="client-create-form" onSubmit={onSubmit}>
       <p className="client-modal-guidance">新しい顧客専用の貸借対照表を作成します。既存顧客のデータとは分離して保存されます。</p>
       {error ? <p className="client-modal-error" role="alert"><AlertTriangle />{error}</p> : null}
       <div className="form-grid client-create-grid">
-        <ClientFields autoFocus />
+        <ClientFields />
         <label>開始年度<input name="fiscalYear" type="number" min="1900" max="2200" value={fiscalYear} onChange={(event) => changeFiscalYear(event.target.value)} required /></label>
         <div className="date-field">
           <label htmlFor="client-as-of-date">B/S基準日</label>

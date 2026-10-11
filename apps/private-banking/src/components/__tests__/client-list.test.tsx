@@ -109,6 +109,18 @@ describe("顧客一覧からの削除", () => {
 });
 
 describe("顧客一覧の表示", () => {
+  it("顧客追加モーダルはEscapeで閉じ、追加ボタンへフォーカスを戻す", async () => {
+    fetchMock.mockReset().mockResolvedValueOnce(response(clients)).mockResolvedValueOnce(response([]));
+    render(<ClientList />);
+    const opener = await screen.findByRole("button", { name: "顧客を追加" });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = screen.getByRole("dialog", { name: "顧客を追加" });
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole("textbox", { name: "顧客名" })));
+    fireEvent.keyDown(dialog.closest(".modal-layer")!, { key: "Escape" });
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+
   it("操作メニューから顧客の各画面を直接開ける", async () => {
     render(<ClientList />);
     fireEvent.click(await screen.findByRole("button", { name: "テスト顧客Aの操作" }));
