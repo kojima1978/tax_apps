@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import PageContainer from '@/components/PageContainer';
 import PrintButton from '@/components/PrintButton';
@@ -47,13 +48,13 @@ export default function FeeTablePage() {
       <header className="w-full bg-gradient-to-r from-emerald-800 to-green-900 shadow-lg">
         <PageContainer className="py-5 flex items-center justify-between">
           <div>
-            <a
+            <Link
               href="/"
               className="inline-flex items-center gap-1.5 text-sm text-emerald-300 hover:text-white transition-colors no-print"
             >
               <ArrowLeft className="w-4 h-4" />
               ポータルに戻る
-            </a>
+            </Link>
             <h1 className="text-2xl font-bold text-white mt-1 print-title">
               報酬表（税抜き）
             </h1>

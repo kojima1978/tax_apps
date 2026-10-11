@@ -9,14 +9,20 @@
 }
 
 body {
-  color: #171717;
+  color: #0f172a;
+  background-color: #f4f7f5;
   font-family: var(--font-geist-sans), var(--font-noto-sans-jp), Arial, Helvetica, sans-serif;
 }
 
 /* フォーカス時のアウトライン */
-:focus-visible {
-  outline: 2px solid #10b981;
-  outline-offset: 2px;
+:where(a, button, summary, [tabindex]):focus-visible {
+  outline: 3px solid #10b981;
+  outline-offset: 3px;
+}
+
+/* Chromiumの標準クリアボタンは独自ボタンと重複するため非表示 */
+input[type="search"]::-webkit-search-cancel-button {
+  display: none;
 }
 
 /* スクロールバー（Webkit） */
