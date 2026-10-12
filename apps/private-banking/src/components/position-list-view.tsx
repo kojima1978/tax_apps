@@ -5,8 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { List, Plus, Save, Scale, Search, Table2, UsersRound } from "lucide-react";
 import { type MouseEvent, useMemo, useState } from "react";
 import { CommaNumberInput } from "@/components/form-fields";
-import { type Position, type PositionSection, type Snapshot, positionSection, middleClassification, middleClassificationRank, categoryRank, propertyTypeOf, deemedConfig, deemedAllocations, deemedBenefitJpy, splitBenefit, categoryLabels, fractionTotal } from "@/lib/portfolio-view";
-import type { FamilyMember } from "@/lib/family";
+import { type Position, type PositionSection, type Snapshot, positionSection, middleClassification, middleClassificationRank, categoryRank, propertyTypeOf, deemedConfig, deemedAllocations, deemedBenefitJpy, splitBenefit, categoryLabels, fractionTotal, valuationDetailLine } from "@/lib/portfolio-view";
+import { legalHeirMemberRoster, type FamilyMember } from "@/lib/family";
 import { matchesSearchTerms, searchTerms } from "@/lib/clients";
 import { yen, triangleYen } from "@/lib/format";
 import { positionAllocationAmounts, positionAllocationLabel, positionCaption, positionDetailFields, positionKeyInfo } from "@/lib/position-display";
@@ -59,6 +59,11 @@ function PositionMoneyLines({ position, burden }: { position: Position; burden: 
   </div>;
 }
 
+function PositionValuationInfo({ position }: { position: Position }) {
+  const calculationBasis = valuationDetailLine(position);
+  return <><span className="position-summary-secondary-label">{calculationBasis ? "計算根拠" : "評価方法"}</span>{calculationBasis || position.valuationMethod || "—"}</>;
+}
+
 function allocationSummaries(position: Position, familyMembers: FamilyMember[]) {
   const result = new Map<number, AllocationSummary>();
   const config = deemedConfig(position);
@@ -80,6 +85,72 @@ function allocationSummaries(position: Position, familyMembers: FamilyMember[]) 
     });
   }
   return result;
+}
+
+function allocationTaxSummaries(burden: number | null, basis: number, allocations: Map<number, AllocationSummary>) {
+  const byMember = new Map<number, number>();
+  if (burden === null || basis <= 0) return { byMember, unallocatedTax: null };
+  const allocated = [...allocations.values()].reduce((sum, allocation) => sum + allocation.amountJpy, 0);
+  const weights = [
+    ...[...allocations.entries()].map(([memberId, allocation], index) => ({ memberId, index, amount: allocation.amountJpy })),
+    { memberId: null, index: allocations.size, amount: Math.max(0, basis - allocated) },
+  ].filter((item) => item.amount > 0);
+  const absoluteBurden = Math.abs(burden);
+  const apportioned = weights.map((item) => {
+    const exact = absoluteBurden * item.amount / basis;
+    return { ...item, amountJpy: Math.floor(exact), fraction: exact - Math.floor(exact) };
+  });
+  const remainder = absoluteBurden - apportioned.reduce((sum, item) => sum + item.amountJpy, 0);
+  const remainderOrder = [...apportioned].sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+  for (let index = 0; index < remainder; index += 1) remainderOrder[index % remainderOrder.length].amountJpy += 1;
+  const sign = burden < 0 ? -1 : 1;
+  let unallocatedTax = 0;
+  for (const item of apportioned) {
+    if (item.memberId === null) unallocatedTax = sign * item.amountJpy;
+    else byMember.set(item.memberId, sign * item.amountJpy);
+  }
+  return { byMember, unallocatedTax };
+}
+
+function listAllocationTotals(positions: Snapshot["positions"], familyMembers: FamilyMember[]) {
+  const byMember = new Map(familyMembers.map((member) => [member.id, 0]));
+  let netTotal = 0;
+  let unallocatedTotal = 0;
+  for (const position of positions) {
+    const section = positionSection(position);
+    if (section === "CONTINGENT" || (section === "LIABILITY" && !position.includedInNetWorth)) continue;
+    const sign = section === "LIABILITY" ? -1 : 1;
+    const basis = deemedConfig(position) ? deemedBenefitJpy(position) : position.valueJpy;
+    const allocations = allocationSummaries(position, familyMembers);
+    const allocated = [...allocations.values()].reduce((sum, allocation) => sum + allocation.amountJpy, 0);
+    netTotal += sign * basis;
+    unallocatedTotal += sign * Math.max(0, basis - allocated);
+    for (const member of familyMembers) {
+      byMember.set(member.id, (byMember.get(member.id) ?? 0) + sign * (allocations.get(member.id)?.amountJpy ?? 0));
+    }
+  }
+  return { byMember, netTotal, unallocatedTotal };
+}
+
+function finalTaxTotals(snapshot: Snapshot, familyMembers: FamilyMember[]) {
+  const calculation = snapshot.inheritanceTaxCalculation;
+  const byMember = new Map<number, number>();
+  if (!calculation) return { byMember, total: null, mode: null };
+
+  const roster = legalHeirMemberRoster(familyMembers);
+  const spouseTax = calculation.heirs.find((heir) => heir.id === "spouse" || heir.type === "spouse");
+  if (roster.spouse && spouseTax) byMember.set(roster.spouse.id, spouseTax.finalTaxJpy);
+
+  const rankedTaxes = calculation.heirs.filter((heir) => heir.type !== "spouse" && !heir.id?.startsWith("other:"));
+  roster.heirs.forEach((member, index) => {
+    const tax = rankedTaxes[index];
+    if (tax) byMember.set(member.id, tax.finalTaxJpy);
+  });
+  for (const member of familyMembers) {
+    const directTax = calculation.heirs.find((heir) => heir.id === `other:${member.id}`);
+    if (directTax) byMember.set(member.id, directTax.finalTaxJpy);
+  }
+  return { byMember, total: calculation.totalInheritanceTaxJpy, mode: calculation.acquisitionAllocationMode };
 }
 
 function initialAllocationValues(positions: Snapshot["positions"], familyMembers: FamilyMember[]) {
@@ -204,7 +275,7 @@ function AllocationMatrix({ rows, allPositions, familyMembers, saving, onSave, t
           </tr>
           <tr className="position-summary-secondary-row">
             <td className="position-summary-sticky-subject"><PositionSupplement position={position} /></td>
-            <td><span className="position-summary-secondary-label">評価方法</span>{position.valuationMethod || "—"}</td>
+            <td><PositionValuationInfo position={position} /></td>
             {familyMembers.map((member) => <td key={member.id} className="number position-summary-person-share">{readOnly ? null : <div className="allocation-quick-actions"><button type="button" className="allocation-full-button" onClick={() => assignFullAmount(position, member.id)} disabled={saving} aria-label={`${position.name}の全額を${member.name}へ割り振る`}>全額</button><button type="button" className="allocation-full-button" onClick={() => assignRemaining(position, member.id)} disabled={saving || remaining <= 0} aria-label={`${position.name}の残額すべてを${member.name}へ割り振る`}>残額すべて</button></div>}</td>)}
             <td className="number position-summary-unallocated" />
           </tr>
@@ -239,6 +310,8 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
     return filtered.sort((a, b) => sort === "value-desc" ? b.valueJpy - a.valueJpy || a.id - b.id : sort === "value-asc" ? a.valueJpy - b.valueJpy || a.id - b.id : sort === "registered" ? a.id - b.id : sectionRank[positionSection(a)] - sectionRank[positionSection(b)] || (middleClassificationRank.get(middleClassification(a)) ?? 99) - (middleClassificationRank.get(middleClassification(b)) ?? 99) || (categoryRank.get(a.category) ?? 99) - (categoryRank.get(b.category) ?? 99) || (propertyTypeOf(a) === "BUILDING" ? 1 : 0) - (propertyTypeOf(b) === "BUILDING" ? 1 : 0));
   }, [snapshot.positions, query, section, category, sort]);
   const categories = [...new Set(snapshot.positions.map((p) => p.category))];
+  const allocationTotals = useMemo(() => listAllocationTotals(snapshot.positions, familyMembers), [snapshot.positions, familyMembers]);
+  const taxTotals = useMemo(() => finalTaxTotals(snapshot, familyMembers), [snapshot, familyMembers]);
   function href(position: Snapshot["positions"][number]) {
     const [path, search] = detailHref.split("?");
     const next = new URLSearchParams(search);
@@ -260,7 +333,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
     <section className="panel position-summary-panel">
       <div className={allocationMode ? "" : "allocation-editor-hidden"}><AllocationMatrix key={`${snapshot.id}-${familyMembers.map((member) => member.id).join("-")}`} rows={rows} allPositions={snapshot.positions} familyMembers={familyMembers} saving={saving} onSave={onSaveAllocations} taxBurden={taxBurden} detailHref={href} /></div>
       <div className={allocationMode ? "allocation-view-hidden" : ""}><div className="position-summary-scroll" tabIndex={0} aria-label="資産・負債一覧。横にスクロールできます"><table className="position-summary-table" aria-label="資産・負債一覧">
-      <thead><tr><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／評価情報</th><th className="number position-summary-sticky-money">評価額／相続税額</th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担</span></th>)}<th className="number position-summary-unallocated">未割当</th><th><span className="sr-only">詳細</span></th></tr></thead>
+      <thead><tr><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／評価情報</th><th className="number position-summary-sticky-money">評価額／相続税額</th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担／相続税額</span></th>)}<th className="number position-summary-unallocated">未割当</th><th><span className="sr-only">詳細</span></th></tr></thead>
       {rows.map((p) => {
         const burden = taxBurden(p);
         const config = deemedConfig(p);
@@ -268,27 +341,45 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
         const allocatedTotal = [...allocations.values()].reduce((sum, allocation) => sum + allocation.amountJpy, 0);
         const comparisonTotal = config ? deemedBenefitJpy(p) : p.valueJpy;
         const unallocated = Math.max(0, comparisonTotal - allocatedTotal);
+        const allocatedTaxes = allocationTaxSummaries(burden, comparisonTotal, allocations);
         const navigate = (event: MouseEvent) => { if (!(event.target as HTMLElement).closest("a")) router.push(href(p)); };
         return <tbody key={p.id} className="position-summary-group" onClick={navigate}>
           <tr className="position-summary-primary-row">
             <td rowSpan={2} data-label="区分" className="center position-summary-sticky-section"><span className={`position-section-badge section-${positionSection(p)}`}>{positionSection(p) === "ASSET" ? "資産" : positionSection(p) === "LIABILITY" ? "負債" : "B/S外"}</span></td>
             <th scope="rowgroup" className="position-summary-sticky-subject"><Link href={href(p)} className="position-summary-name"><span>{positionCaption(p)}</span><strong>{p.name || "名称未登録"}</strong></Link></th>
             <td className="position-summary-info" title={positionKeyInfo(p)}>{positionKeyInfo(p)}</td>
-            <td rowSpan={2} className="number position-summary-sticky-money"><PositionMoneyLines position={p} burden={burden} /></td>
+            <td className="number position-summary-sticky-money position-summary-value-amount" aria-label={`${config?.surrenderLabel ?? "評価額"} ${yen.format(p.valueJpy)}`}><strong>{yen.format(p.valueJpy)}</strong></td>
             {familyMembers.map((member) => { const allocation = allocations.get(member.id); return <td key={member.id} className="number position-summary-person-amount">{allocation ? yen.format(allocation.amountJpy) : "—"}</td>; })}
             <td className={`number position-summary-unallocated ${unallocated > 0 ? "has-unallocated" : ""}`}>{unallocated > 0 ? yen.format(unallocated) : "—"}</td>
             <td rowSpan={2}><Link href={href(p)} aria-label={`${p.name}の詳細`} className="position-summary-open">詳細</Link></td>
           </tr>
           <tr className="position-summary-secondary-row">
             <td className="position-summary-sticky-subject"><PositionSupplement position={p} /></td>
-            <td><span className="position-summary-secondary-label">評価方法</span>{p.valuationMethod || "—"}</td>
-            {familyMembers.map((member) => <td key={member.id} className="number position-summary-person-share" />)}
-            <td className="number position-summary-unallocated" />
+            <td><PositionValuationInfo position={p} /></td>
+            <td className="number position-summary-sticky-money position-summary-tax-amount" aria-label={`相続税額 ${burden === null ? "未計算" : triangleYen(burden)}`}><strong>{burden === null ? "—" : triangleYen(burden)}</strong></td>
+            {familyMembers.map((member) => { const tax = allocatedTaxes.byMember.get(member.id); return <td key={member.id} className="number position-summary-person-tax"><strong>{tax === undefined ? "—" : triangleYen(tax)}</strong></td>; })}
+            <td className="number position-summary-unallocated position-summary-person-tax"><strong>{allocatedTaxes.unallocatedTax ? triangleYen(allocatedTaxes.unallocatedTax) : "—"}</strong></td>
           </tr>
         </tbody>;
       })}
+      <tfoot className="position-summary-totals">
+        <tr>
+          <th scope="row" colSpan={3}><span>取得・負担合計</span><small>全明細</small></th>
+          <td className="number position-summary-total-amount">{triangleYen(allocationTotals.netTotal)}</td>
+          {familyMembers.map((member) => <td key={member.id} className="number position-summary-total-amount">{triangleYen(allocationTotals.byMember.get(member.id) ?? 0)}</td>)}
+          <td className="number position-summary-unallocated">{allocationTotals.unallocatedTotal === 0 ? "—" : triangleYen(allocationTotals.unallocatedTotal)}</td>
+          <td />
+        </tr>
+        <tr>
+          <th scope="row" colSpan={3}><span>相続税額</span><small>{taxTotals.mode === "ACTUAL" ? "取得・負担の登録内容で計算" : taxTotals.mode === "LEGAL" ? "法定相続分による概算" : "相続税の計算後に表示"}</small></th>
+          <td className="number position-summary-total-tax">{taxTotals.total === null ? "—" : yen.format(taxTotals.total)}</td>
+          {familyMembers.map((member) => <td key={member.id} className="number position-summary-total-tax">{taxTotals.byMember.has(member.id) ? yen.format(taxTotals.byMember.get(member.id)!) : "—"}</td>)}
+          <td className="number position-summary-unallocated">—</td>
+          <td />
+        </tr>
+      </tfoot>
     </table></div>{rows.length === 0 ? <div className="position-detail-empty"><strong>{snapshot.positions.length ? "条件に一致する明細がありません" : "まだ明細が登録されていません"}</strong>{snapshot.positions.length ? <button className="button secondary" onClick={() => { const next = new URLSearchParams(params.toString()); ["q", "listSection", "listCategory"].forEach((k) => next.delete(k)); router.replace(`${pathname}?${next}`, { scroll: false }); }}>絞り込みを解除</button> : <button className="button primary" onClick={() => onAdd("ASSET")}><Plus />明細を追加</button>}</div> : null}</div>
     </section>
-    <p className="position-list-note">{allocationMode ? "生命保険・退職金は詳細画面の受取人情報を相続税計算に使用します。" : "評価額（円）は現在価値です。生命保険は解約返戻金、退職金は解約手当金を表示します。死亡給付金・受取人・評価根拠は詳細で確認できます。"}</p>
+    <p className="position-list-note">{allocationMode ? "生命保険・退職金は詳細画面の受取人情報を相続税計算に使用します。" : "評価額は現在B/Sの金額です。生命保険・退職金は解約返戻金・解約手当金を表示しますが、相続税計算ではこれらを除き、死亡保険金・死亡退職金の課税対象額へ置き換えます。生命保険契約に関する権利は解約返戻金相当額で評価します。"}</p>
   </>;
 }

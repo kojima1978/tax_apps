@@ -79,7 +79,7 @@ describe("資産・負債一覧と詳細の連携", () => {
   });
 
   it("通常一覧は1明細を2行で表示し、評価額・相続税額と相続人別の割り振りを一覧できる", () => {
-    const allocated = position(1, { valueJpy: 100, originalAmount: 100, valuationMethod: "残高証明書", assetDetails: { accountType: "ORDINARY", branchName: "本店", accountSuffix: "1234" }, allocations: [
+    const allocated = position(1, { valueJpy: 100, originalAmount: 100, valuationMethod: "単価×数量×調整率", valuationFormula: "STOCK", valuationQuantity: 10, valuationUnitPrice: 5, adjustmentRate: 2, assetDetails: { accountType: "ORDINARY", branchName: "本店", accountSuffix: "1234" }, allocations: [
       { id: 1, familyMemberId: 10, familyMemberName: "長女", role: "ACQUIRER", numerator: 3, denominator: 5 },
       { id: 2, familyMemberId: 11, familyMemberName: "長男", role: "ACQUIRER", numerator: 2, denominator: 5 },
     ] });
@@ -95,19 +95,58 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(within(list).getByRole("columnheader", { name: /長男/ })).toBeTruthy();
     const group = list.querySelector(".position-summary-group") as HTMLElement;
     expect(group.querySelectorAll("tr")).toHaveLength(2);
-    const moneyCell = group.querySelector(".position-summary-sticky-money") as HTMLTableCellElement;
-    expect(moneyCell.rowSpan).toBe(2);
-    expect(moneyCell.querySelectorAll(".position-summary-money-lines > div")).toHaveLength(2);
+    const moneyCells = [...group.querySelectorAll(".position-summary-sticky-money")];
+    expect(moneyCells).toHaveLength(2);
+    expect(moneyCells.map((cell) => cell.textContent)).toEqual([yen.format(100), yen.format(12)]);
     expect(within(group).getByText(yen.format(60))).toBeTruthy();
     expect(within(group).getByText(yen.format(40))).toBeTruthy();
+    const personTaxes = [...group.querySelectorAll(".position-summary-person-tax")].map((cell) => cell.textContent);
+    expect(personTaxes).toEqual([yen.format(7), yen.format(5), "—"]);
     expect(within(group).getByText("預金種類：普通預金")).toBeTruthy();
     expect(within(group).getByText("支店：本店")).toBeTruthy();
+    expect(within(group).getByText("計算根拠")).toBeTruthy();
+    expect(within(group).getByText("10株・口 × 5 × 2")).toBeTruthy();
+    expect(within(group).queryByText("評価方法")).toBeNull();
     expect(within(group).queryByText("口座番号（末尾）：1234")).toBeNull();
     expect(group.querySelectorAll(".position-summary-supplement span")).toHaveLength(2);
     expect(within(group).queryByText(/割り振り \d/)).toBeNull();
     expect(within(group).getByText(yen.format(12))).toBeTruthy();
     expect(within(group).queryByText(/税負担目安/)).toBeNull();
     expect(within(group).queryByText("割当済み")).toBeNull();
+    expect(screen.getByText(/相続税計算ではこれらを除き、死亡保険金・死亡退職金の課税対象額へ置き換えます/)).toBeTruthy();
+    expect(screen.getByText(/生命保険契約に関する権利は解約返戻金相当額で評価します/)).toBeTruthy();
+  });
+
+  it("一覧末尾で全明細の取得・負担合計と計算済み相続税額を相続人別に表示する", () => {
+    const asset = position(1, { valueJpy: 100, originalAmount: 100, allocations: [
+      { id: 1, familyMemberId: 10, familyMemberName: "長女", role: "ACQUIRER", numerator: 3, denominator: 5 },
+      { id: 2, familyMemberId: 11, familyMemberName: "長男", role: "ACQUIRER", numerator: 2, denominator: 5 },
+    ] });
+    const liability = position(4, { side: "LIABILITY", category: "LOAN", name: "借入金", valueJpy: 20, originalAmount: 20, allocations: [
+      { id: 3, familyMemberId: 10, familyMemberName: "長女", role: "DEBT_BEARER", numerator: 1, denominator: 2 },
+      { id: 4, familyMemberId: 11, familyMemberName: "長男", role: "DEBT_BEARER", numerator: 1, denominator: 2 },
+    ] });
+    const calculation = {
+      acquisitionAllocationMode: "ACTUAL",
+      totalInheritanceTaxJpy: 12,
+      heirs: [
+        { id: "rank1-1", type: "child", finalTaxJpy: 7 },
+        { id: "rank1-2", type: "child", finalTaxJpy: 5 },
+      ],
+    } as Snapshot["inheritanceTaxCalculation"];
+    render(<PositionListView snapshot={{ ...snapshot, positions: [asset, liability], inheritanceTaxCalculation: calculation }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+
+    const list = screen.getByRole("table", { name: "資産・負債一覧" });
+    const totals = list.querySelector(".position-summary-totals") as HTMLElement;
+    const acquisitionRow = within(totals).getByRole("row", { name: /取得・負担合計/ });
+    expect(acquisitionRow.textContent).toContain(yen.format(80));
+    expect(acquisitionRow.textContent).toContain(yen.format(50));
+    expect(acquisitionRow.textContent).toContain(yen.format(30));
+    const taxRow = within(totals).getByRole("row", { name: /相続税額/ });
+    expect(taxRow.textContent).toContain("取得・負担の登録内容で計算");
+    expect(taxRow.textContent).toContain(yen.format(12));
+    expect(taxRow.textContent).toContain(yen.format(7));
+    expect(taxRow.textContent).toContain(yen.format(5));
   });
 
   it("全明細を法定相続分で一括割り振りし、確認後に未保存状態へ反映する", () => {

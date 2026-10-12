@@ -1534,9 +1534,18 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-summary-money-lines > div { display: flex; align-items: baseline; justify-content: flex-end; gap: 7px; min-width: 0; }
 .position-summary-money-lines span { overflow: hidden; color: var(--slate-600); font-size: 9px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .position-summary-money-lines strong { color: var(--navy-950); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.position-summary-value-amount strong { color: var(--navy-950); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.position-summary-tax-amount strong { color: var(--navy-950); font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .position-summary-person-amount { color: var(--navy-950); font-weight: 700; font-variant-numeric: tabular-nums; }
 .position-summary-person-share span { margin-right: 5px; color: var(--slate-500); font-size: 9px; }
+.position-summary-person-tax strong { color: var(--navy-950); font-size: 10px; font-variant-numeric: tabular-nums; }
 .position-summary-unallocated.has-unallocated { color: #b42318; font-weight: 700; }
+.position-summary-totals th, .position-summary-totals td { border-top: 1px solid #9aaca2; background: #f4f8f5; }
+.position-summary-totals th { text-align: left; }
+.position-summary-totals th span, .position-summary-totals th small { display: block; }
+.position-summary-totals th small { margin-top: 2px; color: var(--slate-600); font-size: 9px; font-weight: 600; }
+.position-summary-total-amount, .position-summary-total-tax { color: var(--navy-950); font-weight: 750; font-variant-numeric: tabular-nums; }
+.position-summary-totals tr:last-child > * { border-bottom: 2px solid #6f8177; }
 .position-summary-name { color: inherit; text-decoration: none; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .position-summary-name span { color: var(--slate-600); font-size: 10px; flex-shrink: 0; }
 .position-summary-name strong { overflow: hidden; text-overflow: ellipsis; }
@@ -1596,6 +1605,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 @media print {
   .position-summary-panel > div:first-child { display: none !important; }
   .position-summary-panel > .allocation-view-hidden { display: block !important; }
+  /* 一覧は複数ページにまたがる前提。共通の .panel の avoid を残すと、
+     見出しだけを前ページへ残して表全体が次ページへ送られる。 */
+  .panel.position-summary-panel { overflow: visible; break-inside: auto; page-break-inside: auto; }
 }
 .position-section-badge { padding: 3px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #166534; background: #dcfce7; }
 .position-section-badge.section-LIABILITY { color: #9a3412; background: #ffedd5; }
@@ -1709,7 +1721,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-details-screen, .position-list-filters, .position-result-count, .position-summary-open { display: none !important; }
   .position-summary-scroll { overflow: visible; }
   .position-summary-table { min-width: 0; width: 100%; table-layout: fixed; }
+  .position-summary-table thead { display: table-header-group; }
+  .position-summary-table tfoot { display: table-row-group; }
   .position-summary-table td, .position-summary-table th { min-width: 0 !important; width: auto !important; max-width: none !important; padding: 1.2mm 1mm; font-size: 7px; white-space: normal; }
+  /* 画面用の「詳細」操作は紙では使えない。リンクだけでなく列自体を落とし、
+     余った幅を名称・評価情報・相続人列へ配分する。 */
+  .position-summary-table th:last-child, .position-summary-table td:last-child { display: none !important; }
   .position-summary-table .position-summary-sticky-section, .position-summary-table .position-summary-sticky-subject, .position-summary-table .position-summary-sticky-money { position: static; box-shadow: none; }
   .position-summary-table .position-summary-sticky-section { width: 6% !important; }
   .position-summary-table .position-summary-sticky-subject { width: 16% !important; }
@@ -1719,6 +1736,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-summary-name { display: block; }
   .position-summary-name span { display: block; }
   .position-summary-table tbody { break-inside: avoid; page-break-inside: avoid; }
+  .position-summary-totals { break-inside: avoid; page-break-inside: avoid; }
+  .position-summary-totals th small { font-size: 6px; }
 }
 .print-front-matter, .print-empty-notice { display: none; }
 @page {
