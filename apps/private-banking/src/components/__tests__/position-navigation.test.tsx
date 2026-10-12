@@ -34,6 +34,9 @@ describe("資産・負債一覧と詳細の連携", () => {
     const href = new URL(screen.getByRole("link", { name: "あおば生命の詳細" }).getAttribute("href")!, "http://localhost");
     expect(href.pathname).toBe("/customers/1/positions/insurance");
     expect(Object.fromEntries(href.searchParams)).toMatchObject({ snapshot: "7", q: "子", listSection: "ASSET", position: "2" });
+    const list = screen.getByRole("table", { name: "資産・負債一覧" });
+    expect(within(list).getByRole("cell", { name: `死亡保険金 ${yen.format(50_000_000)}` })).toBeTruthy();
+    expect(within(list).queryByRole("cell", { name: `解約返戻金 ${yen.format(5_000_000)}` })).toBeNull();
   });
 
   it("一覧で相続人ごとの評価額を均等割りし保存できる", async () => {
@@ -44,7 +47,7 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(within(allocationTable).getAllByRole("columnheader").slice(1, 4).map((header) => header.textContent)).toEqual([
       "科目・名称",
       "所在地・金融機関等／評価情報",
-      "評価額／相続税額",
+      "評価額・給付額／相続税額",
     ]);
     const allocationMoneyCell = allocationTable.querySelector(".position-summary-sticky-money[rowspan='2']") as HTMLTableCellElement;
     expect(allocationMoneyCell.rowSpan).toBe(2);
@@ -78,7 +81,7 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect((screen.getByRole("textbox", { name: "普通預金の長男取得額" }) as HTMLInputElement).value).toBe("");
   });
 
-  it("通常一覧は1明細を2行で表示し、評価額・相続税額と相続人別の割り振りを一覧できる", () => {
+  it("通常一覧は1明細を2行で表示し、評価額・給付額・相続税額と相続人別の割り振りを一覧できる", () => {
     const allocated = position(1, { valueJpy: 100, originalAmount: 100, valuationMethod: "単価×数量×調整率", valuationFormula: "STOCK", valuationQuantity: 10, valuationUnitPrice: 5, adjustmentRate: 2, assetDetails: { accountType: "ORDINARY", branchName: "本店", accountSuffix: "1234" }, allocations: [
       { id: 1, familyMemberId: 10, familyMemberName: "長女", role: "ACQUIRER", numerator: 3, denominator: 5 },
       { id: 2, familyMemberId: 11, familyMemberName: "長男", role: "ACQUIRER", numerator: 2, denominator: 5 },
@@ -88,9 +91,9 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(within(list).getAllByRole("columnheader").slice(1, 4).map((header) => header.textContent)).toEqual([
       "科目・名称",
       "所在地・金融機関等／評価情報",
-      "評価額／相続税額",
+      "評価額・給付額／相続税額",
     ]);
-    expect(within(list).getByRole("columnheader", { name: /評価額／相続税額/ })).toBeTruthy();
+    expect(within(list).getByRole("columnheader", { name: /評価額・給付額／相続税額/ })).toBeTruthy();
     expect(within(list).getByRole("columnheader", { name: /長女/ })).toBeTruthy();
     expect(within(list).getByRole("columnheader", { name: /長男/ })).toBeTruthy();
     const group = list.querySelector(".position-summary-group") as HTMLElement;
@@ -113,7 +116,8 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(within(group).getByText(yen.format(12))).toBeTruthy();
     expect(within(group).queryByText(/税負担目安/)).toBeNull();
     expect(within(group).queryByText("割当済み")).toBeNull();
-    expect(screen.getByText(/相続税計算ではこれらを除き、死亡保険金・死亡退職金の課税対象額へ置き換えます/)).toBeTruthy();
+    expect(screen.getByText(/一覧では生命保険は死亡保険金、退職金は死亡退職金/)).toBeTruthy();
+    expect(screen.getByText(/非課税額控除後の課税対象額を使用します/)).toBeTruthy();
     expect(screen.getByText(/生命保険契約に関する権利は解約返戻金相当額で評価します/)).toBeTruthy();
   });
 
