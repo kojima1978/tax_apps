@@ -59,6 +59,20 @@ const requestSchema = z.object({
       unit: z.literal('percent'),
     }),
   ]).optional(),
+  actualAcquisitionShares: z.object({
+    spouse: z.number().finite().min(0).max(1),
+    heirs: z.array(z.number().finite().min(0).max(1)).max(20),
+    others: z.array(z.object({
+      id: z.string().trim().min(1).max(100),
+      label: z.string().trim().min(1).max(100),
+      share: z.number().finite().min(0).max(1),
+      specialTaxAddition: z.boolean(),
+    })).max(20).default([]),
+  }).optional(),
+  specialTaxAdditionTargets: z.object({
+    spouse: z.boolean(),
+    heirs: z.array(z.boolean()).max(20),
+  }).optional(),
   lifeInsurance: deemedAssetSchema.optional(),
   // 死亡退職金（退職手当金等）。小規模企業共済などは生存中の解約手当金がB/Sに載るため、
   // 生命保険と同じく「解約返戻金を差し引いて、課税対象の死亡退職金を加える」形で受け取る。
@@ -80,6 +94,23 @@ const requestSchema = z.object({
   };
   checkRecipients(value.lifeInsurance, 'lifeInsurance');
   checkRecipients(value.retirementAllowance, 'retirementAllowance');
+  if (value.actualAcquisitionShares) {
+    if (value.actualAcquisitionShares.heirs.length !== heirCount) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['actualAcquisitionShares', 'heirs'], message: '相続人ごとの取得割合の人数が家族構成と一致しません。' });
+    }
+    if (!hasSpouse && value.actualAcquisitionShares.spouse !== 0) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['actualAcquisitionShares', 'spouse'], message: '配偶者がいない場合の配偶者取得割合は0にしてください。' });
+    }
+    const total = value.actualAcquisitionShares.spouse
+      + value.actualAcquisitionShares.heirs.reduce((sum, share) => sum + share, 0)
+      + value.actualAcquisitionShares.others.reduce((sum, recipient) => sum + recipient.share, 0);
+    if (Math.abs(total - 1) > 0.000001) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['actualAcquisitionShares'], message: '取得割合の合計を1にしてください。' });
+    }
+  }
+  if (value.specialTaxAdditionTargets?.heirs.length !== undefined && value.specialTaxAdditionTargets.heirs.length !== heirCount) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['specialTaxAdditionTargets', 'heirs'], message: '2割加算対象者の人数が家族構成と一致しません。' });
+  }
 });
 
 export type InheritanceTaxApiRequest = z.infer<typeof requestSchema>;
@@ -223,18 +254,56 @@ export function calculateInheritanceTaxApi(payload: unknown) {
 
   const composition = createComposition(input.familyComposition);
   const spouseMode = createSpouseMode(input.spouseAcquisition);
+  const baseResult = calculateDetailedInheritanceTax(adjustedEstateValueJpy / JPY_PER_MAN_YEN, composition, spouseMode);
+  if (input.actualAcquisitionShares) {
+    for (const recipient of input.actualAcquisitionShares.others) {
+      baseResult.heirBreakdowns.push({
+        heirId: `other:${recipient.id}`,
+        label: recipient.label,
+        // 計算内部では既存の型へ合わせる。API応答では下で other として返す。
+        type: 'child',
+        legalShareRatio: 0,
+        legalShareAmount: 0,
+        taxOnShare: 0,
+        acquisitionAmount: 0,
+        proportionalTax: 0,
+        surchargeAmount: 0,
+        spouseDeduction: 0,
+        finalTax: 0,
+      });
+    }
+  }
   const result = reapportionTax(
-    calculateDetailedInheritanceTax(adjustedEstateValueJpy / JPY_PER_MAN_YEN, composition, spouseMode),
+    baseResult,
     divisibleEstateJpy / JPY_PER_MAN_YEN,
     composition,
     spouseMode,
     (breakdowns: HeirTaxBreakdown[]) => {
+      if (input.actualAcquisitionShares) {
+        for (const breakdown of breakdowns) {
+          const other = breakdown.heirId?.startsWith('other:')
+            ? input.actualAcquisitionShares.others.find((recipient) => `other:${recipient.id}` === breakdown.heirId)
+            : undefined;
+          const share = other?.share ?? (breakdown.type === 'spouse'
+            ? input.actualAcquisitionShares.spouse
+            : input.actualAcquisitionShares.heirs[Math.max(0, Number(breakdown.heirId?.split('-').at(-1) ?? 1) - 1)] ?? 0);
+          breakdown.acquisitionAmount = divisibleEstateJpy / JPY_PER_MAN_YEN * share;
+        }
+      }
       for (const breakdown of breakdowns) {
         breakdown.acquisitionAmount += (deemedTaxableByHeirId.get(breakdown.heirId ?? '') ?? 0) / JPY_PER_MAN_YEN;
       }
     },
     // 按分の分母は課税価格の合計額
     () => adjustedEstateValueJpy / JPY_PER_MAN_YEN,
+    input.specialTaxAdditionTargets || input.actualAcquisitionShares?.others.length ? (breakdown) => {
+      if (breakdown.heirId?.startsWith('other:')) {
+        return input.actualAcquisitionShares?.others.find((recipient) => `other:${recipient.id}` === breakdown.heirId)?.specialTaxAddition ?? true;
+      }
+      return breakdown.type === 'spouse'
+        ? input.specialTaxAdditionTargets?.spouse ?? false
+        : input.specialTaxAdditionTargets?.heirs[Math.max(0, Number(breakdown.heirId?.split('-').at(-1) ?? 1) - 1)] ?? false;
+    } : undefined,
   );
 
   const deemedBenefitByHeirId = mergeAmounts(insurance.benefitByHeirId, retirement.benefitByHeirId);
@@ -245,6 +314,7 @@ export function calculateInheritanceTaxApi(payload: unknown) {
     calculationVersion: CALCULATION_VERSION,
     taxRuleAsOf: TAX_RULE_AS_OF,
     calculatedAt: new Date().toISOString(),
+    acquisitionAllocationMode: input.actualAcquisitionShares ? 'ACTUAL' : 'LEGAL',
     unit: 'JPY',
     familyComposition: input.familyComposition,
     legalHeirCount,
@@ -270,7 +340,7 @@ export function calculateInheritanceTaxApi(payload: unknown) {
     heirs: result.heirBreakdowns.map((heir) => ({
       id: heir.heirId ?? null,
       label: heir.label,
-      type: heir.type,
+      type: heir.heirId?.startsWith('other:') ? 'other' : heir.type,
       legalShareRatio: heir.legalShareRatio,
       legalShareAmountJpy: toJpy(heir.legalShareAmount),
       taxOnLegalShareJpy: toJpy(heir.taxOnShare),

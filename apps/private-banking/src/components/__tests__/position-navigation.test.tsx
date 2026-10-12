@@ -3,8 +3,11 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PositionListView } from "@/components/position-list-view";
 import { PositionDetailsView } from "@/components/position-details-view";
+import { PositionDetailsPrintView } from "@/components/position-details-print-view";
 import { buildPositionTaxBurden } from "@/components/positions-view";
 import { type Position, type Snapshot } from "@/lib/portfolio-view";
+import { type FamilyMember } from "@/lib/family";
+import { yen } from "@/lib/format";
 
 const navigation = vi.hoisted(() => ({ query: "", path: "/customers/1/position-list", replace: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(navigation.query), usePathname: () => navigation.path, useRouter: () => ({ replace: navigation.replace, push: navigation.push }) }));
@@ -16,6 +19,10 @@ const position = (id: number, patch: Partial<Position>): Position => ({
 const insurance = position(2, { category: "INSURANCE", name: "あおば生命", valueJpy: 5_000_000, originalAmount: 5_000_000, assetDetails: { deathBenefit: 50_000_000, beneficiary: "子", insuredPerson: "本人" } });
 const guarantee = position(3, { side: "LIABILITY", category: "GUARANTEE", name: "保証", includedInNetWorth: false, valueJpy: 20_000_000 });
 const snapshot = { id: 7, fiscalYear: 2026, isCurrent: false, positions: [position(1, {}), insurance, guarantee], estimatedInheritanceTax: 10_000_000, inheritanceTaxCalculation: null } as Snapshot;
+const familyMembers = [
+  { id: 10, name: "長女", nameKana: "", relationship: "CHILD", acquisitionReason: "INHERITANCE", civilShareNumerator: 1, civilShareDenominator: 2, taxShareNumerator: null, taxShareDenominator: null, specialTaxAddition: false, disabilityCategory: "NONE", birthDate: null, note: "", sortOrder: 0 },
+  { id: 11, name: "長男", nameKana: "", relationship: "CHILD", acquisitionReason: "INHERITANCE", civilShareNumerator: 1, civilShareDenominator: 2, taxShareNumerator: null, taxShareDenominator: null, specialTaxAddition: false, disabilityCategory: "NONE", birthDate: null, note: "", sortOrder: 1 },
+] as FamilyMember[];
 beforeEach(() => { navigation.query = ""; navigation.path = "/customers/1/position-list"; navigation.replace.mockReset(); navigation.push.mockReset(); localStorage.clear(); });
 afterEach(cleanup);
 
@@ -23,10 +30,96 @@ describe("資産・負債一覧と詳細の連携", () => {
   it("受取人でも検索でき、絞り込みと年度を引き継いで正しい詳細へ移動する", () => {
     navigation.query = "snapshot=7&q=子&listSection=ASSET";
     render(<PositionListView snapshot={snapshot} detailHref="/customers/1/positions?snapshot=7&q=子&listSection=ASSET" taxBurden={() => null} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
-    expect(document.querySelectorAll("tbody tr")).toHaveLength(1);
+    expect(document.querySelectorAll(".position-summary-group")).toHaveLength(1);
     const href = new URL(screen.getByRole("link", { name: "あおば生命の詳細" }).getAttribute("href")!, "http://localhost");
     expect(href.pathname).toBe("/customers/1/positions/insurance");
     expect(Object.fromEntries(href.searchParams)).toMatchObject({ snapshot: "7", q: "子", listSection: "ASSET", position: "2" });
+  });
+
+  it("一覧で相続人ごとの評価額を均等割りし保存できる", async () => {
+    const save = vi.fn().mockResolvedValue(true);
+    render(<PositionListView snapshot={{ ...snapshot, positions: [snapshot.positions[0]] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} onSaveAllocations={save} saving={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "割り振りを編集" }));
+    const allocationTable = screen.getByRole("table", { name: "財産の割り振り入力" });
+    expect(within(allocationTable).getAllByRole("columnheader").slice(1, 4).map((header) => header.textContent)).toEqual([
+      "科目・名称",
+      "所在地・金融機関等／評価情報",
+      "評価額／相続税額",
+    ]);
+    const allocationMoneyCell = allocationTable.querySelector(".position-summary-sticky-money[rowspan='2']") as HTMLTableCellElement;
+    expect(allocationMoneyCell.rowSpan).toBe(2);
+    expect(allocationMoneyCell.querySelectorAll(".position-summary-money-lines > div")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "均等割り" }));
+    expect((screen.getByRole("textbox", { name: "普通預金の長女取得額" }) as HTMLInputElement).value).toBe("25,000,000");
+    expect((screen.getByRole("textbox", { name: "普通預金の長男取得額" }) as HTMLInputElement).value).toBe("25,000,000");
+    fireEvent.click(screen.getByRole("button", { name: "割り振りを保存" }));
+    expect(save).toHaveBeenCalledWith([{ positionId: 1, amounts: [{ familyMemberId: 10, amountJpy: 25_000_000 }, { familyMemberId: 11, amountJpy: 25_000_000 }] }]);
+  });
+
+  it("入力済みの割り振りを維持して残額すべてを指定相続人へ割り振る", () => {
+    render(<PositionListView snapshot={{ ...snapshot, positions: [position(1, { valueJpy: 100, originalAmount: 100 })] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => 10} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "割り振りを編集" }));
+    const daughter = screen.getByRole("textbox", { name: "普通預金の長女取得額" }) as HTMLInputElement;
+    const son = screen.getByRole("textbox", { name: "普通預金の長男取得額" }) as HTMLInputElement;
+    fireEvent.change(daughter, { target: { value: "30" } });
+    fireEvent.change(son, { target: { value: "20" } });
+    fireEvent.click(screen.getByRole("button", { name: "普通預金の残額すべてを長男へ割り振る" }));
+    expect(daughter.value).toBe("30");
+    expect(son.value).toBe("70");
+    expect(screen.queryByText(/税負担目安/)).toBeNull();
+    expect(screen.queryByText("割当済み")).toBeNull();
+    expect((screen.getByRole("button", { name: "普通預金の残額すべてを長男へ割り振る" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "普通預金の全額を長女へ割り振る" }));
+    expect(daughter.value).toBe("100");
+    expect(son.value).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "編集を終了" }));
+    fireEvent.click(screen.getByRole("button", { name: "割り振りを編集" }));
+    expect((screen.getByRole("textbox", { name: "普通預金の長女取得額" }) as HTMLInputElement).value).toBe("100");
+    expect((screen.getByRole("textbox", { name: "普通預金の長男取得額" }) as HTMLInputElement).value).toBe("");
+  });
+
+  it("通常一覧は1明細を2行で表示し、評価額・相続税額と相続人別の割り振りを一覧できる", () => {
+    const allocated = position(1, { valueJpy: 100, originalAmount: 100, valuationMethod: "残高証明書", assetDetails: { accountType: "ORDINARY", branchName: "本店", accountSuffix: "1234" }, allocations: [
+      { id: 1, familyMemberId: 10, familyMemberName: "長女", role: "ACQUIRER", numerator: 3, denominator: 5 },
+      { id: 2, familyMemberId: 11, familyMemberName: "長男", role: "ACQUIRER", numerator: 2, denominator: 5 },
+    ] });
+    render(<PositionListView snapshot={{ ...snapshot, positions: [allocated] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => 12} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+    const list = screen.getByRole("table", { name: "資産・負債一覧" });
+    expect(within(list).getAllByRole("columnheader").slice(1, 4).map((header) => header.textContent)).toEqual([
+      "科目・名称",
+      "所在地・金融機関等／評価情報",
+      "評価額／相続税額",
+    ]);
+    expect(within(list).getByRole("columnheader", { name: /評価額／相続税額/ })).toBeTruthy();
+    expect(within(list).getByRole("columnheader", { name: /長女/ })).toBeTruthy();
+    expect(within(list).getByRole("columnheader", { name: /長男/ })).toBeTruthy();
+    const group = list.querySelector(".position-summary-group") as HTMLElement;
+    expect(group.querySelectorAll("tr")).toHaveLength(2);
+    const moneyCell = group.querySelector(".position-summary-sticky-money") as HTMLTableCellElement;
+    expect(moneyCell.rowSpan).toBe(2);
+    expect(moneyCell.querySelectorAll(".position-summary-money-lines > div")).toHaveLength(2);
+    expect(within(group).getByText(yen.format(60))).toBeTruthy();
+    expect(within(group).getByText(yen.format(40))).toBeTruthy();
+    expect(within(group).getByText("預金種類：普通預金")).toBeTruthy();
+    expect(within(group).getByText("支店：本店")).toBeTruthy();
+    expect(within(group).queryByText("口座番号（末尾）：1234")).toBeNull();
+    expect(group.querySelectorAll(".position-summary-supplement span")).toHaveLength(2);
+    expect(within(group).queryByText(/割り振り \d/)).toBeNull();
+    expect(within(group).getByText(yen.format(12))).toBeTruthy();
+    expect(within(group).queryByText(/税負担目安/)).toBeNull();
+    expect(within(group).queryByText("割当済み")).toBeNull();
+  });
+
+  it("全明細を法定相続分で一括割り振りし、確認後に未保存状態へ反映する", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<PositionListView snapshot={{ ...snapshot, positions: [position(1, { valueJpy: 101, originalAmount: 101 })] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "割り振りを編集" }));
+    fireEvent.click(screen.getByRole("button", { name: "全明細を法定相続分で割り振る" }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("全1件"));
+    expect((screen.getByRole("textbox", { name: "普通預金の長女取得額" }) as HTMLInputElement).value).toBe("51");
+    expect((screen.getByRole("textbox", { name: "普通預金の長男取得額" }) as HTMLInputElement).value).toBe("50");
+    expect(screen.getByText("1件に法定相続分を適用しました。内容を確認して保存してください。")).toBeTruthy();
+    confirm.mockRestore();
   });
 
   it("詳細は死亡保険金と現在価値を分け、一覧に戻る検索条件を維持する", () => {
@@ -61,5 +154,21 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(tax(insurance)).toBe(5_500_000);
     expect(tax(snapshot.positions[0])).toBe(5_500_000);
     expect(tax(guarantee)).toBeNull();
+  });
+
+  it("印刷も科目別の表にし、入力画面で保存した列設定を反映する", async () => {
+    localStorage.setItem("pb.position-columns.v1.insurance", JSON.stringify({ version: 1, order: ["name", "tax", "value"], visible: ["name", "tax", "value"], widths: { name: 150, tax: 140, value: 130 } }));
+    render(<PositionDetailsPrintView snapshot={snapshot} taxBurden={() => 1_000_000} />);
+    const table = await screen.findByRole("table", { name: "生命保険の明細" });
+    expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["名称", "相続税負担額", "解約返戻金（円）", "計算根拠"]);
+    expect(within(table).getByText("入力額 5,000,000円")).toBeTruthy();
+    expect(within(table).queryByRole("columnheader", { name: "評価方法" })).toBeNull();
+    expect(within(table).queryByRole("columnheader", { name: "操作・並び順" })).toBeNull();
+    expect(within(table).getByRole("columnheader", { name: "名称" }).classList.contains("text")).toBe(true);
+    expect(within(table).getByRole("columnheader", { name: "相続税負担額" }).classList.contains("number")).toBe(true);
+    expect(within(table).getByText("入力額 5,000,000円").classList.contains("text")).toBe(true);
+    expect((table.querySelector('col[data-column="name"]') as HTMLElement).style.width).toBe("13%");
+    expect((table.querySelector('col[data-column="value"]') as HTMLElement).style.width).toBe("13%");
+    expect((table.querySelector('col[data-column="formula"]') as HTMLElement).style.width).toBe("15%");
   });
 });

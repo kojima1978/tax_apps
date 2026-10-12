@@ -98,12 +98,14 @@ export async function POST(request: Request) {
     let sortOrder = (lastPosition?.sortOrder ?? -1) + 1;
     const createdIds: number[] = [];
     for (const [index, data] of parsed.data.positions.entries()) {
+      const { allocations: _allocations, ...positionData } = data;
+      void _allocations;
       const fxRate = resolvedRates.rates[index];
       const originalAmount = calculatedOriginalAmount(data);
       const valueJpy = Math.round(originalAmount * fxRate);
       const created = await tx.position.create({
         data: {
-          ...data,
+          ...positionData,
           ownershipShare: calculatedOwnershipShare(data),
           valuationMethod: normalizedValuationMethod(data),
           liquidity: liquidityForCategory(data.category),
@@ -157,13 +159,15 @@ export async function PUT(request: Request) {
   await prisma.$transaction(async (tx) => {
     for (const [index, position] of parsed.data.positions.entries()) {
       const data = position.data;
+      const { allocations: _allocations, ...positionData } = data;
+      void _allocations;
       const fxRate = resolvedRates.rates[index];
       const originalAmount = calculatedOriginalAmount(data);
       const valueJpy = Math.round(originalAmount * fxRate);
       await tx.position.update({
         where: { id: position.id },
         data: {
-          ...data,
+          ...positionData,
           ownershipShare: calculatedOwnershipShare(data),
           valuationMethod: normalizedValuationMethod(data),
           liquidity: liquidityForCategory(data.category),
@@ -222,11 +226,13 @@ export async function PATCH(request: Request) {
 
     for (const [index, position] of parsed.data.positions.entries()) {
       const data = position.data;
+      const { allocations: _allocations, ...positionData } = data;
+      void _allocations;
       const fxRate = resolvedRates.rates[index];
       const originalAmount = calculatedOriginalAmount(data);
       const valueJpy = Math.round(originalAmount * fxRate);
       const normalizedData = {
-        ...data,
+        ...positionData,
         ownershipShare: calculatedOwnershipShare(data),
         valuationMethod: normalizedValuationMethod(data),
         liquidity: liquidityForCategory(data.category),

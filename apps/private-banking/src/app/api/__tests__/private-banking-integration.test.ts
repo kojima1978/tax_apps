@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { GET as getActivity } from "@/app/api/activity/route";
 import { GET as getClients } from "@/app/api/clients/route";
 import { POST as bulkAssignStaff } from "@/app/api/clients/bulk-staff/route";
-import { DELETE as deleteScenario, GET as getScenarios, POST as createScenario, PUT as updateScenario } from "@/app/api/scenarios/route";
+import { PATCH as savePositionAllocations } from "@/app/api/positions/allocations/route";
 import { exportHousehold, householdBackupSchema, importHousehold } from "@/lib/backup";
 import { prisma } from "@/lib/prisma";
 
@@ -58,48 +57,7 @@ describe.runIf(runIntegrationTests)("private-banking API integration", () => {
     ]));
   });
 
-  it("シナリオの登録・更新・削除と操作履歴を1つの流れで永続化する", async () => {
-    const createdResponse = await createScenario(jsonRequest("http://integration.test/api/scenarios", "POST", {
-      householdId,
-      name: "統合テスト案",
-      assetChangePercent: 10,
-      liabilityChangePercent: -5,
-      inheritanceTaxJpy: 12_000_000,
-      successionCostsJpy: 3_000_000,
-      note: "作成時",
-    }));
-    expect(createdResponse.status).toBe(201);
-    const created = await createdResponse.json() as { id: number };
-
-    const listResponse = await getScenarios(new Request(`http://integration.test/api/scenarios?householdId=${householdId}`));
-    const scenarios = await listResponse.json() as Array<{ id: number; name: string; assetChangePercent: number }>;
-    expect(scenarios).toContainEqual(expect.objectContaining({ id: created.id, name: "統合テスト案", assetChangePercent: 10 }));
-
-    const updatedResponse = await updateScenario(jsonRequest("http://integration.test/api/scenarios", "PUT", {
-      id: created.id,
-      householdId,
-      name: "統合テスト案・更新",
-      assetChangePercent: 15,
-      liabilityChangePercent: 0,
-      inheritanceTaxJpy: 10_000_000,
-      successionCostsJpy: 2_000_000,
-      note: "更新後",
-    }));
-    expect(updatedResponse.status).toBe(200);
-    expect(await updatedResponse.json()).toEqual(expect.objectContaining({ id: created.id, name: "統合テスト案・更新", assetChangePercent: 15 }));
-
-    const deletedResponse = await deleteScenario(jsonRequest("http://integration.test/api/scenarios", "DELETE", { id: created.id, householdId }));
-    expect(deletedResponse.status).toBe(200);
-    expect(await prisma.planningScenario.findUnique({ where: { id: created.id } })).toBeNull();
-
-    const activityResponse = await getActivity(new Request(`http://integration.test/api/activity?householdId=${householdId}`));
-    const activity = await activityResponse.json() as Array<{ action: string; entityType: string; summary: string }>;
-    expect(activity.map((item) => item.action)).toEqual(["DELETE", "UPDATE", "CREATE"]);
-    expect(activity.every((item) => item.entityType === "SCENARIO")).toBe(true);
-    expect(activity[0]?.summary).toContain("統合テスト案・更新");
-  });
-
-  it("顧客バックアップでシナリオと操作履歴を別顧客へ復元する", async () => {
+  it("旧シナリオデータを含む顧客バックアップを別顧客へ復元する", async () => {
     await prisma.planningScenario.create({
       data: {
         householdId,
@@ -114,18 +72,18 @@ describe.runIf(runIntegrationTests)("private-banking API integration", () => {
 
     const exported = householdBackupSchema.parse(await exportHousehold(householdId));
     expect(exported.planningScenarios).toHaveLength(1);
-    expect(exported.activityLogs).toHaveLength(3);
+    expect(exported.activityLogs).toHaveLength(0);
 
     const imported = await importHousehold(exported);
     expect(imported.renamedClientCode).toBe(`${clientCode}-2`);
-    expect(imported.counts).toEqual(expect.objectContaining({ planningScenarios: 1, activityLogs: 3 }));
+    expect(imported.counts).toEqual(expect.objectContaining({ planningScenarios: 1, activityLogs: 0 }));
 
     const restored = await prisma.household.findUniqueOrThrow({
       where: { id: imported.household.id },
       include: { planningScenarios: true, activityLogs: { orderBy: { createdAt: "asc" } } },
     });
     expect(restored.planningScenarios[0]).toEqual(expect.objectContaining({ name: "バックアップ対象案", note: "復元確認" }));
-    expect(restored.activityLogs).toHaveLength(3);
+    expect(restored.activityLogs).toHaveLength(0);
     expect(restored.activityLogs.every((log) => log.clientCode === `${clientCode}-2`)).toBe(true);
   });
 
@@ -137,5 +95,25 @@ describe.runIf(runIntegrationTests)("private-banking API integration", () => {
     expect(await response.json()).toEqual(expect.objectContaining({ count: 1, staffName: staff.name }));
     expect(await prisma.household.findUnique({ where: { id: householdId }, select: { staffId: true } })).toEqual({ staffId });
     expect(await prisma.activityLog.findFirst({ where: { householdId, summary: { contains: staff.name } } })).not.toBeNull();
+  });
+
+  it("一覧で入力した評価額を既約分数にして取得者へ保存する", async () => {
+    const snapshot = await prisma.snapshot.findFirstOrThrow({ where: { householdId } });
+    const [first, second] = await Promise.all([
+      prisma.familyMember.create({ data: { householdId, name: "長女", relationship: "CHILD", sortOrder: 0 } }),
+      prisma.familyMember.create({ data: { householdId, name: "長男", relationship: "CHILD", sortOrder: 1 } }),
+    ]);
+    const position = await prisma.position.create({ data: {
+      snapshotId: snapshot.id, side: "ASSET", category: "DEPOSIT", name: "割り振りテスト預金", originalAmount: 100, valueJpy: 100,
+    } });
+    const response = await savePositionAllocations(jsonRequest("http://integration.test/api/positions/allocations", "PATCH", {
+      snapshotId: snapshot.id,
+      positions: [{ positionId: position.id, amounts: [{ familyMemberId: first.id, amountJpy: 25 }, { familyMemberId: second.id, amountJpy: 75 }] }],
+    }));
+    expect(response.status).toBe(200);
+    expect(await prisma.positionAllocation.findMany({ where: { positionId: position.id }, orderBy: { familyMemberId: "asc" }, select: { familyMemberId: true, numerator: true, denominator: true, role: true } })).toEqual([
+      { familyMemberId: first.id, numerator: 1, denominator: 4, role: "ACQUIRER" },
+      { familyMemberId: second.id, numerator: 3, denominator: 4, role: "ACQUIRER" },
+    ]);
   });
 });

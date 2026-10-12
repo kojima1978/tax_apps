@@ -141,7 +141,7 @@ export function PropertiesView() {
           <thead><tr>
             <th>顧客</th><th>科目・区分</th><th>名称・所在地</th><th>地目・用途</th>
             <th className="number">面積</th><th className="number">持分</th>
-            <th className="number">固定資産税評価額</th><th className="number">評価額</th>
+            <th className="number">固定資産税評価額</th><th className="number">評価額（円）</th>
           </tr></thead>
           <tbody>
             {filtered.length === 0
@@ -168,7 +168,7 @@ export function PropertiesView() {
                 <td data-label="面積" className="number">{areaText(row.area)}</td>
                 <td data-label="持分" className="number">{ownershipText(row.ownership)}</td>
                 <td data-label="固定資産税評価額" className="number">{yenText(row.fixedAssetTaxValue)}</td>
-                <td data-label="評価額" className="number">{yen.format(row.valueJpy)}</td>
+                <td data-label="評価額（円）" className="number">{yen.format(row.valueJpy)}</td>
               </tr>)}
           </tbody>
           <tfoot><tr>

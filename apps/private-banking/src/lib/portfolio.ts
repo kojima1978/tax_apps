@@ -1,4 +1,4 @@
-import { Prisma, type Position as PositionRecord } from "@prisma/client";
+import { Prisma, type FamilyMember, type Position as PositionRecord, type PositionAllocation as PositionAllocationRecord } from "@prisma/client";
 import { familyComposition, type AcquisitionReason, type Relationship } from "@/lib/family";
 import { parseFxRates } from "@/lib/fx-rates";
 import { parseInheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
@@ -13,7 +13,8 @@ const toOptionalNumber = (value: Prisma.Decimal | null) => value === null ? null
  * 顧客1件のポートフォリオと不動産一覧の両方がこの変換を通るので、
  * 片方だけ Decimal のままになって金額の計算が文字列連結になる事故を防ぐ。
  */
-export function toPositionView(position: PositionRecord): Position & { snapshotId: number; sortOrder: number; createdAt: string; updatedAt: string } {
+type PositionWithAllocations = PositionRecord & { allocations?: Array<PositionAllocationRecord & { familyMember: Pick<FamilyMember, "name"> }> };
+export function toPositionView(position: PositionWithAllocations): Position & { snapshotId: number; sortOrder: number; createdAt: string; updatedAt: string } {
   return {
     ...position,
     side: position.side as Position["side"],
@@ -30,6 +31,14 @@ export function toPositionView(position: PositionRecord): Position & { snapshotI
     fixedAssetTaxValue: toOptionalNumber(position.fixedAssetTaxValue),
     valuationMultiplier: toOptionalNumber(position.valuationMultiplier),
     ownershipShare: toOptionalNumber(position.ownershipShare),
+    allocations: (position.allocations ?? []).map((allocation) => ({
+      id: allocation.id,
+      familyMemberId: allocation.familyMemberId,
+      familyMemberName: allocation.familyMember.name,
+      role: allocation.role as "ACQUIRER" | "DEBT_BEARER",
+      numerator: allocation.numerator,
+      denominator: allocation.denominator,
+    })),
     createdAt: position.createdAt.toISOString(),
     updatedAt: position.updatedAt.toISOString(),
   };
@@ -46,7 +55,7 @@ export async function getPortfolio(householdId?: number) {
   if (!household) throw new Error("HOUSEHOLD_NOT_FOUND");
   const snapshots = await prisma.snapshot.findMany({
     where: { householdId: household.id },
-    include: { positions: { orderBy: [{ side: "asc" }, { sortOrder: "asc" }] } },
+    include: { positions: { include: { allocations: { include: { familyMember: { select: { name: true } } }, orderBy: { id: "asc" } } }, orderBy: [{ side: "asc" }, { sortOrder: "asc" }] } },
     orderBy: [{ isCurrent: "desc" }, { fiscalYear: "desc" }],
   });
   const familyMembers = await prisma.familyMember.findMany({

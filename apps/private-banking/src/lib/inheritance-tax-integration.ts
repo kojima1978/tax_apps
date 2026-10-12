@@ -1,4 +1,4 @@
-import { legalHeirRoster } from "@/lib/family";
+import { legalHeirMemberRoster, legalHeirRoster } from "@/lib/family";
 import { businessCategories, deemedAllocations, deemedBenefit, financialCategories, realEstateCategories, splitBenefit, type Portfolio } from "@/lib/portfolio-view";
 
 const JPY_PER_MAN_YEN = 10_000;
@@ -18,6 +18,12 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
   // 非課税枠は法定相続人が受け取る分にだけ適用され、みなし相続財産は遺産分割の対象外で
   // 受取人へ直接帰属する。どちらも受取人名を親族関係の登録と突き合わせて判定する。
   const roster = legalHeirRoster(portfolio.familyMembers ?? []);
+  const memberRoster = legalHeirMemberRoster(portfolio.familyMembers ?? []);
+  const legalMemberOrder = [...(memberRoster.spouse ? [memberRoster.spouse] : []), ...memberRoster.heirs];
+  const legalIds = new Set(legalMemberOrder.flatMap((member) => member.id ? [member.id] : []));
+  const otherRecipients = (portfolio.familyMembers ?? []).filter((member) => member.id && !legalIds.has(member.id));
+  const recipientOrder = [...legalMemberOrder, ...otherRecipients];
+  const recipientIndexById = new Map(recipientOrder.flatMap((member, index) => member.id ? [[member.id, index] as const] : []));
   const spouseNames = new Set(roster.spouseNames);
   // 同姓同名は先に登録された相続人として扱う（後勝ちにすると並びの意味が変わる）。
   const heirIndexByName = new Map<string, number>();
@@ -50,6 +56,9 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
   let otherAssetsJpy = 0;
   let insuranceSurrenderValueJpy = 0;
   let smallLotReductionRaw = 0;
+  const netAcquisitionByRecipient = recipientOrder.map(() => 0);
+  let unassignedPositionCount = 0;
+  let nonHeirAllocationCount = 0;
   const insuranceContracts: Array<{ deathBenefitJpy: number; recipient: DeemedRecipient }> = [];
   let retirementSurrenderValueJpy = 0;
   const retirementContracts: Array<{ deathBenefitJpy: number; recipient: DeemedRecipient }> = [];
@@ -61,10 +70,12 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
       else if (businessCategories.includes(position.category)) businessAssetsJpy += position.valueJpy;
       else otherAssetsJpy += position.valueJpy;
       const smallLotRule = smallLotRules[position.assetDetails?.smallLotType ?? ""];
+      let positionSmallLotReduction = 0;
       if (smallLotRule && realEstateCategories.includes(position.category)) {
         const area = position.landArea ?? 0;
         const coveredRatio = area > 0 ? Math.min(1, smallLotRule.capSqm / area) : 1;
-        smallLotReductionRaw += position.valueJpy * smallLotRule.rate * coveredRatio;
+        positionSmallLotReduction = position.valueJpy * smallLotRule.rate * coveredRatio;
+        smallLotReductionRaw += positionSmallLotReduction;
       }
       // 死亡退職金も生命保険と同じ扱い。B/Sには解約手当金が載り、死亡時はそれが死亡退職金に置き換わる。
       // 受取人が複数なら、給付金を分数で割り振って受取人ごとに契約1件として積む（非課税枠の判定が受取人ごとのため）。
@@ -82,19 +93,45 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
           if (isInsurance) insuranceContracts.push(contract);
           else retirementContracts.push(contract);
         });
+      } else {
+        const allocations = position.allocations ?? [];
+        if (allocations.length === 0) unassignedPositionCount += 1;
+        for (const allocation of allocations) {
+          const index = recipientIndexById.get(allocation.familyMemberId);
+          if (index === undefined) nonHeirAllocationCount += 1;
+          else netAcquisitionByRecipient[index] += (position.valueJpy - positionSmallLotReduction) * allocation.numerator / allocation.denominator;
+        }
       }
     }
-    else if (position.side === "LIABILITY" && position.includedInNetWorth) liabilities += position.valueJpy;
+    else if (position.side === "LIABILITY" && position.includedInNetWorth) {
+      liabilities += position.valueJpy;
+      const allocations = position.allocations ?? [];
+      if (allocations.length === 0) unassignedPositionCount += 1;
+      for (const allocation of allocations) {
+        const index = recipientIndexById.get(allocation.familyMemberId);
+        if (index === undefined) nonHeirAllocationCount += 1;
+        else netAcquisitionByRecipient[index] -= position.valueJpy * allocation.numerator / allocation.denominator;
+      }
+    }
   }
 
   const estimatedNetEstate = Math.max(0, assets - liabilities);
   const smallLotReductionJpy = Math.round(smallLotReductionRaw);
   const estateAfterSmallLot = Math.max(0, estimatedNetEstate - smallLotReductionJpy);
+  const nonNegativeAcquisitions = netAcquisitionByRecipient.map((amount) => Math.max(0, amount));
+  const negativeAcquisitionCount = netAcquisitionByRecipient.filter((amount) => amount < 0).length;
+  const acquisitionTotal = nonNegativeAcquisitions.reduce((sum, amount) => sum + amount, 0);
+  const useActualAcquisitions = unassignedPositionCount === 0 && nonHeirAllocationCount === 0 && negativeAcquisitionCount === 0 && recipientOrder.length > 0 && acquisitionTotal > 0;
+  const actualShares = nonNegativeAcquisitions.map((amount) => amount / acquisitionTotal);
   return {
     snapshotId: current.id,
     estimatedNetEstate,
     unregisteredRecipientCount,
     nonHeirRecipientCount,
+    unassignedPositionCount,
+    nonHeirAllocationCount,
+    negativeAcquisitionCount,
+    acquisitionAllocationMode: useActualAcquisitions ? "ACTUAL" as const : "LEGAL" as const,
     source: {
       snapshotId: current.id,
       fiscalYear: current.fiscalYear,
@@ -116,6 +153,19 @@ export function createInheritanceTaxRequest(portfolio: Portfolio) {
         heirCount: portfolio.planning.heirRank === "none" ? 0 : portfolio.planning.heirCount,
       },
       spouseAcquisition: { mode: "legal" as const },
+      ...(useActualAcquisitions ? { actualAcquisitionShares: {
+        spouse: memberRoster.spouse ? actualShares[0] : 0,
+        heirs: actualShares.slice(memberRoster.spouse ? 1 : 0, legalMemberOrder.length),
+        others: otherRecipients.map((member, index) => ({
+          id: String(member.id),
+          label: member.name,
+          share: actualShares[legalMemberOrder.length + index],
+          specialTaxAddition: member.specialTaxAddition,
+        })),
+      }, specialTaxAdditionTargets: {
+        spouse: memberRoster.spouse?.specialTaxAddition ?? false,
+        heirs: memberRoster.heirs.map((member) => member.specialTaxAddition),
+      } } : {}),
       ...(insuranceContracts.length > 0 ? {
         lifeInsurance: {
           surrenderValueJpy: Math.round(insuranceSurrenderValueJpy / JPY_PER_MAN_YEN) * JPY_PER_MAN_YEN,

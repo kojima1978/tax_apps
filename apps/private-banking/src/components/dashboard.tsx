@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Activity, Calculator, ChevronLeft, ChevronRight, CircleUserRound, DatabaseBackup, GitCompareArrows, History, LayoutDashboard, Link2,
+  Activity, Calculator, ChevronLeft, ChevronRight, CircleUserRound, DatabaseBackup, History, LayoutDashboard, Link2,
   LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Printer, ShieldCheck, UsersRound, WalletCards, X,
 } from "lucide-react";
 import Link from "next/link";
@@ -22,8 +22,8 @@ import { AppBrand, PortalLink } from "@/components/portal-link";
 import { PositionModal } from "@/components/position-modal";
 import { AssetsView, buildPositionTaxBurden } from "@/components/positions-view";
 import { PositionListView } from "@/components/position-list-view";
+import { PositionDetailsPrintView } from "@/components/position-details-print-view";
 import { ActivityView } from "@/components/activity-view";
-import { ScenarioView } from "@/components/scenario-view";
 import { PRINT_SECTION_META, PrintFrontMatter } from "@/components/print-front-matter";
 import { PersonFamilyPrintView } from "@/components/print-person-family";
 import { SecondaryInheritanceSimulator } from "@/components/secondary-inheritance-simulator";
@@ -58,7 +58,6 @@ const SECTIONS = [
   { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
   { key: "position-list", label: "資産・負債一覧", icon: WalletCards },
   { key: "positions", label: "資産・負債詳細", icon: WalletCards },
-  { key: "scenarios", label: "シナリオ比較", icon: GitCompareArrows },
   { key: "history", label: "年度比較", icon: History },
   { key: "activity", label: "操作履歴", icon: Activity },
   { key: "backup", label: "バックアップ", icon: DatabaseBackup },
@@ -215,6 +214,12 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       assetDetails.benefitAllocations = [...allocationRows.entries()].sort(([a], [b]) => a - b).map(([, row]) => row);
     }
     fields.assetDetails = assetDetails;
+    try {
+      fields.allocations = JSON.parse(String(fields.allocationsJson ?? "[]"));
+    } catch {
+      fields.allocations = [];
+    }
+    delete fields.allocationsJson;
     // 円換算レート未登録など、サーバ側で理由が分かる場合はその文言をそのまま出す。
     const fallback = editingPosition ? "修正できませんでした。入力内容を確認してください。" : "登録できませんでした。入力内容を確認してください。";
     const { ok } = await mutate(
@@ -236,6 +241,15 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     setBulkModalOpen(false);
     await load();
     showToast("明細をまとめて保存しました");
+    return true;
+  }
+
+  async function savePositionAllocations(positions: Array<{ positionId: number; amounts: Array<{ familyMemberId: number; amountJpy: number }> }>) {
+    if (!workingSnapshot || positions.length === 0) return false;
+    const { ok } = await mutate("/positions/allocations", "PATCH", { snapshotId: workingSnapshot.id, positions }, "財産の割り振りを保存できませんでした。入力内容を確認してください。");
+    if (!ok) return false;
+    await load();
+    showToast("財産の割り振りを保存しました");
     return true;
   }
 
@@ -451,12 +465,11 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             </div>
           ) : null}
 
-          {(section === "position-list" || printIncludes("position-list")) && workingSnapshot ? <div id="print-section-position-list" className={`report-document ${section !== "position-list" ? "print-only-document" : ""} ${printIncludes("position-list") ? "" : "print-excluded-document"}`}><PositionListView snapshot={workingSnapshot} detailHref={sectionHref("positions")} taxBurden={buildPositionTaxBurden(workingSnapshot, legalHeirNameSet)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} saving={saving} /></div> : null}
+          {(section === "position-list" || printIncludes("position-list")) && workingSnapshot ? <div id="print-section-position-list" className={`report-document ${section !== "position-list" ? "print-only-document" : ""} ${printIncludes("position-list") ? "" : "print-excluded-document"}`}><PositionListView snapshot={workingSnapshot} detailHref={sectionHref("positions")} taxBurden={buildPositionTaxBurden(workingSnapshot, legalHeirNameSet)} familyMembers={portfolio.familyMembers} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onSaveAllocations={savePositionAllocations} saving={saving} /></div> : null}
           {section === "positions" && workingSnapshot ? <div className="report-document position-details-screen"><AssetsView detailed snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} saving={saving} spotlightId={spotlightId} /></div> : null}
-          {printIncludes("details") && workingSnapshot ? <div id="print-section-details" className="report-document print-only-document"><AssetsView snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} saving={saving} /></div> : null}
+          {printIncludes("details") && workingSnapshot ? <div id="print-section-details" className="report-document print-only-document"><PositionDetailsPrintView snapshot={workingSnapshot} taxBurden={buildPositionTaxBurden(workingSnapshot, legalHeirNameSet)} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
           {section === "family" ? <div className="report-document print-excluded-document"><FamilyView members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} saving={saving} onSave={saveFamilyMembers} /></div> : null}
-          {section === "scenarios" ? <div className="report-document print-excluded-document"><ScenarioView householdId={portfolio.household.id} assets={summary.assets} liabilities={summary.liabilities} defaultTax={reportSnapshot.estimatedInheritanceTax} /></div> : null}
           {(section === "history" || printIncludes("history")) ? <div id="print-section-history" className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printIncludes("history") ? "" : "print-excluded-document"}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}
           {section === "activity" ? <div className="report-document print-excluded-document"><ActivityView householdId={portfolio.household.id} /></div> : null}
           {section === "backup" ? <div className="report-document print-excluded-document"><BackupView scope="household" portfolio={portfolio} /></div> : null}

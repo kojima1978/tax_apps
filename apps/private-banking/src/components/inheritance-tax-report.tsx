@@ -25,7 +25,7 @@ const heirColumns: Array<{
   value: (heir: HeirCalculation) => number;
   text: (heir: HeirCalculation, effectiveTaxRate: number) => string;
 }> = [
-  { key: "acquisition", label: "取得額", left: true, value: (heir) => heir.acquisitionAmountJpy, text: (heir) => yen(heir.acquisitionAmountJpy) },
+  { key: "acquisition", label: "取得額", value: (heir) => heir.acquisitionAmountJpy, text: (heir) => yen(heir.acquisitionAmountJpy) },
   { key: "rate", label: "実効税率", value: () => 0, text: (_heir, rate) => `${rate.toFixed(1)}%` },
   { key: "proportional", label: "算出税額", value: (heir) => heir.proportionalTaxJpy, text: (heir) => yen(heir.proportionalTaxJpy) },
   { key: "surcharge", label: "2割加算", optional: true, value: (heir) => heir.surchargeAmountJpy, text: (heir) => yen(heir.surchargeAmountJpy) },
@@ -84,8 +84,8 @@ function HeirSummary({
     <table>
       <thead>
         <tr>
-          <th scope="col">相続人</th>
-          {columns.map((column) => <th key={column.key} scope="col" className={column.left ? "left" : undefined}>{column.label}</th>)}
+          <th scope="col">取得者</th>
+          {columns.map((column) => <th key={column.key} scope="col" className={column.left ? "left" : "number"}>{column.label}</th>)}
         </tr>
       </thead>
       <tbody>
@@ -99,7 +99,7 @@ function HeirSummary({
             <th scope="row">{name ? <PersonName name={name} /> : heir.label}</th>
             {columns.map((column) => {
               const text = column.text(heir, effectiveTaxRate);
-              return <td key={column.key} className={column.left ? "left" : undefined}>{column.emphasis ? <strong>{text}</strong> : text}</td>;
+              return <td key={column.key} className={column.left ? "left" : "number"}>{column.emphasis ? <strong>{text}</strong> : text}</td>;
             })}
           </tr>;
         })}

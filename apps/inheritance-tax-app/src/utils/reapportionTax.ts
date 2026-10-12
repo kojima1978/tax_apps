@@ -28,6 +28,7 @@ export function reapportionTax(
   spouseMode: SpouseAcquisitionMode,
   adjustAcquisitions: (breakdowns: HeirTaxBreakdown[]) => void,
   getDenominator: (breakdowns: HeirTaxBreakdown[]) => number,
+  shouldApplySurcharge?: (breakdown: HeirTaxBreakdown) => boolean,
 ): DetailedTaxCalculationResult {
   const breakdowns = taxResult.heirBreakdowns.map(b => ({ ...b }));
   if (breakdowns.length === 0) return taxResult;
@@ -108,7 +109,11 @@ export function reapportionTax(
   for (const b of breakdowns) {
     b.surchargeAmount = 0;
   }
-  if (rank === 3) {
+  if (shouldApplySurcharge) {
+    for (const b of breakdowns) {
+      if (shouldApplySurcharge(b)) b.surchargeAmount = Math.floor(b.proportionalTax * 0.2);
+    }
+  } else if (rank === 3) {
     for (const idx of otherIndices) {
       breakdowns[idx].surchargeAmount = Math.floor(breakdowns[idx].proportionalTax * 0.2);
     }

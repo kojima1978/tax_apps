@@ -92,6 +92,17 @@ export function legalHeirRoster(members: Pick<FamilyMemberDraft, "name" | "relat
   };
 }
 
+/** 法定相続人をID付きで、相続税APIの並び（配偶者→同順位の相続人）にそろえて返す。 */
+export function legalHeirMemberRoster<T extends Pick<FamilyMemberDraft, "id" | "name" | "relationship" | "acquisitionReason">>(members: T[]) {
+  const { heirRank } = familyComposition(members);
+  const selected = heirRank === "rank1" ? rank1 : heirRank === "rank2" ? rank2 : heirRank === "rank3" ? rank3 : new Set<Relationship>();
+  const eligible = members.filter((member) => member.acquisitionReason === "INHERITANCE" && member.name.trim());
+  return {
+    spouse: eligible.find((member) => member.relationship === "SPOUSE") ?? null,
+    heirs: eligible.filter((member) => selected.has(member.relationship)),
+  };
+}
+
 /**
  * 法定相続人にあたる親族の氏名。生命保険金・死亡退職金の非課税枠は、
  * 法定相続人が受け取る分にだけ適用されるため、受取人の判定に使う。

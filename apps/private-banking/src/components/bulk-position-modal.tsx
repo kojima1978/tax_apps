@@ -651,7 +651,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>
         <table className="bulk-entry-table">
-          <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional" title={`方式が「${column.conditional}」の行で入力します`}>{column.conditional}</em> : null}</th>)}<th className="bulk-calculated-value">評価額</th><th className="bulk-row-actions">操作・状態</th></tr></thead>
+          <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional" title={`方式が「${column.conditional}」の行で入力します`}>{column.conditional}</em> : null}</th>)}<th className="bulk-calculated-value">評価額（円）</th><th className="bulk-row-actions">操作・状態</th></tr></thead>
           <tbody onPaste={handlePaste} onKeyDown={handleTableKeyDown}>{rows.map((row, rowIndex) => <tr key={row.id} className={row.error ? "has-error" : ""}>
             <th scope="row" className="bulk-row-number">{rowIndex + 1}{row.error ? <span className="sr-only">入力エラー</span> : null}</th>
             {columns.map((column) => {

@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   const source = await prisma.snapshot.findUnique({
     where: { id: sourceSnapshotId },
-    include: { positions: true, household: { select: { id: true, name: true, clientCode: true } } },
+    include: { positions: { include: { allocations: true } }, household: { select: { id: true, name: true, clientCode: true } } },
   });
   if (!source) {
     return NextResponse.json({ error: "コピー元のB/Sが見つかりません。" }, { status: 404 });
@@ -90,9 +90,15 @@ export async function POST(request: Request) {
             create: source.positions.map(
               // Database identifiers and timestamps are regenerated for the copied fiscal year.
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              ({ id: _id, snapshotId: _snapshotId, createdAt: _createdAt, updatedAt: _updatedAt, assetDetails, ...position }) => ({
+              ({ id: _id, snapshotId: _snapshotId, createdAt: _createdAt, updatedAt: _updatedAt, assetDetails, allocations, ...position }) => ({
                 ...position,
                 assetDetails: assetDetails === null ? Prisma.DbNull : assetDetails as Prisma.InputJsonValue,
+                allocations: allocations.length > 0 ? { create: allocations.map((allocation) => ({
+                  familyMemberId: allocation.familyMemberId,
+                  role: allocation.role,
+                  numerator: allocation.numerator,
+                  denominator: allocation.denominator,
+                })) } : undefined,
               }),
             ),
           } } : {}),

@@ -66,7 +66,18 @@ export async function POST(request: Request) {
       smallLotApplied
         ? "小規模宅地等の特例は選択した宅地ごとに減額割合・限度面積を概算適用しています。複数宅地の限度面積調整・選択替えや要件充足の判定は行っていません。"
         : "小規模宅地等の特例、葬式費用、生前贈与加算、未成年者・障害者控除等はこの概算に含めていません。",
-      "死亡保険金・死亡退職金は受取人へ帰属させ、残りの財産を法定相続分で按分しています。実際の遺産分割により配偶者の税額軽減および各人の納付税額は変動します。",
+      integration.acquisitionAllocationMode === "ACTUAL"
+        ? "資産の取得者と負債の負担者の登録内容を、各人の取得割合と納付税額へ反映しています。死亡保険金・死亡退職金は登録した受取人へ帰属させています。"
+        : "取得者・負担者が未確定のため、死亡保険金・死亡退職金を除く財産は法定相続分で按分しています。実際の遺産分割により配偶者の税額軽減および各人の納付税額は変動します。",
+      ...(integration.unassignedPositionCount > 0
+        ? [`取得者・負担者が未定の明細が ${integration.unassignedPositionCount}件あるため、法定相続分による概算を表示しています。すべて登録すると実際の取得割合へ切り替わります。`]
+        : []),
+      ...(integration.nonHeirAllocationCount > 0
+        ? [`親族関係に存在しない人への取得・負担の割当が ${integration.nonHeirAllocationCount}件あるため、現在は法定相続分による概算を表示しています。`]
+        : []),
+      ...(integration.negativeAcquisitionCount > 0
+        ? [`負債負担額が資産取得額を上回る人が ${integration.negativeAcquisitionCount}名いるため、個人別の債務控除を自動適用せず、法定相続分による概算を表示しています。`]
+        : []),
       // 法定相続人以外が受取人の分は、按分に混ぜたうえで相続人だけで税額を割り振っている。
       // 実務では相続人以外の取得者として2割加算まで含めて計算するので、差が出ることを明示する。
       ...(integration.nonHeirRecipientCount > 0

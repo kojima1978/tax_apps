@@ -33,6 +33,7 @@ export const inheritanceTaxApiCalculationSchema = z.object({
   calculationVersion: z.string(),
   taxRuleAsOf: z.string(),
   calculatedAt: z.string().datetime(),
+  acquisitionAllocationMode: z.enum(["LEGAL", "ACTUAL"]).default("LEGAL"),
   unit: z.literal("JPY"),
   familyComposition: familyCompositionSchema,
   legalHeirCount: z.number().int().min(0).max(21),

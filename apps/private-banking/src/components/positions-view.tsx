@@ -34,7 +34,7 @@ import {
 const JPY_PER_MAN_YEN = 10_000;
 
 /**
- * 生命保険・退職金の円換算時価は「解約返戻金（解約手当金）」と「死亡給付金」の2段。
+ * 生命保険・退職金の評価額（円）は「解約返戻金（解約手当金）」と「死亡給付金」の2段。
  * 金額を並べるだけでは紙の上でどちらの評価額か判別できないので、両方に名前を付ける。
  */
 function DeemedAmounts({ position }: { position: Position }) {
@@ -52,7 +52,7 @@ function DeemedAmounts({ position }: { position: Position }) {
 }
 
 /**
- * 生命保険・退職金の相続税負担額を、円換算時価の2段と同じ高さに並べる。
+ * 生命保険・退職金の相続税負担額を、評価額（円）の2段と同じ高さに並べる。
  * 課税されるのは死亡給付金だけで、解約返戻金（解約手当金）には相続税が掛からないことを段の位置で示す。
  */
 function DeemedTaxBurden({ position, value }: { position: Position; value: number | null }) {
@@ -323,7 +323,7 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
       <p className="sr-only" aria-live="polite">{announcement}</p>
       <div className="table-scroll">
         <table className={`position-table ${hasTaxBurden ? "" : "without-tax-burden"}`}>
-          <thead><tr><th className="reorder-column"><span className="sr-only">並び順</span></th><th>中分類</th><th>科目・名称</th><th>所在地・金融機関等</th><th>評価方法</th><th className="number">円換算時価</th><th className="number tax-burden-column">相続税負担額</th><th className="actions-column">操作</th></tr></thead>
+          <thead><tr><th className="reorder-column"><span className="sr-only">並び順</span></th><th>中分類</th><th>科目・名称</th><th>所在地・金融機関等</th><th>評価方法</th><th className="number">評価額（円）</th><th className="number tax-burden-column">相続税負担額</th><th className="actions-column">操作</th></tr></thead>
           <tbody>
             {visibleItems.length === 0 ? <tr className="position-empty-row"><td colSpan={8}>{/* 未登録と「絞り込みの結果0件」は別物。未登録のときだけ最初の1件への入口を出す。 */items.length === 0
               ? <div className="list-empty-state"><p>まだ{sectionAddLabels[section]}の明細がありません。</p><button type="button" className="button primary" onClick={() => onAdd(section)}><Plus />{sectionAddLabels[section]}を追加</button></div>
@@ -353,7 +353,7 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
                   <small className="position-meta">{institutionOrPropertyAddress(p) ? <span className="position-meta-place">{institutionOrPropertyAddress(p)}</span> : null}{p.valuationMethod ? <span className="position-meta-method">{p.valuationMethod}</span> : null}</small></td>
                 <td data-label="所在地・金融機関等" title={institutionOrPropertyAddress(p) || undefined}>{institutionOrPropertyAddress(p) || "—"}</td>
                 <td data-label="評価方法" title={valuationDetailLine(p) || p.valuationMethod}><span>{p.valuationMethod}</span>{valuationDetailLine(p) ? <small className="valuation-breakdown">{valuationDetailLine(p)}</small> : null}</td>
-                <td data-label="円換算時価" className={`number ${splitBurden ? "deemed-cell" : ""}`}><DeemedAmounts position={p} />{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}</td>
+                <td data-label="評価額（円）" className={`number ${splitBurden ? "deemed-cell" : ""}`}><DeemedAmounts position={p} />{p.currency !== "JPY" ? <small>{p.originalAmount.toLocaleString()} {p.currency} × {p.fxRate}</small> : null}</td>
                 <td data-label="相続税負担額" className={`number tax-burden-column ${splitBurden ? "deemed-cell" : ""}`}>{splitBurden ? <DeemedTaxBurden position={p} value={burden} /> : <TaxBurdenAmount value={burden} />}</td>
                 <td data-label="操作"><div className="table-actions"><ActionMenu
                   id={`position-menu-${p.id}`}
@@ -367,9 +367,9 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
               </tr>
             )})}
           </tbody>
-          {/* 合計も見出しと同じ列構成で並べ、金額を「円換算時価」「相続税負担額」の列の真下に揃える。
+          {/* 合計も見出しと同じ列構成で並べ、金額を「評価額（円）」「相続税負担額」の列の真下に揃える。
               並び順・操作の列は印刷で消えるため、他の列とまとめず単独のセルにしておく。 */}
-          <tfoot><tr className="position-total-row"><td className="reorder-cell" /><th scope="row" colSpan={4} className="position-total-label">{filterActive ? "表示中の合計" : "合計"}</th><td data-label="円換算時価" className="number">{yen.format(visibleTotal)}</td><td data-label="相続税負担額" className="number tax-burden-column"><TaxBurdenAmount value={visibleBurdenTotal} /></td><td className="actions-cell" /></tr></tfoot>
+          <tfoot><tr className="position-total-row"><td className="reorder-cell" /><th scope="row" colSpan={4} className="position-total-label">{filterActive ? "表示中の合計" : "合計"}</th><td data-label="評価額（円）" className="number">{yen.format(visibleTotal)}</td><td data-label="相続税負担額" className="number tax-burden-column"><TaxBurdenAmount value={visibleBurdenTotal} /></td><td className="actions-cell" /></tr></tfoot>
         </table>
       </div>
     </section>

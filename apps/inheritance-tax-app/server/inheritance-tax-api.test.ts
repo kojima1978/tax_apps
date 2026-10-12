@@ -147,6 +147,36 @@ describe('calculateInheritanceTaxApi', () => {
     expect(result.heirs.reduce((sum, heir) => sum + heir.finalTaxJpy, 0)).toBe(result.totalInheritanceTaxJpy);
   });
 
+  it('登録された実際の取得割合で税額を按分し、指定した相続人へ2割加算する', () => {
+    const result = calculateInheritanceTaxApi({
+      estateValueJpy: 100_000_000,
+      familyComposition: { hasSpouse: true, selectedRank: 'rank1', heirCount: 2 },
+      actualAcquisitionShares: { spouse: 0.25, heirs: [0.5, 0.25] },
+      specialTaxAdditionTargets: { spouse: false, heirs: [true, false] },
+    });
+
+    expect(result.acquisitionAllocationMode).toBe('ACTUAL');
+    expect(result.heirs.map((heir) => heir.acquisitionAmountJpy)).toEqual([25_000_000, 50_000_000, 25_000_000]);
+    expect(result.heirs[1].surchargeAmountJpy).toBeGreaterThan(0);
+    expect(result.heirs[2].surchargeAmountJpy).toBe(0);
+  });
+
+  it('法定相続人以外の取得者にも実取得額を配分し2割加算する', () => {
+    const result = calculateInheritanceTaxApi({
+      estateValueJpy: 100_000_000,
+      familyComposition: { hasSpouse: true, selectedRank: 'rank1', heirCount: 1 },
+      actualAcquisitionShares: {
+        spouse: 0.5,
+        heirs: [0],
+        others: [{ id: '9', label: '友人 太郎', share: 0.5, specialTaxAddition: true }],
+      },
+    });
+
+    expect(result.heirs).toHaveLength(3);
+    expect(result.heirs[2]).toMatchObject({ id: 'other:9', label: '友人 太郎', type: 'other', acquisitionAmountJpy: 50_000_000 });
+    expect(result.heirs[2].surchargeAmountJpy).toBeGreaterThan(0);
+  });
+
   it('法定相続人以外が受け取る死亡保険金は受取人へ帰属させず按分に含める', () => {
     const result = calculateInheritanceTaxApi({
       estateValueJpy: 100_000_000,

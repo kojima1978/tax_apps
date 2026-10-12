@@ -32,7 +32,7 @@ describe("AssetsView（生命保険の相続税負担額）", () => {
     expect(lines[0].textContent).not.toContain("対象外");
     // 正味財産 = 預金5,000万円 + 死亡保険金5,000万円。相続税1,100万円のうち半分が死亡保険金の段に出る。
     expect(lines[1].textContent).toContain("5,500,000");
-    expect(cell("円換算時価").querySelectorAll(".deemed-amount")).toHaveLength(2);
+    expect(cell("評価額（円）").querySelectorAll(".deemed-amount")).toHaveLength(2);
   });
 
   it("死亡保険金が未入力なら段を分けない", () => {
@@ -61,7 +61,7 @@ describe("AssetsView（行の操作）", () => {
 
   it("行を押すと修正を開く", () => {
     const { onEdit, row } = renderRow();
-    fireEvent.click(row.querySelector('td[data-label="円換算時価"]') as HTMLElement);
+    fireEvent.click(row.querySelector('td[data-label="評価額（円）"]') as HTMLElement);
     expect(onEdit).toHaveBeenCalledWith(snapshot.positions[0]);
   });
 

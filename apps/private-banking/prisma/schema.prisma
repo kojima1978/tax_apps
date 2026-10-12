@@ -104,6 +104,7 @@ model FamilyMember {
   sortOrder             Int       @default(0)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  positionAllocations   PositionAllocation[]
 
   @@index([householdId, sortOrder])
 }
@@ -161,6 +162,24 @@ model Position {
   sortOrder          Int      @default(0)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  allocations        PositionAllocation[]
 
   @@index([snapshotId, side, category])
+}
+
+/// 資産の取得者、または負債・偶発債務の負担者。分数で複数人へ按分する。
+model PositionAllocation {
+  id             Int          @id @default(autoincrement())
+  positionId     Int
+  position       Position     @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  familyMemberId Int
+  familyMember   FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  role           String
+  numerator      Int
+  denominator    Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([positionId, familyMemberId, role])
+  @@index([familyMemberId])
 }

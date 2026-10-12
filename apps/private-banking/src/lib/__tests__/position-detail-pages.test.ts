@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DETAIL_PAGES, detailColumns, detailPageFor, parseColumnPreferences } from "@/lib/position-detail-pages";
+import { DETAIL_PAGES, defaultColumns, detailColumns, detailPageFor, parseColumnPreferences } from "@/lib/position-detail-pages";
 import { type Position } from "@/lib/portfolio-view";
 
 describe("科目別ページと列設定", () => {
@@ -7,6 +7,20 @@ describe("科目別ページと列設定", () => {
     const property = { side: "ASSET", category: "HOME_REAL_ESTATE", assetDetails: { propertyType: "LAND" } } as Position;
     expect(detailPageFor(property)?.key).toBe("home-real-estate-land");
     expect(detailPageFor({ ...property, assetDetails: { propertyType: "BUILDING" } })?.key).toBe("home-real-estate-building");
+  });
+  it("標準表示は科目固有の主要列に絞り、コンパクトな幅にする", () => {
+    const columns = detailColumns(DETAIL_PAGES.find((p) => p.key === "insurance")!);
+    const defaults = defaultColumns(columns);
+    expect(defaults.visible).not.toContain("method");
+    expect(defaults.widths.name).toBe(150);
+    expect(defaults.widths.value).toBe(130);
+  });
+  it("数値・文字・日付の列配置を列定義で統一する", () => {
+    const columns = detailColumns(DETAIL_PAGES.find((p) => p.key === "home-real-estate-land")!);
+    const alignment = Object.fromEntries(columns.map((column) => [column.key, column.alignment]));
+    const depositColumns = detailColumns(DETAIL_PAGES.find((p) => p.key === "deposit")!);
+    expect(alignment).toMatchObject({ name: "text", 土地面積: "number", 持分: "number", 路線価: "number", value: "number", formula: "text", currency: "center" });
+    expect(depositColumns.find((column) => column.key === "満期日")?.alignment).toBe("center");
   });
   it("壊れた設定は復旧し、必須列・幅の範囲・列の重複を検証する", () => {
     const columns = detailColumns(DETAIL_PAGES.find((p) => p.key === "insurance")!);

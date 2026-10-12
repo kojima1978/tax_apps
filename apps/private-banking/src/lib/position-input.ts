@@ -71,6 +71,11 @@ const assetDetailsSchema = z.object({
 const stockCategories = new Set(["SECURITIES", "PRIVATE_SHARES"]);
 const unitRateCategorySet = new Set(unitRateCategories);
 const realEstateCategorySet = new Set(realEstateCategories);
+const positionAllocationSchema = z.object({
+  familyMemberId: z.coerce.number().int().positive(),
+  numerator: z.coerce.number().int().positive(),
+  denominator: z.coerce.number().int().positive(),
+});
 
 export const positionInputSchema = z.object({
   side: z.enum(["ASSET", "LIABILITY"]),
@@ -92,6 +97,7 @@ export const positionInputSchema = z.object({
   ownershipNumerator: optionalPositiveInteger,
   ownershipDenominator: optionalPositiveInteger,
   assetDetails: assetDetailsSchema,
+  allocations: z.array(positionAllocationSchema).max(20).default([]),
   note: z.string().trim().max(500).default(""),
 }).superRefine((data, context) => {
   const requirePositive = (value: number | null, path: string, label: string) => {
@@ -133,6 +139,20 @@ export const positionInputSchema = z.object({
     if (total === null || total.numerator !== total.denominator) {
       const current = total === null ? "" : `（現在 ${total.numerator}/${total.denominator}）`;
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "benefitAllocations"], message: `受取人ごとの分数の合計を1にしてください${current}。` });
+    }
+  }
+  const memberIds = new Set<number>();
+  for (const [index, allocation] of data.allocations.entries()) {
+    if (memberIds.has(allocation.familyMemberId)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["allocations", index, "familyMemberId"], message: "同じ取得者・負担者を重複して登録できません。" });
+    }
+    memberIds.add(allocation.familyMemberId);
+  }
+  if (data.allocations.length > 0) {
+    const total = fractionTotal(data.allocations);
+    if (total === null || total.numerator !== total.denominator) {
+      const current = total === null ? "" : `（現在 ${total.numerator}/${total.denominator}）`;
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["allocations"], message: `取得者・負担者の分数の合計を1にしてください${current}。` });
     }
   }
   if (realEstateCategorySet.has(data.category)) {

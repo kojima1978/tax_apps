@@ -18,6 +18,13 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   if (!parsed.success) return NextResponse.json({ error: positionInputErrorMessage(parsed.error) }, { status: 400 });
 
   const data = parsed.data;
+  const { allocations, ...positionData } = data;
+  const familyMemberCount = allocations.length === 0 ? 0 : await prisma.familyMember.count({
+    where: { householdId: household.id, id: { in: allocations.map((allocation) => allocation.familyMemberId) } },
+  });
+  if (familyMemberCount !== allocations.length) {
+    return NextResponse.json({ error: "取得者・負担者に、この顧客へ登録されていない人が含まれています。" }, { status: 400 });
+  }
   // 円換算レートは明細ではなく年度に登録した値を使う。
   const fxRate = fxRateFor(parseFxRates(position.snapshot.fxRates), data.currency);
   if (fxRate === null) return NextResponse.json({ error: missingFxRateMessage(data.currency) }, { status: 400 });
@@ -37,7 +44,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     await tx.position.update({
       where: { id: position.id },
       data: {
-        ...data,
+        ...positionData,
         ownershipShare: calculatedOwnershipShare(data),
         valuationMethod: normalizedValuationMethod(data),
         liquidity: liquidityForCategory(data.category),
@@ -46,6 +53,13 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         valueJpy: new Prisma.Decimal(valueJpy),
         includedInNetWorth,
         ...(sectionChanged ? { sortOrder: (lastPosition?.sortOrder ?? -1) + 1 } : {}),
+        allocations: {
+          deleteMany: {},
+          ...(allocations.length > 0 ? { create: allocations.map((allocation) => ({
+            ...allocation,
+            role: data.side === "ASSET" ? "ACQUIRER" : "DEBT_BEARER",
+          })) } : {}),
+        },
       },
     });
     await tx.snapshot.update({ where: { id: position.snapshotId }, data: { updatedAt: new Date() } });

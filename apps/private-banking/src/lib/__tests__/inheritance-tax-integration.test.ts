@@ -56,6 +56,58 @@ describe("createInheritanceTaxRequest", () => {
     });
   });
 
+  it("すべての資産・負債が法定相続人へ割当済みなら実際の取得割合を渡す", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      familyMembers: [
+        { id: 1, name: "山田 花子", relationship: "SPOUSE", acquisitionReason: "INHERITANCE", specialTaxAddition: false },
+        { id: 2, name: "山田 一郎", relationship: "CHILD", acquisitionReason: "INHERITANCE", specialTaxAddition: false },
+        { id: 3, name: "山田 二郎", relationship: "CHILD", acquisitionReason: "INHERITANCE", specialTaxAddition: true },
+      ],
+      snapshots: [{
+        ...portfolio.snapshots[0],
+        positions: [
+          { side: "ASSET", category: "DEPOSIT", valueJpy: 100_000_000, assetDetails: {}, allocations: [
+            { familyMemberId: 1, numerator: 1, denominator: 2 },
+            { familyMemberId: 2, numerator: 1, denominator: 2 },
+          ] },
+          { side: "LIABILITY", category: "LOAN_OTHER", valueJpy: 20_000_000, includedInNetWorth: true, allocations: [
+            { familyMemberId: 1, numerator: 1, denominator: 2 },
+            { familyMemberId: 2, numerator: 1, denominator: 2 },
+          ] },
+        ],
+      }],
+    } as unknown as Portfolio);
+
+    expect(result.acquisitionAllocationMode).toBe("ACTUAL");
+    expect(result.request.actualAcquisitionShares).toEqual({ spouse: 0.5, heirs: [0.5, 0], others: [] });
+    expect(result.request.specialTaxAdditionTargets).toEqual({ spouse: false, heirs: [false, true] });
+  });
+
+  it("法定相続人以外の取得者も実取得割合と2割加算対象として渡す", () => {
+    const result = createInheritanceTaxRequest({
+      ...portfolio,
+      familyMembers: [
+        { id: 1, name: "山田 花子", relationship: "SPOUSE", acquisitionReason: "INHERITANCE", specialTaxAddition: false },
+        { id: 2, name: "山田 一郎", relationship: "CHILD", acquisitionReason: "INHERITANCE", specialTaxAddition: false },
+        { id: 9, name: "友人 太郎", relationship: "OTHER", acquisitionReason: "BEQUEST", specialTaxAddition: true },
+      ],
+      snapshots: [{ ...portfolio.snapshots[0], positions: [{
+        side: "ASSET", category: "DEPOSIT", valueJpy: 100_000_000, assetDetails: {}, allocations: [
+          { familyMemberId: 1, numerator: 1, denominator: 2 },
+          { familyMemberId: 9, numerator: 1, denominator: 2 },
+        ],
+      }] }],
+    } as unknown as Portfolio);
+
+    expect(result.acquisitionAllocationMode).toBe("ACTUAL");
+    expect(result.request.actualAcquisitionShares).toEqual({
+      spouse: 0.5,
+      heirs: [0],
+      others: [{ id: "9", label: "友人 太郎", share: 0.5, specialTaxAddition: true }],
+    });
+  });
+
   it("相続順位がnoneの場合は人数を0人にする", () => {
     const result = createInheritanceTaxRequest({
       ...portfolio,

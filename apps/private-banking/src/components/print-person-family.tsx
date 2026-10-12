@@ -36,8 +36,8 @@ export function PersonFamilyPrintView({
       <header><h3>本人情報</h3></header>
       <dl className="print-profile-grid">
         <div><dt>氏名</dt><dd><PersonName name={household.name} /></dd></div>
-        <div><dt>生年月日</dt><dd><BirthDate value={household.birthDate} /></dd></div>
-        <div><dt>年齢</dt><dd>{personAge === null ? "－" : `${personAge}歳`}</dd></div>
+        <div><dt>生年月日</dt><dd className="center"><BirthDate value={household.birthDate} /></dd></div>
+        <div><dt>年齢</dt><dd className="number">{personAge === null ? "－" : `${personAge}歳`}</dd></div>
       </dl>
     </article>
 
@@ -46,9 +46,9 @@ export function PersonFamilyPrintView({
       {relatives.length === 0 ? <p className="print-family-empty">家族情報は登録されていません。</p> : <table className="print-family-table">
         <thead><tr>
           <th>氏名</th><th>続柄</th>
-          <th>民法上の<br />法定相続分</th><th>税法上の<br />法定相続分</th>
-          <th>生年月日</th><th>年齢</th>
-          <th>2割加算</th><th>配偶者<br />税額控除</th><th>未成年者<br />控除</th><th>障害者<br />控除</th>
+          <th className="numeric">民法上の<br />法定相続分</th><th className="numeric">税法上の<br />法定相続分</th>
+          <th className="center">生年月日</th><th className="numeric">年齢</th>
+          <th className="applicability">2割加算</th><th className="applicability">配偶者<br />税額控除</th><th className="applicability">未成年者<br />控除</th><th className="applicability">障害者<br />控除</th>
         </tr></thead>
         <tbody>{relatives.map((member) => {
           const age = ageOnDate(member.birthDate, referenceDate);
@@ -58,7 +58,7 @@ export function PersonFamilyPrintView({
             <td>{relationshipLabels[member.relationship]}</td>
             <td className="numeric">{fraction(member.civilShareNumerator, member.civilShareDenominator)}</td>
             <td className="numeric">{fraction(member.taxShareNumerator, member.taxShareDenominator)}</td>
-            <td><BirthDate value={member.birthDate} /></td>
+            <td className="center"><BirthDate value={member.birthDate} /></td>
             <td className="numeric">{age === null ? "－" : `${age}歳`}</td>
             <td className="applicability">{applicability(adjustments.specialTaxAddition)}</td>
             <td className="applicability">{applicability(adjustments.spouseCredit)}</td>

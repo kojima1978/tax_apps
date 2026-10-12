@@ -12,7 +12,16 @@ export type Position = {
   landArea: number | null; roadsideValue: number | null; fixedAssetTaxValue: number | null; valuationMultiplier: number | null; ownershipShare: number | null;
   ownershipNumerator: number | null; ownershipDenominator: number | null;
   assetDetails: AssetDetails | null;
+  allocations?: PositionAllocation[];
   note: string;
+};
+export type PositionAllocation = {
+  id: number;
+  familyMemberId: number;
+  familyMemberName: string;
+  role: "ACQUIRER" | "DEBT_BEARER";
+  numerator: number;
+  denominator: number;
 };
 export type AssetDetails = {
   accountType?: string; branchName?: string; accountSuffix?: string; maturityDate?: string;
@@ -46,7 +55,7 @@ export type Portfolio = {
   snapshots: Snapshot[];
 };
 /** サイドバーのメニュー key。そのまま URL の `/customers/<id>/<key>` になる。 */
-export type Section = "balance" | "position-list" | "positions" | "tax" | "profile" | "family" | "history" | "scenarios" | "activity" | "backup";
+export type Section = "balance" | "position-list" | "positions" | "tax" | "profile" | "family" | "history" | "activity" | "backup";
 export type BulkPositionPayload = Record<string, unknown>;
 export type BalanceScenario = "without-tax" | "with-tax";
 export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "position-list" | "details" | "history";
@@ -244,7 +253,7 @@ export const hasDeemedBenefit = (position: Position) => {
   const config = deemedConfig(position);
   return config !== null && position.assetDetails?.[config.benefitKey] != null;
 };
-/** 死亡保険金・死亡退職金の円換算額。B/Sの資産合計や明細の円換算時価はこちらを使う。 */
+/** 死亡保険金・死亡退職金の円換算額。B/Sの資産合計や明細の評価額（円）はこちらを使う。 */
 export const deemedBenefitJpy = (position: Position) => {
   const benefit = deemedBenefit(position);
   return benefit > 0 ? Math.round(benefit * position.fxRate) : 0;
