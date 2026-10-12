@@ -98,6 +98,10 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(within(list).getByRole("columnheader", { name: /長男/ })).toBeTruthy();
     const group = list.querySelector(".position-summary-group") as HTMLElement;
     expect(group.querySelectorAll("tr")).toHaveLength(2);
+    expect(list.querySelectorAll(".position-summary-action-column")).toHaveLength(4);
+    const secondaryLastCell = group.querySelector(".position-summary-secondary-row > :last-child") as HTMLElement;
+    expect(secondaryLastCell.classList.contains("position-summary-unallocated")).toBe(true);
+    expect(secondaryLastCell.classList.contains("position-summary-action-column")).toBe(false);
     const moneyCells = [...group.querySelectorAll(".position-summary-sticky-money")];
     expect(moneyCells).toHaveLength(2);
     expect(moneyCells.map((cell) => cell.textContent)).toEqual([yen.format(100), yen.format(12)]);

@@ -1512,7 +1512,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-summary-table thead th.number { text-align: right; }
 .position-summary-table thead th > span { display: block; margin-top: 2px; color: var(--slate-600); font-size: 9px; font-weight: 600; }
 .position-summary-table thead th > .position-summary-heading-main { margin-top: 0; color: inherit; font-size: inherit; font-weight: inherit; }
-.position-summary-table th:last-child { min-width: 60px; width: 60px; }
+.position-summary-table .position-summary-action-column { min-width: 60px; width: 60px; }
 .position-summary-table tbody { cursor: pointer; }
 .position-summary-table tbody:hover tr > * { background-color: #f0fdf4; }
 .position-summary-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1608,7 +1608,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-summary-panel > .allocation-view-hidden { display: block !important; }
   /* 一覧は複数ページにまたがる前提。共通の .panel の avoid を残すと、
      見出しだけを前ページへ残して表全体が次ページへ送られる。 */
-  .panel.position-summary-panel { overflow: visible; break-inside: auto; page-break-inside: auto; }
+  .panel.position-summary-panel { overflow: visible; border: 0; break-inside: auto; page-break-inside: auto; }
 }
 .position-section-badge { padding: 3px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #166534; background: #dcfce7; }
 .position-section-badge.section-LIABILITY { color: #9a3412; background: #ffedd5; }
@@ -1721,13 +1721,15 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-list-print-title { display: block; font-size: 18px; }
   .position-details-screen, .position-list-filters, .position-result-count, .position-summary-open { display: none !important; }
   .position-summary-scroll { overflow: visible; }
-  .position-summary-table { min-width: 0; width: 100%; table-layout: fixed; }
+  .position-summary-table { min-width: 0; width: 100%; table-layout: fixed; border-collapse: collapse; }
   .position-summary-table thead { display: table-header-group; }
   .position-summary-table tfoot { display: table-row-group; }
   .position-summary-table td, .position-summary-table th { min-width: 0 !important; width: auto !important; max-width: none !important; padding: 1.2mm 1mm; font-size: 7px; white-space: normal; }
+  .position-summary-table thead th { border-top: 1px solid var(--line); }
+  .position-summary-table tr > :first-child { border-left: 1px solid var(--line); }
   /* 画面用の「詳細」操作は紙では使えない。リンクだけでなく列自体を落とし、
      余った幅を名称・評価情報・相続人列へ配分する。 */
-  .position-summary-table th:last-child, .position-summary-table td:last-child { display: none !important; }
+  .position-summary-table .position-summary-action-column { display: none !important; }
   .position-summary-table .position-summary-sticky-section, .position-summary-table .position-summary-sticky-subject, .position-summary-table .position-summary-sticky-money { position: static; box-shadow: none; }
   .position-summary-table .position-summary-sticky-section { width: 6% !important; }
   .position-summary-table .position-summary-sticky-subject { width: 16% !important; }
@@ -1770,19 +1772,19 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .print-cover-main dt { color: #4a5761; font-size: 10.5px; font-weight: 600; }
   .print-cover-main dd { margin: 0; color: #172c25; font-size: 12.5px; font-weight: 700; }
   .print-cover-confidential { margin: 0; color: #525f59; font-size: 9.5px; font-weight: 700; letter-spacing: .22em; text-align: right; }
-  .print-toc { padding: 10mm 16mm 7mm; display: flex; flex-direction: column; color: #172c25; background: #fff; }
-  .print-toc header { padding-bottom: 7mm; border-bottom: 2px solid #285f4d; }
-  .print-toc header h2 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 25px; font-weight: 600; }
-  .print-toc ol { margin: 8mm 0; padding: 0; list-style: none; }
-  .print-toc li { min-height: 21mm; padding: 4mm 2mm; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 14mm minmax(0, 1fr); gap: 3mm; align-items: start; box-sizing: border-box; }
-  .print-toc-index { padding-top: .2mm; color: #2f765e; font-family: Georgia, serif; font-size: 17px; line-height: 1; }
+  .print-toc { height: 178mm; padding: 7mm 14mm 5mm; display: flex; flex-direction: column; color: #172c25; background: #fff; }
+  .print-toc header { padding-bottom: 4mm; border-bottom: 2px solid #285f4d; }
+  .print-toc header h2 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 23px; font-weight: 600; }
+  .print-toc ol { margin: 4mm 0; padding: 0; list-style: none; }
+  .print-toc li { min-height: 16mm; padding: 2.5mm 2mm; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 12mm minmax(0, 1fr); gap: 2.5mm; align-items: start; box-sizing: border-box; }
+  .print-toc-index { padding-top: .2mm; color: #2f765e; font-family: Georgia, serif; font-size: 15px; line-height: 1; }
   .print-toc-copy { min-width: 0; display: flex; flex-direction: column; gap: 1mm; }
-  .print-toc-copy strong { color: #123c31; font-size: 14px; }
-  .print-toc-copy small { color: #4a5761; font-size: 10.5px; line-height: 1.5; overflow-wrap: anywhere; }
+  .print-toc-copy strong { color: #123c31; font-size: 12.5px; }
+  .print-toc-copy small { color: #4a5761; font-size: 9px; line-height: 1.35; overflow-wrap: anywhere; }
   /* 免責は目次ページの下端（margin-top: auto）。毎ページに固定で重ねると明細表と
      かぶるため、ページ内固定ではなくフローの最後に置いている。 */
-  .print-disclaimer { margin: auto 0 0; padding: 4mm 5mm; color: #3f4c56; border: 1px solid var(--line); border-left: 2.5px solid #2f765e; background: #fbfcfc; font-size: 9.5px; line-height: 1.75; }
-  .print-disclaimer strong { margin: 0 0 1.5mm; color: #123c31; font-size: 10px; display: block; }
+  .print-disclaimer { margin: auto 0 0; padding: 2.5mm 4mm; color: #3f4c56; border: 1px solid var(--line); border-left: 2.5px solid #2f765e; background: #fbfcfc; font-size: 8.5px; line-height: 1.5; break-inside: avoid; page-break-inside: avoid; }
+  .print-disclaimer strong { margin: 0 0 .8mm; color: #123c31; font-size: 9px; display: block; }
   .print-only-document { display: block !important; }
   .print-excluded-document { display: none !important; }
   /* 印刷対象外の文書は DOM に残る（上の display:none）ため、隣接（+）で判定すると
