@@ -253,16 +253,17 @@ function AssetSpecificFields({
 /** 区分ごとの既定科目。区分を切り替えたときと、表ごとの「追加」から開いたときの初期値を揃える。 */
 const defaultCategoryOf = (section: PositionSection) => section === "ASSET" ? "DEPOSIT" : section === "LIABILITY" ? "LOAN_OTHER" : "GUARANTEE";
 
-export function PositionModal({ position, defaultSection = "ASSET", people, legalHeirNames, fxRates, onClose, onSubmit, saving }: { position: Position | null; defaultSection?: PositionSection; people: string[]; legalHeirNames: ReadonlySet<string>; fxRates: FxRates; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
+export function PositionModal({ position, defaultSection = "ASSET", defaultCategory, defaultPropertyType = "LAND", people, legalHeirNames, fxRates, onClose, onSubmit, saving }: { position: Position | null; defaultSection?: PositionSection; defaultCategory?: string; defaultPropertyType?: "LAND" | "BUILDING"; people: string[]; legalHeirNames: ReadonlySet<string>; fxRates: FxRates; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
+  const initialCategory = position?.category ?? defaultCategory ?? defaultCategoryOf(defaultSection);
   const assetDetails = position?.assetDetails ?? {};
   const [fallbackOwnershipNumerator, fallbackOwnershipDenominator] = decimalToFraction(position?.ownershipShare ?? null);
   const [section, setSection] = useState<PositionSection>(position ? positionSection(position) : defaultSection);
   // 科目は中分類で絞り込んでから選ぶ。科目が11件のフラットな一覧だと目的の科目を探しづらいため。
-  const [group, setGroup] = useState<AssetGroupLabel>(assetGroupOf(position?.category ?? "DEPOSIT") ?? "金融資産");
-  const [category, setCategory] = useState(position?.category ?? defaultCategoryOf(defaultSection));
+  const [group, setGroup] = useState<AssetGroupLabel>(assetGroupOf(initialCategory) ?? "金融資産");
+  const [category, setCategory] = useState(initialCategory);
   const [currency, setCurrency] = useState(foreignCurrencyCategories.includes(position?.category ?? "") ? position?.currency ?? "JPY" : "JPY");
   // 自社株も直接入力を選べるので、保存済みの評価方法をそのまま開く。新規追加時の既定は changeCategory 側で決める。
-  const [formula, setFormula] = useState<ValuationFormula>(position?.valuationFormula ?? "MANUAL");
+  const [formula, setFormula] = useState<ValuationFormula>(position?.valuationFormula ?? (realEstateCategories.includes(initialCategory) && defaultPropertyType === "BUILDING" ? "BUILDING" : defaultFormulaByCategory[initialCategory] ?? "MANUAL"));
   const [quantity, setQuantity] = useState(position?.valuationQuantity === null || position?.valuationQuantity === undefined ? "" : String(position.valuationQuantity));
   const [unitPrice, setUnitPrice] = useState(position?.valuationUnitPrice === null || position?.valuationUnitPrice === undefined ? "" : String(position.valuationUnitPrice));
   const [adjustmentRate, setAdjustmentRate] = useState(position?.adjustmentRate === null || position?.adjustmentRate === undefined ? "1.0" : String(position.adjustmentRate));
@@ -272,7 +273,7 @@ export function PositionModal({ position, defaultSection = "ASSET", people, lega
   const [valuationMultiplier, setValuationMultiplier] = useState(position?.valuationMultiplier === null || position?.valuationMultiplier === undefined ? "" : String(position.valuationMultiplier));
   const [ownershipNumerator, setOwnershipNumerator] = useState(String(position?.ownershipNumerator ?? fallbackOwnershipNumerator));
   const [ownershipDenominator, setOwnershipDenominator] = useState(String(position?.ownershipDenominator ?? fallbackOwnershipDenominator));
-  const [propertyType, setPropertyType] = useState<string>((position ? propertyTypeOf(position) : null) ?? "LAND");
+  const [propertyType, setPropertyType] = useState<string>((position ? propertyTypeOf(position) : null) ?? defaultPropertyType);
   // 直接入力の金額。下の操作行に常に表示するため、入力欄の中ではなくここで持つ。
   const [manualAmount, setManualAmount] = useState(position ? String(position.originalAmount) : "");
   // 生命保険は契約名を持たせず、保険会社を明細の名称として使う。

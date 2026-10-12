@@ -332,7 +332,8 @@ export function ClientList() {
 const CLIENT_MENU_LINKS = [
   { section: "profile", label: "本人情報", icon: CircleUserRound },
   { section: "balance", label: "貸借対照表", icon: LayoutDashboard },
-  { section: "positions", label: "資産・負債明細", icon: WalletCards },
+  { section: "position-list", label: "資産・負債一覧", icon: WalletCards },
+  { section: "positions", label: "資産・負債詳細", icon: WalletCards },
 ] as const;
 
 function ClientRowActions({ client, busy, loading, onDelete }: { client: ClientSummary; busy: boolean; loading: boolean; onDelete: () => void }) {

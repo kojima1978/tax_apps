@@ -4,6 +4,7 @@ import { GripVertical, Pencil, Plus, Table2, Trash2 } from "lucide-react";
 import { DragEvent, KeyboardEvent, useMemo, useState } from "react";
 import { ActionMenu } from "@/components/action-menu";
 import { PanelHeader } from "@/components/panel-header";
+import { PositionDetailsView } from "@/components/position-details-view";
 import { triangleYen, yen } from "@/lib/format";
 import {
   type DeemedCategory,
@@ -97,10 +98,9 @@ const classificationTone: Record<string, string> = {
   その他資産: "other",
 };
 
-export function AssetsView({ snapshot, legalHeirNames, onAdd, onBulkManage, onEdit, onDelete, onReorder, onBack, saving, spotlightId }: { snapshot: Snapshot; legalHeirNames: ReadonlySet<string>; onAdd: (section: PositionSection) => void; onBulkManage: () => void; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; onBack?: () => void; saving: boolean; /** 不動産一覧などから送られてきた明細。その行を一瞬光らせるだけで、修正は開かない。 */ spotlightId?: number | null }) {
+export function buildPositionTaxBurden(snapshot: Snapshot, legalHeirNames: ReadonlySet<string>) {
   const assets = snapshot.positions.filter((p) => p.side === "ASSET");
   const liabilities = snapshot.positions.filter((p) => p.side === "LIABILITY" && p.includedInNetWorth);
-  const contingencies = snapshot.positions.filter((p) => p.side === "LIABILITY" && !p.includedInNetWorth);
   // 相続税負担額は、相続税総額を「按分基準額 ÷ 正味財産」の率で各明細へ按分する。
   // 相続税は正味財産（資産合計 − 控除対象負債）に課されるため、負債は同率のマイナス（軽減）として扱い、
   // 資産の部と負債の部の差引が相続税総額と一致する。偶発債務はB/S外なので対象外。
@@ -141,6 +141,16 @@ export function AssetsView({ snapshot, legalHeirNames, onAdd, onBulkManage, onEd
     if (position.side === "ASSET") return Math.round(taxableValue(position) * burdenRate);
     return position.includedInNetWorth ? -Math.round(taxableValue(position) * burdenRate) : null;
   };
+  return taxBurden;
+}
+
+export function AssetsView({ snapshot, legalHeirNames, onAdd, onBulkManage, onEdit, onDelete, onReorder, onBack, saving, spotlightId, detailed = false }: { snapshot: Snapshot; legalHeirNames: ReadonlySet<string>; onAdd: (section: PositionSection, category?: string, propertyType?: "LAND" | "BUILDING") => void; onBulkManage: () => void; onEdit: (position: Position) => void; onDelete: (position: Position) => void; onReorder: (section: PositionSection, orderedIds: number[]) => Promise<boolean>; onBack?: () => void; saving: boolean; spotlightId?: number | null; detailed?: boolean }) {
+  const assets = snapshot.positions.filter((p) => p.side === "ASSET");
+  const liabilities = snapshot.positions.filter((p) => p.side === "LIABILITY" && p.includedInNetWorth);
+  const contingencies = snapshot.positions.filter((p) => p.side === "LIABILITY" && !p.includedInNetWorth);
+  const calculation = snapshot.inheritanceTaxCalculation;
+  const taxBurden = buildPositionTaxBurden(snapshot, legalHeirNames);
+  if (detailed) return <PositionDetailsView snapshot={snapshot} taxBurden={taxBurden} onAdd={onAdd} onBulkManage={onBulkManage} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} saving={saving} spotlightId={spotlightId} />;
   const updatedAt = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(snapshot.updatedAt));
   return <><section className="page-heading detail-page-heading"><div><h2>資産・負債明細</h2><p className="detail-heading-meta"><span className={`detail-status ${snapshot.isCurrent ? "current" : "historical"}`}><span className="detail-status-screen">{snapshot.isCurrent ? "現在年度" : "過年度を編集中"}</span><span className="detail-status-print">{fiscalYearLabel(snapshot)}{snapshot.isCurrent ? "（現在）" : ""}</span></span><span className="detail-updated-at">最終更新 {updatedAt}</span>{!snapshot.isCurrent ? <span>現在年度のデータには影響しません</span> : null}</p></div><div className="page-heading-actions detail-page-actions">{onBack ? <button className="button secondary" onClick={onBack}>年度比較へ戻る</button> : null}{/* 年度の操作はトップバーに集約した。1件ずつの追加は各表の「〜を追加」に任せ、ここには種類をまたぐ一括入力だけを置く。 */}<div className="entry-action-group" role="group" aria-label="明細の入力"><button className="button secondary" onClick={onBulkManage}><Table2 />まとめて入力</button></div></div></section><PositionTable key={`${snapshot.id}-ASSET-${snapshot.updatedAt}-${assets.length}`} title="資産の部" section="ASSET" items={assets} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} benefitBasedBurden={Boolean(calculation)} saving={saving} spotlightId={spotlightId} /><PositionTable key={`${snapshot.id}-LIABILITY-${snapshot.updatedAt}-${liabilities.length}`} title="負債の部" section="LIABILITY" items={liabilities} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} benefitBasedBurden={Boolean(calculation)} saving={saving} spotlightId={spotlightId} /><PositionTable key={`${snapshot.id}-CONTINGENT-${snapshot.updatedAt}-${contingencies.length}`} title="偶発債務の部（B/S外）" section="CONTINGENT" items={contingencies} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorder} taxBurden={taxBurden} benefitBasedBurden={Boolean(calculation)} saving={saving} spotlightId={spotlightId} /></>;
 }

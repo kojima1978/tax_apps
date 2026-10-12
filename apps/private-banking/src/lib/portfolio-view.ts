@@ -46,15 +46,16 @@ export type Portfolio = {
   snapshots: Snapshot[];
 };
 /** サイドバーのメニュー key。そのまま URL の `/customers/<id>/<key>` になる。 */
-export type Section = "balance" | "positions" | "tax" | "profile" | "family" | "history" | "scenarios" | "activity" | "backup";
+export type Section = "balance" | "position-list" | "positions" | "tax" | "profile" | "family" | "history" | "scenarios" | "activity" | "backup";
 export type BulkPositionPayload = Record<string, unknown>;
 export type BalanceScenario = "without-tax" | "with-tax";
-export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "details" | "history";
+export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "position-list" | "details" | "history";
 
 /** 画面に対応する印刷の様式。対応する様式が無い画面（バックアップ）は null。 */
 export const printSectionForSection = (section: Section): PrintSection | null =>
   section === "profile" || section === "family" ? "profile-family"
     : section === "balance" ? "balance"
+      : section === "position-list" ? "position-list"
       : section === "positions" ? "details"
         : section === "tax" ? "tax-calculation"
           : section === "history" ? "history"

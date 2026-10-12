@@ -5,7 +5,7 @@ import {
   LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Printer, ShieldCheck, UsersRound, WalletCards, X,
 } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BackupView } from "@/components/backup-view";
 import { BalanceScenarioActions, BalanceSheetPanel } from "@/components/balance-sheet-panel";
@@ -20,7 +20,8 @@ import { InheritanceTaxReport } from "@/components/inheritance-tax-report";
 import { PersonView } from "@/components/person-view";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { PositionModal } from "@/components/position-modal";
-import { AssetsView } from "@/components/positions-view";
+import { AssetsView, buildPositionTaxBurden } from "@/components/positions-view";
+import { PositionListView } from "@/components/position-list-view";
 import { ActivityView } from "@/components/activity-view";
 import { ScenarioView } from "@/components/scenario-view";
 import { PRINT_SECTION_META, PrintFrontMatter } from "@/components/print-front-matter";
@@ -55,16 +56,13 @@ const SECTIONS = [
   { key: "family", label: "親族関係", icon: UsersRound },
   { key: "tax", label: "相続税の概算", icon: Calculator },
   { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
-  { key: "positions", label: "資産・負債明細", icon: WalletCards },
+  { key: "position-list", label: "資産・負債一覧", icon: WalletCards },
+  { key: "positions", label: "資産・負債詳細", icon: WalletCards },
   { key: "scenarios", label: "シナリオ比較", icon: GitCompareArrows },
   { key: "history", label: "年度比較", icon: History },
   { key: "activity", label: "操作履歴", icon: Activity },
   { key: "backup", label: "バックアップ", icon: DatabaseBackup },
 ] as const satisfies ReadonlyArray<{ key: Section; label: string; icon: typeof LayoutDashboard }>;
-
-/** `/customers/<id>/<画面>` のURL。表示年度はクエリで持ち回る。 */
-const customerHref = (householdId: number, target: Section, snapshotId: number | null) =>
-  `/customers/${householdId}/${target}${snapshotId ? `?snapshot=${snapshotId}` : ""}`;
 
 /** 行を光らせておく長さ。送られた先を目で拾えれば十分なので短くする。 */
 const SPOTLIGHT_MS = 2_400;
@@ -79,9 +77,12 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   // 表ごとの「追加」から開いたときは、その表の区分を選んだ状態でモーダルを開く。
   const [newPositionSection, setNewPositionSection] = useState<PositionSection>("ASSET");
+  const [newPositionCategory, setNewPositionCategory] = useState<string | undefined>();
+  const [newPositionPropertyType, setNewPositionPropertyType] = useState<"LAND" | "BUILDING" | undefined>();
   const [deletingSnapshot, setDeletingSnapshot] = useState<Snapshot | null>(null);
   const [forecastModalOpen, setForecastModalOpen] = useState(false);
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   // 明細で開いている年度は URL のクエリで持ち、画面を移動しても選択が残るようにする。
   const workingSnapshotId = Number(searchParams.get("snapshot")) || null;
   // 不動産一覧から「?position=<明細ID>」で来たときの送り先。光らせるかどうかはクエリが
@@ -139,13 +140,19 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   useEffect(() => {
     if (spotlightId === null || section !== "positions" || !workingSnapshot) return;
     document.getElementById(`position-${spotlightId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
-    const timer = setTimeout(() => router.replace(customerHref(householdId, "positions", workingSnapshotId)), SPOTLIGHT_MS);
+    const timer = setTimeout(() => {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("position");
+      router.replace(`${pathname.replace(/^\/private-banking/, "")}${next.size ? `?${next}` : ""}`, { scroll: false });
+    }, SPOTLIGHT_MS);
     return () => clearTimeout(timer);
-  }, [spotlightId, section, workingSnapshot, router, householdId, workingSnapshotId]);
+  }, [spotlightId, section, workingSnapshot, router, pathname, searchParams]);
 
-  function openNewPosition(section: PositionSection) {
+  function openNewPosition(section: PositionSection, category?: string, propertyType?: "LAND" | "BUILDING") {
     setEditingPosition(null);
     setNewPositionSection(section);
+    setNewPositionCategory(category);
+    setNewPositionPropertyType(propertyType);
     setModalOpen(true);
   }
 
@@ -295,8 +302,13 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   }
 
   // 表示年度はトップバーで全画面共通に選ぶので、どの画面へ移っても ?snapshot= を引き継ぐ。
-  const sectionHref = (target: Section, snapshotId: number | null = workingSnapshotId) =>
-    customerHref(householdId, target, snapshotId);
+  const sectionHref = (target: Section, snapshotId: number | null = workingSnapshotId) => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("position");
+    if (snapshotId) next.set("snapshot", String(snapshotId)); else next.delete("snapshot");
+    const path = target === "positions" && section === "positions" ? pathname.replace(/^\/private-banking/, "") : `/customers/${householdId}/${target}`;
+    return `${path}${next.size ? `?${next}` : ""}`;
+  };
 
   function editSnapshot(snapshotId: number) {
     router.push(sectionHref("positions", snapshotId));
@@ -439,7 +451,9 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             </div>
           ) : null}
 
-          {(section === "positions" || printIncludes("details")) && workingSnapshot ? <div id="print-section-details" className={`report-document ${section !== "positions" ? "print-only-document" : ""} ${printIncludes("details") ? "" : "print-excluded-document"}`}><AssetsView snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} onBack={workingSnapshot.isCurrent ? undefined : () => router.push(sectionHref("history"))} saving={saving} spotlightId={spotlightId} /></div> : null}
+          {(section === "position-list" || printIncludes("position-list")) && workingSnapshot ? <div id="print-section-position-list" className={`report-document ${section !== "position-list" ? "print-only-document" : ""} ${printIncludes("position-list") ? "" : "print-excluded-document"}`}><PositionListView snapshot={workingSnapshot} detailHref={sectionHref("positions")} taxBurden={buildPositionTaxBurden(workingSnapshot, legalHeirNameSet)} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} saving={saving} /></div> : null}
+          {section === "positions" && workingSnapshot ? <div className="report-document position-details-screen"><AssetsView detailed snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} saving={saving} spotlightId={spotlightId} /></div> : null}
+          {printIncludes("details") && workingSnapshot ? <div id="print-section-details" className="report-document print-only-document"><AssetsView snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} saving={saving} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
           {section === "family" ? <div className="report-document print-excluded-document"><FamilyView members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} saving={saving} onSave={saveFamilyMembers} /></div> : null}
           {section === "scenarios" ? <div className="report-document print-excluded-document"><ScenarioView householdId={portfolio.household.id} assets={summary.assets} liabilities={summary.liabilities} defaultTax={reportSnapshot.estimatedInheritanceTax} /></div> : null}
@@ -451,7 +465,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       {/* 顧客削除のエラーは削除ダイアログの中に出すので、ここでは重ねて出さない。 */}
       <ToastRegion toast={toast} error={clientDeleteOpen ? undefined : error} onDismissToast={dismissToast} onDismissError={() => setError("")} />
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
-      {modalOpen ? <PositionModal position={editingPosition} defaultSection={newPositionSection} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
+      {modalOpen ? <PositionModal position={editingPosition} defaultSection={newPositionSection} defaultCategory={newPositionCategory} defaultPropertyType={newPositionPropertyType} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
       {bulkModalOpen && workingSnapshot ? <BulkPositionModal snapshot={workingSnapshot} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
       {forecastModalOpen ? <ForecastModal planning={portfolio.planning} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
