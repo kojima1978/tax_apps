@@ -33,7 +33,7 @@ function PrintCategoryTable({ page, rows, taxBurden }: { page: DetailPage; rows:
   const visible = preferences.order
     .map((key) => columns.find((column) => column.key === key))
     .filter((column): column is typeof columns[number] => column !== undefined && column.key !== "method" && (preferences.visible.includes(column.key) || column.key === "formula"));
-  const fixedWidths: Record<string, number> = { name: 12, value: 13, formula: 23 };
+  const fixedWidths: Record<string, number> = { name: 12, value: 11, formula: 23 };
   const fixedTotal = visible.reduce((sum, column) => sum + (fixedWidths[column.key] ?? 0), 0);
   const flexible = visible.filter((column) => fixedWidths[column.key] === undefined);
   const flexibleWidth = flexible.reduce((sum, column) => sum + preferences.widths[column.key], 0);

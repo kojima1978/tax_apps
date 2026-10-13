@@ -21,11 +21,11 @@ const centeredDetailKeys = new Set(["currency", "満期日", "返済期限", "�
 const detailAlignment = (key: string): DetailColumn["alignment"] => numericDetailKeys.has(key) ? "number" : centeredDetailKeys.has(key) ? "center" : "text";
 const specificColumnWidth: Record<string, number> = {
   "所在地・金融機関等": 170, "受取人・取り分": 180, "小規模宅地等の区分": 160,
-  "固定資産税評価額": 130, "死亡保険金": 140, "死亡退職金": 140, "発行済株式数": 130,
+  "固定資産税評価額": 140, "死亡保険金": 140, "死亡退職金": 140, "発行済株式数": 130,
   "証券番号": 120, "被保険者": 120, "銘柄コード": 120, "株数・口数": 110,
   "口座番号（末尾）": 110, "満期日": 110, "土地面積": 110, "床面積": 110,
   "路線価": 120, "建物種類": 110, "株式種類": 110, "証券種類": 110,
-  "預金種類": 100, "支店": 100, "地目": 90, "構造": 100, "持分": 90,
+  "預金種類": 100, "支店": 100, "地目": 90, "構造": 100, "持分": 100,
   "単価": 110, "倍率": 90, "調整率": 90,
   "返済期限": 120, "利率": 100, "担保": 180, "契約終了日": 120, "支払期限": 120,
   "対象物件": 180, "返還条件": 180, "主債務者": 150, "保証期限": 120,
@@ -58,7 +58,7 @@ export function detailColumns(page: DetailPage): DetailColumn[] {
   return [
     { key: "name", label: "名称", width: 130, alignment: "text", required: true },
     ...specific.map((label) => ({ key: label, label: label === "所在地・金融機関等" ? page.propertyType ? "所在地" : "金融機関・相手先等" : detailColumnLabels[label] ?? label, width: specificColumnWidth[label] ?? 120, alignment: detailAlignment(label), defaultVisible: !["口座番号（末尾）", "満期日", "調整率", "小規模宅地等の区分", "発行済株式数", "評価方式"].includes(label) })),
-    { key: "value", label: amountLabel, width: 130, alignment: "number", required: true },
+    { key: "value", label: amountLabel, width: 110, alignment: "number", required: true },
     { key: "method", label: "評価方法", width: 140, alignment: "text" },
     { key: "formula", label: "計算根拠", width: 420, alignment: "text" },
     { key: "tax", label: "相続税負担額（円）", width: 140, alignment: "number" },
@@ -68,13 +68,13 @@ export function detailColumns(page: DetailPage): DetailColumn[] {
     { key: "メモ", label: "メモ", width: 200, alignment: "text" },
   ];
 }
-export type ColumnPreferences = { version: 3; order: string[]; visible: string[]; widths: Record<string, number> };
-export function defaultColumns(columns: DetailColumn[]): ColumnPreferences { return { version: 3, order: columns.map((c) => c.key), visible: columns.filter((c) => c.required || c.defaultVisible).map((c) => c.key), widths: Object.fromEntries(columns.map((c) => [c.key, c.width])) }; }
+export type ColumnPreferences = { version: 4; order: string[]; visible: string[]; widths: Record<string, number> };
+export function defaultColumns(columns: DetailColumn[]): ColumnPreferences { return { version: 4, order: columns.map((c) => c.key), visible: columns.filter((c) => c.required || c.defaultVisible).map((c) => c.key), widths: Object.fromEntries(columns.map((c) => [c.key, c.width])) }; }
 export function parseColumnPreferences(raw: string | null, columns: DetailColumn[]): ColumnPreferences {
   const defaults = defaultColumns(columns);
   try {
     const value = JSON.parse(raw ?? "null");
-    if (![1, 2, 3].includes(value?.version) || !Array.isArray(value.order) || !Array.isArray(value.visible)) return defaults;
+    if (![1, 2, 3, 4].includes(value?.version) || !Array.isArray(value.order) || !Array.isArray(value.visible)) return defaults;
     const valid = new Set(columns.map((c) => c.key));
     const order = [...new Set<string>(value.order.filter((key: unknown) => typeof key === "string" && valid.has(key)))];
     for (const col of columns) if (!order.includes(col.key)) order.push(col.key);
@@ -95,6 +95,9 @@ export function parseColumnPreferences(raw: string | null, columns: DetailColumn
     // 旧標準幅だけを新しい配分へ移行し、利用者が変更した幅は保持する。
     if (value.version === 1 && value.widths?.name === 150 && defaults.widths.name === 130) widths.name = 130;
     if (value.version === 1 && [220, 400].includes(value.widths?.formula) && defaults.widths.formula === 420) widths.formula = 420;
-    return { version: 3, order: ["name", ...order.filter((key) => key !== "name")], visible, widths };
+    if (value.version < 4 && value.widths?.value === 130 && defaults.widths.value === 110) widths.value = 110;
+    if (value.version < 4 && value.widths?.["固定資産税評価額"] === 130 && defaults.widths["固定資産税評価額"] === 140) widths["固定資産税評価額"] = 140;
+    if (value.version < 4 && value.widths?.["持分"] === 90 && defaults.widths["持分"] === 100) widths["持分"] = 100;
+    return { version: 4, order: ["name", ...order.filter((key) => key !== "name")], visible, widths };
   } catch { return defaults; }
 }

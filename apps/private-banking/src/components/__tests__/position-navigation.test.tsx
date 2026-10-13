@@ -277,7 +277,7 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(within(table).getByRole("columnheader", { name: "相続税負担額（円）" }).classList.contains("number")).toBe(true);
     expect(within(table).getByText("入力額 5,000,000円").classList.contains("text")).toBe(true);
     expect((table.querySelector('col[data-column="name"]') as HTMLElement).style.width).toBe("12%");
-    expect((table.querySelector('col[data-column="value"]') as HTMLElement).style.width).toBe("13%");
+    expect((table.querySelector('col[data-column="value"]') as HTMLElement).style.width).toBe("11%");
     expect((table.querySelector('col[data-column="formula"]') as HTMLElement).style.width).toBe("23%");
   });
 

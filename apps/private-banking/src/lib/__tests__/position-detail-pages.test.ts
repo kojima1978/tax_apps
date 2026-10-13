@@ -15,7 +15,7 @@ describe("科目別ページと列設定", () => {
     expect(columns.map((column) => column.key)).not.toContain("allocation");
     expect(columns.map((column) => column.key)).toContain("受取人・取り分");
     expect(defaults.widths.name).toBe(130);
-    expect(defaults.widths.value).toBe(130);
+    expect(defaults.widths.value).toBe(110);
     expect(defaults.widths.formula).toBe(420);
   });
   it("数値・文字・日付の列配置を列定義で統一する", () => {
@@ -25,6 +25,8 @@ describe("科目別ページと列設定", () => {
     const depositColumns = detailColumns(DETAIL_PAGES.find((p) => p.key === "deposit")!);
     expect(alignment).toMatchObject({ name: "text", 土地面積: "number", 持分: "number", 路線価: "number", value: "number", formula: "text", currency: "center" });
     expect(defaults.visible).toContain("倍率");
+    expect(defaults.widths["固定資産税評価額"]).toBe(140);
+    expect(defaults.widths["持分"]).toBe(100);
     expect(defaults.order.indexOf("固定資産税評価額")).toBeLessThan(defaults.order.indexOf("路線価"));
     expect(depositColumns.find((column) => column.key === "満期日")?.alignment).toBe("center");
   });
@@ -50,8 +52,9 @@ describe("科目別ページと列設定", () => {
   it("旧標準幅と不動産の倍率表示を新しい標準へ移行する", () => {
     const columns = detailColumns(DETAIL_PAGES.find((p) => p.key === "insurance")!);
     const result = parseColumnPreferences(JSON.stringify({ version: 1, order: ["name", "formula", "value"], visible: ["name", "formula", "value"], widths: { name: 150, formula: 220, value: 130 } }), columns);
-    expect(result.version).toBe(3);
+    expect(result.version).toBe(4);
     expect(result.widths.name).toBe(130);
+    expect(result.widths.value).toBe(110);
     expect(result.widths.formula).toBe(420);
 
     const realEstateColumns = detailColumns(DETAIL_PAGES.find((p) => p.key === "home-real-estate-land")!);
@@ -59,6 +62,10 @@ describe("科目別ページと列設定", () => {
     expect(migrated.visible).toContain("倍率");
     const userHidden = parseColumnPreferences(JSON.stringify({ version: 2, order: migrated.order, visible: migrated.visible.filter((key) => key !== "倍率"), widths: migrated.widths }), realEstateColumns);
     expect(userHidden.visible).not.toContain("倍率");
+    const oldWidths = parseColumnPreferences(JSON.stringify({ version: 3, order: migrated.order, visible: migrated.visible, widths: { value: 130, 固定資産税評価額: 130, 持分: 90 } }), realEstateColumns);
+    expect(oldWidths.widths).toMatchObject({ value: 110, 固定資産税評価額: 140, 持分: 100 });
+    const customWidths = parseColumnPreferences(JSON.stringify({ version: 3, order: migrated.order, visible: migrated.visible, widths: { value: 120, 固定資産税評価額: 150, 持分: 110 } }), realEstateColumns);
+    expect(customWidths.widths).toMatchObject({ value: 120, 固定資産税評価額: 150, 持分: 110 });
   });
   it("土地の旧標準列順だけを固定資産税評価額・路線価の順へ移行する", () => {
     const columns = detailColumns(DETAIL_PAGES.find((p) => p.key === "home-real-estate-land")!);
@@ -66,7 +73,7 @@ describe("科目別ページと列設定", () => {
     const fixedIndex = oldOrder.indexOf("固定資産税評価額");
     [oldOrder[fixedIndex], oldOrder[fixedIndex + 1]] = [oldOrder[fixedIndex + 1], oldOrder[fixedIndex]];
     const migrated = parseColumnPreferences(JSON.stringify({ version: 2, order: oldOrder, visible: oldOrder, widths: {} }), columns);
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(4);
     expect(migrated.order.indexOf("固定資産税評価額")).toBeLessThan(migrated.order.indexOf("路線価"));
   });
 });
