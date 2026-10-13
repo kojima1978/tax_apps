@@ -320,8 +320,12 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
   `Refused to execute script (MIME type text/html)` でレンダリングごと失敗 → Next の dev
   クライアントはそれ以降、変更通知をソフト更新ではなく `location.reload()` で処理する
   （`hot-reloader-app.js` の `SERVER_COMPONENT_CHANGES` は `hadRuntimeError` のとき完全リロード）
-  → リロード後も同じエラーが再現するので抜け出せない」。HTML を返す側は
-  `@next_static_unavailable` で塞いだが、**「なぜ dev サーバが毎回変更通知を出し続けたのか」は
+  → リロード後も同じエラーが再現するので抜け出せない」。JS/CSS を求めてきた相手に HTML を
+  返す側は `@next_static_unavailable`（502 等）と `@next_static_missing`（404）で塞いだが、
+  **これはループを止めない** ── ブラウザは 2xx でない応答の本文を `<script>` として実行しないので、
+  HTML をやめてもチャンクは読めず画面は壊れる（＝ `hadRuntimeError` は同じように立つ）。
+  塞いだのは「本文を読む側が HTML を解析して別のエラーに化ける」経路と、落ち方を5経路で
+  揃えることだけ。そして **「なぜ dev サーバが毎回変更通知を出し続けたのか」は
   未解明のまま終わった** ── 気づいたのが数十分後で、調べようとしたときには当のコンテナを
   作り直してしまっていてログが残っていなかった。そこで検知と**証拠の採取**を無人側へ置いた。
   判定はゲートウェイのアクセスログ（`access.log` は `/dev/stdout` への symlink なので
