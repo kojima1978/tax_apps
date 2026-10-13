@@ -45,6 +45,7 @@ fi
 source "$SCRIPT_DIR/lib/ops-common.sh"
 
 RESTORE_WORK_DIR=""
+STALE_WORK_SWEPT=0
 BACKUP_BASE="${BACKUP_BASE:-$SCRIPT_DIR/../backups}"
 LATEST_BACKUP_BASE="${LATEST_BACKUP_BASE:-$(cd "$PROJECT_ROOT/.." && pwd)/tax_apps_backup_latest}"
 LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
@@ -273,8 +274,45 @@ encrypt_backup_directory() {
   ok "Encrypted backup: $(basename "$output_file")"
 }
 
+# 中断された前回の作業ディレクトリを掃く。中身は復号した平文（DBのダンプ・
+# 顧客名の入った JSON・.env）なので、残っている間はバックアップを暗号化して
+# いる意味がその1件で消える。
+#
+# 後始末自体は on_release_operation_lock が trap ... EXIT INT TERM 経由で
+# 消す作りになっているが、**taskkill /T /F で終わった回は trap が1つも
+# 走らない**（CLAUDE.md の「殺された回は finally を飛ばす」と同じ形）。
+# そして次の回が残骸を見に行く経路が無かったため、2026-10-04 の中断で
+# できた 17MB の平文が 9日間 docker/backups/ に残っていた。
+# ウォッチドッグのロックと同じ原則 ──「次の回が前の回の死体を見つける」──
+# をこちらにも置く。消した件数は last-run の detail に出す（黙って消すと
+# 「毎回殺されている」ことが誰にも見えなくなる）。
+sweep_stale_restore_work() {
+  local dir count=0 newest=""
+  STALE_WORK_SWEPT=0
+  for dir in "$BACKUP_BASE"/.restore-work.*; do
+    [[ -d "$dir" ]] || continue
+    if [[ -n "$RESTORE_WORK_DIR" && "$dir" == "$RESTORE_WORK_DIR" ]]; then
+      continue
+    fi
+    newest="$(date -r "$dir" '+%Y-%m-%d %H:%M' 2>/dev/null || true)"
+    if ! rm -rf "$dir"; then
+      warn "Could not remove stale work dir: $(basename "$dir")"
+      continue
+    fi
+    (( count++ )) || true
+  done
+  STALE_WORK_SWEPT=$count
+  if [[ $count -gt 0 ]]; then
+    warn "Removed $count stale restore work dir(s) holding decrypted plaintext (newest: ${newest:-unknown})."
+    warn "  前回の実行は trap を通らずに終わっています（taskkill など）。"
+  fi
+}
+
 extract_encrypted_backup() {
   local archive="$1"
+  # 鍵の確認より先に掃く。鍵が無くて早期に return する回でも、前回の平文は
+  # 消しておきたい（残骸の掃除は復号の成否と関係が無い）。
+  sweep_stale_restore_work
   ensure_backup_encryption_key || return 1
   RESTORE_WORK_DIR="$(mktemp -d "$BACKUP_BASE/.restore-work.XXXXXX")"
   local key_path
@@ -1336,6 +1374,14 @@ drill_sqlite() {
   done
 }
 
+# 残骸を掃いた回はその件数も last-run に残す（理由は sweep_stale_restore_work）。
+_drill_stale_suffix() {
+  if [[ "${STALE_WORK_SWEPT:-0}" -gt 0 ]]; then
+    printf ' swept=%s' "$STALE_WORK_SWEPT"
+  fi
+  return 0
+}
+
 cmd_drill() {
   print_banner "Tax Apps - Restore Drill"
 
@@ -1391,7 +1437,7 @@ cmd_drill() {
   if [[ $drill_fail -gt 0 ]]; then
     err "This backup is NOT safely restorable. Investigate before relying on it."
     ops_write_last_result "drill" "failed" \
-      "$(basename "$archive") ok=$drill_ok skipped=$drill_skip failed=$drill_fail"
+      "$(basename "$archive") ok=$drill_ok skipped=$drill_skip failed=$drill_fail$(_drill_stale_suffix)"
     echo ""
     return 1
   fi
@@ -1401,13 +1447,13 @@ cmd_drill() {
   if [[ $drill_ok -eq 0 ]]; then
     warn "Nothing was actually restored; this drill verified nothing."
     ops_write_last_result "drill" "no-data" \
-      "$(basename "$archive") ok=0 skipped=$drill_skip"
+      "$(basename "$archive") ok=0 skipped=$drill_skip$(_drill_stale_suffix)"
     echo ""
     return 1
   fi
   ok "All drilled databases restored cleanly."
   ops_write_last_result "drill" "ok" \
-    "$(basename "$archive") ok=$drill_ok skipped=$drill_skip"
+    "$(basename "$archive") ok=$drill_ok skipped=$drill_skip$(_drill_stale_suffix)"
   echo ""
 }
 

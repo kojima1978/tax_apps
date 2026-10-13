@@ -286,6 +286,16 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
   **ハンドラは必ずコンパイル済みの C#（`Add-Type`）で書くこと** ── どちらのイベントも
   ランスペースの付いていないスレッドで発火するため、**スクリプトブロックを
   デリゲートにキャストすると無言で何もしない**（実測。記録もロック解放も一切起きなかった）
+- **殺された回の残骸は「次の回」が掃く**。リストア訓練は復号した平文（4つの DB の
+  ダンプ・顧客名の入った JSON・`.env` 4件）を `docker/backups/.restore-work.XXXXXX` に
+  展開する。後始末は `on_release_operation_lock` が `trap ... EXIT INT TERM` で消すが、
+  上の `taskkill /T /F` で終わった回は **trap が1つも走らない** ── 2026-10-04 の中断で
+  できた 17MB の平文が、暗号化アーカイブの隣に **9日間そのまま残っていた**（`.gitignore` の
+  `docker/backups/` で git には入らないが、暗号化している意味はその1件で消える）。
+  いまは `extract_encrypted_backup` の入口で `sweep_stale_restore_work` が前の回の残骸を
+  掃き（`restore` と `drill` の両方がここを通る。**鍵の確認より先に**掃くので、鍵が無くて
+  早期に戻る回でも平文は消える）、消した件数を drill の `last-run` の detail に `swept=N` で
+  出す ── 黙って消すと「毎回殺されている」ことが誰にも見えなくなる。
 - **内側のタイムアウトは外側より必ず小さく保つ**（`docker-watchdog.ps1`）。
   `AppRecoveryTimeoutSeconds`(600) + `DueWorkTimeoutSeconds`(1200) ≒ 35分 <
   ウォッチドッグのロックの陳腐化(45分) < タスクの `ExecutionTimeLimit`(90分)。
