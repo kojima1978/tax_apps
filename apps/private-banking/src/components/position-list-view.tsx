@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { List, Plus, Save, Scale, Search, Table2, UsersRound } from "lucide-react";
 import { type MouseEvent, useMemo, useState } from "react";
 import { CommaNumberInput } from "@/components/form-fields";
-import { type Position, type PositionSection, type Snapshot, positionSection, middleClassification, middleClassificationRank, categoryRank, propertyTypeOf, deemedConfig, deemedAllocations, deemedBenefitJpy, splitBenefit, categoryLabels, fractionTotal, valuationDetailLine } from "@/lib/portfolio-view";
+import { type Position, type PositionSection, type Snapshot, positionSection, middleClassification, middleClassificationRank, categoryRank, propertyTypeOf, deemedConfig, deemedAllocations, deemedBenefitJpy, hasDeemedBenefit, splitBenefit, categoryLabels, fractionTotal, valuationDetailLine } from "@/lib/portfolio-view";
 import { legalHeirMemberRoster, type FamilyMember } from "@/lib/family";
 import { matchesSearchTerms, searchTerms } from "@/lib/clients";
 import { yen, triangleYen } from "@/lib/format";
@@ -51,11 +51,32 @@ function PositionSupplement({ position }: { position: Position }) {
   return <div className="position-summary-supplement" title={lines.join(" / ")}>{lines.map((line) => <span key={line}>{line}</span>)}</div>;
 }
 
+/**
+ * 生命保険・死亡退職金の金額は「解約返戻金（解約手当金）」と「死亡保険金（死亡退職金）」の2段。
+ * 同じ行の評価情報が指しているのは前者なので、給付額だけを出すと行の中で噛み合わない
+ * ──「評価方法：解約返戻金」と書きながら、その金額は一覧のどこにも出ていなかった。
+ * 明細表（positions-view の DeemedAmounts）と同じ並びにしてある。
+ */
+function DeemedMoneyLines({ position }: { position: Position }) {
+  const config = deemedConfig(position)!;
+  return <>
+    <div><span>{config.surrenderLabel}</span><strong>{yen.format(position.valueJpy)}</strong></div>
+    {hasDeemedBenefit(position) ? <div><span>{config.label}</span><strong>{yen.format(deemedBenefitJpy(position))}</strong></div> : null}
+  </>;
+}
+
+/** 金額欄の読み上げ。2段ある生命保険・死亡退職金は、どちらの金額かが分かるよう両方を続けて読ませる。 */
+function moneyCellLabel(position: Position) {
+  const config = deemedConfig(position);
+  if (!config) return `評価額 ${yen.format(position.valueJpy)}`;
+  const benefit = hasDeemedBenefit(position) ? ` ${config.label} ${yen.format(deemedBenefitJpy(position))}` : "";
+  return `${config.surrenderLabel} ${yen.format(position.valueJpy)}${benefit}`;
+}
+
 function PositionMoneyLines({ position, burden }: { position: Position; burden: number | null }) {
   const config = deemedConfig(position);
-  const amount = config ? deemedBenefitJpy(position) : position.valueJpy;
   return <div className="position-summary-money-lines">
-    <div><span>{config?.label ?? "評価額"}</span><strong>{yen.format(amount)}</strong></div>
+    {config ? <DeemedMoneyLines position={position} /> : <div><span>評価額</span><strong>{yen.format(position.valueJpy)}</strong></div>}
     <div><span>相続税額</span><strong>{burden === null ? "—" : triangleYen(burden)}</strong></div>
   </div>;
 }
@@ -342,7 +363,6 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
       {rows.map((p) => {
         const burden = taxBurden(p);
         const config = deemedConfig(p);
-        const displayedAmount = config ? deemedBenefitJpy(p) : p.valueJpy;
         const allocations = allocationSummaries(p, familyMembers);
         const allocatedTotal = [...allocations.values()].reduce((sum, allocation) => sum + allocation.amountJpy, 0);
         const comparisonTotal = config ? deemedBenefitJpy(p) : p.valueJpy;
@@ -354,7 +374,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
             <td rowSpan={2} data-label="区分" className="center position-summary-sticky-section"><span className={`position-section-badge section-${positionSection(p)}`}>{positionSection(p) === "ASSET" ? "資産" : positionSection(p) === "LIABILITY" ? "負債" : "B/S外"}</span></td>
             <th scope="rowgroup" className="position-summary-sticky-subject"><Link href={href(p)} className="position-summary-name"><span>{positionCaption(p)}</span><strong>{p.name || "名称未登録"}</strong></Link></th>
             <td className="position-summary-info" title={positionKeyInfo(p)}>{positionKeyInfo(p)}</td>
-            <td className="number position-summary-sticky-money position-summary-value-amount" aria-label={`${config?.label ?? "評価額"} ${yen.format(displayedAmount)}`}><strong>{yen.format(displayedAmount)}</strong></td>
+            <td className="number position-summary-sticky-money position-summary-value-amount" aria-label={moneyCellLabel(p)}>{config ? <div className="position-summary-money-lines"><DeemedMoneyLines position={p} /></div> : <strong>{yen.format(p.valueJpy)}</strong>}</td>
             {familyMembers.map((member) => { const allocation = allocations.get(member.id); return <td key={member.id} className="number position-summary-person-amount">{allocation ? yen.format(allocation.amountJpy) : "—"}</td>; })}
             <td className={`number position-summary-unallocated ${unallocated > 0 ? "has-unallocated" : ""}`}>{unallocated > 0 ? yen.format(unallocated) : "—"}</td>
             <td rowSpan={2} className="position-summary-action-column"><Link href={href(p)} aria-label={`${p.name}の詳細`} className="position-summary-open">詳細</Link></td>

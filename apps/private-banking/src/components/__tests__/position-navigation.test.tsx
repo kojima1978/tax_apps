@@ -35,8 +35,10 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(href.pathname).toBe("/customers/1/positions/insurance");
     expect(Object.fromEntries(href.searchParams)).toMatchObject({ snapshot: "7", q: "子", listSection: "ASSET", position: "2" });
     const list = screen.getByRole("table", { name: "資産・負債一覧" });
-    expect(within(list).getByRole("cell", { name: `死亡保険金 ${yen.format(50_000_000)}` })).toBeTruthy();
-    expect(within(list).queryByRole("cell", { name: `解約返戻金 ${yen.format(5_000_000)}` })).toBeNull();
+    // 同じ行の評価情報が「評価方法：解約返戻金」なので、金額欄も解約返戻金と死亡保険金の2段で出す。
+    const moneyCell = within(list).getByRole("cell", { name: `解約返戻金 ${yen.format(5_000_000)} 死亡保険金 ${yen.format(50_000_000)}` });
+    expect([...moneyCell.querySelectorAll(".position-summary-money-lines > div")].map((line) => line.textContent))
+      .toEqual([`解約返戻金${yen.format(5_000_000)}`, `死亡保険金${yen.format(50_000_000)}`]);
   });
 
   it("一覧で相続人ごとの評価額を均等割りし保存できる", async () => {
