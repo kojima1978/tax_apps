@@ -182,6 +182,7 @@ rd /s /q tax_apps
 |---------|------|
 | `./manage.sh start` | 全アプリを開発モードで起動 |
 | `./manage.sh start --prod` | 全アプリを本番モードでビルド＋起動 |
+| `./manage.sh start [--prod] <app>` | 1アプリだけモードを切り替えて起動（**混在稼働はこちら**。個別に `-f docker-compose.prod.yml` を並べるのは不可） |
 | `./manage.sh stop` | 全アプリを停止（逆順） |
 | `./manage.sh down` | 全アプリを停止してコンテナ削除（逆順） |
 | `./manage.sh restart <app>` | 指定アプリのみ再起動 |
@@ -191,10 +192,13 @@ rd /s /q tax_apps
 | `./manage.sh logs <app>` | 指定アプリのログ表示 |
 | `./manage.sh status` | 全アプリの状態表示 |
 | `./manage.sh test [app]` | **稼働中のコンテナの中で**テストを実行（省略時は対象すべて） |
+| `./manage.sh recover` | 落ちているアプリだけ起動し直す（**再ビルドしない・モードを踏襲・意図的な停止中は何もしない**。ウォッチドッグ用） |
 | `./manage.sh backup` | 全データベース・データをバックアップ |
 | `./manage.sh restore [dir]` | バックアップからリストア |
 | `./manage.sh verify <backup>` | バックアップの復号とSHA-256照合（上書きなし） |
 | `./manage.sh drill [backup]` | リストア訓練。使い捨てDBへ実際に復元して検証（既定は最新） |
+| `./manage.sh due` | 期限切れの無人処理だけ実行（バックアップ20時間・訓練168時間・掃除144時間・ループ検知3時間。ウォッチドッグ用） |
+| `./manage.sh loop-check` | 画面のリロードループを検知（ゲートウェイのログを読むだけ・**Docker の操作ロックも取らない**） |
 | `./manage.sh clean` | コンテナ・イメージ・ボリュームのクリーンアップ |
 | `./manage.sh clean-cache [--all]` | Docker Build Cache の安全な削除 |
 | `./manage.sh prune` | 無人向けの掃除（確認なし・**ボリュームには触らない**） |
@@ -226,7 +230,7 @@ rd /s /q tax_apps
 ./manage.sh backup                        # バックアップ
 ./manage.sh test                          # 対象アプリすべてのテストをコンテナ内で実行
 ./manage.sh test stock-valuation-form     # 1アプリだけテスト
-./manage.sh clean-cache                   # 7日以上未使用の Build Cache だけ削除
+./manage.sh clean-cache                   # Build Cache だけを確認付きで削除
 ./manage.sh preflight                     # 起動前チェック
 ```
 
@@ -562,9 +566,19 @@ PostgreSQL はコンテナ起動中に `psql` でリストア、SQLite はボリ
 
 1件でも失敗すると終了コード 1 を返します。
 
-ドリルが成功した後に **Docker の掃除**（`manage.sh prune` と同じ処理）が続けて走ります。
-無人で走る週次タスクをこれ以上増やさないためです ── タスクを1つ足すたびに
-「消えたのに誰も気づかない」対象が1つ増えます。掃除の成否も `prune` として別に記録されます。
+**前の回の残骸は入口で掃きます**。ドリルは復号した平文（DBのダンプ・顧客名の入った JSON・`.env`）を
+`docker/backups/.restore-work.XXXXXX` に展開します。後始末は `trap ... EXIT INT TERM` ですが、
+タスクスケジューラに殺された回は trap が1つも走りません ── 2026-10-04 の中断でできた 17MB の平文が、
+暗号化アーカイブの隣に**9日間そのまま残っていました**。いまは `sweep_stale_restore_work` が
+`extract_encrypted_backup` の入口で（＝`restore` と `drill` の両方で、**鍵の確認より先に**）前の回の
+残骸を消し、消した件数を `last-run` の detail に `swept=N` で出します。黙って消すと「毎回殺されている」
+ことが誰にも見えなくなるためです。
+
+**Docker の掃除は `due` の独立した項目です**（以前はドリルの最後の1行でした）。ドリル自身の記録は
+その手前で書かれるため、2026-10-04 にドリル成功の直後（ビルドキャッシュの削除中）に落ちた回は
+**ドリルは ok のまま掃除だけ記録を失い**、呼ぶ経路が「次に成功する週次ドリル」しか無かったので
+4時間毎にウォッチドッグが起きているのに**9日間直せませんでした**。いまは中断されても数時間後の
+次の回で再試行されます。
 
 **専用のスケジュールタスクはありません（2026-10-11 に廃止）。**
 
@@ -610,7 +624,7 @@ backup-db.bat                              # Windows補助。手でダブルク�
 
 ### Docker Desktop Watchdog（4時間毎・0時起点）
 
-Docker Desktop 自体がクラッシュ、または `docker info` に応答しない状態になった場合に、Docker Desktop の再起動を試みる watchdog を用意しています。あわせて**期限切れの無人処理（バックアップ20時間・リストア訓練168時間・掃除144時間）を実行する唯一の役**でもあります。
+Docker Desktop 自体がクラッシュ、または `docker info` に応答しない状態になった場合に、Docker Desktop の再起動を試みる watchdog を用意しています。あわせて**期限切れの無人処理（バックアップ20時間・リストア訓練168時間・掃除144時間・ループ検知3時間）を実行する唯一の役**でもあります。
 
 **かんたん登録（推奨）**: `register-docker-watchdog-task.bat` をダブルクリックするだけ（昇格不要）。
 
@@ -659,7 +673,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-t
 >
 > **なぜ4時間か**: 復旧は設計上2回の実行で1組になります。1回目が起動したコンテナは healthcheck の `start_period` 中なので `unhealthy` として拾われず、再起動の対象になるのは次の実行です。2回/日だとその「次」が最大12時間先で、起動はしたが healthy にならないコンテナが半日放置されていました。変更は `register-docker-watchdog-task.ps1` の `$IntervalHours` の**既定値**を直すこと（登録済みタスクだけ変えても、`backup.sh` がタスク消失時に引数なしで再登録した時点で既定値に戻ります）。
 >
-> **無人処理の実行役でもあります**: 復旧のあとに `manage.sh due` を呼び、前回の成功から20時間以上経っていればバックアップ、168時間以上経っていればリストア訓練、144時間以上経っていれば Docker の掃除を実行します（3項目は互いの成否に依存しません）。**これはデスクトップの警告ファイルを書き直す前**に行われます。以前はバックアップとウォッチドッグが別々のスケジューラで競走していて、ログオン直後のウォッチドッグが「バックアップがまだ一度も走れていない時点」で「バックアップ停止」を警告していました。
+> **無人処理の実行役でもあります**: 復旧のあとに `manage.sh due` を呼び、前回の成功から20時間以上経っていればバックアップ、168時間以上経っていればリストア訓練、144時間以上経っていれば Docker の掃除、3時間以上経っていれば画面のリロードループの検知を実行します（4項目は互いの成否に依存しません）。**これはデスクトップの警告ファイルを書き直す前**に行われます。以前はバックアップとウォッチドッグが別々のスケジューラで競走していて、ログオン直後のウォッチドッグが「バックアップがまだ一度も走れていない時点」で「バックアップ停止」を警告していました。
 
 #### 配線の確認（重要）
 
@@ -808,20 +822,22 @@ docker network create tax-apps-network
 | Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | Vite | 相続税計算 |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | React + Hono + PostgreSQL | 銀行分析 |
 | Medical Stock | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人株式評価 |
-| Shares Valuation | http://localhost/shares/ | 3012 | Vite | 非上場株式評価 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
 | Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書 |
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
 | Asset Valuation | http://localhost/asset-valuation/ | 3017 | Vite | 減価償却資産評価 |
 | Capital Gains Calc | http://localhost/capital-gains-calc/ | 3019 | Vite | 譲渡所得税計算 |
-| Inheritance Tax Form | http://localhost/inheritance-tax-form/ | 3021 | Vite | 相続税の申告書 第1表 |
+| Inheritance Tax Form | http://localhost/inheritance-tax-form/ | 3021 | Vite | 相続税の申告書 全24様式 |
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
+| Private Banking | http://localhost/private-banking/ | 3025 | Next.js + Prisma + PostgreSQL | ファミリーB/S |
+| Insurance App | http://localhost/insurance/ | 3030 | Next.js (standalone) + SQLite | 保険管理 |
 
 ### バックエンドサービス
 
 | サービス | Port | 説明 |
 |:--------|:-----|:-----|
 | itcm-postgres | 3022 | ITCM用 PostgreSQL |
+| private-banking-postgres | 3026 | ファミリーB/S用 PostgreSQL |
 | bank-analyzer-postgres | 5432 (内部) | 銀行分析用 PostgreSQL |
 
 ### 起動順序
@@ -862,7 +878,6 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3007 | Bank Analyzer | apps/bank-analyzer |
 | 3010 | Medical Stock Valuation | apps/medical-stock-valuation |
 | 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
-| 3030 | Insurance App | apps/insurance-app |
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3015 | Depreciation Calc | apps/depreciation-calc |
 | 3017 | Asset Valuation | apps/asset-valuation |
@@ -870,6 +885,9 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3020 | ITCM Web | apps/inheritance-case-management |
 | 3021 | Inheritance Tax Form | apps/inheritance-tax-form |
 | 3022 | ITCM PostgreSQL | apps/inheritance-case-management |
+| 3025 | Private Banking | apps/private-banking |
+| 3026 | Private Banking PostgreSQL | apps/private-banking |
+| 3030 | Insurance App | apps/insurance-app |
 
 ### Preflight Check
 
@@ -893,9 +911,20 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 13 | `docker-entrypoint.sh` を使うイメージの CRLF ガード（`FROM` の継承を辿って確認） | OK / WARN |
 | 14 | 無人処理の直近結果（`OPS_WATCHED_RESULTS` の全件。成否と経過時間） | OK / WARN |
 | 15 | 一覧の取りこぼし（`apps/` と `APPS`、`VOLUMES` と実ボリューム、`backup.sh` の対象配列の突き合わせ） | OK / WARN |
-| 16 | テストの登録漏れ（`package.json` の `test` ↔ `TEST_TARGETS` ↔ CI の matrix） | OK / WARN |
+| 16 | テストの登録漏れ（`package.json` の `test` / `typecheck` ↔ `TEST_TARGETS` ↔ CI の matrix） | OK / WARN |
+| 17 | メモリ上限と V8 のヒープ上限のズレ（上限があるのに `NODE_OPTIONS` が無い／ヒープ上限がコンテナの上限以上） | OK / WARN |
+| 18 | 本番オーバーレイの欠け（`APPS` 全アプリ分の `docker-compose.prod.yml` の有無） | OK / WARN |
+| 19 | ゲートウェイに外から届くファイアウォールの穴（80番のルールが全送信元に戻っていないか） | OK / WARN |
+| 20 | **記録されたモードがあるのに上がっていないアプリ**（落ち方を3つに分けて直し方ごと出す） | OK / WARN |
+| 21 | 持ち主の死んだウォッチドッグのロックの残存（残っている間、自動復旧は1回も走っていない） | OK / WARN |
 
 > 14・15・16 は「手書きの一覧がいつの間にか実体とズレる」「無人処理が黙って飛ぶ」を見張るためのものです。実際に、週次のリストア訓練が2週続けてロック衝突で飛んでも `preflight` は何も言わず（当時はバックアップ**ファイルの日付**しか見ていなかった）、`VOLUMES` には存在しないボリュームが2件載る一方で実在するデータボリューム2件が抜けていました（`clean` が「全データを削除します」と表示しながら2アプリ分を残していた）。
+
+> 20・21 は「**上がっているべきものが上がっているか**」を見るためのものです。2026-10-11、13アプリが
+> コンテナもイメージも無い状態で落ちていたのに preflight の全項目が通りました —— この向きの項目が
+> 1つも無かったためです。20 は落ち方を「イメージが無い（`build` が要る）／作成のまま
+> （`up -d --force-recreate`）／ただ落ちている（`recover` で足りる）」に分けて名前ごと出します
+> （停止マーカーがある間は何も言いません）。21 のロックが残っている間、自動復旧は1回も走りません。
 
 ### Docker Build Cache Cleanup
 
@@ -903,16 +932,24 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 
 | コマンド | 内容 |
 |:---------|:-----|
-| `./manage.sh clean-cache` | 7日以上使われていない Build Cache を削除 |
+| `./manage.sh clean-cache` | 使われていない Build Cache を削除（イメージと共有している層は残る） |
 | `./manage.sh clean-cache --all` | 未使用の Build Cache をすべて削除（次回ビルドは遅くなる可能性あり） |
-| `./manage.sh prune` | 無人向け。確認なしで dangling イメージ（30日以上前）とビルドキャッシュ（10GB まで）を削除 |
+| `./manage.sh prune` | 無人向け。確認なしで dangling イメージ（168時間以上前）を削除し、ビルドキャッシュは Private が 10GB を超えたときだけ丸ごと落とす |
 
 `prune` は消していいものしか消しません。
 
 - **dangling イメージだけ**（`-a` は付けない）。`-a` は「停止中のコンテナが使うはずのイメージ」まで
   消すため、prod で止めてあるアプリが次の起動でいきなり再ビルドになります
+- **ビルドキャッシュの prune に絞り込みのフラグを渡してはいけません**。Docker Desktop の
+  builder（driver=docker）では `--max-used-space` / `--reserved-space` / `--filter until=…`
+  のどれを渡しても**何も消さずに終了コード 0 を返します**（実測）。ここは `--max-used-space 10GB`
+  だったため、**毎回成功を記録しながら1バイトも消さず 61.22GB まで積み上がっていました**
+  （フラグ無しの `docker builder prune --force` に替えた途端 19.06GB 消えました）。素の prune は
+  刻めないので、`docker buildx du` の **Private** が上限（既定10GB）を超えたときだけ丸ごと落とします
 - **ボリュームには絶対に触りません**。`docker volume prune` は停止中のコンテナのボリュームを
   未使用とみなすので、アプリを止めている間に走ると DB ごと消えます
+- 消した量は `last-run` の detail に残ります（`manage.sh status` に `images 0B / cache 68.47MB kept`
+  のように出る）。成否だけでは上の「フラグを渡すと無言で何もしない」が見えません
 - 無人側は**ウォッチドッグの `due` から独立した項目として**呼ばれます（前回の成功から144時間
   以上経っていれば実行。成否は `prune` として記録）。以前はリストア訓練の最後にぶら下げていた
   ため、訓練成功の直後に落ちると掃除だけ記録を失い、次の週次訓練まで直せませんでした
@@ -1014,7 +1051,7 @@ tax_apps/
 │       ├── docker-compose.yml  #   PostgreSQL + Hono/React + テスト
 │       └── docker-compose.prod.yml
 ├── docker/                     # Docker 管理
-│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（9アプリ共有）
+│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile
 │   ├── gateway/                # Gateway Compose プロジェクト
 │   │   ├── docker-compose.yml  #   Nginx + Portal
 │   │   └── docker-compose.prod.yml  #   本番オーバーライド

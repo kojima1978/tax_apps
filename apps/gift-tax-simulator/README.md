@@ -100,12 +100,11 @@ docker compose logs -f
 docker compose down
 ```
 
-### ローカル
+### ローカルでは動かさない
 
-```bash
-npm install
-npm run dev
-```
+このリポジトリは**ローカル環境を汚さない**方針です（ルート `README.md` 参照）。
+`npm install` / `npm run build` をホストで実行せず、開発と動作確認は上の Docker 経由で行ってください。
+依存を足したあとの確認も、稼働中のコンテナの中（`docker compose exec`）か再ビルドで行います。
 
 ## アクセス
 

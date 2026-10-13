@@ -37,7 +37,7 @@
 - **ランタイム**: React 19 + TypeScript 5
 - **スタイリング**: Tailwind CSS v4 (`@tailwindcss/postcss`)
 - **PDF生成**: html2pdf.js（html2canvas + jsPDF）
-- **Docker**: 共通 `docker/Dockerfile.vite-static`（6アプリ共有）
+- **Docker**: 共通 `docker/Dockerfile.vite-static`（Vite系アプリで共有）
 
 ## ディレクトリ構成
 

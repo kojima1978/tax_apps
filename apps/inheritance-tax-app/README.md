@@ -135,25 +135,19 @@ docker compose down
 | `package.json`, `package-lock.json` | 再ビルド |
 | `Dockerfile`, `docker-compose.yml` | 再ビルド |
 
-## ローカル実行
+## ローカルでは動かさない
 
-Docker を使わずに確認する場合:
-
-```bash
-npm ci
-npm run dev
-```
-
-ただし、このリポジトリでは Docker 開発を推奨します。
+このリポジトリは**ローカル環境を汚さない**方針です（ルート `README.md` 参照）。
+`npm ci` / `npm run dev` / `npm run build` をホストで実行しないでください。
 
 ## ビルドと検証
 
-```bash
-npm run build
-npm run lint
-```
+コンテナの中で実行します。
 
-Docker 環境で検証する場合は、既存イメージまたは管理スクリプトを利用してください。
+```bash
+docker compose exec inheritance-tax-app npm run build
+docker compose exec inheritance-tax-app npm run lint
+```
 
 ## 関連ファイル
 

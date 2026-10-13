@@ -19,8 +19,7 @@
 | 贈与税計算 | `/gift-tax-simulator/` | http://localhost/gift-tax-simulator/ | 3001 | Vite + React | 贈与税・不動産取得税・登録免許税シミュレーション |
 | 退職金税額計算 | `/retirement-tax-calc/` | http://localhost/retirement-tax-calc/ | 3013 | Vite + React | 退職金の税額計算シミュレーション |
 | 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React | 相続税申告の必要書類ガイド |
-| 相続税の申告書 | `/inheritance-tax-form/` | http://localhost/inheritance-tax-form/ | 3021 | Vite + React | 第1表・第1表（続）の作成・印刷 |
-| 非上場株式評価 | `/shares/` | http://localhost/shares/ | 3012 | Vite + React | 非上場株式の評価計算 |
+| 相続税の申告書 | `/inheritance-tax-form/` | http://localhost/inheritance-tax-form/ | 3021 | Vite + React | 相続税の申告書 全24様式の作成・印刷 |
 | 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React | 確定申告書類管理 |
 | 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人の株式評価 |
 | 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Prisma + PostgreSQL | 相続税案件管理 |
@@ -29,6 +28,8 @@
 | 減価償却資産評価 | `/asset-valuation/` | http://localhost/asset-valuation/ | 3017 | Vite + React | 相続税申告の減価償却資産評価 |
 | 株式評価明細書 | `/stock-valuation-form/` | http://localhost/stock-valuation-form/ | 3014 | Vite + React | 取引相場のない株式の評価明細書 |
 | 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | React + Hono + PostgreSQL | 預金移動分析 |
+| 保険管理 | `/insurance/` | http://localhost/insurance/ | 3030 | Next.js (standalone) + SQLite | 保険契約の管理 |
+| ファミリーB/S | `/private-banking/` | http://localhost/private-banking/ | 3025/3026 | Next.js + Prisma + PostgreSQL | 資産承継のファミリーB/S |
 
 ### 本番モード イメージサイズ
 
@@ -37,6 +38,7 @@
 | nginx (静的) | Vite/Next.js アプリ + gateway | ~59-60MB |
 | Next.js standalone | 医療法人株式評価 | ~240MB |
 | Next.js + Prisma | 案件管理 | ~333MB |
+| Next.js + Prisma | ファミリーB/S | ~415MB |
 | Node + Prisma | 銀行分析 | ~590MB |
 
 ## ディレクトリ構造
@@ -49,7 +51,7 @@ tax_apps/
 │   ├── gift-tax-simulator/            # 贈与税計算 (Vite)
 │   ├── retirement-tax-calc/           # 退職金税額計算 (Vite)
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
-│   ├── inheritance-tax-form/          # 相続税の申告書 第1表 (Vite)
+│   ├── inheritance-tax-form/          # 相続税の申告書 全24様式 (Vite)
 │   ├── insurance-app/                 # 保険管理 (Next.js)
 │   ├── tax-docs/                      # 確定申告必要書類 (Vite)
 │   ├── capital-gains-calc/            # 譲渡所得税計算 (Vite)
@@ -58,18 +60,24 @@ tax_apps/
 │   ├── stock-valuation-form/          # 株式評価明細書 (Vite)
 │   ├── medical-stock-valuation/       # 医療法人株式評価 (Next.js + SQLite)
 │   ├── inheritance-case-management/   # 案件管理 (Next.js + Prisma + PostgreSQL)
-│   └── bank-analyzer/                 # 銀行分析 (Vite + Hono + Prisma + PostgreSQL)
+│   ├── private-banking/               # ファミリーB/S (Next.js + Prisma + PostgreSQL)
+│   ├── mcp-server/                    # 株式評価明細書へ書き込む MCP サーバー（常駐しない）
+│   └── bank-analyzer/                 # 銀行分析 (React + Hono + Prisma + PostgreSQL)
 ├── docker/                            # Docker共通設定
 │   ├── gateway/                       # Nginx Gateway の docker-compose.yml
 │   ├── scripts/                       # 管理スクリプト
 │   │   ├── manage.sh                  # 管理スクリプト本体（起動・停止・ログ等）
 │   │   ├── manage.bat                 # Windows 補助ラッパー（ダブルクリックで開発モード起動）
-│   │   ├── backup.sh                  # 全体バックアップ/リストア + ITCM定期バックアップ本体
+│   │   ├── backup.sh                  # 全体バックアップ/リストア/リストア訓練の本体
+│   │   ├── lib/ops-common.sh          # manage.sh と backup.sh の共通処理（ロック・直近結果等）
+│   │   ├── docker-watchdog.ps1        # 自動復旧＋期限切れの無人処理（4時間毎）
 │   │   ├── start-prod.bat             # ワンクリック本番モード起動
 │   │   ├── stop.bat                   # ワンクリック停止
 │   │   ├── status.bat                 # ワンクリック状態確認
-│   │   └── backup-db.bat              # backup.sh itcm を呼び出す Windows 補助ラッパー
+│   │   ├── backup-db.bat              # backup.sh itcm を呼び出す Windows 補助ラッパー
+│   │   └── restore-drill.bat          # backup.sh drill を呼び出す Windows 補助ラッパー
 │   ├── data/                          # 永続化データ（git管理外）
+│   ├── logs/                          # 無人処理の記録・モード記録（git管理外）
 │   ├── backups/                       # バックアップ保存先
 │   ├── postgres/                      # PostgreSQL初期化SQL
 │   └── .env.example                   # 環境変数テンプレート
@@ -171,30 +179,43 @@ cd tax_apps
 ### manage.sh コマンド一覧
 
 ```
-./docker/scripts/manage.sh start             全アプリを開発モードで起動
-./docker/scripts/manage.sh start --prod      全アプリを本番モードで起動（ビルド付き）
-./docker/scripts/manage.sh stop              全アプリを停止
-./docker/scripts/manage.sh down              全アプリを停止しコンテナを削除
-./docker/scripts/manage.sh restart <app>     特定アプリを再起動
-./docker/scripts/manage.sh build <app>       特定アプリをビルドして起動
-./docker/scripts/manage.sh logs <app>        特定アプリのログを表示
-./docker/scripts/manage.sh status            全アプリの状態を表示
-./docker/scripts/manage.sh backup            全データベース・データをバックアップ（backup.sh に委譲）
-./docker/scripts/manage.sh restore [dir]     バックアップからリストア（backup.sh に委譲）
-./docker/scripts/manage.sh verify <file>     暗号化バックアップを復号・整合性検証
-./docker/scripts/manage.sh clean             不要なコンテナ・イメージを削除
-./docker/scripts/manage.sh preflight         起動前チェック（Docker, ポート等）
-./docker/scripts/backup.sh itcm              ITCM定期バックアップ（JSONエクスポート含む）
+./docker/scripts/manage.sh start                全アプリを開発モードで起動
+./docker/scripts/manage.sh start --prod         全アプリを本番モードで起動（ビルド付き）
+./docker/scripts/manage.sh start [--prod] <app> 1アプリだけモードを切り替えて起動（混在稼働はこちら）
+./docker/scripts/manage.sh stop                 全アプリを停止
+./docker/scripts/manage.sh down                 全アプリを停止しコンテナを削除
+./docker/scripts/manage.sh restart <app>        特定アプリを再起動
+./docker/scripts/manage.sh build <app>          特定アプリを再ビルドして起動（稼働中のモードを踏襲）
+./docker/scripts/manage.sh apply [app]          compose の変更をコンテナへ反映（再ビルドなし）
+./docker/scripts/manage.sh watch <app>          ソース変更をコンテナへ同期（対応アプリのみ・フォアグラウンド）
+./docker/scripts/manage.sh logs <app>           特定アプリのログを表示
+./docker/scripts/manage.sh status               全アプリの状態を表示
+./docker/scripts/manage.sh test [app]           稼働中のコンテナの中でテストを実行
+./docker/scripts/manage.sh recover              落ちているアプリだけ起動し直す（ウォッチドッグ用）
+./docker/scripts/manage.sh backup               全データベース・データをバックアップ（backup.sh に委譲）
+./docker/scripts/manage.sh restore [dir]        バックアップからリストア（backup.sh に委譲）
+./docker/scripts/manage.sh verify <file>        暗号化バックアップを復号・整合性検証
+./docker/scripts/manage.sh drill [file]         リストア訓練（使い捨てDBへ実際に復元して検証）
+./docker/scripts/manage.sh due                  期限切れの無人処理だけ実行（ウォッチドッグ用）
+./docker/scripts/manage.sh loop-check           画面のリロードループを検知（ゲートウェイのログを読むだけ）
+./docker/scripts/manage.sh prune                無人向けの掃除（確認なし・ボリュームには触らない）
+./docker/scripts/manage.sh alert                デスクトップの警告ファイルを作り直す（Docker 不要）
+./docker/scripts/manage.sh clean                不要なコンテナ・イメージを削除
+./docker/scripts/manage.sh clean-cache [--all]  Docker Build Cache だけを確認付きで削除
+./docker/scripts/manage.sh preflight            起動前チェック（Docker, ポート等）
+./docker/scripts/backup.sh itcm                 ITCM定期バックアップ（JSONエクスポート含む）
 ```
 
-バックアップはAES-256暗号化して `docker/backups/` に7日間保存し、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/all-apps/` に追加コピーします。暗号鍵はリポジトリ外の `~/.tax-apps/backup.key` に保存されます。
+バックアップはAES-256暗号化して `docker/backups/` に**日次7＋週次4＋月次6（GFS）**で保持し、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/all-apps/` に追加コピーします。暗号鍵はリポジトリ外の `~/.tax-apps/backup.key` に保存されます（**これを失うと暗号化アーカイブは全部ただのゴミになる**ので、控えだけは手で取ること）。
+
+`backup` / `drill` / `prune` / `loop-check` は固定時刻のスケジュールタスクではなく、**4時間毎のウォッチドッグが `due` で「前回の成功から経ったもの」だけ**を実行します（バックアップ20時間・訓練168時間・掃除144時間・ループ検知3時間）。結果は `docker/logs/last-run/` に残り、異常がある間はデスクトップに `TAX-APPS-ALERT.txt` が置かれます。
 
 ### 開発モード vs 本番モード
 
 | | 開発モード (`start`) | 本番モード (`start --prod`) |
 |---|---|---|
 | ビルド | なし（ソースマウント） | `docker compose ... --build` |
-| ソースコード | ホストからマウント（HMR対応） | イメージ内に含む |
+| ソースコード | ホストからマウント（HMR対応）<br>※private-banking / inheritance-case-management は `watch` で同期 | イメージ内に含む |
 | Dockerfile ターゲット | `dev` | `runner` |
 | nginx系イメージサイズ | ~800MB (Node.js + ソース) | ~60MB (nginx + dist) |
 | 用途 | ローカル開発 | デプロイ・動作検証 |

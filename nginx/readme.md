@@ -70,6 +70,22 @@ nginx/
 - **50x**: サーバーエラー — レッドアイコン、「再読み込み」「トップページへ」ボタン
 - **503**: メンテナンス中 — ブルーアイコン、パルスアニメーション付きステータスバッジ
 
+#### JS/CSS を求めてきた相手に HTML を返さない
+
+Next.js の2アプリ（private-banking / inheritance-case-management）の `_next/static` では、
+`error_page 404 = @next_static_missing;` と `error_page 500 502 503 504 = @next_static_unavailable;`
+で**エラーページの HTML を返さない**ようにしている（名前付きロケーションで落とす）。
+
+2026-10-13、コンテナの作り直し中に `_next/static` が 502 を返し、その本文（`50x.html`）を受けた
+ブラウザが `Refused to execute script (MIME type text/html)` でレンダリングごと失敗 → Next の dev
+クライアントは `hadRuntimeError` のとき変更通知をソフト更新ではなく `location.reload()` で処理する
+ため、**毎秒4回のリロードが数十分続いた**。
+
+**ただしこれはループを止めない。** ブラウザは 2xx でない応答の本文を `<script>` として実行しないので、
+HTML をやめてもチャンクは読めず画面は壊れる（＝ `hadRuntimeError` は同じように立つ）。ここで塞いだのは
+「本文を読む側が HTML を解析して別のエラーに化ける」経路と、落ち方を5経路で揃えることだけ。
+検知と証拠の採取は `manage.sh loop-check`（無人側はウォッチドッグの `due`）が受け持つ。
+
 ### 構成のモジュール化
 
 - **共通プロキシ設定**: `includes/proxy_params.conf` に共通のヘッダー設定（Host, X-Real-IP, WebSocket Upgrade等）を集約
@@ -305,4 +321,4 @@ curl -I http://localhost/itcm/
 | 504 Gateway Timeout | 処理時間超過 | `proxy_read_timeout` を延長 |
 | 429 Too Many Requests | レート制限超過 | rate 値または burst 値を調整 |
 | 413 Request Entity Too Large | アップロードサイズ超過 | `client_max_body_size` を調整 |
-| Django 400 Bad Request | `ALLOWED_HOSTS` にアクセス元IPが未登録 | Django の `DJANGO_ALLOWED_HOSTS` に `*` またはIPを追加 |
+| 画面が毎秒リロードし続ける | Next の `_next/static` のチャンクが読めず、dev クライアントが完全リロードを繰り返している | `manage.sh loop-check` が検知して証拠を `docker/logs/reload-loop/` に残す。上記「エラーページ > JS/CSS を求めてきた相手に HTML を返さない」 |
