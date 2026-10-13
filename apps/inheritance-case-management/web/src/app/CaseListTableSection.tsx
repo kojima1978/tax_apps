@@ -28,7 +28,6 @@ interface CaseListTableSectionProps {
     cases: CaseListItem[]
     columns: ColumnDef<CaseListItem>[]
     hasFilters: boolean
-    amountTotals: CaseListAmountTotals
     filteredAmountTotals?: CaseListAmountTotals
     density?: "standard" | "compact"
     visibleColumnIds?: readonly string[]
@@ -48,7 +47,6 @@ export function CaseListTableSection({
     onToggleSelected,
     columns,
     hasFilters,
-    amountTotals,
     filteredAmountTotals,
     density,
     visibleColumnIds,
@@ -75,7 +73,7 @@ export function CaseListTableSection({
                     </div>
                 </div>
             )}
-            {(cases.length > 0 || filteredAmountTotals) && (
+            {filteredAmountTotals && (
                 <div className="mb-2 space-y-2 rounded-lg border bg-muted/50 px-3 py-2 text-xs md:mb-0 md:rounded-b-none">
                     {filteredAmountTotals && <div className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="検索条件に一致する全件の売上合計">
                         <span className="font-medium">条件一致の全件合計</span>
@@ -84,13 +82,6 @@ export function CaseListTableSection({
                         <span>見込 {formatCurrency(filteredAmountTotals.estimate)}</span>
                         <span className="text-muted-foreground">/ {pagination?.total ?? cases.length}件（紹介料控除前）</span>
                     </div>}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="font-medium text-muted-foreground">このページの売上合計</span>
-                    <span className="font-bold">{formatCurrency(amountTotals.total)}</span>
-                    <span className="text-black">確定 {formatCurrency(amountTotals.confirmed)}</span>
-                    <span className="text-black/70">見込 {formatCurrency(amountTotals.estimate)}</span>
-                    <span className="text-muted-foreground">/ {cases.length}件</span>
-                    </div>
                 </div>
             )}
             <DataTable

@@ -24,7 +24,6 @@ import { useWorkspacePreferences } from "@/hooks/use-workspace-preferences"
 import { LIST_VIEWS } from "@/lib/workspace-preferences"
 import {
     applyKpiCardFilter,
-    calculateCaseListAmountTotals,
     CASE_LIST_PAGE_SIZE,
     getActiveKpiFilter,
     getCaseListKpiFilters,
@@ -119,7 +118,6 @@ function InheritanceMockupPageContent() {
         })
     }, [])
 
-    const amountTotals = useMemo(() => calculateCaseListAmountTotals(cases), [cases])
     const rowNumberOffset = ((queryParams.page || 1) - 1) * (queryParams.pageSize || CASE_LIST_PAGE_SIZE)
     const tableColumns = useMemo(
         () => createColumns({ amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll }).filter(column => {
@@ -267,7 +265,6 @@ function InheritanceMockupPageContent() {
                 onToggleSelected={onToggleSelected}
                 columns={tableColumns}
                 hasFilters={hasFilters}
-                amountTotals={amountTotals}
                 filteredAmountTotals={data?.amountTotals}
                 density={preferences.density}
                 visibleColumnIds={visibleColumnIds}
