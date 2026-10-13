@@ -204,6 +204,9 @@ OPS_WATCHED_RESULTS=(
   "backup-external:バックアップの外部コピー:Off-machine backup copy:30"
   "drill:リストア訓練:Restore drill:192"
   "prune:Dockerの掃除:Docker prune:192"
+  # ループ検知はウォッチドッグが3時間おきに走らせる（間隔は4時間なので
+  # 実質は毎回）。24時間は「取りこぼし1回ぶん(8時間)」より十分広い。
+  "reload-loop:リロードループの検知:Reload loop:24"
   "recover:復旧(recover):App recovery:48"
   "watchdog:ウォッチドッグ:Docker watchdog:48"
   # 以下2件はウォッチドッグが4時間毎に書く。48時間は「12回連続で

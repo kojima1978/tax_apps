@@ -1440,6 +1440,13 @@ run_scheduled_prune() {
   return 1
 }
 
+# リロードループの検知は manage.sh へ委譲する（URL からアプリを引く表も
+# ゲートウェイのログの読み方もあちら側にしかない）。ロックはこちらが握った
+# ままでよい ── loop-check は docker logs を読むだけでコンテナに触らない。
+run_scheduled_loop_check() {
+  "$SCRIPT_DIR/manage.sh" loop-check
+}
+
 remove_old_files() {
   local dir="$1"
   local pattern="$2"
@@ -1679,7 +1686,8 @@ copy_backup_to_external() {
 # 二重取得にはならない（「日次」が「PCを使った日に1回」になる）。
 #
 # **しきい値は OPS_WATCHED_RESULTS の警告しきい値より必ず小さくすること**
-# （backup: 20h < 30h / drill: 168h < 192h / prune: 144h < 192h）。
+# （backup: 20h < 30h / drill: 168h < 192h / prune: 144h < 192h /
+# reload-loop: 3h < 24h）。
 # 逆転すると「警告を出してから実行する」順序になり、デスクトップの警告が
 # 毎回ウソをつく。掃除だけ警告しきい値から2日離してあるのは、以前これが
 # ドリルの付属物で、駆動元の周期（168h）と警告しきい値（192h）がほぼ
@@ -1687,6 +1695,7 @@ copy_backup_to_external() {
 DUE_BACKUP_HOURS="${TAX_APPS_DUE_BACKUP_HOURS:-20}"
 DUE_DRILL_HOURS="${TAX_APPS_DUE_DRILL_HOURS:-168}"
 DUE_PRUNE_HOURS="${TAX_APPS_DUE_PRUNE_HOURS:-144}"
+DUE_LOOPCHECK_HOURS="${TAX_APPS_DUE_LOOPCHECK_HOURS:-3}"
 
 # 記録が無い（一度も成功していない）ときは期限切れとして扱う。
 _due_needed() {
@@ -1717,7 +1726,7 @@ cmd_due() {
   # タスクが消えたことに気づく経路がその日だけ欠ける）。
   ensure_watchdog_task
 
-  local status="ok" backup_state="skip" drill_state="skip" prune_state="skip"
+  local status="ok" backup_state="skip" drill_state="skip" prune_state="skip" loop_state="skip"
 
   if _due_needed "backup" "$DUE_BACKUP_HOURS"; then
     if _due_run cmd_backup; then
@@ -1758,9 +1767,24 @@ cmd_due() {
     echo ""
   fi
 
+  # ループ検知も他の3つの成否に依存させない。こちらは何も作らず何も消さない
+  # 読み取りだけの処理なので、バックアップが失敗した回でも走らせて困らない。
+  if _due_needed "reload-loop" "$DUE_LOOPCHECK_HOURS"; then
+    if _due_run run_scheduled_loop_check; then
+      loop_state="ran"
+    else
+      # ループを見つけた回もここへ来る（検知は last-run の failed で残る）。
+      loop_state="failed"
+      status="failed"
+    fi
+  else
+    echo "ループ検知: ${DUE_LOOPCHECK_HOURS}時間以内に成功しているのでスキップ（$(ops_format_last_result reload-loop)）"
+    echo ""
+  fi
+
   # ウォッチドッグ(PowerShell)が読む唯一の行。日本語のログ行はコンソールの
   # コードページ次第で拾えないため、連絡は ASCII 1行に限る。
-  echo "DUE_RESULT status=$status backup=$backup_state drill=$drill_state prune=$prune_state"
+  echo "DUE_RESULT status=$status backup=$backup_state drill=$drill_state prune=$prune_state loop=$loop_state"
   [[ "$status" == "ok" ]]
 }
 

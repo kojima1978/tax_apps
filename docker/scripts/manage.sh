@@ -21,6 +21,7 @@
 #   ./manage.sh prune              無人向けの掃除（確認なし・ボリュームは触らない）
 #   ./manage.sh test [app]         稼働中のコンテナの中でテストを実行
 #   ./manage.sh alert              デスクトップの警告ファイルを作り直す
+#   ./manage.sh loop-check         リロードループの検知（ウォッチドッグ用）
 #   ./manage.sh preflight          起動前チェック
 #
 # ============================================
@@ -1588,6 +1589,203 @@ cmd_alert() {
 }
 
 # ------------------------------------
+# loop-check - リロードループの検知
+# ------------------------------------
+# 2026-10-13、private-banking の画面が毎秒4回リロードし続ける状態が数十分
+# 続いた。きっかけはコンテナの作り直しで、連鎖はこう繋がっていた:
+#
+#   コンテナ作り直し → ゲートウェイが _next/static に 502（HTML の 50x.html）
+#   → ブラウザが "Refused to execute script (MIME type text/html)" で
+#     レンダリングごと失敗 → Next の dev クライアントはそれ以降、変更通知を
+#     ソフト更新ではなく location.reload() で処理する（hot-reloader-app.js の
+#     SERVER_COMPONENT_CHANGES は hadRuntimeError のとき完全リロード）
+#   → リロード後も同じエラーが再現するので抜け出せない
+#
+# HTML を返す側は default.conf の @next_static_unavailable で塞いだが、
+# **「なぜ dev サーバが毎回変更通知を出し続けたのか」は未解明**のまま終わった。
+# 気づいたのが数十分後で、調べようとしたときには当のコンテナを作り直して
+# しまっていてログが残っていなかった ── 次に起きたときに同じ目に遭わないよう、
+# 検知と証拠の採取だけを無人側へ置く。
+#
+# 判定はゲートウェイのアクセスログ（`docker logs`。access.log は /dev/stdout
+# への symlink なのでファイルとしては読めない）。_next/static や API は
+# access_log off か除外しているので、数えるのは画面そのもののリクエストだけ。
+# 実測では1分間に同じ URL が345回来ていた。人が手で押せる回数とは桁が違うので、
+# しきい値は「1分間に同じ画面を60回以上」= 1秒に1回を1分続けた状態に置く。
+LOOP_CHECK_GATEWAY_CONTAINER="${TAX_APPS_LOOP_GATEWAY:-tax-apps-gateway}"
+# 窓はウォッチドッグの間隔(4時間)より広く取る。狭いと「tick と tick の間だけ
+# 起きて収まったループ」をどの回も見られない。
+# 広く取るぶん、**直ったあとも最長この窓ぶんは警告が残る**（検知はログに
+# 残った過去の1分を見ているので、タブを閉じても窓から外れるまで見つかり
+# 続ける）。見逃すより遅れて消えるほうを選んでいる。
+LOOP_CHECK_WINDOW="${TAX_APPS_LOOP_WINDOW:-5h}"
+LOOP_CHECK_RPM="${TAX_APPS_LOOP_RPM:-60}"
+LOOP_CHECK_EVIDENCE_DIR="${TAX_APPS_LOOP_EVIDENCE_DIR:-$OPS_LOG_DIR/reload-loop}"
+LOOP_CHECK_EVIDENCE_KEEP="${TAX_APPS_LOOP_EVIDENCE_KEEP:-10}"
+
+# URL の第1セグメント -> コンテナ名。表を持たず upstreams.conf の
+# $app_backend レジストリを読む（アドレスの定義元はあそこ1箇所という約束）。
+loop_check_container_for_path() {
+  local path="$1" segment
+  segment="${path#/}"
+  segment="${segment%%/*}"
+  [[ -n "$segment" ]] || return 1
+
+  awk -v seg="$segment" '
+    /^[[:space:]]*map[[:space:]]+[$]app_name/ { inmap = 1; next }
+    inmap && /^[[:space:]]*}/ { inmap = 0 }
+    inmap && $1 == seg && $2 ~ /^[A-Za-z0-9_.-]+:[0-9]+;/ {
+      split($2, a, ":"); print a[1]; exit
+    }
+  ' "$PROJECT_ROOT/nginx/includes/upstreams.conf" 2>/dev/null | head -1
+}
+
+# 1分あたりの最多リクエストを「件数 分 URL」の1行で返す（対象が無ければ無出力）。
+loop_check_worst_minute() {
+  awk '
+    {
+      # [13/Oct/2026:20:04:12 +0900] -> 13/Oct/2026:20:04
+      ts = ""
+      if (match($0, /\[[^]]+\]/)) {
+        ts = substr($0, RSTART + 1, RLENGTH - 2)
+        sub(/:[0-9][0-9] [+-][0-9]+$/, "", ts)
+      }
+      # "GET /private-banking HTTP/1.1"
+      n = split($0, q, "\"")
+      if (n < 2) next
+      split(q[2], r, " ")
+      if (r[1] != "GET") next
+      url = r[2]
+      if (ts == "" || url == "") next
+
+      # 画面そのものだけを数える。静的アセットは access_log off だが、
+      # 取れなかったときだけ @next_static_unavailable 経由で記録が残る。
+      if (url ~ /\/_next\//) next
+      if (url ~ /\/__next/) next
+      if (url ~ /\/api\//) next
+      if (url ~ /\?/) sub(/\?.*/, "", url)
+      # 末尾セグメントに拡張子があるもの（.js/.css/.ico など）は画面ではない
+      tail = url
+      sub(/.*\//, "", tail)
+      if (tail ~ /\./) next
+
+      key = ts "\t" url
+      if (++count[key] > max) { max = count[key]; worst = key }
+    }
+    END { if (max > 0) printf "%d\t%s\n", max, worst }
+  '
+}
+
+# 見つけたときだけ、そのときのログを丸ごと残す。
+# 次に起きたときに「dev サーバが何を見て変更通知を出したのか」を答えられる
+# ようにするのがこのコマンドの本来の目的なので、ここが抜けると意味が無い。
+loop_check_save_evidence() {
+  local url="$1" minute="$2" rpm="$3" container="$4" gateway_log="$5"
+  local key="$url @ $minute"
+
+  # 窓が5時間あるので、1回のループは何回ものウォッチドッグの回に見つかる。
+  # 同じ1分を採り直すと、10枠が同じ事象だけで埋まって前の事象が流れる。
+  local previous
+  previous=$(ls -1dt "$LOOP_CHECK_EVIDENCE_DIR"/*/ 2>/dev/null | head -1)
+  if [[ -n "$previous" && -f "${previous}key" ]] &&
+     [[ "$(tr -d '
+' < "${previous}key")" == "$key" ]]; then
+    printf '%s
+' "${previous%/}"
+    return 0
+  fi
+
+  local dir="$LOOP_CHECK_EVIDENCE_DIR/$(date +'%Y%m%d-%H%M%S')"
+  mkdir -p "$dir" 2>/dev/null || return 1
+  printf '%s
+' "$key" > "$dir/key" 2>/dev/null || true
+
+  {
+    printf '検知時刻: %s\n' "$(date +'%Y-%m-%d %H:%M:%S')"
+    printf 'URL: %s\n' "$url"
+    printf '最多の1分: %s（%s回）\n' "$minute" "$rpm"
+    printf 'しきい値: %s回/分\n' "$LOOP_CHECK_RPM"
+    printf '走査した窓: 直近 %s\n' "$LOOP_CHECK_WINDOW"
+    printf 'アプリのコンテナ: %s\n' "${container:-（特定できず）}"
+  } > "$dir/summary.txt" 2>/dev/null || true
+
+  grep -F "$url " "$gateway_log" > "$dir/gateway.log" 2>/dev/null || true
+
+  if [[ -n "$container" ]] && docker ps --format '{{.Names}}' | grep -qx "$container"; then
+    docker logs --since "$LOOP_CHECK_WINDOW" --timestamps "$container" \
+      > "$dir/$container.log" 2>&1 || true
+  fi
+
+  # 古い証拠は捨てる（置き場は docker/logs 配下なので git には入らない）
+  local old
+  old=$(ls -1dt "$LOOP_CHECK_EVIDENCE_DIR"/*/ 2>/dev/null | tail -n +"$((LOOP_CHECK_EVIDENCE_KEEP + 1))")
+  [[ -z "$old" ]] || printf '%s\n' "$old" | xargs -r rm -rf 2>/dev/null || true
+
+  printf '%s\n' "$dir"
+}
+
+cmd_loop_check() {
+  print_banner "Tax Apps - Reload Loop Check"
+
+  if ! docker ps --format '{{.Names}}' | grep -qx "$LOOP_CHECK_GATEWAY_CONTAINER"; then
+    # ゲートウェイが止まっていれば見るべきログがそもそも増えない。ここで
+    # failed を書くとデスクトップの警告が「ループ検知の失敗」として出るが、
+    # ゲートウェイが落ちていること自体は preflight のチェック20と recover が
+    # 見ているので、二重に鳴らさない。
+    warn "$LOOP_CHECK_GATEWAY_CONTAINER が動いていないので検査しません"
+    ops_write_last_result "reload-loop" "ok" "gateway stopped / not checked"
+    return 0
+  fi
+
+  local log_file
+  log_file=$(mktemp) || return 1
+  # stderr は error.log なのでアクセスログだけを取る
+  if ! docker logs --since "$LOOP_CHECK_WINDOW" "$LOOP_CHECK_GATEWAY_CONTAINER" \
+      > "$log_file" 2>/dev/null; then
+    rm -f "$log_file"
+    err "ゲートウェイのログを読めませんでした"
+    ops_write_last_result "reload-loop" "failed" "docker logs failed"
+    return 1
+  fi
+
+  local lines worst rpm minute url
+  lines=$(wc -l < "$log_file" | tr -d ' ')
+  worst=$(loop_check_worst_minute < "$log_file")
+  if [[ -z "$worst" ]]; then
+    rm -f "$log_file"
+    ok "画面のリクエストが記録されていません（直近 $LOOP_CHECK_WINDOW・${lines}行）"
+    ops_write_last_result "reload-loop" "ok" "no page requests in $LOOP_CHECK_WINDOW"
+    return 0
+  fi
+
+  IFS=$'\t' read -r rpm minute url <<< "$worst"
+  echo "  走査した窓: 直近 $LOOP_CHECK_WINDOW（${lines}行）"
+  echo "  最多の画面: $url"
+  echo "  最多の1分: $minute（${rpm}回・しきい値 ${LOOP_CHECK_RPM}回/分）"
+  echo ""
+
+  if [[ "$rpm" -lt "$LOOP_CHECK_RPM" ]]; then
+    rm -f "$log_file"
+    ok "リロードループは検知されませんでした"
+    ops_write_last_result "reload-loop" "ok" "max ${rpm}/min < ${LOOP_CHECK_RPM} ($url)"
+    return 0
+  fi
+
+  local container evidence
+  container=$(loop_check_container_for_path "$url" || true)
+  evidence=$(loop_check_save_evidence "$url" "$minute" "$rpm" "$container" "$log_file" || true)
+  rm -f "$log_file"
+
+  err "リロードループを検知しました: $url が $minute に ${rpm}回"
+  echo "  ブラウザでその画面を開いたままにしていると直りません。タブを閉じて"
+  echo "  開き直してください（コンテナの作り直し直後に起きます）。"
+  [[ -z "$evidence" ]] || echo "  採取したログ: $(to_win_path "$evidence")"
+  ops_write_last_result "reload-loop" "failed" \
+    "${rpm}/min at $minute ($url)${evidence:+ / evidence: $(basename "$evidence")}"
+  return 1
+}
+
+# ------------------------------------
 # Dockerfile の CRLF ガード検査
 # ------------------------------------
 # CRLF のまま Linux コンテナへ入った docker-entrypoint.sh は BusyBox sh が
@@ -2349,9 +2547,12 @@ case "$COMMAND" in
   prune)     cmd_prune ;;
   test)      cmd_test "${2:-}" ;;
   alert)     cmd_alert ;;
+  # ロックは取らない。backup.sh の cmd_due がロックを握ったまま呼ぶため
+  # （Docker のログを読むだけで、コンテナには触らない）。
+  loop-check) cmd_loop_check ;;
   preflight) cmd_preflight ;;
   *)
-    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|verify|drill|due|clean|clean-cache|prune|alert|preflight} [app-name]"
+    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|verify|drill|due|clean|clean-cache|prune|alert|loop-check|preflight} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start [app]        起動（アプリ名を省略すると全アプリ・ネットワーク自動作成）"
@@ -2377,6 +2578,7 @@ case "$COMMAND" in
     echo "  clean-cache [--all] Docker Build Cache の削除（通常は7日以上未使用のみ）"
     echo "  prune              無人向けの掃除（確認なし・ボリュームは触らない）"
     echo "  alert              デスクトップの警告ファイルを作り直す"
+    echo "  loop-check         画面のリロードループを検知（ウォッチドッグ用）"
     echo "  preflight          起動前チェック"
     echo ""
     echo "Apps:"
