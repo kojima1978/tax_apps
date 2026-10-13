@@ -23,13 +23,13 @@ import {
 } from "@/lib/portfolio-view";
 
 type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING" | "INSURANCE" | "INSURANCE_RIGHTS" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
-type BulkField = "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "floorArea" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "note";
+type BulkField = "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "floorArea" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "repaymentDueDate" | "interestRate" | "collateral" | "note";
 type BulkRow = Record<BulkField, string> & { id: number; positionId: number | null; error: string; errorFields: BulkField[] };
 /**
  * conditional は「どの方式のときに使う欄か」。見出しの札と、使わない方式で無効にした欄の説明にそのまま出す。
  * legalHeirMark は受取人欄に出す印。非課税枠は法定相続人が受け取る分にしか効かないので、選んだその場で当否を見せる。
  */
-type BulkColumn = { key: BulkField; label: string; numeric?: boolean; required?: boolean; conditional?: string; kind?: "category" | "formula" | "landCategory" | "buildingType" | "accountType" | "person"; legalHeirMark?: boolean; width?: string };
+type BulkColumn = { key: BulkField; label: string; numeric?: boolean; required?: boolean; conditional?: string; kind?: "category" | "formula" | "landCategory" | "buildingType" | "accountType" | "person" | "date"; legalHeirMark?: boolean; width?: string };
 
 const bulkEntryTypeLabels: Record<BulkEntryType, string> = { DEPOSIT: "現金・預貯金", SECURITIES: "有価証券", PRIVATE_SHARES: "自社株", LAND: "土地", BUILDING: "建物", INSURANCE: "生命保険", INSURANCE_RIGHTS: "生命保険契約に関する権利", RETIREMENT_ALLOWANCE: "退職金", LOAN_RECEIVABLE: "貸付金" };
 /** タブの並びと区切り。明細一覧の中分類（assetCategoryGroups）と同じ順に並べ、画面間で探す位置を揃える。 */
@@ -106,10 +106,17 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
     columns: [
       { key: "name", label: "名称", required: true, width: "200px" },
       { key: "institution", label: "貸付先", width: "180px" },
+      { key: "repaymentDueDate", label: "返済期限", kind: "date", width: "132px" },
+      { key: "interestRate", label: "利率（年％）", numeric: true, width: "104px" },
+      { key: "collateral", label: "担保", width: "180px" },
       { key: "originalAmount", label: "貸付金残高（円）", numeric: true, required: true, width: "150px" },
       { key: "note", label: "メモ", width: "200px" },
     ],
-    details: () => ({}),
+    details: (row) => ({
+      ...(row.repaymentDueDate.trim() ? { repaymentDueDate: row.repaymentDueDate.trim() } : {}),
+      ...(row.interestRate.trim() ? { interestRate: Number(row.interestRate.replace(/,/g, "")) } : {}),
+      ...(row.collateral.trim() ? { collateral: row.collateral.trim() } : {}),
+    }),
   },
 };
 const simpleEntryConfigOf = (type: BulkEntryType) => simpleEntryConfigs[type as SimpleEntryType] ?? null;
@@ -129,7 +136,7 @@ const ownedDetailKeys: Record<BulkEntryType, Array<keyof AssetDetails>> = {
   INSURANCE: ["policyNumber", "insuredPerson", "beneficiary", "deathBenefit", "benefitAllocations"],
   INSURANCE_RIGHTS: ["policyNumber", "insuredPerson"],
   RETIREMENT_ALLOWANCE: ["retirementRecipient", "retirementAllowance", "benefitAllocations"],
-  LOAN_RECEIVABLE: [],
+  LOAN_RECEIVABLE: ["repaymentDueDate", "interestRate", "collateral"],
 };
 /** 預金種類。貼り付け時のラベル照合にも使うので、選択肢と同じ並びを1箇所で持つ。 */
 const accountTypeOptions = [{ value: "ORDINARY", label: "普通預金" }, { value: "TIME", label: "定期預金" }, { value: "FOREIGN", label: "外貨預金" }, { value: "OTHER", label: "その他" }];
@@ -147,7 +154,8 @@ function createBulkRow(id: number, positionId: number | null = null): BulkRow {
     id, positionId, error: "", errorFields: [], category: "REAL_ESTATE", valuationFormula: "STOCK", name: "", institution: "",
     accountType: "ORDINARY", policyNumber: "", insuredPerson: "", benefit: "", recipient: "", address: "", landCategory: "", buildingType: "",
     floorArea: "", quantity: "", unitPrice: "", landArea: "", roadsideValue: "", fixedAssetTaxValue: "", multiplier: "1.0",
-    adjustmentRate: "1.0", ownershipNumerator: "1", ownershipDenominator: "1", originalAmount: "", note: "",
+    adjustmentRate: "1.0", ownershipNumerator: "1", ownershipDenominator: "1", originalAmount: "",
+    repaymentDueDate: "", interestRate: "", collateral: "", note: "",
   };
 }
 
@@ -206,6 +214,9 @@ function bulkRowFromPosition(position: Position): BulkRow {
     ownershipNumerator: bulkNumber(position.ownershipNumerator ?? fallbackNumerator, 0),
     ownershipDenominator: bulkNumber(position.ownershipDenominator ?? fallbackDenominator, 0),
     originalAmount: bulkNumber(position.originalAmount),
+    repaymentDueDate: details.repaymentDueDate ?? "",
+    interestRate: bulkNumber(details.interestRate, 4),
+    collateral: details.collateral ?? "",
     note: position.note,
   };
 }
@@ -384,7 +395,8 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   }
 
   function updateRow(rowId: number, key: BulkField, rawValue: string, numeric = false) {
-    const value = numeric ? formatCommaNumberInput(rawValue, ["quantity", "landArea"].includes(key) ? 6 : 2) : rawValue;
+    const fractionDigits = ["quantity", "landArea"].includes(key) ? 6 : key === "interestRate" ? 4 : 2;
+    const value = numeric ? formatCommaNumberInput(rawValue, fractionDigits) : rawValue;
     setRows((currentRows) => currentRows.map((row) => row.id === rowId ? { ...row, [key]: value, error: "", errorFields: row.errorFields.filter((field) => field !== key) } : row));
   }
 
@@ -504,7 +516,8 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         cells.forEach((cell, columnOffset) => {
           const column = columns[startColumnIndex + columnOffset];
           if (!column) return;
-          next[column.key] = column.numeric ? formatCommaNumberInput(cell, ["quantity", "landArea"].includes(column.key) ? 6 : 2) : normalizedPastedValue(column.key, cell);
+          const fractionDigits = ["quantity", "landArea"].includes(column.key) ? 6 : column.key === "interestRate" ? 4 : 2;
+          next[column.key] = column.numeric ? formatCommaNumberInput(cell, fractionDigits) : normalizedPastedValue(column.key, cell);
         });
         nextRows[startRowIndex + rowOffset] = next;
       });
@@ -536,11 +549,12 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
     const fieldLabels: Partial<Record<BulkField, string>> = {
       category: "科目", valuationFormula: "方式", name: "名称", institution: "金融機関等", address: "所在地",
       policyNumber: "証券番号", insuredPerson: "被保険者", benefit: "給付金額", recipient: "受取人",
+      repaymentDueDate: "返済期限", interestRate: "利率", collateral: "担保",
       quantity: "株数・口数", unitPrice: "単価", landArea: "面積", floorArea: "床面積", roadsideValue: "路線価",
       fixedAssetTaxValue: "固定資産税評価", multiplier: "倍率", adjustmentRate: "調整率",
       ownershipNumerator: "持分子", ownershipDenominator: "持分母", originalAmount: "直接入力額",
     };
-    const numericFields = new Set<BulkField>(["quantity", "unitPrice", "landArea", "floorArea", "roadsideValue", "fixedAssetTaxValue", "multiplier", "adjustmentRate", "ownershipNumerator", "ownershipDenominator", "originalAmount"]);
+    const numericFields = new Set<BulkField>(["quantity", "unitPrice", "landArea", "floorArea", "roadsideValue", "fixedAssetTaxValue", "multiplier", "adjustmentRate", "ownershipNumerator", "ownershipDenominator", "originalAmount", "interestRate"]);
     const checkedRowsByType = Object.fromEntries(bulkEntryTypes.map((type) => [type, rowsByType[type].map((row) => {
       if (!savedRowsByType[type].includes(row)) return { ...row, error: "", errorFields: [] };
       const requiredFields = requiredFieldsForRow(row, type);
@@ -556,6 +570,11 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         const allowsZero = (type === "INSURANCE" && field === "originalAmount") || (type === "PRIVATE_SHARES" && field === "unitPrice");
         return allowsZero ? number(row[field]) < 0 : number(row[field]) <= 0;
       });
+      const interestRate = Number(row.interestRate.replace(/,/g, ""));
+      if (type === "LOAN_RECEIVABLE" && row.interestRate.trim() && (!Number.isFinite(interestRate) || interestRate < 0 || interestRate > 100)) {
+        invalid = true;
+        return { ...row, error: "利率は0以上100以下で入力してください。", errorFields: [...missingFields, "interestRate" as BulkField] };
+      }
       if (invalidNumberFields.length > 0) {
         invalid = true;
         return { ...row, error: "必須の数値は0より大きい値で入力してください。", errorFields: [...missingFields, ...invalidNumberFields] };
@@ -675,7 +694,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
                   : column.kind === "formula" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{bulkFormulaOptions(entryType).map((formula) => <option key={formula} value={formula}>{bulkFormulaLabels[formula]}</option>)}</select>
                     : column.kind === "landCategory" ? <><select {...commonProps} title={landCategoryByValue.get(row.landCategory)?.definition ?? "地目を選択"} aria-describedby={row.landCategory ? `bulk-land-category-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{landCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.landCategory ? <span id={`bulk-land-category-${row.id}`} className="sr-only">{landCategoryByValue.get(row.landCategory)?.definition}</span> : null}</>
                       : column.kind === "buildingType" ? <><select {...commonProps} title={buildingTypeByValue.get(row.buildingType)?.definition ?? "建物種類を選択"} aria-describedby={row.buildingType ? `bulk-building-type-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{buildingTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.buildingType ? <span id={`bulk-building-type-${row.id}`} className="sr-only">{buildingTypeByValue.get(row.buildingType)?.definition}</span> : null}</>
-                    : <input {...commonProps} type="text" inputMode={column.numeric ? "decimal" : undefined} disabled={disabled} placeholder={disabled ? "—" : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value, column.numeric)} />}
+                    : <input {...commonProps} type={column.kind === "date" ? "date" : "text"} inputMode={column.numeric ? "decimal" : undefined} disabled={disabled} placeholder={disabled ? "—" : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value, column.numeric)} />}
               </td>;
             })}
             <td className="bulk-calculated-value">{/* 入力と同じ円単位で出す。万円表示だと入力した桁と見比べられない。 */}<strong>{yen.format(Math.round(calculatedRowValue(row)))}</strong>{row.error ? <small>{row.error}</small> : null}</td>

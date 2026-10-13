@@ -92,6 +92,9 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     expect(screen.getByLabelText("1行目 死亡退職金（円）")).toBeTruthy();
     selectEntryType("LOAN_RECEIVABLE");
     expect(screen.getByLabelText("1行目 貸付先")).toBeTruthy();
+    expect(screen.getByLabelText("1行目 返済期限")).toHaveProperty("type", "date");
+    expect(screen.getByLabelText("1行目 利率（年％）")).toBeTruthy();
+    expect(screen.getByLabelText("1行目 担保")).toBeTruthy();
     expect(screen.getByLabelText("1行目 貸付金残高（円）")).toBeTruthy();
     // 貸付金は死亡給付金の概念が無いので受取人欄も出さない。
     expect(screen.queryByLabelText("1行目 受取人")).toBeNull();
@@ -264,17 +267,50 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     expect(savedPayloads(onSubmit)[0]?.data.assetDetails).toMatchObject({ beneficiary: "旧姓の受取人" });
   });
 
-  it("貸付金は残高をそのまま評価額にする", async () => {
+  it("貸付金は返済条件を保存し、残高をそのまま評価額にする", async () => {
     const onSubmit = renderModal();
     selectEntryType("LOAN_RECEIVABLE");
     typeIn(1, "名称", "役員貸付金");
+    typeIn(1, "貸付先", "株式会社A");
+    typeIn(1, "返済期限", "2030-03-31");
+    typeIn(1, "利率（年％）", "1.2345");
+    typeIn(1, "担保", "東京都内の対象不動産");
     typeIn(1, "貸付金残高（円）", "8,000,000");
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(savedPayloads(onSubmit)[0]?.data).toEqual(expect.objectContaining({
       category: "LOAN_RECEIVABLE", name: "役員貸付金", originalAmount: 8_000_000,
-      assetDetails: {},
+      institution: "株式会社A",
+      assetDetails: { repaymentDueDate: "2030-03-31", interestRate: 1.2345, collateral: "東京都内の対象不動産" },
     }));
+  });
+
+  it("登録済み貸付金の返済条件を読み込み、空欄にすると項目を削除する", async () => {
+    const onSubmit = renderModal([position({
+      id: 15, category: "LOAN_RECEIVABLE", name: "役員貸付金", institution: "株式会社A", originalAmount: 8_000_000, valueJpy: 8_000_000,
+      assetDetails: { repaymentDueDate: "2030-03-31", interestRate: 1.5, collateral: "対象不動産", businessName: "保持する情報" },
+    })]);
+    selectEntryType("LOAN_RECEIVABLE");
+    expect(cell(1, "返済期限").value).toBe("2030-03-31");
+    expect(cell(1, "利率（年％）").value).toBe("1.5");
+    expect(cell(1, "担保").value).toBe("対象不動産");
+    typeIn(1, "返済期限", "");
+    typeIn(1, "利率（年％）", "");
+    typeIn(1, "担保", "");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).toEqual({ businessName: "保持する情報" });
+  });
+
+  it("貸付金の利率は0以上100以下に制限する", async () => {
+    const onSubmit = renderModal();
+    selectEntryType("LOAN_RECEIVABLE");
+    typeIn(1, "名称", "役員貸付金");
+    typeIn(1, "貸付金残高（円）", "8,000,000");
+    typeIn(1, "利率（年％）", "100.1");
+    save();
+    expect(await screen.findByText("利率は0以上100以下で入力してください。")).toBeTruthy();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("建物は床面積を列として出し、assetDetails へ入れる", async () => {

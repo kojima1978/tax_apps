@@ -280,4 +280,23 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect((table.querySelector('col[data-column="value"]') as HTMLElement).style.width).toBe("13%");
     expect((table.querySelector('col[data-column="formula"]') as HTMLElement).style.width).toBe("22%");
   });
+
+  it("印刷詳細に貸付・負債・保証の追加情報と長文を表示する", async () => {
+    const rows = [
+      position(20, { category: "LOAN_RECEIVABLE", name: "長期貸付金", assetDetails: { repaymentDueDate: "2035-12-31", interestRate: 1.2345, collateral: "東京都千代田区所在の土地建物および附属設備一式（第一順位抵当権設定済み）" } }),
+      position(21, { side: "LIABILITY", category: "DEPOSITS_RECEIVED", name: "預り保証金", assetDetails: { relatedProperty: "本社ビル", returnTerms: "契約終了後、原状回復費用と未払賃料を控除した残額を返還する" } }),
+      position(22, { side: "LIABILITY", category: "GUARANTEE", name: "債務保証", includedInNetWorth: false, assetDetails: { principalDebtor: "株式会社A", guaranteeExpiryDate: "2036-03-31" } }),
+    ];
+    render(<PositionDetailsPrintView snapshot={{ ...snapshot, positions: rows }} taxBurden={() => null} />);
+    const loanTable = await screen.findByRole("table", { name: "貸付金の明細" });
+    expect(within(loanTable).getByRole("columnheader", { name: "返済期限" })).toBeTruthy();
+    expect(within(loanTable).getByRole("columnheader", { name: "利率（年％）" })).toBeTruthy();
+    expect(within(loanTable).getByText("1.2345")).toBeTruthy();
+    expect(within(loanTable).getByText(/第一順位抵当権設定済み/)).toBeTruthy();
+    const depositTable = screen.getByRole("table", { name: "預り敷金・保証金の明細" });
+    expect(within(depositTable).getByText(/原状回復費用と未払賃料/)).toBeTruthy();
+    const guaranteeTable = screen.getByRole("table", { name: "個人保証の明細" });
+    expect(within(guaranteeTable).getByText("株式会社A")).toBeTruthy();
+    expect(within(guaranteeTable).getByText("2036-03-31")).toBeTruthy();
+  });
 });
