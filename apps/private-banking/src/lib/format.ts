@@ -4,10 +4,13 @@ import { exportFileName } from "./export-filename";
 import { parseDateOnlyUtc } from "./snapshot-date";
 
 export const yen = new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 });
+/** 列見出し側に「（円）」を置く表で使う、通貨記号なしの円貨表示。 */
+export const yenNumber = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
 export const percent = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 });
 
 /** 会計慣行に合わせ、マイナス額を△付きで表示する（相続税負担額の軽減など）。 */
 export const triangleYen = (value: number) => value < 0 ? `△${yen.format(Math.abs(value))}` : yen.format(value);
+export const triangleYenNumber = (value: number) => value < 0 ? `△${yenNumber.format(Math.abs(value))}` : yenNumber.format(value);
 
 export const valuationNumber = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 6 });
 

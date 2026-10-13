@@ -5,17 +5,17 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { List, Plus, Save, Scale, Search, Table2, UsersRound } from "lucide-react";
 import { type MouseEvent, useMemo, useState } from "react";
 import { CommaNumberInput } from "@/components/form-fields";
-import { type Position, type PositionSection, type Snapshot, positionSection, middleClassification, middleClassificationRank, categoryRank, propertyTypeOf, deemedConfig, deemedAllocations, deemedBenefitJpy, hasDeemedBenefit, splitBenefit, categoryLabels, fractionTotal, valuationDetailLine } from "@/lib/portfolio-view";
+import { type Position, type PositionSection, type Snapshot, positionSection, middleClassification, middleClassificationRank, categoryRank, propertyTypeOf, deemedConfig, deemedAllocations, deemedBenefitJpy, hasDeemedBenefit, splitBenefit, categoryLabels, fractionTotal, ownershipFraction, smallLotTypeOptions, loanCategories } from "@/lib/portfolio-view";
 import { legalHeirMemberRoster, type FamilyMember } from "@/lib/family";
 import { matchesSearchTerms, searchTerms } from "@/lib/clients";
-import { yen, triangleYen } from "@/lib/format";
+import { yen, triangleYen, valuationNumber } from "@/lib/format";
 import { positionAllocationAmounts, positionAllocationLabel, positionCaption, positionDetailFields, positionKeyInfo } from "@/lib/position-display";
 import { detailPageFor } from "@/lib/position-detail-pages";
 
 type AllocationPayload = { positionId: number; amounts: Array<{ familyMemberId: number; amountJpy: number }> };
 type AllocationSummary = { amountJpy: number };
 
-const summaryExcludedLabels = new Set(["科目", "取得者", "負担者", "負担予定者", "所在地・金融機関等", "保管・所在場所", "受取人・取り分"]);
+const summaryExcludedLabels = new Set(["科目", "土地・建物", "取得者", "負担者", "負担予定者", "所在地・金融機関等", "保管・所在場所", "受取人・取り分"]);
 
 function summaryFieldPriority(position: Position) {
   if (position.category === "DEPOSIT") return ["預金種類", "支店", "口座番号（末尾）", "満期日"];
@@ -34,7 +34,9 @@ function summaryFieldPriority(position: Position) {
 function positionSupplement(position: Position) {
   const config = deemedConfig(position);
   const excluded = new Set(summaryExcludedLabels);
-  if (config) { excluded.add(config.surrenderLabel); excluded.add(config.label); }
+  const reference = positionReferenceInfo(position);
+  reference.sourceLabels.forEach((label) => excluded.add(label));
+  if (config) { excluded.add(config.surrenderLabel); excluded.add(config.label); excluded.add("被保険者"); }
   const fields = positionDetailFields(position).filter(([label]) => !excluded.has(label));
   const priorities = summaryFieldPriority(position);
   const rank = new Map(priorities.map((label, index) => [label, index]));
@@ -51,39 +53,90 @@ function PositionSupplement({ position }: { position: Position }) {
   return <div className="position-summary-supplement" title={lines.join(" / ")}>{lines.map((line) => <span key={line}>{line}</span>)}</div>;
 }
 
-/**
- * 生命保険・死亡退職金の金額は「解約返戻金（解約手当金）」と「死亡保険金（死亡退職金）」の2段。
- * 同じ行の評価情報が指しているのは前者なので、給付額だけを出すと行の中で噛み合わない
- * ──「評価方法：解約返戻金」と書きながら、その金額は一覧のどこにも出ていなかった。
- * 明細表（positions-view の DeemedAmounts）と同じ並びにしてある。
- */
-function DeemedMoneyLines({ position }: { position: Position }) {
-  const config = deemedConfig(position)!;
-  return <>
-    <div><span>{config.surrenderLabel}</span><strong>{yen.format(position.valueJpy)}</strong></div>
-    {hasDeemedBenefit(position) ? <div><span>{config.label}</span><strong>{yen.format(deemedBenefitJpy(position))}</strong></div> : null}
-  </>;
+/** 一覧で比較する主金額。保険・退職金は相続時に受け取る給付額、それ以外は現在の評価額。 */
+function primaryAmount(position: Position) {
+  const config = deemedConfig(position);
+  if (!config) return { label: "評価額", valueJpy: position.valueJpy, registered: true };
+  return { label: config.label, valueJpy: deemedBenefitJpy(position), registered: hasDeemedBenefit(position) };
 }
 
-/** 金額欄の読み上げ。2段ある生命保険・死亡退職金は、どちらの金額かが分かるよう両方を続けて読ませる。 */
-function moneyCellLabel(position: Position) {
+function primaryAmountText(position: Position) {
+  const amount = primaryAmount(position);
+  return amount.registered ? yen.format(amount.valueJpy) : "未登録";
+}
+
+type ReferenceInfo = { label: string; value: string; sourceLabels: string[] };
+
+/** 主金額と対比して判断に使う情報。計算根拠ではなく、科目固有の判断材料を優先する。 */
+function positionReferenceInfo(position: Position) {
   const config = deemedConfig(position);
-  if (!config) return `評価額 ${yen.format(position.valueJpy)}`;
-  const benefit = hasDeemedBenefit(position) ? ` ${config.label} ${yen.format(deemedBenefitJpy(position))}` : "";
-  return `${config.surrenderLabel} ${yen.format(position.valueJpy)}${benefit}`;
+  const details = position.assetDetails ?? {};
+  const info = (label: string, value: string, sourceLabels: string[] = [label]): ReferenceInfo => ({ label, value, sourceLabels });
+  if (config) return info(config.surrenderLabel, yen.format(position.valueJpy));
+  if (position.currency !== "JPY") {
+    return info("外貨・換算", `${valuationNumber.format(position.originalAmount)} ${position.currency} × ${valuationNumber.format(position.fxRate)}円`, ["外貨金額", "円換算レート"]);
+  }
+  if (position.category === "DEPOSIT") {
+    if (details.maturityDate) return info("満期日", details.maturityDate);
+    if (details.accountSuffix) return info("口座番号（末尾）", details.accountSuffix);
+  }
+  if (position.category === "SECURITIES" && position.valuationQuantity !== null) return info("保有数量", valuationNumber.format(position.valuationQuantity), ["株数・口数"]);
+  if (position.category === "INSURANCE_RIGHTS" && details.insuredPerson) return info("被保険者", details.insuredPerson);
+  const propertyType = propertyTypeOf(position);
+  if (propertyType) {
+    const shareRegistered = position.ownershipNumerator !== null && position.ownershipDenominator !== null || position.ownershipShare !== null;
+    const share = shareRegistered ? ownershipFraction(position) : "";
+    const smallLot = propertyType === "LAND" && details.smallLotType
+      ? smallLotTypeOptions.find((option) => option.value === details.smallLotType)?.label ?? details.smallLotType
+      : "";
+    const structure = propertyType === "BUILDING" ? details.buildingStructure ?? "" : "";
+    const parts = [{ label: propertyType === "LAND" ? "小規模宅地等" : "構造", value: smallLot || structure }, { label: "持分", value: share }].filter((item) => item.value);
+    if (parts.length > 0) return info(parts.map((item) => item.label).join("・"), parts.map((item) => item.value).join("／"), propertyType === "LAND" ? ["小規模宅地等の区分", "持分"] : ["構造", "持分"]);
+  }
+  if (position.category === "PRIVATE_SHARES") {
+    if (position.valuationQuantity !== null && details.totalIssuedShares && details.totalIssuedShares > 0) {
+      const holdingRate = position.valuationQuantity / details.totalIssuedShares * 100;
+      return info("保有比率", `${holdingRate.toLocaleString("ja-JP", { maximumFractionDigits: 2 })}%`, ["株数・口数", "発行済株式数"]);
+    }
+    if (details.valuationApproach) return info("評価方式", details.valuationApproach);
+  }
+  if (["BUSINESS_ASSETS", "COLLECTIBLES"].includes(position.category) && details.storageLocation) return info("保管・所在場所", details.storageLocation);
+  if (position.category === "LOAN_RECEIVABLE" || loanCategories.includes(position.category)) {
+    const terms = [
+      details.repaymentDueDate ? { label: "返済期限", value: details.repaymentDueDate } : null,
+      typeof details.interestRate === "number" ? { label: "利率", value: `年${valuationNumber.format(details.interestRate)}%` } : null,
+    ].filter((item): item is { label: string; value: string } => item !== null);
+    if (terms.length > 0) return info(terms.map((item) => item.label).join("・"), terms.map((item) => item.value).join("／"), ["返済期限", "利率"]);
+    if (details.collateral) return info("担保", details.collateral);
+  }
+  if (position.category === "LEASE_OBLIGATION" && details.contractEndDate) return info("契約終了日", details.contractEndDate);
+  if (position.category === "ACCOUNTS_PAYABLE" && details.paymentDueDate) return info("支払期限", details.paymentDueDate);
+  if (position.category === "DEPOSITS_RECEIVED") {
+    if (details.relatedProperty) return info("対象物件", details.relatedProperty);
+    if (details.returnTerms) return info("返還条件", details.returnTerms);
+  }
+  if (position.category === "GUARANTEE") {
+    const guarantee = [
+      details.principalDebtor ? { label: "主債務者", value: details.principalDebtor } : null,
+      details.guaranteeExpiryDate ? { label: "保証期限", value: details.guaranteeExpiryDate } : null,
+    ].filter((item): item is { label: string; value: string } => item !== null);
+    if (guarantee.length > 0) return info(guarantee.map((item) => item.label).join("・"), guarantee.map((item) => item.value).join("／"), ["主債務者", "保証期限"]);
+  }
+  if (position.note) return info("メモ", position.note);
+  return info("参考情報", "—", []);
 }
 
 function PositionMoneyLines({ position, burden }: { position: Position; burden: number | null }) {
-  const config = deemedConfig(position);
+  const amount = primaryAmount(position);
   return <div className="position-summary-money-lines">
-    {config ? <DeemedMoneyLines position={position} /> : <div><span>評価額</span><strong>{yen.format(position.valueJpy)}</strong></div>}
+    <div><span>{amount.label}</span><strong>{amount.registered ? yen.format(amount.valueJpy) : "未登録"}</strong></div>
     <div><span>相続税額</span><strong>{burden === null ? "—" : triangleYen(burden)}</strong></div>
   </div>;
 }
 
-function PositionValuationInfo({ position }: { position: Position }) {
-  const calculationBasis = valuationDetailLine(position);
-  return <><span className="position-summary-secondary-label">{calculationBasis ? "計算根拠" : "評価方法"}</span>{calculationBasis || position.valuationMethod || "—"}</>;
+function PositionReferenceInfo({ position }: { position: Position }) {
+  const reference = positionReferenceInfo(position);
+  return <><span className="position-summary-secondary-label">{reference.label}</span>{reference.value}</>;
 }
 
 function MoneyColumnHeading() {
@@ -279,7 +332,7 @@ function AllocationMatrix({ rows, allPositions, familyMembers, saving, onSave, t
       <div className="allocation-toolbar-actions"><button type="button" className="button secondary" onClick={applyLegalShares} disabled={saving || !legalSharesValid || allEditablePositions.length === 0} aria-describedby={legalShareError ? "legal-share-error" : undefined}><Scale />全明細を法定相続分で割り振る</button><button type="button" className="button primary" onClick={() => void save()} disabled={saving || dirtyIds.length === 0 || invalidRows.length > 0}><Save />割り振りを保存</button></div>
     </div>
     <div className="position-summary-scroll allocation-inline-scroll" tabIndex={0} aria-label="資産・負債の割り振り編集。横にスクロールできます"><table className="position-summary-table allocation-inline-table" aria-label="財産の割り振り入力">
-      <thead><tr><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／評価情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担</span></th>)}<th className="number position-summary-unallocated">未割当</th><th>操作</th></tr></thead>
+      <thead><tr><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／参考情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担</span></th>)}<th className="number position-summary-unallocated">未割当</th><th>操作</th></tr></thead>
       {rows.map((position) => {
         const readOnly = ["INSURANCE", "RETIREMENT_ALLOWANCE"].includes(position.category);
         const total = rowTotal(position.id);
@@ -301,7 +354,7 @@ function AllocationMatrix({ rows, allPositions, familyMembers, saving, onSave, t
           </tr>
           <tr className="position-summary-secondary-row">
             <td className="position-summary-sticky-subject"><PositionSupplement position={position} /></td>
-            <td><PositionValuationInfo position={position} /></td>
+            <td><PositionReferenceInfo position={position} /></td>
             {familyMembers.map((member) => <td key={member.id} className="number position-summary-person-share">{readOnly ? null : <div className="allocation-quick-actions"><button type="button" className="allocation-full-button" onClick={() => assignFullAmount(position, member.id)} disabled={saving} aria-label={`${position.name}の全額を${member.name}へ割り振る`}>全額</button><button type="button" className="allocation-full-button" onClick={() => assignRemaining(position, member.id)} disabled={saving || remaining <= 0} aria-label={`${position.name}の残額すべてを${member.name}へ割り振る`}>残額すべて</button></div>}</td>)}
             <td className="number position-summary-unallocated" />
           </tr>
@@ -333,7 +386,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
     const terms = searchTerms(query);
     const filtered = snapshot.positions.filter((p) => (section === "all" || positionSection(p) === section) && (category === "all" || p.category === category) && matchesSearchTerms([p.name, positionKeyInfo(p), positionAllocationLabel(p), positionCaption(p), p.institution, p.note], terms));
     const sectionRank = { ASSET: 0, LIABILITY: 1, CONTINGENT: 2 };
-    return filtered.sort((a, b) => sort === "value-desc" ? b.valueJpy - a.valueJpy || a.id - b.id : sort === "value-asc" ? a.valueJpy - b.valueJpy || a.id - b.id : sort === "registered" ? a.id - b.id : sectionRank[positionSection(a)] - sectionRank[positionSection(b)] || (middleClassificationRank.get(middleClassification(a)) ?? 99) - (middleClassificationRank.get(middleClassification(b)) ?? 99) || (categoryRank.get(a.category) ?? 99) - (categoryRank.get(b.category) ?? 99) || (propertyTypeOf(a) === "BUILDING" ? 1 : 0) - (propertyTypeOf(b) === "BUILDING" ? 1 : 0));
+    return filtered.sort((a, b) => sort === "value-desc" ? primaryAmount(b).valueJpy - primaryAmount(a).valueJpy || a.id - b.id : sort === "value-asc" ? primaryAmount(a).valueJpy - primaryAmount(b).valueJpy || a.id - b.id : sort === "registered" ? a.id - b.id : sectionRank[positionSection(a)] - sectionRank[positionSection(b)] || (middleClassificationRank.get(middleClassification(a)) ?? 99) - (middleClassificationRank.get(middleClassification(b)) ?? 99) || (categoryRank.get(a.category) ?? 99) - (categoryRank.get(b.category) ?? 99) || (propertyTypeOf(a) === "BUILDING" ? 1 : 0) - (propertyTypeOf(b) === "BUILDING" ? 1 : 0));
   }, [snapshot.positions, query, section, category, sort]);
   const categories = [...new Set(snapshot.positions.map((p) => p.category))];
   const allocationTotals = useMemo(() => listAllocationTotals(snapshot.positions, familyMembers), [snapshot.positions, familyMembers]);
@@ -353,13 +406,13 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
       <label className="position-list-search"><span>検索</span><div><Search /><input type="search" aria-label="資産・負債を検索" value={query} onChange={(e) => change("q", e.target.value)} placeholder="名称・所在地・金融機関・受取人" /></div></label>
       <label>区分<select value={section} onChange={(e) => change("listSection", e.target.value)}><option value="all">すべて</option><option value="ASSET">資産</option><option value="LIABILITY">負債</option><option value="CONTINGENT">偶発債務（B/S外）</option></select></label>
       <label>科目<select value={category} onChange={(e) => change("listCategory", e.target.value)}><option value="all">すべて</option>{categories.map((c) => <option key={c} value={c}>{categoryLabels[c] ?? c}</option>)}</select></label>
-      <label>表示順<select value={sort} onChange={(e) => change("listSort", e.target.value)}><option value="classification">区分・科目順</option><option value="value-desc">評価額の大きい順</option><option value="value-asc">評価額の小さい順</option><option value="registered">登録順</option></select></label>
+      <label>表示順<select value={sort} onChange={(e) => change("listSort", e.target.value)}><option value="classification">区分・科目順</option><option value="value-desc">評価額・給付額の大きい順</option><option value="value-asc">評価額・給付額の小さい順</option><option value="registered">登録順</option></select></label>
     </div>
     <p className="position-result-count" aria-live="polite">{rows.length}件（全{snapshot.positions.length}件中）</p>
     <section className="panel position-summary-panel">
       <div className={allocationMode ? "" : "allocation-editor-hidden"}><AllocationMatrix key={`${snapshot.id}-${familyMembers.map((member) => member.id).join("-")}`} rows={rows} allPositions={snapshot.positions} familyMembers={familyMembers} saving={saving} onSave={onSaveAllocations} taxBurden={taxBurden} detailHref={href} /></div>
       <div className={allocationMode ? "allocation-view-hidden" : ""}><div className="position-summary-scroll" tabIndex={0} aria-label="資産・負債一覧。横にスクロールできます"><table className="position-summary-table" aria-label="資産・負債一覧">
-      <thead><tr><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／評価情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担／相続税額</span></th>)}<th className="number position-summary-unallocated">未割当</th><th className="position-summary-action-column"><span className="sr-only">詳細</span></th></tr></thead>
+      <thead><tr><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／参考情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担／相続税額</span></th>)}<th className="number position-summary-unallocated">未割当</th><th className="position-summary-action-column"><span className="sr-only">詳細</span></th></tr></thead>
       {rows.map((p) => {
         const burden = taxBurden(p);
         const config = deemedConfig(p);
@@ -374,14 +427,14 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
             <td rowSpan={2} data-label="区分" className="center position-summary-sticky-section"><span className={`position-section-badge section-${positionSection(p)}`}>{positionSection(p) === "ASSET" ? "資産" : positionSection(p) === "LIABILITY" ? "負債" : "B/S外"}</span></td>
             <th scope="rowgroup" className="position-summary-sticky-subject"><Link href={href(p)} className="position-summary-name"><span>{positionCaption(p)}</span><strong>{p.name || "名称未登録"}</strong></Link></th>
             <td className="position-summary-info" title={positionKeyInfo(p)}>{positionKeyInfo(p)}</td>
-            <td className="number position-summary-sticky-money position-summary-value-amount" aria-label={moneyCellLabel(p)}>{config ? <div className="position-summary-money-lines"><DeemedMoneyLines position={p} /></div> : <strong>{yen.format(p.valueJpy)}</strong>}</td>
+            <td className="number position-summary-sticky-money position-summary-value-amount" aria-label={`${primaryAmount(p).label} ${primaryAmountText(p)}`}><strong>{primaryAmountText(p)}</strong></td>
             {familyMembers.map((member) => { const allocation = allocations.get(member.id); return <td key={member.id} className="number position-summary-person-amount">{allocation ? yen.format(allocation.amountJpy) : "—"}</td>; })}
             <td className={`number position-summary-unallocated ${unallocated > 0 ? "has-unallocated" : ""}`}>{unallocated > 0 ? yen.format(unallocated) : "—"}</td>
             <td rowSpan={2} className="position-summary-action-column"><Link href={href(p)} aria-label={`${p.name}の詳細`} className="position-summary-open">詳細</Link></td>
           </tr>
           <tr className="position-summary-secondary-row">
             <td className="position-summary-sticky-subject"><PositionSupplement position={p} /></td>
-            <td><PositionValuationInfo position={p} /></td>
+            <td><PositionReferenceInfo position={p} /></td>
             <td className="number position-summary-sticky-money position-summary-tax-amount" aria-label={`相続税額 ${burden === null ? "未計算" : triangleYen(burden)}`}><strong>{burden === null ? "—" : triangleYen(burden)}</strong></td>
             {familyMembers.map((member) => { const tax = allocatedTaxes.byMember.get(member.id); return <td key={member.id} className="number position-summary-person-tax"><strong>{tax === undefined ? "—" : triangleYen(tax)}</strong></td>; })}
             <td className="number position-summary-unallocated position-summary-person-tax"><strong>{allocatedTaxes.unallocatedTax ? triangleYen(allocatedTaxes.unallocatedTax) : "—"}</strong></td>

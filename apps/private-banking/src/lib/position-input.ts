@@ -67,6 +67,21 @@ const assetDetailsSchema = z.object({
   retirementAllowance: optionalDetailNumber,
   benefitAllocations: optionalBenefitAllocations,
   otherAssetType: optionalDetailText,
+  repaymentDueDate: optionalDetailDate,
+  interestRate: z.preprocess(
+    (value) => value === "" || value === undefined || value === null ? undefined : value,
+    z.coerce.number().min(0).max(100).optional(),
+  ),
+  collateral: optionalDetailText,
+  contractEndDate: optionalDetailDate,
+  paymentDueDate: optionalDetailDate,
+  relatedProperty: optionalDetailText,
+  returnTerms: z.preprocess(
+    (value) => value === "" || value === undefined ? undefined : value,
+    z.string().trim().max(200).optional(),
+  ),
+  principalDebtor: optionalDetailText,
+  guaranteeExpiryDate: optionalDetailDate,
 }).default({});
 const stockCategories = new Set(["SECURITIES", "PRIVATE_SHARES"]);
 const unitRateCategorySet = new Set(unitRateCategories);

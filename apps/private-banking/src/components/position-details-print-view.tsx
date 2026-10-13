@@ -1,24 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { positionAllocationLabel, positionDetailFields } from "@/lib/position-display";
+import { positionDetailTableValue } from "@/lib/position-display";
 import { DETAIL_PAGES, defaultColumns, detailColumns, matchesDetailPage, parseColumnPreferences, type DetailPage } from "@/lib/position-detail-pages";
-import { yen, triangleYen } from "@/lib/format";
+import { triangleYenNumber, yenNumber } from "@/lib/format";
 import { fiscalYearLabel, type Position, type Snapshot, valuationDetailLine } from "@/lib/portfolio-view";
 
 type Props = { snapshot: Snapshot; taxBurden: (position: Position) => number | null };
 
 function cellText(position: Position, key: string, taxBurden: Props["taxBurden"]) {
   if (key === "name") return position.name || "名称未登録";
-  if (key === "allocation") return positionAllocationLabel(position);
-  if (key === "value") return yen.format(position.valueJpy);
-  if (key === "tax") { const burden = taxBurden(position); return burden === null ? "—" : triangleYen(burden); }
+  if (key === "value") return yenNumber.format(position.valueJpy);
+  if (key === "tax") { const burden = taxBurden(position); return burden === null ? "—" : triangleYenNumber(burden); }
   if (key === "method") return position.valuationMethod || "金額を直接入力";
   if (key === "formula") return valuationDetailLine(position) || `入力額 ${position.valueJpy.toLocaleString("ja-JP")}円`;
   if (key === "currency") return position.currency;
   if (key === "original") return `${position.originalAmount.toLocaleString("ja-JP")} ${position.currency}`;
   if (key === "fx") return position.fxRate.toLocaleString("ja-JP");
-  return new Map(positionDetailFields(position)).get(key) || "—";
+  return positionDetailTableValue(position, key);
 }
 
 function PrintCategoryTable({ page, rows, taxBurden }: { page: DetailPage; rows: Position[]; taxBurden: Props["taxBurden"] }) {
@@ -34,7 +33,7 @@ function PrintCategoryTable({ page, rows, taxBurden }: { page: DetailPage; rows:
   const visible = preferences.order
     .map((key) => columns.find((column) => column.key === key))
     .filter((column): column is typeof columns[number] => column !== undefined && column.key !== "method" && (preferences.visible.includes(column.key) || column.key === "formula"));
-  const fixedWidths: Record<string, number> = { name: 13, value: 13, formula: 15 };
+  const fixedWidths: Record<string, number> = { name: 13, value: 13, formula: 22 };
   const fixedTotal = visible.reduce((sum, column) => sum + (fixedWidths[column.key] ?? 0), 0);
   const flexible = visible.filter((column) => fixedWidths[column.key] === undefined);
   const flexibleWidth = flexible.reduce((sum, column) => sum + preferences.widths[column.key], 0);

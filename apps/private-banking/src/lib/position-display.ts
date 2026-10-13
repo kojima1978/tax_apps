@@ -1,4 +1,4 @@
-import { type Position, positionSection, assetGroupOf, categoryLabels, propertyTypeOf, propertyTypeLabels, institutionOrPropertyAddress, deemedConfig, deemedAllocations, deemedBenefitJpy, landCategoryByValue, buildingTypeByValue, smallLotTypeOptions, otherAssetTypeLabels, ownershipFraction } from "@/lib/portfolio-view";
+import { type Position, positionSection, assetGroupOf, categoryLabels, propertyTypeOf, propertyTypeLabels, institutionOrPropertyAddress, deemedConfig, deemedAllocations, deemedBenefitJpy, landCategoryByValue, buildingTypeByValue, smallLotTypeOptions, otherAssetTypeLabels, ownershipFraction, loanCategories } from "@/lib/portfolio-view";
 import { yen, valuationNumber } from "@/lib/format";
 
 export const DETAIL_GROUPS = [
@@ -70,7 +70,6 @@ export function positionDetailFields(p: Position): Array<[string, string]> {
   const add = (label: string, value: string | number | null | undefined, suffix = "") => { if (value !== undefined && value !== null && value !== "") fields.push([label, `${typeof value === "number" ? valuationNumber.format(value) : value}${suffix}`]); };
   const typed = (key: keyof typeof d, label: string) => { const value = d[key]; if (typeof value === "string") add(label, labels[key]?.[value] ?? value); };
   add("科目", positionCaption(p));
-  add(positionSection(p) === "ASSET" ? "取得者" : positionSection(p) === "LIABILITY" ? "負担者" : "負担予定者", positionAllocationLabel(p));
   add("所在地・金融機関等", institutionOrPropertyAddress(p));
   if (p.category === "DEPOSIT") { typed("accountType", "預金種類"); add("支店", d.branchName); add("口座番号（末尾）", d.accountSuffix); add("満期日", d.maturityDate); }
   if (p.category === "SECURITIES" || p.category === "PRIVATE_SHARES") { typed("securityType", "証券種類"); add("銘柄コード", d.securityCode); add("株数・口数", p.valuationQuantity); add("単価", p.valuationUnitPrice, ` ${p.currency}`); add("株式種類", d.shareClass); add("発行済株式数", d.totalIssuedShares); add("評価方式", d.valuationApproach); }
@@ -90,8 +89,27 @@ export function positionDetailFields(p: Position): Array<[string, string]> {
     if (config) { add(config.surrenderLabel, yen.format(p.valueJpy)); if (d[config.benefitKey] !== undefined) add(config.label, yen.format(deemedBenefitJpy(p))); else add(config.label, "未登録"); add("受取人・取り分", deemedAllocations(p).map((a) => `${a.recipient || "未設定"} ${a.numerator}/${a.denominator}`).join("、")); }
   }
   typed("businessAssetType", "資産種類"); add("事業名", d.businessName); add("保管・所在場所", d.storageLocation); typed("otherAssetType", "資産種類");
+  if (p.category === "LOAN_RECEIVABLE" || loanCategories.includes(p.category)) { add("返済期限", d.repaymentDueDate); add("利率", d.interestRate, "%"); add("担保", d.collateral); }
+  if (p.category === "LEASE_OBLIGATION") add("契約終了日", d.contractEndDate);
+  if (p.category === "ACCOUNTS_PAYABLE") add("支払期限", d.paymentDueDate);
+  if (p.category === "DEPOSITS_RECEIVED") { add("対象物件", d.relatedProperty); add("返還条件", d.returnTerms); }
+  if (p.category === "GUARANTEE") { add("主債務者", d.principalDebtor); add("保証期限", d.guaranteeExpiryDate); }
   if (p.category === "BUSINESS_ASSETS" || p.category === "COLLECTIBLES") add("単価", p.valuationUnitPrice, ` ${p.currency}`);
   if (p.currency !== "JPY") { add("外貨金額", p.originalAmount, ` ${p.currency}`); add("円換算レート", p.fxRate, ` 円/${p.currency}`); }
   add("調整率", p.adjustmentRate); add("メモ", p.note);
   return fields;
+}
+
+/** 単位を列見出しに集約する科目別表向けの値。キーは保存値との対応を保つ。 */
+export function positionDetailTableValue(p: Position, key: string) {
+  const details = p.assetDetails ?? {};
+  const numericValue = key === "死亡保険金" ? details.deathBenefit
+    : key === "死亡退職金" ? details.retirementAllowance
+      : key === "固定資産税評価額" ? p.fixedAssetTaxValue
+        : key === "路線価" ? p.roadsideValue
+          : key === "単価" ? p.valuationUnitPrice
+            : key === "利率" ? details.interestRate
+            : undefined;
+  if (typeof numericValue === "number") return valuationNumber.format(numericValue);
+  return new Map(positionDetailFields(p)).get(key) || "—";
 }

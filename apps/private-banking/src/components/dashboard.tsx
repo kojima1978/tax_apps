@@ -190,7 +190,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     for (const fieldName of ["originalAmount", "valuationQuantity", "valuationUnitPrice", "adjustmentRate", "landArea", "roadsideValue", "fixedAssetTaxValue", "valuationMultiplier", "ownershipNumerator", "ownershipDenominator"]) {
       if (fieldName in fields) fields[fieldName] = unformatNumberInput(fields[fieldName] as FormDataEntryValue | undefined) ?? "";
     }
-    const numericDetailFields = new Set(["deathBenefit", "retirementAllowance", "totalIssuedShares", "floorArea"]);
+    const numericDetailFields = new Set(["deathBenefit", "retirementAllowance", "totalIssuedShares", "floorArea", "interestRate"]);
     const assetDetails: Record<string, unknown> = {};
     // 死亡保険金・死亡退職金の受取人は複数行あるので、`benefitAllocation.<行番号>.<項目>` を配列へ組み立てる。
     const allocationRows = new Map<number, Record<string, string | number>>();

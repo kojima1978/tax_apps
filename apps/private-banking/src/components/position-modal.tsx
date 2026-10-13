@@ -108,6 +108,35 @@ function ValuationSourceSummary({ items }: { items: SourceItem[] }) {
   return <div className="valuation-source-summary"><span>不動産の情報から使用</span><dl>{items.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value || <button type="button" className="source-missing-button" onClick={(event) => focusField(event.currentTarget.form, item.fieldName)}>未入力（入力する）</button>}</dd></div>)}</dl></div>;
 }
 
+function LoanTermsFields({ details, legend }: { details: AssetDetails; legend: string }) {
+  return <fieldset className="asset-detail-fieldset full"><legend>{legend}</legend><div className="asset-detail-grid">
+    <label>返済期限<input type="date" name="assetDetail.repaymentDueDate" defaultValue={details.repaymentDueDate ?? ""} /></label>
+    <label>利率（年％）<CommaNumberInput name="assetDetail.interestRate" defaultValue={details.interestRate ?? ""} maxFractionDigits={4} placeholder="例：1.5" required={false} /></label>
+    <label className="wide">担保<input name="assetDetail.collateral" defaultValue={details.collateral ?? ""} placeholder="例：対象不動産、無担保" /></label>
+  </div></fieldset>;
+}
+
+function LiabilitySpecificFields({ category, details }: { category: string; details: AssetDetails }) {
+  if (["LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER", "LOAN"].includes(category)) {
+    return <LoanTermsFields details={details} legend="借入条件" />;
+  }
+  if (category === "LEASE_OBLIGATION") return <fieldset className="asset-detail-fieldset full"><legend>契約情報</legend><div className="asset-detail-grid">
+    <label>契約終了日<input type="date" name="assetDetail.contractEndDate" defaultValue={details.contractEndDate ?? ""} /></label>
+  </div></fieldset>;
+  if (category === "ACCOUNTS_PAYABLE") return <fieldset className="asset-detail-fieldset full"><legend>支払情報</legend><div className="asset-detail-grid">
+    <label>支払期限<input type="date" name="assetDetail.paymentDueDate" defaultValue={details.paymentDueDate ?? ""} /></label>
+  </div></fieldset>;
+  if (category === "DEPOSITS_RECEIVED") return <fieldset className="asset-detail-fieldset full"><legend>預り情報</legend><div className="asset-detail-grid">
+    <label>対象物件<input name="assetDetail.relatedProperty" defaultValue={details.relatedProperty ?? ""} /></label>
+    <label>返還条件<input name="assetDetail.returnTerms" defaultValue={details.returnTerms ?? ""} /></label>
+  </div></fieldset>;
+  if (category === "GUARANTEE") return <fieldset className="asset-detail-fieldset full"><legend>保証情報</legend><div className="asset-detail-grid">
+    <label>主債務者<input name="assetDetail.principalDebtor" defaultValue={details.principalDebtor ?? ""} /></label>
+    <label>保証期限<input type="date" name="assetDetail.guaranteeExpiryDate" defaultValue={details.guaranteeExpiryDate ?? ""} /></label>
+  </div></fieldset>;
+  return null;
+}
+
 type AllocationRow = { key: number; recipient: string; numerator: string; denominator: string };
 /** 全行が同じ取り分か（＝分数を手で触っていない状態か）。均等割りに直してよいかの判断に使う。 */
 const evenlySplit = (rows: AllocationRow[]) => rows.every((row) => row.numerator === rows[0].numerator && row.denominator === rows[0].denominator);
@@ -246,6 +275,8 @@ function AssetSpecificFields({
   if (category === "RETIREMENT_ALLOWANCE") return <fieldset key={category} className="asset-detail-fieldset full"><legend>退職金の情報</legend><div className="asset-detail-grid">
     <BenefitRecipientsField benefitLabel="死亡退職金" benefitName="assetDetail.retirementAllowance" benefitDefault={String(details.retirementAllowance ?? "")} recipientName="assetDetail.retirementRecipient" allocationDefaults={allocationDefaults(details, "retirementRecipient")} people={people} legalHeirNames={legalHeirNames} exemptionNote="非課税枠（500万円 × 法定相続人数・生命保険金とは別枠）の対象です。" onValidChange={onBenefitAllocationValidChange} />
   </div><FieldNote summary="解約手当金と死亡退職金の扱い">評価額には、生存中に解約した場合の解約返戻金（解約手当金）を入力します。死亡退職金は相続税の概算にだけ反映し、資産合計には含めません。</FieldNote></fieldset>;
+
+  if (category === "LOAN_RECEIVABLE") return <LoanTermsFields details={details} legend="貸付条件" />;
 
   return null;
 }
@@ -414,7 +445,7 @@ export function PositionModal({ position, defaultSection = "ASSET", defaultCateg
           onOwnershipNumeratorChange={setOwnershipNumerator}
           onOwnershipDenominatorChange={setOwnershipDenominator}
           onBenefitAllocationValidChange={setBenefitAllocationValid}
-        /> : null}
+        /> : <LiabilitySpecificFields category={category} details={assetDetails} />}
         {/* 財産の割り振りは一覧の表で行う。明細編集では既存値をそのまま保持する。 */}
         <input type="hidden" name="allocationsJson" value={JSON.stringify((position?.allocations ?? []).map(({ familyMemberId, numerator, denominator }) => ({ familyMemberId, numerator, denominator })))} />
         <fieldset className="valuation-formula-fieldset full"><legend>{valuationLegend}</legend>{!hasFormulaChoice ? <input type="hidden" name="valuationFormula" value="MANUAL" /> : isPrivateShares ? <><input type="hidden" name="valuationFormula" value={formula} /><label className="valuation-formula-check"><input type="checkbox" checked={formula === "STOCK"} onChange={(event) => setFormula(event.target.checked ? "STOCK" : "MANUAL")} /><span><strong>単価・株数から自動計算する</strong><small>外すと評価額を直接入力できます。</small></span></label></> : <select name="valuationFormula" aria-label="評価額の計算方法" value={formula} onChange={(event) => setFormula(event.target.value as ValuationFormula)}>{isUnitRateCategory ? <option value="UNIT_RATE">{unitRateLabel}×調整率</option> : null}<option value="MANUAL">金額を直接入力</option>{isStockCategory ? <option value="STOCK">単価・株数から計算</option> : null}{isRealEstateCategory && propertyType === "LAND" ? <><option value="LAND_ROADSIDE">路線価方式</option><option value="LAND_MULTIPLIER">倍率方式</option></> : null}{isRealEstateCategory && propertyType === "BUILDING" ? <option value="BUILDING">固定資産税評価額方式</option> : null}</select>}{formulaExpression ? <p className="valuation-formula-expression">{formulaExpression}</p> : null}

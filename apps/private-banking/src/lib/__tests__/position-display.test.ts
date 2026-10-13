@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { positionAllocationAmounts, positionAllocationLabel, positionDetailFields } from "@/lib/position-display";
+import { positionAllocationAmounts, positionAllocationLabel, positionDetailFields, positionDetailTableValue } from "@/lib/position-display";
 import { type Position } from "@/lib/portfolio-view";
 
 describe("positionDetailFields", () => {
@@ -15,6 +15,30 @@ describe("positionDetailFields", () => {
     } as Position));
 
     expect(fields.get("持分")).toBe("9,006/534,683");
+  });
+
+  it("科目別表の円貨項目は通貨記号と単位を付けずに表示する", () => {
+    const position = {
+      category: "INSURANCE",
+      assetDetails: { deathBenefit: 50_000_000 },
+      fixedAssetTaxValue: 12_345_678,
+    } as Position;
+    expect(positionDetailTableValue(position, "死亡保険金")).toBe("50,000,000");
+    expect(positionDetailTableValue(position, "固定資産税評価額")).toBe("12,345,678");
+  });
+
+  it("貸付条件を詳細・印刷表向けの値へ変換する", () => {
+    const position = {
+      side: "ASSET",
+      category: "LOAN_RECEIVABLE",
+      institution: "株式会社A",
+      assetDetails: { repaymentDueDate: "2030-03-31", interestRate: 1.5, collateral: "対象不動産" },
+    } as Position;
+    const fields = new Map(positionDetailFields(position));
+    expect(fields.get("返済期限")).toBe("2030-03-31");
+    expect(fields.get("利率")).toBe("1.5%");
+    expect(fields.get("担保")).toBe("対象不動産");
+    expect(positionDetailTableValue(position, "利率")).toBe("1.5");
   });
 });
 

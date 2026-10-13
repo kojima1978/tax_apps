@@ -208,6 +208,44 @@ describe("positionInputSchema", () => {
     expect(positionInputSchema.safeParse({ side: "ASSET", category: "LOAN_RECEIVABLE", name: "役員貸付金", originalAmount: 5000000 }).success).toBe(true);
   });
 
+  it("貸付・借入条件と負債固有の補足情報を正規化して保存する", () => {
+    const data = parse({
+      side: "LIABILITY",
+      category: "LOAN_OTHER",
+      name: "役員借入金",
+      originalAmount: 5000000,
+      assetDetails: {
+        repaymentDueDate: "2030-03-31",
+        interestRate: "1.5",
+        collateral: "自宅",
+        contractEndDate: "2029-12-31",
+        paymentDueDate: "2027-01-31",
+        relatedProperty: "本社ビル",
+        returnTerms: "退去時に原状回復費を控除して返還",
+        principalDebtor: "株式会社A",
+        guaranteeExpiryDate: "2031-03-31",
+      },
+    });
+    expect(data.assetDetails).toMatchObject({
+      repaymentDueDate: "2030-03-31",
+      interestRate: 1.5,
+      collateral: "自宅",
+      contractEndDate: "2029-12-31",
+      paymentDueDate: "2027-01-31",
+      relatedProperty: "本社ビル",
+      returnTerms: "退去時に原状回復費を控除して返還",
+      principalDebtor: "株式会社A",
+      guaranteeExpiryDate: "2031-03-31",
+    });
+  });
+
+  it("年利は0%以上100%以下に制限する", () => {
+    const input = { side: "ASSET", category: "LOAN_RECEIVABLE", name: "貸付金", originalAmount: 100 };
+    expect(positionInputSchema.safeParse({ ...input, assetDetails: { interestRate: 0 } }).success).toBe(true);
+    expect(positionInputSchema.safeParse({ ...input, assetDetails: { interestRate: 100 } }).success).toBe(true);
+    expect(positionInputSchema.safeParse({ ...input, assetDetails: { interestRate: 100.01 } }).success).toBe(false);
+  });
+
   it("未入力の数値項目は null に正規化される", () => {
     const data = parse({ side: "ASSET", category: "DEPOSIT", name: "普通預金", originalAmount: 100, landArea: "" });
     expect(data.landArea).toBeNull();

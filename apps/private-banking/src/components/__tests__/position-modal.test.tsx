@@ -69,6 +69,39 @@ describe("PositionModal（明細を追加）", () => {
     typeIn("面積（㎡）", "100");
     expect(screen.queryByRole("button", { name: "未入力（入力する）" })).toBeNull();
   });
+
+  it("貸付金の返済期限・利率・担保を登録できる", () => {
+    const { form, submitted } = renderModal();
+    fireEvent.change(screen.getByLabelText("中分類"), { target: { value: "事業用資産" } });
+    fireEvent.change(screen.getByLabelText("科目"), { target: { value: "LOAN_RECEIVABLE" } });
+    typeIn("返済期限", "2030-03-31");
+    typeIn("利率（年％）", "1.5");
+    typeIn("担保", "対象不動産");
+    fireEvent.submit(form);
+    expect(submitted[0]).toMatchObject({
+      "assetDetail.repaymentDueDate": "2030-03-31",
+      "assetDetail.interestRate": "1.5",
+      "assetDetail.collateral": "対象不動産",
+    });
+  });
+
+  it("負債・偶発債務は科目に応じた補足項目を表示する", () => {
+    renderModal();
+    fireEvent.click(screen.getByLabelText("負債の部"));
+    expect(screen.getByLabelText("返済期限")).toBeTruthy();
+    expect(screen.getByLabelText("利率（年％）")).toBeTruthy();
+    expect(screen.getByLabelText("担保")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("科目"), { target: { value: "LEASE_OBLIGATION" } });
+    expect(screen.getByLabelText("契約終了日")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("科目"), { target: { value: "ACCOUNTS_PAYABLE" } });
+    expect(screen.getByLabelText("支払期限")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("科目"), { target: { value: "DEPOSITS_RECEIVED" } });
+    expect(screen.getByLabelText("対象物件")).toBeTruthy();
+    expect(screen.getByLabelText("返還条件")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("偶発債務の部"));
+    expect(screen.getByLabelText("主債務者")).toBeTruthy();
+    expect(screen.getByLabelText("保証期限")).toBeTruthy();
+  });
 });
 
 describe("PositionModal（切り替えたときに残る値）", () => {

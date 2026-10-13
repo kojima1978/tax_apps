@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowUp, Columns3, Pencil, Plus, Table2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { detailGroup, positionAllocationLabel, positionDetailFields } from "@/lib/position-display";
+import { detailGroup, positionDetailTableValue } from "@/lib/position-display";
 import { DETAIL_PAGES, defaultColumns, detailColumns, detailPageFor, matchesDetailPage, parseColumnPreferences, type ColumnPreferences, type DetailPage } from "@/lib/position-detail-pages";
 import { type Position, type PositionSection, type Snapshot, positionSection, propertyTypeOf, valuationDetailLine, assetGroupOf } from "@/lib/portfolio-view";
-import { yen, triangleYen } from "@/lib/format";
+import { triangleYenNumber, yenNumber } from "@/lib/format";
 
 type Props = {
   snapshot: Snapshot; taxBurden: (p: Position) => number | null;
@@ -76,15 +76,14 @@ function CategoryTable({ page, root, snapshot, taxBurden, onAdd, onBulkManage, o
   const add = () => onAdd(page.section, page.category, page.propertyType);
   function cell(p: Position, key: string) {
     if (key === "name") return <button className="position-name-button" onClick={() => onEdit(p)} disabled={saving} aria-label={`${p.name}を修正`}>{p.name || "名称未登録"}</button>;
-    if (key === "allocation") return positionAllocationLabel(p);
-    if (key === "value") return yen.format(p.valueJpy);
-    if (key === "tax") { const burden = taxBurden(p); return burden === null ? "—" : triangleYen(burden); }
+    if (key === "value") return yenNumber.format(p.valueJpy);
+    if (key === "tax") { const burden = taxBurden(p); return burden === null ? "—" : triangleYenNumber(burden); }
     if (key === "method") return p.valuationMethod || "金額を直接入力";
     if (key === "formula") return valuationDetailLine(p) || "—";
     if (key === "currency") return p.currency;
     if (key === "original") return `${p.originalAmount.toLocaleString("ja-JP")} ${p.currency}`;
     if (key === "fx") return p.fxRate.toLocaleString("ja-JP");
-    return new Map(positionDetailFields(p)).get(key) || "—";
+    return positionDetailTableValue(p, key);
   }
   return <>
     <section className="page-heading"><div><h2>資産・負債詳細</h2><p>{page.label}の情報を表で比較・編集できます。</p></div><div className="page-heading-actions"><Link className="button secondary" href={listHref}>一覧へ戻る</Link><button className="button secondary" onClick={onBulkManage} disabled={saving}><Table2 />まとめて入力</button><button className="button primary" onClick={add} disabled={saving}><Plus />明細を追加</button></div></section>

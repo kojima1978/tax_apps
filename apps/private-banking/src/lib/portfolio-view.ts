@@ -34,6 +34,10 @@ export type AssetDetails = {
   retirementType?: string; retirementRecipient?: string; retirementAllowance?: number;
   benefitAllocations?: BenefitAllocation[];
   otherAssetType?: string;
+  repaymentDueDate?: string; interestRate?: number; collateral?: string;
+  contractEndDate?: string; paymentDueDate?: string;
+  relatedProperty?: string; returnTerms?: string;
+  principalDebtor?: string; guaranteeExpiryDate?: string;
 };
 /** 死亡保険金・死亡退職金を複数の受取人へ分数で割り振るときの1行。 */
 export type BenefitAllocation = { recipient: string; numerator: number; denominator: number };

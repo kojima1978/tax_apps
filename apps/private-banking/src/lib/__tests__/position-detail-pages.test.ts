@@ -12,8 +12,11 @@ describe("科目別ページと列設定", () => {
     const columns = detailColumns(DETAIL_PAGES.find((p) => p.key === "insurance")!);
     const defaults = defaultColumns(columns);
     expect(defaults.visible).not.toContain("method");
+    expect(columns.map((column) => column.key)).not.toContain("allocation");
+    expect(columns.map((column) => column.key)).toContain("受取人・取り分");
     expect(defaults.widths.name).toBe(150);
     expect(defaults.widths.value).toBe(130);
+    expect(defaults.widths.formula).toBe(400);
   });
   it("数値・文字・日付の列配置を列定義で統一する", () => {
     const columns = detailColumns(DETAIL_PAGES.find((p) => p.key === "home-real-estate-land")!);
@@ -21,6 +24,14 @@ describe("科目別ページと列設定", () => {
     const depositColumns = detailColumns(DETAIL_PAGES.find((p) => p.key === "deposit")!);
     expect(alignment).toMatchObject({ name: "text", 土地面積: "number", 持分: "number", 路線価: "number", value: "number", formula: "text", currency: "center" });
     expect(depositColumns.find((column) => column.key === "満期日")?.alignment).toBe("center");
+  });
+  it("貸付・負債・保証は科目固有の判断項目を列にする", () => {
+    const loan = detailColumns(DETAIL_PAGES.find((p) => p.key === "loan-receivable")!);
+    const guarantee = detailColumns(DETAIL_PAGES.find((p) => p.key === "guarantee")!);
+    expect(loan.filter((column) => ["返済期限", "利率", "担保"].includes(column.key)).map((column) => column.label)).toEqual(["返済期限", "利率（年％）", "担保"]);
+    expect(loan.find((column) => column.key === "返済期限")?.alignment).toBe("center");
+    expect(loan.find((column) => column.key === "利率")?.alignment).toBe("number");
+    expect(guarantee.map((column) => column.key)).toEqual(expect.arrayContaining(["主債務者", "保証期限"]));
   });
   it("壊れた設定は復旧し、必須列・幅の範囲・列の重複を検証する", () => {
     const columns = detailColumns(DETAIL_PAGES.find((p) => p.key === "insurance")!);
@@ -32,5 +43,11 @@ describe("科目別ページと列設定", () => {
     expect(result.widths.name).toBe(600);
     expect(result.widths.value).toBe(90);
     expect(result.order).not.toContain("unknown");
+  });
+  it("旧標準幅の計算根拠だけを新しい広い幅へ移行する", () => {
+    const columns = detailColumns(DETAIL_PAGES.find((p) => p.key === "insurance")!);
+    const result = parseColumnPreferences(JSON.stringify({ version: 1, order: ["name", "formula", "value"], visible: ["name", "formula", "value"], widths: { name: 180, formula: 220, value: 130 } }), columns);
+    expect(result.widths.name).toBe(180);
+    expect(result.widths.formula).toBe(400);
   });
 });
