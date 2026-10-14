@@ -1228,13 +1228,20 @@ start_restore_stopped() {
 
 # SQLite のボリュームを、バックアップの中身で丸ごと置き換える。
 # コンテナは呼び出し側（stop_app_containers）で止めてある。
+#
+# 所有者は「戻す前のボリュームの根」に揃える。アーカイブはホストの Git Bash の
+# tar で詰め直している（backup_sqlite_volumes）ので、中の所有者は Windows の
+# ユーザー（197609 など）になっている。root の tar はそれをそのまま復元し、
+# `.` の項目でボリュームの根まで書き換えるため、非 root のアプリ（uid 1000）が
+# DB のディレクトリに書けなくなる ── 2026-10-14 の insurance-app の実地試験で、
+# healthcheck は通ったまま DB だけ開けない状態になった（件数照合が拾った）。
 restore_sqlite_target() {
   local label="$1" archive="$2" vol="$3"
   local archive_dir_win
   archive_dir_win="$(to_win_path "$(dirname "$archive")")"
   docker volume inspect "$vol" >/dev/null 2>&1 || docker volume create "$vol" >/dev/null 2>&1
   if MSYS_NO_PATHCONV=1 docker run --rm -v "$vol:/data" -v "$archive_dir_win:/backup:ro" alpine:3.22 \
-    sh -c "rm -rf -- /data/* /data/.[!.]* /data/..?* && tar xzf /backup/$(basename "$archive") -C /data" >/dev/null 2>&1; then
+    sh -c "owner=\$(stat -c %u:%g /data) && rm -rf -- /data/* /data/.[!.]* /data/..?* && tar xzf /backup/$(basename "$archive") -C /data && chown -R \"\$owner\" /data" >/dev/null 2>&1; then
     ok "$label: $(basename "$archive")"
     (( restore_ok++ )) || true
   else
