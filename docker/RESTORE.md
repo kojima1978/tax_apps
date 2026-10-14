@@ -258,17 +258,36 @@ docker/scripts/manage.sh restore <app> pre-restore_YYYY-MM-DD_HHMMSS --yes
 `docker/backups/` は同じディスクにあるので、ディスクの故障やランサムウェアでバックアップごと消える。
 バックアップのたびに暗号化アーカイブを別のドライブへも写す:
 
-1. USB を挿し、コピー先のフォルダを作る（例: `E:\tax-apps-backup`）。
-2. `~/.tax-apps/backup-external-dest` の**1行目**にそのパスを書く（Git Bash なら `/e/tax-apps-backup`）。
-   リポジトリの外に置くのは、公開リポジトリにドライブ名やユーザー名を載せないため。
-3. `docker/scripts/manage.sh backup` を1回叩き、`External copy:` の行が出てコピー先に
-   `.tar.gz.enc` が増えたことを確かめる。
+1. USB を挿し、**`docker/scripts/set-backup-usb.bat` をダブルクリック**する
+   （中身は `manage.sh usb`）。
+2. ドライブの一覧（種類・名前・空き容量つき）から番号を選ぶ。`<ドライブ>:\tax-apps-backup` が
+   作られ、書き込めるかを確かめてから設定が保存される。NAS など任意のフォルダは `m` で打ち込む。
+   **この PC の本体と同じドライブを選ぶと警告して確認する**（同じディスクでは守りにならない）。
+3. 「いちばん新しいバックアップを今すぐ写しますか？」に `Y` で、その場で1本写る。
+   以降はバックアップのたびに自動で写る。
+
+コマンドで叩くなら:
+
+```bash
+docker/scripts/manage.sh usb                    # 一覧から選ぶ（端末が無いときは今の設定を出すだけ）
+docker/scripts/manage.sh usb --show             # 今の設定と、コピー先が見えているか
+docker/scripts/manage.sh usb --set 'E:\tax-apps-backup'   # 直接指定（E: だけなら E:\tax-apps-backup）
+docker/scripts/manage.sh usb --copy-now         # 最新のバックアップを今すぐ写す
+docker/scripts/manage.sh usb --off              # 外部コピーをやめる（USB の中身は消さない）
+```
+
+設定は `~/.tax-apps/backup-external-dest`（1行目がパス、2行目が `# id:`）。リポジトリの外に置くのは、
+公開リポジトリにドライブ名やユーザー名を載せないため。手で書いても動く（`# id:` が無い古い形は、
+次に写したときに目印が付く）。
 
 注意:
 
-- **USB のドライブ文字は挿す順番で変わる**。違う文字で認識されるとコピー先が見つからず、
-  `backup-external` に `unavailable` が記録されてデスクトップに警告が出る。
-  Windows の「ディスクの管理」でその USB のドライブ文字を固定しておく。
+- **USB のドライブ文字は挿す順番で変わるが、追いかける**。コピー先のフォルダには目印
+  （`.tax-apps-backup-id`）が置かれ、設定の `# id:` と同じ値を持つ。設定のパスが見つからないときは
+  他のドライブの同じフォルダを探し、**目印が一致したときだけ**そこへ写して設定を書き換える
+  （同じフォルダ名の別の USB は採らない）。見つからなければ `backup-external` に `unavailable` が
+  記録されてデスクトップに警告が出る。NAS のように文字が変わると追えない場所もあるので、
+  Windows の「ディスクの管理」でドライブ文字を固定しておくとなお良い。
 - 抜いている間のバックアップは外部へ写らない（本体の `docker/backups/` には残る）。
   挿し直した次のバックアップから再開する。警告が出続けるなら挿し忘れの合図。
 - **鍵（`backup.key`）を USB に一緒に置かない**。USB を落とした人が全部読めてしまう。

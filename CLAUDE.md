@@ -130,6 +130,7 @@ docker/scripts/manage.sh watch <app-name>
     無人実行はウォッチドッグの `due` 経由で、この2つは手で叩くときの入口
 - `restore.bat`: Git Bash 経由で `backup.sh restore` を呼ぶ補助ラッパー（一覧から選ぶ）
 - `restore-new-pc.bat`: Git Bash 経由で `backup.sh newpc` を呼ぶ補助ラッパー（新しい PC で全部戻す）
+- `set-backup-usb.bat`: Git Bash 経由で `backup.sh usb` を呼ぶ補助ラッパー（外部コピー先をドライブ一覧から選ぶ）
 - **リストアはアプリ単位**（`manage.sh restore <app>|--all [backup] [--yes]`、手順書は
   **`docker/RESTORE.md`**）。そのアプリのコンテナだけ止めて戻し、**件数をバックアップと照合**
   （PG はダンプの COPY 行数と全テーブルの `count(*)`、SQLite はアプリのコンテナを借りて
@@ -161,7 +162,11 @@ docker/scripts/manage.sh watch <app-name>
 - **外部コピー先は `~/.tax-apps/backup-external-dest`**（リポジトリ外、1行目がパス）。**未設定なら何もしない**
   （警告も記録も出さない）。設定されているのに書けないときだけ `backup-external` に記録が残る ──
   「設定したつもりで効いていない」が一番危ないため。リポジトリ外なのは**公開リポジトリに NAS 名や
-  ユーザー名を載せられない**から、環境変数でなくファイルなのは**スケジュールタスクが環境変数を持たずに起動する**から
+  ユーザー名を載せられない**から、環境変数でなくファイルなのは**スケジュールタスクが環境変数を持たずに起動する**から。
+  **選ぶ口は `manage.sh usb`（`set-backup-usb.bat`）**: ドライブ一覧から選ぶ／`--set` / `--show` /
+  `--copy-now` / `--off`（`.off` へ退けるだけでコピー先は消さない）。2行目の `# id:` とコピー先の目印
+  `.tax-apps-backup-id` が対で、**ドライブ文字が変わったら c〜z を探して目印が一致したときだけ追いかけ、
+  設定を書き換える**（同じフォルダ名の別の USB を黙って使わない）。本体と同じドライブは警告＋確認
 - **LAN 公開の守りは Windows ファイアウォールだけ**。アプリにログインは無く、Docker Desktop の中継で
   nginx の `$remote_addr` は全接続が `172.18.0.1` になる（実測）ので **nginx の allow/deny は効かない**。
   80番で待ち受けるのは `com.docker.backend.exe` で、Docker が作る「Docker Desktop Backend」

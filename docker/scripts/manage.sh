@@ -16,6 +16,7 @@
 #   ./manage.sh backup             全データベース・データをバックアップ
 #   ./manage.sh restore [app|--all] [backup] [--yes]  アプリ単位でリストア（docker/RESTORE.md）
 #   ./manage.sh newpc              新しい PC でバックアップから全部を戻す（restore-new-pc.bat）
+#   ./manage.sh usb                バックアップの外部コピー先（USB など）を選ぶ（set-backup-usb.bat）
 #   ./manage.sh due                期限切れの無人処理だけ実行（ウォッチドッグ用）
 #   ./manage.sh clean              コンテナ・イメージのクリーンアップ
 #   ./manage.sh clean-cache        古い Docker Build Cache の削除
@@ -3046,6 +3047,7 @@ case "$COMMAND" in
   restore)   "$SCRIPT_DIR/backup.sh" restore "${@:2}" ;;
   # 新しい PC で全部を戻す。ロックは backup.sh の中で必要な区間だけ取る
   newpc)     "$SCRIPT_DIR/backup.sh" newpc "${@:2}" ;;
+  usb)       "$SCRIPT_DIR/backup.sh" usb "${@:2}" ;;
   verify)    "$SCRIPT_DIR/backup.sh" verify "${2:-}" ;;
   drill)     "$SCRIPT_DIR/backup.sh" drill "${2:-}" ;;
   # ウォッチドッグからの入口。何を実行するかは last-run の記録が決める。
@@ -3061,7 +3063,7 @@ case "$COMMAND" in
   preflight) cmd_preflight ;;
   collation) cmd_collation "${2:-}" "${3:-}" ;;
   *)
-    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|newpc|verify|drill|due|clean|clean-cache|prune|alert|loop-check|preflight|collation} [app-name]"
+    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|newpc|usb|verify|drill|due|clean|clean-cache|prune|alert|loop-check|preflight|collation} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start [app]        起動（アプリ名を省略すると全アプリ・ネットワーク自動作成）"
@@ -3083,6 +3085,7 @@ case "$COMMAND" in
     echo "  restore [app|--all] [backup] [--yes]"
     echo "                     アプリ単位でリストア（件数照合つき。--env-only / --with-env / --from は docker/RESTORE.md）"
     echo "  newpc              新しい PC でバックアップから全部を戻す（.env → 元のモードで起動 → データ）"
+    echo "  usb [--set dir|--off|--show]  バックアップの外部コピー先（USB など）を選ぶ"
     echo "  verify <backup>    バックアップの復号とハッシュ照合"
     echo "  drill [backup]     リストア訓練（使い捨てDBへ実際に復元して検証。既定は最新）"
     echo "  due                期限切れの無人処理だけ実行（バックアップ・訓練。ウォッチドッグ用）"

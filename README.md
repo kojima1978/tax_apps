@@ -74,7 +74,8 @@ tax_apps/
 │   │   ├── backup-db.bat              # backup.sh itcm を呼び出す Windows 補助ラッパー
 │   │   ├── restore-drill.bat          # backup.sh drill を呼び出す Windows 補助ラッパー
 │   │   ├── restore.bat                # backup.sh restore を呼び出す Windows 補助ラッパー（一覧から選ぶ）
-│   │   └── restore-new-pc.bat         # backup.sh newpc を呼び出す Windows 補助ラッパー（新しい PC で全部戻す）
+│   │   ├── restore-new-pc.bat         # backup.sh newpc を呼び出す Windows 補助ラッパー（新しい PC で全部戻す）
+│   │   └── set-backup-usb.bat         # backup.sh usb を呼び出す Windows 補助ラッパー（外部コピー先を選ぶ）
 │   ├── data/                          # 永続化データ（git管理外）
 │   ├── logs/                          # 無人処理の記録・モード記録（git管理外）
 │   ├── backups/                       # バックアップ保存先
@@ -131,6 +132,7 @@ cd tax_apps
 | 停止 | `stop.bat` | `docker\scripts\stop.bat` をダブルクリック |
 | 状態確認 | `status.bat` | `docker\scripts\status.bat` をダブルクリック |
 | 自動バックアップ | `backup-db.bat` | `docker\scripts\backup-db.bat` をダブルクリック |
+| 外部コピー先（USB）を選ぶ | `set-backup-usb.bat` | USB を挿して `docker\scripts\set-backup-usb.bat` をダブルクリック |
 
 #### Git Bashでの操作
 

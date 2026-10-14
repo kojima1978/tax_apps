@@ -117,7 +117,16 @@
 同じPCの `docker/backups/` にしか無いバックアップは、ドライブが壊れた瞬間にバックアップごと消える。
 ランサムウェアなら暗号化済みアーカイブごと持って行かれる。
 
-コピー先は **`~/.tax-apps/backup-external-dest`**（リポジトリ外のテキストファイル、1行目がパス）。
+コピー先は **`set-backup-usb.bat`（`manage.sh usb`）で選ぶ**。ドライブの一覧から番号で選ぶと
+`<ドライブ>:\tax-apps-backup` を作って書き込みを確かめ、**`~/.tax-apps/backup-external-dest`**
+（リポジトリ外のテキストファイル、1行目がパス、2行目が `# id:`）へ保存する。
+`--set DIR` / `--show` / `--copy-now` / `--off` でも叩ける（`--off` は設定を `.off` へ退けるだけで、
+コピー先の中身は消さない）。
+
+- **ドライブ文字が変わっても追いかける**。コピー先に目印 `.tax-apps-backup-id`（中身は設定の `# id:`）を
+  置き、設定のパスが無いときは c〜z の同じパスを探して**目印が一致したときだけ**採り、設定を書き換える。
+  同じフォルダ名の別の USB を黙って使わないため。`# id:` の無い古い設定は、次に写したときに目印が付く
+- 本体（リポジトリ）と同じドライブを選ぶと警告し、一覧から選んだときは `y/N` で確かめる
 
 - **未設定なら何もしない**。警告も記録も出さないので、使わない環境では存在しないのと同じ
 - 設定されているのに書けないときだけ `backup-external` に記録が残る
@@ -168,6 +177,10 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
   場所とバックアップを選ぶ → 整合性の確認 → 一覧を見て `y` → 無い `.env` を置く →
   バックアップに記録された各アプリのモード（`app-modes/`）で起動 → healthy を待つ → `restore --all`。
   `--check` で一覧まで出して何も変えずに終わる。手順は `docker/RESTORE.md` の手順 B。
+
+- **`set-backup-usb.bat`**
+  `backup.sh usb` を Git Bash 経由で呼ぶ ASCII ラッパー。外部コピー先（USB / NAS）をドライブの
+  一覧から選び、そのまま最新のバックアップを1本写せる。上の「外部コピー」を参照。
 
 ### 廃止したタスク登録（バックアップ・リストア訓練）
 
@@ -340,6 +353,7 @@ detail=daily ok=7 skipped=0
 | `restore-drill.bat` | 補助 (CMD) | backup.sh drill の Git Bash ラッパー（手動の入口） |
 | `restore.bat` | 補助 (CMD) | backup.sh restore の Git Bash ラッパー（アプリ単位のリストア） |
 | `restore-new-pc.bat` | 補助 (CMD) | backup.sh newpc の Git Bash ラッパー（新しい PC で全部戻す） |
+| `set-backup-usb.bat` | 補助 (CMD) | backup.sh usb の Git Bash ラッパー（外部コピー先を選ぶ） |
 | `register-backup-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
 | `unregister-backup-task.bat` | 補助 (CMD) | 廃止したタスクを既存 PC から削除 |
 | `register-restore-drill-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
@@ -374,7 +388,8 @@ detail=daily ok=7 skipped=0
 | 4時間毎の Docker 監視＋無人処理を設定 | `register-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | テストを走らせる | `manage.bat test`（稼働中のコンテナの中で実行） |
-| バックアップを別ドライブ／NAS にも置く | `~/.tax-apps/backup-external-dest` の1行目にコピー先のパスを書く |
+| バックアップを別ドライブ／NAS にも置く | USB を挿して `set-backup-usb.bat` をダブルクリック → ドライブを番号で選ぶ |
+| 外部コピー先を変える／やめる | `set-backup-usb.bat` で選び直す／`manage.bat usb --off` |
 | デスクトップの警告を消したい | 原因を直す。次の自動実行で消える（手動なら `manage.bat alert`） |
 
 ---

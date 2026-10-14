@@ -2797,10 +2797,21 @@ copy_backup_to_external() {
   echo ""
   echo "External copy: $dest"
 
+  # ドライブ文字が変わっていたら（挿す順番で E: が F: になる）、目印で追いかける
+  local moved
+  if [[ ! -d "$dest" ]] && moved=$(find_moved_external_dest "$dest"); then
+    warn "コピー先のドライブ文字が変わっていました: $(to_win_path "$dest") → $(to_win_path "$moved")"
+    if [[ -z "${TAX_APPS_BACKUP_EXTERNAL_DEST:-}" ]]; then
+      write_external_config "$moved" "$(external_config_id)" &&
+        echo "  設定を書き換えました: $(to_win_path "$OPS_EXTERNAL_DEST_FILE")"
+    fi
+    dest="$moved"
+  fi
+
   if [[ ! -d "$dest" ]]; then
     warn "コピー先が見つかりません: $dest"
     echo "  外付けドライブが外れているか、NAS に繋がっていない可能性があります。"
-    echo "  設定ファイル: $(to_win_path "$OPS_EXTERNAL_DEST_FILE")"
+    echo "  設定ファイル: $(to_win_path "$OPS_EXTERNAL_DEST_FILE")（変えるなら set-backup-usb.bat）"
     ops_write_last_result "backup-external" "unavailable" "dest not mounted"
     return 1
   fi
@@ -2831,9 +2842,330 @@ copy_backup_to_external() {
     done
   fi
 
+  # 前からある設定（目印なし）もここで目印を持つ。次にドライブ文字が変わったときに追いかけられる
+  ensure_external_marker "$dest" || warn "コピー先に目印を置けませんでした（ドライブ文字が変わると追いかけられません）"
+
   echo "  Copied: $(basename "$archive")"
   ops_write_last_result "backup-external" "ok" "$(basename "$archive")"
   return 0
+}
+
+# ------------------------------------
+# 外部コピー先を選ぶ（set-backup-usb.bat / manage.sh usb）
+# ------------------------------------
+# 以前は ~/.tax-apps/backup-external-dest を手で書くしか無く、
+# ドライブ文字が変わる（挿す順番で E: が F: になる）と、直し方も手で書き直すだけだった。
+#
+# 選んだフォルダには目印（.tax-apps-backup-id）を置き、同じ値を設定ファイルの
+# 2行目（コメント行なので古い読み手は無視する）に控える。コピーの時点で設定の
+# パスが見つからなければ、ほかのドライブの同じ場所に同じ目印があるかを探して
+# 追いかける ── 「違う USB を同じ文字で挿した」ときに別のドライブへ書かないよう、
+# フォルダの名前ではなく目印の値で同じものかを決める。
+EXTERNAL_ID_FILE_NAME=".tax-apps-backup-id"
+
+external_config_id() {
+  [[ -f "$OPS_EXTERNAL_DEST_FILE" ]] || return 1
+  local id
+  id=$(grep -m1 '^# id: ' "$OPS_EXTERNAL_DEST_FILE" 2>/dev/null | sed 's/^# id: //' | tr -d '\r')
+  [[ -n "$id" ]] || return 1
+  printf '%s\n' "$id"
+}
+
+external_marker_id() {
+  local f="$1/$EXTERNAL_ID_FILE_NAME" id
+  [[ -f "$f" ]] || return 1
+  id=$(head -1 "$f" 2>/dev/null | tr -d '\r')
+  [[ -n "$id" ]] || return 1
+  printf '%s\n' "$id"
+}
+
+new_external_id() {
+  od -An -N8 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n'
+}
+
+# 設定ファイルを書く（1行目がパス。読み手は ops_external_backup_dest）
+write_external_config() {
+  local dest="$1" id="$2" tmp
+  mkdir -p "$(dirname "$OPS_EXTERNAL_DEST_FILE")" || return 1
+  tmp="$OPS_EXTERNAL_DEST_FILE.tmp.$$"
+  {
+    printf '%s\n' "$dest"
+    printf '# id: %s\n' "$id"
+    printf '# 1行目がコピー先。変えるときは set-backup-usb.bat（manage.sh usb）\n'
+  } > "$tmp" && mv -f "$tmp" "$OPS_EXTERNAL_DEST_FILE"
+}
+
+# コピー先に目印を置き、設定の id と揃える（目印のほうが実物なので、食い違えば目印に合わせる）
+ensure_external_marker() {
+  local dest="$1" id cfg_id
+  if ! id=$(external_marker_id "$dest"); then
+    id=$(external_config_id) || id=$(new_external_id)
+    [[ -n "$id" ]] || return 1
+    printf '%s\n' "$id" > "$dest/$EXTERNAL_ID_FILE_NAME" || return 1
+  fi
+  # 環境変数で上書きしている間は設定ファイルに触らない
+  [[ -n "${TAX_APPS_BACKUP_EXTERNAL_DEST:-}" ]] && return 0
+  cfg_id=$(external_config_id) || cfg_id=""
+  if [[ "$cfg_id" != "$id" ]]; then
+    write_external_config "$dest" "$id"
+  fi
+}
+
+# ドライブ文字が変わったコピー先を、目印の値で探す。見つかれば新しいパスを出す
+find_moved_external_dest() {
+  local dest="$1" id rest drv cand mid
+  id=$(external_config_id) || return 1
+  [[ "$dest" =~ ^/[a-zA-Z](/.*)?$ ]] || return 1
+  rest="${dest:2}"
+  for drv in c d e f g h i j k l m n o p q r s t u v w x y z; do
+    cand="/$drv$rest"
+    [[ "${cand,,}" == "${dest,,}" ]] && continue
+    mid=$(external_marker_id "$cand") || continue
+    if [[ "$mid" == "$id" ]]; then
+      printf '%s\n' "$cand"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# 選択肢にするドライブ（文字|種類|名前|空き|容量）。メディアの無いカードリーダー等は除く
+list_candidate_drives() {
+  command -v powershell.exe >/dev/null 2>&1 || return 0
+  powershell.exe -NoProfile -NonInteractive -Command '[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-CimInstance Win32_LogicalDisk | Where-Object { $_.Size -gt 0 -and ($_.DriveType -eq 2 -or $_.DriveType -eq 3 -or $_.DriveType -eq 4) } | ForEach-Object { "{0}|{1}|{2}|{3}|{4}" -f $_.DeviceID.Substring(0,1), $_.DriveType, $_.VolumeName, $_.FreeSpace, $_.Size }' 2>/dev/null | tr -d '\r'
+}
+
+human_gb() {
+  awk -v b="${1:-0}" 'BEGIN { printf "%.0fGB", b / 1024 / 1024 / 1024 }'
+}
+
+# 人が打ったパスを Git Bash のパスへ（バックアップの有無は見ない）
+normalize_dest_path() {
+  local p="$1"
+  p=$(strip_cr "$p")
+  p="${p#\"}"; p="${p%\"}"
+  p="${p#\'}"; p="${p%\'}"
+  [[ -z "$p" ]] && return 1
+  # 「E:」「E:\」だけならその直下の tax-apps-backup にする
+  if [[ "$p" =~ ^[A-Za-z]:[\\/]?$ ]]; then
+    p="${p:0:1}:/tax-apps-backup"
+  fi
+  if [[ "$p" == '\\'* || "$p" == //* ]]; then
+    # NAS（\\server\share）は cygpath に通さず区切りだけ揃える
+    p="${p//\\//}"
+  elif command -v cygpath >/dev/null 2>&1; then
+    p=$(cygpath -u "$p" 2>/dev/null || printf '%s' "$p")
+  fi
+  p="${p%/}"
+  # 相対パスは「今いるフォルダの下」に作ってしまうので受けない（E:\… / \\NAS\… / /e/… の形だけ）
+  if [[ "$p" != /* ]]; then
+    err "フォルダは E:\\tax-apps-backup のようにドライブから書いてください: $1"
+    return 1
+  fi
+  printf '%s\n' "$p"
+}
+
+# コピー先を決めて書く（フォルダを作る → 書けるか試す → 目印 → 設定）
+apply_external_dest() {
+  local dest="$1" interactive="${2:-0}" repo_drv dest_drv probe id yn
+  repo_drv=$(printf '%s' "$PROJECT_ROOT" | cut -d/ -f2)
+  dest_drv=$(printf '%s' "$dest" | cut -d/ -f2)
+  if [[ "$dest" == /?/* && "${repo_drv,,}" == "${dest_drv,,}" ]]; then
+    warn "このリポジトリと同じドライブ（${dest_drv^^}:）です。ディスクが壊れたときに一緒に失われます"
+    if [[ "$interactive" -eq 1 ]]; then
+      read -rp "それでもここにしますか？ [y/N]: " yn
+      yn=$(strip_cr "$yn")
+      if [[ "${yn,,}" != "y" ]]; then
+        echo "何も変えていません"
+        return 2
+      fi
+    fi
+  fi
+  if ! mkdir -p "$dest" 2>/dev/null; then
+    err "フォルダを作れません: $(to_win_path "$dest")"
+    return 1
+  fi
+  probe="$dest/.write-test.$$"
+  if ! printf 'ok\n' > "$probe" 2>/dev/null; then
+    err "書き込めません: $(to_win_path "$dest")（読み取り専用か、権限がありません）"
+    return 1
+  fi
+  rm -f "$probe"
+  # 前に使っていたフォルダなら目印をそのまま引き継ぐ。新しいフォルダには新しい値
+  id=$(external_marker_id "$dest") || id=$(new_external_id)
+  printf '%s\n' "$id" > "$dest/$EXTERNAL_ID_FILE_NAME" || return 1
+  write_external_config "$dest" "$id" || { err "設定ファイルを書けません: $(to_win_path "$OPS_EXTERNAL_DEST_FILE")"; return 1; }
+  ok "外部コピー先: $(to_win_path "$dest")"
+  echo "  設定ファイル: $(to_win_path "$OPS_EXTERNAL_DEST_FILE")"
+}
+
+show_external_dest() {
+  local dest moved
+  if [[ -n "${TAX_APPS_BACKUP_EXTERNAL_DEST:-}" ]]; then
+    echo "今の外部コピー先: $(to_win_path "$TAX_APPS_BACKUP_EXTERNAL_DEST")（環境変数 TAX_APPS_BACKUP_EXTERNAL_DEST）"
+    return 0
+  fi
+  if ! dest=$(ops_external_backup_dest); then
+    echo "今の外部コピー先: 未設定（バックアップはこの PC の中だけ）"
+    return 0
+  fi
+  if [[ -d "$dest" ]]; then
+    echo "今の外部コピー先: $(to_win_path "$dest")  $(list_backups_in "$dest" | grep -vc '^pre-restore_')件"
+  elif moved=$(find_moved_external_dest "$dest"); then
+    echo "今の外部コピー先: $(to_win_path "$dest")（見つかりません。$(to_win_path "$moved") に移っています。次のバックアップで書き換えます）"
+  else
+    echo "今の外部コピー先: $(to_win_path "$dest")（見つかりません。USB が外れていませんか）"
+  fi
+}
+
+usb_usage() {
+  cat <<'EOF'
+使い方: manage.sh usb [--set <フォルダ>|--off|--show] [--copy-now]
+
+  （引数なし）    端末でドライブの一覧から選ぶ（set-backup-usb.bat と同じ）
+  --set <フォルダ> そのフォルダにする（例: --set E:\tax-apps-backup。E: だけなら E:\tax-apps-backup）
+  --off           外部コピーをやめる（設定を外すだけ。USB の中のバックアップは消さない）
+  --show          今の設定を見るだけ
+  --copy-now      設定したあと、いちばん新しいバックアップを今すぐ写す
+
+バックアップのたびに、暗号化アーカイブをここへも写す（docker/RESTORE.md「外部コピー先」）。
+ドライブ文字が変わっても、フォルダに置いた目印で追いかける。
+EOF
+}
+
+cmd_usb() {
+  local mode="" target="" copy_now=0 interactive=0
+  [[ -t 0 && -t 1 ]] && interactive=1
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --set) target="${2:-}"; mode="set"; shift 2 || shift ;;
+      --set=*) target="${1#--set=}"; mode="set"; shift ;;
+      --off) mode="off"; shift ;;
+      --show) mode="show"; shift ;;
+      --copy-now) copy_now=1; shift ;;
+      -h|--help|help) usb_usage; return 0 ;;
+      *) err "知らない引数です: $1"; usb_usage; return 1 ;;
+    esac
+  done
+  if [[ -z "$mode" ]]; then
+    if [[ $copy_now -eq 1 ]]; then mode="copy"
+    elif [[ $interactive -eq 1 ]]; then mode="choose"
+    else mode="show"; fi
+  fi
+
+  echo "=== バックアップの外部コピー先（USB など） ==="
+  echo ""
+  show_external_dest
+  echo ""
+
+  local dest=""
+  case "$mode" in
+    show) return 0 ;;
+    copy)
+      if ! ops_external_backup_dest >/dev/null 2>&1; then
+        err "外部コピー先が未設定です（set-backup-usb.bat か --set で選んでください）"
+        return 1
+      fi
+      ;;
+    off)
+      if [[ -n "${TAX_APPS_BACKUP_EXTERNAL_DEST:-}" ]]; then
+        err "環境変数 TAX_APPS_BACKUP_EXTERNAL_DEST で指定されています。そちらを外してください"
+        return 1
+      fi
+      if [[ -f "$OPS_EXTERNAL_DEST_FILE" ]]; then
+        mv -f "$OPS_EXTERNAL_DEST_FILE" "$OPS_EXTERNAL_DEST_FILE.off"
+        ok "外部コピーをやめました（設定は $(to_win_path "$OPS_EXTERNAL_DEST_FILE.off") に残してあります。USB の中身は消していません）"
+      else
+        echo "もともと未設定です"
+      fi
+      return 0
+      ;;
+    set)
+      [[ -n "$target" ]] || { err "--set にフォルダを指定してください"; return 1; }
+      dest=$(normalize_dest_path "$target") || return 1
+      ;;
+    choose)
+      local -a drives=()
+      local line letter dtype name free size label
+      mapfile -t drives < <(list_candidate_drives)
+      local repo_drv cur
+      repo_drv=$(printf '%s' "$PROJECT_ROOT" | cut -d/ -f2)
+      cur=$(ops_external_backup_dest 2>/dev/null || true)
+      echo "どこへ写しますか（選んだドライブの直下に tax-apps-backup フォルダを作ります）:"
+      echo ""
+      local i=0 entries=()
+      for line in "${drives[@]}"; do
+        IFS='|' read -r letter dtype name free size <<< "$line"
+        [[ -n "$letter" ]] || continue
+        letter="${letter,,}"
+        case "$dtype" in
+          2) label="リムーバブル" ;;
+          4) label="ネットワーク" ;;
+          *) label="ディスク" ;;
+        esac
+        [[ -n "$name" ]] && label="$label「$name」"
+        label="$label  空き $(human_gb "$free") / $(human_gb "$size")"
+        [[ "$letter" == "${repo_drv,,}" ]] && label="$label  ※この PC の本体（外付けの意味がありません）"
+        [[ "${cur,,}" == "/$letter/tax-apps-backup" ]] && label="$label  ← 今の設定"
+        entries+=("/$letter/tax-apps-backup")
+        i=$((i+1))
+        echo "  [$i] ${letter^^}:\\tax-apps-backup  $label"
+      done
+      [[ $i -eq 0 ]] && echo "  （ドライブの一覧を取れませんでした。[m] で入力してください）"
+      echo "  [m] フォルダを入力する（NAS など。例: \\\\nas\\share\\tax-apps-backup）"
+      [[ -n "$cur" ]] && echo "  [x] 外部コピーをやめる（USB の中身は消さない）"
+      echo "  [0] やめる（何も変えない）"
+      echo ""
+      local choice
+      read -rp "番号: " choice
+      choice=$(strip_cr "$choice")
+      if [[ -z "$choice" || "$choice" == "0" ]]; then
+        echo "何も変えていません"
+        return 0
+      fi
+      if [[ "${choice,,}" == "x" && -n "$cur" ]]; then
+        cmd_usb --off
+        return $?
+      elif [[ "${choice,,}" == "m" ]]; then
+        local typed
+        read -rp "フォルダ: " typed
+        dest=$(normalize_dest_path "$typed") || { echo "何も変えていません"; return 0; }
+      elif [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#entries[@]} )); then
+        dest="${entries[$((choice-1))]}"
+      else
+        err "番号が正しくありません（何も変えていません）"
+        return 1
+      fi
+      ;;
+  esac
+
+  if [[ "$mode" != "copy" ]]; then
+    local rc=0
+    apply_external_dest "$dest" "$interactive" || rc=$?
+    [[ $rc -eq 2 ]] && return 0
+    [[ $rc -eq 0 ]] || return 1
+  fi
+
+  if [[ $copy_now -eq 0 && $interactive -eq 1 ]]; then
+    local yn
+    echo ""
+    read -rp "いちばん新しいバックアップを今すぐ写しますか？ [Y/n]: " yn
+    yn=$(strip_cr "$yn")
+    [[ -z "$yn" || "${yn,,}" == "y" ]] && copy_now=1
+  fi
+  if [[ $copy_now -eq 1 ]]; then
+    local latest
+    latest=$(find "$BACKUP_BASE" -maxdepth 1 -name '????-??-??_??????.tar.gz.enc' 2>/dev/null | sort | tail -1)
+    if [[ -z "$latest" ]]; then
+      warn "この PC にまだバックアップがありません。次のバックアップから写ります"
+      return 0
+    fi
+    acquire_operation_lock "usb" "$(ops_default_lock_wait 120)" || return 1
+    copy_backup_to_external "$latest" || return 1
+    ok "写しました: $(basename "$latest")"
+  else
+    echo "次のバックアップ（自動なら1日1回）から写ります。"
+  fi
 }
 
 # ------------------------------------
@@ -2978,12 +3310,14 @@ case "$COMMAND" in
   newpc)
     check_dependencies
     ;;
+  # usb は設定を書くだけ。今すぐ写すときだけ cmd_usb の中でロックを取る
 esac
 
 case "$COMMAND" in
   backup)  cmd_backup ;;
   restore) cmd_restore "${@:2}" ;;
   newpc)   cmd_newpc "${@:2}" ;;
+  usb)     cmd_usb "${@:2}" ;;
   verify)  cmd_verify "${2:-}" ;;
   drill)   cmd_drill "${2:-}" ;;
   # Keep the historical command name used by backup-db.bat, but create the
@@ -2992,7 +3326,7 @@ case "$COMMAND" in
   # 期限切れのものだけを実行する。ウォッチドッグからの入口。
   due)     cmd_due ;;
   *)
-    echo "Usage: $0 {backup|restore [app|--all] [backup] [--from dir] [--yes]|newpc [--from dir] [backup] [--yes]|verify <backup>|drill [backup]|due|itcm}"
+    echo "Usage: $0 {backup|restore [app|--all] [backup] [--from dir] [--yes]|newpc [--from dir] [backup] [--yes]|usb [--set dir|--off|--show]|verify <backup>|drill [backup]|due|itcm}"
     exit 1
     ;;
 esac

@@ -152,6 +152,7 @@ rd /s /q tax_apps
 | `restore-drill.bat` | Windows (CMD) | `backup.sh drill` を Git Bash 経由で呼び出す補助ラッパー（同じく手動の入口） |
 | `restore.bat` | Windows (CMD) | `backup.sh restore` を Git Bash 経由で呼び出す補助ラッパー（場所・アプリ・バックアップを一覧から選ぶ。USB からも直接戻せる） |
 | `restore-new-pc.bat` | Windows (CMD) | `backup.sh newpc` を Git Bash 経由で呼び出す補助ラッパー（**新しい PC で全部戻す**: `.env` → 元のモードで起動 → 全アプリのデータ。`docker/RESTORE.md` 手順 B） |
+| `set-backup-usb.bat` | Windows (CMD) | `backup.sh usb` を Git Bash 経由で呼び出す補助ラッパー（**外部コピー先（USB / NAS）をドライブの一覧から選ぶ**） |
 | `unregister-backup-task.bat` / `unregister-restore-drill-task.bat` | Windows (CMD) | **廃止したタスクを既存 PC から外す**ためだけに残してあるラッパー（登録側は削除済み） |
 | `start-prod.bat` | Windows (CMD) | ワンクリックで本番モード起動 |
 | `stop.bat` | Windows (CMD) | ワンクリックで全アプリ停止 |
@@ -512,20 +513,28 @@ C:\Users\<user>\.tax-apps\backup.key   ← この1ファイルだけ、外部媒
 
 コピー先を設定すると、毎回のバックアップの最後に暗号化アーカイブが1本コピーされます。
 
-```
-C:\Users\<user>\.tax-apps\backup-external-dest   ← 1行目にコピー先のパスを書くだけ
+**設定は `docker\scripts\set-backup-usb.bat` をダブルクリック**（中身は `manage.sh usb`）。
+ドライブの一覧から番号で選ぶと `<ドライブ>:\tax-apps-backup` を作り、書き込めるかを確かめてから
+保存し、そのまま最新のバックアップを1本写せます。手順は [`RESTORE.md`](RESTORE.md) の「外部コピー先」。
+
+```bash
+./manage.sh usb --show                     # 今の設定と、見えているか
+./manage.sh usb --set 'E:\tax-apps-backup' # 直接指定（NAS のパスも可）
+./manage.sh usb --copy-now                 # 最新を今すぐ写す
+./manage.sh usb --off                      # やめる（コピー先の中身は消さない）
 ```
 
-```
-# 例（先頭が # の行と空行は無視されます）
-/d/tax-apps-backup
-```
+設定の実体は `C:\Users\<user>\.tax-apps\backup-external-dest`（1行目がパス、2行目が `# id:`）。
 
 - **未設定なら何もしません**（警告も記録も出ません）。使わない環境では存在しないのと同じです
 - 設定されているのに書けないときだけ記録が残り、デスクトップの警告にも出ます。
   「設定したつもりで効いていない」が一番危ないためです
 - 設定をリポジトリ外に置くのは、**リポジトリが公開**で NAS 名やユーザー名を含むパスを載せられないからです。
   環境変数ではなくファイルなのは、スケジュールタスクが環境変数を持たずに起動するためです
+- **ドライブ文字が変わっても追いかけます**。コピー先には目印 `.tax-apps-backup-id` を置き、
+  設定のパスが見つからないときは他のドライブの同じフォルダを探して、**目印が一致したときだけ**
+  そこへ写して設定を書き換えます（同じ名前の別の USB は採りません）
+- **本体と同じドライブを選ぶと警告して確認します**（同じディスクでは守りになりません）
 - コピー先でも同じ GFS（日次7 + 週次4 + 月次6）で世代を絞ります
 - **鍵は一緒に置かないこと**（上記「暗号鍵の保管」）。外部コピー先にも置かれるのは暗号化済みアーカイブだけです
 
@@ -1078,6 +1087,7 @@ tax_apps/
 │   │   ├── restore-drill.bat   #   backup.sh drill を呼び出す Windows 補助ラッパー（手動の入口）
 │   │   ├── restore.bat         #   backup.sh restore を呼び出す Windows 補助ラッパー
 │   │   ├── restore-new-pc.bat  #   backup.sh newpc を呼び出す Windows 補助ラッパー（新しい PC で全部戻す）
+│   │   ├── set-backup-usb.bat  #   backup.sh usb を呼び出す Windows 補助ラッパー（外部コピー先を選ぶ）
 │   │   ├── unregister-backup-task.bat      #  廃止したタスクの解除用
 │   │   ├── unregister-restore-drill-task.bat #  廃止したタスクの解除用
 │   │   ├── docker-watchdog.ps1 #   Docker Desktop 監視/復旧本体
