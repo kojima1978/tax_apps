@@ -25,7 +25,7 @@ const position = (fields: Partial<Position>) => ({
 } as Position);
 
 const owner = (fields: Partial<PropertyOwner> = {}): PropertyOwner => ({
-  householdId: 3, clientCode: "PB-000003", clientName: "山田 太郎", clientNameKana: "ヤマダタロウ",
+  householdId: 3, snapshotId: 30, isCurrent: true, clientCode: "PB-000003", clientName: "山田 太郎", clientNameKana: "ヤマダタロウ",
   assignedStaff: "佐藤", fiscalYear: 2026, asOfDate: "2026-12-31",
   ...fields,
 });
@@ -64,8 +64,12 @@ describe("toPropertyRow", () => {
 });
 
 describe("propertyPositionHref", () => {
-  it("その明細を開くURLにする（一覧は現在年度だけなので年度は付けない）", () => {
+  it("現在年度の明細を開くURLでは年度を省略する", () => {
     expect(propertyPositionHref(toPropertyRow(position({ id: 7 }), owner({ householdId: 3 })))).toBe("/customers/3/positions?position=7");
+  });
+
+  it("過年度の明細を開くURLには対象年度のスナップショットを付ける", () => {
+    expect(propertyPositionHref(toPropertyRow(position({ id: 7 }), owner({ householdId: 3, snapshotId: 29, isCurrent: false })))).toBe("/customers/3/positions?snapshot=29&position=7");
   });
 });
 

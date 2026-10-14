@@ -18,6 +18,8 @@ import {
 /** 不動産1件に添える顧客・年度の情報（API 側で明細に付ける）。 */
 export type PropertyOwner = {
   householdId: number;
+  snapshotId: number;
+  isCurrent: boolean;
   clientCode: string;
   clientName: string;
   clientNameKana: string;
@@ -26,7 +28,7 @@ export type PropertyOwner = {
   asOfDate: string;
 };
 
-/** 不動産一覧の1行。全顧客の現在年度のB/Sにある不動産の明細を、表とCSVで同じ形にして扱う。 */
+/** 不動産一覧の1行。選択した年度条件にある不動産の明細を、表とCSVで同じ形にして扱う。 */
 export type PropertyRow = PropertyOwner & {
   positionId: number;
   category: string;
@@ -46,10 +48,13 @@ export type PropertyRow = PropertyOwner & {
 };
 
 /**
- * その明細を開くためのURL。一覧に載るのは各顧客の現在年度の明細だけなので、
- * 年度（?snapshot=）は付けない（付けなければ明細画面は現在年度を開く）。
+ * その明細を開くためのURL。現在年度は従来どおり年度指定を省略し、
+ * 過年度だけ snapshot を付けて、一覧で見ていた年度の明細を確実に開く。
  */
-export const propertyPositionHref = (row: PropertyRow) => `/customers/${row.householdId}/positions?position=${row.positionId}`;
+export const propertyPositionHref = (row: PropertyRow) => {
+  const snapshot = row.isCurrent ? "" : `snapshot=${row.snapshotId}&`;
+  return `/customers/${row.householdId}/positions?${snapshot}position=${row.positionId}`;
+};
 
 /** 検索対象になる項目。表示側のハイライトもこの項目に対して行う。 */
 export const PROPERTY_SEARCH_FIELDS = [

@@ -1335,6 +1335,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .client-list-tools .position-table-tools select { min-width: 128px; min-height: 32px; }
 /* 不動産一覧（全顧客横断）。列が多いので表は横スクロールさせ、名称・所在地だけ折り返して読ませる。 */
 .properties-panel { margin-top: 14px; }
+.properties-panel .position-table-tools { flex-wrap: wrap; justify-content: flex-end; }
+.properties-panel .position-table-tools label:first-child select { min-width: 156px; }
 .properties-table { width: 100%; min-width: 860px; }
 .properties-table th, .properties-table td { padding-inline: 5px; vertical-align: top; }
 .properties-table th { padding-block: 8px; letter-spacing: 0; }

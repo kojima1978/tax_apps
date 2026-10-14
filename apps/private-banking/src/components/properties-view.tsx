@@ -26,6 +26,9 @@ import {
   sortProperties,
 } from "@/lib/properties";
 
+type PropertyYearMode = "current" | "all" | `${number}`;
+type PropertiesResponse = { rows: PropertyRow[]; fiscalYears: number[] };
+
 /** 絞り込みの選択欄。科目・区分を同じ形で並べる。 */
 const filterFields = [
   { key: "category", label: "科目", options: realEstateCategories.map((category) => ({ value: category, label: categoryLabels[category] })) },
@@ -48,12 +51,14 @@ const ownershipText = (ownership: string) => {
 };
 
 /**
- * 全顧客の不動産一覧。現在年度のB/Sにある不動産の明細を横断で見て、
+ * 全顧客の不動産一覧。選択した年度条件のB/Sにある不動産の明細を横断で見て、
  * 絞り込んだ結果をそのままCSVへ書き出す。顧客ごとの明細を開き直す手間を省くための画面。
  */
 export function PropertiesView() {
   const [rows, setRows] = useState<PropertyRow[] | null>(null);
   const [error, setError] = useState("");
+  const [yearMode, setYearMode] = useState<PropertyYearMode>("current");
+  const [fiscalYears, setFiscalYears] = useState<number[]>([]);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<PropertyFilters>({ category: PROPERTY_FILTER_ALL, propertyType: PROPERTY_FILTER_ALL });
   const [sortMode, setSortMode] = useState<PropertySortMode>(PROPERTY_SORT_DEFAULT);
@@ -62,17 +67,22 @@ export function PropertiesView() {
   const router = useRouter();
 
   useEffect(() => {
+    const controller = new AbortController();
     void (async () => {
       try {
-        const response = await fetch(`${API_BASE}/properties`, { cache: "no-store" });
+        const response = await fetch(`${API_BASE}/properties?year=${encodeURIComponent(yearMode)}`, { cache: "no-store", signal: controller.signal });
         if (!response.ok) throw new Error();
-        setRows(await response.json() as PropertyRow[]);
+        const result = await response.json() as PropertiesResponse;
+        setRows(result.rows);
+        setFiscalYears(result.fiscalYears);
       } catch {
+        if (controller.signal.aborted) return;
         setRows([]);
         setError("不動産の一覧を読み込めませんでした。画面を更新してください。");
       }
     })();
-  }, []);
+    return () => controller.abort();
+  }, [yearMode]);
 
   const terms = useMemo(() => searchTerms(query), [query]);
   const matched = useMemo(() => filterProperties(rows ?? [], terms, filters), [rows, terms, filters]);
@@ -83,6 +93,11 @@ export function PropertiesView() {
   const narrowed = terms.length > 0 || filters.category !== PROPERTY_FILTER_ALL || filters.propertyType !== PROPERTY_FILTER_ALL;
   // 描画するのはこのページのぶんだけ。全件を並べると行数に比例して表示が遅くなる。
   const paged = useMemo(() => pageSlice(filtered, page, pageSize), [filtered, page, pageSize]);
+  const yearSubtitle = yearMode === "current"
+    ? "各顧客の現在年度のB/Sにある不動産です"
+    : yearMode === "all"
+      ? "登録されている全年度の不動産です（同じ物件が年度ごとに表示される場合があります）"
+      : `${yearMode}年度のB/Sにある不動産です`;
 
   // 絞り込んだ結果をそのまま書き出す（画面に出ているものと中身を一致させる）。
   const downloadCsv = () => {
@@ -115,8 +130,24 @@ export function PropertiesView() {
     <article className="panel properties-panel">
       <PanelHeader
         title="登録している不動産"
-        subtitle="各顧客の現在年度のB/Sにある不動産です"
+        subtitle={yearSubtitle}
         action={<div className="position-table-tools" aria-label="不動産一覧の絞り込みと並び順">
+          <label>
+            <span>対象年度</span>
+            <select
+              value={yearMode}
+              onChange={(event) => {
+                setRows(null);
+                setError("");
+                setYearMode(event.target.value as PropertyYearMode);
+                setPage(1);
+              }}
+            >
+              <option value="current">各顧客の現在年度</option>
+              {fiscalYears.map((year) => <option key={year} value={year}>{year}年度</option>)}
+              <option value="all">全年度</option>
+            </select>
+          </label>
           {filterFields.map((field) => <label key={field.key}>
             <span>{field.label}</span>
             <select
