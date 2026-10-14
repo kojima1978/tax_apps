@@ -72,11 +72,14 @@ tax_apps/
 │   │   ├── stop.bat                   # ワンクリック停止
 │   │   ├── status.bat                 # ワンクリック状態確認
 │   │   ├── backup-db.bat              # backup.sh itcm を呼び出す Windows 補助ラッパー
-│   │   └── restore-drill.bat          # backup.sh drill を呼び出す Windows 補助ラッパー
+│   │   ├── restore-drill.bat          # backup.sh drill を呼び出す Windows 補助ラッパー
+│   │   └── restore.bat                # backup.sh restore を呼び出す Windows 補助ラッパー（一覧から選ぶ）
 │   ├── data/                          # 永続化データ（git管理外）
 │   ├── logs/                          # 無人処理の記録・モード記録（git管理外）
 │   ├── backups/                       # バックアップ保存先
 │   ├── postgres/                      # PostgreSQL初期化SQL
+│   ├── RESTORE.md                     # リストアの手順書（新しい PC で全部戻す手順を含む）
+│   ├── COLLATION-MIGRATION.md         # 別の PC で照合順序を C へ移す手順書
 │   └── .env.example                   # 環境変数テンプレート
 ├── nginx/                             # Nginx Gateway設定
 │   ├── nginx.conf                     # メイン設定
@@ -190,7 +193,8 @@ cd tax_apps
 ./docker/scripts/manage.sh test [app]           稼働中のコンテナの中でテストを実行
 ./docker/scripts/manage.sh recover              落ちているアプリだけ起動し直す（ウォッチドッグ用）
 ./docker/scripts/manage.sh backup               全データベース・データをバックアップ（backup.sh に委譲）
-./docker/scripts/manage.sh restore [dir]        バックアップからリストア（backup.sh に委譲）
+./docker/scripts/manage.sh restore [app|--all] [backup] [--yes]
+                                                アプリ単位でリストア（件数照合・healthy 待ちつき。手順は docker/RESTORE.md）
 ./docker/scripts/manage.sh verify <file>        暗号化バックアップを復号・整合性検証
 ./docker/scripts/manage.sh drill [file]         リストア訓練（使い捨てDBへ実際に復元して検証）
 ./docker/scripts/manage.sh due                  期限切れの無人処理だけ実行（ウォッチドッグ用）
@@ -199,6 +203,8 @@ cd tax_apps
 ./docker/scripts/manage.sh alert                デスクトップの警告ファイルを作り直す（Docker 不要）
 ./docker/scripts/manage.sh clean                不要なコンテナ・イメージを削除
 ./docker/scripts/manage.sh clean-cache [--all]  Docker Build Cache だけを確認付きで削除
+./docker/scripts/manage.sh collation [app] [--yes]
+                                                PostgreSQL の照合順序を C へ移す（手でだけ叩く。手順は docker/COLLATION-MIGRATION.md）
 ./docker/scripts/manage.sh preflight            起動前チェック（Docker, ポート等）
 ./docker/scripts/backup.sh itcm                 ITCM定期バックアップ（JSONエクスポート含む）
 ```

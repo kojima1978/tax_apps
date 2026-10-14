@@ -393,7 +393,7 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 
 | API | 概要 |
 | --- | --- |
-| `GET /itcm/api/health` | ヘルスチェック |
+| `GET /itcm/api/health` | ヘルスチェック（DB に繋がらなければ 503、ログに `[health] DB に接続できません:`） |
 | `/itcm/api/cases` | 案件一覧、作成 |
 | `/itcm/api/cases/[id]` | 案件詳細、更新、削除 |
 | `/itcm/api/cases/bulk-upsert` | CSV取込用の一括作成/更新 |

@@ -144,7 +144,7 @@ docker compose down            # 停止
 | `svf-postgres` | 業種目マスタ用の PostgreSQL。アプリは `service_healthy` を待って起動 |
 | `volumes` | `src/` `server/` `prisma/` `index.html` `scripts/` を読み取り専用マウント。`output/` だけ書き込み可（JSON書き出しの受け取り口） |
 | `CHOKIDAR_USEPOLLING` | Windows の bind mount では inotify が届かないため。Vite 側は `vite.config.ts` の `server.watch` に別途指定が要る |
-| `healthcheck` | API の `/api/health` と Vite の両方を見る（業種目マスタが空のまま静かに動くのを防ぐ） |
+| `healthcheck` | API の `/api/health` と Vite の両方を見る。`/api/health` は業種目マスタの取込の失敗と DB への接続（`SELECT 1`）を見て、どちらかが駄目なら 503（マスタが空のまま・DB が落ちたまま静かに動くのを防ぐ） |
 | `labels` | `tax-apps.autoheal: "true"`（ウォッチドッグの対象） |
 | `init: true` | PID 1 問題を回避（本番は `init: false`） |
 

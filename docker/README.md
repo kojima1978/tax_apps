@@ -998,6 +998,19 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | Vite 系 (dev) | `wget --spider` | BusyBox 内蔵 |
 | PostgreSQL | `pg_isready -U <user> -d <db>` | PostgreSQL 内蔵 |
 
+DB を持つアプリの healthcheck は、アプリの `/api/health` を叩いて **DB まで確かめる**。
+DB が使えなければ 503 を返すので、コンテナは unhealthy になりウォッチドッグの再起動対象になる
+（以前は DB を見ていない・見ても 200 を返すアプリがあり、DB が落ちても healthy のままだった）。
+
+| DB | health が見るもの | 503 の本文 |
+|:---|:-----------------|:-----------|
+| PostgreSQL（itcm・bank-analyzer・private-banking・stock-valuation-form） | `SELECT 1` | itcm は `database: 'disconnected'`、他は `error: 'database unreachable'`。どれもログに `[health] DB に接続できません:` |
+| SQLite（insurance-app・inheritance-tax-docs） | `SELECT 1` に加えて、DB ファイルとそのフォルダに**書けるか**（`W_OK`。DB には何も書かない） | `database: 'EACCES'` など（エラーコード） |
+
+SQLite で書込権限まで見るのは、`SELECT 1` だけだと「開けて読めるが書けない」状態（リストアで所有者が
+ずれた場合など）を見逃すため。6アプリとも、DB 停止や `chmod` で 503 になり、戻せば再起動なしに
+200 へ戻ることを実測済み。
+
 ### 技術スタック
 
 | カテゴリ | 技術 |

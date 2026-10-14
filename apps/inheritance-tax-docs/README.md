@@ -109,6 +109,9 @@ docker compose up -d
 
 http://localhost:3003/inheritance-tax-docs/ でアクセスできます。
 
+ヘルスチェックは `/inheritance-tax-docs/api/health`。DB（`/app/data/resources.sqlite`）を開いて読めることに加え、
+DB ファイルと `/app/data` に書けるかまで見て、使えなければ `503 {"status":"degraded","database":"EACCES"}` のようにエラーコードを返します。
+
 ## 技術スタック
 
 | カテゴリ | 技術 |

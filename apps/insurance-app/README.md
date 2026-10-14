@@ -54,8 +54,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ヘルスチェック:
 
 ```powershell
-curl http://localhost:3030/api/health
+curl http://localhost:3030/insurance/api/health/
 ```
+
+DB（`/app/data/insurance.sqlite`）を開いて読めることに加え、DB ファイルと `/app/data` に書けるかまで見ます。
+basePath が `/insurance` で末尾スラッシュ必須です（無いと 308）。使えなければ `503 {"status":"degraded","database":"EACCES"}` のようにエラーコードを返し、コンテナは unhealthy になります。
 
 ## 検証コマンド
 
