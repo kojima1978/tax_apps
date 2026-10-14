@@ -73,7 +73,8 @@ tax_apps/
 │   │   ├── status.bat                 # ワンクリック状態確認
 │   │   ├── backup-db.bat              # backup.sh itcm を呼び出す Windows 補助ラッパー
 │   │   ├── restore-drill.bat          # backup.sh drill を呼び出す Windows 補助ラッパー
-│   │   └── restore.bat                # backup.sh restore を呼び出す Windows 補助ラッパー（一覧から選ぶ）
+│   │   ├── restore.bat                # backup.sh restore を呼び出す Windows 補助ラッパー（一覧から選ぶ）
+│   │   └── restore-new-pc.bat         # backup.sh newpc を呼び出す Windows 補助ラッパー（新しい PC で全部戻す）
 │   ├── data/                          # 永続化データ（git管理外）
 │   ├── logs/                          # 無人処理の記録・モード記録（git管理外）
 │   ├── backups/                       # バックアップ保存先

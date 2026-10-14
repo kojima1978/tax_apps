@@ -87,7 +87,8 @@
   バックアップ・リストア・ITCM 定期バックアップを統合した Bash 本体。**ホスト側で実行**（Git Bash または Linux）。
   - `backup.sh backup`: 全データの暗号化完全バックアップ
   - `backup.sh itcm`: Windowsタスク用の互換名（暗号化済み全体バックアップ）
-  - `backup.sh restore [app|--all] [backup] [--yes]`: アプリ単位のリストア（そのアプリだけ止める・件数照合・healthy 待ち。`--env-only` / `--with-env`。手順は `docker/RESTORE.md`）
+  - `backup.sh restore [app|--all] [backup] [--yes] [--from DIR]`: アプリ単位のリストア（そのアプリだけ止める・件数照合・healthy 待ち。`--env-only` / `--with-env`。`--from` で USB などから直接。手順は `docker/RESTORE.md`）
+  - `backup.sh newpc [backup] [--from DIR] [--check] [--dev|--prod] [--yes]`: 新しい PC で全部戻す（`.env` → `manage.sh start --recorded` → `restore --all`）
   - `backup.sh verify <file>`: データを上書きせず復号とSHA-256検証
   - `backup.sh drill [file]`: リストア訓練。引数省略で最新のバックアップが対象
   - `backup.sh due`: 期限切れのものだけ実行（バックアップ20時間・訓練168時間・掃除144時間・ループ検知3時間）。ウォッチドッグ用
@@ -159,7 +160,14 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 
 - **`restore.bat`**
   `backup.sh restore` を Git Bash 経由で呼ぶ ASCII ラッパー。引数なしでダブルクリックすると
-  アプリとバックアップを一覧から選ぶ。手順は `docker/RESTORE.md`。
+  場所（`docker/backups` / 最新の写し / 外部コピー先 / USB）・アプリ・バックアップを一覧から選ぶ。
+  手順は `docker/RESTORE.md`。
+
+- **`restore-new-pc.bat`**
+  `backup.sh newpc` を Git Bash 経由で呼ぶ ASCII ラッパー。新しい PC で、鍵と Docker の確認 →
+  場所とバックアップを選ぶ → 整合性の確認 → 一覧を見て `y` → 無い `.env` を置く →
+  バックアップに記録された各アプリのモード（`app-modes/`）で起動 → healthy を待つ → `restore --all`。
+  `--check` で一覧まで出して何も変えずに終わる。手順は `docker/RESTORE.md` の手順 B。
 
 ### 廃止したタスク登録（バックアップ・リストア訓練）
 
@@ -331,6 +339,7 @@ detail=daily ok=7 skipped=0
 | `backup-db.bat` | 補助 (CMD) | backup.sh itcm の Git Bash ラッパー（手動の入口） |
 | `restore-drill.bat` | 補助 (CMD) | backup.sh drill の Git Bash ラッパー（手動の入口） |
 | `restore.bat` | 補助 (CMD) | backup.sh restore の Git Bash ラッパー（アプリ単位のリストア） |
+| `restore-new-pc.bat` | 補助 (CMD) | backup.sh newpc の Git Bash ラッパー（新しい PC で全部戻す） |
 | `register-backup-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
 | `unregister-backup-task.bat` | 補助 (CMD) | 廃止したタスクを既存 PC から削除 |
 | `register-restore-drill-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
@@ -361,6 +370,7 @@ detail=daily ok=7 skipped=0
 | 廃止した週次リストア訓練タスクを外す | `unregister-restore-drill-task.bat` をダブルクリック |
 | バックアップが復元できるか今すぐ試す | `restore-drill.bat` をダブルクリック |
 | 1アプリだけバックアップから戻す | `restore.bat` をダブルクリック（手順は `docker/RESTORE.md`） |
+| 新しい PC で全部戻す | 鍵を置いて USB を挿し、`restore-new-pc.bat` をダブルクリック（`docker/RESTORE.md` 手順 B） |
 | 4時間毎の Docker 監視＋無人処理を設定 | `register-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | テストを走らせる | `manage.bat test`（稼働中のコンテナの中で実行） |

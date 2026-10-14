@@ -50,6 +50,13 @@ STALE_WORK_SWEPT=0
 RESTORE_STOPPED=()
 BACKUP_BASE="${BACKUP_BASE:-$SCRIPT_DIR/../backups}"
 LATEST_BACKUP_BASE="${LATEST_BACKUP_BASE:-$(cd "$PROJECT_ROOT/.." && pwd)/tax_apps_backup_latest}"
+# リストアが読みに行く場所。空なら BACKUP_BASE。外付けや最新の控えから直接
+# 戻せるようにするためのもので、保険（pre-restore_*）と復号の作業場所は
+# 常に BACKUP_BASE（この PC のディスク）に置く。
+RESTORE_SOURCE_DIR=""
+# アプリ別の起動モード（manage.sh が書く）。バックアップに同梱し、新しい PC の
+# newpc が各アプリを元と同じモード（本番/開発）で起こすのに使う。
+APP_MODE_DIR="${APP_MODE_DIR:-$PROJECT_ROOT/docker/logs/app-modes}"
 LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
 FULL_BACKUP_RETENTION_DAYS="${FULL_BACKUP_RETENTION_DAYS:-${RETENTION_DAYS:-7}}"
 
@@ -323,7 +330,17 @@ extract_encrypted_backup() {
   # 鍵の確認より先に掃く。鍵が無くて早期に return する回でも、前回の平文は
   # 消しておきたい（残骸の掃除は復号の成否と関係が無い）。
   sweep_stale_restore_work
+  # 戻す側では鍵を絶対に作らない。ensure_backup_encryption_key は「BACKUP_BASE に
+  # 暗号化アーカイブが無ければ新しい鍵を作る」ので、バックアップが外付けにしか無い
+  # 新しい PC で戻そうとすると、黙って役に立たない鍵を作ってから復号に失敗していた。
+  if [[ ! -s "$BACKUP_KEY_FILE" ]]; then
+    err "暗号鍵がありません: $(to_win_path "$BACKUP_KEY_FILE")"
+    err "  控え（USB など）の backup.key をこの場所へコピーしてから、もう一度実行してください。"
+    err "  新しい鍵を作ってもこのアーカイブは復号できないので、ここでは作りません。"
+    return 1
+  fi
   ensure_backup_encryption_key || return 1
+  mkdir -p "$BACKUP_BASE"
   RESTORE_WORK_DIR="$(mktemp -d "$BACKUP_BASE/.restore-work.XXXXXX")"
   local key_path
   key_path="$(to_win_path "$BACKUP_KEY_FILE")"
@@ -453,6 +470,25 @@ print_summary_banner() {
   else
     print_banner "$title"
   fi
+}
+
+# アプリ別の起動モード（docker/logs/app-modes/）を同梱する。新しい PC の newpc が
+# これを見て、各アプリを元の PC と同じモードで起こす（この PC は本番と開発の混在稼働で、
+# 全部を一方に揃えると本番のアプリが dev サーバとして上がる）。
+# 無くてもデータは戻せるので、失敗してもバックアップの失敗にはしない。
+backup_app_modes() {
+  [[ -d "$APP_MODE_DIR" ]] || return 0
+  local f m n=0
+  for f in "$APP_MODE_DIR"/*; do
+    [[ -f "$f" ]] || continue
+    m=$(tr -d '\r\n' < "$f")
+    [[ "$m" == "prod" || "$m" == "dev" ]] || continue
+    mkdir -p "$backup_dir/app-modes" || return 0
+    printf '%s\n' "$m" > "$backup_dir/app-modes/$(basename "$f")" || continue
+    (( n++ )) || true
+  done
+  [[ $n -gt 0 ]] && ok "app-modes ($n apps)"
+  return 0
 }
 
 write_backup_manifest() {
@@ -922,6 +958,7 @@ cmd_backup() {
   backup_bank_analyzer_json "[$step/$total]"
 
   if [[ $backup_ok -gt 0 ]]; then
+    backup_app_modes
     write_backup_manifest
     if ! encrypt_backup_directory "$backup_dir"; then
       (( backup_fail++ )) || true
@@ -962,7 +999,7 @@ cmd_backup() {
       remove_old_dirs "$BACKUP_BASE" "pre-restore_????-??-??_??????" "$FULL_BACKUP_RETENTION_DAYS"
       remove_old_files "$BACKUP_BASE" "pre-restore_????-??-??_??????.tar.gz.enc" "$FULL_BACKUP_RETENTION_DAYS"
     fi
-    echo "  To restore: ./manage.sh restore $(basename "$backup_dir")"
+    echo "  To restore: ./manage.sh restore --all $(basename "$backup_dir" .tar.gz.enc)"
   fi
   echo ""
 
@@ -1471,34 +1508,174 @@ restore_one_app() {
   [[ $restore_fail -eq 0 ]]
 }
 
+# ------------------------------------
+# どこのバックアップから戻すか
+#
+# バックアップは3箇所に置かれる: docker/backups（本体）、tax_apps_backup_latest/all-apps
+# （最新1日分の控え。同じディスク）、外部コピー先（~/.tax-apps/backup-external-dest）。
+# 以前のリストアは docker/backups しか見なかったので、外付けから戻すには
+# いったん手でコピーする必要があった。新しい PC では外付けにしか無いのが普通。
+# ------------------------------------
+backup_source_dir() {
+  printf '%s\n' "${RESTORE_SOURCE_DIR:-$BACKUP_BASE}"
+}
+
+# そのフォルダにあるバックアップの名前（.tar.gz.enc を除いたもの）を新しい順に。
+# 並びは日時で決める（名前のまま逆順にすると pre-restore_* が全部先頭に来る）。
+list_backups_in() {
+  local dir="$1" d
+  [[ -d "$dir" ]] || return 0
+  while IFS= read -r d; do
+    d="$(basename "$d")"
+    d="${d%.tar.gz.enc}"
+    printf '%s\t%s\n' "${d#pre-restore_}" "$d"
+  done < <(find "$dir" -mindepth 1 -maxdepth 1 \
+    \( -type d \( -name '????-??-??_??????' -o -name 'pre-restore_????-??-??_??????' \) \
+    -o -type f \( -name '????-??-??_??????.tar.gz.enc' -o -name 'pre-restore_????-??-??_??????.tar.gz.enc' \) \) \
+    -print 2>/dev/null) | sort -r | cut -f2 | awk '!seen[$0]++'
+}
+
+# 人が打った・貼ったパスを Git Bash のパスへ（"E:\tax-apps-backup" も通す）
+normalize_user_dir() {
+  local p="$1"
+  p=$(strip_cr "$p")
+  p="${p#\"}"; p="${p%\"}"
+  p="${p#\'}"; p="${p%\'}"
+  [[ -z "$p" ]] && return 1
+  if command -v cygpath >/dev/null 2>&1; then
+    p=$(cygpath -u "$p" 2>/dev/null || printf '%s' "$p")
+  fi
+  p="${p%/}"
+  # all-apps の親を指されたら中へ降りる（tax_apps_backup_latest を選んだとき）
+  if [[ -z "$(list_backups_in "$p")" && -d "$p/all-apps" ]]; then
+    p="$p/all-apps"
+  fi
+  printf '%s\n' "$p"
+}
+
+# --from の値を RESTORE_SOURCE_DIR に入れる
+set_backup_source() {
+  local p
+  if ! p=$(normalize_user_dir "$1"); then
+    err "--from にフォルダを指定してください"
+    return 1
+  fi
+  if [[ ! -d "$p" ]]; then
+    err "フォルダが見つかりません: $1"
+    return 1
+  fi
+  RESTORE_SOURCE_DIR="$p"
+}
+
+# バックアップが1件以上ある場所を集めて番号つきで並べる（BACKUP_SOURCE_DIRS / _LABELS）
+BACKUP_SOURCE_DIRS=()
+BACKUP_SOURCE_LABELS=()
+collect_backup_sources() {
+  BACKUP_SOURCE_DIRS=()
+  BACKUP_SOURCE_LABELS=()
+  local -n dirs=BACKUP_SOURCE_DIRS
+  local -n labels=BACKUP_SOURCE_LABELS
+  _add_backup_source() {
+    local d="$1" label="$2" x
+    [[ -d "$d" ]] || return 0
+    d=$(cd "$d" 2>/dev/null && pwd) || return 0
+    for x in "${dirs[@]}"; do
+      [[ "${x,,}" == "${d,,}" ]] && return 0
+    done
+    [[ -n "$(list_backups_in "$d")" ]] || return 0
+    dirs+=("$d")
+    labels+=("$label")
+  }
+
+  _add_backup_source "$BACKUP_BASE" "この PC（docker/backups）"
+  _add_backup_source "$LATEST_BACKUP_BASE/all-apps" "最新1日分の控え（tax_apps_backup_latest）"
+  local ext
+  if ext=$(ops_external_backup_dest); then
+    _add_backup_source "$ext" "外部コピー先（設定済み）"
+  fi
+  # 新しい PC には外部コピー先の設定ファイルが無いので、外付けを名前で探す
+  # （コピー先は既定で <ドライブ>:\tax-apps-backup にしている）
+  local drv
+  for drv in c d e f g h i j k l m n o p q r s t u v w x y z; do
+    _add_backup_source "/$drv/tax-apps-backup" "ドライブ ${drv^^}:"
+  done
+
+  local i n names newest
+  for i in "${!dirs[@]}"; do
+    mapfile -t names < <(list_backups_in "${dirs[$i]}")
+    newest=""
+    for n in "${names[@]}"; do
+      [[ "$n" == pre-restore_* ]] && continue
+      newest="$n"; break
+    done
+    echo "  [$((i+1))] ${labels[$i]}"
+    echo "      $(to_win_path "${dirs[$i]}")  ${#names[@]}件  最新 $newest"
+  done
+  if [[ ${#dirs[@]} -eq 0 ]]; then
+    echo "  （バックアップのある場所が見つかりませんでした。外付けを挿してあれば [m] で場所を入力）"
+  fi
+}
+
+# 端末で場所を選ぶ。戻り値 2 = やめた
+choose_backup_source() {
+  echo "どこのバックアップから戻しますか:"
+  echo ""
+  collect_backup_sources
+  local -a dirs=("${BACKUP_SOURCE_DIRS[@]}")
+  echo "  [m] フォルダを入力する"
+  echo "  [0] やめる"
+  echo ""
+  local choice
+  read -rp "番号: " choice
+  choice=$(strip_cr "$choice")
+  if [[ -z "$choice" || "$choice" == "0" ]]; then
+    return 2
+  fi
+  if [[ "${choice,,}" == "m" ]]; then
+    local typed
+    read -rp "フォルダ（例: E:\\tax-apps-backup）: " typed
+    set_backup_source "$typed" || return 1
+    if [[ -z "$(list_backups_in "$RESTORE_SOURCE_DIR")" ]]; then
+      err "そのフォルダにバックアップがありません: $(to_win_path "$RESTORE_SOURCE_DIR")"
+      return 1
+    fi
+  elif [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#dirs[@]} )); then
+    RESTORE_SOURCE_DIR="${dirs[$((choice-1))]}"
+  else
+    err "番号が正しくありません"
+    return 1
+  fi
+  echo ""
+}
+
 # バックアップの指定を解決して RESOLVED_BACKUP に入れる。
 #   空      → 端末なら一覧から選ぶ／無人なら最新（pre-restore を除く）
 #   日付    → その日のいちばん新しいもの
 #   完全名  → そのもの（pre-restore_* も可）
 # 戻り値 2 = 端末でやめた
+#
+# 読みに行く場所は backup_source_dir（既定は BACKUP_BASE、--from や場所の選択で変わる）
 resolve_restore_backup() {
   local sel="$1" interactive="$2"
   RESOLVED_BACKUP=""
+  local src_base
+  src_base="$(backup_source_dir)"
   local -a backups=()
   local d
   while IFS= read -r d; do
-    d="$(basename "$d")"
-    backups+=("${d%.tar.gz.enc}")
-  done < <(find "$BACKUP_BASE" -mindepth 1 -maxdepth 1 \
-    \( -type d \( -name '????-??-??_??????' -o -name 'pre-restore_????-??-??_??????' \) \
-    -o -type f \( -name '????-??-??_??????.tar.gz.enc' -o -name 'pre-restore_????-??-??_??????.tar.gz.enc' \) \) \
-    -print 2>/dev/null | sort -r)
+    backups+=("$d")
+  done < <(list_backups_in "$src_base")
 
   if [[ ${#backups[@]} -eq 0 ]]; then
-    err "バックアップがありません。先に: ./manage.sh backup"
+    err "バックアップがありません（$(to_win_path "$src_base")）"
     return 1
   fi
 
   _backup_path_of() {
-    if [[ -f "$BACKUP_BASE/$1.tar.gz.enc" ]]; then
-      printf '%s\n' "$BACKUP_BASE/$1.tar.gz.enc"
+    if [[ -f "$src_base/$1.tar.gz.enc" ]]; then
+      printf '%s\n' "$src_base/$1.tar.gz.enc"
     else
-      printf '%s\n' "$BACKUP_BASE/$1"
+      printf '%s\n' "$src_base/$1"
     fi
   }
 
@@ -1520,7 +1697,7 @@ resolve_restore_backup() {
         return 0
       fi
     done
-    err "$sel が見つかりません（$(to_win_path "$BACKUP_BASE")）"
+    err "$sel が見つかりません（$(to_win_path "$src_base")）"
     return 1
   fi
 
@@ -1570,16 +1747,25 @@ restore_usage() {
                 省略すると端末では一覧から選び、無人では最新を使う
   --yes         確認を飛ばす（AI や手順書から叩くとき。端末が無いときは必須）
   --with-env    今ある .env もバックアップの版で上書きする（既定は無いときだけ戻す）
+  --from <フォルダ>  そのフォルダのバックアップから戻す（外付けなど。例: --from E:\tax-apps-backup）
+                端末で、バックアップの名前も --from も無いときは場所を一覧から選ぶ
   アプリ名は itcm / svf の略称と、一意に決まる部分一致も通る
+  新しい PC で全部を戻すなら: ./manage.sh newpc（restore-new-pc.bat）
   手順書: docker/RESTORE.md
 USAGE
 }
 
 cmd_restore() {
-  local all=0 yes=0 with_env=0 env_only=0 app_arg="" sel="" a
-  for a in "$@"; do
+  local all=0 yes=0 with_env=0 env_only=0 app_arg="" sel="" from="" a
+  while [[ $# -gt 0 ]]; do
+    a="$1"; shift
     [[ -z "$a" ]] && continue
     case "$a" in
+      --from)
+        if [[ $# -eq 0 ]]; then err "--from にフォルダを指定してください"; return 1; fi
+        from="$1"; shift
+        ;;
+      --from=*) from="${a#--from=}" ;;
       --all) all=1 ;;
       --yes|-y) yes=1 ;;
       --with-env) with_env=1 ;;
@@ -1607,9 +1793,8 @@ cmd_restore() {
 
   print_banner "Tax Apps - Restore"
 
-  if [[ ! -d "$BACKUP_BASE" ]]; then
-    err "$(to_win_path "$BACKUP_BASE") がありません。先に: ./manage.sh backup"
-    return 1
+  if [[ -n "$from" ]]; then
+    set_backup_source "$from" || return 1
   fi
 
   # --- 対象のアプリ ---
@@ -1653,8 +1838,19 @@ cmd_restore() {
     return 1
   fi
 
-  # --- バックアップ ---
+  # --- 場所 ---
+  # 名前で指定されたとき（手順書・AI・newpc から）は従来どおり docker/backups か --from。
   local rc=0
+  if [[ -z "$from" && -z "$sel" && $interactive -eq 1 ]]; then
+    choose_backup_source || rc=$?
+    if [[ $rc -eq 2 ]]; then
+      echo "やめました。"
+      return 0
+    fi
+    [[ $rc -eq 0 ]] || return 1
+  fi
+
+  # --- バックアップ ---
   resolve_restore_backup "$sel" "$interactive" || rc=$?
   if [[ $rc -eq 2 ]]; then
     echo "やめました。"
@@ -1663,6 +1859,12 @@ cmd_restore() {
   [[ $rc -eq 0 ]] || return 1
   local source_name
   source_name="$(basename "$RESOLVED_BACKUP" .tar.gz.enc)"
+  # 次に叩くコマンドの案内に付ける（docker/backups 以外から読んだときだけ）
+  local from_hint=""
+  if [[ -n "$RESTORE_SOURCE_DIR" && "$RESTORE_SOURCE_DIR" != "$BACKUP_BASE" ]]; then
+    from_hint=" --from \"$(to_win_path "$RESTORE_SOURCE_DIR")\""
+  fi
+  echo "場所:         $(to_win_path "$(backup_source_dir)")"
   echo "バックアップ: $source_name"
   echo "アプリ:       ${apps[*]}"
   echo ""
@@ -1702,7 +1904,7 @@ cmd_restore() {
     done
     echo ""
     ok ".env を ${placed} 件置きました"
-    echo "  次: ./manage.sh start → ./manage.sh restore --all $source_name --yes"
+    echo "  次: ./manage.sh start → ./manage.sh restore --all $source_name$from_hint --yes"
     ops_write_last_result "restore" "ok" "env-only from=$source_name placed=$placed"
     return 0
   fi
@@ -1764,7 +1966,7 @@ cmd_restore() {
   done
 
   print_summary_banner "Restore Complete" "${#done_fail[@]}"
-  echo "  バックアップ: $source_name"
+  echo "  バックアップ: $source_name（$(to_win_path "$(backup_source_dir)")）"
   [[ ${#done_ok[@]} -gt 0 ]] && echo "  成功: ${done_ok[*]}"
   [[ ${#done_fail[@]} -gt 0 ]] && echo "  失敗: ${done_fail[*]}"
   if [[ -n "$pre_restore_name" ]]; then
@@ -1780,6 +1982,325 @@ cmd_restore() {
     return 1
   fi
   ops_write_last_result "restore" "ok" "$detail"
+}
+
+# ------------------------------------
+# newpc - 新しい PC で、バックアップから全部を戻す（restore-new-pc.bat）
+#
+# 手順書の B2〜B4（env-only → start → restore --all）を1回の確認で通す入口。
+# 中身は既存の3つのコマンドを順に呼ぶだけで、戻し方そのものは restore と同じ
+# （件数照合・healthy 待ち・pre-restore の保険つき）。
+#
+# 操作ロックは「検証」の間だけ握る。start は manage.sh が、restore は子の backup.sh が
+# それぞれ自分でロックを取るので、ここで握ったままだと全部が自分のロック待ちで止まる。
+# 復号した作業場所（.restore-work.*）もロックを放すときに消える ── 子の restore が
+# 入口で前の回の残骸として掃くので、残しておくと二重に数えられる。
+# ------------------------------------
+newpc_usage() {
+  cat <<'USAGE'
+使い方:
+  ./manage.sh newpc                             端末で、場所とバックアップを選んで全部を戻す
+  ./manage.sh newpc --from <フォルダ> [バックアップ] --yes   端末なしで（AI・手順書から）
+  ./manage.sh newpc --check [--from <フォルダ>]   検証と「これから行うこと」の表示だけ（何も変えない）
+
+  順番: 鍵と Docker の確認 → 場所とバックアップを選ぶ → 検証 → 確認（y）→
+        無い .env を置く → 全アプリを元のモードで起動 → 全アプリのデータを戻す → 結果
+  --dev / --prod  バックアップに起動モードの記録が無いとき（2026-10-15 より前のもの）の既定
+  手順書: docker/RESTORE.md の B
+USAGE
+}
+
+cmd_newpc() {
+  local yes=0 check_only=0 from="" sel="" fallback_mode="" a
+  while [[ $# -gt 0 ]]; do
+    a="$1"; shift
+    [[ -z "$a" ]] && continue
+    case "$a" in
+      --yes|-y) yes=1 ;;
+      --check) check_only=1 ;;
+      --dev)  fallback_mode="dev" ;;
+      --prod) fallback_mode="prod" ;;
+      --from)
+        if [[ $# -eq 0 ]]; then err "--from にフォルダを指定してください"; return 1; fi
+        from="$1"; shift
+        ;;
+      --from=*) from="${a#--from=}" ;;
+      -h|--help) newpc_usage; return 0 ;;
+      -*) err "知らないオプションです: $a"; newpc_usage; return 1 ;;
+      *)
+        if [[ "$a" =~ ^(pre-restore_)?[0-9]{4}-[0-9]{2}-[0-9]{2}(_[0-9]{6})?(\.tar\.gz\.enc)?$ ]]; then
+          sel="$a"
+        else
+          err "バックアップの名前ではありません: $a"
+          newpc_usage
+          return 1
+        fi
+        ;;
+    esac
+  done
+
+  local interactive=0
+  [[ -t 0 && -t 1 ]] && interactive=1
+  if [[ $check_only -eq 1 ]]; then
+    interactive=0
+    yes=0
+  elif [[ $interactive -ne 1 && $yes -ne 1 ]]; then
+    err "端末が無いときは --yes が要ります（何も変えていません）"
+    newpc_usage
+    return 1
+  fi
+
+  print_banner "Tax Apps - 新しい PC へ全部を戻す"
+
+  # --- 1. 事前確認（何も変えない）---
+  echo "[1/7] 事前確認"
+  local pre_ok=1
+  if docker info >/dev/null 2>&1; then
+    ok "Docker: 動いています"
+  else
+    err "Docker が動いていません。Docker Desktop を起動し、起動し終わってからもう一度実行してください"
+    pre_ok=0
+  fi
+  if [[ -s "$BACKUP_KEY_FILE" ]]; then
+    ok "暗号鍵: $(to_win_path "$BACKUP_KEY_FILE")"
+  else
+    err "暗号鍵がありません: $(to_win_path "$BACKUP_KEY_FILE")"
+    echo "  控え（USB など）の backup.key を、このファイル名でコピーしてください"
+    echo "  （.tax-apps フォルダが無ければ作る）。鍵が無いとバックアップは開けません。"
+    pre_ok=0
+  fi
+  if ! command -v openssl >/dev/null 2>&1; then
+    err "openssl がありません（Git for Windows に同梱。Git Bash から実行してください）"
+    pre_ok=0
+  fi
+  if [[ $pre_ok -ne 1 ]]; then
+    err "上を直してからもう一度実行してください（何も変えていません）"
+    return 1
+  fi
+  echo ""
+
+  # --- 2. 場所とバックアップ ---
+  echo "[2/7] バックアップを選ぶ"
+  local rc=0
+  if [[ -n "$from" ]]; then
+    set_backup_source "$from" || return 1
+  elif [[ $check_only -eq 1 ]]; then
+    echo "バックアップのある場所（--check なので選ばず、--from が無ければ docker/backups を使います）:"
+    collect_backup_sources
+  elif [[ $interactive -eq 1 ]]; then
+    choose_backup_source || rc=$?
+    if [[ $rc -eq 2 ]]; then echo "やめました（何も変えていません）。"; return 0; fi
+    [[ $rc -eq 0 ]] || return 1
+  fi
+  resolve_restore_backup "$sel" "$interactive" || rc=$?
+  if [[ $rc -eq 2 ]]; then echo "やめました（何も変えていません）。"; return 0; fi
+  [[ $rc -eq 0 ]] || return 1
+  local source_dir source_name
+  source_dir="$(backup_source_dir)"
+  source_name="$(basename "$RESOLVED_BACKUP" .tar.gz.enc)"
+  if [[ "$source_name" == pre-restore_* ]]; then
+    warn "$source_name は戻す直前に取った保険です。ふつうは日付だけの名前のものを選びます"
+  fi
+  echo ""
+
+  # --- 3. 検証（中身を読むのはここだけ）---
+  echo "[3/7] バックアップを検証"
+  acquire_operation_lock "newpc" "$(ops_default_lock_wait 120)" || return 1
+  local dir="$RESOLVED_BACKUP"
+  if [[ -f "$dir" && "$dir" == *.tar.gz.enc ]]; then
+    if ! extract_encrypted_backup "$dir"; then
+      release_operation_lock
+      return 1
+    fi
+    dir="$EXTRACTED_BACKUP_PATH"
+  fi
+  if ! verify_backup_manifest "$dir"; then
+    release_operation_lock
+    return 1
+  fi
+
+  local -A rec_mode=()
+  local f m
+  for f in "$dir/app-modes"/*; do
+    [[ -f "$f" ]] || continue
+    m=$(tr -d '\r\n' < "$f")
+    [[ "$m" == "prod" || "$m" == "dev" ]] && rec_mode["$(basename "$f")"]="$m"
+  done
+
+  local -a env_lines=()
+  local t label src_path fname
+  for t in "${SETTINGS_TARGETS[@]}"; do
+    IFS=: read -r label src_path fname <<< "$t"
+    case "$(env_restore_action "$dir/$fname" "$PROJECT_ROOT/$src_path" 0)" in
+      restore) env_lines+=("$label: バックアップから置く") ;;
+      none)    env_lines+=("$label: バックアップに無し（.env.example から作られます）") ;;
+      same)    env_lines+=("$label: 今のものと同じ") ;;
+      *)       env_lines+=("$label: この PC に既にあるので触らない") ;;
+    esac
+  done
+  # 平文の作業場所はここで消える（on_release_operation_lock）
+  release_operation_lock
+  echo ""
+
+  # --- 4. 計画と確認 ---
+  echo "[4/7] これから行うこと"
+  echo ""
+  echo "  場所:         $(to_win_path "$source_dir")"
+  echo "  バックアップ: $source_name"
+  echo ""
+  local start_args=()
+  if [[ ${#rec_mode[@]} -gt 0 ]]; then
+    local -a prods=() devs=() kept=()
+    local app_name local_mode
+    for app_name in $(printf '%s\n' "${!rec_mode[@]}" | sort); do
+      local_mode=""
+      [[ -f "$APP_MODE_DIR/$app_name" ]] && local_mode=$(tr -d '\r\n' < "$APP_MODE_DIR/$app_name")
+      if [[ "$local_mode" == "prod" || "$local_mode" == "dev" ]]; then
+        [[ "$local_mode" != "${rec_mode[$app_name]}" ]] && kept+=("$app_name=$local_mode")
+        m="$local_mode"
+      else
+        m="${rec_mode[$app_name]}"
+      fi
+      if [[ "$m" == "prod" ]]; then prods+=("$app_name"); else devs+=("$app_name"); fi
+    done
+    echo "  起動モード（元の PC と同じ）:"
+    echo "    本番: ${prods[*]:-（なし）}"
+    echo "    開発: ${devs[*]:-（なし）}"
+    if [[ ${#kept[@]} -gt 0 ]]; then
+      echo "    この PC に記録があるので、そちらを使うもの: ${kept[*]}"
+    fi
+    echo "    記録の無いアプリは開発モードで起動します"
+    start_args=(--recorded)
+  else
+    warn "このバックアップには起動モードの記録がありません（2026-10-15 より前のもの）"
+    if [[ -z "$fallback_mode" && $check_only -eq 1 ]]; then
+      echo "  起動モード: 実行時に「全部 開発 / 全部 本番」を選びます（--dev / --prod でも可）"
+    elif [[ -z "$fallback_mode" ]]; then
+      if [[ $interactive -ne 1 ]]; then
+        err "全部を開発で起こすか本番で起こすか、--dev か --prod で指定してください（何も変えていません）"
+        return 1
+      fi
+      echo "  全アプリをどちらで起動しますか（あとから 1 アプリずつ切り替えられます）:"
+      echo "    [1] 全部 開発モード"
+      echo "    [2] 全部 本番モード"
+      echo "    [0] やめる"
+      local mchoice
+      read -rp "  番号: " mchoice
+      mchoice=$(strip_cr "$mchoice")
+      case "$mchoice" in
+        1) fallback_mode="dev" ;;
+        2) fallback_mode="prod" ;;
+        *) echo "やめました（何も変えていません）。"; return 0 ;;
+      esac
+    fi
+    if [[ -n "$fallback_mode" ]]; then
+      echo "  起動モード: 全部 $([[ "$fallback_mode" == "prod" ]] && echo 本番 || echo 開発)"
+    fi
+    [[ "$fallback_mode" == "prod" ]] && start_args=(--prod)
+  fi
+  echo ""
+  echo "  .env:"
+  local line
+  for line in "${env_lines[@]}"; do
+    echo "    $line"
+  done
+  echo ""
+  echo "  そのあと全アプリを起動し（初回はイメージを作るので数十分かかることがあります）、"
+  echo "  バックアップ対象の全アプリのデータを、このバックアップの内容で置き換えます。"
+  echo "  置き換える前に、この PC の今のデータを pre-restore_* として保存します。"
+  echo ""
+  if [[ $check_only -eq 1 ]]; then
+    ok "確認だけ（--check）なのでここで終わります。何も変えていません"
+    return 0
+  fi
+  if [[ $yes -ne 1 ]]; then
+    local confirm
+    read -rp "始めますか？ [y/N]: " confirm
+    confirm=$(strip_cr "$confirm")
+    if [[ "${confirm,,}" != "y" ]]; then
+      echo "やめました（何も変えていません）。"
+      return 0
+    fi
+  fi
+  echo ""
+
+  local -a from_args=(--from "$source_dir")
+  local env_state="ok" start_state="ok" wait_state="ok" restore_state="ok"
+
+  # --- 5. .env ---
+  echo "[5/7] .env を置く"
+  if ! "$SCRIPT_DIR/backup.sh" restore --env-only "$source_name" "${from_args[@]}"; then
+    err ".env を置けませんでした。中断します（アプリの起動とデータには触っていません）"
+    return 1
+  fi
+  echo ""
+
+  # --- 6. 起動 ---
+  echo "[6/7] 全アプリを起動"
+  if [[ ${#rec_mode[@]} -gt 0 ]]; then
+    mkdir -p "$APP_MODE_DIR"
+    local app_name
+    for app_name in "${!rec_mode[@]}"; do
+      # この PC の記録は上書きしない（ここで動かしている人の判断が新しい）
+      [[ -f "$APP_MODE_DIR/$app_name" ]] && continue
+      printf '%s\n' "${rec_mode[$app_name]}" > "$APP_MODE_DIR/$app_name"
+    done
+  fi
+  if ! "$SCRIPT_DIR/manage.sh" start "${start_args[@]}"; then
+    warn "起動で失敗したアプリがあります。データの戻しは続けます（戻せないアプリは次で止まります）"
+    start_state="failed"
+  fi
+  # 起動直後は DB がまだ受け付けない。restore の事前確認は「止まっている」と判定して
+  # 全体を止めるので、ここで healthy まで待つ
+  echo ""
+  echo "起動し終わるのを待っています..."
+  local app
+  local -a cs=()
+  while IFS= read -r app; do
+    mapfile -t cs < <(app_running_containers "$app")
+    if [[ ${#cs[@]} -eq 0 ]]; then
+      warn "$app: 動いているコンテナがありません"
+      wait_state="failed"
+      continue
+    fi
+    if wait_containers_healthy "${cs[@]}"; then
+      ok "$app"
+    else
+      wait_state="failed"
+    fi
+  done < <(restore_known_apps)
+  echo ""
+
+  # --- 7. データ ---
+  echo "[7/7] データを戻す"
+  if ! "$SCRIPT_DIR/backup.sh" restore --all "$source_name" "${from_args[@]}" --yes; then
+    restore_state="failed"
+  fi
+
+  local fails=0
+  for a in "$env_state" "$start_state" "$wait_state" "$restore_state"; do
+    [[ "$a" == "ok" ]] || (( fails++ )) || true
+  done
+  print_summary_banner "新しい PC へ戻す: 結果" "$fails"
+  echo "  場所:         $(to_win_path "$source_dir")"
+  echo "  バックアップ: $source_name"
+  echo "  .env:         $env_state"
+  echo "  起動:         $start_state"
+  echo "  起動の完了:   $wait_state"
+  echo "  データ:       $restore_state（アプリごとの結果は上の Restore Complete）"
+  echo ""
+  if [[ $fails -gt 0 ]]; then
+    echo "  直し方: docker/RESTORE.md の「うまくいかないとき」"
+    echo "  データだけやり直すなら: ./manage.sh restore --all $source_name --from \"$(to_win_path "$source_dir")\" --yes"
+  else
+    echo "  次にやること:"
+    echo "    1. 画面を開いて中身を確かめる（http://localhost/）"
+    echo "    2. register-startup-task.bat と register-docker-watchdog-task.bat をダブルクリック"
+    echo "       （自動起動・自動復旧・毎日のバックアップがこの PC でも動くようになる）"
+    echo "    3. ./manage.sh preflight"
+  fi
+  echo ""
+  [[ $fails -eq 0 ]]
 }
 
 cmd_verify() {
@@ -2452,11 +2973,17 @@ case "$COMMAND" in
     check_dependencies
     acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 120)" || exit 1
     ;;
+  # newpc はここでロックを取らない。中で manage.sh start と backup.sh restore を
+  # 呼び、それぞれが自分でロックを取るため（cmd_newpc の冒頭のコメント）。
+  newpc)
+    check_dependencies
+    ;;
 esac
 
 case "$COMMAND" in
   backup)  cmd_backup ;;
   restore) cmd_restore "${@:2}" ;;
+  newpc)   cmd_newpc "${@:2}" ;;
   verify)  cmd_verify "${2:-}" ;;
   drill)   cmd_drill "${2:-}" ;;
   # Keep the historical command name used by backup-db.bat, but create the
@@ -2465,7 +2992,7 @@ case "$COMMAND" in
   # 期限切れのものだけを実行する。ウォッチドッグからの入口。
   due)     cmd_due ;;
   *)
-    echo "Usage: $0 {backup|restore [app|--all] [backup] [--yes]|verify <backup>|drill [backup]|due|itcm}"
+    echo "Usage: $0 {backup|restore [app|--all] [backup] [--from dir] [--yes]|newpc [--from dir] [backup] [--yes]|verify <backup>|drill [backup]|due|itcm}"
     exit 1
     ;;
 esac

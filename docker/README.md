@@ -150,7 +150,8 @@ rd /s /q tax_apps
 | `backup.sh` | Linux / Git Bash | 全体バックアップ/リストア/リストア訓練の本体 |
 | `backup-db.bat` | Windows (CMD) | `backup.sh itcm` を Git Bash 経由で呼び出す補助ラッパー（**手で叩くときの入口**。スケジュールタスクからは呼ばれない） |
 | `restore-drill.bat` | Windows (CMD) | `backup.sh drill` を Git Bash 経由で呼び出す補助ラッパー（同じく手動の入口） |
-| `restore.bat` | Windows (CMD) | `backup.sh restore` を Git Bash 経由で呼び出す補助ラッパー（アプリとバックアップを一覧から選ぶ） |
+| `restore.bat` | Windows (CMD) | `backup.sh restore` を Git Bash 経由で呼び出す補助ラッパー（場所・アプリ・バックアップを一覧から選ぶ。USB からも直接戻せる） |
+| `restore-new-pc.bat` | Windows (CMD) | `backup.sh newpc` を Git Bash 経由で呼び出す補助ラッパー（**新しい PC で全部戻す**: `.env` → 元のモードで起動 → 全アプリのデータ。`docker/RESTORE.md` 手順 B） |
 | `unregister-backup-task.bat` / `unregister-restore-drill-task.bat` | Windows (CMD) | **廃止したタスクを既存 PC から外す**ためだけに残してあるラッパー（登録側は削除済み） |
 | `start-prod.bat` | Windows (CMD) | ワンクリックで本番モード起動 |
 | `stop.bat` | Windows (CMD) | ワンクリックで全アプリ停止 |
@@ -1076,6 +1077,7 @@ tax_apps/
 │   │   ├── backup-db.bat       #   backup.sh itcm を呼び出す Windows 補助ラッパー（手動の入口）
 │   │   ├── restore-drill.bat   #   backup.sh drill を呼び出す Windows 補助ラッパー（手動の入口）
 │   │   ├── restore.bat         #   backup.sh restore を呼び出す Windows 補助ラッパー
+│   │   ├── restore-new-pc.bat  #   backup.sh newpc を呼び出す Windows 補助ラッパー（新しい PC で全部戻す）
 │   │   ├── unregister-backup-task.bat      #  廃止したタスクの解除用
 │   │   ├── unregister-restore-drill-task.bat #  廃止したタスクの解除用
 │   │   ├── docker-watchdog.ps1 #   Docker Desktop 監視/復旧本体

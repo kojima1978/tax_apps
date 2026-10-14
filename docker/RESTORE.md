@@ -71,6 +71,8 @@ docker/scripts/manage.sh restore <app> [バックアップ]     # 1アプリだ�
 docker/scripts/manage.sh restore --all [バックアップ]     # 対象アプリを全部
 docker/scripts/manage.sh restore --env-only [app]         # 無い .env だけ置く
 docker/scripts/manage.sh verify <バックアップ>            # 上書きせず復号と整合性だけ確かめる
+docker/scripts/manage.sh restore ... --from <フォルダ>   # docker/backups 以外（USB など）から戻す
+docker/scripts/manage.sh newpc [--check] [--from <フォルダ>]  # 新しい PC で全部戻す（手順 B）
 ```
 
 - バックアップの指定は `2026-10-14_212138` / `2026-10-14`（その日の最新）/ `pre-restore_...`。
@@ -80,6 +82,12 @@ docker/scripts/manage.sh verify <バックアップ>            # 上書きせ�
   出して確認を求める。端末が無いとき（AI から叩くとき）は `--yes` が無ければそこで中止する
   ＝**`--yes` 無しで叩けば一覧を見るだけ**になる。
 - `restore.bat` はダブルクリック用の同じ入口（`docker/scripts/restore.bat`）。
+- **バックアップの場所は選べる**。端末で `--from` もバックアップ名も付けずに叩くと、バックアップが
+  入っているフォルダを番号で出す: `docker/backups`（本体・世代あり）／`tax_apps_backup_latest/all-apps`
+  （同じディスクの最新の写し）／外部コピー先（`~/.tax-apps/backup-external-dest`）／各ドライブ直下の
+  `tax-apps-backup`（USB を挿せば見つかる）。`[m]` でフォルダを打ち込むこともできる（`E:\...` でもよい）。
+  **USB から直接戻せるので、`docker/backups` へ写す必要は無い**。戻す前の保険（`pre-restore_*`）は
+  どこから戻しても `docker/backups` に作られる。
 
 `--yes` の中身（スクリプトが自動で行う）:
 
@@ -168,43 +176,42 @@ docker/scripts/manage.sh status
 
 ## 手順 B: 新しい PC で全部戻す
 
-### B1. リポジトリと鍵とバックアップを置く
+**`docker/scripts/restore-new-pc.bat` をダブルクリックする**のが入口（中身は `manage.sh newpc`）。
+B2〜B4 を1回の確認（`y`）でまとめて行う。手で1つずつやる場合は下の「手で行う場合」。
 
-1. リポジトリを clone する（`tax_apps/`）。
-2. 暗号鍵を `~/.tax-apps/backup.key` に置く（元の PC の控えから）。
-3. バックアップ（`YYYY-MM-DD_HHMMSS.tar.gz.enc`）を `tax_apps/docker/backups/` に置く
-   （外付け USB の外部コピー先などから。最新1本で足りる）。
-4. `docker/scripts/manage.sh verify <バックアップ>` が `Encrypted backup is restorable` で終わること。
+### B1. 置くもの
 
-止まる条件: 鍵が無い／`verify` が失敗する（別の鍵で暗号化されている）。
+1. Docker Desktop と Git for Windows を入れ、リポジトリを clone する（`tax_apps/`）。
+2. 暗号鍵を `%USERPROFILE%\.tax-apps\backup.key`（Git Bash では `~/.tax-apps/backup.key`）に置く
+   （元の PC の控えから）。**鍵が無いと先へ進まない**（新しい鍵を黙って作ることもしない）。
+3. バックアップの入った USB を挿す。`docker/backups/` へ写さなくてよい（場所は一覧から選べる）。
+4. Docker Desktop を起動しておく。
 
-### B2. `.env` を先に置く
+### B2. `restore-new-pc.bat` をダブルクリック
 
-```bash
-docker/scripts/manage.sh restore --env-only
-```
+画面の流れ:
 
-`.env` が無いまま起動すると、本番モードのアプリは新しいパスワードを生成して別の DB として
-立ち上がる。**起動より先に**元の `.env` を置くのが要点。無いものだけを置き、今あるものには触らない
-（確認も pre-restore も取らない）。
+1. Docker と鍵の確認
+2. **バックアップの場所を選ぶ**（見つかったフォルダが件数と最新の日時つきで並ぶ。USB は
+   `X:\tax-apps-backup` なら自動で出る。違う場所なら `[m]` で打ち込む）
+3. **どのバックアップか選ぶ**（普通は一番上＝最新）
+4. 復号と整合性の確認（ここで失敗したら何も変えずに終わる＝鍵がそのアーカイブのものではない）
+5. **これから行うことの一覧**: 置く `.env`、本番で起動するアプリ・開発で起動するアプリ
+6. `y` を打つと実行: `.env` を置く → 全アプリを元の PC と同じモードで起動 → healthy を待つ →
+   全アプリのデータを戻す（A4 と同じ件数照合）→ 結果
 
-### B3. 起動する
+- モードは 2026-10-15 以降のバックアップに入っている（`app-modes/`）。それより古いバックアップでは
+  「全部開発／全部本番」を聞く（コマンドなら `--dev` / `--prod`）。この PC で既に `start` した
+  アプリは、そのときの記録が優先される。
+- 最初は**確認だけ**でもよい: `docker/scripts/manage.sh newpc --check`（場所の一覧・整合性・
+  一覧を出して終わる。何も変えない）。
+- コマンドで叩くなら `manage.sh newpc [バックアップ] [--from <フォルダ>]`。端末が無いときは
+  `--yes` が無ければ一覧を出して中止する。
 
-```bash
-docker/scripts/manage.sh start            # 元の PC が本番なら start --prod
-docker/scripts/manage.sh status           # 全アプリ healthy になるまで待つ
-```
+止まる条件（手で直そうとせず報告する）: 鍵が無い／整合性の確認に失敗／起動したアプリが
+healthy にならない（データは戻さずに止まる）／A4 と同じ止まる条件。
 
-### B4. データを戻す
-
-```bash
-docker/scripts/manage.sh restore --all <バックアップ>          # 一覧（何も変えない）
-docker/scripts/manage.sh restore --all <バックアップ> --yes    # 実行
-```
-
-アプリごとに A4 と同じ出力が並ぶ。止まる条件も A4 と同じ。
-
-### B5. 確認
+### B3. 確認
 
 ```bash
 docker/scripts/manage.sh status
@@ -213,8 +220,26 @@ docker/scripts/manage.sh preflight
 ```
 
 - drill の最後に `Failed: 0`。
+- 自動起動・自動復旧のタスクを登録する: `register-startup-task.bat` と
+  `register-docker-watchdog-task.bat`（どちらも昇格不要）。
 - preflight の WARN は記録する（今回の作業と関係なければ直さない）。照合順序（チェック22）の
   WARN が出たら `docker/COLLATION-MIGRATION.md` へ。
+
+### 手で行う場合（newpc の中身）
+
+```bash
+docker/scripts/manage.sh verify <バックアップ>                         # 整合性
+docker/scripts/manage.sh restore --env-only <バックアップ> --from <フォルダ>   # .env を先に置く
+docker/scripts/manage.sh start --recorded   # 記録したモードで全部起動（記録が無ければ start / start --prod）
+docker/scripts/manage.sh status             # 全アプリ healthy になるまで待つ
+docker/scripts/manage.sh restore --all <バックアップ> --from <フォルダ>        # 一覧（何も変えない）
+docker/scripts/manage.sh restore --all <バックアップ> --from <フォルダ> --yes  # 実行
+```
+
+`.env` が無いまま起動すると、本番モードのアプリは新しいパスワードを生成して別の DB として
+立ち上がる。**起動より先に**元の `.env` を置くのが要点（無いものだけを置き、今あるものには触らない）。
+`start --recorded` が読む記録（`docker/logs/app-modes/`）は newpc ならバックアップから置かれるが、
+手で行う場合は無いので `start` か `start --prod` を選ぶ。
 
 ## 手順 C: 戻したのを取り消す（pre-restore へ巻き戻す）
 

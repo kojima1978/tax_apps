@@ -129,6 +129,7 @@ docker/scripts/manage.sh watch <app-name>
   - どちらも**スケジュールタスクからは呼ばれない**（2026-10-11 に固定時刻のタスクを廃止）。
     無人実行はウォッチドッグの `due` 経由で、この2つは手で叩くときの入口
 - `restore.bat`: Git Bash 経由で `backup.sh restore` を呼ぶ補助ラッパー（一覧から選ぶ）
+- `restore-new-pc.bat`: Git Bash 経由で `backup.sh newpc` を呼ぶ補助ラッパー（新しい PC で全部戻す）
 - **リストアはアプリ単位**（`manage.sh restore <app>|--all [backup] [--yes]`、手順書は
   **`docker/RESTORE.md`**）。そのアプリのコンテナだけ止めて戻し、**件数をバックアップと照合**
   （PG はダンプの COPY 行数と全テーブルの `count(*)`、SQLite はアプリのコンテナを借りて
@@ -136,7 +137,18 @@ docker/scripts/manage.sh watch <app-name>
   以前は全アプリを一括で上書きし、件数も見ず、再起動は「手でやって」の一言だった。
   - **`.env` は無いときだけ戻す**（`--with-env` で上書き）。本番の DB パスワードは
     `ALTER ROLE` で DB 側にあるので、`.env` だけ古い版へ戻すと繋がらなくなる。
-    新しい PC は `restore --env-only` → `start` → `restore --all <backup> --yes` の順
+    新しい PC は `restore --env-only` → `start` → `restore --all <backup> --yes` の順。
+    **これを1本にしたのが `manage.sh newpc`（`restore-new-pc.bat`）**: 確認は `y` 1回、
+    起動はバックアップに入れた各アプリのモード（`app-modes/`、2026-10-15 以降の版のみ。
+    それより古い版は全部 dev / 全部 prod を聞く）で `start --recorded`、healthy を待ってから
+    `restore --all`。操作ロックは検証の間だけ握り、子の `restore` / `start` はそれぞれ自分で取る。
+    `--check` は一覧まで出して何も変えない（この PC での確認はこれだけにすること）
+  - **場所は選べる**（`--from DIR`、端末なら一覧）。`docker/backups` / `tax_apps_backup_latest/all-apps` /
+    外部コピー先 / 各ドライブ直下の `tax-apps-backup`。USB から直接戻せる。`pre-restore_*` と
+    作業ディレクトリはどこから戻しても `docker/backups` に作る
+  - **鍵が無ければ復号の前で止まる**（`extract_encrypted_backup`）。新しい PC の `docker/backups` は
+    空なので、以前は `ensure_backup_encryption_key` が新しい鍵を黙って作り、「復号できない」と
+    だけ出していた
   - 端末が無いときは `--yes` が無ければ一覧を出して中止する（AI から叩いても勝手に戻らない）。
     途中で死んでも、止めたコンテナは `on_release_operation_lock` が起動し直す
   - アプリとの対応は `PG_TARGETS` の7番目・`SQLITE_TARGETS` の6番目（`apps/` の下の名前）、

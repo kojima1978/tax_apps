@@ -15,6 +15,7 @@
 #   ./manage.sh down               全アプリを停止してコンテナ削除
 #   ./manage.sh backup             全データベース・データをバックアップ
 #   ./manage.sh restore [app|--all] [backup] [--yes]  アプリ単位でリストア（docker/RESTORE.md）
+#   ./manage.sh newpc              新しい PC でバックアップから全部を戻す（restore-new-pc.bat）
 #   ./manage.sh due                期限切れの無人処理だけ実行（ウォッチドッグ用）
 #   ./manage.sh clean              コンテナ・イメージのクリーンアップ
 #   ./manage.sh clean-cache        古い Docker Build Cache の削除
@@ -758,13 +759,25 @@ _start_one_app() {
   docker compose "${COMPOSE_FILES[@]}" ps
 }
 
+# start --recorded の1アプリぶん。記録（app-modes）どおりのモードで起こす。
+# 記録が無いアプリは dev（本番シークレットの生成や ALTER ROLE を勝手に走らせない）。
+_do_start_recorded() {
+  local dir="$1" name="$2" pm=0
+  [[ "$(read_app_mode "$dir")" == "prod" ]] && pm=1
+  _do_start "$dir" "$name" "$pm" || return 1
+  _snapshot_one_mode "$dir" "$name"
+}
+
 cmd_start() {
-  local prod_mode=0
+  local prod_mode=0 recorded=0
   local app=""
   # --prod とアプリ名は順不同（start --prod svf も start svf --prod も通す）
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --prod) prod_mode=1 ;;
+      # 全アプリを、アプリごとに記録されたモードで起こす。新しい PC で
+      # バックアップの app-modes を戻したあとに newpc が使う（混在稼働を再現する口）
+      --recorded) recorded=1 ;;
       "")     ;;
       -*)     err "不明なオプション: $1"; return 1 ;;
       *)      app="$1" ;;
@@ -775,8 +788,24 @@ cmd_start() {
   preflight_quick
   ensure_network
 
+  if [[ $recorded -eq 1 && ( -n "$app" || $prod_mode -eq 1 ) ]]; then
+    err "--recorded はアプリ名・--prod と一緒に使えません（全アプリを記録どおりに起こす口です）"
+    return 1
+  fi
+
   if [[ -n "$app" ]]; then
     _start_one_app "$app" "$prod_mode"
+    return
+  fi
+
+  if [[ $recorded -eq 1 ]]; then
+    clear_stop_marker
+    # 全体のモードは記録の無いアプリの既定としてしか使われないので dev
+    write_start_mode "dev"
+    log "全アプリを、アプリごとに記録されたモードで起動します..."
+    for_each_app _do_start_recorded
+    log "全アプリの起動が完了しました"
+    cmd_status
     return
   fi
 
@@ -3015,6 +3044,8 @@ case "$COMMAND" in
   status)    cmd_status ;;
   backup)    "$SCRIPT_DIR/backup.sh" backup ;;
   restore)   "$SCRIPT_DIR/backup.sh" restore "${@:2}" ;;
+  # 新しい PC で全部を戻す。ロックは backup.sh の中で必要な区間だけ取る
+  newpc)     "$SCRIPT_DIR/backup.sh" newpc "${@:2}" ;;
   verify)    "$SCRIPT_DIR/backup.sh" verify "${2:-}" ;;
   drill)     "$SCRIPT_DIR/backup.sh" drill "${2:-}" ;;
   # ウォッチドッグからの入口。何を実行するかは last-run の記録が決める。
@@ -3030,11 +3061,12 @@ case "$COMMAND" in
   preflight) cmd_preflight ;;
   collation) cmd_collation "${2:-}" "${3:-}" ;;
   *)
-    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|verify|drill|due|clean|clean-cache|prune|alert|loop-check|preflight|collation} [app-name]"
+    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|newpc|verify|drill|due|clean|clean-cache|prune|alert|loop-check|preflight|collation} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start [app]        起動（アプリ名を省略すると全アプリ・ネットワーク自動作成）"
     echo "  start --prod [app] 本番モードで起動（アプリ名を指定するとそのアプリだけ切り替え）"
+    echo "  start --recorded   全アプリをアプリごとに記録されたモードで起動（記録が無ければ開発）"
     echo "  recover            落ちているアプリだけを起動し直す（ウォッチドッグ用・再ビルドなし）"
     echo "  stop               全アプリを停止"
     echo "  down               全アプリを停止してコンテナ削除"
@@ -3049,7 +3081,8 @@ case "$COMMAND" in
     echo "Operations:"
     echo "  backup             全データベース・データをバックアップ"
     echo "  restore [app|--all] [backup] [--yes]"
-    echo "                     アプリ単位でリストア（件数照合つき。--env-only / --with-env は docker/RESTORE.md）"
+    echo "                     アプリ単位でリストア（件数照合つき。--env-only / --with-env / --from は docker/RESTORE.md）"
+    echo "  newpc              新しい PC でバックアップから全部を戻す（.env → 元のモードで起動 → データ）"
     echo "  verify <backup>    バックアップの復号とハッシュ照合"
     echo "  drill [backup]     リストア訓練（使い捨てDBへ実際に復元して検証。既定は最新）"
     echo "  due                期限切れの無人処理だけ実行（バックアップ・訓練。ウォッチドッグ用）"
