@@ -81,6 +81,8 @@ services:
       INHERITANCE_TAX_API_URL: ${INHERITANCE_TAX_API_URL:-http://inheritance-tax-app:3004/inheritance-tax-app/api/calculate}
       INHERITANCE_TAX_API_KEY: ${INHERITANCE_TAX_API_KEY:-}
     volumes:
+      # 書き込み可能な .next 作業領域。古いTurbopackセッションを次のイメージへ
+      # 持ち越さないよう、開発用生成物はentrypointで起動時に初期化する。
       - private_banking_next:/app/.next
     # ソースは bind mount せずイメージ同梱物を使い、変更は compose watch で同期する。
     #

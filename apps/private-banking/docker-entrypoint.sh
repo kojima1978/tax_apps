@@ -10,6 +10,16 @@ if [ "${NODE_ENV:-development}" = "production" ]; then
   esac
 fi
 
+# 開発用の .next は名前付きボリュームに残るため、イメージを作り直しても以前の
+# Turbopack セッションと生成チャンクが再利用される。ソースだけ新しくなった状態で
+# これらが混ざると、HMR が `HMR hash mismatch` を送り続けてブラウザが全面再読込を
+# 繰り返す。顧客データとは無関係な生成物なので、開発コンテナの起動時だけ捨てる。
+# 本番の standalone 出力は NODE_ENV=production のため、この処理の対象外。
+if [ "${NODE_ENV:-development}" != "production" ] && [ -d /app/.next/dev ]; then
+  echo "Removing stale Next.js development cache..."
+  find /app/.next/dev -mindepth 1 -delete
+fi
+
 # Prisma CLI の場所を解決する。
 # 本番(runner)は同梱した隔離ディレクトリ、開発(dev)は通常の node_modules。
 if [ -f /app/prisma-cli/node_modules/prisma/build/index.js ]; then

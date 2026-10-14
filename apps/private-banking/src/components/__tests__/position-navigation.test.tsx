@@ -268,8 +268,8 @@ describe("資産・負債一覧と詳細の連携", () => {
     render(<PositionDetailsView {...props} />);
     const table = screen.getByRole("table", { name: "生命保険の明細" });
     expect(within(table).getByRole("columnheader", { name: "計算根拠" })).toBeTruthy();
-    expect((table.querySelector('col[data-column="number"]') as HTMLElement).style.width).toBe("44px");
-    expect((table.querySelector('col[data-column="name"]') as HTMLElement).style.width).toBe("260px");
+    expect((table.querySelector('col[data-column-width="number"]') as HTMLElement).style.width).toBe("44px");
+    expect((table.querySelector('col[data-column-width="name"]') as HTMLElement).style.width).toBe("260px");
   });
 
   it("共通の税負担計算は死亡給付金を基準にし、B/S外の保証を除外する", () => {
