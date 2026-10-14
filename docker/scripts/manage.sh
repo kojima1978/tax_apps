@@ -2548,7 +2548,7 @@ cmd_preflight() {
   # ── image: のタグを1行変えるだけで、警告ゼロで並び順が食い違う。
   # 対象は tax_apps 配下の compose から起動されたコンテナだけ（同じ PC で動く
   # 無関係なプロジェクトの DB は見ない）。停止中のアプリは見られない。
-  local coll_app coll_container coll_info coll_user coll_db coll_collate coll_ctype coll_ver
+  local coll_app coll_container coll_info coll_user coll_db coll_collate coll_ctype coll_ver coll_t1
   local coll_bad=0 coll_seen=0
   while IFS=$'\t' read -r coll_app coll_container; do
     ((++coll_seen))
@@ -2557,9 +2557,20 @@ cmd_preflight() {
       ((++pf_warn))
       continue
     fi
-    IFS='|' read -r coll_user coll_db coll_collate coll_ctype coll_ver <<< "$coll_info"
+    IFS='|' read -r coll_user coll_db coll_collate coll_ctype coll_ver coll_t1 <<< "$coll_info"
     case "$coll_collate" in
-      C|POSIX) ;;
+      C|POSIX)
+        case "$coll_t1" in
+          C|POSIX) ;;
+          *)
+            ((++coll_bad))
+            warn "$coll_app: $coll_db は C ですが template1 が libc 依存です (LC_COLLATE=${coll_t1:-不明})"
+            echo "  リストアや Prisma の shadow DB など、素の CREATE DATABASE で作る DB がまた libc 依存になります。"
+            echo "  直し方: $0 collation $coll_app --yes（template1 だけ作り直す。データには触れない）"
+            ((++pf_warn))
+            ;;
+        esac
+        ;;
       *)
         ((++coll_bad))
         warn "$coll_app: $coll_db の照合順序が libc 依存です (LC_COLLATE=$coll_collate, 記録=${coll_ver:-なし})"
@@ -2640,9 +2651,13 @@ pg_containers_in_repo() {
 # （POSTGRES_USER / POSTGRES_DB）から採るので、アプリごとの表を持たない。
 # SQL に単引用符を入れないこと（sh -c の引用と衝突する）。NULL は -At で空になる。
 #
-# 出力: <user>|<db>|<datcollate>|<datctype>|<datcollversion（無ければ空）>
+# 6番目は template1 の照合順序。素の CREATE DATABASE はここを写すので、DB 本体を
+# C へ移しても template1 が en_US.utf8 のままだと、次に作る DB がまた libc 依存になる。
+# （\$\$ は sh の二重引用の中で $$ = PID に化けないようにするため。SQL の文字列リテラル）
+#
+# 出力: <user>|<db>|<datcollate>|<datctype>|<datcollversion（無ければ空）>|<template1 の datcollate>
 pg_db_locale() {
-  docker exec "$1" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F"|" -c "select current_user, current_database(), datcollate, datctype, datcollversion from pg_database where datname = current_database()"' 2>/dev/null
+  docker exec "$1" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F"|" -c "select current_user, current_database(), datcollate, datctype, datcollversion, (select t.datcollate from pg_database t where t.datname = \$\$template1\$\$) from pg_database where datname = current_database()"' 2>/dev/null
 }
 
 _pg_psql() {
@@ -2676,7 +2691,7 @@ _collation_restart_app() {
 }
 
 _collation_list() {
-  local app container info user db collate ctype ver seen=0
+  local app container info user db collate ctype ver t1 seen=0
   print_banner "DB の照合順序"
   printf '  %-28s %-20s %-12s %s\n' "アプリ" "DB" "LC_COLLATE" "判定"
   while IFS=$'\t' read -r app container; do
@@ -2685,15 +2700,89 @@ _collation_list() {
       printf '  %-28s %s\n' "$app" "（接続できません: $container）"
       continue
     fi
-    IFS='|' read -r user db collate ctype ver <<< "$info"
+    IFS='|' read -r user db collate ctype ver t1 <<< "$info"
     case "$collate" in
-      C|POSIX) printf '  %-28s %-20s %-12s %s\n' "$app" "$db" "$collate" "OK（libc 非依存）" ;;
+      C|POSIX)
+        case "$t1" in
+          C|POSIX) printf '  %-28s %-20s %-12s %s\n' "$app" "$db" "$collate" "OK（libc 非依存）" ;;
+          *)       printf '  %-28s %-20s %-12s %s\n' "$app" "$db" "$collate" "template1 が ${t1:-不明}（要 --yes）" ;;
+        esac
+        ;;
       *)       printf '  %-28s %-20s %-12s %s\n' "$app" "$db" "$collate" "libc 依存（記録=${ver:-なし}）" ;;
     esac
   done < <(pg_containers_in_repo)
   echo ""
   [[ $seen -eq 0 ]] && warn "起動中の PostgreSQL が見つかりません（停止中のアプリは出ません）"
   echo "  移すには: $0 collation <app>（手順の表示）→ $0 collation <app> --yes（実行）"
+}
+
+# template1 を C で作り直す。素の CREATE DATABASE（Prisma の migrate dev が作る
+# shadow DB、手で作る DB）は template1 を写すので、ここが en_US.utf8 のままだと
+# DB 本体を C へ移しても、次に作られる DB がまた libc 依存になる。
+# initdb で決まる値なので、既存のクラスタでは作り直す以外に変える方法が無い。
+#
+# template1 は中身を持たない前提（初期化直後は plpgsql だけ）。何か入っていたら
+# 作り直すと消えるので、触らずに止める。DROP してから CREATE するのではなく
+# 新しいものを先に作って改名で入れ替えるので、途中で失敗しても template1 が
+# 無くなる瞬間は無い。
+_collation_fix_template1() {
+  local container="$1" user="$2" ctype="$3" objs leftovers
+  local tmp=template1_c_tmp old=template1_pre_c
+  if ! objs=$(_pg_psql "$container" "$user" template1 -c "
+      select (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname not in ('pg_catalog', 'information_schema') and n.nspname not like 'pg_toast%')
+           + (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname not in ('pg_catalog', 'information_schema'))
+           + (select count(*) from pg_extension where extname <> 'plpgsql')"); then
+    err "template1 の中身を確認できません"
+    return 1
+  fi
+  if [[ "$objs" != "0" ]]; then
+    err "template1 にオブジェクトが ${objs} 件あります。作り直すと消えるので触りません"
+    return 1
+  fi
+  if ! leftovers=$(_pg_psql "$container" "$user" postgres \
+      -c "select datname from pg_database where datname in ('$tmp', '$old') order by datname"); then
+    err "$container の DB 一覧を読めません"
+    return 1
+  fi
+  if [[ -n "$leftovers" ]]; then
+    err "template1 の作り直しの残りがあります: $(echo "$leftovers" | tr '\n' ' ')"
+    echo "  中身を確かめてから手で片付けてください（自動では消しません）。"
+    return 1
+  fi
+
+  log "template1 を LC_COLLATE=C で作り直します"
+  if ! _pg_psql "$container" "$user" postgres \
+      -c "CREATE DATABASE \"$tmp\" TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE '$ctype'" >/dev/null; then
+    err "新しい template1 を作れませんでした（template1 は変わっていません）"
+    return 1
+  fi
+  _pg_psql "$container" "$user" postgres \
+    -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = 'template1' and pid <> pg_backend_pid()" >/dev/null || true
+  # 改名と DROP は IS_TEMPLATE のままでは通らない
+  if ! _pg_psql "$container" "$user" postgres -c "ALTER DATABASE template1 IS_TEMPLATE false" >/dev/null \
+     || ! _pg_psql "$container" "$user" postgres -c "ALTER DATABASE template1 RENAME TO \"$old\"" >/dev/null; then
+    err "template1 を退避できませんでした（template1 は変わっていません）"
+    _pg_psql "$container" "$user" postgres -c "ALTER DATABASE template1 IS_TEMPLATE true" >/dev/null || true
+    _pg_psql "$container" "$user" postgres -c "DROP DATABASE \"$tmp\"" >/dev/null || true
+    return 1
+  fi
+  if ! _pg_psql "$container" "$user" postgres -c "ALTER DATABASE \"$tmp\" RENAME TO template1" >/dev/null; then
+    err "新しい template1 へ改名できませんでした。元へ戻します"
+    _pg_psql "$container" "$user" postgres -c "ALTER DATABASE \"$old\" RENAME TO template1" >/dev/null \
+      && _pg_psql "$container" "$user" postgres -c "ALTER DATABASE template1 IS_TEMPLATE true" >/dev/null \
+      || err "戻せませんでした。手で: ALTER DATABASE \"$old\" RENAME TO template1; ALTER DATABASE template1 IS_TEMPLATE true;"
+    return 1
+  fi
+  if ! _pg_psql "$container" "$user" postgres -c "ALTER DATABASE template1 IS_TEMPLATE true" >/dev/null; then
+    err "template1 を IS_TEMPLATE に戻せませんでした。手で: ALTER DATABASE template1 IS_TEMPLATE true;"
+    return 1
+  fi
+  # 中身が空であることは上で確かめてあるので、旧 template1 は残さない
+  _pg_psql "$container" "$user" postgres -c "DROP DATABASE \"$old\"" >/dev/null \
+    || warn "旧 template1 ($old) を消せませんでした。後で手で DROP DATABASE \"$old\"; してください"
+  ok "template1 を LC_COLLATE=C へ作り直しました（LC_CTYPE=$ctype）"
 }
 
 cmd_collation() {
@@ -2704,7 +2793,7 @@ cmd_collation() {
   fi
 
   require_app_arg "collation" "$target"
-  local dir="$RESOLVED_DIR" app container info user db collate ctype ver
+  local dir="$RESOLVED_DIR" app container info user db collate ctype ver t1
   app=$(basename "$dir")
   container=$(pg_containers_in_repo | awk -F'\t' -v a="$app" '$1 == a && !f { print $2; f = 1 }')
   if [[ -z "$container" ]]; then
@@ -2715,12 +2804,28 @@ cmd_collation() {
     err "$container の DB へ接続できません"
     return 1
   fi
-  IFS='|' read -r user db collate ctype ver <<< "$info"
+  IFS='|' read -r user db collate ctype ver t1 <<< "$info"
 
   case "$collate" in
     C|POSIX)
-      ok "$app の $db はすでに LC_COLLATE=$collate（libc 非依存）です。何もしません"
-      return 0
+      case "$t1" in
+        C|POSIX)
+          ok "$app の $db も template1 もすでに LC_COLLATE=C（libc 非依存）です。何もしません"
+          return 0
+          ;;
+      esac
+      # DB 本体は移行済み（template1 の作り直しが入る前の版で移したアプリ）
+      print_banner "template1 の作り直し: $app"
+      echo "  $db はすでに LC_COLLATE=$collate です。template1 だけが ${t1:-不明} のまま残っています。"
+      echo "  素の CREATE DATABASE（リストア・Prisma の shadow DB など）はここを写します。"
+      echo "  template1 にはデータが無いので、アプリを止めずに作り直します。"
+      echo ""
+      if [[ "$confirm" != "--yes" ]]; then
+        warn "表示のみです（何も変わっていません）。実行: $0 collation $app --yes"
+        return 0
+      fi
+      _collation_fix_template1 "$container" "$user" "$ctype"
+      return
       ;;
   esac
 
@@ -2750,6 +2855,10 @@ cmd_collation() {
   echo "  3. 全テーブルの件数を照合（1件でも違えば入れ替えずに中断）"
   echo "  4. 改名で入れ替え: $db → $old_db / $tmp_db → $db"
   echo "  5. 止めたサービスを起動"
+  case "$t1" in
+    C|POSIX) ;;
+    *) echo "  6. template1 を LC_COLLATE=C で作り直す（今後作る DB も C になる。中身が空のときだけ）" ;;
+  esac
   echo ""
   echo "  ボリュームは削除しません。旧 DB は $old_db として同じクラスタに残ります。"
   if [[ -n "$ver" ]]; then
@@ -2855,12 +2964,21 @@ cmd_collation() {
   _collation_restart_app
 
   info=$(pg_db_locale "$container" || true)
-  IFS='|' read -r user db collate ctype ver <<< "$info"
+  IFS='|' read -r user db collate ctype ver t1 <<< "$info"
   if [[ "$collate" != "C" ]]; then
     err "入れ替え後の照合順序が C になっていません: ${collate:-不明}"
     return 1
   fi
   ok "$app の $db を LC_COLLATE=C へ移しました（LC_CTYPE=$ctype）"
+  case "$t1" in
+    C|POSIX) ;;
+    *)
+      # DB 本体はもう入れ替わっているので、ここで失敗しても移行は成功のまま。
+      # 直し方（もう一度 --yes）だけ出す
+      _collation_fix_template1 "$container" "$user" "$ctype" \
+        || warn "template1 は未対応のままです。直してから: $0 collation $app --yes"
+      ;;
+  esac
   echo "  旧 DB: $old_db（同じクラスタに残しています）"
   echo "    戻す: ALTER DATABASE \"$db\" RENAME TO \"${db}_c_tmp\"; ALTER DATABASE \"$old_db\" RENAME TO \"$db\";"
   echo "    消す: 画面と件数を確かめてから DROP DATABASE \"$old_db\";（自動では消しません）"

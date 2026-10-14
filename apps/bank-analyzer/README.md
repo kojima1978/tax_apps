@@ -72,7 +72,10 @@ docker/scripts/manage.sh collation bank-analyzer --yes
 ```
 
 中身は「アプリだけ止める → `pg_dump` → `LC_COLLATE=C` の新しい DB へ復元 → 全テーブルの件数照合
-→ 改名で入れ替え → アプリ起動」。ボリュームは消さず、旧 DB は `bank_analyzer_pre_c` として残る。
+→ 改名で入れ替え → アプリ起動 → template1 も `C` で作り直す」。ボリュームは消さず、旧 DB は
+`bank_analyzer_pre_c` として残る。template1 を作り直すのはリストアや新しい DB が `en_US.utf8` へ
+戻らないようにするため。template1 の作り直しが入る前の版で移した PC は、もう一度 `--yes` を叩くと
+template1 だけを直す（アプリは止めない）。手順書は `docker/COLLATION-MIGRATION.md`。
 
 - **musl 生まれ（記録なし）の PC**: 今の並び順もバイト順なので挙動は変わらない。移してから
   bookworm へ切り替えれば `REINDEX` も要らない（先に bookworm へ切り替えると、musl の順で作った

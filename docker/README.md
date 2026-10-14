@@ -197,6 +197,7 @@ rd /s /q tax_apps
 | `./manage.sh restore [dir]` | バックアップからリストア |
 | `./manage.sh verify <backup>` | バックアップの復号とSHA-256照合（上書きなし） |
 | `./manage.sh drill [backup]` | リストア訓練。使い捨てDBへ実際に復元して検証（既定は最新） |
+| `./manage.sh collation [app] [--yes]` | PostgreSQL の照合順序を libc 非依存の `C` へ移す（引数なしは一覧、`--yes` なしは手順の表示だけ。**手でだけ叩く**。手順は `COLLATION-MIGRATION.md`） |
 | `./manage.sh due` | 期限切れの無人処理だけ実行（バックアップ20時間・訓練168時間・掃除144時間・ループ検知3時間。ウォッチドッグ用） |
 | `./manage.sh loop-check` | 画面のリロードループを検知（ゲートウェイのログを読むだけ・**Docker の操作ロックも取らない**） |
 | `./manage.sh clean` | コンテナ・イメージ・ボリュームのクリーンアップ |

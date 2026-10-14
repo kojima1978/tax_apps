@@ -155,8 +155,18 @@ docker/scripts/manage.sh watch <app-name>
   には載せない** ── 別の PC で稼働中の DB を無人で入れ替えることになる。
   **`preflight` のチェック22**が repo 配下の稼働中 PostgreSQL を見て、`C` でないものを直し方つきで WARN する
   （コンテナは `com.docker.compose.project.working_dir` ラベルで絞る。同じ PC の別プロジェクトは見ない）。
-  移行済みは bank-analyzer だけ（2026-10-14）。**libc 系（alpine ↔ bookworm）を変えるのは移行の後**
-  ── 先に変えると `REINDEX DATABASE` が必須になる
+  **移した DB が libc 依存へ戻る入口は3つあり、全部塞いである**: リストアと訓練は
+  `backup.sh` の `pg_create_c_database`（`TEMPLATE template0 … LC_COLLATE 'C'`）で DB を作る
+  （素の `CREATE DATABASE` は template1 の `en_US.utf8` を写すので、**リストアのたびに戻っていた**。
+  訓練は復元した DB が `C` でなければ失敗にする）／ 4つの compose の DB サービスは
+  `POSTGRES_INITDB_ARGS` で空のボリュームを `C` で初期化する（既存のボリュームには効かない）／
+  `collation` は最後に **template1 も `C` で作り直す**（Prisma の shadow DB や手で作る DB はここを写す。
+  中身が plpgsql 以外にあれば触らない。新しいものを先に作って改名で入れ替えるので、template1 が
+  無くなる瞬間は無い）。DB 本体が移行済みで template1 だけ残っている場合も `collation <app> --yes` で
+  template1 だけ直り（アプリは止めない）、チェック22もそこまで見る。
+  移行済みは bank-analyzer だけ（2026-10-14、template1 含む）。**別の PC の手順は
+  `docker/COLLATION-MIGRATION.md`**（AI にそのまま渡せる形）。**libc 系（alpine ↔ bookworm）を変えるのは
+  移行の後** ── 先に変えると `REINDEX DATABASE` が必須になる
 
 ### テスト（manage.sh test / CI）
 

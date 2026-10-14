@@ -519,6 +519,19 @@ backup_postgres() {
   fi
 }
 
+# 照合順序を libc に依存しない C で DB を作る（restore と drill の共通）。
+# 素の CREATE DATABASE は template1 の照合順序を引き継ぎ、既存のクラスタでは
+# それが en_US.utf8 ── リストアや訓練のたびに、C へ移したはずの DB が
+# 「イメージの libc（musl / glibc）次第で並びが変わる」状態へ黙って戻っていた。
+# LC_CTYPE は文字種の判定にしか効かないので、そのクラスタの template0 に揃える。
+pg_create_c_database() {
+  local container="$1" pg_user="$2" db_name="$3" ctype
+  ctype=$(docker exec "$container" psql -U "$pg_user" -d postgres -At \
+    -c "SELECT datctype FROM pg_database WHERE datname = 'template0';" 2>/dev/null | tr -d '\r\n')
+  docker exec "$container" psql -U "$pg_user" -d postgres -q -v ON_ERROR_STOP=1 \
+    -c "CREATE DATABASE \"$db_name\" TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE '${ctype:-en_US.utf8}';"
+}
+
 restore_postgres() {
   local label="$1" container="$2" pg_user="$3" db_name="$4" volume="$5" dump_file="$6" restart_hint="$7"
   echo "$label"
@@ -532,7 +545,11 @@ restore_postgres() {
     fi
     docker exec "$container" psql -U "$pg_user" -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$db_name' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
     docker exec "$container" psql -U "$pg_user" -d postgres -c "DROP DATABASE IF EXISTS $db_name;" >/dev/null 2>&1
-    docker exec "$container" psql -U "$pg_user" -d postgres -c "CREATE DATABASE $db_name;" >/dev/null 2>&1
+    if ! pg_create_c_database "$container" "$pg_user" "$db_name" >/dev/null 2>&1; then
+      err "$label: could not create the database $db_name"
+      (( restore_fail++ )) || true
+      return
+    fi
     # ON_ERROR_STOP=1 が無いと psql は途中のエラーを無視して 0 を返す。
     # 本物のデータを入れ直すこちら側にこそ必要で、訓練(cmd_drill)には
     # 最初から付いていたのにここだけ抜けていた。出力も捨てない ──
@@ -1195,6 +1212,7 @@ start_drill_postgres() {
   if ! MSYS_NO_PATHCONV=1 docker run -d \
     --name "$DRILL_PG_CONTAINER" \
     -e POSTGRES_PASSWORD=restore-drill \
+    -e POSTGRES_INITDB_ARGS="--lc-collate=C --lc-ctype=en_US.utf8" \
     "$DRILL_PG_IMAGE" >/dev/null 2>&1; then
     err "Could not start the drill container ($DRILL_PG_IMAGE)."
     return 1
@@ -1256,8 +1274,7 @@ drill_postgres() {
     fi
     docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d postgres -q \
       -c "DROP DATABASE IF EXISTS \"$db_name\";" >/dev/null 2>&1 || true
-    if ! docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d postgres -q \
-      -c "CREATE DATABASE \"$db_name\";" >/dev/null 2>&1; then
+    if ! pg_create_c_database "$DRILL_PG_CONTAINER" postgres "$db_name" >/dev/null 2>&1; then
       err "$label: could not create the drill database."
       (( drill_fail++ )) || true
       continue
@@ -1277,6 +1294,17 @@ drill_postgres() {
     local table_count
     table_count=$(docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d "$db_name" -tAc \
       "SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname = 'public';" 2>/dev/null | tr -d '\r\n ')
+    # 本番のリストアと同じ関数で作っているので、ここで C でなければ
+    # 本番へ戻したときも libc 依存の並びになる。
+    local drill_collate
+    drill_collate=$(docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d "$db_name" -tAc \
+      "SELECT datcollate FROM pg_database WHERE datname = current_database();" 2>/dev/null | tr -d '\r\n ')
+    if [[ "$drill_collate" != "C" ]]; then
+      err "$label: restored database collation is ${drill_collate:-unknown}, not C."
+      (( drill_fail++ )) || true
+      continue
+    fi
+
     if [[ "${table_count:-0}" -gt 0 ]]; then
       local row_total
       row_total=$(docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d "$db_name" -tAc \
