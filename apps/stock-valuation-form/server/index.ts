@@ -28,11 +28,17 @@ let seedError: string | null = null;
 
 const app = new Hono();
 
-app.get(`${BASE_PATH}/api/health`, (c) =>
-  seedError === null
-    ? c.json({ status: 'ok' })
-    : c.json({ status: 'degraded', error: seedError }, 503),
-);
+// DB にも問い合わせる（以前は取込の失敗しか見ておらず、DB に繋がらなくても healthy だった）
+app.get(`${BASE_PATH}/api/health`, async (c) => {
+  if (seedError !== null) return c.json({ status: 'degraded', error: seedError }, 503);
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return c.json({ status: 'ok' });
+  } catch (error) {
+    console.error('[health] DB に接続できません:', error);
+    return c.json({ status: 'degraded', error: 'database unreachable' }, 503);
+  }
+});
 
 app.route(`${BASE_PATH}/api`, createCaseRouter(prisma));
 app.route(`${BASE_PATH}/api`, createFieldCatalogRouter());

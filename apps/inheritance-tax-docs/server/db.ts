@@ -24,6 +24,23 @@ export function closeDb(): void {
   }
 }
 
+// health 用: DB を開いて読めることに加え、DB ファイルとそのフォルダに書けるかを見る
+// （DB には何も書かない）。SELECT 1 だけでは「ファイルだけ書けない」状態を
+// 見落とす ── 開くのも読むのも書き込みロックも通り、実際に書いたときに初めて
+// SQLITE_READONLY になる（実測）。リストアで所有者がずれた 2026-10-14 の件では
+// フォルダごと書けず、healthcheck は通ったまま DB だけ開けなかった。
+// 戻り値: 問題が無ければ null、あればエラーコード。
+export function checkDbHealth(): string | null {
+  try {
+    getDb().prepare('SELECT 1').get();
+    fs.accessSync(DB_PATH, fs.constants.W_OK);
+    fs.accessSync(path.dirname(DB_PATH), fs.constants.W_OK);
+    return null;
+  } catch (err) {
+    return (err as { code?: string }).code ?? 'error';
+  }
+}
+
 function initSchema(d: Database.Database): void {
   d.exec(`
     CREATE TABLE IF NOT EXISTS resources (

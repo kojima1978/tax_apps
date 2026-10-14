@@ -79,7 +79,7 @@ services:
     labels: *autoheal-labels
     <<: *security-opts
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3010/medical/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{const r=await fetch('http://127.0.0.1:3010/medical/api/health/');process.exit(r.ok?0:1)}catch{process.exit(1)}})()\""]
       <<: *healthcheck-defaults
     deploy:
       resources:

@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { mkdirSync } from 'node:fs';
+import { accessSync, constants, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 const isServerless = process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -42,6 +42,23 @@ export function getDb(): Database.Database {
   } catch (err) {
     console.error(`Failed to open database at ${DATABASE_PATH}`, err);
     throw err;
+  }
+}
+
+// health 用: DB を開いて読めることに加え、DB ファイルとそのフォルダに書けるかを見る
+// （DB には何も書かない）。SELECT 1 だけでは「ファイルだけ書けない」状態を
+// 見落とす ── 開くのも読むのも書き込みロックも通り、実際に書いたときに初めて
+// SQLITE_READONLY になる（実測）。リストアで所有者がずれた 2026-10-14 の件では
+// フォルダごと書けず、healthcheck は通ったまま DB だけ開けなかった。
+// 戻り値: 問題が無ければ null、あればエラーコード。
+export function checkDbHealth(): string | null {
+  try {
+    getDb().prepare('SELECT 1').get();
+    accessSync(DATABASE_PATH, constants.W_OK);
+    accessSync(dirname(DATABASE_PATH), constants.W_OK);
+    return null;
+  } catch (err) {
+    return (err as { code?: string }).code ?? 'error';
   }
 }
 

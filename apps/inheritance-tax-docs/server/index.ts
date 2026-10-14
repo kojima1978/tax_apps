@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
-import { seedIfEmpty } from './db.js';
+import { checkDbHealth, seedIfEmpty } from './db.js';
 import { createResourcesRouter } from './routes/resources.js';
 
 const PORT = Number(process.env.PORT ?? 3003);
@@ -21,8 +21,14 @@ const app = express();
 app.use(express.json());
 
 // Health check
+// DB が使えないときは 503 で healthcheck を落とす（以前は DB を見ていなかった）
 app.get(`${BASE_PATH}/api/health`, (_req, res) => {
-  res.json({ status: 'ok' });
+  const dbError = checkDbHealth();
+  if (dbError !== null) {
+    res.status(503).json({ status: 'degraded', database: dbError });
+    return;
+  }
+  res.json({ status: 'ok', database: 'ok' });
 });
 
 // API routes
