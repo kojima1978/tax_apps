@@ -14,7 +14,7 @@
 #   ./manage.sh build <app>        指定アプリを再ビルドして起動
 #   ./manage.sh down               全アプリを停止してコンテナ削除
 #   ./manage.sh backup             全データベース・データをバックアップ
-#   ./manage.sh restore [dir]      バックアップからリストア
+#   ./manage.sh restore [app|--all] [backup] [--yes]  アプリ単位でリストア（docker/RESTORE.md）
 #   ./manage.sh due                期限切れの無人処理だけ実行（ウォッチドッグ用）
 #   ./manage.sh clean              コンテナ・イメージのクリーンアップ
 #   ./manage.sh clean-cache        古い Docker Build Cache の削除
@@ -3016,7 +3016,7 @@ case "$COMMAND" in
   logs)      cmd_logs "${2:-}" ;;
   status)    cmd_status ;;
   backup)    "$SCRIPT_DIR/backup.sh" backup ;;
-  restore)   "$SCRIPT_DIR/backup.sh" restore "${2:-}" ;;
+  restore)   "$SCRIPT_DIR/backup.sh" restore "${@:2}" ;;
   verify)    "$SCRIPT_DIR/backup.sh" verify "${2:-}" ;;
   drill)     "$SCRIPT_DIR/backup.sh" drill "${2:-}" ;;
   # ウォッチドッグからの入口。何を実行するかは last-run の記録が決める。
@@ -3050,7 +3050,8 @@ case "$COMMAND" in
     echo ""
     echo "Operations:"
     echo "  backup             全データベース・データをバックアップ"
-    echo "  restore [dir]      バックアップからリストア"
+    echo "  restore [app|--all] [backup] [--yes]"
+    echo "                     アプリ単位でリストア（件数照合つき。--env-only / --with-env は docker/RESTORE.md）"
     echo "  verify <backup>    バックアップの復号とハッシュ照合"
     echo "  drill [backup]     リストア訓練（使い捨てDBへ実際に復元して検証。既定は最新）"
     echo "  due                期限切れの無人処理だけ実行（バックアップ・訓練。ウォッチドッグ用）"

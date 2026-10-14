@@ -46,6 +46,8 @@ source "$SCRIPT_DIR/lib/ops-common.sh"
 
 RESTORE_WORK_DIR=""
 STALE_WORK_SWEPT=0
+# リストアで止めたコンテナ（終わったら・途中で死んでも起動し直す）
+RESTORE_STOPPED=()
 BACKUP_BASE="${BACKUP_BASE:-$SCRIPT_DIR/../backups}"
 LATEST_BACKUP_BASE="${LATEST_BACKUP_BASE:-$(cd "$PROJECT_ROOT/.." && pwd)/tax_apps_backup_latest}"
 LATEST_BACKUP_RETENTION_DAYS="${LATEST_BACKUP_RETENTION_DAYS:-1}"
@@ -70,7 +72,7 @@ DRILL_PG_IMAGE="${DRILL_PG_IMAGE:-postgres:16-alpine}"
 DRILL_PG_CONTAINER="tax-apps-restore-drill"
 DRILL_PG_STARTED=0
 
-# label:container:pg_user:db_name:volume:dump_file:restart_hint
+# label:container:pg_user:db_name:volume:dump_file:app（apps/ の下のディレクトリ名。restore <app> の単位）
 PG_TARGETS=(
   "ITCM PostgreSQL:itcm-postgres:postgres:inheritance_tax_db:inheritance-case-management_postgres_data:itcm-postgres:inheritance-case-management"
   "Bank Analyzer PostgreSQL:bank-analyzer-postgres:bankuser:bank_analyzer:bank-analyzer-postgres:bank-analyzer-postgres:bank-analyzer"
@@ -78,11 +80,11 @@ PG_TARGETS=(
   "Stock Valuation Form PostgreSQL:svf-postgres:postgres:stock_valuation:stock-valuation-form-postgres:svf-postgres:stock-valuation-form"
 )
 
-# label:container:db_path:volume:file_name
+# label:container:db_path:volume:file_name:app
 SQLITE_TARGETS=(
-  "Medical Stock SQLite:medical-stock-valuation:/app/data/doctor.db:medical-stock-valuation-data:medical-stock-valuation-data"
-  "Insurance App SQLite:insurance-app:/app/data/insurance.sqlite:insurance-app-data:insurance-app-data"
-  "Inheritance Tax Docs SQLite:inheritance-tax-docs:/app/data/resources.sqlite:inheritance-tax-docs-data:inheritance-tax-docs-data"
+  "Medical Stock SQLite:medical-stock-valuation:/app/data/doctor.db:medical-stock-valuation-data:medical-stock-valuation-data:medical-stock-valuation"
+  "Insurance App SQLite:insurance-app:/app/data/insurance.sqlite:insurance-app-data:insurance-app-data:insurance-app"
+  "Inheritance Tax Docs SQLite:inheritance-tax-docs:/app/data/resources.sqlite:inheritance-tax-docs-data:inheritance-tax-docs-data:inheritance-tax-docs"
 )
 
 # label:source_path:backup_dir_name
@@ -120,6 +122,15 @@ check_dependencies() {
 # ロック解放の直前に呼ばれるフック（lib/ops-common.sh の release_operation_lock から）。
 # 訓練用コンテナと復号した平文の後始末は、ロックを手放すより先に終わらせる必要がある。
 on_release_operation_lock() {
+  # リストアの途中で止まった回。止めたアプリのコンテナを止めたままにしない
+  # （データが半端かもしれないが、止まったままでは誰も気づかない）
+  if [[ ${#RESTORE_STOPPED[@]} -gt 0 ]]; then
+    local c
+    for c in "${RESTORE_STOPPED[@]}"; do
+      docker start "$c" >/dev/null 2>&1 || true
+    done
+    RESTORE_STOPPED=()
+  fi
   if [[ "$DRILL_PG_STARTED" -eq 1 ]]; then
     docker rm -f "$DRILL_PG_CONTAINER" >/dev/null 2>&1 || true
     DRILL_PG_STARTED=0
@@ -533,13 +544,13 @@ pg_create_c_database() {
 }
 
 restore_postgres() {
-  local label="$1" container="$2" pg_user="$3" db_name="$4" volume="$5" dump_file="$6" restart_hint="$7"
+  local label="$1" container="$2" pg_user="$3" db_name="$4" volume="$5" dump_file="$6" app="$7"
   echo "$label"
 
   if [[ -f "$backup_dir/$dump_file.sql" ]]; then
     if ! is_container_running "$container"; then
-      err "$container container is not running."
-      echo "  Run: ./manage.sh restart $restart_hint"
+      err "$container が止まっています"
+      echo "  先に: ./manage.sh start $app"
       (( restore_fail++ )) || true
       return
     fi
@@ -561,9 +572,13 @@ restore_postgres() {
     psql_log="$OPS_LOG_DIR/restore-${dump_file}.log"
     if docker exec -i "$container" psql -U "$pg_user" -d "$db_name" -q -v ON_ERROR_STOP=1 \
       < "$backup_dir/$dump_file.sql" > "$psql_log" 2>&1; then
-      ok "$dump_file.sql"
       rm -f "$psql_log"
-      (( restore_ok++ )) || true
+      if verify_pg_counts_against_dump "$label" "$backup_dir/$dump_file.sql" "$container" "$pg_user" "$db_name"; then
+        ok "$dump_file.sql（件数一致: $VERIFIED_COUNTS_SUMMARY）"
+        (( restore_ok++ )) || true
+      else
+        (( restore_fail++ )) || true
+      fi
     else
       err "$label restore failed - データベースは不完全な状態です"
       sed -n '1,20p' "$psql_log" | sed 's/^/    /' >&2 || true
@@ -596,8 +611,8 @@ backup_sqlite_volumes() {
   local backup_dir_win
   backup_dir_win="$(to_win_path "$backup_dir")"
   for target in "$@"; do
-    local label container db_path vol fname
-    IFS=: read -r label container db_path vol fname <<< "$target"
+    local label container db_path vol fname _app
+    IFS=: read -r label container db_path vol fname _app <<< "$target"
     if docker volume inspect "$vol" >/dev/null 2>&1; then
       if is_container_running "$container"; then
         local stage_dir="$backup_dir/.sqlite-stage-${fname}"
@@ -670,46 +685,6 @@ backup_sqlite_volumes() {
   fi
 }
 
-restore_sqlite_volumes() {
-  local step_label="$1"
-  shift
-  echo "$step_label SQLite volumes ..."
-  local sqlite_ok=0
-  local backup_dir_win
-  backup_dir_win="$(to_win_path "$backup_dir")"
-  for pair in "$@"; do
-    local fname vol container
-    IFS=: read -r fname vol container <<< "$pair"
-    if [[ -f "$backup_dir/$fname" ]]; then
-      local was_running=0
-      if is_container_running "$container"; then
-        echo "  Stopping $container for consistent volume restore..."
-        docker stop "$container" >/dev/null
-        was_running=1
-      fi
-      docker volume inspect "$vol" >/dev/null 2>&1 || docker volume create "$vol" >/dev/null 2>&1
-      if MSYS_NO_PATHCONV=1 docker run --rm -v "$vol:/data" -v "$backup_dir_win:/backup:ro" alpine:3.22 \
-        sh -c "rm -rf -- /data/* /data/.[!.]* /data/..?* && tar xzf /backup/$fname -C /data" >/dev/null 2>&1; then
-        (( sqlite_ok++ )) || true
-      else
-        (( restore_fail++ )) || true
-      fi
-      if [[ $was_running -eq 1 ]]; then
-        docker start "$container" >/dev/null || {
-          err "Failed to restart $container after restore"
-          (( restore_fail++ )) || true
-        }
-      fi
-    fi
-  done
-  if [[ $sqlite_ok -gt 0 ]]; then
-    ok "SQLite $sqlite_ok volumes"
-    (( restore_ok += sqlite_ok ))
-  else
-    warn "No SQLite backups found"
-    (( restore_skip++ )) || true
-  fi
-}
 
 backup_bind_data() {
   local step_label="$1" label="$2" src_dir="$3" dest_dir="$4"
@@ -767,18 +742,6 @@ restore_bind_data() {
   fi
 }
 
-restore_settings_file() {
-  local step_label="$1" label="$2" src_file="$3" dest_file="$4"
-  echo "$step_label $label ..."
-  if [[ -f "$src_file" ]]; then
-    cp "$src_file" "$dest_file"
-    ok "$(basename "$src_file")"
-    (( restore_ok++ )) || true
-  else
-    warn "Not in backup"
-    (( restore_skip++ )) || true
-  fi
-}
 
 backup_bank_analyzer_json() {
   local step_label="$1"
@@ -1021,157 +984,796 @@ cmd_backup() {
   [[ $backup_fail -eq 0 ]]
 }
 
-cmd_restore() {
-  print_banner "Tax Apps - Restore"
+# ------------------------------------------------------------
+# 件数（restore と drill の共通）
+# ------------------------------------------------------------
+# 戻した DB が「本当にバックアップと同じ中身か」は件数で確かめる。
+# restore と drill が同じ関数を通るので、週次の訓練がこの照合そのものの
+# 練習にもなる（訓練だけ別の数え方をしていると、照合の誤りは本番で初めて出る）。
 
-  if [[ ! -d "$BACKUP_BASE" ]]; then
-    err "backups/ not found. Run: ./manage.sh backup"
+# ダンプ（pg_dump の COPY 形式）から public の表ごとの行数を数える。
+# COPY の本文は1行1レコード（値の中の改行は \n にエスケープされる）。
+# 出力: <表名>:<行数> を名前順に1行ずつ
+pg_dump_table_counts() {
+  awk '/^COPY public\./ { t = $2; sub(/^public\./, "", t); gsub(/"/, "", t); n = 0; on = 1; next }
+       on && /^\\.$/ { print t ":" n; on = 0; next }
+       on { n++ }' "$1" | LC_ALL=C sort
+}
+
+# 稼働中の DB の表ごとの実件数（統計値の n_live_tup は古いことがあるので使わない）。
+# 出力の形は pg_dump_table_counts と同じ。
+pg_live_table_counts() {
+  local container="$1" pg_user="$2" db_name="$3" out
+  out=$(docker exec "$container" psql -U "$pg_user" -d "$db_name" -At -v ON_ERROR_STOP=1 -c "
+    select c.relname || ':' ||
+           (xpath('/row/n/text()',
+                  query_to_xml(format('select count(*) as n from %I.%I', n.nspname, c.relname),
+                               false, true, '')))[1]::text
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r'") || return 1
+  printf '%s\n' "$out" | tr -d '\r' | sed '/^$/d' | LC_ALL=C sort
+}
+
+# <表名>:<行数> の並びを「N テーブル / M 行」にする
+counts_summary() {
+  awk -F: 'NF >= 2 { t++; r += $2 } END { printf "%d テーブル / %d 行", t, r }'
+}
+
+# 戻した PostgreSQL の件数をダンプと突き合わせる。1件でも違えば失敗。
+verify_pg_counts_against_dump() {
+  local label="$1" dump="$2" container="$3" pg_user="$4" db_name="$5" expected actual
+  expected=$(pg_dump_table_counts "$dump")
+  if ! actual=$(pg_live_table_counts "$container" "$pg_user" "$db_name"); then
+    err "$label: 復元後の件数を数えられませんでした"
     return 1
   fi
-
-  backup_dir=""
-
-  if [[ -n "${1:-}" ]]; then
-    if ! is_full_backup_name "$1"; then
-      err "$1 is not a full backup set."
-      echo "  Use a directory like 2026-02-22_153000 or pre-restore_2026-02-22_153000."
-      echo ""
-    elif [[ -d "$BACKUP_BASE/$1" || -f "$BACKUP_BASE/$1" ]]; then
-      backup_dir="$BACKUP_BASE/$1"
-    elif [[ -f "$BACKUP_BASE/$1.tar.gz.enc" ]]; then
-      backup_dir="$BACKUP_BASE/$1.tar.gz.enc"
-    else
-      err "$BACKUP_BASE/$1 not found."
-      echo ""
-    fi
+  if [[ "$expected" != "$actual" ]]; then
+    err "$label: 件数がバックアップと一致しません"
+    diff <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") | grep '^[<>]' | head -10 |
+      sed 's/^</    バックアップ:/; s/^>/    復元後:      /' >&2 || true
+    return 1
   fi
+  VERIFIED_COUNTS_SUMMARY=$(counts_summary <<< "$actual")
+}
 
-  if [[ -z "$backup_dir" ]]; then
-    local -a backups=()
-    while IFS= read -r d; do
-      backups+=("$(basename "$d")")
-    done < <(find "$BACKUP_BASE" -mindepth 1 -maxdepth 1 \
-      \( -type d \( -name '????-??-??_??????' -o -name 'pre-restore_????-??-??_??????' \) \
-      -o -type f \( -name '????-??-??_??????.tar.gz.enc' -o -name 'pre-restore_????-??-??_??????.tar.gz.enc' \) \) \
-      -print 2>/dev/null | sort -r)
+# SQLite を開いて integrity_check と件数を見る。better-sqlite3 はアプリの
+# イメージにしか無いので、そのアプリのコンテナを借りる（readonly で開くだけ）。
+# 出力: "<表の数> <行数>"。integrity_check が ok でなければ失敗。
+sqlite_probe() {
+  local container="$1" path="$2"
+  MSYS_NO_PATHCONV=1 docker exec "$container" node -e '
+    const Database = require("better-sqlite3");
+    const db = new Database(process.argv[1], { readonly: true, fileMustExist: true });
+    const integrity = db.pragma("integrity_check", { simple: true });
+    const names = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type = \x27table\x27 AND name NOT LIKE \x27sqlite_%\x27"
+    ).all().map((row) => row.name);
+    let rows = 0;
+    for (const name of names) {
+      rows += db.prepare(`SELECT count(*) AS n FROM "${name.replace(/"/g, "\"\"")}"`).get().n;
+    }
+    db.close();
+    if (integrity !== "ok") throw new Error(`integrity_check: ${integrity}`);
+    process.stdout.write(`${names.length} ${rows}`);
+  ' "$path" 2>/dev/null | tr -d '\r'
+}
 
-    if [[ ${#backups[@]} -eq 0 ]]; then
-      err "No backups found. Run: ./manage.sh backup"
-      return 1
-    fi
+# バックアップの中の SQLite を、稼働中のコンテナの /tmp へ写してから数える。
+# 本番のファイルには触れない。戻り値: 0=成功 / 1=検証失敗 / 2=アーカイブに無い / 3=写せない
+sqlite_probe_archive() {
+  local container="$1" archive="$2" db_name="$3" fname="$4" out rc=0
+  local stage="$RESTORE_WORK_DIR/probe-$fname"
+  local probe="/tmp/tax-apps-probe-${fname}-$$.sqlite"
+  rm -rf "$stage"
+  mkdir -p "$stage"
+  if ! tar xzf "$archive" -C "$stage" 2>/dev/null || [[ ! -f "$stage/$db_name" ]]; then
+    rm -rf "$stage"
+    return 2
+  fi
+  # コンテナ側のパスを MSYS に変換させないため MSYS_NO_PATHCONV=1 が要るが、
+  # そうするとホスト側の POSIX パスも素通しになるので docker.exe が読める形へ直す。
+  if ! MSYS_NO_PATHCONV=1 docker cp "$(to_win_path "$stage/$db_name")" "$container:$probe" >/dev/null 2>&1; then
+    rm -rf "$stage"
+    return 3
+  fi
+  out=$(sqlite_probe "$container" "$probe") || rc=1
+  # docker cp で入れたファイルは root 所有になる。非rootで動くコンテナ
+  # (medical-stock-valuation 等) では -u root が無いと消せず、毎回 DB の
+  # フルコピーが /tmp に溜まっていく。readonly で開いても WAL/SHM は作られる。
+  if ! MSYS_NO_PATHCONV=1 docker exec -u root "$container" \
+    rm -f "$probe" "$probe-wal" "$probe-shm" >/dev/null 2>&1; then
+    warn "$container:$probe を消せませんでした"
+  fi
+  rm -rf "$stage"
+  [[ $rc -eq 0 ]] && printf '%s\n' "$out"
+  return $rc
+}
 
-    echo "Available backups:"
-    echo ""
-    for i in "${!backups[@]}"; do
-      local bk="${backups[$i]}"
-      local size
-      size=$(format_size "$(path_size "$BACKUP_BASE/$bk")")
-      echo "  [$((i+1))] $bk  ($size)"
-    done
-    echo ""
-    echo "  [0] Cancel"
-    echo ""
+# ------------------------------------------------------------
+# アプリ単位のリストア
+# ------------------------------------------------------------
+# 以前のリストアは「全アプリを丸ごと」しか無く、1アプリの誤削除を戻すために
+# 他のアプリで今日入力した分まで巻き戻すか、手で SQL を流すかの二択だった。
+# いまはアプリ単位で戻す（--all で全部）。1アプリの中では次の順に進む:
+#
+#   1. 戻す前に、バックアップの件数と現在の件数を並べて見せる（何も変えない）
+#   2. 確認のあと、現在の全データを pre-restore_* として暗号化バックアップ
+#   3. そのアプリのコンテナだけを止める（.sql から戻す PostgreSQL は動かしたまま）
+#   4. 戻す → PostgreSQL は全テーブルの件数をダンプと照合
+#   5. 止めたコンテナを起動し、healthy になるまで待つ → SQLite の件数を照合
+#
+# .env は「無いときだけ」戻す。pg_dump にロールのパスワードは入らないので、
+# 本番起動でパスワードが回転した後に古い .env を戻すと DB に繋がらなくなる。
+# 上書きは --with-env を付けたときだけ。新しい PC では DB を初めて起動する前に
+# .env が要る（空のボリュームはその時の .env のパスワードで初期化される）ので、
+# --env-only で .env だけ先に置いてから start → restore --all の順にする。
 
-    read -rp "Select number: " choice
-    choice=$(strip_cr "$choice")
-    if [[ "$choice" == "0" || -z "$choice" ]]; then
-      echo "Cancelled."
+RESTORE_HEALTH_TIMEOUT="${RESTORE_HEALTH_TIMEOUT:-240}"
+declare -A RESTORE_SQLITE_EXPECT=()
+
+# apps/<app>/... → <app>
+_app_of_path() {
+  local p="${1#apps/}"
+  printf '%s\n' "${p%%/*}"
+}
+
+# バックアップ対象を持つアプリの一覧（4つの表から作る。表の順を保つ）
+restore_known_apps() {
+  local t f
+  {
+    for t in "${PG_TARGETS[@]}"; do IFS=: read -r _ _ _ _ _ _ f <<< "$t"; echo "$f"; done
+    for t in "${SQLITE_TARGETS[@]}"; do IFS=: read -r _ _ _ _ _ f <<< "$t"; echo "$f"; done
+    for t in "${BIND_TARGETS[@]}"; do IFS=: read -r _ f _ <<< "$t"; _app_of_path "$f"; done
+    for t in "${SETTINGS_TARGETS[@]}"; do IFS=: read -r _ f _ <<< "$t"; _app_of_path "$f"; done
+  } | awk '!seen[$0]++'
+}
+
+# アプリ名の解決。完全一致 → 別名（itcm / svf）→ 一意な部分一致の順。
+resolve_restore_app() {
+  local want="${1,,}" app
+  local -a hits=()
+  case "$want" in
+    itcm) want="inheritance-case-management" ;;
+    svf)  want="stock-valuation-form" ;;
+  esac
+  while IFS= read -r app; do
+    if [[ "$app" == "$want" ]]; then
+      printf '%s\n' "$app"
       return 0
     fi
-
-    local idx=$((choice - 1))
-    if [[ $idx -lt 0 || $idx -ge ${#backups[@]} ]]; then
-      err "Invalid selection."
-      return 1
-    fi
-    backup_dir="$BACKUP_BASE/${backups[$idx]}"
-  fi
-
-  echo "Restore from: $backup_dir"
-  echo ""
-
-  if [[ -f "$backup_dir" && "$backup_dir" == *.tar.gz.enc ]]; then
-    echo "Decrypting backup to a temporary restore directory..."
-    extract_encrypted_backup "$backup_dir" || return 1
-    backup_dir="$EXTRACTED_BACKUP_PATH"
-    ok "Encrypted backup opened"
-  fi
-
-  verify_backup_manifest "$backup_dir" || return 1
-  echo ""
-  echo "Contents:"
-  ls -1 "$backup_dir" 2>/dev/null
-  echo ""
-  warn "This will overwrite current data!"
-  echo ""
-  read -rp "Proceed? (Y/N): " confirm
-  confirm=$(strip_cr "$confirm")
-  if [[ "${confirm,,}" != "y" ]]; then
-    echo "Cancelled."
+    [[ "$app" == *"$want"* ]] && hits+=("$app")
+  done < <(restore_known_apps)
+  if [[ ${#hits[@]} -eq 1 ]]; then
+    printf '%s\n' "${hits[0]}"
     return 0
   fi
-  echo ""
-
-  local restore_source="$backup_dir"
-  echo "[Safety] Creating pre-restore backup of current data..."
-  if cmd_backup "pre-restore"; then
-    local pre_restore_backup="$backup_dir"
-    backup_dir="$restore_source"
-    ok "Pre-restore backup completed: $pre_restore_backup"
-  elif [[ ${backup_fail:-0} -eq 0 && ${backup_ok:-0} -eq 0 ]]; then
-    backup_dir="$restore_source"
-    warn "No current data was found for pre-restore backup. Continuing restore."
+  if [[ ${#hits[@]} -gt 1 ]]; then
+    err "「$1」に当てはまるアプリが複数あります: ${hits[*]}"
   else
-    backup_dir="$restore_source"
-    err "Pre-restore backup failed. Restore aborted."
-    echo "  Current data was not overwritten."
-    return 1
+    err "「$1」はバックアップ対象のアプリではありません"
   fi
-  echo ""
+  echo "  対象: $(restore_known_apps | tr '\n' ' ')" >&2
+  return 1
+}
 
+# そのアプリの compose から起動された、稼働中のコンテナ名
+app_running_containers() {
+  local want name wd
+  want=$(to_win_path "$PROJECT_ROOT/apps/$1" | tr 'A-Z\\' 'a-z/')
+  while IFS=$'\t' read -r name wd; do
+    [[ -z "$name" ]] && continue
+    [[ "$(printf '%s' "$wd" | tr 'A-Z\\' 'a-z/')" == "$want" ]] && printf '%s\n' "$name"
+  done < <(docker ps --format '{{.Names}}\t{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null | tr -d '\r')
+  return 0
+}
+
+# そのアプリのコンテナを止める（引数の2番目以降に挙げたものは残す）。止めたものは
+# RESTORE_STOPPED に積み、戻し終わったら（途中で死んでも on_release_operation_lock が）起動する。
+stop_app_containers() {
+  local app="$1"
+  shift
+  local keep=" $* " c
+  while IFS= read -r c; do
+    [[ -z "$c" || "$keep" == *" $c "* ]] && continue
+    if docker stop "$c" >/dev/null 2>&1; then
+      RESTORE_STOPPED+=("$c")
+      echo "  停止: $c"
+    else
+      err "$c を止められませんでした"
+      return 1
+    fi
+  done < <(app_running_containers "$app")
+}
+
+wait_containers_healthy() {
+  local deadline=$(( SECONDS + RESTORE_HEALTH_TIMEOUT )) c st
+  local -a pending
+  while :; do
+    pending=()
+    for c in "$@"; do
+      st=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$c" 2>/dev/null | tr -d '\r')
+      case "$st" in
+        healthy|running) ;;
+        *) pending+=("$c(${st:-不明})") ;;
+      esac
+    done
+    [[ ${#pending[@]} -eq 0 ]] && return 0
+    if (( SECONDS >= deadline )); then
+      err "${RESTORE_HEALTH_TIMEOUT}秒待っても healthy になりません: ${pending[*]}"
+      return 1
+    fi
+    sleep 3
+  done
+}
+
+# 止めたコンテナを起動して healthy まで待つ
+start_restore_stopped() {
+  [[ ${#RESTORE_STOPPED[@]} -gt 0 ]] || return 0
+  local c rc=0
+  local -a started=("${RESTORE_STOPPED[@]}")
+  RESTORE_STOPPED=()
+  for c in "${started[@]}"; do
+    if docker start "$c" >/dev/null 2>&1; then
+      echo "  起動: $c"
+    else
+      err "$c を起動できませんでした"
+      rc=1
+    fi
+  done
+  [[ $rc -eq 0 ]] || return 1
+  echo "  healthy になるのを待っています（最大 ${RESTORE_HEALTH_TIMEOUT} 秒）..."
+  wait_containers_healthy "${started[@]}" || return 1
+  ok "起動しました: ${started[*]}"
+}
+
+# SQLite のボリュームを、バックアップの中身で丸ごと置き換える。
+# コンテナは呼び出し側（stop_app_containers）で止めてある。
+restore_sqlite_target() {
+  local label="$1" archive="$2" vol="$3"
+  local archive_dir_win
+  archive_dir_win="$(to_win_path "$(dirname "$archive")")"
+  docker volume inspect "$vol" >/dev/null 2>&1 || docker volume create "$vol" >/dev/null 2>&1
+  if MSYS_NO_PATHCONV=1 docker run --rm -v "$vol:/data" -v "$archive_dir_win:/backup:ro" alpine:3.22 \
+    sh -c "rm -rf -- /data/* /data/.[!.]* /data/..?* && tar xzf /backup/$(basename "$archive") -C /data" >/dev/null 2>&1; then
+    ok "$label: $(basename "$archive")"
+    (( restore_ok++ )) || true
+  else
+    err "$label: ボリュームへ戻せませんでした"
+    (( restore_fail++ )) || true
+  fi
+}
+
+# .env をどう扱うか: none（バックアップに無い）/ restore（今は無い）/ same（同じ）/
+# overwrite（違う・--with-env あり）/ keep（違う・今のものを残す）
+env_restore_action() {
+  local src="$1" dest="$2" with_env="$3"
+  if [[ ! -f "$src" ]]; then echo none
+  elif [[ ! -f "$dest" ]]; then echo restore
+  elif cmp -s "$src" "$dest"; then echo same
+  elif [[ "$with_env" -eq 1 ]]; then echo overwrite
+  else echo keep
+  fi
+}
+
+env_action_text() {
+  case "$1" in
+    none)      echo "バックアップに無し" ;;
+    restore)   echo "今は無いので戻す" ;;
+    same)      echo "今のものと同じ（何もしない）" ;;
+    overwrite) echo "今のものと違う → バックアップで上書き（--with-env）" ;;
+    keep)      echo "今のものと違う → 今のものを残す（上書きは --with-env）" ;;
+  esac
+}
+
+restore_settings_target() {
+  local label="$1" src="$2" dest="$3" with_env="$4" app="$5" action
+  action=$(env_restore_action "$src" "$dest" "$with_env")
+  case "$action" in
+    restore|overwrite)
+      if cp "$src" "$dest"; then
+        ok "$label: $(env_action_text "$action")"
+        (( restore_ok++ )) || true
+        if [[ "$action" == "overwrite" ]]; then
+          warn "  .env を戻しても DB のパスワードは変わりません。繋がらなくなったら .env を pre-restore の版へ戻してください"
+          echo "  compose へ反映: ./manage.sh apply $app"
+        fi
+      else
+        err "$label: 書き込めませんでした"
+        (( restore_fail++ )) || true
+      fi
+      ;;
+    keep)
+      warn "$label: $(env_action_text "$action")"
+      (( restore_skip++ )) || true
+      ;;
+    *)
+      echo "  $label: $(env_action_text "$action")"
+      ;;
+  esac
+}
+
+# ファイル数（.gitkeep は数えない）
+_count_files() {
+  if [[ -d "$1" ]]; then
+    find "$1" -type f ! -name '.gitkeep' 2>/dev/null | wc -l | tr -d ' '
+  else
+    echo 0
+  fi
+}
+
+# 戻す前の一覧。何も変えない。そのアプリが戻せない状態（DB が止まっている等）なら 1。
+restore_preview_app() {
+  local app="$1" dir="$2" with_env="$3" t blocked=0 found=0
+  echo "■ $app"
+  for t in "${PG_TARGETS[@]}"; do
+    local label container pg_user db_name volume dump_file t_app
+    IFS=: read -r label container pg_user db_name volume dump_file t_app <<< "$t"
+    [[ "$t_app" == "$app" ]] || continue
+    found=1
+    if [[ -f "$dir/$dump_file.sql" ]]; then
+      local current="（DB が止まっています）"
+      if is_container_running "$container"; then
+        current=$(pg_live_table_counts "$container" "$pg_user" "$db_name" | counts_summary) || current="（数えられません）"
+      else
+        blocked=1
+      fi
+      echo "  PostgreSQL $db_name"
+      echo "    バックアップ: $(pg_dump_table_counts "$dir/$dump_file.sql" | counts_summary)"
+      echo "    現在:         $current"
+      if ! is_container_running "$container"; then
+        err "  $container が止まっています。先に: ./manage.sh start $app"
+      fi
+    elif [[ -f "$dir/$dump_file-volume.tar.gz" ]]; then
+      echo "  PostgreSQL $db_name: ボリュームの丸ごとの写し（件数は数えられません。DB も止めて戻します）"
+    else
+      echo "  PostgreSQL $db_name: バックアップに無し"
+    fi
+  done
+  for t in "${SQLITE_TARGETS[@]}"; do
+    local label container db_path vol fname t_app
+    IFS=: read -r label container db_path vol fname t_app <<< "$t"
+    [[ "$t_app" == "$app" ]] || continue
+    found=1
+    local archive="$dir/$fname.tar.gz" db_file
+    db_file="$(basename "$db_path")"
+    if [[ ! -f "$archive" ]]; then
+      echo "  SQLite $db_file: バックアップに無し"
+      continue
+    fi
+    echo "  SQLite $db_file"
+    if ! is_container_running "$container"; then
+      echo "    （$container が止まっているので件数は数えられません。ボリュームは戻せます）"
+      continue
+    fi
+    local probe_out="" rc=0 b_tables b_rows c_tables c_rows
+    probe_out=$(sqlite_probe_archive "$container" "$archive" "$db_file" "$fname") || rc=$?
+    if [[ $rc -eq 0 ]]; then
+      read -r b_tables b_rows <<< "$probe_out"
+      RESTORE_SQLITE_EXPECT[$fname]="$b_tables $b_rows"
+      echo "    バックアップ: $b_tables テーブル / $b_rows 行（integrity ok）"
+    else
+      err "    バックアップの $db_file を検証できません（rc=$rc）"
+      blocked=1
+    fi
+    if probe_out=$(sqlite_probe "$container" "$db_path"); then
+      read -r c_tables c_rows <<< "$probe_out"
+      echo "    現在:         $c_tables テーブル / $c_rows 行"
+    else
+      echo "    現在:         （数えられません）"
+    fi
+  done
+  for t in "${BIND_TARGETS[@]}"; do
+    local label src_path dname
+    IFS=: read -r label src_path dname <<< "$t"
+    [[ "$(_app_of_path "$src_path")" == "$app" ]] || continue
+    found=1
+    if [[ -d "$dir/$dname" ]]; then
+      echo "  $label: バックアップ $(_count_files "$dir/$dname") 件 / 現在 $(_count_files "$PROJECT_ROOT/$src_path") 件（上書きで足す。今あるだけのファイルは消さない）"
+    else
+      echo "  $label: バックアップに無し"
+    fi
+  done
+  for t in "${SETTINGS_TARGETS[@]}"; do
+    local label src_path fname
+    IFS=: read -r label src_path fname <<< "$t"
+    [[ "$(_app_of_path "$src_path")" == "$app" ]] || continue
+    found=1
+    echo "  .env: $(env_action_text "$(env_restore_action "$dir/$fname" "$PROJECT_ROOT/$src_path" "$with_env")")"
+  done
+  [[ $found -eq 1 ]] || echo "  （バックアップ対象がありません）"
+  echo ""
+  [[ $blocked -eq 0 ]]
+}
+
+# 1アプリを戻す。戻り値 0 = 全部成功
+restore_one_app() {
+  local app="$1" dir="$2" with_env="$3" t
   restore_ok=0
   restore_fail=0
   restore_skip=0
-  local step=0 total=$(( ${#PG_TARGETS[@]} + 1 + ${#BIND_TARGETS[@]} + ${#SETTINGS_TARGETS[@]} ))
+  backup_dir="$dir"
+  print_banner "リストア: $app"
 
-  for target in "${PG_TARGETS[@]}"; do
-    (( step++ )) || true
-    IFS=: read -r label container pg_user db_name volume dump_file restart_hint <<< "$target"
-    restore_postgres "[$step/$total] $label ..." "$container" "$pg_user" "$db_name" "$volume" "$dump_file" "$restart_hint"
+  # .sql から戻す PostgreSQL は動かしたまま（psql で流し込む）。それ以外は止める
+  local -a keep=()
+  for t in "${PG_TARGETS[@]}"; do
+    local container dump_file t_app
+    IFS=: read -r _ container _ _ _ dump_file t_app <<< "$t"
+    [[ "$t_app" == "$app" && -f "$dir/$dump_file.sql" ]] && keep+=("$container")
   done
-
-  (( step++ )) || true
-  local -a sqlite_restore_pairs=()
-  for target in "${SQLITE_TARGETS[@]}"; do
-    local _label _container _db_path vol fname
-    IFS=: read -r _label _container _db_path vol fname <<< "$target"
-    sqlite_restore_pairs+=("$fname.tar.gz:$vol:$_container")
-  done
-  restore_sqlite_volumes "[$step/$total]" "${sqlite_restore_pairs[@]}"
-
-  for target in "${BIND_TARGETS[@]}"; do
-    (( step++ )) || true
-    IFS=: read -r label src_path backup_dirname <<< "$target"
-    restore_bind_data "[$step/$total]" "$label" "$backup_dir/$backup_dirname" "$PROJECT_ROOT/$src_path"
-  done
-
-  for target in "${SETTINGS_TARGETS[@]}"; do
-    (( step++ )) || true
-    IFS=: read -r label src_path backup_filename <<< "$target"
-    restore_settings_file "[$step/$total]" "$label" "$backup_dir/$backup_filename" "$PROJECT_ROOT/$src_path"
-  done
-
-  print_summary_banner "Restore Complete" "$restore_fail"
-  echo "  Source: $backup_dir/"
-  echo "  OK: $restore_ok  Skipped: $restore_skip  Failed: $restore_fail"
-  echo ""
-  if [[ $restore_ok -gt 0 ]]; then
-    echo "  [NOTE] Restart apps to apply restored data:"
-    echo "    ./manage.sh restart inheritance-case-management"
-    echo "    ./manage.sh restart bank-analyzer"
-    echo "    ./manage.sh restart private-banking"
-    echo ""
+  local had_running
+  had_running=$(app_running_containers "$app" | wc -l | tr -d ' ')
+  if ! stop_app_containers "$app" "${keep[@]}"; then
+    start_restore_stopped || true
+    return 1
   fi
+
+  for t in "${PG_TARGETS[@]}"; do
+    local label container pg_user db_name volume dump_file t_app
+    IFS=: read -r label container pg_user db_name volume dump_file t_app <<< "$t"
+    [[ "$t_app" == "$app" ]] || continue
+    restore_postgres "$label" "$container" "$pg_user" "$db_name" "$volume" "$dump_file" "$t_app"
+  done
+  for t in "${SQLITE_TARGETS[@]}"; do
+    local label container db_path vol fname t_app
+    IFS=: read -r label container db_path vol fname t_app <<< "$t"
+    [[ "$t_app" == "$app" && -f "$dir/$fname.tar.gz" ]] || continue
+    restore_sqlite_target "$label" "$dir/$fname.tar.gz" "$vol"
+  done
+  for t in "${BIND_TARGETS[@]}"; do
+    local label src_path dname
+    IFS=: read -r label src_path dname <<< "$t"
+    [[ "$(_app_of_path "$src_path")" == "$app" ]] || continue
+    restore_bind_data "" "$label" "$dir/$dname" "$PROJECT_ROOT/$src_path"
+  done
+  for t in "${SETTINGS_TARGETS[@]}"; do
+    local label src_path fname
+    IFS=: read -r label src_path fname <<< "$t"
+    [[ "$(_app_of_path "$src_path")" == "$app" ]] || continue
+    restore_settings_target "$label" "$dir/$fname" "$PROJECT_ROOT/$src_path" "$with_env" "$app"
+  done
+
+  echo ""
+  if [[ "$had_running" -eq 0 ]]; then
+    warn "$app は止まっていたので起動しません。起動: ./manage.sh start $app"
+  elif ! start_restore_stopped; then
+    (( restore_fail++ )) || true
+    echo "  ログ: ./manage.sh logs $app"
+  fi
+
+  # SQLite は起動したアプリのコンテナを借りて数える（better-sqlite3 がそこにしか無い）
+  for t in "${SQLITE_TARGETS[@]}"; do
+    local label container db_path vol fname t_app
+    IFS=: read -r label container db_path vol fname t_app <<< "$t"
+    [[ "$t_app" == "$app" && -n "${RESTORE_SQLITE_EXPECT[$fname]:-}" ]] || continue
+    is_container_running "$container" || continue
+    local now now_t now_r
+    if ! now=$(sqlite_probe "$container" "$db_path"); then
+      err "$label: 戻した DB を検証できません"
+      (( restore_fail++ )) || true
+    elif [[ "$now" != "${RESTORE_SQLITE_EXPECT[$fname]}" ]]; then
+      err "$label: 件数がバックアップと一致しません（バックアップ ${RESTORE_SQLITE_EXPECT[$fname]} / 復元後 $now ※テーブル数 行数）"
+      (( restore_fail++ )) || true
+    else
+      read -r now_t now_r <<< "$now"
+      ok "$label: 件数一致 ${now_t} テーブル / ${now_r} 行"
+    fi
+  done
+
+  echo ""
+  echo "  OK: $restore_ok  Skipped: $restore_skip  Failed: $restore_fail"
+  [[ $restore_fail -eq 0 ]]
+}
+
+# バックアップの指定を解決して RESOLVED_BACKUP に入れる。
+#   空      → 端末なら一覧から選ぶ／無人なら最新（pre-restore を除く）
+#   日付    → その日のいちばん新しいもの
+#   完全名  → そのもの（pre-restore_* も可）
+# 戻り値 2 = 端末でやめた
+resolve_restore_backup() {
+  local sel="$1" interactive="$2"
+  RESOLVED_BACKUP=""
+  local -a backups=()
+  local d
+  while IFS= read -r d; do
+    d="$(basename "$d")"
+    backups+=("${d%.tar.gz.enc}")
+  done < <(find "$BACKUP_BASE" -mindepth 1 -maxdepth 1 \
+    \( -type d \( -name '????-??-??_??????' -o -name 'pre-restore_????-??-??_??????' \) \
+    -o -type f \( -name '????-??-??_??????.tar.gz.enc' -o -name 'pre-restore_????-??-??_??????.tar.gz.enc' \) \) \
+    -print 2>/dev/null | sort -r)
+
+  if [[ ${#backups[@]} -eq 0 ]]; then
+    err "バックアップがありません。先に: ./manage.sh backup"
+    return 1
+  fi
+
+  _backup_path_of() {
+    if [[ -f "$BACKUP_BASE/$1.tar.gz.enc" ]]; then
+      printf '%s\n' "$BACKUP_BASE/$1.tar.gz.enc"
+    else
+      printf '%s\n' "$BACKUP_BASE/$1"
+    fi
+  }
+
+  if [[ -n "$sel" ]]; then
+    sel="${sel%.tar.gz.enc}"
+    if [[ "$sel" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+      for d in "${backups[@]}"; do
+        if [[ "$d" == "$sel"_* ]]; then
+          RESOLVED_BACKUP="$(_backup_path_of "$d")"
+          return 0
+        fi
+      done
+      err "$sel のバックアップがありません"
+      return 1
+    fi
+    for d in "${backups[@]}"; do
+      if [[ "$d" == "$sel" ]]; then
+        RESOLVED_BACKUP="$(_backup_path_of "$d")"
+        return 0
+      fi
+    done
+    err "$sel が見つかりません（$(to_win_path "$BACKUP_BASE")）"
+    return 1
+  fi
+
+  if [[ "$interactive" -ne 1 ]]; then
+    for d in "${backups[@]}"; do
+      if [[ "$d" != pre-restore_* ]]; then
+        RESOLVED_BACKUP="$(_backup_path_of "$d")"
+        echo "バックアップの指定が無いので最新を使います: $d"
+        return 0
+      fi
+    done
+    err "pre-restore 以外のバックアップがありません。名前で指定してください"
+    return 1
+  fi
+
+  echo "どのバックアップから戻しますか（新しい順）:"
+  echo ""
+  local i
+  for i in "${!backups[@]}"; do
+    echo "  [$((i+1))] ${backups[$i]}"
+  done
+  echo ""
+  echo "  [0] やめる"
+  echo ""
+  local choice
+  read -rp "番号: " choice
+  choice=$(strip_cr "$choice")
+  if [[ -z "$choice" || "$choice" == "0" ]]; then
+    return 2
+  fi
+  if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#backups[@]} )); then
+    err "番号が正しくありません"
+    return 1
+  fi
+  RESOLVED_BACKUP="$(_backup_path_of "${backups[$((choice-1))]}")"
+}
+
+restore_usage() {
+  cat <<'USAGE'
+使い方:
+  ./manage.sh restore                         端末で、アプリとバックアップを選ぶ
+  ./manage.sh restore <app> [バックアップ]    1アプリだけ戻す
+  ./manage.sh restore --all [バックアップ]    バックアップ対象を全部戻す
+  ./manage.sh restore --env-only [app]        無い .env だけ置く（新しい PC の最初の一手）
+
+  バックアップ: 2026-10-14_212138 / 2026-10-14（その日の最新）/ pre-restore_...
+                省略すると端末では一覧から選び、無人では最新を使う
+  --yes         確認を飛ばす（AI や手順書から叩くとき。端末が無いときは必須）
+  --with-env    今ある .env もバックアップの版で上書きする（既定は無いときだけ戻す）
+  アプリ名は itcm / svf の略称と、一意に決まる部分一致も通る
+  手順書: docker/RESTORE.md
+USAGE
+}
+
+cmd_restore() {
+  local all=0 yes=0 with_env=0 env_only=0 app_arg="" sel="" a
+  for a in "$@"; do
+    [[ -z "$a" ]] && continue
+    case "$a" in
+      --all) all=1 ;;
+      --yes|-y) yes=1 ;;
+      --with-env) with_env=1 ;;
+      --env-only) env_only=1 ;;
+      -h|--help) restore_usage; return 0 ;;
+      -*) err "知らないオプションです: $a"; restore_usage; return 1 ;;
+      *)
+        if [[ "$a" =~ ^(pre-restore_)?[0-9]{4}-[0-9]{2}-[0-9]{2}(_[0-9]{6})?(\.tar\.gz\.enc)?$ ]]; then
+          if [[ -n "$sel" ]]; then err "バックアップの指定が2つあります: $sel / $a"; return 1; fi
+          sel="$a"
+        else
+          if [[ -n "$app_arg" ]]; then err "アプリは1つだけ指定できます（全部なら --all）: $app_arg / $a"; return 1; fi
+          app_arg="$a"
+        fi
+        ;;
+    esac
+  done
+  if [[ $all -eq 1 && -n "$app_arg" ]]; then
+    err "--all とアプリ名は同時に指定できません"
+    return 1
+  fi
+
+  local interactive=0
+  [[ -t 0 && -t 1 ]] && interactive=1
+
+  print_banner "Tax Apps - Restore"
+
+  if [[ ! -d "$BACKUP_BASE" ]]; then
+    err "$(to_win_path "$BACKUP_BASE") がありません。先に: ./manage.sh backup"
+    return 1
+  fi
+
+  # --- 対象のアプリ ---
+  local -a apps=()
+  local -a known=()
+  mapfile -t known < <(restore_known_apps)
+  if [[ -n "$app_arg" ]]; then
+    local resolved
+    resolved=$(resolve_restore_app "$app_arg") || return 1
+    apps=("$resolved")
+  elif [[ $all -eq 1 || $env_only -eq 1 ]]; then
+    apps=("${known[@]}")
+  elif [[ $interactive -eq 1 ]]; then
+    echo "どのアプリを戻しますか:"
+    echo ""
+    local i
+    for i in "${!known[@]}"; do
+      echo "  [$((i+1))] ${known[$i]}"
+    done
+    echo "  [a] 全部"
+    echo "  [0] やめる"
+    echo ""
+    local choice
+    read -rp "番号: " choice
+    choice=$(strip_cr "$choice")
+    if [[ -z "$choice" || "$choice" == "0" ]]; then
+      echo "やめました。"
+      return 0
+    elif [[ "${choice,,}" == "a" ]]; then
+      apps=("${known[@]}")
+    elif [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#known[@]} )); then
+      apps=("${known[$((choice-1))]}")
+    else
+      err "番号が正しくありません"
+      return 1
+    fi
+    echo ""
+  else
+    err "戻すアプリを指定してください（全部なら --all）"
+    restore_usage
+    return 1
+  fi
+
+  # --- バックアップ ---
+  local rc=0
+  resolve_restore_backup "$sel" "$interactive" || rc=$?
+  if [[ $rc -eq 2 ]]; then
+    echo "やめました。"
+    return 0
+  fi
+  [[ $rc -eq 0 ]] || return 1
+  local source_name
+  source_name="$(basename "$RESOLVED_BACKUP" .tar.gz.enc)"
+  echo "バックアップ: $source_name"
+  echo "アプリ:       ${apps[*]}"
+  echo ""
+
+  backup_dir="$RESOLVED_BACKUP"
+  if [[ -f "$backup_dir" && "$backup_dir" == *.tar.gz.enc ]]; then
+    extract_encrypted_backup "$backup_dir" || return 1
+    backup_dir="$EXTRACTED_BACKUP_PATH"
+  fi
+  verify_backup_manifest "$backup_dir" || return 1
+  local restore_source="$backup_dir"
+  echo ""
+
+  # --- .env だけ（新しい PC の最初の一手）---
+  # 無いものを置くだけなので確認も pre-restore も取らない。今あるものには触らない。
+  if [[ $env_only -eq 1 ]]; then
+    local t placed=0 app_of
+    for t in "${SETTINGS_TARGETS[@]}"; do
+      local label src_path fname
+      IFS=: read -r label src_path fname <<< "$t"
+      app_of="$(_app_of_path "$src_path")"
+      [[ " ${apps[*]} " == *" $app_of "* ]] || continue
+      case "$(env_restore_action "$restore_source/$fname" "$PROJECT_ROOT/$src_path" 0)" in
+        restore)
+          if cp "$restore_source/$fname" "$PROJECT_ROOT/$src_path"; then
+            ok "$label: 置きました"
+            (( placed++ )) || true
+          else
+            err "$label: 書き込めませんでした"
+            return 1
+          fi
+          ;;
+        none) warn "$label: バックアップに無し" ;;
+        same) echo "  $label: 今のものと同じ" ;;
+        *)    echo "  $label: 既にあるので触りません" ;;
+      esac
+    done
+    echo ""
+    ok ".env を ${placed} 件置きました"
+    echo "  次: ./manage.sh start → ./manage.sh restore --all $source_name --yes"
+    ops_write_last_result "restore" "ok" "env-only from=$source_name placed=$placed"
+    return 0
+  fi
+
+  # --- 戻す前の一覧 ---
+  echo "戻す内容（バックアップ / 現在）:"
+  echo ""
+  local blocked=0 app
+  for app in "${apps[@]}"; do
+    restore_preview_app "$app" "$restore_source" "$with_env" || blocked=1
+  done
+  if [[ $blocked -eq 1 ]]; then
+    err "戻せない項目があります。上の [ERROR] を直してからやり直してください（何も変えていません）"
+    return 1
+  fi
+
+  warn "上のアプリの現在のデータを、このバックアップの内容で置き換えます。"
+  echo "  戻す前に、現在の全データを pre-restore_* として暗号化バックアップします。"
+  echo ""
+  if [[ $yes -ne 1 ]]; then
+    if [[ $interactive -ne 1 ]]; then
+      err "確認なしでは実行しません。内容を確かめてから --yes を付けてください（何も変えていません）"
+      return 1
+    fi
+    local confirm
+    read -rp "戻しますか？ [y/N]: " confirm
+    confirm=$(strip_cr "$confirm")
+    if [[ "${confirm,,}" != "y" ]]; then
+      echo "やめました（何も変えていません）。"
+      return 0
+    fi
+  fi
+  echo ""
+
+  # --- 戻す前の保険 ---
+  local pre_restore_name=""
+  echo "[保険] 現在のデータを pre-restore としてバックアップします..."
+  if cmd_backup "pre-restore"; then
+    pre_restore_name="$(basename "$backup_dir" .tar.gz.enc)"
+    ok "保険のバックアップ: $pre_restore_name"
+  elif [[ ${backup_fail:-0} -eq 0 && ${backup_ok:-0} -eq 0 ]]; then
+    warn "保険に取る現在のデータがありませんでした。続けます"
+  else
+    err "保険のバックアップに失敗しました。中断します（現在のデータは変えていません）"
+    ops_write_last_result "restore" "failed" "apps=$(IFS=,; echo "${apps[*]}") from=$source_name pre-restore-failed"
+    return 1
+  fi
+  backup_dir="$restore_source"
+  echo ""
+
+  # --- アプリごとに戻す ---
+  local -a done_ok=() done_fail=()
+  for app in "${apps[@]}"; do
+    if restore_one_app "$app" "$restore_source" "$with_env"; then
+      done_ok+=("$app")
+    else
+      done_fail+=("$app")
+    fi
+  done
+
+  print_summary_banner "Restore Complete" "${#done_fail[@]}"
+  echo "  バックアップ: $source_name"
+  [[ ${#done_ok[@]} -gt 0 ]] && echo "  成功: ${done_ok[*]}"
+  [[ ${#done_fail[@]} -gt 0 ]] && echo "  失敗: ${done_fail[*]}"
+  if [[ -n "$pre_restore_name" ]]; then
+    echo "  戻す前のデータ: $pre_restore_name"
+    echo "    元へ戻すなら: ./manage.sh restore <app> $pre_restore_name"
+  fi
+  echo ""
+  local detail
+  detail="apps=$(IFS=,; echo "${apps[*]}") from=$source_name ok=${#done_ok[@]} failed=${#done_fail[@]}"
+  [[ -n "$pre_restore_name" ]] && detail+=" pre=$pre_restore_name"
+  if [[ ${#done_fail[@]} -gt 0 ]]; then
+    ops_write_last_result "restore" "failed" "$detail"
+    return 1
+  fi
+  ops_write_last_result "restore" "ok" "$detail"
 }
 
 cmd_verify() {
@@ -1245,8 +1847,8 @@ drill_postgres() {
   local -a entries=()
   local target
   for target in "${PG_TARGETS[@]}"; do
-    local label pg_user db_name dump_file _container _volume _hint
-    IFS=: read -r label _container pg_user db_name _volume dump_file _hint <<< "$target"
+    local label pg_user db_name dump_file _container _volume _app
+    IFS=: read -r label _container pg_user db_name _volume dump_file _app <<< "$target"
     if [[ -f "$dir/$dump_file.sql" ]]; then
       entries+=("$label:$pg_user:$db_name:$dump_file")
     else
@@ -1306,11 +1908,13 @@ drill_postgres() {
     fi
 
     if [[ "${table_count:-0}" -gt 0 ]]; then
-      local row_total
-      row_total=$(docker exec "$DRILL_PG_CONTAINER" psql -U postgres -d "$db_name" -tAc \
-        "SELECT coalesce(sum(n_live_tup), 0) FROM pg_stat_user_tables;" 2>/dev/null | tr -d '\r\n ')
-      ok "$label restored ($table_count tables, ${row_total:-?} rows)"
-      (( drill_ok++ )) || true
+      # 本番のリストアと同じ照合（ダンプの COPY の行数 = 復元後の実件数）
+      if verify_pg_counts_against_dump "$label" "$dir/$dump_file.sql" "$DRILL_PG_CONTAINER" postgres "$db_name"; then
+        ok "$label restored (件数一致: $VERIFIED_COUNTS_SUMMARY)"
+        (( drill_ok++ )) || true
+      else
+        (( drill_fail++ )) || true
+      fi
     else
       err "$label: restore reported success but no tables exist."
       (( drill_fail++ )) || true
@@ -1326,8 +1930,8 @@ drill_sqlite() {
 
   local target
   for target in "${SQLITE_TARGETS[@]}"; do
-    local label container db_path fname _volume
-    IFS=: read -r label container db_path _volume fname <<< "$target"
+    local label container db_path fname _volume _app
+    IFS=: read -r label container db_path _volume fname _app <<< "$target"
     local archive="$dir/$fname.tar.gz"
 
     if [[ ! -f "$archive" ]]; then
@@ -1336,69 +1940,30 @@ drill_sqlite() {
       continue
     fi
     # better-sqlite3 はアプリイメージにしか無いので、稼働中のコンテナを借りる。
+    # 本番データには触れない（/tmp へ写したものを readonly で開くだけ）。
     if ! is_container_running "$container"; then
       warn "$label: skipped ($container is not running)"
       (( drill_skip++ )) || true
       continue
     fi
 
-    local stage="$RESTORE_WORK_DIR/drill-$fname"
-    rm -rf "$stage"
-    mkdir -p "$stage"
-    if ! tar xzf "$archive" -C "$stage" 2>/dev/null; then
-      err "$label: could not extract $fname.tar.gz"
-      (( drill_fail++ )) || true
-      continue
-    fi
-
-    local db_name
-    db_name="$(basename "$db_path")"
-    if [[ ! -f "$stage/$db_name" ]]; then
-      err "$label: $db_name is missing from the archive"
-      (( drill_fail++ )) || true
-      continue
-    fi
-
-    # 本番データには触れない。/tmp のコピーを readonly で開くだけ。
-    # コンテナ側のパスを MSYS に変換させないため MSYS_NO_PATHCONV=1 が要るが、
-    # そうするとホスト側の POSIX パスも素通しになるので docker.exe が読める形へ直す。
-    local probe="/tmp/tax-apps-drill-${fname}-$$.sqlite"
-    local stage_db_win
-    stage_db_win="$(to_win_path "$stage/$db_name")"
-    if ! MSYS_NO_PATHCONV=1 docker cp "$stage_db_win" "$container:$probe" >/dev/null 2>&1; then
-      err "$label: could not copy the restored database into $container"
-      (( drill_fail++ )) || true
-      continue
-    fi
-
-    local probe_out=""
-    if probe_out=$(MSYS_NO_PATHCONV=1 docker exec "$container" node -e '
-      const Database = require("better-sqlite3");
-      const db = new Database(process.argv[1], { readonly: true, fileMustExist: true });
-      const integrity = db.pragma("integrity_check", { simple: true });
-      const tables = db.prepare(
-        "SELECT count(*) AS n FROM sqlite_master WHERE type = \x27table\x27 AND name NOT LIKE \x27sqlite_%\x27"
-      ).get().n;
-      db.close();
-      if (integrity !== "ok") throw new Error(`integrity_check: ${integrity}`);
-      if (tables === 0) throw new Error("restored database has no tables");
-      process.stdout.write(String(tables));
-    ' "$probe" 2>/dev/null); then
-      ok "$label restored ($(echo "$probe_out" | tr -d '\r\n ') tables, integrity ok)"
-      (( drill_ok++ )) || true
-    else
-      err "$label: restored database failed verification"
-      (( drill_fail++ )) || true
-    fi
-    # docker cp で入れたファイルは root 所有になる。非rootで動くコンテナ
-    # (medical-stock-valuation 等) では -u root が無いと消せず、毎回の訓練で
-    # DBのフルコピーが /tmp に溜まっていく。readonly で開いても WAL/SHM は
-    # 作られるので一緒に消す。
-    if ! MSYS_NO_PATHCONV=1 docker exec -u root "$container" \
-      rm -f "$probe" "$probe-wal" "$probe-shm" >/dev/null 2>&1; then
-      warn "$label: could not remove the drill copy from $container:$probe"
-    fi
-    rm -rf "$stage"
+    local probe_out="" rc=0 tables rows
+    probe_out=$(sqlite_probe_archive "$container" "$archive" "$(basename "$db_path")" "$fname") || rc=$?
+    case $rc in
+      0)
+        read -r tables rows <<< "$probe_out"
+        if [[ "${tables:-0}" -gt 0 ]]; then
+          ok "$label restored ($tables tables / $rows rows, integrity ok)"
+          (( drill_ok++ )) || true
+        else
+          err "$label: restored database has no tables"
+          (( drill_fail++ )) || true
+        fi
+        ;;
+      2) err "$label: $(basename "$db_path") is missing from $fname.tar.gz"; (( drill_fail++ )) || true ;;
+      3) err "$label: could not copy the restored database into $container"; (( drill_fail++ )) || true ;;
+      *) err "$label: restored database failed verification"; (( drill_fail++ )) || true ;;
+    esac
   done
 }
 
@@ -1885,7 +2450,7 @@ esac
 
 case "$COMMAND" in
   backup)  cmd_backup ;;
-  restore) cmd_restore "${2:-}" ;;
+  restore) cmd_restore "${@:2}" ;;
   verify)  cmd_verify "${2:-}" ;;
   drill)   cmd_drill "${2:-}" ;;
   # Keep the historical command name used by backup-db.bat, but create the
@@ -1894,7 +2459,7 @@ case "$COMMAND" in
   # 期限切れのものだけを実行する。ウォッチドッグからの入口。
   due)     cmd_due ;;
   *)
-    echo "Usage: $0 {backup|restore [backup]|verify <backup>|drill [backup]|due|itcm}"
+    echo "Usage: $0 {backup|restore [app|--all] [backup] [--yes]|verify <backup>|drill [backup]|due|itcm}"
     exit 1
     ;;
 esac

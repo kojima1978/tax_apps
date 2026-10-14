@@ -87,7 +87,7 @@
   バックアップ・リストア・ITCM 定期バックアップを統合した Bash 本体。**ホスト側で実行**（Git Bash または Linux）。
   - `backup.sh backup`: 全データの暗号化完全バックアップ
   - `backup.sh itcm`: Windowsタスク用の互換名（暗号化済み全体バックアップ）
-  - `backup.sh restore [dir]`: バックアップからのリストア
+  - `backup.sh restore [app|--all] [backup] [--yes]`: アプリ単位のリストア（そのアプリだけ止める・件数照合・healthy 待ち。`--env-only` / `--with-env`。手順は `docker/RESTORE.md`）
   - `backup.sh verify <file>`: データを上書きせず復号とSHA-256検証
   - `backup.sh drill [file]`: リストア訓練。引数省略で最新のバックアップが対象
   - `backup.sh due`: 期限切れのものだけ実行（バックアップ20時間・訓練168時間・掃除144時間・ループ検知3時間）。ウォッチドッグ用
@@ -156,6 +156,10 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
 
 - **`restore-drill.bat`**
   `backup.sh drill` を Git Bash 経由で呼ぶ ASCII ラッパー。同じく手動の入口。
+
+- **`restore.bat`**
+  `backup.sh restore` を Git Bash 経由で呼ぶ ASCII ラッパー。引数なしでダブルクリックすると
+  アプリとバックアップを一覧から選ぶ。手順は `docker/RESTORE.md`。
 
 ### 廃止したタスク登録（バックアップ・リストア訓練）
 
@@ -326,6 +330,7 @@ detail=daily ok=7 skipped=0
 | `backup.sh` | 本体 (Bash) | バックアップ/リストア本体 |
 | `backup-db.bat` | 補助 (CMD) | backup.sh itcm の Git Bash ラッパー（手動の入口） |
 | `restore-drill.bat` | 補助 (CMD) | backup.sh drill の Git Bash ラッパー（手動の入口） |
+| `restore.bat` | 補助 (CMD) | backup.sh restore の Git Bash ラッパー（アプリ単位のリストア） |
 | `register-backup-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
 | `unregister-backup-task.bat` | 補助 (CMD) | 廃止したタスクを既存 PC から削除 |
 | `register-restore-drill-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
@@ -355,6 +360,7 @@ detail=daily ok=7 skipped=0
 | 廃止した日次バックアップタスクを外す | `unregister-backup-task.bat` をダブルクリック |
 | 廃止した週次リストア訓練タスクを外す | `unregister-restore-drill-task.bat` をダブルクリック |
 | バックアップが復元できるか今すぐ試す | `restore-drill.bat` をダブルクリック |
+| 1アプリだけバックアップから戻す | `restore.bat` をダブルクリック（手順は `docker/RESTORE.md`） |
 | 4時間毎の Docker 監視＋無人処理を設定 | `register-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | 監視タスクを削除 | `unregister-docker-watchdog-task.bat` をダブルクリック（昇格不要） |
 | テストを走らせる | `manage.bat test`（稼働中のコンテナの中で実行） |

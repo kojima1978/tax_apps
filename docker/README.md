@@ -150,6 +150,7 @@ rd /s /q tax_apps
 | `backup.sh` | Linux / Git Bash | 全体バックアップ/リストア/リストア訓練の本体 |
 | `backup-db.bat` | Windows (CMD) | `backup.sh itcm` を Git Bash 経由で呼び出す補助ラッパー（**手で叩くときの入口**。スケジュールタスクからは呼ばれない） |
 | `restore-drill.bat` | Windows (CMD) | `backup.sh drill` を Git Bash 経由で呼び出す補助ラッパー（同じく手動の入口） |
+| `restore.bat` | Windows (CMD) | `backup.sh restore` を Git Bash 経由で呼び出す補助ラッパー（アプリとバックアップを一覧から選ぶ） |
 | `unregister-backup-task.bat` / `unregister-restore-drill-task.bat` | Windows (CMD) | **廃止したタスクを既存 PC から外す**ためだけに残してあるラッパー（登録側は削除済み） |
 | `start-prod.bat` | Windows (CMD) | ワンクリックで本番モード起動 |
 | `stop.bat` | Windows (CMD) | ワンクリックで全アプリ停止 |
@@ -194,7 +195,7 @@ rd /s /q tax_apps
 | `./manage.sh test [app]` | **稼働中のコンテナの中で**テストを実行（省略時は対象すべて） |
 | `./manage.sh recover` | 落ちているアプリだけ起動し直す（**再ビルドしない・モードを踏襲・意図的な停止中は何もしない**。ウォッチドッグ用） |
 | `./manage.sh backup` | 全データベース・データをバックアップ |
-| `./manage.sh restore [dir]` | バックアップからリストア |
+| `./manage.sh restore [app\|--all] [backup] [--yes]` | アプリ単位でリストア（件数照合・healthy 待ちつき。手順は `docker/RESTORE.md`） |
 | `./manage.sh verify <backup>` | バックアップの復号とSHA-256照合（上書きなし） |
 | `./manage.sh drill [backup]` | リストア訓練。使い捨てDBへ実際に復元して検証（既定は最新） |
 | `./manage.sh collation [app] [--yes]` | PostgreSQL の照合順序を libc 非依存の `C` へ移す（引数なしは一覧、`--yes` なしは手順の表示だけ。**手でだけ叩く**。手順は `COLLATION-MIGRATION.md`） |
@@ -534,23 +535,26 @@ C:\Users\<user>\.tax-apps\backup-external-dest   ← 1行目にコピー先の�
 
 ### リストア
 
-```bash
-./manage.sh restore                       # 一覧から選択
-./manage.sh restore 2026-02-22_153000.tar.gz.enc # 直接指定
-./manage.sh verify 2026-02-22_153000.tar.gz.enc  # 上書きせず復号・整合性検証
-```
-
-PostgreSQL はコンテナ起動中に `psql` でリストア、SQLite はボリュームに `tar` で復元します。
-リストアを承認すると、上書き前に現在データの `pre-restore_YYYY-MM-DD_HHMMSS` バックアップを自動作成します。事前バックアップに失敗した場合、リストアは中止されます。
-リストア対象として選べるのは、全体バックアップ形式の `YYYY-MM-DD_HHMMSS` と `pre-restore_YYYY-MM-DD_HHMMSS` だけです。
-
-リストア後はアプリの再起動が必要です:
+**手順書は [`RESTORE.md`](RESTORE.md)**（新しい PC で全部戻す手順・巻き戻し・外付け USB の設定もここ）。
 
 ```bash
-./manage.sh restart inheritance-case-management
-./manage.sh restart bank-analyzer
-./manage.sh restart private-banking
+./manage.sh restore                              # 端末でアプリとバックアップを選ぶ
+./manage.sh restore bank-analyzer 2026-10-14     # 1アプリだけ（その日の最新）
+./manage.sh restore --all 2026-10-14_212138      # 全部（--yes が無ければ一覧だけ出して止まる）
+./manage.sh restore --env-only                   # 無い .env だけ置く（新しい PC の最初の一手）
+./manage.sh verify 2026-10-14_212138.tar.gz.enc  # 上書きせず復号・整合性検証
 ```
+
+- **そのアプリのコンテナだけを止めて**戻し、起動して healthy になるまで待つ（他のアプリは動き続ける）。
+  `.sql` から戻す PostgreSQL のコンテナだけは動かしたまま `psql` で流し込む
+- 戻した後に**件数をバックアップと照合**する（PostgreSQL はダンプの行数と全テーブルの実件数、
+  SQLite はテーブル数と行数）。リストア訓練も同じ照合を使う
+- 確認の画面には、バックアップの件数と今の件数が並んで出る
+- 上書き前に現在データの `pre-restore_YYYY-MM-DD_HHMMSS` を自動作成する（失敗したら中止）。
+  取り消すときはそれを指定して同じコマンドを叩く
+- **`.env` は無いときだけ戻す**。今あるものと違っても上書きしない（DB のパスワードは
+  `.env` を戻しても変わらないため）。上書きするなら `--with-env`
+- 戻す前から止まっていたアプリは起動しない
 
 ### リストア訓練（drill）
 
@@ -1065,6 +1069,7 @@ tax_apps/
 │   │   ├── status.bat          #   ワンクリック状態確認
 │   │   ├── backup-db.bat       #   backup.sh itcm を呼び出す Windows 補助ラッパー（手動の入口）
 │   │   ├── restore-drill.bat   #   backup.sh drill を呼び出す Windows 補助ラッパー（手動の入口）
+│   │   ├── restore.bat         #   backup.sh restore を呼び出す Windows 補助ラッパー
 │   │   ├── unregister-backup-task.bat      #  廃止したタスクの解除用
 │   │   ├── unregister-restore-drill-task.bat #  廃止したタスクの解除用
 │   │   ├── docker-watchdog.ps1 #   Docker Desktop 監視/復旧本体

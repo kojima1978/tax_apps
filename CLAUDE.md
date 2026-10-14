@@ -128,6 +128,19 @@ docker/scripts/manage.sh watch <app-name>
 - `restore-drill.bat`: Git Bash 経由で `backup.sh drill` を呼ぶ補助ラッパー
   - どちらも**スケジュールタスクからは呼ばれない**（2026-10-11 に固定時刻のタスクを廃止）。
     無人実行はウォッチドッグの `due` 経由で、この2つは手で叩くときの入口
+- `restore.bat`: Git Bash 経由で `backup.sh restore` を呼ぶ補助ラッパー（一覧から選ぶ）
+- **リストアはアプリ単位**（`manage.sh restore <app>|--all [backup] [--yes]`、手順書は
+  **`docker/RESTORE.md`**）。そのアプリのコンテナだけ止めて戻し、**件数をバックアップと照合**
+  （PG はダンプの COPY 行数と全テーブルの `count(*)`、SQLite はアプリのコンテナを借りて
+  テーブル数・行数）→ 起動して healthy まで待つ。drill も同じ照合関数を使う。
+  以前は全アプリを一括で上書きし、件数も見ず、再起動は「手でやって」の一言だった。
+  - **`.env` は無いときだけ戻す**（`--with-env` で上書き）。本番の DB パスワードは
+    `ALTER ROLE` で DB 側にあるので、`.env` だけ古い版へ戻すと繋がらなくなる。
+    新しい PC は `restore --env-only` → `start` → `restore --all <backup> --yes` の順
+  - 端末が無いときは `--yes` が無ければ一覧を出して中止する（AI から叩いても勝手に戻らない）。
+    途中で死んでも、止めたコンテナは `on_release_operation_lock` が起動し直す
+  - アプリとの対応は `PG_TARGETS` の7番目・`SQLITE_TARGETS` の6番目（`apps/` の下の名前）、
+    BIND / SETTINGS はパスから引く。**自動の経路には載せない**
 - バックアップは `docker/backups/` を主保存先とし、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/all-apps/` に追加コピーする
 - **バックアップ対象は `backup.sh` 冒頭の4配列** (`PG_TARGETS` / `SQLITE_TARGETS` / `BIND_TARGETS` / `SETTINGS_TARGETS`) で定義する。バックアップ・リストア・ドリルはすべてここから生成されるので、DBやデータを持つアプリを足したら**必ず1行追加すること**
 - **保持は日次7 + 週次4 + 月次6（GFS）**。日次7本だけでは「7日以内に気づけた障害」しか戻せない。
@@ -498,7 +511,7 @@ docker/scripts/manage.sh test [app-name]
 
 # 全体バックアップ / リストア
 docker/scripts/manage.sh backup
-docker/scripts/manage.sh restore [dir]
+docker/scripts/manage.sh restore [app|--all] [backup] [--yes]   # docker/RESTORE.md
 
 # リストア訓練（使い捨てDBへ実際に復元して検証。引数省略で最新が対象）
 docker/scripts/manage.sh drill
