@@ -55,6 +55,10 @@ docker/scripts/manage.sh test bank-analyzer
 `map:` で Django の実名に合わせてあり、id は Django の BigAutoField なので BigInt
 （JSON に出すときは `server/json.ts` の `toId` で number へ）。
 
+DB イメージは `postgres:16-bookworm` を使う。引き継いだボリュームは glibc 環境で作られており、
+`postgres:16-alpine`（musl）へ変更すると照合順序の実バージョンを取得できず、既存インデックスと
+異なる並び順を使うおそれがあるため、Alpine へは切り替えない。
+
 マイグレーションは**手書き**で、4本ある:
 
 1. `20261007000000_django_baseline` ── Django のスキーマの `pg_dump -s` そのもの

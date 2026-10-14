@@ -626,6 +626,54 @@ ensure_production_env() {
   ensure_postgres_production_env "$name" "$dir" || return 1
 }
 
+# Docker Desktop の CLI hooks（Gordon / Compose）が、連続する Compose ビルドで
+# Bake の stdin を Buildx へ渡さないことがある。その場合は Dockerfile を読む前に
+# `failed to execute bake: exit status 1` だけを残して終わる。
+#
+# 通常のビルドエラーまで再実行すると原因を隠すので、この短いラッパーエラーに限り、
+# 現在の Engine へ直接接続する最小の一時 CLI 設定（hooks 無し）で1回だけ再試行する。
+compose_up_with_bake_retry() {
+  local log_file status docker_host clean_config
+  log_file=$(mktemp) || return 1
+
+  # 進捗は従来どおり画面へ出しつつ、再試行対象かを判定するため同じ内容を控える。
+  if docker compose "$@" 2>&1 | tee "$log_file"; then
+    rm -f "$log_file"
+    return 0
+  else
+    status=${PIPESTATUS[0]}
+  fi
+
+  if ! grep -Fq 'failed to execute bake: exit status 1' "$log_file"; then
+    rm -f "$log_file"
+    return "$status"
+  fi
+  rm -f "$log_file"
+
+  docker_host=$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)
+  if [[ -z "$docker_host" ]]; then
+    err "Docker Engine の接続先を取得できないため、Bake を再試行できません"
+    return "$status"
+  fi
+
+  clean_config=$(mktemp -d) || return "$status"
+  # config.json が無くても CLI は動くが、空の設定であることを明示しておく。
+  printf '{}\n' > "$clean_config/config.json"
+
+  warn "Docker CLI hooks を除外した一時設定で1回だけ再試行します"
+  if env -u DOCKER_CONTEXT -u DOCKER_TLS_VERIFY \
+      DOCKER_CONFIG="$clean_config" DOCKER_HOST="$docker_host" \
+      docker compose "$@"; then
+    status=0
+  else
+    status=$?
+  fi
+
+  rm -f "$clean_config/config.json"
+  rmdir "$clean_config" 2>/dev/null || true
+  return "$status"
+}
+
 # --- start用コールバック ---
 _do_start() {
   local dir="$1" name="$2" prod_mode="$3"
@@ -656,7 +704,9 @@ _do_start() {
     fi
     ensure_production_env "$name" "$dir" || return 1
     log "  起動[本番]: $name"
-    docker compose -f "$dir/docker-compose.yml" -f "$prod_compose" up -d --build --remove-orphans
+    compose_up_with_bake_retry \
+      -f "$dir/docker-compose.yml" -f "$prod_compose" \
+      up -d --build --remove-orphans
   else
     log "  起動: $name"
     docker compose -f "$dir/docker-compose.yml" up -d --remove-orphans
@@ -934,7 +984,7 @@ cmd_build() {
   compose_files_for_app "$RESOLVED_DIR" "$mode"
 
   log "$name を再ビルドして起動します（モード $mode）..."
-  docker compose "${COMPOSE_FILES[@]}" up -d --build --remove-orphans
+  compose_up_with_bake_retry "${COMPOSE_FILES[@]}" up -d --build --remove-orphans
   log "$name のビルドが完了しました"
 }
 
