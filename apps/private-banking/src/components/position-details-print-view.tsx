@@ -34,21 +34,22 @@ function PrintCategoryTable({ page, rows, taxBurden }: { page: DetailPage; rows:
     .map((key) => columns.find((column) => column.key === key))
     .filter((column): column is typeof columns[number] => column !== undefined && column.key !== "method" && (preferences.visible.includes(column.key) || column.key === "formula"));
   const fixedWidths: Record<string, number> = { name: 12, value: 11, formula: 23 };
+  const numberWidth = 3;
   const fixedTotal = visible.reduce((sum, column) => sum + (fixedWidths[column.key] ?? 0), 0);
   const flexible = visible.filter((column) => fixedWidths[column.key] === undefined);
   const flexibleWidth = flexible.reduce((sum, column) => sum + preferences.widths[column.key], 0);
   // 印刷では数値入りの計算根拠を標準表示し、名称・評価額とともに全科目で幅をそろえる。
   // 残りの幅は、入力画面で保存した各列の幅比率を維持して配分する。
   const printWidth = (key: string) => flexible.length === 0
-    ? (fixedWidths[key] / fixedTotal) * 100
-    : fixedWidths[key] ?? (preferences.widths[key] / flexibleWidth) * (100 - fixedTotal);
+    ? (fixedWidths[key] / fixedTotal) * (100 - numberWidth)
+    : fixedWidths[key] ?? (preferences.widths[key] / flexibleWidth) * (100 - fixedTotal - numberWidth);
   return <section className="position-detail-print-section">
     <header><h3>{page.label}</h3><span>{rows.length}件</span></header>
     <table className="position-detail-print-table">
       <caption className="sr-only">{page.label}の明細</caption>
-      <colgroup>{visible.map((column) => <col key={column.key} data-column={column.key} style={{ width: `${printWidth(column.key)}%` }} />)}</colgroup>
-      <thead><tr>{visible.map((column) => <th key={column.key} data-column={column.key} scope="col" className={column.alignment ?? "text"}>{column.label}</th>)}</tr></thead>
-      <tbody>{rows.map((position) => <tr key={position.id}>{visible.map((column) => <td key={column.key} data-column={column.key} className={column.alignment ?? "text"}>{cellText(position, column.key, taxBurden)}</td>)}</tr>)}</tbody>
+      <colgroup><col data-column="number" style={{ width: `${numberWidth}%` }} />{visible.map((column) => <col key={column.key} data-column={column.key} style={{ width: `${printWidth(column.key)}%` }} />)}</colgroup>
+      <thead><tr><th data-column="number" scope="col" className="number">No.</th>{visible.map((column) => <th key={column.key} data-column={column.key} scope="col" className={column.alignment ?? "text"}>{column.label}</th>)}</tr></thead>
+      <tbody>{rows.map((position, index) => <tr key={position.id}><td data-column="number" className="number" aria-label={`詳細番号 ${index + 1}`}>{index + 1}</td>{visible.map((column) => <td key={column.key} data-column={column.key} className={column.alignment ?? "text"}>{cellText(position, column.key, taxBurden)}</td>)}</tr>)}</tbody>
     </table>
   </section>;
 }

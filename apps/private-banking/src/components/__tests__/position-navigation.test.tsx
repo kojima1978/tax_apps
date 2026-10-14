@@ -46,11 +46,16 @@ describe("資産・負債一覧と詳細の連携", () => {
     render(<PositionListView snapshot={{ ...snapshot, positions: [snapshot.positions[0]] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} onSaveAllocations={save} saving={false} />);
     fireEvent.click(screen.getByRole("button", { name: "割り振りを編集" }));
     const allocationTable = screen.getByRole("table", { name: "財産の割り振り入力" });
-    expect(within(allocationTable).getAllByRole("columnheader").slice(1, 4).map((header) => header.textContent)).toEqual([
+    expect(within(allocationTable).getAllByRole("columnheader").slice(0, 5).map((header) => header.textContent)).toEqual([
+      "No.",
+      "区分",
       "科目・名称",
       "所在地・金融機関等／参考情報",
       "評価額・給付額／相続税額",
     ]);
+    const allocationNumberCell = within(allocationTable).getByRole("cell", { name: "一覧番号 1" }) as HTMLTableCellElement;
+    expect(allocationNumberCell.textContent).toBe("1");
+    expect(allocationNumberCell.rowSpan).toBe(2);
     const allocationMoneyCell = allocationTable.querySelector(".position-summary-sticky-money[rowspan='2']") as HTMLTableCellElement;
     expect(allocationMoneyCell.rowSpan).toBe(2);
     expect(allocationMoneyCell.querySelectorAll(".position-summary-money-lines > div")).toHaveLength(2);
@@ -90,11 +95,16 @@ describe("資産・負債一覧と詳細の連携", () => {
     ] });
     render(<PositionListView snapshot={{ ...snapshot, positions: [allocated] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => 12} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
     const list = screen.getByRole("table", { name: "資産・負債一覧" });
-    expect(within(list).getAllByRole("columnheader").slice(1, 4).map((header) => header.textContent)).toEqual([
+    expect(within(list).getAllByRole("columnheader").slice(0, 5).map((header) => header.textContent)).toEqual([
+      "No.",
+      "区分",
       "科目・名称",
       "所在地・金融機関等／参考情報",
       "評価額・給付額／相続税額",
     ]);
+    const numberCell = within(list).getByRole("cell", { name: "一覧番号 1" }) as HTMLTableCellElement;
+    expect(numberCell.textContent).toBe("1");
+    expect(numberCell.rowSpan).toBe(2);
     expect(within(list).getByRole("columnheader", { name: /評価額・給付額／相続税額/ })).toBeTruthy();
     expect(within(list).getByRole("columnheader", { name: /長女/ })).toBeTruthy();
     expect(within(list).getByRole("columnheader", { name: /長男/ })).toBeTruthy();
@@ -178,6 +188,8 @@ describe("資産・負債一覧と詳細の連携", () => {
     render(<PositionListView snapshot={{ ...snapshot, positions: [deposit, insurance] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
     const names = [...document.querySelectorAll(".position-summary-name strong")].map((node) => node.textContent);
     expect(names).toEqual(["あおば生命", "大口預金"]);
+    const list = screen.getByRole("table", { name: "資産・負債一覧" });
+    expect(within(list).getAllByRole("cell", { name: /一覧番号/ }).map((cell) => cell.textContent)).toEqual(["1", "2"]);
   });
 
   it("一覧末尾で全明細の取得・負担合計と計算済み相続税額を相続人別に表示する", () => {
@@ -230,6 +242,8 @@ describe("資産・負債一覧と詳細の連携", () => {
     render(<PositionDetailsView snapshot={snapshot} taxBurden={() => null} onAdd={add} onBulkManage={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} onReorder={async () => true} saving={false} spotlightId={2} />);
     const table = screen.getByRole("table", { name: "生命保険の明細" });
     expect(within(table).getAllByRole("row")).toHaveLength(2);
+    expect(within(table).getAllByRole("columnheader")[0].textContent).toBe("No.");
+    expect(within(table).getByRole("cell", { name: "詳細番号 1" }).textContent).toBe("1");
     expect(within(table).queryByRole("columnheader", { name: "取得者" })).toBeNull();
     expect(within(table).getByRole("columnheader", { name: "受取人・取り分" })).toBeTruthy();
     expect(table.querySelector('[data-column="死亡保険金"]')?.textContent).toContain("50,000,000");
@@ -254,7 +268,8 @@ describe("資産・負債一覧と詳細の連携", () => {
     render(<PositionDetailsView {...props} />);
     const table = screen.getByRole("table", { name: "生命保険の明細" });
     expect(within(table).getByRole("columnheader", { name: "計算根拠" })).toBeTruthy();
-    expect((table.querySelector("col") as HTMLElement).style.width).toBe("260px");
+    expect((table.querySelector('col[data-column="number"]') as HTMLElement).style.width).toBe("44px");
+    expect((table.querySelector('col[data-column="name"]') as HTMLElement).style.width).toBe("260px");
   });
 
   it("共通の税負担計算は死亡給付金を基準にし、B/S外の保証を除外する", () => {
@@ -268,7 +283,8 @@ describe("資産・負債一覧と詳細の連携", () => {
     localStorage.setItem("pb.position-columns.v1.insurance", JSON.stringify({ version: 1, order: ["name", "tax", "value"], visible: ["name", "tax", "value"], widths: { name: 150, tax: 140, value: 130 } }));
     render(<PositionDetailsPrintView snapshot={snapshot} taxBurden={() => 1_000_000} />);
     const table = await screen.findByRole("table", { name: "生命保険の明細" });
-    expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["名称", "相続税負担額（円）", "解約返戻金（円）", "計算根拠"]);
+    expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["No.", "名称", "相続税負担額（円）", "解約返戻金（円）", "計算根拠"]);
+    expect(within(table).getByRole("cell", { name: "詳細番号 1" }).textContent).toBe("1");
     expect(within(table).queryByRole("columnheader", { name: "取得者" })).toBeNull();
     expect(within(table).getByText("入力額 5,000,000円")).toBeTruthy();
     expect(within(table).queryByRole("columnheader", { name: "評価方法" })).toBeNull();
@@ -279,6 +295,7 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect((table.querySelector('col[data-column="name"]') as HTMLElement).style.width).toBe("12%");
     expect((table.querySelector('col[data-column="value"]') as HTMLElement).style.width).toBe("11%");
     expect((table.querySelector('col[data-column="formula"]') as HTMLElement).style.width).toBe("23%");
+    expect((table.querySelector('col[data-column="number"]') as HTMLElement).style.width).toBe("3%");
   });
 
   it("印刷詳細に貸付・負債・保証の追加情報と長文を表示する", async () => {

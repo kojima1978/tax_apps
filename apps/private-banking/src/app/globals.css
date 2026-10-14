@@ -1516,16 +1516,17 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-summary-table tbody { cursor: pointer; }
 .position-summary-table tbody:hover tr > * { background-color: #f0fdf4; }
 .position-summary-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.position-summary-table .position-summary-sticky-section { position: sticky; left: 0; z-index: 2; min-width: 72px; width: 72px; background: #fff; }
-.position-summary-table .position-summary-sticky-subject { position: sticky; left: 72px; z-index: 2; min-width: 230px; width: 230px; max-width: 230px; background: #fff; }
-.position-summary-table .position-summary-sticky-money { position: sticky; left: 302px; z-index: 2; min-width: 150px; width: 150px; background: #fff; box-shadow: 1px 0 0 var(--line); }
-.position-summary-table thead .position-summary-sticky-section, .position-summary-table thead .position-summary-sticky-subject, .position-summary-table thead .position-summary-sticky-money { z-index: 4; background: #e7f0ea; }
+.position-summary-table .position-summary-sticky-number { position: sticky; left: 0; z-index: 2; min-width: 44px; width: 44px; max-width: 44px; background: #fff; text-align: right; font-variant-numeric: tabular-nums; }
+.position-summary-table .position-summary-sticky-section { position: sticky; left: 44px; z-index: 2; min-width: 72px; width: 72px; background: #fff; }
+.position-summary-table .position-summary-sticky-subject { position: sticky; left: 116px; z-index: 2; min-width: 230px; width: 230px; max-width: 230px; background: #fff; }
+.position-summary-table .position-summary-sticky-money { position: sticky; left: 346px; z-index: 2; min-width: 150px; width: 150px; background: #fff; box-shadow: 1px 0 0 var(--line); }
+.position-summary-table thead .position-summary-sticky-number, .position-summary-table thead .position-summary-sticky-section, .position-summary-table thead .position-summary-sticky-subject, .position-summary-table thead .position-summary-sticky-money { z-index: 4; background: #e7f0ea; }
 .position-summary-table .position-summary-info { min-width: 210px; max-width: 250px; }
 .position-summary-table .position-summary-heir { min-width: 140px; width: 140px; }
 .position-summary-table .position-summary-unallocated { min-width: 120px; width: 120px; }
 .position-summary-primary-row > * { border-bottom: 1px dashed #cbd5cf; }
 .position-summary-secondary-row > * { border-bottom: 2px solid #9aaca2; color: var(--slate-600); font-size: 10px; }
-.position-summary-primary-row .position-summary-sticky-section { border-bottom: 2px solid #9aaca2; }
+.position-summary-primary-row .position-summary-sticky-number, .position-summary-primary-row .position-summary-sticky-section { border-bottom: 2px solid #9aaca2; }
 .position-summary-value-label { margin-right: 7px; color: var(--slate-600); font-size: 9px; font-weight: 600; }
 /* 評価方法・計算根拠の見出しは、同じ行に並ぶ金額より控えめにする（数字を読む邪魔をしないため）。 */
 .position-summary-secondary-label { margin-right: 7px; color: var(--slate-600); font-size: 8px; font-weight: 600; }
@@ -1668,7 +1669,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .category-detail-table th, .category-detail-table td { padding: 8px; font-size: 11px; line-height: 1.4; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: normal; overflow-wrap: anywhere; }
 .category-detail-table th { font-size: 10.5px; letter-spacing: 0; }
 .category-detail-table th { position: sticky; top: 0; z-index: 2; background: #f4f8f6; }
-.category-detail-table .fixed-name { position: sticky; left: 0; z-index: 1; background: white; border-right: 1px solid var(--line); }
+.category-detail-table .fixed-number { position: sticky; left: 0; z-index: 2; width: 44px; min-width: 44px; max-width: 44px; background: white; font-variant-numeric: tabular-nums; }
+.category-detail-table .fixed-name { position: sticky; left: 44px; z-index: 1; background: white; border-right: 1px solid var(--line); }
+.category-detail-table th.fixed-number { z-index: 4; background: #f4f8f6; }
 .category-detail-table th.fixed-name { z-index: 3; background: #f4f8f6; }
 .category-detail-table tr.is-spotlight td { background: #dcfce7; }
 .category-detail-table td.number { white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -1694,9 +1697,10 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-list-filters { display: grid; grid-template-columns: 1fr 1fr; }
   .position-list-search { min-width: 0 !important; grid-column: 1 / -1; }
   .position-list-filters input, .position-list-filters select { font-size: 16px; min-height: 44px; }
-  .position-summary-table .position-summary-sticky-section { min-width: 58px; width: 58px; }
-  .position-summary-table .position-summary-sticky-subject { left: 58px; min-width: 180px; width: 180px; max-width: 180px; }
-  .position-summary-table .position-summary-sticky-money { left: 238px; min-width: 132px; width: 132px; }
+  .position-summary-table .position-summary-sticky-number { min-width: 40px; width: 40px; max-width: 40px; }
+  .position-summary-table .position-summary-sticky-section { left: 40px; min-width: 58px; width: 58px; }
+  .position-summary-table .position-summary-sticky-subject { left: 98px; min-width: 180px; width: 180px; max-width: 180px; }
+  .position-summary-table .position-summary-sticky-money { left: 278px; min-width: 132px; width: 132px; }
   .position-summary-open { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
   .position-detail-card { padding: 14px; }
   .position-detail-card > header { flex-wrap: wrap; }
@@ -1735,11 +1739,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   /* 画面用の「詳細」操作は紙では使えない。リンクだけでなく列自体を落とし、
      余った幅を名称・評価情報・相続人列へ配分する。 */
   .position-summary-table .position-summary-action-column { display: none !important; }
-  .position-summary-table .position-summary-sticky-section, .position-summary-table .position-summary-sticky-subject, .position-summary-table .position-summary-sticky-money { position: static; box-shadow: none; }
-  .position-summary-table .position-summary-sticky-section { width: 6% !important; }
-  .position-summary-table .position-summary-sticky-subject { width: 16% !important; }
+  .position-summary-table .position-summary-sticky-number, .position-summary-table .position-summary-sticky-section, .position-summary-table .position-summary-sticky-subject, .position-summary-table .position-summary-sticky-money { position: static; box-shadow: none; }
+  .position-summary-table .position-summary-sticky-number { width: 3% !important; }
+  .position-summary-table .position-summary-sticky-section { width: 5% !important; }
+  .position-summary-table .position-summary-sticky-subject { width: 15% !important; }
   .position-summary-table .position-summary-sticky-money { width: 13% !important; }
-  .position-summary-table .position-summary-info { width: 15% !important; }
+  .position-summary-table .position-summary-info { width: 14% !important; }
   .position-summary-table thead .position-summary-heading-main { line-height: 1.3; }
   .position-summary-table thead .position-summary-heading-sub { margin-top: .4mm; font-size: 6.5px; line-height: 1.25; }
   .position-summary-secondary-row > * { font-size: 6.5px; }
