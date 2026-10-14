@@ -164,7 +164,7 @@ docker/scripts/manage.sh watch <app-name>
   中身が plpgsql 以外にあれば触らない。新しいものを先に作って改名で入れ替えるので、template1 が
   無くなる瞬間は無い）。DB 本体が移行済みで template1 だけ残っている場合も `collation <app> --yes` で
   template1 だけ直り（アプリは止めない）、チェック22もそこまで見る。
-  移行済みは bank-analyzer だけ（2026-10-14、template1 含む）。**別の PC の手順は
+  この開発 PC では4件とも移行済み（2026-10-14、template1 含む。旧 DB の `<db>_pre_c` は確認待ちで残置）。**別の PC の手順は
   `docker/COLLATION-MIGRATION.md`**（AI にそのまま渡せる形）。**libc 系（alpine ↔ bookworm）を変えるのは
   移行の後** ── 先に変えると `REINDEX DATABASE` が必須になる
 
