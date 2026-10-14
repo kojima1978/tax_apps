@@ -59,7 +59,6 @@ app/
 | 所得税・贈与税 必要書類 | /tax-docs/ | 所得税・贈与税申告の書類案内 |
 | 相続税計算 | /inheritance-tax-app/ | 相続税シミュレーション |
 | 贈与税計算 | /gift-tax-simulator/ | 贈与税計算・早見表・不動産取得税 |
-| 医療法人株式評価 | /medical/ | 医療法人の株式評価システム |
 | 保険管理 | /insurance/ | 保険証券の管理・分析 |
 | 退職金税額計算 | /retirement-tax-calc/ | 退職金の所得税・住民税を計算 |
 | 譲渡所得税計算 | /capital-gains-calc/ | 不動産・株式等の譲渡にかかる税額を試算 |

@@ -101,8 +101,6 @@ HTML をやめてもチャンクは読めず画面は壊れる（＝ `hadRuntime
 | `/tax-docs/` | `tax-docs:3002` | 所得税・贈与税書類リスト (Vite) |
 | `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Next.js + API Routes) |
 | `/itcm/api/` | `itcm-frontend:3020` | 相続税案件管理 API（同一サービス内） |
-| `/medical/` | `medical-stock-valuation:3010` | 医療法人株式評価 (Next.js) |
-| `/medical/api/` | `medical-stock-valuation:3010` | 医療法人株式評価 API |
 | `/insurance/` | `insurance-app:3030` | 保険管理 (Next.js) |
 | `/insurance/api/` | `insurance-app:3030` | 保険管理 API |
 | `/private-banking/` | `private-banking-app:3025` | ファミリーB/S管理 (Next.js) |

@@ -102,7 +102,6 @@ APPS=(
   "apps/inheritance-case-management"
   "apps/bank-analyzer"
   "apps/tax-docs"
-  "apps/medical-stock-valuation"
   "apps/insurance-app"
   "apps/private-banking"
   "apps/inheritance-tax-app"
@@ -128,7 +127,6 @@ APPS=(
 VOLUMES=(
   "inheritance-case-management_postgres_data"
   "bank-analyzer-postgres"
-  "medical-stock-valuation-data"
   "insurance-app-data"
   "inheritance-tax-docs-data"
   "private-banking_private_banking_postgres"

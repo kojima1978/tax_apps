@@ -23,7 +23,6 @@ AI エージェントにそのまま渡して実行させる前提で書いて�
 | bank-analyzer | PostgreSQL（`bank-analyzer-postgres`）・`.env` |
 | private-banking | PostgreSQL（`private-banking-postgres`）・`.env` |
 | stock-valuation-form | PostgreSQL（`svf-postgres`）・`.env` |
-| medical-stock-valuation | SQLite（ボリューム `medical-stock-valuation-data`） |
 | insurance-app | SQLite（ボリューム `insurance-app-data`） |
 | inheritance-tax-docs | SQLite（ボリューム `inheritance-tax-docs-data`） |
 

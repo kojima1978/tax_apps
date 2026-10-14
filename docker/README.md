@@ -56,7 +56,7 @@
                                                        └─────────────────┘
 
 ※ 各ボックスはそれぞれ独立した docker-compose プロジェクト
-※ DB依存アプリ（ITCM, bank-analyzer, tax-docs, medical-stock）は同一プロジェクト内にDBを含む
+※ DB依存アプリ（ITCM, bank-analyzer, tax-docs）は同一プロジェクト内にDBを含む
 ```
 
 ---
@@ -171,7 +171,7 @@ rd /s /q tax_apps
 | 本番モード起動 | `start-prod.bat` | ダブルクリックするだけで全アプリを本番モードで起動 |
 | 停止 | `stop.bat` | ダブルクリックするだけで全アプリを停止 |
 | 状態確認 | `status.bat` | ダブルクリックするだけで状態を確認 |
-| バックアップ（手動） | `backup-db.bat` | `backup.sh itcm` を呼び出す補助。PostgreSQL 4件・SQLite 3件・アップロード・テンプレート・設定・JSONエクスポート。無人実行はウォッチドッグの `due` 経由 |
+| バックアップ（手動） | `backup-db.bat` | `backup.sh itcm` を呼び出す補助。PostgreSQL 4件・SQLite 2件・アップロード・テンプレート・設定・JSONエクスポート。無人実行はウォッチドッグの `due` 経由 |
 | リストア訓練（手動） | `restore-drill.bat` | 最新のバックアップを使い捨て環境へ実際に復元し、本当に戻せるか検証。無人実行は同じく `due` 経由 |
 | Docker自動復旧 | `docker-watchdog.bat` | `docker info` が連続失敗した場合に Docker Desktop を再起動し、unhealthy コンテナも再起動 |
 
@@ -351,7 +351,6 @@ docker compose -f apps\inheritance-tax-docs\docker-compose.yml -f apps\inheritan
 | Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
 | Depreciation Calc | `runner` | nginx:1.27-alpine | あり |
 | Asset Valuation | `runner` | nginx:1.27-alpine | あり |
-| Medical Stock | `runner` | Node.js standalone | あり |
 | Stock Valuation Form | `runner` | nginx:1.27-alpine | あり |
 | Bank Analyzer | `production` | Gunicorn | あり |
 | ITCM | `runner` | Node.js standalone + tini | あり |
@@ -450,7 +449,6 @@ DBなどの永続データは Docker Named Volume またはバインドマウン
 |:------------|:---------|:-----|
 | `inheritance-case-management_postgres_data` | itcm-postgres | ITCM用 PostgreSQL データ |
 | `bank-analyzer-postgres` | bank-analyzer-postgres | 銀行分析用 PostgreSQL |
-| `medical-stock-valuation-data` | medical-stock-valuation | 医療法人株式 SQLite |
 
 データを完全に削除したい場合は `./manage.sh clean` の Step 2 を実行してください。
 
@@ -470,7 +468,7 @@ DBなどの永続データは Docker Named Volume またはバインドマウン
 | 2 | Bank Analyzer PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
 | 3 | Private Banking PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
 | 4 | Stock Valuation Form PostgreSQL | `pg_dump`（SQLダンプ） | 同上。業種目マスタと各社データ |
-| 5 | SQLite 3アプリ | `better-sqlite3 backup` + `PRAGMA integrity_check` | 稼働中も整合性のあるスナップショットを取得 |
+| 5 | SQLite 2アプリ | `better-sqlite3 backup` + `PRAGMA integrity_check` | 稼働中も整合性のあるスナップショットを取得 |
 | 6 | ITCM Excel テンプレート | `cp` | `apps/inheritance-case-management/templates/`。`.gitignore` 対象なので Git には無い |
 | 7 | 設定ファイル | `cp` | ITCM / Bank Analyzer / Private Banking / Stock Valuation Form の `.env` |
 | 8 | Bank Analyzer 案件別JSON | `npm run backup:json` | 画面のJSONバックアップと同じ形式 |
@@ -826,7 +824,6 @@ docker network create tax-apps-network
 | Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | Vite | 相続税 資料ガイド |
 | Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | Vite | 相続税計算 |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | React + Hono + PostgreSQL | 銀行分析 |
-| Medical Stock | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人株式評価 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
 | Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書 |
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
@@ -854,19 +851,18 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 1 | inheritance-case-management | PostgreSQL + Next.js |
 | 2 | bank-analyzer | PostgreSQL + Hono + React |
 | 3 | tax-docs | Vite |
-| 4 | medical-stock-valuation | SQLite + Next.js |
-| 5 | insurance-app | SQLite + Next.js |
-| 6 | private-banking | PostgreSQL + Next.js |
-| 7 | inheritance-tax-app | Vite |
-| 8 | gift-tax-simulator | Vite |
-| 9 | inheritance-tax-docs | Vite |
-| 10 | retirement-tax-calc | Vite |
-| 11 | depreciation-calc | Vite |
-| 12 | asset-valuation | Vite |
-| 13 | stock-valuation-form | Vite |
-| 14 | capital-gains-calc | Vite |
-| 15 | inheritance-tax-form | Vite |
-| 16 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
+| 4 | insurance-app | SQLite + Next.js |
+| 5 | private-banking | PostgreSQL + Next.js |
+| 6 | inheritance-tax-app | Vite |
+| 7 | gift-tax-simulator | Vite |
+| 8 | inheritance-tax-docs | Vite |
+| 9 | retirement-tax-calc | Vite |
+| 10 | depreciation-calc | Vite |
+| 11 | asset-valuation | Vite |
+| 12 | stock-valuation-form | Vite |
+| 13 | capital-gains-calc | Vite |
+| 14 | inheritance-tax-form | Vite |
+| 15 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -881,7 +877,6 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3003 | Inheritance Tax Docs | apps/inheritance-tax-docs |
 | 3004 | Inheritance Tax App | apps/inheritance-tax-app |
 | 3007 | Bank Analyzer | apps/bank-analyzer |
-| 3010 | Medical Stock Valuation | apps/medical-stock-valuation |
 | 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3015 | Depreciation Calc | apps/depreciation-calc |
@@ -1032,8 +1027,6 @@ tax_apps/
 │   │   ├── .env                #   PostgreSQL認証情報
 │   │   ├── docker-compose.yml  #   PostgreSQL + Web（dev）
 │   │   └── docker-compose.prod.yml  #   本番オーバーライド
-│   ├── medical-stock-valuation/ # 医療法人株式
-│   │   └── docker-compose.yml
 │   ├── insurance-app/          # 保険管理
 │   │   └── docker-compose.yml
 │   ├── retirement-tax-calc/    # 退職金税額計算

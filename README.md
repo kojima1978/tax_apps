@@ -21,7 +21,6 @@
 | 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React | 相続税申告の必要書類ガイド |
 | 相続税の申告書 | `/inheritance-tax-form/` | http://localhost/inheritance-tax-form/ | 3021 | Vite + React | 相続税の申告書 全24様式の作成・印刷 |
 | 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React | 確定申告書類管理 |
-| 医療法人株式評価 | `/medical/` | http://localhost/medical/ | 3010 | Next.js + SQLite | 医療法人の株式評価 |
 | 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Prisma + PostgreSQL | 相続税案件管理 |
 | 譲渡所得税計算 | `/capital-gains-calc/` | http://localhost/capital-gains-calc/ | 3019 | Vite + React | 不動産・株式等の譲渡所得税シミュレーション |
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
@@ -36,7 +35,6 @@
 | 種別 | アプリ | イメージサイズ |
 |------|--------|--------------|
 | nginx (静的) | Vite/Next.js アプリ + gateway | ~59-60MB |
-| Next.js standalone | 医療法人株式評価 | ~240MB |
 | Next.js + Prisma | 案件管理 | ~333MB |
 | Next.js + Prisma | ファミリーB/S | ~415MB |
 | Node + Prisma | 銀行分析 | ~590MB |
@@ -58,7 +56,6 @@ tax_apps/
 │   ├── depreciation-calc/             # 減価償却計算 (Vite)
 │   ├── asset-valuation/              # 減価償却資産評価 (Vite)
 │   ├── stock-valuation-form/          # 株式評価明細書 (Vite)
-│   ├── medical-stock-valuation/       # 医療法人株式評価 (Next.js + SQLite)
 │   ├── inheritance-case-management/   # 案件管理 (Next.js + Prisma + PostgreSQL)
 │   ├── private-banking/               # ファミリーB/S (Next.js + Prisma + PostgreSQL)
 │   ├── mcp-server/                    # 株式評価明細書へ書き込む MCP サーバー（常駐しない）
@@ -312,7 +309,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd)/apps/<アプリ名>:/work" -w /wor
 
 ### Next.js Turbopack のクラッシュ
 
-Next.js 16 の Turbopack がコンパイル時にクラッシュする場合（portal, medical-stock-valuation, inheritance-case-management）:
+Next.js 16 の Turbopack がコンパイル時にクラッシュする場合（portal, inheritance-case-management）:
 1. Dockerfile で **Node.js 22** を使用していることを確認
 2. `.next` ディレクトリをボリュームとして分離:
    ```yaml

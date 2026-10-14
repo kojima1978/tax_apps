@@ -467,7 +467,7 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
 - `status.bat`: ワンクリックで状態確認
 - `register-startup-task.bat` / `register-docker-watchdog-task.bat`: 自動起動・自動復旧タスクの登録
   （`unregister-*.bat` で解除）
-- `backup-db.bat`: 暗号化された全体バックアップ（PostgreSQL 4件 + SQLite 3件 + アップロード + テンプレート + `.env` 4件 + JSONエクスポート。日次7 + 週次4 + 月次6 で保持。無人実行はウォッチドッグの `due` 経由で、これは手動の入口）
+- `backup-db.bat`: 暗号化された全体バックアップ（PostgreSQL 4件 + SQLite 2件 + アップロード + テンプレート + `.env` 4件 + JSONエクスポート。日次7 + 週次4 + 月次6 で保持。無人実行はウォッチドッグの `due` 経由で、これは手動の入口）
   - **暗号鍵 `~/.tax-apps/backup.key` の控えだけは手で取ること**。これを失うと
     `docker/backups/` の暗号化アーカイブは全部ただのゴミになる。鍵が無い状態で
     `backup.sh` を走らせても、暗号化済みのアーカイブが1つでもあれば新しい鍵を

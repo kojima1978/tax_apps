@@ -84,20 +84,19 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 | 1 | `APP_1` | `apps\inheritance-case-management` | 案件管理 (PostgreSQL + Next.js + Prisma) | 3020/3022 |
 | 2 | `APP_2` | `apps\bank-analyzer` | 銀行分析 (PostgreSQL + Hono + React) | 3007 |
 | 3 | `APP_3` | `apps\tax-docs` | 所得税・贈与税書類リスト (Vite) | 3002 |
-| 4 | `APP_4` | `apps\medical-stock-valuation` | 医療法人株式 (SQLite + Next.js) | 3010 |
-| 5 | `APP_5` | `apps\insurance-app` | 保険管理 (SQLite + Next.js) | 3030 |
-| 6 | `APP_6` | `apps\private-banking` | ファミリーB/S管理 (PostgreSQL + Next.js) | 3025/3026 |
-| 7 | `APP_7` | `apps\inheritance-tax-app` | 相続税計算 (Vite) | 3004 |
-| 8 | `APP_8` | `apps\gift-tax-simulator` | 贈与税計算 (Vite) | 3001 |
-| 9 | `APP_9` | `apps\inheritance-tax-docs` | 相続税資料ガイド (Vite) | 3003 |
-| 10 | `APP_10` | `apps\retirement-tax-calc` | 退職金税額計算 (Vite) | 3013 |
-| 11 | `APP_11` | `apps\depreciation-calc` | 減価償却計算 (Vite) | 3015 |
-| 12 | `APP_12` | `apps\asset-valuation` | 減価償却資産評価 (Vite) | 3017 |
-| 13 | `APP_13` | `apps\stock-valuation-form` | 株式評価明細書 (Vite) | 3014 |
-| 14 | `APP_14` | `apps\capital-gains-calc` | 譲渡所得税計算 (Vite) | 3019 |
-| 15 | `APP_15` | `docker\gateway` | Nginx Gateway + Portal (Next.js) | 80/3000 |
+| 4 | `APP_4` | `apps\insurance-app` | 保険管理 (SQLite + Next.js) | 3030 |
+| 5 | `APP_5` | `apps\private-banking` | ファミリーB/S管理 (PostgreSQL + Next.js) | 3025/3026 |
+| 6 | `APP_6` | `apps\inheritance-tax-app` | 相続税計算 (Vite) | 3004 |
+| 7 | `APP_7` | `apps\gift-tax-simulator` | 贈与税計算 (Vite) | 3001 |
+| 8 | `APP_8` | `apps\inheritance-tax-docs` | 相続税資料ガイド (Vite) | 3003 |
+| 9 | `APP_9` | `apps\retirement-tax-calc` | 退職金税額計算 (Vite) | 3013 |
+| 10 | `APP_10` | `apps\depreciation-calc` | 減価償却計算 (Vite) | 3015 |
+| 11 | `APP_11` | `apps\asset-valuation` | 減価償却資産評価 (Vite) | 3017 |
+| 12 | `APP_12` | `apps\stock-valuation-form` | 株式評価明細書 (Vite) | 3014 |
+| 13 | `APP_13` | `apps\capital-gains-calc` | 譲渡所得税計算 (Vite) | 3019 |
+| 14 | `APP_14` | `docker\gateway` | Nginx Gateway + Portal (Next.js) | 80/3000 |
 
-**合計**: 14 管理対象アプリ + gateway（`APPS` 配列 15 要素）
+**合計**: 13 管理対象アプリ + gateway（`APPS` 配列 14 要素）
 
 > **注**: Portal アプリ (`apps/portal/`) は Gateway の docker-compose.yml 内にサービスとして定義されている（`portal-app`）。独自の docker-compose.yml は持たない。
 
@@ -128,6 +127,7 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 | 3.4 | salary-calc を削除。manage.sh、Nginx、ポータル、Docker docs から参照を削除 |
 | 3.5 | `watch` コマンド追加（private-banking / inheritance-case-management の bind mount 廃止に伴う compose watch 対応）。`status` の末尾に自動復旧（ウォッチドッグ）の配線チェックを追加。`WATCHDOG_TASK_NAME` 定数を追加 |
 | 3.6 | income-tax-calc を削除。manage.sh、Nginx、ポータル、Docker docs から参照を削除 |
+| 3.7 | medical-stock-valuation を削除。manage.sh（APPS / VOLUMES）、backup.sh（SQLITE_TARGETS）、Nginx、ポータル、Docker docs から参照を削除。データボリューム `medical-stock-valuation-data` は消さずに残す |
 | 3.7 | capital-gains-calc（譲渡所得税計算・port 3019）を追加。あわせてアプリ一覧の private-banking 欠落と preflight 対象ポート一覧の記載ずれを修正 |
 
 ---
@@ -161,7 +161,6 @@ backup/restore コマンドで扱うデータソースは、manage.sh 内の定�
 |:--|:-------|:---------|
 | 1 | bank-analyzer-sqlite | bank-analyzer-sqlite |
 | 2 | tax-docs-data | tax-docs-data |
-| 3 | medical-stock-valuation-data | medical-stock-valuation-data |
 
 ### 4.3 バインドマウントターゲット
 
@@ -401,7 +400,6 @@ manage.sh clean
 | `bank-analyzer-postgres` | 銀行分析 PostgreSQL |
 | `bank-analyzer-sqlite` | 銀行分析 SQLite |
 | ~~`tax-docs-data`~~ | ~~税務書類 SQLite~~ ※廃止済み |
-| `medical-stock-valuation-data` | 医療法人株式 SQLite |
 
 > Step 2 をスキップすればデータを残してコンテナ・イメージのみ削除可能
 
@@ -530,7 +528,6 @@ manage.sh の `resolve_app_dir()` では、部分一致で複数件ヒットし�
 | 2 | Bank Analyzer PostgreSQL | `bank-analyzer-postgres` | `pg_dump` → SQL / ボリューム tar | `bank-analyzer-postgres.sql` or `bank-analyzer-postgres-volume.tar.gz` |
 | 3a | Bank Analyzer SQLite | `bank-analyzer-sqlite` | ボリューム tar | `bank-analyzer-sqlite.tar.gz` |
 | ~~3b~~ | ~~Tax Docs SQLite~~ | ~~`tax-docs-data`~~ | ~~ボリューム tar~~ | ~~`tax-docs-data.tar.gz`~~ ※廃止済み |
-| 3c | Medical Stock SQLite | `medical-stock-valuation-data` | ボリューム tar | `medical-stock-valuation-data.tar.gz` |
 | ~~4~~ | ~~アップロードデータ~~ | ~~`apps/bank-analyzer-django/data/`~~ | ~~`robocopy` (bat) / `cp -r` (sh)~~ | ~~`bank-analyzer-upload/`~~ ※廃止済み（React 版は使わない） |
 | 5 | 設定ファイル | `apps/inheritance-case-management/.env` | `copy` / `cp` | `itcm-.env` |
 

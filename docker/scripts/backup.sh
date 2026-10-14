@@ -82,7 +82,6 @@ PG_TARGETS=(
 
 # label:container:db_path:volume:file_name:app
 SQLITE_TARGETS=(
-  "Medical Stock SQLite:medical-stock-valuation:/app/data/doctor.db:medical-stock-valuation-data:medical-stock-valuation-data:medical-stock-valuation"
   "Insurance App SQLite:insurance-app:/app/data/insurance.sqlite:insurance-app-data:insurance-app-data:insurance-app"
   "Inheritance Tax Docs SQLite:inheritance-tax-docs:/app/data/resources.sqlite:inheritance-tax-docs-data:inheritance-tax-docs-data:inheritance-tax-docs"
 )
@@ -1078,7 +1077,7 @@ sqlite_probe_archive() {
   fi
   out=$(sqlite_probe "$container" "$probe") || rc=1
   # docker cp で入れたファイルは root 所有になる。非rootで動くコンテナ
-  # (medical-stock-valuation 等) では -u root が無いと消せず、毎回 DB の
+  # (insurance-app 等) では -u root が無いと消せず、毎回 DB の
   # フルコピーが /tmp に溜まっていく。readonly で開いても WAL/SHM は作られる。
   if ! MSYS_NO_PATHCONV=1 docker exec -u root "$container" \
     rm -f "$probe" "$probe-wal" "$probe-shm" >/dev/null 2>&1; then
