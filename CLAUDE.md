@@ -143,6 +143,20 @@ docker/scripts/manage.sh watch <app-name>
   （全ポート・全送信元）が残っているとゲートウェイのルールを LocalSubnet に絞っても素通りになる。
   両方 `-RemoteAddress LocalSubnet` にしてあり、**`preflight` のチェック19**が全送信元に戻っていないか毎回見る
   （Docker Desktop の更新で作り直されうる）
+- **PostgreSQL の照合順序は `C` にする**（libc 提供の `en_US.utf8` にしない）。libc 提供の照合順序だと
+  文字列の並び順が「どのイメージで動かしたか」で決まり、しかも **Alpine(musl) は照合順序の
+  バージョンを返さないので `datcollversion` が NULL になり、Postgres 自身の不一致検知が無効**になる
+  ── `image:` を1行変えるだけで、警告ゼロのままインデックスと比較結果が食い違う。
+  bank-analyzer のボリュームは PC によって glibc 生まれ（記録 2.36）と musl 生まれ（記録なし）が
+  実在し、compose の `image:` をどちらに決めても片方では誤りだった。移行は
+  **`manage.sh collation <app> --yes`**（アプリだけ止めて dump → `LC_COLLATE=C` の新 DB へ復元 →
+  全テーブル件数照合 → 改名で入れ替え。ボリュームは消さず旧 DB は `<db>_pre_c` で残す。
+  24時間以内の backup と drill の成功が前提）。**自動の経路（entrypoint / `apply` / `recover` / `due`）
+  には載せない** ── 別の PC で稼働中の DB を無人で入れ替えることになる。
+  **`preflight` のチェック22**が repo 配下の稼働中 PostgreSQL を見て、`C` でないものを直し方つきで WARN する
+  （コンテナは `com.docker.compose.project.working_dir` ラベルで絞る。同じ PC の別プロジェクトは見ない）。
+  移行済みは bank-analyzer だけ（2026-10-14）。**libc 系（alpine ↔ bookworm）を変えるのは移行の後**
+  ── 先に変えると `REINDEX DATABASE` が必須になる
 
 ### テスト（manage.sh test / CI）
 

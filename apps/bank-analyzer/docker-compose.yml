@@ -52,9 +52,12 @@ services:
   # 既存のデータは pgdata/ に残ったまま「DB が空」の状態で起動する**。
   # ===========================================
   bank-analyzer-db:
-    # このボリュームは元の Django 版が glibc 環境で作ったため、Alpine (musl) へ
-    # 変えると照合順序バージョンを取得できず、接続のたびに警告が出る。
-    # 既存インデックスの並び順も同じ libc 系で保つため bookworm を使い続ける。
+    # このボリュームは PC によって生まれが違う（glibc の postgres:16 で作られたもの・
+    # musl の alpine で作られたものの両方が実在する）ので、libc 系をここで1つに
+    # 決めると片方にとって必ず間違いになる。根治は DB の照合順序を libc 非依存の
+    # C へ移すこと（`manage.sh collation bank-analyzer`、README 参照）。移した後は
+    # alpine / bookworm のどちらでも並び順は変わらない。**移す前の PC で image: を
+    # 変えないこと**（glibc 生まれのボリュームを alpine で開くと照合順序の警告が出る）。
     image: postgres:16-bookworm
     container_name: bank-analyzer-postgres
     networks:

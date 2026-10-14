@@ -55,9 +55,33 @@ docker/scripts/manage.sh test bank-analyzer
 `map:` で Django の実名に合わせてあり、id は Django の BigAutoField なので BigInt
 （JSON に出すときは `server/json.ts` の `toId` で number へ）。
 
-DB イメージは `postgres:16-bookworm` を使う。引き継いだボリュームは glibc 環境で作られており、
-`postgres:16-alpine`（musl）へ変更すると照合順序の実バージョンを取得できず、既存インデックスと
-異なる並び順を使うおそれがあるため、Alpine へは切り替えない。
+DB イメージは `postgres:16-bookworm` を使う。ただし**引き継いだボリュームの生まれは PC によって違う**
+（glibc の `postgres:16` で作られたもの＝照合順序の記録 `2.36`、musl の `postgres:16-alpine` で
+作られたもの＝記録なし、の両方が実在する）。DB の照合順序が `en_US.utf8` のままだと並び順が
+libc で決まるので、イメージの libc 系をどちらに決めても片方の PC では食い違う。
+
+根治は DB の照合順序を Postgres 組み込みのバイト順 `C` へ移すこと。移した後は alpine / bookworm の
+どちらで開いても並び順は変わらない（2026-10-14、開発 PC で実施済み）。**各 PC で一度だけ手で叩く**
+（自動の経路には載せていない）:
+
+```bash
+docker/scripts/manage.sh backup && docker/scripts/manage.sh drill   # 24時間以内の成功が前提
+docker/scripts/manage.sh collation                    # 一覧（何も変えない）
+docker/scripts/manage.sh collation bank-analyzer      # 手順の表示（何も変えない）
+docker/scripts/manage.sh collation bank-analyzer --yes
+```
+
+中身は「アプリだけ止める → `pg_dump` → `LC_COLLATE=C` の新しい DB へ復元 → 全テーブルの件数照合
+→ 改名で入れ替え → アプリ起動」。ボリュームは消さず、旧 DB は `bank_analyzer_pre_c` として残る。
+
+- **musl 生まれ（記録なし）の PC**: 今の並び順もバイト順なので挙動は変わらない。移してから
+  bookworm へ切り替えれば `REINDEX` も要らない（先に bookworm へ切り替えると、musl の順で作った
+  インデックスを glibc で読むことになるので `REINDEX DATABASE` が必須になる）
+- **glibc 生まれ（記録 `2.36`）の PC**: 並び順が言語順からバイト順に変わる（記号・大文字小文字の
+  前後など）。画面で効くのは口座の並び（`printOrder` が同じ口座どうしの銀行名・支店名・口座番号の順。
+  `cases.ts` / `passbookInventory.ts`）だけ。移す前に口座一覧を見ておき、後で同じ順か確かめる
+- 旧 DB は移した直後の巻き戻し用。**イメージの libc 系を変えた後は旧 DB の索引は信用できない**ので、
+  画面と件数を確かめたら `DROP DATABASE bank_analyzer_pre_c;` で消す
 
 マイグレーションは**手書き**で、4本ある:
 

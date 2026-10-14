@@ -2540,6 +2540,43 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
+  # 22. DB の照合順序が libc に依存していないか
+  #
+  # 既定が en_US.utf8 のような libc 提供の照合順序だと、並び順が「どのイメージで
+  # 動かしたか」で決まる。Alpine(musl) は照合順序バージョンを返さないので
+  # datcollversion が NULL になり、Postgres 自身の不一致検知まで無効になる
+  # ── image: のタグを1行変えるだけで、警告ゼロで並び順が食い違う。
+  # 対象は tax_apps 配下の compose から起動されたコンテナだけ（同じ PC で動く
+  # 無関係なプロジェクトの DB は見ない）。停止中のアプリは見られない。
+  local coll_app coll_container coll_info coll_user coll_db coll_collate coll_ctype coll_ver
+  local coll_bad=0 coll_seen=0
+  while IFS=$'\t' read -r coll_app coll_container; do
+    ((++coll_seen))
+    if ! coll_info=$(pg_db_locale "$coll_container") || [[ -z "$coll_info" ]]; then
+      warn "$coll_app: PostgreSQL へ接続できず照合順序を確認できません ($coll_container)"
+      ((++pf_warn))
+      continue
+    fi
+    IFS='|' read -r coll_user coll_db coll_collate coll_ctype coll_ver <<< "$coll_info"
+    case "$coll_collate" in
+      C|POSIX) ;;
+      *)
+        ((++coll_bad))
+        warn "$coll_app: $coll_db の照合順序が libc 依存です (LC_COLLATE=$coll_collate, 記録=${coll_ver:-なし})"
+        echo "  イメージの libc 系（alpine=musl / bookworm=glibc）を変えると並び順が黙って変わります。"
+        echo "  直し方: $0 collation $coll_app --yes（バイト順の C へ移す。ボリュームは消さない）"
+        ((++pf_warn))
+        ;;
+    esac
+  done < <(pg_containers_in_repo)
+  if [[ $coll_seen -eq 0 ]]; then
+    warn "起動中の PostgreSQL が無いため照合順序を確認できません"
+    ((++pf_warn))
+  elif [[ $coll_bad -eq 0 ]]; then
+    ok "All $coll_seen PostgreSQL database(s) use a libc-independent collation"
+    ((++pf_ok))
+  fi
+
   # Summary
   print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
 
@@ -2557,6 +2594,280 @@ cmd_preflight() {
 }
 
 # ------------------------------------
+# collation - DB の照合順序を libc 非依存（C）へ移す
+#
+# DB の既定が en_US.utf8 のような libc 提供の照合順序だと、文字列の並び順は
+# 「どのイメージで動かしたか」で決まる。しかも Alpine(musl) は照合順序の
+# バージョンを返さないので pg_database.datcollversion が NULL になり、
+# **Postgres 自身の不一致検知が無効**になる ── image: のタグを1行変えるだけで、
+# 警告ゼロのままインデックスの並び順と実際の比較結果が食い違う。
+# 実際に bank-analyzer は、ある PC では musl 生まれ（記録なし）、別の PC では
+# glibc 生まれ（記録 2.36）で、同じ compose の image: がどちらか一方にとって
+# 必ず間違いになっていた。
+#
+# C は Postgres 組み込みのバイト順で、libc にもディストロの版にも依存しない。
+# musl は照合テーブルを持たず strcoll≡strcmp なので、Alpine で動いてきた DB の
+# 並び順はすでにバイト順そのもの ── C へ移しても**挙動は変わらない**。
+# LC_CTYPE は現状のまま引き継ぐので upper()/lower() や正規表現も変わらない。
+#
+# **自動経路（entrypoint / apply / recover / due）には絶対に載せないこと**。
+# 他の PC で稼働中の DB を無人で入れ替える形になる。手で叩く口だけにしてある。
+# 引数なし＝一覧だけ / アプリ名だけ＝手順の表示だけ / --yes で実行。
+# ------------------------------------
+
+# tax_apps 配下の compose から起動された PostgreSQL コンテナだけを並べる。
+# 「postgres イメージなら対象」にすると、同じ PC で動いている無関係な
+# プロジェクトの DB まで拾う（実際に fleet-board が動いている）。起動に使った
+# compose の working_dir ラベルで絞るので、アプリを足しても表の更新は要らない。
+#
+# 出力: <アプリのディレクトリ名><TAB><コンテナ名>
+pg_containers_in_repo() {
+  local root_norm name image wd wd_norm
+  root_norm=$(to_win_path "$PROJECT_ROOT" | tr 'A-Z\\' 'a-z/')
+  while IFS=$'\t' read -r name image; do
+    [[ -z "$name" ]] && continue
+    case "$image" in postgres:*|postgres) ;; *) continue ;; esac
+    wd=$(docker inspect "$name" \
+      --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null) || continue
+    [[ -z "$wd" ]] && continue
+    wd_norm=$(printf '%s' "$wd" | tr 'A-Z\\' 'a-z/')
+    [[ "$wd_norm" == "$root_norm"/* ]] || continue
+    printf '%s\t%s\n' "${wd_norm##*/}" "$name"
+  done < <(docker ps --format '{{.Names}}\t{{.Image}}' 2>/dev/null)
+}
+
+# そのコンテナの DB の接続情報とロケール。接続情報はコンテナ自身の環境変数
+# （POSTGRES_USER / POSTGRES_DB）から採るので、アプリごとの表を持たない。
+# SQL に単引用符を入れないこと（sh -c の引用と衝突する）。NULL は -At で空になる。
+#
+# 出力: <user>|<db>|<datcollate>|<datctype>|<datcollversion（無ければ空）>
+pg_db_locale() {
+  docker exec "$1" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F"|" -c "select current_user, current_database(), datcollate, datctype, datcollversion from pg_database where datname = current_database()"' 2>/dev/null
+}
+
+_pg_psql() {
+  local container="$1" user="$2" db="$3"; shift 3
+  docker exec "$container" psql -U "$user" -d "$db" -At -v ON_ERROR_STOP=1 "$@"
+}
+
+# public スキーマの全テーブルの実件数（統計値の n_live_tup は古いことがあるので使わない）。
+# 出力: <テーブル名>:<件数> を名前順に1行ずつ
+_pg_table_counts() {
+  _pg_psql "$1" "$2" "$3" -c "
+    select c.relname || ':' ||
+           (xpath('/row/n/text()',
+                  query_to_xml(format('select count(*) as n from %I.%I', n.nspname, c.relname),
+                               false, true, '')))[1]::text
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r'
+    order by c.relname"
+}
+
+# 移行中に止めたサービス（失敗した経路でも必ず起動し直すため外に持つ）
+COLLATION_FILES=()
+COLLATION_STOPPED=()
+
+_collation_restart_app() {
+  [[ ${#COLLATION_STOPPED[@]} -eq 0 ]] && return 0
+  log "止めていたサービスを起動します: ${COLLATION_STOPPED[*]}"
+  docker compose "${COLLATION_FILES[@]}" start "${COLLATION_STOPPED[@]}" >/dev/null \
+    || err "起動し直せませんでした。手で start してください: ${COLLATION_STOPPED[*]}"
+  COLLATION_STOPPED=()
+}
+
+_collation_list() {
+  local app container info user db collate ctype ver seen=0
+  print_banner "DB の照合順序"
+  printf '  %-28s %-20s %-12s %s\n' "アプリ" "DB" "LC_COLLATE" "判定"
+  while IFS=$'\t' read -r app container; do
+    ((++seen))
+    if ! info=$(pg_db_locale "$container") || [[ -z "$info" ]]; then
+      printf '  %-28s %s\n' "$app" "（接続できません: $container）"
+      continue
+    fi
+    IFS='|' read -r user db collate ctype ver <<< "$info"
+    case "$collate" in
+      C|POSIX) printf '  %-28s %-20s %-12s %s\n' "$app" "$db" "$collate" "OK（libc 非依存）" ;;
+      *)       printf '  %-28s %-20s %-12s %s\n' "$app" "$db" "$collate" "libc 依存（記録=${ver:-なし}）" ;;
+    esac
+  done < <(pg_containers_in_repo)
+  echo ""
+  [[ $seen -eq 0 ]] && warn "起動中の PostgreSQL が見つかりません（停止中のアプリは出ません）"
+  echo "  移すには: $0 collation <app>（手順の表示）→ $0 collation <app> --yes（実行）"
+}
+
+cmd_collation() {
+  local target="${1:-}" confirm="${2:-}"
+  if [[ -z "$target" ]]; then
+    _collation_list
+    return 0
+  fi
+
+  require_app_arg "collation" "$target"
+  local dir="$RESOLVED_DIR" app container info user db collate ctype ver
+  app=$(basename "$dir")
+  container=$(pg_containers_in_repo | awk -F'\t' -v a="$app" '$1 == a && !f { print $2; f = 1 }')
+  if [[ -z "$container" ]]; then
+    err "$app の PostgreSQL コンテナが動いていません（DB を持たないアプリか、停止中です）"
+    return 1
+  fi
+  if ! info=$(pg_db_locale "$container") || [[ -z "$info" ]]; then
+    err "$container の DB へ接続できません"
+    return 1
+  fi
+  IFS='|' read -r user db collate ctype ver <<< "$info"
+
+  case "$collate" in
+    C|POSIX)
+      ok "$app の $db はすでに LC_COLLATE=$collate（libc 非依存）です。何もしません"
+      return 0
+      ;;
+  esac
+
+  local tmp_db="${db}_c_tmp" old_db="${db}_pre_c" leftovers
+  if ! leftovers=$(_pg_psql "$container" "$user" postgres \
+      -c "select datname from pg_database where datname in ('$tmp_db', '$old_db') order by datname"); then
+    err "$container の DB 一覧を読めません"
+    return 1
+  fi
+
+  local mode db_service svc
+  mode=$(effective_app_mode "$dir"); [[ -z "$mode" ]] && mode=dev
+  compose_files_for_app "$dir" "$mode"
+  db_service=$(docker inspect "$container" --format '{{index .Config.Labels "com.docker.compose.service"}}')
+  local others=()
+  while read -r svc; do
+    [[ -z "$svc" || "$svc" == "$db_service" ]] && continue
+    others+=("$svc")
+  done < <(docker compose "${COMPOSE_FILES[@]}" ps --services --status running 2>/dev/null)
+
+  print_banner "照合順序の移行: $app ($db)"
+  echo "  現在:   LC_COLLATE=$collate  LC_CTYPE=$ctype  記録バージョン=${ver:-（なし）}"
+  echo "  移行後: LC_COLLATE=C  LC_CTYPE=$ctype"
+  echo ""
+  echo "  1. 書き込むサービスを止める: ${others[*]:-（なし）}  ※全体の停止マーカーは置かない"
+  echo "  2. pg_dump → LC_COLLATE=C の新しい DB ($tmp_db) へ復元"
+  echo "  3. 全テーブルの件数を照合（1件でも違えば入れ替えずに中断）"
+  echo "  4. 改名で入れ替え: $db → $old_db / $tmp_db → $db"
+  echo "  5. 止めたサービスを起動"
+  echo ""
+  echo "  ボリュームは削除しません。旧 DB は $old_db として同じクラスタに残ります。"
+  if [[ -n "$ver" ]]; then
+    warn "記録バージョンがある（glibc で作られた）DB です。並び順が言語順からバイト順に変わります"
+    echo "  文字列で ORDER BY している画面があれば、並びが変わって困らないか確かめてください。"
+  else
+    echo "  記録バージョンが無い（musl で作られた）DB なので、今の並び順もバイト順です。挙動は変わりません。"
+  fi
+  echo ""
+
+  if [[ -n "$leftovers" ]]; then
+    err "前回の残りがあります: $(echo "$leftovers" | tr '\n' ' ')"
+    echo "  中身を確かめてから、不要なほうを手で DROP DATABASE してください（自動では消しません）。"
+    return 1
+  fi
+  if [[ "$confirm" != "--yes" ]]; then
+    warn "表示のみです（DB は変わっていません）。実行: $0 collation $app --yes"
+    return 0
+  fi
+
+  # 実データを入れ替えるので、検証済みの新しいバックアップがあることを前提にする
+  local bk_status bk_age dr_status dr_age
+  bk_status=$(ops_last_result_field backup status 2>/dev/null || true)
+  bk_age=$(ops_last_result_age_hours backup 2>/dev/null || true)
+  dr_status=$(ops_last_result_field drill status 2>/dev/null || true)
+  dr_age=$(ops_last_result_age_hours drill 2>/dev/null || true)
+  if [[ "$bk_status" != "ok" || ! "$bk_age" =~ ^[0-9]+$ || "$dr_status" != "ok" || ! "$dr_age" =~ ^[0-9]+$ ]] \
+     || (( bk_age > 24 || dr_age > 24 )); then
+    err "24時間以内に成功したバックアップとリストア訓練がありません"
+    echo "  backup: ${bk_status:-記録なし} (${bk_age:-?}h前) / drill: ${dr_status:-記録なし} (${dr_age:-?}h前)"
+    echo "  先に $0 backup → $0 drill を通してください。"
+    return 1
+  fi
+
+  COLLATION_FILES=("${COMPOSE_FILES[@]}")
+  COLLATION_STOPPED=()
+  if [[ ${#others[@]} -gt 0 ]]; then
+    log "書き込みを止めます: ${others[*]}"
+    COLLATION_STOPPED=("${others[@]}")
+    if ! docker compose "${COMPOSE_FILES[@]}" stop "${others[@]}" >/dev/null; then
+      err "サービスを止められませんでした（DB は変わっていません）"
+      _collation_restart_app; return 1
+    fi
+  fi
+
+  # コンテナ内のパス。Git Bash は引数の /tmp を Windows のパスへ書き換えるので、
+  # これを渡す docker exec には MSYS_NO_PATHCONV=1 を付ける
+  local dump=/tmp/tax-apps-collation.dump before after
+  _pg_psql "$container" "$user" postgres \
+    -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = '$db' and pid <> pg_backend_pid()" >/dev/null || true
+
+  if ! before=$(_pg_table_counts "$container" "$user" "$db") || [[ -z "$before" ]]; then
+    err "移行前の件数を取得できません（DB は変わっていません）"
+    _collation_restart_app; return 1
+  fi
+
+  log "pg_dump 中..."
+  if ! MSYS_NO_PATHCONV=1 docker exec "$container" pg_dump -U "$user" -d "$db" -Fc -f "$dump"; then
+    err "pg_dump に失敗しました（DB は変わっていません）"
+    _collation_restart_app; return 1
+  fi
+
+  log "LC_COLLATE=C の新しい DB を作成: $tmp_db"
+  if ! _pg_psql "$container" "$user" postgres \
+      -c "CREATE DATABASE \"$tmp_db\" TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE '$ctype'" >/dev/null; then
+    err "新しい DB を作れませんでした（元の DB は変わっていません）"
+    MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$dump" || true
+    _collation_restart_app; return 1
+  fi
+
+  log "復元中..."
+  if ! MSYS_NO_PATHCONV=1 docker exec "$container" pg_restore -U "$user" -d "$tmp_db" --exit-on-error "$dump"; then
+    err "復元に失敗しました。元の DB は変わっていません（$tmp_db は調査用に残します）"
+    MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$dump" || true
+    _collation_restart_app; return 1
+  fi
+  MSYS_NO_PATHCONV=1 docker exec "$container" rm -f "$dump" || true
+
+  if ! after=$(_pg_table_counts "$container" "$user" "$tmp_db") || [[ "$before" != "$after" ]]; then
+    err "件数が一致しません。入れ替えは行いません（$tmp_db は調査用に残します）"
+    diff <(printf '%s\n' "$before") <(printf '%s\n' "${after:-}") || true
+    _collation_restart_app; return 1
+  fi
+  local n_tables n_rows
+  n_tables=$(printf '%s\n' "$before" | wc -l | tr -d ' ')
+  n_rows=$(printf '%s\n' "$before" | awk -F: '{ s += $2 } END { print s + 0 }')
+  ok "件数一致: ${n_tables} テーブル / ${n_rows} 行"
+
+  log "入れ替えます: $db → $old_db / $tmp_db → $db"
+  _pg_psql "$container" "$user" postgres \
+    -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = '$db' and pid <> pg_backend_pid()" >/dev/null || true
+  if ! _pg_psql "$container" "$user" postgres -c "ALTER DATABASE \"$db\" RENAME TO \"$old_db\"" >/dev/null; then
+    err "改名できませんでした（接続が残っている可能性）。元の DB は変わっていません"
+    _collation_restart_app; return 1
+  fi
+  if ! _pg_psql "$container" "$user" postgres -c "ALTER DATABASE \"$tmp_db\" RENAME TO \"$db\"" >/dev/null; then
+    err "2回目の改名に失敗しました。元へ戻します"
+    _pg_psql "$container" "$user" postgres -c "ALTER DATABASE \"$old_db\" RENAME TO \"$db\"" >/dev/null \
+      || err "戻せませんでした。手で: ALTER DATABASE \"$old_db\" RENAME TO \"$db\""
+    _collation_restart_app; return 1
+  fi
+
+  _collation_restart_app
+
+  info=$(pg_db_locale "$container" || true)
+  IFS='|' read -r user db collate ctype ver <<< "$info"
+  if [[ "$collate" != "C" ]]; then
+    err "入れ替え後の照合順序が C になっていません: ${collate:-不明}"
+    return 1
+  fi
+  ok "$app の $db を LC_COLLATE=C へ移しました（LC_CTYPE=$ctype）"
+  echo "  旧 DB: $old_db（同じクラスタに残しています）"
+  echo "    戻す: ALTER DATABASE \"$db\" RENAME TO \"${db}_c_tmp\"; ALTER DATABASE \"$old_db\" RENAME TO \"$db\";"
+  echo "    消す: 画面と件数を確かめてから DROP DATABASE \"$old_db\";（自動では消しません）"
+  echo "  これで image: の libc 系（alpine=musl / bookworm=glibc）を変えても並び順は変わりません。"
+}
+
+# ------------------------------------
 # メイン
 # ------------------------------------
 check_dependencies
@@ -2570,7 +2881,7 @@ case "$COMMAND" in
   recover)
     acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 240)"
     ;;
-  start|stop|down|restart|build|apply|clean|clean-cache|prune|test)
+  start|stop|down|restart|build|apply|clean|clean-cache|prune|test|collation)
     acquire_operation_lock "$COMMAND" "$(ops_default_lock_wait 120)"
     ;;
 esac
@@ -2601,8 +2912,9 @@ case "$COMMAND" in
   # （Docker のログを読むだけで、コンテナには触らない）。
   loop-check) cmd_loop_check ;;
   preflight) cmd_preflight ;;
+  collation) cmd_collation "${2:-}" "${3:-}" ;;
   *)
-    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|verify|drill|due|clean|clean-cache|prune|alert|loop-check|preflight} [app-name]"
+    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|verify|drill|due|clean|clean-cache|prune|alert|loop-check|preflight|collation} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start [app]        起動（アプリ名を省略すると全アプリ・ネットワーク自動作成）"
@@ -2630,6 +2942,7 @@ case "$COMMAND" in
     echo "  alert              デスクトップの警告ファイルを作り直す"
     echo "  loop-check         画面のリロードループを検知（ウォッチドッグ用）"
     echo "  preflight          起動前チェック"
+    echo "  collation [app] [--yes] DB の照合順序を libc 非依存の C へ移す（省略時は一覧・--yes で実行）"
     echo ""
     echo "Apps:"
     for app in "${APPS[@]}"; do
