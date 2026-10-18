@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardCheck, LoaderCircle, UserCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCheck, LoaderCircle, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BackToClientList } from "@/components/back-to-client-list";
 import { AppBrand } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
 import { CLIENT_QUALITY_LABELS, type ClientQualityIssueCode, type ClientSummary } from "@/lib/clients";
@@ -66,7 +67,7 @@ export function DataQualityView() {
 
   if (clients === null) return <main className="initial-loader"><LoaderCircle className="spin" /><p>データ品質を確認しています</p></main>;
   return <div className="client-home"><header className="client-home-header"><AppBrand /></header><main className="client-home-main quality-page">
-    <section className="page-heading"><div><Link className="back-to-list" href="/"><ArrowLeft />顧客一覧に戻る</Link><h1>データ品質チェック</h1><p>計算や顧客説明の前に確認したい不備を、全顧客を横断して表示します。</p></div></section>
+    <section className="page-heading"><div><BackToClientList /><h1>データ品質チェック</h1><p>計算や顧客説明の前に確認したい不備を、全顧客を横断して表示します。</p></div></section>
     {error ? <p className="error-banner" role="alert"><AlertTriangle />{error}</p> : null}
     {notice ? <p className="quality-notice" role="status"><CheckCircle2 />{notice}</p> : null}
     <section className="quality-summary" aria-label="不備の集計">

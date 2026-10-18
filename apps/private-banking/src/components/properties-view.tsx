@@ -4,6 +4,7 @@ import { AlertTriangle, Download, LoaderCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { BackToClientList } from "@/components/back-to-client-list";
 import { Highlighted } from "@/components/highlighted";
 import { ListPager, PageSizeSelect } from "@/components/list-pager";
 import { PanelHeader } from "@/components/panel-header";
@@ -110,7 +111,7 @@ export function PropertiesView() {
   };
 
   return <>
-    <div className="page-heading"><h1>不動産一覧</h1></div>
+    <div className="page-heading"><div><BackToClientList /><h1>不動産一覧</h1></div></div>
     <div className="client-home-toolbar">
       <label className="client-search">
         <Search />

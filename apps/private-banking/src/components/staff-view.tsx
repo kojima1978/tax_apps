@@ -2,6 +2,7 @@
 
 import { AlertTriangle, LoaderCircle, Plus, Trash2, UserCog } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { BackToClientList } from "@/components/back-to-client-list";
 import { PanelHeader } from "@/components/panel-header";
 import { API_BASE } from "@/lib/api";
 import type { Staff } from "@/lib/staff";
@@ -87,7 +88,7 @@ export function StaffView() {
   }
 
   return <>
-    <div className="page-heading"><div><h1>担当者</h1><p>ここに登録した担当者だけが、顧客の担当者として選べます。</p></div></div>
+    <div className="page-heading"><div><BackToClientList /><h1>担当者</h1><p>ここに登録した担当者だけが、顧客の担当者として選べます。</p></div></div>
     {error ? <p className="error-banner" role="alert"><AlertTriangle />{error}</p> : null}
     {notice ? <p className="staff-notice" role="status">{notice}</p> : null}
     <article className="panel staff-panel">

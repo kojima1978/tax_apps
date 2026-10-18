@@ -3,6 +3,7 @@
 import { AlertTriangle, CircleCheck, Download, FileJson, LoaderCircle, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { ChangeEvent, DragEvent, useEffect, useState } from "react";
+import { BackToClientList } from "@/components/back-to-client-list";
 import { PanelHeader } from "@/components/panel-header";
 import { API_BASE } from "@/lib/api";
 import { ClientSummary } from "@/lib/clients";
@@ -167,7 +168,7 @@ function GlobalBackup() {
   }, []);
 
   return <>
-    <BackupHeading description="データをJSONファイルへ書き出します。復元は「データ復元」画面で行います。" />
+    <BackupHeading back description="データをJSONファイルへ書き出します。復元は「データ復元」画面で行います。" />
     {/* よく使う個別を上、めったに使わない全体を下に置く。 */}
     <div className="backup-grid backup-grid-stacked">
       <article className="panel">
@@ -215,7 +216,7 @@ function GlobalBackup() {
  */
 export function RestoreView() {
   return <>
-    <BackupHeading title="データ復元" description="バックアップファイル（JSON）を読み込んで復元します。" />
+    <BackupHeading back title="データ復元" description="バックアップファイル（JSON）を読み込んで復元します。" />
     {/* よく使う個別の取り込みを上、めったに使わない全体復元を下に置く。 */}
     <div className="backup-grid backup-grid-stacked">
       <article className="panel">
@@ -237,8 +238,9 @@ export function RestoreView() {
   </>;
 }
 
-function BackupHeading({ title = "バックアップ", description }: { title?: string; description: string }) {
-  return <section className="page-heading"><div><h2>{title}</h2><p>{description}</p></div></section>;
+/** 顧客一覧から開く画面だけ `back` を立てる（顧客個別画面の中では、戻る先はトップバーが持っている）。 */
+function BackupHeading({ title = "バックアップ", description, back = false }: { title?: string; description: string; back?: boolean }) {
+  return <section className="page-heading"><div>{back ? <BackToClientList /> : null}<h2>{title}</h2><p>{description}</p></div></section>;
 }
 
 /** ファイル選択→内容の確認→復元（または取り込み）までの一連の操作。 */
