@@ -1811,7 +1811,7 @@ tbody tr:last-child > .cash-gift-amount-cell {
   }
 
   /* 計算条件: アイコン付きカードで、金額・人数・適用条件をひと目で区別する */
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise {
     padding: 7px 10px 8px !important;
     border: 1px solid #cbd5e1;
     border-left: 4px solid #15803d;
@@ -1821,14 +1821,14 @@ tbody tr:last-child > .cash-gift-amount-cell {
     page-break-inside: avoid;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise-heading {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise-heading {
     display: flex;
     align-items: center;
     gap: 7px;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise-heading-icon,
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise-item-icon {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise-heading-icon,
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise-item-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1838,19 +1838,19 @@ tbody tr:last-child > .cash-gift-amount-cell {
     border: 1px solid #bbf7d0;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise-heading-icon {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise-heading-icon {
     width: 22px;
     height: 22px;
     border-radius: 50%;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise-heading-icon svg {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise-heading-icon svg {
     width: 13px;
     height: 13px;
     stroke-width: 2.2;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise-heading h2 {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise-heading h2 {
     margin: 0;
     color: #0f172a;
     font-size: 12px;
@@ -1858,14 +1858,14 @@ tbody tr:last-child > .cash-gift-amount-cell {
     font-weight: 800;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise-heading p {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise-heading p {
     margin: 1px 0 0;
     color: #64748b;
     font-size: 8px;
     line-height: 1.2;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise .calc-premise-grid {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise .calc-premise-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 7px;
@@ -1955,7 +1955,7 @@ tbody tr:last-child > .cash-gift-amount-cell {
     white-space: nowrap;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise .calc-premise-item {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise .calc-premise-item {
     display: grid;
     grid-template-columns: 25px minmax(0, 1fr);
     grid-template-rows: auto auto;
@@ -1967,7 +1967,7 @@ tbody tr:last-child > .cash-gift-amount-cell {
     background: #fff;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise-item-icon {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise-item-icon {
     grid-column: 1;
     grid-row: 1 / span 2;
     width: 25px;
@@ -1975,13 +1975,13 @@ tbody tr:last-child > .cash-gift-amount-cell {
     border-radius: 5px;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise-item-icon svg {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise-item-icon svg {
     width: 14px;
     height: 14px;
     stroke-width: 2;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise dt {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise dt {
     grid-column: 2;
     margin: 0;
     color: #64748b;
@@ -1990,22 +1990,22 @@ tbody tr:last-child > .cash-gift-amount-cell {
     font-weight: 600;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise dt::after {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise dt::after {
     content: none;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise dd {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise dd {
     grid-column: 2;
     min-width: 0;
     margin: 1px 0 0;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise dd strong,
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise dd span {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise dd strong,
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise dd span {
     display: block;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise dd strong {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise dd strong {
     color: #0f172a;
     font-size: 11.5px;
     line-height: 1.2;
@@ -2013,7 +2013,7 @@ tbody tr:last-child > .cash-gift-amount-cell {
     white-space: nowrap;
   }
 
-  :is(.calculator-print, .insurance-print, .cash-gift-print) .calc-premise dd span {
+  :is(.calculator-print, .insurance-print, .cash-gift-print, .real-estate-print) .calc-premise dd span {
     margin-top: 1px;
     color: #475569;
     font-size: 7.5px;

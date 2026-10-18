@@ -2,7 +2,6 @@ import { memo } from 'react';
 import type { RealEstateSimulationResult } from '../../types';
 import { REAL_ESTATE_CAUTIONS } from '../../constants/cautionMessages';
 import { formatCurrency } from '../../utils/formatters';
-import { PrintHeader } from '../PrintHeader';
 import { CARD, TD, TH } from '../tableStyles';
 
 interface RealEstateResultProps {
@@ -19,41 +18,36 @@ const formatReduction = (value: number) => value > 0
 
 export const RealEstateResult = memo(({ result }: RealEstateResultProps) => {
   const { input, current, proposed } = result;
-  const savingRate = result.investmentAmount > 0
-    ? (result.taxSaving / result.investmentAmount) * 100
-    : 0;
+  const isReduction = result.taxSaving >= 0;
 
   return (
-    <div className="real-estate-report space-y-4 md:space-y-6">
-      <PrintHeader title="賃貸不動産シミュレーション" />
-
-      <section className={`${CARD} real-estate-summary`} aria-labelledby="real-estate-summary-heading">
-        <h2 id="real-estate-summary-heading" className="mb-4 text-xl font-bold text-gray-800">シミュレーション結果</h2>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <span className="text-sm font-medium text-gray-700">投下資金</span>
-            <strong className="mt-1 block text-2xl text-gray-900">{formatCurrency(result.investmentAmount)}</strong>
-            <small className="mt-1 block text-xs text-gray-600">現金から不動産へ組み替え</small>
+    <div className={`${CARD} cash-gift-report-sheet real-estate-report-sheet`}>
+      <section className="cash-gift-result-summary real-estate-summary" aria-labelledby="real-estate-summary-heading">
+        <h3 id="real-estate-summary-heading">税額サマリー</h3>
+        <div className="cash-gift-result-summary-grid">
+          <div className="cash-gift-result-summary-item">
+            <span>対策なし</span>
+            <strong>{formatCurrency(current.taxResult.totalFinalTax)}</strong>
+            <small>相続税</small>
           </div>
-          <div className="rounded-lg border border-teal-200 bg-teal-50 p-4">
-            <span className="text-sm font-medium text-teal-800">相続税評価額の圧縮</span>
-            <strong className={`mt-1 block text-2xl ${savingClass(result.valuationReduction)}`}>
-              {formatReduction(result.valuationReduction)}
-            </strong>
-            <small className="mt-1 block text-xs text-teal-700">評価額 {formatCurrency(result.propertyAssessedValue)}</small>
+          <div className="cash-gift-result-summary-item">
+            <span>対策あり</span>
+            <strong>{formatCurrency(proposed.taxResult.totalFinalTax)}</strong>
+            <small>相続税</small>
           </div>
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-            <span className="text-sm font-medium text-green-800">相続税の軽減見込額</span>
-            <strong className={`mt-1 block text-2xl ${savingClass(result.taxSaving)}`}>
-              {formatReduction(result.taxSaving)}
-            </strong>
-            <small className="mt-1 block text-xs text-green-700">投下資金に対して {savingRate.toFixed(2)}%</small>
+          <div className={`cash-gift-result-summary-item cash-gift-result-summary-impact ${isReduction ? 'is-reduction' : 'is-increase'}`}>
+            <span>納付税額の変化</span>
+            <strong>{isReduction ? '△' : '+'}{formatCurrency(Math.abs(result.taxSaving))}</strong>
+            <small>{isReduction ? '税負担が減少' : '税負担が増加'}</small>
           </div>
         </div>
       </section>
 
-      <section className={`${CARD} real-estate-evaluation`} aria-labelledby="real-estate-evaluation-heading">
-        <h2 id="real-estate-evaluation-heading" className="mb-3 text-xl font-bold text-gray-800">評価額の計算</h2>
+      <section className="cash-gift-report-section real-estate-evaluation" aria-labelledby="real-estate-evaluation-heading">
+        <div className="cash-gift-workbook-heading">
+          <h3 id="real-estate-evaluation-heading">不動産評価額の計算</h3>
+          <span>投下資金 {formatCurrency(result.investmentAmount)}</span>
+        </div>
         <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-5 text-center">
           <p className="text-sm font-medium leading-7 text-gray-800 md:text-base">
             {formatCurrency(result.investmentAmount)} ×（1 − {formatRate(input.compressionRate)}）×
@@ -67,8 +61,11 @@ export const RealEstateResult = memo(({ result }: RealEstateResultProps) => {
         <p className="mt-3 text-xs text-gray-500">賃貸割合は100%として概算しています。</p>
       </section>
 
-      <section className={`${CARD} real-estate-comparison`} aria-labelledby="real-estate-comparison-heading">
-        <h2 id="real-estate-comparison-heading" className="mb-4 text-xl font-bold text-gray-800">現状と投資後の比較</h2>
+      <section className="cash-gift-report-section real-estate-comparison" aria-labelledby="real-estate-comparison-heading">
+        <div className="cash-gift-workbook-heading">
+          <h3 id="real-estate-comparison-heading">現状と投資後の比較</h3>
+          <span>（単位：万円）</span>
+        </div>
         <div className="overflow-x-auto table-scroll-hint">
           <table className="w-full min-w-[680px] border-collapse">
             <thead><tr className="bg-gray-800 text-white">

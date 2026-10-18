@@ -3,7 +3,9 @@ import { PageLayout } from '../components/PageLayout';
 import { HeirSettings } from '../components/HeirSettings';
 import { EstateInput } from '../components/EstateInput';
 import { SpouseAcquisitionSettings } from '../components/calculator/SpouseAcquisitionSettings';
+import { CalculationPremise } from '../components/calculator/CalculationPremise';
 import { CautionBox } from '../components/CautionBox';
+import { PrintHeader } from '../components/PrintHeader';
 import { StatusCard } from '../components/StatusCard';
 import { RealEstateInvestmentForm } from '../components/realEstate/RealEstateInvestmentForm';
 import { RealEstateResult } from '../components/realEstate/RealEstateResult';
@@ -86,7 +88,13 @@ export const RealEstatePage: React.FC = () => {
         ) : undefined
       }
       resultRef={resultRef}
-      resultSection={result !== null ? <div className="result-fade-in"><RealEstateResult result={result} /></div> : null}
+      resultSection={result !== null ? (
+        <div className="result-fade-in real-estate-report space-y-4 md:space-y-6">
+          <PrintHeader title="賃貸不動産シミュレーション" showDate={false} />
+          <CalculationPremise result={result.current.taxResult} />
+          <RealEstateResult result={result} />
+        </div>
+      ) : null}
     />
   );
 };
