@@ -1,8 +1,8 @@
 "use client";
 
-import { AlertTriangle, LoaderCircle, Plus, Trash2, UserCog, X } from "lucide-react";
+import { AlertTriangle, LoaderCircle, Plus, Trash2, UserCog } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { useModalDialog } from "@/components/use-modal-dialog";
+import { PanelHeader } from "@/components/panel-header";
 import { API_BASE } from "@/lib/api";
 import type { Staff } from "@/lib/staff";
 
@@ -18,19 +18,22 @@ async function requestStaff<T>(method: string, body: unknown, fallback: string):
 }
 
 /**
- * 担当者の台帳。顧客一覧の「担当者」から開く。
+ * 担当者の台帳。顧客一覧の「担当者」から開く独立した画面。
+ *
+ * 顧客の入力中に担当者を足す口は `StaffSelect` の「＋追加」が持っているので、ここは
+ * 改名・退職・削除・担当件数の確認という腰を据えた保守だけを受け持つ。モーダルだと
+ * 行ごとのインライン編集と削除の確認がフォーカスの巡回の中に入ってしまうため、
+ * 他の横断画面（データ品質・不動産一覧）と同じく1つの画面として開く。
  *
  * 削除できるのは担当している顧客が0件のときだけ（API 側で拒む）。担当がいる人を候補から
  * 外したいときは「退職」にする ── 選択欄から消えるだけで、その顧客の「担当 ○○」は残る。
  */
-export function StaffModal({ onClose }: { onClose: (changed: boolean) => void }) {
+export function StaffView() {
   const [staff, setStaff] = useState<Staff[] | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
-  const [changed, setChanged] = useState(false);
-  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!busy) onClose(changed); }, initialFocus: "#staff-new-name" });
 
   const load = useCallback(async () => {
     try {
@@ -47,7 +50,12 @@ export function StaffModal({ onClose }: { onClose: (changed: boolean) => void })
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
 
-  /** 操作の共通部分。成功したら一覧を取り直し、顧客一覧に伝える変更ありの印を立てる。 */
+  /**
+   * 操作の共通部分。成功したら一覧を取り直す。
+   *
+   * 顧客一覧の「担当 ○○」は、この画面から戻れば作り直されたついでに再取得されるので、
+   * 変更ありを呼び出し元へ伝える仕掛けは持たない（モーダルだった頃の `onClose(changed)`）。
+   */
   async function run(action: () => Promise<string>) {
     if (busy) return;
     setBusy(true);
@@ -56,7 +64,6 @@ export function StaffModal({ onClose }: { onClose: (changed: boolean) => void })
     try {
       const message = await action();
       await load();
-      setChanged(true);
       setNotice(message);
       setConfirmingId(null);
     } catch (caught) {
@@ -79,60 +86,58 @@ export function StaffModal({ onClose }: { onClose: (changed: boolean) => void })
     });
   }
 
-  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} className="modal staff-modal" role="dialog" aria-modal="true" aria-labelledby="staff-modal-title">
-    <header>
-      <div>
-        <h2 id="staff-modal-title">担当者</h2>
-        <p>ここに登録した担当者だけが、顧客の担当者として選べます。</p>
+  return <>
+    <div className="page-heading"><div><h1>担当者</h1><p>ここに登録した担当者だけが、顧客の担当者として選べます。</p></div></div>
+    {error ? <p className="error-banner" role="alert"><AlertTriangle />{error}</p> : null}
+    {notice ? <p className="staff-notice" role="status">{notice}</p> : null}
+    <article className="panel staff-panel">
+      <PanelHeader
+        title="担当者の台帳"
+        subtitle="削除できるのは担当している顧客が0件のときだけです。担当がいる人を候補から外すときは「退職にする」を選びます ── 選択欄から消えるだけで、その顧客の「担当 ○○」はそのまま残ります。"
+      />
+      <div className="staff-panel-body">
+        <form className="staff-new-form" onSubmit={addStaff}>
+          <div>
+            <label htmlFor="staff-new-name">担当者名<span className="required-mark">必須</span></label>
+            <input id="staff-new-name" name="name" required maxLength={100} autoComplete="off" placeholder="例：佐藤税理士" disabled={busy} />
+          </div>
+          <div>
+            <label htmlFor="staff-new-kana">カナ</label>
+            <input id="staff-new-kana" name="nameKana" maxLength={100} autoComplete="off" placeholder="例：サトウ" disabled={busy} />
+          </div>
+          <button type="submit" className="button primary" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : <Plus />}追加</button>
+        </form>
+
+        {staff === null
+          ? <p className="staff-loading"><LoaderCircle className="spin" />読み込んでいます</p>
+          : staff.length === 0
+            ? <p className="staff-empty"><UserCog />担当者がまだ登録されていません。</p>
+            : <ul className="staff-list">
+                {staff.map((row) => <StaffRow
+                  // 保存でサーバー側の値が変わったら行を作り直す（入力中の下書きを残さない）。
+                  key={`${row.id}:${row.name}:${row.nameKana}`}
+                  row={row}
+                  busy={busy}
+                  confirming={confirmingId === row.id}
+                  onSave={(name, nameKana) => void run(async () => {
+                    const saved = await requestStaff<Staff>("PATCH", { id: row.id, name, nameKana, isActive: row.isActive }, "担当者を更新できませんでした。");
+                    return `${saved.name}を保存しました。`;
+                  })}
+                  onToggleActive={() => void run(async () => {
+                    await requestStaff<Staff>("PATCH", { id: row.id, name: row.name, nameKana: row.nameKana, isActive: !row.isActive }, "担当者を更新できませんでした。");
+                    return row.isActive ? `${row.name}を退職にしました。以降は候補に出ません。` : `${row.name}を在籍に戻しました。`;
+                  })}
+                  onRequestDelete={() => { setError(""); setNotice(""); setConfirmingId(row.id); }}
+                  onCancelDelete={() => setConfirmingId(null)}
+                  onDelete={() => void run(async () => {
+                    await requestStaff<{ ok: true }>("DELETE", { id: row.id }, "担当者を削除できませんでした。");
+                    return `${row.name}を削除しました。`;
+                  })}
+                />)}
+              </ul>}
       </div>
-      <button type="button" className="icon-button" aria-label="閉じる" onClick={() => onClose(changed)} disabled={busy}><X /></button>
-    </header>
-    <div className="staff-modal-body">
-      {error ? <p className="client-modal-error" role="alert"><AlertTriangle />{error}</p> : null}
-      {notice ? <p className="staff-modal-notice" role="status">{notice}</p> : null}
-
-      <form className="staff-new-form" onSubmit={addStaff}>
-        <div>
-          <label htmlFor="staff-new-name">担当者名<span className="required-mark">必須</span></label>
-          <input id="staff-new-name" name="name" required maxLength={100} autoComplete="off" placeholder="例：佐藤税理士" disabled={busy} />
-        </div>
-        <div>
-          <label htmlFor="staff-new-kana">カナ</label>
-          <input id="staff-new-kana" name="nameKana" maxLength={100} autoComplete="off" placeholder="例：サトウ" disabled={busy} />
-        </div>
-        <button type="submit" className="button primary" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : <Plus />}追加</button>
-      </form>
-
-      {staff === null
-        ? <p className="staff-modal-loading"><LoaderCircle className="spin" />読み込んでいます</p>
-        : staff.length === 0
-          ? <p className="staff-modal-empty"><UserCog />担当者がまだ登録されていません。</p>
-          : <ul className="staff-list">
-              {staff.map((row) => <StaffRow
-                // 保存でサーバー側の値が変わったら行を作り直す（入力中の下書きを残さない）。
-                key={`${row.id}:${row.name}:${row.nameKana}`}
-                row={row}
-                busy={busy}
-                confirming={confirmingId === row.id}
-                onSave={(name, nameKana) => void run(async () => {
-                  const saved = await requestStaff<Staff>("PATCH", { id: row.id, name, nameKana, isActive: row.isActive }, "担当者を更新できませんでした。");
-                  return `${saved.name}を保存しました。`;
-                })}
-                onToggleActive={() => void run(async () => {
-                  await requestStaff<Staff>("PATCH", { id: row.id, name: row.name, nameKana: row.nameKana, isActive: !row.isActive }, "担当者を更新できませんでした。");
-                  return row.isActive ? `${row.name}を退職にしました。以降は候補に出ません。` : `${row.name}を在籍に戻しました。`;
-                })}
-                onRequestDelete={() => { setError(""); setNotice(""); setConfirmingId(row.id); }}
-                onCancelDelete={() => setConfirmingId(null)}
-                onDelete={() => void run(async () => {
-                  await requestStaff<{ ok: true }>("DELETE", { id: row.id }, "担当者を削除できませんでした。");
-                  return `${row.name}を削除しました。`;
-                })}
-              />)}
-            </ul>}
-    </div>
-    <footer><button type="button" className="button secondary" onClick={() => onClose(changed)} disabled={busy}>閉じる</button></footer>
-  </div></div>;
+    </article>
+  </>;
 }
 
 function StaffRow({ row, busy, confirming, onSave, onToggleActive, onRequestDelete, onCancelDelete, onDelete }: {

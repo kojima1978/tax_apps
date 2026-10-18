@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { StaffModal } from "@/components/staff-modal";
+import { StaffView } from "@/components/staff-view";
 import type { Staff } from "@/lib/staff";
 
 const response = (data: unknown, ok = true) => ({ ok, json: async () => data });
@@ -9,7 +9,6 @@ const response = (data: unknown, ok = true) => ({ ok, json: async () => data });
 const row = (name: string) => screen.getByRole("textbox", { name: `${name}の担当者名` }).closest(".staff-row") as HTMLElement;
 let rows: Staff[];
 let fetchMock: ReturnType<typeof vi.fn>;
-let onClose: ReturnType<typeof vi.fn<(changed: boolean) => void>>;
 
 beforeEach(() => {
   rows = [
@@ -37,15 +36,11 @@ beforeEach(() => {
     return response({ ok: true });
   });
   vi.stubGlobal("fetch", fetchMock);
-  onClose = vi.fn();
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-/** 見出しの×と下の「閉じる」が同じ名前になるので、押すのは下のほうに決める。 */
-const closeButton = () => screen.getAllByRole("button", { name: "閉じる" }).at(-1) as HTMLElement;
-
 const open = async () => {
-  render(<StaffModal onClose={onClose} />);
+  render(<StaffView />);
   await screen.findByRole("textbox", { name: "佐藤税理士の担当者名" });
 };
 
@@ -92,20 +87,21 @@ describe("担当者の台帳", () => {
     expect(JSON.parse(String(fetchMock.mock.calls.at(-2)?.[1].body))).toEqual({ id: 2, name: "高橋 一郎", nameKana: "タカハシ", isActive: false });
   });
 
-  it("追加した担当者は一覧に並び、閉じるときに顧客一覧へ変更を伝える", async () => {
+  it("追加した担当者は一覧に並び、入力欄は次の1人のために空になる", async () => {
     await open();
     fireEvent.change(screen.getByRole("textbox", { name: /^担当者名/ }), { target: { value: "鈴木" } });
     fireEvent.change(screen.getByLabelText("カナ"), { target: { value: "スズキ" } });
     fireEvent.click(screen.getByRole("button", { name: "追加" }));
     await screen.findByRole("textbox", { name: "鈴木の担当者名" });
-    fireEvent.click(closeButton());
-    // 改名・退職は顧客一覧の「担当 ○○」に出るので、変更があった回だけ読み直してもらう。
-    expect(onClose).toHaveBeenCalledWith(true);
+    // 続けて何人も登録する画面なので、登録した名前が残っていると二重登録のもとになる。
+    expect(screen.getByRole("textbox", { name: /^担当者名/ })).toHaveProperty("value", "");
+    expect(screen.getByLabelText("カナ")).toHaveProperty("value", "");
   });
 
-  it("何もしなければ顧客一覧を読み直させない", async () => {
+  // モーダルだった頃は onClose(changed) で顧客一覧に読み直させていた。画面になった今は
+  // 戻った時点で顧客一覧が作り直されるので、閉じる口そのものを持たない。
+  it("閉じるボタンを持たない", async () => {
     await open();
-    fireEvent.click(closeButton());
-    expect(onClose).toHaveBeenCalledWith(false);
+    expect(screen.queryByRole("button", { name: "閉じる" })).toBeNull();
   });
 });

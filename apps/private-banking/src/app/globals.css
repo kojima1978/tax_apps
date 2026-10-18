@@ -622,17 +622,18 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-field-note { display: block; margin-top: 4px; font-size: 11px; font-weight: 700; }
 .staff-field-note.is-error { color: var(--danger); }
 
-/* 担当者の台帳。顧客一覧の「担当者」から開く。 */
-.staff-modal { width: min(760px, 100%); }
-.staff-modal > header p { margin: 4px 0 0; color: var(--slate-600); font-size: 12px; }
-.staff-modal-body { padding: 24px; }
-.staff-modal > footer { margin-top: 0; padding: 16px 24px 20px; }
-.staff-modal-notice { margin: 0 0 14px; padding: 10px 12px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; font-size: 11px; font-weight: 700; }
-.staff-modal .staff-new-form { margin-bottom: 18px; padding: 0 0 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+/* 担当者の台帳（`/staff`）。顧客一覧の「担当者」から画面として開く。
+   行ごとのインライン編集と削除の確認を持つので、幅は読める範囲で止めて中央には寄せない。 */
+.staff-panel { margin-top: 14px; max-width: 860px; }
+.staff-panel .panel-header { min-height: 0; }
+.staff-panel .panel-header p { max-width: 68ch; margin-top: 4px; line-height: 1.7; }
+.staff-panel-body { padding: 22px; }
+.staff-notice { margin: 0 0 14px; padding: 10px 12px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; font-size: 11px; font-weight: 700; }
+.staff-panel-body .staff-new-form { margin-bottom: 18px; padding: 0 0 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
 .staff-new-form > div { min-width: 0; flex: 1 1 160px; }
 .staff-new-form label { display: block; margin-bottom: 5px; color: var(--slate-700); font-size: 11px; font-weight: 800; }
 .staff-new-form input { width: 100%; min-height: 44px; padding: 9px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 14px; }
-.staff-modal-loading, .staff-modal-empty { margin: 0; padding: 24px 0; color: var(--slate-500); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; font-weight: 700; }
+.staff-loading, .staff-empty { margin: 0; padding: 24px 0; color: var(--slate-500); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; font-weight: 700; }
 .staff-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .staff-row { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .staff-row.is-retired { background: #f8fafc; }
