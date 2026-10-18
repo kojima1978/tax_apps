@@ -43,76 +43,40 @@ const RateInput = ({ id, label, hint, value, onChange }: RateInputProps) => (
 
 export const RealEstateInvestmentForm = ({ value, onChange, hasError }: RealEstateInvestmentFormProps) => (
   <section className={`${CARD} ${hasError ? 'ring-2 ring-red-400' : ''}`} aria-labelledby="real-estate-input-heading">
-    <SectionHeader icon={Building2} title="賃貸不動産の条件" />
-    <div className="space-y-6">
-      <fieldset>
-        <legend id="real-estate-input-heading" className="mb-3 text-sm font-bold text-gray-800">購入価格（時価）</legend>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <CurrencyInput
-            id="real-estate-land-price"
-            label="土地の購入価格"
-            value={value.landPurchasePrice}
-            onChange={landPurchasePrice => onChange({ landPurchasePrice })}
-            placeholder="例: 6000"
-          />
-          <CurrencyInput
-            id="real-estate-building-price"
-            label="建物の購入価格"
-            value={value.buildingPurchasePrice}
-            onChange={buildingPurchasePrice => onChange({ buildingPurchasePrice })}
-            placeholder="例: 4000"
-          />
-        </div>
-      </fieldset>
-
-      <fieldset className="border-t border-gray-200 pt-5">
-        <legend className="mb-3 text-sm font-bold text-gray-800">相続税評価の基礎額</legend>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <CurrencyInput
-            id="real-estate-land-self-use-value"
-            label="土地の自用地評価額"
-            hint="路線価方式または倍率方式で求めた、賃貸調整前の評価額"
-            value={value.landSelfUseValue}
-            onChange={landSelfUseValue => onChange({ landSelfUseValue })}
-            placeholder="例: 4800"
-          />
-          <CurrencyInput
-            id="real-estate-building-fixed-value"
-            label="建物の固定資産税評価額"
-            hint="固定資産税の課税明細書に記載された家屋の評価額"
-            value={value.buildingFixedAssetTaxValue}
-            onChange={buildingFixedAssetTaxValue => onChange({ buildingFixedAssetTaxValue })}
-            placeholder="例: 2800"
-          />
-        </div>
-      </fieldset>
-
-      <fieldset className="border-t border-gray-200 pt-5">
-        <legend className="mb-3 text-sm font-bold text-gray-800">賃貸による評価調整</legend>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <RateInput
-            id="real-estate-leasehold-rate"
-            label="借地権割合"
-            hint="路線価図・評価倍率表で確認"
-            value={value.leaseholdRightRate}
-            onChange={leaseholdRightRate => onChange({ leaseholdRightRate })}
-          />
-          <RateInput
-            id="real-estate-tenant-rate"
-            label="借家権割合"
-            hint="地域の財産評価基準書で確認"
-            value={value.tenantRightRate}
-            onChange={tenantRightRate => onChange({ tenantRightRate })}
-          />
-          <RateInput
-            id="real-estate-rental-rate"
-            label="賃貸割合"
-            hint="課税時期に賃貸されている床面積の割合"
-            value={value.rentalRate}
-            onChange={rentalRate => onChange({ rentalRate })}
-          />
-        </div>
-      </fieldset>
-    </div>
+    <SectionHeader icon={Building2} title="不動産投資の条件" />
+    <fieldset>
+      <legend id="real-estate-input-heading" className="sr-only">不動産投資の条件</legend>
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+        <CurrencyInput
+          id="real-estate-investment-amount"
+          label="投下資金"
+          hint="現金から不動産へ組み替える金額"
+          value={value.investmentAmount}
+          onChange={investmentAmount => onChange({ investmentAmount })}
+          placeholder="例: 10000"
+        />
+        <RateInput
+          id="real-estate-compression-rate"
+          label="圧縮率"
+          hint="時価から相続税評価額への基本的な圧縮率"
+          value={value.compressionRate}
+          onChange={compressionRate => onChange({ compressionRate })}
+        />
+        <RateInput
+          id="real-estate-leasehold-rate"
+          label="借地権割合"
+          hint="路線価図・評価倍率表で確認"
+          value={value.leaseholdRightRate}
+          onChange={leaseholdRightRate => onChange({ leaseholdRightRate })}
+        />
+        <RateInput
+          id="real-estate-tenant-rate"
+          label="借家権割合"
+          hint="地域の財産評価基準書で確認"
+          value={value.tenantRightRate}
+          onChange={tenantRightRate => onChange({ tenantRightRate })}
+        />
+      </div>
+    </fieldset>
   </section>
 );

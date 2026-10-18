@@ -231,13 +231,10 @@ export interface CashGiftSimulationResult {
 
 /** 現金を賃貸不動産へ組み替える場合の入力条件（すべて金額は万円） */
 export interface RealEstateInvestmentInput {
-  landPurchasePrice: number;
-  buildingPurchasePrice: number;
-  landSelfUseValue: number;
-  buildingFixedAssetTaxValue: number;
+  investmentAmount: number;
+  compressionRate: number;
   leaseholdRightRate: number;
   tenantRightRate: number;
-  rentalRate: number;
 }
 
 export interface RealEstateScenarioResult {
@@ -251,10 +248,9 @@ export interface RealEstateSimulationResult {
   input: RealEstateInvestmentInput;
   current: RealEstateScenarioResult;
   proposed: RealEstateScenarioResult;
-  purchasePrice: number;
+  investmentAmount: number;
   remainingCash: number;
-  landAssessedValue: number;
-  buildingAssessedValue: number;
+  baseAssessedValue: number;
   propertyAssessedValue: number;
   valuationReduction: number;
   taxSaving: number;

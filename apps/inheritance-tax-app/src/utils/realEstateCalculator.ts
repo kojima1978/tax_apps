@@ -9,28 +9,15 @@ import { calculateDetailedInheritanceTax } from './taxCalculator';
 const clampRate = (value: number) => Math.min(100, Math.max(0, value)) / 100;
 const floorAmount = (value: number) => Math.floor(value + 1e-7);
 
-export function calculateRentalPropertyValue(input: RealEstateInvestmentInput) {
-  const leaseholdRate = clampRate(input.leaseholdRightRate);
-  const tenantRate = clampRate(input.tenantRightRate);
-  const rentalRate = clampRate(input.rentalRate);
-
-  const landAssessedValue = floorAmount(
-    Math.max(0, input.landSelfUseValue) * (1 - leaseholdRate * tenantRate * rentalRate),
-  );
-  const buildingAssessedValue = floorAmount(
-    Math.max(0, input.buildingFixedAssetTaxValue) * (1 - tenantRate * rentalRate),
-  );
-
-  return {
-    landAssessedValue,
-    buildingAssessedValue,
-    propertyAssessedValue: landAssessedValue + buildingAssessedValue,
-  };
+export function calculateCompressedPropertyValue(input: RealEstateInvestmentInput): number {
+  const investmentAmount = Math.max(0, input.investmentAmount);
+  const baseAssessedValue = floorAmount(investmentAmount * (1 - clampRate(input.compressionRate)));
+  const rentalAdjustment = 1 - clampRate(input.leaseholdRightRate) * clampRate(input.tenantRightRate);
+  return floorAmount(baseAssessedValue * rentalAdjustment);
 }
 
 /**
- * 現金を賃貸不動産へ組み替えた場合の相続税評価額と税額を比較する。
- * 借入金は資産と債務が同額増えるため、この基本モデルでは購入価格への資金調達方法を区別しない。
+ * 現金を不動産へ組み替え、圧縮率と借地権・借家権割合を適用した場合の相続税を比較する。
  */
 export function calculateRealEstateSimulation(
   estateValue: number,
@@ -39,9 +26,10 @@ export function calculateRealEstateSimulation(
   spouseMode: SpouseAcquisitionMode,
 ): RealEstateSimulationResult {
   const normalizedEstate = Math.max(0, estateValue);
-  const purchasePrice = Math.max(0, input.landPurchasePrice) + Math.max(0, input.buildingPurchasePrice);
-  const remainingCash = Math.max(0, normalizedEstate - purchasePrice);
-  const { landAssessedValue, buildingAssessedValue, propertyAssessedValue } = calculateRentalPropertyValue(input);
+  const investmentAmount = Math.max(0, input.investmentAmount);
+  const remainingCash = Math.max(0, normalizedEstate - investmentAmount);
+  const baseAssessedValue = floorAmount(investmentAmount * (1 - clampRate(input.compressionRate)));
+  const propertyAssessedValue = calculateCompressedPropertyValue(input);
   const proposedEstateValue = Math.max(0, remainingCash + propertyAssessedValue);
 
   const currentTax = calculateDetailedInheritanceTax(normalizedEstate, composition, spouseMode);
@@ -63,12 +51,11 @@ export function calculateRealEstateSimulation(
       taxResult: proposedTax,
       totalNetProceeds: proposedNetProceeds,
     },
-    purchasePrice,
+    investmentAmount,
     remainingCash,
-    landAssessedValue,
-    buildingAssessedValue,
+    baseAssessedValue,
     propertyAssessedValue,
-    valuationReduction: purchasePrice - propertyAssessedValue,
+    valuationReduction: investmentAmount - propertyAssessedValue,
     taxSaving: currentTax.totalFinalTax - proposedTax.totalFinalTax,
     netProceedsDiff: proposedNetProceeds - currentNetProceeds,
   };

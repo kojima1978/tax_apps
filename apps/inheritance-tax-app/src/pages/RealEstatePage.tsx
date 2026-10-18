@@ -25,23 +25,18 @@ export const RealEstatePage: React.FC = () => {
   const estateRef = useRef<HTMLDivElement>(null);
   const investmentRef = useRef<HTMLDivElement>(null);
   const resultRef = useScrollToResult(result !== null);
-  const purchasePrice = investment.landPurchasePrice + investment.buildingPurchasePrice;
   const rateInvalid = [
+    investment.compressionRate,
     investment.leaseholdRightRate,
     investment.tenantRightRate,
-    investment.rentalRate,
   ].some(rate => rate < 0 || rate > 100);
-  const landValueMissing = investment.landPurchasePrice > 0 && investment.landSelfUseValue <= 0;
-  const buildingValueMissing = investment.buildingPurchasePrice > 0 && investment.buildingFixedAssetTaxValue <= 0;
-  const investmentInvalid = purchasePrice <= 0 || landValueMissing || buildingValueMissing || rateInvalid;
+  const investmentInvalid = investment.investmentAmount <= 0 || rateInvalid;
 
   const { validationErrors, hasAttempted, handleCalculate } = useFormValidation([
     { condition: estateValue <= 0, ref: estateRef, message: '遺産総額を入力してください' },
-    { condition: purchasePrice <= 0, ref: investmentRef, message: '土地または建物の購入価格を入力してください' },
-    { condition: landValueMissing, ref: investmentRef, message: '土地を購入する場合は自用地評価額を入力してください' },
-    { condition: buildingValueMissing, ref: investmentRef, message: '建物を購入する場合は固定資産税評価額を入力してください' },
-    { condition: purchasePrice > estateValue && estateValue > 0, ref: investmentRef, message: '購入価格が遺産総額を超えています。この試算では現金の範囲内で入力してください' },
-    { condition: rateInvalid, ref: investmentRef, message: '借地権割合・借家権割合・賃貸割合は0〜100%で入力してください' },
+    { condition: investment.investmentAmount <= 0, ref: investmentRef, message: '投下資金を入力してください' },
+    { condition: investment.investmentAmount > estateValue && estateValue > 0, ref: investmentRef, message: '投下資金が遺産総額を超えています' },
+    { condition: rateInvalid, ref: investmentRef, message: '圧縮率・借地権割合・借家権割合は0〜100%で入力してください' },
   ], executeCalculate);
 
   return (
@@ -85,7 +80,7 @@ export const RealEstatePage: React.FC = () => {
           <StatusCard
             variant="success"
             title="賃貸不動産の条件を入力してください"
-            description="購入価格と相続税評価の基礎額を入力すると、購入前後の税額を比較できます。"
+            description="投下資金・圧縮率・借地権割合・借家権割合から、対策前後の相続税を比較できます。"
             className="no-print"
           />
         ) : undefined

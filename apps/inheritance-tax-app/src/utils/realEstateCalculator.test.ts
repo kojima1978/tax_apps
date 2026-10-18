@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { HeirComposition, RealEstateInvestmentInput } from '../types';
-import { calculateRentalPropertyValue, calculateRealEstateSimulation } from './realEstateCalculator';
+import { calculateCompressedPropertyValue, calculateRealEstateSimulation } from './realEstateCalculator';
 
 const composition: HeirComposition = {
   hasSpouse: true,
@@ -14,34 +14,25 @@ const composition: HeirComposition = {
 };
 
 const input: RealEstateInvestmentInput = {
-  landPurchasePrice: 6_000,
-  buildingPurchasePrice: 4_000,
-  landSelfUseValue: 4_800,
-  buildingFixedAssetTaxValue: 2_800,
+  investmentAmount: 10_000,
+  compressionRate: 40,
   leaseholdRightRate: 60,
   tenantRightRate: 30,
-  rentalRate: 100,
 };
 
-describe('calculateRentalPropertyValue', () => {
-  it('貸家建付地と貸家の評価式を適用する', () => {
-    expect(calculateRentalPropertyValue(input)).toEqual({
-      landAssessedValue: 3_936,
-      buildingAssessedValue: 1_960,
-      propertyAssessedValue: 5_896,
-    });
+describe('calculateCompressedPropertyValue', () => {
+  it('圧縮後の評価額に借地権・借家権の調整を適用する', () => {
+    expect(calculateCompressedPropertyValue(input)).toBe(4_920);
   });
 
-  it('割合を0から100パーセントの範囲に収める', () => {
-    expect(calculateRentalPropertyValue({
+  it('圧縮率を0から100パーセントの範囲に収める', () => {
+    expect(calculateCompressedPropertyValue({ ...input, compressionRate: 150 })).toBe(0);
+    expect(calculateCompressedPropertyValue({
       ...input,
-      leaseholdRightRate: 150,
+      compressionRate: -20,
+      leaseholdRightRate: 200,
       tenantRightRate: -20,
-    })).toEqual({
-      landAssessedValue: 4_800,
-      buildingAssessedValue: 2_800,
-      propertyAssessedValue: 7_600,
-    });
+    })).toBe(10_000);
   });
 });
 
@@ -49,11 +40,12 @@ describe('calculateRealEstateSimulation', () => {
   it('購入価格を賃貸不動産評価額へ置き換えて相続税を比較する', () => {
     const result = calculateRealEstateSimulation(20_000, composition, input, { mode: 'legal' });
 
-    expect(result.purchasePrice).toBe(10_000);
+    expect(result.investmentAmount).toBe(10_000);
     expect(result.remainingCash).toBe(10_000);
-    expect(result.propertyAssessedValue).toBe(5_896);
-    expect(result.proposed.estateValue).toBe(15_896);
-    expect(result.valuationReduction).toBe(4_104);
+    expect(result.baseAssessedValue).toBe(6_000);
+    expect(result.propertyAssessedValue).toBe(4_920);
+    expect(result.proposed.estateValue).toBe(14_920);
+    expect(result.valuationReduction).toBe(5_080);
     expect(result.taxSaving).toBeGreaterThanOrEqual(0);
     expect(result.netProceedsDiff).toBe(result.taxSaving);
   });

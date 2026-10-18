@@ -4,13 +4,10 @@ import { calculateRealEstateSimulation } from '../utils/realEstateCalculator';
 import { useSimulationBase } from './useSimulationBase';
 
 const DEFAULT_INPUT: RealEstateInvestmentInput = {
-  landPurchasePrice: 0,
-  buildingPurchasePrice: 0,
-  landSelfUseValue: 0,
-  buildingFixedAssetTaxValue: 0,
+  investmentAmount: 0,
+  compressionRate: 40,
   leaseholdRightRate: 60,
   tenantRightRate: 30,
-  rentalRate: 100,
 };
 
 export function useRealEstateSimulation() {
