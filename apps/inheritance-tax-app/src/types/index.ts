@@ -227,6 +227,40 @@ export interface CashGiftSimulationResult {
   overAllocatedHeirs: string[];   // 相続分を超えた贈与が発生した相続人ラベル
 }
 
+// ── 賃貸不動産シミュレーション ──
+
+/** 現金を賃貸不動産へ組み替える場合の入力条件（すべて金額は万円） */
+export interface RealEstateInvestmentInput {
+  landPurchasePrice: number;
+  buildingPurchasePrice: number;
+  landSelfUseValue: number;
+  buildingFixedAssetTaxValue: number;
+  leaseholdRightRate: number;
+  tenantRightRate: number;
+  rentalRate: number;
+}
+
+export interface RealEstateScenarioResult {
+  label: '現状' | '不動産購入後';
+  estateValue: number;
+  taxResult: DetailedTaxCalculationResult;
+  totalNetProceeds: number;
+}
+
+export interface RealEstateSimulationResult {
+  input: RealEstateInvestmentInput;
+  current: RealEstateScenarioResult;
+  proposed: RealEstateScenarioResult;
+  purchasePrice: number;
+  remainingCash: number;
+  landAssessedValue: number;
+  buildingAssessedValue: number;
+  propertyAssessedValue: number;
+  valuationReduction: number;
+  taxSaving: number;
+  netProceedsDiff: number;
+}
+
 // ── 2次相続タイムライン・シミュレーション ──
 
 // 年数ごとの最適解サマリー

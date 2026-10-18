@@ -5,6 +5,7 @@ import Calculator from 'lucide-react/icons/calculator';
 import Scale from 'lucide-react/icons/scale';
 import Shield from 'lucide-react/icons/shield';
 import Gift from 'lucide-react/icons/gift';
+import Building2 from 'lucide-react/icons/building-2';
 import Sliders from 'lucide-react/icons/sliders-horizontal';
 import Clock from 'lucide-react/icons/clock';
 import Printer from 'lucide-react/icons/printer';
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { to: '/comparison', label: '一次・二次相続比較', pageTitle: '一次・二次相続比較', icon: Scale, group: 'calculate' },
   { to: '/insurance', label: '生命保険', pageTitle: '生命保険シミュレーション', icon: Shield, group: 'planning' },
   { to: '/cash-gift', label: '現金贈与', pageTitle: '現金贈与シミュレーション', icon: Gift, group: 'planning' },
+  { to: '/real-estate', label: '賃貸不動産', pageTitle: '賃貸不動産シミュレーション', icon: Building2, group: 'planning' },
   { to: '/split', label: '遺産分割', pageTitle: '遺産分割シミュレーション', icon: Sliders, group: 'planning' },
   { to: '/timeline', label: '税務タイムライン', pageTitle: '相続税務タイムライン', icon: Clock, group: 'reference' },
   { to: '/table', label: '税率早見表', pageTitle: '相続税率早見表', icon: Table, group: 'reference' },

@@ -8,6 +8,7 @@ export { calculateComparisonTable } from './comparisonCalculator';
 export { calculateInsuranceSimulation, getHeirNetProceeds, getHeirBaseAcquisition } from './insuranceCalculator';
 export { calculateGiftTaxPerYear, calculateRecipientResult, getGiftRecipientOptions, getGiftTaxTypeForHeirId, getGiftBreakdownTotals, getGiftHeirNetProceeds, calculateCashGiftSimulation, optimizeGiftAmounts } from './giftCalculator';
 export type { GiftBreakdownTotals } from './giftCalculator';
+export { calculateRentalPropertyValue, calculateRealEstateSimulation } from './realEstateCalculator';
 export { buildHeirLabels, calculateLegalAcquisitions, calculateSplitTax, generateSplitSimulation } from './splitCalculator';
 export { calculateTimelineSimulation } from './timelineCalculator';
 export { heirLabelColumn, currencyColumn, currencyOrDashColumn } from './heirColumnHelpers';

@@ -7,6 +7,7 @@ const CalculatorPage = lazy(() => import('./pages/CalculatorPage').then(module =
 const ComparisonPage = lazy(() => import('./pages/ComparisonPage').then(module => ({ default: module.ComparisonPage })));
 const InsurancePage = lazy(() => import('./pages/InsurancePage').then(module => ({ default: module.InsurancePage })));
 const CashGiftPage = lazy(() => import('./pages/CashGiftPage').then(module => ({ default: module.CashGiftPage })));
+const RealEstatePage = lazy(() => import('./pages/RealEstatePage').then(module => ({ default: module.RealEstatePage })));
 const SplitPage = lazy(() => import('./pages/SplitPage').then(module => ({ default: module.SplitPage })));
 const TimelinePage = lazy(() => import('./pages/TimelinePage').then(module => ({ default: module.TimelinePage })));
 
@@ -23,6 +24,7 @@ function App() {
           <Route path="/comparison" element={<ComparisonPage />} />
           <Route path="/insurance" element={<InsurancePage />} />
           <Route path="/cash-gift" element={<CashGiftPage />} />
+          <Route path="/real-estate" element={<RealEstatePage />} />
           <Route path="/split" element={<SplitPage />} />
           <Route path="/timeline" element={<TimelinePage />} />
         </Routes>
