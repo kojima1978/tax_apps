@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useId, useMemo, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { PrintRenderContext } from './printContext';
 import { lookupZipAddress } from '../../lib/zipAddress';
 import {
@@ -221,6 +221,63 @@ function selectedOptionLabel(options: NonNullable<GridCell['options']>, value: s
     typeof candidate === 'string' ? candidate === value : candidate.value === value
   ));
   return typeof option === 'string' ? option : option?.label ?? '';
+}
+
+interface SelectFieldProps {
+  cell: GridCell;
+  index: number;
+  inputPrefix: string;
+  value: string;
+  options: NonNullable<GridCell['options']>;
+  u: (field: string, value: string) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
+}
+
+/**
+ * native select の候補は、操作するときだけ DOM に展開する。
+ *
+ * 第1表は税務署525件・年100件×2など、未操作の候補だけで800要素を超える。
+ * 常時置くと氏名を1文字入力するだけでも全候補をReactが比較するため、通常時は
+ * 現在値の option 1件だけに縮め、focus / pointerdown の直前に候補を戻す。
+ */
+function SelectField({ cell, index, inputPrefix, value, options, u, onKeyDown }: SelectFieldProps) {
+  const [expanded, setExpanded] = useState(false);
+  const selectedLabel = selectedOptionLabel(options, value);
+  const expand = () => setExpanded(true);
+
+  return (
+    <select
+      id={`${inputPrefix}-${cell.field}-${index}`}
+      name={`${inputPrefix}.${cell.field}`}
+      aria-label={`${cell.ariaLabel ?? cell.field}${value ? `：${selectedLabel}` : ''}`}
+      title={[selectedLabel, cell.hint].filter(Boolean).join('\n') || undefined}
+      value={value}
+      onFocus={expand}
+      onPointerDown={expand}
+      onBlur={() => setExpanded(false)}
+      onChange={(event) => {
+        u(cell.field!, event.target.value);
+        if (cell.autoFill) u(cell.autoFill.field, cell.autoFill.byValue[event.target.value] ?? '');
+      }}
+      onKeyDown={onKeyDown}
+      // 「1」だけの狭い欄（flag）は中央寄せしたいので align を見る
+      style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: cell.align === 'center' ? 'center' : 'left', fontSize: 'inherit', background: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: 'pointer' }}
+    >
+      {expanded ? cell.optionGroups ? (
+        <>
+          <option value="" />
+          {cell.optionGroups.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </optgroup>
+          ))}
+        </>
+      ) : cell.options?.map((option) => {
+          const item = typeof option === 'string' ? { value: option, label: option } : option;
+          return <option key={item.value || 'blank'} value={item.value}>{item.label}</option>;
+        }) : <option value={value}>{selectedLabel}</option>}
+    </select>
+  );
 }
 
 /**
@@ -504,38 +561,15 @@ export function GridForm({ cells, g, u, title, subtitle, formCode, aspectRatio =
                   <span>{selectedOptionLabel(selectOptions, g(c.field)).replace(/^\S+\s*/, '')}</span>
                 </div>
               : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: justify, overflow: 'hidden', background: printRendering ? 'transparent' : '#f7f7f7' }}>{c.compactSelectedOption ? g(c.field) : selectedOptionLabel(selectOptions, g(c.field))}</div>
-            : (
-              <select
-                id={`${inputPrefix}-${c.field}-${i}`}
-                name={`${inputPrefix}.${c.field}`}
-                aria-label={`${c.ariaLabel ?? c.field}${g(c.field) ? `：${selectedOptionLabel(selectOptions, g(c.field))}` : ''}`}
-                title={[selectedOptionLabel(selectOptions, g(c.field)), c.hint].filter(Boolean).join('\n') || undefined}
+            : <SelectField
+                cell={c}
+                index={i}
+                inputPrefix={inputPrefix}
                 value={g(c.field)}
-                onChange={(e) => {
-                  u(c.field!, e.target.value);
-                  if (c.autoFill) u(c.autoFill.field, c.autoFill.byValue[e.target.value] ?? '');
-                }}
+                options={selectOptions}
+                u={u}
                 onKeyDown={onEnterNext}
-                // 「1」だけの狭い欄（flag）は中央寄せしたいので align を見る
-                style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align === 'center' ? 'center' : 'left', fontSize: 'inherit', background: 'transparent', padding: '0 7px 0 0', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: SELECT_ARROW, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1px center', backgroundSize: '5px', cursor: 'pointer' }}
-              >
-                {/* 画面では選択後も名称ごと出す（`compactSelectedOption` は印刷だけの指定）。
-                    選んだ項目の表示をコードだけに差し替えると、開き直したときに何を選んだのか読めなくなる */}
-                {c.optionGroups ? (
-                  <>
-                    <option value="" />
-                    {c.optionGroups.map((group) => (
-                      <optgroup key={group.label} label={group.label}>
-                        {group.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                      </optgroup>
-                    ))}
-                  </>
-                ) : c.options?.map((option) => {
-                    const o = typeof option === 'string' ? { value: option, label: option } : option;
-                    return <option key={o.value || 'blank'} value={o.value}>{o.label}</option>;
-                  })}
-              </select>
-            )
+              />
         ) : c.twoLine && c.field ? (
           // 様式には中の横罫線が無いので、枠は1つのまま入力欄だけを上下に積む
           <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>

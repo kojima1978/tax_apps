@@ -92,6 +92,7 @@ const inputOf = (container: HTMLElement, field: string) => {
 const selectOf = (container: HTMLElement, field: string) => {
   const el = container.querySelector<HTMLSelectElement>(`select[name="t.${field}"]`);
   if (el === null) throw new Error(`選択欄が無い: ${field}`);
+  fireEvent.focus(el);
   return el;
 };
 
@@ -151,12 +152,25 @@ describe('GridForm の入力欄', () => {
 });
 
 describe('GridForm の選択式の欄', () => {
+  it('候補は選択欄を操作するときだけDOMへ展開する', () => {
+    const { container } = render(<Harness cells={fixtureCells()} />);
+    const select = container.querySelector<HTMLSelectElement>('select[name="t.kind"]')!;
+    expect(select.options).toHaveLength(1);
+
+    fireEvent.focus(select);
+    expect(select.options).toHaveLength(KIND_OPTIONS.length);
+
+    fireEvent.change(select, { target: { value: '2' } });
+    fireEvent.blur(select);
+    expect(container.querySelector<HTMLSelectElement>('select[name="t.kind"]')!.options).toHaveLength(1);
+    expect(container.querySelector<HTMLSelectElement>('select[name="t.kind"]')!.textContent).toBe('2 家屋');
+  });
+
   it('選択すると連動する名称の欄も書き換える', () => {
     const spy = vi.fn();
     const { container } = render(<Harness cells={fixtureCells()} spy={spy} />);
-    const select = container.querySelector<HTMLSelectElement>('select[name="t.kind"]');
-    expect(select).not.toBeNull();
-    fireEvent.change(select!, { target: { value: '1' } });
+    const select = selectOf(container, 'kind');
+    fireEvent.change(select, { target: { value: '1' } });
     expect(spy).toHaveBeenCalledWith('kind', '1');
     expect(spy).toHaveBeenCalledWith('kindName', '土地');
     expect(inputOf(container, 'kindName').value).toBe('土地');
