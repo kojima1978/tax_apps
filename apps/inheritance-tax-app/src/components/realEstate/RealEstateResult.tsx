@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import ArrowRight from 'lucide-react/icons/arrow-right';
 import type { RealEstateSimulationResult } from '../../types';
 import { REAL_ESTATE_CAUTIONS } from '../../constants/cautionMessages';
 import { formatCurrency } from '../../utils/formatters';
@@ -24,18 +25,20 @@ export const RealEstateResult = memo(({ result }: RealEstateResultProps) => {
     <div className={`${CARD} cash-gift-report-sheet real-estate-report-sheet`}>
       <section className="cash-gift-result-summary real-estate-summary" aria-labelledby="real-estate-summary-heading">
         <h3 id="real-estate-summary-heading">税額サマリー</h3>
-        <div className="cash-gift-result-summary-grid">
-          <div className="cash-gift-result-summary-item">
+        <div className="real-estate-tax-flow" aria-label="対策前後の相続税比較">
+          <div className="real-estate-tax-flow-card is-before">
             <span>対策なし</span>
             <strong>{formatCurrency(current.taxResult.totalFinalTax)}</strong>
             <small>相続税</small>
           </div>
-          <div className="cash-gift-result-summary-item">
+          <span className="real-estate-tax-flow-arrow" aria-hidden="true"><ArrowRight /></span>
+          <div className="real-estate-tax-flow-card is-after">
             <span>対策あり</span>
             <strong>{formatCurrency(proposed.taxResult.totalFinalTax)}</strong>
             <small>相続税</small>
           </div>
-          <div className={`cash-gift-result-summary-item cash-gift-result-summary-impact ${isReduction ? 'is-reduction' : 'is-increase'}`}>
+          <span className="real-estate-tax-flow-arrow" aria-hidden="true"><ArrowRight /></span>
+          <div className={`real-estate-tax-flow-card is-impact ${isReduction ? 'is-reduction' : 'is-increase'}`}>
             <span>納付税額の変化</span>
             <strong>{isReduction ? '△' : '+'}{formatCurrency(Math.abs(result.taxSaving))}</strong>
             <small>{isReduction ? '税負担が減少' : '税負担が増加'}</small>
@@ -44,9 +47,15 @@ export const RealEstateResult = memo(({ result }: RealEstateResultProps) => {
       </section>
 
       <section className="cash-gift-report-section real-estate-evaluation" aria-labelledby="real-estate-evaluation-heading">
-        <div className="cash-gift-workbook-heading">
-          <h3 id="real-estate-evaluation-heading">不動産評価額の計算</h3>
-          <span>投下資金 {formatCurrency(result.investmentAmount)}</span>
+        <div className="real-estate-section-heading">
+          <div>
+            <h3 id="real-estate-evaluation-heading">不動産評価額の計算</h3>
+            <p>投下資金から相続税評価額を概算</p>
+          </div>
+          <dl className="real-estate-investment-badge">
+            <dt>投下資金</dt>
+            <dd>{formatCurrency(result.investmentAmount)}</dd>
+          </dl>
         </div>
         <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-5 text-center">
           <p className="text-sm font-medium leading-7 text-gray-800 md:text-base">

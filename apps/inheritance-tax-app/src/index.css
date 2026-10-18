@@ -711,6 +711,134 @@
   color: #b91c1c;
 }
 
+/* ===================== 賃貸不動産 税額サマリー ===================== */
+.real-estate-tax-flow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.625rem;
+}
+
+.real-estate-tax-flow-card {
+  display: flex;
+  min-width: 0;
+  min-height: 7.25rem;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  padding: 1rem 1.125rem;
+}
+
+.real-estate-tax-flow-card.is-after {
+  border-color: #99f6e4;
+  background: #f0fdfa;
+}
+
+.real-estate-tax-flow-card.is-impact.is-reduction {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.real-estate-tax-flow-card.is-impact.is-increase {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.real-estate-tax-flow-card > span {
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.real-estate-tax-flow-card > strong {
+  margin-top: 0.2rem;
+  color: #111827;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.real-estate-tax-flow-card.is-impact.is-reduction > strong { color: #166534; }
+.real-estate-tax-flow-card.is-impact.is-increase > strong { color: #b91c1c; }
+
+.real-estate-tax-flow-card > small {
+  margin-top: 0.25rem;
+  color: #4b5563;
+  font-size: 0.75rem;
+}
+
+.real-estate-tax-flow-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #15803d;
+}
+
+.real-estate-tax-flow-arrow svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  transform: rotate(90deg);
+}
+
+.real-estate-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 0.625rem;
+}
+
+.real-estate-section-heading h3 {
+  margin: 0;
+  color: #166534;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.real-estate-section-heading p {
+  margin: 0.125rem 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.real-estate-investment-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  border: 1px solid #bbf7d0;
+  border-radius: 9999px;
+  background: #f0fdf4;
+  padding: 0.4rem 0.75rem;
+}
+
+.real-estate-investment-badge dt {
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.real-estate-investment-badge dd {
+  margin: 0;
+  color: #166534;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+@media (min-width: 768px) {
+  .real-estate-tax-flow {
+    grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr) 2rem minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .real-estate-tax-flow-arrow svg {
+    transform: none;
+  }
+}
+
 .cash-gift-detail-block + .cash-gift-detail-block {
   margin-top: 0.625rem;
 }
@@ -2840,11 +2968,6 @@ tbody tr:last-child > .cash-gift-amount-cell {
     margin-top: 5px !important;
   }
 
-  .real-estate-print .cash-gift-result-summary-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 5px !important;
-  }
-
   .real-estate-print .cash-gift-result-summary {
     margin-bottom: 10px !important;
   }
@@ -2854,12 +2977,30 @@ tbody tr:last-child > .cash-gift-amount-cell {
     font-size: 12px !important;
   }
 
-  .real-estate-print .cash-gift-result-summary-item {
-    padding: 8px 10px !important;
+  .real-estate-print .real-estate-tax-flow {
+    grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr) 18px minmax(0, 1fr) !important;
+    gap: 4px !important;
   }
 
-  .real-estate-print .cash-gift-result-summary-item strong {
-    font-size: 18px !important;
+  .real-estate-print .real-estate-tax-flow-card {
+    min-height: 0 !important;
+    padding: 7px 9px !important;
+    border-radius: 7px !important;
+  }
+
+  .real-estate-print .real-estate-tax-flow-card > span,
+  .real-estate-print .real-estate-tax-flow-card > small {
+    font-size: 8px !important;
+  }
+
+  .real-estate-print .real-estate-tax-flow-card > strong {
+    font-size: 17px !important;
+  }
+
+  .real-estate-print .real-estate-tax-flow-arrow svg {
+    width: 13px !important;
+    height: 13px !important;
+    transform: none !important;
   }
 
   .real-estate-print .cash-gift-report-section + .cash-gift-report-section {
@@ -2877,6 +3018,28 @@ tbody tr:last-child > .cash-gift-amount-cell {
 
   .real-estate-print .cash-gift-workbook-heading span {
     font-size: 9px !important;
+  }
+
+  .real-estate-print .real-estate-section-heading {
+    margin-bottom: 5px !important;
+  }
+
+  .real-estate-print .real-estate-section-heading h3 {
+    font-size: 12px !important;
+  }
+
+  .real-estate-print .real-estate-section-heading p,
+  .real-estate-print .real-estate-investment-badge dt {
+    font-size: 8px !important;
+  }
+
+  .real-estate-print .real-estate-investment-badge {
+    gap: 5px !important;
+    padding: 3px 8px !important;
+  }
+
+  .real-estate-print .real-estate-investment-badge dd {
+    font-size: 11px !important;
   }
 
   .real-estate-print .real-estate-evaluation .rounded-lg {
