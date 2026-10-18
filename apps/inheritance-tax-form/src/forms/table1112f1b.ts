@@ -22,8 +22,6 @@ export const TABLE1112F1B_SUBTITLE = '小規模宅地等についての課税価
 export const TABLE1112F1B_OWNERS = 2;
 /** 宅地等の利用区分（A〜F）の行数 */
 export const TABLE1112F1B_ROWS = 6;
-/** 「2 左記の宅地等のうち選択特例対象宅地等」の欄数（A・B上・B下・C・E） */
-export const TABLE1112F1B_SLOTS = 5;
 
 /** A〜Fの行 → その行が持つ「2 選択特例対象宅地等」欄の番号（D・Fは欄が無い） */
 export const SLOTS_BY_ROW: readonly (readonly number[])[] = [[0], [1, 2], [3], [], [4], []];

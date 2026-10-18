@@ -460,13 +460,6 @@ button {
   gap: 4px;
 }
 
-/* 様式に収まらない・印が付いていないなど、そのままでは書き切れないことの注意 */
-.app-linkctl__warn {
-  width: 100%;
-  text-align: center;
-  color: #b71c1c;
-}
-
 /* 第2表④の法定相続人指定。帳票の外に置き、画面上だけで役割と入口を示す。 */
 .table2-lawful-guide {
   width: 210mm;
