@@ -5,6 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 重要な制約
 
 - **ローカル環境を汚さない**: `npm install`、`npm run build` 等をローカルで実行しないこと。開発・動作確認はDocker経由で行う。
+  **`preflight` のチェック23**が `apps/` の下にホスト側の `node_modules` を毎回探す ──
+  `.gitignore` 済みなので `git status` には出ず、2026-10-13 には3アプリで合計 1.6GB まで
+  育っていた（ビルドは全部 Docker の中なので、ホストのこれは何にも使われない）。
+  **見つけたらその場で消すこと** ── ほかへ退避すると、パスが 260 文字を超えた時点で
+  Windows では `rm` でもエクスプローラでも消せなくなる（`@prisma/engines` の下が実際に
+  そうなり、短いパスへ rename してからでないと消せなかった）。
 
 ## コマンド
 

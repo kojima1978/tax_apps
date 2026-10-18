@@ -2616,6 +2616,37 @@ cmd_preflight() {
     ((++pf_ok))
   fi
 
+  # 23. ホスト側に湧いた node_modules
+  #
+  # このリポジトリは npm をホストで動かさない（ビルドもテストも Docker の中）。
+  # それでも apps/ の下に node_modules が現れることがあり、**.gitignore 済みなので
+  # git status には出ない**。2026-10-13 には insurance-app / stock-valuation-form /
+  # inheritance-case-management/web の3つで合計 1.6GB まで育っていた（誰も気づかないまま）。
+  # しかも Windows は 260 文字を超えるパスを消せないので、深い場所へ退避すると
+  # 二度と消せなくなる ── 実際に @prisma/engines の下が 261 文字を超え、rm も
+  # Remove-Item もエクスプローラも Could not find a part of the path で止まった。
+  # 見つけたらその場で消すこと（移さない）。走査はチェック16と同じく <app> とその1つ下まで。
+  # UNMANAGED_APPS は見ない（family-tree-sample は手で運用している試作）。
+  local nm_path nm_found=()
+  for app in "${APPS[@]}"; do
+    for nm_path in "$PROJECT_ROOT/$app/node_modules" "$PROJECT_ROOT/$app"/*/node_modules; do
+      [[ -d "$nm_path" ]] && nm_found+=("${nm_path#"$PROJECT_ROOT/"}")
+    done
+  done
+  if [[ ${#nm_found[@]} -eq 0 ]]; then
+    ok "No host-side node_modules under apps/"
+    ((++pf_ok))
+  else
+    warn "ホスト側に node_modules があります (${#nm_found[@]}件)"
+    for nm_path in "${nm_found[@]}"; do
+      echo "  - $nm_path"
+    done
+    echo "  ビルドは Docker の中だけなのでホストのこれは使われません（放置すると GB 単位まで育ちます）。"
+    echo "  直し方: cd '$PROJECT_ROOT' && rm -rf <上のパス>"
+    echo "  ほかへ移してから消そうとしないこと ── パスが 260 文字を超えると Windows では消せなくなります。"
+    ((++pf_warn))
+  fi
+
   # Summary
   print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
 
