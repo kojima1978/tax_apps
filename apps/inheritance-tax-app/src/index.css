@@ -1557,8 +1557,12 @@ tbody tr:last-child > .cash-gift-amount-cell {
   }
 
   /* 計算ページ・比較ページ・保険ページ・贈与ページ: A4横に上書き */
-  .calculator-print, .comparison-print, .insurance-print, .cash-gift-print, .real-estate-print { page: a4-landscape; }
+  .calculator-print, .comparison-print, .insurance-print, .cash-gift-print { page: a4-landscape; }
   @page a4-landscape { size: A4 landscape; margin: 12mm 15mm; }
+
+  /* 賃貸不動産は計算条件・評価式・比較表をA4横1枚へ安定して収める */
+  .real-estate-print { page: real-estate-a4-landscape; }
+  @page real-estate-a4-landscape { size: A4 landscape; margin: 10mm 12mm; }
 
   .comparison-print {
     padding: 0 !important;
@@ -2063,7 +2067,7 @@ tbody tr:last-child > .cash-gift-amount-cell {
   .calculator-print .calc-summary-card h3 {
     font-size: 12px !important;
     line-height: 1.3 !important;
-    margin-bottom: 5px !important;
+    margin-bottom: 7px !important;
   }
 
   .calculator-print .calc-headline {
@@ -2242,12 +2246,12 @@ tbody tr:last-child > .cash-gift-amount-cell {
   .insurance-print .bg-white {
     box-shadow: none !important;
     border-radius: 0 !important;
-    padding: 6px 10px !important;
+    padding: 8px 12px !important;
   }
 
   /* セクション間余白 */
   .insurance-print .space-y-6 > * + * {
-    margin-top: 5px !important;
+    margin-top: 7px !important;
   }
 
   .insurance-print .space-y-4 > * + * {
@@ -2558,7 +2562,7 @@ tbody tr:last-child > .cash-gift-amount-cell {
   }
 
   .cash-gift-print .calc-premise .calc-premise-grid {
-    gap: 5px !important;
+    gap: 6px !important;
     margin-top: 4px !important;
   }
 
@@ -2810,7 +2814,7 @@ tbody tr:last-child > .cash-gift-amount-cell {
   }
 
   .real-estate-print .real-estate-report > .print-only {
-    margin-bottom: 8px !important;
+    margin-bottom: 5px !important;
     padding: 4px 8px !important;
     border-bottom-width: 1px !important;
   }
@@ -2826,23 +2830,74 @@ tbody tr:last-child > .cash-gift-amount-cell {
   }
 
   .real-estate-print .real-estate-report > .bg-white {
-    padding: 8px 12px !important;
+    padding: 6px 10px !important;
     border-radius: 0 !important;
     box-shadow: none !important;
   }
 
   .real-estate-print .real-estate-report.space-y-6 > * + *,
   .real-estate-print .real-estate-report.space-y-4 > * + * {
-    margin-top: 8px !important;
+    margin-top: 5px !important;
   }
 
-  .real-estate-print .real-estate-summary .grid {
+  .real-estate-print .cash-gift-result-summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 6px !important;
+    gap: 5px !important;
   }
 
-  .real-estate-print .real-estate-summary .rounded-lg {
-    padding: 6px 8px !important;
+  .real-estate-print .cash-gift-result-summary {
+    margin-bottom: 10px !important;
+  }
+
+  .real-estate-print .cash-gift-result-summary h3 {
+    margin-bottom: 4px !important;
+    font-size: 12px !important;
+  }
+
+  .real-estate-print .cash-gift-result-summary-item {
+    padding: 8px 10px !important;
+  }
+
+  .real-estate-print .cash-gift-result-summary-item strong {
+    font-size: 18px !important;
+  }
+
+  .real-estate-print .cash-gift-report-section + .cash-gift-report-section {
+    margin-top: 12px !important;
+  }
+
+  .real-estate-print .cash-gift-workbook-heading {
+    gap: 18px !important;
+    margin-bottom: 5px !important;
+  }
+
+  .real-estate-print .cash-gift-workbook-heading h3 {
+    font-size: 12px !important;
+  }
+
+  .real-estate-print .cash-gift-workbook-heading span {
+    font-size: 9px !important;
+  }
+
+  .real-estate-print .real-estate-evaluation .rounded-lg {
+    padding: 10px 12px !important;
+  }
+
+  .real-estate-print .real-estate-evaluation > p {
+    margin-top: 5px !important;
+  }
+
+  .real-estate-print .calc-premise {
+    padding: 7px 10px 8px !important;
+  }
+
+  .real-estate-print .calc-premise .calc-premise-grid {
+    gap: 7px !important;
+    margin-top: 6px !important;
+  }
+
+  .real-estate-print .calc-premise .calc-premise-item {
+    padding: 6px 7px !important;
   }
 
   .real-estate-print h2 {
@@ -2866,6 +2921,13 @@ tbody tr:last-child > .cash-gift-amount-cell {
     padding: 3px 6px !important;
     font-size: 9px !important;
     line-height: 1.25 !important;
+  }
+
+  .real-estate-print .print-cautions {
+    margin-top: 6px !important;
+    padding-top: 5px !important;
+    font-size: 7.5px !important;
+    line-height: 1.3 !important;
   }
 
   .real-estate-print .real-estate-summary,
