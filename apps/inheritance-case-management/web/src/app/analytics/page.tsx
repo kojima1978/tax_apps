@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { getAllCases } from "@/lib/api/cases"
+import { getAnalyticsCases } from "@/lib/api/cases"
 import { getAssignees } from "@/lib/api/assignees"
 import type { Assignee } from "@/types/shared"
 import type { RankingData } from "@/lib/analytics-utils"
@@ -39,7 +39,7 @@ export default function AnalyticsPage() {
     const { data: loaded, dataUpdatedAt, isPending: isLoading, isFetching, error: loadError, refetch } = useQuery({
         queryKey: ["cases", "analytics"],
         queryFn: async () => {
-            const [cases, assignees] = await Promise.all([getAllCases(), getAssignees()])
+            const [cases, assignees] = await Promise.all([getAnalyticsCases(), getAssignees()])
             return { cases, assignees }
         },
     })
@@ -119,8 +119,8 @@ export default function AnalyticsPage() {
     }, [currentYear])
 
     const rollingAnnualData = useMemo(
-        () => computeRollingAnnual(data, annualBaseMonth, annualDepartmentName, deptMap),
-        [annualBaseMonth, annualDepartmentName, data, deptMap]
+        () => activeTab === "trend" ? computeRollingAnnual(data, annualBaseMonth, annualDepartmentName, deptMap) : [],
+        [activeTab, annualBaseMonth, annualDepartmentName, data, deptMap]
     )
 
     const handleAnnualBaseMonthChange = useCallback((value: string) => {

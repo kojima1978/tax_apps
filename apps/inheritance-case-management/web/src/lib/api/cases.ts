@@ -60,6 +60,11 @@ export async function getCaseKpis(params?: CasesQueryParams): Promise<KPIData> {
   return apiClient<KPIData>(queryString ? `/cases/kpi?${queryString}` : '/cases/kpi');
 }
 
+// Compact read model for all years; full records remain available for CSV export.
+export async function getAnalyticsCases(): Promise<InheritanceCase[]> {
+  return apiClient<InheritanceCase[]>('/cases/analytics');
+}
+
 export async function getCase(id: number): Promise<InheritanceCase | null> {
   try {
     return await apiClient<InheritanceCase>(`/cases/${id}/`);

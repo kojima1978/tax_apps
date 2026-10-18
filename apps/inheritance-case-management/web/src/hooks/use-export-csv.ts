@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { getAllCases } from "@/lib/api/cases";
 import type { CasesQueryParams } from "@/lib/api/cases";
-import { exportCasesToCSV } from "@/lib/export-csv";
 import { todayIsoDate } from "@/lib/date-utils";
 
 export function useExportCSV() {
@@ -17,7 +16,10 @@ export function useExportCSV() {
       delete filters.page;
       delete filters.pageSize;
       const hasFilters = Object.values(filters).some((v) => v !== undefined);
-      const allCases = await getAllCases(hasFilters ? filters : undefined);
+      const [allCases, { exportCasesToCSV }] = await Promise.all([
+        getAllCases(hasFilters ? filters : undefined),
+        import("@/lib/export-csv"),
+      ]);
       const filename = hasFilters
         ? `案件一覧_フィルタ済_${todayIsoDate()}.csv`
         : undefined;

@@ -14,9 +14,10 @@ import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { useSensors, useSensor, PointerSensor, KeyboardSensor } from "@dnd-kit/core"
-import * as XLSX from "xlsx-js-style"
+import { useToast } from "@/components/ui/Toast"
 
-function exportExpensesExcel(expenses: Expense[], total: number, deceasedName: string, heirs: CaseHeir[]) {
+async function exportExpensesExcel(expenses: Expense[], total: number, deceasedName: string, heirs: CaseHeir[]) {
+    const XLSX = await import("xlsx-js-style")
     const partyRows = [
         ["立替金明細"],
         ["被相続人", deceasedName, "様"],
@@ -247,6 +248,8 @@ interface ExpenseEditorProps {
 }
 
 export function ExpenseEditor({ expenses, deceasedName, heirs, hasUnsavedChanges, onChange }: ExpenseEditorProps) {
+    const toast = useToast()
+    const [isExporting, setIsExporting] = useState(false)
     const editorRef = useRef<HTMLDivElement>(null)
     const pendingFocusIndex = useRef<number | null>(null)
 
@@ -352,9 +355,14 @@ export function ExpenseEditor({ expenses, deceasedName, heirs, hasUnsavedChanges
                         </p>
                     )}
                     <div className="flex items-center justify-between border-t pt-1.5">
-                        <Button type="button" variant="ghost" size="sm" className="h-10 px-2 text-xs lg:h-9" onClick={() => exportExpensesExcel(expenses, total, deceasedName, heirs)}>
+                        <Button type="button" variant="ghost" size="sm" className="h-10 px-2 text-xs lg:h-9" disabled={isExporting} onClick={async () => {
+                            setIsExporting(true)
+                            try { await exportExpensesExcel(expenses, total, deceasedName, heirs) }
+                            catch { toast.error("Excel出力に失敗しました。再度お試しください。") }
+                            finally { setIsExporting(false) }
+                        }}>
                             <Download className="mr-1 h-3.5 w-3.5" />
-                            Excel出力
+                            {isExporting ? "出力中…" : "Excel出力"}
                         </Button>
                         <div className="flex items-baseline gap-2">
                             <span className="text-[11px] font-medium text-muted-foreground">合計</span>

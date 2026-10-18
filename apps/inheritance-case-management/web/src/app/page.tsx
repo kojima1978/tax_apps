@@ -7,7 +7,7 @@ import { createColumns } from "@/components/cases/columns"
 import { FilterBar } from "@/components/cases/FilterBar"
 import { KPICards, type KPICardFilterKey } from "@/components/cases/KPICards"
 import { BulkDeleteModal } from "@/components/BulkDeleteModal"
-import { ImportCSVModal } from "@/components/ImportCSVModal"
+import dynamic from "next/dynamic"
 import { TableSkeleton } from "@/components/ui/Skeleton"
 import { useToast } from "@/components/ui/Toast"
 import { useAsyncMasters } from "@/hooks/use-async-masters"
@@ -34,6 +34,9 @@ import {
 } from "./case-list-utils"
 
 const EMPTY_CASES: CaseListItem[] = []
+const ImportCSVModal = dynamic(() => import("@/components/ImportCSVModal").then(module => module.ImportCSVModal), {
+    loading: () => <div role="status" className="fixed inset-x-4 top-20 z-50 rounded-lg border bg-white p-4 shadow-lg">CSV取り込みを読み込み中…</div>,
+})
 
 export default function InheritanceMockupPage() {
     return (
@@ -127,14 +130,12 @@ function InheritanceMockupPageContent() {
         [amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll, visibleColumnIds]
     )
 
-    const dataVersion = data?.pagination?.total
     const kpiFilters = useMemo(() => getCaseListKpiFilters(queryParams), [queryParams])
-    const kpiDepsKey = useMemo(() => JSON.stringify(kpiFilters), [kpiFilters])
     const { data: kpiData, refetch: refetchKpis } = useCaseKpis(
         Object.keys(kpiFilters).length > 0 ? kpiFilters : undefined
     )
 
-    const { assignees, departments } = useAsyncMasters([dataVersion, kpiDepsKey])
+    const { assignees, departments, refetch: refetchMasters } = useAsyncMasters()
     const activeKpiFilter = useMemo(() => getActiveKpiFilter(queryParams), [queryParams])
     const hasFilters = useMemo(() => getHasCaseFilters(queryParams), [queryParams])
 
@@ -276,14 +277,15 @@ function InheritanceMockupPageContent() {
                 onPageChange={(newPage) => setQueryParams((prev) => ({ ...prev, page: newPage }))}
             />
 
-            <ImportCSVModal
+            {showImportModal && <ImportCSVModal
                 isOpen={showImportModal}
                 onClose={() => setShowImportModal(false)}
                 onImportComplete={() => {
                     void refetch()
                     void refetchKpis()
+                    void refetchMasters()
                 }}
-            />
+            />}
 
             <BulkDeleteModal
                 isOpen={showBulkDelete}
