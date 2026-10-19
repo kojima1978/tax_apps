@@ -78,6 +78,24 @@ git log --oneline -1
 docker/scripts/manage.sh status
 ```
 
+古い版で止まっている PC かどうかを見る（**pull の前に**。pull すると判定の材料が消える）:
+
+```bash
+git ls-files apps/bank-analyzer-django | head -1
+docker inspect bank-analyzer --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' 2>/dev/null
+ls -d apps/bank-analyzer-django 2>/dev/null
+docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -E 'medical|income-tax'
+```
+
+- **1行目が何か出る、または2行目に `bank-analyzer-django` を含む** → 銀行分析がまだ Django 版で動いている
+  （2026-10-10 より前の版）。**ここで止まる**。この PC は先に `apps/bank-analyzer/CUTOVER.md`（Django 版 → React 版の切替）を
+  人と一緒に通す必要がある（`git pull` も含めて、その手順書の順番で行う。ウォッチドッグの時刻を
+  避けて始める必要があるので、この文書の続きでは進めない）。
+- 1行目・2行目は該当せず3行目だけ出る → 切替は済んでいて、`CUTOVER.md` の最後の片付け
+  （Git 管理外の `.env` と `data/` の削除）が残っているだけ。**消さずに報告だけ**して先へ進んでよい。
+- 4行目が出る → 削除済みのアプリ（medical-stock-valuation / income-tax-calc）のコンテナが残っている。
+  `manage.sh` の管理外なので**触らずに報告だけ**する（データのボリュームも消さない）。
+
 - 出力は**全部控えておく**（完了報告に使う）。
 - `git status` に出たファイルは記録だけして触らない。例外は A2 の bank-analyzer の compose だけ。
 - `manage.sh watch` を開いている端末があれば、人に止めてもらう。
@@ -248,6 +266,7 @@ docker/scripts/manage.sh preflight
 - どちらの手順を行ったか（A / B）と、リポジトリの場所・`origin` の URL
 - 取り込む前と後のコミット（`$OLD` と `git log --oneline -1`）、取り込んだコミットの一覧
 - A1 の `git status` の内容と、触らなかったこと（A2 で stash を使った場合はその名前）
+- A1 の古い版の判定の結果（Django 版だったか・削除済みアプリのコンテナが残っていたか）
 - 反映したアプリと、`apply` / `build` それぞれの結果
 - バックアップの結果
 - `manage.sh status` の要約と `preflight` の Results 行、出た WARN の全文
