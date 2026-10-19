@@ -145,19 +145,23 @@ bash -n docker/scripts/manage.sh && bash -n docker/scripts/backup.sh && echo ok
 
 ```bash
 git log --oneline "$OLD"..HEAD
-git diff --name-only "$OLD" HEAD | grep -vE '\.md$' | cut -d/ -f1-2 | sort -u
+git diff --name-only "$OLD" HEAD | grep -vE '\.md$'
 ```
 
-2つ目の出力から、作り直す対象を次の表で決める:
+2つ目の出力（変わったファイルの一覧。文書は除いてある）から、作り直す対象を次の表で決める。
+**上の行ほど優先**（`apps/portal/` は下の `apps/<アプリ>/` より先に当てる）:
 
 | 変わった場所 | やること |
 |--------------|----------|
+| `apps/portal/` | `manage.sh build gateway`（ポータルはゲートウェイの compose の `portal-app`。`build portal` は通らない） |
+| `nginx/`（リポジトリ直下） | `manage.sh build gateway`（ゲートウェイのイメージの元。設定もイメージに入っている） |
 | `apps/<アプリ>/`（`docker-compose.yml` だけ） | `manage.sh apply <アプリ>` |
 | `apps/<アプリ>/`（それ以外を含む） | `manage.sh build <アプリ>` |
 | `docker/Dockerfile.vite-static` | これを使う7アプリ（tax-docs / gift-tax-simulator / retirement-tax-calc / depreciation-calc / asset-valuation / capital-gains-calc / inheritance-tax-form）を `build` |
 | `docker/gateway/` | `manage.sh build gateway` |
 | `docker/scripts/` | 作り直しは不要（次に叩いたときから新しい版が動く） |
 | `apps/family-tree-sample/` / `apps/mcp-server/` | 何もしない（`manage.sh` の管理外） |
+| それ以外（`.github/` / `.gitattributes` など） | 何もしない |
 
 - `manage.sh status` で**止まっていたアプリは対象から外す**（`build` は止まっているアプリも起動してしまう）。
 - `$OLD` と `HEAD` が同じ（取り込むものが無かった）なら A5 へ。
