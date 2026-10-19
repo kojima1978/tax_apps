@@ -2,7 +2,7 @@
 
 Tax Apps Gateway を変更・再起動するときの最小確認リスト。
 
-**ここに載っているコマンドは全て実際に叩いて、併記した値を確認してある**（2026-09-21）。
+**ここに載っているコマンドは全て実際に叩いて、併記した値を確認してある**（2026-09-21、2026-10-19 に再確認）。
 期待値だけを書くと「書いた時点では正しかったが今は違う」に気づけないので、
 設定を触ったら一度は上から流すこと。
 
@@ -74,7 +74,7 @@ docker compose -f docker/gateway/docker-compose.yml logs --tail=100 gateway
 export MSYS_NO_PATHCONV=1
 
 docker exec tax-apps-gateway id
-# uid=101(nginx) gid=101(nginx) groups=101(nginx),101(nginx)
+# uid=101(nginx) gid=101(nginx) groups=101(nginx)
 
 docker exec tax-apps-gateway sh -c 'touch /etc/nginx/__probe'
 # touch: /etc/nginx/__probe: Read-only file system   ← これが出れば正しい
@@ -98,16 +98,19 @@ curl -s -o /dev/null -w 'code=%{http_code}\n' -H 'Host: evil.example' http://loc
 | Scenario | 期待する挙動 |
 | --- | --- |
 | Upstream app stopped | ゲートウェイは落ちず、502 で独自の 50x ページ（`html/50x.html` = 3519B） |
+| Next の `_next/static` が読めない | itcm / insurance / private-banking だけは HTML を返さず、JS のコメント1行（404 は `chunk not found`、500/502/503/504 は 503 の `upstream unavailable`）。`Cache-Control: no-store` |
 | API upstream error | 上流の JSON がそのまま通り、HTML に差し替えられない |
 | Too many requests | 429 + `Retry-After: 30` + `html/429.html`（3428B） |
 | Too many connections | 同じく 429（`limit_conn_status 429`。既定の 503 ではない） |
 | Body size exceeded | 413。**独自ページは無い**（nginx 既定の 176B の本文） |
-| Large bank CSV upload | `/bank-analyzer/` だけ `100M`。`proxy_request_buffering off` で tmpfs を経由せず上流へ直送 |
+| Large bank CSV upload | `/bank-analyzer/api/` だけ `100M`。`proxy_request_buffering off` で tmpfs を経由せず上流へ直送 |
 | Gateway filesystem writes | ルートは read_only。書けるのは `/tmp`(8m) と `/var/cache/nginx/` 配下の tmpfs 3本のみ |
 
 **HTML に差し替わるのは `error_page` に書いたステータスだけ**（`default.conf` の
 `500 502 504` / `503` / `404` / `429`）。`400` や `405`、上の `413` は
-`proxy_intercept_errors` の設定によらず素通りする。
+`proxy_intercept_errors` の設定によらず素通りする。例外は上の `_next/static` で、
+location 側の `error_page` が名前付きロケーション（`@next_static_missing` /
+`@next_static_unavailable`）へ落とすので、サーバレベルの HTML ページは出ない。
 
 tmpfs を4本に分けてあるのは、**1本が埋まっても他を道連れにしないため**。
 `client-body`(64m) は大きい POST のバッファ、`proxy-temp`(32m) は上流応答の一時置き場、
@@ -122,6 +125,14 @@ docker stop depreciation-calc
 curl -s -o /dev/null -w 'status=%{http_code} size=%{size_download}\n' http://localhost/depreciation-calc/
 # status=502 size=3519   ← html/50x.html と同じサイズ
 docker start depreciation-calc
+```
+
+**`_next/static` に HTML を返さない**
+
+```bash
+curl -s -w '\nstatus=%{http_code} type=%{content_type}\n' http://localhost/itcm/_next/static/chunks/__probe.js
+# /* tax-apps-gateway: chunk not found */
+# status=404 type=application/javascript; charset=utf-8   ← text/html なら壊れている
 ```
 
 **レート超過 → 429**（同時に「API のエラーが素通りすること」も見える）
@@ -187,9 +198,13 @@ location が無い唯一のバックエンド持ちアプリだった）。フ�
 | 〃 inheritance-tax-docs API | `nginx/default.conf` | `50M`（既定と同値だが明示） |
 | Default proxy timeout | `nginx/includes/proxy_params.conf` | connect `10s`, read/send `60s` |
 | Bank analysis timeout | `nginx/default.conf` | read/send `300s` |
+| 〃 insurance / private-banking / inheritance-tax-docs API | `nginx/default.conf` | read `120s` |
+| 〃 Vite 一括 location | `nginx/default.conf` | read `86400`（dev の HMR WebSocket を切らないため） |
 | Static cache storage | `nginx/nginx.conf` | `/var/cache/nginx/static-cache`, max `32m`, inactive `30d`（専用 tmpfs 32m） |
 | Client body temp | `nginx/nginx.conf` | `/var/cache/nginx/client-body`（専用 tmpfs 64m） |
-| Proxy response temp | `nginx/nginx.conf` | `/var/cache/nginx/proxy-temp`, max `32m`（専用 tmpfs 32m） |
+| Proxy response temp | path: `nginx/nginx.conf`(`proxy_temp_path`) / max: `nginx/default.conf`(`proxy_max_temp_file_size`) | `/var/cache/nginx/proxy-temp`, max `32m`（専用 tmpfs 32m） |
 
 tmpfs の容量は `docker/gateway/docker-compose.yml` の `tmpfs:` 側で決まる。
-`nginx.conf` の `max_size` と**両方**直さないと片方だけが効く。
+`nginx.conf` の `max_size`（static-cache）や `default.conf` の `proxy_max_temp_file_size`（proxy-temp）と
+**両方**直さないと片方だけが効く。compose の変更は `docker/scripts/manage.sh apply gateway` で反映する
+（`docker restart` では反映されない。作り直す前に `nginx -t` を通すのは 1.5 と同じ）。
