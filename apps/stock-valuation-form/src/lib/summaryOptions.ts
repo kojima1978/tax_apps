@@ -16,7 +16,7 @@ export type SummarySectionKey = 'prices' | 'holders' | 'scenarios' | 'retirement
 export const SUMMARY_SECTIONS: readonly { key: SummarySectionKey; label: string; hint: string }[] = [
   { key: 'prices', label: '株価一覧', hint: '評価方式ごとの1株当たりの価額' },
   { key: 'holders', label: '株主ごとの評価', hint: '株主別の評価方式と評価額' },
-  { key: 'scenarios', label: '条件を変えた評価額', hint: '利益0・想定利益・配当還元などの試算' },
+  { key: 'scenarios', label: '条件を変えた評価額', hint: '利益0・想定利益・比準0／1から一般会社への移行などの試算' },
   { key: 'retirement', label: '退職金支給後のシミュレーション', hint: '支給後の株価と現在との差' },
   { key: 'sensitivity', label: '比準要素の影響度', hint: '1円増加あたりの影響' },
   { key: 'sizes', label: '会社規模別の株価', hint: '規模が変わった場合の1株当たりの価額' },

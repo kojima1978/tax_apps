@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react';
 import { RetirementSimulation } from './RetirementSimulation';
+import { GeneralCompanySimulation } from './GeneralCompanySimulation';
 import { useHeightVar } from '@/hooks/useHeightVar';
 import { RESULT_NAMES, calcClientSummary } from '@/lib/clientSummary';
 import { calcNextYearForecast, type ElementForecast } from '@/lib/nextYearForecast';
@@ -711,6 +712,7 @@ export function ClientSummaryPage({ getField, updateField, onBack, onPrint, onOp
               <small>評価ベース・「利益0の場合」・想定利益の切替は株価一覧の設定で行います。</small>
             </SectionTools>
             {PRICE_GROUPS.filter((group) => group.key !== 'current').map(renderPriceGroup)}
+            <GeneralCompanySimulation getField={getField} bases={bases} />
           </section>
         ) : <HiddenSection sectionKey="scenarios" setOption={setOption} />}
 
