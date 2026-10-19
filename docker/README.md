@@ -573,7 +573,7 @@ C:\Users\<user>\.tax-apps\backup.key   ← この1ファイルだけ、外部媒
 ./manage.sh drill 2026-02-22_153000.tar.gz.enc   # 直接指定
 ```
 
-- **PostgreSQL**: 使い捨ての `postgres:16-alpine` コンテナを起動し、`psql -v ON_ERROR_STOP=1` でダンプを流し込む。復元後にテーブル数と行数を数え、0件なら失敗扱い
+- **PostgreSQL**: 使い捨ての `pgvector/pgvector:0.8.7-pg16-bookworm` コンテナを起動し、`psql -v ON_ERROR_STOP=1` でダンプを流し込む。銀行分析の既存 DB に登録済みの `vector` 拡張も復元できるイメージを使う。復元後にテーブル数と行数を数え、0件なら失敗扱い
 - **SQLite**: 展開したコピーを稼働中コンテナの `/tmp` へ置き、readonly で開いて `integrity_check` とテーブル数を確認（`better-sqlite3` がアプリイメージにしか無いため。コンテナ停止中はスキップ）
 - **稼働中のDBには一切触れません**。ドリル用コンテナは `tax-apps-network` に繋がず、ポートも公開しません
 

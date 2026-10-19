@@ -75,7 +75,7 @@ BACKUP_ENCRYPTION_ITERATIONS="${BACKUP_ENCRYPTION_ITERATIONS:-200000}"
 # 鍵そのものではなく「どの鍵で暗号化したか」の目印。バックアップ側（リポジトリ内）
 # に置いて、鍵ファイルが別物にすり替わったことを復号前に気づけるようにする。
 BACKUP_KEY_FINGERPRINT_FILE="${BACKUP_KEY_FINGERPRINT_FILE:-$BACKUP_BASE/.backup-key-fingerprint}"
-DRILL_PG_IMAGE="${DRILL_PG_IMAGE:-postgres:16-alpine}"
+DRILL_PG_IMAGE="${DRILL_PG_IMAGE:-pgvector/pgvector:0.8.7-pg16-bookworm}"
 DRILL_PG_CONTAINER="tax-apps-restore-drill"
 DRILL_PG_STARTED=0
 

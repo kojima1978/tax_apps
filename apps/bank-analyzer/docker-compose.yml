@@ -58,7 +58,7 @@ services:
     # C へ移すこと（`manage.sh collation bank-analyzer`、README 参照）。移した後は
     # alpine / bookworm のどちらでも並び順は変わらない。**移す前の PC で image: を
     # 変えないこと**（glibc 生まれのボリュームを alpine で開くと照合順序の警告が出る）。
-    image: postgres:16-bookworm
+    image: pgvector/pgvector:0.8.7-pg16-bookworm
     container_name: bank-analyzer-postgres
     networks:
       - tax-apps-network
