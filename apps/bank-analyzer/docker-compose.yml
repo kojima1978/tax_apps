@@ -10,7 +10,8 @@
 # ＝ 2つのアプリが同じ DB へ同時に書く形にはならない（切り戻しはその順で行う）。
 #
 # Usage:
-#   開発:     docker compose up -d
+#   開発:     docker/scripts/manage.sh start bank-analyzer
+#             （DB のボリュームは external。既にある PC なら docker compose up -d でも動く）
 #   本番:     docker/scripts/manage.sh start --prod bank-analyzer
 #   再ビルド: docker compose up -d --build
 #   ログ:     docker compose logs -f
@@ -201,5 +202,13 @@ networks:
 
 volumes:
   # Django 版と同じ実体（名前で引き継ぐ）。中身は移し替えない。
+  #
+  # external なのは、Django 版から引き継いだ PC ではボリュームのラベルが
+  # project=bank-analyzer-django のままで、compose が起動のたびに
+  # 「別のプロジェクトのボリュームだ」と警告を出すため（ラベルは後から変えられない）。
+  # external にすると compose はラベルを見ず、作りも消しもしない
+  # （`down -v` でも消えない）。無い PC では manage.sh の ensure_network が
+  # EXTERNAL_VOLUMES から作るので、起動は必ず manage.sh から行うこと。
   bank_analyzer_pgdata:
     name: bank-analyzer-postgres
+    external: true

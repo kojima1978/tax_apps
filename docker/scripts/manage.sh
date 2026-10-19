@@ -136,6 +136,13 @@ VOLUMES=(
   "stock-valuation-form-postgres"
 )
 
+# compose 側で `external: true` にしているボリューム。compose は external を
+# 作らないので、無い PC（新しい PC・Django 版を使っていなかった PC）では
+# ensure_network がここから作る。作るだけで、既にあるものには触らない。
+EXTERNAL_VOLUMES=(
+  "bank-analyzer-postgres"
+)
+
 # manage.sh の管理外として、意図的に APPS へ載せていない apps/ 直下のディレクトリ。
 #
 # preflight のチェック15は「APPS への載せ忘れ」を拾うためのものなので、
@@ -409,6 +416,13 @@ ensure_network() {
     log "ネットワーク $NETWORK_NAME を作成..."
     docker network create "$NETWORK_NAME"
   fi
+  local volume
+  for volume in "${EXTERNAL_VOLUMES[@]}"; do
+    if ! docker volume inspect "$volume" >/dev/null 2>&1; then
+      log "ボリューム $volume を作成..."
+      docker volume create "$volume" >/dev/null
+    fi
+  done
 }
 
 preflight_quick() {
