@@ -30,8 +30,9 @@
 - **印刷**: 1段組/2段組の切替、全表示/提出済み非表示の切替に対応。ページまたぎ許可で隙間なく詰めて出力
 
 ### 顧客・担当者情報
-- **担当者名・連絡先**: localStorage に保存（ブラウザ閉じても保持）
+- **担当者名・連絡先**: localStorage に保存（ブラウザ閉じても保持。申告種別・対象年度も同じ）
 - **顧客名**: sessionStorage に保存（タブを閉じるとクリア）
+- 書類リスト自体は保存しない（リロードで初期データに戻る）。残すには「ファイルに保存」
 - 印刷時のヘッダー・フッター、ファイル名に反映
 
 ### UI/UX
@@ -56,19 +57,18 @@
 ## Docker
 
 ```bash
-# 開発環境
-docker compose up -d
+# 起動（本番は --prod。素の docker compose up は本番を dev に作り替えるので使わない）
+docker/scripts/manage.sh start [--prod] tax-docs
 
-# 再ビルド
-docker compose up -d --build
-
-# 停止
-docker compose down
+# 再ビルド（稼働中のモードを踏襲）
+docker/scripts/manage.sh build tax-docs
 ```
 
-アクセス: http://localhost:3002/tax-docs/
+- 本番は共有の `docker/Dockerfile.vite-static` の `runner`（nginx・非 root、メモリ 64M）。この PC では本番で稼働
+- dev は `src` / `public` / `index.html` を bind mount するがポーリングが無いので、編集後は `docker restart tax-docs`
+- テストは無い
 
-> `manage.bat start` で全アプリを起動する場合は http://localhost/tax-docs/ からアクセス可能
+アクセス: http://localhost/tax-docs/（ゲートウェイ経由）
 
 ## ライセンス
 
