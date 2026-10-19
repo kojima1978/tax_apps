@@ -65,6 +65,13 @@ FROM deps AS dev
 ARG APP_PORT
 ENV NODE_ENV=development TZ=Asia/Tokyo APP_PORT=${APP_PORT}
 
+# Windows の bind mount（Windows → WSL2）ではホスト側の変更が inotify として
+# コンテナへ届かず、Vite は src を書き換えても気づかない（以前は README に
+# 「編集後は docker restart 必須」と書いて人に回していた）。Vite 6/7 の
+# chokidar はこの環境変数でポーリングへ切り替わる。vite.config.ts ではなく
+# ここに置くのは、このファイルを共有する7アプリへ1箇所で効かせるため。
+ENV CHOKIDAR_USEPOLLING=true CHOKIDAR_INTERVAL=300
+
 # --chown を付けて node 所有で持ち込む（COPY の --chown は層を増やさない）。
 COPY --chown=node:node . .
 
