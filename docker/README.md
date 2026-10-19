@@ -209,6 +209,10 @@ rd /s /q tax_apps
 | `./manage.sh alert` | デスクトップの警告ファイルを作り直す（Docker 不要） |
 | `./manage.sh preflight` | 起動前環境チェック |
 
+起動・再ビルドの Compose は、呼び出した場所にかかわらずリポジトリ直下を作業ディレクトリにして実行します。`start-prod.bat` は `docker/scripts` から呼び出すため、そのままでは共有の `docker/Dockerfile.vite-static` が Bake の既定の読み取り範囲外になります。Compose 5.6.0 と Buildx 0.37.2 では共有 Dockerfile 自体への許可が渡らず、`failed to execute bake: exit status 1` で停止することを確認しました（[上流の不具合報告](https://github.com/docker/compose/issues/14285)、[上流の修正](https://github.com/docker/compose/pull/14325)）。
+
+`lib/compose-build.sh` がビルド時だけ作業場所をリポジトリ直下に固定し、共有 Dockerfile を読み取り範囲に含めます。Compose ファイルは絶対パスの `-f` で指定するため、ビルドコンテキストや本番オーバーレイは変わりません。呼び出し元の作業場所も変更せず、ビルドエラーの終了コードをそのまま返します。再試行や一時 Bake 定義の生成は不要です。
+
 ### アプリ名の指定
 
 `restart`, `build`, `apply`, `logs` コマンドではアプリ名を**部分一致**で指定できます:
@@ -573,7 +577,7 @@ C:\Users\<user>\.tax-apps\backup.key   ← この1ファイルだけ、外部媒
 ./manage.sh drill 2026-02-22_153000.tar.gz.enc   # 直接指定
 ```
 
-- **PostgreSQL**: 使い捨ての `postgres:16-alpine` コンテナを起動し、`psql -v ON_ERROR_STOP=1` でダンプを流し込む。復元後にテーブル数と行数を数え、0件なら失敗扱い
+- **PostgreSQL**: 使い捨ての `pgvector/pgvector:0.8.7-pg16-bookworm` コンテナを起動し、`psql -v ON_ERROR_STOP=1` でダンプを流し込む。銀行分析の既存 DB に登録済みの `vector` 拡張も復元できるイメージを使う。復元後にテーブル数と行数を数え、0件なら失敗扱い
 - **SQLite**: 展開したコピーを稼働中コンテナの `/tmp` へ置き、readonly で開いて `integrity_check` とテーブル数を確認（`better-sqlite3` がアプリイメージにしか無いため。コンテナ停止中はスキップ）
 - **稼働中のDBには一切触れません**。ドリル用コンテナは `tax-apps-network` に繋がず、ポートも公開しません
 

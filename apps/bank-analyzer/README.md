@@ -55,7 +55,10 @@ docker/scripts/manage.sh test bank-analyzer
 `map:` で Django の実名に合わせてあり、id は Django の BigAutoField なので BigInt
 （JSON に出すときは `server/json.ts` の `toId` で number へ）。
 
-DB イメージは `postgres:16-bookworm` を使う。ただし**引き継いだボリュームの生まれは PC によって違う**
+DB イメージは `pgvector/pgvector:0.8.7-pg16-bookworm` を使う。引き継いだ DB に登録済みの
+`vector` 拡張を復元できるよう、拡張を同梱した PostgreSQL 16・bookworm 系を使う。
+標準の `postgres` イメージには拡張ファイルがなく、既存 DB が起動できてもダンプの復元は失敗する。
+ただし**引き継いだボリュームの生まれは PC によって違う**
 （glibc の `postgres:16` で作られたもの＝照合順序の記録 `2.36`、musl の `postgres:16-alpine` で
 作られたもの＝記録なし、の両方が実在する）。DB の照合順序が `en_US.utf8` のままだと並び順が
 libc で決まるので、イメージの libc 系をどちらに決めても片方の PC では食い違う。

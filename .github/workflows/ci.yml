@@ -133,3 +133,6 @@ jobs:
             fi
           done < <(find docker apps -name '*.sh' -not -path '*/node_modules/*' | sort)
           exit "$failed"
+
+      - name: Compose build working directory regression
+        run: bash docker/scripts/tests/compose-build.test.sh
