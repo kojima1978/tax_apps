@@ -15,6 +15,10 @@ RUN --mount=type=cache,id=npm-store-inheritance-tax-app,target=/root/.npm npm ci
 
 FROM deps AS dev
 ENV NODE_ENV=development TZ=Asia/Tokyo APP_PORT=3004
+# Windows の bind mount ではホスト側の変更が inotify として届かないので、
+# ミドルウェアとして組み込んだ Vite の監視もポーリングへ切り替える
+# （docker/Dockerfile.vite-static と同じ理由）。
+ENV CHOKIDAR_USEPOLLING=true CHOKIDAR_INTERVAL=300
 # dev サーバも非 root で動かす（runner は元から USER node）。
 # COPY の --chown は層を増やさない。node_modules を丸ごと chown すると
 # ツリーがもう1層コピーされるので、Vite が .vite を作るディレクトリだけ渡す。
