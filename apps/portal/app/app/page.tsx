@@ -1,4 +1,5 @@
 import PageContainer from '@/components/PageContainer';
+import { applications } from '@/lib/applications';
 import AppGrid from '@/components/AppGrid';
 import { LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
@@ -22,7 +23,7 @@ export default function Home() {
             </span>
           </Link>
           <p className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-emerald-100">
-            16 apps
+            {applications.length} apps
           </p>
         </PageContainer>
       </header>
