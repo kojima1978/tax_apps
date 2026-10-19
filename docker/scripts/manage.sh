@@ -626,14 +626,11 @@ ensure_production_env() {
   ensure_postgres_production_env "$name" "$dir" || return 1
 }
 
-# Docker Desktop の CLI hooks（Gordon / Compose）が、連続する Compose ビルドで
-# Bake の stdin を Buildx へ渡さないことがある。その場合は Dockerfile を読む前に
-# `failed to execute bake: exit status 1` だけを残して終わる。
-#
-# 通常のビルドエラーまで再実行すると原因を隠すので、この短いラッパーエラーに限り、
-# 現在の Engine へ直接接続する最小の一時 CLI 設定（hooks 無し）で1回だけ再試行する。
+# Compose から Bake への受け渡しが失敗したときは、定義をファイルに出して
+# Buildx でビルドし直す。Dockerfile 内の通常のビルドエラーは再試行しない。
 compose_up_with_bake_retry() {
-  local log_file status docker_host clean_config
+  local log_file status bake_dir bake_file argument in_up=0
+  local -a compose_args=() up_args=()
   log_file=$(mktemp) || return 1
 
   # 進捗は従来どおり画面へ出しつつ、再試行対象かを判定するため同じ内容を控える。
@@ -650,27 +647,37 @@ compose_up_with_bake_retry() {
   fi
   rm -f "$log_file"
 
-  docker_host=$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)
-  if [[ -z "$docker_host" ]]; then
-    err "Docker Engine の接続先を取得できないため、Bake を再試行できません"
-    return "$status"
-  fi
+  for argument in "$@"; do
+    if [[ $in_up -eq 0 ]]; then
+      if [[ "$argument" == "up" ]]; then
+        in_up=1
+      else
+        compose_args+=("$argument")
+      fi
+    elif [[ "$argument" == "--build" ]]; then
+      up_args+=("--no-build")
+    else
+      up_args+=("$argument")
+    fi
+  done
+  [[ $in_up -eq 1 ]] || return "$status"
 
-  clean_config=$(mktemp -d) || return "$status"
-  # config.json が無くても CLI は動くが、空の設定であることを明示しておく。
-  printf '{}\n' > "$clean_config/config.json"
-
-  warn "Docker CLI hooks を除外した一時設定で1回だけ再試行します"
-  if env -u DOCKER_CONTEXT -u DOCKER_TLS_VERIFY \
-      DOCKER_CONFIG="$clean_config" DOCKER_HOST="$docker_host" \
-      docker compose "$@"; then
-    status=0
+  bake_dir=$(mktemp -d) || return "$status"
+  bake_file="$bake_dir/bake.json"
+  warn "Bake の定義をファイルへ出力し、Buildx で再ビルドします"
+  if docker compose "${compose_args[@]}" build --print > "$bake_file" \
+      && docker buildx bake --file "$(to_win_path "$bake_file")" --load; then
+    if docker compose "${compose_args[@]}" up "${up_args[@]}"; then
+      status=0
+    else
+      status=$?
+    fi
   else
     status=$?
   fi
 
-  rm -f "$clean_config/config.json"
-  rmdir "$clean_config" 2>/dev/null || true
+  rm -f "$bake_file"
+  rmdir "$bake_dir" 2>/dev/null || true
   return "$status"
 }
 

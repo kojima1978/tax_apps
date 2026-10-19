@@ -209,6 +209,8 @@ rd /s /q tax_apps
 | `./manage.sh alert` | デスクトップの警告ファイルを作り直す（Docker 不要） |
 | `./manage.sh preflight` | 起動前環境チェック |
 
+本番起動・再ビルドで `failed to execute bake: exit status 1` が出た場合は、Compose のビルド定義を一時 JSON ファイルへ出し、`docker buildx bake --file` で1回再ビルドします。成功したイメージで `up --no-build` を実行するため、同じ受け渡しエラーを繰り返さず起動を続けられます。通常のビルドエラーでは再試行せず、終了コードを返します。
+
 ### アプリ名の指定
 
 `restart`, `build`, `apply`, `logs` コマンドではアプリ名を**部分一致**で指定できます:
