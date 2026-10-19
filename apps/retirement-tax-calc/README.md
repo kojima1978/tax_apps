@@ -53,6 +53,7 @@ src/
 │   ├── ComparisonTable.tsx    # 比較テーブル（TABLE_ROW_DEFSデータ駆動）
 │   ├── FormField.tsx          # フォームフィールド共通
 │   ├── Header.tsx             # アプリヘッダー + 印刷/PDFボタン
+│   ├── Icons.tsx              # インラインSVGアイコン（ホーム・ダウンロード等）
 │   ├── InputWithUnit.tsx      # 入力欄+単位ラベル（フォーカス時全選択）
 │   ├── LimitResultDisplay.tsx # 役員限度額結果表示（超過警告含む）
 │   ├── OfficerLimitSection.tsx # 役員退職金限度額
@@ -66,6 +67,7 @@ src/
 ├── hooks/
 │   ├── usePdfExport.ts        # PDF生成フック（html2pdf.js）
 │   └── useRetirementTaxForm.ts # フォーム状態管理フック
+├── vite-env.d.ts
 └── lib/
     ├── retirement-tax.ts      # 退職所得・税額計算ロジック
     ├── tax-rates.ts           # 年度別税率テーブル
@@ -75,25 +77,21 @@ src/
 
 ## Docker
 
-### 単体起動
+共通の `docker/Dockerfile.vite-static` を使う（dev は Vite、本番は nginx で静的配信）。
 
 ```bash
-docker compose up -d             # 起動
-docker compose up -d --build     # 再ビルド
-docker compose logs -f           # ログ確認
-docker compose down              # 停止
+docker/scripts/manage.sh start retirement-tax-calc          # 開発モード
+docker/scripts/manage.sh start --prod retirement-tax-calc   # 本番モード
+docker/scripts/manage.sh build retirement-tax-calc          # 再ビルド（稼働中のモードを踏襲。名前は部分一致可）
+docker/scripts/manage.sh logs retirement-tax-calc
 ```
 
-アクセス: http://localhost:3013/retirement-tax-calc/
+アクセス: http://localhost/retirement-tax-calc/ （直接は http://localhost:3013/retirement-tax-calc/ ）
 
-> 事前に `docker network create tax-apps-network` でネットワークを作成しておく必要があります。
-
-### manage.bat 経由
-
-```bash
-manage.bat start                       # 全アプリ起動
-manage.bat restart retirement-tax-calc # このアプリのみ再起動
-manage.bat build retirement            # 再ビルド（部分一致可）
-```
-
-Gateway 経由アクセス: http://localhost/retirement-tax-calc/
+- 素の `docker compose up` は本番で動いているアプリを dev に作り替えるので使わない（この PC では本番モードで稼働）
+- 本番はイメージ同梱なので、ソースを直したら `build` が要る
+- dev は `./src` と `./index.html` を読み取り専用で bind mount するが、Vite にポーリングの設定が無いので
+  変更を拾わない。ソースを直したら `docker restart retirement-tax-calc`
+- メモリ上限は dev 512M（`NODE_OPTIONS=--max-old-space-size=384`）、本番 64M
+- テストは無い（`package.json` に `test` も `typecheck` も無いので `manage.sh test` の対象外）
+- `vercel.json` は Vercel 用（`VERCEL` 環境変数があるときだけ `base` を `/` にする）
