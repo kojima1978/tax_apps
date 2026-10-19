@@ -2,6 +2,12 @@
 
 作成: 2026-10-07 ／ 対象: `apps/bank-analyzer-django` → 新アプリ `apps/bank-analyzer`
 
+> **状況（2026-10-19）: 段階1〜8 はすべて完了**（切替・片付けとも 2026-10-10）。§1〜§8 と §9 は計画を
+> 立てた時点の記録で、実際に行ったことは各「段階Nの結果」に書いてある。いまの構成・コマンドは
+> `README.md`、まだ Django 版で動いている別の PC の切替は `CUTOVER.md` を見ること。
+> Django 版のディレクトリはもう無く、コードは `4962355e` にだけ残る。
+> 文中の `bank-analyzer-next` / 3008 / `/bank-analyzer-next/` は並走中の名前で、段階7で消えている。
+
 ## 1. 目的と結論
 
 - **目的**: 今後の機能追加を、ほかのアプリと同じ構成（Vite + React + Hono + Prisma + PostgreSQL）で
@@ -72,8 +78,8 @@ stock-valuation-form と同じ形にそろえる。
 | API | Hono（`@hono/node-server`） | 本番は Node 1本で画面と API を配信（svf と同じ） |
 | DB | Prisma 6.19.3 + PostgreSQL 16（**今の DB とボリュームをそのまま使う**） | §6 |
 | CSV 読込 | 自前の小さなパーサ + `TextDecoder`（UTF-8 / Shift_JIS） | 文字コードの判定順は今と同じ |
-| Excel 読込・出力 | `xlsx-js-style` | asset-valuation など3アプリで使用済み |
-| グラフ | `recharts` | insurance-app / private-banking で使用済み。plotly.js（約3.5MB）をやめる |
+| Excel 読込・出力 | `xlsx-js-style` | asset-valuation など3アプリで使用済み。→ 実際は読込だけ `xlsx-js-style`（`server/lib/import/readTable.ts`）、書き出しは `exceljs`（段階4） |
+| グラフ | `recharts` | insurance-app / private-banking で使用済み。plotly.js（約3.5MB）をやめる。→ 実際は月次グラフ1つだけなので SVG を自前で描いた（段階5。`recharts` は入れていない） |
 | 表記ゆれの照合 | `partial_ratio` / `token_set_ratio` を TS で自前実装 | rapidfuzz の点数と突き合わせる（§5 段階3）。85% / 95% の線をまたぐかが大事 |
 | 文字の正規化 | `String.prototype.normalize('NFKC')` | Python の `unicodedata` と同じ規格 |
 | テスト | vitest + 型検査（`npm run typecheck && vitest run`） | `TEST_TARGETS` と CI に登録 |
@@ -183,6 +189,15 @@ URL 31本を Hono の API に置き換える。画面の HTML を返していた
 - 全体の設定（多額取引の閾値・分類パターンなど）は、ファイルではなく DB の表に置く
   （今は `data/user_settings.json` が無く既定値で動いているので、移す値は無い）
 
+**切替後に変わったこと**（いまの形は `README.md` の「DB とマイグレーション」）:
+
+- DB のイメージは Django 版から引き継いだ `postgres:16-alpine` から bookworm 系へ（2026-10-14）、
+  さらに `vector` 拡張を同梱した `pgvector/pgvector:0.8.7-pg16-bookworm` へ（2026-10-19）
+- 照合順序は `manage.sh collation bank-analyzer --yes` で libc 非依存の `C` へ移した
+  （開発 PC は 2026-10-14。別の PC は `CUTOVER.md` の 4-5 で行う）
+- ボリューム `bank-analyzer-postgres` は compose 上 `external: true`（2026-10-19）。
+  無ければ `manage.sh` が作る。名前は同じなので「ボリュームをそのまま使う」は変わらない
+
 ## 7. リスク
 
 | リスク | 対策 |
@@ -202,6 +217,7 @@ URL 31本を Hono の API に置き換える。画面の HTML を返していた
 3. `.xls`（古い Excel）には対応しない
 
 4. §3 の追加項目 #6〜#10 も提案どおり（#6・#7 は直す、#8〜#10 は同じにする）
+   → #8・#10 は切替後に直した（末尾「切替後に直したもの」）
 
 ## 段階1の結果（2026-10-07）
 
@@ -275,7 +291,7 @@ Django の URL を Hono の JSON API に移した（`apps/bank-analyzer/server/r
 分類の変更履歴・範囲削除の控え・全体設定（`user_settings.json` → `analyzer_appsetting`）は
 **Django が書いた行をそのまま読める形**で書く。
 
-| Django の画面・操作 | API（`/bank-analyzer-next/api/…`） |
+| Django の画面・操作 | API（`/bank-analyzer-next/api/…`。段階7から `/bank-analyzer/api/…`） |
 |---|---|
 | 案件一覧・作成・更新・削除・相続開始日 | `cases` / `cases/:id`（GET・PATCH・DELETE）/ `cases/:id/reference-date` |
 | 分析画面の表示（7タブ） | `cases/:id/dashboard?tab=…`（絞り込み・並び替え・ページ送りはクエリ） |
@@ -477,6 +493,8 @@ docker compose up -d bank-analyzer-next
 docker compose exec -T bank-analyzer-next-db psql -U bankuser -d postgres -c 'DROP DATABASE IF EXISTS "bank_analyzer_real_ui" WITH (FORCE)'
 ```
 
+> 上のコマンドの `bank-analyzer-next-db` / `bank-analyzer-next` は段階7で消えている（再実行できない）。
+
 触ったのは主に取引1,289件・5口座の案件。**壊れていた画面は無く、直すものも出なかった**。
 
 - **案件一覧**: 6案件とも件数・口座数・和暦の日付が出る
@@ -513,7 +531,8 @@ docker compose exec -T bank-analyzer-next-db psql -U bankuser -d postgres -c 'DR
 
 Django 版の名前・ポート・DB ボリュームをそのまま引き継いだ。**データは1バイトも移していない**
 （同じボリューム `bank-analyzer-postgres` を名前で指しているだけなので、切り戻しは Django 版を
-上げ直すだけで済む）。
+上げ直すだけで済む ── 段階8で Django の表とコードを消したので、**いまは切替前の `pg_dump` を
+戻す以外に道は無い**）。
 
 ### 直したもの（`dd5feafe`）
 
@@ -628,3 +647,4 @@ Django 版ではファイルごとエラーになっていた書式を読む（`
 ## 9. 着手の順番
 
 この計画で承認をもらえたら、**段階1（正解の記録）だけ**を先に行い、結果を見せてから段階2へ進む。
+→ この順で進め、段階8まで完了した（2026-10-10）。
