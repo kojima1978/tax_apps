@@ -1,4 +1,5 @@
 import express from 'express';
+import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';
 import { checkDbHealth, seedIfEmpty } from './db.js';
@@ -10,6 +11,7 @@ const DATA_DIR = process.env.DATA_DIR ?? path.resolve('data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const PUBLIC_FILES_DIR = path.resolve('public', 'files');
 const DIST_DIR = path.resolve('dist');
+const isProduction = process.env.NODE_ENV === 'production';
 
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -18,6 +20,7 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 seedIfEmpty(UPLOADS_DIR, PUBLIC_FILES_DIR);
 
 const app = express();
+const httpServer = createHttpServer(app);
 app.use(express.json());
 
 // Health check
@@ -37,15 +40,26 @@ app.use(`${BASE_PATH}/api/resources`, createResourcesRouter(UPLOADS_DIR));
 // Serve uploaded files
 app.use(`${BASE_PATH}/files`, express.static(UPLOADS_DIR));
 
-// Serve Vite build (production)
-if (fs.existsSync(DIST_DIR)) {
+// 画面の配信。本番はビルド済みの dist/、dev は Vite をミドルウェアとして組み込む。
+// 以前は「dist/ があれば配信」だけで、dev のイメージには dist/ が無いため
+// dev モードでは API しか応答せず画面は 404 だった。
+if (isProduction) {
   app.use(BASE_PATH, express.static(DIST_DIR));
   // SPA fallback (Express 5: named wildcard)
   app.get(`${BASE_PATH}/{*splat}`, (_req, res) => {
     res.sendFile(path.join(DIST_DIR, 'index.html'));
   });
+} else {
+  // vite は devDependencies なので本番イメージには無い。dev のときだけ読み込む
+  const { createServer: createViteServer } = await import('vite');
+  const hmrClientPort = Number(process.env.VITE_HMR_CLIENT_PORT ?? PORT);
+  const vite = await createViteServer({
+    server: { middlewareMode: true, hmr: { server: httpServer, clientPort: hmrClientPort } },
+    appType: 'spa',
+  });
+  app.use(vite.middlewares);
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`inheritance-tax-docs server running on http://0.0.0.0:${PORT}${BASE_PATH}/`);
 });

@@ -60,7 +60,6 @@
 - 1件は「ファイル（PDF / Excel / Word 等、50MBまで）」か「外部リンク」のどちらか
 - DB が空のときだけ、`server/db.ts` の初期データ17件を登録し、`public/files/` のファイルを `/app/data/uploads/` へ写す（以降は `public/files/` を見ない）
 - データはボリューム `inheritance-tax-docs-data`（`/app/data`）にあり、夜間バックアップの対象（`backup.sh` の `SQLITE_TARGETS`）
-- `src/constants/resources.ts` は DB 化する前の一覧で、いまはどこからも読まれていない
 
 初期データ:
 
@@ -117,12 +116,8 @@ http://localhost/inheritance-tax-docs/ でアクセスする（Nginx ゲート�
 
 | モード | 中身 | メモリ |
 |:--|:--|:--|
-| dev | `tsx watch server/index.ts`。`src` / `server` / `public` / `index.html` を読み取り専用で bind mount | 512M（ヒープ 384） |
+| dev | `npm run dev`（`tsx watch server/index.ts`）。Express に Vite をミドルウェアとして組み込み、画面と API を 3003 で配信。`src` / `server` / `public` / `index.html` を読み取り専用で bind mount（監視はポーリングなので編集は再起動なしで反映）。非 root（`node`） | 512M（ヒープ 384） |
 | 本番 | ビルド済みの画面と API を Node（Express）が 3003 で配信。非 root（`node`） | 192M（ヒープ 128） |
-
-> **既知の問題（dev モード）**: dev の Dockerfile ステージは `npm run dev:server`（`tsx watch server/index.ts`）だけを起動し、
-> Vite の dev サーバも `dist/` も無いため、**dev では API しか応答せず画面は 404 になる**。いまは本番モードで稼働しているので表に出ていない。
-> また dev ステージには `USER node` が無く root で動く。どちらもコードの修正待ち。
 
 ヘルスチェックは `/inheritance-tax-docs/api/health`。DB（`/app/data/resources.sqlite`）を開いて読めることに加え、
 DB ファイルと `/app/data` に書けるかまで見て、使えなければ `503 {"status":"degraded","database":"EACCES"}` のようにエラーコードを返します。
@@ -171,7 +166,6 @@ inheritance-tax-docs/
 │   │   ├── documents.ts                 # 相続税申告の書類マスターデータ（11カテゴリ）
 │   │   ├── simplifiedDocuments.ts       # 相続シミュレーションの書類マスターデータ（1カテゴリ）
 │   │   ├── unlistedStockDocuments.ts    # 非上場株式の書類マスターデータ（5カテゴリ）
-│   │   ├── resources.ts                 # 旧・参考資料一覧（未使用。初期データは server/db.ts）
 │   │   ├── excelStyles.ts              # Excelスタイル定義
 │   │   └── messages.ts                 # Toast・ダイアログメッセージ定数
 │   ├── hooks/

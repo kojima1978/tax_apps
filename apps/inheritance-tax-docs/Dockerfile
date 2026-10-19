@@ -32,14 +32,23 @@ RUN --mount=type=cache,id=npm-store-inheritance-tax-docs,target=/root/.npm \
            node_modules/@tailwindcss/oxide-linux-x64-gnu
 
 # =============================================================================
-# Development - Vite dev server + ts-node for backend
+# Development - Express（tsx watch）に Vite をミドルウェアとして組み込む
 # =============================================================================
 FROM deps AS dev
 ARG APP_PORT
 ENV NODE_ENV=development TZ=Asia/Tokyo PORT=${APP_PORT}
-COPY . .
+# Windows の bind mount ではホスト側の変更が inotify として届かないので、
+# Vite の監視をポーリングへ切り替える（docker/Dockerfile.vite-static と同じ理由）。
+ENV CHOKIDAR_USEPOLLING=true CHOKIDAR_INTERVAL=300
+# dev サーバも非 root で動かす（runner は元から USER node）。
+# COPY の --chown は層を増やさない。node_modules を丸ごと chown すると
+# ツリーがもう1層コピーされるので、Vite が .vite を作るディレクトリだけ渡す。
+# /app/data は空のボリュームがイメージ側の所有者を引き継ぐための入れ物。
+COPY --chown=node:node . .
+RUN mkdir -p /app/data && chown node:node /app /app/node_modules /app/data
+USER node
 EXPOSE ${APP_PORT}
-CMD ["npm", "run", "dev:server"]
+CMD ["npm", "run", "dev"]
 
 # =============================================================================
 # Builder - Build both frontend and backend
