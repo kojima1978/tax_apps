@@ -91,7 +91,10 @@ const estimatedCostAdvantageNote = (estimatedCost: number, actualCost: number): 
 
 const parseDate = (value: string): Date | null => {
     if (!value) return null;
-    const d = new Date(value);
+    // new Date('YYYY-MM-DD') は UTC の0時として読むので、UTC より西の時間帯では前日になる。
+    // 比べる相手（1月1日など）は現地時刻で作るので、こちらも現地の日付として組み立てる
+    const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    const d = ymd ? new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])) : new Date(value);
     return Number.isNaN(d.getTime()) ? null : d;
 };
 
@@ -141,9 +144,17 @@ export const calcNonBusinessDepreciation = (
 ): number => {
     if (buildingCost <= 0 || elapsedYears <= 0) return 0;
     const structure = findStructure(structureKey);
-    const raw = buildingCost * DEPRECIATION_BASE_RATIO * structure.rate * elapsedYears;
-    return Math.floor(Math.min(raw, buildingCost * DEPRECIATION_LIMIT_RATIO));
+    // 0.9・償却率（小数3桁）を小数のまま掛けると、割り切れるはずの積が 492992.99999… になり
+    // 切り捨てで1円少なくなる（木造 1,178,000円×15年など）。千分率の整数にして最後に1回だけ割る
+    const rateMilli = Math.round(structure.rate * 1000);
+    const baseTenths = Math.round(DEPRECIATION_BASE_RATIO * 10);
+    const raw = Math.floor((buildingCost * baseTenths * rateMilli * elapsedYears) / 10_000);
+    return Math.min(raw, depreciationLimit(buildingCost));
 };
+
+/** 償却費の上限（取得価額の95%）。0.95 を小数のまま掛けず百分率の整数で求める */
+export const depreciationLimit = (buildingCost: number): number =>
+    Math.floor((buildingCost * Math.round(DEPRECIATION_LIMIT_RATIO * 100)) / 100);
 
 // ============================================================
 // 不動産（土地・建物）の譲渡所得
@@ -204,7 +215,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
     const depreciation =
         input.buildingUsage === 'non-business'
             ? calcNonBusinessDepreciation(input.buildingCost, input.structureKey, elapsedYears)
-            : Math.floor(Math.min(input.depreciationInput, input.buildingCost * DEPRECIATION_LIMIT_RATIO));
+            : Math.min(Math.floor(input.depreciationInput), depreciationLimit(input.buildingCost));
 
     const actualCost = Math.max(0, input.landCost + input.buildingCost - depreciation);
     const estimatedCost = Math.floor(input.transferPrice * ESTIMATED_COST_RATIO);
