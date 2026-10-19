@@ -382,7 +382,7 @@ src/
 │   ├── ResultTable.tsx        # 結果テーブル（行配列でデータ駆動）
 │   ├── SecuritiesForm.tsx     # 株式等の入力フォーム
 │   ├── SecuritiesResult.tsx   # 株式等の計算結果
-│   ├── TabNav.tsx             # タブ（TABS定数で定義）
+│   ├── TabNav.tsx             # タブ（TABS は lib/tabs.ts）
 │   └── ToggleGroup.tsx        # 汎用トグル（排他選択）
 ├── hooks/
 │   ├── useFormState.ts        # 汎用フォーム状態（setField / reset）
@@ -397,6 +397,7 @@ src/
     ├── print-options.ts       # 印刷内容の選択肢（参考資料を含めるか）
     ├── result-rows.ts         # 結果テーブルの行型・税率併記の内訳行・税目別合計・手取りの内訳
     ├── stamp-duty.ts          # 印紙税の階段表（第1号文書・軽減措置）
+    ├── tabs.ts                # タブ定義（Fast Refresh の制約でコンポーネントと分けている）
     ├── tax-rates.ts           # 税率テーブル・建物構造別の償却率
     ├── company.ts             # 会社情報
     └── utils.ts               # フォーマットユーティリティ
@@ -404,24 +405,23 @@ src/
 
 ## Docker
 
-### 単体起動
+リポジトリのルートから `manage.sh` で起動する（素の `docker compose up` は base だけを読むので、本番で動いているアプリを dev に作り替える）。
 
 ```bash
-docker compose up -d             # 起動
-docker compose up -d --build     # 再ビルド
-docker compose logs -f           # ログ確認
-docker compose down              # 停止
+docker/scripts/manage.sh start capital-gains-calc          # 開発
+docker/scripts/manage.sh start --prod capital-gains-calc   # 本番（nginx 静的配信）
+docker/scripts/manage.sh build capital-gains-calc          # 再ビルド（いま動いているモードを踏襲）
+docker/scripts/manage.sh logs capital-gains-calc           # ログ確認
 ```
 
-アクセス: http://localhost:3019/capital-gains-calc/
+アクセス: http://localhost/capital-gains-calc/（ゲートウェイ経由。直接なら http://localhost:3019/capital-gains-calc/）
 
-> 事前に `docker network create tax-apps-network` でネットワークを作成しておく必要があります。
+| 項目 | dev | 本番 |
+|---|---|---|
+| ステージ | `dev`（`node` ユーザーで Vite） | `runner`（nginx:1.27-alpine・非 root） |
+| ソース | `./src` と `./index.html` を読み取り専用で bind mount | イメージ同梱（`volumes: !reset []`）。**変更は `build` しないと入らない** |
+| メモリ上限 | 512M（`NODE_OPTIONS=--max-old-space-size=384`） | 64M |
 
-### manage.sh 経由
-
-```bash
-docker/scripts/manage.sh build capital-gains-calc   # 再ビルド
-docker/scripts/manage.sh logs capital-gains-calc    # ログ確認
-```
-
-Gateway 経由アクセス: http://localhost/capital-gains-calc/
+- dev の Vite にはポーリングが無いので、Windows の bind mount では編集が届かない。`src` を直したら `docker restart capital-gains-calc`
+- `package.json` / `vite.config.ts` はマウントしていない（イメージ同梱）ので、変えたら `build` が要る
+- テストは無い。型検査は `npm run build` の `tsc -b` だけで、dev モードでは走らない
