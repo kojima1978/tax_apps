@@ -244,5 +244,4 @@ erDiagram
 - 相続人と関係者は役割固有項目と管理画面が異なるため、`HeirPerson`と`RelatedPartyPerson`に意図的に分離しています。
 - 年計表は`paidDate`（入金日）を計上月として集計します。
 - 案件一覧は`fiscalYear`＋（`status` / `assigneeId` / `internalReferrerId`）＋`dateOfDeath`の複合索引で引きます（`InheritanceCase_list_*_idx`）。
-- `dateOfDeath`のコメントには「CHECK制約で検証済み」とありますが、DBにその制約はありません（列型が`date`なので実在しない日付は入りません）。
 - Mermaidの属性欄では任意項目も型名のみで表記しています。NULL可否・既定値・索引の正確な定義はPrismaスキーマを参照してください。
