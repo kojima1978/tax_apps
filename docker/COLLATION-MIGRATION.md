@@ -61,18 +61,22 @@ git fetch origin
 git pull --ff-only origin master
 ```
 
-- `apps/bank-analyzer/docker-compose.yml` などの**ローカル変更と衝突して pull が拒否された場合**は、
-  その**ファイルだけ**を退避して取り込み、戻す:
+- `apps/bank-analyzer/docker-compose.yml` の**ローカル変更と衝突して pull が拒否された場合**:
+  ボリュームの `external: true` を手で足していた PC がこれに当たる。master にも同じ変更が入った
+  （2026-10-19）ので、差分を見て、それ**だけ**なら master 側を採る:
 
   ```bash
+  git diff -- apps/bank-analyzer/docker-compose.yml
   git stash push -m "local-before-collation" -- apps/bank-analyzer/docker-compose.yml
   git pull --ff-only origin master
-  git stash pop
+  grep -n "external: true" apps/bank-analyzer/docker-compose.yml
   ```
 
-  `stash pop` で競合したら、取り込んだ変更（`POSTGRES_INITDB_ARGS` の追加など）と
-  ローカルの変更（`external: true` など）の**両方を残す**形で解消する。判断できなければ止まる。
-- 止まる条件: `--ff-only` が失敗する（ローカルにコミットがある）／競合を両方残す形で解消できない。
+  `bank_analyzer_pgdata` の下に `external: true` があれば、退避したものは**戻さない**
+  （`stash pop` すると同じ変更どうしで競合する。stash は消さずに残し、報告に書く）。
+  手順は `docker/OTHER-PC-SETUP.md` の A2 と同じ。
+- 止まる条件: `--ff-only` が失敗する（ローカルにコミットがある）／差分に `external: true`
+  （とコメント）以外が混ざっている。
 
 取り込めたら確認する:
 
@@ -229,7 +233,7 @@ ALTER DATABASE "<db>_pre_c" RENAME TO "<db>";
 
 ## 完了報告に含める内容
 
-- 手順1の未コミット変更の一覧と、触らなかったこと（`external: true` を変えたかどうかとその根拠）
+- 手順1の未コミット変更の一覧と、触らなかったこと（手順2で stash を使った場合はその名前）
 - 取り込んだコミット（`git log -1 --oneline`）
 - backup / drill の結果
 - 手順4の一覧（移行前）と、手順7の一覧（移行後）
