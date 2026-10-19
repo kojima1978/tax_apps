@@ -56,12 +56,16 @@ insurance-app/
 
 | 値 |
 |---|
-| 個人年金保険 |
+| 終身保険 |
+| 定期保険 |
 | 収入保障保険 |
 | 変額終身保険 |
 | 医療保険 |
-| 終身保険 |
+| がん保険 |
 | 養老保険 |
+| 個人年金保険 |
+
+並びは画面・CSV取込で使う `DISPLAY_POLICY_TYPES`。旧名 `収入保障定期保険` は読み込み時に `収入保障保険` へ寄せる（`normalizePolicyType`）。
 
 #### FamilyMember
 
@@ -101,6 +105,9 @@ insurance-app/
 | `paymentFrequency` | `monthly` / `annual` / `single` | 払込頻度 |
 | `premiumAmount` | number | 1回あたり保険料 |
 | `paymentEndAge` | number | 払込終了年齢、`999` は終身払い。個人年金では内部互換用に受取開始年齢を保持 |
+| `currency` | `JPY` / `USD` | 契約通貨。DB は `CHECK` で2値のみ |
+| `exchangeRate` | number | 互換用のキャッシュ。現在評価のレートは `valuationSettings` を使う |
+| `foreignDeathBenefitDisease` ほか | number | ドル建て契約の外貨額（死亡保障・入院日額の疾病/災害、診断一時金、満期保険金）。円の欄は共通レートで換算した値 |
 | `premiumPaymentCompleted` | boolean | 実際の保険料払込が終了済みか |
 | `contractExchangeRate` | number | 証券ごとの契約時為替レート（任意） |
 | `paymentCurrency` | `JPY` / `USD` | ドル建て一時払保険の実際の支払通貨 |
@@ -110,6 +117,20 @@ insurance-app/
 | `annualPremium` | number | 年間保険料 |
 | `maturityBenefit` | number | 満期保険金 |
 | `consultantNote` | string | コンサルタントメモ |
+| `surrenderValues` | array | 年齢別の解約返戻金（任意・飛び飛びでよい。`SurrenderValueEditor` で入力） |
+| `surrenderProjection` | string | 最後に入力した年齢より先のグラフの描き方（未指定は `compound`） |
+| `evaluationOverrides` | array | 個別評価（保障期間・払込状況・保障充足度）の手動上書き。`label` / `rating`（`good` / `caution` / `warning`）/ `text` |
+
+#### Agency / AgencyMaster
+
+ケースごとの代理店（`Agency`）は代理店名・取扱者名・電話番号に加えて `logoDataUrl`（ロゴ画像の data URL、形式とサイズを `lib/agencyLogo.ts` で検査）と `printLogo`（印刷に載せるか）を持つ。代理店マスター（`AgencyMaster`）も `logoDataUrl` を持ち、呼び出すとケース側へ写る。
+
+#### ValuationSettings
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `usdJpyRate` | number | 現在評価用の USD/JPY レート（0以上） |
+| `fxRateDate` | string | レートの基準日 |
 
 `AppState.valuationSettings` は案件共通の現在評価用USD/JPYレートと基準日を保持する。ドル建て死亡保障・解約返戻金などの円換算にはこの共通レートを使用し、契約時・支払時の実績レートとは分離する。
 
@@ -119,7 +140,9 @@ insurance-app/
 
 ## 3. SQLiteスキーマ
 
-DB接続は `lib/db.ts` に集約する。`DATABASE_PATH` が指定されていない場合、通常環境は `data/insurance.sqlite`、サーバーレス環境は `/tmp/insurance.sqlite` を使う。起動時にWALモードと外部キー制約を有効化する。
+DB接続は `lib/db.ts` に集約する。`DATABASE_PATH` が指定されていない場合、通常環境は `data/insurance.sqlite`、サーバーレス環境は `/tmp/insurance.sqlite` を使う。起動時にWALモードと外部キー制約を有効化する。Docker では名前付きボリューム（compose 上は `insurance_data`、実体は `insurance-app-data`）を `/app/data` に載せる。
+
+マイグレーションの仕組みは無く、`lib/db.ts` が起動のたびに `CREATE TABLE IF NOT EXISTS` と、失敗を握り潰す `ALTER TABLE ... ADD COLUMN` を流す。列を足すときは**両方に書く**（既存の DB では末尾に足される）。JSON を入れる TEXT 列（受取割合・解約返戻金など）の形は `types.ts` が決める。詳しくは `docs/er-diagram.md`。
 
 ### テーブル一覧
 
@@ -146,6 +169,7 @@ DB接続は `lib/db.ts` に集約する。`DATABASE_PATH` が指定されてい�
 | `policies.insured_member_id` | `family_members(id)` へ `ON DELETE RESTRICT` |
 | `policies.beneficiary_member_id` | `family_members(id)` へ `ON DELETE SET NULL` |
 | `policies.payment_frequency` | `monthly` / `annual` / `single` のみ |
+| `policies.currency` | `JPY` / `USD` のみ |
 | `portfolio_insights.type` | `gap` / `redundancy` / `recommendation` のみ |
 | `app_settings.setting_key` | 主キー。`policy_import_prompt` を保存 |
 
@@ -163,6 +187,8 @@ DB接続は `lib/db.ts` に集約する。`DATABASE_PATH` が指定されてい�
 ---
 
 ## 4. API仕様
+
+パスはすべて basePath `/insurance` の下で、末尾スラッシュが要る（`trailingSlash`。無いと 308）。下の表は basePath を省いて書く（例: `/api/cases` → `/insurance/api/cases/`）。
 
 ### 4.1 顧客ケース
 
@@ -253,7 +279,9 @@ SQLiteの `app_settings` から `policy_import_prompt` を取得する。未保�
 |---|---|---|
 | `GET` | `/api/backup` | SQLiteファイルをダウンロード |
 | `POST` | `/api/backup` | SQLiteファイルを復元 |
-| `GET` | `/api/health` | `{ "status": "ok", "database": "ok" }` を返す |
+| `GET` | `/api/health` | `{ "status": "ok", "database": "ok" }` を返す。DB を開けない・DB ファイルか `/app/data` に書けないときは `503 {"status":"degraded","database":"<エラーコード>"}` |
+
+画面のバックアップは手で落とす経路。夜間の全体バックアップは `docker/scripts/backup.sh` の `SQLITE_TARGETS` が稼働中のコンテナから SQLite を取り、戻すのは `docker/scripts/manage.sh restore insurance-app`（`docker/RESTORE.md`）。
 
 ---
 
@@ -273,7 +301,7 @@ SQLiteの `app_settings` から `policy_import_prompt` を取得する。未保�
 ### CSV取込
 
 - 保険会社、保険種類、契約日、被保険者、保険期間、払方、保険料は必須
-- 保険種類は定義済み6種類
+- 保険種類は定義済み8種類（`DISPLAY_POLICY_TYPES`）
 - 被保険者と受取人は家族情報の氏名に一致する必要がある
 - 払方は日本語表記を `monthly` / `annual` / `single` へ正規化
 - 払込終了年月日または払込終了年齢のどちらかが必要
@@ -429,27 +457,27 @@ MainDashboard
 | `builder` | `npm run build` |
 | `runner` | Next.js standaloneサーバー |
 
-### 開発
+### 起動
 
-```powershell
-docker compose up -d --build
+起動・再ビルドは `docker/scripts/manage.sh` から行う（リポジトリのルートで叩く）。素の `docker compose up` は base の compose だけを読むので、本番で動いているアプリを dev サーバに作り替える。
+
+```bash
+docker/scripts/manage.sh start insurance-app          # dev
+docker/scripts/manage.sh start --prod insurance-app   # 本番（この PC はこちらで稼働）
+docker/scripts/manage.sh build insurance-app          # 再ビルド（いま動いているモードを踏襲）
+docker/scripts/manage.sh logs insurance-app
 ```
 
-| 項目 | 値 |
-|---|---|
-| ポート | `3030:3030` |
-| DB | `/app/data/insurance.sqlite` |
-| ボリューム | ソース主要ディレクトリは読み取り専用、`data` は書き込み可 |
-| メモリ制限 | 開発 512MB / 本番 192m |
+| 項目 | dev | 本番 |
+|---|---|---|
+| ターゲット | `dev` | `runner`（Next.js standalone） |
+| ポート | `3030`（`127.0.0.1`） | 同じ |
+| DB | `/app/data/insurance.sqlite`（名前付きボリューム） | 同じ（`volumes: !override` でソースのマウントを外し、ボリュームだけ残す） |
+| ソース | 主要ディレクトリを読み取り専用で bind mount | イメージ同梱。**どの変更も `build` しないと入らない** |
+| メモリ上限 | 1536M（`NODE_OPTIONS=--max-old-space-size=1024`） | 192M（同 128） |
+| 実行ユーザー | `node` | `node` |
 
-### 本番ビルド確認
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache insurance-app
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
-
-本番オーバーライドは `runner` ターゲットを使い、開発用のソースコードマウントを外して `./data:/app/data` のみをマウントする。Windowsのbind mount上のSQLiteを書き込めるよう、このローカル本番構成ではサービスを `root` ユーザーで起動する。実行時メモリは `mem_limit: 192m`、Node.jsヒープは `NODE_OPTIONS=--max-old-space-size=128` で抑制する。標準ポートは `3030` とし、`3020` は他用途との競合を避けるため使わない。
+ポートを変えるときは `Dockerfile` の `APP_PORT` と `HEALTHCHECK`、`docker-compose.yml` の `APP_PORT` / `ports` / `healthcheck`、`package.json` の起動スクリプト、ゲートウェイの `nginx/includes/upstreams.conf` と `maps.conf`、README/docs の URL を揃える。`3020` は相続税案件管理が使うので避ける。
 
 ---
 
@@ -457,10 +485,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 | 目的 | コマンド |
 |---|---|
-| TypeScriptチェック | `docker compose exec -T insurance-app ./node_modules/.bin/tsc --noEmit --pretty false` |
-| サンプルリセットAPI確認 | `docker compose exec -T insurance-app npm run test:sample-reset` |
-| 本番Dockerビルド | `docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache insurance-app` |
-| ヘルスチェック | `curl http://localhost:3030/api/health` |
+| TypeScriptチェック | `cd apps/insurance-app && docker compose exec -T insurance-app ./node_modules/.bin/tsc --noEmit --pretty false`（**dev モードのときだけ**。本番イメージには `node_modules/.bin` が無い） |
+| ヘルスチェック | `curl http://localhost:3030/insurance/api/health/` |
+
+- `npm test` は無く、`manage.sh test` / CI の対象にも入っていない
+- `npm run test:sample-reset`（`scripts/test-sample-reset.mjs`）は**いまは動かない**。basePath を付けずに `http://127.0.0.1:3030/api/cases` を叩くので 404 になる。しかも本物の DB にケースを作って消す作りなので、直しても顧客データの入った DB では叩かないこと
 
 ---
 

@@ -23,37 +23,28 @@
 | データベース | SQLite, better-sqlite3 |
 | 実行環境 | Docker, node:22-alpine |
 
-## Dockerで開発する
+## 起動
 
-このリポジトリの開発はDocker前提です。
+起動・再ビルドはリポジトリのルートから `docker/scripts/manage.sh` で行います。
+素の `docker compose up` は base の compose だけを読むので、本番で動いているこのアプリを dev サーバに作り替えます。
 
-```powershell
-docker compose up -d --build
+```bash
+docker/scripts/manage.sh start insurance-app          # dev
+docker/scripts/manage.sh start --prod insurance-app   # 本番（standalone）
+docker/scripts/manage.sh build insurance-app          # 再ビルド（いま動いているモードを踏襲）
+docker/scripts/manage.sh logs insurance-app
 ```
 
-起動後、ブラウザで `http://localhost:3030` を開きます。
-`3020` は他用途で使うことがあるため、このアプリの標準ポートは `3030` にしています。
+画面はゲートウェイ経由の `/insurance/`（直接なら `http://localhost:3030/insurance/`）。
+`3020` は相続税案件管理が使うので、このアプリの標準ポートは `3030` です。
 
-よく使う操作:
-
-```powershell
-docker compose logs -f insurance-app
-docker compose down
-docker compose restart insurance-app
-```
-
-## 本番ビルド確認
-
-本番用のstandaloneビルドは以下で確認します。
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache insurance-app
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
+- dev はソースの主要ディレクトリを読み取り専用で bind mount します
+- 本番（`docker-compose.prod.yml`、`target: runner`）はソースを同梱するので、**どの変更も `build` しないと入りません**
+- dev も本番も `node` ユーザーで動きます。メモリ上限は dev 1536M / 本番 192M（Node のヒープ上限はそれぞれ 1024 / 128MB）
 
 ヘルスチェック:
 
-```powershell
+```bash
 curl http://localhost:3030/insurance/api/health/
 ```
 
@@ -62,24 +53,28 @@ basePath が `/insurance` で末尾スラッシュ必須です（無いと 308�
 
 ## 検証コマンド
 
-TypeScriptチェック:
+TypeScriptチェック（**dev モードのときだけ**。本番イメージには `node_modules/.bin` がありません）:
 
-```powershell
-docker compose exec -T insurance-app ./node_modules/.bin/tsc --noEmit --pretty false
+```bash
+cd apps/insurance-app && docker compose exec -T insurance-app ./node_modules/.bin/tsc --noEmit --pretty false
 ```
 
-サンプルリセットAPIの確認:
+`npm test` は無く、`manage.sh test` / CI の対象にも入っていません。
 
-```powershell
-docker compose exec -T insurance-app npm run test:sample-reset
-```
+`npm run test:sample-reset` は**いまは動きません**。basePath を付けずに `http://127.0.0.1:3030/api/cases` を叩くので 404 になります。
+しかも本物の DB にケースを作って消す作りなので、顧客データの入った DB では叩かないでください。
 
 ## データ保存
 
-開発環境ではSQLiteファイルを `data/insurance.sqlite` に保存します。`docker-compose.yml` では `./data:/app/data` をマウントしているため、コンテナを作り直してもデータは残ります。
+SQLite は名前付きボリューム `insurance-app-data`（compose 上は `insurance_data`）の `/app/data/insurance.sqlite` にあります。
+dev も本番も同じボリュームなので、モードを切り替えてもデータは同じです。
 
-本番オーバーライド `docker-compose.prod.yml` はビルド済み成果物を使い、SQLite保存先の `./data:/app/data` だけをマウントします。Windowsのbind mount上のSQLiteを書き込めるよう、このローカル本番構成ではサービスを `root` ユーザーで起動します。メモリ上限は `192m`、Node.jsヒープ上限は `128MB` に抑えています。
-ポートを変更する場合は、`Dockerfile` の `APP_PORT`、`docker-compose.yml` の `APP_PORT` / `ports` / `healthcheck`、`package.json` の起動スクリプト、README/docsのURLを同じ値に揃えます。
+- 夜間の全体バックアップ（`docker/scripts/backup.sh` の `SQLITE_TARGETS`）が稼働中のコンテナから取ります。
+  戻すのは `docker/scripts/manage.sh restore insurance-app`（手順は `docker/RESTORE.md`）
+- 画面の「バックアップ・復元」は SQLite ファイルをそのまま落とす／戻す別の経路です
+- スキーマにマイグレーションは無く、`lib/db.ts` が起動時に `CREATE TABLE IF NOT EXISTS` と `ALTER TABLE ADD COLUMN` を流します（`docs/er-diagram.md`）
+
+ポートを変更する場合は、`Dockerfile` の `APP_PORT` と `HEALTHCHECK`、`docker-compose.yml` の `APP_PORT` / `ports` / `healthcheck`、`package.json` の起動スクリプト、ゲートウェイの `nginx/includes/upstreams.conf` / `maps.conf`、README/docs の URL を同じ値に揃えます。
 
 ## 関連ドキュメント
 

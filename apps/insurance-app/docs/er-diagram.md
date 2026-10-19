@@ -15,6 +15,8 @@ erDiagram
         TEXT name "代理店名"
         TEXT representative "取扱者名"
         TEXT phone "電話番号"
+        TEXT logo_data_url "ロゴ画像 (data URL)"
+        INTEGER print_logo "印刷表紙にロゴを載せるか (既定1)"
         TEXT created_at "作成日時"
         TEXT updated_at "更新日時"
     }
@@ -42,18 +44,34 @@ erDiagram
         INTEGER contract_age "契約年齢"
         TEXT insured_member_id FK "family_members.id (被保険者)"
         TEXT beneficiary_member_id FK "family_members.id (受取人)"
+        TEXT beneficiary_allocations "受取人ごとの受取割合 (JSON)"
+        TEXT pension_settings "個人年金の受取設定 (JSON)"
         INTEGER death_benefit_disease "死亡保障・疾病 (円)"
         INTEGER death_benefit_accident "死亡保障・災害 (円)"
         INTEGER hosp_day_disease "入院日額・疾病 (円)"
         INTEGER hosp_day_accident "入院日額・災害 (円)"
         INTEGER diagnosis_benefit "診断一時金 (円)"
         INTEGER policy_end_age "保険期間終了年齢"
+        TEXT currency "通貨 (JPY/USD)"
+        REAL exchange_rate "互換用 (評価は app_state_meta の為替を使う)"
+        REAL foreign_premium_amount "外貨建て保険料"
+        REAL foreign_death_benefit_disease "外貨建て死亡保障・疾病"
+        REAL foreign_death_benefit_accident "外貨建て死亡保障・災害"
+        REAL foreign_hosp_day_disease "外貨建て入院日額・疾病"
+        REAL foreign_hosp_day_accident "外貨建て入院日額・災害"
+        REAL foreign_diagnosis_benefit "外貨建て診断一時金"
+        REAL foreign_maturity_benefit "外貨建て満期保険金"
         TEXT payment_frequency "払込頻度"
         INTEGER premium_amount "1回あたり保険料 (円)"
-        TEXT payment_end_date "払込終了年月日"
+        TEXT payment_details "払込の通貨・日付・実払額・為替 (JSON)"
+        TEXT payment_end_date "払込終了年月日 (未使用・常に NULL)"
         INTEGER payment_end_age "払込終了年齢"
+        INTEGER premium_payment_completed "払込済フラグ"
         INTEGER annual_premium "年間保険料 (円)"
         INTEGER maturity_benefit "満期保険金 (円)"
+        TEXT surrender_values "年齢別の解約返戻金 (JSON)"
+        TEXT surrender_projection "最終入力年齢より先の描き方"
+        TEXT evaluation_overrides "個別評価の手動上書き (JSON)"
         TEXT consultant_note "コンサルタントメモ"
         INTEGER sort_order "表示順"
         TEXT created_at "作成日時"
@@ -65,6 +83,7 @@ erDiagram
         INTEGER schema_version "スキーマバージョン"
         TEXT updated_at "更新日時"
         TEXT last_exported_at "最終エクスポート日時"
+        TEXT valuation_settings "評価用の為替 (JSON: usdJpyRate / fxRateDate)"
     }
 
     agency_masters {
@@ -72,6 +91,7 @@ erDiagram
         TEXT name "代理店名"
         TEXT representative "取扱者名"
         TEXT phone "電話番号"
+        TEXT logo_data_url "ロゴ画像 (data URL)"
         TEXT created_at "作成日時"
         TEXT updated_at "更新日時"
     }
@@ -139,8 +159,18 @@ erDiagram
 
 - `family_members.gender`: `male` または `female`
 - `policies.payment_frequency`: `monthly`、`annual`、`single`
+- `policies.currency`: `JPY` または `USD`（既定 `JPY`）
 - `portfolio_insights.type`: `gap`、`redundancy`、`recommendation`
 - `agencies.case_id`: `UNIQUE`
 - 被保険者 `insured_member_id` は削除時 `RESTRICT`
 - 受取人 `beneficiary_member_id` は削除時 `SET NULL`
 - `app_settings.setting_key`: 主キー。証券取込プロンプトは `policy_import_prompt`
+
+## スキーマの変え方
+
+マイグレーションの仕組みは無く、`lib/db.ts` が起動のたびに `CREATE TABLE IF NOT EXISTS` と、
+列が無ければ `ALTER TABLE … ADD COLUMN` を流す。列を足すときは**両方に書く**
+（新しい DB は `CREATE TABLE` から、既存の DB は `ALTER TABLE` から列を得る）。
+SQLite の `ADD COLUMN` は列を末尾に足すので、既存の DB では列の並びがこの図と違う。
+
+`*_settings` / `*_details` / `*_values` などの TEXT 列は JSON を入れている。中身の形は `types.ts` が決める。
