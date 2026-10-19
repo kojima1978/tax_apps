@@ -31,6 +31,7 @@ import {
     getCaseApiPayload,
     getCaseReturnPath,
     getNeedsConfirmedFee,
+    hasInvalidExpense,
     hasInvalidSpecialAddition,
     parseCaseFieldValue,
     SECTION_IDS,
@@ -191,6 +192,15 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         if (hasInvalidSpecialAddition(formData)) {
             toast.warning("特別業務報酬額の内容を入力してください")
             sections.open("financial")
+            return false
+        }
+
+        if (hasInvalidExpense(formData)) {
+            toast.warning("立替金の内容を入力してください")
+            sections.open("expenses")
+            requestAnimationFrame(() => {
+                document.querySelector<HTMLElement>('[aria-label="立替金の内容"]')?.focus()
+            })
             return false
         }
 
