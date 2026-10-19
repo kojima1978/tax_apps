@@ -209,7 +209,9 @@ rd /s /q tax_apps
 | `./manage.sh alert` | デスクトップの警告ファイルを作り直す（Docker 不要） |
 | `./manage.sh preflight` | 起動前環境チェック |
 
-本番起動・再ビルドで `failed to execute bake: exit status 1` が出た場合は、Compose のビルド定義を一時 JSON ファイルへ出し、`docker buildx bake --file` で1回再ビルドします。成功したイメージで `up --no-build` を実行するため、同じ受け渡しエラーを繰り返さず起動を続けられます。通常のビルドエラーでは再試行せず、終了コードを返します。
+起動・再ビルドの Compose は、呼び出した場所にかかわらずリポジトリ直下を作業ディレクトリにして実行します。`start-prod.bat` は `docker/scripts` から呼び出すため、そのままでは共有の `docker/Dockerfile.vite-static` が Bake の既定の読み取り範囲外になります。Compose 5.6.0 と Buildx 0.37.2 では共有 Dockerfile 自体への許可が渡らず、`failed to execute bake: exit status 1` で停止することを確認しました（[上流の不具合報告](https://github.com/docker/compose/issues/14285)、[上流の修正](https://github.com/docker/compose/pull/14325)）。
+
+`lib/compose-build.sh` がビルド時だけ作業場所をリポジトリ直下に固定し、共有 Dockerfile を読み取り範囲に含めます。Compose ファイルは絶対パスの `-f` で指定するため、ビルドコンテキストや本番オーバーレイは変わりません。呼び出し元の作業場所も変更せず、ビルドエラーの終了コードをそのまま返します。再試行や一時 Bake 定義の生成は不要です。
 
 ### アプリ名の指定
 

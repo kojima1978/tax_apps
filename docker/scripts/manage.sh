@@ -60,6 +60,7 @@ if [[ ! -f "$SCRIPT_DIR/lib/ops-common.sh" ]]; then
 fi
 # shellcheck source=lib/ops-common.sh
 source "$SCRIPT_DIR/lib/ops-common.sh"
+source "$SCRIPT_DIR/lib/compose-build.sh"
 
 # 「意図的に停止した」ことを示すマーカー。stop / down で作成し、start で消す。
 #
@@ -626,61 +627,6 @@ ensure_production_env() {
   ensure_postgres_production_env "$name" "$dir" || return 1
 }
 
-# Compose から Bake への受け渡しが失敗したときは、定義をファイルに出して
-# Buildx でビルドし直す。Dockerfile 内の通常のビルドエラーは再試行しない。
-compose_up_with_bake_retry() {
-  local log_file status bake_dir bake_file argument in_up=0
-  local -a compose_args=() up_args=()
-  log_file=$(mktemp) || return 1
-
-  # 進捗は従来どおり画面へ出しつつ、再試行対象かを判定するため同じ内容を控える。
-  if docker compose "$@" 2>&1 | tee "$log_file"; then
-    rm -f "$log_file"
-    return 0
-  else
-    status=${PIPESTATUS[0]}
-  fi
-
-  if ! grep -Fq 'failed to execute bake: exit status 1' "$log_file"; then
-    rm -f "$log_file"
-    return "$status"
-  fi
-  rm -f "$log_file"
-
-  for argument in "$@"; do
-    if [[ $in_up -eq 0 ]]; then
-      if [[ "$argument" == "up" ]]; then
-        in_up=1
-      else
-        compose_args+=("$argument")
-      fi
-    elif [[ "$argument" == "--build" ]]; then
-      up_args+=("--no-build")
-    else
-      up_args+=("$argument")
-    fi
-  done
-  [[ $in_up -eq 1 ]] || return "$status"
-
-  bake_dir=$(mktemp -d) || return "$status"
-  bake_file="$bake_dir/bake.json"
-  warn "Bake の定義をファイルへ出力し、Buildx で再ビルドします"
-  if docker compose "${compose_args[@]}" build --print > "$bake_file" \
-      && docker buildx bake --file "$(to_win_path "$bake_file")" --load; then
-    if docker compose "${compose_args[@]}" up "${up_args[@]}"; then
-      status=0
-    else
-      status=$?
-    fi
-  else
-    status=$?
-  fi
-
-  rm -f "$bake_file"
-  rmdir "$bake_dir" 2>/dev/null || true
-  return "$status"
-}
-
 # --- start用コールバック ---
 _do_start() {
   local dir="$1" name="$2" prod_mode="$3"
@@ -706,17 +652,17 @@ _do_start() {
       warn "$name: docker-compose.prod.yml が無いため開発モードで起動します"
       warn "  本番で動かすには他のアプリと同じ形のオーバーレイを作ってください"
       log "  起動: $name"
-      docker compose -f "$dir/docker-compose.yml" up -d --remove-orphans
+      compose_from_project_root -f "$dir/docker-compose.yml" up -d --remove-orphans
       return
     fi
     ensure_production_env "$name" "$dir" || return 1
     log "  起動[本番]: $name"
-    compose_up_with_bake_retry \
+    compose_from_project_root \
       -f "$dir/docker-compose.yml" -f "$prod_compose" \
       up -d --build --remove-orphans
   else
     log "  起動: $name"
-    docker compose -f "$dir/docker-compose.yml" up -d --remove-orphans
+    compose_from_project_root -f "$dir/docker-compose.yml" up -d --remove-orphans
   fi
 }
 
@@ -1019,7 +965,7 @@ cmd_build() {
   compose_files_for_app "$RESOLVED_DIR" "$mode"
 
   log "$name を再ビルドして起動します（モード $mode）..."
-  compose_up_with_bake_retry "${COMPOSE_FILES[@]}" up -d --build --remove-orphans
+  compose_from_project_root "${COMPOSE_FILES[@]}" up -d --build --remove-orphans
   log "$name のビルドが完了しました"
 }
 
