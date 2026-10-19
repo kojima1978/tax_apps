@@ -1,6 +1,6 @@
 # Tax Apps - docker/scripts ディレクトリ
 
-このディレクトリには Tax Apps の運用・バックアップ・監視を担う **24 ファイル**（`lib/` の2件を含む）が含まれています。
+このディレクトリには Tax Apps の運用・バックアップ・監視を担う **28 ファイル**（`lib/` の3件と `tests/` の1件を含む）が含まれています。
 
 詳しい操作手順は親ディレクトリの [`docker/README.md`](../README.md) を参照してください。本ファイルは scripts ディレクトリ内の各ファイルの役割を整理した目次です。
 
@@ -17,7 +17,7 @@
 ### 本体スクリプト
 
 - **`manage.sh`** ← **本体**
-  全アプリの起動・停止・再ビルド・ログ・状態確認・バックアップなどを統合管理する Bash 本体。16 個のアプリを正しい順序で起動・停止する。
+  全アプリの起動・停止・再ビルド・ログ・状態確認・バックアップなどを統合管理する Bash 本体。`APPS` 配列の15件（14アプリ＋ゲートウェイ）を正しい順序で起動・停止する。
   - `manage.sh test [app]`: **稼働中のコンテナの中で** テストを実行する。対象は冒頭の `TEST_TARGETS`
     （`アプリ名:コンテナ名:コマンド`）で定義し、省略時は全件。ローカルに `node_modules` を作らないための経路で、
     同じ一覧が `.github/workflows/ci.yml` の matrix と対になっている（**片方だけに足すと preflight が WARN を出す**）。
@@ -39,7 +39,7 @@
   - 本番で必須のシークレットは**2つの表**から用意する（`ensure_production_env`）。DB の
     パスワードは **`POSTGRES_APPS`**（既存ロールへ `ALTER ROLE` も当てるため。`.env` のキー名が
     `POSTGRES_PASSWORD` でないアプリは6番目にキー名、DB ユーザー名が固定なら7番目に書く）、
-    それ以外は **`PROD_SECRETS`**（Django の `DJANGO_SECRET_KEY` など）。開発用の既定値のままなら
+    それ以外は **`PROD_SECRETS`**（いまは該当なしで空。Django 版 bank-analyzer の `DJANGO_SECRET_KEY` が唯一の登録だった）。開発用の既定値のままなら
     一意の値を生成して `.env` へ書き戻す —— 各アプリの entrypoint は既定値のままの本番起動を
     拒否し、弾かれた側は restart を繰り返すだけで画面には何も出ない。
     **`-f docker-compose.prod.yml` を手で並べて叩くとこれが丸ごと飛ぶ。**
@@ -84,9 +84,9 @@
 ### 本体スクリプト
 
 - **`backup.sh`** ← **本体**
-  バックアップ・リストア・ITCM 定期バックアップを統合した Bash 本体。**ホスト側で実行**（Git Bash または Linux）。
+  バックアップ・リストア・リストア訓練・新しい PC への復元・外部コピー先の設定を統合した Bash 本体。**ホスト側で実行**（Git Bash または Linux）。
   - `backup.sh backup`: 全データの暗号化完全バックアップ
-  - `backup.sh itcm`: Windowsタスク用の互換名（暗号化済み全体バックアップ）
+  - `backup.sh itcm`: `backup` と同じ（`backup-db.bat` の入口。旧タスク名の名残）
   - `backup.sh restore [app|--all] [backup] [--yes] [--from DIR]`: アプリ単位のリストア（そのアプリだけ止める・件数照合・healthy 待ち。`--env-only` / `--with-env`。`--from` で USB などから直接。手順は `docker/RESTORE.md`）
   - `backup.sh newpc [backup] [--from DIR] [--check] [--dev|--prod] [--yes]`: 新しい PC で全部戻す（`.env` → `manage.sh start --recorded` → `restore --all`）
   - `backup.sh verify <file>`: データを上書きせず復号とSHA-256検証
@@ -95,9 +95,9 @@
   - 暗号鍵: `~/.tax-apps/backup.key`（リポジトリ外、別媒体への保管必須）
 
   対象は `backup.sh` 冒頭の 4 つの配列で定義する。DBを持つアプリを追加したら、ここに1行足すこと。
-  - `PG_TARGETS`: ITCM / Bank Analyzer / Private Banking の PostgreSQL
-  - `SQLITE_TARGETS`: Medical Stock / Insurance / Inheritance Tax Docs の SQLite
-  - `BIND_TARGETS`: Bank Analyzer のアップロード、ITCM の Excel テンプレート（`.gitignore` 対象なので Git には無い）
+  - `PG_TARGETS`: ITCM / Bank Analyzer / Private Banking / Stock Valuation Form の PostgreSQL
+  - `SQLITE_TARGETS`: Insurance / Inheritance Tax Docs の SQLite
+  - `BIND_TARGETS`: ITCM の Excel テンプレート（`.gitignore` 対象なので Git には無い。bank-analyzer の `data/` は React 版では使わないので外した）
   - `SETTINGS_TARGETS`: 各アプリの `.env`
 
 ### 世代保持（GFS）
@@ -268,13 +268,13 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
     リストア訓練  : ★lock-timeout（2026-09-20 08:13・27時間前） waited=0s owner=backup
 ```
 
-★ が付いていたらその項目が未配線、または失敗している。ラベルは compose を直して `up -d` で再作成、タスクは表示された `register-*.bat` をダブルクリックで登録する。
+★ が付いていたらその項目が未配線、または失敗している。ラベルは compose を直して `manage.sh apply <app>` で再作成、タスクは表示された `register-*.bat` をダブルクリックで登録する。
 
-見張る4件は `lib/ops-common.sh` の **`OPS_SCHEDULED_TASKS`** 1箇所で定義し、`manage.sh status` / `manage.sh preflight` / `backup.sh` の自動再登録がそこから生成される。以前は3箇所が別々に名前を持っていて、**`backup.sh` 側の一覧にバックアップタスク自身とドリルの行が無かった** —— 見張り役の `backup.sh` を起こすタスクが消えると自己修復ごと止まる循環依存になっていた。タスクを増やしたらここへ1行足すこと。
+見張る2件（ウォッチドッグ・ログオン時の起動）は `lib/ops-common.sh` の **`OPS_SCHEDULED_TASKS`** 1箇所で定義し、`manage.sh status` / `manage.sh preflight` / `backup.sh` の自動再登録がそこから生成される。以前は3箇所が別々に名前を持っていて、**`backup.sh` 側の一覧にバックアップタスク自身とドリルの行が無かった** —— 見張り役の `backup.sh` を起こすタスクが消えると自己修復ごと止まる循環依存になっていた。タスクを増やしたらここへ1行足すこと。
 
 ### 直近の実行結果（`docker/logs/last-run/`）
 
-無人で走るもの（`backup` / `backup-external` / `drill` / `prune` / `recover` / `watchdog`）は、
+無人で走るもの（`backup` / `backup-external` / `drill` / `prune` / `reload-loop` / `recover` / `watchdog` など）は、
 終了時に成否を1件だけ `docker/logs/last-run/<名前>` へ書く。`status` と `preflight` が毎回これを読んで表示する。
 
 ```
@@ -368,6 +368,8 @@ detail=daily ok=7 skipped=0
 | `unregister-startup-task.bat` | 補助 (CMD) | 現在ユーザーのタスク削除（昇格不要） |
 | `lib/ops-common.sh` | 本体 (Bash) | manage.sh / backup.sh 共通の土台（ログ・操作ロック・直近結果・警告ファイル・掃除） |
 | `lib/notify-failure.ps1` | 本体 (PS) | Windows トースト通知（追加インストール不要・失敗しても運用を止めない） |
+| `lib/compose-build.sh` | 本体 (Bash) | `PROJECT_ROOT` から `docker compose` を叩く小関数（manage.sh が source） |
+| `tests/compose-build.test.sh` | テスト (Bash) | 上の関数のテスト（空白入りのパス）。CI で実行 |
 
 ---
 
