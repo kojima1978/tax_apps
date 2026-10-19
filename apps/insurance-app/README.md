@@ -53,16 +53,19 @@ basePath が `/insurance` で末尾スラッシュ必須です（無いと 308�
 
 ## 検証コマンド
 
-TypeScriptチェック（**dev モードのときだけ**。本番イメージには `node_modules/.bin` がありません）:
+テスト（型検査 + vitest）:
 
 ```bash
-cd apps/insurance-app && docker compose exec -T insurance-app ./node_modules/.bin/tsc --noEmit --pretty false
+docker/scripts/manage.sh test insurance-app
 ```
 
-`npm test` は無く、`manage.sh test` / CI の対象にも入っていません。
+`npm test` = `npm run typecheck && vitest run`。本番モードで稼働中でも回ります ── 本番イメージには
+vitest も tsc も無いので、dev ステージの使い捨てサービス `insurance-app-test`（`profiles: ["test"]`）で走らせます。
+テストは一時ディレクトリの SQLite を使うので、ボリュームの本物の DB には触りません。CI（`.github/workflows/ci.yml`）でも同じものが走ります。
 
-`npm run test:sample-reset` は**いまは動きません**。basePath を付けずに `http://127.0.0.1:3030/api/cases` を叩くので 404 になります。
-しかも本物の DB にケースを作って消す作りなので、顧客データの入った DB では叩かないでください。
+| テスト | 対象 |
+|:--|:--|
+| `services/appState.test.ts` | サンプルデータの入れ直し（家族4人・契約9件、参照先の実在、二重に増えない、ほかのケースに触らない）とケースの削除 |
 
 ## データ保存
 

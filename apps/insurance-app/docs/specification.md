@@ -41,7 +41,6 @@ insurance-app/
 ├── services/
 ├── validators/
 ├── utils/
-├── scripts/
 ├── data/
 └── types.ts
 ```
@@ -485,11 +484,12 @@ docker/scripts/manage.sh logs insurance-app
 
 | 目的 | コマンド |
 |---|---|
-| TypeScriptチェック | `cd apps/insurance-app && docker compose exec -T insurance-app ./node_modules/.bin/tsc --noEmit --pretty false`（**dev モードのときだけ**。本番イメージには `node_modules/.bin` が無い） |
+| テスト（型検査 + vitest） | `docker/scripts/manage.sh test insurance-app` |
 | ヘルスチェック | `curl http://localhost:3030/insurance/api/health/` |
 
-- `npm test` は無く、`manage.sh test` / CI の対象にも入っていない
-- `npm run test:sample-reset`（`scripts/test-sample-reset.mjs`）は**いまは動かない**。basePath を付けずに `http://127.0.0.1:3030/api/cases` を叩くので 404 になる。しかも本物の DB にケースを作って消す作りなので、直しても顧客データの入った DB では叩かないこと
+- `npm test` = `npm run typecheck && vitest run`。`manage.sh test` の `TEST_TARGETS` と CI の matrix の両方に入っている
+- 本番イメージには vitest も tsc も無いので、dev ステージの使い捨てサービス `insurance-app-test`（`profiles: ["test"]`、`image: insurance-app-test`）で回す。ボリュームは付けず、テストは一時ディレクトリの SQLite を使う（`lib/db.ts` が読み込み時に `DATABASE_PATH` を決めるので、環境変数を先に向けてから動的に import する）
+- `services/appState.test.ts`: サンプルデータの入れ直し（家族4人・契約9件、参照先の実在、二重に増えない、ほかのケースに触らない）とケースの削除。以前の `scripts/test-sample-reset.mjs` は basePath を付けずに稼働中のサーバ（本物の DB）を叩く作りで、404 で動かなかった
 
 ---
 

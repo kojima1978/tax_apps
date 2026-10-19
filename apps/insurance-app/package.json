@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start --port 3030",
     "lint": "eslint .",
-    "test:sample-reset": "node scripts/test-sample-reset.mjs"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck && vitest run"
   },
   "dependencies": {
     "better-sqlite3": "^11.9.1",
@@ -28,6 +29,7 @@
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "^16.4.0",
-    "typescript": "~6.0.2"
+    "typescript": "~6.0.2",
+    "vitest": "^3.2.7"
   }
 }

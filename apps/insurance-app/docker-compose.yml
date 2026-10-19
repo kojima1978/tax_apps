@@ -81,6 +81,39 @@ services:
         reservations:
           memory: 256M
 
+  # ===========================================
+  # テスト用の使い捨てサービス（manage.sh test が run --rm で起動する）
+  #
+  # 本番モードで動かすので、稼働中のコンテナには vitest も tsc も無い。
+  # dev ステージを別のイメージとして作り、ボリュームは付けない
+  # （テストは一時ディレクトリの SQLite を使い、本物の DB には触らない）。
+  # image: を明示するのは、本体と同じ自動命名のタグを共有させないため
+  # （共有すると次の apply / recover が本番コンテナを dev イメージで作り直す）。
+  # ===========================================
+  insurance-app-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        APP_PORT: "3030"
+    image: insurance-app-test
+    profiles: ["test"]
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=1024"
+    init: true
+    restart: "no"
+    logging: *default-logging
+    <<: *security-opts
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+        reservations:
+          memory: 256M
+
 networks:
   tax-apps-network:
     external: true
