@@ -135,6 +135,8 @@ Django 版が動いている別の環境で同じ切替をするときは **`CUT
 - つなぐ前に baseline を「適用済み」と記録する（上の「DB とマイグレーション」）。
   `manage.sh start --prod bank-analyzer` の entrypoint が残りを流し、**Django の表もそこで消える**
   ＝ 切替前の `pg_dump` が唯一の戻り道になる
+- Django 版の DB は `postgres:16-alpine` で動いていたので、新アプリ（bookworm）へつないだ直後に
+  `manage.sh collation bank-analyzer --yes` で照合順序を `C` へ移す（それまで画面から入力しない）
 - Django のデータが無い環境では `manage.sh start --prod bank-analyzer` だけで DB が一から作られる
 
 ## テスト
