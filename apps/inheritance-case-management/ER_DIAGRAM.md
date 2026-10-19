@@ -1,6 +1,6 @@
 # 相続税申告案件管理 ER図
 
-最終更新: 2026-06-20  
+最終更新: 2026-10-19  
 正本: [`web/prisma/schema.prisma`](web/prisma/schema.prisma)
 
 ## エンティティ関連図
@@ -216,13 +216,33 @@ erDiagram
 | `HeirPerson` | `CaseHeir.personId` | 相続人と案件は多対多 | `Restrict` |
 | `RelatedPartyPerson` | `CaseRelatedParty.personId` | 関係者と案件は多対多 | `Restrict` |
 
+## DB制約（Prisma スキーマには出ないもの）
+
+マイグレーションの SQL で張っているため `schema.prisma` には現れない。
+
+| 対象 | 制約 | 中身 |
+| --- | --- | --- |
+| `InheritanceCase.status` | `InheritanceCase_status_check` | `見積前` / `見積中` / `見送り` / `受託` / `手続中` / `最終確認` / `申告済` / `請求済` / `入金済` のいずれか |
+| `caseAddedDate` | `InheritanceCase_caseAddedDate_status_check` | `受託`〜`入金済`のときだけ値があり、それ以外は NULL |
+| `caseCompletedDate` | `InheritanceCase_caseCompletedDate_status_check` | `申告済`〜`入金済`のときだけ値がある |
+| `billedDate` | `InheritanceCase_billedDate_status_check` | `請求済` / `入金済`のときだけ値がある |
+| `paidDate` | `InheritanceCase_paidDate_status_check` | `入金済`のときだけ値がある |
+| `referralFeeAmount` | `InheritanceCase_referralFee_auto_amount_check` | `isReferralFeeManual = false` なら `FLOOR(feeAmount × referralFeeRate / 100)` と一致 |
+| `estimateReferralFeeAmount` | `InheritanceCase_estimateReferralFee_auto_amount_check` | `isEstimateReferralFeeManual = false` なら `FLOOR(estimateAmount × referralFeeRate / 100)` と一致 |
+| `Referrer` | `Referrer_company_branch_key`（一意索引） | `companyId + COALESCE(branchId, 0)` で一意。支店なしの紹介者も会社ごとに1件だけ |
+
+ステータスの日付は「ちょうどそのステータスまでの日付だけがある」形になる。ステータスを戻すと
+先の日付は消え、進めると要る日付が埋まっていなければ保存できない。
+
 ## 補足
 
 - `AuditLog.entityId`は複数種類のエンティティを記録するため、DB外部キーを設定していません。
 - `CompanyBranch`は`companyId + name`、人物中間テーブルは`caseId + personId`で一意です。
+- `Referrer`は氏名を持たず、「会社＋支店（任意）」そのものが紹介元です。
 - `feeCalculationHeirCount`は報酬計算の入力値であり、`CaseHeir`の紐付け人数とは別の業務値です。
 - 紹介料額は非NULLで保持し、自動計算か手動上書きかを`isReferralFeeManual`と`isEstimateReferralFeeManual`で区別します。
-- 案件ステータスの日付は`caseAddedDate`、`caseCompletedDate`、`billedDate`、`paidDate`に保持し、DB制約でステータスとの整合性を保証します。
 - 相続人と関係者は役割固有項目と管理画面が異なるため、`HeirPerson`と`RelatedPartyPerson`に意図的に分離しています。
 - 年計表は`paidDate`（入金日）を計上月として集計します。
+- 案件一覧は`fiscalYear`＋（`status` / `assigneeId` / `internalReferrerId`）＋`dateOfDeath`の複合索引で引きます（`InheritanceCase_list_*_idx`）。
+- `dateOfDeath`のコメントには「CHECK制約で検証済み」とありますが、DBにその制約はありません（列型が`date`なので実在しない日付は入りません）。
 - Mermaidの属性欄では任意項目も型名のみで表記しています。NULL可否・既定値・索引の正確な定義はPrismaスキーマを参照してください。
