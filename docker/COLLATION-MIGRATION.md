@@ -34,8 +34,8 @@ PostgreSQL 4件（itcm / bank-analyzer / private-banking / stock-valuation-form�
 - 検証済みのバックアップが無い状態で実データに触らない（`collation --yes` は自分でも確かめて拒否する）。
 - `REINDEX` を手で実行しない（`collation` は新しい DB へ復元するのでインデックスは作り直される）。
 - 移行の前に DB の `image:`（alpine ↔ bookworm）を変えない。
-- `apps/bank-analyzer/docker-compose.yml` の `external: true` は**追加も削除もしない**（この PC に
-  未コミットで入っていれば、そのまま残す）。
+- `apps/bank-analyzer/docker-compose.yml` の `external: true` は**削除しない**（2026-10-19 から master に
+  入っている。それより前に手で足していた PC の扱いは `docker/OTHER-PC-SETUP.md` の A2）。
 - 関係のない未コミット変更を修正・破棄・整形しない。`git add -A` / `git reset --hard` /
   `git checkout -- .` / `git stash`（ファイル指定なし）を使わない。
 - Docker Desktop の Gordon / Docker AI / CLI hooks をグローバルに無効化しない。

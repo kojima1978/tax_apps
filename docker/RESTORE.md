@@ -59,7 +59,8 @@ AI エージェントにそのまま渡して実行させる前提で書いて�
 - `--with-env` を**理由なく付けない**（下の「.env の扱い」）。
 - 関係のない未コミット変更を修正・破棄・整形しない。`git add -A` / `git reset --hard` /
   `git checkout -- .` / `git stash`（ファイル指定なし）を使わない。
-- `apps/*/docker-compose.yml` の `external: true` を**追加も削除もしない**。
+- `apps/*/docker-compose.yml` の `external: true` を**追加も削除もしない**（bank-analyzer の DB ボリュームは
+  master で external。無ければ `manage.sh` が作る）。
 - Docker Desktop の Gordon / Docker AI / CLI hooks をグローバルに無効化しない。
 - リストアを entrypoint・`apply`・`recover`・`due`・ウォッチドッグなど**自動の経路に載せない**。
 
