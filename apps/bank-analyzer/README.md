@@ -14,7 +14,7 @@ Django 版（旧 `apps/bank-analyzer-django`。段階8で削除）の**置き換
 | URL | `/bank-analyzer/` |
 | コンテナ | `bank-analyzer` / `bank-analyzer-postgres` |
 | ポート | 3007（dev の API は 3107） |
-| DB のボリューム | `bank-analyzer-postgres`（Django 版のものを引き継ぐ・中身は移し替えない） |
+| DB のボリューム | `bank-analyzer-postgres`（Django 版のものを引き継ぐ・中身は移し替えない。compose 上は `external`） |
 
 - パスは **`vite.config.ts` の `base` と `server/app.ts` の `BASE_PATH` の2箇所**だけ。
   画面側のパスは全部 `import.meta.env.BASE_URL` から来る
@@ -23,18 +23,31 @@ Django 版（旧 `apps/bank-analyzer-django`。段階8で削除）の**置き換
 
 ```bash
 # 起動（dev。Vite 3007 + API 3107 を1コンテナで並走）
-cd apps/bank-analyzer && docker compose up -d --build
+docker/scripts/manage.sh start bank-analyzer
 
 # 本番モードへ切り替えて起動（シークレットの生成と ALTER ROLE はここで走る。
 # 個別に -f docker-compose.prod.yml を並べて叩くと、それが飛んで restart ループになる）
 docker/scripts/manage.sh start --prod bank-analyzer
 
+# 再ビルド（いま動いているモードを踏襲する）
+docker/scripts/manage.sh build bank-analyzer
+
 # テスト（型検査 + vitest。使い捨てコンテナで回る）
 docker/scripts/manage.sh test bank-analyzer
 ```
 
-ソースは `src` / `server` / `prisma` / `index.html` を読み取り専用で bind mount している
-（ポーリング監視）。`package.json` を変えたら `--build` が要る。
+- **起動は `manage.sh` から行う**。DB のボリュームは `external` なので compose は作りも消しもせず
+  （`down -v` でも消えない）、無い PC では `manage.sh` が `EXTERNAL_VOLUMES` から作る。
+  素の `docker compose up` はボリュームが無いと失敗するうえ、base の compose だけを読むので
+  本番で動いているアプリを dev サーバに作り替える
+- dev は `src` / `server` / `prisma` / `index.html` を読み取り専用で bind mount している
+  （ポーリング監視。Vite は `vite.config.ts` の `server.watch`、API の `tsx watch` は
+  compose の `CHOKIDAR_USEPOLLING` で、2箇所ある）。`package.json` を変えたら `build` が要る
+- **本番はソースをイメージに同梱する**（オーバーレイが bind mount を `!reset` で落とす）ので、
+  本番モードのときはどの変更も `build` しないと入らない
+- 起動のたびに entrypoint が `prisma migrate deploy` を流す（テスト用サービスは
+  `BANK_ANALYZER_SKIP_MIGRATE=1` で飛ばす）。本番では `POSTGRES_PASSWORD` が空か既定値だと起動を拒む
+- health は `/bank-analyzer/api/health`（DB に問い合わせる。dev は Vite の生存も見る）
 
 ## 夜間バックアップの JSON
 
@@ -141,13 +154,23 @@ Django 版が動いている別の環境で同じ切替をするときは **`CUT
 
 ## テスト
 
-`test-data/golden/` は Django 版の出力から作った**合成データ**の正解（段階1）。
-計算部分を移すたびに、ここと突き合わせるテストを足していく。**実データの正解は
+`manage.sh test bank-analyzer` は `bank-analyzer-test`（dev ステージに PostgreSQL を足した
+test ステージ。本体の DB にはつながない）を `run --rm --build` で回す。ソースは bind mount せず
+イメージに同梱するので、手で回すときも `--build` を付けないと古いソースのまま走る。
+DB を使うテスト（`*.db.test.ts`）は、コンテナの中でテストのたびに PostgreSQL を立てて使う
+（`server/__tests__/setup/postgres.ts`）。
+
+`test-data/golden/` は Django 版の出力から作った**合成データ**の正解（段階1）で、
+`golden.test.ts` などが毎回突き合わせる。作り直す手順は `test-data/golden/README.md`
+（Django 版は消えているので `4962355e` から取り出す）。**実データの正解は
 リポジトリ外**（`~/.tax-apps/bank-analyzer-golden/`）にあり、リポジトリは公開なので
 ここへは入れない。
 
 集計（`aggregate.test.ts`）は実データの正解でも回せる（手で叩く。結果の中身は出さない）:
 
 ```bash
-MSYS_NO_PATHCONV=1 docker compose --profile test run --rm --no-deps -e BANK_ANALYZER_GOLDEN_DIR=/golden -v "$(cygpath -w ~/.tax-apps/bank-analyzer-golden):/golden:ro" bank-analyzer-test npx vitest run server/__tests__/aggregate.test.ts
+cd apps/bank-analyzer && MSYS_NO_PATHCONV=1 docker compose --profile test run --rm --no-deps --build -e BANK_ANALYZER_GOLDEN_DIR=/golden -v "$(cygpath -w ~/.tax-apps/bank-analyzer-golden):/golden:ro" bank-analyzer-test npx vitest run server/__tests__/aggregate.test.ts
 ```
+
+`real.db.test.ts`（本番 DB の複製との突き合わせ）は移行時の検証記録で、もう回さない
+（`REACT_MIGRATION_PLAN.md` の段階6）。環境変数が無ければ丸ごと飛ぶ。
