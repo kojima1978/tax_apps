@@ -8,6 +8,7 @@ http://localhost/asset-valuation/ の動作確認用サンプル。
 | `sample-assets.csv` | 標準サンプル。UTF-8(BOM付) / 24行 / 全16資産区分をカバー。NOは4桁（1001〜1024） |
 | `sample-assets-cp932.csv` | 上と同内容の CP932(Shift_JIS)版。エンコーディング自動検出の確認用 |
 | `sample-assets-edge.csv` | 表記ゆれ・和暦・Excelシリアル値などのエッジケース / 15行。NOは4桁/5桁/6桁を混在 |
+| `sample-assets-text-no.csv` | NOが文字列の資産 / 5行（枝番 `230-1`・`230-10`、先頭ゼロ `001`、英字 `A-12`）。NOが数値に化けないこと・自然順（`230-1` → `230-10`）の並びの確認用 |
 | `asset-valuation-test-case.json` | 計算済みの案件JSON。Step 1 の「案件JSONインポート」で復元 |
 
 ## 使い方

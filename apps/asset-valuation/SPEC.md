@@ -22,8 +22,8 @@
 - **完全フロントエンド**（バックエンド不要）
 - 未償却残高表はJSONデータとして内蔵（H24.4.1以後取得分）
 - CSV解析はブラウザ内で完結（件数による取り込み制限なし）
-- データ永続化: JSON入出力（案件データ・マッピングプリセット）
-- Docker: Vite dev → nginx:1.27-alpine 静的配信
+- データ永続化: JSON入出力（案件データ・マッピングプリセット）と localStorage（作業中の下書き・プリセット2種）。サーバ側には何も保存しない
+- Docker: Vite dev → nginx:1.27-alpine 静的配信（Dockerfile は全 Vite アプリ共通の `docker/Dockerfile.vite-static`）
 
 ---
 
@@ -44,6 +44,8 @@ Step 4: 計算結果 → Excel出力 / 案件JSON保存 / マッピングJSON出
 ```
 
 ステップ間は「次へ」「戻る」ボタンで遷移。各ステップにバリデーションあり。
+
+**作業中の下書きの自動保存**（`useCaseDraft`）: 案件名・課税時期・資産・カテゴリ順・いまのステップを localStorage の `asset-valuation:draft` に自動保存する（マッピングプリセットとは別枠）。資産が1件以上ある下書きが残っていて画面が空のときは、上部に「前回の作業が残っています（案件名 / 件数 / 保存時刻）」と「復元する」「破棄」を出し、復元するとステップまで含めて続きから再開できる。ブラウザごとの保存なので、別の PC へ持ち運ぶのは案件JSON。
 
 ---
 
@@ -155,6 +157,7 @@ CSVの資産カテゴリ値を、アプリ内部の40カテゴリ（**資産区�
 - **カテゴリナビゲーション**（`CategoryNav`）: 画面上部にカテゴリ名 + 件数のチップを並べ、クリックで該当カテゴリへスクロール。
   3年以内取得を含むカテゴリには黄色のドットを付ける
 - 課税時期は全行同値のため列に持たず、凡例バーに表示する
+- **幅の狭い画面（`md` 未満）では表の代わりにカード表示**（`MobileAssetCards`）。各資産の「編集」で入力項目が開き、カテゴリ順や一括設定はカテゴリ見出し内の設定から変える。同じ資産を表とカードの両方で描いているため、スクロール先のアンカーは `anchors.ts` で別々に振り、表示中の方へ飛ぶ
 
 #### 2.4.2 テーブルカラム
 
@@ -385,16 +388,17 @@ Excelプレビュー（画面）は他の日付にそろえて西暦表記のま
 
 | 要素 | 書式 |
 |------|------|
-| フォント | MS ゴシック, サイズ10 |
-| ヘッダー行 | 背景色(#D9E1F2)付き、太字、上下横線のみ（縦線なし） |
+| フォント | Arial, サイズ10 |
+| ヘッダー行 | 背景色(#C6EFCE・明るい緑)付き、太字、上下横線のみ（縦線なし） |
 | データ行 | 罫線なし |
 | 金額 | 3桁カンマ区切り、右寄せ |
-| 日付 | YYYY/MM/DD |
+| 日付 | 日付値のまま和暦書式 `gee.mm.dd`（例 `R05.07.02`。→ 4.1） |
+| NO | 文字列セル（`230-1` や `001` をそのまま出す） |
 | 合計行 | 太字、A列から全列に上横線 |
 | 評価額 `-` | 中央寄せ |
 | 列幅 | `!cols` で指定（出力に反映される） |
 | 余白 | 狭め（`!margins` で指定、出力に反映される） |
-| ファイル名 | `{案件名}_減価償却資産評価_{YYYYMMDD}.xlsx` |
+| ファイル名 | `R081005_{案件名}_減価償却資産評価.xlsx`（先頭は出力日の和暦。全アプリ共通の形で、`utils/exportFileName.ts`） |
 
 > **既知の制限（xlsx-js-style 1.2.0）**
 > コード上は `!pageSetup`（A4横・全列1ページ幅）と `!headerFooter`（フッターのページ番号 `&C&P / &N`）を
@@ -428,7 +432,7 @@ Excel末尾に以下の条文テキストを記載:
   "categoryOrder": ["構築物（200%定率法）", "構築物（定額法）"],
   "assets": [
     {
-      "no": 9,
+      "no": "9",
       "category": "建物（定額法）",
       "categoryLabel": "建物（定額法）",
       "name": "本社ビル",
@@ -450,6 +454,10 @@ Excel末尾に以下の条文テキストを記載:
 （例: `機械装置` → `機械及び装置（200%定率法）`）。
 `categoryLabel` は読み込み時に `category` と同じ値へ正規化されるため、
 旧データで `無形固定資産（１）` / `無形固定資産（２）` のように分かれていた小計は1つのグループに統合される。
+
+**`no`** は文字列（枝番 `230-1`・先頭ゼロ `001`・英字 `A-12` をそのまま持つ）。旧形式の数値の `no` も読み込み時に `String()` で文字列へ寄せる。並びは自然順（`compareAssetNo`: `2` → `10`、`230-2` → `230-10`。数字部分は数値に変換せずに比べるので長い管理番号でも桁落ちしない）。
+
+**ファイル名**: 案件JSONは `R081005_{案件名}_減価償却資産評価.json`（案件名が空なら `案件データ`）、マッピングプリセットは `R081005_列の対応づけ_減価償却資産評価.json`。
 
 **`categoryOrder`**: 利用者が入れ替えたカテゴリの表示順。標準順のままなら**出力しない**（旧JSONにも無いので、
 未指定＝標準順として扱えば後方互換になる）。読み込むとカテゴリの並び順も復元される。
@@ -569,93 +577,85 @@ asset-valuation/
 ├── tsconfig.node.json
 ├── postcss.config.mjs
 ├── package.json
+├── README.md
 ├── SPEC.md
-├── docker/
-│   ├── Dockerfile.vite-static
-│   └── nginx.conf
-├── src/
-│   ├── main.tsx
-│   ├── App.tsx
-│   ├── index.css
-│   ├── types/
-│   │   └── index.ts                  # 型定義 + カテゴリ生成（CLASS_METHODS等）・別名解決・移行
-│   │                                 #   + autoMapColumns / suggestAssetClasses
-│   ├── data/
-│   │   └── rateTable.ts              # 未償却残高表JSON
-│   ├── utils/
-│   │   ├── csvParser.ts              # CSV解析・エンコーディング検出
-│   │   ├── calculation.ts            # 評価額計算ロジック（getDepRate, CalcResult型）
-│   │   ├── excelExport.ts            # Excel出力（3シート・残価率表とINDEX/MATCH数式）
-│   │   ├── fileDownload.ts           # JSONダウンロード + exportCaseJson
-│   │   ├── formatters.ts             # formatYen, formatDate, formatDepreciation, calcGroupTotals
-│   │   └── validators.ts             # バリデーション
-│   ├── hooks/
-│   │   ├── useAssetData.ts           # 資産データ管理（groupByLabel再利用・sortAssets / moveAsset /
-│   │   │                             #   moveCategory / moveCategoryTo / undoOrder）
-│   │   ├── useLocalStorageState.ts   # localStorageに永続化するuseState（プリセット2種で共用）
-│   │   ├── useCategoryOrderPresets.ts # カテゴリ順プリセット管理
-│   │   └── usePresets.ts             # マッピングプリセット管理
-│   └── components/
-│       ├── StepIndicator.tsx          # ステップインジケーター
-│       ├── StepNavigation.tsx         # 共通ナビゲーション（戻る/次へ/Step1に戻る）
-│       ├── CategorySelect.tsx         # 2段プルダウン（資産区分 → 償却方法）Step 2・3共用
-│       ├── CategoryNav.tsx            # カテゴリチップ一覧 + categorySectionId / scrollToCategory
-│       ├── step1/
-│       │   └── CsvImportStep.tsx      # CSVインポート + 基本情報
-│       ├── step2/
-│       │   ├── ColumnMappingStep.tsx  # カラムマッピング（列の自動割り当て・区分の候補提示）
-│       │   └── PresetManager.tsx      # プリセット管理UI
-│       ├── step3/
-│       │   ├── DataEditStep.tsx       # データ確認・編集（詳細列トグル・カテゴリナビ）
-│       │   ├── CategoryOrderBar.tsx   # カテゴリ順の操作（Undo・標準に戻す・プリセット）
-│       │   ├── AssetTable.tsx         # 資産テーブル（並べ替えボタン + D&D + 行単位カテゴリ変更）
-│       │   └── ExcelPreview.tsx       # Excelプレビュー（カテゴリ折りたたみ。Step 4で使用）
-│       └── step4/
-│           └── ResultStep.tsx         # 計算結果・出力
-└── docker-compose.yml                 # スタンドアロン起動用
+├── docker-compose.yml                 # dev（Dockerfile は ../../docker/Dockerfile.vite-static）
+├── docker-compose.prod.yml            # 本番オーバーレイ（nginx 静的配信）
+├── test-data/                         # 動作確認用のCSV・案件JSON（test-data/README.md）
+└── src/
+    ├── main.tsx
+    ├── App.tsx
+    ├── index.css
+    ├── types/
+    │   └── index.ts                  # 型定義 + カテゴリ生成（CLASS_METHODS等）・別名解決・移行
+    │                                 #   + autoMapColumns / suggestAssetClasses
+    ├── data/
+    │   └── rateTable.ts              # 未償却残高表JSON
+    ├── utils/
+    │   ├── csvParser.ts              # CSV解析・エンコーディング検出
+    │   ├── calculation.ts            # 評価額計算ロジック（getDepRate, CalcResult型）
+    │   ├── excelExport.ts            # Excel出力（3シート・残価率表とINDEX/MATCH数式）
+    │   ├── exportFileName.ts         # 出力ファイル名（R081005_名前_減価償却資産評価.ext）
+    │   ├── fileDownload.ts           # JSONダウンロード + exportCaseJson
+    │   ├── formatters.ts             # formatYen, formatDate, formatDepreciation, calcGroupTotals, compareAssetNo
+    │   └── validators.ts             # バリデーション
+    ├── hooks/
+    │   ├── useAssetData.ts           # 資産データ管理（groupByLabel再利用・sortAssets / moveAsset /
+    │   │                             #   moveCategory / moveCategoryTo / undoOrder）
+    │   ├── useCaseDraft.ts           # 作業中の下書きの自動保存・復元（localStorage）
+    │   ├── useLocalStorageState.ts   # localStorageに永続化するuseState（プリセット2種で共用）
+    │   ├── useCategoryOrderPresets.ts # カテゴリ順プリセット管理
+    │   └── usePresets.ts             # マッピングプリセット管理
+    └── components/
+        ├── StepIndicator.tsx          # ステップインジケーター
+        ├── StepNavigation.tsx         # 共通ナビゲーション（戻る/次へ/Step1に戻る）
+        ├── CategorySelect.tsx         # 2段プルダウン（資産区分 → 償却方法）Step 2・3共用
+        ├── CategoryNav.tsx            # カテゴリチップ一覧 + categorySectionId / scrollToCategory
+        ├── step1/
+        │   └── CsvImportStep.tsx      # CSVインポート + 基本情報
+        ├── step2/
+        │   ├── ColumnMappingStep.tsx  # カラムマッピング（列の自動割り当て・区分の候補提示）
+        │   └── PresetManager.tsx      # プリセット管理UI
+        ├── step3/
+        │   ├── DataEditStep.tsx       # データ確認・編集（詳細列トグル・カテゴリナビ）
+        │   ├── CategoryOrderBar.tsx   # カテゴリ順の操作（Undo・標準に戻す・プリセット）
+        │   ├── AssetTable.tsx         # 資産テーブル（並べ替えボタン + D&D + 行単位カテゴリ変更）
+        │   ├── MobileAssetCards.tsx   # 幅の狭い画面のカード表示
+        │   ├── anchors.ts             # 資産1件のアンカーID（表とカードで別々）
+        │   └── ExcelPreview.tsx       # Excelプレビュー（カテゴリ折りたたみ。Step 4で使用）
+        └── step4/
+            └── ResultStep.tsx         # 計算結果・出力
 ```
 
 ---
 
 ## 9. Docker仕様
 
-### 9.1 開発モード
+Dockerfile はアプリの中に持たず、全 Vite アプリ共通の `docker/Dockerfile.vite-static` を使う（`APP_PORT` / `APP_PATH` などは compose の `build.args` で渡す）。
 
-```dockerfile
-FROM node:22-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-EXPOSE 3017
-CMD ["npx", "vite", "--host", "--port", "3017"]
+| ステージ | 中身 |
+|---|---|
+| `dev` | `npm run dev -- --host --port 3017`。`node` ユーザーで動く |
+| `builder` | `npm run build`（`tsc -b && vite build`） |
+| `runner` | nginx:1.27-alpine で `dist` を `/asset-valuation/` に配信（非 root） |
+
+起動はリポジトリのルートから `manage.sh` で行う（素の `docker compose up` は base だけを読むので、本番で動いているアプリを dev に作り替える）:
+
+```bash
+docker/scripts/manage.sh start asset-valuation          # dev
+docker/scripts/manage.sh start --prod asset-valuation   # 本番
+docker/scripts/manage.sh build asset-valuation          # 再ビルド（いま動いているモードを踏襲）
 ```
 
-### 9.2 本番モード
+| 項目 | dev | 本番 |
+|---|---|---|
+| ソース | `./src` と `./index.html` を読み取り専用で bind mount | イメージ同梱（`volumes: !reset []`）。**変更は `build` しないと入らない** |
+| メモリ上限 | 512M（`NODE_OPTIONS=--max-old-space-size=384`） | 64M |
+| ポート | `127.0.0.1:3017` | 同じ |
 
-```dockerfile
-FROM node:22-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
+dev の Vite にはポーリングを入れていないので、Windows の bind mount では編集が届かないことがある。そのときは `docker restart asset-valuation`。`package.json` や `vite.config.ts` はマウントしていない（イメージ同梱）ので、変えたら `build` が要る。
 
-FROM nginx:1.27-alpine AS runner
-COPY --from=builder /app/dist /usr/share/nginx/html/asset-valuation
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 3017
-```
-
-### 9.3 docker-compose.yml
-
-```yaml
-volumes:
-  - ./src:/app/src:ro
-  - ./index.html:/app/index.html:ro
-```
-
-ホットリロード対応。
+テスト（vitest）は無い。型検査は `npm run build` の `tsc -b` だけで、dev モードでは走らない。
 
 ---
 

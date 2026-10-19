@@ -17,18 +17,20 @@
 
 ## 起動方法
 
+リポジトリのルートから `manage.sh` で起動する（素の `docker compose up` は本番で動いているアプリを dev に作り替える）。
+
 ```bash
-# 開発
-docker compose up -d --build
-
-# 本番
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-
-# 停止
-docker compose down
+docker/scripts/manage.sh start asset-valuation          # 開発
+docker/scripts/manage.sh start --prod asset-valuation   # 本番（nginx 静的配信）
+docker/scripts/manage.sh build asset-valuation          # 再ビルド（いま動いているモードを踏襲）
 ```
 
-→ http://localhost:3017/asset-valuation/
+→ http://localhost/asset-valuation/（ゲートウェイ経由。直接なら http://localhost:3017/asset-valuation/）
+
+- Dockerfile は全 Vite アプリ共通の `docker/Dockerfile.vite-static`
+- 本番はソースを同梱するので変更は `build` しないと入らない。dev は `src` を bind mount するが、
+  ポーリングが無いので編集が届かないときは `docker restart asset-valuation`
+- テストは無い。動作確認用の CSV と案件JSONは `test-data/`（`test-data/README.md`）
 
 ## 画面フロー
 
@@ -87,6 +89,10 @@ Step 4: 計算結果 → Excel出力 / 案件JSON保存 / マッピングJSON出
   日付（課税時期・3年以内・取得年月）は**日付値のまま**出力し、表示書式だけ和暦（例: `R05.07.02`）にしているので、
   Excel側で日付計算にそのまま使える
 - **案件JSON保存・復元**: 案件データ全体（カテゴリの並び順を含む）をJSONでエクスポート/インポート
+- **下書きの自動保存**: 作業内容をブラウザ（localStorage）に自動保存し、リロードやタブを閉じた後も「復元する」で続きから再開できる
+- **出力ファイル名**: `R081005_{案件名}_減価償却資産評価.xlsx`（先頭は出力日の和暦。全アプリ共通）
+- **NOは文字列**: 枝番 `230-1`・先頭ゼロ `001`・英字 `A-12` をそのまま持ち、自然順（`2` → `10`）で並べる
+- **スマホ表示**: 幅の狭い画面では表の代わりにカード表示
 - **アクセシビリティ**: 統一フォーカスリング、全入力にaria-label、コントラスト4.5:1以上、prefers-reduced-motion対応
 
 > **Excel出力の既知の制限**: xlsx-js-style 1.2.0 は `<pageSetup>` / `<headerFooter>` を書き出さないため、
@@ -104,11 +110,13 @@ src/
 │   ├── calculation.ts      # 評価額計算ロジック（getDepRate, CalcResult型）
 │   ├── csvParser.ts        # CSV解析
 │   ├── excelExport.ts      # Excel出力（3シート・残価率表とINDEX/MATCH数式）
+│   ├── exportFileName.ts   # 出力ファイル名（R081005_名前_減価償却資産評価.ext）
 │   ├── fileDownload.ts     # JSONダウンロード + exportCaseJson
-│   ├── formatters.ts       # formatYen, formatDate, formatDepreciation, calcGroupTotals
+│   ├── formatters.ts       # formatYen, formatDate, formatDepreciation, calcGroupTotals, compareAssetNo
 │   └── validators.ts       # バリデーション
 ├── hooks/
 │   ├── useAssetData.ts     # 資産データ管理（sortAssets / moveAsset / moveCategory / undoOrder）
+│   ├── useCaseDraft.ts     # 作業中の下書きの自動保存・復元
 │   ├── useLocalStorageState.ts  # localStorageに永続化するuseState（プリセット2種で共用）
 │   ├── useCategoryOrderPresets.ts # カテゴリ順プリセット管理
 │   └── usePresets.ts       # マッピングプリセット管理
@@ -119,6 +127,6 @@ src/
     ├── CategoryNav.tsx      # カテゴリチップ一覧 + セクションへのスクロール
     ├── step1/CsvImportStep.tsx
     ├── step2/ColumnMappingStep.tsx, PresetManager.tsx
-    ├── step3/DataEditStep.tsx, CategoryOrderBar.tsx, AssetTable.tsx, ExcelPreview.tsx
+    ├── step3/DataEditStep.tsx, CategoryOrderBar.tsx, AssetTable.tsx, MobileAssetCards.tsx, anchors.ts, ExcelPreview.tsx
     └── step4/ResultStep.tsx
 ```
