@@ -47,6 +47,8 @@ export type RetirementTaxResult = {
     incomeTax: number;
     /** 復興特別所得税額（1円未満切捨て） */
     reconstructionTax: number;
+    /** 防衛特別所得税額（1円未満切捨て。令和8年以前は 0） */
+    defenseTax: number;
     /** 住民税額（100円未満切捨て） */
     residentTax: number;
     /** 住民税内訳: 市民税 */
@@ -174,6 +176,16 @@ const calcReconstructionTax = (incomeTax: number, rates: TaxRateYear): number =>
 };
 
 /**
+ * 防衛特別所得税額を算出（1円未満切捨て。令和9年以後）
+ *
+ * 所得税額は100円単位なので 1% は必ず整数になり、復興分と別々に切り捨てても
+ * 合計は「所得税額 × 2.1%」を一度に切り捨てた額と一致する。
+ */
+const calcDefenseTax = (incomeTax: number, rates: TaxRateYear): number => {
+    return Math.floor(incomeTax * rates.defenseTaxRate);
+};
+
+/**
  * 住民税額を算出（100円未満切捨て）
  */
 const calcResidentTax = (
@@ -223,8 +235,9 @@ export const calcRetirementTax = (params: CalcRetirementTaxParams): RetirementTa
     const taxableIncome = calcTaxableIncome(amount, deduction, retirementType);
     const incomeTax = calcIncomeTax(taxableIncome, rates);
     const reconstructionTax = calcReconstructionTax(incomeTax, rates);
+    const defenseTax = calcDefenseTax(incomeTax, rates);
     const resident = calcResidentTax(taxableIncome, rates);
-    const totalTax = incomeTax + reconstructionTax + resident.total;
+    const totalTax = incomeTax + reconstructionTax + defenseTax + resident.total;
 
     return {
         serviceYears,
@@ -233,6 +246,7 @@ export const calcRetirementTax = (params: CalcRetirementTaxParams): RetirementTa
         taxableIncome,
         incomeTax,
         reconstructionTax,
+        defenseTax,
         residentTax: resident.total,
         municipalTax: resident.municipal,
         prefecturalTax: resident.prefectural,

@@ -18,13 +18,15 @@ export type TaxRateYear = {
     brackets: TaxBracket[];
     /** 復興特別所得税率 */
     reconstructionTaxRate: number;
+    /** 防衛特別所得税率（令和8年以前は 0） */
+    defenseTaxRate: number;
     /** 住民税内訳: 市民税率 */
     municipalTaxRate: number;
     /** 住民税内訳: 県民税率 */
     prefecturalTaxRate: number;
 };
 
-/** 現行の所得税速算表ブラケット（令和6年〜8年共通） */
+/** 所得税速算表ブラケット（令和6年〜9年共通） */
 const CURRENT_BRACKETS: TaxBracket[] = [
     { limit: 1_950_000, rate: 0.05, deduction: 0 },
     { limit: 3_300_000, rate: 0.10, deduction: 97_500 },
@@ -35,11 +37,28 @@ const CURRENT_BRACKETS: TaxBracket[] = [
     { limit: Infinity, rate: 0.45, deduction: 4_796_000 },
 ];
 
-/** 現行の住民税・復興税率（令和6年〜8年共通） */
-const CURRENT_RATES = {
-    reconstructionTaxRate: 0.021,
+/** 住民税率（令和6年〜9年共通） */
+const RESIDENT_RATES = {
     municipalTaxRate: 0.06,
     prefecturalTaxRate: 0.04,
+} as const;
+
+/** 令和8年まで: 復興特別所得税 2.1% */
+const RATES_UNTIL_R08 = {
+    ...RESIDENT_RATES,
+    reconstructionTaxRate: 0.021,
+    defenseTaxRate: 0,
+} as const;
+
+/**
+ * 令和9年から: 復興特別所得税 1.1% + 防衛特別所得税 1%（令和8年度税制改正）。
+ * どちらも基準所得税額（＝所得税額）に掛ける別々の税で、合計は従来と同じ 2.1%。
+ * 源泉徴収税額が「所得税額 × 102.1%」なのは変わらない。
+ */
+const RATES_FROM_R09 = {
+    ...RESIDENT_RATES,
+    reconstructionTaxRate: 0.011,
+    defenseTaxRate: 0.01,
 } as const;
 
 /**
@@ -50,9 +69,10 @@ const CURRENT_RATES = {
  * （`CURRENT_YEAR_NOTICE`）。
  */
 export const TAX_RATES: Record<string, TaxRateYear> = {
-    "2024": { label: "令和6年（2024年）", brackets: CURRENT_BRACKETS, ...CURRENT_RATES },
-    "2025": { label: "令和7年（2025年）", brackets: CURRENT_BRACKETS, ...CURRENT_RATES },
-    "2026": { label: "令和8年（2026年）", brackets: CURRENT_BRACKETS, ...CURRENT_RATES },
+    "2024": { label: "令和6年（2024年）", brackets: CURRENT_BRACKETS, ...RATES_UNTIL_R08 },
+    "2025": { label: "令和7年（2025年）", brackets: CURRENT_BRACKETS, ...RATES_UNTIL_R08 },
+    "2026": { label: "令和8年（2026年）", brackets: CURRENT_BRACKETS, ...RATES_UNTIL_R08 },
+    "2027": { label: "令和9年（2027年）", brackets: CURRENT_BRACKETS, ...RATES_FROM_R09 },
 };
 
 /** 利用可能な年度一覧（古い順） */
@@ -87,6 +107,9 @@ export const unregisteredYearNotice = (date: Date = new Date()): string | null =
 };
 
 export const CURRENT_YEAR_NOTICE = unregisteredYearNotice();
+
+/** 率を「2.1%」「1.1%」の形で出す（浮動小数の誤差を落とす） */
+export const formatRate = (rate: number): string => `${Number((rate * 100).toFixed(2))}%`;
 
 /**
  * 税率ブラケットの範囲ラベルを生成

@@ -1,19 +1,26 @@
 import { type RetirementTaxResult, PATTERN_LABELS, calcEffectiveTaxRate } from "@/lib/retirement-tax";
 import { formatYen } from "@/lib/utils";
+import { TAX_RATES, formatRate } from "@/lib/tax-rates";
 
 type RowDef = {
     label: string;
     format: (r: RetirementTaxResult) => string;
     note?: (first: RetirementTaxResult, activeCount: number) => string | undefined;
     highlight?: boolean;
+    /** 行を出すか（無ければ常に出す） */
+    visible?: (first: RetirementTaxResult) => boolean;
 };
+
+const ratesOf = (r: RetirementTaxResult) => TAX_RATES[r.taxYear];
 
 const TABLE_ROW_DEFS: RowDef[] = [
     { label: "退職金支給額", format: (r) => formatYen(r.amount) },
     { label: "退職所得控除額", format: (r) => formatYen(r.deduction), note: (first) => first.isDisability ? "（障害者加算100万円含む）" : undefined },
     { label: "課税退職所得金額", format: (r) => formatYen(r.taxableIncome), note: () => "（1,000円未満切捨て）" },
     { label: "所得税額", format: (r) => formatYen(r.incomeTax), note: () => "（100円未満切捨て）" },
-    { label: "復興特別所得税額", format: (r) => formatYen(r.reconstructionTax), note: () => "（所得税 × 2.1%）" },
+    { label: "復興特別所得税額", format: (r) => formatYen(r.reconstructionTax), note: (first) => `（所得税 × ${formatRate(ratesOf(first).reconstructionTaxRate)}）` },
+    // 令和9年から。税率年度は全パターン共通なので、先頭の結果で出す／出さないを決める
+    { label: "防衛特別所得税額", format: (r) => formatYen(r.defenseTax), note: (first) => `（所得税 × ${formatRate(ratesOf(first).defenseTaxRate)}）`, visible: (first) => ratesOf(first).defenseTaxRate > 0 },
     { label: "住民税額", format: (r) => formatYen(r.residentTax), note: (first, n) => n === 1 ? `（市民税 ${formatYen(first.municipalTax)} + 県民税 ${formatYen(first.prefecturalTax)}）` : undefined },
     { label: "税額合計", format: (r) => formatYen(r.totalTax), highlight: true },
     { label: "手取額", format: (r) => formatYen(r.netAmount), highlight: true },
@@ -31,7 +38,7 @@ const buildRows = (results: (RetirementTaxResult | null)[]): ComparisonRow[] => 
     const activeCount = results.filter((r) => r !== null).length;
     const first = results.find((r): r is RetirementTaxResult => r !== null)!;
 
-    return TABLE_ROW_DEFS.map((def) => ({
+    return TABLE_ROW_DEFS.filter((def) => def.visible?.(first) ?? true).map((def) => ({
         label: def.label,
         values: results.map((r) => (r ? def.format(r) : null)),
         note: def.note?.(first, activeCount),

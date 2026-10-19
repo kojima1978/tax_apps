@@ -57,7 +57,7 @@ const ReferenceTables = ({ serviceYears, taxableIncome, taxYear }: ReferenceTabl
                     </tbody>
                 </table>
             </div>
-            <p className="ref-note">※ 求めた税額に102.1%を乗じた金額が源泉徴収税額（所得税+復興特別所得税）</p>
+            <p className="ref-note">※ 求めた税額に102.1%を乗じた金額が源泉徴収税額（{TAX_RATES[taxYear].defenseTaxRate > 0 ? "所得税+復興特別所得税+防衛特別所得税" : "所得税+復興特別所得税"}）</p>
             <p className="ref-note ref-source">
                 出典:
                 <a href="https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1420.htm" target="_blank" rel="noopener noreferrer">国税庁 No.1420 退職金を受け取ったとき</a>
