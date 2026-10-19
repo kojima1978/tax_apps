@@ -1461,9 +1461,13 @@ cmd_clean_cache() {
 #   --profile '*' : profiles 付きのサービスを対象に含める
 #   --no-deps     : 他のサービスを巻き込まない（稼働中の本番コンテナに触らない）
 #   --build       : ソースを変えた直後に古いイメージで回らないようにする
+# ビルドを伴うので start / build と同じくリポジトリ直下から叩く（compose_from_project_root）。
+# アプリのディレクトリから叩くと、共有の docker/Dockerfile.vite-static が Bake の
+# 読み取り範囲の外になり `failed to execute bake` で止まる（7アプリが該当）。
 _run_test_throwaway() {
   local dir="$1" service="$2" command="$3"
-  (cd "$dir" && docker compose --profile '*' run --rm -T --no-deps --build "$service" sh -lc "$command")
+  compose_from_project_root -f "$dir/docker-compose.yml" --profile '*' \
+    run --rm -T --no-deps --build "$service" sh -lc "$command"
 }
 
 # compose にそのサービスが定義されているか（profiles 付きのものも含めて見る）。

@@ -212,9 +212,11 @@ rd /s /q tax_apps
 | `./manage.sh alert` | デスクトップの警告ファイルを作り直す（Docker 不要） |
 | `./manage.sh preflight` | 起動前環境チェック |
 
-起動・再ビルドの Compose は、呼び出した場所にかかわらずリポジトリ直下を作業ディレクトリにして実行します。`start-prod.bat` は `docker/scripts` から呼び出すため、そのままでは共有の `docker/Dockerfile.vite-static` が Bake の既定の読み取り範囲外になります。Compose 5.6.0 と Buildx 0.37.2 では共有 Dockerfile 自体への許可が渡らず、`failed to execute bake: exit status 1` で停止することを確認しました（[上流の不具合報告](https://github.com/docker/compose/issues/14285)、[上流の修正](https://github.com/docker/compose/pull/14325)）。
+起動・再ビルド・テスト（使い捨てコンテナの `run --build`）の Compose は、呼び出した場所にかかわらずリポジトリ直下を作業ディレクトリにして実行します。`start-prod.bat` は `docker/scripts` から呼び出すため、そのままでは共有の `docker/Dockerfile.vite-static` が Bake の既定の読み取り範囲外になります。Compose 5.6.0 と Buildx 0.37.2 では共有 Dockerfile 自体への許可が渡らず、`failed to execute bake: exit status 1` で停止することを確認しました（[上流の不具合報告](https://github.com/docker/compose/issues/14285)、[上流の修正](https://github.com/docker/compose/pull/14325)）。
 
-`lib/compose-build.sh` がビルド時だけ作業場所をリポジトリ直下に固定し、共有 Dockerfile を読み取り範囲に含めます。Compose ファイルは絶対パスの `-f` で指定するため、ビルドコンテキストや本番オーバーレイは変わりません。呼び出し元の作業場所も変更せず、ビルドエラーの終了コードをそのまま返します。再試行や一時 Bake 定義の生成は不要です。
+`lib/compose-build.sh` がビルド時だけ作業場所をリポジトリ直下に固定し、共有 Dockerfile を読み取り範囲に含めます。Compose ファイルは絶対パスの `-f` で指定するため、ビルドコンテキストや本番オーバーレイは変わりません。呼び出し元の作業場所も変更せず、ビルドエラーの終了コードをそのまま返します。再試行や一時 Bake 定義の生成は不要です。ビルドを伴う `docker compose` がこの関数を通らずに書かれると、CI の `tests/compose-build.test.sh` が行番号つきで落とします（`test` だけ漏れていて、7アプリのテストが止まっていた）。
+
+手で叩くときも同じで、7つの Vite アプリ（`docker/Dockerfile.vite-static` を使うもの）を `cd apps/<app> && docker compose up -d --build` で作り直すと同じエラーで止まります。リポジトリ直下から `docker compose -f apps/<app>/docker-compose.yml up -d --build` とするか、`manage.sh build <app>` を使ってください。`BUILDX_BAKE_ENTITLEMENTS_FS=0` で確認ごと外す回避は不要です。
 
 ### アプリ名の指定
 

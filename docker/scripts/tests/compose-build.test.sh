@@ -51,3 +51,14 @@ fi
 mapfile -d '' -t invocation < "$calls_file"
 [[ ${#invocation[@]} -eq $((${#expected_args[@]} + 1)) ]]
 printf 'Compose の作業場所・引数・呼び出し元・失敗時の終了コード: OK\n'
+
+# ビルドを伴う呼び出しが compose_from_project_root を通っていること。
+# `test` の使い捨てコンテナ（run --build）だけアプリのディレクトリから叩いていて、
+# 共有 Dockerfile を使う7アプリのテストが `failed to execute bake` で止まっていた。
+bypass=$(grep -nE '^[^#]*docker compose[^#]*(--build|[[:space:]]build([[:space:]]|$))' \
+  "$script_dir/../manage.sh" "$script_dir/../backup.sh" || true)
+if [[ -n "$bypass" ]]; then
+  printf 'ビルドを伴う docker compose は compose_from_project_root から呼んでください:\n%s\n' "$bypass" >&2
+  exit 1
+fi
+printf 'ビルドを伴う呼び出しはすべてリポジトリ直下から: OK\n'

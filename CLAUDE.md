@@ -32,6 +32,12 @@ cd apps/<app-name> && docker compose -f docker-compose.yml -f docker-compose.pro
 cd apps/<app-name> && docker compose logs -f
 ```
 
+**ビルドを伴う compose はリポジトリ直下から叩くこと**（`docker compose -f apps/<app>/docker-compose.yml …`）。
+共有の `docker/Dockerfile.vite-static` を使う7アプリは、上の `cd apps/<app> && … --build` だと
+Bake の読み取り範囲の外になり `failed to execute bake: exit status 1` だけ出して止まる。
+`manage.sh` の中は `compose_from_project_root`（`lib/compose-build.sh`）を通し、通っていない
+呼び出しは CI の `tests/compose-build.test.sh` が落とす。`BUILDX_BAKE_ENTITLEMENTS_FS=0` で確認ごと外さない。
+
 compose を新しく書くときは既存ファイルの**アンカーをそのまま写すこと**
 （`x-logging` / `x-autoheal-labels` / `x-healthcheck-defaults` / `x-security-opts` /
 `deploy.resources`）。全アプリの全サービスに `no-new-privileges` とメモリ上限が入っている。
