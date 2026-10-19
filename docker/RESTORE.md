@@ -112,7 +112,8 @@ docker/scripts/manage.sh newpc [--check] [--from <フォルダ>]  # 新しい PC
   合わせている。`.env` だけ古い版へ戻しても **DB のパスワードは戻らない**ので、上書きすると
   繋がらなくなる（DB の中身を戻しても、パスワードはロールのものが残る）。
 - `--with-env` は「`.env` を誤って書き換えた・消した」ときだけ使う。付けて繋がらなくなったら、
-  `pre-restore_*` から同じアプリを `--env-only` ではなく `--with-env` で戻せば元の `.env` に戻る。
+  `pre-restore_*` から同じアプリを `--with-env` で戻せば元の `.env` に戻る（`--env-only` は既にある `.env` に
+  触らないので使えない。DB も戻す直前の状態に戻る＝そのリストアごと取り消しになる）。
 
 ## 手順 A: この PC で1アプリだけ戻す
 
@@ -162,7 +163,7 @@ docker/scripts/manage.sh restore <app> <バックアップ> --yes
 
 止まる条件（手で直そうとせず報告する）:
 
-- `件数が一致しません` → **戻した後の DB が半端**。手順 C で `pre-restore` へ巻き戻すかを人に聞く
+- `件数がバックアップと一致しません` → **戻した後の DB が半端**。手順 C で `pre-restore` へ巻き戻すかを人に聞く
 - `healthy になりません` → `docker/scripts/manage.sh logs <app>` の末尾を報告に付ける
 - pre-restore の保険バックアップに失敗 → 何も変わっていない。原因を報告
 
@@ -178,7 +179,7 @@ docker/scripts/manage.sh status
 ## 手順 B: 新しい PC で全部戻す
 
 **`docker/scripts/restore-new-pc.bat` をダブルクリックする**のが入口（中身は `manage.sh newpc`）。
-B2〜B4 を1回の確認（`y`）でまとめて行う。手で1つずつやる場合は下の「手で行う場合」。
+下の「手で行う場合」の中身（`.env` → 起動 → `restore --all`）を1回の確認（`y`）でまとめて行う。
 
 ### B1. 置くもの
 
@@ -231,7 +232,7 @@ docker/scripts/manage.sh preflight
 ```bash
 docker/scripts/manage.sh verify <バックアップ>                         # 整合性
 docker/scripts/manage.sh restore --env-only <バックアップ> --from <フォルダ>   # .env を先に置く
-docker/scripts/manage.sh start --recorded   # 記録したモードで全部起動（記録が無ければ start / start --prod）
+docker/scripts/manage.sh start --prod       # または start。手で行う場合はモードの記録が無いのでどちらかを選ぶ
 docker/scripts/manage.sh status             # 全アプリ healthy になるまで待つ
 docker/scripts/manage.sh restore --all <バックアップ> --from <フォルダ>        # 一覧（何も変えない）
 docker/scripts/manage.sh restore --all <バックアップ> --from <フォルダ> --yes  # 実行
@@ -299,7 +300,7 @@ docker/scripts/manage.sh usb --off              # 外部コピーをやめる（
 
 - 手順 A1 の未コミット変更の一覧と、触らなかったこと
 - 戻したアプリと、使ったバックアップの名前
-- 一覧（A3 / B4 の `--yes` 無し）の出力
+- 一覧（A3、または newpc / `restore --all` の `--yes` 無し）の出力
 - アプリごとの `件数一致` の行と `OK / Skipped / Failed`
 - 作られた `pre-restore_*` の名前（巻き戻し用）
 - `manage.sh status` の該当アプリの行と `restore` の記録

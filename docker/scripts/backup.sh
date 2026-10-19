@@ -1987,7 +1987,7 @@ cmd_restore() {
 # ------------------------------------
 # newpc - 新しい PC で、バックアップから全部を戻す（restore-new-pc.bat）
 #
-# 手順書の B2〜B4（env-only → start → restore --all）を1回の確認で通す入口。
+# docker/RESTORE.md の手順 B（env-only → start → restore --all）を1回の確認で通す入口。
 # 中身は既存の3つのコマンドを順に呼ぶだけで、戻し方そのものは restore と同じ
 # （件数照合・healthy 待ち・pre-restore の保険つき）。
 #
