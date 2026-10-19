@@ -4,7 +4,7 @@
 
 相続税申告案件の一覧、詳細、進捗、売上、紹介者、相続人/関係者、帳票、経営分析を管理する Next.js アプリです。
 
-Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
+ゲートウェイ経由で `http://localhost/itcm/` から入ります（起動は `manage.sh` から。下の「起動と管理」）。
 
 ## 主な画面
 
@@ -40,7 +40,10 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
   - 報酬額がない案件は見積額
   - 一覧上は紹介料控除前の金額を表示
 - 画面幅に収まるコンパクトなレスポンシブ表、ページネーション、ソート、行番号表示
-- 申告期限・残り日数・相続開始日、案件ステータス進捗、担当、売上、特記事項（最大10文字）を一覧表示
+- 申告期限・残り日数・相続開始日、案件ステータス進捗、担当、売上、請求・入金日、特記事項（最大10文字）を一覧表示
+- 表示する列は「標準」「期限・進捗中心」「売上・入金中心」の型から選ぶか、列ごとに切り替える
+- ヘッダの「最近・お気に入り」から、最近開いた案件（10件）とお気に入り（50件）へ移動
+  - 列の選択・最近・お気に入りはブラウザの localStorage に保存（PC・ブラウザごと。DB には入らない）
 - 案件詳細へは各行の左端にある編集アイコンから遷移
 - 一覧上の数値、進捗、特記事項は参照専用
 - 条件に一致する案件の一括削除
@@ -49,6 +52,11 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 
 - 基本情報、進捗、報酬/見積、立替金、相続人/関係者、メモをセクションごとに編集
 - 未保存変更の検知と離脱確認
+- 入力途中の内容はタブごとに sessionStorage へ下書きとして残し（12時間）、再読み込みしても戻る
+- 入力不足の項目（要対応・確認事項）を上部にまとめ、押すとその欄へ移動
+- 一覧から開いた案件は「← 前の案件」「次の案件 →」で一覧のそのページ内を順に移動
+- 新規登録時は被相続人の氏名・フリガナで全年度の既存案件と重複チェック（相続開始日の一致も表示）。
+  候補があれば登録前に確認を出し、「別案件として登録する」で続行
 - 統合案件ステータス（見積前、見積中、見送り、受託、手続中、最終確認、申告済、請求済、入金済）を管理
 - 受託日に基づく当月追加集計
 - 申告完了日に基づく当月完了集計
@@ -150,6 +158,9 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
   - A-C 列は 100px 相当、D 列は 200px 相当
   - 1 行目と 2 行目の間、合計行の上に A-D 列まで横罫線を出力
 - テンプレートは `templates/` から読み込み、Docker では `/app/templates` に読み取り専用マウント
+  - 見積書と請求書は `estimate_template.xlsx` を共用、請求書発行依頼票は `invoice_request_template.xlsx`（詳細は `templates/README.md`）
+  - **`*.xlsx` は Git に入らない**（`templates/.gitignore`）。控えは夜間バックアップの `itcm-templates` だけなので、
+    新しい PC ではバックアップから戻すか手で置く。ファイルが無い種類は帳票出力ができない
 - `estimate_template.xlsx` への主な転記セル:
   - 土地数（路線価）: `K27`
   - 土地数（倍率）: `K28`
@@ -172,16 +183,20 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 - トランザクション内で全削除、再挿入、シーケンスリセット
 - 古いバックアップ形式への互換対応
 
+これは画面からの手動の経路。夜間の全体バックアップ（`docker/scripts/backup.sh`）は別に、
+DB の `pg_dump`・`templates/`・`.env` を持つ（`PG_TARGETS` / `BIND_TARGETS` / `SETTINGS_TARGETS`）。
+そちらから戻すのは `manage.sh restore inheritance-case-management`（`itcm` でも通る。手順は `docker/RESTORE.md`）。
+
 ## 技術スタック
 
 | 分類 | 内容 |
 | --- | --- |
-| フレームワーク | Next.js 16.1.1 |
+| フレームワーク | Next.js 16.4.0（App Router、本番は standalone） |
 | UI | React 19.2.3, Tailwind CSS v4 |
 | 言語 | TypeScript 5.9.3 |
 | API | Next.js API Routes |
 | DB | PostgreSQL 16 |
-| ORM | Prisma 6.19.2 |
+| ORM | Prisma 6.19.3 |
 | バリデーション | Zod 3.24 |
 | データ取得 | TanStack Query 5 |
 | テーブル | TanStack Table 8 |
@@ -190,6 +205,7 @@ Docker 開発環境では `http://localhost:3020/itcm/` で起動します。
 | Excel | exceljs, xlsx-js-style |
 | PDF | @react-pdf/renderer |
 | アイコン | lucide-react |
+| テスト | Vitest 3 |
 | 実行環境 | Docker, Docker Compose |
 
 ## ディレクトリ構成
@@ -227,6 +243,10 @@ inheritance-case-management/
 | `edit-case-form.tsx` | 案件編集画面の組み立て、保存、未保存変更、帳票モーダル |
 | `edit-case-form-utils.ts` | API payload 変換、派生値計算、保存前チェック補助 |
 | `use-edit-case-masters.ts` | 担当者、紹介元、相続人、関係者マスタの取得 |
+| `case-form-draft.ts` | 入力途中の下書き（sessionStorage） |
+| `CaseWorkspaceSummary.tsx`, `case-workspace-utils.ts` | 入力不足の項目のまとめ、最近・お気に入りへの記録 |
+| `CaseBrowseNavigation.tsx` | 一覧の並びで前後の案件へ移動 |
+| `CaseDuplicateCheck.tsx` | 新規登録時の既存案件との重複チェック（照合は `lib/case-duplicates.ts`） |
 | `FinancialSection.tsx` | 金額情報セクションの枠 |
 | `FinancialEstimatePanel.tsx` | 報酬計算、特別業務報酬額、見積額/報酬額への反映 |
 | `FinancialRevenuePanel.tsx` | 紹介料率、見積書/請求書別の紹介料と手取り |
@@ -237,104 +257,73 @@ inheritance-case-management/
 | `CasePersonForm.tsx` | 相続人/関係者で共通の人物入力フォーム |
 | `HeirListEditor.tsx`, `RelatedPartyListEditor.tsx` | 案件内の相続人/関係者の紐付け編集 |
 
-## Docker 開発
+## 起動と管理
 
-### 単体起動
+| | |
+| --- | --- |
+| URL | `http://localhost/itcm/`（ゲートウェイ経由）/ `http://localhost:3020/itcm/`（直接） |
+| コンテナ | `itcm-frontend`（サービス名 `itcm-web`）/ `itcm-postgres` |
+| ポート | 3020（画面）/ 3022（DB）。どちらも `127.0.0.1` だけで待ち受ける |
+| DB のボリューム | `inheritance-case-management_postgres_data` |
 
-```bash
-cd C:\Users\sashi\Desktop\dev\tax_apps\apps\inheritance-case-management
-docker compose up -d
-```
-
-アクセス:
-
-```text
-http://localhost:3020/itcm/
-```
-
-PostgreSQL:
-
-```text
-localhost:3022
-```
-
-事前に共有ネットワークが必要です。
+**起動・再ビルドは `manage.sh` から行う**（リポジトリのルート `tax_apps/` から Git Bash で叩く。
+`docker\scripts\manage.bat` は同じものを cmd から呼ぶ補助）。
 
 ```bash
-docker network create tax-apps-network
-```
+# 起動（dev）
+docker/scripts/manage.sh start inheritance-case-management
 
-すでに存在する場合、このコマンドは不要です。
+# 本番モードへ切り替えて起動
+docker/scripts/manage.sh start --prod inheritance-case-management
 
-### 統合管理スクリプト
+# 再ビルド（いま動いているモードを踏襲する）
+docker/scripts/manage.sh build inheritance-case-management
 
-`tax_apps/docker/scripts/manage.bat` または `manage.sh` から操作できます。
-
-```bash
-cd C:\Users\sashi\Desktop\dev\tax_apps
-docker\scripts\manage.bat build inheritance-case-management
-docker\scripts\manage.bat restart inheritance-case-management
-docker\scripts\manage.bat logs inheritance-case-management
-```
-
-Git Bash 経由:
-
-```bash
-"C:\Program Files\Git\bin\bash.exe" "C:\Users\sashi\Desktop\dev\tax_apps\docker\scripts\manage.sh" build inheritance-case-management
-```
-
-Gateway 経由で起動している場合:
-
-```text
-http://localhost/itcm/
-```
-
-## よく使う Docker コマンド
-
-```bash
-# 起動
-docker compose up -d
-
-# 再ビルド
-docker compose up -d --build
+# 編集しながら開発する間、別ターミナルで開いておく（フォアグラウンド。dev のときだけ）
+docker/scripts/manage.sh watch inheritance-case-management
 
 # ログ
-docker compose logs -f itcm-web
+docker/scripts/manage.sh logs inheritance-case-management
 
-# 停止
-docker compose down
-
-# DBボリュームも含めて削除
-docker compose down -v
-
-# Webコンテナに入る
-docker exec -it itcm-frontend sh
-
-# Prisma migrate deploy
-docker exec -it itcm-frontend npx prisma migrate deploy
-
-# Prisma Studio
-docker exec -it itcm-frontend npx prisma studio
+# テスト（型検査 + vitest）
+docker/scripts/manage.sh test inheritance-case-management
 ```
 
-## 変更反映の目安
+- **この開発 PC では本番モードで動いている**（`docker/logs/app-modes/inheritance-case-management`）。
+  `apps/inheritance-case-management` で素の `docker compose up -d` や `up -d --build` を叩くと
+  base の compose だけを読むので、**本番のアプリが dev サーバに作り替わる**。モードを変えるのは
+  `manage.sh start [--prod] <app>` だけ
+- `.env` が要る（`POSTGRES_PASSWORD` が無いと compose が止まる）。無ければ `.env.example` から作る。
+  `.env` は夜間バックアップに入っている。本番の entrypoint はパスワードの強さを見ないので、
+  既定のままにしないこと
+- **`docker compose down -v` は叩かない**（DB のボリュームごと消える）。止めるのは `manage.sh stop`
+- 起動のたびに entrypoint が `prisma migrate deploy` を流す（DB が上がるまで最大30回待つ）。
+  手で流す必要は無い
+- health は `/itcm/api/health`（DB に `SELECT 1` を投げ、繋がらなければ 503）
 
-開発モードでも **ソースは bind mount していません**。イメージ同梱物で動作し、編集内容は `docker compose watch` で同期します。編集中は別ターミナルで下記を開いておいてください（フォアグラウンド、`Ctrl+C` で終了）。
+### 本番
 
-```bash
-docker\scripts\manage.bat watch inheritance-case-management
-```
+- `docker-compose.prod.yml` は `target: runner`（Next の standalone）。メモリ上限は 512M、
+  ヒープは `--max-old-space-size=256`
+- **本番ではどの変更も `manage.sh build` しないと入らない**（`watch` は dev 専用）
+- `templates/` は本番でも読み取り専用の bind mount（`volumes: !override` で base の他のマウントは落とす）
+- 本番イメージには `npx prisma` も `tsx` も無い。Prisma CLI は `/app/prisma-cli` に隔離して同梱し、
+  entrypoint はそれを直接叩く
 
-| 変更内容 | 開発モード |
+## 変更反映の目安（dev）
+
+dev でも **ソースは bind mount していません**。イメージ同梱物で動作し、編集内容は `docker compose watch` で同期します（上の `manage.sh watch`）。
+
+| 変更内容 | dev |
 | --- | --- |
 | `web/src/` | watch 起動中なら sync（約8秒で反映） |
 | `web/public/` | watch 起動中なら sync |
 | `web/prisma/` | watch が rebuild（Prisma Client 再生成のため） |
-| `templates/` | コンテナへ読み取り専用マウント（bind mount のまま） |
+| `templates/` | コンテナへ読み取り専用マウント（bind mount のまま）。次の帳票出力から効く |
 | `web/package.json`, `web/package-lock.json`, `web/next.config.ts` | watch が rebuild |
-| `Dockerfile`, `docker-compose.yml` | 再ビルド（`manage.bat build ...`） |
+| `Dockerfile`, `docker-compose.yml` | `manage.sh build`（compose だけなら `manage.sh apply`） |
 
-> **watch を止めている間の変更は同期されません。** compose watch は起動後の変更しか拾わず、初期同期を行わないためです。その場合は `manage.bat build inheritance-case-management` でイメージに取り込んでください。
+> **watch を止めている間の変更は同期されません。** compose watch は起動後の変更しか拾わず、初期同期を行わないためです。その場合は `manage.sh build inheritance-case-management` でイメージに取り込んでください。
 
 ### bind mount をやめた理由
 
@@ -344,37 +333,55 @@ Docker Desktop for Windows の bind mount（Windows→WSL2）は起動直後の 
 - 再発時に静かに壊れないよう、開発モードでは `web/docker-entrypoint.sh` が `Watchpack Error (initial scan)` を検知するとコンテナを落とし、`restart: unless-stopped` で再起動します。
 - `templates/` はビルドコンテキスト（`./web`）の外にあるためイメージに焼けず、bind mount のまま残しています。Next のルートスキャン対象外なので上記の問題は起きません。
 
-## 品質チェック
+## テスト・品質チェック
 
-Dockerの一時コンテナで型チェックとlintを実行します。通常の開発コンテナはメモリ制限があるため、検査時だけNode.jsのヒープ上限を拡張します。
+`npm test` は `npm run typecheck && vitest run`。`manage.sh test` は**稼働中のコンテナの中で**回す
+（`TEST_TARGETS` の `inheritance-case-management:itcm-frontend:npm test`）。同じものが
+`.github/workflows/ci.yml` の matrix にもある（`dir: apps/inheritance-case-management/web`）。
+
+- 本番イメージには vitest が無く、`<アプリ名>-test` の使い捨てサービスも無いので、
+  **本番モードで動いている間（＝この開発 PC の通常状態）は手元では飛ばされる**。push すれば CI で回る。
+  手元で回すなら `manage.sh start inheritance-case-management` で dev へ切り替えてから
+- `docker compose run --rm itcm-web …` で回さないこと。本体のサービスは `image:` を持たないので
+  dev と本番が同じイメージ名を共有し、本番の間は runner のイメージで走る（tsc も vitest も無い）うえ、
+  dev のイメージを作り直すと次の `apply` / `recover` が本番コンテナをそれで作り直す
+
+lint などは dev で動いているコンテナの中で叩く:
 
 ```bash
-docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 itcm-web npm run typecheck
-docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 itcm-web npm run lint
-docker compose run --rm --no-deps itcm-web npx prisma validate
-docker compose run --rm --no-deps itcm-web npm run db:verify-normalization
+docker exec itcm-frontend npm run lint
+docker exec itcm-frontend npx prisma validate
+docker exec itcm-frontend npm run db:verify-normalization
 ```
 
 ## Prisma 運用ルール
 
 スキーマ変更は必ずマイグレーションファイル経由で行います。`prisma db push` は使いません。
+マイグレーションを作るのは dev のコンテナの中だけ（本番イメージに `npx prisma` は無い）。
 
 ```bash
 # 1. web/prisma/schema.prisma を変更
-# 2. コンテナ内でマイグレーション生成
-docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
+# 2. dev のコンテナ内で SQL だけ作る（--create-only は DB に適用しない）
+docker exec -it itcm-frontend npx prisma migrate dev --create-only --name <change-name>
 
-# 3. 生成されたSQLを確認
-# 4. migration ファイルをコミット
+# 3. 生成された SQL を確認して、migration ファイルをコミット
+# 4. manage.sh build で取り込む（起動時の migrate deploy が流す）
 ```
+
+`--create-only` を外した `migrate dev` は、履歴とずれていると DB のリセットを持ちかけてくる。
+顧客データの入った DB に対して叩かないこと。
 
 禁止事項:
 
 | 操作 | 理由 |
 | --- | --- |
 | `prisma db push` | マイグレーション履歴に残らず、他環境で不整合が起きる |
+| `prisma migrate reset` | DB の中身が全部消える |
 | 適用済み migration の削除 | 本番/共有環境の履歴と合わなくなる |
 | 生成後 migration SQL の不用意な手編集 | checksum 不一致の原因になる |
+
+DB は空のボリュームを `POSTGRES_INITDB_ARGS` で照合順序 `C` に初期化する。既存のボリュームを移すのは
+`manage.sh collation inheritance-case-management --yes`（手順書は `docker/COLLATION-MIGRATION.md`。この開発 PC は移行済み）。
 
 ## 日付の扱い
 
@@ -398,15 +405,21 @@ docker exec -it itcm-frontend npx prisma migrate dev --name <change-name>
 | `/itcm/api/cases/[id]` | 案件詳細、更新、削除 |
 | `/itcm/api/cases/bulk-upsert` | CSV取込用の一括作成/更新 |
 | `/itcm/api/cases/bulk-delete` | フィルター条件に一致する案件の一括削除 |
+| `GET /itcm/api/cases/duplicates` | 被相続人の氏名・フリガナで既存案件を照合（上位10件と総数） |
+| `GET /itcm/api/cases/kpi` | 一覧の KPI カード |
+| `GET /itcm/api/cases/analytics` | 経営分析の集計 |
+| `GET /itcm/api/audit-logs/[id]` | 案件の監査ログ |
 | `/itcm/api/assignees` | 担当者 |
 | `/itcm/api/departments` | 部署 |
 | `/itcm/api/companies` | 会社 |
+| `POST /itcm/api/companies/merge` | 会社のマージ |
 | `/itcm/api/company-branches` | 会社支店 |
 | `/itcm/api/referrers` | 社外紹介者 |
-| `/itcm/api/heir-persons` | 相続人マスタ |
+| `/itcm/api/heir-persons` | 相続人マスタ（`[id]/cases` で紐付いた案件） |
 | `/itcm/api/related-party-persons` | 関係者マスタ |
 | `/itcm/api/backup` | JSONバックアップ |
 | `/itcm/api/backup/restore` | JSONリストア |
+| `GET /itcm/api/templates` | テンプレートの有無と中身（`type=estimate` / `invoice` / `invoice-request`） |
 | `/itcm/api/templates/generate` | 帳票生成 |
 
 ## データモデル概要
