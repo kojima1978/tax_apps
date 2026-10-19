@@ -70,7 +70,7 @@ app/
 | 減価償却ツール | /depreciation-calc/ | 耐用年数・簿価・期間償却を計算 |
 | 減価償却資産評価 | /asset-valuation/ | 相続税の減価償却資産を一括評価 |
 | 株式評価明細書 | /stock-valuation-form/ | 取引相場のない株式の評価明細書 |
-| 相続税の申告書 | /inheritance-tax-form/ | 相続税の申告書（全24様式）の作成・印刷 |
+| 相続税の申告書 | /inheritance-tax-form/ | 第1表・第1表（続）の作成・印刷 |
 | 資産・負債管理（PB） | /private-banking/ | 個人・ファミリーのB/Sを時価・流動性別に管理 |
 | 保険管理 | /insurance/ | 保険証券の管理・分析 |
 | 預貯金分析 | /bank-analyzer/ | 預金移動の分析ツール |
