@@ -610,9 +610,28 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
    台帳に無い人を足すための「＋ 新しい担当者」だけ下に添える。 */
 .staff-field { min-width: 0; }
 .staff-field > label { display: block; color: var(--slate-700); font-size: 12px; font-weight: 700; }
-.staff-field select { width: 100%; min-height: 44px; margin-top: 5px; padding: 9px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 14px; }
+.staff-combobox { position: relative; min-width: 0; }
+.staff-field .staff-combobox { margin-top: 5px; }
+.staff-combobox-input { position: relative; }
+.staff-combobox-input > svg { position: absolute; top: 50%; left: 11px; z-index: 1; width: 16px; height: 16px; color: var(--slate-500); transform: translateY(-50%); pointer-events: none; }
+.staff-combobox-input > svg:last-child { right: 11px; left: auto; }
+.staff-combobox-input input { width: 100%; min-height: 44px; margin: 0; padding: 9px 38px 9px 35px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 14px; }
+.staff-combobox-input input:focus { outline: 3px solid #bbf7d0; border-color: #22a854; }
+.staff-combobox-clear { position: absolute; top: 50%; right: 5px; z-index: 2; width: 34px; height: 34px; padding: 0; color: var(--slate-500); background: transparent; border: 0; border-radius: 5px; display: grid; place-items: center; transform: translateY(-50%); cursor: pointer; }
+.staff-combobox-clear:hover { color: var(--slate-950); background: #eef5f0; }
+.staff-combobox-clear:focus-visible { outline: 3px solid #86efac; }
+.staff-combobox-clear svg { width: 16px; height: 16px; }
+.staff-combobox-options { position: absolute; top: calc(100% + 4px); right: 0; left: 0; z-index: 30; max-height: 270px; padding: 5px; overflow-y: auto; background: #fff; border: 1px solid #a9bbb0; border-radius: 7px; box-shadow: 0 12px 28px #172b3a26; }
+.staff-combobox-option { width: 100%; min-height: 44px; padding: 7px 9px; color: var(--slate-950); background: transparent; border: 0; border-radius: 5px; text-align: left; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
+.staff-combobox-option strong { font-size: 13px; }
+.staff-combobox-option span { margin-top: 2px; color: var(--slate-600); font-size: 10px; }
+.staff-combobox-option:hover, .staff-combobox-option.is-active { background: #edf7f0; }
+.staff-combobox-option[aria-selected="true"] { box-shadow: inset 3px 0 #168642; }
+.staff-combobox-option.is-empty { color: var(--slate-600); font-size: 12px; }
+.staff-combobox-empty { margin: 0; padding: 12px 9px; color: var(--slate-500); font-size: 11px; }
 .person-form-grid .staff-field > label { font-size: 11px; font-weight: 800; }
-.person-form-grid .staff-field select { margin-top: 7px; }
+.person-form-grid .staff-field .staff-combobox { margin-top: 7px; }
+.person-form-grid .staff-combobox-input input { margin-top: 0; padding: 9px 38px 9px 35px; }
 .staff-field-add-button { min-height: 32px; padding: 0 4px; font-size: 11px; }
 .staff-field-add-button svg { width: 14px; height: 14px; }
 .staff-field-add { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -624,7 +643,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 
 /* 担当者の台帳（`/staff`）。顧客一覧の「担当者」から画面として開く。
    行ごとのインライン編集と削除の確認を持つので、幅は読める範囲で止めて中央には寄せない。 */
-.staff-panel { margin-top: 14px; max-width: 860px; }
+.staff-panel { margin-top: 14px; max-width: 1160px; }
 .staff-panel .panel-header { min-height: 0; }
 .staff-panel .panel-header p { max-width: 68ch; margin-top: 4px; line-height: 1.7; }
 .staff-panel-body { padding: 22px; }
@@ -633,12 +652,20 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-new-form > div { min-width: 0; flex: 1 1 160px; }
 .staff-new-form label { display: block; margin-bottom: 5px; color: var(--slate-700); font-size: 11px; font-weight: 800; }
 .staff-new-form input { width: 100%; min-height: 44px; padding: 9px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 14px; }
+.staff-list-toolbar { margin-bottom: 14px; padding: 12px; background: #f7faf8; border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: minmax(240px, 1fr) 150px auto; align-items: end; gap: 10px; }
+.staff-list-toolbar label > span { display: block; margin-bottom: 5px; color: var(--slate-700); font-size: 11px; font-weight: 800; }
+.staff-list-toolbar select, .staff-list-toolbar input { width: 100%; min-height: 42px; padding: 8px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
+.staff-list-search > div { position: relative; }
+.staff-list-search svg { position: absolute; top: 50%; left: 10px; width: 16px; height: 16px; color: var(--slate-500); transform: translateY(-50%); pointer-events: none; }
+.staff-list-search input { padding-left: 34px; }
+.staff-list-toolbar p { margin: 0 0 12px; color: var(--slate-600); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .staff-loading, .staff-empty { margin: 0; padding: 24px 0; color: var(--slate-500); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; font-weight: 700; }
 .staff-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .staff-row { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .staff-row.is-retired { background: #f8fafc; }
-.staff-row-fields { min-width: 0; flex: 1 1 260px; display: flex; gap: 8px; }
-.staff-row-fields input { min-width: 0; flex: 1 1 50%; min-height: 40px; padding: 7px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
+.staff-row-fields { min-width: 0; flex: 1 1 640px; display: grid; grid-template-columns: 110px minmax(150px, 1.1fr) minmax(130px, 1fr) minmax(140px, 1fr); gap: 8px; }
+.staff-row-fields input { min-width: 0; width: 100%; min-height: 40px; padding: 7px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
+.staff-row-fields .staff-code-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
 .staff-row-meta { color: var(--slate-500); font-size: 11px; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 .staff-retired-tag { padding: 0 6px; color: #fff; background: var(--slate-500); border-radius: 999px; font-size: 10px; font-weight: 800; line-height: 1.6; }
 .staff-row-actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
@@ -646,6 +673,11 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-row-actions .text-button { min-height: 36px; padding: 0 8px; font-size: 12px; }
 .staff-row-actions svg { width: 15px; height: 15px; }
 .staff-row-confirm { color: var(--danger); font-size: 11px; font-weight: 800; }
+.staff-history { max-width: 920px; margin-top: 18px; padding: 16px; }
+.staff-history summary { min-height: 28px; cursor: pointer; font-weight: 700; }
+.staff-history p { margin-bottom: 0; font-size: 12px; }
+.staff-history table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 12px; }
+.staff-history th, .staff-history td { padding: 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
 .text-button.danger-text-button { color: var(--danger); }
 .text-button.danger-text-button:hover { color: #852f2b; }
 .text-button.danger-text-button:disabled { color: #b98d8a; }
@@ -1107,6 +1139,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .client-switcher-trigger strong { font-size: 13px; }
   .backdrop { display: block; position: fixed; inset: 0; z-index: 20; border: 0; background: #07172366; }
   .content { padding: 26px 20px; }
+  .staff-list-toolbar { grid-template-columns: 1fr; align-items: stretch; }
+  .staff-list-toolbar p { margin: 0; }
+  .staff-row-fields { grid-template-columns: 1fr 1fr; }
   .position-section .panel-header { align-items: flex-start; flex-direction: column; gap: 12px; }
   .position-table-tools { width: 100%; }
   .position-table-tools label { flex: 1 1 0; }
@@ -1137,6 +1172,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .top-actions .button { padding: 0 12px; }
   .page-heading { align-items: flex-start; flex-direction: column; }
   .page-heading-actions { width: 100%; margin-left: 0; justify-content: flex-start; }
+  .staff-panel-body { padding: 16px; }
+  .staff-row-fields { grid-template-columns: 1fr; }
+  .staff-combobox-input input, .staff-list-toolbar input, .staff-list-toolbar select, .staff-row-fields input { font-size: 16px; }
   .person-form { padding: 18px 16px; }
   .person-form-grid { grid-template-columns: 1fr; gap: 16px; }
   .person-form-grid input { font-size: 16px; }
@@ -1517,8 +1555,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-summary-table thead th > span { display: block; margin-top: 2px; color: var(--slate-600); font-size: 9px; font-weight: 600; }
 .position-summary-table thead th > .position-summary-heading-main { margin-top: 0; color: inherit; font-size: inherit; font-weight: inherit; }
 .position-summary-table .position-summary-action-column { min-width: 60px; width: 60px; }
-.position-summary-table tbody { cursor: pointer; }
-.position-summary-table tbody:hover tr > * { background-color: #f0fdf4; }
+.position-summary-table tbody { cursor: default; }
 .position-summary-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .position-summary-table .position-summary-sticky-number { position: sticky; left: 0; z-index: 2; min-width: 44px; width: 44px; max-width: 44px; background: #fff; text-align: right; font-variant-numeric: tabular-nums; }
 .position-summary-table .position-summary-sticky-section { position: sticky; left: 44px; z-index: 2; min-width: 72px; width: 72px; background: #fff; }
@@ -1557,6 +1594,16 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-summary-name { color: inherit; text-decoration: none; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .position-summary-name span { color: var(--slate-600); font-size: 10px; flex-shrink: 0; }
 .position-summary-name strong { overflow: hidden; text-overflow: ellipsis; }
+.position-summary-table .position-summary-detail-target, .position-summary-table .position-summary-allocation-target { padding: 0; transition: background-color .2s; }
+.position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { width: 100%; min-height: 42px; padding: 9px 11px; color: inherit; background: transparent; border: 0; border-radius: 0; display: flex; align-items: center; font: inherit; text-align: inherit; text-decoration: none; }
+.position-summary-table .number > .position-summary-cell-link, .position-summary-table .number > .position-summary-allocation-button { justify-content: flex-end; }
+.position-summary-table .center > .position-summary-cell-link, .position-summary-table .center > .position-summary-allocation-button { justify-content: center; }
+.position-summary-allocation-button { cursor: pointer; }
+.position-summary-primary-row > [rowspan].position-summary-detail-target > .position-summary-cell-link, .position-summary-primary-row > [rowspan].position-summary-allocation-target > .position-summary-allocation-button { min-height: 86px; }
+.position-summary-detail-target:hover { background-color: #f0fdf4 !important; }
+.position-summary-allocation-target:hover { background-color: #eff6ff !important; }
+.position-summary-cell-link:focus-visible, .position-summary-allocation-button:focus-visible { position: relative; z-index: 1; outline: 3px solid #86efac; outline-offset: -3px; }
+.position-summary-allocation-button:focus-visible { outline-color: #93c5fd; }
 .position-summary-open { color: #166534; text-underline-offset: 3px; }
 .position-summary-panel { overflow: hidden; }
 .allocation-editor-hidden, .allocation-view-hidden { display: none; }
@@ -1756,6 +1803,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-summary-secondary-row > .position-summary-tax-amount, .position-summary-secondary-row > .position-summary-person-tax { font-size: 7px; }
   /* 見出しの方は本文より小さく。画面の 8px をそのまま持ち込むと紙では値より大きくなる。 */
   .position-summary-secondary-label { font-size: 6px; }
+  .position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { min-height: 0; padding: 0; }
   .position-summary-name { display: block; }
   .position-summary-name span { display: block; }
   .position-summary-table tbody { break-inside: avoid; page-break-inside: avoid; }

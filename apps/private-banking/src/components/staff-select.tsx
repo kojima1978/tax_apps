@@ -2,8 +2,9 @@
 
 import { LoaderCircle, Plus } from "lucide-react";
 import { type KeyboardEvent, useEffect, useState } from "react";
+import { StaffCombobox } from "@/components/staff-combobox";
 import { API_BASE } from "@/lib/api";
-import { type Staff, staffOptionLabel, staffOptions } from "@/lib/staff";
+import { type Staff, staffOptions } from "@/lib/staff";
 
 /**
  * 顧客の担当者を台帳から選ぶ欄。新規登録フォームと本人情報の欄で共用する。
@@ -20,6 +21,7 @@ export function StaffSelect({ id = "staff-select", defaultValue, defaultLabel = 
   const [staff, setStaff] = useState<Staff[] | null>(null);
   const [selected, setSelected] = useState(defaultValue === null ? "" : String(defaultValue));
   const [adding, setAdding] = useState(false);
+  const [staffCode, setStaffCode] = useState("");
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -46,24 +48,26 @@ export function StaffSelect({ id = "staff-select", defaultValue, defaultLabel = 
   // 取得前の仮の候補。名前が分からなければ id だけを持たせて、値を落とさないことだけを優先する。
   const loadingOption: Staff | null = defaultValue === null
     ? null
-    : { id: defaultValue, name: defaultLabel || "登録済みの担当者", nameKana: "", isActive: true, clientCount: 0 };
+    : { id: defaultValue, staffCode: "", name: defaultLabel || "登録済みの担当者", nameKana: "", department: "", isActive: true, clientCount: 0 };
   const options = staff === null ? (loadingOption ? [loadingOption] : []) : staffOptions(staff, selectedId);
 
   async function addStaff() {
     const trimmed = name.trim();
-    if (trimmed === "" || saving) return;
+    const normalizedCode = staffCode.trim().toUpperCase();
+    if (trimmed === "" || normalizedCode === "" || saving) return;
     setSaving(true);
     setError("");
     try {
       const response = await fetch(`${API_BASE}/staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmed }),
+        body: JSON.stringify({ staffCode: normalizedCode, name: trimmed }),
       });
       const result = await response.json().catch(() => null) as (Staff & { error?: string }) | null;
       if (!response.ok || !result) throw new Error(result?.error ?? "担当者を登録できませんでした。");
       setStaff((current) => [...(current ?? []), result]);
       setSelected(String(result.id));
+      setStaffCode("");
       setName("");
       setAdding(false);
     } catch (caught) {
@@ -76,31 +80,39 @@ export function StaffSelect({ id = "staff-select", defaultValue, defaultLabel = 
   // この欄は顧客のフォームの中にあるので、Enter で外側のフォームが送信されないように止める。
   function handleAddKeys(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") { event.preventDefault(); void addStaff(); return; }
-    if (event.key === "Escape") { event.preventDefault(); setAdding(false); setName(""); }
+    if (event.key === "Escape") { event.preventDefault(); setAdding(false); setStaffCode(""); setName(""); }
   }
 
   return <div className="staff-field">
     <label htmlFor={id}>担当者</label>
-    <select id={id} name="staffId" value={selected} onChange={(event) => setSelected(event.target.value)}>
-      <option value="">未設定</option>
-      {options.map((row) => <option key={row.id} value={row.id}>{staffOptionLabel(row)}</option>)}
-    </select>
+    <StaffCombobox id={id} name="staffId" staff={options} value={selected} onChange={setSelected} />
     {adding
       ? <div className="staff-field-add">
+          <label className="sr-only" htmlFor={`${id}-new-code`}>新しい担当者のコード</label>
+          <input
+            id={`${id}-new-code`}
+            value={staffCode}
+            maxLength={30}
+            autoFocus
+            autoComplete="off"
+            placeholder="担当者コード（例：T001）"
+            onChange={(event) => setStaffCode(event.target.value)}
+            onKeyDown={handleAddKeys}
+            disabled={saving}
+          />
           <label className="sr-only" htmlFor={`${id}-new`}>新しい担当者の名前</label>
           <input
             id={`${id}-new`}
             value={name}
             maxLength={100}
-            autoFocus
             autoComplete="off"
             placeholder="例：佐藤税理士"
             onChange={(event) => setName(event.target.value)}
             onKeyDown={handleAddKeys}
             disabled={saving}
           />
-          <button type="button" className="button secondary" onClick={() => { void addStaff(); }} disabled={saving || name.trim() === ""}>{saving ? <LoaderCircle className="spin" /> : null}登録</button>
-          <button type="button" className="text-button" onClick={() => { setAdding(false); setName(""); setError(""); }} disabled={saving}>やめる</button>
+          <button type="button" className="button secondary" onClick={() => { void addStaff(); }} disabled={saving || staffCode.trim() === "" || name.trim() === ""}>{saving ? <LoaderCircle className="spin" /> : null}登録</button>
+          <button type="button" className="text-button" onClick={() => { setAdding(false); setStaffCode(""); setName(""); setError(""); }} disabled={saving}>やめる</button>
         </div>
       : <button type="button" className="text-button staff-field-add-button" onClick={() => { setAdding(true); setError(""); }}><Plus />新しい担当者</button>}
     {error ? <small className="staff-field-note is-error" role="alert">{error}</small> : null}

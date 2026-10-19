@@ -21,6 +21,8 @@ type BackupPreview = {
   positions: number;
   planningScenarios: number;
   activityLogs: number;
+  staff: number;
+  staffAssignments: number;
 };
 type SelectedFile = { fileName: string; payload: unknown; preview: BackupPreview };
 
@@ -49,13 +51,13 @@ function backupTimestamp(value: string | null) {
 }
 
 function previewContents(preview: BackupPreview) {
-  return `顧客${preview.households}件 / 年度${preview.snapshots}件 / 明細${preview.positions}件 / シナリオ${preview.planningScenarios}件 / 操作履歴${preview.activityLogs}件`;
+  return `顧客${preview.households}件 / 年度${preview.snapshots}件 / 明細${preview.positions}件 / 担当者${preview.staff}件 / 担当履歴${preview.staffAssignments}件 / シナリオ${preview.planningScenarios}件 / 操作履歴${preview.activityLogs}件`;
 }
 
 function readBackupPreview(payload: unknown): BackupPreview {
   if (payload === null || typeof payload !== "object") throw new Error("バックアップファイルとして読み込めませんでした。");
   const backup = payload as Record<string, unknown>;
-  if (backup.schemaVersion !== 1) throw new Error("このアプリのバックアップファイルではありません。");
+  if (backup.schemaVersion !== 1 && backup.schemaVersion !== 2) throw new Error("このアプリのバックアップファイルではありません。");
   const exportedAt = typeof backup.exportedAt === "string" ? backup.exportedAt : null;
 
   if (backup.kind === "full") {
@@ -65,6 +67,8 @@ function readBackupPreview(payload: unknown): BackupPreview {
     const planningScenarios = data?.planningScenarios, activityLogs = data?.activityLogs;
     if (planningScenarios !== undefined && !Array.isArray(planningScenarios)) throw new Error("全体バックアップのシナリオが壊れています。");
     if (activityLogs !== undefined && !Array.isArray(activityLogs)) throw new Error("全体バックアップの操作履歴が壊れています。");
+    if (data?.staff !== undefined && !Array.isArray(data.staff)) throw new Error("担当者台帳が壊れています。");
+    if (data?.staffAssignments !== undefined && !Array.isArray(data.staffAssignments)) throw new Error("担当履歴が壊れています。");
     return {
       kind: "full",
       exportedAt,
@@ -74,6 +78,8 @@ function readBackupPreview(payload: unknown): BackupPreview {
       positions: positions.length,
       planningScenarios: planningScenarios?.length ?? 0,
       activityLogs: activityLogs?.length ?? 0,
+      staff: Array.isArray(data?.staff) ? data.staff.length : 0,
+      staffAssignments: Array.isArray(data?.staffAssignments) ? data.staffAssignments.length : 0,
     };
   }
 
@@ -88,6 +94,7 @@ function readBackupPreview(payload: unknown): BackupPreview {
     const planningScenarios = backup.planningScenarios, activityLogs = backup.activityLogs;
     if (planningScenarios !== undefined && !Array.isArray(planningScenarios)) throw new Error("顧客データのシナリオが壊れています。");
     if (activityLogs !== undefined && !Array.isArray(activityLogs)) throw new Error("顧客データの操作履歴が壊れています。");
+    if (backup.staffAssignments !== undefined && !Array.isArray(backup.staffAssignments)) throw new Error("担当履歴が壊れています。");
     return {
       kind: "household",
       exportedAt,
@@ -97,6 +104,8 @@ function readBackupPreview(payload: unknown): BackupPreview {
       positions,
       planningScenarios: planningScenarios?.length ?? 0,
       activityLogs: activityLogs?.length ?? 0,
+      staff: household.assignedStaffCode || household.assignedStaff ? 1 : 0,
+      staffAssignments: Array.isArray(backup.staffAssignments) ? backup.staffAssignments.length : 0,
     };
   }
 
@@ -231,6 +240,7 @@ export function RestoreView() {
         <div className="backup-body">
           <RestoreSlot expected="full" />
           <p className="backup-note" role="note"><AlertTriangle />全体バックアップの復元は<strong>現在のすべての顧客データを削除して置き換えます</strong>。実行前に現在のデータを書き出しておいてください。</p>
+          <p className="backup-note">担当者台帳はコードで照合し、ファイル内の氏名・部署・在籍状態へ復元します。ファイルにない担当者は保持します。</p>
         </div>
       </article>
     </div>

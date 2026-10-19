@@ -1,10 +1,11 @@
 "use client";
 
-import { AlertTriangle, LoaderCircle, Plus, Trash2, UserCog } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { AlertTriangle, LoaderCircle, Plus, Search, Trash2, UserCog } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { BackToClientList } from "@/components/back-to-client-list";
 import { PanelHeader } from "@/components/panel-header";
 import { API_BASE } from "@/lib/api";
+import { matchesSearchTerms, searchTerms } from "@/lib/clients";
 import type { Staff } from "@/lib/staff";
 
 async function requestStaff<T>(method: string, body: unknown, fallback: string): Promise<T> {
@@ -35,6 +36,8 @@ export function StaffView() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<"all" | "active" | "retired">("active");
 
   const load = useCallback(async () => {
     try {
@@ -50,6 +53,12 @@ export function StaffView() {
   // 初回の取得だけ。以降は操作のたびに取り直す（担当件数も同時に更新されるため）。
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
+
+  const visibleStaff = useMemo(() => {
+    const terms = searchTerms(query);
+    return (staff ?? []).filter((row) => (status === "all" || (status === "active" ? row.isActive : !row.isActive))
+      && matchesSearchTerms([row.staffCode, row.name, row.nameKana, row.department], terms));
+  }, [staff, query, status]);
 
   /**
    * 操作の共通部分。成功したら一覧を取り直す。
@@ -77,12 +86,12 @@ export function StaffView() {
   function addStaff(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const fields = Object.fromEntries(new FormData(form).entries()) as { name: string; nameKana: string };
-    if (fields.name.trim() === "") return;
+    const fields = Object.fromEntries(new FormData(form).entries()) as { staffCode: string; name: string; nameKana: string; department: string };
+    if (fields.staffCode.trim() === "" || fields.name.trim() === "") return;
     void run(async () => {
       const created = await requestStaff<Staff>("POST", fields, "担当者を登録できませんでした。");
       form.reset();
-      form.querySelector<HTMLInputElement>("#staff-new-name")?.focus();
+      form.querySelector<HTMLInputElement>("#staff-new-code")?.focus();
       return `${created.name}を登録しました。`;
     });
   }
@@ -99,6 +108,10 @@ export function StaffView() {
       <div className="staff-panel-body">
         <form className="staff-new-form" onSubmit={addStaff}>
           <div>
+            <label htmlFor="staff-new-code">担当者コード<span className="required-mark">必須</span></label>
+            <input id="staff-new-code" name="staffCode" required maxLength={30} pattern="(?:[A-Za-z0-9_]|-)+" autoComplete="off" placeholder="例：T001" disabled={busy} />
+          </div>
+          <div>
             <label htmlFor="staff-new-name">担当者名<span className="required-mark">必須</span></label>
             <input id="staff-new-name" name="name" required maxLength={100} autoComplete="off" placeholder="例：佐藤税理士" disabled={busy} />
           </div>
@@ -106,26 +119,38 @@ export function StaffView() {
             <label htmlFor="staff-new-kana">カナ</label>
             <input id="staff-new-kana" name="nameKana" maxLength={100} autoComplete="off" placeholder="例：サトウ" disabled={busy} />
           </div>
+          <div>
+            <label htmlFor="staff-new-department">部署・拠点</label>
+            <input id="staff-new-department" name="department" maxLength={100} autoComplete="off" placeholder="例：東京支店" disabled={busy} />
+          </div>
           <button type="submit" className="button primary" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : <Plus />}追加</button>
         </form>
+
+        <div className="staff-list-toolbar">
+          <label className="staff-list-search"><span>検索</span><div><Search aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="氏名・カナ・コード・部署" /></div></label>
+          <label><span>在籍状態</span><select value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="active">在籍</option><option value="retired">退職</option><option value="all">すべて</option></select></label>
+          <p aria-live="polite">{visibleStaff.length}件（全{staff?.length ?? 0}件中）</p>
+        </div>
 
         {staff === null
           ? <p className="staff-loading"><LoaderCircle className="spin" />読み込んでいます</p>
           : staff.length === 0
             ? <p className="staff-empty"><UserCog />担当者がまだ登録されていません。</p>
-            : <ul className="staff-list">
-                {staff.map((row) => <StaffRow
+            : visibleStaff.length === 0
+              ? <p className="staff-empty"><UserCog />条件に一致する担当者がいません。</p>
+              : <ul className="staff-list">
+                {visibleStaff.map((row) => <StaffRow
                   // 保存でサーバー側の値が変わったら行を作り直す（入力中の下書きを残さない）。
-                  key={`${row.id}:${row.name}:${row.nameKana}`}
+                  key={`${row.id}:${row.staffCode}:${row.name}:${row.nameKana}:${row.department}`}
                   row={row}
                   busy={busy}
                   confirming={confirmingId === row.id}
-                  onSave={(name, nameKana) => void run(async () => {
-                    const saved = await requestStaff<Staff>("PATCH", { id: row.id, name, nameKana, isActive: row.isActive }, "担当者を更新できませんでした。");
+                  onSave={(staffCode, name, nameKana, department) => void run(async () => {
+                    const saved = await requestStaff<Staff>("PATCH", { id: row.id, staffCode, name, nameKana, department, isActive: row.isActive }, "担当者を更新できませんでした。");
                     return `${saved.name}を保存しました。`;
                   })}
                   onToggleActive={() => void run(async () => {
-                    await requestStaff<Staff>("PATCH", { id: row.id, name: row.name, nameKana: row.nameKana, isActive: !row.isActive }, "担当者を更新できませんでした。");
+                    await requestStaff<Staff>("PATCH", { id: row.id, staffCode: row.staffCode, name: row.name, nameKana: row.nameKana, department: row.department, isActive: !row.isActive }, "担当者を更新できませんでした。");
                     return row.isActive ? `${row.name}を退職にしました。以降は候補に出ません。` : `${row.name}を在籍に戻しました。`;
                   })}
                   onRequestDelete={() => { setError(""); setNotice(""); setConfirmingId(row.id); }}
@@ -145,22 +170,28 @@ function StaffRow({ row, busy, confirming, onSave, onToggleActive, onRequestDele
   row: Staff;
   busy: boolean;
   confirming: boolean;
-  onSave: (name: string, nameKana: string) => void;
+  onSave: (staffCode: string, name: string, nameKana: string, department: string) => void;
   onToggleActive: () => void;
   onRequestDelete: () => void;
   onCancelDelete: () => void;
   onDelete: () => void;
 }) {
+  const [staffCode, setStaffCode] = useState(row.staffCode);
   const [name, setName] = useState(row.name);
   const [nameKana, setNameKana] = useState(row.nameKana);
-  const dirty = name.trim() !== row.name || nameKana.trim() !== row.nameKana;
+  const [department, setDepartment] = useState(row.department);
+  const dirty = staffCode.trim().toUpperCase() !== row.staffCode || name.trim() !== row.name || nameKana.trim() !== row.nameKana || department.trim() !== row.department;
 
   return <li className={`staff-row${row.isActive ? "" : " is-retired"}`}>
     <div className="staff-row-fields">
+      <label className="sr-only" htmlFor={`staff-code-${row.id}`}>{row.name}の担当者コード</label>
+      <input id={`staff-code-${row.id}`} className="staff-code-input" value={staffCode} maxLength={30} pattern="(?:[A-Za-z0-9_]|-)+" autoComplete="off" onChange={(event) => setStaffCode(event.target.value)} disabled={busy} />
       <label className="sr-only" htmlFor={`staff-name-${row.id}`}>{row.name}の担当者名</label>
       <input id={`staff-name-${row.id}`} value={name} maxLength={100} autoComplete="off" onChange={(event) => setName(event.target.value)} disabled={busy} />
       <label className="sr-only" htmlFor={`staff-kana-${row.id}`}>{row.name}のカナ</label>
       <input id={`staff-kana-${row.id}`} value={nameKana} maxLength={100} autoComplete="off" placeholder="カナ" onChange={(event) => setNameKana(event.target.value)} disabled={busy} />
+      <label className="sr-only" htmlFor={`staff-department-${row.id}`}>{row.name}の部署・拠点</label>
+      <input id={`staff-department-${row.id}`} value={department} maxLength={100} autoComplete="off" placeholder="部署・拠点" onChange={(event) => setDepartment(event.target.value)} disabled={busy} />
     </div>
     <span className="staff-row-meta">
       {row.isActive ? null : <span className="staff-retired-tag">退職</span>}
@@ -174,7 +205,7 @@ function StaffRow({ row, busy, confirming, onSave, onToggleActive, onRequestDele
           <button type="button" className="text-button" onClick={onCancelDelete} disabled={busy}>やめる</button>
         </div>
       : <div className="staff-row-actions">
-          {dirty ? <button type="button" className="button secondary" onClick={() => onSave(name.trim(), nameKana.trim())} disabled={busy || name.trim() === ""}>保存</button> : null}
+          {dirty ? <button type="button" className="button secondary" onClick={() => onSave(staffCode.trim().toUpperCase(), name.trim(), nameKana.trim(), department.trim())} disabled={busy || staffCode.trim() === "" || name.trim() === ""}>保存</button> : null}
           <button type="button" className="text-button" onClick={onToggleActive} disabled={busy}>{row.isActive ? "退職にする" : "在籍に戻す"}</button>
           <button type="button" className="text-button danger-text-button" onClick={onRequestDelete} disabled={busy}><Trash2 />削除</button>
         </div>}

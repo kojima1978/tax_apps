@@ -3,6 +3,8 @@ import { type Staff, staffOptionLabel, staffOptions } from "@/lib/staff";
 
 const staff = (overrides: Partial<Staff> = {}): Staff => ({
   id: 1,
+  staffCode: "T001",
+  department: "東京",
   name: "佐藤税理士",
   nameKana: "サトウ",
   isActive: true,
@@ -25,7 +27,7 @@ describe("staffOptions", () => {
 
 describe("staffOptionLabel", () => {
   it("退職した担当者はそれと分かる形で出す", () => {
-    expect(staffOptionLabel(staff())).toBe("佐藤税理士");
-    expect(staffOptionLabel(staff({ name: "高橋", isActive: false }))).toBe("高橋（退職）");
+    expect(staffOptionLabel(staff())).toBe("佐藤税理士（T001・東京）");
+    expect(staffOptionLabel(staff({ name: "高橋", isActive: false }))).toBe("高橋（T001・東京）（退職）");
   });
 });

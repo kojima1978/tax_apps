@@ -12,8 +12,8 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   rows = [
-    { id: 1, name: "佐藤税理士", nameKana: "サトウ", isActive: true, clientCount: 2 },
-    { id: 2, name: "高橋", nameKana: "タカハシ", isActive: false, clientCount: 0 },
+    { id: 1, staffCode: "T001", department: "東京", name: "佐藤税理士", nameKana: "サトウ", isActive: true, clientCount: 2 },
+    { id: 2, staffCode: "T002", department: "大阪", name: "高橋", nameKana: "タカハシ", isActive: false, clientCount: 0 },
   ];
   // API と同じ規則で動く差し替え。削除を拒む条件はサーバー側にしか無いので、ここにも写す。
   fetchMock = vi.fn(async (_url: string, init?: { method?: string; body?: string }) => {
@@ -21,7 +21,7 @@ beforeEach(() => {
     const body = init?.body ? JSON.parse(init.body) as Partial<Staff> & { id: number } : null;
     if (method === "GET" || !body) return response(rows);
     if (method === "POST") {
-      const created: Staff = { nameKana: "", isActive: true, clientCount: 0, name: "", ...body, id: 9 };
+      const created: Staff = { staffCode: "T009", department: "", nameKana: "", isActive: true, clientCount: 0, name: "", ...body, id: 9 };
       rows = [...rows, created];
       return response(created);
     }
@@ -42,6 +42,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const open = async () => {
   render(<StaffView />);
   await screen.findByRole("textbox", { name: "佐藤税理士の担当者名" });
+  fireEvent.change(screen.getByRole("combobox", { name: "在籍状態" }), { target: { value: "all" } });
 };
 
 describe("担当者の台帳", () => {
@@ -84,11 +85,12 @@ describe("担当者の台帳", () => {
     fireEvent.change(within(row("高橋")).getByRole("textbox", { name: "高橋の担当者名" }), { target: { value: "高橋 一郎" } });
     fireEvent.click(within(row("高橋")).getByRole("button", { name: "保存" }));
     await screen.findByRole("textbox", { name: "高橋 一郎の担当者名" });
-    expect(JSON.parse(String(fetchMock.mock.calls.at(-2)?.[1].body))).toEqual({ id: 2, name: "高橋 一郎", nameKana: "タカハシ", isActive: false });
+    expect(JSON.parse(String(fetchMock.mock.calls.at(-2)?.[1].body))).toEqual({ id: 2, staffCode: "T002", department: "大阪", name: "高橋 一郎", nameKana: "タカハシ", isActive: false });
   });
 
   it("追加した担当者は一覧に並び、入力欄は次の1人のために空になる", async () => {
     await open();
+    fireEvent.change(screen.getByRole("textbox", { name: /^担当者コード/ }), { target: { value: "T003" } });
     fireEvent.change(screen.getByRole("textbox", { name: /^担当者名/ }), { target: { value: "鈴木" } });
     fireEvent.change(screen.getByLabelText("カナ"), { target: { value: "スズキ" } });
     fireEvent.click(screen.getByRole("button", { name: "追加" }));
@@ -103,5 +105,14 @@ describe("担当者の台帳", () => {
   it("閉じるボタンを持たない", async () => {
     await open();
     expect(screen.queryByRole("button", { name: "閉じる" })).toBeNull();
+  });
+
+  it("コード・カナ・部署で検索し、在籍状態で絞り込める", async () => {
+    await open();
+    fireEvent.change(screen.getByRole("searchbox", { name: "検索" }), { target: { value: "大阪 T002" } });
+    expect(screen.queryByRole("textbox", { name: "佐藤税理士の担当者名" })).toBeNull();
+    expect(row("高橋")).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "在籍状態" }), { target: { value: "active" } });
+    expect(screen.getByText("条件に一致する担当者がいません。")).toBeTruthy();
   });
 });

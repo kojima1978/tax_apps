@@ -4,6 +4,7 @@ import { CalendarDays, CircleCheck, CircleUserRound, LoaderCircle, Save, Trash2 
 import type { FormEvent } from "react";
 import { DateInput } from "@/components/date-input";
 import { StaffSelect } from "@/components/staff-select";
+import { StaffHistory } from "@/components/staff-history";
 import { ageOnDate } from "@/lib/family";
 import { dateJaWithWareki } from "@/lib/format";
 import type { Portfolio } from "@/lib/portfolio-view";
@@ -67,5 +68,6 @@ export function PersonView({
         </footer>
       </form>
     </section>
+    <StaffHistory householdId={household.id} staffId={household.staffId} />
   </>;
 }

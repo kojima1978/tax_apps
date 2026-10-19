@@ -30,6 +30,7 @@ model Household {
   familyMembers           FamilyMember[]
   snapshots               Snapshot[]
   activityLogs            ActivityLog[]
+  staffAssignments        StaffAssignment[]
   planningScenarios       PlanningScenario[]
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
@@ -73,16 +74,38 @@ model PlanningScenario {
   @@index([householdId, updatedAt])
 }
 
-/// 担当者の台帳。名前を一意にして登録揺れ（「佐藤」と「佐藤税理士」）を止める。
+/// 担当者の台帳。氏名は同姓同名を許し、業務用の担当者コードで一意に識別する。
 model Staff {
-  id         Int         @id @default(autoincrement())
-  name       String      @unique
-  nameKana   String      @default("")
+  id          Int         @id @default(autoincrement())
+  staffCode   String      @unique
+  name        String
+  nameKana    String      @default("")
+  department  String      @default("")
   /// 退職。候補からは外すが、担当していた顧客の表示はそのまま残す。
-  isActive   Boolean     @default(true)
-  households Household[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  isActive    Boolean     @default(true)
+  households  Household[]
+  assignments StaffAssignment[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([nameKana, name])
+}
+
+/// 顧客の担当変更履歴。コード・氏名のスナップショットを残し、担当者削除後も監査できる。
+model StaffAssignment {
+  id          Int       @id @default(autoincrement())
+  householdId Int
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  staffId     Int?
+  staff       Staff?    @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  staffCode   String
+  staffName   String
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([householdId, startedAt])
+  @@index([staffId, endedAt])
 }
 
 model FamilyMember {

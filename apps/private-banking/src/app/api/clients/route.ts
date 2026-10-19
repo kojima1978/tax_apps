@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { defaultAsOfDate, isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/lib/snapshot-date";
 import { CLIENT_QUALITY_LABELS, type ClientQualityIssue } from "@/lib/clients";
 import { writeActivityLog } from "@/lib/activity-log";
+import { changeHouseholdStaff } from "@/lib/staff-assignment";
 
 /** 顧客一覧（ClientSummary）が必要とする列。GET・POST・PATCH で同じ形を返す。 */
 const clientSummarySelect = { id: true, clientCode: true, name: true, nameKana: true, relatedCompany: true, staffId: true, staff: { select: { name: true } } } as const;
@@ -125,24 +126,27 @@ export async function POST(request: Request) {
   const asOfDate = parseDateOnlyUtc(parsed.data.asOfDate ?? defaultAsOfDate(parsed.data.fiscalYear));
   if (!asOfDate) return NextResponse.json({ error: "B/S基準日を確認してください。" }, { status: 400 });
   try {
-    const created = await prisma.household.create({
-      data: {
-        name: parsed.data.name,
-        nameKana: parsed.data.nameKana,
-        clientCode: parsed.data.clientCode.toUpperCase(),
-        staffId: parsed.data.staffId,
-        snapshots: {
-          create: {
-            label: "現在",
-            fiscalYear: parsed.data.fiscalYear,
-            asOfDate,
-            isCurrent: true,
+    const created = await prisma.$transaction(async (tx) => {
+      const household = await tx.household.create({
+        data: {
+          name: parsed.data.name,
+          nameKana: parsed.data.nameKana,
+          clientCode: parsed.data.clientCode.toUpperCase(),
+          snapshots: {
+            create: {
+              label: "現在",
+              fiscalYear: parsed.data.fiscalYear,
+              asOfDate,
+              isCurrent: true,
+            },
           },
         },
-      },
-      select: clientSummarySelect,
+        select: { id: true, name: true, clientCode: true, staffId: true },
+      });
+      if (parsed.data.staffId !== null) await changeHouseholdStaff(tx, household, parsed.data.staffId);
+      await writeActivityLog(tx, { householdId: household.id, householdName: household.name, clientCode: household.clientCode, action: "CREATE", entityType: "CLIENT", entityId: household.id, summary: "顧客を登録" });
+      return tx.household.findUniqueOrThrow({ where: { id: household.id }, select: clientSummarySelect });
     });
-    await writeActivityLog(prisma, { householdId: created.id, householdName: created.name, clientCode: created.clientCode, action: "CREATE", entityType: "CLIENT", entityId: created.id, summary: "顧客を登録" });
     return NextResponse.json({
       ...toClientSummary(created), latestFiscalYear: parsed.data.fiscalYear,
       latestAsOfDate: asOfDate.toISOString().slice(0, 10), latestUpdatedAt: new Date().toISOString(),
@@ -156,6 +160,7 @@ export async function POST(request: Request) {
       ],
     }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === "STAFF_NOT_SELECTABLE") return NextResponse.json({ error: "在籍中の担当者を選び直してください。" }, { status: 400 });
     if (typeof error === "object" && error !== null && "code" in error) {
       if (error.code === "P2002") return NextResponse.json({ error: "この顧客コードはすでに使用されています。" }, { status: 409 });
       if (error.code === "P2003") return NextResponse.json({ error: "担当者を選び直してください。" }, { status: 400 });
@@ -167,20 +172,28 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const parsed = updateClientSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "入力内容を確認してください。" }, { status: 400 });
-  const { id, birthDate, ...fields } = parsed.data;
+  const { id, birthDate, staffId, ...fields } = parsed.data;
   try {
-    const updated = await prisma.household.update({
-      where: { id },
-      data: {
-        ...fields,
-        birthDate: birthDate ? parseDateOnlyUtc(birthDate) : null,
-        clientCode: fields.clientCode.toUpperCase(),
-      },
-      select: clientSummarySelect,
+    const updated = await prisma.$transaction(async (tx) => {
+      const current = await tx.household.findUnique({ where: { id }, select: { id: true, staffId: true } });
+      if (!current) throw new Error("HOUSEHOLD_NOT_FOUND");
+      await tx.household.update({
+        where: { id },
+        data: {
+          ...fields,
+          birthDate: birthDate ? parseDateOnlyUtc(birthDate) : null,
+          clientCode: fields.clientCode.toUpperCase(),
+        },
+      });
+      await changeHouseholdStaff(tx, current, staffId);
+      const household = await tx.household.findUniqueOrThrow({ where: { id }, select: clientSummarySelect });
+      await writeActivityLog(tx, { householdId: household.id, householdName: household.name, clientCode: household.clientCode, action: "UPDATE", entityType: "CLIENT", entityId: household.id, summary: "本人情報を更新" });
+      return household;
     });
-    await writeActivityLog(prisma, { householdId: updated.id, householdName: updated.name, clientCode: updated.clientCode, action: "UPDATE", entityType: "CLIENT", entityId: updated.id, summary: "本人情報を更新" });
     return NextResponse.json(toClientSummary(updated));
   } catch (error) {
+    if (error instanceof Error && error.message === "STAFF_NOT_SELECTABLE") return NextResponse.json({ error: "在籍中の担当者を選び直してください。" }, { status: 400 });
+    if (error instanceof Error && error.message === "HOUSEHOLD_NOT_FOUND") return NextResponse.json({ error: "顧客が見つかりません。" }, { status: 404 });
     if (typeof error === "object" && error !== null && "code" in error) {
       if (error.code === "P2002") return NextResponse.json({ error: "この顧客コードはすでに使用されています。" }, { status: 409 });
       if (error.code === "P2025") return NextResponse.json({ error: "顧客が見つかりません。" }, { status: 404 });

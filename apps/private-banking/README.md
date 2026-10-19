@@ -108,7 +108,8 @@ Next の dev サーバはスキャンに失敗したディレクトリ配下の�
 - 夜間の全体バックアップ（`docker/scripts/backup.sh`）が DB を `pg_dump` し、`.env` も一緒に持つ
   （`PG_TARGETS` / `SETTINGS_TARGETS`）。戻すのは `manage.sh restore private-banking`（`docker/RESTORE.md`）
 - 画面の `/backup` / `/restore` は別の経路で、全体または1世帯を JSON で書き出し・読み込みする
-  （`schemaVersion` 1）
+  （新規出力は `schemaVersion` 2、旧1も取り込み可）。担当者はコードで識別し、担当変更履歴も保存する。
+  全体JSONには未使用・退職者も含む担当者台帳が入り、復元時はコードでマージする。
 
 ## テスト
 
@@ -120,3 +121,5 @@ Next の dev サーバはスキャンに失敗したディレクトリ配下の�
 - `package.json` を変えたら `manage.sh build private-banking`（watch の `rebuild` でも作り直される）
 - `npm run test:integration` は **実際の DB へつなぐ**（`clientCode` が `INTEGRATION-TEST` の世帯を作って消す）。
   既定の `test` では飛ばされる。顧客データの入った DB に対して叩くときはその前提で
+- `npm run test:staff-integration` は担当者コード・履歴・JSON全体復元の検証用。全体復元を含むため、
+  `DATABASE_URL` のDB名が `pb_staff_verification` の検証専用DBでのみ実行する。既定の `test` では飛ばされる。

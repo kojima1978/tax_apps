@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PositionListView } from "@/components/position-list-view";
 import { PositionDetailsView } from "@/components/position-details-view";
@@ -64,6 +64,26 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect((screen.getByRole("textbox", { name: "普通預金の長男取得額" }) as HTMLInputElement).value).toBe("25,000,000");
     fireEvent.click(screen.getByRole("button", { name: "割り振りを保存" }));
     expect(save).toHaveBeenCalledWith([{ positionId: 1, amounts: [{ familyMemberId: 10, amountJpy: 25_000_000 }, { familyMemberId: 11, amountJpy: 25_000_000 }] }]);
+  });
+
+  it("財産情報の列は詳細へ進み、相続人・未割当の列は対象行の割り振り編集を開く", async () => {
+    render(<PositionListView snapshot={{ ...snapshot, positions: [snapshot.positions[0], insurance] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+    const list = screen.getByRole("table", { name: "資産・負債一覧" });
+    const detailLinks = within(list).getAllByRole("link", { name: "普通預金の詳細を開く" });
+    expect(detailLinks.length).toBeGreaterThanOrEqual(4);
+    expect(detailLinks.every((link) => link.getAttribute("href")?.includes("/positions/deposit"))).toBe(true);
+
+    fireEvent.click(within(list).getByRole("button", { name: "普通預金の長女の取得・負担額を編集" }));
+    const input = screen.getByRole("textbox", { name: "普通預金の長女取得額" });
+    await waitFor(() => expect(document.activeElement).toBe(input));
+    expect(screen.getByRole("button", { name: "編集を終了" })).toBeTruthy();
+  });
+
+  it("生命保険・退職金の相続人列は割り振り編集ではなく受取人情報を開く", () => {
+    render(<PositionListView snapshot={{ ...snapshot, positions: [insurance] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+    const list = screen.getByRole("table", { name: "資産・負債一覧" });
+    expect(within(list).queryByRole("button", { name: /あおば生命の長女の取得・負担額を編集/ })).toBeNull();
+    expect(within(list).getAllByRole("link", { name: "あおば生命の受取人情報を開く" }).length).toBeGreaterThan(0);
   });
 
   it("入力済みの割り振りを維持して残額すべてを指定相続人へ割り振る", () => {
@@ -218,10 +238,32 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(acquisitionRow.textContent).toContain(yen.format(50));
     expect(acquisitionRow.textContent).toContain(yen.format(30));
     const taxRow = within(totals).getByRole("row", { name: /相続税額/ });
+    expect(taxRow.textContent).toContain("相続税額（割り振り反映）");
     expect(taxRow.textContent).toContain("取得・負担の登録内容で計算");
     expect(taxRow.textContent).toContain(yen.format(12));
     expect(taxRow.textContent).toContain(yen.format(7));
     expect(taxRow.textContent).toContain(yen.format(5));
+  });
+
+  it("法定相続分による概算は一覧末尾の相続税額として表示しない", () => {
+    const calculation = {
+      acquisitionAllocationMode: "LEGAL",
+      totalInheritanceTaxJpy: 12,
+      heirs: [
+        { id: "rank1-1", type: "child", finalTaxJpy: 7 },
+        { id: "rank1-2", type: "child", finalTaxJpy: 5 },
+      ],
+    } as Snapshot["inheritanceTaxCalculation"];
+    render(<PositionListView snapshot={{ ...snapshot, inheritanceTaxCalculation: calculation }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+
+    const list = screen.getByRole("table", { name: "資産・負債一覧" });
+    const totals = list.querySelector(".position-summary-totals") as HTMLElement;
+    const taxRow = within(totals).getByRole("row", { name: /相続税額/ });
+    expect(taxRow.textContent).toContain("相続税額（未確定）");
+    expect(taxRow.textContent).toContain("割り振り完了後に再計算");
+    expect(taxRow.textContent).not.toContain(yen.format(12));
+    expect(taxRow.textContent).not.toContain(yen.format(7));
+    expect(taxRow.textContent).not.toContain(yen.format(5));
   });
 
   it("全明細を法定相続分で一括割り振りし、確認後に未保存状態へ反映する", () => {

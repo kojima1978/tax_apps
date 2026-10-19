@@ -50,7 +50,8 @@ describe("データ品質チェック", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<DataQualityView />);
     fireEvent.click((await screen.findAllByRole("checkbox", { name: /中原 美佐/ }))[0]);
-    fireEvent.change(screen.getByRole("combobox", { name: "担当者" }), { target: { value: "3" } });
+    fireEvent.focus(screen.getByRole("combobox", { name: "担当者" }));
+    fireEvent.click(screen.getByRole("option", { name: /佐藤/ }));
     fireEvent.click(screen.getByRole("button", { name: "1件に設定" }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes("bulk-staff"))).toBe(true));
     const call = fetchMock.mock.calls.find(([url]) => String(url).includes("bulk-staff"));
