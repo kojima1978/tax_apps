@@ -35,6 +35,7 @@ jobs:
       matrix:
         include:
           - { app: bank-analyzer, dir: apps/bank-analyzer }
+          - { app: capital-gains-calc, dir: apps/capital-gains-calc }
           - { app: inheritance-case-management, dir: apps/inheritance-case-management/web }
           - { app: inheritance-tax-app, dir: apps/inheritance-tax-app }
           - { app: inheritance-tax-form, dir: apps/inheritance-tax-form }

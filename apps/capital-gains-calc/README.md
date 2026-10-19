@@ -400,7 +400,8 @@ src/
     ├── tabs.ts                # タブ定義（Fast Refresh の制約でコンポーネントと分けている）
     ├── tax-rates.ts           # 税率テーブル・建物構造別の償却率
     ├── company.ts             # 会社情報
-    └── utils.ts               # フォーマットユーティリティ
+    ├── utils.ts               # フォーマットユーティリティ
+    └── *.test.ts              # vitest（下の「テスト」）
 ```
 
 ## Docker
@@ -422,6 +423,33 @@ docker/scripts/manage.sh logs capital-gains-calc           # ログ確認
 | ソース | `./src` と `./index.html` を読み取り専用で bind mount | イメージ同梱（`volumes: !reset []`）。**変更は `build` しないと入らない** |
 | メモリ上限 | 512M（`NODE_OPTIONS=--max-old-space-size=384`） | 64M |
 
-- dev の Vite にはポーリングが無いので、Windows の bind mount では編集が届かない。`src` を直したら `docker restart capital-gains-calc`
+- dev の Vite は共有の `docker/Dockerfile.vite-static` が入れる `CHOKIDAR_USEPOLLING` でポーリングしているので、Windows の bind mount でも `src` の編集はそのまま反映される（再起動は要らない）
 - `package.json` / `vite.config.ts` はマウントしていない（イメージ同梱）ので、変えたら `build` が要る
-- テストは無い。型検査は `npm run build` の `tsc -b` だけで、dev モードでは走らない
+
+## テスト
+
+```bash
+docker/scripts/manage.sh test capital-gains-calc
+```
+
+`npm test` は `npm run typecheck`（`tsc -b`）→ `vitest run` の順で走る。dev モードは `vite build` を通らないので、
+型エラーが出るのはここだけ。
+
+- 動かすのは使い捨ての **`capital-gains-calc-test`**（compose の `profiles: ["test"]`、dev ステージ）。
+  `.dockerignore` が `*.test.ts` をイメージから外しているので、`./src` を読み取り専用で被せて回す。
+  本体のコンテナが dev でも本番でも同じ経路で、稼働中のコンテナを作り直す必要も無い
+- CI（`.github/workflows/ci.yml` の matrix）でも同じ `npm test` が push のたびに走る
+
+| ファイル | 見ているもの |
+|---|---|
+| `capital-gains.test.ts` | 所有期間・経過年数、非事業用の償却費相当額（整数演算・95%上限）、不動産（長期・短期・居住用の特例・概算取得費・損失・事業用）、株式等 |
+| `building-price.test.ts` | 建築価額表（元号・単価・償却）、消費税からの逆算、固定資産税評価額での按分、消費税率の既定値 |
+| `fees.test.ts` | 仲介手数料の上限額、印紙税（境目・軽減措置の期限）、ミニマムタックス |
+| `tax-rates.test.ts` | 税率と復興特別所得税、構造別の耐用年数・償却率 |
+| `utils.test.ts` | 金額・税率・日付の書式、結果表の行 |
+
+- **償却費相当額は整数で計算する**。`取得価額 × 0.9 × 償却率 × 年数` を浮動小数で掛けると
+  1円未満が `…99999` に化けて切り捨てで1円ずれる（木造 1,178,000円 × 15年 が 492,992円になっていた）。
+  テストは BigInt で厳密に計算した値と格子状に突き合わせている
+- **日付は現地時刻で組み立てる**。`new Date('YYYY-MM-DD')` は UTC の0時として読むので、
+  UTC より西の時間帯では前日になって所有期間の判定が1日ずれる

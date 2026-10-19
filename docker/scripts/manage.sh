@@ -252,6 +252,9 @@ TEST_TARGETS=(
   "bank-analyzer:run@bank-analyzer-test:npm test"
   "insurance-app:run@insurance-app-test:npm test"
   "retirement-tax-calc:run@retirement-tax-calc-test:npm test"
+  # dev で動いているが、稼働中のイメージを作り直さずに済み、本番へ切り替えても
+  # 経路が変わらないよう、こちらも使い捨てサービスで回す
+  "capital-gains-calc:run@capital-gains-calc-test:npm test"
 )
 
 # アプリの package.json。itcm（web/）や portal（app/）のように

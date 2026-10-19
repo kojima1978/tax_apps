@@ -85,6 +85,46 @@ services:
         reservations:
           memory: 128M
 
+  # ===========================================
+  # テスト用の使い捨てサービス（manage.sh test が run --rm で起動する）
+  #
+  # いまは dev で動いているが、本番モード（nginx）へ切り替えると稼働中のコンテナには
+  # vitest も tsc も無くなる。モードに関係なく同じ経路で回るよう、dev ステージを
+  # 別のイメージとして作る（稼働中のコンテナも作り直さずに済む）。
+  # .dockerignore がテストファイルをイメージから外しているので、src はホストのものを
+  # 読み取り専用で被せる。image: を明示するのは、本体と同じ自動命名のタグを共有させないため
+  # （共有すると次の apply / recover が本番コンテナを dev イメージで作り直す）。
+  # ===========================================
+  capital-gains-calc-test:
+    build:
+      context: .
+      dockerfile: ../../docker/Dockerfile.vite-static
+      target: dev
+      args:
+        APP_PORT: "3019"
+        APP_PATH: capital-gains-calc
+        APP_TITLE: "Capital Gains Tax Calculator"
+        APP_DESCRIPTION: "譲渡所得税 計算ツール"
+        NPM_CACHE_ID: npm-store-capital-gains-calc
+    image: capital-gains-calc-test
+    profiles: ["test"]
+    volumes:
+      - ./src:/app/src:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=384"
+    init: true
+    restart: "no"
+    logging: *default-logging
+    <<: *security-opts
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
 networks:
   tax-apps-network:
     external: true
