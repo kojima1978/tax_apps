@@ -19,6 +19,40 @@ OPS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPS_PROJECT_ROOT="$(cd "$OPS_LIB_DIR/../../.." && pwd)"
 OPS_LOG_DIR="${TAX_APPS_LOG_DIR:-$OPS_PROJECT_ROOT/docker/logs}"
 
+# Settings written by the local backup settings screen.  Keep the file outside
+# the repository: it contains machine-specific policy and must survive updates.
+# Only known scalar values are parsed; this file is data, never shell code.
+OPS_BACKUP_SETTINGS_FILE="${TAX_APPS_BACKUP_SETTINGS_FILE:-$HOME/.tax-apps/backup-settings.env}"
+
+ops_load_backup_settings() {
+  [[ -f "$OPS_BACKUP_SETTINGS_FILE" ]] || return 0
+  local key value
+  while IFS='=' read -r key value; do
+    value="${value%$'\r'}"
+    case "$key" in
+      TAX_APPS_AUTOMATIC_BACKUP_ENABLED)
+        [[ "$value" == "0" || "$value" == "1" ]] && export "$key=$value"
+        ;;
+      TAX_APPS_DUE_BACKUP_HOURS)
+        if [[ "$value" =~ ^[0-9]{1,3}$ ]] && (( value >= 4 && value <= 168 )); then
+          export "$key=$value"
+        fi
+        ;;
+      FULL_BACKUP_RETENTION_DAYS)
+        if [[ "$value" =~ ^[0-9]{1,2}$ ]] && (( value >= 1 && value <= 30 )); then export "$key=$value"; fi
+        ;;
+      WEEKLY_BACKUP_RETENTION_WEEKS)
+        if [[ "$value" =~ ^[0-9]{1,2}$ ]] && (( value <= 12 )); then export "$key=$value"; fi
+        ;;
+      MONTHLY_BACKUP_RETENTION_MONTHS)
+        if [[ "$value" =~ ^[0-9]{1,2}$ ]] && (( value <= 24 )); then export "$key=$value"; fi
+        ;;
+    esac
+  done < "$OPS_BACKUP_SETTINGS_FILE"
+}
+
+ops_load_backup_settings
+
 # ------------------------------------
 # 色つきログ
 # ------------------------------------
@@ -94,6 +128,7 @@ task_exists() {
 OPS_SCHEDULED_TASKS=(
   "Tax Apps Docker Watchdog|register-docker-watchdog-task|復旧・無人処理（4時間毎・0時起点）|停止しても unhealthy でも自動復旧されず、バックアップも訓練も掃除も走りません"
   "Tax Apps Startup|register-startup-task|ログオン時の起動と復旧|再起動後は次の定期実行（最大4時間後）までアプリが上がりません"
+  "Tax Apps Backup Settings API|register-backup-settings-api-task|バックアップ設定画面（ログオン中）|ポータルからバックアップ設定を確認・変更できません"
 )
 
 # 役目を終えたタスク（タスク名|日本語の説明|解除スクリプトの基底名）
@@ -240,7 +275,11 @@ ops_external_backup_dest() {
 # 外部コピー先が未設定なら、その行は見張らない（未設定は異常ではない）。
 ops_watched_result_is_active() {
   local name="$1"
+  if [[ "$name" == "backup" && "${TAX_APPS_AUTOMATIC_BACKUP_ENABLED:-1}" == "0" ]]; then
+    return 1
+  fi
   if [[ "$name" == "backup-external" ]]; then
+    [[ "${TAX_APPS_AUTOMATIC_BACKUP_ENABLED:-1}" != "0" ]] || return 1
     ops_external_backup_dest >/dev/null 2>&1 || return 1
   fi
   return 0

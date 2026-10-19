@@ -1746,6 +1746,7 @@ restore_usage() {
   バックアップ: 2026-10-14_212138 / 2026-10-14（その日の最新）/ pre-restore_...
                 省略すると端末では一覧から選び、無人では最新を使う
   --yes         確認を飛ばす（AI や手順書から叩くとき。端末が無いときは必須）
+  --check       復号・整合性・復元内容の確認だけ行い、成功なら終了コード0（データは上書きしない）
   --with-env    今ある .env もバックアップの版で上書きする（既定は無いときだけ戻す）
   --from <フォルダ>  そのフォルダのバックアップから戻す（外付けなど。例: --from E:\tax-apps-backup）
                 端末で、バックアップの名前も --from も無いときは場所を一覧から選ぶ
@@ -1756,7 +1757,7 @@ USAGE
 }
 
 cmd_restore() {
-  local all=0 yes=0 with_env=0 env_only=0 app_arg="" sel="" from="" a
+  local all=0 yes=0 with_env=0 env_only=0 check_only=0 app_arg="" sel="" from="" a
   while [[ $# -gt 0 ]]; do
     a="$1"; shift
     [[ -z "$a" ]] && continue
@@ -1767,6 +1768,7 @@ cmd_restore() {
         ;;
       --from=*) from="${a#--from=}" ;;
       --all) all=1 ;;
+      --check) check_only=1 ;;
       --yes|-y) yes=1 ;;
       --with-env) with_env=1 ;;
       --env-only) env_only=1 ;;
@@ -1919,6 +1921,11 @@ cmd_restore() {
   if [[ $blocked -eq 1 ]]; then
     err "戻せない項目があります。上の [ERROR] を直してからやり直してください（何も変えていません）"
     return 1
+  fi
+
+  if [[ $check_only -eq 1 ]]; then
+    ok "復元内容の確認が完了しました（業務データは変更していません）"
+    return 0
   fi
 
   warn "上のアプリの現在のデータを、このバックアップの内容で置き換えます。"
@@ -3194,6 +3201,7 @@ DUE_BACKUP_HOURS="${TAX_APPS_DUE_BACKUP_HOURS:-20}"
 DUE_DRILL_HOURS="${TAX_APPS_DUE_DRILL_HOURS:-168}"
 DUE_PRUNE_HOURS="${TAX_APPS_DUE_PRUNE_HOURS:-144}"
 DUE_LOOPCHECK_HOURS="${TAX_APPS_DUE_LOOPCHECK_HOURS:-3}"
+AUTOMATIC_BACKUP_ENABLED="${TAX_APPS_AUTOMATIC_BACKUP_ENABLED:-1}"
 
 # 記録が無い（一度も成功していない）ときは期限切れとして扱う。
 _due_needed() {
@@ -3226,7 +3234,11 @@ cmd_due() {
 
   local status="ok" backup_state="skip" drill_state="skip" prune_state="skip" loop_state="skip"
 
-  if _due_needed "backup" "$DUE_BACKUP_HOURS"; then
+  if [[ "$AUTOMATIC_BACKUP_ENABLED" == "0" ]]; then
+    backup_state="disabled"
+    echo "バックアップ: 設定画面で自動バックアップが停止されています"
+    echo ""
+  elif _due_needed "backup" "$DUE_BACKUP_HOURS"; then
     if _due_run cmd_backup; then
       backup_state="ran"
     else
