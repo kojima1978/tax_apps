@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Briefcase, Building, Calculator, ChartPie,
-  Clock, CreditCard, FileCheck, FileSpreadsheet, FileText, Gift, Package, Receipt, ScrollText, Shield, TrendingUp,
+  Car, Clock, CreditCard, FileCheck, FileSpreadsheet, FileText, Gift, Package, Receipt, ScrollText, Shield, TrendingUp,
 } from 'lucide-react';
 
 export const categories = ['必要書類', '計算・評価', '分析・管理', 'その他'] as const;
@@ -31,4 +31,7 @@ export const applications: Application[] = [
   { title: '預貯金分析', description: '預金移動の分析ツール', url: '/bank-analyzer/', icon: Building, category: '分析・管理' },
   { title: '案件管理', description: '相続税案件の進捗管理', url: '/itcm/', icon: Briefcase, category: '分析・管理' },
   { title: '料金表', description: '報酬についてのご案内', url: '/fee-table/', icon: Receipt, category: 'その他' },
+  // 一時リンク: fleet-board は tax_apps 外の別プロジェクト（ポート 3035）。
+  // ゲートウェイ（nginx/default.conf）が開いたホスト名のまま :3035 へ転送する。
+  { title: '社用車管理（FleetFlow）', description: '社用車の駐車位置・予約・利用履歴を管理', url: '/fleet-board/', icon: Car, category: 'その他' },
 ];
