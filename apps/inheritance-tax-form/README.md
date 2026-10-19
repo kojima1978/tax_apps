@@ -24,32 +24,45 @@
 |------|------|
 | フロントエンド | Vite 6.x + React 19.x + TypeScript 5.9 |
 | スタイリング | 素の CSS（`src/main.css`）。UIライブラリなし |
-| 状態管理 | `useFormData` フック + localStorage |
+| 状態管理 | `useFormData` フック + localStorage（保存形式は `lib/storedData.ts`） |
+| テスト | Vitest + Testing Library（jsdom）。`npm test` = `npm run typecheck && vitest run` |
 | Docker | `docker/Dockerfile.vite-static` 共有（dev: node:22-alpine / prod: nginx:1.27-alpine） |
 | ポート | 3021 |
 | basePath | `/inheritance-tax-form` |
 
-依存は `react` / `react-dom` のみ。
+実行時の依存は `react` / `react-dom` のみ。
 
 ## 起動方法
 
 ```bash
-docker compose up -d --build
-```
-
-本番モード:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker/scripts/manage.sh start inheritance-tax-form          # 開発モード
+docker/scripts/manage.sh start --prod inheritance-tax-form   # 本番モード（nginx で配信）
+docker/scripts/manage.sh build inheritance-tax-form          # 再ビルド（稼働中のモードを踏襲）
 ```
 
 → http://localhost/inheritance-tax-form/ （直接は http://localhost:3021/inheritance-tax-form/ ）
+
+- 素の `docker compose up` は本番で動いているアプリを dev に作り替えるので使わない
+- dev は `./src` と `./index.html` を読み取り専用で bind mount し、Vite がポーリング（300ms）で拾うので
+  ソースの変更に再起動は要らない。`package.json` / `vite.config.ts` はイメージ同梱なので変えたら `build`
+- メモリ上限は dev 512M（`NODE_OPTIONS=--max-old-space-size=384`）、本番 64M
+
+## テスト
+
+```bash
+docker/scripts/manage.sh test inheritance-tax-form
+```
+
+稼働中のコンテナの中で型検査と vitest を回す（CI でも同じものが走る）。
+対象は計算（`lib/calc`）・保存形式・人物参照・転記・郵便番号・ファイル名・様式の欄割り（`forms/*.test.ts`、
+`formRules` はスナップショット）と、全24様式の罫線の回帰（`gridLattice.test.ts` が `forms/allForms.ts` を使う）。
 
 ## 画面構成
 
 ```
 ツールバー（印刷されない）
-  財産を取得した人 −/＋ ・ JSON保存 ・ JSON読込 ・ 印刷 ・ クリア
+  要確認 N件 ・ バックアップを書き出す（Ctrl+S） ・ バックアップから復元 ・ 印刷（Ctrl+P） ・ その他▾（申告データをクリア）
+  ※ 財産を取得した人の追加・削除は人物の画面（PersonPanel）で行う
     ↓
 サイドバー（様式一覧）   本文（選択中の様式）
   ☑ 第1表          …  第1表        … 被相続人＋「各人の合計」列＋財産を取得した人1人目
@@ -117,9 +130,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 - 別表1は「一の宅地等」ごとに1枚。用紙の下の `−／＋` で増やす。
   **どの明細がどの別表1の何行目かは、付表1の下にある画面だけの `<select>` で対応づける**
   （様式には印刷しない。対応づけると付表1の③④が読み取り専用の転記欄になる）
-- 様式の登録簿は `App.tsx` の `FORMS` 配列。様式を足すときはここに1行追加する。
-  人数から枚数が決まる様式（`auto`）は `autoPages` にも1行足す
-- 付表4種は作りが同じなので、画面も `App.tsx` の `DETAIL_SPECS` から組み立てている
+- 様式の登録簿は `forms/registry.ts` の `FORMS` 配列（画面の一覧・印刷順・付表の割付・並べ替え・転記元の対応を
+  ここへ集めてある）。様式を足すときはここに1行追加する。
+  人数から枚数が決まる様式（`auto`）は `App.tsx` の `autoPages` にも1行足す
+- 付表4種は作りが同じなので、画面も `forms/registry.ts` の `DETAIL_SPECS` から組み立てている
   （付表を足すときは `FORMS` と `DETAIL_SPECS` に1行ずつ）
 
 ## 様式の再現方式（GridForm）
@@ -151,7 +165,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ## フィールド名の規約
 
 `GridForm` は `g(field)` / `u(field, value)` の2関数だけで値をやり取りする。
-保存先は接頭辞で振り分ける（`useFormData` の `splitField`）。
+保存先は接頭辞で振り分ける（`useFormData` の `splitField`。保存する形そのものは `lib/storedData.ts`）。
 
 | 接頭辞 | 保存先 |
 |--------|--------|
@@ -524,7 +538,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 | 1② 障害者控除額 | 第6表2②③⑥（同上） |
 | 1③ 相次相続控除額 | 第7表⑬又は⑱（第7表を使うときだけ） |
 
-その様式のチェックを外すと転記先は手入力欄に戻る（`App.tsx` の `TRANSFERRED_BY_FORM`）。
+その様式のチェックを外すと転記先は手入力欄に戻る（`lib/calc/all.ts` が `used` を見て切り替える）。
 ⑬だけは様式ではなく**人で決まる**転記なので、`calcRows` の `transferred`（左列）と
 `transferred2`（右列）を分けて、配偶者の列にだけ⑬を渡している。
 
@@ -647,7 +661,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 - 郵便番号・電話番号は**先頭の0を落とさない**（`SubInput` の `keepZeros`）。金額欄と違い番号なので、
   「064-0941」「03-…」がそのまま残る
 - 入力は変更のたびに localStorage（`inheritance-tax-form:v1`）へ保存される
-- JSON保存／読込でファイルとしても持ち出せる
+- 「バックアップを書き出す／バックアップから復元」で JSON ファイルとしても持ち出せる。
+  書き込み直前の版は `inheritance-tax-form:v1-backup`、読めなかった保存データは `:v1-salvage` に退避し、
+  退避があるときだけ「その他」に書き出す項目が出る
 
 ## 記載例から取り込んだ記入ルール
 
@@ -686,12 +702,27 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 ```
 src/
-├── App.tsx                     # ページ構成・ツールバー・第1表（続）の枚数制御
+├── main.tsx
+├── App.tsx                     # ページ構成・ツールバー・サイドバー・第1表（続）等の枚数制御
 ├── main.css                    # 様式・印刷レイアウト
-├── components/ui/
-│   ├── GridForm.tsx            # セル定義 → CSSグリッド。文字サイズ自動調整
-│   └── printContext.ts
+├── components/
+│   ├── formPages.tsx           # 様式ごとの1枚に何を載せるか
+│   ├── pageShell.tsx           # 用紙の器とページ操作
+│   ├── PersonPanel.tsx         # 財産を取得した人1人分の基本情報
+│   ├── DetailPanel.tsx         # 付表の明細1件の入力画面
+│   ├── RowSortPanel.tsx        # 明細の並べ替え
+│   ├── ResetDialog.tsx         # 申告データのクリア
+│   ├── Table11f1Worksheet.tsx  # 付表1 補助資料「単価又は倍数の計算根拠」
+│   ├── AssetTaxWorksheet.tsx   # 補助資料「資産別税負担一覧」
+│   └── ui/
+│       ├── GridForm.tsx        # セル定義 → CSSグリッド。文字サイズ自動調整
+│       ├── gridLattice.ts      # セル定義 → 格子と罫線（回帰テストも使う）
+│       ├── SortableList.tsx    # ドラッグで並べ替える一覧
+│       └── printContext.ts
 ├── forms/
+│   ├── registry.ts             # 様式の登録簿（FORMS・DETAIL_SPECS・並べ替え・転記元の対応）
+│   ├── allForms.ts             # 全24様式を空で組み立てる（罫線の回帰テスト用）
+│   ├── person.ts               # 人物の基本情報の欄
 │   ├── geometry.ts             # セル生成のファクトリ（列・行・帯）
 │   ├── table1.ts               # 第1表のセル定義
 │   ├── table1cont.ts           # 第1表（続）のセル定義
@@ -716,17 +747,32 @@ src/
 │   ├── table13.ts              # 第13表のセル定義（債務4件・葬式費用5件・承継した人4人／枚）
 │   ├── table14.ts              # 第14表のセル定義（1の贈与4件・④4人・2と3の明細2件ずつ／枚）
 │   └── table15.ts              # 第15表・第15表（続）のセル定義（罫線共通・列の指定だけ差し替え）
-├── hooks/useFormData.ts        # 入力状態・localStorage・JSON入出力
-├── hooks/useZipPrefecture.ts   # 郵便番号→都道府県（提出先税務署の候補を絞る）
-├── lib/zipAddress.ts           # 郵便番号→住所（同梱データを7桁そろった時点で動的 import）
-├── lib/calc.ts                 # 第1表①〜㉗・第2表・第4表・第4表の2・第5表・第6表・第7表・第9表・第10表・第11表・第11の2表・第13表・第14表・第15表・
-│                               #   第11・11の2表の付表1（＋別表1）・付表からの集計
+├── hooks/
+│   ├── useFormData.ts          # 入力状態の読み書き・計算・人物や明細の増減
+│   ├── usePrinting.ts          # 印刷中かどうか（印刷の開始と後始末）
+│   └── useZipPrefecture.ts     # 郵便番号→都道府県（提出先税務署の候補を絞る）
+├── lib/
+│   ├── calc.ts                 # calc/ の再エクスポートだけ
+│   ├── calc/                   # 自動計算（all・assets・credits・detail・lawful・pages・values に分割）
+│   ├── storedData.ts           # 保存形式（`inheritance-tax-form:v1`・`-backup`・`-salvage`）と移行
+│   ├── heirRef.ts              # 財産を取得した人への参照（並べ替え・削除で意味が変わらない ID）
+│   ├── lawfulShare.ts          # 法定相続分
+│   ├── assetTaxWorksheet.ts    # 資産別の税負担（最大剰余法で按分）
+│   ├── codeLink.ts             # コードを選んだときに別の欄へ効く連動
+│   ├── format.ts               # 数字欄の表示形（3桁区切り・△・小数桁）
+│   ├── exportFileName.ts       # 書き出すファイル名
+│   ├── qrPath.ts               # QRコードのモジュール → SVGパス
+│   ├── workspace.ts            # 要確認の項目
+│   └── zipAddress.ts           # 郵便番号→住所（同梱データを7桁そろった時点で動的 import）
 └── data/
     ├── codes.ts                # 元号コード・続柄コード
     ├── detailCodes.ts          # 付表1〜4のコード表（細目・特例・金融機関等・支店等・国外）
+    ├── formQr.ts               # 様式ごとの QR コード（29×29）
     ├── taxOffices.ts           # 全国524税務署（都道府県・署名）
     └── zipAddresses.json       # 郵便番号→住所（日本郵便 utf_ken_all を圧縮したもの）
 ```
+
+テストは対象の隣に `*.test.ts(x)` で置いてある（22件）。
 
 ## 対象外
 
