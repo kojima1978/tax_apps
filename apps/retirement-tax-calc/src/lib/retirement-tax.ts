@@ -67,32 +67,40 @@ export type RetirementTaxResult = {
     taxYear: string;
 };
 
+/** 1日のミリ秒 */
+const DAY_MS = 86_400_000;
+
+/** "YYYY-MM-DD" を UTC の日付として読む（実在しない日は null）。時刻帯で日がずれないようにする */
+const parseIsoDate = (value: string): Date | null => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return null;
+    const [year, month, day] = match.slice(1).map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? date : null;
+};
+
 /**
  * 勤続年数を算出（1年未満切上げ）
+ *
+ * 勤続期間は勤続開始日から退職日までで、退職日も1日として数える。
+ * 4月1日入社なら翌年3月31日の退職でちょうど1年、4月1日の退職は1年と1日なので2年。
+ * 以前は退職日を数えておらず、応当日に退職すると1年少なく出ていた
+ * （入社日と同じ日の退職も 0 年で、計算できない扱いになっていた）。
  */
 export const calcServiceYears = (startDate: string, endDate: string): number => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseIsoDate(startDate);
+    const end = parseIsoDate(endDate);
+    if (!start || !end || end < start) return 0;
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) {
-        return 0;
-    }
+    // 退職日の翌日（ここを含まない期間にすると、応当日との比較だけで済む）
+    const endExclusive = new Date(end.getTime() + DAY_MS);
+    const anniversary = (years: number) =>
+        new Date(Date.UTC(start.getUTCFullYear() + years, start.getUTCMonth(), start.getUTCDate()));
 
-    let years = end.getFullYear() - start.getFullYear();
-    const monthDiff = end.getMonth() - start.getMonth();
-    const dayDiff = end.getDate() - start.getDate();
-
-    // 月日で1年に満たない端数があるかチェック
-    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-        years--;
-    }
-
-    // 端数日がある場合は切り上げ
-    const anniversaryDate = new Date(start);
-    anniversaryDate.setFullYear(start.getFullYear() + years);
-    if (end > anniversaryDate) {
-        years++;
-    }
+    let years = endExclusive.getUTCFullYear() - start.getUTCFullYear();
+    if (anniversary(years) > endExclusive) years--;
+    // 端数がある場合は切り上げ
+    if (anniversary(years) < endExclusive) years++;
 
     return Math.max(years, 1);
 };
@@ -169,10 +177,21 @@ const calcIncomeTax = (taxableIncome: number, rates: TaxRateYear): number => {
 };
 
 /**
+ * 税額 × 率 の1円未満切捨て
+ *
+ * 率を小数のまま掛けると、0.011 のように2進数でわずかに小さく表される率では
+ * ちょうど整数になるはずの積が 252.999… になり、1円少なく切り捨てる
+ * （所得税額 23,000円の令和9年の復興特別所得税が 253円でなく 252円になっていた）。
+ * 率を十万分率の整数に直し、整数同士で掛けてから割る。
+ */
+const floorByRate = (base: number, rate: number): number =>
+    Math.floor((base * Math.round(rate * 100_000)) / 100_000);
+
+/**
  * 復興特別所得税額を算出（1円未満切捨て）
  */
 const calcReconstructionTax = (incomeTax: number, rates: TaxRateYear): number => {
-    return Math.floor(incomeTax * rates.reconstructionTaxRate);
+    return floorByRate(incomeTax, rates.reconstructionTaxRate);
 };
 
 /**
@@ -182,7 +201,7 @@ const calcReconstructionTax = (incomeTax: number, rates: TaxRateYear): number =>
  * 合計は「所得税額 × 2.1%」を一度に切り捨てた額と一致する。
  */
 const calcDefenseTax = (incomeTax: number, rates: TaxRateYear): number => {
-    return Math.floor(incomeTax * rates.defenseTaxRate);
+    return floorByRate(incomeTax, rates.defenseTaxRate);
 };
 
 /**

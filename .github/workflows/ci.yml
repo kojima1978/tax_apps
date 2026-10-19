@@ -41,6 +41,7 @@ jobs:
           - { app: insurance-app, dir: apps/insurance-app }
           - { app: mcp-server, dir: apps/mcp-server }
           - { app: private-banking, dir: apps/private-banking }
+          - { app: retirement-tax-calc, dir: apps/retirement-tax-calc }
           - { app: stock-valuation-form, dir: apps/stock-valuation-form }
     defaults:
       run:

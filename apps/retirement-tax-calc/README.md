@@ -6,7 +6,7 @@
 
 - **3パターン比較**: 退職金額を最大3パターン入力し、税額を横並びで比較
 - **退職区分**: 一般退職手当等 / 特定役員退職手当等 / 短期退職手当等
-- **勤続年数**: 直接入力 または 勤続開始日・退職日から自動計算（1年未満切上げ）
+- **勤続年数**: 直接入力 または 勤続開始日・退職日から自動計算（退職日も1日と数え、1年未満切上げ）
 - **障害者退職加算**: 退職所得控除額に100万円を加算
 - **役員退職金限度額**: 最終月額報酬 × 功績倍率 × 勤続年数（役職プリセット付き）
 - **限度額超過警告**: 支給額が限度額を超えた場合に警告表示
@@ -74,7 +74,8 @@ src/
     ├── tax-rates.ts           # 年度別税率テーブル
     ├── exportFileName.ts      # PDF のファイル名（R081005_退職金税額計算.pdf）
     ├── company.ts             # 会社情報
-    └── utils.ts               # フォーマットユーティリティ
+    ├── utils.ts               # フォーマットユーティリティ
+    └── *.test.ts              # vitest（下の「テスト」）
 ```
 
 ## Docker
@@ -95,5 +96,21 @@ docker/scripts/manage.sh logs retirement-tax-calc
 - dev は `./src` と `./index.html` を読み取り専用で bind mount するが、Vite にポーリングの設定が無いので
   変更を拾わない。ソースを直したら `docker restart retirement-tax-calc`
 - メモリ上限は dev 512M（`NODE_OPTIONS=--max-old-space-size=384`）、本番 64M
-- テストは無い（`package.json` に `test` も `typecheck` も無いので `manage.sh test` の対象外）
 - `vercel.json` は Vercel 用（`VERCEL` 環境変数があるときだけ `base` を `/` にする）
+
+## テスト
+
+```bash
+docker/scripts/manage.sh test retirement-tax-calc
+```
+
+`npm test` = `npm run typecheck && vitest run`。本番モード（nginx）のコンテナには vitest も tsc も無いので、
+dev ステージの使い捨てサービス `retirement-tax-calc-test`（`profiles: ["test"]`）で走らせる。
+`.dockerignore` がテストファイルをイメージから外しているため、`./src` はホストのものを読み取り専用で被せている。
+CI（`.github/workflows/ci.yml`）でも同じものが走る。
+
+| テスト | 対象 |
+|:--|:--|
+| `lib/retirement-tax.test.ts` | 勤続年数（退職日を含める・応当日・うるう日）、控除額・1/2課税・短期の300万円超、税額の端数処理、令和9年の復興＋防衛＝令和8年の復興 |
+| `lib/tax-rates.test.ts` | 年度の表（率・速算表の連続性）、既定の年と未登録年の注意（日本時間で判定） |
+| `lib/utils.test.ts` | 金額入力の整形、PDF のファイル名 |

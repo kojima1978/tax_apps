@@ -251,6 +251,7 @@ TEST_TARGETS=(
   # （本番イメージに vitest は無い）
   "bank-analyzer:run@bank-analyzer-test:npm test"
   "insurance-app:run@insurance-app-test:npm test"
+  "retirement-tax-calc:run@retirement-tax-calc-test:npm test"
 )
 
 # アプリの package.json。itcm（web/）や portal（app/）のように
