@@ -38,14 +38,28 @@
 | basePath | `/stock-valuation-form` |
 | ネットワーク | `tax-apps-network`（external） |
 | nginx ルーティング | 登録済み（`nginx/includes/upstreams.conf`） |
-| バックエンド | Hono + Prisma（業種目マスタ・業種目別株価等の配信と登録） |
-| 入力データの永続化 | localStorage（ブラウザ内。サーバへは送らない） |
+| バックエンド | Hono + Prisma（案件の保存、業種目マスタ・業種目別株価等の配信と登録、欄の辞書） |
+| 入力データの永続化 | PostgreSQL の案件（`ValuationCase`）。ブラウザの localStorage は作業中の写し（§6.2） |
+| 起動 | `docker/scripts/manage.sh start [--prod] stock-valuation-form`（素の `docker compose up` は本番を dev に作り替える） |
 
 Dockerfile は `deps` → `dev` / `builder` → `runner` の multi-stage 構成。
 本番の `runner` は `dist`（フロント）と `dist-server`（API）を Node が 3014 でまとめて配信する。
 以前は nginx で静的配信していたが、API を同居させるため Node に寄せた。
 
 ## 4. 画面構成
+
+### 4.0 画面の切替
+
+ルータは使わず、ハッシュで4つの画面を切り替える（`features/cases/screen.ts` の `resolveRoute`）。
+
+| ハッシュ | 画面 |
+|---|---|
+| なし / `#cases` | 会社一覧（案件を会社ごとにまとめる。ゴミ箱の切替もここ） |
+| `#cases/<会社>` | その会社の年度一覧（課税時期の新しい順） |
+| `#form` | 帳票（以下 §4.1〜） |
+| `#industry-data` | 業種目データ管理 |
+
+知らないハッシュは会社一覧に落とす。帳票の「← 一覧」は開いている会社の年度一覧へ戻る。
 
 ### 4.1 レイアウト
 
@@ -125,9 +139,12 @@ Dockerfile は `deps` → `dev` / `builder` → `runner` の multi-stage 構成�
 | 続紙 | 第１表の１（株主一覧）・第５表（資産負債明細、最大38行）は用紙を追加・削除できる |
 | 行の並べ替え | `GridForm` のドラッグハンドル（HTML5 ネイティブ D&D） |
 | 印刷 | `Ctrl+P` で現在の表／「全表印刷」で様式を選択して連続印刷（`.no-print` で操作UIを除外） |
-| データ保存 | localStorage に自動保存（キー `stock-valuation-form-data`） |
-| JSON入出力 | 「保存 (JSON)」「読込 (JSON)」で案件データを持ち運び |
-| 翌年度更新 | 直前期の数値を直前々期へ順送りして翌事業年度へ移行（実行前に自動バックアップ） |
+| データ保存 | 開いている案件へ自動保存（入力が止まって3秒後に `PUT /cases/:id`）。案件に紐づかない入力も3秒後に案件として DB へ入る |
+| 案件の作成 | 会社一覧の「新しい案件を作る」。既存の会社を選ぶと前年分を写す。「JSONから案件を作る」で書き出したJSONから新しい案件を作る |
+| 楽観ロック | 保存は `expectedUpdatedAt` 付き。別の画面が先に書いていれば409を返し、画面は自動保存を止めて「読み直す」を出す |
+| ゴミ箱 | 案件の削除は論理削除。ゴミ箱から復元できる（完全削除は `?purge=1`） |
+| JSON入出力 | 「保存 (JSON)」で書き出し。「読込 (JSON)」は**開いている帳票を置き換える**（案件を開いていれば自動保存で DB も上書きされる） |
+| 翌年度更新 | 直前期の数値を直前々期へ順送りした**新しい案件**を作る（前年分は案件として残る） |
 | 会社名連動 | 第１表の１の会社名（`f12`）が全テーブルの `company` に自動反映 |
 | 整合性チェック | 表をまたぐ矛盾を検出（`lib/consistencyChecks.ts`） |
 | 年分の警告 | 課税時期と業種目データの年分がずれていると警告（`lib/industryYearAudit.ts`） |
@@ -284,15 +301,18 @@ interface FormData {
 
 ### 6.2 データ永続化
 
-| 項目 | 値 |
-|---|---|
-| ストレージ | localStorage |
-| キー | `stock-valuation-form-data` |
-| フォーマット | JSON（テーブルID → フィールドID → 文字列値） |
-| ライフサイクル | 明示的に消すまで保持（ブラウザを閉じても残る） |
-| 持ち運び | ツールバーの「保存 (JSON)」「読込 (JSON)」 |
+入力の本体は DB の案件（`ValuationCase`: 会社名・課税時期・`companyKey`・`data`・`archivedAt`）。
+`data` は §6.1 の FormData をそのまま JSON で持つ。DB は `docker/scripts/backup.sh` の日次バックアップに乗る。
 
-入力内容はブラウザ内にとどまり、サーバ・データベースへは送信しない。
+| 置き場所 | キー | 中身 |
+|---|---|---|
+| DB `ValuationCase` | — | 案件ごとの入力（本体） |
+| localStorage | `stock-valuation-form-data` | 作業中の帳票の写し |
+| localStorage | `stock-valuation-form-case-id` | 開いている案件のID |
+| localStorage | `stock-valuation-form-case-version` | 開いている案件の `updatedAt`（楽観ロック用） |
+
+同じ会社の案件は `companyKey` でまとめる（会社マスタは持たない。キーを振るのは翌年度更新・複製のとき）。
+持ち運びはツールバーの「保存 (JSON)」と、会社一覧の「JSONから案件を作る」。
 
 ### 6.3 テーブル間のデータ連携
 
@@ -375,22 +395,31 @@ interface FormData {
 
 ## 9. API仕様
 
-すべて `/stock-valuation-form/api` 配下。入力データは扱わず、業種目マスタと業種目別株価等のみを対象とする。
+すべて `/stock-valuation-form/api` 配下。
 
 | メソッド | パス | 用途 |
 |---|---|---|
-| GET | `/health` | 死活監視（seed 失敗時は 503） |
+| GET | `/health` | 死活監視（seed 失敗時・DB に繋がらないときは 503） |
+| GET | `/cases` | 案件一覧（`data` は載せない） |
+| GET | `/cases/:id` | 案件1件 |
+| POST | `/cases` | 案件の作成 |
+| PUT | `/cases/:id` | 案件の保存（`data` を丸ごと置き換え。`expectedUpdatedAt` がずれていれば409） |
+| POST | `/cases/:id/duplicate` | 複製 |
+| POST | `/cases/:id/restore` | ゴミ箱から復元 |
+| DELETE | `/cases/:id` | ゴミ箱へ（`?purge=1` で完全削除） |
+| GET | `/field-catalog` | 欄の辞書（様式の識別コード → 欄。MCP サーバーが使う） |
 | GET | `/industry-years` | 登録済みの年分一覧 |
 | GET | `/industry-categories` | 業種目マスタ |
 | GET | `/industry-metrics` | 業種目別の配当・利益・純資産 |
 | GET | `/industry-dataset` | フロントが使う一括取得 |
 | GET | `/industry-years/:gregorianYear/export` | 年分のJSON書き出し |
 | POST | `/industry-years` | 年分の新規登録 |
+| PUT | `/industry-years/:gregorianYear` | 登録済みの年分をアーカイブJSONで丸ごと入れ直す |
 | POST | `/industry-years/:gregorianYear/monthly-prices` | 月別株価の登録 |
 | PATCH | `/industry-years/:gregorianYear/categories/:number` | 業種目の訂正 |
-| DELETE | `/industry-years/:gregorianYear/monthly-prices/:y/:m` | 月別株価の削除 |
+| DELETE | `/industry-years/:gregorianYear/monthly-prices/:priceYear/:priceMonth` | 月別株価の削除 |
 
-CLI（`npm run industry:export` / `industry:import`）は管理画面の「JSONで入出力」と同じ経路を使う。年分の削除APIは無いので、登録済みの年分へは `--months-only` で月別株価だけ上書きする。
+CLI（`npm run industry:export` / `industry:import`）は管理画面の「JSONで入出力」と同じ経路を使う。年分の削除APIは無いので、登録済みの年分へは `--months-only` で月別株価だけ上書きするか、`industry:reseed` でアーカイブの内容に入れ直す。
 
 ## 10. ファイル構成
 
@@ -423,24 +452,35 @@ stock-valuation-form/
 │   │   ├── industryDataset.ts         # 業種目データのビュー・検索
 │   │   ├── IndustryDataProvider.tsx   # API からの取得と供給
 │   │   └── formQr.ts                  # 印刷用QRコード
-│   ├── features/industryAdmin/        # 業種目データ管理画面（#industry-data）
+│   ├── features/
+│   │   ├── cases/                     # 会社一覧・年度一覧・案件の保存（useCases / screen.ts）
+│   │   ├── industryAdmin/             # 業種目データ管理画面（#industry-data）
+│   │   ├── pastedTable/               # 表の貼り付け取込の共通部品
+│   │   └── table5Paste/               # 第５表への貼り付け取込
 │   ├── hooks/
-│   │   ├── useFormData.ts             # フォーム状態管理 + localStorage 永続化
+│   │   ├── useFormData.ts             # フォーム状態管理 + 作業中の写し（localStorage）
 │   │   └── rollover.ts                # 翌年度更新
 │   ├── lib/                           # 計算・判定・整合性チェック・和暦など
 │   └── types/form.ts                  # TableId / FormData 型定義
 ├── server/                            # API（Hono + Prisma）
 │   ├── index.ts                       # エントリ（API + 本番の静的配信）
 │   ├── db.ts                          # PrismaClient シングルトン
-│   ├── seed.ts                        # src/data の公表データを取込
+│   ├── seed.ts                        # prisma/industry-data の未登録の年分を取込
+│   ├── industryArchive.ts             # 1年分アーカイブの検証と取込（シードと管理APIで共用）
+│   ├── cases.ts                       # 案件の入力検証・応答の形
+│   ├── fieldCatalog.ts                # 欄の辞書
+│   ├── validation.ts                  # 検証エラー（400）
 │   ├── wareki.ts                      # 和暦キーの解釈・西暦変換
 │   └── routes/
+│       ├── cases.ts                   # 案件API
+│       ├── fieldCatalog.ts            # 欄の辞書API
 │       ├── industry.ts                # 業種目・株価等の読み取りAPI
 │       └── industryAdmin.ts           # 登録・訂正API
 ├── prisma/
-│   ├── schema.prisma                  # 業種目マスタ・株価等のスキーマ
+│   ├── schema.prisma                  # 案件・業種目マスタ・株価等のスキーマ
+│   ├── industry-data/                 # 業種目データの原本（年分ごとのJSON、Git 管理）
 │   └── migrations/                    # マイグレーション
-├── scripts/                           # 業種目データの export / import CLI
+├── scripts/                           # 業種目データの export / import / reseed / pdf CLI
 ├── index.html                         # HTMLエントリーポイント
 ├── vite.config.ts                     # Vite設定（base, alias, manualChunks, APIプロキシ）
 ├── vitest.config.ts                   # テスト設定
@@ -458,10 +498,10 @@ stock-valuation-form/
 
 | 項目 | 内容 |
 |---|---|
-| バックエンド | Hono + Prisma（業種目マスタ・業種目別株価等の配信と登録のみ） |
-| データベース | PostgreSQL（公表データのみ。入力内容は保存しない） |
-| 認証 | なし |
-| 入力データ | ブラウザの localStorage のみ。共有・バックアップは JSON 入出力で行う |
+| バックエンド | Hono + Prisma（案件・業種目データ・欄の辞書） |
+| データベース | PostgreSQL（案件と公表データ）。日次バックアップの対象 |
+| 認証 | なし（LAN の守りは Windows ファイアウォール） |
+| 入力データ | DB の案件。案件を開いたまま外部（MCP サーバー）から書き込むと画面の自動保存が後から上書きする |
 | 年分の管理 | 業種目と番号は年度により変わる。課税時期とデータの年分がずれると警告する。年分の削除APIは無い |
 | ブラウザ対応 | モダンブラウザ（Chrome, Edge, Firefox, Safari） |
 | 印刷 | A4縦のみ |
