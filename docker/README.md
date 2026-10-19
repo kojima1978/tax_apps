@@ -279,10 +279,10 @@ rd /s /q tax_apps
 
 | 項目 | 開発モード (`start`) | 本番モード (`start --prod`) |
 |:-----|:--------------------|:---------------------------|
-| サーバー | Vite dev / Next.js dev / runserver | Nginx / Node standalone / Gunicorn |
+| サーバー | Vite dev / Next.js dev / tsx watch | Nginx（静的）/ Node（Express・Hono・Next standalone） |
 | ソースマウント | あり（ホットリロード対応）※ private-banking / inheritance-case-management を除く | なし（イメージに内包） |
 | 最適化 | なし | minify, tree-shaking, gzip |
-| 非rootユーザー | 一部 | 全アプリ |
+| 非rootユーザー | 全アプリ | 全アプリ |
 | メモリ使用量 | 多い（512M〜） | 少ない（64M〜256M） |
 | ビルド | 不要（キャッシュ起動） | 必要（初回・更新時） |
 
@@ -343,26 +343,26 @@ docker compose -f apps\inheritance-tax-docs\docker-compose.yml -f apps\inheritan
 
 | 設定 | 開発 → 本番 |
 |:-----|:------------|
-| `build.target` | `dev` → `runner`（または `production`） |
+| `build.target` | `dev` → `runner`（全アプリ共通） |
 | `volumes` | ソースマウント削除（データボリュームのみ残す） |
 | `command` | 本番サーバーコマンドに変更 |
 | `deploy.resources` | メモリ制限を本番向けに削減 |
 
 ### アプリ別の本番構成
 
-| アプリ | 本番ステージ | 本番サーバー | prod.yml |
-|:------|:------------|:------------|:---------|
-| Gift Tax Simulator | `runner` | nginx:1.27-alpine | あり |
-| Inheritance Tax Docs | `runner` | nginx:1.27-alpine | あり |
-| Inheritance Tax App | `runner` | nginx:1.27-alpine | あり |
-| Tax Docs | `runner` | nginx:1.27-alpine | あり |
-| Shares Valuation | `runner` | nginx:1.27-alpine | あり |
-| Retirement Tax Calc | `runner` | nginx:1.27-alpine | あり |
-| Depreciation Calc | `runner` | nginx:1.27-alpine | あり |
-| Asset Valuation | `runner` | nginx:1.27-alpine | あり |
-| Stock Valuation Form | `runner` | nginx:1.27-alpine | あり |
-| Bank Analyzer | `production` | Gunicorn | あり |
-| ITCM | `runner` | Node.js standalone + tini | あり |
+| アプリ | 本番サーバー | 備考 |
+|:------|:------------|:-----|
+| Gift Tax Simulator / Tax Docs / Retirement Tax Calc / Depreciation Calc / Asset Valuation / Capital Gains Calc / Inheritance Tax Form | nginx:1.27-alpine | 共通の `docker/Dockerfile.vite-static` |
+| Portal（gateway の portal-app） | nginx:1.27-alpine | Next.js の静的出力 |
+| Inheritance Tax App | Node（Express） | |
+| Inheritance Tax Docs | Node（Express + SQLite） | |
+| Stock Valuation Form | Node（Hono + Prisma） | 画面と API を 3014 で両方配信 |
+| Bank Analyzer | Node（Hono + Prisma） | 画面と API を 3007 で両方配信 |
+| ITCM | Node（Next.js standalone） | |
+| Private Banking | Node（Next.js） | |
+| Insurance App | Node（Next.js standalone + SQLite） | |
+
+本番ステージはすべて `runner`、全アプリに `docker-compose.prod.yml` があります（`preflight` のチェック18が毎回確かめます）。
 
 ### Dockerfile マルチステージ構成
 
@@ -382,7 +382,7 @@ base → deps → dev        （開発サーバー）
 
 #### 非 root で動かす
 
-本番ステージ（`runner` / `production`）は元から非 root（`node` / `nextjs` / `appuser`）でしたが、
+本番ステージ（`runner`）は元から非 root（`node` / `nextjs` など）でしたが、
 **`dev` ステージも非 root**に揃えてあります。dev だけ root だと、コンテナ内から作られたファイルが
 root 所有でホスト側に残り、**本番（非 root）から触れなくなる**ためです。
 
@@ -420,9 +420,9 @@ git pull
 
 ### Step 2. 変更内容に応じて再起動
 
-#### ソースコードのみの変更（`.ts`, `.tsx`, `.py` 等）
+#### ソースコードのみの変更（`.ts`, `.tsx` 等）
 
-開発モードではソースコードがホストからコンテナにマウントされているため、**多くの場合は自動で反映されます**（ホットリロード）。反映されない場合:
+開発モードではソースコードがホストからコンテナにマウントされているため、ポーリングを設定してあるアプリ（bank-analyzer / stock-valuation-form / inheritance-tax-form）は**自動で反映されます**。それ以外の Vite 系アプリは Windows の bind mount では変更を検知しないので、再起動で取り込みます:
 
 ```bash
 ./manage.sh restart <app-name>
@@ -430,7 +430,7 @@ git pull
 
 #### 依存関係・Dockerfile の変更を含む場合
 
-`package.json`、`requirements.txt`、`Dockerfile` 等が変更された場合は**リビルドが必要**です:
+`package.json`、`Dockerfile`、`docker/Dockerfile.vite-static` 等が変更された場合は**リビルドが必要**です（`build` はそのアプリが今動いているモードを踏襲します）:
 
 ```bash
 ./manage.sh build <app-name>
@@ -444,7 +444,7 @@ Nginx 設定ファイル（`nginx.conf`, `default.conf`, `includes/`）はコン
 docker exec tax-apps-gateway nginx -s reload
 ```
 
-> 本番モードではソースマウントがないため、コード変更後は必ず `./manage.sh start --prod` で再ビルドしてください。
+> 本番モードではソースマウントがないため、コード変更後は `./manage.sh build <app-name>` で再ビルドしてください（本番のまま作り直されます）。compose ファイルだけの変更は `./manage.sh apply <app-name>`（再ビルドなし）で反映できます。
 
 ---
 
@@ -811,13 +811,14 @@ docker logs <container> 2>&1 | grep "Watchpack Error (initial scan)"
 
 ### 特定アプリだけ起動したい
 
-全アプリを起動する必要はありません。個別の docker-compose.yml を直接使用できます:
+全アプリを起動する必要はありません。アプリ名を付けて `start` します（ネットワークと bank-analyzer の external ボリュームは無ければ作られます）:
 
 ```bash
-docker network create tax-apps-network                          # ネットワーク作成
-docker compose -f docker\gateway\docker-compose.yml up -d       # Gateway 起動
-docker compose -f apps\tax-docs\docker-compose.yml up -d        # 必要なアプリだけ起動
+./manage.sh start gateway      # Gateway + Portal
+./manage.sh start tax-docs     # 必要なアプリだけ起動
 ```
+
+`docker compose up -d` を直接叩くこともできますが、モードの記録（`docker/logs/app-modes/`）が更新されず、bank-analyzer は external ボリュームが無い PC では起動できません。
 
 ### ネットワークエラー
 
@@ -835,14 +836,14 @@ docker network create tax-apps-network
 
 | アプリケーション | Gateway URL | Port | 技術 | 説明 |
 |:----------------|:------------|:-----|:-----|:-----|
-| Portal | http://localhost/ | 3000 | Next.js | メインポータル |
+| Portal | http://localhost/ | 3000 | Next.js（静的出力）+ Nginx | メインポータル |
 | Gift Tax Simulator | http://localhost/gift-tax-simulator/ | 3001 | Vite | 贈与税計算シミュレーター |
 | Tax Docs | http://localhost/tax-docs/ | 3002 | Vite | 確定申告 必要書類 |
-| Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | Vite | 相続税 資料ガイド |
-| Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | Vite | 相続税計算 |
+| Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | Vite + Express + SQLite | 相続税 資料ガイド |
+| Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | Vite + Express | 相続税計算 |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | React + Hono + PostgreSQL | 銀行分析 |
 | Retirement Tax | http://localhost/retirement-tax-calc/ | 3013 | Vite | 退職金税額計算 |
-| Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite | 株式評価明細書 |
+| Stock Valuation Form | http://localhost/stock-valuation-form/ | 3014 | Vite + Hono + PostgreSQL | 株式評価明細書 |
 | Depreciation Calc | http://localhost/depreciation-calc/ | 3015 | Vite | 減価償却計算 |
 | Asset Valuation | http://localhost/asset-valuation/ | 3017 | Vite | 減価償却資産評価 |
 | Capital Gains Calc | http://localhost/capital-gains-calc/ | 3019 | Vite | 譲渡所得税計算 |
@@ -857,7 +858,8 @@ docker network create tax-apps-network
 |:--------|:-----|:-----|
 | itcm-postgres | 3022 | ITCM用 PostgreSQL |
 | private-banking-postgres | 3026 | ファミリーB/S用 PostgreSQL |
-| bank-analyzer-postgres | 5432 (内部) | 銀行分析用 PostgreSQL |
+| bank-analyzer-postgres | 5432 (内部) | 銀行分析用 PostgreSQL（ボリュームは external。`manage.sh` が無ければ作る） |
+| svf-postgres | 3016 | 株式評価明細書の業種目DB・案件用 PostgreSQL |
 
 ### 起動順序
 
@@ -870,13 +872,13 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3 | tax-docs | Vite |
 | 4 | insurance-app | SQLite + Next.js |
 | 5 | private-banking | PostgreSQL + Next.js |
-| 6 | inheritance-tax-app | Vite |
+| 6 | inheritance-tax-app | Vite + Express |
 | 7 | gift-tax-simulator | Vite |
-| 8 | inheritance-tax-docs | Vite |
+| 8 | inheritance-tax-docs | Vite + Express + SQLite |
 | 9 | retirement-tax-calc | Vite |
 | 10 | depreciation-calc | Vite |
 | 11 | asset-valuation | Vite |
-| 12 | stock-valuation-form | Vite |
+| 12 | stock-valuation-form | PostgreSQL + Hono + Vite |
 | 13 | capital-gains-calc | Vite |
 | 14 | inheritance-tax-form | Vite |
 | 15 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
@@ -897,6 +899,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3013 | Retirement Tax Calc | apps/retirement-tax-calc |
 | 3014 | Stock Valuation Form | apps/stock-valuation-form |
 | 3015 | Depreciation Calc | apps/depreciation-calc |
+| 3016 | Stock Valuation Form PostgreSQL | apps/stock-valuation-form |
 | 3017 | Asset Valuation | apps/asset-valuation |
 | 3019 | Capital Gains Calc | apps/capital-gains-calc |
 | 3020 | ITCM Web | apps/inheritance-case-management |
@@ -1040,9 +1043,9 @@ SQLite で書込権限まで見るのは、`SELECT 1` だけだと「開けて�
 
 | カテゴリ | 技術 |
 |:---------|:-----|
-| Frontend | Next.js 16.1, React 19, Vite 6.3〜7.3 |
-| Backend | Next.js API Routes, Hono, Express |
-| Database | PostgreSQL 16 Alpine, SQLite |
+| Frontend | Next.js 16.1〜16.4, React 19, Vite 6.3〜7.3, Tailwind CSS v4（inheritance-tax-app のみ v3） |
+| Backend | Next.js API Routes, Hono, Express, Prisma |
+| Database | PostgreSQL 16（alpine。bank-analyzer のみ pgvector の bookworm）、照合順序 `C`, SQLite |
 | Infrastructure | Docker, Nginx 1.27 |
 | Node.js | v22 LTS |
 
@@ -1050,44 +1053,28 @@ SQLite で書込権限まで見るのは、`SELECT 1` だけだと「開けて�
 
 ```
 tax_apps/
-├── apps/                       # アプリケーションコード
-│   ├── portal/                 # ポータルサイト
+├── apps/                       # アプリケーションコード（各アプリに docker-compose.yml と docker-compose.prod.yml）
+│   ├── portal/app/             # ポータル（Next.js の静的出力。ビルドと起動は docker/gateway）
 │   ├── tax-docs/               # 確定申告 必要書類
-│   │   └── docker-compose.yml
 │   ├── gift-tax-simulator/     # 贈与税計算
-│   │   └── docker-compose.yml
-│   ├── inheritance-tax-docs/   # 相続税資料ガイド
-│   │   └── docker-compose.yml
-│   ├── inheritance-tax-app/    # 相続税計算
-│   │   └── docker-compose.yml
+│   ├── inheritance-tax-docs/   # 相続税資料ガイド（Express + SQLite）
+│   ├── inheritance-tax-app/    # 相続税計算（Express）
 │   ├── inheritance-case-management/  # 案件管理
-│   │   ├── web/                #   Next.js + Prisma
-│   │   ├── .env                #   PostgreSQL認証情報
-│   │   ├── docker-compose.yml  #   PostgreSQL + Web（dev）
-│   │   └── docker-compose.prod.yml  #   本番オーバーライド
-│   ├── insurance-app/          # 保険管理
-│   │   └── docker-compose.yml
+│   │   ├── web/                #   Next.js + Hono + Prisma
+│   │   └── .env                #   PostgreSQL認証情報（git管理外）
+│   ├── insurance-app/          # 保険管理（SQLite）
+│   ├── private-banking/        # ファミリーB/S（Next.js + Prisma + PostgreSQL）
 │   ├── retirement-tax-calc/    # 退職金税額計算
-│   │   └── docker-compose.yml
 │   ├── depreciation-calc/      # 減価償却計算
-│   │   └── docker-compose.yml
 │   ├── capital-gains-calc/     # 譲渡所得税計算
-│   │   ├── docker-compose.yml
-│   │   └── docker-compose.prod.yml
 │   ├── asset-valuation/        # 減価償却資産評価
-│   │   ├── docker-compose.yml
-│   │   └── docker-compose.prod.yml
-│   ├── stock-valuation-form/   # 株式評価明細書
-│   │   ├── docker-compose.yml
-│   │   └── docker-compose.prod.yml
-│   ├── inheritance-tax-form/   # 相続税の申告書 第1表
-│   │   ├── docker-compose.yml
-│   │   └── docker-compose.prod.yml
-│   └── bank-analyzer/          # 銀行分析
-│       ├── docker-compose.yml  #   PostgreSQL + Hono/React + テスト
-│       └── docker-compose.prod.yml
+│   ├── stock-valuation-form/   # 株式評価明細書（Hono + Prisma + PostgreSQL）
+│   ├── inheritance-tax-form/   # 相続税の申告書 全24様式
+│   ├── bank-analyzer/          # 銀行分析（Hono + Prisma + PostgreSQL。DB ボリュームは external）
+│   ├── mcp-server/             # 株式評価明細書へ書き込む stdio MCP サーバー（常駐しない）
+│   └── family-tree-sample/     # 家系図の試作（manage.sh の管理対象外）
 ├── docker/                     # Docker 管理
-│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile
+│   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（7アプリ）
 │   ├── gateway/                # Gateway Compose プロジェクト
 │   │   ├── docker-compose.yml  #   Nginx + Portal
 │   │   └── docker-compose.prod.yml  #   本番オーバーライド
@@ -1095,6 +1082,8 @@ tax_apps/
 │   │   ├── manage.sh           #   管理スクリプト本体（全機能）
 │   │   ├── manage.bat          #   Windows 補助ラッパー（ダブルクリックで開発モード起動）
 │   │   ├── backup.sh           #   全体バックアップ/リストア/リストア訓練の本体
+│   │   ├── lib/                #   共通処理（ops-common.sh / compose-build.sh / notify-failure.ps1）
+│   │   ├── tests/              #   スクリプトのテスト
 │   │   ├── start-prod.bat      #   ワンクリック本番モード起動
 │   │   ├── stop.bat            #   ワンクリック停止
 │   │   ├── status.bat          #   ワンクリック状態確認
@@ -1103,34 +1092,25 @@ tax_apps/
 │   │   ├── restore.bat         #   backup.sh restore を呼び出す Windows 補助ラッパー
 │   │   ├── restore-new-pc.bat  #   backup.sh newpc を呼び出す Windows 補助ラッパー（新しい PC で全部戻す）
 │   │   ├── set-backup-usb.bat  #   backup.sh usb を呼び出す Windows 補助ラッパー（外部コピー先を選ぶ）
-│   │   ├── unregister-backup-task.bat      #  廃止したタスクの解除用
-│   │   ├── unregister-restore-drill-task.bat #  廃止したタスクの解除用
+│   │   ├── register-startup-task.bat/.ps1         #  ログオン時の自動起動タスク登録（昇格不要）
+│   │   ├── register-docker-watchdog-task.bat/.ps1 #  ウォッチドッグのタスク登録（昇格不要）
+│   │   ├── unregister-*.bat    #   タスクの解除（backup / restore-drill は廃止したタスクの解除用）
 │   │   ├── docker-watchdog.ps1 #   Docker Desktop 監視/復旧本体
-│   │   ├── docker-watchdog.bat #   watchdog Windows 補助ラッパー
-│   │   ├── register-docker-watchdog-task.ps1 #  タスクスケジューラ登録
-│   │   └── register-docker-watchdog-task.bat #  タスク登録ラッパー（昇格不要）
+│   │   └── docker-watchdog.bat #   watchdog Windows 補助ラッパー
 │   ├── specs/                  # 仕様書
 │   │   └── manage-script-spec.md #  管理スクリプト仕様書
+│   ├── RESTORE.md              # リストア手順書
+│   ├── COLLATION-MIGRATION.md  # 照合順序 C への移行（別の PC 用）
+│   ├── OTHER-PC-SETUP.md       # 別の PC の更新・新規構築（AI にそのまま渡せる形）
 │   ├── backups/                # バックアップ保存先（git管理外）
+│   ├── logs/                   # last-run・app-modes・ウォッチドッグのログ（git管理外）
 │   └── README.md               # このファイル
-└── nginx/                      # Nginx 設定
-    ├── .dockerignore           # Docker ビルド除外
+└── nginx/                      # Nginx 設定（gateway のビルドコンテキスト）
     ├── Dockerfile              # Nginx イメージ
     ├── nginx.conf              # グローバル設定
     ├── default.conf            # ルーティング設定
     ├── robustness-checklist.md # 堅牢性チェックリスト
-    ├── includes/               # 共通設定ファイル
-    │   ├── proxy_params.conf       # プロキシ共通パラメータ
-    │   ├── upstreams.conf          # アップストリーム参照情報
-    │   ├── maps.conf               # Map定義
-    │   ├── rate_limit_general.conf # 一般レート制限
-    │   └── rate_limit_api.conf     # APIレート制限
-    ├── html/                   # カスタムエラーページ
-    │   ├── error-common.css    # エラーページ共通CSS
-    │   ├── error-pages-spec.md # エラーページ仕様書
-    │   ├── 404.html            # ページ未検出
-    │   ├── 429.html            # Rate Limit超過
-    │   ├── 50x.html            # サーバーエラー
-    │   └── 503.html            # メンテナンス
+    ├── includes/               # 共通設定（upstreams.conf のアドレスレジストリなど）
+    ├── html/                   # カスタムエラーページ（404 / 429 / 50x / 503）
     └── readme.md               # Nginx説明
 ```

@@ -8,86 +8,87 @@
 - **Docker Compose**: 各アプリが独自の `docker-compose.yml` を持ち、`manage.sh` で一括管理
 - **Nginx Gateway**: リバースプロキシによるルーティング（ポート80）
 - **manage.sh**: 全アプリの起動・停止・ログ確認等を一括管理する本体スクリプト
-- **backup.sh**: 全体バックアップ/リストア + ITCM定期バックアップ本体（`.bat` は Windows 補助ラッパー）
+- **backup.sh**: 全体バックアップ/リストア/リストア訓練の本体（`.bat` は Windows 補助ラッパー）
 
 ### アプリケーション一覧
 
 | アプリ名 | パス | ゲートウェイURL | ポート | 技術スタック | 説明 |
 |---------|------|----------------|--------|-------------|------|
-| ポータル | `/` | http://localhost/ | 3000 | Next.js (Static) | ランチャーダッシュボード |
-| 相続税計算 | `/inheritance-tax-app/` | http://localhost/inheritance-tax-app/ | 3004 | Vite + React | 相続税シミュレーション |
+| ポータル | `/` | http://localhost/ | 3000 | Next.js (静的出力) + nginx | ランチャーダッシュボード（`docker/gateway` でビルド） |
+| 相続税計算 | `/inheritance-tax-app/` | http://localhost/inheritance-tax-app/ | 3004 | Vite + React + Express | 相続税シミュレーション |
 | 贈与税計算 | `/gift-tax-simulator/` | http://localhost/gift-tax-simulator/ | 3001 | Vite + React | 贈与税・不動産取得税・登録免許税シミュレーション |
 | 退職金税額計算 | `/retirement-tax-calc/` | http://localhost/retirement-tax-calc/ | 3013 | Vite + React | 退職金の税額計算シミュレーション |
-| 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React | 相続税申告の必要書類ガイド |
+| 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React + Express + SQLite | 相続税申告の必要書類ガイド |
 | 相続税の申告書 | `/inheritance-tax-form/` | http://localhost/inheritance-tax-form/ | 3021 | Vite + React | 相続税の申告書 全24様式の作成・印刷 |
 | 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React | 確定申告書類管理 |
-| 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Prisma + PostgreSQL | 相続税案件管理 |
+| 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Hono + Prisma + PostgreSQL | 相続税案件管理 |
 | 譲渡所得税計算 | `/capital-gains-calc/` | http://localhost/capital-gains-calc/ | 3019 | Vite + React | 不動産・株式等の譲渡所得税シミュレーション |
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
 | 減価償却資産評価 | `/asset-valuation/` | http://localhost/asset-valuation/ | 3017 | Vite + React | 相続税申告の減価償却資産評価 |
-| 株式評価明細書 | `/stock-valuation-form/` | http://localhost/stock-valuation-form/ | 3014 | Vite + React | 取引相場のない株式の評価明細書 |
-| 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | React + Hono + PostgreSQL | 預金移動分析 |
+| 株式評価明細書 | `/stock-valuation-form/` | http://localhost/stock-valuation-form/ | 3014/3016 | Vite + React + Hono + Prisma + PostgreSQL | 取引相場のない株式の評価明細書 |
+| 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | Vite + React + Hono + Prisma + PostgreSQL | 預金移動分析 |
 | 保険管理 | `/insurance/` | http://localhost/insurance/ | 3030 | Next.js (standalone) + SQLite | 保険契約の管理 |
 | ファミリーB/S | `/private-banking/` | http://localhost/private-banking/ | 3025/3026 | Next.js + Prisma + PostgreSQL | 資産承継のファミリーB/S |
 
 ### 本番モード イメージサイズ
 
-| 種別 | アプリ | イメージサイズ |
+| 種別 | アプリ | イメージサイズ（目安） |
 |------|--------|--------------|
-| nginx (静的) | Vite/Next.js アプリ + gateway | ~59-60MB |
-| Next.js + Prisma | 案件管理 | ~333MB |
-| Next.js + Prisma | ファミリーB/S | ~415MB |
-| Node + Prisma | 銀行分析 | ~590MB |
+| nginx (静的) | Vite 系7アプリ + portal + gateway | ~93-104MB |
+| Node（Express / Hono / Next.js） | 上記以外 | 数百MB（`docker images` で確認） |
 
 ## ディレクトリ構造
 
 ```
 tax_apps/
 ├── apps/                              # アプリケーション群
-│   ├── portal/                        # ポータルランチャー
-│   ├── inheritance-tax-app/           # 相続税計算 (Vite)
+│   ├── portal/app/                    # ポータルランチャー（Next.js 静的出力。ビルドは docker/gateway）
+│   ├── inheritance-tax-app/           # 相続税計算 (Vite + Express)
 │   ├── gift-tax-simulator/            # 贈与税計算 (Vite)
 │   ├── retirement-tax-calc/           # 退職金税額計算 (Vite)
-│   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite)
+│   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite + Express + SQLite)
 │   ├── inheritance-tax-form/          # 相続税の申告書 全24様式 (Vite)
-│   ├── insurance-app/                 # 保険管理 (Next.js)
+│   ├── insurance-app/                 # 保険管理 (Next.js + SQLite)
 │   ├── tax-docs/                      # 確定申告必要書類 (Vite)
 │   ├── capital-gains-calc/            # 譲渡所得税計算 (Vite)
 │   ├── depreciation-calc/             # 減価償却計算 (Vite)
-│   ├── asset-valuation/              # 減価償却資産評価 (Vite)
-│   ├── stock-valuation-form/          # 株式評価明細書 (Vite)
+│   ├── asset-valuation/               # 減価償却資産評価 (Vite)
+│   ├── stock-valuation-form/          # 株式評価明細書 (Vite + Hono + Prisma + PostgreSQL)
 │   ├── inheritance-case-management/   # 案件管理 (Next.js + Prisma + PostgreSQL)
 │   ├── private-banking/               # ファミリーB/S (Next.js + Prisma + PostgreSQL)
+│   ├── bank-analyzer/                 # 銀行分析 (Vite + Hono + Prisma + PostgreSQL)
 │   ├── mcp-server/                    # 株式評価明細書へ書き込む MCP サーバー（常駐しない）
-│   └── bank-analyzer/                 # 銀行分析 (React + Hono + Prisma + PostgreSQL)
+│   └── family-tree-sample/            # 家系図の試作（manage.sh の管理対象外）
 ├── docker/                            # Docker共通設定
-│   ├── gateway/                       # Nginx Gateway の docker-compose.yml
+│   ├── Dockerfile.vite-static         # Vite 系7アプリ共通の Dockerfile
+│   ├── gateway/                       # Nginx Gateway + Portal の docker-compose.yml
 │   ├── scripts/                       # 管理スクリプト
 │   │   ├── manage.sh                  # 管理スクリプト本体（起動・停止・ログ等）
 │   │   ├── manage.bat                 # Windows 補助ラッパー（ダブルクリックで開発モード起動）
 │   │   ├── backup.sh                  # 全体バックアップ/リストア/リストア訓練の本体
-│   │   ├── lib/ops-common.sh          # manage.sh と backup.sh の共通処理（ロック・直近結果等）
+│   │   ├── lib/                       # 共通処理（ops-common.sh: ロック・直近結果等 / compose-build.sh）
 │   │   ├── docker-watchdog.ps1        # 自動復旧＋期限切れの無人処理（4時間毎）
+│   │   ├── register-*-task.bat        # 自動起動・ウォッチドッグのタスク登録（unregister-*.bat で解除）
 │   │   ├── start-prod.bat             # ワンクリック本番モード起動
 │   │   ├── stop.bat                   # ワンクリック停止
 │   │   ├── status.bat                 # ワンクリック状態確認
-│   │   ├── backup-db.bat              # backup.sh itcm を呼び出す Windows 補助ラッパー
+│   │   ├── backup-db.bat              # 手動バックアップ（backup.sh itcm を呼ぶ。中身は通常の backup と同じ）
 │   │   ├── restore-drill.bat          # backup.sh drill を呼び出す Windows 補助ラッパー
 │   │   ├── restore.bat                # backup.sh restore を呼び出す Windows 補助ラッパー（一覧から選ぶ）
 │   │   ├── restore-new-pc.bat         # backup.sh newpc を呼び出す Windows 補助ラッパー（新しい PC で全部戻す）
 │   │   └── set-backup-usb.bat         # backup.sh usb を呼び出す Windows 補助ラッパー（外部コピー先を選ぶ）
-│   ├── data/                          # 永続化データ（git管理外）
+│   ├── specs/                         # 管理スクリプトの仕様書
 │   ├── logs/                          # 無人処理の記録・モード記録（git管理外）
-│   ├── backups/                       # バックアップ保存先
-│   ├── postgres/                      # PostgreSQL初期化SQL
+│   ├── backups/                       # バックアップ保存先（git管理外）
 │   ├── RESTORE.md                     # リストアの手順書（新しい PC で全部戻す手順を含む）
 │   ├── COLLATION-MIGRATION.md         # 別の PC で照合順序を C へ移す手順書
-│   └── .env.example                   # 環境変数テンプレート
-├── nginx/                             # Nginx Gateway設定
+│   ├── OTHER-PC-SETUP.md              # 別の PC の更新・新規構築（AI にそのまま渡せる形）
+│   └── README.md                      # Docker 環境の詳しい説明
+├── nginx/                             # Nginx Gateway設定（gateway のビルドコンテキスト）
 │   ├── nginx.conf                     # メイン設定
 │   ├── default.conf                   # サーバーブロック定義
 │   ├── includes/                      # 分割設定ファイル
-│   │   ├── upstreams.conf             # アップストリーム定義
+│   │   ├── upstreams.conf             # アップストリーム定義（アドレスレジストリ）
 │   │   ├── maps.conf                  # マッピング定義
 │   │   ├── proxy_params.conf          # プロキシパラメータ
 │   │   └── rate_limit_*.conf          # レートリミット設定
@@ -103,9 +104,9 @@ tax_apps/
 
 ```
 apps/<アプリ名>/
-├── docker-compose.yml          # 開発用（ソースマウント、HMR対応）
+├── docker-compose.yml          # 開発用（ソースマウント）
 ├── docker-compose.prod.yml     # 本番用オーバーライド（runner ステージ、リソース制限）
-├── Dockerfile                  # マルチステージビルド（dev / builder / runner）
+├── Dockerfile                  # マルチステージビルド（dev / builder / runner。Vite 系7アプリは docker/Dockerfile.vite-static）
 └── ...
 ```
 
@@ -123,6 +124,8 @@ git clone https://github.com/kojima1978/tax_apps.git
 cd tax_apps
 ```
 
+> 別の PC を更新する・新しく構築するときは [docker/OTHER-PC-SETUP.md](docker/OTHER-PC-SETUP.md)（AI にそのまま渡せる手順書）を使ってください。
+
 #### かんたん操作（ダブルクリック）
 
 | 操作 | スクリプト | 場所 |
@@ -131,7 +134,8 @@ cd tax_apps
 | 本番モード起動 | `start-prod.bat` | `docker\scripts\start-prod.bat` をダブルクリック |
 | 停止 | `stop.bat` | `docker\scripts\stop.bat` をダブルクリック |
 | 状態確認 | `status.bat` | `docker\scripts\status.bat` をダブルクリック |
-| 自動バックアップ | `backup-db.bat` | `docker\scripts\backup-db.bat` をダブルクリック |
+| 手動バックアップ（自動はウォッチドッグが実行） | `backup-db.bat` | `docker\scripts\backup-db.bat` をダブルクリック |
+| 新しい PC で全部戻す | `restore-new-pc.bat` | `docker\scripts\restore-new-pc.bat` をダブルクリック（手順は `docker/RESTORE.md`） |
 | 外部コピー先（USB）を選ぶ | `set-backup-usb.bat` | USB を挿して `docker\scripts\set-backup-usb.bat` をダブルクリック |
 
 #### Git Bashでの操作
@@ -144,7 +148,7 @@ cd tax_apps
 ./docker/scripts/manage.sh start --prod
 ```
 
-> `.env` ファイルは `.env.example` から自動作成されます。
+> PostgreSQL を使う4アプリの `.env` は `.env.example` から自動作成されます。本番モードで起動すると、開発用の既定パスワードのままなら `manage.sh` が一意の値を生成して `.env` へ書き戻します。
 
 ブラウザで http://localhost/ にアクセスしてポータルを開きます。
 
@@ -193,11 +197,15 @@ cd tax_apps
 ./docker/scripts/manage.sh watch <app>          ソース変更をコンテナへ同期（対応アプリのみ・フォアグラウンド）
 ./docker/scripts/manage.sh logs <app>           特定アプリのログを表示
 ./docker/scripts/manage.sh status               全アプリの状態を表示
+./docker/scripts/manage.sh start --recorded     全アプリをアプリごとに記録されたモードで起動（記録が無ければ開発）
 ./docker/scripts/manage.sh test [app]           稼働中のコンテナの中でテストを実行
 ./docker/scripts/manage.sh recover              落ちているアプリだけ起動し直す（ウォッチドッグ用）
 ./docker/scripts/manage.sh backup               全データベース・データをバックアップ（backup.sh に委譲）
 ./docker/scripts/manage.sh restore [app|--all] [backup] [--yes]
                                                 アプリ単位でリストア（件数照合・healthy 待ちつき。手順は docker/RESTORE.md）
+./docker/scripts/manage.sh newpc [--check]      新しい PC で全部戻す（.env → 起動 → 全アプリ restore。--check は一覧だけ）
+./docker/scripts/manage.sh usb [--set|--show|--copy-now|--off]
+                                                バックアップの外部コピー先（USB 等）を選ぶ
 ./docker/scripts/manage.sh verify <file>        暗号化バックアップを復号・整合性検証
 ./docker/scripts/manage.sh drill [file]         リストア訓練（使い捨てDBへ実際に復元して検証）
 ./docker/scripts/manage.sh due                  期限切れの無人処理だけ実行（ウォッチドッグ用）
@@ -209,7 +217,7 @@ cd tax_apps
 ./docker/scripts/manage.sh collation [app] [--yes]
                                                 PostgreSQL の照合順序を C へ移す（手でだけ叩く。手順は docker/COLLATION-MIGRATION.md）
 ./docker/scripts/manage.sh preflight            起動前チェック（Docker, ポート等）
-./docker/scripts/backup.sh itcm                 ITCM定期バックアップ（JSONエクスポート含む）
+./docker/scripts/backup.sh itcm                 backup と同じ全体バックアップ（backup-db.bat の入口）
 ```
 
 バックアップはAES-256暗号化して `docker/backups/` に**日次7＋週次4＋月次6（GFS）**で保持し、最新1日分だけ `tax_apps` と同じ階層の `tax_apps_backup_latest/all-apps/` に追加コピーします。暗号鍵はリポジトリ外の `~/.tax-apps/backup.key` に保存されます（**これを失うと暗号化アーカイブは全部ただのゴミになる**ので、控えだけは手で取ること）。
@@ -220,62 +228,51 @@ cd tax_apps
 
 | | 開発モード (`start`) | 本番モード (`start --prod`) |
 |---|---|---|
-| ビルド | なし（ソースマウント） | `docker compose ... --build` |
-| ソースコード | ホストからマウント（HMR対応）<br>※private-banking / inheritance-case-management は `watch` で同期 | イメージ内に含む |
+| ビルド | dev ステージ（ソースはマウント） | `docker compose ... --build`（runner ステージ） |
+| ソースコード | ホストからマウント<br>※private-banking / inheritance-case-management は `watch` で同期 | イメージ内に含む |
 | Dockerfile ターゲット | `dev` | `runner` |
-| nginx系イメージサイズ | ~800MB (Node.js + ソース) | ~60MB (nginx + dist) |
 | 用途 | ローカル開発 | デプロイ・動作検証 |
 
-### アプリ個別のDocker起動
+### アプリ個別の起動
 
-各アプリは独立した `docker-compose.yml` を持っているため、単体でも起動可能です。
-
-```bash
-cd apps/inheritance-tax-docs
-docker compose up -d
-# http://localhost:3003/inheritance-tax-docs/ にアクセス
-```
-
-### 個別アプリの開発
+1アプリだけ起動・再ビルドするときも `manage.sh` を使います（ネットワークと bank-analyzer の external ボリュームを無ければ作り、モードの記録も更新するため）。
 
 ```bash
-cd apps/<アプリ名>
-docker compose up -d
-docker compose logs -f
+./docker/scripts/manage.sh start inheritance-tax-docs     # 開発モードで起動
+./docker/scripts/manage.sh build inheritance-tax-docs     # 再ビルド（稼働中のモードを踏襲）
+./docker/scripts/manage.sh logs inheritance-tax-docs
+# http://localhost/inheritance-tax-docs/ にアクセス
 ```
 
 > ローカル環境を汚さないため、`npm install` や `npm run dev` はホスト側では実行しません。必要な作業は Docker コンテナ内または Docker Compose 経由で行います。
 
 ## 環境変数
 
-### PostgreSQL（案件管理システム用）
+### PostgreSQL（4アプリ）
 
-`apps/inheritance-case-management/.env` に設定（`.env.example` から自動作成）:
+各アプリの `.env` に設定します（`.env.example` から自動作成。git 管理外）。本番起動時は `manage.sh` が開発用の既定パスワードを一意の値へ置き換えて書き戻し、DB 側にも `ALTER ROLE` で反映します（**以降 `.env` を手で書き換えないこと**）。
+
+| アプリ | `.env` | ユーザー / DB | ホスト側ポート |
+|--------|--------|--------------|---------------|
+| 案件管理 | `apps/inheritance-case-management/.env` | `postgres` / `inheritance_tax_db` | 3022 |
+| 銀行分析 | `apps/bank-analyzer/.env` | `bankuser` / `bank_analyzer` | なし（内部のみ） |
+| ファミリーB/S | `apps/private-banking/.env` | `postgres` / `private_banking` | 3026（`DB_PORT`） |
+| 株式評価明細書 | `apps/stock-valuation-form/.env` | `postgres` / `stock_valuation` | 3016（`DB_PORT`） |
 
 ```env
+# 例: apps/inheritance-case-management/.env.example
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres_dev_2024
+POSTGRES_PASSWORD=change_me_local_only
 POSTGRES_DB=inheritance_tax_db
-```
-
-### Bank Analyzer
-
-`apps/bank-analyzer/.env` に設定（`.env.example` から自動作成。本番起動時は `manage.sh` が
-`POSTGRES_PASSWORD` を生成して書き戻す）:
-
-```env
-POSTGRES_USER=bankuser
-POSTGRES_PASSWORD=change-me
-POSTGRES_DB=bank_analyzer
 ```
 
 ## 技術スタック
 
-- **フロントエンド**: Vite 6〜7 + React 19, Next.js 16+
+- **フロントエンド**: Vite 6.3〜7.3 + React 19, Next.js 16.1〜16.4
 - **バックエンド**: Next.js API Routes, Hono, Express
 - **ORM**: Prisma
-- **データベース**: SQLite, PostgreSQL 16 Alpine
-- **スタイリング**: Tailwind CSS v4
+- **データベース**: SQLite, PostgreSQL 16（alpine。bank-analyzer のみ pgvector の bookworm）、照合順序は `C`
+- **スタイリング**: Tailwind CSS v4（inheritance-tax-app のみ v3）
 - **アイコン**: lucide-react
 - **本番サーバー**: nginx:1.27-alpine (静的サイト), Node.js
 - **コンテナ**: Docker Compose（アプリ毎の独立構成 + prod override パターン）
@@ -304,8 +301,13 @@ docker restart tax-apps-gateway
 
 ### Windows Docker でのファイル監視問題
 
-Windows でボリュームマウントを使用する場合、ファイル変更の検出に問題が発生することがあります。
-各アプリの `docker-compose.yml` にて `WATCHPACK_POLLING=true` が設定されているため、追加の手順は不要です。
+Windows の bind mount ではコンテナ内にファイル変更の通知が届きません。アプリによって扱いが違います:
+
+| アプリ | 編集の取り込み方 |
+|--------|-----------------|
+| bank-analyzer / stock-valuation-form / inheritance-tax-form | ポーリング設定済み。自動で反映 |
+| private-banking / inheritance-case-management | bind mount せず `manage.sh watch <app>` で同期（止めている間の変更は `build`） |
+| 上記以外の Vite 系アプリ | `manage.sh restart <app>` で取り込む |
 
 ### npm ci の lockfile エラー
 
