@@ -11,20 +11,25 @@
 #   ./manage.sh restart <app>      指定アプリのみ再起動
 #   ./manage.sh status             全アプリの状態表示
 #   ./manage.sh logs <app>         指定アプリのログ表示
-#   ./manage.sh build <app>        指定アプリを再ビルドして起動
+#   ./manage.sh build <app>        指定アプリを再ビルドして起動（稼働中のモードを踏襲）
+#   ./manage.sh apply [app]        compose の変更をコンテナへ反映（再ビルドなし）
+#   ./manage.sh watch <app>        ソース変更をコンテナへ同期（フォアグラウンド）
 #   ./manage.sh down               全アプリを停止してコンテナ削除
 #   ./manage.sh backup             全データベース・データをバックアップ
 #   ./manage.sh restore [app|--all] [backup] [--yes]  アプリ単位でリストア（docker/RESTORE.md）
 #   ./manage.sh newpc              新しい PC でバックアップから全部を戻す（restore-new-pc.bat）
 #   ./manage.sh usb                バックアップの外部コピー先（USB など）を選ぶ（set-backup-usb.bat）
+#   ./manage.sh verify <backup>    バックアップの復号とハッシュ照合
+#   ./manage.sh drill [backup]     リストア訓練（使い捨てDBへ復元して検証）
 #   ./manage.sh due                期限切れの無人処理だけ実行（ウォッチドッグ用）
 #   ./manage.sh clean              コンテナ・イメージのクリーンアップ
-#   ./manage.sh clean-cache        古い Docker Build Cache の削除
+#   ./manage.sh clean-cache        Docker Build Cache の削除（確認つき）
 #   ./manage.sh prune              無人向けの掃除（確認なし・ボリュームは触らない）
 #   ./manage.sh test [app]         稼働中のコンテナの中でテストを実行
 #   ./manage.sh alert              デスクトップの警告ファイルを作り直す
 #   ./manage.sh loop-check         リロードループの検知（ウォッチドッグ用）
 #   ./manage.sh preflight          起動前チェック
+#   ./manage.sh collation [app] [--yes]  DB の照合順序を C へ移す（docker/COLLATION-MIGRATION.md）
 #
 # ============================================
 
@@ -2087,7 +2092,7 @@ cmd_preflight() {
   local tax_apps_ports=()
   # 実際に host へ publish しているポートに合わせること。ここに載っていない
   # ポートの競合は preflight を素通りし、起動時に初めて bind 失敗として出る。
-  local ports=(80 3000 3001 3002 3003 3004 3007 3010 3013 3014 3015 3016 3017 3019 3020 3021 3022 3025 3026 3030)
+  local ports=(80 3000 3001 3002 3003 3004 3007 3013 3014 3015 3016 3017 3019 3020 3021 3022 3025 3026 3030)
   for p in "${ports[@]}"; do
     local owner
     if owner=$(tax_apps_container_for_port "$p"); then
@@ -3086,9 +3091,9 @@ case "$COMMAND" in
     echo "  usb [--set dir|--off|--show]  バックアップの外部コピー先（USB など）を選ぶ"
     echo "  verify <backup>    バックアップの復号とハッシュ照合"
     echo "  drill [backup]     リストア訓練（使い捨てDBへ実際に復元して検証。既定は最新）"
-    echo "  due                期限切れの無人処理だけ実行（バックアップ・訓練。ウォッチドッグ用）"
+    echo "  due                期限切れの無人処理だけ実行（バックアップ・訓練・掃除・ループ検知。ウォッチドッグ用）"
     echo "  clean              コンテナ・イメージのクリーンアップ"
-    echo "  clean-cache [--all] Docker Build Cache の削除（通常は7日以上未使用のみ）"
+    echo "  clean-cache [--all] Docker Build Cache の削除（確認つき。--all は未使用のキャッシュをすべて）"
     echo "  prune              無人向けの掃除（確認なし・ボリュームは触らない）"
     echo "  alert              デスクトップの警告ファイルを作り直す"
     echo "  loop-check         画面のリロードループを検知（ウォッチドッグ用）"

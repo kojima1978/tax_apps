@@ -1,9 +1,12 @@
 # 管理スクリプト仕様書
 
-Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh`) の技術仕様書
+Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh` / `backup.sh`) の技術仕様書
 
-**最終更新**: 2026-07-28
-**バージョン**: 3.5（`watch` コマンド追加、`status` に自動復旧の配線チェックを追加）
+**最終更新**: 2026-10-20
+**バージョン**: 4.0（現状に合わせて全面改訂。バックアップ系の `backup.sh` への分離、アプリ単位のリストア、無人処理・テスト・照合順序のコマンド、preflight のチェック13〜23）
+
+> 運用上の「なぜそうなっているか」は `tax_apps/CLAUDE.md` の「manage.sh / backup.sh」「自動起動・自動復旧」が正本。
+> この文書はコマンドと定義の一覧に徹する。リストアの手順は `docker/RESTORE.md`、照合順序の移行は `docker/COLLATION-MIGRATION.md`。
 
 ---
 
@@ -16,8 +19,8 @@ Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh`) の技�
 - [5. コマンド仕様](#5-コマンド仕様)
 - [6. サブルーチン仕様（manage.sh）](#6-サブルーチン仕様managesh)
 - [7. アプリ名解決ロジック](#7-アプリ名解決ロジック)
-- [8. バックアップ仕様](#8-バックアップ仕様)
-- [9. リストア仕様](#9-リストア仕様)
+- [8. バックアップ・リストア仕様](#8-バックアップリストア仕様)
+- [9. 無人処理](#9-無人処理)
 - [10. Preflight Check 仕様](#10-preflight-check-仕様)
 
 ---
@@ -26,7 +29,7 @@ Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh`) の技�
 
 ### 目的
 
-複数の独立した Docker Compose プロジェクト（14管理対象アプリ + gateway）を統合管理するオーケストレーションスクリプト。
+複数の独立した Docker Compose プロジェクト（14管理対象アプリ + gateway。`APPS` 配列 15 要素）を統合管理するオーケストレーションスクリプト。
 
 ### 設計方針
 
@@ -36,7 +39,8 @@ Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh`) の技�
 | 共有ネットワーク | 全コンテナは外部ネットワーク `tax-apps-network` で通信 |
 | 起動順序制御 | DB依存アプリを先に、Gateway を最後に起動 |
 | 障害分離 | 1アプリの障害が他に影響しない |
-| 本番/開発切替 | `docker-compose.prod.yml` オーバーライドによる本番モード |
+| 本番/開発切替 | `docker-compose.prod.yml` オーバーレイによる本番モード。モードはアプリ単位で記録し（`docker/logs/app-modes/<app>`）、`build` / `apply` / `recover` は記録されたモードを踏襲する |
+| 操作ロック | 状態を変えるコマンドは共有の操作ロック（`lib/ops-common.sh`）を取る。端末からは待たず、無人実行のときだけ待つ（`recover` 240秒、ほか120秒） |
 
 ### 動作環境
 
@@ -56,7 +60,11 @@ Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh`) の技�
 | ファイル | パス | 説明 |
 |:---------|:-----|:-----|
 | `manage.bat` | `docker/scripts/manage.bat` | Windows ラッパー（Git Bash 経由で manage.sh を実行） |
-| `manage.sh` | `docker/scripts/manage.sh` | 管理スクリプト本体（全機能） |
+| `manage.sh` | `docker/scripts/manage.sh` | 管理スクリプト本体 |
+| `backup.sh` | `docker/scripts/backup.sh` | バックアップ・リストア・訓練・無人処理（`manage.sh` の backup / restore / newpc / usb / verify / drill / due はここへ委譲） |
+| `ops-common.sh` | `docker/scripts/lib/ops-common.sh` | 両方から source する共通処理（色・ログローテーション・直近結果 `last-run`・操作ロック・`OPS_WATCHED_RESULTS`） |
+| `docker-watchdog.ps1` | `docker/scripts/docker-watchdog.ps1` | ウォッチドッグ（4時間毎）。Docker の起動待ち → `recover` → unhealthy の再起動 → `due` → `alert` |
+| `*.bat` | `docker/scripts/` | ダブルクリック用の補助ラッパー（`start-prod` / `stop` / `status` / `backup-db` / `restore` / `restore-new-pc` / `restore-drill` / `set-backup-usb` / `register-*-task` / `unregister-*-task`） |
 
 ### manage.bat の仕組み
 
@@ -79,34 +87,54 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 
 ### アプリ一覧（起動順序）
 
-| # | 変数名 | パス | 説明 | ポート |
-|:--|:-------|:-----|:-----|:-------|
-| 1 | `APP_1` | `apps\inheritance-case-management` | 案件管理 (PostgreSQL + Next.js + Prisma) | 3020/3022 |
-| 2 | `APP_2` | `apps\bank-analyzer` | 銀行分析 (PostgreSQL + Hono + React) | 3007 |
-| 3 | `APP_3` | `apps\tax-docs` | 所得税・贈与税書類リスト (Vite) | 3002 |
-| 4 | `APP_4` | `apps\insurance-app` | 保険管理 (SQLite + Next.js) | 3030 |
-| 5 | `APP_5` | `apps\private-banking` | ファミリーB/S管理 (PostgreSQL + Next.js) | 3025/3026 |
-| 6 | `APP_6` | `apps\inheritance-tax-app` | 相続税計算 (Vite) | 3004 |
-| 7 | `APP_7` | `apps\gift-tax-simulator` | 贈与税計算 (Vite) | 3001 |
-| 8 | `APP_8` | `apps\inheritance-tax-docs` | 相続税資料ガイド (Vite) | 3003 |
-| 9 | `APP_9` | `apps\retirement-tax-calc` | 退職金税額計算 (Vite) | 3013 |
-| 10 | `APP_10` | `apps\depreciation-calc` | 減価償却計算 (Vite) | 3015 |
-| 11 | `APP_11` | `apps\asset-valuation` | 減価償却資産評価 (Vite) | 3017 |
-| 12 | `APP_12` | `apps\stock-valuation-form` | 株式評価明細書 (Vite) | 3014 |
-| 13 | `APP_13` | `apps\capital-gains-calc` | 譲渡所得税計算 (Vite) | 3019 |
-| 14 | `APP_14` | `docker\gateway` | Nginx Gateway + Portal (Next.js) | 80/3000 |
+`APPS` 配列の並びがそのまま起動順。パスはリポジトリルートからの相対。ポートは `127.0.0.1` だけに publish し、外からはゲートウェイ（80）経由で `http://<host>/<app>/` に届く。
 
-**合計**: 13 管理対象アプリ + gateway（`APPS` 配列 14 要素）
+| # | パス | 説明 | ポート |
+|:--|:-----|:-----|:-------|
+| 1 | `apps/inheritance-case-management` | 相続税案件管理 (PostgreSQL + Next.js + Hono + Prisma) | 3020 / DB 3022 |
+| 2 | `apps/bank-analyzer` | 銀行取引分析 (PostgreSQL + Hono + React) | 3007 |
+| 3 | `apps/tax-docs` | 確定申告・贈与税の必要書類 (Vite) | 3002 |
+| 4 | `apps/insurance-app` | 保険管理 (SQLite + Next.js) | 3030 |
+| 5 | `apps/private-banking` | ファミリーB/S (PostgreSQL + Next.js + Prisma) | 3025 / DB 3026 |
+| 6 | `apps/inheritance-tax-app` | 相続税シミュレーター (Express + Vite) | 3004 |
+| 7 | `apps/gift-tax-simulator` | 贈与税・不動産関連税 (Vite) | 3001 |
+| 8 | `apps/inheritance-tax-docs` | 相続税 資料準備ガイド (SQLite + Express + Vite) | 3003 |
+| 9 | `apps/retirement-tax-calc` | 退職金税額計算 (Vite) | 3013 |
+| 10 | `apps/depreciation-calc` | 減価償却・耐用年数 (Vite) | 3015 |
+| 11 | `apps/asset-valuation` | 減価償却資産評価 (Vite) | 3017 |
+| 12 | `apps/stock-valuation-form` | 株式評価明細書 (PostgreSQL + Hono + Vite) | 3014 / DB 3016 |
+| 13 | `apps/capital-gains-calc` | 譲渡所得税計算 (Vite) | 3019 |
+| 14 | `apps/inheritance-tax-form` | 相続税の申告書 (Vite) | 3021 |
+| 15 | `docker/gateway` | Nginx ゲートウェイ + ポータル (Next.js) | 80 / 3000 |
 
-> **注**: Portal アプリ (`apps/portal/`) は Gateway の docker-compose.yml 内にサービスとして定義されている（`portal-app`）。独自の docker-compose.yml は持たない。
+> **注**: ポータル (`apps/portal/`) は gateway の `docker-compose.yml` の中のサービス（`portal-app`）として定義されていて、独自の compose を持たない。
+
+### 管理外のアプリ（`UNMANAGED_APPS`）
+
+`apps/` 直下にあっても意図的に `APPS` へ載せないもの。preflight のチェック15はここに無いディレクトリを「載せ忘れ」として出す。
+
+| ディレクトリ | 理由 |
+|:-------------|:-----|
+| `family-tree-sample` | 試作。`compose.yaml` で独立して動かし、起動も停止も手で行う |
+| `mcp-server` | 常駐しない MCP サーバー。クライアントが `docker run -i --rm` で起動する。テストだけ `TEST_TARGETS` の `run@mcp-server-test` で回る |
+
+### そのほかの定義（manage.sh 冒頭）
+
+| 配列 | 中身 |
+|:-----|:-----|
+| `VOLUMES` | `clean` の Step 2 で消すデータボリューム（6件）。チェック14が実際のボリュームと突き合わせる |
+| `EXTERNAL_VOLUMES` | compose で `external: true` のボリューム（`bank-analyzer-postgres`）。無ければ `ensure_network` が作る |
+| `NON_DATA_VOLUMES` | データではないボリューム（`private-banking_private_banking_next`）。チェック14の除外 |
+| `POSTGRES_APPS` | 本番起動の前に DB パスワードを生成して `ALTER ROLE` するアプリ（private-banking / stock-valuation-form / bank-analyzer）。形式 `アプリ名:サービス名:DB名:接頭辞:既定パスワード[:キー名[:ユーザー名]]` |
+| `PROD_SECRETS` | DB 以外の本番シークレット。いまは空 |
+| `TEST_TARGETS` | `test` の対象（`アプリ名:コンテナ名:コマンド`。`run@<サービス>` は使い捨てコンテナ）。CI の matrix と対で、チェック16が突き合わせる |
 
 ### 起動順序の設計根拠
 
 ```
-[1-2] DB依存アプリ（PostgreSQL コンテナが depends_on で先に起動）
-[3-4] SQLite + バックエンド付きアプリ
-[5-12] フロントエンドのみアプリ
-[13] Gateway（全アプリのコンテナ名を upstream として参照するため最後）
+[1-2]  DB を持つアプリ（PostgreSQL コンテナが depends_on で先に起動）
+[3-14] そのほかのアプリ
+[15]   Gateway（全アプリのコンテナ名を upstream として参照するため最後）
 ```
 
 停止・削除時は**逆順**（Gateway → フロントエンド → DB依存）で処理する。
@@ -129,303 +157,101 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 | 3.6 | income-tax-calc を削除。manage.sh、Nginx、ポータル、Docker docs から参照を削除 |
 | 3.7 | medical-stock-valuation を削除。manage.sh（APPS / VOLUMES）、backup.sh（SQLITE_TARGETS）、Nginx、ポータル、Docker docs から参照を削除。データボリューム `medical-stock-valuation-data` は消さずに残す |
 | 3.7 | capital-gains-calc（譲渡所得税計算・port 3019）を追加。あわせてアプリ一覧の private-banking 欠落と preflight 対象ポート一覧の記載ずれを修正 |
+| 4.0 | 現状に合わせて全面改訂。inheritance-tax-form を一覧へ、バックアップ対象の定義を `backup.sh` へ（SQLite の対象が実在しない2件のままだった）、リストアをアプリ単位の記述へ、コマンド一覧に recover / apply / test / newpc / usb / verify / drill / due / prune / alert / loop-check / collation、preflight をチェック23まで。preflight のポート一覧から削除済みの 3010（medical）を外す |
 
 ---
 
 ## 4. バックアップ/リストア対象定義
 
-backup/restore コマンドで扱うデータソースは、manage.sh 内の定数配列でデータ駆動的に定義されている。新しいバックアップ対象を追加する際は、この定義に1行追加するだけで backup/restore 両方に反映される。
+対象は **`backup.sh` 冒頭の4配列**で定義する。バックアップ・リストア・訓練（drill）・件数照合はすべてここから生成されるので、DB やデータを持つアプリを足したら必ず1行追加すること。下の表は写しで、正本は `backup.sh`。
 
-### 4.1 PostgreSQL ターゲット
+### 4.1 PostgreSQL（`PG_TARGETS`、7フィールド）
 
-| manage.sh |
-|:----------|
-| `PG_TARGETS` 配列（コロン区切り） |
+`label:container:pg_user:db_name:volume:dump_file:app`（7番目は `apps/` の下の名前で、`restore <app>` の対応付けに使う）
 
-**フィールド**: `label:container:pg_user:db_name:volume:dump_file:restart_hint`
+| container | app |
+|:----------|:----|
+| `itcm-postgres` | inheritance-case-management |
+| `bank-analyzer-postgres` | bank-analyzer（ユーザー `bankuser`） |
+| `private-banking-postgres` | private-banking |
+| `svf-postgres` | stock-valuation-form |
 
-| # | label | container | pg_user | db_name | volume | dump_file | restart_hint |
-|:--|:------|:----------|:--------|:--------|:-------|:----------|:-------------|
-| 1 | ITCM PostgreSQL | itcm-postgres | postgres | inheritance_tax_db | inheritance-case-management_postgres_data | itcm-postgres | inheritance-case-management |
-| 2 | Bank Analyzer PostgreSQL | bank-analyzer-postgres | bankuser | bank_analyzer | bank-analyzer-postgres | bank-analyzer-postgres | bank-analyzer |
+### 4.2 SQLite（`SQLITE_TARGETS`、6フィールド）
 
-### 4.2 SQLite ターゲット
+6番目が app。件数照合はアプリのコンテナを借りて行う。
 
-| manage.sh |
-|:----------|
-| `SQLITE_TARGETS` 配列 |
+| app | ファイル | ボリューム |
+|:----|:---------|:-----------|
+| insurance-app | `/app/data/insurance.sqlite` | `insurance-app-data` |
+| inheritance-tax-docs | `/app/data/resources.sqlite` | `inheritance-tax-docs-data` |
 
-**フィールド**: `volume:filename`
+### 4.3 バインドマウント（`BIND_TARGETS`）
 
-| # | volume | filename |
-|:--|:-------|:---------|
-| 1 | bank-analyzer-sqlite | bank-analyzer-sqlite |
-| 2 | tax-docs-data | tax-docs-data |
+| label | パス |
+|:------|:-----|
+| ITCM Excel templates | `apps/inheritance-case-management/templates` |
 
-### 4.3 バインドマウントターゲット
+### 4.4 設定ファイル（`SETTINGS_TARGETS`）
 
-| manage.sh |
-|:----------|
-| `BIND_TARGETS` 配列 |
+`.env` 4件（inheritance-case-management / bank-analyzer / private-banking / stock-valuation-form）。リストアでは**無いときだけ戻す**（`--with-env` で上書き）。本番の DB パスワードは `ALTER ROLE` で DB 側にあるので、`.env` だけ古い版へ戻すと繋がらなくなるため。
 
-**フィールド**: `label:src_relative_path:backup_dirname`
+### 4.5 そのほか
 
-| # | label | src_relative_path | backup_dirname |
-|:--|:------|:------------------|:---------------|
-| 1 | ITCM Excel templates | apps/inheritance-case-management/templates | itcm-templates |
-
-### 4.4 設定ファイルターゲット
-
-| manage.sh |
-|:----------|
-| `SETTINGS_TARGETS` 配列 |
-
-**フィールド**: `label:src_relative_path:backup_filename`
-
-| # | label | src_relative_path | backup_filename |
-|:--|:------|:------------------|:----------------|
-| 1 | ITCM .env | apps/inheritance-case-management/.env | itcm-.env |
-
-### 4.5 ステップ番号の自動計算
-
-ステップ総数は `PG件数 + 1(SQLite) + BIND件数 + SETTINGS件数` で自動計算される。各ステップのラベル `[n/total]` は実行時に動的に生成される。
+bank-analyzer の JSON エクスポート（`npm run backup:json`）もアーカイブに入る。
 
 ---
 
 ## 5. コマンド仕様
 
-### 5.1 start
+`<app>` はアプリ名の部分一致（[7章](#7-アプリ名解決ロジック)）。`manage.bat` は引数をそのまま `manage.sh` へ渡す（`watch` は常駐するので Git Bash から直接叩く）。
 
-```
-manage.bat start [--prod]
-manage.sh start [--prod]
-```
+### 5.1 起動・停止・反映
 
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | 全アプリを起動 |
-| 引数 | `--prod`: 本番モード（オプション） |
-| 前処理 | Docker 起動確認 (`preflight_quick`)、ネットワーク作成 (`ensure_network`) |
-| 処理 | `APP_1` → `APP_14` の順に `docker compose up -d` |
-| 後処理 | `status` を自動表示 |
+| コマンド | 処理 |
+|:---------|:-----|
+| `start [app]` | 開発モードで起動。アプリ名を省略すると全アプリ（`preflight_quick` → `ensure_network` → 順に `up -d`）で、停止マーカーを解除する。`.env.example` があって `.env` が無ければコピーする |
+| `start --prod [app]` | 本番モード（`-f docker-compose.yml -f docker-compose.prod.yml up -d --build`）。先に `POSTGRES_APPS` / `PROD_SECRETS` のシークレットを用意する（`ensure_production_env`）。オーバーレイが無いアプリは WARN を出して dev で上げ、「本番で起動した」とは書かない。アプリ名付きでは停止マーカーを解除しない |
+| `start --recorded` | 全アプリを、アプリごとに記録されたモードで起動（記録が無ければ dev）。`newpc` が使う |
+| `recover` | 落ちているアプリだけを記録されたモードで `up -d --no-build`。停止マーカーがあれば何もしない。結果は ASCII の `RECOVER_RESULT` 1行（`failed=N` / `noimage=N` つき）でウォッチドッグへ返す |
+| `stop` / `down` | 全アプリを逆順で `stop` / `down`（ボリュームは残す）。停止マーカー `docker/logs/tax-apps-stopped-intentionally` を置く |
+| `restart <app>` | `docker compose restart`（compose の変更は反映されない） |
+| `build <app>` | 稼働中のモードを踏襲して `up -d --build` |
+| `apply [app]` | `up -d --no-build`。compose の設定やイメージに差分があるコンテナだけ作り直す。停止中のアプリには触らない |
+| `watch <app>` | `docker compose watch --no-up`（フォアグラウンド）。`develop:` を持つ private-banking / inheritance-case-management だけ |
 
-**開発モード** (`start`):
+`watch` を `start` と分けているのは `--watch` が `--detach` と併用できないため。compose watch は起動後の変更しか同期しないので、止めている間の編集は `build <app>` で取り込む。対象アプリが bind mount を使わない理由とポーリングが2箇所要る理由は `CLAUDE.md` の「ソース同期」を参照。
 
-```
-docker compose -f <app>/docker-compose.yml up -d --remove-orphans
-```
+### 5.2 確認
 
-**本番モード** (`start --prod`):
+| コマンド | 処理 |
+|:---------|:-----|
+| `status` | ネットワーク、コンテナごとの状態・ヘルス・再起動回数・OOM kill・ポート、各アプリのモード（ここで毎回採取する）、自動復旧の配線（タスク登録と `tax-apps.autoheal` ラベル）、無人処理の直近結果、廃止済みタスクの残り |
+| `logs <app>` | `docker compose logs -f` |
+| `test [app]` | `TEST_TARGETS` を稼働中のコンテナの中で実行。`run@<サービス>` は `docker compose run --rm`。本番モードのアプリは `<app>-test` サービスがあれば dev ステージの使い捨てコンテナで回し、無ければ飛ばす |
+| `preflight` | [10章](#10-preflight-check-仕様) |
 
-```
-docker compose -f <app>/docker-compose.yml -f <app>/docker-compose.prod.yml up -d --build --remove-orphans
-```
+### 5.3 バックアップ・リストア（`backup.sh` へ委譲）
 
-> `docker-compose.prod.yml` が存在しない場合は `docker-compose.yml` のみで `--build` 起動
+| コマンド | 処理 |
+|:---------|:-----|
+| `backup` | 暗号化された全体バックアップ（GFS: 日次7・週次4・月次6）。最新1日分を `tax_apps_backup_latest/all-apps/` と外部コピー先へ |
+| `restore [app\|--all] [backup] [--yes]` | アプリ単位のリストア（件数照合 → 起動して healthy まで待つ）。`--env-only` / `--with-env` / `--from DIR` は `docker/RESTORE.md` |
+| `newpc [--check]` | 新しい PC で `.env` → 記録されたモードで起動 → データの順に全部戻す |
+| `usb [--set DIR\|--show\|--copy-now\|--off]` | 外部コピー先（`~/.tax-apps/backup-external-dest`）を選ぶ |
+| `verify <backup>` | 復号とハッシュ照合だけ |
+| `drill [backup]` | 使い捨て DB へ実際に復元して件数と照合順序 `C` を検証（既定は最新） |
 
-**付帯処理**:
-- `.env.example` が存在し `.env` がない場合、自動コピー
+### 5.4 無人処理・掃除
 
-### 5.2 stop
-
-```
-manage.bat stop
-manage.sh stop
-```
-
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | 全アプリを停止 |
-| 処理順序 | `APP_14` → `APP_1`（逆順） |
-| コマンド | `docker compose stop` |
-| 備考 | コンテナは停止のみ（削除しない） |
-
-### 5.3 down
-
-```
-manage.bat down
-manage.sh down
-```
-
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | 全アプリを停止しコンテナ削除 |
-| 処理順序 | `APP_14` → `APP_1`（逆順） |
-| コマンド | `docker compose down` |
-| 備考 | ボリュームは残る |
-
-### 5.4 restart
-
-```
-manage.bat restart <app-name>
-manage.sh restart <app-name>
-```
-
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | 指定アプリを再起動 |
-| 引数 | `app-name`: 部分一致で解決（[7章](#7-アプリ名解決ロジック)参照） |
-| 前処理 | ネットワーク確認 |
-| コマンド | `docker compose restart` |
-
-### 5.5 build
-
-```
-manage.bat build <app-name>
-manage.sh build <app-name>
-```
-
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | 指定アプリを再ビルドして起動 |
-| 引数 | `app-name`: 部分一致で解決 |
-| コマンド | `docker compose up -d --build` |
-
-### 5.6 watch
-
-```
-manage.sh watch <app-name>
-```
-
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | ソース変更をコンテナへ同期（`docker compose watch`） |
-| 引数 | `app-name`: 部分一致で解決 |
-| 対象 | `docker-compose.yml` に `develop:` を持つアプリのみ（private-banking / inheritance-case-management） |
-| 前処理 | `develop:` の有無を検査、無ければエラー終了。`ensure_network` |
-| コマンド | `docker compose watch --no-up` |
-| 実行形態 | **フォアグラウンド**（`Ctrl+C` で終了） |
-| ラッパー | `manage.bat` からは非対応（常駐するため） |
-
-**なぜ start と分けるか**: `--watch` は `--detach` と併用できない（`--detach cannot be combined with --watch`）。したがって起動は `start` / `build` に任せ、`watch` は同期のみを担当するフォアグラウンドセッションとする。`--no-up` はこの分離のため。
-
-**制約**: compose watch は **起動後の変更しか同期しない**（起動前の差分は初期同期されない）。watch を止めている間に編集したものは `build <app-name>` でイメージに取り込む。この点は実行時に警告として表示する。
-
-**対象アプリで bind mount を使わない理由**: Docker Desktop for Windows の bind mount（Windows→WSL2）は起動直後の `scandir` が EFAULT を返すことがある。Next.js の dev サーバはルート表を watchpack の初期スキャン結果から組み立てるため、スキャンに失敗したディレクトリ配下のルートが警告1行だけ残して丸ごと欠落し、「`✓ Ready` なのに 404」の状態で稼働し続ける。コンテナ内から bind mount を無くすとこの経路自体が消える。
-
-代償として Docker がオーバーレイ上位層へ直接書き込むためコンテナ内の inotify にイベントが届かず、**ポーリング設定が2箇所必要**になる:
-
-| ノブ | 場所 | 担当 |
-|:-----|:-----|:-----|
-| `WATCHPACK_POLLING=true` | compose の `environment` | watchpack →**ルート表**の更新 |
-| `watchOptions.pollIntervalMs` | `next.config.ts` | Turbopack native watcher →**再コンパイル** |
-
-> `WATCHPACK_POLLING` は Turbopack 側には効かない。片方だけではファイルは同期されるのにルートが登録されない、あるいは登録されても再コンパイルされない。
-
-### 5.7 logs
-
-```
-manage.bat logs <app-name>
-manage.sh logs <app-name>
-```
-
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | 指定アプリのログをリアルタイム表示 |
-| 引数 | `app-name`: 部分一致で解決 |
-| コマンド | `docker compose logs -f` |
-| 終了 | `Ctrl+C` で終了 |
-
-### 5.8 status
-
-```
-manage.bat status
-manage.sh status
-```
-
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | 全アプリのコンテナ状態を一覧表示 |
-| 表示項目 | ネットワーク状態、コンテナ名、ステータス、ヘルス状態、再起動回数、OOM kill 状態、ポート |
-| 出力形式 | テーブル形式 |
-| 末尾 | 自動復旧（ウォッチドッグ）の配線状況を表示（下記） |
-
-**自動復旧の配線チェック** (`_print_autoheal_status`)
-
-unhealthy コンテナの自動再起動は **① compose の `tax-apps.autoheal=true` ラベル** と **② Windows スケジュールタスク「Tax Apps Docker Watchdog」の登録** の2段構えで、どちらか一方でも欠けると何も起きない。欠落は従来どこにも表示されなかったため、status の末尾に常時表示する。
-
-```
-自動復旧（ウォッチドッグ）:
-  スケジュールタスク: 登録済み（Tax Apps Docker Watchdog）
-  autoheal ラベル: 稼働中の healthcheck 付きコンテナすべてに付与済み
-```
-
-| チェック | 方法 | 未配線時の表示 |
-|:---------|:-----|:---------------|
-| タスク登録 | `schtasks.exe /Query /TN "$WATCHDOG_TASK_NAME"` の終了コード | `★未登録` ＋ `register-docker-watchdog-task.bat` の案内 |
-| ラベル付与 | 稼働中コンテナのうち healthcheck を持つものを `docker inspect` し、`tax-apps.autoheal` が `true` でないものを列挙 | `autoheal ラベル無し:★<コンテナ名>` |
-
-- healthcheck を持たないコンテナは autoheal の対象外なので集計しない。
-- `schtasks.exe` が見つからない環境（非 Windows）では「確認不可」と表示し、エラーにはしない。
-
-### 5.9 backup
-
-```
-manage.bat backup
-manage.sh backup
-```
-
-詳細は [8章](#8-バックアップ仕様) を参照。
-
-### 5.10 restore
-
-```
-manage.bat restore [backup-dir]
-manage.sh restore [backup-dir]
-```
-
-詳細は [9章](#9-リストア仕様) を参照。
-
-### 5.11 clean
-
-```
-manage.bat clean
-manage.sh clean
-```
-
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | コンテナ・イメージ・ボリュームの二段階クリーンアップ |
-
-**Step 1** (Y/N確認):
-- 全コンテナを逆順で `docker compose down --rmi local --remove-orphans`
-- `tax-apps-network` を削除
-
-**Step 2** (`DELETE DATA` 入力確認、オプション):
-- 以下の Docker Named Volume を削除:
-
-| ボリューム名 | 内容 |
-|:------------|:-----|
-| `inheritance-case-management_postgres_data` | ITCM PostgreSQL |
-| `bank-analyzer-postgres` | 銀行分析 PostgreSQL |
-| `bank-analyzer-sqlite` | 銀行分析 SQLite |
-| ~~`tax-docs-data`~~ | ~~税務書類 SQLite~~ ※廃止済み |
-
-> Step 2 をスキップすればデータを残してコンテナ・イメージのみ削除可能
-
-### 5.12 clean-cache
-
-```
-manage.bat clean-cache [--all]
-manage.sh clean-cache [--all]
-```
-
-| 項目 | 説明 |
-|:-----|:-----|
-| 概要 | Docker Build Cache の確認付き削除 |
-| デフォルト | 7日以上使われていない Build Cache のみ削除 |
-| `--all` | 未使用の Build Cache をすべて削除 |
-| 削除しないもの | コンテナ、イメージ、ボリューム、DBデータ |
-| 表示 | 実行前後に `docker system df` を表示 |
-
-### 5.13 preflight
-
-```
-manage.bat preflight
-manage.sh preflight
-```
-
-詳細は [10章](#10-preflight-check-仕様) を参照。
+| コマンド | 処理 |
+|:---------|:-----|
+| `due` | 期限切れのものだけ実行: バックアップ20時間・訓練168時間・掃除144時間・ループ検知3時間。4項目は互いの成否に依存しない |
+| `prune` | 確認なしの掃除。dangling イメージ（168時間より古いもの）と、ビルドキャッシュの Private が `TAX_APPS_PRUNE_CACHE_MAX`（既定10GB）を超えたときだけキャッシュ全体。**ボリュームには触らない** |
+| `loop-check` | ゲートウェイのアクセスログから画面のリロードループ（同じ画面が1分に60回以上）を検知し、`docker/logs/reload-loop/` に証拠を残す。ロックを取らない |
+| `alert` | `last-run` からデスクトップの `TAX-APPS-ALERT.txt` を作り直す。Docker に触れずロックも取らない |
+| `clean` | Step 1（Y/N）: 全アプリを逆順に `down --rmi local --remove-orphans`、ネットワーク削除。Step 2（`DELETE DATA` の入力）: `VOLUMES` のボリュームを削除。停止マーカーを置く |
+| `clean-cache [--all]` | 確認つきで `docker builder prune --force`（`--all` を付けると未使用のキャッシュをすべて）。絞り込みのフラグは Docker Desktop の builder では無言で何も消さないので渡さない |
+| `collation [app] [--yes]` | PostgreSQL の照合順序を `C` へ移す（引数なしは一覧だけ）。手順は `docker/COLLATION-MIGRATION.md`。自動の経路には載せない |
 
 ---
 
@@ -446,16 +272,10 @@ manage.sh preflight
 
 ### ヘルパー関数
 
+（バックアップ・リストアの関数は `backup.sh` 側にある）
+
 | 関数 | 引数 | 説明 |
 |:-----|:-----|:-----|
-| `backup_postgres` | `label`, `container`, `pg_user`, `db_name`, `volume`, `dump_file` | PostgreSQL バックアップ（pg_dump → volume fallback） |
-| `restore_postgres` | `label`, `container`, `pg_user`, `db_name`, `volume`, `dump_file`, `restart_hint` | PostgreSQL リストア（SQL → volume fallback） |
-| `backup_sqlite_volumes` | `pair...` | SQLite ボリュームのバックアップ（`volume:filename` 形式） |
-| `restore_sqlite_volumes` | `pair...` | SQLite ボリュームのリストア（`filename.tar.gz:volume` 形式） |
-| `backup_bind_data` | `step_label`, `label`, `src_dir`, `dest_dir` | バインドマウントデータのバックアップ |
-| `backup_settings_file` | `step_label`, `label`, `src_file`, `dest_file` | 設定ファイルのバックアップ |
-| `restore_bind_data` | `step_label`, `label`, `src_dir`, `dest_dir` | バインドマウントデータのリストア |
-| `restore_settings_file` | `step_label`, `label`, `src_file`, `dest_file` | 設定ファイルのリストア |
 | `for_each_app` | `callback`, `args...` | 全アプリを順方向で反復 |
 | `for_each_app_reverse` | `callback`, `args...` | 全アプリを逆順で反復 |
 | `resolve_app_dir` | `name` | アプリ名解決（部分一致、完全一致優先） |
@@ -466,27 +286,27 @@ manage.sh preflight
 | `port_is_listening` | `port` | Linux/Windows 両対応の待受ポート検出 |
 | `is_managed_compose_project` | `project` | Compose project が `APPS` 管理対象か判定 |
 | `tax_apps_container_for_port` | `port` | 指定ポートを使う管理対象 Tax Apps コンテナ名を返す |
-| `print_summary_banner` | `title`, `fail_count` | バックアップ/リストアのサマリーバナー表示 |
+| `compose_files_for_app` | `dir` | そのアプリの記録されたモードに合わせた `-f` の並び |
 
 ---
 
 ## 7. アプリ名解決ロジック
 
-`restart`, `build`, `logs` コマンドで使用されるアプリ名の解決処理。
+アプリ名を取るコマンド（`start <app>` / `restart` / `build` / `apply` / `watch` / `logs`）で使う解決処理（`resolve_app_dir`）。
 
 ### 処理フロー
 
 ```
 入力: search_string（ユーザー指定のアプリ名）
   │
-  ├── 全 APP_1〜APP_14 のパスに対して findstr /i (bat) または *match* (sh) で部分一致検索
+  ├── APPS の全パスに対して *match* で部分一致検索
   │
   ├── 一致数 == 0 → [ERROR] アプリが見つかりません + アプリ一覧表示
   │
   ├── 一致数 == 1 → RESOLVED_DIR に設定（正常）
   │
-  └── 一致数 >= 2 → [ERROR] 複数一致 + 候補一覧表示
-                      → RESOLVED_DIR = 空（コマンド中止）
+  └── 一致数 >= 2 → basename の完全一致があればそれ
+                      無ければ [ERROR] 複数一致 + 候補一覧表示（コマンド中止）
 ```
 
 ### 曖昧性チェック
@@ -494,138 +314,41 @@ manage.sh preflight
 | 入力 | 一致結果 | 動作 |
 |:-----|:---------|:-----|
 | `bank-analyzer` | 1件 (`bank-analyzer`) | 正常解決 |
-| `tax-docs` | 1件 (`tax-docs`) | 正常解決 |
+| `tax-docs` | 2件 (tax-docs, inheritance-tax-docs) | basename 完全一致で tax-docs |
 | `tax` | 複数件 (tax-docs, retirement-tax-calc 等) | エラー + 候補表示 |
 | `inheritance` | 複数件 | エラー + 候補表示 |
 | `nonexistent` | 0件 | エラー + アプリ一覧表示 |
 
-### manage.sh の追加仕様
-
-manage.sh の `resolve_app_dir()` では、部分一致で複数件ヒットした場合でも `basename` の**完全一致**があればそれを優先する。
-
-```bash
-# 例: "gateway" → apps/xxx-gateway と docker/gateway の2件ヒット
-#     → basename "gateway" 完全一致の docker/gateway が選択される
-```
-
 ---
 
-## 8. バックアップ仕様
-
-### 概要
+## 8. バックアップ・リストア仕様
 
 | 項目 | 値 |
 |:-----|:---|
-| 保存先 | `docker/backups/<TIMESTAMP>/` |
-| タイムスタンプ形式 | `yyyy-MM-dd_HHmmss` |
-| データソース数 | 5カテゴリ（[4章](#4-バックアップリストア対象定義)の定数定義から自動展開） |
+| 主保存先 | `docker/backups/`（暗号化アーカイブ。平文のディレクトリは作らない） |
+| 追加コピー | 最新1日分を `../tax_apps_backup_latest/all-apps/`、外部コピー先が設定されていればそこにも |
+| 保持 | 日次7 + 週次4 + 月次6（GFS） |
+| 暗号鍵 | `~/.tax-apps/backup.key`（リポジトリ外。控えは手で取る）。鍵が無いのに暗号化済みのアーカイブがあれば、新しい鍵を作らずに中断する |
+| PostgreSQL | 稼働中のコンテナで `pg_dump` |
+| リストア | アプリ単位。そのアプリのコンテナだけ止め、直前の状態を `pre-restore_*` に取ってから戻し、件数を照合して起動・healthy 待ち。DB は `pg_create_c_database`（`TEMPLATE template0`・`LC_COLLATE 'C'`）で作る |
+| 端末なし | `--yes` が無ければ一覧を出して中止（AI や無人実行から勝手に戻らない） |
+| 中断 | `on_release_operation_lock` が止めたコンテナを起動し直す。殺された回の平文の作業ディレクトリは次の回の `sweep_stale_restore_work` が掃く |
 
-### バックアップ対象
-
-| # | データ | ボリューム/パス | 方式 | ファイル名 |
-|:--|:-------|:---------------|:-----|:-----------|
-| 1 | ITCM PostgreSQL | `inheritance-case-management_postgres_data` | `pg_dump` → SQL / ボリューム tar | `itcm-postgres.sql` or `itcm-postgres-volume.tar.gz` |
-| 2 | Bank Analyzer PostgreSQL | `bank-analyzer-postgres` | `pg_dump` → SQL / ボリューム tar | `bank-analyzer-postgres.sql` or `bank-analyzer-postgres-volume.tar.gz` |
-| 3a | Bank Analyzer SQLite | `bank-analyzer-sqlite` | ボリューム tar | `bank-analyzer-sqlite.tar.gz` |
-| ~~3b~~ | ~~Tax Docs SQLite~~ | ~~`tax-docs-data`~~ | ~~ボリューム tar~~ | ~~`tax-docs-data.tar.gz`~~ ※廃止済み |
-| ~~4~~ | ~~アップロードデータ~~ | ~~`apps/bank-analyzer-django/data/`~~ | ~~`robocopy` (bat) / `cp -r` (sh)~~ | ~~`bank-analyzer-upload/`~~ ※廃止済み（React 版は使わない） |
-| 5 | 設定ファイル | `apps/inheritance-case-management/.env` | `copy` / `cp` | `itcm-.env` |
-
-### PostgreSQL バックアップ フォールバック
-
-```
-コンテナ起動中?
-  ├── Yes → pg_dump でSQLダンプ
-  │         ├── 成功 → .sql ファイル保存
-  │         └── 失敗 → ボリューム tar にフォールバック
-  └── No  → ボリュームが存在する?
-              ├── Yes → docker run alpine tar でボリューム tar
-              └── No  → [SKIP]
-```
-
-### SQLite バックアップ
-
-```
-ボリュームが存在する?
-  ├── Yes → docker run alpine tar czf でバックアップ
-  │         ├── 成功 → SQLITE_OK++
-  │         └── 失敗 → BACKUP_FAIL++
-  └── No  → SQLITE_SKIP++
-```
-
-### サマリー出力
-
-```
-============================================================
-  Backup Complete
-============================================================
-
-  Destination: docker\backups\2026-03-28_120000\
-  Size: 15.2 MB
-  OK: 5  Skipped: 2  Failed: 0
-
-  To restore: manage.bat restore 2026-03-28_120000
-```
-
-バックアップ件数が 0 の場合、空ディレクトリを自動削除する。
+詳しい手順・新しい PC での戻し方は `docker/RESTORE.md`。
 
 ---
 
-## 9. リストア仕様
+## 9. 無人処理
 
-### 概要
+| タスク | 契機 | 実体 |
+|:-------|:-----|:-----|
+| `Tax Apps Startup` | ログオン時 | Docker の起動を待って `recover` |
+| `Tax Apps Docker Watchdog` | 4時間毎（0時起点の繰り返し） | `docker-watchdog.ps1`: `recover` → unhealthy の再起動 → `due` → `alert` |
 
-| 項目 | 値 |
-|:-----|:---|
-| ソース | `docker/backups/<TIMESTAMP>/` |
-| 選択方式 | 引数指定 or 対話選択（全体バックアップ形式のみ） |
-| 確認 | Y/N プロンプト + 実行前の `pre-restore` 自動バックアップ |
-
-### 対話選択フロー
-
-```
-引数あり? → 指定ディレクトリの存在確認
-  ├── 存在 → リストア確認へ
-  └── 不存在 → エラー表示、一覧表示へフォールバック
-
-引数なし → バックアップ一覧表示（番号 + サイズ）
-  → ユーザーが番号選択
-  → 0 = キャンセル
-```
-
-### リストア対象
-
-リストア承認後、現在データを `docker/backups/pre-restore_YYYY-MM-DD_HHMMSS/` にバックアップしてから上書き処理に進む。事前バックアップに失敗した場合はリストアを中止する。現在データが存在しない場合は警告表示のみで続行可能。
-対話一覧と直接指定では、`YYYY-MM-DD_HHMMSS` または `pre-restore_YYYY-MM-DD_HHMMSS` 形式のディレクトリのみをリストア対象にする。
-
-| # | データ | ファイル名 | リストア方式 |
-|:--|:-------|:-----------|:------------|
-| 1 | ITCM PostgreSQL | `itcm-postgres.sql` | コンテナ内 `psql` で DROP → CREATE → IMPORT |
-| 1' | ITCM PostgreSQL (volume) | `itcm-postgres-volume.tar.gz` | ボリュームに tar 展開 |
-| 2 | Bank Analyzer PostgreSQL | `bank-analyzer-postgres.sql` | 同上 |
-| 2' | Bank Analyzer PostgreSQL (volume) | `bank-analyzer-postgres-volume.tar.gz` | 同上 |
-| 3 | SQLite ボリューム | `*.tar.gz` | ボリュームに tar 展開（ボリューム未作成時は自動作成） |
-| 4 | アップロードデータ | `bank-analyzer-upload/` | `robocopy` / `cp -r` |
-| 5 | 設定ファイル | `itcm-.env` | `copy` / `cp` |
-
-### PostgreSQL リストア手順
-
-```
-1. 既存接続を強制切断 (pg_terminate_backend)
-2. データベースを DROP
-3. データベースを CREATE
-4. SQL ダンプを psql でインポート
-```
-
-> コンテナが起動していない場合はエラーとなり、先に `restart` を案内する。
-
-### リストア後の案内
-
-```
-[NOTE] Restart apps to apply restored data:
-  manage.bat restart inheritance-case-management
-  manage.bat restart bank-analyzer
-```
+- どちらも昇格不要（`RunLevel Limited`）。消えていれば `backup.sh` が再登録する（`OPS_SCHEDULED_TASKS`）
+- 廃止済みの `Tax Apps Daily Backup` / `Tax Apps Weekly Restore Drill` は `OPS_RETIRED_TASKS`。残っていれば `status` と `preflight` が警告する（解除は `unregister-*.bat`）
+- 無人処理は必ず `docker/logs/last-run/<名前>` に結果を1件残し、`OPS_WATCHED_RESULTS` の鮮度しきい値で `status` / `preflight` / デスクトップ警告が見る
+- タイムアウトの大小関係（内側 < 外側）、殺された回の記録、ロックの陳腐化は `CLAUDE.md` の「自動起動・自動復旧」を参照
 
 ---
 
@@ -633,27 +356,40 @@ manage.sh の `resolve_app_dir()` では、部分一致で複数件ヒットし�
 
 ### チェック項目
 
-| # | チェック | 判定 | 方式 |
-|:--|:--------|:-----|:-----|
-| 1 | Docker Desktop 起動確認 | ERROR (致命的) | `docker info` |
-| 2 | docker compose コマンド確認 | ERROR (致命的) | `docker compose version` |
-| 3 | docker-compose.yml 存在確認 (14個) | WARN | `APPS` 配列全件の `docker-compose.yml` 存在チェック |
-| 4 | Compose config 検証 | WARN | base + prod override がある場合は両方を `docker compose config --quiet` で検証 |
-| 5 | Nginx 設定ファイル確認 | WARN | `nginx.conf`, `default.conf`, `upstreams.conf`, `maps.conf`, `proxy_params.conf` |
-| 6 | ITCM `.env` 確認 | WARN | ファイル存在チェック（`.env.example` からのコピーを案内） |
-| 7 | 暗号化バックアップ確認 | WARN | 最新暗号化バックアップの鮮度と暗号鍵の存在を確認 |
-| 8 | 平文バックアップ確認 | WARN | 暗号化導入前の平文バックアップディレクトリが残っていれば警告 |
-| 9 | ポート競合検出 (19ポート) | WARN | `ss` + `netstat` + Windows `Get-NetTCPConnection` フォールバック。Tax Apps 自身の使用ポートは外部競合から除外 |
-| 10 | ホストディスク空き容量 | WARN | 5GB 未満で警告 |
-| 11 | Docker daemon メモリ | WARN | 4GB 未満で警告 |
-| 12 | Docker ディスク使用量 | WARN | `docker system df` を表示 |
+| # | チェック | 判定 |
+|:--|:--------|:-----|
+| 1 | Docker Desktop 起動確認（`docker info`） | ERROR |
+| 2 | `docker compose` コマンド確認 | ERROR |
+| 3 | `APPS` 全件の `docker-compose.yml` の存在 | WARN |
+| 4 | Compose config 検証（prod オーバーレイがあれば重ねて `config --quiet`） | WARN |
+| 5 | Nginx 設定ファイル（`nginx.conf` / `default.conf` / `upstreams.conf` / `maps.conf` / `proxy_params.conf`） | WARN |
+| 6 | ITCM の `.env` | WARN |
+| 7 | 暗号化バックアップの鮮度・暗号鍵の存在・平文バックアップの残り | WARN |
+| 8 | スケジュールタスクの登録と、廃止済みタスクの残り | WARN |
+| 9 | ポート競合（下の一覧。Tax Apps 自身が使っているものは除外） | WARN |
+| 10 | ホストのディスク空き（5GB 未満） | WARN |
+| 11 | Docker daemon のメモリ（4GB 未満） | WARN |
+| 12 | Docker のディスク使用量（`docker system df` を表示） | 表示のみ |
+| 13 | Dockerfile の CRLF ガード | WARN |
+| 14 | 無人処理の直近結果（`OPS_WATCHED_RESULTS`）と、`VOLUMES` と実際のボリュームの差 | WARN |
+| 15 | 一覧の取りこぼし（`apps/` 直下で `APPS` にも `UNMANAGED_APPS` にも無いもの） | WARN |
+| 16 | テスト・型検査の登録漏れ（`package.json` ↔ `TEST_TARGETS` ↔ CI matrix） | WARN |
+| 17 | メモリ上限と `NODE_OPTIONS` のヒープ上限のずれ（dev の compose） | WARN |
+| 18 | 本番オーバーレイの欠け | WARN |
+| 19 | ゲートウェイに外から届くファイアウォールの穴（全送信元に戻ったルール） | WARN |
+| 20 | モードが記録されているのに上がっていないアプリ（イメージ無し／作成のまま／落ちている、を直し方つきで） | WARN |
+| 21 | 持ち主の死んだウォッチドッグのロック | WARN |
+| 22 | 稼働中の PostgreSQL の照合順序が `C` か（template1 も） | WARN |
+| 23 | ホスト側に湧いた `node_modules`（`apps/<app>` とその1つ下） | WARN |
 
 ### 対象ポート一覧
 
 ```
-80, 3000, 3001, 3002, 3003, 3004, 3007, 3010,
-3013, 3014, 3015, 3016, 3017, 3019, 3020, 3022, 3025, 3026, 3030
+80, 3000, 3001, 3002, 3003, 3004, 3007, 3013, 3014, 3015, 3016,
+3017, 3019, 3020, 3021, 3022, 3025, 3026, 3030
 ```
+
+実際に host へ publish しているポートと揃えること（3016 / 3022 / 3026 は DB）。
 
 ### 判定ロジック
 
@@ -665,7 +401,7 @@ manage.sh の `resolve_app_dir()` では、部分一致で複数件ヒットし�
 
 ```
 ============================================================
-  Results:  OK=10  WARN=0  ERROR=0
+  Results:  OK=NN  WARN=0  ERROR=0
 ============================================================
 
 All checks passed!
@@ -686,11 +422,11 @@ All checks passed!
 | `SCRIPT_DIR` | 計算値 | スクリプトディレクトリ |
 | `PROJECT_ROOT` | 計算値 | リポジトリルート |
 | `NETWORK_NAME` | `tax-apps-network` | 外部ネットワーク名 |
-| `WATCHDOG_TASK_NAME` | `Tax Apps Docker Watchdog` | Windows スケジュールタスク名（`register-docker-watchdog-task.ps1` の `$TaskName` 既定値と一致させること） |
-| `BACKUP_BASE` | `$SCRIPT_DIR/../backups` | バックアップベースディレクトリ |
-| `APPS` | 配列 (15要素) | 管理対象アプリパス一覧 + `docker/gateway` |
-| `VOLUMES` | 配列 (5要素) | データボリューム一覧 |
-| `PG_TARGETS` | 配列 (2要素) | PostgreSQL バックアップ/リストア対象定義（コロン区切り） |
-| `SQLITE_TARGETS` | 配列 (3要素) | SQLite バックアップ/リストア対象定義 |
-| `BIND_TARGETS` | 配列 (1要素) | バインドマウントバックアップ/リストア対象定義 |
-| `SETTINGS_TARGETS` | 配列 (1要素) | 設定ファイルバックアップ/リストア対象定義 |
+| `WATCHDOG_TASK_NAME` | `Tax Apps Docker Watchdog` | `register-docker-watchdog-task.ps1` の `$TaskName` 既定値と一致させること |
+| `APPS` | 配列（15要素） | 管理対象アプリ + `docker/gateway` |
+| `UNMANAGED_APPS` | 配列（2要素） | 意図的な管理外 |
+| `VOLUMES` / `EXTERNAL_VOLUMES` / `NON_DATA_VOLUMES` | 配列 | [3章](#3-アプリケーション定義) |
+| `POSTGRES_APPS` / `PROD_SECRETS` | 配列 | 本番シークレット |
+| `TEST_TARGETS` | 配列 | `test` の対象 |
+
+バックアップ対象の4配列は `backup.sh`、無人処理の表（`OPS_WATCHED_RESULTS` / `OPS_SCHEDULED_TASKS` / `OPS_RETIRED_TASKS`）は `lib/ops-common.sh` にある。
