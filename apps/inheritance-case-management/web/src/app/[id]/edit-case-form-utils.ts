@@ -29,6 +29,13 @@ export function hasInvalidSpecialAddition(formData: InheritanceCase): boolean {
     )
 }
 
+export function hasInvalidExpense(formData: InheritanceCase): boolean {
+    return (formData.expenses || []).some(
+        (expense) => !expense.description.trim()
+            && ((expense.amount || 0) > 0 || Boolean(expense.memo?.trim())),
+    )
+}
+
 export function getNeedsConfirmedFee(formData: InheritanceCase): boolean {
     return ((COMPLETED_STATUSES as readonly string[]).includes(formData.status) || !!formData.caseCompletedDate)
         && !formData.feeAmount
@@ -48,7 +55,7 @@ export function getCaseApiPayload(formData: InheritanceCase) {
     const heirs = formData.heirs ? toHeirInputs(formData.heirs) : undefined
     const relatedParties = formData.relatedParties ? toRelatedPartyInputs(formData.relatedParties) : undefined
     const progress = formData.progress ? toProgressSteps(formData.progress) : undefined
-    const expenses = formData.expenses ? toExpenses(formData.expenses).filter(e => e.description) : undefined
+    const expenses = formData.expenses ? toExpenses(formData.expenses).filter(e => e.description.trim() !== "") : undefined
     const specialAdditions = formData.specialAdditions
         ? toSpecialAdditions(formData.specialAdditions).filter(addition => addition.description.trim() !== "")
         : undefined
