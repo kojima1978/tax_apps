@@ -2,6 +2,7 @@ import { apiClient } from './client';
 import type { CaseListItem, InheritanceCase, PaginatedResponse, AuditLogEntry } from '@/types/shared';
 import type { CreateCaseInput, UpdateCaseInput, ListQueryInput } from '@/types/validation';
 import type { KPIData } from '@/lib/kpi-utils';
+import type { CaseDuplicateInput, CaseDuplicateResult } from '@/lib/case-duplicates';
 
 export type CasesQueryParams = Partial<ListQueryInput>;
 
@@ -63,6 +64,13 @@ export async function getCaseKpis(params?: CasesQueryParams): Promise<KPIData> {
 // Compact read model for all years; full records remain available for CSV export.
 export async function getAnalyticsCases(): Promise<InheritanceCase[]> {
   return apiClient<InheritanceCase[]>('/cases/analytics');
+}
+
+export async function getCaseDuplicates(input: CaseDuplicateInput, signal?: AbortSignal): Promise<CaseDuplicateResult> {
+  const params = new URLSearchParams({ deceasedName: input.deceasedName });
+  if (input.deceasedNameKana) params.set('deceasedNameKana', input.deceasedNameKana);
+  if (input.dateOfDeath) params.set('dateOfDeath', input.dateOfDeath);
+  return apiClient<CaseDuplicateResult>(`/cases/duplicates?${params}`, { signal, cache: 'no-store' });
 }
 
 export async function getCase(id: number): Promise<InheritanceCase | null> {

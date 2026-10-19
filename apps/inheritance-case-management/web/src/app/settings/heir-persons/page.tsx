@@ -254,6 +254,7 @@ function HeirPersonsContent() {
                             <div className="space-y-0.5">
                                 <Label htmlFor={fieldId("dateOfBirth")} className="text-xs text-muted-foreground">生年月日</Label>
                                 <JpDateInput
+                                    defaultEra="showa"
                                     id={fieldId("dateOfBirth")}
                                     value={ml.editingFields.dateOfBirth || ""}
                                     onChange={(v) => ml.setEditingFields(f => ({ ...f, dateOfBirth: v }))}

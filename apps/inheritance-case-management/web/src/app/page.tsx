@@ -158,9 +158,15 @@ function InheritanceMockupPageContent() {
     }, [])
 
     const handleClearAll = useCallback(() => {
-        setQueryParams({ page: 1, pageSize: CASE_LIST_PAGE_SIZE })
+        setQueryParams({ page: 1, pageSize: CASE_LIST_PAGE_SIZE, hideClosed: false })
         setSearchInput("")
     }, [])
+
+    const handleResetDefaults = useCallback(() => {
+        setQueryParams(parseCaseListUrlParams(new URLSearchParams()))
+        setSearchInput("")
+        toast.success("初期表示に戻しました（今年度・終了案件を除外）")
+    }, [toast])
 
     const handleBulkDelete = useCallback(async () => {
         setIsDeleting(true)
@@ -218,21 +224,7 @@ function InheritanceMockupPageContent() {
                 />
             )}
 
-            <div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label="対応待ち案件">
-                <span className="text-xs font-semibold text-muted-foreground">対応待ち</span>
-                {[{ label: "申告済・未請求", status: "申告済" }, { label: "請求済・未入金", status: "請求済" }, { label: "担当者未設定", status: null }].map(item => {
-                    const active = item.status ? queryParams.status === item.status : Boolean(queryParams.unassigned)
-                    return <button key={item.label} type="button" aria-pressed={active} className={`min-h-11 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-blue-50 text-blue-800" : "bg-white hover:bg-muted"}`} onClick={() => setQueryParams(prev => ({ ...prev,
-                        status: active ? undefined : item.status ?? undefined,
-                        unassigned: !active && !item.status ? true : undefined,
-                        ...(!active && !item.status ? { assigneeId: undefined, staffId: undefined } : {}),
-                        deadlineSoon: undefined, deadlineOverdue: undefined,
-                        caseAddedFrom: undefined, caseAddedTo: undefined, caseCompletedFrom: undefined, caseCompletedTo: undefined,
-                        hideClosed: true, page: 1,
-                    }))}>{item.label}</button>
-                })}
-            </div>
-
+            <div className="mb-4 rounded-xl border border-slate-200 bg-white shadow-sm" aria-label="案件の検索ツール">
             <FilterBar
                 queryParams={queryParams}
                 searchInput={searchInput}
@@ -240,16 +232,35 @@ function InheritanceMockupPageContent() {
                 onSearch={handleSearch}
                 onFilterChange={handleFilterChange}
                 onClearAll={handleClearAll}
+                onResetDefaults={handleResetDefaults}
                 assignees={assignees}
                 departments={departments}
                 totalCount={pagination?.total}
+                isUpdating={isFetching}
                 hasFilters={hasFilters}
             />
 
-            <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="一覧の便利機能">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-b-xl border-t bg-slate-50/70 px-3 py-2 sm:px-4">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1" role="group" aria-label="対応待ち案件">
+                    <span className="mr-1 text-xs font-medium text-slate-500">クイック絞り込み</span>
+                    {[{ label: "申告済・未請求", status: "申告済" }, { label: "請求済・未入金", status: "請求済" }, { label: "担当者未設定", status: null }].map(item => {
+                        const active = item.status ? queryParams.status === item.status : Boolean(queryParams.unassigned)
+                        return <button key={item.label} type="button" aria-pressed={active} className={`min-h-11 rounded-lg px-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-blue-100 text-blue-800" : "text-slate-600 hover:bg-slate-200/70 hover:text-slate-900"}`} onClick={() => setQueryParams(prev => ({ ...prev,
+                            status: active ? undefined : item.status ?? undefined,
+                            unassigned: !active && !item.status ? true : undefined,
+                            ...(!active && !item.status ? { assigneeId: undefined, staffId: undefined } : {}),
+                            deadlineSoon: undefined, deadlineOverdue: undefined,
+                            caseAddedFrom: undefined, caseAddedTo: undefined, caseCompletedFrom: undefined, caseCompletedTo: undefined,
+                            hideClosed: true, page: 1,
+                        }))}>{item.label}</button>
+                    })}
+                </div>
+            <div className="flex min-w-0 flex-wrap items-center gap-1" aria-label="一覧の便利機能">
                 <CaseListPreferences params={{ ...queryParams, search: searchInput }} onApply={params => { setQueryParams(params); setSearchInput(params.search ?? "") }} />
                 <CaseShortcuts />
-                {preferences.savedSearches.slice(0, 3).map(item => <button type="button" key={item.id} className="min-h-11 max-w-full truncate rounded-full border bg-white px-3 text-sm text-blue-800 hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { const params = parseCaseListUrlParams(new URLSearchParams(item.query), false); setQueryParams(params); setSearchInput(params.search ?? "") }}>{item.name}</button>)}
+                {preferences.savedSearches.slice(0, 3).map(item => <button type="button" key={item.id} className="min-h-11 max-w-full truncate rounded-lg px-2.5 text-xs text-blue-700 hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { const params = parseCaseListUrlParams(new URLSearchParams(item.query), false); setQueryParams(params); setSearchInput(params.search ?? "") }}>{item.name}</button>)}
+            </div>
+            </div>
             </div>
 
             {selectedIds.size > 0 && <div className="mb-2 flex items-center gap-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900" aria-live="polite">

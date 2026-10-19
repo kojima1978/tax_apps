@@ -81,9 +81,9 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
     }
 
     return (
-        <div className="col-span-1 space-y-2 rounded-lg border bg-muted/30 p-2.5 sm:col-span-2">
+        <div className="space-y-3 rounded-lg border bg-white p-3">
             <Label className="text-sm font-semibold">報酬計算</Label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:flex sm:flex-wrap sm:gap-x-6">
                 {ESTIMATE_COUNT_FIELDS.map(({ key, label, suffix }) => (
                     <div key={key} className="space-y-1">
                         <Label htmlFor={key} className="text-xs">{label}</Label>
@@ -93,7 +93,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
                                 name={key}
                                 type="number"
                                 min="0"
-                                className="w-full"
+                                className="w-20 max-w-full text-right tabular-nums"
                                 value={formData[key] || 0}
                                 onChange={(e) => updateEstimateCount(key, e.target.value)}
                             />
@@ -127,9 +127,9 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
                         </Button>
                     </div>
                     {specialAdditions.map((addition, index) => (
-                        <div key={index} className="grid grid-cols-1 gap-1.5 sm:grid-cols-[minmax(0,1fr)_150px_auto]">
-                            <Input value={addition.description} onChange={(e) => updateSpecialAddition(index, "description", e.target.value)} placeholder="内容" />
-                            <CurrencyField value={addition.amount || undefined} onValueChange={(value) => updateSpecialAddition(index, "amount", value ? Number(value) : 0)} placeholder="金額" />
+                        <div key={index} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_14rem_auto]">
+                            <Input className="col-span-2 sm:col-span-1" value={addition.description} onChange={(e) => updateSpecialAddition(index, "description", e.target.value)} placeholder="内容" aria-label={`${index + 1}件目の特別業務報酬の内容`} />
+                            <CurrencyField className="w-56 max-w-full" value={addition.amount || undefined} onValueChange={(value) => updateSpecialAddition(index, "amount", value ? Number(value) : 0)} placeholder="金額" aria-label={`${index + 1}件目の特別業務報酬の金額`} />
                             <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs text-gray-500 hover:text-gray-800" onClick={() => deleteSpecialAddition(index)}>
                                 削除
                             </Button>
@@ -143,7 +143,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
                 </div>
             </details>
             <div className="flex flex-wrap items-end justify-between gap-2 border-t pt-2">
-                <div className="w-full space-y-1 sm:w-44">
+                <div className="w-56 max-w-full space-y-1">
                     <Label htmlFor="discountAmount" className="text-[11px]">値引額</Label>
                     <CurrencyField id="discountAmount" name="discountAmount" value={formData.discountAmount} onValueChange={currencyChange("discountAmount")} />
                 </div>

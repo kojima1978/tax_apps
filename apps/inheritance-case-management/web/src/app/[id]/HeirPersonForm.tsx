@@ -36,6 +36,7 @@ export function HeirPersonForm({
                 <div className="space-y-1.5">
                     <Label>生年月日</Label>
                     <JpDateInput
+                        defaultEra="showa"
                         value={value.dateOfBirth}
                         onChange={(dateOfBirth) => onChange(person => ({ ...person, dateOfBirth }))}
                     />

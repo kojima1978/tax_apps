@@ -182,22 +182,16 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
                 : completed
                     ? "text-foreground"
                     : deadlineStatus.className
-            // 以前は各行が何の日付かを title 属性でしか説明していなかった。
-            // 行の意味は見出しラベルで示し、残り日数は日付の後ろへ回す。
             return (
-                    <div className="space-y-1 leading-tight">
-                    <div className={`grid grid-cols-[44px_minmax(0,1fr)] items-center gap-1 text-[11px] ${deadlineClassName}`}>
-                        <span className="whitespace-nowrap text-[11px] font-normal text-muted-foreground">期限</span>
-                        <span className="flex items-center gap-1">
-                            <span className="tabular-nums">{deadlineDate}</span>
+                <dl className="grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-2 gap-y-1 text-[11px] leading-tight" aria-label="申告期限と相続開始日">
+                        <dt className="whitespace-nowrap font-normal text-muted-foreground">期限</dt>
+                        <dd className={`flex min-w-0 flex-wrap items-center gap-1 ${deadlineClassName}`}>
+                            <time className="min-w-0 break-words tabular-nums" dateTime={formatSlashDate(deadline).replaceAll("/", "-")}>{deadlineDate}</time>
                             <span className={`shrink-0 rounded px-1 py-0.5 text-[11px] font-medium ${!ended && !completed ? deadlineStatus.badgeClassName : "text-slate-600"}`}>{remainingLabel}</span>
-                        </span>
-                    </div>
-                    <div className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-1 text-[11px] text-muted-foreground">
-                        <span className="whitespace-nowrap text-[11px]">相続開始</span>
-                        <span className="tabular-nums">{inheritanceDate}</span>
-                    </div>
-                </div>
+                        </dd>
+                        <dt className="whitespace-nowrap text-muted-foreground">相続開始日</dt>
+                        <dd className="min-w-0 break-words tabular-nums text-muted-foreground"><time dateTime={c.dateOfDeath}>{inheritanceDate}</time></dd>
+                </dl>
             )
         },
     },

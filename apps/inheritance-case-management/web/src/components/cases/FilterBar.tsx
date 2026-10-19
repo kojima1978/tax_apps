@@ -5,7 +5,7 @@ import { AssigneeFilter } from "./AssigneeFilter"
 import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
 import { MultiSelectDropdown } from "@/components/ui/MultiSelectDropdown"
-import { Search, X, SlidersHorizontal } from "lucide-react"
+import { Search, X, SlidersHorizontal, RotateCcw } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
 import { CASE_STATUS_FILTER_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
 import type { Assignee, Department } from "@/types/shared"
@@ -40,9 +40,11 @@ interface FilterBarProps {
     onSearch: () => void
     onFilterChange: (key: keyof CasesQueryParams, value: string | undefined) => void
     onClearAll: () => void
+    onResetDefaults: () => void
     assignees: Assignee[]
     departments: Department[]
     totalCount?: number
+    isUpdating?: boolean
     hasFilters: boolean
 }
 
@@ -52,7 +54,7 @@ const STATIC_FILTER_DEFS: FilterDef[] = [
 ]
 
 export function FilterBar({
-    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onClearAll, assignees, departments, totalCount,
+    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onClearAll, onResetDefaults, assignees, departments, totalCount, isUpdating,
 }: FilterBarProps) {
     const [advancedOpen, setAdvancedOpen] = useState(() => Boolean(
         queryParams.department || queryParams.internalReferrerId
@@ -102,7 +104,7 @@ export function FilterBar({
 
     const CHIP_LABELS: Record<string, (v: string | number) => string> = {
         search: (v) => `検索: ${v}`,
-        status: (v) => `ステータス: ${v}`,
+        status: (v) => `ステータス: ${String(v).split(',').join('・')}`,
         fiscalYear: (v) => `年度: ${v}年度`,
         fiscalYears: (v) => `年度: ${String(v).split(',').join('・')}`,
         department: (v) => `部門: ${v}`,
@@ -110,16 +112,16 @@ export function FilterBar({
         internalReferrerId: (v) => `紹介者: ${assignees.find(a => a.id === v)?.name || v}`,
         staffId: (v) => `担当・紹介: ${assignees.find(a => a.id === v)?.name || v}`,
         referrerCompany: (v) => `紹介会社: ${v}`,
-        deadlineSoon: () => `14日以内`,
-        deadlineOverdue: () => `期限超過`,
+        deadlineSoon: () => `申告期限: 14日以内`,
+        deadlineOverdue: () => `申告期限: 超過`,
         unassigned: () => `担当者: 未設定`,
         noReferrer: () => `紹介者: なし`,
     }
 
     const CHIP_STYLES: Record<string, string> = {
-        internalReferrerId: "border border-black/10 bg-white text-black",
+        internalReferrerId: "bg-slate-100 text-slate-700",
     }
-    const DEFAULT_CHIP_STYLE = "border border-black/10 bg-white text-black"
+    const DEFAULT_CHIP_STYLE = "bg-slate-100 text-slate-700"
 
     const activeFilters: ActiveFilterChip[] = []
 
@@ -177,7 +179,10 @@ export function FilterBar({
             key,
             label: label(queryParams[key as keyof CasesQueryParams] as string | number),
             chipStyle: CHIP_STYLES[key] || DEFAULT_CHIP_STYLE,
-            onClear: () => key === 'search' ? setSearchInput('') : onFilterChange(key as keyof CasesQueryParams, undefined),
+            onClear: () => {
+                if (key === 'search') setSearchInput('')
+                onFilterChange(key as keyof CasesQueryParams, undefined)
+            },
         })))
 
     const renderFilter = ({ key, placeholder, options, optGroups, multiSelect, wrapperClassName }: FilterDef) => {
@@ -227,16 +232,21 @@ export function FilterBar({
         queryParams.internalReferrerId,
     ].filter(Boolean).length
 
-    // Values already visible in the search field and selectors need no duplicate chips.
-    const extraFilters = activeFilters.filter(f => !["search", "fiscalYear", "status", "assigneeId"].includes(f.key))
-    const canClear = activeFilters.some(f => f.key !== "fiscalYear")
     const excludesClosed = queryParams.hideClosed && !queryParams.status && !queryParams.search
+    if (excludesClosed) activeFilters.push({
+        key: "hideClosed",
+        label: "終了案件を除外（見送り・入金済）",
+        chipStyle: DEFAULT_CHIP_STYLE,
+        onClear: () => onFilterChange("hideClosed", "false"),
+    })
+    const canClear = activeFilters.length > 0 || Boolean(searchInput)
+    const searchPending = searchInput !== (queryParams.search ?? "")
 
     return (
-        <section className="mb-3 space-y-2" aria-label="案件の検索と絞り込み">
+        <section className="space-y-3 p-3 sm:p-4" aria-label="案件の検索と絞り込み">
             {/* Row 1: 検索 + 件数表示 */}
             <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative min-w-[240px] flex-1">
+                <div className="relative min-w-0 basis-full sm:min-w-[240px] sm:basis-auto sm:flex-1">
                     <label htmlFor="case-search" className="sr-only">被相続人・相続人名で検索</label>
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -277,31 +287,39 @@ export function FilterBar({
                     )}
                 </button>
 
-                {totalCount !== undefined && (
-                    <span className="whitespace-nowrap text-xs text-slate-600" aria-live="polite">
-                        <strong className="text-sm text-slate-800">{totalCount}件</strong>{excludesClosed ? "（終了除く）" : ""}
-                    </span>
-                )}
-                {canClear && <button type="button" onClick={onClearAll} className="min-h-11 px-2 text-xs text-slate-600 hover:text-blue-700">クリア</button>}
             </div>
 
-            {/* フィルターチップ */}
-            {extraFilters.length > 0 && (
-                <div className="flex gap-1.5 flex-wrap items-center">
-                    {extraFilters.map(f => (
-                        <span key={f.key} className={`inline-flex items-center gap-1 rounded-full py-0.5 pl-2 pr-0.5 text-[11px] font-medium ${f.chipStyle}`}>
-                            {f.label}
-                            <button
-                                onClick={f.onClear}
-                                className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors hover:bg-black/10 sm:min-h-9 sm:min-w-9"
-                                aria-label={`${f.label}を解除`}
-                            >
-                                <X className="h-3 w-3" />
+            <section aria-label="現在の絞り込み条件" aria-busy={isUpdating || searchPending} className="border-t border-slate-100 pt-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <div className="flex shrink-0 items-center gap-3">
+                        <p role="status" className="whitespace-nowrap text-xs text-slate-600">{isUpdating || searchPending ? "検索結果を更新中…" : totalCount !== undefined ? <>検索結果 <strong className="text-sm font-semibold tabular-nums text-slate-900">{totalCount}件</strong></> : "検索結果を読み込み中…"}</p>
+                        <div className="flex items-center gap-2" role="status">
+                        <h2 className="text-xs font-medium text-slate-600">{activeFilters.length ? "絞り込み中" : "絞り込みなし"}</h2>
+                        {activeFilters.length > 0 && <span className="text-xs font-semibold tabular-nums text-slate-600">{activeFilters.length}条件</span>}
+                        </div>
+                    </div>
+                    {activeFilters.length > 0 ? <ul className="order-last flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-1 lg:order-none lg:flex-1 lg:basis-0">
+                        {activeFilters.map(f => <li key={f.key} className={`inline-flex max-w-full items-center rounded-lg pl-2.5 text-xs font-medium ${f.chipStyle}`}>
+                            <span className="min-w-0 break-all">{f.label}</span>
+                            <button type="button" onClick={f.onClear} aria-label={`${f.label}を解除`}
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-r-lg transition-colors hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
+                                <X className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
-                        </span>
-                    ))}
+                        </li>)}
+                    </ul> : <p className="order-last min-w-0 basis-full text-xs text-slate-600 lg:order-none lg:flex-1 lg:basis-0">全年度・すべてのステータス</p>}
+                    <div className="ml-auto flex max-w-full flex-wrap items-center gap-x-1">
+                    <button type="button" onClick={onClearAll} disabled={!canClear} aria-label="条件をすべてクリア"
+                        title="年度・担当者などを解除し、終了案件も含む全件を表示"
+                        className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-default disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
+                        <X className="h-3.5 w-3.5" aria-hidden="true" />条件をすべてクリア
+                    </button>
+                    <button type="button" onClick={() => { setAdvancedOpen(false); onResetDefaults() }} title="今年度・終了案件を除外した初期状態に戻す" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
+                        <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />初期表示に戻す
+                    </button>
+
+                    </div>
                 </div>
-            )}
+            </section>
 
 
             {advancedOpen && (

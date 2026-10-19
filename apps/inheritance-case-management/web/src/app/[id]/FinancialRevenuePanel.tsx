@@ -79,26 +79,27 @@ export function FinancialRevenuePanel({
     }
 
     return (
-        <div className="col-span-1 space-y-2 rounded-lg border bg-muted/30 p-2.5 sm:col-span-2">
+        <div className="max-w-xl space-y-3 rounded-lg border bg-white p-3">
             <Label className="text-sm font-semibold">紹介料・担当者売上</Label>
-            <div className={`grid grid-cols-1 gap-3 ${mode ? "sm:grid-cols-[160px_minmax(0,1fr)]" : "sm:grid-cols-[130px_minmax(0,1fr)_minmax(0,1fr)]"}`}>
-                <div className="space-y-1 rounded-md border bg-background p-2">
+            <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3 border-b pb-3">
                     <Label htmlFor="referralFeeRate" className="text-[11px]">紹介料率 (%)</Label>
-                    <Input id="referralFeeRate" name="referralFeeRate" type="number" min="0" max="100" step="0.1" value={formData.referralFeeRate?.toString() ?? ""} onChange={(e) => handleReferralFeeRateChange(e.target.value)} />
+                    <Input id="referralFeeRate" name="referralFeeRate" type="number" min="0" max="100" step="0.1" inputMode="decimal" className="w-24 text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" value={formData.referralFeeRate?.toString() ?? ""} onChange={(e) => handleReferralFeeRateChange(e.target.value)} />
                 </div>
-                {mode !== "invoice" && <div className="space-y-1.5 rounded-md border bg-background p-3">
+                {mode !== "invoice" && <div className="space-y-3">
                     <Label className="text-xs font-semibold text-muted-foreground">見積書</Label>
-                    <div className="space-y-1.5">
+                    <div className="grid grid-cols-1 items-center gap-x-3 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_14rem]">
                         <Label htmlFor="estimateAmount" className="text-xs">見積額（税抜）</Label>
                         <CurrencyField
                             id="estimateAmount"
+                            className="w-56 max-w-full"
                             name="estimateAmount"
                             value={formData.estimateAmount}
                             onValueChange={handleEstimateAmountChange}
                         />
                     </div>
-                    <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2">
+                    <div className="grid grid-cols-1 items-center gap-x-3 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_14rem]">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Label htmlFor="estimateReferralFeeAmount" className="text-xs">
                                 紹介料額
                                 <span className="ml-1 text-[11px] text-muted-foreground">
@@ -113,6 +114,7 @@ export function FinancialRevenuePanel({
                         </div>
                         <CurrencyField
                             id="estimateReferralFeeAmount"
+                            className="w-56 max-w-full"
                             name="estimateReferralFeeAmount"
                             value={formData.estimateReferralFeeAmount || 0}
                             onValueChange={(value) => handleReferralAmountChange("estimate", value)}
@@ -125,19 +127,20 @@ export function FinancialRevenuePanel({
                         </div>
                     </div>
                 </div>}
-                {mode !== "estimate" && <div className={`space-y-1.5 rounded-md border-2 bg-background p-3 transition-colors duration-200 ${highlightFee ? "border-amber-400 bg-amber-50" : "border-primary/20"}`}>
+                {mode !== "estimate" && <div className={`space-y-3 rounded-md transition-colors duration-200 ${highlightFee ? "bg-amber-50 p-2 ring-1 ring-amber-300" : ""}`}>
                     <Label className="text-xs font-semibold">請求書</Label>
-                    <div className="space-y-1.5">
+                    <div className="grid grid-cols-1 items-center gap-x-3 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_14rem]">
                         <Label htmlFor="feeAmount" className="text-xs">報酬額（税抜）{highlightFee && <span className="text-black ml-1">← 入力してください</span>}</Label>
                         <CurrencyField
                             id="feeAmount"
+                            className="w-56 max-w-full"
                             name="feeAmount"
                             value={formData.feeAmount}
                             onValueChange={handleFeeAmountChange}
                         />
                     </div>
-                    <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2">
+                    <div className="grid grid-cols-1 items-center gap-x-3 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_14rem]">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Label htmlFor="referralFeeAmount" className="text-xs">
                                 紹介料額
                                 <span className="ml-1 text-[11px] text-muted-foreground">
@@ -152,6 +155,7 @@ export function FinancialRevenuePanel({
                         </div>
                         <CurrencyField
                             id="referralFeeAmount"
+                            className="w-56 max-w-full"
                             name="referralFeeAmount"
                             value={formData.referralFeeAmount || 0}
                             onValueChange={(value) => handleReferralAmountChange("fee", value)}

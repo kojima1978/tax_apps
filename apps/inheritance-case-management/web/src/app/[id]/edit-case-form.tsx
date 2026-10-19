@@ -7,7 +7,9 @@ import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/Button"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
 import type { InheritanceCase } from "@/types/shared"
-import { createCase, updateCase } from "@/lib/api/cases"
+import { createCase, updateCase, getCaseDuplicates } from "@/lib/api/cases"
+import type { CaseDuplicateResult } from "@/lib/case-duplicates"
+import { CaseDuplicateCheck, CaseDuplicateCandidates } from "./CaseDuplicateCheck"
 import { toProgressSteps, toProgressItems, toExpenses, toExpenseItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { useToast } from "@/components/ui/Toast"
@@ -120,6 +122,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     }, [searchParams])
 
     const [isSaving, setIsSaving] = useState(false)
+    const [duplicateConfirmation, setDuplicateConfirmation] = useState<CaseDuplicateResult | null>(null)
     const [saveFailed, setSaveFailed] = useState(false)
     const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
     const [auditRefreshKey, setAuditRefreshKey] = useState(0)
@@ -204,6 +207,21 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
             return false
         }
 
+        if (isCreateMode) {
+            setIsSaving(true)
+            try {
+                const result = await getCaseDuplicates({ deceasedName: formData.deceasedName, deceasedNameKana: formData.deceasedNameKana, dateOfDeath: formData.dateOfDeath })
+                if (result.total > 0) {
+                    setDuplicateConfirmation(result)
+                    return false
+                }
+            } catch {
+                toast.error("重複チェックに失敗しました。通信状態を確認して、もう一度登録してください。")
+                return false
+            } finally {
+                setIsSaving(false)
+            }
+        }
         return doSave()
     }
 
@@ -288,6 +306,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     setFormData={setFormData}
                     onMasterEditNavigate={preserveDraftBeforeMasterNavigation}
                 />
+                {isCreateMode && <CaseDuplicateCheck deceasedName={formData.deceasedName} deceasedNameKana={formData.deceasedNameKana} dateOfDeath={formData.dateOfDeath} />}
             </div>
 
             {formData.progress && (
@@ -435,6 +454,15 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     >
                         保存して移動
                     </Button>
+                </div>
+            </Modal>
+
+            <Modal isOpen={duplicateConfirmation !== null} onClose={() => setDuplicateConfirmation(null)} title="登録前に既存案件を確認してください">
+                {duplicateConfirmation && <CaseDuplicateCandidates result={duplicateConfirmation} />}
+                <p className="my-4 text-sm text-slate-600">同じ案件でないことを確認した場合のみ、新しい案件として登録してください。</p>
+                <div className="flex flex-wrap justify-end gap-3">
+                    <Button variant="outline" onClick={() => setDuplicateConfirmation(null)}>入力に戻る</Button>
+                    <Button disabled={isSaving} onClick={() => { setDuplicateConfirmation(null); void doSave() }}>別案件として登録する</Button>
                 </div>
             </Modal>
 

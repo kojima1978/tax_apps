@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { Button } from "@/components/ui/Button"
 import { Modal } from "@/components/ui/Modal"
 import { Bookmark, Clock } from "lucide-react"
 import { useWorkspacePreferences } from "@/hooks/use-workspace-preferences"
@@ -14,7 +13,7 @@ export function CaseShortcuts() {
     const [isOpen, setIsOpen] = useState(false)
     return (
         <>
-            <Button variant="outline" onClick={() => setIsOpen(true)}>最近開いた案件・お気に入り</Button>
+            <button type="button" aria-label="最近開いた案件・お気に入り" onClick={() => setIsOpen(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"><Clock className="h-3.5 w-3.5" aria-hidden="true" />最近・お気に入り</button>
             <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="最近開いた案件・お気に入り" panelClassName="max-w-2xl">
             <div className="grid gap-3 py-2 md:grid-cols-2">
                 {[{ label: "お気に入り", items: preferences.favorites, Icon: Bookmark }, { label: "最近開いた案件", items: preferences.recentCases, Icon: Clock }].map(({ label, items, Icon }) => (

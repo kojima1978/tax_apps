@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { SlidersHorizontal } from "lucide-react"
 import { Modal } from "@/components/ui/Modal"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
@@ -23,7 +24,7 @@ export function CaseListPreferences({ params, onApply }: { params: CasesQueryPar
     }
     return (
         <>
-            <Button variant="outline" onClick={() => setIsOpen(true)}>検索条件の保存・表示設定</Button>
+            <button type="button" aria-label="検索条件の保存・表示設定" onClick={() => setIsOpen(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"><SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />条件の保存・表示</button>
             <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="検索条件の保存・表示設定" panelClassName="max-w-2xl">
             <div className="space-y-3 py-2">
                 <div className="flex flex-wrap items-end gap-2">

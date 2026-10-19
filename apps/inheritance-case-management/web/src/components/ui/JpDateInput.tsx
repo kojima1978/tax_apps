@@ -16,14 +16,15 @@ interface JpDateInputProps {
     id?: string
     className?: string
     disabled?: boolean
+    defaultEra?: JapaneseEra["code"]
 }
 
 type Mode = "seireki" | "wareki"
 
-function getWarekiInputParts(value: string) {
+function getWarekiInputParts(value: string, defaultEra: JapaneseEra["code"] = "reiwa") {
     const w = value ? gregorianToWareki(value) : null
     return {
-        eraCode: w?.era.code ?? "reiwa",
+        eraCode: w?.era.code ?? defaultEra,
         eraYear: w ? String(w.eraYear) : "",
         month: w ? String(w.month) : "",
         day: w ? String(w.day) : "",
@@ -34,8 +35,8 @@ type WarekiDateFieldsProps = JpDateInputProps & {
     onSwitchMode: () => void
 }
 
-function WarekiDateFields({ value, onChange, id, className, disabled, onSwitchMode }: WarekiDateFieldsProps) {
-    const initial = getWarekiInputParts(value)
+function WarekiDateFields({ value, onChange, id, className, disabled, defaultEra, onSwitchMode }: WarekiDateFieldsProps) {
+    const initial = getWarekiInputParts(value, defaultEra)
     const [eraCode, setEraCode] = useState<JapaneseEra["code"]>(initial.eraCode)
     const [eraYear, setEraYear] = useState<string>(initial.eraYear)
     const [month, setMonth] = useState<string>(initial.month)
@@ -49,7 +50,7 @@ function WarekiDateFields({ value, onChange, id, className, disabled, onSwitchMo
     if (value !== lastValue) {
         setLastValue(value)
         if (value !== emitted) {
-            const parts = getWarekiInputParts(value)
+            const parts = getWarekiInputParts(value, defaultEra)
             setEraCode(parts.eraCode)
             setEraYear(parts.eraYear)
             setMonth(parts.month)
@@ -72,7 +73,7 @@ function WarekiDateFields({ value, onChange, id, className, disabled, onSwitchMo
 
     return (
         <div className={className}>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
                 <select
                     id={id}
                     value={eraCode}
@@ -88,6 +89,7 @@ function WarekiDateFields({ value, onChange, id, className, disabled, onSwitchMo
                         <option key={e.code} value={e.code}>{e.label}</option>
                     ))}
                 </select>
+                <div className="flex items-center gap-1">
                 <Input
                     type="number"
                     min={1}
@@ -99,8 +101,11 @@ function WarekiDateFields({ value, onChange, id, className, disabled, onSwitchMo
                     onChange={(e) => { setEraYear(e.target.value); commitWareki(eraCode, e.target.value, month, day) }}
                     className="w-16 text-center"
                     placeholder="年"
+                    aria-label="和暦の年"
                 />
                 <span className="text-sm text-muted-foreground">年</span>
+                </div>
+                <div className="flex items-center gap-1">
                 <Input
                     type="number"
                     min={1}
@@ -111,8 +116,11 @@ function WarekiDateFields({ value, onChange, id, className, disabled, onSwitchMo
                     onChange={(e) => { setMonth(e.target.value); commitWareki(eraCode, eraYear, e.target.value, day) }}
                     className="w-14 text-center"
                     placeholder="月"
+                    aria-label="生年月日の月"
                 />
                 <span className="text-sm text-muted-foreground">月</span>
+                </div>
+                <div className="flex items-center gap-1">
                 <Input
                     type="number"
                     min={1}
@@ -123,8 +131,10 @@ function WarekiDateFields({ value, onChange, id, className, disabled, onSwitchMo
                     onChange={(e) => { setDay(e.target.value); commitWareki(eraCode, eraYear, month, e.target.value) }}
                     className="w-14 text-center"
                     placeholder="日"
+                    aria-label="生年月日の日"
                 />
                 <span className="text-sm text-muted-foreground">日</span>
+                </div>
                 <button
                     type="button"
                     className="ml-1 px-2 text-xs text-muted-foreground hover:text-foreground"
@@ -142,9 +152,9 @@ function WarekiDateFields({ value, onChange, id, className, disabled, onSwitchMo
     )
 }
 
-export function JpDateInput({ value, onChange, id, className, disabled }: JpDateInputProps) {
+export function JpDateInput({ value, onChange, id, className, disabled, defaultEra }: JpDateInputProps) {
     const [mode, setMode] = useState<Mode>(() => {
-        if (!value) return "seireki"
+        if (!value) return defaultEra ? "wareki" : "seireki"
         const w = gregorianToWareki(value)
         return w && w.era.startYear < 1989 ? "wareki" : "seireki"
     })
@@ -157,6 +167,7 @@ export function JpDateInput({ value, onChange, id, className, disabled }: JpDate
                 id={id}
                 className={className}
                 disabled={disabled}
+                defaultEra={defaultEra}
                 onSwitchMode={() => setMode("seireki")}
             />
         )

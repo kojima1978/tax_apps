@@ -79,7 +79,7 @@ async function exportExpensesExcel(expenses: Expense[], total: number, deceasedN
 }
 
 const OTHER_VALUE = "__other__"
-const EXPENSE_ROW_LAYOUT = "grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[auto_128px_minmax(200px,1.4fr)_112px_minmax(140px,1fr)_auto]"
+const EXPENSE_ROW_LAYOUT = "grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[24px_128px_minmax(160px,1.2fr)_176px_minmax(140px,1fr)_76px]"
 
 function isPresetValue(value: string): boolean {
     return (EXPENSE_DESCRIPTION_PRESETS as readonly string[]).includes(value)
