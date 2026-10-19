@@ -12,25 +12,28 @@
 ### インフラストラクチャ
 - **Docker Compose**: 各アプリ個別の `docker-compose.yml`（`manage.sh` / `manage.bat` で一括管理）
 - **Nginx Gateway**: リバースプロキシ（`nginx/` + `docker/gateway/`）
-- **ポータルアプリ**: Next.js 静的エクスポート → nginx:alpine で配信（ポート3000）
+- **ポータルアプリ**: Next.js 静的エクスポート → nginx:1.27-alpine で配信（ポート3000）。`docker/gateway/docker-compose.yml` の `portal-app` サービスで、gateway と一緒に起動する（`manage.sh start gateway`）
 
 ### 連携アプリケーション一覧
 | アプリ名 | パス | ポート | 説明 |
 |---------|------|--------|------|
 | ポータル | / | 3000 | ランチャー（本アプリ） |
-| 相続税 必要書類 | /inheritance-tax-docs/ | 3003 | 相続税申告の書類案内 |
-| 所得税・贈与税 必要書類 | /tax-docs/ | 3005 | 所得税・贈与税申告の書類案内 |
-| 相続税計算 | /inheritance-tax-app/ | 3004 | 相続税シミュレーション |
+| 相続税 必要書類 | /inheritance-tax-docs/ | 3003 | 相続税・相続シミュレーション・株価計算に必要な書類をご案内 |
+| 所得税・贈与税 必要書類 | /tax-docs/ | 3002 | 所得税・贈与税申告に必要な書類をご案内 |
+| 相続税計算 | /inheritance-tax-app/ | 3004 | 相続税の概算計算 |
 | 贈与税計算 | /gift-tax-simulator/ | 3001 | 贈与税計算・早見表・不動産取得税 |
-| 保険管理 | /insurance/ | 3030 | 保険証券の管理・分析 |
-| 退職金税額計算 | /retirement-tax-calc/ | 3013 | 退職金の所得税・住民税計算 |
+| 退職金税額計算 | /retirement-tax-calc/ | 3013 | 退職金の所得税・住民税を計算 |
 | 譲渡所得税計算 | /capital-gains-calc/ | 3019 | 不動産・株式等の譲渡にかかる税額を試算 |
 | 減価償却ツール | /depreciation-calc/ | 3015 | 耐用年数・簿価・期間償却を計算 |
 | 減価償却資産評価 | /asset-valuation/ | 3017 | 相続税の減価償却資産を一括評価 |
 | 株式評価明細書 | /stock-valuation-form/ | 3014 | 取引相場のない株式の評価明細書 |
-| 預貯金分析 | /bank-analyzer/ | 3007 | 預金移動分析 |
-| 案件管理 | /itcm/ | 3020 | 相続税案件管理 |
-| 料金表 | /fee-table/ | — | 報酬についてのご案内 |
+| 相続税の申告書 | /inheritance-tax-form/ | 3021 | 相続税の申告書（全24様式）の作成・印刷 |
+| 資産・負債管理（PB） | /private-banking/ | 3025 | 個人・ファミリーのB/Sを時価・流動性別に管理 |
+| 保険管理 | /insurance/ | 3030 | 保険証券の管理・分析 |
+| 預貯金分析 | /bank-analyzer/ | 3007 | 預金移動の分析ツール |
+| 案件管理 | /itcm/ | 3020 | 相続税案件の進捗管理 |
+| 料金表 | /fee-table/ | — | 報酬についてのご案内（ポータル内のページ） |
+| 社用車管理（FleetFlow） | /fleet-board/ | 3035 | tax_apps 外の別プロジェクトへの一時リンク |
 
 ## 3. アプリケーション仕様
 
@@ -38,13 +41,14 @@
 1. **ダッシュボードグリッド**
    - カード形式でアプリケーション表示（LucideIconアイコン、タイトル、説明、リンク）
    - カテゴリ別グループ表示（必要書類・計算/評価・分析/管理・その他）
-   - 検索フィルター（タイトル・説明で絞り込み）
+   - 検索フィルター（タイトル・説明で絞り込み）。`/` で検索欄へ、Escape で消去
+   - カテゴリの絞り込みボタン（件数つき・もう一度押すと解除）
    - レスポンシブグリッド（1列 → 2列 → 3列 → 4列）
-   - 内部リンク・外部リンク対応（外部はExternalLinkアイコン表示）
+   - 内部リンク・外部リンク対応（`http` で始まるものを外部とみなし ExternalLink アイコン表示）
 
 2. **グローバルヘッダー**
-   - プロジェクトタイトル（グラデーション）
-   - サブタイトル
+   - 濃いエメラルドの固定ヘッダー（「業務支援ポータル」「税理士業務支援ツール」とアプリ数の表示）
+   - 検索欄の上に見出しと説明
 
 3. **料金表ページ** (`/fee-table/`)
    - セクション別の報酬一覧テーブル
@@ -55,13 +59,13 @@
 - **TypeScript**
 - **Tailwind CSS 4**
 - **lucide-react**（アイコン）
-- **nginx:alpine**（本番配信、Node.js不要）
+- **nginx:1.27-alpine**（本番配信、Node.js不要）
 
 ### UI/UXテーマ
-- **スタイル**: モダン、クリーン、グラスモーフィズム
-- **インタラクション**: ホバーエフェクト（スケールアップ、シャドウ増加、グラデーションオーバーレイ）
-- **カラー**: グリーン/エメラルドのグラデーション
-- **フォント**: Geist Sans
+- **スタイル**: 白いカードと細い罫線のクリーンな構成
+- **インタラクション**: ホバーで見出しの色と矢印アイコンが動く
+- **カラー**: エメラルド（ヘッダーは emerald-950、料金表の見出しはグラデーション）
+- **フォント**: Geist + Noto Sans JP（`next/font/google`）
 
 ## 4. ディレクトリ構造
 ```
@@ -112,11 +116,15 @@ interface Application {
 
 ### Dockerfile（2ステージ）
 1. **Builder**: `node:22-alpine` — npm ci + next build → `out/` 生成
-2. **Runner**: `nginx:alpine` — 静的ファイル配信（非rootユーザー）
+2. **Runner**: `nginx:1.27-alpine` — 静的ファイル配信（非rootユーザー、`/health` で healthcheck）
 
 ### 特徴
 - `output: "export"` による静的HTMLエクスポート
 - nginx設定はDockerfile内にheredocでインライン化
 - npm + Next.js 両方のビルドキャッシュマウント
+- `npm ci` と同じ RUN 層で glibc 用のネイティブバイナリを消す（Alpine では使われない）
+- コンテナは `read_only` + `cap_drop: ALL`、書き込み先は tmpfs（`/run`・`/var/cache/nginx`）だけ
+- dev モードは無い（base の compose が最初から本番構成。`docker-compose.prod.yml` は `--prod` の対象に含めるための空に近いファイル）
+- テストは無い（`TEST_TARGETS` 対象外）
 - セキュリティヘッダーはnginxゲートウェイで設定（ポータル側は不要）
-- イメージサイズ: ~45MB
+- イメージサイズ: 約100MB（2026-10-19 実測 104MB。ほぼ nginx:1.27-alpine の分）
