@@ -15,14 +15,15 @@ Tax Apps プロジェクトのゲートウェイ（リバースプロキシ）�
 ```
 nginx/
 ├── Dockerfile      # カスタムNginxイメージ（tzdata付き、non-root実行。ヘルスチェックは BusyBox wget）
-├── nginx.conf      # グローバル設定（ワーカー、Gzip、セキュリティ、Real IP等）
+├── nginx.conf      # グローバル設定（ワーカー、Gzip、セキュリティ、レート制限、ログ形式）
 ├── default.conf    # サーバーブロック設定（ルーティングルール）
 ├── html/              # カスタムエラーページ
 │   ├── error-common.css # 共通スタイル（グラスモーフィズム、グラデーション）
 │   ├── 404.html       # Not Foundページ（オレンジアイコン）
 │   ├── 429.html       # レート制限超過ページ（イエローアイコン）
 │   ├── 50x.html       # サーバーエラーページ（レッドアイコン）
-│   └── 503.html       # メンテナンスページ（ブルーアイコン + パルスアニメーション）
+│   ├── 503.html       # メンテナンスページ（ブルーアイコン + パルスアニメーション）
+│   └── error-pages-spec.md # エラーページのデザイン仕様
 ├── includes/       # 共通設定ディレクトリ
 │   ├── proxy_params.conf       # 共通プロキシヘッダー設定・upstream ヘッダーの除去
 │   ├── upstreams.conf          # $app_backend レジストリ（ホスト名:ポートの唯一の情報源）
@@ -48,7 +49,7 @@ nginx/
 
 - **レート制限**: API 60req/s（burst 30）、一般 300req/s（burst 100）（超過時は 429 を返却）
 - **接続数制限**: 1IPあたり50接続（全ロケーション共通）
-- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy。アップストリームが独自に返す同名ヘッダーは `proxy_params.conf` の `proxy_hide_header` で除去し、ゲートウェイの値に一本化する（矛盾する値が重複するとブラウザがヘッダーごと無視することがあるため。例: Django の `X-Frame-Options: DENY`）
+- **セキュリティヘッダー**: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy。アップストリームが独自に返す同名ヘッダーは `proxy_params.conf` の `proxy_hide_header` で除去し、ゲートウェイの値に一本化する（矛盾する値が重複するとブラウザがヘッダーごと無視することがあるため。例: フレームワークが既定で付ける `X-Frame-Options: DENY`）
 - **サーバー情報非表示**: server_tokens off, proxy_hide_header (X-Powered-By, Server)
 - **クライアントIP**: ゲートウェイがエッジのため real_ip は使わず、実接続元IP（`$remote_addr`）でレート制限・ログを取得（X-Forwarded-For 詐称によるレート制限回避を防止）
 - **APIエラー応答保護**: APIエンドポイントは `proxy_intercept_errors off` でバックエンドのJSON応答をそのまま返却
@@ -72,7 +73,7 @@ nginx/
 
 #### JS/CSS を求めてきた相手に HTML を返さない
 
-Next.js の2アプリ（private-banking / inheritance-case-management）の `_next/static` では、
+basePath 付き Next.js の3アプリ（inheritance-case-management / insurance / private-banking）の `_next/static` では、
 `error_page 404 = @next_static_missing;` と `error_page 500 502 503 504 = @next_static_unavailable;`
 で**エラーページの HTML を返さない**ようにしている（名前付きロケーションで落とす）。
 
@@ -97,25 +98,28 @@ HTML をやめてもチャンクは読めず画面は壊れる（＝ `hadRuntime
 
 | URL Path | 宛先サービス | 説明 |
 |:---------|:-------------|:-----|
-| `/` | `portal-app:3000` | ポータルサイト (Next.js) |
+| `/` | `portal-app:3000` | ポータルサイト（Next.js の静的出力を nginx で配信） |
 | `/tax-docs/` | `tax-docs:3002` | 所得税・贈与税書類リスト (Vite) |
 | `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Next.js + API Routes) |
 | `/itcm/api/` | `itcm-frontend:3020` | 相続税案件管理 API（同一サービス内） |
+| `/itcm/api-v1/` | `itcm-frontend:3020` | 旧 API パス。`/itcm/api/` へ書き換えて転送 |
 | `/insurance/` | `insurance-app:3030` | 保険管理 (Next.js) |
-| `/insurance/api/` | `insurance-app:3030` | 保険管理 API |
+| `/insurance/api/` | `insurance-app:3030` | 保険管理 API（120s） |
 | `/private-banking/` | `private-banking-app:3025` | ファミリーB/S管理 (Next.js) |
-| `/private-banking/api/` | `private-banking-app:3025` | ファミリーB/S管理 API |
+| `/private-banking/api/` | `private-banking-app:3025` | ファミリーB/S管理 API（120s） |
 | `/inheritance-tax-app/` | `inheritance-tax-app:3004` | 相続税計算 (Vite) |
+| `/inheritance-tax-app/api/` | `inheritance-tax-app:3004` | 相続税計算 API |
 | `/inheritance-tax-docs/` | `inheritance-tax-docs:3003` | 相続税 資料準備ガイド (Vite) |
-| `/inheritance-tax-docs/api/` | `inheritance-tax-docs:3003` | 資料準備ガイド API (Express) |
+| `/inheritance-tax-docs/api/` | `inheritance-tax-docs:3003` | 資料準備ガイド API (Express。50M・120s) |
 | `/inheritance-tax-form/` | `inheritance-tax-form:3021` | 相続税の申告書 (Vite) |
 | `/gift-tax-simulator/` | `gift-tax-simulator:3001` | 贈与税・間接税シミュレーター (Vite) |
 | `/retirement-tax-calc/` | `retirement-tax-calc:3013` | 退職金税額計算 (Vite) |
 | `/capital-gains-calc/` | `capital-gains-calc:3019` | 譲渡所得税計算 (Vite) |
 | `/depreciation-calc/` | `depreciation-calc:3015` | 減価償却計算 (Vite) |
 | `/asset-valuation/` | `asset-valuation:3017` | 減価償却資産評価 (Vite) |
-| `/stock-valuation-form/` | `stock-valuation-form:3014` | 株式評価明細書 (Vite) |
-| `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Vite 一括側) |
+| `/stock-valuation-form/` | `stock-valuation-form:3014` | 株式評価明細書 (Vite + Hono) |
+| `/stock-valuation-form/api/` | `stock-valuation-form:3014` | 株式評価明細書 API（業種目データ・案件） |
+| `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Vite + Hono) |
 | `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API（100M・300s。CSV の取込がここを通る） |
 | `/gift-tax-docs/` | → `/tax-docs/` | 301リダイレクト（旧URL互換） |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
@@ -126,16 +130,18 @@ Gateway は独立した Compose プロジェクトとして `docker/gateway/dock
 Portal（ポータルサイト）と同一プロジェクト内に含まれます。
 
 ```bash
-# 起動（manage.bat start で自動実行）
-docker compose -f docker/gateway/docker-compose.yml up -d
+# 起動（引数なしの manage.sh start でも起動される）
+docker/scripts/manage.sh start gateway
 
-# 再ビルド
-docker compose -f docker/gateway/docker-compose.yml up -d --build
+# 再ビルド（nginx/ や apps/portal/ を変えたとき。portal-app も一緒に作り直す）
+docker/scripts/manage.sh build gateway
 
-# または管理スクリプト経由
-manage.bat restart gateway
-manage.bat build gateway
+# compose の変更（ports など）を反映（再ビルドなし。docker restart では反映されない）
+docker/scripts/manage.sh apply gateway
 ```
+
+`nginx.conf` / `default.conf` / `includes/` は読み取り専用で bind mount しているので、
+これらの変更だけなら再ビルドせず下の「設定のリロード」で反映できる。
 
 ### ネットワーク
 
@@ -143,12 +149,12 @@ manage.bat build gateway
 Gateway は Docker DNS resolver (`127.0.0.11`) を使用し、各コンテナ名でリクエスト時に動的に名前解決します。
 
 ```bash
-# ネットワーク作成（manage.bat start で自動実行）
+# ネットワーク作成（manage.sh の start / build / apply などが無ければ自動で作る）
 docker network create tax-apps-network
 ```
 
 > **重要**: 各アプリの `docker-compose.yml` で定義される `container_name` は
-> `default.conf` の `set $upstream_xxx` 変数値と一致している必要があります。
+> `includes/upstreams.conf` の `$app_backend` レジストリのホスト名と一致している必要があります。
 
 ## 設定のカスタマイズ
 
@@ -174,7 +180,7 @@ proxy_send_timeout 60s;
 proxy_read_timeout 60s;
 ```
 
-**注意**: `bank-analyzer` は CSV の解析と分類に時間がかかるため `/api/` だけ `proxy_read_timeout 300s` に設定済み
+**注意**: `bank-analyzer` は CSV の解析と分類に時間がかかるため `/api/` だけ `proxy_read_timeout 300s`・`client_max_body_size 100M` に設定済み。insurance / private-banking / inheritance-tax-docs の API は 120s
 
 ### アドレスとルーティングの分離
 
@@ -253,22 +259,26 @@ docker exec tax-apps-gateway nginx -s reload
 
 ### ログの確認
 
-```bash
-# manage.bat 経由
-manage.bat logs gateway
+`/var/log/nginx/access.log` は `/dev/stdout`、`error.log` は `/dev/stderr` への symlink なので、
+コンテナの中のファイルとしては読めない（`tail -f` しても何も出ない）。`docker logs` から読む。
 
-# コンテナ内ログファイル
-docker exec tax-apps-gateway tail -f /var/log/nginx/access.log
-docker exec tax-apps-gateway tail -f /var/log/nginx/error.log
+```bash
+# 管理スクリプト経由（portal-app のログも混ざる）
+docker/scripts/manage.sh logs gateway
+
+# ゲートウェイだけ
+docker logs -f tax-apps-gateway
 
 # レート制限超過ログ（429エラー）
-docker exec tax-apps-gateway grep "limiting requests" /var/log/nginx/error.log
+docker logs tax-apps-gateway 2>&1 | grep "limiting requests"
 ```
 
 ### 接続状況の確認
 
+`/nginx-status` はコンテナ内のループバックからしか許可していない（ホストからの curl は 403）。
+
 ```bash
-curl http://localhost/nginx-status
+docker exec tax-apps-gateway wget -qO- http://127.0.0.1/nginx-status
 ```
 
 ### アップストリーム応答確認
@@ -287,9 +297,9 @@ curl -I http://localhost/itcm/
 
 > **現在の設定は LAN に公開されています。** `docker/gateway/docker-compose.yml` の
 > `ports` は `"80:80"`（= `0.0.0.0:80`）です。ループバックのみに閉じる場合は
-> `"127.0.0.1:80:80"` に変更して `manage.bat restart gateway` してください。
+> `"127.0.0.1:80:80"` に変更して `docker/scripts/manage.sh apply gateway` してください（`docker restart` では反映されません）。
 
-社内LAN内の他PCから Gateway にアクセスする場合、必要なのは次の1点です
+社内LAN内の他PCから Gateway にアクセスする場合、必要なのは次の2点です
 （ポート公開は上記のとおり既に `0.0.0.0` になっています）:
 
 1. **Windowsファイアウォールでポート80を許可**:
@@ -303,6 +313,18 @@ curl -I http://localhost/itcm/
    `$remote_addr` は全接続が `172.18.0.1` になり（実測）、nginx 側では送信元を絞れない。
    ログインの無いアプリを守っているのはこのルールだけ。
 
+2. **Docker が作る「Docker Desktop Backend」ルールも LocalSubnet に絞る**: 80番で待ち受けているのは
+   `com.docker.backend.exe` で、このルールは全ポート・全送信元を許可している。残っていると
+   上のルールを絞っても素通りになる。
+
+   ```powershell
+   # 管理者権限のPowerShellで実行
+   Get-NetFirewallRule -DisplayName 'Docker Desktop Backend' | Set-NetFirewallRule -EdgeTraversalPolicy Block -RemoteAddress LocalSubnet
+   ```
+
+   Docker Desktop の更新で作り直されることがあるので、`docker/scripts/manage.sh preflight` の
+   チェック19が全送信元に戻っていないかを毎回見ている（直し方もそこに出る）。
+
 設定後、`http://<ホストPCのIPアドレス>/` でアクセスできます。nginx側の設定変更は不要です（`proxy_set_header Host $host` によりどのIPでも正しく動作）。
 
 > **Host ヘッダーの許可リスト**: `includes/maps.conf` の `$host_allowed` で、
@@ -315,7 +337,7 @@ curl -I http://localhost/itcm/
 
 | 症状 | 原因 | 対処 |
 |------|------|------|
-| 502 Bad Gateway | アップストリームが起動していない | `manage.bat status` で対象サービスの状態確認。動的DNS解決のため Gateway 自体はクラッシュせず、該当サービスのみ 502 を返す |
+| 502 Bad Gateway | アップストリームが起動していない | `docker/scripts/manage.sh status` で対象サービスの状態確認。動的DNS解決のため Gateway 自体はクラッシュせず、該当サービスのみ 502 を返す |
 | 504 Gateway Timeout | 処理時間超過 | `proxy_read_timeout` を延長 |
 | 429 Too Many Requests | レート制限超過 | rate 値または burst 値を調整 |
 | 413 Request Entity Too Large | アップロードサイズ超過 | `client_max_body_size` を調整 |
