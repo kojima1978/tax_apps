@@ -31,6 +31,8 @@ export type BuildingUsage = 'non-business' | 'business';
 export type TaxAmounts = {
     incomeTax: number;
     reconstruction: number;
+    /** 所得税及び復興特別所得税（確定申告で一緒に納める額。合計では100円未満切捨て） */
+    nationalTax: number;
     residentTax: number;
     total: number;
 };
@@ -46,10 +48,22 @@ export type TaxBracket = {
     amounts: TaxAmounts;
 };
 
-const ZERO_TAX: TaxAmounts = { incomeTax: 0, reconstruction: 0, residentTax: 0, total: 0 };
+const ZERO_TAX: TaxAmounts = { incomeTax: 0, reconstruction: 0, nationalTax: 0, residentTax: 0, total: 0 };
+
+const floorTo = (value: number, unit: number): number => Math.floor(value / unit) * unit;
+
+/** 課税標準（課税譲渡所得金額）は1,000円未満切捨て（国税通則法118条1項・地方税法20条の4の2第1項） */
+export const truncateTaxBase = (value: number): number => floorTo(Math.max(0, value), 1_000);
 
 /**
- * 課税標準に税率を適用する。
+ * 住民税の所得割は市町村民税と道府県民税に分かれ、それぞれ100円未満を切り捨てる。
+ * 分離課税の税率は指定都市以外ではどの区分も 3：2（長期 3%＋2%、短期 5.4%＋3.6%、軽減 2.4%＋1.6%）。
+ * 指定都市は 4：1 なので、そこでは100円ずれることがある（注記で知らせる）
+ */
+const RESIDENT_MUNICIPAL_SHARE = { numerator: 3, denominator: 5 } as const;
+
+/**
+ * 課税標準に税率を適用する（税率区分ごとの明細。100円未満の切捨ては合計側の finalizeTax で行う）。
  * 復興特別所得税は「所得税額 × 2.1%」なので、譲渡所得に直接掛けずに所得税額から求める。
  */
 const applyRate = (base: number, rate: TaxRateSet): TaxAmounts => {
@@ -60,21 +74,29 @@ const applyRate = (base: number, rate: TaxRateSet): TaxAmounts => {
     return {
         incomeTax,
         reconstruction,
+        nationalTax: incomeTax + reconstruction,
         residentTax,
         total: incomeTax + reconstruction + residentTax,
     };
 };
 
-const sumTax = (list: TaxAmounts[]): TaxAmounts =>
-    list.reduce<TaxAmounts>(
-        (acc, t) => ({
-            incomeTax: acc.incomeTax + t.incomeTax,
-            reconstruction: acc.reconstruction + t.reconstruction,
-            residentTax: acc.residentTax + t.residentTax,
-            total: acc.total + t.total,
-        }),
-        { ...ZERO_TAX },
+/**
+ * 税率区分ごとの明細を、申告書と同じ端数処理で1つの税額にまとめる。
+ * - 復興特別所得税は区分ごとではなく、合計した所得税額（基準所得税額）× 2.1%（1円未満切捨て）
+ * - 所得税及び復興特別所得税の申告納税額は、合計して100円未満切捨て（国税通則法119条1項）
+ * - 住民税は市町村民税・道府県民税ごとに100円未満切捨て（地方税法20条の4の2第3項）
+ */
+const finalizeTax = (list: TaxAmounts[]): TaxAmounts => {
+    const incomeTax = list.reduce((sum, t) => sum + t.incomeTax, 0);
+    const residentRaw = list.reduce((sum, t) => sum + t.residentTax, 0);
+    const reconstruction = Math.floor(incomeTax * RECONSTRUCTION_RATIO);
+    const nationalTax = floorTo(incomeTax + reconstruction, 100);
+    const municipalRaw = Math.floor(
+        (residentRaw * RESIDENT_MUNICIPAL_SHARE.numerator) / RESIDENT_MUNICIPAL_SHARE.denominator,
     );
+    const residentTax = floorTo(municipalRaw, 100) + floorTo(residentRaw - municipalRaw, 100);
+    return { incomeTax, reconstruction, nationalTax, residentTax, total: nationalTax + residentTax };
+};
 
 const toPercent = (rate: TaxRateSet): number => Math.round(totalRate(rate) * 1e6) / 1e4;
 
@@ -84,6 +106,10 @@ const toPercent = (rate: TaxRateSet): number => Math.round(totalRate(rate) * 1e6
  */
 const PAYMENT_SCHEDULE_NOTE =
     '納付時期: 所得税・復興特別所得税は翌年3月15日までの確定申告で納付し、住民税は翌年6月以降に別途納付します（普通徴収は年4回）。';
+
+/** 端数処理の案内。合計が明細の足し算と一致しない理由を、表を見た人が自分で確かめられるようにする */
+const ROUNDING_NOTE =
+    '端数は申告と同じく、課税譲渡所得金額は1,000円未満、所得税＋復興特別所得税と住民税は100円未満を切り捨てています（住民税は市町村民税・道府県民税ごと。指定都市では100円ずれることがあります）。';
 
 /** 実額より概算取得費（5%）のほうが大きいときの案内。不動産・株式等で同じ判断をする */
 const estimatedCostAdvantageNote = (estimatedCost: number, actualCost: number): string =>
@@ -200,6 +226,9 @@ export type RealEstateResult = {
     transferExpense: number;
     grossProfit: number;
     specialDeduction: number;
+    /** 特別控除後の譲渡所得金額（1,000円未満を切り捨てる前。ミニマムタックスの基準所得金額はこちら） */
+    incomeAfterDeduction: number;
+    /** 課税譲渡所得金額（1,000円未満切捨て） */
     taxableIncome: number;
     reducedRateApplied: boolean;
     brackets: TaxBracket[];
@@ -236,7 +265,8 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
         ? Math.min(RESIDENCE_SPECIAL_DEDUCTION, Math.max(0, grossProfit))
         : 0;
 
-    const taxableIncome = Math.max(0, grossProfit - specialDeduction);
+    const incomeAfterDeduction = Math.max(0, grossProfit - specialDeduction);
+    const taxableIncome = truncateTaxBase(incomeAfterDeduction);
     const reducedRateApplied = input.useReducedRate && input.isResidence && isOver10Years;
 
     const brackets: TaxBracket[] = [];
@@ -275,7 +305,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
         }
     }
 
-    const tax = sumTax(brackets.map((b) => b.amounts));
+    const tax = finalizeTax(brackets.map((b) => b.amounts));
 
     const notes: string[] = [];
     if (ownershipYears === null) {
@@ -301,7 +331,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
         notes.push('譲渡損失が生じています。居住用財産の買換え等の要件を満たす場合、損益通算・繰越控除の適用余地があります。');
     }
     if (tax.total > 0) {
-        notes.push(PAYMENT_SCHEDULE_NOTE);
+        notes.push(PAYMENT_SCHEDULE_NOTE, ROUNDING_NOTE);
     }
 
     return {
@@ -320,6 +350,7 @@ export const calcRealEstate = (input: RealEstateInput): RealEstateResult => {
         transferExpense: input.transferExpense,
         grossProfit,
         specialDeduction,
+        incomeAfterDeduction,
         taxableIncome,
         reducedRateApplied,
         brackets,
@@ -348,6 +379,9 @@ export type SecuritiesResult = {
     acquisitionCost: number;
     transferExpense: number;
     grossProfit: number;
+    /** 1,000円未満を切り捨てる前の譲渡所得金額（ミニマムタックスの基準所得金額はこちら） */
+    incomeAfterDeduction: number;
+    /** 課税譲渡所得金額（1,000円未満切捨て） */
     taxableIncome: number;
     /** 所得税・復興・住民税の合計税率（%） */
     ratePercent: number;
@@ -364,8 +398,9 @@ export const calcSecurities = (input: SecuritiesInput): SecuritiesResult => {
     const acquisitionCost = input.costMode === 'actual' ? input.actualCost : estimatedCost;
 
     const grossProfit = input.transferPrice - acquisitionCost - input.transferExpense;
-    const taxableIncome = Math.max(0, grossProfit);
-    const tax = applyRate(taxableIncome, SECURITIES_RATE);
+    const incomeAfterDeduction = Math.max(0, grossProfit);
+    const taxableIncome = truncateTaxBase(incomeAfterDeduction);
+    const tax = finalizeTax([applyRate(taxableIncome, SECURITIES_RATE)]);
 
     const notes: string[] = [];
     if (input.costMode === 'estimated') {
@@ -383,7 +418,7 @@ export const calcSecurities = (input: SecuritiesInput): SecuritiesResult => {
         notes.push('一般株式等（非上場株式）の譲渡益は、上場株式等の譲渡損失とは通算できません。');
     }
     if (tax.total > 0) {
-        notes.push(PAYMENT_SCHEDULE_NOTE);
+        notes.push(PAYMENT_SCHEDULE_NOTE, ROUNDING_NOTE);
     }
 
     return {
@@ -392,6 +427,7 @@ export const calcSecurities = (input: SecuritiesInput): SecuritiesResult => {
         acquisitionCost,
         transferExpense: input.transferExpense,
         grossProfit,
+        incomeAfterDeduction,
         taxableIncome,
         ratePercent: toPercent(SECURITIES_RATE),
         rate: SECURITIES_RATE,

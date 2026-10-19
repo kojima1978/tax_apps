@@ -91,14 +91,15 @@ const RealEstateResultView = ({ form, result }: RealEstateResultProps) => {
     const taxRows = useMemo<ResultRow[]>(() => {
         const rows: ResultRow[] = [];
         // 区分が1つなら、その明細がそのまま税目ごとの合計になる。
-        // 合計行を別に立てると同じ数字の繰り返しにしかならないので、明細側を小計入りの形で出す
+        // 合計行を別に立てると同じ数字の繰り返しにしかならないので、明細側を小計入りの形で出す。
+        // その場合の金額は端数処理（100円未満切捨て）を済ませた result.tax を使う
         const isSingleBracket = result.brackets.length < 2;
 
         result.brackets.forEach((bracket) => {
             rows.push({ label: bracket.label, value: formatYen(bracket.taxableAmount) });
             rows.push(
                 ...(isSingleBracket
-                    ? taxTotalRows(bracket.amounts, bracket.rate)
+                    ? taxTotalRows(result.tax, bracket.rate)
                     : taxBreakdownRows(bracket.amounts, bracket.rate, true)),
             );
         });

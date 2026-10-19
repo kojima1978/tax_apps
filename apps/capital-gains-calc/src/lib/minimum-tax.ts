@@ -25,7 +25,7 @@ export const MINIMUM_TAX_RATE = 0.225;
 export type MinimumTaxInput = {
     /** 譲渡した年分 */
     year: number;
-    /** 本ツールで計算した課税譲渡所得金額の合計（特別控除後） */
+    /** 本ツールで計算した譲渡所得金額の合計（特別控除後・1,000円未満を切り捨てる前。基準所得金額は合計所得金額なので） */
     capitalGainsIncome: number;
     /** 上記に対する所得税額の合計（復興特別所得税を含まない） */
     capitalGainsIncomeTax: number;

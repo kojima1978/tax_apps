@@ -35,7 +35,7 @@ const App = () => {
     const minimumTaxSource = useMemo(
         () => ({
             year: Number(realEstate.form.transferDate.slice(0, 4)) || new Date().getFullYear(),
-            capitalGainsIncome: realEstate.result.taxableIncome + securities.result.taxableIncome,
+            capitalGainsIncome: realEstate.result.incomeAfterDeduction + securities.result.incomeAfterDeduction,
             capitalGainsIncomeTax: realEstate.result.tax.incomeTax + securities.result.tax.incomeTax,
         }),
         [realEstate.form.transferDate, realEstate.result, securities.result],

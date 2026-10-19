@@ -124,12 +124,16 @@ describe("不動産の譲渡所得", () => {
         expect(r.tax).toEqual({
             incomeTax: 3_360_900,
             reconstruction: 70_578, // 3,360,900 × 2.1% = 70,578.9 → 切捨て
-            residentTax: 1_120_300,
-            total: 4_551_778,
+            nationalTax: 3_431_400, // 3,431,478 → 100円未満切捨て
+            // 1,120,300 を 3：2 に分けて 672,180 → 672,100 と 448,120 → 448,100。
+            // 合計で一度に切り捨てると 1,120,300 のままで、申告より100円多くなる
+            residentTax: 1_120_200,
+            total: 4_551_600,
         });
-        expect(r.netProceeds).toBe(50_000_000 - 1_500_000 - 4_551_778);
-        expect(r.notes).toHaveLength(1);
+        expect(r.netProceeds).toBe(50_000_000 - 1_500_000 - 4_551_600);
+        expect(r.notes).toHaveLength(2);
         expect(r.notes[0]).toContain("納付時期");
+        expect(r.notes[1]).toContain("1,000円未満");
     });
 
     it("居住用: 3,000万円控除のあと6,000万円で税率を分ける", () => {
@@ -155,10 +159,45 @@ describe("不動産の譲渡所得", () => {
         expect(r.tax).toEqual({
             incomeTax: 6_000_000 + 7_875_000,
             reconstruction: 126_000 + 165_375,
+            nationalTax: 14_166_300, // 14,166,375 → 100円未満切捨て
             residentTax: 2_400_000 + 2_625_000,
-            total: 19_191_375,
+            total: 19_191_300,
         });
+        // 区分ごとの明細は切り捨てない（申告書でも区分ごとの税額は1円単位）
+        expect(r.brackets[1].amounts.reconstruction).toBe(165_375);
         expect(r.notes.some((n) => n.includes("概算取得費（譲渡価額の5%）"))).toBe(true);
+    });
+
+    it("1,000円未満の課税譲渡所得は税額0（切捨て後に税率を掛ける）", () => {
+        const r = calcRealEstate(
+            realEstate({ transferPrice: 30_000_999, landCost: 30_000_000, acquisitionDate: "2010-01-01", transferDate: "2024-06-01" }),
+        );
+        expect(r.grossProfit).toBe(999);
+        expect(r.incomeAfterDeduction).toBe(999);
+        expect(r.taxableIncome).toBe(0);
+        expect(r.tax.total).toBe(0);
+        expect(r.notes.some((n) => n.includes("1,000円未満"))).toBe(false);
+    });
+
+    it("申告納税額・住民税はどの金額でも100円単位で、切り捨て幅は100円未満", () => {
+        for (let gain = 1_000; gain <= 5_000_000; gain += 7_919) {
+            for (const dates of [
+                { acquisitionDate: "2010-01-01", transferDate: "2024-06-01" },
+                { acquisitionDate: "2023-01-01", transferDate: "2024-06-01" },
+            ]) {
+                const r = calcRealEstate(realEstate({ transferPrice: 30_000_000 + gain, landCost: 30_000_000, ...dates }));
+                const [b] = r.brackets;
+                expect(r.tax.nationalTax % 100).toBe(0);
+                expect(r.tax.residentTax % 100).toBe(0);
+                const rawNational = b.amounts.incomeTax + b.amounts.reconstruction;
+                expect(rawNational - r.tax.nationalTax).toBeGreaterThanOrEqual(0);
+                expect(rawNational - r.tax.nationalTax).toBeLessThan(100);
+                // 市町村民税・道府県民税それぞれで切り捨てるので、ずれは2回分（200円未満）まで
+                expect(b.amounts.residentTax - r.tax.residentTax).toBeGreaterThanOrEqual(0);
+                expect(b.amounts.residentTax - r.tax.residentTax).toBeLessThan(200);
+                expect(r.tax.total).toBe(r.tax.nationalTax + r.tax.residentTax);
+            }
+        }
     });
 
     it("3,000万円控除は譲渡益までしか引かず、税額0なら納付時期を出さない", () => {
@@ -197,7 +236,13 @@ describe("不動産の譲渡所得", () => {
         expect(r.term).toBe("short");
         expect(r.specialDeduction).toBe(0);
         expect(r.brackets.map((b) => b.label)).toEqual(["短期譲渡所得（税率 39.63%）"]);
-        expect(r.tax).toEqual({ incomeTax: 3_000_000, reconstruction: 63_000, residentTax: 900_000, total: 3_963_000 });
+        expect(r.tax).toEqual({
+            incomeTax: 3_000_000,
+            reconstruction: 63_000,
+            nationalTax: 3_063_000,
+            residentTax: 900_000,
+            total: 3_963_000,
+        });
         expect(r.notes.some((n) => n.startsWith("3,000万円特別控除は居住用財産が対象です"))).toBe(true);
         expect(r.notes).toContain("軽減税率の特例は居住用財産が対象です。");
     });
@@ -257,9 +302,23 @@ describe("株式等の譲渡所得", () => {
         const r = calcSecurities({ ...securities, listed: true });
         expect(r.grossProfit).toBe(6_900_000);
         expect(r.ratePercent).toBe(20.315);
-        expect(r.tax).toEqual({ incomeTax: 1_035_000, reconstruction: 21_735, residentTax: 345_000, total: 1_401_735 });
-        expect(r.netProceeds).toBe(8_498_265);
-        expect(r.notes).toHaveLength(1);
+        expect(r.tax).toEqual({
+            incomeTax: 1_035_000,
+            reconstruction: 21_735,
+            nationalTax: 1_056_700,
+            residentTax: 345_000,
+            total: 1_401_700,
+        });
+        expect(r.netProceeds).toBe(8_498_300);
+        expect(r.notes).toHaveLength(2);
+    });
+
+    it("課税譲渡所得金額は1,000円未満を切り捨て、ミニマムタックス用には切り捨て前を残す", () => {
+        const r = calcSecurities({ ...securities, actualCost: 3_000_999, listed: true });
+        expect(r.grossProfit).toBe(6_899_001);
+        expect(r.incomeAfterDeduction).toBe(6_899_001);
+        expect(r.taxableIncome).toBe(6_899_000);
+        expect(r.tax.incomeTax).toBe(1_034_850);
     });
 
     it("一般株式等の譲渡益は上場株式等の損失と通算できない旨を出す", () => {

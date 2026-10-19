@@ -59,7 +59,8 @@ export const taxTotalRows = (
             value: formatYen(amounts.reconstruction),
             sub: true,
         },
-        { label: '小計', value: formatYen(amounts.incomeTax + amounts.reconstruction) },
+        // 申告納税額は所得税と復興特別所得税を合わせて100円未満を切り捨てるので、上2行の和とは限らない
+        { label: '小計', value: formatYen(amounts.nationalTax) },
         {
             label: label('住民税', rate?.residentTax),
             value: formatYen(amounts.residentTax),

@@ -30,7 +30,7 @@ describe("金額の入力と表示", () => {
 });
 
 describe("結果表の行", () => {
-    const amounts = { incomeTax: 3_000_000, reconstruction: 63_000, residentTax: 900_000, total: 3_963_000 };
+    const amounts = { incomeTax: 3_000_000, reconstruction: 63_000, nationalTax: 3_063_000, residentTax: 900_000, total: 3_963_000 };
 
     it("内訳3行は税率を括弧書きで併記する", () => {
         expect(taxBreakdownRows(amounts, LONG_TERM_RATE).map((r) => r.label)).toEqual([
