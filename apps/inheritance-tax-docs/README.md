@@ -9,7 +9,7 @@
 | 種別 | 説明 |
 |:-----|:-----|
 | 相続税申告 | 相続税申告に必要な全書類の管理（11カテゴリ） |
-| 相続シミュレーション | シミュレーション用に必要最小限の書類（1カテゴリ・10書類） |
+| 相続シミュレーション | シミュレーション用に必要最小限の書類（1カテゴリ・9書類） |
 | 非上場株式評価 | 非上場株式評価に必要な書類の管理（5カテゴリ） |
 
 ## 主な機能
@@ -39,6 +39,7 @@
 | ダークモード | ワンクリック切替、localStorage で記憶 |
 | Toast通知 | 操作結果をポップアップ通知（成功/エラー/情報） |
 | ポータルに戻る | ヘッダー左端にホームアイコン+リンク |
+| 参考資料 | ヘッダーから `/resources` へ |
 | localStorage自動保存 | 種別ごとにデータを自動保存・復元 |
 | 初期化 | 書類カスタマイズを標準状態に戻す（確認ダイアログ付き） |
 
@@ -53,24 +54,35 @@
 
 ### 参考資料（/resources）
 
-専用ページで相続手続きに関する参考資料をダウンロード・閲覧可能。
+専用ページで相続手続きに関する参考資料をダウンロード・閲覧する。**中身はサーバーの SQLite が持つ**（画面から追加・編集・削除・並び替えができ、ファイルはアップロードする）。
 
-| ファイル | 内容 |
-|:--------|:-----|
-| 相続手続きスケジュール | 葬儀後の手続きスケジュール（14日〜1年以内） |
-| 手続き＆チェックリスト | 各種届出・手続き一覧と提出先・相談先 |
-| 相続税申告後サポート | 二次相続対策・資産運用等の案内 |
-| 保険を使った相続税対策 | 生命保険の非課税枠・生前贈与の節税方法 |
-| 不動産リスク診断チェック表 | 保有不動産の10項目リスク診断 |
-| 生計一親族チェックリスト | 生計一親族の判定チェックリスト（Excel） |
-| 名義預金、生前贈与について | 名義預金の基礎知識・具体例とペナルティの解説 |
-| 預金移動調査について | 預金移動調査の目的・必要性判定フローチャート |
-| 贈与契約書ひな形 | 贈与契約書のテンプレート（Word） |
-| 未分割申告の確認書 | 遺産未分割時の申告確認書（Word） |
-| 申告完了までのスケジュール | 相続税申告完了までの全体スケジュール（Excel） |
-| 戸籍謄本の広域交付制度 | 最寄りの窓口で戸籍証明書をまとめて請求できる制度の案内（法務省） |
-| 法定相続情報証明制度 | 法定相続情報一覧図の作成手順・必要書類・申出方法（法務省） |
-| 利用者識別番号とは | e-Taxの利用者識別番号の概要と取得方法（国税庁・外部リンク） |
+- 一覧・追加・編集・削除・並び替えは `/inheritance-tax-docs/api/resources`、ファイルは `/inheritance-tax-docs/files/<ファイル名>` から配る
+- 1件は「ファイル（PDF / Excel / Word 等、50MBまで）」か「外部リンク」のどちらか
+- DB が空のときだけ、`server/db.ts` の初期データ17件を登録し、`public/files/` のファイルを `/app/data/uploads/` へ写す（以降は `public/files/` を見ない）
+- データはボリューム `inheritance-tax-docs-data`（`/app/data`）にあり、夜間バックアップの対象（`backup.sh` の `SQLITE_TARGETS`）
+- `src/constants/resources.ts` は DB 化する前の一覧で、いまはどこからも読まれていない
+
+初期データ:
+
+| タイトル | 形式 |
+|----------|------|
+| 相続・手続きスケジュール | PDF |
+| 手続き＆チェックリスト | PDF |
+| 相続税申告後サポート | PDF |
+| 保険を使った相続税対策 | PDF |
+| 不動産リスク診断チェック表 | PDF |
+| 生計一親族チェックリスト | Excel |
+| 名義預金、生前贈与について | PDF |
+| 預金移動調査について | PDF |
+| 贈与契約書ひな形 | Word |
+| 未分割申告の確認書 | Word |
+| 申告完了までのスケジュール | Excel |
+| 戸籍謄本の広域交付制度 | PDF |
+| 法定相続情報証明制度 | PDF |
+| 利用者識別番号とは | 外部リンク（国税庁） |
+| 税務調査について | Word |
+| 生前対策・遺言書 | PDF |
+| 名義財産検討シート | Excel |
 
 ### 画面レイアウト
 
@@ -94,20 +106,23 @@
 ### Docker（推奨）
 
 ```bash
-cd tax_apps/docker/scripts
-manage.bat start
+# 起動（いまのモードを変えるときもこれ。本番は --prod）
+docker/scripts/manage.sh start --prod inheritance-tax-docs
+
+# 再ビルド（稼働中のモードを踏襲）
+docker/scripts/manage.sh build inheritance-tax-docs
 ```
 
-http://localhost/inheritance-tax-docs/ でアクセスできます（Nginx Gateway 経由）。
+http://localhost/inheritance-tax-docs/ でアクセスする（Nginx ゲートウェイ経由）。素の `docker compose up` は本番を dev に作り替えるので使わない。
 
-個別起動:
+| モード | 中身 | メモリ |
+|:--|:--|:--|
+| dev | `tsx watch server/index.ts`。`src` / `server` / `public` / `index.html` を読み取り専用で bind mount | 512M（ヒープ 384） |
+| 本番 | ビルド済みの画面と API を Node（Express）が 3003 で配信。非 root（`node`） | 192M（ヒープ 128） |
 
-```bash
-cd tax_apps/apps/inheritance-tax-docs
-docker compose up -d
-```
-
-http://localhost:3003/inheritance-tax-docs/ でアクセスできます。
+> **既知の問題（dev モード）**: dev の Dockerfile ステージは `npm run dev:server`（`tsx watch server/index.ts`）だけを起動し、
+> Vite の dev サーバも `dist/` も無いため、**dev では API しか応答せず画面は 404 になる**。いまは本番モードで稼働しているので表に出ていない。
+> また dev ステージには `USER node` が無く root で動く。どちらもコードの修正待ち。
 
 ヘルスチェックは `/inheritance-tax-docs/api/health`。DB（`/app/data/resources.sqlite`）を開いて読めることに加え、
 DB ファイルと `/app/data` に書けるかまで見て、使えなければ `503 {"status":"degraded","database":"EACCES"}` のようにエラーコードを返します。
@@ -118,6 +133,7 @@ DB ファイルと `/app/data` に書けるかまで見て、使えなければ 
 |:--------|:-----|
 | ビルドツール | Vite 6 |
 | UI | React 19, Tailwind CSS v4 |
+| サーバー | Express 5, better-sqlite3（参考資料）, multer（アップロード） |
 | 言語 | TypeScript 5.9 |
 | ルーティング | react-router-dom 7 |
 | D&D | @dnd-kit/core + @dnd-kit/sortable |
@@ -135,7 +151,7 @@ inheritance-tax-docs/
 │   ├── globals.css                      # グローバルスタイル（ダークモード・印刷・アニメーション）
 │   ├── components/
 │   │   ├── EditableListStep.tsx          # メインページコンポーネント（状態・DnD・モーダル統合）
-│   │   ├── ResourcesPage.tsx            # 参考資料ダウンロードページ
+│   │   ├── ResourcesPage.tsx            # 参考資料ページ（API から一覧、追加・編集・削除・並び替え）
 │   │   └── ui/
 │   │       ├── EditToolbar.tsx           # ヘッダーツールバー（種別切替・入力欄・アクション）
 │   │       ├── SortableCategoryCard.tsx  # カテゴリカード（D&D・展開/折畳・進捗バー）
@@ -155,7 +171,7 @@ inheritance-tax-docs/
 │   │   ├── documents.ts                 # 相続税申告の書類マスターデータ（11カテゴリ）
 │   │   ├── simplifiedDocuments.ts       # 相続シミュレーションの書類マスターデータ（1カテゴリ）
 │   │   ├── unlistedStockDocuments.ts    # 非上場株式の書類マスターデータ（5カテゴリ）
-│   │   ├── resources.ts                 # 参考資料データ（ダウンロードファイル＋外部リンク）
+│   │   ├── resources.ts                 # 旧・参考資料一覧（未使用。初期データは server/db.ts）
 │   │   ├── excelStyles.ts              # Excelスタイル定義
 │   │   └── messages.ts                 # Toast・ダイアログメッセージ定数
 │   ├── hooks/
@@ -167,16 +183,25 @@ inheritance-tax-docs/
 │   │   ├── useJsonImportExport.ts       # JSON保存/読込（旧フォーマット後方互換）
 │   │   ├── useDeleteConfirm.ts          # 削除確認状態管理
 │   │   ├── useDarkMode.ts              # ダークモード切替
+│   │   ├── useOverlayDismiss.ts        # 背景を押し始めたときだけモーダルを閉じる（ドラッグ選択の誤閉じ防止）
 │   │   └── useToast.ts                 # Toast通知管理
 │   └── utils/
 │       ├── editableListUtils.ts         # 純粋関数CRUD操作（カテゴリ・書類・個別名）
 │       ├── excelExporter.ts             # Excel出力ロジック
+│       ├── exportFileName.ts            # 出力ファイル名（R081005_名前_アプリ名.ext）
 │       ├── helpers.ts                   # 日付フォーマット・丸数字等ユーティリティ
 │       └── jsonDataManager.ts           # JSON保存/読込/バリデーション
+├── server/
+│   ├── index.ts                         # Express 5（API・アップロードファイル・本番の画面配信）
+│   ├── db.ts                            # SQLite（better-sqlite3）・スキーマ・初期データ（17件）・health 用の書込み確認
+│   └── routes/
+│       └── resources.ts                 # 参考資料の CRUD・並び替え（multer でアップロード、上限50MB）
 ├── public/
-│   └── files/                           # 参考資料ダウンロード用ファイル（PDF/Excel）
-├── docker-compose.yml                   # スタンドアロンDocker設定
-├── docker-compose.prod.yml              # 本番オーバーライド（nginx静的配信）
+│   └── files/                           # 参考資料の初期ファイル（16件。DB が空のときだけ uploads へ写す）
+├── Dockerfile                           # base → deps → dev / builder → runner
+├── docker-compose.yml                   # dev（bind mount・ボリューム inheritance-tax-docs-data）
+├── docker-compose.prod.yml              # 本番オーバーライド（runner・Node が画面と API を配信）
+├── tsconfig.server.json                 # サーバーのビルド設定
 ├── vite.config.ts                       # Vite設定（basePath, エイリアス）
 └── package.json
 ```
@@ -186,7 +211,7 @@ inheritance-tax-docs/
 ```
 App.tsx（react-router-dom）
 ├── / → EditableListStep.tsx（メインコンポーネント）
-├── /resources → ResourcesPage.tsx（参考資料ダウンロード）
+├── /resources → ResourcesPage.tsx（参考資料。/api/resources を読む）
 │
 └── EditableListStep.tsx
     ├── useInheritanceTaxGuide — 状態管理（種別切替・localStorage・出力）
