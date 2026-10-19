@@ -142,7 +142,7 @@
 `verify` は「復号できてハッシュが一致する」ことまでしか保証しない。ダンプが本当にリストア可能な
 SQL かどうかは別問題なので、`drill` が実際に復元して確かめる。
 
-- PostgreSQL: 使い捨ての `postgres:16-alpine` コンテナを起動し、`psql -v ON_ERROR_STOP=1` で
+- PostgreSQL: 使い捨ての `pgvector/pgvector:0.8.7-pg16-bookworm`（銀行分析の `vector` 拡張も復元できるもの） コンテナを起動し、`psql -v ON_ERROR_STOP=1` で
   ダンプを流し込む。復元後にテーブル数と行数を数え、0 件なら失敗扱い。
 - SQLite: アーカイブを展開したコピーを稼働中コンテナの `/tmp` へ置き、readonly で開いて
   `integrity_check` とテーブル数を確認する（`better-sqlite3` がアプリイメージにしか無いため）。
