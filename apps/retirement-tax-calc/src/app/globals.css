@@ -115,6 +115,13 @@ body {
   margin-top: 0.25rem;
 }
 
+/* 今年の税率表が未登録のときの注意（印刷にも残す） */
+.year-notice {
+  font-size: 0.75rem;
+  color: var(--warning-color);
+  margin-top: 0.25rem;
+}
+
 /* 入力＋単位 */
 .input-with-unit {
   display: flex;

@@ -1,4 +1,5 @@
 import { useCallback, useState, type RefObject } from "react";
+import { exportFileName } from "@/lib/exportFileName";
 
 export const usePdfExport = (containerRef: RefObject<HTMLDivElement | null>) => {
     const [isExporting, setIsExporting] = useState(false);
@@ -13,7 +14,7 @@ export const usePdfExport = (containerRef: RefObject<HTMLDivElement | null>) => 
             await html2pdf()
                 .set({
                     margin: 8,
-                    filename: "退職金税額計算.pdf",
+                    filename: exportFileName([], "pdf"),
                     image: { type: "jpeg", quality: 0.98 },
                     html2canvas: { scale: 2, useCORS: true },
                     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },

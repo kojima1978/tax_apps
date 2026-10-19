@@ -5,7 +5,7 @@ import ServiceYearsInput from "./ServiceYearsInput";
 import OfficerLimitSection from "./OfficerLimitSection";
 import CheckboxField from "./CheckboxField";
 import { RETIREMENT_TYPES, RETIREMENT_TYPE_LABELS, PATTERN_LABELS, type RetirementType } from "@/lib/retirement-tax";
-import { TAX_RATES, AVAILABLE_YEARS } from "@/lib/tax-rates";
+import { TAX_RATES, AVAILABLE_YEARS, CURRENT_YEAR_NOTICE } from "@/lib/tax-rates";
 import { parseFormattedNumber } from "@/lib/utils";
 
 type RetirementFormProps = {
@@ -132,6 +132,9 @@ const RetirementForm = ({
                             </option>
                         ))}
                     </select>
+                    {CURRENT_YEAR_NOTICE && (
+                        <p className="year-notice" role="note">{CURRENT_YEAR_NOTICE}</p>
+                    )}
                 </FormField>
             </div>
 
