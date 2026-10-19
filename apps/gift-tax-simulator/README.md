@@ -29,7 +29,7 @@
 - 未入力時のガイド表示（空状態UI）
 
 ### 不動産取得税シミュレーター
-- 取引種別（売買・新築・相続・贈与）に対応
+- 取引種別（売買・新築・相続・贈与。既定は贈与）に対応
 - 土地を「宅地（特例あり）」と「その他（宅地以外）」に分離入力
 - 宅地特例（1/2）・住宅用地の税額軽減に対応（Q14軽減計算式に準拠）
 - 建築年月日から控除額を自動判定（1954年〜現在の完全な閾値テーブル）
@@ -51,18 +51,29 @@
 - 計算過程の詳細表示（トグル）、印刷時は常に展開
 - No.7191 税額表（土地・建物・住宅用家屋軽減税率・端数処理）の参照資料（画面のみ）
 
+### 不動産関連税 2税まとめて計算（`/real-estate-summary`）
+- 1回の入力で不動産取得税と登録免許税を同時に計算し、両方を計算過程つきで A4横1枚に印刷（タイトル「不動産関連税シミュレーション」）
+- 取引種別を土地・建物で別々に選べる（土地には「新築」が無い）
+- 建物の取引種別が「新築」のときだけ「新築建物の評価額を概算」（`TokushimaNewBuildingEstimator`）を出す
+  - 徳島地方法務局・令和6年度基準の単価表。用途（居宅 / 共同住宅 / 店舗・事務所等 / 工場・倉庫等 / 附属家）× 構造（木造 / 軽量鉄骨造 / 鉄骨造 / 鉄筋コンクリート造）
+  - 概算額 = 床面積 × 単価（円未満切捨）を建物の評価額へ入れる
+- 住宅用家屋証明書のチェックは既定でオン
+
 ### 共通機能
-- 取得税⇔登録免許税間の評価額・持ち分を一括引用（localStorage経由）
+- 不動産3ページ（取得税・登録免許税・2税まとめ）の入力はページごとに localStorage に保存し、ほかのページの入力を一括引用できる（`lib/real-estate-input-storage.ts`）
+- 贈与税・年数比較の金額と贈与区分はページ間で共有（`GiftInputContext`。メモリのみでリロードすると消える）。計算済みならページを移っても結果が出たまま
+- 全ページに「サンプルで試す」ボタン（`useSampleFill` / `lib/real-estate-sample.ts`）
+- 税額の根拠（`TaxBasisNotice`）と参照資料（`TaxReferenceSection`。既定で閉じていて印刷しない）
 - 計算後は結果までスクロール。入力を変えても結果は消さず、薄くして「再計算が必要」バッジを出す
 - 印刷: 会社情報をページ先頭に常時表示（結果入力前でも表示）
 - 印刷: 入力欄は載せず「入力条件」サマリに置き換え（未選択の対象・未入力欄・持ち分1/1は省略）
 - 印刷: 再計算前の古い税額は紙に出さず、注記だけ残す
 - 印刷: 結果ボックスを白黒対応（白背景＋緑ボーダー＋黒文字）
 - 印刷: A4横1枚。はみ出す場合のみ `beforeprint` で実測して `zoom` を自動縮小
-- 印刷用フッター（担当者名入力・作成日）
-- ポータルに戻るリンク（ヘッダー左端）
-- pill型ナビゲーション（5ページ切替、inheritance-tax-appと同パターン）
-- 担当者名・電話番号入力（localStorage保存、印刷に反映）
+- 印刷: ヘッダーに税目名・会社情報・担当者・作成日（`PrintHeader`）。備考欄（`PrintRemarks`）は印刷のたびに書く前提で保存しない
+- サイドバーのナビゲーション（贈与税関連: 贈与税 / 年数比較 / 贈与税 早見表、不動産関連税: 不動産取得税 / 登録免許税 / 2税まとめて計算）。折りたたみ状態は localStorage（`gift-tax-sidebar-collapsed`）、モバイルではメニューで開く
+- サイドバー上端にポータルへ戻るリンク、上部バーに印刷ボタン
+- 担当者名・電話番号はサイドバーで入力（localStorage `gift-tax-staff-info`、印刷に反映）
 - 全角数字→半角自動変換、カンマ区切り自動フォーマット
 - レスポンシブデザイン（モバイル対応）
 
@@ -79,63 +90,74 @@
 | Styling | Tailwind CSS v4 + カスタムCSS |
 | Container | Docker (Node 22-alpine → nginx 1.27-alpine) |
 
-## 開発環境のセットアップ
+## 起動・再ビルド
 
-### Docker（推奨）
+起動は全体管理スクリプトから行う（リポジトリのルートで実行）。
 
 ```bash
-# 起動
-docker compose up -d
+# 起動（dev）
+docker/scripts/manage.sh start gift-tax-simulator
 
-# 再ビルドして起動（依存関係追加時など）
-docker compose up -d --build
+# 本番モードへ切り替えて起動（dev へ戻すのは start gift-tax-simulator）
+docker/scripts/manage.sh start --prod gift-tax-simulator
 
-# コンテナ再起動
-docker compose restart
+# 再ビルド（いま動いているモードを踏襲する）
+docker/scripts/manage.sh build gift-tax-simulator
 
-# ログ確認
-docker compose logs -f
-
-# 停止
-docker compose down
+# ログ
+docker/scripts/manage.sh logs gift-tax-simulator
 ```
 
-### ローカルでは動かさない
+- **素の `docker compose up` は使わない**。base の compose だけを読むので、本番で動いているアプリを dev サーバに作り替える
+- dev は `./src` と `./index.html` を読み取り専用で bind mount している。**ポーリングが無いので変更を拾わない** ── ソースを直したら `docker restart gift-tax-simulator`
+- `package.json` と `vite.config.ts` はイメージ同梱なので、変えたら `manage.sh build gift-tax-simulator`
+- テストは無い。型検査は `npm run build` の `tsc -b` の中だけ（本番ビルドで初めて走る）
+- **ローカルでは動かさない**（`npm install` / `npm run build` をホストで実行しない）
 
-このリポジトリは**ローカル環境を汚さない**方針です（ルート `README.md` 参照）。
-`npm install` / `npm run build` をホストで実行せず、開発と動作確認は上の Docker 経由で行ってください。
-依存を足したあとの確認も、稼働中のコンテナの中（`docker compose exec`）か再ビルドで行います。
+| | dev | 本番 |
+|---|---|---|
+| ステージ | `dev`（Vite dev server） | `runner`（nginx 1.27-alpine で `dist` を配信） |
+| ボリューム | `./src` / `./index.html`（ro） | なし（`volumes: !reset []`） |
+| メモリ | 512M（予約 128M）・`NODE_OPTIONS=--max-old-space-size=384` | 64M（予約 16M） |
 
 ## アクセス
 
-| ページ | URL |
-|--------|-----|
-| 贈与税シミュレーター | http://localhost:3001/gift-tax-simulator/ |
-| 早見表 | http://localhost:3001/gift-tax-simulator/table |
-| 分割年数比較 | http://localhost:3001/gift-tax-simulator/year-comparison |
-| 不動産取得税 | http://localhost:3001/gift-tax-simulator/acquisition-tax |
-| 登録免許税 | http://localhost:3001/gift-tax-simulator/registration-tax |
+ゲートウェイ（nginx）経由で `http://localhost/gift-tax-simulator/` に入る（コンテナのポートは 3001）。
 
-> **Note**: `manage.bat start` で全アプリを起動する場合は、Nginx Gateway 経由で http://localhost/gift-tax-simulator/ からアクセスできます。
+| ページ | パス |
+|--------|-----|
+| 贈与税シミュレーター | `/gift-tax-simulator/` |
+| 分割年数比較 | `/gift-tax-simulator/year-comparison` |
+| 早見表 | `/gift-tax-simulator/table` |
+| 不動産取得税 | `/gift-tax-simulator/acquisition-tax` |
+| 登録免許税 | `/gift-tax-simulator/registration-tax` |
+| 2税まとめて計算 | `/gift-tax-simulator/real-estate-summary` |
 
 ## プロジェクト構成
 
 ```
 ├── src/
 │   ├── main.tsx                  # エントリーポイント
-│   ├── App.tsx                   # ルーティング（5ルート）+ StaffProvider
+│   ├── App.tsx                   # ルーティング（6ルート）+ StaffProvider / GiftInputProvider
 │   ├── contexts/
-│   │   └── StaffContext.tsx      # 担当者情報（localStorage連携）
+│   │   ├── StaffContext.tsx      # 担当者情報（localStorage `gift-tax-staff-info`）
+│   │   └── GiftInputContext.tsx  # 贈与金額・区分・計算済みかのページ間共有（メモリのみ）
 │   ├── app/
 │   │   └── globals.css           # グローバルスタイル（CSS変数・印刷用・レスポンシブ）
 │   ├── pages/
 │   │   ├── GiftTaxPage.tsx       # 贈与税シミュレーター
-│   │   ├── TablePage.tsx         # 早見表
 │   │   ├── YearComparisonPage.tsx # 分割年数別 税額比較
+│   │   ├── TablePage.tsx         # 早見表
 │   │   ├── AcquisitionTaxPage.tsx # 不動産取得税
-│   │   └── RegistrationTaxPage.tsx # 登録免許税
+│   │   ├── RegistrationTaxPage.tsx # 登録免許税
+│   │   └── RealEstateSummaryPage.tsx # 2税まとめて計算
 │   ├── components/
-│   │   ├── Navigation.tsx        # ナビゲーション（pill型・5ページ切替・担当者入力）
+│   │   ├── Navigation.tsx        # サイドバー（折りたたみ・担当者入力）+ 上部バー（印刷）
+│   │   ├── PageLayout.tsx        # ページ枠（印刷タイトルの決定・印刷ヘッダー）
+│   │   ├── PrintHeader.tsx       # 印刷用ヘッダー（税目名・会社情報・担当者・作成日）
+│   │   ├── PrintRemarks.tsx      # 印刷用の備考欄（保存しない）
+│   │   ├── TaxBasisNotice.tsx    # 税額の根拠の表示
+│   │   ├── ResultSummaryCard.tsx # 結果のサマリーカード
 │   │   ├── InputSection.tsx      # 贈与税入力フォーム（金額・区分・計算ボタン）
 │   │   ├── ResultSection.tsx     # 贈与税結果表示（空状態UI付き）
 │   │   ├── TaxTable.tsx          # シミュレーター用テーブル（3パターン比較）
@@ -145,36 +167,54 @@ docker compose down
 │   │   ├── QuickRefTable.tsx     # 早見表用テーブル
 │   │   ├── YearComparisonTable.tsx # 年数比較テーブル（最安/非課税バッジ）
 │   │   ├── YearComparisonChart.tsx # 年数比較棒グラフ（lazy load）
-│   │   ├── PrintFooter.tsx       # 印刷用フッター
 │   │   ├── acquisition-tax/
 │   │   │   ├── LandInput.tsx     # 土地入力（宅地・その他 分離入力）
-│   │   │   └── BuildingInput.tsx # 建物入力（評価額・床面積・建築年月日・控除額）
+│   │   │   ├── BuildingInput.tsx # 建物入力（評価額・床面積・建築年月日・控除額）
+│   │   │   └── TaxReference.tsx  # Q13・Q14 の参照資料
+│   │   ├── registration-tax/
+│   │   │   └── TaxReference.tsx  # No.7191 の参照資料
 │   │   └── shared/
-│   │       ├── CommonInputSection.tsx  # 取引種別・計算対象トグル
+│   │       ├── RealEstatePageLayout.tsx # 不動産ページ共通の枠（入力条件｜税額の2カラム印刷）
+│   │       ├── CommonInputSection.tsx  # 取引種別（土地・建物別にも対応）・計算対象トグル
 │   │       ├── TaxResultBox.tsx        # 結果表示ボックス（フラット/グループ2カラム対応・持ち分注記）
 │   │       ├── CalculationDetails.tsx  # 計算過程の詳細（DOM常時レンダリング・印刷時強制表示）
+│   │       ├── TaxReferenceSection.tsx # 折りたたみの参照資料（既定で閉じる・印刷しない）
+│   │       ├── PrintConditionList.tsx  # 印刷用の「入力条件」サマリ
+│   │       ├── TokushimaNewBuildingEstimator.tsx # 新築建物の評価額の概算
 │   │       ├── FormattedNumberInput.tsx # 数値入力コンポーネント（decimal prop対応）
-│   │       └── ImportButton.tsx        # 評価額引用ボタン
+│   │       ├── ShareInput.tsx          # 持ち分入力（分数）
+│   │       ├── NumberUnit.tsx / ErrorMessage.tsx
+│   │       └── ImportButton.tsx        # ほかのページからの引用ボタン
 │   ├── hooks/
-│   │   ├── useGiftTaxForm.ts          # 贈与税シミュレーターフォーム状態管理
-│   │   ├── useYearComparisonForm.ts   # 年数比較フォーム状態管理
-│   │   ├── useAcquisitionTaxForm.ts   # 不動産取得税フォーム状態管理（持ち分・面積小数・認定長期優良住宅）
-│   │   ├── useRegistrationTaxForm.ts  # 登録免許税フォーム状態管理（持ち分対応）
-│   │   ├── useFormattedInput.ts       # 数値入力フォーマット（整数用・小数用）
-│   │   └── useValuationImport.ts      # 評価額・持ち分の引用（localStorage）
+│   │   ├── useBaseGiftForm.ts         # 贈与税2ページ共通のフォーム状態
+│   │   ├── useGiftTaxForm.ts / useYearComparisonForm.ts
+│   │   ├── useRealEstateFormBase.ts   # 不動産3ページ共通（取引種別・計算対象）
+│   │   ├── useRealEstateInputs.ts     # 不動産の入力値
+│   │   ├── useAcquisitionTaxForm.ts / useRegistrationTaxForm.ts / useRealEstateSummaryForm.ts
+│   │   ├── useRealEstateInputSync.ts  # 入力のページ別 localStorage 保存
+│   │   ├── useRealEstateImport.ts     # ほかのページの入力の引用
+│   │   ├── useBuildingDate.ts         # 建築年月日（和暦入力）と控除額
+│   │   ├── useSampleFill.ts           # 「サンプルで試す」
+│   │   └── useFormattedInput.ts       # 数値入力フォーマット（整数用・小数用）
 │   └── lib/
 │       ├── tax-calculation.ts         # 贈与税計算ロジック（速算表・年数比較・パターン比較）
-│       ├── real-estate-tax.ts         # 不動産税計算ロジック（取得税・登録免許税・認定長期優良住宅）
-│       ├── chart-config.ts            # Chart.js共通設定（登録・オプション・ツールチップ）
-│       ├── validate-gift-amount.ts    # 贈与金額バリデーション
-│       ├── validate-real-estate.ts    # 不動産バリデーション（評価額・面積要件40〜240㎡）
-│       ├── utils.ts                   # ユーティリティ（formatYen, normalizeDecimalString, parseDecimalNumber等）
-│       ├── valuation-storage.ts       # 評価額のlocalStorage管理
+│       ├── real-estate-tax.ts         # 不動産税計算ロジック（取得税・登録免許税・建物控除）
+│       ├── acquisition-breakdown.ts / real-estate-result.ts # 結果の内訳の組み立て
+│       ├── tokushima-new-building.ts  # 新築建物の単価表（徳島地方法務局・令和6年度基準）
+│       ├── real-estate-input-storage.ts # 不動産入力の localStorage（ページ別）
+│       ├── real-estate-sample.ts      # サンプル入力
+│       ├── print-conditions.ts        # 印刷用「入力条件」の組み立て
+│       ├── print-fit.ts               # A4横1枚へ zoom で縮める（拡大はしない）
+│       ├── chart-config.ts            # Chart.js共通設定
+│       ├── validate-gift-amount.ts    # 贈与金額バリデーション（10億円以下）
+│       ├── validate-real-estate.ts    # 不動産バリデーション（評価額100億円以下・面積要件40〜240㎡）
+│       ├── validation.ts / utils.ts
 │       └── company.ts                 # 会社情報定数
 ├── index.html                    # HTMLエントリー（Google Fonts: Noto Sans JP, Roboto Mono）
 ├── vite.config.ts                # Vite設定（base, @alias, lucide-react alias, manualChunks）
+├── vercel.json                   # Vercel 用の SPA リライト
 ├── docker-compose.yml            # 開発用（Vite dev server, port 3001）
-├── docker-compose.prod.yml       # 本番オーバーライド（nginx, memory 256M）
+├── docker-compose.prod.yml       # 本番オーバーライド（nginx, memory 64M）
 └── package.json
 ```
 
@@ -190,15 +230,8 @@ docker compose down
 | `builder` | `npm run build`（本番ビルド） |
 | `runner` | nginx 1.27-alpine（静的ファイル配信、gzip、セキュリティヘッダー） |
 
-開発時は `dev` ターゲット（`src/` と `index.html` をボリュームマウント）、本番は `runner` ターゲット（ビルド済みdistをnginxで配信）。
-
-### 本番環境
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-```
-
-`docker-compose.prod.yml` でビルドターゲットを `runner`（nginx）に切り替え、ボリュームマウントを無効化、メモリ制限を256Mに縮小。
+開発時は `dev` ターゲット（`src/` と `index.html` をボリュームマウント）、本番は `runner` ターゲット（ビルド済みdistをnginxで配信。非 root）。
+本番への切り替えは上の `manage.sh start --prod gift-tax-simulator` で行う。
 
 ## 税額計算について
 
@@ -244,7 +277,6 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 | 建築年月日 | 控除額 |
 |-----------|--------|
-| 2024年4月1日〜 | 2,400万円 |
 | 1997年4月1日〜 | 1,200万円 |
 | 1989年4月1日〜 | 1,000万円 |
 | 1985年7月1日〜 | 450万円 |
