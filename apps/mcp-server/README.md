@@ -27,7 +27,7 @@
 | 道具 | 何をするか |
 | --- | --- |
 | `describe_fields` | 書き込める欄の辞書。**書く前に必ず読む** |
-| `list_cases` | 評価案件（会社1社ぶん）の一覧 |
+| `list_cases` | 評価案件（会社1社・課税時期1つぶん）の一覧。`includeArchived: true` でゴミ箱も含める |
 | `get_case` | 1件の現在値。辞書に載っている欄と第5表の明細だけ |
 | `set_fields` | コードで指定した欄へ書き込む（第4表の1） |
 | `import_balance_sheet` | 第5表の明細を入れ替える |
@@ -60,7 +60,12 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
 **株式評価明細書が起動している必要がある**（`tax-apps-network` 上のサービス名で叩く）。
 接続先を変えるときは `SVF_API_BASE` 環境変数。既定は
 `http://stock-valuation-form:3014/stock-valuation-form/api` で、dev（Vite のプロキシ）でも
-本番（Node 直）でも同じ URL で通る。
+本番（Node 直）でも同じ URL で通る。1リクエストの制限時間は `SVF_API_TIMEOUT_MS`（既定 15000）。
+どちらも `docker run` の `-e` で渡す（compose の `environment` は `docker run` からは読まれない）。
+
+イメージはソースを同梱するので、`src/` を直したら上の `build` をもう一度叩く
+（作り直すまで Claude Desktop は古いイメージを起動し続ける）。辞書は起動のたびに読み直すので、
+株式評価明細書の様式を直しただけならこちらの作り直しは要らない。
 
 > dev サーバへ繋ぐには、Vite 側に `allowedHosts: ['stock-valuation-form']` が要る。
 > Vite 7 は DNS リバインディング対策で localhost 以外の `Host` を 403 で弾くため
@@ -68,10 +73,20 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
 
 ## 取込中は画面を閉じておくこと
 
-**画面でその案件を開いたまま MCP から書くと、ブラウザ側の自動保存に上書きされる。**
+**画面でその案件を開いたまま MCP から書くと、どちらかの入力が失われる。**
 
 案件の自動保存も同じ `PUT /cases/:id` を叩き、しかも `data` をまるごと置き換える。
-ブラウザは開いた時点の内容を持っているので、後から保存したほうが勝つ。
+株式評価明細書には楽観ロックがあり（画面は読んだときの `updatedAt` を `expectedUpdatedAt` で
+送り、食い違えば 409）、画面が黙って上書きすることはもう無い。ただし守られるのは片側だけ:
+
+- **MCP が書いた後に画面が保存しようとした場合**: 409 で自動保存が止まり、ヘッダに
+  「読み直す」が出る。押すと MCP の書き込みが画面に入る代わりに、**画面で入れていたぶんは
+  送られないまま消える**
+- **MCP が読んでから書くまでの間に画面が保存した場合**: MCP は前提（`expectedUpdatedAt`）を
+  送らないので、**画面の保存を黙って上書きする**（MCP は画面を持たないので前提を持ちようがない。
+  必須にすると MCP が一切書けなくなるため、サーバ側で省略を許している）
+
+なので運用は以前と同じ:
 
 - 取込の前に、その案件を開いているタブを**閉じる**
 - 取込が終わってから開き直す
