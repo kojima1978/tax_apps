@@ -165,6 +165,44 @@ services:
         reservations:
           memory: 512M
 
+  # ===========================================
+  # テスト用の使い捨てコンテナ（manage.sh test が本番モードのときに使う）
+  #
+  # 本番イメージ(runner)には vitest も tsc も無いので、dev ステージで回す。
+  #   - image: を本体と別のタグにする。itcm-web は image: を持たないので、
+  #     同じ自動命名のタグを共有すると次の apply / recover が本番を dev イメージで作り直す
+  #   - entrypoint を空にする。dev の entrypoint は起動のたびに `migrate deploy` を流すので、
+  #     そのままでは**テストを回すたびに稼働中の DB へマイグレーションを当てる**ことになる
+  #   - tax-apps-network に繋がない（itcm-postgres へ届かない）。テストは DB を使わない
+  #   - .dockerignore が *.test.ts をイメージから外すので、src はホストのものを読み取り専用で被せる
+  # ===========================================
+  inheritance-case-management-test:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        NEXT_PUBLIC_API_URL: /itcm/api-v1
+    image: inheritance-case-management-test
+    profiles: ["test"]
+    entrypoint: []
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=1400"
+    volumes:
+      - ./web/src:/app/src:ro
+    init: true
+    restart: "no"
+    logging: *default-logging
+    <<: *security-opts
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 256M
+
 networks:
   tax-apps-network:
     external: true

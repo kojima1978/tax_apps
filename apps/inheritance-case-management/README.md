@@ -339,9 +339,13 @@ Docker Desktop for Windows の bind mount（Windows→WSL2）は起動直後の 
 （`TEST_TARGETS` の `inheritance-case-management:itcm-frontend:npm test`）。同じものが
 `.github/workflows/ci.yml` の matrix にもある（`dir: apps/inheritance-case-management/web`）。
 
-- 本番イメージには vitest が無く、`<アプリ名>-test` の使い捨てサービスも無いので、
-  **本番モードで動いている間（＝この開発 PC の通常状態）は手元では飛ばされる**。push すれば CI で回る。
-  手元で回すなら `manage.sh start inheritance-case-management` で dev へ切り替えてから
+- 本番イメージには vitest が無いので、**本番モードの間は使い捨ての
+  `inheritance-case-management-test`（`profiles: ["test"]`）で回る**。dev ステージを
+  別のタグ（`image: inheritance-case-management-test`）で作り、`src` はホストのものを読み取り専用で被せる
+  （`.dockerignore` が `*.test.ts` をイメージから外すため）
+  - **entrypoint は空にしてある**。dev の entrypoint は起動のたびに `prisma migrate deploy` を流すので、
+    そのままだとテストを回すたびに稼働中の DB へマイグレーションが当たる。`tax-apps-network` にも
+    繋いでいないので `itcm-postgres` へは届かない（テストは DB を使わない）
 - `docker compose run --rm itcm-web …` で回さないこと。本体のサービスは `image:` を持たないので
   dev と本番が同じイメージ名を共有し、本番の間は runner のイメージで走る（tsc も vitest も無い）うえ、
   dev のイメージを作り直すと次の `apply` / `recover` が本番コンテナをそれで作り直す
