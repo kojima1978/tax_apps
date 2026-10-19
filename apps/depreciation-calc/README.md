@@ -11,7 +11,7 @@
 - サマリーカード（合計償却額・開始時簿価・期間後簿価）
 - 簿価計算タブからの条件連携に対応
 
-### タブ2: （中古）耐用年数計算
+### タブ2: 耐用年数（中古資産）
 - **簡便法による耐用年数計算**（経過年数が法定耐用年数以内 / 超過の2パターン）
 - **50%ルール判定**（改修費が取得価額の50%超の場合、法定耐用年数を適用）
 - **日付からの経過年数自動計算**（新築・製造日と取得日から自動算出）
@@ -48,15 +48,15 @@
 
 | 環境 | URL |
 |------|-----|
-| 開発 | `http://localhost:3015/depreciation-calc/` |
-| 本番 | `/depreciation-calc/` (nginx経由) |
+| ゲートウェイ経由 | `http://localhost/depreciation-calc/` |
+| 直接（dev / 本番とも） | `http://localhost:3015/depreciation-calc/` |
 | Vercel | `/` |
 
 ## インフラ
 
 | ファイル | 用途 |
 |---------|------|
-| `docker-compose.yml` | 開発用（ホットリロード、ソースマウント） |
+| `docker-compose.yml` | 開発用（`src` と `index.html` を読み取り専用でマウント） |
 | `docker-compose.prod.yml` | 本番オーバーライド（nginx静的配信） |
 | `../../docker/Dockerfile.vite-static` | 共有Dockerfile（dev / builder / runner ステージ） |
 
@@ -65,27 +65,28 @@
 
 ## 起動方法
 
-### Docker（推奨）
+リポジトリのルートから `manage.sh` で起動する（素の `docker compose up` は base だけを読むので、本番で動いているアプリを dev に作り替える）。
 
 ```bash
-# 開発モード（ホットリロード）
-docker compose up -d --build
-
-# 本番モード（nginx静的配信）
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-
-# ログ確認
-docker compose logs -f
-
-# 停止
-docker compose down
+docker/scripts/manage.sh start depreciation-calc          # 開発
+docker/scripts/manage.sh start --prod depreciation-calc   # 本番（nginx 静的配信）
+docker/scripts/manage.sh build depreciation-calc          # 再ビルド（いま動いているモードを踏襲）
+docker/scripts/manage.sh logs depreciation-calc           # ログ確認
 ```
+
+- dev は `./src` と `./index.html` を読み取り専用で bind mount する（メモリ上限 512M・`NODE_OPTIONS=--max-old-space-size=384`）。
+  Vite にポーリングが無いので、編集が届かないときは `docker restart depreciation-calc`
+- 本番はソースをイメージに同梱する（`volumes: !reset []`・メモリ上限 64M）。**変更は `build` しないと入らない**
+- `package.json` / `vite.config.ts` はマウントしていない（イメージ同梱）ので、変えたら `build` が要る
+- テストは無い。型検査は `npm run build` の `tsc -b` だけで、dev モードでは走らない
 
 ### Vercel
 
 ```bash
 vercel
 ```
+
+`vercel.json` が `vite build --base /` でルート配信にする。
 
 ## ディレクトリ構成
 
@@ -110,14 +111,18 @@ src/
 │   ├── PrintFooter.tsx         # 印刷フッター（担当者・作成日）
 │   └── ui/
 │       ├── ActionButtons.tsx   # 計算・クリアボタン（共通）
+│       ├── CarryOverCta.tsx    # 次のタブへ引き継ぐボタン（共通）
 │       ├── ConditionTags.tsx   # 条件タグバッジ（共通）
 │       ├── DirtyWarning.tsx    # 入力変更警告バナー（共通）
 │       ├── Disclaimer.tsx      # 免責注記フッター（共通）
 │       ├── EmptyState.tsx      # 空状態プレースホルダー（共通）
 │       ├── HighlightCard.tsx   # 結果ハイライトカード（共通）
+│       ├── Icons.tsx           # インラインSVGアイコン
 │       ├── PresetButtons.tsx   # プリセット選択ピル（共通）
+│       ├── ResultLayout.tsx    # 結果欄の枠（警告・条件タグ・空状態・免責をまとめる）
 │       └── SummaryCard.tsx     # サマリーカード（primary/secondary variant）
 ├── hooks/
+│   ├── useBaseDepreciationState.ts # 簿価・期間償却で共通の入力状態
 │   ├── useUsedAssetForm.ts     # 耐用年数フォーム状態管理
 │   ├── useDepreciationForm.ts  # 簿価計算フォーム状態管理
 │   ├── useMethodSuggestion.ts  # 償却方法の自動推奨ロジック
@@ -129,6 +134,7 @@ src/
     ├── depreciation.ts         # 減価償却計算エントリー（スケジュール組立）
     ├── depreciation-builders.ts # 4種の償却方法ビルダー関数
     ├── depreciation-rates.ts   # 償却率テーブル（法定耐用年数→各種率）
+    ├── styles.ts               # 入力欄の共通クラス（INPUT_BASE）
     ├── utils.ts                # ユーティリティ関数（formatElapsed等）
     └── company.ts              # 会社情報
 ```
