@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
 import { openDb } from './db.js';
-import { applyItcmImport, jstDate, planItcmImport, type ItcmAssignee, type ItcmDepartment } from './itcm-import.js';
+import {
+  applyItcmImport,
+  jstDate,
+  NoCompanyError,
+  planItcmImport,
+  type ItcmAssignee,
+  type ItcmDepartment,
+} from './itcm-import.js';
 import { listDepartments, listStaff } from './repo.js';
 
 // 名前はすべて架空（リポジトリは公開）
@@ -29,7 +36,28 @@ describe('案件管理からの取込', () => {
     const result = run([dept(1, '会計部'), dept(2, '資産税部')], [person(10, '山田', { departmentId: 2 })]);
     expect(result).toEqual({ departmentsCreated: 2, departmentsLinked: 0, staffCreated: 1 });
     const [s] = listStaff(db, 'all');
-    expect(s).toMatchObject({ name: '山田', departmentName: '資産税部', retiredOn: null, nameKana: '' });
+    expect(s).toMatchObject({ name: '山田', departmentName: '資産税部', retiredOn: null, nameKana: '', companyId: 1 });
+  });
+
+  it('「姓 名」は最初の空白で分ける（全角の空白も）', () => {
+    run([dept(1, '会計部')], [person(10, '山田 太郎'), person(11, '鈴木　花子'), person(12, '佐藤')]);
+    const names = listStaff(db, 'all').map((s) => [s.familyName, s.givenName]);
+    expect(names).toEqual(expect.arrayContaining([['山田', '太郎'], ['鈴木', '花子'], ['佐藤', '']]));
+  });
+
+  it('取り込み先は表示順で先頭の会社。部署もその会社の中で探す', () => {
+    db.prepare(`INSERT INTO companies (name, sort_order) VALUES ('架空商事', -1)`).run();
+    db.prepare(`INSERT INTO departments (company_id, name) VALUES (1, '会計部')`).run();
+    const plan = planItcmImport(db, [dept(1, '会計部')], [person(10, '山田')]);
+    expect(plan.company.name).toBe('架空商事');
+    expect(plan.departments[0].action).toBe('create');
+    applyItcmImport(db, plan);
+    expect(listStaff(db, 'all')[0]).toMatchObject({ companyName: '架空商事', departmentName: '会計部' });
+  });
+
+  it('会社が1件も無ければ止める', () => {
+    db.prepare('DELETE FROM companies').run();
+    expect(() => planItcmImport(db, [], [])).toThrow(NoCompanyError);
   });
 
   it('2回目は何もしない（取込済みを読み飛ばす）', () => {
@@ -43,7 +71,7 @@ describe('案件管理からの取込', () => {
 
   it('取込済みの人を台帳で直しても、流し直しで上書きしない', () => {
     run([dept(1, '会計部')], [person(10, '山田')]);
-    db.prepare(`UPDATE staff SET name_kana = 'ヤマダ', mobile_phone = '090-0000-0000'`).run();
+    db.prepare(`UPDATE staff SET family_kana = 'ヤマダ', mobile_phone = '090-0000-0000'`).run();
     run([dept(1, '会計部')], [person(10, '山田'), person(11, '鈴木')]);
     const all = listStaff(db, 'all');
     expect(all).toHaveLength(2);
@@ -51,7 +79,7 @@ describe('案件管理からの取込', () => {
   });
 
   it('台帳に同じ名前の部署があれば作らずに結び付ける', () => {
-    db.prepare(`INSERT INTO departments (name) VALUES ('会計部')`).run();
+    db.prepare(`INSERT INTO departments (company_id, name) VALUES (1, '会計部')`).run();
     const result = run([dept(1, '会計部')], [person(10, '山田')]);
     expect(result).toMatchObject({ departmentsCreated: 0, departmentsLinked: 1 });
     expect(listDepartments(db)).toHaveLength(1);
@@ -59,7 +87,7 @@ describe('案件管理からの取込', () => {
   });
 
   it('同じ名前の人は結び付けず、別人として作って注意を出す', () => {
-    db.prepare(`INSERT INTO staff (name) VALUES ('山田')`).run();
+    db.prepare(`INSERT INTO staff (family_name) VALUES ('山田')`).run();
     const plan = planItcmImport(db, [dept(1, '会計部')], [person(10, '山田')]);
     const p = plan.staff[0];
     expect(p.action === 'create' && p.notes).toEqual(['台帳に同じ名前の人がいます（別人として登録）']);
@@ -72,7 +100,8 @@ describe('案件管理からの取込', () => {
   });
 
   it('社員番号は引き継ぐが、台帳で使用済み・取込内で重複なら空にする', () => {
-    db.prepare(`INSERT INTO staff (name, employee_no) VALUES ('既存', 'A1')`).run();
+    db.prepare(`INSERT INTO staff (id, family_name) VALUES (1, '既存')`).run();
+    db.prepare(`INSERT INTO staff_affiliations (staff_id, company_id, employee_no, is_primary) VALUES (1, 1, 'A1', 1)`).run();
     const plan = planItcmImport(
       db,
       [dept(1, '会計部')],

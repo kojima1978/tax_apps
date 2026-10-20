@@ -1,9 +1,30 @@
 // サーバの応答の形（server/repo.ts と対）
+export type Affiliation = {
+  companyId: number;
+  companyName: string;
+  departmentId: number | null;
+  departmentName: string | null;
+  employeeNo: string | null;
+  isPrimary: boolean;
+};
+
 export type Staff = {
   id: number;
-  employeeNo: string | null;
-  name: string;
+  familyName: string;
+  givenName: string;
+  familyKana: string;
+  givenKana: string;
+  // 「姓 名」
+  fullName: string;
+  // 姓だけ（在籍者に同姓がいれば名の頭を足す）。狭い欄はこちら
+  shortName: string;
   nameKana: string;
+  // 主所属が先頭
+  affiliations: Affiliation[];
+  // 以下は主所属の写し
+  employeeNo: string | null;
+  companyId: number | null;
+  companyName: string | null;
   departmentId: number | null;
   departmentName: string | null;
   mobilePhone: string;
@@ -14,28 +35,48 @@ export type Staff = {
 
 export type StaffStatus = 'active' | 'retired' | 'all';
 
+export type Company = {
+  id: number;
+  name: string;
+  shortName: string;
+  postalCode: string;
+  address: string;
+  phone: string;
+  fax: string;
+  sortOrder: number;
+  departmentCount: number;
+  staffCount: number;
+  updatedAt: string;
+};
+
+export type CompanyForm = Omit<Company, 'id' | 'departmentCount' | 'staffCount' | 'updatedAt'>;
+
 export type Department = {
   id: number;
+  companyId: number;
+  companyName: string;
   name: string;
   sortOrder: number;
   active: boolean;
   staffCount: number;
 };
 
-export type Office = {
-  name: string;
-  postalCode: string;
-  address: string;
-  phone: string;
-  fax: string;
-  updatedAt: string;
+export type DepartmentForm = { companyId: number; name: string; sortOrder: number; active: boolean };
+
+// 入力中の所属1行（select の値は文字列のまま持つ）
+export type AffiliationForm = {
+  companyId: string;
+  departmentId: string;
+  employeeNo: string;
+  isPrimary: boolean;
 };
 
 export type StaffForm = {
-  employeeNo: string;
-  name: string;
-  nameKana: string;
-  departmentId: string;
+  familyName: string;
+  givenName: string;
+  familyKana: string;
+  givenKana: string;
   mobilePhone: string;
   retiredOn: string;
+  affiliations: AffiliationForm[];
 };

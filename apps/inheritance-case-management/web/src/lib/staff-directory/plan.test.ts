@@ -48,6 +48,21 @@ describe('planDepartments', () => {
     expect(ops).toEqual([]);
   });
 
+  it('台帳が「会社 部署」の名前（label）を返せばそちらを使う（別会社の同名部署を1つにしない）', () => {
+    const ops = planDepartments(
+      [
+        { id: 100, name: '会計部', label: '本社 会計部', sortOrder: 0, active: true },
+        { id: 200, name: '会計部', label: '架空 会計部', sortOrder: 0, active: true },
+      ],
+      [{ entity: 'department', externalId: '5', localId: 100 }],
+      [dept({ id: 5, name: '会計部' })],
+    );
+    expect(ops).toEqual([
+      { kind: 'update', id: 5, data: { name: '本社 会計部', staffDirectoryId: 100 } },
+      { kind: 'create', data: { name: '架空 会計部', sortOrder: 0, active: true, staffDirectoryId: 200 } },
+    ]);
+  });
+
   it('台帳ID の付いた部署は名前が同じでも別の台帳の部署に取られない', () => {
     const ops = planDepartments(
       [{ id: 200, name: '資産税部', sortOrder: 0, active: true }],

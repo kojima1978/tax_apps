@@ -10,6 +10,9 @@ import type Database from 'better-sqlite3';
 // 名前だけで既存の人と結び付けることはしない。itcm の名前は姓だけ（「三河」）なので、
 // 同姓の別人を同じ人として扱う危険のほうが大きい。同名が台帳に既にいれば
 // 一覧に注意を出すだけで、新しく作る。部署は名前が一意なので名前で結び付ける。
+//
+// 取り込み先は表示順で先頭の会社（itcm は会社を持たない）。部署はその会社の中で名前を探し、
+// 担当者はその会社の所属（主所属）として作る。別の会社の人は台帳の画面で付け替える。
 
 export const ITCM_APP = 'itcm';
 
@@ -32,7 +35,21 @@ export type StaffPlan =
   | { action: 'create'; source: ItcmAssignee; employeeNo: string | null; retiredOn: string | null; notes: string[] }
   | { action: 'skip'; source: ItcmAssignee; localId: number };
 
-export type ImportPlan = { departments: DepartmentPlan[]; staff: StaffPlan[] };
+export type ImportPlan = {
+  company: { id: number; name: string };
+  departments: DepartmentPlan[];
+  staff: StaffPlan[];
+};
+
+export class NoCompanyError extends Error {}
+
+// itcm の名前は「姓 名」か姓だけ。最初の空白で分ける（移行と同じ規則）
+export function splitName(name: string): { familyName: string; givenName: string } {
+  const t = name.trim();
+  const i = t.search(/\s/); // 全角の空白も含む
+  if (i < 0) return { familyName: t, givenName: '' };
+  return { familyName: t.slice(0, i), givenName: t.slice(i + 1).replace(/\s+/g, '') };
+}
 
 function linkedId(db: Database.Database, entity: 'staff' | 'department', externalId: number): number | null {
   const row = db
@@ -54,17 +71,24 @@ export function planItcmImport(
   departments: ItcmDepartment[],
   assignees: ItcmAssignee[],
 ): ImportPlan {
+  const company = db.prepare('SELECT id, name FROM companies ORDER BY sort_order, id LIMIT 1').get() as
+    | { id: number; name: string }
+    | undefined;
+  if (!company) throw new NoCompanyError('台帳に会社が1件もありません。先に会社を登録してください');
+
   const deptPlans: DepartmentPlan[] = departments.map((source) => {
     const linked = linkedId(db, 'department', source.id);
     if (linked !== null) return { action: 'skip', source, localId: linked };
-    const byName = db.prepare('SELECT id FROM departments WHERE name = ?').get(source.name) as
+    const byName = db
+      .prepare('SELECT id FROM departments WHERE company_id = ? AND name = ?')
+      .get(company.id, source.name) as
       | { id: number }
       | undefined;
     return byName ? { action: 'link', source, localId: byName.id } : { action: 'create', source };
   });
 
-  const nameCount = db.prepare('SELECT count(*) AS n FROM staff WHERE name = ?');
-  const employeeNoUsed = db.prepare('SELECT 1 FROM staff WHERE employee_no = ?');
+  const nameCount = db.prepare('SELECT count(*) AS n FROM staff WHERE family_name = ? AND given_name = ?');
+  const employeeNoUsed = db.prepare('SELECT 1 FROM staff_affiliations WHERE company_id = ? AND employee_no = ?');
   // 取込の中で同じ社員番号が2人に付いていたら、2人目以降は空にする（台帳では重複不可）
   const takenInBatch = new Set<string>();
 
@@ -74,19 +98,20 @@ export function planItcmImport(
 
     const notes: string[] = [];
     let employeeNo = source.employeeId?.trim() || null;
-    if (employeeNo !== null && (employeeNoUsed.get(employeeNo) || takenInBatch.has(employeeNo))) {
+    if (employeeNo !== null && (employeeNoUsed.get(company.id, employeeNo) || takenInBatch.has(employeeNo))) {
       notes.push(`社員番号「${employeeNo}」は使用済みのため空で登録`);
       employeeNo = null;
     }
     if (employeeNo !== null) takenInBatch.add(employeeNo);
-    if ((nameCount.get(source.name) as { n: number }).n > 0) {
+    const { familyName, givenName } = splitName(source.name);
+    if ((nameCount.get(familyName, givenName) as { n: number }).n > 0) {
       notes.push('台帳に同じ名前の人がいます（別人として登録）');
     }
     const retiredOn = source.active ? null : jstDate(source.updatedAt);
     return { action: 'create', source, employeeNo, retiredOn, notes };
   });
 
-  return { departments: deptPlans, staff: staffPlans };
+  return { company, departments: deptPlans, staff: staffPlans };
 }
 
 export type ImportResult = { departmentsCreated: number; departmentsLinked: number; staffCreated: number };
@@ -96,10 +121,13 @@ export function applyItcmImport(db: Database.Database, plan: ImportPlan): Import
   const insertLink = db.prepare(
     'INSERT INTO external_links (app, entity, external_id, local_id) VALUES (?, ?, ?, ?)',
   );
-  const insertDept = db.prepare('INSERT INTO departments (name, sort_order, active) VALUES (?, ?, ?)');
-  const insertStaff = db.prepare(
-    'INSERT INTO staff (employee_no, name, department_id, retired_on) VALUES (?, ?, ?, ?)',
+  const insertDept = db.prepare('INSERT INTO departments (company_id, name, sort_order, active) VALUES (?, ?, ?, ?)');
+  const insertStaff = db.prepare('INSERT INTO staff (family_name, given_name, retired_on) VALUES (?, ?, ?)');
+  const insertAffiliation = db.prepare(
+    `INSERT INTO staff_affiliations (staff_id, company_id, department_id, employee_no, is_primary)
+     VALUES (?, ?, ?, ?, 1)`,
   );
+  const companyId = plan.company.id;
 
   return db.transaction(() => {
     const result: ImportResult = { departmentsCreated: 0, departmentsLinked: 0, staffCreated: 0 };
@@ -109,7 +137,7 @@ export function applyItcmImport(db: Database.Database, plan: ImportPlan): Import
     for (const p of plan.departments) {
       let localId: number;
       if (p.action === 'create') {
-        localId = Number(insertDept.run(p.source.name, p.source.sortOrder, p.source.active ? 1 : 0).lastInsertRowid);
+        localId = Number(insertDept.run(companyId, p.source.name, p.source.sortOrder, p.source.active ? 1 : 0).lastInsertRowid);
         result.departmentsCreated++;
       } else {
         localId = p.localId;
@@ -124,7 +152,9 @@ export function applyItcmImport(db: Database.Database, plan: ImportPlan): Import
     for (const p of plan.staff) {
       if (p.action !== 'create') continue;
       const deptId = p.source.departmentId === null ? null : (deptMap.get(p.source.departmentId) ?? null);
-      const localId = Number(insertStaff.run(p.employeeNo, p.source.name, deptId, p.retiredOn).lastInsertRowid);
+      const { familyName, givenName } = splitName(p.source.name);
+      const localId = Number(insertStaff.run(familyName, givenName, p.retiredOn).lastInsertRowid);
+      insertAffiliation.run(localId, companyId, deptId, p.employeeNo);
       insertLink.run(ITCM_APP, 'staff', String(p.source.id), localId);
       result.staffCreated++;
     }

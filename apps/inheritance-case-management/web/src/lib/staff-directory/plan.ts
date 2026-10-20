@@ -12,6 +12,12 @@
 export interface DirectoryDepartment {
   id: number;
   name: string;
+  /**
+   * 案件管理で使う名前。台帳は部署を会社ごとに持ち、同じ名前の部署が複数の会社にあれば
+   * 「会社 部署」の形になる（案件管理の部署名は一意なので、名前のままだと衝突する）。
+   * 会社の分かれる前の台帳は返さないので name に戻す
+   */
+  label?: string;
   sortOrder: number;
   active: boolean;
 }
@@ -112,6 +118,8 @@ function matchRows<L extends { id: number; staffDirectoryId: number | null }, D 
   return matched;
 }
 
+const nameOf = (d: DirectoryDepartment) => d.label ?? d.name;
+
 export function planDepartments(
   directory: DirectoryDepartment[],
   links: DirectoryLink[],
@@ -120,12 +128,12 @@ export function planDepartments(
   const linked = linkMap(links, 'department');
   const matched = matchRows(local, directory, [
     (d, free) => free.get(linked.get(d.id) ?? -1),
-    (d, free) => [...free.values()].find((l) => l.name === d.name),
+    (d, free) => [...free.values()].find((l) => l.name === nameOf(d)),
   ]);
 
   const ops: SyncOp<DepartmentData>[] = [];
   for (const d of directory) {
-    const next: DepartmentData = { name: d.name, sortOrder: d.sortOrder, active: d.active, staffDirectoryId: d.id };
+    const next: DepartmentData = { name: nameOf(d), sortOrder: d.sortOrder, active: d.active, staffDirectoryId: d.id };
     const current = matched.get(d.id);
     if (!current) {
       ops.push({ kind: 'create', data: next });

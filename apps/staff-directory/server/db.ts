@@ -46,55 +46,161 @@ export function checkDbHealth(): string | null {
   }
 }
 
+// スキーマの版。PRAGMA user_version に記録し、古い版の DB は開いたときに1回だけ作り替える。
+// 版を上げるときは MIGRATIONS に1つ足す（作り替えは必ずトランザクションの中で、途中で落ちたら元のまま）。
+export const SCHEMA_VERSION = 1;
+
 // staff.id が「台帳ID」。各アプリはこの番号で人を参照するので、振り直さない・消さない
-// （退職は retired_on を入れるだけ）。employee_no は仮IDを含むただの属性で、
-// 空を許し、入っているものだけ重複を禁じる（SQLite の UNIQUE は NULL 同士を区別する）。
+// （退職は retired_on を入れるだけ）。
+//
+// 会社は複数（関連会社）。部署は会社にぶら下がり（A社の会計部とB社の会計部は別物）、
+// 人と会社は staff_affiliations で多対多。社員番号は会社ごとに振るので所属の側に持ち、
+// 同じ会社の中だけで重複を禁じる（空は何人でもよい ── SQLite の UNIQUE は NULL 同士を区別する）。
+// 所属の部署がその会社のものであることは複合外部キーで DB が保証する。
+// 主所属は1人1つ（部分ユニーク索引）。他アプリへ「この人の社員番号・部署」として渡すのは主所属。
+//
+// 氏名は姓・名を別々に持つ（姓だけを出す場面と、両方を出す場面があるため）。
+// 画面に出す略称・氏名は repo.ts が組み立てる（DB には持たない）。
 //
 // external_links は「他アプリの何番が台帳の何番か」の対応表。取込を何度流しても
 // 同じ人を二重に作らないためのもので、段階3以降の同期や private-banking の紐付けも
 // ここへ app 名を変えて載せる。
-function initSchema(d: Database.Database): void {
+const SCHEMA_V1 = `
+  CREATE TABLE companies (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL UNIQUE,
+    short_name  TEXT NOT NULL DEFAULT '',
+    postal_code TEXT NOT NULL DEFAULT '',
+    address     TEXT NOT NULL DEFAULT '',
+    phone       TEXT NOT NULL DEFAULT '',
+    fax         TEXT NOT NULL DEFAULT '',
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE departments (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER NOT NULL REFERENCES companies(id),
+    name       TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    active     INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (company_id, name),
+    UNIQUE (id, company_id)
+  );
+
+  CREATE TABLE staff (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    family_name  TEXT NOT NULL,
+    given_name   TEXT NOT NULL DEFAULT '',
+    family_kana  TEXT NOT NULL DEFAULT '',
+    given_kana   TEXT NOT NULL DEFAULT '',
+    mobile_phone TEXT NOT NULL DEFAULT '',
+    retired_on   TEXT,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE staff_affiliations (
+    staff_id      INTEGER NOT NULL REFERENCES staff(id),
+    company_id    INTEGER NOT NULL REFERENCES companies(id),
+    department_id INTEGER,
+    employee_no   TEXT,
+    is_primary    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (staff_id, company_id),
+    UNIQUE (company_id, employee_no),
+    FOREIGN KEY (department_id, company_id) REFERENCES departments(id, company_id)
+  );
+  CREATE UNIQUE INDEX staff_affiliations_primary_idx ON staff_affiliations(staff_id) WHERE is_primary = 1;
+  CREATE INDEX staff_affiliations_department_idx ON staff_affiliations(department_id);
+
+  CREATE TABLE IF NOT EXISTS external_links (
+    app         TEXT NOT NULL,
+    entity      TEXT NOT NULL CHECK (entity IN ('staff', 'department')),
+    external_id TEXT NOT NULL,
+    local_id    INTEGER NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (app, entity, external_id)
+  );
+`;
+
+// 会社が1つも無いと部署も所属も作れないので、新しい DB には1社だけ置いておく（画面で名前を直す）
+export const PLACEHOLDER_COMPANY_NAME = '会社名未設定';
+
+// 版0 → 1: 事務所1件・部署・社員（氏名1欄・社員番号と部署を社員に直接持つ形）から作り替える。
+//   - 事務所 → 会社 #1（名前が空なら仮の名前）
+//   - 部署 → 全部 会社 #1 の部署（id はそのまま。他アプリの写しが部署の台帳ID を持っているため）
+//   - 氏名・フリガナ → 最初の空白で姓と名に分ける（空白が無ければ全部を姓に）
+//   - 社員番号・部署 → 会社 #1 への主所属。部署も社員番号も無い人は所属なし
+//   社員の id（台帳ID）は変えない
+function migrateV0ToV1(d: Database.Database): void {
   d.exec(`
-    CREATE TABLE IF NOT EXISTS departments (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      name       TEXT NOT NULL UNIQUE,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      active     INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS staff (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      employee_no   TEXT UNIQUE,
-      name          TEXT NOT NULL,
-      name_kana     TEXT NOT NULL DEFAULT '',
-      department_id INTEGER REFERENCES departments(id),
-      mobile_phone  TEXT NOT NULL DEFAULT '',
-      retired_on    TEXT,
-      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS staff_department_idx ON staff(department_id);
-
-    CREATE TABLE IF NOT EXISTS office (
-      id          INTEGER PRIMARY KEY CHECK (id = 1),
-      name        TEXT NOT NULL DEFAULT '',
-      postal_code TEXT NOT NULL DEFAULT '',
-      address     TEXT NOT NULL DEFAULT '',
-      phone       TEXT NOT NULL DEFAULT '',
-      fax         TEXT NOT NULL DEFAULT '',
-      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    INSERT OR IGNORE INTO office (id) VALUES (1);
-
-    CREATE TABLE IF NOT EXISTS external_links (
-      app         TEXT NOT NULL,
-      entity      TEXT NOT NULL CHECK (entity IN ('staff', 'department')),
-      external_id TEXT NOT NULL,
-      local_id    INTEGER NOT NULL,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-      PRIMARY KEY (app, entity, external_id)
-    );
+    ALTER TABLE departments RENAME TO departments_v0;
+    ALTER TABLE staff RENAME TO staff_v0;
   `);
+  // 旧 departments を参照していた staff_v0 の外部キーは、改名で departments_v0 を指すように書き換わる
+  d.exec(SCHEMA_V1);
+  d.prepare(
+    `INSERT INTO companies (id, name, postal_code, address, phone, fax, updated_at)
+     SELECT 1, CASE WHEN trim(name) = '' THEN ? ELSE name END, postal_code, address, phone, fax, updated_at
+     FROM office WHERE id = 1`,
+  ).run(PLACEHOLDER_COMPANY_NAME);
+  d.prepare(`INSERT OR IGNORE INTO companies (id, name) VALUES (1, ?)`).run(PLACEHOLDER_COMPANY_NAME);
+  d.exec(`
+    INSERT INTO departments (id, company_id, name, sort_order, active, created_at, updated_at)
+    SELECT id, 1, name, sort_order, active, created_at, updated_at FROM departments_v0;
+
+    INSERT INTO staff (id, family_name, given_name, family_kana, given_kana, mobile_phone, retired_on, created_at, updated_at)
+    SELECT id,
+      CASE WHEN instr(n, ' ') > 0 THEN substr(n, 1, instr(n, ' ') - 1) ELSE n END,
+      CASE WHEN instr(n, ' ') > 0 THEN replace(substr(n, instr(n, ' ') + 1), ' ', '') ELSE '' END,
+      CASE WHEN instr(k, ' ') > 0 THEN substr(k, 1, instr(k, ' ') - 1) ELSE k END,
+      CASE WHEN instr(k, ' ') > 0 THEN replace(substr(k, instr(k, ' ') + 1), ' ', '') ELSE '' END,
+      mobile_phone, retired_on, created_at, updated_at
+    -- 全角の空白（char(12288)）も区切りとして扱う（氏名は入力のまま保存していた）。2つ目以降の空白は名から詰める
+    FROM (SELECT *, trim(replace(name, char(12288), ' ')) AS n, trim(name_kana) AS k FROM staff_v0);
+
+    INSERT INTO staff_affiliations (staff_id, company_id, department_id, employee_no, is_primary)
+    SELECT id, 1, department_id, employee_no, 1 FROM staff_v0
+    WHERE department_id IS NOT NULL OR employee_no IS NOT NULL;
+  `);
+  // AUTOINCREMENT の続き番号を引き継ぐ（消した社員・部署の番号を新しい人に再利用しない）。
+  // 改名した表の続き番号は sqlite_sequence の上で旧名へ付け替わっている（表を消すと一緒に消えるので、消す前に移す）
+  const seqOf = d.prepare('SELECT seq FROM sqlite_sequence WHERE name = ?').pluck();
+  for (const table of ['staff', 'departments']) {
+    const seq = Math.max(Number(seqOf.get(table) ?? 0), Number(seqOf.get(`${table}_v0`) ?? 0));
+    d.prepare('DELETE FROM sqlite_sequence WHERE name IN (?, ?)').run(table, `${table}_v0`);
+    if (seq > 0) d.prepare('INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)').run(table, seq);
+  }
+  d.exec('DROP TABLE staff_v0; DROP TABLE departments_v0; DROP TABLE office;');
+}
+
+function tableExists(d: Database.Database, name: string): boolean {
+  return d.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(name) !== undefined;
+}
+
+function initSchema(d: Database.Database): void {
+  const version = d.pragma('user_version', { simple: true }) as number;
+  if (version >= SCHEMA_VERSION) return;
+
+  // 表の作り替えの間だけ外部キーの検査を止め、最後にまとめて確かめる
+  // （PRAGMA foreign_keys はトランザクションの中では変えられない）
+  d.pragma('foreign_keys = OFF');
+  try {
+    d.transaction(() => {
+      if (tableExists(d, 'staff')) {
+        migrateV0ToV1(d);
+      } else {
+        d.exec(SCHEMA_V1);
+        d.prepare('INSERT INTO companies (name) VALUES (?)').run(PLACEHOLDER_COMPANY_NAME);
+      }
+      const broken = d.pragma('foreign_key_check') as unknown[];
+      if (broken.length > 0) throw new Error(`スキーマの移行後に外部キーの不整合が ${broken.length} 件あります`);
+      d.pragma(`user_version = ${SCHEMA_VERSION}`);
+    })();
+  } finally {
+    d.pragma('foreign_keys = ON');
+  }
 }

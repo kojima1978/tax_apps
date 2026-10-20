@@ -47,66 +47,125 @@ export function normalizeDate(v: unknown, label: string): Result<string | null> 
   return ok(s);
 }
 
-export type StaffInput = {
-  employeeNo: string | null;
-  name: string;
-  nameKana: string;
+export type AffiliationInput = {
+  companyId: number;
   departmentId: number | null;
+  employeeNo: string | null;
+  isPrimary: boolean;
+};
+
+export type StaffInput = {
+  familyName: string;
+  givenName: string;
+  familyKana: string;
+  givenKana: string;
   mobilePhone: string;
   retiredOn: string | null;
+  affiliations: AffiliationInput[];
 };
+
+function optionalId(v: unknown, error: string): Result<number | null> {
+  if (v === null || v === undefined || v === '') return ok(null);
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? ok(n) : fail(error);
+}
+
+// 所属。同じ会社は1行だけ。主所属はちょうど1つ（どれにも付いていなければ先頭を主所属にする）
+function parseAffiliations(v: unknown): Result<AffiliationInput[]> {
+  if (v === undefined || v === null) return ok([]);
+  if (!Array.isArray(v)) return fail('所属の指定が正しくありません');
+  const out: AffiliationInput[] = [];
+  for (const raw of v as Record<string, unknown>[]) {
+    const companyId = optionalId(raw?.companyId, '会社の指定が正しくありません');
+    if (!companyId.ok) return companyId;
+    if (companyId.value === null) return fail('所属の会社を選んでください');
+    if (out.some((a) => a.companyId === companyId.value)) return fail('同じ会社の所属が2つあります');
+    const departmentId = optionalId(raw.departmentId, '部署の指定が正しくありません');
+    if (!departmentId.ok) return departmentId;
+    const employeeNo = text(raw.employeeNo).normalize('NFKC');
+    out.push({
+      companyId: companyId.value,
+      departmentId: departmentId.value,
+      employeeNo: employeeNo === '' ? null : employeeNo,
+      isPrimary: raw.isPrimary === true,
+    });
+  }
+  const primaries = out.filter((a) => a.isPrimary).length;
+  if (primaries > 1) return fail('主所属は1つだけ選んでください');
+  if (primaries === 0 && out.length > 0) out[0].isPrimary = true;
+  return ok(out);
+}
+
+// 姓・名の中の空白は詰める（「山田 太郎」を姓の欄に入れると、表示で空白が二重になるため）
+const namePart = (v: unknown) => text(v).normalize('NFKC').replace(/\s+/g, '');
 
 export function parseStaffInput(body: unknown): Result<StaffInput> {
   const b = (body ?? {}) as Record<string, unknown>;
-  const name = text(b.name).replace(/\s+/g, ' ');
-  if (name === '') return fail('氏名を入力してください');
+  const familyName = namePart(b.familyName);
+  if (familyName === '') return fail('姓を入力してください');
 
-  const employeeNo = text(b.employeeNo).normalize('NFKC');
-  const kana = normalizeKana(b.nameKana);
-  if (!kana.ok) return kana;
+  const familyKana = normalizeKana(b.familyKana);
+  if (!familyKana.ok) return familyKana;
+  const givenKana = normalizeKana(b.givenKana);
+  if (!givenKana.ok) return givenKana;
   const phone = normalizePhone(b.mobilePhone, '携帯電話');
   if (!phone.ok) return phone;
   const retiredOn = normalizeDate(b.retiredOn, '退職日');
   if (!retiredOn.ok) return retiredOn;
-
-  let departmentId: number | null = null;
-  if (b.departmentId !== null && b.departmentId !== undefined && b.departmentId !== '') {
-    const n = Number(b.departmentId);
-    if (!Number.isInteger(n) || n <= 0) return fail('部署の指定が正しくありません');
-    departmentId = n;
-  }
+  const affiliations = parseAffiliations(b.affiliations);
+  if (!affiliations.ok) return affiliations;
 
   return ok({
-    employeeNo: employeeNo === '' ? null : employeeNo,
-    name,
-    nameKana: kana.value,
-    departmentId,
+    familyName,
+    givenName: namePart(b.givenName),
+    familyKana: familyKana.value.replace(/ /g, ''),
+    givenKana: givenKana.value.replace(/ /g, ''),
     mobilePhone: phone.value,
     retiredOn: retiredOn.value,
+    affiliations: affiliations.value,
   });
 }
 
-export type DepartmentInput = { name: string; sortOrder: number; active: boolean };
+function parseSortOrder(v: unknown): Result<number> {
+  const n = v === undefined || v === '' ? 0 : Number(v);
+  return Number.isInteger(n) ? ok(n) : fail('表示順は整数で入力してください');
+}
+
+// companyId は作るときだけ使う（部署の会社は後から変えない ── 所属している人の会社と食い違うため）
+export type DepartmentInput = { companyId: number | null; name: string; sortOrder: number; active: boolean };
 
 export function parseDepartmentInput(body: unknown): Result<DepartmentInput> {
   const b = (body ?? {}) as Record<string, unknown>;
   const name = text(b.name);
   if (name === '') return fail('部署名を入力してください');
-  const sortOrder = b.sortOrder === undefined || b.sortOrder === '' ? 0 : Number(b.sortOrder);
-  if (!Number.isInteger(sortOrder)) return fail('表示順は整数で入力してください');
-  return ok({ name, sortOrder, active: b.active === undefined ? true : Boolean(b.active) });
+  const sortOrder = parseSortOrder(b.sortOrder);
+  if (!sortOrder.ok) return sortOrder;
+  const companyId = optionalId(b.companyId, '会社の指定が正しくありません');
+  if (!companyId.ok) return companyId;
+  return ok({
+    companyId: companyId.value,
+    name,
+    sortOrder: sortOrder.value,
+    active: b.active === undefined ? true : Boolean(b.active),
+  });
 }
 
-export type OfficeInput = {
+export type CompanyInput = {
   name: string;
+  shortName: string;
   postalCode: string;
   address: string;
   phone: string;
   fax: string;
+  sortOrder: number;
 };
 
-export function parseOfficeInput(body: unknown): Result<OfficeInput> {
+export function parseCompanyInput(body: unknown): Result<CompanyInput> {
   const b = (body ?? {}) as Record<string, unknown>;
+  const name = text(b.name);
+  if (name === '') return fail('会社名を入力してください');
+  const sortOrder = parseSortOrder(b.sortOrder);
+  if (!sortOrder.ok) return sortOrder;
   const phone = normalizePhone(b.phone, '代表電話');
   if (!phone.ok) return phone;
   const fax = normalizePhone(b.fax, 'FAX');
@@ -116,10 +175,12 @@ export function parseOfficeInput(body: unknown): Result<OfficeInput> {
   if (!/^(\d{3}-?\d{4})?$/.test(postal)) return fail('郵便番号は 123-4567 の形で入力してください');
   const postalCode = /^\d{7}$/.test(postal) ? `${postal.slice(0, 3)}-${postal.slice(3)}` : postal;
   return ok({
-    name: text(b.name),
+    name,
+    shortName: text(b.shortName),
     postalCode,
     address: text(b.address),
     phone: phone.value,
     fax: fax.value,
+    sortOrder: sortOrder.value,
   });
 }

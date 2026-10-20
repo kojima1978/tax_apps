@@ -1,12 +1,12 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import StaffPage from './pages/StaffPage';
 import DepartmentsPage from './pages/DepartmentsPage';
-import OfficePage from './pages/OfficePage';
+import CompaniesPage from './pages/CompaniesPage';
 
 const NAV = [
   { to: '/', label: '社員' },
   { to: '/departments', label: '部署' },
-  { to: '/office', label: '事務所' },
+  { to: '/companies', label: '会社' },
 ] as const;
 
 export default function App() {
@@ -38,7 +38,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<StaffPage />} />
           <Route path="/departments" element={<DepartmentsPage />} />
-          <Route path="/office" element={<OfficePage />} />
+          <Route path="/companies" element={<CompaniesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

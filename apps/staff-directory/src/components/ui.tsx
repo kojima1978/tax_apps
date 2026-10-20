@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode, type RefObject } from 'react';
 
 export const btn = {
   primary:
@@ -27,5 +27,43 @@ export function ErrorBanner({ message }: { message: string | null }) {
     <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
       {message}
     </p>
+  );
+}
+
+// <dialog> の showModal() がフォーカスの閉じ込めと Escape を受け持つ。
+// 閉じるのは ref.close() → onClose の一方向（キャンセルも Escape も同じ経路を通る）
+export function Modal({
+  title,
+  aside,
+  onClose,
+  dialogRef,
+  wide,
+  children,
+}: {
+  title: string;
+  aside?: ReactNode;
+  onClose: () => void;
+  dialogRef: RefObject<HTMLDialogElement | null>;
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    dialogRef.current?.showModal();
+  }, [dialogRef]);
+  return (
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      className={`m-auto w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-lg p-0 shadow-xl`}
+      aria-label={title}
+    >
+      <div className="space-y-4 p-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-bold text-slate-800">{title}</h2>
+          {aside && <span className="text-sm text-slate-500">{aside}</span>}
+        </div>
+        {children}
+      </div>
+    </dialog>
   );
 }

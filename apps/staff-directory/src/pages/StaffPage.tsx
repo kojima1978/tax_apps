@@ -4,7 +4,7 @@ import { useLoad } from '../hooks/useLoad';
 import { normalizeQuery } from '../lib';
 import { ErrorBanner, btn, inputClass } from '../components/ui';
 import StaffDialog from '../components/StaffDialog';
-import type { Staff, StaffStatus } from '../types';
+import type { Affiliation, Staff, StaffStatus } from '../types';
 
 const STATUS_TABS: { value: StaffStatus; label: string }[] = [
   { value: 'active', label: '在籍' },
@@ -12,13 +12,24 @@ const STATUS_TABS: { value: StaffStatus; label: string }[] = [
   { value: 'all', label: 'すべて' },
 ];
 
-// 部署の絞り込み: '' = すべて、'none' = 未所属、それ以外は部署 id
+// 部署の絞り込み: '' = すべて、'none' = 未所属（会社を選んでいればその会社の中で）、それ以外は部署 id
 const NO_DEPARTMENT = 'none';
 
-const COLUMNS = ['台帳ID', '社員番号', '氏名', 'フリガナ', '部署', '携帯電話', '退職日'] as const;
+const COLUMNS = ['台帳ID', '社員番号', '氏名', '略称', 'フリガナ', '所属', '携帯電話', '退職日'] as const;
+
+// 会社・部署の絞り込みは主所属に限らず、どれか1つの所属が当たれば出す（兼務先からも探せるように）
+function matchesAffiliation(s: Staff, company: string, department: string): boolean {
+  const inCompany = (a: Affiliation) => company === '' || String(a.companyId) === company;
+  if (department === '') return company === '' || s.affiliations.some(inCompany);
+  if (department === NO_DEPARTMENT) {
+    return company === '' ? s.affiliations.every((a) => a.departmentId === null) : s.affiliations.some((a) => inCompany(a) && a.departmentId === null);
+  }
+  return s.affiliations.some((a) => String(a.departmentId) === department);
+}
 
 export default function StaffPage() {
   const [status, setStatus] = useState<StaffStatus>('active');
+  const [company, setCompany] = useState('');
   const [department, setDepartment] = useState('');
   const [query, setQuery] = useState('');
   // undefined = 閉じている、null = 新規、Staff = 編集
@@ -27,23 +38,31 @@ export default function StaffPage() {
   const loadStaff = useCallback(() => api.listStaff(status), [status]);
   const staff = useLoad(loadStaff);
   const departments = useLoad(api.listDepartments);
+  const companies = useLoad(api.listCompanies);
+
+  // 会社が1つだけなら会社名は出さない（全員同じで情報にならない）
+  const multiCompany = (companies.data?.length ?? 0) > 1;
+
+  const departmentOptions = useMemo(
+    () => (departments.data ?? []).filter((d) => company === '' || String(d.companyId) === company),
+    [departments.data, company],
+  );
 
   const rows = useMemo(() => {
     const q = normalizeQuery(query);
     return (staff.data ?? []).filter((s) => {
-      const inDepartment =
-        department === ''
-          ? true
-          : department === NO_DEPARTMENT
-            ? s.departmentId === null
-            : String(s.departmentId) === department;
-      if (!inDepartment) return false;
+      if (!matchesAffiliation(s, company, department)) return false;
       if (!q) return true;
-      return [s.name, s.nameKana, s.employeeNo ?? '', s.mobilePhone].some((v) => normalizeQuery(v).includes(q));
+      return [s.fullName, s.nameKana, s.mobilePhone, ...s.affiliations.map((a) => a.employeeNo ?? '')].some((v) =>
+        normalizeQuery(v).includes(q),
+      );
     });
-  }, [staff.data, department, query]);
+  }, [staff.data, company, department, query]);
 
-  const missingKana = rows.filter((s) => s.nameKana === '').length;
+  const missingKana = rows.filter((s) => s.familyKana === '').length;
+
+  const affiliationText = (a: Affiliation) =>
+    [multiCompany ? a.companyName : '', a.departmentName ?? ''].filter(Boolean).join(' ');
 
   return (
     <div className="space-y-4">
@@ -63,6 +82,24 @@ export default function StaffPage() {
             </button>
           ))}
         </div>
+        {multiCompany && (
+          <select
+            value={company}
+            onChange={(e) => {
+              setCompany(e.target.value);
+              setDepartment('');
+            }}
+            className={`${inputClass} w-auto`}
+            aria-label="会社で絞り込み"
+          >
+            <option value="">すべての会社</option>
+            {companies.data?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
         <select
           value={department}
           onChange={(e) => setDepartment(e.target.value)}
@@ -70,8 +107,9 @@ export default function StaffPage() {
           aria-label="部署で絞り込み"
         >
           <option value="">すべての部署</option>
-          {departments.data?.map((d) => (
+          {departmentOptions.map((d) => (
             <option key={d.id} value={d.id}>
+              {multiCompany && company === '' ? `${d.companyName} ` : ''}
               {d.name}
               {d.active ? '' : '（使用停止）'}
             </option>
@@ -90,7 +128,7 @@ export default function StaffPage() {
         </button>
       </div>
 
-      <ErrorBanner message={staff.error ?? departments.error} />
+      <ErrorBanner message={staff.error ?? departments.error ?? companies.error} />
 
       <p className="text-sm text-slate-500">
         {rows.length}名
@@ -109,25 +147,39 @@ export default function StaffPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((s) => (
-              <tr
-                key={s.id}
-                onClick={() => setEditing(s)}
-                className={`cursor-pointer hover:bg-teal-50/50 ${s.retiredOn ? 'text-slate-400' : ''}`}
-              >
-                <td className="px-4 py-2 tabular-nums text-slate-500">{s.id}</td>
-                <td className="px-4 py-2 tabular-nums">{s.employeeNo ?? ''}</td>
-                <td className="px-4 py-2 font-medium">
-                  <button type="button" className="text-left hover:underline" onClick={() => setEditing(s)}>
-                    {s.name}
-                  </button>
-                </td>
-                <td className="px-4 py-2">{s.nameKana}</td>
-                <td className="px-4 py-2">{s.departmentName ?? ''}</td>
-                <td className="px-4 py-2 tabular-nums">{s.mobilePhone}</td>
-                <td className="px-4 py-2 tabular-nums">{s.retiredOn ?? ''}</td>
-              </tr>
-            ))}
+            {rows.map((s) => {
+              const [primary, ...others] = s.affiliations;
+              return (
+                <tr
+                  key={s.id}
+                  onClick={() => setEditing(s)}
+                  className={`cursor-pointer hover:bg-teal-50/50 ${s.retiredOn ? 'text-slate-400' : ''}`}
+                >
+                  <td className="px-4 py-2 tabular-nums text-slate-500">{s.id}</td>
+                  <td className="px-4 py-2 tabular-nums">{s.employeeNo ?? ''}</td>
+                  <td className="whitespace-nowrap px-4 py-2 font-medium">
+                    <button type="button" className="text-left hover:underline" onClick={() => setEditing(s)}>
+                      {s.fullName}
+                    </button>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2">{s.shortName}</td>
+                  <td className="whitespace-nowrap px-4 py-2">{s.nameKana}</td>
+                  <td className="px-4 py-2">
+                    {primary && affiliationText(primary)}
+                    {others.length > 0 && (
+                      <span
+                        className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600"
+                        title={others.map(affiliationText).join('\n')}
+                      >
+                        ほか{others.length}社
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 tabular-nums">{s.mobilePhone}</td>
+                  <td className="px-4 py-2 tabular-nums">{s.retiredOn ?? ''}</td>
+                </tr>
+              );
+            })}
             {staff.data && rows.length === 0 && (
               <tr>
                 <td colSpan={COLUMNS.length} className="px-4 py-8 text-center text-slate-500">
@@ -139,15 +191,17 @@ export default function StaffPage() {
         </table>
       </div>
 
-      {editing !== undefined && (
+      {editing !== undefined && companies.data && (
         <StaffDialog
           staff={editing}
+          companies={companies.data}
           departments={departments.data ?? []}
           onClose={() => setEditing(undefined)}
           onSaved={() => {
             setEditing(undefined);
             void staff.reload();
             void departments.reload();
+            void companies.reload();
           }}
         />
       )}

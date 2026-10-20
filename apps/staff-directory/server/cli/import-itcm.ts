@@ -9,6 +9,7 @@
 import { closeDb, getDb } from '../db.js';
 import {
   applyItcmImport,
+  NoCompanyError,
   planItcmImport,
   type ItcmAssignee,
   type ItcmDepartment,
@@ -40,7 +41,16 @@ async function main(): Promise<void> {
   }
 
   const db = getDb();
-  const plan = planItcmImport(db, departments, assignees);
+  let plan;
+  try {
+    plan = planItcmImport(db, departments, assignees);
+  } catch (err) {
+    if (!(err instanceof NoCompanyError)) throw err;
+    console.error(err.message);
+    process.exitCode = 1;
+    closeDb();
+    return;
+  }
 
   const deptCreate = plan.departments.filter((p) => p.action === 'create');
   const deptLink = plan.departments.filter((p) => p.action === 'link');
@@ -48,7 +58,7 @@ async function main(): Promise<void> {
   const staffCreate = plan.staff.filter((p) => p.action === 'create');
   const staffSkip = plan.staff.filter((p) => p.action === 'skip');
 
-  console.log(`案件管理: 部署 ${departments.length}件 / 担当者 ${assignees.length}名`);
+  console.log(`案件管理: 部署 ${departments.length}件 / 担当者 ${assignees.length}名 → 台帳の「${plan.company.name}」へ`);
   console.log('');
   console.log(`部署   新規 ${deptCreate.length} / 同名の部署へ結び付け ${deptLink.length} / 取込済み ${deptSkip.length}`);
   for (const p of deptCreate) console.log(`  + ${p.source.name}${p.source.active ? '' : '（使用停止）'}`);

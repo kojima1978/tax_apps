@@ -1,18 +1,20 @@
 import { Router, type Response } from 'express';
 import type Database from 'better-sqlite3';
-import { parseDepartmentInput, parseOfficeInput, parseStaffInput, type Result } from './normalize.js';
+import { parseCompanyInput, parseDepartmentInput, parseStaffInput, type Result } from './normalize.js';
 import {
   ConflictError,
+  createCompany,
   createDepartment,
   createStaff,
+  deleteCompany,
   deleteDepartment,
-  getOffice,
   getStaff,
+  listCompanies,
   listDepartments,
   listLinks,
   listStaff,
+  updateCompany,
   updateDepartment,
-  updateOffice,
   updateStaff,
   type StaffStatus,
 } from './repo.js';
@@ -90,7 +92,13 @@ export function createApiRouter(db: Database.Database): Router {
   });
 
   r.post('/departments', (req, res) => {
-    respond(res, parseDepartmentInput(req.body), (input) => ({ id: createDepartment(db, input) }), 201);
+    const parsed = parseDepartmentInput(req.body);
+    respond(
+      res,
+      parsed.ok && parsed.value.companyId === null ? { ok: false, error: '会社を選んでください' } : parsed,
+      (input) => ({ id: createDepartment(db, { ...input, companyId: input.companyId! }) }),
+      201,
+    );
   });
 
   r.put('/departments/:id', (req, res) => {
@@ -107,12 +115,22 @@ export function createApiRouter(db: Database.Database): Router {
     );
   });
 
-  r.get('/office', (_req, res) => {
-    res.json(getOffice(db));
+  r.get('/companies', (_req, res) => {
+    res.json(listCompanies(db));
   });
 
-  r.put('/office', (req, res) => {
-    respond(res, parseOfficeInput(req.body), (input) => updateOffice(db, input));
+  r.post('/companies', (req, res) => {
+    respond(res, parseCompanyInput(req.body), (input) => ({ id: createCompany(db, input) }), 201);
+  });
+
+  r.put('/companies/:id', (req, res) => {
+    const id = parseId(req.params.id);
+    respond(res, parseCompanyInput(req.body), (input) => (id !== null && updateCompany(db, id, input) ? { id } : null));
+  });
+
+  r.delete('/companies/:id', (req, res) => {
+    const id = parseId(req.params.id);
+    respond(res, { ok: true, value: id }, (value) => (value !== null && deleteCompany(db, value) ? { id: value } : null));
   });
 
   r.get('/links', (req, res) => {

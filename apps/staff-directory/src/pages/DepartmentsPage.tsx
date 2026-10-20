@@ -9,12 +9,20 @@ type Draft = Pick<Department, 'name' | 'sortOrder' | 'active'>;
 const EMPTY: Draft = { name: '', sortOrder: 0, active: true };
 
 // 部署の一覧を表のまま直す。行ごとに「保存」。
+// 部署は会社にぶら下がる（A社の会計部とB社の会計部は別物）。会社は作るときに決め、後から変えない
+// （所属している人の会社と食い違うため。移すなら新しい会社に部署を作って人を付け替える）。
 // 所属のある部署は消せない（退職者の記録も含む）ので、使わなくなったら使用停止にする。
 export default function DepartmentsPage() {
   const departments = useLoad(api.listDepartments);
+  const companies = useLoad(api.listCompanies);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [adding, setAdding] = useState<Draft>(EMPTY);
+  // '' = 先頭の会社
+  const [addingCompany, setAddingCompany] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const multiCompany = (companies.data?.length ?? 0) > 1;
+  const addTo = addingCompany || String(companies.data?.[0]?.id ?? '');
 
   const draftOf = (d: Department): Draft => drafts[d.id] ?? d;
   const edit = (id: number, base: Draft, patch: Partial<Draft>) =>
@@ -39,11 +47,12 @@ export default function DepartmentsPage() {
 
   return (
     <div className="max-w-3xl space-y-4">
-      <ErrorBanner message={error ?? departments.error} />
+      <ErrorBanner message={error ?? departments.error ?? companies.error} />
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
             <tr>
+              {multiCompany && <th className="px-4 py-2 font-medium">会社</th>}
               <th className="px-4 py-2 font-medium">部署名</th>
               <th className="w-24 px-4 py-2 font-medium">表示順</th>
               <th className="w-28 px-4 py-2 font-medium">使用</th>
@@ -56,6 +65,7 @@ export default function DepartmentsPage() {
               const draft = draftOf(d);
               return (
                 <tr key={d.id} className={draft.active ? '' : 'text-slate-400'}>
+                  {multiCompany && <td className="whitespace-nowrap px-4 py-2">{d.companyName}</td>}
                   <td className="px-4 py-2">
                     <input
                       className={inputClass}
@@ -89,7 +99,9 @@ export default function DepartmentsPage() {
                       type="button"
                       className={btn.secondary}
                       disabled={!(d.id in drafts)}
-                      onClick={() => run(() => api.updateDepartment(d.id, draft), () => discardDraft(d.id))}
+                      onClick={() =>
+                        run(() => api.updateDepartment(d.id, { ...draft, companyId: d.companyId }), () => discardDraft(d.id))
+                      }
                     >
                       保存
                     </button>
@@ -114,9 +126,23 @@ export default function DepartmentsPage() {
         className="flex items-end gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          void run(() => api.createDepartment(adding), () => setAdding(EMPTY));
+          void run(() => api.createDepartment({ ...adding, companyId: Number(addTo) }), () => setAdding(EMPTY));
         }}
       >
+        {multiCompany && (
+          <select
+            className={`${inputClass} w-auto`}
+            aria-label="部署を作る会社"
+            value={addTo}
+            onChange={(e) => setAddingCompany(e.target.value)}
+          >
+            {companies.data?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           className={`${inputClass} max-w-xs`}
           placeholder="新しい部署名"
