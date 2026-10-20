@@ -94,7 +94,8 @@ tax_apps/
 │   │   └── rate_limit_*.conf          # レートリミット設定
 │   └── html/                          # エラーページ
 ├── .gitignore
-├── CLAUDE.md
+├── AGENTS.md                          # AI エージェント向けの入口（中身は README の「AI で操作する」へ案内するだけ）
+├── CLAUDE.md                          # Claude Code 向けの詳しい制約・設計の記録
 └── README.md
 ```
 
@@ -246,6 +247,121 @@ cd tax_apps
 
 > ローカル環境を汚さないため、`npm install` や `npm run dev` はホスト側では実行しません。必要な作業は Docker コンテナ内または Docker Compose 経由で行います。
 
+## AI で操作する（立ち上げ・本番・開発・トラブルシューティング）
+
+Claude Code や Codex などの AI エージェントに、この PC の立ち上げ・モード切替・障害対応を任せるための節です。
+AI は**この節を最初に読み、ここに書いた手順だけで作業する**こと（`AGENTS.md` からもここへ案内しています）。
+別の PC を新しく作る・最新へ更新するときは、この節ではなく [docker/OTHER-PC-SETUP.md](docker/OTHER-PC-SETUP.md) を渡してください。
+
+### 頼み方の例
+
+| 頼みたいこと | AI への指示の例 | 使う手順 |
+|:-----|:-----|:-----|
+| 開発環境を立ち上げる | 「tax_apps を開発モードで立ち上げて」 | [立ち上げ](#立ち上げ) |
+| 本番環境を立ち上げる | 「tax_apps を本番モードで立ち上げて」 | [立ち上げ](#立ち上げ) |
+| 1アプリだけ切り替える | 「株式評価明細書だけ本番にして」「保険管理を開発に戻して」 | [1アプリだけモードを切り替える](#1アプリだけモードを切り替える) |
+| コードの変更を反映する | 「git pull したので反映して」「compose を直したので反映して」 | [変更を反映する](#変更を反映する) |
+| 調子が悪い | 「〇〇の画面が開かない。原因を調べて直して」「デスクトップに TAX-APPS-ALERT.txt が出ている」 | [トラブルシューティング](#トラブルシューティングai-向け) |
+
+### AI が守ること
+
+- コマンドは **Git Bash** で、**リポジトリのルート**（`docker/scripts/manage.sh` がある階層）から叩く
+- **起動・停止・反映は必ず `manage.sh` から**。`docker compose up` を直接叩かない。特に `-f docker-compose.prod.yml` を
+  個別に並べるのは不可（本番の DB パスワードが回らず restart ループになる）
+- ホストで `npm install` / `npm ci` / `npm run build` / `npm run dev` を叩かない（ビルドもテストも Docker の中）
+- 次のものは**実行前に必ず人に確認する**（どれもデータを書き換える）:
+  `restore` / `newpc` / `collation` / `clean` / `down` / `stop`（ほかの人が使っている最中のことがある）
+- 次のものは**頼まれても実行しない**: Docker ボリュームの削除（`docker volume rm` / `down -v`）、DB の初期化・`DROP`、
+  確かめないままの `REINDEX`、暗号鍵 `~/.tax-apps/backup.key` の作り直し・移動、`.env` のパスワードの手書き換え、
+  `docker/backups/pre-restore_*` の手動削除
+- git は指定したファイルだけを扱う（`git add -A` / `git reset --hard` / `git stash` / `git clean` を使わない）。
+  関係の無い未コミット変更が常にある前提で動く。`git push` は頼まれたときだけ
+- 終わったら、**叩いたコマンド・`status` の結果・直らなかったもの**を報告する。直せなかったものを「直した」と書かない
+
+### 立ち上げ
+
+```bash
+./docker/scripts/manage.sh preflight       # 1. 起動前チェック。FAIL があればそこで止めて報告する
+./docker/scripts/manage.sh start           # 2a. 開発モード
+./docker/scripts/manage.sh start --prod    # 2b. 本番モード（初回はビルドで数分〜十数分かかる）
+./docker/scripts/manage.sh status          # 3. 全アプリが running / healthy か確認
+./docker/scripts/manage.sh test            # 4. （任意）テスト。止まっているアプリは「飛ばした」になる
+```
+
+- アプリごとに記録されたモード（混在稼働）のまま全部上げ直すなら `start --recorded`
+- 立ち上がったら http://localhost/ でポータルが開くことを確かめる。`status` で healthy にならないアプリが
+  あれば [トラブルシューティング](#トラブルシューティングai-向け) へ
+- 常用する PC で自動起動・自動復旧がまだ入っていなければ（`status` / `preflight` に「未登録」と出る）、
+  `docker\scripts\register-startup-task.bat` と `register-docker-watchdog-task.bat` を実行する（昇格不要）
+
+### 1アプリだけモードを切り替える
+
+```bash
+./docker/scripts/manage.sh start --prod <app>   # 本番へ
+./docker/scripts/manage.sh start <app>          # 開発へ戻す
+```
+
+`build` と `apply` は**今のモードを踏襲する**ので、モードを変える口は `start` だけ。
+アプリ名は `apps/` の下のフォルダ名（ゲートウェイは `gateway`）。
+
+### 変更を反映する
+
+取得元は `https://github.com/kojima1978/tax_apps.git` の `master`（公開・認証不要。作業ブランチは使わない）。
+まず `origin` がそこを指しているか確かめてから取り込む:
+
+```bash
+git remote get-url origin                  # https://github.com/kojima1978/tax_apps.git であること（SSH 形式 git@github.com:kojima1978/tax_apps.git も同じもの）
+OLD=$(git rev-parse HEAD)                  # 取り込む前の位置を控える
+git pull --ff-only https://github.com/kojima1978/tax_apps.git master
+git diff --stat "$OLD" HEAD                # 何が変わったか → 下の表から反映方法を選ぶ
+```
+
+- `origin` が違う URL なら、そのフォルダでは作業せずに止まって報告する
+- `--ff-only` で拒否されたら（この PC にコミットや未コミットの変更が重なっている）、**自分で解消せず**報告する。
+  `git stash` / `git reset --hard` で片付けない
+
+| 何が変わったか | 叩くもの |
+|:-----|:-----|
+| ソース（`.ts` / `.tsx` 等）で、開発モード | 多くのアプリは自動で反映（下の [ファイル監視](#windows-docker-でのファイル監視問題) を参照）。private-banking / inheritance-case-management は `manage.sh watch <app>`（フォアグラウンド）か `build <app>` |
+| ソースで、本番モード | `manage.sh build <app>` |
+| `package.json` / `Dockerfile` / `docker/Dockerfile.vite-static` / `vite.config.ts` などイメージ同梱のもの | `manage.sh build <app>` |
+| `docker-compose*.yml`（環境変数・メモリ上限など） | `manage.sh apply [app]`（`docker restart` では反映されない） |
+| `nginx/nginx.conf` / `default.conf` / `includes/` / `html/` | `docker exec tax-apps-gateway nginx -t && docker exec tax-apps-gateway nginx -s reload`（マウントしているので再ビルド不要） |
+| `apps/portal/` | `manage.sh build gateway`（ポータルはゲートウェイのイメージに入っている） |
+
+別の PC を更新するときは [docker/OTHER-PC-SETUP.md](docker/OTHER-PC-SETUP.md) の手順A（取り込む前の記録とバックアップを含む）を使う。
+
+### トラブルシューティング（AI 向け）
+
+**まず見るだけで調べる**（どれも何も変えない）:
+
+```bash
+./docker/scripts/manage.sh status          # 落ちているアプリ・モード・無人処理の直近結果
+./docker/scripts/manage.sh preflight       # 設定の食い違いを直し方つきで出す
+./docker/scripts/manage.sh logs <app>      # そのアプリのログ
+```
+
+あわせて `docker/logs/last-run/`（無人処理の結果）とデスクトップの `TAX-APPS-ALERT.txt`（異常がある間だけ置かれる）を読む。
+`preflight` と `status` は多くの場合**直し方のコマンドまで出す**ので、まずそれに従う。
+
+**症状ごとの直し方**:
+
+| 症状 | 見分け方 | 直し方 |
+|:-----|:-----|:-----|
+| 画面が 502 | `status` でそのアプリが止まっている | `manage.sh recover`（落ちているものだけ起動し直す）→ だめなら `logs <app>` を読んで原因を報告 |
+| 全アプリが落ちている | `status` で軒並み停止 | 停止マーカー `docker/logs/tax-apps-stopped-intentionally` がある（＝誰かが `stop` した。`status` にも出て、`recover` は `RECOVER_RESULT status=stopped-intentionally` で何もしない）なら `start` で上げる前に人に確認。無ければ `recover` |
+| イメージが無い | `recover` の結果や `preflight` に `noimage` / 「build が要る」 | `manage.sh build <app>` |
+| 作成のまま起動しない | `preflight` のチェック20が「作成のまま」 | `cd apps/<app> && docker compose up -d --force-recreate <service>` |
+| restart を繰り返す | `logs <app>` に既定パスワードを拒否する旨 | 個別に `-f docker-compose.prod.yml` で上げられている。`manage.sh start --prod <app>` で上げ直す |
+| `✓ Ready` なのに一部が 404 | Next.js 系で `Watchpack Error (initial scan)` | `manage.sh restart <app>`（private-banking / itcm は自動で落ちて立ち直る） |
+| 画面がリロードを繰り返す | `manage.sh loop-check` が検知 | 証拠は `docker/logs/reload-loop/` に残る。**コンテナを作り直す前に**そのフォルダを確かめて報告する |
+| DB に繋がらない | `logs <app>` に接続エラー、health が 503 | DB コンテナの状態を `status` で確認。`.env` は書き換えない |
+| バックアップ・訓練の失敗 | `status` の last-run が ok 以外 | `logs` と `docker/logs/last-run/<名前>` の detail を報告。鍵の作り直しはしない |
+
+ここに無い症状は [docker/README.md のトラブルシューティング](docker/README.md#トラブルシューティング) と
+[この README のトラブルシューティング](#トラブルシューティング) を見る。それでも分からなければ、調べた結果を報告して止まる
+（推測で設定を書き換えない）。データを戻す必要があるときの手順は [docker/RESTORE.md](docker/RESTORE.md)（実行は人の確認の後）。
+
 ## 環境変数
 
 ### PostgreSQL（4アプリ）
@@ -301,13 +417,16 @@ docker restart tax-apps-gateway
 
 ### Windows Docker でのファイル監視問題
 
-Windows の bind mount ではコンテナ内にファイル変更の通知が届きません。アプリによって扱いが違います:
+Windows の bind mount ではコンテナ内にファイル変更の通知が届かないため、開発モードの各アプリはポーリングで監視しています。アプリによって扱いが違います:
 
 | アプリ | 編集の取り込み方 |
 |--------|-----------------|
-| bank-analyzer / stock-valuation-form / inheritance-tax-form | ポーリング設定済み。自動で反映 |
+| Vite 系7アプリ（`docker/Dockerfile.vite-static` を使うもの: gift-tax-simulator / retirement-tax-calc / tax-docs / capital-gains-calc / depreciation-calc / asset-valuation / inheritance-tax-form） | ポーリング設定済み。自動で反映 |
+| bank-analyzer / stock-valuation-form / inheritance-tax-app / inheritance-tax-docs | ポーリング設定済み。自動で反映 |
 | private-banking / inheritance-case-management | bind mount せず `manage.sh watch <app>` で同期（止めている間の変更は `build`） |
-| 上記以外の Vite 系アプリ | `manage.sh restart <app>` で取り込む |
+| insurance-app（開発モードのとき） | `manage.sh restart <app>` で取り込む |
+
+> 本番モードで動いているアプリはソースをマウントしないので、どれも `manage.sh build <app>` で取り込みます。
 
 ### npm ci の lockfile エラー
 
@@ -320,7 +439,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd)/apps/<アプリ名>:/work" -w /wor
 
 ### Next.js Turbopack のクラッシュ
 
-Next.js 16 の Turbopack がコンパイル時にクラッシュする場合（portal, inheritance-case-management）:
+Next.js 16 の Turbopack が開発モードのコンパイル時にクラッシュする場合（private-banking, inheritance-case-management。portal は静的出力なので該当しない）:
 1. Dockerfile で **Node.js 22** を使用していることを確認
 2. `.next` ディレクトリをボリュームとして分離:
    ```yaml
@@ -334,7 +453,7 @@ LAN IPアドレス経由（例: `http://192.168.x.x/`）でアクセスする場
 
 | 問題 | 対応済み | 対象 |
 |------|---------|------|
-| `crypto.randomUUID()` が使えない | `crypto.getRandomValues()` ベースのフォールバック実装 | inheritance-tax-app, inheritance-tax-docs |
+| `crypto.randomUUID()` が使えない | `crypto.getRandomValues()` ベースのフォールバック実装 | inheritance-tax-app, inheritance-tax-docs, tax-docs |
 
 > `localhost` からのアクセスではこれらの問題は発生しません。
 

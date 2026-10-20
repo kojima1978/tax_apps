@@ -415,16 +415,21 @@ USER node
 
 ### Step 1. 最新コードを取得
 
+取得元は `https://github.com/kojima1978/tax_apps.git` の `master` です（公開・認証不要）。
+
 ```bash
 cd tax_apps
-git pull
+git remote get-url origin        # https://github.com/kojima1978/tax_apps.git であること
+git pull --ff-only https://github.com/kojima1978/tax_apps.git master
 ```
+
+`--ff-only` で拒否されたら、この PC 側にコミットや未コミットの変更が重なっています。`git stash` や `git reset --hard` で片付けず、中身を確かめてから進めてください（別の PC の手順は [OTHER-PC-SETUP.md](OTHER-PC-SETUP.md)）。
 
 ### Step 2. 変更内容に応じて再起動
 
 #### ソースコードのみの変更（`.ts`, `.tsx` 等）
 
-開発モードではソースコードがホストからコンテナにマウントされているため、ポーリングを設定してあるアプリ（bank-analyzer / stock-valuation-form / inheritance-tax-form）は**自動で反映されます**。それ以外の Vite 系アプリは Windows の bind mount では変更を検知しないので、再起動で取り込みます:
+開発モードではソースコードがホストからコンテナにマウントされていて、Vite 系7アプリ（`Dockerfile.vite-static`）・bank-analyzer・stock-valuation-form・inheritance-tax-app・inheritance-tax-docs はポーリングで**自動で反映されます**。private-banking / inheritance-case-management は `./manage.sh watch <app-name>` の間だけ同期され、insurance-app（開発モードのとき）は再起動で取り込みます:
 
 ```bash
 ./manage.sh restart <app-name>
