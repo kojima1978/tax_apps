@@ -85,6 +85,7 @@ git ls-files apps/bank-analyzer-django | head -1
 docker inspect bank-analyzer --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' 2>/dev/null
 ls -d apps/bank-analyzer-django 2>/dev/null
 docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -E 'medical|income-tax'
+docker ps -a --format '{{.Names}}' | grep -x staff-directory
 ```
 
 - **1行目が何か出る、または2行目に `bank-analyzer-django` を含む** → 銀行分析がまだ Django 版で動いている
@@ -95,6 +96,7 @@ docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -E 'medical|income-tax'
   （Git 管理外の `.env` と `data/` の削除）が残っているだけ。**消さずに報告だけ**して先へ進んでよい。
 - 4行目が出る → 削除済みのアプリ（medical-stock-valuation / income-tax-calc）のコンテナが残っている。
   `manage.sh` の管理外なので**触らずに報告だけ**する（データのボリュームも消さない）。
+- 5行目が出ない → 社員台帳（2026-10-21 追加）がまだ無い。A3 の表の1行目に当たるので控えておく。
 
 - 出力は**全部控えておく**（完了報告に使う）。
 - `git status` に出たファイルは記録だけして触らない。例外は A2 の bank-analyzer の compose だけ。
@@ -153,6 +155,7 @@ git diff --name-only "$OLD" HEAD | grep -vE '\.md$'
 
 | 変わった場所 | やること |
 |--------------|----------|
+| `apps/staff-directory/` があり、A1 の時点で `staff-directory` のコンテナが無かった | `staff-directory` / `inheritance-case-management` / `private-banking` / `gateway` はこの表で作り直さず、A4 のバックアップの後に [apps/staff-directory/README.md の「別の PC・本番サーバーへの導入」](../apps/staff-directory/README.md#別の-pc本番サーバーへの導入ai-に渡す手順) の順番で上げる（ほかのアプリはこの表どおり） |
 | `apps/portal/` | `manage.sh build gateway`（ポータルはゲートウェイの compose の `portal-app`。`build portal` は通らない） |
 | `nginx/`（リポジトリ直下） | `manage.sh build gateway`（ゲートウェイのイメージの元。設定もイメージに入っている） |
 | `apps/<アプリ>/`（`docker-compose.yml` だけ） | `manage.sh apply <アプリ>` |
