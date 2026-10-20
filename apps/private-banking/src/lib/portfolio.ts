@@ -1,6 +1,6 @@
 import { Prisma, type FamilyMember, type Position as PositionRecord, type PositionAllocation as PositionAllocationRecord } from "@prisma/client";
 import { familyComposition, type AcquisitionReason, type Relationship } from "@/lib/family";
-import { parseFxRates } from "@/lib/fx-rates";
+import { parseFxRates, positionCurrencies } from "@/lib/fx-rates";
 import { parseInheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 import type { AssetDetails, Position, ValuationFormula } from "@/lib/portfolio-view";
 import { prisma } from "@/lib/prisma";
@@ -72,7 +72,9 @@ export async function getPortfolio(householdId?: number) {
     })))
     : { hasSpouse: household.hasSpouse, heirRank: household.heirRank as "none" | "rank1" | "rank2" | "rank3", heirCount: household.heirCount };
 
+  const extraCurrencies = await prisma.appCurrency.findMany({ orderBy: { code: "asc" }, select: { code: true } });
   return {
+    currencies: [...positionCurrencies, ...extraCurrencies.map((item) => item.code)],
     household: {
       id: household.id,
       clientCode: household.clientCode,

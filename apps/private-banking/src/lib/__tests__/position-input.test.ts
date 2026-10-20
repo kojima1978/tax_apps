@@ -99,6 +99,10 @@ const buildingInput = {
 };
 
 describe("calculatedOriginalAmount", () => {
+  it("不動産は保存時も円未満切り捨てにする", () => {
+    expect(calculatedOriginalAmount(parse({ ...landRoadsideInput, landArea: 100.5, roadsideValue: 1001, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 3 }))).toBe(33533);
+    expect(calculatedOriginalAmount(parse({ ...buildingInput, fixedAssetTaxValue: 100600.5, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 3 }))).toBe(33533);
+  });
   it("株式は 単価×株数×調整率（持分は掛けない）", () => {
     expect(calculatedOriginalAmount(parse(stockInput))).toBe(2450000);
   });

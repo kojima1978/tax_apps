@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BulkPositionModal } from "@/components/bulk-position-modal";
+import { positionInputSchema } from "@/lib/position-input";
 import { type BulkPositionPayload, type Position, type Snapshot } from "@/lib/portfolio-view";
 
 afterEach(cleanup);
@@ -25,9 +26,103 @@ const snapshotOf = (positions: Position[]): Snapshot => ({
 const people = ["本人", "配偶者", "長男", "兄"];
 const heirs: ReadonlySet<string> = new Set(["配偶者", "長男"]);
 
-function renderModal(positions: Position[] = [], peopleNames: string[] = people, legalHeirNames: ReadonlySet<string> = heirs) {
+describe("一括入力の複数受取人", () => {
+  it.each(["USD", "EUR"])("%s建て保険の元金額・通貨・レートを保持して保存する", async (currency) => {
+    const onSubmit = renderModal([], people, heirs, { USD: 150, EUR: 165 });
+    selectEntryType("INSURANCE");
+    typeIn(1, "保険会社", "外貨生命");
+    typeIn(1, "通貨", currency);
+    typeIn(1, `解約返戻金（${currency}）`, "10000.50");
+    typeIn(1, `死亡保険金（${currency}）`, "100000.25");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(savedPayloads(onSubmit)[0].data).toMatchObject({ currency, originalAmount: 10000.5, fxRate: currency === "USD" ? 150 : 165, assetDetails: { deathBenefit: 100000.25 } });
+  });
+  it("未登録のレートでは外貨保険を保存しない", () => {
+    const onSubmit = renderModal();
+    selectEntryType("INSURANCE");
+    typeIn(1, "保険会社", "外貨生命");
+    typeIn(1, "通貨", "USD");
+    typeIn(1, "解約返戻金（USD）", "100");
+    save();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText(/USDの円換算レートを為替レート設定に登録/)).toBeTruthy();
+  });
+  it("登録済み外貨保険を読み込み、円建てに置き換えない", async () => {
+    const onSubmit = renderModal([position({ category: "INSURANCE", currency: "USD", name: "外貨生命", institution: "外貨生命", originalAmount: 100, fxRate: 150, valueJpy: 15000, assetDetails: { deathBenefit: 1000 } })], people, heirs, { USD: 150 });
+    selectEntryType("INSURANCE");
+    expect(cell(1, "通貨").value).toBe("USD");
+    typeIn(1, "メモ", "変更");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(savedPayloads(onSubmit)[0].data).toMatchObject({ currency: "USD", originalAmount: 100, fxRate: 150 });
+  });
+  function prepare() {
+    const onSubmit = renderModal();
+    selectEntryType("INSURANCE");
+    typeIn(1, "保険会社", "テスト生命");
+    typeIn(1, "解約返戻金（円）", "0");
+    typeIn(1, "死亡保険金（円）", "101");
+    typeIn(1, "受取人", "配偶者");
+    fireEvent.click(screen.getByRole("button", { name: "1行目の受取人設定" }));
+    fireEvent.click(screen.getByRole("button", { name: "受取人を追加" }));
+    fireEvent.change(screen.getByLabelText("1行目 受取人2"), { target: { value: "長男" } });
+    return onSubmit;
+  }
+
+  it("行直下で均等配分し、端数を含む配分額と保存内容をそろえる", async () => {
+    const onSubmit = prepare();
+    expect(screen.getByLabelText("1行目 受取人1の配分額").textContent).toBe("51円");
+    expect(screen.getByLabelText("1行目 受取人2の配分額").textContent).toBe("50円");
+    fireEvent.click(screen.getByRole("button", { name: "変更をまとめて保存" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(positionInputSchema.safeParse(savedPayloads(onSubmit)[0].data).success).toBe(true);
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).toMatchObject({ beneficiary: "配偶者", benefitAllocations: [{ recipient: "配偶者", numerator: 1, denominator: 2 }, { recipient: "長男", numerator: 1, denominator: 2 }] });
+  });
+
+  it("閉じたり種類を切り替えたりしても下書きを保持する", () => {
+    prepare();
+    fireEvent.click(screen.getByRole("button", { name: "設定を閉じる" }));
+    expect(screen.getByText("配偶者ほか1名")).toBeTruthy();
+    selectEntryType("DEPOSIT");
+    selectEntryType("INSURANCE");
+    fireEvent.click(screen.getByRole("button", { name: "1行目の受取人設定" }));
+    expect((screen.getByLabelText("1行目 受取人2") as HTMLSelectElement).value).toBe("長男");
+  });
+
+  it.each(["合計", "重複", "分母", "未選択"])("%sが不正な配分では保存しない", (kind) => {
+    const onSubmit = prepare();
+    const [label, value] = kind === "合計" ? ["1行目 受取人1の分子", "2"] : kind === "重複" ? ["1行目 受取人2", "配偶者"] : kind === "分母" ? ["1行目 受取人2の分母", "0"] : ["1行目 受取人2", ""];
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    fireEvent.click(screen.getByRole("button", { name: "設定を閉じる" }));
+    fireEvent.click(screen.getByRole("button", { name: "変更をまとめて保存" }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText("配分を確認してください")).toBeTruthy();
+  });
+
+  it("削除して1人に戻したら取り分を1/1へ戻す", async () => {
+    const onSubmit = prepare();
+    fireEvent.click(screen.getByRole("button", { name: "1行目 受取人2を削除" }));
+    expect((screen.getByLabelText("1行目 受取人1の分子") as HTMLInputElement).readOnly).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "変更をまとめて保存" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).toMatchObject({ benefitAllocations: [{ recipient: "配偶者", numerator: 1, denominator: 1 }] });
+  });
+
+  it("登録済みの複数受取人は他の欄だけを変更しても配分を失わない", async () => {
+    const allocations = [{ recipient: "配偶者", numerator: 2, denominator: 3 }, { recipient: "長男", numerator: 1, denominator: 3 }];
+    const onSubmit = renderModal([position({ id: 9, category: "INSURANCE", name: "生命", institution: "生命", originalAmount: 1000, assetDetails: { deathBenefit: 10000, benefitAllocations: allocations } })]);
+    selectEntryType("INSURANCE");
+    typeIn(1, "メモ", "更新");
+    fireEvent.click(screen.getByRole("button", { name: "変更をまとめて保存" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).toMatchObject({ benefitAllocations: allocations });
+  });
+});
+
+function renderModal(positions: Position[] = [], peopleNames: string[] = people, legalHeirNames: ReadonlySet<string> = heirs, fxRates: Snapshot["fxRates"] = {}) {
   const onSubmit = vi.fn<(payloads: BulkPositionPayload[]) => Promise<boolean>>(async () => true);
-  render(<BulkPositionModal snapshot={snapshotOf(positions)} people={peopleNames} legalHeirNames={legalHeirNames} onClose={() => {}} onSubmit={onSubmit} saving={false} />);
+  render(<BulkPositionModal snapshot={{ ...snapshotOf(positions), fxRates }} people={peopleNames} legalHeirNames={legalHeirNames} onClose={() => {}} onSubmit={onSubmit} saving={false} />);
   return onSubmit;
 }
 
@@ -112,14 +207,17 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     expect(screen.getAllByText("登録済").length).toBe(1);
   });
 
-  it("受取人を複数に按分している保険は表に出さず、個別モーダルに任せる", () => {
+  it("複数受取人の保険を読み込み、要約から配分を展開できる", () => {
     renderModal([position({
       id: 6, category: "INSURANCE", name: "△△生命", institution: "△△生命", originalAmount: 1_000_000, valueJpy: 1_000_000,
       assetDetails: { deathBenefit: 10_000_000, benefitAllocations: [{ recipient: "長男", numerator: 1, denominator: 2 }, { recipient: "配偶者", numerator: 1, denominator: 2 }] },
     })]);
     selectEntryType("INSURANCE");
-    expect(screen.queryByText("登録済")).toBeNull();
-    expect(cell(1, "保険会社").value).toBe("");
+    expect(screen.getByText("登録済")).toBeTruthy();
+    expect(cell(1, "保険会社").value).toBe("△△生命");
+    expect(screen.getByText("長男ほか1名")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "1行目の受取人設定" }));
+    expect(screen.getByLabelText("1行目 受取人1の分母").getAttribute("value")).toBe("2");
   });
 
   it("受取人が1人なら按分の配列があっても表に出し、直したら配列も書き換える", async () => {

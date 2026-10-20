@@ -2,10 +2,12 @@
 
 import { AlertTriangle, ChevronRight, CircleCheck, LoaderCircle, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { DateInput } from "@/components/date-input";
+import { CommaNumberInput } from "@/components/form-fields";
 import { PRINT_SECTION_META } from "@/components/print-front-matter";
 import { compactYen } from "@/lib/format";
-import { foreignCurrencies } from "@/lib/fx-rates";
+import { currencyOptions, positionCurrencies } from "@/lib/fx-rates";
 import { type Portfolio, type PrintSection, type Section, type Snapshot, fiscalYearLabel, printSectionForSection, trendValues } from "@/lib/portfolio-view";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 import { useModalDialog } from "@/components/use-modal-dialog";
@@ -134,9 +136,33 @@ export function DeleteSnapshotModal({ snapshot, snapshotCount, onClose, onSubmit
   </div></div>;
 }
 
-export function SnapshotSettingsModal({ snapshot, onClose, onSubmit, saving }: { snapshot: Snapshot; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean }) {
-  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); }, initialFocus: 'input[name="asOfDate"]' });
-  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal snapshot-tax-modal" role="dialog" aria-modal="true" aria-labelledby="snapshot-settings-title" aria-busy={saving}><header><div><h2 id="snapshot-settings-title">{fiscalYearLabel(snapshot)}の年度設定</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header><form onSubmit={onSubmit}><p className="form-intro">B/S基準日と、この年度の税額を修正します。</p><div className="form-grid snapshot-settings-grid"><label className="snapshot-date-field">B/S基準日<input name="asOfDate" type="date" min={`${snapshot.fiscalYear}-01-01`} max={`${snapshot.fiscalYear}-12-31`} defaultValue={snapshot.asOfDate} aria-describedby="snapshot-as-of-date-help" required /><small id="snapshot-as-of-date-help" className="field-help">対象年度内の日付を指定してください。</small></label><label>相続税<input name="estimatedInheritanceTax" type="number" min="0" step="1" defaultValue={snapshot.estimatedInheritanceTax} required /></label><label>その他税金<input name="otherTaxes" type="number" min="0" step="1" defaultValue={snapshot.otherTaxes} required /></label></div><fieldset className="fx-rate-fieldset"><legend>円換算レート（1通貨あたりの円）</legend><p className="field-help">この年度の外貨建て明細は、ここで登録したレートで円換算します。使わない通貨は空欄のままで構いません。</p><div className="fx-rate-grid">{foreignCurrencies.map((code) => <label key={code}>{code}<input name={`fxRate.${code}`} type="number" min="0" step="0.000001" defaultValue={snapshot.fxRates[code] ?? ""} placeholder="例：150.25" /></label>)}</div></fieldset><footer><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button></footer></form></div></div>;
+export function SnapshotSettingsModal({ snapshot, onClose, onSubmit, saving, fxOnly = false, error = "", currencyCodes = positionCurrencies, customerName = "", onReloadCurrencies }: { snapshot: Snapshot; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean; fxOnly?: boolean; error?: string; currencyCodes?: string[]; customerName?: string; onReloadCurrencies?: () => void }) {
+  const visibleCurrencies = currencyOptions(currencyCodes).filter((code) => code !== "JPY");
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); }, initialFocus: fxOnly ? 'input[name="fxRate.USD"]' : 'input[name="asOfDate"]' });
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal snapshot-tax-modal" role="dialog" aria-modal="true" aria-labelledby="snapshot-settings-title" aria-busy={saving} aria-describedby={customerName ? "snapshot-settings-context" : undefined}>
+    <header><div><h2 id="snapshot-settings-title">{fiscalYearLabel(snapshot)}の{fxOnly ? "為替レート設定" : "年度設定"}</h2>{customerName ? <p className="snapshot-settings-context" id="snapshot-settings-context">対象顧客：{customerName} ／ 対象年度：{fiscalYearLabel(snapshot)}</p> : null}</div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <form onSubmit={onSubmit}>
+      <p className="form-intro">{fxOnly ? "対象年度の円換算レートを入力します。保存すると、同じ年度の外貨明細の評価額を再計算します。" : "B/S基準日・税額・円換算レートを修正します。"}</p>
+      {error ? <p role="alert" className="asset-detail-hint warning">{error}</p> : null}
+      {fxOnly ? <>
+        <input type="hidden" name="fxRatesOnly" value="true" />
+        <input type="hidden" name="asOfDate" value={snapshot.asOfDate} />
+        <input type="hidden" name="estimatedInheritanceTax" value={snapshot.estimatedInheritanceTax} />
+        <input type="hidden" name="otherTaxes" value={snapshot.otherTaxes} />
+      </> : <div className="form-grid snapshot-settings-grid">
+        <label className="snapshot-date-field">B/S基準日<input name="asOfDate" type="date" min={`${snapshot.fiscalYear}-01-01`} max={`${snapshot.fiscalYear}-12-31`} defaultValue={snapshot.asOfDate} aria-describedby="snapshot-as-of-date-help" required /><small id="snapshot-as-of-date-help" className="field-help">対象年度内の日付を指定してください。</small></label>
+        <label>相続税（円）<CommaNumberInput name="estimatedInheritanceTax" defaultValue={snapshot.estimatedInheritanceTax} maxFractionDigits={0} placeholder="0" /></label>
+        <label>その他税金（円）<CommaNumberInput name="otherTaxes" defaultValue={snapshot.otherTaxes} maxFractionDigits={0} placeholder="0" /></label>
+      </div>}
+      <fieldset className="fx-rate-fieldset"><legend>円換算レート（1通貨あたりの円）</legend>
+        <p className="field-help">例：1 USD = 150.25円なら、USDに「150.25」と入力します。使わない通貨は空欄のままで構いません。</p>
+        <div className="fx-rate-grid">{visibleCurrencies.map((code) => <label key={code}>{code}<input name={`fxRate.${code}`} type="number" min="0.000001" step="0.000001" defaultValue={snapshot.fxRates[code] ?? ""} placeholder="円／1通貨" /></label>)}</div>
+        {Object.entries(snapshot.fxRates).filter(([code]) => !visibleCurrencies.includes(code)).map(([code, rate]) => <input type="hidden" key={code} name={`fxRate.${code}`} value={rate} />)}
+      </fieldset>
+      <details className="currency-extra-settings"><summary>その他の通貨を使う場合</summary><p><Link href="/settings" target="_blank" rel="noopener noreferrer">アプリ共通設定で通貨を追加（別タブ）</Link></p>{onReloadCurrencies ? <button type="button" className="button secondary" onClick={onReloadCurrencies}>追加した通貨を反映</button> : null}</details>
+      <footer><button type="button" className="button secondary" onClick={onClose} disabled={saving}>{fxOnly ? "戻る" : "キャンセル"}</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button></footer>
+    </form>
+  </div></div>;
 }
 
 /** 税金あり貸借対照表で使う金額を手入力する。相続人の構成は親族関係タブが唯一の入力先なのでここでは扱わない。 */

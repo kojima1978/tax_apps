@@ -12,6 +12,7 @@ const snapshotSettingsSchema = z.object({
   otherTaxes: z.coerce.number().finite().min(0),
   // 通貨→円換算レート。空欄や不正値は parseFxRates が捨てる。
   fxRates: z.unknown().optional(),
+  fxRatesOnly: z.boolean().optional(),
 });
 
 const snapshotDeleteSchema = z.object({
@@ -50,7 +51,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   await prisma.$transaction(async (tx) => {
     await tx.snapshot.update({
       where: { id: snapshot.id },
-      data: { asOfDate, estimatedInheritanceTax, inheritanceTaxCalculation: Prisma.DbNull, otherTaxes, fxRates },
+      data: parsed.data.fxRatesOnly ? { fxRates } : { asOfDate, estimatedInheritanceTax, inheritanceTaxCalculation: Prisma.DbNull, otherTaxes, fxRates },
     });
     for (const position of foreignPositions) {
       const fxRate = fxRates[position.currency];
@@ -60,7 +61,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         data: { fxRate: new Prisma.Decimal(fxRate), valueJpy: new Prisma.Decimal(valueJpy) },
       });
     }
-    if (snapshot.isCurrent) {
+    if (snapshot.isCurrent && !parsed.data.fxRatesOnly) {
       await tx.household.update({
         where: { id: snapshot.householdId },
         data: { estimatedInheritanceTax, otherTaxes, inheritanceTaxUpdatedAt: new Date() },

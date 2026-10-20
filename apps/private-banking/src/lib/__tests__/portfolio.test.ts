@@ -6,6 +6,7 @@ const prismaMock = vi.hoisted(() => ({
   household: { findFirst: vi.fn(), findUnique: vi.fn() },
   snapshot: { findMany: vi.fn() },
   familyMember: { findMany: vi.fn() },
+  appCurrency: { findMany: vi.fn() },
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
@@ -74,6 +75,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   prismaMock.snapshot.findMany.mockResolvedValue([snapshot]);
   prismaMock.familyMember.findMany.mockResolvedValue([]);
+  prismaMock.appCurrency.findMany.mockResolvedValue([]);
 });
 
 describe("getPortfolio", () => {

@@ -103,8 +103,8 @@ export function positionDetailFields(p: Position): Array<[string, string]> {
 /** 単位を列見出しに集約する科目別表向けの値。キーは保存値との対応を保つ。 */
 export function positionDetailTableValue(p: Position, key: string) {
   const details = p.assetDetails ?? {};
-  const numericValue = key === "死亡保険金" ? details.deathBenefit
-    : key === "死亡退職金" ? details.retirementAllowance
+  const numericValue = key === "死亡保険金" ? details.deathBenefit === undefined ? undefined : deemedBenefitJpy(p)
+    : key === "死亡退職金" ? details.retirementAllowance === undefined ? undefined : deemedBenefitJpy(p)
       : key === "固定資産税評価額" ? p.fixedAssetTaxValue
         : key === "路線価" ? p.roadsideValue
           : key === "単価" ? p.valuationUnitPrice

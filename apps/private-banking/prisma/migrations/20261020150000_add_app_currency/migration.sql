@@ -1,0 +1,6 @@
+CREATE TABLE "AppCurrency" (
+  "code" VARCHAR(3) NOT NULL,
+  "name" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "AppCurrency_pkey" PRIMARY KEY ("code")
+);

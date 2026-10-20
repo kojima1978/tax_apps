@@ -82,6 +82,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .client-switcher-trigger em { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--slate-500); font-size: 11px; font-style: normal; font-weight: 600; }
 .client-switcher-trigger strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; line-height: 1.35; }
 .top-actions { min-width: 0; margin-left: auto; display: flex; align-items: center; gap: 9px; }
+.topbar-fx { flex-shrink: 0; white-space: nowrap; }
 /* 表示年度はどの画面でも共通なので、トップバーに1か所だけ置く。過年度を見ているときは色で気づけるようにする。 */
 .year-switcher { min-width: 0; min-height: 44px; padding: 3px 3px 3px 10px; border: 1px solid var(--field-border); border-radius: 8px; background: #fff; display: flex; align-items: center; gap: 8px; }
 .year-switcher.historical { background: #fffbeb; border-color: #fcd34d; }
@@ -458,20 +459,42 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-modal form > footer { flex: 0 0 auto; z-index: 2; margin: 0; padding: 14px 24px 18px; align-items: center; background: #fff; box-shadow: 0 -10px 18px -18px #172b3a66; }
 .position-modal .form-grid { gap: 18px; }
 .position-modal .form-grid label { min-width: 0; }
+.position-modal :is(.asset-detail-fieldset, .valuation-formula-fieldset) { padding: 16px; }
+.position-modal .asset-detail-grid { column-gap: 18px; align-items: start; }
+.position-modal .valuation-formula-fieldset > select { width: calc((100% - 18px) / 2); }
+.position-modal .valuation-calculation-grid.real-estate-method-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
+.position-modal .real-estate-method-inputs > span { display: none; }
+.position-modal .valuation-result { min-width: 0; }
+.position-modal .valuation-formula-fieldset > .valuation-result { width: calc((100% - 18px) / 2); }
 .position-modal .form-grid input[inputmode="decimal"], .position-modal .form-grid input[inputmode="numeric"] { text-align: right; font-variant-numeric: tabular-nums; }
 .position-modal .form-grid :is(input, select, textarea) { font-size: 14px; }
-.position-category-fields { padding: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; background: #f4f8f5; border: 1px solid var(--line); border-radius: 8px; }
+.position-category-fields { padding: 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 18px; background: #f4f8f5; border: 1px solid var(--line); border-radius: 8px; }
 .position-category-fields > label:only-child { grid-column: 1 / -1; }
 .position-identity-fieldset { min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; }
 .position-identity-fieldset > legend { padding: 0 6px; color: #166534; font-size: 12px; font-weight: 800; }
-.position-identity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.position-identity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px 18px; }
 .position-field-wide { grid-column: 1 / -1; }
 .position-modal .real-estate-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; }
 .position-modal .real-estate-detail-grid .property-fixed-value { grid-column: span 2; }
-.valuation-manual-grid { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px 18px; align-items: start; }
+.property-valuation-conditions { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 14px 18px; }
+.position-modal .property-valuation-conditions .property-fixed-value { grid-column: auto; }
+.property-small-lot { min-width: 0; }
+.property-small-lot > label { display: block; }
+.property-method-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 14px 18px; }
+.property-method-row .property-rate-field { width: 100%; max-width: 180px; }
+@media (max-width: 600px) {
+  .property-valuation-conditions, .property-method-row { grid-template-columns: minmax(0, 1fr); }
+  .property-method-row .property-rate-field { max-width: none; }
+}
+.valuation-manual-grid { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; align-items: start; }
 .valuation-manual-grid:has(.valuation-currency-field) { grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr); }
 .valuation-currency-row:has(.valuation-currency-field) { margin-top: 14px; max-width: 250px; }
-.position-modal .benefit-recipients > label { max-width: 440px; }
+.valuation-currency-field { min-width: 0; }
+.valuation-currency-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.position-modal .fx-settings-entry { width: auto; min-height: 18px; margin: 0; padding: 0; justify-content: flex-start; text-decoration: underline; font-size: 12px; line-height: 18px; }
+.valuation-converted-field { min-width: 0; color: var(--slate-700); font-size: 12px; font-weight: 700; }
+.valuation-converted-field output, .valuation-result output { display: block; min-height: 44px; margin-top: 5px; padding: 9px 11px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.position-modal .benefit-amount-field > label { display: block; max-width: 440px; }
 .position-modal .field-note > summary { min-height: 36px; }
 .position-note-field textarea { min-height: 76px; }
 .position-note-field > summary { min-height: 36px; color: var(--slate-600); font-size: 12px; font-weight: 700; cursor: pointer; }
@@ -522,6 +545,37 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .bulk-form-error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 7px; color: #991b1b; background: #fef2f2; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .bulk-form-error svg { width: 17px; height: 17px; }
 .bulk-table-scroll { margin-top: 14px; border: 1px solid var(--field-border); border-radius: 8px; background: white; overflow: auto; }
+.bulk-recipient-toggle { display: block; min-height: 28px; width: auto; max-width: 100%; margin-top: 4px; padding: 2px 7px; color: #166534; background: #fff; border: 1px solid #cbd9cf; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.bulk-recipient-toggle:hover { background: #f0fdf4; border-color: #86c99b; }
+@media (pointer: coarse), (max-width: 600px) {
+  .bulk-recipient-toggle, .position-modal .fx-settings-entry { min-height: 44px; }
+}
+.bulk-recipient-toggle:focus-visible { outline: 3px solid #86c99b; }
+.bulk-recipient-summary { display: block; max-width: 150px; overflow-wrap: anywhere; color: var(--navy-950); font-size: 12px; }
+.bulk-recipient-summary small { display: block; color: #b42318; font-size: 11px; }
+.bulk-entry-table .bulk-benefit-detail-row > td { padding: 12px 16px; background: #f4faf6; }
+.bulk-benefit-editor { position: sticky; left: 16px; width: min(680px, calc(100vw - 112px)); padding: 14px; border: 1px solid #bbd7c5; border-radius: 8px; background: #fff; white-space: normal; }
+.bulk-benefit-editor > header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.bulk-benefit-editor strong { color: #123c31; font-size: 13px; }
+.bulk-benefit-editor p { margin: 4px 0; font-size: 12px; line-height: 1.6; }
+.bulk-benefit-editor .button { min-height: 44px; font-size: 12px; }
+.bulk-benefit-person { display: grid; grid-template-columns: minmax(0, 1.4fr) 140px minmax(100px, 1fr) 44px; align-items: center; gap: 10px; margin-bottom: 12px; }
+.bulk-benefit-person label { min-width: 0; color: var(--slate-700); font-size: 12px; font-weight: 700; }
+.bulk-benefit-person small { display: block; margin-top: 4px; font-size: 11px; font-weight: 500; }
+.bulk-benefit-person output { text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+.bulk-benefit-fraction { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 4px; }
+.bulk-benefit-fraction > span { padding-bottom: 12px; }
+.bulk-benefit-editor .bulk-benefit-person :is(input, select) { height: 44px; margin-top: 5px; }
+.bulk-benefit-editor .bulk-benefit-fraction input { text-align: right; }
+.bulk-benefit-error { color: #b42318; font-weight: 700; }
+.bulk-benefit-total { color: #166534; font-weight: 700; }
+@media (max-width: 720px) {
+  .bulk-benefit-editor { left: 8px; width: calc(100vw - 80px); padding: 12px; }
+  .bulk-benefit-person { grid-template-columns: minmax(0, 1fr) 44px; }
+  .bulk-benefit-person > label, .bulk-benefit-fraction { grid-column: 1 / -1; }
+  .bulk-benefit-editor .bulk-benefit-person :is(input, select) { font-size: 16px; }
+  .bulk-position-modal .bulk-entry-table .bulk-calculated-value, .bulk-position-modal .bulk-entry-table .bulk-row-actions { position: static; }
+}
 .bulk-entry-table { min-width: max-content; width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .bulk-entry-table th, .bulk-entry-table td { height: 44px; padding: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .bulk-entry-table thead th { position: sticky; top: 0; z-index: 3; height: 54px; padding: 4px; overflow: hidden; color: var(--slate-700); background: #f7f9f8; font-size: 11px; font-weight: 700; line-height: 1.15; text-align: left; vertical-align: middle; white-space: normal; }
@@ -568,6 +622,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .bulk-modal-body > footer { position: sticky; bottom: 0; z-index: 6; min-height: 72px; margin: 16px -10px 0; padding: 12px 10px; border-top: 1px solid var(--line); background: #fff; box-shadow: 0 -10px 18px -18px #172b3a66; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .bulk-modal-body > footer > span { color: var(--slate-600); font-size: 12px; font-weight: 700; }
 .bulk-modal-body > footer > div { display: flex; gap: 9px; }
+@media (max-width: 720px) {
+  .bulk-modal-body > footer { flex-direction: column; align-items: stretch; gap: 8px; }
+  .bulk-modal-body > footer > span { font-size: 11px; }
+  .bulk-modal-body > footer > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px; }
+  .bulk-modal-body > footer .button { min-width: 0; min-height: 44px; padding-inline: 8px; font-size: 12px; white-space: normal; }
+}
 .forecast-modal { width: min(620px, 100%); }
 .year-creation-modal { width: min(600px, 100%); }
 .year-creation-grid { align-items: end; }
@@ -835,10 +895,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .ownership-fraction-title { color: var(--slate-700); display: block; font-size: 12px; font-weight: 700; }
 .ownership-fraction-inputs { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); align-items: end; gap: 4px; }
 .ownership-fraction-inputs strong { min-height: 44px; display: grid; place-items: center; font-size: 14px; }
-.valuation-result { margin-top: 12px; padding: 10px 12px; background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 6px; display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 12px; }
-.valuation-result span { color: #52635b; font-size: 11px; font-weight: 700; }
-.valuation-result strong { color: #166534; font-size: 16px; font-variant-numeric: tabular-nums; }
-.valuation-result small { grid-column: 1 / -1; color: var(--slate-500); font-size: 11px; text-align: right; }
+.valuation-result { margin-top: 12px; min-width: 0; color: var(--slate-700); font-size: 12px; font-weight: 700; }
+.valuation-result > span { display: block; }
+.valuation-result small { display: block; margin-top: 5px; color: var(--slate-500); font-size: 11px; font-weight: 500; text-align: right; }
 .form-grid textarea { resize: vertical; }
 .form-grid .full { grid-column: 1 / -1; }
 .modal footer { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
@@ -852,7 +911,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .family-empty p { max-width: 520px; margin: 5px 0 18px; color: var(--slate-500); font-size: 12px; }
 .family-table-scroll { overflow-x: auto; }
 /* 列を7つにまとめ、最小幅を持たせず割合で割り付ける（本文幅 約700px まで横スクロールなし）。 */
-.family-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.family-table { width: 100%; min-width: 760px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.family-table-scroll:focus-visible { outline: 3px solid #86c99b; outline-offset: -3px; }
 .family-table th { padding: 10px 8px; color: #345c4b; background: #f0f7f2; border-bottom: 2px solid var(--line-strong); font-size: 12px; line-height: 1.45; text-align: left; }
 .family-table th:nth-child(1) { width: 22%; }
 .family-table th:nth-child(2) { width: 10%; }
@@ -907,14 +967,15 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .family-card .row-action.danger { color: var(--danger); }
 .family-card .row-action.danger:hover { border-color: #edcbc8; background: #fff7f6; }
 /* 3つのまとまりは項目数に応じて横幅を配分し、入りきらなければ次の段へ送る。 */
-.family-card-body { padding: 10px 14px 14px; display: flex; flex-wrap: wrap; gap: 12px 22px; }
-.family-card-section { flex: var(--field-weight) 1 calc(var(--field-weight) * 128px); min-width: 0; max-width: calc(var(--field-weight) * 230px); }
+.family-card-body { padding: 14px; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, .8fr); gap: 18px; }
+.family-card-section { min-width: 0; }
 .family-card-section-title { margin: 0 0 6px; padding-bottom: 3px; color: #345c4b; border-bottom: 1px dotted var(--line-strong); font-size: 11px; font-weight: 800; }
-.family-card-fields { display: flex; flex-wrap: wrap; gap: 8px 10px; }
-.family-field { flex: 1 1 120px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.family-card-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.family-card-section:nth-child(2) .family-card-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.family-field { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 /* 選択肢か「1/2」だけの欄は狭くて足りる。和暦入力が入る生年月日だけ広く取る。 */
-.family-field.narrow { flex: .7 1 88px; }
-.family-field.wide { flex: 1.5 1 210px; }
+.family-field.wide { grid-column: 1 / -1; }
+.family-field:has(.family-share-input) > label { min-height: 30px; }
 .family-field > label { color: var(--slate-600); font-size: 11px; font-weight: 700; line-height: 1.35; }
 .family-field input:not([type="checkbox"]), .family-field select { width: 100%; min-height: 36px; padding: 5px 8px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 5px; font-size: 12px; }
 .family-field input::placeholder { color: #9aa49f; }
@@ -930,6 +991,29 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .family-add-button:disabled { opacity: .55; cursor: not-allowed; }
 .family-add-button svg { width: 16px; height: 16px; }
 .family-editor-modal form > footer { position: sticky; bottom: 0; z-index: 4; margin: 16px 0 0; padding: 12px 24px; align-items: center; background: #fff; box-shadow: 0 -10px 18px -18px #172b3a66; }
+@media (max-width: 1200px) {
+  .family-card-body { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+  .family-card-section:first-child { grid-column: 1 / -1; }
+  .family-card-section:first-child .family-card-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .family-field.wide { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) {
+  .family-card-body { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .family-card-section:first-child .family-card-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .family-card-section:nth-child(2) .family-card-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .family-card-section:nth-child(2) .family-field:first-child { grid-column: 1 / -1; }
+  .family-card .date-input :is(.date-input-era, .date-input-number, .date-input-date) { min-height: 44px; }
+  .family-card .date-input .date-input-number { width: 46px; }
+  .family-editor-toolbar-actions { width: 100%; }
+  .family-editor-toolbar-actions .button { flex: 1 1 200px; }
+}
+@media (max-width: 480px) {
+  .family-card-header { flex-wrap: wrap; padding: 10px 12px; }
+  .family-card-header h3 { flex-basis: 100%; }
+  .family-card-actions { margin-left: auto; }
+  .family-card-section:first-child .family-card-fields { grid-template-columns: minmax(0, 1fr); }
+  .family-card-list { min-width: 0; }
+}
 .field-help { margin-top: 5px; color: var(--slate-500); font-size: 11px; font-weight: 500; line-height: 1.5; }
 .snapshot-settings-grid .snapshot-date-field { grid-column: 1 / -1; }
 /* 円換算レートは明細ごとではなく年度設定でまとめて入力する。 */
@@ -937,8 +1021,62 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .fx-rate-fieldset > legend { padding: 0 5px; color: var(--navy-950); font-size: 12px; font-weight: 800; }
 .fx-rate-fieldset > .field-help { margin: 0 2px 10px; }
 .fx-rate-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.fx-rate-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.insurance-position-modal :is(.position-identity-fieldset, .asset-detail-fieldset, .valuation-formula-fieldset) { padding: 16px; }
+.insurance-position-modal .position-identity-grid { align-items: start; }
+.insurance-position-modal .position-category-fields { padding: 16px; gap: 18px; }
+.insurance-position-modal .valuation-currency-field > label { display: block; }
+.stock-position-modal :is(.position-identity-fieldset, .valuation-formula-fieldset) { padding: 16px; }
+.stock-position-modal .position-category-fields { padding: 16px; gap: 18px; }
+.stock-position-modal .position-identity-grid { align-items: start; }
+.stock-position-modal .valuation-formula-fieldset > select { width: calc((100% - 18px) / 2); }
+.stock-position-modal .stock-formula { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.stock-position-modal .stock-formula > span { display: none; }
+.stock-position-modal .stock-formula .valuation-result { margin-top: 0; align-self: start; }
+.stock-position-modal .valuation-manual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 600px) {
+  .stock-position-modal .stock-formula, .stock-position-modal .valuation-manual-grid { grid-template-columns: minmax(0, 1fr); }
+  .stock-position-modal .valuation-formula-fieldset > select { width: 100%; }
+}
+.position-modal .benefit-recipients, .position-modal .valuation-manual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
+.position-modal .benefit-recipients { align-items: start; }
+.position-modal .benefit-amount-field { min-width: 0; grid-column: 1; }
+.position-modal .benefit-amount-field > label { max-width: none; }
+.position-modal .benefit-amount-heading { min-height: 34px; display: flex; align-items: center; }
+.position-modal .benefit-recipient-rows { min-width: 0; grid-column: 2; grid-row: 1; gap: 5px; }
+.position-modal .benefit-recipient-heading { min-height: 34px; flex-wrap: wrap; }
+.position-modal .benefit-recipient-row, .position-modal .benefit-recipient-row:has(input[type="hidden"]) { min-width: 0; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
+.position-modal .benefit-recipient-row > select { grid-column: 1 / -1; grid-row: 1; margin-top: 0; }
+.position-modal .benefit-recipient-fraction { grid-column: 1; grid-row: 2; justify-self: start; }
+.position-modal .benefit-recipient-row > button { grid-column: 2; grid-row: 2; justify-self: end; }
+.position-modal .benefit-recipient-amount { grid-column: 1 / -1; grid-row: 3; overflow-wrap: anywhere; }
+.position-modal .benefit-recipient-judgement { grid-column: 1 / -1; grid-row: 4; }
+.position-modal .benefit-recipient-row:has(input[type="hidden"]) .benefit-recipient-judgement { grid-row: 2; }
+.position-modal .benefit-recipient-row + .benefit-recipient-row { margin-top: 7px; padding-top: 12px; border-top: 1px solid var(--line); }
+@media (max-width: 600px) {
+  .position-modal .benefit-recipients, .position-modal .valuation-manual-grid { grid-template-columns: minmax(0, 1fr); }
+  .position-modal .benefit-amount-heading { min-height: auto; }
+  .position-modal .benefit-recipient-rows { grid-column: 1; grid-row: auto; }
+}
+.sidebar-settings { margin-top: auto; padding-top: 16px; }
+.sidebar-settings + .security-note { margin-top: 10px; }
+.sidebar-settings > button { width: 100%; }
+.snapshot-settings-context { margin: 5px 0 0; color: var(--slate-600); font-size: 12px; overflow-wrap: anywhere; }
+.benefit-recipient-amount small { display: block; font-size: 11px; }
+.currency-extra-settings { margin-top: 16px; font-size: 12px; }
+.currency-extra-settings summary { min-height: 36px; cursor: pointer; }
+.currency-settings-page { max-width: 900px; margin: auto; padding: 24px 16px; }
+.currency-settings-page h1 { font-size: 24px; }
+.currency-settings-panel { padding: 20px; }
+.currency-settings-panel p { font-size: 13px; line-height: 1.7; }
+.currency-settings-panel li { margin: 12px 0; }
+.currency-settings-panel details { margin-top: 20px; }
+.currency-settings-panel summary { min-height: 44px; cursor: pointer; }
+.currency-settings-panel form { margin-top: 16px; }
+.currency-settings-panel input { width: 100%; min-height: 44px; margin-top: 6px; padding: 8px; border: 1px solid var(--field-border); border-radius: 6px; font-size: 16px; }
 .fx-rate-grid label { min-width: 0; color: var(--slate-700); font-size: 11px; font-weight: 800; }
 .fx-rate-grid input { width: 100%; min-height: 42px; margin-top: 6px; padding: 8px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
+.snapshot-settings-grid input[inputmode="decimal"], .fx-rate-grid input { text-align: right; font-variant-numeric: tabular-nums; }
 .asset-detail-hint.warning { color: #b45309; font-weight: 700; }
 .asset-detail-hint.legal-heir-ok { color: #168642; font-weight: 700; }
 /* 死亡保険金・死亡退職金の受取人。1人なら受取人欄だけ、複数人なら分数と按分後の金額を並べる。 */
@@ -1260,6 +1398,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-category-fields, .position-identity-grid, .position-modal .real-estate-detail-grid, .valuation-manual-grid:has(.valuation-currency-field) { grid-template-columns: minmax(0, 1fr); }
   .position-modal .real-estate-detail-grid .property-fixed-value, .position-field-wide { grid-column: auto; }
   .position-modal .form-grid :is(input, select, textarea) { font-size: 16px; }
+  .position-modal .valuation-formula-fieldset > select { width: 100%; }
+  .position-modal .valuation-calculation-grid.real-estate-method-inputs { grid-template-columns: minmax(0, 1fr); }
+  .valuation-converted-field output, .valuation-result output { font-size: 16px; }
   .position-modal .benefit-recipient-row > select { grid-column: 1 / -1; }
   .position-modal .benefit-recipient-row .benefit-recipient-amount { grid-column: auto; text-align: right; }
   .year-method-options { grid-template-columns: 1fr; }
@@ -1270,8 +1411,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .valuation-calculation-grid.stock-formula, .valuation-calculation-grid.real-estate-method-inputs { grid-template-columns: 1fr; }
   .valuation-source-summary dl { grid-template-columns: 1fr; }
   .valuation-calculation-grid > span { display: none; }
-  .valuation-result { grid-template-columns: 1fr; }
-  .valuation-result small { grid-column: auto; text-align: left; }
+  .position-modal .valuation-formula-fieldset > .valuation-result { width: 100%; }
   .form-grid .full { grid-column: auto; }
   .modal-layer { padding: 0; place-items: end center; }
   .modal { max-height: 94vh; max-height: 94dvh; border-radius: 12px 12px 0 0; }

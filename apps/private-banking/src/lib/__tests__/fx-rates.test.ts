@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { fxRateFor, parseFxRates } from "@/lib/fx-rates";
 
 describe("parseFxRates", () => {
+  it("追加通貨のレートも保持する", () => {
+    expect(parseFxRates({ CAD: "110.25", JPY: 1, XXX: 3 })).toEqual({ CAD: 110.25 });
+  });
   it("登録済みの通貨だけを取り出す", () => {
     expect(parseFxRates({ USD: 150.25, EUR: "165", JPY: 1, XXX: 10 })).toEqual({ USD: 150.25, EUR: 165 });
   });

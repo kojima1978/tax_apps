@@ -164,6 +164,10 @@ describe("fractionTotal", () => {
 });
 
 describe("valuationFromFormula", () => {
+  it.each(["LAND_ROADSIDE", "LAND_MULTIPLIER", "BUILDING"] as const)("%sは最終評価額の円未満を切り捨てる", (formula) => {
+    expect(valuationFromFormula(formula, { landArea: 100.5, roadsideValue: 1001, fixedAssetTaxValue: 100600.5, valuationMultiplier: 1, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 3 })).toBe(33533);
+    expect(valuationFromFormula(formula, { landArea: 1, roadsideValue: 99.999, fixedAssetTaxValue: 99.999, valuationMultiplier: 1, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 1 })).toBe(99);
+  });
   it("直接入力は算式を持たない", () => {
     expect(valuationFromFormula("MANUAL", { valuationUnitPrice: 100 })).toBeNull();
   });

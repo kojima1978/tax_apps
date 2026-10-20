@@ -3,6 +3,10 @@ import { positionAllocationAmounts, positionAllocationLabel, positionDetailField
 import { type Position } from "@/lib/portfolio-view";
 
 describe("positionDetailFields", () => {
+  it("外貨保険の死亡保険金を円貨列では円換算して表示する", () => {
+    const p = { category: "INSURANCE", currency: "USD", fxRate: 150, assetDetails: { deathBenefit: 100000 } } as Position;
+    expect(positionDetailTableValue(p, "死亡保険金")).toBe("15,000,000");
+  });
   it("不動産の持分は分子と分母を3桁区切りで表示する", () => {
     const fields = new Map(positionDetailFields({
       side: "ASSET",
@@ -20,6 +24,7 @@ describe("positionDetailFields", () => {
   it("科目別表の円貨項目は通貨記号と単位を付けずに表示する", () => {
     const position = {
       category: "INSURANCE",
+      currency: "JPY", fxRate: 1,
       assetDetails: { deathBenefit: 50_000_000 },
       fixedAssetTaxValue: 12_345_678,
     } as Position;

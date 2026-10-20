@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Calculator, LoaderCircle, Pencil, Plus, Trash2, X } from "lucide-react";
-import { type CSSProperties, FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { DateInput } from "@/components/date-input";
 import { ToastRegion, useToast } from "@/components/use-toast";
 import { type FamilyEditRow, MAX_FAMILY_ROWS, familyDraftsFromRows, useFamilyEditor } from "@/components/use-family-editor";
@@ -21,7 +21,7 @@ const SHARE_PATTERN = String.raw`\s*[0-9０-９]+\s*(?:[\/／]\s*[0-9０-９]+\s
 /**
  * `size` は欄の横幅の要求度。`narrow` は選択肢や「1/2」だけで足りる欄、
  * `wide` は和暦入力（元号＋年月日の4欄）が入る生年月日。
- * まとまり側の `weight` はここでの合計と釣り合わせる。
+ * 画面幅に応じてグリッドの列数を切り替え、入力欄の幅を確保する。
  */
 type FieldProps = { id: string; label: string; index: number; required?: boolean; hint?: ReactNode; size?: "narrow" | "wide"; children: ReactNode };
 
@@ -34,9 +34,9 @@ function Field({ id, label, index, required, hint, size, children }: FieldProps)
   </div>;
 }
 
-/** カードの中の項目のまとまり。`weight`（中の欄の幅の要求度の合計）で横幅を配分し、狭い画面では折り返す。 */
-function Section({ title, weight, children }: { title: string; weight: number; children: ReactNode }) {
-  return <div className="family-card-section" role="group" aria-label={title} style={{ "--field-weight": weight } as CSSProperties}>
+/** カードの中の項目のまとまり。入力順を保ったまま狭い幅では縦に並べる。 */
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return <div className="family-card-section" role="group" aria-label={title}>
     <p className="family-card-section-title" aria-hidden="true">{title}</p>
     <div className="family-card-fields">{children}</div>
   </div>;
@@ -69,7 +69,7 @@ function FamilyCard({ row, index, total, referenceDate, onUpdate, onMove, onRemo
       </div>
     </header>
     <div className="family-card-body">
-      <Section title="基本" weight={4.2}>
+      <Section title="基本">
         <Field id={id("name")} label="氏名" index={index} required>
           <input id={id("name")} required maxLength={100} value={row.name} autoComplete="off" onChange={(event) => onUpdate({ name: event.target.value })} />
         </Field>
@@ -85,7 +85,7 @@ function FamilyCard({ row, index, total, referenceDate, onUpdate, onMove, onRemo
           <DateInput id={id("birth")} label="生年月日" defaultMode="WAREKI" value={row.birthDate ?? ""} onChange={(next) => onUpdate({ birthDate: next || null })} />
         </Field>
       </Section>
-      <Section title="相続" weight={2.1}>
+      <Section title="相続">
         <Field id={id("reason")} label="取得原因" index={index} required size="narrow">
           <select id={id("reason")} required value={row.acquisitionReason} onChange={(event) => onUpdate({ acquisitionReason: event.target.value as FamilyEditRow["acquisitionReason"] })}>
             {acquisitionReasonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -108,7 +108,7 @@ function FamilyCard({ row, index, total, referenceDate, onUpdate, onMove, onRemo
           {row.taxSameAsCivil ? <span id={id("tax-same")} className="sr-only">民法上と同じ値を使います</span> : null}
         </Field>
       </Section>
-      <Section title="税額の加算・控除" weight={1.4}>
+      <Section title="税額の加算・控除">
         <Field id={id("addition")} label="2割加算" index={index} size="narrow">
           <select id={id("addition")} value={String(row.specialTaxAddition)} onChange={(event) => onUpdate({ specialTaxAddition: event.target.value === "true" })}>
             <option value="false">対象外</option>

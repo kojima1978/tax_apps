@@ -50,6 +50,7 @@ export type PositionSection = "ASSET" | "LIABILITY" | "CONTINGENT";
 export type PositionSortMode = "manual" | "classification-asc" | "classification-desc" | "value-desc" | "value-asc";
 export type ValuationFormula = "MANUAL" | "STOCK" | "UNIT_RATE" | "LAND_ROADSIDE" | "LAND_MULTIPLIER" | "BUILDING";
 export type Portfolio = {
+  currencies?: string[];
   household: { id: number; clientCode: string; name: string; nameKana: string; birthDate: string | null; staffId: number | null; assignedStaff: string; relatedCompany: string; currency: string };
   planning: {
     estimatedInheritanceTax: number; otherTaxes: number; successionCosts: number; inheritanceTaxUpdatedAt: string | null;
@@ -309,7 +310,10 @@ export function valuationFromFormula(formula: ValuationFormula, values: Valuatio
       : formula === "LAND_ROADSIDE" ? at("landArea") * at("roadsideValue") * at("adjustmentRate") * ownershipRatio
         : formula === "LAND_MULTIPLIER" || formula === "BUILDING" ? at("fixedAssetTaxValue") * at("valuationMultiplier") * at("adjustmentRate") * ownershipRatio
           : null;
-  return amount === null ? null : Math.round(amount * 100) / 100;
+  if (amount === null) return null;
+  // 不動産は円建て専用。途中の持分・倍率などは丸めず、最終評価額の円未満だけ切り捨てる。
+  if (formula === "LAND_ROADSIDE" || formula === "LAND_MULTIPLIER" || formula === "BUILDING") return Math.floor(amount);
+  return Math.round(amount * 100) / 100;
 }
 
 /**
@@ -392,6 +396,8 @@ export function ownershipFraction(position: Pick<Position, "ownershipShare" | "o
 
 export function valuationBreakdown(position: Position) {
   const number = (value: number | null) => valuationNumber.format(value ?? 0);
+  const benefitConfig = deemedConfig(position);
+  if (benefitConfig && position.currency !== "JPY") return `1 ${position.currency} = ${number(position.fxRate)}円 ／ ${benefitConfig.label} ${number(deemedBenefit(position))} ${position.currency} ／ ${benefitConfig.surrenderLabel} ${number(position.originalAmount)} ${position.currency}`;
   const ownership = ownershipFraction(position);
   if (position.valuationFormula === "STOCK") return `${number(position.valuationQuantity)}株・口 × ${number(position.valuationUnitPrice)} × ${number(position.adjustmentRate)}`;
   if (position.valuationFormula === "UNIT_RATE") return `${number(position.valuationUnitPrice)}円 × ${number(position.adjustmentRate)}`;

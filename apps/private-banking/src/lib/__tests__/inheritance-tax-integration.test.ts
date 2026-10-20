@@ -36,6 +36,11 @@ const portfolio = {
 } as unknown as Portfolio;
 
 describe("createInheritanceTaxRequest", () => {
+  it("外貨保険の保険金を円換算し、受取人別に税計算へ渡す", () => {
+    const result = createInheritanceTaxRequest({ ...portfolio, snapshots: [{ ...portfolio.snapshots[0], positions: [{ side: "ASSET", category: "INSURANCE", currency: "USD", originalAmount: 10000, valueJpy: 1500000, fxRate: 150, assetDetails: { deathBenefit: 100000, benefitAllocations: [{ recipient: "山田 花子", numerator: 2, denominator: 3 }, { recipient: "山田 一郎", numerator: 1, denominator: 3 }] } }] }] } as Portfolio);
+    expect(result.request.lifeInsurance?.surrenderValueJpy).toBe(1500000);
+    expect(result.request.lifeInsurance?.contracts.map((item) => item.deathBenefitJpy)).toEqual([10000000, 5000000]);
+  });
   it("現在年度の純資産を1万円単位へ丸めてAPIリクエストを作る", () => {
     const result = createInheritanceTaxRequest(portfolio);
 

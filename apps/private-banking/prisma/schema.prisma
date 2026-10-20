@@ -8,6 +8,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// 全顧客共通の追加通貨。JPY・USD・EURはアプリの標準通貨。
+model AppCurrency {
+  code      String   @id @db.VarChar(3)
+  name      String
+  createdAt DateTime @default(now())
+}
+
 model Household {
   id                      Int        @id @default(autoincrement())
   clientCode              String     @unique

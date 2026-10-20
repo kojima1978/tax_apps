@@ -1,9 +1,11 @@
 "use client";
 
 import { AlertTriangle, CircleCheck, Copy, LoaderCircle, Plus, Table2, Trash2, X } from "lucide-react";
-import { ClipboardEvent, KeyboardEvent as ReactKeyboardEvent, useMemo, useState } from "react";
+import { ClipboardEvent, Fragment, KeyboardEvent as ReactKeyboardEvent, useMemo, useState } from "react";
+import { BulkBenefitRecipients, benefitDraftError, benefitDrafts, benefitValues, type BulkBenefitDraft } from "@/components/bulk-benefit-recipients";
 import { useModalDialog } from "@/components/use-modal-dialog";
 import { personSelectOptions } from "@/lib/family";
+import { currencyOptions, fxRateFor, positionCurrencies } from "@/lib/fx-rates";
 import { decimalToFraction, formatCommaNumberInput, yen } from "@/lib/format";
 import {
   type AssetDetails,
@@ -23,8 +25,8 @@ import {
 } from "@/lib/portfolio-view";
 
 type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING" | "INSURANCE" | "INSURANCE_RIGHTS" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
-type BulkField = "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "floorArea" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "repaymentDueDate" | "interestRate" | "collateral" | "note";
-type BulkRow = Record<BulkField, string> & { id: number; positionId: number | null; error: string; errorFields: BulkField[] };
+type BulkField = "currency" | "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "floorArea" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "repaymentDueDate" | "interestRate" | "collateral" | "note";
+type BulkRow = Record<BulkField, string> & { id: number; positionId: number | null; error: string; errorFields: BulkField[]; benefitAllocations: BulkBenefitDraft[] };
 /**
  * conditional は「どの方式のときに使う欄か」。見出しの札と、使わない方式で無効にした欄の説明にそのまま出す。
  * legalHeirMark は受取人欄に出す印。非課税枠は法定相続人が受け取る分にしか効かないので、選んだその場で当否を見せる。
@@ -65,14 +67,13 @@ const simpleEntryConfigs: Record<SimpleEntryType, {
       { key: "institution", label: "保険会社", required: true, width: "170px" },
       { key: "policyNumber", label: "証券番号", width: "130px" },
       { key: "insuredPerson", label: "被保険者", kind: "person", width: "130px" },
+      { key: "currency", label: "通貨", width: "90px" },
       { key: "originalAmount", label: "解約返戻金（円）", numeric: true, required: true, width: "140px" },
       { key: "benefit", label: "死亡保険金（円）", numeric: true, width: "140px" },
       { key: "recipient", label: "受取人", kind: "person", legalHeirMark: true, width: "150px" },
       { key: "note", label: "メモ", width: "150px" },
     ],
-    // 受取人は1人（複数へ按分している明細は表に出さない）。従来の受取人欄と 1/1 の配列を両方そろえて、
-    // 表で受取人を直したときに古い按分が残らないようにする。
-    details: (row) => ({ policyNumber: row.policyNumber.trim(), insuredPerson: row.insuredPerson.trim(), beneficiary: row.recipient.trim(), deathBenefit: bulkNumberOrNull(row.benefit), benefitAllocations: soleAllocation(row.recipient) }),
+    details: (row) => ({ policyNumber: row.policyNumber.trim(), insuredPerson: row.insuredPerson.trim(), beneficiary: row.recipient.trim(), deathBenefit: bulkNumberOrNull(row.benefit), benefitAllocations: row.benefitAllocations.length > 1 ? benefitValues(row.benefitAllocations) : soleAllocation(row.recipient) }),
   },
   // 生命保険契約に関する権利は保険事故が起きていないので、死亡保険金と受取人の列を持たない。
   INSURANCE_RIGHTS: {
@@ -151,7 +152,7 @@ const bulkFormulaOptions = (entryType: BulkEntryType): ValuationFormula[] => ent
 
 function createBulkRow(id: number, positionId: number | null = null): BulkRow {
   return {
-    id, positionId, error: "", errorFields: [], category: "REAL_ESTATE", valuationFormula: "STOCK", name: "", institution: "",
+    id, positionId, error: "", errorFields: [], benefitAllocations: [], currency: "JPY", category: "REAL_ESTATE", valuationFormula: "STOCK", name: "", institution: "",
     accountType: "ORDINARY", policyNumber: "", insuredPerson: "", benefit: "", recipient: "", address: "", landCategory: "", buildingType: "",
     floorArea: "", quantity: "", unitPrice: "", landArea: "", roadsideValue: "", fixedAssetTaxValue: "", multiplier: "1.0",
     adjustmentRate: "1.0", ownershipNumerator: "1", ownershipDenominator: "1", originalAmount: "",
@@ -163,14 +164,12 @@ function bulkEntryTypeForPosition(position: Position): BulkEntryType | null {
   if (position.side !== "ASSET") return null;
   // 表に通貨の列は無く、保存は通貨をJPY・レート1で固定するので、外貨建ての明細は個別モーダルに任せる。
   // 以前は預金と生命保険等にしかこの判定が無く、外貨建ての有価証券が表に出て保存で円建てへ化けた。
-  if (position.currency !== "JPY") return null;
+  if (position.currency !== "JPY" && position.category !== "INSURANCE") return null;
   if (position.category === "DEPOSIT") return position.valuationFormula === "MANUAL" ? "DEPOSIT" : null;
   if (simpleEntryConfigOf(position.category as BulkEntryType)) {
-    // 表の受取人は1列しか無いので、複数へ按分している明細だけを個別モーダルに任せる。
-    // 以前は1件でも按分の配列があれば除いていたが、個別モーダルは受取人が1人でも必ず 1/1 の配列を書くため、
-    // 画面から登録した生命保険・退職金がすべて表から漏れていた（登録済み0件と出る）。
+    // 生命保険の複数受取人は行直下で編集する。退職金の複数受取人は従来どおり個別入力で扱う。
     const allocations = position.assetDetails?.benefitAllocations;
-    if (position.valuationFormula !== "MANUAL" || (Array.isArray(allocations) && allocations.length > 1)) return null;
+    if (position.valuationFormula !== "MANUAL" || (position.category !== "INSURANCE" && Array.isArray(allocations) && allocations.length > 1)) return null;
     return position.category as BulkEntryType;
   }
   if (position.category === "SECURITIES" && ["STOCK", "MANUAL"].includes(position.valuationFormula)) return "SECURITIES";
@@ -192,6 +191,7 @@ function bulkRowFromPosition(position: Position): BulkRow {
   return {
     ...createBulkRow(position.id, position.id),
     category: position.category,
+    currency: position.currency,
     valuationFormula: position.valuationFormula,
     name: position.name,
     institution: position.category === "PRIVATE_SHARES" ? details.shareClass ?? position.institution : position.institution,
@@ -199,7 +199,8 @@ function bulkRowFromPosition(position: Position): BulkRow {
     policyNumber: details.policyNumber ?? "",
     insuredPerson: details.insuredPerson ?? "",
     benefit: bulkNumber(details.deathBenefit ?? details.retirementAllowance),
-    recipient: details.beneficiary ?? details.retirementRecipient ?? "",
+    recipient: details.benefitAllocations?.[0]?.recipient ?? details.beneficiary ?? details.retirementRecipient ?? "",
+    benefitAllocations: position.category === "INSURANCE" ? benefitDrafts(details.benefitAllocations ?? []) : [],
     address: details.propertyAddress ?? "",
     landCategory: details.landCategory ?? "",
     buildingType: details.buildingType ?? "",
@@ -239,21 +240,21 @@ function initialRows(snapshot: Snapshot, entryType: BulkEntryType) {
 }
 
 /** 既定値を持つ列。行を1つ足しただけで埋まるので、入力の有無を見るときは外す。 */
-const bulkDefaultedFields = new Set<BulkField>(["category", "valuationFormula", "accountType", "multiplier", "adjustmentRate", "ownershipNumerator", "ownershipDenominator"]);
+const bulkDefaultedFields = new Set<BulkField>(["currency", "category", "valuationFormula", "accountType", "multiplier", "adjustmentRate", "ownershipNumerator", "ownershipDenominator"]);
 /** 入力の有無を見る列。列を足したときに書き漏らさないよう、行の形から引いて作る。 */
 const bulkTouchableFields = (Object.keys(createBulkRow(0)) as Array<keyof BulkRow>)
-  .filter((key): key is BulkField => !["id", "positionId", "error", "errorFields"].includes(key) && !bulkDefaultedFields.has(key as BulkField));
+  .filter((key): key is BulkField => !["id", "positionId", "error", "errorFields", "benefitAllocations"].includes(key) && !bulkDefaultedFields.has(key as BulkField));
 /**
  * 保存対象になる新規行かどうか。フッターの件数・タブの印・保存の対象で同じ判定を使う。
  * 以前は名称・金融機関・所在地の3つしか見ておらず、保存側はさらに別の条件を持っていたので、
  * 金額だけ入れた行は「新規0件」と出るのに検証でエラーになり、単価・面積・床面積・証券番号・
  * 被保険者・受取人・メモだけを入れた行は何も言わずに捨てられていた。
  */
-const bulkRowIsFilledNew = (row: BulkRow) => row.positionId === null && bulkTouchableFields.some((field) => row[field].trim());
+const bulkRowIsFilledNew = (row: BulkRow) => row.positionId === null && (row.currency !== "JPY" || bulkTouchableFields.some((field) => row[field].trim()) || row.benefitAllocations.length > 1);
 /** 行の内容だけを比べるための文字列。id と検証結果は保存内容と関係しないので落とす。 */
 const bulkRowContent = (row: BulkRow) => JSON.stringify({ ...row, id: 0, error: "", errorFields: [] });
 
-export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, onSubmit, saving }: {
+export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, onSubmit, saving, currencyCodes = positionCurrencies, onOpenFxSettings }: {
   snapshot: Snapshot;
   /** 被保険者・受取人の選択肢。本人と親族関係タブの登録者。 */
   people: string[];
@@ -262,6 +263,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   onClose: () => void;
   onSubmit: (positions: BulkPositionPayload[]) => Promise<boolean>;
   saving: boolean;
+  currencyCodes?: string[]; onOpenFxSettings?: () => void;
 }) {
   const entryCounts = useMemo(() => Object.fromEntries(bulkEntryTypes.map((type) => [type, editableBulkPositions(snapshot, type).length])) as Record<BulkEntryType, number>, [snapshot]);
   /** 開いた直後の行。タブに「未保存の編集」を出すため、比較の基準として持っておく。 */
@@ -272,6 +274,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   const [entryType, setEntryType] = useState<BulkEntryType>(initialEntryType);
   const [rowsByType, setRowsByType] = useState<Record<BulkEntryType, BulkRow[]>>(initialRowsByType);
   const [formError, setFormError] = useState("");
+  const [expandedRecipientRow, setExpandedRecipientRow] = useState<string | null>(null);
   const rows = rowsByType[entryType];
   const isDeposit = entryType === "DEPOSIT";
   const isStock = ["SECURITIES", "PRIVATE_SHARES"].includes(entryType);
@@ -397,7 +400,11 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   function updateRow(rowId: number, key: BulkField, rawValue: string, numeric = false) {
     const fractionDigits = ["quantity", "landArea"].includes(key) ? 6 : key === "interestRate" ? 4 : 2;
     const value = numeric ? formatCommaNumberInput(rawValue, fractionDigits) : rawValue;
-    setRows((currentRows) => currentRows.map((row) => row.id === rowId ? { ...row, [key]: value, error: "", errorFields: row.errorFields.filter((field) => field !== key) } : row));
+    setRows((currentRows) => currentRows.map((row) => row.id === rowId ? { ...row, [key]: value, ...(key === "recipient" ? { benefitAllocations: [] } : {}), error: "", errorFields: row.errorFields.filter((field) => field !== key) } : row));
+  }
+
+  function updateRecipients(rowId: number, drafts: BulkBenefitDraft[]) {
+    setRows((current) => current.map((row) => row.id === rowId ? { ...row, benefitAllocations: drafts, recipient: drafts[0]?.recipient ?? "", error: "", errorFields: row.errorFields.filter((field) => field !== "recipient") } : row));
   }
 
   function fieldIsDisabled(row: BulkRow, key: BulkField) {
@@ -516,8 +523,11 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         cells.forEach((cell, columnOffset) => {
           const column = columns[startColumnIndex + columnOffset];
           if (!column) return;
+          // 表の貼り付けで複数受取人の配分を意図せず1人へ上書きしない。
+          if (column.key === "recipient" && original.benefitAllocations.length > 1) return;
           const fractionDigits = ["quantity", "landArea"].includes(column.key) ? 6 : column.key === "interestRate" ? 4 : 2;
           next[column.key] = column.numeric ? formatCommaNumberInput(cell, fractionDigits) : normalizedPastedValue(column.key, cell);
+          if (column.key === "recipient") next.benefitAllocations = [];
         });
         nextRows[startRowIndex + rowOffset] = next;
       });
@@ -583,6 +593,15 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         invalid = true;
         return { ...row, error: `${missing.join("・")}を入力してください。`, errorFields: missingFields };
       }
+      const allocationError = type === "INSURANCE" ? benefitDraftError(row.benefitAllocations) : "";
+      if (type === "INSURANCE" && fxRateFor(snapshot.fxRates, row.currency) === null) {
+        invalid = true;
+        return { ...row, error: `${row.currency}の円換算レートを為替レート設定に登録してください。`, errorFields: ["currency" as BulkField] };
+      }
+      if (allocationError) {
+        invalid = true;
+        return { ...row, error: allocationError, errorFields: ["recipient" as BulkField] };
+      }
       return { ...row, error: "", errorFields: [] };
     })])) as Record<BulkEntryType, BulkRow[]>;
     setRowsByType(checkedRowsByType);
@@ -611,9 +630,9 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         category: rowIsStock || rowIsDeposit || rowSimpleConfig ? type : row.category,
         name: (rowSimpleConfig ? row[rowSimpleConfig.nameFrom] : row.name).trim(),
         institution: rowIsStock || rowIsDeposit || rowSimpleConfig ? row.institution.trim() : "",
-        currency: "JPY",
+        currency: type === "INSURANCE" ? row.currency : "JPY",
         originalAmount: calculatedRowValue(row, type),
-        fxRate: 1,
+        fxRate: type === "INSURANCE" ? fxRateFor(snapshot.fxRates, row.currency) ?? 1 : 1,
         valuationFormula: rowFormula,
         valuationQuantity: rowIsStock ? numberOrNull(row.quantity) : null,
         valuationUnitPrice: rowIsStock ? numberOrNull(row.unitPrice) : null,
@@ -648,6 +667,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
     <header><div><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要{bulkEntryTypes.length}種類）</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
     <div className="bulk-modal-body">
       <section className="bulk-common-settings" aria-label="共通条件">
+        {onOpenFxSettings ? <button type="button" className="button secondary" onClick={onOpenFxSettings}>為替レート設定</button> : null}
         {/* 種類は絞り込みではなく入力シートの切替。どこに何件あるかを一覧できるよう、選択式ではなくタブで出す。 */}
         <div className="bulk-entry-tabs" role="tablist" aria-label="編集・追加する種類" onKeyDown={handleTabKeyDown}>{bulkEntryGroups.map((group) => <div key={group.label} className="bulk-entry-tab-group" role="presentation">
           <span className="bulk-entry-group-label" aria-hidden="true">{group.label}</span>
@@ -665,13 +685,13 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
             </button>;
           })}</div>
         </div>)}</div>
-        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。金額はすべて円単位です。Excelから複数セルを貼り付けることもできます（貼り付けは文字を打てる欄から始めてください。科目・方式・地目・建物種類・預金種類の選択欄では受け付けません）。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の{bulkEntryTypes.length}種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
+        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。生命保険は行ごとの通貨で金額を入力し、評価額列は円換算後の額です。それ以外の科目は円単位です。Excelから複数セルを貼り付けることもできます（貼り付けは文字を打てる欄から始めてください。科目・方式・地目・建物種類・預金種類の選択欄では受け付けません）。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の{bulkEntryTypes.length}種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>
         <table className="bulk-entry-table">
-          <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional" title={`方式が「${column.conditional}」の行で入力します`}>{column.conditional}</em> : null}</th>)}<th className="bulk-calculated-value">評価額（円）</th><th className="bulk-row-actions">操作・状態</th></tr></thead>
-          <tbody onPaste={handlePaste} onKeyDown={handleTableKeyDown}>{rows.map((row, rowIndex) => <tr key={row.id} className={row.error ? "has-error" : ""}>
+          <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{entryType === "INSURANCE" ? column.label.replace("（円）", "（契約通貨）") : column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional" title={`方式が「${column.conditional}」の行で入力します`}>{column.conditional}</em> : null}</th>)}<th className="bulk-calculated-value">評価額（円）</th><th className="bulk-row-actions">操作・状態</th></tr></thead>
+          <tbody onPaste={handlePaste} onKeyDown={handleTableKeyDown}>{rows.map((row, rowIndex) => <Fragment key={row.id}><tr className={row.error ? "has-error" : ""}>
             <th scope="row" className="bulk-row-number">{rowIndex + 1}{row.error ? <span className="sr-only">入力エラー</span> : null}</th>
             {columns.map((column) => {
               const disabled = fieldIsDisabled(row, column.key);
@@ -684,26 +704,27 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
                 value: row[column.key],
                 "data-row-id": row.id,
                 "data-column-key": column.key,
-                "aria-label": `${rowIndex + 1}行目 ${column.label}`,
+                "aria-label": `${rowIndex + 1}行目 ${entryType === "INSURANCE" && row.currency !== "JPY" ? column.label.replace("（円）", `（${row.currency}）`) : column.label}`,
                 "aria-invalid": row.errorFields.includes(column.key),
               };
               return <td key={column.key} className={disabled ? "is-disabled" : ""} title={disabled && column.conditional ? `方式が「${column.conditional}」の行で入力します` : undefined}>
-                {column.kind === "person" ? <span className="bulk-person-cell"><select {...commonProps} title={people.length === 0 ? "親族関係タブに登録すると選択肢に表示されます" : heirNote || undefined} aria-describedby={heirNote ? `bulk-heir-${row.id}-${column.key}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{personSelectOptions(people, row[column.key]).map((name) => <option key={name} value={name}>{name}</option>)}</select>{column.legalHeirMark ? <b aria-hidden="true" className={`bulk-person-mark ${heirMark}`}>{heirMark === "legal-heir-ok" ? <CircleCheck /> : heirMark === "warning" ? <AlertTriangle /> : null}</b> : null}{heirNote ? <span id={`bulk-heir-${row.id}-${column.key}`} className="sr-only">{heirNote}</span> : null}</span>
+                {column.key === "currency" ? <select {...commonProps} onChange={(event) => updateRow(row.id, "currency", event.target.value)}>{currencyOptions(currencyCodes, row.currency).map((code) => <option key={code} value={code}>{code}</option>)}</select> : entryType === "INSURANCE" && column.key === "recipient" && row.benefitAllocations.length > 1 ? <span className="bulk-recipient-summary">{row.recipient || "未選択"}ほか{row.benefitAllocations.length - 1}名{benefitDraftError(row.benefitAllocations) ? <small>配分を確認してください</small> : null}</span> : column.kind === "person" ? <span className="bulk-person-cell"><select {...commonProps} title={people.length === 0 ? "親族関係タブに登録すると選択肢に表示されます" : heirNote || undefined} aria-describedby={heirNote ? `bulk-heir-${row.id}-${column.key}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{personSelectOptions(people, row[column.key]).map((name) => <option key={name} value={name}>{name}</option>)}</select>{column.legalHeirMark ? <b aria-hidden="true" className={`bulk-person-mark ${heirMark}`}>{heirMark === "legal-heir-ok" ? <CircleCheck /> : heirMark === "warning" ? <AlertTriangle /> : null}</b> : null}{heirNote ? <span id={`bulk-heir-${row.id}-${column.key}`} className="sr-only">{heirNote}</span> : null}</span>
                   : column.kind === "accountType" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{accountTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
                   : column.kind === "category" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{realEstateCategories.map((key) => <option key={key} value={key}>{categoryLabels[key]}</option>)}</select>
                   : column.kind === "formula" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{bulkFormulaOptions(entryType).map((formula) => <option key={formula} value={formula}>{bulkFormulaLabels[formula]}</option>)}</select>
                     : column.kind === "landCategory" ? <><select {...commonProps} title={landCategoryByValue.get(row.landCategory)?.definition ?? "地目を選択"} aria-describedby={row.landCategory ? `bulk-land-category-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{landCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.landCategory ? <span id={`bulk-land-category-${row.id}`} className="sr-only">{landCategoryByValue.get(row.landCategory)?.definition}</span> : null}</>
                       : column.kind === "buildingType" ? <><select {...commonProps} title={buildingTypeByValue.get(row.buildingType)?.definition ?? "建物種類を選択"} aria-describedby={row.buildingType ? `bulk-building-type-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{buildingTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.buildingType ? <span id={`bulk-building-type-${row.id}`} className="sr-only">{buildingTypeByValue.get(row.buildingType)?.definition}</span> : null}</>
                     : <input {...commonProps} type={column.kind === "date" ? "date" : "text"} inputMode={column.numeric ? "decimal" : undefined} disabled={disabled} placeholder={disabled ? "—" : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value, column.numeric)} />}
+                {entryType === "INSURANCE" && column.key === "recipient" ? <button type="button" className="bulk-recipient-toggle" aria-expanded={expandedRecipientRow === `${entryType}-${row.id}`} aria-controls={`bulk-recipients-${row.id}`} aria-label={`${rowIndex + 1}行目の受取人設定`} onClick={() => setExpandedRecipientRow(expandedRecipientRow === `${entryType}-${row.id}` ? null : `${entryType}-${row.id}`)}>{row.benefitAllocations.length > 1 ? "配分を編集" : "複数人に設定"}</button> : null}
               </td>;
             })}
-            <td className="bulk-calculated-value">{/* 入力と同じ円単位で出す。万円表示だと入力した桁と見比べられない。 */}<strong>{yen.format(Math.round(calculatedRowValue(row)))}</strong>{row.error ? <small>{row.error}</small> : null}</td>
+            <td className="bulk-calculated-value"><strong>{entryType === "INSURANCE" && fxRateFor(snapshot.fxRates, row.currency) === null ? "レート未登録" : yen.format(Math.round(calculatedRowValue(row) * (entryType === "INSURANCE" ? fxRateFor(snapshot.fxRates, row.currency) ?? 1 : 1)))}</strong>{entryType === "INSURANCE" && row.currency !== "JPY" ? <small>円換算後</small> : null}{row.error ? <small>{row.error}</small> : null}</td>
             <td className="bulk-row-actions"><div className="bulk-row-actions-content">
               <button type="button" className="icon-button" aria-label={`${rowIndex + 1}行目を複製`} title="行を複製" onClick={() => addRow(row.id, row)}><Copy /></button>
               {row.positionId === null ? <button type="button" className="icon-button danger" aria-label={`${rowIndex + 1}行目を削除`} title="新規行を削除" onClick={() => removeRow(row.id)}><Trash2 /></button> : null}
               <span className={row.positionId === null ? "bulk-new-badge" : "bulk-existing-badge"}>{row.positionId === null ? "未登録" : "登録済"}</span>
             </div></td>
-          </tr>)}</tbody>
+          </tr>{entryType === "INSURANCE" && expandedRecipientRow === `${entryType}-${row.id}` ? <tr className="bulk-benefit-detail-row" id={`bulk-recipients-${row.id}`}><td colSpan={columns.length + 3}><BulkBenefitRecipients currency={row.currency} fxRate={fxRateFor(snapshot.fxRates, row.currency)} drafts={row.benefitAllocations.length ? row.benefitAllocations : benefitDrafts(soleAllocation(row.recipient))} benefit={row.benefit} people={people} legalHeirNames={legalHeirNames} rowLabel={`${rowIndex + 1}行目`} onChange={(drafts) => updateRecipients(row.id, drafts)} onClose={() => { setExpandedRecipientRow(null); dialogRef.current?.querySelector<HTMLButtonElement>(`button[aria-controls="bulk-recipients-${row.id}"]`)?.focus(); }} /></td></tr> : null}</Fragment>)}</tbody>
         </table>
       </div>
       <button type="button" className="button secondary bulk-add-row" onClick={() => addRow()}><Plus />新しい行を追加</button>

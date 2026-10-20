@@ -225,6 +225,7 @@ export function ClientList() {
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
         {/* 担当者の台帳はここだけから開く。顧客の欄では選ぶだけにして、名前の揺れを1箇所で止める。 */}
         <Link className="button secondary client-toolbar-secondary" href="/staff"><UserCog />担当者</Link>
+        <Link className="button secondary client-toolbar-secondary" href="/settings"><UserCog />共通設定</Link>
         <Link className="button secondary client-toolbar-secondary" href="/quality"><ClipboardCheck />データ品質</Link>
         <Link className="button secondary client-toolbar-secondary" href="/properties"><Building2 />不動産一覧</Link>
         <Link className="button secondary client-toolbar-secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
@@ -237,6 +238,7 @@ export function ClientList() {
           trigger={<><Menu />その他</>}
           items={[
             { key: "staff", label: "担当者", icon: UserCog, href: "/staff" },
+            { key: "settings", label: "共通設定", icon: UserCog, href: "/settings" },
             { key: "quality", label: "データ品質", icon: ClipboardCheck, href: "/quality" },
             { key: "properties", label: "不動産一覧", icon: Building2, href: "/properties" },
             { key: "backup", label: "バックアップ", icon: DatabaseBackup, href: "/backup" },

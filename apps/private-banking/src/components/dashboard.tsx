@@ -2,7 +2,7 @@
 
 import {
   Activity, Calculator, ChevronLeft, ChevronRight, CircleUserRound, DatabaseBackup, History, LayoutDashboard, Link2,
-  LoaderCircle, Menu, PanelLeftClose, PanelLeftOpen, Printer, ShieldCheck, UsersRound, WalletCards, X,
+  LoaderCircle, Menu, Settings, PanelLeftClose, PanelLeftOpen, Printer, ShieldCheck, UsersRound, WalletCards, X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -89,6 +89,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const spotlightId = Number(searchParams.get("position")) || null;
   const [yearCreationSourceId, setYearCreationSourceId] = useState<number | null>(null);
   const [snapshotSettingsModalOpen, setSnapshotSettingsModalOpen] = useState(false);
+  const [fxSettingsModalOpen, setFxSettingsModalOpen] = useState(false);
   const [printGuideOpen, setPrintGuideOpen] = useState(false);
   const [printSections, setPrintSections] = useState<Set<PrintSection> | null>(null);
   const [clientDeleteOpen, setClientDeleteOpen] = useState(false);
@@ -295,11 +296,22 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     showToast(`${body.fiscalYear}年度を追加しました`);
   }
 
+  function closeFxSettings() {
+    setFxSettingsModalOpen(false);
+    if (!modalOpen && !bulkModalOpen && window.matchMedia("(max-width: 820px)").matches) {
+      requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".menu-button")?.focus());
+    }
+  }
+
   async function saveSnapshotSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workingSnapshot) return;
     // 円換算レートは `fxRate.USD` のような名前で並ぶので、通貨→レートの表にまとめ直して送る。
     const fields = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, unknown>;
+    fields.estimatedInheritanceTax = unformatNumberInput(fields.estimatedInheritanceTax as FormDataEntryValue);
+    fields.otherTaxes = unformatNumberInput(fields.otherTaxes as FormDataEntryValue);
+    const fxOnly = fields.fxRatesOnly === "true";
+    fields.fxRatesOnly = fxOnly;
     const fxRates: Record<string, number> = {};
     for (const [fieldName, rawValue] of Object.entries(fields)) {
       if (!fieldName.startsWith("fxRate.")) continue;
@@ -311,8 +323,9 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     const { ok } = await mutate(`/snapshots/${workingSnapshot.id}`, "PUT", fields, "年度設定を保存できませんでした。");
     if (!ok) return;
     setSnapshotSettingsModalOpen(false);
+    if (fxOnly) closeFxSettings();
     await load();
-    showToast(`${fiscalYearLabel(workingSnapshot)}の年度設定を保存しました`);
+    showToast(`${fiscalYearLabel(workingSnapshot)}の${fxOnly ? "為替レート設定" : "年度設定"}を保存しました`);
   }
 
   // 表示年度はトップバーで全画面共通に選ぶので、どの画面へ移っても ?snapshot= を引き継ぐ。
@@ -398,6 +411,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
           ><Icon /><span>{label}</span></Link>)}
         </nav>
         <div className="side-section"><p>外部連携</p><a className="side-link" href={`/inheritance-tax-app/?source=pb&householdId=${portfolio.household.id}`} aria-label="相続税シミュレーター" title="相続税シミュレーター"><Link2 /><span>相続税シミュレーター</span><ChevronRight /></a></div>
+        <div className="sidebar-settings"><button type="button" className="nav-button" aria-label="設定" title="選択中の顧客・年度の設定" onClick={() => { setMenuOpen(false); setFxSettingsModalOpen(true); }}><Settings /><span>設定</span></button></div>
         <div className="security-note"><ShieldCheck /><div><strong>ローカル環境</strong><span>データは社内DBで管理</span></div></div>
       </aside>
 
@@ -478,12 +492,13 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       {/* 顧客削除のエラーは削除ダイアログの中に出すので、ここでは重ねて出さない。 */}
       <ToastRegion toast={toast} error={clientDeleteOpen ? undefined : error} onDismissToast={dismissToast} onDismissError={() => setError("")} />
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
-      {modalOpen ? <PositionModal position={editingPosition} defaultSection={newPositionSection} defaultCategory={newPositionCategory} defaultPropertyType={newPositionPropertyType} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} /> : null}
-      {bulkModalOpen && workingSnapshot ? <BulkPositionModal snapshot={workingSnapshot} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /> : null}
+      {modalOpen ? <div hidden={fxSettingsModalOpen}><PositionModal currencyCodes={portfolio.currencies} position={editingPosition} defaultSection={newPositionSection} defaultCategory={newPositionCategory} defaultPropertyType={newPositionPropertyType} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} onOpenFxSettings={() => setFxSettingsModalOpen(true)} /></div> : null}
+      {bulkModalOpen && workingSnapshot ? <div hidden={fxSettingsModalOpen}><BulkPositionModal currencyCodes={portfolio.currencies} onOpenFxSettings={() => setFxSettingsModalOpen(true)} snapshot={workingSnapshot} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /></div> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
       {forecastModalOpen ? <ForecastModal planning={portfolio.planning} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}
-      {snapshotSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal snapshot={workingSnapshot} onClose={() => setSnapshotSettingsModalOpen(false)} onSubmit={saveSnapshotSettings} saving={saving} /> : null}
+      {snapshotSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal customerName={portfolio.household.name} currencyCodes={portfolio.currencies} onReloadCurrencies={() => void load()} snapshot={workingSnapshot} onClose={() => setSnapshotSettingsModalOpen(false)} onSubmit={saveSnapshotSettings} saving={saving} error={error} /> : null}
+      {fxSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal customerName={portfolio.household.name} currencyCodes={portfolio.currencies} onReloadCurrencies={() => void load()} snapshot={workingSnapshot} fxOnly onClose={closeFxSettings} onSubmit={saveSnapshotSettings} saving={saving} error={error} /> : null}
       {clientDeleteOpen ? <ClientDeleteModal household={portfolio.household} snapshotCount={portfolio.snapshots.length} positionCount={portfolio.snapshots.reduce((count, snapshot) => count + snapshot.positions.length, 0)} error={error} saving={saving} onClose={() => setClientDeleteOpen(false)} onSubmit={deleteClient} /> : null}
       {printGuideOpen ? <PrintGuideModal section={section} unavailable={printUnavailable} onClose={() => setPrintGuideOpen(false)} onPrint={(sections) => {
         setPrintSections(new Set(sections));
