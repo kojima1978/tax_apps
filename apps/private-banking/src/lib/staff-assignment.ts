@@ -19,9 +19,10 @@ export async function changeHouseholdStaff(
 
   const nextStaff = nextStaffId === null ? null : await tx.staff.findUnique({
     where: { id: nextStaffId },
-    select: { id: true, staffCode: true, name: true, isActive: true },
+    select: { id: true, staffCode: true, name: true, isActive: true, staffDirectoryId: true },
   });
-  if (nextStaffId !== null && (!nextStaff || !nextStaff.isActive)) throw new Error("STAFF_NOT_SELECTABLE");
+  // 退職者と台帳に居ない（未連携の）担当者は新しく選べない
+  if (nextStaffId !== null && (!nextStaff || !nextStaff.isActive || nextStaff.staffDirectoryId === null)) throw new Error("STAFF_NOT_SELECTABLE");
 
   await tx.staffAssignment.updateMany({
     where: { householdId: household.id, endedAt: null },

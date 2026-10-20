@@ -24,7 +24,7 @@ describe("データ品質チェック", () => {
         { code: "staff-missing", label: "担当者未設定", severity: "warning", href: "profile" },
       ] },
     ];
-    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({ ok: true, json: async () => url.includes("/staff") ? [{ id: 3, name: "佐藤", nameKana: "", isActive: true, clientCount: 0 }] : clients })));
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({ ok: true, json: async () => url.includes("/staff") ? [{ id: 3, name: "佐藤", nameKana: "", isActive: true, staffDirectoryId: 3, clientCount: 0 }] : clients })));
     render(<DataQualityView />);
     const attentionSummary = (await screen.findByText("要確認の顧客")).closest("button") as HTMLElement;
     const summary = document.querySelector(".quality-summary") as HTMLElement;
@@ -45,7 +45,7 @@ describe("データ品質チェック", () => {
     const clients = [{ ...baseClient, qualityIssues: [{ code: "staff-missing", label: "担当者未設定", severity: "warning", href: "profile" }] } satisfies ClientSummary];
     const fetchMock = vi.fn((url: string, init?: RequestInit) => {
       if (url.includes("bulk-staff")) return Promise.resolve({ ok: true, json: async () => ({ count: 1, staffName: "佐藤" }) });
-      return Promise.resolve({ ok: true, json: async () => url.includes("/staff") ? [{ id: 3, name: "佐藤", nameKana: "", isActive: true, clientCount: 0 }] : clients });
+      return Promise.resolve({ ok: true, json: async () => url.includes("/staff") ? [{ id: 3, name: "佐藤", nameKana: "", isActive: true, staffDirectoryId: 3, clientCount: 0 }] : clients });
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<DataQualityView />);

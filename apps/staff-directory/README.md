@@ -71,6 +71,20 @@ cd apps/staff-directory && docker compose exec staff-directory npm run import:it
   （以前は担当者・部署をその場で作っていた）
 - 案件管理から読む先は `STAFF_DIRECTORY_URL`（既定 `http://staff-directory:3031/staff-directory/api`）
 
+## 個人資産管理への写し（台帳 → private-banking）
+
+PB の `Staff` も**台帳の写し**で、`staffDirectoryId` 列で台帳ID を持つ。PB の「担当者」画面は
+表示と「今すぐ読み直す」だけ（書き込みの API は 405）。部署は持たず、`department` に台帳の部署名を写す。
+
+- 写し方は案件管理と同じ（一覧 API が呼ばれたとき5分以上たっていれば・台帳が落ちていれば3秒で諦める。
+  `apps/private-banking/src/lib/staff-directory/`）
+- コードは台帳の社員番号、無ければ `SD-<台帳ID>`。社員番号を入れ替えても一意制約に当たらないよう、
+  変わる行は一度仮のコードへ退けてから書く
+- 結び付けは**台帳ID だけ**（PB には取込記録が無く、名前でも結び付けない）。台帳に居ない PB の担当者は
+  「未連携」になって候補から外れ、担当していた顧客は表示されたまま残る
+- 顧客のバックアップの取込・全体復元は担当者を作らない（台帳ID → コードで探し、無ければエラー）
+- 別の PC・本番サーバーの切替手順は `apps/private-banking/STAFF-CUTOVER.md`
+
 ## テスト
 
 ```bash

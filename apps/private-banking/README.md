@@ -15,7 +15,7 @@
 | `/` | 顧客一覧 |
 | `/quality` | データ品質（入力漏れ・不整合の一覧） |
 | `/properties` | 不動産一覧（全顧客横断） |
-| `/staff` | 担当者の台帳 |
+| `/staff` | 担当者の一覧（社員台帳の写し・表示だけ。切替手順は `STAFF-CUTOVER.md`） |
 | `/backup` / `/restore` | 全体の JSON バックアップ / 復元 |
 | `/customers/{id}/…` | 顧客ごとの画面（プロフィール・家族・税・B/S・明細・履歴・操作記録・顧客単位のバックアップ） |
 
@@ -108,8 +108,8 @@ Next の dev サーバはスキャンに失敗したディレクトリ配下の�
 - 夜間の全体バックアップ（`docker/scripts/backup.sh`）が DB を `pg_dump` し、`.env` も一緒に持つ
   （`PG_TARGETS` / `SETTINGS_TARGETS`）。戻すのは `manage.sh restore private-banking`（`docker/RESTORE.md`）
 - 画面の `/backup` / `/restore` は別の経路で、全体または1世帯を JSON で書き出し・読み込みする
-  （新規出力は `schemaVersion` 2、旧1も取り込み可）。担当者はコードで識別し、担当変更履歴も保存する。
-  全体JSONには未使用・退職者も含む担当者台帳が入り、復元時はコードでマージする。
+  （新規出力は `schemaVersion` 2、旧1も取り込み可）。担当者は台帳ID → コードで識別し、担当変更履歴も保存する。
+  担当者は社員台帳の写しなので、取込・復元で担当者を作ったり書き換えたりはしない（今の一覧に無ければエラー）。
 
 ## テスト
 

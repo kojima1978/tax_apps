@@ -88,7 +88,7 @@ describe.runIf(runIntegrationTests)("private-banking API integration", () => {
   });
 
   it("担当者未設定の顧客へ担当者を一括設定し、履歴も残す", async () => {
-    const staff = await prisma.staff.create({ data: { staffCode: `IT-${Date.now()}`, name: `統合テスト担当-${Date.now()}`, nameKana: "トウゴウテスト" } });
+    const staff = await prisma.staff.create({ data: { staffCode: `IT-${Date.now()}`, name: `統合テスト担当-${Date.now()}`, nameKana: "トウゴウテスト", staffDirectoryId: 1_000_000_000 + (Date.now() % 1_000_000_000) } });
     staffId = staff.id;
     const response = await bulkAssignStaff(jsonRequest("http://integration.test/api/clients/bulk-staff", "POST", { householdIds: [householdId], staffId }));
     expect(response.status).toBe(200);

@@ -15,8 +15,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "担当者と対象顧客を選択してください。" }, { status: 400 });
   const householdIds = [...new Set(parsed.data.householdIds)];
   const result = await prisma.$transaction(async (tx) => {
-    const staff = await tx.staff.findUnique({ where: { id: parsed.data.staffId }, select: { id: true, staffCode: true, name: true, isActive: true } });
-    if (!staff || !staff.isActive) return { status: 400, error: "有効な担当者を選び直してください。" } as const;
+    const staff = await tx.staff.findUnique({ where: { id: parsed.data.staffId }, select: { id: true, staffCode: true, name: true, isActive: true, staffDirectoryId: true } });
+    if (!staff || !staff.isActive || staff.staffDirectoryId === null) return { status: 400, error: "有効な担当者を選び直してください。" } as const;
     const households = await tx.household.findMany({
       where: { id: { in: householdIds }, staffId: null },
       select: { id: true, name: true, clientCode: true, staffId: true },

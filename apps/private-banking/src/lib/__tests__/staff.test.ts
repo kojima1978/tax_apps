@@ -8,11 +8,18 @@ const staff = (overrides: Partial<Staff> = {}): Staff => ({
   name: "佐藤税理士",
   nameKana: "サトウ",
   isActive: true,
+  staffDirectoryId: 1,
   clientCount: 0,
   ...overrides,
 });
 
 describe("staffOptions", () => {
+  it("台帳に居ない（未連携の）担当者は候補から外す。選ばれている人だけは残す", () => {
+    const rows = [staff({ id: 1 }), staff({ id: 2, staffDirectoryId: null })];
+    expect(staffOptions(rows, null).map((row) => row.id)).toEqual([1]);
+    expect(staffOptions(rows, 2).map((row) => row.id)).toEqual([1, 2]);
+  });
+
   it("退職した担当者は候補から外す", () => {
     const rows = [staff({ id: 1 }), staff({ id: 2, name: "高橋", isActive: false })];
     expect(staffOptions(rows, null).map((row) => row.id)).toEqual([1]);

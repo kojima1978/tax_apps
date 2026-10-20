@@ -5,6 +5,7 @@ import { parseFxRates } from "@/lib/fx-rates";
 import { normalizedValuationMethod } from "@/lib/position-input";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnlyUtc } from "@/lib/snapshot-date";
+import { syncStaffDirectory } from "@/lib/staff-directory/sync";
 
 export const BACKUP_SCHEMA_VERSION = 2;
 
@@ -17,7 +18,7 @@ export class BackupError extends Error {}
 const decimalText = (value: Prisma.Decimal) => value.toString();
 const decimalTextOrNull = (value: Prisma.Decimal | null) => value === null ? null : value.toString();
 const dateOnly = (value: Date) => value.toISOString().slice(0, 10);
-const backupStaffSelect = { staffCode: true, name: true, nameKana: true, department: true, isActive: true } as const;
+const backupStaffSelect = { staffCode: true, name: true, nameKana: true, department: true, isActive: true, staffDirectoryId: true } as const;
 
 function serializeStaffAssignment(row: { staffCode: string; staffName: string; startedAt: Date; endedAt: Date | null; createdAt: Date }) {
   return { staffCode: row.staffCode, staffName: row.staffName, startedAt: row.startedAt.toISOString(), endedAt: row.endedAt?.toISOString() ?? null, createdAt: row.createdAt.toISOString() };
@@ -31,7 +32,7 @@ function omit<T extends Record<string, unknown>, K extends keyof T & string>(sou
 /**
  * 担当者コードで環境をまたいで識別する。内部IDは持ち出さない。
  */
-function serializeHousehold(household: Household & { staff: { name: string; staffCode: string; nameKana: string; department: string; isActive: boolean } | null }) {
+function serializeHousehold(household: Household & { staff: { name: string; staffCode: string; nameKana: string; department: string; isActive: boolean; staffDirectoryId: number | null } | null }) {
   return {
     id: household.id,
     clientCode: household.clientCode,
@@ -278,6 +279,8 @@ const householdFieldsSchema = z.object({
     staffCode: z.string().trim().min(1).max(30).regex(/^[A-Za-z0-9_-]+$/).transform((value) => value.toUpperCase()),
     name: z.string().trim().min(1).max(100), nameKana: z.string().max(100).default(""),
     department: z.string().max(100).default(""), isActive: z.boolean().default(true),
+    // 社員台帳の台帳ID。2026-10-21 より前のバックアップには無い
+    staffDirectoryId: z.number().int().positive().nullable().default(null),
   }).nullable().default(null),
   // 関連法人も後から追加した項目のため既定値を持たせる。
   relatedCompany: z.string().max(100).default(""),
@@ -448,27 +451,34 @@ type PlanningScenarioFields = z.infer<typeof planningScenarioFieldsSchema>;
 type ActivityLogFields = z.infer<typeof activityLogFieldsSchema>;
 
 /**
- * コードがある場合はコードだけで照合する。v1のみ、氏名が一意のときに互換復元する。
+ * 担当者は社員台帳の写しなので、復元で作ることはしない。台帳ID → コードの順で今の写しから探し、
+ * v1（名前しか持たない）だけは氏名が一意のときに結び付ける。見つからなければ取り込まない。
  */
 async function resolveStaffIds(tx: Prisma.TransactionClient, rows: readonly HouseholdFields[]) {
   const ids = new Map<HouseholdFields, number | null>();
   for (const row of rows) {
     const code = row.assignedStaffCode;
     const name = row.assignedStaff.trim();
-    if (code) {
-      const details = row.assignedStaffDetails;
-      if (details && details.staffCode !== code) throw new BackupError("担当者コードと担当者情報が一致しません。");
-      const existing = await tx.staff.findUnique({ where: { staffCode: code }, select: { id: true } });
-      if (!existing && !name && !details) throw new BackupError(`担当者コード「${code}」の氏名がありません。`);
-      const staff = existing ?? await tx.staff.create({ data: details ?? { staffCode: code, name }, select: { id: true } });
-      ids.set(row, staff.id);
-    } else if (name) {
+    const details = row.assignedStaffDetails;
+    if (details && code && details.staffCode !== code) throw new BackupError("担当者コードと担当者情報が一致しません。");
+    if (!code && !name) {
+      ids.set(row, null);
+      continue;
+    }
+    let staff: { id: number } | null = null;
+    if (details?.staffDirectoryId) staff = await tx.staff.findUnique({ where: { staffDirectoryId: details.staffDirectoryId }, select: { id: true } });
+    if (!staff && code) staff = await tx.staff.findUnique({ where: { staffCode: code }, select: { id: true } });
+    if (!staff && !code) {
       // v1 は名前しか持たない。同姓同名がある場合は勝手にどちらかへ紐付けない。
       const matches = await tx.staff.findMany({ where: { name }, select: { id: true }, take: 2 });
       if (matches.length > 1) throw new BackupError(`旧バックアップの担当者「${name}」は同姓同名があるため特定できません。担当者コード付きで書き出し直してください。`);
-      const staff = matches[0] ?? await tx.staff.create({ data: { staffCode: `IMP-${crypto.randomUUID().replaceAll("-", "").slice(0, 20).toUpperCase()}`, name }, select: { id: true } });
-      ids.set(row, staff.id);
-    } else ids.set(row, null);
+      staff = matches[0] ?? null;
+    }
+    if (!staff) {
+      const label = [details?.name ?? name, code].filter(Boolean).join("・");
+      throw new BackupError(`担当者「${label}」が担当者の一覧にありません。担当者は社員台帳から写すため、社員台帳に登録してから取り込み直すか、バックアップの担当者を外してください。`);
+    }
+    ids.set(row, staff.id);
   }
   return (row: HouseholdFields) => ids.get(row) ?? null;
 }
@@ -626,6 +636,8 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
   const codes = backup.data.staff.map((row) => row.staffCode);
   if (new Set(codes).size !== codes.length) throw new BackupError("担当者台帳に重複コードがあります。");
 
+  // 結び付け先を最新にしてから照合する（台帳が止まっていれば今の写しのまま）
+  await syncStaffDirectory({ force: true });
   await prisma.$transaction(async (tx) => {
     await tx.activityLog.deleteMany();
     await tx.planningScenario.deleteMany();
@@ -633,9 +645,7 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
     await tx.snapshot.deleteMany();
     await tx.household.deleteMany();
 
-    // 台帳はコードでマージする。現在の未使用担当者も保全する。
-    for (const row of backup.data.staff) await tx.staff.upsert({ where: { staffCode: row.staffCode }, update: row, create: row });
-
+    // 担当者の一覧は社員台帳の写しなので、バックアップの担当者では書き換えない（顧客の結び付けにだけ使う）。
     if (households.length > 0) {
       const staffIdOf = await resolveStaffIds(tx, households);
       await tx.household.createMany({
@@ -729,6 +739,7 @@ export async function importHousehold(backup: HouseholdBackup) {
   const currentFiscalYear = declaredCurrent.length === 1 ? declaredCurrent[0].fiscalYear : latestFiscalYear;
 
   const clientCode = await availableClientCode(backup.household.clientCode.toUpperCase());
+  await syncStaffDirectory({ force: true });
   const created = await prisma.$transaction(async (tx) => {
     const staffIdOf = await resolveStaffIds(tx, [backup.household]);
     const household = await tx.household.create({ data: { ...householdData(backup.household, staffIdOf(backup.household)), clientCode }, select: { id: true, clientCode: true, name: true } });

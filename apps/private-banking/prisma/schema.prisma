@@ -90,6 +90,8 @@ model Staff {
   department  String      @default("")
   /// 退職。候補からは外すが、担当していた顧客の表示はそのまま残す。
   isActive    Boolean     @default(true)
+  /// 社員台帳（staff-directory）の台帳ID。担当者は台帳の写しで、これが無い行は「未連携」。
+  staffDirectoryId Int?   @unique
   households  Household[]
   assignments StaffAssignment[]
   createdAt   DateTime    @default(now())

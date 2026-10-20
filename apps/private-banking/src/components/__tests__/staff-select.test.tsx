@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StaffSelect } from "@/components/staff-select";
 
 const staff = [
-  { id: 1, staffCode: "T001", department: "東京", name: "佐藤", nameKana: "サトウ", isActive: true, clientCount: 2 },
-  { id: 2, staffCode: "T002", department: "大阪", name: "高橋", nameKana: "タカハシ", isActive: false, clientCount: 1 },
-  { id: 3, staffCode: "T003", department: "大阪", name: "佐藤", nameKana: "サトウ", isActive: true, clientCount: 0 },
+  { id: 1, staffCode: "T001", department: "東京", name: "佐藤", nameKana: "サトウ", isActive: true, staffDirectoryId: 1, clientCount: 2 },
+  { id: 2, staffCode: "T002", department: "大阪", name: "高橋", nameKana: "タカハシ", isActive: false, staffDirectoryId: 2, clientCount: 1 },
+  { id: 3, staffCode: "T003", department: "大阪", name: "佐藤", nameKana: "サトウ", isActive: true, staffDirectoryId: 3, clientCount: 0 },
+  { id: 4, staffCode: "STF-0004", department: "", name: "未連携の人", nameKana: "", isActive: true, staffDirectoryId: null, clientCount: 1 },
 ];
 const response = (data: unknown, ok = true) => ({ ok, json: async () => data });
 const input = () => screen.getByRole("combobox", { name: "担当者" });
@@ -49,15 +50,11 @@ describe("担当者の検索式選択", () => {
     expect(input()).toHaveProperty("value", "佐藤（T001・東京）");
   });
 
-  it("コード付きで新しい担当者を登録して選択する", async () => {
+  it("台帳に居ない担当者は候補に出さず、新しく足す口も持たない", async () => {
     render(<StaffSelect defaultValue={null} />);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    fetchMock.mockResolvedValueOnce(response({ ...staff[0], id: 9, staffCode: "T009", name: "鈴木", department: "" }));
-    fireEvent.click(screen.getByRole("button", { name: "新しい担当者" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "新しい担当者のコード" }), { target: { value: " t009 " } });
-    fireEvent.change(screen.getByRole("textbox", { name: "新しい担当者の名前" }), { target: { value: " 鈴木 " } });
-    fireEvent.click(screen.getByRole("button", { name: "登録" }));
-    await waitFor(() => expect(savedValue()).toBe("9"));
-    expect(JSON.parse(fetchMock.mock.calls.at(-1)![1].body)).toEqual({ staffCode: "T009", name: "鈴木" });
+    fireEvent.focus(input());
+    await screen.findByRole("option", { name: /T001/ });
+    expect(screen.queryByRole("option", { name: /未連携の人/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "新しい担当者" })).toBeNull();
   });
 });

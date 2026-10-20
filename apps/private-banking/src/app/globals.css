@@ -715,12 +715,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .person-form-grid .staff-field > label { font-size: 11px; font-weight: 800; }
 .person-form-grid .staff-field .staff-combobox { margin-top: 7px; }
 .person-form-grid .staff-combobox-input input { margin-top: 0; padding: 9px 38px 9px 35px; }
-.staff-field-add-button { min-height: 32px; padding: 0 4px; font-size: 11px; }
-.staff-field-add-button svg { width: 14px; height: 14px; }
-.staff-field-add { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.staff-field-add input { min-width: 0; flex: 1 1 140px; min-height: 38px; padding: 7px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
-.staff-field-add .button { min-height: 38px; padding: 0 12px; font-size: 12px; }
-.staff-field-add .text-button { min-height: 38px; font-size: 12px; }
 .staff-field-note { display: block; margin-top: 4px; font-size: 11px; font-weight: 700; }
 .staff-field-note.is-error { color: var(--danger); }
 
@@ -731,10 +725,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-panel .panel-header p { max-width: 68ch; margin-top: 4px; line-height: 1.7; }
 .staff-panel-body { padding: 22px; }
 .staff-notice { margin: 0 0 14px; padding: 10px 12px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; font-size: 11px; font-weight: 700; }
-.staff-panel-body .staff-new-form { margin-bottom: 18px; padding: 0 0 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
-.staff-new-form > div { min-width: 0; flex: 1 1 160px; }
-.staff-new-form label { display: block; margin-bottom: 5px; color: var(--slate-700); font-size: 11px; font-weight: 800; }
-.staff-new-form input { width: 100%; min-height: 44px; padding: 9px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 14px; }
 .staff-list-toolbar { margin-bottom: 14px; padding: 12px; background: #f7faf8; border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: minmax(240px, 1fr) 150px auto; align-items: end; gap: 10px; }
 .staff-list-toolbar label > span { display: block; margin-bottom: 5px; color: var(--slate-700); font-size: 11px; font-weight: 800; }
 .staff-list-toolbar select, .staff-list-toolbar input { width: 100%; min-height: 42px; padding: 8px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
@@ -749,6 +739,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-row-fields { min-width: 0; flex: 1 1 640px; display: grid; grid-template-columns: 110px minmax(150px, 1.1fr) minmax(130px, 1fr) minmax(140px, 1fr); gap: 8px; }
 .staff-row-fields input { min-width: 0; width: 100%; min-height: 40px; padding: 7px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
 .staff-row-fields .staff-code-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
+.staff-row-fields.is-readonly > span { min-width: 0; min-height: 24px; color: var(--slate-950); font-size: 13px; display: flex; align-items: center; overflow-wrap: anywhere; }
+.staff-row-fields.is-readonly > span:empty::before { content: "—"; color: var(--slate-400, #94a3b8); }
+.staff-sync-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.staff-sync-actions .button { min-height: 36px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.staff-sync-actions svg { width: 15px; height: 15px; }
+.staff-sync-time { margin: 0 0 10px; color: var(--slate-500); font-size: 11px; font-weight: 700; }
 .staff-row-meta { color: var(--slate-500); font-size: 11px; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 .staff-retired-tag { padding: 0 6px; color: #fff; background: var(--slate-500); border-radius: 999px; font-size: 10px; font-weight: 800; line-height: 1.6; }
 .staff-row-actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }

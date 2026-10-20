@@ -9,7 +9,7 @@ import { StaffCombobox } from "@/components/staff-combobox";
 import { API_BASE } from "@/lib/api";
 import { CLIENT_QUALITY_LABELS, type ClientQualityIssueCode, type ClientSummary } from "@/lib/clients";
 import { compactYen, dateJa } from "@/lib/format";
-import type { Staff } from "@/lib/staff";
+import { type Staff, staffOptions } from "@/lib/staff";
 
 const ISSUE_ORDER = Object.keys(CLIENT_QUALITY_LABELS) as ClientQualityIssueCode[];
 type IssueFilter = "all" | ClientQualityIssueCode;
@@ -35,7 +35,7 @@ export function DataQualityView() {
       ]);
       if (!clientsResponse.ok || !staffResponse.ok) throw new Error();
       setClients(await clientsResponse.json() as ClientSummary[]);
-      setStaff((await staffResponse.json() as Staff[]).filter((row) => row.isActive));
+      setStaff(staffOptions(await staffResponse.json() as Staff[], null));
       setError("");
     } catch { setClients([]); setError("データ品質の状況を読み込めませんでした。"); }
   }, []);
