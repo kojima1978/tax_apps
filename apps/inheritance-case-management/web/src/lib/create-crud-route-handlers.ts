@@ -24,6 +24,8 @@ interface CrudRouteConfig {
   serializeResult?: (item: Record<string, unknown>) => Record<string, unknown>;
   /** Optional guard that can block deletion with a custom response */
   beforeDelete?: (id: number) => Promise<NextResponse | void> | NextResponse | void;
+  /** Optional hook run before the list query (e.g. refresh a copy from another app) */
+  beforeList?: () => Promise<unknown>;
 }
 
 type CrudData = Record<string, unknown>;
@@ -41,7 +43,7 @@ function getDelegate(model: string): PrismaDelegate {
 }
 
 export function createCrudRouteHandlers(config: CrudRouteConfig) {
-  const { model, orderBy, entityLabel, createSchema, updateSchema, include, mapCreateData, mapUpdateData, serializeResult, beforeDelete } = config;
+  const { model, orderBy, entityLabel, createSchema, updateSchema, include, mapCreateData, mapUpdateData, serializeResult, beforeDelete, beforeList } = config;
   const delegate = getDelegate(model);
   const serialize = (item: unknown) =>
     serializeResult && item && typeof item === 'object' ? serializeResult(item as Record<string, unknown>) : item;
@@ -50,6 +52,7 @@ export function createCrudRouteHandlers(config: CrudRouteConfig) {
   const listAndCreate = {
     async GET() {
       try {
+        await beforeList?.();
         const items = await delegate.findMany({ orderBy: { [orderBy]: 'asc' }, ...(include && { include }) });
         const out = Array.isArray(items) ? items.map(serialize) : items;
         return NextResponse.json(out);

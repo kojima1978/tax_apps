@@ -1,10 +1,8 @@
-import { createAssignee } from '@/lib/api/assignees';
 import { createReferrer } from '@/lib/api/referrers';
-import { createDepartment } from '@/lib/api/departments';
 import { createCompany } from '@/lib/api/companies';
 import { createCompanyBranch } from '@/lib/api/company-branches';
-import type { PendingReferrer, PendingAssignee } from './types';
-import type { Department, Company, CompanyBranch } from '@/types/shared';
+import type { PendingReferrer } from './types';
+import type { Company, CompanyBranch } from '@/types/shared';
 
 async function resolveOrCreateByName<T extends { id: number; name: string }>(
   name: string,
@@ -23,25 +21,6 @@ async function resolveOrCreateByName<T extends { id: number; name: string }>(
 
   const created = await createFn({ name });
   cache.set(name, created.id);
-  return created.id;
-}
-
-export async function resolveOrCreateAssignee(
-  pending: PendingAssignee,
-  departments: Department[],
-  assigneeCache: Map<string, number>,
-  departmentCache: Map<string, number>
-): Promise<number> {
-  const cached = assigneeCache.get(pending.name);
-  if (cached) return cached;
-
-  let departmentId: number | null = null;
-  if (pending.department) {
-    departmentId = await resolveOrCreateByName(pending.department, departments, departmentCache, (p) => createDepartment({ ...p, sortOrder: 0 }));
-  }
-
-  const created = await createAssignee({ name: pending.name, departmentId });
-  assigneeCache.set(pending.name, created.id);
   return created.id;
 }
 

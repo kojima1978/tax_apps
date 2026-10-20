@@ -86,11 +86,6 @@ export interface PendingReferrer {
   department?: string;
 }
 
-export interface PendingAssignee {
-  name: string;
-  department?: string;
-}
-
 export interface ImportRow {
   data: CreateCaseInput;
   mode: 'create' | 'update';
@@ -98,8 +93,6 @@ export interface ImportRow {
   deceasedName: string;
   defaultedFields: string[];
   pendingReferrer?: PendingReferrer;
-  pendingAssignee?: PendingAssignee;
-  pendingInternalReferrer?: PendingAssignee;
 }
 
 /** Fields that receive Zod defaults when empty */
@@ -137,10 +130,10 @@ export interface ColumnMaps {
 export interface RowParseResult {
   obj: Record<string, unknown>;
   rawId: number | null;
-  unresolvedAssignee?: string;
+  /** 担当者の名簿（社員台帳の写し）に無い名前。部署名があれば「氏名（部署）」 */
+  unknownAssignee?: string;
+  unknownInternalReferrer?: string;
   unresolvedReferrer?: string;
   pendingReferrer?: PendingReferrer;
-  pendingAssignee?: PendingAssignee;
-  pendingInternalReferrer?: PendingAssignee;
   rowWarnings: string[];
 }

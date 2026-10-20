@@ -113,7 +113,7 @@ export function parseAndValidateCSV(
       continue;
     }
 
-    const { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee, pendingInternalReferrer, rowWarnings } = rowToInput(
+    const { obj, rawId, unknownAssignee, unknownInternalReferrer, unresolvedReferrer, pendingReferrer, rowWarnings } = rowToInput(
       dataRows[i],
       colMaps,
       resolvers
@@ -124,13 +124,20 @@ export function parseAndValidateCSV(
       warnings.push({ row: csvRowNum, message: msg });
     }
 
-    // Name resolution warnings
-    if (unresolvedAssignee) {
-      warnings.push({
+    // 担当者・社内紹介者は社員台帳で登録する。名簿に無い名前の行は取り込まない
+    const unknownPeople = [
+      unknownAssignee && `担当者「${unknownAssignee}」`,
+      unknownInternalReferrer && `社内紹介者「${unknownInternalReferrer}」`,
+    ].filter(Boolean);
+    if (unknownPeople.length > 0) {
+      errors.push({
         row: csvRowNum,
-        message: `担当者「${unresolvedAssignee}」がマスタに見つかりません（空欄として取り込みます）`,
+        message: `${unknownPeople.join('・')}が担当者の名簿にありません。社員台帳で登録するか、名前を名簿どおりに直してください`,
       });
+      continue;
     }
+
+    // Name resolution warnings
     if (unresolvedReferrer) {
       warnings.push({
         row: csvRowNum,
@@ -191,8 +198,6 @@ export function parseAndValidateCSV(
         deceasedName: result.data.deceasedName,
         defaultedFields,
         ...(pendingReferrer ? { pendingReferrer } : {}),
-        ...(pendingAssignee ? { pendingAssignee } : {}),
-        ...(pendingInternalReferrer ? { pendingInternalReferrer } : {}),
       });
     } else {
       const messages = result.error.issues.map((issue) => issue.message);

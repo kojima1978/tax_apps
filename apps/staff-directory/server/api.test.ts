@@ -139,3 +139,20 @@ describe('事務所', () => {
     expect(saved.body).toMatchObject({ name: '架空税理士法人', postalCode: '100-0001' });
   });
 });
+
+describe('他アプリとの対応', () => {
+  it('app ごとの対応を返し、app が無ければ 400', async () => {
+    const dept = await call('POST', '/departments', { name: '資産税部' });
+    const staff = await call('POST', '/staff', { name: '山田', departmentId: dept.body.id });
+    const link = db.prepare('INSERT INTO external_links (app, entity, external_id, local_id) VALUES (?, ?, ?, ?)');
+    link.run('itcm', 'department', '7', dept.body.id);
+    link.run('itcm', 'staff', '12', staff.body.id);
+    link.run('other', 'staff', '99', staff.body.id);
+
+    expect((await call('GET', '/links?app=itcm')).body).toEqual([
+      { entity: 'department', externalId: '7', localId: dept.body.id },
+      { entity: 'staff', externalId: '12', localId: staff.body.id },
+    ]);
+    expect((await call('GET', '/links')).status).toBe(400);
+  });
+});

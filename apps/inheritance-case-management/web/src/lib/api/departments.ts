@@ -1,1 +1,1 @@
-export { getDepartments, createDepartment, updateDepartment, deleteDepartment } from './masters';
+export { getDepartments } from './masters';

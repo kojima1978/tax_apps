@@ -1,4 +1,4 @@
-import { ChevronsUpDown, Plus } from "lucide-react"
+import { ChevronsUpDown } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { SelectField } from "@/components/ui/SelectField"
 import type { Department } from "@/types/shared"
@@ -11,7 +11,6 @@ interface StaffToolbarProps {
     onFilterDeptChange: (value: string) => void
     onToggleShowInactive: () => void
     onToggleExpandAll: () => void
-    onStartAddDepartment: () => void
 }
 
 export function StaffToolbar({
@@ -22,7 +21,6 @@ export function StaffToolbar({
     onFilterDeptChange,
     onToggleShowInactive,
     onToggleExpandAll,
-    onStartAddDepartment,
 }: StaffToolbarProps) {
     return (
         <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -37,19 +35,13 @@ export function StaffToolbar({
             </SelectField>
 
             <Button variant="outline" size="sm" onClick={onToggleShowInactive}>
-                {showInactive ? "有効のみ表示" : "すべて表示"}
+                {showInactive ? "在籍のみ表示" : "退職者も表示"}
             </Button>
 
             <Button variant="outline" size="sm" onClick={onToggleExpandAll}>
                 <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
                 {allExpanded ? "全て閉じる" : "全て開く"}
             </Button>
-
-            <div className="ml-auto flex gap-2">
-                <Button variant="outline" size="sm" onClick={onStartAddDepartment}>
-                    <Plus className="h-3.5 w-3.5 mr-1" />部署追加
-                </Button>
-            </div>
         </div>
     )
 }

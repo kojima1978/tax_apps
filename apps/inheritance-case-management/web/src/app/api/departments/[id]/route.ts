@@ -1,3 +1,4 @@
 import { byId } from '../handlers';
 
-export const { GET, PUT, DELETE } = byId;
+// 追加・変更・削除は社員台帳で行う（ここは写しを読むだけ）
+export const { GET } = byId;

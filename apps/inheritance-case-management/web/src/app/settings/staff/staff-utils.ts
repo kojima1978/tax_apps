@@ -1,21 +1,6 @@
 import type { Assignee, Department } from "@/types/shared"
 
-export type EditingAssignee = { id: number; name: string; employeeId: string; departmentId: string }
-export type NewAssigneeDraft = { name: string; employeeId: string }
 export type StaffGroup = { dept: Department | null; members: Assignee[] }
-
-export function formatEmployeeId(value: string) {
-    if (!value) return ""
-    const num = parseInt(value, 10)
-    if (isNaN(num)) return value
-    return num.toString().padStart(3, "0")
-}
-
-export function isValidEmployeeId(value: string) {
-    if (!value) return true
-    const num = parseInt(value, 10)
-    return !isNaN(num) && num >= 0 && num <= 999
-}
 
 export function getGroupedAssignees({
     assignees,

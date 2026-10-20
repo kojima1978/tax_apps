@@ -9,6 +9,7 @@ import {
   getOffice,
   getStaff,
   listDepartments,
+  listLinks,
   listStaff,
   updateDepartment,
   updateOffice,
@@ -112,6 +113,15 @@ export function createApiRouter(db: Database.Database): Router {
 
   r.put('/office', (req, res) => {
     respond(res, parseOfficeInput(req.body), (input) => updateOffice(db, input));
+  });
+
+  r.get('/links', (req, res) => {
+    const app = req.query.app;
+    if (typeof app !== 'string' || app === '') {
+      res.status(400).json({ error: 'app を指定してください' });
+      return;
+    }
+    res.json(listLinks(db, app));
   });
 
   return r;

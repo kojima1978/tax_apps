@@ -127,15 +127,15 @@ describe('担当者・紹介者の突き合わせ', () => {
     expect(parse(['紹介者_会社名', '紹介者_部署名'], ['あおぞら銀行', '渋谷支店'], r).obj.referrerId).toBe(21);
   });
 
-  it('未登録の名前は「これから作るもの」として持ち越す', () => {
+  it('未登録の紹介者は「これから作るもの」、担当者・社内紹介者は「名簿に無い」として返す', () => {
     const res = parse(
       ['担当者_氏名', '担当者_部署名', '紹介者_会社名', '紹介者_部署名', '社内紹介者_氏名'],
       ['田中 三郎', '資産税部', 'みらい信金', '本店', '高橋 四郎'],
       resolvers()
     );
-    expect(res.pendingAssignee).toEqual({ name: '田中 三郎', department: '資産税部' });
+    expect(res.unknownAssignee).toBe('田中 三郎（資産税部）');
     expect(res.pendingReferrer).toEqual({ company: 'みらい信金', department: '本店' });
-    expect(res.pendingInternalReferrer).toEqual({ name: '高橋 四郎' });
+    expect(res.unknownInternalReferrer).toBe('高橋 四郎');
     expect(res.obj.assigneeId).toBeUndefined();
     expect(res.obj.referrerId).toBeUndefined();
   });
@@ -150,12 +150,18 @@ describe('担当者・紹介者の突き合わせ', () => {
   it('2列形式が入っていれば旧い1列形式より優先する', () => {
     const res = parse(['担当者', '担当者_氏名'], ['佐藤 一郎', '鈴木 二郎'], resolvers());
     expect(res.obj.assigneeId).toBe(12);
+    // 旧い列の名前が名簿に無くても、2列形式で引けていれば問題にしない
+    expect(parse(['担当者', '担当者_氏名'], ['知らない人', '鈴木 二郎'], resolvers()).unknownAssignee).toBeUndefined();
+  });
+
+  it('旧い1列形式の担当者も、名簿に無ければ「名簿に無い」として返す', () => {
+    expect(parse(['担当者'], ['知らない人'], resolvers()).unknownAssignee).toBe('知らない人');
   });
 
   it('社内紹介者は担当者の名簿から引く', () => {
     const res = parse(['社内紹介者'], ['鈴木 二郎'], resolvers());
     expect(res.obj.internalReferrerId).toBe(12);
-    expect(res.pendingInternalReferrer).toBeUndefined();
+    expect(res.unknownInternalReferrer).toBeUndefined();
   });
 });
 

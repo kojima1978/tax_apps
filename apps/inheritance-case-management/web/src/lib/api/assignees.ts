@@ -1,1 +1,1 @@
-export { getAssignees, createAssignee, updateAssignee, deleteAssignee } from './masters';
+export { getAssignees } from './masters';

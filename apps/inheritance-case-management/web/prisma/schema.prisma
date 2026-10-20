@@ -85,6 +85,9 @@ model Department {
   sortOrder  Int        @default(0)
   active     Boolean    @default(true)
   assignees  Assignee[]
+  // 社員台帳（staff-directory）の部署ID。部署・担当者は台帳が正で、ここは写し
+  // （src/lib/staff-directory-sync.ts が数分ごとに台帳から上書きする）
+  staffDirectoryId Int? @unique
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -99,6 +102,8 @@ model Assignee {
   departmentId Int?
   department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   active       Boolean      @default(true)
+  // 社員台帳の台帳ID。名前は写しで、人の同一性はこちらで見る
+  staffDirectoryId Int?     @unique
   assignedCases          InheritanceCase[] @relation("CaseAssignee")
   internalReferredCases  InheritanceCase[] @relation("CaseInternalReferrer")
 

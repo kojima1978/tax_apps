@@ -6,11 +6,10 @@ import type { BulkUpsertPayload } from '@/lib/api/cases';
 import { DEFAULT_PROGRESS_STEPS } from '@/lib/progress-utils';
 import { getAssignees } from '@/lib/api/assignees';
 import { getReferrers } from '@/lib/api/referrers';
-import { getDepartments } from '@/lib/api/departments';
 import { getCompanies } from '@/lib/api/companies';
 import { getCompanyBranches } from '@/lib/api/company-branches';
-import { resolveOrCreateAssignee, resolveOrCreateReferrer } from '@/lib/import/master-resolver';
-import type { Department, Company, CompanyBranch } from '@/types/shared';
+import { resolveOrCreateReferrer } from '@/lib/import/master-resolver';
+import type { Company, CompanyBranch } from '@/types/shared';
 
 export type ImportStep = 'select' | 'preview' | 'importing' | 'done';
 
@@ -29,7 +28,6 @@ export function useImportCSV() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState(0);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<CompanyBranch[]>([]);
   const abortRef = useRef(false);
@@ -55,11 +53,10 @@ export function useImportCSV() {
       }
 
       try {
-        const [freshAssignees, freshReferrers, freshCases, freshDepts, freshComps, freshBranches] = await Promise.all([
-          getAssignees(), getReferrers(), getAllCases(), getDepartments(), getCompanies(), getCompanyBranches(),
+        const [freshAssignees, freshReferrers, freshCases, freshComps, freshBranches] = await Promise.all([
+          getAssignees(), getReferrers(), getAllCases(), getCompanies(), getCompanyBranches(),
         ]);
         const freshResolvers = buildResolverMaps(freshAssignees, freshReferrers);
-        setDepartments(freshDepts);
         setCompanies(freshComps);
         setBranches(freshBranches);
 
@@ -91,10 +88,8 @@ export function useImportCSV() {
     const failedRows: ImportResult['failedRows'] = [];
 
     // Phase 1: マスタデータの事前解決・作成
-    const departmentCache = new Map<string, number>();
     const companyCache = new Map<string, number>();
     const branchCache = new Map<string, number>();
-    const assigneeCache = new Map<string, number>();
     const referrerCache = new Map<string, number>();
     const resolvedRows: typeof rows = [];
 
@@ -103,18 +98,6 @@ export function useImportCSV() {
       const row = rows[i];
       let data = row.data;
       try {
-        if (row.pendingAssignee) {
-          data = {
-            ...data,
-            assigneeId: await resolveOrCreateAssignee(row.pendingAssignee, departments, assigneeCache, departmentCache),
-          };
-        }
-        if (row.pendingInternalReferrer) {
-          data = {
-            ...data,
-            internalReferrerId: await resolveOrCreateAssignee(row.pendingInternalReferrer, departments, assigneeCache, departmentCache),
-          };
-        }
         if (row.pendingReferrer) {
           data = {
             ...data,
@@ -198,7 +181,7 @@ export function useImportCSV() {
 
     setImportResult({ success, failed, skipped, failedRows, createdCount, updatedCount });
     setStep('done');
-  }, [parseResult, departments, companies, branches]);
+  }, [parseResult, companies, branches]);
 
   const abortImport = useCallback(() => {
     abortRef.current = true;

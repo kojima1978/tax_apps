@@ -1,6 +1,6 @@
 export type {
   ImportIssue, ImportError, ImportWarning,
-  PendingReferrer, PendingAssignee, ImportRow,
+  PendingReferrer, ImportRow,
   ImportParseResult, ResolverMaps, ColumnMaps, RowParseResult,
 } from './types';
 export { MAX_HEIR_COLUMNS, MAX_IMPORT_FILE_SIZE, DEFAULTABLE_FIELDS } from './types';

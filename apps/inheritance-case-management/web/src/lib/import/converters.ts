@@ -1,6 +1,5 @@
 import type { ProgressStep, CaseStatus } from '@/types/shared';
-import type { ImportHeir, ColumnMaps, ResolverMaps, RowParseResult, PendingReferrer, PendingAssignee } from './types';
-// Note: PendingAssignee is reused for pendingInternalReferrer (same shape: name + optional department)
+import type { ImportHeir, ColumnMaps, ResolverMaps, RowParseResult, PendingReferrer } from './types';
 import {
   CSV_HEADER_MAP, IGNORED_HEADERS, HEIR_HEADER_RE, HEIR_FIELD_MAP,
   MAX_HEIR_COLUMNS, VALID_STATUSES,
@@ -81,11 +80,10 @@ export function rowToInput(
 ): RowParseResult {
   const obj: Record<string, unknown> = {};
   let rawId: number | null = null;
-  let unresolvedAssignee: string | undefined;
+  let unknownAssignee: string | undefined;
+  let unknownInternalReferrer: string | undefined;
   let unresolvedReferrer: string | undefined;
   let pendingReferrer: PendingReferrer | undefined;
-  let pendingAssignee: PendingAssignee | undefined;
-  let pendingInternalReferrer: PendingAssignee | undefined;
 
   const rowWarnings: string[] = [];
   let refCompany = '';
@@ -139,8 +137,7 @@ export function rowToInput(
           if (id) {
             obj.assigneeId = id;
           } else {
-            obj.assigneeId = null;
-            unresolvedAssignee = value;
+            unknownAssignee = value;
           }
         }
         break;
@@ -213,16 +210,18 @@ export function rowToInput(
     }
   }
 
+  // 担当者・社内紹介者は社員台帳の写しにある人だけ。未登録の名前を作りはしない
+  // （作ると台帳に居ない担当者が増え、同期で結び付かないまま残る）。呼び出し側で行ごとエラーにする
+  const withDepartment = (name: string, department: string) => (department ? `${name}（${department}）` : name);
+
   // Resolve 2-column assignee (takes precedence over legacy 担当者 column)
   if (asgPersonName) {
+    unknownAssignee = undefined;
     const id = resolvers?.assigneeNameToId.get(asgPersonName);
     if (id) {
       obj.assigneeId = id;
     } else {
-      pendingAssignee = {
-        name: asgPersonName,
-        ...(asgDepartment ? { department: asgDepartment } : {}),
-      };
+      unknownAssignee = withDepartment(asgPersonName, asgDepartment);
     }
   }
 
@@ -232,10 +231,7 @@ export function rowToInput(
     if (id) {
       obj.internalReferrerId = id;
     } else {
-      pendingInternalReferrer = {
-        name: internalReferrerName,
-        ...(internalReferrerDepartment ? { department: internalReferrerDepartment } : {}),
-      };
+      unknownInternalReferrer = withDepartment(internalReferrerName, internalReferrerDepartment);
     }
   }
 
@@ -314,5 +310,5 @@ export function rowToInput(
     }
   }
 
-  return { obj, rawId, unresolvedAssignee, unresolvedReferrer, pendingReferrer, pendingAssignee, pendingInternalReferrer, rowWarnings };
+  return { obj, rawId, unknownAssignee, unknownInternalReferrer, unresolvedReferrer, pendingReferrer, rowWarnings };
 }

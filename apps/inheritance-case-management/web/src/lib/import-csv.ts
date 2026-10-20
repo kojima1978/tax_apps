@@ -1,7 +1,7 @@
 // Re-export from split modules for backwards compatibility
 export type {
   ImportIssue, ImportError, ImportWarning,
-  PendingReferrer, PendingAssignee, ImportRow,
+  PendingReferrer, ImportRow,
   ImportParseResult, ResolverMaps,
 } from './import/index';
 export { MAX_HEIR_COLUMNS, MAX_IMPORT_FILE_SIZE, DEFAULTABLE_FIELDS } from './import/index';

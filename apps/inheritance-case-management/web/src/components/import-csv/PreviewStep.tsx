@@ -30,22 +30,8 @@ export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProp
   const updateCount = parseResult.validRows.filter((r) => r.mode === "update").length;
 
   const pendingMasterData = useMemo(() => {
-    const assignees = new Set<string>();
-    const internalReferrers = new Set<string>();
     const referrers = new Set<string>();
     for (const row of parseResult.validRows) {
-      if (row.pendingAssignee) {
-        const label = row.pendingAssignee.department
-          ? `${row.pendingAssignee.name}（${row.pendingAssignee.department}）`
-          : row.pendingAssignee.name;
-        assignees.add(label);
-      }
-      if (row.pendingInternalReferrer) {
-        const label = row.pendingInternalReferrer.department
-          ? `${row.pendingInternalReferrer.name}（${row.pendingInternalReferrer.department}）`
-          : row.pendingInternalReferrer.name;
-        internalReferrers.add(label);
-      }
       if (row.pendingReferrer) {
         const label = row.pendingReferrer.department
           ? `${row.pendingReferrer.company} / ${row.pendingReferrer.department}`
@@ -54,8 +40,6 @@ export function PreviewStep({ parseResult, onReset, onExecute }: PreviewStepProp
       }
     }
     const items = [
-      { label: '担当者', values: [...assignees] },
-      { label: '社内紹介者', values: [...internalReferrers] },
       { label: '紹介者', values: [...referrers] },
     ].filter((g) => g.values.length > 0);
     return items;

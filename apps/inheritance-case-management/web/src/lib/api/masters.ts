@@ -2,8 +2,6 @@ import type { Company, CompanyBranch, Department, Assignee, Referrer, HeirPerson
 import type {
   CreateCompanyInput, UpdateCompanyInput,
   CreateCompanyBranchInput, UpdateCompanyBranchInput,
-  CreateDepartmentInput, UpdateDepartmentInput,
-  CreateAssigneeInput, UpdateAssigneeInput,
   CreateReferrerInput, UpdateReferrerInput,
   CreateHeirPersonInput, UpdateHeirPersonInput,
   CreateRelatedPartyPersonInput, UpdateRelatedPartyPersonInput,
@@ -22,17 +20,12 @@ export const createCompanyBranch = companyBranchApi.create;
 export const updateCompanyBranch = companyBranchApi.update;
 export const deleteCompanyBranch = companyBranchApi.remove;
 
-const departmentApi = createCrudApi<Department, CreateDepartmentInput, UpdateDepartmentInput>('/departments');
+// 部署・担当者は社員台帳の写しなので読むだけ（追加・変更は台帳の画面で行う）
+const departmentApi = createCrudApi<Department, never, never>('/departments');
 export const getDepartments = departmentApi.getAll;
-export const createDepartment = departmentApi.create;
-export const updateDepartment = departmentApi.update;
-export const deleteDepartment = departmentApi.remove;
 
-const assigneeApi = createCrudApi<Assignee, CreateAssigneeInput, UpdateAssigneeInput>('/assignees');
+const assigneeApi = createCrudApi<Assignee, never, never>('/assignees');
 export const getAssignees = assigneeApi.getAll;
-export const createAssignee = assigneeApi.create;
-export const updateAssignee = assigneeApi.update;
-export const deleteAssignee = assigneeApi.remove;
 
 const referrerApi = createCrudApi<Referrer, CreateReferrerInput, UpdateReferrerInput>('/referrers');
 export const getReferrers = referrerApi.getAll;

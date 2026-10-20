@@ -29,6 +29,7 @@
 | GET / POST | `/departments` | 部署一覧（在籍者数つき）・追加 |
 | PUT / DELETE | `/departments/:id` | 部署の更新・削除（所属者がいれば 409） |
 | GET / PUT | `/office` | 事務所情報 |
+| GET | `/links?app=itcm` | 他アプリの番号と台帳ID の対応（`entity` / `externalId` / `localId`） |
 | GET | `/health` | DB の `SELECT 1` とファイル・フォルダの書込権限（失敗は 503） |
 
 エラーは `{ "error": "日本語の理由" }`（入力不備 400 / 重複・参照不整合 409 / 無い 404）。
@@ -52,8 +53,23 @@ cd apps/staff-directory && docker compose exec staff-directory npm run import:it
 - 取込済みの人は**上書きしない**。台帳で直したフリガナや電話が、流し直しで消えないように
 - 案件管理で使用停止の担当者は、停止にした日（日本時間）を退職日にして入れる
 - 社員番号は引き継ぐが、台帳で使用済み・取込内で重複するものは空にして注意を出す
-- 取込元とのつながりは `external_links`（`app='itcm'`）に残る。案件管理側を台帳ID 参照へ
-  切り替えるときはここを引く
+- 取込元とのつながりは `external_links`（`app='itcm'`）に残る。案件管理側の同期はここを引く
+
+## 案件管理への写し（台帳 → itcm）
+
+案件管理の `Department` / `Assignee` は**台帳の写し**で、`staffDirectoryId` 列で台帳ID を持つ。
+追加・修正・退職は台帳だけで行い、案件管理の「担当者管理」は表示と「今すぐ読み直す」だけ
+（書き込みの API は 405）。
+
+- 担当者・部署の一覧 API が呼ばれたとき、前回から **5分以上**たっていれば写し直す
+  （`apps/inheritance-case-management/web/src/lib/staff-directory/`）。台帳が落ちていれば
+  3秒で諦めて写しのまま動き、画面に理由を出す
+- 結び付けは 台帳ID → `external_links` → （部署だけ）同じ名前。**担当者は名前で結び付けない**。
+  台帳に無い案件管理の担当者は「未連携」として画面に出る（ここで `import:itcm -- --yes` を流す）
+- 台帳で消した部署は案件管理で使用停止にする。退職日のある人は `active=false`
+- 案件管理の CSV 取込は、名簿に無い担当者・社内紹介者の行を**エラーにして取り込まない**
+  （以前は担当者・部署をその場で作っていた）
+- 案件管理から読む先は `STAFF_DIRECTORY_URL`（既定 `http://staff-directory:3031/staff-directory/api`）
 
 ## テスト
 

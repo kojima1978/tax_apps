@@ -208,3 +208,20 @@ export function updateOffice(db: Database.Database, input: OfficeInput): Office 
   ).run(input.name, input.postalCode, input.address, input.phone, input.fax);
   return getOffice(db);
 }
+
+export interface ExternalLink {
+  entity: 'staff' | 'department';
+  externalId: string;
+  localId: number;
+}
+
+// 他アプリが「自分の何番が台帳の何番か」を引くための一覧。取込で作った対応を
+// そのまま返すだけで、名前での突き合わせはしない
+export function listLinks(db: Database.Database, app: string): ExternalLink[] {
+  return db
+    .prepare(
+      `SELECT entity, external_id AS externalId, local_id AS localId
+       FROM external_links WHERE app = ? ORDER BY entity, local_id`,
+    )
+    .all(app) as ExternalLink[];
+}
