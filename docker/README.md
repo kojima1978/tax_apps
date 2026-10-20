@@ -880,6 +880,7 @@ docker network create tax-apps-network
 | ITCM | http://localhost/itcm/ | 3020 | Next.js + PostgreSQL | 案件管理システム |
 | Private Banking | http://localhost/private-banking/ | 3025 | Next.js + Prisma + PostgreSQL | ファミリーB/S |
 | Insurance App | http://localhost/insurance/ | 3030 | Next.js (standalone) + SQLite | 保険管理 |
+| Staff Directory | http://localhost/staff-directory/ | 3031 | Vite + Express + SQLite | 社員台帳 |
 
 ### バックエンドサービス
 
@@ -910,7 +911,8 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 12 | stock-valuation-form | PostgreSQL + Hono + Vite |
 | 13 | capital-gains-calc | Vite |
 | 14 | inheritance-tax-form | Vite |
-| 15 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
+| 15 | staff-directory | Vite + Express + SQLite |
+| 16 | gateway | Nginx + Portal（管理対象アプリ起動後に起動） |
 
 ### ポートマップ
 
@@ -937,6 +939,7 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 3025 | Private Banking | apps/private-banking |
 | 3026 | Private Banking PostgreSQL | apps/private-banking |
 | 3030 | Insurance App | apps/insurance-app |
+| 3031 | Staff Directory | apps/staff-directory |
 
 ### Preflight Check
 
@@ -1062,7 +1065,7 @@ DB が使えなければ 503 を返すので、コンテナは unhealthy にな�
 | DB | health が見るもの | 503 の本文 |
 |:---|:-----------------|:-----------|
 | PostgreSQL（itcm・bank-analyzer・private-banking・stock-valuation-form） | `SELECT 1` | itcm は `database: 'disconnected'`、他は `error: 'database unreachable'`。どれもログに `[health] DB に接続できません:` |
-| SQLite（insurance-app・inheritance-tax-docs） | `SELECT 1` に加えて、DB ファイルとそのフォルダに**書けるか**（`W_OK`。DB には何も書かない） | `database: 'EACCES'` など（エラーコード） |
+| SQLite（insurance-app・inheritance-tax-docs・staff-directory） | `SELECT 1` に加えて、DB ファイルとそのフォルダに**書けるか**（`W_OK`。DB には何も書かない） | `database: 'EACCES'` など（エラーコード） |
 
 SQLite で書込権限まで見るのは、`SELECT 1` だけだと「開けて読めるが書けない」状態（リストアで所有者が
 ずれた場合など）を見逃すため。6アプリとも、DB 停止や `chmod` で 503 になり、戻せば再起動なしに

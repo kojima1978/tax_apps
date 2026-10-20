@@ -28,6 +28,7 @@
 | 株式評価明細書 | `/stock-valuation-form/` | http://localhost/stock-valuation-form/ | 3014/3016 | Vite + React + Hono + Prisma + PostgreSQL | 取引相場のない株式の評価明細書 |
 | 銀行分析 | `/bank-analyzer/` | http://localhost/bank-analyzer/ | 3007 | Vite + React + Hono + Prisma + PostgreSQL | 預金移動分析 |
 | 保険管理 | `/insurance/` | http://localhost/insurance/ | 3030 | Next.js (standalone) + SQLite | 保険契約の管理 |
+| 社員台帳 | `/staff-directory/` | http://localhost/staff-directory/ | 3031 | Vite + React + Express + SQLite | 社員・部署・事務所の情報（各アプリが台帳IDで参照） |
 | ファミリーB/S | `/private-banking/` | http://localhost/private-banking/ | 3025/3026 | Next.js + Prisma + PostgreSQL | 資産承継のファミリーB/S |
 
 ### 本番モード イメージサイズ
@@ -51,6 +52,7 @@ tax_apps/
 │   ├── insurance-app/                 # 保険管理 (Next.js + SQLite)
 │   ├── tax-docs/                      # 確定申告必要書類 (Vite)
 │   ├── capital-gains-calc/            # 譲渡所得税計算 (Vite)
+│   ├── staff-directory/               # 社員台帳 (Vite + Express + SQLite)
 │   ├── depreciation-calc/             # 減価償却計算 (Vite)
 │   ├── asset-valuation/               # 減価償却資産評価 (Vite)
 │   ├── stock-valuation-form/          # 株式評価明細書 (Vite + Hono + Prisma + PostgreSQL)

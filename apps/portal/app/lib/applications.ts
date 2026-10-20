@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Briefcase, Building, Calculator, ChartPie,
-  Car, Clock, CreditCard, DatabaseBackup, FileCheck, FileSpreadsheet, FileText, Gift, Package, Receipt, ScrollText, Shield, TrendingUp,
+  Car, Clock, CreditCard, DatabaseBackup, FileCheck, FileSpreadsheet, FileText, Gift, Package, Receipt, ScrollText, Shield, TrendingUp, Users,
 } from 'lucide-react';
 
 export const categories = ['必要書類', '計算・評価', '分析・管理', 'その他'] as const;
@@ -30,6 +30,7 @@ export const applications: Application[] = [
   { title: '保険管理', description: '保険証券の管理・分析', url: '/insurance/', icon: Shield, category: '分析・管理' },
   { title: '預貯金分析', description: '預金移動の分析ツール', url: '/bank-analyzer/', icon: Building, category: '分析・管理' },
   { title: '案件管理', description: '相続税案件の進捗管理', url: '/itcm/', icon: Briefcase, category: '分析・管理' },
+  { title: '社員台帳', description: '社員・部署・事務所の情報（各アプリが参照）', url: '/staff-directory/', icon: Users, category: '分析・管理' },
   { title: '料金表', description: '報酬についてのご案内', url: '/fee-table/', icon: Receipt, category: 'その他' },
   { title: 'バックアップ設定', description: '全アプリの自動バックアップ・保存世代・外部コピー先を設定', url: '/backup-settings/', icon: DatabaseBackup, category: 'その他' },
   // 一時リンク: fleet-board は tax_apps 外の別プロジェクト（ポート 3035）。

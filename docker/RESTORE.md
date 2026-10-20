@@ -25,6 +25,7 @@ AI エージェントにそのまま渡して実行させる前提で書いて�
 | stock-valuation-form | PostgreSQL（`svf-postgres`）・`.env` |
 | insurance-app | SQLite（ボリューム `insurance-app-data`） |
 | inheritance-tax-docs | SQLite（ボリューム `inheritance-tax-docs-data`） |
+| staff-directory | SQLite（ボリューム `staff-directory-data`） |
 
 この表の元は `docker/scripts/backup.sh` 冒頭の4つの配列（`PG_TARGETS` / `SQLITE_TARGETS` /
 `BIND_TARGETS` / `SETTINGS_TARGETS`）。ここに無いアプリは**戻すデータを持たない**（ソースは Git にある）。

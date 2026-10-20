@@ -121,6 +121,7 @@ APPS=(
   "apps/stock-valuation-form"
   "apps/capital-gains-calc"
   "apps/inheritance-tax-form"
+  "apps/staff-directory"
   "docker/gateway"
 )
 
@@ -139,6 +140,7 @@ VOLUMES=(
   "inheritance-tax-docs-data"
   "private-banking_private_banking_postgres"
   "stock-valuation-form-postgres"
+  "staff-directory-data"
 )
 
 # compose 側で `external: true` にしているボリューム。compose は external を
@@ -255,6 +257,7 @@ TEST_TARGETS=(
   # dev で動いているが、稼働中のイメージを作り直さずに済み、本番へ切り替えても
   # 経路が変わらないよう、こちらも使い捨てサービスで回す
   "capital-gains-calc:run@capital-gains-calc-test:npm test"
+  "staff-directory:run@staff-directory-test:npm test"
 )
 
 # アプリの package.json。itcm（web/）や portal（app/）のように

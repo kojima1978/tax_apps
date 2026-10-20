@@ -1,0 +1,37 @@
+# ============================================
+# 社員台帳 - Production Override
+# ============================================
+# 起動は manage.sh start --prod staff-directory（個別に -f を並べない）
+# 取込は本番イメージに tsx が無いので:
+#   docker compose exec staff-directory node dist-server/cli/import-itcm.js [--yes]
+# ============================================
+
+x-prod-deploy: &prod-deploy
+  resources:
+    limits:
+      memory: 192M
+    reservations:
+      memory: 64M
+
+services:
+  staff-directory:
+    build:
+      target: runner
+    environment:
+      TZ: Asia/Tokyo
+      NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=128"
+      DATABASE_PATH: "/app/data/staff.sqlite"
+      DATA_DIR: "/app/data"
+    init: false
+    # !override で base の volumes を置換する（通常のリストはマージされ、
+    # 開発用の ./src ./server バインドが本番にも残ってしまうため）
+    volumes: !override
+      - staff_directory_data:/app/data
+    healthcheck:
+      start_period: 10s
+    deploy: *prod-deploy
+
+volumes:
+  staff_directory_data:
+    name: staff-directory-data

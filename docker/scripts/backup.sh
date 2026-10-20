@@ -91,6 +91,7 @@ PG_TARGETS=(
 SQLITE_TARGETS=(
   "Insurance App SQLite:insurance-app:/app/data/insurance.sqlite:insurance-app-data:insurance-app-data:insurance-app"
   "Inheritance Tax Docs SQLite:inheritance-tax-docs:/app/data/resources.sqlite:inheritance-tax-docs-data:inheritance-tax-docs-data:inheritance-tax-docs"
+  "Staff Directory SQLite:staff-directory:/app/data/staff.sqlite:staff-directory-data:staff-directory-data:staff-directory"
 )
 
 # label:source_path:backup_dir_name

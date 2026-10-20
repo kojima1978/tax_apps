@@ -11,6 +11,7 @@ const labels: Record<string, string> = {
   'inheritance-case-management': '案件管理', 'bank-analyzer': '預貯金分析',
   'private-banking': '資産・負債管理（PB）', 'stock-valuation-form': '株式評価明細書',
   'insurance-app': '保険管理', 'inheritance-tax-docs': '相続税 必要書類',
+  'staff-directory': '社員台帳',
 };
 const fieldClass = 'mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 disabled:bg-slate-100';
 

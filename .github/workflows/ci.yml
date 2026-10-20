@@ -43,6 +43,7 @@ jobs:
           - { app: mcp-server, dir: apps/mcp-server }
           - { app: private-banking, dir: apps/private-banking }
           - { app: retirement-tax-calc, dir: apps/retirement-tax-calc }
+          - { app: staff-directory, dir: apps/staff-directory }
           - { app: stock-valuation-form, dir: apps/stock-valuation-form }
     defaults:
       run:

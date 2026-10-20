@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+body {
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: 'Noto Sans JP', 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+/* フォーカスリング — キーボード操作時のみ */
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid #0d9488; /* teal-600 */
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(15 23 42 / 0.4);
+}

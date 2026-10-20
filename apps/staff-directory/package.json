@@ -1,0 +1,41 @@
+{
+  "name": "staff-directory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch server/index.ts",
+    "build": "tsc -b && vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "lint": "eslint .",
+    "typecheck": "tsc -b && tsc -p tsconfig.server-check.json",
+    "test": "npm run typecheck && vitest run",
+    "import:itcm": "tsx server/cli/import-itcm.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.9.1",
+    "express": "^5.1.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-router-dom": "^7.6.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.5.2",
+    "eslint": "^9",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.1.0",
+    "tailwindcss": "^4",
+    "tsx": "^4",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.32.1",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  }
+}

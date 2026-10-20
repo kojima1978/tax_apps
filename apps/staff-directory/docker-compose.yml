@@ -1,0 +1,122 @@
+# ============================================
+# 社員台帳 - Docker Compose
+# ============================================
+# Usage（ビルドを伴うものはリポジトリ直下から -f で叩く）:
+#   開発:     docker/scripts/manage.sh start staff-directory
+#   再ビルド: docker/scripts/manage.sh build staff-directory
+#   ログ:     docker/scripts/manage.sh logs staff-directory
+#   取込:     cd apps/staff-directory && docker compose exec staff-directory npm run import:itcm
+# ============================================
+
+# 共通設定
+x-common-env: &common-env
+  TZ: Asia/Tokyo
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-autoheal-labels: &autoheal-labels
+  tax-apps.autoheal: "true"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s
+
+# コンテナ内で setuid ビット経由の特権取得を塞ぐ。アプリ側にその必要は無い。
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  # ===========================================
+  # 社員台帳
+  # Port: 3031
+  #
+  # 全アプリが使う社員・部署・事務所の情報の置き場。
+  # 他アプリは GET /staff-directory/api/staff などを読み、台帳ID で人を参照する。
+  # ===========================================
+  staff-directory:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        APP_PORT: "3031"
+    container_name: staff-directory
+    networks:
+      - tax-apps-network
+    ports:
+      - "127.0.0.1:3031:3031"
+    volumes:
+      - ./src:/app/src:ro
+      - ./server:/app/server:ro
+      - ./index.html:/app/index.html:ro
+      - staff_directory_data:/app/data
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=384"
+      DATABASE_PATH: "/app/data/staff.sqlite"
+      DATA_DIR: "/app/data"
+    init: true
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *autoheal-labels
+    <<: *security-opts
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3031/staff-directory/api/health || exit 1"]
+      <<: *healthcheck-defaults
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  # ===========================================
+  # テスト用の使い捨てコンテナ（manage.sh test / CI から run --rm で起動）
+  # dev ステージを使うので本番モードで稼働中でも回せる。image を本体と別にしておく
+  # （共有すると次の apply / recover が本番コンテナを dev イメージで作り直す）。
+  # テストファイルは .dockerignore でイメージに入らないので、server も被せる。
+  # DB は各テストが :memory: で作るので、データのボリュームは付けない。
+  # ===========================================
+  staff-directory-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        APP_PORT: "3031"
+    image: staff-directory-test
+    profiles: ["test"]
+    volumes:
+      - ./src:/app/src:ro
+      - ./server:/app/server:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=384"
+    init: true
+    restart: "no"
+    logging: *default-logging
+    <<: *security-opts
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+networks:
+  tax-apps-network:
+    external: true
+
+volumes:
+  staff_directory_data:
+    name: staff-directory-data
