@@ -1,0 +1,14 @@
+/**
+ * ブラウザ側で一意の ID を作る。
+ * crypto.randomUUID は安全なコンテキスト（https / localhost）でしか定義されず、
+ * LAN から http で開くと undefined になる。getRandomValues はどちらでも使えるので、
+ * 無いときはそれで同じ形（v4）の UUID を組む。
+ */
+export function randomId(): string {
+    if (typeof crypto.randomUUID === "function") return crypto.randomUUID()
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    const hex = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("")
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}

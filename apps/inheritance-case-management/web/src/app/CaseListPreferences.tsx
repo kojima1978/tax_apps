@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/Toast"
 import { useWorkspacePreferences } from "@/hooks/use-workspace-preferences"
 import { LIST_COLUMN_OPTIONS, LIST_VIEWS } from "@/lib/workspace-preferences"
 import type { CasesQueryParams } from "@/lib/api/cases"
+import { randomId } from "@/lib/random-id"
 import { parseCaseListUrlParams, toCaseListUrlSearch } from "./case-list-utils"
 
 export function CaseListPreferences({ params, onApply }: { params: CasesQueryParams; onApply: (params: CasesQueryParams) => void }) {
@@ -31,7 +32,7 @@ export function CaseListPreferences({ params, onApply }: { params: CasesQueryPar
                     <label className="min-w-0"><span className="mb-1 block text-xs font-medium">条件名</span><Input value={name} maxLength={40} onChange={e => setName(e.target.value)} placeholder="例：今月の申告対象" className="w-full sm:w-60" /></label>
                     <Button type="button" variant="outline" disabled={!name.trim() || (preferences.savedSearches.length >= 30 && !preferences.savedSearches.some(item => item.name === name.trim()))} onClick={() => {
                         const query = toCaseListUrlSearch({ ...params, page: 1, search: params.search ?? "" })
-                        if (update(p => ({ ...p, savedSearches: [...p.savedSearches.filter(item => item.name !== name.trim()), { id: p.savedSearches.find(item => item.name === name.trim())?.id ?? crypto.randomUUID(), name: name.trim(), query }] }))) {
+                        if (update(p => ({ ...p, savedSearches: [...p.savedSearches.filter(item => item.name !== name.trim()), { id: p.savedSearches.find(item => item.name === name.trim())?.id ?? randomId(), name: name.trim(), query }] }))) {
                             setName(""); toast.success("検索条件を保存しました")
                         }
                     }}>現在の条件を保存</Button>
