@@ -178,7 +178,12 @@ docker/scripts/manage.sh watch <app-name>
   **選ぶ口は `manage.sh usb`（`set-backup-usb.bat`）**: ドライブ一覧から選ぶ／`--set` / `--show` /
   `--copy-now` / `--off`（`.off` へ退けるだけでコピー先は消さない）。2行目の `# id:` とコピー先の目印
   `.tax-apps-backup-id` が対で、**ドライブ文字が変わったら c〜z を探して目印が一致したときだけ追いかけ、
-  設定を書き換える**（同じフォルダ名の別の USB を黙って使わない）。本体と同じドライブは警告＋確認
+  設定を書き換える**（同じフォルダ名の別の USB を黙って使わない）。本体と同じドライブは警告＋確認。
+  **コピーはバックアップの直後だけでなく `due` でも追いつく**（`run_due_external_copy`）── 以前は
+  バックアップの瞬間に USB が挿さっていなければ、あとで挿しても次のバックアップ（最大20時間先）まで
+  写らず警告も残った（2026-10-20〜21）。最新のアーカイブが `backup-external` の ok の detail と
+  違えば、コピー先がつながっている回にだけ写す。つながっていない回は記録を書き直さない
+  （「いつから外れているか」を消さないため）。`DUE_RESULT` の `ext=ran|absent|skip|failed`
 - **LAN 公開の守りは Windows ファイアウォールだけ**。アプリにログインは無く、Docker Desktop の中継で
   nginx の `$remote_addr` は全接続が `172.18.0.1` になる（実測）ので **nginx の allow/deny は効かない**。
   80番で待ち受けるのは `com.docker.backend.exe` で、Docker が作る「Docker Desktop Backend」
@@ -334,7 +339,7 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
   （20h < 30h / 168h < 192h / 144h < 192h / 3h < 24h）。逆転すると「警告を出してから実行する」順序になる。
   **差は「取りこぼし1回ぶん」より大きく取ること** ── 掃除は 168h 周期で動かしていたのに警告が
   192h だったため、1回落ちるだけで警告が確定する幅しか無かった
-- **`due` の4項目は互いの成否に依存させない**。ドリルが失敗した回に掃除まで一緒に止まると、
+- **`due` の各項目は互いの成否に依存させない**。ドリルが失敗した回に掃除まで一緒に止まると、
   駆動元が1つしか無かった以前の形に戻る
 - **実行はアラートより先**（`docker-watchdog.ps1` は `Invoke-DueUnattendedWork` →
   `Update-FailureAlert` の順）。以前はバックアップとウォッチドッグが別々のスケジューラで

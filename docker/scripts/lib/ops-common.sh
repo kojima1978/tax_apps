@@ -394,6 +394,13 @@ ops_refresh_failure_alert() {
       printf '  1. docker/scripts/status.bat をダブルクリックして状態を見る\n'
       printf '  2. ログ: %s\n' "$(to_win_path "$OPS_LOG_DIR")"
       printf '  3. 直近の記録: %s\n' "$(to_win_path "$OPS_LAST_RESULT_DIR")"
+      # 外部コピーだけは直すのが人の手（ドライブを挿す）なので、何をすればよいかを書く
+      if printf '%s\n' "$failures" | grep -q $'^backup-external\t'; then
+        local ext_dest
+        ext_dest=$(ops_external_backup_dest 2>/dev/null) || ext_dest=""
+        printf '\n外部コピーの失敗は、コピー先%sのドライブを挿せば\n' "${ext_dest:+（$(to_win_path "$ext_dest")）}"
+        printf '4時間以内の次の自動実行で写り、この警告も消えます。\n'
+      fi
     } > "$alert_file" 2>/dev/null || true
   fi
 

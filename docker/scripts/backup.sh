@@ -2796,7 +2796,7 @@ prune_full_backups() {
 # 一番危ないため。
 copy_backup_to_external() {
   local archive="$1"
-  local dest
+  local dest resolved
 
   if ! dest=$(ops_external_backup_dest); then
     return 0
@@ -2805,20 +2805,12 @@ copy_backup_to_external() {
   echo ""
   echo "External copy: $dest"
 
-  # ドライブ文字が変わっていたら（挿す順番で E: が F: になる）、目印で追いかける
-  local moved
-  if [[ ! -d "$dest" ]] && moved=$(find_moved_external_dest "$dest"); then
-    warn "コピー先のドライブ文字が変わっていました: $(to_win_path "$dest") → $(to_win_path "$moved")"
-    if [[ -z "${TAX_APPS_BACKUP_EXTERNAL_DEST:-}" ]]; then
-      write_external_config "$moved" "$(external_config_id)" &&
-        echo "  設定を書き換えました: $(to_win_path "$OPS_EXTERNAL_DEST_FILE")"
-    fi
-    dest="$moved"
-  fi
-
-  if [[ ! -d "$dest" ]]; then
+  if resolved=$(resolve_external_dest "$dest"); then
+    dest="$resolved"
+  else
     warn "コピー先が見つかりません: $dest"
     echo "  外付けドライブが外れているか、NAS に繋がっていない可能性があります。"
+    echo "  挿しておけば、次のウォッチドッグ（4時間以内）がこの回のぶんを写します。"
     echo "  設定ファイル: $(to_win_path "$OPS_EXTERNAL_DEST_FILE")（変えるなら set-backup-usb.bat）"
     ops_write_last_result "backup-external" "unavailable" "dest not mounted"
     return 1
@@ -2856,6 +2848,24 @@ copy_backup_to_external() {
   echo "  Copied: $(basename "$archive")"
   ops_write_last_result "backup-external" "ok" "$(basename "$archive")"
   return 0
+}
+
+# 設定のコピー先が今つながっていればそのパスを出す。ドライブ文字が変わっていたら
+# （挿す順番で E: が F: になる）、目印で追いかけて設定も書き換える。
+resolve_external_dest() {
+  local dest="$1" moved
+  [[ -d "$dest" ]] && { printf '%s\n' "$dest"; return 0; }
+  moved=$(find_moved_external_dest "$dest") || return 1
+  warn "コピー先のドライブ文字が変わっていました: $(to_win_path "$dest") → $(to_win_path "$moved")" >&2
+  if [[ -z "${TAX_APPS_BACKUP_EXTERNAL_DEST:-}" ]]; then
+    write_external_config "$moved" "$(external_config_id)" &&
+      echo "  設定を書き換えました: $(to_win_path "$OPS_EXTERNAL_DEST_FILE")" >&2
+  fi
+  printf '%s\n' "$moved"
+}
+
+latest_full_backup_archive() {
+  find "$BACKUP_BASE" -maxdepth 1 -name '????-??-??_??????.tar.gz.enc' 2>/dev/null | sort | tail -1
 }
 
 # ------------------------------------
@@ -3163,7 +3173,7 @@ cmd_usb() {
   fi
   if [[ $copy_now -eq 1 ]]; then
     local latest
-    latest=$(find "$BACKUP_BASE" -maxdepth 1 -name '????-??-??_??????.tar.gz.enc' 2>/dev/null | sort | tail -1)
+    latest=$(latest_full_backup_archive)
     if [[ -z "$latest" ]]; then
       warn "この PC にまだバックアップがありません。次のバックアップから写ります"
       return 0
@@ -3204,6 +3214,32 @@ DUE_PRUNE_HOURS="${TAX_APPS_DUE_PRUNE_HOURS:-144}"
 DUE_LOOPCHECK_HOURS="${TAX_APPS_DUE_LOOPCHECK_HOURS:-3}"
 AUTOMATIC_BACKUP_ENABLED="${TAX_APPS_AUTOMATIC_BACKUP_ENABLED:-1}"
 
+# 外部コピーの追いつき。外部コピーはバックアップの直後に1回試すだけだったので、
+# その瞬間に USB が挿さっていなければ、あとで挿しても次のバックアップ（最大20時間先）
+# まで写らず、その間デスクトップの警告も残り続けた（2026-10-20〜21 は E: が無いまま
+# 2日続けて unavailable）。最新のアーカイブがまだ写っていなければ、コピー先が
+# つながっている回にだけ写す。つながっていない回は何もしない ── 記録は
+# バックアップの回に書いた unavailable が残っているので、毎回書き直して
+# 「いつから外れているか」を消さない。
+_due_external_needed() {
+  local latest="$1" status detail
+  ops_watched_result_is_active "backup-external" || return 1
+  [[ -n "$latest" ]] || return 1
+  status=$(ops_last_result_field "backup-external" status) || return 0
+  detail=$(ops_last_result_field "backup-external" detail || echo '')
+  [[ "$status" == "ok" && "$detail" == "$(basename "$latest")" ]] && return 1
+  return 0
+}
+
+run_due_external_copy() {
+  local latest dest
+  latest=$(latest_full_backup_archive)
+  _due_external_needed "$latest" || return 3
+  dest=$(ops_external_backup_dest) || return 3
+  resolve_external_dest "$dest" >/dev/null || return 2
+  copy_backup_to_external "$latest"
+}
+
 # 記録が無い（一度も成功していない）ときは期限切れとして扱う。
 _due_needed() {
   local name="$1" threshold="$2" age status
@@ -3233,7 +3269,7 @@ cmd_due() {
   # タスクが消えたことに気づく経路がその日だけ欠ける）。
   ensure_watchdog_task
 
-  local status="ok" backup_state="skip" drill_state="skip" prune_state="skip" loop_state="skip"
+  local status="ok" backup_state="skip" drill_state="skip" prune_state="skip" loop_state="skip" ext_state="skip"
 
   if [[ "$AUTOMATIC_BACKUP_ENABLED" == "0" ]]; then
     backup_state="disabled"
@@ -3250,6 +3286,19 @@ cmd_due() {
     echo "バックアップ: ${DUE_BACKUP_HOURS}時間以内に成功しているのでスキップ（$(ops_format_last_result backup)）"
     echo ""
   fi
+
+  # バックアップの直後に置く。この回のバックアップがその場で写せていれば
+  # 記録が ok になっているので、ここは何もしない。
+  local ext_rc=0
+  _due_run run_due_external_copy || ext_rc=$?
+  case "$ext_rc" in
+    0) ext_state="ran" ;;
+    2) ext_state="absent"
+       echo "外部コピー: 最新のバックアップが未コピーですが、コピー先がつながっていません（挿せば次の回で写ります）"
+       echo "" ;;
+    3) ;;
+    *) ext_state="failed"; status="failed" ;;
+  esac
 
   # バックアップの後に回すのは、直前に取れた最新のアーカイブで訓練できるから。
   if _due_needed "drill" "$DUE_DRILL_HOURS"; then
@@ -3295,7 +3344,7 @@ cmd_due() {
 
   # ウォッチドッグ(PowerShell)が読む唯一の行。日本語のログ行はコンソールの
   # コードページ次第で拾えないため、連絡は ASCII 1行に限る。
-  echo "DUE_RESULT status=$status backup=$backup_state drill=$drill_state prune=$prune_state loop=$loop_state"
+  echo "DUE_RESULT status=$status backup=$backup_state drill=$drill_state prune=$prune_state loop=$loop_state ext=$ext_state"
   [[ "$status" == "ok" ]]
 }
 
