@@ -156,8 +156,6 @@ EXTERNAL_VOLUMES=(
 # 意図的な除外が混ざっていると WARN が常時1件出たままになり、本当の
 # 載せ忘れが起きても区別がつかなくなる。除外する理由はここに書くこと。
 UNMANAGED_APPS=(
-  # 試作。compose.yaml で独立して動かしていて、起動も停止も手で行う。
-  "family-tree-sample"
   # MCP サーバー。常駐しない ── MCP クライアント（Claude Desktop など）が
   # 必要なときだけ docker run で起動し、終われば消える。compose のサービスには
   # profiles: ["mcp"] が付いているので start / recover に載せても何も起動しない
@@ -2610,7 +2608,7 @@ cmd_preflight() {
   # 二度と消せなくなる ── 実際に @prisma/engines の下が 261 文字を超え、rm も
   # Remove-Item もエクスプローラも Could not find a part of the path で止まった。
   # 見つけたらその場で消すこと（移さない）。走査はチェック16と同じく <app> とその1つ下まで。
-  # UNMANAGED_APPS は見ない（family-tree-sample は手で運用している試作）。
+  # UNMANAGED_APPS は見ない。
   local nm_path nm_found=()
   for app in "${APPS[@]}"; do
     for nm_path in "$PROJECT_ROOT/$app/node_modules" "$PROJECT_ROOT/$app"/*/node_modules; do

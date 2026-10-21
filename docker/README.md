@@ -1103,8 +1103,7 @@ tax_apps/
 │   ├── stock-valuation-form/   # 株式評価明細書（Hono + Prisma + PostgreSQL）
 │   ├── inheritance-tax-form/   # 相続税の申告書 全24様式
 │   ├── bank-analyzer/          # 銀行分析（Hono + Prisma + PostgreSQL。DB ボリュームは external）
-│   ├── mcp-server/             # 株式評価明細書へ書き込む stdio MCP サーバー（常駐しない）
-│   └── family-tree-sample/     # 家系図の試作（manage.sh の管理対象外）
+│   └── mcp-server/             # 株式評価明細書へ書き込む stdio MCP サーバー（常駐しない）
 ├── docker/                     # Docker 管理
 │   ├── Dockerfile.vite-static  # Vite系アプリ共通Dockerfile（7アプリ）
 │   ├── gateway/                # Gateway Compose プロジェクト

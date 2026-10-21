@@ -59,8 +59,7 @@ tax_apps/
 │   ├── inheritance-case-management/   # 案件管理 (Next.js + Prisma + PostgreSQL)
 │   ├── private-banking/               # ファミリーB/S (Next.js + Prisma + PostgreSQL)
 │   ├── bank-analyzer/                 # 銀行分析 (Vite + Hono + Prisma + PostgreSQL)
-│   ├── mcp-server/                    # 株式評価明細書へ書き込む MCP サーバー（常駐しない）
-│   └── family-tree-sample/            # 家系図の試作（manage.sh の管理対象外）
+│   └── mcp-server/                    # 株式評価明細書へ書き込む MCP サーバー（常駐しない）
 ├── docker/                            # Docker共通設定
 │   ├── Dockerfile.vite-static         # Vite 系7アプリ共通の Dockerfile
 │   ├── gateway/                       # Nginx Gateway + Portal の docker-compose.yml

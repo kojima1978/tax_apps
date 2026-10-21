@@ -115,7 +115,6 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 
 | ディレクトリ | 理由 |
 |:-------------|:-----|
-| `family-tree-sample` | 試作。`compose.yaml` で独立して動かし、起動も停止も手で行う |
 | `mcp-server` | 常駐しない MCP サーバー。クライアントが `docker run -i --rm` で起動する。テストだけ `TEST_TARGETS` の `run@mcp-server-test` で回る |
 
 ### そのほかの定義（manage.sh 冒頭）

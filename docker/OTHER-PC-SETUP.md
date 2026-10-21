@@ -163,7 +163,7 @@ git diff --name-only "$OLD" HEAD | grep -vE '\.md$'
 | `docker/Dockerfile.vite-static` | これを使う7アプリ（tax-docs / gift-tax-simulator / retirement-tax-calc / depreciation-calc / asset-valuation / capital-gains-calc / inheritance-tax-form）を `build` |
 | `docker/gateway/` | `manage.sh build gateway` |
 | `docker/scripts/` | 作り直しは不要（次に叩いたときから新しい版が動く） |
-| `apps/family-tree-sample/` / `apps/mcp-server/` | 何もしない（`manage.sh` の管理外） |
+| `apps/mcp-server/` | 何もしない（`manage.sh` の管理外） |
 | それ以外（`.github/` / `.gitattributes` など） | 何もしない |
 
 - `manage.sh status` で**止まっていたアプリは対象から外す**（`build` は止まっているアプリも起動してしまう）。
