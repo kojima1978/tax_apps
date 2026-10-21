@@ -63,7 +63,7 @@ AI は最初に、**いまどちらの PC にいるかを人に確かめる**（
 | 2-1 | 新 | Git・Docker Desktop を入れる | UAC・ライセンス同意 |
 | 2-2 | 新 | リポジトリを取得し、鍵を置く | USB を挿す |
 | 2-3 | 新 | `newpc` で全部戻す | 【承認】一覧を見て実行 |
-| 2-4 | 新 | 自動起動・自動復旧・外部コピー・ファイアウォール・IP を設定する | UAC |
+| 2-4 | 新 | 自動起動・自動復旧・外部コピー・ファイアウォール・IP・電源とログオンを設定する | UAC・【判断】自動ログオン |
 | 2-5 | 新 | 確かめる（件数・訓練・テスト・preflight・画面） | 画面でデータを見る |
 | 3 | 元 | 数日後、元の自動タスクを外す（データは消さない） | 【承認】 |
 
@@ -102,8 +102,16 @@ ls docker/logs/app-modes/ 2>/dev/null && head -n1 docker/logs/app-modes/*
 ls -la ~/.tax-apps/
 powershell.exe -NoProfile -Command "Get-NetIPConfiguration | Where-Object IPv4DefaultGateway | Format-List InterfaceAlias,IPv4Address,IPv4DefaultGateway,DNSServer; Get-NetIPAddress -AddressFamily IPv4 | Where-Object PrefixOrigin -ne WellKnown | Format-Table InterfaceAlias,IPAddress,PrefixLength,PrefixOrigin"
 powershell.exe -NoProfile -Command "Get-ScheduledTask -TaskName 'Tax Apps*' | Format-Table TaskName,State"
+powercfg -query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE | grep -a 'AC'
+powercfg -query SCHEME_CURRENT SUB_SLEEP HIBERNATEIDLE | grep -a 'AC'
+powershell.exe -NoProfile -Command "(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon -ErrorAction SilentlyContinue).AutoAdminLogon"
+powershell.exe -NoProfile -Command "Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -ErrorAction SilentlyContinue | Format-List ActiveHoursStart,ActiveHoursEnd"
 ```
 
+- 電源・自動ログオン・Windows Update の行は 2-4 で新しいサーバーを同じにするために使う。
+  スリープと休止の値は秒の16進（`0x00000000` = しない、`0x00000e10` = 1時間）。`AutoAdminLogon` は `1` なら自動ログオン
+  （空・`0` ならしていない）。Git Bash では `powercfg /query` の `/` がパスに書き換えられるので、`-query` の形で叩く。
+  **`DefaultPassword` の値は読まない・表示しない**。
 - `rev-list` の2つの数字は「この PC にしか無いコミット数」「master にしか無いコミット数」。
 - IP の行（`IPAddress` と `PrefixOrigin`）は 1-3・1-6・2-4 で使う。`PrefixOrigin` が `Dhcp` なら自動割り当て、
   `Manual` なら固定。
@@ -380,6 +388,39 @@ powershell.exe -NoProfile -Command "Get-NetConnectionProfile | Format-Table Inte
   【承認】「このネットワークをプライベートにします」と伝えてから、管理者の PowerShell で
   `Set-NetConnectionProfile -InterfaceAlias "<InterfaceAlias>" -NetworkCategory Private`。
 
+電源とログオン。**自動起動・自動復旧のタスクはログオンしている間しか動かない**（画面をロックしていても動く。
+サインアウト・スリープ・休止の間は1つも動かず、バックアップも止まる）。サーバーとして置きっぱなしにするため、
+電源につないでいる間はスリープも休止もしないようにする（昇格不要。画面を消す設定はそのままでよい）:
+
+```bash
+powercfg -change standby-timeout-ac 0
+powercfg -change hibernate-timeout-ac 0
+powercfg -query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE | grep -a 'AC'
+```
+
+- 最後の行が `0x00000000` であること。
+
+Windows Update は再起動の後、誰かがログオンするまでアプリを上げない。1-1 で控えたアクティブ時間
+（この時間帯は再起動しない）を同じにする:
+
+```bash
+powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-Command','Set-ItemProperty HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings -Name ActiveHoursStart -Value <開始時>; Set-ItemProperty HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings -Name ActiveHoursEnd -Value <終了時>'"
+```
+
+**【判断】自動ログオンにするか**（1-1 で元のサーバーが `AutoAdminLogon = 1` だったなら、元と同じにするかどうか）。
+
+| 選択 | 停電・Windows Update の再起動の後 | 気をつけること |
+|------|------------------------------|----------------|
+| しない（AI の推奨） | 誰かがログオンするまでアプリは止まったまま | 再起動に気づいたらログオンする。ふだんはサインアウトせず画面ロックで離れる |
+| する | 電源が入れば勝手にログオンしてアプリが上がる | PC の前に座った人は誰でもそのアカウントを使える。パスワードは Windows の中に保存される |
+
+自動ログオンにする場合、**パスワードを入れるのは人**（AI はパスワードを入力しない）。AI は
+`netplwiz` を開くところまで行い、人が「ユーザーがこのコンピューターを使うには、ユーザー名とパスワードの
+入力が必要」のチェックを外してパスワードを入れる。チェックの欄が無い場合は、Windows の設定の
+「アカウント → サインイン オプション」で「Windows Hello サインインのみを許可する」を人がオフにしてから開き直す。
+終わったら AI が 1-1 と同じ `AutoAdminLogon` の確認で `1` になったことを確かめ、再起動して
+ログオン後に `manage.sh status` で全アプリが healthy に戻ることを確かめる（【承認】再起動）。
+
 MCP サーバー（Claude Desktop などから株式評価明細書へ数字を入れる経路）を元のサーバーで使っていた場合だけ
 （1-1 の時点で人に聞く）、イメージを作り、MCP クライアントの設定を [apps/mcp-server/README.md](../apps/mcp-server/README.md) のとおり書く:
 
@@ -450,7 +491,7 @@ powershell.exe -NoProfile -Command "Get-ScheduledTask -TaskName 'Tax Apps*' -Err
 ## 完了報告に含める内容
 
 - どちらの PC で、どの部・手順まで行ったか。人に求めた判断・承認と、その答え
-- 元: 1-1 の出力（`git status`・`rev-list`・`app-modes/`・`status`・IP・タスク）、1-2 の更新の前後のコミットと
+- 元: 1-1 の出力（`git status`・`rev-list`・`app-modes/`・`status`・IP・タスク・電源・自動ログオン・アクティブ時間）、1-2 の更新の前後のコミットと
   `apply` / `build` の結果、引っ越しに使ったバックアップの名前と `verify` の結果、鍵の指紋、
   `backup-copy-ok` / `key-copy-ok`、`stop` の結果
 - 新: 入れたソフトの版、リポジトリの場所とコミット、鍵の指紋の一致、`newpc --check` の一覧、
