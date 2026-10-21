@@ -1,7 +1,8 @@
 import { useId } from "react";
 import { HomeIcon } from "./Icons";
 import PrintMenu from "./PrintMenu";
-import { COMPANY_INFO } from "@/lib/company";
+import CompanySwitcher from "./CompanySwitcher";
+import { useCompanyInfo } from "@/lib/company";
 import type { PrintOptionKey, PrintOptions } from "@/lib/print-options";
 
 type HeaderProps = {
@@ -14,6 +15,7 @@ type HeaderProps = {
 
 const Header = ({ staff, onStaffChange, printOptions, onPrintOptionChange, onPrint }: HeaderProps) => {
     const staffId = useId();
+    const { company, companies } = useCompanyInfo();
 
     return (
         <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 no-print">
@@ -31,9 +33,13 @@ const Header = ({ staff, onStaffChange, printOptions, onPrintOptionChange, onPri
                 <div className="flex-1" />
 
                 {/* 事務所名・担当者は印刷物に載る情報。画面ではここにまとめる */}
-                <span className="hidden md:inline text-sm font-bold text-emerald-800 flex-shrink-0">
-                    {COMPANY_INFO.name}
-                </span>
+                {/* 会社が複数あれば名前の代わりに選択欄を出す */}
+                {companies.length <= 1 && (
+                    <span className="hidden md:inline text-sm font-bold text-emerald-800 flex-shrink-0">
+                        {company.name}
+                    </span>
+                )}
+                <CompanySwitcher className="hidden md:inline flex-shrink-0" />
 
                 <label htmlFor={staffId} className="text-xs text-slate-500 flex-shrink-0 ml-2">
                     担当

@@ -1,11 +1,13 @@
 import { useState, useEffect, useId } from "react";
 import { formatJapaneseDate } from "@/lib/utils";
-import { COMPANY_INFO, getFullAddress } from "@/lib/company";
+import { getFullAddress, useCompanyInfo } from "@/lib/company";
+import CompanySwitcher from "./CompanySwitcher";
 
 const PrintFooter = () => {
     const [staff, setStaff] = useState("");
     const [today, setToday] = useState("");
     const staffId = useId();
+    const { company } = useCompanyInfo();
 
     useEffect(() => {
         setToday(formatJapaneseDate(new Date()));
@@ -15,9 +17,10 @@ const PrintFooter = () => {
         <footer className="mt-8 p-4 border-t border-gray-300 bg-gray-50">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-8">
                 <div className="flex-1">
-                    <p className="font-bold text-base text-green-800 my-1">{COMPANY_INFO.name}</p>
-                    <p className="text-sm my-1">{getFullAddress()}</p>
-                    <p className="text-sm my-1">TEL: {COMPANY_INFO.phone}</p>
+                    <CompanySwitcher />
+                    <p className="font-bold text-base text-green-800 my-1">{company.name}</p>
+                    <p className="text-sm my-1">{getFullAddress(company)}</p>
+                    <p className="text-sm my-1">TEL: {company.phone}</p>
                 </div>
                 <div className="sm:text-right">
                     <div className="flex items-center gap-2 mb-2">

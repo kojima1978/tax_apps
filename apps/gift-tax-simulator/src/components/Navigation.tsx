@@ -15,7 +15,8 @@ import CalendarDays from 'lucide-react/icons/calendar-days';
 import Landmark from 'lucide-react/icons/landmark';
 import Phone from 'lucide-react/icons/phone';
 import { useStaffInfo } from '@/contexts/StaffContext';
-import { COMPANY_INFO } from '@/lib/company';
+import { formatPostalCode, useCompanyInfo } from '@/lib/company';
+import CompanySwitcher from './CompanySwitcher';
 import { formatDate } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -48,6 +49,7 @@ const Navigation = ({
     onMobileMenuChange,
 }: Props) => {
     const { staffName, staffPhone, setStaffName, setStaffPhone } = useStaffInfo();
+    const { company } = useCompanyInfo();
     const location = useLocation();
     const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
     const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
@@ -184,11 +186,12 @@ const Navigation = ({
 
         <div className="sidebar-footer">
             <div className="sidebar-company">
-                <strong>{COMPANY_INFO.name}</strong>
+                <CompanySwitcher />
+                <strong>{company.name}</strong>
                 {/* 狭いサイドバーで住所が中途半端に折り返すので、郵便番号と住所で行を分ける */}
-                <span>{COMPANY_INFO.postalCode}</span>
-                <span>{COMPANY_INFO.address}</span>
-                <span className="sidebar-company-phone"><Phone aria-hidden="true" />{COMPANY_INFO.phone}</span>
+                <span>{formatPostalCode(company.postalCode)}</span>
+                <span>{company.address}</span>
+                <span className="sidebar-company-phone"><Phone aria-hidden="true" />{company.phone}</span>
             </div>
         </div>
 

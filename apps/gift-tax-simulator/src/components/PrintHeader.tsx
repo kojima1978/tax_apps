@@ -1,4 +1,4 @@
-import { COMPANY_INFO, getFullAddress } from '@/lib/company';
+import { getFullAddress, useCompanyInfo } from '@/lib/company';
 import { useStaffInfo } from '@/contexts/StaffContext';
 import { formatDate } from '@/lib/utils';
 
@@ -8,6 +8,7 @@ interface PrintHeaderProps {
 
 const PrintHeader = ({ title }: PrintHeaderProps) => {
     const { staffName, staffPhone } = useStaffInfo();
+    const { company } = useCompanyInfo();
     const hasStaff = staffName || staffPhone;
     const todayStr = formatDate(new Date());
 
@@ -16,9 +17,9 @@ const PrintHeader = ({ title }: PrintHeaderProps) => {
             <div className="print-header-title-row">
                 <h1>{title}</h1>
                 <address>
-                    <p className="company-name">{COMPANY_INFO.name}</p>
+                    <p className="company-name">{company.name}</p>
                     {/* 電話番号は住所と同じ行に置いてヘッダーの行数を減らす */}
-                    <p>{getFullAddress()}　TEL: {COMPANY_INFO.phone}</p>
+                    <p>{getFullAddress(company)}　TEL: {company.phone}</p>
                     {hasStaff && (
                         <p>
                             {staffName && <>担当: {staffName}</>}

@@ -17,7 +17,8 @@ import CalendarDays from 'lucide-react/icons/calendar-days';
 import Landmark from 'lucide-react/icons/landmark';
 import Phone from 'lucide-react/icons/phone';
 import { useStaffInfo } from '../contexts/useStaffInfo';
-import { COMPANY_INFO } from '../constants';
+import { getFullAddress, useCompanyInfo } from '../utils/company';
+import { CompanySwitcher } from './CompanySwitcher';
 
 const NAV_ITEMS = [
   { to: '/', label: '相続税計算', pageTitle: '相続税シミュレーション', icon: Calculator, group: 'calculate' },
@@ -45,6 +46,7 @@ const formatDate = (date: Date) =>
 
 export const Header = ({ actions }: HeaderProps) => {
   const { staffName, staffPhone, setStaffName, setStaffPhone } = useStaffInfo();
+  const { company } = useCompanyInfo();
   const location = useLocation();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -58,8 +60,8 @@ export const Header = ({ actions }: HeaderProps) => {
   const today = formatDate(new Date());
 
   useEffect(() => {
-    document.title = `${currentItem.pageTitle} | ${COMPANY_INFO.name}`;
-  }, [currentItem.pageTitle]);
+    document.title = `${currentItem.pageTitle} | ${company.name}`;
+  }, [currentItem.pageTitle, company.name]);
 
   useEffect(() => {
     if (!isMobileMenuOpen) return;
@@ -157,9 +159,10 @@ export const Header = ({ actions }: HeaderProps) => {
 
         <div className="inheritance-sidebar-footer">
           <div className="inheritance-company">
-            <strong>{COMPANY_INFO.name}</strong>
-            <span>{COMPANY_INFO.postalCode} {COMPANY_INFO.address}</span>
-            <span><Phone aria-hidden="true" />{COMPANY_INFO.phone}</span>
+            <CompanySwitcher />
+            <strong>{company.name}</strong>
+            <span>{getFullAddress(company)}</span>
+            <span><Phone aria-hidden="true" />{company.phone}</span>
           </div>
         </div>
 
@@ -222,9 +225,9 @@ export const Header = ({ actions }: HeaderProps) => {
           <p>作成日: {today}</p>
         </div>
         <div className="print-header-company">
-          <p className="company-name">{COMPANY_INFO.name}</p>
-          <p>{COMPANY_INFO.postalCode} {COMPANY_INFO.address}</p>
-          <p>TEL: {COMPANY_INFO.phone}</p>
+          <p className="company-name">{company.name}</p>
+          <p>{getFullAddress(company)}</p>
+          <p>TEL: {company.phone}</p>
         </div>
       </div>
     </>

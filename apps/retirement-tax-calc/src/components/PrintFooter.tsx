@@ -1,19 +1,22 @@
 import { useState, useId } from "react";
 import { formatJapaneseDate } from "@/lib/utils";
-import { COMPANY_INFO, getFullAddress } from "@/lib/company";
+import { getFullAddress, useCompanyInfo } from "@/lib/company";
+import CompanySwitcher from "./CompanySwitcher";
 
 const PrintFooter = () => {
     const [staff, setStaff] = useState("");
     const [today] = useState(() => formatJapaneseDate(new Date()));
     const staffId = useId();
+    const { company } = useCompanyInfo();
 
     return (
         <footer className="print-footer">
             <div className="print-footer-content">
                 <div className="print-footer-company">
-                    <p className="company-name">{COMPANY_INFO.name}</p>
-                    <p>{getFullAddress()}</p>
-                    <p>TEL: {COMPANY_INFO.phone}</p>
+                    <CompanySwitcher />
+                    <p className="company-name">{company.name}</p>
+                    <p>{getFullAddress(company)}</p>
+                    <p>TEL: {company.phone}</p>
                 </div>
                 <div className="print-footer-meta">
                     <div className="staff-input-wrapper">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { COMPANY_INFO } from '../constants';
+import { getFullAddress, useCompanyInfo } from '../utils/company';
 import { useStaffInfo } from '../contexts/useStaffInfo';
 import { formatPrintDate } from '../utils';
 
@@ -16,6 +16,7 @@ interface PrintHeaderProps {
 
 export const PrintHeader: React.FC<PrintHeaderProps> = ({ title, date, showDate = true }) => {
   const { staffName, staffPhone } = useStaffInfo();
+  const { company } = useCompanyInfo();
   const hasStaff = staffName || staffPhone;
   const printDate = date ?? formatPrintDate(new Date());
 
@@ -26,8 +27,8 @@ export const PrintHeader: React.FC<PrintHeaderProps> = ({ title, date, showDate 
         {showDate && <p className="text-base text-gray-600 mt-1">作成日: {printDate}</p>}
       </div>
       <address className="text-right text-base not-italic text-gray-700">
-        <p className="font-bold text-lg">{COMPANY_INFO.name}</p>
-        <p>{COMPANY_INFO.postalCode} {COMPANY_INFO.address}{'　'}TEL: {COMPANY_INFO.phone}</p>
+        <p className="font-bold text-lg">{company.name}</p>
+        <p>{getFullAddress(company)}{'　'}TEL: {company.phone}</p>
         {hasStaff && (
           <p>
             {staffName && <>担当: {staffName}</>}
