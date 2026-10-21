@@ -49,7 +49,18 @@ docker/scripts/manage.sh test bank-analyzer
   `BANK_ANALYZER_SKIP_MIGRATE=1` で飛ばす）。本番では `POSTGRES_PASSWORD` が空か既定値だと起動を拒む
 - health は `/bank-analyzer/api/health`（DB に問い合わせる。dev は Vite の生存も見る）
 
-## 夜間バックアップの JSON
+## バックアップと復元
+
+全アプリ共通の仕組み（取るのは全体で1つ、戻すのはアプリごと）は [docker/RESTORE.md](../../docker/RESTORE.md)。
+
+- **全体バックアップに入るもの**: DB の `pg_dump`（`bank-analyzer-postgres`）・`.env`・案件ごとの JSON（下）
+  （`backup.sh` の `PG_TARGETS` / `SETTINGS_TARGETS`）
+- **取る**: `docker/scripts/manage.sh backup`（全体。ふだんはウォッチドッグが自動で回すので叩かなくてよい）
+- **戻す**: `docker/scripts/manage.sh restore bank-analyzer <バックアップ>`。`--yes` が無ければ一覧だけ出して
+  何も変えない。実行は `--yes` を付けて、人の確認の後。戻るのは DB（`.sql`）で、JSON は流さない
+- **案件を1件だけ戻す**: バックアップの中の `<番号>_<案件名>_backup.json` を画面の「JSONから復元」で読む
+
+### 夜間バックアップの JSON
 
 `backup.sh` が稼働中のコンテナの中で `npm run backup:json` を呼び、案件を1件1ファイルで
 書き出す（`server/scripts/exportJsonBackups.ts`。出力先は環境変数 `OUTPUT_DIR`）。

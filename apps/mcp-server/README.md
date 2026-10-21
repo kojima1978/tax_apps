@@ -100,6 +100,12 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
 **顧客の実名と財産内容が MCP クライアントへ渡る。** PDF を読ませる時点で同じ情報が
 渡っているので新しく増える露出ではないが、渡っていること自体は変わらない。
 
+## バックアップと復元
+
+このサーバーは**データを持たない**ので、全体バックアップの対象ではない。書き込んだ数字は株式評価明細書の DB に入り、
+そちらの全体バックアップ（[stock-valuation-form の README](../stock-valuation-form/README.md#バックアップと復元)）で守られる。
+取り込みを間違えたときは、試算（`commit` なし）で確かめてから確定する運用が第一の守り。
+
 ## テスト
 
 ```bash

@@ -665,6 +665,17 @@ docker/scripts/manage.sh test inheritance-tax-form
   書き込み直前の版は `inheritance-tax-form:v1-backup`、読めなかった保存データは `:v1-salvage` に退避し、
   退避があるときだけ「その他」に書き出す項目が出る
 
+## バックアップと復元
+
+**全体バックアップ（`manage.sh backup`）には入らない**。入力はこの PC・このブラウザの localStorage
+（`inheritance-tax-form:v1`）にしか無く、サーバーにも DB にも無い（全アプリの一覧は [docker/RESTORE.md](../../docker/RESTORE.md#何が戻るか)）。
+
+- **取る**: 画面上部の「バックアップを書き出す」（Ctrl+S）で JSON ファイルを保存し、共有フォルダなどに置く。
+  これが唯一の控え
+- **戻す**: 「バックアップから復元」で書き出した JSON を読む（別の PC・別のブラウザへの持ち出しも同じ）
+- ブラウザのデータ消去・別のブラウザで開く・PC の入れ替えで入力は見えなくなる。上の退避（`:v1-backup` / `:v1-salvage`）も
+  同じ localStorage の中なので、ブラウザごと失えば一緒に消える
+
 ## 記載例から取り込んだ記入ルール
 
 「相続税の申告書の記載例」（国税庁）にしか書かれていない記入条件がいくつかある。

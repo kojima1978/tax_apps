@@ -459,3 +459,8 @@ docker/scripts/manage.sh test capital-gains-calc
   テストは BigInt で厳密に計算した値と格子状に突き合わせている
 - **日付は現地時刻で組み立てる**。`new Date('YYYY-MM-DD')` は UTC の0時として読むので、
   UTC より西の時間帯では前日になって所有期間の判定が1日ずれる
+
+## バックアップと復元
+
+**保存するデータが無いので、全体バックアップ（`manage.sh backup`）の対象外**。入力は画面の中だけ
+（全アプリの一覧は [docker/RESTORE.md](../../docker/RESTORE.md#何が戻るか)）。残したい結果は印刷（PDF）で控える。

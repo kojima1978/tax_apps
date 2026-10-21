@@ -263,6 +263,8 @@ AI は**この節を最初に読み、ここに書いた手順だけで作業す
 | 本番環境を立ち上げる | 「tax_apps を本番モードで立ち上げて」 | [立ち上げ](#立ち上げ) |
 | 1アプリだけ切り替える | 「株式評価明細書だけ本番にして」「保険管理を開発に戻して」 | [1アプリだけモードを切り替える](#1アプリだけモードを切り替える) |
 | コードの変更を反映する | 「git pull したので反映して」「compose を直したので反映して」 | [変更を反映する](#変更を反映する) |
+| バックアップを取る・確かめる | 「今すぐバックアップを取って」「最新のバックアップが戻せるか訓練して」 | [バックアップと復元](#バックアップと復元) |
+| データを戻す | 「保険管理を昨日のバックアップへ戻したい。一覧を見せて」 | [バックアップと復元](#バックアップと復元) → [docker/RESTORE.md](docker/RESTORE.md) |
 | 調子が悪い | 「〇〇の画面が開かない。原因を調べて直して」「デスクトップに TAX-APPS-ALERT.txt が出ている」 | [トラブルシューティング](#トラブルシューティングai-向け) |
 
 ### AI が守ること
@@ -332,6 +334,29 @@ git diff --stat "$OLD" HEAD                # 何が変わったか → 下の表
 | `apps/portal/` | `manage.sh build gateway`（ポータルはゲートウェイのイメージに入っている） |
 
 別の PC を更新するときは [docker/OTHER-PC-SETUP.md](docker/OTHER-PC-SETUP.md) の手順A（取り込む前の記録とバックアップを含む）を使う。
+
+### バックアップと復元
+
+**取るのは全体でまとめて1つ、戻すのはアプリごと**。どのアプリの何が入るか（入らないアプリと、その画面からの
+控えの取り方）は [docker/RESTORE.md の「何が戻るか」](docker/RESTORE.md#何が戻るか) の表が唯一の一覧で、
+アプリ固有の注意は各アプリの README の「バックアップと復元」にある。
+
+```bash
+./docker/scripts/manage.sh backup                        # 全体バックアップ（暗号化。docker\scripts\backup-db.bat も同じ）
+./docker/scripts/manage.sh status                        # 直近のバックアップ・訓練の結果（last-run）
+./docker/scripts/manage.sh verify <バックアップ>          # 上書きせず、復号と整合性だけ確かめる
+./docker/scripts/manage.sh drill                         # 使い捨ての DB へ実際に戻して件数を照合（本番には触らない）
+./docker/scripts/manage.sh restore <app> <バックアップ>   # 戻す内容の一覧だけ（--yes が無ければ何も変えない）
+./docker/scripts/manage.sh restore <app> <バックアップ> --yes   # 実行（人の確認の後）
+```
+
+- **ふだんは何もしなくてよい**: ウォッチドッグが `due` で、バックアップ（20時間）とリストア訓練（168時間）を
+  期限切れのときに自動で回す。保持は日次7・週次4・月次6。外付け USB への写しは `manage.sh usb`（`set-backup-usb.bat`）
+- **確認なしで叩いてよい**のは `backup` / `status` / `verify` / `drill` と、`--yes` の無い `restore`（一覧だけ）
+- **人の確認が要る**のは `restore ... --yes` と `newpc`（どの時点へ戻すかは人が決める）。戻す前の状態は
+  `pre-restore_*` として自動で残り、[docker/RESTORE.md](docker/RESTORE.md) の手順 C で巻き戻せる
+- 新しい PC で全部戻すのは `docker\scripts\restore-new-pc.bat`（`manage.sh newpc`。まず `newpc --check`）
+- **暗号鍵 `~/.tax-apps/backup.key` の控えは人が手で取る**。これが無いとバックアップは1つも戻せない。AI は鍵を作り直さない
 
 ### トラブルシューティング（AI 向け）
 

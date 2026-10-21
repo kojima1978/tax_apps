@@ -114,3 +114,8 @@ CI（`.github/workflows/ci.yml`）でも同じものが走る。
 | `lib/retirement-tax.test.ts` | 勤続年数（退職日を含める・応当日・うるう日）、控除額・1/2課税・短期の300万円超、税額の端数処理、令和9年の復興＋防衛＝令和8年の復興 |
 | `lib/tax-rates.test.ts` | 年度の表（率・速算表の連続性）、既定の年と未登録年の注意（日本時間で判定） |
 | `lib/utils.test.ts` | 金額入力の整形、PDF のファイル名 |
+
+## バックアップと復元
+
+**保存するデータが無いので、全体バックアップ（`manage.sh backup`）の対象外**。入力は画面の中だけ
+（全アプリの一覧は [docker/RESTORE.md](../../docker/RESTORE.md#何が戻るか)）。残したい結果は印刷（PDF）で控える。

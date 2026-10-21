@@ -70,6 +70,15 @@ docker/scripts/manage.sh build tax-docs
 
 アクセス: http://localhost/tax-docs/（ゲートウェイ経由）
 
+## バックアップと復元
+
+**全体バックアップ（`manage.sh backup`）には入らない**。バックエンドが無く、書類の編集内容はサーバーにも
+ブラウザにも自動では残らない（localStorage に残るのは担当者・申告種別・年度だけ。全アプリの一覧は
+[docker/RESTORE.md](../../docker/RESTORE.md#何が戻るか)）。
+
+- **取る**: 「ファイルに保存」で編集内容を JSON ファイルにする。これが唯一の控え
+- **戻す**: 「ファイルを読込」で保存した JSON を読み、編集を再開する
+
 ## ライセンス
 
 Private - 社内利用限定

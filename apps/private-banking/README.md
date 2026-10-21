@@ -103,10 +103,15 @@ Next の dev サーバはスキャンに失敗したディレクトリ配下の�
 
 相続税シミュレーターが止まっていると試算は出ない（`tax-apps-network` 上のサービス名で叩く）。
 
-## バックアップ
+## バックアップと復元
 
-- 夜間の全体バックアップ（`docker/scripts/backup.sh`）が DB を `pg_dump` し、`.env` も一緒に持つ
-  （`PG_TARGETS` / `SETTINGS_TARGETS`）。戻すのは `manage.sh restore private-banking`（`docker/RESTORE.md`）
+全アプリ共通の仕組み（取るのは全体で1つ、戻すのはアプリごと）は [docker/RESTORE.md](../../docker/RESTORE.md)。
+
+- **全体バックアップに入るもの**: DB の `pg_dump`（`private-banking-postgres`）と `.env`
+  （`backup.sh` の `PG_TARGETS` / `SETTINGS_TARGETS`）
+- **取る**: `docker/scripts/manage.sh backup`（全体。ふだんはウォッチドッグが自動で回すので叩かなくてよい）
+- **戻す**: `docker/scripts/manage.sh restore private-banking <バックアップ>`。`--yes` が無ければ一覧だけ出して
+  何も変えない。実行は `--yes` を付けて、人の確認の後。`.env` は無いときだけ置く
 - 画面の `/backup` / `/restore` は別の経路で、全体または1世帯を JSON で書き出し・読み込みする
   （新規出力は `schemaVersion` 2、旧1も取り込み可）。担当者は台帳ID → コードで識別し、担当変更履歴も保存する。
   担当者は社員台帳の写しなので、取込・復元で担当者を作ったり書き換えたりはしない（今の一覧に無ければエラー）。

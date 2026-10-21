@@ -17,26 +17,35 @@ AI エージェントにそのまま渡して実行させる前提で書いて�
 
 ## 何が戻るか
 
-| アプリ | 戻るもの |
-|--------|----------|
-| inheritance-case-management | PostgreSQL（`itcm-postgres`）・Excel テンプレート・`.env` |
-| bank-analyzer | PostgreSQL（`bank-analyzer-postgres`）・`.env` |
-| private-banking | PostgreSQL（`private-banking-postgres`）・`.env` |
-| stock-valuation-form | PostgreSQL（`svf-postgres`）・`.env` |
-| insurance-app | SQLite（ボリューム `insurance-app-data`） |
-| inheritance-tax-docs | SQLite（ボリューム `inheritance-tax-docs-data`） |
-| staff-directory | SQLite（ボリューム `staff-directory-data`） |
+**取るのは全体でまとめて1つ、戻すのはアプリごと**。アプリ単位でバックアップを取るコマンドは無い
+（`manage.sh backup` が下の「入る」アプリを全部1つの暗号化アーカイブに詰める）。
+各アプリ固有の注意は、右端のリンク先（各アプリの README の「バックアップと復元」）にある。
 
-この表の元は `docker/scripts/backup.sh` 冒頭の4つの配列（`PG_TARGETS` / `SQLITE_TARGETS` /
-`BIND_TARGETS` / `SETTINGS_TARGETS`）。ここに無いアプリは**戻すデータを持たない**（ソースは Git にある）。
+| アプリ | 全体バックアップに入るもの | 画面からの別の経路（手元の控え） | 詳細 |
+|--------|----------|----------|------|
+| inheritance-case-management | PostgreSQL（`itcm-postgres`）・Excel テンプレート（`templates/`）・`.env` | 設定 → バックアップ（JSON） | [README](../apps/inheritance-case-management/README.md#バックアップと復元) |
+| bank-analyzer | PostgreSQL（`bank-analyzer-postgres`）・`.env`・案件ごとの JSON | 「JSONから復元」 | [README](../apps/bank-analyzer/README.md#バックアップと復元) |
+| private-banking | PostgreSQL（`private-banking-postgres`）・`.env` | `/backup` / `/restore`（全体・1世帯の JSON） | [README](../apps/private-banking/README.md#バックアップと復元) |
+| stock-valuation-form | PostgreSQL（`svf-postgres`）・`.env` | 業種目データは Git（`prisma/industry-data`）にもある | [README](../apps/stock-valuation-form/README.md#バックアップと復元) |
+| insurance-app | SQLite（ボリューム `insurance-app-data`） | 「バックアップ・復元」（SQLite ファイル） | [README](../apps/insurance-app/README.md#バックアップと復元) |
+| inheritance-tax-docs | SQLite（ボリューム `inheritance-tax-docs-data`。アップロードした参考資料のファイルも同じボリュームに入る） | JSON の書き出し・読込 | [README](../apps/inheritance-tax-docs/README.md) |
+| staff-directory | SQLite（ボリューム `staff-directory-data`） | なし | [README](../apps/staff-directory/README.md#バックアップと復元) |
+| inheritance-tax-form | **入らない**（入力はブラウザの localStorage `inheritance-tax-form:v1` だけ） | 「バックアップを書き出す／バックアップから復元」（JSON） | [README](../apps/inheritance-tax-form/README.md#バックアップと復元) |
+| asset-valuation | **入らない**（作業の下書き・プリセットはブラウザの localStorage） | 結果画面の「JSONバックアップ」→ 最初の画面の「JSONファイルから復元」 | [README](../apps/asset-valuation/README.md#バックアップと復元) |
+| tax-docs | **入らない**（編集内容はサーバーに保存しない） | 「ファイルに保存／ファイルを読込」（JSON） | [README](../apps/tax-docs/README.md#バックアップと復元) |
+| gift-tax-simulator | **入らない**（贈与税の入力はメモリでリロードで消える。不動産3ページの入力だけブラウザの localStorage） | なし | [README](../apps/gift-tax-simulator/README.md#バックアップと復元) |
+| inheritance-tax-app / retirement-tax-calc / capital-gains-calc / depreciation-calc | **入らない**（保存するデータが無い） | なし | 各アプリの README の「バックアップと復元」 |
+| mcp-server | **入らない**（書き込み先は株式評価明細書の DB） | — | [README](../apps/mcp-server/README.md#バックアップと復元) |
+| ゲートウェイ・ポータル | **入らない**（設定はすべて Git） | — | — |
+
+「入る」側の元は `docker/scripts/backup.sh` 冒頭の4つの配列（`PG_TARGETS` / `SQLITE_TARGETS` /
+`BIND_TARGETS` / `SETTINGS_TARGETS`）。DB やデータを持つアプリを足したら、**配列に1行・この表に1行・
+そのアプリの README に「バックアップと復元」**を足す。ソースはどのアプリも Git にある。
 
 **戻らないもの**（知らずに頼らないこと）:
 
-- **ブラウザの中にしか無いデータ**。相続税の申告書（inheritance-tax-form）は入力を
-  ブラウザの localStorage（`inheritance-tax-form:v1`）にだけ保存する。サーバーにも
-  バックアップにも入らず、ブラウザのデータを消す・別の PC や別のブラウザで開くと見えない。
-  残したい入力は**画面から書き出して手元に保存する**のが唯一の控え。gift-tax-simulator の
-  入力（メモリのみ）はリロードで消える
+- 表で「入らない」アプリの、**ブラウザの中にしか無いデータ**。ブラウザのデータを消す・別の PC や
+  別のブラウザで開くと見えない。残したい入力は**画面から書き出して手元に保存する**のが唯一の控え
 - bank-analyzer の夜間 JSON（`*.json`）。バックアップには入っているが `restore` は流さない
   （DB の `.sql` が本体）。JSON から戻すときは bank-analyzer の画面の「JSONから復元」を使う
 - Excel テンプレートは**上書きで重ねる**（バックアップに無いファイルは消さない）。

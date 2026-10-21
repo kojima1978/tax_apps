@@ -171,6 +171,17 @@ docker/scripts/manage.sh logs stock-valuation-form
 | `labels` | `tax-apps.autoheal: "true"`（ウォッチドッグの対象） |
 | `init: true` | PID 1 問題を回避（本番は `init: false`） |
 
+## バックアップと復元
+
+全アプリ共通の仕組み（取るのは全体で1つ、戻すのはアプリごと）は [docker/RESTORE.md](../../docker/RESTORE.md)。
+
+- **全体バックアップに入るもの**: DB の `pg_dump`（`svf-postgres`。評価案件と業種目データ）と `.env`
+  （`backup.sh` の `PG_TARGETS` / `SETTINGS_TARGETS`）
+- **取る**: `docker/scripts/manage.sh backup`（全体。ふだんはウォッチドッグが自動で回すので叩かなくてよい）
+- **戻す**: `docker/scripts/manage.sh restore stock-valuation-form <バックアップ>`。`--yes` が無ければ一覧だけ出して
+  何も変えない。実行は `--yes` を付けて、人の確認の後。`.env` は無いときだけ置く
+- **評価案件は DB にしか無い**。業種目データは下のとおり Git にも原本があるので、DB を失っても起動時のシードで戻る
+
 ## 業種目データ
 
 原本は `prisma/industry-data/*.json`（Git 管理）。起動時のシードが**未登録の年分だけ**取り込むので、

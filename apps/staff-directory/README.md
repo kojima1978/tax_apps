@@ -229,6 +229,17 @@ docker/scripts/manage.sh preflight
 
 戻し方と PB 側の細かい挙動は `apps/private-banking/STAFF-CUTOVER.md`。
 
+## バックアップと復元
+
+全アプリ共通の仕組み（取るのは全体で1つ、戻すのはアプリごと）は [docker/RESTORE.md](../../docker/RESTORE.md)。
+
+- **全体バックアップに入るもの**: SQLite のボリューム `staff-directory-data`（`backup.sh` の `SQLITE_TARGETS`）
+- **取る**: `docker/scripts/manage.sh backup`（全体。ふだんはウォッチドッグが自動で回すので叩かなくてよい）
+- **戻す**: `docker/scripts/manage.sh restore staff-directory <バックアップ>`。`--yes` が無ければ一覧だけ出して
+  何も変えない。実行は `--yes` を付けて、人の確認の後
+- 画面からの書き出しは無い。**台帳を古い時点へ戻すと、その後に足した社員が消える**ので、写しを持つ
+  案件管理・個人資産管理の側に「台帳に無い台帳ID」が残りうる。戻した後はその2アプリの担当者表示を確かめる
+
 ## テスト
 
 ```bash

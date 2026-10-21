@@ -72,12 +72,19 @@ vitest も tsc も無いので、dev ステージの使い捨てサービス `in
 SQLite は名前付きボリューム `insurance-app-data`（compose 上は `insurance_data`）の `/app/data/insurance.sqlite` にあります。
 dev も本番も同じボリュームなので、モードを切り替えてもデータは同じです。
 
-- 夜間の全体バックアップ（`docker/scripts/backup.sh` の `SQLITE_TARGETS`）が稼働中のコンテナから取ります。
-  戻すのは `docker/scripts/manage.sh restore insurance-app`（手順は `docker/RESTORE.md`）
-- 画面の「バックアップ・復元」は SQLite ファイルをそのまま落とす／戻す別の経路です
 - スキーマにマイグレーションは無く、`lib/db.ts` が起動時に `CREATE TABLE IF NOT EXISTS` と `ALTER TABLE ADD COLUMN` を流します（`docs/er-diagram.md`）
 
 ポートを変更する場合は、`Dockerfile` の `APP_PORT` と `HEALTHCHECK`、`docker-compose.yml` の `APP_PORT` / `ports` / `healthcheck`、`package.json` の起動スクリプト、ゲートウェイの `nginx/includes/upstreams.conf` / `maps.conf`、README/docs の URL を同じ値に揃えます。
+
+## バックアップと復元
+
+全アプリ共通の仕組み（取るのは全体で1つ、戻すのはアプリごと）は [docker/RESTORE.md](../../docker/RESTORE.md)。
+
+- **全体バックアップに入るもの**: 上の SQLite のボリューム（`backup.sh` の `SQLITE_TARGETS`）
+- **取る**: `docker/scripts/manage.sh backup`（全体。ふだんはウォッチドッグが自動で回すので叩かなくてよい）
+- **戻す**: `docker/scripts/manage.sh restore insurance-app <バックアップ>`。`--yes` が無ければ一覧だけ出して
+  何も変えない。実行は `--yes` を付けて、人の確認の後
+- **画面からの別の経路**: 「バックアップ・復元」で SQLite ファイルをそのまま落とす／戻す
 
 ## 関連ドキュメント
 

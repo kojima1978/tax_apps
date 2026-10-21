@@ -175,7 +175,7 @@
 - 見積書は案件詳細の「見積書」欄の数字、請求書と請求書発行依頼票は「請求書」欄の数字を基準に出力
 - 立替金は請求書と請求書発行依頼票にのみ転記
 
-### バックアップ・リストア
+### バックアップ・リストア（画面）
 
 - JSON 形式で全主要テーブルをバックアップ
 - BOM 付き UTF-8 で出力
@@ -183,9 +183,17 @@
 - トランザクション内で全削除、再挿入、シーケンスリセット
 - 古いバックアップ形式への互換対応
 
-これは画面からの手動の経路。夜間の全体バックアップ（`docker/scripts/backup.sh`）は別に、
-DB の `pg_dump`・`templates/`・`.env` を持つ（`PG_TARGETS` / `BIND_TARGETS` / `SETTINGS_TARGETS`）。
-そちらから戻すのは `manage.sh restore inheritance-case-management`（`itcm` でも通る。手順は `docker/RESTORE.md`）。
+## バックアップと復元
+
+全アプリ共通の仕組み（取るのは全体で1つ、戻すのはアプリごと）は [docker/RESTORE.md](../../docker/RESTORE.md)。
+
+- **全体バックアップに入るもの**: DB の `pg_dump`（`itcm-postgres`）・Excel テンプレート（`templates/`。
+  `.gitignore` 対象で Git には無い）・`.env`（`backup.sh` の `PG_TARGETS` / `BIND_TARGETS` / `SETTINGS_TARGETS`）
+- **取る**: `docker/scripts/manage.sh backup`（全体。ふだんはウォッチドッグが自動で回すので叩かなくてよい）
+- **戻す**: `docker/scripts/manage.sh restore inheritance-case-management <バックアップ>`（`itcm` でも通る）。
+  `--yes` が無ければ一覧だけ出して何も変えない。実行は `--yes` を付けて、人の確認の後
+  - テンプレートは上書きで重ねる（バックアップに無いファイルは消さない）。`.env` は無いときだけ置く
+- **画面からの別の経路**: 設定 → バックアップ（上の JSON。手元への控え・別の環境への持ち出し用）
 
 ## 技術スタック
 
