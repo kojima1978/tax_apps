@@ -84,6 +84,7 @@ tax_apps/
 │   ├── RESTORE.md                     # リストアの手順書（新しい PC で全部戻す手順を含む）
 │   ├── COLLATION-MIGRATION.md         # 別の PC で照合順序を C へ移す手順書
 │   ├── OTHER-PC-SETUP.md              # 別の PC の更新・新規構築（AI にそのまま渡せる形）
+│   ├── SERVER-MIGRATION.md            # メインサーバーの引っ越し（元／新それぞれの作業。AI にそのまま渡せる形）
 │   └── README.md                      # Docker 環境の詳しい説明
 ├── nginx/                             # Nginx Gateway設定（gateway のビルドコンテキスト）
 │   ├── nginx.conf                     # メイン設定
@@ -253,6 +254,7 @@ cd tax_apps
 Claude Code や Codex などの AI エージェントに、この PC の立ち上げ・モード切替・障害対応を任せるための節です。
 AI は**この節を最初に読み、ここに書いた手順だけで作業する**こと（`AGENTS.md` からもここへ案内しています）。
 別の PC を新しく作る・最新へ更新するときは、この節ではなく [docker/OTHER-PC-SETUP.md](docker/OTHER-PC-SETUP.md) を渡してください。
+メインサーバーをデータごと別の PC へ移すときは [docker/SERVER-MIGRATION.md](docker/SERVER-MIGRATION.md) を、元の PC・新しい PC の両方で渡してください。
 
 ### 頼み方の例
 
@@ -264,6 +266,7 @@ AI は**この節を最初に読み、ここに書いた手順だけで作業す
 | コードの変更を反映する | 「git pull したので反映して」「compose を直したので反映して」 | [変更を反映する](#変更を反映する) |
 | バックアップを取る・確かめる | 「今すぐバックアップを取って」「最新のバックアップが戻せるか訓練して」 | [バックアップと復元](#バックアップと復元) |
 | データを戻す | 「保険管理を昨日のバックアップへ戻したい。一覧を見せて」 | [バックアップと復元](#バックアップと復元) → [docker/RESTORE.md](docker/RESTORE.md) |
+| サーバーを引っ越す | 「メインサーバーを新しい PC へ移す。docker/SERVER-MIGRATION.md の第1部をこの PC で進めて」（新しい PC では「第2部」） | [docker/SERVER-MIGRATION.md](docker/SERVER-MIGRATION.md) |
 | 調子が悪い | 「〇〇の画面が開かない。原因を調べて直して」「デスクトップに TAX-APPS-ALERT.txt が出ている」 | [トラブルシューティング](#トラブルシューティングai-向け) |
 
 ### AI が守ること

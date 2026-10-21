@@ -3,6 +3,6 @@
 このリポジトリで作業する AI エージェントは、最初に
 [README.md の「AI で操作する」](README.md#ai-で操作する立ち上げ本番開発トラブルシューティング) を読み、そこに書かれた手順と守ることに従ってください。
 
-バックアップと復元も同じ節から辿れます（README.md → docker/RESTORE.md → 各アプリの README.md の「バックアップと復元」）。
+バックアップと復元も同じ節から辿れます（README.md → docker/RESTORE.md → 各アプリの README.md の「バックアップと復元」）。サーバーの引っ越しも同じ節から docker/SERVER-MIGRATION.md へ辿れます。
 
 手順や制約はここには書きません（二重に持つと片方だけ古くなるため）。README.md が正です。
