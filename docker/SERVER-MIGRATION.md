@@ -28,6 +28,11 @@ git pull --ff-only origin master                        # 元のサーバー（�
 
 AI は最初に、**いまどちらの PC にいるかを人に確かめる**（推測しない）。
 
+**新しいサーバーは Windows に限る**。自動起動・自動復旧（タスクスケジューラ・`docker-watchdog.ps1`）、
+デスクトップの警告、ファイアウォールの設定はどれも Windows 専用で、Linux へ移すと
+**バックアップも復旧も黙って止まる**（`manage.sh` / `backup.sh` と各アプリの compose は動くが、それを起こす係が居ない）。
+新しいサーバーが Windows でなければ、この文書では進めずに人へ報告する（cron / systemd timer での置き換えを先に決める）。
+
 ## 進め方の決まり（AI 向け）
 
 - **コマンドは AI が叩く**。人に「このコマンドを打ってください」「このファイルをダブルクリックしてください」と
@@ -109,6 +114,10 @@ powershell.exe -NoProfile -Command "Get-ScheduledTask -TaskName 'Tax Apps*' | Fo
   - `git status --short` に未コミット変更がある → 【判断】ファイルの一覧を見せて、コミットして master へ入れるか、
     新しいサーバーへは持っていかないか。**AI が勝手に破棄しない**。入れる場合は、人が選んだファイルだけを
     `git add <ファイル>` して日本語のメッセージでコミットし、push する。
+  - `??` で始まる行（Git の管理外のファイル）は、コミットしない限り新しいサーバーへ行かない。
+    バックアップにも入らない（入るのは [RESTORE.md の「何が戻るか」](RESTORE.md#何が戻るか) の表だけ）。
+    中身を確かめて人に見せ、【判断】要るものだけ 1-5 で USB へ写すか。**消さない・勝手にコミットしない**
+    （例: 画面確認の副産物のアクセシビリティツリー `resources-company.yml` は不要と判断してよい）。
 
 ## 1-2. master と同じ版へ更新する
 
@@ -202,8 +211,8 @@ cmp "docker/backups/$BACKUP" "/x/tax-apps-backup/$BACKUP" && echo backup-copy-ok
 `X:\tax-apps-backup` に置くのは、新しいサーバーの `newpc` が各ドライブ直下の `tax-apps-backup` を自動で見つけるため。
 
 鍵とリポジトリ外の設定を写す。**【判断】鍵をどこへ写すか**（AI の推奨: **バックアップとは別の USB**。
-同じ USB に置くと、USB を落とした人が全部読める。別の USB が無ければ、同じ USB の別フォルダに置き、
-2-2 で新しいサーバーへ置けたことを確かめた直後に USB から消す）。以下 `Y:`:
+同じ USB に置くと、USB を落とした人が全部読める）。この USB は引っ越しの後も**サーバーとは別の場所に保管する
+鍵の控え**になる（鍵を失うと、それまでの暗号化バックアップは全部開けない。サーバーの中にしか無い状態にしない）。以下 `Y:`:
 
 ```bash
 mkdir -p /y/tax-apps-key
@@ -297,8 +306,8 @@ sha256sum < ~/.tax-apps/backup.key | cut -c1-16
 ```
 
 - 最後の行が 1-4 で控えた指紋と同じであること。
-- 鍵をバックアップと同じ USB に置いていた場合は、ここで USB 側の `tax-apps-key` を消す
-  （【承認】「USB の鍵を消します。鍵は新旧2台のサーバーに残ります」）。
+- USB 側の `tax-apps-key` は**消さない**（サーバーの外の鍵の控え）。人に、サーバーとは別の場所へ保管してもらう。
+  鍵をバックアップと同じ USB に置いてしまった場合は、【判断】別の媒体へ写し直してから、バックアップ側の USB から消すか。
 - 止まる条件: 鍵が無い／指紋が違う（**新しい鍵を作らない**。作るとバックアップは開けない）。
 
 ## 2-3. 全部戻す
@@ -382,16 +391,21 @@ docker compose -f apps/mcp-server/docker-compose.yml --profile mcp build mcp-ser
 
 ```bash
 docker/scripts/manage.sh status
+docker/scripts/manage.sh backup
 docker/scripts/manage.sh drill
+docker/scripts/manage.sh usb --copy-now
 docker/scripts/manage.sh test
 docker/scripts/manage.sh preflight
 ```
 
 - `status`: 元のサーバーの 1-1 で動いていたアプリが全部 healthy、モードも同じ。自動タスクが「登録済み」。
-- `drill`: 最後に `Failed: 0`。
+- `backup` → `drill`: **新しいサーバー自身で取った**バックアップが、使い捨ての DB へ戻せること（最後に `Failed: 0`）。
+  引っ越しに使ったのは元のサーバーのバックアップなので、新しいサーバーのバックアップが働くことはここで初めて分かる。
+- `usb --copy-now`: 外部コピー先へ1本写ること。
 - `test`: 失敗が無いこと（飛ばしたものは報告に書く）。
-- `preflight`: FAIL が無いこと。WARN は内容を報告する（照合順序＝チェック22 は
-  [COLLATION-MIGRATION.md](COLLATION-MIGRATION.md) の別作業。自分で直さない）。
+- `preflight`: ERROR が 0 であること。WARN は全文を報告する（照合順序＝チェック22 は
+  [COLLATION-MIGRATION.md](COLLATION-MIGRATION.md) の別作業。自分で直さない。alpine ↔ bookworm の
+  切り替えはその移行の後）。
 
 画面の確認は AI がまず行い、最後に人が見る:
 
