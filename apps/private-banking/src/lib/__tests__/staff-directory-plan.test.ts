@@ -53,8 +53,37 @@ describe("planStaff", () => {
     ]);
   });
 
-  it("台帳に無い担当者が同じコードを持っていれば写さない", () => {
-    const { conflicts } = planStaff([directory({ id: 2, employeeNo: "STF-0001" })], [local({ id: 10, staffCode: "STF-0001", staffDirectoryId: null })]);
+  it("台帳に無い担当者が同じコードを持っていれば、台帳の人を SD-<台帳ID> へ逃がす", () => {
+    const { ops, conflicts } = planStaff(
+      [directory({ id: 2, employeeNo: "STF-0001" })],
+      [local({ id: 10, staffCode: "STF-0001", staffDirectoryId: null })],
+    );
+    expect(conflicts).toEqual([]);
+    expect(ops[0]).toMatchObject({ kind: "create", data: { staffCode: "SD-2" } });
+  });
+
+  it("別の会社の人と社員番号が重なれば、重なった人を全員 SD-<台帳ID> へ逃がす", () => {
+    const { ops, conflicts } = planStaff(
+      [
+        directory({ id: 1, employeeNo: "001" }),
+        directory({ id: 2, employeeNo: "001", name: "鈴木" }),
+        directory({ id: 3, employeeNo: "002", name: "佐藤" }),
+      ],
+      [local({ id: 10, staffCode: "001" })],
+    );
+    expect(conflicts).toEqual([]);
+    expect(ops).toEqual([
+      { kind: "update", id: 10, data: { staffCode: "SD-1" } },
+      { kind: "create", data: expect.objectContaining({ staffCode: "SD-2", staffDirectoryId: 2 }) },
+      { kind: "create", data: expect.objectContaining({ staffCode: "002", staffDirectoryId: 3 }) },
+    ]);
+  });
+
+  it("逃がした先の SD-<台帳ID> を誰かが社員番号に使っていれば写さない", () => {
+    const { conflicts } = planStaff(
+      [directory({ id: 1, employeeNo: "A" }), directory({ id: 2, employeeNo: "A" }), directory({ id: 3, employeeNo: "SD-1" })],
+      [],
+    );
     expect(conflicts).toHaveLength(1);
   });
 

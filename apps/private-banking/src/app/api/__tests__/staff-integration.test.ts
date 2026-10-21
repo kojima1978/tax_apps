@@ -26,7 +26,7 @@ describe.runIf(enabled)("担当者の履歴・バックアップの実DB検証",
   afterAll(async () => { await prisma.$disconnect(); });
 
   it("担当者の一覧からは追加できない", async () => {
-    expect((await createStaff(request({ staffCode: "TEST-003", name: "別人" }))).status).toBe(405);
+    expect((await createStaff()).status).toBe(405);
   });
 
   it("新規担当・担当変更・同じ担当での保存・担当解除を履歴に反映する", async () => {
