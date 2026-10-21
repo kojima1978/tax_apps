@@ -74,6 +74,7 @@ AI は最初に、**いまどちらの PC にいるかを人に確かめる**（
 | 2-4 | 新 | 自動起動・自動復旧・外部コピー・ファイアウォール・IP・電源とログオンを設定する | UAC・【判断】自動ログオン |
 | 2-5 | 新 | 確かめる（件数・訓練・テスト・preflight・画面） | 画面でデータを見る |
 | 3 | 元 | 数日後、元の自動タスクを外す（データは消さない） | 【承認】 |
+| F | 新→元 | **fleet-board（社用車の予約）**を新しいサーバーで一から立ち上げ、元を止める（[付録](#付録-fleet-board社用車の予約)） | UAC・【承認】LAN 公開・自動起動 |
 
 **データを二重にしないことが一番大事**。1-4 の最後のバックアップより後に元のサーバーへ入力したものは
 新しいサーバーに入らない。1-6 で止めるまで、元のサーバーへは入力させない。
@@ -122,12 +123,16 @@ Git・Docker の導入、`newpc`、IP 以外の設定、確認のどこでつま
 | 2-3 | 0-1 で取ったバックアップで行う |
 | 2-4 | IP 以外はそのまま行う。**IP は付けない**（同じ IP にする場合、その IP はまだ元のサーバーが使っている）。自動ログオンを使うなら、再起動の確認までここで済ませる |
 | 2-5 | そのまま行う。画面は `http://localhost` と、LAN の別の PC から**新しいサーバーのいまの IP**（`Get-NetIPAddress` で調べる）で開く |
+| 付録 F-1 | そのまま行う。ただし **LAN 公開（`LAN Setup`）はしない**（IP がまだ決まっていない）。確認は `localhost:3035` だけ |
 
 終わったら、新しいサーバーのアプリを止める（利用者が間違って新しいサーバーへ入力しないように）:
 
 ```bash
 docker/scripts/manage.sh stop
 ```
+
+fleet-board も止める（PowerShell で、fleet-board のフォルダから）: `& '.\FleetFlow Production Stop.cmd' -NoUi`。
+自動起動を登録していれば次のログオンで上がるが、LAN には公開していないので他の PC からは入力されない。
 
 - 停止マーカーが置かれるので、自動復旧は起動し直さない。本番の 2-3 の `newpc` が起動するときにマーカーは外れる。
 - 報告には、つまずいた箇所・直した内容・`newpc` から `preflight` までにかかった時間（本番の停止時間の目安）を書く。
@@ -510,6 +515,8 @@ done
 利用者への案内（AI が文面を作り、人が送る）: 新しいサーバーのアドレス（同じ IP なら「変わりません」）と、
 ブラウザに保存していた入力（相続税の申告書・減価償却資産評価の下書き、担当者名など）は引き継いでいないこと。
 
+続けて [付録 F-1](#f-1-新しいサーバーで2-5-の後) で fleet-board を立ち上げる。
+
 ---
 
 # 第3部 引っ越しが済んだ後（元のサーバー）
@@ -532,6 +539,76 @@ powershell.exe -NoProfile -Command "Get-ScheduledTask -TaskName 'Tax Apps*' -Err
 新しいサーバーで入力したものは元には無いので、【判断】どちらを正とするか（新しいサーバーのバックアップを
 元のサーバーで `restore --all` すれば寄せられる。手順は [RESTORE.md](RESTORE.md)）。同じ IP を2台に付けないこと。
 
+続けて [付録 F-2](#f-2-元のサーバーで第3部と同じとき) で元の fleet-board を止める。
+
+---
+
+# 付録 fleet-board（社用車の予約）
+
+fleet-board（画面の名前は FleetFlow）は**別のリポジトリ**のアプリで、tax_apps の `backup` / `newpc` /
+自動タスク / ゲートウェイには**含まれない**（ポート 3035 で直接開く）。この付録をしなければ新しいサーバーへは移らない。
+
+| 項目 | 値 |
+|------|----|
+| リポジトリ | https://github.com/kojima1978/fleet-board （clone は `https://github.com/kojima1978/fleet-board.git`、公開） |
+| 置き場所（既定） | `~/Desktop/apps/fleet-board`（tax_apps とは別の階層） |
+| 手順と守ることの正 | fleet-board の `README.md` の「AIエージェントで操作する場合」（この付録は**順番と止まる条件だけ**を書く） |
+
+- **データは移さない**。2026-10 の時点で元のサーバーにも開発 PC にもテストデータしか入っていないため、
+  新しいサーバーでは空の DB から始める（初回の起動が駐車区画の初期データだけを入れる）。
+  fleet-board の移行パッケージ（`Migration Export` / `Import`）は使わない。
+  **本格的に使い始めた後にこの文書を使う場合は、ここを見直してから進めること**（止まる条件）。
+- fleet-board のコマンドは **PowerShell で、fleet-board のフォルダから**叩く（Git Bash ではコンテナの中のパスが書き換わる）。
+  `.cmd` には `-NoUi` を付ける（ダイアログもブラウザも開かず、成否は終了コードで分かる）。
+- **管理者 PIN**は初回の起動で生成され、出力に出る。**AI は PIN を会話・報告に書き写さない**。
+  `.env.production` の `FLEETFLOW_ADMIN_PIN` に保存されたことだけを人に伝え、人が控える。
+- 元のサーバーの 1-1 で、fleet-board が元のサーバーにあるか・動いているかを人に聞いて控える
+  （`docker ps --filter name=fleetflow` で `fleetflow-production-*` / `fleetflow-development-*` のどちらが動いているか）。
+
+## F-1. 新しいサーバーで（2-5 の後）
+
+```powershell
+mkdir -Force ~/Desktop/apps | Out-Null; cd ~/Desktop/apps
+git clone https://github.com/kojima1978/fleet-board.git
+cd fleet-board
+git log --oneline -1
+& '.\FleetFlow Production Start.cmd' -NoUi
+(Invoke-WebRequest http://localhost:3035/api/health -UseBasicParsing).StatusCode
+```
+
+- 最後の行が `200`。止まる条件: `Start` の終了コードが 0 でない（出力の全文と
+  `& '.\FleetFlow Production Diagnostics.cmd' -NoUi` の結果を報告する）。
+
+LAN 公開。【承認】「ファイアウォールで TCP 3035 を同じ社内サブネットからだけ許可します」と伝えてから
+（UAC は人が押す。`<IP>` は 2-4 で付けた IP）:
+
+```powershell
+& '.\FleetFlow LAN Setup.cmd' -NoUi -Address <IP>
+& '.\FleetFlow Production Preflight.cmd' -NoUi
+```
+
+自動起動（サインイン時に本番を起動する）。【承認】「サインイン時の自動起動を登録します」と伝えてから:
+
+```powershell
+& '.\FleetFlow Production Autostart Setup.cmd' -NoUi
+```
+
+- tax_apps の自動タスクとは別物（tax_apps のウォッチドッグは fleet-board を復旧しない）。
+- 【判断】人に、LAN の別の PC から `http://<IP>:3035` を開いてもらう。
+
+## F-2. 元のサーバーで（第3部と同じとき）
+
+元のサーバーに fleet-board が無ければ何もしない。あれば【承認】を取ってから、そのフォルダで:
+
+```powershell
+& '.\FleetFlow Production Stop.cmd' -NoUi
+& '.\FleetFlow Production Autostart Setup.cmd' -NoUi -Remove
+docker ps --filter name=fleetflow --format '{{.Names}} {{.Status}}'
+```
+
+- 最後の行に何も出ないこと（開発環境で動いていた場合は `docker compose stop`。`down -v` は使わない）。
+- ボリューム・フォルダ・`.env.production` は消さない（第3部と同じ）。
+
 ---
 
 ## 完了報告に含める内容
@@ -543,4 +620,6 @@ powershell.exe -NoProfile -Command "Get-ScheduledTask -TaskName 'Tax Apps*' -Err
 - 新: 入れたソフトの版、リポジトリの場所とコミット、鍵の指紋の一致、`newpc --check` の一覧、
   `newpc` の件数一致の行と `OK / Skipped / Failed`、登録したタスク・外部コピー先・ファイアウォール・IP、
   `status` / `drill` / `test` / `preflight` の要約と WARN の全文、画面の `curl` の結果
+- fleet-board: clone したコミット、`Start` / `LAN Setup` / `Preflight` / `Autostart` の終了コード、
+  `api/health` の結果、元のサーバーで止めたか（**管理者 PIN は書かない**）
 - 止まった場合は、止まった手順・出力の全文・その時点の `manage.sh status`
