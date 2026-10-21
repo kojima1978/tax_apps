@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Briefcase, Building, Calculator, ChartPie,
-  Car, Clock, CreditCard, DatabaseBackup, FileCheck, FileSpreadsheet, FileText, Gift, Package, Receipt, ScrollText, Shield, TrendingUp, Users,
+  Car, Clock, CreditCard, DatabaseBackup, FileSpreadsheet, FileText, Gift, Package, Receipt, ScrollText, Shield, TrendingUp, Users,
 } from 'lucide-react';
 
 export const categories = ['必要書類', '計算・評価', '分析・管理', 'その他'] as const;
@@ -16,8 +16,7 @@ export interface Application {
 }
 
 export const applications: Application[] = [
-  { title: '相続税 必要書類', description: '相続税・相続シミュレーション・株価計算に必要な書類をご案内', url: '/inheritance-tax-docs/', icon: FileText, category: '必要書類' },
-  { title: '所得税・贈与税 必要書類', description: '所得税・贈与税申告に必要な書類をご案内', url: '/tax-docs/', icon: FileCheck, category: '必要書類' },
+  { title: '必要書類管理', description: '所得税・贈与税・相続税などの必要書類を一元管理', url: '/inheritance-tax-docs/', icon: FileText, category: '必要書類' },
   { title: '相続税計算', description: '相続税の概算計算', url: '/inheritance-tax-app/', icon: Calculator, category: '計算・評価' },
   { title: '贈与税計算', description: '贈与税計算・早見表・不動産取得税', url: '/gift-tax-simulator/', icon: Gift, category: '計算・評価' },
   { title: '退職金税額計算', description: '退職金の所得税・住民税を計算', url: '/retirement-tax-calc/', icon: CreditCard, category: '計算・評価' },

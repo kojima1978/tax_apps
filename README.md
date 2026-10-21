@@ -20,7 +20,6 @@
 | 退職金税額計算 | `/retirement-tax-calc/` | http://localhost/retirement-tax-calc/ | 3013 | Vite + React | 退職金の税額計算シミュレーション |
 | 相続税申告書類案内 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React + Express + SQLite | 相続税申告の必要書類ガイド |
 | 相続税の申告書 | `/inheritance-tax-form/` | http://localhost/inheritance-tax-form/ | 3021 | Vite + React | 相続税の申告書 全24様式の作成・印刷 |
-| 確定申告必要書類 | `/tax-docs/` | http://localhost/tax-docs/ | 3002 | Vite + React | 確定申告書類管理 |
 | 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Hono + Prisma + PostgreSQL | 相続税案件管理 |
 | 譲渡所得税計算 | `/capital-gains-calc/` | http://localhost/capital-gains-calc/ | 3019 | Vite + React | 不動産・株式等の譲渡所得税シミュレーション |
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
@@ -50,7 +49,6 @@ tax_apps/
 │   ├── inheritance-tax-docs/          # 相続税申告書類案内 (Vite + Express + SQLite)
 │   ├── inheritance-tax-form/          # 相続税の申告書 全24様式 (Vite)
 │   ├── insurance-app/                 # 保険管理 (Next.js + SQLite)
-│   ├── tax-docs/                      # 確定申告必要書類 (Vite)
 │   ├── capital-gains-calc/            # 譲渡所得税計算 (Vite)
 │   ├── staff-directory/               # 社員台帳 (Vite + Express + SQLite)
 │   ├── depreciation-calc/             # 減価償却計算 (Vite)
@@ -450,7 +448,7 @@ Windows の bind mount ではコンテナ内にファイル変更の通知が届
 
 | アプリ | 編集の取り込み方 |
 |--------|-----------------|
-| Vite 系7アプリ（`docker/Dockerfile.vite-static` を使うもの: gift-tax-simulator / retirement-tax-calc / tax-docs / capital-gains-calc / depreciation-calc / asset-valuation / inheritance-tax-form） | ポーリング設定済み。自動で反映 |
+| Vite 系6アプリ（`docker/Dockerfile.vite-static` を使うもの: gift-tax-simulator / retirement-tax-calc / capital-gains-calc / depreciation-calc / asset-valuation / inheritance-tax-form） | ポーリング設定済み。自動で反映 |
 | bank-analyzer / stock-valuation-form / inheritance-tax-app / inheritance-tax-docs | ポーリング設定済み。自動で反映 |
 | private-banking / inheritance-case-management | bind mount せず `manage.sh watch <app>` で同期（止めている間の変更は `build`） |
 | insurance-app（開発モードのとき） | `manage.sh restart <app>` で取り込む |
@@ -482,7 +480,7 @@ LAN IPアドレス経由（例: `http://192.168.x.x/`）でアクセスする場
 
 | 問題 | 対応済み | 対象 |
 |------|---------|------|
-| `crypto.randomUUID()` が使えない | `crypto.getRandomValues()` ベースのフォールバック実装 | inheritance-tax-app, inheritance-tax-docs, tax-docs |
+| `crypto.randomUUID()` が使えない | `crypto.getRandomValues()` ベースのフォールバック実装 | inheritance-tax-app, inheritance-tax-docs |
 
 > `localhost` からのアクセスではこれらの問題は発生しません。
 

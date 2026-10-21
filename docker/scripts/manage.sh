@@ -109,7 +109,6 @@ NETWORK_NAME="tax-apps-network"
 APPS=(
   "apps/inheritance-case-management"
   "apps/bank-analyzer"
-  "apps/tax-docs"
   "apps/insurance-app"
   "apps/private-banking"
   "apps/inheritance-tax-app"
@@ -127,9 +126,8 @@ APPS=(
 
 # データボリューム一覧（clean の Step 2 で削除する対象）
 #
-# 手書きなので実体からズレる。実際 bank-analyzer-sqlite と tax-docs-data は
-# どこにも存在しないまま残っていて（tax-docs は読み取り専用 bind だけで
-# ボリュームを持たない）、逆に insurance-app と inheritance-tax-docs の
+# 手書きなので実体からズレることがある。以前は実在しないボリュームが残り、
+# 逆に insurance-app と inheritance-tax-docs の
 # SQLite ボリュームは載っていなかった ── つまり「全データを削除します」と
 # 表示しながら2アプリ分だけ残していた。
 # preflight のチェック14が、この配列と実際のボリュームの差を毎回突き合わせる。
@@ -255,6 +253,7 @@ TEST_TARGETS=(
   # dev で動いているが、稼働中のイメージを作り直さずに済み、本番へ切り替えても
   # 経路が変わらないよう、こちらも使い捨てサービスで回す
   "capital-gains-calc:run@capital-gains-calc-test:npm test"
+  "inheritance-tax-docs:run@inheritance-tax-docs-test:npm test"
   "staff-directory:run@staff-directory-test:npm test"
 )
 
@@ -2102,7 +2101,7 @@ cmd_preflight() {
   local tax_apps_ports=()
   # 実際に host へ publish しているポートに合わせること。ここに載っていない
   # ポートの競合は preflight を素通りし、起動時に初めて bind 失敗として出る。
-  local ports=(80 3000 3001 3002 3003 3004 3007 3013 3014 3015 3016 3017 3019 3020 3021 3022 3025 3026 3030)
+  local ports=(80 3000 3001 3003 3004 3007 3013 3014 3015 3016 3017 3019 3020 3021 3022 3025 3026 3030)
   for p in "${ports[@]}"; do
     local owner
     if owner=$(tax_apps_container_for_port "$p"); then
@@ -2222,7 +2221,7 @@ cmd_preflight() {
   # APPS / VOLUMES / backup.sh の対象配列はどれも手書きで、互いを照合する
   # 仕組みが無かった。実際に3種類のズレが同時に起きていた:
   #   - apps/family-tree-sample と apps/portal が APPS に無い（どちらも稼働中）
-  #   - VOLUMES の bank-analyzer-sqlite と tax-docs-data は実在しない
+  #   - VOLUMES に実在しない項目が残っていた
   #   - insurance-app / inheritance-tax-docs のボリュームが VOLUMES に無い
   # アプリを足したときに気づけるよう、ここで毎回突き合わせる。
   local drift=0 dir_entry app_name listed a vol proj

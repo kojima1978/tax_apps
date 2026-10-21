@@ -93,7 +93,6 @@ WSL の bash (`C:\Windows\System32\bash.exe`) ではなく、Git for Windows の
 |:--|:-----|:-----|:-------|
 | 1 | `apps/inheritance-case-management` | 相続税案件管理 (PostgreSQL + Next.js + Hono + Prisma) | 3020 / DB 3022 |
 | 2 | `apps/bank-analyzer` | 銀行取引分析 (PostgreSQL + Hono + React) | 3007 |
-| 3 | `apps/tax-docs` | 確定申告・贈与税の必要書類 (Vite) | 3002 |
 | 4 | `apps/insurance-app` | 保険管理 (SQLite + Next.js) | 3030 |
 | 5 | `apps/private-banking` | ファミリーB/S (PostgreSQL + Next.js + Prisma) | 3025 / DB 3026 |
 | 6 | `apps/inheritance-tax-app` | 相続税シミュレーター (Express + Vite) | 3004 |
@@ -313,8 +312,7 @@ bank-analyzer の JSON エクスポート（`npm run backup:json`）もアーカ
 | 入力 | 一致結果 | 動作 |
 |:-----|:---------|:-----|
 | `bank-analyzer` | 1件 (`bank-analyzer`) | 正常解決 |
-| `tax-docs` | 2件 (tax-docs, inheritance-tax-docs) | basename 完全一致で tax-docs |
-| `tax` | 複数件 (tax-docs, retirement-tax-calc 等) | エラー + 候補表示 |
+| `tax` | 複数件 (inheritance-tax-docs, retirement-tax-calc 等) | エラー + 候補表示 |
 | `inheritance` | 複数件 | エラー + 候補表示 |
 | `nonexistent` | 0件 | エラー + アプリ一覧表示 |
 
@@ -384,7 +382,7 @@ bank-analyzer の JSON エクスポート（`npm run backup:json`）もアーカ
 ### 対象ポート一覧
 
 ```
-80, 3000, 3001, 3002, 3003, 3004, 3007, 3013, 3014, 3015, 3016,
+80, 3000, 3001, 3003, 3004, 3007, 3013, 3014, 3015, 3016,
 3017, 3019, 3020, 3021, 3022, 3025, 3026, 3030
 ```
 

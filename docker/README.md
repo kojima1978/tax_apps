@@ -56,7 +56,7 @@
                                                        └─────────────────┘
 
 ※ 各ボックスはそれぞれ独立した docker-compose プロジェクト
-※ DB依存アプリ（ITCM, bank-analyzer, tax-docs）は同一プロジェクト内にDBを含む
+※ DB依存アプリ（ITCM, bank-analyzer等）は同一プロジェクト内にDBを含む
 ```
 
 ---
@@ -229,7 +229,7 @@ rd /s /q tax_apps
 ./manage.sh build retirement              # 部分一致
 ```
 
-> **曖昧性警告**: 複数のアプリが一致する場合（例: `tax` → tax-docs, retirement-tax-calc 等）、エラーメッセージと候補一覧が表示されます。より具体的な名前を指定してください。
+> **曖昧性警告**: 複数のアプリが一致する場合（例: `tax` → inheritance-tax-docs, retirement-tax-calc 等）、エラーメッセージと候補一覧が表示されます。より具体的な名前を指定してください。
 
 ### 使用例
 
@@ -429,7 +429,7 @@ git pull --ff-only https://github.com/kojima1978/tax_apps.git master
 
 #### ソースコードのみの変更（`.ts`, `.tsx` 等）
 
-開発モードではソースコードがホストからコンテナにマウントされていて、Vite 系7アプリ（`Dockerfile.vite-static`）・bank-analyzer・stock-valuation-form・inheritance-tax-app・inheritance-tax-docs はポーリングで**自動で反映されます**。private-banking / inheritance-case-management は `./manage.sh watch <app-name>` の間だけ同期され、insurance-app（開発モードのとき）は再起動で取り込みます:
+開発モードではソースコードがホストからコンテナにマウントされていて、Vite 系6アプリ（`Dockerfile.vite-static`）・bank-analyzer・stock-valuation-form・inheritance-tax-app・inheritance-tax-docs はポーリングで**自動で反映されます**。private-banking / inheritance-case-management は `./manage.sh watch <app-name>` の間だけ同期され、insurance-app（開発モードのとき）は再起動で取り込みます:
 
 ```bash
 ./manage.sh restart <app-name>
@@ -844,7 +844,7 @@ docker logs <container> 2>&1 | grep "Watchpack Error (initial scan)"
 
 ```bash
 ./manage.sh start gateway      # Gateway + Portal
-./manage.sh start tax-docs     # 必要なアプリだけ起動
+./manage.sh start inheritance-tax-docs     # 必要なアプリだけ起動
 ```
 
 `docker compose up -d` を直接叩くこともできますが、モードの記録（`docker/logs/app-modes/`）が更新されず、bank-analyzer は external ボリュームが無い PC では起動できません。
@@ -867,7 +867,6 @@ docker network create tax-apps-network
 |:----------------|:------------|:-----|:-----|:-----|
 | Portal | http://localhost/ | 3000 | Next.js（静的出力）+ Nginx | メインポータル |
 | Gift Tax Simulator | http://localhost/gift-tax-simulator/ | 3001 | Vite | 贈与税計算シミュレーター |
-| Tax Docs | http://localhost/tax-docs/ | 3002 | Vite | 確定申告 必要書類 |
 | Inheritance Tax Docs | http://localhost/inheritance-tax-docs/ | 3003 | Vite + Express + SQLite | 相続税 資料ガイド |
 | Inheritance Tax App | http://localhost/inheritance-tax-app/ | 3004 | Vite + Express | 相続税計算 |
 | Bank Analyzer | http://localhost/bank-analyzer/ | 3007 | React + Hono + PostgreSQL | 銀行分析 |
@@ -899,7 +898,6 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 |:--|:------|:-----|
 | 1 | inheritance-case-management | PostgreSQL + Next.js |
 | 2 | bank-analyzer | PostgreSQL + Hono + React |
-| 3 | tax-docs | Vite |
 | 4 | insurance-app | SQLite + Next.js |
 | 5 | private-banking | PostgreSQL + Next.js |
 | 6 | inheritance-tax-app | Vite + Express |
@@ -923,7 +921,6 @@ manage.sh は以下の順序でアプリを起動します（停止は逆順）:
 | 80 | Nginx Gateway | docker/gateway |
 | 3000 | Portal | docker/gateway |
 | 3001 | Gift Tax Simulator | apps/gift-tax-simulator |
-| 3002 | Tax Docs Frontend | apps/tax-docs |
 | 3003 | Inheritance Tax Docs | apps/inheritance-tax-docs |
 | 3004 | Inheritance Tax App | apps/inheritance-tax-app |
 | 3007 | Bank Analyzer | apps/bank-analyzer |
@@ -1087,7 +1084,6 @@ SQLite で書込権限まで見るのは、`SELECT 1` だけだと「開けて�
 tax_apps/
 ├── apps/                       # アプリケーションコード（各アプリに docker-compose.yml と docker-compose.prod.yml）
 │   ├── portal/app/             # ポータル（Next.js の静的出力。ビルドと起動は docker/gateway）
-│   ├── tax-docs/               # 確定申告 必要書類
 │   ├── gift-tax-simulator/     # 贈与税計算
 │   ├── inheritance-tax-docs/   # 相続税資料ガイド（Express + SQLite）
 │   ├── inheritance-tax-app/    # 相続税計算（Express）

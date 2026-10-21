@@ -99,7 +99,7 @@ HTML をやめてもチャンクは読めず画面は壊れる（＝ `hadRuntime
 | URL Path | 宛先サービス | 説明 |
 |:---------|:-------------|:-----|
 | `/` | `portal-app:3000` | ポータルサイト（Next.js の静的出力を nginx で配信） |
-| `/tax-docs/` | `tax-docs:3002` | 所得税・贈与税書類リスト (Vite) |
+| `/tax-docs/` | → `/inheritance-tax-docs/?type=income-tax` | 301リダイレクト（統合前URL互換） |
 | `/itcm/` | `itcm-frontend:3020` | 相続税案件管理 (Next.js + API Routes) |
 | `/itcm/api/` | `itcm-frontend:3020` | 相続税案件管理 API（同一サービス内） |
 | `/itcm/api-v1/` | `itcm-frontend:3020` | 旧 API パス。`/itcm/api/` へ書き換えて転送 |
@@ -121,7 +121,7 @@ HTML をやめてもチャンクは読めず画面は壊れる（＝ `hadRuntime
 | `/stock-valuation-form/api/` | `stock-valuation-form:3014` | 株式評価明細書 API（業種目データ・案件） |
 | `/bank-analyzer/` | `bank-analyzer:3007` | 銀行分析 (Vite + Hono) |
 | `/bank-analyzer/api/` | `bank-analyzer:3007` | 銀行分析 API（100M・300s。CSV の取込がここを通る） |
-| `/gift-tax-docs/` | → `/tax-docs/` | 301リダイレクト（旧URL互換） |
+| `/gift-tax-docs/` | → `/inheritance-tax-docs/?type=gift-tax` | 301リダイレクト（統合前URL互換） |
 | `/real-estate-tax/` | → `/gift-tax-simulator/real-estate` | 301リダイレクト |
 
 ## Docker Compose

@@ -160,7 +160,7 @@ git diff --name-only "$OLD" HEAD | grep -vE '\.md$'
 | `nginx/`（リポジトリ直下） | `manage.sh build gateway`（ゲートウェイのイメージの元。設定もイメージに入っている） |
 | `apps/<アプリ>/`（`docker-compose.yml` だけ） | `manage.sh apply <アプリ>` |
 | `apps/<アプリ>/`（それ以外を含む） | `manage.sh build <アプリ>` |
-| `docker/Dockerfile.vite-static` | これを使う7アプリ（tax-docs / gift-tax-simulator / retirement-tax-calc / depreciation-calc / asset-valuation / capital-gains-calc / inheritance-tax-form）を `build` |
+| `docker/Dockerfile.vite-static` | これを使う6アプリ（gift-tax-simulator / retirement-tax-calc / depreciation-calc / asset-valuation / capital-gains-calc / inheritance-tax-form）を `build` |
 | `docker/gateway/` | `manage.sh build gateway` |
 | `docker/scripts/` | 作り直しは不要（次に叩いたときから新しい版が動く） |
 | `apps/mcp-server/` | 何もしない（`manage.sh` の管理外） |
