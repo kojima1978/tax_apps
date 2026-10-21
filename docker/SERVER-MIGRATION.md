@@ -35,6 +35,27 @@ git pull --ff-only origin master                        # 元のサーバー（�
 
 AI は最初に、**いまどちらの PC にいるかを人に確かめる**（推測しない）。
 
+新しいサーバーに AI ツール（Claude Code など）を入れてサインインするのは人の作業（この文書より前）。
+AI ツールにはこの PC のコマンドを実行する権限を与えておく（毎回の許可待ちで止まらないように）。
+
+## 決定済みのこと（当日は聞かない）
+
+次は 2026-10-21 に決めた。AI は当日これを人に聞き直さず、そのまま進める。変えたいときは人が先に言う。
+
+| 項目 | 決定 |
+|------|------|
+| ブラウザの中にだけあるデータ | 引き継がない |
+| 新しいサーバーの IP | **元と同じ IP**。Windows 側で固定にする（AI が行う。ルーターの予約は使わない） |
+| 鍵の控え | バックアップとは**別の USB**（以下「鍵の USB」）。引っ越しの後もサーバーとは別の場所に保管する |
+| 外部コピー先 | 引っ越しに使ったバックアップの USB（以下「バックアップの USB」）を新しいサーバーに挿したままにする |
+| 自動ログオン | **しない**（ふだんはサインアウトせず画面ロックで離れる） |
+| リポジトリの置き場所 | 元と同じ `~/Desktop/dev/tax_apps`、fleet-board は `~/Desktop/apps/fleet-board` |
+| MCP サーバー・fleet-board を使っているか | 人に聞かず、1-1 で AI が元のサーバーを調べて決める |
+
+**USB はドライブ文字で選ばせない**。元のサーバーでは「挿してもらう前と後で増えたドライブ」を、
+新しいサーバーでは「中に `tax-apps-backup` / `tax-apps-key` があるドライブ」を AI が見つける
+（候補が2つ以上・0なら止まって人に報告する）。
+
 **新しいサーバーは Windows に限る**。自動起動・自動復旧（タスクスケジューラ・`docker-watchdog.ps1`）、
 デスクトップの警告、ファイアウォールの設定はどれも Windows 専用で、Linux へ移すと
 **バックアップも復旧も黙って止まる**（`manage.sh` / `backup.sh` と各アプリの compose は動くが、それを起こす係が居ない）。
@@ -64,20 +85,25 @@ AI は最初に、**いまどちらの PC にいるかを人に確かめる**（
 | 0 | 元→新 | **リハーサル**: 元のサーバーを止めずにその時点のバックアップを新しいサーバーへ戻し、第2部を最後まで通す | 第1部・第2部と同じ |
 | 1-1 | 元 | 現状を記録する（何も変えない） | — |
 | 1-2 | 元 | **master と同じ版へ更新する**（元のサーバーは古い版のまま動いている） | 【承認】更新 |
-| 1-3 | 元 | 新しいサーバーの IP を決める | 【判断】同じ IP にするか |
-| 1-4 | 元 | 利用者に入力を止めてもらい、**最後のバックアップ**を取って確かめる | 【承認】利用者が止めた |
-| 1-5 | 元 | バックアップと鍵を USB へ写す | USB を挿す |
-| 1-6 | 元 | アプリを止め、IP を明け渡す | 【承認】停止 |
+| 1-3 | 元 | 新しいサーバーに付ける IP を控える（元と同じ IP。決定済み） | — |
+| 1-4 | 元 | 利用者に入力を止めてもらい、**最後のバックアップ**を取って確かめ、そのままアプリを止める | 【承認】利用者が止めた（停止まで含む） |
+| 1-5 | 元 | バックアップと鍵を USB へ写す | USB を挿す（1本ずつ） |
+| 1-6 | 元 | IP を明け渡す | — |
 | 2-1 | 新 | Git・Docker Desktop を入れる | UAC・ライセンス同意 |
 | 2-2 | 新 | リポジトリを取得し、鍵を置く | USB を挿す |
 | 2-3 | 新 | `newpc` で全部戻す | 【承認】一覧を見て実行 |
-| 2-4 | 新 | 自動起動・自動復旧・外部コピー・ファイアウォール・IP・電源とログオンを設定する | UAC・【判断】自動ログオン |
+| F-1 | 新 | **fleet-board（社用車の予約）**を一から立ち上げる（[付録](#付録-fleet-board社用車の予約)） | — |
+| 2-4 | 新 | 自動起動・自動復旧・外部コピー・電源、管理者の設定（IP・ファイアウォール・fleet-board の LAN 公開）を**まとめて**入れる | 【承認】1回・UAC 1回 |
 | 2-5 | 新 | 確かめる（件数・訓練・テスト・preflight・画面） | 画面でデータを見る |
-| 3 | 元 | 数日後、元の自動タスクを外す（データは消さない） | 【承認】 |
-| F | 新→元 | **fleet-board（社用車の予約）**を新しいサーバーで一から立ち上げ、元を止める（[付録](#付録-fleet-board社用車の予約)） | UAC・【承認】LAN 公開・自動起動 |
+| 3 | 元 | 数日後、元の自動タスクと fleet-board を外す（データは消さない） | 【承認】 |
+
+人の出番は、本番1回で **【承認】4回（1-4・2-3・2-4・第3部）＋ UAC 3回（Git・Docker・2-4）＋
+ライセンス同意 ＋ USB の抜き差し ＋ 元のサーバーの LAN ケーブルを抜く（または電源を切る） ＋ 最後に画面を見る**。
+元の IP が固定なら 1-6 で UAC がもう1回、リハーサルをしていない・その後 master が進んだなら 1-2 の【承認】が1回増える。
+これより増えるのは「止まる条件」に当たったときだけ。
 
 **データを二重にしないことが一番大事**。1-4 の最後のバックアップより後に元のサーバーへ入力したものは
-新しいサーバーに入らない。1-6 で止めるまで、元のサーバーへは入力させない。
+新しいサーバーに入らない。1-4 で止めるまで、元のサーバーへは入力させない。
 
 ## 禁止事項（両方の PC で）
 
@@ -102,14 +128,14 @@ Git・Docker の導入、`newpc`、IP 以外の設定、確認のどこでつま
 
 ## 0-1. 元のサーバーで（止めない）
 
-第1部を次のとおり行う。**1-4 の「入力を止めてもらう」・1-6（停止と IP の明け渡し）はしない**。
+第1部を次のとおり行う。**入力を止めてもらうこと・アプリの停止・IP の明け渡しはしない**。
 
 | 手順 | リハーサルで |
 |------|--------------|
 | 1-1 | そのまま行う |
 | 1-2 | そのまま行う（master への更新は本番でも要るので、ここで済ませる） |
-| 1-3 | IP を決めるところまで（決めた内容を報告に残す。本番で使う） |
-| 1-4 | **【承認】を飛ばして**バックアップを取り、`verify` する（利用者は使い続けてよい） |
+| 1-3 | そのまま行う（控えた値を報告に残す。本番で使う） |
+| 1-4 | **【承認】を飛ばして**バックアップを取り、`verify` するまで。**`stop` はしない**（利用者は使い続けてよい） |
 | 1-5 | そのまま行う（鍵の USB は本番でもそのまま使う） |
 | 1-6 | **しない** |
 
@@ -121,9 +147,9 @@ Git・Docker の導入、`newpc`、IP 以外の設定、確認のどこでつま
 |------|--------------|
 | 2-1・2-2 | そのまま行う |
 | 2-3 | 0-1 で取ったバックアップで行う |
-| 2-4 | IP 以外はそのまま行う。**IP は付けない**（同じ IP にする場合、その IP はまだ元のサーバーが使っている）。自動ログオンを使うなら、再起動の確認までここで済ませる |
-| 2-5 | そのまま行う。画面は `http://localhost` と、LAN の別の PC から**新しいサーバーのいまの IP**（`Get-NetIPAddress` で調べる）で開く |
-| 付録 F-1 | そのまま行う。ただし **LAN 公開（`LAN Setup`）はしない**（IP がまだ決まっていない）。確認は `localhost:3035` だけ |
+| 付録 F-1 | そのまま行う |
+| 2-4 | そのまま行う。ただし管理者の設定のスクリプトから **IP と fleet-board の LAN 公開の行を外す**（その IP はまだ元のサーバーが使っている）。昇格なしの fleet-board の再起動もしない |
+| 2-5 | そのまま行う。画面は `http://localhost` と、LAN の別の PC から**新しいサーバーのいまの IP**（`Get-NetIPAddress` で調べる）で開く。fleet-board は `localhost:3035` だけ |
 
 終わったら、新しいサーバーのアプリを止める（利用者が間違って新しいサーバーへ入力しないように）:
 
@@ -164,7 +190,15 @@ powercfg -query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE | grep -a 'AC'
 powercfg -query SCHEME_CURRENT SUB_SLEEP HIBERNATEIDLE | grep -a 'AC'
 powershell.exe -NoProfile -Command "(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon -ErrorAction SilentlyContinue).AutoAdminLogon"
 powershell.exe -NoProfile -Command "Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -ErrorAction SilentlyContinue | Format-List ActiveHoursStart,ActiveHoursEnd"
+grep -l 'tax-apps-mcp' "$APPDATA/Claude/claude_desktop_config.json" 2>/dev/null && echo mcp-used || echo mcp-not-used
+docker ps -a --filter name=fleetflow --format '{{.Names}} {{.Status}}'
+ls -d ~/Desktop/apps/fleet-board 2>/dev/null || echo fleet-board-folder-not-found
 ```
+
+- `mcp-used` なら 2-4 で MCP サーバーのイメージを作る。`mcp-not-used` なら作らない。
+- fleet-board: `docker ps` の行が無く、フォルダも無ければ「元のサーバーには無い」（F-2 は何もしない）。
+  フォルダが別の場所にある場合は、`docker inspect <コンテナ名> --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'` で探して控える。
+  新しいサーバーでは、元にあってもなくても F-1 で立ち上げる。
 
 - 電源・自動ログオン・Windows Update の行は 2-4 で新しいサーバーを同じにするために使う。
   スリープと休止の値は秒の16進（`0x00000000` = しない、`0x00000e10` = 1時間）。`AutoAdminLogon` は `1` なら自動ログオン
@@ -209,37 +243,41 @@ git fetch -q origin && git rev-list --left-right --count HEAD...origin/master
 
 `0	0`（master と同じ）であること。
 
-## 1-3. 新しいサーバーの IP を決める
+## 1-3. 新しいサーバーに付ける IP を控える
 
+**新しいサーバーは元と同じ IP にし、Windows 側で固定にする**（決定済み。利用者のブックマークがそのまま使える）。
 **ブラウザの中にだけあるデータ（相続税の申告書・減価償却資産評価の下書き、担当者名などの画面の設定）は
 引き継がない**（決定済み）。書き出し・読み込みはしない。
 
-**【判断】新しいサーバーを元と同じ IP にするか**（AI の推奨: **同じ IP にする**）。
+1-1 の出力から、2-4 で使う値を控える: `<InterfaceAlias>`・`<IP>`・`<PrefixLength>`・`<Gateway>`（`IPv4DefaultGateway`）・
+`<DNS>`（`DNSServer`。複数ならカンマ区切り）・アクティブ時間の `<開始時>` / `<終了時>`。
 
-| 選択 | 利用者の PC | やること |
-|------|-------------|----------|
-| **同じ IP にする（推奨）** | ブックマークがそのまま使える | 1-6 で元の IP を明け渡し、2-4 で新しいサーバーに同じ IP を付ける |
-| 新しい IP にする | ブックマークの付け替えが要る | 2-5 の後、利用者へ新しいアドレスを案内する |
-
-`PrefixOrigin` が `Dhcp`（自動割り当て）で同じ IP にする場合は、もう1つ【判断】: ルーターに
-「この IP を新しい PC へ固定で割り当てる」設定（DHCP 予約）を人が入れるか、新しい PC の Windows 側で
-固定 IP にするか（AI の推奨: 人がルーターの設定画面を開けるならルーター側。できなければ Windows 側で AI が設定する）。
+- `PrefixOrigin` が `Dhcp`（ルーターが自動で割り当てていた）でも、新しいサーバーでは同じ値を固定で付ける。
+  ルーターが後で同じ IP を別の機器へ配る恐れがわずかに残るので、**完了報告に「ルーターで予約するとより安全」と1行書く**
+  （引っ越しの作業としては求めない）。
 
 ## 1-4. 最後のバックアップを取る
 
-【承認】「利用者全員が入力を止めましたか」と人に聞き、止めたと答えてから叩く:
+【承認】「利用者全員が入力を止めましたか。止めていれば、最後のバックアップを取って確かめ、
+**そのまま元のサーバーのアプリを止めます**（これ以降、元のサーバーへは入力できません）」と聞き、
+止めたと答えてから叩く（この承認で 1-6 まで進む。途中で改めて聞かない）:
 
 ```bash
 docker/scripts/manage.sh backup
 BACKUP=$(ls docker/backups/ | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}\.tar\.gz\.enc$' | sort | tail -1); echo "$BACKUP"
 docker/scripts/manage.sh verify "$BACKUP"
 cat docker/backups/.backup-key-fingerprint
+docker/scripts/manage.sh stop
+docker/scripts/manage.sh status
 ```
 
 - `$BACKUP` が**引っ越しに使うバックアップ**（例: `2026-10-21_213000.tar.gz.enc`）。名前を控える。
 - `verify` が `Encrypted backup is restorable` で終わること。
-- 最後の行が鍵の指紋（16桁）。2-2 で新しいサーバーの鍵と突き合わせる。
-- 止まる条件: バックアップが失敗する／`verify` が失敗する（鍵を作り直さない）。
+- 鍵の指紋（16桁）を控える。2-2 で新しいサーバーの鍵と突き合わせる。
+- `stop` は停止マーカーを置くので、ウォッチドッグもログオン時のタスクも起動し直さない。
+  自動タスクは**まだ外さない**（新しいサーバーで問題が出たとき、ここで `manage.sh start --recorded` すれば
+  すぐ元どおり使える）。外すのは第3部。
+- 止まる条件: バックアップが失敗する／`verify` が失敗する（鍵を作り直さない。**`stop` へ進まない**）。
 
 入っているもの（全アプリの一覧は [RESTORE.md の「何が戻るか」](RESTORE.md#何が戻るか)）:
 PostgreSQL 4件・SQLite 3件・案件管理の Excel テンプレート・`.env` 4件・各アプリのモードの記録。
@@ -247,13 +285,19 @@ PostgreSQL 4件・SQLite 3件・案件管理の Excel テンプレート・`.env
 
 ## 1-5. バックアップと鍵を USB へ写す
 
-人に USB を挿してもらい、AI がドライブを探す:
+USB は**1本ずつ**挿してもらい、AI は挿す前と後のドライブを比べて増えたものを使う
+（ドライブ文字を人に聞かない）:
 
 ```bash
-powershell.exe -NoProfile -Command "Get-Volume | Where-Object { \$_.DriveLetter } | Sort-Object DriveLetter | Format-Table DriveLetter,FileSystemLabel,DriveType,@{n='FreeGB';e={[math]::Round(\$_.SizeRemaining/1GB,1)}}"
+drives() { powershell.exe -NoProfile -Command "(Get-Volume | Where-Object { \$_.DriveLetter -and \$_.DriveLetter -ne 'C' }).DriveLetter -join ' '"; }
+BEFORE=$(drives); echo "before: $BEFORE"
+# ← ここで人に「バックアップの USB を挿してください」と頼み、挿したと答えてから
+AFTER=$(drives); echo "after: $AFTER"
+comm -13 <(tr ' ' '\n' <<<"$BEFORE" | tr -d '\r' | sort) <(tr ' ' '\n' <<<"$AFTER" | tr -d '\r' | sort)
 ```
 
-【判断】どのドライブを使うか（以下 `X:`）。AI は本体と同じドライブ（`C:`）を選ばない。
+- 最後の行に出た1文字がバックアップの USB（以下 `X:`）。空き容量がバックアップより少なければ止まる。
+- 止まる条件: 増えたドライブが0個・2個以上。
 
 ```bash
 mkdir -p /x/tax-apps-backup
@@ -263,9 +307,10 @@ cmp "docker/backups/$BACKUP" "/x/tax-apps-backup/$BACKUP" && echo backup-copy-ok
 
 `X:\tax-apps-backup` に置くのは、新しいサーバーの `newpc` が各ドライブ直下の `tax-apps-backup` を自動で見つけるため。
 
-鍵とリポジトリ外の設定を写す。**【判断】鍵をどこへ写すか**（AI の推奨: **バックアップとは別の USB**。
-同じ USB に置くと、USB を落とした人が全部読める）。この USB は引っ越しの後も**サーバーとは別の場所に保管する
-鍵の控え**になる（鍵を失うと、それまでの暗号化バックアップは全部開けない。サーバーの中にしか無い状態にしない）。以下 `Y:`:
+鍵とリポジトリ外の設定は**鍵の USB**へ写す（決定済み。同じ USB に置くと、USB を落とした人が全部読める）。
+この USB は引っ越しの後も**サーバーとは別の場所に保管する鍵の控え**になる（鍵を失うと、それまでの暗号化バックアップは
+全部開けない。サーバーの中にしか無い状態にしない）。バックアップの USB は挿したまま、上と同じ比べ方で
+鍵の USB を見つける（以下 `Y:`）:
 
 ```bash
 mkdir -p /y/tax-apps-key
@@ -277,29 +322,22 @@ cmp ~/.tax-apps/backup.key /y/tax-apps-key/backup.key && echo key-copy-ok
 - `backup-settings.env` は自動バックアップの有効・間隔・保持数（ポータルのバックアップ設定画面の保存先）。
 - 止まる条件: `backup-copy-ok` / `key-copy-ok` が出ない。
 
-## 1-6. アプリを止め、IP を明け渡す
+## 1-6. IP を明け渡す
 
-【承認】「元のサーバーのアプリを止めます。これ以降、元のサーバーへは入力できません」:
-
-```bash
-docker/scripts/manage.sh stop
-docker/scripts/manage.sh status
-```
-
-- `stop` は停止マーカーを置くので、ウォッチドッグもログオン時のタスクも起動し直さない。
-- 自動タスクは**まだ外さない**（新しいサーバーで問題が出たとき、ここで `manage.sh start --recorded` すれば
-  すぐ元どおり使える）。外すのは第3部。
-
-1-3 で「同じ IP にする」を選び、元の IP が `Manual`（固定）なら、新しいサーバーが同じ IP を使えるよう
-元のサーバーを自動割り当てへ戻す（管理者の PowerShell。`<InterfaceAlias>` は 1-1 で控えた名前）:
+アプリは 1-4 で止めてある（承認も 1-4 で取ってある）。元の IP が `Manual`（固定）なら、新しいサーバーが同じ IP を
+使えるよう元のサーバーを自動割り当てへ戻す（管理者の PowerShell。UAC は人が押す。`<InterfaceAlias>` は 1-1 で控えた名前）:
 
 ```bash
 powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-Command','Set-NetIPInterface -InterfaceAlias \"<InterfaceAlias>\" -Dhcp Enabled; Set-DnsClientServerAddress -InterfaceAlias \"<InterfaceAlias>\" -ResetServerAddresses; Remove-NetRoute -InterfaceAlias \"<InterfaceAlias>\" -DestinationPrefix 0.0.0.0/0 -Confirm:\$false -ErrorAction SilentlyContinue'"
 ```
 
-`Dhcp` だった場合は何もしない（ルーターの予約か、2-4 で新しい PC 側を固定にする）。
+`Dhcp` だった場合は何もしない。
 
-ここで元のサーバーの作業はいったん終わり。USB を抜いて新しいサーバーへ持っていく（物理的な操作）。
+どちらの場合も、最後に**元のサーバーの LAN ケーブルを抜くか電源を切ってもらう**（物理的な操作）。電源とネットワークが
+生きたままだと、元のサーバーが同じ IP を持ち続けたり取り直したりして、2-4 の `Test-Connection` が `True` になって止まる。
+第3部と F-2 は**LAN ケーブルを抜いたまま**行う（電源を入れ直してもつながないこと。つなぐのは元へ戻すときだけ）。
+
+ここで元のサーバーの作業はいったん終わり。USB を2本とも抜いて新しいサーバーへ持っていく（物理的な操作）。
 
 ---
 
@@ -310,7 +348,9 @@ powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -
 - 2-1 は飛ばす（`docker info` で Docker が動いていることだけ確かめる。止まっていれば Docker Desktop を起動する）。
 - 2-2 は clone の代わりに、リポジトリで `git pull --ff-only origin master` を叩く。鍵は置いてあるので、指紋が 1-4 と同じかだけ確かめる。
 - 2-3 は**本番の 1-4 で取った最後のバックアップ**で行う。戻す前の状態は `pre-restore_*` として自動で残り、`.env` は既にあるので触られない。
-- 2-4 は IP だけ行い、ほかは `status` でタスクが登録済みであること、`usb --show` でコピー先が設定済みであることを確かめる。
+- F-1 は飛ばす（`api/health` が 200 であることだけ確かめる）。
+- 2-4 は管理者の設定のスクリプトを**全部の行入りで**もう一度流す（同じ設定を入れ直しても重複しない書き方にしてある）。
+  ほかは `status` でタスクが登録済みであること、`usb --show` でコピー先が設定済みであることを確かめる。
 - 2-5 はそのまま全部行う。
 
 ## 2-1. Git と Docker Desktop を入れる
@@ -344,8 +384,8 @@ docker info >/dev/null && echo docker-ok
 
 ## 2-2. リポジトリを取得し、鍵を置く
 
-置き場所は**浅いパス**（日本語・スペースを含まない。Windows の 260 文字制限に当たると消せないファイルが残る）。
-既定は元のサーバーと同じ `~/Desktop/dev/tax_apps`（違う場所にするかは【判断】）:
+置き場所は元のサーバーと同じ `~/Desktop/dev/tax_apps`（決定済み。浅いパスにするのは、Windows の 260 文字制限に
+当たると消せないファイルが残るため）:
 
 ```bash
 mkdir -p ~/Desktop/dev && cd ~/Desktop/dev
@@ -356,7 +396,14 @@ git log --oneline -1
 
 `git log` が元のサーバーの 1-2 の後のコミットと同じか、それより新しいこと。
 
-人に USB を挿してもらい、1-5 と同じ方法でドライブを探して鍵を置く（`Y:` は鍵を写した USB）:
+人に USB を2本とも挿してもらい、中身でドライブを見分ける（ドライブ文字を人に聞かない）:
+
+```bash
+for d in /[d-z]; do [ -d "$d/tax-apps-backup" ] && echo "backup: $d"; [ -f "$d/tax-apps-key/backup.key" ] && echo "key: $d"; done
+```
+
+- `backup:` の行がバックアップの USB（以下 `X:`）、`key:` の行が鍵の USB（以下 `Y:`）。
+- 止まる条件: どちらかが0行・2行以上。
 
 ```bash
 mkdir -p ~/.tax-apps
@@ -394,91 +441,138 @@ docker/scripts/manage.sh newpc <バックアップ> --from 'X:\tax-apps-backup' 
 - 止まる条件（手で直そうとせず報告する）: healthy にならない（データは戻さずに止まる。
   `docker/scripts/manage.sh logs <app>` の末尾を付ける）／`件数がバックアップと一致しません`。
 
+続けて [付録 F-1](#f-1-新しいサーバーで2-3-の後) で fleet-board を起動してから 2-4 へ進む（2-4 で fleet-board の LAN 公開と自動起動もまとめて入れるため）。
+
 ## 2-4. 常用の設定を入れる
 
-自動起動・自動復旧・バックアップ設定画面（どれも昇格不要。`.bat` は `pause` で止まるので `.ps1` を直接呼ぶ）:
+**この手順の【承認】は最初の1回だけ**。次の一覧を人に見せ、「これをまとめて設定します。UAC は1回出ます」と伝えてから進む
+（途中で改めて聞かない）:
+
+- 自動起動・自動復旧・バックアップ設定画面のタスク（tax_apps）と、fleet-board のサインイン時の自動起動
+- 外部コピー先 = バックアップの USB の `X:\tax-apps-backup`（決定済み。USB は挿したままにしてもらう）
+- 電源につないでいる間はスリープも休止もしない
+- 管理者の設定: IP `<IP>` を固定で付ける／ネットワークがパブリックならプライベートへ／ファイアウォール
+  （80番と Docker Desktop Backend を LAN だけに、fleet-board の 3035番を同じサブネットだけに）／
+  Windows Update のアクティブ時間を元と同じに
+- MCP サーバーのイメージ（1-1 で `mcp-used` だったときだけ）
+- 自動ログオンは**しない**（決定済み）
+
+### 昇格なしの設定
+
+`.bat` / `.cmd` は `pause` やダイアログで止まるので、中の `.ps1` を直接呼ぶ:
 
 ```bash
 for t in register-startup-task register-docker-watchdog-task register-backup-settings-api-task; do
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File "docker/scripts/$t.ps1" || echo "FAILED: $t"
 done
 powershell.exe -NoProfile -Command "Get-ScheduledTask -TaskName 'Tax Apps*' | Format-Table TaskName,State"
-```
-
-外部コピー先（毎回のバックアップを別のドライブへも写す）。【判断】どのドライブにするか
-（AI の推奨: 引っ越しに使った USB をそのまま挿しっぱなしにする。NAS があればそちら）:
-
-```bash
 docker/scripts/manage.sh usb --set 'X:\tax-apps-backup'
 docker/scripts/manage.sh usb --show
-```
-
-IP（1-3 で「同じ IP にする」を選んだ場合）。ルーターで予約したなら、PC を再起動するか
-`ipconfig /renew` で取り直して、1-1 の `IPAddress` になったことを確かめるだけ。Windows 側で固定にする場合は、
-1-1 で控えた値（`<IP>` / `<PrefixLength>` / `<Gateway>` / `<DNS>`）で:
-
-```bash
-powershell.exe -NoProfile -Command "Get-NetIPConfiguration | Where-Object IPv4DefaultGateway | Format-List InterfaceAlias,IPv4Address"
-powershell.exe -NoProfile -Command "Test-Connection -Count 1 -Quiet <IP>"
-```
-
-- 2行目が `True` なら、その IP はまだ誰かが使っている（元のサーバーが明け渡していない）。止まる。
-
-```bash
-powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-Command','New-NetIPAddress -InterfaceAlias \"<InterfaceAlias>\" -IPAddress <IP> -PrefixLength <PrefixLength> -DefaultGateway <Gateway>; Set-DnsClientServerAddress -InterfaceAlias \"<InterfaceAlias>\" -ServerAddresses <DNS>'"
-```
-
-ファイアウォール（LAN の他の PC から使うため。管理者の PowerShell）:
-
-```bash
-powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-Command','New-NetFirewallRule -DisplayName \"Tax Apps Gateway (HTTP)\" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow -Profile Private,Domain -RemoteAddress LocalSubnet; Get-NetFirewallRule -DisplayName \"Docker Desktop Backend\" -ErrorAction SilentlyContinue | Set-NetFirewallRule -EdgeTraversalPolicy Block -RemoteAddress LocalSubnet'"
-powershell.exe -NoProfile -Command "Get-NetConnectionProfile | Format-Table InterfaceAlias,NetworkCategory"
-```
-
-- アプリにはログインが無く、**送信元を LAN に絞れるのはこのルールだけ**（詳しくは README の LAN 公開の節）。
-- `NetworkCategory` が `Public` なら、ポート 80 のルール（`-Profile Private,Domain`）が効かず繋がらない。
-  【承認】「このネットワークをプライベートにします」と伝えてから、管理者の PowerShell で
-  `Set-NetConnectionProfile -InterfaceAlias "<InterfaceAlias>" -NetworkCategory Private`。
-
-電源とログオン。**自動起動・自動復旧のタスクはログオンしている間しか動かない**（画面をロックしていても動く。
-サインアウト・スリープ・休止の間は1つも動かず、バックアップも止まる）。サーバーとして置きっぱなしにするため、
-電源につないでいる間はスリープも休止もしないようにする（昇格不要。画面を消す設定はそのままでよい）:
-
-```bash
 powercfg -change standby-timeout-ac 0
 powercfg -change hibernate-timeout-ac 0
 powercfg -query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE | grep -a 'AC'
 ```
 
-- 最後の行が `0x00000000` であること。
+- `powercfg` の最後の行が `0x00000000` であること。
+- **自動起動・自動復旧のタスクはログオンしている間しか動かない**（画面をロックしていても動く。
+  サインアウト・スリープ・休止の間は1つも動かず、バックアップも止まる）。スリープと休止を切るのはそのため。
 
-Windows Update は再起動の後、誰かがログオンするまでアプリを上げない。1-1 で控えたアクティブ時間
-（この時間帯は再起動しない）を同じにする:
+fleet-board の自動起動（PowerShell で、fleet-board のフォルダから）:
 
-```bash
-powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-Command','Set-ItemProperty HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings -Name ActiveHoursStart -Value <開始時>; Set-ItemProperty HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings -Name ActiveHoursEnd -Value <終了時>'"
+```powershell
+& '.\FleetFlow Production Autostart Setup.cmd' -NoUi
 ```
 
-**【判断】自動ログオンにするか**（1-1 で元のサーバーが `AutoAdminLogon = 1` だったなら、元と同じにするかどうか）。
-
-| 選択 | 停電・Windows Update の再起動の後 | 気をつけること |
-|------|------------------------------|----------------|
-| しない（AI の推奨） | 誰かがログオンするまでアプリは止まったまま | 再起動に気づいたらログオンする。ふだんはサインアウトせず画面ロックで離れる |
-| する | 電源が入れば勝手にログオンしてアプリが上がる | PC の前に座った人は誰でもそのアカウントを使える。パスワードは Windows の中に保存される |
-
-自動ログオンにする場合、**パスワードを入れるのは人**（AI はパスワードを入力しない）。AI は
-`netplwiz` を開くところまで行い、人が「ユーザーがこのコンピューターを使うには、ユーザー名とパスワードの
-入力が必要」のチェックを外してパスワードを入れる。チェックの欄が無い場合は、Windows の設定の
-「アカウント → サインイン オプション」で「Windows Hello サインインのみを許可する」を人がオフにしてから開き直す。
-終わったら AI が 1-1 と同じ `AutoAdminLogon` の確認で `1` になったことを確かめ、再起動して
-ログオン後に `manage.sh status` で全アプリが healthy に戻ることを確かめる（【承認】再起動）。
-
-MCP サーバー（Claude Desktop などから株式評価明細書へ数字を入れる経路）を元のサーバーで使っていた場合だけ
-（1-1 の時点で人に聞く）、イメージを作り、MCP クライアントの設定を [apps/mcp-server/README.md](../apps/mcp-server/README.md) のとおり書く:
+MCP サーバー（1-1 で `mcp-used` だったときだけ。MCP クライアントの設定は [apps/mcp-server/README.md](../apps/mcp-server/README.md) のとおり AI が書く）:
 
 ```bash
 docker compose -f apps/mcp-server/docker-compose.yml --profile mcp build mcp-server
 ```
+
+### 管理者の設定（UAC 1回）
+
+先に、新しいサーバーで使っている LAN の口の名前（以下 `<NewAlias>`。**元のサーバーの名前とは違うことがある**）と、
+`<IP>` を誰かがまだ使っていないかを確かめる:
+
+```bash
+powershell.exe -NoProfile -Command "Get-NetIPConfiguration | Where-Object IPv4DefaultGateway | Format-List InterfaceAlias,IPv4Address"
+powershell.exe -NoProfile -Command "if (Get-NetIPAddress -IPAddress <IP> -ErrorAction SilentlyContinue) { 'already-mine' } else { Test-Connection -Count 1 -Quiet <IP> }"
+```
+
+- 2行目が `True` なら、その IP はまだ誰かが使っている（元のサーバーが明け渡していない・電源が入ったまま）。止まる。
+  `already-mine`（リハーサルの後に一度付けた）か `False` なら進む。
+
+1つのスクリプトに書き出して、昇格した PowerShell で1回だけ流す。置き場所はリポジトリの `docker/logs/`（Git 管理外）。
+**スクリプトは ASCII だけで書く**（BOM の無い UTF-8 の日本語は Windows PowerShell 5.1 で化ける）。
+`<…>` は 1-3 で控えた値と上で調べた `<NewAlias>`、`<REPO_WIN>` は `pwd -W`、`<FLEET_WIN>` は fleet-board のフォルダの
+`pwd -W` に置き換える。リハーサルでは `# [IP]` と `# [FLEET-LAN]` の塊を消して流す:
+
+```bash
+cat > docker/logs/admin-setup.ps1 <<'EOF'
+$ErrorActionPreference = 'Stop'
+$a = '<NewAlias>'; $ip = '<IP>'
+Start-Transcript -Path '<REPO_WIN>/docker/logs/admin-setup.log' -Force | Out-Null
+try {
+  # [IP] fixed address (skipped when this PC already has it)
+  if (-not (Get-NetIPAddress -IPAddress $ip -ErrorAction SilentlyContinue)) {
+    Set-NetIPInterface -InterfaceAlias $a -Dhcp Disabled
+    Get-NetIPAddress -InterfaceAlias $a -AddressFamily IPv4 -ErrorAction SilentlyContinue | Remove-NetIPAddress -Confirm:$false
+    Get-NetRoute -InterfaceAlias $a -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Remove-NetRoute -Confirm:$false
+    New-NetIPAddress -InterfaceAlias $a -IPAddress $ip -PrefixLength <PrefixLength> -DefaultGateway '<Gateway>' | Out-Null
+    Set-DnsClientServerAddress -InterfaceAlias $a -ServerAddresses <DNS>
+  }
+  for ($i = 0; $i -lt 30 -and -not (Get-NetIPAddress -IPAddress $ip -AddressState Preferred -ErrorAction SilentlyContinue); $i++) { Start-Sleep 2 }
+  Start-Sleep 5
+  # [IP] end
+
+  # network profile: Public blocks the Private/Domain rules below
+  Get-NetConnectionProfile -InterfaceAlias $a | Where-Object NetworkCategory -eq 'Public' | Set-NetConnectionProfile -NetworkCategory Private
+
+  # tax_apps gateway: LAN only (the apps have no login)
+  Get-NetFirewallRule -DisplayName 'Tax Apps Gateway (HTTP)' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+  New-NetFirewallRule -DisplayName 'Tax Apps Gateway (HTTP)' -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow -Profile Private,Domain -RemoteAddress LocalSubnet | Out-Null
+  Get-NetFirewallRule -DisplayName 'Docker Desktop Backend' -ErrorAction SilentlyContinue | Set-NetFirewallRule -EdgeTraversalPolicy Block -RemoteAddress LocalSubnet
+
+  # Windows Update active hours (same as the old server)
+  Set-ItemProperty 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -Name ActiveHoursStart -Value <開始時>
+  Set-ItemProperty 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -Name ActiveHoursEnd -Value <終了時>
+
+  # [FLEET-LAN] firewall rule and bind address only; the app is restarted later without elevation
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File '<FLEET_WIN>/scripts/production/Configure-LanAccess.ps1' -ProjectDirectory '<FLEET_WIN>' -Address $ip -NoRestart -NoUi
+  if ($LASTEXITCODE -ne 0) { throw 'fleet-board LAN setup failed' }
+  # [FLEET-LAN] end
+
+  'ADMIN-SETUP-OK'
+} catch {
+  "ADMIN-SETUP-FAILED: $($_.Exception.Message)"
+} finally {
+  Stop-Transcript | Out-Null
+}
+EOF
+powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','$(pwd -W)/docker/logs/admin-setup.ps1'"
+grep -a 'ADMIN-SETUP-\|FleetFlow\|Error' docker/logs/admin-setup.log
+powershell.exe -NoProfile -Command "Get-NetIPConfiguration | Where-Object IPv4DefaultGateway | Format-List InterfaceAlias,IPv4Address; Get-NetConnectionProfile | Format-Table InterfaceAlias,NetworkCategory"
+```
+
+- ログに `ADMIN-SETUP-OK` があること、`IPv4Address` が `<IP>`、`NetworkCategory` が `Private`（または `Domain`）であること。
+- アプリにはログインが無く、**送信元を LAN に絞れるのはこのファイアウォールだけ**（詳しくは README の LAN 公開の節）。
+- 止まる条件: `ADMIN-SETUP-FAILED`（ログの全文を報告する）／UAC で「いいえ」が押された（ログが作られない）。
+  **IP を付け替えた後に失敗した場合でも、IP を元へ戻そうとしない**（報告して人の判断を待つ）。
+
+fleet-board を新しい設定で起動し直す（昇格なし。PowerShell で、fleet-board のフォルダから。リハーサルでは飛ばす）:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production\Configure-LanAccess.ps1 -ProjectDirectory (Get-Location).Path -Address <IP> -NoFirewall -NoUi
+& '.\FleetFlow Production Preflight.cmd' -NoUi
+(Invoke-WebRequest "http://<IP>:3035/api/health" -UseBasicParsing).StatusCode
+```
+
+- 3つとも成功し、最後の行が `200` であること。
+
+自動ログオンにしない（決定済み）ので、停電や Windows Update の再起動の後は、誰かがログオンするまでアプリは止まったまま
+（完了報告で人に伝える: 「再起動に気づいたらログオンする。ふだんはサインアウトせず画面ロックで離れる」）。
+後から自動ログオンに変える場合は、パスワードを入れるのは人（AI はパスワードを入力しない）。AI が `netplwiz` を開き、
+人が「ユーザーがこのコンピューターを使うには…」のチェックを外してパスワードを入れる。
 
 ## 2-5. 確かめる
 
@@ -509,20 +603,19 @@ done
 ```
 
 - 全部 `200`（`301` / `308` はリダイレクトなので `curl -L` で確かめ直す）。
-- 【判断】人に、ポータル（`http://localhost`、LAN の別の PC からは `http://<IP>/`）から各アプリを開き、
-  いつものデータ（案件・顧客・評価案件など）があるかを見てもらう。
+- 【判断】**人に見てもらうのはここ1回だけ**: LAN の別の PC から、ポータル `http://<IP>/` を開いて各アプリに
+  いつものデータ（案件・顧客・評価案件など）があるか、続けて fleet-board `http://<IP>:3035` が開くか。
 
-利用者への案内（AI が文面を作り、人が送る）: 新しいサーバーのアドレス（同じ IP なら「変わりません」）と、
-ブラウザに保存していた入力（相続税の申告書・減価償却資産評価の下書き、担当者名など）は引き継いでいないこと。
-
-続けて [付録 F-1](#f-1-新しいサーバーで2-5-の後) で fleet-board を立ち上げる。
+利用者への案内（AI が文面を作り、人が送る）: アドレスは変わらないこと、ブラウザに保存していた入力
+（相続税の申告書・減価償却資産評価の下書き、担当者名など）は引き継いでいないこと、fleet-board の管理者 PIN は
+`.env.production` の `FLEETFLOW_ADMIN_PIN` にあること（PIN そのものは書かない）。
 
 ---
 
 # 第3部 引っ越しが済んだ後（元のサーバー）
 
 **新しいサーバーで数日使い、新しいサーバーの `manage.sh status` で `backup` と `drill` の記録が `ok` になり、
-外部コピー先にもファイルが増えていることを確かめてから**行う。【承認】を取ってから:
+外部コピー先にもファイルが増えていることを確かめてから**行う。【承認】は1回（F-2 の fleet-board の停止も含めて聞く）:
 
 ```bash
 for t in register-docker-watchdog-task register-startup-task register-backup-settings-api-task; do
@@ -562,10 +655,11 @@ fleet-board（画面の名前は FleetFlow）は**別のリポジトリ**のア�
   `.cmd` には `-NoUi` を付ける（ダイアログもブラウザも開かず、成否は終了コードで分かる）。
 - **管理者 PIN**は初回の起動で生成され、出力に出る。**AI は PIN を会話・報告に書き写さない**。
   `.env.production` の `FLEETFLOW_ADMIN_PIN` に保存されたことだけを人に伝え、人が控える。
-- 元のサーバーの 1-1 で、fleet-board が元のサーバーにあるか・動いているかを人に聞いて控える
-  （`docker ps --filter name=fleetflow` で `fleetflow-production-*` / `fleetflow-development-*` のどちらが動いているか）。
+- 元のサーバーに fleet-board があるか・どこにあるかは、1-1 で AI が調べて控える（人には聞かない）。
 
-## F-1. 新しいサーバーで（2-5 の後）
+## F-1. 新しいサーバーで（2-3 の後）
+
+ここは起動して localhost で確かめるだけで、【承認】は要らない（LAN 公開・自動起動は 2-4 の1回の承認でまとめて入れる）。
 
 ```powershell
 mkdir -Force ~/Desktop/apps | Out-Null; cd ~/Desktop/apps
@@ -578,27 +672,12 @@ git log --oneline -1
 
 - 最後の行が `200`。止まる条件: `Start` の終了コードが 0 でない（出力の全文と
   `& '.\FleetFlow Production Diagnostics.cmd' -NoUi` の結果を報告する）。
-
-LAN 公開。【承認】「ファイアウォールで TCP 3035 を同じ社内サブネットからだけ許可します」と伝えてから
-（UAC は人が押す。`<IP>` は 2-4 で付けた IP）:
-
-```powershell
-& '.\FleetFlow LAN Setup.cmd' -NoUi -Address <IP>
-& '.\FleetFlow Production Preflight.cmd' -NoUi
-```
-
-自動起動（サインイン時に本番を起動する）。【承認】「サインイン時の自動起動を登録します」と伝えてから:
-
-```powershell
-& '.\FleetFlow Production Autostart Setup.cmd' -NoUi
-```
-
-- tax_apps の自動タスクとは別物（tax_apps のウォッチドッグは fleet-board を復旧しない）。
-- 【判断】人に、LAN の別の PC から `http://<IP>:3035` を開いてもらう。
+- 続きは 2-4 にある: 自動起動（昇格なしの設定）、LAN 公開（管理者の設定の `# [FLEET-LAN]` と、その後の昇格なしの起動し直し）。
+  fleet-board の自動起動は tax_apps の自動タスクとは別物（tax_apps のウォッチドッグは fleet-board を復旧しない）。
 
 ## F-2. 元のサーバーで（第3部と同じとき）
 
-元のサーバーに fleet-board が無ければ何もしない。あれば【承認】を取ってから、そのフォルダで:
+元のサーバーに fleet-board が無ければ（1-1 で控えた結果）何もしない。あれば第3部の【承認】に含めて、そのフォルダで:
 
 ```powershell
 & '.\FleetFlow Production Stop.cmd' -NoUi
@@ -620,6 +699,8 @@ docker ps --filter name=fleetflow --format '{{.Names}} {{.Status}}'
 - 新: 入れたソフトの版、リポジトリの場所とコミット、鍵の指紋の一致、`newpc --check` の一覧、
   `newpc` の件数一致の行と `OK / Skipped / Failed`、登録したタスク・外部コピー先・ファイアウォール・IP、
   `status` / `drill` / `test` / `preflight` の要約と WARN の全文、画面の `curl` の結果
-- fleet-board: clone したコミット、`Start` / `LAN Setup` / `Preflight` / `Autostart` の終了コード、
+- fleet-board: clone したコミット、`Start` / `Autostart` / LAN 公開 / `Preflight` の終了コード、
   `api/health` の結果、元のサーバーで止めたか（**管理者 PIN は書かない**）
+- 人への申し送り: 自動ログオンにしていないこと（再起動の後はログオンが要る）、鍵の USB をサーバーとは別の場所へ
+  保管すること、バックアップの USB は挿したままにすること、元が `Dhcp` だった場合は「ルーターで予約するとより安全」
 - 止まった場合は、止まった手順・出力の全文・その時点の `manage.sh status`
