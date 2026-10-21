@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "outDir": "dist-server",
-    "rootDir": "server",
+    "rootDir": ".",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -12,5 +12,6 @@
     "declaration": false,
     "sourceMap": false
   },
-  "include": ["server"]
+  "include": ["server", "src/constants"],
+  "exclude": ["server/**/*.test.ts"]
 }

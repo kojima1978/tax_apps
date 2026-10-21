@@ -1,7 +1,9 @@
 // 書類リスト種別
-export type DocListType = 'inheritance-tax' | 'simplified' | 'unlisted-stock';
+export type DocListType = 'income-tax' | 'gift-tax' | 'inheritance-tax' | 'simplified' | 'unlisted-stock';
 
 export const DOC_LIST_TYPE_LABELS: Record<DocListType, string> = {
+  'income-tax': '所得税申告',
+  'gift-tax': '贈与税申告',
   'inheritance-tax': '相続税申告',
   'simplified': '相続シミュレーション',
   'unlisted-stock': '非上場株式評価',
@@ -15,35 +17,19 @@ export const STORAGE_KEYS = {
   personInCharge: 'inheritance_tax_docs_person_in_charge',
   personInChargeContact: 'inheritance_tax_docs_person_in_charge_contact',
   darkMode: 'inheritance_tax_docs_dark_mode',
+  targetYear: 'inheritance_tax_docs_target_year',
 } as const;
 
 // データストレージキー（種別ごと）
-export const getDataStorageKey = (type: DocListType): string =>
-  `inheritance_tax_docs_${type}_data`;
+export const getDataStorageKey = (type: DocListType, companyId?: number | null): string =>
+  `inheritance_tax_docs_${type}_data${companyId == null ? '' : `_company_${companyId}`}`;
 
 // ゴミ箱ストレージキー（種別ごと）
-export const getTrashStorageKey = (type: DocListType): string =>
-  `inheritance_tax_docs_${type}_trash`;
+export const getTrashStorageKey = (type: DocListType, companyId?: number | null): string =>
+  `inheritance_tax_docs_${type}_trash${companyId == null ? '' : `_company_${companyId}`}`;
 
 // ゴミ箱の保持上限（種別ごと、超過分は古いものから破棄）
 export const TRASH_LIMIT = 50;
-
-// 会社情報
-export const COMPANY_INFO = {
-  name: '税理士法人マスエージェント',
-  postalCode: '〒770-0002',
-  address: '徳島県徳島市春日２丁目３−３３',
-  phone: '088-632-6228',
-  fax: '088-631-9870',
-} as const;
-
-export function getFullAddress(): string {
-  return `${COMPANY_INFO.postalCode} ${COMPANY_INFO.address}`;
-}
-
-export function getContactLine(): string {
-  return `TEL ${COMPANY_INFO.phone} / FAX ${COMPANY_INFO.fax}`;
-}
 
 // 個別名（サブアイテム）
 export interface SpecificName {
@@ -106,4 +92,5 @@ export type Trash = TrashItem[];
 export { CATEGORIES } from './documents';
 export { SIMPLIFIED_CATEGORIES } from './simplifiedDocuments';
 export { UNLISTED_STOCK_CATEGORIES } from './unlistedStockDocuments';
+export { INCOME_TAX_CATEGORIES, GIFT_TAX_CATEGORIES } from './incomeGiftDocuments';
 export type { DocumentItem, CategoryData } from './documents';

@@ -52,8 +52,81 @@ function initSchema(d: Database.Database): void {
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )
+    );
+    CREATE TABLE IF NOT EXISTS document_masters (
+      code             TEXT PRIMARY KEY,
+      label            TEXT NOT NULL,
+      draft_json       TEXT NOT NULL,
+      published_json   TEXT NOT NULL,
+      version           INTEGER NOT NULL DEFAULT 1,
+      sort_order        INTEGER NOT NULL DEFAULT 0,
+      draft_updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      published_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS document_master_versions (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      master_code   TEXT NOT NULL REFERENCES document_masters(code),
+      version       INTEGER NOT NULL,
+      payload_json  TEXT NOT NULL,
+      published_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(master_code, version)
+    );
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      target_type  TEXT NOT NULL,
+      target_id    TEXT NOT NULL,
+      target_name  TEXT NOT NULL,
+      action       TEXT NOT NULL,
+      actor        TEXT NOT NULL DEFAULT 'ローカル利用者',
+      before_json  TEXT,
+      after_json   TEXT,
+      created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs(target_type, target_id, id DESC);
   `);
+
+  // Existing databases predate soft deletion. Keep the migration additive so
+  // production data is never rebuilt or discarded.
+  const resourceColumns = d.prepare('PRAGMA table_info(resources)').all() as { name: string }[];
+  if (!resourceColumns.some((column) => column.name === 'deleted_at')) {
+    d.exec('ALTER TABLE resources ADD COLUMN deleted_at TEXT');
+  }
+  if (!resourceColumns.some((column) => column.name === 'company_ids_json')) {
+    d.exec("ALTER TABLE resources ADD COLUMN company_ids_json TEXT NOT NULL DEFAULT '[]'");
+  }
+}
+
+export type DocumentMasterRow = {
+  code: string;
+  label: string;
+  draft_json: string;
+  published_json: string;
+  version: number;
+  sort_order: number;
+  draft_updated_at: string;
+  published_at: string;
+};
+
+export function seedDocumentMastersIfEmpty(seeds: { code: string; label: string; categories: unknown[] }[]): void {
+  const d = getDb();
+  const insert = d.prepare(`
+    INSERT OR IGNORE INTO document_masters
+      (code, label, draft_json, published_json, version, sort_order)
+    VALUES (?, ?, ?, ?, 1, ?)
+  `);
+  const insertVersion = d.prepare(`
+    INSERT OR IGNORE INTO document_master_versions (master_code, version, payload_json)
+    VALUES (?, 1, ?)
+  `);
+  const seed = d.transaction(() => {
+    seeds.forEach((item, index) => {
+      const payload = JSON.stringify(item.categories);
+      insert.run(item.code, item.label, payload, payload, index);
+      insertVersion.run(item.code, payload);
+    });
+  });
+  seed();
 }
 
 export type ResourceRow = {
@@ -65,7 +138,36 @@ export type ResourceRow = {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
+  company_ids_json: string;
 };
+
+export type AuditTargetType = 'document_master' | 'resource';
+export type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
+
+export function writeAuditLog(entry: {
+  targetType: AuditTargetType;
+  targetId: string | number;
+  targetName: string;
+  action: AuditAction;
+  actor?: string;
+  before?: unknown;
+  after?: unknown;
+}): void {
+  getDb().prepare(`
+    INSERT INTO audit_logs
+      (target_type, target_id, target_name, action, actor, before_json, after_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    entry.targetType,
+    String(entry.targetId),
+    entry.targetName,
+    entry.action,
+    entry.actor?.trim() || 'ローカル利用者',
+    entry.before === undefined ? null : JSON.stringify(entry.before),
+    entry.after === undefined ? null : JSON.stringify(entry.after),
+  );
+}
 
 // --- Seed data (existing 16 resources) ---
 

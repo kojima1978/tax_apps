@@ -14,6 +14,9 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useCompanyInfo, type CompanyInfo } from '@/lib/company';
+import CompanySwitcher from '@/components/CompanySwitcher';
+import { operatorRequestHeaders, useOperator } from '@/lib/operator';
 
 // --- Types ---
 
@@ -24,38 +27,40 @@ type Resource = {
   filename: string | null;
   url: string | null;
   sort_order: number;
+  company_ids: number[];
 };
-
 // --- API helpers ---
 
 const BASE = '/inheritance-tax-docs/api/resources/';
 
-async function fetchResources(): Promise<Resource[]> {
-  const res = await fetch(BASE);
+async function fetchResources(companyId: number | null = null): Promise<Resource[]> {
+  const search = companyId === null ? '' : `?companyId=${encodeURIComponent(String(companyId))}`;
+  const res = await fetch(`${BASE}${search}`);
+  if (!res.ok) throw new Error('参考資料の取得に失敗しました');
   return res.json();
 }
 
-async function createResource(form: FormData): Promise<Resource> {
-  const res = await fetch(BASE, { method: 'POST', body: form });
+async function createResource(form: FormData, operatorName: string): Promise<Resource> {
+  const res = await fetch(BASE, { method: 'POST', headers: operatorRequestHeaders(operatorName), body: form });
   if (!res.ok) throw new Error((await res.json()).error ?? '登録に失敗しました');
   return res.json();
 }
 
-async function updateResource(id: number, form: FormData): Promise<Resource> {
-  const res = await fetch(`${BASE}${id}/`, { method: 'PUT', body: form });
+async function updateResource(id: number, form: FormData, operatorName: string): Promise<Resource> {
+  const res = await fetch(`${BASE}${id}/`, { method: 'PUT', headers: operatorRequestHeaders(operatorName), body: form });
   if (!res.ok) throw new Error((await res.json()).error ?? '更新に失敗しました');
   return res.json();
 }
 
-async function deleteResource(id: number): Promise<void> {
-  const res = await fetch(`${BASE}${id}/`, { method: 'DELETE' });
+async function deleteResource(id: number, operatorName: string): Promise<void> {
+  const res = await fetch(`${BASE}${id}/`, { method: 'DELETE', headers: operatorRequestHeaders(operatorName) });
   if (!res.ok) throw new Error((await res.json()).error ?? '削除に失敗しました');
 }
 
-async function reorderResources(ids: number[]): Promise<void> {
+async function reorderResources(ids: number[], operatorName: string): Promise<void> {
   await fetch(`${BASE}reorder`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...operatorRequestHeaders(operatorName) },
     body: JSON.stringify({ ids }),
   });
 }
@@ -78,11 +83,13 @@ function getIcon(resource: Resource) {
 // --- Sortable Card ---
 
 function SortableResourceCard({
-  resource, basePath, index, onEdit, onDelete,
+  resource, basePath, index, companies, readOnly, onEdit, onDelete,
 }: {
   resource: Resource;
   basePath: string;
   index: number;
+  companies: CompanyInfo[];
+  readOnly: boolean;
   onEdit: (r: Resource) => void;
   onDelete: (r: Resource) => void;
 }) {
@@ -98,25 +105,32 @@ function SortableResourceCard({
 
   const isExternal = !!resource.url;
   const Icon = getIcon(resource);
-  const href = isExternal ? resource.url! : `${basePath}files/${resource.filename}`;
+  const href = isExternal
+    ? resource.url!
+    : resource.filename ? `${basePath}files/${encodeURIComponent(resource.filename)}` : undefined;
+  const isUnavailable = href === undefined;
 
   return (
     <div ref={setNodeRef} style={style} className="group flex items-start gap-3 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all">
-      <button
-        {...attributes}
-        {...listeners}
-        className="flex-shrink-0 flex items-center justify-center min-w-6 min-h-6 cursor-grab active:cursor-grabbing text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-        tabIndex={-1}
-        aria-label="ドラッグして並び替え"
-        title="ドラッグして並び替え"
-      >
-        <GripVertical className="w-4 h-4" />
-      </button>
+      {!readOnly && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 flex items-center justify-center min-w-6 min-h-6 cursor-grab active:cursor-grabbing text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+          tabIndex={-1}
+          aria-label="ドラッグして並び替え"
+          title="ドラッグして並び替え"
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      )}
 
       <a
         href={href}
+        aria-disabled={isUnavailable}
+        onClick={isUnavailable ? (event) => event.preventDefault() : undefined}
         {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : { download: resource.filename })}
-        className="flex-1 flex items-start gap-3 min-w-0"
+        className={`flex-1 flex items-start gap-3 min-w-0 ${isUnavailable ? 'cursor-not-allowed opacity-60' : ''}`}
       >
         <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
           <Icon className="w-4 h-4" />
@@ -127,6 +141,8 @@ function SortableResourceCard({
             {resource.title}
           </h2>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{resource.description}</p>
+          {isUnavailable && <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">資料元を確認してください</p>}
+          {!readOnly && <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">公開範囲: {resource.company_ids.length === 0 ? '全社共通' : resource.company_ids.map((id) => companies.find((company) => company.id === id)?.name ?? `会社ID ${id}`).join('、')}</p>}
         </div>
         <div className="flex-shrink-0 self-center text-slate-500 dark:text-slate-400">
           {isExternal ? <ExternalLink className="w-4 h-4" /> : <Download className="w-4 h-4" />}
@@ -134,14 +150,14 @@ function SortableResourceCard({
       </a>
 
       {/* キーボード操作でも表示されるよう focus-within を併用 */}
-      <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-        <button onClick={() => onEdit(resource)} className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50" title="編集">
+      {!readOnly && <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+        <button onClick={() => onEdit(resource)} className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50" title="編集" aria-label={`${resource.title}を編集`}>
           <Pencil className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => onDelete(resource)} className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50" title="削除">
+        <button onClick={() => onDelete(resource)} className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50" title="削除" aria-label={`${resource.title}を削除`}>
           <Trash2 className="w-3.5 h-3.5" />
         </button>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -149,9 +165,11 @@ function SortableResourceCard({
 // --- Form Modal ---
 
 function ResourceFormModal({
-  resource, onClose, onSaved,
+  resource, companies, operatorName, onClose, onSaved,
 }: {
   resource: Resource | null; // null = create
+  companies: Array<CompanyInfo & { id: number }>;
+  operatorName: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -162,18 +180,32 @@ function ResourceFormModal({
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [companyIds, setCompanyIds] = useState<number[]>(resource?.company_ids ?? []);
   const fileRef = useRef<HTMLInputElement>(null);
   const dismiss = useOverlayDismiss(onClose);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) { setError('タイトルは必須です'); return; }
+    if (mode === 'url') {
+      try {
+        const parsed = new URL(url.trim());
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error();
+      } catch {
+        setError('外部リンクはhttp://またはhttps://で指定してください');
+        return;
+      }
+    } else if (!file && !resource?.filename) {
+      setError('ファイルを選択してください');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
       const form = new FormData();
       form.append('title', title.trim());
       form.append('description', description.trim());
+      form.append('companyIds', JSON.stringify(companyIds));
       if (mode === 'url') {
         form.append('url', url.trim());
         if (resource?.filename) form.append('removeFile', 'true');
@@ -181,9 +213,9 @@ function ResourceFormModal({
         if (file) form.append('file', file);
       }
       if (resource) {
-        await updateResource(resource.id, form);
+        await updateResource(resource.id, form, operatorName);
       } else {
-        await createResource(form);
+        await createResource(form, operatorName);
       }
       onSaved();
       onClose();
@@ -202,7 +234,7 @@ function ResourceFormModal({
       >
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-            {resource ? 'リソース編集' : '新規リソース'}
+            {resource ? '参考資料を編集' : '参考資料を追加'}
           </h2>
           <button type="button" onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label="閉じる">
             <X className="w-5 h-5" />
@@ -220,6 +252,13 @@ function ResourceFormModal({
             autoFocus
           />
         </div>
+
+        <fieldset className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+          <legend className="px-1 text-sm font-medium">公開範囲</legend>
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm"><input type="radio" checked={companyIds.length === 0} onChange={() => setCompanyIds([])} className="h-4 w-4 accent-emerald-600" />全社共通</label>
+          <div className="grid gap-1 sm:grid-cols-2">{companies.map((company) => <label key={company.id} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={companyIds.includes(company.id)} onChange={(event) => setCompanyIds((current) => event.target.checked ? [...current, company.id] : current.filter((id) => id !== company.id))} className="h-4 w-4 accent-emerald-600" />{company.name}</label>)}</div>
+          <p className="mt-1 text-xs text-slate-500">会社を1件以上選ぶと指定会社限定になります。</p>
+        </fieldset>
 
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">説明</label>
@@ -251,7 +290,13 @@ function ResourceFormModal({
 
           {mode === 'file' ? (
             <div>
-              <input ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.xlsx,.xls,.docx,.doc,.pptx,.ppt,.csv,.txt,.zip,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
@@ -263,6 +308,8 @@ function ResourceFormModal({
             </div>
           ) : (
             <input
+              type="url"
+              inputMode="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://..."
@@ -295,9 +342,10 @@ function ResourceFormModal({
 // --- Confirm Dialog ---
 
 function ConfirmDeleteDialog({
-  resource, onClose, onConfirmed,
+  resource, operatorName, onClose, onConfirmed,
 }: {
   resource: Resource;
+  operatorName: string;
   onClose: () => void;
   onConfirmed: () => void;
 }) {
@@ -307,7 +355,7 @@ function ConfirmDeleteDialog({
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await deleteResource(resource.id);
+      await deleteResource(resource.id, operatorName);
       onConfirmed();
       onClose();
     } catch {
@@ -320,7 +368,7 @@ function ConfirmDeleteDialog({
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
         <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">削除確認</h2>
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          「{resource.title}」を削除しますか？{resource.filename && 'ファイルも削除されます。'}
+          「{resource.title}」を非表示にしますか？履歴から復元できます。
         </p>
         <div className="flex gap-2">
           <button
@@ -341,11 +389,15 @@ function ConfirmDeleteDialog({
 
 // --- Main Page ---
 
-export const ResourcesPage = () => {
+export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded?: boolean; readOnly?: boolean }) => {
   const basePath = '/inheritance-tax-docs/';
   const { isDark, toggleDark } = useDarkMode();
+  const { company, companies, status: companyStatus } = useCompanyInfo();
+  const { operator } = useOperator();
+  const selectableCompanies = companies.filter((item): item is CompanyInfo & { id: number } => item.id !== null);
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [editTarget, setEditTarget] = useState<Resource | null | undefined>(undefined); // undefined=closed, null=create
   const [deleteTarget, setDeleteTarget] = useState<Resource | null>(null);
 
@@ -354,13 +406,19 @@ export const ResourcesPage = () => {
   );
 
   const load = useCallback(async () => {
+    if (readOnly && companyStatus === 'loading') return;
+    setLoading(true);
+    setLoadError('');
     try {
-      const data = await fetchResources();
+      const data = await fetchResources(readOnly ? company.id : null);
       setResources(data);
+    } catch (error) {
+      setResources([]);
+      setLoadError(error instanceof Error ? error.message : '参考資料の取得に失敗しました');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [company.id, companyStatus, readOnly]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -372,12 +430,12 @@ export const ResourcesPage = () => {
     if (oldIndex === -1 || newIndex === -1) return;
     const newOrder = arrayMove(resources, oldIndex, newIndex);
     setResources(newOrder);
-    await reorderResources(newOrder.map((r) => r.id));
-  }, [resources]);
+    await reorderResources(newOrder.map((r) => r.id), operator.fullName);
+  }, [operator.fullName, resources]);
 
   return (
     <div className="w-full animate-fade-in">
-      <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+      {!embedded && <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -392,15 +450,15 @@ export const ResourcesPage = () => {
                 <span className="text-sm font-medium">書類リスト</span>
               </Link>
               <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">参考資料</h1>
+              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">{readOnly ? '参考資料' : '参考資料マスタ'}</h1>
             </div>
             <div className="flex items-center gap-2">
-              <button
+              {!readOnly && <button
                 onClick={() => setEditTarget(null)}
                 className="flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> 追加
-              </button>
+              </button>}
               <button
                 onClick={toggleDark}
                 className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -411,22 +469,48 @@ export const ResourcesPage = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
-      <div className="p-4 md:px-8 md:py-6">
+      <div className={embedded ? '' : 'p-4 md:px-8 md:py-6'}>
         <div className="max-w-4xl mx-auto">
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-            相続手続きに関する参考資料をダウンロードできます。ドラッグで並び替えが可能です。
-          </p>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+              {readOnly
+                ? '対象会社で利用できる案内資料、ひな形、チェックシート、外部リンクを表示しています。'
+                : '案内資料、ひな形、チェックシート、外部リンクを共通マスタとして登録します。ドラッグで表示順を変更できます。'}
+            </p>
+            {readOnly && (
+              <div className="flex min-h-11 items-center"><CompanySwitcher /></div>
+            )}
+            {embedded && !readOnly && (
+              <button
+                onClick={() => setEditTarget(null)}
+                className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <Plus className="h-4 w-4" />参考資料を追加
+              </button>
+            )}
+          </div>
 
           {loading ? (
             <p className="text-center text-slate-500 dark:text-slate-400 py-10">読み込み中...</p>
+          ) : loadError ? (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-950/40">
+              <p className="text-sm font-medium text-red-700 dark:text-red-300">{loadError}</p>
+              <button onClick={() => void load()} className="mt-3 min-h-11 cursor-pointer rounded-lg border border-red-300 px-4 py-2 text-sm font-bold text-red-700 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950">再読み込み</button>
+            </div>
           ) : resources.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-slate-500 dark:text-slate-400 mb-4">リソースがありません</p>
-              <button onClick={() => setEditTarget(null)} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-sm font-bold transition-colors">
-                最初のリソースを追加
-              </button>
+              <p className="text-slate-500 dark:text-slate-400 mb-4">{readOnly ? 'この会社で利用できる参考資料はありません' : '参考資料がありません'}</p>
+              {!readOnly && <button onClick={() => setEditTarget(null)} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-sm font-bold transition-colors">
+                最初の参考資料を追加
+              </button>}
+            </div>
+          ) : readOnly ? (
+            <div className="grid gap-3">
+              {resources.map((resource, i) => (
+                <SortableResourceCard key={resource.id} resource={resource} basePath={basePath} index={i + 1} companies={companies} readOnly onEdit={() => {}} onDelete={() => {}} />
+              ))}
             </div>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -438,6 +522,8 @@ export const ResourcesPage = () => {
                       resource={resource}
                       basePath={basePath}
                       index={i + 1}
+                      companies={companies}
+                      readOnly={false}
                       onEdit={(r) => setEditTarget(r)}
                       onDelete={(r) => setDeleteTarget(r)}
                     />
@@ -452,6 +538,8 @@ export const ResourcesPage = () => {
       {editTarget !== undefined && (
         <ResourceFormModal
           resource={editTarget}
+          companies={selectableCompanies}
+          operatorName={operator.fullName}
           onClose={() => setEditTarget(undefined)}
           onSaved={load}
         />
@@ -460,6 +548,7 @@ export const ResourcesPage = () => {
       {deleteTarget && (
         <ConfirmDeleteDialog
           resource={deleteTarget}
+          operatorName={operator.fullName}
           onClose={() => setDeleteTarget(null)}
           onConfirmed={load}
         />

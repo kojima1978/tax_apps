@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
+  Settings,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
@@ -39,6 +40,8 @@ type ToolbarAction = {
 type EditToolbarProps = {
   docListType: DocListType;
   onDocListTypeChange: (type: DocListType) => void;
+  targetYear: number;
+  onTargetYearChange: (year: number) => void;
   clientName: string;
   onClientNameChange: (name: string) => void;
   deceasedName: string;
@@ -69,6 +72,8 @@ type EditToolbarProps = {
 export const EditToolbar = ({
   docListType,
   onDocListTypeChange,
+  targetYear,
+  onTargetYearChange,
   clientName,
   onClientNameChange,
   deceasedName,
@@ -154,12 +159,34 @@ export const EditToolbar = ({
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+          {docListType === 'income-tax' && (
+            <label className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+              対象年度
+              <select
+                value={targetYear}
+                onChange={(event) => onTargetYearChange(Number(event.target.value))}
+                className={`${inputClass} cursor-pointer font-bold`}
+                aria-label="対象年度"
+              >
+                {Array.from({ length: 7 }, (_, index) => new Date().getFullYear() + 1 - index).map((year) => (
+                  <option key={year} value={year}>{year}年</option>
+                ))}
+              </select>
+            </label>
+          )}
           <Link
             to="/resources"
             className="flex items-center gap-1 px-2.5 py-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap"
           >
             <FileText className="w-3.5 h-3.5" />
             参考資料
+          </Link>
+          <Link
+            to="/masters"
+            className="flex items-center gap-1 px-2.5 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/70 border border-slate-200 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            マスタ管理
           </Link>
 
           {/* モバイル: 案件情報の開閉 */}

@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { TRASH_LIMIT, type EditableDocumentList, type DocListType, type Trash, type TrashItem } from '@/constants';
 import {
-  initializeEditableList,
   restoreDocumentToList,
   restoreCategoryToList,
 } from '@/utils/editableListUtils';
@@ -30,6 +29,10 @@ type UseEditableListEditingArgs = {
   personInChargeContact: string;
   setPersonInChargeContact: (contact: string) => void;
   docListType: DocListType;
+  setDocListType: (type: DocListType) => void;
+  targetYear: number;
+  setTargetYear: (year: number) => void;
+  onResetToDefault: () => void;
 };
 
 export const useEditableListEditing = ({
@@ -46,6 +49,10 @@ export const useEditableListEditing = ({
   personInChargeContact,
   setPersonInChargeContact,
   docListType,
+  setDocListType,
+  targetYear,
+  setTargetYear,
+  onResetToDefault,
 }: UseEditableListEditingArgs) => {
   // === ゴミ箱（復元用） ===
   // trashの最新値をrefで保持（Undo通知のクロージャが古いtrashを参照しないように）
@@ -115,16 +122,18 @@ export const useEditableListEditing = ({
     personInChargeContact,
     setPersonInChargeContact,
     docListType,
+    setDocListType,
+    targetYear,
+    setTargetYear,
   });
 
   // === リセット ===
   const [showResetDialog, setShowResetDialog] = useState(false);
 
   const handleResetToDefault = useCallback(() => {
-    setDocumentList(initializeEditableList(docListType));
-    setTrash([]); // リセット時はゴミ箱も空にして初期状態へ戻す
+    onResetToDefault();
     setShowResetDialog(false);
-  }, [setDocumentList, setTrash, docListType]);
+  }, [onResetToDefault]);
 
   return {
     // 書類編集

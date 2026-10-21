@@ -87,6 +87,35 @@ services:
         reservations:
           memory: 128M
 
+  inheritance-tax-docs-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        APP_PORT: "3003"
+    image: inheritance-tax-docs-test
+    profiles: ["test"]
+    volumes:
+      - ./src:/app/src:ro
+      - ./server:/app/server:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=384"
+      DATABASE_PATH: "/tmp/resources.sqlite"
+      DATA_DIR: "/tmp/inheritance-tax-docs"
+    init: true
+    restart: "no"
+    logging: *default-logging
+    <<: *security-opts
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
 networks:
   tax-apps-network:
     external: true

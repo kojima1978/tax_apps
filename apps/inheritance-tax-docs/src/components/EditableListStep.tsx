@@ -25,10 +25,14 @@ import { Dialogs } from '@/components/ui/Dialogs';
 import { DocumentFormModal } from '@/components/ui/DocumentFormModal';
 import { TrashModal } from '@/components/ui/TrashModal';
 import { TOAST_MESSAGES, UNDO_LABEL } from '@/constants/messages';
+import CompanySwitcher from '@/components/CompanySwitcher';
+import { getFullAddress, useCompanyInfo } from '@/lib/company';
 
 export const EditableListStep = () => {
+  const { company } = useCompanyInfo();
   const {
     docListType,
+    targetYear,
     isTwoColumnPrint,
     hideSubmittedInPrint,
     currentDate,
@@ -39,6 +43,8 @@ export const EditableListStep = () => {
     documentList,
     trash,
     handleDocListTypeChange,
+    handleTargetYearChange,
+    resetToPublishedMaster,
     handlePrint,
     handleExcelExport,
     togglePrintColumn,
@@ -49,6 +55,8 @@ export const EditableListStep = () => {
     setPersonInChargeContact,
     setDocumentList,
     setTrash,
+    setDocListType,
+    setTargetYear,
   } = useInheritanceTaxGuide();
 
   const { toasts, addToast, removeToast } = useToast();
@@ -67,6 +75,10 @@ export const EditableListStep = () => {
     personInChargeContact,
     setPersonInChargeContact,
     docListType,
+    setDocListType,
+    targetYear,
+    setTargetYear,
+    onResetToDefault: resetToPublishedMaster,
   });
 
   const dnd = useDragAndDrop(documentList, setDocumentList);
@@ -181,6 +193,8 @@ export const EditableListStep = () => {
       <EditToolbar
         docListType={docListType}
         onDocListTypeChange={handleDocListTypeChange}
+        targetYear={targetYear}
+        onTargetYearChange={handleTargetYearChange}
         clientName={clientName}
         onClientNameChange={setClientName}
         deceasedName={deceasedName}
@@ -205,6 +219,9 @@ export const EditableListStep = () => {
         trashCount={trash.length}
         onOpenTrash={() => setShowTrashModal(true)}
       />
+      <div className="no-print mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-2 px-4 pt-2 text-xs text-slate-600 dark:text-slate-300 md:px-8">
+        <span>{company.name}</span><span>{getFullAddress(company)}</span><span>TEL {company.phone}</span><CompanySwitcher />
+      </div>
 
       {/* ツールバー（max-w-7xl）と左右を揃える */}
       <div className="max-w-7xl mx-auto p-4 md:px-8 md:py-6">

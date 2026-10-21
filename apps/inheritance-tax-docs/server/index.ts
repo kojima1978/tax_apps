@@ -2,8 +2,12 @@ import express from 'express';
 import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';
-import { checkDbHealth, seedIfEmpty } from './db.js';
+import { checkDbHealth, seedDocumentMastersIfEmpty, seedIfEmpty } from './db.js';
 import { createResourcesRouter } from './routes/resources.js';
+import { createDocumentMastersRouter } from './routes/documentMasters.js';
+import { createAuditLogsRouter } from './routes/auditLogs.js';
+import { createResourceFilesRouter } from './routes/resourceFiles.js';
+import { MASTER_SEEDS } from './masterDefaults.js';
 
 const PORT = Number(process.env.PORT ?? 3003);
 const BASE_PATH = '/inheritance-tax-docs';
@@ -18,6 +22,7 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 // Seed initial data
 seedIfEmpty(UPLOADS_DIR, PUBLIC_FILES_DIR);
+seedDocumentMastersIfEmpty(MASTER_SEEDS);
 
 const app = express();
 const httpServer = createHttpServer(app);
@@ -36,9 +41,11 @@ app.get(`${BASE_PATH}/api/health`, (_req, res) => {
 
 // API routes
 app.use(`${BASE_PATH}/api/resources`, createResourcesRouter(UPLOADS_DIR));
+app.use(`${BASE_PATH}/api/document-masters`, createDocumentMastersRouter());
+app.use(`${BASE_PATH}/api/audit-logs`, createAuditLogsRouter());
 
-// Serve uploaded files
-app.use(`${BASE_PATH}/files`, express.static(UPLOADS_DIR));
+// Only active master records can expose their retained upload.
+app.use(`${BASE_PATH}/files`, createResourceFilesRouter(UPLOADS_DIR));
 
 // 画面の配信。本番はビルド済みの dist/、dev は Vite をミドルウェアとして組み込む。
 // 以前は「dist/ があれば配信」だけで、dev のイメージには dist/ が無いため

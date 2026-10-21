@@ -1,5 +1,6 @@
 import { Info, AlertCircle } from 'lucide-react';
-import { COMPANY_INFO, getFullAddress, getContactLine, DOC_LIST_TYPE_LABELS, type DocListType, type EditableDocumentList } from '@/constants';
+import { DOC_LIST_TYPE_LABELS, type DocListType, type EditableDocumentList } from '@/constants';
+import { getContactLine, getFullAddress, useCompanyInfo } from '@/lib/company';
 import { toCircledNumber } from '@/utils/helpers';
 
 const PRINT_LAYOUTS = {
@@ -72,6 +73,7 @@ export const PrintSection = ({
   deceasedName,
   docListType,
 }: PrintSectionProps) => {
+  const { company } = useCompanyInfo();
   const printCategories = documentList
     .filter(cat => !cat.isDisabled)
     .map(cat => ({
@@ -108,7 +110,7 @@ export const PrintSection = ({
         </div>
         <div className="text-right text-sm text-slate-500">
           <p>発行日: {currentDate}</p>
-          <p>{COMPANY_INFO.name}</p>
+          <p>{company.name}</p>
         </div>
       </div>
 
@@ -253,9 +255,9 @@ export const PrintSection = ({
           </div>
         </div>
         <div className={`mt-8 text-center text-sm text-slate-400 ${l.contact}`}>
-          {getFullAddress()}
+          {getFullAddress(company)}
           <br />
-          {getContactLine()}
+          {getContactLine(company)}
           {personInChargeContact && (
             <>
               <br />

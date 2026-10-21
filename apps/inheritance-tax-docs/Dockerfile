@@ -89,4 +89,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:${APP_PORT}/inheritance-tax-docs/api/health || exit 1
 
 EXPOSE ${APP_PORT}
-CMD ["node", "dist-server/index.js"]
+CMD ["node", "dist-server/server/index.js"]

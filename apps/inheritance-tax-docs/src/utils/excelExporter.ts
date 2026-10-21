@@ -1,6 +1,6 @@
 import type { EditableDocumentList } from '@/constants';
 import { EXCEL_STYLES as styles, pushMergedRow, pushEmptyRow } from '../constants/excelStyles';
-import { COMPANY_INFO, getFullAddress, getContactLine } from '@/constants';
+import { getContactLine, getFullAddress, type CompanyInfo } from '@/lib/company';
 import { formatDate, toCircledNumber } from './helpers';
 import { exportFileName } from './exportFileName';
 
@@ -13,6 +13,7 @@ interface ExcelExportParams {
   hideSubmitted?: boolean;
   excelTitle?: string;
   filenamePrefix?: string;
+  company: CompanyInfo;
 }
 
 /**
@@ -29,6 +30,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
     hideSubmitted = false,
     excelTitle = '相続税申告 資料準備ガイド',
     filenamePrefix = '相続税申告必要書類',
+    company,
   } = params;
   const exportDate = formatDate(new Date());
 
@@ -38,7 +40,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   // タイトル行
   wsData.push([{ v: excelTitle, s: styles.title }]);
   wsData.push([{ v: `発行日: ${exportDate}`, s: styles.subTitle }]);
-  wsData.push([{ v: COMPANY_INFO.name, s: styles.subTitle }]);
+  wsData.push([{ v: company.name, s: styles.subTitle }]);
   wsData.push([{ v: '【お客様専用リスト】', s: styles.badge }]);
   pushEmptyRow(wsData);
 
@@ -122,7 +124,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   pushEmptyRow(wsData);
 
   // フッター
-  wsData.push([{ v: `${getFullAddress()} / ${getContactLine()}`, s: styles.footer }]);
+  wsData.push([{ v: [getFullAddress(company), getContactLine(company)].filter(Boolean).join(' / '), s: styles.footer }]);
 
   // ワークシート作成
   const ws = XLSX.utils.aoa_to_sheet(wsData);

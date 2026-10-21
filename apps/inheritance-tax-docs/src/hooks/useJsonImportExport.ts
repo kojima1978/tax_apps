@@ -12,12 +12,35 @@ export interface ExportData {
   version: string;
   exportedAt: string;
   docListType: DocListType;
+  targetYear?: number;
   clientName: string;
   deceasedName: string;
   personInCharge: string;
   personInChargeContact: string;
   documentList: EditableDocumentList;
   trash?: Trash;
+}
+
+/** 統合前の tax-docs が書き出した v2 JSON */
+interface LegacyTaxDocsExportData {
+  version: string;
+  exportedAt: string;
+  taxType?: 'income-tax' | 'gift-tax';
+  year?: number;
+  staffName?: string;
+  staffPhone?: string;
+  customerName?: string;
+  documentList: Array<{
+    id: string;
+    name: string;
+    isExpanded?: boolean;
+    documents: Array<{
+      id: string;
+      text: string;
+      checked: boolean;
+      subItems?: Array<{ id: string; text: string }>;
+    }>;
+  }>;
 }
 
 // インポートファイルの最大サイズ（5MB）
@@ -65,6 +88,53 @@ function isLegacyFormat(data: unknown): data is LegacyExportData {
     'data' in data &&
     typeof (data as Record<string, unknown>).data === 'object'
   );
+}
+
+function isLegacyTaxDocsFormat(data: unknown): data is LegacyTaxDocsExportData {
+  if (!data || typeof data !== 'object' || !('documentList' in data) || 'docListType' in data || 'appName' in data) return false;
+  const list = (data as { documentList?: unknown }).documentList;
+  if (!Array.isArray(list) || list.length === 0) return false;
+  return list.every((category) => {
+    if (!category || typeof category !== 'object' || !Array.isArray((category as { documents?: unknown }).documents)) return false;
+    return ((category as { documents: unknown[] }).documents).every((document) =>
+      !!document && typeof document === 'object' && typeof (document as { text?: unknown }).text === 'string');
+  });
+}
+
+function convertLegacyTaxDocsData(legacy: LegacyTaxDocsExportData): ExportData {
+  const docListType: DocListType = legacy.taxType === 'gift-tax' ? 'gift-tax' : 'income-tax';
+  const targetYear = Number.isInteger(legacy.year) && legacy.year! >= 2000 && legacy.year! <= 2100
+    ? legacy.year
+    : undefined;
+  return {
+    version: '2.0',
+    exportedAt: legacy.exportedAt || '',
+    docListType,
+    targetYear,
+    clientName: legacy.customerName ?? '',
+    deceasedName: '',
+    personInCharge: legacy.staffName ?? '',
+    personInChargeContact: legacy.staffPhone ?? '',
+    documentList: legacy.documentList.map((category) => ({
+      id: category.id,
+      name: category.name,
+      isExpanded: category.isExpanded ?? true,
+      isDisabled: false,
+      documents: category.documents.map((document) => ({
+        id: document.id,
+        name: document.text,
+        description: '',
+        howToGet: '',
+        canDelegate: false,
+        checked: document.checked,
+        excluded: false,
+        urgent: false,
+        specificNames: (document.subItems ?? []).map((item) => ({ id: item.id, text: item.text })),
+        isCustom: false,
+      })),
+    })),
+    trash: [],
+  };
 }
 
 /** 旧形式から新形式へ変換 */
@@ -194,6 +264,7 @@ function parseNewFormat(data: Record<string, unknown>): ExportData | null {
       version: (data.version as string) || '2.0',
       exportedAt: (data.exportedAt as string) || '',
       docListType: (data.docListType as DocListType) || 'inheritance-tax',
+      targetYear: typeof data.targetYear === 'number' ? data.targetYear : undefined,
       clientName: (data.clientName as string) || '',
       deceasedName: (data.deceasedName as string) || '',
       personInCharge: (data.personInCharge as string) || '',
@@ -205,6 +276,17 @@ function parseNewFormat(data: Record<string, unknown>): ExportData | null {
     return null;
   }
 }
+
+export const parseImportText = (content: string): ExportData | null => {
+  try {
+    const data = JSON.parse(content) as unknown;
+    if (isLegacyFormat(data)) return convertLegacyData(data);
+    if (isLegacyTaxDocsFormat(data)) return convertLegacyTaxDocsData(data);
+    return parseNewFormat(data as Record<string, unknown>);
+  } catch {
+    return null;
+  }
+};
 
 /** FileReaderをPromise化するヘルパー */
 const readAsText = (file: File): Promise<string> =>
@@ -224,15 +306,7 @@ export const readJsonFile = async (file: File): Promise<ExportData | null> => {
 
   try {
     const content = await readAsText(file);
-    const data = JSON.parse(content);
-
-    // 旧形式チェック
-    if (isLegacyFormat(data)) {
-      return convertLegacyData(data);
-    }
-
-    // 新形式
-    return parseNewFormat(data as Record<string, unknown>);
+    return parseImportText(content);
   } catch {
     console.error('ファイルの読み込みに失敗しました');
     return null;
@@ -253,6 +327,9 @@ type UseJsonImportExportArgs = {
   personInChargeContact: string;
   setPersonInChargeContact: (contact: string) => void;
   docListType: DocListType;
+  setDocListType: (type: DocListType) => void;
+  targetYear: number;
+  setTargetYear: (year: number) => void;
 };
 
 export const useJsonImportExport = ({
@@ -269,6 +346,9 @@ export const useJsonImportExport = ({
   personInChargeContact,
   setPersonInChargeContact,
   docListType,
+  setDocListType,
+  targetYear,
+  setTargetYear,
 }: UseJsonImportExportArgs) => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importPreview, setImportPreview] = useState<ExportData | null>(null);
@@ -279,6 +359,7 @@ export const useJsonImportExport = ({
       version: '2.0',
       exportedAt: new Date().toISOString(),
       docListType,
+      targetYear,
       clientName,
       deceasedName,
       personInCharge,
@@ -298,7 +379,7 @@ export const useJsonImportExport = ({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [documentList, trash, clientName, deceasedName, personInCharge, personInChargeContact, docListType]);
+  }, [documentList, trash, clientName, deceasedName, personInCharge, personInChargeContact, docListType, targetYear]);
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -317,6 +398,8 @@ export const useJsonImportExport = ({
 
   const confirmImport = useCallback(() => {
     if (importPreview) {
+      setDocListType(importPreview.docListType);
+      if (importPreview.targetYear) setTargetYear(importPreview.targetYear);
       setDocumentList(importPreview.documentList);
       setTrash(importPreview.trash ?? []);
       if (importPreview.clientName) setClientName(importPreview.clientName);
@@ -326,7 +409,7 @@ export const useJsonImportExport = ({
       setShowImportDialog(false);
       setImportPreview(null);
     }
-  }, [importPreview, setDocumentList, setTrash, setClientName, setDeceasedName, setPersonInCharge, setPersonInChargeContact]);
+  }, [importPreview, setDocListType, setTargetYear, setDocumentList, setTrash, setClientName, setDeceasedName, setPersonInCharge, setPersonInChargeContact]);
 
   const cancelImport = useCallback(() => {
     setShowImportDialog(false);

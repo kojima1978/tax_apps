@@ -2,6 +2,8 @@ import {
   CATEGORIES,
   SIMPLIFIED_CATEGORIES,
   UNLISTED_STOCK_CATEGORIES,
+  INCOME_TAX_CATEGORIES,
+  GIFT_TAX_CATEGORIES,
   type CategoryData,
   type DocListType,
   type EditableCategory,
@@ -39,15 +41,20 @@ const updateDocument = (
 }));
 
 // CategoryData[] を EditableDocumentList に変換
-export const initializeFromCategoryData = (categories: CategoryData[]): EditableDocumentList =>
+const replaceYear = (text: string, targetYear: number): string => {
+  const reiwa = targetYear - 2018;
+  return text.replace(/\{\{year\}\}/g, reiwa === 1 ? '元' : String(reiwa));
+};
+
+export const initializeFromCategoryData = (categories: CategoryData[], targetYear = new Date().getFullYear()): EditableDocumentList =>
   categories.map(cat => ({
     id: generateId(),
     name: cat.name,
     documents: cat.documents.map(doc => ({
       id: generateId(),
-      name: doc.name,
-      description: doc.description,
-      howToGet: doc.howToGet,
+      name: replaceYear(doc.name, targetYear),
+      description: replaceYear(doc.description, targetYear),
+      howToGet: replaceYear(doc.howToGet, targetYear),
       canDelegate: doc.canDelegate ?? false,
       checked: false,
       excluded: false,
@@ -59,9 +66,49 @@ export const initializeFromCategoryData = (categories: CategoryData[]): Editable
     isDisabled: false,
   }));
 
+export type MasterCategoryPayload = {
+  id: string;
+  name: string;
+  isActive?: boolean;
+  documents: Array<{
+    id: string;
+    name: string;
+    description: string;
+    howToGet: string;
+    canDelegate: boolean;
+    companyIds?: number[];
+  }>;
+};
+
+export const initializeFromMasterData = (
+  categories: MasterCategoryPayload[],
+  targetYear = new Date().getFullYear(),
+): EditableDocumentList => categories.filter((category) => category.isActive !== false).map((category) => ({
+  id: category.id,
+  name: category.name,
+  documents: category.documents.map((document) => ({
+    id: document.id,
+    name: replaceYear(document.name, targetYear),
+    description: replaceYear(document.description, targetYear),
+    howToGet: replaceYear(document.howToGet, targetYear),
+    canDelegate: document.canDelegate,
+    checked: false,
+    excluded: false,
+    urgent: false,
+    specificNames: [],
+    isCustom: false,
+  })),
+  isExpanded: true,
+  isDisabled: false,
+}));
+
 // 書類リスト種別に応じた編集可能なリストを初期化
-export const initializeEditableList = (docListType: DocListType): EditableDocumentList => {
+export const initializeEditableList = (docListType: DocListType, targetYear = new Date().getFullYear()): EditableDocumentList => {
   switch (docListType) {
+    case 'income-tax':
+      return initializeFromCategoryData(INCOME_TAX_CATEGORIES, targetYear);
+    case 'gift-tax':
+      return initializeFromCategoryData(GIFT_TAX_CATEGORIES, targetYear);
     case 'inheritance-tax':
       return initializeFromCategoryData(CATEGORIES);
     case 'simplified':
