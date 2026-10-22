@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { api } from '../api';
 import { exportFileName } from '../exportFileName';
+import { checkLinkedApps, type LinkedImpact } from '../linkedApps';
 import { ErrorBanner, Modal, btn } from './ui';
 import type { DirectorySummary, RestoreResult } from '../types';
 
@@ -32,7 +33,48 @@ function formatExportedAt(iso: string): string {
 }
 
 // pickId: 確かめている間に選び直したら、前のファイルの結果を捨てるための番号
-type Pending = { pickId: number; fileName: string; backup: unknown; preview: RestoreResult | null; error: string | null };
+// impact: 写しを持つアプリへの影響（null = 確かめている途中）
+type Pending = {
+  pickId: number;
+  fileName: string;
+  backup: unknown;
+  preview: RestoreResult | null;
+  impact: LinkedImpact[] | null;
+  error: string | null;
+};
+
+// 復元で台帳から消える台帳ID を、写しを持つアプリごとに出す
+function LinkedImpactList({ impact }: { impact: LinkedImpact[] | null }) {
+  if (!impact) return <p className="text-sm text-slate-500">ほかのアプリへの影響を確かめています…</p>;
+  const lostAny = impact.some((i) => Array.isArray(i.lost) && i.lost.length > 0);
+  return (
+    <div className="space-y-1 text-sm">
+      <p className="font-medium text-slate-700">台帳の写しを持つアプリ</p>
+      <ul className="space-y-1">
+        {impact.map(({ app, lost }) => (
+          <li key={app.url} className="flex gap-2">
+            <span className="w-32 shrink-0 text-slate-600">{app.label}</span>
+            {lost === 'unreachable' ? (
+              <span className="text-slate-500">止まっているため確かめられません</span>
+            ) : lost.length === 0 ? (
+              <span className="text-slate-600">影響なし</span>
+            ) : (
+              <span className="font-bold text-amber-700">
+                {lost.length}名が台帳から消えます（{lost.map((c) => c.name || `台帳ID ${c.staffDirectoryId}`).join('・')}）
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {lostAny && (
+        <p className="text-xs text-amber-800">
+          消える人はそのアプリでは台帳と結び付かない写しとして残ります。のちに同じ台帳IDで別の人が登録されると、
+          担当していた案件・顧客ごとその人に置き換わります。
+        </p>
+      )}
+    </div>
+  );
+}
 
 function isJsonFile(file: File): boolean {
   return file.type === 'application/json' || file.name.toLowerCase().endsWith('.json');
@@ -132,19 +174,21 @@ export default function BackupMenu() {
   async function load(file: File) {
     const pickId = ++pickCount.current;
     if (!isJsonFile(file)) {
-      setPending({ pickId, fileName: file.name, backup: null, preview: null, error: 'JSON ファイル（.json）を選んでください' });
+      setPending({ pickId, fileName: file.name, backup: null, preview: null, impact: null, error: 'JSON ファイル（.json）を選んでください' });
       return;
     }
     let backup: unknown;
     try {
       backup = JSON.parse(await file.text());
     } catch {
-      setPending({ pickId, fileName: file.name, backup: null, preview: null, error: 'JSON として読めません' });
+      setPending({ pickId, fileName: file.name, backup: null, preview: null, impact: null, error: 'JSON として読めません' });
       return;
     }
-    setPending({ pickId, fileName: file.name, backup, preview: null, error: null });
+    setPending({ pickId, fileName: file.name, backup, preview: null, impact: null, error: null });
     // 確かめている間に閉じた／選び直した場合は、遅れて届いた結果を捨てる
     const settle = (patch: Partial<Pending>) => setPending((p) => (p?.pickId === pickId ? { ...p, ...patch } : p));
+    // 他アプリが止まっていても復元は止めない（影響が分からないことを出すだけ）
+    void checkLinkedApps(backup).then((impact) => settle({ impact }));
     try {
       settle({ preview: await api.previewRestore(backup) });
     } catch (err) {
@@ -210,6 +254,7 @@ export default function BackupMenu() {
                   })}
                 </tbody>
               </table>
+              <LinkedImpactList impact={pending.impact} />
               <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 今の台帳の中身はすべてこのファイルの内容に置き換わります（台帳IDはファイルのまま）。
                 復元の直前に、今の中身を「復元前の控え」として書き出します。
