@@ -9,11 +9,24 @@ import {
   restoreDeletionBackup,
 } from '../services/rangeDelete.js';
 import { categoriesOf, seedCase } from './helpers/fixtures.js';
+import { decodeOperatorName, withOperator } from '../operator.js';
 import { useTestDb } from './helpers/testDb.js';
 
 const db = useTestDb();
 
 describe('applyChanges', () => {
+  it('操作者の名前を同じ組の全行に残し、最新の要約にも出す（リクエストの外では空文字）', async () => {
+    const { caseId, ids } = await seedCase(db(), '架空 太郎', [
+      { description: 'イオン', category: '未分類' },
+      { description: '給与', category: '未分類' },
+    ]);
+    await applyChanges(db(), caseId, { [String(ids[0])]: '生活費' });
+    await withOperator('架空 花子', () => applyChanges(db(), caseId, { [String(ids[1])]: '給与' }));
+    const rows = await db().classificationChange.findMany({ orderBy: { id: 'asc' } });
+    expect(rows.map((c) => c.operatorName)).toEqual(['', '架空 花子']);
+    expect((await latestSummary(db(), caseId))?.operatorName).toBe('架空 花子');
+  });
+
   it('変わった行だけを1つの組で記録し、分類を書き換える', async () => {
     const { caseId, ids } = await seedCase(db(), '架空 太郎', [
       { description: 'イオン', category: '未分類' },
@@ -172,5 +185,14 @@ describe('範囲削除と復元', () => {
       data: { id: ids[0], caseId, descriptionSearch: '', description: '後から入った行' },
     });
     expect(await restoreDeletionBackup(db(), caseId, backup.id)).toEqual([1, 1]);
+  });
+});
+
+describe('decodeOperatorName', () => {
+  it('画面が encodeURIComponent した氏名を戻し、壊れた値はそのまま・長すぎる値は列の長さで切る', () => {
+    expect(decodeOperatorName(encodeURIComponent(' 架空 花子 '))).toBe('架空 花子');
+    expect(decodeOperatorName('%E0%A4%A')).toBe('%E0%A4%A');
+    expect(decodeOperatorName(undefined)).toBe('');
+    expect(decodeOperatorName('あ'.repeat(150))).toHaveLength(100);
   });
 });

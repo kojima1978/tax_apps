@@ -1,5 +1,8 @@
 // API の呼び出し口。パスは vite.config.ts の base から来る（'/bank-analyzer/'）。
 // 応答の形は server/routes/common.ts: 成功 { success: true, ... } / 失敗 { success: false, error, errors? }
+// 操作者を選んでいれば毎回 x-operator-name を付ける（分類の変更履歴に名前が残る）
+
+import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 
 export const API_BASE = `${import.meta.env.BASE_URL}api`;
 
@@ -19,11 +22,12 @@ export class ApiError extends Error {
 type Body = Record<string, unknown> | FormData;
 
 async function request<T>(method: string, path: string, body?: Body): Promise<T> {
-  const init: RequestInit = { method };
+  const headers: Record<string, string> = selectedOperatorHeaders();
+  const init: RequestInit = { method, headers };
   if (body instanceof FormData) init.body = body;
   else if (body !== undefined) {
     init.body = JSON.stringify(body);
-    init.headers = { 'Content-Type': 'application/json' };
+    headers['Content-Type'] = 'application/json';
   }
   let res: Response;
   try {

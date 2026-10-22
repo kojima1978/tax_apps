@@ -1,5 +1,5 @@
 import { UserRound } from 'lucide-react';
-import { useOperator } from '@/lib/operator';
+import { useOperator } from '@/shared/staff-directory/operator';
 
 export default function OperatorSwitcher() {
   const { operator, operators, status, selectOperator } = useOperator();

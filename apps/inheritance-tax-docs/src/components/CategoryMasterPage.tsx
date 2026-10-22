@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, Eye, EyeOff, FolderTree, Pencil, Plus, Save, Send, Trash2, X } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
 import { useOverlayDismiss } from '@/hooks/useOverlayDismiss';
-import { operatorRequestHeaders, useOperator } from '@/lib/operator';
+import { operatorRequestHeaders, useOperator } from '@/shared/staff-directory/operator';
 
 type MasterDocument = {
   id: string;

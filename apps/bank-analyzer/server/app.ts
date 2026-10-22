@@ -14,6 +14,7 @@ import { importRoutes } from './routes/imports.js';
 import { passbookInventoryRoutes } from './routes/passbookInventory.js';
 import { settingsRouter } from './routes/settings.js';
 import { transactionRoutes } from './routes/transactions.js';
+import { operatorMiddleware } from './operator.js';
 
 // vite.config.ts の base と必ずそろえること。
 export const BASE_PATH = '/bank-analyzer';
@@ -33,6 +34,8 @@ export function createApp(db: PrismaClient) {
       return c.json({ status: 'degraded', error: 'database unreachable' }, 503);
     }
   });
+
+  app.use(`${BASE_PATH}/api/*`, operatorMiddleware);
 
   // /api/cases 以下はすべて1つのルーターに載せる（routes/common.ts）
   const cases = caseRouter(db);

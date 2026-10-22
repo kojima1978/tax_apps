@@ -136,6 +136,8 @@ model ClassificationChange {
   newCategory            String    @map("new_category") @db.VarChar(100)
   changeGroup            String    @map("change_group") @db.Uuid
   source                 String    @default("manual") @db.VarChar(50)
+  /// 変えた人（画面で選んだ操作者の氏名。不明は空文字）
+  operatorName           String    @default("") @map("operator_name") @db.VarChar(100)
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   revertedAt             DateTime? @map("reverted_at") @db.Timestamptz(6)
 

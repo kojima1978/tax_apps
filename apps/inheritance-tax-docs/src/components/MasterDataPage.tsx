@@ -6,7 +6,7 @@ import { ResourcesPage } from '@/components/ResourcesPage';
 import { AuditLogPage } from '@/components/AuditLogPage';
 import { CategoryMasterPage } from '@/components/CategoryMasterPage';
 import { useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
-import { operatorRequestHeaders, useOperator } from '@/lib/operator';
+import { operatorRequestHeaders, useOperator } from '@/shared/staff-directory/operator';
 import OperatorSwitcher from '@/components/OperatorSwitcher';
 
 type MasterDocument = {

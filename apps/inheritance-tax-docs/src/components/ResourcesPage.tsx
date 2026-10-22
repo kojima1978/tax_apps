@@ -16,7 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
 import { CompanySwitcher } from '@/shared/staff-directory/CompanySwitcher';
-import { operatorRequestHeaders, useOperator } from '@/lib/operator';
+import { operatorRequestHeaders, useOperator } from '@/shared/staff-directory/operator';
 
 // --- Types ---
 

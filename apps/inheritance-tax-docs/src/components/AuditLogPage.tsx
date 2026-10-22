@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Clock3, RotateCcw, ShieldCheck } from 'lucide-react';
-import { operatorRequestHeaders, useOperator } from '@/lib/operator';
+import { operatorRequestHeaders, useOperator } from '@/shared/staff-directory/operator';
 
 type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
 type AuditTargetType = 'document_master' | 'resource';

@@ -2,6 +2,7 @@
 
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { FolderOpen, Home, Mail, Plus, Settings } from 'lucide-react';
+import { OperatorSelect } from './OperatorSelect';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${isActive ? 'bg-white/15 font-semibold text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white'}`;
@@ -29,6 +30,7 @@ export function Layout() {
             </NavLink>
           </nav>
           <div className="flex items-center gap-1">
+            <OperatorSelect />
             <a href={`${import.meta.env.BASE_URL}letter`} target="_blank" rel="noopener" className={navClass({ isActive: false })}>
               <Mail size={16} />
               <span className="hidden md:inline">お客様配布用文書</span>

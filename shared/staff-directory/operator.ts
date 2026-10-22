@@ -1,3 +1,7 @@
+// 原本は tax_apps/shared/staff-directory/。写しを直さず原本を直して `bash shared/sync.sh` で配る
+//
+// 操作者（いま画面を使っている社員）。選んだ台帳ID は全アプリ共通の localStorage キーに置くので、
+// どこかのアプリで1回選べば、同じブラウザの他のアプリでも同じ人になる（オリジンが同じゲートウェイのため）。
 import { useSyncExternalStore } from 'react';
 
 export type Operator = {
@@ -47,6 +51,17 @@ export function operatorRequestHeaders(operator: Operator | string): Record<stri
   return { 'x-operator-name': encodeURIComponent(name) };
 }
 
+/** 自分で選んだ人だけ（未選択や台帳から消えた人で先頭の人に化けさせない）。無ければ null */
+export function findSelectedOperator(operators: Operator[], selectedId: number | null): Operator | null {
+  return selectedId === null ? null : operators.find((operator) => operator.id === selectedId) ?? null;
+}
+
+/** 自分で選んだ人のときだけ送る（未選択を先頭の人や「ローカル利用者」として記録しない） */
+export function selectedOperatorHeaders(): Record<string, string> {
+  const operator = findSelectedOperator(snapshot.operators, snapshot.selectedId ?? readStoredId());
+  return operator ? operatorRequestHeaders(operator) : {};
+}
+
 function readStoredId(): number | null {
   try {
     const value = Number(window.localStorage.getItem(STORAGE_KEY));
@@ -71,7 +86,7 @@ async function load() {
     const response = await fetch(DIRECTORY_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (response.ok) operators = parseDirectoryOperators(await response.json());
   } catch {
-    // 台帳が停止していてもマスタ編集自体は止めない。
+    // 台帳が停止していても画面の操作自体は止めない。
   }
   update(operators ? { operators, status: 'ok' } : { status: 'fallback' });
 }
@@ -99,6 +114,7 @@ export function useOperator() {
   const current = useSyncExternalStore(subscribe, () => snapshot);
   return {
     operator: pickOperator(current.operators, current.selectedId),
+    selected: findSelectedOperator(current.operators, current.selectedId),
     operators: current.operators,
     status: current.status,
     selectOperator,

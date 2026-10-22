@@ -12,6 +12,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { parseId } from '../json.js';
+import { currentOperatorName } from '../operator.js';
 
 export type Tx = Prisma.TransactionClient;
 
@@ -68,6 +69,7 @@ export async function applyChanges(
         newCategory: wanted.get(String(r.id))!,
         changeGroup,
         source,
+        operatorName: currentOperatorName(),
         createdAt,
       })),
     });
@@ -175,6 +177,7 @@ export type LatestSummary = {
   createdAt: string;
   description: string;
   source: string;
+  operatorName: string;
 };
 
 const MULTIPLE = '複数分類';
@@ -204,5 +207,6 @@ export async function latestSummary(db: PrismaClient | Tx, caseId: bigint): Prom
     createdAt: first.createdAt.toISOString(),
     description: first.transactionDescription,
     source: first.source,
+    operatorName: first.operatorName,
   };
 }

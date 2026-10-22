@@ -37,6 +37,7 @@ export type ClassificationChangeSummary = {
   createdAt: string;
   description: string | null;
   source: string;
+  operatorName: string;
 };
 
 export type FilterOptions = {

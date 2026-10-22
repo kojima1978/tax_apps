@@ -308,6 +308,7 @@ function HistoryStrip({ caseId, change, onUndone }: { caseId: number; change: No
           <time dateTime={change.createdAt} className="text-xs text-slate-500">
             {timeFormat.format(new Date(change.createdAt))}
           </time>
+          {change.operatorName && <span className="text-xs text-slate-500">{change.operatorName}</span>}
         </div>
         <div className="flex flex-wrap items-center gap-1 text-slate-600">
           <span>{change.oldCategory}</span>
