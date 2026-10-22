@@ -38,7 +38,13 @@ if (isProduction) {
   const { createServer: createViteServer } = await import('vite');
   const hmrClientPort = Number(process.env.VITE_HMR_CLIENT_PORT ?? PORT);
   const vite = await createViteServer({
-    server: { middlewareMode: true, hmr: { server: httpServer, clientPort: hmrClientPort } },
+    server: {
+      middlewareMode: true,
+      hmr: { server: httpServer, clientPort: hmrClientPort },
+      // /app/data は SQLite の置き場。見張っていると保存のたびに -wal/-shm が変わり、
+      // 画面がまるごと再読込される（開いたダイアログや入力中の略称が消える）
+      watch: { ignored: ['**/data/**'] },
+    },
     appType: 'spa',
   });
   app.use(vite.middlewares);

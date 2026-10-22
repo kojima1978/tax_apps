@@ -21,6 +21,9 @@
 - **氏名は姓・名・セイ・メイの4つ**（姓だけ必須）。表示用に2つ作る:
   `fullName` = 「姓 名」、`shortName` = 姓（在籍者に同じ姓の人がいれば、名の先頭から見分けられる文字数まで足す。
   例: 山田太郎・山田花子 → 「山田太」「山田花」）。API の `name` は `shortName`（狭い欄で使う前提）
+- **略称は手で決められる**（一覧の略称の欄を押してその場で直す／編集画面）。決めた値は `customShortName`、
+  自動の値は `autoShortName` で、`shortName` は決めた値があればそちら。空に戻すと自動へ戻る。
+  社員の `PUT /staff/:id` には含めない（他アプリや取込から更新されても手で決めた略称は消えない）
 - フリガナはカタカナで保存（ひらがな・半角カナは入力時に寄せる）。未入力の人は一覧の末尾
 - 部署は所属者（退職者を含む）がいる間は消せない。使わなくなったら「使用」を外す
 - 会社は部署か所属が残っている間は消せない。会社の情報（名称・略称・郵便番号・住所・代表電話・FAX）は帳票に刷る用
@@ -33,6 +36,7 @@
 | GET | `/staff?status=active\|retired\|all` | 社員一覧（既定 active。フリガナ順）。`affiliations`（主所属が先頭）と、主所属の写し `companyId` / `departmentId` / `departmentName` / `employeeNo` |
 | GET / PUT | `/staff/:id` | 1人の取得・更新 |
 | POST | `/staff` | 追加（台帳ID が振られる） |
+| PUT | `/staff/:id/short-name` | 略称を決める（`{ shortName }`、10文字まで。空文字で自動に戻す） |
 | GET / PUT | `/staff/:id/personal` | 1人の郵便番号・住所・生年月日（`postalCode` / `address` / `birthDate`、未入力は空文字）。一覧・`/staff/:id` には出ない。**他アプリが住所・生年月日を使うときはここを1人ずつ読む**（書き込みは台帳の画面だけ） |
 | GET / POST | `/departments` | 部署一覧（会社・在籍者数つき）・追加（`companyId` 必須）。`label` は他の会社に同名の部署があれば「会社略称 部署名」、無ければ部署名 |
 | PUT / DELETE | `/departments/:id` | 部署の更新・削除（所属者がいれば 409） |

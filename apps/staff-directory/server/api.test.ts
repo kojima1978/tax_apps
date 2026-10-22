@@ -320,3 +320,28 @@ describe('社員の個人情報', () => {
     expect((await call('GET', '/staff/x/personal')).status).toBe(404);
   });
 });
+
+describe('略称を手で決める', () => {
+  it('決めた略称が shortName と name に出て、空にすると自動へ戻る', async () => {
+    const id = (await call('POST', '/staff', staff('山田', { givenName: '太郎' }))).body.id;
+    const set = await call('PUT', `/staff/${id}/short-name`, { shortName: ' ヤマ ダ ' });
+    expect(set.status).toBe(200);
+    expect(set.body).toMatchObject({ shortName: 'ヤマダ', name: 'ヤマダ', customShortName: 'ヤマダ', autoShortName: '山田' });
+
+    const back = await call('PUT', `/staff/${id}/short-name`, { shortName: '' });
+    expect(back.body).toMatchObject({ shortName: '山田', customShortName: '' });
+  });
+
+  it('社員の更新（PUT /staff/:id）では消えない', async () => {
+    const id = (await call('POST', '/staff', staff('山田'))).body.id;
+    await call('PUT', `/staff/${id}/short-name`, { shortName: '山ちゃん' });
+    await call('PUT', `/staff/${id}`, staff('山田', { givenName: '太郎' }));
+    expect((await call('GET', `/staff/${id}`)).body.shortName).toBe('山ちゃん');
+  });
+
+  it('長すぎる略称は 400、無い社員は 404', async () => {
+    const id = (await call('POST', '/staff', staff('山田'))).body.id;
+    expect((await call('PUT', `/staff/${id}/short-name`, { shortName: 'あ'.repeat(11) })).status).toBe(400);
+    expect((await call('PUT', '/staff/99/short-name', { shortName: '山' })).status).toBe(404);
+  });
+});

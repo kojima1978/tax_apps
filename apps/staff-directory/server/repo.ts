@@ -20,8 +20,12 @@ export type Staff = {
   givenKana: string;
   /** 「姓 名」。名が空なら姓だけ */
   fullName: string;
-  /** 狭い欄に出す名前。ふだんは姓だけで、在籍中に同じ姓の人がいれば名の頭を足す（山田太 / 山田花） */
+  /** 狭い欄に出す名前。手で決めた略称があればそれ、無ければ autoShortName */
   shortName: string;
+  /** 手で決めた略称。空なら自動 */
+  customShortName: string;
+  /** 自動の略称。ふだんは姓だけで、在籍中に同じ姓の人がいれば名の頭を足す（山田太 / 山田花） */
+  autoShortName: string;
   /** shortName と同じ。案件管理・PB が読む旧い名前の欄 */
   name: string;
   /** 「セイ メイ」。PB が読む旧い欄 */
@@ -74,6 +78,7 @@ type StaffRow = {
   given_name: string;
   family_kana: string;
   given_kana: string;
+  short_name: string;
   mobile_phone: string;
   retired_on: string | null;
   created_at: string;
@@ -165,7 +170,8 @@ function loadStaff(db: Database.Database, where: string, params: unknown[] = [])
   return rows.map((r) => {
     const affs = affiliations.get(r.id) ?? [];
     const primary = affs.find((a) => a.isPrimary) ?? null;
-    const shortName = shortNameOf({ id: r.id, familyName: r.family_name, givenName: r.given_name }, active);
+    const autoShortName = shortNameOf({ id: r.id, familyName: r.family_name, givenName: r.given_name }, active);
+    const shortName = r.short_name || autoShortName;
     return {
       id: r.id,
       familyName: r.family_name,
@@ -174,6 +180,8 @@ function loadStaff(db: Database.Database, where: string, params: unknown[] = [])
       givenKana: r.given_kana,
       fullName: joinName(r.family_name, r.given_name),
       shortName,
+      customShortName: r.short_name,
+      autoShortName,
       name: shortName,
       nameKana: joinName(r.family_kana, r.given_kana),
       affiliations: affs,
@@ -256,6 +264,13 @@ export function updateStaff(db: Database.Database, id: number, input: StaffInput
     return true;
   })();
   return found ? getStaff(db, id) : null;
+}
+
+// 略称だけを書き換える（一覧からその場で直す口）。社員の PUT には含めない ──
+// 他アプリの取込や古い画面が PUT /staff/:id を送っても、手で決めた略称が消えないように。空は自動に戻す
+export function updateStaffShortName(db: Database.Database, id: number, shortName: string): Staff | null {
+  const info = db.prepare(`UPDATE staff SET short_name = ?, updated_at = datetime('now') WHERE id = ?`).run(shortName, id);
+  return info.changes === 0 ? null : getStaff(db, id);
 }
 
 // ---- 社員の個人情報 ----

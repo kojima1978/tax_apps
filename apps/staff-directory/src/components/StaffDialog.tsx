@@ -52,6 +52,8 @@ const NAME_FIELDS = [
 export default function StaffDialog({ staff, companies, departments, onClose, onSaved }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState<StaffForm>(() => toForm(staff, companies));
+  // 略称は社員の PUT とは別の口で保存する（server/repo.ts の updateStaffShortName）
+  const [shortName, setShortName] = useState(staff?.customShortName ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // 住所・生年月日は伏せておき、「表示」を押したときに初めて取りに行く（null = まだ読んでいない）。
@@ -104,6 +106,7 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
     setSaving(true);
     try {
       const saved = staff ? await api.updateStaff(staff.id, form) : await api.createStaff(form);
+      if (shortName.trim() !== saved.customShortName) await api.updateShortName(saved.id, shortName);
       // 伏せたまま（読んでいない）なら送らない ── 空で上書きしてしまうため
       if (personal && (staff || Object.values(personal).some((v) => v !== ''))) {
         await api.updateStaffPersonal(saved.id, personal);
@@ -228,7 +231,15 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
           </div>
         </fieldset>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="略称" hint="空欄なら自動（姓だけ・同姓がいれば名の頭を足す）">
+            <input
+              className={inputClass}
+              value={shortName}
+              onChange={(e) => setShortName(e.target.value)}
+              placeholder={staff?.autoShortName ?? form.familyName}
+            />
+          </Field>
           <Field label="携帯電話">
             <input className={inputClass} value={form.mobilePhone} onChange={set('mobilePhone')} inputMode="tel" />
           </Field>

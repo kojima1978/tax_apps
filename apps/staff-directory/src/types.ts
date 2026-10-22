@@ -16,8 +16,12 @@ export type Staff = {
   givenKana: string;
   // 「姓 名」
   fullName: string;
-  // 姓だけ（在籍者に同姓がいれば名の頭を足す）。狭い欄はこちら
+  // 狭い欄はこちら。手で決めた略称があればそれ、無ければ autoShortName
   shortName: string;
+  // 手で決めた略称（空なら自動）
+  customShortName: string;
+  // 姓だけ（在籍者に同姓がいれば名の頭を足す）
+  autoShortName: string;
   nameKana: string;
   // 主所属が先頭
   affiliations: Affiliation[];

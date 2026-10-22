@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import {
   parseCompanyInput,
   parseDepartmentInput,
+  parseShortName,
   parseStaffInput,
   parseStaffPersonalInput,
   type Result,
@@ -24,6 +25,7 @@ import {
   updateDepartment,
   updateStaff,
   updateStaffPersonal,
+  updateStaffShortName,
   type StaffStatus,
 } from './repo.js';
 import { exportDirectory, parseBackup, restoreDirectory } from './backup.js';
@@ -94,6 +96,11 @@ export function createApiRouter(db: Database.Database): Router {
       return;
     }
     respond(res, parseStaffInput(req.body), (input) => updateStaff(db, id, input));
+  });
+
+  r.put('/staff/:id/short-name', (req, res) => {
+    const id = parseId(req.params.id);
+    respond(res, parseShortName(req.body?.shortName), (value) => (id === null ? null : updateStaffShortName(db, id, value)));
   });
 
   // 住所・生年月日。/staff と /staff/:id には混ぜない（一覧や写しの同期で全員分が流れるため）。

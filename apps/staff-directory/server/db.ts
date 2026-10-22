@@ -49,7 +49,7 @@ export function checkDbHealth(): string | null {
 // スキーマの版。PRAGMA user_version に記録し、古い版の DB は開いたときに1回だけ作り替える。
 // 版を上げるときは initSchema に `if (version < N)` を1つ足す（作り替えは必ずトランザクションの中で、途中で落ちたら元のまま）。
 // SCHEMA_V1 は版1の形のまま凍結しておき、新しい DB も版1を作ってから順に上げる（移行の経路を1本にするため）。
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 // staff.id が「台帳ID」。各アプリはこの番号で人を参照するので、振り直さない・消さない
 // （退職は retired_on を入れるだけ）。
@@ -61,7 +61,7 @@ export const SCHEMA_VERSION = 2;
 // 主所属は1人1つ（部分ユニーク索引）。他アプリへ「この人の社員番号・部署」として渡すのは主所属。
 //
 // 氏名は姓・名を別々に持つ（姓だけを出す場面と、両方を出す場面があるため）。
-// 画面に出す略称・氏名は repo.ts が組み立てる（DB には持たない）。
+// 画面に出す略称・氏名は repo.ts が組み立てる（略称は手で決めたものだけ short_name に持つ。版3）。
 //
 // external_links は「他アプリの何番が台帳の何番か」の対応表。取込を何度流しても
 // 同じ人を二重に作らないためのもので、段階3以降の同期や private-banking の紐付けも
@@ -188,6 +188,11 @@ function migrateV1ToV2(d: Database.Database): void {
   `);
 }
 
+// 版2 → 3: 社員の略称を手で決められるようにする。空は自動（repo.ts の shortNameOf）。既存の行は空＝自動のまま
+function migrateV2ToV3(d: Database.Database): void {
+  d.exec(`ALTER TABLE staff ADD COLUMN short_name TEXT NOT NULL DEFAULT '';`);
+}
+
 function tableExists(d: Database.Database, name: string): boolean {
   return d.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(name) !== undefined;
 }
@@ -210,6 +215,7 @@ function initSchema(d: Database.Database): void {
         }
       }
       if (version < 2) migrateV1ToV2(d);
+      if (version < 3) migrateV2ToV3(d);
       const broken = d.pragma('foreign_key_check') as unknown[];
       if (broken.length > 0) throw new Error(`スキーマの移行後に外部キーの不整合が ${broken.length} 件あります`);
       d.pragma(`user_version = ${SCHEMA_VERSION}`);

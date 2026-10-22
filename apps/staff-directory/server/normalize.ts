@@ -99,6 +99,14 @@ function parseAffiliations(v: unknown): Result<AffiliationInput[]> {
 // 姓・名の中の空白は詰める（「山田 太郎」を姓の欄に入れると、表示で空白が二重になるため）
 const namePart = (v: unknown) => text(v).normalize('NFKC').replace(/\s+/g, '');
 
+// 略称（手で決めるもの）。空は自動に戻す。狭い欄に出す名前なので長さを抑える
+export const SHORT_NAME_MAX = 10;
+export function parseShortName(v: unknown): Result<string> {
+  const s = namePart(v);
+  if (Array.from(s).length > SHORT_NAME_MAX) return fail(`略称は${SHORT_NAME_MAX}文字までにしてください`);
+  return ok(s);
+}
+
 export function parseStaffInput(body: unknown): Result<StaffInput> {
   const b = (body ?? {}) as Record<string, unknown>;
   const familyName = namePart(b.familyName);

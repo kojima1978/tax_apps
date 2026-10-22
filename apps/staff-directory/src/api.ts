@@ -44,6 +44,8 @@ export const api = {
   listStaff: (status: StaffStatus) => request<Staff[]>(`/staff?status=${status}`),
   createStaff: (form: StaffForm) => send<Staff>('POST', '/staff', toStaffBody(form)),
   updateStaff: (id: number, form: StaffForm) => send<Staff>('PUT', `/staff/${id}`, toStaffBody(form)),
+  // 空を送ると自動の略称に戻る
+  updateShortName: (id: number, shortName: string) => send<Staff>('PUT', `/staff/${id}/short-name`, { shortName }),
   getStaffPersonal: (id: number) => request<StaffPersonal>(`/staff/${id}/personal`),
   updateStaffPersonal: (id: number, p: StaffPersonalForm) => send<StaffPersonal>('PUT', `/staff/${id}/personal`, p),
   listDepartments: () => request<Department[]>('/departments'),

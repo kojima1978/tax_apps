@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import {
   parseCompanyInput,
   parseDepartmentInput,
+  parseShortName,
   parseStaffInput,
   parseStaffPersonalInput,
   type CompanyInput,
@@ -121,6 +122,7 @@ export function exportDirectory(db: Database.Database): DirectoryBackup {
       givenName: r.given_name,
       familyKana: r.family_kana,
       givenKana: r.given_kana,
+      shortName: r.short_name,
       mobilePhone: r.mobile_phone,
       retiredOn: r.retired_on,
       postalCode: r.postal_code,
@@ -165,7 +167,7 @@ export type ParsedBackup = {
   sequences: Record<SequencedTable, number>;
   companies: (CompanyInput & Stamped & { id: number })[];
   departments: (DepartmentInput & Stamped & { id: number; companyId: number })[];
-  staff: (StaffInput & StaffPersonalInput & Stamped & { id: number })[];
+  staff: (StaffInput & StaffPersonalInput & Stamped & { id: number; shortName: string })[];
   externalLinks: { app: string; entity: 'staff' | 'department'; externalId: string; localId: number; createdAt: string | null }[];
 };
 
@@ -235,13 +237,16 @@ export function parseBackup(body: unknown): Result<ParsedBackup> {
     if (!parsed.ok) return fail(`社員（台帳ID ${r.id}）: ${parsed.error}`);
     const personal = parseStaffPersonalInput(r);
     if (!personal.ok) return fail(`社員（台帳ID ${r.id}）: ${personal.error}`);
+    // 略称の欄が無い（略称を持つ前に書き出した）ファイルは自動のまま
+    const shortName = parseShortName(r.shortName);
+    if (!shortName.ok) return fail(`社員（台帳ID ${r.id}）: ${shortName.error}`);
     for (const a of parsed.value.affiliations) {
       if (!companyIds.has(a.companyId)) return fail(`社員（台帳ID ${r.id}）: 所属の会社が見つかりません`);
       if (a.departmentId !== null && departmentCompany.get(a.departmentId) !== a.companyId) {
         return fail(`社員（台帳ID ${r.id}）: 所属の部署がその会社のものではありません`);
       }
     }
-    staff.push({ ...parsed.value, ...personal.value, id: r.id, createdAt: stamp(r.createdAt), updatedAt: stamp(r.updatedAt) });
+    staff.push({ ...parsed.value, ...personal.value, shortName: shortName.value, id: r.id, createdAt: stamp(r.createdAt), updatedAt: stamp(r.updatedAt) });
   }
 
   const externalLinks: ParsedBackup['externalLinks'] = [];
@@ -316,16 +321,16 @@ export function restoreDirectory(db: Database.Database, backup: ParsedBackup, dr
         insertDepartment.run(d.id, d.companyId, d.name, d.sortOrder, d.active ? 1 : 0, d.createdAt, d.updatedAt);
       }
       const insertStaff = db.prepare(
-        `INSERT INTO staff (id, family_name, given_name, family_kana, given_kana, mobile_phone, retired_on,
+        `INSERT INTO staff (id, family_name, given_name, family_kana, given_kana, short_name, mobile_phone, retired_on,
            postal_code, address, birth_date, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, coalesce(?, datetime('now')), coalesce(?, datetime('now')))`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, coalesce(?, datetime('now')), coalesce(?, datetime('now')))`,
       );
       const insertAffiliation = db.prepare(
         `INSERT INTO staff_affiliations (staff_id, company_id, department_id, employee_no, is_primary) VALUES (?, ?, ?, ?, ?)`,
       );
       for (const s of backup.staff) {
         insertStaff.run(
-          s.id, s.familyName, s.givenName, s.familyKana, s.givenKana, s.mobilePhone, s.retiredOn,
+          s.id, s.familyName, s.givenName, s.familyKana, s.givenKana, s.shortName, s.mobilePhone, s.retiredOn,
           s.postalCode, s.address, s.birthDate, s.createdAt, s.updatedAt,
         );
         for (const a of s.affiliations) {

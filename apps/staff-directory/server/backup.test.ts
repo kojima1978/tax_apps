@@ -57,6 +57,7 @@ async function seed() {
     ],
   });
   await call('PUT', `/staff/${yamada}/personal`, { postalCode: '123-4567', address: '架空県架空町2-3', birthDate: '1980-02-29' });
+  await call('PUT', `/staff/${yamada}/short-name`, { shortName: '山田T' });
   const sato = await post('/staff', { familyName: '佐藤', affiliations: [{ companyId: 1, departmentId: tax, employeeNo: 'A002' }] });
   const suzuki = await post('/staff', { familyName: '鈴木', retiredOn: '2025-03-31' });
   db.prepare(`INSERT INTO external_links (app, entity, external_id, local_id) VALUES ('itcm', 'staff', '7', ?)`).run(yamada);
@@ -78,6 +79,7 @@ describe('JSON の書き出し', () => {
     expect(yamada).toMatchObject({
       familyName: '山田',
       familyKana: 'ヤマダ',
+      shortName: '山田T',
       postalCode: '123-4567',
       address: '架空県架空町2-3',
       birthDate: '1980-02-29',
@@ -98,6 +100,7 @@ describe('JSON からの復元', () => {
 
     await call('PUT', `/staff/${ids.sato}`, { familyName: '佐藤改', affiliations: [] });
     await call('PUT', `/staff/${ids.yamada}/personal`, { postalCode: '', address: '', birthDate: '' });
+    await call('PUT', `/staff/${ids.yamada}/short-name`, { shortName: '' });
     await post('/staff', { familyName: '高橋' });
 
     const res = await call('POST', '/backup/restore', saved);
@@ -107,6 +110,14 @@ describe('JSON からの復元', () => {
     const after = (await call('GET', '/backup')).body;
     expect({ ...withoutStamp(after), sequences: undefined }).toEqual({ ...withoutStamp(saved), sequences: undefined });
     expect((await call('GET', `/staff/${ids.sato}`)).body.fullName).toBe('佐藤');
+  });
+
+  it('略称の欄が無い（略称を持つ前に書き出した）ファイルは、全員自動の略称で戻る', async () => {
+    const ids = await seed();
+    const saved = (await call('GET', '/backup')).body;
+    const old = { ...saved, staff: saved.staff.map(({ shortName: _, ...s }: Record<string, unknown>) => s) };
+    expect((await call('POST', '/backup/restore', old)).status).toBe(200);
+    expect((await call('GET', `/staff/${ids.yamada}`)).body).toMatchObject({ shortName: '山田', customShortName: '' });
   });
 
   it('書き出した後に足した人の台帳IDは、復元後に別の人へ振り直さない', async () => {
