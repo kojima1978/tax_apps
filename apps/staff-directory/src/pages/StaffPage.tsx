@@ -4,7 +4,6 @@ import { useLoad } from '../hooks/useLoad';
 import { normalizeQuery } from '../lib';
 import { ErrorBanner, btn, controlClass } from '../components/ui';
 import StaffDialog from '../components/StaffDialog';
-import ShortNameCell from '../components/ShortNameCell';
 import type { Affiliation, Staff, StaffStatus } from '../types';
 
 const STATUS_TABS: { value: StaffStatus; label: string }[] = [
@@ -16,7 +15,15 @@ const STATUS_TABS: { value: StaffStatus; label: string }[] = [
 // 部署の絞り込み: '' = すべて、'none' = 未所属（会社を選んでいればその会社の中で）、それ以外は部署 id
 const NO_DEPARTMENT = 'none';
 
-const COLUMNS = ['台帳ID', '社員番号', '氏名', '略称', 'フリガナ', '所属', '携帯電話'] as const;
+const COLUMNS = ['社員番号', '氏名', 'フリガナ', '所属', '携帯電話'] as const;
+
+// 社員番号の昇順。数字は桁数が違っても数の大きさで並べ（"9" < "10"）、番号の無い人は末尾。
+// 同じ番号・番号なし同士は API の並び（フリガナ順）のまま
+const employeeNoCollator = new Intl.Collator('ja', { numeric: true });
+function compareEmployeeNo(a: Staff, b: Staff): number {
+  if (!a.employeeNo || !b.employeeNo) return (a.employeeNo ? 0 : 1) - (b.employeeNo ? 0 : 1);
+  return employeeNoCollator.compare(a.employeeNo, b.employeeNo);
+}
 
 // 会社・部署の絞り込みは主所属に限らず、どれか1つの所属が当たれば出す（兼務先からも探せるように）
 function matchesAffiliation(s: Staff, company: string, department: string): boolean {
@@ -51,13 +58,15 @@ export default function StaffPage() {
 
   const rows = useMemo(() => {
     const q = normalizeQuery(query);
-    return (staff.data ?? []).filter((s) => {
-      if (!matchesAffiliation(s, company, department)) return false;
-      if (!q) return true;
-      return [s.fullName, s.shortName, s.nameKana, s.mobilePhone, ...s.affiliations.map((a) => a.employeeNo ?? '')].some((v) =>
-        normalizeQuery(v).includes(q),
-      );
-    });
+    return (staff.data ?? [])
+      .filter((s) => {
+        if (!matchesAffiliation(s, company, department)) return false;
+        if (!q) return true;
+        return [s.fullName, s.shortName, s.nameKana, s.mobilePhone, ...s.affiliations.map((a) => a.employeeNo ?? '')].some((v) =>
+          normalizeQuery(v).includes(q),
+        );
+      })
+      .sort(compareEmployeeNo);
   }, [staff.data, company, department, query]);
 
   const missingKana = rows.filter((s) => s.familyKana === '').length;
@@ -134,7 +143,7 @@ export default function StaffPage() {
 
       <p className="text-sm text-slate-500">
         {rows.length}名
-        {missingKana > 0 && <span className="ml-3 text-amber-700">フリガナ未入力 {missingKana}名（一覧の末尾）</span>}
+        {missingKana > 0 && <span className="ml-3 text-amber-700">フリガナ未入力 {missingKana}名</span>}
       </p>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -157,15 +166,11 @@ export default function StaffPage() {
                   onClick={() => setEditing(s)}
                   className={`cursor-pointer hover:bg-teal-50/50 ${s.retiredOn ? 'text-slate-400' : ''}`}
                 >
-                  <td className="px-4 py-2 tabular-nums text-slate-500">{s.id}</td>
                   <td className="px-4 py-2 tabular-nums">{s.employeeNo ?? ''}</td>
                   <td className="whitespace-nowrap px-4 py-2 font-medium">
                     <button type="button" className="text-left hover:underline" onClick={() => setEditing(s)}>
                       {s.fullName}
                     </button>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2">
-                    <ShortNameCell staff={s} onSaved={() => void staff.reload()} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-2">{s.nameKana}</td>
                   <td className="px-4 py-2">

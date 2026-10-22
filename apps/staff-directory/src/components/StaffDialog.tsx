@@ -157,13 +157,8 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
     <Modal
       title={staff ? '社員の編集' : '社員の追加'}
       aside={
-        staff && (
-          <>
-            {staff.retiredOn && (
-              <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">退職済み</span>
-            )}
-            台帳ID {staff.id}
-          </>
+        staff?.retiredOn && (
+          <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">退職済み</span>
         )
       }
       onClose={onClose}

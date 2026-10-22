@@ -266,7 +266,7 @@ export function updateStaff(db: Database.Database, id: number, input: StaffInput
   return found ? getStaff(db, id) : null;
 }
 
-// 略称だけを書き換える（一覧からその場で直す口）。社員の PUT には含めない ──
+// 略称だけを書き換える（編集画面が社員の保存の後に呼ぶ）。社員の PUT には含めない ──
 // 他アプリの取込や古い画面が PUT /staff/:id を送っても、手で決めた略称が消えないように。空は自動に戻す
 export function updateStaffShortName(db: Database.Database, id: number, shortName: string): Staff | null {
   const info = db.prepare(`UPDATE staff SET short_name = ?, updated_at = datetime('now') WHERE id = ?`).run(shortName, id);
