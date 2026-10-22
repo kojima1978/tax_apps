@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { api } from '../api';
 import { exportFileName } from '../exportFileName';
 import { ErrorBanner, Modal, btn } from './ui';
@@ -31,16 +31,78 @@ function formatExportedAt(iso: string): string {
   return Number.isNaN(d.getTime()) ? '不明' : d.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
 }
 
-// pickId: 選ぶたびに Modal を作り直す（showModal は Modal の mount 時にしか呼ばれない）
+// pickId: 確かめている間に選び直したら、前のファイルの結果を捨てるための番号
 type Pending = { pickId: number; fileName: string; backup: unknown; preview: RestoreResult | null; error: string | null };
 
+function isJsonFile(file: File): boolean {
+  return file.type === 'application/json' || file.name.toLowerCase().endsWith('.json');
+}
+
+// 復元するファイルの受け口。ドロップでもクリック（ファイル選択）でも選べる
+function JsonDropZone({ onFile }: { onFile: (file: File) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+
+  // 欄から外れたところへ落とすと、ブラウザが JSON をそのまま開いて画面ごと移ってしまう。
+  // ダイアログを開いている間は、欄の外へのドロップを受け流す
+  useEffect(() => {
+    const ignore = (e: globalThis.DragEvent) => e.preventDefault();
+    window.addEventListener('dragover', ignore);
+    window.addEventListener('drop', ignore);
+    return () => {
+      window.removeEventListener('dragover', ignore);
+      window.removeEventListener('drop', ignore);
+    };
+  }, []);
+
+  function drop(e: DragEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    setOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) onFile(file);
+  }
+
+  function pick(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // 同じファイルを選び直しても change が来るように
+    if (file) onFile(file);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          setOver(true);
+        }}
+        // 欄の中の文字へ移ったときにも dragleave が来るので、欄の外へ出たときだけ戻す
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false);
+        }}
+        onDrop={drop}
+        className={`flex w-full flex-col items-center gap-1 rounded-lg border-2 border-dashed px-4 py-8 text-sm ${
+          over ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+        }`}
+      >
+        <span className="font-medium">ここに JSON ファイルをドロップ</span>
+        <span className="text-xs text-slate-500">またはクリックしてファイルを選ぶ</span>
+      </button>
+      <input ref={inputRef} type="file" accept="application/json,.json" className="hidden" onChange={pick} />
+    </>
+  );
+}
+
 export default function BackupMenu() {
-  const fileRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pickCount = useRef(0);
+  // null = 復元のダイアログを閉じている。開くたびに番号を変えて Modal を作り直す（showModal は mount 時だけ）
+  const [dialogId, setDialogId] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  // null = 復元の確認を開いていない
+  // null = まだファイルを選んでいない
   const [pending, setPending] = useState<Pending | null>(null);
   const [restoring, setRestoring] = useState(false);
 
@@ -56,12 +118,23 @@ export default function BackupMenu() {
     }
   }
 
+  function openDialog() {
+    setPending(null);
+    setDialogId(++pickCount.current);
+  }
+
+  function closeDialog() {
+    setDialogId(null);
+    setPending(null);
+  }
+
   // ファイルを選んだら、まずサーバで最後まで流して巻き戻し（preview）、件数を見せてから確定させる
-  async function pick(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // 同じファイルを選び直しても change が来るように
-    if (!file) return;
+  async function load(file: File) {
     const pickId = ++pickCount.current;
+    if (!isJsonFile(file)) {
+      setPending({ pickId, fileName: file.name, backup: null, preview: null, error: 'JSON ファイル（.json）を選んでください' });
+      return;
+    }
     let backup: unknown;
     try {
       backup = JSON.parse(await file.text());
@@ -101,15 +174,16 @@ export default function BackupMenu() {
       <button type="button" className={btn.secondary} onClick={exportNow} disabled={exporting}>
         JSONで書き出し
       </button>
-      <button type="button" className={btn.secondary} onClick={() => fileRef.current?.click()}>
+      <button type="button" className={btn.secondary} onClick={openDialog}>
         JSONから復元
       </button>
-      <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={pick} />
 
-      {pending && (
-        <Modal key={pending.pickId} title="JSONから復元" dialogRef={dialogRef} onClose={() => setPending(null)}>
-          <p className="break-all text-sm text-slate-600">{pending.fileName}</p>
-          {pending.preview ? (
+      {dialogId !== null && (
+        <Modal key={dialogId} title="JSONから復元" dialogRef={dialogRef} onClose={closeDialog}>
+          {/* 読めなかったときもここから選び直せるように、件数が出るまでは受け口を出しておく */}
+          {!pending?.preview && !restoring && <JsonDropZone onFile={(file) => void load(file)} />}
+          {pending && <p className="break-all text-sm text-slate-600">{pending.fileName}</p>}
+          {pending?.preview ? (
             <>
               <p className="text-sm text-slate-600">書き出した日時: {formatExportedAt(pending.preview.exportedAt)}</p>
               <table className="w-full text-sm">
@@ -142,16 +216,17 @@ export default function BackupMenu() {
               </p>
             </>
           ) : (
+            pending &&
             !pending.error && <p className="text-sm text-slate-500">ファイルを確かめています…</p>
           )}
-          <ErrorBanner message={pending.error} />
+          <ErrorBanner message={pending?.error ?? null} />
           <div className="flex justify-end gap-2">
             {/* close() の close イベントが届かない環境がある（アプリ内ブラウザで実測）。
                 それに頼ると pending が残り、次にファイルを選んでもダイアログが開かない */}
-            <button type="button" className={btn.secondary} onClick={() => setPending(null)} disabled={restoring}>
+            <button type="button" className={btn.secondary} onClick={closeDialog} disabled={restoring}>
               やめる
             </button>
-            <button type="button" className={btn.primary} onClick={restore} disabled={!pending.preview || restoring}>
+            <button type="button" className={btn.primary} onClick={restore} disabled={!pending?.preview || restoring}>
               {restoring ? '復元しています…' : '復元する'}
             </button>
           </div>
