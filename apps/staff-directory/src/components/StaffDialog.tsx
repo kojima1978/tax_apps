@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { api } from '../api';
 import { ErrorBanner, Field, Modal, btn, inputClass } from './ui';
 import { toKatakana } from '../lib';
@@ -44,9 +44,19 @@ const EMPTY_PERSONAL: StaffPersonalForm = { postalCode: '', address: '', birthDa
 const NAME_FIELDS = [
   { key: 'familyName', label: '姓', required: true },
   { key: 'givenName', label: '名' },
-  { key: 'familyKana', label: 'セイ', kana: true },
-  { key: 'givenKana', label: 'メイ', kana: true },
+  { key: 'familyKana', label: 'フリガナ（セイ）', kana: true },
+  { key: 'givenKana', label: 'フリガナ（メイ）', kana: true },
 ] as const;
+
+// 見出しつきのまとまり。先頭以外は上に区切り線を引く
+function Section({ title, first, children }: { title: string; first?: boolean; children: ReactNode }) {
+  return (
+    <fieldset className={first ? '' : 'border-t border-slate-200 pt-3'}>
+      <legend className="float-left mb-2 w-full text-sm font-bold text-slate-800">{title}</legend>
+      <div className="clear-both space-y-2">{children}</div>
+    </fieldset>
+  );
+}
 
 // 社員の追加・編集。削除は無い（台帳IDは他アプリが参照しているので消さず、退職日を入れる）。
 export default function StaffDialog({ staff, companies, departments, onClose, onSaved }: Props) {
@@ -60,13 +70,25 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
   // 新規はまだ何も無いので最初から空の入力欄を出す
   const [personal, setPersonal] = useState<StaffPersonalForm | null>(staff ? null : EMPTY_PERSONAL);
   const [revealing, setRevealing] = useState(false);
+  // 変更の有無は開いたとき（個人情報は読み込んだとき）の値と比べる。「表示」を押しただけでは変更にしない
+  const [initial] = useState(() => JSON.stringify({ form, shortName }));
+  const [personalBase, setPersonalBase] = useState<StaffPersonalForm>(EMPTY_PERSONAL);
+  const dirty =
+    JSON.stringify({ form, shortName }) !== initial ||
+    (personal !== null && JSON.stringify(personal) !== JSON.stringify(personalBase));
+  const canClose = () => !dirty || window.confirm('変更を保存せずに閉じますか？');
+  const requestClose = () => {
+    if (canClose()) ref.current?.close();
+  };
 
   async function reveal() {
     if (!staff) return;
     setRevealing(true);
     try {
       const p = await api.getStaffPersonal(staff.id);
-      setPersonal({ postalCode: p.postalCode, address: p.address, birthDate: p.birthDate ?? '' });
+      const loaded = { postalCode: p.postalCode, address: p.address, birthDate: p.birthDate ?? '' };
+      setPersonalBase(loaded);
+      setPersonal(loaded);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -101,6 +123,12 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
   const departmentOptions = (a: AffiliationForm) =>
     departments.filter((d) => String(d.companyId) === a.companyId && (d.active || String(d.id) === a.departmentId));
 
+  // 空欄のときに入る略称。名前を直していなければサーバの答え（同姓の見分けつき）をそのまま見せる
+  const nameUnchanged = staff !== null && form.familyName === staff.familyName && form.givenName === staff.givenName;
+  const shortNameHint = nameUnchanged
+    ? `空欄なら「${staff.autoShortName}」`
+    : '空欄なら姓から自動で作ります（同姓がいれば名の頭を足す）';
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -122,32 +150,53 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
   return (
     <Modal
       title={staff ? '社員の編集' : '社員の追加'}
-      aside={staff && `台帳ID ${staff.id}`}
+      aside={
+        staff && (
+          <>
+            {staff.retiredOn && (
+              <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">退職済み</span>
+            )}
+            台帳ID {staff.id}
+          </>
+        )
+      }
       onClose={onClose}
+      canClose={canClose}
       dialogRef={ref}
       wide
     >
-      <form onSubmit={submit} className="space-y-4">
-        <div className="grid grid-cols-4 gap-4">
-          {NAME_FIELDS.map((f, i) => (
-            <Field key={f.key} label={f.label}>
-              <input
-                className={inputClass}
-                value={form[f.key]}
-                onChange={set(f.key)}
-                // ひらがなで打っても、欄を出た時点でカタカナに直して見せる（保存されるのもカタカナ）。
-                // 打っている途中で直すと日本語入力の変換を壊すので、blur で行う
-                onBlur={'kana' in f ? (e) => setForm((v) => ({ ...v, [f.key]: toKatakana(e.target.value) })) : undefined}
-                placeholder={'kana' in f ? 'カタカナ' : undefined}
-                required={'required' in f}
-                autoFocus={i === 0}
-              />
-            </Field>
-          ))}
-        </div>
+      <form onSubmit={submit} className="space-y-3">
+        <Section title="氏名" first>
+          <div className="grid grid-cols-4 gap-x-4 gap-y-3">
+            {NAME_FIELDS.map((f, i) => (
+              <Field key={f.key} label={f.label} required={'required' in f}>
+                <input
+                  className={inputClass}
+                  value={form[f.key]}
+                  onChange={set(f.key)}
+                  // ひらがなで打っても、欄を出た時点でカタカナに直して見せる（保存されるのもカタカナ）。
+                  // 打っている途中で直すと日本語入力の変換を壊すので、blur で行う
+                  onBlur={'kana' in f ? (e) => setForm((v) => ({ ...v, [f.key]: toKatakana(e.target.value) })) : undefined}
+                  placeholder={'kana' in f ? 'カタカナ' : undefined}
+                  required={'required' in f}
+                  autoFocus={i === 0}
+                />
+              </Field>
+            ))}
+            <div className="col-span-2">
+              <Field label="略称" hint={shortNameHint}>
+                <input
+                  className={inputClass}
+                  value={shortName}
+                  onChange={(e) => setShortName(e.target.value)}
+                  placeholder={nameUnchanged ? staff.autoShortName : form.familyName}
+                />
+              </Field>
+            </div>
+          </div>
+        </Section>
 
-        <fieldset className="space-y-2">
-          <legend className="mb-1 text-sm font-medium text-slate-700">所属</legend>
+        <Section title="所属">
           {form.affiliations.length > 0 && (
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-slate-500">
@@ -156,7 +205,7 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
                   <th className="pb-1 font-normal">会社</th>
                   <th className="pb-1 font-normal">部署</th>
                   <th className="w-32 pb-1 font-normal">社員番号</th>
-                  <th className="w-12" />
+                  <th className="w-16" />
                 </tr>
               </thead>
               <tbody>
@@ -212,7 +261,7 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
                       />
                     </td>
                     <td className="py-1 text-right">
-                      <button type="button" className={btn.danger} onClick={() => removeAffiliation(i)}>
+                      <button type="button" className={`${btn.danger} whitespace-nowrap`} onClick={() => removeAffiliation(i)}>
                         外す
                       </button>
                     </td>
@@ -225,31 +274,11 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
             <button type="button" className={btn.secondary} onClick={addAffiliation} disabled={!unusedCompany}>
               ＋ 所属を追加
             </button>
-            <span className="text-xs text-slate-500">
-              社員番号は会社ごと（仮の番号でも可）。他アプリへは主所属の社員番号・部署を渡します
-            </span>
+            <span className="text-xs text-slate-500">社員番号は会社ごと（仮の番号でも可）。他アプリへは主所属のものを渡します</span>
           </div>
-        </fieldset>
+        </Section>
 
-        <div className="grid grid-cols-3 gap-4">
-          <Field label="略称" hint="空欄なら自動（姓だけ・同姓がいれば名の頭を足す）">
-            <input
-              className={inputClass}
-              value={shortName}
-              onChange={(e) => setShortName(e.target.value)}
-              placeholder={staff?.autoShortName ?? form.familyName}
-            />
-          </Field>
-          <Field label="携帯電話">
-            <input className={inputClass} value={form.mobilePhone} onChange={set('mobilePhone')} inputMode="tel" />
-          </Field>
-          <Field label="退職日" hint="入れると在籍の一覧から外れます">
-            <input type="date" className={inputClass} value={form.retiredOn} onChange={set('retiredOn')} />
-          </Field>
-        </div>
-
-        <fieldset className="space-y-2">
-          <legend className="mb-1 text-sm font-medium text-slate-700">個人情報</legend>
+        <Section title="個人情報">
           {personal ? (
             <div className="grid grid-cols-[8rem_1fr_10rem] gap-4">
               <Field label="郵便番号">
@@ -275,23 +304,36 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <span className="font-mono text-sm tracking-widest text-slate-400">〒●●●-●●●● ●●●●●● ●●●●/●●/●●</span>
+              <span className="text-sm text-slate-600">郵便番号・住所・生年月日（非表示）</span>
               <button type="button" className={btn.secondary} onClick={reveal} disabled={revealing}>
-                表示
+                {revealing ? '読み込み中…' : '表示'}
               </button>
             </div>
           )}
-          <p className="text-xs text-slate-500">郵便番号・住所・生年月日は一覧には出さず、必要なときだけ読みます（他アプリも1人ずつ読みます）</p>
-        </fieldset>
+          <p className="text-xs text-slate-500">一覧には出さず、必要なときだけ読みます（他アプリも1人ずつ読みます）</p>
+        </Section>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Section title="連絡先">
+            <Field label="携帯電話">
+              <input className={inputClass} value={form.mobilePhone} onChange={set('mobilePhone')} inputMode="tel" />
+            </Field>
+          </Section>
+          <Section title="退職">
+            <Field label="退職日" hint="入れると在籍の一覧から外れます">
+              <input type="date" className={inputClass} value={form.retiredOn} onChange={set('retiredOn')} />
+            </Field>
+          </Section>
+        </div>
 
         <ErrorBanner message={error} />
 
-        <div className="flex justify-end gap-2">
-          <button type="button" className={btn.secondary} onClick={() => ref.current?.close()}>
+        <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+          <button type="button" className={btn.secondary} onClick={requestClose}>
             キャンセル
           </button>
           <button type="submit" className={btn.primary} disabled={saving}>
-            保存
+            {saving ? '保存中…' : '保存'}
           </button>
         </div>
       </form>

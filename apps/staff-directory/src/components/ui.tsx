@@ -11,10 +11,23 @@ export const btn = {
 export const inputClass =
   'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal-500 disabled:bg-slate-50';
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function Field({
+  label,
+  hint,
+  required,
+  children,
+}: {
+  label: string;
+  hint?: ReactNode;
+  required?: boolean;
+  children: ReactNode;
+}) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-slate-700">
+        {label}
+        {required && <span className="ml-1 text-xs font-normal text-red-600">必須</span>}
+      </span>
       {children}
       {hint && <span className="mt-1 block text-xs text-slate-500">{hint}</span>}
     </label>
@@ -31,11 +44,13 @@ export function ErrorBanner({ message }: { message: string | null }) {
 }
 
 // <dialog> の showModal() がフォーカスの閉じ込めと Escape を受け持つ。
-// 閉じるのは ref.close() → onClose の一方向（キャンセルも Escape も同じ経路を通る）
+// 閉じるのは ref.close() → onClose の一方向（キャンセルも Escape も同じ経路を通る）。
+// canClose を渡すと、Escape で閉じる前にそれを聞く（false なら閉じない）
 export function Modal({
   title,
   aside,
   onClose,
+  canClose,
   dialogRef,
   wide,
   children,
@@ -43,6 +58,7 @@ export function Modal({
   title: string;
   aside?: ReactNode;
   onClose: () => void;
+  canClose?: () => boolean;
   dialogRef: RefObject<HTMLDialogElement | null>;
   wide?: boolean;
   children: ReactNode;
@@ -54,13 +70,16 @@ export function Modal({
     <dialog
       ref={dialogRef}
       onClose={onClose}
+      onCancel={(e) => {
+        if (canClose && !canClose()) e.preventDefault();
+      }}
       className={`m-auto w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-lg p-0 shadow-xl`}
       aria-label={title}
     >
       <div className="space-y-4 p-6">
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-          {aside && <span className="text-sm text-slate-500">{aside}</span>}
+          {aside && <span className="flex items-center gap-2 text-sm text-slate-500">{aside}</span>}
         </div>
         {children}
       </div>
