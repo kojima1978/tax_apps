@@ -32,7 +32,7 @@ export function normalizePhone(v: unknown, label: string): Result<string> {
   return ok(s);
 }
 
-// 退職日。空なら在籍。実在しない日付（2026-02-30 など）は Date が黙って
+// 退職日・生年月日。空は未入力（退職日なら在籍）。実在しない日付（2026-02-30 など）は Date が黙って
 // 翌月へ繰り越すので、組み立て直して一致するかで弾く。
 export function normalizeDate(v: unknown, label: string): Result<string | null> {
   const s = text(v);
@@ -150,6 +150,13 @@ export function parseDepartmentInput(body: unknown): Result<DepartmentInput> {
   });
 }
 
+// 〒 は表示側で付ける。保存は「770-0002」の形
+function normalizePostalCode(v: unknown): Result<string> {
+  const postal = text(v).normalize('NFKC').replace(/^〒\s*/, '').replace(/[ー－―‐]/g, '-');
+  if (!/^(\d{3}-?\d{4})?$/.test(postal)) return fail('郵便番号は 123-4567 の形で入力してください');
+  return ok(/^\d{7}$/.test(postal) ? `${postal.slice(0, 3)}-${postal.slice(3)}` : postal);
+}
+
 export type CompanyInput = {
   name: string;
   shortName: string;
@@ -170,17 +177,31 @@ export function parseCompanyInput(body: unknown): Result<CompanyInput> {
   if (!phone.ok) return phone;
   const fax = normalizePhone(b.fax, 'FAX');
   if (!fax.ok) return fax;
-  // 〒 は表示側で付ける。保存は「770-0002」の形
-  const postal = text(b.postalCode).normalize('NFKC').replace(/^〒\s*/, '').replace(/[ー－―‐]/g, '-');
-  if (!/^(\d{3}-?\d{4})?$/.test(postal)) return fail('郵便番号は 123-4567 の形で入力してください');
-  const postalCode = /^\d{7}$/.test(postal) ? `${postal.slice(0, 3)}-${postal.slice(3)}` : postal;
+  const postalCode = normalizePostalCode(b.postalCode);
+  if (!postalCode.ok) return postalCode;
   return ok({
     name,
     shortName: text(b.shortName),
-    postalCode,
+    postalCode: postalCode.value,
     address: text(b.address),
     phone: phone.value,
     fax: fax.value,
     sortOrder: sortOrder.value,
   });
+}
+
+// 社員の個人情報（住所・生年月日）。氏名などとは別の口で読み書きする（repo.ts の StaffPersonal）
+export type StaffPersonalInput = {
+  postalCode: string;
+  address: string;
+  birthDate: string | null;
+};
+
+export function parseStaffPersonalInput(body: unknown): Result<StaffPersonalInput> {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const postalCode = normalizePostalCode(b.postalCode);
+  if (!postalCode.ok) return postalCode;
+  const birthDate = normalizeDate(b.birthDate, '生年月日');
+  if (!birthDate.ok) return birthDate;
+  return ok({ postalCode: postalCode.value, address: text(b.address), birthDate: birthDate.value });
 }

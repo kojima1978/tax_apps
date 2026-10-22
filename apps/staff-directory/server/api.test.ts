@@ -281,3 +281,42 @@ describe('他アプリとの対応', () => {
     expect((await call('GET', '/links')).status).toBe(400);
   });
 });
+
+describe('社員の個人情報', () => {
+  const personal = { postalCode: '〒１２３４５６７', address: '架空県架空市一丁目1-1', birthDate: '1980-02-29' };
+
+  it('/personal だけで読み書きでき、郵便番号は 123-4567 の形で保存する', async () => {
+    await call('POST', '/staff', staff('山田'));
+    expect((await call('GET', '/staff/1/personal')).body).toEqual({ id: 1, postalCode: '', address: '', birthDate: null });
+    const put = await call('PUT', '/staff/1/personal', personal);
+    expect(put.status).toBe(200);
+    expect(put.body).toEqual({ id: 1, postalCode: '123-4567', address: '架空県架空市一丁目1-1', birthDate: '1980-02-29' });
+    expect((await call('GET', '/staff/1/personal')).body).toEqual(put.body);
+  });
+
+  it('一覧・詳細（他アプリが読む形）には出ない', async () => {
+    await call('POST', '/staff', staff('山田'));
+    await call('PUT', '/staff/1/personal', personal);
+    const keys = ['postalCode', 'address', 'birthDate', 'postal_code', 'birth_date'];
+    for (const s of [(await call('GET', '/staff?status=all')).body[0], (await call('GET', '/staff/1')).body]) {
+      for (const k of keys) expect(s).not.toHaveProperty(k);
+    }
+  });
+
+  it('社員の更新（PUT /staff/:id）では消えない', async () => {
+    await call('POST', '/staff', staff('山田'));
+    await call('PUT', '/staff/1/personal', personal);
+    await call('PUT', '/staff/1', staff('山田', { givenName: '一郎' }));
+    expect((await call('GET', '/staff/1/personal')).body.address).toBe('架空県架空市一丁目1-1');
+  });
+
+  it('存在しない生年月日・郵便番号の形違いは 400、無い社員は 404', async () => {
+    await call('POST', '/staff', staff('山田'));
+    expect((await call('PUT', '/staff/1/personal', { birthDate: '1981-02-29' })).status).toBe(400);
+    expect((await call('PUT', '/staff/1/personal', { birthDate: '1980/01/01' })).status).toBe(400);
+    expect((await call('PUT', '/staff/1/personal', { postalCode: '12-345' })).status).toBe(400);
+    expect((await call('GET', '/staff/99/personal')).status).toBe(404);
+    expect((await call('PUT', '/staff/99/personal', personal)).status).toBe(404);
+    expect((await call('GET', '/staff/x/personal')).status).toBe(404);
+  });
+});

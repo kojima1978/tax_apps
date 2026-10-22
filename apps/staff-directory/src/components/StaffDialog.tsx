@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { ErrorBanner, Field, Modal, btn, inputClass } from './ui';
-import type { AffiliationForm, Company, Department, Staff, StaffForm } from '../types';
+import type { AffiliationForm, Company, Department, Staff, StaffForm, StaffPersonalForm } from '../types';
 
 type Props = {
   staff: Staff | null; // null = 新規
@@ -38,6 +38,8 @@ function toForm(s: Staff | null, companies: Company[]): StaffForm {
   };
 }
 
+const EMPTY_PERSONAL: StaffPersonalForm = { postalCode: '', address: '', birthDate: '' };
+
 const NAME_FIELDS = [
   { key: 'familyName', label: '姓', required: true },
   { key: 'givenName', label: '名' },
@@ -51,6 +53,26 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
   const [form, setForm] = useState<StaffForm>(() => toForm(staff, companies));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // 住所・生年月日は伏せておき、「表示」を押したときに初めて取りに行く（null = まだ読んでいない）。
+  // 新規はまだ何も無いので最初から空の入力欄を出す
+  const [personal, setPersonal] = useState<StaffPersonalForm | null>(staff ? null : EMPTY_PERSONAL);
+  const [revealing, setRevealing] = useState(false);
+
+  async function reveal() {
+    if (!staff) return;
+    setRevealing(true);
+    try {
+      const p = await api.getStaffPersonal(staff.id);
+      setPersonal({ postalCode: p.postalCode, address: p.address, birthDate: p.birthDate ?? '' });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setRevealing(false);
+    }
+  }
+
+  const setPersonalField = (key: keyof StaffPersonalForm) => (e: { target: { value: string } }) =>
+    setPersonal((p) => (p ? { ...p, [key]: e.target.value } : p));
 
   const set = (key: Exclude<keyof StaffForm, 'affiliations'>) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -80,8 +102,11 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
     e.preventDefault();
     setSaving(true);
     try {
-      if (staff) await api.updateStaff(staff.id, form);
-      else await api.createStaff(form);
+      const saved = staff ? await api.updateStaff(staff.id, form) : await api.createStaff(form);
+      // 伏せたまま（読んでいない）なら送らない ── 空で上書きしてしまうため
+      if (personal && (staff || Object.values(personal).some((v) => v !== ''))) {
+        await api.updateStaffPersonal(saved.id, personal);
+      }
       onSaved();
     } catch (err) {
       setError((err as Error).message);
@@ -206,6 +231,42 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
             <input type="date" className={inputClass} value={form.retiredOn} onChange={set('retiredOn')} />
           </Field>
         </div>
+
+        <fieldset className="space-y-2">
+          <legend className="mb-1 text-sm font-medium text-slate-700">個人情報</legend>
+          {personal ? (
+            <div className="grid grid-cols-[8rem_1fr_10rem] gap-4">
+              <Field label="郵便番号">
+                <input
+                  className={inputClass}
+                  value={personal.postalCode}
+                  onChange={setPersonalField('postalCode')}
+                  inputMode="numeric"
+                  placeholder="123-4567"
+                />
+              </Field>
+              <Field label="住所">
+                <input className={inputClass} value={personal.address} onChange={setPersonalField('address')} />
+              </Field>
+              <Field label="生年月日">
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={personal.birthDate}
+                  onChange={setPersonalField('birthDate')}
+                />
+              </Field>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-sm tracking-widest text-slate-400">〒●●●-●●●● ●●●●●● ●●●●/●●/●●</span>
+              <button type="button" className={btn.secondary} onClick={reveal} disabled={revealing}>
+                表示
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-slate-500">郵便番号・住所・生年月日は台帳の中だけに置き、他アプリへは渡しません</p>
+        </fieldset>
 
         <ErrorBanner message={error} />
 

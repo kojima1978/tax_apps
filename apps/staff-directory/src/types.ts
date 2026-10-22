@@ -80,3 +80,12 @@ export type StaffForm = {
   retiredOn: string;
   affiliations: AffiliationForm[];
 };
+
+// 住所・生年月日。一覧（Staff）には入らず、/staff/:id/personal でだけ読み書きする
+export type StaffPersonal = {
+  postalCode: string;
+  address: string;
+  birthDate: string | null;
+};
+
+export type StaffPersonalForm = { postalCode: string; address: string; birthDate: string };

@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import type { AffiliationInput, CompanyInput, DepartmentInput, StaffInput } from './normalize.js';
+import type { AffiliationInput, CompanyInput, DepartmentInput, StaffInput, StaffPersonalInput } from './normalize.js';
 
 // API の応答の形。各アプリが読むのはこの形なので、列名を変えるときはここだけで吸収する。
 
@@ -256,6 +256,31 @@ export function updateStaff(db: Database.Database, id: number, input: StaffInput
     return true;
   })();
   return found ? getStaff(db, id) : null;
+}
+
+// ---- 社員の個人情報 ----
+// 住所・生年月日は一覧・詳細（＝他アプリへ配る形）に混ぜない。読むのは台帳の編集画面だけで、
+// ログインを足すときはこの口だけを絞ればよいように分けてある
+
+export type StaffPersonal = StaffPersonalInput & { id: number };
+
+type StaffPersonalRow = { id: number; postal_code: string; address: string; birth_date: string | null };
+
+export function getStaffPersonal(db: Database.Database, id: number): StaffPersonal | null {
+  const r = db.prepare('SELECT id, postal_code, address, birth_date FROM staff WHERE id = ?').get(id) as
+    | StaffPersonalRow
+    | undefined;
+  return r ? { id: r.id, postalCode: r.postal_code, address: r.address, birthDate: r.birth_date } : null;
+}
+
+export function updateStaffPersonal(db: Database.Database, id: number, input: StaffPersonalInput): StaffPersonal | null {
+  const info = db
+    .prepare(
+      `UPDATE staff SET postal_code = ?, address = ?, birth_date = ?, updated_at = datetime('now')
+       WHERE id = ?`,
+    )
+    .run(input.postalCode, input.address, input.birthDate, id);
+  return info.changes === 0 ? null : getStaffPersonal(db, id);
 }
 
 // ---- 会社 ----

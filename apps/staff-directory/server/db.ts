@@ -47,8 +47,9 @@ export function checkDbHealth(): string | null {
 }
 
 // スキーマの版。PRAGMA user_version に記録し、古い版の DB は開いたときに1回だけ作り替える。
-// 版を上げるときは MIGRATIONS に1つ足す（作り替えは必ずトランザクションの中で、途中で落ちたら元のまま）。
-export const SCHEMA_VERSION = 1;
+// 版を上げるときは initSchema に `if (version < N)` を1つ足す（作り替えは必ずトランザクションの中で、途中で落ちたら元のまま）。
+// SCHEMA_V1 は版1の形のまま凍結しておき、新しい DB も版1を作ってから順に上げる（移行の経路を1本にするため）。
+export const SCHEMA_VERSION = 2;
 
 // staff.id が「台帳ID」。各アプリはこの番号で人を参照するので、振り直さない・消さない
 // （退職は retired_on を入れるだけ）。
@@ -65,7 +66,7 @@ export const SCHEMA_VERSION = 1;
 // external_links は「他アプリの何番が台帳の何番か」の対応表。取込を何度流しても
 // 同じ人を二重に作らないためのもので、段階3以降の同期や private-banking の紐付けも
 // ここへ app 名を変えて載せる。
-const SCHEMA_V1 = `
+export const SCHEMA_V1 = `
   CREATE TABLE companies (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     name        TEXT NOT NULL UNIQUE,
@@ -177,6 +178,16 @@ function migrateV0ToV1(d: Database.Database): void {
   d.exec('DROP TABLE staff_v0; DROP TABLE departments_v0; DROP TABLE office;');
 }
 
+// 版1 → 2: 社員の住所・生年月日。個人情報なので一覧・詳細の API には出さず、
+// /staff/:id/personal だけが読み書きする（repo.ts）。既存の行は空欄のまま
+function migrateV1ToV2(d: Database.Database): void {
+  d.exec(`
+    ALTER TABLE staff ADD COLUMN postal_code TEXT NOT NULL DEFAULT '';
+    ALTER TABLE staff ADD COLUMN address     TEXT NOT NULL DEFAULT '';
+    ALTER TABLE staff ADD COLUMN birth_date  TEXT;
+  `);
+}
+
 function tableExists(d: Database.Database, name: string): boolean {
   return d.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(name) !== undefined;
 }
@@ -190,12 +201,15 @@ function initSchema(d: Database.Database): void {
   d.pragma('foreign_keys = OFF');
   try {
     d.transaction(() => {
-      if (tableExists(d, 'staff')) {
-        migrateV0ToV1(d);
-      } else {
-        d.exec(SCHEMA_V1);
-        d.prepare('INSERT INTO companies (name) VALUES (?)').run(PLACEHOLDER_COMPANY_NAME);
+      if (version < 1) {
+        if (tableExists(d, 'staff')) {
+          migrateV0ToV1(d);
+        } else {
+          d.exec(SCHEMA_V1);
+          d.prepare('INSERT INTO companies (name) VALUES (?)').run(PLACEHOLDER_COMPANY_NAME);
+        }
       }
+      if (version < 2) migrateV1ToV2(d);
       const broken = d.pragma('foreign_key_check') as unknown[];
       if (broken.length > 0) throw new Error(`スキーマの移行後に外部キーの不整合が ${broken.length} 件あります`);
       d.pragma(`user_version = ${SCHEMA_VERSION}`);

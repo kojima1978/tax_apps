@@ -1,4 +1,14 @@
-import type { Company, CompanyForm, Department, DepartmentForm, Staff, StaffForm, StaffStatus } from './types';
+import type {
+  Company,
+  CompanyForm,
+  Department,
+  DepartmentForm,
+  Staff,
+  StaffForm,
+  StaffPersonal,
+  StaffPersonalForm,
+  StaffStatus,
+} from './types';
 
 const BASE = '/staff-directory/api';
 
@@ -33,6 +43,8 @@ export const api = {
   listStaff: (status: StaffStatus) => request<Staff[]>(`/staff?status=${status}`),
   createStaff: (form: StaffForm) => send<Staff>('POST', '/staff', toStaffBody(form)),
   updateStaff: (id: number, form: StaffForm) => send<Staff>('PUT', `/staff/${id}`, toStaffBody(form)),
+  getStaffPersonal: (id: number) => request<StaffPersonal>(`/staff/${id}/personal`),
+  updateStaffPersonal: (id: number, p: StaffPersonalForm) => send<StaffPersonal>('PUT', `/staff/${id}/personal`, p),
   listDepartments: () => request<Department[]>('/departments'),
   createDepartment: (d: DepartmentForm) => send('POST', '/departments', d),
   updateDepartment: (id: number, d: DepartmentForm) => send('PUT', `/departments/${id}`, d),

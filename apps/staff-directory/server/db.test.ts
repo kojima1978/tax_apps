@@ -3,8 +3,8 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { openDb, PLACEHOLDER_COMPANY_NAME, SCHEMA_VERSION } from './db.js';
-import { listCompanies, listDepartments, listStaff } from './repo.js';
+import { openDb, PLACEHOLDER_COMPANY_NAME, SCHEMA_V1, SCHEMA_VERSION } from './db.js';
+import { getStaff, getStaffPersonal, listCompanies, listDepartments, listStaff } from './repo.js';
 
 // 名前はすべて架空（リポジトリは公開）
 
@@ -128,5 +128,36 @@ describe('版0からの移行', () => {
     expect(listStaff(again, 'all')).toHaveLength(1);
     expect(listCompanies(again)).toHaveLength(1);
     again.close();
+  });
+});
+
+describe('版1からの移行（住所・生年月日）', () => {
+  it('社員はそのまま残り、住所・生年月日は空で足される', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'staff-v1-'));
+    dirs.push(dir);
+    const file = path.join(dir, 'staff.sqlite');
+    const v1 = new Database(file);
+    v1.exec(SCHEMA_V1);
+    v1.prepare(`INSERT INTO companies (name) VALUES ('架空商事')`).run();
+    v1.prepare(
+      `INSERT INTO staff (family_name, given_name, family_kana, mobile_phone, retired_on)
+       VALUES ('山田', '太郎', 'ヤマダ', '090-0000-0000', NULL), ('佐藤', '', '', '', '2026-03-31')`,
+    ).run();
+    v1.prepare(`INSERT INTO staff_affiliations (staff_id, company_id, employee_no, is_primary) VALUES (1, 1, 'A001', 1)`).run();
+    v1.pragma('user_version = 1');
+    v1.close();
+
+    const db = openDb(file);
+    expect(db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION);
+    expect(getStaff(db, 1)).toMatchObject({
+      fullName: '山田 太郎',
+      familyKana: 'ヤマダ',
+      mobilePhone: '090-0000-0000',
+      employeeNo: 'A001',
+      companyName: '架空商事',
+    });
+    expect(getStaff(db, 2)?.retiredOn).toBe('2026-03-31');
+    expect(getStaffPersonal(db, 1)).toEqual({ id: 1, postalCode: '', address: '', birthDate: null });
+    db.close();
   });
 });

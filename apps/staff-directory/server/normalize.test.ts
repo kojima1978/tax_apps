@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeDate, normalizeKana, normalizePhone, parseCompanyInput, parseStaffInput } from './normalize.js';
+import { normalizeDate, normalizeKana, normalizePhone, parseCompanyInput, parseStaffInput, parseStaffPersonalInput } from './normalize.js';
 
 // 名前はすべて架空（リポジトリは公開）
 
@@ -102,5 +102,20 @@ describe('parseCompanyInput', () => {
   it('会社名が無い・郵便番号の形が違えば弾く', () => {
     expect(parseCompanyInput({ name: '' })).toEqual({ ok: false, error: '会社名を入力してください' });
     expect(parseCompanyInput({ name: '架空商事', postalCode: '12-345' }).ok).toBe(false);
+  });
+});
+
+describe('parseStaffPersonalInput', () => {
+  it('空は未入力として通る', () => {
+    expect(parseStaffPersonalInput({})).toEqual({ ok: true, value: { postalCode: '', address: '', birthDate: null } });
+  });
+
+  it('郵便番号は会社と同じ形に揃え、住所は前後の空白を落とす', () => {
+    const r = parseStaffPersonalInput({ postalCode: '１２３－４５６７', address: '  架空県架空市1-1 ', birthDate: '1990-01-15' });
+    expect(r).toEqual({ ok: true, value: { postalCode: '123-4567', address: '架空県架空市1-1', birthDate: '1990-01-15' } });
+  });
+
+  it('存在しない生年月日は弾く', () => {
+    expect(parseStaffPersonalInput({ birthDate: '1990-02-30' })).toEqual({ ok: false, error: '生年月日が存在しない日付です' });
   });
 });

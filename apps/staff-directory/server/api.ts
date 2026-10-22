@@ -1,6 +1,12 @@
 import { Router, type Response } from 'express';
 import type Database from 'better-sqlite3';
-import { parseCompanyInput, parseDepartmentInput, parseStaffInput, type Result } from './normalize.js';
+import {
+  parseCompanyInput,
+  parseDepartmentInput,
+  parseStaffInput,
+  parseStaffPersonalInput,
+  type Result,
+} from './normalize.js';
 import {
   ConflictError,
   createCompany,
@@ -9,6 +15,7 @@ import {
   deleteCompany,
   deleteDepartment,
   getStaff,
+  getStaffPersonal,
   listCompanies,
   listDepartments,
   listLinks,
@@ -16,6 +23,7 @@ import {
   updateCompany,
   updateDepartment,
   updateStaff,
+  updateStaffPersonal,
   type StaffStatus,
 } from './repo.js';
 
@@ -85,6 +93,18 @@ export function createApiRouter(db: Database.Database): Router {
       return;
     }
     respond(res, parseStaffInput(req.body), (input) => updateStaff(db, id, input));
+  });
+
+  // 住所・生年月日。/staff と /staff/:id には混ぜない（そちらは他アプリが読む）。
+  // 読むのは台帳の編集画面で「表示」を押したときだけ
+  r.get('/staff/:id/personal', (req, res) => {
+    const id = parseId(req.params.id);
+    respond(res, { ok: true, value: id }, (value) => (value === null ? null : getStaffPersonal(db, value)));
+  });
+
+  r.put('/staff/:id/personal', (req, res) => {
+    const id = parseId(req.params.id);
+    respond(res, parseStaffPersonalInput(req.body), (input) => (id === null ? null : updateStaffPersonal(db, id, input)));
   });
 
   r.get('/departments', (_req, res) => {
