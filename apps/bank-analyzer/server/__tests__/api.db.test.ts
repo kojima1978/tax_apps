@@ -27,6 +27,12 @@ describe('案件', () => {
     expect(created.json.case).toEqual({ id: 1, name: '架空 花子' });
     expect((await call('POST', '', { name: '架空 花子' })).json.error).toBe('この案件名はすでに使われています。');
     expect((await call('POST', '', { name: ' ' })).status).toBe(400);
+    expect((await call('POST', '', { name: '架空 三郎', assignee: { staffId: 0, name: '架空' } })).status).toBe(400);
+    expect((await call('POST', '', { name: '架空 三郎', assignee: 'x' })).status).toBe(400);
+    const withAssignee = await call('POST', '', { name: '架空 三郎', assignee: { staffId: 4, name: ' 架空 担当 ' } });
+    expect(withAssignee.status).toBe(200);
+    expect((await call('GET', `/${withAssignee.json.case.id}`)).json.case.assignee).toEqual({ staffId: 4, name: '架空 担当' });
+    await call('DELETE', `/${withAssignee.json.case.id}`);
 
     await seedCase(db(), '架空 次郎', [{ category: '未分類' }, { category: '給与', accountNumber: '7654321' }]);
     const list = await call('GET', '');

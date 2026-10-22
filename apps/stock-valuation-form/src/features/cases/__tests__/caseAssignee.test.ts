@@ -28,6 +28,11 @@ describe('filterGroupsByAssignee', () => {
     expect(filterGroupsByAssignee(groups, 'mine', null)).toEqual([]);
   });
 
+  it('特定の人はその人がどれかの年分の担当なら残す', () => {
+    expect(keys(filterGroupsByAssignee(groups, 'staff:2', null))).toEqual(['a', 'c']);
+    expect(filterGroupsByAssignee(groups, 'staff:9', 1)).toEqual([]);
+  });
+
   it('担当者なしはどの年分にも担当が居ない会社だけ', () => {
     expect(keys(filterGroupsByAssignee(groups, 'none', 1))).toEqual(['b']);
     expect(filterGroupsByAssignee(groups, 'all', null)).toBe(groups);

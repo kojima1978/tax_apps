@@ -886,18 +886,32 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #6b7280;
-  font-size: 11px;
-}
-
-.case-row-assignee select {
   height: 24px;
-  max-width: 9em;
+  max-width: 12em;
+  padding: 0 6px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   background: #fff;
+  color: #6b7280;
   font-family: inherit;
   font-size: 11px;
+  cursor: pointer;
+}
+
+.case-row-assignee:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.case-row-assignee span {
+  overflow: hidden;
+  color: #1f2937;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.case-row-assignee span.is-empty {
+  color: #9ca3af;
 }
 
 .case-error {

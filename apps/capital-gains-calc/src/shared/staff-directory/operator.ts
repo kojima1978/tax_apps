@@ -7,6 +7,8 @@ import { useSyncExternalStore } from 'react';
 export type Operator = {
   id: number | null;
   fullName: string;
+  /** 台帳の読み（空のこともある）。担当者を探すときの手がかりと並び順にだけ使う */
+  kana: string;
   companyName: string;
   departmentName: string;
 };
@@ -14,6 +16,7 @@ export type Operator = {
 export const FALLBACK_OPERATOR: Operator = {
   id: null,
   fullName: 'ローカル利用者',
+  kana: '',
   companyName: '',
   departmentName: '',
 };
@@ -35,6 +38,7 @@ export function parseDirectoryOperators(body: unknown): Operator[] | null {
     return [{
       id: value.id,
       fullName: value.fullName.trim(),
+      kana: text(value.nameKana).trim(),
       companyName: text(value.companyName),
       departmentName: text(value.departmentName),
     }];
@@ -89,6 +93,11 @@ async function load() {
     // 台帳が停止していても画面の操作自体は止めない。
   }
   update(operators ? { operators, status: 'ok' } : { status: 'fallback' });
+}
+
+/** 台帳を引き直す（台帳で人を足して戻ってきたとき、選択肢に出すため） */
+export function reloadOperators() {
+  if (started) void load();
 }
 
 function subscribe(listener: () => void) {

@@ -3,6 +3,7 @@
 // 担当は年分（案件）ごとに持つ。会社一覧では「その会社のどれかの年分の担当」を担当とみなす
 // ── 翌年度更新で担当が替わっても、前の年分の担当者からも探せるように。
 
+import { type AssigneeFilter, assigneeMatches } from '@/shared/staff-directory/assignee';
 import type { CaseAssignee } from './api';
 
 /** 台帳の人。shared/staff-directory/operator の Operator のうち、ここで使う分だけ。 */
@@ -20,17 +21,10 @@ export function assigneeLabel(assignee: CaseAssignee | null, people: readonly Di
   return people.find((p) => p.id === assignee.staffId)?.fullName ?? assignee.name;
 }
 
-/** 'all' = 絞らない / 'mine' = 操作者の担当 / 'none' = 担当者なし */
-export type AssigneeFilter = 'all' | 'mine' | 'none';
-
-export const ASSIGNEE_FILTERS: readonly AssigneeFilter[] = ['all', 'mine', 'none'];
-
-export function isAssigneeFilter(value: unknown): value is AssigneeFilter {
-  return ASSIGNEE_FILTERS.includes(value as AssigneeFilter);
-}
-
 /**
- * 会社の塊を担当者で絞る。'mine' で操作者を選んでいない（myId が null）ときは何も残さない
+ * 会社の塊を担当者で絞る（絞り込みの種類と1件の当たり外れは全アプリ共通の assignee.ts）。
+ * 'none' はどの年分にも担当が居ない会社、それ以外はどれかの年分が当たれば残す。
+ * 'mine' で操作者を選んでいない（myId が null）ときは何も残さない
  * ── 「すべて」を見せると、自分の担当だけに絞れているように見えてしまう。
  */
 export function filterGroupsByAssignee<G extends { items: readonly { assignee: CaseAssignee | null }[] }>(
@@ -40,6 +34,5 @@ export function filterGroupsByAssignee<G extends { items: readonly { assignee: C
 ): readonly G[] {
   if (filter === 'all') return groups;
   if (filter === 'none') return groups.filter((g) => g.items.every((item) => item.assignee === null));
-  if (myId === null) return [];
-  return groups.filter((g) => g.items.some((item) => item.assignee?.staffId === myId));
+  return groups.filter((g) => g.items.some((item) => assigneeMatches(item.assignee, filter, myId)));
 }

@@ -9,7 +9,8 @@ import { useEffect, useState } from 'react';
 import { useOperator, type Operator } from '@/shared/staff-directory/operator';
 import { ArchivedToggle } from './ArchivedToggle';
 import type { CaseSummary } from './api';
-import { type AssigneeFilter, assigneeLabel, filterGroupsByAssignee, isAssigneeFilter } from './caseAssignee';
+import { type AssigneeFilter, assigneeFilterPeople, parseAssigneeFilter, staffFilter } from '@/shared/staff-directory/assignee';
+import { assigneeLabel, filterGroupsByAssignee } from './caseAssignee';
 import { filterCasesByCompany } from './caseFilter';
 import { groupCasesByCompany, type CaseGroup } from './caseGroups';
 import { caseDisplayName, formatSavedAt } from './caseLabels';
@@ -24,8 +25,7 @@ const ASSIGNEE_FILTER_KEY = 'stock-valuation-form:case-assignee-filter';
 
 function readAssigneeFilter(): AssigneeFilter {
   try {
-    const stored = localStorage.getItem(ASSIGNEE_FILTER_KEY);
-    return isAssigneeFilter(stored) ? stored : 'all';
+    return parseAssigneeFilter(localStorage.getItem(ASSIGNEE_FILTER_KEY));
   } catch {
     return 'all';
   }
@@ -64,8 +64,12 @@ export function CompanyListPanel({ store, onOpenCompany, onEnterForm }: CompanyL
     setAssigneeFilterState(next);
     try { localStorage.setItem(ASSIGNEE_FILTER_KEY, next); } catch { /* 控えられなくても絞り込みは効く */ }
   };
+  // 「担当者別」に出すのは実際にどこかの年分の担当になっている人だけ（選んで0件になる人を並べない）
+  const filterPeople = assigneeFilterPeople(store.cases.map((c) => c.assignee), operators);
   // 台帳が引けない間は絞らない。「自分の担当」が誰か決まらず、黙って0件に見えてしまう。
-  const activeFilter: AssigneeFilter = directory === 'ok' ? assigneeFilter : 'all';
+  // 担当の年分が無くなった人を選んだままのときも「すべて」へ戻す
+  const staleStaff = assigneeFilter.startsWith('staff:') && !filterPeople.some((p) => staffFilter(p.staffId) === assigneeFilter);
+  const activeFilter: AssigneeFilter = directory === 'ok' && !staleStaff ? assigneeFilter : 'all';
 
   // 開いた時点で取り直す（別のタブで増減していることがある）。ゴミ箱の切替で取り直すのは
   // ストア側（setIncludeArchived）。
@@ -143,12 +147,19 @@ export function CompanyListPanel({ store, onOpenCompany, onEnterForm }: CompanyL
             <select
               id="case-filter-assignee"
               name="case.filterAssignee"
-              value={assigneeFilter}
-              onChange={(e) => setAssigneeFilter(e.target.value as AssigneeFilter)}
+              value={activeFilter}
+              onChange={(e) => setAssigneeFilter(parseAssigneeFilter(e.target.value))}
             >
               <option value="all">すべて</option>
               <option value="mine">自分の担当{me ? `（${me.fullName}）` : ''}</option>
               <option value="none">担当者なし</option>
+              {filterPeople.length > 0 && (
+                <optgroup label="担当者別">
+                  {filterPeople.map((p) => (
+                    <option key={p.staffId} value={staffFilter(p.staffId)}>{p.name}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </label>
         )}
@@ -172,7 +183,11 @@ export function CompanyListPanel({ store, onOpenCompany, onEnterForm }: CompanyL
         </p>
       ) : groups.length === 0 ? (
         <p className="case-empty">
-          {activeFilter === 'none' ? '担当者なしの会社はありません。' : '担当している会社はありません。'}
+          {activeFilter === 'none'
+            ? '担当者なしの会社はありません。'
+            : activeFilter === 'mine'
+              ? '担当している会社はありません。'
+              : 'この担当者の会社は、会社名の絞り込みに当たりません。'}
           年分の一覧で、年分ごとに担当者を選べます。
         </p>
       ) : (

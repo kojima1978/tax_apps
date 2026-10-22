@@ -11,8 +11,10 @@ import { useNotice } from '../components/Notice';
 import { useApiData } from '../hooks/useApiData';
 import { api, errorMessage } from '../lib/api';
 import { num, warekiFromDateTime } from '../lib/format';
-import type { CaseSummary } from '../types';
+import type { CaseAssignee, CaseSummary } from '../types';
 import { CaseAssigneeDialog } from './CaseAssigneeDialog';
+import { AssigneePicker } from '@/shared/staff-directory/AssigneePicker';
+import { type AssigneeFilter, assigneeFilterPeople, assigneeMatches, parseAssigneeFilter, staffFilter } from '@/shared/staff-directory/assignee';
 import { useOperator } from '@/shared/staff-directory/operator';
 
 const SORTS = [
@@ -24,22 +26,14 @@ const SORTS = [
 type SortValue = (typeof SORTS)[number]['value'];
 
 // 担当者での絞り込み。「自分の担当」はヘッダーで選んだ操作者（全アプリ共通）の台帳ID で見る
-type AssigneeFilter = 'all' | 'mine' | 'none';
 const ASSIGNEE_FILTER_KEY = 'bank-analyzer:case-assignee-filter';
 
 function readAssigneeFilter(): AssigneeFilter {
   try {
-    const v = window.localStorage.getItem(ASSIGNEE_FILTER_KEY);
-    return v === 'mine' || v === 'none' ? v : 'all';
+    return parseAssigneeFilter(window.localStorage.getItem(ASSIGNEE_FILTER_KEY));
   } catch {
     return 'all';
   }
-}
-
-function matchesAssignee(c: CaseSummary, filter: AssigneeFilter, myId: number | null) {
-  if (filter === 'none') return c.assignee === null;
-  if (filter === 'mine') return myId !== null && c.assignee?.staffId === myId;
-  return true;
 }
 
 function CaseStatus({ c }: { c: CaseSummary }) {
@@ -69,7 +63,11 @@ function CaseStatus({ c }: { c: CaseSummary }) {
 function CaseNameDialog({ target, onClose, onSaved }: { target: CaseSummary | 'new' | null; onClose: () => void; onSaved: (id: number, created: boolean) => void }) {
   const notice = useNotice();
   const isNew = target === 'new';
+  const { selected: me } = useOperator();
   const [name, setName] = useState('');
+  // 作成時の担当者。'me' は「右上の操作者」（台帳の読み込みが後から終わっても追いつくよう、開いた時点で写さない）
+  const [chosen, setChosen] = useState<CaseAssignee | null | 'me'>('me');
+  const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openedFor, setOpenedFor] = useState<typeof target>(null);
@@ -77,15 +75,17 @@ function CaseNameDialog({ target, onClose, onSaved }: { target: CaseSummary | 'n
   if (target !== openedFor) {
     setOpenedFor(target);
     setName(target && target !== 'new' ? target.name : '');
+    setChosen('me');
     setError(null);
   }
+  const assignee = chosen === 'me' ? (me?.id ? { staffId: me.id, name: me.fullName } : null) : chosen;
 
   const submit = async () => {
     setBusy(true);
     setError(null);
     try {
       if (isNew) {
-        const res = await api.post<{ case: { id: number }; message: string }>('/cases', { name });
+        const res = await api.post<{ case: { id: number }; message: string }>('/cases', { name, assignee });
         notice.success(res.message);
         onSaved(res.case.id, true);
       } else if (target) {
@@ -128,8 +128,35 @@ function CaseNameDialog({ target, onClose, onSaved }: { target: CaseSummary | 'n
           案件名
         </label>
         <input id="case-name" className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} required />
+        {isNew && (
+          <div className="mt-4">
+            <span className="label">担当者</span>
+            <div className="flex items-center justify-between gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
+              <span>
+                {assignee ? assignee.name : <span className="text-slate-400">担当者なし</span>}
+                {chosen === 'me' && assignee && <span className="ml-2 text-xs text-slate-500">（自分）</span>}
+              </span>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPicking(true)}>
+                変更
+              </button>
+            </div>
+            {chosen === 'me' && !me && <p className="mt-1 text-xs text-slate-500">画面右上で操作者を選ぶと、自分が担当者として入ります。</p>}
+          </div>
+        )}
         {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
       </form>
+      {isNew && (
+        <AssigneePicker
+          open={picking}
+          onClose={() => setPicking(false)}
+          current={assignee}
+          onPick={(a) => {
+            setChosen(a);
+            setPicking(false);
+          }}
+          subject="新しく作る案件の担当者"
+        />
+      )}
     </Dialog>
   );
 }
@@ -162,15 +189,20 @@ export function CaseListPage() {
   const creating = params.get('new') === '1';
   const closeCreate = () => setParams({}, { replace: true });
 
+  // 「担当者別」に出すのは実際に担当になっている人だけ。担当の案件が無くなった人を選んだままなら「すべて」へ戻す
+  const filterPeople = useMemo(() => assigneeFilterPeople((cases ?? []).map((c) => c.assignee), operators), [cases, operators]);
+  const activeFilter: AssigneeFilter =
+    assigneeFilter.startsWith('staff:') && cases && !filterPeople.some((p) => staffFilter(p.staffId) === assigneeFilter) ? 'all' : assigneeFilter;
+
   const visible = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('ja');
     const compare = SORTS.find((s) => s.value === sort)!.compare;
     const myId = me?.id ?? null;
     return (cases ?? [])
-      .filter((c) => c.name.toLocaleLowerCase('ja').includes(q) && matchesAssignee(c, assigneeFilter, myId))
+      .filter((c) => c.name.toLocaleLowerCase('ja').includes(q) && assigneeMatches(c.assignee, activeFilter, myId))
       .sort(compare);
-  }, [cases, query, sort, assigneeFilter, me]);
-  const filtered = query.trim() !== '' || assigneeFilter !== 'all';
+  }, [cases, query, sort, activeFilter, me]);
+  const filtered = query.trim() !== '' || activeFilter !== 'all';
 
   const remove = async () => {
     if (!deleting) return;
@@ -248,15 +280,24 @@ export function CaseListPage() {
               <select
                 className="input w-auto"
                 aria-label="担当者で絞り込み"
-                value={assigneeFilter}
-                onChange={(e) => setAssigneeFilter(e.target.value as AssigneeFilter)}
+                value={activeFilter}
+                onChange={(e) => setAssigneeFilter(parseAssigneeFilter(e.target.value))}
               >
                 <option value="all">担当者: すべて</option>
                 <option value="mine">{me ? `自分の担当（${me.fullName}）` : '自分の担当（操作者が未選択）'}</option>
                 <option value="none">担当者なし</option>
+                {filterPeople.length > 0 && (
+                  <optgroup label="担当者別">
+                    {filterPeople.map((p) => (
+                      <option key={p.staffId} value={staffFilter(p.staffId)}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
-            {assigneeFilter === 'mine' && !me && (
+            {activeFilter === 'mine' && !me && (
               <p className="mb-2 text-xs text-amber-800">画面右上で操作者を選ぶと、その人が担当の案件だけを表示します。</p>
             )}
             <p className="mb-3 text-xs text-slate-500" role="status">
@@ -296,7 +337,15 @@ export function CaseListPage() {
                           <CaseStatus c={c} />
                         </td>
                         <td className="hidden sm:table-cell">
-                          {c.assignee ? assigneeName(c) : <span className="text-slate-400">未設定</span>}
+                          <button
+                            type="button"
+                            className="-mx-1.5 rounded px-1.5 py-0.5 text-left hover:bg-slate-100 hover:text-blue-800"
+                            title="担当者を変更"
+                            aria-label={`${c.name}の担当者を変更（いま：${c.assignee ? assigneeName(c) : '未設定'}）`}
+                            onClick={() => setAssigning(c)}
+                          >
+                            {c.assignee ? assigneeName(c) : <span className="text-slate-400">未設定</span>}
+                          </button>
                         </td>
                         <td className="text-right tabular-nums">
                           {num(c.transactionCount)}

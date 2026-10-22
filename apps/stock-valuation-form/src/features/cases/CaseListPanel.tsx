@@ -7,7 +7,7 @@
 
 import { useOperator } from '@/shared/staff-directory/operator';
 import { ArchivedToggle } from './ArchivedToggle';
-import { AssigneeSelect } from './AssigneeSelect';
+import { AssigneeButton } from './AssigneeButton';
 import type { CaseSummary } from './api';
 import { assigneeLabel } from './caseAssignee';
 import type { CaseGroup } from './caseGroups';
@@ -83,12 +83,12 @@ export function CaseListPanel({ store, group, onOpened, onAddYear }: CaseListPan
         </button>
         <div className="case-row-actions">
           {editable && (
-            <AssigneeSelect
-              caseId={item.id}
+            <AssigneeButton
               assignee={item.assignee}
-              operators={operators}
+              label={assignee}
+              subject={`${group.companyName.trim() || caseDisplayName(item)} ／ 課税時期 ${item.taxPeriod || '未入力'}`}
               disabled={busy}
-              onChange={(next) => void act(() => store.setAssignee(item.id, next))}
+              onChange={async (next) => (await act(() => store.setAssignee(item.id, next))) !== null}
             />
           )}
           {rowActions(item).map((action) => (

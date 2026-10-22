@@ -4,6 +4,7 @@ import { FALLBACK_OPERATOR, findSelectedOperator, operatorRequestHeaders, parseD
 
 const operator = (overrides: Partial<Operator> & { id: number }): Operator => ({
   fullName: '架空 花子',
+  kana: '',
   companyName: '架空税理士法人',
   departmentName: '架空部',
   ...overrides,
@@ -11,8 +12,8 @@ const operator = (overrides: Partial<Operator> & { id: number }): Operator => ({
 
 describe('parseDirectoryOperators', () => {
   it('社員台帳から操作者表示に必要な項目だけ取り出す', () => {
-    expect(parseDirectoryOperators([{ id: 7, fullName: '架空 花子', companyName: '架空税理士法人', departmentName: '架空部' }])).toEqual([
-      { id: 7, fullName: '架空 花子', companyName: '架空税理士法人', departmentName: '架空部' },
+    expect(parseDirectoryOperators([{ id: 7, fullName: '架空 花子', nameKana: 'カクウ ハナコ', companyName: '架空税理士法人', departmentName: '架空部', mobilePhone: '' }])).toEqual([
+      { id: 7, fullName: '架空 花子', kana: 'カクウ ハナコ', companyName: '架空税理士法人', departmentName: '架空部' },
     ]);
   });
 

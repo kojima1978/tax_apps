@@ -11,7 +11,8 @@ export function caseRoutes(r: CaseRouter, db: PrismaClient) {
   r.get('/', async (c) => c.json(await listCases(db)));
 
   r.post('/', async (c) => {
-    const result = await createCase(db, (await readBody(c)).name);
+    const body = await readBody(c);
+    const result = await createCase(db, body.name, body.assignee);
     if (!result.ok) return fail(c, result.error);
     return ok(c, { case: result.value, message: '案件を作成しました。' });
   });

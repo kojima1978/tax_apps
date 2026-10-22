@@ -86,11 +86,21 @@ export function validateCaseName(value: unknown): Parsed<string> {
 const isUniqueViolation = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 
-export async function createCase(db: PrismaClient, rawName: unknown): Promise<Parsed<{ id: number; name: string }>> {
+// 担当者は作成と同時に付けられる（省略・null は担当者なし）。形は PUT /assignee と同じ
+export async function createCase(db: PrismaClient, rawName: unknown, rawAssignee?: unknown): Promise<Parsed<{ id: number; name: string }>> {
   const name = validateCaseName(rawName);
   if (!name.ok) return name;
+  const assignee =
+    rawAssignee === undefined || rawAssignee === null
+      ? ({ ok: true, value: null } as const)
+      : typeof rawAssignee === 'object'
+        ? parseAssignee(rawAssignee as Record<string, unknown>)
+        : ({ ok: false, error: '担当者が正しくありません。' } as const);
+  if (!assignee.ok) return assignee;
   try {
-    const c = await db.case.create({ data: { name: name.value } });
+    const c = await db.case.create({
+      data: { name: name.value, assigneeStaffId: assignee.value?.staffId ?? null, assigneeName: assignee.value?.name ?? '' },
+    });
     return { ok: true, value: { id: toId(c.id), name: c.name } };
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, error: DUPLICATE_NAME_ERROR };
