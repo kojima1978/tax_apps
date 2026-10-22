@@ -96,8 +96,8 @@ export function createApiRouter(db: Database.Database): Router {
     respond(res, parseStaffInput(req.body), (input) => updateStaff(db, id, input));
   });
 
-  // 住所・生年月日。/staff と /staff/:id には混ぜない（そちらは他アプリが読む）。
-  // 読むのは台帳の編集画面で「表示」を押したときだけ
+  // 住所・生年月日。/staff と /staff/:id には混ぜない（一覧や写しの同期で全員分が流れるため）。
+  // 読むのは台帳の編集画面で「表示」を押したときと、他アプリが1人分を必要としたとき
   r.get('/staff/:id/personal', (req, res) => {
     const id = parseId(req.params.id);
     respond(res, { ok: true, value: id }, (value) => (value === null ? null : getStaffPersonal(db, value)));

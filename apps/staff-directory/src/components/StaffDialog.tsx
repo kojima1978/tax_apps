@@ -265,7 +265,7 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
               </button>
             </div>
           )}
-          <p className="text-xs text-slate-500">郵便番号・住所・生年月日は台帳の中だけに置き、他アプリへは渡しません</p>
+          <p className="text-xs text-slate-500">郵便番号・住所・生年月日は一覧には出さず、必要なときだけ読みます（他アプリも1人ずつ読みます）</p>
         </fieldset>
 
         <ErrorBanner message={error} />

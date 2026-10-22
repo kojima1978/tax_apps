@@ -259,7 +259,8 @@ export function updateStaff(db: Database.Database, id: number, input: StaffInput
 }
 
 // ---- 社員の個人情報 ----
-// 住所・生年月日は一覧・詳細（＝他アプリへ配る形）に混ぜない。読むのは台帳の編集画面だけで、
+// 住所・生年月日は一覧・詳細（＝他アプリが写しの同期で丸ごと読む形）に混ぜない。
+// 台帳の編集画面と、他アプリが1人分を必要としたときに /staff/:id/personal から読む。
 // ログインを足すときはこの口だけを絞ればよいように分けてある
 
 export type StaffPersonal = StaffPersonalInput & { id: number };

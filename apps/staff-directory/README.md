@@ -33,11 +33,14 @@
 | GET | `/staff?status=active\|retired\|all` | 社員一覧（既定 active。フリガナ順）。`affiliations`（主所属が先頭）と、主所属の写し `companyId` / `departmentId` / `departmentName` / `employeeNo` |
 | GET / PUT | `/staff/:id` | 1人の取得・更新 |
 | POST | `/staff` | 追加（台帳ID が振られる） |
+| GET / PUT | `/staff/:id/personal` | 1人の郵便番号・住所・生年月日（`postalCode` / `address` / `birthDate`、未入力は空文字）。一覧・`/staff/:id` には出ない。**他アプリが住所・生年月日を使うときはここを1人ずつ読む**（書き込みは台帳の画面だけ） |
 | GET / POST | `/departments` | 部署一覧（会社・在籍者数つき）・追加（`companyId` 必須）。`label` は他の会社に同名の部署があれば「会社略称 部署名」、無ければ部署名 |
 | PUT / DELETE | `/departments/:id` | 部署の更新・削除（所属者がいれば 409） |
 | GET / POST | `/companies` | 会社一覧（部署数・在籍者数つき、表示順）・追加 |
 | PUT / DELETE | `/companies/:id` | 会社の更新・削除（部署か所属が残っていれば 409） |
 | GET | `/links?app=itcm` | 他アプリの番号と台帳ID の対応（`entity` / `externalId` / `localId`） |
+| GET | `/backup` | 台帳まるごとの JSON（住所・生年月日を含む） |
+| POST | `/backup/preview` / `/backup/restore` | JSON の確認（件数だけ返し台帳は変えない）／復元（全件入替、台帳ID はファイルのまま） |
 | GET | `/health` | DB の `SELECT 1` とファイル・フォルダの書込権限（失敗は 503） |
 
 エラーは `{ "error": "日本語の理由" }`（入力不備 400 / 重複・参照不整合 409 / 無い 404）。
@@ -237,7 +240,9 @@ docker/scripts/manage.sh preflight
 - **取る**: `docker/scripts/manage.sh backup`（全体。ふだんはウォッチドッグが自動で回すので叩かなくてよい）
 - **戻す**: `docker/scripts/manage.sh restore staff-directory <バックアップ>`。`--yes` が無ければ一覧だけ出して
   何も変えない。実行は `--yes` を付けて、人の確認の後
-- 画面からの書き出しは無い。**台帳を古い時点へ戻すと、その後に足した社員が消える**ので、写しを持つ
+- **画面からの JSON 書き出し・復元**: ヘッダーの「JSONで書き出し」「JSONから復元」。復元は件数を見せてから
+  確定し、直前に今の中身を「復元前の控え」として書き出す。**JSON には住所・生年月日が入る**ので置き場所に注意
+- **台帳を古い時点へ戻すと、その後に足した社員が消える**ので、写しを持つ
   案件管理・個人資産管理の側に「台帳に無い台帳ID」が残りうる。戻した後はその2アプリの担当者表示を確かめる
 
 ## テスト
