@@ -79,12 +79,12 @@ export function BasicInfoSection({
                     placeholder="担当者を選択"
                     editHref={`/settings/staff?returnTo=${returnToPath}`}
                     editLabel="担当者を追加・編集"
-                    renderOption={(a) => ({ value: a.id, label: a.department?.name ? `${a.department.name} / ${a.name}` : a.name })}
+                    renderOption={(a) => ({ value: a.id, label: a.name, hint: a.department?.name })}
                     groupBy={{
                         key: (a) => a.department?.name || "部門なし",
                         sortOrder: (a) => a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER,
                     }}
-                    onChange={handleChange}
+                    onChange={(value) => setFormData(prev => ({ ...prev, assigneeId: value ? Number(value) : null }))}
                     onEditNavigate={onMasterEditNavigate}
                 />
 

@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react"
 import Link from "next/link"
 import { Label } from "@/components/ui/Label"
-import { SelectField } from "@/components/ui/SelectField"
+import { SearchableSelect } from "@/components/ui/SearchableSelect"
+import { buildSearchableOptionGroups } from "@/lib/searchable-options"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
 import { REFERRER_MODE_OPTIONS } from "@/types/constants"
 
@@ -23,33 +24,30 @@ export function ReferrerToggleSelect({
         : formData.internalReferrerId ? "internal" : "none"
     const [mode, setMode] = useState<ReferrerMode>(initialMode)
 
-    const activeAssignees = useMemo(() => assignees.filter(a => a.active !== false), [assignees])
+    // 退職・廃止は候補から外すが、いま選ばれているものは外さない（選択が黙って消えないため）
+    const internalId = formData.internalReferrerId ?? null
+    const externalId = formData.referrerId ?? null
 
-    const grouped = useMemo(() => {
-        const map = new Map<string, { sortOrder: number; members: Assignee[] }>()
-        for (const a of activeAssignees) {
-            const dept = a.department?.name || "部門なし"
-            const sortOrder = a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER
-            if (!map.has(dept)) map.set(dept, { sortOrder, members: [] })
-            map.get(dept)!.members.push(a)
-        }
-        return [...map.entries()]
-            .sort(([, a], [, b]) => a.sortOrder - b.sortOrder)
-            .map(([dept, { members }]) => [dept, members.sort((a, b) => a.id - b.id)] as const)
-    }, [activeAssignees])
+    const internalGroups = useMemo(() => buildSearchableOptionGroups(
+        assignees.filter(a => a.active !== false || a.id === internalId),
+        {
+            group: (a) => a.department?.name || "部門なし",
+            groupOrder: (a) => a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER,
+            option: (a) => ({ value: String(a.id), label: a.name, hint: a.department?.name }),
+        },
+    ), [assignees, internalId])
 
-    const groupedReferrers = useMemo(() => {
-        const active = referrers.filter(r => r.active !== false)
-        const map = new Map<string, Referrer[]>()
-        for (const r of active) {
-            const companyName = r.company.name
-            if (!map.has(companyName)) map.set(companyName, [])
-            map.get(companyName)!.push(r)
-        }
-        return [...map.entries()]
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([name, members]) => [name, members.sort((a, b) => (a.branch?.name || "").localeCompare(b.branch?.name || ""))] as const)
-    }, [referrers])
+    const externalGroups = useMemo(() => buildSearchableOptionGroups(
+        referrers.filter(r => r.active !== false || r.id === externalId),
+        {
+            group: (r) => r.company.name,
+            // 支店名だけでは閉じているときに会社が分からないので、会社名込みで出す
+            option: (r) => ({
+                value: String(r.id),
+                label: r.branch?.name ? `${r.company.name} / ${r.branch.name}` : r.company.name,
+            }),
+        },
+    ), [referrers, externalId])
 
     const handleModeSwitch = (newMode: ReferrerMode) => {
         if (newMode === mode) return
@@ -81,24 +79,14 @@ export function ReferrerToggleSelect({
 
             {mode === "internal" ? (
                 <>
-                    <SelectField
+                    <SearchableSelect
                         id="internalReferrerId"
-                        name="internalReferrerId"
-                        value={formData.internalReferrerId || ""}
-                        onChange={(e) => {
-                            const val = e.target.value ? Number(e.target.value) : null
-                            setFormData(prev => ({ ...prev, internalReferrerId: val }))
-                        }}
-                    >
-                        <option value="">社内紹介者を選択</option>
-                        {grouped.map(([dept, members]) => (
-                            <optgroup key={dept} label={dept}>
-                                {members.map(a => (
-                                    <option key={a.id} value={a.id}>{a.department?.name ? `${a.department.name} / ${a.name}` : a.name}</option>
-                                ))}
-                            </optgroup>
-                        ))}
-                    </SelectField>
+                        ariaLabel="社内紹介者"
+                        value={internalId == null ? "" : String(internalId)}
+                        groups={internalGroups}
+                        placeholder="社内紹介者を選択"
+                        onChange={(value) => setFormData(prev => ({ ...prev, internalReferrerId: value ? Number(value) : null }))}
+                    />
                     <div className="text-right text-[11px]">
                         <Link href={`/settings/staff?returnTo=${returnToPath}`} onClick={onMasterEditNavigate} className="text-muted-foreground hover:underline hover:text-primary">
                             担当者を追加・編集
@@ -107,24 +95,15 @@ export function ReferrerToggleSelect({
                 </>
             ) : mode === "external" ? (
                 <>
-                    <SelectField
+                    <SearchableSelect
                         id="referrerId"
-                        name="referrerId"
-                        value={formData.referrerId || ""}
-                        onChange={(e) => {
-                            const val = e.target.value ? Number(e.target.value) : null
-                            setFormData(prev => ({ ...prev, referrerId: val }))
-                        }}
-                    >
-                        <option value="">社外紹介者を選択</option>
-                        {groupedReferrers.map(([companyName, members]) => (
-                            <optgroup key={companyName} label={companyName}>
-                                {members.map(r => (
-                                    <option key={r.id} value={r.id}>{r.branch?.name ? `${companyName} / ${r.branch.name}` : companyName}</option>
-                                ))}
-                            </optgroup>
-                        ))}
-                    </SelectField>
+                        ariaLabel="社外紹介者"
+                        value={externalId == null ? "" : String(externalId)}
+                        groups={externalGroups}
+                        placeholder="社外紹介者を選択"
+                        searchPlaceholder="会社名・支店名で検索"
+                        onChange={(value) => setFormData(prev => ({ ...prev, referrerId: value ? Number(value) : null }))}
+                    />
                     <div className="text-right text-[11px]">
                         <Link href={`/settings/referral-sources?returnTo=${returnToPath}`} onClick={onMasterEditNavigate} className="text-muted-foreground hover:underline hover:text-primary">
                             紹介元を追加・編集
