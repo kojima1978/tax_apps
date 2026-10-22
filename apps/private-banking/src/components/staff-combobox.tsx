@@ -30,6 +30,14 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
   const indexById = new Map(filtered.map((row, index) => [row.id, index]));
   const listboxId = `${id}-options`;
   const optionsRef = useRef<HTMLDivElement>(null);
+  /**
+   * 開いたら外側を送って一覧を丸ごと見せる。新規登録の画面は候補がモーダルの中に出るため、
+   * 一覧の下端が枠で切れて1行ぶん（実測50px）読めなかった。モーダル自身がスクロールするので
+   * `block: "nearest"` で足りるぶんだけ送る（既に全部見えていれば何も動かない）。
+   */
+  useEffect(() => {
+    if (open) optionsRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     // カーソルが先頭なら一覧ごと上へ戻す。絞り込み直後は前の位置が残り、「未設定」の行が画面の外へ出てしまう。

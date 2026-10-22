@@ -70,6 +70,20 @@ describe("担当者の検索式選択", () => {
     expect(groups[0].querySelector(".staff-combobox-group-label")?.textContent).toBe("大阪1人");
   });
 
+  it("開いたら候補一覧を外側ごと見える位置へ送る", async () => {
+    // 新規登録の画面は候補がモーダルの中に出るため、送らないと一覧の下端が枠で切れる（実測50px）。
+    // jsdom は scrollIntoView を実装しないので、呼ばれたことだけを見る。
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", { value: scrollIntoView, configurable: true, writable: true });
+    render(<StaffSelect defaultValue={null} />);
+    fireEvent.focus(input());
+    await screen.findByRole("option", { name: /T001/ });
+    expect(scrollIntoView.mock.calls.some(([options]) => options?.block === "nearest")).toBe(true);
+    const list = document.querySelector(".staff-combobox-options");
+    expect(scrollIntoView.mock.instances).toContain(list);
+    Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  });
+
   it("台帳に居ない担当者は候補に出さず、新しく足す口も持たない", async () => {
     render(<StaffSelect defaultValue={null} />);
     fireEvent.focus(input());
