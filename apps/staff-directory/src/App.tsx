@@ -2,6 +2,7 @@ import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import StaffPage from './pages/StaffPage';
 import DepartmentsPage from './pages/DepartmentsPage';
 import CompaniesPage from './pages/CompaniesPage';
+import BackupMenu from './components/BackupMenu';
 
 const NAV = [
   { to: '/', label: '社員' },
@@ -32,6 +33,7 @@ export default function App() {
               </NavLink>
             ))}
           </nav>
+          <BackupMenu />
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-6">

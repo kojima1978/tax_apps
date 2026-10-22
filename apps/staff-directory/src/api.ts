@@ -3,6 +3,7 @@ import type {
   CompanyForm,
   Department,
   DepartmentForm,
+  RestoreResult,
   Staff,
   StaffForm,
   StaffPersonal,
@@ -53,4 +54,8 @@ export const api = {
   createCompany: (c: CompanyForm) => send('POST', '/companies', c),
   updateCompany: (id: number, c: CompanyForm) => send('PUT', `/companies/${id}`, c),
   deleteCompany: (id: number) => send('DELETE', `/companies/${id}`),
+  // 台帳まるごとの JSON 控え。中身はそのままファイルへ書くだけなので型は持たない
+  exportBackup: () => request<unknown>('/backup'),
+  previewRestore: (backup: unknown) => send<RestoreResult>('POST', '/backup/preview', backup),
+  restore: (backup: unknown) => send<RestoreResult>('POST', '/backup/restore', backup),
 };

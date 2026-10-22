@@ -26,6 +26,7 @@ import {
   updateStaffPersonal,
   type StaffStatus,
 } from './repo.js';
+import { exportDirectory, parseBackup, restoreDirectory } from './backup.js';
 
 // 読み取り（GET）は他アプリからも呼ばれる。書き込みは台帳の画面だけが使う。
 // 社員の DELETE は置かない ── 台帳IDは他アプリが控えとして持つので、消すと
@@ -152,6 +153,20 @@ export function createApiRouter(db: Database.Database): Router {
     const id = parseId(req.params.id);
     respond(res, { ok: true, value: id }, (value) => (value !== null && deleteCompany(db, value) ? { id: value } : null));
   });
+
+  // 台帳まるごとの JSON 控え（住所・生年月日を含む）。読むのは台帳の画面の「JSONで書き出し」だけ
+  r.get('/backup', (_req, res) => {
+    res.set('Cache-Control', 'no-store').json(exportDirectory(db));
+  });
+
+  // 復元。preview は最後まで流してから巻き戻し、件数だけ返す（確認画面用）
+  for (const [path, dryRun] of [['/backup/preview', true], ['/backup/restore', false]] as const) {
+    r.post(path, (req, res) => {
+      const parsed = parseBackup(req.body);
+      const result = parsed.ok ? restoreDirectory(db, parsed.value, dryRun) : parsed;
+      respond(res, result, (value) => value);
+    });
+  }
 
   r.get('/links', (req, res) => {
     const app = req.query.app;

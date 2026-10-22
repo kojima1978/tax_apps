@@ -89,3 +89,15 @@ export type StaffPersonal = {
 };
 
 export type StaffPersonalForm = { postalCode: string; address: string; birthDate: string };
+
+// JSON 控えの件数（server/backup.ts の DirectorySummary）
+export type DirectorySummary = {
+  companies: number;
+  departments: number;
+  staff: number;
+  activeStaff: number;
+  withPersonal: number;
+  externalLinks: number;
+};
+
+export type RestoreResult = { exportedAt: string; current: DirectorySummary; restored: DirectorySummary };

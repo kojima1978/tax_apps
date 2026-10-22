@@ -11,7 +11,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 const app = express();
 const httpServer = createHttpServer(app);
-app.use(express.json());
+// 既定の 100kb では台帳まるごとの JSON 復元（/api/backup/restore）が入らない
+app.use(express.json({ limit: '20mb' }));
 
 // DB が使えないときは 503 で healthcheck を落とす
 app.get(`${BASE_PATH}/api/health`, (_req, res) => {
