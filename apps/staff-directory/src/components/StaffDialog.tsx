@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { ErrorBanner, Field, Modal, btn, inputClass } from './ui';
+import { toKatakana } from '../lib';
 import type { AffiliationForm, Company, Department, Staff, StaffForm, StaffPersonalForm } from '../types';
 
 type Props = {
@@ -43,8 +44,8 @@ const EMPTY_PERSONAL: StaffPersonalForm = { postalCode: '', address: '', birthDa
 const NAME_FIELDS = [
   { key: 'familyName', label: '姓', required: true },
   { key: 'givenName', label: '名' },
-  { key: 'familyKana', label: 'セイ', hint: 'ひらがなでも可（カタカナで保存）' },
-  { key: 'givenKana', label: 'メイ' },
+  { key: 'familyKana', label: 'セイ', kana: true },
+  { key: 'givenKana', label: 'メイ', kana: true },
 ] as const;
 
 // 社員の追加・編集。削除は無い（台帳IDは他アプリが参照しているので消さず、退職日を入れる）。
@@ -126,11 +127,15 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-4 gap-4">
           {NAME_FIELDS.map((f, i) => (
-            <Field key={f.key} label={f.label} hint={'hint' in f ? f.hint : undefined}>
+            <Field key={f.key} label={f.label}>
               <input
                 className={inputClass}
                 value={form[f.key]}
                 onChange={set(f.key)}
+                // ひらがなで打っても、欄を出た時点でカタカナに直して見せる（保存されるのもカタカナ）。
+                // 打っている途中で直すと日本語入力の変換を壊すので、blur で行う
+                onBlur={'kana' in f ? (e) => setForm((v) => ({ ...v, [f.key]: toKatakana(e.target.value) })) : undefined}
+                placeholder={'kana' in f ? 'カタカナ' : undefined}
                 required={'required' in f}
                 autoFocus={i === 0}
               />
