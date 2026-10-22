@@ -8,8 +8,11 @@ export const btn = {
   danger: 'rounded-md px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50',
 } as const;
 
-export const inputClass =
-  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal-500 disabled:bg-slate-50';
+// 幅を持たない見た目だけの指定。w-full と w-48 などを並べると、どちらが勝つかは
+// クラスの並びではなく CSS の出力順で決まる（実際に w-full が勝ち、絞り込み欄が全幅で縦に積まれていた）
+export const controlClass =
+  'rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal-500 disabled:bg-slate-50';
+export const inputClass = `w-full ${controlClass}`;
 
 export function Field({
   label,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { useLoad } from '../hooks/useLoad';
-import { ErrorBanner, btn, inputClass } from '../components/ui';
+import { ErrorBanner, btn, controlClass, inputClass } from '../components/ui';
 import type { Department } from '../types';
 
 type Draft = Pick<Department, 'name' | 'sortOrder' | 'active'>;
@@ -131,7 +131,7 @@ export default function DepartmentsPage() {
       >
         {multiCompany && (
           <select
-            className={`${inputClass} w-auto`}
+            className={`${controlClass} w-56`}
             aria-label="部署を作る会社"
             value={addTo}
             onChange={(e) => setAddingCompany(e.target.value)}
@@ -144,7 +144,7 @@ export default function DepartmentsPage() {
           </select>
         )}
         <input
-          className={`${inputClass} max-w-xs`}
+          className={`${controlClass} w-64`}
           placeholder="新しい部署名"
           value={adding.name}
           onChange={(e) => setAdding({ ...adding, name: e.target.value })}
@@ -152,7 +152,7 @@ export default function DepartmentsPage() {
         />
         <input
           type="number"
-          className={`${inputClass} w-24`}
+          className={`${controlClass} w-24`}
           aria-label="表示順"
           value={adding.sortOrder}
           onChange={(e) => setAdding({ ...adding, sortOrder: Number(e.target.value) })}

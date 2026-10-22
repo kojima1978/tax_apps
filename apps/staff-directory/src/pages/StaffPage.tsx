@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useLoad } from '../hooks/useLoad';
 import { normalizeQuery } from '../lib';
-import { ErrorBanner, btn, inputClass } from '../components/ui';
+import { ErrorBanner, btn, controlClass } from '../components/ui';
 import StaffDialog from '../components/StaffDialog';
 import ShortNameCell from '../components/ShortNameCell';
 import type { Affiliation, Staff, StaffStatus } from '../types';
@@ -90,7 +90,7 @@ export default function StaffPage() {
               setCompany(e.target.value);
               setDepartment('');
             }}
-            className={`${inputClass} w-auto`}
+            className={`${controlClass} w-48`}
             aria-label="会社で絞り込み"
           >
             <option value="">すべての会社</option>
@@ -104,7 +104,7 @@ export default function StaffPage() {
         <select
           value={department}
           onChange={(e) => setDepartment(e.target.value)}
-          className={`${inputClass} w-auto`}
+          className={`${controlClass} w-48`}
           aria-label="部署で絞り込み"
         >
           <option value="">すべての部署</option>
@@ -121,8 +121,9 @@ export default function StaffPage() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="氏名・略称・フリガナ・社員番号・電話で検索"
-          className={`${inputClass} w-72`}
+          placeholder="氏名・フリガナ・番号などで検索"
+          title="氏名・略称・フリガナ・社員番号・電話で検索"
+          className={`${controlClass} w-64`}
         />
         <button type="button" className={`${btn.primary} ml-auto`} onClick={() => setEditing(null)}>
           ＋ 社員を追加
