@@ -70,12 +70,13 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
   // 新規はまだ何も無いので最初から空の入力欄を出す
   const [personal, setPersonal] = useState<StaffPersonalForm | null>(staff ? null : EMPTY_PERSONAL);
   const [revealing, setRevealing] = useState(false);
+  // 「隠す」は画面から消すだけで、読んだ値と入力中の変更は持ったまま（保存にも乗る）
+  const [shown, setShown] = useState(!staff);
   // 変更の有無は開いたとき（個人情報は読み込んだとき）の値と比べる。「表示」を押しただけでは変更にしない
   const [initial] = useState(() => JSON.stringify({ form, shortName }));
   const [personalBase, setPersonalBase] = useState<StaffPersonalForm>(EMPTY_PERSONAL);
-  const dirty =
-    JSON.stringify({ form, shortName }) !== initial ||
-    (personal !== null && JSON.stringify(personal) !== JSON.stringify(personalBase));
+  const personalDirty = personal !== null && JSON.stringify(personal) !== JSON.stringify(personalBase);
+  const dirty = JSON.stringify({ form, shortName }) !== initial || personalDirty;
   const canClose = () => !dirty || window.confirm('変更を保存せずに閉じますか？');
   const requestClose = () => {
     if (canClose()) ref.current?.close();
@@ -83,12 +84,17 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
 
   async function reveal() {
     if (!staff) return;
+    if (personal !== null) {
+      setShown(true);
+      return;
+    }
     setRevealing(true);
     try {
       const p = await api.getStaffPersonal(staff.id);
       const loaded = { postalCode: p.postalCode, address: p.address, birthDate: p.birthDate ?? '' };
       setPersonalBase(loaded);
       setPersonal(loaded);
+      setShown(true);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -279,8 +285,8 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
         </Section>
 
         <Section title="個人情報">
-          {personal ? (
-            <div className="grid grid-cols-[8rem_1fr_10rem] gap-4">
+          {personal && shown ? (
+            <div className={`grid ${staff ? 'grid-cols-[8rem_1fr_10rem_auto]' : 'grid-cols-[8rem_1fr_10rem]'} items-end gap-4`}>
               <Field label="郵便番号">
                 <input
                   className={inputClass}
@@ -301,10 +307,18 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
                   onChange={setPersonalField('birthDate')}
                 />
               </Field>
+              {staff && (
+                <button type="button" className={btn.secondary} onClick={() => setShown(false)}>
+                  隠す
+                </button>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-600">郵便番号・住所・生年月日（非表示）</span>
+              <span className="text-sm text-slate-600">
+                郵便番号・住所・生年月日（非表示
+                {personalDirty && '・未保存の変更あり'}）
+              </span>
               <button type="button" className={btn.secondary} onClick={reveal} disabled={revealing}>
                 {revealing ? '読み込み中…' : '表示'}
               </button>
