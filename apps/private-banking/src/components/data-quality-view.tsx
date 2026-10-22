@@ -77,7 +77,7 @@ export function DataQualityView() {
     </section>
     {unassignedVisible.length > 0 ? <section className="quality-bulk panel" aria-label="担当者の一括設定">
       <label className="quality-select-all"><input type="checkbox" checked={allUnassignedSelected} onChange={() => setSelected(allUnassignedSelected ? new Set() : new Set(unassignedVisible.map((client) => client.id)))} />表示中の担当者未設定をすべて選択</label>
-      <div className="staff-field"><label htmlFor="quality-staff">担当者</label><StaffCombobox id="quality-staff" staff={staff} value={staffId} onChange={setStaffId} ariaLabel="担当者" placeholder="氏名・コード・部署で検索" disabled={assigning} /></div>
+      <div className="staff-field"><label htmlFor="quality-staff">担当者</label><StaffCombobox id="quality-staff" staff={staff} value={staffId} onChange={setStaffId} ariaLabel="担当者" disabled={assigning} /></div>
       <button type="button" className="button primary" disabled={!staffId || selected.size === 0 || assigning} onClick={() => void assignStaff()}>{assigning ? <LoaderCircle className="spin" /> : <UserCheck />}{selected.size}件に設定</button>
     </section> : null}
     {attentionClients.length === 0 ? <section className="quality-complete"><CheckCircle2 /><h2>すべて確認済みです</h2><p>現在、確認が必要な顧客はいません。</p></section> : visibleClients.length === 0 ? <section className="quality-complete"><CheckCircle2 /><h2>該当する顧客はいません</h2><p>別の確認項目を選択してください。</p></section> : <section className="panel table-panel quality-results">

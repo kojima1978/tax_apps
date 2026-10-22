@@ -7,7 +7,7 @@ export function ClientFields({ defaults, autoFocus = false }: { defaults?: Parti
     <label>顧客名<input name="name" required maxLength={100} autoFocus={autoFocus} defaultValue={defaults?.name ?? ""} placeholder="例：山田 太郎" /></label>
     <label>顧客名（カナ）<input name="nameKana" maxLength={100} defaultValue={defaults?.nameKana ?? ""} placeholder="例：ヤマダ タロウ" /></label>
     <label>顧客コード<input name="clientCode" required maxLength={30} pattern="(?:[A-Za-z0-9_]|-)+" defaultValue={defaults?.clientCode ?? ""} placeholder="例：PB-000002" /></label>
-    {/* 担当者は台帳から選ぶ。欄の中から「＋ 新しい担当者」でその場に足せる。 */}
+    {/* 担当者は社員台帳の写しから選ぶ（ここで新しい人を足す口は持たない）。 */}
     <StaffSelect id="client-staff" defaultValue={defaults?.staffId ?? null} defaultLabel={defaults?.assignedStaff ?? ""} />
   </>;
 }

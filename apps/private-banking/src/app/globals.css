@@ -710,9 +710,14 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-combobox-clear:focus-visible { outline: 3px solid #86efac; }
 .staff-combobox-clear svg { width: 16px; height: 16px; }
 .staff-combobox-options { position: absolute; top: calc(100% + 4px); right: 0; left: 0; z-index: 30; max-height: 270px; padding: 5px; overflow-y: auto; background: #fff; border: 1px solid #a9bbb0; border-radius: 7px; box-shadow: 0 12px 28px #172b3a26; }
-.staff-combobox-option { width: 100%; min-height: 44px; padding: 7px 9px; color: var(--slate-950); background: transparent; border: 0; border-radius: 5px; text-align: left; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
+/* 部署は見出しに出すので行は1行。縦に積むと6行しか見えず、62人を上から舐めることになる。 */
+.staff-combobox-option { width: 100%; min-height: 38px; padding: 6px 9px; color: var(--slate-950); background: transparent; border: 0; border-radius: 5px; text-align: left; display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .staff-combobox-option strong { font-size: 13px; }
-.staff-combobox-option span { margin-top: 2px; color: var(--slate-600); font-size: 10px; }
+.staff-combobox-option span { margin-left: auto; color: var(--slate-600); font-size: 10px; white-space: nowrap; }
+.staff-combobox-group + .staff-combobox-group { margin-top: 3px; }
+/* 見出しはスクロール中も残す（どの部署を見ているかが分からなくなるため）。-5px は一覧の内側余白ぶん。 */
+.staff-combobox-group-label { position: sticky; top: -5px; z-index: 1; display: flex; gap: 8px; margin: 0; padding: 6px 9px 3px; color: var(--slate-700); background: #fff; font-size: 10px; font-weight: 800; }
+.staff-combobox-group-label span { margin-left: auto; color: var(--slate-500); font-weight: 700; }
 .staff-combobox-option:hover, .staff-combobox-option.is-active { background: #edf7f0; }
 .staff-combobox-option[aria-selected="true"] { box-shadow: inset 3px 0 #168642; }
 .staff-combobox-option.is-empty { color: var(--slate-600); font-size: 12px; }
@@ -1337,6 +1342,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .staff-panel-body { padding: 16px; }
   .staff-row-fields { grid-template-columns: 1fr; }
   .staff-combobox-input input, .staff-list-toolbar input, .staff-list-toolbar select, .staff-row-fields input { font-size: 16px; }
+  /* 指で押す幅を確保する（画面が狭いので見える件数より押しやすさを採る）。 */
+  .staff-combobox-option { min-height: 44px; }
   .person-form { padding: 18px 16px; }
   .person-form-grid { grid-template-columns: 1fr; gap: 16px; }
   .person-form-grid input { font-size: 16px; }

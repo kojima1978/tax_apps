@@ -19,7 +19,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 describe("担当者の検索式選択", () => {
   it("選択済み退職者を保持し、未設定の顧客には退職者を出さない", async () => {
     const view = render(<StaffSelect defaultValue={2} defaultLabel="高橋" />);
-    await waitFor(() => expect(input()).toHaveProperty("value", "高橋（T002・大阪）（退職）"));
+    await waitFor(() => expect(input()).toHaveProperty("value", "高橋（大阪）（退職）"));
     expect(savedValue()).toBe("2");
     view.unmount();
     render(<StaffSelect defaultValue={null} />);
@@ -48,6 +48,26 @@ describe("担当者の検索式選択", () => {
     fireEvent.keyDown(input(), { key: "Escape" });
     expect(savedValue()).toBe("1");
     expect(input()).toHaveProperty("value", "佐藤（T001・東京）");
+  });
+
+  it("開いたときは今の担当者にカーソルを置く", async () => {
+    // 62人・8部署だと一覧は12画面ぶんあり、先頭から出すと選ばれている人がどこにいるか分からない。
+    render(<StaffSelect defaultValue={3} defaultLabel="佐藤" />);
+    await waitFor(() => expect(input()).toHaveProperty("value", "佐藤（T003・大阪）"));
+    fireEvent.focus(input());
+    const active = await screen.findByRole("option", { name: /T003/ });
+    expect(active.className).toContain("is-active");
+    expect(input().getAttribute("aria-activedescendant")).toBe(active.id);
+  });
+
+  it("候補を部署で束ね、見出しに人数を出す", async () => {
+    render(<StaffSelect defaultValue={null} />);
+    fireEvent.focus(input());
+    await screen.findByRole("option", { name: /T001/ });
+    // 退職者と未連携の人は候補に出ないので、残るのは東京の1人と大阪の1人。
+    const groups = screen.getAllByRole("group");
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["大阪", "東京"]);
+    expect(groups[0].querySelector(".staff-combobox-group-label")?.textContent).toBe("大阪1人");
   });
 
   it("台帳に居ない担当者は候補に出さず、新しく足す口も持たない", async () => {
