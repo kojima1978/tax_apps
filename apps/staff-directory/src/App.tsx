@@ -14,7 +14,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center gap-8 px-6 py-3">
+        <div className="mx-auto flex max-w-5xl items-center gap-8 px-6 py-3">
           <a href="/" className="text-sm text-slate-500 hover:text-slate-700">← ポータル</a>
           <h1 className="text-lg font-bold text-slate-800">社員台帳</h1>
           <nav className="flex gap-1">
@@ -36,7 +36,7 @@ export default function App() {
           <BackupMenu />
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-6">
+      <main className="mx-auto max-w-5xl px-6 py-6">
         <Routes>
           <Route path="/" element={<StaffPage />} />
           <Route path="/departments" element={<DepartmentsPage />} />
