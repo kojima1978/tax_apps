@@ -146,8 +146,9 @@ export default function StaffPage() {
         {missingKana > 0 && <span className="ml-3 text-amber-700">フリガナ未入力 {missingKana}名</span>}
       </p>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      {/* 表は中身の幅だけ取る（全幅に引き伸ばすと列の間が空いて行を目で追いにくい） */}
+      <div className="w-fit max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
             <tr>
               {COLUMNS.map((c) => (
