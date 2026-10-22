@@ -23,6 +23,8 @@ import { getOrCreateAccount, UNKNOWN_ACCOUNT } from './transactions.js';
 
 export const BACKUP_VERSION = '1.1';
 const SUPPORTED_VERSIONS = ['1.0', '1.1'];
+export const BULK_BACKUP_FORMAT = 'bank-analyzer-all-cases';
+export const BULK_BACKUP_VERSION = '1.0';
 
 // ---------------------------------------------------------------------------
 // 書き出し
@@ -105,6 +107,30 @@ export async function exportCaseJson(
       },
       settings,
     },
+  };
+}
+
+// 全案件を1つのJSONへまとめる。案件内の settings は同じ内容になるので、
+// 一括ファイルでは最上位に1つだけ持たせる。
+export async function exportAllCasesJson(db: PrismaClient) {
+  const [cases, settings] = await Promise.all([
+    db.case.findMany({ select: { id: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
+    readAllSettings(db),
+  ]);
+  const backups = [];
+  for (const c of cases) {
+    const exported = await exportCaseJson(db, c.id, { allowEmpty: true });
+    if (!exported) continue;
+    const { settings: _settings, ...data } = exported.data;
+    backups.push(data);
+  }
+  return {
+    format: BULK_BACKUP_FORMAT,
+    version: BULK_BACKUP_VERSION,
+    exported_at: new Date().toISOString(),
+    case_count: backups.length,
+    cases: backups,
+    settings,
   };
 }
 
@@ -220,8 +246,12 @@ type Backup = {
   settings: unknown;
 };
 
+export type ParsedBackupFile =
+  | { kind: 'single'; backup: Backup }
+  | { kind: 'bulk'; backups: Backup[]; settings: unknown };
+
 // ファイルの中身を全部読んでから書き始める（途中で弾いて半端に入るのを避ける）
-export function parseBackup(data: unknown): Parsed<Backup> {
+export function parseBackup(data: unknown, options: { allowEmpty?: boolean } = {}): Parsed<Backup> {
   if (!isRecord(data)) return failed('バックアップファイルの形式が正しくありません');
   const version = data.version ?? '1.0';
   if (typeof version !== 'string' || !SUPPORTED_VERSIONS.includes(version)) return failed(`未対応のバージョン: ${String(version)}`);
@@ -253,7 +283,7 @@ export function parseBackup(data: unknown): Parsed<Backup> {
   const rawTransactions = data.transactions;
   if (rawTransactions === undefined) return failed('取引データが含まれていません。書き出したバックアップファイルを選んでください');
   if (!Array.isArray(rawTransactions)) return failed('取引データが正しくありません');
-  if (rawTransactions.length === 0) return failed('取引データが0件です');
+  if (rawTransactions.length === 0 && !options.allowEmpty) return failed('取引データが0件です');
   for (const [i, t] of rawTransactions.entries()) {
     const parsed = isRecord(t) ? parseTransaction(t) : failed('データが正しくありません');
     if (!parsed.ok) return failed(`取引${i + 1}件目: ${parsed.error}`);
@@ -268,6 +298,24 @@ export function parseBackup(data: unknown): Parsed<Backup> {
     transactions,
     settings: data.settings,
   });
+}
+
+// 現行の1案件ファイルと、全案件をまとめたファイルの両方を判別して読む。
+// 全案件ファイルは、書き始める前に全案件を検証して半端な復元を防ぐ。
+export function parseBackupFile(data: unknown): Parsed<ParsedBackupFile> {
+  if (!isRecord(data) || data.format !== BULK_BACKUP_FORMAT) {
+    const backup = parseBackup(data);
+    return backup.ok ? ok({ kind: 'single', backup: backup.value }) : backup;
+  }
+  if (data.version !== BULK_BACKUP_VERSION) return failed(`未対応の一括バックアップバージョン: ${String(data.version)}`);
+  if (!Array.isArray(data.cases)) return failed('案件データが正しくありません');
+  const backups: Backup[] = [];
+  for (const [i, item] of data.cases.entries()) {
+    const parsed = parseBackup(item, { allowEmpty: true });
+    if (!parsed.ok) return failed(`案件${i + 1}: ${parsed.error}`);
+    backups.push(parsed.value);
+  }
+  return ok({ kind: 'bulk', backups, settings: data.settings });
 }
 
 // 同じ名前があれば「名前_復元1」「名前_復元2」…の空いているもの
@@ -295,6 +343,33 @@ export async function importCaseJson(
   for (let attempt = 0; ; attempt++) {
     try {
       return await db.$transaction((tx) => importInto(tx, backup, restoreSettings), { timeout: IMPORT_TIMEOUT_MS });
+    } catch (error) {
+      if (!isUniqueViolation(error) || attempt >= 2) throw error;
+    }
+  }
+}
+
+export async function importAllCasesJson(
+  db: PrismaClient,
+  backups: Backup[],
+  settings: unknown,
+  restoreSettings: boolean,
+): Promise<{ cases: { caseId: number; name: string; count: number }[]; count: number }> {
+  // 名前の同時作成に衝突した場合は、一括処理全体を最初からやり直す。
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await db.$transaction(
+        async (tx) => {
+          const cases = [];
+          for (const backup of backups) cases.push(await importInto(tx, backup, false));
+          if (restoreSettings && settings !== undefined) {
+            const error = await replaceAllSettings(tx, settings);
+            if (error) throw new BackupImportError(error);
+          }
+          return { cases, count: cases.reduce((sum, item) => sum + item.count, 0) };
+        },
+        { timeout: 300_000 },
+      );
     } catch (error) {
       if (!isUniqueViolation(error) || attempt >= 2) throw error;
     }

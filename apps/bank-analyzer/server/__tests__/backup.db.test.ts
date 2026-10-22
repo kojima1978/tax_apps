@@ -16,6 +16,11 @@ async function exportJson(caseId: bigint) {
   return { res, json: (await res.json()) as Json };
 }
 
+async function exportAllJson() {
+  const res = await createApp(db()).request(`${BASE_PATH}/api/backups/export`);
+  return { res, json: (await res.json()) as Json };
+}
+
 async function importJson(data: unknown, options: { restoreSettings?: boolean; name?: string; raw?: string } = {}) {
   const form = new FormData();
   form.append('file', new File([options.raw ?? JSON.stringify(data)], options.name ?? '架空.json', { type: 'application/json' }));
@@ -71,6 +76,22 @@ describe('書き出し', () => {
     const { res, json } = await exportJson(caseId);
     expect(res.status).toBe(400);
     expect(json.error).toBe('エクスポートするデータがありません。');
+  });
+
+  it('全案件を、取引0件の案件と設定を含む1つのJSONへ書き出す', async () => {
+    await seedFull();
+    await seedCase(db(), 'ZZQ空案件');
+    await db().appSetting.create({ data: { key: 'GIFT_THRESHOLD', value: 123456 } });
+
+    const { res, json } = await exportAllJson();
+    expect(res.status).toBe(200);
+    expect(decodeURIComponent(res.headers.get('Content-Disposition')!)).toMatch(/_全案件バックアップ_預貯金分析\.json$/);
+    expect(json).toMatchObject({ format: 'bank-analyzer-all-cases', version: '1.0', case_count: 2 });
+    expect(json.cases.map((c: Json) => c.case.name)).toEqual(['ZZQ架空商会', 'ZZQ空案件']);
+    expect(json.cases[0].transactions).toHaveLength(3);
+    expect(json.cases[1].transactions).toEqual([]);
+    expect(json.cases.every((c: Json) => c.settings === undefined)).toBe(true);
+    expect(json.settings.GIFT_THRESHOLD).toBe(123456);
   });
 });
 
@@ -150,5 +171,50 @@ describe('読み込み', () => {
     const bad = await importJson({ ...data, case: { name: 'ZZQ架空設定違い' }, settings: { CLASSIFICATION_PATTERNS: { 生活費: 'x' } } }, { restoreSettings: true });
     expect(bad.json.error).toBe('設定データの分類パターンが正しくありません');
     expect(await casesNamed('ZZQ架空設定違い')).toHaveLength(0);
+  });
+
+  it('全案件JSONを一括復元し、既存案件は上書きせず、空案件も戻す', async () => {
+    await seedFull();
+    await seedCase(db(), 'ZZQ空案件');
+    const exported = (await exportAllJson()).json;
+
+    const res = await importJson(exported);
+    expect(res.json).toMatchObject({ success: true, bulk: true, count: 3, message: '2件の案件・3件の取引を復元しました。' });
+    expect(res.json.cases.map((c: Json) => [c.name, c.count])).toEqual([
+      ['ZZQ架空商会_復元1', 3],
+      ['ZZQ空案件_復元1', 0],
+    ]);
+    expect(await casesNamed('ZZQ架空商会')).toHaveLength(1);
+    expect(await casesNamed('ZZQ架空商会_復元1')).toHaveLength(1);
+    expect(await casesNamed('ZZQ空案件_復元1')).toHaveLength(1);
+  });
+
+  it('一括JSONは全案件を検証してから復元し、不正な案件があれば1件も作らない', async () => {
+    const before = await db().case.count();
+    const res = await importJson({
+      format: 'bank-analyzer-all-cases',
+      version: '1.0',
+      cases: [
+        { case: { name: 'ZZQ先頭' }, transactions: [{ date: '2025-01-01', amount_in: 1 }] },
+        { case: { name: 'ZZQ不正' }, transactions: [{ date: '2025-02-30', amount_in: 1 }] },
+      ],
+    });
+    expect(res.status).toBe(400);
+    expect(res.json.error).toBe('案件2: 取引1件目: 日付の形式が正しくありません（YYYY-MM-DD）');
+    expect(await db().case.count()).toBe(before);
+  });
+
+  it('一括JSONの設定は指定した場合だけ復元する', async () => {
+    const data = {
+      format: 'bank-analyzer-all-cases',
+      version: '1.0',
+      cases: [{ case: { name: 'ZZQ一括設定' }, transactions: [] }],
+      settings: { LARGE_AMOUNT_THRESHOLD: 654321 },
+    };
+    await importJson(data);
+    expect(await db().appSetting.findUnique({ where: { key: 'LARGE_AMOUNT_THRESHOLD' } })).toBeNull();
+
+    await importJson(data, { restoreSettings: true });
+    expect((await db().appSetting.findUnique({ where: { key: 'LARGE_AMOUNT_THRESHOLD' } }))?.value).toBe(654321);
   });
 });

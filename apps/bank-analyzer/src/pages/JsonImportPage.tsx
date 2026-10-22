@@ -7,7 +7,8 @@ import { FileDrop } from '../components/FileDrop';
 import { useNotice } from '../components/Notice';
 import { api, errorMessage } from '../lib/api';
 
-type Result = { caseId: number; name: string; count: number; message: string };
+type SingleResult = { bulk: false; caseId: number; name: string; count: number; message: string };
+type BulkResult = { bulk: true; cases: { caseId: number; name: string; count: number }[]; count: number; message: string };
 
 export function JsonImportPage() {
   const navigate = useNavigate();
@@ -29,9 +30,9 @@ export function JsonImportPage() {
     setBusy(true);
     setError(null);
     try {
-      const result = await api.post<Result>('/backups/import', form);
+      const result = await api.post<SingleResult | BulkResult>('/backups/import', form);
       notice.success(result.message);
-      navigate(`/cases/${result.caseId}`);
+      navigate(result.bulk ? '/' : `/cases/${result.caseId}`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -43,14 +44,15 @@ export function JsonImportPage() {
     <div className="mx-auto max-w-2xl px-4 py-6">
       <Breadcrumb items={[{ label: '案件一覧', to: '/' }, { label: 'JSONから復元' }]} />
       <div className="card p-6">
-        <h1 className="mb-4 text-xl font-bold">JSONバックアップから復元</h1>
+        <h1 className="mb-1 text-xl font-bold">JSONバックアップから復元</h1>
+        <p className="mb-4 text-sm text-slate-600">書き出したJSONファイルを選ぶと、案件データを新しい案件として復元します。</p>
         <ul className="mb-4 list-disc space-y-1 rounded-md bg-sky-50 py-3 pr-3 pl-8 text-sm text-sky-900">
-          <li>加工済みの取引データ（分類・付箋・メモ含む）を復元できます</li>
-          <li>書き出した時点の状態を再現します</li>
-          <li>新しい案件として作成されます（既存の案件は変わりません）</li>
+          <li>1案件のJSONと、全案件をまとめたJSONの両方に対応しています</li>
+          <li>分類・付箋・メモ・口座情報を、書き出した時点の状態で復元します</li>
+          <li>既存案件は上書きせず、同名なら「_復元1」を付けて作成します</li>
         </ul>
-        <FileDrop accept=".json,application/json" files={files} onChange={setFiles} hint="最大50MB" invalid={error !== null && !files.length} />
-        <label className="mt-4 flex items-start gap-2 text-sm">
+        <FileDrop accept=".json,application/json" files={files} onChange={setFiles} hint="1案件または全案件・最大100MB" invalid={error !== null && !files.length} />
+        <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-2 py-2 text-sm">
           <input type="checkbox" className="mt-1" checked={restoreSettings} onChange={(e) => setRestoreSettings(e.target.checked)} />
           <span>
             設定データも復元する
@@ -59,10 +61,10 @@ export function JsonImportPage() {
         </label>
         {error && <p className="mt-3 rounded bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" className="btn btn-secondary" onClick={() => navigate('/')}>
+          <button type="button" className="btn btn-secondary min-h-11" onClick={() => navigate('/')}>
             キャンセル
           </button>
-          <button type="button" className="btn btn-primary" onClick={submit} disabled={busy}>
+          <button type="button" className="btn btn-primary min-h-11" onClick={submit} disabled={busy}>
             {busy ? '復元中…' : '復元を実行'}
           </button>
         </div>

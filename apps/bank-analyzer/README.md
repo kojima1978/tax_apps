@@ -58,7 +58,10 @@ docker/scripts/manage.sh test bank-analyzer
 - **取る**: `docker/scripts/manage.sh backup`（全体。ふだんはウォッチドッグが自動で回すので叩かなくてよい）
 - **戻す**: `docker/scripts/manage.sh restore bank-analyzer <バックアップ>`。`--yes` が無ければ一覧だけ出して
   何も変えない。実行は `--yes` を付けて、人の確認の後。戻るのは DB（`.sql`）で、JSON は流さない
-- **案件を1件だけ戻す**: バックアップの中の `<番号>_<案件名>_backup.json` を画面の「JSONから復元」で読む
+- **画面で全案件を控える**: 案件一覧の「全案件をJSON書き出し」で、全案件を1つのJSONへ保存する
+- **JSONから戻す**: 画面の「JSONから復元」へ、全案件JSONまたは案件ごとのJSONをドラッグ＆ドロップする。
+  既存案件は上書きせず、同名なら「_復元1」などを付けて新しい案件として作る
+- **案件を1件だけ戻す**: バックアップの中の `<番号>_<案件名>_backup.json` も同じ画面で読める
 
 ### 夜間バックアップの JSON
 

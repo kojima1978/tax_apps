@@ -3,8 +3,9 @@
 
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, FileUp, FolderOpen, HelpCircle, Inbox, Pencil, Plus, Search, Trash2, DatabaseBackup } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Download, FileUp, FolderOpen, HelpCircle, Inbox, Pencil, Plus, Search, Trash2, DatabaseBackup } from 'lucide-react';
 import { ConfirmDialog, Dialog } from '../components/Dialog';
+import { DownloadButton } from '../components/DownloadButton';
 import { Menu } from '../components/Menu';
 import { useNotice } from '../components/Notice';
 import { useApiData } from '../hooks/useApiData';
@@ -158,7 +159,11 @@ export function CaseListPage() {
       <section className="card p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">案件一覧</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            <DownloadButton path="/backups/export" className="btn btn-secondary">
+              <Download size={16} />
+              全案件をJSON書き出し
+            </DownloadButton>
             <Link to="/import-json" className="btn btn-secondary">
               <DatabaseBackup size={16} />
               JSONから復元
