@@ -1,9 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2, Home, Upload, DatabaseBackup, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2, Home, Upload, DatabaseBackup, ChevronDown, ChevronRight, Download, FileJson } from 'lucide-react';
 import AgencyMasterModal from '@/components/AgencyMasterModal';
-import { fetchCases, createCase, deleteCase, restoreJsonAppState } from '@/lib/api';
+import {
+  fetchCases,
+  createCase,
+  deleteCase,
+  downloadAllAppStatesJson,
+  getAllExportUrl,
+  isJsonStorageMode,
+  restoreJsonBackup,
+} from '@/lib/api';
 import type { CaseSummary } from '@/lib/api';
 
 interface Props {
@@ -51,9 +59,11 @@ export default function CaseListPage({ onSelect }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showAgencyMaster, setShowAgencyMaster] = useState(false);
   const [isRestoringJson, setIsRestoringJson] = useState(false);
+  const [isExportingJson, setIsExportingJson] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const restoreJsonInputRef = useRef<HTMLInputElement>(null);
-  const dropZoneRef = useRef<HTMLButtonElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   // 子要素をまたぐと dragleave が飛ぶので、出入りを数えて枠のハイライトを保つ
   const dragDepth = useRef(0);
 
@@ -94,28 +104,55 @@ export default function CaseListPage({ onSelect }: Props) {
       setError('JSONファイル(.json)を選択してください');
       return;
     }
+    if (file.size > 50 * 1024 * 1024) {
+      setError('JSONファイルは50MB以内にしてください');
+      return;
+    }
 
-    if (!window.confirm('JSONから新しいお客様データを復元しますか？')) return;
+    if (!window.confirm('JSONからお客様データを新規追加して復元しますか？\n現在のデータは上書きされません。')) return;
 
     setIsRestoringJson(true);
     setError(null);
-    let createdCaseId: string | null = null;
+    setNotice(null);
 
     try {
-      const newCase = await createCase();
-      createdCaseId = newCase.id;
-      await restoreJsonAppState(newCase.id, file);
-      onSelect(newCase.id);
-    } catch {
-      if (createdCaseId) {
-        await deleteCase(createdCaseId).catch(() => {});
-      }
-      setError('JSON復元に失敗しました。保険アプリのJSON出力ファイルか確認してください。');
+      const result = await restoreJsonBackup(file);
+      await loadCases();
+      setNotice(`${result.importedCount}件のお客様データを復元しました`);
+      if (result.importedCount === 1 && result.caseIds[0]) onSelect(result.caseIds[0]);
+    } catch (restoreError) {
+      const message = restoreError && typeof restoreError === 'object' && 'error' in restoreError
+        ? String(restoreError.error)
+        : 'JSON復元に失敗しました。保険アプリのJSON出力ファイルか確認してください。';
+      setError(message);
       await loadCases().catch(() => {});
     } finally {
       setIsRestoringJson(false);
     }
   }, [loadCases, onSelect]);
+
+  const handleExportAllJson = async () => {
+    setIsExportingJson(true);
+    setError(null);
+    setNotice(null);
+    try {
+      if (isJsonStorageMode()) {
+        const count = await downloadAllAppStatesJson();
+        setNotice(`${count}件のお客様データを書き出しました`);
+      } else {
+        const link = document.createElement('a');
+        link.href = getAllExportUrl();
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setNotice(`${cases.length}件のお客様データを書き出しています`);
+      }
+    } catch {
+      setError('JSON一括書き出しに失敗しました');
+    } finally {
+      setIsExportingJson(false);
+    }
+  };
 
   const handleRestoreJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -139,7 +176,7 @@ export default function CaseListPage({ onSelect }: Props) {
       if (dropZoneRef.current?.contains(e.target as Node)) return;
       dragDepth.current = 0;
       setIsDropTarget(false);
-      setError('復元するには「データ管理」を開いて、その中の「バックアップを復元」へドロップしてください');
+      setError('復元するJSONファイルをお客様一覧の画面内へドロップしてください');
     };
     window.addEventListener('dragover', allowDrop);
     window.addEventListener('drop', blockStrayDrop);
@@ -174,7 +211,6 @@ export default function CaseListPage({ onSelect }: Props) {
     dragDepth.current = 0;
     setIsDropTarget(false);
     const files = Array.from(e.dataTransfer.files);
-    e.currentTarget.closest('details')?.removeAttribute('open');
     if (files.length > 1) {
       setError('一度に復元できるJSONは1件です');
       return;
@@ -232,7 +268,21 @@ export default function CaseListPage({ onSelect }: Props) {
   }, [cases, search, sortKey, sortDir]);
 
   return (
-    <div className="case-list-page">
+    <div
+      ref={dropZoneRef}
+      className={`case-list-page${isDropTarget ? ' is-json-drop-target' : ''}`}
+      onDragEnter={handleDropZoneDragEnter}
+      onDragOver={handleDropZoneDragOver}
+      onDragLeave={handleDropZoneDragLeave}
+      onDrop={handleDropZoneDrop}
+    >
+      {isDropTarget && (
+        <div className="case-json-drop-overlay" aria-hidden="true">
+          <FileJson size={42} />
+          <strong>JSONファイルをここにドロップ</strong>
+          <span>既存データを残したまま、新しいお客様として復元します</span>
+        </div>
+      )}
       <input
         ref={restoreJsonInputRef}
         type="file"
@@ -264,17 +314,27 @@ export default function CaseListPage({ onSelect }: Props) {
             </summary>
             <div className="case-data-menu-popover">
               <button
-                ref={dropZoneRef}
+                type="button"
+                className="case-data-menu-item"
+                onClick={(event) => {
+                  void handleExportAllJson();
+                  event.currentTarget.closest('details')?.removeAttribute('open');
+                }}
+                disabled={isExportingJson || cases.length === 0}
+              >
+                <Download size={18} aria-hidden="true" />
+                <span>
+                  <strong>{isExportingJson ? 'JSONを書き出し中...' : 'JSONで一括書き出し'}</strong>
+                  <small>全{cases.length}件のお客様データを1ファイルに保存</small>
+                </span>
+              </button>
+              <button
                 type="button"
                 className={`case-data-menu-item${isDropTarget ? ' is-drop-target' : ''}`}
                 onClick={(event) => {
                   restoreJsonInputRef.current?.click();
                   event.currentTarget.closest('details')?.removeAttribute('open');
                 }}
-                onDragEnter={handleDropZoneDragEnter}
-                onDragOver={handleDropZoneDragOver}
-                onDragLeave={handleDropZoneDragLeave}
-                onDrop={handleDropZoneDrop}
                 disabled={isRestoringJson}
               >
                 <Upload size={18} aria-hidden="true" />
@@ -282,12 +342,12 @@ export default function CaseListPage({ onSelect }: Props) {
                   <strong>
                     {isRestoringJson
                       ? 'バックアップを復元中...'
-                      : isDropTarget ? 'ここにドロップして復元' : 'バックアップを復元'}
+                      : isDropTarget ? 'ここにドロップして復元' : 'JSONから復元'}
                   </strong>
                   <small>
                     {isDropTarget
                       ? 'JSONファイルを離すと復元を開始します'
-                      : 'JSONバックアップからお客様を追加（ここにドロップも可）'}
+                      : 'JSONを選択、または一覧画面へドラッグ＆ドロップ'}
                   </small>
                 </span>
               </button>
@@ -306,6 +366,12 @@ export default function CaseListPage({ onSelect }: Props) {
         <div className="error-banner">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="error-close-btn">&times;</button>
+        </div>
+      )}
+      {notice && (
+        <div className="case-notice-banner" role="status" aria-live="polite">
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} className="error-close-btn" aria-label="通知を閉じる">&times;</button>
         </div>
       )}
 

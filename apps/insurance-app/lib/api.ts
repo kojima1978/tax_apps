@@ -1,7 +1,15 @@
 import type { AppState, AgencyMaster, CsvImportResult } from '@/types';
 import { getSampleAgency, getSampleFamilyMembers, getSamplePolicies } from '@/lib/sampleData';
 import { DEFAULT_POLICY_PROMPT } from '@/lib/policyPrompt';
-import { appStateFileName } from '@/lib/export-filename';
+import { allAppStatesFileName, appStateFileName } from '@/lib/export-filename';
+import {
+  BULK_JSON_EXPORT_TYPE,
+  BULK_JSON_SCHEMA_VERSION,
+  getCasesFromJsonBackup,
+  normalizeCaseBackup,
+  remapAppStateIds,
+  type BulkJsonBackup,
+} from '@/lib/jsonBackup';
 
 export interface CaseSummary {
   id: string;
@@ -28,7 +36,6 @@ const JSON_STORAGE_MODE = process.env.NEXT_PUBLIC_STORAGE_MODE === 'json';
 // 3: policies に surrenderValues（年齢別の解約返戻金）を追加
 // 4: policies に surrenderProjection（最終入力より先の描き方）を追加
 const EXPORT_SCHEMA_VERSION = 4;
-const INSIGHT_TYPES = ['gap', 'redundancy', 'recommendation'] as const;
 const CASES_KEY = 'insurance-app:json-storage:cases:v1';
 const STATE_KEY_PREFIX = 'insurance-app:json-storage:state:v1:';
 const AGENCY_MASTERS_KEY = 'insurance-app:json-storage:agency-masters:v1';
@@ -177,29 +184,7 @@ function saveJsonCases(cases: CaseSummary[]): void {
 }
 
 function normalizeExportData(raw: unknown): JsonImportPayload {
-  if (!raw || typeof raw !== 'object') {
-    throw new Error('JSONデータが不正です');
-  }
-
-  const data = raw as Partial<JsonExportData> & { data?: Partial<JsonExportData> };
-  const source = data.data && typeof data.data === 'object' ? data.data : data;
-
-  if (!Array.isArray(source.familyMembers) || !Array.isArray(source.policies) || !source.agency || typeof source.agency !== 'object') {
-    throw new Error('AppState形式のJSONではありません');
-  }
-
-  // schemaVersion 2 で追加された項目。存在する場合のみ復元する(旧形式JSONは従来どおり)
-  const caseTitle = typeof source.caseTitle === 'string' && source.caseTitle.trim() ? source.caseTitle.trim() : undefined;
-  const portfolioInsights = Array.isArray(source.portfolioInsights)
-    ? (source.portfolioInsights as Record<string, unknown>[])
-        .filter(i => i && typeof i === 'object' && typeof i.text === 'string'
-          && INSIGHT_TYPES.includes(i.type as typeof INSIGHT_TYPES[number]))
-        .map(i => ({
-          type: i.type as typeof INSIGHT_TYPES[number],
-          text: i.text as string,
-          isCustom: !!i.isCustom,
-        }))
-    : undefined;
+  const source = normalizeCaseBackup(raw);
 
   return {
     state: {
@@ -209,8 +194,8 @@ function normalizeExportData(raw: unknown): JsonImportPayload {
       valuationSettings: source.valuationSettings,
       updatedAt: now(),
     } as AppState,
-    caseTitle,
-    portfolioInsights,
+    caseTitle: source.caseTitle,
+    portfolioInsights: source.portfolioInsights,
   };
 }
 
@@ -327,6 +312,77 @@ export function clearAppState(caseId: string): Promise<AppState> {
 
 export function getExportUrl(caseId: string): string {
   return `/insurance/api/app-state/export/${qs(caseId)}`;
+}
+
+export function getAllExportUrl(): string {
+  return '/insurance/api/app-state/export-all/';
+}
+
+export async function downloadAllAppStatesJson(): Promise<number> {
+  const cases = ensureJsonCases();
+  const backupCases = cases.map(caseSummary => {
+    const state = readJson<AppState>(stateKey(caseSummary.id));
+    if (!state) throw new Error(`「${caseSummary.title}」のデータを取得できませんでした`);
+    const insights = readJson<PortfolioInsightData[]>(portfolioInsightsKey(caseSummary.id)) ?? [];
+    return {
+      ...state,
+      caseTitle: caseSummary.title,
+      portfolioInsights: insights.map(({ type, text, isCustom }) => ({ type, text, isCustom })),
+    };
+  });
+  const bundle: BulkJsonBackup = {
+    exportType: BULK_JSON_EXPORT_TYPE,
+    schemaVersion: BULK_JSON_SCHEMA_VERSION,
+    exportedAt: now(),
+    cases: backupCases,
+  };
+  downloadJson(bundle, allAppStatesFileName());
+  return backupCases.length;
+}
+
+export interface JsonRestoreResult {
+  importedCount: number;
+  caseIds: string[];
+}
+
+export async function restoreJsonBackup(file: File): Promise<JsonRestoreResult> {
+  if (JSON_STORAGE_MODE) {
+    const parsed = await readJsonFile(file);
+    const backups = getCasesFromJsonBackup(parsed);
+    const createdCaseIds: string[] = [];
+    try {
+      for (const backup of backups) {
+        const created = await createCase();
+        createdCaseIds.push(created.id);
+        const state = remapAppStateIds(backup, () => newId());
+        await saveAppState(created.id, state);
+        if (backup.caseTitle) {
+          const title = backup.caseTitle;
+          saveJsonCases(ensureJsonCases().map(item => item.id === created.id ? { ...item, title } : item));
+        }
+        if (backup.portfolioInsights) {
+          writeJson(
+            portfolioInsightsKey(created.id),
+            backup.portfolioInsights.map((insight, index) => ({
+              id: `${created.id}-insight-${index + 1}`,
+              ...insight,
+            })),
+          );
+        }
+      }
+      return { importedCount: createdCaseIds.length, caseIds: createdCaseIds };
+    } catch (error) {
+      await Promise.all(createdCaseIds.map(caseId => deleteCase(caseId).catch(() => ({ ok: false }))));
+      throw error;
+    }
+  }
+
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch('/insurance/api/app-state/import-all/', { method: 'POST', body: form });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new ApiError(res.status, body.errors), body);
+  return body as JsonRestoreResult;
 }
 
 export async function restoreJsonAppState(caseId: string, file: File): Promise<AppState> {

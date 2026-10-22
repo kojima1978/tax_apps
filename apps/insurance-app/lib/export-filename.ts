@@ -56,3 +56,8 @@ export function appStateFileName(familyMembers: { relationship: string; name: st
   const primary = familyMembers.find((member) => member.relationship === "本人") ?? familyMembers[0];
   return exportFileName([primary?.name ?? "", "保険データ"], "json", date);
 }
+
+/** 全お客様をまとめたJSONバックアップのファイル名。 */
+export function allAppStatesFileName(date?: Date): string {
+  return exportFileName(['全お客様', '保険データ'], 'json', date);
+}
