@@ -1,6 +1,6 @@
 import type { EditableDocumentList } from '@/constants';
 import { EXCEL_STYLES as styles, pushMergedRow, pushEmptyRow } from '../constants/excelStyles';
-import { getContactLine, getFullAddress, type CompanyInfo } from '@/lib/company';
+import { getContactLine, getFullAddress, type CompanyInfo } from '@/shared/staff-directory/company';
 import { formatDate, toCircledNumber } from './helpers';
 import { exportFileName } from './exportFileName';
 

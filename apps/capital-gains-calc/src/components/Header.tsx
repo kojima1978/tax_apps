@@ -1,8 +1,8 @@
 import { useId } from "react";
 import { HomeIcon } from "./Icons";
 import PrintMenu from "./PrintMenu";
-import CompanySwitcher from "./CompanySwitcher";
-import { useCompanyInfo } from "@/lib/company";
+import { CompanySwitcher } from "@/shared/staff-directory/CompanySwitcher";
+import { useCompanyInfo } from "@/shared/staff-directory/company";
 import type { PrintOptionKey, PrintOptions } from "@/lib/print-options";
 
 type HeaderProps = {

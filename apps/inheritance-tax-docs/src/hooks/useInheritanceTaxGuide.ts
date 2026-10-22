@@ -10,7 +10,7 @@ import {
 } from '@/constants';
 import { initializeEditableList, initializeFromMasterData, type MasterCategoryPayload } from '@/utils/editableListUtils';
 import { exportToExcel } from '@/utils/excelExporter';
-import { useCompanyInfo } from '@/lib/company';
+import { useCompanyInfo } from '@/shared/staff-directory/company';
 
 const getMasterKey = (type: DocListType, selectedCompanyId: number | null) =>
   `${type}:${selectedCompanyId ?? 'legacy'}`;

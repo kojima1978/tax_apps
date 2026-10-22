@@ -1,5 +1,6 @@
+// 原本は tax_apps/shared/staff-directory/。写しを直さず原本を直して `bash shared/sync.sh` で配る
 import { describe, expect, it } from 'vitest';
-import { FALLBACK_COMPANY, getFullAddress, parseDirectoryCompanies, pickCompany, type CompanyInfo } from './company';
+import { FALLBACK_COMPANY, getContactLine, getFullAddress, parseDirectoryCompanies, pickCompany, type CompanyInfo } from './company';
 
 // 会社名・住所はすべて架空（リポジトリは公開）
 const company = (over: Partial<CompanyInfo> & { id: number }): CompanyInfo => ({
@@ -43,5 +44,13 @@ describe('getFullAddress', () => {
   it('〒はここで付け、郵便番号が空なら住所だけ', () => {
     expect(getFullAddress(company({ id: 1 }))).toBe('〒100-0001 東京都千代田区千代田１−１');
     expect(getFullAddress(company({ id: 1, postalCode: '' }))).toBe('東京都千代田区千代田１−１');
+  });
+});
+
+describe('getContactLine', () => {
+  it('空の欄は見出しごと出さない', () => {
+    expect(getContactLine(company({ id: 1, fax: '03-0000-0001' }))).toBe('TEL 03-0000-0000 / FAX 03-0000-0001');
+    expect(getContactLine(company({ id: 1 }))).toBe('TEL 03-0000-0000');
+    expect(getContactLine(company({ id: 1, phone: '' }))).toBe('');
   });
 });

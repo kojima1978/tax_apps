@@ -1,10 +1,11 @@
-import { useCompanyInfo } from '../utils/company';
+// 原本は tax_apps/shared/staff-directory/。写しを直さず原本を直して `bash shared/sync.sh` で配る
+import { useCompanyInfo } from './company';
 
 /**
  * 帳票に載せる会社の切り替え（社員台帳に会社が2つ以上あるときだけ出す）と、
  * 台帳に届かず控えの事務所情報で動いていることの知らせ。どちらも画面だけで印刷しない。
  */
-export const CompanySwitcher = ({ className = '' }: { className?: string }) => {
+export function CompanySwitcher({ className = '' }: { className?: string }) {
   const { company, companies, status, selectCompany } = useCompanyInfo();
 
   if (status === 'fallback') {
@@ -33,4 +34,4 @@ export const CompanySwitcher = ({ className = '' }: { className?: string }) => {
       ))}
     </select>
   );
-};
+}

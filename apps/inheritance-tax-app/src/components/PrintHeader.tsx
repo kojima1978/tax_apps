@@ -1,5 +1,5 @@
 import React from 'react';
-import { getFullAddress, useCompanyInfo } from '../utils/company';
+import { getFullAddress, useCompanyInfo } from '../shared/staff-directory/company';
 import { useStaffInfo } from '../contexts/useStaffInfo';
 import { formatPrintDate } from '../utils';
 

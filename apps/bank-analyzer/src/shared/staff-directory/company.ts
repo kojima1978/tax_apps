@@ -1,7 +1,9 @@
-import { useSyncExternalStore } from 'react';
-
+// 原本は tax_apps/shared/staff-directory/。各アプリの src/shared/staff-directory/ は写しなので、
+// 直すときは原本を直して `bash shared/sync.sh` で配ること（写しを直すと CI の照合で落ちる）。
+//
 // 帳票に刷る事務所の情報。元は社員台帳（/staff-directory/）の「会社」で、
 // ここに書いてあるのは台帳に届かないときの控えだけ。住所が変わったら台帳を直す。
+import { useSyncExternalStore } from 'react';
 
 export type CompanyInfo = {
   /** 台帳の会社ID。控えのときは null */
@@ -38,6 +40,11 @@ export function formatPostalCode(postalCode: string): string {
 
 export function getFullAddress(company: CompanyInfo): string {
   return [formatPostalCode(company.postalCode), company.address].filter(Boolean).join(' ');
+}
+
+// 電話・FAX が空の会社でも「FAX 」だけが刷られないよう、ある欄だけ並べる
+export function getContactLine(company: CompanyInfo): string {
+  return [company.phone && `TEL ${company.phone}`, company.fax && `FAX ${company.fax}`].filter(Boolean).join(' / ');
 }
 
 /** 選んだ会社が台帳から消えていたら先頭（台帳の表示順）へ戻す */

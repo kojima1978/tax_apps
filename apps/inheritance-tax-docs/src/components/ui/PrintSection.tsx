@@ -1,6 +1,6 @@
 import { Info, AlertCircle } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, type DocListType, type EditableDocumentList } from '@/constants';
-import { getContactLine, getFullAddress, useCompanyInfo } from '@/lib/company';
+import { getContactLine, getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
 import { toCircledNumber } from '@/utils/helpers';
 
 const PRINT_LAYOUTS = {

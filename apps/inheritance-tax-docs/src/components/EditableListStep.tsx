@@ -25,8 +25,8 @@ import { Dialogs } from '@/components/ui/Dialogs';
 import { DocumentFormModal } from '@/components/ui/DocumentFormModal';
 import { TrashModal } from '@/components/ui/TrashModal';
 import { TOAST_MESSAGES, UNDO_LABEL } from '@/constants/messages';
-import CompanySwitcher from '@/components/CompanySwitcher';
-import { getFullAddress, useCompanyInfo } from '@/lib/company';
+import { CompanySwitcher } from '@/shared/staff-directory/CompanySwitcher';
+import { getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
 
 export const EditableListStep = () => {
   const { company } = useCompanyInfo();

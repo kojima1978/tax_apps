@@ -1,4 +1,4 @@
-import { getFullAddress, useCompanyInfo } from '@/lib/company';
+import { getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
 import { useStaffInfo } from '@/contexts/StaffContext';
 import { formatDate } from '@/lib/utils';
 

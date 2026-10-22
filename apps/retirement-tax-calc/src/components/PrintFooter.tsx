@@ -1,7 +1,7 @@
 import { useState, useId } from "react";
 import { formatJapaneseDate } from "@/lib/utils";
-import { getFullAddress, useCompanyInfo } from "@/lib/company";
-import CompanySwitcher from "./CompanySwitcher";
+import { getFullAddress, useCompanyInfo } from "@/shared/staff-directory/company";
+import { CompanySwitcher } from "@/shared/staff-directory/CompanySwitcher";
 
 const PrintFooter = () => {
     const [staff, setStaff] = useState("");

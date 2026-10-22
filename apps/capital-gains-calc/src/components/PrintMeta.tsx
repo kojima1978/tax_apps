@@ -1,4 +1,4 @@
-import { getFullAddress, useCompanyInfo } from "@/lib/company";
+import { getFullAddress, useCompanyInfo } from "@/shared/staff-directory/company";
 
 /** 事務所情報・担当者・作成日。印刷専用（画面では上部ヘッダーに出す） */
 const PrintMeta = ({ staff, today }: { staff: string; today: string }) => {

@@ -17,8 +17,8 @@ import CalendarDays from 'lucide-react/icons/calendar-days';
 import Landmark from 'lucide-react/icons/landmark';
 import Phone from 'lucide-react/icons/phone';
 import { useStaffInfo } from '../contexts/useStaffInfo';
-import { getFullAddress, useCompanyInfo } from '../utils/company';
-import { CompanySwitcher } from './CompanySwitcher';
+import { getFullAddress, useCompanyInfo } from '../shared/staff-directory/company';
+import { CompanySwitcher } from '../shared/staff-directory/CompanySwitcher';
 
 const NAV_ITEMS = [
   { to: '/', label: '相続税計算', pageTitle: '相続税シミュレーション', icon: Calculator, group: 'calculate' },

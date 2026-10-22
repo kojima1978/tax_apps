@@ -14,8 +14,8 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useCompanyInfo, type CompanyInfo } from '@/lib/company';
-import CompanySwitcher from '@/components/CompanySwitcher';
+import { useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
+import { CompanySwitcher } from '@/shared/staff-directory/CompanySwitcher';
 import { operatorRequestHeaders, useOperator } from '@/lib/operator';
 
 // --- Types ---

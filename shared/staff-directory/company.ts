@@ -1,8 +1,15 @@
+// 原本は tax_apps/shared/staff-directory/。各アプリの src/shared/staff-directory/ は写しなので、
+// 直すときは原本を直して `bash shared/sync.sh` で配ること（写しを直すと CI の照合で落ちる）。
+//
+// 帳票に刷る事務所の情報。元は社員台帳（/staff-directory/）の「会社」で、
+// ここに書いてあるのは台帳に届かないときの控えだけ。住所が変わったら台帳を直す。
 import { useSyncExternalStore } from 'react';
 
 export type CompanyInfo = {
+  /** 台帳の会社ID。控えのときは null */
   id: number | null;
   name: string;
+  /** 〒は付けない（123-4567 の形） */
   postalCode: string;
   address: string;
   phone: string;
@@ -20,9 +27,11 @@ export const FALLBACK_COMPANY: CompanyInfo = {
 
 const DIRECTORY_URL = '/staff-directory/api/companies';
 const TIMEOUT_MS = 3000;
+// 全アプリが同じオリジン（ゲートウェイ）なので、1つのアプリで選んだ会社が他のアプリにも効く
 const STORAGE_KEY = 'tax-apps:company-id';
 
 export type CompanyStatus = 'loading' | 'ok' | 'fallback';
+
 type Snapshot = { companies: CompanyInfo[]; status: CompanyStatus; selectedId: number | null };
 
 export function formatPostalCode(postalCode: string): string {
@@ -38,33 +47,28 @@ export function getContactLine(company: CompanyInfo): string {
   return [company.phone && `TEL ${company.phone}`, company.fax && `FAX ${company.fax}`].filter(Boolean).join(' / ');
 }
 
+/** 選んだ会社が台帳から消えていたら先頭（台帳の表示順）へ戻す */
 export function pickCompany(companies: CompanyInfo[], selectedId: number | null): CompanyInfo {
-  return companies.find((company) => company.id === selectedId) ?? companies[0] ?? FALLBACK_COMPANY;
+  return companies.find((c) => c.id === selectedId) ?? companies[0] ?? FALLBACK_COMPANY;
 }
 
+/** 台帳の応答から必要な欄だけ取り出す。形が違えば null（＝控えで動く） */
 export function parseDirectoryCompanies(body: unknown): CompanyInfo[] | null {
   if (!Array.isArray(body)) return null;
   const companies = body.flatMap((row): CompanyInfo[] => {
     if (typeof row !== 'object' || row === null) return [];
-    const value = row as Record<string, unknown>;
-    if (typeof value.id !== 'number' || typeof value.name !== 'string' || value.name === '') return [];
-    const text = (field: unknown) => (typeof field === 'string' ? field : '');
-    return [{
-      id: value.id,
-      name: value.name,
-      postalCode: text(value.postalCode),
-      address: text(value.address),
-      phone: text(value.phone),
-      fax: text(value.fax),
-    }];
+    const r = row as Record<string, unknown>;
+    if (typeof r.id !== 'number' || typeof r.name !== 'string' || r.name === '') return [];
+    const text = (v: unknown) => (typeof v === 'string' ? v : '');
+    return [{ id: r.id, name: r.name, postalCode: text(r.postalCode), address: text(r.address), phone: text(r.phone), fax: text(r.fax) }];
   });
   return companies.length > 0 ? companies : null;
 }
 
 function readStoredId(): number | null {
   try {
-    const value = Number(window.localStorage.getItem(STORAGE_KEY));
-    return Number.isInteger(value) && value > 0 ? value : null;
+    const v = Number(window.localStorage.getItem(STORAGE_KEY));
+    return Number.isInteger(v) && v > 0 ? v : null;
   } catch {
     return null;
   }
@@ -76,16 +80,16 @@ let started = false;
 
 function update(next: Partial<Snapshot>) {
   snapshot = { ...snapshot, ...next };
-  listeners.forEach((listener) => listener());
+  listeners.forEach((l) => l());
 }
 
 async function load() {
   let companies: CompanyInfo[] | null = null;
   try {
-    const response = await fetch(DIRECTORY_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-    if (response.ok) companies = parseDirectoryCompanies(await response.json());
+    const res = await fetch(DIRECTORY_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (res.ok) companies = parseDirectoryCompanies(await res.json());
   } catch {
-    // 台帳停止時も控えの情報で印刷を継続する
+    // 台帳が落ちていても帳票は控えで刷れるようにする
   }
   update(companies ? { companies, status: 'ok' } : { status: 'fallback' });
 }
@@ -97,25 +101,21 @@ function subscribe(listener: () => void) {
     update({ selectedId: readStoredId() });
     void load();
   }
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 function selectCompany(id: number) {
   try {
     window.localStorage.setItem(STORAGE_KEY, String(id));
   } catch {
-    // 保存不可でも現在の画面では選択を維持する
+    // 保存できなくてもこの画面の間は選んだ会社で刷る
   }
   update({ selectedId: id });
 }
 
 export function useCompanyInfo() {
-  const current = useSyncExternalStore(subscribe, () => snapshot);
-  return {
-    company: pickCompany(current.companies, current.selectedId),
-    companies: current.companies,
-    status: current.status,
-    selectCompany,
-  };
+  const s = useSyncExternalStore(subscribe, () => snapshot);
+  return { company: pickCompany(s.companies, s.selectedId), companies: s.companies, status: s.status, selectCompany };
 }
-

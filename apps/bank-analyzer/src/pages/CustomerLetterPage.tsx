@@ -12,20 +12,18 @@
 // - 「※」を CSS の content で足していたので文字として選べず、折り返した2行目が記号の下に回り込んでいた
 //   → 本文の文字にして、2行目は1字下げで揃える
 // - 見出しの要素が1つも無かった → 読み上げ用の h1 を置く（印刷には出さない）
+// - 事務所の名前・住所を書き写していた → 社員台帳の「会社」から読む（届かなければ共通の控え）
 
 import { useEffect } from 'react';
 import { Printer, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { CompanySwitcher } from '@/shared/staff-directory/CompanySwitcher';
+import { getContactLine, getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
 
 const TITLE = '預金取引確認のご案内';
 
 const SANS = { fontFamily: "'Noto Sans JP', sans-serif" };
 const MINCHO = { fontFamily: '"Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif' };
-
-const FIRM = {
-  name: '税理士法人マスエージェント',
-  lines: ['〒770-0002 徳島県徳島市春日２丁目３−３３', 'TEL 088-632-6228 ／ FAX 088-631-9870'],
-};
 
 // note: true は「※」から始まる注記（1字下げではなく、折り返しを記号の右へ揃える）
 const PARAGRAPHS = [
@@ -48,6 +46,9 @@ const PAGE_CSS = '@media print { @page { size: A4; margin: 20mm 25mm; } }';
 
 export function CustomerLetterPage() {
   const navigate = useNavigate();
+  const { company } = useCompanyInfo();
+  // 住所・電話の無い会社でも空行を刷らない
+  const firmLines = [getFullAddress(company), getContactLine(company)].filter(Boolean);
 
   useEffect(() => {
     // 印刷すると用紙の端にも出る題なので、アプリ名のままにしない
@@ -80,6 +81,7 @@ export function CustomerLetterPage() {
           <Printer size={16} />
           印刷
         </button>
+        <CompanySwitcher className="ml-auto" />
       </div>
 
       <div
@@ -87,9 +89,9 @@ export function CustomerLetterPage() {
         style={MINCHO}
       >
         <div className="mb-6 border-b-2 border-blue-600 pb-3 text-right" style={SANS}>
-          <div className="mb-1 text-lg font-bold text-blue-600">{FIRM.name}</div>
+          <div className="mb-1 text-lg font-bold text-blue-600">{company.name}</div>
           <div className="text-xs leading-relaxed text-slate-600">
-            {FIRM.lines.map((line) => (
+            {firmLines.map((line) => (
               <div key={line}>{line}</div>
             ))}
           </div>

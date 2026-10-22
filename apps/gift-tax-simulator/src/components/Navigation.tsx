@@ -15,8 +15,8 @@ import CalendarDays from 'lucide-react/icons/calendar-days';
 import Landmark from 'lucide-react/icons/landmark';
 import Phone from 'lucide-react/icons/phone';
 import { useStaffInfo } from '@/contexts/StaffContext';
-import { formatPostalCode, useCompanyInfo } from '@/lib/company';
-import CompanySwitcher from './CompanySwitcher';
+import { formatPostalCode, useCompanyInfo } from '@/shared/staff-directory/company';
+import { CompanySwitcher } from '@/shared/staff-directory/CompanySwitcher';
 import { formatDate } from '@/lib/utils';
 
 const NAV_ITEMS = [

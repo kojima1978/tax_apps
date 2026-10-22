@@ -5,7 +5,7 @@ import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
 import { ResourcesPage } from '@/components/ResourcesPage';
 import { AuditLogPage } from '@/components/AuditLogPage';
 import { CategoryMasterPage } from '@/components/CategoryMasterPage';
-import { useCompanyInfo, type CompanyInfo } from '@/lib/company';
+import { useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
 import { operatorRequestHeaders, useOperator } from '@/lib/operator';
 import OperatorSwitcher from '@/components/OperatorSwitcher';
 

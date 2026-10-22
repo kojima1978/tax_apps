@@ -1,6 +1,11 @@
-import { useCompanyInfo } from '@/lib/company';
+// 原本は tax_apps/shared/staff-directory/。写しを直さず原本を直して `bash shared/sync.sh` で配る
+import { useCompanyInfo } from './company';
 
-const CompanySwitcher = ({ className = '' }: { className?: string }) => {
+/**
+ * 帳票に載せる会社の切り替え（社員台帳に会社が2つ以上あるときだけ出す）と、
+ * 台帳に届かず控えの事務所情報で動いていることの知らせ。どちらも画面だけで印刷しない。
+ */
+export function CompanySwitcher({ className = '' }: { className?: string }) {
   const { company, companies, status, selectCompany } = useCompanyInfo();
 
   if (status === 'fallback') {
@@ -19,13 +24,14 @@ const CompanySwitcher = ({ className = '' }: { className?: string }) => {
     <select
       aria-label="帳票に載せる会社"
       value={company.id ?? ''}
-      onChange={(event) => selectCompany(Number(event.target.value))}
+      onChange={(e) => selectCompany(Number(e.target.value))}
       className={`print:hidden max-w-full rounded border border-slate-300 bg-white px-1 py-0.5 text-xs text-slate-700 ${className}`}
     >
-      {companies.map((item) => <option key={item.id} value={item.id ?? ''}>{item.name}</option>)}
+      {companies.map((c) => (
+        <option key={c.id} value={c.id ?? ''}>
+          {c.name}
+        </option>
+      ))}
     </select>
   );
-};
-
-export default CompanySwitcher;
-
+}
