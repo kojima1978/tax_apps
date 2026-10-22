@@ -55,6 +55,23 @@ describe('案件', () => {
     expect(cleared.json).toMatchObject({ referenceDate: null, message: '基準日をクリアしました' });
   });
 
+  it('担当者は台帳ID と名前の写しで設定し、null で外す', async () => {
+    const { caseId } = await seedCase(db());
+    expect((await call('PUT', `/${caseId}/assignee`, { staffId: 0, name: '架空' })).status).toBe(400);
+    expect((await call('PUT', `/${caseId}/assignee`, { staffId: 3, name: ' ' })).status).toBe(400);
+    expect((await call('PUT', `/${caseId}/assignee`, {})).status).toBe(400);
+    const updatedBefore = (await call('GET', `/${caseId}`)).json.case.updatedAt;
+    const set = await call('PUT', `/${caseId}/assignee`, { staffId: 3, name: ' 架空 担当 ' });
+    expect(set.json).toMatchObject({ assignee: { staffId: 3, name: '架空 担当' }, message: '担当者を設定しました' });
+    expect((await call('GET', '')).json[0].assignee).toEqual({ staffId: 3, name: '架空 担当' });
+    expect((await call('GET', `/${caseId}`)).json.case.assignee).toEqual({ staffId: 3, name: '架空 担当' });
+    expect((await call('PUT', `/${caseId}/assignee`, { staffId: null })).json.message).toBe('担当者を外しました');
+    expect((await call('GET', '')).json[0].assignee).toBeNull();
+    // 担当の付け替えでは一覧の「更新日」を動かさない
+    expect((await call('GET', `/${caseId}`)).json.case.updatedAt).toBe(updatedBefore);
+    expect((await call('PUT', '/99/assignee', { staffId: null })).status).toBe(404);
+  });
+
   it('無い案件の下は 404', async () => {
     expect((await call('GET', '/5/field-values?field=description')).status).toBe(404);
     expect((await call('GET', '/abc/transactions/1')).status).toBe(404);

@@ -11,6 +11,7 @@ import { readFormDataFile } from '@/hooks/useFormData';
 import { APP_TITLE, caseDisplayName, formatSavedAt } from './caseLabels';
 import { CompanyListPanel } from './CompanyListPanel';
 import { NewCaseDialog } from './NewCaseDialog';
+import { OperatorSelect } from './OperatorSelect';
 import { companiesForNewCase } from './newCase';
 import { useBusyAction } from './useBusyAction';
 import { useCaseListReload } from './useCaseListReload';
@@ -64,6 +65,7 @@ export function CasesPage({ store, hasInput, onEnterForm, onOpenCompany, onOpenA
         <PortalLink />
         <div className="app-header-title">{APP_TITLE}</div>
         <div className="app-header-right">
+          <OperatorSelect />
           <button
             type="button"
             className="app-tool-btn"

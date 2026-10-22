@@ -139,6 +139,11 @@ model ValuationCase {
   /// 同名の別会社も混ざらない。振られていない案件は今までどおり会社名で名寄せする。
   companyKey String?
 
+  /// 担当者（社員台帳の ID）。台帳はアプリの外にあるので外部キーは張らない。
+  assigneeStaffId Int?
+  /// 担当者を設定した時点の氏名の写し。台帳から居なくなっても誰の担当だったか読めるように。
+  assigneeName String @default("")
+
   /// 評価明細書の入力値そのもの（表ID → 欄名 → 値）。
   data Json
 
@@ -150,4 +155,5 @@ model ValuationCase {
 
   @@index([archivedAt, updatedAt])
   @@index([companyKey])
+  @@index([assigneeStaffId])
 }

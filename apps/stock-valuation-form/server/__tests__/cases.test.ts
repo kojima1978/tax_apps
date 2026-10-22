@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CASE_CONFLICT_MESSAGE,
   copiedCaseName,
+  parseAssignee,
   parseCaseData,
   parseCaseId,
   parseCaseInput,
@@ -114,6 +115,8 @@ describe('toCaseSummary / toCaseResponse', () => {
     companyName: '株式会社テスト',
     taxPeriod: '令和8年3月15日',
     companyKey: null,
+    assigneeStaffId: null,
+    assigneeName: '',
     archivedAt: null,
     createdAt: new Date('2026-09-01T00:00:00.000Z'),
     updatedAt: new Date('2026-09-02T00:00:00.000Z'),
@@ -136,6 +139,32 @@ describe('toCaseSummary / toCaseResponse', () => {
   it('1件取得では入力データも返す', () => {
     expect(toCaseResponse(row).data).toEqual(row.data);
   });
+
+  it('担当者は台帳ID と名前の組で返し、未設定は null', () => {
+    expect(toCaseSummary(row).assignee).toBeNull();
+    expect(toCaseSummary({ ...row, assigneeStaffId: 7, assigneeName: '架空 太郎' }).assignee)
+      .toEqual({ staffId: 7, name: '架空 太郎' });
+  });
+});
+
+describe('parseAssignee', () => {
+  it('台帳ID と名前で設定し、名前の前後の空白は落とす', () => {
+    expect(parseAssignee({ staffId: 3, name: ' 架空 花子 ' })).toEqual({ staffId: 3, name: '架空 花子' });
+  });
+
+  it('staffId: null は「外す」', () => {
+    expect(parseAssignee({ staffId: null })).toBeNull();
+  });
+
+  it('ID が正の整数でなければ弾く（省略も「外す」とは読まない）', () => {
+    for (const staffId of [0, -1, 1.5, '3', undefined]) {
+      expect(() => parseAssignee({ staffId, name: '架空' })).toThrow(ValidationError);
+    }
+  });
+
+  it('名前が空なら弾く（一覧に出す写しが無くなる）', () => {
+    expect(() => parseAssignee({ staffId: 3, name: '  ' })).toThrow(ValidationError);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -146,6 +175,8 @@ interface FakeRow {
   id: number;
   companyName: string;
   taxPeriod: string;
+  assigneeStaffId: number | null;
+  assigneeName: string;
   data: unknown;
   archivedAt: Date | null;
   createdAt: Date;
@@ -159,6 +190,8 @@ function fakeDb(seed: Partial<FakeRow>[] = []) {
     id: nextId++,
     companyName: '',
     taxPeriod: '',
+    assigneeStaffId: null,
+    assigneeName: '',
     data: {},
     archivedAt: null,
     createdAt: new Date('2026-09-01T00:00:00.000Z'),
@@ -190,7 +223,8 @@ function fakeDb(seed: Partial<FakeRow>[] = []) {
       update: async ({ where, data }: { where: { id: number }; data: Partial<FakeRow> }) => {
         const target = find(where.id);
         if (!target) throw new Error('見つかりません');
-        Object.assign(target, data, { updatedAt: new Date('2026-09-11T00:00:00.000Z') });
+        // Prisma の @updatedAt と同じく、明示されたときだけその値を使う
+        Object.assign(target, { updatedAt: new Date('2026-09-11T00:00:00.000Z') }, data);
         return target;
       },
       delete: async ({ where }: { where: { id: number } }) => {
@@ -409,5 +443,32 @@ describe('createCaseRouter', () => {
     expect(rows[1]!.companyName).toBe('株式会社テスト（コピー）');
     expect(rows[1]!.taxPeriod).toBe('令和8年3月15日');
     expect(rows[1]!.data).toEqual(data);
+  });
+
+  it('担当者は設定しても updatedAt を動かさない（開いている画面の自動保存を409で止めないため）', async () => {
+    const { rows, client } = fakeDb([{ companyName: '株式会社テスト' }]);
+    const router = createCaseRouter(client);
+
+    const res = await router.request('/cases/1/assignee', { ...json({ staffId: 7, name: '架空 太郎' }), method: 'PUT' });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { case: { assignee: unknown; updatedAt: string } };
+    expect(body.case.assignee).toEqual({ staffId: 7, name: '架空 太郎' });
+    expect(body.case.updatedAt).toBe('2026-09-01T00:00:00.000Z');
+
+    const cleared = await router.request('/cases/1/assignee', { ...json({ staffId: null }), method: 'PUT' });
+    expect(cleared.status).toBe(200);
+    expect(rows[0]).toMatchObject({ assigneeStaffId: null, assigneeName: '', updatedAt: new Date('2026-09-01T00:00:00.000Z') });
+  });
+
+  it('担当者の設定は存在しない案件なら404、形が違えば400', async () => {
+    const router = createCaseRouter(fakeDb().client);
+    expect((await router.request('/cases/9/assignee', { ...json({ staffId: 1, name: '架空' }), method: 'PUT' })).status).toBe(404);
+    expect((await router.request('/cases/9/assignee', { ...json({ staffId: 'x' }), method: 'PUT' })).status).toBe(400);
+  });
+
+  it('複製は担当者を引き継ぐ', async () => {
+    const { rows, client } = fakeDb([{ companyName: '株式会社テスト', assigneeStaffId: 7, assigneeName: '架空 太郎' }]);
+    await createCaseRouter(client).request('/cases/1/duplicate', { method: 'POST' });
+    expect(rows[1]).toMatchObject({ assigneeStaffId: 7, assigneeName: '架空 太郎' });
   });
 });

@@ -40,7 +40,12 @@ async function seedFull() {
   const { caseId } = seeded;
   await db().case.update({
     where: { id: caseId },
-    data: { referenceDate: new Date('2025-03-31T00:00:00Z'), customPatterns: { 生活費: ['ZZQ架空'] } },
+    data: {
+      referenceDate: new Date('2025-03-31T00:00:00Z'),
+      customPatterns: { 生活費: ['ZZQ架空'] },
+      assigneeStaffId: 7,
+      assigneeName: '架空 担当',
+    },
   });
   await db().account.updateMany({
     where: { caseId },
@@ -105,6 +110,7 @@ describe('読み込み', () => {
 
     const restored = (await casesNamed('ZZQ架空商会_復元1'))[0]!;
     expect(restored.customPatterns).toEqual({ 生活費: ['ZZQ架空'] });
+    expect([restored.assigneeStaffId, restored.assigneeName]).toEqual([7, '架空 担当']);
     const again = (await exportJson(restored.id)).json;
     expect(again.transactions).toEqual(exported.transactions);
     expect(again.accounts).toEqual(exported.accounts);
@@ -121,6 +127,7 @@ describe('読み込み', () => {
       transactions: [{ date: '2025-05-01T00:00:00', description: 'ZZQ架空', amount_out: '1,500', account_number: '' }],
     });
     expect(res.json).toMatchObject({ name: 'インポート案件', count: 1 });
+    expect((await casesNamed('インポート案件'))[0]!.assigneeStaffId).toBeNull();
     const rows = await db().transaction.findMany({ include: { account: true } });
     expect(rows.map((r) => [r.account?.accountNumber, r.amountOut, r.category, r.descriptionSearch])).toEqual([
       ['unknown', 1500, '未分類', 'zzq架空'],

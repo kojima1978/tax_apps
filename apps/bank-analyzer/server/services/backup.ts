@@ -68,6 +68,9 @@ export async function exportCaseJson(
         created_at: c.createdAt.toISOString(),
         reference_date: toDateString(c.referenceDate),
         custom_patterns: c.customPatterns,
+        // Django 版には無い項目。読む側は無くても受ける
+        assignee_staff_id: c.assigneeStaffId,
+        assignee_name: c.assigneeName,
       },
       accounts: accounts.map((a) => ({
         account_number: a.accountNumber,
@@ -241,6 +244,7 @@ type Backup = {
   name: string;
   referenceDate: Date | null;
   customPatterns: Prisma.InputJsonObject | null;
+  assignee: { staffId: number; name: string } | null;
   accounts: AccountInventory[];
   transactions: ImportTx[];
   settings: unknown;
@@ -265,6 +269,13 @@ export function parseBackup(data: unknown, options: { allowEmpty?: boolean } = {
     if (!p) return failed('案件固有の分類パターンが正しくありません');
     customPatterns = p as Prisma.InputJsonObject;
   }
+
+  // 担当者は無ければ（Django 版・以前の書き出し）担当者なし。形が違っても案件ごと弾かず外す
+  const assigneeName = optionalText(c.assignee_name);
+  const assignee =
+    Number.isInteger(c.assignee_staff_id) && (c.assignee_staff_id as number) > 0 && assigneeName
+      ? { staffId: c.assignee_staff_id as number, name: assigneeName.slice(0, 100) }
+      : null;
 
   const accounts: AccountInventory[] = [];
   const rawAccounts = data.accounts ?? [];
@@ -294,6 +305,7 @@ export function parseBackup(data: unknown, options: { allowEmpty?: boolean } = {
     name: optionalText(c.name) ?? DEFAULT_NAME,
     referenceDate: referenceDate.value,
     customPatterns,
+    assignee,
     accounts,
     transactions,
     settings: data.settings,
@@ -380,7 +392,13 @@ async function importInto(tx: Tx, backup: Backup, restoreSettings: boolean) {
   const name = await freeCaseName(tx, backup.name);
   if (!name.ok) throw new BackupImportError(name.error);
   const c = await tx.case.create({
-    data: { name: name.value, referenceDate: backup.referenceDate, customPatterns: backup.customPatterns ?? {} },
+    data: {
+      name: name.value,
+      referenceDate: backup.referenceDate,
+      customPatterns: backup.customPatterns ?? {},
+      assigneeStaffId: backup.assignee?.staffId ?? null,
+      assigneeName: backup.assignee?.name ?? '',
+    },
   });
 
   // 口座は取引に出てくる順に作り、そのあと取引の無い口座も作る

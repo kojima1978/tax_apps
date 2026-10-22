@@ -847,6 +847,59 @@
   font-size: 12px;
 }
 
+.cases-filter select {
+  height: 26px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.case-filter-hint {
+  margin: 0 0 10px;
+  color: #b45309;
+  font-size: 11px;
+}
+
+/* ヘッダーの操作者。全アプリ共通の選択なので、どのアプリでも同じ位置（右上）に置く */
+.operator-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #4b5563;
+  font-size: 11px;
+}
+
+.operator-select select {
+  height: 28px;
+  max-width: 10em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+/* 年分の行の担当者。複製・ゴミ箱へと並ぶので、文字の大きさはそちらに揃える */
+.case-row-assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.case-row-assignee select {
+  height: 24px;
+  max-width: 9em;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 11px;
+}
+
 .case-error {
   margin: 0 0 10px;
   padding: 6px 10px;

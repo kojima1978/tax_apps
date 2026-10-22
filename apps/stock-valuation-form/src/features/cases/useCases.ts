@@ -405,6 +405,14 @@ export function useCases({ formData, getField, replaceAll, confirmDiscard }: Use
     [reload, run],
   );
 
+  const setAssignee = useCallback(
+    (id: number, assignee: api.CaseAssignee | null) => run(async () => {
+      await api.setCaseAssignee(id, assignee);
+      await reload();
+    }),
+    [reload, run],
+  );
+
   const purge = useCallback(
     (id: number) => run(async () => {
       await api.purgeCase(id);
@@ -438,6 +446,7 @@ export function useCases({ formData, getField, replaceAll, confirmDiscard }: Use
     archive,
     restore,
     purge,
+    setAssignee,
   };
 }
 

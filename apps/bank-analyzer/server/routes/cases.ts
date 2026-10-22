@@ -3,7 +3,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { parseId } from '../json.js';
 import { parseDateValue } from '../input.js';
-import { createCase, deleteCase, getCase, listCases, renameCase, setReferenceDate } from '../services/cases.js';
+import { createCase, deleteCase, getCase, listCases, parseAssignee, renameCase, setAssignee, setReferenceDate } from '../services/cases.js';
 import { CASE_NOT_FOUND, fail, ok, readBody, type CaseRouter } from './common.js';
 
 export function caseRoutes(r: CaseRouter, db: PrismaClient) {
@@ -44,5 +44,13 @@ export function caseRoutes(r: CaseRouter, db: PrismaClient) {
     await setReferenceDate(db, c.get('caseId'), date.value);
     const referenceDate = date.value ? date.value.toISOString().slice(0, 10) : null;
     return ok(c, { referenceDate, message: referenceDate ? '基準日を更新しました' : '基準日をクリアしました' });
+  });
+
+  // 担当者（社員台帳の ID と名前の写し）。{ staffId: null } で外す
+  r.put('/:caseId/assignee', async (c) => {
+    const assignee = parseAssignee(await readBody(c));
+    if (!assignee.ok) return fail(c, assignee.error);
+    await setAssignee(db, c.get('caseId'), assignee.value);
+    return ok(c, { assignee: assignee.value, message: assignee.value ? '担当者を設定しました' : '担当者を外しました' });
   });
 }

@@ -5,12 +5,19 @@ import { UNCATEGORIZED } from '../lib/categories.js';
 import { toDateString, toId } from '../json.js';
 import type { Parsed } from '../input.js';
 
+/** 担当者。staffId は社員台帳の ID、name は選んだ時点の写し */
+export type CaseAssignee = { staffId: number; name: string };
+
+const assigneeOf = (c: { assigneeStaffId: number | null; assigneeName: string }): CaseAssignee | null =>
+  c.assigneeStaffId === null ? null : { staffId: c.assigneeStaffId, name: c.assigneeName };
+
 export type CaseSummary = {
   id: number;
   name: string;
   createdAt: string;
   updatedAt: string;
   referenceDate: string | null;
+  assignee: CaseAssignee | null;
   transactionCount: number;
   unclassifiedCount: number;
   accountCount: number;
@@ -32,6 +39,7 @@ export async function listCases(db: PrismaClient): Promise<CaseSummary[]> {
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
     referenceDate: toDateString(c.referenceDate),
+    assignee: assigneeOf(c),
     transactionCount: c._count.transactions,
     unclassifiedCount: unclassifiedByCase.get(c.id) ?? 0,
     accountCount: c._count.accounts,
@@ -54,6 +62,7 @@ export async function getCase(db: PrismaClient, caseId: bigint) {
     id: toId(c.id),
     name: c.name,
     referenceDate: toDateString(c.referenceDate),
+    assignee: assigneeOf(c),
     accounts: c.accounts.map((a) => ({
       bankName: a.bankName ?? '',
       branchName: a.branchName ?? '',
@@ -110,5 +119,26 @@ export async function deleteCase(db: PrismaClient, caseId: bigint): Promise<bool
 
 export async function setReferenceDate(db: PrismaClient, caseId: bigint, date: Date | null): Promise<boolean> {
   const { count } = await db.case.updateMany({ where: { id: caseId }, data: { referenceDate: date } });
+  return count > 0;
+}
+
+const ASSIGNEE_NAME_MAX = 100;
+
+// { staffId: null } で外す。名前は台帳の氏名を画面が写して送る（台帳を引き直さない）
+export function parseAssignee(body: Record<string, unknown>): Parsed<CaseAssignee | null> {
+  if (body.staffId === null) return { ok: true, value: null };
+  if (!Number.isInteger(body.staffId) || (body.staffId as number) <= 0) return { ok: false, error: '担当者が正しくありません。' };
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  if (name === '') return { ok: false, error: '担当者の名前がありません。' };
+  return { ok: true, value: { staffId: body.staffId as number, name: name.slice(0, ASSIGNEE_NAME_MAX) } };
+}
+
+// 担当の付け替えは分析の中身を変えないので、一覧の「更新日」は動かさない。
+// Prisma は updateMany でも @updatedAt を書き換えるため、ここだけ素の SQL で書く
+export async function setAssignee(db: PrismaClient, caseId: bigint, assignee: CaseAssignee | null): Promise<boolean> {
+  const count = await db.$executeRaw`
+    UPDATE analyzer_case
+       SET assignee_staff_id = ${assignee?.staffId ?? null}, assignee_name = ${assignee?.name ?? ''}
+     WHERE id = ${caseId}`;
   return count > 0;
 }

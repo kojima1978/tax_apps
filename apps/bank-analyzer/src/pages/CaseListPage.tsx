@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Download, FileUp, FolderOpen, HelpCircle, Inbox, Pencil, Plus, Search, Trash2, DatabaseBackup } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Download, FileUp, FolderOpen, HelpCircle, Inbox, Pencil, Plus, Search, Trash2, DatabaseBackup, UserRound } from 'lucide-react';
 import { ConfirmDialog, Dialog } from '../components/Dialog';
 import { DownloadButton } from '../components/DownloadButton';
 import { Menu } from '../components/Menu';
@@ -12,6 +12,8 @@ import { useApiData } from '../hooks/useApiData';
 import { api, errorMessage } from '../lib/api';
 import { num, warekiFromDateTime } from '../lib/format';
 import type { CaseSummary } from '../types';
+import { CaseAssigneeDialog } from './CaseAssigneeDialog';
+import { useOperator } from '@/shared/staff-directory/operator';
 
 const SORTS = [
   { value: 'newest', label: '新しい順', compare: (a: CaseSummary, b: CaseSummary) => b.createdAt.localeCompare(a.createdAt) },
@@ -20,6 +22,25 @@ const SORTS = [
   { value: 'unclassified', label: '未分類多い順', compare: (a: CaseSummary, b: CaseSummary) => b.unclassifiedCount - a.unclassifiedCount },
 ] as const;
 type SortValue = (typeof SORTS)[number]['value'];
+
+// 担当者での絞り込み。「自分の担当」はヘッダーで選んだ操作者（全アプリ共通）の台帳ID で見る
+type AssigneeFilter = 'all' | 'mine' | 'none';
+const ASSIGNEE_FILTER_KEY = 'bank-analyzer:case-assignee-filter';
+
+function readAssigneeFilter(): AssigneeFilter {
+  try {
+    const v = window.localStorage.getItem(ASSIGNEE_FILTER_KEY);
+    return v === 'mine' || v === 'none' ? v : 'all';
+  } catch {
+    return 'all';
+  }
+}
+
+function matchesAssignee(c: CaseSummary, filter: AssigneeFilter, myId: number | null) {
+  if (filter === 'none') return c.assignee === null;
+  if (filter === 'mine') return myId !== null && c.assignee?.staffId === myId;
+  return true;
+}
 
 function CaseStatus({ c }: { c: CaseSummary }) {
   if (c.unclassifiedCount > 0)
@@ -122,6 +143,19 @@ export function CaseListPage() {
   const [sort, setSort] = useState<SortValue>('newest');
   const [editing, setEditing] = useState<CaseSummary | null>(null);
   const [deleting, setDeleting] = useState<CaseSummary | null>(null);
+  const [assigning, setAssigning] = useState<CaseSummary | null>(null);
+  const [assigneeFilter, setAssigneeFilterState] = useState<AssigneeFilter>(readAssigneeFilter);
+  const { selected: me, operators } = useOperator();
+  const setAssigneeFilter = (value: AssigneeFilter) => {
+    setAssigneeFilterState(value);
+    try {
+      window.localStorage.setItem(ASSIGNEE_FILTER_KEY, value);
+    } catch {
+      // 保存できなくてもこの画面では絞り込みを効かせる
+    }
+  };
+  // 名前は台帳の今の氏名を優先（改姓など）。台帳に居なければ選んだ時点の写し
+  const assigneeName = (c: CaseSummary) => (c.assignee ? (operators.find((o) => o.id === c.assignee!.staffId)?.fullName ?? c.assignee.name) : '');
   const [busy, setBusy] = useState(false);
 
   // ヘッダーの「新規案件」は ?new=1 で来る（どの画面からでも同じ口で開けるように）
@@ -131,8 +165,12 @@ export function CaseListPage() {
   const visible = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('ja');
     const compare = SORTS.find((s) => s.value === sort)!.compare;
-    return (cases ?? []).filter((c) => c.name.toLocaleLowerCase('ja').includes(q)).sort(compare);
-  }, [cases, query, sort]);
+    const myId = me?.id ?? null;
+    return (cases ?? [])
+      .filter((c) => c.name.toLocaleLowerCase('ja').includes(q) && matchesAssignee(c, assigneeFilter, myId))
+      .sort(compare);
+  }, [cases, query, sort, assigneeFilter, me]);
+  const filtered = query.trim() !== '' || assigneeFilter !== 'all';
 
   const remove = async () => {
     if (!deleting) return;
@@ -207,15 +245,28 @@ export function CaseListPage() {
                   </option>
                 ))}
               </select>
+              <select
+                className="input w-auto"
+                aria-label="担当者で絞り込み"
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value as AssigneeFilter)}
+              >
+                <option value="all">担当者: すべて</option>
+                <option value="mine">{me ? `自分の担当（${me.fullName}）` : '自分の担当（操作者が未選択）'}</option>
+                <option value="none">担当者なし</option>
+              </select>
             </div>
+            {assigneeFilter === 'mine' && !me && (
+              <p className="mb-2 text-xs text-amber-800">画面右上で操作者を選ぶと、その人が担当の案件だけを表示します。</p>
+            )}
             <p className="mb-3 text-xs text-slate-500" role="status">
-              {query.trim() ? `検索結果: ${visible.length}件` : `${visible.length}件の案件を表示中`}
+              {filtered ? `絞り込み結果: ${visible.length}件` : `${visible.length}件の案件を表示中`}
             </p>
 
             {visible.length === 0 ? (
               <div className="py-10 text-center text-slate-500">
                 <p className="font-semibold">該当する案件はありません</p>
-                <p className="text-xs">検索語を変更してお試しください。</p>
+                <p className="text-xs">検索語や担当者の絞り込みを変更してお試しください。</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -224,6 +275,7 @@ export function CaseListPage() {
                     <tr>
                       <th>案件名</th>
                       <th>分類状況</th>
+                      <th className="hidden sm:table-cell">担当者</th>
                       <th className="text-right">取引</th>
                       <th className="hidden text-right md:table-cell">口座</th>
                       <th className="hidden md:table-cell">作成日</th>
@@ -242,6 +294,9 @@ export function CaseListPage() {
                         </td>
                         <td>
                           <CaseStatus c={c} />
+                        </td>
+                        <td className="hidden sm:table-cell">
+                          {c.assignee ? assigneeName(c) : <span className="text-slate-400">未設定</span>}
                         </td>
                         <td className="text-right tabular-nums">
                           {num(c.transactionCount)}
@@ -273,6 +328,18 @@ export function CaseListPage() {
                                   >
                                     <Pencil size={16} />
                                     案件名を編集
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="menu-item"
+                                    role="menuitem"
+                                    onClick={() => {
+                                      close();
+                                      setAssigning(c);
+                                    }}
+                                  >
+                                    <UserRound size={16} />
+                                    担当者を設定
                                   </button>
                                   <hr className="my-1 border-slate-200" />
                                   <button
@@ -315,6 +382,15 @@ export function CaseListPage() {
             setEditing(null);
             reload();
           }
+        }}
+      />
+
+      <CaseAssigneeDialog
+        target={assigning}
+        onClose={() => setAssigning(null)}
+        onSaved={() => {
+          setAssigning(null);
+          reload();
         }}
       />
 

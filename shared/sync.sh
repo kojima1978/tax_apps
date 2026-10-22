@@ -20,6 +20,7 @@ TARGETS=(
   staff-directory:inheritance-tax-app:test
   staff-directory:inheritance-tax-docs:test
   staff-directory:retirement-tax-calc:test
+  staff-directory:stock-valuation-form:test
 )
 
 check=0

@@ -4,6 +4,12 @@ import type { FormData } from '@/types/form';
 
 const API_BASE = `${import.meta.env.BASE_URL}api`;
 
+/** 担当者。staffId は社員台帳の ID、name は設定した時点の氏名の写し。 */
+export interface CaseAssignee {
+  staffId: number;
+  name: string;
+}
+
 export interface CaseSummary {
   id: number;
   companyName: string;
@@ -13,6 +19,8 @@ export interface CaseSummary {
    * 振られていない案件は null で、そのときは会社名で名寄せする（caseGroups）。
    */
   companyKey: string | null;
+  /** 担当者。未設定は null。 */
+  assignee: CaseAssignee | null;
   /** ゴミ箱に入れた日時。入っていなければ null。 */
   archivedAt: string | null;
   createdAt: string;
@@ -96,6 +104,15 @@ export async function updateCase(
 
 export async function duplicateCase(id: number): Promise<CaseSummary> {
   return (await request<{ case: CaseSummary }>('POST', `/cases/${id}/duplicate`)).case;
+}
+
+/**
+ * 担当者を設定する（null で外す）。サーバは updatedAt を動かさないので、
+ * 開いている画面の自動保存の前提（楽観ロック）はこれで崩れない。
+ */
+export async function setCaseAssignee(id: number, assignee: CaseAssignee | null): Promise<CaseSummary> {
+  const body = assignee ?? { staffId: null };
+  return (await request<{ case: CaseSummary }>('PUT', `/cases/${id}/assignee`, body)).case;
 }
 
 export async function restoreCase(id: number): Promise<CaseSummary> {

@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import { ArchivedToggle } from './ArchivedToggle';
 import { CaseListPanel } from './CaseListPanel';
 import { NewCaseDialog } from './NewCaseDialog';
+import { OperatorSelect } from './OperatorSelect';
 import { findGroupByKey, groupCasesByCompany } from './caseGroups';
 import { APP_TITLE } from './caseLabels';
 import { companiesForNewCase } from './newCase';
@@ -40,6 +41,9 @@ export function CompanyPage({ store, groupKey, onBack, onEnterForm }: CompanyPag
     <div className="app-root cases-root" style={{ fontFamily: '"Noto Sans JP", sans-serif' }}>
       <header className="app-header">
         <div className="app-header-title">{APP_TITLE}</div>
+        <div className="app-header-right">
+          <OperatorSelect />
+        </div>
       </header>
 
       <div className="cases-shell">

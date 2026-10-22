@@ -16,6 +16,7 @@ import type { PrismaClient } from '@prisma/client';
 import {
   CASE_CONFLICT_MESSAGE,
   copiedCaseName,
+  parseAssignee,
   parseCaseId,
   parseCaseInput,
   parseExpectedUpdatedAt,
@@ -30,6 +31,8 @@ const SUMMARY_COLUMNS = {
   companyName: true,
   taxPeriod: true,
   companyKey: true,
+  assigneeStaffId: true,
+  assigneeName: true,
   archivedAt: true,
   createdAt: true,
   updatedAt: true,
@@ -165,6 +168,29 @@ export function createCaseRouter(db: PrismaClient) {
     return c.json({ case: toCaseSummary(updated) });
   }));
 
+  // 担当者の設定・解除。{ staffId, name } で設定、{ staffId: null } で外す。
+  //
+  // updatedAt は動かさない。updatedAt は入力データの楽観ロックの前提でもあるので、
+  // 一覧で担当を付け替えただけで、その案件を開いている画面の自動保存が 409 で止まってしまう。
+  router.put('/cases/:id/assignee', guard(async (c) => {
+    const id = caseIdOf(c);
+    const assignee = parseAssignee(await readJson(c.req.raw));
+
+    const existing = await db.valuationCase.findUnique({ where: { id }, select: { updatedAt: true } });
+    if (!existing) return c.json({ error: '指定された案件は存在しません' }, 404);
+
+    const updated = await db.valuationCase.update({
+      where: { id },
+      data: {
+        assigneeStaffId: assignee?.staffId ?? null,
+        assigneeName: assignee?.name ?? '',
+        updatedAt: existing.updatedAt,
+      },
+      select: SUMMARY_COLUMNS,
+    });
+    return c.json({ case: toCaseSummary(updated) });
+  }));
+
   // 複製。前期の入力を土台に翌年度ぶんを作る、といった使い方を想定している。
   router.post('/cases/:id/duplicate', guard(async (c) => {
     const source = await findCase(c);
@@ -176,6 +202,9 @@ export function createCaseRouter(db: PrismaClient) {
         taxPeriod: source.taxPeriod,
         // 複製は同じ会社の別の年分を作る操作なので、会社キーを引き継ぐ（無ければ元にも振る）。
         companyKey: await ensureCompanyKey(source.id),
+        // 同じ会社の別の年分なので、担当も引き継ぐ（付け替えは一覧から）。
+        assigneeStaffId: source.assigneeStaffId,
+        assigneeName: source.assigneeName,
         data: source.data ?? {},
       },
       select: SUMMARY_COLUMNS,

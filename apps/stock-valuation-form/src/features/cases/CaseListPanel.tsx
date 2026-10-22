@@ -5,8 +5,11 @@
 //
 // どの案件を同じ会社とみなすかは caseGroups が決める。ここは渡された塊を並べるだけ。
 
+import { useOperator } from '@/shared/staff-directory/operator';
 import { ArchivedToggle } from './ArchivedToggle';
+import { AssigneeSelect } from './AssigneeSelect';
 import type { CaseSummary } from './api';
+import { assigneeLabel } from './caseAssignee';
 import type { CaseGroup } from './caseGroups';
 import { caseDisplayName, formatSavedAt } from './caseLabels';
 import { useOpenCase } from './useOpenCase';
@@ -24,6 +27,7 @@ interface CaseListPanelProps {
 
 export function CaseListPanel({ store, group, onOpened, onAddYear }: CaseListPanelProps) {
   const { busy, act, open } = useOpenCase(store, onOpened);
+  const { operators, status: directory } = useOperator();
 
   const rowActions = (item: CaseSummary) => (
     item.archivedAt !== null
@@ -50,42 +54,58 @@ export function CaseListPanel({ store, group, onOpened, onAddYear }: CaseListPan
 
   // 会社名は見出しに1度出ているので行には出さない。代わりに課税時期が年分の見分けになるので、
   // 未入力でもその旨を出す ── どちらも空の行は、どの年分か分からないまま並ぶことになる。
-  const renderRow = (item: CaseSummary) => (
-    <li
-      key={item.id}
-      className={`case-row${item.id === store.currentId ? ' is-current' : ''}${item.archivedAt !== null ? ' is-archived' : ''}`}
-    >
-      <button
-        type="button"
-        className="case-row-main case-row-open"
-        disabled={busy}
-        title={item.archivedAt !== null ? 'ゴミ箱に入っていますが、開いて中身を確かめられます' : 'この年分の帳票を開きます'}
-        onClick={() => open(item.id)}
+  //
+  // 担当者は台帳が引けてゴミ箱に入っていない行だけ選べる。それ以外は名前を文字で出す。
+  const renderRow = (item: CaseSummary) => {
+    const editable = directory === 'ok' && item.archivedAt === null;
+    const assignee = assigneeLabel(item.assignee, operators);
+    return (
+      <li
+        key={item.id}
+        className={`case-row${item.id === store.currentId ? ' is-current' : ''}${item.archivedAt !== null ? ' is-archived' : ''}`}
       >
-        <span className="case-row-name">
-          課税時期 {item.taxPeriod === '' ? '未入力' : item.taxPeriod}
-        </span>
-        <span className="case-row-updated">
-          {item.archivedAt !== null ? 'ゴミ箱 ' : '更新 '}
-          {formatSavedAt(item.archivedAt ?? item.updatedAt)}
-        </span>
-        {item.id === store.currentId && <span className="case-row-period">編集中</span>}
-      </button>
-      <div className="case-row-actions">
-        {rowActions(item).map((action) => (
-          <button
-            key={action.label}
-            type="button"
-            className={`case-row-quiet${'danger' in action && action.danger ? ' is-danger' : ''}`}
-            disabled={busy}
-            onClick={action.onClick}
-          >
-            {action.label}
-          </button>
-        ))}
-      </div>
-    </li>
-  );
+        <button
+          type="button"
+          className="case-row-main case-row-open"
+          disabled={busy}
+          title={item.archivedAt !== null ? 'ゴミ箱に入っていますが、開いて中身を確かめられます' : 'この年分の帳票を開きます'}
+          onClick={() => open(item.id)}
+        >
+          <span className="case-row-name">
+            課税時期 {item.taxPeriod === '' ? '未入力' : item.taxPeriod}
+          </span>
+          <span className="case-row-updated">
+            {item.archivedAt !== null ? 'ゴミ箱 ' : '更新 '}
+            {formatSavedAt(item.archivedAt ?? item.updatedAt)}
+            {!editable && assignee !== null && ` ／ 担当 ${assignee}`}
+          </span>
+          {item.id === store.currentId && <span className="case-row-period">編集中</span>}
+        </button>
+        <div className="case-row-actions">
+          {editable && (
+            <AssigneeSelect
+              caseId={item.id}
+              assignee={item.assignee}
+              operators={operators}
+              disabled={busy}
+              onChange={(next) => void act(() => store.setAssignee(item.id, next))}
+            />
+          )}
+          {rowActions(item).map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              className={`case-row-quiet${'danger' in action && action.danger ? ' is-danger' : ''}`}
+              disabled={busy}
+              onClick={action.onClick}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      </li>
+    );
+  };
 
   return (
     <section className="cases-panel">

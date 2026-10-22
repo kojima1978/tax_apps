@@ -116,11 +116,38 @@ export function copiedCaseName(companyName: string): string {
     : copied;
 }
 
+/** 担当者。staffId は社員台帳の ID、name は設定した時点の氏名の写し。 */
+export interface CaseAssignee {
+  staffId: number;
+  name: string;
+}
+
+const MAX_ASSIGNEE_NAME_LENGTH = 100;
+
+/**
+ * 担当者の設定（PUT /cases/:id/assignee）の本体。`{ staffId: null }` で外す。
+ * 台帳を引き直して名前を確かめることはしない（台帳はこのアプリの外にあり、止まっていても
+ * 担当の付け替えはできてほしい）。名前は一覧に出す写しなので、空は受けない。
+ */
+export function parseAssignee(raw: unknown, what = 'リクエスト本体'): CaseAssignee | null {
+  const body = asRecord(raw, what);
+  if (body.staffId === null) return null;
+  const staffId = body.staffId;
+  if (typeof staffId !== 'number' || !Number.isInteger(staffId) || staffId <= 0) {
+    throw new ValidationError('staffId は正の整数で指定してください（外すときは null）');
+  }
+  const name = label(body.name, '担当者名', MAX_ASSIGNEE_NAME_LENGTH);
+  if (name === '') throw new ValidationError('担当者名を指定してください');
+  return { staffId, name };
+}
+
 export interface CaseRow {
   id: number;
   companyName: string;
   taxPeriod: string;
   companyKey: string | null;
+  assigneeStaffId: number | null;
+  assigneeName: string;
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -133,6 +160,9 @@ export function toCaseSummary(row: CaseRow) {
     companyName: row.companyName,
     taxPeriod: row.taxPeriod,
     companyKey: row.companyKey,
+    assignee: row.assigneeStaffId === null
+      ? null
+      : { staffId: row.assigneeStaffId, name: row.assigneeName },
     archivedAt: row.archivedAt === null ? null : row.archivedAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
