@@ -137,7 +137,7 @@ describe("顧客一覧の表示", () => {
       clients[1],
     ])));
     render(<ClientList />);
-    expect((await screen.findByText(/関連法人 株式会社テスト商店/)).className).toBe("client-list-meta");
+    expect((await screen.findByText("株式会社テスト商店")).className).toBe("client-list-company");
     fireEvent.change(searchBox(), { target: { value: "テスト商店" } });
     expect(rowCount()).toBe(1);
     expect(screen.getByRole("link", { name: /テスト顧客A/ })).toBeTruthy();
@@ -172,16 +172,17 @@ describe("顧客一覧の表示", () => {
   it("誰か1人でも担当者が付いていれば、空いている行に「担当者未設定」を出す", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response([{ ...clients[0], assignedStaff: "佐藤" }, clients[1]])));
     render(<ClientList />);
-    expect((await screen.findByText("担当 佐藤")).className).toBe("client-list-meta");
+    expect((await screen.findByText("担当 佐藤")).className).toBe("client-list-staff");
     expect(screen.getAllByText("担当者未設定")).toHaveLength(1);
   });
 
-  it("カナが空でも区切りだけが残らない", async () => {
+  it("カナが空でも関連法人は同じ列に出る（列ごとに幅を持つので頭がずれない）", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response([
       { ...clients[0], nameKana: "", relatedCompany: "株式会社テスト商店" },
     ])));
     render(<ClientList />);
-    expect((await screen.findByText("関連法人 株式会社テスト商店")).className).toBe("client-list-meta");
+    expect((await screen.findByText("株式会社テスト商店")).className).toBe("client-list-company");
+    expect(document.querySelector(".client-list-kana")?.textContent).toBe("");
   });
 
   it("全員が同じ年度なら行には出さず、件数の横へ1回だけ出す", async () => {

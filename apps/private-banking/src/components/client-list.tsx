@@ -3,7 +3,7 @@
 import { AlertTriangle, Building2, ChevronRight, CircleUserRound, ClipboardCheck, DatabaseBackup, LayoutDashboard, LoaderCircle, Menu, Search, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, FormEvent, KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionMenu, type ActionMenuItem } from "@/components/action-menu";
 import { ClientFields } from "@/components/client-fields";
 import { Highlighted } from "@/components/highlighted";
@@ -24,19 +24,6 @@ export const CLIENT_HOME_SECTION = "balance";
 
 export const clientHref = (householdId: number) => `/customers/${householdId}/${CLIENT_HOME_SECTION}`;
 const qualityIssuesFor = (client: ClientSummary) => client.qualityIssues ?? [];
-
-/**
- * 行の補足（カナ・担当・関連法人）。空の項目は区切りごと出さないので、
- * 文字列を連結せず配列にして ・ で繋ぐ（繋ぎ方を1箇所に寄せるため）。
- */
-function metaParts(client: ClientSummary, terms: string[], showsUnassigned: boolean) {
-  const parts: ReactNode[] = [];
-  if (client.nameKana) parts.push(<Highlighted text={client.nameKana} terms={terms} />);
-  if (client.assignedStaff) parts.push(<>担当 <Highlighted text={client.assignedStaff} terms={terms} /></>);
-  else if (showsUnassigned) parts.push("担当者未設定");
-  if (client.relatedCompany) parts.push(<>関連法人 <Highlighted text={client.relatedCompany} terms={terms} /></>);
-  return parts;
-}
 
 export function ClientList() {
   const router = useRouter();
@@ -290,9 +277,13 @@ export function ClientList() {
           {/* 1行に収める。イニシャルの丸は情報を持たないので置かず、その位置に顧客コードを出す。 */}
           <span className="client-list-code"><Highlighted text={client.clientCode} terms={terms} /></span>
           <strong className="client-list-name"><Highlighted text={client.name} terms={terms} /></strong>
-          <small className="client-list-meta">
-            {metaParts(client, terms, showsUnassigned).map((part, partIndex) => <Fragment key={partIndex}>{partIndex > 0 ? " ・ " : null}{part}</Fragment>)}
+          {/* カナ・担当者・関連法人は列ごとに固定幅で置く（値が無い行も空けたまま。頭の位置が行ごとに動かないため）。
+              関連法人は社名そのものが何の列かを示すので語を付けないが、担当者は氏名だけでは分からないので「担当」を残す。 */}
+          <small className="client-list-kana">{client.nameKana ? <Highlighted text={client.nameKana} terms={terms} /> : null}</small>
+          <small className="client-list-staff">
+            {client.assignedStaff ? <>担当 <Highlighted text={client.assignedStaff} terms={terms} /></> : showsUnassigned ? "担当者未設定" : null}
           </small>
+          <small className="client-list-company">{client.relatedCompany ? <Highlighted text={client.relatedCompany} terms={terms} /> : null}</small>
           <span className="client-list-financial"><strong>{compactYen(client.netWorth ?? 0)}</strong><small>純資産</small></span>
           <span className="client-list-updated"><strong>{client.latestUpdatedAt ? new Date(client.latestUpdatedAt).toLocaleDateString("ja-JP") : "未更新"}</strong><small>最終更新</small></span>
           <span className={`client-quality-badge ${qualityIssuesFor(client).some((issue) => issue.severity === "critical") ? "critical" : qualityIssuesFor(client).length > 0 ? "warning" : "complete"}`}>
