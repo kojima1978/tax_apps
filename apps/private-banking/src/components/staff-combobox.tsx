@@ -33,9 +33,11 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
   useEffect(() => {
     if (!open) return;
     // カーソルが先頭なら一覧ごと上へ戻す。絞り込み直後は前の位置が残り、「未設定」の行が画面の外へ出てしまう。
+    // `query` も依存に要る ── 担当者未設定の画面は `activeIndex` が最初から0で、入力しても0のままなので
+    // カーソルだけを見ているとこの効果が1度も走らない（新規登録のモーダルで実測）。
     if (activeIndex === 0 && optionsRef.current) optionsRef.current.scrollTop = 0;
     else optionsRef.current?.querySelector(".is-active")?.scrollIntoView?.({ block: "nearest" });
-  }, [activeIndex, open]);
+  }, [activeIndex, open, query]);
 
   function choose(row: Staff) {
     onChange(String(row.id));
