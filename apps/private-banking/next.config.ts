@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   basePath: "/private-banking",
   poweredByHeader: false,
   experimental: {
+    agentUpgrade: "security",
     optimizePackageImports: ["lucide-react", "recharts"],
     // 開発用ディスクキャッシュは、書き込み中の中断（PC のスリープ、Docker Desktop の
     // 停止など）で壊れると、存在しない .sst を参照し続けて全リクエストが 500 になる。
