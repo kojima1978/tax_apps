@@ -13,6 +13,12 @@ describe("親族関係の一覧と入力", () => {
     const region = screen.getByRole("region", { name: /家族一覧（幅が足りない場合は横スクロール/ });
     expect(region.tabIndex).toBe(0);
     expect(region.querySelector("table")).not.toBeNull();
+    expect(screen.queryByText(/名を登録済み/)).toBeNull();
+  });
+
+  it("家族未登録時の案内は維持する", () => {
+    render(<FamilyView members={[]} referenceDate="2026-01-01" saving={false} onSave={vi.fn()} />);
+    expect(screen.getByText("家族情報はまだ登録されていません")).toBeTruthy();
   });
 
   it("編集画面で基本・相続・加算控除のまとまりを維持する", () => {

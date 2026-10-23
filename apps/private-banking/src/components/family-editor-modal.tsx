@@ -23,7 +23,7 @@ const SHARE_PATTERN = String.raw`\s*[0-9０-９]+\s*(?:[\/／]\s*[0-9０-９]+\s
  * `wide` は和暦入力（元号＋年月日の4欄）が入る生年月日。
  * 画面幅に応じてグリッドの列数を切り替え、入力欄の幅を確保する。
  */
-type FieldProps = { id: string; label: string; index: number; required?: boolean; hint?: ReactNode; size?: "narrow" | "wide"; children: ReactNode };
+type FieldProps = { id: string; label: ReactNode; index: number; required?: boolean; hint?: ReactNode; size?: "narrow" | "wide"; children: ReactNode };
 
 /** 見出しの下に入力欄を置く1項目。読み上げでは「1人目の氏名」のように何人目かを添える。 */
 function Field({ id, label, index, required, hint, size, children }: FieldProps) {
@@ -37,7 +37,6 @@ function Field({ id, label, index, required, hint, size, children }: FieldProps)
 /** カードの中の項目のまとまり。入力順を保ったまま狭い幅では縦に並べる。 */
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return <div className="family-card-section" role="group" aria-label={title}>
-    <p className="family-card-section-title" aria-hidden="true">{title}</p>
     <div className="family-card-fields">{children}</div>
   </div>;
 }
@@ -91,10 +90,10 @@ function FamilyCard({ row, index, total, referenceDate, onUpdate, onMove, onRemo
             {acquisitionReasonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </Field>
-        <Field id={id("civil")} label="民法上の法定相続分" index={index} size="narrow">
+        <Field id={id("civil")} label={<span>民法上の<br />法定相続分</span>} index={index} size="narrow">
           <input id={id("civil")} className="family-share-input" inputMode="numeric" autoComplete="off" placeholder="例 1/2" pattern={SHARE_PATTERN} title="「1/2」の形で入力してください" value={row.civilShare} onChange={(event) => onUpdate({ civilShare: event.target.value })} />
         </Field>
-        <Field id={id("tax")} label="税法上の法定相続分" index={index} size="narrow" hint={
+        <Field id={id("tax")} label={<span>税法上の<br />法定相続分</span>} index={index} size="narrow" hint={
           <label className="family-check">
             <input type="checkbox" checked={row.taxSameAsCivil} onChange={(event) => onUpdate(event.target.checked
               ? { taxSameAsCivil: true }

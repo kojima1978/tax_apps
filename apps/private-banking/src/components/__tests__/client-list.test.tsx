@@ -109,6 +109,41 @@ describe("顧客一覧からの削除", () => {
 });
 
 describe("顧客一覧の表示", () => {
+  it("警告専用ボタンから内容と修正先を表示し、閉じると元のボタンへ戻る", async () => {
+    fetchMock.mockReset().mockResolvedValue(response([
+      { ...clients[0], qualityIssues: [
+        { code: "birth-date-missing", label: "生年月日未登録", severity: "warning", href: "profile" },
+        { code: "tax-recalculation-required", label: "相続税の再計算が必要", severity: "critical", href: "tax" },
+      ] }, clients[1],
+    ]));
+    render(<ClientList />);
+    const opener = await screen.findByRole("button", { name: "テスト顧客Aの確認事項を表示（2件）" });
+    expect(opener.closest("a")).toBeNull();
+    expect(screen.queryByRole("button", { name: /テスト顧客Bの確認事項/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: "データ品質" })).toBeNull();
+    fireEvent.change(searchBox(), { target: { value: "顧客A" } });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = screen.getByRole("dialog", { name: "テスト顧客Aの確認事項" });
+    expect(within(dialog).getByText("PB-001・2026年度")).toBeTruthy();
+    const links = within(dialog).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/customers/1/tax", "/customers/1/profile"]);
+    expect(links[0].getAttribute("aria-label")).toBe("相続税の再計算が必要：修正画面を開く");
+    expect(push).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(searchBox().value).toBe("顧客A");
+  });
+
+  it("モバイルのその他メニューからもデータ品質ボタンを除く", async () => {
+    render(<ClientList />);
+    fireEvent.click(await screen.findByRole("button", { name: "その他" }));
+    expect(screen.queryByRole("menuitem", { name: "データ品質" })).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "バックアップ" })).toBeTruthy();
+  });
+
   it("顧客追加モーダルはEscapeで閉じ、追加ボタンへフォーカスを戻す", async () => {
     fetchMock.mockReset().mockResolvedValueOnce(response(clients)).mockResolvedValueOnce(response([]));
     render(<ClientList />);

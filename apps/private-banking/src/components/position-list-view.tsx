@@ -6,7 +6,7 @@ import { List, Plus, Save, Scale, Search, Table2, UsersRound } from "lucide-reac
 import { useEffect, useMemo, useState } from "react";
 import { CommaNumberInput } from "@/components/form-fields";
 import { type Position, type PositionSection, type Snapshot, positionSection, middleClassification, middleClassificationRank, categoryRank, propertyTypeOf, deemedConfig, deemedAllocations, deemedBenefitJpy, hasDeemedBenefit, splitBenefit, categoryLabels, fractionTotal, ownershipFraction, smallLotTypeOptions, loanCategories } from "@/lib/portfolio-view";
-import { legalHeirMemberRoster, type FamilyMember } from "@/lib/family";
+import { type FamilyMember } from "@/lib/family";
 import { matchesSearchTerms, searchTerms } from "@/lib/clients";
 import { yen, triangleYen, valuationNumber } from "@/lib/format";
 import { positionAllocationAmounts, positionAllocationLabel, positionCaption, positionDetailFields, positionKeyInfo } from "@/lib/position-display";
@@ -169,7 +169,8 @@ function allocationSummaries(position: Position, familyMembers: FamilyMember[]) 
 
 function allocationTaxSummaries(burden: number | null, basis: number, allocations: Map<number, AllocationSummary>) {
   const byMember = new Map<number, number>();
-  if (burden === null || basis <= 0) return { byMember, unallocatedTax: null };
+  if (burden === null) return { byMember, unallocatedTax: null };
+  if (basis <= 0) return { byMember, unallocatedTax: burden };
   const allocated = [...allocations.values()].reduce((sum, allocation) => sum + allocation.amountJpy, 0);
   const weights = [
     ...[...allocations.entries()].map(([memberId, allocation], index) => ({ memberId, index, amount: allocation.amountJpy })),
@@ -212,25 +213,29 @@ function listAllocationTotals(positions: Snapshot["positions"], familyMembers: F
   return { byMember, netTotal, unallocatedTotal };
 }
 
-function finalTaxTotals(snapshot: Snapshot, familyMembers: FamilyMember[]) {
-  const calculation = snapshot.inheritanceTaxCalculation;
-  const byMember = new Map<number, number>();
-  if (!calculation) return { byMember, total: null, mode: null };
-
-  const roster = legalHeirMemberRoster(familyMembers);
-  const spouseTax = calculation.heirs.find((heir) => heir.id === "spouse" || heir.type === "spouse");
-  if (roster.spouse && spouseTax) byMember.set(roster.spouse.id, spouseTax.finalTaxJpy);
-
-  const rankedTaxes = calculation.heirs.filter((heir) => heir.type !== "spouse" && !heir.id?.startsWith("other:"));
-  roster.heirs.forEach((member, index) => {
-    const tax = rankedTaxes[index];
-    if (tax) byMember.set(member.id, tax.finalTaxJpy);
-  });
-  for (const member of familyMembers) {
-    const directTax = calculation.heirs.find((heir) => heir.id === `other:${member.id}`);
-    if (directTax) byMember.set(member.id, directTax.finalTaxJpy);
+/** 納付税額とは区別し、表示明細と同じ円単位の配分結果を縦計する。 */
+function listTaxTotals(positions: Position[], familyMembers: FamilyMember[], taxBurden: (position: Position) => number | null) {
+  const byMember = new Map(familyMembers.map((member) => [member.id, 0]));
+  let total = 0;
+  let unallocatedTotal = 0;
+  let calculatedCount = 0;
+  let uncalculatedCount = 0;
+  for (const position of positions) {
+    const burden = taxBurden(position);
+    if (burden === null) {
+      if (positionSection(position) === "ASSET" || positionSection(position) === "LIABILITY" && position.includedInNetWorth) uncalculatedCount += 1;
+      continue;
+    }
+    calculatedCount += 1;
+    const basis = deemedConfig(position) ? deemedBenefitJpy(position) : position.valueJpy;
+    const taxes = allocationTaxSummaries(burden, basis, allocationSummaries(position, familyMembers));
+    total += burden;
+    unallocatedTotal += taxes.unallocatedTax ?? 0;
+    for (const member of familyMembers) {
+      byMember.set(member.id, (byMember.get(member.id) ?? 0) + (taxes.byMember.get(member.id) ?? 0));
+    }
   }
-  return { byMember, total: calculation.totalInheritanceTaxJpy, mode: calculation.acquisitionAllocationMode };
+  return { byMember, total, unallocatedTotal, calculatedCount, uncalculatedCount };
 }
 
 function initialAllocationValues(positions: Snapshot["positions"], familyMembers: FamilyMember[]) {
@@ -405,10 +410,10 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
   }, [snapshot.positions, query, section, category, sort]);
   const categories = [...new Set(snapshot.positions.map((p) => p.category))];
   const allocationTotals = useMemo(() => listAllocationTotals(snapshot.positions, familyMembers), [snapshot.positions, familyMembers]);
-  const taxTotals = useMemo(() => finalTaxTotals(snapshot, familyMembers), [snapshot, familyMembers]);
-  const showsAllocatedTax = taxTotals.mode === "ACTUAL";
-  const taxTotalHeading = showsAllocatedTax ? "相続税額（割り振り反映）" : taxTotals.mode === "LEGAL" ? "相続税額（未確定）" : "相続税額";
-  const taxTotalNote = showsAllocatedTax ? "取得・負担の登録内容で計算" : taxTotals.mode === "LEGAL" ? "割り振り完了後に再計算" : "相続税の計算後に表示";
+  const taxTotals = useMemo(() => listTaxTotals(rows, familyMembers, taxBurden), [rows, familyMembers, taxBurden]);
+  const hasCalculatedTax = taxTotals.calculatedCount > 0;
+  const taxTotalNote = !hasCalculatedTax ? "相続税の計算後に表示"
+    : `表示明細の割り振り別合計${taxTotals.uncalculatedCount > 0 ? "（未計算の明細を除く）" : ""}。納付税額とは異なります。`;
   function href(position: Snapshot["positions"][number]) {
     const [path, search] = detailHref.split("?");
     const next = new URLSearchParams(search);
@@ -492,10 +497,10 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
           <td className="position-summary-action-column" />
         </tr>
         <tr>
-          <th scope="row" colSpan={4}><span>{taxTotalHeading}</span><small>{taxTotalNote}</small></th>
-          <td className="number position-summary-total-tax">{showsAllocatedTax && taxTotals.total !== null ? yen.format(taxTotals.total) : "—"}</td>
-          {familyMembers.map((member) => <td key={member.id} className="number position-summary-total-tax">{showsAllocatedTax && taxTotals.byMember.has(member.id) ? yen.format(taxTotals.byMember.get(member.id)!) : "—"}</td>)}
-          <td className="number position-summary-unallocated">—</td>
+          <th scope="row" colSpan={4}><span>相続税額（縦計）</span><small>{taxTotalNote}</small></th>
+          <td className="number position-summary-total-tax">{hasCalculatedTax ? triangleYen(taxTotals.total) : "—"}</td>
+          {familyMembers.map((member) => <td key={member.id} className="number position-summary-total-tax">{hasCalculatedTax ? triangleYen(taxTotals.byMember.get(member.id) ?? 0) : "—"}</td>)}
+          <td className="number position-summary-unallocated">{hasCalculatedTax ? triangleYen(taxTotals.unallocatedTotal) : "—"}</td>
           <td className="position-summary-action-column" />
         </tr>
       </tfoot>

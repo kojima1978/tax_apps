@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Building2, ChevronRight, CircleUserRound, ClipboardCheck, DatabaseBackup, LayoutDashboard, LoaderCircle, Menu, Search, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
+import { AlertTriangle, Building2, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Menu, Search, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -34,6 +34,7 @@ export function ClientList() {
   const [sortMode, setSortMode] = useState<ClientSortMode>(CLIENT_SORT_DEFAULT);
   const [qualityFilter, setQualityFilter] = useState<"all" | "attention" | "critical">("all");
   const [creating, setCreating] = useState(false);
+  const [qualityClient, setQualityClient] = useState<ClientSummary | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState<Portfolio | null>(null);
@@ -213,7 +214,6 @@ export function ClientList() {
         {/* 担当者の台帳はここだけから開く。顧客の欄では選ぶだけにして、名前の揺れを1箇所で止める。 */}
         <Link className="button secondary client-toolbar-secondary" href="/staff"><UserCog />担当者</Link>
         <Link className="button secondary client-toolbar-secondary" href="/settings"><UserCog />共通設定</Link>
-        <Link className="button secondary client-toolbar-secondary" href="/quality"><ClipboardCheck />データ品質</Link>
         <Link className="button secondary client-toolbar-secondary" href="/properties"><Building2 />不動産一覧</Link>
         <Link className="button secondary client-toolbar-secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
         <Link className="button secondary client-toolbar-secondary" href="/restore"><Upload />データ復元</Link>
@@ -226,7 +226,6 @@ export function ClientList() {
           items={[
             { key: "staff", label: "担当者", icon: UserCog, href: "/staff" },
             { key: "settings", label: "共通設定", icon: UserCog, href: "/settings" },
-            { key: "quality", label: "データ品質", icon: ClipboardCheck, href: "/quality" },
             { key: "properties", label: "不動産一覧", icon: Building2, href: "/properties" },
             { key: "backup", label: "バックアップ", icon: DatabaseBackup, href: "/backup" },
             { key: "restore", label: "データ復元", icon: Upload, href: "/restore" },
@@ -286,13 +285,20 @@ export function ClientList() {
           <small className="client-list-company">{client.relatedCompany ? <Highlighted text={client.relatedCompany} terms={terms} /> : null}</small>
           <span className="client-list-financial"><strong>{compactYen(client.netWorth ?? 0)}</strong><small>純資産</small></span>
           <span className="client-list-updated"><strong>{client.latestUpdatedAt ? new Date(client.latestUpdatedAt).toLocaleDateString("ja-JP") : "未更新"}</strong><small>最終更新</small></span>
-          <span className={`client-quality-badge ${qualityIssuesFor(client).some((issue) => issue.severity === "critical") ? "critical" : qualityIssuesFor(client).length > 0 ? "warning" : "complete"}`}>
-            {qualityIssuesFor(client).length > 0 ? `要確認 ${qualityIssuesFor(client).length}件` : "確認済み"}
-          </span>
           {/* 全件同じ年度なら件数の横に1回だけ出しているので、行には出さない。 */}
           {sharedYear ? null : <span className="client-list-year">{client.latestFiscalYear ? `${client.latestFiscalYear}年度` : "年度なし"}</span>}
           <ChevronRight />
           </Link></div>
+          <div role="gridcell" className="client-list-quality-cell">
+            {qualityIssuesFor(client).length > 0 ? <button
+              type="button"
+              className={`client-quality-badge client-quality-button ${qualityIssuesFor(client).some((issue) => issue.severity === "critical") ? "critical" : "warning"}`}
+              aria-label={`${client.name}の確認事項を表示（${qualityIssuesFor(client).length}件）`}
+              aria-haspopup="dialog"
+              onClick={() => setQualityClient(client)}
+            ><AlertTriangle aria-hidden="true" />要確認 {qualityIssuesFor(client).length}件</button>
+              : <span className="client-quality-badge complete">確認済み</span>}
+          </div>
           <div role="gridcell"><ClientRowActions client={client} busy={deleteLoadingId !== null} loading={deleteLoadingId === client.id} onDelete={() => { void requestDelete(client); }} /></div>
         </div>; })}
       </div>
@@ -309,7 +315,27 @@ export function ClientList() {
     </main>
 
     {creating ? <ClientCreateModal error={error} saving={saving} onClose={() => setCreating(false)} onSubmit={createClient} /> : null}
+    {qualityClient ? <ClientQualityModal client={qualityClient} onClose={() => setQualityClient(null)} /> : null}
     {deleting ? <ClientDeleteModal household={deleting.household} snapshotCount={deleting.snapshots.length} positionCount={deleting.snapshots.reduce((count, snapshot) => count + snapshot.positions.length, 0)} error={deleteError} saving={saving} onClose={() => setDeleting(null)} onSubmit={deleteClient} /> : null}
+  </div>;
+}
+
+function ClientQualityModal({ client, onClose }: { client: ClientSummary; onClose: () => void }) {
+  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: onClose });
+  const issues = [...qualityIssuesFor(client)].sort((a, b) => Number(b.severity === "critical") - Number(a.severity === "critical"));
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}>
+    <div ref={dialogRef} tabIndex={-1} className="modal client-quality-modal" role="dialog" aria-modal="true" aria-labelledby="client-quality-title" aria-describedby="client-quality-help">
+      <header><div><h2 id="client-quality-title">{client.name}の確認事項</h2><p>{client.clientCode}{client.latestFiscalYear ? `・${client.latestFiscalYear}年度` : ""}</p></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose}><X /></button></header>
+      <div className="client-quality-content">
+        <p id="client-quality-help">項目を選ぶと修正画面を開きます。</p>
+        <ul className="client-quality-issues">{issues.map((issue) => <li key={issue.code}>
+          <Link className={`client-quality-issue ${issue.severity}`} href={`/customers/${client.id}/${issue.href}`} aria-label={`${issue.label}：修正画面を開く`}>
+            <AlertTriangle aria-hidden="true" /><span><small>{issue.severity === "critical" ? "重要な不備" : "要確認"}</small><strong>{issue.label}</strong></span><span className="client-quality-fix">修正する<ChevronRight aria-hidden="true" /></span>
+          </Link>
+        </li>)}</ul>
+      </div>
+      <footer><button type="button" className="button secondary" onClick={onClose}>閉じる</button></footer>
+    </div>
   </div>;
 }
 

@@ -3,6 +3,18 @@ import { positionAllocationAmounts, positionAllocationLabel, positionDetailField
 import { type Position } from "@/lib/portfolio-view";
 
 describe("positionDetailFields", () => {
+  it.each(["PRIVATE_SHARES", "SECURITIES", "BUSINESS_ASSETS", "COLLECTIBLES"])("%sの円建て単価はJPYではなく円で表示する", (category) => {
+    const position = { category, institution: "", currency: "JPY", valuationUnitPrice: 1234.5 } as Position;
+    expect(new Map(positionDetailFields(position)).get("単価")).toBe("1,234.5 円");
+    expect(positionDetailTableValue(position, "単価")).toBe("1,234.5");
+    expect(position.currency).toBe("JPY");
+  });
+
+  it.each(["USD", "EUR"])("外貨単価の%s表示は維持する", (currency) => {
+    const position = { category: "SECURITIES", institution: "", currency, valuationUnitPrice: 1234.5 } as Position;
+    expect(new Map(positionDetailFields(position)).get("単価")).toBe(`1,234.5 ${currency}`);
+  });
+
   it("外貨保険の死亡保険金を円貨列では円換算して表示する", () => {
     const p = { category: "INSURANCE", currency: "USD", fxRate: 150, assetDetails: { deathBenefit: 100000 } } as Position;
     expect(positionDetailTableValue(p, "死亡保険金")).toBe("15,000,000");
@@ -48,6 +60,13 @@ describe("positionDetailFields", () => {
 });
 
 describe("positionAllocationAmounts", () => {
+  it("部分配分では残額を取得者へ配り切らず、未割当として保持する", () => {
+    const position = { valueJpy: 100, allocations: [
+      { id: 1, familyMemberId: 10, familyMemberName: "長女", role: "ACQUIRER", numerator: 1, denominator: 3 },
+    ] } as Position;
+    expect(positionAllocationAmounts(position).map(({ amountJpy }) => amountJpy)).toEqual([33]);
+  });
+
   it("端数を調整し、配分額の合計を評価額と一致させる", () => {
     const position = {
       valueJpy: 100,

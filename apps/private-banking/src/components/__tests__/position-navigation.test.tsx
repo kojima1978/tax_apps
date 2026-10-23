@@ -7,7 +7,7 @@ import { PositionDetailsPrintView } from "@/components/position-details-print-vi
 import { buildPositionTaxBurden } from "@/components/positions-view";
 import { type Position, type Snapshot } from "@/lib/portfolio-view";
 import { type FamilyMember } from "@/lib/family";
-import { yen } from "@/lib/format";
+import { yen, triangleYen } from "@/lib/format";
 
 const navigation = vi.hoisted(() => ({ query: "", path: "/customers/1/position-list", replace: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(navigation.query), usePathname: () => navigation.path, useRouter: () => ({ replace: navigation.replace, push: navigation.push }) }));
@@ -229,7 +229,7 @@ describe("資産・負債一覧と詳細の連携", () => {
         { id: "rank1-2", type: "child", finalTaxJpy: 5 },
       ],
     } as Snapshot["inheritanceTaxCalculation"];
-    render(<PositionListView snapshot={{ ...snapshot, positions: [asset, liability], inheritanceTaxCalculation: calculation }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+    render(<PositionListView snapshot={{ ...snapshot, positions: [asset, liability], inheritanceTaxCalculation: calculation }} detailHref="/customers/1/positions?snapshot=7" taxBurden={(p) => p.id === 1 ? 20 : -8} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
 
     const list = screen.getByRole("table", { name: "資産・負債一覧" });
     const totals = list.querySelector(".position-summary-totals") as HTMLElement;
@@ -238,11 +238,11 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(acquisitionRow.textContent).toContain(yen.format(50));
     expect(acquisitionRow.textContent).toContain(yen.format(30));
     const taxRow = within(totals).getByRole("row", { name: /相続税額/ });
-    expect(taxRow.textContent).toContain("相続税額（割り振り反映）");
-    expect(taxRow.textContent).toContain("取得・負担の登録内容で計算");
-    expect(taxRow.textContent).toContain(yen.format(12));
-    expect(taxRow.textContent).toContain(yen.format(7));
-    expect(taxRow.textContent).toContain(yen.format(5));
+    expect(taxRow.textContent).toContain("相続税額（縦計）");
+    expect(taxRow.textContent).toContain("表示明細の割り振り別合計");
+    expect(within(taxRow).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
+      triangleYen(12), triangleYen(8), triangleYen(4), triangleYen(0), "",
+    ]);
   });
 
   it("法定相続分による概算は一覧末尾の相続税額として表示しない", () => {
@@ -259,11 +259,37 @@ describe("資産・負債一覧と詳細の連携", () => {
     const list = screen.getByRole("table", { name: "資産・負債一覧" });
     const totals = list.querySelector(".position-summary-totals") as HTMLElement;
     const taxRow = within(totals).getByRole("row", { name: /相続税額/ });
-    expect(taxRow.textContent).toContain("相続税額（未確定）");
-    expect(taxRow.textContent).toContain("割り振り完了後に再計算");
+    expect(taxRow.textContent).toContain("相続税額（縦計）");
+    expect(taxRow.textContent).toContain("相続税の計算後に表示");
     expect(taxRow.textContent).not.toContain(yen.format(12));
     expect(taxRow.textContent).not.toContain(yen.format(7));
     expect(taxRow.textContent).not.toContain(yen.format(5));
+  });
+
+  it("未割当税額も円単位で縦計し、負債の軽減額と端数を含め全体と一致する", () => {
+    const asset = position(1, { valueJpy: 100, allocations: [
+      { id: 1, familyMemberId: 10, familyMemberName: "長女", role: "ACQUIRER", numerator: 1, denominator: 3 },
+    ] });
+    const debt = position(4, { side: "LIABILITY", category: "LOAN", valueJpy: 20, allocations: [
+      { id: 2, familyMemberId: 10, familyMemberName: "長女", role: "DEBT_BEARER", numerator: 1, denominator: 2 },
+    ] });
+    render(<PositionListView snapshot={{ ...snapshot, positions: [asset, debt] }} detailHref="/customers/1/positions" taxBurden={(p) => p.id === 1 ? 101 : -11} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+    const totals = document.querySelector(".position-summary-totals") as HTMLElement;
+    const taxRow = within(totals).getByRole("row", { name: /相続税額/ });
+    expect(within(taxRow).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
+      triangleYen(90), triangleYen(27), triangleYen(0), triangleYen(63), "",
+    ]);
+  });
+
+  it("絞り込み中は表示明細だけを縦計し、未計算は0円と区別する", () => {
+    navigation.query = "listCategory=DEPOSIT";
+    render(<PositionListView snapshot={{ ...snapshot, positions: [position(1, {}), position(4, {}), insurance] }} detailHref="/customers/1/positions" taxBurden={(p) => p.id === 4 ? null : p.id === 1 ? 10 : 100} familyMembers={familyMembers} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
+    const totals = document.querySelector(".position-summary-totals") as HTMLElement;
+    const taxRow = within(totals).getByRole("row", { name: /相続税額/ });
+    expect(taxRow.textContent).toContain("未計算の明細を除く");
+    expect(within(taxRow).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
+      triangleYen(10), triangleYen(0), triangleYen(0), triangleYen(10), "",
+    ]);
   });
 
   it("全明細を法定相続分で一括割り振りし、確認後に未保存状態へ反映する", () => {

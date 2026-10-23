@@ -48,7 +48,7 @@ export function FamilyView({
 
     <section className="panel family-panel" aria-labelledby="family-list-title">
       <header className="panel-header">
-        <div><h3 id="family-list-title">家族一覧</h3><p>{relatives.length > 0 ? `${relatives.length}名を登録済み` : "家族情報はまだ登録されていません"}</p></div>
+        <div><h3 id="family-list-title">家族一覧</h3>{relatives.length === 0 ? <p>家族情報はまだ登録されていません</p> : null}</div>
         <UsersRound aria-hidden="true" />
       </header>
       {relatives.length === 0 ? (

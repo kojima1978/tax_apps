@@ -30,6 +30,14 @@ const field = (name: string) => screen.getByLabelText(new RegExp(`^${name}(必�
 const click = (name: string) => fireEvent.click(screen.getAllByRole("button", { name })[0]);
 
 describe("FamilyEditorModal", () => {
+  it("区分見出しは表示せず、読み上げ用の項目グループは維持する", () => {
+    renderModal();
+    for (const name of ["基本", "相続", "税額の加算・控除"]) {
+      expect(screen.getAllByRole("group", { name })).toHaveLength(2);
+      expect(document.querySelector(".family-card-section-title")).toBeNull();
+    }
+  });
+
   it("家族を追加すると、追加した人の氏名欄にフォーカスが移る", async () => {
     renderModal();
     click("家族を追加");

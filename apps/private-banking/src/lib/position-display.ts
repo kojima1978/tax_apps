@@ -38,7 +38,7 @@ export function positionAllocationLabel(position: Position) {
     : "未定";
 }
 
-/** 保存された分数を、合計が評価額と必ず一致する円単位の配分額へ変換する。 */
+/** 保存された分数を円単位へ変換する。未割当分を保持し、配分済み部分だけ端数調整する。 */
 export function positionAllocationAmounts(position: Position) {
   const allocations = position.allocations ?? [];
   if (allocations.length === 0) return [];
@@ -48,7 +48,7 @@ export function positionAllocationAmounts(position: Position) {
     raw: position.valueJpy * allocation.numerator / allocation.denominator,
   }));
   const amounts = exact.map((allocation) => Math.floor(allocation.raw));
-  const remainder = Math.round(position.valueJpy) - amounts.reduce((sum, amount) => sum + amount, 0);
+  const remainder = Math.round(exact.reduce((sum, allocation) => sum + allocation.raw, 0)) - amounts.reduce((sum, amount) => sum + amount, 0);
   const remainderOrder = [...exact].sort((a, b) => (b.raw - Math.floor(b.raw)) - (a.raw - Math.floor(a.raw)) || a.index - b.index);
   for (let index = 0; index < remainder; index += 1) amounts[remainderOrder[index % remainderOrder.length].index] += 1;
   return exact.map((allocation, index) => ({
@@ -66,13 +66,14 @@ const labels: Record<string, Record<string, string>> = {
 /** 保存されている値だけを表示し、未登録の項目や0円を推測で補わない。 */
 export function positionDetailFields(p: Position): Array<[string, string]> {
   const d = p.assetDetails ?? {};
+  const amountUnit = p.currency === "JPY" ? "円" : p.currency;
   const fields: Array<[string, string]> = [];
   const add = (label: string, value: string | number | null | undefined, suffix = "") => { if (value !== undefined && value !== null && value !== "") fields.push([label, `${typeof value === "number" ? valuationNumber.format(value) : value}${suffix}`]); };
   const typed = (key: keyof typeof d, label: string) => { const value = d[key]; if (typeof value === "string") add(label, labels[key]?.[value] ?? value); };
   add("科目", positionCaption(p));
   add("所在地・金融機関等", institutionOrPropertyAddress(p));
   if (p.category === "DEPOSIT") { typed("accountType", "預金種類"); add("支店", d.branchName); add("口座番号（末尾）", d.accountSuffix); add("満期日", d.maturityDate); }
-  if (p.category === "SECURITIES" || p.category === "PRIVATE_SHARES") { typed("securityType", "証券種類"); add("銘柄コード", d.securityCode); add("株数・口数", p.valuationQuantity); add("単価", p.valuationUnitPrice, ` ${p.currency}`); add("株式種類", d.shareClass); add("発行済株式数", d.totalIssuedShares); add("評価方式", d.valuationApproach); }
+  if (p.category === "SECURITIES" || p.category === "PRIVATE_SHARES") { typed("securityType", "証券種類"); add("銘柄コード", d.securityCode); add("株数・口数", p.valuationQuantity); add("単価", p.valuationUnitPrice, ` ${amountUnit}`); add("株式種類", d.shareClass); add("発行済株式数", d.totalIssuedShares); add("評価方式", d.valuationApproach); }
   if (detailGroup(p) === "property") {
     add("土地・建物", propertyTypeLabels[propertyTypeOf(p) ?? "LAND"]);
     add("地目", d.landCategory ? landCategoryByValue.get(d.landCategory)?.label ?? d.landCategory : "");
@@ -94,7 +95,7 @@ export function positionDetailFields(p: Position): Array<[string, string]> {
   if (p.category === "ACCOUNTS_PAYABLE") add("支払期限", d.paymentDueDate);
   if (p.category === "DEPOSITS_RECEIVED") { add("対象物件", d.relatedProperty); add("返還条件", d.returnTerms); }
   if (p.category === "GUARANTEE") { add("主債務者", d.principalDebtor); add("保証期限", d.guaranteeExpiryDate); }
-  if (p.category === "BUSINESS_ASSETS" || p.category === "COLLECTIBLES") add("単価", p.valuationUnitPrice, ` ${p.currency}`);
+  if (p.category === "BUSINESS_ASSETS" || p.category === "COLLECTIBLES") add("単価", p.valuationUnitPrice, ` ${amountUnit}`);
   if (p.currency !== "JPY") { add("外貨金額", p.originalAmount, ` ${p.currency}`); add("円換算レート", p.fxRate, ` 円/${p.currency}`); }
   add("調整率", p.adjustmentRate); add("メモ", p.note);
   return fields;
