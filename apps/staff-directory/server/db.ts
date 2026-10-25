@@ -49,7 +49,7 @@ export function checkDbHealth(): string | null {
 // スキーマの版。PRAGMA user_version に記録し、古い版の DB は開いたときに1回だけ作り替える。
 // 版を上げるときは initSchema に `if (version < N)` を1つ足す（作り替えは必ずトランザクションの中で、途中で落ちたら元のまま）。
 // SCHEMA_V1 は版1の形のまま凍結しておき、新しい DB も版1を作ってから順に上げる（移行の経路を1本にするため）。
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 // staff.id が「台帳ID」。各アプリはこの番号で人を参照するので、振り直さない・消さない
 // （退職は retired_on を入れるだけ）。
@@ -193,6 +193,11 @@ function migrateV2ToV3(d: Database.Database): void {
   d.exec(`ALTER TABLE staff ADD COLUMN short_name TEXT NOT NULL DEFAULT '';`);
 }
 
+// 版3 → 4: 会社の代表者（役職と氏名）。委任状の受任者欄に刷る。既存の行は空欄のまま
+function migrateV3ToV4(d: Database.Database): void {
+  d.exec(`ALTER TABLE companies ADD COLUMN representative TEXT NOT NULL DEFAULT '';`);
+}
+
 function tableExists(d: Database.Database, name: string): boolean {
   return d.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(name) !== undefined;
 }
@@ -216,6 +221,7 @@ function initSchema(d: Database.Database): void {
       }
       if (version < 2) migrateV1ToV2(d);
       if (version < 3) migrateV2ToV3(d);
+      if (version < 4) migrateV3ToV4(d);
       const broken = d.pragma('foreign_key_check') as unknown[];
       if (broken.length > 0) throw new Error(`スキーマの移行後に外部キーの不整合が ${broken.length} 件あります`);
       d.pragma(`user_version = ${SCHEMA_VERSION}`);

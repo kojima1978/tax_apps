@@ -228,9 +228,10 @@ describe('会社', () => {
       address: '東京都千代田区千代田1-1',
       phone: '03-0000-0000',
       fax: '03-0000-0001',
+      representative: '代表社員 架空太郎',
     });
     expect(saved.status).toBe(200);
-    expect((await call('GET', '/companies')).body[0]).toMatchObject({ name: '架空税理士法人', postalCode: '100-0001' });
+    expect((await call('GET', '/companies')).body[0]).toMatchObject({ name: '架空税理士法人', postalCode: '100-0001', representative: '代表社員 架空太郎' });
   });
 
   it('同じ名前は 409。表示順で並ぶ', async () => {

@@ -172,6 +172,8 @@ export type CompanyInput = {
   address: string;
   phone: string;
   fax: string;
+  /** 委任状の受任者欄に刷る役職と氏名（例: 代表社員 山田太郎）。空でもよい */
+  representative: string;
   sortOrder: number;
 };
 
@@ -194,6 +196,7 @@ export function parseCompanyInput(body: unknown): Result<CompanyInput> {
     address: text(b.address),
     phone: phone.value,
     fax: fax.value,
+    representative: text(b.representative),
     sortOrder: sortOrder.value,
   });
 }

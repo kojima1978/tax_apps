@@ -47,6 +47,8 @@ export type Company = {
   address: string;
   phone: string;
   fax: string;
+  /** 役職と氏名（例: 代表社員 山田太郎）。委任状の受任者欄に刷る */
+  representative: string;
   sortOrder: number;
   departmentCount: number;
   staffCount: number;

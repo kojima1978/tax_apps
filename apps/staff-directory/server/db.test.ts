@@ -158,6 +158,8 @@ describe('版1からの移行（住所・生年月日）', () => {
     });
     expect(getStaff(db, 2)?.retiredOn).toBe('2026-03-31');
     expect(getStaffPersonal(db, 1)).toEqual({ id: 1, postalCode: '', address: '', birthDate: null });
+    // 版4で足した会社の代表者は空欄から始まる
+    expect(listCompanies(db)[0].representative).toBe('');
     db.close();
   });
 });

@@ -11,9 +11,19 @@ const FIELDS: { key: Exclude<keyof CompanyForm, 'sortOrder'>; label: string; hin
   { key: 'address', label: '住所', wide: true },
   { key: 'phone', label: '代表電話' },
   { key: 'fax', label: 'FAX' },
+  { key: 'representative', label: '代表者', hint: '役職と氏名（例: 代表社員 山田太郎）。委任状の受任者欄に刷る', wide: true },
 ];
 
-const EMPTY: CompanyForm = { name: '', shortName: '', postalCode: '', address: '', phone: '', fax: '', sortOrder: 0 };
+const EMPTY: CompanyForm = {
+  name: '',
+  shortName: '',
+  postalCode: '',
+  address: '',
+  phone: '',
+  fax: '',
+  representative: '',
+  sortOrder: 0,
+};
 
 const COLUMNS = ['表示順', '会社名', '略称', '代表電話', '部署', '在籍'] as const;
 
@@ -88,8 +98,8 @@ function CompanyDialog({
   const ref = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState<CompanyForm>(() => {
     if (!company) return EMPTY;
-    const { name, shortName, postalCode, address, phone, fax, sortOrder } = company;
-    return { name, shortName, postalCode, address, phone, fax, sortOrder };
+    const { name, shortName, postalCode, address, phone, fax, representative, sortOrder } = company;
+    return { name, shortName, postalCode, address, phone, fax, representative, sortOrder };
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

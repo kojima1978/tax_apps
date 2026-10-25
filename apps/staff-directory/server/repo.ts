@@ -309,6 +309,7 @@ type CompanyRow = {
   address: string;
   phone: string;
   fax: string;
+  representative: string;
   sort_order: number;
   updated_at: string;
   department_count: number;
@@ -333,6 +334,7 @@ export function listCompanies(db: Database.Database): Company[] {
     address: r.address,
     phone: r.phone,
     fax: r.fax,
+    representative: r.representative,
     sortOrder: r.sort_order,
     departmentCount: r.department_count,
     staffCount: r.staff_count,
@@ -349,10 +351,10 @@ export function createCompany(db: Database.Database, input: CompanyInput): numbe
   try {
     const info = db
       .prepare(
-        `INSERT INTO companies (name, short_name, postal_code, address, phone, fax, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO companies (name, short_name, postal_code, address, phone, fax, representative, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.fax, input.sortOrder);
+      .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.fax, input.representative, input.sortOrder);
     return Number(info.lastInsertRowid);
   } catch (err) {
     companyNameConflict(err, input.name);
@@ -363,11 +365,11 @@ export function updateCompany(db: Database.Database, id: number, input: CompanyI
   try {
     const info = db
       .prepare(
-        `UPDATE companies SET name = ?, short_name = ?, postal_code = ?, address = ?, phone = ?, fax = ?,
+        `UPDATE companies SET name = ?, short_name = ?, postal_code = ?, address = ?, phone = ?, fax = ?, representative = ?,
            sort_order = ?, updated_at = datetime('now')
          WHERE id = ?`,
       )
-      .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.fax, input.sortOrder, id);
+      .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.fax, input.representative, input.sortOrder, id);
     return info.changes > 0;
   } catch (err) {
     companyNameConflict(err, input.name);

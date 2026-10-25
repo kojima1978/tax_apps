@@ -14,6 +14,8 @@ export type CompanyInfo = {
   address: string;
   phone: string;
   fax: string;
+  /** 役職と氏名（委任状の受任者欄）。台帳に未入力なら空 */
+  representative: string;
 };
 
 export const FALLBACK_COMPANY: CompanyInfo = {
@@ -23,6 +25,8 @@ export const FALLBACK_COMPANY: CompanyInfo = {
   address: '徳島県徳島市春日２丁目３−３３',
   phone: '088-632-6228',
   fax: '088-631-9870',
+  // 実名はリポジトリ（公開）に置かない。台帳に届かないときは受任者欄が空のまま刷られる
+  representative: '',
 };
 
 const DIRECTORY_URL = '/staff-directory/api/companies';
@@ -60,7 +64,7 @@ export function parseDirectoryCompanies(body: unknown): CompanyInfo[] | null {
     const r = row as Record<string, unknown>;
     if (typeof r.id !== 'number' || typeof r.name !== 'string' || r.name === '') return [];
     const text = (v: unknown) => (typeof v === 'string' ? v : '');
-    return [{ id: r.id, name: r.name, postalCode: text(r.postalCode), address: text(r.address), phone: text(r.phone), fax: text(r.fax) }];
+    return [{ id: r.id, name: r.name, postalCode: text(r.postalCode), address: text(r.address), phone: text(r.phone), fax: text(r.fax), representative: text(r.representative) }];
   });
   return companies.length > 0 ? companies : null;
 }

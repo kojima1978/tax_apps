@@ -9,16 +9,17 @@ const company = (over: Partial<CompanyInfo> & { id: number }): CompanyInfo => ({
   address: '東京都千代田区千代田１−１',
   phone: '03-0000-0000',
   fax: '',
+  representative: '',
   ...over,
 });
 
 describe('parseDirectoryCompanies', () => {
   it('台帳の応答から帳票に要る欄だけ取り出す', () => {
     const body = [
-      { id: 1, name: '架空税理士法人', shortName: '架空', postalCode: '100-0001', address: '東京都', phone: '03-0000-0000', fax: null, sortOrder: 0 },
+      { id: 1, name: '架空税理士法人', shortName: '架空', postalCode: '100-0001', address: '東京都', phone: '03-0000-0000', fax: null, representative: '代表社員 架空太郎', sortOrder: 0 },
     ];
     expect(parseDirectoryCompanies(body)).toEqual([
-      { id: 1, name: '架空税理士法人', postalCode: '100-0001', address: '東京都', phone: '03-0000-0000', fax: '' },
+      { id: 1, name: '架空税理士法人', postalCode: '100-0001', address: '東京都', phone: '03-0000-0000', fax: '', representative: '代表社員 架空太郎' },
     ]);
   });
 
