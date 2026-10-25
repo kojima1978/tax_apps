@@ -1,0 +1,134 @@
+/*
+ * 委任状の1枚（A4 縦）。画面では紙の大きさで並べ、印刷では余白の内側いっぱいに刷る。
+ * 用紙の向き（@page）はここに書かない ── このファイルは一度読まれると他の画面にも残り、
+ * 書類リストの印刷（A4 横）まで縦に変わってしまう。向きは PowerOfAttorneyPage が
+ * 開いている間だけ <style> で差し込む。余白と文字の大きさは PowerOfAttorneySheetView が
+ * インラインで持つ（1枚に収まるまで文字を小さくするため。大きさは em で書く）。
+ */
+.poa-sheet {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  background: #fff;
+  color: #000;
+  font-family: 'Yu Mincho', 'YuMincho', 'Hiragino Mincho ProN', 'MS Mincho', serif;
+  font-size: 10.5pt;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+
+.poa-title {
+  margin: 0 0 8mm;
+  text-align: center;
+  font-size: 1.7em;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+}
+
+.poa-heading {
+  margin: 4mm 0 1.5mm;
+  font-weight: 700;
+}
+
+.poa-center {
+  text-align: center;
+}
+
+.poa-right {
+  text-align: right;
+}
+
+.poa-date {
+  margin: 4mm 0;
+}
+
+.poa-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.poa-table th,
+.poa-table td {
+  border: 0.3mm solid #000;
+  padding: 1.5mm 3mm;
+  vertical-align: middle;
+}
+
+.poa-table th {
+  width: 30mm;
+  font-weight: 400;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* 空でも手書きできる高さ */
+.poa-cell {
+  display: flex;
+  align-items: center;
+  gap: 4mm;
+  min-height: 9mm;
+}
+
+.poa-value {
+  flex: 1;
+  white-space: pre-wrap;
+}
+
+.poa-seal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.poa-seal small {
+  font-size: 0.72em;
+  line-height: 1.3;
+}
+
+.poa-body {
+  margin: 4mm 0;
+}
+
+.poa-body p,
+.poa-item {
+  margin: 0;
+}
+
+.poa-matters {
+  margin: 1mm 0 2mm;
+  padding: 0 0 0 1em;
+  list-style: none;
+}
+
+.poa-matters li {
+  padding-left: 1em;
+  text-indent: -1em;
+}
+
+.poa-matters li::before {
+  content: '・';
+}
+
+@media print {
+  .poa-sheet {
+    width: auto;
+    min-height: 0;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* 1枚ごとに改ページ。.poa-sheet は包みの中で常に last-child なので、包みの側で切る */
+  .poa-page {
+    break-after: page;
+  }
+
+  .poa-page:last-child {
+    break-after: auto;
+  }
+
+  /* 画面の背景（グラデーション）を紙に刷らない */
+  .min-h-screen:has(.poa-root) {
+    background: none !important;
+  }
+}

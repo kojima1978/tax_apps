@@ -20,6 +20,7 @@ import {
   ChevronUp,
   ClipboardList,
   Settings,
+  Stamp,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
@@ -185,6 +186,13 @@ export const EditToolbar = ({
           >
             <FileText className="w-3.5 h-3.5" />
             参考資料
+          </Link>
+          <Link
+            to="/power-of-attorney"
+            className="flex items-center gap-1 px-2.5 py-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap"
+          >
+            <Stamp className="w-3.5 h-3.5" />
+            委任状
           </Link>
           <Link
             to="/masters"
