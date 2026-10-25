@@ -108,6 +108,11 @@ function initSchema(d: Database.Database): void {
       updated_at     TEXT NOT NULL DEFAULT (datetime('now')),
       deleted_at     TEXT
     );
+    -- 1回だけ流すデータの手直しの印（masterMigrations.ts）
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      name       TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Existing databases predate soft deletion. Keep the migration additive so

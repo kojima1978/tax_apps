@@ -10,6 +10,7 @@ import { createPoaMattersRouter } from './routes/poaMatters.js';
 import { createPoaPrincipalsRouter } from './routes/poaPrincipals.js';
 import { createResourceFilesRouter } from './routes/resourceFiles.js';
 import { MASTER_SEEDS } from './masterDefaults.js';
+import { runMasterMigrations } from './masterMigrations.js';
 import { DEFAULT_MATTER_MASTER } from '../src/constants/powerOfAttorneyMatters.js';
 
 const PORT = Number(process.env.PORT ?? 3003);
@@ -27,6 +28,7 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 seedIfEmpty(UPLOADS_DIR, PUBLIC_FILES_DIR);
 seedDocumentMastersIfEmpty(MASTER_SEEDS);
 seedPoaMatterMasterIfEmpty(DEFAULT_MATTER_MASTER);
+runMasterMigrations();
 
 const app = express();
 const httpServer = createHttpServer(app);

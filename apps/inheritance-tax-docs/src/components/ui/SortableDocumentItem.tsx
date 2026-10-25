@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Link } from 'react-router-dom';
 import {
   Check,
   CornerDownRight,
@@ -12,11 +13,13 @@ import {
   UserCheck,
   AlertTriangle,
   EyeOff,
+  Stamp,
   ChevronDown,
   ChevronRight,
   X,
 } from 'lucide-react';
 import type { EditableDocument } from '@/constants';
+import { isPowerOfAttorneyDocument } from '@/constants/documents';
 import type { DocHandlers, SubItemEditState, SubItemHandlers } from '@/hooks/useDocumentEditing';
 import { InlineEditInput, InlineAddInput } from './EditableInput';
 import { formatCheckedDate } from '@/utils/helpers';
@@ -142,6 +145,17 @@ export const SortableDocumentItem = memo(({
             }`}>
               {doc.name}
             </span>
+            {/* 委任状の行だけ、作る画面への入口。名前は委任状の画面がこの案件の保存値から写す */}
+            {isPowerOfAttorneyDocument(doc) && (
+              <Link
+                to="/power-of-attorney"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border border-emerald-200 dark:border-emerald-800 transition-colors"
+                title="被相続人名と依頼者名を引き継いで委任状の画面を開きます"
+              >
+                <Stamp className="w-3.5 h-3.5" aria-hidden="true" />
+                委任状を作る
+              </Link>
+            )}
           </div>
 
           {/* バッジ行 */}

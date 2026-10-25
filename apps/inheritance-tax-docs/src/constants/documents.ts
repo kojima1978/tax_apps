@@ -43,6 +43,23 @@ export interface CategoryDocuments {
   documents: (DocumentItem | CustomDocumentItem)[];
 }
 
+/**
+ * 書類リストに載せる委任状。お客様から見れば「押印して返す書類」の1つなので、リストにも載せる
+ * （作るのは委任状の画面。編集画面ではこの行から開ける）。既存の DB のマスタへは
+ * server/masterMigrations.ts が1回だけ足す。
+ */
+export const POWER_OF_ATTORNEY_DOCUMENT: DocumentItem = {
+  id: 'power_of_attorney',
+  name: '委任状',
+  description: '「取得代行可」の書類を弊社で取得する場合に必要です。弊社で作成してお渡しします。',
+  howToGet: 'お渡しした委任状にご押印（氏名が空欄のものはご署名も）のうえ、ご返送ください。',
+  canDelegate: false,
+};
+
+/** 委任状の行か。マスタ管理や画面で足した行も、名前に「委任状」を含めば同じ扱いにする */
+export const isPowerOfAttorneyDocument = (doc: { id: string; name: string }): boolean =>
+  doc.id === POWER_OF_ATTORNEY_DOCUMENT.id || doc.name.includes('委任状');
+
 export const CATEGORIES: CategoryData[] = [
   {
     id: 'identity',
@@ -71,6 +88,7 @@ export const CATEGORIES: CategoryData[] = [
         howToGet: '相続人（財産を引継ぐ人）の住所地の役所等で取得できます。',
         canDelegate: false,
       },
+      POWER_OF_ATTORNEY_DOCUMENT,
     ],
   },
   {
