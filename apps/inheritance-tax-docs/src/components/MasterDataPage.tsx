@@ -6,8 +6,8 @@ import { ResourcesPage } from '@/components/ResourcesPage';
 import { AuditLogPage } from '@/components/AuditLogPage';
 import { CategoryMasterPage } from '@/components/CategoryMasterPage';
 import { useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
-import { operatorRequestHeaders, useOperator } from '@/shared/staff-directory/operator';
-import OperatorSwitcher from '@/components/OperatorSwitcher';
+import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
+import { OperatorPicker } from '@/shared/staff-directory/OperatorPicker';
 
 type MasterDocument = {
   id: string;
@@ -54,7 +54,6 @@ export const MasterDataPage = () => {
   const requestedTab = searchParams.get('tab');
   const activeTab = requestedTab === 'categories' || requestedTab === 'resources' || requestedTab === 'history' ? requestedTab : 'documents';
   const { companies } = useCompanyInfo();
-  const { operator } = useOperator();
   const selectableCompanies = companies.filter((company): company is CompanyInfo & { id: number } => company.id !== null);
   const [masterType, setMasterType] = useState<DocListType>('income-tax');
   const [categories, setCategories] = useState<MasterCategory[]>([]);
@@ -104,7 +103,7 @@ export const MasterDataPage = () => {
     try {
       const response = await fetch(`${API_BASE}/${masterType}/draft`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...operatorRequestHeaders(operator) },
+        headers: { 'Content-Type': 'application/json', ...selectedOperatorHeaders() },
         body: JSON.stringify({ categories }),
       });
       if (!response.ok) throw new Error((await response.json() as { error?: string }).error ?? '保存に失敗しました');
@@ -125,7 +124,7 @@ export const MasterDataPage = () => {
     if (!saved) return;
     setStatus('publishing');
     try {
-      const response = await fetch(`${API_BASE}/${masterType}/publish`, { method: 'POST', headers: operatorRequestHeaders(operator) });
+      const response = await fetch(`${API_BASE}/${masterType}/publish`, { method: 'POST', headers: selectedOperatorHeaders() });
       if (!response.ok) throw new Error('公開に失敗しました');
       const result = await response.json() as { version: number };
       setMessage(`第${result.version}版を公開しました。新しく初期化するリストに反映されます`);
@@ -140,7 +139,7 @@ export const MasterDataPage = () => {
     if (!window.confirm(`第${version}版を下書きへ復元しますか？ 公開中の版は変わりません。`)) return;
     setStatus('loading');
     try {
-      const response = await fetch(`${API_BASE}/${masterType}/restore/${version}`, { method: 'POST', headers: operatorRequestHeaders(operator) });
+      const response = await fetch(`${API_BASE}/${masterType}/restore/${version}`, { method: 'POST', headers: selectedOperatorHeaders() });
       if (!response.ok) throw new Error('復元に失敗しました');
       await loadMaster(masterType);
       setMessage(`第${version}版を下書きへ復元しました`);
@@ -183,7 +182,7 @@ export const MasterDataPage = () => {
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">下書きを確認してから公開します。通常画面での個別編集には影響しません。</p>
             </div>
             <div className="grid w-full gap-3 sm:w-auto sm:min-w-64">
-              <OperatorSwitcher />
+              <OperatorPicker usage="書類マスタの保存・公開・復元の履歴に名前が残ります" className="justify-self-start sm:justify-self-end" />
               {activeTab === 'documents' ? (
                 <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200">
                   公開中: <strong>第{publishedVersion}版</strong>

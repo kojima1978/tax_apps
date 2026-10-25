@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, Eye, EyeOff, FolderTree, Pencil, Plus, Save, Send, Trash2, X } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
 import { useOverlayDismiss } from '@/hooks/useOverlayDismiss';
-import { operatorRequestHeaders, useOperator } from '@/shared/staff-directory/operator';
+import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 
 type MasterDocument = {
   id: string;
@@ -83,7 +83,6 @@ const DeleteCategoryDialog = ({ category, categories, onClose, onConfirm }: Dele
 };
 
 export const CategoryMasterPage = ({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) => {
-  const { operator } = useOperator();
   const [masterType, setMasterType] = useState<DocListType>('income-tax');
   const [categories, setCategories] = useState<MasterCategory[]>([]);
   const [publishedVersion, setPublishedVersion] = useState(1);
@@ -133,7 +132,7 @@ export const CategoryMasterPage = ({ onDirtyChange }: { onDirtyChange?: (dirty: 
     try {
       const response = await fetch(`${API_BASE}/${masterType}/draft`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...operatorRequestHeaders(operator) },
+        headers: { 'Content-Type': 'application/json', ...selectedOperatorHeaders() },
         body: JSON.stringify({ categories }),
       });
       if (!response.ok) throw new Error((await response.json() as { error?: string }).error ?? '保存に失敗しました');
@@ -154,7 +153,7 @@ export const CategoryMasterPage = ({ onDirtyChange }: { onDirtyChange?: (dirty: 
     if (!saved) return;
     setStatus('publishing');
     try {
-      const response = await fetch(`${API_BASE}/${masterType}/publish`, { method: 'POST', headers: operatorRequestHeaders(operator) });
+      const response = await fetch(`${API_BASE}/${masterType}/publish`, { method: 'POST', headers: selectedOperatorHeaders() });
       if (!response.ok) throw new Error('公開に失敗しました');
       const result = await response.json() as { version: number };
       await load(masterType);

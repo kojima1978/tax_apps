@@ -16,7 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
 import { CompanySwitcher } from '@/shared/staff-directory/CompanySwitcher';
-import { operatorRequestHeaders, useOperator } from '@/shared/staff-directory/operator';
+import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 
 // --- Types ---
 
@@ -40,27 +40,27 @@ async function fetchResources(companyId: number | null = null): Promise<Resource
   return res.json();
 }
 
-async function createResource(form: FormData, operatorName: string): Promise<Resource> {
-  const res = await fetch(BASE, { method: 'POST', headers: operatorRequestHeaders(operatorName), body: form });
+async function createResource(form: FormData): Promise<Resource> {
+  const res = await fetch(BASE, { method: 'POST', headers: selectedOperatorHeaders(), body: form });
   if (!res.ok) throw new Error((await res.json()).error ?? '登録に失敗しました');
   return res.json();
 }
 
-async function updateResource(id: number, form: FormData, operatorName: string): Promise<Resource> {
-  const res = await fetch(`${BASE}${id}/`, { method: 'PUT', headers: operatorRequestHeaders(operatorName), body: form });
+async function updateResource(id: number, form: FormData): Promise<Resource> {
+  const res = await fetch(`${BASE}${id}/`, { method: 'PUT', headers: selectedOperatorHeaders(), body: form });
   if (!res.ok) throw new Error((await res.json()).error ?? '更新に失敗しました');
   return res.json();
 }
 
-async function deleteResource(id: number, operatorName: string): Promise<void> {
-  const res = await fetch(`${BASE}${id}/`, { method: 'DELETE', headers: operatorRequestHeaders(operatorName) });
+async function deleteResource(id: number): Promise<void> {
+  const res = await fetch(`${BASE}${id}/`, { method: 'DELETE', headers: selectedOperatorHeaders() });
   if (!res.ok) throw new Error((await res.json()).error ?? '削除に失敗しました');
 }
 
-async function reorderResources(ids: number[], operatorName: string): Promise<void> {
+async function reorderResources(ids: number[]): Promise<void> {
   await fetch(`${BASE}reorder`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...operatorRequestHeaders(operatorName) },
+    headers: { 'Content-Type': 'application/json', ...selectedOperatorHeaders() },
     body: JSON.stringify({ ids }),
   });
 }
@@ -165,11 +165,10 @@ function SortableResourceCard({
 // --- Form Modal ---
 
 function ResourceFormModal({
-  resource, companies, operatorName, onClose, onSaved,
+  resource, companies, onClose, onSaved,
 }: {
   resource: Resource | null; // null = create
   companies: Array<CompanyInfo & { id: number }>;
-  operatorName: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -213,9 +212,9 @@ function ResourceFormModal({
         if (file) form.append('file', file);
       }
       if (resource) {
-        await updateResource(resource.id, form, operatorName);
+        await updateResource(resource.id, form);
       } else {
-        await createResource(form, operatorName);
+        await createResource(form);
       }
       onSaved();
       onClose();
@@ -342,10 +341,9 @@ function ResourceFormModal({
 // --- Confirm Dialog ---
 
 function ConfirmDeleteDialog({
-  resource, operatorName, onClose, onConfirmed,
+  resource, onClose, onConfirmed,
 }: {
   resource: Resource;
-  operatorName: string;
   onClose: () => void;
   onConfirmed: () => void;
 }) {
@@ -355,7 +353,7 @@ function ConfirmDeleteDialog({
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await deleteResource(resource.id, operatorName);
+      await deleteResource(resource.id);
       onConfirmed();
       onClose();
     } catch {
@@ -393,7 +391,6 @@ export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded
   const basePath = '/inheritance-tax-docs/';
   const { isDark, toggleDark } = useDarkMode();
   const { company, companies, status: companyStatus } = useCompanyInfo();
-  const { operator } = useOperator();
   const selectableCompanies = companies.filter((item): item is CompanyInfo & { id: number } => item.id !== null);
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -430,8 +427,8 @@ export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded
     if (oldIndex === -1 || newIndex === -1) return;
     const newOrder = arrayMove(resources, oldIndex, newIndex);
     setResources(newOrder);
-    await reorderResources(newOrder.map((r) => r.id), operator.fullName);
-  }, [operator.fullName, resources]);
+    await reorderResources(newOrder.map((r) => r.id));
+  }, [resources]);
 
   return (
     <div className="w-full animate-fade-in">
@@ -539,7 +536,6 @@ export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded
         <ResourceFormModal
           resource={editTarget}
           companies={selectableCompanies}
-          operatorName={operator.fullName}
           onClose={() => setEditTarget(undefined)}
           onSaved={load}
         />
@@ -548,7 +544,6 @@ export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded
       {deleteTarget && (
         <ConfirmDeleteDialog
           resource={deleteTarget}
-          operatorName={operator.fullName}
           onClose={() => setDeleteTarget(null)}
           onConfirmed={load}
         />

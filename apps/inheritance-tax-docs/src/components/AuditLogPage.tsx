@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Clock3, RotateCcw, ShieldCheck } from 'lucide-react';
-import { operatorRequestHeaders, useOperator } from '@/shared/staff-directory/operator';
+import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 
 type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
 type AuditTargetType = 'document_master' | 'resource';
@@ -78,7 +78,6 @@ const formatValue = (value: FlatValue | undefined): string => {
 };
 
 export const AuditLogPage = () => {
-  const { operator } = useOperator();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -121,7 +120,7 @@ export const AuditLogPage = () => {
     setError('');
     setMessage('');
     try {
-      const response = await fetch(`${API_BASE}/${log.id}/restore`, { method: 'POST', headers: operatorRequestHeaders(operator) });
+      const response = await fetch(`${API_BASE}/${log.id}/restore`, { method: 'POST', headers: selectedOperatorHeaders() });
       if (!response.ok) throw new Error((await response.json() as { error?: string }).error ?? '復元に失敗しました');
       setMessage(`「${log.targetName}」を復元しました`);
       await load();

@@ -11,7 +11,7 @@ import { readFormDataFile } from '@/hooks/useFormData';
 import { APP_TITLE, caseDisplayName, formatSavedAt } from './caseLabels';
 import { CompanyListPanel } from './CompanyListPanel';
 import { NewCaseDialog } from './NewCaseDialog';
-import { OperatorSelect } from './OperatorSelect';
+import { OperatorPicker } from '@/shared/staff-directory/OperatorPicker';
 import { companiesForNewCase } from './newCase';
 import { useBusyAction } from './useBusyAction';
 import { useCaseListReload } from './useCaseListReload';
@@ -65,7 +65,7 @@ export function CasesPage({ store, hasInput, onEnterForm, onOpenCompany, onOpenA
         <PortalLink />
         <div className="app-header-title">{APP_TITLE}</div>
         <div className="app-header-right">
-          <OperatorSelect />
+          <OperatorPicker usage="会社一覧の「自分の担当」は、この人の担当で絞ります" />
           <button
             type="button"
             className="app-tool-btn"

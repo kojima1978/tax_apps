@@ -119,6 +119,16 @@ function selectOperator(id: number) {
   update({ selectedId: id });
 }
 
+/** 選択を外す（共用の PC で前の人の名前のまま記録しないため） */
+function clearOperator() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // 消せなくても現在の画面では未選択にする。
+  }
+  update({ selectedId: null });
+}
+
 export function useOperator() {
   const current = useSyncExternalStore(subscribe, () => snapshot);
   return {
@@ -127,5 +137,6 @@ export function useOperator() {
     operators: current.operators,
     status: current.status,
     selectOperator,
+    clearOperator,
   };
 }

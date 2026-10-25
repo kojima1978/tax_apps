@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import { ArchivedToggle } from './ArchivedToggle';
 import { CaseListPanel } from './CaseListPanel';
 import { NewCaseDialog } from './NewCaseDialog';
-import { OperatorSelect } from './OperatorSelect';
+import { OperatorPicker } from '@/shared/staff-directory/OperatorPicker';
 import { findGroupByKey, groupCasesByCompany } from './caseGroups';
 import { APP_TITLE } from './caseLabels';
 import { companiesForNewCase } from './newCase';
@@ -42,7 +42,7 @@ export function CompanyPage({ store, groupKey, onBack, onEnterForm }: CompanyPag
       <header className="app-header">
         <div className="app-header-title">{APP_TITLE}</div>
         <div className="app-header-right">
-          <OperatorSelect />
+          <OperatorPicker usage="会社一覧の「自分の担当」は、この人の担当で絞ります" />
         </div>
       </header>
 
