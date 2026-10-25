@@ -1,6 +1,7 @@
 import { Info, AlertCircle } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, type DocListType, type EditableDocumentList } from '@/constants';
-import { getContactLine, getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
+import { getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
+import { getPhoneLine } from '@/utils/companyContact';
 import { toCircledNumber } from '@/utils/helpers';
 
 const PRINT_LAYOUTS = {
@@ -257,7 +258,7 @@ export const PrintSection = ({
         <div className={`mt-8 text-center text-sm text-slate-400 ${l.contact}`}>
           {getFullAddress(company)}
           <br />
-          {getContactLine(company)}
+          {getPhoneLine(company)}
           {personInChargeContact && (
             <>
               <br />

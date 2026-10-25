@@ -26,6 +26,7 @@ import { DocumentFormModal } from '@/components/ui/DocumentFormModal';
 import { TrashModal } from '@/components/ui/TrashModal';
 import { TOAST_MESSAGES, UNDO_LABEL } from '@/constants/messages';
 import { getFullAddress, useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
+import { getPhoneLine } from '@/utils/companyContact';
 
 export const EditableListStep = () => {
   const { company } = useCompanyInfo();
@@ -225,7 +226,7 @@ export const EditableListStep = () => {
       />
       <div className="no-print mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-2 px-4 pt-2 text-xs text-slate-600 dark:text-slate-300 md:px-8">
         {/* 会社名は見出し行の「会社」欄に出すので、ここは印刷の欄外に載る連絡先だけ */}
-        <span className="text-slate-500 dark:text-slate-400">印刷に載る連絡先</span><span>{getFullAddress(company)}</span>{company.phone && <span>TEL {company.phone}</span>}
+        <span className="text-slate-500 dark:text-slate-400">印刷に載る連絡先</span><span>{getFullAddress(company)}</span>{company.phone && <span>{getPhoneLine(company)}</span>}
       </div>
 
       {/* ツールバー（max-w-7xl）と左右を揃える */}

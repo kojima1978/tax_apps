@@ -1,6 +1,7 @@
 import type { EditableDocumentList } from '@/constants';
 import { EXCEL_STYLES as styles, pushMergedRow, pushEmptyRow } from '../constants/excelStyles';
-import { getContactLine, getFullAddress, type CompanyInfo } from '@/shared/staff-directory/company';
+import { getFullAddress, type CompanyInfo } from '@/shared/staff-directory/company';
+import { getPhoneLine } from '@/utils/companyContact';
 import { formatDate, toCircledNumber } from './helpers';
 import { exportFileName } from './exportFileName';
 
@@ -124,7 +125,7 @@ export async function exportToExcel(params: ExcelExportParams): Promise<void> {
   pushEmptyRow(wsData);
 
   // フッター
-  wsData.push([{ v: [getFullAddress(company), getContactLine(company)].filter(Boolean).join(' / '), s: styles.footer }]);
+  wsData.push([{ v: [getFullAddress(company), getPhoneLine(company)].filter(Boolean).join(' / '), s: styles.footer }]);
 
   // ワークシート作成
   const ws = XLSX.utils.aoa_to_sheet(wsData);
