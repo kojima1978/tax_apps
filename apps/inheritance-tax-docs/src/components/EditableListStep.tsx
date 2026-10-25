@@ -25,8 +25,7 @@ import { Dialogs } from '@/components/ui/Dialogs';
 import { DocumentFormModal } from '@/components/ui/DocumentFormModal';
 import { TrashModal } from '@/components/ui/TrashModal';
 import { TOAST_MESSAGES, UNDO_LABEL } from '@/constants/messages';
-import { CompanySwitcher } from '@/shared/staff-directory/CompanySwitcher';
-import { getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
+import { getFullAddress, useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
 
 export const EditableListStep = () => {
   const { company } = useCompanyInfo();
@@ -162,6 +161,10 @@ export const EditableListStep = () => {
     addToast(TOAST_MESSAGES.trashEmptied, 'info');
   }, [editing.clearTrash, addToast]);
 
+  const handleCompanySwitched = useCallback((next: CompanyInfo) => {
+    addToast(TOAST_MESSAGES.companySwitched(next.name), 'info');
+  }, [addToast]);
+
   // ─── 書類追加/編集モーダル ───
   // editingDoc は { categoryId, docId } — 編集モーダル
   // addingToCategoryId — 追加モーダル
@@ -218,9 +221,11 @@ export const EditableListStep = () => {
         isExporting={isExporting}
         trashCount={trash.length}
         onOpenTrash={() => setShowTrashModal(true)}
+        onCompanySwitched={handleCompanySwitched}
       />
       <div className="no-print mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-2 px-4 pt-2 text-xs text-slate-600 dark:text-slate-300 md:px-8">
-        <span>{company.name}</span><span>{getFullAddress(company)}</span><span>TEL {company.phone}</span><CompanySwitcher />
+        {/* 会社名は見出し行の「会社」欄に出すので、ここは印刷の欄外に載る連絡先だけ */}
+        <span className="text-slate-500 dark:text-slate-400">印刷に載る連絡先</span><span>{getFullAddress(company)}</span>{company.phone && <span>TEL {company.phone}</span>}
       </div>
 
       {/* ツールバー（max-w-7xl）と左右を揃える */}

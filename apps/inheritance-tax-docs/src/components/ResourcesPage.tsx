@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
-import { CompanySwitcher } from '@/shared/staff-directory/CompanySwitcher';
+import { CompanyField } from '@/components/ui/CompanyField';
 import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 
 // --- Types ---
@@ -434,8 +434,8 @@ export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded
     <div className="w-full animate-fade-in">
       {!embedded && <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-2.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <a href="/" className="flex items-center justify-center gap-1 min-h-6 min-w-6 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors" title="ポータルに戻る">
                 <Home className="h-5 w-5" />
                 <span className="hidden md:inline text-sm font-medium">ポータル</span>
@@ -448,6 +448,8 @@ export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded
               </Link>
               <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
               <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">{readOnly ? '参考資料' : '参考資料マスタ'}</h1>
+              {/* 参考資料は会社ごとに違うので、書類リストと同じ「会社」欄を見出し行に出す */}
+              {readOnly && <CompanyField />}
             </div>
             <div className="flex items-center gap-2">
               {!readOnly && <button
@@ -476,9 +478,6 @@ export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded
                 ? '対象会社で利用できる案内資料、ひな形、チェックシート、外部リンクを表示しています。'
                 : '案内資料、ひな形、チェックシート、外部リンクを共通マスタとして登録します。ドラッグで表示順を変更できます。'}
             </p>
-            {readOnly && (
-              <div className="flex min-h-11 items-center"><CompanySwitcher /></div>
-            )}
             {embedded && !readOnly && (
               <button
                 onClick={() => setEditTarget(null)}

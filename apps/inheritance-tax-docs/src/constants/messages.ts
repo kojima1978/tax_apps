@@ -36,6 +36,8 @@ export const TOAST_MESSAGES = {
   restoreSuccess: '復元しました',
   restoreAllSuccess: 'すべて復元しました',
   trashEmptied: 'ゴミ箱を空にしました',
+  // 書類リストとゴミ箱は会社ごとに保存しているので、切り替えると中身ごと入れ替わる
+  companySwitched: (name: string) => `${name}の書類リストに切り替えました`,
 } as const;
 
 // 削除トーストのUndoラベル

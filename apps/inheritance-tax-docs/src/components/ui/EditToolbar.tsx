@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
+import type { CompanyInfo } from '@/shared/staff-directory/company';
+import { CompanyField } from './CompanyField';
 
 // ─── 型定義 ───
 
@@ -65,6 +67,7 @@ type EditToolbarProps = {
   isExporting: boolean;
   trashCount: number;
   onOpenTrash: () => void;
+  onCompanySwitched: (company: CompanyInfo) => void;
 };
 
 // ─── コンポーネント ───
@@ -97,6 +100,7 @@ export const EditToolbar = ({
   isExporting,
   trashCount,
   onOpenTrash,
+  onCompanySwitched,
 }: EditToolbarProps) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   // 案件情報4欄はモバイルのみ折りたたむ（md以上は常時表示）
@@ -140,7 +144,7 @@ export const EditToolbar = ({
   return (
     <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm no-print">
       <div className="max-w-7xl mx-auto px-4 py-2.5">
-        {/* 1行目: タイトル + 種別 + 参考資料 */}
+        {/* 1行目: タイトル + 種別 + 会社 + 参考資料 */}
         <div className="flex items-center gap-x-2 gap-y-1 md:gap-3 flex-wrap">
           <a href="/" className="flex items-center justify-center gap-1 min-h-6 min-w-6 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors" title="ポータルに戻る">
             <Home className="h-5 w-5" />
@@ -174,6 +178,7 @@ export const EditToolbar = ({
               </select>
             </label>
           )}
+          <CompanyField onSwitched={onCompanySwitched} />
           <Link
             to="/resources"
             className="flex items-center gap-1 px-2.5 py-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap"
@@ -213,7 +218,8 @@ export const EditToolbar = ({
             className={`${showCaseInfo ? 'grid' : 'hidden'} w-full grid-cols-2 gap-x-3 gap-y-2 mt-1 md:contents`}
           >
             {CASE_FIELDS.map((field) => (
-              <div key={field.id} className="flex flex-col gap-0.5 min-w-0 md:flex-1">
+              // md以上は最小幅を持たせ、狭い幅では潰れずに次の行へ折り返す
+              <div key={field.id} className="flex flex-col gap-0.5 min-w-0 md:flex-1 md:min-w-32">
                 <label
                   htmlFor={`case-${field.id}`}
                   className="text-[10px] font-medium leading-none text-slate-500 dark:text-slate-400"
