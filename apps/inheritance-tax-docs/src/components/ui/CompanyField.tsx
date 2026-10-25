@@ -44,7 +44,7 @@ export const CompanyField = ({ onSwitched }: CompanyFieldProps) => {
         <select
           value={company.id ?? ''}
           onChange={(e) => handleChange(e.target.value)}
-          className="px-2.5 py-1.5 text-sm font-bold border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer max-w-[220px] truncate"
+          className="px-2.5 py-1.5 text-sm font-bold border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer max-w-[200px] md:max-w-xs truncate"
           aria-labelledby={labelId}
         >
           {companies.map((c) => (
