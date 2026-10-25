@@ -237,6 +237,37 @@ docker/scripts/manage.sh preflight
 
 戻し方と PB 側の細かい挙動は `apps/private-banking/STAFF-CUTOVER.md`。
 
+## 各アプリの画面部品（`shared/staff-directory/`）
+
+台帳を読む画面側の部品は `shared/staff-directory/` に原本を1つだけ置き、各アプリの
+`src/shared/staff-directory/` へ写して使う（Docker のビルドがアプリのディレクトリの中しか見ないため）。
+
+```bash
+bash shared/sync.sh          # 原本を各アプリへ写す（写し先は sync.sh の TARGETS）
+bash shared/sync.sh --check  # 写しがずれていれば 1 で終わる（CI）
+```
+
+**写しは直さない**（次の sync で黙って消える）。原本を直して sync し、写しも一緒にコミットする。
+
+| ファイル | 中身 |
+|---|---|
+| `operator.ts` | 操作者（いま画面を使っている人）。選んだ台帳ID は `tax-apps:operator-id` に置き、同じブラウザの全アプリで共通 |
+| `OperatorPicker.tsx` | 画面右上の操作者ボタンと選ぶダイアログ。`usage` に「このアプリでは何に使うか」を渡す。`variant="dark"` は暗いヘッダー用 |
+| `AssigneePicker.tsx` | 案件の担当者を選ぶダイアログ（先頭に「自分」「最近選んだ人」） |
+| `StaffPickerDialog.tsx` | 上の2つの共通部分（検索・部署別の一覧・↑↓で移動・Enter で先頭に決定） |
+| `assignee.ts` | 担当者の検索・並び・部署分け・「自分の担当」などの絞り込み（テストはここ） |
+| `company.ts` / `CompanySwitcher.tsx` | 帳票に刷る事務所情報と会社の切り替え |
+
+操作者の決めごと:
+
+- **記録に送るのは自分で選んだ人だけ**（`selectedOperatorHeaders()`）。`useOperator().operator` は
+  未選択でも一覧の先頭の人を返す表示用の値なので、ヘッダーには使わない ── 必要書類管理がこれで
+  先頭の人の名前を監査ログに残していた。画面で「選んだ人」を見るときも `selected`（未選択は null）
+- 台帳に届かないときも操作者ボタンは隠さず「社員台帳に未接続」と出す（選べないのか、選ばなくてよいのかが分からなくなるため）
+- 「選択を外す」で未選択へ戻せる（共用の PC で前の人の名前のまま記録しないため）
+- いま使っているのは銀行取引分析（分類の変更履歴）・株式評価明細書（「自分の担当」の絞り込み）・
+  必要書類管理（書類マスタの保存・公開・復元の履歴）
+
 ## バックアップと復元
 
 全アプリ共通の仕組み（取るのは全体で1つ、戻すのはアプリごと）は [docker/RESTORE.md](../../docker/RESTORE.md)。
