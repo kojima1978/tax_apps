@@ -68,8 +68,9 @@ export function parseBirthDate(input: string): WarekiResult {
   return { ok: true, text: formatWareki(date) };
 }
 
-/** 書類の日付（今日）。日本時間で数える（UTC のままだと朝9時まで前日になる） */
-export function todayWareki(now: Date = new Date()): string {
-  const [year, month, day] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(now).split('-').map(Number);
-  return formatWareki(new Date(Date.UTC(year, month - 1, day)));
+/** カレンダー（`<input type="date">` の YYYY-MM-DD）で選んだ日を和暦に。読めない値は空文字 */
+export function warekiFromIsoDate(iso: string): string {
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const date = match ? utcDate(Number(match[1]), Number(match[2]), Number(match[3])) : null;
+  return date ? formatWareki(date) : '';
 }

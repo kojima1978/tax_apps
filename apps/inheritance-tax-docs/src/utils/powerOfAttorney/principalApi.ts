@@ -3,7 +3,10 @@ import type { PrincipalInput } from './record';
 
 const API_BASE = '/inheritance-tax-docs/api/poa-principals';
 
-/** 委任者DBに入れる中身。生年月日はサーバが和暦に直して返す */
+/**
+ * 委任者DBに入れる中身。生年月日はサーバが和暦に直して返す。
+ * deceasedName は被相続人DBができる前の手がかりの欄で、画面からは直さず受け取ったまま送り返す。
+ */
 export type PrincipalDraft = Pick<PrincipalInput, 'kind' | 'name' | 'address' | 'representative'> & {
   nameKana: string;
   birthDate: string;
@@ -11,12 +14,17 @@ export type PrincipalDraft = Pick<PrincipalInput, 'kind' | 'name' | 'address' | 
   memo: string;
 };
 
+/** 被相続人DB・委任者DBの相手を指す名前だけの形 */
+export type LinkedName = { id: number; name: string };
+
 export type PoaPrincipal = PrincipalDraft & {
   id: number;
   version: number;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  /** つながっている被相続人（被相続人DB） */
+  deceased: LinkedName[];
 };
 
 export const EMPTY_PRINCIPAL_DRAFT: PrincipalDraft = {

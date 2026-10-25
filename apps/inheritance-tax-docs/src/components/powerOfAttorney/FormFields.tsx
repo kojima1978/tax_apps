@@ -13,9 +13,13 @@ export const KIND_OPTIONS: { value: PrincipalInput['kind']; label: string }[] = 
   { value: 'corporate', label: '法人' },
 ];
 
-export const Section = ({ title, children, note }: { title: string; children: ReactNode; note?: ReactNode }) => (
+/** DB の画面の「開く」リンクなど、見出しの右に置くものは action に渡す */
+export const Section = ({ title, children, note, action }: { title: string; children: ReactNode; note?: ReactNode; action?: ReactNode }) => (
   <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
-    <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h2>
+    <div className="flex items-center justify-between gap-2">
+      <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h2>
+      {action}
+    </div>
     {note && <p className="text-xs text-slate-500 dark:text-slate-400">{note}</p>}
     {children}
   </section>

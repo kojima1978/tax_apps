@@ -4,19 +4,23 @@ import { DialogOverlay } from '@/components/ui/ConfirmDialog';
 import { inputClass } from '@/components/powerOfAttorney/FormFields';
 import { usePrincipalSearch } from '@/hooks/usePrincipalSearch';
 import type { PoaPrincipal } from '@/utils/powerOfAttorney/principalApi';
+import type { PrincipalInput } from '@/utils/powerOfAttorney/record';
 
-const PRINCIPALS_PAGE_URL = '/inheritance-tax-docs/power-of-attorney/principals';
+export const POA_DIRECTORY_URL = '/inheritance-tax-docs/power-of-attorney/principals';
 
 type Props = {
   title: string;
   onClose: () => void;
   onPick: (principal: PoaPrincipal) => void;
+  /** 個人だけ・法人だけに絞る（存命の個人・法人の委任状のとき） */
+  kind?: PrincipalInput['kind'] | null;
 };
 
 /** 委任状の画面から委任者DBの1人を選ぶ。登録や直しは委任者DBの画面で行う */
-export const PrincipalPickerDialog = ({ title, onClose, onPick }: Props) => {
+export const PrincipalPickerDialog = ({ title, onClose, onPick, kind }: Props) => {
   const [query, setQuery] = useState('');
-  const { principals, status, error } = usePrincipalSearch(query);
+  const { principals: found, status, error } = usePrincipalSearch(query);
+  const principals = kind ? found.filter((principal) => principal.kind === kind) : found;
 
   return (
     <DialogOverlay labelledBy="principal-picker-title" onClose={onClose} maxWidth="max-w-lg w-full">
@@ -44,10 +48,10 @@ export const PrincipalPickerDialog = ({ title, onClose, onPick }: Props) => {
                 <span className="font-medium text-sm">{principal.name}</span>
                 {principal.kind === 'corporate' && <span className="ml-2 text-xs text-slate-500">法人</span>}
                 {principal.nameKana && <span className="ml-2 text-xs text-slate-500">{principal.nameKana}</span>}
-                {(principal.deceasedName || principal.memo) && (
+                {(principal.deceased.length > 0 || principal.memo) && (
                   <span className="block text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {principal.deceasedName && `被相続人 ${principal.deceasedName}`}
-                    {principal.deceasedName && principal.memo && '　'}
+                    {principal.deceased.length > 0 && `被相続人 ${principal.deceased.map((d) => d.name).join('・')}`}
+                    {principal.deceased.length > 0 && principal.memo && '　'}
                     {principal.memo}
                   </span>
                 )}
@@ -58,12 +62,12 @@ export const PrincipalPickerDialog = ({ title, onClose, onPick }: Props) => {
           {status === 'error' && <li className="px-3 py-4 text-center text-sm text-red-600 dark:text-red-400">{error}</li>}
           {status === 'ok' && principals.length === 0 && (
             <li className="px-3 py-4 text-center text-sm text-slate-500">
-              {query ? '当てはまる委任者がいません。' : 'まだ登録がありません。入力した委任者は「委任者DBに登録」で残せます。'}
+              {query || found.length > 0 ? `当てはまる${kind === 'corporate' ? '法人' : kind === 'individual' ? '個人' : '委任者'}がいません。` : 'まだ登録がありません。入力した委任者は「委任者DBに登録」で残せます。'}
             </li>
           )}
         </ul>
         <div className="flex items-center justify-between">
-          <a href={PRINCIPALS_PAGE_URL} target="_blank" rel="noopener" className="flex items-center gap-1 text-xs text-slate-500 hover:underline">
+          <a href={`${POA_DIRECTORY_URL}?tab=people`} target="_blank" rel="noopener" className="flex items-center gap-1 text-xs text-slate-500 hover:underline">
             <ExternalLink className="w-3.5 h-3.5" /> 委任者DBを開く（登録・直し）
           </a>
           <button

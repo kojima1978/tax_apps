@@ -90,3 +90,44 @@ describe('委任状を書類マスタへ足すマイグレーション', () => {
     expect(migrations.withPowerOfAttorney(own)).toBeNull();
   });
 });
+
+describe('委任者の被相続人欄を被相続人DBへ写すマイグレーション', () => {
+  const insertPrincipal = (name: string, deceasedName: string, deleted = false) =>
+    Number(db.getDb().prepare('INSERT INTO poa_principals (name, deceased_name, deleted_at) VALUES (?, ?, ?)')
+      .run(name, deceasedName, deleted ? '2026-10-01 00:00:00' : null).lastInsertRowid);
+  const deceasedRows = () => db.getDb().prepare('SELECT id, name FROM poa_deceased ORDER BY id').all() as { id: number; name: string }[];
+  const heirsOf = (deceasedId: number) => (db.getDb().prepare(`
+    SELECT p.name FROM poa_deceased_heirs h JOIN poa_principals p ON p.id = h.principal_id WHERE h.deceased_id = ? ORDER BY p.id
+  `).all(deceasedId) as { name: string }[]).map((row) => row.name);
+
+  it('同じ名前（空白・全角半角の違いは無視）を1人にまとめてつなぐ。ゴミ箱の中もつなぎ、元の欄は消さない', () => {
+    insertPrincipal('架空 太郎', '架空 一郎');
+    insertPrincipal('架空 花子', '架空一郎');
+    insertPrincipal('架空 次郎', '架空 花江', true);
+    insertPrincipal('仮名 三郎', '');
+    migrations.runMasterMigrations();
+
+    const rows = deceasedRows();
+    expect(rows.map((row) => row.name)).toEqual(['架空 一郎', '架空 花江']);
+    expect(heirsOf(rows[0].id)).toEqual(['架空 太郎', '架空 花子']);
+    expect(heirsOf(rows[1].id)).toEqual(['架空 次郎']);
+    const kept = db.getDb().prepare("SELECT deceased_name FROM poa_principals WHERE name = '架空 花子'").get();
+    expect(kept).toEqual({ deceased_name: '架空一郎' });
+    const log = db.getDb().prepare("SELECT action, actor FROM audit_logs WHERE target_type = 'poa_deceased' ORDER BY id").all();
+    expect(log).toEqual([
+      { action: 'create', actor: expect.stringContaining('システム') },
+      { action: 'create', actor: expect.stringContaining('システム') },
+    ]);
+  });
+
+  it('2回目は何もしない（外したつながりや消した被相続人を戻さない）', () => {
+    insertPrincipal('架空 太郎', '架空 一郎');
+    migrations.runMasterMigrations();
+    db.getDb().prepare('DELETE FROM poa_deceased_heirs').run();
+    insertPrincipal('架空 花子', '架空 花江');
+
+    migrations.runMasterMigrations();
+    expect(deceasedRows().map((row) => row.name)).toEqual(['架空 一郎']);
+    expect(heirsOf(deceasedRows()[0].id)).toEqual([]);
+  });
+});

@@ -108,6 +108,28 @@ function initSchema(d: Database.Database): void {
       updated_at     TEXT NOT NULL DEFAULT (datetime('now')),
       deleted_at     TEXT
     );
+    -- 委任状の被相続人。相続人（委任者）とは多対多 ── 二次相続では同じ子が父と母の両方の相続人になり、
+    -- 相続人がのちに本人の手続きの委任者にもなるため、委任者の側に被相続人を1つだけ持たせない。
+    -- birth_date は和暦に直した文字列（空なら手書き欄）。deleted_at はゴミ箱
+    CREATE TABLE IF NOT EXISTS poa_deceased (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT NOT NULL,
+      name_kana  TEXT NOT NULL DEFAULT '',
+      birth_date TEXT NOT NULL DEFAULT '',
+      memo       TEXT NOT NULL DEFAULT '',
+      version    INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at TEXT
+    );
+    -- 被相続人と相続人（委任者）のつながり。どちらかをゴミ箱へ移しても行は残す（戻せばつながりも戻る）
+    CREATE TABLE IF NOT EXISTS poa_deceased_heirs (
+      deceased_id  INTEGER NOT NULL REFERENCES poa_deceased(id),
+      principal_id INTEGER NOT NULL REFERENCES poa_principals(id),
+      created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (deceased_id, principal_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_poa_deceased_heirs_principal ON poa_deceased_heirs(principal_id);
     -- 1回だけ流すデータの手直しの印（masterMigrations.ts）
     CREATE TABLE IF NOT EXISTS app_migrations (
       name       TEXT PRIMARY KEY,
@@ -199,7 +221,19 @@ export type PoaPrincipalRow = {
   deleted_at: string | null;
 };
 
-export type AuditTargetType = 'document_master' | 'resource' | 'poa_matter' | 'poa_principal';
+export type PoaDeceasedRow = {
+  id: number;
+  name: string;
+  name_kana: string;
+  birth_date: string;
+  memo: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type AuditTargetType = 'document_master' | 'resource' | 'poa_matter' | 'poa_principal' | 'poa_deceased';
 export type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
 
 export function writeAuditLog(entry: {

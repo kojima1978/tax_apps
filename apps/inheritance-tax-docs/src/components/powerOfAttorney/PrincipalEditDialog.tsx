@@ -96,7 +96,6 @@ export const PrincipalEditDialog = ({ principal, onClose, onSaved }: Props) => {
             onChange={(birthDate) => set({ birthDate })}
           />
         )}
-        <TextField label="被相続人（探すときの手がかり）" value={draft.deceasedName} onChange={(deceasedName) => set({ deceasedName })} />
         <label className="block space-y-1">
           <span className="text-xs font-medium text-slate-600 dark:text-slate-300">メモ</span>
           <textarea className={inputClass} rows={2} value={draft.memo} onChange={(e) => set({ memo: e.target.value })} />

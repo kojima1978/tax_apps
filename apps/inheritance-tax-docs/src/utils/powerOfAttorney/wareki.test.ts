@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatWareki, parseBirthDate, todayWareki } from './wareki';
+import { formatWareki, parseBirthDate, warekiFromIsoDate } from './wareki';
 
 describe('parseBirthDate', () => {
   it.each([
@@ -35,13 +35,15 @@ describe('parseBirthDate', () => {
   });
 });
 
-describe('formatWareki / todayWareki', () => {
+describe('formatWareki / warekiFromIsoDate', () => {
   it('UTC 0時の日付をそのまま和暦にする', () => {
     expect(formatWareki(new Date(Date.UTC(2026, 9, 25)))).toBe('令和8年10月25日');
   });
 
-  it('今日は日本時間で数える（UTC の前日 15時 = 日本の0時）', () => {
-    expect(todayWareki(new Date('2026-10-24T15:00:00Z'))).toBe('令和8年10月25日');
-    expect(todayWareki(new Date('2026-10-24T14:59:59Z'))).toBe('令和8年10月24日');
+  it('カレンダーの値を和暦にし、読めない値・存在しない日は空にする', () => {
+    expect(warekiFromIsoDate('2026-10-25')).toBe('令和8年10月25日');
+    expect(warekiFromIsoDate('2019-05-01')).toBe('令和元年5月1日');
+    expect(warekiFromIsoDate('')).toBe('');
+    expect(warekiFromIsoDate('2026-02-30')).toBe('');
   });
 });
