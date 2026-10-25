@@ -1,5 +1,5 @@
 import { Info, AlertCircle } from 'lucide-react';
-import { DOC_LIST_TYPE_LABELS, type DocListType, type EditableDocumentList } from '@/constants';
+import { DOC_LIST_TYPE_LABELS, usesDeceasedName, type DocListType, type EditableDocumentList } from '@/constants';
 import { getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
 import { getPhoneLine } from '@/utils/companyContact';
 import { toCircledNumber } from '@/utils/helpers';
@@ -102,7 +102,7 @@ export const PrintSection = ({
           </h1>
           <div className={`text-slate-700 font-medium mb-2 ${l.meta}`}>
             {clientName && <span className="mr-4">依頼者名: {clientName} 様</span>}
-            {deceasedName && <span className="mr-4">被相続人名: {deceasedName} 様</span>}
+            {deceasedName && usesDeceasedName(docListType) && <span className="mr-4">被相続人名: {deceasedName} 様</span>}
             {personInCharge && <span>担当者: {personInCharge}</span>}
           </div>
           <p className={`text-slate-600 ${l.subtitle}`}>

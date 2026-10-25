@@ -23,7 +23,7 @@ import {
   Stamp,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
+import { DOC_LIST_TYPE_LABELS, usesDeceasedName, type DocListType } from '@/constants';
 import type { CompanyInfo } from '@/shared/staff-directory/company';
 import { CompanyField } from './CompanyField';
 
@@ -150,10 +150,12 @@ export const EditToolbar = ({
   // （残りの幅を埋めさせると、名前の欄が400px を超えて間延びしていた）
   const CASE_FIELDS = useMemo(() => [
     { id: 'client-name', label: '依頼者名', value: clientName, onChange: onClientNameChange, widthClass: 'md:w-40 xl:w-44' },
-    { id: 'deceased-name', label: '被相続人名', value: deceasedName, onChange: onDeceasedNameChange, widthClass: 'md:w-40 xl:w-44' },
+    ...(usesDeceasedName(docListType)
+      ? [{ id: 'deceased-name', label: '被相続人名', value: deceasedName, onChange: onDeceasedNameChange, widthClass: 'md:w-40 xl:w-44' }]
+      : []),
     { id: 'person-in-charge', label: '担当者', value: personInCharge, onChange: onPersonInChargeChange, widthClass: 'md:w-32 xl:w-36' },
     { id: 'person-in-charge-contact', label: '連絡先', value: personInChargeContact, onChange: onPersonInChargeContactChange, widthClass: 'md:w-48 xl:w-56' },
-  ], [clientName, onClientNameChange, deceasedName, onDeceasedNameChange, personInCharge, onPersonInChargeChange, personInChargeContact, onPersonInChargeContactChange]);
+  ], [docListType, clientName, onClientNameChange, deceasedName, onDeceasedNameChange, personInCharge, onPersonInChargeChange, personInChargeContact, onPersonInChargeContactChange]);
 
   const filledCaseFieldCount = CASE_FIELDS.filter((f) => f.value.trim() !== '').length;
 

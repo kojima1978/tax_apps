@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   STORAGE_KEYS,
   DOC_LIST_TYPE_LABELS,
+  usesDeceasedName,
   getDataStorageKey,
   getTrashStorageKey,
   type DocListType,
@@ -229,7 +230,7 @@ export const useInheritanceTaxGuide = () => {
     exportToExcel({
       documentList,
       clientName,
-      deceasedName,
+      deceasedName: usesDeceasedName(docListType) ? deceasedName : '',
       personInCharge,
       personInChargeContact,
       company,

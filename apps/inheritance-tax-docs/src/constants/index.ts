@@ -9,6 +9,12 @@ export const DOC_LIST_TYPE_LABELS: Record<DocListType, string> = {
   'unlisted-stock': '非上場株式評価',
 };
 
+/**
+ * 被相続人名を使う種別か（相続税申告だけ）。ほかの種別では欄も印刷・Excel も出さない。
+ * 入力済みの値は消さずに持っておく（相続税へ戻したときにそのまま出るように）。
+ */
+export const usesDeceasedName = (type: DocListType): boolean => type === 'inheritance-tax';
+
 // ストレージキー
 export const STORAGE_KEYS = {
   docListType: 'inheritance_tax_docs_doc_list_type',
