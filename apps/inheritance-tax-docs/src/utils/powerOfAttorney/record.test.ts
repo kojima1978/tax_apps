@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSheets, type PowerOfAttorneyInput, type PrincipalInput, type SheetRow } from './record';
-import { INHERITANCE_MATTERS, resolveMatters, togglePreset } from './matters';
+import { DEFAULT_MATTER_MASTER, editedText, resolveMatters, togglePreset } from './matters';
 import { parseStaffPersonal } from './subAgent';
 
 const person: PrincipalInput = {
@@ -118,9 +118,9 @@ describe('buildSheets', () => {
 
 describe('委任事項', () => {
   it('ひな形の並びで刷り、直した文面を優先し、その他は1行1事項', () => {
-    const [first, second] = INHERITANCE_MATTERS;
+    const [first, second] = DEFAULT_MATTER_MASTER.matters.inheritance;
     const matters = resolveMatters(
-      'inheritance',
+      DEFAULT_MATTER_MASTER.matters.inheritance,
       { [second.id]: { checked: true, text: '' }, [first.id]: { checked: true, text: '  直した文面 ' } },
       'その他1\n\n その他2 ',
     );
@@ -128,13 +128,28 @@ describe('委任事項', () => {
   });
 
   it('提出先を外しても、まだ選んでいる提出先の事項は残す', () => {
-    let state = togglePreset({}, [], 'bank');
+    const { presets } = DEFAULT_MATTER_MASTER;
+    let state = togglePreset(presets, {}, [], 'bank');
     expect(state.selection['bank-statements'].checked).toBe(true);
-    state = togglePreset(state.selection, state.activePresetIds, 'koseki');
-    state = togglePreset(state.selection, state.activePresetIds, 'bank');
+    state = togglePreset(presets, state.selection, state.activePresetIds, 'koseki');
+    state = togglePreset(presets, state.selection, state.activePresetIds, 'bank');
     expect(state.activePresetIds).toEqual(['koseki']);
     expect(state.selection['bank-statements'].checked).toBe(false);
     expect(state.selection['deceased-koseki'].checked).toBe(true);
+  });
+
+  it('提出先ボタンが印を付ける事項はマスタの設定どおり', () => {
+    const presets = { ...DEFAULT_MATTER_MASTER.presets, bank: ['care-facility'] };
+    const state = togglePreset(presets, {}, [], 'bank');
+    expect(Object.keys(state.selection)).toEqual(['care-facility']);
+  });
+
+  it('定型文に登録できるのは、ひな形と違う直しだけ', () => {
+    const [matter] = DEFAULT_MATTER_MASTER.matters.inheritance;
+    expect(editedText(matter, { [matter.id]: { checked: true, text: ' 架空の直し ' } })).toBe('架空の直し');
+    expect(editedText(matter, { [matter.id]: { checked: true, text: matter.text } })).toBe('');
+    expect(editedText(matter, { [matter.id]: { checked: true, text: '   ' } })).toBe('');
+    expect(editedText(matter, {})).toBe('');
   });
 });
 

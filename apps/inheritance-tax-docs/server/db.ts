@@ -84,6 +84,13 @@ function initSchema(d: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC, id DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs(target_type, target_id, id DESC);
+    -- 委任状の委任事項マスタ。全社共通の1行だけ（id = 1）。version は楽観ロック用
+    CREATE TABLE IF NOT EXISTS poa_matter_master (
+      id           INTEGER PRIMARY KEY CHECK (id = 1),
+      payload_json TEXT NOT NULL,
+      version      INTEGER NOT NULL DEFAULT 1,
+      updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Existing databases predate soft deletion. Keep the migration additive so
@@ -129,6 +136,18 @@ export function seedDocumentMastersIfEmpty(seeds: { code: string; label: string;
   seed();
 }
 
+export type PoaMatterMasterRow = {
+  id: number;
+  payload_json: string;
+  version: number;
+  updated_at: string;
+};
+
+/** 委任事項マスタが無いときだけ初期値を入れる（画面で直した内容は起動し直しても上書きしない） */
+export function seedPoaMatterMasterIfEmpty(seed: unknown): void {
+  getDb().prepare('INSERT OR IGNORE INTO poa_matter_master (id, payload_json) VALUES (1, ?)').run(JSON.stringify(seed));
+}
+
 export type ResourceRow = {
   id: number;
   title: string;
@@ -142,7 +161,7 @@ export type ResourceRow = {
   company_ids_json: string;
 };
 
-export type AuditTargetType = 'document_master' | 'resource';
+export type AuditTargetType = 'document_master' | 'resource' | 'poa_matter';
 export type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
 
 export function writeAuditLog(entry: {

@@ -1,11 +1,16 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { STORAGE_KEYS } from '@/constants';
 import { useCompanyInfo } from '@/shared/staff-directory/company';
 import type { Operator } from '@/shared/staff-directory/operator';
+import { fetchMatterMaster, registerMatters } from '@/utils/powerOfAttorney/matterMasterApi';
 import {
-  mattersFor,
+  DEFAULT_MATTER_MASTER,
+  editedText,
   resolveMatters,
+  splitExtraMatters,
   togglePreset,
+  type MatterMaster,
+  type MatterPresetId,
   type MatterSelection,
   type Purpose,
 } from '@/utils/powerOfAttorney/matters';
@@ -67,13 +72,35 @@ export function usePowerOfAttorneyForm() {
     emptyPrincipal(1, readStored(STORAGE_KEYS.clientName)),
   ]);
   // 事項の印と押している提出先は一緒に動くので1つの state に持つ（続けて押しても古い値で上書きしない）
-  const [matterState, setMatterState] = useState<{ selection: MatterSelection; activePresetIds: string[] }>({
+  const [matterState, setMatterState] = useState<{ selection: MatterSelection; activePresetIds: MatterPresetId[] }>({
     selection: INITIAL_SELECTION,
     activePresetIds: [],
   });
   const { selection, activePresetIds } = matterState;
   const [extraMatters, setExtraMatters] = useState('');
   const [subAgent, setSubAgent] = useState<SubAgentForm | null>(null);
+
+  // 委任事項の文面はマスタ（全社共通）から。読めなければ初期の文面で作れるようにし、登録だけ止める
+  const [master, setMaster] = useState<MatterMaster>(DEFAULT_MATTER_MASTER);
+  const [masterStatus, setMasterStatus] = useState<'loading' | 'ok' | 'fallback'>('loading');
+  const [registering, setRegistering] = useState(false);
+  const [registerMessage, setRegisterMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchMatterMaster()
+      .then((loaded) => {
+        if (cancelled) return;
+        setMaster(loaded);
+        setMasterStatus('ok');
+      })
+      .catch(() => {
+        if (!cancelled) setMasterStatus('fallback');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updatePrincipal = useCallback((id: number, patch: Partial<PrincipalForm>) => {
     setPrincipals((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -85,15 +112,65 @@ export function usePowerOfAttorneyForm() {
     setPrincipals((prev) => (prev.length > 1 ? prev.filter((p) => p.id !== id) : prev));
   }, []);
 
-  const togglePresetById = useCallback((presetId: string) => {
-    setMatterState((prev) => togglePreset(prev.selection, prev.activePresetIds, presetId));
-  }, []);
+  const togglePresetById = useCallback((presetId: MatterPresetId) => {
+    setMatterState((prev) => togglePreset(master.presets, prev.selection, prev.activePresetIds, presetId));
+  }, [master.presets]);
   const updateMatter = useCallback((matterId: string, patch: Partial<{ checked: boolean; text: string }>) => {
     setMatterState((prev) => ({
       ...prev,
       selection: { ...prev.selection, [matterId]: { ...(prev.selection[matterId] ?? { checked: false, text: '' }), ...patch } },
     }));
   }, []);
+
+  const availableMatters = master.matters[purpose];
+
+  /** 文面を定型文に登録し、登録した事項に印を付け直す。select は登録結果の id から次の選択を作る */
+  const register = useCallback(async (
+    texts: string[],
+    afterId: string | undefined,
+    select: (ids: string[], prev: MatterSelection) => MatterSelection,
+  ) => {
+    if (texts.length === 0 || masterStatus !== 'ok') return false;
+    setRegistering(true);
+    setRegisterMessage(null);
+    try {
+      const result = await registerMatters(purpose, texts, afterId);
+      setMaster(result.master);
+      setMatterState((prev) => ({ ...prev, selection: select(result.ids, prev.selection) }));
+      setRegisterMessage({
+        kind: 'ok',
+        text: result.created > 0 ? `定型文に${result.created}件登録しました` : '同じ文面がすでに定型文にあったので、それに印を付けました',
+      });
+      return true;
+    } catch (error) {
+      setRegisterMessage({ kind: 'error', text: error instanceof Error ? error.message : '定型文に登録できませんでした' });
+      return false;
+    } finally {
+      setRegistering(false);
+    }
+  }, [purpose, masterStatus]);
+
+  // 直した文面を新しい事項として元の事項の隣に足し、元の事項の印と直しは外す
+  const registerEditedMatter = useCallback((matterId: string) => {
+    const matter = availableMatters.find((m) => m.id === matterId);
+    const text = matter ? editedText(matter, selection) : '';
+    if (!text) return Promise.resolve(false);
+    return register([text], matterId, ([newId], prev) => ({
+      ...prev,
+      [matterId]: { checked: false, text: '' },
+      [newId]: { checked: true, text: '' },
+    }));
+  }, [availableMatters, selection, register]);
+
+  // 「その他の委任事項」の各行を事項として足し、欄は空にする（同じ文面が二重に刷られないように）
+  const registerExtraMatters = useCallback(async () => {
+    const ok = await register(splitExtraMatters(extraMatters), undefined, (ids, prev) => ({
+      ...prev,
+      ...Object.fromEntries(ids.map((id) => [id, { checked: true, text: '' }])),
+    }));
+    if (ok) setExtraMatters('');
+    return ok;
+  }, [extraMatters, register]);
 
   // 選び直した直後に前の人の応答が遅れて届いても上書きさせない
   const pickSeq = useRef(0);
@@ -133,8 +210,8 @@ export function usePowerOfAttorneyForm() {
   }, [purpose, deceased.birthInput, principals, subAgent]);
 
   const matters = useMemo(
-    () => resolveMatters(purpose, selection, extraMatters),
-    [purpose, selection, extraMatters],
+    () => resolveMatters(availableMatters, selection, extraMatters),
+    [availableMatters, selection, extraMatters],
   );
 
   const sheets = useMemo(() => {
@@ -176,7 +253,13 @@ export function usePowerOfAttorneyForm() {
     updatePrincipal,
     addPrincipal,
     removePrincipal,
-    availableMatters: mattersFor(purpose),
+    availableMatters,
+    presets: master.presets,
+    masterStatus,
+    registering,
+    registerMessage,
+    registerEditedMatter,
+    registerExtraMatters,
     selection,
     activePresetIds,
     togglePresetById,

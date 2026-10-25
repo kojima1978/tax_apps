@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Clock3, RotateCcw, ShieldCheck } from 'lucid
 import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 
 type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
-type AuditTargetType = 'document_master' | 'resource';
+type AuditTargetType = 'document_master' | 'resource' | 'poa_matter';
 
 type AuditLog = {
   id: number;
@@ -34,7 +34,12 @@ const ACTION_LABELS: Record<AuditAction, string> = {
 const TARGET_LABELS: Record<AuditTargetType, string> = {
   document_master: '必要書類',
   resource: '参考資料',
+  poa_matter: '委任事項',
 };
+
+// 委任事項は無効化ではなく本当に消す
+const actionLabel = (log: AuditLog): string =>
+  log.targetType === 'poa_matter' && log.action === 'delete' ? '削除' : ACTION_LABELS[log.action];
 
 const ACTION_STYLES: Record<AuditAction, string> = {
   create: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200',
@@ -136,17 +141,17 @@ export const AuditLogPage = () => {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-bold"><ShieldCheck className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />操作履歴</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">必要書類と参考資料の変更を時系列で保存しています。履歴は編集・削除できません。</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">必要書類・参考資料・委任事項の変更を時系列で保存しています。履歴は編集・削除できません。</p>
         </div>
         <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-2">
           <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">対象
             <select value={targetFilter} onChange={(event) => setTargetFilter(event.target.value as typeof targetFilter)} className="min-h-11 cursor-pointer rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
-              <option value="all">すべて</option><option value="document_master">必要書類</option><option value="resource">参考資料</option>
+              <option value="all">すべて</option><option value="document_master">必要書類</option><option value="resource">参考資料</option><option value="poa_matter">委任事項</option>
             </select>
           </label>
           <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">操作
             <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value as typeof actionFilter)} className="min-h-11 cursor-pointer rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
-              <option value="all">すべて</option>{Object.entries(ACTION_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              <option value="all">すべて</option>{Object.entries(ACTION_LABELS).map(([value, label]) => <option key={value} value={value}>{value === 'delete' ? `${label}・削除` : label}</option>)}
             </select>
           </label>
         </div>
@@ -171,7 +176,7 @@ export const AuditLogPage = () => {
                   </button>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ACTION_STYLES[log.action]}`}>{ACTION_LABELS[log.action]}</span>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ACTION_STYLES[log.action]}`}>{actionLabel(log)}</span>
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">{TARGET_LABELS[log.targetType]}</span>
                       <strong className="break-words text-sm">{log.targetName}</strong>
                     </div>

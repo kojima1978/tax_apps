@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDb, writeAuditLog, type ResourceRow } from '../db.js';
+import { getDb, writeAuditLog, type AuditTargetType, type ResourceRow } from '../db.js';
 
 const decodeOperatorName = (value: string | undefined): string | undefined => {
   if (!value) return undefined;
@@ -8,7 +8,7 @@ const decodeOperatorName = (value: string | undefined): string | undefined => {
 
 type AuditLogRow = {
   id: number;
-  target_type: 'document_master' | 'resource';
+  target_type: AuditTargetType;
   target_id: string;
   target_name: string;
   action: 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
@@ -39,7 +39,7 @@ export function createAuditLogsRouter(): Router {
     const clauses: string[] = [];
     const params: string[] = [];
 
-    if (targetType === 'document_master' || targetType === 'resource') {
+    if (targetType === 'document_master' || targetType === 'resource' || targetType === 'poa_matter') {
       clauses.push('target_type = ?');
       params.push(targetType);
     }

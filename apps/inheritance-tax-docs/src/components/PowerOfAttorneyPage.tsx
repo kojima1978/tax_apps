@@ -7,11 +7,14 @@ import { CompanyField } from '@/components/ui/CompanyField';
 import { POA_PAGE_STYLE, PowerOfAttorneySheetView } from '@/components/powerOfAttorney/PowerOfAttorneySheetView';
 import '@/components/powerOfAttorney/powerOfAttorney.css';
 import { StaffPickerDialog } from '@/shared/staff-directory/StaffPickerDialog';
-import { MATTER_PRESETS, type Purpose } from '@/utils/powerOfAttorney/matters';
+import { MATTER_PRESETS, editedText, splitExtraMatters, type Purpose } from '@/utils/powerOfAttorney/matters';
 import type { DocumentKind, NameMode } from '@/utils/powerOfAttorney/record';
 import { exportFileName } from '@/utils/exportFileName';
 
 const COMPANY_DIRECTORY_URL = '/staff-directory/companies';
+
+// 定型文は全社共通なので、押す前に確かめる
+const REGISTER_CONFIRM = '定型文は全社共通です。この文面を委任事項マスタに登録しますか？\n（マスタ管理の「委任事項」タブで直し・削除ができます）';
 
 const inputClass =
   'w-full px-2.5 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500';
@@ -280,6 +283,11 @@ export const PowerOfAttorneyPage = () => {
             title="委任事項"
             note={form.purpose === 'inheritance' ? '提出先を選ぶと、そこで要る事項に印が付きます（後から1つずつ付け外しできます）。' : undefined}
           >
+            {form.masterStatus === 'fallback' && (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                委任事項マスタを読み込めなかったため、初期の文面を出しています（定型文への登録はできません）。
+              </p>
+            )}
             {form.purpose === 'inheritance' && (
               <div className="flex flex-wrap gap-2">
                 {MATTER_PRESETS.map((preset) => {
@@ -307,6 +315,7 @@ export const PowerOfAttorneyPage = () => {
                 const state = form.selection[matter.id];
                 const editing = editingMatter === matter.id;
                 const edited = Boolean(state?.text.trim());
+                const registrable = form.masterStatus === 'ok' && Boolean(editedText(matter, form.selection));
                 return (
                   <li key={matter.id} className="text-sm">
                     <label className="flex items-start gap-2 cursor-pointer">
@@ -338,6 +347,18 @@ export const PowerOfAttorneyPage = () => {
                           ひな形に戻す
                         </button>
                       )}
+                      {registrable && (
+                        <button
+                          type="button"
+                          disabled={form.registering}
+                          onClick={() => {
+                            if (window.confirm(REGISTER_CONFIRM)) void form.registerEditedMatter(matter.id);
+                          }}
+                          className="text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-50"
+                        >
+                          この文面を定型文に登録
+                        </button>
+                      )}
                     </div>
                     {editing && (
                       <textarea
@@ -362,6 +383,31 @@ export const PowerOfAttorneyPage = () => {
                 onChange={(e) => form.setExtraMatters(e.target.value)}
               />
             </label>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              {form.masterStatus === 'ok' && splitExtraMatters(form.extraMatters).length > 0 && (
+                <button
+                  type="button"
+                  disabled={form.registering}
+                  onClick={() => {
+                    if (window.confirm(REGISTER_CONFIRM)) void form.registerExtraMatters();
+                  }}
+                  className="font-medium text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-50"
+                >
+                  この文面を定型文に登録
+                </button>
+              )}
+              <Link to="/masters?tab=poa-matters" className="text-slate-500 hover:underline">
+                定型文の並び替え・削除はマスタ管理で
+              </Link>
+            </div>
+            {form.registerMessage && (
+              <p
+                role="status"
+                className={`text-xs ${form.registerMessage.kind === 'ok' ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
+              >
+                {form.registerMessage.text}
+              </p>
+            )}
             {form.matters.length === 0 && (
               <p className="text-xs text-amber-700 dark:text-amber-400">委任事項が1つも選ばれていません。</p>
             )}
