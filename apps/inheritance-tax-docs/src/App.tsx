@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { EditableListStep } from '@/components/EditableListStep'
 import { MasterDataPage } from '@/components/MasterDataPage'
+import { PoaPrincipalsPage } from '@/components/PoaPrincipalsPage'
 import { PowerOfAttorneyPage } from '@/components/PowerOfAttorneyPage'
 import { ResourcesPage } from '@/components/ResourcesPage'
 
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/resources" element={<ResourcesPage readOnly />} />
         <Route path="/masters" element={<MasterDataPage />} />
         <Route path="/power-of-attorney" element={<PowerOfAttorneyPage />} />
+        <Route path="/power-of-attorney/principals" element={<PoaPrincipalsPage />} />
       </Routes>
     </div>
   )

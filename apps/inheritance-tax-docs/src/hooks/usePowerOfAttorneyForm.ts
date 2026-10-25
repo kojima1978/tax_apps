@@ -4,6 +4,15 @@ import { useCompanyInfo } from '@/shared/staff-directory/company';
 import type { Operator } from '@/shared/staff-directory/operator';
 import { fetchMatterMaster, registerMatters } from '@/utils/powerOfAttorney/matterMasterApi';
 import {
+  PrincipalApiError,
+  createPrincipal,
+  draftOf,
+  fetchPrincipal,
+  updatePrincipal as updatePrincipalRecord,
+  type PoaPrincipal,
+} from '@/utils/powerOfAttorney/principalApi';
+import { draftFromSlot, isBlankSlot, slotFieldsFromRecord } from '@/utils/powerOfAttorney/principalLink';
+import {
   DEFAULT_MATTER_MASTER,
   editedText,
   resolveMatters,
@@ -23,8 +32,13 @@ import {
 import { fetchSubAgentDetails } from '@/utils/powerOfAttorney/subAgent';
 import { parseBirthDate, todayWareki } from '@/utils/powerOfAttorney/wareki';
 
-/** 入力中の委任者。生年月日は打たれたまま持ち、刷るときに和暦へ直す */
-export type PrincipalForm = Omit<PrincipalInput, 'birthDate'> & { id: number; birthInput: string };
+/**
+ * 入力中の委任者。生年月日は打たれたまま持ち、刷るときに和暦へ直す。
+ * record は委任者DBから入れた（または登録した）ときの DB の内容で、直したかどうかの比較と更新の版に使う。
+ */
+export type PrincipalForm = Omit<PrincipalInput, 'birthDate'> & { id: number; birthInput: string; record?: PoaPrincipal };
+
+export type DirectoryMessage = { slotId: number | null; kind: 'ok' | 'error'; text: string };
 
 export type SubAgentForm = {
   staffId: number;
@@ -55,10 +69,12 @@ const emptyPrincipal = (id: number, name = ''): PrincipalForm => ({
 const INITIAL_SELECTION: MatterSelection = { 'own-property-certificates': { checked: true, text: '' } };
 
 /**
- * 委任状の入力。どれも保存しない（画面を閉じれば消える）── 委任者の住所・生年月日を
- * ブラウザに残さないため。被相続人と1人目の委任者の名前だけ、書類リストの案件から写す。
+ * 委任状の入力。ブラウザには何も残さない（画面を閉じれば消える）── 委任者の住所・生年月日を
+ * 端末に残さないため。被相続人と1人目の委任者の名前だけ、書類リストの案件から写す。
+ * 残したい委任者は、押したときだけ委任者DB（サーバ）へ登録する。linkedPrincipalId は
+ * 委任者DBの画面の「委任状を作る」から来たときの相手で、1人目の欄へ入れる。
  */
-export function usePowerOfAttorneyForm() {
+export function usePowerOfAttorneyForm(linkedPrincipalId?: number) {
   const { company } = useCompanyInfo();
   const nextId = useRef(2);
 
@@ -102,8 +118,12 @@ export function usePowerOfAttorneyForm() {
     };
   }, []);
 
+  const [directoryMessage, setDirectoryMessage] = useState<DirectoryMessage | null>(null);
+  const [savingSlotId, setSavingSlotId] = useState<number | null>(null);
   const updatePrincipal = useCallback((id: number, patch: Partial<PrincipalForm>) => {
     setPrincipals((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    // 直した後まで「登録しました」を残さない
+    setDirectoryMessage((prev) => (prev?.slotId === id ? null : prev));
   }, []);
   const addPrincipal = useCallback(() => {
     setPrincipals((prev) => [...prev, emptyPrincipal(nextId.current++)]);
@@ -111,6 +131,75 @@ export function usePowerOfAttorneyForm() {
   const removePrincipal = useCallback((id: number) => {
     setPrincipals((prev) => (prev.length > 1 ? prev.filter((p) => p.id !== id) : prev));
   }, []);
+
+  // ── 委任者DB ──
+
+  /**
+   * DB の内容を欄へ入れる。target が 'new' なら、空の欄が1つだけのときはそこへ、それ以外は欄を足す。
+   * 被相続人は空のときだけ埋める（overrideDeceased は委任者DBの画面から来たとき）。
+   */
+  const applyRecord = useCallback((target: number | 'new', record: PoaPrincipal, overrideDeceased = false) => {
+    const fields = { ...slotFieldsFromRecord(record), record };
+    setPrincipals((prev) => {
+      if (target !== 'new') return prev.map((p) => (p.id === target ? { ...p, ...fields } : p));
+      if (prev.length === 1 && isBlankSlot(prev[0])) return [{ ...prev[0], ...fields }];
+      return [...prev, { id: nextId.current++, ...fields }];
+    });
+    if (record.deceasedName) {
+      setDeceased((prev) => (overrideDeceased || !prev.name.trim() ? { ...prev, name: record.deceasedName } : prev));
+    }
+    setDirectoryMessage(null);
+  }, []);
+
+  const unlinkRecord = useCallback((slotId: number) => {
+    setPrincipals((prev) => prev.map((p) => (p.id === slotId ? { ...p, record: undefined } : p)));
+    setDirectoryMessage(null);
+  }, []);
+
+  useEffect(() => {
+    if (!linkedPrincipalId) return;
+    let cancelled = false;
+    fetchPrincipal(linkedPrincipalId)
+      .then((record) => {
+        if (!cancelled) applyRecord(1, record, true);
+      })
+      .catch((error) => {
+        if (!cancelled) setDirectoryMessage({ slotId: null, kind: 'error', text: error instanceof Error ? error.message : '委任者DBから読み込めませんでした' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedPrincipalId, applyRecord]);
+
+  /** 欄の内容を委任者DBへ。つながっていなければ新しく登録し、つながっていればその人を更新する */
+  const saveToDirectory = useCallback(async (slotId: number) => {
+    const slot = principals.find((p) => p.id === slotId);
+    if (!slot || !slot.name.trim() || savingSlotId !== null) return;
+    const draft = draftFromSlot(slot, slot.record && draftOf(slot.record), purpose === 'inheritance' ? deceased.name : '');
+    setSavingSlotId(slotId);
+    setDirectoryMessage(null);
+    try {
+      const saved = slot.record
+        ? await updatePrincipalRecord(slot.record.id, draft, slot.record.version)
+        : await createPrincipal(draft);
+      setPrincipals((prev) => prev.map((p) => (p.id === slotId ? { ...p, record: saved } : p)));
+      setDirectoryMessage({ slotId, kind: 'ok', text: slot.record ? '委任者DBの登録内容を更新しました' : '委任者DBに登録しました' });
+    } catch (error) {
+      if (error instanceof PrincipalApiError && error.status === 409 && error.current) {
+        // 今の内容を控えにし直すので、もう一度押せばこの画面の内容で上書きできる
+        const current = error.current;
+        setPrincipals((prev) => prev.map((p) => (p.id === slotId ? { ...p, record: current } : p)));
+        setDirectoryMessage({ slotId, kind: 'error', text: 'ほかの画面で委任者DBの内容が直されていました。この画面の内容で上書きするなら、もう一度押してください。' });
+      } else if (error instanceof PrincipalApiError && error.status === 404) {
+        setPrincipals((prev) => prev.map((p) => (p.id === slotId ? { ...p, record: undefined } : p)));
+        setDirectoryMessage({ slotId, kind: 'error', text: '委任者DBの登録がゴミ箱へ移されていたため、つながりを外しました。残すなら登録し直してください。' });
+      } else {
+        setDirectoryMessage({ slotId, kind: 'error', text: error instanceof Error ? error.message : '委任者DBに保存できませんでした' });
+      }
+    } finally {
+      setSavingSlotId(null);
+    }
+  }, [principals, savingSlotId, purpose, deceased.name]);
 
   const togglePresetById = useCallback((presetId: MatterPresetId) => {
     setMatterState((prev) => togglePreset(master.presets, prev.selection, prev.activePresetIds, presetId));
@@ -225,7 +314,14 @@ export function usePowerOfAttorneyForm() {
       printDetails,
       nameMode,
       deceased: { name: deceased.name, birthDate: wareki(deceased.birthInput) },
-      principals: principals.map(({ birthInput, ...p }) => ({ ...p, birthDate: wareki(birthInput) })),
+      // record（DB の控え）は刷る内容に混ぜない
+      principals: principals.map(({ kind, name, address, representative, birthInput }) => ({
+        kind,
+        name,
+        address,
+        representative,
+        birthDate: wareki(birthInput),
+      })),
       matters,
       date: printDate ? todayWareki() : '',
       agent: { name: company.name, address: company.address, representative: company.representative },
@@ -253,6 +349,11 @@ export function usePowerOfAttorneyForm() {
     updatePrincipal,
     addPrincipal,
     removePrincipal,
+    applyRecord,
+    unlinkRecord,
+    saveToDirectory,
+    savingSlotId,
+    directoryMessage,
     availableMatters,
     presets: master.presets,
     masterStatus,

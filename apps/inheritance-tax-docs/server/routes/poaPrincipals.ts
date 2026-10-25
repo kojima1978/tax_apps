@@ -1,0 +1,235 @@
+import { Router } from 'express';
+import { getDb, writeAuditLog, type PoaPrincipalRow } from '../db.js';
+import { parseBirthDate } from '../../src/utils/powerOfAttorney/wareki.js';
+
+/**
+ * 委任状の委任者DB。委任状を気軽に作れることを優先し、必須は氏名（法人名）だけ。
+ * 相続税案件管理の相続人とは同期しない ── あちらの厳格な運用に委任状の作成を縛らせないため。
+ */
+
+type PrincipalFields = Omit<PoaPrincipalRow, 'id' | 'version' | 'created_at' | 'updated_at' | 'deleted_at'>;
+
+const LIMITS: Record<Exclude<keyof PrincipalFields, 'kind' | 'birth_date'>, number> = {
+  name: 100,
+  name_kana: 100,
+  address: 300,
+  representative: 100,
+  deceased_name: 100,
+  memo: 1000,
+};
+
+const LABELS: Record<keyof typeof LIMITS, string> = {
+  name: '氏名',
+  name_kana: 'フリガナ',
+  address: '住所',
+  representative: '代表者',
+  deceased_name: '被相続人',
+  memo: 'メモ',
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isKind = (value: unknown): value is PrincipalFields['kind'] => value === 'individual' || value === 'corporate';
+
+const actorFrom = (req: { header(name: string): string | undefined }): string | undefined =>
+  decodeOperatorName(req.header('x-operator-name'));
+
+const decodeOperatorName = (value: string | undefined): string | undefined => {
+  if (!value) return undefined;
+  try { return decodeURIComponent(value); } catch { return value; }
+};
+
+/** 画面の項目名（camelCase）から列へ。法人に生年月日、個人に代表者は持たせない */
+const parseFields = (body: unknown): { ok: true; value: PrincipalFields } | { ok: false; error: string } => {
+  if (!isRecord(body)) return { ok: false, error: '入力が不正です' };
+  const kind = body.kind ?? 'individual';
+  if (!isKind(kind)) return { ok: false, error: '区分が不正です' };
+
+  const source: Record<keyof typeof LIMITS, unknown> = {
+    name: body.name,
+    name_kana: body.nameKana,
+    address: body.address,
+    representative: body.representative,
+    deceased_name: body.deceasedName,
+    memo: body.memo,
+  };
+  const texts = {} as Record<keyof typeof LIMITS, string>;
+  for (const key of Object.keys(LIMITS) as (keyof typeof LIMITS)[]) {
+    const value = source[key] ?? '';
+    if (typeof value !== 'string') return { ok: false, error: `${LABELS[key]}が不正です` };
+    const trimmed = value.trim();
+    if (trimmed.length > LIMITS[key]) return { ok: false, error: `${LABELS[key]}は${LIMITS[key]}文字以内にしてください` };
+    texts[key] = trimmed;
+  }
+  if (!texts.name) return { ok: false, error: kind === 'corporate' ? '法人名を入力してください' : '氏名を入力してください' };
+
+  const birthInput = body.birthDate ?? '';
+  if (typeof birthInput !== 'string') return { ok: false, error: '生年月日が不正です' };
+  const birth = kind === 'individual' ? parseBirthDate(birthInput) : { ok: true as const, text: '' };
+  if (!birth.ok) return { ok: false, error: `生年月日: ${birth.error}` };
+
+  return {
+    ok: true,
+    value: {
+      kind,
+      ...texts,
+      representative: kind === 'corporate' ? texts.representative : '',
+      birth_date: birth.text,
+    },
+  };
+};
+
+const toResponse = (row: PoaPrincipalRow) => ({
+  id: row.id,
+  kind: row.kind,
+  name: row.name,
+  nameKana: row.name_kana,
+  address: row.address,
+  birthDate: row.birth_date,
+  representative: row.representative,
+  deceasedName: row.deceased_name,
+  memo: row.memo,
+  version: row.version,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  deletedAt: row.deleted_at,
+});
+
+/**
+ * 操作履歴に残す形。住所と生年月日は中身を書かない（履歴は誰でも開けて、消しても残るため）。
+ * 入っているかどうかと、直したかどうかだけ分かるようにする。
+ */
+const auditSnapshot = (row: PoaPrincipalRow, previous?: PoaPrincipalRow) => {
+  const mask = (value: string, before: string | undefined) =>
+    !value ? '' : before !== undefined && before !== value ? '入力あり（変更）' : '入力あり';
+  return {
+    kind: row.kind,
+    name: row.name,
+    nameKana: row.name_kana,
+    representative: row.representative,
+    deceasedName: row.deceased_name,
+    memo: row.memo,
+    address: mask(row.address, previous?.address),
+    birthDate: mask(row.birth_date, previous?.birth_date),
+  };
+};
+
+const sameFields = (row: PoaPrincipalRow, fields: PrincipalFields) =>
+  (Object.keys(fields) as (keyof PrincipalFields)[]).every((key) => row[key] === fields[key]);
+
+// 検索は空白と全角半角の違いを無視する（「架空 花子」と「架空花子」を同じに）
+const normalizeForSearch = (value: string) => value.normalize('NFKC').replace(/\s/g, '').toLowerCase();
+
+const collator = new Intl.Collator('ja');
+const sortKey = (row: PoaPrincipalRow) => row.name_kana || row.name;
+
+const findRow = (id: string, deleted: boolean) =>
+  getDb().prepare(`SELECT * FROM poa_principals WHERE id = ? AND deleted_at IS ${deleted ? 'NOT NULL' : 'NULL'}`)
+    .get(id) as PoaPrincipalRow | undefined;
+
+export function createPoaPrincipalsRouter(): Router {
+  const router = Router();
+
+  // GET /?q=検索語&deleted=1（ゴミ箱）。並びはフリガナ（無ければ氏名）順
+  router.get('/', (req, res) => {
+    const deleted = req.query.deleted === '1';
+    const rows = getDb().prepare(`SELECT * FROM poa_principals WHERE deleted_at IS ${deleted ? 'NOT NULL' : 'NULL'}`)
+      .all() as PoaPrincipalRow[];
+    const query = typeof req.query.q === 'string' ? normalizeForSearch(req.query.q) : '';
+    const filtered = query
+      ? rows.filter((row) => [row.name, row.name_kana, row.deceased_name].some((value) => normalizeForSearch(value).includes(query)))
+      : rows;
+    filtered.sort((a, b) => collator.compare(sortKey(a), sortKey(b)) || a.id - b.id);
+    res.json(filtered.map(toResponse));
+  });
+
+  // GET /:id（委任者DBの画面の「委任状を作る」から1人だけ引く。ゴミ箱の中は返さない）
+  router.get('/:id', (req, res) => {
+    const row = findRow(req.params.id, false);
+    if (!row) { res.status(404).json({ error: '委任者が見つかりません（削除された可能性があります）' }); return; }
+    res.json(toResponse(row));
+  });
+
+  router.post('/', (req, res) => {
+    const parsed = parseFields(req.body);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    const { value } = parsed;
+    const db = getDb();
+    const create = db.transaction(() => {
+      const result = db.prepare(`
+        INSERT INTO poa_principals (kind, name, name_kana, address, birth_date, representative, deceased_name, memo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(value.kind, value.name, value.name_kana, value.address, value.birth_date, value.representative, value.deceased_name, value.memo);
+      const created = db.prepare('SELECT * FROM poa_principals WHERE id = ?').get(result.lastInsertRowid) as PoaPrincipalRow;
+      writeAuditLog({ targetType: 'poa_principal', targetId: created.id, targetName: created.name, action: 'create', actor: actorFrom(req), after: auditSnapshot(created) });
+      return created;
+    });
+    res.status(201).json(toResponse(create()));
+  });
+
+  // PUT /:id（version で楽観ロック。ほかの画面で直されていたら 409）
+  router.put('/:id', (req, res) => {
+    const existing = findRow(req.params.id, false);
+    if (!existing) { res.status(404).json({ error: '委任者が見つかりません（削除された可能性があります）' }); return; }
+    const version = isRecord(req.body) ? req.body.version : undefined;
+    if (!Number.isInteger(version)) { res.status(400).json({ error: '版番号が必要です' }); return; }
+    if (version !== existing.version) {
+      res.status(409).json({ error: 'ほかの画面で委任者の内容が変わりました。読み直してください', current: toResponse(existing) });
+      return;
+    }
+    const parsed = parseFields(req.body);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    const { value } = parsed;
+    if (sameFields(existing, value)) { res.json({ ...toResponse(existing), unchanged: true }); return; }
+
+    const db = getDb();
+    const update = db.transaction(() => {
+      db.prepare(`
+        UPDATE poa_principals
+        SET kind = ?, name = ?, name_kana = ?, address = ?, birth_date = ?, representative = ?, deceased_name = ?, memo = ?,
+            version = version + 1, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(value.kind, value.name, value.name_kana, value.address, value.birth_date, value.representative, value.deceased_name, value.memo, existing.id);
+      const updated = db.prepare('SELECT * FROM poa_principals WHERE id = ?').get(existing.id) as PoaPrincipalRow;
+      writeAuditLog({
+        targetType: 'poa_principal',
+        targetId: updated.id,
+        targetName: updated.name,
+        action: 'update',
+        actor: actorFrom(req),
+        before: auditSnapshot(existing),
+        after: auditSnapshot(updated, existing),
+      });
+      return updated;
+    });
+    res.json({ ...toResponse(update()), unchanged: false });
+  });
+
+  // DELETE /:id はゴミ箱へ移すだけ（POST /:id/restore で戻せる）
+  router.delete('/:id', (req, res) => {
+    const existing = findRow(req.params.id, false);
+    if (!existing) { res.status(404).json({ error: '委任者が見つかりません' }); return; }
+    const db = getDb();
+    db.transaction(() => {
+      db.prepare("UPDATE poa_principals SET deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ?").run(existing.id);
+      writeAuditLog({ targetType: 'poa_principal', targetId: existing.id, targetName: existing.name, action: 'delete', actor: actorFrom(req), before: auditSnapshot(existing) });
+    })();
+    res.json({ ok: true });
+  });
+
+  router.post('/:id/restore', (req, res) => {
+    const existing = findRow(req.params.id, true);
+    if (!existing) { res.status(404).json({ error: 'ゴミ箱に見つかりません' }); return; }
+    const db = getDb();
+    const restore = db.transaction(() => {
+      db.prepare("UPDATE poa_principals SET deleted_at = NULL, version = version + 1, updated_at = datetime('now') WHERE id = ?").run(existing.id);
+      const restored = db.prepare('SELECT * FROM poa_principals WHERE id = ?').get(existing.id) as PoaPrincipalRow;
+      writeAuditLog({ targetType: 'poa_principal', targetId: restored.id, targetName: restored.name, action: 'restore', actor: actorFrom(req), after: auditSnapshot(restored) });
+      return restored;
+    });
+    res.json(toResponse(restore()));
+  });
+
+  return router;
+}

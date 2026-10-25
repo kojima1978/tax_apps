@@ -1,23 +1,23 @@
-import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Home, Moon, Plus, Printer, Sun, Trash2, UserRound } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, BookUser, Database, Home, Moon, Plus, Printer, Sun, Trash2, UserRound } from 'lucide-react';
 import { useDarkMode } from '@/hooks/useDarkMode';
-import { usePowerOfAttorneyForm, type PrincipalForm } from '@/hooks/usePowerOfAttorneyForm';
+import { usePowerOfAttorneyForm, type DirectoryMessage, type PrincipalForm } from '@/hooks/usePowerOfAttorneyForm';
 import { CompanyField } from '@/components/ui/CompanyField';
+import { BIRTH_PLACEHOLDER, KIND_OPTIONS, RadioGroup, Section, TextField, inputClass } from '@/components/powerOfAttorney/FormFields';
+import { PrincipalPickerDialog } from '@/components/powerOfAttorney/PrincipalPickerDialog';
 import { POA_PAGE_STYLE, PowerOfAttorneySheetView } from '@/components/powerOfAttorney/PowerOfAttorneySheetView';
 import '@/components/powerOfAttorney/powerOfAttorney.css';
 import { StaffPickerDialog } from '@/shared/staff-directory/StaffPickerDialog';
 import { MATTER_PRESETS, editedText, splitExtraMatters, type Purpose } from '@/utils/powerOfAttorney/matters';
 import type { DocumentKind, NameMode } from '@/utils/powerOfAttorney/record';
+import { slotDiffersFromRecord } from '@/utils/powerOfAttorney/principalLink';
 import { exportFileName } from '@/utils/exportFileName';
 
 const COMPANY_DIRECTORY_URL = '/staff-directory/companies';
 
 // 定型文は全社共通なので、押す前に確かめる
 const REGISTER_CONFIRM = '定型文は全社共通です。この文面を委任事項マスタに登録しますか？\n（マスタ管理の「委任事項」タブで直し・削除ができます）';
-
-const inputClass =
-  'w-full px-2.5 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500';
 
 const PURPOSE_OPTIONS: { value: Purpose; label: string }[] = [
   { value: 'inheritance', label: '相続手続き' },
@@ -36,89 +36,23 @@ const PRINT_OPTIONS: { value: 'print' | 'blank'; label: string }[] = [
   { value: 'print', label: '印字する' },
   { value: 'blank', label: '空欄（手書き）' },
 ];
-const KIND_OPTIONS: { value: PrincipalForm['kind']; label: string }[] = [
-  { value: 'individual', label: '個人' },
-  { value: 'corporate', label: '法人' },
-];
 
-const Section = ({ title, children, note }: { title: string; children: ReactNode; note?: ReactNode }) => (
-  <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
-    <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h2>
-    {note && <p className="text-xs text-slate-500 dark:text-slate-400">{note}</p>}
-    {children}
-  </section>
-);
-
-function RadioGroup<T extends string>({
-  label,
-  name,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  name: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <fieldset className="space-y-1">
-      <legend className="text-xs font-medium text-slate-600 dark:text-slate-300">{label}</legend>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {options.map((option) => (
-          <label key={option.value} className="flex items-center gap-1.5 text-sm cursor-pointer">
-            <input
-              type="radio"
-              name={name}
-              checked={value === option.value}
-              onChange={() => onChange(option.value)}
-              className="accent-emerald-600"
-            />
-            {option.label}
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
-
-const TextField = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  error,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  error?: string;
-}) => (
-  <label className="block space-y-1">
-    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{label}</span>
-    <input
-      className={`${inputClass} ${error ? 'border-red-500 dark:border-red-500' : ''}`}
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      aria-invalid={error ? true : undefined}
-    />
-    {error && <span className="block text-xs text-red-600 dark:text-red-400">{error}</span>}
-  </label>
-);
-
-const BIRTH_PLACEHOLDER = '1970/3/2 または 昭和45年3月2日';
+const linkButtonClass =
+  'flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-50 disabled:no-underline';
 
 /**
  * 委任状・復代理委任状を作る画面。入力は保存しない（印刷して PDF にしたら閉じる前提）。
+ * 委任者は委任者DBから呼び出せ、「委任者DBに登録」を押したときだけ残る（`?principal=` で1人目に入る）。
  * 受任者は見出しの「会社」、復代理人は社員台帳から選ぶ。
  */
 export const PowerOfAttorneyPage = () => {
   const { isDark, toggleDark } = useDarkMode();
-  const form = usePowerOfAttorneyForm();
+  const [searchParams] = useSearchParams();
+  const linkedId = Number(searchParams.get('principal'));
+  const form = usePowerOfAttorneyForm(Number.isInteger(linkedId) && linkedId > 0 ? linkedId : undefined);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // 委任者DBから選んだ人を入れる先（欄の id か、欄を足す 'new'）
+  const [principalPickerTarget, setPrincipalPickerTarget] = useState<number | 'new' | null>(null);
   const [editingMatter, setEditingMatter] = useState<string | null>(null);
   const errorCount = Object.keys(form.birthErrors).length;
   const { company } = form;
@@ -151,6 +85,12 @@ export const PowerOfAttorneyPage = () => {
             <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">委任状</h1>
             {/* 受任者（＝この会社）を切り替える */}
             <CompanyField />
+            <Link
+              to="/power-of-attorney/principals"
+              className="flex items-center gap-1 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400"
+            >
+              <BookUser className="h-4 w-4" /> 委任者DB
+            </Link>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -182,7 +122,7 @@ export const PowerOfAttorneyPage = () => {
       <div className="max-w-[1400px] mx-auto p-4 md:px-8 md:py-6 flex flex-col xl:flex-row gap-6 items-start print:block print:p-0">
         <div className="no-print w-full xl:w-[440px] xl:shrink-0 space-y-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            ここで入力した内容は保存されません（画面を閉じると消えます）。印刷の送信先で「PDF に保存」を選べば PDF になります。
+            ここで入力した内容は保存されません（画面を閉じると消えます）。また使う委任者は「委任者DBに登録」で残せます。印刷の送信先で「PDF に保存」を選べば PDF になります。
           </p>
 
           <Section title="作る書類">
@@ -227,17 +167,22 @@ export const PowerOfAttorneyPage = () => {
           <Section title="委任者" note="1人につき1組（委任状と復代理委任状）を刷ります。">
             {form.principals.map((principal, index) => (
               <div key={principal.id} className="rounded border border-slate-200 dark:border-slate-700 p-3 space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{index + 1}人目</span>
-                  {form.principals.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => form.removePrincipal(principal.id)}
-                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-600"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> 外す
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => setPrincipalPickerTarget(principal.id)} className={linkButtonClass}>
+                      <Database className="w-3.5 h-3.5" /> DBから選ぶ
                     </button>
-                  )}
+                    {form.principals.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => form.removePrincipal(principal.id)}
+                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-600"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> 外す
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <RadioGroup
                   label="区分"
@@ -268,15 +213,36 @@ export const PowerOfAttorneyPage = () => {
                     onChange={(birthInput) => form.updatePrincipal(principal.id, { birthInput })}
                   />
                 )}
+                <PrincipalDirectoryRow
+                  principal={principal}
+                  saving={form.savingSlotId === principal.id}
+                  busy={form.savingSlotId !== null}
+                  hasBirthError={Boolean(form.birthErrors[`principal-${principal.id}`])}
+                  message={form.directoryMessage?.slotId === principal.id ? form.directoryMessage : null}
+                  onSave={() => void form.saveToDirectory(principal.id)}
+                  onUnlink={() => form.unlinkRecord(principal.id)}
+                />
               </div>
             ))}
-            <button
-              type="button"
-              onClick={form.addPrincipal}
-              className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
-            >
-              <Plus className="w-4 h-4" /> 委任者を足す
-            </button>
+            {form.directoryMessage?.slotId === null && (
+              <p role="status" className="text-xs text-red-600 dark:text-red-400">{form.directoryMessage.text}</p>
+            )}
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <button
+                type="button"
+                onClick={form.addPrincipal}
+                className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+              >
+                <Plus className="w-4 h-4" /> 委任者を足す
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrincipalPickerTarget('new')}
+                className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+              >
+                <Database className="w-4 h-4" /> DBから選んで足す
+              </button>
+            </div>
           </Section>
 
           <Section
@@ -479,6 +445,17 @@ export const PowerOfAttorneyPage = () => {
         </div>
       </div>
 
+      {principalPickerTarget !== null && (
+        <PrincipalPickerDialog
+          title={principalPickerTarget === 'new' ? '委任者DBから選んで足す' : '委任者DBから選ぶ'}
+          onClose={() => setPrincipalPickerTarget(null)}
+          onPick={(record) => {
+            form.applyRecord(principalPickerTarget, record);
+            setPrincipalPickerTarget(null);
+          }}
+        />
+      )}
+
       <StaffPickerDialog
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
@@ -494,6 +471,61 @@ export const PowerOfAttorneyPage = () => {
         searchLabel="名前・よみ・部署で探す"
         summary={<p className="text-sm text-slate-600">復代理委任状の【復代理人】欄に刷る社員を選びます。</p>}
       />
+    </div>
+  );
+};
+
+/** 委任者の欄の下：委任者DBとのつながりと、登録・更新のボタン */
+const PrincipalDirectoryRow = ({
+  principal,
+  saving,
+  busy,
+  hasBirthError,
+  message,
+  onSave,
+  onUnlink,
+}: {
+  principal: PrincipalForm;
+  saving: boolean;
+  busy: boolean;
+  hasBirthError: boolean;
+  message: DirectoryMessage | null;
+  onSave: () => void;
+  onUnlink: () => void;
+}) => {
+  const { record } = principal;
+  const differs = record ? slotDiffersFromRecord(principal, record) : false;
+  const nameMissing = !principal.name.trim();
+  return (
+    <div className="pt-1 space-y-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        {record && (
+          <span className="text-slate-500 dark:text-slate-400">
+            委任者DB: {record.name}
+            {differs && <span className="ml-1 text-amber-700 dark:text-amber-400">（この画面で直しています）</span>}
+            <button type="button" onClick={onUnlink} className="ml-2 underline hover:text-slate-700 dark:hover:text-slate-200">
+              つながりを外す
+            </button>
+          </span>
+        )}
+        {(!record || differs) && (
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={nameMissing || hasBirthError || busy}
+            title={nameMissing ? '氏名を入れると登録できます' : hasBirthError ? '生年月日の誤りを直してください' : undefined}
+            className={linkButtonClass}
+          >
+            <Database className="w-3.5 h-3.5" />
+            {saving ? '保存中…' : record ? 'DBの登録内容を更新' : '委任者DBに登録'}
+          </button>
+        )}
+      </div>
+      {message && (
+        <p role="status" className={`text-xs ${message.kind === 'ok' ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+          {message.text}
+        </p>
+      )}
     </div>
   );
 };

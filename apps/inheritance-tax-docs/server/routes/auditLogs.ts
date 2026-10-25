@@ -39,7 +39,7 @@ export function createAuditLogsRouter(): Router {
     const clauses: string[] = [];
     const params: string[] = [];
 
-    if (targetType === 'document_master' || targetType === 'resource' || targetType === 'poa_matter') {
+    if (targetType === 'document_master' || targetType === 'resource' || targetType === 'poa_matter' || targetType === 'poa_principal') {
       clauses.push('target_type = ?');
       params.push(targetType);
     }

@@ -91,6 +91,23 @@ function initSchema(d: Database.Database): void {
       version      INTEGER NOT NULL DEFAULT 1,
       updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    -- 委任状の委任者。相続税案件管理とは同期しない（あちらの厳格な運用に委任状の作成を縛らせない）。
+    -- birth_date は和暦に直した文字列（空なら手書き欄）。deleted_at はゴミ箱
+    CREATE TABLE IF NOT EXISTS poa_principals (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind           TEXT NOT NULL DEFAULT 'individual' CHECK (kind IN ('individual', 'corporate')),
+      name           TEXT NOT NULL,
+      name_kana      TEXT NOT NULL DEFAULT '',
+      address        TEXT NOT NULL DEFAULT '',
+      birth_date     TEXT NOT NULL DEFAULT '',
+      representative TEXT NOT NULL DEFAULT '',
+      deceased_name  TEXT NOT NULL DEFAULT '',
+      memo           TEXT NOT NULL DEFAULT '',
+      version        INTEGER NOT NULL DEFAULT 1,
+      created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at     TEXT
+    );
   `);
 
   // Existing databases predate soft deletion. Keep the migration additive so
@@ -161,7 +178,23 @@ export type ResourceRow = {
   company_ids_json: string;
 };
 
-export type AuditTargetType = 'document_master' | 'resource' | 'poa_matter';
+export type PoaPrincipalRow = {
+  id: number;
+  kind: 'individual' | 'corporate';
+  name: string;
+  name_kana: string;
+  address: string;
+  birth_date: string;
+  representative: string;
+  deceased_name: string;
+  memo: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type AuditTargetType = 'document_master' | 'resource' | 'poa_matter' | 'poa_principal';
 export type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
 
 export function writeAuditLog(entry: {

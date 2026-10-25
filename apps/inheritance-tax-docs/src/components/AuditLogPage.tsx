@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Clock3, RotateCcw, ShieldCheck } from 'lucid
 import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 
 type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
-type AuditTargetType = 'document_master' | 'resource' | 'poa_matter';
+type AuditTargetType = 'document_master' | 'resource' | 'poa_matter' | 'poa_principal';
 
 type AuditLog = {
   id: number;
@@ -35,11 +35,16 @@ const TARGET_LABELS: Record<AuditTargetType, string> = {
   document_master: '必要書類',
   resource: '参考資料',
   poa_matter: '委任事項',
+  poa_principal: '委任者',
 };
 
-// 委任事項は無効化ではなく本当に消す
-const actionLabel = (log: AuditLog): string =>
-  log.targetType === 'poa_matter' && log.action === 'delete' ? '削除' : ACTION_LABELS[log.action];
+// 委任事項は無効化ではなく本当に消す。委任者はゴミ箱へ移す
+const actionLabel = (log: AuditLog): string => {
+  if (log.action !== 'delete') return ACTION_LABELS[log.action];
+  if (log.targetType === 'poa_matter') return '削除';
+  if (log.targetType === 'poa_principal') return 'ゴミ箱へ';
+  return ACTION_LABELS.delete;
+};
 
 const ACTION_STYLES: Record<AuditAction, string> = {
   create: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200',
@@ -146,7 +151,7 @@ export const AuditLogPage = () => {
         <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-2">
           <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">対象
             <select value={targetFilter} onChange={(event) => setTargetFilter(event.target.value as typeof targetFilter)} className="min-h-11 cursor-pointer rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
-              <option value="all">すべて</option><option value="document_master">必要書類</option><option value="resource">参考資料</option><option value="poa_matter">委任事項</option>
+              <option value="all">すべて</option><option value="document_master">必要書類</option><option value="resource">参考資料</option><option value="poa_matter">委任事項</option><option value="poa_principal">委任者</option>
             </select>
           </label>
           <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">操作
