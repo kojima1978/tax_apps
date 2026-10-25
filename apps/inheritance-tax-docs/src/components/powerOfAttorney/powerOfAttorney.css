@@ -118,6 +118,16 @@
     box-shadow: none !important;
   }
 
+  /* 画面のプレビューは縮めて出している（PreviewPane）。紙には縮めずに刷る */
+  .poa-scale-outer {
+    width: auto !important;
+    height: auto !important;
+  }
+
+  .poa-scale-inner {
+    transform: none !important;
+  }
+
   /* 1枚ごとに改ページ。.poa-sheet は包みの中で常に last-child なので、包みの側で切る */
   .poa-page {
     break-after: page;

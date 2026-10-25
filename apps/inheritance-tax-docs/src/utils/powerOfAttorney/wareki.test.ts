@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatWareki, parseBirthDate, warekiFromIsoDate } from './wareki';
+import { formatWareki, joinWareki, parseBirthDate, seirekiYearOf, splitWareki, warekiFromIsoDate } from './wareki';
 
 describe('parseBirthDate', () => {
   it.each([
@@ -45,5 +45,52 @@ describe('formatWareki / warekiFromIsoDate', () => {
     expect(warekiFromIsoDate('2019-05-01')).toBe('令和元年5月1日');
     expect(warekiFromIsoDate('')).toBe('');
     expect(warekiFromIsoDate('2026-02-30')).toBe('');
+  });
+});
+
+describe('4つの欄（元号・年・月・日）', () => {
+  it('保存してある和暦を分け、つなぎ直すと同じ日になる', () => {
+    expect(splitWareki('昭和45年3月2日')).toEqual({ era: '昭和', year: '45', month: '3', day: '2' });
+    expect(parseBirthDate(joinWareki(splitWareki('昭和45年3月2日')))).toEqual({ ok: true, text: '昭和45年3月2日' });
+  });
+
+  it('元年は 1 で入れて「元年」で刷る', () => {
+    expect(splitWareki('平成元年1月8日')).toEqual({ era: '平成', year: '1', month: '1', day: '8' });
+    expect(parseBirthDate(joinWareki({ era: '令和', year: '1', month: '5', day: '1' }))).toEqual({ ok: true, text: '令和元年5月1日' });
+  });
+
+  it('全角の数字も読む', () => {
+    expect(parseBirthDate(joinWareki({ era: '昭和', year: '４５', month: '３', day: '２' }))).toEqual({ ok: true, text: '昭和45年3月2日' });
+  });
+
+  it('全部空なら空（手書きの欄）', () => {
+    expect(joinWareki({ era: '', year: '', month: '', day: '' })).toBe('');
+  });
+
+  it('途中まで入れた形は分け直せて、そろうまで誤りにする', () => {
+    const partial = joinWareki({ era: '昭和', year: '45', month: '', day: '' });
+    expect(splitWareki(partial)).toEqual({ era: '昭和', year: '45', month: '', day: '' });
+    expect(parseBirthDate(partial)).toEqual({ ok: false, error: '年月日をそろえてください' });
+    expect(parseBirthDate(joinWareki({ era: '', year: '45', month: '3', day: '2' }))).toEqual({ ok: false, error: '元号を選んでください' });
+  });
+
+  it('そろっていても存在しない日・元号違いは今までどおり弾く', () => {
+    expect(parseBirthDate(joinWareki({ era: '昭和', year: '45', month: '2', day: '30' }))).toEqual({ ok: false, error: '存在しない日付です' });
+    expect(parseBirthDate(joinWareki({ era: '平成', year: '31', month: '5', day: '1' }))).toEqual({
+      ok: false,
+      error: '元号と年月日の組み合わせを確認してください',
+    });
+  });
+
+  it('西暦で入っていた値は和暦に直して分ける', () => {
+    expect(splitWareki('1970/3/2')).toEqual({ era: '昭和', year: '45', month: '3', day: '2' });
+    expect(splitWareki('読めない')).toEqual({ era: '', year: '', month: '', day: '' });
+  });
+
+  it('照合用の西暦年', () => {
+    expect(seirekiYearOf('昭和45年3月2日')).toBe(1970);
+    expect(seirekiYearOf('令和元年5月1日')).toBe(2019);
+    expect(seirekiYearOf('昭和45年月日')).toBeNull();
+    expect(seirekiYearOf('')).toBeNull();
   });
 });

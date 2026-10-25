@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type FocusEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Database, ExternalLink, Home, Moon, Plus, Printer, Sun, Trash2, UserRound } from 'lucide-react';
 import { useDarkMode } from '@/hooks/useDarkMode';
@@ -11,11 +11,12 @@ import {
   type Subject,
 } from '@/hooks/usePowerOfAttorneyForm';
 import { CompanyField } from '@/components/ui/CompanyField';
-import { BIRTH_PLACEHOLDER, KIND_OPTIONS, RadioGroup, Section, TextField, inputClass } from '@/components/powerOfAttorney/FormFields';
+import { KIND_OPTIONS, RadioGroup, Section, TextField, WarekiDateField, inputClass } from '@/components/powerOfAttorney/FormFields';
 import { DeceasedPickerDialog } from '@/components/powerOfAttorney/DeceasedPickerDialog';
 import { POA_DIRECTORY_URL, PrincipalPickerDialog } from '@/components/powerOfAttorney/PrincipalPickerDialog';
 import { DialogOverlay } from '@/components/ui/ConfirmDialog';
-import { POA_PAGE_STYLE, PowerOfAttorneySheetView } from '@/components/powerOfAttorney/PowerOfAttorneySheetView';
+import { POA_PAGE_STYLE } from '@/components/powerOfAttorney/PowerOfAttorneySheetView';
+import { PreviewPane, sheetDomId } from '@/components/powerOfAttorney/PreviewPane';
 import '@/components/powerOfAttorney/powerOfAttorney.css';
 import { StaffPickerDialog } from '@/shared/staff-directory/StaffPickerDialog';
 import { MATTER_PRESETS, editedText, splitExtraMatters } from '@/utils/powerOfAttorney/matters';
@@ -72,6 +73,9 @@ const DirectoryLink = ({ tab }: { tab: 'deceased' | 'people' }) => (
   </a>
 );
 
+// 左右に並べて出す幅（Tailwind の lg）。これより狭いと入力の下にプレビューが来る
+const SIDE_BY_SIDE_QUERY = '(min-width: 1024px)';
+
 const positiveId = (value: string | null) => {
   const id = Number(value);
   return Number.isInteger(id) && id > 0 ? id : undefined;
@@ -98,6 +102,21 @@ export const PowerOfAttorneyPage = () => {
   const errorCount = Object.keys(form.birthErrors).length;
   const { company } = form;
 
+  // 委任者の欄に入ったら、その人の紙をプレビューに出す（同じ欄の中を移る間は動かさない）
+  const revealedSlot = useRef<number | null>(null);
+  const revealSheetsOf = (index: number) => {
+    if (revealedSlot.current === index || !window.matchMedia(SIDE_BY_SIDE_QUERY).matches) return;
+    revealedSlot.current = index;
+    const sheet = form.sheets.find((s) => s.key.startsWith(`${index}-`));
+    if (sheet) document.getElementById(sheetDomId(sheet.key))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const leaveSlot = (e: FocusEvent<HTMLElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) revealedSlot.current = null;
+  };
+
+  const printBlocker =
+    errorCount > 0 ? `生年月日の誤りを直してください（${errorCount}か所）` : form.matters.length === 0 ? '委任事項を選んでください' : '';
+
   const handlePrint = () => {
     // PDF に保存するときの既定のファイル名は document.title から付く
     const previous = document.title;
@@ -108,11 +127,14 @@ export const PowerOfAttorneyPage = () => {
   };
 
   return (
-    <div className="poa-root w-full">
+    // 広い画面では入力とプレビューを左右に並べ、それぞれの中だけをスクロールさせる
+    // （ページごとスクロールすると、下の入力欄を触っている間プレビューが関係ない紙へ流れる）
+    <div className="poa-root w-full lg:h-screen lg:flex lg:flex-col print:block print:h-auto">
       <style>{POA_PAGE_STYLE}</style>
-      <div className="no-print sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
-        <div className="max-w-[1400px] mx-auto px-4 py-2.5 flex items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="no-print sticky top-0 z-10 lg:static lg:shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        {/* 狭い画面では右のボタンを次の行へ回す（横へはみ出すと画面ごと横スクロールになる） */}
+        <div className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
             <a href="/" className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400" title="ポータルに戻る">
               <Home className="h-5 w-5" />
               <span className="hidden md:inline text-sm font-medium">ポータル</span>
@@ -127,7 +149,7 @@ export const PowerOfAttorneyPage = () => {
             {/* 受任者（＝この会社）を切り替える */}
             <CompanyField />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             <a
               href={POA_DIRECTORY_URL}
               target="_blank"
@@ -140,14 +162,8 @@ export const PowerOfAttorneyPage = () => {
             <button
               type="button"
               onClick={handlePrint}
-              disabled={errorCount > 0 || form.matters.length === 0}
-              title={
-                errorCount > 0
-                  ? '生年月日の誤りを直してください'
-                  : form.matters.length === 0
-                    ? '委任事項を選んでください'
-                    : '印刷（PDF に保存する場合は送信先で「PDF に保存」）'
-              }
+              disabled={Boolean(printBlocker)}
+              title={printBlocker || '印刷（PDF に保存する場合は送信先で「PDF に保存」）'}
               className="flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white rounded-lg text-sm font-bold transition-colors"
             >
               <Printer className="w-4 h-4" /> 印刷・PDF
@@ -163,10 +179,10 @@ export const PowerOfAttorneyPage = () => {
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto p-4 md:px-8 md:py-6 flex flex-col xl:flex-row gap-6 items-start print:block print:p-0">
-        <div className="no-print w-full xl:w-[440px] xl:shrink-0 space-y-4">
+      <div className="flex flex-col lg:flex-row lg:flex-1 lg:min-h-0 print:block">
+        <div className="no-print w-full lg:w-[440px] lg:shrink-0 lg:overflow-y-auto lg:border-r border-slate-200 dark:border-slate-700 p-4 space-y-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            ここで入力した内容は保存されません（画面を閉じると消えます）。また使う被相続人・委任者は「…DBに登録」で残せます。印刷の送信先で「PDF に保存」を選べば PDF になります。
+            入力は保存されません（閉じると消えます）。また使う人は「…DBに登録」で残せます。
           </p>
 
           <Section title="作る書類">
@@ -209,10 +225,9 @@ export const PowerOfAttorneyPage = () => {
                 </button>
               </div>
               <TextField label="氏名" value={form.deceased.name} onChange={(name) => form.updateDeceased({ name })} />
-              <TextField
+              <WarekiDateField
                 label="生年月日"
                 value={form.deceased.birthInput}
-                placeholder={BIRTH_PLACEHOLDER}
                 error={form.birthErrors.deceased}
                 onChange={(birthInput) => form.updateDeceased({ birthInput })}
               />
@@ -230,7 +245,12 @@ export const PowerOfAttorneyPage = () => {
 
           <Section title={PRINCIPALS_TITLE[form.subject]} note="1人につき1組（委任状と復代理委任状）を刷ります。" action={<DirectoryLink tab="people" />}>
             {form.principals.map((principal, index) => (
-              <div key={principal.id} className="rounded border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+              <div
+                key={principal.id}
+                onFocus={() => revealSheetsOf(index)}
+                onBlur={leaveSlot}
+                className="rounded border border-slate-200 dark:border-slate-700 p-3 space-y-2"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{index + 1}人目</span>
                   <div className="flex items-center gap-3">
@@ -272,10 +292,9 @@ export const PowerOfAttorneyPage = () => {
                     onChange={(representative) => form.updatePrincipal(principal.id, { representative })}
                   />
                 ) : (
-                  <TextField
+                  <WarekiDateField
                     label="生年月日"
                     value={principal.birthInput}
-                    placeholder={BIRTH_PLACEHOLDER}
                     error={form.birthErrors[`principal-${principal.id}`]}
                     onChange={(birthInput) => form.updatePrincipal(principal.id, { birthInput })}
                   />
@@ -483,10 +502,9 @@ export const PowerOfAttorneyPage = () => {
                     <p className="text-xs text-amber-700 dark:text-amber-400">台帳から住所・生年月日を読めませんでした。必要なら手で入れてください。</p>
                   )}
                   <TextField label="住所" value={form.subAgent.address} onChange={(address) => form.updateSubAgent({ address })} />
-                  <TextField
+                  <WarekiDateField
                     label="生年月日"
                     value={form.subAgent.birthInput}
-                    placeholder={BIRTH_PLACEHOLDER}
                     error={form.birthErrors.subAgent}
                     onChange={(birthInput) => form.updateSubAgent({ birthInput })}
                   />
@@ -497,19 +515,10 @@ export const PowerOfAttorneyPage = () => {
           )}
         </div>
 
-        {/* 印刷ではスクロール領域にしない（overflow があると2枚目以降が切れる） */}
-        <div className="w-full min-w-0 overflow-x-auto print:overflow-visible">
-          <div className="space-y-6 print:space-y-0">
-            {form.sheets.map((sheet) => (
-              <div key={sheet.key} className="poa-page space-y-1">
-                <p className="no-print text-xs font-medium text-slate-500 dark:text-slate-400">{sheet.label}</p>
-                <div className="shadow-lg print:shadow-none w-fit">
-                  <PowerOfAttorneySheetView sheet={sheet} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <PreviewPane
+          sheets={form.sheets}
+          notice={printBlocker && <p className="text-xs font-medium text-red-600 dark:text-red-400">印刷できません：{printBlocker}</p>}
+        />
       </div>
 
       {principalPickerTarget !== null && (

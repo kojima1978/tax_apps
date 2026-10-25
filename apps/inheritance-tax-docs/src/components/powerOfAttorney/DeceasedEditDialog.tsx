@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DialogOverlay } from '@/components/ui/ConfirmDialog';
-import { BIRTH_PLACEHOLDER, TextField, inputClass } from '@/components/powerOfAttorney/FormFields';
+import { TextField, WarekiDateField, inputClass } from '@/components/powerOfAttorney/FormFields';
 import {
   DeceasedApiError,
   EMPTY_DECEASED_DRAFT,
@@ -73,13 +73,7 @@ export const DeceasedEditDialog = ({ deceased, onClose, onSaved }: Props) => {
         </h3>
         <TextField label="氏名（必須）" value={draft.name} onChange={(name) => set({ name })} autoFocus />
         <TextField label="フリガナ（並び順に使います）" value={draft.nameKana} onChange={(nameKana) => set({ nameKana })} />
-        <TextField
-          label="生年月日"
-          value={draft.birthDate}
-          placeholder={BIRTH_PLACEHOLDER}
-          error={birthError}
-          onChange={(birthDate) => set({ birthDate })}
-        />
+        <WarekiDateField label="生年月日" value={draft.birthDate} error={birthError} onChange={(birthDate) => set({ birthDate })} />
         <label className="block space-y-1">
           <span className="text-xs font-medium text-slate-600 dark:text-slate-300">メモ</span>
           <textarea className={inputClass} rows={2} value={draft.memo} onChange={(e) => set({ memo: e.target.value })} />

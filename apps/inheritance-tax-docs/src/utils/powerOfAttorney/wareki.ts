@@ -20,8 +20,16 @@ const ERAS: Record<string, { name: string; offset: number }> = {
 const findEra = (token: string) =>
   ERAS[token.toLowerCase()] ?? Object.values(ERAS).find((era) => era.name === token);
 
+export const ERA_NAMES = Object.values(ERAS).map((era) => era.name);
+
 const ERA_PATTERN = /^(明治|大正|昭和|平成|令和|[mtshr])(元|\d+)[年/.-](\d{1,2})[月/.-](\d{1,2})日?$/i;
 const SEIREKI_PATTERNS = [/^(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})$/, /^(\d{4})年(\d{1,2})月(\d{1,2})日$/];
+
+// 画面の4つの欄（元号・年・月・日）をつないだ途中の形。元号年は2桁まで（4桁は西暦の「1970年3月2日」）
+const DRAFT_PATTERN = /^(明治|大正|昭和|平成|令和)?(元|\d{0,2})年(\d{0,2})月(\d{0,2})日$/;
+
+export type WarekiParts = { era: string; year: string; month: string; day: string };
+const EMPTY_PARTS: WarekiParts = { era: '', year: '', month: '', day: '' };
 
 /** UTC 0時の Date を和暦で刷る。元号年の1は「元」にする（委任状・戸籍の書き方に合わせる） */
 export function formatWareki(date: Date): string {
@@ -49,6 +57,11 @@ export function parseBirthDate(input: string): WarekiResult {
   const text = input.normalize('NFKC').replace(/\s/g, '');
   if (!text) return { ok: true, text: '' };
 
+  // 4つの欄のどれかが空のまま（全部空なら上で通っている）
+  const draft = text.match(DRAFT_PATTERN);
+  if (draft && !draft[1]) return { ok: false, error: '元号を選んでください' };
+  if (draft && !(draft[2] && draft[3] && draft[4])) return { ok: false, error: '年月日をそろえてください' };
+
   const eraMatch = text.match(ERA_PATTERN);
   if (eraMatch) {
     const era = findEra(eraMatch[1]);
@@ -73,4 +86,28 @@ export function warekiFromIsoDate(iso: string): string {
   const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const date = match ? utcDate(Number(match[1]), Number(match[2]), Number(match[3])) : null;
   return date ? formatWareki(date) : '';
+}
+
+/** 欄の文字列を元号・年・月・日に分ける。元年は '1'。途中の形もそのまま分け、読めない文字列は全部空 */
+export function splitWareki(input: string): WarekiParts {
+  const draft = input.normalize('NFKC').replace(/\s/g, '').match(DRAFT_PATTERN);
+  if (draft) return { era: draft[1] ?? '', year: draft[2] === '元' ? '1' : draft[2], month: draft[3], day: draft[4] };
+  // 西暦など別の形で入っていたら和暦に直してから分ける
+  const parsed = parseBirthDate(input);
+  return parsed.ok && parsed.text ? splitWareki(parsed.text) : EMPTY_PARTS;
+}
+
+/** 4つの欄をつなぐ。全部空なら空文字（手書きの欄）。揃っているかは parseBirthDate が見る */
+export function joinWareki(parts: WarekiParts): string {
+  const { era, year, month, day } = parts;
+  return [era, year, month, day].some(Boolean) ? `${era}${year}年${month}月${day}日` : '';
+}
+
+/** 照合用の西暦年。日付として読めないときは null */
+export function seirekiYearOf(input: string): number | null {
+  const parsed = parseBirthDate(input);
+  if (!parsed.ok || !parsed.text) return null;
+  const { era, year } = splitWareki(parsed.text);
+  const found = findEra(era);
+  return found ? found.offset + Number(year) : null;
 }

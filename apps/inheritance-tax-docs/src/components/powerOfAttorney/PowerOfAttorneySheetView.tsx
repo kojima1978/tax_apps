@@ -40,8 +40,11 @@ const RowsTable = ({ rows }: { rows: SheetRow[] }) => (
 const contentHeightMm = (el: HTMLElement) => {
   const last = el.lastElementChild;
   if (!last) return 0;
-  const top = el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingTop);
-  return (last.getBoundingClientRect().bottom - top) / MM_TO_PX;
+  const rect = el.getBoundingClientRect();
+  // プレビューは transform で縮めて出す。getBoundingClientRect は縮んだ後の値なので紙の寸法へ戻す
+  const scale = el.offsetWidth ? rect.width / el.offsetWidth : 1;
+  const heightPx = (last.getBoundingClientRect().bottom - rect.top) / scale - parseFloat(getComputedStyle(el).paddingTop);
+  return heightPx / MM_TO_PX;
 };
 
 /** 委任事項が多い・文面が長いときに、1枚に収まる文字の大きさを選ぶ */
