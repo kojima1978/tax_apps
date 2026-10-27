@@ -108,7 +108,6 @@ function runMigrations(db: Database.Database): void {
       contract_age INTEGER NOT NULL,
       insured_member_id TEXT NOT NULL,
       beneficiary_member_id TEXT,
-      beneficiary_allocations TEXT,
       pension_settings TEXT,
       death_benefit_disease INTEGER NOT NULL DEFAULT 0,
       death_benefit_accident INTEGER NOT NULL DEFAULT 0,
@@ -141,6 +140,19 @@ function runMigrations(db: Database.Database): void {
       FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
       FOREIGN KEY (insured_member_id) REFERENCES family_members(id) ON DELETE RESTRICT,
       FOREIGN KEY (beneficiary_member_id) REFERENCES family_members(id) ON DELETE SET NULL
+    );
+
+    -- 死亡保険金の受取人ごとの受取割合。1件の契約に複数人並ぶので policies の
+    -- JSON 列（beneficiary_allocations）から表へ移した。合計を100%にする決まりは
+    -- 画面と validators の担当（SQL では表せない）。
+    CREATE TABLE IF NOT EXISTS policy_beneficiaries (
+      policy_id TEXT NOT NULL,
+      beneficiary_member_id TEXT NOT NULL,
+      percentage REAL NOT NULL CHECK (percentage > 0),
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (policy_id, beneficiary_member_id),
+      FOREIGN KEY (policy_id) REFERENCES policies(id) ON DELETE CASCADE,
+      FOREIGN KEY (beneficiary_member_id) REFERENCES family_members(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS app_state_meta (
@@ -204,6 +216,9 @@ function runMigrations(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_policies_beneficiary_member_id
       ON policies(beneficiary_member_id);
+
+    CREATE INDEX IF NOT EXISTS idx_policy_beneficiaries_member
+      ON policy_beneficiaries(beneficiary_member_id);
   `);
 
   try {
@@ -237,7 +252,6 @@ function runMigrations(db: Database.Database): void {
     `ALTER TABLE policies ADD COLUMN pension_settings TEXT`,
     `ALTER TABLE policies ADD COLUMN premium_payment_completed INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE policies ADD COLUMN payment_details TEXT`,
-    `ALTER TABLE policies ADD COLUMN beneficiary_allocations TEXT`,
     `ALTER TABLE policies ADD COLUMN surrender_projection TEXT`,
   ];
 
@@ -248,6 +262,8 @@ function runMigrations(db: Database.Database): void {
       // column already exists
     }
   }
+
+  migrateBeneficiaryAllocations(db);
 
   try {
     db.exec(`ALTER TABLE app_state_meta ADD COLUMN valuation_settings TEXT`);
@@ -269,4 +285,54 @@ function runMigrations(db: Database.Database): void {
       // column already exists
     }
   }
+}
+
+/**
+ * 受取割合は policies の JSON 列（beneficiary_allocations）に持っていた。
+ * SQL で受取人を辿れず、家族を消しても残るので policy_beneficiaries へ移す。
+ * 列が残っている DB だけ1回写して落とす（列の有無がそのまま「移したか」の印）。
+ * 家族情報に居ない受取人は写さない ── 画面でも名前が出ず割合も合わないので、
+ * 既に壊れている値をわざわざ運ばない。
+ */
+function migrateBeneficiaryAllocations(db: Database.Database): void {
+  const columns = db.prepare(`PRAGMA table_info(policies)`).all() as { name: string }[];
+  if (columns.some(column => column.name === 'beneficiary_allocations')) {
+    const rows = db.prepare(`SELECT id, beneficiary_allocations FROM policies WHERE beneficiary_allocations IS NOT NULL`)
+      .all() as { id: string; beneficiary_allocations: string }[];
+    const link = db.prepare(`
+      INSERT OR IGNORE INTO policy_beneficiaries (policy_id, beneficiary_member_id, percentage, sort_order)
+      SELECT @policyId, id, @percentage, @sortOrder FROM family_members WHERE id = @beneficiaryId
+    `);
+    db.transaction(() => {
+      for (const row of rows) {
+        let allocations: unknown;
+        try {
+          allocations = JSON.parse(row.beneficiary_allocations);
+        } catch {
+          continue; // 壊れた JSON は単一受取人（下の補完）だけが残る
+        }
+        if (!Array.isArray(allocations)) continue;
+        allocations.forEach((allocation, index) => {
+          const beneficiaryId = String((allocation as { beneficiaryId?: unknown })?.beneficiaryId ?? '').trim();
+          const percentage = Number((allocation as { percentage?: unknown })?.percentage);
+          if (!beneficiaryId || !Number.isFinite(percentage) || percentage <= 0) return;
+          link.run({ policyId: row.id, beneficiaryId, percentage, sortOrder: index });
+        });
+      }
+      db.exec(`ALTER TABLE policies DROP COLUMN beneficiary_allocations`);
+    })();
+  }
+
+  // 受取人が1人だけの時期に作られた契約は JSON 列が空で、単一受取人の列
+  // （beneficiary_member_id）にしか入っていない。画面はそれを100%として読んで
+  // いるので、同じ内容を表にも入れて「受取人は表にある」で揃える。行が1つも
+  // 無い契約だけが対象なので、何度流しても結果は変わらない（上の移行より
+  // 後に置くこと ── 先に流すと複数人の契約に100%の行が1つ余計に入る）。
+  db.exec(`
+    INSERT OR IGNORE INTO policy_beneficiaries (policy_id, beneficiary_member_id, percentage, sort_order)
+    SELECT p.id, p.beneficiary_member_id, 100, 0
+    FROM policies p
+    WHERE p.beneficiary_member_id IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM policy_beneficiaries b WHERE b.policy_id = p.id)
+  `);
 }

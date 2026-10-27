@@ -26,7 +26,6 @@ interface PolicyRow {
   contract_age: number;
   insured_member_id: string;
   beneficiary_member_id: string | null;
-  beneficiary_allocations: string | null;
   pension_settings: string | null;
   death_benefit_disease: number;
   death_benefit_accident: number;
@@ -111,24 +110,36 @@ function parseSurrenderValues(raw: string | null): SurrenderValuePoint[] | undef
   }
 }
 
-function parseBeneficiaryAllocations(
-  raw: string | null,
-  legacyBeneficiaryId: string,
-): BeneficiaryAllocation[] {
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as BeneficiaryAllocation[];
-      return normalizeBeneficiaryAllocations(parsed, legacyBeneficiaryId);
-    } catch {
-      // 旧形式の単一受取人へフォールバック
-    }
-  }
-  return normalizeBeneficiaryAllocations(undefined, legacyBeneficiaryId);
+/** 1件の契約の受取割合を入れ替える。家族情報に居ない受取人は入れない（外部キーで弾かれる） */
+function replacePolicyBeneficiaries(policyId: string, allocations: BeneficiaryAllocation[]): void {
+  const db = getDb();
+  db.prepare('DELETE FROM policy_beneficiaries WHERE policy_id = ?').run(policyId);
+  const link = db.prepare(`
+    INSERT OR IGNORE INTO policy_beneficiaries (policy_id, beneficiary_member_id, percentage, sort_order)
+    SELECT @policyId, id, @percentage, @sortOrder FROM family_members WHERE id = @beneficiaryId
+  `);
+  allocations.forEach((allocation, index) => {
+    link.run({ policyId, beneficiaryId: allocation.beneficiaryId, percentage: allocation.percentage, sortOrder: index });
+  });
 }
 
-function serializeBeneficiaryAllocations(policy: Policy): string | null {
-  const allocations = normalizeBeneficiaryAllocations(policy.beneficiaryAllocations, policy.beneficiaryId);
-  return allocations.length > 0 ? JSON.stringify(allocations) : null;
+/** ケース1件ぶんの受取割合を契約ごとにまとめて読む */
+function readBeneficiariesByPolicy(caseId: string): Map<string, BeneficiaryAllocation[]> {
+  const rows = getDb().prepare(`
+    SELECT b.policy_id, b.beneficiary_member_id, b.percentage
+    FROM policy_beneficiaries b
+    JOIN policies p ON p.id = b.policy_id
+    WHERE p.case_id = ?
+    ORDER BY b.policy_id, b.sort_order, b.beneficiary_member_id
+  `).all(caseId) as { policy_id: string; beneficiary_member_id: string; percentage: number }[];
+  const byPolicy = new Map<string, BeneficiaryAllocation[]>();
+  for (const row of rows) {
+    const allocation = { beneficiaryId: row.beneficiary_member_id, percentage: row.percentage };
+    const allocations = byPolicy.get(row.policy_id);
+    if (allocations) allocations.push(allocation);
+    else byPolicy.set(row.policy_id, [allocation]);
+  }
+  return byPolicy;
 }
 
 function parsePensionSettings(
@@ -233,7 +244,7 @@ function normalizePolicyForStorage(policy: Policy): Policy {
   };
 }
 
-function rowToPolicy(row: PolicyRow): Policy {
+function rowToPolicy(row: PolicyRow, allocations: BeneficiaryAllocation[]): Policy {
   const policyType = normalizePolicyType(row.policy_type);
   const insuredId = row.insured_member_id;
   const paymentEndAge = row.payment_end_age;
@@ -247,10 +258,7 @@ function rowToPolicy(row: PolicyRow): Policy {
     contractAge: row.contract_age,
     insuredId,
     beneficiaryId: row.beneficiary_member_id ?? '',
-    beneficiaryAllocations: parseBeneficiaryAllocations(
-      row.beneficiary_allocations,
-      row.beneficiary_member_id ?? '',
-    ),
+    beneficiaryAllocations: normalizeBeneficiaryAllocations(allocations, row.beneficiary_member_id ?? ''),
     deathBenefitDisease: row.death_benefit_disease,
     deathBenefitAccident: row.death_benefit_accident,
     hospDayDisease: row.hosp_day_disease,
@@ -320,7 +328,6 @@ function insertSampleData(caseId: string): void {
 
   const policies = getSamplePolicies();
   const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, currency, exchange_rate, foreign_premium_amount, foreign_death_benefit_disease, foreign_death_benefit_accident, foreign_hosp_day_disease, foreign_hosp_day_accident, foreign_diagnosis_benefit, foreign_maturity_benefit, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, surrender_values, consultant_note, evaluation_overrides, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  const updateBeneficiaryAllocations = db.prepare('UPDATE policies SET beneficiary_allocations = ? WHERE id = ?');
   for (let i = 0; i < policies.length; i++) {
     const p = policies[i];
     const policyId = uuidv4();
@@ -366,7 +373,7 @@ function insertSampleData(caseId: string): void {
       ...allocation,
       beneficiaryId: memberIdMap.get(allocation.beneficiaryId) || allocation.beneficiaryId,
     }));
-    updateBeneficiaryAllocations.run(JSON.stringify(mappedAllocations), policyId);
+    replacePolicyBeneficiaries(policyId, mappedAllocations);
   }
 
   db.prepare('INSERT OR REPLACE INTO app_state_meta (case_id, schema_version, updated_at) VALUES (?, 1, ?)').run(caseId, ts);
@@ -382,10 +389,11 @@ export function getAppState(caseId: string): AppState | null {
   const policyRows = db.prepare('SELECT * FROM policies WHERE case_id = ? ORDER BY sort_order').all(caseId) as PolicyRow[];
   const agencyRow = db.prepare('SELECT * FROM agencies WHERE case_id = ?').get(caseId) as AgencyRow | undefined;
   const metaRow = db.prepare('SELECT updated_at, schema_version, valuation_settings FROM app_state_meta WHERE case_id = ?').get(caseId) as MetaRow | undefined;
+  const beneficiariesByPolicy = readBeneficiariesByPolicy(caseId);
 
   return {
     familyMembers: memberRows.map(rowToFamilyMember),
-    policies: policyRows.map(rowToPolicy),
+    policies: policyRows.map(row => rowToPolicy(row, beneficiariesByPolicy.get(row.id) ?? [])),
     agency: agencyRow ? rowToAgency(agencyRow) : { name: '', representative: '', phone: '' },
     valuationSettings: parseValuationSettings(metaRow?.valuation_settings ?? null),
     updatedAt: metaRow?.updated_at ?? undefined,
@@ -436,7 +444,6 @@ export function saveAppState(caseId: string, state: AppState): AppState {
     const updatePensionSettings = db.prepare('UPDATE policies SET pension_settings = ? WHERE id = ?');
     const updatePaymentCompleted = db.prepare('UPDATE policies SET premium_payment_completed = ? WHERE id = ?');
     const updatePaymentDetails = db.prepare('UPDATE policies SET payment_details = ? WHERE id = ?');
-    const updateBeneficiaryAllocations = db.prepare('UPDATE policies SET beneficiary_allocations = ? WHERE id = ?');
     const updateSurrenderProjection = db.prepare('UPDATE policies SET surrender_projection = ? WHERE id = ?');
     for (let i = 0; i < state.policies.length; i++) {
       const p = normalizePolicyForStorage(state.policies[i]);
@@ -444,7 +451,7 @@ export function saveAppState(caseId: string, state: AppState): AppState {
       updatePensionSettings.run(serializePensionSettings(p), p.id);
       updatePaymentCompleted.run(p.premiumPaymentCompleted ? 1 : 0, p.id);
       updatePaymentDetails.run(serializePaymentDetails(p), p.id);
-      updateBeneficiaryAllocations.run(serializeBeneficiaryAllocations(p), p.id);
+      replacePolicyBeneficiaries(p.id, p.beneficiaryAllocations ?? []);
       updateSurrenderProjection.run(p.surrenderProjection ?? null, p.id);
     }
 
