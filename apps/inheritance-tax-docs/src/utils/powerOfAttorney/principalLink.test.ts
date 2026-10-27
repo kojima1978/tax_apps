@@ -10,7 +10,6 @@ const record: PoaPrincipal = {
   address: '架空県架空市1-2-3',
   birthDate: '昭和45年3月2日',
   representative: '',
-  deceasedName: '架空 太郎',
   memo: '長女',
   version: 3,
   createdAt: '2026-10-25 00:00:00',
@@ -38,16 +37,15 @@ describe('委任者DBと入力欄の突き合わせ', () => {
     expect(slotDiffersFromRecord({ ...slot, representative: '代表取締役 架空 次郎' }, corporate)).toBe(true);
   });
 
-  it('DB へ送るときは画面に無い項目（フリガナ・メモ・以前の被相続人の欄）を引き継ぐ', () => {
+  it('DB へ送るときは画面に無い項目（フリガナ・メモ）を引き継ぐ', () => {
     const slot: PrincipalSlot = { ...slotFieldsFromRecord(record), address: '架空県架空市9' };
     expect(draftFromSlot(slot, record)).toMatchObject({
       nameKana: 'カクウ ハナコ',
       memo: '長女',
       address: '架空県架空市9',
-      deceasedName: '架空 太郎',
     });
     const fresh = draftFromSlot({ kind: 'individual', name: ' 架空 次郎 ', address: '', representative: '残らない', birthInput: '' }, undefined);
-    expect(fresh).toMatchObject({ name: '架空 次郎', representative: '', deceasedName: '', nameKana: '' });
+    expect(fresh).toMatchObject({ name: '架空 次郎', representative: '', nameKana: '' });
   });
 
   it('被相続人は氏名と生年月日だけ比べ、生年月日は同じ日なら打ち方を問わない', () => {

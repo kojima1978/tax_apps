@@ -14,7 +14,6 @@ type PrincipalResponse = {
   address: string;
   birthDate: string;
   representative: string;
-  deceasedName: string;
   memo: string;
   version: number;
   deletedAt: string | null;
@@ -26,6 +25,7 @@ type AuditResponse = { action: string; actor: string; targetName: string; before
 let server: Server;
 let baseUrl: string;
 let workDir: string;
+let db: typeof import('../db.js');
 let closeDb: () => void;
 
 const operatorHeaders = (name = '架空 花子') => ({
@@ -59,6 +59,7 @@ beforeEach(async () => {
   vi.resetModules();
 
   const dbModule = await import('../db.js');
+  db = dbModule;
   const { createPoaPrincipalsRouter } = await import('./poaPrincipals.js');
   const { createAuditLogsRouter } = await import('./auditLogs.js');
   closeDb = dbModule.closeDb;
@@ -86,7 +87,7 @@ describe('委任者DB API', () => {
     expect(onlyName.response.status).toBe(201);
     expect(onlyName.body).toMatchObject({ kind: 'individual', name: '架空 花子', address: '', birthDate: '', version: 1 });
 
-    const full = await create({ name: '架空 太郎', nameKana: 'カクウ タロウ', address: '架空県架空市1-2-3', birthDate: '1970/3/2', deceasedName: '架空 一郎' });
+    const full = await create({ name: '架空 太郎', nameKana: 'カクウ タロウ', address: '架空県架空市1-2-3', birthDate: '1970/3/2' });
     expect(full.body.birthDate).toBe('昭和45年3月2日');
 
     // 和暦のまま送り返しても同じ値になる（画面は保存値をそのまま入力欄に戻す）
@@ -107,10 +108,13 @@ describe('委任者DB API', () => {
     expect(individual.body.representative).toBe('');
   });
 
-  it('検索は氏名・フリガナ・被相続人に当たり、空白と全角半角を無視する。並びはフリガナ順', async () => {
-    await create({ name: '架空 太郎', nameKana: 'カクウ タロウ', deceasedName: '架空 一郎' });
+  it('検索は氏名・フリガナ・つながっている被相続人に当たり、空白と全角半角を無視する。並びはフリガナ順', async () => {
+    const taro = (await create({ name: '架空 太郎', nameKana: 'カクウ タロウ' })).body;
     await create({ name: '架空 花子', nameKana: 'カクウ ハナコ' });
     await create({ name: '仮名 次郎', nameKana: 'アカ ジロウ' });
+    // 被相続人とのつながりは被相続人DBの画面で作る（ここでは表へ直接入れる）
+    const deceasedId = Number(db.getDb().prepare("INSERT INTO poa_deceased (name) VALUES ('架空 一郎')").run().lastInsertRowid);
+    db.getDb().prepare('INSERT INTO poa_deceased_heirs (deceased_id, principal_id) VALUES (?, ?)').run(deceasedId, taro.id);
 
     expect((await list()).body.map((p) => p.name)).toEqual(['仮名 次郎', '架空 太郎', '架空 花子']);
     expect((await list('?q=' + encodeURIComponent('架空花子'))).body.map((p) => p.name)).toEqual(['架空 花子']);

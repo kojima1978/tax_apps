@@ -3,14 +3,10 @@ import type { PrincipalInput } from './record';
 
 const API_BASE = '/inheritance-tax-docs/api/poa-principals';
 
-/**
- * 委任者DBに入れる中身。生年月日はサーバが和暦に直して返す。
- * deceasedName は被相続人DBができる前の手がかりの欄で、画面からは直さず受け取ったまま送り返す。
- */
+/** 委任者DBに入れる中身。生年月日はサーバが和暦に直して返す */
 export type PrincipalDraft = Pick<PrincipalInput, 'kind' | 'name' | 'address' | 'representative'> & {
   nameKana: string;
   birthDate: string;
-  deceasedName: string;
   memo: string;
 };
 
@@ -34,7 +30,6 @@ export const EMPTY_PRINCIPAL_DRAFT: PrincipalDraft = {
   address: '',
   birthDate: '',
   representative: '',
-  deceasedName: '',
   memo: '',
 };
 
@@ -95,5 +90,5 @@ export async function restorePrincipal(id: number): Promise<PoaPrincipal> {
   return readJson<PoaPrincipal>(await sendJson(`/${id}/restore`, 'POST'), '戻せませんでした');
 }
 
-export const draftOf = ({ kind, name, nameKana, address, birthDate, representative, deceasedName, memo }: PrincipalDraft): PrincipalDraft =>
-  ({ kind, name, nameKana, address, birthDate, representative, deceasedName, memo });
+export const draftOf = ({ kind, name, nameKana, address, birthDate, representative, memo }: PrincipalDraft): PrincipalDraft =>
+  ({ kind, name, nameKana, address, birthDate, representative, memo });

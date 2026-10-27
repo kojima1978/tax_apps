@@ -92,15 +92,27 @@ describe('委任状を書類マスタへ足すマイグレーション', () => {
 });
 
 describe('委任者の被相続人欄を被相続人DBへ写すマイグレーション', () => {
-  const insertPrincipal = (name: string, deceasedName: string, deleted = false) =>
-    Number(db.getDb().prepare('INSERT INTO poa_principals (name, deceased_name, deleted_at) VALUES (?, ?, ?)')
+  /** 被相続人DBを作る前の形（deceased_name 列がある版）を再現する */
+  const withLegacyColumn = () => {
+    const columns = db.getDb().prepare('PRAGMA table_info(poa_principals)').all() as { name: string }[];
+    if (!columns.some((column) => column.name === 'deceased_name')) {
+      db.getDb().exec("ALTER TABLE poa_principals ADD COLUMN deceased_name TEXT NOT NULL DEFAULT ''");
+    }
+  };
+  const insertPrincipal = (name: string, deceasedName: string, deleted = false) => {
+    withLegacyColumn();
+    return Number(db.getDb().prepare('INSERT INTO poa_principals (name, deceased_name, deleted_at) VALUES (?, ?, ?)')
       .run(name, deceasedName, deleted ? '2026-10-01 00:00:00' : null).lastInsertRowid);
+  };
+  const hasLegacyColumn = () =>
+    (db.getDb().prepare('PRAGMA table_info(poa_principals)').all() as { name: string }[])
+      .some((column) => column.name === 'deceased_name');
   const deceasedRows = () => db.getDb().prepare('SELECT id, name FROM poa_deceased ORDER BY id').all() as { id: number; name: string }[];
   const heirsOf = (deceasedId: number) => (db.getDb().prepare(`
     SELECT p.name FROM poa_deceased_heirs h JOIN poa_principals p ON p.id = h.principal_id WHERE h.deceased_id = ? ORDER BY p.id
   `).all(deceasedId) as { name: string }[]).map((row) => row.name);
 
-  it('同じ名前（空白・全角半角の違いは無視）を1人にまとめてつなぐ。ゴミ箱の中もつなぎ、元の欄は消さない', () => {
+  it('同じ名前（空白・全角半角の違いは無視）を1人にまとめてつなぐ。ゴミ箱の中もつなぎ、写したら列を落とす', () => {
     insertPrincipal('架空 太郎', '架空 一郎');
     insertPrincipal('架空 花子', '架空一郎');
     insertPrincipal('架空 次郎', '架空 花江', true);
@@ -111,8 +123,8 @@ describe('委任者の被相続人欄を被相続人DBへ写すマイグレー�
     expect(rows.map((row) => row.name)).toEqual(['架空 一郎', '架空 花江']);
     expect(heirsOf(rows[0].id)).toEqual(['架空 太郎', '架空 花子']);
     expect(heirsOf(rows[1].id)).toEqual(['架空 次郎']);
-    const kept = db.getDb().prepare("SELECT deceased_name FROM poa_principals WHERE name = '架空 花子'").get();
-    expect(kept).toEqual({ deceased_name: '架空一郎' });
+    // 列は落ちる（二重持ちを残さない）。元の書き方は操作履歴に残る
+    expect(hasLegacyColumn()).toBe(false);
     const log = db.getDb().prepare("SELECT action, actor FROM audit_logs WHERE target_type = 'poa_deceased' ORDER BY id").all();
     expect(log).toEqual([
       { action: 'create', actor: expect.stringContaining('システム') },
@@ -124,10 +136,19 @@ describe('委任者の被相続人欄を被相続人DBへ写すマイグレー�
     insertPrincipal('架空 太郎', '架空 一郎');
     migrations.runMasterMigrations();
     db.getDb().prepare('DELETE FROM poa_deceased_heirs').run();
+    // 列を足し戻しても、1回写した印があるので二度目は写さない（落とすだけ）
     insertPrincipal('架空 花子', '架空 花江');
 
     migrations.runMasterMigrations();
+    expect(hasLegacyColumn()).toBe(false);
     expect(deceasedRows().map((row) => row.name)).toEqual(['架空 一郎']);
     expect(heirsOf(deceasedRows()[0].id)).toEqual([]);
+  });
+
+  it('列が無い（＝新しい）DB では何もしない', () => {
+    migrations.runMasterMigrations();
+    expect(hasLegacyColumn()).toBe(false);
+    expect(deceasedRows()).toEqual([]);
+    expect(db.getDb().prepare("SELECT 1 FROM app_migrations WHERE name = 'poa-deceased-from-principals'").get()).toBeUndefined();
   });
 });

@@ -109,7 +109,6 @@ function initSchema(d: Database.Database): void {
       address        TEXT NOT NULL DEFAULT '',
       birth_date     TEXT NOT NULL DEFAULT '',
       representative TEXT NOT NULL DEFAULT '',
-      deceased_name  TEXT NOT NULL DEFAULT '',
       memo           TEXT NOT NULL DEFAULT '',
       version        INTEGER NOT NULL DEFAULT 1,
       created_at     TEXT NOT NULL DEFAULT (datetime('now')),
@@ -270,7 +269,6 @@ export type PoaPrincipalRow = {
   address: string;
   birth_date: string;
   representative: string;
-  deceased_name: string;
   memo: string;
   version: number;
   created_at: string;

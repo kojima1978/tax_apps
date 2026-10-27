@@ -15,7 +15,6 @@ const LIMITS: Record<Exclude<keyof PrincipalFields, 'kind' | 'birth_date'>, numb
   name_kana: 100,
   address: 300,
   representative: 100,
-  deceased_name: 100,
   memo: 1000,
 };
 
@@ -24,7 +23,6 @@ const LABELS: Record<keyof typeof LIMITS, string> = {
   name_kana: 'フリガナ',
   address: '住所',
   representative: '代表者',
-  deceased_name: '被相続人',
   memo: 'メモ',
 };
 
@@ -41,7 +39,6 @@ const parseFields = (body: unknown): { ok: true; value: PrincipalFields } | { ok
     name_kana: body.nameKana,
     address: body.address,
     representative: body.representative,
-    deceased_name: body.deceasedName,
     memo: body.memo,
   };
   const texts = {} as Record<keyof typeof LIMITS, string>;
@@ -70,10 +67,7 @@ const parseFields = (body: unknown): { ok: true; value: PrincipalFields } | { ok
   };
 };
 
-/**
- * 画面へ返す形。deceased はつながっている被相続人（被相続人DB）。deceasedName は
- * 被相続人DBを作る前に手で書いていた手がかりで、移行後も消さずにそのまま持ち回る
- */
+/** 画面へ返す形。deceased はつながっている被相続人（被相続人DB） */
 export const principalResponse = (row: PoaPrincipalRow, deceased: LinkedName[] = []) => ({
   id: row.id,
   kind: row.kind,
@@ -82,7 +76,6 @@ export const principalResponse = (row: PoaPrincipalRow, deceased: LinkedName[] =
   address: row.address,
   birthDate: row.birth_date,
   representative: row.representative,
-  deceasedName: row.deceased_name,
   deceased,
   memo: row.memo,
   version: row.version,
@@ -97,7 +90,6 @@ const auditSnapshot = (row: PoaPrincipalRow, previous?: PoaPrincipalRow) => ({
   name: row.name,
   nameKana: row.name_kana,
   representative: row.representative,
-  deceasedName: row.deceased_name,
   memo: row.memo,
   address: auditMask(row.address, previous?.address),
   birthDate: auditMask(row.birth_date, previous?.birth_date),
@@ -126,7 +118,7 @@ export function createPoaPrincipalsRouter(): Router {
     const links = deceasedLinksByPrincipal(rows.map((row) => row.id));
     const query = typeof req.query.q === 'string' ? normalizeForSearch(req.query.q) : '';
     const filtered = query
-      ? rows.filter((row) => [row.name, row.name_kana, row.deceased_name, ...(links.get(row.id) ?? []).map((d) => d.name)]
+      ? rows.filter((row) => [row.name, row.name_kana, ...(links.get(row.id) ?? []).map((d) => d.name)]
         .some((value) => normalizeForSearch(value).includes(query)))
       : rows;
     filtered.sort((a, b) => collator.compare(sortKey(a), sortKey(b)) || a.id - b.id);
@@ -147,9 +139,9 @@ export function createPoaPrincipalsRouter(): Router {
     const db = getDb();
     const create = db.transaction(() => {
       const result = db.prepare(`
-        INSERT INTO poa_principals (kind, name, name_kana, address, birth_date, representative, deceased_name, memo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(value.kind, value.name, value.name_kana, value.address, value.birth_date, value.representative, value.deceased_name, value.memo);
+        INSERT INTO poa_principals (kind, name, name_kana, address, birth_date, representative, memo)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(value.kind, value.name, value.name_kana, value.address, value.birth_date, value.representative, value.memo);
       const created = db.prepare('SELECT * FROM poa_principals WHERE id = ?').get(result.lastInsertRowid) as PoaPrincipalRow;
       writeAuditLog({ targetType: 'poa_principal', targetId: created.id, targetName: created.name, action: 'create', actor: actorFrom(req), after: auditSnapshot(created) });
       return created;
@@ -176,10 +168,10 @@ export function createPoaPrincipalsRouter(): Router {
     const update = db.transaction(() => {
       db.prepare(`
         UPDATE poa_principals
-        SET kind = ?, name = ?, name_kana = ?, address = ?, birth_date = ?, representative = ?, deceased_name = ?, memo = ?,
+        SET kind = ?, name = ?, name_kana = ?, address = ?, birth_date = ?, representative = ?, memo = ?,
             version = version + 1, updated_at = datetime('now')
         WHERE id = ?
-      `).run(value.kind, value.name, value.name_kana, value.address, value.birth_date, value.representative, value.deceased_name, value.memo, existing.id);
+      `).run(value.kind, value.name, value.name_kana, value.address, value.birth_date, value.representative, value.memo, existing.id);
       const updated = db.prepare('SELECT * FROM poa_principals WHERE id = ?').get(existing.id) as PoaPrincipalRow;
       writeAuditLog({
         targetType: 'poa_principal',

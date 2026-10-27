@@ -1,4 +1,4 @@
-import { getDb, writeAuditLog, type DocumentMasterRow, type PoaPrincipalRow } from './db.js';
+import { getDb, writeAuditLog, type DocumentMasterRow } from './db.js';
 import type { MasterCategory } from './masterDefaults.js';
 import { POWER_OF_ATTORNEY_DOCUMENT, isPowerOfAttorneyDocument } from '../src/constants/documents.js';
 import { normalizeForSearch } from './routes/poaShared.js';
@@ -80,37 +80,48 @@ const DECEASED_ACTOR = 'システム（委任者の被相続人欄から被相�
  * 被相続人DBを作る前は、委任者ごとに被相続人の名前を手で書いていた（deceased_name）。
  * 同じ名前（空白と全角半角の違いは無視）を1人の被相続人にまとめ、書いてあった委任者をつなぐ。
  * ゴミ箱の中の委任者もつなぐ（戻したときにつながりごと戻るように）。
- * deceased_name は消さない ── 元のデータを残し、同姓同名を別人として分けたいときの手がかりにする。
+ * 写し終えたら列を落とす ── 被相続人と委任者のつながりを2箇所で持つと、検索が両方に当たり
+ * 片方だけ直せる形が残る。元の書き方は操作履歴（audit_logs）の after に残るので、
+ * 同姓同名を別人として分けたいときの手がかりは失わない。
+ * 列の有無がそのまま「移したか」の印なので、2回目は何もしない ── 利用者が外したつながりや
+ * 消した被相続人を、起動し直すたびに戻さないため。
  */
 function linkDeceasedFromPrincipals(): void {
   const db = getDb();
-  if (db.prepare('SELECT 1 FROM app_migrations WHERE name = ?').get(DECEASED_MIGRATION)) return;
+  const columns = db.prepare('PRAGMA table_info(poa_principals)').all() as { name: string }[];
+  if (!columns.some((column) => column.name === 'deceased_name')) return;
+  // 列を落とす前の版が付けた印。写すのは1回だけで、列は今回落とす
+  const alreadyLinked = db.prepare('SELECT 1 FROM app_migrations WHERE name = ?').get(DECEASED_MIGRATION);
 
   const migrate = db.transaction(() => {
-    const principals = db.prepare("SELECT * FROM poa_principals WHERE deceased_name <> '' ORDER BY id").all() as PoaPrincipalRow[];
-    const groups = new Map<string, { name: string; principalIds: number[] }>();
-    for (const principal of principals) {
-      const key = normalizeForSearch(principal.deceased_name);
-      if (!key) continue;
-      const group = groups.get(key) ?? { name: principal.deceased_name.trim(), principalIds: [] };
-      group.principalIds.push(principal.id);
-      groups.set(key, group);
+    if (!alreadyLinked) {
+      const principals = db.prepare("SELECT id, name, deceased_name FROM poa_principals WHERE deceased_name <> '' ORDER BY id")
+        .all() as { id: number; name: string; deceased_name: string }[];
+      const groups = new Map<string, { name: string; principalIds: number[] }>();
+      for (const principal of principals) {
+        const key = normalizeForSearch(principal.deceased_name);
+        if (!key) continue;
+        const group = groups.get(key) ?? { name: principal.deceased_name.trim(), principalIds: [] };
+        group.principalIds.push(principal.id);
+        groups.set(key, group);
+      }
+      const insertDeceased = db.prepare('INSERT INTO poa_deceased (name) VALUES (?)');
+      const link = db.prepare('INSERT OR IGNORE INTO poa_deceased_heirs (deceased_id, principal_id) VALUES (?, ?)');
+      for (const group of groups.values()) {
+        const deceasedId = Number(insertDeceased.run(group.name).lastInsertRowid);
+        for (const principalId of group.principalIds) link.run(deceasedId, principalId);
+        writeAuditLog({
+          targetType: 'poa_deceased',
+          targetId: deceasedId,
+          targetName: group.name,
+          action: 'create',
+          actor: DECEASED_ACTOR,
+          after: { name: group.name, heirs: principals.filter((p) => group.principalIds.includes(p.id)).map((p) => p.name) },
+        });
+      }
+      db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(DECEASED_MIGRATION);
     }
-    const insertDeceased = db.prepare('INSERT INTO poa_deceased (name) VALUES (?)');
-    const link = db.prepare('INSERT OR IGNORE INTO poa_deceased_heirs (deceased_id, principal_id) VALUES (?, ?)');
-    for (const group of groups.values()) {
-      const deceasedId = Number(insertDeceased.run(group.name).lastInsertRowid);
-      for (const principalId of group.principalIds) link.run(deceasedId, principalId);
-      writeAuditLog({
-        targetType: 'poa_deceased',
-        targetId: deceasedId,
-        targetName: group.name,
-        action: 'create',
-        actor: DECEASED_ACTOR,
-        after: { name: group.name, heirs: principals.filter((p) => group.principalIds.includes(p.id)).map((p) => p.name) },
-      });
-    }
-    db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(DECEASED_MIGRATION);
+    db.exec('ALTER TABLE poa_principals DROP COLUMN deceased_name');
   });
   migrate();
 }
