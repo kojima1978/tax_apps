@@ -1,5 +1,13 @@
 import { Router } from 'express';
-import { getDb, writeAuditLog, type AuditTargetType, type ResourceRow } from '../db.js';
+import {
+  getDb,
+  parseLegacyCompanyIds,
+  readResourceSnapshot,
+  replaceResourceCompanyIds,
+  writeAuditLog,
+  type AuditTargetType,
+  type ResourceSnapshot,
+} from '../db.js';
 
 const decodeOperatorName = (value: string | undefined): string | undefined => {
   if (!value) return undefined;
@@ -75,7 +83,7 @@ export function createAuditLogsRouter(): Router {
       return;
     }
 
-    const current = db.prepare('SELECT * FROM resources WHERE id = ?').get(log.target_id) as ResourceRow | undefined;
+    const current = readResourceSnapshot(log.target_id);
     if (!current) {
       res.status(404).json({ error: '復元対象の参考資料が見つかりません' });
       return;
@@ -95,16 +103,21 @@ export function createAuditLogsRouter(): Router {
       return;
     }
 
-    const before = JSON.parse(log.before_json) as ResourceRow;
+    // 公開先の会社は JSON 列に持っていた時期があるので、古い履歴はその形から読む
+    const before = JSON.parse(log.before_json) as ResourceSnapshot & { company_ids_json?: string };
+    const beforeCompanyIds = Array.isArray(before.company_ids)
+      ? before.company_ids.filter((companyId): companyId is number => Number.isInteger(companyId))
+      : parseLegacyCompanyIds(before.company_ids_json);
     const actor = decodeOperatorName(req.header('x-operator-name'));
     const restore = db.transaction(() => {
       db.prepare(`
         UPDATE resources
-        SET title = ?, description = ?, filename = ?, url = ?, sort_order = ?, company_ids_json = ?,
+        SET title = ?, description = ?, filename = ?, url = ?, sort_order = ?,
             deleted_at = NULL, updated_at = datetime('now')
         WHERE id = ?
-      `).run(before.title, before.description, before.filename, before.url, before.sort_order, before.company_ids_json ?? '[]', current.id);
-      const restored = db.prepare('SELECT * FROM resources WHERE id = ?').get(current.id) as ResourceRow;
+      `).run(before.title, before.description, before.filename, before.url, before.sort_order, current.id);
+      replaceResourceCompanyIds(current.id, beforeCompanyIds);
+      const restored = readResourceSnapshot(current.id) as ResourceSnapshot;
       writeAuditLog({
         targetType: 'resource',
         targetId: restored.id,

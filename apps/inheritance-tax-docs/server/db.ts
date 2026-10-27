@@ -53,6 +53,14 @@ function initSchema(d: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    -- 参考資料の公開先の会社。行が無い資料は全社共通。
+    -- 会社の id は社員台帳（別のアプリ）のものなので、会社側への外部キーは張れない。
+    CREATE TABLE IF NOT EXISTS resource_companies (
+      resource_id INTEGER NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+      company_id  INTEGER NOT NULL,
+      PRIMARY KEY (resource_id, company_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_resource_companies_company ON resource_companies(company_id);
     CREATE TABLE IF NOT EXISTS document_masters (
       code             TEXT PRIMARY KEY,
       label            TEXT NOT NULL,
@@ -143,8 +151,19 @@ function initSchema(d: Database.Database): void {
   if (!resourceColumns.some((column) => column.name === 'deleted_at')) {
     d.exec('ALTER TABLE resources ADD COLUMN deleted_at TEXT');
   }
-  if (!resourceColumns.some((column) => column.name === 'company_ids_json')) {
-    d.exec("ALTER TABLE resources ADD COLUMN company_ids_json TEXT NOT NULL DEFAULT '[]'");
+
+  // 公開先の会社は resources の JSON 列（company_ids_json）に持っていた。SQL で絞り込めず、
+  // 全件読んでから JS で includes していたので resource_companies へ移す。
+  // 列が残っている DB だけ1回写して落とす（列の有無がそのまま「移したか」の印）。
+  if (resourceColumns.some((column) => column.name === 'company_ids_json')) {
+    const legacy = d.prepare('SELECT id, company_ids_json FROM resources').all() as { id: number; company_ids_json: string | null }[];
+    const link = d.prepare('INSERT OR IGNORE INTO resource_companies (resource_id, company_id) VALUES (?, ?)');
+    d.transaction(() => {
+      for (const row of legacy) {
+        for (const companyId of parseLegacyCompanyIds(row.company_ids_json)) link.run(row.id, companyId);
+      }
+      d.exec('ALTER TABLE resources DROP COLUMN company_ids_json');
+    })();
   }
 }
 
@@ -202,8 +221,46 @@ export type ResourceRow = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
-  company_ids_json: string;
 };
+
+/** 参考資料1件ぶん（公開先の会社も含めた形）。監査ログに残す形でもある */
+export type ResourceSnapshot = ResourceRow & { company_ids: number[] };
+
+/**
+ * 旧形式（JSON 文字列）の公開先の会社を読む。削除履歴の before にはこの形のまま
+ * 残っているので、列を落としたあとも読めるようにここに置く。
+ */
+export function parseLegacyCompanyIds(value: unknown): number[] {
+  if (typeof value !== 'string' || !value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((id): id is number => Number.isInteger(id)) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** 公開先の会社（昇順）。空配列は全社共通 */
+export function readResourceCompanyIds(resourceId: number | bigint | string): number[] {
+  return getDb()
+    .prepare('SELECT company_id FROM resource_companies WHERE resource_id = ? ORDER BY company_id')
+    .pluck()
+    .all(resourceId) as number[];
+}
+
+/** 公開先の会社を入れ替える（呼び出し側のトランザクションの中で使う） */
+export function replaceResourceCompanyIds(resourceId: number | bigint | string, companyIds: number[]): void {
+  const d = getDb();
+  d.prepare('DELETE FROM resource_companies WHERE resource_id = ?').run(resourceId);
+  const link = d.prepare('INSERT OR IGNORE INTO resource_companies (resource_id, company_id) VALUES (?, ?)');
+  for (const companyId of companyIds) link.run(resourceId, companyId);
+}
+
+/** 参考資料1件を公開先の会社つきで読む */
+export function readResourceSnapshot(resourceId: number | bigint | string): ResourceSnapshot | undefined {
+  const row = getDb().prepare('SELECT * FROM resources WHERE id = ?').get(resourceId) as ResourceRow | undefined;
+  return row ? { ...row, company_ids: readResourceCompanyIds(row.id) } : undefined;
+}
 
 export type PoaPrincipalRow = {
   id: number;

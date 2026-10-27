@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3';
 import express from 'express';
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -27,7 +28,7 @@ let server: Server;
 let baseUrl: string;
 let workDir: string;
 let uploadsDir: string;
-let closeDb: () => void;
+let dbModule: typeof import('../db.js');
 
 const operatorHeaders = (name = '架空 花子') => ({
   'x-operator-name': encodeURIComponent(name),
@@ -62,11 +63,10 @@ beforeEach(async () => {
   process.env.DATABASE_PATH = join(workDir, 'resources.sqlite');
   vi.resetModules();
 
-  const dbModule = await import('../db.js');
+  dbModule = await import('../db.js');
   const { createResourcesRouter } = await import('./resources.js');
   const { createResourceFilesRouter } = await import('./resourceFiles.js');
   const { createAuditLogsRouter } = await import('./auditLogs.js');
-  closeDb = dbModule.closeDb;
 
   const app = express();
   app.use(express.json());
@@ -83,7 +83,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
-  closeDb();
+  dbModule.closeDb();
   delete process.env.DATABASE_PATH;
   rmSync(workDir, { recursive: true, force: true });
 });
@@ -195,6 +195,82 @@ describe('参考資料API', () => {
       body: JSON.stringify({ ids: [common.body.id] }),
     });
     expect(invalid.response.status).toBe(400);
+  });
+
+  it('旧版の JSON 列に入っていた公開先の会社を中間表へ移し、列を落とす', async () => {
+    // 公開先を JSON 列に持っていた頃の DB をそのまま作る（deleted_at もまだ無い版）
+    const legacy = new Database(process.env.DATABASE_PATH!);
+    legacy.exec(`
+      CREATE TABLE resources (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        title      TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        filename   TEXT,
+        url        TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        company_ids_json TEXT NOT NULL DEFAULT '[]'
+      );
+      INSERT INTO resources (title, url, sort_order, company_ids_json) VALUES
+        ('全社共通の旧資料', 'https://example.invalid/a', 0, '[]'),
+        ('会社限定の旧資料', 'https://example.invalid/b', 1, '[2,5]'),
+        ('壊れた旧資料',     'https://example.invalid/c', 2, 'not-json');
+    `);
+    legacy.close();
+
+    const all = await requestJson<ResourceResponse[]>('/resources/');
+    expect(all.body.map((item) => [item.title, item.company_ids])).toEqual([
+      ['全社共通の旧資料', []],
+      ['会社限定の旧資料', [2, 5]],
+      ['壊れた旧資料', []],
+    ]);
+
+    const columns = dbModule.getDb().prepare('PRAGMA table_info(resources)').all() as { name: string }[];
+    expect(columns.some((column) => column.name === 'company_ids_json')).toBe(false);
+    expect(columns.some((column) => column.name === 'deleted_at')).toBe(true);
+
+    const companyFive = await requestJson<ResourceResponse[]>('/resources/?companyId=5');
+    expect(companyFive.body.map((item) => item.title)).toEqual(['全社共通の旧資料', '会社限定の旧資料', '壊れた旧資料']);
+    const companyNine = await requestJson<ResourceResponse[]>('/resources/?companyId=9');
+    expect(companyNine.body.map((item) => item.title)).toEqual(['全社共通の旧資料', '壊れた旧資料']);
+  });
+
+  it('公開先の会社を更新で入れ替え、JSON 列の頃の削除履歴からも復元できる', async () => {
+    const created = await createResource('公開先を直す架空資料', { companyIds: [3, 7] });
+    expect(created.body.company_ids).toEqual([3, 7]);
+
+    const narrowed = new FormData();
+    narrowed.append('title', '公開先を直す架空資料');
+    narrowed.append('companyIds', '[7,11]');
+    narrowed.append('url', 'https://example.invalid/reference');
+    const updated = await requestJson<ResourceResponse>(`/resources/${created.body.id}/`, {
+      method: 'PUT',
+      headers: operatorHeaders(),
+      body: narrowed,
+    });
+    expect(updated.body.company_ids).toEqual([7, 11]);
+    expect((await requestJson<ResourceResponse[]>('/resources/?companyId=3')).body).toEqual([]);
+
+    await fetch(`${baseUrl}/resources/${created.body.id}/`, { method: 'DELETE', headers: operatorHeaders() });
+    const deleted = await requestJson<AuditResponse[]>('/audit-logs?targetType=resource&action=delete');
+    const logId = deleted.body[0].id;
+
+    // 公開先を JSON 列に持っていた頃の履歴に書き換える（列を落としたあとも読めること）
+    const db = dbModule.getDb();
+    const stored = db.prepare('SELECT before_json FROM audit_logs WHERE id = ?').get(logId) as { before_json: string };
+    const before = JSON.parse(stored.before_json) as Record<string, unknown>;
+    delete before.company_ids;
+    before.company_ids_json = '[7,11]';
+    db.prepare('UPDATE audit_logs SET before_json = ? WHERE id = ?').run(JSON.stringify(before), logId);
+    db.prepare('DELETE FROM resource_companies WHERE resource_id = ?').run(created.body.id);
+
+    const restored = await requestJson<ResourceResponse>(`/audit-logs/${logId}/restore`, {
+      method: 'POST',
+      headers: operatorHeaders(),
+    });
+    expect(restored.response.status).toBe(200);
+    expect(restored.body.company_ids).toEqual([7, 11]);
   });
 
   it('危険な拡張子を拒否し、ファイル名からパス文字を除去する', async () => {

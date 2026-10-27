@@ -3,7 +3,14 @@ import multer from 'multer';
 import path from 'node:path';
 import fs from 'node:fs';
 import type { Request, RequestHandler, Response } from 'express';
-import { getDb, writeAuditLog, type ResourceRow } from '../db.js';
+import {
+  getDb,
+  readResourceSnapshot,
+  replaceResourceCompanyIds,
+  writeAuditLog,
+  type ResourceRow,
+  type ResourceSnapshot,
+} from '../db.js';
 
 const actorFrom = (req: { header(name: string): string | undefined }): string | undefined =>
   decodeOperatorName(req.header('x-operator-name'));
@@ -58,11 +65,10 @@ const parseExternalUrl = (value: unknown): { value: string | null; error?: strin
   }
 };
 
-const toResponse = (row: ResourceRow) => ({
+const toResponse = (row: ResourceSnapshot) => ({
   ...row,
   // Old databases may contain links created before URL validation was introduced.
   url: parseExternalUrl(row.url).value,
-  company_ids: JSON.parse(row.company_ids_json || '[]') as number[],
 });
 
 export function createResourcesRouter(uploadsDir: string): Router {
@@ -122,12 +128,26 @@ export function createResourcesRouter(uploadsDir: string): Router {
   // GET /api/resources/ - List all
   router.get('/', (req, res) => {
     const db = getDb();
-    const rows = db.prepare('SELECT * FROM resources WHERE deleted_at IS NULL ORDER BY sort_order ASC, id ASC').all() as ResourceRow[];
     const companyId = req.query.companyId === undefined ? null : Number(req.query.companyId);
-    const filtered = Number.isInteger(companyId)
-      ? rows.filter((row) => { const ids = JSON.parse(row.company_ids_json || '[]') as number[]; return ids.length === 0 || ids.includes(companyId!); })
-      : rows;
-    res.json(filtered.map(toResponse));
+    // 絞り込みは SQL で行う（公開先の行が無い資料＝全社共通と、その会社の行がある資料）
+    const rows = db.prepare(`
+      SELECT * FROM resources
+      WHERE deleted_at IS NULL
+        AND (
+          @companyId IS NULL
+          OR id NOT IN (SELECT resource_id FROM resource_companies)
+          OR id IN (SELECT resource_id FROM resource_companies WHERE company_id = @companyId)
+        )
+      ORDER BY sort_order ASC, id ASC
+    `).all({ companyId: Number.isInteger(companyId) ? companyId : null }) as ResourceRow[];
+    const byResource = new Map<number, number[]>();
+    const pairs = db.prepare('SELECT resource_id, company_id FROM resource_companies ORDER BY company_id').all() as { resource_id: number; company_id: number }[];
+    for (const pair of pairs) {
+      const ids = byResource.get(pair.resource_id);
+      if (ids) ids.push(pair.company_id);
+      else byResource.set(pair.resource_id, [pair.company_id]);
+    }
+    res.json(rows.map((row) => toResponse({ ...row, company_ids: byResource.get(row.id) ?? [] })));
   });
 
   // POST /api/resources/ - Create
@@ -154,9 +174,10 @@ export function createResourcesRouter(uploadsDir: string): Router {
     const maxOrder = (db.prepare('SELECT MAX(sort_order) as m FROM resources WHERE deleted_at IS NULL').get() as { m: number | null }).m ?? -1;
     const create = db.transaction(() => {
       const result = db.prepare(
-        'INSERT INTO resources (title, description, filename, url, sort_order, company_ids_json) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(title.trim(), typeof description === 'string' ? description.trim() : '', filename, parsedUrl.value, maxOrder + 1, JSON.stringify(companyIds));
-      const created = db.prepare('SELECT * FROM resources WHERE id = ?').get(result.lastInsertRowid) as ResourceRow;
+        'INSERT INTO resources (title, description, filename, url, sort_order) VALUES (?, ?, ?, ?, ?)'
+      ).run(title.trim(), typeof description === 'string' ? description.trim() : '', filename, parsedUrl.value, maxOrder + 1);
+      replaceResourceCompanyIds(result.lastInsertRowid, companyIds);
+      const created = readResourceSnapshot(result.lastInsertRowid) as ResourceSnapshot;
       writeAuditLog({ targetType: 'resource', targetId: created.id, targetName: created.title, action: 'create', actor: actorFrom(req), after: created });
       return created;
     });
@@ -167,9 +188,9 @@ export function createResourcesRouter(uploadsDir: string): Router {
   // PUT /api/resources/:id - Update
   router.put('/:id', uploadSingle, (req, res) => {
     const db = getDb();
-    const { id } = req.params;
-    const existing = db.prepare('SELECT * FROM resources WHERE id = ? AND deleted_at IS NULL').get(id) as ResourceRow | undefined;
-    if (!existing) {
+    const id = String(req.params.id);
+    const existing = readResourceSnapshot(id);
+    if (!existing || existing.deleted_at) {
       removeNewUpload(req.file);
       res.status(404).json({ error: 'リソースが見つかりません' });
       return;
@@ -202,16 +223,16 @@ export function createResourcesRouter(uploadsDir: string): Router {
     }
     const update = db.transaction(() => {
       db.prepare(
-        "UPDATE resources SET title = ?, description = ?, filename = ?, url = ?, company_ids_json = ?, updated_at = datetime('now') WHERE id = ?"
+        "UPDATE resources SET title = ?, description = ?, filename = ?, url = ?, updated_at = datetime('now') WHERE id = ?"
       ).run(
         typeof title === 'string' ? title.trim() : existing.title,
         typeof description === 'string' ? description.trim() : existing.description,
         filename,
         parsedUrl.value,
-        JSON.stringify(companyIds),
         id,
       );
-      const updated = db.prepare('SELECT * FROM resources WHERE id = ?').get(id) as ResourceRow;
+      replaceResourceCompanyIds(id, companyIds);
+      const updated = readResourceSnapshot(id) as ResourceSnapshot;
       writeAuditLog({ targetType: 'resource', targetId: updated.id, targetName: updated.title, action: 'update', actor: actorFrom(req), before: existing, after: updated });
       return updated;
     });
@@ -222,15 +243,15 @@ export function createResourcesRouter(uploadsDir: string): Router {
   // DELETE /api/resources/:id
   router.delete('/:id', (req, res) => {
     const db = getDb();
-    const { id } = req.params;
-    const existing = db.prepare('SELECT * FROM resources WHERE id = ? AND deleted_at IS NULL').get(id) as ResourceRow | undefined;
-    if (!existing) {
+    const id = String(req.params.id);
+    const existing = readResourceSnapshot(id);
+    if (!existing || existing.deleted_at) {
       res.status(404).json({ error: 'リソースが見つかりません' });
       return;
     }
     const remove = db.transaction(() => {
       db.prepare("UPDATE resources SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").run(id);
-      const disabled = db.prepare('SELECT * FROM resources WHERE id = ?').get(id) as ResourceRow;
+      const disabled = readResourceSnapshot(id) as ResourceSnapshot;
       writeAuditLog({ targetType: 'resource', targetId: existing.id, targetName: existing.title, action: 'delete', actor: actorFrom(req), before: existing, after: disabled });
     });
     remove();
