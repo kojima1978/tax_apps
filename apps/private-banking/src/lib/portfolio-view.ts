@@ -44,7 +44,8 @@ export type BenefitAllocation = { recipient: string; numerator: number; denomina
 export type Snapshot = {
   id: number; label: string; asOfDate: string; fiscalYear: number; isCurrent: boolean;
   estimatedInheritanceTax: number; inheritanceTaxCalculation: InheritanceTaxCalculation | null;
-  otherTaxes: number; fxRates: FxRates; updatedAt: string; positions: Position[];
+  otherTaxes: number; successionCosts: number; inheritanceTaxUpdatedAt: string | null;
+  fxRates: FxRates; updatedAt: string; positions: Position[];
 };
 export type PositionSection = "ASSET" | "LIABILITY" | "CONTINGENT";
 export type PositionSortMode = "manual" | "classification-asc" | "classification-desc" | "value-desc" | "value-asc";
@@ -52,8 +53,8 @@ export type ValuationFormula = "MANUAL" | "STOCK" | "UNIT_RATE" | "LAND_ROADSIDE
 export type Portfolio = {
   currencies?: string[];
   household: { id: number; clientCode: string; name: string; nameKana: string; birthDate: string | null; staffId: number | null; assignedStaff: string; relatedCompany: string; currency: string };
+  /** 家族構成。税金・費用は年度（snapshots）が持つ。 */
   planning: {
-    estimatedInheritanceTax: number; otherTaxes: number; successionCosts: number; inheritanceTaxUpdatedAt: string | null;
     hasSpouse: boolean; heirRank: "none" | "rank1" | "rank2" | "rank3"; heirCount: number;
   };
   familyMembers: FamilyMember[];

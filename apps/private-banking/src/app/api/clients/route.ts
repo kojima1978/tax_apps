@@ -67,19 +67,20 @@ export async function GET() {
     select: {
       ...clientSummarySelect,
       birthDate: true,
-      inheritanceTaxUpdatedAt: true,
       updatedAt: true,
       familyMembers: { select: { id: true, updatedAt: true } },
       snapshots: { orderBy: { fiscalYear: "desc" }, take: 1, select: {
         fiscalYear: true, asOfDate: true, updatedAt: true, estimatedInheritanceTax: true,
-        inheritanceTaxCalculation: true,
+        // 計算時刻は年度ごとに持つ。「再計算が必要」はこの年度の時刻と比べる。
+        inheritanceTaxCalculation: true, inheritanceTaxUpdatedAt: true,
         positions: { select: { side: true, valueJpy: true, includedInNetWorth: true, updatedAt: true } },
       } },
     },
     orderBy: [{ name: "asc" }, { id: "asc" }],
   });
-  return NextResponse.json(clients.map(({ snapshots, familyMembers, birthDate, inheritanceTaxUpdatedAt, updatedAt, ...client }) => {
+  return NextResponse.json(clients.map(({ snapshots, familyMembers, birthDate, updatedAt, ...client }) => {
     const snapshot = snapshots[0];
+    const inheritanceTaxUpdatedAt = snapshot?.inheritanceTaxUpdatedAt ?? null;
     let assets = 0;
     let registeredLiabilities = 0;
     let latestUpdate = snapshot && snapshot.updatedAt > updatedAt ? snapshot.updatedAt : updatedAt;

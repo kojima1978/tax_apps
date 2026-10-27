@@ -126,10 +126,10 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     [portfolio],
   );
   const loanBreakdown = useMemo(() => loanBreakdownTotals(workingSnapshot?.positions ?? []), [workingSnapshot]);
-  // 税金は年度ごとに保存している（承継関連費用だけは顧客単位）。
+  // 税金・費用はすべて年度（Snapshot）が持つ。顧客側には写しを置かない。
   const estimatedInheritanceTax = workingSnapshot?.estimatedInheritanceTax ?? 0;
   const otherTaxes = workingSnapshot?.otherTaxes ?? 0;
-  const successionCosts = portfolio?.planning.successionCosts ?? 0;
+  const successionCosts = workingSnapshot?.successionCosts ?? 0;
   const balanceView = (scenario: BalanceScenario) => buildBalanceView({
     scenario, summary, successionAssets, loanBreakdown, estimatedInheritanceTax, otherTaxes, successionCosts,
   });
@@ -344,7 +344,9 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   async function saveForecast(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!portfolio) return;
-    const body = { ...Object.fromEntries(new FormData(event.currentTarget).entries()), householdId: portfolio.household.id };
+    if (!workingSnapshot) return;
+    // 税金・費用は年度が持つので、開いている年度を指定して保存する。
+    const body = { ...Object.fromEntries(new FormData(event.currentTarget).entries()), householdId: portfolio.household.id, snapshotId: workingSnapshot.id };
     const { ok } = await mutate("/inheritance-estimate", "PUT", body, "税金・費用を保存できませんでした。");
     if (!ok) return;
     setForecastModalOpen(false);
@@ -495,7 +497,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       {modalOpen ? <div hidden={fxSettingsModalOpen}><PositionModal currencyCodes={portfolio.currencies} position={editingPosition} defaultSection={newPositionSection} defaultCategory={newPositionCategory} defaultPropertyType={newPositionPropertyType} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} onOpenFxSettings={() => setFxSettingsModalOpen(true)} /></div> : null}
       {bulkModalOpen && workingSnapshot ? <div hidden={fxSettingsModalOpen}><BulkPositionModal currencyCodes={portfolio.currencies} onOpenFxSettings={() => setFxSettingsModalOpen(true)} snapshot={workingSnapshot} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /></div> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
-      {forecastModalOpen ? <ForecastModal planning={portfolio.planning} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
+      {forecastModalOpen && workingSnapshot ? <ForecastModal snapshot={workingSnapshot} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}
       {snapshotSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal customerName={portfolio.household.name} currencyCodes={portfolio.currencies} onReloadCurrencies={() => void load()} snapshot={workingSnapshot} onClose={() => setSnapshotSettingsModalOpen(false)} onSubmit={saveSnapshotSettings} saving={saving} error={error} /> : null}
       {fxSettingsModalOpen && workingSnapshot ? <SnapshotSettingsModal customerName={portfolio.household.name} currencyCodes={portfolio.currencies} onReloadCurrencies={() => void load()} snapshot={workingSnapshot} fxOnly onClose={closeFxSettings} onSubmit={saveSnapshotSettings} saving={saving} error={error} /> : null}

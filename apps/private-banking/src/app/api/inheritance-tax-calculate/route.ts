@@ -90,15 +90,12 @@ export async function POST(request: Request) {
     ],
   };
   await prisma.$transaction(async (tx) => {
-    await tx.household.update({
-      where: { id: portfolio.household.id },
-      data: { estimatedInheritanceTax, inheritanceTaxUpdatedAt },
-    });
     await tx.snapshot.update({
       where: { id: integration.snapshotId },
       data: {
         estimatedInheritanceTax,
         inheritanceTaxCalculation: calculationRecord as Prisma.InputJsonValue,
+        inheritanceTaxUpdatedAt,
       },
     });
     await writeActivityLog(tx, { householdId: portfolio.household.id, householdName: portfolio.household.name, clientCode: portfolio.household.clientCode, action: "CALCULATE", entityType: "TAX", entityId: integration.snapshotId, summary: `相続税概算を再計算（${calculation.data.totalInheritanceTaxJpy.toLocaleString("ja-JP")}円）` });

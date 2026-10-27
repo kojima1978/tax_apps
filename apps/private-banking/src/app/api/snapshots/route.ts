@@ -82,8 +82,10 @@ export async function POST(request: Request) {
           asOfDate,
           fiscalYear,
           isCurrent: becomesCurrent,
+          // 空の年度は税金・費用も0から。前年の額を初期値として引きずらない。
           estimatedInheritanceTax: creationMode === "COPY" ? source.estimatedInheritanceTax : new Prisma.Decimal(0),
           otherTaxes: creationMode === "COPY" ? source.otherTaxes : new Prisma.Decimal(0),
+          successionCosts: creationMode === "COPY" ? source.successionCosts : new Prisma.Decimal(0),
           // 明細を引き継ぐときは、その明細に焼き込まれたレートと年度設定がずれないよう円換算レートも一緒に引き継ぐ。
           fxRates: creationMode === "COPY" ? parseFxRates(source.fxRates) : Prisma.DbNull,
           ...(creationMode === "COPY" ? { positions: {

@@ -86,11 +86,8 @@ export async function getPortfolio(householdId?: number) {
       relatedCompany: household.relatedCompany,
       currency: household.currency,
     },
+    // 税金・費用は年度（snapshots）が持つ。ここには家族構成だけを置く。
     planning: {
-      estimatedInheritanceTax: toNumber(household.estimatedInheritanceTax),
-      otherTaxes: toNumber(household.otherTaxes),
-      successionCosts: toNumber(household.successionCosts),
-      inheritanceTaxUpdatedAt: household.inheritanceTaxUpdatedAt?.toISOString() ?? null,
       hasSpouse: composition.hasSpouse,
       heirRank: composition.heirRank,
       heirCount: composition.heirCount,
@@ -120,6 +117,8 @@ export async function getPortfolio(householdId?: number) {
       estimatedInheritanceTax: toNumber(snapshot.estimatedInheritanceTax),
       inheritanceTaxCalculation: parseInheritanceTaxCalculation(snapshot.inheritanceTaxCalculation),
       otherTaxes: toNumber(snapshot.otherTaxes),
+      successionCosts: toNumber(snapshot.successionCosts),
+      inheritanceTaxUpdatedAt: snapshot.inheritanceTaxUpdatedAt?.toISOString() ?? null,
       fxRates: parseFxRates(snapshot.fxRates),
       updatedAt: snapshot.updatedAt.toISOString(),
       positions: snapshot.positions.map(toPositionView),

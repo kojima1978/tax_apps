@@ -44,10 +44,6 @@ function serializeHousehold(household: Household & { staff: { name: string; staf
     assignedStaffDetails: household.staff ? { ...household.staff } : null,
     relatedCompany: household.relatedCompany,
     currency: household.currency,
-    estimatedInheritanceTax: decimalText(household.estimatedInheritanceTax),
-    otherTaxes: decimalText(household.otherTaxes),
-    successionCosts: decimalText(household.successionCosts),
-    inheritanceTaxUpdatedAt: household.inheritanceTaxUpdatedAt?.toISOString() ?? null,
     hasSpouse: household.hasSpouse,
     heirRank: household.heirRank,
     heirCount: household.heirCount,
@@ -67,6 +63,8 @@ function serializeSnapshot(snapshot: Snapshot) {
     estimatedInheritanceTax: decimalText(snapshot.estimatedInheritanceTax),
     inheritanceTaxCalculation: snapshot.inheritanceTaxCalculation,
     otherTaxes: decimalText(snapshot.otherTaxes),
+    successionCosts: decimalText(snapshot.successionCosts),
+    inheritanceTaxUpdatedAt: snapshot.inheritanceTaxUpdatedAt?.toISOString() ?? null,
     fxRates: parseFxRates(snapshot.fxRates),
     createdAt: snapshot.createdAt.toISOString(),
     updatedAt: snapshot.updatedAt.toISOString(),
@@ -285,8 +283,8 @@ const householdFieldsSchema = z.object({
   // 関連法人も後から追加した項目のため既定値を持たせる。
   relatedCompany: z.string().max(100).default(""),
   currency: z.string().max(10).default("JPY"),
-  estimatedInheritanceTax: decimalLike.default(0),
-  otherTaxes: decimalLike.default(0),
+  // 承継関連費用と計算時刻は 2026-10-27 より前は顧客側にあった。読み取りだけ続け、
+  // 取り込み時に年度側へ移す（相続税額・その他税金は当時も年度側に同じ値があるので読まない）。
   successionCosts: decimalLike.default(0),
   inheritanceTaxUpdatedAt: z.string().nullable().default(null),
   hasSpouse: z.boolean().default(false),
@@ -302,6 +300,9 @@ const snapshotFieldsSchema = z.object({
   estimatedInheritanceTax: decimalLike.default(0),
   inheritanceTaxCalculation: z.unknown().nullable().default(null),
   otherTaxes: decimalLike.default(0),
+  // 承継関連費用・計算時刻は 2026-10-27 に年度側へ移した。無ければ顧客側の値を使う。
+  successionCosts: decimalLike.optional(),
+  inheritanceTaxUpdatedAt: z.string().nullable().optional(),
   // 円換算レートは後から追加した項目のため、旧バックアップファイルでも取り込めるようにしておく。
   fxRates: z.unknown().optional(),
 });
@@ -492,17 +493,26 @@ function householdData(row: HouseholdFields, staffId: number | null) {
     staffId,
     relatedCompany: row.relatedCompany,
     currency: row.currency,
-    estimatedInheritanceTax: toDecimal(row.estimatedInheritanceTax),
-    otherTaxes: toDecimal(row.otherTaxes),
-    successionCosts: toDecimal(row.successionCosts),
-    inheritanceTaxUpdatedAt: row.inheritanceTaxUpdatedAt === null ? null : new Date(row.inheritanceTaxUpdatedAt),
     hasSpouse: row.hasSpouse,
     heirRank: row.heirRank,
     heirCount: row.heirCount,
   };
 }
 
-function snapshotData(row: SnapshotFields) {
+/**
+ * 現在年度として扱う年度を1つ選ぶ。DB は顧客ごとに1件しか現在年度を持てないので、
+ * 現在扱いが複数あるバックアップ・1件も無いバックアップはどちらも最新年度へ寄せる。
+ */
+function currentFiscalYearOf(snapshots: { fiscalYear: number; isCurrent: boolean }[]): number | null {
+  if (snapshots.length === 0) return null;
+  const declaredCurrent = snapshots.filter((snapshot) => snapshot.isCurrent);
+  if (declaredCurrent.length === 1) return declaredCurrent[0]!.fiscalYear;
+  return Math.max(...snapshots.map((snapshot) => snapshot.fiscalYear));
+}
+
+/** 旧バックアップは承継関連費用・計算時刻を顧客側に持つので、年度に無ければそこから引く。 */
+function snapshotData(row: SnapshotFields, household: HouseholdFields) {
+  const inheritanceTaxUpdatedAt = row.inheritanceTaxUpdatedAt ?? household.inheritanceTaxUpdatedAt;
   return {
     label: row.label,
     asOfDate: toDateOnly(row.asOfDate),
@@ -513,6 +523,8 @@ function snapshotData(row: SnapshotFields) {
       ? Prisma.DbNull
       : row.inheritanceTaxCalculation as Prisma.InputJsonValue,
     otherTaxes: toDecimal(row.otherTaxes),
+    successionCosts: toDecimal(row.successionCosts ?? household.successionCosts),
+    inheritanceTaxUpdatedAt: inheritanceTaxUpdatedAt === null ? null : new Date(inheritanceTaxUpdatedAt),
     fxRates: parseFxRates(row.fxRates),
   };
 }
@@ -654,8 +666,22 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
       for (const row of households) await restoreStaffAssignments(tx, row.id, staffIdOf(row), backup.data.staffAssignments.filter((history) => history.householdId === row.id));
     }
     if (snapshots.length > 0) {
+      // 現在年度は顧客ごとに1件（DB の部分ユニーク索引）。古いバックアップには複数や
+      // 0件のものがあるので、取り込む前に同じ規則でそろえる。
+      const householdById = new Map(households.map((row) => [row.id, row]));
+      const currentByHousehold = new Map(households.map((row) => [
+        row.id,
+        currentFiscalYearOf(snapshots.filter((snapshot) => snapshot.householdId === row.id)),
+      ]));
       await tx.snapshot.createMany({
-        data: snapshots.map((row) => ({ id: row.id, householdId: row.householdId, ...snapshotData(row), createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt) })),
+        data: snapshots.map((row) => ({
+          id: row.id,
+          householdId: row.householdId,
+          ...snapshotData(row, householdById.get(row.householdId)!),
+          isCurrent: row.fiscalYear === currentByHousehold.get(row.householdId),
+          createdAt: new Date(row.createdAt),
+          updatedAt: new Date(row.updatedAt),
+        })),
       });
     }
     if (positions.length > 0) {
@@ -733,10 +759,7 @@ export async function importHousehold(backup: HouseholdBackup) {
     }
   }
 
-  // 現在年度は必ず1件にそろえる（未指定のバックアップでは最新年度を現在扱いにする）。
-  const latestFiscalYear = Math.max(...backup.snapshots.map((snapshot) => snapshot.fiscalYear));
-  const declaredCurrent = backup.snapshots.filter((snapshot) => snapshot.isCurrent);
-  const currentFiscalYear = declaredCurrent.length === 1 ? declaredCurrent[0].fiscalYear : latestFiscalYear;
+  const currentFiscalYear = currentFiscalYearOf(backup.snapshots);
 
   const clientCode = await availableClientCode(backup.household.clientCode.toUpperCase());
   await syncStaffDirectory({ force: true });
@@ -750,7 +773,7 @@ export async function importHousehold(backup: HouseholdBackup) {
       memberIds.push(createdMember.id);
     }
     for (const snapshot of backup.snapshots) {
-      const createdSnapshot = await tx.snapshot.create({ data: { householdId: household.id, ...snapshotData(snapshot), isCurrent: snapshot.fiscalYear === currentFiscalYear }, select: { id: true } });
+      const createdSnapshot = await tx.snapshot.create({ data: { householdId: household.id, ...snapshotData(snapshot, backup.household), isCurrent: snapshot.fiscalYear === currentFiscalYear }, select: { id: true } });
       for (const position of snapshot.positions) {
         const { allocations, ...positionFields } = position;
         const createdPosition = await tx.position.create({ data: { snapshotId: createdSnapshot.id, ...positionData(positionFields) }, select: { id: true } });

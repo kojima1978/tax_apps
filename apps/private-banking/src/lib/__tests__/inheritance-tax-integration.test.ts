@@ -5,10 +5,6 @@ import { createInheritanceTaxRequest } from "@/lib/inheritance-tax-integration";
 const portfolio = {
   household: { id: 7, clientCode: "PB-000007", name: "山田 太郎", nameKana: "", birthDate: null, staffId: null, assignedStaff: "", currency: "JPY" },
   planning: {
-    estimatedInheritanceTax: 0,
-    otherTaxes: 0,
-    successionCosts: 0,
-    inheritanceTaxUpdatedAt: null,
     hasSpouse: true,
     heirRank: "rank1",
     heirCount: 2,
@@ -26,6 +22,8 @@ const portfolio = {
     isCurrent: true,
     estimatedInheritanceTax: 0,
     otherTaxes: 0,
+    successionCosts: 0,
+    inheritanceTaxUpdatedAt: null,
     updatedAt: "2026-07-25T00:00:00.000Z",
     positions: [
       { side: "ASSET", valueJpy: 100_005_000 },

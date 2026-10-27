@@ -10,6 +10,8 @@ const snapshotSettingsSchema = z.object({
   asOfDate: z.string(),
   estimatedInheritanceTax: z.coerce.number().finite().min(0),
   otherTaxes: z.coerce.number().finite().min(0),
+  // 承継関連費用も年度が持つ。入力欄を持たない旧い画面から来ても落とさない。
+  successionCosts: z.coerce.number().finite().min(0).optional(),
   // 通貨→円換算レート。空欄や不正値は parseFxRates が捨てる。
   fxRates: z.unknown().optional(),
   fxRatesOnly: z.boolean().optional(),
@@ -48,10 +50,17 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
   const estimatedInheritanceTax = new Prisma.Decimal(Math.round(parsed.data.estimatedInheritanceTax));
   const otherTaxes = new Prisma.Decimal(Math.round(parsed.data.otherTaxes));
+  const successionCosts = parsed.data.successionCosts === undefined
+    ? null
+    : new Prisma.Decimal(Math.round(parsed.data.successionCosts));
   await prisma.$transaction(async (tx) => {
     await tx.snapshot.update({
       where: { id: snapshot.id },
-      data: parsed.data.fxRatesOnly ? { fxRates } : { asOfDate, estimatedInheritanceTax, inheritanceTaxCalculation: Prisma.DbNull, otherTaxes, fxRates },
+      data: parsed.data.fxRatesOnly ? { fxRates } : {
+        asOfDate, estimatedInheritanceTax, inheritanceTaxCalculation: Prisma.DbNull, otherTaxes, fxRates,
+        inheritanceTaxUpdatedAt: new Date(),
+        ...(successionCosts === null ? {} : { successionCosts }),
+      },
     });
     for (const position of foreignPositions) {
       const fxRate = fxRates[position.currency];
@@ -59,12 +68,6 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       await tx.position.update({
         where: { id: position.id },
         data: { fxRate: new Prisma.Decimal(fxRate), valueJpy: new Prisma.Decimal(valueJpy) },
-      });
-    }
-    if (snapshot.isCurrent && !parsed.data.fxRatesOnly) {
-      await tx.household.update({
-        where: { id: snapshot.householdId },
-        data: { estimatedInheritanceTax, otherTaxes, inheritanceTaxUpdatedAt: new Date() },
       });
     }
     await writeActivityLog(tx, { householdId: snapshot.household.id, householdName: snapshot.household.name, clientCode: snapshot.household.clientCode, action: "UPDATE", entityType: "SNAPSHOT", entityId: snapshot.id, summary: `${snapshot.fiscalYear}年度の設定を更新` });
@@ -103,17 +106,10 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
       });
       if (!replacement) return { status: 409, error: "現在年度を引き継ぐ年度がありません。" } as const;
 
+      // 税金・費用は年度が持っているので、引き継ぎで写すものは無い。
       await tx.snapshot.update({
         where: { id: replacement.id },
         data: { isCurrent: true, label: "現在" },
-      });
-      await tx.household.update({
-        where: { id: snapshot.householdId },
-        data: {
-          estimatedInheritanceTax: replacement.estimatedInheritanceTax,
-          otherTaxes: replacement.otherTaxes,
-          inheritanceTaxUpdatedAt: new Date(),
-        },
       });
       promotedFiscalYear = replacement.fiscalYear;
     }

@@ -28,10 +28,6 @@ const household = {
   staffId: 3,
   staff: { name: "佐藤" },
   currency: "JPY",
-  estimatedInheritanceTax: decimal(12000000),
-  otherTaxes: decimal(500000),
-  successionCosts: decimal(3000000),
-  inheritanceTaxUpdatedAt: new Date("2026-04-01T00:00:00.000Z"),
   hasSpouse: true,
   heirRank: 1,
   heirCount: 3,
@@ -45,6 +41,8 @@ const snapshot = {
   isCurrent: true,
   estimatedInheritanceTax: decimal(12000000),
   otherTaxes: decimal(500000),
+  successionCosts: decimal(3000000),
+  inheritanceTaxUpdatedAt: new Date("2026-04-01T00:00:00.000Z"),
   updatedAt: new Date("2026-04-01T09:00:00.000Z"),
   positions: [
     {
@@ -114,11 +112,8 @@ describe("getPortfolio", () => {
       assignedStaff: "佐藤",
       currency: "JPY",
     });
+    // 税金・費用は年度（snapshots）が持つので、planning は家族構成だけ。
     expect(portfolio.planning).toEqual({
-      estimatedInheritanceTax: 12000000,
-      otherTaxes: 500000,
-      successionCosts: 3000000,
-      inheritanceTaxUpdatedAt: "2026-04-01T00:00:00.000Z",
       hasSpouse: true,
       heirRank: 1,
       heirCount: 3,
@@ -128,6 +123,8 @@ describe("getPortfolio", () => {
     const [first] = portfolio.snapshots;
     expect(first.asOfDate).toBe("2025-12-31");
     expect(first.estimatedInheritanceTax).toBe(12000000);
+    expect(first.successionCosts).toBe(3000000);
+    expect(first.inheritanceTaxUpdatedAt).toBe("2026-04-01T00:00:00.000Z");
     expect(first.positions[0].valueJpy).toBe(27000000);
     expect(first.positions[0].ownershipShare).toBe(0.5);
     // 未入力の Decimal 列は null のまま返す（0 に潰さない）。

@@ -7,6 +7,8 @@ const booleanField = z.union([z.boolean(), z.enum(["true", "false"])]).transform
 
 const estimateSchema = z.object({
   householdId: z.coerce.number().int().positive(),
+  // 税金・費用は年度（Snapshot）が持つ。省略されたら現在年度を対象にする。
+  snapshotId: z.coerce.number().int().positive().optional(),
   estimatedInheritanceTax: z.coerce.number().finite().min(0).optional(),
   otherTaxes: z.coerce.number().finite().min(0).optional(),
   successionCosts: z.coerce.number().finite().min(0).optional(),
@@ -26,46 +28,53 @@ export async function PUT(request: Request) {
   const household = await prisma.household.findUnique({ where: { id: parsed.data.householdId }, select: { id: true } });
   if (!household) return NextResponse.json({ error: "管理対象がありません。" }, { status: 404 });
 
-  const data: Prisma.HouseholdUpdateInput = {};
-  const snapshotData: Prisma.SnapshotUpdateManyMutationInput = {};
+  // 年度の指定はその顧客のものに限る（ほかの顧客の年度を書き換えられないようにする）。
+  const snapshot = await prisma.snapshot.findFirst({
+    where: parsed.data.snapshotId === undefined
+      ? { householdId: household.id, isCurrent: true }
+      : { id: parsed.data.snapshotId, householdId: household.id },
+    select: { id: true },
+  });
+  if (!snapshot) return NextResponse.json({ error: "対象年度が見つかりません。" }, { status: 404 });
+
+  const snapshotData: Prisma.SnapshotUpdateInput = {};
+  const householdData: Prisma.HouseholdUpdateInput = {};
   if (parsed.data.estimatedInheritanceTax !== undefined) {
-    const estimatedInheritanceTax = new Prisma.Decimal(Math.round(parsed.data.estimatedInheritanceTax));
-    data.estimatedInheritanceTax = estimatedInheritanceTax;
-    snapshotData.estimatedInheritanceTax = estimatedInheritanceTax;
+    snapshotData.estimatedInheritanceTax = new Prisma.Decimal(Math.round(parsed.data.estimatedInheritanceTax));
+    // 手で入れ直した額なので、計算結果の内訳は残さない。
     snapshotData.inheritanceTaxCalculation = Prisma.DbNull;
-    data.inheritanceTaxUpdatedAt = new Date();
+    snapshotData.inheritanceTaxUpdatedAt = new Date();
   }
   if (parsed.data.otherTaxes !== undefined) {
-    const otherTaxes = new Prisma.Decimal(Math.round(parsed.data.otherTaxes));
-    data.otherTaxes = otherTaxes;
-    snapshotData.otherTaxes = otherTaxes;
+    snapshotData.otherTaxes = new Prisma.Decimal(Math.round(parsed.data.otherTaxes));
   }
   if (parsed.data.successionCosts !== undefined) {
-    data.successionCosts = new Prisma.Decimal(Math.round(parsed.data.successionCosts));
+    snapshotData.successionCosts = new Prisma.Decimal(Math.round(parsed.data.successionCosts));
   }
   // 家族構成は親族関係タブの明細を唯一の真実の源とする。明細が1件でもあれば、
   // 簡易入力（hasSpouse/heirRank/heirCount）は受け付けず明細から導出した値を優先する。
   const familyMemberCount = await prisma.familyMember.count({ where: { householdId: household.id } });
   if (familyMemberCount === 0) {
-    if (parsed.data.hasSpouse !== undefined) data.hasSpouse = parsed.data.hasSpouse;
-    if (parsed.data.heirRank !== undefined) data.heirRank = parsed.data.heirRank;
-    if (parsed.data.heirCount !== undefined) data.heirCount = parsed.data.heirCount;
+    if (parsed.data.hasSpouse !== undefined) householdData.hasSpouse = parsed.data.hasSpouse;
+    if (parsed.data.heirRank !== undefined) householdData.heirRank = parsed.data.heirRank;
+    if (parsed.data.heirCount !== undefined) householdData.heirCount = parsed.data.heirCount;
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const updatedHousehold = await tx.household.update({ where: { id: household.id }, data });
-    if (Object.keys(snapshotData).length > 0) {
-      await tx.snapshot.updateMany({ where: { householdId: household.id, isCurrent: true }, data: snapshotData });
-    }
-    return updatedHousehold;
+    const updatedSnapshot = await tx.snapshot.update({ where: { id: snapshot.id }, data: snapshotData });
+    const updatedHousehold = Object.keys(householdData).length > 0
+      ? await tx.household.update({ where: { id: household.id }, data: householdData })
+      : await tx.household.findUniqueOrThrow({ where: { id: household.id } });
+    return { snapshot: updatedSnapshot, household: updatedHousehold };
   });
   return NextResponse.json({
-    estimatedInheritanceTax: Number(updated.estimatedInheritanceTax.toString()),
-    otherTaxes: Number(updated.otherTaxes.toString()),
-    successionCosts: Number(updated.successionCosts.toString()),
-    inheritanceTaxUpdatedAt: updated.inheritanceTaxUpdatedAt?.toISOString() ?? null,
-    hasSpouse: updated.hasSpouse,
-    heirRank: updated.heirRank,
-    heirCount: updated.heirCount,
+    snapshotId: updated.snapshot.id,
+    estimatedInheritanceTax: Number(updated.snapshot.estimatedInheritanceTax.toString()),
+    otherTaxes: Number(updated.snapshot.otherTaxes.toString()),
+    successionCosts: Number(updated.snapshot.successionCosts.toString()),
+    inheritanceTaxUpdatedAt: updated.snapshot.inheritanceTaxUpdatedAt?.toISOString() ?? null,
+    hasSpouse: updated.household.hasSpouse,
+    heirRank: updated.household.heirRank,
+    heirCount: updated.household.heirCount,
   });
 }

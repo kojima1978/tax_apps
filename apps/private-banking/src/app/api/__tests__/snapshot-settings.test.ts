@@ -29,12 +29,16 @@ describe("年度・為替設定の保存", () => {
     expect(db.position.update.mock.calls[0][0].data.valueJpy.toString()).toBe("150250");
   });
 
-  it("年度設定では従来どおり税額を更新する", async () => {
+  // 税額は年度（Snapshot）だけが持つ。顧客側へ写しを書かないことまで見る。
+  it("年度設定では年度の税額だけを更新する", async () => {
     expect((await save(false)).status).toBe(200);
-    expect(db.household.update).toHaveBeenCalledOnce();
+    expect(db.household.update).not.toHaveBeenCalled();
     const update = db.snapshot.update.mock.calls[0][0];
     expect(update.data.estimatedInheritanceTax.toString()).toBe("12345678");
     expect(update.data.otherTaxes.toString()).toBe("987654");
+    expect(update.data.inheritanceTaxUpdatedAt).toBeInstanceOf(Date);
+    // 入力欄を持たない旧い画面から来ても、年度の承継関連費用は0に落とさない。
+    expect(update.data).not.toHaveProperty("successionCosts");
   });
 
   it("既存の外貨明細が使うレートの削除は保存しない", async () => {

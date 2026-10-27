@@ -19,6 +19,7 @@ const position = (overrides: Partial<Position>): Position => ({
 const snapshotOf = (positions: Position[]): Snapshot => ({
   id: 1, label: "現在", asOfDate: "2026-08-29", fiscalYear: 2026, isCurrent: true,
   estimatedInheritanceTax: 0, inheritanceTaxCalculation: null, otherTaxes: 0,
+  successionCosts: 0, inheritanceTaxUpdatedAt: null,
   fxRates: {} as Snapshot["fxRates"], updatedAt: "2026-08-29T00:00:00.000Z", positions,
 });
 

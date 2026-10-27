@@ -27,10 +27,8 @@ model Household {
   /// 関連法人の名称。検索と記録のためだけに持ち、計算には使わない。
   relatedCompany          String     @default("")
   currency                String     @default("JPY")
-  estimatedInheritanceTax Decimal    @default(0) @db.Decimal(24, 0)
-  otherTaxes              Decimal    @default(0) @db.Decimal(24, 0)
-  successionCosts         Decimal    @default(0) @db.Decimal(24, 0)
-  inheritanceTaxUpdatedAt DateTime?
+  /// 相続税・その他税金・承継関連費用は年度（Snapshot）が持つ。顧客側には置かない
+  /// ── 写しを持つと年度を増やした瞬間に食い違い、前年の税額が新年度の初期値になる。
   hasSpouse               Boolean    @default(false)
   heirRank                String     @default("rank1")
   heirCount               Int        @default(1)
@@ -152,6 +150,9 @@ model Snapshot {
   estimatedInheritanceTax Decimal    @default(0) @db.Decimal(24, 0)
   inheritanceTaxCalculation Json?
   otherTaxes              Decimal    @default(0) @db.Decimal(24, 0)
+  successionCosts         Decimal    @default(0) @db.Decimal(24, 0)
+  /// 相続税を計算（または手で入力）した時刻。年度ごとに持つ。
+  inheritanceTaxUpdatedAt DateTime?
   /// 通貨→円換算レート。明細ではなく年度で持つ（例: {"USD": 150.25}）。
   fxRates                 Json?
   positions               Position[]
@@ -160,7 +161,9 @@ model Snapshot {
 
   @@index([householdId, asOfDate])
   @@unique([householdId, fiscalYear])
-  @@index([isCurrent])
+  /// 現在年度は顧客ごとに1つ。部分ユニーク索引は schema で書けないので
+  /// 20261027000000_snapshot_owns_taxes の migration.sql に置いてある
+  /// （Snapshot_householdId_isCurrent_key）。`@@index([isCurrent])` はその索引で足りる。
 }
 
 model Position {
