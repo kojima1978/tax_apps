@@ -4,6 +4,7 @@ import { getSampleFamilyMembers, getSampleAgency, getSamplePolicies } from '@/li
 import { isIncomeProtectionPolicyType, normalizePolicyType, SURRENDER_PROJECTION_MODES } from '@/types';
 import type { AppState, FamilyMember, Policy, Agency, BeneficiaryAllocation, EvaluationOverride, SurrenderValuePoint, ValuationSettings } from '@/types';
 import { normalizeBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
+import { applyValuationRateToPolicy, inferValuationSettings, yenFromUsd } from '@/utils/currencyUtils';
 
 interface FamilyMemberRow {
   id: string;
@@ -35,13 +36,6 @@ interface PolicyRow {
   policy_end_age: number;
   currency: string;
   exchange_rate: number;
-  foreign_premium_amount: number;
-  foreign_death_benefit_disease: number;
-  foreign_death_benefit_accident: number;
-  foreign_hosp_day_disease: number;
-  foreign_hosp_day_accident: number;
-  foreign_diagnosis_benefit: number;
-  foreign_maturity_benefit: number;
   payment_frequency: string;
   premium_amount: number;
   payment_end_date: string | null;
@@ -228,6 +222,95 @@ function parseValuationSettings(raw: string | null): ValuationSettings | undefin
   }
 }
 
+/**
+ * 保存する金額は「契約通貨での額」。外貨建て(USD)の契約は外貨の欄が本物で、円換算額は
+ * 読み出し時にその案件のレートから作る（applyValuationRateToPolicy）ので列には入れない。
+ */
+function policyAmountsForStorage(policy: Policy) {
+  const isForeign = (policy.currency ?? 'JPY') === 'USD';
+  const premiumAmount = isForeign ? policy.foreignPremiumAmount ?? 0 : policy.premiumAmount ?? 0;
+  return {
+    premiumAmount,
+    // 年額保険料は保険料から導く値。外貨建ては外貨の保険料から作る
+    annualPremium: isForeign
+      ? premiumAmount * (policy.paymentFrequency === 'monthly' ? 12 : 1)
+      : policy.annualPremium ?? 0,
+    deathBenefitDisease: isForeign ? policy.foreignDeathBenefitDisease ?? 0 : policy.deathBenefitDisease ?? 0,
+    deathBenefitAccident: isForeign ? policy.foreignDeathBenefitAccident ?? 0 : policy.deathBenefitAccident ?? 0,
+    hospDayDisease: isForeign ? policy.foreignHospDayDisease ?? 0 : policy.hospDayDisease ?? 0,
+    hospDayAccident: isForeign ? policy.foreignHospDayAccident ?? 0 : policy.hospDayAccident ?? 0,
+    diagnosisBenefit: isForeign ? policy.foreignDiagnosisBenefit ?? 0 : policy.diagnosisBenefit ?? 0,
+    maturityBenefit: isForeign ? policy.foreignMaturityBenefit ?? 0 : policy.maturityBenefit ?? 0,
+  };
+}
+
+/**
+ * policies への INSERT はサンプル投入・保存・CSV取込の3箇所にある。列を足したときに
+ * 片方だけ直す事故を防ぐため、SQL と値の組み立てはここだけに置く。
+ * pension_settings / premium_payment_completed / payment_details / surrender_projection は
+ * 3箇所とも挿入の後に UPDATE で入れているので、ここには含めない。
+ */
+export const POLICY_INSERT_SQL = `
+  INSERT INTO policies (
+    id, case_id, company_name, policy_type, policy_number, contract_date, contract_age,
+    insured_member_id, beneficiary_member_id,
+    death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit,
+    policy_end_age, currency, exchange_rate,
+    payment_frequency, premium_amount, payment_end_date, payment_end_age,
+    annual_premium, maturity_benefit,
+    surrender_values, consultant_note, evaluation_overrides,
+    sort_order, created_at, updated_at
+  ) VALUES (
+    @id, @caseId, @companyName, @policyType, @policyNumber, @contractDate, @contractAge,
+    @insuredMemberId, @beneficiaryMemberId,
+    @deathBenefitDisease, @deathBenefitAccident, @hospDayDisease, @hospDayAccident, @diagnosisBenefit,
+    @policyEndAge, @currency, @exchangeRate,
+    @paymentFrequency, @premiumAmount, @paymentEndDate, @paymentEndAge,
+    @annualPremium, @maturityBenefit,
+    @surrenderValues, @consultantNote, @evaluationOverrides,
+    @sortOrder, @createdAt, @updatedAt
+  )
+`;
+
+export function policyInsertParams(
+  policy: Policy,
+  options: { caseId: string; sortOrder: number; timestamp: string; paymentEndDate?: string | null },
+): Record<string, string | number | null> {
+  const amounts = policyAmountsForStorage(policy);
+  return {
+    id: policy.id,
+    caseId: options.caseId,
+    companyName: policy.companyName,
+    policyType: policy.policyType,
+    policyNumber: policy.policyNumber || null,
+    contractDate: policy.contractDate,
+    contractAge: policy.contractAge,
+    insuredMemberId: policy.insuredId,
+    beneficiaryMemberId: policy.beneficiaryId || null,
+    deathBenefitDisease: amounts.deathBenefitDisease,
+    deathBenefitAccident: amounts.deathBenefitAccident,
+    hospDayDisease: amounts.hospDayDisease,
+    hospDayAccident: amounts.hospDayAccident,
+    diagnosisBenefit: amounts.diagnosisBenefit,
+    policyEndAge: policy.policyEndAge,
+    currency: policy.currency ?? 'JPY',
+    // 保存時のレートの控え。案件のレートが未設定の DB から引き継ぐためだけに残している
+    exchangeRate: policy.exchangeRate ?? 0,
+    paymentFrequency: policy.paymentFrequency,
+    premiumAmount: amounts.premiumAmount,
+    paymentEndDate: options.paymentEndDate ?? null,
+    paymentEndAge: policy.paymentEndAge,
+    annualPremium: amounts.annualPremium,
+    maturityBenefit: amounts.maturityBenefit,
+    surrenderValues: policy.surrenderValues?.length ? JSON.stringify(policy.surrenderValues) : null,
+    consultantNote: policy.consultantNote ?? null,
+    evaluationOverrides: policy.evaluationOverrides?.length ? JSON.stringify(policy.evaluationOverrides) : null,
+    sortOrder: options.sortOrder,
+    createdAt: options.timestamp,
+    updatedAt: options.timestamp,
+  };
+}
+
 function normalizePolicyForStorage(policy: Policy): Policy {
   const policyType = normalizePolicyType(policy.policyType);
   const isIncomeProtection = isIncomeProtectionPolicyType(policyType);
@@ -249,6 +332,11 @@ function rowToPolicy(row: PolicyRow, allocations: BeneficiaryAllocation[]): Poli
   const insuredId = row.insured_member_id;
   const paymentEndAge = row.payment_end_age;
   const policyEndAge = row.policy_end_age;
+  // 金額の列は契約通貨での額。外貨建ては行に残っている保存時のレートで一旦円に直し、
+  // 案件のレートは getAppState が掛け直す
+  const isForeign = row.currency === 'USD';
+  const yen = (amount: number) => (isForeign ? yenFromUsd(amount, row.exchange_rate) : amount);
+  const foreign = (amount: number) => (isForeign ? amount : 0);
   return normalizePolicyForStorage({
     id: row.id,
     companyName: row.company_name,
@@ -259,27 +347,27 @@ function rowToPolicy(row: PolicyRow, allocations: BeneficiaryAllocation[]): Poli
     insuredId,
     beneficiaryId: row.beneficiary_member_id ?? '',
     beneficiaryAllocations: normalizeBeneficiaryAllocations(allocations, row.beneficiary_member_id ?? ''),
-    deathBenefitDisease: row.death_benefit_disease,
-    deathBenefitAccident: row.death_benefit_accident,
-    hospDayDisease: row.hosp_day_disease,
-    hospDayAccident: row.hosp_day_accident,
-    diagnosisBenefit: row.diagnosis_benefit,
+    deathBenefitDisease: yen(row.death_benefit_disease),
+    deathBenefitAccident: yen(row.death_benefit_accident),
+    hospDayDisease: yen(row.hosp_day_disease),
+    hospDayAccident: yen(row.hosp_day_accident),
+    diagnosisBenefit: yen(row.diagnosis_benefit),
     policyEndAge,
-    currency: row.currency === 'USD' ? 'USD' : 'JPY',
+    currency: isForeign ? 'USD' : 'JPY',
     exchangeRate: row.exchange_rate,
-    foreignPremiumAmount: row.foreign_premium_amount,
-    foreignDeathBenefitDisease: row.foreign_death_benefit_disease,
-    foreignDeathBenefitAccident: row.foreign_death_benefit_accident,
-    foreignHospDayDisease: row.foreign_hosp_day_disease,
-    foreignHospDayAccident: row.foreign_hosp_day_accident,
-    foreignDiagnosisBenefit: row.foreign_diagnosis_benefit,
-    foreignMaturityBenefit: row.foreign_maturity_benefit,
+    foreignPremiumAmount: foreign(row.premium_amount),
+    foreignDeathBenefitDisease: foreign(row.death_benefit_disease),
+    foreignDeathBenefitAccident: foreign(row.death_benefit_accident),
+    foreignHospDayDisease: foreign(row.hosp_day_disease),
+    foreignHospDayAccident: foreign(row.hosp_day_accident),
+    foreignDiagnosisBenefit: foreign(row.diagnosis_benefit),
+    foreignMaturityBenefit: foreign(row.maturity_benefit),
     paymentFrequency: row.payment_frequency as Policy['paymentFrequency'],
-    premiumAmount: row.premium_amount,
+    premiumAmount: yen(row.premium_amount),
     paymentEndAge,
     premiumPaymentCompleted: Boolean(row.premium_payment_completed),
-    annualPremium: row.annual_premium,
-    maturityBenefit: row.maturity_benefit,
+    annualPremium: yen(row.annual_premium),
+    maturityBenefit: yen(row.maturity_benefit),
     surrenderValues: parseSurrenderValues(row.surrender_values),
     surrenderProjection: SURRENDER_PROJECTION_MODES.find(mode => mode === row.surrender_projection),
     consultantNote: row.consultant_note ?? undefined,
@@ -327,48 +415,16 @@ function insertSampleData(caseId: string): void {
   }
 
   const policies = getSamplePolicies();
-  const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, currency, exchange_rate, foreign_premium_amount, foreign_death_benefit_disease, foreign_death_benefit_accident, foreign_hosp_day_disease, foreign_hosp_day_accident, foreign_diagnosis_benefit, foreign_maturity_benefit, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, surrender_values, consultant_note, evaluation_overrides, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const insertPolicy = db.prepare(POLICY_INSERT_SQL);
   for (let i = 0; i < policies.length; i++) {
     const p = policies[i];
     const policyId = uuidv4();
-    insertPolicy.run(
-      policyId,
-      caseId,
-      p.companyName,
-      p.policyType,
-      p.policyNumber || null,
-      p.contractDate,
-      p.contractAge,
-      memberIdMap.get(p.insuredId) || p.insuredId,
-      p.beneficiaryId ? memberIdMap.get(p.beneficiaryId) || p.beneficiaryId : null,
-      p.deathBenefitDisease,
-      p.deathBenefitAccident,
-      p.hospDayDisease,
-      p.hospDayAccident,
-      p.diagnosisBenefit,
-      p.policyEndAge,
-      p.currency ?? 'JPY',
-      p.exchangeRate ?? 0,
-      p.foreignPremiumAmount ?? 0,
-      p.foreignDeathBenefitDisease ?? 0,
-      p.foreignDeathBenefitAccident ?? 0,
-      p.foreignHospDayDisease ?? 0,
-      p.foreignHospDayAccident ?? 0,
-      p.foreignDiagnosisBenefit ?? 0,
-      p.foreignMaturityBenefit ?? 0,
-      p.paymentFrequency,
-      p.premiumAmount,
-      null,
-      p.paymentEndAge,
-      p.annualPremium,
-      p.maturityBenefit,
-      p.surrenderValues?.length ? JSON.stringify(p.surrenderValues) : null,
-      p.consultantNote ?? null,
-      p.evaluationOverrides?.length ? JSON.stringify(p.evaluationOverrides) : null,
-      i,
-      ts,
-      ts,
-    );
+    insertPolicy.run(policyInsertParams({
+      ...p,
+      id: policyId,
+      insuredId: memberIdMap.get(p.insuredId) || p.insuredId,
+      beneficiaryId: p.beneficiaryId ? memberIdMap.get(p.beneficiaryId) || p.beneficiaryId : '',
+    }, { caseId, sortOrder: i, timestamp: ts }));
     const mappedAllocations = normalizeBeneficiaryAllocations(p.beneficiaryAllocations, p.beneficiaryId).map(allocation => ({
       ...allocation,
       beneficiaryId: memberIdMap.get(allocation.beneficiaryId) || allocation.beneficiaryId,
@@ -391,11 +447,18 @@ export function getAppState(caseId: string): AppState | null {
   const metaRow = db.prepare('SELECT updated_at, schema_version, valuation_settings FROM app_state_meta WHERE case_id = ?').get(caseId) as MetaRow | undefined;
   const beneficiariesByPolicy = readBeneficiariesByPolicy(caseId);
 
+  const policies = policyRows.map(row => rowToPolicy(row, beneficiariesByPolicy.get(row.id) ?? []));
+  const valuationSettings = parseValuationSettings(metaRow?.valuation_settings ?? null);
+  // 外貨建ての円換算額は保存していないので、読み出しのここで今のレートから作る。
+  // 画面だけで掛けていた頃は、エクスポート・バックアップ・portfolio-insights が
+  // 保存時のレートのままの円額を吐いていた
+  const { usdJpyRate } = inferValuationSettings(valuationSettings, policies);
+
   return {
     familyMembers: memberRows.map(rowToFamilyMember),
-    policies: policyRows.map(row => rowToPolicy(row, beneficiariesByPolicy.get(row.id) ?? [])),
+    policies: policies.map(policy => applyValuationRateToPolicy(policy, usdJpyRate)),
     agency: agencyRow ? rowToAgency(agencyRow) : { name: '', representative: '', phone: '' },
-    valuationSettings: parseValuationSettings(metaRow?.valuation_settings ?? null),
+    valuationSettings,
     updatedAt: metaRow?.updated_at ?? undefined,
   };
 }
@@ -440,14 +503,14 @@ export function saveAppState(caseId: string, state: AppState): AppState {
       db.prepare('INSERT INTO agencies (id, case_id, name, representative, phone, logo_data_url, print_logo, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(uuidv4(), caseId, state.agency.name, state.agency.representative, state.agency.phone, logoDataUrl, printLogo, ts, ts);
     }
 
-    const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, currency, exchange_rate, foreign_premium_amount, foreign_death_benefit_disease, foreign_death_benefit_accident, foreign_hosp_day_disease, foreign_hosp_day_accident, foreign_diagnosis_benefit, foreign_maturity_benefit, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, surrender_values, consultant_note, evaluation_overrides, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertPolicy = db.prepare(POLICY_INSERT_SQL);
     const updatePensionSettings = db.prepare('UPDATE policies SET pension_settings = ? WHERE id = ?');
     const updatePaymentCompleted = db.prepare('UPDATE policies SET premium_payment_completed = ? WHERE id = ?');
     const updatePaymentDetails = db.prepare('UPDATE policies SET payment_details = ? WHERE id = ?');
     const updateSurrenderProjection = db.prepare('UPDATE policies SET surrender_projection = ? WHERE id = ?');
     for (let i = 0; i < state.policies.length; i++) {
       const p = normalizePolicyForStorage(state.policies[i]);
-      insertPolicy.run(p.id, caseId, p.companyName, p.policyType, p.policyNumber || null, p.contractDate, p.contractAge, p.insuredId, p.beneficiaryId || null, p.deathBenefitDisease, p.deathBenefitAccident, p.hospDayDisease, p.hospDayAccident, p.diagnosisBenefit, p.policyEndAge, p.currency ?? 'JPY', p.exchangeRate ?? 0, p.foreignPremiumAmount ?? 0, p.foreignDeathBenefitDisease ?? 0, p.foreignDeathBenefitAccident ?? 0, p.foreignHospDayDisease ?? 0, p.foreignHospDayAccident ?? 0, p.foreignDiagnosisBenefit ?? 0, p.foreignMaturityBenefit ?? 0, p.paymentFrequency, p.premiumAmount, null, p.paymentEndAge, p.annualPremium, p.maturityBenefit, p.surrenderValues?.length ? JSON.stringify(p.surrenderValues) : null, p.consultantNote ?? null, p.evaluationOverrides?.length ? JSON.stringify(p.evaluationOverrides) : null, i, ts, ts);
+      insertPolicy.run(policyInsertParams(p, { caseId, sortOrder: i, timestamp: ts }));
       updatePensionSettings.run(serializePensionSettings(p), p.id);
       updatePaymentCompleted.run(p.premiumPaymentCompleted ? 1 : 0, p.id);
       updatePaymentDetails.run(serializePaymentDetails(p), p.id);

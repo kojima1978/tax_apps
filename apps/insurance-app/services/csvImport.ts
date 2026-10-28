@@ -2,7 +2,7 @@ import { parse } from 'csv-parse/sync';
 import iconv from 'iconv-lite';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db';
-import { getAppState } from '@/services/appState';
+import { getAppState, POLICY_INSERT_SQL, policyInsertParams } from '@/services/appState';
 import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType, normalizePolicyType } from '@/types';
 import type { Policy, PolicyType, FamilyMember, AppState } from '@/types';
 
@@ -558,32 +558,13 @@ export function importCsv(
       }
     }
 
-    const insertPolicy = db.prepare(`INSERT INTO policies (id, case_id, company_name, policy_type, policy_number, contract_date, contract_age, insured_member_id, beneficiary_member_id, death_benefit_disease, death_benefit_accident, hosp_day_disease, hosp_day_accident, diagnosis_benefit, policy_end_age, currency, exchange_rate, foreign_premium_amount, foreign_death_benefit_disease, foreign_death_benefit_accident, foreign_hosp_day_disease, foreign_hosp_day_accident, foreign_diagnosis_benefit, foreign_maturity_benefit, payment_frequency, premium_amount, payment_end_date, payment_end_age, annual_premium, maturity_benefit, consultant_note, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertPolicy = db.prepare(POLICY_INSERT_SQL);
     const updatePensionSettings = db.prepare('UPDATE policies SET pension_settings = ? WHERE id = ?');
     const updatePaymentCompleted = db.prepare('UPDATE policies SET premium_payment_completed = ? WHERE id = ?');
     const updatePaymentDetails = db.prepare('UPDATE policies SET payment_details = ? WHERE id = ?');
 
     for (const { policy, paymentEndDate } of parsed) {
-      insertPolicy.run(
-        policy.id, caseId, policy.companyName, policy.policyType,
-        policy.policyNumber || null, policy.contractDate, policy.contractAge,
-        policy.insuredId, policy.beneficiaryId || null,
-        policy.deathBenefitDisease, policy.deathBenefitAccident,
-        policy.hospDayDisease, policy.hospDayAccident,
-        policy.diagnosisBenefit, policy.policyEndAge,
-        policy.currency ?? 'JPY', policy.exchangeRate ?? 0,
-        policy.foreignPremiumAmount ?? 0,
-        policy.foreignDeathBenefitDisease ?? 0,
-        policy.foreignDeathBenefitAccident ?? 0,
-        policy.foreignHospDayDisease ?? 0,
-        policy.foreignHospDayAccident ?? 0,
-        policy.foreignDiagnosisBenefit ?? 0,
-        policy.foreignMaturityBenefit ?? 0,
-        policy.paymentFrequency, policy.premiumAmount,
-        paymentEndDate, policy.paymentEndAge,
-        policy.annualPremium, policy.maturityBenefit,
-        policy.consultantNote ?? null, nextSort, ts, ts,
-      );
+      insertPolicy.run(policyInsertParams(policy, { caseId, sortOrder: nextSort, timestamp: ts, paymentEndDate }));
       if (policy.policyType === '個人年金保険') {
         updatePensionSettings.run(JSON.stringify({
           pensionRecipientId: policy.pensionRecipientId || policy.insuredId,

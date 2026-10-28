@@ -62,6 +62,67 @@ export function checkDbHealth(): string | null {
   }
 }
 
+/**
+ * policies の作り。金額の列は「契約通貨での額」で、円建ての契約は円、外貨建ての契約は
+ * 外貨（USD）が入る。円換算額は読み出し時にその案件のレートで作る
+ * （applyValuationRateToPolicy）ので列には持たない ── 保存した写しは誰も維持しておらず、
+ * 実際に「外貨額 × 今のレート」と食い違っていた。
+ * 移行で同じ形の表を作り直すため、DDL はここ1箇所に置いて両方から使う。
+ */
+const policiesTableDdl = (createStatement: string) => `${createStatement} (
+      id TEXT PRIMARY KEY,
+      case_id TEXT NOT NULL,
+      company_name TEXT NOT NULL,
+      policy_type TEXT NOT NULL,
+      policy_number TEXT,
+      contract_date TEXT NOT NULL,
+      contract_age INTEGER NOT NULL,
+      insured_member_id TEXT NOT NULL,
+      beneficiary_member_id TEXT,
+      pension_settings TEXT,
+      death_benefit_disease REAL NOT NULL DEFAULT 0,
+      death_benefit_accident REAL NOT NULL DEFAULT 0,
+      hosp_day_disease REAL NOT NULL DEFAULT 0,
+      hosp_day_accident REAL NOT NULL DEFAULT 0,
+      diagnosis_benefit REAL NOT NULL DEFAULT 0,
+      policy_end_age INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'JPY' CHECK (currency IN ('JPY', 'USD')),
+      -- 保存した時点の円換算レート。案件のレート（app_state_meta.valuation_settings）が
+      -- 無い DB から引き継ぐための控えで、新しい入力では使わない
+      exchange_rate REAL NOT NULL DEFAULT 0,
+      payment_frequency TEXT NOT NULL CHECK (payment_frequency IN ('monthly', 'annual', 'single')),
+      premium_amount REAL NOT NULL DEFAULT 0,
+      payment_end_date TEXT,
+      payment_end_age INTEGER NOT NULL,
+      premium_payment_completed INTEGER NOT NULL DEFAULT 0,
+      payment_details TEXT,
+      annual_premium REAL NOT NULL DEFAULT 0,
+      maturity_benefit REAL NOT NULL DEFAULT 0,
+      surrender_projection TEXT,
+      surrender_values TEXT,
+      evaluation_overrides TEXT,
+      consultant_note TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+      FOREIGN KEY (insured_member_id) REFERENCES family_members(id) ON DELETE RESTRICT,
+      FOREIGN KEY (beneficiary_member_id) REFERENCES family_members(id) ON DELETE SET NULL
+    );`;
+
+/** 表を作り直すと索引も消えるので、こちらも1箇所に置いて移行から作り直す */
+const POLICY_INDEX_DDL = `CREATE INDEX IF NOT EXISTS idx_policies_case_id_sort_order
+      ON policies(case_id, sort_order);
+
+    CREATE INDEX IF NOT EXISTS idx_policies_case_id_policy_number
+      ON policies(case_id, policy_number);
+
+    CREATE INDEX IF NOT EXISTS idx_policies_insured_member_id
+      ON policies(insured_member_id);
+
+    CREATE INDEX IF NOT EXISTS idx_policies_beneficiary_member_id
+      ON policies(beneficiary_member_id);`;
+
 function runMigrations(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS cases (
@@ -98,49 +159,7 @@ function runMigrations(db: Database.Database): void {
       FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS policies (
-      id TEXT PRIMARY KEY,
-      case_id TEXT NOT NULL,
-      company_name TEXT NOT NULL,
-      policy_type TEXT NOT NULL,
-      policy_number TEXT,
-      contract_date TEXT NOT NULL,
-      contract_age INTEGER NOT NULL,
-      insured_member_id TEXT NOT NULL,
-      beneficiary_member_id TEXT,
-      pension_settings TEXT,
-      death_benefit_disease INTEGER NOT NULL DEFAULT 0,
-      death_benefit_accident INTEGER NOT NULL DEFAULT 0,
-      hosp_day_disease INTEGER NOT NULL DEFAULT 0,
-      hosp_day_accident INTEGER NOT NULL DEFAULT 0,
-      diagnosis_benefit INTEGER NOT NULL DEFAULT 0,
-      policy_end_age INTEGER NOT NULL,
-      currency TEXT NOT NULL DEFAULT 'JPY' CHECK (currency IN ('JPY', 'USD')),
-      exchange_rate REAL NOT NULL DEFAULT 0,
-      foreign_premium_amount REAL NOT NULL DEFAULT 0,
-      foreign_death_benefit_disease REAL NOT NULL DEFAULT 0,
-      foreign_death_benefit_accident REAL NOT NULL DEFAULT 0,
-      foreign_hosp_day_disease REAL NOT NULL DEFAULT 0,
-      foreign_hosp_day_accident REAL NOT NULL DEFAULT 0,
-      foreign_diagnosis_benefit REAL NOT NULL DEFAULT 0,
-      foreign_maturity_benefit REAL NOT NULL DEFAULT 0,
-      payment_frequency TEXT NOT NULL CHECK (payment_frequency IN ('monthly', 'annual', 'single')),
-      premium_amount INTEGER NOT NULL DEFAULT 0,
-      payment_end_date TEXT,
-      payment_end_age INTEGER NOT NULL,
-      premium_payment_completed INTEGER NOT NULL DEFAULT 0,
-      payment_details TEXT,
-      annual_premium INTEGER NOT NULL DEFAULT 0,
-      maturity_benefit INTEGER NOT NULL DEFAULT 0,
-      surrender_projection TEXT,
-      consultant_note TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
-      FOREIGN KEY (insured_member_id) REFERENCES family_members(id) ON DELETE RESTRICT,
-      FOREIGN KEY (beneficiary_member_id) REFERENCES family_members(id) ON DELETE SET NULL
-    );
+    ${policiesTableDdl('CREATE TABLE IF NOT EXISTS policies')}
 
     -- 死亡保険金の受取人ごとの受取割合。1件の契約に複数人並ぶので policies の
     -- JSON 列（beneficiary_allocations）から表へ移した。合計を100%にする決まりは
@@ -205,17 +224,7 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_family_members_case_id_sort_order
       ON family_members(case_id, sort_order);
 
-    CREATE INDEX IF NOT EXISTS idx_policies_case_id_sort_order
-      ON policies(case_id, sort_order);
-
-    CREATE INDEX IF NOT EXISTS idx_policies_case_id_policy_number
-      ON policies(case_id, policy_number);
-
-    CREATE INDEX IF NOT EXISTS idx_policies_insured_member_id
-      ON policies(insured_member_id);
-
-    CREATE INDEX IF NOT EXISTS idx_policies_beneficiary_member_id
-      ON policies(beneficiary_member_id);
+    ${POLICY_INDEX_DDL}
 
     CREATE INDEX IF NOT EXISTS idx_policy_beneficiaries_member
       ON policy_beneficiaries(beneficiary_member_id);
@@ -242,13 +251,6 @@ function runMigrations(db: Database.Database): void {
   const optionalPolicyColumns = [
     `ALTER TABLE policies ADD COLUMN currency TEXT NOT NULL DEFAULT 'JPY' CHECK (currency IN ('JPY', 'USD'))`,
     `ALTER TABLE policies ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 0`,
-    `ALTER TABLE policies ADD COLUMN foreign_premium_amount REAL NOT NULL DEFAULT 0`,
-    `ALTER TABLE policies ADD COLUMN foreign_death_benefit_disease REAL NOT NULL DEFAULT 0`,
-    `ALTER TABLE policies ADD COLUMN foreign_death_benefit_accident REAL NOT NULL DEFAULT 0`,
-    `ALTER TABLE policies ADD COLUMN foreign_hosp_day_disease REAL NOT NULL DEFAULT 0`,
-    `ALTER TABLE policies ADD COLUMN foreign_hosp_day_accident REAL NOT NULL DEFAULT 0`,
-    `ALTER TABLE policies ADD COLUMN foreign_diagnosis_benefit REAL NOT NULL DEFAULT 0`,
-    `ALTER TABLE policies ADD COLUMN foreign_maturity_benefit REAL NOT NULL DEFAULT 0`,
     `ALTER TABLE policies ADD COLUMN pension_settings TEXT`,
     `ALTER TABLE policies ADD COLUMN premium_payment_completed INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE policies ADD COLUMN payment_details TEXT`,
@@ -264,6 +266,7 @@ function runMigrations(db: Database.Database): void {
   }
 
   migrateBeneficiaryAllocations(db);
+  migratePolicyAmountsToContractCurrency(db);
 
   try {
     db.exec(`ALTER TABLE app_state_meta ADD COLUMN valuation_settings TEXT`);
@@ -284,6 +287,128 @@ function runMigrations(db: Database.Database): void {
     } catch {
       // column already exists
     }
+  }
+}
+
+/** 金額の列を契約通貨へ揃えた版。これより後の移行はこの番号を増やす */
+const SCHEMA_VERSION_CONTRACT_CURRENCY_AMOUNTS = 1;
+
+/** 畳む前の対（円の列 → 外貨の列）。移行とその後片付けの両方がこの表から動く */
+const FOREIGN_AMOUNT_COLUMNS: Record<string, string> = {
+  premium_amount: 'foreign_premium_amount',
+  death_benefit_disease: 'foreign_death_benefit_disease',
+  death_benefit_accident: 'foreign_death_benefit_accident',
+  hosp_day_disease: 'foreign_hosp_day_disease',
+  hosp_day_accident: 'foreign_hosp_day_accident',
+  diagnosis_benefit: 'foreign_diagnosis_benefit',
+  maturity_benefit: 'foreign_maturity_benefit',
+};
+
+/** 作り直した表へ写す列（新しい DDL の全列。並びは SELECT 側と対で使う） */
+const POLICY_COPY_COLUMNS = [
+  'id', 'case_id', 'company_name', 'policy_type', 'policy_number', 'contract_date', 'contract_age',
+  'insured_member_id', 'beneficiary_member_id', 'pension_settings',
+  'death_benefit_disease', 'death_benefit_accident', 'hosp_day_disease', 'hosp_day_accident',
+  'diagnosis_benefit', 'policy_end_age', 'currency', 'exchange_rate',
+  'payment_frequency', 'premium_amount', 'payment_end_date', 'payment_end_age',
+  'premium_payment_completed', 'payment_details', 'annual_premium', 'maturity_benefit',
+  'surrender_projection', 'surrender_values', 'evaluation_overrides', 'consultant_note',
+  'sort_order', 'created_at', 'updated_at',
+];
+
+/**
+ * 外貨建ての金額は「円の列 + foreign_* 列」の対（7組14列）で持っていた。本物はどちらか
+ * 片方だけで、外貨建ての契約の円の列は保存した時のレートで換算した写し ── 読み出し側
+ * （applyValuationRateToPolicy）が毎回作り直すので誰も維持しておらず、稼働中の DB で実際に
+ * 「外貨額 × 今のレート」と食い違っていた。金額は「契約通貨での額」1列に畳み、円換算は
+ * 読み出し時に作る。
+ *
+ * 写す規則は「いまアプリが画面に出している値」:
+ *  - 外貨建て(USD)の行は円の列を foreign_* で置き換える（foreign_* が 0 なら 0。画面も
+ *    その 0 を出しているので見え方は変わらない）
+ *  - 円建ての行はそのまま（foreign_* に値が残っていても画面は読んでいないので捨てる）
+ *
+ * 印は PRAGMA user_version。列の有無では駄目 ── 古い版のアプリでこの DB を開くと
+ * optionalPolicyColumns が foreign_* を 0 で付け直すので、版を往復すると金額が 0 に潰れる。
+ */
+function migratePolicyAmountsToContractCurrency(db: Database.Database): void {
+  const version = Number(db.pragma('user_version', { simple: true }) ?? 0);
+  const columns = (db.prepare(`PRAGMA table_info(policies)`).all() as { name: string }[]).map((column) => column.name);
+
+  if (version >= SCHEMA_VERSION_CONTRACT_CURRENCY_AMOUNTS) {
+    // 古い版のアプリで開かれた後。金額は既に契約通貨なので、付け直された列を落とすだけ
+    for (const foreignColumn of Object.values(FOREIGN_AMOUNT_COLUMNS)) {
+      if (!columns.includes(foreignColumn)) continue;
+      try {
+        db.exec(`ALTER TABLE policies DROP COLUMN ${foreignColumn}`);
+      } catch {
+        // 落とせなくても読み書きには使わないので先へ進む
+      }
+    }
+    return;
+  }
+
+  if (!columns.includes('foreign_premium_amount')) {
+    // 新しい DDL で作られた DB。写すものは無いので印だけ付ける
+    db.pragma(`user_version = ${SCHEMA_VERSION_CONTRACT_CURRENCY_AMOUNTS}`);
+    return;
+  }
+
+  // 円の額しか残っていない外貨建ての契約から、せめてレートを救っておく。案件のレートが
+  // 未設定の DB では inferValuationSettings がこの列を頼りにする
+  db.exec(`
+    UPDATE policies
+       SET exchange_rate = premium_amount / foreign_premium_amount
+     WHERE currency = 'USD' AND exchange_rate <= 0
+       AND foreign_premium_amount > 0 AND premium_amount > 0
+  `);
+
+  // 外貨額が1つも入っていない外貨建ての契約は、保存済みの円額が消える。画面はもともと
+  // 外貨額から作っているので表示は変わらないが、黙って捨てたことにはしない
+  const yenOnly = db.prepare(`
+    SELECT COUNT(*) AS count FROM policies
+     WHERE currency = 'USD'
+       AND ${Object.values(FOREIGN_AMOUNT_COLUMNS).map((column) => `${column} = 0`).join(' AND ')}
+       AND (${Object.keys(FOREIGN_AMOUNT_COLUMNS).map((column) => `${column} <> 0`).join(' OR ')})
+  `).get() as { count: number };
+  if (yenOnly.count > 0) {
+    console.warn(`[insurance-app] 外貨建てなのに外貨額が入っていない契約が ${yenOnly.count}件あります: 保存済みの円換算額は引き継ぎません`);
+  }
+
+  const selectExpressions = POLICY_COPY_COLUMNS.map((column) => {
+    // 年額保険料は保険料から導く列。外貨建ては外貨の保険料から作り直す
+    if (column === 'annual_premium') {
+      return `CASE WHEN currency = 'USD'
+                   THEN foreign_premium_amount * (CASE WHEN payment_frequency = 'monthly' THEN 12 ELSE 1 END)
+                   ELSE annual_premium END`;
+    }
+    const foreignColumn = FOREIGN_AMOUNT_COLUMNS[column];
+    return foreignColumn ? `CASE WHEN currency = 'USD' THEN ${foreignColumn} ELSE ${column} END` : column;
+  });
+
+  // 列の型も変える（新しい意味では小数がある）ので表ごと作り直す。policy_beneficiaries が
+  // policies を参照しているため、作り直しの間だけ外す ── PRAGMA はトランザクションの中では
+  // 効かないので外側で切り替える
+  db.pragma('foreign_keys = OFF');
+  try {
+    db.transaction(() => {
+      db.exec(`DROP TABLE IF EXISTS policies_migrating`);
+      db.exec(policiesTableDdl('CREATE TABLE policies_migrating'));
+      db.exec(`
+        INSERT INTO policies_migrating (${POLICY_COPY_COLUMNS.join(', ')})
+        SELECT ${selectExpressions.join(', ')} FROM policies
+      `);
+      db.exec(`DROP TABLE policies`);
+      db.exec(`ALTER TABLE policies_migrating RENAME TO policies`);
+      db.exec(POLICY_INDEX_DDL);
+      const violations = db.pragma('foreign_key_check') as unknown[];
+      if (violations.length > 0) {
+        throw new Error(`policies を作り直したら参照が壊れました（${violations.length}件）`);
+      }
+      db.pragma(`user_version = ${SCHEMA_VERSION_CONTRACT_CURRENCY_AMOUNTS}`);
+    })();
+  } finally {
+    db.pragma('foreign_keys = ON');
   }
 }
 
