@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, Bookmark, Calculator, CalendarDays, CheckCircle2, ChevronDown, Pencil, Trash2, X } from 'lucide-react';
+import { accountLabel } from '../../../server/lib/accountIdentity';
 import { ConfirmDialog } from '../../components/Dialog';
 import { DownloadButton } from '../../components/DownloadButton';
 import { useNotice } from '../../components/Notice';
@@ -191,11 +192,12 @@ function NextStep({ dash }: { dash: DashboardSummary }) {
 function AccountList({ caseId, accounts, onDeleted }: { caseId: number; accounts: OverviewData['accountSummary']; onDeleted: () => void }) {
   const notice = useNotice();
   const { busy, run } = useAction();
-  const [target, setTarget] = useState<string | null>(null);
+  // 消す相手は口座の主キーで持つ（口座番号は案件の中でも重なりうる）
+  const [target, setTarget] = useState<OverviewData['accountSummary'][number] | null>(null);
 
   const remove = async () => {
     if (target === null) return;
-    const res = await run('delete', () => api.post<{ message: string }>(`/cases/${caseId}/accounts/delete`, { accountNumber: target }));
+    const res = await run('delete', () => api.post<{ message: string }>(`/cases/${caseId}/accounts/delete`, { accountId: target.id }));
     setTarget(null);
     if (!res) return;
     notice.success(res.message);
@@ -227,7 +229,7 @@ function AccountList({ caseId, accounts, onDeleted }: { caseId: number; accounts
           </thead>
           <tbody>
             {accounts.map((a) => (
-              <tr key={a.accountNumber}>
+              <tr key={a.id}>
                 <td>{a.bankName || '－'}</td>
                 <td>{a.branchName || '－'}</td>
                 <td className="font-semibold">{a.accountNumber}</td>
@@ -239,9 +241,9 @@ function AccountList({ caseId, accounts, onDeleted }: { caseId: number; accounts
                   <button
                     type="button"
                     className="btn btn-outline-danger btn-sm"
-                    aria-label={`口座 ${a.accountNumber} の全取引を削除`}
+                    aria-label={`口座 ${accountLabel(a)} の全取引を削除`}
                     title="この口座の取引を全て削除"
-                    onClick={() => setTarget(a.accountNumber)}
+                    onClick={() => setTarget(a)}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -252,7 +254,7 @@ function AccountList({ caseId, accounts, onDeleted }: { caseId: number; accounts
         </table>
       </div>
       <ConfirmDialog open={target !== null} onClose={() => setTarget(null)} onConfirm={remove} title="口座データの削除" confirmLabel="削除" danger busy={busy !== null}>
-        口座「{target}」の取引を全て削除しますか？この操作は取り消せません。
+        口座「{target ? accountLabel(target) : ''}」の取引を全て削除しますか？この操作は取り消せません。
       </ConfirmDialog>
     </details>
   );

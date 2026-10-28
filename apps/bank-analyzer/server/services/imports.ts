@@ -12,6 +12,7 @@
 // - 「重複を除外」を外せば重複も入れる（#7。lib/wizard.ts）。
 
 import type { PrismaClient } from '@prisma/client';
+import { accountIdentity, accountLabel } from '../lib/accountIdentity.js';
 import { detectTransfers, isLargeAmount, type AnalysisSettings } from '../lib/analyze.js';
 import { classifyTransactions } from '../lib/classify.js';
 import { buildDuplicateWarning, buildExistingIndex, markDuplicates, type DedupFields, type DuplicateMark, type DuplicateWarning } from '../lib/dedup.js';
@@ -20,7 +21,7 @@ import { selectRowsToCommit, type CommitAccount, type CommitRow } from '../lib/w
 import { toDateString, toId } from '../json.js';
 import { lockCase, type Tx } from './classificationHistory.js';
 import { getAppSettings, getClassifierSettings } from './settings.js';
-import { getOrCreateAccount, UNKNOWN_ACCOUNT } from './transactions.js';
+import { getOrCreateAccount } from './transactions.js';
 
 export type ImportRow = CommitRow & {
   accountNumber: string | null;
@@ -29,7 +30,9 @@ export type ImportRow = CommitRow & {
   accountType: string | null;
 };
 
-// 案件の取引（日付のあるもの）を、口座番号つきで読む
+// 案件の取引（日付のあるもの）を、口座つきで読む。
+// 口座は主キーと同一性の3欄（銀行名・支店名・口座番号）をまとめて読む ──
+// 資金移動の判定も重複の判定も、番号だけでは別の銀行の口座を同じ口座として扱ってしまう
 async function loadCaseRows(tx: Tx, caseId: bigint) {
   const rows = await tx.transaction.findMany({
     where: { caseId, date: { not: null } },
@@ -40,7 +43,7 @@ async function loadCaseRows(tx: Tx, caseId: bigint) {
       amountOut: true,
       amountIn: true,
       balance: true,
-      account: { select: { accountNumber: true } },
+      account: { select: { id: true, bankName: true, branchName: true, accountNumber: true } },
     },
     orderBy: { id: 'asc' },
   });
@@ -51,6 +54,9 @@ async function loadCaseRows(tx: Tx, caseId: bigint) {
     amountOut: r.amountOut,
     amountIn: r.amountIn,
     balance: r.balance,
+    accountId: r.account ? toId(r.account.id) : null,
+    bankName: r.account?.bankName ?? null,
+    branchName: r.account?.branchName ?? null,
     accountNumber: r.account?.accountNumber ?? null,
   }));
 }
@@ -59,7 +65,7 @@ async function loadCaseRows(tx: Tx, caseId: bigint) {
 async function markTransfers(tx: Tx, caseId: bigint, settings: AnalysisSettings) {
   const rows = await loadCaseRows(tx, caseId);
   const matches = detectTransfers(
-    rows.map((r) => ({ ...r, accountNumber: r.accountNumber ?? '' })),
+    rows.map((r) => ({ ...r, accountLabel: accountLabel(r) })),
     settings,
   );
   const byLabel = new Map<string, bigint[]>();
@@ -75,14 +81,16 @@ async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<nu
   const [classifier, settings] = await Promise.all([getClassifierSettings(tx, caseId), getAppSettings(tx)]);
   const classes = classifyTransactions(rows, classifier);
 
+  // 同じ口座を2度探さないための覚え書き。キーは同一性（番号だけだと、同じ番号の
+  // 別の銀行の行が最初の口座へ流れ込む）
   const accounts = new Map<string, bigint>();
   const data = [];
   for (const [i, r] of rows.entries()) {
-    const number = r.accountNumber || UNKNOWN_ACCOUNT;
-    let accountId = accounts.get(number);
+    const key = accountIdentity(r);
+    let accountId = accounts.get(key);
     if (accountId === undefined) {
-      accountId = (await getOrCreateAccount(tx, caseId, { ...r, accountNumber: number })).id;
-      accounts.set(number, accountId);
+      accountId = (await getOrCreateAccount(tx, caseId, r)).id;
+      accounts.set(key, accountId);
     }
     data.push({
       caseId,
@@ -156,7 +164,7 @@ export async function checkWizardDuplicates(
 ): Promise<{ marks: DuplicateMark[]; warning: DuplicateWarning | null }[]> {
   const index = buildExistingIndex((await loadCaseRows(db, caseId)) satisfies DedupFields[]);
   return files.map((f) => {
-    const marked = markDuplicates(f.rows, index, f.account.accountNumber);
+    const marked = markDuplicates(f.rows, index, f.account);
     return {
       marks: marked.rows.map(({ isDuplicate, dupConfidence }) => ({ isDuplicate, dupConfidence })),
       warning: buildDuplicateWarning(marked.rows, marked.duplicateCount, f.rows.length),

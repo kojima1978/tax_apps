@@ -4,8 +4,13 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ANALYSIS_SETTINGS as S, detectTransfers, isLargeAmount, resolveAnalysisSettings } from '../lib/analyze.js';
 
-const tx = (id: number, accountNumber: string, date: string, amountOut: number, amountIn: number) =>
-  ({ id, accountNumber, date, amountOut, amountIn });
+// 同じ口座かどうかは主キーで見る（番号は銀行をまたげば重なる）。transfer_to に出す名前は
+// 呼び出し側が渡すので、ここでは口座の名前ごとに連番の id を振る
+const accountIds = new Map<string, number>();
+const tx = (id: number, account: string, date: string, amountOut: number, amountIn: number) => {
+  if (!accountIds.has(account)) accountIds.set(account, accountIds.size + 1);
+  return { id, accountId: accountIds.get(account)!, accountLabel: account, date, amountOut, amountIn };
+};
 
 describe('資金移動', () => {
   it('手数料を差し引いた入金と組む', () => {
@@ -23,6 +28,21 @@ describe('資金移動', () => {
       tx(8, 'A', '2024-06-10', 70000, 0), tx(32, 'B', '2024-06-09', 0, 70000),
     ], S);
     expect(r.map((m) => m.id)).toEqual([4, 27]);
+  });
+
+  it('番号が同じでも銀行が違えば別の口座として組む', () => {
+    const out = { id: 1, accountId: 1, accountLabel: 'A銀行 本店 1111111', date: '2024-04-01', amountOut: 50_000, amountIn: 0 };
+    const into = { id: 2, accountId: 2, accountLabel: 'B銀行 本店 1111111', date: '2024-04-01', amountOut: 0, amountIn: 50_000 };
+    expect(detectTransfers([out, into], S)).toEqual([
+      { id: 1, transferTo: 'B銀行 本店 1111111 (2024-04-01)', partnerId: 2 },
+      { id: 2, transferTo: 'A銀行 本店 1111111 (2024-04-01)', partnerId: 1 },
+    ]);
+  });
+
+  it('口座の無い行同士は組まない（番号が空だった頃と同じ扱い）', () => {
+    const out = { id: 1, accountId: null, accountLabel: '', date: '2024-04-01', amountOut: 50_000, amountIn: 0 };
+    const into = { id: 2, accountId: null, accountLabel: '', date: '2024-04-01', amountOut: 0, amountIn: 50_000 };
+    expect(detectTransfers([out, into], S)).toEqual([]);
   });
 
   it('both なら入金が先でも組む', () => {

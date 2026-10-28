@@ -39,7 +39,12 @@ export const isLargeAmount = (amountOut: number, amountIn: number, threshold: nu
 
 export type TransferInput = {
   id: number;
-  accountNumber: string;
+  // 同じ口座かどうかは口座の主キーで見る（番号は銀行をまたげば普通に重なるので、
+  // 番号で比べると別の銀行の口座への移動を「同じ口座の中」として捨ててしまう）。
+  // 口座の無い取引は null 同士で「同じ」＝相手にならない（番号が空だった頃と同じ扱い）
+  accountId: number | null;
+  // transfer_to に書く相手の名前。呼び出し側が作る（lib/accountIdentity の accountLabel）
+  accountLabel: string;
   date: string; // 'YYYY-MM-DD'
   amountOut: number;
   amountIn: number;
@@ -68,7 +73,7 @@ export function detectTransfers(
     if (!(out.amountOut > 0)) continue;
     let best: { row: (typeof rows)[number]; amountDiff: number; dateDiff: number } | null = null;
     for (const cand of rows) {
-      if (!(cand.amountIn > 0) || cand.accountNumber === out.accountNumber || matchedIn.has(cand.id)) continue;
+      if (!(cand.amountIn > 0) || cand.accountId === out.accountId || matchedIn.has(cand.id)) continue;
       const amountDiff = Math.abs(cand.amountIn - out.amountOut);
       if (amountDiff > settings.transferTolerance) continue;
       const days = cand.day - out.day;
@@ -85,8 +90,8 @@ export function detectTransfers(
     if (!best) continue;
     const fee = Math.trunc(out.amountOut - best.row.amountIn);
     const feeInfo = fee > 0 ? ` 手数料${fmtYen(fee)}円` : '';
-    result.set(out.id, { transferTo: `${best.row.accountNumber} (${best.row.date})${feeInfo}`, partnerId: best.row.id });
-    result.set(best.row.id, { transferTo: `${out.accountNumber} (${out.date})${feeInfo}`, partnerId: out.id });
+    result.set(out.id, { transferTo: `${best.row.accountLabel} (${best.row.date})${feeInfo}`, partnerId: best.row.id });
+    result.set(best.row.id, { transferTo: `${out.accountLabel} (${out.date})${feeInfo}`, partnerId: out.id });
     matchedIn.add(best.row.id);
   }
   return [...result].map(([id, m]) => ({ id, ...m }));

@@ -4,7 +4,15 @@
 // update() で書く経路は自分で入れていた）。分類が変わる書き込みは必ず applyChanges を通して
 // 履歴を残す（取り消しが効かなくなるため）。
 
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Account, Prisma, PrismaClient } from '@prisma/client';
+import {
+  accountLabel,
+  accountNumberOf,
+  identityText,
+  pickCompatibleAccount,
+  sameAccount,
+  type AccountIdentityFields,
+} from '../lib/accountIdentity.js';
 import { UNCATEGORIZED } from '../lib/categories.js';
 import { normalizeText } from '../lib/text.js';
 import { toDateString, toId } from '../json.js';
@@ -17,38 +25,78 @@ type Db = PrismaClient | Tx;
 // 口座
 // ---------------------------------------------------------------------------
 
-export type AccountFields = {
-  accountNumber?: string | null;
-  bankName?: string | null;
-  branchName?: string | null;
+export type AccountFields = AccountIdentityFields & {
   accountType?: string | null;
   holder?: string | null;
 };
 
-export const UNKNOWN_ACCOUNT = 'unknown';
+// 同一性の判定は lib/accountIdentity.ts。ここでは「探す／作る」だけを書く
+export { UNKNOWN_ACCOUNT } from '../lib/accountIdentity.js';
 
-// 口座番号で探し、無ければ作る。あれば空の欄だけを埋める（Django の get_or_create_account）。
-export async function getOrCreateAccount(db: Db, caseId: bigint, f: AccountFields) {
-  const accountNumber = f.accountNumber || UNKNOWN_ACCOUNT;
-  const account = await db.account.upsert({
-    where: { caseId_accountNumber: { caseId, accountNumber } },
-    create: {
-      caseId,
-      accountNumber,
-      bankName: f.bankName ?? null,
-      branchName: f.branchName ?? null,
-      accountType: f.accountType ?? null,
-      holder: f.holder ?? null,
-    },
-    update: {},
-  });
+// 口座を探し、無ければ作る。あれば空の欄だけを埋める（Django の get_or_create_account）。
+//
+// mode:
+//   'adopt' … 欄が埋まっていない既存の口座を引き継ぐ（取込・画面からの入力。同じ口座を
+//             銀行名の有無で2件に割らないため。規則は pickCompatibleAccount）
+//   'exact' … 同一性が完全に一致するものだけ。バックアップの復元はこちら ──
+//             バックアップ上で別の口座だったものを引き継ぎで合流させてはいけない
+export async function getOrCreateAccount(
+  db: Db,
+  caseId: bigint,
+  f: AccountFields,
+  mode: 'adopt' | 'exact' = 'adopt',
+) {
+  const accountNumber = accountNumberOf(f);
+  const bankName = identityText(f.bankName);
+  const branchName = identityText(f.branchName);
+  let account: Account | null = null;
+  if (mode === 'adopt') {
+    account = pickCompatibleAccount(await db.account.findMany({ where: { caseId, accountNumber } }), f);
+  }
+  if (!account) {
+    account = await db.account.upsert({
+      where: { caseId_bankName_branchName_accountNumber: { caseId, bankName, branchName, accountNumber } },
+      create: {
+        caseId,
+        accountNumber,
+        bankName,
+        branchName,
+        accountType: f.accountType ?? null,
+        holder: f.holder ?? null,
+      },
+      update: {},
+    });
+  }
   const fill: Prisma.AccountUpdateInput = {};
-  if (f.bankName && !account.bankName) fill.bankName = f.bankName;
-  if (f.branchName && !account.branchName) fill.branchName = f.branchName;
+  if (bankName && !account.bankName) fill.bankName = bankName;
+  if (branchName && !account.branchName) fill.branchName = branchName;
   if (f.accountType && !account.accountType) fill.accountType = f.accountType;
   if (f.holder && !account.holder) fill.holder = f.holder;
   if (Object.keys(fill).length === 0) return account;
   return db.account.update({ where: { id: account.id }, data: fill });
+}
+
+// 2つの口座を1つにまとめる（移し先の空いている欄を移し元で埋め、取引を付け替えて移し元を消す）
+async function mergeAccounts(tx: Tx, source: Account, target: Account): Promise<Account> {
+  const fill: Prisma.AccountUpdateInput = {};
+  for (const key of ['bankName', 'branchName', 'accountType', 'holder', 'inventoryRemarks'] as const) {
+    if (!target[key] && source[key]) fill[key] = source[key];
+  }
+  for (const key of ['passbookBalance', 'certificateBalance'] as const) {
+    if (target[key] === null && source[key] !== null) fill[key] = source[key];
+  }
+  if (source.hasAccruedInterest && !target.hasAccruedInterest) fill.hasAccruedInterest = true;
+  const asObject = (v: Prisma.JsonValue) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+  const targetYears = asObject(target.passbookYears);
+  const mergedYears = { ...asObject(source.passbookYears), ...targetYears };
+  if (JSON.stringify(Object.entries(mergedYears).sort()) !== JSON.stringify(Object.entries(targetYears).sort())) {
+    fill.passbookYears = mergedYears;
+  }
+  const merged =
+    Object.keys(fill).length > 0 ? await tx.account.update({ where: { id: target.id }, data: fill }) : target;
+  await tx.transaction.updateMany({ where: { accountId: source.id }, data: { accountId: target.id } });
+  await tx.account.delete({ where: { id: source.id } });
+  return merged;
 }
 
 // ---------------------------------------------------------------------------
@@ -160,15 +208,13 @@ export async function createTransaction(db: PrismaClient, caseId: bigint, input:
   });
 }
 
-const ACCOUNT_KEYS = ['bankName', 'branchName', 'accountNumber', 'accountType'] as const;
-
 // 取引の編集（Django の update_transaction）。渡されたキーだけを書き換える。
 //
 // Django から直したところ:
 //   - 日付・金額が読めなければ何も書かずに理由を返す（Django は「取引が見つかりません」と出していた）
 //   - 日付・残高を空にすると消える（Django は空を「変更なし」と扱い、一度入れると消せなかった）
-//   - 口座番号を空にする・他の口座の番号にする、は弾く（Django は 500 になっていた。
-//     口座をまとめたいときは一括置換を使う）
+//   - 口座番号を空にする・書き換えた結果が別の口座と同じになる、は弾く（Django は 500 に
+//     なっていた。口座をまとめたいときは一括置換を使う）
 //   - 口座を持たない取引に口座の欄を渡したら、その番号の口座につなぐ（Django は黙って捨てていた）
 // 口座の欄は口座そのものを書き換えるので、同じ口座の他の取引にも効く（Django と同じ）。
 export async function updateTransaction(
@@ -203,11 +249,21 @@ export async function updateTransaction(
   }
   if (has('memo')) data.memo = optionalText(input.memo);
 
-  const accountData: Partial<Record<(typeof ACCOUNT_KEYS)[number], string | null>> = {};
-  for (const key of ACCOUNT_KEYS) if (has(key)) accountData[key] = optionalText(input[key]);
-  if ('accountNumber' in accountData && accountData.accountNumber === null) {
-    return badRequest('口座番号は空にできません');
+  // 銀行名・支店名は空欄も同一性の一部なので null ではなく '' に寄せる（DB も NOT NULL）
+  const accountData: {
+    accountNumber?: string;
+    bankName?: string;
+    branchName?: string;
+    accountType?: string | null;
+  } = {};
+  if (has('accountNumber')) {
+    const number = optionalText(input.accountNumber);
+    if (number === null) return badRequest('口座番号は空にできません');
+    accountData.accountNumber = number;
   }
+  if (has('bankName')) accountData.bankName = optionalText(input.bankName) ?? '';
+  if (has('branchName')) accountData.branchName = optionalText(input.branchName) ?? '';
+  if (has('accountType')) accountData.accountType = optionalText(input.accountType);
   const newCategory = has('category') ? optionalText(input.category) : null;
 
   return db.$transaction(async (tx): Promise<WriteResult> => {
@@ -218,24 +274,41 @@ export async function updateTransaction(
     if (Object.keys(accountData).length > 0) {
       if (current.account) {
         const account = current.account;
-        const changes = Object.fromEntries(
-          Object.entries(accountData).filter(([k, v]) => account[k as keyof typeof accountData] !== v),
-        );
-        if (changes.accountNumber) {
+        const changes: Prisma.AccountUpdateInput = {};
+        if (accountData.accountNumber !== undefined && accountData.accountNumber !== account.accountNumber) {
+          changes.accountNumber = accountData.accountNumber;
+        }
+        if (accountData.bankName !== undefined && accountData.bankName !== account.bankName) {
+          changes.bankName = accountData.bankName;
+        }
+        if (accountData.branchName !== undefined && accountData.branchName !== account.branchName) {
+          changes.branchName = accountData.branchName;
+        }
+        if (accountData.accountType !== undefined && accountData.accountType !== account.accountType) {
+          changes.accountType = accountData.accountType;
+        }
+        // 同一性が変わるなら、書き換えた先が別の口座と同じにならないか見る
+        // （銀行名だけの変更でも衝突しうる。番号だけを見ていた頃は 500 になっていた）
+        const next = {
+          bankName: accountData.bankName ?? account.bankName,
+          branchName: accountData.branchName ?? account.branchName,
+          accountNumber: accountData.accountNumber ?? account.accountNumber,
+        };
+        if (!sameAccount(next, account)) {
           const taken = await tx.account.findFirst({
-            where: { caseId, accountNumber: changes.accountNumber, id: { not: current.account.id } },
+            where: { caseId, ...next, id: { not: account.id } },
             select: { id: true },
           });
           if (taken) {
             return {
               ok: false,
               status: 409,
-              error: `口座番号「${changes.accountNumber}」は別の口座で使われています。口座をまとめるときは一括置換を使ってください`,
+              error: `口座「${accountLabel(next)}」は別の口座として既にあります。口座をまとめるときは一括置換を使ってください`,
             };
           }
         }
         if (Object.keys(changes).length > 0) {
-          await tx.account.update({ where: { id: current.account.id }, data: changes });
+          await tx.account.update({ where: { id: account.id }, data: changes });
         }
       } else {
         const account = await getOrCreateAccount(tx, caseId, accountData);
@@ -276,14 +349,20 @@ export async function updateMemo(db: PrismaClient, caseId: bigint, txId: bigint,
 // まとめて消す
 // ---------------------------------------------------------------------------
 
-// 口座ごと消す（取引も）。消した取引の件数を返す。
-export async function deleteAccountTransactions(db: PrismaClient, caseId: bigint, accountNumber: string): Promise<number> {
+// 口座ごと消す（取引も）。口座は主キーで指す ── 番号で指していた頃は、番号が同じ
+// 別の銀行の口座まで巻き込む（どれが消えるかは findFirst の運次第）。
+// 見つからなければ null、消したら件数と画面に出す名前を返す。
+export async function deleteAccountTransactions(
+  db: PrismaClient,
+  caseId: bigint,
+  accountId: bigint,
+): Promise<{ count: number; label: string } | null> {
   return db.$transaction(async (tx) => {
-    const account = await tx.account.findFirst({ where: { caseId, accountNumber } });
-    if (!account) return 0;
+    const account = await tx.account.findFirst({ where: { id: accountId, caseId } });
+    if (!account) return null;
     const { count } = await tx.transaction.deleteMany({ where: { accountId: account.id } });
     await tx.account.delete({ where: { id: account.id } });
-    return count;
+    return { count, label: accountLabel(account) };
   });
 }
 
@@ -374,10 +453,11 @@ export function validateReplace(field: unknown, oldValue: string, newValue: stri
   return null;
 }
 
-// 値の一括置換。件数は摘要なら取引の数、口座の欄なら口座の数（口座番号は1か0）。
+// 値の一括置換。件数は摘要なら取引の数、口座の欄なら書き換えた口座の数。
 //
-// 口座番号を既にある番号へ置き換えると、2つの口座を1つにまとめる（Django と同じ）:
-// 移し先の空いている欄を移し元で埋め、取引を移し先へ付け替えて、移し元を消す。
+// 置き換えた結果が既にある口座と同じ同一性になったら、2つの口座を1つにまとめる（Django は
+// 口座番号のときだけこれをしていた。同一性に銀行名・支店名が入った今は、銀行名の置換でも
+// 衝突しうる ── まとめずに書くと UNIQUE 違反で 500 になる）。
 export async function bulkReplaceField(
   db: PrismaClient,
   caseId: bigint,
@@ -393,46 +473,29 @@ export async function bulkReplaceField(
     });
     return count;
   }
-  if (field !== 'accountNumber') {
-    const { count } = await db.account.updateMany({ where: { caseId, [field]: oldValue }, data: { [field]: newValue } });
-    return count;
-  }
-
   return inTransaction(db, async (tx) => {
-    const locked = await tx.$queryRaw<{ id: bigint; account_number: string }[]>`
-      SELECT id, account_number FROM analyzer_account
-      WHERE case_id = ${caseId} AND account_number IN (${oldValue}, ${newValue})
-      ORDER BY id
-      FOR UPDATE`;
-    const sourceRow = locked.find((r) => r.account_number === oldValue);
-    if (!sourceRow) return 0;
-    const targetRow = locked.find((r) => r.account_number === newValue);
-    if (!targetRow) {
-      await tx.account.update({ where: { id: sourceRow.id }, data: { accountNumber: newValue } });
-      return 1;
+    // 案件の口座を全件ロックしてから突き合わせる。置換の途中で同一性が変わる
+    // （改名した口座が次の行の相手になる）ので、1件ずつ最新の一覧で判定する
+    const locked = await tx.$queryRaw<{ id: bigint }[]>`
+      SELECT id FROM analyzer_account WHERE case_id = ${caseId} ORDER BY id FOR UPDATE`;
+    const accounts = await tx.account.findMany({
+      where: { id: { in: locked.map((r) => r.id) } },
+      orderBy: { id: 'asc' },
+    });
+    const living = new Map(accounts.map((a) => [a.id, a]));
+    let changed = 0;
+    for (const source of accounts.filter((a) => a[field] === oldValue)) {
+      if (!living.has(source.id)) continue;
+      const next = { ...source, [field]: newValue };
+      const target = [...living.values()].find((a) => a.id !== source.id && sameAccount(a, next));
+      if (!target) {
+        living.set(source.id, await tx.account.update({ where: { id: source.id }, data: { [field]: newValue } }));
+      } else {
+        living.delete(source.id);
+        living.set(target.id, await mergeAccounts(tx, source, target));
+      }
+      changed += 1;
     }
-
-    const [source, target] = await Promise.all([
-      tx.account.findUniqueOrThrow({ where: { id: sourceRow.id } }),
-      tx.account.findUniqueOrThrow({ where: { id: targetRow.id } }),
-    ]);
-    const fill: Prisma.AccountUpdateInput = {};
-    for (const key of ['bankName', 'branchName', 'accountType', 'holder', 'inventoryRemarks'] as const) {
-      if (!target[key] && source[key]) fill[key] = source[key];
-    }
-    for (const key of ['passbookBalance', 'certificateBalance'] as const) {
-      if (target[key] === null && source[key] !== null) fill[key] = source[key];
-    }
-    if (source.hasAccruedInterest && !target.hasAccruedInterest) fill.hasAccruedInterest = true;
-    const asObject = (v: Prisma.JsonValue) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
-    const targetYears = asObject(target.passbookYears);
-    const mergedYears = { ...asObject(source.passbookYears), ...targetYears };
-    if (JSON.stringify(Object.entries(mergedYears).sort()) !== JSON.stringify(Object.entries(targetYears).sort())) {
-      fill.passbookYears = mergedYears;
-    }
-    if (Object.keys(fill).length > 0) await tx.account.update({ where: { id: target.id }, data: fill });
-    await tx.transaction.updateMany({ where: { accountId: source.id }, data: { accountId: target.id } });
-    await tx.account.delete({ where: { id: source.id } });
-    return 1;
+    return changed;
   });
 }

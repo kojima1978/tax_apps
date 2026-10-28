@@ -99,12 +99,17 @@ export function transactionRoutes(r: CaseRouter, db: PrismaClient) {
     return ok(c, { count, message: `${count}件の重複データを削除しました。` });
   });
 
-  // 口座ごと消す（取引も）。口座番号は記号を含みうるので URL ではなく本文で受ける
+  // 口座ごと消す（取引も）。口座は主キーで指す ── 口座番号は案件の中でも重なりうるので、
+  // 番号で指すと別の銀行の口座を消しかねない
   r.post('/:caseId/accounts/delete', async (c) => {
-    const accountNumber = optionalText((await readBody(c)).accountNumber);
-    if (!accountNumber) return fail(c, '口座番号が指定されていません');
-    const count = await deleteAccountTransactions(db, c.get('caseId'), accountNumber);
-    return ok(c, { count, message: `口座番号: ${accountNumber} のデータ（${count}件）を削除しました。` });
+    const accountId = parseId((await readBody(c)).accountId);
+    if (accountId === null) return fail(c, '口座が指定されていません');
+    const deleted = await deleteAccountTransactions(db, c.get('caseId'), accountId);
+    if (!deleted) return fail(c, '口座が見つかりません');
+    return ok(c, {
+      count: deleted.count,
+      message: `口座: ${deleted.label} のデータ（${deleted.count}件）を削除しました。`,
+    });
   });
 
   r.get('/:caseId/field-values', async (c) => {

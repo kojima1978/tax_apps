@@ -125,7 +125,7 @@ describe('口座を足す・取り込む', () => {
     expect((await add({ accountNumber: '9999999', bankName: '架空信金', certificateBalance: '300,000' })).json).toMatchObject({
       created: true, message: '残高証明書の口座を追加しました。',
     });
-    await db().account.update({ where: { caseId_accountNumber: { caseId, accountNumber: '1234567' } }, data: { inventoryRemarks: '架空の備考' } });
+    await db().account.updateMany({ where: { caseId, accountNumber: '1234567' }, data: { inventoryRemarks: '架空の備考' } });
     expect((await add({ accountNumber: '1234567', certificateBalance: 800, hasAccruedInterest: true })).json.message).toBe('残高証明書の口座を更新しました。');
 
     const rows = (await inventory(caseId)).rows;

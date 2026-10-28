@@ -7,6 +7,7 @@
 // Django 版は画面が送る skipDuplicates を読まず、サーバが読む duplicateAction は
 // 誰も送っていなかったので、チェックの有無に関係なく常に除外していた。
 
+import { accountIdentity } from './accountIdentity.js';
 import { validateBalance, type BalanceChecked } from './balance.js';
 import {
   buildDuplicateWarning,
@@ -87,7 +88,7 @@ function previewFile<T extends BalanceChecked<StatementRow>>(
   hasBalance: boolean,
   index: ExistingIndex,
 ): PreviewFile {
-  const marked = markDuplicates(rows, index, detected.accountNumber);
+  const marked = markDuplicates(rows, index, detected);
   return {
     filename,
     rowCount: rows.length,
@@ -100,11 +101,11 @@ function previewFile<T extends BalanceChecked<StatementRow>>(
   };
 }
 
-// 銀行名 + 口座番号 で分ける（出てきた順）。支店名・種別はその口座の最初の行から取る。
+// 口座の同一性（銀行名・支店名・口座番号）で分ける（出てきた順）。種別はその口座の最初の行から取る。
 export function groupRowsByAccount<T extends StatementRow>(rows: T[]): { account: DetectedAccount; rows: T[] }[] {
   const groups = new Map<string, { account: DetectedAccount; rows: T[] }>();
   for (const r of rows) {
-    const key = JSON.stringify([r.bankName ?? '', r.accountNumber ?? '']);
+    const key = accountIdentity(r);
     let g = groups.get(key);
     if (!g) {
       g = {
@@ -166,7 +167,7 @@ export function selectRowsToCommit<T extends CommitRow>(
   skipDuplicates: boolean,
 ): { rows: (T & CommitAccount & DuplicateMark)[]; skipped: number } {
   const withAccount = rows.map((r) => ({ ...r, ...account }));
-  const marked = markDuplicates(withAccount, index, account.accountNumber);
+  const marked = markDuplicates(withAccount, index, account);
   if (!skipDuplicates) return { rows: marked.rows, skipped: 0 };
   const kept = marked.rows.filter((r) => !r.isDuplicate);
   return { rows: kept, skipped: marked.rows.length - kept.length };

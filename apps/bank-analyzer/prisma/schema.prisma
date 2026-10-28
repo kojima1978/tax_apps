@@ -54,8 +54,8 @@ model Account {
   id                 BigInt  @id @default(autoincrement())
   caseId             BigInt  @map("case_id")
   accountNumber      String  @map("account_number") @db.VarChar(255)
-  bankName           String? @map("bank_name") @db.VarChar(255)
-  branchName         String? @map("branch_name") @db.VarChar(255)
+  bankName           String  @default("") @map("bank_name") @db.VarChar(255)
+  branchName         String  @default("") @map("branch_name") @db.VarChar(255)
   accountType        String? @map("account_type") @db.VarChar(50)
   holder             String? @db.VarChar(255)
   passbookBalance    Int?    @map("passbook_balance")
@@ -69,8 +69,11 @@ model Account {
   case         Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
-  @@unique([caseId, accountNumber], map: "unique_case_account")
+  // 口座の同一性は銀行名・支店名・口座番号（server/lib/accountIdentity.ts）。
+  // 銀行名・支店名が NOT NULL DEFAULT '' なのはこのため（UNIQUE は NULL を重複と見ない）
+  @@unique([caseId, bankName, branchName, accountNumber], map: "unique_case_account")
   @@index([caseId], map: "analyzer_account_case_id_eeba72e1")
+  @@index([caseId, accountNumber], map: "analyzer_account_case_id_account_number")
   @@map("analyzer_account")
 }
 

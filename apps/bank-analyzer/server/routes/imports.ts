@@ -119,10 +119,24 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
     const caseId = c.get('caseId');
     const existing = await db.transaction.findMany({
       where: { caseId, date: { not: null } },
-      select: { date: true, description: true, amountOut: true, amountIn: true, balance: true, account: { select: { accountNumber: true } } },
+      select: {
+        date: true,
+        description: true,
+        amountOut: true,
+        amountIn: true,
+        balance: true,
+        // 重複の判定は口座の同一性（銀行名・支店名・口座番号）で見る
+        account: { select: { bankName: true, branchName: true, accountNumber: true } },
+      },
     });
     const index = buildExistingIndex(
-      existing.map((t) => ({ ...t, date: toDateString(t.date)!, accountNumber: t.account?.accountNumber ?? null })),
+      existing.map((t) => ({
+        ...t,
+        date: toDateString(t.date)!,
+        bankName: t.account?.bankName ?? null,
+        branchName: t.account?.branchName ?? null,
+        accountNumber: t.account?.accountNumber ?? null,
+      })),
     );
 
     const previews: PreviewFile[] = [];

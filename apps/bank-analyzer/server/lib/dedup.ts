@@ -1,6 +1,6 @@
 // 既存の取引との重複判定（Django 版 analyzer/handlers/wizard.py の mark_duplicates ほか）。
 //
-// 口座番号・日付・払戻額・お預り額・摘要が同じ行を「同じ取引かもしれない」とみなす。
+// 口座・日付・払戻額・お預り額・摘要が同じ行を「同じ取引かもしれない」とみなす。
 // DB に同じキーが N 件あれば、取り込む側の同じキーの行は先頭から N 件までを重複とし、
 // 超えた分は新規として扱う（通帳に同じ日・同じ金額・同じ摘要の取引が2回あることは普通にある）。
 // 残高まで一致すれば確信度 high、キーだけ一致なら low。
@@ -12,10 +12,10 @@
 // あると数値で読んでいたので、DB の文字列とキーが一致せず、プレビューでは重複が
 // 1件も出なかった（取込時にだけ文字列で判定し直して黙ってスキップしていた）。
 
+import { accountIdentity, pickCompatibleAccount, type AccountIdentityFields } from './accountIdentity.js';
 import { pyRound } from './pyRound.js';
 
-export type DedupFields = {
-  accountNumber: string | null;
+export type DedupFields = AccountIdentityFields & {
   date: string; // 'YYYY-MM-DD'
   amountOut: number;
   amountIn: number;
@@ -34,17 +34,20 @@ export type ExistingIndex = {
   counts: Map<string, number>;
   // キー → 残高 → 件数（残高の無い取引は null）
   balances: Map<string, Map<number | null, number>>;
+  // 既存の取引が付いている口座（同一性ごとに1件）。取り込む側の口座を
+  // 「その行が実際に入る口座」へ読み替えるために持つ（下の markDuplicates）
+  accounts: AccountIdentityFields[];
 };
 
 export function dedupKey(
-  accountNumber: string | null,
+  account: AccountIdentityFields,
   date: string,
   amountOut: number,
   amountIn: number,
   description: string | null,
 ): string {
   return JSON.stringify([
-    accountNumber ?? '',
+    accountIdentity(account),
     date,
     Math.trunc(amountOut),
     Math.trunc(amountIn),
@@ -55,26 +58,38 @@ export function dedupKey(
 export function buildExistingIndex(existing: Iterable<DedupFields>): ExistingIndex {
   const counts = new Map<string, number>();
   const balances = new Map<string, Map<number | null, number>>();
+  const accounts = new Map<string, AccountIdentityFields>();
   for (const t of existing) {
-    const key = dedupKey(t.accountNumber, t.date, t.amountOut, t.amountIn, t.description);
+    const key = dedupKey(t, t.date, t.amountOut, t.amountIn, t.description);
     counts.set(key, (counts.get(key) ?? 0) + 1);
     let bal = balances.get(key);
     if (!bal) balances.set(key, (bal = new Map()));
     bal.set(t.balance, (bal.get(t.balance) ?? 0) + 1);
+    const identity = accountIdentity(t);
+    if (!accounts.has(identity)) {
+      accounts.set(identity, { bankName: t.bankName, branchName: t.branchName, accountNumber: t.accountNumber });
+    }
   }
-  return { counts, balances };
+  return { counts, balances, accounts: [...accounts.values()] };
 }
 
 // rows に重複の印を付けたものを返す。index は消費される。
-// 行に口座番号が無ければ defaultAccountNumber（ファイル名から推測した番号・画面で選んだ口座）で判定する。
-export function markDuplicates<T extends Omit<DedupFields, 'accountNumber'> & { accountNumber?: string | null }>(
+// 口座は行ではなく account（ファイルから読めた口座・画面で選んだ口座）で決める ──
+// 1ファイルは1口座に分けてから渡ってくるので、行ごとの欄を見ると
+// 「支店名だけ空の行」が別の口座の取引として判定されてしまう。
+//
+// その account は、取込で既存の口座に引き継がれる（getOrCreateAccount の 'adopt'）前の姿なので、
+// 突き合わせる前に引き継ぎ先へ読み替える ── ファイルに銀行名が無く番号だけ読めたとき、
+// 既存の「架空銀行 本店 1234567」の取引と同じ口座として判定しないと、同じ行をもう一度
+// 取り込んでも重複 0件と出る（取込では同じ口座に入る）。引き継ぎ先が決まらない口座は
+// 新しい口座として作られるので、既存の取引と重なることはない。
+export function markDuplicates<T extends Omit<DedupFields, keyof AccountIdentityFields>>(
   rows: T[],
   index: ExistingIndex,
-  defaultAccountNumber: string,
+  account: AccountIdentityFields,
 ): { rows: (T & DuplicateMark)[]; duplicateCount: number } {
-  const keys = rows.map((r) =>
-    dedupKey(r.accountNumber || defaultAccountNumber, r.date, r.amountOut, r.amountIn, r.description),
-  );
+  const target = pickCompatibleAccount(index.accounts, account) ?? account;
+  const keys = rows.map((r) => dedupKey(target, r.date, r.amountOut, r.amountIn, r.description));
   const marks: DuplicateMark[] = rows.map(() => ({ isDuplicate: false, dupConfidence: null }));
   const remaining = (key: string) => index.counts.get(key) ?? 0;
   const take = (key: string) => index.counts.set(key, remaining(key) - 1);

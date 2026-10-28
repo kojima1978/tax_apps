@@ -143,12 +143,17 @@ describe('まとめての削除', () => {
   });
 
   it('重複の削除と、口座ごとの削除', async () => {
-    const { caseId, ids } = await seedCase(db(), '架空 太郎', [{}, {}, { accountNumber: '7654321' }]);
+    const { caseId, ids, accounts } = await seedCase(db(), '架空 太郎', [{}, {}, { accountNumber: '7654321' }]);
     expect((await call('POST', `/${caseId}/transactions/delete-duplicates`, { ids: [Number(ids[1])] })).json.count).toBe(1);
     expect((await call('POST', `/${caseId}/transactions/delete-duplicates`, { ids: ['x'] })).status).toBe(400);
-    const res = await call('POST', `/${caseId}/accounts/delete`, { accountNumber: '7654321' });
-    expect(res.json.message).toBe('口座番号: 7654321 のデータ（1件）を削除しました。');
+    // 口座は主キーで指す（番号は案件の中でも重なりうる）
+    const res = await call('POST', `/${caseId}/accounts/delete`, { accountId: Number(accounts.get('7654321')) });
+    expect(res.json.message).toBe('口座: 架空銀行 本店 7654321 のデータ（1件）を削除しました。');
     expect(await db().account.count()).toBe(1);
+    expect((await call('POST', `/${caseId}/accounts/delete`, { accountId: 'x' })).status).toBe(400);
+    expect((await call('POST', `/${caseId}/accounts/delete`, { accountId: Number(accounts.get('7654321')) })).json.error).toBe(
+      '口座が見つかりません',
+    );
   });
 });
 

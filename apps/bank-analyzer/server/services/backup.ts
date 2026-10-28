@@ -19,7 +19,8 @@ import { toDateString, toId } from '../json.js';
 import { validateCaseName } from './cases.js';
 import type { Tx } from './classificationHistory.js';
 import { parsePatterns, readAllSettings, replaceAllSettings } from './settings.js';
-import { getOrCreateAccount, UNKNOWN_ACCOUNT } from './transactions.js';
+import { accountIdentity, UNKNOWN_ACCOUNT } from '../lib/accountIdentity.js';
+import { getOrCreateAccount } from './transactions.js';
 
 export const BACKUP_VERSION = '1.1';
 const SUPPORTED_VERSIONS = ['1.0', '1.1'];
@@ -47,11 +48,7 @@ export async function exportCaseJson(
     }),
     db.account.findMany({
       where: { caseId },
-      orderBy: [
-        { printOrder: 'asc' },
-        { bankName: { sort: 'asc', nulls: 'last' } },
-        { branchName: { sort: 'asc', nulls: 'last' } },
-      ],
+      orderBy: [{ printOrder: 'asc' }, { bankName: 'asc' }, { branchName: 'asc' }],
     }),
     db.transaction.aggregate({ where: { caseId }, _sum: { amountIn: true, amountOut: true } }),
     readAllSettings(db),
@@ -160,7 +157,14 @@ function jsonDate(value: unknown): Parsed<Date | null> {
   return parseDateValue(value);
 }
 
-type AccountKey = { accountNumber: string; bankName: string | null; branchName: string | null; accountType: string | null; holder: string | null };
+type AccountKey = {
+  accountNumber: string;
+  // 口座の同一性に入る欄なので、空欄は null ではなく ''（DB も NOT NULL）
+  bankName: string;
+  branchName: string;
+  accountType: string | null;
+  holder: string | null;
+};
 
 function parseAccountKey(v: Record<string, unknown>): Parsed<AccountKey> {
   const accountNumber = text(v.account_number, '口座番号', 255);
@@ -171,8 +175,8 @@ function parseAccountKey(v: Record<string, unknown>): Parsed<AccountKey> {
   for (const p of [accountNumber, bankName, branchName, accountType, holder]) if (!p.ok) return p;
   return ok({
     accountNumber: (accountNumber.ok && accountNumber.value) || UNKNOWN_ACCOUNT,
-    bankName: bankName.ok ? bankName.value : null,
-    branchName: branchName.ok ? branchName.value : null,
+    bankName: (bankName.ok && bankName.value) || '',
+    branchName: (branchName.ok && branchName.value) || '',
     accountType: accountType.ok ? accountType.value : null,
     holder: holder.ok ? holder.value : null,
   });
@@ -401,13 +405,16 @@ async function importInto(tx: Tx, backup: Backup, restoreSettings: boolean) {
     },
   });
 
-  // 口座は取引に出てくる順に作り、そのあと取引の無い口座も作る
+  // 口座は取引に出てくる順に作り、そのあと取引の無い口座も作る。
+  // 'exact' なのは、バックアップ上で別の口座だったものを引き継ぎで合流させないため
+  // （番号だけが同じ別の銀行の口座が、復元で1件に化けてはいけない）
   const accountIds = new Map<string, bigint>();
   const accountOf = async (key: AccountKey) => {
-    let id = accountIds.get(key.accountNumber);
+    const identity = accountIdentity(key);
+    let id = accountIds.get(identity);
     if (id === undefined) {
-      id = (await getOrCreateAccount(tx, c.id, key)).id;
-      accountIds.set(key.accountNumber, id);
+      id = (await getOrCreateAccount(tx, c.id, key, 'exact')).id;
+      accountIds.set(identity, id);
     }
     return id;
   };

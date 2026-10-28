@@ -190,21 +190,24 @@ describe('pyRound', () => {
 });
 
 describe('markDuplicates', () => {
-  const tx = (date: string, amountOut: number, balance: number | null, description = 'ATM') => ({
-    accountNumber: '1111111',
+  // 口座は行ではなく「そのファイルの口座」で決まる（1ファイル = 1口座に分けてから渡る）
+  type Ident = { bankName?: string | null; branchName?: string | null; accountNumber?: string | null };
+  const ACCOUNT: Ident = { bankName: '架空銀行', branchName: '本店', accountNumber: '1111111' };
+  const row = (date: string, amountOut: number, balance: number | null, description = 'ATM') => ({
     date,
     amountOut,
     amountIn: 0,
     description,
     balance,
   });
+  const existing = (r: ReturnType<typeof row>, account: Ident = {}) => ({ ...ACCOUNT, ...account, ...r });
 
   it('DB にある件数までを重複にし、残高まで一致する行を先に選ぶ', () => {
-    const index = buildExistingIndex([tx('2024-04-01', 1000, 9000)]);
+    const index = buildExistingIndex([existing(row('2024-04-01', 1000, 9000))]);
     const { rows, duplicateCount } = markDuplicates(
-      [tx('2024-04-01', 1000, 8000), tx('2024-04-01', 1000, 9000)],
+      [row('2024-04-01', 1000, 8000), row('2024-04-01', 1000, 9000)],
       index,
-      '',
+      ACCOUNT,
     );
     expect(duplicateCount).toBe(1);
     expect(rows.map((r) => [r.isDuplicate, r.dupConfidence])).toEqual([
@@ -214,27 +217,37 @@ describe('markDuplicates', () => {
   });
 
   it('残高が合わなければ low。索引は消費されるので2回目は重複にならない', () => {
-    const index = buildExistingIndex([tx('2024-04-01', 1000, 9000)]);
-    const first = markDuplicates([tx('2024-04-01', 1000, null)], index, '');
+    const index = buildExistingIndex([existing(row('2024-04-01', 1000, 9000))]);
+    const first = markDuplicates([row('2024-04-01', 1000, null)], index, ACCOUNT);
     expect(first.rows[0]).toMatchObject({ isDuplicate: true, dupConfidence: 'low' });
-    const second = markDuplicates([tx('2024-04-01', 1000, 9000)], index, '');
+    const second = markDuplicates([row('2024-04-01', 1000, 9000)], index, ACCOUNT);
     expect(second.duplicateCount).toBe(0);
   });
 
-  it('摘要の前後の空白は無視し、口座番号が無い行は既定の番号で比べる', () => {
-    const index = buildExistingIndex([tx('2024-04-01', 1000, 9000)]);
-    const { duplicateCount } = markDuplicates(
-      [{ ...tx('2024-04-01', 1000, 9000, ' ATM '), accountNumber: null }],
-      index,
-      '1111111',
-    );
+  it('摘要の前後の空白は無視し、口座番号の無い口座は既定の番号で比べる', () => {
+    const noNumber: Ident = { bankName: '', branchName: '', accountNumber: null };
+    const index = buildExistingIndex([existing(row('2024-04-01', 1000, 9000), noNumber)]);
+    const { duplicateCount } = markDuplicates([row('2024-04-01', 1000, 9000, ' ATM ')], index, noNumber);
     expect(duplicateCount).toBe(1);
   });
 
   it('口座番号の先頭の 0 は別の番号として扱う', () => {
-    const index = buildExistingIndex([{ ...tx('2024-04-01', 1000, 9000), accountNumber: '12345' }]);
-    const { duplicateCount } = markDuplicates([{ ...tx('2024-04-01', 1000, 9000), accountNumber: '0012345' }], index, '');
+    const index = buildExistingIndex([existing(row('2024-04-01', 1000, 9000), { accountNumber: '12345' })]);
+    const { duplicateCount } = markDuplicates([row('2024-04-01', 1000, 9000)], index, {
+      ...ACCOUNT,
+      accountNumber: '0012345',
+    });
     expect(duplicateCount).toBe(0);
+  });
+
+  it('番号が同じでも銀行・支店が違えば重複にしない', () => {
+    const index = buildExistingIndex([existing(row('2024-04-01', 1000, 9000))]);
+    const otherBank = markDuplicates([row('2024-04-01', 1000, 9000)], index, { ...ACCOUNT, bankName: '別銀行' });
+    expect(otherBank.duplicateCount).toBe(0);
+    const otherBranch = markDuplicates([row('2024-04-01', 1000, 9000)], index, { ...ACCOUNT, branchName: '支店' });
+    expect(otherBranch.duplicateCount).toBe(0);
+    // 同じ口座なら重複になる（索引は消費されていない）
+    expect(markDuplicates([row('2024-04-01', 1000, 9000)], index, ACCOUNT).duplicateCount).toBe(1);
   });
 });
 

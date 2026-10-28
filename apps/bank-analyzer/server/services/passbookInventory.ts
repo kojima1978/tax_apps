@@ -25,6 +25,7 @@ import ExcelJS from 'exceljs';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { parseAmountValue, type Parsed } from '../input.js';
 import { toId, toDateString } from '../json.js';
+import { pickCompatibleAccount } from '../lib/accountIdentity.js';
 import { warekiFull, warekiYearAbbr } from '../lib/dates.js';
 import { exportFileName } from '../lib/exportFileName.js';
 import { FormatError } from '../lib/import/errors.js';
@@ -177,7 +178,12 @@ type Tx = Prisma.TransactionClient;
 const filled = <T>(v: T | undefined): v is T => v !== undefined && v !== null && v !== '';
 
 async function upsertCertificateAccount(tx: Tx, caseId: bigint, data: CertificateAccount): Promise<'created' | 'updated'> {
-  const existing = await tx.account.findUnique({ where: { caseId_accountNumber: { caseId, accountNumber: data.accountNumber } } });
+  // 口座の同一性は銀行名・支店名・口座番号。残高証明書の行は支店名が空のこともあるので、
+  // 番号で候補を集めてから衝突しないものを引き継ぐ（規則は lib/accountIdentity.ts）
+  const existing = pickCompatibleAccount(
+    await tx.account.findMany({ where: { caseId, accountNumber: data.accountNumber } }),
+    data,
+  );
   if (!existing) {
     const { _max } = await tx.account.aggregate({ where: { caseId }, _max: { printOrder: true } });
     await tx.account.create({

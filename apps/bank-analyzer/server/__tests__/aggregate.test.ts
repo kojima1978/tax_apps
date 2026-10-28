@@ -397,7 +397,7 @@ describe('記録に無い形', () => {
   });
 
   it('同じ口座へ同じ額を2回移すと、それぞれ自分の入金と組む（Django 版は2回目にも1回目の入金を並べた）', () => {
-    const other = { accountNumber: '222', bankName: 'B銀行' };
+    const other = { accountId: 2, accountNumber: '222', bankName: 'B銀行' };
     const txs = [
       tx(1, { amountOut: 50000 }),
       tx(2, { ...other, amountIn: 50000 }),

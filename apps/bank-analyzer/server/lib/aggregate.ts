@@ -6,6 +6,7 @@
 // 文字列の並びは文字コード順（Django 版は DB の照合順序に任せていた。日本語の銀行名どうしの
 // 並びが違いうるのは段階6の突き合わせで確かめる）。
 
+import { accountLabel } from './accountIdentity.js';
 import { detectTransfers, type AnalysisSettings } from './analyze.js';
 import {
   STANDARD_CATEGORIES,
@@ -188,7 +189,8 @@ export function filterTransactions<T extends AnalysisTx>(txs: readonly T[], f: T
 // 口座の一覧
 // ---------------------------------------------------------------------------
 
-export type AccountSummary = Omit<AnalysisAccount, 'id'> & { count: number; lastDate: string | null };
+// id を落とさない ── 画面から口座を指すのは主キーだけ（番号は案件の中でも重なりうる）
+export type AccountSummary = AnalysisAccount & { count: number; lastDate: string | null };
 
 // 口座ごとの取引件数と最後の取引日（取引の無い口座も出す）。銀行名 → 支店名 → 口座番号の順。
 export function accountSummary(accounts: readonly AnalysisAccount[], txs: readonly AnalysisTx[]): AccountSummary[] {
@@ -202,7 +204,7 @@ export function accountSummary(accounts: readonly AnalysisAccount[], txs: readon
   }
   return [...accounts]
     .sort(byKeys((a) => a.bankName, (a) => a.branchName, (a) => a.accountNumber))
-    .map(({ id, ...a }) => ({ ...a, count: 0, lastDate: null, ...stats.get(id) }));
+    .map((a) => ({ ...a, count: 0, lastDate: null, ...stats.get(a.id) }));
 }
 
 // ---------------------------------------------------------------------------
@@ -248,7 +250,14 @@ export function transferPairs(
   const dated = txs.filter((t) => t.date !== null).sort(byKeys((t) => t.date, (t) => t.id));
   const matches = new Map(
     detectTransfers(
-      dated.map((t) => ({ id: t.id, accountNumber: t.accountNumber ?? '', date: t.date!, amountOut: t.amountOut, amountIn: t.amountIn })),
+      dated.map((t) => ({
+        id: t.id,
+        accountId: t.accountId,
+        accountLabel: accountLabel(t),
+        date: t.date!,
+        amountOut: t.amountOut,
+        amountIn: t.amountIn,
+      })),
       settings,
     ).map((m) => [m.id, m.partnerId]),
   );
@@ -287,10 +296,11 @@ export function transferPairs(
 // 重複の疑い（データクレンジング）
 // ---------------------------------------------------------------------------
 
-// 日付・出金・入金・摘要・口座番号がすべて同じ取引を、その項目の順に並べる。
+// 日付・出金・入金・摘要・口座がすべて同じ取引を、その項目の順に並べる。
 // 見分けやすいように、組ごとに 0 / 1 を交互に振る。
+// 同じ口座かどうかは主キーで見る（番号だけが同じ別の銀行の取引を重複に見せない）。並びは番号順のまま。
 export function duplicateTransactions<T extends AnalysisTx>(txs: readonly T[]): (T & { dupGroupIdx: 0 | 1 })[] {
-  const keyOf = (t: T) => JSON.stringify([t.date, t.amountOut, t.amountIn, t.description, t.accountNumber]);
+  const keyOf = (t: T) => JSON.stringify([t.date, t.amountOut, t.amountIn, t.description, t.accountId]);
   const counts = new Map<string, number>();
   for (const t of txs) counts.set(keyOf(t), (counts.get(keyOf(t)) ?? 0) + 1);
   const dups = txs

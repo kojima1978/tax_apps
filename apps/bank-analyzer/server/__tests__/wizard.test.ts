@@ -330,6 +330,9 @@ function replay(name: string, spec: ScenarioSpec, djangoSteps: DjangoStep[], che
           // #7 で増えた重複の行は Django 版には無い
           djangoId: r.isDuplicate ? null : nextDjangoId++,
           stepHasNoBalance,
+          // 口座は DB と同じく同一性の3欄を持たせる（番号だけだと別の銀行の口座が同じ口座になる）
+          bankName: r.bankName,
+          branchName: r.branchName,
           accountNumber: r.accountNumber,
           date: r.date,
           description: r.description,
@@ -346,7 +349,15 @@ function replay(name: string, spec: ScenarioSpec, djangoSteps: DjangoStep[], che
           memo: null,
         });
       });
-      for (const m of detectTransfers(db.map((t) => ({ ...t, accountNumber: t.accountNumber ?? '' })), analysis)) {
+      // Django 版の transfer_to は口座番号だけなので、ラベルは番号のまま渡す。
+      // 口座の見分けも番号ごとの連番で足りる（記録の中に番号の重なりは無い）
+      const accountIds = new Map<string, number>();
+      const identified = db.map((t) => {
+        const number = t.accountNumber ?? '';
+        if (!accountIds.has(number)) accountIds.set(number, accountIds.size + 1);
+        return { ...t, accountId: accountIds.get(number)!, accountLabel: number };
+      });
+      for (const m of detectTransfers(identified, analysis)) {
         const t = db.find((x) => x.id === m.id)!;
         t.isTransfer = true;
         t.transferTo = m.transferTo;
