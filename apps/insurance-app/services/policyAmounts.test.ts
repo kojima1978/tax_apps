@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // 金額の列は「契約通貨での額」1本になった（円の列 + foreign_* 列の対をやめた）。
+// 解約返戻金の JSON も同じで、点は {age, 契約通貨での額} だけを持つ。
 // 旧スキーマからの移行は DB を開いた瞬間に走るので、lib/db.ts を使い捨てのファイルへ
 // 向けて開き直しながら確かめる。
 type Services = typeof import('./appState') & typeof import('./cases') & typeof import('@/lib/db');
@@ -18,6 +19,10 @@ const FOREIGN_COLUMNS = [
   'foreign_diagnosis_benefit',
   'foreign_maturity_benefit',
 ];
+
+/** PRAGMA user_version。1 = 金額の列、2 = 解約返戻金の JSON */
+const SCHEMA_VERSION_AMOUNTS = 1;
+const SCHEMA_VERSION = 2;
 
 let workDir: string;
 let dbPath: string;
@@ -92,7 +97,7 @@ describe('金額の列を契約通貨へ畳む移行', () => {
     svc.resetToSample(id);
 
     expect(columnsOf().filter(column => column.startsWith('foreign_'))).toEqual([]);
-    expect(userVersion()).toBe(1);
+    expect(userVersion()).toBe(SCHEMA_VERSION);
   });
 
   it('旧スキーマの外貨建て契約は、円の列を外貨額で置き換える', async () => {
@@ -105,7 +110,7 @@ describe('金額の列を契約通貨へ畳む移行', () => {
     const row = policyRow(policyId);
 
     expect(columnsOf().filter(column => column.startsWith('foreign_'))).toEqual([]);
-    expect(userVersion()).toBe(1);
+    expect(userVersion()).toBe(SCHEMA_VERSION);
     expect(row.premium_amount).toBe(1000);
     expect(row.death_benefit_disease).toBe(100000);
     expect(row.maturity_benefit).toBe(50000);
@@ -152,7 +157,7 @@ describe('金額の列を契約通貨へ畳む移行', () => {
     const twice = policyRow(policyId);
 
     expect(twice).toEqual(once);
-    expect(userVersion()).toBe(1);
+    expect(userVersion()).toBe(SCHEMA_VERSION);
   });
 
   it('古い版のアプリが付け直した foreign_* は、金額を触らずに落とす', async () => {
@@ -238,5 +243,112 @@ describe('円換算は読み出しで作る', () => {
     const policy = svc.getAppState(id)!.policies.find(p => p.id === policyId)!;
     expect(policy.foreignPremiumAmount).toBe(1000);
     expect(policy.premiumAmount).toBe(140000);
+  });
+});
+
+describe('解約返戻金も契約通貨で持つ', () => {
+  type LegacyPoint = { age: number; amount: number; foreignAmount?: number };
+
+  /** 旧データ（円換算額 + 外貨額の対）を直に書き込み、版を「金額の列まで」に戻す */
+  const writeLegacyPoints = async (
+    policyId: string,
+    points: LegacyPoint[],
+    options: { currency?: 'JPY' | 'USD'; rate?: number } = {},
+  ): Promise<void> => {
+    await withRawDb(raw => {
+      raw.prepare(`UPDATE policies SET currency = ?, exchange_rate = ?, surrender_values = ? WHERE id = ?`)
+        .run(options.currency ?? 'USD', options.rate ?? 140, JSON.stringify(points), policyId);
+      raw.pragma(`user_version = ${SCHEMA_VERSION_AMOUNTS}`);
+    });
+  };
+
+  const storedPoints = (policyId: string): LegacyPoint[] =>
+    JSON.parse(String(policyRow(policyId).surrender_values));
+
+  const sampleCase = () => {
+    const { id } = svc.createCase();
+    const state = svc.resetToSample(id);
+    return { caseId: id, policyId: state.policies[0].id };
+  };
+
+  it('外貨建ては外貨額だけが残り、版が上がる', async () => {
+    const { policyId } = sampleCase();
+
+    await writeLegacyPoints(policyId, [
+      { age: 60, amount: 140000, foreignAmount: 1000 },
+      // 円換算額が今のレートと食い違っている点（誰も維持していない写し）
+      { age: 70, amount: 999999, foreignAmount: 2000 },
+    ]);
+
+    expect(storedPoints(policyId)).toEqual([{ age: 60, amount: 1000 }, { age: 70, amount: 2000 }]);
+    expect(userVersion()).toBe(SCHEMA_VERSION);
+  });
+
+  it('外貨額の無い古い点は、保存時のレートで割って救う', async () => {
+    const { policyId } = sampleCase();
+
+    await writeLegacyPoints(policyId, [{ age: 60, amount: 140000 }], { rate: 140 });
+
+    expect(storedPoints(policyId)).toEqual([{ age: 60, amount: 1000 }]);
+  });
+
+  it('レートも無ければ 0 にする（画面は元から外貨額を見ている）', async () => {
+    const { policyId } = sampleCase();
+
+    await writeLegacyPoints(policyId, [{ age: 60, amount: 140000 }], { rate: 0 });
+
+    expect(storedPoints(policyId)).toEqual([{ age: 60, amount: 0 }]);
+  });
+
+  it('円建ては額が変わらず、読んでいない foreignAmount だけ落ちる', async () => {
+    const { policyId } = sampleCase();
+
+    await writeLegacyPoints(policyId, [{ age: 60, amount: 300000, foreignAmount: 9999 }], { currency: 'JPY', rate: 0 });
+
+    expect(storedPoints(policyId)).toEqual([{ age: 60, amount: 300000 }]);
+  });
+
+  it('移行を何度通しても額は動かない', async () => {
+    const { policyId } = sampleCase();
+
+    await writeLegacyPoints(policyId, [{ age: 60, amount: 140000, foreignAmount: 1000 }]);
+    const once = storedPoints(policyId);
+    await withRawDb(() => {});
+
+    expect(storedPoints(policyId)).toEqual(once);
+    expect(userVersion()).toBe(SCHEMA_VERSION);
+  });
+
+  it('古い版のアプリが円の写しに戻した点は、foreignAmount を本物として読む', async () => {
+    const { caseId, policyId } = sampleCase();
+
+    await writeLegacyPoints(policyId, [{ age: 60, amount: 140000, foreignAmount: 1000 }]);
+    // 移行済みの DB を古い版のアプリで保存すると、点が対の形に戻る（版は上がったまま）
+    await withRawDb(raw => {
+      raw.prepare(`UPDATE policies SET surrender_values = ? WHERE id = ?`)
+        .run(JSON.stringify([{ age: 60, amount: 999999, foreignAmount: 1000 }]), policyId);
+    });
+
+    const policy = svc.getAppState(caseId)!.policies.find(p => p.id === policyId)!;
+    expect(policy.surrenderValues).toEqual([{ age: 60, amount: 140000, foreignAmount: 1000 }]);
+  });
+
+  it('円換算は読み出しで作り、案件のレートに追いつく', async () => {
+    const { caseId, policyId } = sampleCase();
+
+    await writeLegacyPoints(policyId, [{ age: 60, amount: 140000, foreignAmount: 1000 }]);
+
+    // 案件のレートが無いので、行に残っている保存時のレート（140）で換算する
+    const atSavedRate = svc.getAppState(caseId)!.policies.find(policy => policy.id === policyId)!;
+    expect(atSavedRate.surrenderValues).toEqual([{ age: 60, amount: 140000, foreignAmount: 1000 }]);
+
+    // レートを変えて保存し直しても、DB に残るのは外貨額のまま
+    const state = svc.getAppState(caseId)!;
+    state.valuationSettings = { usdJpyRate: 150, fxRateDate: '2026-10-28' };
+    const saved = svc.saveAppState(caseId, state);
+
+    expect(storedPoints(policyId)).toEqual([{ age: 60, amount: 1000 }]);
+    expect(saved.policies.find(policy => policy.id === policyId)!.surrenderValues)
+      .toEqual([{ age: 60, amount: 150000, foreignAmount: 1000 }]);
   });
 });

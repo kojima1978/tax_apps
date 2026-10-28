@@ -9,6 +9,37 @@ export function yenFromUsd(amount: number, usdJpyRate: number): number {
   return Math.round(Math.max(0, amount || 0) * Math.max(0, usdJpyRate || 0));
 }
 
+/**
+ * 解約返戻金の点を「契約通貨での額」に直して保存する（保存・移行の両方がここを通る）。
+ * 外貨建ては foreignAmount が本物で、amount は読み出しで作る円換算の写し。写しだけしか
+ * 無い古い点は、保存した時のレートで割って外貨額に戻す（レートも無ければ 0。画面はもともと
+ * 外貨額から作っているので見え方は変わらない）。
+ */
+export function surrenderAmountForStorage(
+  point: { amount?: number; foreignAmount?: number },
+  isForeign: boolean,
+  savedRate: number,
+): number {
+  if (!isForeign) return Math.max(0, point.amount || 0);
+  if (typeof point.foreignAmount === 'number') return Math.max(0, point.foreignAmount);
+  const rate = Math.max(0, savedRate || 0);
+  return rate > 0 ? Math.round(Math.max(0, point.amount || 0) / rate) : 0;
+}
+
+/**
+ * 保存されている点から契約通貨の額を取る（読み出し専用。ここでは割らない ── 列と同じく
+ * 保存されている amount がもう契約通貨の額なので、割ると外貨額が壊れる）。
+ * 古い版のアプリでこの DB を開いて保存すると amount が円換算の写しに戻るので、
+ * foreignAmount が残っている点だけはそちらを本物として採る。
+ */
+export function storedSurrenderAmount(
+  point: { amount?: number; foreignAmount?: number },
+  isForeign: boolean,
+): number {
+  if (isForeign && typeof point.foreignAmount === 'number') return Math.max(0, point.foreignAmount);
+  return Math.max(0, point.amount || 0);
+}
+
 export function formatWholeManYen(amount: number, zeroLabel = '0万円'): string {
   const wholeManYen = Math.floor(Math.max(0, amount) / 10_000);
   if (wholeManYen === 0) return zeroLabel;

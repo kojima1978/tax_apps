@@ -1,3 +1,4 @@
+import { surrenderAmountForStorage } from '@/utils/currencyUtils';
 import Database from 'better-sqlite3';
 import { accessSync, constants, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -267,6 +268,7 @@ function runMigrations(db: Database.Database): void {
 
   migrateBeneficiaryAllocations(db);
   migratePolicyAmountsToContractCurrency(db);
+  migrateSurrenderValuesToContractCurrency(db);
 
   try {
     db.exec(`ALTER TABLE app_state_meta ADD COLUMN valuation_settings TEXT`);
@@ -290,8 +292,11 @@ function runMigrations(db: Database.Database): void {
   }
 }
 
-/** 金額の列を契約通貨へ揃えた版。これより後の移行はこの番号を増やす */
+/** 金額の列を契約通貨へ揃えた版 */
 const SCHEMA_VERSION_CONTRACT_CURRENCY_AMOUNTS = 1;
+
+/** 解約返戻金の JSON も契約通貨へ揃えた版。これより後の移行はこの番号を増やす */
+const SCHEMA_VERSION_CONTRACT_CURRENCY_SURRENDER = 2;
 
 /** 畳む前の対（円の列 → 外貨の列）。移行とその後片付けの両方がこの表から動く */
 const FOREIGN_AMOUNT_COLUMNS: Record<string, string> = {
@@ -409,6 +414,61 @@ function migratePolicyAmountsToContractCurrency(db: Database.Database): void {
     })();
   } finally {
     db.pragma('foreign_keys = ON');
+  }
+}
+
+/**
+ * 解約返戻金（surrender_values）の各点も「円換算額 amount + 外貨額 foreignAmount」の対で
+ * 持っていた。本物は外貨建てなら foreignAmount の側だけで、amount は読み出し側
+ * （applyValuationRateToPolicy）が毎回作り直す写し ── 金額の列と同じ二重持ちなので、
+ * 点は {age, 契約通貨での額} だけにして円換算は読み出しで作る。
+ *
+ * 写す規則は surrenderAmountForStorage（保存と同じ1箇所）:
+ *  - 外貨建て(USD)は foreignAmount をそのまま額にする
+ *  - foreignAmount が無い古い点は、行に残っている保存時のレートで円額を割って救う
+ *    （レートも無ければ 0。画面はもともと外貨額から作っているので見え方は変わらない）
+ *  - 円建ては amount のまま（foreignAmount キーは画面が読んでいないので捨てる）
+ *
+ * 印は金額の列と同じ PRAGMA user_version。列の有無では見分けられない（JSON の中なので
+ * ALTER TABLE の痕跡が無い）ため、こちらは版を上げること自体が唯一の印になる。
+ */
+function migrateSurrenderValuesToContractCurrency(db: Database.Database): void {
+  const version = Number(db.pragma('user_version', { simple: true }) ?? 0);
+  if (version >= SCHEMA_VERSION_CONTRACT_CURRENCY_SURRENDER) return;
+
+  const rows = db.prepare(`
+    SELECT id, currency, exchange_rate, surrender_values FROM policies
+     WHERE surrender_values IS NOT NULL
+  `).all() as { id: string; currency: string; exchange_rate: number; surrender_values: string }[];
+  const update = db.prepare(`UPDATE policies SET surrender_values = ? WHERE id = ?`);
+  let rescued = 0;
+
+  db.transaction(() => {
+    for (const row of rows) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(row.surrender_values);
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(parsed)) continue;
+
+      const isForeign = row.currency === 'USD';
+      const points = parsed
+        .filter((point): point is { age: number; amount?: number; foreignAmount?: number } =>
+          !!point && typeof point === 'object' && typeof (point as { age?: unknown }).age === 'number')
+        .map(point => {
+          // 外貨額が無い点はレートで割って救う（割れたかどうかは件数で残す）
+          if (isForeign && typeof point.foreignAmount !== 'number') rescued += 1;
+          return { age: point.age, amount: surrenderAmountForStorage(point, isForeign, row.exchange_rate) };
+        });
+      update.run(points.length > 0 ? JSON.stringify(points) : null, row.id);
+    }
+    db.pragma(`user_version = ${SCHEMA_VERSION_CONTRACT_CURRENCY_SURRENDER}`);
+  })();
+
+  if (rescued > 0) {
+    console.warn(`[insurance-app] 外貨額の無い解約返戻金が ${rescued}点ありました: 保存時のレートで外貨額に直しました`);
   }
 }
 

@@ -27,8 +27,8 @@ export function isIncomeProtectionPolicyType(policyType: string): boolean {
 // 年齢別の解約返戻金。入力した年齢だけを保持し、間は線形補間して扱う
 export interface SurrenderValuePoint {
   age: number;
-  amount: number;          // 円換算額
-  foreignAmount?: number;  // 外貨建て契約の入力額
+  amount: number;          // 円換算額（外貨建てでは読み出しで作る導出値。DB には入らない）
+  foreignAmount?: number;  // 外貨建て契約の入力額（外貨建てはこちらが本物）
 }
 
 // 最後の入力年齢より先の描き方。'compound' は入力値の年平均増加率で延長、'flat' は横ばい。

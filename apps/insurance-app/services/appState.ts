@@ -4,7 +4,13 @@ import { getSampleFamilyMembers, getSampleAgency, getSamplePolicies } from '@/li
 import { isIncomeProtectionPolicyType, normalizePolicyType, SURRENDER_PROJECTION_MODES } from '@/types';
 import type { AppState, FamilyMember, Policy, Agency, BeneficiaryAllocation, EvaluationOverride, SurrenderValuePoint, ValuationSettings } from '@/types';
 import { normalizeBeneficiaryAllocations } from '@/utils/beneficiaryUtils';
-import { applyValuationRateToPolicy, inferValuationSettings, yenFromUsd } from '@/utils/currencyUtils';
+import {
+  applyValuationRateToPolicy,
+  inferValuationSettings,
+  storedSurrenderAmount,
+  surrenderAmountForStorage,
+  yenFromUsd,
+} from '@/utils/currencyUtils';
 
 interface FamilyMemberRow {
   id: string;
@@ -245,6 +251,21 @@ function policyAmountsForStorage(policy: Policy) {
 }
 
 /**
+ * 解約返戻金の点も契約通貨での額だけを保存する。外貨建ての円換算額（amount）は
+ * 読み出しで作る写しなので JSON には入れない。
+ */
+function surrenderValuesForStorage(policy: Policy): string | null {
+  const points = policy.surrenderValues;
+  if (!points?.length) return null;
+  const isForeign = (policy.currency ?? 'JPY') === 'USD';
+  const stored = points.map(point => ({
+    age: point.age,
+    amount: surrenderAmountForStorage(point, isForeign, policy.exchangeRate ?? 0),
+  }));
+  return JSON.stringify(stored);
+}
+
+/**
  * policies への INSERT はサンプル投入・保存・CSV取込の3箇所にある。列を足したときに
  * 片方だけ直す事故を防ぐため、SQL と値の組み立てはここだけに置く。
  * pension_settings / premium_payment_completed / payment_details / surrender_projection は
@@ -302,7 +323,7 @@ export function policyInsertParams(
     paymentEndAge: policy.paymentEndAge,
     annualPremium: amounts.annualPremium,
     maturityBenefit: amounts.maturityBenefit,
-    surrenderValues: policy.surrenderValues?.length ? JSON.stringify(policy.surrenderValues) : null,
+    surrenderValues: surrenderValuesForStorage(policy),
     consultantNote: policy.consultantNote ?? null,
     evaluationOverrides: policy.evaluationOverrides?.length ? JSON.stringify(policy.evaluationOverrides) : null,
     sortOrder: options.sortOrder,
@@ -368,7 +389,12 @@ function rowToPolicy(row: PolicyRow, allocations: BeneficiaryAllocation[]): Poli
     premiumPaymentCompleted: Boolean(row.premium_payment_completed),
     annualPremium: yen(row.annual_premium),
     maturityBenefit: yen(row.maturity_benefit),
-    surrenderValues: parseSurrenderValues(row.surrender_values),
+    surrenderValues: parseSurrenderValues(row.surrender_values)?.map(point => {
+      const contractAmount = storedSurrenderAmount(point, isForeign);
+      return isForeign
+        ? { age: point.age, amount: yen(contractAmount), foreignAmount: contractAmount }
+        : { age: point.age, amount: contractAmount };
+    }),
     surrenderProjection: SURRENDER_PROJECTION_MODES.find(mode => mode === row.surrender_projection),
     consultantNote: row.consultant_note ?? undefined,
     evaluationOverrides: parseEvaluationOverrides(row.evaluation_overrides),
