@@ -56,6 +56,33 @@ export function taxPeriodOrder(label: string): number | null {
   return year * 10000 + Number(matched[3] ?? 0) * 100 + Number(matched[4] ?? 0);
 }
 
+/**
+ * 課税時期が同じ年分が他にもある案件のID。
+ *
+ * 複製した直後は課税時期まで元と同じで、年度一覧の行に出るのは課税時期と更新日時だけなので、
+ * どちらが複製か分からない。以前はサーバが会社名へ「（コピー）」を足していたが、会社名は
+ * 様式の欄の写しなので、開いた瞬間に自動保存が欄の値で上書きして印は黙って消えていた
+ * （しかも会社一覧の見出しはその列から作るため、消えるまでは会社そのものが
+ * 「○○（コピー）」という名前に見えていた）。
+ *
+ * そこで印は保存せず、見分けが必要な行だけをここで選ぶ。課税時期を翌年へ直せば自然に消える
+ * ── 印が要らなくなった瞬間に消えるので、消し忘れの嘘が残らない。
+ *
+ * 未入力（空）の課税時期はまとめない。作ったばかりの年分が揃って「重なり」になってしまう。
+ */
+export function ambiguousTaxPeriodIds(items: readonly GroupableCase[]): ReadonlySet<number> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const period = item.taxPeriod.trim();
+    if (period !== '') counts.set(period, (counts.get(period) ?? 0) + 1);
+  }
+  return new Set(
+    items
+      .filter((item) => (counts.get(item.taxPeriod.trim()) ?? 0) > 1)
+      .map((item) => item.id),
+  );
+}
+
 /** 課税時期の新しい順。読めないものは後ろへ回す（元の並びのまま残る）。 */
 function byTaxPeriodDesc(a: { taxPeriod: string }, b: { taxPeriod: string }): number {
   const left = taxPeriodOrder(a.taxPeriod);

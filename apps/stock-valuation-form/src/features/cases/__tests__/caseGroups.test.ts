@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { findGroupByKey, groupCasesByCompany, groupKeyOf, groupKeyOfCaseId, taxPeriodOrder } from '../caseGroups';
+import {
+  ambiguousTaxPeriodIds,
+  findGroupByKey,
+  groupCasesByCompany,
+  groupKeyOf,
+  groupKeyOfCaseId,
+  taxPeriodOrder,
+} from '../caseGroups';
 
 /** 一覧はサーバから更新日時の降順で来る。テストもその順で並べて渡す。 */
 const caseOf = (id: number, companyName: string, taxPeriod: string, companyKey: string | null = null) =>
@@ -166,5 +173,42 @@ describe('findGroupByKey', () => {
     const groups = groupCasesByCompany([caseOf(1, '甲田製作所', '令和8年3月15日')]);
     expect(findGroupByKey(groups, 'name:乙山商事')).toBeNull();
     expect(findGroupByKey(groups, 'key:k9')).toBeNull();
+  });
+});
+
+// 複製は課税時期まで元のまま写すので、年度一覧の行（課税時期と更新日時だけ）では見分けが
+// つかない。サーバが会社名へ印を足す形は、開いた瞬間に自動保存が消してしまうので採らない。
+describe('ambiguousTaxPeriodIds', () => {
+  it('課税時期が重なっている年分だけを選ぶ', () => {
+    const ids = ambiguousTaxPeriodIds([
+      caseOf(2, '甲田製作所', '令和8年3月15日', 'k1'),
+      caseOf(1, '甲田製作所', '令和8年3月15日', 'k1'),
+      caseOf(3, '甲田製作所', '令和7年3月15日', 'k1'),
+    ]);
+    expect([...ids].sort()).toEqual([1, 2]);
+  });
+
+  it('課税時期を翌年へ直せば重なりは消える', () => {
+    const ids = ambiguousTaxPeriodIds([
+      caseOf(2, '甲田製作所', '令和9年3月15日', 'k1'),
+      caseOf(1, '甲田製作所', '令和8年3月15日', 'k1'),
+    ]);
+    expect(ids.size).toBe(0);
+  });
+
+  it('未入力の課税時期はまとめない（作ったばかりの年分が揃って重なりになる）', () => {
+    const ids = ambiguousTaxPeriodIds([
+      caseOf(2, '甲田製作所', '', 'k1'),
+      caseOf(1, '甲田製作所', '  ', 'k1'),
+    ]);
+    expect(ids.size).toBe(0);
+  });
+
+  it('前後の空白は同じ課税時期として見る', () => {
+    const ids = ambiguousTaxPeriodIds([
+      caseOf(2, '甲田製作所', ' 令和8年3月15日 ', 'k1'),
+      caseOf(1, '甲田製作所', '令和8年3月15日', 'k1'),
+    ]);
+    expect(ids.size).toBe(2);
   });
 });

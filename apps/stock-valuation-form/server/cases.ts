@@ -107,15 +107,6 @@ export function parseCaseId(param: string | undefined): number {
   return id;
 }
 
-/** 複製した案件の名前。元が空のままでも「どれが複製か」が一覧で分かるようにする。 */
-export function copiedCaseName(companyName: string): string {
-  const base = companyName.trim();
-  const copied = base === '' ? '（コピー）' : `${base}（コピー）`;
-  return copied.length > MAX_COMPANY_NAME_LENGTH
-    ? copied.slice(0, MAX_COMPANY_NAME_LENGTH)
-    : copied;
-}
-
 /** 担当者。staffId は社員台帳の ID、name は設定した時点の氏名の写し。 */
 export interface CaseAssignee {
   staffId: number;

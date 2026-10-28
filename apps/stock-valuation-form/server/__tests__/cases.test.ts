@@ -10,7 +10,6 @@ import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import {
   CASE_CONFLICT_MESSAGE,
-  copiedCaseName,
   parseAssignee,
   parseCaseData,
   parseCaseId,
@@ -92,20 +91,6 @@ describe('parseCaseId', () => {
   // 素通りさせると Prisma に NaN が届くので、ここで400に倒す。
   it('undefined も弾く', () => {
     expect(() => parseCaseId(undefined)).toThrow(ValidationError);
-  });
-});
-
-describe('copiedCaseName', () => {
-  it('会社名の後ろに（コピー）を付ける', () => {
-    expect(copiedCaseName('株式会社テスト')).toBe('株式会社テスト（コピー）');
-  });
-
-  it('会社名が空でも複製と分かる名前にする', () => {
-    expect(copiedCaseName('')).toBe('（コピー）');
-  });
-
-  it('上限を超えないよう切り詰める', () => {
-    expect(copiedCaseName('あ'.repeat(200))).toHaveLength(200);
   });
 });
 
@@ -429,7 +414,10 @@ describe('createCaseRouter', () => {
     expect(rows[0]!.archivedAt).toBeNull();
   });
 
-  it('複製は元を変えずに（コピー）を作る', async () => {
+  // 会社名へ「（コピー）」を足すのはやめた。この列は様式の欄の写しで、複製を開いた瞬間に
+  // 自動保存が欄の値で上書きするため印は消え、消えるまでは会社一覧の見出しが
+  // 「○○（コピー）」になっていた。どれが複製かは年度一覧が課税時期の重なりから出す。
+  it('複製は元を変えず、会社名も課税時期も元のまま写す', async () => {
     const data = { table1_1: { f12: '株式会社テスト' } };
     const { rows, client } = fakeDb([
       { companyName: '株式会社テスト', taxPeriod: '令和8年3月15日', data },
@@ -440,7 +428,7 @@ describe('createCaseRouter', () => {
     expect(res.status).toBe(201);
     expect(rows).toHaveLength(2);
     expect(rows[0]!.companyName).toBe('株式会社テスト');
-    expect(rows[1]!.companyName).toBe('株式会社テスト（コピー）');
+    expect(rows[1]!.companyName).toBe('株式会社テスト');
     expect(rows[1]!.taxPeriod).toBe('令和8年3月15日');
     expect(rows[1]!.data).toEqual(data);
   });

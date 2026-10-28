@@ -15,7 +15,6 @@ import { Hono, type Context } from 'hono';
 import type { PrismaClient } from '@prisma/client';
 import {
   CASE_CONFLICT_MESSAGE,
-  copiedCaseName,
   parseAssignee,
   parseCaseId,
   parseCaseInput,
@@ -192,13 +191,19 @@ export function createCaseRouter(db: PrismaClient) {
   }));
 
   // 複製。前期の入力を土台に翌年度ぶんを作る、といった使い方を想定している。
+  //
+  // 会社名・課税時期は元のまま写す。以前は会社名の後ろに「（コピー）」を足していたが、
+  // この2つの列は入力データ（data）の欄の写しなので、複製を開いた瞬間に画面の自動保存が
+  // 欄の値で上書きし、印は黙って消えていた。そのうえ会社一覧の見出しはこの列から作るため、
+  // 消えるまでの間は会社そのものが「○○（コピー）」という名前に見えていた。
+  // 「どれが複製か」は保存せず、年度一覧が課税時期の重なりから出す（caseGroups）。
   router.post('/cases/:id/duplicate', guard(async (c) => {
     const source = await findCase(c);
     if (!source) return c.json({ error: '指定された案件は存在しません' }, 404);
 
     const created = await db.valuationCase.create({
       data: {
-        companyName: copiedCaseName(source.companyName),
+        companyName: source.companyName,
         taxPeriod: source.taxPeriod,
         // 複製は同じ会社の別の年分を作る操作なので、会社キーを引き継ぐ（無ければ元にも振る）。
         companyKey: await ensureCompanyKey(source.id),

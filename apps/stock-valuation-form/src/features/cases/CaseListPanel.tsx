@@ -10,7 +10,7 @@ import { ArchivedToggle } from './ArchivedToggle';
 import { AssigneeButton } from './AssigneeButton';
 import type { CaseSummary } from './api';
 import { assigneeLabel } from './caseAssignee';
-import type { CaseGroup } from './caseGroups';
+import { ambiguousTaxPeriodIds, type CaseGroup } from './caseGroups';
 import { caseDisplayName, formatSavedAt } from './caseLabels';
 import { useOpenCase } from './useOpenCase';
 import type { CaseStore } from './useCases';
@@ -28,6 +28,8 @@ interface CaseListPanelProps {
 export function CaseListPanel({ store, group, onOpened, onAddYear }: CaseListPanelProps) {
   const { busy, act, open } = useOpenCase(store, onOpened);
   const { operators, status: directory } = useOperator();
+  // 課税時期が重なっている行（複製した直後がこれ）は、作成日時まで出さないと見分けられない。
+  const ambiguous = ambiguousTaxPeriodIds(group.items);
 
   const rowActions = (item: CaseSummary) => (
     item.archivedAt !== null
@@ -55,6 +57,9 @@ export function CaseListPanel({ store, group, onOpened, onAddYear }: CaseListPan
   // 会社名は見出しに1度出ているので行には出さない。代わりに課税時期が年分の見分けになるので、
   // 未入力でもその旨を出す ── どちらも空の行は、どの年分か分からないまま並ぶことになる。
   //
+  // 課税時期が他の年分と重なっている行だけは作成日時も出す。複製は元の課税時期をそのまま
+  // 引き継ぐので、それだけでは2行が区別できない（後から作られたほうが複製）。
+  //
   // 担当者は台帳が引けてゴミ箱に入っていない行だけ選べる。それ以外は名前を文字で出す。
   const renderRow = (item: CaseSummary) => {
     const editable = directory === 'ok' && item.archivedAt === null;
@@ -77,6 +82,7 @@ export function CaseListPanel({ store, group, onOpened, onAddYear }: CaseListPan
           <span className="case-row-updated">
             {item.archivedAt !== null ? 'ゴミ箱 ' : '更新 '}
             {formatSavedAt(item.archivedAt ?? item.updatedAt)}
+            {ambiguous.has(item.id) && ` ／ 作成 ${formatSavedAt(item.createdAt)}`}
             {!editable && assignee !== null && ` ／ 担当 ${assignee}`}
           </span>
           {item.id === store.currentId && <span className="case-row-period">編集中</span>}
