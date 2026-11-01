@@ -1,9 +1,11 @@
 "use client";
 
-import { AlertTriangle, Download, LoaderCircle, Search } from "lucide-react";
+import { AlertTriangle, Download, LoaderCircle, Printer, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
+import { propertyPlanOptions } from "@/lib/property-plan";
 import { BackToClientList } from "@/components/back-to-client-list";
 import { Highlighted } from "@/components/highlighted";
 import { ListPager, PageSizeSelect } from "@/components/list-pager";
@@ -34,6 +36,7 @@ type PropertiesResponse = { rows: PropertyRow[]; fiscalYears: number[] };
 const filterFields = [
   { key: "category", label: "科目", options: realEstateCategories.map((category) => ({ value: category, label: categoryLabels[category] })) },
   { key: "propertyType", label: "土地・建物", options: Object.entries(propertyTypeLabels).map(([value, label]) => ({ value, label })) },
+  { key: "plan", label: "今後の方針", options: [...propertyPlanOptions, { value: "DISPOSAL", label: "売却・処分予定" }] },
 ] as const satisfies ReadonlyArray<{ key: keyof PropertyFilters; label: string; options: ReadonlyArray<{ value: string; label: string }> }>;
 
 /** 面積は㎡までの整数・小数をそのまま出す（未入力は「－」）。 */
@@ -65,7 +68,18 @@ export function PropertiesView() {
   const [sortMode, setSortMode] = useState<PropertySortMode>(PROPERTY_SORT_DEFAULT);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
   const [page, setPage] = useState(1);
+  const [includePlan, setIncludePlan] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const router = useRouter();
+
+  // 印刷時はページ送りで隠れている明細も含め、絞り込み結果をすべて出す。
+  useEffect(() => {
+    const before = () => flushSync(() => setPrinting(true));
+    const after = () => setPrinting(false);
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => { window.removeEventListener("beforeprint", before); window.removeEventListener("afterprint", after); };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -86,12 +100,16 @@ export function PropertiesView() {
   }, [yearMode]);
 
   const terms = useMemo(() => searchTerms(query), [query]);
+  const planCounts = useMemo(() => {
+    const candidates = filterProperties(rows ?? [], terms, { ...filters, plan: PROPERTY_FILTER_ALL });
+    return { total: candidates.length, counts: Object.fromEntries(propertyPlanOptions.map((option) => [option.value, candidates.filter((row) => row.plan === option.value).length])) };
+  }, [rows, terms, filters]);
   const matched = useMemo(() => filterProperties(rows ?? [], terms, filters), [rows, terms, filters]);
   // 並び替えは絞り込みの後ろに1段だけ入れ、下流（合計・CSV・ページ送り）へは filtered だけを渡す。
   const filtered = useMemo(() => sortProperties(matched, sortMode), [matched, sortMode]);
   const total = useMemo(() => filtered.reduce((sum, row) => sum + row.valueJpy, 0), [filtered]);
   const clientCount = useMemo(() => new Set(filtered.map((row) => row.householdId)).size, [filtered]);
-  const narrowed = terms.length > 0 || filters.category !== PROPERTY_FILTER_ALL || filters.propertyType !== PROPERTY_FILTER_ALL;
+  const narrowed = terms.length > 0 || filters.category !== PROPERTY_FILTER_ALL || filters.propertyType !== PROPERTY_FILTER_ALL || Boolean(filters.plan && filters.plan !== PROPERTY_FILTER_ALL);
   // 描画するのはこのページのぶんだけ。全件を並べると行数に比例して表示が遅くなる。
   const paged = useMemo(() => pageSlice(filtered, page, pageSize), [filtered, page, pageSize]);
   const yearSubtitle = yearMode === "current"
@@ -99,10 +117,14 @@ export function PropertiesView() {
     : yearMode === "all"
       ? "登録されている全年度の不動産です（同じ物件が年度ごとに表示される場合があります）"
       : `${yearMode}年度のB/Sにある不動産です`;
+  const printFilters = filterFields.flatMap((field) => {
+    const value = filters[field.key];
+    return value && value !== PROPERTY_FILTER_ALL ? [`${field.label}：${field.options.find((option) => option.value === value)?.label ?? value}`] : [];
+  });
 
   // 絞り込んだ結果をそのまま書き出す（画面に出ているものと中身を一致させる）。
   const downloadCsv = () => {
-    const url = URL.createObjectURL(new Blob([propertiesCsv(filtered)], { type: "text/csv;charset=utf-8" }));
+    const url = URL.createObjectURL(new Blob([propertiesCsv(filtered, includePlan)], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = propertiesCsvFileName();
@@ -110,7 +132,7 @@ export function PropertiesView() {
     URL.revokeObjectURL(url);
   };
 
-  return <>
+  return <div className="properties-page">
     <div className="page-heading"><div><BackToClientList /><h1>不動産一覧</h1></div></div>
     <div className="client-home-toolbar">
       <label className="client-search">
@@ -126,6 +148,8 @@ export function PropertiesView() {
       <button type="button" className="button secondary" onClick={downloadCsv} disabled={filtered.length === 0}>
         <Download />CSVで書き出す
       </button>
+      <button type="button" className="button secondary" onClick={() => window.print()} disabled={filtered.length === 0}><Printer />印刷・PDF</button>
+      <label className="property-plan-export-option"><input type="checkbox" checked={includePlan} onChange={(event) => setIncludePlan(event.target.checked)} />希望時期・メモ付きで出力</label>
     </div>
     {error ? <p className="backup-message error" role="alert"><AlertTriangle />{error}</p> : null}
     <article className="panel properties-panel">
@@ -152,7 +176,7 @@ export function PropertiesView() {
           {filterFields.map((field) => <label key={field.key}>
             <span>{field.label}</span>
             <select
-              value={filters[field.key]}
+              value={filters[field.key] ?? PROPERTY_FILTER_ALL}
               onChange={(event) => { setFilters((current) => ({ ...current, [field.key]: event.target.value })); setPage(1); }}
             >
               <option value={PROPERTY_FILTER_ALL}>すべて</option>
@@ -168,21 +192,29 @@ export function PropertiesView() {
           <PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>}
       />
-      <div className="table-scroll">
+      <div className="property-plan-filters" role="group" aria-label="方針で絞り込み">
+        <button type="button" aria-pressed={!filters.plan || filters.plan === PROPERTY_FILTER_ALL} onClick={() => { setFilters((current) => ({ ...current, plan: PROPERTY_FILTER_ALL })); setPage(1); }} disabled={rows === null}>すべて <span>{planCounts.total}件</span></button>
+        {propertyPlanOptions.map((option) => <button key={option.value} type="button" aria-pressed={filters.plan === option.value} onClick={() => { setFilters((current) => ({ ...current, plan: option.value })); setPage(1); }} disabled={rows === null}>{option.label} <span>{planCounts.counts[option.value]}件</span></button>)}
+      </div>
+      <div className="properties-print-heading"><h2>不動産一覧{includePlan ? "（希望時期・メモ付き）" : ""}</h2><p>{yearSubtitle}</p>{printFilters.length || query.trim() ? <p>{[...printFilters, ...(query.trim() ? [`検索：${query.trim()}`] : [])].join("／")}</p> : null}</div>
+      <div className="table-scroll" role="region" aria-label="不動産一覧。横にスクロールできます" tabIndex={0}>
         {rows === null ? <p className="properties-loading" role="status"><LoaderCircle className="spin" />読み込み中です…</p> : <table className="properties-table">
           <thead><tr>
-            <th>顧客</th><th>科目・区分</th><th>名称・所在地</th><th>地目・用途</th>
-            <th className="number">面積</th><th className="number">持分</th>
-            <th className="number">固定資産税評価額</th><th className="number">評価額（円）</th>
-          </tr></thead>
+            <th colSpan={5} scope="colgroup" className="properties-plan-group">今後の方針</th>
+            <th rowSpan={2} scope="col" className="properties-client-column">顧客</th><th rowSpan={2} scope="col" className="properties-category-column">科目・区分</th><th rowSpan={2} scope="col">名称・所在地</th><th rowSpan={2} scope="col" className="properties-use-column">地目・用途</th>
+            <th rowSpan={2} scope="col" className="number properties-area-column">面積</th><th rowSpan={2} scope="col" className="number properties-share-column">持分</th>
+            <th rowSpan={2} scope="col" className="number properties-fixed-value-column">固定資産税評価額</th><th rowSpan={2} scope="col" className="number properties-value-column">評価額（円）</th>
+            {includePlan ? <th rowSpan={2} scope="col" className="property-plan-column property-plan-memo-column">希望時期・メモ</th> : null}
+          </tr><tr>{propertyPlanOptions.map((option) => <th key={option.value} scope="col" className="properties-plan-choice">{option.label}</th>)}</tr></thead>
           <tbody>
             {filtered.length === 0
-              ? <tr className="properties-empty-row"><td colSpan={8}>{rows.length === 0 ? "不動産の明細はまだ登録されていません。" : "条件に一致する不動産はありません。"}</td></tr>
-              : paged.rows.map((row) => <tr key={row.positionId} className="properties-row" onClick={(event) => {
+              ? <tr className="properties-empty-row"><td colSpan={includePlan ? 14 : 13}>{rows.length === 0 ? "不動産の明細はまだ登録されていません。" : "条件に一致する不動産はありません。"}</td></tr>
+              : (printing ? filtered : paged.rows).map((row) => <tr key={row.positionId} className="properties-row" onClick={(event) => {
                 // 行のどこを押してもその明細へ送る。行の中のリンク（顧客名・名称）はそちらを優先する。
                 if ((event.target as HTMLElement).closest("a")) return;
                 router.push(propertyPositionHref(row));
               }}>
+                {propertyPlanOptions.map((option) => <td key={option.value} className={`properties-plan-mark${row.plan === option.value ? " is-selected" : ""}`} data-label={option.label}><span aria-hidden="true">{row.plan === option.value ? "●" : "○"}</span>{row.plan === option.value ? <span className="sr-only">今後の方針：{option.label}</span> : null}</td>)}
                 <td data-label="顧客">
                   <Link className="properties-client-link" href={`/customers/${row.householdId}/positions`}>
                     <strong><Highlighted text={row.clientName} terms={terms} /></strong>
@@ -198,14 +230,16 @@ export function PropertiesView() {
                 </td>
                 <td data-label="地目・用途"><Highlighted text={row.useLabel || "－"} terms={terms} /></td>
                 <td data-label="面積" className="number">{areaText(row.area)}</td>
-                <td data-label="持分" className="number">{ownershipText(row.ownership)}</td>
+                <td data-label="持分" className="number properties-share-column">{ownershipText(row.ownership)}</td>
                 <td data-label="固定資産税評価額" className="number">{yenText(row.fixedAssetTaxValue)}</td>
                 <td data-label="評価額（円）" className="number">{yen.format(row.valueJpy)}</td>
+                {includePlan ? <td data-label="希望時期・メモ" className="property-plan-column property-plan-memo-column"><div className="property-plan-print-details">{row.planTiming ? <p>希望時期：{row.planTiming}</p> : null}{row.planNote ? <p>{row.planNote}</p> : null}{!row.planTiming && !row.planNote ? "—" : null}</div></td> : null}
               </tr>)}
           </tbody>
           <tfoot><tr>
-            <th scope="row" colSpan={7}>{narrowed ? "絞り込みの合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
+            <th scope="row" colSpan={12}>{narrowed ? "絞り込みの合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
             <td className="number">{yen.format(total)}</td>
+            {includePlan ? <td className="property-plan-column property-plan-memo-column" /> : null}
           </tr></tfoot>
         </table>}
       </div>
@@ -219,5 +253,5 @@ export function PropertiesView() {
         onChange={setPage}
       />}
     </article>
-  </>;
+  </div>;
 }

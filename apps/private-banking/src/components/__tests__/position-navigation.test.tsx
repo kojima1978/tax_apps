@@ -162,7 +162,7 @@ describe("資産・負債一覧と詳細の連携", () => {
     const termDeposit = position(4, { name: "定期預金", assetDetails: { maturityDate: "2027-03-31" } });
     const foreignDeposit = position(5, { name: "ドル預金", currency: "USD", originalAmount: 10_000, fxRate: 150, valueJpy: 1_500_000 });
     const insuranceRights = position(6, { category: "INSURANCE_RIGHTS", name: "契約者権利", valueJpy: 2_000_000, assetDetails: { insuranceType: "終身", policyNumber: "R-1", insuredPerson: "配偶者" } });
-    const land = position(7, { category: "HOME_REAL_ESTATE", name: "自宅土地", ownershipNumerator: 1, ownershipDenominator: 2, ownershipShare: 0.5, assetDetails: { propertyType: "LAND", propertyAddress: "東京都", landCategory: "RESIDENTIAL", smallLotType: "RESIDENTIAL" } });
+    const land = position(7, { category: "HOME_REAL_ESTATE", name: "自宅土地", ownershipNumerator: 1, ownershipDenominator: 2, ownershipShare: 0.5, assetDetails: { propertyType: "LAND", propertyAddress: "東京都", landCategory: "RESIDENTIAL", smallLotType: "RESIDENTIAL", propertyPlan: "KEEP", propertyPlanNote: "一覧に出さない長い方針メモ", propertyPlanTiming: "相続後" } });
     const privateShares = position(8, { category: "PRIVATE_SHARES", name: "自社株", valuationQuantity: 300, assetDetails: { shareClass: "普通株式", totalIssuedShares: 1_000, valuationApproach: "類似業種比準方式" } });
     render(<PositionListView snapshot={{ ...snapshot, positions: [insurance, termDeposit, foreignDeposit, insuranceRights, land, privateShares] }} detailHref="/customers/1/positions?snapshot=7" taxBurden={() => null} onAdd={vi.fn()} onBulkManage={vi.fn()} saving={false} />);
     const list = screen.getByRole("table", { name: "資産・負債一覧" });
@@ -175,6 +175,8 @@ describe("資産・負債一覧と詳細の連携", () => {
     expect(within(list).getByText("配偶者")).toBeTruthy();
     expect(within(list).getByText("小規模宅地等・持分")).toBeTruthy();
     expect(within(list).getByText("特定居住用宅地／1/2")).toBeTruthy();
+    expect(within(list).getByText("保有・承継")).toBeTruthy();
+    expect(within(list).queryByText("一覧に出さない長い方針メモ")).toBeNull();
     expect(within(list).getByText("保有比率")).toBeTruthy();
     expect(within(list).getByText("30%")).toBeTruthy();
     expect(within(list).queryByText("被保険者：本人")).toBeNull();

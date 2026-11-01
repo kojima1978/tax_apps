@@ -28,6 +28,7 @@ export type AssetDetails = {
   securityType?: string; securityCode?: string;
   insuranceType?: string; policyNumber?: string; insuredPerson?: string; beneficiary?: string; deathBenefit?: number;
   propertyType?: string; propertyAddress?: string; landCategory?: string; smallLotType?: string;
+  propertyPlan?: string; propertyPlanNote?: string; propertyPlanTiming?: string;
   buildingType?: string; buildingStructure?: string; floorArea?: number;
   shareClass?: string; totalIssuedShares?: number; valuationApproach?: string;
   businessAssetType?: string; businessName?: string; storageLocation?: string;
@@ -61,10 +62,10 @@ export type Portfolio = {
   snapshots: Snapshot[];
 };
 /** サイドバーのメニュー key。そのまま URL の `/customers/<id>/<key>` になる。 */
-export type Section = "balance" | "position-list" | "positions" | "tax" | "profile" | "family" | "history" | "activity" | "backup";
+export type Section = "balance" | "position-list" | "positions" | "property-plan" | "tax" | "profile" | "family" | "history" | "activity" | "backup";
 export type BulkPositionPayload = Record<string, unknown>;
 export type BalanceScenario = "without-tax" | "with-tax";
-export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "position-list" | "details" | "history";
+export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "position-list" | "details" | "property-plan" | "history";
 
 /** 画面に対応する印刷の様式。対応する様式が無い画面（バックアップ）は null。 */
 export const printSectionForSection = (section: Section): PrintSection | null =>
@@ -73,6 +74,7 @@ export const printSectionForSection = (section: Section): PrintSection | null =>
       : section === "position-list" ? "position-list"
       : section === "positions" ? "details"
         : section === "tax" ? "tax-calculation"
+          : section === "property-plan" ? "property-plan"
           : section === "history" ? "history"
             : null;
 

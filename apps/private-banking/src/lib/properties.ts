@@ -1,4 +1,5 @@
 import { exportFileName } from "@/lib/export-filename";
+import { normalizePropertyPlan, propertyPlanLabel, type PropertyPlan } from "@/lib/property-plan";
 import { matchesSearchTerms, normalizeSearchText } from "@/lib/clients";
 import {
   type Position,
@@ -45,6 +46,10 @@ export type PropertyRow = PropertyOwner & {
   valuationMethod: string;
   valuationDetail: string;
   note: string;
+  plan: PropertyPlan;
+  planLabel: string;
+  planNote: string;
+  planTiming: string;
 };
 
 /**
@@ -86,6 +91,10 @@ export function toPropertyRow(position: Position, owner: PropertyOwner): Propert
     valuationMethod: position.valuationMethod,
     valuationDetail: valuationBreakdown(position),
     note: position.note,
+    plan: normalizePropertyPlan(position.assetDetails?.propertyPlan),
+    planLabel: propertyPlanLabel(position.assetDetails?.propertyPlan),
+    planNote: position.assetDetails?.propertyPlanNote ?? "",
+    planTiming: position.assetDetails?.propertyPlanTiming ?? "",
   };
 }
 
@@ -112,7 +121,7 @@ export function propertyRows(items: Array<{ position: Position; owner: PropertyO
     });
 }
 
-export type PropertyFilters = { category: string; propertyType: string };
+export type PropertyFilters = { category: string; propertyType: string; plan?: string };
 export const PROPERTY_FILTER_ALL = "ALL";
 
 export function matchesProperty(row: PropertyRow, terms: string[]) {
@@ -123,6 +132,7 @@ export function filterProperties(rows: PropertyRow[], terms: string[], filters: 
   return rows.filter((row) =>
     (filters.category === PROPERTY_FILTER_ALL || row.category === filters.category)
     && (filters.propertyType === PROPERTY_FILTER_ALL || row.propertyType === filters.propertyType)
+    && (!filters.plan || filters.plan === PROPERTY_FILTER_ALL || (filters.plan === "DISPOSAL" ? ["SELL", "DISPOSE"].includes(row.plan) : row.plan === filters.plan))
     && matchesProperty(row, terms));
 }
 
@@ -185,11 +195,16 @@ export const PROPERTY_CSV_COLUMNS: ReadonlyArray<{ header: string; value: (row: 
  * Excel で開く前提のCSV。先頭にBOMを付け（付けないと日本語が文字化けする）、
  * 改行はCRLF、値はすべて引用符で囲む（所在地や備考にカンマ・改行が入っても列がずれない）。
  */
-export function propertiesCsv(rows: PropertyRow[]) {
+export function propertiesCsv(rows: PropertyRow[], includePlan = false) {
   const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
+  const columns = includePlan ? [...PROPERTY_CSV_COLUMNS,
+    { header: "今後の方針", value: (row: PropertyRow) => row.planLabel },
+    { header: "希望時期", value: (row: PropertyRow) => row.planTiming },
+    { header: "方針メモ", value: (row: PropertyRow) => row.planNote },
+  ] : PROPERTY_CSV_COLUMNS;
   const lines = [
-    PROPERTY_CSV_COLUMNS.map((column) => quote(column.header)),
-    ...rows.map((row) => PROPERTY_CSV_COLUMNS.map((column) => quote(column.value(row)))),
+    columns.map((column) => quote(column.header)),
+    ...rows.map((row) => columns.map((column) => quote(column.value(row)))),
   ];
   return `﻿${lines.map((cells) => cells.join(",")).join("\r\n")}\r\n`;
 }

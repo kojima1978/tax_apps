@@ -25,6 +25,18 @@ function renderModal(onClose: () => void = () => {}) {
 const typeIn = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe("PositionModal（明細を追加）", () => {
+  it("不動産で方針・希望時期・メモを入力し、土地建物を切り替えても保持する", () => {
+    const { form, submitted } = renderModal();
+    expect(screen.queryByLabelText("保有・処分の方針")).toBeNull();
+    fireEvent.change(screen.getByLabelText("中分類"), { target: { value: "不動産" } });
+    expect((screen.getByLabelText("保有・処分の方針") as HTMLSelectElement).value).toBe("UNDECIDED");
+    typeIn("保有・処分の方針", "SELL");
+    typeIn("希望時期", "相続後");
+    typeIn("方針メモ", "家族と相談して売却");
+    typeIn("資産区分", "BUILDING");
+    fireEvent.submit(form);
+    expect(submitted[0]).toMatchObject({ "assetDetail.propertyPlan": "SELL", "assetDetail.propertyPlanTiming": "相続後", "assetDetail.propertyPlanNote": "家族と相談して売却" });
+  });
   it("物件の名称と所在地を等幅2列用の通常幅で表示し、入力内容を保持する", () => {
     const { container, form, submitted } = renderModal();
     fireEvent.change(screen.getByLabelText("中分類"), { target: { value: "不動産" } });

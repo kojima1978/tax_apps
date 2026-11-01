@@ -4,6 +4,34 @@ import { fxRateFor, missingFxRateMessage, parseFxRates } from "@/lib/fx-rates";
 import { prisma } from "@/lib/prisma";
 import { calculatedOriginalAmount, calculatedOwnershipShare, liquidityForCategory, normalizedValuationMethod, positionInputErrorMessage, positionInputSchema } from "@/lib/position-input";
 import { writeActivityLog } from "@/lib/activity-log";
+import { z } from "zod";
+import { propertyPlanLabel, propertyPlanValues } from "@/lib/property-plan";
+import { realEstateCategories } from "@/lib/portfolio-view";
+
+const propertyPlanPatchSchema = z.object({ snapshotId: z.number().int().positive(), propertyPlan: z.enum(propertyPlanValues) }).strict();
+
+/** 方針だけの更新。金額・割り振り・他の補足項目は書き換えない。 */
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const positionId = Number(id);
+  const parsed = propertyPlanPatchSchema.safeParse(await request.json().catch(() => null));
+  if (!Number.isSafeInteger(positionId) || positionId <= 0 || !parsed.success) {
+    return NextResponse.json({ error: "方針の入力内容を確認してください。" }, { status: 400 });
+  }
+  return prisma.$transaction(async (tx) => {
+    const position = await tx.position.findUnique({ where: { id: positionId }, include: { snapshot: { include: { household: true } } } });
+    if (!position) return NextResponse.json({ error: "修正対象が見つかりません。" }, { status: 404 });
+    if (position.snapshotId !== parsed.data.snapshotId || !realEstateCategories.includes(position.category)) {
+      return NextResponse.json({ error: "対象年度の不動産を選択してください。" }, { status: 400 });
+    }
+    const details = position.assetDetails && typeof position.assetDetails === "object" && !Array.isArray(position.assetDetails) ? position.assetDetails as Prisma.JsonObject : {};
+    await tx.position.update({ where: { id: position.id }, data: { assetDetails: { ...details, propertyPlan: parsed.data.propertyPlan } as Prisma.InputJsonObject } });
+    await tx.snapshot.update({ where: { id: position.snapshotId }, data: { updatedAt: new Date() } });
+    const household = position.snapshot.household;
+    await writeActivityLog(tx, { householdId: household.id, householdName: household.name, clientCode: household.clientCode, action: "UPDATE", entityType: "POSITION", entityId: position.id, summary: `不動産「${position.name}」の方針を「${propertyPlanLabel(parsed.data.propertyPlan)}」に変更`, details: { snapshotId: position.snapshotId, propertyPlan: parsed.data.propertyPlan } });
+    return NextResponse.json({ id: position.id });
+  });
+}
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;

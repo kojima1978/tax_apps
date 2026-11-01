@@ -23,6 +23,8 @@ import { PositionModal } from "@/components/position-modal";
 import { AssetsView, buildPositionTaxBurden } from "@/components/positions-view";
 import { PositionListView } from "@/components/position-list-view";
 import { PositionDetailsPrintView } from "@/components/position-details-print-view";
+import { PropertyPlanReport } from "@/components/property-plan-report";
+import { type PropertyPlan } from "@/lib/property-plan";
 import { ActivityView } from "@/components/activity-view";
 import { PRINT_SECTION_META, PrintFrontMatter } from "@/components/print-front-matter";
 import { PersonFamilyPrintView } from "@/components/print-person-family";
@@ -58,6 +60,7 @@ const SECTIONS = [
   { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
   { key: "position-list", label: "資産・負債一覧", icon: WalletCards },
   { key: "positions", label: "資産・負債詳細", icon: WalletCards },
+  { key: "property-plan", label: "不動産の保有・処分方針", icon: LayoutDashboard },
   { key: "history", label: "年度比較", icon: History },
   { key: "activity", label: "操作履歴", icon: Activity },
   { key: "backup", label: "バックアップ", icon: DatabaseBackup },
@@ -164,6 +167,13 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   function closePositionModal() {
     setModalOpen(false);
     setEditingPosition(null);
+  }
+
+  async function savePropertyPlan(position: Position, propertyPlan: PropertyPlan) {
+    if (!workingSnapshot) return false;
+    const { ok } = await mutate(`/positions/${position.id}`, "PATCH", { snapshotId: workingSnapshot.id, propertyPlan }, "不動産の方針を保存できませんでした。");
+    if (ok) await load();
+    return ok;
   }
 
   async function saveClient(event: FormEvent<HTMLFormElement>) {
@@ -484,6 +494,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
           {(section === "position-list" || printIncludes("position-list")) && workingSnapshot ? <div id="print-section-position-list" className={`report-document ${section !== "position-list" ? "print-only-document" : ""} ${printIncludes("position-list") ? "" : "print-excluded-document"}`}><PositionListView snapshot={workingSnapshot} detailHref={sectionHref("positions")} taxBurden={buildPositionTaxBurden(workingSnapshot, legalHeirNameSet)} familyMembers={portfolio.familyMembers} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onSaveAllocations={savePositionAllocations} saving={saving} /></div> : null}
           {section === "positions" && workingSnapshot ? <div className="report-document position-details-screen"><AssetsView detailed snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} saving={saving} spotlightId={spotlightId} /></div> : null}
           {printIncludes("details") && workingSnapshot ? <div id="print-section-details" className="report-document print-only-document"><PositionDetailsPrintView snapshot={workingSnapshot} taxBurden={buildPositionTaxBurden(workingSnapshot, legalHeirNameSet)} /></div> : null}
+          {(section === "property-plan" || printIncludes("property-plan")) && workingSnapshot ? <div id="print-section-property-plan" className={`report-document ${section !== "property-plan" ? "print-only-document" : ""} ${printIncludes("property-plan") ? "" : "print-excluded-document"}`}><PropertyPlanReport key={workingSnapshot.id} snapshot={workingSnapshot} onEdit={openEditPosition} onChangePlan={section === "property-plan" ? savePropertyPlan : undefined} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
           {section === "family" ? <div className="report-document print-excluded-document"><FamilyView members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} saving={saving} onSave={saveFamilyMembers} /></div> : null}
           {(section === "history" || printIncludes("history")) ? <div id="print-section-history" className={`report-document ${section !== "history" ? "print-only-document" : ""} ${printIncludes("history") ? "" : "print-excluded-document"}`}><HistoryView key={portfolio.snapshots.map((snapshot) => snapshot.id).join("-")} snapshots={portfolio.snapshots} onCreate={() => setYearCreationSourceId(current.id)} onEditSnapshot={editSnapshot} onDeleteSnapshot={setDeletingSnapshot} saving={saving} /></div> : null}

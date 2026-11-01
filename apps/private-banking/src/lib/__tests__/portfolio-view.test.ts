@@ -132,7 +132,7 @@ describe("その他負債（リース債務・未払金・預り敷金・保証�
 describe("印刷の対象", () => {
   it("画面ごとに対応する様式を返し、様式が無い画面では null を返す", () => {
     const expected: Record<Section, ReturnType<typeof printSectionForSection>> = {
-      profile: "profile-family", family: "profile-family", balance: "balance",
+      profile: "profile-family", family: "profile-family", balance: "balance", "property-plan": "property-plan",
       "position-list": "position-list", positions: "details", tax: "tax-calculation", history: "history", activity: null, backup: null,
     };
     for (const [section, printSection] of Object.entries(expected)) {

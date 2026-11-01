@@ -472,14 +472,14 @@ describe("BulkPositionModal（表に列の無い項目）", () => {
       id: 8, category: "HOME_REAL_ESTATE", name: "自宅土地", valuationFormula: "LAND_ROADSIDE",
       landArea: 180, roadsideValue: 600_000, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 1,
       originalAmount: 108_000_000, valueJpy: 108_000_000,
-      assetDetails: { propertyType: "LAND", propertyAddress: "A市B町1-1", landCategory: "RESIDENTIAL", smallLotType: "SPECIFIC_RESIDENTIAL" },
+      assetDetails: { propertyType: "LAND", propertyAddress: "A市B町1-1", landCategory: "RESIDENTIAL", smallLotType: "SPECIFIC_RESIDENTIAL", propertyPlan: "KEEP", propertyPlanNote: "家族で保有", propertyPlanTiming: "相続後" },
     })]);
     selectEntryType("LAND");
     fireEvent.change(cell(1, "地目"), { target: { value: "MISCELLANEOUS" } });
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect(savedPayloads(onSubmit)[0].data.assetDetails).toEqual({
-      propertyType: "LAND", propertyAddress: "A市B町1-1", landCategory: "MISCELLANEOUS", smallLotType: "SPECIFIC_RESIDENTIAL",
+      propertyType: "LAND", propertyAddress: "A市B町1-1", landCategory: "MISCELLANEOUS", smallLotType: "SPECIFIC_RESIDENTIAL", propertyPlan: "KEEP", propertyPlanNote: "家族で保有", propertyPlanTiming: "相続後",
     });
   });
 

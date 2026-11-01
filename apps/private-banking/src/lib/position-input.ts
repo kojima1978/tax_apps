@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { propertyPlanValues } from "@/lib/property-plan";
 import { fractionTotal, manualValuationLabel, realEstateCategories, unitRateBaseLabel, unitRateCategories, valuationFromFormula } from "@/lib/portfolio-view";
 
 const positionCategorySchema = z.enum(["DEPOSIT", "SECURITIES", "HOME_REAL_ESTATE", "REAL_ESTATE", "BUSINESS_REAL_ESTATE", "IDLE_REAL_ESTATE", "OTHER_REAL_ESTATE", "PRIVATE_SHARES", "BUSINESS_ASSETS", "LOAN_RECEIVABLE", "INSURANCE", "INSURANCE_RIGHTS", "RETIREMENT_ALLOWANCE", "COLLECTIBLES", "LOAN_HOME", "LOAN_INVESTMENT_PROPERTY", "LOAN_SECURITIES", "LOAN_BUSINESS", "LOAN_OTHER", "LOAN", "LEASE_OBLIGATION", "ACCOUNTS_PAYABLE", "DEPOSITS_RECEIVED", "GUARANTEE"]);
@@ -51,6 +52,9 @@ const assetDetailsSchema = z.object({
   deathBenefit: optionalDetailNumber,
   propertyType: optionalDetailText,
   propertyAddress: optionalDetailText,
+  propertyPlan: z.preprocess((value) => value === "" ? undefined : value, z.enum(propertyPlanValues).optional()),
+  propertyPlanNote: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().max(500).optional()),
+  propertyPlanTiming: optionalDetailText,
   landCategory: optionalDetailText,
   smallLotType: optionalDetailText,
   buildingType: optionalDetailText,

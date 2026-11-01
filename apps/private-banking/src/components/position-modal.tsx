@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizePropertyPlan, propertyPlanOptions } from "@/lib/property-plan";
+
 import { AlertTriangle, Info, LoaderCircle, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { FormEvent, type ReactNode, useEffect, useId, useState } from "react";
 import { BuildingTypeField, CommaNumberInput, LandCategoryField, OwnershipFractionInput } from "@/components/form-fields";
@@ -449,6 +451,14 @@ export function PositionModal({ position, defaultSection = "ASSET", defaultCateg
         {!isInsurance && !isRealEstateCategory && !typeField ? (institutionLabel ? <label className={isPrivateShares || category === "BUSINESS_ASSETS" ? "position-field-wide" : undefined}>{institutionLabel}<input name="institution" value={institution} onChange={(event) => setInstitution(event.target.value)} /></label> : <input type="hidden" name="institution" value="" />) : null}
         {!isInsurance && !isRealEstateCategory && typeField && !institutionLabel ? <input type="hidden" name="institution" value="" /> : null}
         </div></fieldset>
+        {isRealEstateCategory ? <fieldset className="asset-detail-fieldset full property-plan-fields"><legend>今後の方針</legend>
+          <div className="asset-detail-grid">
+            <label>保有・処分の方針<select name="assetDetail.propertyPlan" defaultValue={normalizePropertyPlan(assetDetails.propertyPlan)}>{propertyPlanOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            <label>希望時期<input name="assetDetail.propertyPlanTiming" maxLength={100} defaultValue={assetDetails.propertyPlanTiming ?? ""} placeholder="例：相続後、2028年頃" /></label>
+            <label className="wide">方針メモ<textarea name="assetDetail.propertyPlanNote" maxLength={500} rows={2} defaultValue={assetDetails.propertyPlanNote ?? ""} placeholder="残したい理由、売却・処分の条件など（任意）" /></label>
+          </div>
+          <p className="asset-detail-hint">方針を変更しても、評価額や相続税計算の対象は変わりません。土地・建物は明細ごとに設定します。</p>
+        </fieldset> : null}
         {isInsurance ? <small className="full asset-detail-hint">保険金・返戻金は選択した通貨で入力します。通貨を切り替えても入力値自体は自動変換されません。</small> : null}
         {specificBeforeValuation ? specificFields : null}
         {/* 財産の割り振りは一覧の表で行う。明細編集では既存値をそのまま保持する。 */}

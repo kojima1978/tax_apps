@@ -31,6 +31,12 @@ const owner = (fields: Partial<PropertyOwner> = {}): PropertyOwner => ({
 });
 
 describe("toPropertyRow", () => {
+  it("旧明細は未定とし、方針を設定しても評価額を変更しない", () => {
+    expect(toPropertyRow(position({}), owner()).planLabel).toBe("未定");
+    expect(toPropertyRow(position({ assetDetails: { propertyPlan: "SELL", propertyPlanNote: "条件が合えば", propertyPlanTiming: "相続後" } }), owner())).toMatchObject({
+      plan: "SELL", planLabel: "売却予定", planNote: "条件が合えば", planTiming: "相続後", valueJpy: 50_000_000,
+    });
+  });
   it("土地は地目と地積を出す", () => {
     const row = toPropertyRow(position({ assetDetails: { propertyType: "LAND", propertyAddress: "東京都港区1-2-3", landCategory: "RESIDENTIAL" } }), owner());
     expect(row).toMatchObject({
@@ -86,6 +92,13 @@ describe("propertyRows", () => {
 });
 
 describe("filterProperties", () => {
+  it("方針別と売却・処分予定のまとめで絞り込める", () => {
+    const planned = ["KEEP", "SELL", "DISPOSE", "REVIEW", undefined].map((propertyPlan, index) => toPropertyRow(position({ id: index + 1, assetDetails: { propertyPlan } }), owner()));
+    const base = { category: PROPERTY_FILTER_ALL, propertyType: PROPERTY_FILTER_ALL };
+    expect(filterProperties(planned, [], { ...base, plan: "DISPOSAL" }).map((row) => row.plan)).toEqual(["SELL", "DISPOSE"]);
+    expect(filterProperties(planned, [], { ...base, plan: "UNDECIDED" })).toHaveLength(1);
+    expect(filterProperties(planned, [], { ...base, plan: "KEEP" })).toHaveLength(1);
+  });
   const rows = propertyRows([
     { position: position({ id: 1, name: "自宅土地", assetDetails: { propertyAddress: "東京都港区1-2-3", landCategory: "RESIDENTIAL" } }), owner: owner() },
     {
@@ -117,6 +130,13 @@ describe("filterProperties", () => {
 });
 
 describe("propertiesCsv", () => {
+  it("方針・メモは指定した出力にだけ含め、改行や引用符を保持する", () => {
+    const planned = [toPropertyRow(position({ assetDetails: { propertyPlan: "SELL", propertyPlanNote: '売却,条件\n"確認"', propertyPlanTiming: "相続後" } }), owner())];
+    expect(propertiesCsv(planned)).not.toContain("方針メモ");
+    const withPlan = propertiesCsv(planned, true);
+    expect(withPlan).toContain('"今後の方針","希望時期","方針メモ"');
+    expect(withPlan).toContain('"売却予定","相続後","売却,条件\n""確認"""');
+  });
   const rows = propertyRows([{
     position: position({ name: 'A"棟', note: "備考,あり", assetDetails: { propertyAddress: "東京都港区1-2-3", landCategory: "RESIDENTIAL" } }),
     owner: owner(),

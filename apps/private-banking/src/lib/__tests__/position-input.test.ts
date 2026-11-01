@@ -10,6 +10,23 @@ import {
 /** 画面から送られてくる素の入力（未指定は schema の既定値に任せる）を通す。 */
 const parse = (input: Record<string, unknown>) => positionInputSchema.parse(input);
 
+describe("不動産の今後の方針", () => {
+  const input = { side: "ASSET", category: "HOME_REAL_ESTATE", name: "自宅", originalAmount: 5000000, ownershipNumerator: 1, ownershipDenominator: 1 };
+  const details = { propertyType: "LAND", propertyAddress: "東京都", propertyPlan: "SELL", propertyPlanNote: "  家族と相談  ", propertyPlanTiming: "相続後" };
+  it("方針とメモを保存し、評価額の入力は変更しない", () => {
+    const saved = parse({ ...input, assetDetails: details });
+    expect(saved.assetDetails).toMatchObject({ ...details, propertyPlanNote: "家族と相談" });
+    expect(calculatedOriginalAmount(saved)).toBe(5000000);
+  });
+  it("不正な方針・長すぎるメモは受け付けない", () => {
+    expect(positionInputSchema.safeParse({ ...input, assetDetails: { ...details, propertyPlan: "INVALID" } }).success).toBe(false);
+    expect(positionInputSchema.safeParse({ ...input, assetDetails: { ...details, propertyPlanNote: "あ".repeat(501) } }).success).toBe(false);
+  });
+  it("方針がない旧明細も保存できる", () => {
+    expect(parse({ ...input, assetDetails: { propertyType: "LAND", propertyAddress: "東京都" } }).assetDetails.propertyPlan).toBeUndefined();
+  });
+});
+
 describe("生命保険金0円の保存", () => {
   const insuranceInput = { side: "ASSET", category: "INSURANCE", name: "テスト生命", originalAmount: 0 };
   it.each([0, "0"])("死亡保険金%sを0円として保持する", (deathBenefit) => {

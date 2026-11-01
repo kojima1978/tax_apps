@@ -1,11 +1,14 @@
 "use client";
 
+import { normalizePropertyPlan, propertyPlanLabel } from "@/lib/property-plan";
+
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { List, Plus, Save, Scale, Search, Table2, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CommaNumberInput } from "@/components/form-fields";
-import { type Position, type PositionSection, type Snapshot, positionSection, middleClassification, middleClassificationRank, categoryRank, propertyTypeOf, deemedConfig, deemedAllocations, deemedBenefitJpy, hasDeemedBenefit, splitBenefit, categoryLabels, fractionTotal, ownershipFraction, smallLotTypeOptions, loanCategories } from "@/lib/portfolio-view";
+import { type Position, type PositionSection, type Snapshot, positionSection, propertyTypeOf, deemedConfig, deemedAllocations, deemedBenefitJpy, hasDeemedBenefit, splitBenefit, categoryLabels, fractionTotal, ownershipFraction, smallLotTypeOptions, loanCategories } from "@/lib/portfolio-view";
+import { comparePositionClassification } from "@/lib/position-order";
 import { type FamilyMember } from "@/lib/family";
 import { matchesSearchTerms, searchTerms } from "@/lib/clients";
 import { yen, triangleYen, valuationNumber } from "@/lib/format";
@@ -52,6 +55,12 @@ function PositionSupplement({ position }: { position: Position }) {
   const lines = positionSupplement(position);
   if (lines.length === 0) return <>—</>;
   return <div className="position-summary-supplement" title={lines.join(" / ")}>{lines.map((line) => <span key={line}>{line}</span>)}</div>;
+}
+
+function PropertyPlanBadge({ position }: { position: Position }) {
+  if (!propertyTypeOf(position)) return null;
+  const plan = normalizePropertyPlan(position.assetDetails?.propertyPlan);
+  return <span className={`property-plan-badge plan-${plan.toLowerCase()}`}>{propertyPlanLabel(plan)}</span>;
 }
 
 /** 一覧で比較する主金額。保険・退職金は相続時に受け取る給付額、それ以外は現在の評価額。 */
@@ -405,8 +414,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
   const rows = useMemo(() => {
     const terms = searchTerms(query);
     const filtered = snapshot.positions.filter((p) => (section === "all" || positionSection(p) === section) && (category === "all" || p.category === category) && matchesSearchTerms([p.name, positionKeyInfo(p), positionAllocationLabel(p), positionCaption(p), p.institution, p.note], terms));
-    const sectionRank = { ASSET: 0, LIABILITY: 1, CONTINGENT: 2 };
-    return filtered.sort((a, b) => sort === "value-desc" ? primaryAmount(b).valueJpy - primaryAmount(a).valueJpy || a.id - b.id : sort === "value-asc" ? primaryAmount(a).valueJpy - primaryAmount(b).valueJpy || a.id - b.id : sort === "registered" ? a.id - b.id : sectionRank[positionSection(a)] - sectionRank[positionSection(b)] || (middleClassificationRank.get(middleClassification(a)) ?? 99) - (middleClassificationRank.get(middleClassification(b)) ?? 99) || (categoryRank.get(a.category) ?? 99) - (categoryRank.get(b.category) ?? 99) || (propertyTypeOf(a) === "BUILDING" ? 1 : 0) - (propertyTypeOf(b) === "BUILDING" ? 1 : 0));
+    return filtered.sort((a, b) => sort === "value-desc" ? primaryAmount(b).valueJpy - primaryAmount(a).valueJpy || a.id - b.id : sort === "value-asc" ? primaryAmount(a).valueJpy - primaryAmount(b).valueJpy || a.id - b.id : sort === "registered" ? a.id - b.id : comparePositionClassification(a, b));
   }, [snapshot.positions, query, section, category, sort]);
   const categories = [...new Set(snapshot.positions.map((p) => p.category))];
   const allocationTotals = useMemo(() => listAllocationTotals(snapshot.positions, familyMembers), [snapshot.positions, familyMembers]);
@@ -457,7 +465,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
               : <button type="button" className="position-summary-allocation-button" onClick={() => openAllocation(p.id)} aria-label={`${p.name}の割り振りを編集`}>{index + 1}</button>}</td>
             <td rowSpan={2} data-label="区分" className="center position-summary-sticky-section position-summary-detail-target"><Link href={targetHref} className="position-summary-cell-link" aria-label={`${p.name}の詳細を開く`}><span className={`position-section-badge section-${positionSection(p)}`}>{positionSection(p) === "ASSET" ? "資産" : positionSection(p) === "LIABILITY" ? "負債" : "B/S外"}</span></Link></td>
             <th scope="rowgroup" className="position-summary-sticky-subject position-summary-detail-target"><Link href={targetHref} className="position-summary-name"><span>{positionCaption(p)}</span><strong>{p.name || "名称未登録"}</strong></Link></th>
-            <td className="position-summary-info position-summary-detail-target" title={positionKeyInfo(p)}><Link href={targetHref} className="position-summary-cell-link" aria-label={`${p.name}の詳細を開く`}>{positionKeyInfo(p)}</Link></td>
+            <td className="position-summary-info position-summary-detail-target" title={positionKeyInfo(p)}><Link href={targetHref} className="position-summary-cell-link" aria-label={`${p.name}の詳細を開く`}>{positionKeyInfo(p)} <PropertyPlanBadge position={p} /></Link></td>
             <td className="number position-summary-sticky-money position-summary-value-amount position-summary-detail-target" aria-label={`${primaryAmount(p).label} ${primaryAmountText(p)}`}><Link href={targetHref} className="position-summary-cell-link" aria-label={`${p.name}の詳細を開く`}><strong>{primaryAmountText(p)}</strong></Link></td>
             {familyMembers.map((member) => {
               const allocation = allocations.get(member.id);

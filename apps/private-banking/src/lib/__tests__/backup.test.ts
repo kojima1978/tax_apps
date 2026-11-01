@@ -27,6 +27,10 @@ const restoredPosition = (overrides: Record<string, unknown>) =>
   }).snapshots[0].positions[0];
 
 describe("バックアップの復元：評価方法", () => {
+  it("不動産の方針・メモ・希望時期を復元時にも保持する", () => {
+    const assetDetails = { propertyType: "LAND", propertyPlan: "KEEP", propertyPlanNote: "家族で保有", propertyPlanTiming: "相続後" };
+    expect(positionData(restoredPosition({ category: "HOME_REAL_ESTATE", assetDetails })).assetDetails).toEqual(assetDetails);
+  });
   it("列を持たない旧バックアップを、既定の文字列で埋めない", () => {
     expect(restoredPosition({}).valuationMethod).toBeUndefined();
   });
