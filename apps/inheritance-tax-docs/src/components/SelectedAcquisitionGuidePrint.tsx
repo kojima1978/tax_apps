@@ -63,6 +63,13 @@ const GuideSample = ({ guide, imageUrl }: { guide: AcquisitionGuideDefinition; i
   return <RetryImage src={imageUrl} alt={`${guide.sampleTitle}の見本`} className="guide-selection-sample-image" fallback={placeholder} />;
 };
 
+const GuideCautions = ({ cautions }: { cautions: string[] }) => (
+  <div className="guide-selection-caution-box mt-3 flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">
+    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+    <ul className="space-y-1">{cautions.map((item) => <li key={item}>・{item}</li>)}</ul>
+  </div>
+);
+
 export const SelectedAcquisitionGuidePrint = ({
   selectedIds,
   currentDate,
@@ -79,7 +86,7 @@ export const SelectedAcquisitionGuidePrint = ({
   return (
     <main className="hidden print:block guide-selection-print">
       {guides.map((guide) => (
-        <section key={guide.id} className="guide-selection-page">
+        <section key={guide.id} className="guide-selection-page" data-guide-id={guide.id}>
           <header className="guide-selection-header">
             <div>
               <p className="text-xs font-bold tracking-[0.16em] text-emerald-700">相続税申告用・資料取得のご案内</p>
@@ -149,10 +156,7 @@ export const SelectedAcquisitionGuidePrint = ({
                 </ol>
               </div>
 
-              <div className="guide-selection-caution-box mt-3 flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">
-                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
-                <ul className="space-y-1">{guide.cautions.map((item) => <li key={item}>・{item}</li>)}</ul>
-              </div>
+              {guide.id !== 'bank-balance' ? <GuideCautions cautions={guide.cautions} /> : null}
 
             </div>
 
@@ -166,6 +170,7 @@ export const SelectedAcquisitionGuidePrint = ({
                 <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" aria-hidden="true" />
                 <div><p className="font-bold">マイナンバーカードでの取得</p><ul className="mt-1 space-y-1">{guide.myNumberCard.map((item) => <li key={item}>・{item}</li>)}</ul></div>
               </div>
+              {guide.id === 'bank-balance' ? <GuideCautions cautions={guide.cautions} /> : null}
             </aside>
           </div>
 

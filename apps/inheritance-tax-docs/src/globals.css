@@ -311,6 +311,8 @@ label:has(input[type="file"]:focus-visible) {
     margin-bottom: 2mm;
     padding-bottom: 1.5mm;
     border-bottom: 2px solid #047857;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .guide-selection-layout {
@@ -325,6 +327,8 @@ label:has(input[type="file"]:focus-visible) {
     border-radius: 5px;
     background: #ecfdf5;
     padding: 2.5mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .guide-selection-counter-label {
@@ -341,6 +345,8 @@ label:has(input[type="file"]:focus-visible) {
     border: 1px solid #cbd5e1;
     border-radius: 5px;
     padding: 1.8mm 2.5mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .guide-selection-info-box h2 {
@@ -374,6 +380,8 @@ label:has(input[type="file"]:focus-visible) {
     border: 1px solid #cbd5e1;
     border-radius: 5px;
     background: white;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .guide-selection-sample-placeholder {
@@ -416,5 +424,56 @@ label:has(input[type="file"]:focus-visible) {
   .guide-selection-caution-box {
     margin-top: 1mm !important;
     padding: 1.5mm 2mm !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* 銀行案内は情報量が多いため、文字を小さくせず余白を整えてA4横1枚に収める */
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-header {
+    margin-bottom: 1mm;
+    padding-bottom: 1mm;
+  }
+
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-counter-box {
+    padding: 1.8mm 2mm;
+  }
+
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-counter-box > .mt-2,
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-counter-box > .mt-3 {
+    margin-top: 1mm !important;
+  }
+
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-counter-box > .mt-2 {
+    padding-top: 1.2mm !important;
+    padding-bottom: 1.2mm !important;
+  }
+
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-counter-box dl > div {
+    padding-top: 1.2mm !important;
+    padding-bottom: 1.2mm !important;
+  }
+
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-info-box {
+    padding-top: 1.2mm;
+    padding-bottom: 1.2mm;
+  }
+
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-info-box h2 {
+    margin-bottom: 0.8mm;
+  }
+
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-sample-placeholder,
+  .guide-selection-page[data-guide-id="bank-balance"] .guide-selection-sample-image {
+    height: 54mm;
+  }
+
+  .guide-selection-page[data-guide-id="bank-balance"] aside .guide-selection-caution-box {
+    padding: 1.2mm 1.5mm !important;
+    font-size: 9px !important;
+    line-height: 1.35 !important;
+  }
+
+  .guide-selection-page[data-guide-id="bank-balance"] aside .guide-selection-caution-box li + li {
+    margin-top: 0.5mm !important;
   }
 }
