@@ -8,8 +8,6 @@ import {
   RotateCcw,
   Download,
   Upload,
-  Eye,
-  EyeOff,
   Moon,
   Sun,
   Menu,
@@ -56,6 +54,40 @@ const NAV_LINKS: { to: string; label: string; icon: LucideIcon; colorClass: stri
   { to: '/masters', label: 'マスタ管理', icon: Settings, colorClass: LINK_SLATE_CLASS },
   { to: '/help', label: '使い方', icon: CircleHelp, colorClass: LINK_SLATE_CLASS },
 ];
+
+// ─── 印刷の設定（2択の切り替え） ───
+// 以前は今の状態だけを1つのボタンに出し（「1列」）、読み上げは切り替え先（「2列レイアウトに切り替え」）で
+// 画面と食い違っていた。両方の選択肢を並べ、押されている方を aria-pressed で示す。
+
+type PrintSetting = {
+  id: string;
+  label: string;
+  options: { label: string; active: boolean }[];
+  toggle: () => void;
+};
+
+const PrintSettingSegment = ({ setting, large = false }: { setting: PrintSetting; large?: boolean }) => (
+  <div className="flex border border-slate-300 dark:border-slate-600 rounded overflow-hidden" role="group" aria-label={`印刷の${setting.label}`}>
+    {setting.options.map((option, index) => (
+      <Fragment key={option.label}>
+        {index > 0 && <div className="w-px bg-slate-300 dark:bg-slate-600" aria-hidden="true" />}
+        <button
+          type="button"
+          // 2択なので、押されていない方を押したときだけ切り替える
+          onClick={() => { if (!option.active) setting.toggle(); }}
+          className={`${large ? 'px-3 py-2 text-sm min-h-11' : 'px-2 xl:px-2.5 py-1 text-xs'} font-medium whitespace-nowrap transition-colors ${
+            option.active
+              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+          }`}
+          aria-pressed={option.active}
+        >
+          {option.label}
+        </button>
+      </Fragment>
+    ))}
+  </div>
+);
 
 // ─── Props ───
 
@@ -148,6 +180,11 @@ export const EditToolbar = ({
     { id: 'json-import', label: 'ファイルを読込', icon: Upload, onFileSelect, group: 'file', colorClass: OUTLINE_BUTTON_CLASS },
     { id: 'reset', label: 'リセット', icon: RotateCcw, onClick: onShowResetDialog, group: 'reset', colorClass: OUTLINE_BUTTON_CLASS },
   ], [onOpenAcquisitionGuides, onPrint, onExcelExport, onJsonExport, onFileSelect, onShowResetDialog, isExporting]);
+
+  const PRINT_SETTINGS: PrintSetting[] = useMemo(() => [
+    { id: 'layout', label: 'レイアウト', options: [{ label: '1列', active: !isTwoColumnPrint }, { label: '2列', active: isTwoColumnPrint }], toggle: togglePrintColumn },
+    { id: 'scope', label: '載せる書類', options: [{ label: '全書類', active: !hideSubmittedInPrint }, { label: '未提出のみ', active: hideSubmittedInPrint }], toggle: toggleHideSubmitted },
+  ], [isTwoColumnPrint, togglePrintColumn, hideSubmittedInPrint, toggleHideSubmitted]);
 
   // モバイルでは44x44pxのタップ領域を確保し、PCでは既存の密度を維持する
   const touchTargetClass = 'min-w-11 min-h-11 justify-center sm:min-w-6 sm:min-h-6';
@@ -307,26 +344,11 @@ export const EditToolbar = ({
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* 印刷の設定 */}
-            <div className="hidden sm:flex border border-slate-300 dark:border-slate-600 rounded overflow-hidden" role="group" aria-label="印刷の設定">
-              <button
-                onClick={togglePrintColumn}
-                className={`px-2.5 py-1 text-xs font-medium ${isTwoColumnPrint ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                aria-label={isTwoColumnPrint ? '1列レイアウトに切り替え' : '2列レイアウトに切り替え'}
-                title="印刷のレイアウト"
-              >
-                {isTwoColumnPrint ? '2列' : '1列'}
-              </button>
-              <div className="w-px bg-slate-300 dark:bg-slate-600" />
-              <button
-                onClick={toggleHideSubmitted}
-                className={`px-2.5 py-1 text-xs font-medium flex items-center ${hideSubmittedInPrint ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                aria-label={hideSubmittedInPrint ? '取消線も含めて印刷' : '未提出のみ印刷'}
-                title="印刷に載せる書類"
-              >
-                {hideSubmittedInPrint ? <EyeOff className="w-3 h-3 mr-0.5" /> : <Eye className="w-3 h-3 mr-0.5" />}
-                {hideSubmittedInPrint ? '未提出のみ' : '全書類'}
-              </button>
+            {/* 印刷の設定（両方の選択肢を並べ、今の設定に色を付ける） */}
+            <div className="hidden sm:flex items-center gap-1.5">
+              {/* 見出しは xl 以上だけ（lg では出力ボタンと並べると幅が足りず、ボタンの文字が2行に折れる） */}
+              <span className="hidden xl:inline text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">印刷</span>
+              {PRINT_SETTINGS.map((setting) => <PrintSettingSegment key={setting.id} setting={setting} />)}
             </div>
 
             {/* PC: アクションボタン群（まとまりの変わり目に区切り線） */}
@@ -339,7 +361,7 @@ export const EditToolbar = ({
                   return (
                     <Fragment key={action.id}>
                       {separator}
-                      <label className={`flex items-center px-2.5 py-1 text-xs rounded cursor-pointer ${action.colorClass}`}>
+                      <label className={`flex items-center px-2 xl:px-2.5 py-1 text-xs rounded cursor-pointer whitespace-nowrap ${action.colorClass}`}>
                         <action.icon className="w-3 h-3 mr-1" />{action.label}
                         {/* sr-only（hiddenではない）でキーボードから到達可能にする */}
                         <input type="file" accept=".json" onChange={action.onFileSelect} className="sr-only" />
@@ -350,7 +372,7 @@ export const EditToolbar = ({
                 return (
                   <Fragment key={action.id}>
                     {separator}
-                    <button onClick={action.onClick} className={`flex items-center px-2.5 py-1 text-xs rounded ${action.colorClass}`} aria-label={action.label}>
+                    <button onClick={action.onClick} className={`flex items-center px-2 xl:px-2.5 py-1 text-xs rounded whitespace-nowrap ${action.colorClass}`} aria-label={action.label}>
                       <action.icon className="w-3 h-3 mr-1" />{action.label}
                     </button>
                   </Fragment>
@@ -371,14 +393,15 @@ export const EditToolbar = ({
 
               {showMobileMenu && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50 animate-fade-in">
-                  {/* 印刷設定（モバイル） */}
-                  <button onClick={() => { togglePrintColumn(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-                    {isTwoColumnPrint ? '1列レイアウト' : '2列レイアウト'}
-                  </button>
-                  <button onClick={() => { toggleHideSubmitted(); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-                    {hideSubmittedInPrint ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    {hideSubmittedInPrint ? '全書類を印刷' : '未提出のみ印刷'}
-                  </button>
+                  {/* 印刷設定（モバイル。sm 未満はツールバーに出ないのでここで選ぶ） */}
+                  <div className="px-4 py-1.5 space-y-2">
+                    {PRINT_SETTINGS.map((setting) => (
+                      <div key={setting.id} className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{setting.label}</span>
+                        <PrintSettingSegment setting={setting} large />
+                      </div>
+                    ))}
+                  </div>
                   <hr className="my-1 border-slate-200 dark:border-slate-700" />
                   {ACTIONS.map((action, index) => {
                     const separator = index > 0 && ACTIONS[index - 1].group !== action.group
