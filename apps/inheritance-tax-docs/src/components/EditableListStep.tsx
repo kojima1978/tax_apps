@@ -32,6 +32,30 @@ import { TOAST_MESSAGES, UNDO_LABEL } from '@/constants/messages';
 import { getFullAddress, useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
 import { getPhoneLine } from '@/utils/companyContact';
 
+const nextFrame = () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+const waitForMilliseconds = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+
+const preloadImage = (src: string) => new Promise<void>((resolve) => {
+  const image = new Image();
+  const timeout = window.setTimeout(resolve, 4000);
+  const finish = () => { window.clearTimeout(timeout); resolve(); };
+  image.onload = () => { void image.decode().catch(() => undefined).finally(finish); };
+  image.onerror = finish;
+  image.src = src;
+});
+
+const waitForRenderedGuideImages = async (): Promise<void> => {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>('.guide-selection-print img'));
+    if (images.every((image) => image.complete && image.naturalWidth > 0)) {
+      await Promise.all(images.map((image) => image.decode().catch(() => undefined)));
+      return;
+    }
+    await waitForMilliseconds(100);
+  }
+};
+
 export const EditableListStep = () => {
   const { company } = useCompanyInfo();
   const {
@@ -87,15 +111,36 @@ export const EditableListStep = () => {
   const dnd = useDragAndDrop(documentList, setDocumentList);
   const dndId = useId();
   const { isDark, toggleDark } = useDarkMode();
-  const { images: acquisitionGuideImages } = useAcquisitionGuideImages();
+  const { images: acquisitionGuideImages, reload: reloadAcquisitionGuideImages } = useAcquisitionGuideImages();
   const [showAcquisitionGuideSelector, setShowAcquisitionGuideSelector] = useState(false);
   const [selectedAcquisitionGuideIds, setSelectedAcquisitionGuideIds] = useState<AcquisitionGuideId[]>([]);
   const [printOutput, setPrintOutput] = useState<'list' | 'acquisition-guides'>('list');
+  const [isPreparingGuidePrint, setIsPreparingGuidePrint] = useState(false);
 
-  const printAfterRender = useCallback((output: 'list' | 'acquisition-guides') => {
+  const printAfterRender = useCallback(async (output: 'list' | 'acquisition-guides') => {
     setPrintOutput(output);
-    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
+    await nextFrame();
+    await nextFrame();
+    if (output === 'acquisition-guides') await waitForRenderedGuideImages();
+    window.print();
   }, []);
+
+  const printSelectedAcquisitionGuides = useCallback(async () => {
+    if (selectedAcquisitionGuideIds.length === 0 || isPreparingGuidePrint) return;
+    setIsPreparingGuidePrint(true);
+    try {
+      const refreshedImages = await reloadAcquisitionGuideImages();
+      const availableImages = refreshedImages ?? acquisitionGuideImages;
+      const selectedSet = new Set(selectedAcquisitionGuideIds);
+      await Promise.all(availableImages
+        .filter((image) => selectedSet.has(image.guideId))
+        .map((image) => preloadImage(image.contentUrl)));
+      setShowAcquisitionGuideSelector(false);
+      await printAfterRender('acquisition-guides');
+    } finally {
+      setIsPreparingGuidePrint(false);
+    }
+  }, [acquisitionGuideImages, isPreparingGuidePrint, printAfterRender, reloadAcquisitionGuideImages, selectedAcquisitionGuideIds]);
 
   const openSingleAcquisitionGuide = useCallback((guideId: AcquisitionGuideId) => {
     setSelectedAcquisitionGuideIds([guideId]);
@@ -228,7 +273,7 @@ export const EditableListStep = () => {
         onShowResetDialog={() => editing.setShowResetDialog(true)}
         onJsonExport={handleJsonExportWithToast}
         onFileSelect={editing.handleFileSelect}
-        onPrint={() => printAfterRender('list')}
+        onPrint={() => { void printAfterRender('list'); }}
         onOpenAcquisitionGuides={docListType === 'inheritance-tax' ? () => setShowAcquisitionGuideSelector(true) : undefined}
         onExcelExport={handleExcelExportWithLoading}
         isTwoColumnPrint={isTwoColumnPrint}
@@ -368,11 +413,8 @@ export const EditableListStep = () => {
         selectedIds={selectedAcquisitionGuideIds}
         onSelectedIdsChange={setSelectedAcquisitionGuideIds}
         onClose={() => setShowAcquisitionGuideSelector(false)}
-        onPrint={() => {
-          if (selectedAcquisitionGuideIds.length === 0) return;
-          setShowAcquisitionGuideSelector(false);
-          printAfterRender('acquisition-guides');
-        }}
+        onPrint={() => { void printSelectedAcquisitionGuides(); }}
+        isPreparing={isPreparingGuidePrint}
       /> : null}
 
       {/* 書類追加モーダル */}

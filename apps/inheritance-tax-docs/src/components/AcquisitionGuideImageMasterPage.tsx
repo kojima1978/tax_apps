@@ -3,6 +3,7 @@ import { ImagePlus, LoaderCircle, Trash2 } from 'lucide-react';
 import { ACQUISITION_GUIDES, type AcquisitionGuideId } from '@/constants/acquisitionGuides';
 import { useAcquisitionGuideImages } from '@/hooks/useAcquisitionGuideImages';
 import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
+import { RetryImage } from '@/components/ui/RetryImage';
 
 const API_BASE = '/inheritance-tax-docs/api/acquisition-guide-images';
 
@@ -59,7 +60,7 @@ export const AcquisitionGuideImageMasterPage = () => {
             const working = workingId === guide.id;
             return <article key={guide.id} className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
               <div className="aspect-[16/8] bg-slate-50 dark:bg-slate-800">
-                {image ? <img src={image.contentUrl} alt={`${guide.title}の見本`} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-sm text-slate-400">画像未登録（簡易図解を使用）</div>}
+                {image ? <RetryImage src={image.contentUrl} alt={`${guide.title}の見本`} className="h-full w-full object-contain" fallback={<div className="flex h-full items-center justify-center px-4 text-center text-sm text-amber-700">画像を表示できません。再読み込みしてください。</div>} /> : <div className="flex h-full items-center justify-center text-sm text-slate-400">画像未登録（簡易図解を使用）</div>}
               </div>
               <div className="p-4">
                 <h3 className="font-bold">{guide.title}</h3>

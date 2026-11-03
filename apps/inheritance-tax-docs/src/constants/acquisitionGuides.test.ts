@@ -45,4 +45,14 @@ describe('相続税申告用の資料取得案内', () => {
     expect(ACQUISITION_GUIDES.filter((guide) => guide.id !== 'seal-certificate').every((guide) => guide.requiredCopies === 1)).toBe(true);
     expect(ACQUISITION_GUIDES.find((guide) => guide.id === 'family-register-broad-issuance')?.requiredCopiesLabel).toBe('各1枚');
   });
+
+  it('財産を引き継ぐ方の住民票は抄本と記載事項を明示する', () => {
+    const guide = ACQUISITION_GUIDES.find((item) => item.id === 'resident-record');
+    expect(guide?.requestText).toContain('住民票の写し（世帯の一部）');
+    expect(guide?.requestOptions).toEqual([
+      { label: '証明書の種類', value: '抄本（世帯の一部）' },
+      { label: 'マイナンバー', value: '省略（記載しない）' },
+      { label: '本籍地・筆頭者・続柄', value: '記載あり' },
+    ]);
+  });
 });

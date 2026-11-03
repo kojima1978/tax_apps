@@ -45,7 +45,7 @@ export function createAcquisitionGuideImagesRouter(): Router {
       SELECT id, guide_id, original_name, mime_type, byte_size, created_at, deleted_at
       FROM acquisition_guide_images WHERE deleted_at IS NULL ORDER BY guide_id
     `).all() as ImageRow[];
-    res.json(rows.filter((row) => GUIDE_IDS.has(row.guide_id)).map((row) => ({ ...snapshot(row), contentUrl: `/inheritance-tax-docs/api/acquisition-guide-images/${row.guide_id}/content?v=${row.id}` })));
+    res.set('Cache-Control', 'no-store').json(rows.filter((row) => GUIDE_IDS.has(row.guide_id)).map((row) => ({ ...snapshot(row), contentUrl: `/inheritance-tax-docs/api/acquisition-guide-images/${row.guide_id}/content?v=${row.id}` })));
   });
 
   router.get('/:guideId/content', (req, res) => {

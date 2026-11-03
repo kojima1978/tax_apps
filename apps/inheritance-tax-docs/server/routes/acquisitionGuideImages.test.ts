@@ -45,6 +45,8 @@ afterEach(async () => {
 describe('取得案内画像API', () => {
   it('画像本体をDBに保存し、差し替え前の版と操作履歴を保持する', async () => {
     expect((await upload('first')).status).toBe(200);
+    const listResponse = await fetch(`${baseUrl}/images`);
+    expect(listResponse.headers.get('cache-control')).toBe('no-store');
     expect(await (await fetch(`${baseUrl}/images/family-register/content`)).text()).toBe('first');
     expect((await upload('second', '架空見本2.png')).status).toBe(200);
     expect(await (await fetch(`${baseUrl}/images/family-register/content`)).text()).toBe('second');

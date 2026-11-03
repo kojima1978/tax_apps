@@ -20,6 +20,7 @@ import {
 } from '@/constants/acquisitionGuides';
 import { getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
 import { getPhoneLine } from '@/utils/companyContact';
+import { RetryImage } from '@/components/ui/RetryImage';
 
 type SelectedAcquisitionGuidePrintProps = {
   selectedIds: AcquisitionGuideId[];
@@ -40,10 +41,7 @@ const VISUAL_ICONS: Record<AcquisitionGuideVisual, LucideIcon> = {
 
 const GuideSample = ({ guide, imageUrl }: { guide: AcquisitionGuideDefinition; imageUrl?: string }) => {
   const Icon = VISUAL_ICONS[guide.visual];
-  if (imageUrl) {
-    return <img src={imageUrl} alt={`${guide.sampleTitle}の見本`} className="guide-selection-sample-image" />;
-  }
-  return (
+  const placeholder = (
     <div className="guide-selection-sample-placeholder" role="img" aria-label={`${guide.sampleTitle}の簡易図解`}>
       <Icon className="h-12 w-12 text-emerald-700" aria-hidden="true" />
       <p className="mt-4 text-xs font-bold tracking-widest text-emerald-700">書類の見分け方</p>
@@ -61,6 +59,8 @@ const GuideSample = ({ guide, imageUrl }: { guide: AcquisitionGuideDefinition; i
       <p className="mt-5 text-[10px] leading-relaxed text-slate-500">実際の様式は発行元によって異なります。</p>
     </div>
   );
+  if (!imageUrl) return placeholder;
+  return <RetryImage src={imageUrl} alt={`${guide.sampleTitle}の見本`} className="guide-selection-sample-image" fallback={placeholder} />;
 };
 
 export const SelectedAcquisitionGuidePrint = ({
@@ -149,7 +149,7 @@ export const SelectedAcquisitionGuidePrint = ({
                 </ol>
               </div>
 
-              <div className="mt-3 flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">
+              <div className="guide-selection-caution-box mt-3 flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">
                 <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
                 <ul className="space-y-1">{guide.cautions.map((item) => <li key={item}>・{item}</li>)}</ul>
               </div>

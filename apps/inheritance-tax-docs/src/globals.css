@@ -411,4 +411,10 @@ label:has(input[type="file"]:focus-visible) {
     font-size: 14px !important;
     line-height: 1.35 !important;
   }
+
+  /* 長い注意文もA4横1枚に収まるよう、内容を削らず余白だけを詰める */
+  .guide-selection-caution-box {
+    margin-top: 1mm !important;
+    padding: 1.5mm 2mm !important;
+  }
 }
