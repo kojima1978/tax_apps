@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import { ImagePlus, LoaderCircle, Trash2 } from 'lucide-react';
+import { ImagePlus, LoaderCircle, RotateCcw, Trash2 } from 'lucide-react';
 import { ACQUISITION_GUIDES, type AcquisitionGuideId } from '@/constants/acquisitionGuides';
+import { DEFAULT_ACQUISITION_GUIDE_IMAGE_IDS } from '@/constants/acquisitionGuideImageDefaults';
 import { useAcquisitionGuideImages } from '@/hooks/useAcquisitionGuideImages';
 import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 import { RetryImage } from '@/components/ui/RetryImage';
@@ -44,11 +45,23 @@ export const AcquisitionGuideImageMasterPage = () => {
     finally { setWorkingId(null); }
   };
 
+  const restoreDefault = async (guideId: AcquisitionGuideId, title: string) => {
+    if (!window.confirm(`「${title}」をデフォルト画像に戻しますか？\n現在の画像は操作履歴に残ります。`)) return;
+    setWorkingId(guideId); setMessage(''); setError('');
+    try {
+      const response = await fetch(`${API_BASE}/${guideId}/restore-default`, { method: 'POST', headers: selectedOperatorHeaders() });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? 'デフォルト画像への復元に失敗しました');
+      await reload(); setMessage('デフォルト画像に戻しました。復元操作は履歴に記録されました。');
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'デフォルト画像への復元に失敗しました'); }
+    finally { setWorkingId(null); }
+  };
+
   return (
     <section role="tabpanel" aria-label="取得案内画像マスタ" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div>
         <h2 className="text-lg font-bold">取得案内の見本画像</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">お客様へ渡す取得案内に表示する画像を登録します。PNG・JPEG・WebP・GIF、8MB以下。画像本体はDBに保存し、差し替え前の版も操作履歴のため保持します。</p>
+        <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">お客様へ渡す取得案内に表示する画像を登録します。PNG・JPEG・WebP・GIF、8MB以下。画像本体はDBに保存し、差し替え前の版も操作履歴のため保持します。Git同梱の標準画像がある案内は「デフォルトに戻す」で復元できます。</p>
         <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">氏名・住所・本籍・生年月日・口座番号・証券番号・保険証券番号・QRコード・印影は必ず伏せてください。</p>
       </div>
       {message ? <p role="status" className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{message}</p> : null}
@@ -70,6 +83,7 @@ export const AcquisitionGuideImageMasterPage = () => {
                     {working ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}{image ? '差し替える' : '画像を登録'}
                     <input ref={(node) => { inputRefs.current[guide.id] = node; }} disabled={working} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => void upload(guide.id, event.target.files?.[0])} className="sr-only" />
                   </label>
+                  {DEFAULT_ACQUISITION_GUIDE_IMAGE_IDS.has(guide.id) ? <button disabled={working} type="button" onClick={() => void restoreDefault(guide.id, guide.title)} className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-blue-300 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50 disabled:opacity-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950"><RotateCcw className="h-4 w-4" />デフォルトに戻す</button> : null}
                   {image ? <button disabled={working} type="button" onClick={() => void remove(guide.id, guide.title)} className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"><Trash2 className="h-4 w-4" />無効化</button> : null}
                 </div>
               </div>

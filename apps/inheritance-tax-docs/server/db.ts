@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
+import { ACQUISITION_GUIDE_IMAGE_DEFAULTS } from '../src/constants/acquisitionGuideImageDefaults.js';
 
 const DB_PATH = process.env.DATABASE_PATH ?? path.resolve('data', 'resources.sqlite');
 
@@ -227,6 +228,43 @@ export type PoaMatterMasterRow = {
 /** 委任事項マスタが無いときだけ初期値を入れる（画面で直した内容は起動し直しても上書きしない） */
 export function seedPoaMatterMasterIfEmpty(seed: unknown): void {
   getDb().prepare('INSERT OR IGNORE INTO poa_matter_master (id, payload_json) VALUES (1, ?)').run(JSON.stringify(seed));
+}
+
+export type AcquisitionGuideImageDefaultData = {
+  originalName: string;
+  mimeType: string;
+  byteSize: number;
+  imageData: Buffer;
+};
+
+/** Git同梱の標準画像を読む。固定マニフェストだけを使い、利用者入力をパスに使わない。 */
+export function readAcquisitionGuideImageDefault(publicFilesDir: string, guideId: string): AcquisitionGuideImageDefaultData | undefined {
+  const metadata = ACQUISITION_GUIDE_IMAGE_DEFAULTS[guideId as keyof typeof ACQUISITION_GUIDE_IMAGE_DEFAULTS];
+  if (!metadata) return undefined;
+  const imagePath = path.join(publicFilesDir, 'acquisition-guide-samples', metadata.filename);
+  if (!fs.existsSync(imagePath)) return undefined;
+  const imageData = fs.readFileSync(imagePath);
+  return { originalName: metadata.originalName, mimeType: metadata.mimeType, byteSize: imageData.byteLength, imageData };
+}
+
+/**
+ * 画像の履歴が一度も無い案内だけ標準画像を登録する。
+ * 利用者が差し替え・無効化した画像は、再起動しても標準画像で上書きしない。
+ */
+export function seedAcquisitionGuideImagesIfMissing(publicFilesDir: string): void {
+  const d = getDb();
+  const hasHistory = d.prepare('SELECT 1 FROM acquisition_guide_images WHERE guide_id = ? LIMIT 1');
+  const insert = d.prepare(`
+    INSERT INTO acquisition_guide_images (guide_id, original_name, mime_type, byte_size, image_data)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  d.transaction(() => {
+    for (const guideId of Object.keys(ACQUISITION_GUIDE_IMAGE_DEFAULTS)) {
+      if (hasHistory.get(guideId)) continue;
+      const image = readAcquisitionGuideImageDefault(publicFilesDir, guideId);
+      if (image) insert.run(guideId, image.originalName, image.mimeType, image.byteSize, image.imageData);
+    }
+  })();
 }
 
 export type ResourceRow = {

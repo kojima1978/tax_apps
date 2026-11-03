@@ -1,5 +1,5 @@
 import express from 'express';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 let server: Server;
 let baseUrl: string;
 let workDir: string;
+let publicFilesDir: string;
 let dbModule: typeof import('../db.js');
 
 const upload = async (body: string, name = '架空見本.png', guideId = 'family-register') => {
@@ -24,11 +25,15 @@ const upload = async (body: string, name = '架空見本.png', guideId = 'family
 beforeEach(async () => {
   workDir = mkdtempSync(join(tmpdir(), 'guide-images-test-'));
   process.env.DATABASE_PATH = join(workDir, 'resources.sqlite');
+  publicFilesDir = join(workDir, 'public-files');
+  const samplesDir = join(publicFilesDir, 'acquisition-guide-samples');
+  mkdirSync(samplesDir, { recursive: true });
+  writeFileSync(join(samplesDir, 'family-register.gif'), 'default-image');
   vi.resetModules();
   dbModule = await import('../db.js');
   const { createAcquisitionGuideImagesRouter } = await import('./acquisitionGuideImages.js');
   const app = express();
-  app.use('/images', createAcquisitionGuideImagesRouter());
+  app.use('/images', createAcquisitionGuideImagesRouter(publicFilesDir));
   server = await new Promise<Server>((resolve) => {
     const listening = app.listen(0, '127.0.0.1', () => resolve(listening));
   });
@@ -74,5 +79,23 @@ describe('取得案内画像API', () => {
     expect(await (await fetch(`${baseUrl}/images/heir-family-register/content`)).text()).toBe('heir-image');
     expect((await upload('broad-image', '架空広域交付.png', 'family-register-broad-issuance')).status).toBe(200);
     expect(await (await fetch(`${baseUrl}/images/family-register-broad-issuance/content`)).text()).toBe('broad-image');
+  });
+
+  it('初回はGit同梱画像を登録し、差し替え後もデフォルトへ戻せる', async () => {
+    dbModule.seedAcquisitionGuideImagesIfMissing(publicFilesDir);
+    expect(await (await fetch(`${baseUrl}/images/family-register/content`)).text()).toBe('default-image');
+
+    expect((await upload('custom-image')).status).toBe(200);
+    dbModule.seedAcquisitionGuideImagesIfMissing(publicFilesDir);
+    expect(await (await fetch(`${baseUrl}/images/family-register/content`)).text()).toBe('custom-image');
+
+    const restored = await fetch(`${baseUrl}/images/family-register/restore-default`, {
+      method: 'POST',
+      headers: { 'x-operator-name': encodeURIComponent('架空 花子') },
+    });
+    expect(restored.status).toBe(200);
+    expect(await (await fetch(`${baseUrl}/images/family-register/content`)).text()).toBe('default-image');
+    const audits = dbModule.getDb().prepare("SELECT action FROM audit_logs WHERE target_type = 'acquisition_guide_image' ORDER BY id").pluck().all();
+    expect(audits).toEqual(['update', 'restore']);
   });
 });

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { getDb, writeAuditLog } from '../db.js';
+import { getDb, readAcquisitionGuideImageDefault, writeAuditLog } from '../db.js';
 
 const GUIDE_IDS = new Set([
   'family-register', 'heir-family-register', 'family-register-broad-issuance', 'family-register-address-history', 'seal-certificate',
@@ -32,7 +32,7 @@ const snapshot = (row: ImageRow | undefined) => row ? {
   createdAt: row.created_at,
 } : null;
 
-export function createAcquisitionGuideImagesRouter(): Router {
+export function createAcquisitionGuideImagesRouter(publicFilesDir: string): Router {
   const router = Router();
   const upload = multer({
     storage: multer.memoryStorage(),
@@ -79,6 +79,24 @@ export function createAcquisitionGuideImagesRouter(): Router {
       return created;
     })();
     res.json({ ...snapshot(save), contentUrl: `/inheritance-tax-docs/api/acquisition-guide-images/${guideId}/content?v=${save.id}` });
+  });
+
+  router.post('/:guideId/restore-default', (req, res) => {
+    const guideId = String(req.params.guideId);
+    if (!GUIDE_IDS.has(guideId)) { res.status(404).json({ error: '取得案内が見つかりません' }); return; }
+    const defaultImage = readAcquisitionGuideImageDefault(publicFilesDir, guideId);
+    if (!defaultImage) { res.status(404).json({ error: 'この案内にはデフォルト画像がありません' }); return; }
+    const db = getDb();
+    const previous = db.prepare(`SELECT id, guide_id, original_name, mime_type, byte_size, created_at, deleted_at FROM acquisition_guide_images WHERE guide_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT 1`).get(guideId) as ImageRow | undefined;
+    const restored = db.transaction(() => {
+      db.prepare("UPDATE acquisition_guide_images SET deleted_at = datetime('now') WHERE guide_id = ? AND deleted_at IS NULL").run(guideId);
+      const result = db.prepare(`INSERT INTO acquisition_guide_images (guide_id, original_name, mime_type, byte_size, image_data) VALUES (?, ?, ?, ?, ?)`)
+        .run(guideId, defaultImage.originalName, defaultImage.mimeType, defaultImage.byteSize, defaultImage.imageData);
+      const created = db.prepare(`SELECT id, guide_id, original_name, mime_type, byte_size, created_at, deleted_at FROM acquisition_guide_images WHERE id = ?`).get(result.lastInsertRowid) as ImageRow;
+      writeAuditLog({ targetType: 'acquisition_guide_image', targetId: guideId, targetName: `取得案内画像: ${guideId}`, action: 'restore', actor: actorFrom(req.header('x-operator-name')), before: snapshot(previous), after: snapshot(created) });
+      return created;
+    })();
+    res.json({ ...snapshot(restored), contentUrl: `/inheritance-tax-docs/api/acquisition-guide-images/${guideId}/content?v=${restored.id}` });
   });
 
   router.delete('/:guideId', (req, res) => {

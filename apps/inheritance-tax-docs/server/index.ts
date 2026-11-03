@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';
-import { checkDbHealth, seedDocumentMastersIfEmpty, seedIfEmpty, seedPoaMatterMasterIfEmpty } from './db.js';
+import { checkDbHealth, seedAcquisitionGuideImagesIfMissing, seedDocumentMastersIfEmpty, seedIfEmpty, seedPoaMatterMasterIfEmpty } from './db.js';
 import { createResourcesRouter } from './routes/resources.js';
 import { createDocumentMastersRouter } from './routes/documentMasters.js';
 import { createAuditLogsRouter } from './routes/auditLogs.js';
@@ -28,6 +28,7 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 // Seed initial data
 seedIfEmpty(UPLOADS_DIR, PUBLIC_FILES_DIR);
+seedAcquisitionGuideImagesIfMissing(PUBLIC_FILES_DIR);
 seedDocumentMastersIfEmpty(MASTER_SEEDS);
 seedPoaMatterMasterIfEmpty(DEFAULT_MATTER_MASTER);
 runMasterMigrations();
@@ -54,7 +55,7 @@ app.use(`${BASE_PATH}/api/audit-logs`, createAuditLogsRouter());
 app.use(`${BASE_PATH}/api/poa-matters`, createPoaMattersRouter());
 app.use(`${BASE_PATH}/api/poa-principals`, createPoaPrincipalsRouter());
 app.use(`${BASE_PATH}/api/poa-deceased`, createPoaDeceasedRouter());
-app.use(`${BASE_PATH}/api/acquisition-guide-images`, createAcquisitionGuideImagesRouter());
+app.use(`${BASE_PATH}/api/acquisition-guide-images`, createAcquisitionGuideImagesRouter(PUBLIC_FILES_DIR));
 
 // Only active master records can expose their retained upload.
 app.use(`${BASE_PATH}/files`, createResourceFilesRouter(UPLOADS_DIR));
