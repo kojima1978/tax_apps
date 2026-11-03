@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, List, BarChart3, Settings } from "lucide-react"
+import { Home, List, BarChart3, Settings, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const NAV_LINKS = [
     { href: "/", label: "案件一覧", icon: List },
     { href: "/analytics", label: "経営分析", icon: BarChart3 },
     { href: "/settings", label: "設定", icon: Settings },
+    { href: "/help", label: "使い方", icon: HelpCircle },
 ] as const
 
 const FOCUS_STYLE = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"

@@ -113,3 +113,16 @@ body {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* 操作説明書（/help）の印刷: ヘッダー・目次・印刷ボタンを落として A4 縦に通しで出す */
+@media print {
+  @page { size: A4 portrait; margin: 14mm 12mm; }
+  body:has(.help-doc) header { display: none; }
+  .help-doc .help-toc, .help-doc .help-print-button { display: none; }
+  .help-doc { max-width: none; padding: 0; }
+  .help-doc .help-section { border: 0; border-radius: 0; padding: 0; margin-bottom: 8mm; }
+  .help-doc h1, .help-doc h2 { break-after: avoid; }
+  .help-doc tr, .help-doc li, .help-doc p, .help-doc caption { break-inside: avoid; }
+  .help-doc thead { display: table-header-group; }
+  .help-doc .help-note { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
