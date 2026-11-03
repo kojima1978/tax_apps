@@ -10,6 +10,7 @@ import { createPoaMattersRouter } from './routes/poaMatters.js';
 import { createPoaPrincipalsRouter } from './routes/poaPrincipals.js';
 import { createPoaDeceasedRouter } from './routes/poaDeceased.js';
 import { createResourceFilesRouter } from './routes/resourceFiles.js';
+import { createAcquisitionGuideImagesRouter } from './routes/acquisitionGuideImages.js';
 import { MASTER_SEEDS } from './masterDefaults.js';
 import { runMasterMigrations } from './masterMigrations.js';
 import { DEFAULT_MATTER_MASTER } from '../src/constants/powerOfAttorneyMatters.js';
@@ -53,6 +54,7 @@ app.use(`${BASE_PATH}/api/audit-logs`, createAuditLogsRouter());
 app.use(`${BASE_PATH}/api/poa-matters`, createPoaMattersRouter());
 app.use(`${BASE_PATH}/api/poa-principals`, createPoaPrincipalsRouter());
 app.use(`${BASE_PATH}/api/poa-deceased`, createPoaDeceasedRouter());
+app.use(`${BASE_PATH}/api/acquisition-guide-images`, createAcquisitionGuideImagesRouter());
 
 // Only active master records can expose their retained upload.
 app.use(`${BASE_PATH}/files`, createResourceFilesRouter(UPLOADS_DIR));

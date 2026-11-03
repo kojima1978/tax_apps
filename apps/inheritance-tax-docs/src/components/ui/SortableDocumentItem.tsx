@@ -17,12 +17,14 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  BookOpenCheck,
 } from 'lucide-react';
 import type { EditableDocument } from '@/constants';
 import { isPowerOfAttorneyDocument } from '@/constants/documents';
 import type { DocHandlers, SubItemEditState, SubItemHandlers } from '@/hooks/useDocumentEditing';
 import { InlineEditInput, InlineAddInput } from './EditableInput';
 import { formatCheckedDate } from '@/utils/helpers';
+import { acquisitionGuideIdForDocument, type AcquisitionGuideId } from '@/constants/acquisitionGuides';
 
 // ─── 番号バッジ共通スタイル ───
 
@@ -59,6 +61,7 @@ type SortableDocumentItemProps = {
   docHandlers: DocHandlers;
   subItemEditState: SubItemEditState;
   subItemHandlers: SubItemHandlers;
+  onOpenAcquisitionGuide?: (guideId: AcquisitionGuideId) => void;
 };
 
 // ─── ドラッグ可能な書類アイテム ───
@@ -70,6 +73,7 @@ export const SortableDocumentItem = memo(({
   docHandlers,
   subItemEditState,
   subItemHandlers,
+  onOpenAcquisitionGuide,
 }: SortableDocumentItemProps) => {
   const { editingSubItem, editSubItemText, setEditSubItemText, addingSubItemTo, newSubItemText, setNewSubItemText } = subItemEditState;
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -89,6 +93,7 @@ export const SortableDocumentItem = memo(({
   };
 
   const hasDetail = doc.description || doc.howToGet;
+  const acquisitionGuideId = onOpenAcquisitionGuide ? acquisitionGuideIdForDocument(doc.id) : undefined;
 
   return (
     <li
@@ -155,6 +160,16 @@ export const SortableDocumentItem = memo(({
                 <Stamp className="w-3.5 h-3.5" aria-hidden="true" />
                 委任状を作る
               </Link>
+            )}
+            {acquisitionGuideId && (
+              <button
+                type="button"
+                onClick={() => onOpenAcquisitionGuide?.(acquisitionGuideId)}
+                className="inline-flex min-h-8 cursor-pointer items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                aria-label={`${doc.name}の取得案内を開く`}
+              >
+                <BookOpenCheck className="h-3.5 w-3.5" aria-hidden="true" />取得案内
+              </button>
             )}
           </div>
 

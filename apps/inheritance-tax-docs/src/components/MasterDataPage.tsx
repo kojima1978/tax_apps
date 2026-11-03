@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, ChevronDown, ChevronRight, FileText, FolderTree, History, Plus, RotateCcw, Save, ScrollText, Send, Trash2, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, ChevronDown, ChevronRight, FileImage, FileText, FolderTree, History, Plus, RotateCcw, Save, ScrollText, Send, Trash2, type LucideIcon } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
 import { ResourcesPage } from '@/components/ResourcesPage';
 import { AuditLogPage } from '@/components/AuditLogPage';
 import { CategoryMasterPage } from '@/components/CategoryMasterPage';
 import { PoaMatterMasterPage } from '@/components/PoaMatterMasterPage';
+import { AcquisitionGuideImageMasterPage } from '@/components/AcquisitionGuideImageMasterPage';
 import { useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
 import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 import { OperatorPicker } from '@/shared/staff-directory/OperatorPicker';
@@ -37,13 +38,14 @@ type Version = { version: number; published_at: string };
 
 const API_BASE = '/inheritance-tax-docs/api/document-masters';
 
-type MasterTab = 'documents' | 'categories' | 'resources' | 'poa-matters' | 'history';
+type MasterTab = 'documents' | 'categories' | 'resources' | 'guide-images' | 'poa-matters' | 'history';
 
 // suffix は幅のある画面でだけ足す（スマホ幅で5つ並べるため）
 const MASTER_TABS: { id: MasterTab; icon: LucideIcon; label: string; suffix?: string }[] = [
   { id: 'documents', icon: FileText, label: '必要書類', suffix: 'マスタ' },
   { id: 'categories', icon: FolderTree, label: 'カテゴリ', suffix: 'ーマスタ' },
   { id: 'resources', icon: BookOpen, label: '参考資料', suffix: 'マスタ' },
+  { id: 'guide-images', icon: FileImage, label: '案内画像' },
   { id: 'poa-matters', icon: ScrollText, label: '委任事項' },
   { id: 'history', icon: History, label: '操作履歴' },
 ];
@@ -205,7 +207,7 @@ export const MasterDataPage = () => {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-5 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800" role="tablist" aria-label="マスタ種別">
+          <div className="mt-5 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800 sm:grid-cols-6" role="tablist" aria-label="マスタ種別">
             {MASTER_TABS.map(({ id, icon: Icon, label, suffix }) => (
               <button
                 key={id}
@@ -249,6 +251,8 @@ export const MasterDataPage = () => {
             <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
               全税目で共通利用する案内資料・ひな形・外部リンクを登録します。登録内容はすぐに参考資料一覧へ反映されます。
             </p>
+          ) : activeTab === 'guide-images' ? (
+            <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">相続税申告用の資料取得案内に載せる見本画像を登録・差し替えします。</p>
           ) : activeTab === 'poa-matters' ? (
             <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
               委任状に刷る委任事項の定型文を追加・編集・並び替え・削除します。保存するとすぐに委任状の画面へ反映されます（全社共通）。
@@ -358,6 +362,8 @@ export const MasterDataPage = () => {
           <section role="tabpanel" aria-label="参考資料マスタ" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <ResourcesPage embedded />
           </section>
+        ) : activeTab === 'guide-images' ? (
+          <AcquisitionGuideImageMasterPage />
         ) : (
           <AuditLogPage />
         )}

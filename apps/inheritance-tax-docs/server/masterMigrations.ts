@@ -29,6 +29,7 @@ export const withPowerOfAttorney = (categories: MasterCategory[]): MasterCategor
 
 export function runMasterMigrations(): void {
   addPowerOfAttorneyDocument();
+  removeDeceasedResidentRecordDocument();
   linkDeceasedFromPrincipals();
 }
 
@@ -69,6 +70,62 @@ function addPowerOfAttorneyDocument(): void {
       }
     }
     db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(POA_MIGRATION);
+  });
+  migrate();
+}
+
+const DECEASED_RESIDENT_RECORD_MIGRATION = 'remove-deceased-resident-record-document';
+const DECEASED_RESIDENT_RECORD_ID = 'deceased_jyuminhyo';
+const DECEASED_RESIDENT_RECORD_ACTOR = 'システム（亡くなった方の住民票の除票を必要書類から削除）';
+
+/** 亡くなった方の住民票の除票を必要書類から外す。無ければ null */
+export const withoutDeceasedResidentRecord = (categories: MasterCategory[]): MasterCategory[] | null => {
+  let changed = false;
+  const next = categories.map((category) => {
+    const documents = category.documents.filter((document) => document.id !== DECEASED_RESIDENT_RECORD_ID);
+    if (documents.length === category.documents.length) return category;
+    changed = true;
+    return { ...category, documents };
+  });
+  return changed ? next : null;
+};
+
+function removeDeceasedResidentRecordDocument(): void {
+  const db = getDb();
+  if (db.prepare('SELECT 1 FROM app_migrations WHERE name = ?').get(DECEASED_RESIDENT_RECORD_MIGRATION)) return;
+
+  const migrate = db.transaction(() => {
+    const row = db.prepare('SELECT * FROM document_masters WHERE code = ?').get(POA_MASTER_CODE) as DocumentMasterRow | undefined;
+    if (row) {
+      const published = JSON.parse(row.published_json) as MasterCategory[];
+      const nextDraft = withoutDeceasedResidentRecord(JSON.parse(row.draft_json) as MasterCategory[]);
+      const nextPublished = withoutDeceasedResidentRecord(published);
+      if (nextDraft) {
+        db.prepare(`
+          UPDATE document_masters SET draft_json = ?, draft_updated_at = datetime('now') WHERE code = ?
+        `).run(JSON.stringify(nextDraft), row.code);
+      }
+      if (nextPublished) {
+        const nextVersion = row.version + 1;
+        const payload = JSON.stringify(nextPublished);
+        db.prepare(`
+          UPDATE document_masters SET published_json = ?, version = ?, published_at = datetime('now') WHERE code = ?
+        `).run(payload, nextVersion, row.code);
+        db.prepare(`
+          INSERT INTO document_master_versions (master_code, version, payload_json) VALUES (?, ?, ?)
+        `).run(row.code, nextVersion, payload);
+        writeAuditLog({
+          targetType: 'document_master',
+          targetId: row.code,
+          targetName: row.label,
+          action: 'publish',
+          actor: DECEASED_RESIDENT_RECORD_ACTOR,
+          before: { code: row.code, label: row.label, version: row.version, categories: published },
+          after: { code: row.code, label: row.label, version: nextVersion, categories: nextPublished },
+        });
+      }
+    }
+    db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(DECEASED_RESIDENT_RECORD_MIGRATION);
   });
   migrate();
 }

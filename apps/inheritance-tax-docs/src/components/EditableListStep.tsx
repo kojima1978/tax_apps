@@ -24,6 +24,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Dialogs } from '@/components/ui/Dialogs';
 import { DocumentFormModal } from '@/components/ui/DocumentFormModal';
 import { TrashModal } from '@/components/ui/TrashModal';
+import { AcquisitionGuideSelectorDialog } from '@/components/AcquisitionGuideSelectorDialog';
+import { SelectedAcquisitionGuidePrint } from '@/components/SelectedAcquisitionGuidePrint';
+import { useAcquisitionGuideImages } from '@/hooks/useAcquisitionGuideImages';
+import type { AcquisitionGuideId } from '@/constants/acquisitionGuides';
 import { TOAST_MESSAGES, UNDO_LABEL } from '@/constants/messages';
 import { getFullAddress, useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
 import { getPhoneLine } from '@/utils/companyContact';
@@ -45,7 +49,6 @@ export const EditableListStep = () => {
     handleDocListTypeChange,
     handleTargetYearChange,
     resetToPublishedMaster,
-    handlePrint,
     handleExcelExport,
     togglePrintColumn,
     toggleHideSubmitted,
@@ -84,6 +87,20 @@ export const EditableListStep = () => {
   const dnd = useDragAndDrop(documentList, setDocumentList);
   const dndId = useId();
   const { isDark, toggleDark } = useDarkMode();
+  const { images: acquisitionGuideImages } = useAcquisitionGuideImages();
+  const [showAcquisitionGuideSelector, setShowAcquisitionGuideSelector] = useState(false);
+  const [selectedAcquisitionGuideIds, setSelectedAcquisitionGuideIds] = useState<AcquisitionGuideId[]>([]);
+  const [printOutput, setPrintOutput] = useState<'list' | 'acquisition-guides'>('list');
+
+  const printAfterRender = useCallback((output: 'list' | 'acquisition-guides') => {
+    setPrintOutput(output);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
+  }, []);
+
+  const openSingleAcquisitionGuide = useCallback((guideId: AcquisitionGuideId) => {
+    setSelectedAcquisitionGuideIds([guideId]);
+    setShowAcquisitionGuideSelector(true);
+  }, []);
 
   // ドラッグオーバーレイ用の番号を算出
   const dragOverlayCatNumber = useMemo(() => {
@@ -211,7 +228,8 @@ export const EditableListStep = () => {
         onShowResetDialog={() => editing.setShowResetDialog(true)}
         onJsonExport={handleJsonExportWithToast}
         onFileSelect={editing.handleFileSelect}
-        onPrint={handlePrint}
+        onPrint={() => printAfterRender('list')}
+        onOpenAcquisitionGuides={docListType === 'inheritance-tax' ? () => setShowAcquisitionGuideSelector(true) : undefined}
         onExcelExport={handleExcelExportWithLoading}
         isTwoColumnPrint={isTwoColumnPrint}
         togglePrintColumn={togglePrintColumn}
@@ -274,6 +292,7 @@ export const EditableListStep = () => {
                                 docHandlers={editing.docHandlers}
                                 subItemEditState={editing.subItemEditState}
                                 subItemHandlers={editing.subItemHandlers}
+                                onOpenAcquisitionGuide={docListType === 'inheritance-tax' ? openSingleAcquisitionGuide : undefined}
                               />
                             ))}
                           </ul>
@@ -325,7 +344,7 @@ export const EditableListStep = () => {
       </div>
 
       {/* 印刷専用セクション */}
-      <PrintSection
+      {printOutput === 'list' ? <PrintSection
         documentList={documentList}
         isTwoColumnPrint={isTwoColumnPrint}
         hideSubmittedInPrint={hideSubmittedInPrint}
@@ -335,7 +354,26 @@ export const EditableListStep = () => {
         clientName={clientName}
         deceasedName={deceasedName}
         docListType={docListType}
-      />
+      /> : <SelectedAcquisitionGuidePrint
+        selectedIds={selectedAcquisitionGuideIds}
+        currentDate={currentDate}
+        clientName={clientName}
+        deceasedName={deceasedName}
+        personInCharge={personInCharge}
+        personInChargeContact={personInChargeContact}
+        imageUrls={Object.fromEntries(acquisitionGuideImages.map((image) => [image.guideId, image.contentUrl]))}
+      />}
+
+      {showAcquisitionGuideSelector ? <AcquisitionGuideSelectorDialog
+        selectedIds={selectedAcquisitionGuideIds}
+        onSelectedIdsChange={setSelectedAcquisitionGuideIds}
+        onClose={() => setShowAcquisitionGuideSelector(false)}
+        onPrint={() => {
+          if (selectedAcquisitionGuideIds.length === 0) return;
+          setShowAcquisitionGuideSelector(false);
+          printAfterRender('acquisition-guides');
+        }}
+      /> : null}
 
       {/* 書類追加モーダル */}
       {editing.addingToCategoryId && (

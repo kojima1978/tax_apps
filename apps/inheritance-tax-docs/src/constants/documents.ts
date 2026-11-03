@@ -114,13 +114,6 @@ export const CATEGORIES: CategoryData[] = [
         canDelegate: true,
       },
       {
-        id: 'deceased_jyuminhyo',
-        name: '被相続人（亡くなった方）の住民票の除票',
-        description: '死亡時の住所を示す書類です。戸籍の附票がある場合は不要。',
-        howToGet: '被相続人（亡くなった方）の住所地の役所等で取得できます。',
-        canDelegate: true,
-      },
-      {
         id: 'heir_koseki',
         name: '相続人（財産を引継ぐ人）全員の戸籍謄本',
         description: '相続人（財産を引継ぐ人）の現在戸籍です。被相続人（亡くなった方）の戸籍に含まれる場合は不要。',

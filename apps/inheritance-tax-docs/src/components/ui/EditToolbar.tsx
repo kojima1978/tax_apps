@@ -21,6 +21,7 @@ import {
   ClipboardList,
   Settings,
   Stamp,
+  BookOpenCheck,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, usesDeceasedName, type DocListType } from '@/constants';
@@ -72,6 +73,7 @@ type EditToolbarProps = {
   onJsonExport: () => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onPrint: () => void;
+  onOpenAcquisitionGuides?: () => void;
   onExcelExport: () => void;
   isTwoColumnPrint: boolean;
   togglePrintColumn: () => void;
@@ -105,6 +107,7 @@ export const EditToolbar = ({
   onJsonExport,
   onFileSelect,
   onPrint,
+  onOpenAcquisitionGuides,
   onExcelExport,
   isTwoColumnPrint,
   togglePrintColumn,
@@ -134,12 +137,13 @@ export const EditToolbar = ({
   }, [showMobileMenu]);
 
   const ACTIONS: ToolbarAction[] = useMemo(() => [
+    ...(onOpenAcquisitionGuides ? [{ id: 'acquisition-guides', label: '取得案内', icon: BookOpenCheck, onClick: onOpenAcquisitionGuides, group: 'print' as const, colorClass: 'bg-emerald-700 text-white hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500' }] : []),
     { id: 'print', label: '印刷', icon: Printer, onClick: onPrint, group: 'print', colorClass: 'bg-slate-700 text-white hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500' },
     { id: 'excel', label: 'Excel', icon: FileSpreadsheet, onClick: isExporting ? undefined : onExcelExport, group: 'file', colorClass: isExporting ? `${OUTLINE_BUTTON_CLASS} cursor-not-allowed opacity-50` : OUTLINE_BUTTON_CLASS },
     { id: 'json-export', label: 'ファイルに保存', icon: Download, onClick: onJsonExport, group: 'file', colorClass: OUTLINE_BUTTON_CLASS },
     { id: 'json-import', label: 'ファイルを読込', icon: Upload, onFileSelect, group: 'file', colorClass: OUTLINE_BUTTON_CLASS },
     { id: 'reset', label: 'リセット', icon: RotateCcw, onClick: onShowResetDialog, group: 'reset', colorClass: OUTLINE_BUTTON_CLASS },
-  ], [onPrint, onExcelExport, onJsonExport, onFileSelect, onShowResetDialog, isExporting]);
+  ], [onOpenAcquisitionGuides, onPrint, onExcelExport, onJsonExport, onFileSelect, onShowResetDialog, isExporting]);
 
   // モバイルでは44x44pxのタップ領域を確保し、PCでは既存の密度を維持する
   const touchTargetClass = 'min-w-11 min-h-11 justify-center sm:min-w-6 sm:min-h-6';

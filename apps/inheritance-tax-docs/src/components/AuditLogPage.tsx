@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Clock3, RotateCcw, ShieldCheck } from 'lucid
 import { selectedOperatorHeaders } from '@/shared/staff-directory/operator';
 
 type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
-type AuditTargetType = 'document_master' | 'resource' | 'poa_matter' | 'poa_principal' | 'poa_deceased';
+type AuditTargetType = 'document_master' | 'resource' | 'acquisition_guide_image' | 'poa_matter' | 'poa_principal' | 'poa_deceased';
 
 type AuditLog = {
   id: number;
@@ -34,6 +34,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
 const TARGET_LABELS: Record<AuditTargetType, string> = {
   document_master: '必要書類',
   resource: '参考資料',
+  acquisition_guide_image: '取得案内画像',
   poa_matter: '委任事項',
   poa_principal: '委任者',
   poa_deceased: '被相続人',
@@ -147,12 +148,12 @@ export const AuditLogPage = () => {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-bold"><ShieldCheck className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />操作履歴</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">必要書類・参考資料・委任事項・委任者・被相続人の変更を時系列で保存しています。履歴は編集・削除できません。</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">必要書類・参考資料・取得案内画像・委任事項・委任者・被相続人の変更を時系列で保存しています。履歴は編集・削除できません。</p>
         </div>
         <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-2">
           <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">対象
             <select value={targetFilter} onChange={(event) => setTargetFilter(event.target.value as typeof targetFilter)} className="min-h-11 cursor-pointer rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
-              <option value="all">すべて</option><option value="document_master">必要書類</option><option value="resource">参考資料</option><option value="poa_matter">委任事項</option><option value="poa_principal">委任者</option><option value="poa_deceased">被相続人</option>
+              <option value="all">すべて</option><option value="document_master">必要書類</option><option value="resource">参考資料</option><option value="acquisition_guide_image">取得案内画像</option><option value="poa_matter">委任事項</option><option value="poa_principal">委任者</option><option value="poa_deceased">被相続人</option>
             </select>
           </label>
           <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">操作

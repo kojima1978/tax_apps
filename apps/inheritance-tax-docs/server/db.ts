@@ -92,6 +92,19 @@ function initSchema(d: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC, id DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs(target_type, target_id, id DESC);
+    -- お客様向け資料取得案内の見本画像。差し替え前の実体もDB内に保持する。
+    CREATE TABLE IF NOT EXISTS acquisition_guide_images (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      guide_id      TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      mime_type     TEXT NOT NULL,
+      byte_size     INTEGER NOT NULL,
+      image_data    BLOB NOT NULL,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at    TEXT
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_acquisition_guide_images_active
+      ON acquisition_guide_images(guide_id) WHERE deleted_at IS NULL;
     -- 委任状の委任事項マスタ。全社共通の1行だけ（id = 1）。version は楽観ロック用
     CREATE TABLE IF NOT EXISTS poa_matter_master (
       id           INTEGER PRIMARY KEY CHECK (id = 1),
@@ -163,6 +176,12 @@ function initSchema(d: Database.Database): void {
       }
       d.exec('ALTER TABLE resources DROP COLUMN company_ids_json');
     })();
+  }
+
+  // 銀行と証券会社の取得案内を分ける前の画像は、銀行側の見本として引き継ぐ。
+  const hasBankGuideImage = d.prepare("SELECT 1 FROM acquisition_guide_images WHERE guide_id = 'bank-balance' LIMIT 1").get();
+  if (!hasBankGuideImage) {
+    d.prepare("UPDATE acquisition_guide_images SET guide_id = 'bank-balance' WHERE guide_id = 'financial-balance'").run();
   }
 }
 
@@ -288,7 +307,7 @@ export type PoaDeceasedRow = {
   deleted_at: string | null;
 };
 
-export type AuditTargetType = 'document_master' | 'resource' | 'poa_matter' | 'poa_principal' | 'poa_deceased';
+export type AuditTargetType = 'document_master' | 'resource' | 'acquisition_guide_image' | 'poa_matter' | 'poa_principal' | 'poa_deceased';
 export type AuditAction = 'create' | 'update' | 'delete' | 'reorder' | 'publish' | 'restore';
 
 export function writeAuditLog(entry: {

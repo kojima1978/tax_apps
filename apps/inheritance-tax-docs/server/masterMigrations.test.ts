@@ -12,6 +12,24 @@ let migrations: typeof import('./masterMigrations.js');
 let seeds: typeof import('./masterDefaults.js')['MASTER_SEEDS'];
 
 const POA_ID = 'power_of_attorney';
+const DECEASED_RESIDENT_RECORD_ID = 'deceased_jyuminhyo';
+
+const withDeceasedResidentRecord = (categories: MasterCategory[]): MasterCategory[] =>
+  categories.map((category) => category.id === 'family'
+    ? {
+        ...category,
+        documents: [
+          ...category.documents,
+          {
+            id: DECEASED_RESIDENT_RECORD_ID,
+            name: '被相続人（亡くなった方）の住民票の除票',
+            description: '死亡時の住所を示す書類です。',
+            howToGet: '亡くなった方の住所地の役所等で取得できます。',
+            canDelegate: true,
+          },
+        ],
+      }
+    : category);
 
 /** 委任状を足す前の版のシード（＝既存の PC の DB に入っている形） */
 const withoutPoa = (categories: MasterCategory[]): MasterCategory[] =>
@@ -88,6 +106,43 @@ describe('委任状を書類マスタへ足すマイグレーション', () => {
     const own = withoutPoa(seeds.find((seed) => seed.code === 'inheritance-tax')!.categories);
     own[1] = { ...own[1], documents: [...own[1].documents, { id: 'custom_1', name: '委任状（金融機関用）', description: '', howToGet: '', canDelegate: false }] };
     expect(migrations.withPowerOfAttorney(own)).toBeNull();
+  });
+});
+
+describe('亡くなった方の住民票の除票を書類マスタから外すマイグレーション', () => {
+  const places = (categories: MasterCategory[]) =>
+    categories.flatMap((category) => category.documents.filter((document) => document.id === DECEASED_RESIDENT_RECORD_ID));
+
+  it('既存DBの下書きと公開版から削除し、版と操作履歴を残す', () => {
+    const legacySeeds = seeds.map((seed) => seed.code === 'inheritance-tax'
+      ? { ...seed, categories: withDeceasedResidentRecord(seed.categories) }
+      : seed);
+    db.seedDocumentMastersIfEmpty(legacySeeds);
+
+    migrations.runMasterMigrations();
+
+    const master = readMaster('inheritance-tax');
+    expect(places(master.draft)).toEqual([]);
+    expect(places(master.published)).toEqual([]);
+    expect(master.version).toBe(2);
+    expect(db.getDb().prepare("SELECT version FROM document_master_versions WHERE master_code = 'inheritance-tax' ORDER BY version").all())
+      .toEqual([{ version: 1 }, { version: 2 }]);
+    expect(db.getDb().prepare("SELECT actor FROM audit_logs WHERE target_id = 'inheritance-tax'").get())
+      .toMatchObject({ actor: expect.stringContaining('住民票の除票') });
+  });
+
+  it('新しいDBでは何も変えず、後から利用者が追加した書類は再起動で削除しない', () => {
+    db.seedDocumentMastersIfEmpty(seeds);
+    migrations.runMasterMigrations();
+    expect(readMaster('inheritance-tax').version).toBe(1);
+
+    const current = readMaster('inheritance-tax');
+    const restored = JSON.stringify(withDeceasedResidentRecord(current.published));
+    db.getDb().prepare("UPDATE document_masters SET draft_json = ?, published_json = ? WHERE code = 'inheritance-tax'")
+      .run(restored, restored);
+    migrations.runMasterMigrations();
+
+    expect(places(readMaster('inheritance-tax').published)).toHaveLength(1);
   });
 });
 

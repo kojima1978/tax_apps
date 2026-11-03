@@ -277,4 +277,138 @@ label:has(input[type="file"]:focus-visible) {
   .print\:block {
     display: block !important;
   }
+
+  .guide-selection-print {
+    width: 100%;
+    background: #ffffff !important;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .guide-selection-page {
+    display: flex;
+    width: 100%;
+    min-height: 168mm;
+    box-sizing: border-box;
+    padding-right: 1.5mm;
+    padding-left: 1.5mm;
+    background: #ffffff !important;
+    flex-direction: column;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .guide-selection-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .guide-selection-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 2mm;
+    padding-bottom: 1.5mm;
+    border-bottom: 2px solid #047857;
+  }
+
+  .guide-selection-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.75fr) minmax(55mm, 0.75fr);
+    gap: 4mm;
+    flex: 1;
+  }
+
+  .guide-selection-counter-box {
+    border: 2px solid #059669;
+    border-radius: 5px;
+    background: #ecfdf5;
+    padding: 2.5mm;
+  }
+
+  .guide-selection-counter-label {
+    display: inline-block;
+    border-radius: 3px;
+    background: #047857;
+    padding: 1.5mm 2.5mm;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .guide-selection-info-box {
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    padding: 1.8mm 2.5mm;
+  }
+
+  .guide-selection-info-box h2 {
+    display: flex;
+    align-items: center;
+    gap: 1.5mm;
+    margin-bottom: 1.5mm;
+    color: #065f46;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .guide-selection-step-number {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #047857;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .guide-selection-sample-placeholder,
+  .guide-selection-sample-image {
+    width: 100%;
+    height: 66mm;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    background: white;
+  }
+
+  .guide-selection-sample-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5mm;
+    text-align: center;
+  }
+
+  .guide-selection-sample-image {
+    object-fit: contain;
+  }
+
+  .guide-selection-footer {
+    margin-top: 1mm;
+    border-top: 1px solid #cbd5e1;
+    padding-top: 2mm;
+    text-align: center;
+    color: #475569;
+    font-size: 9px;
+    line-height: 1.4;
+  }
+
+  .guide-selection-page .mt-4 {
+    margin-top: 1.8mm !important;
+  }
+
+  .guide-selection-page .mt-3 {
+    margin-top: 1.5mm !important;
+  }
+
+  .guide-selection-counter-box .text-base {
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+  }
 }
