@@ -22,6 +22,7 @@ import {
   Settings,
   Stamp,
   BookOpenCheck,
+  CircleHelp,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, usesDeceasedName, type DocListType } from '@/constants';
@@ -46,11 +47,14 @@ const OUTLINE_BUTTON_CLASS = 'bg-white dark:bg-slate-700 border border-slate-300
 
 const LINK_EMERALD_CLASS = 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50';
 
+const LINK_SLATE_CLASS = 'text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/70 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700';
+
 /** ほかの画面への入口（見出し行の右側）。委任状は種別の選択肢にせずここに置く */
 const NAV_LINKS: { to: string; label: string; icon: LucideIcon; colorClass: string }[] = [
   { to: '/resources', label: '参考資料', icon: FileText, colorClass: LINK_EMERALD_CLASS },
   { to: '/power-of-attorney', label: '委任状', icon: Stamp, colorClass: LINK_EMERALD_CLASS },
-  { to: '/masters', label: 'マスタ管理', icon: Settings, colorClass: 'text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/70 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700' },
+  { to: '/masters', label: 'マスタ管理', icon: Settings, colorClass: LINK_SLATE_CLASS },
+  { to: '/help', label: '使い方', icon: CircleHelp, colorClass: LINK_SLATE_CLASS },
 ];
 
 // ─── Props ───

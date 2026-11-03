@@ -477,3 +477,79 @@ label:has(input[type="file"]:focus-visible) {
     margin-top: 0.5mm !important;
   }
 }
+
+/* 使い方（/help）の印刷 — 書類リストの A4 横とは別に、名前付きページで A4 縦・複数枚に流す。
+   規則は .help-doc の内側だけに閉じて、ほかの画面の印刷に漏らさない */
+@media print {
+  @page help {
+    size: A4 portrait;
+    margin: 14mm 14mm 16mm;
+  }
+
+  .help-doc {
+    page: help;
+    max-width: none !important;
+    padding: 0 !important;
+    font-size: 11px;
+    line-height: 1.55;
+  }
+
+  .help-doc .help-toc {
+    display: none !important;
+  }
+
+  .help-doc .help-doc-title {
+    font-size: 20px !important;
+  }
+
+  .help-doc .help-section {
+    border: none !important;
+    padding: 0 !important;
+    margin-bottom: 6mm;
+    background: white !important;
+  }
+
+  /* 見出しだけがページ末尾に取り残されないようにする（節の中の改ページは許す） */
+  .help-doc .help-section h2 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .help-doc .help-section > div > * {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* 表は長いので行の途中でだけ切らない（表全体は複数ページに分かれてよい） */
+  .help-doc .help-section > div > .help-table-wrap {
+    break-inside: auto;
+    page-break-inside: auto;
+    overflow: visible !important;
+  }
+
+  .help-doc table {
+    font-size: 10.5px;
+  }
+
+  .help-doc th,
+  .help-doc td {
+    padding: 1.5mm 2mm !important;
+  }
+
+  .help-doc .help-note {
+    border-radius: 2px !important;
+  }
+
+  .help-doc,
+  .help-doc * {
+    color: #171717 !important;
+  }
+
+  .help-doc th {
+    background: #f1f5f9 !important;
+  }
+
+  .help-doc .help-note {
+    background: #fffbeb !important;
+  }
+}

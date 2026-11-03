@@ -4,6 +4,7 @@ import { MasterDataPage } from '@/components/MasterDataPage'
 import { PoaPrincipalsPage } from '@/components/PoaPrincipalsPage'
 import { PowerOfAttorneyPage } from '@/components/PowerOfAttorneyPage'
 import { ResourcesPage } from '@/components/ResourcesPage'
+import { HelpPage } from '@/components/HelpPage'
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/masters" element={<MasterDataPage />} />
         <Route path="/power-of-attorney" element={<PowerOfAttorneyPage />} />
         <Route path="/power-of-attorney/principals" element={<PoaPrincipalsPage />} />
+        <Route path="/help" element={<HelpPage />} />
       </Routes>
     </div>
   )
