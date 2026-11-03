@@ -20,7 +20,7 @@
 | 退職金税額計算 | `/retirement-tax-calc/` | http://localhost/retirement-tax-calc/ | 3013 | Vite + React | 退職金の税額計算シミュレーション |
 | 必要書類管理 | `/inheritance-tax-docs/` | http://localhost/inheritance-tax-docs/ | 3003 | Vite + React + Express + SQLite | 所得税・贈与税・相続税などの必要書類を一元管理 |
 | 相続税の申告書 | `/inheritance-tax-form/` | http://localhost/inheritance-tax-form/ | 3021 | Vite + React | 相続税の申告書 全24様式の作成・印刷 |
-| 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Hono + Prisma + PostgreSQL | 相続税案件管理 |
+| 案件管理 | `/itcm/` | http://localhost/itcm/ | 3020/3022 | Next.js + Hono + Prisma + PostgreSQL | 相続税案件管理（利用者向けの操作説明書が画面内にある: http://localhost/itcm/help ） |
 | 譲渡所得税計算 | `/capital-gains-calc/` | http://localhost/capital-gains-calc/ | 3019 | Vite + React | 不動産・株式等の譲渡所得税シミュレーション |
 | 減価償却計算 | `/depreciation-calc/` | http://localhost/depreciation-calc/ | 3015 | Vite + React | 中古資産の耐用年数・簿価計算 |
 | 減価償却資産評価 | `/asset-valuation/` | http://localhost/asset-valuation/ | 3017 | Vite + React | 相続税申告の減価償却資産評価 |

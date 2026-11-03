@@ -20,6 +20,7 @@
 | 相続人マスタ | `/itcm/settings/heir-persons` | 案件に紐づく相続人の人物マスタ |
 | 関係者マスタ | `/itcm/settings/related-party-persons` | 税理士、司法書士、不動産業者など外部関係者の人物マスタ |
 | バックアップ | `/itcm/settings/backup` | JSONバックアップ、リストア |
+| 使い方 | `/itcm/help` | 利用者向けの操作説明書（目次＋12節、印刷で紙の手順書にもなる） |
 
 ## 主な機能
 
@@ -183,6 +184,17 @@
 - トランザクション内で全削除、再挿入、シーケンスリセット
 - 古いバックアップ形式への互換対応
 
+### 操作説明書（画面内）
+
+- ヘッダーの「使い方」→ `/itcm/help`。利用者向けの手順書を画面の中に置いてある（目次＋12節）
+- 本文は `web/src/app/help/help-content.ts` の節の配列（段落・箇条書き・手順・表・注意の5種）で、
+  `page.tsx` はそれを `.map()` で描くだけ。文章の直しはこの1ファイルで済む（Markdown パーサは入れない）
+- 「印刷」ボタン（`window.print()`）で A4 縦に通しで出る。印刷時はヘッダー・目次・印刷ボタンを落とす
+  （`globals.css` の `@media print`。`.help-doc` の中だけに閉じてあるので他の画面の印刷には効かない）
+- `help-content.test.ts` が目次と節の `id` の1対1（番号の欠番、表の列数、空セル、key の重複）を見る
+- **本文には報酬の単価・期限の計算・上限などの数字がそのまま書いてある**。計算を変えたら本文も直すこと
+- 書いてよいのはコードと画面で確かめた事実だけ。リポジトリは公開なので実在の顧客名・住所・金額は書かない
+
 ## バックアップと復元
 
 全アプリ共通の仕組み（取るのは全体で1つ、戻すのはアプリごと）は [docker/RESTORE.md](../../docker/RESTORE.md)。
@@ -235,6 +247,7 @@ inheritance-case-management/
         │   ├── [id]/                # 案件詳細
         │   ├── analytics/           # 経営分析
         │   ├── settings/            # 設定
+        │   ├── help/                # 操作説明書（本文は help-content.ts）
         │   └── api/                 # API Routes
         ├── components/              # UI、一覧、CSV取込など
         ├── hooks/                   # React hooks
@@ -489,6 +502,7 @@ DB は空のボリュームを `POSTGRES_INITDB_ARGS` で照合順序 `C` に初
 | `web/src/lib/export-csv.ts` | CSV出力 |
 | `web/src/lib/services/template-service.ts` | Excel帳票生成 |
 | `web/src/lib/services/backup-service.ts` | バックアップ、リストア |
+| `web/src/app/help/help-content.ts` | 操作説明書の本文（節の配列。画面はこれを描くだけ） |
 | `web/src/types/constants.ts` | ステータス、フィルター、選択肢定義 |
 | `web/src/types/validation.ts` | Zodスキーマ |
 | `web/prisma/schema.prisma` | DBスキーマ |
