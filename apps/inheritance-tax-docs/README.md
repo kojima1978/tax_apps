@@ -42,6 +42,7 @@
 | Toast通知 | 操作結果をポップアップ通知（成功/エラー/情報） |
 | ポータルに戻る | ヘッダー左端にホームアイコン+リンク |
 | 参考資料 | ヘッダーから `/resources` へ |
+| 使い方 | ヘッダーから `/help` へ。画面の地図・保存先・各操作・委任状・マスタ管理・困ったときを11節で説明。「印刷」で A4 縦・複数枚に刷れる（書類リストの A4 横とは別） |
 | localStorage自動保存 | 種別ごとにデータを自動保存・復元 |
 | マスタ管理 | `/masters` の「必要書類マスタ」「カテゴリーマスタ」「参考資料マスタ」「操作履歴」タブで一元管理。書類文言は下書き・公開・過去版復元、カテゴリーは追加・名称編集・並び替え・有効／無効・安全な削除、参考資料はファイル／外部リンクの登録・編集・並び替えに対応 |
 | カテゴリーマスタ | 税目ごとに管理。所属書類があるカテゴリーを削除するときは、別カテゴリーまたは新規の「未分類」へ書類を移動してから削除する。無効カテゴリーは保持されるが、公開後の新規リストには表示しない |
@@ -109,6 +110,13 @@
 - 1列/2列レイアウト切替対応
 - 提出済み書類の非表示オプション
 
+### 使い方（/help）
+
+- 本文は `src/constants/helpContent.ts` の節の配列 1箇所。`HelpPage.tsx` は描くだけ（itcm の `/itcm/help` と同じ作り）
+- 書くのはコードで確かめた事実だけ。画面の操作を変えたら該当する節も直す
+- 印刷は `globals.css` 末尾の名前付きページ `@page help`（A4 縦）。規則は `.help-doc` の内側に閉じる
+- `helpContent.test.ts` が節の id・番号・空欄・表の列数・節の相互参照・種別の網羅を検証する
+
 ## セットアップ
 
 ### Docker（推奨）
@@ -150,12 +158,13 @@ DB ファイルと `/app/data` に書けるかまで見て、使えなければ 
 ```
 inheritance-tax-docs/
 ├── src/
-│   ├── App.tsx                          # ルーティング（/ + /resources）
+│   ├── App.tsx                          # ルーティング（/・/resources・/masters・/power-of-attorney・/help）
 │   ├── main.tsx                         # Reactエントリポイント（BrowserRouter）
 │   ├── globals.css                      # グローバルスタイル（ダークモード・印刷・アニメーション）
 │   ├── components/
 │   │   ├── EditableListStep.tsx          # メインページコンポーネント（状態・DnD・モーダル統合）
 │   │   ├── ResourcesPage.tsx            # 参考資料ページ（API から一覧、追加・編集・削除・並び替え）
+│   │   ├── HelpPage.tsx                 # 使い方（/help。helpContent.ts の節を描くだけ）
 │   │   └── ui/
 │   │       ├── EditToolbar.tsx           # ヘッダーツールバー（種別切替・入力欄・アクション）
 │   │       ├── SortableCategoryCard.tsx  # カテゴリカード（D&D・展開/折畳・進捗バー）
@@ -176,7 +185,8 @@ inheritance-tax-docs/
 │   │   ├── simplifiedDocuments.ts       # 相続シミュレーションの書類マスターデータ（1カテゴリ）
 │   │   ├── unlistedStockDocuments.ts    # 非上場株式の書類マスターデータ（5カテゴリ）
 │   │   ├── excelStyles.ts              # Excelスタイル定義
-│   │   └── messages.ts                 # Toast・ダイアログメッセージ定数
+│   │   ├── messages.ts                 # Toast・ダイアログメッセージ定数
+│   │   └── helpContent.ts              # 使い方の本文（節の配列。helpContent.test.ts で形を検証）
 │   ├── hooks/
 │   │   ├── useInheritanceTaxGuide.ts    # メイン状態管理（種別切替・localStorage・Excel出力）
 │   │   ├── useEditableListEditing.ts    # 編集操作統合（サブフック合成）
@@ -215,6 +225,10 @@ inheritance-tax-docs/
 App.tsx（react-router-dom）
 ├── / → EditableListStep.tsx（メインコンポーネント）
 ├── /resources → ResourcesPage.tsx（参考資料。/api/resources を読む）
+├── /masters → MasterDataPage.tsx（マスタ管理のタブ群）
+├── /power-of-attorney → PowerOfAttorneyPage.tsx（委任状）
+├── /power-of-attorney/principals → PoaPrincipalsPage.tsx（被相続人DB・委任者DB）
+├── /help → HelpPage.tsx（使い方。本文は constants/helpContent.ts）
 │
 └── EditableListStep.tsx
     ├── useInheritanceTaxGuide — 状態管理（種別切替・localStorage・出力）
