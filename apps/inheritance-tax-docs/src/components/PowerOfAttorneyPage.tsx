@@ -58,8 +58,11 @@ const PRINT_OPTIONS: { value: 'print' | 'blank'; label: string }[] = [
   { value: 'blank', label: '空欄（手書き）' },
 ];
 
+// 文字だけのボタンは小さい（16px）ので、スマホ幅でだけ押せる高さ（44px）を取る
+const touchClass = 'min-h-11 sm:min-h-0';
+
 const linkButtonClass =
-  'flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-50 disabled:no-underline';
+  `flex items-center gap-1 ${touchClass} text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-50 disabled:no-underline`;
 
 /** 見出しの横の「DBを開く」。入力が消えないよう別のタブで開く */
 const DirectoryLink = ({ tab }: { tab: 'deceased' | 'people' }) => (
@@ -67,7 +70,7 @@ const DirectoryLink = ({ tab }: { tab: 'deceased' | 'people' }) => (
     href={tab === 'people' ? `${POA_DIRECTORY_URL}?tab=people` : POA_DIRECTORY_URL}
     target="_blank"
     rel="noopener"
-    className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:underline"
+    className={`flex items-center gap-1 ${touchClass} text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:underline`}
   >
     <ExternalLink className="w-3.5 h-3.5" /> DBを開く
   </a>
@@ -170,12 +173,16 @@ export const PowerOfAttorneyPage = () => {
             </button>
             <button
               onClick={toggleDark}
-              className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="p-1.5 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
               aria-label={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
             >
               {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
           </div>
+          {/* 横並びの幅ではプレビューの上に同じ文が出る。縦積みだとプレビューは入力の下なので、ボタンの下にも出す */}
+          {printBlocker && (
+            <p className="lg:hidden w-full text-right text-xs font-medium text-red-600 dark:text-red-400">印刷できません：{printBlocker}</p>
+          )}
         </div>
       </div>
 
@@ -261,7 +268,7 @@ export const PowerOfAttorneyPage = () => {
                       <button
                         type="button"
                         onClick={() => form.removePrincipal(principal.id)}
-                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-600"
+                        className={`flex items-center gap-1 ${touchClass} text-xs text-slate-500 hover:text-red-600`}
                       >
                         <Trash2 className="w-3.5 h-3.5" /> 外す
                       </button>
@@ -317,14 +324,14 @@ export const PowerOfAttorneyPage = () => {
               <button
                 type="button"
                 onClick={form.addPrincipal}
-                className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+                className={`flex items-center gap-1 ${touchClass} text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline`}
               >
                 <Plus className="w-4 h-4" /> 委任者を足す
               </button>
               <button
                 type="button"
                 onClick={() => setPrincipalPickerTarget('new')}
-                className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+                className={`flex items-center gap-1 ${touchClass} text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline`}
               >
                 <Database className="w-4 h-4" /> DBから選んで足す
               </button>
@@ -386,7 +393,9 @@ export const PowerOfAttorneyPage = () => {
                       <button
                         type="button"
                         onClick={() => setEditingMatter(editing ? null : matter.id)}
-                        className="text-emerald-700 dark:text-emerald-400 hover:underline"
+                        aria-expanded={editing}
+                        aria-controls={editing ? `matter-text-${matter.id}` : undefined}
+                        className={`${touchClass} text-emerald-700 dark:text-emerald-400 hover:underline`}
                       >
                         {editing ? '閉じる' : '文面を直す'}
                       </button>
@@ -394,7 +403,7 @@ export const PowerOfAttorneyPage = () => {
                         <button
                           type="button"
                           onClick={() => form.updateMatter(matter.id, { text: '' })}
-                          className="text-slate-500 hover:underline"
+                          className={`${touchClass} text-slate-500 hover:underline`}
                         >
                           ひな形に戻す
                         </button>
@@ -406,7 +415,7 @@ export const PowerOfAttorneyPage = () => {
                           onClick={() => {
                             if (window.confirm(REGISTER_CONFIRM)) void form.registerEditedMatter(matter.id);
                           }}
-                          className="text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-50"
+                          className={`${touchClass} text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-50`}
                         >
                           この文面を定型文に登録
                         </button>
@@ -414,6 +423,8 @@ export const PowerOfAttorneyPage = () => {
                     </div>
                     {editing && (
                       <textarea
+                        id={`matter-text-${matter.id}`}
+                        aria-label="委任事項の文面"
                         className={`${inputClass} ml-6 mt-1 w-[calc(100%-1.5rem)]`}
                         rows={3}
                         value={state?.text || matter.text}
@@ -443,12 +454,12 @@ export const PowerOfAttorneyPage = () => {
                   onClick={() => {
                     if (window.confirm(REGISTER_CONFIRM)) void form.registerExtraMatters();
                   }}
-                  className="font-medium text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-50"
+                  className={`${touchClass} font-medium text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-50`}
                 >
                   この文面を定型文に登録
                 </button>
               )}
-              <Link to="/masters?tab=poa-matters" className="text-slate-500 hover:underline">
+              <Link to="/masters?tab=poa-matters" className={`inline-flex items-center ${touchClass} text-slate-500 hover:underline`}>
                 定型文の並び替え・削除はマスタ管理で
               </Link>
             </div>
@@ -637,7 +648,7 @@ const DeceasedDirectoryRow = ({
           <span className="text-slate-500 dark:text-slate-400">
             被相続人DB: {record.name}
             {differs && <span className="ml-1 text-amber-700 dark:text-amber-400">（この画面で直しています）</span>}
-            <button type="button" onClick={onUnlink} className="ml-2 underline hover:text-slate-700 dark:hover:text-slate-200">
+            <button type="button" onClick={onUnlink} className={`ml-2 ${touchClass} underline hover:text-slate-700 dark:hover:text-slate-200`}>
               つながりを外す
             </button>
           </span>
@@ -688,7 +699,7 @@ const PrincipalDirectoryRow = ({
           <span className="text-slate-500 dark:text-slate-400">
             委任者DB: {record.name}
             {differs && <span className="ml-1 text-amber-700 dark:text-amber-400">（この画面で直しています）</span>}
-            <button type="button" onClick={onUnlink} className="ml-2 underline hover:text-slate-700 dark:hover:text-slate-200">
+            <button type="button" onClick={onUnlink} className={`ml-2 ${touchClass} underline hover:text-slate-700 dark:hover:text-slate-200`}>
               つながりを外す
             </button>
           </span>

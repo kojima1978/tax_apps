@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, ChevronDown, ChevronRight, FileImage, FileText, FolderTree, History, Plus, RotateCcw, Save, ScrollText, Send, Trash2, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, ChevronDown, ChevronRight, CircleAlert, FileImage, FileText, FolderTree, History, Plus, RotateCcw, Save, ScrollText, Send, Trash2, type LucideIcon } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { DOC_LIST_TYPE_LABELS, type DocListType } from '@/constants';
 import { ResourcesPage } from '@/components/ResourcesPage';
@@ -40,7 +40,7 @@ const API_BASE = '/inheritance-tax-docs/api/document-masters';
 
 type MasterTab = 'documents' | 'categories' | 'resources' | 'guide-images' | 'poa-matters' | 'history';
 
-// suffix は幅のある画面でだけ足す（スマホ幅で5つ並べるため）
+// suffix は十分に広い画面でだけ足す（6つ並べると 1280px 未満では「カテゴリーマ／スタ」と途中で折れる）
 const MASTER_TABS: { id: MasterTab; icon: LucideIcon; label: string; suffix?: string }[] = [
   { id: 'documents', icon: FileText, label: '必要書類', suffix: 'マスタ' },
   { id: 'categories', icon: FolderTree, label: 'カテゴリ', suffix: 'ーマスタ' },
@@ -177,6 +177,16 @@ export const MasterDataPage = () => {
   const inputClass = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-emerald-900';
   const iconButtonClass = 'inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700 sm:min-h-9 sm:min-w-9';
 
+  // 今のタブに保存していない変更があるか。保存ボタンの濃淡だけでは気づけないので見出しに出し、
+  // 画面を離れる（戻るリンク・タブを閉じる・再読み込み）前にも確かめる
+  const unsaved = (activeTab === 'documents' && dirty) || (activeTab === 'categories' && categoryDirty) || (activeTab === 'poa-matters' && poaMatterDirty);
+  useEffect(() => {
+    if (!unsaved) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [unsaved]);
+
   const switchTab = (tab: MasterTab) => {
     if (tab === activeTab) return;
     if (activeTab === 'documents' && dirty && !window.confirm('未保存の変更を破棄してタブを切り替えますか？')) return;
@@ -191,7 +201,9 @@ export const MasterDataPage = () => {
         <header className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <Link to="/" className="mb-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-emerald-400 sm:min-h-0">
+              <Link to="/" onClick={(event) => {
+                if (unsaved && !window.confirm('保存していない変更を破棄して書類リストへ戻りますか？')) event.preventDefault();
+              }} className="mb-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-emerald-400 sm:min-h-0">
                 <ArrowLeft className="h-4 w-4" />必要書類リストへ戻る
               </Link>
               <h1 className="text-2xl font-bold">書類マスタ管理</h1>
@@ -215,12 +227,18 @@ export const MasterDataPage = () => {
                 role="tab"
                 aria-selected={activeTab === id}
                 onClick={() => switchTab(id)}
-                className={`inline-flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-lg px-1 py-2 text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 sm:gap-2 sm:px-4 sm:text-sm ${activeTab === id ? 'bg-white text-emerald-800 shadow-sm dark:bg-slate-700 dark:text-emerald-300' : 'text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-slate-700/60'}`}
+                className={`inline-flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-lg px-1 py-2 text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 sm:gap-2 sm:px-2 sm:text-sm lg:px-4 ${activeTab === id ? 'bg-white text-emerald-800 shadow-sm dark:bg-slate-700 dark:text-emerald-300' : 'text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-slate-700/60'}`}
               >
-                <Icon className="hidden h-4 w-4 sm:block" /><span>{label}{suffix ? <span className="hidden sm:inline">{suffix}</span> : null}</span>
+                <Icon className="hidden h-4 w-4 flex-shrink-0 sm:block" /><span className="whitespace-nowrap">{label}{suffix ? <span className="hidden xl:inline">{suffix}</span> : null}</span>
               </button>
             ))}
           </div>
+
+          {unsaved ? (
+            <p role="status" className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+              <CircleAlert className="h-4 w-4 flex-shrink-0" />保存していない変更があります
+            </p>
+          ) : null}
 
           {activeTab === 'documents' ? <>
           <div className="mt-5 grid gap-3 md:grid-cols-[minmax(220px,1fr)_auto_auto]">
@@ -287,11 +305,11 @@ export const MasterDataPage = () => {
                       <span className="sr-only">カテゴリ名</span>
                       <input value={category.name} onChange={(event) => updateCategory(category.id, (current) => ({ ...current, name: event.target.value }))} className={`${inputClass} font-bold`} />
                     </label>
-                    <button onClick={() => updateCategories((current) => move(current, categoryIndex, -1))} disabled={categoryIndex === 0} className={iconButtonClass} aria-label="カテゴリを上へ"><ArrowUp className="h-4 w-4" /></button>
-                    <button onClick={() => updateCategories((current) => move(current, categoryIndex, 1))} disabled={categoryIndex === categories.length - 1} className={iconButtonClass} aria-label="カテゴリを下へ"><ArrowDown className="h-4 w-4" /></button>
+                    <button onClick={() => updateCategories((current) => move(current, categoryIndex, -1))} disabled={categoryIndex === 0} className={iconButtonClass} aria-label={`${category.name}を上へ`}><ArrowUp className="h-4 w-4" /></button>
+                    <button onClick={() => updateCategories((current) => move(current, categoryIndex, 1))} disabled={categoryIndex === categories.length - 1} className={iconButtonClass} aria-label={`${category.name}を下へ`}><ArrowDown className="h-4 w-4" /></button>
                     <button onClick={() => {
                       if (window.confirm(`カテゴリ「${category.name}」を下書きから削除しますか？`)) updateCategories((current) => current.filter((item) => item.id !== category.id));
-                    }} className={`${iconButtonClass} text-red-600 dark:text-red-400`} aria-label="カテゴリを削除"><Trash2 className="h-4 w-4" /></button>
+                    }} className={`${iconButtonClass} text-red-600 dark:text-red-400`} aria-label={`${category.name}を削除`}><Trash2 className="h-4 w-4" /></button>
                   </div>
 
                   {isExpanded ? (
@@ -304,9 +322,11 @@ export const MasterDataPage = () => {
                             <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">内容説明<input value={document.description} onChange={(event) => updateDocument(category.id, document.id, 'description', event.target.value)} className={inputClass} /></label>
                             <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">取得方法<input value={document.howToGet} onChange={(event) => updateDocument(category.id, document.id, 'howToGet', event.target.value)} className={inputClass} /></label>
                             <div className="flex items-end gap-1">
-                              <button onClick={() => updateCategory(category.id, (current) => ({ ...current, documents: move(current.documents, documentIndex, -1) }))} disabled={documentIndex === 0} className={iconButtonClass} aria-label="書類を上へ"><ArrowUp className="h-4 w-4" /></button>
-                              <button onClick={() => updateCategory(category.id, (current) => ({ ...current, documents: move(current.documents, documentIndex, 1) }))} disabled={documentIndex === category.documents.length - 1} className={iconButtonClass} aria-label="書類を下へ"><ArrowDown className="h-4 w-4" /></button>
-                              <button onClick={() => updateCategory(category.id, (current) => ({ ...current, documents: current.documents.filter((item) => item.id !== document.id) }))} className={`${iconButtonClass} text-red-600 dark:text-red-400`} aria-label="書類を削除"><Trash2 className="h-4 w-4" /></button>
+                              <button onClick={() => updateCategory(category.id, (current) => ({ ...current, documents: move(current.documents, documentIndex, -1) }))} disabled={documentIndex === 0} className={iconButtonClass} aria-label={`${document.name}を上へ`}><ArrowUp className="h-4 w-4" /></button>
+                              <button onClick={() => updateCategory(category.id, (current) => ({ ...current, documents: move(current.documents, documentIndex, 1) }))} disabled={documentIndex === category.documents.length - 1} className={iconButtonClass} aria-label={`${document.name}を下へ`}><ArrowDown className="h-4 w-4" /></button>
+                              <button onClick={() => {
+                                if (window.confirm(`書類「${document.name}」を下書きから削除しますか？`)) updateCategory(category.id, (current) => ({ ...current, documents: current.documents.filter((item) => item.id !== document.id) }));
+                              }} className={`${iconButtonClass} text-red-600 dark:text-red-400`} aria-label={`${document.name}を削除`}><Trash2 className="h-4 w-4" /></button>
                             </div>
                           </div>
                           <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium sm:min-h-0">
