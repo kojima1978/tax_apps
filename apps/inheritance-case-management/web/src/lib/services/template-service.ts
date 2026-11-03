@@ -3,6 +3,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import ExcelJS from 'exceljs';
 import type { DocumentType } from '@/lib/document-types';
+import { columnWidthToPx, fitFontSizePt } from './excel-text-fit';
 
 const TEMPLATE_DIR = path.join(process.cwd(), 'templates');
 
@@ -187,6 +188,78 @@ function fillEstimateInvoiceAddressee(ws: ExcelJS.Worksheet, addresseeName: stri
   }
 }
 
+/**
+ * レターヘッド（事務所名・住所・電話番号・登録番号）のセル。
+ *
+ * ここは結合セルで、Excel は入り切らない文字を隣へあふれさせず**切り捨てる**。
+ * 住所行は結合幅225px に対して 9pt で実幅216px、余裕が半角0.3文字分しか無く、
+ * 「1ページに収める」で縮小されるときの px 丸めや、ＭＳ 明朝が無い環境の
+ * フォント代替で末尾が欠けることがあった。
+ *
+ * テンプレートは `.gitignore` 済みで Git 管理外（事務所の移転などで中身が変わりうる）ため、
+ * 固定のサイズを決め打ちせず、毎回実測して**入らない行だけ**落とす。
+ */
+const LETTERHEAD_CELLS = ['K7', 'K8', 'K9', 'K10'] as const;
+
+/** フォント指定が取れないセルの既定サイズ（テンプレートの標準フォントは11pt） */
+const DEFAULT_FONT_SIZE_PT = 11;
+
+const CELL_REF_PATTERN = /^([A-Z]+)(\d+)$/;
+
+/** 列名 → 列番号（A=1） */
+function columnNumber(letters: string): number {
+  let n = 0;
+  for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n;
+}
+
+/** セル（結合されていればその範囲全体）の幅を px で返す（テストから呼ぶため export）*/
+export function cellWidthPx(ws: ExcelJS.Worksheet, ref: string): number {
+  const parsed = CELL_REF_PATTERN.exec(ref);
+  if (!parsed) return 0;
+  const col = columnNumber(parsed[1]);
+  const row = Number(parsed[2]);
+
+  let first = col;
+  let last = col;
+  for (const merge of ws.model.merges || []) {
+    const [tl, br] = merge.split(':');
+    const tlParsed = CELL_REF_PATTERN.exec(tl);
+    const brParsed = CELL_REF_PATTERN.exec(br ?? tl);
+    if (!tlParsed || !brParsed) continue;
+    const left = columnNumber(tlParsed[1]);
+    const right = columnNumber(brParsed[1]);
+    if (left <= col && col <= right && Number(tlParsed[2]) <= row && row <= Number(brParsed[2])) {
+      first = left;
+      last = right;
+      break;
+    }
+  }
+
+  let width = 0;
+  for (let c = first; c <= last; c++) {
+    width += columnWidthToPx(ws.getColumn(c).width ?? ws.properties.defaultColWidth ?? 0);
+  }
+  return width;
+}
+
+/** レターヘッドの各行を結合幅に収まるサイズへ落とす（収まっている行は触らない・テストから呼ぶため export）*/
+export function shrinkLetterheadToFit(ws: ExcelJS.Worksheet) {
+  for (const ref of LETTERHEAD_CELLS) {
+    const cell = ws.getCell(ref);
+    if (typeof cell.value !== 'string' || !cell.value) continue;
+    const baseSize = cell.font?.size ?? DEFAULT_FONT_SIZE_PT;
+    const fitted = fitFontSizePt(cell.value, cellWidthPx(ws, ref), baseSize);
+    if (fitted < baseSize) {
+      // `cell.font = …` だと**同じ書式のセル全部**が一緒に小さくなる
+      // （ExcelJS は同じ xf を指すセルに同一の style オブジェクトを持たせるため、
+      //   住所行を縮めると電話番号行まで縮んでいた）。
+      // style ごと差し替えてこのセルだけ別の書式にする。
+      cell.style = { ...cell.style, font: { ...cell.font, size: fitted } };
+    }
+  }
+}
+
 export async function generateTemplate(input: GenerateTemplateInput): Promise<Buffer> {
   const fileName = TEMPLATE_FILES[input.docType];
   if (!fileName) throw new Error('TEMPLATE_NOT_FOUND');
@@ -238,6 +311,8 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
     if (input.docType === 'invoice') {
       ws.getCell('M42').value = input.expensesTotal;
     }
+
+    shrinkLetterheadToFit(ws);
   }
 
   // 仕上げ（3種共通・テンプレート側の設定には頼らない）
