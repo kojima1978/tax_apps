@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Home, Moon, Printer, Sun } from 'lucide-react';
-import { useDarkMode } from '@/hooks/useDarkMode';
+import { ArrowLeft, Home, Printer } from 'lucide-react';
 import { HELP_SECTIONS, type HelpBlock } from '@/constants/helpContent';
 
 // 使い方（/help）。本文は helpContent.ts の節の配列で、ここは描くだけ。
@@ -63,8 +62,6 @@ function HelpBlockView({ block }: { block: HelpBlock }) {
 }
 
 export function HelpPage() {
-  const { isDark, toggleDark } = useDarkMode();
-
   return (
     <div className="w-full animate-fade-in">
       <div className="no-print sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
@@ -90,14 +87,6 @@ export function HelpPage() {
                 className="flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors"
               >
                 <Printer className="w-3.5 h-3.5" aria-hidden="true" /> 印刷
-              </button>
-              <button
-                type="button"
-                onClick={toggleDark}
-                className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                aria-label={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
-              >
-                {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
               </button>
             </div>
           </div>

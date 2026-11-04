@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FileText, FileSpreadsheet, FileIcon, Download, ExternalLink,
-  ArrowLeft, Home, Sun, Moon, Plus, Pencil, Trash2, GripVertical, X, Upload,
+  ArrowLeft, Home, Plus, Pencil, Trash2, GripVertical, X, Upload,
 } from 'lucide-react';
-import { useDarkMode } from '@/hooks/useDarkMode';
 import { useOverlayDismiss } from '@/hooks/useOverlayDismiss';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -389,7 +388,6 @@ function ConfirmDeleteDialog({
 
 export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded?: boolean; readOnly?: boolean }) => {
   const basePath = '/inheritance-tax-docs/';
-  const { isDark, toggleDark } = useDarkMode();
   const { company, companies, status: companyStatus } = useCompanyInfo();
   const selectableCompanies = companies.filter((item): item is CompanyInfo & { id: number } => item.id !== null);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -458,13 +456,6 @@ export const ResourcesPage = ({ embedded = false, readOnly = false }: { embedded
               >
                 <Plus className="w-3.5 h-3.5" /> 追加
               </button>}
-              <button
-                onClick={toggleDark}
-                className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                aria-label={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
-              >
-                {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-              </button>
             </div>
           </div>
         </div>

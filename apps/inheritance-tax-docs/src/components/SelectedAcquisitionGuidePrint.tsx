@@ -28,7 +28,6 @@ type SelectedAcquisitionGuidePrintProps = {
   clientName: string;
   deceasedName: string;
   personInCharge: string;
-  personInChargeContact: string;
   imageUrls: Partial<Record<AcquisitionGuideId, string>>;
 };
 const VISUAL_ICONS: Record<AcquisitionGuideVisual, LucideIcon> = {
@@ -76,7 +75,6 @@ export const SelectedAcquisitionGuidePrint = ({
   clientName,
   deceasedName,
   personInCharge,
-  personInChargeContact,
   imageUrls,
 }: SelectedAcquisitionGuidePrintProps) => {
   const { company } = useCompanyInfo();
@@ -97,7 +95,7 @@ export const SelectedAcquisitionGuidePrint = ({
               <p className="font-bold text-slate-800">{company.name}</p>
               <p>{getFullAddress(company)}</p>
               <p>{getPhoneLine(company)}</p>
-              {(personInCharge || personInChargeContact) && <p>担当: {personInCharge || '−'}　{personInChargeContact || ''}</p>}
+              {personInCharge && <p>担当: {personInCharge}</p>}
               <p>発行日: {currentDate}</p>
               {clientName && <p>ご依頼者: {clientName} 様</p>}
             </div>

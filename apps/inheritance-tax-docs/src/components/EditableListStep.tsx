@@ -13,7 +13,6 @@ import { useInheritanceTaxGuide } from '@/hooks/useInheritanceTaxGuide';
 import { useEditableListEditing } from '@/hooks/useEditableListEditing';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { useToast } from '@/hooks/useToast';
-import { useDarkMode } from '@/hooks/useDarkMode';
 import { SortableDocumentItem, DragOverlayItem } from '@/components/ui/SortableDocumentItem';
 import { SortableCategoryCard, CategoryDragOverlay } from '@/components/ui/SortableCategoryCard';
 import { EditToolbar } from '@/components/ui/EditToolbar';
@@ -61,7 +60,6 @@ export const EditableListStep = () => {
   const {
     docListType,
     targetYear,
-    isTwoColumnPrint,
     hideSubmittedInPrint,
     currentDate,
     clientName,
@@ -74,7 +72,6 @@ export const EditableListStep = () => {
     handleTargetYearChange,
     resetToPublishedMaster,
     handleExcelExport,
-    togglePrintColumn,
     toggleHideSubmitted,
     setClientName,
     setDeceasedName,
@@ -110,7 +107,6 @@ export const EditableListStep = () => {
 
   const dnd = useDragAndDrop(documentList, setDocumentList);
   const dndId = useId();
-  const { isDark, toggleDark } = useDarkMode();
   const { images: acquisitionGuideImages, reload: reloadAcquisitionGuideImages } = useAcquisitionGuideImages();
   const [showAcquisitionGuideSelector, setShowAcquisitionGuideSelector] = useState(false);
   const [selectedAcquisitionGuideIds, setSelectedAcquisitionGuideIds] = useState<AcquisitionGuideId[]>([]);
@@ -267,8 +263,6 @@ export const EditableListStep = () => {
         onDeceasedNameChange={setDeceasedName}
         personInCharge={personInCharge}
         onPersonInChargeChange={setPersonInCharge}
-        personInChargeContact={personInChargeContact}
-        onPersonInChargeContactChange={setPersonInChargeContact}
         onExpandAll={editing.handleExpandAll}
         onShowResetDialog={() => editing.setShowResetDialog(true)}
         onJsonExport={handleJsonExportWithToast}
@@ -276,12 +270,8 @@ export const EditableListStep = () => {
         onPrint={() => { void printAfterRender('list'); }}
         onOpenAcquisitionGuides={docListType === 'inheritance-tax' ? () => setShowAcquisitionGuideSelector(true) : undefined}
         onExcelExport={handleExcelExportWithLoading}
-        isTwoColumnPrint={isTwoColumnPrint}
-        togglePrintColumn={togglePrintColumn}
         hideSubmittedInPrint={hideSubmittedInPrint}
         toggleHideSubmitted={toggleHideSubmitted}
-        isDark={isDark}
-        toggleDark={toggleDark}
         isExporting={isExporting}
         trashCount={trash.length}
         onOpenTrash={() => setShowTrashModal(true)}
@@ -289,7 +279,7 @@ export const EditableListStep = () => {
       />
       <div className="no-print mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-2 px-4 pt-2 text-xs text-slate-600 dark:text-slate-300 md:px-8">
         {/* 会社名は見出し行の「会社」欄に出すので、ここは印刷の欄外に載る連絡先だけ */}
-        <span className="text-slate-500 dark:text-slate-400">印刷に載る連絡先</span><span>{getFullAddress(company)}</span>{company.phone && <span>{getPhoneLine(company)}</span>}
+        <span className="text-slate-500 dark:text-slate-400">印刷の連絡先（会社情報から自動）</span><span>{getFullAddress(company)}</span>{company.phone && <span>{getPhoneLine(company)}</span>}
       </div>
 
       {/* ツールバー（max-w-7xl）と左右を揃える */}
@@ -391,11 +381,11 @@ export const EditableListStep = () => {
       {/* 印刷専用セクション */}
       {printOutput === 'list' ? <PrintSection
         documentList={documentList}
-        isTwoColumnPrint={isTwoColumnPrint}
+        isTwoColumnPrint={false}
         hideSubmittedInPrint={hideSubmittedInPrint}
         currentDate={currentDate}
         personInCharge={personInCharge}
-        personInChargeContact={personInChargeContact}
+        personInChargeContact=""
         clientName={clientName}
         deceasedName={deceasedName}
         docListType={docListType}
@@ -405,7 +395,6 @@ export const EditableListStep = () => {
         clientName={clientName}
         deceasedName={deceasedName}
         personInCharge={personInCharge}
-        personInChargeContact={personInChargeContact}
         imageUrls={Object.fromEntries(acquisitionGuideImages.map((image) => [image.guideId, image.contentUrl]))}
       />}
 

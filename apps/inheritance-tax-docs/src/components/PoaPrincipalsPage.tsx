@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, FileSignature, Home, Moon, Pencil, Plus, RotateCcw, Search, Sun, Trash2, UserPlus, X } from 'lucide-react';
-import { useDarkMode } from '@/hooks/useDarkMode';
+import { ArrowLeft, FileSignature, Home, Pencil, Plus, RotateCcw, Search, Trash2, UserPlus, X } from 'lucide-react';
 import { useDeceasedSearch } from '@/hooks/useDeceasedSearch';
 import { usePrincipalSearch } from '@/hooks/usePrincipalSearch';
 import { inputClass } from '@/components/powerOfAttorney/FormFields';
@@ -528,7 +527,6 @@ const PeopleTab = ({ query, onQuery, onOpenDeceased }: TabProps & { onOpenDeceas
  * タブと検索語は URL に持つ（読み直しや戻るで消えないように。委任者の行から被相続人を開く近道もこれで渡す）。
  */
 export const PoaPrincipalsPage = () => {
-  const { isDark, toggleDark } = useDarkMode();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: Tab = searchParams.get('tab') === 'people' ? 'people' : 'deceased';
   const query = searchParams.get('q') ?? '';
@@ -560,13 +558,6 @@ export const PoaPrincipalsPage = () => {
             <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
             <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">委任状のDB</h1>
           </div>
-          <button
-            onClick={toggleDark}
-            className="ml-auto p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-            aria-label={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
-          >
-            {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          </button>
         </div>
       </div>
 

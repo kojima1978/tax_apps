@@ -103,7 +103,6 @@ export const PrintSection = ({
           <div className={`text-slate-700 font-medium mb-2 ${l.meta}`}>
             {clientName && <span className="mr-4">依頼者名: {clientName} 様</span>}
             {deceasedName && usesDeceasedName(docListType) && <span className="mr-4">被相続人名: {deceasedName} 様</span>}
-            {personInCharge && <span>担当者: {personInCharge}</span>}
           </div>
           <p className={`text-slate-600 ${l.subtitle}`}>
             以下の書類をご準備の上、ご来所・ご郵送ください。「取得代行可」は弊社で代理取得が可能です。
@@ -112,6 +111,7 @@ export const PrintSection = ({
         <div className="text-right text-sm text-slate-500">
           <p>発行日: {currentDate}</p>
           <p>{company.name}</p>
+          {personInCharge && <p>担当者: {personInCharge}</p>}
         </div>
       </div>
 

@@ -22,7 +22,6 @@ export const STORAGE_KEYS = {
   deceasedName: 'inheritance_tax_docs_deceased_name',
   personInCharge: 'inheritance_tax_docs_person_in_charge',
   personInChargeContact: 'inheritance_tax_docs_person_in_charge_contact',
-  darkMode: 'inheritance_tax_docs_dark_mode',
   targetYear: 'inheritance_tax_docs_target_year',
 } as const;
 

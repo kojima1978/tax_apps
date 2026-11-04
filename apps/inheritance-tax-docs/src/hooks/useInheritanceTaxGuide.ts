@@ -19,7 +19,6 @@ const getMasterKey = (type: DocListType, selectedCompanyId: number | null) =>
 export const useInheritanceTaxGuide = () => {
   const { company, status: companyStatus } = useCompanyInfo();
   const companyId = company.id;
-  const [isTwoColumnPrint, setIsTwoColumnPrint] = useState(false);
   const [hideSubmittedInPrint, setHideSubmittedInPrint] = useState(false);
 
   // 書類リスト種別
@@ -232,14 +231,14 @@ export const useInheritanceTaxGuide = () => {
       clientName,
       deceasedName: usesDeceasedName(docListType) ? deceasedName : '',
       personInCharge,
-      personInChargeContact,
+      // 連絡先は社員台帳の会社電話を唯一の元にする。手入力の旧データは出力しない。
+      personInChargeContact: company.phone,
       company,
       excelTitle: `${DOC_LIST_TYPE_LABELS[docListType]} 資料準備ガイド`,
       filenamePrefix: `${DOC_LIST_TYPE_LABELS[docListType]}必要書類`,
     });
-  }, [documentList, clientName, deceasedName, personInCharge, personInChargeContact, docListType, company]);
+  }, [documentList, clientName, deceasedName, personInCharge, docListType, company]);
 
-  const togglePrintColumn = useCallback(() => { setIsTwoColumnPrint(prev => !prev); }, []);
   const toggleHideSubmitted = useCallback(() => { setHideSubmittedInPrint(prev => !prev); }, []);
 
   return {
@@ -247,7 +246,6 @@ export const useInheritanceTaxGuide = () => {
     docListType,
     companyId,
     targetYear,
-    isTwoColumnPrint,
     hideSubmittedInPrint,
     currentDate,
     clientName,
@@ -263,7 +261,6 @@ export const useInheritanceTaxGuide = () => {
     resetToPublishedMaster,
     handlePrint,
     handleExcelExport,
-    togglePrintColumn,
     toggleHideSubmitted,
     setClientName,
     setDeceasedName,
