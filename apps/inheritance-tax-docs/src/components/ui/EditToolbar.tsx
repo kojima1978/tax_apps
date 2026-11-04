@@ -12,9 +12,6 @@ import {
   Home,
   FileText,
   Trash2,
-  ChevronDown,
-  ChevronUp,
-  ClipboardList,
   Settings,
   Stamp,
   BookOpenCheck,
@@ -34,8 +31,8 @@ type ToolbarAction = {
   onClick?: () => void;
   onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   colorClass?: string;
-  /** 区切り線で分けるまとまり（印刷／ファイル／リセット） */
-  group: 'print' | 'file' | 'reset';
+  /** 区切り線で分けるまとまり（印刷／ファイル） */
+  group: 'print' | 'file';
 };
 
 // 色を付けるのは印刷だけ。ほかは枠線のボタンにそろえて、強い色が並ばないようにする
@@ -138,8 +135,6 @@ export const EditToolbar = ({
 }: EditToolbarProps) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showNavMenu, setShowNavMenu] = useState(false);
-  // 案件情報4欄は必要なときだけ開き、通常のヘッダーを2段に保つ
-  const [showCaseInfo, setShowCaseInfo] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navMenuRef = useRef<HTMLDivElement>(null);
 
@@ -158,12 +153,10 @@ export const EditToolbar = ({
 
   const ACTIONS: ToolbarAction[] = useMemo(() => [
     ...(onOpenAcquisitionGuides ? [{ id: 'acquisition-guides', label: '取得案内', icon: BookOpenCheck, onClick: onOpenAcquisitionGuides, group: 'print' as const, colorClass: 'bg-emerald-700 text-white hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500' }] : []),
-    { id: 'print', label: '印刷', icon: Printer, onClick: onPrint, group: 'print', colorClass: 'bg-slate-700 text-white hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500' },
     { id: 'excel', label: 'Excel', icon: FileSpreadsheet, onClick: isExporting ? undefined : onExcelExport, group: 'file', colorClass: isExporting ? `${OUTLINE_BUTTON_CLASS} cursor-not-allowed opacity-50` : OUTLINE_BUTTON_CLASS },
     { id: 'json-export', label: 'ファイルに保存', icon: Download, onClick: onJsonExport, group: 'file', colorClass: OUTLINE_BUTTON_CLASS },
     { id: 'json-import', label: 'ファイルを読込', icon: Upload, onFileSelect, group: 'file', colorClass: OUTLINE_BUTTON_CLASS },
-    { id: 'reset', label: 'リセット', icon: RotateCcw, onClick: onShowResetDialog, group: 'reset', colorClass: OUTLINE_BUTTON_CLASS },
-  ], [onOpenAcquisitionGuides, onPrint, onExcelExport, onJsonExport, onFileSelect, onShowResetDialog, isExporting]);
+  ], [onOpenAcquisitionGuides, onExcelExport, onJsonExport, onFileSelect, isExporting]);
 
   const PRINT_SETTINGS: PrintSetting[] = useMemo(() => [
     { id: 'scope', label: '載せる書類', options: [{ label: '全書類', active: !hideSubmittedInPrint }, { label: '未提出のみ', active: hideSubmittedInPrint }], toggle: toggleHideSubmitted },
@@ -177,14 +170,12 @@ export const EditToolbar = ({
   // 案件情報の入力欄（可視ラベル付き）。md以上は中身に合った固定幅にする
   // （残りの幅を埋めさせると、名前の欄が400px を超えて間延びしていた）
   const CASE_FIELDS = useMemo(() => [
-    { id: 'client-name', label: '依頼者名', value: clientName, onChange: onClientNameChange, widthClass: 'md:w-40 xl:w-44' },
+    { id: 'client-name', label: '依頼者名', value: clientName, onChange: onClientNameChange, widthClass: 'md:w-28 xl:w-44' },
     ...(usesDeceasedName(docListType)
-      ? [{ id: 'deceased-name', label: '被相続人名', value: deceasedName, onChange: onDeceasedNameChange, widthClass: 'md:w-40 xl:w-44' }]
+      ? [{ id: 'deceased-name', label: '被相続人名', value: deceasedName, onChange: onDeceasedNameChange, widthClass: 'md:w-28 xl:w-44' }]
       : []),
-    { id: 'person-in-charge', label: '担当者', value: personInCharge, onChange: onPersonInChargeChange, widthClass: 'md:w-32 xl:w-36' },
+    { id: 'person-in-charge', label: '担当者', value: personInCharge, onChange: onPersonInChargeChange, widthClass: 'md:w-20 xl:w-36' },
   ], [docListType, clientName, onClientNameChange, deceasedName, onDeceasedNameChange, personInCharge, onPersonInChargeChange]);
-
-  const filledCaseFieldCount = CASE_FIELDS.filter((f) => f.value.trim() !== '').length;
 
   return (
     <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm no-print">
@@ -221,25 +212,22 @@ export const EditToolbar = ({
             </label>
           )}
           <CompanyField onSwitched={onCompanySwitched} />
-          <button
-            type="button"
-            onClick={() => setShowCaseInfo((prev) => !prev)}
-            className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700 sm:min-h-8"
-            aria-expanded={showCaseInfo}
-            aria-controls="case-info-fields"
-          >
-            <ClipboardList className="h-4 w-4" aria-hidden="true" />
-            案件情報
-            {filledCaseFieldCount > 0 ? (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-100 px-1 text-[11px] font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                {filledCaseFieldCount}
-              </span>
-            ) : null}
-            {showCaseInfo
-              ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
-              : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-            }
-          </button>
+          <div className="order-last flex w-full flex-wrap items-center justify-end gap-x-2 gap-y-2 lg:order-none lg:ml-auto lg:w-auto lg:flex-nowrap xl:gap-x-4" aria-label="案件情報">
+            {CASE_FIELDS.map((field) => (
+              <div key={field.id} className="flex min-w-0 items-center gap-1.5">
+                <label htmlFor={`case-${field.id}`} className="whitespace-nowrap text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {field.label}
+                </label>
+                <input
+                  id={`case-${field.id}`}
+                  type="text"
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  className={`w-full min-w-0 ${field.widthClass} ${inputClass}`}
+                />
+              </div>
+            ))}
+          </div>
           <div className="relative ml-auto lg:hidden" ref={navMenuRef}>
             <button
               type="button"
@@ -263,69 +251,17 @@ export const EditToolbar = ({
               </div>
             ) : null}
           </div>
-          <div className="ml-auto hidden items-center gap-2 lg:flex" aria-label="リスト操作">
-            <div className="flex overflow-hidden rounded-lg border border-slate-300 dark:border-slate-600">
-              <button onClick={() => onExpandAll(true)} className="flex min-h-9 cursor-pointer items-center px-2.5 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 dark:text-slate-300 dark:hover:bg-slate-700" title="すべて展開" aria-label="すべて展開">
-                <ChevronsUpDown className="mr-1 h-3.5 w-3.5" aria-hidden="true" />展開
-              </button>
-              <div className="w-px bg-slate-300 dark:bg-slate-600" aria-hidden="true" />
-              <button onClick={() => onExpandAll(false)} className="flex min-h-9 cursor-pointer items-center px-2.5 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 dark:text-slate-300 dark:hover:bg-slate-700" title="すべて折りたたみ" aria-label="すべて折りたたみ">
-                <ChevronsDownUp className="mr-1 h-3.5 w-3.5" aria-hidden="true" />折畳
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={onOpenTrash}
-              className="flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-400 dark:hover:bg-slate-700"
-              aria-label={`ゴミ箱（削除した書類・カテゴリ ${trashCount}件）`}
-              title="ゴミ箱"
-            >
-              <span className="relative flex items-center">
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                {trashCount > 0 ? (
-                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white">
-                    {trashCount > 99 ? '99+' : trashCount}
-                  </span>
-                ) : null}
-              </span>
-            </button>
-          </div>
         </div>
 
-        {/* 案件情報は編集中だけ一時的に展開する。閉じている通常時はヘッダーが2段になる */}
-        {showCaseInfo ? (
-          <div
-            id="case-info-fields"
-            className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/40 md:flex md:flex-wrap md:items-center md:gap-x-4 md:gap-y-2 xl:gap-x-5"
-          >
-            {CASE_FIELDS.map((field) => (
-              // md以上はラベルを欄の左に置き、幅が足りなければ欄ごと次の行へ折り返す
-              <div key={field.id} className="flex flex-col gap-0.5 min-w-0 md:flex-row md:items-center md:gap-1.5">
-                <label
-                  htmlFor={`case-${field.id}`}
-                  className="text-xs font-medium text-slate-500 dark:text-slate-400 md:whitespace-nowrap"
-                >
-                  {field.label}
-                </label>
-                <input
-                  id={`case-${field.id}`}
-                  type="text"
-                  value={field.value}
-                  onChange={(e) => field.onChange(e.target.value)}
-                  className={`w-full min-w-0 ${field.widthClass} ${inputClass}`}
-                />
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {/* 2行目: 印刷と出力だけをまとめる */}
-        <div className="mt-2 flex items-center justify-start gap-2 border-t border-slate-100 pt-2 dark:border-slate-700/70">
+        {/* 2行目: 左に印刷・出力、右にリスト操作をまとめる */}
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-700/70">
           <div className="flex items-center gap-1.5">
+            <button onClick={onPrint} className="hidden items-center rounded bg-slate-700 px-2 py-1 text-xs text-white hover:bg-slate-800 lg:flex" aria-label="印刷">
+              <Printer className="mr-1 h-3 w-3" aria-hidden="true" />印刷
+            </button>
+
             {/* 印刷の設定（両方の選択肢を並べ、今の設定に色を付ける） */}
             <div className="hidden sm:flex items-center gap-1.5">
-              {/* 見出しは xl 以上だけ（lg では出力ボタンと並べると幅が足りず、ボタンの文字が2行に折れる） */}
-              <span className="hidden xl:inline text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">印刷</span>
               {PRINT_SETTINGS.map((setting) => <PrintSettingSegment key={setting.id} setting={setting} />)}
             </div>
 
@@ -371,6 +307,9 @@ export const EditToolbar = ({
 
               {showMobileMenu && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50 animate-fade-in">
+                  <button type="button" onClick={() => { onPrint(); setShowMobileMenu(false); }} className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700">
+                    <Printer className="h-4 w-4" aria-hidden="true" />印刷
+                  </button>
                   {/* 印刷設定（モバイル。sm 未満はツールバーに出ないのでここで選ぶ） */}
                   <div className="px-4 py-1.5 space-y-2">
                     {PRINT_SETTINGS.map((setting) => (
@@ -386,6 +325,9 @@ export const EditToolbar = ({
                   </button>
                   <button type="button" onClick={() => { onExpandAll(false); setShowMobileMenu(false); }} className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
                     <ChevronsDownUp className="h-4 w-4" aria-hidden="true" />すべて折りたたみ
+                  </button>
+                  <button type="button" onClick={() => { onShowResetDialog(); setShowMobileMenu(false); }} className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />リセット
                   </button>
                   <button type="button" onClick={() => { onOpenTrash(); setShowMobileMenu(false); }} className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
                     <Trash2 className="h-4 w-4" aria-hidden="true" />ゴミ箱{trashCount > 0 ? `（${trashCount}件）` : ''}
@@ -418,6 +360,37 @@ export const EditToolbar = ({
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="hidden shrink-0 overflow-hidden rounded-lg border border-slate-300 lg:flex" aria-label="リスト操作">
+            <button type="button" onClick={() => onExpandAll(true)} className="flex min-h-8 cursor-pointer items-center px-2.5 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500" title="すべて展開" aria-label="すべて展開">
+              <ChevronsUpDown className="mr-1 h-3.5 w-3.5" aria-hidden="true" />展開
+            </button>
+            <div className="w-px bg-slate-300" aria-hidden="true" />
+            <button type="button" onClick={() => onExpandAll(false)} className="flex min-h-8 cursor-pointer items-center px-2.5 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500" title="すべて折りたたみ" aria-label="すべて折りたたみ">
+              <ChevronsDownUp className="mr-1 h-3.5 w-3.5" aria-hidden="true" />折り畳み
+            </button>
+            <div className="w-px bg-slate-300" aria-hidden="true" />
+            <button type="button" onClick={onShowResetDialog} className="flex min-h-8 cursor-pointer items-center px-2.5 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500" title="リセット" aria-label="リセット">
+              <RotateCcw className="mr-1 h-3.5 w-3.5" aria-hidden="true" />リセット
+            </button>
+            <div className="w-px bg-slate-300" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={onOpenTrash}
+              className="flex min-h-8 min-w-9 cursor-pointer items-center justify-center px-2 text-slate-500 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500"
+              aria-label={`ゴミ箱（削除した書類・カテゴリ ${trashCount}件）`}
+              title="ゴミ箱"
+            >
+              <span className="relative flex items-center">
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                {trashCount > 0 ? (
+                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white">
+                    {trashCount > 99 ? '99+' : trashCount}
+                  </span>
+                ) : null}
+              </span>
+            </button>
           </div>
         </div>
       </div>
