@@ -1,6 +1,6 @@
 import { useRef, useState, type FocusEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Database, ExternalLink, Home, Moon, Plus, Printer, Sun, Trash2, UserRound } from 'lucide-react';
+import { ArrowLeft, Database, ExternalLink, FileSignature, Moon, Plus, Printer, Sun, Trash2, UserRound } from 'lucide-react';
 import { useDarkMode } from '@/hooks/useDarkMode';
 import {
   usePowerOfAttorneyForm,
@@ -57,6 +57,13 @@ const PRINT_OPTIONS: { value: 'print' | 'blank'; label: string }[] = [
   { value: 'print', label: '印字する' },
   { value: 'blank', label: '空欄（手書き）' },
 ];
+
+const WORKFLOW_NAV = [
+  { id: 'poa-settings', label: '基本設定' },
+  { id: 'poa-principals', label: '委任者' },
+  { id: 'poa-matters', label: '委任事項' },
+  { id: 'poa-agent', label: '受任者' },
+] as const;
 
 // 文字だけのボタンは小さい（16px）ので、スマホ幅でだけ押せる高さ（44px）を取る
 const touchClass = 'min-h-11 sm:min-h-0';
@@ -134,31 +141,32 @@ export const PowerOfAttorneyPage = () => {
     // （ページごとスクロールすると、下の入力欄を触っている間プレビューが関係ない紙へ流れる）
     <div className="poa-root w-full lg:h-screen lg:flex lg:flex-col print:block print:h-auto">
       <style>{POA_PAGE_STYLE}</style>
-      <div className="no-print sticky top-0 z-10 lg:static lg:shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+      <div className="no-print sticky top-0 z-10 border-b border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 lg:static lg:shrink-0">
         {/* 狭い画面では右のボタンを次の行へ回す（横へはみ出すと画面ごと横スクロールになる） */}
-        <div className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <a href="/" className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400" title="ポータルに戻る">
-              <Home className="h-5 w-5" />
-              <span className="hidden md:inline text-sm font-medium">ポータル</span>
-            </a>
-            <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
-            <Link to="/" className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400" title="書類リストに戻る">
+        <div className="flex flex-col gap-2 px-3 py-2.5 sm:px-4 lg:flex-row lg:items-center">
+          <div className="flex min-w-0 items-center gap-x-3">
+            <Link to="/" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-emerald-400 lg:hidden" aria-label="書類リストに戻る" title="書類リストに戻る">
               <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm font-medium">書類リスト</span>
             </Link>
-            <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
-            <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">委任状</h1>
-            {/* 受任者（＝この会社）を切り替える */}
+            <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 sm:flex">
+              <FileSignature className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="whitespace-nowrap text-lg font-bold text-slate-900 dark:text-slate-100">委任状を作る</h1>
+              <p className="hidden text-xs text-slate-500 dark:text-slate-400 xl:block">入力内容を右の印刷イメージで確認できます</p>
+            </div>
+          </div>
+          {/* 受任者（＝この会社）を切り替える */}
+          <div className="w-full sm:w-auto">
             <CompanyField />
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex w-full items-center justify-end gap-2 lg:ml-auto lg:w-auto">
             <a
               href={POA_DIRECTORY_URL}
               target="_blank"
               rel="noopener"
               title="被相続人DB・委任者DBを別のタブで開く（この画面の入力は消えません）"
-              className="flex items-center gap-1 px-3 py-1.5 border border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 rounded-lg text-sm font-bold transition-colors whitespace-nowrap"
+              className="flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               <Database className="w-4 h-4" /> DB<span className="hidden sm:inline">（被相続人・委任者）</span>
             </a>
@@ -167,13 +175,13 @@ export const PowerOfAttorneyPage = () => {
               onClick={handlePrint}
               disabled={Boolean(printBlocker)}
               title={printBlocker || '印刷（PDF に保存する場合は送信先で「PDF に保存」）'}
-              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white rounded-lg text-sm font-bold transition-colors"
+              className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               <Printer className="w-4 h-4" /> 印刷・PDF
             </button>
             <button
               onClick={toggleDark}
-              className="p-1.5 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-400 dark:hover:bg-slate-700"
               aria-label={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
             >
               {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -187,12 +195,31 @@ export const PowerOfAttorneyPage = () => {
       </div>
 
       <div className="flex flex-col lg:flex-row lg:flex-1 lg:min-h-0 print:block">
-        <div className="no-print w-full lg:w-[440px] lg:shrink-0 lg:overflow-y-auto lg:border-r border-slate-200 dark:border-slate-700 p-4 space-y-4">
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            入力は保存されません（閉じると消えます）。また使う人は「…DBに登録」で残せます。
-          </p>
+        <div className="no-print w-full space-y-4 border-slate-200 p-4 dark:border-slate-700 lg:w-[480px] lg:shrink-0 lg:overflow-y-auto lg:border-r xl:w-[500px]">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="flex items-center gap-2 text-sm font-bold text-emerald-900 dark:text-emerald-200">
+              <FileSignature className="h-4 w-4" aria-hidden="true" />
+              入力する順番
+            </div>
+            <nav className="mt-2 grid grid-cols-4 gap-1" aria-label="委任状の入力項目">
+              {WORKFLOW_NAV.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className="min-h-11 cursor-pointer rounded-lg px-1.5 py-1.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-200 dark:hover:bg-emerald-900/60"
+                >
+                  <span className="block text-[10px] font-bold opacity-70">{index + 1}</span>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+              入力内容は保存されません。繰り返し使う人は、各欄の「DBに登録」で残せます。
+            </p>
+          </div>
 
-          <Section title="作る書類">
+          <Section id="poa-settings" step="1" title="作る書類">
             <RadioGroup label="資料が必要な人" name="subject" options={SUBJECT_OPTIONS} value={form.subject} onChange={form.setSubject} />
             <RadioGroup label="書類" name="documents" options={DOCUMENT_OPTIONS} value={form.documents} onChange={form.setDocuments} />
             <RadioGroup
@@ -225,7 +252,7 @@ export const PowerOfAttorneyPage = () => {
           </Section>
 
           {form.subject === 'deceased' && (
-            <Section title="被相続人" action={<DirectoryLink tab="deceased" />}>
+            <Section title="亡くなった方" action={<DirectoryLink tab="deceased" />}>
               <div className="flex justify-end">
                 <button type="button" onClick={() => setDeceasedPickerOpen(true)} className={linkButtonClass}>
                   <Database className="w-3.5 h-3.5" /> DBから選ぶ
@@ -250,7 +277,7 @@ export const PowerOfAttorneyPage = () => {
             </Section>
           )}
 
-          <Section title={PRINCIPALS_TITLE[form.subject]} note="1人につき1組（委任状と復代理委任状）を刷ります。" action={<DirectoryLink tab="people" />}>
+          <Section id="poa-principals" step="2" title={PRINCIPALS_TITLE[form.subject]} note="1人につき1組（委任状と復代理委任状）を刷ります。" action={<DirectoryLink tab="people" />}>
             {form.principals.map((principal, index) => (
               <div
                 key={principal.id}
@@ -339,6 +366,8 @@ export const PowerOfAttorneyPage = () => {
           </Section>
 
           <Section
+            id="poa-matters"
+            step="3"
             title="委任事項"
             note={form.purpose === 'inheritance' ? '提出先を選ぶと、そこで要る事項に印が付きます（後から1つずつ付け外しできます）。' : undefined}
           >
@@ -476,7 +505,7 @@ export const PowerOfAttorneyPage = () => {
             )}
           </Section>
 
-          <Section title="受任者（見出しの「会社」）">
+          <Section id="poa-agent" step="4" title="受任者（見出しの会社）">
             <dl className="text-sm grid grid-cols-[5rem_1fr] gap-y-1">
               <dt className="text-slate-500">法人名</dt>
               <dd>{company.name}</dd>

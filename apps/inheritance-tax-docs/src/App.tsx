@@ -5,18 +5,22 @@ import { PoaPrincipalsPage } from '@/components/PoaPrincipalsPage'
 import { PowerOfAttorneyPage } from '@/components/PowerOfAttorneyPage'
 import { ResourcesPage } from '@/components/ResourcesPage'
 import { HelpPage } from '@/components/HelpPage'
+import { AppSidebar } from '@/components/ui/AppSidebar'
 
 export default function App() {
   return (
     <div className="bg-gradient-to-br from-slate-50 via-emerald-50/30 to-slate-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 min-h-screen text-slate-800 dark:text-slate-200 transition-colors">
-      <Routes>
-        <Route path="/" element={<EditableListStep />} />
-        <Route path="/resources" element={<ResourcesPage readOnly />} />
-        <Route path="/masters" element={<MasterDataPage />} />
-        <Route path="/power-of-attorney" element={<PowerOfAttorneyPage />} />
-        <Route path="/power-of-attorney/principals" element={<PoaPrincipalsPage />} />
-        <Route path="/help" element={<HelpPage />} />
-      </Routes>
+      <AppSidebar />
+      <div className="lg:pl-[4.5rem] print:pl-0">
+        <Routes>
+          <Route path="/" element={<EditableListStep />} />
+          <Route path="/resources" element={<ResourcesPage readOnly />} />
+          <Route path="/masters" element={<MasterDataPage />} />
+          <Route path="/power-of-attorney" element={<PowerOfAttorneyPage />} />
+          <Route path="/power-of-attorney/principals" element={<PoaPrincipalsPage />} />
+          <Route path="/help" element={<HelpPage />} />
+        </Routes>
+      </div>
     </div>
   )
 }

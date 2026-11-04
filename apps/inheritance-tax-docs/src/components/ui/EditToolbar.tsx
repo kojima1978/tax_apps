@@ -43,16 +43,12 @@ type ToolbarAction = {
 // 色を付けるのは印刷だけ。ほかは枠線のボタンにそろえて、強い色が並ばないようにする
 const OUTLINE_BUTTON_CLASS = 'bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600';
 
-const LINK_EMERALD_CLASS = 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50';
-
-const LINK_SLATE_CLASS = 'text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/70 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700';
-
-/** ほかの画面への入口（見出し行の右側）。委任状は種別の選択肢にせずここに置く */
-const NAV_LINKS: { to: string; label: string; icon: LucideIcon; colorClass: string }[] = [
-  { to: '/resources', label: '参考資料', icon: FileText, colorClass: LINK_EMERALD_CLASS },
-  { to: '/power-of-attorney', label: '委任状', icon: Stamp, colorClass: LINK_EMERALD_CLASS },
-  { to: '/masters', label: 'マスタ管理', icon: Settings, colorClass: LINK_SLATE_CLASS },
-  { to: '/help', label: '使い方', icon: CircleHelp, colorClass: LINK_SLATE_CLASS },
+/** 補助画面はヘッダーに並べず、1つのメニューへまとめる */
+const NAV_LINKS: { to: string; label: string; icon: LucideIcon }[] = [
+  { to: '/resources', label: '参考資料', icon: FileText },
+  { to: '/power-of-attorney', label: '委任状', icon: Stamp },
+  { to: '/masters', label: 'マスタ管理', icon: Settings },
+  { to: '/help', label: '使い方', icon: CircleHelp },
 ];
 
 // ─── 印刷の設定（2択の切り替え） ───
@@ -157,20 +153,24 @@ export const EditToolbar = ({
   onCompanySwitched,
 }: EditToolbarProps) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showNavMenu, setShowNavMenu] = useState(false);
   // 案件情報4欄はモバイルのみ折りたたむ（md以上は常時表示）
   const [showCaseInfo, setShowCaseInfo] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const navMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showMobileMenu) return;
+    if (!showMobileMenu && !showNavMenu) return;
     const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (showMobileMenu && menuRef.current && !menuRef.current.contains(target)) {
         setShowMobileMenu(false);
       }
+      if (showNavMenu && navMenuRef.current && !navMenuRef.current.contains(target)) setShowNavMenu(false);
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [showMobileMenu]);
+  }, [showMobileMenu, showNavMenu]);
 
   const ACTIONS: ToolbarAction[] = useMemo(() => [
     ...(onOpenAcquisitionGuides ? [{ id: 'acquisition-guides', label: '取得案内', icon: BookOpenCheck, onClick: onOpenAcquisitionGuides, group: 'print' as const, colorClass: 'bg-emerald-700 text-white hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500' }] : []),
@@ -207,15 +207,12 @@ export const EditToolbar = ({
   return (
     <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm no-print">
       <div className="max-w-7xl mx-auto px-4 py-2.5">
-        {/* 1行目: どのリストを見ているか（種別・会社）＋ ほかの画面への入口 */}
+        {/* 1行目: 今見ているリストだけを表示し、補助画面はメニューへまとめる */}
         <div className="flex items-center gap-x-2 gap-y-1 md:gap-3 flex-wrap">
-          <a href="/" className="flex items-center justify-center gap-1 min-h-6 min-w-6 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors" title="ポータルに戻る">
+          <a href="/" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-emerald-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-emerald-400 sm:min-h-8 sm:min-w-8 lg:hidden" aria-label="ポータルに戻る" title="ポータルに戻る">
             <Home className="h-5 w-5" />
-            <span className="hidden xl:inline text-sm font-medium">ポータル</span>
           </a>
-          {/* 装飾用の区切り — 読み上げ対象から除外 */}
-          <span className="hidden xl:inline text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
-          <h1 className="sr-only xl:not-sr-only text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">必要書類リスト</h1>
+          <h1 className="hidden text-lg font-bold whitespace-nowrap text-slate-800 dark:text-slate-100 lg:block">必要書類</h1>
           <select
             value={docListType}
             onChange={(e) => onDocListTypeChange(e.target.value as DocListType)}
@@ -242,28 +239,43 @@ export const EditToolbar = ({
             </label>
           )}
           <CompanyField onSwitched={onCompanySwitched} />
-          {/* ほかの画面への入口は右へ寄せて1つにまとめる */}
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap md:ml-auto">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs sm:text-sm font-medium border rounded transition-colors whitespace-nowrap ${link.colorClass}`}
-              >
-                <link.icon className="w-3.5 h-3.5" aria-hidden="true" />
-                {link.label}
-              </Link>
-            ))}
-            {/* ダークモード（書類の操作ではないので見出し行に置く） */}
+          <div className="relative ml-auto lg:hidden" ref={navMenuRef}>
             <button
-              onClick={toggleDark}
-              className={`p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center ${touchTargetClass}`}
-              aria-label={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
-              title={isDark ? 'ライトモード' : 'ダークモード'}
+              type="button"
+              onClick={() => setShowNavMenu((open) => !open)}
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700 sm:min-h-8 sm:min-w-8 sm:py-1"
+              aria-label="画面メニューを開く"
+              aria-expanded={showNavMenu}
+              aria-haspopup="menu"
             >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              <Menu className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">メニュー</span>
             </button>
+            {showNavMenu ? (
+              <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+                {NAV_LINKS.map((link) => (
+                  <Link key={link.to} to={link.to} role="menuitem" onClick={() => setShowNavMenu(false)} className="flex min-h-11 items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 dark:text-slate-200 dark:hover:bg-slate-700">
+                    <link.icon className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" />
+                    {link.label}
+                  </Link>
+                ))}
+                <div className="my-1 border-t border-slate-200 dark:border-slate-700" aria-hidden="true" />
+                <button type="button" role="menuitem" onClick={() => { toggleDark(); setShowNavMenu(false); }} className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 dark:text-slate-200 dark:hover:bg-slate-700">
+                  {isDark ? <Sun className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" /> : <Moon className="h-4 w-4 text-slate-500" aria-hidden="true" />}
+                  {isDark ? 'ライト表示' : 'ダーク表示'}
+                </button>
+              </div>
+            ) : null}
           </div>
+          <button
+            type="button"
+            onClick={toggleDark}
+            className="ml-auto hidden min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-400 dark:hover:bg-slate-700 lg:flex"
+            aria-label={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
+            title={isDark ? 'ライト表示' : 'ダーク表示'}
+          >
+            {isDark ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
+          </button>
         </div>
 
         {/* 2行目: 案件情報（モバイルは折りたたみ） */}

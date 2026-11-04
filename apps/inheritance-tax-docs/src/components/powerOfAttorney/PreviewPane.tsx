@@ -111,7 +111,7 @@ export const PreviewPane = ({ sheets, notice }: { sheets: PowerOfAttorneySheet[]
   return (
     <div className="flex-1 min-w-0 bg-slate-100 dark:bg-slate-900 lg:overflow-y-auto print:bg-transparent print:overflow-visible">
       {/* 縦積みのときは画面の見出しが上に貼り付くので、こちらは横並びのときだけ貼り付ける */}
-      <div ref={toolbarRef} className="no-print lg:sticky lg:top-0 z-[5] border-b border-slate-200 dark:border-slate-700 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur px-4 py-2 space-y-1.5">
+      <div ref={toolbarRef} className="no-print z-[5] space-y-1.5 border-b border-slate-200 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 lg:sticky lg:top-0">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <span className="text-sm font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
             印刷イメージ <span className="font-normal text-slate-500 dark:text-slate-400">{sheets.length}枚</span>
@@ -123,7 +123,7 @@ export const PreviewPane = ({ sheets, notice }: { sheets: PowerOfAttorneySheet[]
                 type="button"
                 onClick={() => jump(sheet.key)}
                 aria-current={active === sheet.key ? 'true' : undefined}
-                className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                className={`min-h-9 cursor-pointer rounded-full border px-3 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                   active === sheet.key
                     ? 'bg-emerald-700 border-emerald-700 text-white'
                     : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -133,14 +133,14 @@ export const PreviewPane = ({ sheets, notice }: { sheets: PowerOfAttorneySheet[]
               </button>
             ))}
           </div>
-          <div className="ml-auto flex rounded border border-slate-300 dark:border-slate-600 overflow-hidden" role="group" aria-label="表示の大きさ">
+          <div className="ml-auto flex overflow-hidden rounded-lg border border-slate-300 dark:border-slate-600" role="group" aria-label="表示の大きさ">
             {ZOOM_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 type="button"
                 aria-pressed={zoom === option.value}
                 onClick={() => setZoom(option.value)}
-                className={`px-2 py-0.5 text-xs ${
+                className={`min-h-9 cursor-pointer px-3 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
                   zoom === option.value
                     ? 'bg-slate-700 dark:bg-slate-200 text-white dark:text-slate-900'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
