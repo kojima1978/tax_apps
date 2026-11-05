@@ -7,13 +7,17 @@ import { useReorder } from '../hooks/useReorder';
 import { DragHandle, ErrorBanner, ReorderBar, btn, controlClass, inputClass } from '../components/ui';
 import type { Company, Department } from '../types';
 
-type Draft = Pick<Department, 'name' | 'active'>;
+// 修正中の1行。id で元の部署を引き、値は手元で持つ
+type Editing = Pick<Department, 'id' | 'name' | 'active'>;
 
-// 直した行だけ持つ。元と同じ値に戻したら変更なしとみなす（打って消しただけで「変更あり」にしない）
-const isChanged = (d: Department, draft: Draft | undefined) =>
-  draft !== undefined && (draft.name !== d.name || draft.active !== d.active);
+// 修正中の行に元と違う値があるか（打って消しただけなら変更なし）
+const isDirty = (e: Editing | null, all: Department[]) => {
+  if (!e) return false;
+  const d = all.find((x) => x.id === e.id);
+  return d !== undefined && (d.name !== e.name || d.active !== e.active);
+};
 
-// 部署の一覧を表のまま直し、上の帯の「変更を保存」でまとめて確定する。
+// 部署の一覧。普段は読むだけで、「修正」を押した1行だけが入力欄に変わる（誤って書き換えないため）。
 // 部署は会社にぶら下がる（A社の会計部とB社の会計部は別物）ので、会社ごとに表を分け、
 // 並べ替え（⠿ をドラッグして「並び順を保存」）も追加もその会社の中で行う。
 // 会社は作るときに決め、後から変えない（所属している人の会社と食い違うため。
@@ -23,25 +27,29 @@ export default function DepartmentsPage() {
   const departments = useLoad(api.listDepartments);
   const companies = useLoad(api.listCompanies);
   const [error, setError] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<number, Draft>>({});
-  const [savingDrafts, setSavingDrafts] = useState(false);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   // 会社ごとの「並びを動かしたまま保存していない」
   const [orderDirty, setOrderDirty] = useState<Record<number, boolean>>({});
 
   const multiCompany = (companies.data?.length ?? 0) > 1;
   const all = departments.data ?? [];
-  const changed = all.filter((d) => isChanged(d, drafts[d.id]));
+  const editDirty = isDirty(editing, all);
   const sortableAny = (companies.data ?? []).some((c) => all.filter((d) => d.companyId === c.id).length > 1);
 
-  useLeaveGuard(changed.length > 0 || Object.values(orderDirty).some(Boolean));
+  useLeaveGuard(editDirty || Object.values(orderDirty).some(Boolean));
 
   const reportOrderDirty = useCallback(
     (companyId: number, dirty: boolean) => setOrderDirty((m) => (m[companyId] === dirty ? m : { ...m, [companyId]: dirty })),
     [],
   );
 
-  const draftOf = (d: Department): Draft => drafts[d.id] ?? { name: d.name, active: d.active };
-  const edit = (d: Department, patch: Partial<Draft>) => setDrafts((m) => ({ ...m, [d.id]: { ...draftOf(d), ...patch } }));
+  // 修正は一度に1行。直しかけの行があれば、捨ててよいか聞いてから開き直す
+  function startEdit(d: Department) {
+    if (editDirty && !confirm('修正中の部署に保存していない変更があります。破棄しますか？')) return;
+    setError(null);
+    setEditing({ id: d.id, name: d.name, active: d.active });
+  }
 
   // 成功したら一覧を読み直す。失敗はページ上部に出す
   async function run(action: () => Promise<unknown>): Promise<boolean> {
@@ -56,58 +64,43 @@ export default function DepartmentsPage() {
     }
   }
 
-  // 1件ずつ順に送り、通った行の下書きだけ消す。途中で断られたら、そこから先は手元に残して理由を出す
-  async function saveDrafts() {
-    setSavingDrafts(true);
-    const saved: number[] = [];
-    try {
-      for (const d of changed) {
-        const draft = drafts[d.id];
-        await api.updateDepartment(d.id, { ...draft, companyId: d.companyId });
-        saved.push(d.id);
-      }
-      setError(null);
-    } catch (err) {
-      const failed = changed[saved.length];
-      setError(`部署「${drafts[failed.id].name || failed.name}」: ${(err as Error).message}`);
-    } finally {
-      setDrafts((m) => {
-        const next = { ...m };
-        for (const id of saved) delete next[id];
-        return next;
-      });
-      await departments.reload();
-      setSavingDrafts(false);
+  async function saveEdit() {
+    if (!editing || savingEdit) return;
+    const d = all.find((x) => x.id === editing.id);
+    if (!d) return;
+    // 変えていなければ送らずに閉じる
+    if (!editDirty) {
+      setEditing(null);
+      return;
     }
+    setSavingEdit(true);
+    const ok = await run(() =>
+      api.updateDepartment(d.id, { name: editing.name, active: editing.active, companyId: d.companyId }),
+    );
+    setSavingEdit(false);
+    // 断られたら入力はそのまま残して直せるようにする
+    if (ok) setEditing(null);
   }
 
   return (
     <div className="max-w-3xl space-y-6">
       <p className="text-sm text-slate-500">
         {sortableAny && '⠿ をドラッグして並べ替えられます。'}
-        所属している人がいる部署は削除できないので、使わなくなったら「使用」を外してください。
+        所属している人がいる部署は削除できないので、使わなくなったら「修正」から「使用」を外してください。
       </p>
       <ErrorBanner message={error ?? departments.error ?? companies.error} />
-      {changed.length > 0 && (
-        <div className="sticky top-0 z-10 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 shadow-sm">
-          <span>{changed.length}件の部署を直しました。保存するまで反映されません。</span>
-          <button type="button" className={`${btn.secondary} ml-auto`} onClick={() => setDrafts({})} disabled={savingDrafts}>
-            元に戻す
-          </button>
-          <button type="button" className={btn.primary} onClick={() => void saveDrafts()} disabled={savingDrafts}>
-            {savingDrafts ? '保存中…' : '変更を保存'}
-          </button>
-        </div>
-      )}
       {companies.data?.map((c) => (
         <CompanySection
           key={c.id}
           company={c}
           showHeading={multiCompany}
           departments={all.filter((d) => d.companyId === c.id)}
-          draftOf={draftOf}
-          isChanged={(d) => isChanged(d, drafts[d.id])}
-          edit={edit}
+          editing={editing}
+          savingEdit={savingEdit}
+          onStartEdit={startEdit}
+          onChangeEdit={(patch) => setEditing((e) => (e ? { ...e, ...patch } : e))}
+          onSaveEdit={() => void saveEdit()}
+          onCancelEdit={() => setEditing(null)}
           run={run}
           onOrderDirty={reportOrderDirty}
         />
@@ -120,18 +113,24 @@ function CompanySection({
   company,
   showHeading,
   departments,
-  draftOf,
-  isChanged,
-  edit,
+  editing,
+  savingEdit,
+  onStartEdit,
+  onChangeEdit,
+  onSaveEdit,
+  onCancelEdit,
   run,
   onOrderDirty,
 }: {
   company: Company;
   showHeading: boolean;
   departments: Department[];
-  draftOf: (d: Department) => Draft;
-  isChanged: (d: Department) => boolean;
-  edit: (d: Department, patch: Partial<Draft>) => void;
+  editing: Editing | null;
+  savingEdit: boolean;
+  onStartEdit: (d: Department) => void;
+  onChangeEdit: (patch: Partial<Pick<Department, 'name' | 'active'>>) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
   run: (action: () => Promise<unknown>) => Promise<boolean>;
   onOrderDirty: (companyId: number, dirty: boolean) => void;
 }) {
@@ -165,18 +164,18 @@ function CompanySection({
               <th className="px-4 py-2 font-medium">部署名</th>
               <th className="w-28 px-4 py-2 font-medium">使用</th>
               <th className="w-20 px-4 py-2 text-right font-medium">在籍</th>
-              <th className="w-24 px-4 py-2" />
+              <th className="w-36 px-4 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {reorder.sorted.map((d) => {
-              const draft = draftOf(d);
-              const changed = isChanged(d);
+              const row = editing?.id === d.id ? editing : null;
+              const active = row ? row.active : d.active;
               return (
                 <tr
                   key={d.id}
                   {...reorder.rowProps(d.id)}
-                  className={`${draft.active ? '' : 'text-slate-400'} ${changed ? 'bg-amber-50' : ''} ${
+                  className={`${active ? '' : 'text-slate-400'} ${row ? 'bg-amber-50' : ''} ${
                     reorder.draggingId === d.id ? 'bg-teal-50 opacity-60' : ''
                   }`}
                 >
@@ -186,18 +185,35 @@ function CompanySection({
                     </td>
                   )}
                   <td className="px-4 py-2">
-                    <input
-                      className={inputClass}
-                      value={draft.name}
-                      onChange={(e) => edit(d, { name: e.target.value })}
-                      aria-label="部署名"
-                    />
+                    {row ? (
+                      <input
+                        className={inputClass}
+                        value={row.name}
+                        onChange={(e) => onChangeEdit({ name: e.target.value })}
+                        onKeyDown={(e) => {
+                          // 変換確定の Enter では保存しない
+                          if (e.nativeEvent.isComposing) return;
+                          if (e.key === 'Enter') onSaveEdit();
+                          if (e.key === 'Escape') onCancelEdit();
+                        }}
+                        aria-label="部署名"
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="block py-1.5">{d.name}</span>
+                    )}
                   </td>
                   <td className="px-4 py-2">
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" checked={draft.active} onChange={(e) => edit(d, { active: e.target.checked })} />
-                      {draft.active ? '使用中' : '停止'}
-                    </label>
+                    {row ? (
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={row.active} onChange={(e) => onChangeEdit({ active: e.target.checked })} />
+                        {row.active ? '使用中' : '停止'}
+                      </label>
+                    ) : d.active ? (
+                      '使用中'
+                    ) : (
+                      '停止'
+                    )}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums">
                     {d.staffCount > 0 ? (
@@ -213,17 +229,33 @@ function CompanySection({
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
-                    <button
-                      type="button"
-                      className={btn.danger}
-                      disabled={d.staffCount > 0}
-                      title={d.staffCount > 0 ? '在籍者がいる部署は削除できません（使用を外してください）' : undefined}
-                      onClick={() => {
-                        if (confirm(`部署「${d.name}」を削除しますか？`)) void run(() => api.deleteDepartment(d.id));
-                      }}
-                    >
-                      削除
-                    </button>
+                    {row ? (
+                      <div className="flex justify-end gap-2">
+                        <button type="button" className={btn.secondary} onClick={onCancelEdit} disabled={savingEdit}>
+                          キャンセル
+                        </button>
+                        <button type="button" className={btn.primary} onClick={onSaveEdit} disabled={savingEdit}>
+                          {savingEdit ? '保存中…' : '保存'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex justify-end gap-2">
+                        <button type="button" className={btn.secondary} onClick={() => onStartEdit(d)}>
+                          修正
+                        </button>
+                        <button
+                          type="button"
+                          className={btn.danger}
+                          disabled={d.staffCount > 0}
+                          title={d.staffCount > 0 ? '在籍者がいる部署は削除できません（修正から使用を外してください）' : undefined}
+                          onClick={() => {
+                            if (confirm(`部署「${d.name}」を削除しますか？`)) void run(() => api.deleteDepartment(d.id));
+                          }}
+                        >
+                          削除
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
