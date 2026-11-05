@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import {
   parseCompanyInput,
   parseDepartmentInput,
+  parseIdList,
   parseShortName,
   parseStaffInput,
   parseStaffPersonalInput,
@@ -21,6 +22,8 @@ import {
   listDepartments,
   listLinks,
   listStaff,
+  reorderCompanies,
+  reorderDepartments,
   updateCompany,
   updateDepartment,
   updateStaff,
@@ -129,6 +132,16 @@ export function createApiRouter(db: Database.Database): Router {
     );
   });
 
+  // 会社ごとの並び替え。:id の口より先に置く（'order' を id として読ませない）
+  r.put('/departments/order', (req, res) => {
+    const companyId = parseId(String(req.body?.companyId ?? ''));
+    const ids = parseIdList(req.body?.ids);
+    respond(res, companyId === null ? { ok: false, error: '会社を選んでください' } : ids, (value) => {
+      reorderDepartments(db, companyId!, value);
+      return { ok: true };
+    });
+  });
+
   r.put('/departments/:id', (req, res) => {
     const id = parseId(req.params.id);
     respond(res, parseDepartmentInput(req.body), (input) =>
@@ -149,6 +162,13 @@ export function createApiRouter(db: Database.Database): Router {
 
   r.post('/companies', (req, res) => {
     respond(res, parseCompanyInput(req.body), (input) => ({ id: createCompany(db, input) }), 201);
+  });
+
+  r.put('/companies/order', (req, res) => {
+    respond(res, parseIdList(req.body?.ids), (ids) => {
+      reorderCompanies(db, ids);
+      return { ok: true };
+    });
   });
 
   r.put('/companies/:id', (req, res) => {

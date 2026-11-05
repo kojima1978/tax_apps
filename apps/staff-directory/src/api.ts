@@ -52,10 +52,13 @@ export const api = {
   createDepartment: (d: DepartmentForm) => send('POST', '/departments', d),
   updateDepartment: (id: number, d: DepartmentForm) => send('PUT', `/departments/${id}`, d),
   deleteDepartment: (id: number) => send('DELETE', `/departments/${id}`),
+  // 並べた順の id。1, 2, 3… と振り直される（部署は会社ごと）
+  reorderDepartments: (companyId: number, ids: number[]) => send('PUT', '/departments/order', { companyId, ids }),
   listCompanies: () => request<Company[]>('/companies'),
   createCompany: (c: CompanyForm) => send('POST', '/companies', c),
   updateCompany: (id: number, c: CompanyForm) => send('PUT', `/companies/${id}`, c),
   deleteCompany: (id: number) => send('DELETE', `/companies/${id}`),
+  reorderCompanies: (ids: number[]) => send('PUT', '/companies/order', { ids }),
   // 台帳まるごとの JSON 控え。中身はそのままファイルへ書くだけなので型は持たない
   exportBackup: () => request<unknown>('/backup'),
   previewRestore: (backup: unknown) => send<RestoreResult>('POST', '/backup/preview', backup),

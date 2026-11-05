@@ -1,10 +1,11 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { useLoad } from '../hooks/useLoad';
-import { ErrorBanner, Field, Modal, btn, inputClass } from '../components/ui';
+import { useReorder } from '../hooks/useReorder';
+import { DragHandle, ErrorBanner, Field, Modal, ReorderBar, btn, inputClass } from '../components/ui';
 import type { Company, CompanyForm } from '../types';
 
-const FIELDS: { key: Exclude<keyof CompanyForm, 'sortOrder'>; label: string; hint?: string; wide?: boolean }[] = [
+const FIELDS: { key: keyof CompanyForm; label: string; hint?: string; wide?: boolean }[] = [
   { key: 'name', label: '会社名', wide: true },
   { key: 'shortName', label: '略称', hint: '狭い欄で使う短い名前（空なら会社名）' },
   { key: 'postalCode', label: '郵便番号', hint: '123-4567 の形（〒は付けない）' },
@@ -22,30 +23,50 @@ const EMPTY: CompanyForm = {
   phone: '',
   fax: '',
   representative: '',
-  sortOrder: 0,
 };
 
-const COLUMNS = ['表示順', '会社名', '略称', '代表電話', '部署', '在籍'] as const;
+const COLUMNS = ['会社名', '略称', '代表電話', '部署', '在籍'] as const;
 
 // 関連会社の一覧。帳票に刷る会社の情報もここに持つ。
 // 部署や所属の残っている会社は消せない（サーバが理由つきで断る）。
+// 並びは ⠿ をドラッグして「並び順を保存」で確定する（先頭の会社が案件管理からの取込先）。
 export default function CompaniesPage() {
   const companies = useLoad(api.listCompanies);
+  const reorder = useReorder(companies.data ?? []);
   // undefined = 閉じている、null = 新規、Company = 編集
   const [editing, setEditing] = useState<Company | null | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function saveOrder() {
+    setSaving(true);
+    try {
+      await api.reorderCompanies(reorder.ids);
+      setError(null);
+      await companies.reload();
+      reorder.reset();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="max-w-4xl space-y-4">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-slate-500">⠿ をドラッグして並べ替えられます。先頭の会社が案件管理からの取込先です。</p>
         <button type="button" className={btn.primary} onClick={() => setEditing(null)}>
           ＋ 会社を追加
         </button>
       </div>
-      <ErrorBanner message={companies.error} />
+      <ErrorBanner message={error ?? companies.error} />
+      <ReorderBar dirty={reorder.dirty} saving={saving} onSave={() => void saveOrder()} onReset={reorder.reset} />
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
             <tr>
+              <th className="w-10 px-2 py-2" aria-label="並べ替え" />
               {COLUMNS.map((c) => (
                 <th key={c} className="whitespace-nowrap px-4 py-2 font-medium">
                   {c}
@@ -54,9 +75,16 @@ export default function CompaniesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {companies.data?.map((c) => (
-              <tr key={c.id} onClick={() => setEditing(c)} className="cursor-pointer hover:bg-teal-50/50">
-                <td className="px-4 py-2 tabular-nums text-slate-500">{c.sortOrder}</td>
+            {reorder.sorted.map((c) => (
+              <tr
+                key={c.id}
+                {...reorder.rowProps(c.id)}
+                onClick={() => setEditing(c)}
+                className={`cursor-pointer hover:bg-teal-50/50 ${reorder.draggingId === c.id ? 'bg-teal-50 opacity-60' : ''}`}
+              >
+                <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                  <DragHandle {...reorder.handleProps(c.id, c.name)} />
+                </td>
                 <td className="px-4 py-2 font-medium">
                   <button type="button" className="text-left hover:underline" onClick={() => setEditing(c)}>
                     {c.name}
@@ -98,8 +126,8 @@ function CompanyDialog({
   const ref = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState<CompanyForm>(() => {
     if (!company) return EMPTY;
-    const { name, shortName, postalCode, address, phone, fax, representative, sortOrder } = company;
-    return { name, shortName, postalCode, address, phone, fax, representative, sortOrder };
+    const { name, shortName, postalCode, address, phone, fax, representative } = company;
+    return { name, shortName, postalCode, address, phone, fax, representative };
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -138,14 +166,6 @@ function CompanyDialog({
               </Field>
             </div>
           ))}
-          <Field label="表示順" hint="小さい順に並ぶ。先頭の会社が案件管理からの取込先">
-            <input
-              type="number"
-              className={inputClass}
-              value={form.sortOrder}
-              onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })}
-            />
-          </Field>
         </div>
 
         <ErrorBanner message={error} />

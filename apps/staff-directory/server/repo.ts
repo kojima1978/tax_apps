@@ -352,7 +352,7 @@ export function createCompany(db: Database.Database, input: CompanyInput): numbe
     const info = db
       .prepare(
         `INSERT INTO companies (name, short_name, postal_code, address, phone, fax, representative, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM companies)))`,
       )
       .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.fax, input.representative, input.sortOrder);
     return Number(info.lastInsertRowid);
@@ -366,7 +366,7 @@ export function updateCompany(db: Database.Database, id: number, input: CompanyI
     const info = db
       .prepare(
         `UPDATE companies SET name = ?, short_name = ?, postal_code = ?, address = ?, phone = ?, fax = ?, representative = ?,
-           sort_order = ?, updated_at = datetime('now')
+           sort_order = COALESCE(?, sort_order), updated_at = datetime('now')
          WHERE id = ?`,
       )
       .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.fax, input.representative, input.sortOrder, id);
@@ -374,6 +374,29 @@ export function updateCompany(db: Database.Database, id: number, input: CompanyI
   } catch (err) {
     companyNameConflict(err, input.name);
   }
+}
+
+// 並び替え。画面でドラッグして「保存」したときに、並べた順の id をまとめて受け取り 1, 2, 3… と振り直す。
+// 渡された id が今ある行とちょうど同じ集合でなければ断る（別の画面で足し引きされた後の古い並びで
+// 上書きすると、足された行の番号が重なるため）。
+function reorder(db: Database.Database, table: 'companies' | 'departments', current: number[], ids: number[]): void {
+  const same = ids.length === current.length && new Set(ids).size === ids.length && ids.every((id) => current.includes(id));
+  if (!same) throw new ConflictError('一覧が変わっています。画面を読み直してから並べ替えてください');
+  const stmt = db.prepare(`UPDATE ${table} SET sort_order = ?, updated_at = datetime('now') WHERE id = ? AND sort_order <> ?`);
+  db.transaction(() => ids.forEach((id, i) => stmt.run(i + 1, id, i + 1)))();
+}
+
+export function reorderCompanies(db: Database.Database, ids: number[]): void {
+  const current = (db.prepare('SELECT id FROM companies').all() as { id: number }[]).map((r) => r.id);
+  reorder(db, 'companies', current, ids);
+}
+
+// 部署の並びは会社ごと（会社をまたいで動かすことはない）
+export function reorderDepartments(db: Database.Database, companyId: number, ids: number[]): void {
+  const current = (db.prepare('SELECT id FROM departments WHERE company_id = ?').all(companyId) as { id: number }[]).map(
+    (r) => r.id,
+  );
+  reorder(db, 'departments', current, ids);
 }
 
 // 部署か所属（退職者も含む）が残っている会社は消せない。先にそちらを片付けてもらう
@@ -439,8 +462,12 @@ function departmentConflict(db: Database.Database, err: unknown, companyId: numb
 export function createDepartment(db: Database.Database, input: DepartmentInput & { companyId: number }): number {
   try {
     const info = db
-      .prepare('INSERT INTO departments (company_id, name, sort_order, active) VALUES (?, ?, ?, ?)')
-      .run(input.companyId, input.name, input.sortOrder, input.active ? 1 : 0);
+      .prepare(
+        `INSERT INTO departments (company_id, name, sort_order, active)
+         VALUES (@companyId, @name,
+           COALESCE(@sortOrder, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM departments WHERE company_id = @companyId)), @active)`,
+      )
+      .run({ companyId: input.companyId, name: input.name, sortOrder: input.sortOrder, active: input.active ? 1 : 0 });
     return Number(info.lastInsertRowid);
   } catch (err) {
     departmentConflict(db, err, input.companyId, input.name);
@@ -452,7 +479,7 @@ export function updateDepartment(db: Database.Database, id: number, input: Depar
   try {
     const info = db
       .prepare(
-        `UPDATE departments SET name = ?, sort_order = ?, active = ?, updated_at = datetime('now') WHERE id = ?`,
+        `UPDATE departments SET name = ?, sort_order = COALESCE(?, sort_order), active = ?, updated_at = datetime('now') WHERE id = ?`,
       )
       .run(input.name, input.sortOrder, input.active ? 1 : 0, id);
     return info.changes > 0;

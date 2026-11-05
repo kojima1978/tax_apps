@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode, type RefObject } from 'react';
+import { useEffect, type ButtonHTMLAttributes, type ReactNode, type RefObject } from 'react';
 
 export const btn = {
   primary:
@@ -87,5 +87,45 @@ export function Modal({
         {children}
       </div>
     </dialog>
+  );
+}
+
+// 並べ替えのつまみ。ここを掴んで行をドラッグし、フォーカス中は ↑↓ でも動く（useReorder）
+export function DragHandle(props: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      title="ドラッグして並べ替え（↑↓キーでも動かせます）"
+      className="cursor-grab select-none rounded px-1 text-lg leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
+      {...props}
+    >
+      ⠿
+    </button>
+  );
+}
+
+// 並びを動かした後だけ出る確定の帯。保存するまではサーバに何も送らない
+export function ReorderBar({
+  dirty,
+  saving,
+  onSave,
+  onReset,
+}: {
+  dirty: boolean;
+  saving: boolean;
+  onSave: () => void;
+  onReset: () => void;
+}) {
+  if (!dirty) return null;
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+      <span>並び順を変えました。保存するまで反映されません。</span>
+      <button type="button" className={`${btn.secondary} ml-auto`} onClick={onReset} disabled={saving}>
+        元に戻す
+      </button>
+      <button type="button" className={btn.primary} onClick={onSave} disabled={saving}>
+        並び順を保存
+      </button>
+    </div>
   );
 }

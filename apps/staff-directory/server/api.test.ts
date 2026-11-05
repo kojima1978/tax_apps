@@ -141,7 +141,8 @@ describe('社員', () => {
   });
 
   it('1人が複数の会社に所属でき、主所属が先頭に来る', async () => {
-    const other = await addCompany('架空商事', { sortOrder: -1 });
+    const other = await addCompany('架空商事');
+    await call('PUT', '/companies/order', { ids: [other, 1] });
     const dept = await addDepartment('営業部', other);
     const created = await call(
       'POST',
@@ -210,6 +211,21 @@ describe('部署', () => {
     expect(labels).toEqual(['会社名未設定 会計部', '総務部', '架空 会計部']);
   });
 
+  it('足した部署は会社ごとの末尾に付き、並び替えも会社ごと', async () => {
+    const other = await addCompany('架空商事');
+    const a = await addDepartment('会計部');
+    const b = await addDepartment('総務部');
+    const x = await addDepartment('営業部', other);
+    const orders = async () =>
+      (await call('GET', '/departments')).body.map((d: { id: number; sortOrder: number }) => [d.id, d.sortOrder]);
+    expect(await orders()).toEqual([[a, 1], [b, 2], [x, 1]]);
+    expect((await call('PUT', '/departments/order', { companyId: 1, ids: [b, a] })).status).toBe(200);
+    expect(await orders()).toEqual([[b, 1], [a, 2], [x, 1]]);
+    // 別の会社の部署を混ぜると断る
+    expect((await call('PUT', '/departments/order', { companyId: 1, ids: [b, a, x] })).status).toBe(409);
+    expect((await call('PUT', '/departments/order', { ids: [b, a] })).status).toBe(400);
+  });
+
   it('在籍者数は退職者を数えない', async () => {
     const dept = await addDepartment('会計部');
     await call('POST', '/staff', staff('A', { affiliations: [at(1, { departmentId: dept })] }));
@@ -234,11 +250,36 @@ describe('会社', () => {
     expect((await call('GET', '/companies')).body[0]).toMatchObject({ name: '架空税理士法人', postalCode: '100-0001', representative: '代表社員 架空太郎' });
   });
 
-  it('同じ名前は 409。表示順で並ぶ', async () => {
+  it('同じ名前は 409。足した会社は末尾に付く', async () => {
     expect((await call('POST', '/companies', { name: '会社名未設定' })).status).toBe(409);
-    await addCompany('後', { sortOrder: 2 });
-    await addCompany('先', { sortOrder: -1 });
-    expect((await call('GET', '/companies')).body.map((c: { name: string }) => c.name)).toEqual(['先', '会社名未設定', '後']);
+    await addCompany('二番');
+    await addCompany('三番');
+    const list = (await call('GET', '/companies')).body;
+    expect(list.map((c: { name: string; sortOrder: number }) => [c.name, c.sortOrder])).toEqual([
+      ['会社名未設定', 1],
+      ['二番', 2],
+      ['三番', 3],
+    ]);
+  });
+
+  it('表示順は1以上。直すときに省けば今の値のまま', async () => {
+    expect((await call('POST', '/companies', { name: 'A', sortOrder: 0 })).status).toBe(400);
+    expect((await call('POST', '/companies', { name: 'A', sortOrder: -1 })).status).toBe(400);
+    const id = await addCompany('A', { sortOrder: 5 });
+    await call('PUT', `/companies/${id}`, { name: 'A2' });
+    expect((await call('GET', '/companies')).body.find((c: { id: number }) => c.id === id).sortOrder).toBe(5);
+  });
+
+  it('並び替えは 1 から振り直す。今ある会社とちょうど同じ集合でなければ 409', async () => {
+    const a = await addCompany('A');
+    const b = await addCompany('B');
+    expect((await call('PUT', '/companies/order', { ids: [b, 1, a] })).status).toBe(200);
+    const list = (await call('GET', '/companies')).body;
+    expect(list.map((c: { id: number; sortOrder: number }) => [c.id, c.sortOrder])).toEqual([[b, 1], [1, 2], [a, 3]]);
+    expect((await call('PUT', '/companies/order', { ids: [b, 1] })).status).toBe(409);
+    expect((await call('PUT', '/companies/order', { ids: [b, 1, a, a] })).status).toBe(409);
+    expect((await call('PUT', '/companies/order', { ids: [b, 1, 99] })).status).toBe(409);
+    expect((await call('PUT', '/companies/order', { ids: [] })).status).toBe(400);
   });
 
   it('部署か所属が残っている会社は消せない', async () => {

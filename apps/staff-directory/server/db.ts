@@ -148,7 +148,7 @@ function migrateV0ToV1(d: Database.Database): void {
      SELECT 1, CASE WHEN trim(name) = '' THEN ? ELSE name END, postal_code, address, phone, fax, updated_at
      FROM office WHERE id = 1`,
   ).run(PLACEHOLDER_COMPANY_NAME);
-  d.prepare(`INSERT OR IGNORE INTO companies (id, name) VALUES (1, ?)`).run(PLACEHOLDER_COMPANY_NAME);
+  d.prepare(`INSERT OR IGNORE INTO companies (id, name, sort_order) VALUES (1, ?, 1)`).run(PLACEHOLDER_COMPANY_NAME);
   d.exec(`
     INSERT INTO departments (id, company_id, name, sort_order, active, created_at, updated_at)
     SELECT id, 1, name, sort_order, active, created_at, updated_at FROM departments_v0;
@@ -216,7 +216,7 @@ function initSchema(d: Database.Database): void {
           migrateV0ToV1(d);
         } else {
           d.exec(SCHEMA_V1);
-          d.prepare('INSERT INTO companies (name) VALUES (?)').run(PLACEHOLDER_COMPANY_NAME);
+          d.prepare('INSERT INTO companies (name, sort_order) VALUES (?, 1)').run(PLACEHOLDER_COMPANY_NAME);
         }
       }
       if (version < 2) migrateV1ToV2(d);

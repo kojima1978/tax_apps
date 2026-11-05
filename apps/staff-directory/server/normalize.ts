@@ -134,13 +134,23 @@ export function parseStaffInput(body: unknown): Result<StaffInput> {
   });
 }
 
-function parseSortOrder(v: unknown): Result<number> {
-  const n = v === undefined || v === '' ? 0 : Number(v);
-  return Number.isInteger(n) ? ok(n) : fail('表示順は整数で入力してください');
+// 表示順は1から。指定が無ければ null で、作るときは末尾（いまの最大 + 1）、直すときは今の値のまま
+// （repo.ts）。以前は空なら 0 にしていたので、足した会社・部署が1番より上に割り込んでいた。
+function parseSortOrder(v: unknown): Result<number | null> {
+  if (v === undefined || v === null || v === '') return ok(null);
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 ? ok(n) : fail('表示順は1以上の整数で入力してください');
+}
+
+// 並び替えの id の並び。中身が今ある行と合っているかは repo.ts が見る
+export function parseIdList(v: unknown): Result<number[]> {
+  if (!Array.isArray(v) || v.length === 0) return fail('並び順の指定が正しくありません');
+  const ids = v.map(Number);
+  return ids.every((n) => Number.isInteger(n) && n > 0) ? ok(ids) : fail('並び順の指定が正しくありません');
 }
 
 // companyId は作るときだけ使う（部署の会社は後から変えない ── 所属している人の会社と食い違うため）
-export type DepartmentInput = { companyId: number | null; name: string; sortOrder: number; active: boolean };
+export type DepartmentInput = { companyId: number | null; name: string; sortOrder: number | null; active: boolean };
 
 export function parseDepartmentInput(body: unknown): Result<DepartmentInput> {
   const b = (body ?? {}) as Record<string, unknown>;
@@ -174,7 +184,7 @@ export type CompanyInput = {
   fax: string;
   /** 委任状の受任者欄に刷る役職と氏名（例: 代表社員 山田太郎）。空でもよい */
   representative: string;
-  sortOrder: number;
+  sortOrder: number | null;
 };
 
 export function parseCompanyInput(body: unknown): Result<CompanyInput> {

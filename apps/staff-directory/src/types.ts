@@ -55,7 +55,8 @@ export type Company = {
   updatedAt: string;
 };
 
-export type CompanyForm = Omit<Company, 'id' | 'departmentCount' | 'staffCount' | 'updatedAt'>;
+// 表示順は一覧のドラッグでまとめて振り直す（api.reorderCompanies）。編集では送らず、足した会社は末尾に付く
+export type CompanyForm = Omit<Company, 'id' | 'sortOrder' | 'departmentCount' | 'staffCount' | 'updatedAt'>;
 
 export type Department = {
   id: number;
@@ -67,7 +68,8 @@ export type Department = {
   staffCount: number;
 };
 
-export type DepartmentForm = { companyId: number; name: string; sortOrder: number; active: boolean };
+// 表示順は送らない（CompanyForm と同じ）
+export type DepartmentForm = { companyId: number; name: string; active: boolean };
 
 // 入力中の所属1行（select の値は文字列のまま持つ）
 export type AffiliationForm = {
