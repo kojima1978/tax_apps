@@ -20,7 +20,6 @@ import type { EditableDocument } from '@/constants';
 import { isPowerOfAttorneyDocument } from '@/constants/documents';
 import type { DocHandlers, SubItemEditState, SubItemHandlers } from '@/hooks/useDocumentEditing';
 import { InlineEditInput, InlineAddInput } from './EditableInput';
-import { RowActionMenu, type RowMenuItem } from './RowActionMenu';
 import { formatCheckedDate } from '@/utils/helpers';
 import { acquisitionGuideIdForDocument, type AcquisitionGuideId } from '@/constants/acquisitionGuides';
 
@@ -110,11 +109,6 @@ export const SortableDocumentItem = memo(({
   };
 
   const hasDetail = doc.description || doc.howToGet;
-  const rowMenuItems: RowMenuItem[] = [
-    { id: 'edit', label: '書類を編集', icon: Pencil, onSelect: () => docHandlers.startEdit(categoryId, doc.id) },
-    { id: 'add-name', label: '個別名を追加', icon: Plus, onSelect: () => subItemHandlers.startAdd(categoryId, doc.id) },
-    { id: 'delete', label: '書類を削除', icon: Trash2, onSelect: () => docHandlers.remove(categoryId, doc.id), danger: true },
-  ];
   const acquisitionGuideId = onOpenAcquisitionGuide ? acquisitionGuideIdForDocument(doc.id) : undefined;
 
   return (
@@ -230,7 +224,7 @@ export const SortableDocumentItem = memo(({
           )}
         </div>
 
-        {/* 状態の切り替え＋「…」メニュー — 狭幅では2行目へ回して右寄せ */}
+        {/* 状態の切り替え＋直接操作 — 狭幅では2行目へ回して右寄せ */}
         <div className="flex items-center gap-1 w-full justify-end mt-1 border-t border-slate-100 dark:border-slate-700/50 pt-1 sm:w-auto sm:mt-0 sm:ml-2 sm:border-t-0 sm:pt-0 flex-shrink-0">
           {DOC_TOGGLES.map((toggle) => {
             const active = doc[toggle.flag];
@@ -248,11 +242,33 @@ export const SortableDocumentItem = memo(({
               </button>
             );
           })}
-          <RowActionMenu
-            label={`${doc.name}の操作`}
-            items={rowMenuItems}
-            buttonClassName={touchTargetClass}
-          />
+          <button
+            type="button"
+            onClick={() => docHandlers.startEdit(categoryId, doc.id)}
+            className={`rounded p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${touchTargetClass}`}
+            title="書類を編集"
+            aria-label={`${doc.name}を編集`}
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => subItemHandlers.startAdd(categoryId, doc.id)}
+            className={`rounded p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${touchTargetClass}`}
+            title="個別名を追加"
+            aria-label={`${doc.name}に個別名を追加`}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => docHandlers.remove(categoryId, doc.id)}
+            className={`rounded p-1 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 ${touchTargetClass}`}
+            title="書類を削除"
+            aria-label={`${doc.name}を削除`}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
         </div>
       </div>
 
