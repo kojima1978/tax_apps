@@ -372,7 +372,7 @@ export function writeAuditLog(entry: {
   );
 }
 
-// --- Seed data (existing 16 resources) ---
+// --- Seed data ---
 
 const SEED_DATA: { title: string; description: string; filename?: string; url?: string }[] = [
   { title: '相続・手続きスケジュール', description: '葬儀を終えた後の相続手続きの流れとスケジュール（14日以内〜1年以内）', filename: 'schedule.pdf' },
@@ -382,6 +382,7 @@ const SEED_DATA: { title: string; description: string; filename?: string; url?: 
   { title: '不動産リスク診断チェック表', description: '保有不動産のリスクを10項目でチェックできる診断シート', filename: 'real-estate-risk-check.pdf' },
   { title: '生計一親族チェックリスト', description: '生計を一にする親族の判定に使用するチェックリスト', filename: 'household-family-checklist.xlsx' },
   { title: '名義預金、生前贈与について', description: '名義預金の基礎知識・具体例と申告しない場合のペナルティの解説', filename: 'nominee-deposit.pdf' },
+  { title: '名義財産フローチャート', description: '名義預金・名義株が相続財産、名義人固有の財産、生前贈与のいずれに当たるかを確認する判断フローチャート', filename: 'nominee-property-flowchart.pdf' },
   { title: '預金移動調査について', description: '預金移動調査の目的・必要性判定フローチャートとお預かり資料の案内', filename: 'deposit-transfer-survey.pdf' },
   { title: '贈与契約書ひな形', description: '贈与契約書のひな形テンプレート', filename: 'gift-contract-template.doc' },
   { title: '未分割申告の確認書', description: '遺産が未分割の場合の申告に関する確認書', filename: 'undivided-declaration-confirmation.docx' },
@@ -417,4 +418,50 @@ export function seedIfEmpty(uploadsDir: string, publicFilesDir: string): void {
     });
   });
   tx();
+}
+
+const NOMINEE_PROPERTY_FLOWCHART_MIGRATION = 'add-nominee-property-flowchart-resource';
+const NOMINEE_PROPERTY_FLOWCHART = {
+  title: '名義財産フローチャート',
+  description: '名義預金・名義株が相続財産、名義人固有の財産、生前贈与のいずれに当たるかを確認する判断フローチャート',
+  filename: 'nominee-property-flowchart.pdf',
+} as const;
+
+/**
+ * Git同梱の名義財産フローチャートを、既存DBにも1回だけ追加する。
+ * 移行済みの印を残し、利用者が後で削除しても起動のたびに復活させない。
+ */
+export function seedNomineePropertyFlowchartIfMissing(uploadsDir: string, publicFilesDir: string): void {
+  const d = getDb();
+  if (d.prepare('SELECT 1 FROM app_migrations WHERE name = ?').get(NOMINEE_PROPERTY_FLOWCHART_MIGRATION)) return;
+
+  const src = path.join(publicFilesDir, NOMINEE_PROPERTY_FLOWCHART.filename);
+  if (!fs.existsSync(src)) return;
+  const dst = path.join(uploadsDir, NOMINEE_PROPERTY_FLOWCHART.filename);
+  if (!fs.existsSync(dst)) fs.copyFileSync(src, dst);
+
+  d.transaction(() => {
+    const existing = d.prepare('SELECT id FROM resources WHERE filename = ? LIMIT 1')
+      .get(NOMINEE_PROPERTY_FLOWCHART.filename) as { id: number } | undefined;
+    if (!existing) {
+      const maxOrder = (d.prepare('SELECT MAX(sort_order) AS value FROM resources').get() as { value: number | null }).value ?? -1;
+      const result = d.prepare(`
+        INSERT INTO resources (title, description, filename, sort_order) VALUES (?, ?, ?, ?)
+      `).run(
+        NOMINEE_PROPERTY_FLOWCHART.title,
+        NOMINEE_PROPERTY_FLOWCHART.description,
+        NOMINEE_PROPERTY_FLOWCHART.filename,
+        maxOrder + 1,
+      );
+      writeAuditLog({
+        targetType: 'resource',
+        targetId: Number(result.lastInsertRowid),
+        targetName: NOMINEE_PROPERTY_FLOWCHART.title,
+        action: 'create',
+        actor: 'システム（同梱参考資料を追加）',
+        after: NOMINEE_PROPERTY_FLOWCHART,
+      });
+    }
+    d.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(NOMINEE_PROPERTY_FLOWCHART_MIGRATION);
+  })();
 }

@@ -68,7 +68,7 @@
 - 一覧・追加・編集・無効化・並び替えは `/inheritance-tax-docs/api/resources`、操作履歴と復元は `/inheritance-tax-docs/api/audit-logs`、ファイルは `/inheritance-tax-docs/files/<ファイル名>` から配る
 - 参考資料の削除は物理削除せず無効化し、差し替え前を含む添付ファイルも監査・復元のため保持する
 - 1件は「ファイル（PDF / Excel / Word / PowerPoint / CSV / 画像 / ZIP、50MBまで）」か「外部リンク」のどちらか。HTMLや実行形式は登録できない
-- DB が空のときだけ、`server/db.ts` の初期データ17件を登録し、`public/files/` のファイルを `/app/data/uploads/` へ写す（以降は `public/files/` を見ない）
+- DB が空のときだけ、`server/db.ts` の初期データ18件を登録し、`public/files/` のファイルを `/app/data/uploads/` へ写す。あとから追加した「名義財産フローチャート」は既存DBにも移行処理で1回だけ登録する
 - データはボリューム `inheritance-tax-docs-data`（`/app/data`）にあり、夜間バックアップの対象（`backup.sh` の `SQLITE_TARGETS`）
 
 初期データ:
@@ -82,6 +82,7 @@
 | 不動産リスク診断チェック表 | PDF |
 | 生計一親族チェックリスト | Excel |
 | 名義預金、生前贈与について | PDF |
+| 名義財産フローチャート | PDF |
 | 預金移動調査について | PDF |
 | 贈与契約書ひな形 | Word |
 | 未分割申告の確認書 | Word |
@@ -205,11 +206,11 @@ inheritance-tax-docs/
 │       └── jsonDataManager.ts           # JSON保存/読込/バリデーション
 ├── server/
 │   ├── index.ts                         # Express 5（API・アップロードファイル・本番の画面配信）
-│   ├── db.ts                            # SQLite（better-sqlite3）・スキーマ・初期データ（17件）・health 用の書込み確認
+│   ├── db.ts                            # SQLite（better-sqlite3）・スキーマ・初期データ（18件）・health 用の書込み確認
 │   └── routes/
 │       └── resources.ts                 # 参考資料の CRUD・並び替え（multer でアップロード、上限50MB）
 ├── public/
-│   └── files/                           # 参考資料の初期ファイル（16件。DB が空のときだけ uploads へ写す）
+│   └── files/                           # 参考資料の初期ファイル（17件。DB が空のときだけ uploads へ写す）
 ├── Dockerfile                           # base → deps → dev / builder → runner
 ├── docker-compose.yml                   # dev（bind mount・ボリューム inheritance-tax-docs-data）
 ├── docker-compose.prod.yml              # 本番オーバーライド（runner・Node が画面と API を配信）

@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import express from 'express';
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
@@ -89,6 +89,33 @@ afterEach(async () => {
 });
 
 describe('参考資料API', () => {
+  it('Git同梱の名義財産フローチャートを既存DBへ1回だけ追加する', () => {
+    const publicFilesDir = join(workDir, 'public-files');
+    mkdirSync(publicFilesDir);
+    writeFileSync(join(publicFilesDir, 'nominee-property-flowchart.pdf'), '%PDF-1.7 test');
+    dbModule.getDb().prepare(`
+      INSERT INTO resources (title, description, url, sort_order)
+      VALUES ('既存資料', '', 'https://example.invalid/existing', 4)
+    `).run();
+
+    dbModule.seedNomineePropertyFlowchartIfMissing(uploadsDir, publicFilesDir);
+
+    const added = dbModule.getDb().prepare(`
+      SELECT title, filename, sort_order FROM resources WHERE filename = 'nominee-property-flowchart.pdf'
+    `).get();
+    expect(added).toEqual({ title: '名義財産フローチャート', filename: 'nominee-property-flowchart.pdf', sort_order: 5 });
+    expect(existsSync(join(uploadsDir, 'nominee-property-flowchart.pdf'))).toBe(true);
+    expect(dbModule.getDb().prepare(`
+      SELECT action, actor FROM audit_logs WHERE target_name = '名義財産フローチャート'
+    `).get()).toEqual({ action: 'create', actor: 'システム（同梱参考資料を追加）' });
+
+    dbModule.getDb().prepare("UPDATE resources SET deleted_at = datetime('now') WHERE filename = 'nominee-property-flowchart.pdf'").run();
+    dbModule.seedNomineePropertyFlowchartIfMissing(uploadsDir, publicFilesDir);
+    expect(dbModule.getDb().prepare(`
+      SELECT COUNT(*) AS count FROM resources WHERE filename = 'nominee-property-flowchart.pdf'
+    `).get()).toEqual({ count: 1 });
+  });
+
   it('ファイル差し替え後も旧実体を保持し、削除履歴から新実体を復元できる', async () => {
     const created = await createResource('架空参考資料', { companyIds: [9], fileBody: 'first-version' });
     expect(created.response.status).toBe(201);
