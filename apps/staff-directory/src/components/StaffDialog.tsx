@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { api } from '../api';
+import { AddressFields } from './AddressFields';
 import { ErrorBanner, Field, Modal, btn, inputClass } from './ui';
 import { toKatakana } from '../lib';
 import type { AffiliationForm, Company, Department, Staff, StaffForm, StaffPersonalForm } from '../types';
@@ -281,19 +282,12 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
 
         <Section title="個人情報">
           {personal && shown ? (
-            <div className={`grid ${staff ? 'grid-cols-[8rem_1fr_10rem_auto]' : 'grid-cols-[8rem_1fr_10rem]'} items-end gap-4`}>
-              <Field label="郵便番号">
-                <input
-                  className={inputClass}
-                  value={personal.postalCode}
-                  onChange={setPersonalField('postalCode')}
-                  inputMode="numeric"
-                  placeholder="123-4567"
-                />
-              </Field>
-              <Field label="住所">
-                <input className={inputClass} value={personal.address} onChange={setPersonalField('address')} />
-              </Field>
+            <div className="space-y-3">
+              <AddressFields
+                value={{ postalCode: personal.postalCode, address: personal.address }}
+                onChange={(v) => setPersonal((p) => (p ? { ...p, ...v } : p))}
+              />
+            <div className={`grid ${staff ? 'grid-cols-[10rem_auto]' : 'grid-cols-[10rem]'} items-end gap-4`}>
               <Field label="生年月日">
                 <input
                   type="date"
@@ -307,6 +301,7 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
                   隠す
                 </button>
               )}
+            </div>
             </div>
           ) : (
             <div className="flex items-center gap-3">

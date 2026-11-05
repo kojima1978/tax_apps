@@ -2,14 +2,14 @@ import { useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { useLoad } from '../hooks/useLoad';
 import { useReorder } from '../hooks/useReorder';
+import { AddressFields } from '../components/AddressFields';
 import { DragHandle, ErrorBanner, Field, Modal, ReorderBar, btn, inputClass } from '../components/ui';
 import type { Company, CompanyForm } from '../types';
 
-const FIELDS: { key: keyof CompanyForm; label: string; hint?: string; wide?: boolean }[] = [
+// 郵便番号と住所は AddressFields（郵便番号から住所を引く）で別に出す
+const FIELDS: { key: Exclude<keyof CompanyForm, 'postalCode' | 'address'>; label: string; hint?: string; wide?: boolean }[] = [
   { key: 'name', label: '会社名', wide: true },
   { key: 'shortName', label: '略称', hint: '狭い欄で使う短い名前（空なら会社名）' },
-  { key: 'postalCode', label: '郵便番号', hint: '123-4567 の形（〒は付けない）' },
-  { key: 'address', label: '住所', wide: true },
   { key: 'phone', label: '代表電話' },
   { key: 'fax', label: 'FAX' },
   { key: 'representative', label: '代表者', hint: '役職と氏名（例: 代表社員 山田太郎）。委任状の受任者欄に刷る', wide: true },
@@ -166,6 +166,12 @@ function CompanyDialog({
               </Field>
             </div>
           ))}
+          <div className="col-span-2">
+            <AddressFields
+              value={{ postalCode: form.postalCode, address: form.address }}
+              onChange={(v) => setForm((f) => ({ ...f, ...v }))}
+            />
+          </div>
         </div>
 
         <ErrorBanner message={error} />
