@@ -308,7 +308,6 @@ type CompanyRow = {
   postal_code: string;
   address: string;
   phone: string;
-  fax: string;
   representative: string;
   sort_order: number;
   updated_at: string;
@@ -333,7 +332,6 @@ export function listCompanies(db: Database.Database): Company[] {
     postalCode: r.postal_code,
     address: r.address,
     phone: r.phone,
-    fax: r.fax,
     representative: r.representative,
     sortOrder: r.sort_order,
     departmentCount: r.department_count,
@@ -351,10 +349,10 @@ export function createCompany(db: Database.Database, input: CompanyInput): numbe
   try {
     const info = db
       .prepare(
-        `INSERT INTO companies (name, short_name, postal_code, address, phone, fax, representative, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM companies)))`,
+        `INSERT INTO companies (name, short_name, postal_code, address, phone, representative, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM companies)))`,
       )
-      .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.fax, input.representative, input.sortOrder);
+      .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.representative, input.sortOrder);
     return Number(info.lastInsertRowid);
   } catch (err) {
     companyNameConflict(err, input.name);
@@ -365,11 +363,11 @@ export function updateCompany(db: Database.Database, id: number, input: CompanyI
   try {
     const info = db
       .prepare(
-        `UPDATE companies SET name = ?, short_name = ?, postal_code = ?, address = ?, phone = ?, fax = ?, representative = ?,
+        `UPDATE companies SET name = ?, short_name = ?, postal_code = ?, address = ?, phone = ?, representative = ?,
            sort_order = COALESCE(?, sort_order), updated_at = datetime('now')
          WHERE id = ?`,
       )
-      .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.fax, input.representative, input.sortOrder, id);
+      .run(input.name, input.shortName, input.postalCode, input.address, input.phone, input.representative, input.sortOrder, id);
     return info.changes > 0;
   } catch (err) {
     companyNameConflict(err, input.name);

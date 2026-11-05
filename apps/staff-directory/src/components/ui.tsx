@@ -90,6 +90,16 @@ export function Modal({
   );
 }
 
+// ダイアログの中の見出しつきのまとまり。先頭以外は上に区切り線を引く
+export function Section({ title, first, children }: { title: string; first?: boolean; children: ReactNode }) {
+  return (
+    <fieldset className={first ? '' : 'border-t border-slate-200 pt-3'}>
+      <legend className="float-left mb-2 w-full text-sm font-bold text-slate-800">{title}</legend>
+      <div className="clear-both space-y-2">{children}</div>
+    </fieldset>
+  );
+}
+
 // ダイアログの下端のボタンの並び。縦に長いダイアログでもスクロールせずに保存を押せるよう、
 // 下端に貼り付ける（Modal の p-6 の余白ぶんを負のマージンで打ち消して端まで広げる）
 export function DialogFooter({ children }: { children: ReactNode }) {

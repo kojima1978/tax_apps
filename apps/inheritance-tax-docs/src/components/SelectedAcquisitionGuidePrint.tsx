@@ -18,8 +18,7 @@ import {
   type AcquisitionGuideId,
   type AcquisitionGuideVisual,
 } from '@/constants/acquisitionGuides';
-import { getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
-import { getPhoneLine } from '@/utils/companyContact';
+import { getContactLine, getFullAddress, useCompanyInfo } from '@/shared/staff-directory/company';
 import { RetryImage } from '@/components/ui/RetryImage';
 
 type SelectedAcquisitionGuidePrintProps = {
@@ -94,7 +93,7 @@ export const SelectedAcquisitionGuidePrint = ({
             <div className="text-right text-[10px] leading-relaxed text-slate-500">
               <p className="font-bold text-slate-800">{company.name}</p>
               <p>{getFullAddress(company)}</p>
-              <p>{getPhoneLine(company)}</p>
+              <p>{getContactLine(company)}</p>
               {personInCharge && <p>担当: {personInCharge}</p>}
               <p>発行日: {currentDate}</p>
               {clientName && <p>ご依頼者: {clientName} 様</p>}

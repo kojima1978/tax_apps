@@ -28,8 +28,7 @@ import { SelectedAcquisitionGuidePrint } from '@/components/SelectedAcquisitionG
 import { useAcquisitionGuideImages } from '@/hooks/useAcquisitionGuideImages';
 import type { AcquisitionGuideId } from '@/constants/acquisitionGuides';
 import { TOAST_MESSAGES, UNDO_LABEL } from '@/constants/messages';
-import { getFullAddress, useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
-import { getPhoneLine } from '@/utils/companyContact';
+import { getContactLine, getFullAddress, useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
 
 const nextFrame = () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 const waitForMilliseconds = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
@@ -279,7 +278,7 @@ export const EditableListStep = () => {
       />
       <div className="no-print mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-2 px-4 pt-2 text-xs text-slate-600 dark:text-slate-300 md:px-8">
         {/* 会社名は見出し行の「会社」欄に出すので、ここは印刷の欄外に載る連絡先だけ */}
-        <span className="text-slate-500 dark:text-slate-400">印刷の連絡先（会社情報から自動）</span><span>{getFullAddress(company)}</span>{company.phone && <span>{getPhoneLine(company)}</span>}
+        <span className="text-slate-500 dark:text-slate-400">印刷の連絡先（会社情報から自動）</span><span>{getFullAddress(company)}</span>{company.phone && <span>{getContactLine(company)}</span>}
       </div>
 
       {/* ツールバー（max-w-7xl）と左右を揃える */}

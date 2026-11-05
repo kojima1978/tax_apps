@@ -5,21 +5,27 @@ import { useLoad } from '../hooks/useLoad';
 import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import { useReorder } from '../hooks/useReorder';
 import { AddressFields } from '../components/AddressFields';
-import { DialogFooter, DragHandle, ErrorBanner, Field, Modal, ReorderBar, btn, inputClass } from '../components/ui';
+import { DialogFooter, DragHandle, ErrorBanner, Field, Modal, ReorderBar, Section, btn, inputClass } from '../components/ui';
 import type { Company, CompanyForm } from '../types';
 
 type FieldKey = Exclude<keyof CompanyForm, 'postalCode' | 'address'>;
-type FieldDef = { key: FieldKey; label: string; hint?: string; span: string; inputMode?: 'tel' };
+type FieldDef = {
+  key: FieldKey;
+  label: string;
+  span: string;
+  placeholder?: string;
+  hint?: string;
+  inputMode?: 'tel';
+};
 
-// 6列の格子に並べる。郵便番号と住所は AddressFields（郵便番号から住所を引く）で会社名の下に入る
-const HEAD_FIELDS: FieldDef[] = [
-  { key: 'name', label: '会社名', span: 'col-span-4' },
-  { key: 'shortName', label: '略称', hint: '狭い欄用。空なら会社名', span: 'col-span-2' },
+// 6列の格子に並べる。書き方の例は入力欄の中（placeholder）に置き、欄の下には「どこに刷るか」だけ書く
+const COMPANY_FIELDS: FieldDef[] = [
+  { key: 'name', label: '会社名', span: 'col-span-4', placeholder: '○○税理士法人' },
+  { key: 'shortName', label: '略称', span: 'col-span-2', placeholder: '空なら会社名', hint: '狭い欄に刷る' },
 ];
-const TAIL_FIELDS: FieldDef[] = [
-  { key: 'phone', label: '代表電話', span: 'col-span-3', inputMode: 'tel' },
-  { key: 'fax', label: 'FAX', span: 'col-span-3', inputMode: 'tel' },
-  { key: 'representative', label: '代表者', hint: '役職と氏名（例: 代表社員 山田太郎）。委任状の受任者欄に刷る', span: 'col-span-6' },
+const CONTACT_FIELDS: FieldDef[] = [
+  { key: 'phone', label: '代表電話', span: 'col-span-2', placeholder: '03-1234-5678', inputMode: 'tel' },
+  { key: 'representative', label: '代表者', span: 'col-span-4', placeholder: '代表社員 山田太郎', hint: '役職と氏名。委任状の受任者欄に刷る' },
 ];
 
 // 一覧の件数から、その会社で絞った画面へ飛ぶ。行のクリック（編集を開く）には伝えない
@@ -42,7 +48,6 @@ const EMPTY: CompanyForm = {
   postalCode: '',
   address: '',
   phone: '',
-  fax: '',
   representative: '',
 };
 
@@ -158,11 +163,15 @@ function CompanyDialog({
   const ref = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState<CompanyForm>(() => {
     if (!company) return EMPTY;
-    const { name, shortName, postalCode, address, phone, fax, representative } = company;
-    return { name, shortName, postalCode, address, phone, fax, representative };
+    const { name, shortName, postalCode, address, phone, representative } = company;
+    return { name, shortName, postalCode, address, phone, representative };
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // 打ちかけのまま Esc・キャンセルで閉じて消えないよう、開いたときの値と比べて確かめる
+  const [initial] = useState(() => JSON.stringify(form));
+  const dirty = JSON.stringify(form) !== initial;
+  const canClose = () => !dirty || window.confirm('変更を保存せずに閉じますか？');
 
   async function run(action: () => Promise<unknown>) {
     setSaving(true);
@@ -178,13 +187,14 @@ function CompanyDialog({
 
   const renderField = (f: FieldDef): ReactNode => (
     <div key={f.key} className={f.span}>
-      <Field label={f.label} hint={f.hint}>
+      <Field label={f.label} hint={f.hint} required={f.key === 'name'}>
         <input
           className={inputClass}
           value={form[f.key]}
           onChange={(e) => setForm((v) => ({ ...v, [f.key]: e.target.value }))}
           required={f.key === 'name'}
           autoFocus={f.key === 'name'}
+          placeholder={f.placeholder}
           inputMode={f.inputMode}
         />
       </Field>
@@ -197,18 +207,20 @@ function CompanyDialog({
   }
 
   return (
-    <Modal title={company ? '会社の編集' : '会社の追加'} onClose={onClose} dialogRef={ref}>
-      <form onSubmit={submit} className="space-y-4">
-        <div className="grid grid-cols-6 gap-4">
-          {HEAD_FIELDS.map(renderField)}
-          <div className="col-span-6">
-            <AddressFields
-              value={{ postalCode: form.postalCode, address: form.address }}
-              onChange={(v) => setForm((f) => ({ ...f, ...v }))}
-            />
-          </div>
-          {TAIL_FIELDS.map(renderField)}
-        </div>
+    <Modal title={company ? '会社の編集' : '会社の追加'} onClose={onClose} canClose={canClose} dialogRef={ref} wide>
+      <form onSubmit={submit} className="space-y-3">
+        <Section title="会社" first>
+          <div className="grid grid-cols-6 gap-x-4 gap-y-3">{COMPANY_FIELDS.map(renderField)}</div>
+        </Section>
+        <Section title="所在地">
+          <AddressFields
+            value={{ postalCode: form.postalCode, address: form.address }}
+            onChange={(v) => setForm((f) => ({ ...f, ...v }))}
+          />
+        </Section>
+        <Section title="連絡先・代表者">
+          <div className="grid grid-cols-6 gap-x-4 gap-y-3">{CONTACT_FIELDS.map(renderField)}</div>
+        </Section>
 
         <ErrorBanner message={error} />
 
@@ -225,11 +237,17 @@ function CompanyDialog({
               削除
             </button>
           )}
-          <button type="button" className={`${btn.secondary} ml-auto`} onClick={() => ref.current?.close()}>
+          <button
+            type="button"
+            className={`${btn.secondary} ml-auto`}
+            onClick={() => {
+              if (canClose()) ref.current?.close();
+            }}
+          >
             キャンセル
           </button>
           <button type="submit" className={btn.primary} disabled={saving}>
-            保存
+            {saving ? '保存中…' : '保存'}
           </button>
         </DialogFooter>
       </form>

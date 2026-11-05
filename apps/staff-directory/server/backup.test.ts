@@ -120,6 +120,15 @@ describe('JSON からの復元', () => {
     expect((await call('GET', `/staff/${ids.yamada}`)).body).toMatchObject({ shortName: '山田', customShortName: '' });
   });
 
+  it('FAX の入った（版5より前に書き出した）ファイルも戻せる。FAX は捨てる', async () => {
+    await seed();
+    const saved = (await call('GET', '/backup')).body;
+    expect(saved.companies[0]).not.toHaveProperty('fax');
+    const old = { ...saved, companies: saved.companies.map((c: Record<string, unknown>) => ({ ...c, fax: '00-0000-0001' })) };
+    expect((await call('POST', '/backup/restore', old)).status).toBe(200);
+    expect((await call('GET', '/companies')).body[0]).not.toHaveProperty('fax');
+  });
+
   it('書き出した後に足した人の台帳IDは、復元後に別の人へ振り直さない', async () => {
     await seed();
     const saved = (await call('GET', '/backup')).body;

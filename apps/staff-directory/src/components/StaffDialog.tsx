@@ -1,7 +1,7 @@
-import { useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { AddressFields } from './AddressFields';
-import { DialogFooter, ErrorBanner, Field, Modal, btn, inputClass } from './ui';
+import { DialogFooter, ErrorBanner, Field, Modal, Section, btn, inputClass } from './ui';
 import { toKatakana } from '../lib';
 import type { AffiliationForm, Company, Department, Staff, StaffForm, StaffPersonalForm } from '../types';
 
@@ -55,16 +55,6 @@ const NAME_FIELDS = [
   { key: 'familyKana', label: 'フリガナ（セイ）', kana: true },
   { key: 'givenKana', label: 'フリガナ（メイ）', kana: true },
 ] as const;
-
-// 見出しつきのまとまり。先頭以外は上に区切り線を引く
-function Section({ title, first, children }: { title: string; first?: boolean; children: ReactNode }) {
-  return (
-    <fieldset className={first ? '' : 'border-t border-slate-200 pt-3'}>
-      <legend className="float-left mb-2 w-full text-sm font-bold text-slate-800">{title}</legend>
-      <div className="clear-both space-y-2">{children}</div>
-    </fieldset>
-  );
-}
 
 // 社員の追加・編集。削除は無い（台帳IDは他アプリが参照しているので消さず、退職日を入れる）。
 export default function StaffDialog({ staff, companies, departments, onClose, onSaved }: Props) {

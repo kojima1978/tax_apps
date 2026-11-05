@@ -243,11 +243,14 @@ describe('会社', () => {
       postalCode: '1000001',
       address: '東京都千代田区千代田1-1',
       phone: '03-0000-0000',
+      // FAX は版5でやめた。古い画面から送られてきても黙って捨てる
       fax: '03-0000-0001',
       representative: '代表社員 架空太郎',
     });
     expect(saved.status).toBe(200);
-    expect((await call('GET', '/companies')).body[0]).toMatchObject({ name: '架空税理士法人', postalCode: '100-0001', representative: '代表社員 架空太郎' });
+    const company = (await call('GET', '/companies')).body[0];
+    expect(company).toMatchObject({ name: '架空税理士法人', postalCode: '100-0001', representative: '代表社員 架空太郎' });
+    expect(company).not.toHaveProperty('fax');
   });
 
   it('同じ名前は 409。足した会社は末尾に付く', async () => {

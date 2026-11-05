@@ -13,7 +13,6 @@ export type CompanyInfo = {
   postalCode: string;
   address: string;
   phone: string;
-  fax: string;
   /** 役職と氏名（委任状の受任者欄）。台帳に未入力なら空 */
   representative: string;
 };
@@ -24,7 +23,6 @@ export const FALLBACK_COMPANY: CompanyInfo = {
   postalCode: '770-0002',
   address: '徳島県徳島市春日２丁目３−３３',
   phone: '088-632-6228',
-  fax: '088-631-9870',
   // 実名はリポジトリ（公開）に置かない。台帳に届かないときは受任者欄が空のまま刷られる
   representative: '',
 };
@@ -46,9 +44,10 @@ export function getFullAddress(company: CompanyInfo): string {
   return [formatPostalCode(company.postalCode), company.address].filter(Boolean).join(' ');
 }
 
-// 電話・FAX が空の会社でも「FAX 」だけが刷られないよう、ある欄だけ並べる
+// 帳票に刷る連絡先の行（`TEL 088-…`）。電話番号が空の会社では「TEL 」だけが刷られないよう空文字
+// （FAX は台帳の版5でやめた。どの帳票にも刷らない）
 export function getContactLine(company: CompanyInfo): string {
-  return [company.phone && `TEL ${company.phone}`, company.fax && `FAX ${company.fax}`].filter(Boolean).join(' / ');
+  return company.phone ? `TEL ${company.phone}` : '';
 }
 
 /** 選んだ会社が台帳から消えていたら先頭（台帳の表示順）へ戻す */
@@ -64,7 +63,7 @@ export function parseDirectoryCompanies(body: unknown): CompanyInfo[] | null {
     const r = row as Record<string, unknown>;
     if (typeof r.id !== 'number' || typeof r.name !== 'string' || r.name === '') return [];
     const text = (v: unknown) => (typeof v === 'string' ? v : '');
-    return [{ id: r.id, name: r.name, postalCode: text(r.postalCode), address: text(r.address), phone: text(r.phone), fax: text(r.fax), representative: text(r.representative) }];
+    return [{ id: r.id, name: r.name, postalCode: text(r.postalCode), address: text(r.address), phone: text(r.phone), representative: text(r.representative) }];
   });
   return companies.length > 0 ? companies : null;
 }

@@ -100,7 +100,6 @@ export function exportDirectory(db: Database.Database): DirectoryBackup {
       postalCode: r.postal_code,
       address: r.address,
       phone: r.phone,
-      fax: r.fax,
       representative: r.representative,
       sortOrder: r.sort_order,
       createdAt: r.created_at,
@@ -308,11 +307,11 @@ export function restoreDirectory(db: Database.Database, backup: ParsedBackup, dr
       `);
 
       const insertCompany = db.prepare(
-        `INSERT INTO companies (id, name, short_name, postal_code, address, phone, fax, representative, sort_order, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, coalesce(?, datetime('now')), coalesce(?, datetime('now')))`,
+        `INSERT INTO companies (id, name, short_name, postal_code, address, phone, representative, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, coalesce(?, datetime('now')), coalesce(?, datetime('now')))`,
       );
       for (const c of backup.companies) {
-        insertCompany.run(c.id, c.name, c.shortName, c.postalCode, c.address, c.phone, c.fax, c.representative, c.sortOrder, c.createdAt, c.updatedAt);
+        insertCompany.run(c.id, c.name, c.shortName, c.postalCode, c.address, c.phone, c.representative, c.sortOrder, c.createdAt, c.updatedAt);
       }
       const insertDepartment = db.prepare(
         `INSERT INTO departments (id, company_id, name, sort_order, active, created_at, updated_at)

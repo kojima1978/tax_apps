@@ -138,7 +138,7 @@ describe('版1からの移行（住所・生年月日）', () => {
     const file = path.join(dir, 'staff.sqlite');
     const v1 = new Database(file);
     v1.exec(SCHEMA_V1);
-    v1.prepare(`INSERT INTO companies (name) VALUES ('架空商事')`).run();
+    v1.prepare(`INSERT INTO companies (name, fax) VALUES ('架空商事', '00-0000-0001')`).run();
     v1.prepare(
       `INSERT INTO staff (family_name, given_name, family_kana, mobile_phone, retired_on)
        VALUES ('山田', '太郎', 'ヤマダ', '090-0000-0000', NULL), ('佐藤', '', '', '', '2026-03-31')`,
@@ -160,6 +160,9 @@ describe('版1からの移行（住所・生年月日）', () => {
     expect(getStaffPersonal(db, 1)).toEqual({ id: 1, postalCode: '', address: '', birthDate: null });
     // 版4で足した会社の代表者は空欄から始まる
     expect(listCompanies(db)[0].representative).toBe('');
+    // 版5で会社の FAX の列は消える
+    const columns = (db.pragma('table_info(companies)') as { name: string }[]).map((c) => c.name);
+    expect(columns).not.toContain('fax');
     db.close();
   });
 });

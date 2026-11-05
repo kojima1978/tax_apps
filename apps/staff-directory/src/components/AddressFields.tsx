@@ -78,9 +78,10 @@ export function AddressFields({ value, onChange }: { value: Value; onChange: (ne
         />
       </Field>
       <div className="col-start-2">
-        <Field label="番地・建物名" hint="例: 1-2-3 ○○ビル4階">
+        <Field label="番地・建物名">
           <input
             className={inputClass}
+            placeholder="1-2-3 ○○ビル4階"
             value={parts.rest}
             onChange={(e) => emit(value.postalCode, { ...parts, rest: e.target.value })}
           />
