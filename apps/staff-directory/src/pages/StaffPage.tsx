@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useLoad } from '../hooks/useLoad';
 import { normalizeQuery } from '../lib';
 import { ErrorBanner, btn, controlClass } from '../components/ui';
 import StaffDialog from '../components/StaffDialog';
+import { formatSort, parseSort, sortStaff, toggleSort, DEFAULT_SORT, type SortKey } from '../staffSort';
 import type { Affiliation, Staff, StaffStatus } from '../types';
 
 const STATUS_TABS: { value: StaffStatus; label: string }[] = [
@@ -17,21 +19,16 @@ const NO_DEPARTMENT = 'none';
 
 // 表はヘッダーと同じ幅のカードに収める。中身の長さが決まっている列は幅を固定し、
 // 残りは所属（兼務で長くなる）に回す ── 均等に割ると短い列の間ばかり空いて行を追いにくい
-const COLUMNS: { label: string; width?: string }[] = [
-  { label: '社員番号', width: 'w-28' },
+// 見出しを押すと並び替える列は sortKey を持つ（氏名は漢字の文字コード順にしかならないので持たせない）
+const COLUMNS: { label: string; width?: string; sortKey?: SortKey }[] = [
+  { label: '社員番号', width: 'w-28', sortKey: 'employeeNo' },
   { label: '氏名', width: 'w-40' },
-  { label: 'フリガナ', width: 'w-48' },
-  { label: '所属' },
+  { label: 'フリガナ', width: 'w-48', sortKey: 'kana' },
+  { label: '所属', sortKey: 'affiliation' },
   { label: '携帯電話', width: 'w-36' },
 ];
 
-// 社員番号の昇順。数字は桁数が違っても数の大きさで並べ（"9" < "10"）、番号の無い人は末尾。
-// 同じ番号・番号なし同士は API の並び（フリガナ順）のまま
-const employeeNoCollator = new Intl.Collator('ja', { numeric: true });
-function compareEmployeeNo(a: Staff, b: Staff): number {
-  if (!a.employeeNo || !b.employeeNo) return (a.employeeNo ? 0 : 1) - (b.employeeNo ? 0 : 1);
-  return employeeNoCollator.compare(a.employeeNo, b.employeeNo);
-}
+const isStatus = (v: string | null): v is StaffStatus => STATUS_TABS.some((t) => t.value === v);
 
 // 会社・部署の絞り込みは主所属に限らず、どれか1つの所属が当たれば出す（兼務先からも探せるように）
 function matchesAffiliation(s: Staff, company: string, department: string): boolean {
@@ -43,11 +40,36 @@ function matchesAffiliation(s: Staff, company: string, department: string): bool
   return s.affiliations.some((a) => String(a.departmentId) === department);
 }
 
+// 絞り込み・検索語・並びは URL に持つ（再読み込みや「戻る」で消さない。部署・会社の在籍数からもここへ飛ぶ）。
+// 既定の値は URL に書かない
 export default function StaffPage() {
-  const [status, setStatus] = useState<StaffStatus>('active');
-  const [company, setCompany] = useState('');
-  const [department, setDepartment] = useState('');
-  const [query, setQuery] = useState('');
+  const [params, setParams] = useSearchParams();
+  const statusParam = params.get('status');
+  const status: StaffStatus = isStatus(statusParam) ? statusParam : 'active';
+  const company = params.get('company') ?? '';
+  const department = params.get('department') ?? '';
+  // 検索欄は手元の state を正にして URL へ写す。URL の更新は遷移として遅れて届くことがあり、
+  // それを入力欄の値にすると日本語入力の変換中に文字が巻き戻る
+  const [query, setQueryState] = useState(() => params.get('q') ?? '');
+  const sort = parseSort(params.get('sort'));
+  // 1文字打つたびに履歴が積まれないよう、置き換えで書く
+  const setParam = (patch: Record<string, string>) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [k, v] of Object.entries(patch)) {
+          if (v === '') next.delete(k);
+          else next.set(k, v);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  const setStatus = (v: StaffStatus) => setParam({ status: v === 'active' ? '' : v });
+  const setQuery = (v: string) => {
+    setQueryState(v);
+    setParam({ q: v.trim() === '' ? '' : v });
+  };
   // undefined = 閉じている、null = 新規、Staff = 編集
   const [editing, setEditing] = useState<Staff | null | undefined>(undefined);
 
@@ -64,18 +86,25 @@ export default function StaffPage() {
     [departments.data, company],
   );
 
+  const sortOrder = useMemo(
+    () => ({
+      company: new Map((companies.data ?? []).map((c) => [c.id, c.sortOrder])),
+      department: new Map((departments.data ?? []).map((d) => [d.id, d.sortOrder])),
+    }),
+    [companies.data, departments.data],
+  );
+
   const rows = useMemo(() => {
     const q = normalizeQuery(query);
-    return (staff.data ?? [])
-      .filter((s) => {
-        if (!matchesAffiliation(s, company, department)) return false;
-        if (!q) return true;
-        return [s.fullName, s.shortName, s.nameKana, s.mobilePhone, ...s.affiliations.map((a) => a.employeeNo ?? '')].some((v) =>
-          normalizeQuery(v).includes(q),
-        );
-      })
-      .sort(compareEmployeeNo);
-  }, [staff.data, company, department, query]);
+    const filtered = (staff.data ?? []).filter((s) => {
+      if (!matchesAffiliation(s, company, department)) return false;
+      if (!q) return true;
+      return [s.fullName, s.shortName, s.nameKana, s.mobilePhone, ...s.affiliations.map((a) => a.employeeNo ?? '')].some((v) =>
+        normalizeQuery(v).includes(q),
+      );
+    });
+    return sortStaff(filtered, sort, sortOrder);
+  }, [staff.data, company, department, query, sort.key, sort.desc, sortOrder]);
 
   const missingKana = rows.filter((s) => s.familyKana === '').length;
 
@@ -106,10 +135,7 @@ export default function StaffPage() {
           {multiCompany && (
             <select
               value={company}
-              onChange={(e) => {
-                setCompany(e.target.value);
-                setDepartment('');
-              }}
+              onChange={(e) => setParam({ company: e.target.value, department: '' })}
               className={`${controlClass} w-44`}
               aria-label="会社で絞り込み"
             >
@@ -123,7 +149,7 @@ export default function StaffPage() {
           )}
           <select
             value={department}
-            onChange={(e) => setDepartment(e.target.value)}
+            onChange={(e) => setParam({ department: e.target.value })}
             className={`${controlClass} w-44`}
             aria-label="部署で絞り込み"
           >
@@ -154,11 +180,36 @@ export default function StaffPage() {
           <table className="w-full min-w-[48rem] table-fixed text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
-                {COLUMNS.map((c) => (
-                  <th key={c.label} className={`${c.width ?? ''} whitespace-nowrap px-4 py-2 font-medium`}>
-                    {c.label}
-                  </th>
-                ))}
+                {COLUMNS.map((c) => {
+                  const active = c.sortKey !== undefined && sort.key === c.sortKey;
+                  return (
+                    <th
+                      key={c.label}
+                      className={`${c.width ?? ''} whitespace-nowrap px-4 py-2 font-medium`}
+                      aria-sort={active ? (sort.desc ? 'descending' : 'ascending') : undefined}
+                    >
+                      {c.sortKey ? (
+                        <button
+                          type="button"
+                          className={`inline-flex items-center gap-1 hover:text-slate-800 ${active ? 'text-teal-700' : ''}`}
+                          title="押すと並び替え（もう一度押すと逆順）"
+                          onClick={() => {
+                            const next = toggleSort(sort, c.sortKey!);
+                            const isDefault = next.key === DEFAULT_SORT.key && next.desc === DEFAULT_SORT.desc;
+                            setParam({ sort: isDefault ? '' : formatSort(next) });
+                          }}
+                        >
+                          {c.label}
+                          <span aria-hidden className={active ? '' : 'text-slate-300'}>
+                            {active && sort.desc ? '▼' : '▲'}
+                          </span>
+                        </button>
+                      ) : (
+                        c.label
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

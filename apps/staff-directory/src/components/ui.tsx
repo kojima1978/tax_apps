@@ -90,6 +90,16 @@ export function Modal({
   );
 }
 
+// ダイアログの下端のボタンの並び。縦に長いダイアログでもスクロールせずに保存を押せるよう、
+// 下端に貼り付ける（Modal の p-6 の余白ぶんを負のマージンで打ち消して端まで広げる）
+export function DialogFooter({ children }: { children: ReactNode }) {
+  return (
+    <div className="sticky bottom-0 -mx-6 -mb-6 flex items-center gap-2 border-t border-slate-200 bg-white px-6 py-3">
+      {children}
+    </div>
+  );
+}
+
 // 並べ替えのつまみ。ここを掴んで行をドラッグし、フォーカス中は ↑↓ でも動く（useReorder）
 export function DragHandle(props: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (

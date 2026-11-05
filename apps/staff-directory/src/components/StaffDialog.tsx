@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { api } from '../api';
 import { AddressFields } from './AddressFields';
-import { ErrorBanner, Field, Modal, btn, inputClass } from './ui';
+import { DialogFooter, ErrorBanner, Field, Modal, btn, inputClass } from './ui';
 import { toKatakana } from '../lib';
 import type { AffiliationForm, Company, Department, Staff, StaffForm, StaffPersonalForm } from '../types';
 
@@ -38,6 +38,13 @@ function toForm(s: Staff | null, companies: Company[]): StaffForm {
       : // 新規は先頭の会社の所属を1つ置いておく（会社が1つなら選ばずに済む）
         companies.slice(0, 1).map((c) => emptyAffiliation(String(c.id), true)),
   };
+}
+
+// 今日の日付（端末の時刻で）。toISOString は UTC なので、日本の朝9時前は前日になる
+function todayLocal(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 const EMPTY_PERSONAL: StaffPersonalForm = { postalCode: '', address: '', birthDate: '' };
@@ -324,22 +331,41 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
             </Field>
           </Section>
           <Section title="退職">
-            <Field label="退職日" hint="入れると在籍の一覧から外れます">
-              <input type="date" className={inputClass} value={form.retiredOn} onChange={set('retiredOn')} />
+            <Field label="退職日" hint="入れると在籍の一覧から外れます（保存したとき）">
+              <div className="flex gap-2">
+                <input type="date" className={inputClass} value={form.retiredOn} onChange={set('retiredOn')} />
+                {form.retiredOn === '' ? (
+                  <button
+                    type="button"
+                    className={`${btn.secondary} whitespace-nowrap`}
+                    onClick={() => setForm((f) => ({ ...f, retiredOn: todayLocal() }))}
+                  >
+                    今日付けで退職
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={`${btn.secondary} whitespace-nowrap`}
+                    onClick={() => setForm((f) => ({ ...f, retiredOn: '' }))}
+                  >
+                    在籍に戻す
+                  </button>
+                )}
+              </div>
             </Field>
           </Section>
         </div>
 
         <ErrorBanner message={error} />
 
-        <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
-          <button type="button" className={btn.secondary} onClick={requestClose}>
+        <DialogFooter>
+          <button type="button" className={`${btn.secondary} ml-auto`} onClick={requestClose}>
             キャンセル
           </button>
           <button type="submit" className={btn.primary} disabled={saving}>
             {saving ? '保存中…' : '保存'}
           </button>
-        </div>
+        </DialogFooter>
       </form>
     </Modal>
   );

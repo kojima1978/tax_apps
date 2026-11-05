@@ -1,0 +1,72 @@
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_SORT, formatSort, parseSort, sortStaff, toggleSort, type OrderMaps } from './staffSort';
+import type { Staff } from './types';
+
+// 並びに関わる項目だけ持たせた架空の社員
+function staff(id: number, p: { no?: string; kana?: string; company?: number; dept?: number }): Staff {
+  return {
+    id,
+    employeeNo: p.no ?? null,
+    nameKana: p.kana ?? '',
+    companyId: p.company ?? null,
+    departmentId: p.dept ?? null,
+  } as Staff;
+}
+
+const order: OrderMaps = {
+  company: new Map([
+    [10, 2],
+    [20, 1],
+  ]),
+  department: new Map([
+    [1, 2],
+    [2, 1],
+  ]),
+};
+
+const ids = (rows: Staff[]) => rows.map((s) => s.id);
+
+describe('parseSort / formatSort', () => {
+  it('向きは先頭の - で持ち、知らない値は既定に戻す', () => {
+    expect(parseSort('-kana')).toEqual({ key: 'kana', desc: true });
+    expect(parseSort('affiliation')).toEqual({ key: 'affiliation', desc: false });
+    expect(parseSort('name')).toEqual(DEFAULT_SORT);
+    expect(parseSort(null)).toEqual(DEFAULT_SORT);
+    expect(formatSort({ key: 'kana', desc: true })).toBe('-kana');
+  });
+
+  it('同じ列は向きを変え、別の列は昇順から', () => {
+    expect(toggleSort({ key: 'kana', desc: false }, 'kana')).toEqual({ key: 'kana', desc: true });
+    expect(toggleSort({ key: 'kana', desc: true }, 'employeeNo')).toEqual({ key: 'employeeNo', desc: false });
+  });
+});
+
+describe('sortStaff', () => {
+  it('社員番号は数の大きさで並べ、空欄は降順でも末尾', () => {
+    const rows = [staff(1, {}), staff(2, { no: '10' }), staff(3, { no: '9' })];
+    expect(ids(sortStaff(rows, { key: 'employeeNo', desc: false }, order))).toEqual([3, 2, 1]);
+    expect(ids(sortStaff(rows, { key: 'employeeNo', desc: true }, order))).toEqual([2, 3, 1]);
+  });
+
+  it('フリガナは読みの順、未入力は末尾', () => {
+    const rows = [staff(1, { kana: 'ワタナベ' }), staff(2, {}), staff(3, { kana: 'アオキ' })];
+    expect(ids(sortStaff(rows, { key: 'kana', desc: false }, order))).toEqual([3, 1, 2]);
+    expect(ids(sortStaff(rows, { key: 'kana', desc: true }, order))).toEqual([1, 3, 2]);
+  });
+
+  it('所属は会社の表示順 → 部署の表示順。部署の無い人は会社の末尾、所属の無い人は最後', () => {
+    const rows = [
+      staff(1, { company: 10, dept: 2 }),
+      staff(2, { company: 20 }),
+      staff(3, { company: 10, dept: 1 }),
+      staff(4, {}),
+      staff(5, { company: 20, dept: 2 }),
+    ];
+    expect(ids(sortStaff(rows, { key: 'affiliation', desc: false }, order))).toEqual([5, 2, 1, 3, 4]);
+  });
+
+  it('同じ値どうしは元の並びのまま', () => {
+    const rows = [staff(1, { no: '1' }), staff(2, { no: '1' }), staff(3, { no: '1' })];
+    expect(ids(sortStaff(rows, { key: 'employeeNo', desc: true }, order))).toEqual([1, 2, 3]);
+  });
+});
