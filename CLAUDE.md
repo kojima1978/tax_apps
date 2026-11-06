@@ -60,6 +60,16 @@ dev の compose を毎回突き合わせる**（上限があるのに `NODE_OPTI
   `cd apps/<app> && docker compose up -d --force-recreate <service>` を手で叩く
 - **停止中のアプリには触らない**。`apply` は「反映」であって「起動」ではないので、
   `stop` した直後に叩いても停止操作を壊さない
+- **作り直し忘れは `status` / `preflight`（チェック24）/ `test` が見つける**（`app_build_staleness`）。
+  イメージへ焼き込むアプリはソースを直しても `build` するまで前の版で動き続け、画面にも
+  ログにも出ない ── 2026-11-07、`shared/` の台帳モジュールを8アプリへ配って作り直したのは
+  1アプリだけで、残り7アプリが前の版のまま動いていた。判定は稼働中イメージと、`build` のたびに
+  `docker/logs/app-builds/<app>` へ残すソースの内容ハッシュの突き合わせ（記録が無ければ
+  イメージの作成時刻と更新日時）。bind mount で上書きしているパス・文書・compose・`.env`、
+  prod ではテストのファイルは数えない。**直すのは `manage.sh build --stale`**（古いアプリだけ、
+  モードは踏襲）。`test` は古いイメージのまま回したアプリがあれば終了コード 1 にする
+  （古い版の「成功」は今のソースの成功ではない）。`shared/sync.sh` は中身が同じファイルを
+  写さず、写したアプリと `build --stale` を出す（以前は毎回全部を上書きして更新日時を進めていた）
 - **`build` も `apply` も、そのアプリが今動いているモードを踏襲する**（`compose_files_for_app`）。
   以前 `build` は base の `docker-compose.yml` 固定で、**本番稼働中のアプリを黙って
   dev サーバに作り替えていた**。モードを変えるのは `start` の仕事で、**1アプリだけなら

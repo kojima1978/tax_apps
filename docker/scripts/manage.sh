@@ -12,6 +12,7 @@
 #   ./manage.sh status             全アプリの状態表示
 #   ./manage.sh logs <app>         指定アプリのログ表示
 #   ./manage.sh build <app>        指定アプリを再ビルドして起動（稼働中のモードを踏襲）
+#   ./manage.sh build --stale      ソースより古いイメージで動いているアプリを全部作り直す
 #   ./manage.sh apply [app]        compose の変更をコンテナへ反映（再ビルドなし）
 #   ./manage.sh watch <app>        ソース変更をコンテナへ同期（フォアグラウンド）
 #   ./manage.sh down               全アプリを停止してコンテナ削除
@@ -399,6 +400,189 @@ effective_app_mode() {
   printf '%s\n' "$mode"
 }
 
+# ------------------------------------
+# 作り直し忘れの検知（動いているイメージがソースより古い）
+# ------------------------------------
+# ソースを直しても、イメージへ焼き込むアプリは build するまで前の版で動き続け、
+# 画面にもログにも何も出ない。dev のテストもコンテナの中の古い版を回して「成功」する。
+# 2026-11-07、共有の台帳モジュール（shared/）を8アプリへ配ったのに作り直したのは
+# 1アプリだけで、残り7アプリは前の版のまま動いていた ── 気づく経路が
+# 「覚えていること」しか無かったので、稼働中のイメージとソースを突き合わせる。
+#
+# 判定は2段:
+#   記録あり（build のたびに docker/logs/app-builds/<app> へ、そのときのイメージID と
+#     ソース各ファイルの内容ハッシュを残す）でイメージも同じ → 内容で比べる。
+#     更新日時だけ変わったファイル（チェックアウトなど）では騒がない
+#   記録なし・イメージが入れ替わっている → 更新日時がイメージの作成より新しいファイルで
+#     判定し、1件も無ければ今の状態を基準として記録する
+# 見ないもの: bind mount で上書きしているパス（作り直さなくても効く）、文書・compose・.env
+#   （compose の変更は apply の担当）。prod ではテストのファイルも見ない（本番イメージには
+#   要らず、prod のテストは <app>-test が毎回ビルドし直して回る）
+APP_BUILD_DIR="$PROJECT_ROOT/docker/logs/app-builds"
+
+# 稼働中のコンテナのうち compose がビルドしたイメージを使うもの（postgres などの pull 物は除く）。
+# 出力は「コンテナID イメージID」。COMPOSE_FILES を先に決めてから呼ぶこと。
+_app_built_containers() {
+  local cid img proj
+  while read -r cid; do
+    [[ -z "$cid" ]] && continue
+    img=$(docker inspect -f '{{.Image}}' "$cid" 2>/dev/null) || continue
+    # containerd のイメージストアでは、コンテナが持つイメージID を image inspect で
+    # 引けないことがある（asset-valuation で実測）。そのときは起動時のイメージ名で引き直す
+    if ! docker image inspect "$img" >/dev/null 2>&1; then
+      img=$(docker inspect -f '{{.Config.Image}}' "$cid" 2>/dev/null) || continue
+      img=$(docker image inspect -f '{{.ID}}' "$img" 2>/dev/null) || continue
+    fi
+    proj=$(docker image inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$img" 2>/dev/null || true)
+    [[ -n "$proj" && "$proj" != "<no value>" ]] && printf '%s %s\n' "$cid" "$img"
+  done < <(docker compose "${COMPOSE_FILES[@]}" ps -q --status running 2>/dev/null)
+  return 0
+}
+
+# コンテナの bind mount のうちアプリの中を指すものを、アプリ相対のパスで出す。
+# Docker Desktop は C:\Users\… と /run/desktop/mnt/host/c/Users/… の2通りで返す（実測）。
+_container_bind_paths() {
+  local cid="$1" dir="$2" src norm
+  local base="${dir,,}/"
+  while IFS= read -r src; do
+    [[ -z "$src" ]] && continue
+    norm=${src//\\//}
+    norm=${norm#/run/desktop/mnt/host}
+    [[ "$norm" =~ ^([A-Za-z]):(.*)$ ]] && norm="/${BASH_REMATCH[1],,}${BASH_REMATCH[2]}"
+    [[ "${norm,,}" == "$base"* ]] && printf '%s\n' "${norm:${#base}}"
+  done < <(docker inspect -f '{{range .Mounts}}{{if eq .Type "bind"}}{{println .Source}}{{end}}{{end}}' "$cid" 2>/dev/null)
+  return 0
+}
+
+# イメージに入るソースを「内容ハッシュ リポジトリ相対パス」で1行ずつ（C ロケールの昇順）。
+# 残りの引数はアプリ相対の除外パス（bind mount）。未追跡でも .gitignore に無いものは含める。
+_app_source_hashes() {
+  local dir="$1" mode="$2"; shift 2
+  local rel="${dir#"$PROJECT_ROOT/"}"
+  local -a files=()
+  local f sub ex skip
+  while IFS= read -r f; do
+    [[ -f "$PROJECT_ROOT/$f" ]] || continue   # 追跡中だが作業ツリーで消したもの
+    sub=${f#"$rel/"}
+    case "/$sub" in
+      *.md|*/docs/*|*/docker-compose*.yml|*/.env|*/.env.*|*/.gitignore) continue ;;
+    esac
+    if [[ "$mode" == "prod" ]]; then
+      case "/$sub" in
+        *.test.*|*.spec.*|*/__tests__/*|*/vitest.config.*) continue ;;
+      esac
+    fi
+    skip=0
+    for ex in "$@"; do
+      [[ "$sub" == "$ex" || "$sub" == "$ex/"* ]] && { skip=1; break; }
+    done
+    [[ $skip -eq 0 ]] && files+=("$f")
+  done < <(git -C "$PROJECT_ROOT" -c core.quotepath=false ls-files -co --exclude-standard -- "$rel" 2>/dev/null)
+  # 共有の Dockerfile（7アプリ）はアプリの外にあるので名指しで足す
+  if grep -qs 'Dockerfile.vite-static' "$dir"/docker-compose*.yml; then
+    files+=("docker/Dockerfile.vite-static")
+  fi
+  [[ ${#files[@]} -eq 0 ]] && return 0
+  paste -d' ' \
+    <(printf '%s\n' "${files[@]}" | git -C "$PROJECT_ROOT" hash-object --stdin-paths) \
+    <(printf '%s\n' "${files[@]}") | LC_ALL=C sort -k2
+}
+
+# 今の稼働中イメージとソースの組。APP_BUILD_IMAGES（イメージID をカンマ区切り）と
+# APP_BUILD_HASHES（_app_source_hashes の出力）に入れる。動いていなければ両方空。
+_app_build_state() {
+  local dir="$1" mode="$2"
+  APP_BUILD_IMAGES=""; APP_BUILD_HASHES=""
+  compose_files_for_app "$dir" "$mode"
+  local pairs; pairs=$(_app_built_containers)
+  [[ -z "$pairs" ]] && return 0
+  APP_BUILD_IMAGES=$(awk '{print $2}' <<< "$pairs" | LC_ALL=C sort -u | paste -sd, -)
+  local -a excludes=()
+  local cid _img p
+  while read -r cid _img; do
+    while IFS= read -r p; do excludes+=("$p"); done < <(_container_bind_paths "$cid" "$dir")
+  done <<< "$pairs"
+  APP_BUILD_HASHES=$(_app_source_hashes "$dir" "$mode" "${excludes[@]}")
+}
+
+_write_build_record() {
+  local dir="$1"
+  mkdir -p "$APP_BUILD_DIR"
+  { printf 'images %s\n' "$APP_BUILD_IMAGES"; [[ -n "$APP_BUILD_HASHES" ]] && printf '%s\n' "$APP_BUILD_HASHES"; } \
+    > "$APP_BUILD_DIR/$(basename "$dir")"
+}
+
+# build の直後に呼ぶ。記録に失敗してもビルドの成否は変えない（次の判定が更新日時へ落ちるだけ）。
+app_record_build() {
+  local dir="$1" mode="$2"
+  command -v git >/dev/null 2>&1 || return 0
+  _app_build_state "$dir" "$mode" || return 0
+  [[ -z "$APP_BUILD_IMAGES" ]] && return 0
+  _write_build_record "$dir" 2>/dev/null || true
+  return 0
+}
+
+# 結果は APP_STALE_REASON（空なら最新）と APP_STALE_FILES（変わったファイルの例、改行区切り）。
+# 動いていないアプリ・ビルドするイメージを持たないアプリは常に空。
+app_build_staleness() {
+  local dir="$1" mode="$2"
+  APP_STALE_REASON=""; APP_STALE_FILES=""
+  command -v git >/dev/null 2>&1 || return 0
+  [[ -z "$mode" ]] && mode="dev"
+  _app_build_state "$dir" "$mode"
+  [[ -z "$APP_BUILD_IMAGES" ]] && return 0
+
+  local record="$APP_BUILD_DIR/$(basename "$dir")" changed=""
+  if [[ -f "$record" && "$(head -n1 "$record")" == "images $APP_BUILD_IMAGES" ]]; then
+    changed=$(LC_ALL=C comm -3 <(tail -n +2 "$record" | LC_ALL=C sort) <(printf '%s\n' "$APP_BUILD_HASHES" | grep . | LC_ALL=C sort) \
+      | sed 's/^\t//' | cut -d' ' -f2- | LC_ALL=C sort -u)
+    [[ -z "$changed" ]] && return 0
+    APP_STALE_REASON="ビルドした後に変わったファイル $(grep -c . <<< "$changed") 件"
+  else
+    # 記録が無い（または手で compose build された）ので、イメージの作成時刻と比べる。
+    # イメージが複数あるときは一番古いものを基準にする
+    local img created oldest="" t
+    for img in ${APP_BUILD_IMAGES//,/ }; do
+      created=$(docker image inspect -f '{{.Created}}' "$img" 2>/dev/null) || continue
+      t=$(date -d "$created" +%s 2>/dev/null) || continue
+      [[ -z "$oldest" || "$t" -lt "$oldest" ]] && oldest=$t
+    done
+    [[ -z "$oldest" ]] && return 0
+    if [[ -n "$APP_BUILD_HASHES" ]]; then
+      changed=$(cut -d' ' -f2- <<< "$APP_BUILD_HASHES" \
+        | (cd "$PROJECT_ROOT" && xargs -d '\n' stat -c '%Y %n' 2>/dev/null) \
+        | awk -v t="$oldest" '$1 > t { sub(/^[0-9]+ /, ""); print }' | LC_ALL=C sort)
+    fi
+    if [[ -z "$changed" ]]; then
+      _write_build_record "$dir" 2>/dev/null || true   # 今の状態を基準にする
+      return 0
+    fi
+    APP_STALE_REASON="イメージ（$(date -d "@$oldest" '+%Y-%m-%d %H:%M')）より後に更新されたファイル $(grep -c . <<< "$changed") 件"
+  fi
+  APP_STALE_FILES=$(head -n 3 <<< "$changed")
+}
+
+# 全アプリ分を調べて STALE_APPS（名前）と STALE_MODES（同じ並びのモード）に入れ、
+# 内訳を表示する。表示の行頭は $1（status と preflight で字下げを揃えるため）。
+collect_stale_apps() {
+  local indent="${1:-  }"
+  STALE_APPS=(); STALE_MODES=()
+  local app dir name mode f
+  for app in "${APPS[@]}"; do
+    dir="$PROJECT_ROOT/$app"
+    [[ -f "$dir/docker-compose.yml" ]] || continue
+    name=$(basename "$app")
+    mode=$(effective_app_mode "$dir")
+    app_build_staleness "$dir" "$mode"
+    [[ -z "$APP_STALE_REASON" ]] && continue
+    STALE_APPS+=("$name"); STALE_MODES+=("${mode:-dev}")
+    echo "${indent}$name（${mode:-dev}）: $APP_STALE_REASON"
+    while IFS= read -r f; do
+      [[ -n "$f" ]] && echo "${indent}  - $f"
+    done <<< "$APP_STALE_FILES"
+  done
+}
+
 _snapshot_one_mode() {
   local dir="$1" _name="$2"
   local mode; mode=$(detect_app_mode "$dir")
@@ -684,6 +868,7 @@ _do_start() {
     compose_from_project_root \
       -f "$dir/docker-compose.yml" -f "$prod_compose" \
       up -d --build --remove-orphans
+    app_record_build "$dir" "prod"
   else
     log "  起動: $name"
     compose_from_project_root -f "$dir/docker-compose.yml" up -d --remove-orphans
@@ -990,7 +1175,30 @@ cmd_build() {
 
   log "$name を再ビルドして起動します（モード $mode）..."
   compose_from_project_root "${COMPOSE_FILES[@]}" up -d --build --remove-orphans
+  # どのソースから作ったイメージかを残す（status / preflight / test の作り直し忘れの判定）
+  app_record_build "$RESOLVED_DIR" "$mode"
   log "$name のビルドが完了しました"
+}
+
+# build --stale: ソースより古いイメージで動いているアプリを全部作り直す。
+# 共有のモジュール（shared/）を直すと写しを持つアプリが一度に古くなるので、
+# アプリ名を1つずつ思い出して叩く形にしない。モードは各アプリのものを踏襲する。
+cmd_build_stale() {
+  echo "ソースより古いイメージで動いているアプリを調べています..."
+  collect_stale_apps "  "
+  if [[ ${#STALE_APPS[@]} -eq 0 ]]; then
+    ok "作り直しが要るアプリはありません"
+    return 0
+  fi
+  local name failed=()
+  for name in "${STALE_APPS[@]}"; do
+    cmd_build "$name" || failed+=("$name")
+  done
+  if [[ ${#failed[@]} -gt 0 ]]; then
+    err "作り直しに失敗: ${failed[*]}"
+    return 1
+  fi
+  ok "作り直しました: ${STALE_APPS[*]}"
 }
 
 # ------------------------------------
@@ -1233,6 +1441,14 @@ cmd_status() {
   echo "----------------------------------------------------------------------------------------------------"
   for_each_app _do_status
   echo "========================================"
+  echo ""
+  echo "ソースより古いイメージで動いているアプリ（作り直すまで前の版のまま）:"
+  collect_stale_apps "  "
+  if [[ ${#STALE_APPS[@]} -eq 0 ]]; then
+    echo "  なし"
+  else
+    echo "  作り直す: docker/scripts/manage.sh build --stale"
+  fi
   echo ""
   _print_autoheal_status
 }
@@ -1528,6 +1744,15 @@ _run_one_test() {
     return 2
   fi
 
+  # dev のテストはコンテナの中のコードを回す。イメージに焼き込んだ部分がソースより古いと、
+  # 直す前の版を検査して「成功」と出る（bind mount していないパスはこれになる）
+  app_build_staleness "$dir" "$mode"
+  if [[ -n "$APP_STALE_REASON" ]]; then
+    warn "コンテナのイメージがソースより古いため、直す前の版をテストしています（$APP_STALE_REASON）"
+    echo "  作り直してから回す: docker/scripts/manage.sh build $app_name"
+    TEST_STALE_APPS+=("$app_name")
+  fi
+
   if docker exec "$container" sh -lc "$command"; then
     ok "$app_name: 成功"
     return 0
@@ -1561,6 +1786,7 @@ cmd_test() {
 
   print_banner "Tax Apps - Test"
 
+  TEST_STALE_APPS=()
   local passed=0 failed=0 skipped=0
   local failed_apps=()
   local e app container command rc
@@ -1582,6 +1808,12 @@ cmd_test() {
 
   if [[ $failed -gt 0 ]]; then
     err "失敗: ${failed_apps[*]}"
+    return 1
+  fi
+  # 古い版での「成功」は今のソースの成功ではないので、終了コードでも区別する
+  if [[ ${#TEST_STALE_APPS[@]} -gt 0 ]]; then
+    err "古いイメージのまま回したため、今のソースの結果ではありません: ${TEST_STALE_APPS[*]}"
+    echo "  作り直してから回し直す: docker/scripts/manage.sh build --stale && docker/scripts/manage.sh test"
     return 1
   fi
   return 0
@@ -2628,6 +2860,27 @@ cmd_preflight() {
     ((++pf_warn))
   fi
 
+  # 24. ソースより古いイメージで動いているアプリ（作り直し忘れ）
+  #
+  # 2026-11-07、shared/ の台帳モジュールを8アプリへ配ったのに作り直したのは1アプリだけで、
+  # 残り7アプリは前の版のまま動き続けた。画面にもログにも何も出ない形なので、ここで見る。
+  # 判定の中身は app_build_staleness（bind mount で上書きしているパスは数えない）。
+  if [[ -f "$STOP_MARKER" ]]; then
+    echo "  アプリは意図的に停止中です（作り直し忘れのチェックは行いません）"
+  else
+    local stale_out
+    stale_out=$(collect_stale_apps "  ")
+    if [[ -z "$stale_out" ]]; then
+      ok "Every running app's image is up to date with its source"
+      ((++pf_ok))
+    else
+      warn "ソースより古いイメージで動いているアプリがあります（作り直すまで前の版のまま）"
+      echo "$stale_out"
+      echo "  直し方: docker/scripts/manage.sh build --stale（モードは各アプリのものを踏襲）"
+      ((++pf_warn))
+    fi
+  fi
+
   # Summary
   print_banner "Results:  OK=$pf_ok  WARN=$pf_warn  ERROR=$pf_err"
 
@@ -3050,7 +3303,9 @@ case "$COMMAND" in
   stop)      cmd_stop ;;
   down)      cmd_down ;;
   restart)   cmd_restart "${2:-}" ;;
-  build)     cmd_build "${2:-}" ;;
+  build)
+    if [[ "${2:-}" == "--stale" ]]; then cmd_build_stale; else cmd_build "${2:-}"; fi
+    ;;
   apply)     cmd_apply "${2:-}" ;;
   watch)     cmd_watch "${2:-}" ;;
   logs)      cmd_logs "${2:-}" ;;
@@ -3086,6 +3341,7 @@ case "$COMMAND" in
     echo "  down               全アプリを停止してコンテナ削除"
     echo "  restart <app>      指定アプリのみ再起動"
     echo "  build <app>        指定アプリを再ビルドして起動（稼働中のモードを踏襲）"
+    echo "  build --stale      ソースより古いイメージで動いているアプリを全部作り直す（status に一覧）"
     echo "  apply [app]        compose の変更をコンテナへ反映（再ビルドなし・停止中は触らない）"
     echo "  watch <app>        ソース変更をコンテナへ同期（フォアグラウンド、Ctrl+C で終了）"
     echo "  logs <app>         指定アプリのログ表示"

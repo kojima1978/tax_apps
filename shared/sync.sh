@@ -26,6 +26,7 @@ TARGETS=(
 check=0
 [[ "${1:-}" == "--check" ]] && check=1
 drift=0
+changed_apps=()
 
 for t in "${TARGETS[@]}"; do
   IFS=: read -r bundle app with_test <<<"$t"
@@ -40,8 +41,11 @@ for t in "${TARGETS[@]}"; do
         echo "ずれ: apps/$app/src/shared/$bundle/$name（原本 shared/$bundle/$name）"
         drift=1
       fi
-    else
+    elif ! cmp -s "$f" "$dest/$name"; then
+      # 中身が同じなら写さない（更新日時だけ進むと、作り直し忘れの判定が全アプリで鳴る）
       cp "$f" "$dest/$name"
+      echo "写した: apps/$app/src/shared/$bundle/$name"
+      [[ " ${changed_apps[*]} " == *" $app "* ]] || changed_apps+=("$app")
     fi
   done
   # 原本に無いファイルが写し先に残っていないか（原本から消したのに写しだけ残る形）
@@ -62,4 +66,17 @@ if [[ $check -eq 1 ]]; then
     exit 1
   fi
   echo "ok: 写しはすべて原本と一致"
+fi
+
+if [[ $check -eq 0 ]]; then
+  if [[ ${#changed_apps[@]} -eq 0 ]]; then
+    echo "ok: 写しはすべて原本と同じでした（何も変えていません）"
+  else
+    # 写しはイメージに焼き込まれる。src を bind mount している dev のアプリ以外は、
+    # 作り直すまで前の版で動き続ける（2026-11-07 に7アプリがこれで取り残された）
+    echo ""
+    echo "写しを更新したアプリ: ${changed_apps[*]}"
+    echo "動いているアプリへ反映するには（必要なアプリだけ作り直す・モードは踏襲）:"
+    echo "  docker/scripts/manage.sh build --stale"
+  fi
 fi
