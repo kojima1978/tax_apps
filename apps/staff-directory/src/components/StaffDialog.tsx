@@ -2,7 +2,9 @@ import { useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { AddressFields } from './AddressFields';
 import { DialogFooter, ErrorBanner, Field, Modal, Section, btn, inputClass } from './ui';
+import { WarekiDateField } from './WarekiDateField';
 import { toKatakana } from '../lib';
+import { birthDateError } from '../wareki';
 import type { AffiliationForm, Company, Department, Staff, StaffForm, StaffPersonalForm } from '../types';
 
 type Props = {
@@ -68,6 +70,9 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
   // 新規はまだ何も無いので最初から空の入力欄を出す
   const [personal, setPersonal] = useState<StaffPersonalForm | null>(staff ? null : EMPTY_PERSONAL);
   const [revealing, setRevealing] = useState(false);
+  // 保存を押したときにだけ出す（打っている途中から「途中までです」と言わない）。直して正しくなれば消える
+  const [birthErrorShown, setBirthError] = useState<string | null>(null);
+  const birthError = birthErrorShown && personal ? birthDateError(personal.birthDate) : null;
   // 「隠す」は画面から消すだけで、読んだ値と入力中の変更は持ったまま（保存にも乗る）
   const [shown, setShown] = useState(!staff);
   // 変更の有無は開いたとき（個人情報は読み込んだとき）の値と比べる。「表示」を押しただけでは変更にしない
@@ -99,9 +104,6 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
       setRevealing(false);
     }
   }
-
-  const setPersonalField = (key: keyof StaffPersonalForm) => (e: { target: { value: string } }) =>
-    setPersonal((p) => (p ? { ...p, [key]: e.target.value } : p));
 
   const set = (key: Exclude<keyof StaffForm, 'affiliations'>) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -135,6 +137,13 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    // 途中まで・存在しない・元号違いの生年月日は送らない（隠していても止めて、欄を見せる）
+    const birthProblem = personal && birthDateError(personal.birthDate);
+    if (birthProblem) {
+      setShown(true);
+      setBirthError(birthProblem);
+      return;
+    }
     setSaving(true);
     try {
       const saved = staff ? await api.updateStaff(staff.id, form) : await api.createStaff(form);
@@ -284,15 +293,13 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
                 value={{ postalCode: personal.postalCode, address: personal.address }}
                 onChange={(v) => setPersonal((p) => (p ? { ...p, ...v } : p))}
               />
-            <div className={`grid ${staff ? 'grid-cols-[10rem_auto]' : 'grid-cols-[10rem]'} items-end gap-4`}>
-              <Field label="生年月日">
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={personal.birthDate}
-                  onChange={setPersonalField('birthDate')}
-                />
-              </Field>
+            <div className="flex items-end gap-4">
+              <WarekiDateField
+                label="生年月日"
+                value={personal.birthDate}
+                onChange={(birthDate) => setPersonal((p) => (p ? { ...p, birthDate } : p))}
+                error={birthError}
+              />
               {staff && (
                 <button type="button" className={btn.secondary} onClick={() => setShown(false)}>
                   隠す
