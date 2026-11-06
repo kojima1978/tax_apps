@@ -519,7 +519,7 @@ export const PowerOfAttorneyPage = () => {
                 <a href={COMPANY_DIRECTORY_URL} target="_blank" rel="noopener" className="underline">
                   会社一覧を開く
                 </a>
-                ）。登録したらこの画面を開き直してください。
+                ）。登録してこの画面に戻ると反映されます（入力中の内容はそのまま）。
               </p>
             )}
           </Section>

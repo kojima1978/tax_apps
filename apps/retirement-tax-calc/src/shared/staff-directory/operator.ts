@@ -3,6 +3,7 @@
 // 操作者（いま画面を使っている社員）。選んだ台帳ID は全アプリ共通の localStorage キーに置くので、
 // どこかのアプリで1回選べば、同じブラウザの他のアプリでも同じ人になる（オリジンが同じゲートウェイのため）。
 import { useSyncExternalStore } from 'react';
+import { onTabReturn, singleFlight } from './tabReturn';
 
 export type Operator = {
   id: number | null;
@@ -84,7 +85,7 @@ function update(next: Partial<Snapshot>) {
   listeners.forEach((listener) => listener());
 }
 
-async function load() {
+const load = singleFlight(async () => {
   let operators: Operator[] | null = null;
   try {
     const response = await fetch(DIRECTORY_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -92,13 +93,10 @@ async function load() {
   } catch {
     // 台帳が停止していても画面の操作自体は止めない。
   }
-  update(operators ? { operators, status: 'ok' } : { status: 'fallback' });
-}
-
-/** 台帳を引き直す（台帳で人を足して戻ってきたとき、選択肢に出すため） */
-export function reloadOperators() {
-  if (started) void load();
-}
+  // 引き直しで届かなかったときは、前に読めた一覧のまま（選ぶ画面が空にならないように）
+  if (operators) update({ operators, status: 'ok' });
+  else if (snapshot.status !== 'ok') update({ status: 'fallback' });
+});
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
@@ -106,6 +104,8 @@ function subscribe(listener: () => void) {
     started = true;
     update({ selectedId: readStoredId() });
     void load();
+    // 台帳で人を足して戻ってきたら、選択肢に出す
+    onTabReturn(() => void load());
   }
   return () => listeners.delete(listener);
 }

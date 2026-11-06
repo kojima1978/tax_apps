@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { personMatches, readRecentIds, rememberRecent, sectionsByDepartment, sortPeople } from './assignee';
-import { reloadOperators, useOperator, type Operator } from './operator';
+import { useOperator, type Operator } from './operator';
 
 /** 人を足す・直す場所。名簿はここ1つで、各アプリには持たせない */
 export const STAFF_DIRECTORY_PAGE = '/staff-directory/';
@@ -86,13 +86,6 @@ function PickerBody({
   const [recentIds] = useState(readRecentIds);
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-
-  // 台帳を別タブで開いて人を足し、戻ってきたら選択肢に出す
-  useEffect(() => {
-    const onFocus = () => reloadOperators();
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, []);
 
   const people = status === 'ok' ? operators : [];
 

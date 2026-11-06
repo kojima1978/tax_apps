@@ -4,6 +4,7 @@
 // 帳票に刷る事務所の情報。元は社員台帳（/staff-directory/）の「会社」で、
 // ここに書いてあるのは台帳に届かないときの控えだけ。住所が変わったら台帳を直す。
 import { useSyncExternalStore } from 'react';
+import { onTabReturn, singleFlight } from './tabReturn';
 
 export type CompanyInfo = {
   /** 台帳の会社ID。控えのときは null */
@@ -86,7 +87,7 @@ function update(next: Partial<Snapshot>) {
   listeners.forEach((l) => l());
 }
 
-async function load() {
+const load = singleFlight(async () => {
   let companies: CompanyInfo[] | null = null;
   try {
     const res = await fetch(DIRECTORY_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -94,8 +95,10 @@ async function load() {
   } catch {
     // 台帳が落ちていても帳票は控えで刷れるようにする
   }
-  update(companies ? { companies, status: 'ok' } : { status: 'fallback' });
-}
+  // 引き直しで届かなかったときは、前に読めた一覧のまま（控えへ戻すと受任者欄が変わる）
+  if (companies) update({ companies, status: 'ok' });
+  else if (snapshot.status !== 'ok') update({ status: 'fallback' });
+});
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
@@ -103,6 +106,8 @@ function subscribe(listener: () => void) {
     started = true;
     update({ selectedId: readStoredId() });
     void load();
+    // 台帳で会社を直して戻ってきたら引き直す
+    onTabReturn(() => void load());
   }
   return () => {
     listeners.delete(listener);
