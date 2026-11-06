@@ -79,10 +79,13 @@ describe('buildSheets', () => {
     expect(row(principal.principalRows, '生年月日')?.value).toBe('');
   });
 
-  it('復代理委任状だけなら個人の氏名は自署（印字にしていても刷らない）', () => {
+  it('復代理委任状だけでも氏名の設定どおりに刷る（以前は印字にしていても空欄だった）', () => {
     const sheets = buildSheets(base({ documents: 'subdelegate' }));
     expect(sheets.map((s) => s.title)).toEqual(['復代理委任状']);
-    expect(row(sheets[0].principalRows, '氏名')?.value).toBe('');
+    expect(row(sheets[0].principalRows, '氏名')?.value).toBe('架空花子');
+    expect(sheets[0].delegation[0]).toContain('委任者　架空花子　より');
+    const [signed] = buildSheets(base({ documents: 'subdelegate', nameMode: 'signature' }));
+    expect(row(signed.principalRows, '氏名')?.value).toBe('');
   });
 
   it('委任状だけなら復代理委任状を作らない', () => {

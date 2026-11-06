@@ -3,7 +3,6 @@
  *
  * 文面と欄の決まりは事務所の委任状のひな形どおり:
  * - 法人の委任者は「法人名　代表者」を必ず刷り、生年月日の行を出さず、社印の注記にする
- * - 復代理委任状だけを作るときは個人の氏名を刷らない（本人に自署してもらうため）
  * - 空の欄も行は残す（手書きで埋める欄として刷る）
  */
 import type { Purpose } from './matters';
@@ -162,10 +161,8 @@ function subdelegateSheet(
 
 /** 委任者1人につき、委任状 → 復代理委任状 の順で並べる（作らない方は飛ばす） */
 export function buildSheets(input: PowerOfAttorneyInput): PowerOfAttorneySheet[] {
-  // 復代理委任状だけを渡すときは、本人に自署してもらう
-  const subNameMode: NameMode = input.documents === 'subdelegate' ? 'signature' : input.nameMode;
   return input.principals.flatMap((principal, index) => [
     ...(input.documents !== 'subdelegate' ? [principalSheet(input, principal, index)] : []),
-    ...(input.documents !== 'principal' ? [subdelegateSheet(input, principal, index, subNameMode)] : []),
+    ...(input.documents !== 'principal' ? [subdelegateSheet(input, principal, index, input.nameMode)] : []),
   ]);
 }

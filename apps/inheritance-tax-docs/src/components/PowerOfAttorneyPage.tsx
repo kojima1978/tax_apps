@@ -232,9 +232,6 @@ export const PowerOfAttorneyPage = () => {
               onChange={(v) => form.setPrintDetails(v === 'print')}
             />
             <RadioGroup label="委任者の氏名（個人）" name="name-mode" options={NAME_MODE_OPTIONS} value={form.nameMode} onChange={form.setNameMode} />
-            {form.documents === 'subdelegate' && (
-              <p className="text-xs text-slate-500 dark:text-slate-400">復代理委任状だけのときは、個人の氏名は空欄（自署）で刷ります。</p>
-            )}
             <RadioGroup label="委任日（両方の書類に同じ日付）" name="date" options={DATE_OPTIONS} value={form.dateMode} onChange={form.setDateMode} />
             {form.dateMode === 'pick' && (
               <div className="space-y-1">
