@@ -1078,6 +1078,11 @@ tr:nth-child(even) {
     overflow: visible !important;
   }
 
+  /* 画面上部のヘッダー（ポータル・PDF・印刷）など */
+  .no-print {
+    display: none !important;
+  }
+
   .btn-calc,
   .btn-clear,
   .btn-apply-limit,

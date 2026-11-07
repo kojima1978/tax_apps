@@ -5,7 +5,7 @@ type PresetButtonsProps = {
 };
 
 const PresetButtons = ({ items, current, onChange }: PresetButtonsProps) => (
-    <div className="flex flex-wrap gap-1.5 mt-1.5">
+    <div className="flex flex-wrap gap-1.5 mt-1.5 no-print">
         {items.map((item) => (
             <button
                 key={item.value}

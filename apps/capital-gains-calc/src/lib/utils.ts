@@ -1,11 +1,12 @@
 const NUMBER_FORMAT = new Intl.NumberFormat('ja-JP');
 
+/** マイナスは会計表記の △ で出す（譲渡損失の「譲渡所得金額」など） */
 export function formatCurrency(num: number): string {
-    return NUMBER_FORMAT.format(num);
+    return num < 0 ? `△${NUMBER_FORMAT.format(-num)}` : NUMBER_FORMAT.format(num);
 }
 
 export function formatYen(num: number): string {
-    return `${NUMBER_FORMAT.format(num)}円`;
+    return `${formatCurrency(num)}円`;
 }
 
 /**

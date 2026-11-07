@@ -25,6 +25,8 @@ describe("金額の入力と表示", () => {
         expect(formatRate(0.021)).toBe("2.1%");
         expect(formatRate(0.225)).toBe("22.5%");
         expect(formatYen(1_234_567)).toBe("1,234,567円");
+        expect(formatYen(-1_234_567)).toBe("△1,234,567円");
+        expect(formatYen(0)).toBe("0円");
         expect(formatJapaneseDate(new Date(2024, 0, 5))).toBe("2024年1月5日");
     });
 });

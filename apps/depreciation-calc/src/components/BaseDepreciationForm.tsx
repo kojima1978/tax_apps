@@ -155,7 +155,7 @@ const BaseDepreciationForm = ({
                             type="button"
                             onClick={() => { if (acquisitionDate) onServiceStartDateChange(acquisitionDate); }}
                             disabled={!acquisitionDate}
-                            className="px-3 py-1 bg-green-50 border border-green-300 rounded text-xs text-green-800 font-semibold whitespace-nowrap cursor-pointer transition-colors hover:bg-green-100 hover:border-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="no-print px-3 py-1 bg-green-50 border border-green-300 rounded text-xs text-green-800 font-semibold whitespace-nowrap cursor-pointer transition-colors hover:bg-green-100 hover:border-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
                             title="取得日を複写"
                             aria-label="取得日を事業供用日に複写"
                         >

@@ -64,9 +64,13 @@ docker/scripts/manage.sh watch <app-name>
 ## 画面・帳票の共通ルール
 
 - **申告書・評価明細書は国税庁の様式に忠実に**（inheritance-tax-form / stock-valuation-form）。UI の改善は様式を崩さない範囲で
-- **計算・シミュレーション系の印刷は A4 横1枚に収める**（gift-tax-simulator / capital-gains-calc / inheritance-tax-app など）。
-  複数ページの帳票（private-banking など）はページの切れ目で枠や表が崩れないようにする
-- 印刷では背景色を付けない。罫線・数字・注記は黒
+- **計算・シミュレーション系の印刷は1枚に収める**（ページ数を SPEC で決めているものはその枚数）。
+  用紙の向き・サイズは各アプリの SPEC に従う（retirement-tax-calc・depreciation-calc は A4 縦、
+  inheritance-tax-app は画面ごとに A4 横／A3 横）。複数ページの帳票（private-banking など）は
+  ページの切れ目で枠や表が崩れないようにする
+- 印刷では濃い塗りを付けない。見出しセル・区分ラベル・案の色分けの**薄い網掛けだけ**は可
+  （各アプリが `print-color-adjust: exact` で意図して残している）。罫線・数字・注記は黒。
+  ボタン・早見の選択肢・ヘッダーなど操作部品は `.no-print` 等で印刷から外す
 - 金額はカンマ区切り（入力中もリアルタイムで）。数値の入力欄にスピナーを付けない。
   寄せ方（右寄せ・左寄せ）は画面ごとに指示があるので、既存の画面に合わせる
 - マイナスは「△」で表示する
