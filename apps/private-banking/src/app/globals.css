@@ -2070,6 +2070,15 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-summary-secondary-row > .position-summary-tax-amount, .position-summary-secondary-row > .position-summary-person-tax { font-size: 7px; }
   /* 見出しの方は本文より小さく。画面の 8px をそのまま持ち込むと紙では値より大きくなる。 */
   .position-summary-secondary-label { font-size: 6px; }
+  /* 画面ではセルの余白を中のリンク／ボタンへ移して、セル全体を押せるようにしている。
+     紙ではその操作領域が要らないので余白を 0 に戻すが、セル側（.position-summary-*-target の
+     padding: 0）まで 0 のままだと、右寄せの数字・金額が右の罫線に張り付く
+     （No. は見出しの「No.」より 1mm 右に出ていた）。横の余白だけ、この表のほかのセルと
+     同じ 1mm へ戻す。縦は 0 のまま ── 1.2mm を足すと行がそのぶん高くなり、
+     33明細で7ページだった一覧が8ページに増える（縦位置は vertical-align: middle が決めるので
+     見た目は変わらない）。 */
+  .position-summary-table .position-summary-detail-target,
+  .position-summary-table .position-summary-allocation-target { padding-inline: 1mm; }
   .position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { min-height: 0; padding: 0; }
   .position-summary-name { display: block; }
   .position-summary-name span { display: block; }
