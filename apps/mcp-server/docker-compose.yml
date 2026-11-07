@@ -39,8 +39,9 @@ services:
   # 機能:
   #   - describe_fields      書き込める欄の辞書（株式評価明細書が配る実体をそのまま）
   #   - list_cases / get_case 案件の一覧と現在値
-  #   - set_fields           第4表の1の欄へ書き込む（既定は試算）
-  #   - import_balance_sheet 第5表の明細を入れ替える（既定は試算）
+  #   - create_case          案件を1件作る（既定は試算）
+  #   - set_fields           辞書のコードで指定した欄へ書き込む（既定は試算）
+  #   - import_rows          明細行の表を入れ替える（第5表・株主。既定は試算）
   # ===========================================
   mcp-server:
     build:

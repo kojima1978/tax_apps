@@ -13,20 +13,31 @@ describe('describe_fields', () => {
     const text = await tools.describeFields(api, {});
     const parsed = JSON.parse(text);
     expect(parsed.fields).toHaveLength(catalog.fields.length);
-    expect(parsed.rowTables).toHaveLength(1);
+    expect(parsed.rowTables).toHaveLength(catalog.rowTables.length);
     expect(parsed.formats.signedInteger.negativeMark).toBe('△');
   });
 
   it('様式で絞れる', async () => {
     const api = createFakeApi();
-    const parsed = JSON.parse(await tools.describeFields(api, { form: '第5表' }));
-    expect(parsed.fields).toHaveLength(0);
-    expect(parsed.rowTables[0].table).toBe('table5');
+    const table5 = JSON.parse(await tools.describeFields(api, { form: '第5表' }));
+    expect(table5.fields).toHaveLength(0);
+    expect(table5.rowTables).toHaveLength(1);
+    expect(table5.rowTables[0].id).toBe('balanceSheet');
+
+    // 第1表の1 は明細行の表（株主）だけが載っている様式
+    const table1_1 = JSON.parse(await tools.describeFields(api, { form: '第1表の1' }));
+    expect(table1_1.rowTables[0].id).toBe('shareholders');
+
+    const table4 = JSON.parse(await tools.describeFields(api, { form: '第4表の1' }));
+    expect(table4.rowTables).toHaveLength(0);
+    expect(table4.fields.length).toBeGreaterThan(0);
   });
 
   it('無い様式を指定したら、あるものを挙げて弾く', async () => {
     const api = createFakeApi();
-    await expect(tools.describeFields(api, { form: '第3表' })).rejects.toThrow(/第4表の1 \/ 第5表/);
+    await expect(tools.describeFields(api, { form: '第3表' })).rejects.toThrow(
+      '第1表の2 / 第4表の1 / 第5表 / 第1表の1',
+    );
   });
 });
 
@@ -39,26 +50,48 @@ describe('list_cases', () => {
 });
 
 describe('get_case', () => {
-  it('辞書の欄の現在値と第5表の明細を返す', async () => {
+  it('辞書の欄の現在値と明細行の表を返す', async () => {
     const api = createFakeApi({
       table4: { f28: '1,000', 使わない欄: 'x' },
       table5: { a_1_1: '現金及び預金', a_1_2: '1,000' },
+      table1_1: { sh_1_1: '山田太郎', sh_1_4: '6,000' },
     });
     const parsed = JSON.parse(await tools.getCase(api, { caseId: 1 }));
 
     expect(parsed.caseId).toBe(1);
-    expect(parsed.fields.find((f: { code: string }) => f.code === 'G04').value).toBe('1,000');
+    expect(parsed.fields.find((f: { code: string }) => f.code === '4-1:G04').value).toBe('1,000');
     // 辞書に無い欄は外へ出さない
     expect(JSON.stringify(parsed.fields)).not.toContain('使わない欄');
-    expect(parsed.rowTables[0].sides[0].rows).toHaveLength(1);
-    expect(parsed.rowTables[0].sides[1].rows).toHaveLength(0);
+
+    const balanceSheet = parsed.rowTables.find((t: { rowTable: string }) => t.rowTable === 'balanceSheet');
+    expect(balanceSheet.sides[0].rows).toHaveLength(1);
+    expect(balanceSheet.sides[1].rows).toHaveLength(0);
+
+    const shareholders = parsed.rowTables.find((t: { rowTable: string }) => t.rowTable === 'shareholders');
+    expect(shareholders.sides[0].rows[0]).toMatchObject({ row: 1, name: '山田太郎' });
+  });
+
+  // 行は入っているのに続紙の枚数が足りない案件は、画面を見ても行が出ないので
+  // 気づけない。現在値に枚数も出しておく。
+  it('続紙の枚数も返す', async () => {
+    const api = createFakeApi({ table5: { _pages: '2', a_20_1: '土地' } });
+    const parsed = JSON.parse(await tools.getCase(api, { caseId: 1 }));
+    const balanceSheet = parsed.rowTables.find((t: { rowTable: string }) => t.rowTable === 'balanceSheet');
+    expect(balanceSheet.pages).toBe('2');
+
+    const shareholders = parsed.rowTables.find((t: { rowTable: string }) => t.rowTable === 'shareholders');
+    // 入っていなければ本表のみ（株主の表は 0 が本表のみ）
+    expect(shareholders.pages).toBe('0');
   });
 });
 
 describe('set_fields', () => {
   it('既定では書き込まず、差分だけ返す', async () => {
     const api = createFakeApi({ table4: { f28: '1,000' } });
-    const text = await tools.setFields(api, { caseId: 1, values: [{ code: 'G04', value: 2500 }] });
+    const text = await tools.setFields(api, {
+      caseId: 1,
+      values: [{ code: '4-1:G04', value: 2500 }],
+    });
 
     expect(api.writes).toHaveLength(0);
     expect(text).toContain('これは試算です');
@@ -70,7 +103,7 @@ describe('set_fields', () => {
     const api = createFakeApi({ table4: { f28: '1,000', other: 'そのまま' } });
     const text = await tools.setFields(api, {
       caseId: 1,
-      values: [{ code: 'G04', value: 2500 }],
+      values: [{ code: '4-1:G04', value: 2500 }],
       commit: true,
     });
 
@@ -84,16 +117,26 @@ describe('set_fields', () => {
     expect(text).toContain('書き込みました');
   });
 
+  it('別の様式の欄も同じ道具で書ける', async () => {
+    const api = createFakeApi();
+    await tools.setFields(api, {
+      caseId: 1,
+      values: [{ code: '1-2:G09', value: 120000 }],
+      commit: true,
+    });
+    expect(api.writes[0]!.body.data.table1_2?.f22).toBe('120,000');
+  });
+
   it('弾かれたときは書き込まない', async () => {
     const api = createFakeApi();
     await expect(
-      tools.setFields(api, { caseId: 1, values: [{ code: 'G99', value: 1 }], commit: true }),
+      tools.setFields(api, { caseId: 1, values: [{ code: '4-1:G99', value: 1 }], commit: true }),
     ).rejects.toThrow(/describe_fields/);
     expect(api.writes).toHaveLength(0);
   });
 });
 
-describe('import_balance_sheet', () => {
+describe('import_rows', () => {
   const rows = [
     { name: '現金及び預金', evaluated: 1000, book: 1000 },
     { name: '土地', evaluated: 8000, book: 5000, note: '土地等' },
@@ -101,8 +144,9 @@ describe('import_balance_sheet', () => {
 
   it('既定では書き込まず、消える行まで見せる', async () => {
     const api = createFakeApi({ table5: { a_1_1: '古い科目' } });
-    const text = await tools.importBalanceSheet(api, {
+    const text = await tools.importRows(api, {
       caseId: 1,
+      rowTable: 'balanceSheet',
       sides: [{ side: 'asset', rows }],
     });
 
@@ -115,8 +159,9 @@ describe('import_balance_sheet', () => {
 
   it('commit で書き込む', async () => {
     const api = createFakeApi({ table5: { a_1_1: '古い科目', l_1_1: '買掛金' } });
-    await tools.importBalanceSheet(api, {
+    await tools.importRows(api, {
       caseId: 1,
+      rowTable: 'balanceSheet',
       sides: [{ side: 'asset', rows }],
       commit: true,
     });
@@ -127,18 +172,73 @@ describe('import_balance_sheet', () => {
     expect(data.table5?.l_1_1).toBe('買掛金');
   });
 
+  it('株主の表も同じ道具で入れられる', async () => {
+    const api = createFakeApi();
+    const text = await tools.importRows(api, {
+      caseId: 1,
+      rowTable: 'shareholders',
+      sides: [{ side: 'shareholder', rows: [{ name: '山田太郎', shares: 6000, votes: 6000 }] }],
+      commit: true,
+    });
+
+    expect(text).toContain('第1表の1の明細を入れ替えました');
+    expect(text).toContain('㋑ 株式数 6,000');
+    expect(api.writes[0]!.body.data.table1_1?.sh_1_4).toBe('6,000');
+  });
+
+  // 行だけ増やして枚数を足し忘れると、入れた行が画面にも印刷にも出ない。
+  it('続紙が要る行数なら枚数も直して、そう言う', async () => {
+    const api = createFakeApi();
+    const text = await tools.importRows(api, {
+      caseId: 1,
+      rowTable: 'balanceSheet',
+      sides: [
+        { side: 'asset', rows: Array.from({ length: 16 }, (_, i) => ({ name: `科目${i + 1}` })) },
+      ],
+      commit: true,
+    });
+
+    expect(text).toContain('続紙の枚数（_pages）: 1 → 2');
+    expect(api.writes[0]!.body.data.table5?._pages).toBe('2');
+  });
+
+  it('無い表は、指定できるものを挙げて弾く', async () => {
+    const api = createFakeApi();
+    await expect(
+      tools.importRows(api, { caseId: 1, rowTable: 'table5', sides: [{ side: 'asset', rows }] }),
+    ).rejects.toThrow('指定できるのは balanceSheet（第5表） / shareholders（第1表の1）');
+  });
+
   it('知らない側は、指定できるものを挙げて弾く', async () => {
     const api = createFakeApi();
     await expect(
-      tools.importBalanceSheet(api, { caseId: 1, sides: [{ side: '資産', rows }] }),
+      tools.importRows(api, {
+        caseId: 1,
+        rowTable: 'balanceSheet',
+        sides: [{ side: '資産', rows }],
+      }),
     ).rejects.toThrow(/asset（資産）/);
+  });
+
+  // 第5表の側を株主の表へ渡すと、黙って別の表へ書かれるのがいちばん困る。
+  it('その表に無い側は弾く', async () => {
+    const api = createFakeApi();
+    await expect(
+      tools.importRows(api, {
+        caseId: 1,
+        rowTable: 'shareholders',
+        sides: [{ side: 'asset', rows }],
+      }),
+    ).rejects.toThrow(/shareholder（株主）/);
+    expect(api.writes).toHaveLength(0);
   });
 
   it('同じ側を2回指定したら弾く', async () => {
     const api = createFakeApi();
     await expect(
-      tools.importBalanceSheet(api, {
+      tools.importRows(api, {
         caseId: 1,
+        rowTable: 'balanceSheet',
         sides: [
           { side: 'asset', rows },
           { side: 'asset', rows: [] },
@@ -155,9 +255,10 @@ describe('同時に書き込んだとき', () => {
     const api = createFakeApi({}, 5);
 
     await Promise.all([
-      tools.setFields(api, { caseId: 1, values: [{ code: 'G04', value: 1234 }], commit: true }),
-      tools.importBalanceSheet(api, {
+      tools.setFields(api, { caseId: 1, values: [{ code: '4-1:G04', value: 1234 }], commit: true }),
+      tools.importRows(api, {
         caseId: 1,
+        rowTable: 'balanceSheet',
         sides: [{ side: 'asset', rows: [{ name: '土地', evaluated: 8000, book: 5000 }] }],
         commit: true,
       }),
@@ -169,11 +270,35 @@ describe('同時に書き込んだとき', () => {
     expect(last.table5?.a_1_1).toBe('土地');
   });
 
+  // 第5表と第1表の1 は別の表だが、どちらも同じ案件の data をまるごと置き換える。
+  it('別の明細の表どうしでも消し合わない', async () => {
+    const api = createFakeApi({}, 5);
+
+    await Promise.all([
+      tools.importRows(api, {
+        caseId: 1,
+        rowTable: 'balanceSheet',
+        sides: [{ side: 'asset', rows: [{ name: '土地' }] }],
+        commit: true,
+      }),
+      tools.importRows(api, {
+        caseId: 1,
+        rowTable: 'shareholders',
+        sides: [{ side: 'shareholder', rows: [{ name: '山田太郎' }] }],
+        commit: true,
+      }),
+    ]);
+
+    const last = api.writes[1]!.body.data;
+    expect(last.table5?.a_1_1).toBe('土地');
+    expect(last.table1_1?.sh_1_1).toBe('山田太郎');
+  });
+
   it('別の案件は待たされない', async () => {
     const api = createFakeApi({}, 5);
     const results = await Promise.all([
-      tools.setFields(api, { caseId: 1, values: [{ code: 'G04', value: 1 }], commit: true }),
-      tools.setFields(api, { caseId: 2, values: [{ code: 'G04', value: 2 }], commit: true }),
+      tools.setFields(api, { caseId: 1, values: [{ code: '4-1:G04', value: 1 }], commit: true }),
+      tools.setFields(api, { caseId: 2, values: [{ code: '4-1:G04', value: 2 }], commit: true }),
     ]);
     expect(results).toHaveLength(2);
     expect(api.writes.map((w) => w.id).sort()).toEqual([1, 2]);

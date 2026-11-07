@@ -89,12 +89,33 @@ describe('値の書き方', () => {
 
 describe('欄の引き当て', () => {
   it('小文字でも引ける', () => {
-    expect(findField(catalog, 'g04').field).toBe('f28');
-    expect(findField(catalog, ' G04 ').field).toBe('f28');
+    expect(findField(catalog, '4-1:g04').field).toBe('f28');
+    expect(findField(catalog, ' 4-1:G04 ').field).toBe('f28');
   });
 
   it('辞書に無いコードは describe_fields を案内して弾く', () => {
-    expect(() => findField(catalog, 'G99')).toThrow(/describe_fields/);
+    expect(() => findField(catalog, '4-1:G99')).toThrow(/describe_fields/);
+    expect(() => findField(catalog, 'Z99')).toThrow(/describe_fields/);
+  });
+
+  // 識別記号は様式ごとに G01 から振り直されている。略号を落とすと別の様式の欄に
+  // 当たるので、黙って1つ選ばずに指定し直してもらう。
+  it('様式の略号が無い記号は候補を挙げて弾く', () => {
+    expect(() => findField(catalog, 'G04')).toThrow(/様式の略号が付いていません/);
+    expect(() => findField(catalog, 'G04')).toThrow('4-1:G04（第4表の1 ⑥ 年配当金額）');
+  });
+
+  it('同じ記号が複数の様式にあれば全部挙げる', () => {
+    const message = (() => {
+      try {
+        findField(catalog, 'G09');
+        return '';
+      } catch (error) {
+        return error instanceof Error ? error.message : '';
+      }
+    })();
+    expect(message).toContain('1-2:G09（第1表の2 直前期末の総資産価額（帳簿価額））');
+    expect(message).toContain('4-1:G09（第4表の1 ⑦ 左のうち非経常的な配当金額）');
   });
 });
 
@@ -102,31 +123,31 @@ describe('欄への書き込み', () => {
   const data: CaseData = { table4: { f28: '1,000', other: 'そのまま' } };
 
   it('辞書の保存キーへ入れ、他の欄には触らない', () => {
-    const { data: next } = applyFieldValues(catalog, data, [{ code: 'G04', value: 2500 }]);
+    const { data: next } = applyFieldValues(catalog, data, [{ code: '4-1:G04', value: 2500 }]);
     expect(next.table4?.f28).toBe('2,500');
     expect(next.table4?.other).toBe('そのまま');
   });
 
   it('元のデータは書き換えない', () => {
-    applyFieldValues(catalog, data, [{ code: 'G04', value: 2500 }]);
+    applyFieldValues(catalog, data, [{ code: '4-1:G04', value: 2500 }]);
     expect(data.table4?.f28).toBe('1,000');
   });
 
   it('変わったかどうかを差分に出す', () => {
     const { changes } = applyFieldValues(catalog, data, [
-      { code: 'G04', value: '1,000' },
-      { code: 'G10', value: -200 },
+      { code: '4-1:G04', value: '1,000' },
+      { code: '4-1:G10', value: -200 },
     ]);
-    expect(changes[0]).toMatchObject({ code: 'G04', before: '1,000', after: '1,000', changed: false });
-    expect(changes[1]).toMatchObject({ code: 'G10', before: '', after: '△200', changed: true });
+    expect(changes[0]).toMatchObject({ code: '4-1:G04', before: '1,000', after: '1,000', changed: false });
+    expect(changes[1]).toMatchObject({ code: '4-1:G10', before: '', after: '△200', changed: true });
     expect(changes[1]?.period).toBe('直前期');
   });
 
   it('同じ欄を2回指定したら弾く', () => {
     expect(() =>
       applyFieldValues(catalog, data, [
-        { code: 'G04', value: 1 },
-        { code: 'g04', value: 2 },
+        { code: '4-1:G04', value: 1 },
+        { code: '4-1:g04', value: 2 },
       ]),
     ).toThrow(/2回指定されています/);
   });
@@ -134,8 +155,8 @@ describe('欄への書き込み', () => {
   it('1つでも通らなければ何も書かない', () => {
     expect(() =>
       applyFieldValues(catalog, data, [
-        { code: 'G01', value: 5000 },
-        { code: 'G04', value: 1.5 },
+        { code: '4-1:G01', value: 5000 },
+        { code: '4-1:G04', value: 1.5 },
       ]),
     ).toThrow(/小数は受け付けません/);
     expect(data.table4?.['①']).toBeUndefined();
@@ -150,7 +171,7 @@ describe('現在値の読み出し', () => {
   it('辞書に載っている欄をすべて返す（未入力は空欄）', () => {
     const values = readFieldValues(catalog, { table4: { f28: '1,000' } });
     expect(values).toHaveLength(catalog.fields.length);
-    expect(values.find((v) => v.code === 'G04')?.before).toBe('1,000');
-    expect(values.find((v) => v.code === 'G10')?.before).toBe('');
+    expect(values.find((v) => v.code === '4-1:G04')?.before).toBe('1,000');
+    expect(values.find((v) => v.code === '4-1:G10')?.before).toBe('');
   });
 });

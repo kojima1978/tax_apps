@@ -17,7 +17,10 @@ export interface CatalogFormat {
 }
 
 export interface CatalogField {
+  /** 外から欄を指す鍵（`<様式の略号>:<識別記号>`。4-1:G01 / 1-2:G09） */
   code: string;
+  /** 様式に印字されている識別記号。様式をまたぐと重複する */
+  symbol: string;
   form: string;
   table: string;
   field: string;
@@ -33,25 +36,42 @@ export interface CatalogRowSide {
   key: string;
   label: string;
   prefix: string;
-  noteOptions: string[];
+  /** enum 列に入れられる値（キーは列の name）。載っていない列は空欄だけ */
+  options?: Record<string, string[]>;
 }
 
 export interface CatalogRowColumn {
-  index: number;
+  /** 行を渡すときのキー */
+  name: string;
+  /** 保存キーの列の部分（数字とは限らない） */
+  key: string;
   label: string;
   kind: CatalogKind;
   unit?: string;
+  /** この列が空の行は取り込まない */
+  required?: boolean;
+  hint?: string;
+}
+
+/** 続紙の枚数を持つ隠し欄。行だけ書いて枚数を足し忘れると画面に出ない。 */
+export interface CatalogRowPages {
+  field: string;
+  base: number;
+  max: number;
 }
 
 export interface CatalogRowTable {
+  /** 外から表を指す名前 */
+  id: string;
   form: string;
   table: string;
   mainRows: number;
   contRows: number;
-  maxPages: number;
   maxRows: number;
+  pages: CatalogRowPages;
   sides: CatalogRowSide[];
   columns: CatalogRowColumn[];
+  hint?: string;
 }
 
 /** 和暦日付の4欄の内訳（元号・年・月・日）。保存キーは `<prefix><keySuffix>`。 */
@@ -64,7 +84,8 @@ export interface CatalogDatePart {
 export interface CatalogDateField {
   key: string;
   label: string;
-  code: string;
+  /** 様式に印字されている識別記号（4欄まとめての番号） */
+  symbol: string;
   prefix: string;
   required: boolean;
 }
@@ -81,7 +102,7 @@ export interface CatalogEra {
 export interface CatalogCaseIdentity {
   form: string;
   table: string;
-  companyName: { code: string; field: string };
+  companyName: { symbol: string; field: string };
   dates: CatalogDateField[];
   parts: CatalogDatePart[];
   eras: CatalogEra[];
@@ -125,13 +146,24 @@ export function fieldLabel(field: CatalogField): string {
 export function findField(catalog: FieldCatalog, code: string): CatalogField {
   const key = String(code).trim().toUpperCase();
   const found = catalog.fields.find((f) => f.code === key);
-  if (found === undefined) {
+  if (found !== undefined) return found;
+
+  // 識別記号は様式ごとに振り直されているので、略号を落とすと別の様式の欄に当たる。
+  // 黙って1つ選ぶのではなく、どの様式のものか指定し直してもらう。
+  const sameSymbol = catalog.fields.filter((f) => f.symbol.toUpperCase() === key);
+  if (sameSymbol.length > 0) {
+    const shown = sameSymbol.map((f) => `${f.code}（${f.form} ${f.label}）`).join(' / ');
     throw new InputError(
-      `${code} という欄は辞書にありません。describe_fields で書き込める欄を確認してください`
-      + '（自動計算欄・他表からの転記欄は、外から書けないよう辞書に載せていません）',
+      `${code} には様式の略号が付いていません。識別記号は様式ごとに振り直されているので`
+      + `（第1表の1・第1表の2・第4表の1 の G01 は全部別の欄）、`
+      + `様式まで含めて ${shown} の形で指定してください`,
     );
   }
-  return found;
+
+  throw new InputError(
+    `${code} という欄は辞書にありません。describe_fields で書き込める欄を確認してください`
+    + '（自動計算欄・他表からの転記欄は、外から書けないよう辞書に載せていません）',
+  );
 }
 
 /** 3桁区切りを入れる。 */

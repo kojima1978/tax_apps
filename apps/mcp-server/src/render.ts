@@ -5,8 +5,13 @@
  * 試算を既定にしている意味が無くなるため。
  */
 import type { CaseProfile } from './caseIdentity.js';
-import type { FieldCatalog, FieldChange } from './catalog.js';
-import type { BalanceRow, SideChange } from './table5.js';
+import type {
+  CatalogRowColumn,
+  CatalogRowTable,
+  FieldCatalog,
+  FieldChange,
+} from './catalog.js';
+import type { DetailRow, PagesChange, SideChange } from './rows.js';
 
 /**
  * 画面の自動保存は同じ PUT /cases/:id を叩く。案件を開いたまま外から書くと、
@@ -54,29 +59,61 @@ export function renderFieldChanges(changes: readonly FieldChange[], commit: bool
   return lines.join('\n');
 }
 
-function renderRow(row: BalanceRow): string {
-  const note = row.note === '' ? '' : `  [${row.note}]`;
-  return `  ${String(row.row).padStart(3, ' ')}. ${row.name}  相続税評価額 ${show(row.evaluated)} / 帳簿価額 ${show(row.book)}${note}`;
+/** 行の見出しになる列（辞書の1列目）の値。消える行を名前で見せるのに使う。 */
+function headValue(columns: readonly CatalogRowColumn[], row: DetailRow): string {
+  const head = columns[0];
+  return head === undefined ? '' : (row.values[head.name] ?? '');
 }
 
-export function renderBalanceSides(sides: readonly SideChange[], commit: boolean): string {
+/**
+ * 1行ぶん。列の見出しは辞書から取る ── 表ごとに列が違うので
+ * 「相続税評価額 / 帳簿価額」と決め打ちすると、株主の表で嘘の見出しを書く。
+ */
+function renderRow(columns: readonly CatalogRowColumn[], row: DetailRow): string {
+  const parts: string[] = [];
+  for (const column of columns.slice(1)) {
+    const value = row.values[column.name] ?? '';
+    if (column.kind === 'enum') {
+      // 選択肢の欄は入っているときだけ［］で添える（空欄が並ぶと行が読みにくい）
+      if (value !== '') parts.push(`[${value}]`);
+      continue;
+    }
+    parts.push(`${column.label} ${show(value)}`);
+  }
+  const tail = parts.length === 0 ? '' : `  ${parts.join(' / ')}`;
+  return `  ${String(row.row).padStart(3, ' ')}. ${headValue(columns, row)}${tail}`;
+}
+
+export function renderRowSides(
+  rowTable: CatalogRowTable,
+  sides: readonly SideChange[],
+  pages: PagesChange,
+  commit: boolean,
+): string {
   const total = sides.reduce((n, side) => n + side.after.length, 0);
   const lines = [
     commit
-      ? `第5表の明細を入れ替えました（合計 ${total} 行）。`
-      : `第5表の明細を入れ替えます（合計 ${total} 行。これは試算です。確定するには commit: true を付けて呼び直してください）。`,
+      ? `${rowTable.form}の明細を入れ替えました（合計 ${total} 行）。`
+      : `${rowTable.form}の明細を入れ替えます（合計 ${total} 行。これは試算です。確定するには commit: true を付けて呼び直してください）。`,
   ];
 
   for (const side of sides) {
     lines.push('');
     lines.push(`【${side.label}】 ${side.before.length} 行 → ${side.after.length} 行`);
     if (side.before.length > 0) {
-      lines.push(`  取込前（すべて消えます）: ${side.before.map((r) => r.name).join('、')}`);
+      const gone = side.before.map((r) => show(headValue(rowTable.columns, r)));
+      lines.push(`  取込前（すべて消えます）: ${gone.join('、')}`);
     }
-    for (const row of side.after) lines.push(renderRow(row));
+    for (const row of side.after) lines.push(renderRow(rowTable.columns, row));
   }
 
   lines.push('');
+  if (pages.after !== pages.before) {
+    lines.push(
+      `続紙の枚数（${pages.field}）: ${pages.before} → ${pages.after}。`
+      + '行だけ増やすと画面にも印刷にも出ないので、一緒に直しています。',
+    );
+  }
   lines.push('※ 指定した側は1行目から詰め直します。指定しなかった側はそのままです。');
   lines.push(AUTOSAVE_WARNING);
   return lines.join('\n');
@@ -131,7 +168,7 @@ export function renderCaseProfile(profile: CaseProfile, outcome: CreateCaseOutco
   lines.push(
     outcome.kind === 'dry'
       ? '※ 作る前に、会社名が決算書の表紙どおりか・課税時期が相続開始の日かを確かめてください。'
-      : 'この caseId へ set_fields / import_balance_sheet で入れてください。',
+      : 'この caseId へ set_fields / import_rows で入れてください。',
   );
   return lines.join('\n');
 }

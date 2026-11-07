@@ -10,14 +10,14 @@ import { applyFieldValues, readFieldValues } from './catalog.js';
 import { InputError } from './errors.js';
 import { withCaseLock } from './lock.js';
 import {
-  renderBalanceSides,
   renderCaseProfile,
   renderCatalog,
   renderFieldChanges,
   renderJson,
+  renderRowSides,
 } from './render.js';
-import type { BalanceRowInput } from './table5.js';
-import { applyBalanceSheet, findRowTable, readBalanceRows } from './table5.js';
+import type { RowInput } from './rows.js';
+import { applyRows, findRowTable, readRows } from './rows.js';
 
 export interface DescribeFieldsArgs {
   form?: string;
@@ -42,10 +42,11 @@ export interface SetFieldsArgs extends CaseArgs {
 
 export interface SideInput {
   side: string;
-  rows: BalanceRowInput[];
+  rows: RowInput[];
 }
 
-export interface ImportBalanceSheetArgs extends CaseArgs {
+export interface ImportRowsArgs extends CaseArgs {
+  rowTable: string;
   sides: SideInput[];
   commit?: boolean;
 }
@@ -122,19 +123,22 @@ export async function createCase(api: SvfApi, args: CreateCaseArgs): Promise<str
   return renderCaseProfile(profile, { kind: 'created', caseId: created.id, archived });
 }
 
-/** 案件1件の現在値。辞書に載っている欄と、第5表の明細だけを返す。 */
+/** 案件1件の現在値。辞書に載っている欄と明細行の表だけを返す。 */
 export async function getCase(api: SvfApi, args: CaseArgs): Promise<string> {
   const catalog = await api.getCatalog();
   const found = await api.getCase(args.caseId);
   const data = caseData(found.data);
 
   const rowTables = catalog.rowTables.map((rowTable) => ({
+    rowTable: rowTable.id,
     form: rowTable.form,
     table: rowTable.table,
+    // 続紙の枚数も見せる（行は入っているのに枚数が足りない案件を見分けるため）
+    pages: data[rowTable.table]?.[rowTable.pages.field] ?? String(rowTable.pages.base),
     sides: rowTable.sides.map((side) => ({
       side: side.key,
       label: side.label,
-      rows: readBalanceRows(rowTable, data, side.prefix),
+      rows: readRows(rowTable, data, side.prefix).map((row) => ({ row: row.row, ...row.values })),
     })),
   }));
 
@@ -173,21 +177,21 @@ export async function setFields(api: SvfApi, args: SetFieldsArgs): Promise<strin
   });
 }
 
-export async function importBalanceSheet(
-  api: SvfApi,
-  args: ImportBalanceSheetArgs,
-): Promise<string> {
+/** 明細行の表（第5表の資産・負債、第1表の1 の株主）を入れ替える。 */
+export async function importRows(api: SvfApi, args: ImportRowsArgs): Promise<string> {
   const catalog = await api.getCatalog();
-  const rowTable = findRowTable(catalog, 'table5');
+  const rowTable = findRowTable(catalog, args.rowTable);
 
   if (args.sides.length === 0) throw new InputError('取り込む側が指定されていません');
 
-  const input: Record<string, BalanceRowInput[]> = {};
+  const input: Record<string, RowInput[]> = {};
   for (const entry of args.sides) {
     const key = String(entry.side).trim();
     if (!rowTable.sides.some((s) => s.key === key)) {
       const keys = rowTable.sides.map((s) => `${s.key}（${s.label}）`).join(' / ');
-      throw new InputError(`${entry.side} という側はありません。指定できるのは ${keys}`);
+      throw new InputError(
+        `${entry.side} という側は${rowTable.form}にはありません。指定できるのは ${keys}`,
+      );
     }
     if (input[key] !== undefined) {
       throw new InputError(`${key} が2回指定されています。1回にまとめてください`);
@@ -197,15 +201,15 @@ export async function importBalanceSheet(
 
   return withCaseLock(args.caseId, async () => {
     const found = await api.getCase(args.caseId);
-    const { data, sides } = applyBalanceSheet(catalog, caseData(found.data), input);
+    const { data, sides, pages } = applyRows(catalog, caseData(found.data), rowTable.id, input);
 
-    if (args.commit !== true) return renderBalanceSides(sides, false);
+    if (args.commit !== true) return renderRowSides(rowTable, sides, pages, false);
 
     await api.putCase(args.caseId, {
       companyName: found.companyName,
       taxPeriod: found.taxPeriod,
       data,
     });
-    return renderBalanceSides(sides, true);
+    return renderRowSides(rowTable, sides, pages, true);
   });
 }

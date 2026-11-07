@@ -1,31 +1,51 @@
 // 欄の辞書 — 外部ツール（MCP サーバー経由の Claude Desktop など）が
 // 決算書・申告書から読み取った数字を、どの欄へ入れるか決めるための対照表。
 //
-// 鍵にするのは様式の識別コード（G01 …）。国税庁の様式にそのまま印字されている番号なので、
-// PDF を見ている側と保存先を、内部キー（f28 / e18 …）を知らせずに突き合わせられる。
+// 鍵にするのは「様式の略号:様式に印字されている識別記号」（4-1:G01 / 1-2:G09）。
+// 識別記号は国税庁の様式にそのまま印字されているので、PDF を見ている側と保存先を
+// 内部キー（f28 / e18 …）を知らせずに突き合わせられる。ただし記号は様式ごとに
+// G01 から振り直されていて（第1表の1・第1表の2・第4表の1 の G01 は全部別の欄）、
+// 記号だけでは一意にならないため、様式の略号まで含めたものをコードにしている。
 //
 // ここに載せるのは「人が入れる欄」だけにする。自動計算欄・他表からの転記欄を載せると、
 // 外から書き込めるように見えてしまい、次の再計算で黙って上書きされる。
 // 載せ漏れ・載せ過ぎは server/__tests__/fieldCatalog.test.ts が様式の定義と突き合わせる。
 //
+// 資料から決まらないもの（従業員数・相続税評価額・評価方式の判断・業種目番号）は
+// 辞書に載せても「機械が決めた」ことになるだけなので、人が画面で入れる前提にしている。
+//
 // 単位は様式のとおり千円。円へ換算しないのは第5表の貼り付け取込と同じ理由で、
 // 桁が1000倍ずれて入るより、数字がそのまま入って弾かれるほうが気づけるため。
 
 /** 保存先のバケット。第4表の1／第4表の2はどちらも 'table4' に入る。 */
-export type CatalogTable = 'table1_1' | 'table4' | 'table5';
+export type CatalogTable = 'table1_1' | 'table1_2' | 'table4' | 'table5';
 
 /**
  * 値の種類。
- * - integer       … 負数を取らない整数（配当金額・資本金等の額など）
+ * - integer       … 負数を取らない整数（配当金額・資本金等の額・株式数など）
  * - signedInteger … 欠損・マイナスを取る整数（課税所得金額・利益積立金額）
- * - text          … 自由入力（科目名）
+ * - text          … 自由入力（科目名・株主の氏名）
  * - enum          … options のいずれか（第5表の備考）
  */
 export type CatalogKind = 'integer' | 'signedInteger' | 'text' | 'enum';
 
+/** 様式1つぶん。コードの略号と保存先バケットをここだけで決める。 */
+interface FormDef {
+  readonly name: string;
+  readonly abbr: string;
+  readonly table: CatalogTable;
+}
+
+const T1_1: FormDef = { name: '第1表の1', abbr: '1-1', table: 'table1_1' };
+const T1_2: FormDef = { name: '第1表の2', abbr: '1-2', table: 'table1_2' };
+const T4_1: FormDef = { name: '第4表の1', abbr: '4-1', table: 'table4' };
+const T5: FormDef = { name: '第5表', abbr: '5', table: 'table5' };
+
 export interface CatalogField {
-  /** 様式の識別コード。外部からはこれで欄を指す */
+  /** 外部からはこれで欄を指す（`<様式の略号>:<識別記号>`） */
   code: string;
+  /** 様式に印字されている識別記号（G01 など。様式をまたぐと重複する） */
+  symbol: string;
   /** どの様式の欄か（表示用） */
   form: string;
   /** 保存先バケット */
@@ -48,19 +68,34 @@ export interface CatalogField {
   hint?: string;
 }
 
-const T4 = '第4表の1' as const;
+/** 様式を決めれば残りは機械的に決まるので、欄は様式ごとにまとめて作る。 */
+type FieldSpec = Omit<CatalogField, 'code' | 'form' | 'table'>;
+
+function fieldsOf(form: FormDef, specs: readonly FieldSpec[]): CatalogField[] {
+  return specs.map((spec) => ({
+    code: `${form.abbr}:${spec.symbol}`,
+    form: form.name,
+    table: form.table,
+    ...spec,
+  }));
+}
 
 /** 事業年度で3列に分かれる欄をまとめて作る（直前期／直前々期／直前々期の前期）。 */
 function periods(
   label: string,
   kind: CatalogKind,
-  entries: readonly (readonly [code: string, field: string])[],
+  entries: readonly (readonly [symbol: string, field: string])[],
   extra: Pick<CatalogField, 'required' | 'hint'> = {},
-): CatalogField[] {
+): FieldSpec[] {
   const names = ['直前期', '直前々期', '直前々期の前期'] as const;
-  return entries.map(([code, field], i) => ({
-    code, form: T4, table: 'table4' as const, field, label,
-    period: names[i]!, unit: '千円', kind, ...extra,
+  return entries.map(([symbol, field], i) => ({
+    symbol,
+    field,
+    label,
+    period: names[i]!,
+    unit: '千円',
+    kind,
+    ...extra,
   }));
 }
 
@@ -68,10 +103,14 @@ function periods(
  * 第4表の1 のうち人が入れる欄（25件）。
  * G25（直前期の⑰資本金等の額）は G01 からの転記なので載せない。
  */
-export const CATALOG_FIELDS: readonly CatalogField[] = [
+const TABLE4_1_FIELDS: readonly FieldSpec[] = [
   {
-    code: 'G01', form: T4, table: 'table4', field: '①',
-    label: '① 直前期末の資本金等の額', unit: '千円', kind: 'integer', required: true,
+    symbol: 'G01',
+    field: '①',
+    label: '① 直前期末の資本金等の額',
+    unit: '千円',
+    kind: 'integer',
+    required: true,
     hint: '別表五(一)Ⅱ の差引翌期首現在資本金等の額の合計',
   },
   ...periods('⑥ 年配当金額', 'integer', [['G04', 'f28'], ['G05', 'f32'], ['G06', 'f36']], {
@@ -98,65 +137,261 @@ export const CATALOG_FIELDS: readonly CatalogField[] = [
     hint: '別表七(一)の当期控除額',
   }),
   {
-    code: 'G26', form: T4, table: 'table4', field: 'n56',
-    label: '⑰ 資本金等の額', period: '直前々期', unit: '千円', kind: 'integer', required: true,
+    symbol: 'G26',
+    field: 'n56',
+    label: '⑰ 資本金等の額',
+    period: '直前々期',
+    unit: '千円',
+    kind: 'integer',
+    required: true,
     hint: '別表五(一)Ⅱ の差引翌期首現在資本金等の額の合計（直前々期末）',
   },
   {
-    code: 'G27', form: T4, table: 'table4', field: 'n53',
-    label: '⑱ 利益積立金額', period: '直前期', unit: '千円', kind: 'signedInteger', required: true,
+    symbol: 'G27',
+    field: 'n53',
+    label: '⑱ 利益積立金額',
+    period: '直前期',
+    unit: '千円',
+    kind: 'signedInteger',
+    required: true,
     hint: '別表五(一)Ⅰ の差引翌期首現在利益積立金額の合計',
   },
   {
-    code: 'G28', form: T4, table: 'table4', field: 'n57',
-    label: '⑱ 利益積立金額', period: '直前々期', unit: '千円', kind: 'signedInteger', required: true,
+    symbol: 'G28',
+    field: 'n57',
+    label: '⑱ 利益積立金額',
+    period: '直前々期',
+    unit: '千円',
+    kind: 'signedInteger',
+    required: true,
     hint: '別表五(一)Ⅰ の差引翌期首現在利益積立金額の合計（直前々期末）',
   },
 ];
 
 /**
- * 明細行で入れる表（第5表）。欄が行数ぶん増えるので、1件ずつではなく作り方を返す。
- * 保存キーは `<接頭辞>_<行番号>_<列番号>`（a_1_1 … l_222_4）。
+ * 第1表の1 の会社情報ヘッダーと、「１．株主及び評価方式の判定」のうち
+ * 株主の明細行ではない合計欄。
+ * ①②④（議決権割合・グループ合計）は③⑤⑥から自動計算されるので載せない。
  */
+const TABLE1_1_FIELDS: readonly FieldSpec[] = [
+  {
+    symbol: 'H04',
+    field: 'f18',
+    label: '本店の所在地',
+    kind: 'text',
+    hint: '法人税申告書 別表一の納税地、または決算書の表紙',
+  },
+  {
+    symbol: 'H07',
+    field: 'f13',
+    label: '代表者氏名',
+    kind: 'text',
+    hint: '法人税申告書 別表一の代表者自署',
+  },
+  {
+    symbol: 'G38',
+    field: 'f63',
+    label: '自己株式の株式数',
+    unit: '株',
+    kind: 'integer',
+    required: true,
+    hint: '別表二の発行済株式数の内訳、または株主資本等変動計算書の自己株式。無ければ 0',
+  },
+  {
+    symbol: 'G41',
+    field: '③',
+    label: '③ 筆頭株主グループの議決権の合計数',
+    unit: '個',
+    kind: 'integer',
+    required: true,
+    hint: '別表二の議決権数のうち筆頭株主グループ分の合計。どこまでを同一グループと見るかは人が判断する',
+  },
+  {
+    symbol: 'G43',
+    field: '⑤',
+    label: '⑤ 評価会社の発行済株式数',
+    unit: '株',
+    kind: 'integer',
+    required: true,
+    hint: '別表二、または貸借対照表の注記・株主資本等変動計算書',
+  },
+  {
+    symbol: 'C04',
+    field: '⑥',
+    label: '⑥ 議決権の総数',
+    unit: '個',
+    kind: 'integer',
+    required: true,
+    hint: '別表二の議決権数の合計（自己株式には議決権が無い）',
+  },
+];
+
+/** 第1表の2 の「３．会社の規模（Ｌの割合）の判定」のうち、従業員数以外の2欄。 */
+const TABLE1_2_FIELDS: readonly FieldSpec[] = [
+  {
+    symbol: 'G09',
+    field: 'f22',
+    label: '直前期末の総資産価額（帳簿価額）',
+    unit: '千円',
+    kind: 'integer',
+    required: true,
+    hint: '直前期の貸借対照表の資産の合計（帳簿価額）。第5表の帳簿価額の合計と一致する',
+  },
+  {
+    symbol: 'G12',
+    field: 'f24',
+    label: '直前期末以前1年間の取引金額',
+    unit: '千円',
+    kind: 'integer',
+    required: true,
+    hint: '直前期の損益計算書の売上高（営業収益）。兼業しているときは合計',
+  },
+];
+
+export const CATALOG_FIELDS: readonly CatalogField[] = [
+  ...fieldsOf(T1_1, TABLE1_1_FIELDS),
+  ...fieldsOf(T1_2, TABLE1_2_FIELDS),
+  ...fieldsOf(T4_1, TABLE4_1_FIELDS),
+];
+
+// ── 明細行で入れる表 ────────────────────────────────────────────────
+//
+// 欄が行数ぶん増えるので、1件ずつではなく作り方を返す。
+// 保存キーは `<接頭辞>_<行番号>_<列>`（第5表の a_1_1 … l_222_4、株主の sh_1_1 … sh_135_5）。
+// 列の部分は数字だけとは限らない（株主の続柄コードは sh_2_2k）ので文字列で持つ。
+
+export interface CatalogRowColumn {
+  /** 外部から指す名前（行を渡すときのキー） */
+  name: string;
+  /** 保存キーの列の部分 */
+  key: string;
+  /** 様式の欄名 */
+  label: string;
+  kind: CatalogKind;
+  unit?: string;
+  /** この列が空の行は取り込まない（行の見出しになる列） */
+  required?: boolean;
+  hint?: string;
+}
+
+export interface CatalogRowSide {
+  key: string;
+  label: string;
+  /** 保存キーの接頭辞 */
+  prefix: string;
+  /**
+   * enum 列に入れられる値（キーは列の name）。
+   * 載っていない enum 列は空欄だけが入る（備考が資産側にしかないのがこれ）。
+   */
+  options?: Readonly<Record<string, readonly string[]>>;
+}
+
+/**
+ * 続紙の枚数を持つ隠し欄。欄の値は `base`（本表だけ）から `max` までの数で、
+ * 使える行数は `mainRows + contRows * (値 - base)`。
+ * 行だけ書いて枚数を増やし忘れると、入れた行が画面に出ず印刷もされない。
+ */
+export interface CatalogRowPages {
+  field: string;
+  base: number;
+  max: number;
+}
+
 export interface CatalogRowTable {
+  /** 外部から表を指す名前 */
+  id: string;
   form: string;
+  /** 保存先バケット */
   table: CatalogTable;
-  /** 本表の行数・続紙1枚の行数・続紙を含む最大枚数 */
+  /** 本表の行数・続紙1枚の行数 */
   mainRows: number;
   contRows: number;
-  maxPages: number;
   /** 使える行番号の上限（本表＋続紙すべて） */
   maxRows: number;
-  sides: readonly {
-    key: string;
-    label: string;
-    /** 保存キーの接頭辞 */
-    prefix: string;
-    /** 備考列に入れられる値。空配列なら自由入力 */
-    noteOptions: readonly string[];
-  }[];
-  columns: readonly { index: number; label: string; kind: CatalogKind; unit?: string }[];
+  pages: CatalogRowPages;
+  sides: readonly CatalogRowSide[];
+  columns: readonly CatalogRowColumn[];
+  hint?: string;
 }
+
+const ASSET_NOTE_OPTIONS = ['株式等', '土地等'] as const;
 
 export const CATALOG_ROW_TABLES: readonly CatalogRowTable[] = [
   {
-    form: '第5表',
-    table: 'table5',
+    id: 'balanceSheet',
+    form: T5.name,
+    table: T5.table,
     mainRows: 15,
     contRows: 23,
-    maxPages: 10,
     maxRows: 15 + 23 * 9,
+    pages: { field: '_pages', base: 1, max: 10 },
     sides: [
-      { key: 'asset', label: '資産', prefix: 'a', noteOptions: ['株式等', '土地等'] },
-      { key: 'liability', label: '負債', prefix: 'l', noteOptions: [] },
+      { key: 'asset', label: '資産', prefix: 'a', options: { note: ASSET_NOTE_OPTIONS } },
+      { key: 'liability', label: '負債', prefix: 'l' },
     ],
     columns: [
-      { index: 1, label: '科目', kind: 'text' },
+      { name: 'name', key: '1', label: '科目', kind: 'text', required: true },
       // 貸倒引当金のような控除項目がマイナスで入るため、金額欄は符号を取る
-      { index: 2, label: '相続税評価額', kind: 'signedInteger', unit: '千円' },
-      { index: 3, label: '帳簿価額', kind: 'signedInteger', unit: '千円' },
-      { index: 4, label: '備考', kind: 'enum' },
+      {
+        name: 'evaluated',
+        key: '2',
+        label: '相続税評価額',
+        kind: 'signedInteger',
+        unit: '千円',
+        hint: '評価そのものなので決算書からは決まらない。帳簿価額をそのまま入れず、空で渡して人に入れてもらう',
+      },
+      {
+        name: 'book',
+        key: '3',
+        label: '帳簿価額',
+        kind: 'signedInteger',
+        unit: '千円',
+        hint: '直前期の貸借対照表の金額',
+      },
+      { name: 'note', key: '4', label: '備考', kind: 'enum' },
     ],
+    hint: '資産・負債は片方だけでも入れ替えられる。科目をまとめるかどうかは人が決める',
+  },
+  {
+    id: 'shareholders',
+    form: T1_1.name,
+    table: T1_1.table,
+    mainRows: 5,
+    contRows: 13,
+    maxRows: 5 + 13 * 10,
+    pages: { field: '_shpages', base: 0, max: 10 },
+    sides: [{ key: 'shareholder', label: '株主', prefix: 'sh' }],
+    columns: [
+      { name: 'name', key: '1', label: '氏名又は名称', kind: 'text', required: true },
+      {
+        name: 'shares',
+        key: '4',
+        label: '㋑ 株式数',
+        kind: 'integer',
+        unit: '株',
+        hint: '別表二の株式数又は出資の金額等',
+      },
+      {
+        name: 'undivided',
+        key: '7',
+        label: '㋺ 未分割の株式の株式数',
+        kind: 'integer',
+        unit: '株',
+        hint: '遺産分割の状況から決まるので、決算書・申告書からは入れない',
+      },
+      {
+        name: 'votes',
+        key: '5',
+        label: '㋩ 議決権数',
+        kind: 'integer',
+        unit: '個',
+        hint: '別表二の議決権数',
+      },
+    ],
+    hint:
+      '1行目は納税義務者。別表二の並び順ではなく、誰が納税義務者かを人に確かめてから渡すこと。'
+      + '続柄・役職・株式の種類は辞書に載せていない（評価方式の判定に直結するので人が入れる）が、'
+      + '入れ替えると同じ行のそれらも消えるので、人が入れる前に取り込むこと',
   },
 ];
 
@@ -187,8 +422,8 @@ export interface CatalogDateField {
   key: string;
   /** 様式の欄名 */
   label: string;
-  /** 様式の識別コード（4欄まとめての番号） */
-  code: string;
+  /** 様式に印字されている識別記号（4欄まとめての番号） */
+  symbol: string;
   /** 保存キーの接頭辞 */
   prefix: string;
   /** 案件の見出しに使う欄か（空だと一覧で見分けられない） */
@@ -218,7 +453,7 @@ export interface CatalogEra {
 export interface CatalogCaseIdentity {
   form: string;
   table: CatalogTable;
-  companyName: { code: string; field: string };
+  companyName: { symbol: string; field: string };
   dates: readonly CatalogDateField[];
   parts: readonly CatalogDatePart[];
   eras: readonly CatalogEra[];
@@ -227,13 +462,13 @@ export interface CatalogCaseIdentity {
 }
 
 export const CATALOG_CASE_IDENTITY: CatalogCaseIdentity = {
-  form: '第1表の1',
-  table: 'table1_1',
-  companyName: { code: 'E01', field: 'f12' },
+  form: T1_1.name,
+  table: T1_1.table,
+  companyName: { symbol: 'E01', field: 'f12' },
   dates: [
-    { key: 'taxPeriod', label: '課税時期', code: 'N01', prefix: 'f14', required: true },
-    { key: 'fiscalYearFrom', label: '直前期（自）', code: 'N02', prefix: 'f15_from', required: false },
-    { key: 'fiscalYearTo', label: '直前期（至）', code: 'N03', prefix: 'f15_to', required: false },
+    { key: 'taxPeriod', label: '課税時期', symbol: 'N01', prefix: 'f14', required: true },
+    { key: 'fiscalYearFrom', label: '直前期（自）', symbol: 'N02', prefix: 'f15_from', required: false },
+    { key: 'fiscalYearTo', label: '直前期（至）', symbol: 'N03', prefix: 'f15_to', required: false },
   ],
   parts: [
     { part: 'era', keySuffix: '_g', labelSuffix: '' },
@@ -248,10 +483,6 @@ export const CATALOG_CASE_IDENTITY: CatalogCaseIdentity = {
   defaultEra: '令和',
 };
 
-/**
- * 外部ツールへ返す取り決め。
- * 「やらないこと」を辞書と一緒に配るのは、受け手が同じ線引きで動けるようにするため。
- */
 /**
  * 種類ごとの値の書き方。入力欄は打鍵のたびに整形するので、保存されている値も
  * 整形後の文字列（1,234 / △5,678）になっている。外から書くときも同じ形に揃えないと、
@@ -277,11 +508,17 @@ export const CATALOG_FORMATS: Record<CatalogKind, CatalogFormat> = {
   enum: { numeric: false },
 };
 
+/**
+ * 外部ツールへ返す取り決め。
+ * 「やらないこと」を辞書と一緒に配るのは、受け手が同じ線引きで動けるようにするため。
+ */
 export const CATALOG_RULES: readonly string[] = [
+  'コードは「様式の略号:様式に印字されている識別記号」（4-1:G01 / 1-2:G09）。同じ記号が別の様式にもあるので、略号まで含めて指定する',
   '金額の単位は千円。円で読み取った値は千円に直してから渡すこと（換算はこちらでは行わない）',
   '小数は受け付けない。端数処理は人が決める',
   '辞書に無いコードへは書き込めない。自動計算欄・他表からの転記欄は辞書に載せていない',
   '経常か非経常か、どの科目をまとめるかは資料からは決まらないので、判断が要るものは人へ返すこと',
+  '従業員数・第5表の相続税評価額・続柄や役職（評価方式の判定）は辞書に載せていない。業種目番号は候補を挙げるだけで書き込まない',
   '書き込みは既定で試算のみ。差分を確認してから確定する',
   '案件の見出し（会社名・課税時期）は様式の欄から作られる。案件を作るときは caseIdentity の欄も埋めること',
 ];
@@ -295,19 +532,15 @@ export interface FieldCatalog {
   caseIdentity: CatalogCaseIdentity;
 }
 
-// 版は辞書の形が変わったときに上げる（2: caseIdentity を足した）。
+// 版は辞書の形が変わったときに上げる
+// （2: caseIdentity を足した、3: コードを様式の略号つきにして第1表の1・第1表の2 を足した）。
 export function buildFieldCatalog(): FieldCatalog {
   return {
-    version: 2,
+    version: 3,
     rules: CATALOG_RULES,
     formats: CATALOG_FORMATS,
     fields: CATALOG_FIELDS,
     rowTables: CATALOG_ROW_TABLES,
     caseIdentity: CATALOG_CASE_IDENTITY,
   };
-}
-
-/** コード → 欄。未知のコードは undefined（呼び出し側で弾く） */
-export function findByCode(code: string): CatalogField | undefined {
-  return CATALOG_FIELDS.find((f) => f.code === code.trim().toUpperCase());
 }

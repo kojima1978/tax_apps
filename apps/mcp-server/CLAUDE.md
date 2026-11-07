@@ -16,7 +16,9 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
 
 - **様式の知識をこちらに持たせない**。どの欄が何かは株式評価明細書が配る辞書
   （`GET /stock-valuation-form/api/field-catalog`）だけが決め、桁区切りや `△` の付け方まで
-  そこから来る。写しを持つと**様式を直したとき片方だけ古いまま黙って動く**
+  そこから来る。写しを持つと**様式を直したとき片方だけ古いまま黙って動く**。
+  欄のコードは「様式の略号:識別記号」（`4-1:G01`）── 記号は様式ごとに振り直されているので
+  略号まで含める。明細行の表（第5表の資産・負債、第1表の1 の株主）も辞書が列と選択肢を持つ
 - **書き込みは既定で試算**（`commit: true` で確定）。辞書に無いコード・自動計算欄・
   単位違い・小数混入は弾く。円→千円の換算はしない（丸めたことが誰にも見えなくなる）
 - **常駐しない**ので `APPS` ではなく `UNMANAGED_APPS`、compose のサービスは
@@ -25,7 +27,7 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
 - **取込中はその案件の画面を閉じておくこと**。画面の自動保存も同じ `PUT /cases/:id` を叩き、
   `data` をまるごと置き換えるので、開いたままだとブラウザ側が後から上書きする。
   同じプロセス内の書き込み同士は `src/lock.ts` が案件ごとに直列化している
-  （`set_fields` と `import_balance_sheet` を同時に呼んで第5表が丸ごと消えるのを確認済み）
+  （`set_fields` と `import_rows` を同時に呼んで第5表が丸ごと消えるのを確認済み）
 - dev の株式評価明細書へ繋ぐには Vite 側に `allowedHosts: ['stock-valuation-form']` が要る
   （Vite 7 は localhost 以外の `Host` を 403 で弾く）。`vite.config.ts` はイメージ同梱なので
   変更には `manage.sh build stock-valuation-form` が必要

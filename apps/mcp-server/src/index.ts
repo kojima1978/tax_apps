@@ -61,17 +61,27 @@ const cellValue = z
   .optional()
   .describe('金額は千円単位の整数。小数・円単位は受け付けない。空文字は欄を空にする');
 
+/** 明細行の1マス。入っていないキーは「その列は空」の意味になる。 */
+const rowCell = z
+  .union([z.string(), z.number(), z.null()])
+  .describe('金額は千円単位の整数。小数・円単位は受け付けない');
+
 server.registerTool(
   'describe_fields',
   {
     title: '書き込める欄の一覧',
     description:
       '株式評価明細書のうち、外から書き込める欄の辞書を返す。書き込む前に必ずこれを読むこと。'
-      + 'コードは国税庁の様式に印字されている識別記号（G01 など）で、'
-      + '単位・整数かどうか・負数の書き方・備考の選択肢もここに入っている。'
-      + '自動計算欄と他表からの転記欄は載っていない（書いても再計算で消えるため）。',
+      + 'コードは「様式の略号:様式に印字されている識別記号」（4-1:G01 / 1-2:G09）。'
+      + '識別記号は様式ごとに振り直されているので、略号まで含めて指定する。'
+      + '単位・整数かどうか・負数の書き方・明細行の表（列の名前と選択肢）もここに入っている。'
+      + '自動計算欄と他表からの転記欄は載っていない（書いても再計算で消えるため）。'
+      + '従業員数・第5表の相続税評価額・続柄や役職も載っていない（人が画面で入れる）。',
     inputSchema: {
-      form: z.string().optional().describe('様式で絞る（例: 第4表の1、第5表）。省略時は全部'),
+      form: z
+        .string()
+        .optional()
+        .describe('様式で絞る（例: 第1表の1、第1表の2、第4表の1、第5表）。省略時は全部'),
     },
   },
   async (args) => run(() => tools.describeFields(api, args)),
@@ -117,8 +127,8 @@ server.registerTool(
   {
     title: '案件の現在値',
     description:
-      '1件の案件について、辞書に載っている欄の現在値と第5表の明細を返す。'
-      + '書き込む前にこれで既存の入力を確かめること。',
+      '1件の案件について、辞書に載っている欄の現在値と明細行の表（第5表の資産・負債、'
+      + '第1表の1 の株主）を返す。書き込む前にこれで既存の入力を確かめること。',
     inputSchema: { caseId },
   },
   async (args) => run(() => tools.getCase(api, args)),
@@ -139,7 +149,7 @@ server.registerTool(
       values: z
         .array(
           z.object({
-            code: z.string().describe('様式の識別記号（describe_fields が返すもの）'),
+            code: z.string().describe('欄のコード（describe_fields が返す fields[].code。例 4-1:G04）'),
             value: cellValue,
           }),
         )
@@ -152,41 +162,41 @@ server.registerTool(
 );
 
 server.registerTool(
-  'import_balance_sheet',
+  'import_rows',
   {
-    title: '第5表の明細を入れ替える',
+    title: '明細行の表を入れ替える',
     description:
-      '決算書（貸借対照表）から読み取った科目を第5表の明細へ入れる。'
-      + '指定した側（資産・負債）は1行目から詰め直すので、その側の既存の行はすべて消える。'
-      + '指定しなかった側はそのまま。既定は試算で、確定するには commit: true。'
+      '決算書・申告書から読み取った明細を、辞書の明細行の表へ入れる'
+      + '（balanceSheet = 第5表の資産・負債、shareholders = 第1表の1 の株主）。'
+      + '指定した側は1行目から詰め直すので、その側の既存の行はすべて消える。'
+      + '指定しなかった側はそのまま。続紙の枚数は入れた行に足りるよう自動で増やす。'
+      + '既定は試算で、確定するには commit: true。'
       + '科目をまとめたり、相続税評価額を帳簿価額から埋めたり、備考（株式等・土地等）を'
-      + '推測したりはしない ── どれも評価の判断そのものなので人が決めること。',
+      + '推測したりはしない ── どれも評価の判断そのものなので人が決めること。'
+      + '株主の表は1行目が納税義務者なので、並び順は人に確かめてから渡すこと。',
     inputSchema: {
       caseId,
+      rowTable: z.string().describe('describe_fields の rowTables[].id（balanceSheet / shareholders）'),
       sides: z
         .array(
           z.object({
-            side: z.string().describe('describe_fields の rowTables[].sides[].side（asset / liability）'),
+            side: z
+              .string()
+              .describe('その表の sides[].key（第5表は asset / liability、株主は shareholder）'),
             rows: z
-              .array(
-                z.object({
-                  name: z.string().describe('科目'),
-                  evaluated: cellValue.describe('相続税評価額（千円）'),
-                  book: cellValue.describe('帳簿価額（千円）'),
-                  note: z
-                    .string()
-                    .optional()
-                    .describe('備考。辞書の noteOptions に完全一致するものだけ。無ければ省く'),
-                }),
-              )
-              .describe('上から順に入る。空行は挟まないこと'),
+              .array(z.record(z.string(), rowCell))
+              .describe(
+                '上から順に入る。空行は挟まないこと。キーは辞書の columns[].name'
+                + '（第5表は name / evaluated / book / note、株主は name / shares / undivided / votes）。'
+                + '資料から決まらない列は入れずに省く',
+              ),
           }),
         )
         .min(1),
       commit,
     },
   },
-  async (args) => run(() => tools.importBalanceSheet(api, args)),
+  async (args) => run(() => tools.importRows(api, args)),
 );
 
 async function main() {
