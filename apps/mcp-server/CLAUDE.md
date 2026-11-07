@@ -1,6 +1,6 @@
 # CLAUDE.md（mcp-server）
 
-ルートの `CLAUDE.md` から移した。詳細は `README.md`。
+ルートの `CLAUDE.md` から移した。詳細は `README.md`、AI 向けの取込手順は `INTAKE.md`。
 
 
 ## MCP サーバー（外部の AI ツールから書き込む）
