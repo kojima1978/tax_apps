@@ -157,7 +157,7 @@ export const catalog: FieldCatalog = {
       key: 'inheritanceValue',
       form: '第5表',
       table: 'table5',
-      label: '資産の相続税評価額',
+      label: '資産・負債の相続税評価額',
       why: '帳簿価額からは決まらない',
       rowTable: 'balanceSheet',
       column: 'evaluated',

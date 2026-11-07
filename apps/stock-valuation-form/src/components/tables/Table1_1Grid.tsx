@@ -326,7 +326,8 @@ function shareholderRows(): GridCell[] {
     out.push({ kind: 'cell', codeLabel: codes.shares, top: topA, left: X.numCode1, width: +(X.numCode1End - X.numCode1).toFixed(2), height: hA });
     out.push({ field: `sh_${r}_4`, kind: 'input', calculationRequired: r === 1, commaInteger: true, top: topA, left: X.num1, width: +(X.num1End - X.num1).toFixed(2), height: hA, align: 'right' });
     out.push({ kind: 'cell', codeLabel: codes.undiv, top: topA, left: X.numCode2, width: +(X.numCode2End - X.numCode2).toFixed(2), height: hA });
-    out.push({ field: `sh_${r}_7`, kind: 'input', calculationRequired: r === 1, commaInteger: true, top: topA, left: X.num2, width: +(X.num2End - X.num2).toFixed(2), height: hA, align: 'right' });
+    // ㋺未分割の株式の株式数は該当が無ければ空欄のまま（計算にも使わない）なので必須にしない
+    out.push({ field: `sh_${r}_7`, kind: 'input', commaInteger: true, top: topA, left: X.num2, width: +(X.num2End - X.num2).toFixed(2), height: hA, align: 'right' });
     // 下段: [G番号][続柄コード選択][E番号][続柄(自動表示)]（1行目=納税義務者固定） [G番号][株式種類コード選択][E番号][株式の種類] [G番号][㋩議決権数] [G番号][㋥割合(自動)]
     if (r === 1) {
       out.push({ kind: 'label', text: '納税義務者', top: topB, left: X.name, width: +(X.nameEnd - X.name).toFixed(2), height: hB });
