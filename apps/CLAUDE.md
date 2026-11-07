@@ -60,3 +60,16 @@ docker/scripts/manage.sh watch <app-name>
 - **なぜ bind mount をやめたか**: Docker Desktop for Windows の bind mount(Windows→WSL2) は起動直後の `scandir` が EFAULT を返すことがあり、Next.js の dev サーバはルート表を watchpack の初期スキャン結果から組み立てる。スキャンに失敗したディレクトリ配下のルートが警告1行だけ残して丸ごと欠落し、「`✓ Ready` なのに 404」のまま稼働し続ける。コンテナ内から bind mount を無くすとこの経路自体が消える。
 - 同期経路が bind mount ではなくなった代わりに、Docker はオーバーレイ上位層へ直接書き込むためコンテナ内の inotify にイベントが届かない。**ポーリングが2箇所必要**: ルート表用の `WATCHPACK_POLLING`(compose の environment) と Turbopack 再コンパイル用の `watchOptions.pollIntervalMs`(next.config.ts)。
 - **スキャンガード**: 上の障害は healthcheck(`/api/health`) をすり抜けるため、両アプリの `docker-entrypoint.sh` に dev 限定のガードを入れてある。dev サーバの出力を FIFO 経由で監視し `Watchpack Error (initial scan)` を見つけたら即座に落とす → `restart: unless-stopped` で再起動。next は `exec` せず子プロセスとして起動し(PID 1 はハンドラの無いシグナルを無視するため)、`docker stop` の TERM は trap で転送している。
+
+## 画面・帳票の共通ルール
+
+- **申告書・評価明細書は国税庁の様式に忠実に**（inheritance-tax-form / stock-valuation-form）。UI の改善は様式を崩さない範囲で
+- **計算・シミュレーション系の印刷は A4 横1枚に収める**（gift-tax-simulator / capital-gains-calc / inheritance-tax-app など）。
+  複数ページの帳票（private-banking など）はページの切れ目で枠や表が崩れないようにする
+- 印刷では背景色を付けない。罫線・数字・注記は黒
+- 金額はカンマ区切り（入力中もリアルタイムで）。数値の入力欄にスピナーを付けない。
+  寄せ方（右寄せ・左寄せ）は画面ごとに指示があるので、既存の画面に合わせる
+- マイナスは「△」で表示する
+- 日付には和暦を添える（入力時も和暦で確かめられるように）
+- 見出しは日本語のみ（英字の飾り見出しを付けない）
+- 入力欄の幅は桁数に合わせ、同じ行の要素は高さをそろえる
