@@ -182,6 +182,13 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
   `backup.sh usb` を Git Bash 経由で呼ぶ ASCII ラッパー。外部コピー先（USB / NAS）をドライブの
   一覧から選び、そのまま最新のバックアップを1本写せる。上の「外部コピー」を参照。
 
+- **`setup-mcp.bat`**
+  `setup-mcp.sh` を Git Bash 経由で呼ぶ ASCII ラッパー。MCP サーバー（株式評価明細書への取込）の
+  イメージを作り、共有ネットワークを用意し、Claude デスクトップの設定へ `tax-apps` を登録する。
+  **既存の設定はマージ**（ほかの MCP サーバーも `mcpServers` 以外の項目も消さない）、
+  **変更前の控えつき**、同じ内容なら書かない、読めない JSON なら1バイトも書かずに中止（終了コード 3）。
+  手順は `apps/mcp-server/README.md`。
+
 ### 廃止したタスク登録（バックアップ・リストア訓練）
 
 **2026-10-11 に廃止**。`Tax Apps Daily Backup`（毎日3:00）と
@@ -354,6 +361,8 @@ detail=daily ok=7 skipped=0
 | `restore.bat` | 補助 (CMD) | backup.sh restore の Git Bash ラッパー（アプリ単位のリストア） |
 | `restore-new-pc.bat` | 補助 (CMD) | backup.sh newpc の Git Bash ラッパー（新しい PC で全部戻す） |
 | `set-backup-usb.bat` | 補助 (CMD) | backup.sh usb の Git Bash ラッパー（外部コピー先を選ぶ） |
+| `setup-mcp.sh` | 本体 (Bash) | MCP サーバーのイメージ作成と Claude デスクトップへの登録（マージ・控えつき） |
+| `setup-mcp.bat` | 補助 (CMD) | setup-mcp.sh の Git Bash ラッパー（ダブルクリック） |
 | `register-backup-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
 | `unregister-backup-task.bat` | 補助 (CMD) | 廃止したタスクを既存 PC から削除 |
 | `register-restore-drill-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |

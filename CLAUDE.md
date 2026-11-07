@@ -92,6 +92,16 @@ docker/scripts/manage.sh prune
 docker/scripts/manage.sh alert
 ```
 
+MCP サーバー（決算書 PDF から株式評価明細書への取込）を Claude デスクトップへ登録する:
+
+```bash
+# イメージ作成＋設定への登録を1回で（既存の設定はマージ・変更前の控えつき）
+docker/scripts/setup-mcp.sh
+
+# 何が変わるかだけ見る
+docker/scripts/setup-mcp.sh --dry-run
+```
+
 **ビルドを伴う compose はリポジトリ直下から叩くこと**（`docker compose -f apps/<app>/docker-compose.yml …`）。
 共有の `docker/Dockerfile.vite-static` を使う7アプリは、上の `cd apps/<app> && … --build` だと
 Bake の読み取り範囲の外になり `failed to execute bake: exit status 1` だけ出して止まる。

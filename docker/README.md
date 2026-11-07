@@ -156,6 +156,8 @@ rd /s /q tax_apps
 | `restore.bat` | Windows (CMD) | `backup.sh restore` を Git Bash 経由で呼び出す補助ラッパー（場所・アプリ・バックアップを一覧から選ぶ。USB からも直接戻せる） |
 | `restore-new-pc.bat` | Windows (CMD) | `backup.sh newpc` を Git Bash 経由で呼び出す補助ラッパー（**新しい PC で全部戻す**: `.env` → 元のモードで起動 → 全アプリのデータ。`docker/RESTORE.md` 手順 B） |
 | `set-backup-usb.bat` | Windows (CMD) | `backup.sh usb` を Git Bash 経由で呼び出す補助ラッパー（**外部コピー先（USB / NAS）をドライブの一覧から選ぶ**） |
+| `setup-mcp.sh` | Linux / Git Bash | MCP サーバー（株式評価明細書への取込）のイメージ作成と Claude デスクトップへの登録（**既存の設定はマージ・変更前の控えつき**） |
+| `setup-mcp.bat` | Windows (CMD) | `setup-mcp.sh` を Git Bash 経由で呼び出す補助ラッパー（ダブルクリック） |
 | `unregister-backup-task.bat` / `unregister-restore-drill-task.bat` | Windows (CMD) | **廃止したタスクを既存 PC から外す**ためだけに残してあるラッパー（登録側は削除済み） |
 | `start-prod.bat` | Windows (CMD) | ワンクリックで本番モード起動 |
 | `stop.bat` | Windows (CMD) | ワンクリックで全アプリ停止 |
@@ -1121,6 +1123,8 @@ tax_apps/
 │   │   ├── restore.bat         #   backup.sh restore を呼び出す Windows 補助ラッパー
 │   │   ├── restore-new-pc.bat  #   backup.sh newpc を呼び出す Windows 補助ラッパー（新しい PC で全部戻す）
 │   │   ├── set-backup-usb.bat  #   backup.sh usb を呼び出す Windows 補助ラッパー（外部コピー先を選ぶ）
+│   │   ├── setup-mcp.sh        #   MCP サーバーのイメージ作成と Claude デスクトップへの登録
+│   │   ├── setup-mcp.bat       #   setup-mcp.sh を呼び出す Windows 補助ラッパー
 │   │   ├── register-startup-task.bat/.ps1         #  ログオン時の自動起動タスク登録（昇格不要）
 │   │   ├── register-docker-watchdog-task.bat/.ps1 #  ウォッチドッグのタスク登録（昇格不要）
 │   │   ├── unregister-*.bat    #   タスクの解除（backup / restore-drill は廃止したタスクの解除用）

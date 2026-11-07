@@ -10,8 +10,11 @@
 評価案件の欄へ入れる経路。詳細は `apps/mcp-server/README.md`。
 
 ```bash
-# イメージを作る（これだけ。常駐しない）
-cd apps/mcp-server && docker compose --profile mcp build mcp-server
+# イメージ作成と Claude デスクトップへの登録を1回で（既存の設定はマージ・控えつき）
+docker/scripts/setup-mcp.sh
+
+# イメージだけ作り直す（リポジトリ直下から -f。常駐しないので起動はしない）
+docker compose -f apps/mcp-server/docker-compose.yml --profile mcp build mcp-server
 ```
 
 - **様式の知識をこちらに持たせない**。どの欄が何かは株式評価明細書が配る辞書
@@ -26,6 +29,13 @@ cd apps/mcp-server && docker compose --profile mcp build mcp-server
   **人の指示で直すだけのときは付けない**（出典なしで書いた欄は前の控えを落とす ──
   古い出典が残ると画面が嘘をつく）。`confirmed` は画面だけが立てるので外から渡せない。
   明細行は行ごとに先頭列の1つだけに付く
+- **登録と作り直しの口は `docker/scripts/setup-mcp.sh`**（`setup-mcp.bat` はダブルクリック用）。
+  `%APPDATA%\Claude\claude_desktop_config.json` を書き換えるので、**ほかの MCP サーバーも
+  `mcpServers` 以外の項目も消さずにマージし、変更前の控えを取り、読めない JSON なら1バイトも
+  書かずに終了コード 3 で止まる**。JSON のマージは docker の中の node（ホストに node も python も
+  要らない）。`manage.sh build mcp-server` は使えない（`APPS` に載っていない）ので、
+  **`src/` を直したらこのスクリプトを叩き直す**。テストは `docker/scripts/tests/setup-mcp.test.sh`
+  （CI の shell scripts ジョブ）
 - **常駐しない**ので `APPS` ではなく `UNMANAGED_APPS`、compose のサービスは
   `profiles: ["mcp"]`。MCP クライアントが `docker run -i --rm` で起動して終われば消える。
   テストだけは `TEST_TARGETS` の `run@mcp-server-test` から使い捨てコンテナで回る

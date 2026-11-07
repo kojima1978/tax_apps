@@ -142,6 +142,10 @@ jobs:
       - name: Compose build working directory regression
         run: bash docker/scripts/tests/compose-build.test.sh
 
+      # Claude デスクトップの設定を壊さずにマージできるか（人が足したほかの MCP が消えないか）
+      - name: MCP setup script regression
+        run: bash docker/scripts/tests/setup-mcp.test.sh
+
       # 各アプリの src/shared/ は shared/ の写し。写しだけ直すと次の sync で黙って消える
       - name: Shared sources are in sync
         run: bash shared/sync.sh --check

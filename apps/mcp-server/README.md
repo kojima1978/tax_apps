@@ -119,7 +119,35 @@
 
 ## 使い方（Claude Desktop）
 
-`%APPDATA%\Claude\claude_desktop_config.json` に追記する:
+**登録はスクリプト1本で済む。**イメージの作成・共有ネットワークの作成・Claude デスクトップの
+設定（`%APPDATA%\Claude\claude_desktop_config.json`）への `tax-apps` の追記までを1回で行う:
+
+```bash
+docker/scripts/setup-mcp.sh
+```
+
+Windows でエクスプローラから使うなら `docker\scripts\setup-mcp.bat`（ダブルクリック）。
+
+| 引数 | 何をするか |
+| --- | --- |
+| （なし） | イメージを作ってから設定へ登録する |
+| `--dry-run` | 1バイトも書かず、どう変わるかだけ見せる |
+| `--no-build` | 設定の登録だけ（イメージは作らない） |
+| `--config PATH` | 設定ファイルの場所を指定する（既定は `$APPDATA/Claude/...`） |
+
+守っていること:
+
+- **人が自分で足した設定を消さない。** ほかの MCP サーバーも `mcpServers` 以外の項目
+  （`globalShortcut` など）もそのまま残し、残したものを名前で報告する
+- **変更前の控えを取る**（`claude_desktop_config.json.bak.<日時>`）。同じ内容で登録済みなら
+  **書き換えない**（控えも増やさない）
+- **いまの設定が JSON として読めないときは1バイトも書かずに中止**する（終了コード 3）。
+  `{}` から組み直すと、人が足したほかの MCP サーバーの設定が黙って消える
+- JSON のマージは**docker の中の node** で行う（プログラムは stdin、入出力は環境変数と stdout）。
+  **別の PC のホストに node も python も要らない**（「ローカルを汚さない」の方針どおり）
+- 設定ファイルは**リポジトリの外**。個人の設定なので公開リポジトリには入れない
+
+登録される内容はこれ:
 
 ```json
 {
@@ -132,22 +160,32 @@
 }
 ```
 
-事前に1回だけイメージを作る（`docker-compose.yml` のサービスには
-`profiles: ["mcp"]` が付いているので、`manage.sh start` では起動しない）:
+登録したら**Claude デスクトップを完全に終了して開き直す**（設定は起動時にしか読まれない）。
+
+### 手で作り直すとき
+
+スクリプトを使わずイメージだけ作り直すなら、**リポジトリ直下から** `-f` で叩く
+（`cd apps/mcp-server` して `--build` を含む compose を叩くと、共有 Dockerfile が
+bake の読み取り範囲の外になり `failed to execute bake` だけ出して止まる）:
 
 ```bash
-cd apps/mcp-server && docker compose --profile mcp build mcp-server
+docker compose -f apps/mcp-server/docker-compose.yml --profile mcp build mcp-server
 ```
+
+サービスには `profiles: ["mcp"]` が付いているので `manage.sh start` では起動しない。
+`manage.sh build mcp-server` も使えない（常駐しないアプリなので `APPS` に載っていない）
+── **`src/` を直したら `setup-mcp.sh` か上の compose でイメージを作り直す**
+（作り直すまで Claude デスクトップは古いイメージを起動し続ける）。辞書は起動のたびに
+読み直すので、株式評価明細書の様式を直しただけならこちらの作り直しは要らない。
+
+### 接続先と前提
 
 **株式評価明細書が起動している必要がある**（`tax-apps-network` 上のサービス名で叩く）。
 接続先を変えるときは `SVF_API_BASE` 環境変数。既定は
 `http://stock-valuation-form:3014/stock-valuation-form/api` で、dev（Vite のプロキシ）でも
 本番（Node 直）でも同じ URL で通る。1リクエストの制限時間は `SVF_API_TIMEOUT_MS`（既定 15000）。
-どちらも `docker run` の `-e` で渡す（compose の `environment` は `docker run` からは読まれない）。
-
-イメージはソースを同梱するので、`src/` を直したら上の `build` をもう一度叩く
-（作り直すまで Claude Desktop は古いイメージを起動し続ける）。辞書は起動のたびに読み直すので、
-株式評価明細書の様式を直しただけならこちらの作り直しは要らない。
+どちらも設定の `args` へ `-e SVF_API_BASE=...` の形で足す
+（**compose の `environment` は `docker run` からは読まれない**）。
 
 > dev サーバへ繋ぐには、Vite 側に `allowedHosts: ['stock-valuation-form']` が要る。
 > Vite 7 は DNS リバインディング対策で localhost 以外の `Host` を 403 で弾くため

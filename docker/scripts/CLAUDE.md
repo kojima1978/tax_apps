@@ -63,6 +63,16 @@
 - `restore.bat`: Git Bash 経由で `backup.sh restore` を呼ぶ補助ラッパー（一覧から選ぶ）
 - `restore-new-pc.bat`: Git Bash 経由で `backup.sh newpc` を呼ぶ補助ラッパー（新しい PC で全部戻す）
 - `set-backup-usb.bat`: Git Bash 経由で `backup.sh usb` を呼ぶ補助ラッパー（外部コピー先をドライブ一覧から選ぶ）
+- `setup-mcp.sh`: MCP サーバーのイメージ作成と Claude デスクトップへの登録（`setup-mcp.bat` はダブルクリック用）
+  - `%APPDATA%\Claude\claude_desktop_config.json` を**マージ**する（人が足したほかの MCP サーバーも
+    `mcpServers` 以外の項目も消さない）。**変更前の控え**を取り、同じ内容なら書かない、
+    いまの設定が JSON として読めなければ**1バイトも書かずに終了コード 3**。`--dry-run` / `--no-build` / `--config`
+  - JSON のマージは **docker の中の node**（プログラムは stdin、入出力は環境変数と stdout。
+    `lib/merge-mcp-config.js`）── 別の PC のホストに node も python も要らない。
+    node のタグは `apps/mcp-server/Dockerfile` の `ARG NODE_VERSION` から引く（2箇所に書かない）
+  - mcp-server は `UNMANAGED_APPS` なので `manage.sh build mcp-server` は使えない。
+    **`apps/mcp-server/src/` を直したらこのスクリプトを叩き直す**
+  - テストは `docker/scripts/tests/setup-mcp.test.sh`（CI の shell scripts ジョブ）
 - **リストアはアプリ単位**（`manage.sh restore <app>|--all [backup] [--yes]`、手順書は
   **`docker/RESTORE.md`**）。そのアプリのコンテナだけ止めて戻し、**件数をバックアップと照合**
   （PG はダンプの COPY 行数と全テーブルの `count(*)`、SQLite はアプリのコンテナを借りて
@@ -400,3 +410,4 @@ docker/scripts/manage.sh test <app-name>   # 1アプリだけ
     `backup.sh` を走らせても、暗号化済みのアーカイブが1つでもあれば新しい鍵を
     黙って作らずに中断する（指紋を `docker/backups/.backup-key-fingerprint` と突き合わせる）
 - `restore-drill.bat`: 最新バックアップのリストア訓練（無人実行は `due` 経由。これは手動の入口）
+- `setup-mcp.bat`: Claude デスクトップへ MCP サーバーを登録（イメージ作成込み。`setup-mcp.sh` を呼ぶ）

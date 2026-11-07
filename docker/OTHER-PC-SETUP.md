@@ -190,6 +190,9 @@ docker/scripts/manage.sh build <アプリ>
 - bank-analyzer の DB が作り直されると、直後の数十秒は画面の health が 503 になることがある
   （DB への再接続の待ち）。1〜2分待ってから A5 で見る。
 - 止まる条件: `失敗: 1` 以上／ビルドがエラーで止まる（出力の全文を報告）。
+- **`apps/mcp-server/` が変わっていて、その PC で MCP を使っているなら `docker/scripts/setup-mcp.sh`**
+  （`apply` / `build` の対象ではない ── 常駐しないアプリなので `APPS` に載っていない）。
+  叩かないと Claude デスクトップは古いイメージを起動し続ける。
 
 ### A5. 確認
 
@@ -258,7 +261,28 @@ docker/scripts/manage.sh start --prod   # 本番モード
 
 外部コピー先（USB / NAS）を使うなら `set-backup-usb.bat`。
 
-### B5. 確認
+### B5. PDF からの自動入力（MCP）を使うなら
+
+決算書・申告書の PDF を AI に読ませて株式評価明細書へ入れる使い方をする PC だけ。
+**人に確かめてから**（Claude デスクトップの設定ファイルを書き換えるため）:
+
+```bash
+docker/scripts/setup-mcp.sh
+```
+
+エクスプローラからなら `docker\scripts\setup-mcp.bat` をダブルクリック。
+イメージの作成・共有ネットワークの作成・`%APPDATA%\Claude\claude_desktop_config.json` への
+`tax-apps` の登録まで1回で終わる。既存の設定は残してマージし、**変更前の控え**
+（`claude_desktop_config.json.bak.<日時>`）を取る。何が変わるか先に見たいときは `--dry-run`。
+
+- 設定ファイルは**リポジトリの外**（個人の設定なので取得物には入っていない）
+- 終わったら**Claude デスクトップを完全に終了して開き直す**（設定は起動時にしか読まれない）
+- 株式評価明細書が動いていること（`manage.sh status`）。手順は `apps/mcp-server/README.md`、
+  AI 向けの取込手順は `apps/mcp-server/INTAKE.md`
+- `apps/mcp-server/src/` を直したときはこのスクリプトを叩き直す
+  （`manage.sh build mcp-server` は使えない ── 常駐しないアプリなので `APPS` に載っていない）
+
+### B6. 確認
 
 ```bash
 docker/scripts/manage.sh status
@@ -278,4 +302,5 @@ docker/scripts/manage.sh preflight
 - 反映したアプリと、`apply` / `build` それぞれの結果
 - バックアップの結果
 - `manage.sh status` の要約と `preflight` の Results 行、出た WARN の全文
+- MCP を登録したかどうか（B5 を行ったか・控えのファイル名・残したほかの MCP サーバー）
 - 止まった場合は、止まった手順・出力の全文・その時点の `manage.sh status`
