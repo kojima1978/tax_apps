@@ -4,6 +4,8 @@ import { formatCommaInteger, formatSignedCommaInteger, normalizeInteger } from '
 import { formQrPath } from '@/lib/qrPath';
 import { useFitFontSize } from '@/hooks/useFitFontSize';
 import { DEFAULT_ERA } from '@/lib/wareki';
+import { intakeTooltip, lookupIntakeMark } from '@/lib/intake';
+import { IntakeMarksContext } from '@/features/intake/IntakeMarksContext';
 import { createContext, useContext, useMemo, useRef, useCallback, useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 
 /** グリッドセル定義（座標・サイズは％） */
@@ -283,6 +285,9 @@ function formatFixedDecimal(value: string, places: number): string {
 const DATE_BOX: CSSProperties = { textAlign: 'center', border: 'none', borderBottom: '1px solid #aaa', outline: 'none', background: 'transparent', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, minWidth: 0 };
 const SELECT_ARROW = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")`;
 const CALCULATION_REQUIRED_BG = '#eaf6ff';
+/** 外部ツールが入れた欄の印（紫）と、自信なしとされた欄の印（赤）。様式にない表示なので画面だけ。 */
+const INTAKE_MARK_COLOR = '#7c3aed';
+const INTAKE_UNCERTAIN_COLOR = '#dc2626';
 export const PrintRenderContext = createContext(false);
 
 /**
@@ -437,6 +442,7 @@ function DateFields({ field, formId, g, u, onKeyDown }: DateFieldsProps) {
  */
 export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectRatio = '210 / 297', headerExtra, toolbar, overlay, geometry: geometryProp, enterLoop, formId, snapTol, onJump, onDragReorder }: GridFormProps) {
   const printRendering = useContext(PrintRenderContext);
+  const intakeMarks = useContext(IntakeMarksContext);
   const generatedId = useId().replace(/:/g, '');
   const inputPrefix = formId ?? `grid-${generatedId}`;
   const { colTmpl, rowTmpl, placed, bounds } = useMemo(() => {
@@ -611,6 +617,12 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
         // （第７表の３の外枠が全欄を覆っていた）。中身を持たないセルは当たり判定から外す。
         const decorationOnly = c.kind === 'cell' && !interactive && !raw && c.field === undefined
           && c.codeLabel === undefined && c.diagonal === undefined && cellHint(c) === undefined;
+        // 外部ツールが入れた欄の印。様式にない表示なので印刷では付けない
+        const intakeMark = printRendering ? null : lookupIntakeMark(intakeMarks, inputPrefix, c.field);
+        const intakeColor = intakeMark?.uncertain === true ? INTAKE_UNCERTAIN_COLOR : INTAKE_MARK_COLOR;
+        const hint = intakeMark === null
+          ? cellHint(c)
+          : [cellHint(c), intakeTooltip(intakeMark)].filter(Boolean).join('\n\n');
         const selectCell = () => {
           if (toggleField) {
             u(toggleField, g(toggleField) === '1' ? '' : '1');
@@ -623,7 +635,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
           <div
             key={i}
             className="gf-cell"
-            title={cellHint(c)}
+            title={hint}
             role={isDragHandle ? 'button' : toggleField ? 'checkbox' : selectable ? 'button' : c.semanticRole}
             tabIndex={selectable || toggleField ? 0 : undefined}
             aria-label={interactive ? c.ariaLabel ?? (isDragHandle ? `${text}をドラッグして並び替え` : `${text}を選択`) : c.ariaLabel}
@@ -671,7 +683,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             gridColumn: c.exactPosition ? undefined : `${cs} / ${ce}`,
             gridRow: c.exactPosition ? undefined : `${rs} / ${re}`,
             border: isDragHandle ? '0.5px solid #64748b' : '0.5px solid #000',
-            position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.codeLabel || c.topRightLabel || c.bottomLabel || c.bottomSegments || c.rightLabel || c.rightButton ? 'relative' : undefined,
+            position: c.exactPosition ? 'absolute' : c.diagonal || c.cornerLabel || c.codeLabel || c.topRightLabel || c.bottomLabel || c.bottomSegments || c.rightLabel || c.rightButton || intakeMark ? 'relative' : undefined,
             top: c.exactPosition ? `${((c.top - bounds.top) / bounds.height) * 100}%` : undefined,
             left: c.exactPosition ? `${((c.left - bounds.left) / bounds.width) * 100}%` : undefined,
             width: c.exactPosition ? `${(c.width / bounds.width) * 100}%` : undefined,
@@ -693,6 +705,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
             padding: '1px 2px', boxSizing: 'border-box', overflow: 'hidden',
             lineHeight: 1.15, wordBreak: c.noWrap ? 'normal' : 'break-all', whiteSpace: c.noWrap ? 'nowrap' : 'normal', textAlign: 'center',
           }}>
+            {intakeMark && <span aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 2.5, background: intakeColor, pointerEvents: 'none', zIndex: 2 }} />}
             {c.codeLabel && <span style={{ position: 'absolute', top: 1, left: 2, fontSize: 6, lineHeight: 1, color: '#777', pointerEvents: 'none', zIndex: 1, whiteSpace: 'nowrap' }}>{c.codeLabel}</span>}
             {c.topRightLabel && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.topRightLabel}</span>}
             {c.bottomLabel && <span style={{ position: 'absolute', right: 2, bottom: 2, left: 2, fontSize: 6, lineHeight: 1, textAlign: c.bottomLabelAlign ?? 'left', pointerEvents: 'none' }}>{c.bottomLabel}</span>}
@@ -858,7 +871,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                 </div>
               </div>
             ) : c.kind === 'input' && c.field && c.multiline ? (
-              <div title={cellHint(c)} style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: c.align === 'left' ? 'flex-start' : 'flex-end', whiteSpace: 'pre-line', textAlign: 'right', overflow: 'hidden', background: c.readOnly ? '#f7f7f7' : undefined, lineHeight: 1.4, cursor: c.formulaHint ? 'help' : undefined }}>
+              <div title={hint} style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: c.align === 'left' ? 'flex-start' : 'flex-end', whiteSpace: 'pre-line', textAlign: 'right', overflow: 'hidden', background: c.readOnly ? '#f7f7f7' : undefined, lineHeight: 1.4, cursor: c.formulaHint ? 'help' : undefined }}>
                 {g(c.field)}
               </div>
             ) : c.kind === 'input' && c.field && c.options
@@ -874,7 +887,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                   id={`${inputPrefix}-${c.field}-${i}`}
                   name={`${inputPrefix}.${c.field}`}
                   ariaLabel={c.ariaLabel ?? c.field}
-                  title={cellHint(c)}
+                  title={hint}
                   value={g(c.field)}
                   onChange={(next) => u(c.field!, next)}
                   onKeyDown={onEnterNext}
@@ -889,7 +902,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
               ? <>
                   {c.cornerLabel && <span style={{ position: 'absolute', top: c.cornerLabelTop ?? 1, left: 2, fontSize: 7, lineHeight: 1, pointerEvents: 'none' }}>{c.cornerLabel}</span>}
                   {!printRendering && c.jumpTo && onJump && <span style={{ position: 'absolute', top: 1, right: c.topRightLabel ? 10 : 2, fontSize: 7, lineHeight: 1, color: '#2563eb', pointerEvents: 'none' }} aria-hidden="true">✎</span>}
-                  {printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{formattedFieldValue(c, g)}</div> : <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} aria-required={c.calculationRequired || undefined} title={cellHint(c)} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} onClick={c.jumpTo && onJump ? () => onJump(c.jumpTo!) : undefined} onContextMenu={c.contextMenu ? (e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, items: c.contextMenu! }); } : undefined} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={readOnly} tabIndex={readOnly ? -1 : undefined} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : c.calculationRequired ? CALCULATION_REQUIRED_BG : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', cursor: c.jumpTo && onJump ? 'pointer' : c.formulaHint ? 'help' : undefined }} />}
+                  {printRendering ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: c.align === 'left' ? 'flex-start' : c.align === 'center' ? 'center' : 'flex-end', overflow: 'hidden', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{formattedFieldValue(c, g)}</div> : <input id={`${inputPrefix}-${c.field}-${i}`} name={`${inputPrefix}.${c.field}`} aria-label={c.ariaLabel ?? c.field} aria-required={c.calculationRequired || undefined} title={hint} value={c.signedCommaInteger ? formatSignedCommaInteger(g(c.field)) : c.commaInteger ? formatCommaInteger(g(c.field)) : c.integerDigits !== undefined || c.noLeadingZero ? normalizeInteger(g(c.field)) : g(c.field)} onChange={(e) => { const next = c.decimalPlaces !== undefined ? sanitizeDecimal(e.target.value, c.decimalPlaces) : c.signedCommaInteger ? formatSignedCommaInteger(e.target.value) : c.commaInteger ? formatCommaInteger(e.target.value) : c.integerDigits !== undefined ? normalizeInteger(e.target.value).slice(0, c.integerDigits) : c.noLeadingZero ? normalizeInteger(e.target.value) : e.target.value; u(c.field!, next); }} onBlur={() => { if (!readOnly && c.decimalPlaces !== undefined) u(c.field!, formatFixedDecimal(g(c.field!), c.decimalPlaces)); }} onKeyDown={onEnterNext} onClick={c.jumpTo && onJump ? () => onJump(c.jumpTo!) : undefined} onContextMenu={c.contextMenu ? (e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, items: c.contextMenu! }); } : undefined} inputMode={c.signedCommaInteger ? 'text' : c.decimalPlaces !== undefined ? 'decimal' : c.integerDigits || c.commaInteger ? 'numeric' : undefined} maxLength={c.integerDigits} readOnly={readOnly} tabIndex={readOnly ? -1 : undefined} style={{ width: '100%', height: '100%', border: 'none', outline: 'none', textAlign: c.align ?? 'right', fontSize: 'inherit', background: readOnly ? highlighted ? '#fff3b0' : '#f7f7f7' : c.calculationRequired ? CALCULATION_REQUIRED_BG : 'transparent', padding: 0, paddingRight: c.rightLabel ? 10 : c.topRightLabel ? Math.min(c.topRightLabel.length * 7 + 3, 17) : 0, boxSizing: 'border-box', fontFamily: 'inherit', cursor: c.jumpTo && onJump ? 'pointer' : c.formulaHint ? 'help' : undefined }} />}
                 </>
               : c.kind === 'label' && c.verticalSectionHeading ? (
                 <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%' }}>
@@ -915,7 +928,7 @@ export function GridForm({ cells, g, u, width = '100%', title, formCode, aspectR
                     <span>{c.inlineRateExpression.prefix}</span>
                     {printRendering
                       ? <span>{g(c.inlineRateExpression.field) || c.inlineRateExpression.fallback}</span>
-                      : <input id={`${inputPrefix}-${c.inlineRateExpression.field}`} name={`${inputPrefix}.${c.inlineRateExpression.field}`} aria-label={c.ariaLabel ? `${c.ariaLabel}の率（％）` : c.inlineRateExpression.field} title={cellHint(c)} value={g(c.inlineRateExpression.field)} placeholder={c.inlineRateExpression.fallback} onChange={(e) => { const next = sanitizeDecimal(e.target.value, 2); if (next === '' || Number(next) <= 100) u(c.inlineRateExpression!.field, next); }} onKeyDown={onEnterNext} inputMode="decimal" style={{ width: '2.6em', minWidth: 0, border: 'none', borderBottom: '1px solid #aaa', outline: 'none', textAlign: 'center', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />}
+                      : <input id={`${inputPrefix}-${c.inlineRateExpression.field}`} name={`${inputPrefix}.${c.inlineRateExpression.field}`} aria-label={c.ariaLabel ? `${c.ariaLabel}の率（％）` : c.inlineRateExpression.field} title={hint} value={g(c.inlineRateExpression.field)} placeholder={c.inlineRateExpression.fallback} onChange={(e) => { const next = sanitizeDecimal(e.target.value, 2); if (next === '' || Number(next) <= 100) u(c.inlineRateExpression!.field, next); }} onKeyDown={onEnterNext} inputMode="decimal" style={{ width: '2.6em', minWidth: 0, border: 'none', borderBottom: '1px solid #aaa', outline: 'none', textAlign: 'center', fontSize: 'inherit', background: 'transparent', padding: 0, boxSizing: 'border-box', fontFamily: 'inherit' }} />}
                     <span>{c.inlineRateExpression.suffix}</span>
                   </span>
                 </span>

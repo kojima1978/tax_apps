@@ -31,6 +31,14 @@ export interface FormData {
   table7_2: Record<string, string>;
   table7_3: Record<string, string>;
   table8: Record<string, string>;
+  /**
+   * 取込の控え（外部ツールが入れた欄の出典）。鍵は「<バケット>.<保存キー>」＝入力欄の
+   * name 属性と同じ形で、値は出典の JSON 文字列（src/lib/intake.ts が読み書きする）。
+   *
+   * 様式の表ではないので `_` 始まりにしてある。案件データの形（表ID → 欄名 → 文字列）は
+   * 崩していないので、サーバの検証もバックアップの復元もそのまま通る。
+   */
+  _intake?: Record<string, string>;
 }
 
 export interface TableProps {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { initialFormData, type FormData } from '@/types/form';
 import { TEST_INDUSTRY_DATASET } from '@/data/__tests__/industryFixture';
 import { rolloverFormData } from '../rollover';
+import { INTAKE_TABLE, encodeIntakeMark } from '@/lib/intake';
 import { completeFormData, normalizeFormData } from '../useFormData';
 
 /** テスト用の入力データを組み立てる */
@@ -168,5 +169,15 @@ describe('rolloverFormData（翌事業年度更新）', () => {
     const r = rolloverFormData(data);
     expect(r.table1_1.f14_y).toBe('');
     expect(r.table1_1.f15_from_y).toBe('abc');
+  });
+});
+
+describe('翌年度更新と取込の控え', () => {
+  it('前年の出典は持ち込まない（翌年度の数字はまだ入っていない）', () => {
+    const data: FormData = {
+      ...baseData(),
+      [INTAKE_TABLE]: { 'table4.f28': encodeIntakeMark({ source: '前年の決算書.pdf' }) },
+    };
+    expect(rolloverFormData(data)[INTAKE_TABLE]).toBeUndefined();
   });
 });

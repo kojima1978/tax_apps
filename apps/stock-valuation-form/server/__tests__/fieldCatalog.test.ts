@@ -5,6 +5,8 @@ import {
   CATALOG_CASE_IDENTITY,
   CATALOG_FIELDS,
   CATALOG_FORMATS,
+  CATALOG_INTAKE,
+  CATALOG_MANUAL_ITEMS,
   CATALOG_ROW_TABLES,
   CATALOG_RULES,
 } from '../fieldCatalog.js';
@@ -25,6 +27,7 @@ const TABLE4_1 = read('../../src/components/tables/table4/Table4_1Grid.tsx');
 const TABLE1_1 = read('../../src/components/tables/Table1_1Grid.tsx');
 const TABLE1_2 = read('../../src/components/tables/table1-2/Table1_2Grid.tsx');
 const TABLE5 = read('../../src/components/tables/table5/Table5Grid.tsx');
+const TABLE4_2 = read('../../src/components/tables/table4/Table4_2Grid.tsx');
 
 /** 辞書の欄は様式＋識別記号で引く（記号は様式をまたぐと重複するため記号だけでは引けない）。 */
 const fieldOf = (form: string, symbol: string) =>
@@ -497,5 +500,83 @@ describe('元号', () => {
     const m = wareki.match(/DEFAULT_ERA = '([^']+)'/);
     expect(m, 'DEFAULT_ERA を読めませんでした').not.toBeNull();
     expect(CATALOG_CASE_IDENTITY.defaultEra).toBe(m![1]);
+  });
+});
+
+describe('取込の控え', () => {
+  const intake = read('../../src/lib/intake.ts');
+
+  it('バケット名が画面側の置き場所と一致する', () => {
+    const m = intake.match(/INTAKE_TABLE = '([^']+)'/);
+    expect(m, 'INTAKE_TABLE を読めませんでした').not.toBeNull();
+    expect(CATALOG_INTAKE.table).toBe(m![1]);
+  });
+
+  it('バケットが案件データの予約キー（`_` 始まり）になっている', () => {
+    expect(CATALOG_INTAKE.table.startsWith('_')).toBe(true);
+    const form = read('../../src/types/form.ts');
+    expect(form).toContain(`${CATALOG_INTAKE.table}?: Record<string, string>;`);
+  });
+
+  it('配っている値の鍵が画面側の控えの形と一致する', () => {
+    const m = intake.match(/export interface IntakeMark \{([^}]*)\}/);
+    expect(m, 'IntakeMark を読めませんでした').not.toBeNull();
+    const keys = [...m![1]!.matchAll(/^ {2}([a-zA-Z]+)\??:/gm)].map((x) => x[1]!);
+    expect([...CATALOG_INTAKE.valueKeys].sort()).toEqual([...keys].sort());
+  });
+
+  it('外から渡してはいけない鍵（confirmed）がそう書かれている', () => {
+    expect(CATALOG_INTAKE.howTo).toContain('confirmed');
+    expect(CATALOG_RULES.some((r) => r.includes('出典') && r.includes('uncertain'))).toBe(true);
+  });
+});
+
+describe('人が画面で入れるもの', () => {
+  it('key が重複していない', () => {
+    const keys = CATALOG_MANUAL_ITEMS.map((i) => i.key);
+    expect(keys.length).toBe(new Set(keys).size);
+  });
+
+  it('欄として辞書に載せていない（載せると外から書けるように見える）', () => {
+    const listed = CATALOG_MANUAL_ITEMS.flatMap(
+      (item) => (item.fields ?? []).filter(
+        (field) => CATALOG_FIELDS.some((f) => f.table === item.table && f.field === field),
+      ).map((field) => `${item.key}:${field}`),
+    );
+    expect(listed).toEqual([]);
+  });
+
+  it('見に行く欄が様式の画面に実在する', () => {
+    // table4 は第4表の1／2 で共用のバケットなので、様式名で画面を引く
+    const sources: Record<string, string> = {
+      第1表の1: TABLE1_1, 第1表の2: TABLE1_2, 第4表の1: TABLE4_1, 第4表の2: TABLE4_2, 第5表: TABLE5,
+    };
+    const missing = CATALOG_MANUAL_ITEMS.flatMap((item) => {
+      const source = sources[item.form];
+      expect(source, `${item.key} の様式 ${item.form} の画面を読んでいません`).toBeDefined();
+      return (item.fields ?? [])
+        .filter((field) => !(source ?? '').includes(`'${field}'`))
+        .map((field) => `${item.key}:${item.form}.${field}`);
+    });
+    expect(missing).toEqual([]);
+  });
+
+  it('明細の列を指すものは、その表と列が辞書にある', () => {
+    for (const item of CATALOG_MANUAL_ITEMS) {
+      if (item.rowTable === undefined) {
+        expect(item.column, `${item.key} に列だけ指定されています`).toBeUndefined();
+        continue;
+      }
+      const rowTable = CATALOG_ROW_TABLES.find((t) => t.id === item.rowTable);
+      expect(rowTable, `${item.key} の表 ${item.rowTable} が辞書にありません`).toBeDefined();
+      expect(rowTable!.columns.map((c) => c.name)).toContain(item.column);
+      // 列を数えるには、埋まっている行を見分けるための必須列が要る
+      expect(rowTable!.columns.some((c) => c.required === true)).toBe(true);
+    }
+  });
+
+  it('業種目番号は人が入れる側にある（取り決めと一致する）', () => {
+    expect(CATALOG_MANUAL_ITEMS.map((i) => i.key)).toContain('industryCode');
+    expect(CATALOG_RULES.some((r) => r.includes('業種目番号'))).toBe(true);
   });
 });

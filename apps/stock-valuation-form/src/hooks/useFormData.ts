@@ -6,6 +6,7 @@ import { rolloverFormData } from './rollover';
 import { INDUSTRY_NUMBER_TARGETS, syncIndustryStamps } from '@/lib/industryYearAudit';
 import { caseLabelsOf } from '@/features/cases/caseLabels';
 import { exportFileName } from '@/lib/exportFileName';
+import { INTAKE_TABLE, confirmIntakeMarks, dropChangedIntakeMarks } from '@/lib/intake';
 
 const STORAGE_KEY = 'stock-valuation-form-data';
 
@@ -193,7 +194,23 @@ function linkedFieldGroup(table: TableId, field: string) {
   );
 }
 
+/**
+ * 欄を1つ直す（人の編集の唯一の入口）。
+ *
+ * 外部ツールが入れた欄を人が直したら、取込の控え（自動入力の印）を落とす。
+ * 連動して変わった欄の印も一緒に落ちる。
+ */
 export function updateFormField(
+  data: FormData,
+  table: TableId,
+  field: string,
+  value: string,
+  industry: IndustryDataset,
+): FormData {
+  return dropChangedIntakeMarks(data, applyFieldUpdate(data, table, field, value, industry));
+}
+
+function applyFieldUpdate(
   data: FormData,
   table: TableId,
   field: string,
@@ -346,10 +363,13 @@ function migrateTable1_1R8(data: FormData): FormData {
  * 渡す前には必ずここを通すこと。
  */
 export function completeFormData(data: FormData): FormData {
-  return Object.keys(initialFormData).reduce<FormData>((next, table) => ({
+  const filled = Object.keys(initialFormData).reduce<FormData>((next, table) => ({
     ...next,
     [table]: { ...initialFormData[table as TableId], ...(data[table as TableId] ?? {}) },
   }), initialFormData);
+  // 様式の表ではない取込の控えは骨格に無いので、別に持ち越す
+  const intake = data[INTAKE_TABLE];
+  return intake === undefined ? filled : { ...filled, [INTAKE_TABLE]: intake };
 }
 
 export function normalizeFormData(data: FormData, industry: IndustryDataset): FormData {
@@ -359,10 +379,16 @@ export function normalizeFormData(data: FormData, industry: IndustryDataset): Fo
   );
 }
 
-/** UI状態（_*）を除いて1つでも入力があるか */
+/**
+ * UI状態（_*）を除いて1つでも入力があるか。
+ *
+ * 表そのものが `_` 始まり（取込の控え `_intake`）のものも数えない ── 控えだけが
+ * 残っている状態を「入力あり」と見ると、空の案件が勝手に作られる。
+ */
 export function hasAnyInput(data: FormData): boolean {
-  return Object.values(data).some((table) =>
-    Object.entries(table).some(([k, v]) => !k.startsWith('_') && String(v).trim() !== ''),
+  return Object.entries(data).some(([tableId, table]) =>
+    !tableId.startsWith('_')
+    && Object.entries(table).some(([k, v]) => !k.startsWith('_') && String(v).trim() !== ''),
   );
 }
 
@@ -494,6 +520,14 @@ export function useFormData() {
     );
   }, [exportJson, formData, industry]);
 
+  /**
+   * 取込の控えを「確認済み」にする（人が目で見て合っていたとき）。
+   * 印は消えるが出典は残す ── あとで「これはどの資料から入れたのか」を辿れるように。
+   */
+  const confirmIntake = useCallback((keys: readonly string[]) => {
+    setFormData((prev) => confirmIntakeMarks(prev, keys));
+  }, []);
+
   /** 帳票の中身をまるごと入れ替える（案件を開く・白紙の案件を作る）。 */
   const replaceAll = useCallback((data: FormData) => {
     setFormData(normalizeFormData(data, industry));
@@ -544,5 +578,5 @@ export function useFormData() {
   /** Table-scoped selector — stable reference per table while that table's data is unchanged */
   const tableData = useMemo(() => formData, [formData]);
 
-  return { formData, tableData, savedAt, updateField, getField, resetAll, exportJson, importJson, replaceAll, rolloverToNextYear };
+  return { formData, tableData, savedAt, updateField, getField, confirmIntake, resetAll, exportJson, importJson, replaceAll, rolloverToNextYear };
 }

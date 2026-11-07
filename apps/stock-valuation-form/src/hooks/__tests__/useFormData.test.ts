@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { initialFormData, type FormData, type TableId } from '@/types/form';
 import { TEST_INDUSTRY_DATASET } from '@/data/__tests__/industryFixture';
-import { hasAnyInput, normalizeFormData, updateFormField } from '../useFormData';
+import { INTAKE_TABLE, encodeIntakeMark, readIntakeMarks } from '@/lib/intake';
+import { completeFormData, hasAnyInput, normalizeFormData, updateFormField } from '../useFormData';
 
 const COMPANY_FIELDS: ReadonlyArray<readonly [TableId, string]> = [
   ['table1_1', 'f12'],
@@ -165,5 +166,35 @@ describe('table 4-2 similar industry linkage', () => {
   it('ignores UI state fields (_*) and whitespace when judging emptiness', () => {
     expect(hasAnyInput({ ...initialFormData, table1_1: { ...initialFormData.table1_1, _ui: '1' } })).toBe(false);
     expect(hasAnyInput({ ...initialFormData, table1_1: { ...initialFormData.table1_1, f12: '   ' } })).toBe(false);
+  });
+});
+
+describe('取込の控え（_intake）', () => {
+  const marked = (): FormData => ({
+    ...initialFormData,
+    table4: { ...initialFormData.table4, f28: '1,000' },
+    [INTAKE_TABLE]: { 'table4.f28': encodeIntakeMark({ source: '決算書.pdf' }) },
+  });
+
+  it('人が欄を直すと、その欄の控えは落ちる', () => {
+    const updated = updateFormField(marked(), 'table4', 'f28', '1,100', TEST_INDUSTRY_DATASET);
+    expect(updated[INTAKE_TABLE]).toBeUndefined();
+  });
+
+  it('関係のない欄を直しても控えは残る', () => {
+    const updated = updateFormField(marked(), 'table4', 'f32', '900', TEST_INDUSTRY_DATASET);
+    expect(Object.keys(readIntakeMarks(updated))).toEqual(['table4.f28']);
+  });
+
+  it('欄を補っても控えは消えない（保存・読み込みで通る経路）', () => {
+    expect(Object.keys(readIntakeMarks(completeFormData(marked())))).toEqual(['table4.f28']);
+    expect(completeFormData(initialFormData)[INTAKE_TABLE]).toBeUndefined();
+  });
+
+  it('控えだけの案件は「入力あり」にしない（空の案件を作らない）', () => {
+    expect(hasAnyInput({
+      ...initialFormData,
+      [INTAKE_TABLE]: { 'table4.f28': encodeIntakeMark({ source: '決算書.pdf' }) },
+    })).toBe(false);
   });
 });

@@ -3,6 +3,9 @@ import { Navigation } from '@/components/Navigation';
 import { MIRRORED_FIELDS, hasAnyInput, useFormData } from '@/hooks/useFormData';
 import { useHeightVar } from '@/hooks/useHeightVar';
 import { PrintRenderContext } from '@/components/ui/GridForm';
+import { IntakeMarksContext } from '@/features/intake/IntakeMarksContext';
+import { IntakeReviewPanel } from '@/features/intake/IntakeReviewPanel';
+import { readIntakeMarks } from '@/lib/intake';
 import { Table1_1Grid as Table1_1 } from '@/components/tables/Table1_1Grid';
 import { Table1_2 } from '@/components/tables/table1-2';
 import { Table2, printTablesForJudgment } from '@/components/tables/table2';
@@ -82,7 +85,7 @@ export default function App() {
   // サマリーの中で「計算過程（別紙）」へ切り替えているか（サマリーを開き直したら本体から）
   const [worksheetOpen, setWorksheetOpen] = useState(false);
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
-  const { formData, savedAt, getField, updateField, resetAll, exportJson, importJson, replaceAll, rolloverToNextYear } = useFormData();
+  const { formData, savedAt, getField, updateField, confirmIntake, resetAll, exportJson, importJson, replaceAll, rolloverToNextYear } = useFormData();
   const importRef = useRef<HTMLInputElement>(null);
   const topbarRef = useRef<HTMLDivElement>(null);
   // 帳票の操作帯は上端に貼り付いている。その下へ重ねる帯（サマリー）のために高さを渡す
@@ -326,6 +329,9 @@ export default function App() {
     };
   }, [finishPrint, printTarget]);
 
+  // 外部ツールが入れた欄の控え。表の中で欄ごとに引くので、入力のたびに作り直さない
+  const intakeMarks = useMemo(() => readIntakeMarks(formData), [formData]);
+
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) importJson(file);
@@ -371,6 +377,7 @@ export default function App() {
   const headerTitle = formHeaderTitle(caseStore.currentId, getField);
 
   return (
+    <IntakeMarksContext.Provider value={intakeMarks}>
     <PrintRenderContext.Provider value={printTarget !== null}>
     <div className="app-root" style={{ fontFamily: '"Noto Sans JP", sans-serif' }}>
       <header className="no-print app-header">
@@ -478,6 +485,7 @@ export default function App() {
             <PrerequisitesChip getField={getField} onClick={() => setPrereqOpen(true)} />
             {!summaryOpen && <RequiredFieldNavigator watch={`${activeTab}:${printTarget ?? ''}:${JSON.stringify(formData)}`} />}
             {!summaryOpen && <ConsistencyChecker getField={getField} onJump={(tab, field) => handleJump({ tab, field })} />}
+            {!summaryOpen && <IntakeReviewPanel formData={formData} onGo={goToField} onConfirm={confirmIntake} />}
             {!summaryOpen && (
               <IndustryYearNotice
                 getField={getField}
@@ -601,5 +609,6 @@ export default function App() {
       )}
     </div>
     </PrintRenderContext.Provider>
+    </IntakeMarksContext.Provider>
   );
 }

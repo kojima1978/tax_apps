@@ -122,6 +122,9 @@ const DIVIDEND_LINKS: ReadonlyArray<readonly ['table3' | 'table6', string, strin
 
 /** 翌事業年度更新（純粋関数）。適用後は normalizeFormData を通すこと。 */
 export function rolloverFormData(data: FormData): FormData {
+  // 取込の控えは前年分の資料を指しているので、順送りした案件へは引き継がない
+  const { _intake: _previousIntake, ...kept } = data;
+
   // 日付を1年進める（課税時期・直前期 自/至）
   const table1_1 = { ...data.table1_1 };
   for (const prefix of ['f14', 'f15_from', 'f15_to']) bumpWarekiYear(table1_1, prefix);
@@ -139,7 +142,7 @@ export function rolloverFormData(data: FormData): FormData {
   }
 
   return {
-    ...data,
+    ...kept,
     table1_1,
     table1_2: clearFields(data.table1_2, T1_2_CLEAR),
     table3,

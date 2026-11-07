@@ -39,6 +39,7 @@ interface FormDef {
 const T1_1: FormDef = { name: '第1表の1', abbr: '1-1', table: 'table1_1' };
 const T1_2: FormDef = { name: '第1表の2', abbr: '1-2', table: 'table1_2' };
 const T4_1: FormDef = { name: '第4表の1', abbr: '4-1', table: 'table4' };
+const T4_2: FormDef = { name: '第4表の2', abbr: '4-2', table: 'table4' };
 const T5: FormDef = { name: '第5表', abbr: '5', table: 'table5' };
 
 export interface CatalogField {
@@ -484,6 +485,94 @@ export const CATALOG_CASE_IDENTITY: CatalogCaseIdentity = {
 };
 
 /**
+ * 取込の控え（どの欄を外部ツールが入れたか）の置き場所。
+ *
+ * 案件データの中の予約バケットへ「<バケット>.<保存キー>」を鍵として入れる。画面の入力欄の
+ * name 属性と同じ形なので、控えから欄へそのまま飛べる。値を JSON 文字列にしているのは
+ * 案件データの形（表ID → 欄名 → 文字列）を崩さないため ── サーバの検証もバックアップの
+ * 復元も変えずに済む。
+ *
+ * 人が欄を直すと画面がその鍵を消し、「確認済み」にすると confirmed を立てる（出典は残す）。
+ */
+export interface CatalogIntake {
+  /** 控えを入れるバケット（案件データの中の予約キー） */
+  table: string;
+  /** 欄を指す鍵の形 */
+  keyFormat: string;
+  /** 値（JSON 文字列）のキー */
+  valueKeys: readonly string[];
+  /** 値の書き方 */
+  howTo: string;
+}
+
+export const CATALOG_INTAKE: CatalogIntake = {
+  table: '_intake',
+  keyFormat: '<バケット>.<保存キー>',
+  valueKeys: ['source', 'page', 'note', 'uncertain', 'confirmed', 'at'],
+  howTo:
+    '値は JSON 文字列。source=読んだ資料のファイル名（必須）、page=ページ番号、'
+    + 'note=読み取りのメモ、uncertain=true で「自信なし」（画面で目立たせる）、'
+    + 'at=書き込んだ時刻（ISO8601）。confirmed は人が画面で確認したときに画面が立てるので外からは渡さない',
+};
+
+/**
+ * 資料からは決まらないので人が画面で入れるもの。
+ *
+ * 欄として辞書に載せると外から書けるように見えてしまうので、ここでは「人が入れる」ことだけを
+ * 配る。画面は取込の確認一覧にこれを出し、外部ツールは取込の最後に人へ返す。
+ */
+export interface CatalogManualItem {
+  /** 外から指す名前 */
+  key: string;
+  form: string;
+  /** 保存先バケット（画面の移動先を決めるのに使う） */
+  table: CatalogTable;
+  label: string;
+  /** なぜ自動で入れないか */
+  why: string;
+  /** 入っているかを見る欄（単一の欄のとき） */
+  fields?: readonly string[];
+  /** 明細の列のとき。その列が空のままの行を数える */
+  rowTable?: string;
+  column?: string;
+}
+
+export const CATALOG_MANUAL_ITEMS: readonly CatalogManualItem[] = [
+  {
+    key: 'employees',
+    form: T1_2.name,
+    table: T1_2.table,
+    label: '従業員数（㋠継続勤務従業員数・㋷労働時間合計）',
+    why: '決算書・申告書には出てこない。給与の集計や名簿から人が数える',
+    fields: ['emp_regular', 'emp_hours'],
+  },
+  {
+    key: 'inheritanceValue',
+    form: T5.name,
+    table: T5.table,
+    label: '資産の相続税評価額',
+    why: '路線価・倍率・取引相場のない株式の評価など、帳簿価額からは決まらない',
+    rowTable: 'balanceSheet',
+    column: 'evaluated',
+  },
+  {
+    key: 'shareholderRelation',
+    form: T1_1.name,
+    table: T1_1.table,
+    label: '株主の続柄・役職（評価方式の判定）',
+    why: '同族関係者かどうかの判定。資料に書かれていないことが多く、誤ると評価方式が変わる',
+  },
+  {
+    key: 'industryCode',
+    form: T4_2.name,
+    table: T4_2.table,
+    label: '類似業種の業種目番号',
+    why: '業種目の選択は事業内容の判断。外部ツールは候補を挙げるだけにする',
+    fields: ['r1gyonum'],
+  },
+];
+
+/**
  * 種類ごとの値の書き方。入力欄は打鍵のたびに整形するので、保存されている値も
  * 整形後の文字列（1,234 / △5,678）になっている。外から書くときも同じ形に揃えないと、
  * 画面で開いたときだけ見た目が違う値が混ざる。
@@ -519,6 +608,7 @@ export const CATALOG_RULES: readonly string[] = [
   '辞書に無いコードへは書き込めない。自動計算欄・他表からの転記欄は辞書に載せていない',
   '経常か非経常か、どの科目をまとめるかは資料からは決まらないので、判断が要るものは人へ返すこと',
   '従業員数・第5表の相続税評価額・続柄や役職（評価方式の判定）は辞書に載せていない。業種目番号は候補を挙げるだけで書き込まない',
+  '書き込むときは出典（source: 読んだ資料のファイル名、page、note）を渡すこと。自信が無い欄は uncertain を立てる ── 画面で「確認待ち」として出る',
   '書き込みは既定で試算のみ。差分を確認してから確定する',
   '案件の見出し（会社名・課税時期）は様式の欄から作られる。案件を作るときは caseIdentity の欄も埋めること',
 ];
@@ -530,17 +620,24 @@ export interface FieldCatalog {
   fields: readonly CatalogField[];
   rowTables: readonly CatalogRowTable[];
   caseIdentity: CatalogCaseIdentity;
+  /** 取込の控えの置き場所 */
+  intake: CatalogIntake;
+  /** 人が画面で入れるもの（欄としては載せていない） */
+  manualItems: readonly CatalogManualItem[];
 }
 
 // 版は辞書の形が変わったときに上げる
-// （2: caseIdentity を足した、3: コードを様式の略号つきにして第1表の1・第1表の2 を足した）。
+// （2: caseIdentity を足した、3: コードを様式の略号つきにして第1表の1・第1表の2 を足した、
+//   4: 取込の控え（intake）と人が入れるもの（manualItems）を足した）。
 export function buildFieldCatalog(): FieldCatalog {
   return {
-    version: 3,
+    version: 4,
     rules: CATALOG_RULES,
     formats: CATALOG_FORMATS,
     fields: CATALOG_FIELDS,
     rowTables: CATALOG_ROW_TABLES,
     caseIdentity: CATALOG_CASE_IDENTITY,
+    intake: CATALOG_INTAKE,
+    manualItems: CATALOG_MANUAL_ITEMS,
   };
 }
