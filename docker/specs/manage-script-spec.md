@@ -5,7 +5,7 @@ Tax Apps コンテナ管理スクリプト (`manage.bat` / `manage.sh` / `backup
 **最終更新**: 2026-10-20
 **バージョン**: 4.0（現状に合わせて全面改訂。バックアップ系の `backup.sh` への分離、アプリ単位のリストア、無人処理・テスト・照合順序のコマンド、preflight のチェック13〜23）
 
-> 運用上の「なぜそうなっているか」は `tax_apps/CLAUDE.md` の「manage.sh / backup.sh」「自動起動・自動復旧」が正本。
+> 運用上の「なぜそうなっているか」は `tax_apps/docker/scripts/CLAUDE.md` の「manage.sh / backup.sh」「自動起動・自動復旧」が正本。
 > この文書はコマンドと定義の一覧に徹する。リストアの手順は `docker/RESTORE.md`、照合順序の移行は `docker/COLLATION-MIGRATION.md`。
 
 ---
@@ -345,7 +345,7 @@ bank-analyzer の JSON エクスポート（`npm run backup:json`）もアーカ
 - どちらも昇格不要（`RunLevel Limited`）。消えていれば `backup.sh` が再登録する（`OPS_SCHEDULED_TASKS`）
 - 廃止済みの `Tax Apps Daily Backup` / `Tax Apps Weekly Restore Drill` は `OPS_RETIRED_TASKS`。残っていれば `status` と `preflight` が警告する（解除は `unregister-*.bat`）
 - 無人処理は必ず `docker/logs/last-run/<名前>` に結果を1件残し、`OPS_WATCHED_RESULTS` の鮮度しきい値で `status` / `preflight` / デスクトップ警告が見る
-- タイムアウトの大小関係（内側 < 外側）、殺された回の記録、ロックの陳腐化は `CLAUDE.md` の「自動起動・自動復旧」を参照
+- タイムアウトの大小関係（内側 < 外側）、殺された回の記録、ロックの陳腐化は `docker/scripts/CLAUDE.md` の「自動起動・自動復旧」を参照
 
 ---
 

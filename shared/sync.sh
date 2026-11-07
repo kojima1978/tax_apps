@@ -5,7 +5,7 @@
 #   bash shared/sync.sh --check   写しが原本とずれていれば一覧を出して 1 で終わる（CI）
 #
 # 写しにするのは、各アプリの Docker のビルドがアプリのディレクトリの中しか見ないため
-# （ビルドの読み取り範囲を広げると Bake の確認に当たる。CLAUDE.md の compose の節）。
+# （ビルドの読み取り範囲を広げると Bake の確認に当たる。ルートの CLAUDE.md の「ビルドを伴う compose はリポジトリ直下から」）。
 # 写しを直接直すと次の sync で黙って消えるので、--check で必ず見つける。
 set -euo pipefail
 

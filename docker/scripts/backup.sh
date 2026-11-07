@@ -298,7 +298,7 @@ encrypt_backup_directory() {
 #
 # 後始末自体は on_release_operation_lock が trap ... EXIT INT TERM 経由で
 # 消す作りになっているが、**taskkill /T /F で終わった回は trap が1つも
-# 走らない**（CLAUDE.md の「殺された回は finally を飛ばす」と同じ形）。
+# 走らない**（docker/scripts/CLAUDE.md の「殺された回は finally を飛ばす」と同じ形）。
 # そして次の回が残骸を見に行く経路が無かったため、2026-10-04 の中断で
 # できた 17MB の平文が 9日間 docker/backups/ に残っていた。
 # ウォッチドッグのロックと同じ原則 ──「次の回が前の回の死体を見つける」──

@@ -95,7 +95,7 @@ tax_apps/
 │   └── html/                          # エラーページ
 ├── .gitignore
 ├── AGENTS.md                          # AI エージェント向けの入口（中身は README の「AI で操作する」へ案内するだけ）
-├── CLAUDE.md                          # Claude Code 向けの詳しい制約・設計の記録
+├── CLAUDE.md                          # Claude Code 向けの制約・早見表・要点（詳細は docker/scripts・apps 配下の CLAUDE.md）
 └── README.md
 ```
 

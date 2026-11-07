@@ -400,3 +400,4 @@ detail=daily ok=7 skipped=0
 
 - 親ディレクトリ [`docker/README.md`](../README.md) — 全体ガイド（アーキテクチャ、トラブルシューティング、リファレンス）
 - リポジトリ root [`CLAUDE.md`](../../CLAUDE.md) — コーディング規約・重要制約
+- [`CLAUDE.md`](CLAUDE.md)（このフォルダ） — build / apply / start とモード、manage.sh / backup.sh、テスト、自動起動・自動復旧の「なぜ」
