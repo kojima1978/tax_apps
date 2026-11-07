@@ -13,7 +13,7 @@ import type { CaseSummary, CaseUpdate, SvfApi } from '../api.js';
 import type { CaseData, FieldCatalog } from '../catalog.js';
 
 export const catalog: FieldCatalog = {
-  version: 3,
+  version: 4,
   rules: ['金額の単位は千円'],
   formats: {
     integer: { numeric: true, groupSeparator: ',' },
@@ -138,6 +138,31 @@ export const catalog: FieldCatalog = {
     ],
     defaultEra: '令和',
   },
+  intake: {
+    table: '_intake',
+    keyFormat: '<バケット>.<保存キー>',
+    valueKeys: ['source', 'page', 'note', 'uncertain', 'confirmed', 'at'],
+    howTo: '値は JSON 文字列。source=読んだ資料のファイル名（必須）',
+  },
+  manualItems: [
+    {
+      key: 'employees',
+      form: '第1表の2',
+      table: 'table1_2',
+      label: '従業員数（㋠継続勤務従業員数・㋷労働時間合計）',
+      why: '決算書・申告書には出てこない',
+      fields: ['emp_regular', 'emp_hours'],
+    },
+    {
+      key: 'inheritanceValue',
+      form: '第5表',
+      table: 'table5',
+      label: '資産の相続税評価額',
+      why: '帳簿価額からは決まらない',
+      rowTable: 'balanceSheet',
+      column: 'evaluated',
+    },
+  ],
 };
 
 export interface FakeApi extends SvfApi {

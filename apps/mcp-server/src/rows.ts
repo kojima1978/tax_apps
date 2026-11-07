@@ -10,8 +10,9 @@
  * 入れた行は保存されているのに画面に出ず、印刷にも出ない ── 誰にも見えない入り方になる。
  */
 import type { CaseData, CatalogRowTable, FieldCatalog } from './catalog.js';
-import { normalizeValue } from './catalog.js';
+import { normalizeValue, storageKey } from './catalog.js';
 import { InputError } from './errors.js';
+import type { IntakeTarget } from './intake.js';
 
 /** 1行ぶんの入力。キーは辞書の列の `name`。 */
 export type RowInput = Record<string, unknown>;
@@ -41,6 +42,12 @@ export interface ApplyRowsResult {
   rowTable: CatalogRowTable;
   sides: SideChange[];
   pages: PagesChange;
+  /**
+   * 取込の控えを置く／落とす先。行ごとに**先頭列のセル1つ**だけを指す ── 行の全列に
+   * 控えを付けると画面の確認一覧が列数ぶん膨れるし、見たいのは「この行がどの資料から
+   * 入ったか」なので、科目名（氏名）の欄に1つあれば足りる。
+   */
+  intakeTargets: IntakeTarget[];
 }
 
 export function findRowTable(catalog: FieldCatalog, id: string): CatalogRowTable {
@@ -136,6 +143,7 @@ export function applyRows(
 
   const table = { ...(data[rowTable.table] ?? {}) };
   const sides: SideChange[] = [];
+  const intakeTargets: IntakeTarget[] = [];
 
   for (const side of targets) {
     const rowsInput = input[side.key] ?? [];
@@ -197,6 +205,19 @@ export function applyRows(
     }
 
     sides.push({ key: side.key, label: side.label, before, after });
+
+    // 入れ替えで消える行の控えは落とす（残すと、もう無い行の出典が画面に出る）
+    const head = rowTable.columns[0];
+    if (head !== undefined) {
+      const marks = new Map<string, boolean>();
+      for (const row of before) {
+        marks.set(storageKey(rowTable.table, cellName(side.prefix, row.row, head.key)), false);
+      }
+      for (const row of after) {
+        marks.set(storageKey(rowTable.table, cellName(side.prefix, row.row, head.key)), true);
+      }
+      for (const [key, filled] of marks) intakeTargets.push({ key, filled });
+    }
   }
 
   const pagesBefore = currentPages(rowTable, table);
@@ -208,5 +229,6 @@ export function applyRows(
     rowTable,
     sides,
     pages: { field: rowTable.pages.field, before: pagesBefore, after: pagesAfter },
+    intakeTargets,
   };
 }

@@ -6,8 +6,10 @@ import type { SvfApi } from './api.js';
 import type { CaseProfileInput } from './caseIdentity.js';
 import { buildCaseProfile } from './caseIdentity.js';
 import type { CaseData, FieldValueInput } from './catalog.js';
-import { applyFieldValues, readFieldValues } from './catalog.js';
+import { applyFieldValues, readFieldValues, storageKey } from './catalog.js';
 import { InputError } from './errors.js';
+import type { IntakeSourceInput, IntakeTarget } from './intake.js';
+import { applyIntake, buildIntakeRecord, readIntake } from './intake.js';
 import { withCaseLock } from './lock.js';
 import {
   renderCaseProfile,
@@ -31,11 +33,16 @@ export interface CaseArgs {
   caseId: number;
 }
 
-export interface CreateCaseArgs extends CaseProfileInput {
+/** 読んだ資料。付けると画面に「自動で入った欄」の印と出典が出る。 */
+export interface SourcedArgs {
+  source?: IntakeSourceInput;
+}
+
+export interface CreateCaseArgs extends CaseProfileInput, SourcedArgs {
   commit?: boolean;
 }
 
-export interface SetFieldsArgs extends CaseArgs {
+export interface SetFieldsArgs extends CaseArgs, SourcedArgs {
   values: FieldValueInput[];
   commit?: boolean;
 }
@@ -45,7 +52,7 @@ export interface SideInput {
   rows: RowInput[];
 }
 
-export interface ImportRowsArgs extends CaseArgs {
+export interface ImportRowsArgs extends CaseArgs, SourcedArgs {
   rowTable: string;
   sides: SideInput[];
   commit?: boolean;
@@ -53,6 +60,20 @@ export interface ImportRowsArgs extends CaseArgs {
 
 function caseData(data: unknown): CaseData {
   return (data ?? {}) as CaseData;
+}
+
+/**
+ * 案件を作るときに書く欄（会社名・課税時期の4欄…）。出典を付けると画面で印が付くので、
+ * 「相続開始の通知から読んだ課税時期」も人の確認待ちとして一覧に出る。
+ */
+function profileTargets(data: CaseData): IntakeTarget[] {
+  const targets: IntakeTarget[] = [];
+  for (const [table, fields] of Object.entries(data)) {
+    for (const [field, value] of Object.entries(fields)) {
+      targets.push({ key: storageKey(table, field), filled: value !== '' });
+    }
+  }
+  return targets;
 }
 
 /** 書き込める欄の一覧。外部ツールはまずこれを読んでから書く。 */
@@ -99,6 +120,7 @@ export async function listCases(api: SvfApi, args: ListCasesArgs): Promise<strin
 export async function createCase(api: SvfApi, args: CreateCaseArgs): Promise<string> {
   const catalog = await api.getCatalog();
   const profile = buildCaseProfile(catalog, args);
+  const record = buildIntakeRecord(args.source);
 
   const same = (await api.listCases(true)).filter(
     (c) => c.companyName.trim() === profile.companyName && c.taxPeriod.trim() === profile.taxPeriod,
@@ -113,14 +135,17 @@ export async function createCase(api: SvfApi, args: CreateCaseArgs): Promise<str
   }
 
   const archived = same.map((c) => c.id);
-  if (args.commit !== true) return renderCaseProfile(profile, { kind: 'dry', archived });
+  if (args.commit !== true) {
+    return renderCaseProfile(profile, { kind: 'dry', archived }, record);
+  }
 
+  const { data } = applyIntake(catalog, profile.data, profileTargets(profile.data), record);
   const created = await api.postCase({
     companyName: profile.companyName,
     taxPeriod: profile.taxPeriod,
-    data: profile.data,
+    data,
   });
-  return renderCaseProfile(profile, { kind: 'created', caseId: created.id, archived });
+  return renderCaseProfile(profile, { kind: 'created', caseId: created.id, archived }, record);
 }
 
 /** 案件1件の現在値。辞書に載っている欄と明細行の表だけを返す。 */
@@ -147,6 +172,11 @@ export async function getCase(api: SvfApi, args: CaseArgs): Promise<string> {
     companyName: found.companyName,
     taxPeriod: found.taxPeriod,
     updatedAt: found.updatedAt,
+    // どの欄を外から入れたか（画面でも印が出ている）。人が直した欄・確認した欄は
+    // 画面が落とす・confirmed を立てるので、ここに残っているのが確認待ち。
+    intake: readIntake(catalog, data),
+    // 資料からは決まらないので人が画面で入れるもの（取込の最後にこれを報告する）
+    manualItems: catalog.manualItems ?? [],
     fields: readFieldValues(catalog, data).map((f) => ({
       code: f.code,
       label: f.label,
@@ -160,20 +190,25 @@ export async function getCase(api: SvfApi, args: CaseArgs): Promise<string> {
 
 export async function setFields(api: SvfApi, args: SetFieldsArgs): Promise<string> {
   const catalog = await api.getCatalog();
+  const record = buildIntakeRecord(args.source);
 
   // 取得から書き戻しまでを他の書き込みと重ねない（withCaseLock の説明を参照）。
   return withCaseLock(args.caseId, async () => {
     const found = await api.getCase(args.caseId);
-    const { data, changes } = applyFieldValues(catalog, caseData(found.data), args.values);
+    const applied = applyFieldValues(catalog, caseData(found.data), args.values);
+    const { changes } = applied;
 
-    if (args.commit !== true) return renderFieldChanges(changes, false);
+    if (args.commit !== true) return renderFieldChanges(changes, false, record);
+
+    const targets: IntakeTarget[] = changes.map((c) => ({ key: c.key, filled: c.after !== '' }));
+    const { data } = applyIntake(catalog, applied.data, targets, record);
 
     await api.putCase(args.caseId, {
       companyName: found.companyName,
       taxPeriod: found.taxPeriod,
       data,
     });
-    return renderFieldChanges(changes, true);
+    return renderFieldChanges(changes, true, record);
   });
 }
 
@@ -181,6 +216,7 @@ export async function setFields(api: SvfApi, args: SetFieldsArgs): Promise<strin
 export async function importRows(api: SvfApi, args: ImportRowsArgs): Promise<string> {
   const catalog = await api.getCatalog();
   const rowTable = findRowTable(catalog, args.rowTable);
+  const record = buildIntakeRecord(args.source);
 
   if (args.sides.length === 0) throw new InputError('取り込む側が指定されていません');
 
@@ -201,15 +237,18 @@ export async function importRows(api: SvfApi, args: ImportRowsArgs): Promise<str
 
   return withCaseLock(args.caseId, async () => {
     const found = await api.getCase(args.caseId);
-    const { data, sides, pages } = applyRows(catalog, caseData(found.data), rowTable.id, input);
+    const applied = applyRows(catalog, caseData(found.data), rowTable.id, input);
+    const { sides, pages } = applied;
 
-    if (args.commit !== true) return renderRowSides(rowTable, sides, pages, false);
+    if (args.commit !== true) return renderRowSides(rowTable, sides, pages, false, record);
+
+    const { data } = applyIntake(catalog, applied.data, applied.intakeTargets, record);
 
     await api.putCase(args.caseId, {
       companyName: found.companyName,
       taxPeriod: found.taxPeriod,
       data,
     });
-    return renderRowSides(rowTable, sides, pages, true);
+    return renderRowSides(rowTable, sides, pages, true, record);
   });
 }

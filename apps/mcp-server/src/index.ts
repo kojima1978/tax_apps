@@ -61,6 +61,27 @@ const cellValue = z
   .optional()
   .describe('金額は千円単位の整数。小数・円単位は受け付けない。空文字は欄を空にする');
 
+/**
+ * 読んだ資料。付けた欄は画面に印が付き、「取込の確認」に出る（印刷には出ない）。
+ * PDF から読み取って入れるときは必ず付けること ── 付けないと、あとから人が
+ * 「どの数字を誰がどこから入れたのか」を追えない。
+ */
+const source = z
+  .object({
+    source: z.string().describe('読んだ資料のファイル名（「決算書.pdf」など）'),
+    page: z.number().int().positive().optional().describe('その資料の何ページか'),
+    note: z
+      .string()
+      .optional()
+      .describe('読み取りのメモ（「別表四の所得金額」「中間配当と区別できず」など）'),
+    uncertain: z
+      .boolean()
+      .optional()
+      .describe('資料から読み切れず自信がないとき true。画面で赤く出て、確認の一覧の先頭に並ぶ'),
+  })
+  .optional()
+  .describe('読んだ資料。人の指示で直すだけのときは省く（出典が無い欄は確認の一覧に出ない）');
+
 /** 明細行の1マス。入っていないキーは「その列は空」の意味になる。 */
 const rowCell = z
   .union([z.string(), z.number(), z.null()])
@@ -116,6 +137,7 @@ server.registerTool(
         .describe('課税時期。和暦で「令和8年3月31日」の形。月日が分からなければ「令和8年」まででも可'),
       fiscalYearFrom: z.string().optional().describe('直前期（自）。和暦で「令和7年4月1日」の形'),
       fiscalYearTo: z.string().optional().describe('直前期（至）。和暦で「令和8年3月31日」の形'),
+      source,
       commit,
     },
   },
@@ -128,7 +150,9 @@ server.registerTool(
     title: '案件の現在値',
     description:
       '1件の案件について、辞書に載っている欄の現在値と明細行の表（第5表の資産・負債、'
-      + '第1表の1 の株主）を返す。書き込む前にこれで既存の入力を確かめること。',
+      + '第1表の1 の株主）を返す。書き込む前にこれで既存の入力を確かめること。'
+      + 'intake には「外から入れたまま人がまだ確認していない欄」とその出典が、'
+      + 'manualItems には「資料からは決まらないので人が画面で入れるもの」が入っている。',
     inputSchema: { caseId },
   },
   async (args) => run(() => tools.getCase(api, args)),
@@ -143,7 +167,9 @@ server.registerTool(
       + '既定は試算で、差分を返すだけで案件は変わらない。確定するには commit: true。'
       + '金額の単位は様式どおり千円。円で読み取った値は千円に直してから渡すこと'
       + '（換算はこちらでは行わない）。経常か非経常かの判断が要るものは、'
-      + '勝手に決めず人に確認すること。',
+      + '勝手に決めず人に確認すること。'
+      + '資料から読み取った値には source（ファイル名・ページ）を付けること。'
+      + '付けた欄は画面に印が付き、人が確認する一覧に出る（印刷には出ない）。',
     inputSchema: {
       caseId,
       values: z
@@ -155,6 +181,7 @@ server.registerTool(
         )
         .min(1)
         .describe('書き込む欄。1つでも通らなければ何も書き込まない'),
+      source,
       commit,
     },
   },
@@ -173,7 +200,9 @@ server.registerTool(
       + '既定は試算で、確定するには commit: true。'
       + '科目をまとめたり、相続税評価額を帳簿価額から埋めたり、備考（株式等・土地等）を'
       + '推測したりはしない ── どれも評価の判断そのものなので人が決めること。'
-      + '株主の表は1行目が納税義務者なので、並び順は人に確かめてから渡すこと。',
+      + '株主の表は1行目が納税義務者なので、並び順は人に確かめてから渡すこと。'
+      + '資料から読み取った行には source（ファイル名・ページ）を付けること'
+      + '（控えは行の先頭列に1つ付く）。',
     inputSchema: {
       caseId,
       rowTable: z.string().describe('describe_fields の rowTables[].id（balanceSheet / shareholders）'),
@@ -193,6 +222,7 @@ server.registerTool(
           }),
         )
         .min(1),
+      source,
       commit,
     },
   },

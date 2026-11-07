@@ -109,6 +109,26 @@ export interface CatalogCaseIdentity {
   defaultEra: string;
 }
 
+/** 取込の控え（どの欄を外から入れたか）の置き場所。中身の扱いは src/intake.ts。 */
+export interface CatalogIntake {
+  table: string;
+  keyFormat: string;
+  valueKeys: string[];
+  howTo: string;
+}
+
+/** 資料からは決まらないので人が画面で入れるもの。取込の最後に人へ返す。 */
+export interface CatalogManualItem {
+  key: string;
+  form: string;
+  table: string;
+  label: string;
+  why: string;
+  fields?: string[];
+  rowTable?: string;
+  column?: string;
+}
+
 export interface FieldCatalog {
   version: number;
   rules: string[];
@@ -117,6 +137,17 @@ export interface FieldCatalog {
   rowTables: CatalogRowTable[];
   /** 古い株式評価明細書（辞書 version 1）には無い */
   caseIdentity?: CatalogCaseIdentity;
+  /** 古い株式評価明細書（辞書 version 3 まで）には無い */
+  intake?: CatalogIntake;
+  manualItems?: CatalogManualItem[];
+}
+
+/**
+ * 欄を指す鍵。画面の入力欄の name 属性と同じ形で、取込の控えの鍵にもなる
+ * （形そのものは辞書の `intake.keyFormat` が決めている）。
+ */
+export function storageKey(table: string, field: string): string {
+  return `${table}.${field}`;
 }
 
 /**
@@ -274,6 +305,8 @@ export interface FieldValueInput {
 
 export interface FieldChange {
   code: string;
+  /** 保存キー（`<バケット>.<欄名>`）。取込の控えの鍵と同じ形 */
+  key: string;
   label: string;
   period?: string;
   unit?: string;
@@ -317,6 +350,7 @@ export function applyFieldValues(
     next[field.table] = table;
     changes.push({
       code: field.code,
+      key: storageKey(field.table, field.field),
       label: field.label,
       period: field.period,
       unit: field.unit,
@@ -335,6 +369,7 @@ export function readFieldValues(catalog: FieldCatalog, data: CaseData): FieldCha
     const value = data[field.table]?.[field.field] ?? '';
     return {
       code: field.code,
+      key: storageKey(field.table, field.field),
       label: field.label,
       period: field.period,
       unit: field.unit,

@@ -11,6 +11,8 @@ import type {
   FieldCatalog,
   FieldChange,
 } from './catalog.js';
+import type { IntakeRecord } from './intake.js';
+import { describeIntakeRecord } from './intake.js';
 import type { DetailRow, PagesChange, SideChange } from './rows.js';
 
 /**
@@ -22,6 +24,24 @@ export const AUTOSAVE_WARNING =
   + '取込は画面を閉じた状態で行い、終わってから開き直してください。';
 
 const EMPTY = '（空欄）';
+
+/**
+ * 出典の行。付いていないときに黙らないのは、付け忘れたまま取り込むと画面の
+ * 「取込の確認」に出てこず、人が見直す手がかりがどこにも残らないため。
+ */
+function intakeLines(record: IntakeRecord | null, what: string): string[] {
+  if (record === null) {
+    return [
+      `※ 出典（source）が付いていないので、${what}は画面の「取込の確認」に出ません。`
+      + '資料から読み取った値なら source: { source: "ファイル名", page: ページ } を付けてください。',
+    ];
+  }
+  const lines = [`出典: ${describeIntakeRecord(record)}`];
+  if (record.uncertain === true) {
+    lines.push('※ 自信なしとして残します。画面では赤い印が付き、確認の一覧の先頭に出ます。');
+  }
+  return lines;
+}
 
 function show(value: string): string {
   return value === '' ? EMPTY : value;
@@ -37,7 +57,11 @@ function heading(count: number, commit: boolean): string {
     : `${count}件を書き込めます（これは試算です。確定するには commit: true を付けて呼び直してください）。`;
 }
 
-export function renderFieldChanges(changes: readonly FieldChange[], commit: boolean): string {
+export function renderFieldChanges(
+  changes: readonly FieldChange[],
+  commit: boolean,
+  record: IntakeRecord | null = null,
+): string {
   const changed = changes.filter((c) => c.changed);
   const same = changes.length - changed.length;
 
@@ -55,6 +79,7 @@ export function renderFieldChanges(changes: readonly FieldChange[], commit: bool
   }
 
   lines.push('');
+  lines.push(...intakeLines(record, '入れた欄'));
   lines.push(AUTOSAVE_WARNING);
   return lines.join('\n');
 }
@@ -89,6 +114,7 @@ export function renderRowSides(
   sides: readonly SideChange[],
   pages: PagesChange,
   commit: boolean,
+  record: IntakeRecord | null = null,
 ): string {
   const total = sides.reduce((n, side) => n + side.after.length, 0);
   const lines = [
@@ -115,6 +141,7 @@ export function renderRowSides(
     );
   }
   lines.push('※ 指定した側は1行目から詰め直します。指定しなかった側はそのままです。');
+  lines.push(...intakeLines(record, '入れた行'));
   lines.push(AUTOSAVE_WARNING);
   return lines.join('\n');
 }
@@ -125,7 +152,11 @@ export type CreateCaseOutcome =
   | { kind: 'dry'; archived: number[] }
   | { kind: 'created'; caseId: number; archived: number[] };
 
-export function renderCaseProfile(profile: CaseProfile, outcome: CreateCaseOutcome): string {
+export function renderCaseProfile(
+  profile: CaseProfile,
+  outcome: CreateCaseOutcome,
+  record: IntakeRecord | null = null,
+): string {
   const lines: string[] = [];
   if (outcome.kind === 'existing') {
     lines.push('すでに同じ会社・同じ課税時期の案件があります。新しくは作りません。');
@@ -162,6 +193,11 @@ export function renderCaseProfile(profile: CaseProfile, outcome: CreateCaseOutco
     lines.push('');
     lines.push('人が画面で入れる欄:');
     for (const note of profile.notes) lines.push(`  - ${note}`);
+  }
+
+  if (outcome.kind !== 'existing' && record !== null) {
+    lines.push('');
+    lines.push(`出典: ${describeIntakeRecord(record)}`);
   }
 
   lines.push('');
