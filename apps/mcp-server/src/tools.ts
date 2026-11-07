@@ -3,11 +3,19 @@
  * テストから直接呼べる。
  */
 import type { SvfApi } from './api.js';
+import type { CaseProfileInput } from './caseIdentity.js';
+import { buildCaseProfile } from './caseIdentity.js';
 import type { CaseData, FieldValueInput } from './catalog.js';
 import { applyFieldValues, readFieldValues } from './catalog.js';
 import { InputError } from './errors.js';
 import { withCaseLock } from './lock.js';
-import { renderBalanceSides, renderCatalog, renderFieldChanges, renderJson } from './render.js';
+import {
+  renderBalanceSides,
+  renderCaseProfile,
+  renderCatalog,
+  renderFieldChanges,
+  renderJson,
+} from './render.js';
 import type { BalanceRowInput } from './table5.js';
 import { applyBalanceSheet, findRowTable, readBalanceRows } from './table5.js';
 
@@ -21,6 +29,10 @@ export interface ListCasesArgs {
 
 export interface CaseArgs {
   caseId: number;
+}
+
+export interface CreateCaseArgs extends CaseProfileInput {
+  commit?: boolean;
 }
 
 export interface SetFieldsArgs extends CaseArgs {
@@ -74,6 +86,40 @@ export async function listCases(api: SvfApi, args: ListCasesArgs): Promise<strin
       archived: c.archivedAt !== null,
     })),
   );
+}
+
+/**
+ * 評価案件を1件作る。
+ *
+ * 同じ会社・同じ課税時期の案件が既にあればそれを返して作らない ── 取込をやり直すたびに
+ * 同じ会社の案件が増えると、どちらが本物か分からなくなる。ゴミ箱にだけあるときは作るが、
+ * 復元という道があることを文面で知らせる（勝手に戻すと消した判断を覆すことになる）。
+ */
+export async function createCase(api: SvfApi, args: CreateCaseArgs): Promise<string> {
+  const catalog = await api.getCatalog();
+  const profile = buildCaseProfile(catalog, args);
+
+  const same = (await api.listCases(true)).filter(
+    (c) => c.companyName.trim() === profile.companyName && c.taxPeriod.trim() === profile.taxPeriod,
+  );
+  const live = same.find((c) => c.archivedAt === null);
+  if (live !== undefined) {
+    return renderCaseProfile(profile, {
+      kind: 'existing',
+      caseId: live.id,
+      updatedAt: live.updatedAt,
+    });
+  }
+
+  const archived = same.map((c) => c.id);
+  if (args.commit !== true) return renderCaseProfile(profile, { kind: 'dry', archived });
+
+  const created = await api.postCase({
+    companyName: profile.companyName,
+    taxPeriod: profile.taxPeriod,
+    data: profile.data,
+  });
+  return renderCaseProfile(profile, { kind: 'created', caseId: created.id, archived });
 }
 
 /** 案件1件の現在値。辞書に載っている欄と、第5表の明細だけを返す。 */

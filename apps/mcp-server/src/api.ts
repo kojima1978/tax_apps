@@ -33,6 +33,7 @@ export interface SvfApi {
   listCases(includeArchived?: boolean): Promise<CaseSummary[]>;
   getCase(id: number): Promise<CaseDetail>;
   putCase(id: number, body: CaseUpdate): Promise<CaseSummary>;
+  postCase(body: CaseUpdate): Promise<CaseSummary>;
 }
 
 export function createSvfApi(config: Config): SvfApi {
@@ -88,6 +89,17 @@ export function createSvfApi(config: Config): SvfApi {
     async putCase(id, body) {
       const result = await request<{ case: CaseSummary }>(`/cases/${id}`, {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return result.case;
+    },
+
+    async postCase(body) {
+      // 画面の「新規作成」と同じ口。会社をまとめる companyKey は振らない
+      // （同じ会社だと決めるのは翌年度更新・複製の瞬間だけ、という向こうの取り決めに合わせる）。
+      const result = await request<{ case: CaseSummary }>('/cases', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });

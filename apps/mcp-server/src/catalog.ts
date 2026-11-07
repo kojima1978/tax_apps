@@ -54,12 +54,62 @@ export interface CatalogRowTable {
   columns: CatalogRowColumn[];
 }
 
+/** 和暦日付の4欄の内訳（元号・年・月・日）。保存キーは `<prefix><keySuffix>`。 */
+export interface CatalogDatePart {
+  part: string;
+  keySuffix: string;
+  labelSuffix: string;
+}
+
+export interface CatalogDateField {
+  key: string;
+  label: string;
+  code: string;
+  prefix: string;
+  required: boolean;
+}
+
+export interface CatalogEra {
+  name: string;
+  base: number;
+  lastYear: number;
+  start: string;
+  end?: string;
+}
+
+/** 案件を作るのに要る欄（会社名・課税時期・事業年度）。 */
+export interface CatalogCaseIdentity {
+  form: string;
+  table: string;
+  companyName: { code: string; field: string };
+  dates: CatalogDateField[];
+  parts: CatalogDatePart[];
+  eras: CatalogEra[];
+  defaultEra: string;
+}
+
 export interface FieldCatalog {
   version: number;
   rules: string[];
   formats: Record<CatalogKind, CatalogFormat>;
   fields: CatalogField[];
   rowTables: CatalogRowTable[];
+  /** 古い株式評価明細書（辞書 version 1）には無い */
+  caseIdentity?: CatalogCaseIdentity;
+}
+
+/**
+ * 案件を作るのに要る欄。辞書に無ければ作りに行かない ── 会社名と課税時期の欄を
+ * 埋められないまま案件だけ作ると、画面で開いた次の自動保存で見出しが空になる。
+ */
+export function caseIdentityOf(catalog: FieldCatalog): CatalogCaseIdentity {
+  if (catalog.caseIdentity === undefined) {
+    throw new InputError(
+      '株式評価明細書の辞書に案件の見出しの欄（caseIdentity）がありません。'
+      + 'アプリが古いので、docker/scripts/manage.sh build stock-valuation-form で作り直してください',
+    );
+  }
+  return catalog.caseIdentity;
 }
 
 /** 表ID → 欄名 → 値。値は様式の入力欄と同じくすべて文字列。 */

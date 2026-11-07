@@ -12,7 +12,7 @@
 // 桁が1000倍ずれて入るより、数字がそのまま入って弾かれるほうが気づけるため。
 
 /** 保存先のバケット。第4表の1／第4表の2はどちらも 'table4' に入る。 */
-export type CatalogTable = 'table4' | 'table5';
+export type CatalogTable = 'table1_1' | 'table4' | 'table5';
 
 /**
  * 値の種類。
@@ -160,6 +160,94 @@ export const CATALOG_ROW_TABLES: readonly CatalogRowTable[] = [
   },
 ];
 
+// ── 案件の見出しになる欄（第1表の1） ──────────────────────────────────
+//
+// 案件の一覧に出る会社名と課税時期は案件の列ではなく様式の欄から作られる
+// （src/features/cases/caseLabels.ts が保存のたびに作り直す）。外から案件を作るときに
+// 列だけ埋めて欄を空のままにすると、画面で開いた次の自動保存で見出しが空になる ──
+// 「作ったはずの案件が（会社名未入力）になる」という、誰にも見えない壊れ方。
+// そのため案件を作る口には、どの欄が見出しになるかを教える必要がある。
+//
+// これを fields（コード1つで1欄を指して書き込む側）に載せないのは、和暦の日付が
+// 元号・年・月・日の4欄に分かれていて「コード1つ＝欄1つ」にならないため。N01 のような
+// 印字コードは4欄まとめての番号で、1欄ずつには振られていない。
+
+/** 和暦日付の4欄の内訳。保存キーは `<prefix><keySuffix>`（f14 → f14_g / f14_y / f14_m / f14_d）。 */
+export interface CatalogDatePart {
+  part: 'era' | 'year' | 'month' | 'day';
+  /** 保存キーの接尾辞 */
+  keySuffix: string;
+  /** 見出しにするときに値の後ろへ付ける字 */
+  labelSuffix: string;
+}
+
+/** 和暦日付の欄（元号・年・月・日の4欄で1つの日付）。 */
+export interface CatalogDateField {
+  /** 外部ツールから指す名前 */
+  key: string;
+  /** 様式の欄名 */
+  label: string;
+  /** 様式の識別コード（4欄まとめての番号） */
+  code: string;
+  /** 保存キーの接頭辞 */
+  prefix: string;
+  /** 案件の見出しに使う欄か（空だと一覧で見分けられない） */
+  required: boolean;
+}
+
+/**
+ * 元号。元号年＋`base`＝西暦年で、`start`〜`end` がその元号の期間。
+ * 期間を配るのは、改元をまたぐ日付（令和1年1月1日・平成40年）を外からも弾けるようにするため
+ * ── 黙って別の日として入ると、会社規模の判定も日付の前後関係の確認も結果が変わる。
+ */
+export interface CatalogEra {
+  name: string;
+  base: number;
+  /** 様式のプルダウンで選べる元号年の上限 */
+  lastYear: number;
+  start: string;
+  end?: string;
+}
+
+/**
+ * 案件を作るのに要る欄。
+ *
+ * 課税時期の見出し（「令和8年3月15日」）は `parts` の順に「値＋labelSuffix」をつなげたもの。
+ * 年が空なら見出しも空、月が空ならそこで止める（caseLabels.ts の taxPeriodLabel と同じ規則）。
+ */
+export interface CatalogCaseIdentity {
+  form: string;
+  table: CatalogTable;
+  companyName: { code: string; field: string };
+  dates: readonly CatalogDateField[];
+  parts: readonly CatalogDatePart[];
+  eras: readonly CatalogEra[];
+  /** 元号の欄が空のときに使う元号（様式の運用に合わせる） */
+  defaultEra: string;
+}
+
+export const CATALOG_CASE_IDENTITY: CatalogCaseIdentity = {
+  form: '第1表の1',
+  table: 'table1_1',
+  companyName: { code: 'E01', field: 'f12' },
+  dates: [
+    { key: 'taxPeriod', label: '課税時期', code: 'N01', prefix: 'f14', required: true },
+    { key: 'fiscalYearFrom', label: '直前期（自）', code: 'N02', prefix: 'f15_from', required: false },
+    { key: 'fiscalYearTo', label: '直前期（至）', code: 'N03', prefix: 'f15_to', required: false },
+  ],
+  parts: [
+    { part: 'era', keySuffix: '_g', labelSuffix: '' },
+    { part: 'year', keySuffix: '_y', labelSuffix: '年' },
+    { part: 'month', keySuffix: '_m', labelSuffix: '月' },
+    { part: 'day', keySuffix: '_d', labelSuffix: '日' },
+  ],
+  eras: [
+    { name: '令和', base: 2018, lastYear: 64, start: '2019-05-01' },
+    { name: '平成', base: 1988, lastYear: 31, start: '1989-01-08', end: '2019-04-30' },
+  ],
+  defaultEra: '令和',
+};
+
 /**
  * 外部ツールへ返す取り決め。
  * 「やらないこと」を辞書と一緒に配るのは、受け手が同じ線引きで動けるようにするため。
@@ -195,6 +283,7 @@ export const CATALOG_RULES: readonly string[] = [
   '辞書に無いコードへは書き込めない。自動計算欄・他表からの転記欄は辞書に載せていない',
   '経常か非経常か、どの科目をまとめるかは資料からは決まらないので、判断が要るものは人へ返すこと',
   '書き込みは既定で試算のみ。差分を確認してから確定する',
+  '案件の見出し（会社名・課税時期）は様式の欄から作られる。案件を作るときは caseIdentity の欄も埋めること',
 ];
 
 export interface FieldCatalog {
@@ -203,15 +292,18 @@ export interface FieldCatalog {
   formats: Record<CatalogKind, CatalogFormat>;
   fields: readonly CatalogField[];
   rowTables: readonly CatalogRowTable[];
+  caseIdentity: CatalogCaseIdentity;
 }
 
+// 版は辞書の形が変わったときに上げる（2: caseIdentity を足した）。
 export function buildFieldCatalog(): FieldCatalog {
   return {
-    version: 1,
+    version: 2,
     rules: CATALOG_RULES,
     formats: CATALOG_FORMATS,
     fields: CATALOG_FIELDS,
     rowTables: CATALOG_ROW_TABLES,
+    caseIdentity: CATALOG_CASE_IDENTITY,
   };
 }
 

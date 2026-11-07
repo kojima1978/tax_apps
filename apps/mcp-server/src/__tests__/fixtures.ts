@@ -9,7 +9,7 @@ import type { CaseSummary, CaseUpdate, SvfApi } from '../api.js';
 import type { CaseData, FieldCatalog } from '../catalog.js';
 
 export const catalog: FieldCatalog = {
-  version: 1,
+  version: 2,
   rules: ['金額の単位は千円'],
   formats: {
     integer: { numeric: true, groupSeparator: ',' },
@@ -71,11 +71,36 @@ export const catalog: FieldCatalog = {
       ],
     },
   ],
+  caseIdentity: {
+    form: '第1表の1',
+    table: 'table1_1',
+    companyName: { code: 'E01', field: 'f12' },
+    dates: [
+      { key: 'taxPeriod', label: '課税時期', code: 'N01', prefix: 'f14', required: true },
+      { key: 'fiscalYearFrom', label: '直前期（自）', code: 'N02', prefix: 'f15_from', required: false },
+      { key: 'fiscalYearTo', label: '直前期（至）', code: 'N03', prefix: 'f15_to', required: false },
+    ],
+    parts: [
+      { part: 'era', keySuffix: '_g', labelSuffix: '' },
+      { part: 'year', keySuffix: '_y', labelSuffix: '年' },
+      { part: 'month', keySuffix: '_m', labelSuffix: '月' },
+      { part: 'day', keySuffix: '_d', labelSuffix: '日' },
+    ],
+    eras: [
+      { name: '令和', base: 2018, lastYear: 64, start: '2019-05-01' },
+      { name: '平成', base: 1988, lastYear: 31, start: '1989-01-08', end: '2019-04-30' },
+    ],
+    defaultEra: '令和',
+  },
 };
 
 export interface FakeApi extends SvfApi {
   /** putCase が呼ばれた回数と中身。試算のときに書かれていないことを確かめるのに使う。 */
   readonly writes: { id: number; body: CaseUpdate }[];
+  /** postCase が呼ばれた回数と中身（同じく、試算では作られていないことを見る）。 */
+  readonly creates: CaseUpdate[];
+  /** 一覧が返す案件。既にある案件・ゴミ箱の案件を置きたいテストから書き換える。 */
+  readonly cases: CaseSummary[];
 }
 
 /**
@@ -84,6 +109,7 @@ export interface FakeApi extends SvfApi {
  */
 export function createFakeApi(data: CaseData = {}, delayMs = 0): FakeApi {
   const writes: { id: number; body: CaseUpdate }[] = [];
+  const creates: CaseUpdate[] = [];
   const wait = () =>
     delayMs === 0 ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, delayMs));
   const summary: CaseSummary = {
@@ -94,15 +120,19 @@ export function createFakeApi(data: CaseData = {}, delayMs = 0): FakeApi {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-02T00:00:00.000Z',
   };
+  const cases: CaseSummary[] = [summary];
+  let nextId = 2;
   let current: CaseData = data;
 
   return {
     writes,
+    creates,
+    cases,
     async getCatalog() {
       return catalog;
     },
-    async listCases() {
-      return [summary];
+    async listCases(includeArchived = false) {
+      return includeArchived ? cases : cases.filter((c) => c.archivedAt === null);
     },
     async getCase() {
       await wait();
@@ -114,5 +144,36 @@ export function createFakeApi(data: CaseData = {}, delayMs = 0): FakeApi {
       current = body.data;
       return summary;
     },
+    async postCase(body) {
+      await wait();
+      creates.push(body);
+      const created: CaseSummary = {
+        id: nextId++,
+        companyName: body.companyName,
+        taxPeriod: body.taxPeriod,
+        archivedAt: null,
+        createdAt: '2026-02-01T00:00:00.000Z',
+        updatedAt: '2026-02-01T00:00:00.000Z',
+      };
+      cases.push(created);
+      return created;
+    },
+  };
+}
+
+/** 一覧に置く案件（既にある案件・ゴミ箱の案件を作るため）。 */
+export function caseRow(
+  id: number,
+  companyName: string,
+  taxPeriod: string,
+  archivedAt: string | null = null,
+): CaseSummary {
+  return {
+    id,
+    companyName,
+    taxPeriod,
+    archivedAt,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-03T00:00:00.000Z',
   };
 }

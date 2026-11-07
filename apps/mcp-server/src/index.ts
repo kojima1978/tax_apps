@@ -90,6 +90,29 @@ server.registerTool(
 );
 
 server.registerTool(
+  'create_case',
+  {
+    title: '案件を作る',
+    description:
+      '評価案件（会社1社・1つの課税時期ぶん）を新しく作る。'
+      + '同じ会社名・同じ課税時期の案件が既にあれば作らず、その caseId を返す。'
+      + '既定は試算で、確定するには commit: true。'
+      + '会社名は決算書の表紙どおりに、課税時期は相続開始の日（被相続人の死亡の日）を'
+      + '和暦で指定すること。どちらも一覧に出る見出しになるので、推測で入れないこと。',
+    inputSchema: {
+      companyName: z.string().describe('会社名（決算書の表紙どおり。「有限会社」などの種類も含める）'),
+      taxPeriod: z
+        .string()
+        .describe('課税時期。和暦で「令和8年3月31日」の形。月日が分からなければ「令和8年」まででも可'),
+      fiscalYearFrom: z.string().optional().describe('直前期（自）。和暦で「令和7年4月1日」の形'),
+      fiscalYearTo: z.string().optional().describe('直前期（至）。和暦で「令和8年3月31日」の形'),
+      commit,
+    },
+  },
+  async (args) => run(() => tools.createCase(api, args)),
+);
+
+server.registerTool(
   'get_case',
   {
     title: '案件の現在値',

@@ -4,6 +4,7 @@
  * 書き込み系は「何がどう変わるか」を先に出す。差分を読まずに確定できてしまうと、
  * 試算を既定にしている意味が無くなるため。
  */
+import type { CaseProfile } from './caseIdentity.js';
 import type { FieldCatalog, FieldChange } from './catalog.js';
 import type { BalanceRow, SideChange } from './table5.js';
 
@@ -78,6 +79,60 @@ export function renderBalanceSides(sides: readonly SideChange[], commit: boolean
   lines.push('');
   lines.push('※ 指定した側は1行目から詰め直します。指定しなかった側はそのままです。');
   lines.push(AUTOSAVE_WARNING);
+  return lines.join('\n');
+}
+
+/** 案件を作る道具の結果。どれも「作ったか・作らなかったか」が1行目で分かるようにする。 */
+export type CreateCaseOutcome =
+  | { kind: 'existing'; caseId: number; updatedAt: string }
+  | { kind: 'dry'; archived: number[] }
+  | { kind: 'created'; caseId: number; archived: number[] };
+
+export function renderCaseProfile(profile: CaseProfile, outcome: CreateCaseOutcome): string {
+  const lines: string[] = [];
+  if (outcome.kind === 'existing') {
+    lines.push('すでに同じ会社・同じ課税時期の案件があります。新しくは作りません。');
+  } else if (outcome.kind === 'created') {
+    lines.push('案件を作りました。');
+  } else {
+    lines.push('案件を作れます（これは試算です。確定するには commit: true を付けて呼び直してください）。');
+  }
+
+  lines.push('');
+  if (outcome.kind !== 'dry') lines.push(`  caseId: ${outcome.caseId}`);
+  lines.push(`  会社名: ${show(profile.companyName)}`);
+  for (const date of profile.dates) lines.push(`  ${date.label}: ${show(date.text)}`);
+  if (outcome.kind === 'existing') lines.push(`  最終更新: ${outcome.updatedAt}`);
+
+  if (outcome.kind !== 'existing') {
+    // 書く欄まで見せる（見出しが欄から作られるので、ここが空だと一覧で見分けられなくなる）
+    for (const [table, fields] of Object.entries(profile.data)) {
+      const shown = Object.entries(fields).map(([field, value]) => `${field}=${show(value)}`);
+      lines.push('');
+      lines.push(`  ${table} へ入る欄: ${shown.join(' / ')}`);
+    }
+  }
+
+  if (outcome.kind !== 'existing' && outcome.archived.length > 0) {
+    lines.push('');
+    lines.push(
+      `※ 同じ会社・同じ課税時期の案件がゴミ箱にあります（caseId: ${outcome.archived.join('、')}）。`
+      + '戻して使うなら画面から復元してください。',
+    );
+  }
+
+  if (profile.notes.length > 0) {
+    lines.push('');
+    lines.push('人が画面で入れる欄:');
+    for (const note of profile.notes) lines.push(`  - ${note}`);
+  }
+
+  lines.push('');
+  lines.push(
+    outcome.kind === 'dry'
+      ? '※ 作る前に、会社名が決算書の表紙どおりか・課税時期が相続開始の日かを確かめてください。'
+      : 'この caseId へ set_fields / import_balance_sheet で入れてください。',
+  );
   return lines.join('\n');
 }
 

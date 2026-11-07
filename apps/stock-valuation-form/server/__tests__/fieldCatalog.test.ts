@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { CATALOG_FIELDS, CATALOG_FORMATS, CATALOG_ROW_TABLES, findByCode } from '../fieldCatalog.js';
+import {
+  CATALOG_CASE_IDENTITY,
+  CATALOG_FIELDS,
+  CATALOG_FORMATS,
+  CATALOG_ROW_TABLES,
+  findByCode,
+} from '../fieldCatalog.js';
 
 /**
  * 辞書は様式の定義とは別ファイルなので、放っておくと片方だけ動いてずれる。
@@ -16,6 +22,7 @@ import { CATALOG_FIELDS, CATALOG_FORMATS, CATALOG_ROW_TABLES, findByCode } from 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf-8');
 
 const TABLE4_1 = read('../../src/components/tables/table4/Table4_1Grid.tsx');
+const TABLE1_1 = read('../../src/components/tables/Table1_1Grid.tsx');
 
 /** 第4表の1 の ci('field', 'CODE', …) をソースから拾う。 */
 interface SourceField { field: string; code: string; readOnly: boolean; signed: boolean; required: boolean }
@@ -146,5 +153,109 @@ describe('値の書き方', () => {
     expect(line, 'options の行を読めませんでした').toBeDefined();
     const asset = CATALOG_ROW_TABLES.find((t) => t.table === 'table5')!.sides.find((s) => s.key === 'asset')!;
     for (const option of asset.noteOptions) expect(line).toContain(`'${option}'`);
+  });
+});
+
+describe('案件の見出しになる欄', () => {
+  /** 1セル＝1行で書かれているので、行から座標を読める。 */
+  const lineWith = (text: string): string => {
+    const line = TABLE1_1.split(/\r?\n/).find((l) => l.includes(text));
+    expect(line, `${text} の行を読めませんでした`).toBeDefined();
+    return line!;
+  };
+  const numOf = (line: string, key: string): number => {
+    const m = line.match(new RegExp(`${key}: (-?[0-9.]+)`));
+    expect(m, `${key} を読めませんでした: ${line}`).not.toBeNull();
+    return Number(m![1]);
+  };
+
+  /** 和暦日付の4列プルダウンを置いている呼び出し（接頭辞・コード・必須）。 */
+  const dateCalls = [...TABLE1_1.matchAll(
+    /dateSelectCells\('([^']+)',\s*[0-9.]+,\s*[0-9.]+,\s*'([^']+)'(,\s*true)?\)/g,
+  )].map((m) => ({ prefix: m[1]!, code: m[2]!, required: m[3] !== undefined }));
+
+  it('様式側の日付欄をソースから拾えている（正規表現の空振り防止）', () => {
+    expect(dateCalls.length).toBe(CATALOG_CASE_IDENTITY.dates.length);
+  });
+
+  it('会社名の欄が様式の識別コードの隣にある', () => {
+    const { code, field } = CATALOG_CASE_IDENTITY.companyName;
+    const codeLine = lineWith(`codeLabel: '${code}'`);
+    const fieldLine = lineWith(`field: '${field}', kind: 'input'`);
+    // 識別コードの印字セルの右端が入力欄の左端 ── 隣り合っていなければ別の欄のコード
+    expect(numOf(fieldLine, 'left')).toBeCloseTo(numOf(codeLine, 'left') + numOf(codeLine, 'width'), 2);
+  });
+
+  it('日付欄のコードと保存キーの接頭辞が様式と一致する', () => {
+    expect(dateCalls.map((c) => `${c.code}:${c.prefix}`))
+      .toEqual(CATALOG_CASE_IDENTITY.dates.map((d) => `${d.code}:${d.prefix}`));
+  });
+
+  it('見出しに使う欄（課税時期）が様式で必須の指定になっている', () => {
+    expect(dateCalls.map((c) => c.required))
+      .toEqual(CATALOG_CASE_IDENTITY.dates.map((d) => d.required));
+  });
+
+  it('4欄の内訳が様式の列と一致する', () => {
+    const suffixes = [...TABLE1_1.matchAll(/\{ suffix: '([^']+)',/g)].map((m) => m[1]!);
+    expect(suffixes).toEqual(CATALOG_CASE_IDENTITY.parts.map((p) => p.keySuffix));
+  });
+
+  it('見出しの組み立て方が一覧の表示と一致する', () => {
+    const labels = read('../../src/features/cases/caseLabels.ts');
+    const { table, companyName, dates, parts } = CATALOG_CASE_IDENTITY;
+    expect(labels).toContain(`getField('${table}', '${companyName.field}')`);
+    const taxPeriod = dates.find((d) => d.required)!;
+    for (const part of parts) {
+      // 一覧が読む欄（read('f14_y') など）と、値の後ろへ付ける字（`}年`）
+      expect(labels).toContain(`read('${taxPeriod.prefix}${part.keySuffix}')`);
+      if (part.labelSuffix !== '') expect(labels).toContain(`}${part.labelSuffix}`);
+    }
+  });
+});
+
+describe('元号', () => {
+  const wareki = read('../../src/lib/wareki.ts');
+
+  /** wareki.ts の ERAS（元号 → base / start / end）をソースから読む。 */
+  const sourceEras = [...wareki.matchAll(
+    /\['([^']+)',\s*\{ base: ([0-9]+), start: '([0-9-]+)'(?:, end: '([0-9-]+)')? \}\]/g,
+  )].map((m) => ({ name: m[1]!, base: Number(m[2]), start: m[3]!, end: m[4] }));
+
+  const openMaxYear = (() => {
+    const m = wareki.match(/OPEN_ERA_MAX_YEAR = ([0-9]+)/);
+    expect(m, 'OPEN_ERA_MAX_YEAR を読めませんでした').not.toBeNull();
+    return Number(m![1]);
+  })();
+
+  it('様式側の元号をソースから拾えている（正規表現の空振り防止）', () => {
+    expect(sourceEras.length).toBeGreaterThanOrEqual(CATALOG_CASE_IDENTITY.eras.length);
+  });
+
+  it('選べる元号が様式のプルダウンと一致する', () => {
+    const m = wareki.match(/ERA_OPTS = \[([^\]]*)\]/);
+    expect(m, 'ERA_OPTS を読めませんでした').not.toBeNull();
+    const opts = [...m![1]!.matchAll(/'([^']+)'/g)].map((x) => x[1]!);
+    expect(CATALOG_CASE_IDENTITY.eras.map((e) => e.name)).toEqual(opts);
+  });
+
+  it('元号の期間が様式側の定義と一致する', () => {
+    const byName = new Map(sourceEras.map((e) => [e.name, e]));
+    for (const era of CATALOG_CASE_IDENTITY.eras) {
+      const src = byName.get(era.name);
+      expect(src, `${era.name} が wareki.ts にありません`).toBeDefined();
+      expect({ base: era.base, start: era.start, end: era.end })
+        .toEqual({ base: src!.base, start: src!.start, end: src!.end });
+      // 続いている元号は様式の選択肢の数で切る。終わった元号は改元日の年から決まる
+      expect(era.lastYear).toBe(
+        src!.end === undefined ? openMaxYear : Number(src!.end.slice(0, 4)) - src!.base,
+      );
+    }
+  });
+
+  it('元号未選択のときの扱いが様式と一致する', () => {
+    const m = wareki.match(/DEFAULT_ERA = '([^']+)'/);
+    expect(m, 'DEFAULT_ERA を読めませんでした').not.toBeNull();
+    expect(CATALOG_CASE_IDENTITY.defaultEra).toBe(m![1]);
   });
 });
