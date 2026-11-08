@@ -16,6 +16,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { createSvfApi } from './api.js';
+import { normalizeAssetCase } from './assetCase.js';
 import { loadConfig } from './config.js';
 import { ApiError, InputError } from './errors.js';
 import * as tools from './tools.js';
@@ -227,6 +228,38 @@ server.registerTool(
     },
   },
   async (args) => run(() => tools.importRows(api, args)),
+);
+
+server.registerTool(
+  'normalize_asset_case',
+  {
+    title: '減価償却資産評価の案件JSONを検査する',
+    description:
+      '固定資産台帳 PDF から読み取った資産の一覧（減価償却資産評価アプリの案件JSON）を、'
+      + 'アプリが読み込むときと同じ規則で検査・正規化して返す。ファイルは書かない・何度呼んでもよい。'
+      + '手順は apps/asset-valuation/INTAKE.md（小計・合計の行と除却済みの資産は入れない、'
+      + '簿価は課税時期の直前の期末、各行に source を付ける）。'
+      + '和暦・カンマ付きの金額・「15年」・科目の別名は台帳の書き方のまま渡してよい。'
+      + '返った totals を台帳の合計と突き合わせ、合えば caseJson を PDF と同じフォルダへ fileName で保存する。'
+      + '株式評価明細書のサーバには繋がない。',
+    inputSchema: {
+      case: z
+        .object({
+          version: z.string().optional().describe('"1.1"'),
+          caseName: z.string().describe('案件名（例: ダミー商事株式会社 様）'),
+          taxDate: z.string().describe('課税時期（例: 令和8年3月31日。人に聞いて決める）'),
+          assets: z
+            .array(z.record(z.string(), z.unknown()))
+            .describe(
+              '1資産1行。no / name / category / method / acquisitionDate / usefulLife / '
+              + 'acquisitionCost / bookValue / source{file,page,note,uncertain}',
+            ),
+        })
+        .passthrough()
+        .describe('案件JSONの下書き'),
+    },
+  },
+  async (args) => run(async () => normalizeAssetCase(args)),
 );
 
 async function main() {

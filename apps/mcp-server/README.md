@@ -32,9 +32,20 @@
 | `get_case` | 1件の現在値。辞書に載っている欄と明細行の表（＋続紙の枚数）、取込の控え（`intake`）と人が入れるもの（`manualItems`） |
 | `set_fields` | コードで指定した欄へ書き込む |
 | `import_rows` | 明細行の表を入れ替える（`balanceSheet` = 第5表の資産・負債、`shareholders` = 第1表の1 の株主） |
+| `normalize_asset_case` | **減価償却資産評価**の案件JSON（固定資産台帳 PDF を AI が読んだ下書き）を検査・正規化し、保存名・合計・確かめてほしい行と一緒に返す。サーバにも DB にも繋がず、ファイルも書かない（下の節） |
 
 **書き込みは既定で試算**。差分を返すだけで案件は変わらない。確定するのは
 `commit: true` を付けて呼び直したときだけ。
+
+### 減価償却資産評価の取込（`normalize_asset_case`）
+
+固定資産台帳 PDF → AI が読む → このツールで検査 → AI が PDF の隣へ
+`R0xMMDD_{案件名}_減価償却資産評価.json` を保存 → 人がアプリの Step 1「JSONファイルから復元」で読み、
+Step 3 の「取込の確認」で見終える。手順は [asset-valuation の INTAKE.md](../asset-valuation/INTAKE.md)。
+
+区分の別名・和暦・金額の読み方は **asset-valuation の `src/domain` をそのまま import して使う**（写しを持たない）。
+そのためビルドの出力は `dist/mcp-server/src/index.js` で、イメージには domain だけを
+compose の `additional_contexts` で渡している。株式評価明細書が止まっていても使える。
 
 ### 欄のコードは「様式の略号:識別記号」
 

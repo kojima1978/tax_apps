@@ -42,11 +42,15 @@ services:
   #   - create_case          案件を1件作る（既定は試算）
   #   - set_fields           辞書のコードで指定した欄へ書き込む（既定は試算）
   #   - import_rows          明細行の表を入れ替える（第5表・株主。既定は試算）
+  #   - normalize_asset_case 減価償却資産評価の案件JSONを検査・正規化（台帳 PDF の取込。書き込まない・API 不要）
   # ===========================================
   mcp-server:
     build:
       context: .
       target: runner
+      additional_contexts:
+        asset-valuation-domain: ../asset-valuation/src/domain
+        asset-valuation-test-data: ../asset-valuation/test-data
     image: tax-apps-mcp
     container_name: tax-apps-mcp
     profiles: ["mcp"]
@@ -82,6 +86,9 @@ services:
     build:
       context: .
       target: dev
+      additional_contexts:
+        asset-valuation-domain: ../asset-valuation/src/domain
+        asset-valuation-test-data: ../asset-valuation/test-data
     image: tax-apps-mcp-dev
     profiles: ["mcp"]
     networks:

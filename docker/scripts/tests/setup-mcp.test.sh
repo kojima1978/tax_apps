@@ -51,7 +51,16 @@ case "$1" in
     esac
     ;;
   compose) exit 0 ;;
-  run) exec node ;;
+  run)
+    # 作ったイメージの起動確認（setup-mcp.sh の 2.）。設定のマージは node のイメージで走る
+    if [[ "$*" == *tax-apps-mcp* ]]; then
+      cat >/dev/null
+      [[ -n "${STUB_SMOKE_BROKEN:-}" ]] && { echo "SyntaxError: does not provide an export named 'X'" >&2; exit 1; }
+      echo '{"result":{"tools":[{"name":"normalize_asset_case"}]},"jsonrpc":"2.0","id":2}'
+      exit 0
+    fi
+    exec node
+    ;;
   *) exit 0 ;;
 esac
 STUB
@@ -167,6 +176,17 @@ check "compose は -f をリポジトリ直下からの絶対パスで渡す" \
 printf '%s' '{}' > "$config"
 output=$(STUB_IMAGE_MISSING=1 bash "$setup_script" --config "$config" --no-build 2>&1)
 check "イメージが無ければ警告する" grep -q 'まだありません' <<<"$output"
+
+# ------------------------------------
+# 8. 作ったイメージが起動できなければ登録しない
+# ------------------------------------
+printf '%s' '{}' > "$config"
+rc=0
+output=$(STUB_SMOKE_BROKEN=1 bash "$setup_script" --config "$config" 2>&1) || rc=$?
+check "起動できないイメージは終了コード 1" test "$rc" -eq 1
+check "起動できない理由を出す" grep -q 'does not provide an export' <<<"$output"
+check "起動できないイメージは設定に書かない" test "$(cat "$config")" = '{}'
+check "作ったイメージは起動を確かめる" grep -q 'run -i --rm --network none tax-apps-mcp' "$CALLS"
 
 if (( failures )); then
   echo "setup-mcp.test.sh: FAILED" >&2

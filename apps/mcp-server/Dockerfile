@@ -9,6 +9,11 @@
 #
 # dev    : tsx でそのまま走らせる（型チェックもテストもこのステージで行う）
 # runner : tsc でビルドした dist を node が走らせる
+#
+# 減価償却資産評価の案件JSONの正規化（normalize_asset_case）は asset-valuation の
+# src/domain をそのまま使う（写しを持たない）。compose の additional_contexts で
+# 渡し、リポジトリと同じ相対位置（/apps/asset-valuation/src/domain）へ置く ──
+# src の相対 import（../../asset-valuation/...）がホストでも CI でもここでも同じ形で通る。
 # =============================================================================
 
 ARG NODE_VERSION=22
@@ -18,10 +23,15 @@ ARG NODE_VERSION=22
 # =============================================================================
 FROM node:${NODE_VERSION}-alpine AS deps
 RUN apk upgrade --no-cache
-WORKDIR /app
+WORKDIR /apps/mcp-server
 COPY package.json ./
 RUN --mount=type=cache,id=npm-mcp-server,target=/root/.npm \
     npm install
+COPY --from=asset-valuation-domain . /apps/asset-valuation/src/domain/
+# ESM かどうかは一番近い package.json の "type" で決まる（tsc の NodeNext も node も同じ）。
+# asset-valuation の package.json はここに無いので、置かないと domain だけ CommonJS で
+# 出力され、node が「export が無い」で起動できない（実際に落ちた）。
+RUN echo '{"type":"module"}' > /apps/asset-valuation/package.json
 
 # =============================================================================
 # 開発（manage.sh test / 手元での動作確認）
@@ -31,7 +41,9 @@ ENV NODE_ENV=development TZ=Asia/Tokyo
 # COPY の --chown は層を増やさない。node_modules を chown -R しないのは
 # ツリーがもう1層まるごとコピーされてイメージが膨らむため。
 COPY --chown=node:node . .
-RUN chown node:node /app /app/node_modules
+# テストが取込サンプル（ダミー台帳を読んだ結果）を読む。本番には入れない。
+COPY --from=asset-valuation-test-data . /apps/asset-valuation/test-data/
+RUN chown node:node /apps/mcp-server /apps/mcp-server/node_modules
 USER node
 CMD ["npm", "run", "dev"]
 
@@ -53,14 +65,14 @@ RUN apk upgrade --no-cache && \
     echo "Asia/Tokyo" > /etc/timezone
 
 ENV NODE_ENV=production TZ=Asia/Tokyo
-WORKDIR /app
+WORKDIR /apps/mcp-server
 
 COPY package.json ./
 RUN --mount=type=cache,id=npm-mcp-server-prod,target=/root/.npm \
     npm install --omit=dev
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /apps/mcp-server/dist ./dist
 
-# /app 配下へは実行中に何も書かないので chown は要らない。
+# /apps 配下へは実行中に何も書かないので chown は要らない。
 USER node
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/mcp-server/src/index.js"]

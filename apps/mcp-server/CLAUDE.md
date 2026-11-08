@@ -46,3 +46,13 @@ docker compose -f apps/mcp-server/docker-compose.yml --profile mcp build mcp-ser
 - dev の株式評価明細書へ繋ぐには Vite 側に `allowedHosts: ['stock-valuation-form']` が要る
   （Vite 7 は localhost 以外の `Host` を 403 で弾く）。`vite.config.ts` はイメージ同梱なので
   変更には `manage.sh build stock-valuation-form` が必要
+- **減価償却資産評価の取込（`normalize_asset_case`）は asset-valuation の `src/domain` をそのまま import する**
+  （`../../asset-valuation/src/domain/*.js`。写しを持たない）。サーバにも DB にも繋がず、ファイルも書かない。
+  手順は `apps/asset-valuation/INTAKE.md`。そのため:
+  - `tsconfig.json` は `rootDir: ".."`、ビルドの出力は `dist/mcp-server/src/index.js`（domain は `dist/asset-valuation/...`）
+  - Docker では compose の `additional_contexts`（`asset-valuation-domain` / `asset-valuation-test-data`）で渡し、
+    リポジトリと同じ相対位置 `/apps/asset-valuation/...` へ置く（WORKDIR は `/apps/mcp-server`）
+  - **`/apps/asset-valuation/package.json` に `{"type":"module"}` を置く**。ESM かどうかは一番近い package.json で
+    決まるので、無いと domain だけ CommonJS で出力され、本番イメージが `does not provide an export named` で起動しない
+    （vitest は tsx で走るので気づけない。**`setup-mcp.sh` が作ったイメージを1回起こして道具の一覧を確かめる**のはこのため）
+  - asset-valuation の domain を直したら mcp-server のテストも回し、`setup-mcp.sh` でイメージを作り直す

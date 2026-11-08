@@ -72,6 +72,9 @@
     node のタグは `apps/mcp-server/Dockerfile` の `ARG NODE_VERSION` から引く（2箇所に書かない）
   - mcp-server は `UNMANAGED_APPS` なので `manage.sh build mcp-server` は使えない。
     **`apps/mcp-server/src/` を直したらこのスクリプトを叩き直す**
+  - **作ったイメージを1回起こして `tools/list` を確かめてから登録する**（返らなければ終了コード 1・設定は書かない）。
+    vitest は dev ステージの tsx で走るので、本番イメージでしか起きない壊れ方（asset-valuation の domain が
+    CommonJS で出て import できない、を実際に踏んだ）はここでしか見えない
   - テストは `docker/scripts/tests/setup-mcp.test.sh`（CI の shell scripts ジョブ）
 - **リストアはアプリ単位**（`manage.sh restore <app>|--all [backup] [--yes]`、手順書は
   **`docker/RESTORE.md`**）。そのアプリのコンテナだけ止めて戻し、**件数をバックアップと照合**

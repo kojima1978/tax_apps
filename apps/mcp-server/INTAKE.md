@@ -5,6 +5,9 @@
 
 読む相手は AI（Claude Desktop / Cowork など）。人向けの説明は [README.md](README.md)。
 
+> **固定資産台帳（減価償却資産の明細）の PDF はこの手順ではない。** 減価償却資産評価アプリの
+> 案件JSONを作る別の手順 [asset-valuation の INTAKE.md](../asset-valuation/INTAKE.md)（`normalize_asset_case`）に従う。
+
 ---
 
 ## 大前提（これだけは崩さない）

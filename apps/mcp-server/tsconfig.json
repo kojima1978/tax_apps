@@ -6,7 +6,9 @@
     "lib": ["ES2023"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "./src",
+    // rootDir を1つ上（apps/）にしてあるのは、asset-valuation の src/domain を相対 import するため
+    // （normalize_asset_case。写しを持たない）。dist は dist/mcp-server/src/index.js になる。
+    "rootDir": "..",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,

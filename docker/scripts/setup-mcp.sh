@@ -137,6 +137,21 @@ else
   log "MCP サーバーのイメージを作成します（profiles: mcp なので通常の起動対象には入りません）..."
   compose_from_project_root -f "$COMPOSE_FILE" --profile mcp build mcp-server
   ok "イメージ $IMAGE_NAME を作成しました"
+
+  # 作ったイメージを1回だけ起こして道具の一覧を受け取る。テスト（vitest）は dev ステージで
+  # tsx が走らせるので、本番イメージ（tsc の出力を node が読む）でしか起きない壊れ方 ──
+  # asset-valuation の domain が CommonJS で出て import できない、など ── はここでしか見えない。
+  # 壊れたまま登録すると、Claude デスクトップでは「サーバーに繋がらない」としか出ない。
+  smoke_input='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"setup-mcp","version":"1"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+  smoke_output="$(printf '%s\n' "$smoke_input" | docker run -i --rm --network none "$IMAGE_NAME" 2>&1)" || true
+  if ! grep -q '"normalize_asset_case"' <<<"$smoke_output"; then
+    err "作ったイメージ $IMAGE_NAME が起動できません（道具の一覧が返りませんでした）。設定には登録しません。"
+    printf '%s\n' "$smoke_output" | tail -20 >&2
+    exit 1
+  fi
+  ok "イメージ $IMAGE_NAME が起動して道具の一覧を返すことを確かめました"
 fi
 
 if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
@@ -234,3 +249,4 @@ echo "  1. Claude デスクトップを完全に終了して開き直す（設�
 echo "  2. 株式評価明細書を動かしておく（docker/scripts/manage.sh status で確認、止まっていれば start）"
 echo "  3. 取込の前に、その案件を開いている画面のタブを閉じる（自動保存が後から上書きする）"
 echo "  4. 手順は apps/mcp-server/INTAKE.md（AI 向け）／ apps/mcp-server/README.md（人向け）"
+echo "  （固定資産台帳 PDF → 減価償却資産評価の取込は apps/asset-valuation/INTAKE.md。2. と 3. は要らない）"
