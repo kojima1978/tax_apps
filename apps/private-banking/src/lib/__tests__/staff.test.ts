@@ -57,13 +57,13 @@ describe("groupStaffByDepartment", () => {
     staff({ id: 1, name: "渡辺", department: "資産税部" }),
     staff({ id: 2, name: "山田", department: "第一部" }),
     staff({ id: 3, name: "青木", department: "" }),
-    staff({ id: 4, name: "三河", department: "第一部" }),
+    staff({ id: 4, name: "野村", department: "第一部" }),
   ];
 
   it("部署名順に束ね、部署なしは最後に置く", () => {
     // 漢字の並びなので読み順にはならない（実測で「資産税部」が「第一部」より先に来る）。
     expect(groupStaffByDepartment(rows).map((group) => [group.label, group.options.map((row) => row.name)]))
-      .toEqual([["資産税部", ["渡辺"]], ["第一部", ["山田", "三河"]], ["部署なし", ["青木"]]]);
+      .toEqual([["資産税部", ["渡辺"]], ["第一部", ["山田", "野村"]], ["部署なし", ["青木"]]]);
   });
 
   it("渡した順を変えてもグループの並びは変わらない", () => {
