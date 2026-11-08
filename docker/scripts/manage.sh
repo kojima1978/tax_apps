@@ -253,6 +253,7 @@ TEST_TARGETS=(
   "retirement-tax-calc:run@retirement-tax-calc-test:npm test"
   # dev で動いているが、稼働中のイメージを作り直さずに済み、本番へ切り替えても
   # 経路が変わらないよう、こちらも使い捨てサービスで回す
+  "asset-valuation:run@asset-valuation-test:npm test"
   "capital-gains-calc:run@capital-gains-calc-test:npm test"
   "inheritance-tax-docs:run@inheritance-tax-docs-test:npm test"
   "staff-directory:run@staff-directory-test:npm test"

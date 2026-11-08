@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
-import type { StepId, ColumnMapping, CategoryMapping, CaseData } from '@/types';
+import type { StepId, ColumnMapping, CategoryMapping } from '@/domain/types';
+import { normalizeAssets } from '@/domain/intake';
+import type { IntakeResult } from '@/domain/intake';
 import { StepIndicator } from '@/components/StepIndicator';
 import { CsvImportStep } from '@/components/step1/CsvImportStep';
 import { ColumnMappingStep } from '@/components/step2/ColumnMappingStep';
@@ -60,6 +62,7 @@ export default function App() {
     moveAsset,
     moveAssetsTo,
     loadFromJson,
+    confirmAssets,
   } = useAssetData(taxDate);
 
   // プリセット管理
@@ -124,12 +127,10 @@ export default function App() {
   };
 
   // JSON案件インポート
-  const handleJsonImport = (data: CaseData) => {
+  const handleJsonImport = (data: IntakeResult['caseData']) => {
     setCaseName(data.caseName);
     setTaxDate(data.taxDate);
-    loadFromJson(data.assets, data.categoryOrder);
-    // loadFromJson は更新前の課税時期で計算するため、取り込んだ日付で計算し直す
-    recalculateAll(data.taxDate);
+    loadFromJson(data.assets, data.categoryOrder, data.taxDate);
     setCsvData(null);
     // Step3に直接遷移
     setCurrentStep(3);
@@ -141,8 +142,8 @@ export default function App() {
     if (!restorable) return;
     setCaseName(restorable.caseName);
     setTaxDate(restorable.taxDate);
-    loadFromJson(restorable.assets, restorable.labelOrder);
-    recalculateAll(restorable.taxDate);
+    // 古い版で保存した下書きも、JSON の取込と同じ正規化を通して今の形へ寄せる
+    loadFromJson(normalizeAssets(restorable.assets).assets, restorable.labelOrder, restorable.taxDate);
     setCsvData(null);
     setCurrentStep(restorable.currentStep);
     setMaxReachedStep(restorable.maxReachedStep);
@@ -251,6 +252,7 @@ export default function App() {
             assets={assets}
             groupedAssets={groupedAssets}
             onUpdateAsset={updateAsset}
+            onConfirmAssets={confirmAssets}
             onDeleteAsset={deleteAsset}
             onAddEmptyAsset={addEmptyAsset}
             onToggleFixedAssetTaxBulk={toggleFixedAssetTaxBulk}

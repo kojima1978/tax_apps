@@ -1,10 +1,10 @@
 import XLSX from 'xlsx-js-style';
-import type { Asset } from '@/types';
-import { CATEGORY_CONFIG, groupByLabel } from '@/types';
+import type { Asset } from '@/domain/types';
+import { CATEGORY_CONFIG, groupByLabel } from '@/domain/types';
 import { RATE_TABLE } from '@/data/rateTable';
 import { compareAssetNo } from '@/utils/formatters';
 import { calcWithin3YearsDate, getCalculationTooltip } from '@/utils/calculation';
-import { exportFileName } from '@/utils/exportFileName';
+import { exportFileName } from '@/domain/exportFileName';
 
 /** 列ヘッダー */
 const COLUMN_HEADERS = [

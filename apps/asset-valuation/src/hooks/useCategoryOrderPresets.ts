@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { CategoryOrderPreset } from '@/types';
+import type { CategoryOrderPreset } from '@/domain/types';
 import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 
 const STORAGE_KEY = 'asset-valuation-category-order-presets';

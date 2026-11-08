@@ -23,6 +23,7 @@
 - 未償却残高表はJSONデータとして内蔵（H24.4.1以後取得分）
 - CSV解析はブラウザ内で完結（件数による取り込み制限なし）
 - データ永続化: JSON入出力（案件データ・マッピングプリセット）と localStorage（作業中の下書き・プリセット2種）。サーバ側には何も保存しない
+- **固定資産台帳 PDF からの取込**もサーバ・DB を持たない。AI（Claude）が PDF を読んで案件JSONを組み、MCP の `normalize_asset_case` で検査・正規化して PDF の隣へ保存 → 人が Step 1 の「JSONファイルから復元」で読み、Step 3 の「取込の確認」（2.4.4）で見終える。AI への手順は `INTAKE.md`。正規化の知識（区分の別名・償却方法・和暦・金額の読み方）は `src/domain/` にだけ置き、MCP はそれを import する（写さない）
 - Docker: Vite dev → nginx:1.27-alpine 静的配信（Dockerfile は全 Vite アプリ共通の `docker/Dockerfile.vite-static`）
 
 ---
@@ -195,6 +196,23 @@ CSVの資産カテゴリ値を、アプリ内部の40カテゴリ（**資産区�
 | カテゴリ変更 | 行の操作列の ⇄ ボタンで行直下にパネルを開き、2段プルダウンで別カテゴリへ移動（`categoryLabel` も揃えるので小計グループが移る）。CSVの勘定科目が同じでも1件だけ償却方法が違う資産を扱える |
 | 固定資産税評価明細 一括チェック | 建物・建物附属設備それぞれに全行ON/OFFトグル |
 | 3年以内ハイライト | 課税時期から3年以内の取得は背景色 + 行内バッジ + カテゴリ見出しの件数バッジで明示（自動判定） |
+
+#### 2.4.4 取込の確認（台帳 PDF などから取り込んだ行）
+
+`source`（出典）を持つ行が1つでもある案件だけに出る。CSV・手入力だけの案件では何も変わらない。
+
+| 部品 | 仕様 |
+|------|------|
+| 行の印（`ReviewBadge`） | NO の下に、未確認の間だけ「要確認」（赤: 読み取りに自信なし `source.uncertain`、または取込時の注意 `review.warnings` あり）か「取込」（紫: それ以外）。ツールチップに取込元（ファイル・ページ・補足）と注意を出す。表とカードの両方 |
+| 取込の確認パネル（`IntakeReviewPanel`） | Step 3 の表の上。未確認の件数と「すべて確認済みにする」。下の4つに分けて並べ、行を押すとその行へ飛ぶ |
+| ・読み取りに自信が無い・取込時の注意あり（赤） | 台帳と見比べる行 |
+| ・賃貸・固定資産税評価明細の確認（紫） | 建物・建物附属設備（台帳からは分からないので人が決める） |
+| ・必須の値が入っていない（赤） | 資産名称・取得年月日・取得価額・耐用年数（建物と定率法の区分だけ）。確認済みでも出る。直すしかないので「確認済み」ボタンは無い |
+| ・自動で入った行（紫） | 上のどれにも当たらない取込の行 |
+
+- 1行ずつの「確認済み」、または**その行の値を1つでも直すと**確認済みになり印が消える（`review.confirmed`）。出典は残る。建物の固定資産税評価明細の一括チェックでは確認済みにしない
+- 印とパネルは**印刷・Excel には出さない**（`print:hidden`。Excel 出力は `source` を読まない）
+- 判定は `src/domain/review.ts`（`reviewMark` / `buildReviewGroups`）。各行は「注意あり／建物／その他」のどれか1つにだけ入る
 
 ---
 
@@ -398,7 +416,7 @@ Excelプレビュー（画面）は他の日付にそろえて西暦表記のま
 | 評価額 `-` | 中央寄せ |
 | 列幅 | `!cols` で指定（出力に反映される） |
 | 余白 | 狭め（`!margins` で指定、出力に反映される） |
-| ファイル名 | `R081005_{案件名}_減価償却資産評価.xlsx`（先頭は出力日の和暦。全アプリ共通の形で、`utils/exportFileName.ts`） |
+| ファイル名 | `R081005_{案件名}_減価償却資産評価.xlsx`（先頭は出力日の和暦。全アプリ共通の形で、`domain/exportFileName.ts`） |
 
 > **既知の制限（xlsx-js-style 1.2.0）**
 > コード上は `!pageSetup`（A4横・全列1ページ幅）と `!headerFooter`（フッターのページ番号 `&C&P / &N`）を
@@ -425,7 +443,7 @@ Excel末尾に以下の条文テキストを記載:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1",
   "exportedAt": "2026-03-22T10:00:00.000Z",
   "caseName": "株式会社〇〇〇 様",
   "taxDate": "2025-08-01",
@@ -443,11 +461,36 @@ Excel末尾に以下の条文テキストを記載:
       "hasFixedAssetTaxRecord": true,
       "isRental": false,
       "evaluationAmount": null,
-      "evaluationBasis": "固定資産税評価明細"
+      "evaluationBasis": "固定資産税評価明細",
+      "source": { "file": "固定資産台帳.pdf", "page": 1, "note": "1頁 1行目", "uncertain": false },
+      "review": { "warnings": ["取得日「H21.2」は年月だけなので1日としました"], "confirmed": false }
     }
   ]
 }
 ```
+
+**版**: `1.0` は最初の形、`1.1` で資産に `source`・`review`（どちらも省略可。取込の行だけが持つ）を足した。`1.0` はそのまま読める。アプリより新しい版は読まずに「アプリを更新してください」と出す。
+
+| 項目 | 中身 |
+|------|------|
+| `source.file` | 取込元のファイル名（必須。無い `source` は捨てる） |
+| `source.page` | 取込元のページ（1始まり） |
+| `source.note` | 読み取ったときの補足（「手書きの訂正あり」など） |
+| `source.uncertain` | 読み取りに自信が無い（かすれ・見切れ） |
+| `review.warnings` | 取込の時点でしか分からない注意（区分を推定した、日を補った等） |
+| `review.confirmed` | 人が確かめた（印を消す） |
+
+**読み込み時の正規化**（`src/domain/intake.ts` の `normalizeCaseJson`。画面の読み込み・下書きの復元・MCP の `normalize_asset_case` が同じ関数を通る）:
+
+- 行は落とさない。読めない値は読める形へ寄せて警告を返す。弾くのは案件名・課税時期・`assets` 配列が無いときだけ
+- 区分: 正式名・旧カテゴリ名・別名・`区分（償却方法）` と、別欄の `method`（償却方法）を受ける。償却方法がその区分で選べなければ既定へ寄せて注意、無ければ既定を当てて注意（評価額には影響しない）。判定できない区分は工具器具備品にして候補つきで注意
+- 日付: 西暦（`2023/4/1`・`2023-04-01`・`2023年4月1日`）、和暦（`R5.4.1`・`令和5年4月1日`・`令和元年`・`H27.4.1`・`S63.1.1`）、Excel のシリアル値。年月だけなら1日として注意。実在しない日（2/30 など）は空にして注意。元号の期間外（平成31年5月）は読んだうえで注意
+- 金額: `1,234,567`・`￥1,234円`・全角数字・`△1,000`／`▲`／`(1,000)` を円の整数へ。小数は切り捨て
+- 耐用年数: `15`・`15年`・全角。簿価評価・財産性なしの区分は無くても注意しない
+- `no` は文字列のまま（先頭ゼロ・枝番を保つ）
+- 固定資産税評価明細・賃貸はその区分で使えるときだけ残す
+- 取込の行は、読み直すたびに前の注意へ今回の注意を足す（重複は1つ）。確認済みは保つ
+- `id` の重複は振り直す
 
 **読み込み時のカテゴリ移行**: 旧形式（`建物` / `建物付属設備` / `機械装置` / `車両` / `器具備品` など）を
 `migrateCategory()` で新カテゴリ名へ変換する。償却方法が判別できない場合は資産区分の既定の償却方法を当てる
@@ -546,7 +589,7 @@ Excel末尾に以下の条文テキストを記載:
 
 レガシーの `無形固定資産` は旧JSONの読み込み用にのみ残しており、Step 2 / Step 3 の選択肢には出さない。
 
-**定義箇所**: `src/types/index.ts` の `CLASS_METHODS`（資産区分 → 償却方法）、`CLASS_CONFIG`（計算フラグ）、
+**定義箇所**: `src/domain/types.ts` の `CLASS_METHODS`（資産区分 → 償却方法）、`CLASS_CONFIG`（計算フラグ）、
 `CLASS_EVALUATION_BASIS`（評価根拠）、`DEFAULT_METHOD`（既定の償却方法）。
 カテゴリ名（40件）はこれらから型レベルで生成されるため、区分や償却方法の追加は1箇所の編集で完結する。
 
@@ -581,21 +624,27 @@ asset-valuation/
 ├── SPEC.md
 ├── docker-compose.yml                 # dev（Dockerfile は ../../docker/Dockerfile.vite-static）
 ├── docker-compose.prod.yml            # 本番オーバーレイ（nginx 静的配信）
-├── test-data/                         # 動作確認用のCSV・案件JSON（test-data/README.md）
+├── INTAKE.md                          # 台帳 PDF を読む AI への手順（normalize_asset_case まで）
+├── test-data/                         # 動作確認用のCSV・案件JSON・ダミー台帳（test-data/README.md）
 └── src/
     ├── main.tsx
     ├── App.tsx
     ├── index.css
-    ├── types/
-    │   └── index.ts                  # 型定義 + カテゴリ生成（CLASS_METHODS等）・別名解決・移行
-    │                                 #   + autoMapColumns / suggestAssetClasses
+    ├── domain/                       # DOM にも `@/` にも頼らない純粋な TS（MCP サーバーが相対 import する）
+    │   ├── types.ts                  # 型定義 + カテゴリ生成（CLASS_METHODS等）・別名解決・移行・resolveCategory
+    │   │                             #   + autoMapColumns / suggestAssetClasses
+    │   ├── date.ts                   # 日付の読み方（西暦・和暦・Excelシリアル。実在チェック）
+    │   ├── intake.ts                 # 案件JSONの検査・正規化（normalizeCaseJson / normalizeAssets）
+    │   ├── review.ts                 # 取込の確認の判定（reviewMark / buildReviewGroups）
+    │   ├── exportFileName.ts         # 出力ファイル名（R081005_名前_減価償却資産評価.ext）
+    │   ├── id.ts                     # 行の ID
+    │   └── *.test.ts                 # vitest
     ├── data/
     │   └── rateTable.ts              # 未償却残高表JSON
     ├── utils/
     │   ├── csvParser.ts              # CSV解析・エンコーディング検出
     │   ├── calculation.ts            # 評価額計算ロジック（getDepRate, CalcResult型）
     │   ├── excelExport.ts            # Excel出力（3シート・残価率表とINDEX/MATCH数式）
-    │   ├── exportFileName.ts         # 出力ファイル名（R081005_名前_減価償却資産評価.ext）
     │   ├── fileDownload.ts           # JSONダウンロード + exportCaseJson
     │   ├── formatters.ts             # formatYen, formatDate, formatDepreciation, calcGroupTotals, compareAssetNo
     │   └── validators.ts             # バリデーション
@@ -621,6 +670,8 @@ asset-valuation/
         │   ├── CategoryOrderBar.tsx   # カテゴリ順の操作（Undo・標準に戻す・プリセット）
         │   ├── AssetTable.tsx         # 資産テーブル（並べ替えボタン + D&D + 行単位カテゴリ変更）
         │   ├── MobileAssetCards.tsx   # 幅の狭い画面のカード表示
+        │   ├── IntakeReviewPanel.tsx  # 取込の確認（2.4.4）
+        │   ├── ReviewBadge.tsx        # 取込の行の印（要確認／取込）
         │   ├── anchors.ts             # 資産1件のアンカーID（表とカードで別々）
         │   └── ExcelPreview.tsx       # Excelプレビュー（カテゴリ折りたたみ。Step 4で使用）
         └── step4/
@@ -655,7 +706,7 @@ docker/scripts/manage.sh build asset-valuation          # 再ビルド（いま�
 
 dev の Vite にはポーリングを入れていないので、Windows の bind mount では編集が届かないことがある。そのときは `docker restart asset-valuation`。`package.json` や `vite.config.ts` はマウントしていない（イメージ同梱）ので、変えたら `build` が要る。
 
-テスト（vitest）は無い。型検査は `npm run build` の `tsc -b` だけで、dev モードでは走らない。
+テストは vitest（`src/**/*.test.ts`。日付・正規化・取込の確認の判定）。`npm test` は `npm run typecheck && vitest run`。回すのは `docker/scripts/manage.sh test asset-valuation`（使い捨ての `asset-valuation-test` コンテナ。CI でも同じ）。
 
 ---
 
@@ -696,7 +747,7 @@ dev の Vite にはポーリングを入れていないので、Windows の bind
 | パターン | 適用箇所 |
 |---------|---------|
 | ユーティリティDRY | `formatDepreciation`（3箇所→1関数）、`calcGroupTotals`（3箇所→1関数） |
-| 関数再利用 | `groupByLabel`（types/index.ts）をuseAssetData内で再利用。カテゴリの並び順は第2引数 `labelOrder` に集約し、Step 3・Step 4・Excel出力すべてが同じ関数を通る |
+| 関数再利用 | `groupByLabel`（domain/types.ts）をuseAssetData内で再利用。カテゴリの並び順は第2引数 `labelOrder` に集約し、Step 3・Step 4・Excel出力すべてが同じ関数を通る |
 | 型エイリアス | `CalcResult`、`AssetInput`（calculation.ts内の冗長なOmit/Pick削減） |
 | ヘルパー抽出 | `getDepRate`（calculateAsset内の重複残価率計算） |
 | コンポーネント抽出 | `StepNavigation`（3ステップの同一ナビゲーション）、`CategoryOrderBar`（カテゴリ順の操作をStep 3の凡例バーから分離） |

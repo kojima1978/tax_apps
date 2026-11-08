@@ -30,7 +30,7 @@ docker/scripts/manage.sh build asset-valuation          # 再ビルド（いま�
 - Dockerfile は全 Vite アプリ共通の `docker/Dockerfile.vite-static`
 - 本番はソースを同梱するので変更は `build` しないと入らない。dev は `src` を bind mount するが、
   ポーリングが無いので編集が届かないときは `docker restart asset-valuation`
-- テストは無い。動作確認用の CSV と案件JSONは `test-data/`（`test-data/README.md`）
+- テストは `docker/scripts/manage.sh test asset-valuation`（vitest。日付・正規化・取込の確認の判定）。動作確認用の CSV・案件JSON・ダミー台帳は `test-data/`（`test-data/README.md`）
 
 ## 画面フロー
 
@@ -88,7 +88,12 @@ Step 4: 計算結果 → Excel出力 / 案件JSON保存 / マッピングJSON出
   本表のH列（残価率）は残価率表シートを INDEX/MATCH で参照するので、年数を書き換えるとExcel側で再計算される。
   日付（課税時期・3年以内・取得年月）は**日付値のまま**出力し、表示書式だけ和暦（例: `R05.07.02`）にしているので、
   Excel側で日付計算にそのまま使える
-- **案件JSON保存・復元**: 案件データ全体（カテゴリの並び順を含む）をJSONでエクスポート/インポート
+- **案件JSON保存・復元**: 案件データ全体（カテゴリの並び順を含む）をJSONでエクスポート/インポート。
+  読み込みは和暦・`1,234,567` などの書き方も正規化し、おかしな行は落とさず注意を出す（版 1.1。1.0 もそのまま読める）
+- **固定資産台帳 PDF からの取込**: Claude（AI）が台帳 PDF を読み、MCP の `normalize_asset_case` で検査して
+  案件JSONを PDF の隣へ保存する（サーバ・DB なし）。読み込むと Step 3 に「取込の確認」が出て、
+  読み取りに自信の無い行・建物の賃貸／評価明細・必須の未入力を並べる。行の印は直すか「確認済み」で消え、印刷・Excel には出ない。
+  AI への手順は [INTAKE.md](INTAKE.md)
 - **下書きの自動保存**: 作業内容をブラウザ（localStorage）に自動保存し、リロードやタブを閉じた後も「復元する」で続きから再開できる
 - **出力ファイル名**: `R081005_{案件名}_減価償却資産評価.xlsx`（先頭は出力日の和暦。全アプリ共通）
 - **NOは文字列**: 枝番 `230-1`・先頭ゼロ `001`・英字 `A-12` をそのまま持ち、自然順（`2` → `10`）で並べる
@@ -113,14 +118,19 @@ Step 4: 計算結果 → Excel出力 / 案件JSON保存 / マッピングJSON出
 
 ```
 src/
-├── types/index.ts          # 型定義・カテゴリ生成・別名解決・旧カテゴリ移行・groupByLabel
-│                           #   + autoMapColumns（列の自動割り当て）/ suggestAssetClasses（区分の候補提示）
+├── domain/                 # 純粋な TS（MCP サーバーも相対 import する。`@/` を使わない）
+│   ├── types.ts            # 型定義・カテゴリ生成・別名解決・旧カテゴリ移行・groupByLabel
+│   │                       #   + autoMapColumns（列の自動割り当て）/ suggestAssetClasses（区分の候補提示）
+│   ├── date.ts             # 日付の読み方（西暦・和暦・Excelシリアル）
+│   ├── intake.ts           # 案件JSONの検査・正規化（normalizeCaseJson）
+│   ├── review.ts           # 取込の確認の判定
+│   ├── exportFileName.ts   # 出力ファイル名（R081005_名前_減価償却資産評価.ext）
+│   └── id.ts
 ├── data/rateTable.ts       # 未償却残高表（Excel抽出）
 ├── utils/
 │   ├── calculation.ts      # 評価額計算ロジック（getDepRate, CalcResult型）
 │   ├── csvParser.ts        # CSV解析
 │   ├── excelExport.ts      # Excel出力（3シート・残価率表とINDEX/MATCH数式）
-│   ├── exportFileName.ts   # 出力ファイル名（R081005_名前_減価償却資産評価.ext）
 │   ├── fileDownload.ts     # JSONダウンロード + exportCaseJson
 │   ├── formatters.ts       # formatYen, formatDate, formatDepreciation, calcGroupTotals, compareAssetNo
 │   └── validators.ts       # バリデーション
@@ -137,6 +147,6 @@ src/
     ├── CategoryNav.tsx      # カテゴリチップ一覧 + セクションへのスクロール
     ├── step1/CsvImportStep.tsx
     ├── step2/ColumnMappingStep.tsx, PresetManager.tsx
-    ├── step3/DataEditStep.tsx, CategoryOrderBar.tsx, AssetTable.tsx, MobileAssetCards.tsx, anchors.ts, ExcelPreview.tsx
+    ├── step3/DataEditStep.tsx, CategoryOrderBar.tsx, AssetTable.tsx, MobileAssetCards.tsx, IntakeReviewPanel.tsx, ReviewBadge.tsx, anchors.ts, ExcelPreview.tsx
     └── step4/ResultStep.tsx
 ```

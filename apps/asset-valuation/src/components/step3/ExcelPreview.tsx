@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
-import type { Asset } from '@/types';
-import { CATEGORY_CONFIG, groupByLabel } from '@/types';
+import type { Asset } from '@/domain/types';
+import { CATEGORY_CONFIG, groupByLabel } from '@/domain/types';
 import { categorySectionId } from '@/components/CategoryNav';
 import { formatYen, formatDate, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
 import { calcWithin3YearsDate } from '@/utils/calculation';

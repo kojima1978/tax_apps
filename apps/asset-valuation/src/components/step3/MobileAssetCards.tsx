@@ -10,8 +10,9 @@ import {
   Settings2,
   Trash2,
 } from 'lucide-react';
-import type { Asset, AnyAssetCategory, AssetCategory } from '@/types';
-import { CATEGORY_CONFIG } from '@/types';
+import type { Asset, AnyAssetCategory, AssetCategory } from '@/domain/types';
+import { CATEGORY_CONFIG } from '@/domain/types';
+import { ReviewBadge } from './ReviewBadge';
 import type { SortDirection, SortKey } from '@/hooks/useAssetData';
 import { CategorySelect } from '@/components/CategorySelect';
 import { categorySectionId } from '@/components/CategoryNav';
@@ -166,7 +167,7 @@ export function MobileAssetCards({
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-500">NO {asset.no}</p>
+                          <p className="flex items-center gap-2 text-xs font-semibold text-slate-500">NO {asset.no} <ReviewBadge asset={asset} /></p>
                           <h4 className="mt-0.5 break-words font-semibold text-slate-900">
                             {asset.name || '名称未入力'}
                           </h4>

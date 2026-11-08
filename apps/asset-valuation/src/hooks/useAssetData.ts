@@ -1,19 +1,21 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import type {
   Asset,
+  AssetInput,
   AnyAssetCategory,
   AssetCategory,
   ColumnMapping,
   CategoryMapping,
-} from '@/types';
+} from '@/domain/types';
 import {
   resolveBaseCategory,
-  migrateCategory,
   defaultCategoryOf,
   groupByLabel,
-} from '@/types';
+} from '@/domain/types';
 import { calculateAsset } from '@/utils/calculation';
-import { normalizeDate, generateId, compareAssetNo } from '@/utils/formatters';
+import { compareAssetNo } from '@/utils/formatters';
+import { normalizeDate } from '@/domain/date';
+import { generateId } from '@/domain/id';
 import type { CsvData } from '@/utils/csvParser';
 
 /** 並び替えキー */
@@ -160,6 +162,10 @@ export function useAssetData(taxDate: string) {
         prev.map((asset) => {
           if (asset.id !== id) return asset;
           const updated = { ...asset, ...updates };
+          // 取込の行は、人が1行ずつ直した時点で確認済みとする（review を明示で渡したときはそれに従う）
+          if (updated.source && !('review' in updates)) {
+            updated.review = { ...updated.review, confirmed: true };
+          }
           const calc = calculateAsset(updated, taxDate);
           return { ...updated, ...calc };
         })
@@ -167,6 +173,18 @@ export function useAssetData(taxDate: string) {
     },
     [taxDate]
   );
+
+  /** 取込の行を確認済みにする（ids 省略で取込の行すべて） */
+  const confirmAssets = useCallback((ids?: readonly string[]) => {
+    const target = ids ? new Set(ids) : null;
+    setAssets((prev) =>
+      prev.map((asset) =>
+        asset.source && !asset.review?.confirmed && (!target || target.has(asset.id))
+          ? { ...asset, review: { ...asset.review, confirmed: true } }
+          : asset
+      )
+    );
+  }, []);
 
   /** アセットを削除 */
   const deleteAsset = useCallback((id: string) => {
@@ -331,22 +349,18 @@ export function useAssetData(taxDate: string) {
   );
 
   /** JSONからロード（旧カテゴリ名を移行しつつ再計算。カテゴリ順も復元） */
+  /**
+   * 正規化済みの資産（normalizeCaseJson / normalizeAssets を通したもの）を読み込む。
+   * 区分の移行・NO の文字列化などはそちらで済んでいるので、ここでは課税時期で計算するだけ。
+   */
   const loadFromJson = useCallback(
-    (loadedAssets: Asset[], categoryOrder?: string[]) => {
+    (loadedAssets: AssetInput[], categoryOrder: string[] | undefined, loadedTaxDate: string) => {
       setLabelOrder(categoryOrder ?? []);
       // 別データに差し替わるので並べ替え履歴は捨てる
       setOrderHistory([]);
-      setAssets(
-        loadedAssets.map((asset) => {
-          const category =
-            migrateCategory(asset.category) ?? defaultCategoryOf('工具器具備品');
-          // 旧JSON・自動保存ではNOが数値のため、復元時に文字列へ揃える。
-          const migrated = { ...asset, no: String(asset.no ?? ''), category, categoryLabel: category };
-          return { ...migrated, ...calculateAsset(migrated, taxDate) };
-        })
-      );
+      setAssets(loadedAssets.map((asset) => ({ ...asset, ...calculateAsset(asset, loadedTaxDate) })));
     },
-    [taxDate]
+    []
   );
 
   return {
@@ -369,5 +383,6 @@ export function useAssetData(taxDate: string) {
     moveAsset,
     moveAssetsTo,
     loadFromJson,
+    confirmAssets,
   };
 }

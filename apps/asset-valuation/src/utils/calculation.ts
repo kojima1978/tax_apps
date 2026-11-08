@@ -1,6 +1,6 @@
 import { RATE_TABLE } from '@/data/rateTable';
-import type { Asset, AnyAssetCategory } from '@/types';
-import { CATEGORY_CONFIG } from '@/types';
+import type { Asset, AnyAssetCategory, AssetCalcField, AssetInput } from '@/domain/types';
+import { CATEGORY_CONFIG } from '@/domain/types';
 import { formatYen } from '@/utils/formatters';
 
 /** 経過年数を計算（1年未満切上） */
@@ -68,16 +68,7 @@ function getDepRate(
     : getUndepreciatedRate(elapsed, usefulLife);
 }
 
-type CalcResult = Pick<
-  Asset,
-  | 'elapsedYears'
-  | 'depreciationAmountOrRate'
-  | 'evaluationAmount'
-  | 'evaluationBasis'
-  | 'isWithin3Years'
->;
-
-type AssetInput = Omit<Asset, keyof CalcResult>;
+type CalcResult = Pick<Asset, AssetCalcField>;
 
 /** 資産の評価額を計算 */
 export function calculateAsset(asset: AssetInput, taxDate: string): CalcResult {

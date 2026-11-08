@@ -1,5 +1,5 @@
-import { STEPS } from '@/types';
-import type { StepId } from '@/types';
+import { STEPS } from '@/domain/types';
+import type { StepId } from '@/domain/types';
 import { Check } from 'lucide-react';
 
 interface Props {

@@ -1,0 +1,101 @@
+{
+  "version": "1.1",
+  "caseName": "ダミー商事株式会社 様",
+  "taxDate": "令和8年3月31日",
+  "assets": [
+    {
+      "no": "001",
+      "name": "本社事務所",
+      "category": "建物",
+      "method": "定額法",
+      "acquisitionDate": "H22.4.1",
+      "usefulLife": "50年",
+      "acquisitionCost": "48,000,000",
+      "bookValue": "30,624,000",
+      "source": { "file": "固定資産台帳_ダミー.pdf", "page": 1, "note": "1頁 1行目" }
+    },
+    {
+      "no": "002",
+      "name": "空調設備",
+      "category": "建物付属設備",
+      "acquisitionDate": "平成28年10月1日",
+      "usefulLife": 15,
+      "acquisitionCost": "3,200,000",
+      "bookValue": "720,512",
+      "source": { "file": "固定資産台帳_ダミー.pdf", "page": 1, "note": "1頁 2行目" }
+    },
+    {
+      "no": "003",
+      "name": "駐車場舗装",
+      "category": "構築物",
+      "method": "定率法",
+      "acquisitionDate": "R2.6.15",
+      "usefulLife": 10,
+      "acquisitionCost": "1,500,000",
+      "bookValue": "393,216",
+      "source": { "file": "固定資産台帳_ダミー.pdf", "page": 1, "note": "1頁 3行目" }
+    },
+    {
+      "no": "004",
+      "name": "営業車",
+      "category": "車両運搬具",
+      "method": "定率法",
+      "acquisitionDate": "R5.8",
+      "usefulLife": 6,
+      "acquisitionCost": "2,800,000",
+      "bookValue": "1,244,445",
+      "source": { "file": "固定資産台帳_ダミー.pdf", "page": 2, "note": "2頁 1行目。取得日は日がかすれて読めない", "uncertain": true }
+    },
+    {
+      "no": "005",
+      "name": "複合機",
+      "category": "器具備品",
+      "method": "定率法",
+      "acquisitionDate": "R4.1.20",
+      "usefulLife": 5,
+      "acquisitionCost": "980,000",
+      "bookValue": "126,420",
+      "source": { "file": "固定資産台帳_ダミー.pdf", "page": 2, "note": "2頁 2行目" }
+    },
+    {
+      "no": "006",
+      "name": "会計ソフト",
+      "category": "ソフトウエア",
+      "acquisitionDate": "R6.4.1",
+      "usefulLife": 5,
+      "acquisitionCost": "600,000",
+      "bookValue": "480,000",
+      "source": { "file": "固定資産台帳_ダミー.pdf", "page": 2, "note": "2頁 3行目" }
+    },
+    {
+      "no": "007",
+      "name": "パソコン一式（R6年度分）",
+      "category": "一括償却資産",
+      "acquisitionDate": "R6.9.1",
+      "usefulLife": 3,
+      "acquisitionCost": "540,000",
+      "bookValue": "360,000",
+      "source": { "file": "固定資産台帳_ダミー.pdf", "page": 3, "note": "3頁 一括償却資産の明細" }
+    },
+    {
+      "no": "008",
+      "name": "創立費",
+      "category": "創立費",
+      "acquisitionDate": "H22.4.1",
+      "acquisitionCost": "300,000",
+      "bookValue": "0",
+      "source": { "file": "固定資産台帳_ダミー.pdf", "page": 3, "note": "3頁 繰延資産" }
+    },
+    {
+      "no": "009",
+      "name": "",
+      "category": "器具備品",
+      "method": "定率法",
+      "acquisitionDate": "R3.3.31",
+      "usefulLife": 8,
+      "acquisitionCost": "250,000",
+      "bookValue": "41,232",
+      "source": { "file": "固定資産台帳_ダミー.pdf", "page": 2, "note": "2頁 4行目。名称の欄が空欄", "uncertain": true }
+    }
+  ]
+}

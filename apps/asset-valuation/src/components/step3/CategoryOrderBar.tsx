@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpDown, RotateCcw, Undo2, Save, Trash2, Check, X } from 'lucide-react';
-import type { CategoryOrderPreset } from '@/types';
+import type { CategoryOrderPreset } from '@/domain/types';
 
 interface Props {
   /** 現在表示中のカテゴリ順（プリセット保存の対象） */

@@ -1,4 +1,4 @@
-import type { Asset } from '@/types';
+import type { Asset } from '@/domain/types';
 
 /** カテゴリセクションのDOM id（ナビからのジャンプ先） */
 export function categorySectionId(label: string): string {

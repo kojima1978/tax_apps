@@ -1,5 +1,6 @@
-import type { Asset, CaseData } from '@/types';
-import { exportFileName } from '@/utils/exportFileName';
+import type { Asset, CaseData } from '@/domain/types';
+import { CASE_JSON_VERSION } from '@/domain/types';
+import { exportFileName } from '@/domain/exportFileName';
 
 /** JSONデータをファイルとしてダウンロード */
 export function downloadJsonFile(data: unknown, filename: string): void {
@@ -23,7 +24,7 @@ export function exportCaseJson(
   categoryOrder?: string[]
 ): void {
   const data: CaseData = {
-    version: '1.0',
+    version: CASE_JSON_VERSION,
     exportedAt: new Date().toISOString(),
     caseName,
     taxDate,

@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { GripVertical, AlertTriangle, CircleAlert, Check, CloudOff, Settings } from 'lucide-react';
 import { StepNavigation } from '@/components/StepNavigation';
 import { CategoryNav } from '@/components/CategoryNav';
-import type { Asset, AnyAssetCategory, CategoryOrderPreset } from '@/types';
+import type { Asset, AnyAssetCategory, CategoryOrderPreset } from '@/domain/types';
 import type { SortKey, SortDirection } from '@/hooks/useAssetData';
 import { validateAllAssets, hasErrors } from '@/utils/validators';
 import type { ValidationResult } from '@/utils/validators';
 import { formatYen, formatDateTime } from '@/utils/formatters';
 import { AssetTable } from './AssetTable';
 import { CategoryOrderBar } from './CategoryOrderBar';
+import { IntakeReviewPanel } from './IntakeReviewPanel';
 import { scrollToAsset } from './anchors';
 
 /** ジャンプ先の行を強調しておく時間（ms） */
@@ -27,6 +28,8 @@ interface Props {
   /** 自動保存に失敗しているか */
   saveError: boolean;
   onUpdateAsset: (id: string, updates: Partial<Asset>) => void;
+  /** 取込の行を確認済みにする（ids 省略で取込の行すべて） */
+  onConfirmAssets: (ids?: readonly string[]) => void;
   onDeleteAsset: (id: string) => void;
   onAddEmptyAsset: (category: AnyAssetCategory, categoryLabel: string) => void;
   onToggleFixedAssetTaxBulk: (label: string, checked: boolean) => void;
@@ -60,6 +63,7 @@ export function DataEditStep({
   savedAt,
   saveError,
   onUpdateAsset,
+  onConfirmAssets,
   onDeleteAsset,
   onAddEmptyAsset,
   onToggleFixedAssetTaxBulk,
@@ -292,6 +296,9 @@ export function DataEditStep({
 
       {/* カテゴリ間ナビゲーション */}
       <CategoryNav groups={navGroups} issueCounts={issueCounts} />
+
+      {/* 台帳などから自動で入った行の確認（取込の行があるときだけ） */}
+      <IntakeReviewPanel assets={assets} onJump={jumpToAsset} onConfirm={onConfirmAssets} />
 
       {/* バリデーション結果（クリックで該当行へ移動） */}
       {errors.length > 0 && (

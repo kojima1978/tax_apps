@@ -14,14 +14,15 @@ import {
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { Asset, AnyAssetCategory, AssetCategory } from '@/types';
-import { CATEGORY_CONFIG } from '@/types';
+import type { Asset, AnyAssetCategory, AssetCategory } from '@/domain/types';
+import { CATEGORY_CONFIG } from '@/domain/types';
 import type { SortKey, SortDirection } from '@/hooks/useAssetData';
 import { CategorySelect } from '@/components/CategorySelect';
 import { categorySectionId } from '@/components/CategoryNav';
 import { assetRowId } from './anchors';
 import { formatYen, formatDepreciation, calcGroupTotals } from '@/utils/formatters';
 import { MobileAssetCards } from './MobileAssetCards';
+import { ReviewBadge } from './ReviewBadge';
 
 const SORT_OPTIONS: { key: SortKey; icon: LucideIcon; label: string }[] = [
   { key: 'no', icon: Hash, label: 'NO' },
@@ -623,6 +624,7 @@ export function AssetTable({
                           className="w-full px-1 py-0.5 border rounded text-xs text-right font-mono tabular-nums"
                           aria-label={`${asset.name || '資産'} NO`}
                         />
+                        <ReviewBadge asset={asset} />
                       </td>
                       <td
                         className={`px-2 py-1 sticky left-[140px] z-10 ${stickyBg(asset.isWithin3Years, isSelected)}`}

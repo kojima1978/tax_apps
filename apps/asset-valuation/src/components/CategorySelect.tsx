@@ -4,13 +4,13 @@ import {
   CATEGORY_CONFIG,
   buildCategory,
   defaultCategoryOf,
-} from '@/types';
+} from '@/domain/types';
 import type {
   AnyAssetCategory,
   AssetCategory,
   AssetClass,
   DepreciationMethod,
-} from '@/types';
+} from '@/domain/types';
 
 /** 枠線の色分け */
 export type CategorySelectTone = 'error' | 'auto' | 'normal';

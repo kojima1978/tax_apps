@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Asset, StepId } from '@/types';
+import type { Asset, StepId } from '@/domain/types';
 
 /** 作業中の案件を保存するキー（マッピングプリセットとは別枠） */
 const DRAFT_KEY = 'asset-valuation:draft';

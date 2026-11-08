@@ -4,9 +4,9 @@ import type {
   ColumnMapping,
   CategoryMapping,
   PresetExportData,
-} from '@/types';
+} from '@/domain/types';
 import { downloadJsonFile } from '@/utils/fileDownload';
-import { exportFileName } from '@/utils/exportFileName';
+import { exportFileName } from '@/domain/exportFileName';
 import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 
 const STORAGE_KEY = 'asset-valuation-presets';

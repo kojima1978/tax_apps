@@ -2,13 +2,13 @@ import { useState, useRef } from 'react';
 import { Upload, FileJson, ChevronRight, Loader2, Download, CircleCheck, Info } from 'lucide-react';
 import { parseCsvFile } from '@/utils/csvParser';
 import type { CsvData } from '@/utils/csvParser';
-import type { CaseData } from '@/types';
-import { validateCaseData } from '@/utils/validators';
-import { exportFileName } from '@/utils/exportFileName';
+import { normalizeCaseJson } from '@/domain/intake';
+import type { IntakeResult } from '@/domain/intake';
+import { exportFileName } from '@/domain/exportFileName';
 
 interface Props {
   onCsvLoaded: (data: CsvData) => void;
-  onJsonImport: (data: CaseData) => void;
+  onJsonImport: (data: IntakeResult['caseData']) => void;
   onNext: () => void;
   csvData: CsvData | null;
 }
@@ -45,8 +45,13 @@ export function CsvImportStep({
     setLoading(true);
     try {
       const text = await file.text();
-      const data = validateCaseData(JSON.parse(text));
-      onJsonImport(data);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new Error(`${file.name} は JSON として読めません（壊れているか、別の形式のファイルです）`);
+      }
+      onJsonImport(normalizeCaseJson(parsed).caseData);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'JSON読込エラー');
     } finally {

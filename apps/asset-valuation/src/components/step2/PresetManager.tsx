@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Save, Trash2, Download, Upload } from 'lucide-react';
-import type { MappingPreset, ColumnMapping, CategoryMapping } from '@/types';
+import type { MappingPreset, ColumnMapping, CategoryMapping } from '@/domain/types';
 
 interface Props {
   presets: MappingPreset[];

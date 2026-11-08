@@ -322,7 +322,48 @@ export interface Asset {
   evaluationAmount: number | null; // null = '-'
   evaluationBasis: EvaluationBasis;
   isWithin3Years: boolean;
+  /** 台帳 PDF などから取り込んだ行の出典（手入力・CSV の行には無い） */
+  source?: AssetSource;
+  /** 取込の確認状態（source を持つ行だけ） */
+  review?: AssetReview;
 }
+
+/** 取り込んだ行の出典。画面ではツールチップで見せる（印刷・Excel には出さない）。 */
+export interface AssetSource {
+  /** 取込元のファイル名 */
+  file: string;
+  /** 取込元のページ（1始まり） */
+  page?: number;
+  /** 読み取ったときの補足（「手書きの訂正あり」など） */
+  note?: string;
+  /** 読み取りに自信が無い（かすれ・見切れ等）。確認一覧で赤く出す */
+  uncertain?: boolean;
+}
+
+/** 取込の確認状態 */
+export interface AssetReview {
+  /** 取込の時点でしか分からない注意（区分を推定した、日を補った等） */
+  warnings?: string[];
+  /** 人が確かめた（印を消す。出典は残す） */
+  confirmed?: boolean;
+}
+
+/** 自動で算出する項目 */
+export type AssetCalcField =
+  | 'elapsedYears'
+  | 'depreciationAmountOrRate'
+  | 'evaluationAmount'
+  | 'evaluationBasis'
+  | 'isWithin3Years';
+
+/** 計算前の資産データ（取込・編集で人や AI が決める項目だけ） */
+export type AssetInput = Omit<Asset, AssetCalcField>;
+
+/**
+ * 案件JSONの版。
+ * 1.0: 最初の形。1.1: 資産に source・review（省略可）を足した。1.0 はそのまま読める。
+ */
+export const CASE_JSON_VERSION = '1.1';
 
 /** 案件データ */
 export interface CaseData {
@@ -330,7 +371,8 @@ export interface CaseData {
   exportedAt: string;
   caseName: string;
   taxDate: string; // YYYY-MM-DD
-  assets: Asset[];
+  /** 画面から書き出したものは計算結果つき、取込で作ったものは計算前 */
+  assets: (AssetInput & Partial<Pick<Asset, AssetCalcField>>)[];
   /** 利用者が入れ替えたカテゴリの表示順（未指定＝標準順） */
   categoryOrder?: string[];
 }
@@ -560,6 +602,44 @@ export function resolveBaseCategory(raw: string): AssetCategory | undefined {
 export function migrateCategory(raw: string): AnyAssetCategory | undefined {
   if (raw in CATEGORY_CONFIG) return raw as AnyAssetCategory;
   return resolveBaseCategory(raw);
+}
+
+/** 区分と償却方法を別々に受けたときの判定結果 */
+export interface CategoryResolution {
+  /** 判定できなければ undefined */
+  category?: AnyAssetCategory;
+  /** 償却方法が分からず区分の既定を当てた（償却方法の選択肢が複数ある区分だけ） */
+  methodAssumed: boolean;
+  /** 渡された償却方法がその区分では選べなかった（その値） */
+  methodRejected?: string;
+}
+
+/**
+ * 台帳の勘定科目（または「区分（償却方法）」）と償却方法の欄から、カテゴリを決める。
+ * 案件JSONの取込（画面・MCP）で使う。区分名の別名は CLASS_ALIASES、
+ * 償却方法の別名は METHOD_ALIASES ── 知識の置き場所はこのファイルだけ。
+ */
+export function resolveCategory(rawCategory: string, rawMethod?: string): CategoryResolution {
+  const trimmed = rawCategory.trim();
+  if (trimmed in CATEGORY_CONFIG) {
+    return { category: trimmed as AnyAssetCategory, methodAssumed: false };
+  }
+  const parsed = splitCategoryName(trimmed);
+  const cls = parsed.cls ?? CLASS_ALIASES[trimmed.replace(/[\s　]/g, '')];
+  if (!cls) return { methodAssumed: false };
+
+  const methodText = rawMethod?.trim();
+  const method =
+    parsed.method ?? (methodText ? METHOD_ALIASES[normalizeMethodName(methodText.replace(/[\s　]/g, ''))] : undefined);
+  const allowed = CLASS_METHODS[cls] as readonly DepreciationMethod[];
+  if (method && allowed.includes(method)) {
+    return { category: buildCategory(cls, method as never), methodAssumed: false };
+  }
+  return {
+    category: defaultCategoryOf(cls),
+    methodAssumed: allowed.length > 1,
+    ...(methodText ? { methodRejected: methodText } : {}),
+  };
 }
 
 /**
