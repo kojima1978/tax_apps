@@ -1861,9 +1861,18 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { width: 100%; min-height: 42px; padding: 9px 11px; color: inherit; background: transparent; border: 0; border-radius: 0; display: flex; align-items: center; font: inherit; text-align: inherit; text-decoration: none; }
 .position-summary-table .number > .position-summary-cell-link, .position-summary-table .number > .position-summary-allocation-button { justify-content: flex-end; }
 .position-summary-table .center > .position-summary-cell-link, .position-summary-table .center > .position-summary-allocation-button { justify-content: center; }
+/* No. 列の右余白は 16px（本文のセルは余白をリンク／ボタンへ移しているのでそちらに付ける）。
+   見出しと、リンクを持たない割り振り入力の表の本文は、セル自身に同じ 16px を入れて位置をそろえる
+   ── 揃えないと見出しが本文より 5px 内側に出て、一覧と割り振り入力を切り替えたときに番号が横へ跳ぶ。
+   印刷では列幅を 3% に絞るので持ち込まない（@media screen 限定）。 */
 @media screen {
   .position-summary-table .position-summary-sticky-number > .position-summary-cell-link,
-  .position-summary-table .position-summary-sticky-number > .position-summary-allocation-button { padding-right: 16px; }
+  .position-summary-table .position-summary-sticky-number > .position-summary-allocation-button,
+  .position-summary-table thead .position-summary-sticky-number,
+  .allocation-inline-table tbody .position-summary-sticky-number { padding-right: 16px; }
+  /* 見出しの「No.」は 20.7px あり、44px の列に左 11px ＋ 右 16px を入れると入りきらず
+     右へはみ出して（nowrap・overflow は visible）右寄せが効かなくなる。見出しだけ左を詰める。 */
+  .position-summary-table thead .position-summary-sticky-number { padding-left: 4px; }
 }
 .position-summary-allocation-button { cursor: pointer; }
 .position-summary-primary-row > [rowspan].position-summary-detail-target > .position-summary-cell-link, .position-summary-primary-row > [rowspan].position-summary-allocation-target > .position-summary-allocation-button { min-height: 86px; }
