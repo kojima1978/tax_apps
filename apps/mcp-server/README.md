@@ -164,14 +164,56 @@ Windows でエクスプローラから使うなら `docker\scripts\setup-mcp.bat
 {
   "mcpServers": {
     "tax-apps": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "--network", "tax-apps-network", "tax-apps-mcp"]
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "C:\\...\\tax_apps\\docker\\scripts\\mcp-launch.bat"]
     }
   }
 }
 ```
 
+パスは**登録した PC での絶対パス**（スクリプトがその場で引く）。リポジトリを別の場所へ
+移したら `setup-mcp.sh` を叩き直す。以前の版は `"command": "docker"` で `docker run` を
+直に登録していた ── 叩き直せば控えを取ってから書き換わる（ほかの設定は残る）。
+
 登録したら**Claude デスクトップを完全に終了して開き直す**（設定は起動時にしか読まれない）。
+
+### Docker Desktop より先に Claude デスクトップが起きたとき
+
+`docker run` を直に登録していた頃は、PC の起動直後に Claude デスクトップが Docker Desktop
+より先に立ち上がると `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`
+でその場で終わり、**Claude デスクトップは二度と繋ぎ直さなかった**（2026-11-10）。
+いまは起動役 `docker/scripts/mcp-launch.bat` が次の順に動く:
+
+1. `mcp-wait-docker.ps1` が `docker info` の応答を**最長50秒**待つ
+   （環境変数 `TAX_APPS_MCP_DOCKER_WAIT` で秒数を変えられる）
+2. イメージ `tax-apps-mcp` とネットワーク `tax-apps-network` があるか確かめる
+3. `docker run -i --rm --network tax-apps-network tax-apps-mcp` を起こす
+
+待っている間に Claude デスクトップが送ってきた `initialize` は捨てられず、繋がった後に
+答える（Docker を偽の接続先へ向けて10秒後に戻す形で実測）。50秒なのは、MCP の SDK の
+既定のタイムアウト（60秒）より先にこちらから「直し方」を出すため。
+
+うまくいかなかったときは、**直し方を1行**、Claude デスクトップの MCP ログ
+（`%LOCALAPPDATA%\Claude\logs\mcp-server-tax-apps.log`）に残して終わる:
+
+| ログの1行 | すること |
+| --- | --- |
+| `Docker Desktop が起動していません（50 秒待ちました）` | Docker Desktop を起動してから Claude デスクトップを開き直す |
+| `イメージ tax-apps-mcp がありません` | `docker/scripts/setup-mcp.sh` を叩いてから開き直す |
+| `ネットワーク tax-apps-network がありません` | `docker/scripts/manage.sh start` してから開き直す |
+| `docker コマンドが見つかりません` | Docker Desktop を入れる |
+
+**使っている途中で Docker Desktop を再起動・停止したとき**（手で再起動した、ウォッチドッグが
+Docker を立て直した、など）は、動いていた MCP サーバーのコンテナごと切れて
+`error waiting for container: unexpected EOF` になる。これは起動役では直せない
+（Claude デスクトップが切れた MCP を繋ぎ直さない）ので、**Docker が上がってから
+Claude デスクトップを開き直す**。
+
+起動役の決まりごと: stdout は MCP の通信路なので、待つ役は stdin を `nul` から取り
+（`initialize` を食べない）、stdout も stderr へ向けてある。`.bat` は ASCII のみ
+（cmd はコードページ 932 で読む）、`.ps1` は日本語を含むので UTF-8 の BOM 付き。
+`.bat` を直接ではなく `cmd.exe /d /c` で登録するのは、Node（Claude デスクトップ）が
+CVE-2024-27980 以降 `.bat` を shell 無しで起こさないため。
 
 ### 手で作り直すとき
 
@@ -195,8 +237,9 @@ docker compose -f apps/mcp-server/docker-compose.yml --profile mcp build mcp-ser
 接続先を変えるときは `SVF_API_BASE` 環境変数。既定は
 `http://stock-valuation-form:3014/stock-valuation-form/api` で、dev（Vite のプロキシ）でも
 本番（Node 直）でも同じ URL で通る。1リクエストの制限時間は `SVF_API_TIMEOUT_MS`（既定 15000）。
-どちらも設定の `args` へ `-e SVF_API_BASE=...` の形で足す
-（**compose の `environment` は `docker run` からは読まれない**）。
+どちらも設定の `args` の末尾へ `"-e", "SVF_API_BASE=..."` の形で足す（`mcp-launch.bat` が
+`%*` でそのまま `docker run` へ渡す。**compose の `environment` は `docker run` からは読まれない**）。
+`setup-mcp.sh` を叩き直すと `tax-apps` の登録は丸ごと置き換わるので、足した引数も消える。
 
 > dev サーバへ繋ぐには、Vite 側に `allowedHosts: ['stock-valuation-form']` が要る。
 > Vite 7 は DNS リバインディング対策で localhost 以外の `Host` を 403 で弾くため

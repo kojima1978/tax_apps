@@ -11,6 +11,8 @@
 #   - --dry-run は何も書かない
 #   - ビルドはリポジトリ直下から叩く（bake の読み取り範囲）
 #   - ネットワークが無ければ作る
+#   - 登録するのは docker run ではなく起動役（mcp-launch.bat）。古い登録は控えを取って書き換える
+#   - 起動役のファイルの約束（ASCII・CRLF・BOM・stdout へ書かない）
 #
 # docker は PATH の前に置いた偽物に差し替える。`docker run ... node` の中身だけは
 # ホストの node で実行する（マージの中身を見たいのはそこなので）。本番の経路は
@@ -92,8 +94,10 @@ backup_count() {
 : > "$CALLS"
 STUB_NETWORK_MISSING=1 bash "$setup_script" --config "$config" --no-build >/dev/null
 check "設定ファイルを作る" test -f "$config"
-check "command は docker" grep -q '"command": "docker"' "$config"
-check "args にイメージ名が入る" grep -q '"tax-apps-mcp"' "$config"
+check "command は cmd.exe（.bat は Node から直に起こせない）" grep -q '"command": "cmd.exe"' "$config"
+check "args は起動役 mcp-launch.bat の絶対パス" grep -q 'docker[\\/]*scripts[\\/]*mcp-launch\.bat"' "$config"
+check "docker run を直に登録しない（Docker が後から起きた回に繋がらない）" \
+  bash -c '! grep -q "\"run\"" "$1"' _ "$config"
 check "控えは作らない（元が無いので）" test "$(backup_count)" = 0
 check "ネットワークが無ければ作る" grep -q 'network create tax-apps-network' "$CALLS"
 check "--no-build では build しない" bash -c '! grep -q "compose .*build" "$CALLS"'
@@ -187,6 +191,47 @@ check "起動できないイメージは終了コード 1" test "$rc" -eq 1
 check "起動できない理由を出す" grep -q 'does not provide an export' <<<"$output"
 check "起動できないイメージは設定に書かない" test "$(cat "$config")" = '{}'
 check "作ったイメージは起動を確かめる" grep -q 'run -i --rm --network none tax-apps-mcp' "$CALLS"
+
+# ------------------------------------
+# 9. 古い登録（docker run を直に登録していた版）は書き換える。控えを取り、ほかは残す
+# ------------------------------------
+find "$test_dir" -maxdepth 1 -name 'claude_desktop_config.json.bak.*' -delete
+cat > "$config" <<'JSON'
+{
+  "mcpServers": {
+    "tax-apps": { "command": "docker", "args": ["run", "-i", "--rm", "--network", "tax-apps-network", "tax-apps-mcp"] },
+    "filesystem": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"] }
+  }
+}
+JSON
+output=$(bash "$setup_script" --config "$config" --no-build)
+check "古い登録は書き換える" grep -q '"command": "cmd.exe"' "$config"
+check "古い登録の docker run は残らない" bash -c '! grep -q "\"run\"" "$1"' _ "$config"
+check "書き換えても控えを取る" test "$(backup_count)" = 1
+check "書き換えてもほかの MCP サーバーは残す" grep -q 'server-filesystem' "$config"
+check "更新したと伝える" grep -q '登録内容を更新しました' <<<"$output"
+
+# ------------------------------------
+# 10. 起動役のファイル（Windows の上でしか動かないので、中身の約束だけ見る）
+# ------------------------------------
+launcher="$script_dir/../mcp-launch.bat"
+waiter="$script_dir/../mcp-wait-docker.ps1"
+check "mcp-launch.bat がある" test -f "$launcher"
+check "mcp-launch.bat は ASCII だけ（cmd はコードページ 932 で読む）" \
+  bash -c '! LC_ALL=C grep -q "[^[:print:][:space:]]" "$1"' _ "$launcher"
+check "mcp-launch.bat は CRLF" test "$(grep -c $'\r$' "$launcher")" = "$(wc -l < "$launcher" | tr -d ' ')"
+check "mcp-launch.bat は待つ役を stdin 無し・stdout を stderr へ向けて呼ぶ" \
+  grep -q 'mcp-wait-docker.ps1" <nul 1>&2' "$launcher"
+check "mcp-launch.bat は待つ役が失敗したら docker run しない" grep -q '^if errorlevel 1 exit /b 1' "$launcher"
+check "mcp-launch.bat の docker run は setup-mcp.sh と同じイメージ・ネットワーク" \
+  grep -q 'docker run -i --rm --network tax-apps-network %\* tax-apps-mcp' "$launcher"
+check "mcp-wait-docker.ps1 は BOM 付き（日本語を Windows PowerShell 5.1 で読むため）" \
+  test "$(head -c 3 "$waiter" | od -An -tx1 | tr -d ' \n')" = efbbbf
+check "mcp-wait-docker.ps1 は stdout へ書かない" \
+  bash -c '! grep -qiE "Write-(Output|Host)|^\s*echo |\[Console\]::(Write|Out)" "$1"' _ "$waiter"
+check "mcp-wait-docker.ps1 のイメージ・ネットワークの既定は setup-mcp.sh と同じ" \
+  bash -c 'grep -q "\$Image = .tax-apps-mcp." "$1" && grep -q "\$Network = .tax-apps-network." "$1"' _ "$waiter"
+check "mcp-wait-docker.ps1 は待ち時間を環境変数で変えられる" grep -q 'TAX_APPS_MCP_DOCKER_WAIT' "$waiter"
 
 if (( failures )); then
   echo "setup-mcp.test.sh: FAILED" >&2

@@ -59,9 +59,16 @@ IMAGE_NAME="tax-apps-mcp"
 COMPOSE_FILE="$PROJECT_ROOT/apps/mcp-server/docker-compose.yml"
 MERGE_PROGRAM="$SCRIPT_DIR/lib/merge-mcp-config.js"
 
-# Claude デスクトップへ渡す起動コマンド。compose の environment は docker run からは
-# 読まれないので、接続先を変えるときは args に -e SVF_API_BASE=... を足す。
-ENTRY_JSON='{"command":"docker","args":["run","-i","--rm","--network","'"$NETWORK_NAME"'","'"$IMAGE_NAME"'"]}'
+# Claude デスクトップへ渡す起動コマンド。`docker run` を直に登録すると、Claude デスクトップが
+# Docker Desktop より先に起きた回は Docker に繋がらずにその場で終わり、二度と繋ぎ直さない
+# （2026-11-10）。そこで Docker の準備を待ってから `docker run` する起動役（mcp-launch.bat →
+# mcp-wait-docker.ps1）を登録する。パスは登録する PC での絶対パス（clone 先は PC ごとに違う）。
+# .bat は Node から直に起こせない（CVE-2024-27980 以降、shell 無しの spawn は拒まれる）ので
+# cmd.exe 経由にする。イメージ名・ネットワーク名は .bat / .ps1 にも書いてある（変えるなら3箇所）。
+# 接続先を変えるときは args の末尾に "-e","SVF_API_BASE=..." を足すと、.bat の %* が
+# そのまま docker run へ渡す（compose の environment は docker run からは読まれない）。
+LAUNCHER_WIN_PATH="$(to_win_path "$SCRIPT_DIR/mcp-launch.bat")"
+ENTRY_JSON='{"command":"cmd.exe","args":["/d","/c","'"${LAUNCHER_WIN_PATH//\\/\\\\}"'"]}'
 
 usage() {
   sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
@@ -246,6 +253,8 @@ printf '  %s\n' "$ENTRY_JSON"
 echo
 echo "このあと:"
 echo "  1. Claude デスクトップを完全に終了して開き直す（設定は起動時にしか読まれない）"
+echo "     Docker Desktop が後から起きても50秒までは待ってから繋ぐ。使っている途中で Docker を"
+echo "     再起動・停止したときは、Claude デスクトップも開き直す（切れた MCP は繋ぎ直されない）"
 echo "  2. 株式評価明細書を動かしておく（docker/scripts/manage.sh status で確認、止まっていれば start）"
 echo "  3. 取込の前に、その案件を開いている画面のタブを閉じる（自動保存が後から上書きする）"
 echo "  4. 手順は apps/mcp-server/INTAKE.md（AI 向け）／ apps/mcp-server/README.md（人向け）"

@@ -187,6 +187,8 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
   イメージを作り、共有ネットワークを用意し、Claude デスクトップの設定へ `tax-apps` を登録する。
   **既存の設定はマージ**（ほかの MCP サーバーも `mcpServers` 以外の項目も消さない）、
   **変更前の控えつき**、同じ内容なら書かない、読めない JSON なら1バイトも書かずに中止（終了コード 3）。
+  登録するのは `docker run` ではなく起動役 **`mcp-launch.bat`**（`cmd.exe /d /c <絶対パス>`）で、
+  Claude デスクトップが Docker Desktop より先に起きても `mcp-wait-docker.ps1` が最長50秒待つ。
   手順は `apps/mcp-server/README.md`。
 
 ### 廃止したタスク登録（バックアップ・リストア訓練）
@@ -363,6 +365,8 @@ detail=daily ok=7 skipped=0
 | `set-backup-usb.bat` | 補助 (CMD) | backup.sh usb の Git Bash ラッパー（外部コピー先を選ぶ） |
 | `setup-mcp.sh` | 本体 (Bash) | MCP サーバーのイメージ作成と Claude デスクトップへの登録（マージ・控えつき） |
 | `setup-mcp.bat` | 補助 (CMD) | setup-mcp.sh の Git Bash ラッパー（ダブルクリック） |
+| `mcp-launch.bat` | 本体 (CMD) | Claude デスクトップに登録する MCP の起動役（Docker を待ってから `docker run`。Git Bash 不要） |
+| `mcp-wait-docker.ps1` | 本体 (PS) | mcp-launch.bat から呼ぶ。Docker・イメージ・ネットワークを待って確かめる（stdout へ書かない） |
 | `register-backup-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |
 | `unregister-backup-task.bat` | 補助 (CMD) | 廃止したタスクを既存 PC から削除 |
 | `register-restore-drill-task.ps1` | 本体 (PS) | **廃止**。`-Unregister` 専用 |

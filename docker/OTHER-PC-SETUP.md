@@ -277,6 +277,13 @@ docker/scripts/setup-mcp.sh
 
 - 設定ファイルは**リポジトリの外**（個人の設定なので取得物には入っていない）
 - 終わったら**Claude デスクトップを完全に終了して開き直す**（設定は起動時にしか読まれない）
+- 登録されるのは `docker run` ではなく起動役 `docker\scripts\mcp-launch.bat`（この PC での
+  絶対パス）。Claude デスクトップが Docker Desktop より先に起きても最長50秒は待ってから繋ぐ。
+  前の版で `"command": "docker"` の登録が残っている PC も、このスクリプトを叩き直せば
+  控えを取って書き換わる。リポジトリの場所を変えたときも叩き直す
+- 使っている途中で Docker Desktop を再起動・停止したときは、Docker が上がってから
+  **Claude デスクトップも開き直す**（切れた MCP は繋ぎ直されない）。繋がらないときの理由は
+  `%LOCALAPPDATA%\Claude\logs\mcp-server-tax-apps.log` に日本語1行で残る
 - 株式評価明細書が動いていること（`manage.sh status`）。手順は `apps/mcp-server/README.md`、
   AI 向けの取込手順は `apps/mcp-server/INTAKE.md`
 - `apps/mcp-server/src/` を直したときはこのスクリプトを叩き直す

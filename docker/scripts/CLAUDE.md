@@ -75,6 +75,9 @@
   - **作ったイメージを1回起こして `tools/list` を確かめてから登録する**（返らなければ終了コード 1・設定は書かない）。
     vitest は dev ステージの tsx で走るので、本番イメージでしか起きない壊れ方（asset-valuation の domain が
     CommonJS で出て import できない、を実際に踏んだ）はここでしか見えない
+  - **登録するのは起動役 `mcp-launch.bat`**（`cmd.exe /d /c <絶対パス>`。Docker を最長50秒待つ
+    `mcp-wait-docker.ps1` を `<nul 1>&2` で呼んでから `docker run`）。`docker run` を直に登録すると
+    Docker Desktop より先に起きた回に繋がらず、Claude デスクトップは繋ぎ直さない。詳細は `apps/mcp-server/CLAUDE.md`
   - テストは `docker/scripts/tests/setup-mcp.test.sh`（CI の shell scripts ジョブ）
 - **リストアはアプリ単位**（`manage.sh restore <app>|--all [backup] [--yes]`、手順書は
   **`docker/RESTORE.md`**）。そのアプリのコンテナだけ止めて戻し、**件数をバックアップと照合**

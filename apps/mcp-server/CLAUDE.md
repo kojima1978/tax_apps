@@ -36,8 +36,17 @@ docker compose -f apps/mcp-server/docker-compose.yml --profile mcp build mcp-ser
   要らない）。`manage.sh build mcp-server` は使えない（`APPS` に載っていない）ので、
   **`src/` を直したらこのスクリプトを叩き直す**。テストは `docker/scripts/tests/setup-mcp.test.sh`
   （CI の shell scripts ジョブ）
+- **登録するのは `docker run` ではなく起動役**（`cmd.exe /d /c <絶対パス>\docker\scripts\mcp-launch.bat`）。
+  Claude デスクトップが Docker Desktop より先に起きると `docker run` はその場で終わり、二度と
+  繋ぎ直されない（2026-11-10）。`mcp-wait-docker.ps1` が `docker info` を最長50秒
+  （`TAX_APPS_MCP_DOCKER_WAIT`）待ち、イメージとネットワークまで確かめてから `docker run` する。
+  失敗は直し方つきの日本語1行を stderr へ（`%LOCALAPPDATA%\Claude\logs\mcp-server-tax-apps.log`）。
+  **stdout には MCP 以外を1バイトも書かない**（待つ役は `<nul 1>&2` で呼ぶ）。`.bat` は ASCII、
+  `.ps1` は BOM 付き UTF-8。イメージ名・ネットワーク名は `setup-mcp.sh`・`.bat`・`.ps1` の3箇所で、
+  テストが揃っていることを見ている。**使っている途中で Docker を再起動したら Claude デスクトップも
+  開き直す**（`unexpected EOF` で切れた MCP は起動役では戻せない）
 - **常駐しない**ので `APPS` ではなく `UNMANAGED_APPS`、compose のサービスは
-  `profiles: ["mcp"]`。MCP クライアントが `docker run -i --rm` で起動して終われば消える。
+  `profiles: ["mcp"]`。MCP クライアントが起動役経由の `docker run -i --rm` で起動して終われば消える。
   テストだけは `TEST_TARGETS` の `run@mcp-server-test` から使い捨てコンテナで回る
 - **取込中はその案件の画面を閉じておくこと**。画面の自動保存も同じ `PUT /cases/:id` を叩き、
   `data` をまるごと置き換えるので、開いたままだとブラウザ側が後から上書きする。
