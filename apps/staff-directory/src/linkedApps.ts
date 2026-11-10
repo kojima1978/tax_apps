@@ -1,13 +1,52 @@
-// 台帳の写しを持つアプリ。担当者を台帳ID（staffDirectoryId）で覚えているので、
-// 復元で台帳から消える ID はそのアプリでは「台帳に居ない人」になり、復元後に同じ ID で
-// 別の人が登録されると、その人の名前で写し直されてしまう。復元の前に人数と名前を見せる。
-// どちらの一覧も同じゲートウェイの下なので、ブラウザから直接読む
+// 台帳を使うアプリの一覧（「連携」の画面と、復元の前の確かめの両方がここを読む）。
+// どのアプリも同じゲートウェイの下なので、ブラウザから直接読む
 
-export type LinkedApp = { label: string; url: string };
+/**
+ * 台帳の写しを持つアプリ。担当者を台帳ID（staffDirectoryId）で覚えているので、
+ * 復元で台帳から消える ID はそのアプリでは「台帳に居ない人」になり、復元後に同じ ID で
+ * 別の人が登録されると、その人の名前で写し直されてしまう。復元の前に人数と名前を見せる。
+ */
+export type LinkedApp = {
+  label: string;
+  /** そのアプリの担当者の画面（未連携の人を直す場所） */
+  page: string;
+  /** 担当者の一覧（台帳ID つき）。復元の前の確かめに使う */
+  copiesUrl: string;
+  /** 写しの状況。GET は期限（5分）が来ていれば写し直してから返し、POST は今すぐ写し直す */
+  syncUrl: string;
+  /** 台帳に居ない担当者の直し方 */
+  unlinkedFix: string;
+};
 
 export const LINKED_APPS: LinkedApp[] = [
-  { label: '相続税案件管理', url: '/itcm/api/assignees' },
-  { label: 'ファミリーB/S', url: '/private-banking/api/staff' },
+  {
+    label: '案件管理',
+    page: '/itcm/settings/staff',
+    copiesUrl: '/itcm/api/assignees',
+    syncUrl: '/itcm/api/staff-directory',
+    unlinkedFix: '社員台帳のコンテナで「npm run import:itcm -- --yes」を流すと台帳へ取り込まれ、結び付きます。',
+  },
+  {
+    label: '資産・負債管理（PB）',
+    page: '/private-banking/staff',
+    copiesUrl: '/private-banking/api/staff',
+    syncUrl: '/private-banking/api/staff-directory',
+    unlinkedFix: '担当していた顧客を、資産・負債管理の画面で台帳の人へ付け替えてください。',
+  },
+];
+
+/** 写しを持たず、画面から台帳を直接読むアプリ（台帳の変更は次に画面を開いたときに見える） */
+export type ReadingApp = { label: string; url: string; uses: string };
+
+export const READING_APPS: ReadingApp[] = [
+  { label: '株式評価明細書', url: '/stock-valuation-form/', uses: '操作者・案件の担当者' },
+  { label: '預貯金分析', url: '/bank-analyzer/', uses: '操作者・案件の担当者・事務所情報' },
+  { label: '必要書類管理', url: '/inheritance-tax-docs/', uses: '操作者・事務所情報' },
+  { label: '相続税計算', url: '/inheritance-tax-app/', uses: '事務所情報' },
+  { label: '贈与税計算', url: '/gift-tax-simulator/', uses: '事務所情報' },
+  { label: '退職金税額計算', url: '/retirement-tax-calc/', uses: '事務所情報（印刷）' },
+  { label: '譲渡所得税計算', url: '/capital-gains-calc/', uses: '事務所情報（印刷）' },
+  { label: '減価償却ツール', url: '/depreciation-calc/', uses: '事務所情報（印刷）' },
 ];
 
 const TIMEOUT_MS = 3000;
@@ -45,7 +84,7 @@ export async function checkLinkedApps(backup: unknown): Promise<LinkedImpact[]> 
   return Promise.all(
     LINKED_APPS.map(async (app): Promise<LinkedImpact> => {
       try {
-        const res = await fetch(app.url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+        const res = await fetch(app.copiesUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) });
         const copies = res.ok ? parseLinkedCopies(await res.json()) : null;
         return { app, lost: copies ? lostCopies(copies, restoredIds) : 'unreachable' };
       } catch {
@@ -53,4 +92,72 @@ export async function checkLinkedApps(backup: unknown): Promise<LinkedImpact[]> 
       }
     }),
   );
+}
+
+// ---- 写しの状況（「連携」の画面） ----
+
+export type SyncStatus = {
+  ok: boolean;
+  /** 最後に写し直そうとした時刻（失敗した回も含む） */
+  at: string;
+  error: string | null;
+  created: number;
+  updated: number;
+  /** 台帳に居ない（台帳ID の無い）担当者 */
+  unlinked: { id: number; name: string }[];
+};
+
+/** 'never' = アプリが起動してからまだ一度も写していない / 'unreachable' = 止まっている・形が違う */
+export type SyncState = SyncStatus | 'never' | 'unreachable';
+
+/**
+ * 各アプリの写しの状況を読む。未連携の人のキー名はアプリで違う
+ * （案件管理は unlinkedAssignees、資産・負債管理は unlinkedStaff）
+ */
+export function parseSyncStatus(body: unknown): SyncState {
+  if (body === null) return 'never';
+  if (typeof body !== 'object' || Array.isArray(body)) return 'unreachable';
+  const r = body as Record<string, unknown>;
+  if (typeof r.ok !== 'boolean' || typeof r.at !== 'string') return 'unreachable';
+  const list = Array.isArray(r.unlinkedAssignees) ? r.unlinkedAssignees : Array.isArray(r.unlinkedStaff) ? r.unlinkedStaff : [];
+  const count = (v: unknown) => (typeof v === 'number' ? v : 0);
+  return {
+    ok: r.ok,
+    at: r.at,
+    error: typeof r.error === 'string' && r.error !== '' ? r.error : null,
+    created: count(r.created),
+    updated: count(r.updated),
+    unlinked: list.flatMap((row) => {
+      const v = row as Record<string, unknown> | null;
+      return v && typeof v.id === 'number' ? [{ id: v.id, name: typeof v.name === 'string' ? v.name : '' }] : [];
+    }),
+  };
+}
+
+// 「今すぐ読み直す」は人が押して待っているので、写し直しの時間（アプリ側で最大3秒＋DB）ぶん長めに待つ
+const RESYNC_TIMEOUT_MS = 10_000;
+
+/** force = 期限を待たずに写し直させる（POST） */
+export async function fetchSyncState(app: LinkedApp, force = false): Promise<SyncState> {
+  try {
+    const res = await fetch(app.syncUrl, {
+      method: force ? 'POST' : 'GET',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(force ? RESYNC_TIMEOUT_MS : TIMEOUT_MS),
+    });
+    return res.ok ? parseSyncStatus(await res.json()) : 'unreachable';
+  } catch {
+    return 'unreachable';
+  }
+}
+
+/** 「3分前」。未来（時計のずれ）は「たった今」に寄せる */
+export function relativeTime(at: string, now: number): string {
+  const sec = Math.max(0, Math.floor((now - new Date(at).getTime()) / 1000));
+  if (sec < 60) return 'たった今';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}分前`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}時間前`;
+  return `${Math.floor(hour / 24)}日前`;
 }

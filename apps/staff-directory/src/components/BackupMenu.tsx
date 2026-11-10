@@ -52,7 +52,7 @@ function LinkedImpactList({ impact }: { impact: LinkedImpact[] | null }) {
       <p className="font-medium text-slate-700">台帳の写しを持つアプリ</p>
       <ul className="space-y-1">
         {impact.map(({ app, lost }) => (
-          <li key={app.url} className="flex gap-2">
+          <li key={app.copiesUrl} className="flex gap-2">
             <span className="w-32 shrink-0 text-slate-600">{app.label}</span>
             {lost === 'unreachable' ? (
               <span className="text-slate-500">止まっているため確かめられません</span>
@@ -213,7 +213,7 @@ export default function BackupMenu() {
   }
 
   return (
-    <div className="ml-auto flex items-center gap-2">
+    <div className="ml-auto flex flex-wrap items-center gap-2">
       {exportError && <span className="text-sm text-red-600">{exportError}</span>}
       <button type="button" className={btn.secondary} onClick={exportNow} disabled={exporting}>
         JSONで書き出し
