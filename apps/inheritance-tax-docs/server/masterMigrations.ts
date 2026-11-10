@@ -1,6 +1,11 @@
 import { getDb, writeAuditLog, type DocumentMasterRow } from './db.js';
 import type { MasterCategory } from './masterDefaults.js';
-import { POWER_OF_ATTORNEY_DOCUMENT, isPowerOfAttorneyDocument } from '../src/constants/documents.js';
+import {
+  ETAX_USER_ID_DOCUMENT,
+  POWER_OF_ATTORNEY_DOCUMENT,
+  isEtaxUserIdDocument,
+  isPowerOfAttorneyDocument,
+} from '../src/constants/documents.js';
 import { normalizeForSearch } from './routes/poaShared.js';
 
 /**
@@ -12,44 +17,35 @@ import { normalizeForSearch } from './routes/poaShared.js';
  * 消した書類や、外したつながりを、起動し直すたびに戻さないため。
  */
 
-const POA_MIGRATION = 'add-power-of-attorney-document';
-const POA_MASTER_CODE = 'inheritance-tax';
-const POA_CATEGORY_ID = 'identity';
-const ACTOR = 'システム（委任状を書類リストへ追加）';
+const INHERITANCE_TAX_MASTER_CODE = 'inheritance-tax';
+const IDENTITY_CATEGORY_ID = 'identity';
 
-/** 委任状が無ければ「マイナンバー・印鑑証明書」の末尾（無ければ先頭の区分）へ足す。足さなければ null */
-export const withPowerOfAttorney = (categories: MasterCategory[]): MasterCategory[] | null => {
-  if (categories.length === 0) return null;
-  if (categories.some((category) => category.documents.some(isPowerOfAttorneyDocument))) return null;
-  const target = categories.find((category) => category.id === POA_CATEGORY_ID) ?? categories[0];
-  return categories.map((category) => category === target
-    ? { ...category, documents: [...category.documents, { ...POWER_OF_ATTORNEY_DOCUMENT, canDelegate: false }] }
-    : category);
-};
-
-export function runMasterMigrations(): void {
-  addPowerOfAttorneyDocument();
-  removeDeceasedResidentRecordDocument();
-  linkDeceasedFromPrincipals();
-}
-
-function addPowerOfAttorneyDocument(): void {
+/**
+ * 相続税の書類マスタを1回だけ手直しする。下書きと公開版の両方へ transform を当て、
+ * 公開版が変わったら版を上げて document_master_versions と操作履歴に残す（マスタ管理の「公開」と同じ形）。
+ * transform は変えるものが無ければ null を返す。
+ */
+function migrateInheritanceTaxMaster(
+  name: string,
+  actor: string,
+  transform: (categories: MasterCategory[]) => MasterCategory[] | null,
+): void {
   const db = getDb();
-  if (db.prepare('SELECT 1 FROM app_migrations WHERE name = ?').get(POA_MIGRATION)) return;
+  if (db.prepare('SELECT 1 FROM app_migrations WHERE name = ?').get(name)) return;
 
   const migrate = db.transaction(() => {
-    const row = db.prepare('SELECT * FROM document_masters WHERE code = ?').get(POA_MASTER_CODE) as DocumentMasterRow | undefined;
+    const row = db.prepare('SELECT * FROM document_masters WHERE code = ?').get(INHERITANCE_TAX_MASTER_CODE) as DocumentMasterRow | undefined;
     if (row) {
       const published = JSON.parse(row.published_json) as MasterCategory[];
-      const nextDraft = withPowerOfAttorney(JSON.parse(row.draft_json) as MasterCategory[]);
-      const nextPublished = withPowerOfAttorney(published);
+      const nextDraft = transform(JSON.parse(row.draft_json) as MasterCategory[]);
+      const nextPublished = transform(published);
       if (nextDraft) {
         db.prepare(`
           UPDATE document_masters SET draft_json = ?, draft_updated_at = datetime('now') WHERE code = ?
         `).run(JSON.stringify(nextDraft), row.code);
       }
       if (nextPublished) {
-        // 画面は公開版しか読まないので、公開版は版を上げて履歴にも残す（マスタ管理の「公開」と同じ形）
+        // 画面は公開版しか読まないので、公開版は版を上げて履歴にも残す
         const nextVersion = row.version + 1;
         const payload = JSON.stringify(nextPublished);
         db.prepare(`
@@ -63,20 +59,56 @@ function addPowerOfAttorneyDocument(): void {
           targetId: row.code,
           targetName: row.label,
           action: 'publish',
-          actor: ACTOR,
+          actor,
           before: { code: row.code, label: row.label, version: row.version, categories: published },
           after: { code: row.code, label: row.label, version: nextVersion, categories: nextPublished },
         });
       }
     }
-    db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(POA_MIGRATION);
+    db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(name);
   });
   migrate();
 }
 
-const DECEASED_RESIDENT_RECORD_MIGRATION = 'remove-deceased-resident-record-document';
+/** 委任状が無ければ「マイナンバー・印鑑証明書」の末尾（無ければ先頭の区分）へ足す。足さなければ null */
+export const withPowerOfAttorney = (categories: MasterCategory[]): MasterCategory[] | null => {
+  if (categories.length === 0) return null;
+  if (categories.some((category) => category.documents.some(isPowerOfAttorneyDocument))) return null;
+  const target = categories.find((category) => category.id === IDENTITY_CATEGORY_ID) ?? categories[0];
+  return categories.map((category) => category === target
+    ? { ...category, documents: [...category.documents, { ...POWER_OF_ATTORNEY_DOCUMENT, canDelegate: false }] }
+    : category);
+};
+
+/**
+ * 利用者識別番号が無ければ「マイナンバー・印鑑証明書」へ足す。位置は印鑑証明書の直後、
+ * 無ければ委任状の前、それも無ければ区分の末尾（区分が無ければ先頭の区分）。
+ * 利用者がマスタ管理で並べ替えていても、その並びは崩さず1行差し込むだけ。足さなければ null
+ */
+export const withEtaxUserId = (categories: MasterCategory[]): MasterCategory[] | null => {
+  if (categories.length === 0) return null;
+  if (categories.some((category) => category.documents.some(isEtaxUserIdDocument))) return null;
+  const target = categories.find((category) => category.id === IDENTITY_CATEGORY_ID) ?? categories[0];
+  const documents = [...target.documents];
+  const afterInkan = documents.findIndex((doc) => doc.id === 'heir_inkan');
+  const beforePoa = documents.findIndex(isPowerOfAttorneyDocument);
+  const at = afterInkan >= 0 ? afterInkan + 1 : beforePoa >= 0 ? beforePoa : documents.length;
+  documents.splice(at, 0, { ...ETAX_USER_ID_DOCUMENT, canDelegate: false });
+  return categories.map((category) => category === target ? { ...category, documents } : category);
+};
+
+export function runMasterMigrations(): void {
+  migrateInheritanceTaxMaster('add-power-of-attorney-document', 'システム（委任状を書類リストへ追加）', withPowerOfAttorney);
+  migrateInheritanceTaxMaster(
+    'remove-deceased-resident-record-document',
+    'システム（亡くなった方の住民票の除票を必要書類から削除）',
+    withoutDeceasedResidentRecord,
+  );
+  migrateInheritanceTaxMaster('add-etax-user-id-document', 'システム（利用者識別番号を書類リストへ追加）', withEtaxUserId);
+  linkDeceasedFromPrincipals();
+}
+
 const DECEASED_RESIDENT_RECORD_ID = 'deceased_jyuminhyo';
-const DECEASED_RESIDENT_RECORD_ACTOR = 'システム（亡くなった方の住民票の除票を必要書類から削除）';
 
 /** 亡くなった方の住民票の除票を必要書類から外す。無ければ null */
 export const withoutDeceasedResidentRecord = (categories: MasterCategory[]): MasterCategory[] | null => {
@@ -89,46 +121,6 @@ export const withoutDeceasedResidentRecord = (categories: MasterCategory[]): Mas
   });
   return changed ? next : null;
 };
-
-function removeDeceasedResidentRecordDocument(): void {
-  const db = getDb();
-  if (db.prepare('SELECT 1 FROM app_migrations WHERE name = ?').get(DECEASED_RESIDENT_RECORD_MIGRATION)) return;
-
-  const migrate = db.transaction(() => {
-    const row = db.prepare('SELECT * FROM document_masters WHERE code = ?').get(POA_MASTER_CODE) as DocumentMasterRow | undefined;
-    if (row) {
-      const published = JSON.parse(row.published_json) as MasterCategory[];
-      const nextDraft = withoutDeceasedResidentRecord(JSON.parse(row.draft_json) as MasterCategory[]);
-      const nextPublished = withoutDeceasedResidentRecord(published);
-      if (nextDraft) {
-        db.prepare(`
-          UPDATE document_masters SET draft_json = ?, draft_updated_at = datetime('now') WHERE code = ?
-        `).run(JSON.stringify(nextDraft), row.code);
-      }
-      if (nextPublished) {
-        const nextVersion = row.version + 1;
-        const payload = JSON.stringify(nextPublished);
-        db.prepare(`
-          UPDATE document_masters SET published_json = ?, version = ?, published_at = datetime('now') WHERE code = ?
-        `).run(payload, nextVersion, row.code);
-        db.prepare(`
-          INSERT INTO document_master_versions (master_code, version, payload_json) VALUES (?, ?, ?)
-        `).run(row.code, nextVersion, payload);
-        writeAuditLog({
-          targetType: 'document_master',
-          targetId: row.code,
-          targetName: row.label,
-          action: 'publish',
-          actor: DECEASED_RESIDENT_RECORD_ACTOR,
-          before: { code: row.code, label: row.label, version: row.version, categories: published },
-          after: { code: row.code, label: row.label, version: nextVersion, categories: nextPublished },
-        });
-      }
-    }
-    db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(DECEASED_RESIDENT_RECORD_MIGRATION);
-  });
-  migrate();
-}
 
 const DECEASED_MIGRATION = 'poa-deceased-from-principals';
 const DECEASED_ACTOR = 'システム（委任者の被相続人欄から被相続人DBへ）';

@@ -109,6 +109,69 @@ describe('委任状を書類マスタへ足すマイグレーション', () => {
   });
 });
 
+describe('利用者識別番号を書類マスタへ足すマイグレーション', () => {
+  const ETAX_ID = 'etax_user_id';
+  const withoutEtax = (categories: MasterCategory[]): MasterCategory[] =>
+    categories.map((category) => ({ ...category, documents: category.documents.filter((doc) => doc.id !== ETAX_ID) }));
+  const identityIds = (categories: MasterCategory[]) =>
+    categories.find((category) => category.id === 'identity')?.documents.map((doc) => doc.id);
+  const etaxPlaces = (categories: MasterCategory[]) =>
+    categories.flatMap((category) => category.documents.filter((doc) => doc.id === ETAX_ID).map(() => category.id));
+
+  it('シードでは印鑑証明書の次・委任状の前（4番目）にある', () => {
+    const master = seeds.find((seed) => seed.code === 'inheritance-tax')!;
+    expect(identityIds(master.categories)).toEqual(['mynumber', 'identity_doc', 'heir_inkan', ETAX_ID, POA_ID]);
+    expect(seeds.filter((seed) => seed.code !== 'inheritance-tax').flatMap((seed) => etaxPlaces(seed.categories))).toEqual([]);
+  });
+
+  it('既存の DB では印鑑証明書の直後へ足し、下書きと公開版の両方に入れて版と履歴を残す', () => {
+    db.seedDocumentMastersIfEmpty(seeds.map((seed) => ({ ...seed, categories: withoutEtax(seed.categories) })));
+    migrations.runMasterMigrations();
+
+    const master = readMaster('inheritance-tax');
+    expect(master.version).toBe(2);
+    expect(identityIds(master.published)).toEqual(['mynumber', 'identity_doc', 'heir_inkan', ETAX_ID, POA_ID]);
+    expect(identityIds(master.draft)).toEqual(['mynumber', 'identity_doc', 'heir_inkan', ETAX_ID, POA_ID]);
+    expect(db.getDb().prepare("SELECT actor FROM audit_logs WHERE target_id = 'inheritance-tax'").get())
+      .toMatchObject({ actor: expect.stringContaining('利用者識別番号') });
+    expect(etaxPlaces(readMaster('simplified').published)).toEqual([]);
+  });
+
+  it('委任状より前の版の DB でも、委任状の前・印鑑証明書の後に並ぶ', () => {
+    db.seedDocumentMastersIfEmpty(seeds.map((seed) => ({ ...seed, categories: withoutEtax(withoutPoa(seed.categories)) })));
+    migrations.runMasterMigrations();
+    expect(identityIds(readMaster('inheritance-tax').published)).toEqual(['mynumber', 'identity_doc', 'heir_inkan', ETAX_ID, POA_ID]);
+  });
+
+  it('並べ替えてあっても崩さない。印鑑証明書が無ければ委任状の前、どちらも無ければ末尾', () => {
+    const doc = (id: string) => ({ id, name: id, description: '', howToGet: '', canDelegate: false });
+    const identity = (ids: string[]): MasterCategory[] => [
+      { id: 'identity', name: 'マイナンバー・印鑑証明書', documents: ids.map(doc) } as MasterCategory,
+    ];
+    expect(identityIds(migrations.withEtaxUserId(identity(['heir_inkan', 'mynumber', POA_ID]))!))
+      .toEqual(['heir_inkan', ETAX_ID, 'mynumber', POA_ID]);
+    expect(identityIds(migrations.withEtaxUserId(identity(['mynumber', POA_ID, 'identity_doc']))!))
+      .toEqual(['mynumber', ETAX_ID, POA_ID, 'identity_doc']);
+    expect(identityIds(migrations.withEtaxUserId(identity(['mynumber']))!)).toEqual(['mynumber', ETAX_ID]);
+  });
+
+  it('同じ id か、名前に「利用者識別番号」を含む書類があれば足さない', () => {
+    const own = withoutEtax(seeds.find((seed) => seed.code === 'inheritance-tax')!.categories);
+    own[10] = { ...own[10], documents: [...own[10].documents, { id: 'custom_9', name: 'e-Tax の利用者識別番号', description: '', howToGet: '', canDelegate: false }] };
+    expect(migrations.withEtaxUserId(own)).toBeNull();
+  });
+
+  it('一度流したあとに利用者が消したら、起動し直しても足し戻さない', () => {
+    db.seedDocumentMastersIfEmpty(seeds.map((seed) => ({ ...seed, categories: withoutEtax(seed.categories) })));
+    migrations.runMasterMigrations();
+    const removed = JSON.stringify(withoutEtax(readMaster('inheritance-tax').published));
+    db.getDb().prepare("UPDATE document_masters SET draft_json = ?, published_json = ? WHERE code = 'inheritance-tax'").run(removed, removed);
+
+    migrations.runMasterMigrations();
+    expect(etaxPlaces(readMaster('inheritance-tax').published)).toEqual([]);
+  });
+});
+
 describe('亡くなった方の住民票の除票を書類マスタから外すマイグレーション', () => {
   const places = (categories: MasterCategory[]) =>
     categories.flatMap((category) => category.documents.filter((document) => document.id === DECEASED_RESIDENT_RECORD_ID));

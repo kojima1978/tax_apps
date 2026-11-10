@@ -56,6 +56,22 @@ export const POWER_OF_ATTORNEY_DOCUMENT: DocumentItem = {
   canDelegate: false,
 };
 
+/**
+ * e-Tax の利用者識別番号。過去に取得した方だけが用意する書類。
+ * 既存の DB のマスタへは server/masterMigrations.ts が1回だけ足す。
+ */
+export const ETAX_USER_ID_DOCUMENT: DocumentItem = {
+  id: 'etax_user_id',
+  name: '利用者識別番号',
+  description: 'e-Tax（国税電子申告・納税システム）の16桁の番号です。過去に取得したことがある方のみご用意ください。',
+  howToGet: '税務署から届いた「利用者識別番号等の通知」や、過去の確定申告書の控えなどでご確認ください。',
+  canDelegate: false,
+};
+
+/** 利用者識別番号の行か。マスタ管理で足した行も、名前に「利用者識別番号」を含めば同じ扱いにする */
+export const isEtaxUserIdDocument = (doc: { id: string; name: string }): boolean =>
+  doc.id === ETAX_USER_ID_DOCUMENT.id || doc.name.includes('利用者識別番号');
+
 /** 委任状の行か。マスタ管理や画面で足した行も、名前に「委任状」を含めば同じ扱いにする */
 export const isPowerOfAttorneyDocument = (doc: { id: string; name: string }): boolean =>
   doc.id === POWER_OF_ATTORNEY_DOCUMENT.id || doc.name.includes('委任状');
@@ -88,6 +104,7 @@ export const CATEGORIES: CategoryData[] = [
         howToGet: '相続人（財産を引継ぐ人）の住所地の役所等で取得できます。',
         canDelegate: false,
       },
+      ETAX_USER_ID_DOCUMENT,
       POWER_OF_ATTORNEY_DOCUMENT,
     ],
   },
