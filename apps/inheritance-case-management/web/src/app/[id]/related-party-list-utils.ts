@@ -1,6 +1,6 @@
 import type { CaseRelatedParty, RelatedPartyPerson } from "@/types/shared"
 import type { CreateRelatedPartyPersonInput } from "@/types/validation"
-import { normalizePersonAddressParts } from "@/lib/person-address"
+import { migrateLegacyPersonAddress } from "@/lib/person-address"
 import { personMatchesSearch } from "@/lib/person-search"
 import {
     type BasePersonFormState,
@@ -24,7 +24,7 @@ export function getRelatedPartyPersonFormState(person: RelatedPartyPerson): Rela
         profession: person.profession || "",
         phone: person.phone || "",
         postalCode: person.postalCode || "",
-        ...normalizePersonAddressParts(person),
+        ...migrateLegacyPersonAddress(person),
         memo: person.memo || "",
     }
 }

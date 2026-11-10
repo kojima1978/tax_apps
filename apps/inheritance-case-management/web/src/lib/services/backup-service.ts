@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { normalizePersonAddressParts } from '@/lib/person-address';
+import { migrateLegacyPersonAddress } from '@/lib/person-address';
 import { toDateStr } from '@/lib/prisma-includes';
 import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import type { BackupTableCounts } from '@/types/backup';
@@ -177,7 +177,7 @@ const TABLE_DEFS = [
       const nameKanaNormalized = typeof p.nameKanaNormalized === 'string' && p.nameKanaNormalized
         ? p.nameKanaNormalized
         : normalizePersonSearchText(nameKana);
-      const addressParts = normalizePersonAddressParts({
+      const addressParts = migrateLegacyPersonAddress({
         address: (p.address as string) ?? '',
         addressFromPostalCode: (p.addressFromPostalCode as string) ?? '',
         addressManual: (p.addressManual as string) ?? '',
@@ -209,7 +209,7 @@ const TABLE_DEFS = [
       const nameKanaNormalized = typeof p.nameKanaNormalized === 'string' && p.nameKanaNormalized
         ? p.nameKanaNormalized
         : normalizePersonSearchText(nameKana);
-      const addressParts = normalizePersonAddressParts({
+      const addressParts = migrateLegacyPersonAddress({
         address: (p.address as string) ?? '',
         addressFromPostalCode: (p.addressFromPostalCode as string) ?? '',
         addressManual: (p.addressManual as string) ?? '',

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { normalizePersonAddressParts } from '@/lib/person-address';
+import { migrateLegacyPersonAddress } from '@/lib/person-address';
 import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
 
 type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
@@ -42,7 +42,7 @@ export async function resolveHeirs(tx: TxClient, heirs: unknown[]): Promise<Heir
     }
 
     const nameKana = normalizeNameKanaForStorage(heir.nameKana ?? '');
-    const addressParts = normalizePersonAddressParts(heir);
+    const addressParts = migrateLegacyPersonAddress(heir);
     let person = await tx.heirPerson.findFirst({
       where: {
         name: heir.name,

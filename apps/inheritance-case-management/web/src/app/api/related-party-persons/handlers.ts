@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createCrudRouteHandlers } from '@/lib/create-crud-route-handlers';
-import { normalizePersonAddressParts } from '@/lib/person-address';
+import { migrateLegacyPersonAddress } from '@/lib/person-address';
 import { formatPersonDeleteBlockedMessage } from '@/lib/person-delete-message';
 import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import { prisma } from '@/lib/prisma';
@@ -16,7 +16,9 @@ function mapPersonData(data: Record<string, unknown>): Record<string, unknown> {
   }
 
   if ('address' in next || 'addressFromPostalCode' in next || 'addressManual' in next) {
-    const addressParts = normalizePersonAddressParts({
+    // 画面からは address が常に2欄の結合（＝整合した値）で届くので、ここの移行は何もしない。
+    // 結合済みの address だけで来た古い呼び出し・取込のときだけ住所補足へ寄せる。
+    const addressParts = migrateLegacyPersonAddress({
       address: next.address as string | undefined,
       addressFromPostalCode: next.addressFromPostalCode as string | undefined,
       addressManual: next.addressManual as string | undefined,

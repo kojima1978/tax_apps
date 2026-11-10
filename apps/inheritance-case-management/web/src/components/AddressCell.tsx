@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { normalizePersonAddressParts } from "@/lib/person-address"
+import { migrateLegacyPersonAddress } from "@/lib/person-address"
 import { formatPostalCodeForDisplay } from "@/lib/postal-code-format"
 
 interface AddressCellProps {
@@ -12,7 +12,7 @@ interface AddressCellProps {
 
 export function AddressCell({ postalCode, address, addressFromPostalCode, addressManual, className }: AddressCellProps) {
     const formattedPostalCode = formatPostalCodeForDisplay(postalCode)
-    const { address: normalizedAddress } = normalizePersonAddressParts({
+    const { address: normalizedAddress } = migrateLegacyPersonAddress({
         address,
         addressFromPostalCode,
         addressManual,

@@ -1,4 +1,4 @@
-import { normalizePersonAddressParts } from "@/lib/person-address"
+import { migrateLegacyPersonAddress, normalizePersonAddressParts } from "@/lib/person-address"
 import { normalizeNameKanaForStorage } from "@/lib/person-search"
 
 export interface PersonMasterFields {
@@ -48,14 +48,16 @@ export function getPersonMasterEditingFields(
     item: PersonMasterFields,
     extraFields: Record<string, string | null | undefined> = {},
 ): Record<string, string> {
+    // 旧データ（address だけ）の移行はフォームを開くときだけ。
+    // ここで寄せておけば、入力中は値をそのまま持てる。
+    const address = migrateLegacyPersonAddress(item)
+
     const fields: Record<string, string> = {
         name: item.name || "",
         nameKana: item.nameKana || "",
         phone: item.phone || "",
         postalCode: item.postalCode || "",
-        address: item.address || "",
-        addressFromPostalCode: item.addressFromPostalCode || "",
-        addressManual: item.addressManual || "",
+        ...address,
         memo: item.memo || "",
     }
 

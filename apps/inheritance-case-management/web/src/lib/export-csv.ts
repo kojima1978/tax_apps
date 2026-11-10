@@ -1,7 +1,7 @@
 import type { InheritanceCase, HeirPerson, CaseHeir, ProgressStep } from "@/types/shared";
 import { formatId } from "@/types/shared";
 import { ageOnDate } from "@/lib/age";
-import { normalizePersonAddressParts } from "@/lib/person-address";
+import { migrateLegacyPersonAddress } from "@/lib/person-address";
 import { MAX_HEIR_COLUMNS } from "./import-csv";
 import { formatPostalCodeForInput } from "./postal-code-format";
 import { exportFileName } from "@/lib/export-filename";
@@ -330,7 +330,7 @@ export function exportCaseHeirsToCSV(
       age != null ? String(age) : "",
       p.phone || "",
       formatPostalCodeForInput(p.postalCode || ""),
-      normalizePersonAddressParts(p).address,
+      migrateLegacyPersonAddress(p).address,
       h.memo || "",
     ];
   });

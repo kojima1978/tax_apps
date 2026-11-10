@@ -1,7 +1,7 @@
 import type { CaseHeir, HeirPerson } from "@/types/shared"
 import type { CreateHeirPersonInput } from "@/types/validation"
 import { HEIR_RELATIONSHIP_LABELS, relationshipSortFor } from "@/lib/constants/heir-relationships"
-import { normalizePersonAddressParts } from "@/lib/person-address"
+import { migrateLegacyPersonAddress } from "@/lib/person-address"
 import { personMatchesSearch } from "@/lib/person-search"
 import {
     type BasePersonFormState,
@@ -25,7 +25,7 @@ export function getHeirPersonFormState(person: HeirPerson): HeirPersonFormState 
         dateOfBirth: person.dateOfBirth || "",
         phone: person.phone || "",
         postalCode: person.postalCode || "",
-        ...normalizePersonAddressParts(person),
+        ...migrateLegacyPersonAddress(person),
         memo: person.memo || "",
     }
 }

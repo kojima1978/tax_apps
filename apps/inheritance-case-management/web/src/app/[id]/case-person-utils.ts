@@ -1,4 +1,9 @@
-import { applyPostalCodeAddress, normalizePersonAddressParts } from "@/lib/person-address"
+import {
+    applyPostalCodeAddress,
+    migrateLegacyPersonAddress,
+    normalizePersonAddressParts,
+    withCombinedPersonAddress,
+} from "@/lib/person-address"
 import { normalizeNameKanaForStorage } from "@/lib/person-search"
 
 export interface BasePersonFormState {
@@ -25,8 +30,9 @@ export const emptyBasePersonForm: BasePersonFormState = {
 
 type PersonAddressInput = Parameters<typeof normalizePersonAddressParts>[0]
 
+// 保存済みの人物を表示するところ。旧データ（address だけ）も読めるように移行を通す。
 export function getDisplayAddress(parts: PersonAddressInput): string {
-    return normalizePersonAddressParts(parts).address
+    return migrateLegacyPersonAddress(parts).address
 }
 
 export function getBasePersonPayload(person: BasePersonFormState) {
@@ -40,14 +46,15 @@ export function getBasePersonPayload(person: BasePersonFormState) {
     }
 }
 
+// 入力中は値をそのまま持ち、結合済みの address だけ作り直す（trim も旧データ移行もしない）。
 export function withAddressFromPostalCode<T extends BasePersonFormState>(person: T, addressFromPostalCode: string): T {
-    return { ...person, ...normalizePersonAddressParts({ ...person, addressFromPostalCode }) }
+    return withCombinedPersonAddress(person, { addressFromPostalCode })
+}
+
+export function withAddressManual<T extends BasePersonFormState>(person: T, addressManual: string): T {
+    return withCombinedPersonAddress(person, { addressManual })
 }
 
 export function withPostalCodeLookupAddress<T extends BasePersonFormState>(person: T, addressFromPostalCode: string): T {
     return { ...person, ...applyPostalCodeAddress(person, addressFromPostalCode) }
-}
-
-export function withAddressManual<T extends BasePersonFormState>(person: T, addressManual: string): T {
-    return { ...person, ...normalizePersonAddressParts({ ...person, addressManual }) }
 }

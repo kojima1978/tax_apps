@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react"
-import { applyPostalCodeAddress, combinePersonAddress, normalizePersonAddressParts } from "@/lib/person-address"
+import { applyPostalCodeAddress, combinePersonAddress } from "@/lib/person-address"
 import { fetchAddressFromPostalCode, fetchPostalCodeFromAddress } from "@/lib/postal-code"
 import { normalizePostalCodeDigits } from "@/lib/postal-code-format"
 
@@ -12,11 +12,12 @@ export function usePersonAddressEditing(setEditingFields: SetEditingFields) {
     const [isAddressSearching, setIsAddressSearching] = useState(false)
     const [isPostalSearching, setIsPostalSearching] = useState(false)
 
+    // 入力中は値をそのまま持ち、結合済みの address だけ作り直す（trim も旧データ移行もしない）。
     const updateAddressFromPostalCode = useCallback((addressFromPostalCode: string) => {
         setEditingFields(fields => ({
             ...fields,
             addressFromPostalCode,
-            address: normalizePersonAddressParts({ ...fields, addressFromPostalCode }).address,
+            address: combinePersonAddress(addressFromPostalCode, fields.addressManual),
         }))
     }, [setEditingFields])
 
@@ -24,7 +25,7 @@ export function usePersonAddressEditing(setEditingFields: SetEditingFields) {
         setEditingFields(fields => ({
             ...fields,
             addressManual,
-            address: normalizePersonAddressParts({ ...fields, addressManual }).address,
+            address: combinePersonAddress(fields.addressFromPostalCode, addressManual),
         }))
     }, [setEditingFields])
 
