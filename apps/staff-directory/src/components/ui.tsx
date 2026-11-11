@@ -37,6 +37,21 @@ export function Field({
   );
 }
 
+// 4画面（社員・部署・会社・連携）で共通の見出し。外枠の幅は App の main（max-w-5xl）に任せ、各画面では絞らない。
+// 説明は見出しの下、主のボタン（追加など）は右上（説明の長さでボタンの高さが変わらないように上端でそろえる）。
+// 狭い画面ではボタンが説明の下へ回る
+export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+      <div className="min-w-0 flex-1 basis-80">
+        <h2 className="text-lg font-bold text-slate-800">{title}</h2>
+        {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
+      </div>
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
 export function ErrorBanner({ message }: { message: string | null }) {
   if (!message) return null;
   return (

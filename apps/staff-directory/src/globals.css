@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* 縦スクロールバーの有無で画面ごとに中身が左右へずれないよう、その幅をいつも空けておく */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background: #f8fafc;
   color: #0f172a;

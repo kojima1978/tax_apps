@@ -12,7 +12,7 @@ import {
   type SyncRun,
   type SyncState,
 } from '../linkedApps';
-import { btn } from '../components/ui';
+import { PageHeader, btn } from '../components/ui';
 import { fetchWorkloads, type AppWorkload } from '../workload';
 
 // 台帳の変更が各アプリへ届いているかを、台帳の側から見る画面。
@@ -134,7 +134,7 @@ function SyncCard({ app, tick, notify }: { app: LinkedApp; tick: number; notify:
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h3 className="text-base font-bold text-slate-800">{app.label}</h3>
+        <h4 className="text-base font-bold text-slate-800">{app.label}</h4>
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${badge.className}`}>{badge.label}</span>
         <div className="ml-auto flex items-center gap-3">
           <a href={app.page} target="_blank" rel="noopener" className="text-sm text-teal-700 hover:underline">
@@ -208,7 +208,7 @@ function WorkloadSection({ tick }: { tick: number }) {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-lg font-bold text-slate-800">担当件数を読むアプリ</h2>
+        <h3 className="text-base font-bold text-slate-800">担当件数を読むアプリ</h3>
         <p className="mt-1 text-sm text-slate-600">
           社員一覧の「担当」列と「退職者の担当あり」は、ここに並ぶアプリから人ごとの件数だけを読んで数えています（名前や顧客は受け取りません）。
           読めないアプリは一覧で「—」になり、その分は担当の数に入りません。
@@ -249,10 +249,11 @@ export default function LinksPage() {
   }, [tick]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <PageHeader title="連携" description="台帳の変更が各アプリへ届いているか、各アプリの担当件数を読めているかを、台帳の側から確かめる画面です。" />
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">写しを持つアプリ</h2>
+          <h3 className="text-base font-bold text-slate-800">写しを持つアプリ</h3>
           <p className="mt-1 text-sm text-slate-600">
             担当者・部署を自分の DB へ写して使うアプリです。台帳で保存すると、数秒のうちに台帳から知らせて写し直させます。
             知らせが届かなかったときは、そのアプリで担当者の一覧が開かれたとき（前回から5分以上たっていれば）に追いつきます。
@@ -268,7 +269,7 @@ export default function LinksPage() {
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">台帳を直接読むアプリ</h2>
+          <h3 className="text-base font-bold text-slate-800">台帳を直接読むアプリ</h3>
           <p className="mt-1 text-sm text-slate-600">写しは持ちません。台帳の変更は、次に画面を開いたときにすぐ見えます。</p>
         </div>
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">

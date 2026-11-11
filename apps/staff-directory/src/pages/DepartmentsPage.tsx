@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { api } from '../api';
 import { useLoad } from '../hooks/useLoad';
 import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import { useReorder } from '../hooks/useReorder';
-import { DragHandle, ErrorBanner, ReorderBar, btn, controlClass, inputClass } from '../components/ui';
+import { DragHandle, ErrorBanner, PageHeader, ReorderBar, btn, controlClass, inputClass } from '../components/ui';
+import { RetiringLink, UnreachableNote, WorkloadSummary, useOrgWorkload } from '../components/OrgStats';
+import { departmentStats, emptyStats, type GroupStats } from '../orgStats';
 import type { Company, Department } from '../types';
 
 // 修正中の1行。id で元の部署を引き、値は手元で持つ
@@ -26,6 +28,11 @@ const isDirty = (e: Editing | null, all: Department[]) => {
 export default function DepartmentsPage() {
   const departments = useLoad(api.listDepartments);
   const companies = useLoad(api.listCompanies);
+  // 退職予定の人数と担当の合計（社員一覧と同じデータを画面で足す。担当は読めないアプリを「—」に）
+  const org = useOrgWorkload();
+  const stats = useMemo(() => departmentStats(org.staff, org.index), [org.staff, org.index]);
+  const statsOf = (id: number): GroupStats => stats.get(id) ?? emptyStats(org.index);
+  const { hash } = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -38,6 +45,12 @@ export default function DepartmentsPage() {
   const sortableAny = (companies.data ?? []).some((c) => all.filter((d) => d.companyId === c.id).length > 1);
 
   useLeaveGuard(editDirty || Object.values(orderDirty).some(Boolean));
+
+  // 会社の画面の「部署 N」から来たら、その会社の表まで送る（#company-<id>）
+  const loaded = companies.data !== null && departments.data !== null;
+  useEffect(() => {
+    if (loaded && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+  }, [loaded, hash]);
 
   const reportOrderDirty = useCallback(
     (companyId: number, dirty: boolean) => setOrderDirty((m) => (m[companyId] === dirty ? m : { ...m, [companyId]: dirty })),
@@ -83,18 +96,27 @@ export default function DepartmentsPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <p className="text-sm text-slate-500">
-        {sortableAny && '⠿ をドラッグして並べ替えられます。'}
-        所属している人がいる部署は削除できないので、使わなくなったら「修正」から「使用」を外してください。
-      </p>
-      <ErrorBanner message={error ?? departments.error ?? companies.error} />
+    <div className="space-y-6">
+      <PageHeader
+        title="部署"
+        description={
+          <>
+            部署名・在籍の人数を押すと、その部署で絞った社員一覧を開きます。担当は各アプリの担当（進行中）を主所属の部署で足した数です。
+            {sortableAny && '⠿ をドラッグして並べ替えられます。'}
+            所属している人がいる部署は削除できないので、使わなくなったら「修正」から「使用」を外してください。
+          </>
+        }
+      />
+      <ErrorBanner message={error ?? departments.error ?? companies.error ?? org.error} />
+      <UnreachableNote index={org.index} loading={org.loading} />
       {companies.data?.map((c) => (
         <CompanySection
           key={c.id}
           company={c}
           showHeading={multiCompany}
           departments={all.filter((d) => d.companyId === c.id)}
+          statsOf={statsOf}
+          workloadLoading={org.loading}
           editing={editing}
           savingEdit={savingEdit}
           onStartEdit={startEdit}
@@ -113,6 +135,8 @@ function CompanySection({
   company,
   showHeading,
   departments,
+  statsOf,
+  workloadLoading,
   editing,
   savingEdit,
   onStartEdit,
@@ -125,6 +149,8 @@ function CompanySection({
   company: Company;
   showHeading: boolean;
   departments: Department[];
+  statsOf: (departmentId: number) => GroupStats;
+  workloadLoading: boolean;
   editing: Editing | null;
   savingEdit: boolean;
   onStartEdit: (d: Department) => void;
@@ -139,7 +165,7 @@ function CompanySection({
   const [saving, setSaving] = useState(false);
   // 1件しか無い会社には並べ替えるものが無いので、つまみを出さない
   const sortable = departments.length > 1;
-  const columns = sortable ? 5 : 4;
+  const columns = sortable ? 6 : 5;
 
   // 画面を離れるときの確認は親が1つだけ持つ（useBlocker はルーターに1つまで）
   useEffect(() => {
@@ -153,17 +179,18 @@ function CompanySection({
   }
 
   return (
-    <section className="space-y-2">
-      {showHeading && <h2 className="text-base font-bold text-slate-700">{company.name}</h2>}
+    <section id={`company-${company.id}`} className="scroll-mt-4 space-y-2">
+      {showHeading && <h3 className="text-base font-bold text-slate-700">{company.name}</h3>}
       <ReorderBar dirty={reorder.dirty} saving={saving} onSave={() => void saveOrder()} onReset={reorder.reset} />
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="w-full min-w-[40rem] text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
             <tr>
               {sortable && <th className="w-10 px-2 py-2" aria-label="並べ替え" />}
               <th className="px-4 py-2 font-medium">部署名</th>
-              <th className="w-28 px-4 py-2 font-medium">使用</th>
-              <th className="w-20 px-4 py-2 text-right font-medium">在籍</th>
+              <th className="w-24 px-4 py-2 font-medium">使用</th>
+              <th className="w-36 px-4 py-2 text-right font-medium">在籍</th>
+              <th className="w-48 px-4 py-2 text-right font-medium">担当（進行中）</th>
               <th className="w-36 px-4 py-2" />
             </tr>
           </thead>
@@ -171,6 +198,7 @@ function CompanySection({
             {reorder.sorted.map((d) => {
               const row = editing?.id === d.id ? editing : null;
               const active = row ? row.active : d.active;
+              const st = statsOf(d.id);
               return (
                 <tr
                   key={d.id}
@@ -200,7 +228,14 @@ function CompanySection({
                         autoFocus
                       />
                     ) : (
-                      <span className="block py-1.5">{d.name}</span>
+                      <div className="py-1.5">
+                        <Link to={`/?department=${d.id}`} className="font-medium hover:text-teal-700 hover:underline" title="この部署で絞った社員一覧を開く">
+                          {d.name}
+                        </Link>
+                        {d.active && d.staffCount === 0 && (
+                          <p className="mt-0.5 text-xs text-slate-400">在籍者がいません。使わない部署なら「修正」で「使用」を外せます</p>
+                        )}
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-2">
@@ -217,16 +252,16 @@ function CompanySection({
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums">
                     {d.staffCount > 0 ? (
-                      <Link
-                        to={`/?department=${d.id}`}
-                        className="text-teal-700 hover:underline"
-                        title="この部署の在籍者を社員一覧で見る"
-                      >
-                        {d.staffCount}
+                      <Link to={`/?department=${d.id}`} className="text-teal-700 hover:underline" title="この部署の在籍者を社員一覧で見る">
+                        {d.staffCount}名
                       </Link>
                     ) : (
-                      0
+                      '0名'
                     )}
+                    <RetiringLink count={st.retiring} to={`/?department=${d.id}&retiring=1`} />
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums">
+                    <WorkloadSummary workload={st.workload} loading={workloadLoading} retiredTo={`/?status=retired&assigned=1&department=${d.id}`} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
                     {row ? (

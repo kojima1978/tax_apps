@@ -41,8 +41,8 @@ export function useReorder<T extends { id: number }>(items: T[]) {
     onDragStart: (e: DragEvent<HTMLElement>) => {
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', String(id));
-      // 掴んでいる見た目はつまみではなく行ごとにする
-      const row = e.currentTarget.closest('tr');
+      // 掴んでいる見た目はつまみではなく行（会社の画面ではカード）ごとにする
+      const row = e.currentTarget.closest<HTMLElement>('tr, [data-reorder-item]');
       if (row) e.dataTransfer.setDragImage(row, 20, row.offsetHeight / 2);
       setDragging(id);
     },

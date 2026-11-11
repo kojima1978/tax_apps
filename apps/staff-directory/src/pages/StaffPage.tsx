@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useLoad } from '../hooks/useLoad';
 import { normalizeQuery } from '../lib';
-import { ErrorBanner, btn, controlClass } from '../components/ui';
+import { ErrorBanner, PageHeader, btn, controlClass } from '../components/ui';
 import StaffDialog from '../components/StaffDialog';
 import { formatSort, parseSort, sortStaff, toggleSort, DEFAULT_SORT, type SortKey } from '../staffSort';
 import {
@@ -184,7 +184,16 @@ export default function StaffPage() {
     g.companyName === null ? '所属なし' : [multiCompany ? g.companyName : '', g.departmentName ?? '未所属'].filter(Boolean).join(' ');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <PageHeader
+        title="社員"
+        description="行を押すと編集します。部署・会社の画面の人数からも、ここへ絞って飛べます。"
+        actions={
+          <button type="button" className={btn.primary} onClick={() => setEditing(null)}>
+            ＋ 社員を追加
+          </button>
+        }
+      />
       <ErrorBanner message={staff.error ?? departments.error ?? companies.error ?? retired.error} />
 
       <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -243,9 +252,6 @@ export default function StaffPage() {
             title="氏名・略称・フリガナ・社員番号・電話で検索"
             className={`${controlClass} w-56`}
           />
-          <button type="button" className={`${btn.primary} ml-auto`} onClick={() => setEditing(null)}>
-            ＋ 社員を追加
-          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-slate-200 px-4 py-2 text-sm">
