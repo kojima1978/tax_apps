@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { toDate } from '@/lib/prisma-includes';
 import { normalizePersonSearchText } from '@/lib/person-search';
 import { buildDeadlineCondition } from './case-deadline-query';
+import { CLOSED_STATUSES } from '@/types/constants';
 
 export interface CaseWhereParams {
   status?: string;
@@ -87,7 +88,7 @@ export function buildCaseWhereClause(params: CaseWhereParams): Prisma.Inheritanc
   }
   // 名前検索と明示的なステータス指定では、完了案件を含む指定条件を優先する。
   if (params.hideClosed && !params.search && !params.status) {
-    appendAnd(where, { status: { notIn: ['見送り', '入金済'] } });
+    appendAnd(where, { status: { notIn: [...CLOSED_STATUSES] } });
   }
   if (params.fiscalYear) {
     where.fiscalYear = params.fiscalYear;

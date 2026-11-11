@@ -443,6 +443,7 @@ DB は空のボリュームを `POSTGRES_INITDB_ARGS` で照合順序 `C` に初
 | `/itcm/api/heir-persons` | 相続人マスタ（`[id]/cases` で紐付いた案件） |
 | `/itcm/api/related-party-persons` | 関係者マスタ |
 | `/itcm/api/backup` | JSONバックアップ |
+| `GET /itcm/api/staff-directory/workload` | 社員台帳が読む、台帳ID ごとの担当・社内紹介の件数（読むだけ・氏名は返さない）。「進行中」は `CLOSED_STATUSES`（見送り・入金済）を除いた数で、一覧の「終わった案件を隠す」と同じ定義（`src/types/constants.ts` の1か所を変えれば両方変わる） |
 | `/itcm/api/backup/restore` | JSONリストア |
 | `GET /itcm/api/templates` | テンプレートの有無と中身（`type=estimate` / `invoice` / `invoice-request`） |
 | `/itcm/api/templates/generate` | 帳票生成 |

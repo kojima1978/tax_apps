@@ -48,6 +48,9 @@ docker/scripts/manage.sh test bank-analyzer
 - 起動のたびに entrypoint が `prisma migrate deploy` を流す（テスト用サービスは
   `BANK_ANALYZER_SKIP_MIGRATE=1` で飛ばす）。本番では `POSTGRES_PASSWORD` が空か既定値だと起動を拒む
 - health は `/bank-analyzer/api/health`（DB に問い合わせる。dev は Vite の生存も見る）
+- 社員台帳が読む担当件数は `GET /bank-analyzer/api/staff-directory/workload`（読むだけ・台帳ID と件数だけ。
+  終わりの印が無いので進行中＝すべて）。リンク先は案件一覧を担当者で絞った `/bank-analyzer/?assignee=staff:<台帳ID>`
+  （URL の絞り込みは保存した絞り込みより優先し、選び直すと URL から外す）
 
 ## バックアップと復元
 

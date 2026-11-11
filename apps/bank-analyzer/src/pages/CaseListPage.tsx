@@ -28,7 +28,12 @@ type SortValue = (typeof SORTS)[number]['value'];
 // 担当者での絞り込み。「自分の担当」はヘッダーで選んだ操作者（全アプリ共通）の台帳ID で見る
 const ASSIGNEE_FILTER_KEY = 'bank-analyzer:case-assignee-filter';
 
+// 社員台帳の「担当件数」から ?assignee=staff:<台帳ID> で開かれたときは、控えより URL を優先する
+const ASSIGNEE_PARAM = 'assignee';
+
 function readAssigneeFilter(): AssigneeFilter {
+  const fromUrl = new URLSearchParams(window.location.search).get(ASSIGNEE_PARAM);
+  if (fromUrl !== null) return parseAssigneeFilter(fromUrl);
   try {
     return parseAssigneeFilter(window.localStorage.getItem(ASSIGNEE_FILTER_KEY));
   } catch {
@@ -179,6 +184,12 @@ export function CaseListPage() {
       window.localStorage.setItem(ASSIGNEE_FILTER_KEY, value);
     } catch {
       // 保存できなくてもこの画面では絞り込みを効かせる
+    }
+    // 選び直したら URL の指定は外す（残すと再読み込みで台帳から来たときの人に戻る）
+    const url = new URL(window.location.href);
+    if (url.searchParams.has(ASSIGNEE_PARAM)) {
+      url.searchParams.delete(ASSIGNEE_PARAM);
+      window.history.replaceState(window.history.state, '', url);
     }
   };
   // 名前は台帳の今の氏名を優先（改姓など）。台帳に居なければ選んだ時点の写し

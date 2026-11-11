@@ -38,6 +38,8 @@ describe('parseSort / formatSort', () => {
   it('同じ列は向きを変え、別の列は昇順から', () => {
     expect(toggleSort({ key: 'kana', desc: false }, 'kana')).toEqual({ key: 'kana', desc: true });
     expect(toggleSort({ key: 'kana', desc: true }, 'employeeNo')).toEqual({ key: 'employeeNo', desc: false });
+    // 担当の件数だけは多い順から
+    expect(toggleSort({ key: 'kana', desc: false }, 'workload')).toEqual({ key: 'workload', desc: true });
   });
 });
 
@@ -94,5 +96,19 @@ describe('sortStaff', () => {
   it('フリガナで並べたときは 同じ読みなら社員番号 → 所属', () => {
     const rows = [staff(1, { kana: 'ア', company: 10, dept: 1 }), staff(2, { kana: 'ア', company: 10, dept: 2 })];
     expect(ids(sortStaff(rows, { key: 'kana', desc: false }, order))).toEqual([2, 1]);
+  });
+
+  it('担当の件数で並べたときは 読めていない人（null）を向きによらず末尾、同じ件数なら社員番号', () => {
+    const counts = new Map([
+      [1, 3],
+      [2, 0],
+      [3, 3],
+    ]);
+    const withWorkload: OrderMaps = { ...order, workload: (id) => counts.get(id) ?? null };
+    const rows = [staff(1, { no: '2' }), staff(2, { no: '3' }), staff(3, { no: '1' }), staff(4, { no: '4' })];
+    expect(ids(sortStaff(rows, { key: 'workload', desc: true }, withWorkload))).toEqual([3, 1, 2, 4]);
+    expect(ids(sortStaff(rows, { key: 'workload', desc: false }, withWorkload))).toEqual([2, 3, 1, 4]);
+    // 件数をまだ読めていなければ全員空欄 → 社員番号の順
+    expect(ids(sortStaff(rows, { key: 'workload', desc: true }, order))).toEqual([3, 1, 2, 4]);
   });
 });

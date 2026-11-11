@@ -12,7 +12,7 @@ import { ClientDeleteModal } from "@/components/client-delete-modal";
 import { DateInput } from "@/components/date-input";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { API_BASE } from "@/lib/api";
-import { CLIENT_SORT_DEFAULT, CLIENT_SORT_MODES, type ClientSortMode, ClientSummary, filterClients, searchTerms, sharedFiscalYear, showsUnassignedStaff, sortClients } from "@/lib/clients";
+import { CLIENT_SORT_DEFAULT, CLIENT_SORT_MODES, type ClientSortMode, ClientSummary, clientStaffOptions, filterClients, searchTerms, sharedFiscalYear, showsUnassignedStaff, sortClients } from "@/lib/clients";
 import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 import { type Portfolio } from "@/lib/portfolio-view";
@@ -33,6 +33,8 @@ export function ClientList() {
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
   const [sortMode, setSortMode] = useState<ClientSortMode>(CLIENT_SORT_DEFAULT);
   const [qualityFilter, setQualityFilter] = useState<"all" | "attention" | "critical">("all");
+  // 担当者で絞る（PB の担当者ID）。社員台帳の「担当件数」からは ?staffId= で開かれる
+  const [staffFilter, setStaffFilterState] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [qualityClient, setQualityClient] = useState<ClientSummary | null>(null);
   const [saving, setSaving] = useState(false);
@@ -61,8 +63,28 @@ export function ClientList() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
 
+  // URL の ?staffId= は表示のあとで読む（サーバーで描くときは URL を持たないため）
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get("staffId"));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (Number.isInteger(id) && id > 0) setStaffFilterState(id);
+  }, []);
+
+  function setStaffFilter(id: number | null) {
+    setStaffFilterState(id);
+    setActiveIndex(0);
+    // 再読み込みしても同じ担当者で絞ったままにする（履歴は積まない）
+    const url = new URL(window.location.href);
+    if (id === null) url.searchParams.delete("staffId");
+    else url.searchParams.set("staffId", String(id));
+    window.history.replaceState(null, "", url);
+  }
+
   const terms = useMemo(() => searchTerms(query), [query]);
-  const matched = useMemo(() => filterClients(clients ?? [], terms), [clients, terms]);
+  const matched = useMemo(
+    () => filterClients(clients ?? [], terms).filter((client) => staffFilter === null || client.staffId === staffFilter),
+    [clients, terms, staffFilter],
+  );
   // 以降はすべて「絞り込んで並べ替えた後」のこの1本だけを見る。矢印キーでの移動・
   // ページ送り・件数が並び替えと食い違わないようにするため。
   const qualityMatched = useMemo(() => matched.filter((client) => qualityFilter === "all"
@@ -70,10 +92,11 @@ export function ClientList() {
     || (qualityFilter === "critical" && qualityIssuesFor(client).some((issue) => issue.severity === "critical"))), [matched, qualityFilter]);
   const filtered = useMemo(() => sortClients(qualityMatched, sortMode), [qualityMatched, sortMode]);
   const qualityFilterLabel = qualityFilter === "attention" ? "要確認" : qualityFilter === "critical" ? "重要な不備" : "";
-  const listIsFiltered = terms.length > 0 || qualityFilter !== "all";
+  const listIsFiltered = terms.length > 0 || qualityFilter !== "all" || staffFilter !== null;
   // 次の2つは絞り込みの前（全件）で決める。検索のたびに欄が出入りすると行の形が変わるため。
   const sharedYear = useMemo(() => sharedFiscalYear(clients ?? []), [clients]);
   const showsUnassigned = useMemo(() => showsUnassignedStaff(clients ?? []), [clients]);
+  const staffOptions = useMemo(() => clientStaffOptions(clients ?? []), [clients]);
   // 絞り込みで件数が減っても範囲外を指さないようにする。
   const highlightedIndex = filtered.length === 0 ? -1 : Math.min(activeIndex, filtered.length - 1);
   // 描画するのはこのページのぶんだけ。ページは選択中の行から決めるので、
@@ -236,6 +259,7 @@ export function ClientList() {
       <div className="client-list-tools">
         <p className="client-count" aria-live="polite">
           {qualityFilterLabel ? `${qualityFilterLabel}・` : null}
+          {staffFilter !== null ? `担当 ${staffOptions.find((option) => option.id === staffFilter)?.name ?? "（担当の顧客なし）"}・` : null}
           {listIsFiltered ? `${filtered.length}件（全${clients.length}件中）` : `全${clients.length}件`}
           {sharedYear ? `・すべて${sharedYear}年度` : null}
         </p>
@@ -248,6 +272,17 @@ export function ClientList() {
               <option value="critical">重要な不備</option>
             </select>
           </label>
+          {/* 担当者の居る顧客が無ければ出さない。URL で絞っているときは解除できるように残す */}
+          {staffOptions.length > 0 || staffFilter !== null ? (
+            <label>
+              <span>担当者</span>
+              <select aria-label="担当者で絞り込む" value={staffFilter ?? ""} onChange={(event) => setStaffFilter(event.target.value === "" ? null : Number(event.target.value))}>
+                <option value="">すべて</option>
+                {staffOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                {staffFilter !== null && !staffOptions.some((option) => option.id === staffFilter) ? <option value={staffFilter}>（担当の顧客なし）</option> : null}
+              </select>
+            </label>
+          ) : null}
           <label>
             <span>表示順</span>
             <select aria-label="顧客一覧の表示順" value={sortMode} onChange={(event) => { setSortMode(event.target.value as ClientSortMode); setActiveIndex(0); }}>

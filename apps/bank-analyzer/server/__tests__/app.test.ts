@@ -38,3 +38,21 @@ describe('例外', () => {
     vi.restoreAllMocks();
   });
 });
+
+describe('GET /api/staff-directory/workload', () => {
+  it('担当者（台帳ID）ごとの件数と一覧へのリンクだけを返す', async () => {
+    const db = {
+      case: { findMany: async () => [{ assigneeStaffId: 4 }, { assigneeStaffId: 4 }, { assigneeStaffId: 9 }] },
+    } as unknown as PrismaClient;
+    const res = await createApp(db).request(`${BASE_PATH}/api/staff-directory/workload`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      roles: [{ key: 'assignee', label: '担当' }],
+      activeLabel: 'すべて',
+      staff: [
+        { staffDirectoryId: 4, counts: { assignee: { active: 2, total: 2 } }, links: { assignee: '/?assignee=staff:4' } },
+        { staffDirectoryId: 9, counts: { assignee: { active: 1, total: 1 } }, links: { assignee: '/?assignee=staff:9' } },
+      ],
+    });
+  });
+});

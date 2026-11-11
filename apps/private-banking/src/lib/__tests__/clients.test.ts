@@ -3,6 +3,7 @@ import {
   CLIENT_SORT_DEFAULT,
   type ClientSortMode,
   type ClientSummary,
+  clientStaffOptions,
   filterClients,
   highlightRanges,
   matchesClient,
@@ -251,5 +252,20 @@ describe("highlightRanges", () => {
 
   it("重なる範囲は連結する", () => {
     expect(highlightRanges("山田太郎", searchTerms("山田 田太"))).toEqual([[0, 3]]);
+  });
+});
+
+describe("clientStaffOptions", () => {
+  it("顧客を受け持つ担当者を1人1回、名前の順に出す（未設定は出さない）", () => {
+    const rows = [
+      client({ id: 1, staffId: 2, assignedStaff: "架空 次郎" }),
+      client({ id: 2, staffId: null, assignedStaff: "" }),
+      client({ id: 3, staffId: 1, assignedStaff: "架空 一郎" }),
+      client({ id: 4, staffId: 2, assignedStaff: "架空 次郎" }),
+    ];
+    expect(clientStaffOptions(rows)).toEqual([
+      { id: 1, name: "架空 一郎" },
+      { id: 2, name: "架空 次郎" },
+    ]);
   });
 });

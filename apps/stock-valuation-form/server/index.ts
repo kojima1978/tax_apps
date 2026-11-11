@@ -13,6 +13,7 @@ import { createCaseRouter } from './routes/cases.js';
 import { createFieldCatalogRouter } from './routes/fieldCatalog.js';
 import { createIndustryRouter } from './routes/industry.js';
 import { createIndustryAdminRouter } from './routes/industryAdmin.js';
+import { createWorkloadRouter } from './routes/workload.js';
 import { seedIndustryData } from './seed.js';
 
 const PORT = Number(process.env.PORT ?? 3014);
@@ -44,6 +45,7 @@ app.route(`${BASE_PATH}/api`, createCaseRouter(prisma));
 app.route(`${BASE_PATH}/api`, createFieldCatalogRouter());
 app.route(`${BASE_PATH}/api`, createIndustryRouter(prisma));
 app.route(`${BASE_PATH}/api`, createIndustryAdminRouter(prisma));
+app.route(BASE_PATH, createWorkloadRouter(prisma));
 
 // 本番のみ: Vite のビルド成果物を同じポートで配信する（開発時は Vite 自身が配信）。
 if (fs.existsSync(DIST_DIR)) {

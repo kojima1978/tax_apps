@@ -13,6 +13,7 @@ import {
   type SyncState,
 } from '../linkedApps';
 import { btn } from '../components/ui';
+import { fetchWorkloads, type AppWorkload } from '../workload';
 
 // 台帳の変更が各アプリへ届いているかを、台帳の側から見る画面。
 // 写しを持つアプリはその写しの状況を、直接読むアプリは一覧だけを出す
@@ -193,6 +194,48 @@ function SyncCard({ app, tick, notify }: { app: LinkedApp; tick: number; notify:
   );
 }
 
+// 社員一覧の「担当」列・退職者の担当の元になる、各アプリの担当件数が読めているか
+function WorkloadSection({ tick }: { tick: number }) {
+  const [apps, setApps] = useState<AppWorkload[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void fetchWorkloads().then((a) => alive && setApps(a));
+    return () => {
+      alive = false;
+    };
+  }, [tick]);
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-lg font-bold text-slate-800">担当件数を読むアプリ</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          社員一覧の「担当」列と「退職者の担当あり」は、ここに並ぶアプリから人ごとの件数だけを読んで数えています（名前や顧客は受け取りません）。
+          読めないアプリは一覧で「—」になり、その分は担当の数に入りません。
+        </p>
+      </div>
+      <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+        {(apps ?? []).map(({ source, data }) => (
+          <li key={source.key} className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 px-4 py-2 text-sm">
+            <span className="w-40 shrink-0 font-medium text-slate-800">{source.label}</span>
+            {data === 'unreachable' ? (
+              <span className={`rounded-full px-2 py-0.5 text-xs ring-1 ${BADGE.unreachable.className}`}>読めない（—）</span>
+            ) : (
+              <>
+                <span className={`rounded-full px-2 py-0.5 text-xs ring-1 ${BADGE.ok.className}`}>読めた</span>
+                <span className="text-slate-600">
+                  {data.roles.map((r) => r.label).join('・')}／{data.staff.length}人分／進行中の数え方: {data.activeLabel}
+                </span>
+              </>
+            )}
+          </li>
+        ))}
+        {apps === null && <li className="px-4 py-2 text-sm text-slate-500">確認中…</li>}
+      </ul>
+    </section>
+  );
+}
+
 export default function LinksPage() {
   const tick = useTick();
   const [notify, setNotify] = useState<NotifyStatus | null>(null);
@@ -239,6 +282,8 @@ export default function LinksPage() {
           ))}
         </ul>
       </section>
+
+      <WorkloadSection tick={tick} />
     </div>
   );
 }

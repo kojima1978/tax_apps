@@ -41,9 +41,11 @@ export const isAnalyticsEstimateStatus = (status: string): boolean =>
     (ANALYTICS_ESTIMATE_STATUSES as readonly string[]).includes(status)
 export const isAnalyticsConfirmedStatus = (status: string): boolean =>
     (ANALYTICS_CONFIRMED_STATUSES as readonly string[]).includes(status)
+/** 終わった案件（一覧の既定で隠す・社員台帳の担当件数で進行中に数えない）: 見送り・入金済 */
+export const CLOSED_STATUSES: readonly CaseStatus[] = ['見送り', '入金済'] as const
 /** 対応終了（一覧の非アクティブ表示用）: 見送り・入金済・未分割 */
 export const isHandlingEnded = (status: string, isUndivided?: boolean): boolean =>
-    status === '見送り' || status === '入金済' || !!isUndivided
+    (CLOSED_STATUSES as readonly string[]).includes(status) || !!isUndivided
 /** 期限チェック対象外（完了系・見送り・未分割） */
 export const isDeadlineSkip = (status: string, isUndivided?: boolean): boolean =>
     isCompleted(status) || status === '見送り' || !!isUndivided

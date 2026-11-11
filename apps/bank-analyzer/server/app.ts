@@ -14,6 +14,7 @@ import { importRoutes } from './routes/imports.js';
 import { passbookInventoryRoutes } from './routes/passbookInventory.js';
 import { settingsRouter } from './routes/settings.js';
 import { transactionRoutes } from './routes/transactions.js';
+import { workloadRouter } from './routes/workload.js';
 import { operatorMiddleware } from './operator.js';
 
 // vite.config.ts の base と必ずそろえること。
@@ -51,6 +52,7 @@ export function createApp(db: PrismaClient) {
   app.route(`${BASE_PATH}/api/cases`, cases);
   app.route(`${BASE_PATH}/api/backups`, backupImportRouter(db));
   app.route(`${BASE_PATH}/api/settings`, settingsRouter(db));
+  app.route(BASE_PATH, workloadRouter(db));
 
   // 例外の中身（SQL や内部のパス）は画面に出さない。ログにだけ残す。
   app.onError((error, c) => {

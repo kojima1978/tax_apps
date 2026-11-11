@@ -17,6 +17,7 @@ import {
   type StaffGroup,
 } from '../staffList';
 import type { Affiliation, Staff, StaffStatus } from '../types';
+import { fetchWorkloads, indexWorkloads, primaryActive, retiredWithWorkload, workloadLines, workloadTitle } from '../workload';
 
 const STATUS_TABS: { value: StaffStatus; label: string }[] = [
   { value: 'active', label: '在籍' },
@@ -30,11 +31,13 @@ const NO_DEPARTMENT = 'none';
 // 表はヘッダーと同じ幅のカードに収める。中身の長さが決まっている列は幅を固定し、
 // 残りは所属（兼務で長くなる）に回す ── 均等に割ると短い列の間ばかり空いて行を追いにくい
 // 見出しを押すと並び替える列は sortKey を持つ（氏名は漢字の文字コード順にしかならないので持たせない）
-const COLUMNS: { label: string; width?: string; sortKey?: SortKey }[] = [
+// 担当は各アプリの担当件数（進行中）の合計。押すと多い順から
+const COLUMNS: { label: string; width?: string; sortKey?: SortKey; right?: boolean }[] = [
   { label: '社員番号', width: 'w-28', sortKey: 'employeeNo' },
   { label: '氏名', width: 'w-40' },
   { label: 'フリガナ', width: 'w-48', sortKey: 'kana' },
   { label: '所属', sortKey: 'affiliation' },
+  { label: '担当', width: 'w-24', sortKey: 'workload', right: true },
   { label: '携帯電話', width: 'w-36' },
 ];
 
@@ -64,6 +67,8 @@ export default function StaffPage() {
   const sort = parseSort(params.get('sort'));
   // 未入力の人だけに絞る（?missing=kana など。押すたびに切り替え）
   const missing = parseMissing(params.get('missing'));
+  // 担当（進行中）の残っている人だけに絞る（?assigned=1。「退職者の担当あり」のチップから）
+  const assignedOnly = params.get('assigned') === '1';
   // 1文字打つたびに履歴が積まれないよう、置き換えで書く
   const setParam = (patch: Record<string, string>) =>
     setParams(
@@ -77,7 +82,8 @@ export default function StaffPage() {
       },
       { replace: true },
     );
-  const setStatus = (v: StaffStatus) => setParam({ status: v === 'active' ? '' : v });
+  // 「退職者の担当あり」の絞り込みは退職の一覧のためのものなので、切り替えたら外す
+  const setStatus = (v: StaffStatus) => setParam({ status: v === 'active' ? '' : v, assigned: '' });
   const setQuery = (v: string) => {
     setQueryState(v);
     setParam({ q: v.trim() === '' ? '' : v });
@@ -89,6 +95,13 @@ export default function StaffPage() {
   const staff = useLoad(loadStaff);
   const departments = useLoad(api.listDepartments);
   const companies = useLoad(api.listCompanies);
+  // 担当件数は各アプリから（読めないアプリは「—」。一覧の表示は待たない）
+  const workloads = useLoad(fetchWorkloads);
+  const workloadIndex = useMemo(() => indexWorkloads(workloads.data ?? []), [workloads.data]);
+  // 「退職者の担当あり」はどのタブでも数えて出す（在籍の一覧を見ているときにも気づけるように）
+  const loadRetired = useCallback(() => api.listStaff('retired'), []);
+  const retired = useLoad(loadRetired);
+  const retiredAssigned = useMemo(() => retiredWithWorkload(retired.data ?? [], workloadIndex), [retired.data, workloadIndex]);
 
   // 会社が1つだけなら会社名は出さない（全員同じで情報にならない）
   const multiCompany = (companies.data?.length ?? 0) > 1;
@@ -102,8 +115,9 @@ export default function StaffPage() {
     () => ({
       company: new Map((companies.data ?? []).map((c) => [c.id, c.sortOrder])),
       department: new Map((departments.data ?? []).map((d) => [d.id, d.sortOrder])),
+      workload: (id: number) => primaryActive(workloadIndex, id),
     }),
-    [companies.data, departments.data],
+    [companies.data, departments.data, workloadIndex],
   );
 
   // 会社・部署・検索語で絞った人。未入力の数はここから数える（未入力の絞り込みを掛ける前）
@@ -121,8 +135,13 @@ export default function StaffPage() {
   const missingCounts = useMemo(() => countMissing(matched), [matched]);
 
   const rows = useMemo(
-    () => sortStaff(missing ? matched.filter((s) => isMissing(s, missing)) : matched, sort, sortOrder),
-    [matched, missing, sort.key, sort.desc, sortOrder],
+    () =>
+      sortStaff(
+        matched.filter((s) => (!missing || isMissing(s, missing)) && (!assignedOnly || (primaryActive(workloadIndex, s.id) ?? 0) > 0)),
+        sort,
+        sortOrder,
+      ),
+    [matched, missing, assignedOnly, workloadIndex, sort.key, sort.desc, sortOrder],
   );
 
   // 所属で並べているときだけ、部署が変わる行に小見出しを入れる（ほかの並びでは部署が飛び飛びになり、見出しだらけになる）
@@ -132,14 +151,15 @@ export default function StaffPage() {
   );
 
   const total = staff.data?.length ?? 0;
-  const filtered = company !== '' || department !== '' || query.trim() !== '' || missing !== null;
+  const filtered = company !== '' || department !== '' || query.trim() !== '' || missing !== null || assignedOnly;
+  const retiredChipActive = status === 'retired' && assignedOnly;
   const statusLabel = STATUS_TABS.find((t) => t.value === status)!.label;
 
   // 「保存して次の人へ」: 保存する前の一覧（絞り込み・並び）で次の人を決め、読み直した値で開く ──
   // 未入力で絞っていると、直した人は読み直した一覧から消えるため
   async function handleSaved(next: boolean) {
     const nextId = next && editing ? nextStaffId(rows, editing.id) : null;
-    const [fresh] = await Promise.all([staff.reload(), departments.reload(), companies.reload()]);
+    const [fresh] = await Promise.all([staff.reload(), departments.reload(), companies.reload(), retired.reload()]);
     setEditing(nextId === null ? undefined : (fresh?.find((s) => s.id === nextId) ?? undefined));
   }
   const editingIndex = editing ? rows.findIndex((s) => s.id === editing.id) : -1;
@@ -153,7 +173,7 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-4">
-      <ErrorBanner message={staff.error ?? departments.error ?? companies.error} />
+      <ErrorBanner message={staff.error ?? departments.error ?? companies.error ?? retired.error} />
 
       <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3">
@@ -239,12 +259,34 @@ export default function StaffPage() {
               </button>
             );
           })}
+          {(retiredAssigned.length > 0 || retiredChipActive) && (
+            <button
+              type="button"
+              aria-pressed={retiredChipActive}
+              onClick={() => setParam(retiredChipActive ? { assigned: '' } : { status: 'retired', assigned: '1' })}
+              title={
+                retiredChipActive
+                  ? '押すと絞り込みを解除'
+                  : '退職した人のうち、まだ担当の案件（進行中）が残っている人だけを出します。引き継ぎ先は各アプリで決めてください'
+              }
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
+                retiredChipActive ? 'bg-rose-600 text-white ring-rose-600' : 'bg-rose-50 text-rose-800 ring-rose-300 hover:bg-rose-100'
+              }`}
+            >
+              退職者の担当あり {retiredAssigned.length}名{retiredChipActive && ' ✕'}
+            </button>
+          )}
+          {workloadIndex.unreachable.length > 0 && (
+            <span className="ml-auto text-xs text-slate-500" title="止まっているか、3秒で返事がありませんでした。担当の数にはこのアプリの分が入っていません">
+              担当件数を読めないアプリ: {workloadIndex.unreachable.map((s) => s.label).join('・')}（—）
+            </span>
+          )}
         </div>
 
         {/* 幅のある画面はページごとスクロールし、見出しをページの上端に残す。
             狭い画面は表を横にずらすので、表の枠の中で縦にもスクロールさせて見出しを残す */}
         <div className="overflow-x-auto max-lg:max-h-[75dvh] lg:overflow-visible">
-          <table className="w-full min-w-[48rem] table-fixed text-sm">
+          <table className="w-full min-w-[54rem] table-fixed text-sm">
             <thead className="text-left text-xs text-slate-500">
               <tr>
                 {COLUMNS.map((c) => {
@@ -252,7 +294,7 @@ export default function StaffPage() {
                   return (
                     <th
                       key={c.label}
-                      className={`${c.width ?? ''} sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-4 py-2 font-medium shadow-[inset_0_-1px_0_var(--color-slate-200)]`}
+                      className={`${c.width ?? ''} ${c.right ? 'text-right' : ''} sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-4 py-2 font-medium shadow-[inset_0_-1px_0_var(--color-slate-200)]`}
                       aria-sort={active ? (sort.desc ? 'descending' : 'ascending') : undefined}
                     >
                       {c.sortKey ? (
@@ -317,6 +359,7 @@ export default function StaffPage() {
                         </span>
                       )}
                     </td>
+                    <WorkloadCell n={workloads.data ? primaryActive(workloadIndex, s.id) : undefined} retired={s.retiredOn !== null} title={workloads.data ? workloadTitle(workloadLines(workloadIndex, s.id)) : '担当件数を読んでいます'} />
                     <td className="px-4 py-2.5 tabular-nums">{s.mobilePhone}</td>
                   </tr>
                 );
@@ -344,9 +387,21 @@ export default function StaffPage() {
           onClose={() => setEditing(undefined)}
           onSaved={(next) => void handleSaved(next)}
           hasNext={editing !== null && nextStaffId(rows, editing.id) !== null}
+          workload={editing && workloads.data ? workloadLines(workloadIndex, editing.id) : undefined}
           position={editingIndex >= 0 ? `${rows.length}名中 ${editingIndex + 1}人目` : undefined}
         />
       )}
     </div>
+  );
+}
+
+// 担当の件数。undefined = 読んでいる途中、null = どのアプリも読めない（「—」）。
+// 退職した人に残っている担当は赤で出す（引き継ぎ漏れ）
+function WorkloadCell({ n, retired, title }: { n: number | null | undefined; retired: boolean; title: string }) {
+  const alert = retired && (n ?? 0) > 0;
+  return (
+    <td className={`px-4 py-2.5 text-right tabular-nums ${alert ? 'font-semibold text-rose-700' : n === 0 ? 'text-slate-400' : ''}`} title={title}>
+      {n === undefined ? '' : n === null ? '—' : `${n}件`}
+    </td>
   );
 }

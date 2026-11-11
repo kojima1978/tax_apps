@@ -44,3 +44,22 @@ export const LINKED_APP_TARGETS: LinkedAppTarget[] = [
     unlinkedFix: '担当していた顧客を、資産・負債管理の画面で台帳の人へ付け替えてください。',
   },
 ];
+
+// ---- 社員ごとの担当件数（社員一覧の「担当」列・退職者の担当・編集画面の内訳） ----
+// 各アプリが GET <basePath>/api/staff-directory/workload で返す（形は src/shared/staff-workload）。
+// 画面がゲートウェイの下から直接読む。読めないアプリは「—」で、一覧は止めない
+
+export type WorkloadSourceKey = LinkedAppKey | 'stock-valuation-form' | 'bank-analyzer';
+
+export type WorkloadSource = {
+  key: WorkloadSourceKey;
+  label: string;
+  /** ゲートウェイの下のパス。件数の口とリンク（そのアプリの一覧をその人で絞る）はこの後ろに付く */
+  basePath: string;
+};
+
+export const WORKLOAD_SOURCES: WorkloadSource[] = [
+  ...LINKED_APP_TARGETS.map(({ key, label, basePath }) => ({ key, label, basePath })),
+  { key: 'stock-valuation-form', label: '株式評価明細書', basePath: '/stock-valuation-form' },
+  { key: 'bank-analyzer', label: '預貯金分析', basePath: '/bank-analyzer' },
+];

@@ -172,6 +172,17 @@ export function showsUnassignedStaff(clients: ClientSummary[]) {
   return clients.some((client) => client.assignedStaff.trim().length > 0);
 }
 
+/**
+ * 顧客一覧の「担当者」の選択肢。顧客を受け持っている担当者だけを、名前の順に1人1回。
+ * 名前は漢字の文字コード順にしかならないが、選ぶ相手は数人なので読み順は求めない。
+ */
+export function clientStaffOptions(clients: ClientSummary[]) {
+  const byId = new Map<number, string>();
+  for (const client of clients) if (client.staffId !== null && !byId.has(client.staffId)) byId.set(client.staffId, client.assignedStaff);
+  const collator = new Intl.Collator("ja");
+  return [...byId].map(([id, name]) => ({ id, name })).sort((a, b) => collator.compare(a.name, b.name) || a.id - b.id);
+}
+
 /** 表示文字列のうち検索語に一致する範囲を、元の文字位置で返す（重なりは連結する）。 */
 export function highlightRanges(text: string, terms: string[]) {
   if (!text || terms.length === 0) return [] as Array<[number, number]>;

@@ -6,6 +6,7 @@ import { WarekiDateField } from './WarekiDateField';
 import { toKatakana } from '../lib';
 import { birthDateError } from '../wareki';
 import type { AffiliationForm, Company, Department, Staff, StaffForm, StaffPersonalForm } from '../types';
+import { formatRoleCount, type WorkloadLine } from '../workload';
 
 type Props = {
   staff: Staff | null; // null = 新規
@@ -18,6 +19,8 @@ type Props = {
   hasNext?: boolean;
   // 「12名中 3人目」のような、一覧の中での位置
   position?: string;
+  // 各アプリでの担当件数（読んでいる途中・新規は undefined）
+  workload?: WorkloadLine[];
 };
 
 const emptyAffiliation = (companyId: string, isPrimary: boolean): AffiliationForm => ({
@@ -64,7 +67,7 @@ const NAME_FIELDS = [
 ] as const;
 
 // 社員の追加・編集。削除は無い（台帳IDは他アプリが参照しているので消さず、退職日を入れる）。
-export default function StaffDialog({ staff, companies, departments, onClose, onSaved, hasNext, position }: Props) {
+export default function StaffDialog({ staff, companies, departments, onClose, onSaved, hasNext, position, workload }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState<StaffForm>(() => toForm(staff, companies));
   // 略称は社員の PUT とは別の口で保存する（server/repo.ts の updateStaffShortName）
@@ -77,6 +80,12 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
   const [revealing, setRevealing] = useState(false);
   // 保存を押したときにだけ出す（打っている途中から「途中までです」と言わない）。直して正しくなれば消える
   const [birthErrorShown, setBirthError] = useState<string | null>(null);
+  // 退職日を入れたときの注意に使う、まだ残っている担当（進行中）。止めはしない
+  const remaining = (workload ?? []).flatMap((l) => {
+    if (l.unreachable) return [];
+    const active = l.roles.find((r) => r.primary)?.active ?? 0;
+    return active > 0 ? [{ app: l.source.label, active }] : [];
+  });
   const birthError = birthErrorShown && personal ? birthDateError(personal.birthDate) : null;
   // 「隠す」は画面から消すだけで、読んだ値と入力中の変更は持ったまま（保存にも乗る）
   const [shown, setShown] = useState(!staff);
@@ -344,6 +353,12 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
             </Field>
           </Section>
           <Section title="退職">
+            {form.retiredOn !== '' && remaining.length > 0 && (
+              <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                まだ担当の案件が残っています（{remaining.map((r) => `${r.app} ${r.active}件`).join('・')}）。
+                保存はできますが、引き継ぎ先を各アプリで決めてください（下の「担当している案件」から開けます）。
+              </p>
+            )}
             <Field label="退職日" hint="入れると在籍の一覧から外れます（保存したとき）">
               <div className="flex gap-2">
                 {/* min-w-0: 日付欄の既定の最小幅のせいで、狭い画面でボタンがダイアログの外へはみ出していた */}
@@ -369,6 +384,46 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
             </Field>
           </Section>
         </div>
+
+        {workload && (
+          <Section title="担当している案件">
+            <ul className="divide-y divide-slate-100 text-sm">
+              {workload.map((l) => (
+                <li key={l.source.key} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-1.5">
+                  <span className="w-44 shrink-0 text-slate-600">{l.source.label}</span>
+                  {l.unreachable ? (
+                    <span className="text-slate-400" title="止まっているか、3秒で返事がありませんでした">
+                      —（読めませんでした）
+                    </span>
+                  ) : (
+                    <>
+                      {l.roles.map((r) =>
+                        r.url ? (
+                          <a
+                            key={r.key}
+                            href={r.url}
+                            target="_blank"
+                            rel="noopener"
+                            className={`tabular-nums text-teal-700 hover:underline ${r.primary ? 'font-medium' : ''}`}
+                            title="このアプリの一覧を、この人で絞って開きます（別のタブ）"
+                          >
+                            {formatRoleCount(r)}
+                          </a>
+                        ) : (
+                          <span key={r.key} className={`tabular-nums ${r.total > 0 ? '' : 'text-slate-400'}`}>
+                            {formatRoleCount(r)}
+                          </span>
+                        ),
+                      )}
+                      <span className="text-xs text-slate-400">件数は{l.activeLabel === 'すべて' ? 'すべて' : `${l.activeLabel}（進行中）`}</span>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-slate-500">数えて見せるだけです。担当の付け替えは各アプリの画面で行ってください。</p>
+          </Section>
+        )}
 
         <ErrorBanner message={error} />
 

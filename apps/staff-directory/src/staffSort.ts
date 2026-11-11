@@ -6,7 +6,7 @@ import type { Staff } from './types';
 // 押した列が同じ値（空欄どうしを含む）なら、社員番号 → 所属（部署の表示順）→ フリガナ → 台帳ID の順で
 // 決める（押した列は飛ばす。二番目以降はいつも昇順）── 番号がほとんど空でも部署ごとにまとまって並ぶように。
 
-export const SORT_KEYS = ['employeeNo', 'kana', 'affiliation'] as const;
+export const SORT_KEYS = ['employeeNo', 'kana', 'affiliation', 'workload'] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
 export type SortSpec = { key: SortKey; desc: boolean };
 
@@ -22,13 +22,18 @@ export function formatSort(s: SortSpec): string {
   return `${s.desc ? '-' : ''}${s.key}`;
 }
 
-// 同じ列をもう一度押したら向きを変え、別の列なら昇順から
+// 同じ列をもう一度押したら向きを変え、別の列なら昇順から（担当の件数だけは多い順から ── 見たいのは抱えている人）
 export function toggleSort(current: SortSpec, key: SortKey): SortSpec {
-  return current.key === key ? { key, desc: !current.desc } : { key, desc: false };
+  return current.key === key ? { key, desc: !current.desc } : { key, desc: key === 'workload' };
 }
 
-// 所属の並びに使う会社・部署の表示順（会社ページ・部署ページで決めた順）
-export type OrderMaps = { company: Map<number, number>; department: Map<number, number> };
+// 所属の並びに使う会社・部署の表示順（会社ページ・部署ページで決めた順）と、担当の件数
+// （src/workload.ts の primaryActive。null = まだ読めていない・どのアプリも読めない → 空欄扱い）
+export type OrderMaps = {
+  company: Map<number, number>;
+  department: Map<number, number>;
+  workload?: (staffId: number) => number | null;
+};
 
 // 数字は桁数が違っても数の大きさで並べる（"9" < "10"）
 const collator = new Intl.Collator('ja', { numeric: true });
@@ -47,6 +52,10 @@ function valueOf(s: Staff, key: SortKey, order: OrderMaps): SortValue {
       if (s.companyId === null) return null;
       const dept = s.departmentId === null ? Infinity : (order.department.get(s.departmentId) ?? Infinity);
       return [order.company.get(s.companyId) ?? Infinity, dept];
+    }
+    case 'workload': {
+      const n = order.workload?.(s.id) ?? null;
+      return n === null ? null : [n];
     }
   }
 }
