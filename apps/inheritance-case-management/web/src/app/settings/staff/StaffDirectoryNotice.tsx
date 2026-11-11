@@ -25,7 +25,7 @@ export function StaffDirectoryNotice({ sync, onResync }: StaffDirectoryNoticePro
         <div className="mb-6 rounded-lg border bg-card px-4 py-3 space-y-2">
             <div className="flex flex-wrap items-center gap-3">
                 <p className="text-sm flex-1 min-w-[16rem]">
-                    担当者・部署は<strong>社員台帳</strong>で管理しています。追加・修正・退職は社員台帳で行ってください（数分以内にここへ反映されます）。
+                    担当者・部署は<strong>社員台帳</strong>で管理しています。追加・修正・退職は社員台帳で行ってください（台帳で保存すると数秒でここへ反映されます）。
                 </p>
                 <a
                     href="/staff-directory/"
@@ -42,12 +42,12 @@ export function StaffDirectoryNotice({ sync, onResync }: StaffDirectoryNoticePro
 
             {sync && (
                 <p className="text-xs text-muted-foreground">
-                    最後に読み込んだ日時: {new Date(sync.at).toLocaleString("ja-JP")}
+                    最後に読み込んだ日時: {sync.lastSuccessAt ? new Date(sync.lastSuccessAt).toLocaleString("ja-JP") : "まだありません"}
                 </p>
             )}
             {sync && !sync.ok && (
                 <p className="text-xs text-red-700">
-                    社員台帳を読めませんでした（{sync.error}）。前回までの写しを表示しています。
+                    {new Date(sync.at).toLocaleString("ja-JP")} に社員台帳を読めませんでした（{sync.error}）。前回までの写しを表示しています。
                 </p>
             )}
             {sync && sync.unlinkedAssignees.length > 0 && (

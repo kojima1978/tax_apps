@@ -10,7 +10,7 @@ const staffSelect = { id: true, staffCode: true, name: true, nameKana: true, dep
  * （台帳が落ちていれば3秒で諦めて写しのまま返す）。追加・修正・退職は台帳で行う。
  */
 export async function GET() {
-  await syncStaffDirectory();
+  await syncStaffDirectory("interval");
   const staff = await prisma.staff.findMany({
     select: { ...staffSelect, _count: { select: { households: true } } },
     // 候補の並びはカナ順。カナ未登録は名前で並べる（顧客一覧と同じ考え方）。

@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { getLastStaffDirectorySync, syncStaffDirectory } from "@/lib/staff-directory/sync";
+import { getStaffDirectorySyncStatus, syncStaffDirectory } from "@/lib/staff-directory/sync";
+import { parseTrigger } from "@/lib/staff-directory/run-log";
 
-// 社員台帳からの写しの状況。担当者の画面が読む。
-// GET は期限が来ていれば写し直してから返し、POST は期限を待たずに写し直す
+// 社員台帳からの写しの状況。担当者の画面と、社員台帳の連携の画面が読む。
+// GET は記録を読むだけ（写しは走らせない）。POST は期限を待たずに写し直す ──
+// 社員台帳が保存のたびに `{ "trigger": "directory" }` で呼び、画面の「今すぐ読み直す」は本文なしで呼ぶ
 export async function GET() {
-  const result = (await syncStaffDirectory()) ?? getLastStaffDirectorySync();
-  return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(await getStaffDirectorySyncStatus(), { headers: { "Cache-Control": "no-store" } });
 }
 
-export async function POST() {
-  const result = await syncStaffDirectory({ force: true });
+export async function POST(request: Request) {
+  const body: unknown = await request.json().catch(() => null);
+  const result = await syncStaffDirectory(parseTrigger(body));
   return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
 }

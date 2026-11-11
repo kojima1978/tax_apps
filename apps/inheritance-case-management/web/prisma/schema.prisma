@@ -297,3 +297,17 @@ model CaseSpecialAddition {
   @@index([caseId])
   @@index([caseId, sortOrder])
 }
+
+// 社員台帳からの写しの記録。1回につき1行、直近20回と最後に成功した回だけを残す（src/lib/staff-directory/run-log.ts）
+model StaffDirectorySyncRun {
+  id       Int      @id @default(autoincrement())
+  at       DateTime @default(now())
+  /// directory = 台帳からの知らせ / interval = 一覧を開いたときの5分ごと / manual = 今すぐ読み直す
+  trigger  String
+  ok       Boolean
+  error    String?
+  created  Int      @default(0)
+  updated  Int      @default(0)
+  /// 成功した回の、台帳と結び付いていない担当者 [{ id, name }]
+  unlinked Json?
+}

@@ -1,5 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
-import { LINKED_APPS, READING_APPS, fetchSyncState, relativeTime, type LinkedApp, type SyncState } from '../linkedApps';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import {
+  LINKED_APPS,
+  READING_APPS,
+  TRIGGER_LABEL,
+  fetchNotifyStatus,
+  fetchSyncState,
+  relativeTime,
+  type LinkedApp,
+  type NotifyResult,
+  type NotifyStatus,
+  type SyncRun,
+  type SyncState,
+} from '../linkedApps';
 import { btn } from '../components/ui';
 
 // 台帳の変更が各アプリへ届いているかを、台帳の側から見る画面。
@@ -7,8 +19,8 @@ import { btn } from '../components/ui';
 
 const NOW_TICK_MS = 30_000;
 
-// 「3分前」を古くしないための再描画の合図。時刻そのものは描画のたびに取る
-// （読み直した直後の描画で、最大30秒前の時刻と比べてしまわないように）
+// 「3分前」を古くしないための再描画と、状況の読み直しの合図（GET は記録を読むだけなので軽い）。
+// 時刻そのものは描画のたびに取る（読み直した直後の描画で、最大30秒前の時刻と比べてしまわないように）
 function useTick() {
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -32,22 +44,91 @@ function badgeOf(state: SyncState | null): keyof typeof BADGE {
   return state.ok ? 'ok' : 'failed';
 }
 
-function SyncCard({ app }: { app: LinkedApp; tick: number }) {
+/** 失敗中の「〇分前から古い」 */
+function staleText(lastSuccessAt: string): string {
+  const rel = relativeTime(lastSuccessAt, Date.now());
+  return rel === 'たった今' ? '直前に写せた内容のまま動いています。' : `アプリの担当者・部署は${rel}から古いままです。`;
+}
+
+function When({ at }: { at: string }) {
+  return (
+    <>
+      <span className="font-medium">{relativeTime(at, Date.now())}</span>
+      <span className="ml-2 text-xs text-slate-500">{new Date(at).toLocaleString('ja-JP')}</span>
+    </>
+  );
+}
+
+// 台帳のサーバが保存のたびに送った知らせの結果
+function NoticeLine({ notify, result }: { notify: NotifyStatus | null; result: NotifyResult | undefined }) {
+  let body: ReactNode;
+  if (notify === null) body = <span className="text-slate-500">確かめられません</span>;
+  else if (!notify.enabled) body = <span className="text-slate-500">送らない設定です（LINKED_APP_ORIGINS）</span>;
+  else if (!result) body = <span className="text-slate-500">{notify.pending ? '送る準備をしています…' : '台帳を起動してから、まだ保存がありません'}</span>;
+  else
+    body = (
+      <>
+        <When at={result.at} />
+        <span className={`ml-3 ${result.ok && result.synced !== false ? 'text-slate-600' : 'text-red-700'}`}>
+          {!result.ok
+            ? `届きませんでした（${result.error ?? '理由不明'}）`
+            : result.synced === false
+              ? '届きましたが、写し直しは失敗しました'
+              : '届いて写し直しました'}
+        </span>
+        {notify.pending && <span className="ml-2 text-xs text-slate-500">（次の知らせを送っています…）</span>}
+      </>
+    );
+  return (
+    <p>
+      <span className="text-slate-500">台帳からの知らせ：</span>
+      {body}
+    </p>
+  );
+}
+
+function HistoryList({ history }: { history: SyncRun[] }) {
+  if (history.length <= 1) return null;
+  return (
+    <details className="text-xs text-slate-600">
+      <summary className="cursor-pointer select-none text-slate-500">直近の記録（{history.length}回）</summary>
+      <ul className="mt-1 space-y-0.5">
+        {history.map((h) => (
+          <li key={h.at} className="flex flex-wrap gap-x-3">
+            <span className="tabular-nums">{new Date(h.at).toLocaleString('ja-JP')}</span>
+            <span className="w-28">{TRIGGER_LABEL[h.trigger]}</span>
+            {h.ok ? (
+              <span>
+                成功（追加 {h.created}件・更新 {h.updated}件）
+              </span>
+            ) : (
+              <span className="text-red-700">失敗：{h.error ?? '理由不明'}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function SyncCard({ app, tick, notify }: { app: LinkedApp; tick: number; notify: NotifyStatus | null }) {
   const [state, setState] = useState<SyncState | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async (force: boolean) => {
-    setBusy(true);
+    if (force) setBusy(true);
     setState(await fetchSyncState(app, force));
-    setBusy(false);
+    if (force) setBusy(false);
   }, [app]);
 
+  // 開いたときと、そのあと30秒ごとに読み直す（台帳で保存した結果がこの画面にも出るように）
   useEffect(() => {
     void load(false);
-  }, [load]);
+  }, [load, tick]);
 
   const badge = BADGE[badgeOf(state)];
   const status = typeof state === 'object' ? state : null;
+  const result = notify?.results.find((r) => r.key === app.key);
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4">
@@ -59,7 +140,7 @@ function SyncCard({ app }: { app: LinkedApp; tick: number }) {
             担当者の画面 ↗
           </a>
           <button type="button" className={btn.secondary} disabled={busy} onClick={() => void load(true)}>
-            {busy && state !== null ? '読み直しています…' : '今すぐ読み直す'}
+            {busy ? '読み直しています…' : '今すぐ読み直す'}
           </button>
         </div>
       </div>
@@ -68,24 +149,34 @@ function SyncCard({ app }: { app: LinkedApp; tick: number }) {
         {state === 'unreachable' && (
           <p className="text-amber-800">アプリが止まっているか応答しないため、写しの状況を確かめられません。</p>
         )}
-        {state === 'never' && <p className="text-slate-600">アプリが起動してから、まだ一度も台帳を読んでいません。「今すぐ読み直す」で読ませられます。</p>}
+        {state === 'never' && <p className="text-slate-600">まだ一度も台帳を読んでいません。「今すぐ読み直す」で読ませられます。</p>}
         {status && (
           <>
             <p>
-              <span className="text-slate-500">{status.ok ? '最後に写した時刻' : '最後に試した時刻'}：</span>
-              <span className="font-medium">{relativeTime(status.at, Date.now())}</span>
-              <span className="ml-2 text-xs text-slate-500">{new Date(status.at).toLocaleString('ja-JP')}</span>
-              {status.ok && (
-                <span className="ml-3 text-slate-600">
-                  追加 {status.created}件・更新 {status.updated}件
-                </span>
-              )}
+              <span className="text-slate-500">最後に写せた時刻：</span>
+              {status.lastSuccessAt ? <When at={status.lastSuccessAt} /> : <span className="font-medium text-red-700">まだ一度も写せていません</span>}
+            </p>
+            <p>
+              <span className="text-slate-500">最後に試した時刻：</span>
+              <When at={status.at} />
+              <span className="ml-3 text-slate-600">
+                {TRIGGER_LABEL[status.trigger]}・{status.ok ? `追加 ${status.created}件・更新 ${status.updated}件` : '失敗'}
+              </span>
             </p>
             {!status.ok && (
               <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700">
-                写せませんでした：{status.error ?? '理由は返ってきませんでした'}。アプリは前回までの写しのまま動いています。
+                写せませんでした：{status.error ?? '理由は返ってきませんでした'}。
+                {status.lastSuccessAt
+                  ? staleText(status.lastSuccessAt)
+                  : 'アプリには台帳の内容がまだ写っていません。'}
               </p>
             )}
+          </>
+        )}
+        <NoticeLine notify={notify} result={result} />
+        {status && (
+          <>
+            <HistoryList history={status.history} />
             {status.unlinked.length > 0 ? (
               <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900">
                 <p className="font-medium">台帳と結び付いていない担当者が {status.unlinked.length}名います（台帳の変更が反映されません）</p>
@@ -104,20 +195,31 @@ function SyncCard({ app }: { app: LinkedApp; tick: number }) {
 
 export default function LinksPage() {
   const tick = useTick();
+  const [notify, setNotify] = useState<NotifyStatus | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void fetchNotifyStatus().then((n) => alive && setNotify(n));
+    return () => {
+      alive = false;
+    };
+  }, [tick]);
+
   return (
     <div className="space-y-8">
       <section className="space-y-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800">写しを持つアプリ</h2>
           <p className="mt-1 text-sm text-slate-600">
-            担当者・部署を自分の DB へ写して使うアプリです。台帳の変更は、そのアプリの担当者の一覧かこの画面が開かれたとき（前回から5分以上たっていれば）に写ります。
+            担当者・部署を自分の DB へ写して使うアプリです。台帳で保存すると、数秒のうちに台帳から知らせて写し直させます。
+            知らせが届かなかったときは、そのアプリで担当者の一覧が開かれたとき（前回から5分以上たっていれば）に追いつきます。
           </p>
         </div>
         {LINKED_APPS.map((app) => (
-          <SyncCard key={app.syncUrl} app={app} tick={tick} />
+          <SyncCard key={app.key} app={app} tick={tick} notify={notify} />
         ))}
         <p className="text-xs text-slate-500">
-          写しの状況は各アプリのメモリにだけあり、アプリを作り直すと「未実行」に戻ります。
+          写しの記録は各アプリの DB に直近20回分あり、作り直しても残ります。台帳からの知らせの結果は台帳のメモリにだけあり、台帳を作り直すと消えます。
         </p>
       </section>
 

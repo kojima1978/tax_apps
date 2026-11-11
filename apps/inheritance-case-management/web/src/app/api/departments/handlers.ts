@@ -9,5 +9,5 @@ export const { listAndCreate, byId } = createCrudRouteHandlers({
   entityLabel: '部署',
   createSchema: createDepartmentSchema,
   updateSchema: updateDepartmentSchema,
-  beforeList: () => syncStaffDirectory(),
+  beforeList: () => syncStaffDirectory('interval'),
 });

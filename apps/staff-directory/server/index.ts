@@ -3,6 +3,7 @@ import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import { checkDbHealth, getDb } from './db.js';
 import { createApiRouter } from './api.js';
+import { createNotifier, resolveTargets } from './notify.js';
 
 const PORT = Number(process.env.PORT ?? 3031);
 const BASE_PATH = '/staff-directory';
@@ -24,7 +25,9 @@ app.get(`${BASE_PATH}/api/health`, (_req, res) => {
   res.json({ status: 'ok', database: 'ok' });
 });
 
-app.use(`${BASE_PATH}/api`, createApiRouter(getDb()));
+// 保存のたびに写しを持つアプリ（案件管理・PB）へ知らせる。送り先は LINKED_APP_ORIGINS（server/notify.ts）
+const notifier = createNotifier({ targets: resolveTargets(process.env.LINKED_APP_ORIGINS) });
+app.use(`${BASE_PATH}/api`, createApiRouter(getDb(), { notifier }));
 
 // 画面の配信。本番はビルド済みの dist/、dev は Vite をミドルウェアとして組み込む
 if (isProduction) {

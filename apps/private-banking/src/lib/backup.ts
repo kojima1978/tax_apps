@@ -649,7 +649,7 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
   if (new Set(codes).size !== codes.length) throw new BackupError("担当者台帳に重複コードがあります。");
 
   // 結び付け先を最新にしてから照合する（台帳が止まっていれば今の写しのまま）
-  await syncStaffDirectory({ force: true });
+  await syncStaffDirectory("manual");
   await prisma.$transaction(async (tx) => {
     await tx.activityLog.deleteMany();
     await tx.planningScenario.deleteMany();
@@ -762,7 +762,7 @@ export async function importHousehold(backup: HouseholdBackup) {
   const currentFiscalYear = currentFiscalYearOf(backup.snapshots);
 
   const clientCode = await availableClientCode(backup.household.clientCode.toUpperCase());
-  await syncStaffDirectory({ force: true });
+  await syncStaffDirectory("manual");
   const created = await prisma.$transaction(async (tx) => {
     const staffIdOf = await resolveStaffIds(tx, [backup.household]);
     const household = await tx.household.create({ data: { ...householdData(backup.household, staffIdOf(backup.household)), clientCode }, select: { id: true, clientCode: true, name: true } });

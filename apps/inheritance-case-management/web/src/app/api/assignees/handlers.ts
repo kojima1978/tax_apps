@@ -11,5 +11,5 @@ export const { listAndCreate, byId } = createCrudRouteHandlers({
   createSchema: createAssigneeSchema,
   updateSchema: updateAssigneeSchema,
   include: ASSIGNEE_INCLUDE,
-  beforeList: () => syncStaffDirectory(),
+  beforeList: () => syncStaffDirectory('interval'),
 });

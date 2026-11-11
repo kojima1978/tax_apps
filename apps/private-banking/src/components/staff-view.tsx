@@ -83,21 +83,21 @@ export function StaffView() {
   return <>
     <div className="page-heading"><div><BackToClientList /><h1>担当者</h1><p>担当者は社員台帳の写しです。追加・修正・退職は社員台帳で行います。</p></div></div>
     {error ? <p className="error-banner" role="alert"><AlertTriangle />{error}</p> : null}
-    {sync && !sync.ok ? <p className="error-banner" role="alert"><AlertTriangle />社員台帳から読み直せませんでした（{sync.error}）。前回までの写しで表示しています。</p> : null}
+    {sync && !sync.ok ? <p className="error-banner" role="alert"><AlertTriangle />{syncTime(sync.at)} に社員台帳から読み直せませんでした（{sync.error}）。前回までの写しで表示しています。</p> : null}
     {unlinkedCount > 0
       ? <p className="error-banner" role="status"><AlertTriangle />社員台帳に居ない担当者が{unlinkedCount}人います（在籍状態「未連携」）。候補には出ないので、担当している顧客は担当者を選び直してください。</p>
       : null}
     <article className="panel staff-panel">
       <PanelHeader
         title="担当者の一覧"
-        subtitle="社員台帳で直した内容は、この画面か担当者の選択欄を開いたとき（前回から5分以上たっていれば）に写ります。すぐに写したいときは「今すぐ読み直す」を押します。"
+        subtitle="社員台帳で保存すると数秒でここへ写ります。写っていないときは「今すぐ読み直す」を押します。"
         action={<div className="staff-sync-actions">
           <a className="button secondary" href={STAFF_DIRECTORY_PAGE} target="_blank" rel="noreferrer"><ExternalLink />社員台帳を開く</a>
           <button type="button" className="button secondary" onClick={() => { void resync(); }} disabled={syncing}>{syncing ? <LoaderCircle className="spin" /> : <RefreshCw />}今すぐ読み直す</button>
         </div>}
       />
       <div className="staff-panel-body">
-        {sync?.ok ? <p className="staff-sync-time">最終の読み直し: {syncTime(sync.at)}</p> : null}
+        {sync?.lastSuccessAt ? <p className="staff-sync-time">最終の読み直し: {syncTime(sync.lastSuccessAt)}</p> : null}
         <div className="staff-list-toolbar">
           <label className="staff-list-search"><span>検索</span><div><Search aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="氏名・カナ・コード・部署" /></div></label>
           <label><span>在籍状態</span><select value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)}><option value="active">在籍</option><option value="retired">退職</option><option value="unlinked">未連携</option><option value="all">すべて</option></select></label>

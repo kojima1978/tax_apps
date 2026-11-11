@@ -32,8 +32,25 @@ describe('parseSyncStatus', () => {
   it('案件管理の形（unlinkedAssignees）を読む', () => {
     const body = { ok: true, at: '2026-11-10T01:00:00.000Z', created: 1, updated: 2, unlinkedAssignees: [{ id: 3, name: '架空太郎' }] };
     expect(parseSyncStatus(body)).toEqual({
-      ok: true, at: '2026-11-10T01:00:00.000Z', error: null, created: 1, updated: 2, unlinked: [{ id: 3, name: '架空太郎' }],
+      ok: true, at: '2026-11-10T01:00:00.000Z', trigger: 'manual', error: null, created: 1, updated: 2,
+      lastSuccessAt: null, unlinked: [{ id: 3, name: '架空太郎' }],
+      history: [{ ok: true, at: '2026-11-10T01:00:00.000Z', trigger: 'manual', error: null, created: 1, updated: 2 }],
     });
+  });
+
+  it('最後に成功した時刻・きっかけ・履歴を読む', () => {
+    const body = {
+      ok: false, at: '2026-11-10T02:00:00.000Z', trigger: 'directory', error: '社員台帳に接続できませんでした', created: 0, updated: 0,
+      lastSuccessAt: '2026-11-10T01:00:00.000Z', unlinkedAssignees: [],
+      history: [
+        { ok: false, at: '2026-11-10T02:00:00.000Z', trigger: 'directory', error: '社員台帳に接続できませんでした', created: 0, updated: 0 },
+        { ok: true, at: '2026-11-10T01:00:00.000Z', trigger: 'interval', error: null, created: 0, updated: 1 },
+        'broken',
+      ],
+    };
+    const parsed = parseSyncStatus(body);
+    expect(parsed).toMatchObject({ trigger: 'directory', lastSuccessAt: '2026-11-10T01:00:00.000Z' });
+    expect(typeof parsed === 'object' && parsed.history.map((h) => h.trigger)).toEqual(['directory', 'interval']);
   });
 
   it('資産・負債管理の形（unlinkedStaff）と失敗の理由を読む', () => {

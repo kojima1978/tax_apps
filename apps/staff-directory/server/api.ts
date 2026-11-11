@@ -32,6 +32,7 @@ import {
   type StaffStatus,
 } from './repo.js';
 import { exportDirectory, parseBackup, restoreDirectory } from './backup.js';
+import type { Notifier } from './notify.js';
 
 // 読み取り（GET）は他アプリからも呼ばれる。書き込みは台帳の画面だけが使う。
 // 社員の DELETE は置かない ── 台帳IDは他アプリが控えとして持つので、消すと
@@ -66,8 +67,32 @@ function respond<T>(res: Response, parsed: Result<T>, run: (value: T) => unknown
   }
 }
 
-export function createApiRouter(db: Database.Database): Router {
+// 保存しても写しを持つアプリへ知らせない書き込み。preview は巻き戻すので台帳は変わらない。
+// 住所・生年月日は写しに入らない（他アプリは1人ずつ /staff/:id/personal を読む）
+const SILENT_WRITES = [/^\/backup\/preview$/, /^\/staff\/[^/]+\/personal$/];
+
+export function createApiRouter(db: Database.Database, options: { notifier?: Notifier } = {}): Router {
   const r = Router();
+  const { notifier } = options;
+
+  // 書き込みが成功したら（応答を返したあとで）写しを持つアプリへ知らせる。保存の応答は待たせない
+  if (notifier) {
+    r.use((req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD' && !SILENT_WRITES.some((re) => re.test(req.path))) {
+        res.on('finish', () => {
+          if (res.statusCode < 300) notifier.notify();
+        });
+      }
+      next();
+    });
+  }
+
+  // 保存のたびの知らせの状況（連携の画面が読む）。知らせを使わない構成では enabled: false
+  r.get('/notify', (_req, res) => {
+    res.set('Cache-Control', 'no-store').json(
+      notifier?.status() ?? { enabled: false, targets: [], pending: false, lastChangeAt: null, results: [] },
+    );
+  });
 
   r.get('/staff', (req, res) => {
     const status = (req.query.status ?? 'active') as StaffStatus;
