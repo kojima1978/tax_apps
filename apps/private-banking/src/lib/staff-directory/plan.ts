@@ -4,6 +4,9 @@
 // 結び付けは台帳ID（staffDirectoryId）だけ。名前では結び付けない ── 苗字だけの登録が多く、
 // 同姓の別人を同じ人にしてしまう。台帳に居ない担当者（台帳ID の無い行）は「未連携」として
 // 選択の候補から外す（isActive=false）。担当していた顧客の表示はそのまま残る。
+// 在籍かどうかは台帳と同じ判定（shared/staff-retirement: 退職日の翌日から退職）。
+
+import { isRetired, jstToday } from "@/shared/staff-retirement/retirement";
 
 export interface DirectoryStaff {
   id: number;
@@ -74,7 +77,8 @@ export interface StaffPlan {
   conflicts: string[];
 }
 
-export function planStaff(directory: DirectoryStaff[], local: LocalStaff[]): StaffPlan {
+/** today は日本時間の今日。退職予定の人は退職日まで候補に残り、日付をまたいだ後の写し直しで外れる */
+export function planStaff(directory: DirectoryStaff[], local: LocalStaff[], today: string = jstToday()): StaffPlan {
   const byDirectoryId = new Map(local.filter((row) => row.staffDirectoryId !== null).map((row) => [row.staffDirectoryId!, row]));
   const ops: SyncOp<StaffData>[] = [];
   const conflicts: string[] = [];
@@ -99,7 +103,7 @@ export function planStaff(directory: DirectoryStaff[], local: LocalStaff[]): Sta
       name: staff.name,
       nameKana: staff.nameKana ?? "",
       department: staff.departmentName ?? "",
-      isActive: staff.retiredOn === null,
+      isActive: !isRetired(staff.retiredOn, today),
       staffDirectoryId: staff.id,
     };
     const current = byDirectoryId.get(staff.id);

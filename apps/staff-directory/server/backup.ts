@@ -150,7 +150,7 @@ export function summarizeDirectory(db: Database.Database): DirectorySummary {
     companies: count('SELECT count(*) FROM companies'),
     departments: count('SELECT count(*) FROM departments'),
     staff: count('SELECT count(*) FROM staff'),
-    activeStaff: count('SELECT count(*) FROM staff WHERE retired_on IS NULL'),
+    activeStaff: count('SELECT count(*) FROM staff WHERE NOT is_retired(retired_on)'),
     withPersonal: count(
       `SELECT count(*) FROM staff WHERE postal_code <> '' OR address <> '' OR birth_date IS NOT NULL`,
     ),

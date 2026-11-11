@@ -8,6 +8,9 @@
 // 担当者は名前では結び付けない ── 苗字だけの登録が多く、同姓の別人を同じ人にしてしまう。
 // どれにも当たらない台帳側の人・部署は新しく作る。台帳に居ない案件管理側の担当者は
 // 触らずに「未連携」として返す（直すのは台帳側の取込 `npm run import:itcm`）。
+// 在籍かどうかは台帳と同じ判定（shared/staff-retirement: 退職日の翌日から退職）。
+
+import { isRetired, jstToday } from '@/shared/staff-retirement/retirement';
 
 export interface DirectoryDepartment {
   id: number;
@@ -160,6 +163,8 @@ export function planAssignees(
   links: DirectoryLink[],
   local: LocalAssignee[],
   departmentIdByDirectoryId: Map<number, number>,
+  /** 日本時間の今日。退職予定の人は退職日まで候補に残り、日付をまたいだ後の写し直しで外れる */
+  today: string = jstToday(),
 ): SyncOp<AssigneeData>[] {
   const linked = linkMap(links, 'staff');
   const matched = matchRows(local, directory, [(d, free) => free.get(linked.get(d.id) ?? -1)]);
@@ -170,7 +175,7 @@ export function planAssignees(
       name: s.name,
       employeeId: s.employeeNo,
       departmentId: s.departmentId === null ? null : (departmentIdByDirectoryId.get(s.departmentId) ?? null),
-      active: s.retiredOn === null,
+      active: !isRetired(s.retiredOn, today),
       staffDirectoryId: s.id,
     };
     const current = matched.get(s.id);

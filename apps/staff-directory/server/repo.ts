@@ -119,11 +119,11 @@ export function shortNameOf(
   return self.familyName + self.givenName;
 }
 
-// 退職は「退職日を過ぎたか」ではなく「退職日が入っているか」で判定する
-// （各アプリに日付の比較を持たせない）。退職日は辞めた後に入れる運用。
+// 退職日は「最後に在籍する日」。その日までは在籍（退職予定）で、翌日から退職。
+// 判定は shared/staff-retirement の isRetired（db.ts で SQL の is_retired として登録）だけに置く
 const STATUS_WHERE: Record<StaffStatus, string> = {
-  active: 'WHERE s.retired_on IS NULL',
-  retired: 'WHERE s.retired_on IS NOT NULL',
+  active: 'WHERE NOT is_retired(s.retired_on)',
+  retired: 'WHERE is_retired(s.retired_on)',
   all: '',
 };
 
@@ -136,7 +136,7 @@ function loadStaff(db: Database.Database, where: string, params: unknown[] = [])
   if (rows.length === 0) return [];
 
   const active = (
-    db.prepare('SELECT id, family_name, given_name FROM staff WHERE retired_on IS NULL').all() as Pick<
+    db.prepare('SELECT id, family_name, given_name FROM staff WHERE NOT is_retired(retired_on)').all() as Pick<
       StaffRow,
       'id' | 'family_name' | 'given_name'
     >[]
@@ -321,7 +321,7 @@ export function listCompanies(db: Database.Database): Company[] {
       `SELECT c.*,
          (SELECT count(*) FROM departments d WHERE d.company_id = c.id) AS department_count,
          (SELECT count(*) FROM staff_affiliations a JOIN staff s ON s.id = a.staff_id
-          WHERE a.company_id = c.id AND s.retired_on IS NULL) AS staff_count
+          WHERE a.company_id = c.id AND NOT is_retired(s.retired_on)) AS staff_count
        FROM companies c ORDER BY c.sort_order, c.id`,
     )
     .all() as CompanyRow[];
@@ -428,7 +428,7 @@ export function listDepartments(db: Database.Database): Department[] {
     .prepare(
       `SELECT d.*, c.name AS company_name, c.short_name AS company_short_name,
          (SELECT count(*) FROM staff_affiliations a JOIN staff s ON s.id = a.staff_id
-          WHERE a.department_id = d.id AND s.retired_on IS NULL) AS staff_count
+          WHERE a.department_id = d.id AND NOT is_retired(s.retired_on)) AS staff_count
        FROM departments d JOIN companies c ON c.id = d.company_id
        ORDER BY c.sort_order, c.id, d.sort_order, d.id`,
     )

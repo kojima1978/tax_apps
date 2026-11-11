@@ -122,3 +122,17 @@ describe('planAssignees', () => {
     ]);
   });
 });
+
+describe('planAssignees: 退職予定', () => {
+  const s = { id: 1, employeeNo: null, name: '山田', departmentId: null, retiredOn: '2026-11-13' };
+  const linkedLocal = [assignee({ id: 12, name: '山田', staffDirectoryId: 1 })];
+
+  it('退職日が今日以降なら在籍のまま（候補に残る）', () => {
+    expect(planAssignees([s], [], linkedLocal, new Map(), '2026-11-12')).toEqual([]);
+    expect(planAssignees([s], [], linkedLocal, new Map(), '2026-11-13')).toEqual([]);
+  });
+
+  it('退職日の翌日の写し直しで候補から外れる', () => {
+    expect(planAssignees([s], [], linkedLocal, new Map(), '2026-11-14')).toEqual([{ kind: 'update', id: 12, data: { active: false } }]);
+  });
+});

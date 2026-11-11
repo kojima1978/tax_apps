@@ -29,6 +29,10 @@ TARGETS=(
   staff-workload:stock-valuation-form::server/shared
   staff-workload:bank-analyzer::server/shared
   staff-workload:staff-directory:test
+  # 在籍・退職の判定（退職日の翌日から退職。台帳と、写しを持つ案件管理・PB で同じ判定にする）
+  staff-retirement:staff-directory::server/shared
+  staff-retirement:inheritance-case-management/web:test
+  staff-retirement:private-banking:
 )
 
 check=0

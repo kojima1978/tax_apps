@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
+import { isRetired } from './shared/staff-retirement/retirement.js';
 
 const DB_PATH = process.env.DATABASE_PATH ?? path.resolve('data', 'staff.sqlite');
 
@@ -20,6 +21,11 @@ export function openDb(file: string): Database.Database {
   d.pragma('journal_mode = WAL');
   d.pragma('busy_timeout = 5000');
   d.pragma('foreign_keys = ON');
+  // 在籍・退職の判定は shared/staff-retirement の1か所だけに置く（SQL に日付の比較を書かない）。
+  // 呼ぶたびに今日の日付で決めるので、日付をまたいだら次の問い合わせから自然に切り替わる
+  d.function('is_retired', { deterministic: false }, (retiredOn: unknown) =>
+    isRetired(typeof retiredOn === 'string' ? retiredOn : null) ? 1 : 0,
+  );
   initSchema(d);
   return d;
 }

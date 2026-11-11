@@ -99,3 +99,16 @@ describe("planStaff", () => {
     ]);
   });
 });
+
+describe("planStaff: 退職予定", () => {
+  const retiring = directory({ id: 1, retiredOn: "2026-11-13" });
+
+  it("退職日が今日以降なら在籍のまま（候補に残る）", () => {
+    expect(planStaff([retiring], [local({ id: 10 })], "2026-11-12").ops).toEqual([]);
+    expect(planStaff([retiring], [local({ id: 10 })], "2026-11-13").ops).toEqual([]);
+  });
+
+  it("退職日の翌日の写し直しで候補から外れる", () => {
+    expect(planStaff([retiring], [local({ id: 10 })], "2026-11-14").ops).toEqual([{ kind: "update", id: 10, data: { isActive: false } }]);
+  });
+});

@@ -1,5 +1,6 @@
 import { WORKLOAD_SOURCES, type WorkloadSource } from '../server/linkedApps';
 import { PRIMARY_ROLE, WORKLOAD_PATH, parseWorkload, type StaffWorkload, type WorkloadResponse } from './shared/staff-workload/workload';
+import { isRetired, jstToday } from '../server/shared/staff-retirement/retirement';
 import type { Staff } from './types';
 
 // 社員ごとの担当件数。各アプリ（server/linkedApps.ts の WORKLOAD_SOURCES）をゲートウェイの下から
@@ -107,7 +108,21 @@ export function workloadTitle(lines: WorkloadLine[]): string {
   return out.length ? out.join('\n') : '担当している案件はありません';
 }
 
-/** 退職者のうち、まだ担当（進行中）が残っている人 */
-export function retiredWithWorkload(staff: Staff[], index: WorkloadIndex): Staff[] {
-  return staff.filter((s) => s.retiredOn !== null && (primaryActive(index, s.id) ?? 0) > 0);
+/** 担当（進行中）が1件以上ある人 */
+export function withWorkload(staff: Staff[], index: WorkloadIndex): Staff[] {
+  return staff.filter((s) => (primaryActive(index, s.id) ?? 0) > 0);
+}
+
+/** 退職者（退職日を過ぎた人）のうち、まだ担当（進行中）が残っている人。退職予定の人は入れない */
+export function retiredWithWorkload(staff: Staff[], index: WorkloadIndex, today: string = jstToday()): Staff[] {
+  return withWorkload(staff.filter((s) => isRetired(s.retiredOn, today)), index);
+}
+
+/** 編集画面の注意に使う、まだ残っている担当（主の役割の進行中）。一覧へのリンクつき */
+export function remainingWorkload(lines: WorkloadLine[]): { app: string; active: number; url: string | null }[] {
+  return lines.flatMap((l) => {
+    if (l.unreachable) return [];
+    const r = l.roles.find((x) => x.primary);
+    return r && r.active > 0 ? [{ app: l.source.label, active: r.active, url: r.url }] : [];
+  });
 }

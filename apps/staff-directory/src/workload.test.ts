@@ -3,6 +3,7 @@ import { WORKLOAD_SOURCES } from '../server/linkedApps';
 import {
   formatRoleCount,
   indexWorkloads,
+  remainingWorkload,
   primaryActive,
   retiredWithWorkload,
   workloadLines,
@@ -94,6 +95,23 @@ describe('retiredWithWorkload', () => {
       { id: 3, retiredOn: '2026-03-31' },
       { id: 4, retiredOn: null },
     ] as Staff[];
-    expect(retiredWithWorkload(people, index).map((s) => s.id)).toEqual([1]);
+    expect(retiredWithWorkload(people, index, '2026-11-12').map((s) => s.id)).toEqual([1]);
+  });
+
+  it('退職日が今日以降（退職予定）の人は退職者に数えない。翌日から数える', () => {
+    const index = indexWorkloads(apps);
+    const people = [{ id: 1, retiredOn: '2026-11-12' }] as Staff[];
+    expect(retiredWithWorkload(people, index, '2026-11-12')).toEqual([]);
+    expect(retiredWithWorkload(people, index, '2026-11-13').map((s) => s.id)).toEqual([1]);
+  });
+});
+
+describe('remainingWorkload', () => {
+  it('主の役割（担当）の進行中が残っているアプリだけ、一覧へのリンクつきで。読めないアプリは入れない', () => {
+    expect(remainingWorkload(workloadLines(indexWorkloads(apps), 1))).toEqual([
+      { app: '案件管理', active: 2, url: '/itcm?assigneeId=10&fiscalYear=all' },
+      { app: '資産・負債管理（PB）', active: 3, url: '/private-banking?staffId=7' },
+    ]);
+    expect(remainingWorkload(workloadLines(indexWorkloads(apps), 3))).toEqual([]);
   });
 });

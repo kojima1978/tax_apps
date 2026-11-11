@@ -17,7 +17,8 @@ import {
   type StaffGroup,
 } from '../staffList';
 import type { Affiliation, Staff, StaffStatus } from '../types';
-import { fetchWorkloads, indexWorkloads, primaryActive, retiredWithWorkload, workloadLines, workloadTitle } from '../workload';
+import { fetchWorkloads, indexWorkloads, primaryActive, retiredWithWorkload, withWorkload, workloadLines, workloadTitle } from '../workload';
+import { formatRetireDate, jstToday, retireCountdown, retirementState, scheduledRetirees, type RetirementState } from '../retirement';
 
 const STATUS_TABS: { value: StaffStatus; label: string }[] = [
   { value: 'active', label: '在籍' },
@@ -69,6 +70,8 @@ export default function StaffPage() {
   const missing = parseMissing(params.get('missing'));
   // 担当（進行中）の残っている人だけに絞る（?assigned=1。「退職者の担当あり」のチップから）
   const assignedOnly = params.get('assigned') === '1';
+  // 退職予定（退職日が今日以降でまだ在籍）の人だけに絞る（?retiring=1）
+  const retiringOnly = params.get('retiring') === '1';
   // 1文字打つたびに履歴が積まれないよう、置き換えで書く
   const setParam = (patch: Record<string, string>) =>
     setParams(
@@ -82,8 +85,8 @@ export default function StaffPage() {
       },
       { replace: true },
     );
-  // 「退職者の担当あり」の絞り込みは退職の一覧のためのものなので、切り替えたら外す
-  const setStatus = (v: StaffStatus) => setParam({ status: v === 'active' ? '' : v, assigned: '' });
+  // 「退職者の担当あり」は退職の一覧、「退職予定」は在籍の一覧のための絞り込みなので、切り替えたら外す
+  const setStatus = (v: StaffStatus) => setParam({ status: v === 'active' ? '' : v, assigned: '', retiring: '' });
   const setQuery = (v: string) => {
     setQueryState(v);
     setParam({ q: v.trim() === '' ? '' : v });
@@ -133,15 +136,24 @@ export default function StaffPage() {
   }, [staff.data, company, department, query]);
 
   const missingCounts = useMemo(() => countMissing(matched), [matched]);
+  // 日付が変わったら判定も変わるので、描画のたびに日本時間の今日を取る
+  const today = jstToday();
+  const retiring = useMemo(() => scheduledRetirees(matched, today), [matched, today]);
+  const retiringAssigned = useMemo(() => withWorkload(retiring, workloadIndex), [retiring, workloadIndex]);
 
   const rows = useMemo(
     () =>
       sortStaff(
-        matched.filter((s) => (!missing || isMissing(s, missing)) && (!assignedOnly || (primaryActive(workloadIndex, s.id) ?? 0) > 0)),
+        matched.filter(
+          (s) =>
+            (!missing || isMissing(s, missing)) &&
+            (!assignedOnly || (primaryActive(workloadIndex, s.id) ?? 0) > 0) &&
+            (!retiringOnly || retirementState(s.retiredOn, today) === 'scheduled'),
+        ),
         sort,
         sortOrder,
       ),
-    [matched, missing, assignedOnly, workloadIndex, sort.key, sort.desc, sortOrder],
+    [matched, missing, assignedOnly, retiringOnly, today, workloadIndex, sort.key, sort.desc, sortOrder],
   );
 
   // 所属で並べているときだけ、部署が変わる行に小見出しを入れる（ほかの並びでは部署が飛び飛びになり、見出しだらけになる）
@@ -151,7 +163,7 @@ export default function StaffPage() {
   );
 
   const total = staff.data?.length ?? 0;
-  const filtered = company !== '' || department !== '' || query.trim() !== '' || missing !== null || assignedOnly;
+  const filtered = company !== '' || department !== '' || query.trim() !== '' || missing !== null || assignedOnly || retiringOnly;
   const retiredChipActive = status === 'retired' && assignedOnly;
   const statusLabel = STATUS_TABS.find((t) => t.value === status)!.label;
 
@@ -259,6 +271,24 @@ export default function StaffPage() {
               </button>
             );
           })}
+          {(retiring.length > 0 || retiringOnly) && (
+            <button
+              type="button"
+              aria-pressed={retiringOnly}
+              onClick={() => setParam({ retiring: retiringOnly ? '' : '1' })}
+              title={
+                retiringOnly
+                  ? '押すと絞り込みを解除'
+                  : '退職日が決まっていて、まだ在籍している人だけを出します（退職日の翌日から退職の一覧へ移ります）'
+              }
+              className={`rounded-full px-2.5 py-0.5 text-xs ring-1 ${
+                retiringOnly ? 'bg-orange-600 text-white ring-orange-600' : 'bg-orange-50 text-orange-800 ring-orange-200 hover:bg-orange-100'
+              } ${retiringAssigned.length > 0 ? 'font-medium' : ''}`}
+            >
+              退職予定 {retiring.length}名{retiringAssigned.length > 0 && `（担当あり ${retiringAssigned.length}名）`}
+              {retiringOnly && ' ✕'}
+            </button>
+          )}
           {(retiredAssigned.length > 0 || retiredChipActive) && (
             <button
               type="button"
@@ -333,11 +363,12 @@ export default function StaffPage() {
                 ),
                 ...g.staff.map((s) => {
                 const [primary, ...others] = s.affiliations;
+                const state = retirementState(s.retiredOn, today);
                 return (
                   <tr
                     key={s.id}
                     onClick={() => setEditing(s)}
-                    className={`cursor-pointer hover:bg-teal-50/50 ${s.retiredOn ? 'text-slate-400' : ''}`}
+                    className={`cursor-pointer hover:bg-teal-50/50 ${state === 'retired' ? 'text-slate-400' : ''}`}
                   >
                     <td className="px-4 py-2.5 tabular-nums">{s.employeeNo ?? ''}</td>
                     <td className="truncate px-4 py-2.5 font-medium" title={s.fullName}>
@@ -358,8 +389,16 @@ export default function StaffPage() {
                           ほか{others.length}社
                         </span>
                       )}
+                      {state === 'scheduled' && s.retiredOn && (
+                        <span
+                          className="ml-2 whitespace-nowrap rounded bg-orange-50 px-1.5 py-0.5 text-xs text-orange-800 ring-1 ring-orange-200"
+                          title={`退職日 ${s.retiredOn}（${retireCountdown(s.retiredOn, today)}）。その日までは在籍です`}
+                        >
+                          {formatRetireDate(s.retiredOn, today)} 退職予定
+                        </span>
+                      )}
                     </td>
-                    <WorkloadCell n={workloads.data ? primaryActive(workloadIndex, s.id) : undefined} retired={s.retiredOn !== null} title={workloads.data ? workloadTitle(workloadLines(workloadIndex, s.id)) : '担当件数を読んでいます'} />
+                    <WorkloadCell n={workloads.data ? primaryActive(workloadIndex, s.id) : undefined} state={state} title={workloads.data ? workloadTitle(workloadLines(workloadIndex, s.id)) : '担当件数を読んでいます'} />
                     <td className="px-4 py-2.5 tabular-nums">{s.mobilePhone}</td>
                   </tr>
                 );
@@ -396,11 +435,13 @@ export default function StaffPage() {
 }
 
 // 担当の件数。undefined = 読んでいる途中、null = どのアプリも読めない（「—」）。
-// 退職した人に残っている担当は赤で出す（引き継ぎ漏れ）
-function WorkloadCell({ n, retired, title }: { n: number | null | undefined; retired: boolean; title: string }) {
-  const alert = retired && (n ?? 0) > 0;
+// 退職した人に残っている担当は赤（引き継ぎ漏れ）、退職予定の人に残っている担当は橙（引き継ぎの準備）で出す
+function WorkloadCell({ n, state, title }: { n: number | null | undefined; state: RetirementState; title: string }) {
+  const left = (n ?? 0) > 0;
+  const tone =
+    left && state === 'retired' ? 'font-semibold text-rose-700' : left && state === 'scheduled' ? 'font-semibold text-orange-700' : n === 0 ? 'text-slate-400' : '';
   return (
-    <td className={`px-4 py-2.5 text-right tabular-nums ${alert ? 'font-semibold text-rose-700' : n === 0 ? 'text-slate-400' : ''}`} title={title}>
+    <td className={`px-4 py-2.5 text-right tabular-nums ${tone}`} title={title}>
       {n === undefined ? '' : n === null ? '—' : `${n}件`}
     </td>
   );

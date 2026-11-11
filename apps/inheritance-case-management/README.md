@@ -15,7 +15,7 @@
 | 案件詳細 | `/itcm/[id]` | 基本情報、進捗、報酬/見積、立替金、相続人/関係者、帳票出力、監査ログ |
 | 経営分析 | `/itcm/analytics` | 売上、入金日基準の年計表、部門・担当者、紹介者分析 |
 | 設定 | `/itcm/settings` | マスタ管理、バックアップ/リストア |
-| 担当者設定 | `/itcm/settings/staff` | 部署、担当者、社内紹介者に使う担当者マスタ |
+| 担当者設定 | `/itcm/settings/staff` | 部署、担当者、社内紹介者に使う担当者マスタ（社員台帳の写し。退職日の翌日から使用停止＝候補から外れる。退職予定の人は退職日まで候補に残る。判定は `shared/staff-retirement`） |
 | 紹介者設定 | `/itcm/settings/referral-sources` | 会社、支店、社外紹介者マスタ |
 | 相続人マスタ | `/itcm/settings/heir-persons` | 案件に紐づく相続人の人物マスタ |
 | 関係者マスタ | `/itcm/settings/related-party-persons` | 税理士、司法書士、不動産業者など外部関係者の人物マスタ |

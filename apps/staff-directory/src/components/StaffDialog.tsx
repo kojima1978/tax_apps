@@ -6,7 +6,8 @@ import { WarekiDateField } from './WarekiDateField';
 import { toKatakana } from '../lib';
 import { birthDateError } from '../wareki';
 import type { AffiliationForm, Company, Department, Staff, StaffForm, StaffPersonalForm } from '../types';
-import { formatRoleCount, type WorkloadLine } from '../workload';
+import { formatRoleCount, remainingWorkload, type WorkloadLine } from '../workload';
+import { jstToday, retireCountdown, retirementState } from '../retirement';
 
 type Props = {
   staff: Staff | null; // null = 新規
@@ -50,13 +51,6 @@ function toForm(s: Staff | null, companies: Company[]): StaffForm {
   };
 }
 
-// 今日の日付（端末の時刻で）。toISOString は UTC なので、日本の朝9時前は前日になる
-function todayLocal(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 const EMPTY_PERSONAL: StaffPersonalForm = { postalCode: '', address: '', birthDate: '' };
 
 const NAME_FIELDS = [
@@ -80,12 +74,17 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
   const [revealing, setRevealing] = useState(false);
   // 保存を押したときにだけ出す（打っている途中から「途中までです」と言わない）。直して正しくなれば消える
   const [birthErrorShown, setBirthError] = useState<string | null>(null);
-  // 退職日を入れたときの注意に使う、まだ残っている担当（進行中）。止めはしない
-  const remaining = (workload ?? []).flatMap((l) => {
-    if (l.unreachable) return [];
-    const active = l.roles.find((r) => r.primary)?.active ?? 0;
-    return active > 0 ? [{ app: l.source.label, active }] : [];
-  });
+  // 退職日を入れたとき・所属を変えたときの注意に使う、まだ残っている担当（進行中）。止めはしない
+  const remaining = remainingWorkload(workload ?? []);
+  const remainingText = remaining.map((r) => `${r.app} ${r.active}件`).join('・');
+  // 退職日の当日までは在籍、翌日から退職（判定は shared/staff-retirement）。日付は日本時間
+  const today = jstToday();
+  const savedState = retirementState(staff?.retiredOn ?? null, today);
+  const formState = retirementState(form.retiredOn === '' ? null : form.retiredOn, today);
+  // 異動（会社・部署・主所属の変更、所属の追加・削除）をしたか。社員番号だけの直しは異動に数えない
+  const placement = (list: AffiliationForm[]) => JSON.stringify(list.map((a) => [a.companyId, a.departmentId, a.isPrimary]));
+  const [initialPlacement] = useState(() => placement(form.affiliations));
+  const moved = staff !== null && placement(form.affiliations) !== initialPlacement;
   const birthError = birthErrorShown && personal ? birthDateError(personal.birthDate) : null;
   // 「隠す」は画面から消すだけで、読んだ値と入力中の変更は持ったまま（保存にも乗る）
   const [shown, setShown] = useState(!staff);
@@ -184,11 +183,16 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
     <Modal
       title={staff ? '社員の編集' : '社員の追加'}
       aside={
-        (position || staff?.retiredOn) && (
+        (position || savedState !== 'active') && (
           <>
             {position && <span className="tabular-nums">{position}</span>}
-            {staff?.retiredOn && (
+            {savedState === 'retired' && (
               <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">退職済み</span>
+            )}
+            {savedState === 'scheduled' && staff?.retiredOn && (
+              <span className="rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
+                退職予定（{retireCountdown(staff.retiredOn, today)}）
+              </span>
             )}
           </>
         )
@@ -309,6 +313,13 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
             </button>
             <span className="text-xs text-slate-500">社員番号は会社ごと（仮の番号でも可）。他アプリへは主所属のものを渡します</span>
           </div>
+          {moved && (
+            <p role="status" className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+              担当は人に付いているので、異動しても各アプリの担当は変わりません
+              {remaining.length > 0 ? `（いまの担当: ${remainingText}）` : workload ? '（いまの担当はありません）' : ''}
+              。引き継ぐときは各アプリで担当を付け替えてください。
+            </p>
+          )}
         </Section>
 
         <Section title="個人情報">
@@ -353,13 +364,31 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
             </Field>
           </Section>
           <Section title="退職">
-            {form.retiredOn !== '' && remaining.length > 0 && (
-              <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                まだ担当の案件が残っています（{remaining.map((r) => `${r.app} ${r.active}件`).join('・')}）。
-                保存はできますが、引き継ぎ先を各アプリで決めてください（下の「担当している案件」から開けます）。
+            {formState !== 'active' && remaining.length > 0 && (
+              <p
+                role="alert"
+                className={`rounded-md border px-3 py-2 text-xs ${
+                  formState === 'scheduled' ? 'border-orange-200 bg-orange-50 text-orange-800' : 'border-rose-200 bg-rose-50 text-rose-800'
+                }`}
+              >
+                まだ担当の案件が残っています（
+                {remaining.map((r, i) => (
+                  <span key={r.app}>
+                    {i > 0 && '・'}
+                    {r.url ? (
+                      <a href={r.url} target="_blank" rel="noopener" className="underline hover:no-underline" title="このアプリの一覧を、この人で絞って開きます（別のタブ）">
+                        {r.app} {r.active}件
+                      </a>
+                    ) : (
+                      `${r.app} ${r.active}件`
+                    )}
+                  </span>
+                ))}
+                ）。保存はできますが、
+                {formState === 'scheduled' ? '退職日までに' : ''}引き継ぎ先を各アプリで決めてください。
               </p>
             )}
-            <Field label="退職日" hint="入れると在籍の一覧から外れます（保存したとき）">
+            <Field label="退職日" hint="最後に在籍する日。その日までは在籍で、翌日から在籍の一覧と各アプリの担当者の候補から外れます">
               <div className="flex gap-2">
                 {/* min-w-0: 日付欄の既定の最小幅のせいで、狭い画面でボタンがダイアログの外へはみ出していた */}
                 <input type="date" className={`${inputClass} min-w-0`} value={form.retiredOn} onChange={set('retiredOn')} />
@@ -367,7 +396,7 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
                   <button
                     type="button"
                     className={`${btn.secondary} whitespace-nowrap`}
-                    onClick={() => setForm((f) => ({ ...f, retiredOn: todayLocal() }))}
+                    onClick={() => setForm((f) => ({ ...f, retiredOn: today }))}
                   >
                     今日付けで退職
                   </button>
@@ -382,6 +411,10 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
                 )}
               </div>
             </Field>
+            {formState === 'scheduled' && (
+              <p className="text-xs font-medium text-orange-700">退職予定（{retireCountdown(form.retiredOn, today)}）── それまでは在籍のままです</p>
+            )}
+            {formState === 'retired' && <p className="text-xs text-slate-500">退職（在籍の一覧と担当者の候補から外れます）</p>}
           </Section>
         </div>
 

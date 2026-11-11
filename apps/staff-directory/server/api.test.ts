@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
@@ -93,6 +93,28 @@ describe('社員', () => {
     expect(await names('?status=retired')).toEqual(['鈴木']);
     expect(await names('?status=all')).toHaveLength(2);
     expect((await call('GET', '/staff?status=x')).status).toBe(400);
+  });
+
+  it('退職日は最後に在籍する日。当日までは在籍（退職予定）、翌日（日本時間）から退職に移る', async () => {
+    // HTTP の待ちは本物のタイマーのまま、時計だけ進める
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-11-12T03:00:00Z')); // 日本時間 11/12 12:00
+      await call('POST', '/staff', staff('山田', { retiredOn: '2026-11-12' }));
+      await call('POST', '/staff', staff('鈴木', { retiredOn: '2026-11-13' }));
+      const names = async (q: string) => (await call('GET', `/staff${q}`)).body.map((s: { name: string }) => s.name).sort();
+      expect(await names('')).toEqual(['山田', '鈴木'].sort());
+      expect(await names('?status=retired')).toEqual([]);
+
+      vi.setSystemTime(new Date('2026-11-12T15:00:00Z')); // 日本時間 11/13 0:00（UTC ではまだ 11/12）
+      expect(await names('')).toEqual(['鈴木']);
+      expect(await names('?status=retired')).toEqual(['山田']);
+
+      vi.setSystemTime(new Date('2026-11-13T15:00:00Z')); // 日本時間 11/14
+      expect(await names('')).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('セイ→メイの順に並び、未入力は末尾', async () => {
