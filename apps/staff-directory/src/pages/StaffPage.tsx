@@ -6,6 +6,16 @@ import { normalizeQuery } from '../lib';
 import { ErrorBanner, btn, controlClass } from '../components/ui';
 import StaffDialog from '../components/StaffDialog';
 import { formatSort, parseSort, sortStaff, toggleSort, DEFAULT_SORT, type SortKey } from '../staffSort';
+import {
+  MISSING_KEYS,
+  MISSING_LABEL,
+  countMissing,
+  groupByDepartment,
+  isMissing,
+  nextStaffId,
+  parseMissing,
+  type StaffGroup,
+} from '../staffList';
 import type { Affiliation, Staff, StaffStatus } from '../types';
 
 const STATUS_TABS: { value: StaffStatus; label: string }[] = [
@@ -52,6 +62,8 @@ export default function StaffPage() {
   // それを入力欄の値にすると日本語入力の変換中に文字が巻き戻る
   const [query, setQueryState] = useState(() => params.get('q') ?? '');
   const sort = parseSort(params.get('sort'));
+  // 未入力の人だけに絞る（?missing=kana など。押すたびに切り替え）
+  const missing = parseMissing(params.get('missing'));
   // 1文字打つたびに履歴が積まれないよう、置き換えで書く
   const setParam = (patch: Record<string, string>) =>
     setParams(
@@ -94,28 +106,56 @@ export default function StaffPage() {
     [companies.data, departments.data],
   );
 
-  const rows = useMemo(() => {
+  // 会社・部署・検索語で絞った人。未入力の数はここから数える（未入力の絞り込みを掛ける前）
+  const matched = useMemo(() => {
     const q = normalizeQuery(query);
-    const filtered = (staff.data ?? []).filter((s) => {
+    return (staff.data ?? []).filter((s) => {
       if (!matchesAffiliation(s, company, department)) return false;
       if (!q) return true;
       return [s.fullName, s.shortName, s.nameKana, s.mobilePhone, ...s.affiliations.map((a) => a.employeeNo ?? '')].some((v) =>
         normalizeQuery(v).includes(q),
       );
     });
-    return sortStaff(filtered, sort, sortOrder);
-  }, [staff.data, company, department, query, sort.key, sort.desc, sortOrder]);
+  }, [staff.data, company, department, query]);
 
-  const missingKana = rows.filter((s) => s.familyKana === '').length;
+  const missingCounts = useMemo(() => countMissing(matched), [matched]);
+
+  const rows = useMemo(
+    () => sortStaff(missing ? matched.filter((s) => isMissing(s, missing)) : matched, sort, sortOrder),
+    [matched, missing, sort.key, sort.desc, sortOrder],
+  );
+
+  // 所属で並べているときだけ、部署が変わる行に小見出しを入れる（ほかの並びでは部署が飛び飛びになり、見出しだらけになる）
+  const groups = useMemo(
+    (): (StaffGroup | { key: ''; staff: Staff[] })[] => (sort.key === 'affiliation' ? groupByDepartment(rows) : [{ key: '', staff: rows }]),
+    [rows, sort.key],
+  );
+
+  const total = staff.data?.length ?? 0;
+  const filtered = company !== '' || department !== '' || query.trim() !== '' || missing !== null;
+  const statusLabel = STATUS_TABS.find((t) => t.value === status)!.label;
+
+  // 「保存して次の人へ」: 保存する前の一覧（絞り込み・並び）で次の人を決め、読み直した値で開く ──
+  // 未入力で絞っていると、直した人は読み直した一覧から消えるため
+  async function handleSaved(next: boolean) {
+    const nextId = next && editing ? nextStaffId(rows, editing.id) : null;
+    const [fresh] = await Promise.all([staff.reload(), departments.reload(), companies.reload()]);
+    setEditing(nextId === null ? undefined : (fresh?.find((s) => s.id === nextId) ?? undefined));
+  }
+  const editingIndex = editing ? rows.findIndex((s) => s.id === editing.id) : -1;
 
   const affiliationText = (a: Affiliation) =>
     [multiCompany ? a.companyName : '', a.departmentName ?? ''].filter(Boolean).join(' ');
+
+  // 部署の小見出し（主所属）。会社が1つなら部署名だけ
+  const groupLabel = (g: StaffGroup) =>
+    g.companyName === null ? '所属なし' : [multiCompany ? g.companyName : '', g.departmentName ?? '未所属'].filter(Boolean).join(' ');
 
   return (
     <div className="space-y-4">
       <ErrorBanner message={staff.error ?? departments.error ?? companies.error} />
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3">
           <div className="flex rounded-md border border-slate-300 bg-white p-0.5" role="group" aria-label="在籍状況">
             {STATUS_TABS.map((t) => (
@@ -176,16 +216,43 @@ export default function StaffPage() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-slate-200 px-4 py-2 text-sm">
+          <span className="font-medium tabular-nums text-slate-700" aria-live="polite">
+            {statusLabel} {total}名{filtered && `中 ${rows.length}名`}
+          </span>
+          {MISSING_KEYS.map((k) => {
+            const active = missing === k;
+            // 0人なら出さない。ただし絞り込み中のものは、全員埋め終わっても解除できるように残す
+            if (missingCounts[k] === 0 && !active) return null;
+            return (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setParam({ missing: active ? '' : k })}
+                title={active ? '押すと絞り込みを解除' : 'この人だけに絞り込む'}
+                className={`rounded-full px-2.5 py-0.5 text-xs ring-1 ${
+                  active ? 'bg-amber-600 text-white ring-amber-600' : 'bg-amber-50 text-amber-800 ring-amber-200 hover:bg-amber-100'
+                }`}
+              >
+                {MISSING_LABEL[k]} {missingCounts[k]}名{active && ' ✕'}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 幅のある画面はページごとスクロールし、見出しをページの上端に残す。
+            狭い画面は表を横にずらすので、表の枠の中で縦にもスクロールさせて見出しを残す */}
+        <div className="overflow-x-auto max-lg:max-h-[75dvh] lg:overflow-visible">
           <table className="w-full min-w-[48rem] table-fixed text-sm">
-            <thead className="bg-slate-50 text-left text-xs text-slate-500">
+            <thead className="text-left text-xs text-slate-500">
               <tr>
                 {COLUMNS.map((c) => {
                   const active = c.sortKey !== undefined && sort.key === c.sortKey;
                   return (
                     <th
                       key={c.label}
-                      className={`${c.width ?? ''} whitespace-nowrap px-4 py-2 font-medium`}
+                      className={`${c.width ?? ''} sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-4 py-2 font-medium shadow-[inset_0_-1px_0_var(--color-slate-200)]`}
                       aria-sort={active ? (sort.desc ? 'descending' : 'ascending') : undefined}
                     >
                       {c.sortKey ? (
@@ -213,7 +280,16 @@ export default function StaffPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((s) => {
+              {groups.map((g) => [
+                'companyName' in g && (
+                  <tr key={`group-${g.key}`} className="bg-slate-100/70">
+                    <th colSpan={COLUMNS.length} scope="colgroup" className="px-4 py-1.5 text-left text-xs font-semibold text-slate-600">
+                      {groupLabel(g)}
+                      <span className="ml-2 font-normal text-slate-500">{g.staff.length}名</span>
+                    </th>
+                  </tr>
+                ),
+                ...g.staff.map((s) => {
                 const [primary, ...others] = s.affiliations;
                 return (
                   <tr
@@ -244,7 +320,8 @@ export default function StaffPage() {
                     <td className="px-4 py-2.5 tabular-nums">{s.mobilePhone}</td>
                   </tr>
                 );
-              })}
+                }),
+              ])}
               {staff.data && rows.length === 0 && (
                 <tr>
                   <td colSpan={COLUMNS.length} className="px-4 py-8 text-center text-slate-500">
@@ -255,25 +332,19 @@ export default function StaffPage() {
             </tbody>
           </table>
         </div>
-
-        <p className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-          {rows.length}名
-          {missingKana > 0 && <span className="ml-3 text-amber-700">フリガナ未入力 {missingKana}名</span>}
-        </p>
       </div>
 
       {editing !== undefined && companies.data && (
         <StaffDialog
+          // 次の人へ移るときは作り直す（入力欄・変更の有無を前の人から持ち越さない）
+          key={editing?.id ?? 'new'}
           staff={editing}
           companies={companies.data}
           departments={departments.data ?? []}
           onClose={() => setEditing(undefined)}
-          onSaved={() => {
-            setEditing(undefined);
-            void staff.reload();
-            void departments.reload();
-            void companies.reload();
-          }}
+          onSaved={(next) => void handleSaved(next)}
+          hasNext={editing !== null && nextStaffId(rows, editing.id) !== null}
+          position={editingIndex >= 0 ? `${rows.length}名中 ${editingIndex + 1}人目` : undefined}
         />
       )}
     </div>

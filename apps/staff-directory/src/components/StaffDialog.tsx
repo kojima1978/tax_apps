@@ -12,7 +12,12 @@ type Props = {
   companies: Company[];
   departments: Department[];
   onClose: () => void;
-  onSaved: () => void;
+  // next = 「保存して次の人へ」で押された
+  onSaved: (next: boolean) => void;
+  // 一覧の絞り込み・並びで次の人がいるか（いれば「保存して次の人へ」を出す）
+  hasNext?: boolean;
+  // 「12名中 3人目」のような、一覧の中での位置
+  position?: string;
 };
 
 const emptyAffiliation = (companyId: string, isPrimary: boolean): AffiliationForm => ({
@@ -59,7 +64,7 @@ const NAME_FIELDS = [
 ] as const;
 
 // 社員の追加・編集。削除は無い（台帳IDは他アプリが参照しているので消さず、退職日を入れる）。
-export default function StaffDialog({ staff, companies, departments, onClose, onSaved }: Props) {
+export default function StaffDialog({ staff, companies, departments, onClose, onSaved, hasNext, position }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState<StaffForm>(() => toForm(staff, companies));
   // 略称は社員の PUT とは別の口で保存する（server/repo.ts の updateStaffShortName）
@@ -135,8 +140,14 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
     ? `空欄なら「${staff.autoShortName}」`
     : '空欄なら姓から自動で作ります（同姓がいれば名の頭を足す）';
 
-  async function submit(e: FormEvent) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const next = (e.nativeEvent as SubmitEvent).submitter?.getAttribute('data-next') === '1';
+    // 何も変えていなければ保存せずに次へ（台帳からの知らせも送らない）
+    if (next && !dirty) {
+      onSaved(true);
+      return;
+    }
     // 途中まで・存在しない・元号違いの生年月日は送らない（隠していても止めて、欄を見せる）
     const birthProblem = personal && birthDateError(personal.birthDate);
     if (birthProblem) {
@@ -152,7 +163,7 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
       if (personal && (staff || Object.values(personal).some((v) => v !== ''))) {
         await api.updateStaffPersonal(saved.id, personal);
       }
-      onSaved();
+      onSaved(next);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -164,8 +175,13 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
     <Modal
       title={staff ? '社員の編集' : '社員の追加'}
       aside={
-        staff?.retiredOn && (
-          <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">退職済み</span>
+        (position || staff?.retiredOn) && (
+          <>
+            {position && <span className="tabular-nums">{position}</span>}
+            {staff?.retiredOn && (
+              <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">退職済み</span>
+            )}
+          </>
         )
       }
       onClose={onClose}
@@ -175,7 +191,7 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
     >
       <form onSubmit={submit} className="space-y-3">
         <Section title="氏名" first>
-          <div className="grid grid-cols-4 gap-x-4 gap-y-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
             {NAME_FIELDS.map((f, i) => (
               <Field key={f.key} label={f.label} required={'required' in f}>
                 <input
@@ -321,7 +337,7 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
           <p className="text-xs text-slate-500">一覧には出さず、必要なときだけ読みます（他アプリも1人ずつ読みます）</p>
         </Section>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Section title="連絡先">
             <Field label="携帯電話">
               <input className={inputClass} value={form.mobilePhone} onChange={set('mobilePhone')} inputMode="tel" />
@@ -330,7 +346,8 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
           <Section title="退職">
             <Field label="退職日" hint="入れると在籍の一覧から外れます（保存したとき）">
               <div className="flex gap-2">
-                <input type="date" className={inputClass} value={form.retiredOn} onChange={set('retiredOn')} />
+                {/* min-w-0: 日付欄の既定の最小幅のせいで、狭い画面でボタンがダイアログの外へはみ出していた */}
+                <input type="date" className={`${inputClass} min-w-0`} value={form.retiredOn} onChange={set('retiredOn')} />
                 {form.retiredOn === '' ? (
                   <button
                     type="button"
@@ -359,6 +376,17 @@ export default function StaffDialog({ staff, companies, departments, onClose, on
           <button type="button" className={`${btn.secondary} ml-auto`} onClick={requestClose}>
             キャンセル
           </button>
+          {hasNext && (
+            <button
+              type="submit"
+              data-next="1"
+              className={btn.secondary}
+              disabled={saving}
+              title="保存して、一覧の絞り込み・並びのとおり次の人を開きます（変更が無ければそのまま次へ）"
+            >
+              保存して次の人へ
+            </button>
+          )}
           <button type="submit" className={btn.primary} disabled={saving}>
             {saving ? '保存中…' : '保存'}
           </button>

@@ -20,12 +20,12 @@ type FieldDef = {
 
 // 6列の格子に並べる。書き方の例は入力欄の中（placeholder）に置き、欄の下には「どこに刷るか」だけ書く
 const COMPANY_FIELDS: FieldDef[] = [
-  { key: 'name', label: '会社名', span: 'col-span-4', placeholder: '○○税理士法人' },
-  { key: 'shortName', label: '略称', span: 'col-span-2', placeholder: '空なら会社名', hint: '狭い欄に刷る' },
+  { key: 'name', label: '会社名', span: 'sm:col-span-4', placeholder: '○○税理士法人' },
+  { key: 'shortName', label: '略称', span: 'sm:col-span-2', placeholder: '空なら会社名', hint: '狭い欄に刷る' },
 ];
 const CONTACT_FIELDS: FieldDef[] = [
-  { key: 'phone', label: '代表電話', span: 'col-span-2', placeholder: '03-1234-5678', inputMode: 'tel' },
-  { key: 'representative', label: '代表者', span: 'col-span-4', placeholder: '代表社員 山田太郎', hint: '役職と氏名。委任状の受任者欄に刷る' },
+  { key: 'phone', label: '代表電話', span: 'sm:col-span-2', placeholder: '03-1234-5678', inputMode: 'tel' },
+  { key: 'representative', label: '代表者', span: 'sm:col-span-4', placeholder: '代表社員 山田太郎', hint: '役職と氏名。委任状の受任者欄に刷る' },
 ];
 
 // 一覧の件数から、その会社で絞った画面へ飛ぶ。行のクリック（編集を開く）には伝えない
@@ -210,7 +210,7 @@ function CompanyDialog({
     <Modal title={company ? '会社の編集' : '会社の追加'} onClose={onClose} canClose={canClose} dialogRef={ref} wide>
       <form onSubmit={submit} className="space-y-3">
         <Section title="会社" first>
-          <div className="grid grid-cols-6 gap-x-4 gap-y-3">{COMPANY_FIELDS.map(renderField)}</div>
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-6">{COMPANY_FIELDS.map(renderField)}</div>
         </Section>
         <Section title="所在地">
           <AddressFields
@@ -219,7 +219,7 @@ function CompanyDialog({
           />
         </Section>
         <Section title="連絡先・代表者">
-          <div className="grid grid-cols-6 gap-x-4 gap-y-3">{CONTACT_FIELDS.map(renderField)}</div>
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-6">{CONTACT_FIELDS.map(renderField)}</div>
         </Section>
 
         <ErrorBanner message={error} />
