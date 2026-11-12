@@ -714,6 +714,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-combobox-option { width: 100%; min-height: 38px; padding: 6px 9px; color: var(--slate-950); background: transparent; border: 0; border-radius: 5px; text-align: left; display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .staff-combobox-option strong { font-size: 13px; }
 .staff-combobox-option span { margin-left: auto; color: var(--slate-600); font-size: 10px; white-space: nowrap; }
+/* 退職予定・退職の印（shared/staff-retirement の retirementMark）。台帳の担当者ダイアログと同じ琥珀色 */
+.staff-combobox-mark { padding: 1px 6px; color: #78350f; background: #fef3c7; border-radius: 4px; font-size: 10px; font-style: normal; font-weight: 700; white-space: nowrap; }
 .staff-combobox-group + .staff-combobox-group { margin-top: 3px; }
 /* 見出しはスクロール中も残す（どの部署を見ているかが分からなくなるため）。-5px は一覧の内側余白ぶん。 */
 .staff-combobox-group-label { position: sticky; top: -5px; z-index: 1; display: flex; gap: 8px; margin: 0; padding: 6px 9px 3px; color: var(--slate-700); background: #fff; font-size: 10px; font-weight: 800; }
@@ -727,6 +729,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .person-form-grid .staff-combobox-input input { margin-top: 0; padding: 9px 38px 9px 35px; }
 .staff-field-note { display: block; margin-top: 4px; font-size: 11px; font-weight: 700; }
 .staff-field-note.is-error { color: var(--danger); }
+.staff-field-note.is-warning { color: #92400e; font-weight: 600; line-height: 1.5; }
 
 /* 担当者の台帳（`/staff`）。顧客一覧の「担当者」から画面として開く。
    行ごとのインライン編集と削除の確認を持つので、幅は読める範囲で止めて中央には寄せない。 */

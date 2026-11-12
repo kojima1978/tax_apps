@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assigneeFilterPeople,
   assigneeMatches,
+  buildPickerSections,
   parseAssigneeFilter,
   personMatches,
   pushRecent,
@@ -17,6 +18,7 @@ const person = (overrides: Partial<Operator> & { id: number }): Operator => ({
   kana: '',
   companyName: '架空税理士法人',
   departmentName: '架空部',
+  retiredOn: null,
   ...overrides,
 });
 
@@ -37,6 +39,44 @@ describe('sortPeople', () => {
   it('読みのある人は読み順に先へ、読みの無い人は台帳の並びのまま後ろへ', () => {
     const list = [person({ id: 1 }), person({ id: 2, kana: 'わたなべ' }), person({ id: 3 }), person({ id: 4, kana: 'アオキ' })];
     expect(sortPeople(list).map((p) => p.id)).toEqual([4, 2, 1, 3]);
+  });
+});
+
+describe('personMatches（複数の語）', () => {
+  const p = { fullName: '架空 太郎', kana: 'カクウ タロウ', companyName: '', departmentName: '大阪', searchExtra: 'T003' };
+
+  it('空白で区切った語は全部どこかに当たれば当たり（名前と部署・社員コードを並べて探せる）', () => {
+    expect(personMatches(p, 'かくう 大阪')).toBe(true);
+    expect(personMatches(p, 't003')).toBe(true);
+    expect(personMatches(p, 'かくう 東京')).toBe(false);
+  });
+});
+
+describe('buildPickerSections', () => {
+  // 写しの行（id は写しの ID、dir が台帳ID）
+  const rows = [
+    { id: 11, dir: 1, fullName: '架空 一郎', kana: 'かくう いちろう', companyName: '', departmentName: '会計部' },
+    { id: 12, dir: 2, fullName: '架空 二郎', kana: 'かくう じろう', companyName: '', departmentName: '医療部' },
+    { id: 13, dir: null, fullName: '架空 三郎', kana: '', companyName: '', departmentName: '' },
+  ];
+  const directoryIdOf = (r: (typeof rows)[number]) => r.dir;
+
+  it('自分と最近選んだ人を台帳ID で写しの行へ引き当て、先頭に出す（自分は最近から除く）', () => {
+    const sections = buildPickerSections(rows, { query: '', directoryIdOf, quick: { meId: 2, recentIds: [2, 9, 1] } });
+    expect(sections.map((s) => [s.kind, s.label, s.people.map((p) => p.id)])).toEqual([
+      ['me', '自分（操作者）', [12]],
+      ['recent', '最近選んだ人', [11]],
+      ['department', '医療部', [12]],
+      ['department', '会計部', [11]],
+      ['department', '部署なし', [13]],
+    ]);
+  });
+
+  it('検索語があれば当たった人だけ。quick が無ければ部署ごとだけ', () => {
+    expect(buildPickerSections(rows, { query: 'じろう', directoryIdOf, quick: { meId: 1, recentIds: [] } }).map((s) => [s.label, s.people.map((p) => p.id)])).toEqual([
+      ['検索結果（1人）', [12]],
+    ]);
+    expect(buildPickerSections(rows, { query: '', directoryIdOf }).map((s) => s.kind)).toEqual(['department', 'department', 'department']);
   });
 });
 

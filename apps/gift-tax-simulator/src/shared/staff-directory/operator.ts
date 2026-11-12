@@ -12,6 +12,8 @@ export type Operator = {
   kana: string;
   companyName: string;
   departmentName: string;
+  /** 退職日（最後に在籍する日・YYYY-MM-DD）。在籍の一覧に居るのは退職予定の人だけなので、ここに入るのは今日以降の日付 */
+  retiredOn: string | null;
 };
 
 export const FALLBACK_OPERATOR: Operator = {
@@ -20,6 +22,7 @@ export const FALLBACK_OPERATOR: Operator = {
   kana: '',
   companyName: '',
   departmentName: '',
+  retiredOn: null,
 };
 
 const DIRECTORY_URL = '/staff-directory/api/staff?status=active';
@@ -42,6 +45,7 @@ export function parseDirectoryOperators(body: unknown): Operator[] | null {
       kana: text(value.nameKana).trim(),
       companyName: text(value.companyName),
       departmentName: text(value.departmentName),
+      retiredOn: typeof value.retiredOn === 'string' && value.retiredOn !== '' ? value.retiredOn : null,
     }];
   });
   return operators.length > 0 ? operators : null;
@@ -76,7 +80,8 @@ function readStoredId(): number | null {
   }
 }
 
-let snapshot: Snapshot = { operators: [FALLBACK_OPERATOR], status: 'loading', selectedId: null };
+const SERVER_SNAPSHOT: Snapshot = { operators: [FALLBACK_OPERATOR], status: 'loading', selectedId: null };
+let snapshot: Snapshot = SERVER_SNAPSHOT;
 const listeners = new Set<() => void>();
 let started = false;
 
@@ -130,7 +135,8 @@ function clearOperator() {
 }
 
 export function useOperator() {
-  const current = useSyncExternalStore(subscribe, () => snapshot);
+  // 3つ目はサーバーで描くとき（Next.js の PB・案件管理）。台帳はブラウザでしか読まないので読み込み中のまま
+  const current = useSyncExternalStore(subscribe, () => snapshot, () => SERVER_SNAPSHOT);
   return {
     operator: pickOperator(current.operators, current.selectedId),
     selected: findSelectedOperator(current.operators, current.selectedId),

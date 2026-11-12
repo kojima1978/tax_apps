@@ -13,7 +13,16 @@ const response = (data: unknown, ok = true) => ({ ok, json: async () => data });
 const input = () => screen.getByRole("combobox", { name: "担当者" });
 const savedValue = () => (document.querySelector('input[name="staffId"]') as HTMLInputElement).value;
 let fetchMock: ReturnType<typeof vi.fn>;
-beforeEach(() => { fetchMock = vi.fn().mockResolvedValue(response(staff)); vi.stubGlobal("fetch", fetchMock); });
+// 最近選んだ人は localStorage に控えるので、テストごとに空へ戻す（前のテストで選んだ人が先頭の塊に出る）
+beforeEach(() => {
+  window.localStorage.clear();
+  // 社員台帳（自分・退職日・連携の状態）には届かない形。届くときは staff-select-directory.test.tsx
+  fetchMock = vi.fn(async (url: string) => {
+    if (url.startsWith("/staff-directory/")) throw new TypeError("fetch failed");
+    return response(staff);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+});
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("担当者の検索式選択", () => {
@@ -82,6 +91,17 @@ describe("担当者の検索式選択", () => {
     const list = document.querySelector(".staff-combobox-options");
     expect(scrollIntoView.mock.instances).toContain(list);
     Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  });
+
+  it("台帳に届かないときも写しから選べ、自分の塊と退職予定の印が出ない理由を添える", async () => {
+    render(<StaffSelect defaultValue={null} />);
+    fireEvent.focus(input());
+    await screen.findByText(/社員台帳に接続できないため、自分（操作者）と退職予定の印は出ていません/);
+    expect(screen.queryByRole("group", { name: "自分（操作者）" })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: /T001/ }));
+    expect(savedValue()).toBe("1");
+    // 写しの連携の注意は台帳から読めないので出さない
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("台帳に居ない担当者は候補に出さず、新しく足す口も持たない", async () => {

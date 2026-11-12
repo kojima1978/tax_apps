@@ -40,28 +40,3 @@ export const ambiguousStaffNames = (staff: readonly Pick<Staff, "name">[]) => {
   for (const row of staff) counts.set(row.name, (counts.get(row.name) ?? 0) + 1);
   return new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name));
 };
-
-/** 部署が空の人をまとめる見出し。 */
-export const NO_DEPARTMENT_LABEL = "部署なし";
-
-/**
- * 候補を部署で束ねる。62人を平らに並べると選択欄には6行しか見えず、
- * 並びも（カナ未登録なので）漢字コードポイント順で人には無作為に見えるため。
- *
- * グループは部署名順。**漢字の並びなので読み順にはならない**（実測で「資産税部」が
- * 「第一部」より先に来る）が、人の増減で位置が動かないことを優先した。
- * 部署なしは最後。グループの中は渡された順（API はカナ順→氏名順）をそのまま保つ。
- */
-export const groupStaffByDepartment = (staff: readonly Staff[]) => {
-  const groups = new Map<string, Staff[]>();
-  for (const row of staff) {
-    const label = row.department || NO_DEPARTMENT_LABEL;
-    const members = groups.get(label);
-    if (members) members.push(row);
-    else groups.set(label, [row]);
-  }
-  return [...groups]
-    .map(([label, options]) => ({ label, options }))
-    .sort((a, b) => a.label === NO_DEPARTMENT_LABEL ? 1 : b.label === NO_DEPARTMENT_LABEL ? -1 : a.label.localeCompare(b.label, "ja"));
-};
-

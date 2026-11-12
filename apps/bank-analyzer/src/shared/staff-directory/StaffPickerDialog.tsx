@@ -1,7 +1,8 @@
 // 原本は tax_apps/shared/staff-directory/。写しを直さず原本を直して `bash shared/sync.sh` で配る
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { personMatches, readRecentIds, rememberRecent, sectionsByDepartment, sortPeople } from './assignee';
+import { retirementMark } from '../staff-retirement/retirement';
+import { buildPickerSections, readRecentIds, rememberRecent } from './assignee';
 import { useOperator, type Operator } from './operator';
 
 /** 人を足す・直す場所。名簿はここ1つで、各アプリには持たせない */
@@ -89,23 +90,17 @@ function PickerBody({
 
   const people = status === 'ok' ? operators : [];
 
-  // showDepartment: 部署の塊の中では部署名が見出しと重なるので、それ以外の塊でだけ行に出す
-  const sections = useMemo(() => {
-    if (query.trim() !== '') {
-      const hits = sortPeople(people.filter((p) => personMatches(p, query)));
-      return [{ label: `検索結果（${hits.length}人）`, people: hits, showDepartment: true }];
-    }
-    const byDepartment = sectionsByDepartment(people).map((s) => ({ ...s, showDepartment: false }));
-    if (!quickSections) return byDepartment;
-    const recent = recentIds
-      .map((id) => people.find((p) => p.id === id))
-      .filter((p): p is Operator => p !== undefined && p.id !== me?.id);
-    return [
-      ...(me ? [{ label: '自分（画面右上の操作者）', people: [me], showDepartment: true }] : []),
-      ...(recent.length > 0 ? [{ label: '最近選んだ人', people: recent, showDepartment: true }] : []),
-      ...byDepartment,
-    ];
-  }, [people, query, recentIds, me, quickSections]);
+  // 並べ方は assignee.ts の1か所（PB の選択欄も同じものを使う）。showDepartment は部署の塊以外でだけ行に部署名を出す
+  const meId = me?.id ?? null;
+  const sections = useMemo(
+    () =>
+      buildPickerSections(people, {
+        query,
+        directoryIdOf: (p) => p.id,
+        quick: quickSections ? { meId, recentIds, meLabel: '自分（画面右上の操作者）' } : undefined,
+      }),
+    [people, query, recentIds, meId, quickSections],
+  );
   const firstHit = sections[0]?.people[0];
 
   const pick = async (person: Operator | null) => {
@@ -184,6 +179,7 @@ function PickerBody({
                 <ul>
                   {section.people.map((p) => {
                     const chosen = currentId === p.id;
+                    const mark = retirementMark(p.retiredOn);
                     return (
                       <li key={p.id}>
                         <button
@@ -197,6 +193,7 @@ function PickerBody({
                           <span>
                             {p.fullName}
                             {chosen && <span className="ml-2 text-xs font-normal text-blue-700">選択中</span>}
+                            {mark && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-normal text-amber-900">{mark}</span>}
                           </span>
                           {section.showDepartment && p.departmentName && (
                             <span className="shrink-0 text-xs text-slate-500">{p.departmentName}</span>

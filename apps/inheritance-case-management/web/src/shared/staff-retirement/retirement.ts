@@ -31,3 +31,15 @@ export function daysUntilRetirement(retiredOn: string | null, today: string = js
   if (retirementState(retiredOn, today) !== 'scheduled') return null;
   return Math.round((Date.parse(`${retiredOn}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
 }
+
+/**
+ * 担当者を選ぶ欄で名前の横に出す印。退職予定は「11/30 退職予定」、退職は「退職」、在籍は null。
+ * 選ぶ部品は自分で日付を比べず、これだけを通す（台帳・PB・案件管理で同じ判定にするため）。
+ */
+export function retirementMark(retiredOn: string | null, today: string = jstToday()): string | null {
+  const state = retirementState(retiredOn, today);
+  if (state === 'active' || retiredOn === null) return null;
+  if (state === 'retired') return '退職';
+  const [, month, day] = retiredOn.split('-');
+  return `${Number(month)}/${Number(day)} 退職予定`;
+}

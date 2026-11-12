@@ -23,6 +23,10 @@ TARGETS=(
   staff-directory:inheritance-tax-docs:test
   staff-directory:retirement-tax-calc:test
   staff-directory:stock-valuation-form:test
+  # 担当者を選ぶ欄の決まり（自分・最近選んだ人・並べ方・写しの連携の状態）だけを使う。
+  # 見た目の部品（Tailwind の .tsx）も一緒に写るが、PB は import しないので画面には入らない。
+  # テストは写さない（PB の vitest は __tests__ の下しか見ない。原本のテストは他のアプリで回る）
+  staff-directory:private-banking:
   # 社員ごとの担当件数（各アプリは返す側、社員台帳は読む側）
   staff-workload:inheritance-case-management/web:test
   staff-workload:private-banking:
@@ -33,6 +37,15 @@ TARGETS=(
   staff-retirement:staff-directory::server/shared
   staff-retirement:inheritance-case-management/web:test
   staff-retirement:private-banking:
+  # 担当者を選ぶダイアログ（shared/staff-directory）が「退職予定」の印に使う
+  staff-retirement:bank-analyzer:
+  staff-retirement:capital-gains-calc:
+  staff-retirement:depreciation-calc:
+  staff-retirement:gift-tax-simulator:
+  staff-retirement:inheritance-tax-app:
+  staff-retirement:inheritance-tax-docs:
+  staff-retirement:retirement-tax-calc:
+  staff-retirement:stock-valuation-form:
 )
 
 check=0

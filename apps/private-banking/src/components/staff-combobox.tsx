@@ -1,10 +1,27 @@
 "use client";
 
 import { ChevronDown, Search, X } from "lucide-react";
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import { matchesSearchTerms, searchTerms } from "@/lib/clients";
-import { ambiguousStaffNames, groupStaffByDepartment, type Staff, staffOptionLabel } from "@/lib/staff";
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { buildPickerSections, type PersonLike, readRecentIds, rememberRecent } from "@/shared/staff-directory/assignee";
+import { copyLinkTroubleMessage, useCopyLinkTrouble } from "@/shared/staff-directory/linkHealth";
+import { useOperator } from "@/shared/staff-directory/operator";
+import { retirementMark } from "@/shared/staff-retirement/retirement";
+import { ambiguousStaffNames, type Staff, staffOptionLabel } from "@/lib/staff";
 
+/** 共通の並べ方（shared/staff-directory/assignee.ts）に渡す形。写しの行をそのまま持たせる */
+type Person = PersonLike & { row: Staff };
+
+/** link-health の写しの状態を引くときのアプリ名（社員台帳の server/linkedApps.ts と同じ） */
+const LINK_APP = "private-banking";
+
+/**
+ * 担当者を選ぶ欄。振る舞いは社員台帳を使う他のアプリの担当者ダイアログ（shared/staff-directory の
+ * AssigneePicker）とそろえる ── 検索・部署ごと・先頭に「自分（操作者）」「最近選んだ人」・退職予定の印。
+ * 並べ方・自分・最近・退職の判定は shared の同じ関数を通し、見た目だけ PB の CSS で持つ。
+ *
+ * 一覧は PB の写し（`staff`）から出すので、台帳が止まっていても選べる。自分と最近選んだ人は台帳ID で
+ * 控えてあるため、写しの `staffDirectoryId` で行へ引き当てる。値（hidden input）は写しの ID のまま。
+ */
 export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "担当者", placeholder = "氏名・部署で検索", disabled = false }: {
   id: string;
   staff: Staff[];
@@ -15,6 +32,8 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
   placeholder?: string;
   disabled?: boolean;
 }) {
+  const { selected: me, operators, status } = useOperator();
+  const trouble = useCopyLinkTrouble(LINK_APP);
   // コードは同姓同名のときだけ併記する（この事務所は62人全員が自動生成の `SD-<台帳ID>`）。
   const ambiguous = ambiguousStaffNames(staff);
   const labelOf = (row: Staff) => staffOptionLabel(row, ambiguous.has(row.name));
@@ -23,13 +42,38 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
   const [query, setQuery] = useState(selectedLabel);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const terms = searchTerms(query === selectedLabel ? "" : query);
-  // 表示は部署ごとの束。キー操作は束を跨いで「見えている順」に動かすので、同じ順で平らにした配列も持つ。
-  const groups = groupStaffByDepartment(staff.filter((row) => matchesSearchTerms([row.name, row.nameKana, row.staffCode, row.department], terms)));
-  const filtered = groups.flatMap((group) => group.options);
-  const indexById = new Map(filtered.map((row, index) => [row.id, index]));
+  // localStorage はブラウザでしか読めないので、開いたときに読む（サーバーで描く1回目と食い違わせない）
+  const [recentIds, setRecentIds] = useState<number[]>([]);
   const listboxId = `${id}-options`;
   const optionsRef = useRef<HTMLDivElement>(null);
+
+  const people = useMemo(() => staff.map((row): Person => ({
+    row,
+    fullName: row.name,
+    kana: row.nameKana,
+    companyName: "",
+    departmentName: row.department,
+    searchExtra: row.staffCode,
+  })), [staff]);
+  // 退職予定の印に使う退職日は台帳から（写しには持たない）。台帳が止まっていれば印は出せない
+  const retiredOnByDirectoryId = useMemo(
+    () => new Map(status === "ok" ? operators.flatMap((o) => o.id === null ? [] : [[o.id, o.retiredOn] as const]) : []),
+    [operators, status],
+  );
+  const meId = status === "ok" ? me?.id ?? null : null;
+  const sectionsFor = (text: string, recent: readonly number[]) => buildPickerSections(people, {
+    query: text,
+    directoryIdOf: (person) => person.row.staffDirectoryId,
+    quick: { meId, recentIds: recent },
+  });
+  const searchText = query === selectedLabel ? "" : query;
+  const sections = sectionsFor(searchText, recentIds);
+  // 表示は塊ごと。キー操作は塊を跨いで「見えている順」に動かすので、同じ順で平らにした配列も持つ。
+  // 自分・最近の人は部署の塊にも出るので、行の識別は塊の番号つき。
+  const entries = (list: typeof sections) => list.flatMap((section, s) => section.people.map((person) => ({ key: `${s}-${person.row.id}`, row: person.row })));
+  const flat = entries(sections);
+  const indexByKey = new Map(flat.map((entry, index) => [entry.key, index]));
+
   /**
    * 開いたら外側を送って一覧を丸ごと見せる。新規登録の画面は候補がモーダルの中に出るため、
    * 一覧の下端が枠で切れて1行ぶん（実測50px）読めなかった。モーダル自身がスクロールするので
@@ -51,6 +95,8 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
     onChange(String(row.id));
     setQuery(labelOf(row));
     setOpen(false);
+    // 最近選んだ人は全アプリ共通で台帳ID を控える（台帳に居ない行は控えない）
+    if (row.staffDirectoryId !== null) rememberRecent(row.staffDirectoryId);
   }
 
   /**
@@ -58,27 +104,37 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
    * 先頭から出すと選ばれている人がどこにいるか分からない）。絞り込み前の全体で位置を数える。
    */
   function openList() {
+    const recent = readRecentIds();
+    setRecentIds(recent);
     setQuery(selectedLabel);
     setOpen(true);
-    const all = groupStaffByDepartment(staff).flatMap((group) => group.options);
-    setActiveIndex(Math.max(all.findIndex((row) => String(row.id) === value), 0));
+    const all = entries(sectionsFor("", recent));
+    setActiveIndex(Math.max(all.findIndex((entry) => String(entry.row.id) === value), 0));
   }
 
   function handleKeys(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
       if (!open) openList();
-      else setActiveIndex((index) => Math.min(index + 1, Math.max(filtered.length - 1, 0)));
+      else setActiveIndex((index) => Math.min(index + 1, Math.max(flat.length - 1, 0)));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       if (!open) openList();
       else setActiveIndex((index) => Math.max(index - 1, 0));
     } else if (event.key === "Enter" && open) {
       event.preventDefault();
-      if (!event.nativeEvent.isComposing && filtered[activeIndex]) choose(filtered[activeIndex]);
+      if (!event.nativeEvent.isComposing && flat[activeIndex]) choose(flat[activeIndex].row);
     } else if (event.key === "Escape") {
       event.preventDefault(); setQuery(selectedLabel); setOpen(false);
     }
+  }
+
+  /** 行の右に添える小さな字。同姓同名のコード・（部署の塊以外では）部署・退職／退職予定の印 */
+  function detailOf(row: Staff, showDepartment: boolean) {
+    const mark = row.isActive
+      ? retirementMark(row.staffDirectoryId === null ? null : retiredOnByDirectoryId.get(row.staffDirectoryId) ?? null)
+      : "退職";
+    return { text: [ambiguous.has(row.name) ? row.staffCode : "", showDepartment ? row.department : ""].filter(Boolean).join("・"), mark };
   }
 
   return <div
@@ -98,7 +154,7 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
         aria-expanded={open}
         aria-controls={listboxId}
         aria-autocomplete="list"
-        aria-activedescendant={open && filtered[activeIndex] ? `${id}-option-${filtered[activeIndex].id}` : undefined}
+        aria-activedescendant={open && flat[activeIndex] ? `${id}-option-${flat[activeIndex].key}` : undefined}
         autoComplete="off"
         value={open ? query : selectedLabel}
         placeholder={placeholder}
@@ -111,15 +167,15 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
     </div>
     {open ? <div ref={optionsRef} id={listboxId} className="staff-combobox-options" role="listbox" aria-label="担当者の候補">
       <button type="button" role="option" aria-selected={value === ""} className="staff-combobox-option is-empty" onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(""); setQuery(""); setOpen(false); }}>未設定</button>
-      {/* 部署は見出しが言うので行には出さない。行に残すのは同姓同名のコードと退職の印だけ。 */}
-      {groups.map((group) => <div key={group.label} role="group" aria-label={group.label} className="staff-combobox-group">
-        <p className="staff-combobox-group-label" aria-hidden="true">{group.label}<span>{group.options.length}人</span></p>
-        {group.options.map((row) => {
-          const index = indexById.get(row.id) ?? 0;
-          const detail = [ambiguous.has(row.name) ? row.staffCode : "", row.isActive ? "" : "退職"].filter(Boolean).join("・");
+      {sections.map((section, s) => section.people.length === 0 ? null : <div key={`${section.kind}-${section.label}`} role="group" aria-label={section.label} className="staff-combobox-group">
+        <p className="staff-combobox-group-label" aria-hidden="true">{section.label}{section.kind === "department" ? <span>{section.people.length}人</span> : null}</p>
+        {section.people.map(({ row }) => {
+          const key = `${s}-${row.id}`;
+          const index = indexByKey.get(key) ?? 0;
+          const detail = detailOf(row, section.showDepartment);
           return <button
-            id={`${id}-option-${row.id}`}
-            key={row.id}
+            id={`${id}-option-${key}`}
+            key={key}
             type="button"
             role="option"
             aria-selected={String(row.id) === value}
@@ -127,10 +183,12 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
             onMouseDown={(event) => event.preventDefault()}
             onMouseEnter={() => setActiveIndex(index)}
             onClick={() => choose(row)}
-          ><strong>{row.name}</strong>{detail ? <span>{detail}</span> : null}</button>;
+          ><strong>{row.name}</strong>{detail.mark ? <em className="staff-combobox-mark">{detail.mark}</em> : null}{detail.text ? <span>{detail.text}</span> : null}</button>;
         })}
       </div>)}
-      {filtered.length === 0 ? <p className="staff-combobox-empty">一致する担当者がいません。</p> : null}
+      {flat.length === 0 ? <p className="staff-combobox-empty">一致する担当者がいません。</p> : null}
+      {status === "fallback" ? <p className="staff-combobox-empty">社員台帳に接続できないため、自分（操作者）と退職予定の印は出ていません（一覧は PB の写しから選べます）。</p> : null}
     </div> : null}
+    {trouble ? <small className="staff-field-note is-warning" role="status">{copyLinkTroubleMessage(trouble)}</small> : null}
   </div>;
 }

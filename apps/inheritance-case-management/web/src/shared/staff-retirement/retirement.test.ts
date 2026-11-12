@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { daysUntilRetirement, isRetired, jstToday, retirementState } from './retirement';
+import { daysUntilRetirement, isRetired, jstToday, retirementState, retirementMark } from './retirement';
 
 describe('jstToday', () => {
   it('日本時間の日付（UTC の 15時で日付が変わる）', () => {
@@ -38,5 +38,14 @@ describe('daysUntilRetirement', () => {
     expect(daysUntilRetirement('2027-03-31', '2026-11-12')).toBe(139);
     expect(daysUntilRetirement('2026-11-11', '2026-11-12')).toBeNull();
     expect(daysUntilRetirement(null, '2026-11-12')).toBeNull();
+  });
+});
+
+describe('retirementMark', () => {
+  it('退職予定は月日つき、退職は「退職」、在籍は null', () => {
+    expect(retirementMark('2026-11-30', '2026-11-12')).toBe('11/30 退職予定');
+    expect(retirementMark('2026-11-12', '2026-11-12')).toBe('11/12 退職予定');
+    expect(retirementMark('2026-11-11', '2026-11-12')).toBe('退職');
+    expect(retirementMark(null, '2026-11-12')).toBeNull();
   });
 });
