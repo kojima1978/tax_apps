@@ -4,6 +4,7 @@ import path from 'node:path';
 import { checkDbHealth, getDb } from './db.js';
 import { createApiRouter } from './api.js';
 import { createNotifier, resolveTargets } from './notify.js';
+import { buildChecks, createLinkMonitor, loadNotifyResults, saveNotifyResult } from './linkHealth.js';
 
 const PORT = Number(process.env.PORT ?? 3031);
 const BASE_PATH = '/staff-directory';
@@ -26,8 +27,23 @@ app.get(`${BASE_PATH}/api/health`, (_req, res) => {
 });
 
 // 保存のたびに写しを持つアプリ（案件管理・PB）へ知らせる。送り先は LINKED_APP_ORIGINS（server/notify.ts）
-const notifier = createNotifier({ targets: resolveTargets(process.env.LINKED_APP_ORIGINS) });
-app.use(`${BASE_PATH}/api`, createApiRouter(getDb(), { notifier }));
+// 知らせの結果は台帳の DB に残す（作り直しても「最後の知らせが届いていない」を覚えておく）
+const db = getDb();
+const targets = resolveTargets(process.env.LINKED_APP_ORIGINS);
+const notifier = createNotifier({
+  targets,
+  initialResults: loadNotifyResults(db, targets),
+  onResult: (r) => {
+    try {
+      saveNotifyResult(db, r);
+    } catch (e) {
+      console.error('[notify] 結果を残せませんでした:', e);
+    }
+  },
+});
+// 連携の見張り。5分ごとに写しと担当件数の口を読み、失敗の始まりと終わりを DB に残す（server/linkHealth.ts）
+const linkMonitor = createLinkMonitor(db, { checks: buildChecks(targets), notifyResults: () => notifier.status().results });
+app.use(`${BASE_PATH}/api`, createApiRouter(db, { notifier, linkMonitor }));
 
 // 画面の配信。本番はビルド済みの dist/、dev は Vite をミドルウェアとして組み込む
 if (isProduction) {

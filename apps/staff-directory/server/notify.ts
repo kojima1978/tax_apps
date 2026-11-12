@@ -61,6 +61,10 @@ type Options = {
   debounceMs?: number;
   timeoutMs?: number;
   log?: (message: string) => void;
+  /** 前回までの結果（台帳の DB に残したもの）。作り直しても「最後の知らせが届いていない」を覚えておく */
+  initialResults?: NotifyResult[];
+  /** 1件送り終えるたびに呼ぶ（DB へ残す） */
+  onResult?: (result: NotifyResult) => void;
 };
 
 export type Notifier = {
@@ -90,8 +94,16 @@ async function send(target: NotifyTarget, fetchImpl: typeof fetch, timeoutMs: nu
   }
 }
 
-export function createNotifier({ targets, fetchImpl = fetch, debounceMs = DEBOUNCE_MS, timeoutMs = TIMEOUT_MS, log = console.log }: Options): Notifier {
-  const results = new Map<LinkedAppKey, NotifyResult>();
+export function createNotifier({
+  targets,
+  fetchImpl = fetch,
+  debounceMs = DEBOUNCE_MS,
+  timeoutMs = TIMEOUT_MS,
+  log = console.log,
+  initialResults = [],
+  onResult,
+}: Options): Notifier {
+  const results = new Map<LinkedAppKey, NotifyResult>(initialResults.map((r) => [r.key, r]));
   let lastChangeAt: string | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let sending: Promise<void> | null = null;
@@ -105,6 +117,7 @@ export function createNotifier({ targets, fetchImpl = fetch, debounceMs = DEBOUN
       sending = (async () => {
         for (const r of await Promise.all(targets.map((t) => send(t, fetchImpl, timeoutMs)))) {
           results.set(r.key, r);
+          onResult?.(r);
           if (!r.ok) log(`[notify] ${r.label} へ知らせられませんでした: ${r.error}`);
         }
       })().finally(() => {

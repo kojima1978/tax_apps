@@ -5,7 +5,7 @@ import { useLoad } from '../hooks/useLoad';
 import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import { useReorder } from '../hooks/useReorder';
 import { DragHandle, ErrorBanner, PageHeader, ReorderBar, btn, controlClass, inputClass } from '../components/ui';
-import { RetiringLink, UnreachableNote, WorkloadSummary, useOrgWorkload } from '../components/OrgStats';
+import { RetiringLink, OrgLinkNote, WorkloadSummary, useOrgWorkload } from '../components/OrgStats';
 import { departmentStats, emptyStats, type GroupStats } from '../orgStats';
 import type { Company, Department } from '../types';
 
@@ -108,7 +108,7 @@ export default function DepartmentsPage() {
         }
       />
       <ErrorBanner message={error ?? departments.error ?? companies.error ?? org.error} />
-      <UnreachableNote index={org.index} loading={org.loading} />
+      <OrgLinkNote index={org.index} loading={org.loading} />
       {companies.data?.map((c) => (
         <CompanySection
           key={c.id}

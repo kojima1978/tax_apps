@@ -33,6 +33,7 @@ import {
 } from './repo.js';
 import { exportDirectory, parseBackup, restoreDirectory } from './backup.js';
 import type { Notifier } from './notify.js';
+import { alertLines, openIncidents, type LinkMonitor } from './linkHealth.js';
 
 // 読み取り（GET）は他アプリからも呼ばれる。書き込みは台帳の画面だけが使う。
 // 社員の DELETE は置かない ── 台帳IDは他アプリが控えとして持つので、消すと
@@ -71,9 +72,12 @@ function respond<T>(res: Response, parsed: Result<T>, run: (value: T) => unknown
 // 住所・生年月日は写しに入らない（他アプリは1人ずつ /staff/:id/personal を読む）
 const SILENT_WRITES = [/^\/backup\/preview$/, /^\/staff\/[^/]+\/personal$/];
 
-export function createApiRouter(db: Database.Database, options: { notifier?: Notifier } = {}): Router {
+export function createApiRouter(
+  db: Database.Database,
+  options: { notifier?: Notifier; linkMonitor?: LinkMonitor } = {},
+): Router {
   const r = Router();
-  const { notifier } = options;
+  const { notifier, linkMonitor } = options;
 
   // 書き込みが成功したら（応答を返したあとで）写しを持つアプリへ知らせる。保存の応答は待たせない
   if (notifier) {
@@ -92,6 +96,27 @@ export function createApiRouter(db: Database.Database, options: { notifier?: Not
     res.set('Cache-Control', 'no-store').json(
       notifier?.status() ?? { enabled: false, targets: [], pending: false, lastChangeAt: null, results: [] },
     );
+  });
+
+  // 連携の状態（写し・担当件数の口ごとの正常／失敗といつからか、失敗の記録）。画面の注記と連携の画面が読む
+  r.get('/link-health', (_req, res) => {
+    res.set('Cache-Control', 'no-store').json(
+      linkMonitor?.status() ?? { checkedAt: null, intervalMs: 0, checks: [], incidents: [] },
+    );
+  });
+
+  // デスクトップの警告に載せる行（manage.sh link-check が読む）。その場で読み直してから、
+  // minutes 分以上続いている失敗だけを1件1行の text/plain で返す（無ければ空）
+  r.get('/link-health/alerts', async (req, res) => {
+    const minutes = Number(req.query.minutes ?? 30);
+    if (!Number.isFinite(minutes) || minutes < 0) {
+      res.status(400).json({ error: 'minutes は0以上の数で指定してください' });
+      return;
+    }
+    if (linkMonitor) await linkMonitor.checkAll();
+    const lines = alertLines(openIncidents(db), minutes, Date.now());
+    res.set('Cache-Control', 'no-store').type('text/plain').send(lines.map((l) => `${l}
+`).join(''));
   });
 
   r.get('/staff', (req, res) => {

@@ -29,6 +29,7 @@
 #   ./manage.sh test [app]         稼働中のコンテナの中でテストを実行
 #   ./manage.sh alert              デスクトップの警告ファイルを作り直す
 #   ./manage.sh loop-check         リロードループの検知（ウォッチドッグ用）
+#   ./manage.sh link-check         社員台帳の連携の失敗の検知（ウォッチドッグ用）
 #   ./manage.sh preflight          起動前チェック
 #   ./manage.sh collation [app] [--yes]  DB の照合順序を C へ移す（docker/COLLATION-MIGRATION.md）
 #
@@ -2078,6 +2079,70 @@ cmd_loop_check() {
 }
 
 # ------------------------------------
+# link-check - 社員台帳と各アプリの連携の失敗
+# ------------------------------------
+# 社員台帳は、案件管理・PB へ担当者・部署を写し、4アプリから担当件数を読む。
+# どれかが失敗しても画面の隅に注記が出るだけで、誰も台帳を開かなければ
+# 数日そのままになる（案件管理の担当者が古いまま、を人が気づくのは遅い）。
+#
+# 判定は台帳のサーバが5分おきに確かめて SQLite に残している記録（いつから・理由）
+# を読むだけで、ここでは何も判定しない ── 読む先の一覧も理由の文言も
+# apps/staff-directory/server/linkedApps.ts・linkHealth.ts の1か所にある。
+# 一時的な失敗で鳴らさないよう、LINK_CHECK_MINUTES 分以上続いているものだけを
+# 「社員台帳と〇〇の連携が〇時から失敗しています。理由… 連携の画面: …」の1行で
+# 受け取り、" || " でつないで last-run の detail に残す（警告ファイルでは1行ずつに戻す）。
+LINK_CHECK_CONTAINER="${TAX_APPS_LINK_CONTAINER:-staff-directory}"
+LINK_CHECK_MINUTES="${TAX_APPS_LINK_ALERT_MINUTES:-30}"
+
+cmd_link_check() {
+  print_banner "Tax Apps - Staff Directory Link Check"
+
+  if ! docker ps --format '{{.Names}}' | grep -qx "$LINK_CHECK_CONTAINER"; then
+    # 台帳が止まっていれば誰も確かめていない。台帳が落ちていること自体は
+    # preflight のチェック20と recover が見ているので、ここでは二重に鳴らさない
+    # （loop-check のゲートウェイと同じ扱い）。
+    warn "$LINK_CHECK_CONTAINER が動いていないので検査しません"
+    ops_write_last_result "staff-links" "ok" "staff-directory stopped / not checked"
+    return 0
+  fi
+
+  if ! [[ "$LINK_CHECK_MINUTES" =~ ^[0-9]+$ ]]; then
+    err "TAX_APPS_LINK_ALERT_MINUTES は分の整数で指定してください: $LINK_CHECK_MINUTES"
+    return 1
+  fi
+
+  # コンテナの中の node で読む（ホストに curl の無い PC でも動くように）。
+  # 台帳は呼ばれた時点でもう一度全部を確かめてから答える。
+  local body rc=0
+  body=$(docker exec -e "LINK_MINUTES=$LINK_CHECK_MINUTES" "$LINK_CHECK_CONTAINER" node -e '
+const port = process.env.PORT || 3031;
+fetch(`http://127.0.0.1:${port}/staff-directory/api/link-health/alerts?minutes=${process.env.LINK_MINUTES}`,
+      { signal: AbortSignal.timeout(60000) })
+  .then((r) => { if (!r.ok) { console.error(`HTTP ${r.status}`); process.exit(2); } return r.text(); })
+  .then((t) => process.stdout.write(t))
+  .catch((e) => { console.error(String(e)); process.exit(3); });
+' 2>/dev/null) || rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    err "社員台帳から連携の状態を読めませんでした（終了コード $rc）"
+    ops_write_last_result "staff-links" "failed" "could not read link status from staff-directory (exit $rc)"
+    return 1
+  fi
+
+  local lines
+  lines=$(printf '%s\n' "$body" | tr -d '\r' | grep -v '^[[:space:]]*$' || true)
+  if [[ -z "$lines" ]]; then
+    ok "${LINK_CHECK_MINUTES}分以上続いている連携の失敗はありません"
+    ops_write_last_result "staff-links" "ok" "no link failure over ${LINK_CHECK_MINUTES}min"
+    return 0
+  fi
+
+  err "社員台帳の連携が失敗しています:"
+  printf '%s\n' "$lines" | sed 's/^/  /'
+  ops_write_last_result "staff-links" "failed" "$(printf '%s\n' "$lines" | awk 'NR > 1 { printf " || " } { printf "%s", $0 }')"
+  return 1
+}
+
+# ------------------------------------
 # Dockerfile の CRLF ガード検査
 # ------------------------------------
 # CRLF のまま Linux コンテナへ入った docker-entrypoint.sh は BusyBox sh が
@@ -3328,10 +3393,12 @@ case "$COMMAND" in
   # ロックは取らない。backup.sh の cmd_due がロックを握ったまま呼ぶため
   # （Docker のログを読むだけで、コンテナには触らない）。
   loop-check) cmd_loop_check ;;
+  # 同じくロックは取らない（台帳の API を読むだけ。due がロックを握ったまま呼ぶ）
+  link-check) cmd_link_check ;;
   preflight) cmd_preflight ;;
   collation) cmd_collation "${2:-}" "${3:-}" ;;
   *)
-    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|newpc|usb|verify|drill|due|clean|clean-cache|prune|alert|loop-check|preflight|collation} [app-name]"
+    echo "Usage: $0 {start|recover|stop|down|restart|build|apply|watch|logs|status|test|backup|restore|newpc|usb|verify|drill|due|clean|clean-cache|prune|alert|loop-check|link-check|preflight|collation} [app-name]"
     echo ""
     echo "Commands:"
     echo "  start [app]        起動（アプリ名を省略すると全アプリ・ネットワーク自動作成）"
@@ -3363,6 +3430,7 @@ case "$COMMAND" in
     echo "  prune              無人向けの掃除（確認なし・ボリュームは触らない）"
     echo "  alert              デスクトップの警告ファイルを作り直す"
     echo "  loop-check         画面のリロードループを検知（ウォッチドッグ用）"
+    echo "  link-check         社員台帳と各アプリの連携の失敗を確かめる（ウォッチドッグ用）"
     echo "  preflight          起動前チェック"
     echo "  collation [app] [--yes] DB の照合順序を libc 非依存の C へ移す（省略時は一覧・--yes で実行）"
     echo ""

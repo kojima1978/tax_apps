@@ -55,7 +55,7 @@ export function checkDbHealth(): string | null {
 // スキーマの版。PRAGMA user_version に記録し、古い版の DB は開いたときに1回だけ作り替える。
 // 版を上げるときは initSchema に `if (version < N)` を1つ足す（作り替えは必ずトランザクションの中で、途中で落ちたら元のまま）。
 // SCHEMA_V1 は版1の形のまま凍結しておき、新しい DB も版1を作ってから順に上げる（移行の経路を1本にするため）。
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 // staff.id が「台帳ID」。各アプリはこの番号で人を参照するので、振り直さない・消さない
 // （退職は retired_on を入れるだけ）。
@@ -210,6 +210,32 @@ function migrateV4ToV5(d: Database.Database): void {
   d.exec(`ALTER TABLE companies DROP COLUMN fax;`);
 }
 
+// 版5 → 6: 連携の見張りの記録（server/linkHealth.ts）。台帳の中身ではないのでバックアップには入れず、復元でも消さない。
+//   - link_incidents: アプリ×見張り（写し／担当件数）ごとの失敗の始まりと終わり。続いている失敗は1件だけ（部分ユニーク索引）
+//   - link_notify_results: 保存のたびの知らせ（notify.ts）の送り先ごとの最後の結果。作り直しても「届いていない」を覚えておくため
+function migrateV5ToV6(d: Database.Database): void {
+  d.exec(`
+    CREATE TABLE link_incidents (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      app             TEXT NOT NULL,
+      check_kind      TEXT NOT NULL CHECK (check_kind IN ('sync', 'workload')),
+      started_at      TEXT NOT NULL,
+      ended_at        TEXT,
+      reason          TEXT NOT NULL,
+      last_checked_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX link_incidents_open_idx ON link_incidents(app, check_kind) WHERE ended_at IS NULL;
+
+    CREATE TABLE link_notify_results (
+      app    TEXT PRIMARY KEY,
+      at     TEXT NOT NULL,
+      ok     INTEGER NOT NULL,
+      synced INTEGER,
+      error  TEXT
+    );
+  `);
+}
+
 function tableExists(d: Database.Database, name: string): boolean {
   return d.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(name) !== undefined;
 }
@@ -235,6 +261,7 @@ function initSchema(d: Database.Database): void {
       if (version < 3) migrateV2ToV3(d);
       if (version < 4) migrateV3ToV4(d);
       if (version < 5) migrateV4ToV5(d);
+      if (version < 6) migrateV5ToV6(d);
       const broken = d.pragma('foreign_key_check') as unknown[];
       if (broken.length > 0) throw new Error(`スキーマの移行後に外部キーの不整合が ${broken.length} 件あります`);
       d.pragma(`user_version = ${SCHEMA_VERSION}`);

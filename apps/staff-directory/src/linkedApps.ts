@@ -160,7 +160,7 @@ export function parseSyncStatus(body: unknown): SyncState {
   };
 }
 
-/** 保存のたびの知らせの状況（台帳のサーバが持つ。再起動で空に戻る） */
+/** 保存のたびの知らせの状況（台帳のサーバが持つ。送り先ごとの最後の結果は台帳の DB に残る） */
 export type NotifyResult = { key: LinkedAppKey; at: string; ok: boolean; synced: boolean | null; error: string | null };
 export type NotifyStatus = { enabled: boolean; pending: boolean; lastChangeAt: string | null; results: NotifyResult[] };
 

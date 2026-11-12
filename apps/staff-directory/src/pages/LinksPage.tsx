@@ -14,6 +14,9 @@ import {
 } from '../linkedApps';
 import { PageHeader, btn } from '../components/ui';
 import { fetchWorkloads, type AppWorkload } from '../workload';
+import { LinkTroubleNote } from '../components/LinkTroubleNote';
+import { LINK_CHECK_KIND_LABEL, failingSince, useLinkHealth, type LinkHealth } from '../linkHealth';
+import { WORKLOAD_SOURCES } from '../../server/linkedApps';
 
 // 台帳の変更が各アプリへ届いているかを、台帳の側から見る画面。
 // 写しを持つアプリはその写しの状況を、直接読むアプリは一覧だけを出す
@@ -65,7 +68,7 @@ function NoticeLine({ notify, result }: { notify: NotifyStatus | null; result: N
   let body: ReactNode;
   if (notify === null) body = <span className="text-slate-500">確かめられません</span>;
   else if (!notify.enabled) body = <span className="text-slate-500">送らない設定です（LINKED_APP_ORIGINS）</span>;
-  else if (!result) body = <span className="text-slate-500">{notify.pending ? '送る準備をしています…' : '台帳を起動してから、まだ保存がありません'}</span>;
+  else if (!result) body = <span className="text-slate-500">{notify.pending ? '送る準備をしています…' : 'まだ知らせたことがありません'}</span>;
   else
     body = (
       <>
@@ -195,7 +198,7 @@ function SyncCard({ app, tick, notify }: { app: LinkedApp; tick: number; notify:
 }
 
 // 社員一覧の「担当」列・退職者の担当の元になる、各アプリの担当件数が読めているか
-function WorkloadSection({ tick }: { tick: number }) {
+function WorkloadSection({ tick, health }: { tick: number; health: LinkHealth | null | undefined }) {
   const [apps, setApps] = useState<AppWorkload[] | null>(null);
   useEffect(() => {
     let alive = true;
@@ -219,7 +222,10 @@ function WorkloadSection({ tick }: { tick: number }) {
           <li key={source.key} className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 px-4 py-2 text-sm">
             <span className="w-40 shrink-0 font-medium text-slate-800">{source.label}</span>
             {data === 'unreachable' ? (
-              <span className={`rounded-full px-2 py-0.5 text-xs ring-1 ${BADGE.unreachable.className}`}>読めない（—）</span>
+              <>
+                <span className={`rounded-full px-2 py-0.5 text-xs ring-1 ${BADGE.unreachable.className}`}>読めない（—）</span>
+                <FailingSince since={failingSince(health, source.key, 'workload')} />
+              </>
             ) : (
               <>
                 <span className={`rounded-full px-2 py-0.5 text-xs ring-1 ${BADGE.ok.className}`}>読めた</span>
@@ -236,8 +242,85 @@ function WorkloadSection({ tick }: { tick: number }) {
   );
 }
 
+function FailingSince({ since }: { since: string | null }) {
+  if (!since) return null;
+  return (
+    <span className="text-xs text-amber-800">
+      {relativeTime(since, Date.now())}から（{new Date(since).toLocaleString('ja-JP')}〜）
+    </span>
+  );
+}
+
+const fmt = (at: string) => new Date(at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+/** 「〇時間〇分」 */
+function duration(from: string, to: number): string {
+  const min = Math.max(0, Math.round((to - Date.parse(from)) / 60_000));
+  if (min < 60) return `${min}分`;
+  const h = Math.floor(min / 60);
+  return h < 24 ? `${h}時間${min % 60 ? `${min % 60}分` : ''}` : `${Math.floor(h / 24)}日${h % 24 ? `${h % 24}時間` : ''}`;
+}
+
+// 台帳のサーバが5分ごとに確かめた、失敗の始まりと終わり（台帳の DB に残る）
+function IncidentSection({ health }: { health: LinkHealth | null | undefined }) {
+  const incidents = health?.incidents ?? [];
+  return (
+    <section className="space-y-3">
+      <div>
+        <h3 className="text-base font-bold text-slate-800">失敗の記録</h3>
+        <p className="mt-1 text-sm text-slate-600">
+          台帳のサーバが5分ごとに、写しの状況と担当件数の口を確かめています。失敗が始まった時刻と直った時刻を、アプリごとに直近20件まで残します（台帳を作り直しても消えません）。
+          30分以上続いている失敗は、デスクトップの警告（TAX-APPS-ALERT.txt）にも出ます。
+        </p>
+        {health?.checkedAt && <p className="mt-1 text-xs text-slate-500">最後に確かめた時刻: {new Date(health.checkedAt).toLocaleString('ja-JP')}</p>}
+      </div>
+      {health === null ? (
+        <p className="text-sm text-amber-800">記録を読めませんでした。</p>
+      ) : incidents.length === 0 ? (
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">{health === undefined ? '確認中…' : '失敗の記録はありません。'}</p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table className="w-full min-w-[44rem] text-sm">
+            <thead className="bg-slate-50 text-left text-xs text-slate-500">
+              <tr>
+                <th className="px-3 py-1.5 font-medium">アプリ</th>
+                <th className="px-3 py-1.5 font-medium">連携</th>
+                <th className="px-3 py-1.5 font-medium">始まり</th>
+                <th className="px-3 py-1.5 font-medium">終わり</th>
+                <th className="px-3 py-1.5 font-medium">理由（最後に見たもの）</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {incidents.map((i) => (
+                <tr key={i.id} className={i.endedAt === null ? 'bg-red-50/60' : undefined}>
+                  <td className="whitespace-nowrap px-3 py-1.5 font-medium text-slate-800">{i.label}</td>
+                  <td className="whitespace-nowrap px-3 py-1.5 text-slate-600">{LINK_CHECK_KIND_LABEL[i.kind]}</td>
+                  <td className="whitespace-nowrap px-3 py-1.5 tabular-nums">{fmt(i.startedAt)}</td>
+                  <td className="whitespace-nowrap px-3 py-1.5 tabular-nums">
+                    {i.endedAt === null ? (
+                      <span className="font-medium text-red-700">続いている（{duration(i.startedAt, Date.now())}）</span>
+                    ) : (
+                      <>
+                        {fmt(i.endedAt)}
+                        <span className="ml-1 text-xs text-slate-500">（{duration(i.startedAt, Date.parse(i.endedAt))}）</span>
+                      </>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 text-slate-700">{i.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function LinksPage() {
   const tick = useTick();
+  const health = useLinkHealth(tick);
+  const failingWorkload = WORKLOAD_SOURCES.filter((s) => failingSince(health, s.key, 'workload') !== null);
   const [notify, setNotify] = useState<NotifyStatus | null>(null);
 
   useEffect(() => {
@@ -251,6 +334,12 @@ export default function LinksPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="連携" description="台帳の変更が各アプリへ届いているか、各アプリの担当件数を読めているかを、台帳の側から確かめる画面です。" />
+      <LinkTroubleNote
+        onLinksPage
+        health={health ?? null}
+        unreachable={failingWorkload}
+        consequence="社員一覧の担当件数はそのアプリの分が入らず、部署・会社の担当の合計は「—」になります。"
+      />
       <section className="space-y-3">
         <div>
           <h3 className="text-base font-bold text-slate-800">写しを持つアプリ</h3>
@@ -263,7 +352,7 @@ export default function LinksPage() {
           <SyncCard key={app.key} app={app} tick={tick} notify={notify} />
         ))}
         <p className="text-xs text-slate-500">
-          写しの記録は各アプリの DB に直近20回分あり、作り直しても残ります。台帳からの知らせの結果は台帳のメモリにだけあり、台帳を作り直すと消えます。
+          写しの記録は各アプリの DB に直近20回分あり、作り直しても残ります。台帳からの知らせの最後の結果は台帳の DB に残ります。
         </p>
       </section>
 
@@ -284,7 +373,9 @@ export default function LinksPage() {
         </ul>
       </section>
 
-      <WorkloadSection tick={tick} />
+      <WorkloadSection tick={tick} health={health} />
+
+      <IncidentSection health={health} />
     </div>
   );
 }

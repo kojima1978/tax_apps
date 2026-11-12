@@ -5,6 +5,7 @@ import { useLoad } from '../hooks/useLoad';
 import { fetchWorkloads, indexWorkloads, type WorkloadIndex } from '../workload';
 import type { WorkloadTotal } from '../orgStats';
 import type { Staff } from '../types';
+import { LinkTroubleNote } from './LinkTroubleNote';
 
 // 部署・会社の画面で使う、人数（退職予定）と担当件数の読み込みと出し方
 
@@ -24,17 +25,18 @@ export function useOrgWorkload(): { staff: Staff[]; index: WorkloadIndex; loadin
   };
 }
 
-/** 読めなかったアプリの注記（全部読めたら出さない）。1つでも読めなければ合計は「—」 */
-export function UnreachableNote({ index, loading }: { index: WorkloadIndex; loading: boolean }) {
-  if (loading || index.unreachable.length === 0) return null;
-  const all = index.unreachable.length === index.apps.length;
+/** 部署・会社の画面の連携の注記。1つでも読めなければ合計は「—」 */
+export function OrgLinkNote({ index, loading }: { index: WorkloadIndex; loading: boolean }) {
+  const all = index.unreachable.length > 0 && index.unreachable.length === index.apps.length;
   return (
-    <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-      {all
-        ? '担当件数をどのアプリからも読めなかったため、担当は「—」にしています。'
-        : `${index.unreachable.map((s) => s.label).join('・')}の担当件数を読めなかったため、担当の合計は「—」にしています（欠けたまま足すと少なく見えるため）。社員一覧では読めたアプリの分だけ出ています。`}
-      読めているかは「連携」の画面で確かめられます。
-    </p>
+    <LinkTroubleNote
+      unreachable={loading ? [] : index.unreachable}
+      consequence={
+        all
+          ? '担当は「—」にしています。'
+          : '担当の合計は出せないので「—」にしています（欠けたまま足すと少なく見えるため）。社員一覧では読めたアプリの分だけ出ています。'
+      }
+    />
   );
 }
 

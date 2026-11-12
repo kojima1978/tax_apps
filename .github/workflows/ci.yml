@@ -147,6 +147,10 @@ jobs:
       - name: MCP setup script regression
         run: bash docker/scripts/tests/setup-mcp.test.sh
 
+      # 社員台帳の連携の失敗がデスクトップの警告に1連携1行で出て、直れば消えるか
+      - name: Staff directory link alert regression
+        run: bash docker/scripts/tests/staff-links-alert.test.sh
+
       # 各アプリの src/shared/ は shared/ の写し。写しだけ直すと次の sync で黙って消える
       - name: Shared sources are in sync
         run: bash shared/sync.sh --check

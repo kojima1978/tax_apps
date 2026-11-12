@@ -79,11 +79,14 @@ docker/scripts/manage.sh restore [app|--all] [backup] [--yes]   # docker/RESTORE
 # リストア訓練（使い捨てDBへ実際に復元して検証。引数省略で最新が対象）
 docker/scripts/manage.sh drill
 
-# 期限切れの無人処理だけ実行（バックアップ20時間・訓練168時間・掃除144時間・ループ検知3時間。ウォッチドッグ用）
+# 期限切れの無人処理だけ実行（バックアップ20時間・訓練168時間・掃除144時間・ループ検知3時間・社員台帳の連携3時間。ウォッチドッグ用）
 docker/scripts/manage.sh due
 
 # 画面のリロードループの検知（ゲートウェイのログを読むだけ・ロックも取らない）
 docker/scripts/manage.sh loop-check
+
+# 社員台帳の連携の失敗（30分以上続いているもの）をデスクトップの警告へ（台帳の API を読むだけ）
+docker/scripts/manage.sh link-check
 
 # 無人向けの掃除（確認なし・ボリュームには触らない）
 docker/scripts/manage.sh prune

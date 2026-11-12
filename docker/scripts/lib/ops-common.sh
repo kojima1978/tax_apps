@@ -242,6 +242,9 @@ OPS_WATCHED_RESULTS=(
   # ループ検知はウォッチドッグが3時間おきに走らせる（間隔は4時間なので
   # 実質は毎回）。24時間は「取りこぼし1回ぶん(8時間)」より十分広い。
   "reload-loop:リロードループの検知:Reload loop:24"
+  # 社員台帳の連携もループ検知と同じく3時間おき。失敗が続いていれば failed を書き、
+  # detail に台帳が作った1行（〇〇の連携が〇時から失敗…）を " || " でつないで残す。
+  "staff-links:社員台帳の連携:Staff directory links:24"
   "recover:復旧(recover):App recovery:48"
   "watchdog:ウォッチドッグ:Docker watchdog:48"
   # 以下2件はウォッチドッグが4時間毎に書く。48時間は「12回連続で
@@ -343,7 +346,14 @@ ops_collect_failures() {
     detail=$(ops_last_result_field "$name" detail || echo '')
     age=$(ops_last_result_age_hours "$name" || echo '')
 
-    if [[ "$status" != "ok" ]]; then
+    if [[ "$name" == "staff-links" && "$status" == "failed" && "$detail" == 社員台帳と* ]]; then
+      # 台帳が作った文（いつから・理由・連携の画面の URL まで入っている）をそのまま
+      # 1連携1行で出す。つなぎ目の " || " は manage.sh の cmd_link_check が入れたもの
+      local one
+      while IFS= read -r one; do
+        [[ -n "$one" ]] && printf '%s\t失敗\t%s\n' "$name" "$one"
+      done <<< "${detail// || /$'\n'}"
+    elif [[ "$status" != "ok" ]]; then
       printf '%s\t失敗\t%s: %s（%s）%s\n' "$name" "$ja" "$status" "$at" "${detail:+ $detail}"
     elif [[ -n "$age" && "$age" -gt "$stale" ]]; then
       printf '%s\t停止\t%s: 最後に成功したのは %s時間前（%s時間を超えました・%s）\n' \
@@ -400,6 +410,10 @@ ops_refresh_failure_alert() {
         ext_dest=$(ops_external_backup_dest 2>/dev/null) || ext_dest=""
         printf '\n外部コピーの失敗は、コピー先%sのドライブを挿せば\n' "${ext_dest:+（$(to_win_path "$ext_dest")）}"
         printf '4時間以内の次の自動実行で写り、この警告も消えます。\n'
+      fi
+      if printf '%s\n' "$failures" | grep -q $'^staff-links\t'; then
+        printf '\n社員台帳の連携は、相手のアプリが動き出せば数分で台帳が成功を確かめ、\n'
+        printf '次の自動実行（manage.sh link-check を手で叩いても可）でこの警告も消えます。\n'
       fi
     } > "$alert_file" 2>/dev/null || true
   fi

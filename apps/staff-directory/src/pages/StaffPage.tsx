@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useLoad } from '../hooks/useLoad';
+import { LinkTroubleNote } from '../components/LinkTroubleNote';
 import { normalizeQuery } from '../lib';
 import { ErrorBanner, PageHeader, btn, controlClass } from '../components/ui';
 import StaffDialog from '../components/StaffDialog';
@@ -312,12 +313,16 @@ export default function StaffPage() {
               退職者の担当あり {retiredAssigned.length}名{retiredChipActive && ' ✕'}
             </button>
           )}
-          {workloadIndex.unreachable.length > 0 && (
-            <span className="ml-auto text-xs text-slate-500" title="止まっているか、3秒で返事がありませんでした。担当の数にはこのアプリの分が入っていません">
-              担当件数を読めないアプリ: {workloadIndex.unreachable.map((s) => s.label).join('・')}（—）
-            </span>
-          )}
         </div>
+        <LinkTroubleNote
+          className="mx-4 my-2"
+          unreachable={workloadIndex.unreachable}
+          consequence={
+            workloadIndex.unreachable.length === workloadIndex.apps.length
+              ? '担当は「—」にしています。'
+              : '担当の数は読めたアプリの分だけ出しています（このアプリの分は入っていません）。'
+          }
+        />
 
         {/* 幅のある画面はページごとスクロールし、見出しをページの上端に残す。
             狭い画面は表を横にずらすので、表の枠の中で縦にもスクロールさせて見出しを残す */}

@@ -6,7 +6,7 @@ import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import { useReorder } from '../hooks/useReorder';
 import { AddressFields } from '../components/AddressFields';
 import { DialogFooter, DragHandle, ErrorBanner, Field, Modal, PageHeader, ReorderBar, Section, btn, inputClass } from '../components/ui';
-import { RetiringLink, UnreachableNote, WorkloadSummary, useOrgWorkload } from '../components/OrgStats';
+import { RetiringLink, OrgLinkNote, WorkloadSummary, useOrgWorkload } from '../components/OrgStats';
 import { companyStats, emptyStats, type GroupStats } from '../orgStats';
 import type { Company, CompanyForm } from '../types';
 
@@ -99,7 +99,7 @@ export default function CompaniesPage() {
         }
       />
       <ErrorBanner message={error ?? companies.error ?? org.error} />
-      <UnreachableNote index={org.index} loading={org.loading} />
+      <OrgLinkNote index={org.index} loading={org.loading} />
       <ReorderBar dirty={reorder.dirty} saving={saving} onSave={() => void saveOrder()} onReset={reorder.reset} />
       <div className={`grid gap-4 ${sortable ? 'lg:grid-cols-2' : ''}`}>
         {reorder.sorted.map((c, i) => (

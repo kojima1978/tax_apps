@@ -47,7 +47,8 @@ export const LINKED_APP_TARGETS: LinkedAppTarget[] = [
 
 // ---- 社員ごとの担当件数（社員一覧の「担当」列・退職者の担当・編集画面の内訳） ----
 // 各アプリが GET <basePath>/api/staff-directory/workload で返す（形は src/shared/staff-workload）。
-// 画面がゲートウェイの下から直接読む。読めないアプリは「—」で、一覧は止めない
+// 画面がゲートウェイの下から直接読む。読めないアプリは「—」で、一覧は止めない。
+// 台帳のサーバも同じ口を5分ごとに読み、読めない状態が続いているかを記録する（server/linkHealth.ts）
 
 export type WorkloadSourceKey = LinkedAppKey | 'stock-valuation-form' | 'bank-analyzer';
 
@@ -56,10 +57,25 @@ export type WorkloadSource = {
   label: string;
   /** ゲートウェイの下のパス。件数の口とリンク（そのアプリの一覧をその人で絞る）はこの後ろに付く */
   basePath: string;
+  /** 台帳のサーバが読むときのコンテナ間の送り先（tax-apps-network 上のコンテナ名） */
+  defaultOrigin: string;
 };
 
 export const WORKLOAD_SOURCES: WorkloadSource[] = [
-  ...LINKED_APP_TARGETS.map(({ key, label, basePath }) => ({ key, label, basePath })),
-  { key: 'stock-valuation-form', label: '株式評価明細書', basePath: '/stock-valuation-form' },
-  { key: 'bank-analyzer', label: '預貯金分析', basePath: '/bank-analyzer' },
+  ...LINKED_APP_TARGETS.map(({ key, label, basePath, defaultOrigin }) => ({ key, label, basePath, defaultOrigin })),
+  { key: 'stock-valuation-form', label: '株式評価明細書', basePath: '/stock-valuation-form', defaultOrigin: 'http://stock-valuation-form:3014' },
+  { key: 'bank-analyzer', label: '預貯金分析', basePath: '/bank-analyzer', defaultOrigin: 'http://bank-analyzer:3007' },
 ];
+
+// ---- 連携の見張り（server/linkHealth.ts が5分ごとに読み、失敗の始まりと終わりを台帳の DB に残す） ----
+// sync = 写しの状況（写しを持つアプリだけ）、workload = 担当件数の口（WORKLOAD_SOURCES 全部）
+
+export type LinkCheckKind = 'sync' | 'workload';
+
+export const LINK_CHECK_KIND_LABEL: Record<LinkCheckKind, string> = {
+  sync: '担当者・部署の写し',
+  workload: '担当件数の読み取り',
+};
+
+/** 失敗が続いているときに人へ見せる画面（デスクトップの警告にも載せる） */
+export const LINKS_PAGE_URL = 'http://localhost/staff-directory/links';

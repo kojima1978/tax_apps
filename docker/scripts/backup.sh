@@ -2621,6 +2621,12 @@ run_scheduled_loop_check() {
   "$SCRIPT_DIR/manage.sh" loop-check
 }
 
+# 社員台帳の連携の失敗も manage.sh へ委譲する（台帳の API を読むだけでコンテナには
+# 触らないので、ロックは握ったままでよい）。
+run_scheduled_link_check() {
+  "$SCRIPT_DIR/manage.sh" link-check
+}
+
 remove_old_files() {
   local dir="$1"
   local pattern="$2"
@@ -3203,7 +3209,7 @@ cmd_usb() {
 #
 # **しきい値は OPS_WATCHED_RESULTS の警告しきい値より必ず小さくすること**
 # （backup: 20h < 30h / drill: 168h < 192h / prune: 144h < 192h /
-# reload-loop: 3h < 24h）。
+# reload-loop: 3h < 24h / staff-links: 3h < 24h）。
 # 逆転すると「警告を出してから実行する」順序になり、デスクトップの警告が
 # 毎回ウソをつく。掃除だけ警告しきい値から2日離してあるのは、以前これが
 # ドリルの付属物で、駆動元の周期（168h）と警告しきい値（192h）がほぼ
@@ -3212,6 +3218,7 @@ DUE_BACKUP_HOURS="${TAX_APPS_DUE_BACKUP_HOURS:-20}"
 DUE_DRILL_HOURS="${TAX_APPS_DUE_DRILL_HOURS:-168}"
 DUE_PRUNE_HOURS="${TAX_APPS_DUE_PRUNE_HOURS:-144}"
 DUE_LOOPCHECK_HOURS="${TAX_APPS_DUE_LOOPCHECK_HOURS:-3}"
+DUE_LINKCHECK_HOURS="${TAX_APPS_DUE_LINKCHECK_HOURS:-3}"
 AUTOMATIC_BACKUP_ENABLED="${TAX_APPS_AUTOMATIC_BACKUP_ENABLED:-1}"
 
 # 外部コピーの追いつき。外部コピーはバックアップの直後に1回試すだけだったので、
@@ -3269,7 +3276,7 @@ cmd_due() {
   # タスクが消えたことに気づく経路がその日だけ欠ける）。
   ensure_watchdog_task
 
-  local status="ok" backup_state="skip" drill_state="skip" prune_state="skip" loop_state="skip" ext_state="skip"
+  local status="ok" backup_state="skip" drill_state="skip" prune_state="skip" loop_state="skip" link_state="skip" ext_state="skip"
 
   if [[ "$AUTOMATIC_BACKUP_ENABLED" == "0" ]]; then
     backup_state="disabled"
@@ -3342,9 +3349,23 @@ cmd_due() {
     echo ""
   fi
 
+  # 社員台帳の連携。失敗が続いている間は記録が failed なので毎回走り、
+  # 直った回に ok を書いてデスクトップの警告が消える。
+  if _due_needed "staff-links" "$DUE_LINKCHECK_HOURS"; then
+    if _due_run run_scheduled_link_check; then
+      link_state="ran"
+    else
+      link_state="failed"
+      status="failed"
+    fi
+  else
+    echo "社員台帳の連携: ${DUE_LINKCHECK_HOURS}時間以内に成功しているのでスキップ（$(ops_format_last_result staff-links)）"
+    echo ""
+  fi
+
   # ウォッチドッグ(PowerShell)が読む唯一の行。日本語のログ行はコンソールの
   # コードページ次第で拾えないため、連絡は ASCII 1行に限る。
-  echo "DUE_RESULT status=$status backup=$backup_state drill=$drill_state prune=$prune_state loop=$loop_state ext=$ext_state"
+  echo "DUE_RESULT status=$status backup=$backup_state drill=$drill_state prune=$prune_state loop=$loop_state links=$link_state ext=$ext_state"
   [[ "$status" == "ok" ]]
 }
 
