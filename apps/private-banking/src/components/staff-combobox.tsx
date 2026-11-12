@@ -2,7 +2,7 @@
 
 import { ChevronDown, Search, X } from "lucide-react";
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
-import { buildPickerSections, type PersonLike, readRecentIds, rememberRecent } from "@/shared/staff-directory/assignee";
+import { buildPickerSections, departmentOrderByName, type PersonLike, readRecentIds, rememberRecent } from "@/shared/staff-directory/assignee";
 import { copyLinkTroubleMessage, useCopyLinkTrouble } from "@/shared/staff-directory/linkHealth";
 import { useOperator } from "@/shared/staff-directory/operator";
 import { retirementMark } from "@/shared/staff-retirement/retirement";
@@ -47,14 +47,18 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
   const listboxId = `${id}-options`;
   const optionsRef = useRef<HTMLDivElement>(null);
 
+  // 部署の並びは台帳の部署の画面の順。写しは部署名しか持たないので、台帳から読めた一覧で名前から順を引く。
+  // 台帳が止まっていれば空 ── 並びが名前順に戻るだけで、選ぶのは写しからできる
+  const orderByDepartment = useMemo(() => departmentOrderByName(status === "ok" ? operators : []), [operators, status]);
   const people = useMemo(() => staff.map((row): Person => ({
     row,
     fullName: row.name,
     kana: row.nameKana,
     companyName: "",
     departmentName: row.department,
+    departmentOrder: orderByDepartment.get(row.department) ?? null,
     searchExtra: row.staffCode,
-  })), [staff]);
+  })), [staff, orderByDepartment]);
   // 退職予定の印に使う退職日は台帳から（写しには持たない）。台帳が止まっていれば印は出せない
   const retiredOnByDirectoryId = useMemo(
     () => new Map(status === "ok" ? operators.flatMap((o) => o.id === null ? [] : [[o.id, o.retiredOn] as const]) : []),

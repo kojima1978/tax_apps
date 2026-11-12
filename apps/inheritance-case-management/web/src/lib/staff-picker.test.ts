@@ -3,6 +3,7 @@ import { buildStaffPickerSections, flattenStaffPickerRows, markOf } from "@/lib/
 import type { Assignee } from "@/types/shared"
 
 // 名前はすべて架空。id は案件管理の写しの ID、staffDirectoryId が台帳ID（わざとずらしてある）
+// 部署の sortOrder は台帳の部署の画面の何番目か（名前順なら大阪が先だが、台帳の順で東京が先）
 const tokyo = { id: 1, name: "東京", sortOrder: 1, active: true }
 const osaka = { id: 2, name: "大阪", sortOrder: 2, active: true }
 const assignees: Assignee[] = [
@@ -21,8 +22,8 @@ describe("buildStaffPickerSections", () => {
         expect(sections.map((s) => [s.kind, s.label])).toEqual([
             ["me", "自分（操作者）"],
             ["recent", "最近選んだ人"],
-            ["department", "大阪"],
             ["department", "東京"],
+            ["department", "大阪"],
             ["department", "部署なし"],
         ])
         expect(ids(sections[0].rows)).toEqual([11])
@@ -30,7 +31,7 @@ describe("buildStaffPickerSections", () => {
         expect(ids(sections[1].rows)).toEqual([13])
         // 自分・最近の行には部署名を添え、部署の塊では添えない
         expect(sections[1].rows[0].detail).toBe("大阪")
-        expect(sections[2].rows[0].detail).toBe("")
+        expect(sections[3].rows[0].detail).toBe("")
     })
 
     it("quick を渡さない（社内紹介者）ときは部署ごとだけ", () => {
@@ -52,6 +53,14 @@ describe("buildStaffPickerSections", () => {
         expect(hit("E2")).toEqual([12])
         const [section] = buildStaffPickerSections(assignees, { query: "大阪", value: "", today })
         expect(section.label).toBe("検索結果（2人）")
+    })
+
+    it("フリガナで引け、部署の中はフリガナのある人が読み順で先、無い人は氏名順で後ろ", () => {
+        const withKana = assignees.map((a) => a.id === 13 ? { ...a, nameKana: "アイウ サブロウ" } : a)
+        const hit = ids(flattenStaffPickerRows(buildStaffPickerSections(withKana, { query: "あいう", value: "", today })))
+        expect(hit).toEqual([13])
+        const osakaSection = buildStaffPickerSections(withKana, { query: "", value: "", today }).find((s) => s.label === "大阪")
+        expect(ids(osakaSection!.rows)).toEqual([13, 12])
     })
 
     it("同じ人が自分と部署の塊に出ても行の key は重ならない", () => {

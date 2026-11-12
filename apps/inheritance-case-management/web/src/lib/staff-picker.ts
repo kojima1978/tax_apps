@@ -40,14 +40,17 @@ export function buildStaffPickerSections(assignees: readonly Assignee[], options
 }): StaffPickerSection[] {
     const people = assignees
         .filter((a) => a.active !== false || String(a.id) === options.value)
-        // 写しにはフリガナが無いので、部署の中は氏名の並び（今までどおり）。読み順ではない
+        // フリガナのある人は共通の関数が読み順に並べる。無い人はこの並び（氏名順）のまま後ろへ
         .sort((a, b) => a.name.localeCompare(b.name, "ja"))
         .map((a): Person => ({
             assignee: a,
             fullName: a.name,
-            kana: "",
+            kana: a.nameKana ?? "",
             companyName: "",
             departmentName: a.department?.name ?? "",
+            // 写しの部署の sortOrder は台帳の部署の画面の何番目か（lib/staff-directory/plan.ts）。
+            // 写しなので台帳が止まっていても最後に写した順で並ぶ
+            departmentOrder: a.department?.sortOrder ?? null,
             searchExtra: a.employeeId ?? "",
         }))
     const sections = buildPickerSections(people, {

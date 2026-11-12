@@ -12,6 +12,8 @@ export type Operator = {
   kana: string;
   companyName: string;
   departmentName: string;
+  /** 主所属の部署が台帳の表示順（会社 → 部署）で何番目か。部署なし・古い台帳は null */
+  departmentOrder: number | null;
   /** 退職日（最後に在籍する日・YYYY-MM-DD）。在籍の一覧に居るのは退職予定の人だけなので、ここに入るのは今日以降の日付 */
   retiredOn: string | null;
 };
@@ -22,6 +24,7 @@ export const FALLBACK_OPERATOR: Operator = {
   kana: '',
   companyName: '',
   departmentName: '',
+  departmentOrder: null,
   retiredOn: null,
 };
 
@@ -45,6 +48,7 @@ export function parseDirectoryOperators(body: unknown): Operator[] | null {
       kana: text(value.nameKana).trim(),
       companyName: text(value.companyName),
       departmentName: text(value.departmentName),
+      departmentOrder: typeof value.departmentOrder === 'number' && Number.isFinite(value.departmentOrder) ? value.departmentOrder : null,
       retiredOn: typeof value.retiredOn === 'string' && value.retiredOn !== '' ? value.retiredOn : null,
     }];
   });

@@ -4,6 +4,7 @@ import {
   assigneeFilterPeople,
   assigneeMatches,
   buildPickerSections,
+  departmentOrderByName,
   parseAssigneeFilter,
   personMatches,
   pushRecent,
@@ -18,6 +19,7 @@ const person = (overrides: Partial<Operator> & { id: number }): Operator => ({
   kana: '',
   companyName: '架空税理士法人',
   departmentName: '架空部',
+  departmentOrder: null,
   retiredOn: null,
   ...overrides,
 });
@@ -90,9 +92,36 @@ describe('sectionsByDepartment', () => {
     ]);
   });
 
+  it('台帳の表示順があればその順（名前順ではない）。順の無い部署は名前順で後ろ、部署なしは最後', () => {
+    const list = [
+      person({ id: 1, departmentName: '' }),
+      person({ id: 2, departmentName: '医療部', departmentOrder: 2 }),
+      person({ id: 3, departmentName: '会計部', departmentOrder: 1 }),
+      person({ id: 4, departmentName: '資産税部' }),
+      person({ id: 5, departmentName: '相続部' }),
+    ];
+    expect(sectionsByDepartment(list).map((s) => s.label)).toEqual(['会計部', '医療部', '資産税部', '相続部', '部署なし']);
+    // 台帳が止まって順が1つも無ければ今までどおり名前順
+    const noOrder = list.map((p) => ({ ...p, departmentOrder: null }));
+    expect(sectionsByDepartment(noOrder).map((s) => s.label)).toEqual(['医療部', '会計部', '資産税部', '相続部', '部署なし']);
+  });
+
   it('会社が2つ以上あるときだけ見出しに会社名を付ける', () => {
     const list = [person({ id: 1, companyName: '架空A' }), person({ id: 2, companyName: '架空B', departmentName: '' })];
     expect(sectionsByDepartment(list).map((s) => s.label)).toEqual(['架空A 架空部', '架空B 部署なし']);
+  });
+});
+
+describe('departmentOrderByName', () => {
+  it('部署名ごとに台帳の表示順。同じ名前は小さいほう、部署なし・順の無い人は入れない', () => {
+    const map = departmentOrderByName([
+      person({ id: 1, departmentName: '会計部', departmentOrder: 3 }),
+      person({ id: 2, departmentName: '会計部', departmentOrder: 1 }),
+      person({ id: 3, departmentName: '医療部', departmentOrder: 2 }),
+      person({ id: 4, departmentName: '', departmentOrder: null }),
+      person({ id: 5, departmentName: '総務部', departmentOrder: null }),
+    ]);
+    expect([...map.entries()]).toEqual([['会計部', 1], ['医療部', 2]]);
   });
 });
 

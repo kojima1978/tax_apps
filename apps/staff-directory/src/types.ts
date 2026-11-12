@@ -31,6 +31,8 @@ export type Staff = {
   companyName: string | null;
   departmentId: number | null;
   departmentName: string | null;
+  // 主所属の部署が部署の画面の表示順で何番目か（各アプリの担当者欄が使う。この画面は使わない）
+  departmentOrder: number | null;
   mobilePhone: string;
   retiredOn: string | null;
   createdAt: string;

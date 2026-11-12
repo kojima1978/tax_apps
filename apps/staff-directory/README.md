@@ -48,7 +48,7 @@
 
 | メソッド | パス | 内容 |
 |---|---|---|
-| GET | `/staff?status=active\|retired\|all` | 社員一覧（既定 active。フリガナ順）。`affiliations`（主所属が先頭）と、主所属の写し `companyId` / `departmentId` / `departmentName` / `employeeNo` |
+| GET | `/staff?status=active\|retired\|all` | 社員一覧（既定 active。フリガナ順）。`affiliations`（主所属が先頭）と、主所属の写し `companyId` / `departmentId` / `departmentName` / `employeeNo`、主所属の部署が部署の画面の表示順（会社 → 部署）で何番目かの `departmentOrder`（各アプリの担当者欄の部署の並び。部署なしは null） |
 | GET / PUT | `/staff/:id` | 1人の取得・更新 |
 | POST | `/staff` | 追加（台帳ID が振られる） |
 | PUT | `/staff/:id/short-name` | 略称を決める（`{ shortName }`、10文字まで。空文字で自動に戻す） |

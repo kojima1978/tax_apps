@@ -29,6 +29,8 @@ export interface DirectoryStaff {
   id: number;
   employeeNo: string | null;
   name: string;
+  /** 「セイ メイ」（台帳でまだ空の人が多い）。古い台帳は返さないので無ければ空 */
+  nameKana?: string;
   departmentId: number | null;
   retiredOn: string | null;
 }
@@ -50,6 +52,7 @@ export interface LocalDepartment {
 export interface LocalAssignee {
   id: number;
   name: string;
+  nameKana: string;
   employeeId: string | null;
   departmentId: number | null;
   active: boolean;
@@ -65,6 +68,7 @@ export interface DepartmentData {
 
 export interface AssigneeData {
   name: string;
+  nameKana: string;
   employeeId: string | null;
   departmentId: number | null;
   active: boolean;
@@ -134,9 +138,12 @@ export function planDepartments(
     (d, free) => [...free.values()].find((l) => l.name === nameOf(d)),
   ]);
 
+  // 並び順は台帳の部署の一覧の何番目か（台帳は会社の表示順 → 部署の表示順で返す）。台帳の sortOrder は
+  // 会社ごとに1から振り直すので、そのまま写すと会社をまたいで同じ番号が並ぶ。担当者を選ぶ欄・経営分析の
+  // 部署の並びはこの番号で、台帳の部署の画面と同じ順になる
   const ops: SyncOp<DepartmentData>[] = [];
-  for (const d of directory) {
-    const next: DepartmentData = { name: nameOf(d), sortOrder: d.sortOrder, active: d.active, staffDirectoryId: d.id };
+  for (const [index, d] of directory.entries()) {
+    const next: DepartmentData = { name: nameOf(d), sortOrder: index + 1, active: d.active, staffDirectoryId: d.id };
     const current = matched.get(d.id);
     if (!current) {
       ops.push({ kind: 'create', data: next });
@@ -173,6 +180,7 @@ export function planAssignees(
   for (const s of directory) {
     const next: AssigneeData = {
       name: s.name,
+      nameKana: (s.nameKana ?? '').trim(),
       employeeId: s.employeeNo,
       departmentId: s.departmentId === null ? null : (departmentIdByDirectoryId.get(s.departmentId) ?? null),
       active: !isRetired(s.retiredOn, today),

@@ -86,7 +86,8 @@ model Department {
   active     Boolean    @default(true)
   assignees  Assignee[]
   // 社員台帳（staff-directory）の部署ID。部署・担当者は台帳が正で、ここは写し
-  // （src/lib/staff-directory-sync.ts が数分ごとに台帳から上書きする）
+  // （src/lib/staff-directory/sync.ts が台帳から上書きする）。sortOrder は台帳の部署の一覧の何番目か
+  // （会社の表示順 → 部署の表示順）
   staffDirectoryId Int? @unique
 
   createdAt  DateTime @default(now())
@@ -98,6 +99,8 @@ model Department {
 model Assignee {
   id           Int          @id @default(autoincrement())
   name         String
+  // 社員台帳のフリガナ（「セイ メイ」）の写し。担当者を選ぶ欄の検索と部署の中の並びに使う。台帳で空なら空
+  nameKana     String       @default("")
   employeeId   String?
   departmentId Int?
   department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)

@@ -37,6 +37,11 @@ export type Staff = {
   companyName: string | null;
   departmentId: number | null;
   departmentName: string | null;
+  /**
+   * 主所属の部署が部署の画面の表示順（会社の表示順 → 部署の表示順）で何番目か（1始まり）。部署なしは null。
+   * 各アプリの担当者を選ぶ欄が部署の塊をこの順に並べる（shared/staff-directory の sectionsByDepartment）
+   */
+  departmentOrder: number | null;
   mobilePhone: string;
   retiredOn: string | null;
   createdAt: string;
@@ -127,6 +132,9 @@ const STATUS_WHERE: Record<StaffStatus, string> = {
   all: '',
 };
 
+// 部署の画面の表示順。部署の一覧と、社員の departmentOrder（各アプリの担当者欄の部署の並び）で同じ順にする
+const DEPARTMENT_ORDER = 'ORDER BY c.sort_order, c.id, d.sort_order, d.id';
+
 // フリガナの無い人は最後にまとめる（未入力が一目で分かるように）。
 // 保存時にカタカナへ揃えてあるので、文字コード順でそのまま五十音順になる。
 const STAFF_ORDER = `ORDER BY s.family_kana = '', s.family_kana, s.given_kana, s.id`;
@@ -167,6 +175,12 @@ function loadStaff(db: Database.Database, where: string, params: unknown[] = [])
     affiliations.set(a.staff_id, list);
   }
 
+  const departmentOrder = new Map(
+    (db.prepare(`SELECT d.id FROM departments d JOIN companies c ON c.id = d.company_id ${DEPARTMENT_ORDER}`).all() as { id: number }[]).map(
+      (d, i) => [d.id, i + 1],
+    ),
+  );
+
   return rows.map((r) => {
     const affs = affiliations.get(r.id) ?? [];
     const primary = affs.find((a) => a.isPrimary) ?? null;
@@ -190,6 +204,7 @@ function loadStaff(db: Database.Database, where: string, params: unknown[] = [])
       companyName: primary?.companyName ?? null,
       departmentId: primary?.departmentId ?? null,
       departmentName: primary?.departmentName ?? null,
+      departmentOrder: primary?.departmentId == null ? null : (departmentOrder.get(primary.departmentId) ?? null),
       mobilePhone: r.mobile_phone,
       retiredOn: r.retired_on,
       createdAt: r.created_at,
@@ -430,7 +445,7 @@ export function listDepartments(db: Database.Database): Department[] {
          (SELECT count(*) FROM staff_affiliations a JOIN staff s ON s.id = a.staff_id
           WHERE a.department_id = d.id AND NOT is_retired(s.retired_on)) AS staff_count
        FROM departments d JOIN companies c ON c.id = d.company_id
-       ORDER BY c.sort_order, c.id, d.sort_order, d.id`,
+       ${DEPARTMENT_ORDER}`,
     )
     .all() as DepartmentRow[];
   const companiesByName = new Map<string, Set<number>>();

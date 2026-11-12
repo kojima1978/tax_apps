@@ -190,6 +190,8 @@ export interface Department {
 export interface Assignee {
   id: number;
   name: string;
+  /** 社員台帳のフリガナ（「セイ メイ」）の写し。台帳で空なら空 */
+  nameKana?: string;
   employeeId?: string;
   departmentId?: number | null;
   department?: Department | null;

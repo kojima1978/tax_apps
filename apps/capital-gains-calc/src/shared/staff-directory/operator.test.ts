@@ -7,6 +7,7 @@ const operator = (overrides: Partial<Operator> & { id: number }): Operator => ({
   kana: '',
   companyName: '架空税理士法人',
   departmentName: '架空部',
+  departmentOrder: null,
   retiredOn: null,
   ...overrides,
 });
@@ -14,10 +15,13 @@ const operator = (overrides: Partial<Operator> & { id: number }): Operator => ({
 describe('parseDirectoryOperators', () => {
   it('社員台帳から操作者表示に必要な項目だけ取り出す', () => {
     expect(parseDirectoryOperators([{ id: 7, fullName: '架空 花子', nameKana: 'カクウ ハナコ', companyName: '架空税理士法人', departmentName: '架空部', mobilePhone: '', retiredOn: null }])).toEqual([
-      { id: 7, fullName: '架空 花子', kana: 'カクウ ハナコ', companyName: '架空税理士法人', departmentName: '架空部', retiredOn: null },
+      { id: 7, fullName: '架空 花子', kana: 'カクウ ハナコ', companyName: '架空税理士法人', departmentName: '架空部', departmentOrder: null, retiredOn: null },
     ]);
     // 退職予定の人は退職日も持つ（選ぶ欄の「退職予定」の印に使う）
     expect(parseDirectoryOperators([{ id: 8, fullName: '架空 次郎', retiredOn: '2026-12-31' }])?.[0]?.retiredOn).toBe('2026-12-31');
+    // 部署の表示順は台帳が返せば数で、古い台帳（返さない）なら null
+    expect(parseDirectoryOperators([{ id: 9, fullName: '架空 三郎', departmentOrder: 3 }])?.[0]?.departmentOrder).toBe(3);
+    expect(parseDirectoryOperators([{ id: 9, fullName: '架空 三郎', departmentOrder: '3' }])?.[0]?.departmentOrder).toBeNull();
   });
 
   it('空・不正形式は控えで動かす', () => {

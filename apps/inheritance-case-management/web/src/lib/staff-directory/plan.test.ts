@@ -13,6 +13,7 @@ const dept = (over: Partial<LocalDepartment> & { id: number }): LocalDepartment 
 
 const assignee = (over: Partial<LocalAssignee> & { id: number }): LocalAssignee => ({
   name: '山田',
+  nameKana: '',
   employeeId: null,
   departmentId: null,
   active: true,
@@ -30,12 +31,12 @@ describe('planDepartments', () => {
         { id: 102, name: '総務部', sortOrder: 2, active: true },
       ],
       links,
-      [dept({ id: 5, name: '資産税' }), dept({ id: 6, name: '会計部', sortOrder: 1 })],
+      [dept({ id: 5, name: '資産税', sortOrder: 1 }), dept({ id: 6, name: '会計部', sortOrder: 2 })],
     );
     expect(ops).toEqual([
       { kind: 'update', id: 5, data: { name: '資産税部', staffDirectoryId: 100 } },
       { kind: 'update', id: 6, data: { staffDirectoryId: 101 } },
-      { kind: 'create', data: { name: '総務部', sortOrder: 2, active: true, staffDirectoryId: 102 } },
+      { kind: 'create', data: { name: '総務部', sortOrder: 3, active: true, staffDirectoryId: 102 } },
     ]);
   });
 
@@ -43,7 +44,7 @@ describe('planDepartments', () => {
     const ops = planDepartments(
       [{ id: 100, name: '資産税部', sortOrder: 0, active: true }],
       [],
-      [dept({ id: 5, staffDirectoryId: 100 })],
+      [dept({ id: 5, staffDirectoryId: 100, sortOrder: 1 })],
     );
     expect(ops).toEqual([]);
   });
@@ -55,11 +56,27 @@ describe('planDepartments', () => {
         { id: 200, name: '会計部', label: '架空 会計部', sortOrder: 0, active: true },
       ],
       [{ entity: 'department', externalId: '5', localId: 100 }],
-      [dept({ id: 5, name: '会計部' })],
+      [dept({ id: 5, name: '会計部', sortOrder: 1 })],
     );
     expect(ops).toEqual([
       { kind: 'update', id: 5, data: { name: '本社 会計部', staffDirectoryId: 100 } },
-      { kind: 'create', data: { name: '架空 会計部', sortOrder: 0, active: true, staffDirectoryId: 200 } },
+      { kind: 'create', data: { name: '架空 会計部', sortOrder: 2, active: true, staffDirectoryId: 200 } },
+    ]);
+  });
+
+  it('並び順は台帳の部署の一覧の何番目か（台帳の sortOrder は会社ごとに1から振り直すので写さない）', () => {
+    const ops = planDepartments(
+      [
+        { id: 100, name: '会計部', sortOrder: 1, active: true },
+        { id: 101, name: '総務部', sortOrder: 2, active: true },
+        { id: 200, name: '営業部', sortOrder: 1, active: true },
+      ],
+      [],
+      [dept({ id: 5, name: '会計部', sortOrder: 1, staffDirectoryId: 100 }), dept({ id: 6, name: '営業部', sortOrder: 1, staffDirectoryId: 200 })],
+    );
+    expect(ops).toEqual([
+      { kind: 'create', data: { name: '総務部', sortOrder: 2, active: true, staffDirectoryId: 101 } },
+      { kind: 'update', id: 6, data: { sortOrder: 3 } },
     ]);
   });
 
@@ -70,7 +87,7 @@ describe('planDepartments', () => {
       [dept({ id: 5, staffDirectoryId: 100 })],
     );
     expect(ops).toEqual([
-      { kind: 'create', data: { name: '資産税部', sortOrder: 0, active: true, staffDirectoryId: 200 } },
+      { kind: 'create', data: { name: '資産税部', sortOrder: 1, active: true, staffDirectoryId: 200 } },
       { kind: 'update', id: 5, data: { active: false } },
     ]);
   });
@@ -103,7 +120,7 @@ describe('planAssignees', () => {
       departmentMap,
     );
     expect(ops).toEqual([
-      { kind: 'create', data: { name: '山田', employeeId: null, departmentId: null, active: true, staffDirectoryId: 2 } },
+      { kind: 'create', data: { name: '山田', nameKana: '', employeeId: null, departmentId: null, active: true, staffDirectoryId: 2 } },
     ]);
   });
 
@@ -118,7 +135,24 @@ describe('planAssignees', () => {
       departmentMap,
     );
     expect(ops).toEqual([
-      { kind: 'create', data: { name: '鈴木', employeeId: null, departmentId: null, active: true, staffDirectoryId: 2 } },
+      { kind: 'create', data: { name: '鈴木', nameKana: '', employeeId: null, departmentId: null, active: true, staffDirectoryId: 2 } },
+    ]);
+  });
+});
+
+describe('planAssignees: フリガナ', () => {
+  const linkedLocal = [assignee({ id: 12, name: '山田', staffDirectoryId: 1 })];
+
+  it('台帳のフリガナを写す。変わらなければ書かず、古い台帳（返さない）なら空', () => {
+    const s = { id: 1, employeeNo: null, name: '山田', departmentId: null, retiredOn: null };
+    expect(planAssignees([{ ...s, nameKana: ' ヤマダ タロウ ' }], [], linkedLocal, new Map())).toEqual([
+      { kind: 'update', id: 12, data: { nameKana: 'ヤマダ タロウ' } },
+    ]);
+    expect(planAssignees([{ ...s, nameKana: '' }], [], linkedLocal, new Map())).toEqual([]);
+    expect(planAssignees([s], [], linkedLocal, new Map())).toEqual([]);
+    // 台帳で消せば写しも空へ戻る
+    expect(planAssignees([s], [], [assignee({ id: 12, name: '山田', nameKana: 'ヤマダ', staffDirectoryId: 1 })], new Map())).toEqual([
+      { kind: 'update', id: 12, data: { nameKana: '' } },
     ]);
   });
 });

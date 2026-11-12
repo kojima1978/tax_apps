@@ -28,6 +28,11 @@ export type PersonLike = {
   departmentName: string;
   /** 探すときだけ見る追加の手がかり（同姓同名を見分ける社員コードなど） */
   searchExtra?: string;
+  /**
+   * 部署の並び順。台帳の部署の画面で決めた表示順（会社の表示順 → 部署の表示順）の何番目か。
+   * 台帳に届かない・写しが持たないときは null（その部署は名前順で、順のある部署の後ろへ）
+   */
+  departmentOrder?: number | null;
 };
 
 /**
@@ -56,23 +61,47 @@ export const NO_DEPARTMENT = '部署なし';
 
 export type PersonSection<T extends PersonLike = Operator> = { label: string; people: T[] };
 
-/** 部署ごとの塊。会社が2つ以上あるときだけ見出しに会社名も付ける。部署なしは最後 */
+/**
+ * 部署ごとの塊。会社が2つ以上あるときだけ見出しに会社名も付ける。
+ * 並びは台帳の表示順（departmentOrder）、順の分からない部署は名前順でその後ろ、部署なしは最後。
+ * 台帳が止まって順が1つも無ければ全部が名前順になる（選べなくはならない）
+ */
 export function sectionsByDepartment<T extends PersonLike>(people: readonly T[]): PersonSection<T>[] {
   const multiCompany = new Set(people.map((p) => p.companyName)).size > 1;
-  const groups = new Map<string, T[]>();
+  const groups = new Map<string, { members: T[]; order: number | null }>();
   for (const person of people) {
     const department = person.departmentName || NO_DEPARTMENT;
     const label = multiCompany && person.companyName ? `${person.companyName} ${department}` : department;
-    groups.set(label, [...(groups.get(label) ?? []), person]);
+    const group = groups.get(label) ?? { members: [], order: null };
+    group.members.push(person);
+    const order = person.departmentOrder ?? null;
+    if (order !== null && (group.order === null || order < group.order)) group.order = order;
+    groups.set(label, group);
   }
   return [...groups.entries()]
-    .sort(([a], [b]) => {
+    .sort(([a, ga], [b, gb]) => {
       const aNone = a.endsWith(NO_DEPARTMENT);
       const bNone = b.endsWith(NO_DEPARTMENT);
       if (aNone !== bNone) return aNone ? 1 : -1;
+      if (ga.order !== null && gb.order !== null && ga.order !== gb.order) return ga.order - gb.order;
+      if ((ga.order === null) !== (gb.order === null)) return ga.order === null ? 1 : -1;
       return a.localeCompare(b, 'ja');
     })
-    .map(([label, members]) => ({ label, people: sortPeople(members) }));
+    .map(([label, { members }]) => ({ label, people: sortPeople(members) }));
+}
+
+/**
+ * 部署名 → 台帳の表示順。部署名しか持たない写し（PB）が、台帳から読めた操作者の一覧で順を引くためのもの。
+ * 別の会社に同じ名前の部署があれば前のほう（小さい番号）を採る。台帳に届かなければ空を渡す（名前順に戻る）
+ */
+export function departmentOrderByName(people: readonly Pick<Operator, 'departmentName' | 'departmentOrder'>[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const p of people) {
+    if (!p.departmentName || p.departmentOrder === null) continue;
+    const current = map.get(p.departmentName);
+    if (current === undefined || p.departmentOrder < current) map.set(p.departmentName, p.departmentOrder);
+  }
+  return map;
 }
 
 /** 選ぶ一覧の1つの塊。showDepartment は行に部署名を添えるか（部署の塊では見出しが言うので添えない） */

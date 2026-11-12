@@ -76,6 +76,7 @@ erDiagram
     Assignee {
         Int id PK
         String name
+        String nameKana
         String employeeId
         Int departmentId FK
         Boolean active

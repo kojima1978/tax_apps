@@ -72,6 +72,8 @@ const TABLE_DEFS = [
     map: (a: Rec) => ({
       id: a.id as number,
       name: a.name as string,
+      // フリガナの列より前のバックアップには無い（空で戻し、次の写しで台帳から入る）
+      nameKana: typeof a.nameKana === 'string' ? a.nameKana : '',
       employeeId: (a.employeeId as string) ?? null,
       departmentId: (a.departmentId as number) ?? null,
       active: (a.active as boolean) ?? true,

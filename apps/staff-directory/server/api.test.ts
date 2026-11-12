@@ -248,6 +248,23 @@ describe('部署', () => {
     expect((await call('PUT', '/departments/order', { ids: [b, a] })).status).toBe(400);
   });
 
+  it('社員の departmentOrder は部署の画面の表示順（会社の順 → 部署の順）。部署なしは null', async () => {
+    const other = await addCompany('架空商事');
+    const a = await addDepartment('会計部');
+    const b = await addDepartment('総務部');
+    const x = await addDepartment('営業部', other);
+    await call('POST', '/staff', staff('A', { affiliations: [at(1, { departmentId: a })] }));
+    await call('POST', '/staff', staff('B', { affiliations: [at(1, { departmentId: b })] }));
+    await call('POST', '/staff', staff('X', { affiliations: [at(other, { departmentId: x })] }));
+    await call('POST', '/staff', staff('N', { affiliations: [at(1)] }));
+    const orders = async () =>
+      Object.fromEntries((await call('GET', '/staff')).body.map((s: { familyName: string; departmentOrder: number | null }) => [s.familyName, s.departmentOrder]));
+    expect(await orders()).toEqual({ A: 1, B: 2, X: 3, N: null });
+    await call('PUT', '/departments/order', { companyId: 1, ids: [b, a] });
+    await call('PUT', '/companies/order', { ids: [other, 1] });
+    expect(await orders()).toEqual({ X: 1, B: 2, A: 3, N: null });
+  });
+
   it('在籍者数は退職者を数えない', async () => {
     const dept = await addDepartment('会計部');
     await call('POST', '/staff', staff('A', { affiliations: [at(1, { departmentId: dept })] }));
