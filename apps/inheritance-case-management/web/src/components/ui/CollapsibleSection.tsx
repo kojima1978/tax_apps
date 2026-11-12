@@ -21,14 +21,18 @@ export function CollapsibleSection({ title, icon: Icon, defaultOpen = true, isOp
     const [internalOpen, setInternalOpen] = useState(defaultOpen)
     const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen
     const handleToggle = onToggle ?? (() => setInternalOpen(v => !v))
+    // 開閉の動きの間だけ中身を切る。開き終わっても overflow-hidden のままだと、中で開く候補一覧
+    // （担当者・紹介者の欄）が枠の下端で切れて下の人を選べない。動き終わり（transitionend）で外す
+    const [settled, setSettled] = useState(isOpen)
+    const clip = !(isOpen && settled)
 
     return (
-        <div className="border rounded-lg overflow-hidden">
+        <div className={cn("border rounded-lg", clip && "overflow-hidden")}>
             <button
                 type="button"
                 onClick={handleToggle}
                 className={cn(
-                    "w-full flex items-center justify-between bg-muted/30 hover:bg-muted/50 transition-colors",
+                    "w-full flex items-center justify-between rounded-t-lg bg-muted/30 hover:bg-muted/50 transition-colors",
                     compact ? "px-3 py-1.5" : "px-4 py-2.5"
                 )}
                 aria-expanded={isOpen}
@@ -45,12 +49,13 @@ export function CollapsibleSection({ title, icon: Icon, defaultOpen = true, isOp
             <div
                 inert={!isOpen}
                 aria-hidden={!isOpen}
+                onTransitionEnd={(event) => { if (event.target === event.currentTarget) setSettled(isOpen) }}
                 className={cn(
                     "grid transition-[grid-template-rows] duration-200 ease-in-out",
                     isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                 )}
             >
-                <div className="overflow-hidden">
+                <div className={clip ? "overflow-hidden" : undefined}>
                     <div className={compact ? "px-3 py-2" : "px-4 py-3"}>
                         {children}
                     </div>

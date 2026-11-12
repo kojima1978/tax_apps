@@ -27,6 +27,8 @@ TARGETS=(
   # 見た目の部品（Tailwind の .tsx）も一緒に写るが、PB は import しないので画面には入らない。
   # テストは写さない（PB の vitest は __tests__ の下しか見ない。原本のテストは他のアプリで回る）
   staff-directory:private-banking:
+  # 案件管理も同じ（担当者・社内紹介者の欄。Tailwind なのでダイアログも使えるが、欄の形はコンボにそろえた）
+  staff-directory:inheritance-case-management/web:
   # 社員ごとの担当件数（各アプリは返す側、社員台帳は読む側）
   staff-workload:inheritance-case-management/web:test
   staff-workload:private-banking:

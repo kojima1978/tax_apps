@@ -2,7 +2,8 @@ import { Label } from "@/components/ui/Label"
 import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
-import { MasterSelect } from "@/components/ui/MasterSelect"
+import { StaffSelect } from "@/components/ui/StaffSelect"
+import Link from "next/link"
 import { User } from "lucide-react"
 import { toWareki } from "@/lib/analytics-utils"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
@@ -71,22 +72,23 @@ export function BasicInfoSection({
                     </div>
                 </div>
 
-                <MasterSelect
-                    id="assigneeId"
-                    label="担当者"
-                    value={formData.assigneeId || ""}
-                    items={assignees}
-                    placeholder="担当者を選択"
-                    editHref={`/settings/staff?returnTo=${returnToPath}`}
-                    editLabel="担当者を追加・編集"
-                    renderOption={(a) => ({ value: a.id, label: a.name, hint: a.department?.name })}
-                    groupBy={{
-                        key: (a) => a.department?.name || "部門なし",
-                        sortOrder: (a) => a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER,
-                    }}
-                    onChange={(value) => setFormData(prev => ({ ...prev, assigneeId: value ? Number(value) : null }))}
-                    onEditNavigate={onMasterEditNavigate}
-                />
+                <div className="space-y-1.5">
+                    <Label htmlFor="assigneeId" className="text-xs">担当者</Label>
+                    <StaffSelect
+                        id="assigneeId"
+                        label="担当者"
+                        value={formData.assigneeId == null ? "" : String(formData.assigneeId)}
+                        assignees={assignees}
+                        placeholder="担当者を選択"
+                        quick
+                        onChange={(value) => setFormData(prev => ({ ...prev, assigneeId: value ? Number(value) : null }))}
+                    />
+                    <div className="text-right text-[11px]">
+                        <Link href={`/settings/staff?returnTo=${returnToPath}`} onClick={onMasterEditNavigate} className="text-muted-foreground hover:underline hover:text-primary">
+                            担当者を追加・編集
+                        </Link>
+                    </div>
+                </div>
 
                 <ReferrerToggleSelect
                     formData={formData}

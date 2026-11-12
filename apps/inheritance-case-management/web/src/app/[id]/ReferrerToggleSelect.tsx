@@ -2,6 +2,7 @@ import { useState, useMemo } from "react"
 import Link from "next/link"
 import { Label } from "@/components/ui/Label"
 import { SearchableSelect } from "@/components/ui/SearchableSelect"
+import { StaffSelect } from "@/components/ui/StaffSelect"
 import { buildSearchableOptionGroups } from "@/lib/searchable-options"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
 import { REFERRER_MODE_OPTIONS } from "@/types/constants"
@@ -24,18 +25,9 @@ export function ReferrerToggleSelect({
         : formData.internalReferrerId ? "internal" : "none"
     const [mode, setMode] = useState<ReferrerMode>(initialMode)
 
-    // 退職・廃止は候補から外すが、いま選ばれているものは外さない（選択が黙って消えないため）
+    // 退職・廃止は候補から外すが、いま選ばれているものは外さない（選択が黙って消えないため。社内は StaffSelect の中で同じ扱い）
     const internalId = formData.internalReferrerId ?? null
     const externalId = formData.referrerId ?? null
-
-    const internalGroups = useMemo(() => buildSearchableOptionGroups(
-        assignees.filter(a => a.active !== false || a.id === internalId),
-        {
-            group: (a) => a.department?.name || "部門なし",
-            groupOrder: (a) => a.department?.sortOrder ?? Number.MAX_SAFE_INTEGER,
-            option: (a) => ({ value: String(a.id), label: a.name, hint: a.department?.name }),
-        },
-    ), [assignees, internalId])
 
     const externalGroups = useMemo(() => buildSearchableOptionGroups(
         referrers.filter(r => r.active !== false || r.id === externalId),
@@ -79,11 +71,11 @@ export function ReferrerToggleSelect({
 
             {mode === "internal" ? (
                 <>
-                    <SearchableSelect
+                    <StaffSelect
                         id="internalReferrerId"
-                        ariaLabel="社内紹介者"
+                        label="社内紹介者"
                         value={internalId == null ? "" : String(internalId)}
-                        groups={internalGroups}
+                        assignees={assignees}
                         placeholder="社内紹介者を選択"
                         onChange={(value) => setFormData(prev => ({ ...prev, internalReferrerId: value ? Number(value) : null }))}
                     />

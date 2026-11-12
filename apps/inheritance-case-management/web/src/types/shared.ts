@@ -194,6 +194,8 @@ export interface Assignee {
   departmentId?: number | null;
   department?: Department | null;
   active: boolean;
+  /** 社員台帳の ID（写しの元）。自分・最近選んだ人の引き当てに使う。台帳に居ない行は null */
+  staffDirectoryId?: number | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
