@@ -9,7 +9,15 @@
 import { Hono } from 'hono';
 import type { PrismaClient } from '@prisma/client';
 import { isRecord } from '../input.js';
-import { applyGlobalPatternChanges, getAppSettings, getGlobalPatterns, patternList, saveAnalysisParams } from '../services/settings.js';
+import {
+  applyGlobalPatternChanges,
+  getAppSettings,
+  getGlobalPatterns,
+  getQuestionTemplates,
+  patternList,
+  saveAnalysisParams,
+  saveQuestionTemplates,
+} from '../services/settings.js';
 import { fail, ok, readBody } from './common.js';
 
 // /cases の下に置かないのは、案件を探すミドルウェア（'/:caseId/*'）が当たるため（backupImportRouter と同じ）
@@ -17,8 +25,8 @@ export function settingsRouter(db: PrismaClient) {
   const r = new Hono();
 
   r.get('/', async (c) => {
-    const [settings, patterns] = await Promise.all([getAppSettings(db), getGlobalPatterns(db)]);
-    return ok(c, { settings, patterns: patternList(patterns) });
+    const [settings, patterns, questionTemplates] = await Promise.all([getAppSettings(db), getGlobalPatterns(db), getQuestionTemplates(db)]);
+    return ok(c, { settings, patterns: patternList(patterns), questionTemplates });
   });
 
   r.put('/analysis', async (c) => {
@@ -34,6 +42,13 @@ export function settingsRouter(db: PrismaClient) {
     });
     if (!result.ok) return c.json({ success: false, error: '入力内容を確認してください', errors: result.errors }, 400);
     return ok(c, { settings: result.settings, message: '分析パラメータを保存しました。' });
+  });
+
+  // お客様への確認事項の、質問文の下書き。空で送った欄は既定の文へ戻る
+  r.put('/question-templates', async (c) => {
+    const result = await saveQuestionTemplates(db, await readBody(c));
+    if (!result.ok) return c.json({ success: false, error: '入力内容を確認してください', errors: result.errors }, 400);
+    return ok(c, { questionTemplates: result.templates, message: '質問文の下書きを保存しました。' });
   });
 
   r.post('/patterns/bulk', async (c) => {

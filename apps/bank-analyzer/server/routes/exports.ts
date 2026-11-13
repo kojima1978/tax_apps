@@ -18,6 +18,7 @@ import {
   type ExportFile,
   type ExportResult,
 } from '../services/exports.js';
+import { exportQuestionsXlsx } from '../services/questions.js';
 import { fail, type CaseRouter } from './common.js';
 
 const send = (c: Context, file: ExportFile) =>
@@ -42,6 +43,12 @@ export function exportRoutes(r: CaseRouter, db: PrismaClient) {
   });
 
   r.get('/:caseId/export/xlsx/categories', async (c) => respond(c, await exportCategoryXlsx(db, c.get('caseId'))));
+
+  // お客様への確認事項（質問候補タブと同じ絞り込み・並び。事務所名は画面が選んでいる会社を渡す）
+  r.get('/:caseId/export/xlsx/questions', async (c) => {
+    const q = new URL(c.req.url).searchParams;
+    return respond(c, await exportQuestionsXlsx(db, c.get('caseId'), filterFromQuery(q), (q.get('firm') ?? '').slice(0, 100)));
+  });
 
   r.get('/:caseId/export/xlsx/monthly', async (c) => send(c, await exportMonthlyXlsx(db, c.get('caseId'))));
 }

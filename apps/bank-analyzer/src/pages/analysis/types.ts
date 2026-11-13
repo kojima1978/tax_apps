@@ -25,6 +25,8 @@ export type TxRow = {
   accountNumber: string;
   isFlagged: boolean;
   isTransfer: boolean;
+  // 質問候補タブだけ: メモが空の取引に添える質問文の下書き（保存はされていない）
+  draft?: string;
 };
 
 export type DeletionBackup = { id: number; startId: number; endId: number; transactionCount: number; createdAt: string };

@@ -28,6 +28,8 @@ import {
   updateTransaction,
   validateReplace,
 } from '../services/transactions.js';
+import { applyMemoDrafts, questionSheet } from '../services/questions.js';
+import { filterFromQuery } from '../filterQuery.js';
 import { fail, ok, readBody, type CaseRouter } from './common.js';
 
 const TX_NOT_FOUND = '取引が見つかりません';
@@ -40,6 +42,19 @@ function parseRangeEnd(value: unknown): number | null {
 }
 
 export function transactionRoutes(r: CaseRouter, db: PrismaClient) {
+  // お客様への確認事項の書面（質問候補タブと同じ絞り込み・並び。メモのある取引だけ）
+  r.get('/:caseId/questions', async (c) =>
+    ok(c, { sheet: await questionSheet(db, c.get('caseId'), filterFromQuery(new URL(c.req.url).searchParams)) }),
+  );
+
+  // 質問文の下書きをメモへ入れる。メモが空の質問候補にしか入らない
+  r.post('/:caseId/memo-drafts', async (c) => {
+    const ids = parseIdList((await readBody(c)).ids);
+    if (!ids || ids.length === 0) return fail(c, '対象の取引がありません');
+    const saved = await applyMemoDrafts(db, c.get('caseId'), ids);
+    return ok(c, { savedCount: saved, message: saved ? `${saved}件のメモに下書きを入れました。` : '下書きを入れるメモはありませんでした（すでに書いてあります）。' });
+  });
+
   r.post('/:caseId/transactions', async (c) => {
     const result = await createTransaction(db, c.get('caseId'), await readBody(c));
     if (!result.ok) return fail(c, result.error, result.status);

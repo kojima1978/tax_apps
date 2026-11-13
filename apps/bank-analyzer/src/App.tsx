@@ -9,6 +9,7 @@
 //   /cases/:id/direct      直接入力
 //   /cases/:id/classify    自動分類のプレビュー
 //   /cases/:id/passbooks   通帳有無一覧
+//   /cases/:id/questions   お客様への確認事項（印刷用・ヘッダーなし。?keyword= ?sort= は質問候補タブと同じ）
 
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
@@ -21,6 +22,7 @@ import { DirectInputPage } from './pages/DirectInputPage';
 import { ImportWizardPage } from './pages/ImportWizardPage';
 import { JsonImportPage } from './pages/JsonImportPage';
 import { PassbookInventoryPage } from './pages/PassbookInventoryPage';
+import { QuestionLetterPage } from './pages/QuestionLetterPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -44,6 +46,7 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Route>
           <Route path="letter" element={<CustomerLetterPage />} />
+          <Route path="cases/:caseId/questions" element={<QuestionLetterPage />} />
         </Routes>
       </NoticeProvider>
     </BrowserRouter>

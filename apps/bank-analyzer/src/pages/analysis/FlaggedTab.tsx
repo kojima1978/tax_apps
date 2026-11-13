@@ -6,15 +6,23 @@
 //   （Enter で保存・Shift+Enter で改行・Esc で取り消し）
 // - CSV はキーワードで絞り込んでいる最中でも全件を日付順で出していた。画面と同じキーワード・並びで出す
 //   （services/exports.ts）
+//
+// お客様への確認事項（依頼20）:
+// - メモ（質問文）を書いた取引だけが書面に出る。ここから同じ絞り込み・並びのまま書面を開く
+// - メモが空の取引には定型の下書きを入れられる。入るのはボタンを押したときだけで、
+//   1件ずつは入力欄に入れて開くだけ（Enter か欄の外で保存・Esc でやめる）、
+//   まとめては確かめてから保存する。書いてあるメモは上書きしない（サーバ側でも弾く）
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { BookmarkX, CircleHelp, Download, Pencil, Search } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { BookmarkX, CircleHelp, Download, FileText, Pencil, Search, Sparkles } from 'lucide-react';
+import { ConfirmDialog } from '../../components/Dialog';
 import { DownloadButton } from '../../components/DownloadButton';
 import { useNotice } from '../../components/Notice';
 import { useAction } from '../../hooks/useAction';
 import { api, errorMessage } from '../../lib/api';
 import { num, warekiShort } from '../../lib/format';
+import { QUESTION_SHEET_TITLE, hasQuestion } from '../../../server/lib/questions';
 import { SortHeader } from './tableParts';
 import { PatternAddDialog, TxEditDialog, type PatternTarget } from './TxDialogs';
 import { AccountCell, RefDateBadge, amountCell } from './txParts';
@@ -37,6 +45,21 @@ export function FlaggedTab({ dash, reload }: Props) {
   }
   const [editTx, setEditTx] = useState<TxRow | null>(null);
   const [patternTarget, setPatternTarget] = useState<PatternTarget | null>(null);
+  const [confirmDrafts, setConfirmDrafts] = useState(false);
+
+  // 書面に出るのはメモ（質問文）を書いた取引だけ
+  const emptyRows = rows.filter((r) => !hasQuestion(r.memo));
+  const askedCount = rows.length - emptyRows.length;
+
+  const fillDrafts = async () => {
+    const res = await run('drafts', () =>
+      api.post<{ savedCount: number; message: string }>(`/cases/${caseId}/memo-drafts`, { ids: emptyRows.map((r) => String(r.id)) }),
+    );
+    setConfirmDrafts(false);
+    if (!res) return;
+    notice.success(res.message);
+    reload();
+  };
 
   const unflag = async (tx: TxRow) => {
     const res = await run(`flag-${tx.id}`, () => api.post<{ isFlagged: boolean }>(`/cases/${caseId}/transactions/${tx.id}/flag`));
@@ -71,14 +94,47 @@ export function FlaggedTab({ dash, reload }: Props) {
         </h2>
         {keyword && <span className="text-xs text-slate-500">「{keyword}」で絞り込み中</span>}
         {rows.length > 0 && (
-          <DownloadButton path={`/cases/${caseId}/export/csv/flagged`} params={csvParams} className="btn btn-secondary btn-sm ml-auto" title="表示中の取引を書き出します">
-            <Download size={14} aria-hidden="true" />
-            CSV
-          </DownloadButton>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {emptyRows.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setConfirmDrafts(true)}
+                disabled={busy !== null}
+                title="メモが空の取引に、定型の質問文を入れます（書いてあるメモは変えません）"
+              >
+                <Sparkles size={14} aria-hidden="true" />
+                空のメモに下書きを入れる（{num(emptyRows.length)}件）
+              </button>
+            )}
+            {askedCount > 0 ? (
+              <Link
+                to={{ pathname: `/cases/${caseId}/questions`, search: csvParams.toString() }}
+                target="_blank"
+                rel="noopener"
+                className="btn btn-primary btn-sm"
+                title="メモを書いた取引を、お客様へ渡す書面にします（印刷・Excel）"
+              >
+                <FileText size={14} aria-hidden="true" />
+                {QUESTION_SHEET_TITLE}（{num(askedCount)}件）
+              </Link>
+            ) : (
+              <button type="button" className="btn btn-primary btn-sm" disabled title="メモに質問を書くと、書面を作れます">
+                <FileText size={14} aria-hidden="true" />
+                {QUESTION_SHEET_TITLE}
+              </button>
+            )}
+            <DownloadButton path={`/cases/${caseId}/export/csv/flagged`} params={csvParams} className="btn btn-secondary btn-sm" title="表示中の取引を書き出します">
+              <Download size={14} aria-hidden="true" />
+              CSV
+            </DownloadButton>
+          </div>
         )}
       </div>
       <p className="mb-3 text-xs text-slate-500">
         不明点のある取引を集め、お客様への質問をメモに残します。取引一覧の行のメニュー（または F キー）から追加できます。
+        メモを書いた取引が「{QUESTION_SHEET_TITLE}」の書面に出ます
+        {emptyRows.length > 0 && askedCount > 0 && `（メモが空の${num(emptyRows.length)}件は出ません）`}。
       </p>
 
       <KeywordSearch params={params} setParams={setParams} />
@@ -158,6 +214,19 @@ export function FlaggedTab({ dash, reload }: Props) {
         onPattern={(description, category) => setPatternTarget({ description, category })}
       />
       <PatternAddDialog caseId={caseId} target={patternTarget} onClose={() => setPatternTarget(null)} />
+      <ConfirmDialog
+        open={confirmDrafts}
+        onClose={() => setConfirmDrafts(false)}
+        onConfirm={fillDrafts}
+        title="空のメモに下書きを入れる"
+        confirmLabel={`${num(emptyRows.length)}件に入れる`}
+        busy={busy === 'drafts'}
+      >
+        <p>
+          {keyword ? '表示中の取引のうち、' : ''}メモが空の{num(emptyRows.length)}件に、取引の内容に合わせた定型の質問文を入れます。
+        </p>
+        <p className="mt-2 text-slate-600">すでに書いてあるメモは変えません。入れたあとは1件ずつ直せます。文面は「設定」で変えられます。</p>
+      </ConfirmDialog>
     </section>
   );
 }
@@ -218,8 +287,8 @@ function MemoCell({ tx, onSave }: { tx: TxRow; onSave: (tx: TxRow, memo: string)
     if (editing) ref.current?.focus();
   }, [editing]);
 
-  const open = () => {
-    setDraft(tx.memo);
+  const open = (text = tx.memo) => {
+    setDraft(text);
     setEditing(true);
   };
   const commit = async () => {
@@ -263,13 +332,28 @@ function MemoCell({ tx, onSave }: { tx: TxRow; onSave: (tx: TxRow, memo: string)
     );
   }
   return (
-    <button
-      type="button"
-      className="block w-full rounded px-1 py-0.5 text-left text-sm whitespace-pre-wrap hover:bg-slate-100"
-      onClick={open}
-      title="押すとメモを書けます"
-    >
-      {tx.memo || <span className="text-xs text-slate-400">未記入（押して書く）</span>}
-    </button>
+    <div className="flex items-start gap-1">
+      <button
+        type="button"
+        className="block min-w-0 flex-1 rounded px-1 py-0.5 text-left text-sm whitespace-pre-wrap hover:bg-slate-100"
+        onClick={() => open()}
+        title="押すとメモを書けます"
+      >
+        {tx.memo || <span className="text-xs text-slate-400">未記入（押して書く）</span>}
+      </button>
+      {!tx.memo.trim() && tx.draft && (
+        // 入力欄に入れて開くだけ。保存は Enter か欄の外へ出たとき（Esc でやめられる）
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm shrink-0"
+          onClick={() => open(tx.draft)}
+          title={`下書き: ${tx.draft}`}
+          aria-label={`ID ${tx.id} の質問メモに下書きを入れる`}
+        >
+          <Sparkles size={14} aria-hidden="true" />
+          下書き
+        </button>
+      )}
+    </div>
   );
 }

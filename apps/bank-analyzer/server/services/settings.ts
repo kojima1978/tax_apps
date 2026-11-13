@@ -23,6 +23,13 @@ import {
   type Patterns,
 } from '../lib/categories.js';
 import type { ClassifierSettings } from '../lib/classify.js';
+import {
+  DEFAULT_QUESTION_TEMPLATES,
+  QUESTION_TEMPLATE_FIELDS,
+  QUESTION_TEMPLATE_MAX,
+  parseQuestionTemplates,
+  type QuestionTemplates,
+} from '../lib/questions.js';
 import { inTransaction, lockCase, type Tx } from './classificationHistory.js';
 
 type Db = PrismaClient | Tx;
@@ -35,6 +42,8 @@ const KEY = {
   giftThreshold: 'GIFT_THRESHOLD',
   fuzzy: 'FUZZY_MATCHING',
   patterns: 'CLASSIFICATION_PATTERNS',
+  // Django 版には無いキー。旧版のバックアップには入っていないので、復元すると既定の文へ戻る
+  questionTemplates: 'QUESTION_TEMPLATES',
 } as const;
 
 async function readRaw(db: Db): Promise<Record<string, unknown>> {
@@ -132,6 +141,40 @@ export async function saveAnalysisParams(db: PrismaClient, input: AnalysisParams
     });
   });
   return { ok: true, settings: await getAppSettings(db) };
+}
+
+// ---------------------------------------------------------------------------
+// 質問文の下書き（お客様への確認事項）
+// ---------------------------------------------------------------------------
+
+export async function getQuestionTemplates(db: Db): Promise<QuestionTemplates> {
+  const row = await db.appSetting.findUnique({ where: { key: KEY.questionTemplates } });
+  return parseQuestionTemplates(row?.value);
+}
+
+export type QuestionTemplatesResult = { ok: true; templates: QuestionTemplates } | { ok: false; errors: Record<string, string> };
+
+// 保存するのは既定から変えた文だけ（分類パターンと同じ考え方: 既定のままの文は、
+// コード側の既定を直せばそのまま効く）。空にした欄は既定へ戻す。全部が既定なら行ごと消す
+export async function saveQuestionTemplates(db: PrismaClient, input: Record<string, unknown>): Promise<QuestionTemplatesResult> {
+  const errors: Record<string, string> = {};
+  const changed: Partial<QuestionTemplates> = {};
+  for (const { key, label } of QUESTION_TEMPLATE_FIELDS) {
+    const v = input[key];
+    if (v === undefined || v === null) continue;
+    if (typeof v !== 'string') {
+      errors[key] = `${label}の文が正しくありません。`;
+      continue;
+    }
+    const text = v.trim();
+    if ([...text].length > QUESTION_TEMPLATE_MAX) errors[key] = `${label}の文は${QUESTION_TEMPLATE_MAX}文字以内で入力してください。`;
+    else if (text && text !== DEFAULT_QUESTION_TEMPLATES[key]) changed[key] = text;
+  }
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+
+  if (Object.keys(changed).length > 0) await writeRaw(db, KEY.questionTemplates, changed);
+  else await db.appSetting.deleteMany({ where: { key: KEY.questionTemplates } });
+  return { ok: true, templates: await getQuestionTemplates(db) };
 }
 
 // ---------------------------------------------------------------------------

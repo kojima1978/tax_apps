@@ -31,7 +31,9 @@ import { pyRound } from '../lib/pyRound.js';
 import { matchesAllKeywords, splitKeywords } from '../lib/text.js';
 import { toDateString, toId } from '../json.js';
 import { latestSummary } from './classificationHistory.js';
+import { draftQuestion, hasQuestion } from '../lib/questions.js';
 import { loadRows, type ExportRow } from './exports.js';
+import { draftContext } from './questions.js';
 import { latestDeletionBackup } from './rangeDelete.js';
 import { getAppSettings, getCasePatterns, getClassifierSettings, getGlobalPatterns, patternList } from './settings.js';
 
@@ -283,8 +285,16 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
     case 'cleanup':
       return { duplicateTxs: duplicateTransactions(ordered).map((t) => ({ ...row(t), dupGroupIdx: t.dupGroupIdx })) };
 
-    case 'flagged':
-      return { flaggedTxs: byKeyword(ordered.filter((t) => t.isFlagged), q.filter.keyword).map(row) };
+    case 'flagged': {
+      // メモが空の取引には質問文の下書きを添える（入れるのは画面で押したときだけ）
+      const ctx = await draftContext(db, txs, referenceDate);
+      return {
+        flaggedTxs: byKeyword(ordered.filter((t) => t.isFlagged), q.filter.keyword).map((t) => ({
+          ...row(t),
+          draft: hasQuestion(t.memo) ? '' : draftQuestion(t, ctx),
+        })),
+      };
+    }
   }
 }
 

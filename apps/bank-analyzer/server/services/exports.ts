@@ -169,8 +169,8 @@ export async function exportCsv(db: PrismaClient, caseId: bigint, type: CsvType,
   return { ok: true, file: buildCsv(rows, columns({ memo: spec.memo }), filename) };
 }
 
-// 質問候補タブと同じ: 摘要のキーワード（すべて含む）と並び
-function flaggedRows(all: ExportRow[], filter: TransactionFilter): ExportRow[] {
+// 質問候補タブと同じ: 摘要のキーワード（すべて含む）と並び（お客様への確認事項の書面も同じ並び）
+export function flaggedRows(all: ExportRow[], filter: TransactionFilter): ExportRow[] {
   const kws = splitKeywords(filter.keyword ?? '');
   const rows = all.filter((r) => r.isFlagged && (kws.length === 0 || matchesAllKeywords(r.description, kws)));
   return sortTransactions(rows, parseSort(filter.sort));

@@ -10,9 +10,11 @@
 //   分からないため、どちらの種類かを節ごとに書く（多額取引・資金移動は表示のたびに判定、
 //   贈与判定・ファジーは取込と自動分類のときに使う）
 // - 既定値が画面のどこにも無く、触ったあとで元の値に戻せなかった → 欄ごとに既定値を出す
+//
+// 「質問文の下書き」は Django 版に無い節（お客様への確認事項。文と選び方は server/lib/questions.ts）
 
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Coins, Gift, Save, Search, Settings as SettingsIcon, Tags } from 'lucide-react';
+import { Coins, Gift, MessageSquareText, Save, Search, Settings as SettingsIcon, Tags } from 'lucide-react';
 import { Breadcrumb } from '../components/Layout';
 import { useNotice } from '../components/Notice';
 import { useApiData } from '../hooks/useApiData';
@@ -20,6 +22,14 @@ import { ApiError, api, errorMessage } from '../lib/api';
 import { num } from '../lib/format';
 import { PatternManager, type PatternChange } from './analysis/PatternManager';
 import { STANDARD_CATEGORIES } from '../../server/lib/categories';
+import {
+  DEFAULT_QUESTION_TEMPLATES,
+  QUESTION_PLACEHOLDERS,
+  QUESTION_SHEET_TITLE,
+  QUESTION_TEMPLATE_FIELDS,
+  QUESTION_TEMPLATE_MAX,
+  type QuestionTemplates,
+} from '../../server/lib/questions';
 import type { PatternItem } from './analysis/types';
 
 type Settings = {
@@ -30,7 +40,7 @@ type Settings = {
   giftThreshold: number;
   fuzzy: { enabled: boolean; threshold: number; useTokenSetRatio: boolean };
 };
-type Loaded = { settings: Settings; patterns: PatternItem[] };
+type Loaded = { settings: Settings; patterns: PatternItem[]; questionTemplates: QuestionTemplates };
 
 // 欄の定義（範囲は server/services/settings.ts の RANGES と同じ。検証はサーバが行う）
 const NUM_FIELDS = {
@@ -202,6 +212,103 @@ function AnalysisParamsForm({ settings, onSaved }: { settings: Settings; onSaved
   );
 }
 
+// 質問文の下書き（質問候補タブの「下書き」で入る定型文）。空にして保存すると既定の文へ戻る
+function QuestionTemplatesForm({ templates, onSaved }: { templates: QuestionTemplates; onSaved: (t: QuestionTemplates) => void }) {
+  const notice = useNotice();
+  const [form, setForm] = useState<QuestionTemplates>(templates);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  const [lastBase, setLastBase] = useState(templates);
+  if (lastBase !== templates) {
+    setLastBase(templates);
+    setForm(templates);
+  }
+  const dirty = QUESTION_TEMPLATE_FIELDS.some(({ key }) => form[key] !== templates[key]);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await api.put<{ questionTemplates: QuestionTemplates; message: string }>('/settings/question-templates', { ...form });
+      setErrors({});
+      notice.success(res.message);
+      onSaved(res.questionTemplates);
+    } catch (err) {
+      if (err instanceof ApiError) setErrors(err.errors);
+      notice.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="card" onSubmit={submit} noValidate>
+      <h2 className="flex flex-wrap items-center gap-x-2 px-4 py-3 font-semibold sm:px-6">
+        <MessageSquareText size={16} className="text-slate-500" aria-hidden="true" />
+        質問文の下書き
+        <small className="font-normal text-slate-500">
+          質問候補タブの「下書き」で入る文です（「{QUESTION_SHEET_TITLE}」の書面に出ます）。すでに書いてあるメモは変わりません
+        </small>
+      </h2>
+      <div className="space-y-4 border-t border-slate-200 px-4 py-4 sm:px-6">
+        <p className="text-xs text-slate-500">
+          取引に合うものを上から順に探します（保険会社 → 贈与・教育費の出金 → 相手の見つからない資金移動 → 基準日以後の出金 → 出金・入金）。 文の中に{' '}
+          {QUESTION_PLACEHOLDERS.join('・')} と書くと、その取引の値に置き換わります。
+        </p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {QUESTION_TEMPLATE_FIELDS.map(({ key, label, help }) => {
+            const isDefault = form[key].trim() === DEFAULT_QUESTION_TEMPLATES[key];
+            return (
+              <div key={key}>
+                <div className="flex items-end justify-between gap-2">
+                  <label className="label" htmlFor={`qt-${key}`}>
+                    {label}
+                  </label>
+                  {!isDefault && (
+                    <button
+                      type="button"
+                      className="mb-1 text-xs text-blue-700 underline"
+                      onClick={() => setForm((f) => ({ ...f, [key]: DEFAULT_QUESTION_TEMPLATES[key] }))}
+                      title={`既定: ${DEFAULT_QUESTION_TEMPLATES[key]}`}
+                    >
+                      既定の文に戻す
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  id={`qt-${key}`}
+                  className={`input min-h-16 w-full text-sm ${errors[key] ? 'border-red-400' : ''}`}
+                  value={form[key]}
+                  maxLength={QUESTION_TEMPLATE_MAX}
+                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                  aria-describedby={`qt-${key}-help`}
+                  aria-invalid={errors[key] ? true : undefined}
+                />
+                <p id={`qt-${key}-help`} className="mt-1 text-xs text-slate-500">
+                  {help}
+                </p>
+                {errors[key] && (
+                  <p role="alert" className="mt-1 text-xs text-red-700">
+                    {errors[key]}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 px-4 py-3 sm:px-6">
+        {dirty && <span className="text-xs text-amber-700">保存していない変更があります</span>}
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          <Save size={16} />
+          {busy ? '保存中…' : '質問文の下書きを保存'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export function SettingsPage() {
   const { data, error, loading, reload, setData } = useApiData('settings', () => api.get<Loaded>('/settings'));
 
@@ -226,6 +333,7 @@ export function SettingsPage() {
       {data && (
         <>
           <AnalysisParamsForm settings={data.settings} onSaved={(settings) => setData({ ...data, settings })} />
+          <QuestionTemplatesForm templates={data.questionTemplates} onSaved={(questionTemplates) => setData({ ...data, questionTemplates })} />
           <div className="card">
             <h2 className="flex flex-wrap items-center gap-x-2 border-b border-slate-200 px-4 py-3 font-semibold sm:px-6">
               <Tags size={16} className="text-slate-500" aria-hidden="true" />
