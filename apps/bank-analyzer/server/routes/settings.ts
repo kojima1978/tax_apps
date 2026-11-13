@@ -37,6 +37,7 @@ export function settingsRouter(db: PrismaClient) {
       transferTolerance: body.transferTolerance,
       transferDateMode: body.transferDateMode,
       giftThreshold: body.giftThreshold,
+      preDeathMonths: body.preDeathMonths,
       fuzzyEnabled: body.fuzzyEnabled,
       fuzzyThreshold: body.fuzzyThreshold,
     });

@@ -14,7 +14,7 @@
 // 「質問文の下書き」は Django 版に無い節（お客様への確認事項。文と選び方は server/lib/questions.ts）
 
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Coins, Gift, MessageSquareText, Save, Search, Settings as SettingsIcon, Tags } from 'lucide-react';
+import { CalendarClock, Coins, Gift, MessageSquareText, Save, Search, Settings as SettingsIcon, Tags } from 'lucide-react';
 import { Breadcrumb } from '../components/Layout';
 import { useNotice } from '../components/Notice';
 import { useApiData } from '../hooks/useApiData';
@@ -38,6 +38,7 @@ type Settings = {
   transferTolerance: number;
   transferDateMode: 'after_only' | 'both';
   giftThreshold: number;
+  preDeathMonths: number;
   fuzzy: { enabled: boolean; threshold: number; useTokenSetRatio: boolean };
 };
 type Loaded = { settings: Settings; patterns: PatternItem[]; questionTemplates: QuestionTemplates };
@@ -48,6 +49,7 @@ const NUM_FIELDS = {
   transferDaysWindow: { label: '資金移動 検出期間（日）', help: 'この期間内にある出金と入金の組を資金移動として検出します', min: 0, max: 30, def: 3 },
   transferTolerance: { label: '資金移動 金額許容誤差（円）', help: '出金額と入金額の差がこの範囲内であれば資金移動と判定します', min: 0, max: undefined, def: 1000 },
   giftThreshold: { label: '贈与判定の閾値（円）', help: 'この金額以上の振込を「贈与・教育費」の候補として自動分類します', min: 0, max: 1_000_000_000, def: 1_000_000 },
+  preDeathMonths: { label: '相続開始直前の出金（か月）', help: '基準日のこの月数前から前日までの現金の引出しと多額の出金を並べます（1〜36）', min: 1, max: 36, def: 3 },
   fuzzyThreshold: { label: 'ファジーマッチング 類似度閾値', help: '0〜100。高いほど厳密に一致する必要があります（推奨: 80〜95）', min: 0, max: 100, def: 90 },
 } as const;
 type NumField = keyof typeof NUM_FIELDS;
@@ -64,6 +66,7 @@ const toForm = (s: Settings): Form => ({
   transferDaysWindow: String(s.transferDaysWindow),
   transferTolerance: String(s.transferTolerance),
   giftThreshold: String(s.giftThreshold),
+  preDeathMonths: String(s.preDeathMonths),
   fuzzyThreshold: String(s.fuzzy.threshold),
   transferDateMode: s.transferDateMode,
   fuzzyEnabled: s.fuzzy.enabled,
@@ -188,6 +191,9 @@ function AnalysisParamsForm({ settings, onSaved }: { settings: Settings; onSaved
       </Section>
       <Section icon={Gift} title="贈与判定" note="取込と自動分類のときに使います（すでに分類済みの取引は変わりません）">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{field('giftThreshold')}</div>
+      </Section>
+      <Section icon={CalendarClock} title="相続税の検討" note="概要タブの「相続税の検討」とカテゴリー別 Excel に、表示のたびに効きます">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{field('preDeathMonths')}</div>
       </Section>
       <Section icon={Search} title="ファジーマッチング" note="取込と自動分類のときに使います（すでに分類済みの取引は変わりません）">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

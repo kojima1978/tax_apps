@@ -340,6 +340,13 @@ export async function toggleFlag(db: PrismaClient, caseId: bigint, txId: bigint)
   return rows[0]?.is_flagged ?? null;
 }
 
+// まとめて付箋を付ける／外す（相続税の検討の「質問候補に入れる」）。案件の取引だけ。
+// 付ける・外すを決めて送る（反転にすると、すでに付いている取引が外れてしまう）。変わった件数を返す
+export async function setFlags(db: PrismaClient, caseId: bigint, ids: bigint[], flagged: boolean): Promise<number> {
+  const { count } = await db.transaction.updateMany({ where: { caseId, id: { in: ids }, isFlagged: !flagged }, data: { isFlagged: flagged } });
+  return count;
+}
+
 export async function updateMemo(db: PrismaClient, caseId: bigint, txId: bigint, memo: unknown): Promise<boolean> {
   const { count } = await db.transaction.updateMany({ where: { id: txId, caseId }, data: { memo: optionalText(memo) } });
   return count > 0;

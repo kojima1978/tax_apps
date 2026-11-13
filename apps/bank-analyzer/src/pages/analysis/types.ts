@@ -3,6 +3,7 @@
 // 集計の型（DB に依存しない lib/aggregate.ts）はそのまま使う
 
 import type { AccountSummary, AiGroup, AiSuggestion, TransferEndpoint, UnclassifiedGroup } from '../../../server/lib/aggregate';
+import type { InheritanceReview } from '../../../server/lib/inheritanceReview';
 
 export const TABS = ['overview', 'all', 'unclassified', 'ai', 'transfers', 'cleanup', 'flagged'] as const;
 export type Tab = (typeof TABS)[number];
@@ -57,6 +58,8 @@ type Common = {
 };
 
 export type OverviewData = {
+  // 相続税の検討（基準日が無ければ null）
+  inheritanceReview: InheritanceReview | null;
   accountSummary: AccountSummary[];
   chartCategories: { labels: string[]; counts: number[]; totals: number[] };
   chartMonthly: { months: string[]; monthKeys: string[]; out: number[]; in: number[]; inheritanceStartMonth: string };

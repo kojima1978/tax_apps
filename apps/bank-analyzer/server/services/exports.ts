@@ -33,6 +33,8 @@ import { exportFileName } from '../lib/exportFileName.js';
 import { matchesAllKeywords, splitKeywords } from '../lib/text.js';
 import { toDateString, toId } from '../json.js';
 import { getAppSettings } from './settings.js';
+import { buildInheritanceReview } from './inheritanceReview.js';
+import { addInheritanceReviewSheets } from './inheritanceReviewXlsx.js';
 
 // ---------------------------------------------------------------------------
 // 読み出し
@@ -351,7 +353,16 @@ export async function exportCategoryXlsx(db: PrismaClient, caseId: bigint): Prom
   const flagged = rows.filter((r) => r.isFlagged);
   if (flagged.length) addTransactionSheet(wb, used, '付箋付き', flagged, columns({ memo: true, balance: false }), 'FF8C00');
 
-  return { ok: true, file: await xlsxFile(wb, exportFileName([await caseName(db, caseId), '分類別取引'], 'xlsx')) };
+  // 基準日のある案件だけ、相続税の検討（概要タブと同じ集計）を末尾に足す
+  const c = await db.case.findUniqueOrThrow({ where: { id: caseId }, select: { name: true, referenceDate: true } });
+  const review = await buildInheritanceReview(db, rows, toDateString(c.referenceDate));
+  if (review) {
+    const addSheet = (title: string, tabColor: string) =>
+      wb.addWorksheet(sheetName(title, used), { pageSetup: A4_FIT_WIDTH, properties: { tabColor: { argb: `FF${tabColor}` } } });
+    addInheritanceReviewSheets(addSheet, review, threshold);
+  }
+
+  return { ok: true, file: await xlsxFile(wb, exportFileName([c.name, '分類別取引'], 'xlsx')) };
 }
 
 const FONT = '游ゴシック';

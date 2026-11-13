@@ -1,5 +1,5 @@
 // 概要タブ（Django: analysis.html の overview）。基準日・分析対象期間・数字のまとめ・次に行う作業・
-// 口座一覧・月次入出金。
+// 口座一覧・月次入出金・相続税の検討（InheritanceReview.tsx）。
 //
 // Django 版との違い（直したもの）:
 // - 基準日の保存に失敗しても黙っていた。理由を出す
@@ -15,6 +15,7 @@ import { useNotice } from '../../components/Notice';
 import { useAction } from '../../hooks/useAction';
 import { api } from '../../lib/api';
 import { dateOrDash, num, warekiMonthShort, warekiShort } from '../../lib/format';
+import { InheritanceReview } from './InheritanceReview';
 import { MonthlyChart } from './MonthlyChart';
 import type { DashboardSummary, OverviewData } from './types';
 
@@ -59,6 +60,8 @@ export function OverviewTab({ dash, reload }: Props) {
         </div>
         <MonthlyChart data={dash.chartMonthly} />
       </section>
+
+      <InheritanceReview caseId={caseId} review={dash.inheritanceReview} onFlagged={reload} />
     </div>
   );
 }

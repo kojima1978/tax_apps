@@ -33,6 +33,7 @@ describe('分析パラメータ', () => {
       transferTolerance: 1000,
       transferDateMode: 'after_only',
       giftThreshold: 1000000,
+      preDeathMonths: 3,
       fuzzy: { enabled: true, threshold: 90, useTokenSetRatio: true },
     });
   });
@@ -40,11 +41,12 @@ describe('分析パラメータ', () => {
   it('Django と同じキーで保存し、分類パターンには触らない', async () => {
     const r = await saveAnalysisParams(db(), {
       largeAmountThreshold: '300000', transferDaysWindow: 5, transferTolerance: 0, transferDateMode: 'both',
-      giftThreshold: 2000000, fuzzyEnabled: false, fuzzyThreshold: 80,
+      giftThreshold: 2000000, preDeathMonths: '6', fuzzyEnabled: false, fuzzyThreshold: 80,
     });
     expect(r.ok).toBe(true);
     expect(await stored('LARGE_AMOUNT_THRESHOLD')).toBe(300000);
     expect(await stored('TRANSFER_DATE_MODE')).toBe('both');
+    expect(await stored('PRE_DEATH_MONTHS')).toBe(6);
     expect(await stored('FUZZY_MATCHING')).toEqual({ enabled: false, threshold: 80, fallback_to_substring: true, use_token_set_ratio: true });
     expect(await stored('CLASSIFICATION_PATTERNS')).toBeUndefined();
     expect(await getAppSettings(db())).toMatchObject({ largeAmountThreshold: 300000, transferTolerance: 0, fuzzy: { enabled: false, threshold: 80 } });
@@ -53,12 +55,12 @@ describe('分析パラメータ', () => {
   it('範囲外・整数でない値は弾いて何も保存しない', async () => {
     const r = await saveAnalysisParams(db(), {
       largeAmountThreshold: -1, transferDaysWindow: 31, transferTolerance: 1.5, transferDateMode: 'x',
-      giftThreshold: '', fuzzyEnabled: true, fuzzyThreshold: 101,
+      giftThreshold: '', preDeathMonths: 0, fuzzyEnabled: true, fuzzyThreshold: 101,
     });
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(Object.keys(r.errors).sort()).toEqual(
-        ['fuzzyThreshold', 'giftThreshold', 'largeAmountThreshold', 'transferDateMode', 'transferDaysWindow', 'transferTolerance'],
+        ['fuzzyThreshold', 'giftThreshold', 'largeAmountThreshold', 'preDeathMonths', 'transferDateMode', 'transferDaysWindow', 'transferTolerance'],
       );
     }
     expect(await db().appSetting.count()).toBe(0);
@@ -176,7 +178,7 @@ describe('設定画面の API', () => {
   it('分析パラメータ: 保存して返す。誤りは欄ごとに 400 で返し、何も保存しない', async () => {
     const params = {
       largeAmountThreshold: 300000, transferDaysWindow: 5, transferTolerance: 0, transferDateMode: 'both',
-      giftThreshold: 2000000, fuzzyEnabled: true, fuzzyThreshold: 80,
+      giftThreshold: 2000000, preDeathMonths: 3, fuzzyEnabled: true, fuzzyThreshold: 80,
     };
     const saved = await call('/analysis', 'PUT', params);
     expect(saved.status).toBe(200);

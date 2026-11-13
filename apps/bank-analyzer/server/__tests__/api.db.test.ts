@@ -131,6 +131,20 @@ describe('取引1件', () => {
     expect((await call('DELETE', `/${caseId}/transactions/${ids[0]}`)).status).toBe(200);
     expect(await db().transaction.count()).toBe(1);
   });
+
+  it('まとめて付箋: 付いていないものだけ数える。他の案件の取引には付けない', async () => {
+    const { caseId, ids } = await seedCase(db(), '架空 太郎', [{}, {}, {}]);
+    const other = await seedCase(db(), '架空 花子', [{}]);
+    const url = `/${caseId}/transactions/flag-many`;
+    await call('POST', `/${caseId}/transactions/${ids[0]}/flag`);
+    const res = await call('POST', url, { ids: [...ids, ...other.ids].map(String), flagged: true });
+    expect(res.json).toMatchObject({ count: 2, message: '2件に付箋を付けました' });
+    expect(await db().transaction.count({ where: { isFlagged: true } })).toBe(3);
+    expect((await call('POST', url, { ids: ids.map(String), flagged: true })).json.count).toBe(0);
+    expect((await call('POST', url, { ids: [String(ids[1])], flagged: false })).json.count).toBe(1);
+    expect((await call('POST', url, { ids: [], flagged: true })).status).toBe(400);
+    expect((await call('POST', url, { ids: ids.map(String), flagged: 'yes' })).status).toBe(400);
+  });
 });
 
 describe('まとめての削除', () => {

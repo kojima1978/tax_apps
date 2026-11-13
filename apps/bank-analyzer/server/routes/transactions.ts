@@ -23,6 +23,7 @@ import {
   fieldValues,
   getTransaction,
   isReplaceableField,
+  setFlags,
   toggleFlag,
   updateMemo,
   updateTransaction,
@@ -87,6 +88,17 @@ export function transactionRoutes(r: CaseRouter, db: PrismaClient) {
     const state = txId ? await toggleFlag(db, c.get('caseId'), txId) : null;
     if (state === null) return fail(c, TX_NOT_FOUND, 404);
     return ok(c, { isFlagged: state, message: state ? '付箋を追加しました' : '付箋を外しました' });
+  });
+
+  // まとめて付箋（{ ids, flagged }）。すでにその状態の取引は数えない
+  r.post('/:caseId/transactions/flag-many', async (c) => {
+    const body = await readBody(c);
+    const ids = parseIdList(body.ids);
+    if (!ids || ids.length === 0) return fail(c, '取引が選択されていません');
+    if (typeof body.flagged !== 'boolean') return fail(c, '付箋を付けるか外すかを指定してください');
+    const count = await setFlags(db, c.get('caseId'), ids, body.flagged);
+    const verb = body.flagged ? '付けました' : '外しました';
+    return ok(c, { count, message: count ? `${count}件に付箋を${verb}` : body.flagged ? 'すべて付箋が付いています' : '付箋の付いた取引はありませんでした' });
   });
 
   r.put('/:caseId/transactions/:txId/memo', async (c) => {

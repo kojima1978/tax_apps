@@ -30,6 +30,7 @@ import {
   parseQuestionTemplates,
   type QuestionTemplates,
 } from '../lib/questions.js';
+import { DEFAULT_PRE_DEATH_MONTHS } from '../lib/inheritanceReview.js';
 import { inTransaction, lockCase, type Tx } from './classificationHistory.js';
 
 type Db = PrismaClient | Tx;
@@ -40,6 +41,8 @@ const KEY = {
   transferTolerance: 'TRANSFER_AMOUNT_TOLERANCE',
   transferDateMode: 'TRANSFER_DATE_MODE',
   giftThreshold: 'GIFT_THRESHOLD',
+  // Django 版には無いキー（相続税の検討の「相続開始直前の出金」を見る月数）。無ければ既定
+  preDeathMonths: 'PRE_DEATH_MONTHS',
   fuzzy: 'FUZZY_MATCHING',
   patterns: 'CLASSIFICATION_PATTERNS',
   // Django 版には無いキー。旧版のバックアップには入っていないので、復元すると既定の文へ戻る
@@ -60,7 +63,7 @@ async function writeRaw(db: Db, key: string, value: unknown): Promise<void> {
 // 分析パラメータ
 // ---------------------------------------------------------------------------
 
-export type AppSettings = AnalysisSettings & { giftThreshold: number; fuzzy: FuzzyConfig };
+export type AppSettings = AnalysisSettings & { giftThreshold: number; preDeathMonths: number; fuzzy: FuzzyConfig };
 
 const int = (v: unknown, def: number) => {
   const n = typeof v === 'number' ? v : Number(v);
@@ -86,6 +89,7 @@ export async function getAppSettings(db: Db): Promise<AppSettings> {
     transferTolerance: int(raw[KEY.transferTolerance], d.transferTolerance),
     transferDateMode: raw[KEY.transferDateMode] === 'both' ? 'both' : 'after_only',
     giftThreshold: int(raw[KEY.giftThreshold], DEFAULT_GIFT_THRESHOLD),
+    preDeathMonths: int(raw[KEY.preDeathMonths], DEFAULT_PRE_DEATH_MONTHS),
     fuzzy: fuzzyOf(raw[KEY.fuzzy]),
   };
 }
@@ -96,6 +100,7 @@ export type AnalysisParamsInput = {
   transferTolerance: unknown;
   transferDateMode: unknown;
   giftThreshold: unknown;
+  preDeathMonths: unknown;
   fuzzyEnabled: unknown;
   fuzzyThreshold: unknown;
 };
@@ -106,6 +111,7 @@ const RANGES: Record<Exclude<keyof AnalysisParamsInput, 'transferDateMode' | 'fu
   transferDaysWindow: ['資金移動の検出期間', 0, 30],
   transferTolerance: ['資金移動の金額許容誤差', 0, null],
   giftThreshold: ['贈与判定の閾値', 0, 1_000_000_000],
+  preDeathMonths: ['相続開始直前の出金を見る月数', 1, 36],
   fuzzyThreshold: ['ファジーマッチングの類似度閾値', 0, 100],
 };
 
@@ -133,6 +139,7 @@ export async function saveAnalysisParams(db: PrismaClient, input: AnalysisParams
     await writeRaw(tx, KEY.transferTolerance, values.transferTolerance);
     await writeRaw(tx, KEY.transferDateMode, mode);
     await writeRaw(tx, KEY.giftThreshold, values.giftThreshold);
+    await writeRaw(tx, KEY.preDeathMonths, values.preDeathMonths);
     await writeRaw(tx, KEY.fuzzy, {
       enabled: input.fuzzyEnabled === true || input.fuzzyEnabled === 'true' || input.fuzzyEnabled === 'on',
       threshold: values.fuzzyThreshold,

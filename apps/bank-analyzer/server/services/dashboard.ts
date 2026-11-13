@@ -34,6 +34,7 @@ import { latestSummary } from './classificationHistory.js';
 import { draftQuestion, hasQuestion } from '../lib/questions.js';
 import { loadRows, type ExportRow } from './exports.js';
 import { draftContext } from './questions.js';
+import { buildInheritanceReview } from './inheritanceReview.js';
 import { latestDeletionBackup } from './rangeDelete.js';
 import { getAppSettings, getCasePatterns, getClassifierSettings, getGlobalPatterns, patternList } from './settings.js';
 
@@ -172,6 +173,8 @@ async function overview(db: PrismaClient, caseId: bigint, txs: ExportRow[], refe
 
   const monthly = monthlyCashflow(txs, referenceDate);
   return {
+    // 相続税の検討（基準日が無ければ null。画面は「基準日を入れると出ます」）
+    inheritanceReview: await buildInheritanceReview(db, txs, referenceDate),
     accountSummary: summary,
     chartCategories,
     chartMonthly: {
