@@ -3,6 +3,12 @@
 // 1回の取込でやること（Django 版と同じ順番）: 分類 → 多額の印 → 口座を探して/作って登録 →
 // 案件の全取引で資金移動を判定し直す（印は付けるだけで外さない）。取込時の点数は保存しない。
 //
+// CSV の「分類」の列（依頼24）: 分類が書かれた行はその分類で入れ、自動分類にかけるのは
+// 書かれていない行だけ。点数は自動分類と同じく保存しない（0 のまま ＝ 取込時に付いた分類）。
+// 分類の変更履歴（ClassificationChange）にも積まない ── 履歴は「取込後に人が変えた操作」を
+// 戻すためのもので、取込で付く分類は自動分類と同じく最初の状態だから。
+// 贈与・多額・資金移動の判定は CSV の分類があっても今までどおり走る。
+//
 // Django 版との違い:
 // - ウィザードの複数ファイルを1つのトランザクションで入れる。Django 版はファイルごとに
 //   commit_import を呼んでいて、3つ目で落ちると1〜2つ目だけ入った状態が残った（もう一度
@@ -14,13 +20,15 @@
 import type { PrismaClient } from '@prisma/client';
 import { accountIdentity, accountLabel } from '../lib/accountIdentity.js';
 import { detectTransfers, isLargeAmount, type AnalysisSettings } from '../lib/analyze.js';
-import { classifyTransactions } from '../lib/classify.js';
+import { STANDARD_CATEGORIES, TRANSFER_CATEGORY, normalizePatterns, sortCategories } from '../lib/categories.js';
+import { type ClassifierSettings } from '../lib/classify.js';
+import { decideCategories } from '../lib/import/csvCategory.js';
 import { buildDuplicateWarning, buildExistingIndex, markDuplicates, type DedupFields, type DuplicateMark, type DuplicateWarning } from '../lib/dedup.js';
 import { normalizeText } from '../lib/text.js';
 import { selectRowsToCommit, type CommitAccount, type CommitRow } from '../lib/wizard.js';
 import { toDateString, toId } from '../json.js';
 import { lockCase, type Tx } from './classificationHistory.js';
-import { getAppSettings, getClassifierSettings } from './settings.js';
+import { getAppSettings, getClassifierSettings, mergePatterns } from './settings.js';
 import { getOrCreateAccount } from './transactions.js';
 
 export type ImportRow = CommitRow & {
@@ -75,11 +83,22 @@ async function markTransfers(tx: Tx, caseId: bigint, settings: AnalysisSettings)
   }
 }
 
-// commit_import の1回分。分類の使い回し（同じ摘要は最初の行の結果）は1回の中だけで効く
-async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<number> {
-  if (rows.length === 0) return 0;
+// 取込で使える分類（標準＋設定で足したもの）。CSV の分類名の照合と、AI に渡す指示文の分類の一覧の元。
+// 並びは画面の分類と同じ（sortCategories）。キーワードは全体 → 案件固有の順
+export function importCategories(classifier: Pick<ClassifierSettings, 'globalPatterns' | 'casePatterns'>) {
+  const keywords = mergePatterns(normalizePatterns(classifier.globalPatterns), normalizePatterns(classifier.casePatterns));
+  return sortCategories([...STANDARD_CATEGORIES, ...keywords.keys()]).map((name) => ({
+    name,
+    keywords: keywords.get(name) ?? [],
+  }));
+}
+
+// commit_import の1回分。分類の使い回し（同じ摘要は最初の行の結果）は1回の中だけで効く。
+// 戻り値の transferIds は「通帳間移動」として入れた取引（相手が見つかったかは全部入れ終えてから数える）
+async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<{ count: number; transferIds: bigint[] }> {
+  if (rows.length === 0) return { count: 0, transferIds: [] };
   const [classifier, settings] = await Promise.all([getClassifierSettings(tx, caseId), getAppSettings(tx)]);
-  const classes = classifyTransactions(rows, classifier);
+  const categories = decideCategories(rows, importCategories(classifier).map((c) => c.name), classifier).map((c) => c.category);
 
   // 同じ口座を2度探さないための覚え書き。キーは同一性（番号だけだと、同じ番号の
   // 別の銀行の行が最初の口座へ流れ込む）
@@ -102,12 +121,20 @@ async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<nu
       amountIn: r.amountIn,
       balance: r.balance,
       isLarge: isLargeAmount(r.amountOut, r.amountIn, settings.largeAmountThreshold),
-      category: classes[i]!.category,
+      category: categories[i]!,
+      memo: r.memo || null,
+      isFlagged: r.flagged === true,
     });
   }
-  await tx.transaction.createMany({ data });
+  const created = await tx.transaction.createManyAndReturn({ data, select: { id: true, category: true } });
   await markTransfers(tx, caseId, settings);
-  return rows.length;
+  return { count: rows.length, transferIds: created.filter((t) => t.category === TRANSFER_CATEGORY).map((t) => t.id) };
+}
+
+// 通帳間移動として入れたのに、資金移動の判定で相手の取引が見つからなかった件数。
+// 食い違いは直さず数を知らせるだけ（相手の通帳がまだ取り込まれていないことが多い）
+async function countUnmatchedTransfers(tx: Tx, ids: bigint[]): Promise<number> {
+  return ids.length === 0 ? 0 : tx.transaction.count({ where: { id: { in: ids }, isTransfer: false } });
 }
 
 // 数千件の取込は Prisma の既定（5秒）を超えうる
@@ -118,7 +145,7 @@ export async function commitRows(db: PrismaClient, caseId: bigint, rows: ImportR
   return db.$transaction(
     async (tx) => {
       await lockCase(tx, caseId);
-      return insertRows(tx, caseId, rows);
+      return (await insertRows(tx, caseId, rows)).count;
     },
     { timeout: IMPORT_TIMEOUT_MS },
   );
@@ -134,19 +161,23 @@ export async function commitWizard(
   caseId: bigint,
   files: WizardFile[],
   skipDuplicates: boolean,
-): Promise<{ imported: number; skipped: number }> {
+): Promise<{ imported: number; skipped: number; transferUnmatched: number }> {
   return db.$transaction(
     async (tx) => {
       await lockCase(tx, caseId);
       const index = buildExistingIndex((await loadCaseRows(tx, caseId)) satisfies DedupFields[]);
       let imported = 0;
       let skipped = 0;
+      const transferIds: bigint[] = [];
       for (const f of files) {
         const selected = selectRowsToCommit(f.rows, f.account, index, skipDuplicates);
         skipped += selected.skipped;
-        imported += await insertRows(tx, caseId, selected.rows);
+        const result = await insertRows(tx, caseId, selected.rows);
+        imported += result.count;
+        transferIds.push(...result.transferIds);
       }
-      return { imported, skipped };
+      // 後のファイルで相手が入ることがあるので、全部入れ終えてから数える
+      return { imported, skipped, transferUnmatched: await countUnmatchedTransfers(tx, transferIds) };
     },
     { timeout: IMPORT_TIMEOUT_MS },
   );

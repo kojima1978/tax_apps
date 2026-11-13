@@ -7,7 +7,20 @@ import { blankRow, isBlankRow, type AccountFields, type EditFile, type EditRow }
 
 export type DuplicateCheck = { marks: DuplicateMark[]; warning: DuplicateWarning | null };
 
-type RowPatch = Partial<Pick<EditRow, 'date' | 'description' | 'amountOut' | 'amountIn' | 'balance'>>;
+type RowPatch = Partial<Pick<EditRow, 'date' | 'description' | 'amountOut' | 'amountIn' | 'balance' | 'category' | 'memo' | 'flagged'>>;
+
+// 重複の判定に効く欄。分類・メモ・付箋を直しても重複の印は消さない
+const DEDUP_FIELDS = ['date', 'description', 'amountOut', 'amountIn', 'balance'] as const;
+
+function patchRow(r: EditRow, patch: RowPatch): EditRow {
+  const next: EditRow = { ...r, ...patch };
+  if (DEDUP_FIELDS.some((k) => k in patch)) next.dup = null;
+  // 摘要を直したら自動分類の見込みは分からなくなる（取込時にサーバが付け直す）
+  if ('description' in patch) next.autoCategory = null;
+  // 分類を選んだら「人が直した」。空（自動）に戻したら自動
+  if ('category' in patch) next.categoryOrigin = patch.category ? 'manual' : 'auto';
+  return next;
+}
 
 export function useWizardFiles() {
   const [files, setFiles] = useState<EditFile[]>([]);
@@ -25,10 +38,20 @@ export function useWizardFiles() {
     (fileKey: number, rowKey: number, patch: RowPatch) =>
       updateFile(fileKey, (f) => ({
         ...f,
-        rows: f.rows.map((r) => (r.key === rowKey ? { ...r, ...patch, dup: null } : r)),
+        rows: f.rows.map((r) => (r.key === rowKey ? patchRow(r, patch) : r)),
       })),
     [updateFile],
   );
+
+  // CSV の知らない分類名を、全ファイルのその名前の行でまとめて読み替える（'' = 自動分類）
+  const mapUnknownCategory = useCallback((name: string, category: string) => {
+    setFiles((list) =>
+      list.map((f) => ({
+        ...f,
+        rows: f.rows.map((r) => (r.unknownCategory === name ? patchRow(r, { category }) : r)),
+      })),
+    );
+  }, []);
 
   const deleteRows = useCallback(
     (fileKey: number, rowKeys: ReadonlySet<number>) => updateFile(fileKey, (f) => ({ ...f, rows: f.rows.filter((r) => !rowKeys.has(r.key)) })),
@@ -85,7 +108,7 @@ export function useWizardFiles() {
     [updateFile],
   );
 
-  return { files, setFiles, setAccount, updateRow, deleteRows, insertBelow, move, applyDuplicateCheck, appendRows };
+  return { files, setFiles, setAccount, updateRow, mapUnknownCategory, deleteRows, insertBelow, move, applyDuplicateCheck, appendRows };
 }
 
 export type WizardFiles = ReturnType<typeof useWizardFiles>;

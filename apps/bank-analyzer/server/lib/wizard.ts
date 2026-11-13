@@ -156,6 +156,10 @@ export type CommitRow = {
   amountOut: number;
   amountIn: number;
   balance: number | null;
+  // 依頼24。CSV に書かれていた／画面で選んだ分類（無ければ自動分類）・メモ・付箋
+  category?: string;
+  memo?: string;
+  flagged?: boolean;
 };
 
 // 取り込む行を決める。画面で決めた口座を当ててから、DB の最新の状態で重複を判定し直す

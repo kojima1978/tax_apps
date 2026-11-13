@@ -80,7 +80,12 @@ export async function download(path: string, params?: URLSearchParams): Promise<
   }
   const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
   const filename = encoded ? decodeURIComponent(encoded) : (/filename="([^"]+)"/.exec(disposition)?.[1] ?? 'download');
-  const url = URL.createObjectURL(await res.blob());
+  saveBlob(await res.blob(), filename);
+}
+
+// 画面で作ったファイルを保存させる（取込のひな形など）
+export function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;

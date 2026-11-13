@@ -1,4 +1,5 @@
-// 取込ウィザードの手順3: 1ファイル分の行を直す表（削除・下に挿入・上下の入れ替え・要確認行への移動）
+// 取込ウィザードの手順3: 1ファイル分の行を直す表（削除・下に挿入・上下の入れ替え・問題の行への移動）
+// 分類の列は categories を渡したときだけ出す（直接入力は出さない）。メモ・付箋の列は CSV に入っていたときだけ
 
 import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
@@ -43,6 +44,40 @@ function RowStatus({ r }: { r: CheckedRow }) {
   return <div className="flex flex-col items-start gap-0.5">{badges}</div>;
 }
 
+const ORIGIN_BADGE = {
+  csv: { label: 'CSV', className: 'bg-sky-100 text-sky-800', title: 'CSV の分類の列に書かれていた分類' },
+  auto: { label: '自動', className: 'bg-slate-100 text-slate-600', title: '取込のときにアプリが摘要から付ける分類' },
+  manual: { label: '手直し', className: 'bg-violet-100 text-violet-800', title: 'この画面で選んだ分類' },
+} as const;
+
+function CategoryCell({ r, index, categories, onChange }: { r: CheckedRow; index: number; categories: string[]; onChange: (category: string) => void }) {
+  const badge = ORIGIN_BADGE[r.categoryOrigin];
+  // CSV の分類が設定から消えていても選択肢に残す（黙って別の値に見せない）
+  const options = r.category && !categories.includes(r.category) ? [r.category, ...categories] : categories;
+  return (
+    <div className="flex flex-col items-start gap-0.5">
+      <select className={`${CELL_INPUT} w-48`} aria-label={`${index + 1}行目の分類`} value={r.category} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{`自動（${r.autoCategory ?? '取込時に決まる'}）`}</option>
+        {options.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+      <span className="flex flex-wrap items-center gap-1">
+        <span className={`${BADGE} ${badge.className}`} title={badge.title}>
+          {badge.label}
+        </span>
+        {r.unknownCategory !== null && (
+          <span className="text-xs text-amber-800" title="CSV に書かれていた、設定に無い分類名">
+            CSV: {r.unknownCategory}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CELL_INPUT = 'input px-1.5 py-1 text-sm';
 const AMOUNT_COLUMNS = [
@@ -54,9 +89,11 @@ type Props = {
   file: EditFile;
   rows: CheckedRow[];
   actions: Pick<WizardFiles, 'updateRow' | 'deleteRows' | 'insertBelow' | 'move'>;
+  // 選べる分類（未分類は除く）。渡したときだけ分類の列を出す
+  categories?: string[];
 };
 
-export function PreviewTable({ file, rows, actions }: Props) {
+export function PreviewTable({ file, rows, actions, categories }: Props) {
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const [cursor, setCursor] = useState(-1);
   const problems = useMemo(() => rows.flatMap((r, i) => (r.error || r.isBalanceError ? [i] : [])), [rows]);
@@ -84,6 +121,8 @@ export function PreviewTable({ file, rows, actions }: Props) {
       return next;
     });
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.key));
+  // 選択・状態・日付・摘要・出金・入金・操作 ＋ 残高2列 ＋ 分類・メモ・付箋
+  const columnCount = 7 + (file.hasBalance ? 2 : 0) + (categories ? 1 : 0) + (file.hasMemo ? 1 : 0) + (file.hasFlag ? 1 : 0);
 
   return (
     <section className="card p-4" aria-label={file.filename}>
@@ -114,11 +153,11 @@ export function PreviewTable({ file, rows, actions }: Props) {
           </button>
         )}
         <span className="ml-auto flex items-center gap-1 text-sm">
-          <span className={problems.length ? 'text-amber-800' : 'text-slate-500'}>要確認 {problems.length}件</span>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={!problems.length} onClick={() => jump(-1)} aria-label="前の要確認行へ">
+          <span className={problems.length ? 'text-amber-800' : 'text-slate-500'}>問題の行 {problems.length}件</span>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={!problems.length} onClick={() => jump(-1)} aria-label="前の問題の行へ">
             <ChevronUp size={14} />
           </button>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={!problems.length} onClick={() => jump(1)} aria-label="次の要確認行へ">
+          <button type="button" className="btn btn-secondary btn-sm" disabled={!problems.length} onClick={() => jump(1)} aria-label="次の問題の行へ">
             <ChevronDown size={14} />
           </button>
         </span>
@@ -149,6 +188,11 @@ export function PreviewTable({ file, rows, actions }: Props) {
                   <th className="text-right">残高</th>
                   <th className="text-right">計算上の残高</th>
                 </>
+              )}
+              {categories && <th>分類</th>}
+              {file.hasMemo && <th>メモ</th>}
+              {file.hasFlag && (
+                <th title="CSV の「要確認」の列。付けた取引は質問候補の付箋つきで取り込みます">付箋</th>
               )}
               <th className="text-right">操作</th>
             </tr>
@@ -212,6 +256,36 @@ export function PreviewTable({ file, rows, actions }: Props) {
                     </td>
                   </>
                 )}
+                {categories && (
+                  <td>
+                    <CategoryCell r={r} index={i} categories={categories} onChange={(category) => actions.updateRow(file.key, r.key, { category })} />
+                  </td>
+                )}
+                {file.hasMemo && (
+                  <td>
+                    <input
+                      className={`${CELL_INPUT} min-w-40`}
+                      aria-label={`${i + 1}行目のメモ`}
+                      value={r.memo}
+                      onChange={(e) => actions.updateRow(file.key, r.key, { memo: e.target.value })}
+                    />
+                  </td>
+                )}
+                {file.hasFlag && (
+                  <td className="text-center">
+                    <input
+                      type="checkbox"
+                      aria-label={`${i + 1}行目に付箋を付ける`}
+                      checked={r.flagged}
+                      onChange={(e) => actions.updateRow(file.key, r.key, { flagged: e.target.checked })}
+                    />
+                    {r.flagUnreadable !== null && (
+                      <div className="mt-0.5 text-xs text-amber-800" title="CSV の「要確認」の値が読めなかったので付箋なしにしています">
+                        読めない値: {r.flagUnreadable}
+                      </div>
+                    )}
+                  </td>
+                )}
                 <td>
                   <div className="flex justify-end gap-1">
                     <button type="button" className="btn btn-secondary btn-sm px-1.5" aria-label={`${i + 1}行目を上へ`} disabled={i === 0} onClick={() => actions.move(file.key, r.key, -1)}>
@@ -250,7 +324,7 @@ export function PreviewTable({ file, rows, actions }: Props) {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={file.hasBalance ? 9 : 7} className="py-6 text-center text-slate-500">
+                <td colSpan={columnCount} className="py-6 text-center text-slate-500">
                   行がありません。このファイルからは何も取り込みません。
                 </td>
               </tr>

@@ -7,10 +7,11 @@
 export const UNCATEGORIZED = '未分類';
 export const OTHER_CATEGORY = 'その他';
 export const GIFT_CATEGORY = '贈与・教育費';
+export const TRANSFER_CATEGORY = '通帳間移動';
 
 export const STANDARD_CATEGORIES = [
   '生活費', '給与', '年金', GIFT_CATEGORY, '税金', '修繕・資本', '事業・不動産', '関連会社',
-  '銀行・利息・手数料', '証券・株式・配当', '保険会社', '通帳間移動', OTHER_CATEGORY, UNCATEGORIZED,
+  '銀行・利息・手数料', '証券・株式・配当', '保険会社', TRANSFER_CATEGORY, OTHER_CATEGORY, UNCATEGORIZED,
 ] as const;
 
 // 古いカテゴリー名 → いまの名前
@@ -57,7 +58,7 @@ export const DEFAULT_PATTERNS: Patterns = {
     '投資信託', '株式', '債券', 'ファンド', '配当',
   ],
   '保険会社': ['生命保険', '損保', '保険', '共済', 'かんぽ', '日本生命', '第一生命'],
-  '通帳間移動': ['振替', '口座振替', '資金移動', '自己口座', '本人口座', '自分宛', '同一名義'],
+  [TRANSFER_CATEGORY]: ['振替', '口座振替', '資金移動', '自己口座', '本人口座', '自分宛', '同一名義'],
   [OTHER_CATEGORY]: ['手数料', '利息', 'ATM', '時間外', '引出', '預入'],
 };
 

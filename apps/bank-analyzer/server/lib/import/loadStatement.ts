@@ -25,45 +25,15 @@ import {
   MultipleBankError,
   type AmountColumn,
 } from './errors.js';
+import { columnLabel, IMPORT_COLUMNS, parseFlag, REQUIRED_COLUMNS, type StandardColumn } from './columns.js';
 import { headerKey, readTable, type Cell } from './readTable.js';
 
-// 列名の表記ゆれ。比べるのは headerKey を通した形（全角・空白の違いは無視）。
-const COLUMN_RENAME_MAP: Record<string, StandardColumn> = {
-  年月日: 'date',
-  日付: 'date',
-  摘要: 'description',
-  払戻: 'amount_out',
-  払戻額: 'amount_out',
-  お預り: 'amount_in',
-  お預り額: 'amount_in',
-  差引残高: 'balance',
-  残高: 'balance',
-  銀行名: 'bank_name',
-  支店名: 'branch_name',
-  口座番号: 'account_number',
-  種別: 'account_type',
-};
+// 列名の表記ゆれ（columns.ts の表から作る）。比べるのは headerKey を通した形（全角・空白の違いは無視）。
+const COLUMN_RENAME_MAP: Record<string, StandardColumn> = Object.fromEntries(
+  IMPORT_COLUMNS.flatMap((c) => [c.name, ...c.aliases].map((name) => [headerKey(name), c.key] as const)),
+);
 
-export type StandardColumn =
-  | 'date'
-  | 'description'
-  | 'amount_out'
-  | 'amount_in'
-  | 'balance'
-  | 'bank_name'
-  | 'branch_name'
-  | 'account_number'
-  | 'account_type';
-
-const REQUIRED_COLUMNS: StandardColumn[] = ['date', 'description', 'amount_out', 'amount_in'];
-
-// 足りない列を知らせるときの名前（Django 版は逆引きの辞書で、後に書いた方が勝っていた）。
-const REQUIRED_COLUMN_LABELS: Record<string, string> = {
-  date: '日付',
-  description: '摘要',
-  amount_out: '払戻額',
-  amount_in: 'お預り額',
-};
+export type { StandardColumn };
 
 export type StatementMetadata = Partial<{
   bankName: string;
@@ -83,6 +53,11 @@ export type StatementRow = {
   branchName: string | null;
   accountNumber: string | null;
   accountType: string | null;
+  // 依頼24 の任意の列。列が無い・空欄なら undefined（golden の期待値と同じ形のままにするため）
+  category?: string; // ファイルに書かれた分類名（前後の空白だけ落とす。読み替えは取込の画面で）
+  memo?: string;
+  flagged?: true; // 要確認が「○」など
+  flagUnreadable?: string; // 要確認の読めない値（付箋なしとして扱い、件数だけ知らせる）
 };
 
 export type Statement = {
@@ -123,7 +98,7 @@ export function loadStatement(bytes: Uint8Array, options: LoadOptions = {}): Sta
   const missing = REQUIRED_COLUMNS.filter((c) => !index.has(c));
   if (missing.length > 0) {
     throw new FormatError('CSVに必要なカラムがありません。', {
-      missingColumns: missing.map((c) => REQUIRED_COLUMN_LABELS[c] ?? c),
+      missingColumns: missing.map(columnLabel),
       foundColumns: table.header,
     });
   }
@@ -199,6 +174,20 @@ export function loadStatement(bytes: Uint8Array, options: LoadOptions = {}): Sta
     }
   }
 
+  // 足した列（分類・メモ・要確認）はここで読むだけ。値がおかしくてもエラーにしない（依頼24 の追記）
+  const optionalFields = (cells: Cell[]): Pick<StatementRow, 'category' | 'memo' | 'flagged' | 'flagUnreadable'> => {
+    const out: Pick<StatementRow, 'category' | 'memo' | 'flagged' | 'flagUnreadable'> = {};
+    const category = trimmed(cells, 'category');
+    if (category !== null) out.category = category;
+    const memo = trimmed(cells, 'memo');
+    if (memo !== null) out.memo = memo;
+    const flagRaw = trimmed(cells, 'flag');
+    const flag = parseFlag(flagRaw);
+    if (flag === true) out.flagged = true;
+    else if (flag === null && flagRaw !== null) out.flagUnreadable = flagRaw;
+    return out;
+  };
+
   return {
     columns,
     metadata,
@@ -214,6 +203,7 @@ export function loadStatement(bytes: Uint8Array, options: LoadOptions = {}): Sta
       branchName: trimmed(r.cells, 'branch_name'),
       accountNumber: trimmed(r.cells, 'account_number'),
       accountType: trimmed(r.cells, 'account_type'),
+      ...optionalFields(r.cells),
     })),
   };
 }

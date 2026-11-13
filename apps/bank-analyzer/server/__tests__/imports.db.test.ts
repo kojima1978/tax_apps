@@ -189,3 +189,90 @@ describe('直接入力', () => {
     expect((await call('POST', `/${caseId}/import/direct`, { rows: [{}] })).json.error).toBe('登録するデータがありません。');
   });
 });
+
+describe('分類・メモ・要確認の列（依頼24）', () => {
+  const mixed = () =>
+    new File(
+      [
+        '日付,摘要,払戻額,お預り額,差引残高,分類,メモ,要確認\n' +
+          'R7.4.1,ZZQ架空商会,1000,,9000,生活費,,\n' +
+          'R7.4.2,年金 ZZQ,,500,9500,,読めない字あり,○\n' +
+          'R7.4.3,ZZQ架空店,200,,9300,ZZQ謎の分類,,たぶん\n',
+      ],
+      '架空_1234567.csv',
+    );
+
+  it('プレビューは CSV の分類・自動分類の見込み・知らない名前を分けて返し、選べる分類も付ける', async () => {
+    const { caseId } = await seedCase(db());
+    const res = await upload(caseId, { file_0: mixed() });
+    expect(res.status).toBe(200);
+    expect(res.json.categories).toContain('生活費');
+    expect(res.json.categories).not.toContain('未分類');
+    const rows = res.json.files[0].rows as Json[];
+    expect(rows[0]).toMatchObject({ category: '生活費' });
+    expect(rows[0]).not.toHaveProperty('autoCategory');
+    expect(rows[1]).toMatchObject({ autoCategory: '年金', memo: '読めない字あり', flagged: true });
+    expect(rows[1]).not.toHaveProperty('category');
+    expect(rows[2]).toMatchObject({ unknownCategory: 'ZZQ謎の分類', flagUnreadable: 'たぶん' });
+    expect(await rowsOf(caseId)).toHaveLength(0);
+  });
+
+  it('確定: 書かれた分類は点数0・履歴なしで入れ、知らない名前は自動分類、メモと付箋も入れる', async () => {
+    const { caseId } = await seedCase(db());
+    const res = await call('POST', `/${caseId}/import/commit`, {
+      files: [
+        {
+          account: account('1234567'),
+          rows: [
+            { date: '2025-04-01', description: 'ZZQ架空商会', amountOut: '1000', balance: '9000', category: '生活費' },
+            { date: '2025-04-02', description: '年金 ZZQ', amountIn: '500', balance: '9500', memo: '読めない字あり', flagged: true },
+            { date: '2025-04-03', description: 'ZZQ架空店', amountOut: '200', balance: '9300', category: 'ZZQ謎の分類' },
+            { date: '2025-04-04', description: 'ZZQ架空店2', amountOut: '100', balance: '9200', category: '贈与' },
+          ],
+        },
+      ],
+    });
+    expect(res.json).toMatchObject({ imported: 4, skipped: 0 });
+    const rows = await rowsOf(caseId);
+    expect(rows.map((r) => [r.category, r.classificationScore, r.memo, r.isFlagged])).toEqual([
+      ['生活費', 0, null, false],
+      ['年金', expect.any(Number), '読めない字あり', true],
+      [expect.not.stringMatching(/ZZQ/), expect.any(Number), null, false],
+      ['贈与・教育費', 0, null, false],
+    ]);
+    expect(await db().classificationChange.count()).toBe(0);
+  });
+
+  it('列が無い送り方は今までどおり（未分類にせず自動分類・メモなし・付箋なし）', async () => {
+    const { caseId } = await seedCase(db());
+    await call('POST', `/${caseId}/import/commit`, {
+      files: [{ account: account('1234567'), rows: [{ date: '2025-04-02', description: '年金 ZZQ', amountIn: '500' }] }],
+    });
+    const [row] = await rowsOf(caseId);
+    expect([row!.category, row!.memo, row!.isFlagged]).toEqual(['年金', null, false]);
+  });
+
+  it('相手の見つからない通帳間移動の件数を取込の知らせに書く', async () => {
+    const { caseId } = await seedCase(db());
+    const res = await call('POST', `/${caseId}/import/commit`, {
+      files: [
+        {
+          account: account('1234567'),
+          rows: [{ date: '2025-04-01', description: 'ZZQ架空', amountOut: '300000', category: '通帳間移動' }],
+        },
+      ],
+    });
+    expect(res.json.transferUnmatched).toBe(1);
+    expect(res.json.message).toContain('通帳間移動のうち1件は相手の取引がまだ見つかっていません');
+  });
+
+  it('形式の案内は案件の設定を映す（設定で足した分類が出る）', async () => {
+    const { caseId } = await seedCase(db());
+    const before = await call('GET', `/${caseId}/import/format`);
+    expect(before.json.giftThreshold).toBe(1_000_000);
+    expect(before.json.categories.map((c: Json) => c.name)).not.toContain('ZZQ追加分類');
+    await call('POST', `/${caseId}/patterns/add`, { category: 'ZZQ追加分類', keyword: 'ZZQキーワード', scope: 'case' });
+    const after = await call('GET', `/${caseId}/import/format`);
+    expect(after.json.categories).toContainEqual({ name: 'ZZQ追加分類', keywords: ['ZZQキーワード'] });
+  });
+});

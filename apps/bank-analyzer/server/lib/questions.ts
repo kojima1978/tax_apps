@@ -6,7 +6,7 @@
 //   メールで送った書面が他人の手に渡っても番号の全部は漏れない
 // - 質問文の下書きは定型文から選ぶだけ。入れるのは人がボタンを押したときで、ここは文を作るだけ
 
-import { GIFT_CATEGORY } from './categories.js';
+import { GIFT_CATEGORY, TRANSFER_CATEGORY } from './categories.js';
 import { warekiFull } from './dates.js';
 
 export const QUESTION_SHEET_TITLE = 'お客様への確認事項';
@@ -84,7 +84,6 @@ export const QUESTION_TEMPLATE_MAX = 200;
 // 文の中で置き換える語（置き換えなくても文は成り立つ。書面の表にも同じ値が出るため）
 export const QUESTION_PLACEHOLDERS = ['{日付}', '{金額}', '{摘要}'] as const;
 
-const TRANSFER_CATEGORY = '通帳間移動';
 const INSURANCE_CATEGORY = '保険会社';
 
 // 保存値から読む。文字列でないもの・空のものは既定の文へ戻す（空の質問は書面に出せないため）

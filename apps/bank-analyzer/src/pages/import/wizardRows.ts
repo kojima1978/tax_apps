@@ -12,11 +12,20 @@
 //   逆に日付だけ空で他が埋まっている行はエラーにする（Django 版は黙って捨てていた）
 // - 「既存データと N 行連続で一致しています」の注意は、いまの行から数え直す（duplicateWarning）。
 //   Django 版は読み込んだときの文をそのまま持っていたので、重複の行を消しても注意が残った
+//
+// 分類・メモ・付箋（依頼24）: CSV の「分類」「メモ」「要確認」の列から来る。分類は出どころ
+// （CSV・自動・人が直した）を持ち、送るのは CSV と人が選んだものだけ（自動はサーバが付ける）
 
 import { parseAmountValue, parseDateValue } from '../../../server/input';
 import { chainBalance } from '../../../server/lib/balance';
 import { buildDuplicateWarning } from '../../../server/lib/dedup';
 import type { PreviewFile } from '../../../server/lib/wizard';
+
+// プレビューの行に、サーバが分類の列を照らした結果が付いてくる（routes/imports.ts の parse）
+export type PreviewCategoryFields = { category?: string; autoCategory?: string; unknownCategory?: string };
+export type ParsedPreviewFile = Omit<PreviewFile, 'rows'> & { rows: (PreviewFile['rows'][number] & PreviewCategoryFields)[] };
+
+export type CategoryOrigin = 'csv' | 'auto' | 'manual';
 
 export type AccountFields = {
   bankName: string;
@@ -36,6 +45,17 @@ export type EditRow = {
   balance: string;
   // プレビューでの重複の判定。行を直したら消す（取込時にサーバがもう一度判定する）
   dup: 'high' | 'low' | null;
+  // 取り込む分類。'' は自動分類（取込時にサーバが付ける）
+  category: string;
+  categoryOrigin: CategoryOrigin;
+  // 自動分類なら付く分類の見込み。摘要を直したら分からなくなるので null
+  autoCategory: string | null;
+  // CSV に書かれていた知らない分類名（読み替え先を選ぶまで自動分類）
+  unknownCategory: string | null;
+  memo: string;
+  flagged: boolean;
+  // CSV の「要確認」の読めない値（付箋なしとして扱う。知らせるだけ）
+  flagUnreadable: string | null;
 };
 
 export type EditFile = {
@@ -45,6 +65,9 @@ export type EditFile = {
   // 口座番号をファイルから読めたか
   detected: boolean;
   hasBalance: boolean;
+  // CSV にメモ・要確認が1行でも入っていたか（入っていなければ列を出さない）
+  hasMemo: boolean;
+  hasFlag: boolean;
   account: AccountFields;
   rows: EditRow[];
 };
@@ -65,17 +88,34 @@ export const newKey = () => nextKey++;
 // 出金・入金の 0 は空欄で見せる（通帳と同じ）。残高の 0 は 0 と書く
 export const isBlankRow = (r: EditRow) => [r.description, r.amountOut, r.amountIn, r.balance].every((v) => v.trim() === '');
 
-export const blankRow = (date = ''): EditRow => ({ key: newKey(), date, description: '', amountOut: '', amountIn: '', balance: '', dup: null });
+export const blankRow = (date = ''): EditRow => ({
+  key: newKey(),
+  date,
+  description: '',
+  amountOut: '',
+  amountIn: '',
+  balance: '',
+  dup: null,
+  category: '',
+  categoryOrigin: 'auto',
+  autoCategory: null,
+  unknownCategory: null,
+  memo: '',
+  flagged: false,
+  flagUnreadable: null,
+});
 
 const amountText = (n: number) => (n === 0 ? '' : String(n));
 
-export function toEditFiles(previews: PreviewFile[]): EditFile[] {
+export function toEditFiles(previews: ParsedPreviewFile[]): EditFile[] {
   return previews.map((p) => ({
     key: newKey(),
     filename: p.filename,
     isSplit: p.isSplit === true,
     detected: p.detectedAccount.accountNumber !== '',
     hasBalance: p.hasBalance,
+    hasMemo: p.rows.some((r) => r.memo),
+    hasFlag: p.rows.some((r) => r.flagged || r.flagUnreadable),
     account: { ...p.detectedAccount },
     rows: p.rows.map((r) => ({
       key: newKey(),
@@ -85,6 +125,13 @@ export function toEditFiles(previews: PreviewFile[]): EditFile[] {
       amountIn: amountText(r.amountIn),
       balance: r.balance === null ? '' : String(r.balance),
       dup: r.isDuplicate ? (r.dupConfidence ?? 'high') : null,
+      category: r.category ?? '',
+      categoryOrigin: r.category ? 'csv' : 'auto',
+      autoCategory: r.autoCategory ?? null,
+      unknownCategory: r.unknownCategory ?? null,
+      memo: r.memo ?? '',
+      flagged: r.flagged === true,
+      flagUnreadable: r.flagUnreadable ?? null,
     })),
   }));
 }
@@ -127,11 +174,40 @@ export function checkRows(rows: EditRow[], hasBalance: boolean): CheckedRow[] {
   });
 }
 
-// 取込（POST /cases/:id/import/commit）に送る形。金額は文字のまま送り、サーバが同じ規則で読む
+// 取込（POST /cases/:id/import/commit）に送る形。金額は文字のまま送り、サーバが同じ規則で読む。
+// 分類は CSV と人が選んだものだけ送る（自動分類はサーバが付ける）。メモ・付箋は入っているときだけ
 export const toCommitFile = (f: EditFile) => ({
   account: f.account,
-  rows: f.rows.filter((r) => !isBlankRow(r)).map(({ date, description, amountOut, amountIn, balance }) => ({ date, description, amountOut, amountIn, balance })),
+  rows: f.rows
+    .filter((r) => !isBlankRow(r))
+    .map(({ date, description, amountOut, amountIn, balance, category, memo, flagged }) => ({
+      date,
+      description,
+      amountOut,
+      amountIn,
+      balance,
+      ...(category ? { category } : {}),
+      ...(memo.trim() ? { memo } : {}),
+      ...(flagged ? { flagged } : {}),
+    })),
 });
+
+// 知らない分類名ごとの行数（手順3の「知らない分類」の欄）。chosen は読み替え先（'' = 自動分類）
+export function unknownCategories(files: readonly EditFile[]): { name: string; count: number; chosen: string }[] {
+  const out = new Map<string, { name: string; count: number; chosen: string }>();
+  for (const f of files)
+    for (const r of f.rows) {
+      if (r.unknownCategory === null || isBlankRow(r)) continue;
+      const e = out.get(r.unknownCategory) ?? { name: r.unknownCategory, count: 0, chosen: r.category };
+      e.count += 1;
+      out.set(r.unknownCategory, e);
+    }
+  return [...out.values()];
+}
+
+// CSV の「要確認」に読めない値が入っていた行の数（付箋なしで取り込む。知らせるだけ）
+export const unreadableFlagCount = (files: readonly EditFile[]) =>
+  files.reduce((n, f) => n + f.rows.filter((r) => r.flagUnreadable !== null && !isBlankRow(r)).length, 0);
 
 // 重複の注意（サーバのプレビューと同じ規則）。未入力の行は数えない
 export function duplicateWarning(rows: CheckedRow[]): string | null {

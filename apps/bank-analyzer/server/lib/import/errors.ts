@@ -83,6 +83,9 @@ const REQUIRED_COLUMNS_SUGGESTION =
   '- お預り（またはお預り額）\n' +
   '- 差引残高（または残高）';
 
+const MISSING_COLUMNS_PREFIX = '必須カラム: ';
+const FOUND_COLUMNS_PREFIX = '検出されたカラム: ';
+
 export class FormatError extends StatementImportError {
   readonly type = 'format';
 
@@ -92,10 +95,18 @@ export class FormatError extends StatementImportError {
   ) {
     const details: Details = {};
     if (opts.lineNumber !== undefined) details.line_number = opts.lineNumber;
-    if (opts.missingColumns?.length) details.expected_value = `必須カラム: ${opts.missingColumns.join(', ')}`;
-    if (opts.foundColumns?.length) details.actual_value = `検出されたカラム: ${opts.foundColumns.join(', ')}`;
+    if (opts.missingColumns?.length) details.expected_value = `${MISSING_COLUMNS_PREFIX}${opts.missingColumns.join(', ')}`;
+    if (opts.foundColumns?.length) details.actual_value = `${FOUND_COLUMNS_PREFIX}${opts.foundColumns.join(', ')}`;
     super(message, opts.suggestion || REQUIRED_COLUMNS_SUGGESTION, details);
   }
+}
+
+// 列が足りないエラーなら、足りない列とファイルにあった列を取り出す（取込画面で並べて見せる）。
+// 辞書の形は段階1の正解と突き合わせているので変えず、文字列から読み戻す
+export function missingColumnsOf(d: Pick<ImportErrorDict, 'type' | 'expected_value' | 'actual_value'>): { missing: string[]; found: string[] } | null {
+  if (d.type !== 'format' || !d.expected_value?.startsWith(MISSING_COLUMNS_PREFIX)) return null;
+  const list = (v: string | null, prefix: string) => (v?.startsWith(prefix) ? v.slice(prefix.length).split(', ').filter(Boolean) : []);
+  return { missing: list(d.expected_value, MISSING_COLUMNS_PREFIX), found: list(d.actual_value, FOUND_COLUMNS_PREFIX) };
 }
 
 // 行番号と値の組を5件まで「  行N: 値」で並べる。

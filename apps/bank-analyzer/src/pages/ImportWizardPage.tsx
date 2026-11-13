@@ -8,6 +8,9 @@
 // - 重複の行も画面からは消さずに全部送り、除外するかはサーバが DB の最新の状態で決める
 //   （Django 版は画面側で重複を落としていたので、直して重複でなくなった行まで捨てていた）
 // - xlsx も選べる（サーバは読めるのに、Django 版の画面は .csv しか選ばせなかった）
+// - 手順1に「取込できる形式」（列の表・ひな形・AI に渡す指示文）。列が足りないエラーは
+//   足りない列とファイルにあった列を並べて、そこへ案内する（依頼24）
+// - CSV の分類・メモ・要確認の列を読む。手順3で分類を行ごとに直せ、知らない分類名は読み替え先を選ぶ
 
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -19,12 +22,19 @@ import { useApiData } from '../hooks/useApiData';
 import { ApiError, api, errorMessage } from '../lib/api';
 import { num } from '../lib/format';
 import type { CaseDetail } from '../types';
-import type { PreviewFile } from '../../server/lib/wizard';
-import type { ImportErrorDict } from '../../server/lib/import/errors';
+import { missingColumnsOf, type ImportErrorDict } from '../../server/lib/import/errors';
 import { AccountForm, AccountTypeOptions } from './import/AccountForm';
+import { FORMAT_GUIDE_ID, FormatGuide } from './import/FormatGuide';
 import { PreviewTable } from './import/PreviewTable';
 import { useWizardFiles, type DuplicateCheck } from './import/useWizardFiles';
-import { checkRows, toCommitFile, toEditFiles } from './import/wizardRows';
+import {
+  checkRows,
+  toCommitFile,
+  toEditFiles,
+  unknownCategories,
+  unreadableFlagCount,
+  type ParsedPreviewFile,
+} from './import/wizardRows';
 
 const MAX_FILES = 10;
 const ACCEPT = /\.(csv|xlsx)$/i;
@@ -55,13 +65,13 @@ function Stepper({ step }: { step: Step }) {
 }
 
 // 読み取りエラーの詳細（どの行・どの列・どう直すか）
-function ParseErrorBox({ message, details }: { message: string; details: ImportErrorDict | null }) {
+function ParseErrorBox({ message, details, onShowGuide }: { message: string; details: ImportErrorDict | null; onShowGuide: () => void }) {
+  const columns = details ? missingColumnsOf(details) : null;
   const facts = details
     ? [
         ['行', details.line_number],
         ['列', details.column_name],
-        ['期待する値', details.expected_value],
-        ['実際の値', details.actual_value],
+        ...(columns ? [] : [['期待する値', details.expected_value], ['実際の値', details.actual_value]]),
         ['値の例', details.sample_values.length ? details.sample_values.join('、') : null],
         ['試した文字コード', details.tried_encodings.length ? details.tried_encodings.join('、') : null],
       ].filter(([, v]) => v !== null && v !== '')
@@ -80,7 +90,41 @@ function ParseErrorBox({ message, details }: { message: string; details: ImportE
           ))}
         </dl>
       )}
-      {details?.suggestion && <p className="mt-2">{details.suggestion}</p>}
+      {columns && (
+        <dl className="mt-2 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1">
+          {[
+            ['足りない列', columns.missing, 'bg-red-200 text-red-900'],
+            ['ファイルにあった列', columns.found, 'bg-white text-slate-700 border border-red-200'],
+          ].map(([label, names, chip]) => (
+            <div key={label as string} className="contents">
+              <dt className="text-red-700">{label as string}</dt>
+              <dd className="flex flex-wrap gap-1">
+                {(names as string[]).length === 0 && <span>（なし）</span>}
+                {(names as string[]).map((n) => (
+                  <span key={n} className={`rounded px-1.5 py-0.5 text-xs ${chip as string}`}>
+                    {n}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {details?.suggestion && !columns && <p className="mt-2 whitespace-pre-line">{details.suggestion}</p>}
+      {details?.type === 'format' && (
+        <p className="mt-2">
+          <a
+            href={`#${FORMAT_GUIDE_ID}`}
+            className="font-semibold underline"
+            onClick={(e) => {
+              e.preventDefault();
+              onShowGuide();
+            }}
+          >
+            取込できる形式を見る
+          </a>
+        </p>
+      )}
     </div>
   );
 }
@@ -104,7 +148,17 @@ export function ImportWizardPage() {
   const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [allowNoBalance, setAllowNoBalance] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  // 選べる分類（parse がいまの設定から返す。未分類は除く）
+  const [categories, setCategories] = useState<string[]>([]);
   const wizard = useWizardFiles();
+  const unknowns = useMemo(() => unknownCategories(wizard.files), [wizard.files]);
+  const unreadableFlags = useMemo(() => unreadableFlagCount(wizard.files), [wizard.files]);
+
+  const showGuide = () => {
+    setGuideOpen(true);
+    requestAnimationFrame(() => document.getElementById(FORMAT_GUIDE_ID)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  };
 
   const checked = useMemo(() => new Map(wizard.files.map((f) => [f.key, checkRows(f.rows, f.hasBalance)])), [wizard.files]);
   const summary = useMemo(() => {
@@ -133,8 +187,9 @@ export function ImportWizardPage() {
     picked.forEach((f, i) => form.append(`file_${i}`, f));
     setBusy(true);
     try {
-      const res = await api.post<{ files: PreviewFile[] }>(`/cases/${caseId}/import/parse`, form);
+      const res = await api.post<{ files: ParsedPreviewFile[]; categories: string[] }>(`/cases/${caseId}/import/parse`, form);
       wizard.setFiles(toEditFiles(res.files));
+      setCategories(res.categories);
       setParsedFrom(picked);
       setShowRequired(false);
       setAllowNoBalance(false);
@@ -214,7 +269,8 @@ export function ImportWizardPage() {
           {parsedFrom && !sameFiles(picked, parsedFrom) && (
             <p className="mt-3 text-sm text-amber-800">ファイルを選び直したので、口座と内容の修正は最初からやり直しになります。</p>
           )}
-          {parseError && <ParseErrorBox {...parseError} />}
+          {parseError && <ParseErrorBox {...parseError} onShowGuide={showGuide} />}
+          <FormatGuide caseId={caseId!} open={guideOpen} onToggle={setGuideOpen} />
           <div className="mt-6 flex justify-end gap-2">
             <button type="button" className="btn btn-secondary" onClick={() => navigate(`/cases/${caseId}`)}>
               キャンセル
@@ -280,8 +336,43 @@ export function ImportWizardPage() {
             ))}
           </dl>
 
+          {unknowns.length > 0 && (
+            <section className="card border-amber-200 bg-amber-50 p-4 text-sm" aria-label="知らない分類">
+              <h3 className="mb-1 font-semibold text-amber-900">CSV に設定に無い分類名があります</h3>
+              <p className="mb-2 text-amber-900">分類は勝手に作りません。読み替え先を選んでください（選ばなければ取込のときに自動で分類します）。</p>
+              <ul className="space-y-1.5">
+                {unknowns.map((u) => (
+                  <li key={u.name} className="flex flex-wrap items-center gap-2">
+                    <span>
+                      知らない分類: <strong>{u.name}</strong>（{num(u.count)}行）
+                    </span>
+                    <span aria-hidden>→</span>
+                    <select
+                      className="input w-auto py-1 text-sm"
+                      aria-label={`「${u.name}」の読み替え先`}
+                      value={u.chosen}
+                      onChange={(e) => wizard.mapUnknownCategory(u.name, e.target.value)}
+                    >
+                      <option value="">自動で分類する</option>
+                      {categories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {unreadableFlags > 0 && (
+            <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              「要確認」の列に読めない値が{num(unreadableFlags)}行ありました。付箋なしにしています（付箋の列で付け直せます）。
+            </p>
+          )}
+
           {wizard.files.map((f) => (
-            <PreviewTable key={f.key} file={f} rows={checked.get(f.key) ?? []} actions={wizard} />
+            <PreviewTable key={f.key} file={f} rows={checked.get(f.key) ?? []} actions={wizard} categories={categories} />
           ))}
 
           <div className="card space-y-2 p-4">

@@ -21,6 +21,7 @@ import { useAction } from '../../hooks/useAction';
 import { api, errorMessage } from '../../lib/api';
 import { num, warekiShort } from '../../lib/format';
 import type { TransferEndpoint } from '../../../server/lib/aggregate';
+import { TRANSFER_CATEGORY } from '../../../server/lib/categories';
 import { CheckList } from './FilterPanel';
 import { CategoryCell, SaveState, SortHeader } from './tableParts';
 import type { DashboardSummary, TabData } from './types';
@@ -28,7 +29,6 @@ import type { DashboardSummary, TabData } from './types';
 type Props = { dash: DashboardSummary & TabData['transfers']; reload: () => void };
 type Pair = TabData['transfers']['transferPairs'][number];
 
-const TRANSFER_CATEGORY = '通帳間移動';
 const RELOAD_DELAY_MS = 800;
 const FILTER_KEYS = ['keyword', 'transfer_category', 'transfer_category_mode'] as const;
 

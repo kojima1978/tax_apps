@@ -6,18 +6,22 @@
 // - 1ファイルの大きさに上限（10MB）を置く。Django 版はメモリ上の扱いだけが 10MB で、上限は無かった
 
 import type { PrismaClient } from '@prisma/client';
+import { UNCATEGORIZED } from '../lib/categories.js';
 import { buildExistingIndex } from '../lib/dedup.js';
 import { StatementImportError } from '../lib/import/errors.js';
 import { buildPreview, type CommitAccount, type CommitRow, type PreviewFile } from '../lib/wizard.js';
 import { toDateString } from '../json.js';
 import { isRecord, optionalText, parseAmountValue, parseDateValue, type Parsed } from '../input.js';
-import { checkWizardDuplicates, commitRows, commitWizard, type ImportRow, type WizardFile } from '../services/imports.js';
+import { decideCategories } from '../lib/import/csvCategory.js';
+import { checkWizardDuplicates, commitRows, commitWizard, importCategories, type ImportRow, type WizardFile } from '../services/imports.js';
+import { getClassifierSettings } from '../services/settings.js';
 import { fail, ok, readBody, type CaseRouter } from './common.js';
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-// 摘要の列は varchar(255)
+// 摘要の列は varchar(255)、分類は varchar(100)
 const MAX_DESCRIPTION = 255;
+const MAX_CATEGORY = 100;
 
 const okValue = <T>(value: T): Parsed<T> => ({ ok: true, value });
 const failValue = (error: string): Parsed<never> => ({ ok: false, error });
@@ -47,7 +51,20 @@ function parseRow(v: Record<string, unknown>): Parsed<CommitRow> {
     amountOut: amountOut.value,
     amountIn: amountIn.value,
     balance: balance.value,
+    ...optionalFields(v),
   });
+}
+
+// 分類・メモ・付箋（依頼24）。どれも任意で、おかしな値は無いものとして扱う（取込を止めない）。
+// 分類名が使えるかは登録のときに設定と照らす（知らない名前は自動分類へ）
+function optionalFields(v: Record<string, unknown>): Pick<CommitRow, 'category' | 'memo' | 'flagged'> {
+  const out: Pick<CommitRow, 'category' | 'memo' | 'flagged'> = {};
+  const category = typeof v.category === 'string' ? v.category.trim() : '';
+  if (category && category.length <= MAX_CATEGORY) out.category = category;
+  const memo = typeof v.memo === 'string' ? v.memo.trim() : '';
+  if (memo) out.memo = memo;
+  if (v.flagged === true) out.flagged = true;
+  return out;
 }
 
 const ACCOUNT_KEYS = ['bankName', 'branchName', 'accountType', 'accountNumber'] as const;
@@ -149,7 +166,33 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
       }
     }
     if (previews.length === 0) return fail(c, 'ファイルが見つかりません');
-    return ok(c, { files: previews });
+
+    // 分類の列（依頼24）: 書かれた名前を設定の分類に当て、無い行には取込で付く自動分類を見せる。
+    // 知らない名前は unknownCategory に残して、手順3で人に読み替え先を選んでもらう
+    const classifier = await getClassifierSettings(db, caseId);
+    // 手順3で選べる分類。未分類は「自動」と同じ扱いなので選択肢に出さない
+    const categories = importCategories(classifier)
+      .map((x) => x.name)
+      .filter((n) => n !== UNCATEGORIZED);
+    const annotated = previews.map((f) => {
+      const decided = decideCategories(f.rows, [...categories, UNCATEGORIZED], classifier);
+      return {
+        ...f,
+        rows: f.rows.map(({ category: _raw, ...row }, i) => {
+          const d = decided[i]!;
+          return d.source === 'csv'
+            ? { ...row, category: d.category }
+            : { ...row, autoCategory: d.category, ...(d.unknown !== undefined ? { unknownCategory: d.unknown } : {}) };
+        }),
+      };
+    });
+    return ok(c, { files: annotated, categories });
+  });
+
+  // 取込できる形式の案内（依頼24）: 分類名とキーワードの例・贈与の閾値。指示文とひな形は画面で組み立てる
+  r.get('/:caseId/import/format', async (c) => {
+    const classifier = await getClassifierSettings(db, c.get('caseId'));
+    return ok(c, { categories: importCategories(classifier), giftThreshold: classifier.giftThreshold });
   });
 
   // 手順3に入るときに、画面で決めた口座で重複を判定し直す（書き込まない）。送る形は確定と同じ
@@ -164,14 +207,19 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
     const body = await readBody(c);
     const files = parseWizardFiles(body.files);
     if (!files.ok) return fail(c, files.error);
-    const { imported, skipped } = await commitWizard(db, c.get('caseId'), files.value, body.skipDuplicates !== false);
+    const { imported, skipped, transferUnmatched } = await commitWizard(db, c.get('caseId'), files.value, body.skipDuplicates !== false);
+    const message =
+      skipped > 0
+        ? `${imported}件の取引を取り込みました（${skipped}件の重複をスキップ）`
+        : `${imported}件の取引を取り込みました`;
     return ok(c, {
       imported,
       skipped,
+      transferUnmatched,
       message:
-        skipped > 0
-          ? `${imported}件の取引を取り込みました（${skipped}件の重複をスキップ）`
-          : `${imported}件の取引を取り込みました`,
+        transferUnmatched > 0
+          ? `${message}。通帳間移動のうち${transferUnmatched}件は相手の取引がまだ見つかっていません（資金移動タブで確かめてください）`
+          : message,
     });
   });
 

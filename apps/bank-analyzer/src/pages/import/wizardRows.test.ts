@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blankRow, checkRows, duplicateWarning, type EditRow } from './wizardRows';
+import { blankRow, checkRows, duplicateWarning, toCommitFile, unknownCategories, unreadableFlagCount, type EditFile, type EditRow } from './wizardRows';
 
 const row = (day: number, dup: EditRow['dup']): EditRow => ({
   ...blankRow(`2024-04-${String(day).padStart(2, '0')}`),
@@ -31,5 +31,48 @@ describe('duplicateWarning', () => {
     const withBlank = [row(1, 'high'), row(2, 'high'), blankRow(), blankRow(), blankRow(), blankRow()];
     // 未入力を数えると 6 件中 2 件（33%）で注意になるが、数えなければ 2 件中 2 件で連続2行・件数2件 → 注意なし
     expect(duplicateWarning(checkRows(withBlank, false))).toBeNull();
+  });
+});
+
+describe('分類・メモ・付箋（依頼24）', () => {
+  const file = (rows: EditRow[]): EditFile => ({
+    key: 1,
+    filename: '架空.csv',
+    isSplit: false,
+    detected: true,
+    hasBalance: false,
+    hasMemo: true,
+    hasFlag: true,
+    account: { bankName: '架空銀行', branchName: '', accountType: '', accountNumber: '1234567' },
+    rows,
+  });
+
+  it('送るのは CSV・人が選んだ分類と、入っているメモ・付箋だけ（自動分類は送らない）', () => {
+    const rows = [
+      { ...row(1, null), category: '生活費', categoryOrigin: 'csv' as const },
+      { ...row(2, null), autoCategory: '年金', memo: '  ', flagged: false },
+      { ...row(3, null), memo: '読めない字', flagged: true },
+      blankRow('2024-04-04'),
+    ];
+    expect(toCommitFile(file(rows)).rows).toEqual([
+      { date: '2024-04-01', description: '摘要1', amountOut: '1000', amountIn: '', balance: '', category: '生活費' },
+      { date: '2024-04-02', description: '摘要2', amountOut: '1000', amountIn: '', balance: '' },
+      { date: '2024-04-03', description: '摘要3', amountOut: '1000', amountIn: '', balance: '', memo: '読めない字', flagged: true },
+    ]);
+  });
+
+  it('知らない分類名を名前ごとに数え、読めない要確認の行を数える（未入力の行は数えない）', () => {
+    const blank = { ...blankRow(), unknownCategory: 'ZZQ謎', flagUnreadable: '?' };
+    const rows = [
+      { ...row(1, null), unknownCategory: 'ZZQ謎', flagUnreadable: 'たぶん' },
+      { ...row(2, null), unknownCategory: 'ZZQ謎', category: '生活費', categoryOrigin: 'manual' as const },
+      { ...row(3, null), unknownCategory: 'ZZQ別' },
+      blank,
+    ];
+    expect(unknownCategories([file(rows)])).toEqual([
+      { name: 'ZZQ謎', count: 2, chosen: '' },
+      { name: 'ZZQ別', count: 1, chosen: '' },
+    ]);
+    expect(unreadableFlagCount([file(rows)])).toBe(1);
   });
 });
