@@ -22,7 +22,7 @@ import {
   type ClassifierSettings,
   type MatchType,
 } from './classify.js';
-import { matchesAllKeywords, splitKeywords } from './text.js';
+import { descriptionKey, matchesAllKeywords, splitKeywords } from './text.js';
 
 export type AnalysisTx = {
   id: number;
@@ -128,6 +128,8 @@ export type TransactionFilter = {
   category?: readonly string[];
   categoryMode?: 'include' | 'exclude';
   keyword?: string;
+  // 摘要の完全一致（descriptionKey で寄せて比べる）。undefined は条件なし、'' は摘要の無い取引
+  description?: string;
   dateFrom?: string;
   dateTo?: string;
   amountType?: 'out' | 'in' | 'both';
@@ -171,6 +173,7 @@ function matchesAmount(t: AnalysisTx, type: TransactionFilter['amountType'], min
 // 取引一覧の絞り込み（並びは変えない）
 export function filterTransactions<T extends AnalysisTx>(txs: readonly T[], f: TransactionFilter): T[] {
   const keywords = splitKeywords(f.keyword ?? '');
+  const descKey = f.description === undefined ? null : descriptionKey(f.description);
   const min = parseAmountInput(f.amountMin);
   const max = parseAmountInput(f.amountMax);
   const type = f.amountType === 'out' || f.amountType === 'in' ? f.amountType : 'both';
@@ -179,6 +182,7 @@ export function filterTransactions<T extends AnalysisTx>(txs: readonly T[], f: T
     if (f.account?.length && !(t.accountNumber !== null && f.account.includes(t.accountNumber))) return false;
     if (f.category?.length && f.category.includes(t.category) !== (f.categoryMode !== 'exclude')) return false;
     if (keywords.length && !matchesAllKeywords(t.description, keywords)) return false;
+    if (descKey !== null && descriptionKey(t.description) !== descKey) return false;
     if (f.dateFrom && !(t.date !== null && t.date >= f.dateFrom)) return false;
     if (f.dateTo && !(t.date !== null && t.date <= f.dateTo)) return false;
     return matchesAmount(t, type, min, max);
@@ -449,7 +453,8 @@ export function classificationPreview(
 export const NO_DESCRIPTION = '（摘要なし）';
 
 export type UnclassifiedGroup = {
-  description: string;
+  description: string; // 見出し（組の最初の取引の摘要。無ければ NO_DESCRIPTION）
+  desc: string; // 「個別に確認」で取引一覧の ?desc= に渡す値（摘要が無い組は ''）
   count: number;
   totalOut: number;
   totalIn: number;
@@ -459,6 +464,7 @@ export type UnclassifiedGroup = {
 };
 
 // 未分類の取引を摘要でまとめ、件数の多い順に（同数は受け取った順）。見本は各組の最初の3件。
+// まとめ方は descriptionKey（前後の空白・全角半角を寄せる）── 「個別に確認」の ?desc= と同じ関数なので、組の件数と移った先の件数が一致する
 // 要確認の印が付いた取引も入る（Django 版のとおり）。
 export function unclassifiedGroups(txs: readonly AnalysisTx[], keyword = '') {
   const keywords = splitKeywords(keyword);
@@ -466,11 +472,12 @@ export function unclassifiedGroups(txs: readonly AnalysisTx[], keyword = '') {
   for (const t of txs) {
     if (t.category !== UNCATEGORIZED) continue;
     if (keywords.length && !matchesAllKeywords(t.description, keywords)) continue;
-    const description = t.description || NO_DESCRIPTION;
-    const g = map.get(description) ?? {
-      description, count: 0, totalOut: 0, totalIn: 0, txIds: [], firstTxId: t.id, samples: [],
+    const key = descriptionKey(t.description);
+    const desc = (t.description ?? '').trim();
+    const g = map.get(key) ?? {
+      description: desc || NO_DESCRIPTION, desc, count: 0, totalOut: 0, totalIn: 0, txIds: [], firstTxId: t.id, samples: [],
     };
-    map.set(description, g);
+    map.set(key, g);
     g.count += 1;
     g.totalOut += t.amountOut;
     g.totalIn += t.amountIn;

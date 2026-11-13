@@ -27,10 +27,11 @@ type Props = { caseId: number; review: Review | null; onFlagged: () => void };
 const yenText = (n: number) => (n < 0 ? `△${num(-n)}` : num(n));
 const manYen = (n: number) => `${(n / 10000).toLocaleString('ja-JP')}万円`;
 
-// 取引一覧（すべての取引タブ）の絞り込み。空の値は付けない
+// 取引一覧（すべての取引タブ）の絞り込み。空の値は付けない ── desc（摘要の完全一致）だけは '' も「摘要なし」の条件なので付ける。
+// 表の行から移るリンクは、その行が数えた取引と同じものだけが出るように desc で摘要を固定する（keyword の部分一致だと「入学金 2」も混ざる）
 function listSearch(params: Record<string, string | null | undefined>): string {
   const q = new URLSearchParams({ tab: 'all' });
-  for (const [k, v] of Object.entries(params)) if (v) q.set(k, v);
+  for (const [k, v] of Object.entries(params)) if (v || (k === 'desc' && v === '')) q.set(k, v);
   return q.toString();
 }
 
@@ -38,8 +39,11 @@ function listSearch(params: Record<string, string | null | undefined>): string {
 const needsSubtotal = (c: { years: unknown[]; extended: number }, hasExtended: boolean) => c.years.length > 1 || (hasExtended && c.extended > 0);
 
 // 1件の出金をそのまま指す絞り込み（日・口座・金額）
-const oneTxSearch = (r: { date: string; accountNumber: string; amountOut: number }) =>
-  listSearch({ date_from: r.date, date_to: r.date, account: r.accountNumber, amount_type: 'out', amount_min: String(r.amountOut), amount_max: String(r.amountOut) });
+const oneTxSearch = (r: { date: string; accountNumber: string; amountOut: number; description: string }) =>
+  listSearch({
+    date_from: r.date, date_to: r.date, account: r.accountNumber, amount_type: 'out',
+    amount_min: String(r.amountOut), amount_max: String(r.amountOut), desc: r.description,
+  });
 
 export function InheritanceReview({ caseId, review, onFlagged }: Props) {
   return (
@@ -116,7 +120,8 @@ const Empty = ({ children }: { children: ReactNode }) => <p className="py-2 text
 function GiftSection({ caseId, review, onFlagged }: { caseId: number; review: Review; onFlagged: () => void }) {
   const g = review.gift;
   const p = g.period;
-  const giftSearch = (from: string, to: string, keyword = '') => listSearch({ date_from: from, date_to: to, category: '贈与・教育費', keyword, amount_type: 'out' });
+  // desc を渡さない（undefined）ときは摘要で絞らない（期間ごとの合計・期間前）
+  const giftSearch = (from: string, to: string, desc?: string) => listSearch({ date_from: from, date_to: to, category: '贈与・教育費', desc, amount_type: 'out' });
   return (
     <div>
       <SubHeading title="生前贈与の検討">
@@ -159,7 +164,7 @@ function GiftSection({ caseId, review, onFlagged }: { caseId: number; review: Re
                       {i === 0 ? c.counterparty : ''}
                     </td>
                     <td className="whitespace-nowrap">
-                      <Link to={{ search: giftSearch(y.from, y.to, c.keyword) }} className="text-blue-700 underline" title={`${warekiShort(y.from)}〜${warekiShort(y.to)} の取引一覧`}>
+                      <Link to={{ search: giftSearch(y.from, y.to, c.description) }} className="text-blue-700 underline" title={`${warekiShort(y.from)}〜${warekiShort(y.to)} の取引一覧`}>
                         {warekiFull(`${y.year}-01-01`).replace(/1月1日$/, '')}
                       </Link>
                     </td>
@@ -174,7 +179,10 @@ function GiftSection({ caseId, review, onFlagged }: { caseId: number; review: Re
                 needsSubtotal(c, !!p.extended) && (
                 <tr key={`${c.counterparty}-total`} className="bg-slate-50 font-medium">
                   <td colSpan={2} className="text-right text-xs text-slate-600">
-                    {c.counterparty} 計
+                    {/* 相手先の取引はすべて加算対象期間の中なので、期間全体＋摘要でちょうどこの計の取引になる */}
+                    <Link to={{ search: giftSearch(p.start, p.end, c.description) }} className="text-blue-700 underline">
+                      {c.counterparty} 計
+                    </Link>
                   </td>
                   <td className="text-right tabular-nums">{num(c.years.reduce((n, y) => n + y.count, 0))}</td>
                   <td className="text-right tabular-nums">{yenText(c.total)}</td>

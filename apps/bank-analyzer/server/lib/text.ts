@@ -36,6 +36,10 @@ export function normalizeText(text: string): string {
   return out;
 }
 
+// 摘要を「同じ摘要」として比べるための形（前後の空白を除いて正規化）。相続税の検討の相手先のまとめ方と、
+// 取引一覧の「摘要が一致」の絞り込み（?desc=）が同じこの関数を通る ── 2か所で別々に寄せない
+export const descriptionKey = (description: string | null | undefined): string => normalizeText((description ?? '').trim());
+
 // 空白区切りのキーワードを正規化して分ける（AND 検索用。空は除く）。
 // Python の str.split() と同じく、全角スペースも区切りとして扱う。
 export function splitKeywords(keyword: string): string[] {

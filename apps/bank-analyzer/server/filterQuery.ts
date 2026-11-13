@@ -14,6 +14,8 @@ export function filterFromQuery(q: URLSearchParams, { includeTabFilters = false 
     category: list('category'),
     categoryMode: pick(q.get('category_mode'), ['include', 'exclude'], 'include'),
     keyword: q.get('keyword') ?? '',
+    // ?desc= は摘要の完全一致（検討の表・未分類の組から移るリンク用）。値が空でも「摘要なし」の条件として効く
+    description: q.has('desc') ? (q.get('desc') ?? '') : undefined,
     amountMin: q.get('amount_min') ?? '',
     amountMax: q.get('amount_max') ?? '',
     amountType: pick(q.get('amount_type'), ['both', 'out', 'in'], 'both'),

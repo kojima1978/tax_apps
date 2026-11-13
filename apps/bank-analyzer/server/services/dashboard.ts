@@ -28,7 +28,7 @@ import { UNCATEGORIZED, sortCategories } from '../lib/categories.js';
 import { suggestionCutoff, suggestionUpdates } from '../lib/classify.js';
 import { warekiMonthShort } from '../lib/dates.js';
 import { pyRound } from '../lib/pyRound.js';
-import { matchesAllKeywords, splitKeywords } from '../lib/text.js';
+import { descriptionKey, matchesAllKeywords, splitKeywords } from '../lib/text.js';
 import { toDateString, toId } from '../json.js';
 import { latestSummary } from './classificationHistory.js';
 import { draftQuestion, hasQuestion } from '../lib/questions.js';
@@ -210,7 +210,11 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
     }
 
     case 'unclassified': {
-      const unclassified = ordered.filter((t) => t.category === UNCATEGORIZED);
+      // ?desc=（未分類の組の「個別に確認」から）は摘要の完全一致。打ったキーワードは部分一致のまま
+      const descKey = q.filter.description === undefined ? null : descriptionKey(q.filter.description);
+      const unclassified = ordered.filter(
+        (t) => t.category === UNCATEGORIZED && (descKey === null || descriptionKey(t.description) === descKey),
+      );
       const page = paginate(byKeyword(unclassified, q.filter.keyword), q.unclassifiedPage, q.perPage);
       const grouped = unclassifiedGroups(unclassified, q.filter.keyword);
       const groupPage = paginate(grouped.groups, q.groupPage, GROUP_PER_PAGE);

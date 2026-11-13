@@ -34,7 +34,7 @@ import { useNotice } from '../../components/Notice';
 import { useAction } from '../../hooks/useAction';
 import { api, errorMessage } from '../../lib/api';
 import { num, warekiShort } from '../../lib/format';
-import { useShowSame } from './FilterPanel';
+import { descFilterLabel, useShowSame } from './FilterPanel';
 import { CategoryCell, Pagination, SaveState, SortHeader, UNCATEGORIZED } from './tableParts';
 import { PatternAddDialog, TxEditDialog, type PatternTarget } from './TxDialogs';
 import { AccountCell, RefDateBadge, RowContextMenu, amountCell, type RowMenuActions } from './txParts';
@@ -81,6 +81,17 @@ export function UnclassifiedTab({ dash, reload }: Props) {
   const showSame = useShowSame(params, setParams);
   const grouped = params.get('view') === 'grouped';
   const keyword = params.get('keyword') ?? '';
+  // 摘要の完全一致（組の「個別に確認」から）。null は条件なし、'' は摘要の無い取引
+  const desc = params.get('desc');
+  const filtering = Boolean(keyword) || desc !== null;
+  const descNote = desc === null ? '' : desc.trim() ? `摘要「${desc.trim()}」の完全一致` : '摘要なし';
+  const filterNote = [descNote, keyword ? `「${keyword}」` : ''].filter(Boolean).join('・');
+  const clearFilters = () => {
+    const q = new URLSearchParams(params);
+    for (const k of ['keyword', 'desc', 'unclassified_page', 'group_page']) q.delete(k);
+    setSearch('');
+    setParams(q);
+  };
   const page = dash.unclassifiedTxs;
   const groupPage = dash.unclassifiedGroups;
 
@@ -380,7 +391,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
   const groupCount = Math.max(0, dash.unclassifiedGroupCount - doneGroups);
   const total = page.total - done;
 
-  if (dash.unclassifiedCount === 0 && !keyword) return <AllDone flagged={dash.flaggedCount} />;
+  if (dash.unclassifiedCount === 0 && !filtering) return <AllDone flagged={dash.flaggedCount} />;
 
   return (
     <div className="space-y-3">
@@ -471,7 +482,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         <form
           role="search"
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className="flex min-w-64 flex-1 items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             setParam('keyword', search.trim() || null);
@@ -499,6 +510,16 @@ export function UnclassifiedTab({ dash, reload }: Props) {
             </button>
           )}
         </form>
+        {desc !== null && (
+          <span className="flex max-w-full min-w-0 items-center gap-1 rounded bg-blue-50 py-0.5 pr-1 pl-2 text-xs text-blue-900">
+            <span className="truncate" title={descFilterLabel(desc)}>
+              {descFilterLabel(desc)}
+            </span>
+            <button type="button" className="shrink-0 rounded p-0.5 hover:bg-blue-100" aria-label={`条件「${descFilterLabel(desc)}」を外す`} onClick={() => setParam('desc', null)}>
+              <X size={12} />
+            </button>
+          </span>
+        )}
         <div className="flex rounded-md border border-slate-300" role="group" aria-label="表示の切り替え">
           {(
             [
@@ -558,10 +579,10 @@ export function UnclassifiedTab({ dash, reload }: Props) {
             <Layers size={16} className="text-amber-600" aria-hidden="true" />
             摘要グループ: <strong className="tabular-nums">{num(groupCount)}</strong>組 /
             <strong className="tabular-nums">{num(Math.max(0, dash.unclassifiedTxTotal - done))}</strong>件
-            {keyword && <small className="text-slate-500">（「{keyword}」で絞り込み中）</small>}
+            {filtering && <small className="text-slate-500">（{filterNote}で絞り込み中）</small>}
           </div>
           {groups.length === 0 ? (
-            <NoMatch keyword={keyword} onClear={() => setParam('keyword', null)} />
+            <NoMatch filtering={filtering} onClear={clearFilters} />
           ) : (
             <div className="relative overflow-x-auto">
               <table className="table-base">
@@ -598,7 +619,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
         <section className="card" aria-label="未分類の取引">
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2 text-sm">
             <span>
-              <strong className="tabular-nums">{num(total)}</strong>件{keyword && <small className="ml-1 text-slate-500">（「{keyword}」で絞り込み中）</small>}
+              <strong className="tabular-nums">{num(total)}</strong>件{filtering && <small className="ml-1 text-slate-500">（{filterNote}で絞り込み中）</small>}
             </span>
             <SaveState saving={saving.size} failed={failed.size} />
           </div>
@@ -630,7 +651,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
           )}
 
           {rows.length === 0 ? (
-            <NoMatch keyword={keyword} onClear={() => setParam('keyword', null)} />
+            <NoMatch filtering={filtering} onClear={clearFilters} />
           ) : (
             <div className="relative overflow-x-auto">
               <table className="table-base">
@@ -813,7 +834,7 @@ function GroupRow({
               {rest > 0 && <li className="text-slate-500">ほか{num(rest)}件</li>}
             </ul>
           </details>
-          <Link to={`?tab=unclassified&keyword=${encodeURIComponent(g.description)}`} className="text-blue-700 underline">
+          <Link to={`?tab=unclassified&desc=${encodeURIComponent(g.desc)}`} className="text-blue-700 underline">
             個別に確認
           </Link>
           {suggestion && (
@@ -864,12 +885,12 @@ function GroupRow({
   );
 }
 
-function NoMatch({ keyword, onClear }: { keyword: string; onClear: () => void }) {
+function NoMatch({ filtering, onClear }: { filtering: boolean; onClear: () => void }) {
   return (
     <div className="flex flex-col items-center gap-2 px-4 py-10 text-center" role="status">
       <SearchX size={32} className="text-slate-400" aria-hidden="true" />
-      <p className="font-semibold">{keyword ? '検索条件に一致する未分類取引はありません' : 'このページの未分類取引はありません'}</p>
-      {keyword && (
+      <p className="font-semibold">{filtering ? '検索条件に一致する未分類取引はありません' : 'このページの未分類取引はありません'}</p>
+      {filtering && (
         <button type="button" className="btn btn-primary btn-sm" onClick={onClear}>
           検索条件を解除
         </button>

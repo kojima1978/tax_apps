@@ -191,6 +191,7 @@ export function filteredSubject(f: TransactionFilter): string {
   if (f.account?.length) parts.push(`口座_${head(f.account)}`);
   if (f.category?.length) parts.push(`分類${f.categoryMode === 'exclude' ? '除外' : ''}_${head(f.category)}`);
   if (f.keyword) parts.push(`検索_${[...f.keyword].slice(0, 10).join('')}`);
+  if (f.description !== undefined) parts.push(`摘要_${[...f.description.trim()].slice(0, 10).join('') || 'なし'}`);
   if (f.dateFrom && f.dateFrom === f.dateTo) parts.push(`日付_${f.dateFrom}`);
   else if (f.dateFrom || f.dateTo) parts.push(`期間_${f.dateFrom ?? ''}〜${f.dateTo ?? ''}`);
   if (f.amountType === 'out' || f.amountType === 'in') parts.push(f.amountType === 'out' ? '出金' : '入金');

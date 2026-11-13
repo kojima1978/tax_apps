@@ -12,7 +12,7 @@
 
 import { GIFT_CATEGORY } from './categories.js';
 import { toIsoDate, warekiFull } from './dates.js';
-import { matchesAllKeywords, normalizeText } from './text.js';
+import { descriptionKey, matchesAllKeywords, normalizeText } from './text.js';
 
 // ---------------------------------------------------------------------------
 // 生前贈与加算の対象期間（相続税法19条・令和5年度改正。国税庁タックスアンサー No.4161）
@@ -161,7 +161,7 @@ export type GiftYearRow = {
 
 export type GiftCounterparty = {
   counterparty: string; // 摘要（空なら「摘要なし」）
-  keyword: string; // 取引一覧の絞り込みに使う摘要（空なら ''）
+  description: string; // 取引一覧の「摘要が一致」（?desc=）に渡す摘要（空なら ''。比べ方は descriptionKey）
   years: GiftYearRow[];
   total: number;
   within3: number;
@@ -194,7 +194,7 @@ export function giftReview(txs: readonly ReviewTx[], referenceDate: string): Gif
   const groups = new Map<string, { label: string; rows: (ReviewTx & { date: string })[] }>();
   for (const t of inPeriod) {
     const desc = (t.description ?? '').trim();
-    const key = normalizeText(desc);
+    const key = descriptionKey(desc);
     const g = groups.get(key) ?? { label: desc, rows: [] };
     groups.set(key, g);
     g.rows.push(t);
@@ -230,7 +230,7 @@ export function giftReview(txs: readonly ReviewTx[], referenceDate: string): Gif
     const extended = total - within3;
     return {
       counterparty: label || NO_DESCRIPTION,
-      keyword: label,
+      description: label,
       years,
       total,
       within3,
@@ -270,7 +270,7 @@ export const CASH_KEYWORDS = ['ATM', 'CD', '現金', '引出', '引き出', '払
 const CASH_NORMALIZED = CASH_KEYWORDS.map(normalizeText);
 const CARD_PREFIX = normalizeText('カード');
 export const isCashWithdrawal = (description: string | null): boolean => {
-  const n = normalizeText((description ?? '').trim());
+  const n = descriptionKey(description);
   return n.startsWith(CARD_PREFIX) || CASH_NORMALIZED.some((k) => n.includes(k));
 };
 

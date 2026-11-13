@@ -9,7 +9,10 @@ import { num, warekiShort } from '../../lib/format';
 import type { FilterOptions } from './types';
 
 // 条件のキー（解除のとき残す sort / per_page / tab は含めない）
-const FILTER_KEYS = ['bank', 'account', 'category', 'category_mode', 'keyword', 'amount_min', 'amount_max', 'amount_type', 'date_from', 'date_to'] as const;
+// desc は摘要の完全一致（相続税の検討・未分類の組から移るリンクが付ける）。値が空でも「摘要なし」の条件なので、
+// 空の値を捨てる他のキーとは別に、キーがあるかどうかで扱う（DESC_KEY）
+const DESC_KEY = 'desc';
+const FILTER_KEYS = ['bank', 'account', 'category', 'category_mode', 'keyword', DESC_KEY, 'amount_min', 'amount_max', 'amount_type', 'date_from', 'date_to'] as const;
 const LIST_KEYS = ['bank', 'account', 'category'] as const;
 type ListKey = (typeof LIST_KEYS)[number];
 
@@ -41,13 +44,17 @@ export function useFilterParams(params: URLSearchParams, setParams: SetURLSearch
 // 書き出し（絞込結果CSV）に渡す条件だけ
 export function filterOnly(params: URLSearchParams): URLSearchParams {
   const q = new URLSearchParams();
-  for (const key of [...FILTER_KEYS, 'sort'] as const) for (const v of params.getAll(key)) if (v) q.append(key, v);
+  for (const key of [...FILTER_KEYS, 'sort'] as const) for (const v of params.getAll(key)) if (v || key === DESC_KEY) q.append(key, v);
   return q;
 }
 
 export function hasFilter(params: URLSearchParams): boolean {
+  if (params.has(DESC_KEY)) return true;
   return FILTER_KEYS.some((k) => params.getAll(k).some((v) => v && !(k === 'category_mode' && v === 'include') && !(k === 'amount_type' && v === 'both')));
 }
+
+// 摘要の完全一致の表示（取引一覧のチップと未分類タブの見出しで同じ言い方にする）
+export const descFilterLabel = (desc: string) => (desc.trim() ? `摘要が一致: ${desc.trim()}` : '摘要なしの取引');
 
 type Chip = { key: string; label: string; remove: (q: URLSearchParams) => void };
 
@@ -67,6 +74,7 @@ function chipsOf(params: URLSearchParams): Chip[] {
 
   const keyword = params.get('keyword');
   if (keyword) chips.push({ key: 'keyword', label: `キーワード: ${keyword}`, remove: removeKeys('keyword') });
+  if (params.has(DESC_KEY)) chips.push({ key: DESC_KEY, label: descFilterLabel(params.get(DESC_KEY) ?? ''), remove: removeKeys(DESC_KEY) });
   for (const b of params.getAll('bank').filter(Boolean)) chips.push({ key: `bank-${b}`, label: `銀行: ${b}`, remove: removeValue('bank', b) });
   for (const a of params.getAll('account').filter(Boolean)) chips.push({ key: `account-${a}`, label: `口座: ${a}`, remove: removeValue('account', a) });
   const exclude = params.get('category_mode') === 'exclude';

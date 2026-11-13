@@ -15,6 +15,8 @@ import {
   yearsBefore,
   type ReviewTx,
 } from '../lib/inheritanceReview.js';
+import { filterTransactions, unclassifiedGroups } from '../lib/aggregate.js';
+import { filterFromQuery } from '../filterQuery.js';
 
 let nextId = 1;
 const tx = (over: Partial<ReviewTx> = {}): ReviewTx => ({
@@ -154,7 +156,7 @@ describe('生前贈与の検討', () => {
   });
   it('摘要が空の贈与は「摘要なし」', () => {
     const r = giftReview([gift('2025-01-01', 100, '')], '2026-06-15');
-    expect(r.counterparties[0]).toMatchObject({ counterparty: '摘要なし', keyword: '' });
+    expect(r.counterparties[0]).toMatchObject({ counterparty: '摘要なし', description: '' });
   });
 });
 
@@ -243,5 +245,68 @@ describe('まとめ', () => {
     expect(r.withdrawal.months).toBe(6);
     expect(r.withdrawal.from).toBe('2025-12-15');
     expect(r.outward.threshold).toBe(500_000);
+  });
+});
+
+// 依頼23: 検討の表の行・計・合計から取引一覧へ移るリンク（画面の listSearch と同じクエリ）を、取引一覧と同じ
+// filterFromQuery → filterTransactions に通し、表が数えた件数・金額とちょうど同じになることを確かめる
+describe('取引一覧へのリンク（摘要の完全一致）', () => {
+  const GIFT = '贈与・教育費';
+  const listOf = (txs: ReviewTx[], params: Record<string, string>) => {
+    const q = new URLSearchParams({ tab: 'all', category: GIFT, amount_type: 'out', ...params });
+    return filterTransactions(txs, filterFromQuery(q));
+  };
+  const sum = (rows: readonly ReviewTx[]) => rows.reduce((n, t) => n + t.amountOut, 0);
+  // 片方がもう片方を含む摘要・全角半角と前後の空白の違い・摘要なし・期間外・入金・ほかの分類
+  const txs = [
+    gift('2024-04-01', 300_000, '入学金'),
+    gift('2025-04-01', 200_000, '入学金'),
+    gift('2025-04-02', 50_000, '入学金 2'),
+    gift('2025-05-01', 70_000, ' ｲﾘｶﾞｸｷﾝ'),
+    gift('2025-05-02', 80_000, 'イリガクキン　'),
+    gift('2025-06-01', 10_000, ''),
+    gift('2025-06-02', 20_000, '   '),
+    gift('2019-01-01', 999_000, '入学金'), // 加算対象期間より前
+    tx({ date: '2025-04-03', amountIn: 1_000, description: '入学金', category: GIFT }), // 入金
+    tx({ date: '2025-04-04', amountOut: 1_000, description: '入学金', category: '生活費' }), // ほかの分類
+  ];
+  const r = giftReview(txs, '2026-06-15');
+
+  it('行（相手先×暦年）・相手先の計・合計が、それぞれ移った先の件数・出金計と一致する', () => {
+    expect(r.counterparties.map((c) => c.counterparty).sort()).toEqual(['入学金', '入学金 2', 'ｲﾘｶﾞｸｷﾝ', '摘要なし'].sort());
+    for (const c of r.counterparties) {
+      for (const y of c.years) {
+        const rows = listOf(txs, { date_from: y.from, date_to: y.to, desc: c.description });
+        expect([c.counterparty, y.year, rows.length, sum(rows)]).toEqual([c.counterparty, y.year, y.count, y.total]);
+      }
+      const all = listOf(txs, { date_from: r.period.start, date_to: r.period.end, desc: c.description });
+      expect([c.counterparty, all.length, sum(all)]).toEqual([c.counterparty, c.years.reduce((n, y) => n + y.count, 0), c.total]);
+    }
+    const total = listOf(txs, { date_from: r.period.start, date_to: r.period.end });
+    expect([total.length, sum(total)]).toEqual([r.count, r.total]);
+  });
+
+  it('「入学金」の行に「入学金 2」は混ざらない（部分一致の keyword だと混ざる）', () => {
+    const y2025 = r.counterparties.find((c) => c.counterparty === '入学金')!.years.find((y) => y.year === 2025)!;
+    expect(listOf(txs, { date_from: y2025.from, date_to: y2025.to, desc: '入学金' }).map((t) => t.description)).toEqual(['入学金']);
+    expect(listOf(txs, { date_from: y2025.from, date_to: y2025.to, keyword: '入学金' })).toHaveLength(2);
+  });
+
+  it('desc が空なら摘要なしの取引だけ。desc が無ければ摘要で絞らない（既存の URL はそのまま）', () => {
+    const q = (s: string) => filterFromQuery(new URLSearchParams(s));
+    expect(q('desc=').description).toBe('');
+    expect(q('keyword=入学金').description).toBeUndefined();
+    expect(listOf(txs, { desc: '' }).map((t) => t.amountOut)).toEqual([10_000, 20_000]);
+    expect(listOf(txs, {})).toHaveLength(8);
+  });
+
+  it('未分類の組も同じ寄せ方でまとめ、「個別に確認」の desc で同じ件数になる', () => {
+    const un = txs.map((t) => ({ ...t, category: '未分類' }));
+    const { groups } = unclassifiedGroups(un);
+    for (const g of groups) {
+      const rows = filterTransactions(un, filterFromQuery(new URLSearchParams({ desc: g.desc })));
+      expect([g.description, rows.map((t) => t.id)]).toEqual([g.description, g.txIds]);
+    }
+    expect(groups.find((g) => g.desc === '')).toMatchObject({ description: '（摘要なし）', count: 2 });
   });
 });
