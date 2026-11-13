@@ -156,7 +156,7 @@ function RangeDelete({ caseId, backup, reload }: { caseId: number; backup: Dashb
                   ID {shown.startId}〜{shown.endId} の <strong className="text-red-700">{num(shown.count)}件</strong> が削除されます。
                   {shown.count > shown.sample.length && <span className="text-xs text-slate-500">（先頭{shown.sample.length}件を表示）</span>}
                 </p>
-                <table className="table text-xs">
+                <table className="table-base text-xs">
                   <thead>
                     <tr>
                       <th>ID</th>
@@ -449,8 +449,8 @@ function Duplicates({ caseId, rows, reload }: { caseId: number; rows: DupRow[]; 
       {rows.length === 0 ? (
         <p className="py-6 text-center text-sm text-slate-500">重複データは見つかりませんでした</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="table text-sm">
+        <div className="relative overflow-x-auto">
+          <table className="table-base text-sm">
             <thead>
               <tr>
                 <th className="w-8" aria-label="選択" />

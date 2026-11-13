@@ -152,7 +152,7 @@ export function ClassifyPreviewPage() {
           </div>
 
           <div className="card overflow-x-auto p-0">
-            <table className="table text-sm">
+            <table className="table-base text-sm">
               <thead>
                 <tr>
                   <th className="w-10 text-center">

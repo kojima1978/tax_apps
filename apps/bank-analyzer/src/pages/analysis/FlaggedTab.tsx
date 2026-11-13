@@ -144,8 +144,8 @@ export function FlaggedTab({ dash, reload }: Props) {
           {keyword ? '条件に合う質問候補はありません' : '質問候補はまだありません。取引一覧で不明な取引を質問候補に追加してください'}
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="table text-sm">
+        <div className="relative overflow-x-auto">
+          <table className="table-base text-sm">
             <thead>
               <tr>
                 <SortHeader label="日付" field="date" params={params} setParams={setParams} />
@@ -160,7 +160,7 @@ export function FlaggedTab({ dash, reload }: Props) {
             </thead>
             <tbody>
               {rows.map((t) => (
-                <tr key={t.id} className="align-top">
+                <tr key={t.id} className="*:align-top">
                   <td className="whitespace-nowrap">
                     {warekiShort(t.date)}
                     <RefDateBadge date={t.date} referenceDate={dash.case.referenceDate} />

@@ -77,8 +77,16 @@ describe('分析画面', () => {
     const { caseId } = await seed();
     const { body } = await get(`/${caseId}/dashboard?tab=all&amount_type=out&sort=amount_out_desc&per_page=25`);
     expect(body.allTxs).toMatchObject({ total: 5, page: 1, perPage: 25 });
+    expect(body.allTxs.sums).toEqual({ out: 36601, in: 0 });
     expect(body.allTxs.items.map((t: Body) => t.amountOut)).toEqual([30000, 5000, 800, 800, 1]);
     expect(body.allTxs.items[0]).toMatchObject({ bankName: '架空銀行', accountNumber: '1234567', memo: '', isTransfer: false });
+  });
+
+  it('全取引: 月次グラフの棒の期間で絞ると、件数の合計が棒の金額と合う', async () => {
+    const { caseId } = await seed();
+    const { body: overview } = await get(`/${caseId}/dashboard`);
+    const { body } = await get(`/${caseId}/dashboard?tab=all&date_from=2025-04-01&date_to=2025-04-30`);
+    expect(body.allTxs.sums).toEqual({ out: overview.chartMonthly.out[0], in: overview.chartMonthly.in[0] });
   });
 
   it('未分類: 一覧と摘要ごとのまとめ（キーワードで絞る）', async () => {

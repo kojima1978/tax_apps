@@ -563,7 +563,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
           {groups.length === 0 ? (
             <NoMatch keyword={keyword} onClear={() => setParam('keyword', null)} />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="table-base">
                 <thead>
                   <tr>
@@ -632,7 +632,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
           {rows.length === 0 ? (
             <NoMatch keyword={keyword} onClear={() => setParam('keyword', null)} />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="table-base">
                 <thead>
                   <tr>

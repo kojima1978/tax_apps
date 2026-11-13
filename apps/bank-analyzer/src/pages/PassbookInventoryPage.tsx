@@ -204,7 +204,7 @@ export function PassbookInventoryPage() {
                 口座がありません。取引を取り込むか、上の「残高証明書だけの口座」から追加してください。
               </p>
             ) : (
-              <div ref={tableBox} className="overflow-x-auto print:overflow-visible">
+              <div ref={tableBox} className="relative overflow-x-auto print:overflow-visible">
                 <table className="table-base">
                   <thead>
                     <tr>

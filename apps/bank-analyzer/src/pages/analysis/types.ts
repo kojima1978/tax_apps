@@ -73,7 +73,7 @@ export type PatternItem = { category: string; keywords: string[] };
 
 export type TabData = {
   overview: OverviewData;
-  all: { allTxs: Page<TxRow> };
+  all: { allTxs: Page<TxRow> & { sums: { out: number; in: number } } };
   unclassified: {
     unclassifiedTxs: Page<TxRow>;
     unclassifiedGroups: Page<UnclassifiedGroup>;

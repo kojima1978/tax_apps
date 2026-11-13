@@ -321,7 +321,7 @@ export function CaseListPage() {
                 <p className="text-xs">検索語や担当者の絞り込みを変更してお試しください。</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto">
                 <table className="table-base" aria-label="案件一覧">
                   <thead>
                     <tr>

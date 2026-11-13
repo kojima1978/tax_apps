@@ -51,8 +51,8 @@ export function OverviewTab({ dash, reload }: Props) {
             </h2>
             <p className="text-xs text-slate-500">
               {dash.case.referenceDate
-                ? `相続開始月（${warekiMonthShort(dash.case.referenceDate)}）以降を除外し、前月までを表示しています`
-                : '棒にマウスを重ねると金額を確認できます'}
+                ? `相続開始月（${warekiMonthShort(dash.case.referenceDate)}）以降を除外し、前月までを表示しています。棒を押すとその期間の取引一覧へ移ります`
+                : '棒を押すとその期間の取引一覧へ移ります'}
             </p>
           </div>
           <DownloadButton path={`/cases/${caseId}/export/xlsx/monthly`}>表をExcel出力</DownloadButton>
@@ -211,7 +211,7 @@ function AccountList({ caseId, accounts, onDeleted }: { caseId: number; accounts
         <span className="rounded bg-slate-500 px-2 py-0.5 text-xs font-normal text-white">{accounts.length}口座</span>
         <ChevronDown size={16} className="ml-auto transition-transform group-open:rotate-180" />
       </summary>
-      <div className="mt-3 overflow-x-auto">
+      <div className="relative mt-3 overflow-x-auto">
         <table className="table-base">
           <thead>
             <tr>

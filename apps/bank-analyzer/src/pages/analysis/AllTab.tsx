@@ -279,6 +279,11 @@ export function AllTab({ dash, reload }: Props) {
               </span>
             )}
           </span>
+          {total > 0 && (
+            <span className="text-xs text-slate-600 tabular-nums" title="条件に合う全件の合計（表示中のページに限りません）">
+              出金計 <strong className="text-red-700">{num(page.sums.out)}</strong>円 ／ 入金計 <strong className="text-emerald-700">{num(page.sums.in)}</strong>円
+            </span>
+          )}
           <SaveState saving={saving.size} failed={failed.size} />
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <button type="button" className="btn btn-secondary btn-sm" aria-pressed={compact} onClick={toggleCompact} title="行の高さを詰める">
@@ -349,7 +354,8 @@ export function AllTab({ dash, reload }: Props) {
         {rows.length === 0 ? (
           <Empty filtered={hasFilter(params)} onClear={clearFilters} onDetail={() => setDetailOpen(true)} />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
+            {/* relative: 見出しの sr-only（position:absolute）が枠の外へ出てページ幅を広げないように（他の表の枠も同じ） */}
             <table className={`table-base ${compact ? '[&_td]:py-0.5' : ''}`}>
               <thead>
                 <tr>

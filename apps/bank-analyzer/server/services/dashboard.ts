@@ -199,8 +199,11 @@ async function tabData(db: PrismaClient, caseId: bigint, q: DashboardQuery, txs:
       return overview(db, caseId, txs, referenceDate);
 
     case 'all': {
-      const page = paginate(filterTransactions(ordered, q.filter), q.page, q.perPage);
-      return { allTxs: { ...page, items: page.items.map(row) } };
+      const filtered = filterTransactions(ordered, q.filter);
+      const page = paginate(filtered, q.page, q.perPage);
+      // 条件に合う全件の合計（ページによらない）。月次グラフの棒から来たとき、棒の金額と見比べられる
+      const sums = { out: filtered.reduce((n, t) => n + t.amountOut, 0), in: filtered.reduce((n, t) => n + t.amountIn, 0) };
+      return { allTxs: { ...page, items: page.items.map(row), sums } };
     }
 
     case 'unclassified': {

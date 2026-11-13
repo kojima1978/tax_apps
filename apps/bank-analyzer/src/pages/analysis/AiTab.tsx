@@ -336,7 +336,7 @@ export function AiTab({ dash, reload }: Props) {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto">
                 <table className="table-base">
                   <thead>
                     <tr>

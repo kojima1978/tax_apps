@@ -5,7 +5,7 @@ import { FolderOpen, Home, Mail, Plus, Settings } from 'lucide-react';
 import { OperatorPicker } from '@/shared/staff-directory/OperatorPicker';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${isActive ? 'bg-white/15 font-semibold text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white'}`;
+  `flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm whitespace-nowrap sm:px-2.5 ${isActive ? 'bg-white/15 font-semibold text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white'}`;
 
 export function Layout() {
   return (
@@ -14,19 +14,20 @@ export function Layout() {
         メインコンテンツへ移動
       </a>
       <header className="sticky top-0 z-40 bg-slate-800 print:hidden">
-        <div className="flex h-14 items-center justify-between px-4">
+        <div className="flex h-14 items-center justify-between gap-2 px-3 sm:px-4">
           <nav className="flex items-center gap-1" aria-label="主なメニュー">
             <a href="/" className={navClass({ isActive: false })} title="ポータルに戻る">
               <Home size={16} />
-              <span className="hidden sm:inline">ポータル</span>
+              {/* 390px 幅では右側（担当者・文書・新規案件）と並ばないので、狭い画面はアイコンだけにする */}
+              <span className="sr-only sm:not-sr-only">ポータル</span>
             </a>
             <NavLink to="/" end className={navClass}>
               <FolderOpen size={16} />
-              <span>案件一覧</span>
+              <span className="sr-only sm:not-sr-only">案件一覧</span>
             </NavLink>
             <NavLink to="/settings" className={navClass}>
               <Settings size={16} />
-              <span>設定</span>
+              <span className="sr-only sm:not-sr-only">設定</span>
             </NavLink>
           </nav>
           <div className="flex items-center gap-1">
@@ -38,7 +39,7 @@ export function Layout() {
             </a>
             <Link to="/?new=1" className="btn btn-primary ml-1">
               <Plus size={16} />
-              <span>新規案件</span>
+              <span className="sr-only sm:not-sr-only">新規案件</span>
             </Link>
           </div>
         </div>

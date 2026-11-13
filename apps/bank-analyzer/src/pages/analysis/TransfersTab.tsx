@@ -167,8 +167,8 @@ export function TransfersTab({ dash, reload }: Props) {
         {pairs.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-500">{filtered ? '条件に合う資金移動はありません' : '資金移動は検出されませんでした'}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="table text-sm">
+          <div className="relative overflow-x-auto">
+            <table className="table-base text-sm">
               <thead>
                 <tr>
                   <th colSpan={4} className="bg-red-50 text-center text-red-800">
