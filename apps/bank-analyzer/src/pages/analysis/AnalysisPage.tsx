@@ -25,6 +25,7 @@ import {
   Sparkles,
   Table2,
   Undo2,
+  X,
   type LucideProps,
 } from 'lucide-react';
 import { DownloadButton } from '../../components/DownloadButton';
@@ -34,6 +35,7 @@ import { useAction } from '../../hooks/useAction';
 import { useApiData } from '../../hooks/useApiData';
 import { api } from '../../lib/api';
 import { num } from '../../lib/format';
+import { clearLastImport, loadLastImport } from '../import/lastImport';
 import { AllTab } from './AllTab';
 import { UnclassifiedTab } from './UnclassifiedTab';
 import { AiTab } from './AiTab';
@@ -93,6 +95,7 @@ export function AnalysisPage() {
       <Header caseId={data.case.id} name={data.case.name} onRenamed={rename} />
       {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
 
+      <LastImportStrip caseId={data.case.id} />
       {data.noData ? (
         <NoData caseId={data.case.id} backup={data.latestDeletionBackup} onRestored={reload} />
       ) : (
@@ -106,6 +109,30 @@ export function AnalysisPage() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// 直前の取込の結果（依頼25）へ戻る帯。結果はこのタブの間だけ残る。× で消すと二度と出ない
+function LastImportStrip({ caseId }: { caseId: number }) {
+  const [last, setLast] = useState(() => loadLastImport(caseId));
+  if (!last) return null;
+  const dismiss = () => {
+    clearLastImport(caseId);
+    setLast(null);
+  };
+  return (
+    <div className="mb-3 flex items-center gap-2 rounded border border-blue-200 print:hidden bg-blue-50 px-3 py-2 text-sm text-blue-900">
+      <FileUp size={16} className="shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        直前の取込（{num(last.summary.imported)}件）
+        <Link to={`/cases/${caseId}/import/result`} className="ml-2 font-medium underline">
+          結果を見る
+        </Link>
+      </span>
+      <button type="button" className="shrink-0 rounded p-1 hover:bg-blue-100" onClick={dismiss} aria-label="取込の結果の案内を閉じる">
+        <X size={16} />
+      </button>
     </div>
   );
 }

@@ -55,6 +55,7 @@ export type ExportRow = {
   category: string;
   memo: string | null;
   isFlagged: boolean;
+  isLarge: boolean;
   isTransfer: boolean;
 };
 
@@ -80,6 +81,7 @@ export async function loadRows(db: PrismaClient, caseId: bigint): Promise<Export
     category: t.category,
     memo: t.memo,
     isFlagged: t.isFlagged,
+    isLarge: t.isLarge,
     isTransfer: t.isTransfer,
   }));
 }

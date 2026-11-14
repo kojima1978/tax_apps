@@ -13,6 +13,7 @@
 //   消さない（段階4）
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CircleCheck, Copy, Eraser, Layers, Replace, RotateCcw, Scissors, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '../../components/Dialog';
 import { useNotice } from '../../components/Notice';
@@ -52,8 +53,10 @@ const CONFIRM_WORD = '削除';
 function RangeDelete({ caseId, backup, reload }: { caseId: number; backup: DashboardSummary['latestDeletionBackup']; reload: () => void }) {
   const notice = useNotice();
   const { busy, run } = useAction();
-  const [startId, setStartId] = useState('');
-  const [endId, setEndId] = useState('');
+  // 取込の結果の「範囲削除を開く」は ?start_id=&end_id= で今回の取込の範囲を入れて開く（消すのは確認の後）
+  const [searchParams] = useSearchParams();
+  const [startId, setStartId] = useState(() => searchParams.get('start_id') ?? '');
+  const [endId, setEndId] = useState(() => searchParams.get('end_id') ?? '');
   const [confirmation, setConfirmation] = useState('');
   const [preview, setPreview] = useState<RangePreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);

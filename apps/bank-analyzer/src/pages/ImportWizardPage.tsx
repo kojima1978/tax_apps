@@ -25,6 +25,7 @@ import type { CaseDetail } from '../types';
 import { missingColumnsOf, type ImportErrorDict } from '../../server/lib/import/errors';
 import { AccountForm, AccountTypeOptions } from './import/AccountForm';
 import { FORMAT_GUIDE_ID, FormatGuide } from './import/FormatGuide';
+import { saveLastImport, type LastImport } from './import/lastImport';
 import { PreviewTable } from './import/PreviewTable';
 import { useWizardFiles, type DuplicateCheck } from './import/useWizardFiles';
 import {
@@ -229,12 +230,13 @@ export function ImportWizardPage() {
     setBusy(true);
     setCommitError(null);
     try {
-      const res = await api.post<{ message: string }>(`/cases/${caseId}/import/commit`, {
+      const res = await api.post<Omit<LastImport, 'at'>>(`/cases/${caseId}/import/commit`, {
         files: wizard.files.map(toCommitFile),
         skipDuplicates,
       });
       notice.success(res.message);
-      navigate(`/cases/${caseId}`);
+      saveLastImport(caseId!, { summary: res.summary, message: res.message, at: new Date().toISOString() });
+      navigate(`/cases/${caseId}/import/result`);
     } catch (e) {
       setCommitError(errorMessage(e));
     } finally {

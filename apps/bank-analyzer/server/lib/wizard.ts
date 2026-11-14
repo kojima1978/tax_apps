@@ -160,6 +160,9 @@ export type CommitRow = {
   category?: string;
   memo?: string;
   flagged?: boolean;
+  // 依頼25。分類がどこから来たか（取込の結果の内訳に使うだけ。取込の中身は変えない）:
+  // csv=CSV に書かれていた・manual=手順3で人が選んだ・remap=知らない分類名を手順3で読み替えた
+  categorySource?: 'csv' | 'manual' | 'remap';
 };
 
 // 取り込む行を決める。画面で決めた口座を当ててから、DB の最新の状態で重複を判定し直す

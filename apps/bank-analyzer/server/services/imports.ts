@@ -20,9 +20,10 @@
 import type { PrismaClient } from '@prisma/client';
 import { accountIdentity, accountLabel } from '../lib/accountIdentity.js';
 import { detectTransfers, isLargeAmount, type AnalysisSettings } from '../lib/analyze.js';
-import { STANDARD_CATEGORIES, TRANSFER_CATEGORY, normalizePatterns, sortCategories } from '../lib/categories.js';
+import { STANDARD_CATEGORIES, normalizePatterns, sortCategories } from '../lib/categories.js';
 import { type ClassifierSettings } from '../lib/classify.js';
 import { decideCategories } from '../lib/import/csvCategory.js';
+import { buildImportSummary, type CategorySource, type ImportSummary, type InsertedRow } from '../lib/import/summary.js';
 import { buildDuplicateWarning, buildExistingIndex, markDuplicates, type DedupFields, type DuplicateMark, type DuplicateWarning } from '../lib/dedup.js';
 import { normalizeText } from '../lib/text.js';
 import { selectRowsToCommit, type CommitAccount, type CommitRow } from '../lib/wizard.js';
@@ -94,11 +95,11 @@ export function importCategories(classifier: Pick<ClassifierSettings, 'globalPat
 }
 
 // commit_import の1回分。分類の使い回し（同じ摘要は最初の行の結果）は1回の中だけで効く。
-// 戻り値の transferIds は「通帳間移動」として入れた取引（相手が見つかったかは全部入れ終えてから数える）
-async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<{ count: number; transferIds: bigint[] }> {
-  if (rows.length === 0) return { count: 0, transferIds: [] };
+// 戻り値は入れた取引の ID（送られた並び）と、行ごとの分類の出どころ（取込の結果の内訳用）
+async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<{ ids: bigint[]; sources: CategorySource[] }> {
+  if (rows.length === 0) return { ids: [], sources: [] };
   const [classifier, settings] = await Promise.all([getClassifierSettings(tx, caseId), getAppSettings(tx)]);
-  const categories = decideCategories(rows, importCategories(classifier).map((c) => c.name), classifier).map((c) => c.category);
+  const decided = decideCategories(rows, importCategories(classifier).map((c) => c.name), classifier);
 
   // 同じ口座を2度探さないための覚え書き。キーは同一性（番号だけだと、同じ番号の
   // 別の銀行の行が最初の口座へ流れ込む）
@@ -121,20 +122,40 @@ async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<{ 
       amountIn: r.amountIn,
       balance: r.balance,
       isLarge: isLargeAmount(r.amountOut, r.amountIn, settings.largeAmountThreshold),
-      category: categories[i]!,
+      category: decided[i]!.category,
       memo: r.memo || null,
       isFlagged: r.flagged === true,
     });
   }
-  const created = await tx.transaction.createManyAndReturn({ data, select: { id: true, category: true } });
+  // createManyAndReturn は送った並びで返す（PostgreSQL の INSERT … RETURNING）
+  const created = await tx.transaction.createManyAndReturn({ data, select: { id: true } });
   await markTransfers(tx, caseId, settings);
-  return { count: rows.length, transferIds: created.filter((t) => t.category === TRANSFER_CATEGORY).map((t) => t.id) };
+  return {
+    ids: created.map((t) => t.id),
+    // 使える分類名で入った行は画面の申告（無ければ CSV）、自動分類へ回った行は auto
+    sources: decided.map((d, i) => (d.source === 'csv' ? (rows[i]!.categorySource ?? 'csv') : 'auto')),
+  };
 }
 
-// 通帳間移動として入れたのに、資金移動の判定で相手の取引が見つからなかった件数。
-// 食い違いは直さず数を知らせるだけ（相手の通帳がまだ取り込まれていないことが多い）
-async function countUnmatchedTransfers(tx: Tx, ids: bigint[]): Promise<number> {
-  return ids.length === 0 ? 0 : tx.transaction.count({ where: { id: { in: ids }, isTransfer: false } });
+// 入れた取引を読み直す（資金移動の印は全部入れ終えた後の状態で見る）
+async function loadInserted(tx: Tx, ids: bigint[]) {
+  const rows = await tx.transaction.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      accountId: true,
+      date: true,
+      amountOut: true,
+      amountIn: true,
+      balance: true,
+      category: true,
+      memo: true,
+      isFlagged: true,
+      isLarge: true,
+      isTransfer: true,
+    },
+  });
+  return new Map(rows.map((r) => [r.id, r]));
 }
 
 // 数千件の取込は Prisma の既定（5秒）を超えうる
@@ -145,7 +166,7 @@ export async function commitRows(db: PrismaClient, caseId: bigint, rows: ImportR
   return db.$transaction(
     async (tx) => {
       await lockCase(tx, caseId);
-      return (await insertRows(tx, caseId, rows)).count;
+      return (await insertRows(tx, caseId, rows)).ids.length;
     },
     { timeout: IMPORT_TIMEOUT_MS },
   );
@@ -156,28 +177,55 @@ export type WizardFile = { account: CommitAccount; rows: CommitRow[] };
 // 取込ウィザードの確定。ファイルごとに DB の最新の状態で重複を判定し直してから入れる
 // （ファイルごとに commit_import を呼ぶのは Django 版と同じ。分類の使い回しと資金移動の
 // 判定がファイル単位で効くので、まとめて1回にすると結果が変わる）。
-export async function commitWizard(
-  db: PrismaClient,
-  caseId: bigint,
-  files: WizardFile[],
-  skipDuplicates: boolean,
-): Promise<{ imported: number; skipped: number; transferUnmatched: number }> {
+// 戻り値は取込の結果（依頼25。lib/import/summary.ts）。相手の見つからない通帳間移動は
+// 後のファイルで相手が入ることがあるので、全部入れ終えてから数える（食い違いは直さず数を知らせるだけ）
+export async function commitWizard(db: PrismaClient, caseId: bigint, files: WizardFile[], skipDuplicates: boolean): Promise<ImportSummary> {
   return db.$transaction(
     async (tx) => {
       await lockCase(tx, caseId);
-      const index = buildExistingIndex((await loadCaseRows(tx, caseId)) satisfies DedupFields[]);
-      let imported = 0;
+      const before = await loadCaseRows(tx, caseId);
+      const index = buildExistingIndex(before satisfies DedupFields[]);
       let skipped = 0;
-      const transferIds: bigint[] = [];
+      const inserted: { ids: bigint[]; sources: CategorySource[] }[] = [];
       for (const f of files) {
         const selected = selectRowsToCommit(f.rows, f.account, index, skipDuplicates);
         skipped += selected.skipped;
-        const result = await insertRows(tx, caseId, selected.rows);
-        imported += result.count;
-        transferIds.push(...result.transferIds);
+        inserted.push(await insertRows(tx, caseId, selected.rows));
       }
-      // 後のファイルで相手が入ることがあるので、全部入れ終えてから数える
-      return { imported, skipped, transferUnmatched: await countUnmatchedTransfers(tx, transferIds) };
+      const byId = await loadInserted(
+        tx,
+        inserted.flatMap((f) => f.ids),
+      );
+      const accountIds = [...new Set([...byId.values()].flatMap((r) => (r.accountId === null ? [] : [r.accountId])))];
+      const accounts = await tx.account.findMany({
+        where: { id: { in: accountIds } },
+        select: { id: true, bankName: true, branchName: true, accountNumber: true, accountType: true },
+      });
+      return buildImportSummary({
+        files: inserted.map((f) =>
+          f.ids.map((id, i): InsertedRow => {
+            const r = byId.get(id)!;
+            return {
+              id: toId(r.id),
+              accountId: r.accountId === null ? 0 : toId(r.accountId),
+              date: toDateString(r.date)!,
+              amountOut: r.amountOut,
+              amountIn: r.amountIn,
+              balance: r.balance,
+              category: r.category,
+              categorySource: f.sources[i]!,
+              memo: r.memo,
+              isFlagged: r.isFlagged,
+              isLarge: r.isLarge,
+              isTransfer: r.isTransfer,
+            };
+          }),
+        ),
+        fileCount: files.length,
+        skipped,
+        accounts: accounts.map((a) => ({ ...a, id: toId(a.id) })),
+        existing: before,
+      });
     },
     { timeout: IMPORT_TIMEOUT_MS },
   );

@@ -57,10 +57,17 @@ function parseRow(v: Record<string, unknown>): Parsed<CommitRow> {
 
 // 分類・メモ・付箋（依頼24）。どれも任意で、おかしな値は無いものとして扱う（取込を止めない）。
 // 分類名が使えるかは登録のときに設定と照らす（知らない名前は自動分類へ）
-function optionalFields(v: Record<string, unknown>): Pick<CommitRow, 'category' | 'memo' | 'flagged'> {
-  const out: Pick<CommitRow, 'category' | 'memo' | 'flagged'> = {};
+type OptionalFields = Pick<CommitRow, 'category' | 'memo' | 'flagged' | 'categorySource'>;
+const CATEGORY_SOURCES: ReadonlySet<unknown> = new Set(['csv', 'manual', 'remap']);
+
+function optionalFields(v: Record<string, unknown>): OptionalFields {
+  const out: OptionalFields = {};
   const category = typeof v.category === 'string' ? v.category.trim() : '';
-  if (category && category.length <= MAX_CATEGORY) out.category = category;
+  if (category && category.length <= MAX_CATEGORY) {
+    out.category = category;
+    // 分類の出どころ（依頼25・取込の結果の内訳だけに使う）。分類の無い行には付けない
+    if (CATEGORY_SOURCES.has(v.categorySource)) out.categorySource = v.categorySource as OptionalFields['categorySource'];
+  }
   const memo = typeof v.memo === 'string' ? v.memo.trim() : '';
   if (memo) out.memo = memo;
   if (v.flagged === true) out.flagged = true;
@@ -207,7 +214,9 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
     const body = await readBody(c);
     const files = parseWizardFiles(body.files);
     if (!files.ok) return fail(c, files.error);
-    const { imported, skipped, transferUnmatched } = await commitWizard(db, c.get('caseId'), files.value, body.skipDuplicates !== false);
+    const summary = await commitWizard(db, c.get('caseId'), files.value, body.skipDuplicates !== false);
+    const { imported, skipped } = summary;
+    const transferUnmatched = summary.attention.transferUnmatched;
     const message =
       skipped > 0
         ? `${imported}件の取引を取り込みました（${skipped}件の重複をスキップ）`
@@ -216,6 +225,8 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
       imported,
       skipped,
       transferUnmatched,
+      // 取込の結果（依頼25）。画面の「取込の結果」がこれを見せる
+      summary,
       message:
         transferUnmatched > 0
           ? `${message}。通帳間移動のうち${transferUnmatched}件は相手の取引がまだ見つかっていません（資金移動タブで確かめてください）`

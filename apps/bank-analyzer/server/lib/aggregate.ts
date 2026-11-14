@@ -10,6 +10,7 @@ import { accountLabel } from './accountIdentity.js';
 import { detectTransfers, type AnalysisSettings } from './analyze.js';
 import {
   STANDARD_CATEGORIES,
+  TRANSFER_CATEGORY,
   UNCATEGORIZED,
   normalizePatterns,
   sortCategories,
@@ -33,6 +34,10 @@ export type AnalysisTx = {
   amountIn: number;
   category: string;
   isFlagged: boolean;
+  // 印の絞り込み（?mark=、依頼25）でだけ見る。読み込まない呼び出し元では無いものとして扱う
+  memo?: string | null;
+  isLarge?: boolean;
+  isTransfer?: boolean;
   // 口座の項目（Django 版の with_account_info）
   bankName: string | null;
   branchName: string | null;
@@ -137,10 +142,32 @@ export type TransactionFilter = {
   amountMin?: string;
   amountMax?: string;
   sort?: string;
+  // 取込の結果（依頼25）から移るリンク用。ID の範囲（今回の取込）・ID の指定（残高の合わない行）・印
+  idFrom?: number | null;
+  idTo?: number | null;
+  ids?: readonly number[];
+  mark?: TransactionMark | null;
   // 資金移動の一覧だけに効く
   transferCategory?: readonly string[];
   transferCategoryMode?: 'include' | 'exclude';
 };
+
+// 取込の結果の「人が見る所」の件数と同じ判定（lib/import/summary.ts と揃える）
+export const TRANSACTION_MARKS = ['flagged', 'memo', 'large', 'transfer_unmatched'] as const;
+export type TransactionMark = (typeof TRANSACTION_MARKS)[number];
+
+export function hasMark(t: Pick<AnalysisTx, 'isFlagged' | 'memo' | 'isLarge' | 'isTransfer' | 'category'>, mark: TransactionMark): boolean {
+  switch (mark) {
+    case 'flagged':
+      return t.isFlagged;
+    case 'memo':
+      return (t.memo ?? '').trim() !== '';
+    case 'large':
+      return t.isLarge === true;
+    case 'transfer_unmatched':
+      return t.category === TRANSFER_CATEGORY && t.isTransfer !== true;
+  }
+}
 
 const FULLWIDTH_DIGIT = /[０-９]/g;
 
@@ -177,7 +204,12 @@ export function filterTransactions<T extends AnalysisTx>(txs: readonly T[], f: T
   const min = parseAmountInput(f.amountMin);
   const max = parseAmountInput(f.amountMax);
   const type = f.amountType === 'out' || f.amountType === 'in' ? f.amountType : 'both';
+  const ids = f.ids?.length ? new Set(f.ids) : null;
   return txs.filter((t) => {
+    if (f.idFrom != null && t.id < f.idFrom) return false;
+    if (f.idTo != null && t.id > f.idTo) return false;
+    if (ids && !ids.has(t.id)) return false;
+    if (f.mark && !hasMark(t, f.mark)) return false;
     if (f.bank?.length && !(t.bankName !== null && f.bank.includes(t.bankName))) return false;
     if (f.account?.length && !(t.accountNumber !== null && f.account.includes(t.accountNumber))) return false;
     if (f.category?.length && f.category.includes(t.category) !== (f.categoryMode !== 'exclude')) return false;

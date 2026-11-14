@@ -19,12 +19,10 @@ import { DownloadButton } from '../../components/DownloadButton';
 import { useNotice } from '../../components/Notice';
 import { useAction } from '../../hooks/useAction';
 import { api } from '../../lib/api';
-import { num, warekiShort } from '../../lib/format';
+import { num, signedNum, warekiShort } from '../../lib/format';
 
 type Props = { caseId: number; review: Review | null; onFlagged: () => void };
 
-// 金額（マイナスは △）
-const yenText = (n: number) => (n < 0 ? `△${num(-n)}` : num(n));
 const manYen = (n: number) => `${(n / 10000).toLocaleString('ja-JP')}万円`;
 
 // 取引一覧（すべての取引タブ）の絞り込み。空の値は付けない ── desc（摘要の完全一致）だけは '' も「摘要なし」の条件なので付ける。
@@ -169,9 +167,9 @@ function GiftSection({ caseId, review, onFlagged }: { caseId: number; review: Re
                       </Link>
                     </td>
                     <td className="text-right tabular-nums">{num(y.count)}</td>
-                    <td className="text-right tabular-nums">{yenText(y.total)}</td>
-                    <td className="text-right tabular-nums">{yenText(y.within3)}</td>
-                    {p.extended && <td className="text-right tabular-nums">{yenText(y.extended)}</td>}
+                    <td className="text-right tabular-nums">{signedNum(y.total)}</td>
+                    <td className="text-right tabular-nums">{signedNum(y.within3)}</td>
+                    {p.extended && <td className="text-right tabular-nums">{signedNum(y.extended)}</td>}
                     <td className="whitespace-nowrap">{y.overExemption ? <span className="rounded bg-amber-100 px-1.5 text-xs text-amber-800">超える</span> : ''}</td>
                   </tr>
                 )),
@@ -185,10 +183,10 @@ function GiftSection({ caseId, review, onFlagged }: { caseId: number; review: Re
                     </Link>
                   </td>
                   <td className="text-right tabular-nums">{num(c.years.reduce((n, y) => n + y.count, 0))}</td>
-                  <td className="text-right tabular-nums">{yenText(c.total)}</td>
-                  <td className="text-right tabular-nums">{yenText(c.within3)}</td>
-                  {p.extended && <td className="text-right tabular-nums">{yenText(c.extended)}</td>}
-                  <td className="text-xs whitespace-nowrap text-slate-600">{p.extended && c.extended > 0 ? `延びた部分−${manYen(EXTENDED_PART_DEDUCTION)}: ${yenText(c.extendedAfterDeduction)}` : ''}</td>
+                  <td className="text-right tabular-nums">{signedNum(c.total)}</td>
+                  <td className="text-right tabular-nums">{signedNum(c.within3)}</td>
+                  {p.extended && <td className="text-right tabular-nums">{signedNum(c.extended)}</td>}
+                  <td className="text-xs whitespace-nowrap text-slate-600">{p.extended && c.extended > 0 ? `延びた部分−${manYen(EXTENDED_PART_DEDUCTION)}: ${signedNum(c.extendedAfterDeduction)}` : ''}</td>
                 </tr>
                 ),
               ])}
@@ -201,9 +199,9 @@ function GiftSection({ caseId, review, onFlagged }: { caseId: number; review: Re
                   </Link>
                 </td>
                 <td className="text-right tabular-nums">{num(g.count)}</td>
-                <td className="text-right tabular-nums">{yenText(g.total)}</td>
-                <td className="text-right tabular-nums">{yenText(g.within3)}</td>
-                {p.extended && <td className="text-right tabular-nums">{yenText(g.extended)}</td>}
+                <td className="text-right tabular-nums">{signedNum(g.total)}</td>
+                <td className="text-right tabular-nums">{signedNum(g.within3)}</td>
+                {p.extended && <td className="text-right tabular-nums">{signedNum(g.extended)}</td>}
                 <td />
               </tr>
             </tfoot>
@@ -214,7 +212,7 @@ function GiftSection({ caseId, review, onFlagged }: { caseId: number; review: Re
         <span className="font-medium text-slate-600">加算対象期間より前の贈与候補: </span>
         {g.before.count && g.before.from ? (
           <Link to={{ search: giftSearch(g.before.from, g.before.to) }} className="text-blue-700 underline">
-            {num(g.before.count)}件 {yenText(g.before.total)}円（{warekiShort(g.before.from)}〜{warekiShort(g.before.to)}）
+            {num(g.before.count)}件 {signedNum(g.before.total)}円（{warekiShort(g.before.from)}〜{warekiShort(g.before.to)}）
           </Link>
         ) : (
           'なし'
@@ -257,7 +255,7 @@ function WithdrawalTable({ list }: { list: WithdrawalList }) {
                 <td className="max-w-56 truncate" title={r.description}>
                   {r.description}
                 </td>
-                <td className="text-right tabular-nums">{yenText(r.amountOut)}</td>
+                <td className="text-right tabular-nums">{signedNum(r.amountOut)}</td>
                 <td className="whitespace-nowrap text-xs">
                   {r.cash && <span className="mr-1 rounded bg-sky-100 px-1.5 text-sky-800">現金</span>}
                   {r.large && <span className="rounded bg-amber-100 px-1.5 text-amber-800">多額</span>}
@@ -269,9 +267,9 @@ function WithdrawalTable({ list }: { list: WithdrawalList }) {
           <tfoot>
             <tr className="font-semibold">
               <td colSpan={3}>
-                合計 {num(list.rows.length)}件（うち現金 {yenText(list.cashTotal)}円）
+                合計 {num(list.rows.length)}件（うち現金 {signedNum(list.cashTotal)}円）
               </td>
-              <td className="text-right tabular-nums">{yenText(list.total)}</td>
+              <td className="text-right tabular-nums">{signedNum(list.total)}</td>
               <td colSpan={2} />
             </tr>
           </tfoot>
@@ -295,8 +293,8 @@ function WithdrawalTable({ list }: { list: WithdrawalList }) {
                     {a.accountLabel}
                   </td>
                   <td className="text-right tabular-nums">{num(a.count)}</td>
-                  <td className="text-right tabular-nums">{yenText(a.total)}</td>
-                  <td className="text-right tabular-nums">{yenText(a.cash)}</td>
+                  <td className="text-right tabular-nums">{signedNum(a.total)}</td>
+                  <td className="text-right tabular-nums">{signedNum(a.cash)}</td>
                 </tr>
               ))}
             </tbody>
@@ -376,7 +374,7 @@ function OutwardSection({ caseId, review, onFlagged }: { caseId: number; review:
                   <td className="max-w-56 truncate" title={r.description}>
                     {r.description}
                   </td>
-                  <td className="text-right tabular-nums">{yenText(r.amountOut)}</td>
+                  <td className="text-right tabular-nums">{signedNum(r.amountOut)}</td>
                   <td className="whitespace-nowrap text-xs text-slate-600">{r.category}</td>
                 </tr>
               ))}
@@ -384,7 +382,7 @@ function OutwardSection({ caseId, review, onFlagged }: { caseId: number; review:
             <tfoot>
               <tr className="font-semibold">
                 <td colSpan={4}>合計 {num(o.rows.length)}件</td>
-                <td className="text-right tabular-nums">{yenText(o.total)}</td>
+                <td className="text-right tabular-nums">{signedNum(o.total)}</td>
                 <td />
               </tr>
             </tfoot>

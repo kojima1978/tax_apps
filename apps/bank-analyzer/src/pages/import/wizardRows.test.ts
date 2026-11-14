@@ -55,10 +55,20 @@ describe('分類・メモ・付箋（依頼24）', () => {
       blankRow('2024-04-04'),
     ];
     expect(toCommitFile(file(rows)).rows).toEqual([
-      { date: '2024-04-01', description: '摘要1', amountOut: '1000', amountIn: '', balance: '', category: '生活費' },
+      { date: '2024-04-01', description: '摘要1', amountOut: '1000', amountIn: '', balance: '', category: '生活費', categorySource: 'csv' },
       { date: '2024-04-02', description: '摘要2', amountOut: '1000', amountIn: '', balance: '' },
       { date: '2024-04-03', description: '摘要3', amountOut: '1000', amountIn: '', balance: '', memo: '読めない字', flagged: true },
     ]);
+  });
+
+  it('分類の出どころを添える（取込の結果の内訳用）: CSV のまま・人が選んだ・知らない名前の読み替え', () => {
+    const rows = [
+      { ...row(1, null), category: '生活費', categoryOrigin: 'csv' as const },
+      { ...row(2, null), category: '年金', categoryOrigin: 'manual' as const },
+      { ...row(3, null), category: '給与', categoryOrigin: 'manual' as const, unknownCategory: 'ZZQ謎' },
+      { ...row(4, null), unknownCategory: 'ZZQ謎' },
+    ];
+    expect(toCommitFile(file(rows)).rows.map((r) => ('categorySource' in r ? r.categorySource : null))).toEqual(['csv', 'manual', 'remap', null]);
   });
 
   it('知らない分類名を名前ごとに数え、読めない要確認の行を数える（未入力の行は数えない）', () => {

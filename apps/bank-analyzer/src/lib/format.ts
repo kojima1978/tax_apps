@@ -2,7 +2,7 @@
 
 import { warekiShort } from '../../server/lib/dates';
 
-export { warekiMonthShort, warekiShort } from '../../server/lib/dates';
+export { warekiMonthShort, warekiShort, warekiYearAbbr } from '../../server/lib/dates';
 
 const yenFormat = new Intl.NumberFormat('ja-JP');
 
@@ -10,6 +10,8 @@ const yenFormat = new Intl.NumberFormat('ja-JP');
 export const yen = (n: number | null | undefined) => (n ? yenFormat.format(n) : '');
 // 0 も 0 と書く（合計など）
 export const num = (n: number | null | undefined) => yenFormat.format(n ?? 0);
+// マイナスは △（残高・差額など符号のつく金額）
+export const signedNum = (n: number) => (n < 0 ? `△${num(-n)}` : num(n));
 
 // 日時（ISO）→ 日本の日付で和暦の短い形（R7.4.1）
 export function warekiFromDateTime(iso: string | null | undefined): string {

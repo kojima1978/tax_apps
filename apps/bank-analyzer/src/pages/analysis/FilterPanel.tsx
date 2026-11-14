@@ -12,7 +12,8 @@ import type { FilterOptions } from './types';
 // desc は摘要の完全一致（相続税の検討・未分類の組から移るリンクが付ける）。値が空でも「摘要なし」の条件なので、
 // 空の値を捨てる他のキーとは別に、キーがあるかどうかで扱う（DESC_KEY）
 const DESC_KEY = 'desc';
-const FILTER_KEYS = ['bank', 'account', 'category', 'category_mode', 'keyword', DESC_KEY, 'amount_min', 'amount_max', 'amount_type', 'date_from', 'date_to'] as const;
+// id_from / id_to / id / mark は取込の結果（依頼25）から移るリンクが付ける（画面の入力欄は無く、チップで外すだけ）
+const FILTER_KEYS = ['bank', 'account', 'category', 'category_mode', 'keyword', DESC_KEY, 'amount_min', 'amount_max', 'amount_type', 'date_from', 'date_to', 'id_from', 'id_to', 'id', 'mark'] as const;
 const LIST_KEYS = ['bank', 'account', 'category'] as const;
 type ListKey = (typeof LIST_KEYS)[number];
 
@@ -25,6 +26,7 @@ const QUICK: { label: string; key: 'amount_type' | 'amount_min'; value: string }
 ];
 
 const AMOUNT_TYPE_LABEL = { both: '入出金', out: '出金', in: '入金' } as const;
+const MARK_LABEL: Record<string, string> = { flagged: '付箋あり', memo: 'メモあり', large: '多額', transfer_unmatched: '相手の見つからない通帳間移動' };
 
 const digits = (v: string) => v.replace(/[,，\s]/g, '');
 const withCommas = (v: string) => (/^\d+$/.test(digits(v)) ? num(Number(digits(v))) : v);
@@ -72,6 +74,15 @@ function chipsOf(params: URLSearchParams): Chip[] {
       for (const k of keys) q.delete(k);
     };
 
+  const idFrom = params.get('id_from');
+  const idTo = params.get('id_to');
+  if (idFrom || idTo) {
+    chips.push({ key: 'id-range', label: `取込の範囲: ID ${idFrom ?? ''}〜${idTo ?? ''}`, remove: removeKeys('id_from', 'id_to') });
+  }
+  const ids = params.getAll('id').filter(Boolean);
+  if (ids.length) chips.push({ key: 'ids', label: `指定の取引: ${num(ids.length)}件`, remove: removeKeys('id') });
+  const mark = params.get('mark');
+  if (mark && MARK_LABEL[mark]) chips.push({ key: 'mark', label: MARK_LABEL[mark], remove: removeKeys('mark') });
   const keyword = params.get('keyword');
   if (keyword) chips.push({ key: 'keyword', label: `キーワード: ${keyword}`, remove: removeKeys('keyword') });
   if (params.has(DESC_KEY)) chips.push({ key: DESC_KEY, label: descFilterLabel(params.get(DESC_KEY) ?? ''), remove: removeKeys(DESC_KEY) });

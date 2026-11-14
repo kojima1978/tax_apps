@@ -176,17 +176,21 @@ export function checkRows(rows: EditRow[], hasBalance: boolean): CheckedRow[] {
 
 // 取込（POST /cases/:id/import/commit）に送る形。金額は文字のまま送り、サーバが同じ規則で読む。
 // 分類は CSV と人が選んだものだけ送る（自動分類はサーバが付ける）。メモ・付箋は入っているときだけ
+const categorySourceOf = (origin: CategoryOrigin, unknown: string | null) =>
+  unknown !== null ? 'remap' : origin === 'csv' ? 'csv' : 'manual';
+
 export const toCommitFile = (f: EditFile) => ({
   account: f.account,
   rows: f.rows
     .filter((r) => !isBlankRow(r))
-    .map(({ date, description, amountOut, amountIn, balance, category, memo, flagged }) => ({
+    .map(({ date, description, amountOut, amountIn, balance, category, categoryOrigin, unknownCategory, memo, flagged }) => ({
       date,
       description,
       amountOut,
       amountIn,
       balance,
-      ...(category ? { category } : {}),
+      // categorySource は取込の結果の内訳（依頼25）にだけ使う: CSV のまま／知らない名前の読み替え／人が選んだ
+      ...(category ? { category, categorySource: categorySourceOf(categoryOrigin, unknownCategory) } : {}),
       ...(memo.trim() ? { memo } : {}),
       ...(flagged ? { flagged } : {}),
     })),

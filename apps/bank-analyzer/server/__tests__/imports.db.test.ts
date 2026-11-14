@@ -276,3 +276,70 @@ describe('分類・メモ・要確認の列（依頼24）', () => {
     expect(after.json.categories).toContainEqual({ name: 'ZZQ追加分類', keywords: ['ZZQキーワード'] });
   });
 });
+
+// 取込の結果（依頼25）。結果の件数と、画面のリンクが開く取引一覧（?tab=all）の件数が同じになること
+describe('取込の結果', () => {
+  it('件数ごとのリンク先の一覧が同じ件数になる。既存の取引との間・取引の無い年も返す', async () => {
+    const { caseId } = await seedCase(db(), '架空 太郎', [{ date: '2023-01-10', description: 'ZZQ前から', amountIn: 10000, balance: 10000, memo: '前から' }]);
+    const res = await call('POST', `/${caseId}/import/commit`, {
+      files: [
+        {
+          account: account('1234567'),
+          rows: [
+            { date: '2025-04-01', description: 'ZZQ店', amountOut: 1000, balance: 9000, category: '生活費', categorySource: 'csv', memo: '確認', flagged: true },
+            { date: '2025-04-02', description: 'ZZQ振替', amountOut: 600000, balance: 100000, category: '通帳間移動', categorySource: 'manual' },
+            { date: '2025-04-03', description: 'ZZQ贈与', amountOut: 100000, balance: 0, category: '贈与・教育費', categorySource: 'remap' },
+            { date: '2025-04-04', description: 'ZZQ不明', amountIn: 5, balance: 5 },
+          ],
+        },
+        { account: account('7654321'), rows: [{ date: '2025-05-01', description: 'ZZQ入金', amountIn: 50000, balance: 50000 }] },
+      ],
+    });
+    expect(res.status).toBe(200);
+    const s = res.json.summary;
+    expect(s).toMatchObject({ files: 2, imported: 5, skipped: 0 });
+    expect(res.json.transferUnmatched).toBe(s.attention.transferUnmatched);
+    expect(s.categories).toMatchObject({ csv: 1, manual: 1, remap: 1 });
+    expect(s.attention).toEqual({ flagged: 1, memo: 1, large: 1, transferUnmatched: 1, gift: 1 });
+
+    const [main, other] = s.accounts;
+    expect(main).toMatchObject({
+      accountNumber: '1234567',
+      count: 4,
+      totalOut: 701000,
+      totalIn: 5,
+      lastBalance: { date: '2025-04-04', amount: 5 },
+      balanceErrors: 1,
+      before: { from: '2023-01-10', to: '2023-01-10', count: 1 },
+      overlap: null,
+      emptyYears: [2024],
+    });
+    expect(main.gaps).toEqual([{ from: '2023-01-11', to: '2025-03-31', days: 811 }]);
+    expect(other).toMatchObject({ accountNumber: '7654321', count: 1, before: null, balanceErrors: 0 });
+
+    // 画面のリンク（lastImport.ts の txListLink と同じ形）で開いた一覧の件数
+    const listed = async (extra: [string, string][]) => {
+      const q = new URLSearchParams([['tab', 'all'], ['id_from', String(s.idFrom)], ['id_to', String(s.idTo)], ...extra]);
+      return (await call('GET', `/${caseId}/dashboard?${q}`)).json.allTxs.total as number;
+    };
+    expect(await listed([])).toBe(s.imported);
+    expect(await listed([['mark', 'flagged']])).toBe(s.attention.flagged);
+    expect(await listed([['mark', 'memo']])).toBe(s.attention.memo);
+    expect(await listed([['mark', 'large']])).toBe(s.attention.large);
+    expect(await listed([['mark', 'transfer_unmatched']])).toBe(s.attention.transferUnmatched);
+    expect(await listed([['category', '贈与・教育費']])).toBe(s.attention.gift);
+    expect(await listed([['category', '未分類']])).toBe(s.categories.uncategorized);
+    expect(await listed([['bank', '架空銀行'], ['account', '1234567']])).toBe(main.count);
+    expect(await listed(main.balanceErrorIds.map((id: number) => ['id', String(id)] as [string, string]))).toBe(main.balanceErrors);
+  });
+
+  it('分類の列が無い CSV でも組み立てる（すべて自動）', async () => {
+    const { caseId } = await seedCase(db());
+    const res = await call('POST', `/${caseId}/import/commit`, {
+      files: [{ account: account('1111111'), rows: [{ date: '2025-05-01', description: 'ZZQ', amountOut: 1, balance: null }] }],
+    });
+    expect(res.json.summary.categories).toMatchObject({ csv: 0, manual: 0, remap: 0 });
+    expect(res.json.summary.categories.auto + res.json.summary.categories.uncategorized).toBe(1);
+    expect(res.json.summary.accounts[0].lastBalance).toBeNull();
+  });
+});

@@ -23,6 +23,7 @@ import { api, errorMessage } from '../lib/api';
 import { num } from '../lib/format';
 import type { CaseDetail } from '../types';
 import { AccountForm, AccountTypeOptions } from './import/AccountForm';
+import { saveLastImport, type LastImport } from './import/lastImport';
 import { PreviewTable } from './import/PreviewTable';
 import { useWizardFiles, type DuplicateCheck } from './import/useWizardFiles';
 import { blankRow, checkRows, EMPTY_ACCOUNT, newKey, toCommitFile, type EditFile } from './import/wizardRows';
@@ -111,10 +112,11 @@ export function DirectInputPage() {
     if (!file || !ready()) return;
     setBusy('commit');
     try {
-      const res = await api.post<{ message: string }>(`/cases/${caseId}/import/commit`, { files: [toCommitFile(file)], skipDuplicates });
+      const res = await api.post<Omit<LastImport, 'at'>>(`/cases/${caseId}/import/commit`, { files: [toCommitFile(file)], skipDuplicates });
       sheet.setFiles([]);
       notice.success(res.message);
-      navigate(`/cases/${caseId}`);
+      saveLastImport(caseId!, { summary: res.summary, message: res.message, at: new Date().toISOString() });
+      navigate(`/cases/${caseId}/import/result`);
     } catch (e) {
       setSubmitError(errorMessage(e));
     } finally {
