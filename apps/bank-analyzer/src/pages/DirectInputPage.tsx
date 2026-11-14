@@ -26,7 +26,7 @@ import { AccountForm, AccountTypeOptions } from './import/AccountForm';
 import { saveLastImport, type LastImport } from './import/lastImport';
 import { PreviewTable } from './import/PreviewTable';
 import { useWizardFiles, type DuplicateCheck } from './import/useWizardFiles';
-import { blankRow, checkRows, EMPTY_ACCOUNT, newKey, toCommitFile, type EditFile } from './import/wizardRows';
+import { blankRow, checkRows, EMPTY_ACCOUNT, newKey, NO_FILE_REVIEW, toCommitFile, type EditFile } from './import/wizardRows';
 
 const INITIAL_ROWS = 5;
 const ADD_ROWS = 5;
@@ -41,6 +41,7 @@ const emptySheet = (): EditFile => ({
   hasFlag: false,
   account: { ...EMPTY_ACCOUNT },
   rows: Array.from({ length: INITIAL_ROWS }, () => blankRow()),
+  ...NO_FILE_REVIEW,
 });
 
 export function DirectInputPage() {

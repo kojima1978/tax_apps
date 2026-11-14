@@ -23,7 +23,13 @@ import { detectTransfers, isLargeAmount, type AnalysisSettings } from '../lib/an
 import { STANDARD_CATEGORIES, normalizePatterns, sortCategories } from '../lib/categories.js';
 import { type ClassifierSettings } from '../lib/classify.js';
 import { decideCategories } from '../lib/import/csvCategory.js';
-import { buildImportSummary, type CategorySource, type ImportSummary, type InsertedRow } from '../lib/import/summary.js';
+import {
+  buildImportSummary,
+  type CategorySource,
+  type ImportReview,
+  type ImportSummary,
+  type InsertedRow,
+} from '../lib/import/summary.js';
 import { buildDuplicateWarning, buildExistingIndex, markDuplicates, type DedupFields, type DuplicateMark, type DuplicateWarning } from '../lib/dedup.js';
 import { normalizeText } from '../lib/text.js';
 import { selectRowsToCommit, type CommitAccount, type CommitRow } from '../lib/wizard.js';
@@ -172,14 +178,21 @@ export async function commitRows(db: PrismaClient, caseId: bigint, rows: ImportR
   );
 }
 
-export type WizardFile = { account: CommitAccount; rows: CommitRow[] };
+// openingBalance: 繰越の行の残高（依頼26。取込の結果の残高のつながりの出発点。取込の中身には使わない）
+export type WizardFile = { account: CommitAccount; rows: CommitRow[]; openingBalance?: number | null };
 
 // 取込ウィザードの確定。ファイルごとに DB の最新の状態で重複を判定し直してから入れる
 // （ファイルごとに commit_import を呼ぶのは Django 版と同じ。分類の使い回しと資金移動の
 // 判定がファイル単位で効くので、まとめて1回にすると結果が変わる）。
 // 戻り値は取込の結果（依頼25。lib/import/summary.ts）。相手の見つからない通帳間移動は
 // 後のファイルで相手が入ることがあるので、全部入れ終えてから数える（食い違いは直さず数を知らせるだけ）
-export async function commitWizard(db: PrismaClient, caseId: bigint, files: WizardFile[], skipDuplicates: boolean): Promise<ImportSummary> {
+export async function commitWizard(
+  db: PrismaClient,
+  caseId: bigint,
+  files: WizardFile[],
+  skipDuplicates: boolean,
+  review?: ImportReview,
+): Promise<ImportSummary> {
   return db.$transaction(
     async (tx) => {
       await lockCase(tx, caseId);
@@ -187,10 +200,12 @@ export async function commitWizard(db: PrismaClient, caseId: bigint, files: Wiza
       const index = buildExistingIndex(before satisfies DedupFields[]);
       let skipped = 0;
       const inserted: { ids: bigint[]; sources: CategorySource[] }[] = [];
+      const openings: (number | null)[] = [];
       for (const f of files) {
         const selected = selectRowsToCommit(f.rows, f.account, index, skipDuplicates);
         skipped += selected.skipped;
         inserted.push(await insertRows(tx, caseId, selected.rows));
+        openings.push(selected.firstKept ? (f.openingBalance ?? null) : null);
       }
       const byId = await loadInserted(
         tx,
@@ -221,6 +236,8 @@ export async function commitWizard(db: PrismaClient, caseId: bigint, files: Wiza
             };
           }),
         ),
+        openings,
+        ...(review ? { review } : {}),
         fileCount: files.length,
         skipped,
         accounts: accounts.map((a) => ({ ...a, id: toId(a.id) })),

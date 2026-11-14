@@ -19,6 +19,11 @@ function patchRow(r: EditRow, patch: RowPatch): EditRow {
   if ('description' in patch) next.autoCategory = null;
   // 分類を選んだら「人が直した」。空（自動）に戻したら自動
   if ('category' in patch) next.categoryOrigin = patch.category ? 'manual' : 'auto';
+  // 問題の行は、取引の欄を直したら「直した」として疑いを消す（分類・メモ・付箋だけでは消さない）
+  if (DEDUP_FIELDS.some((k) => k in patch) && r.issues.length > 0) {
+    next.issues = [];
+    next.accepted = false;
+  }
   return next;
 }
 
@@ -39,6 +44,16 @@ export function useWizardFiles() {
       updateFile(fileKey, (f) => ({
         ...f,
         rows: f.rows.map((r) => (r.key === rowKey ? patchRow(r, patch) : r)),
+      })),
+    [updateFile],
+  );
+
+  // 問題の行を直さずにそのまま取り込む（疑いを見たうえで人が決めた）
+  const acceptRow = useCallback(
+    (fileKey: number, rowKey: number) =>
+      updateFile(fileKey, (f) => ({
+        ...f,
+        rows: f.rows.map((r) => (r.key === rowKey ? { ...r, issues: [], accepted: true } : r)),
       })),
     [updateFile],
   );
@@ -108,7 +123,7 @@ export function useWizardFiles() {
     [updateFile],
   );
 
-  return { files, setFiles, setAccount, updateRow, mapUnknownCategory, deleteRows, insertBelow, move, applyDuplicateCheck, appendRows };
+  return { files, setFiles, setAccount, updateRow, acceptRow, mapUnknownCategory, deleteRows, insertBelow, move, applyDuplicateCheck, appendRows };
 }
 
 export type WizardFiles = ReturnType<typeof useWizardFiles>;

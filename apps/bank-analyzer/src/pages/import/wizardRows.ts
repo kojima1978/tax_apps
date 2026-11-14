@@ -15,10 +15,16 @@
 //
 // 分類・メモ・付箋（依頼24）: CSV の「分類」「メモ」「要確認」の列から来る。分類は出どころ
 // （CSV・自動・人が直した）を持ち、送るのは CSV と人が選んだものだけ（自動はサーバが付ける）
+//
+// 問題の行（依頼26）: サーバは行の誤りでファイルを止めず、読めない日付・金額はファイルの値のまま、
+// 壊れた行の疑いは issues（理由）付きで返す。人が直す・「このままでよい」・除くのどれかを選ぶまで
+// 取込は進めない（黙って捨てない・黙って直さない）。取引でない行（繰越など）は skipped に返り、
+// 読み飛ばしたことを手順3に出す。繰越の残高は残高のつながりの出発点（openingBalance）にする
 
 import { parseAmountValue, parseDateValue } from '../../../server/input';
 import { chainBalance } from '../../../server/lib/balance';
 import { buildDuplicateWarning } from '../../../server/lib/dedup';
+import type { SkippedRow } from '../../../server/lib/import/loadStatement';
 import type { PreviewFile } from '../../../server/lib/wizard';
 
 // プレビューの行に、サーバが分類の列を照らした結果が付いてくる（routes/imports.ts の parse）
@@ -56,6 +62,14 @@ export type EditRow = {
   flagged: boolean;
   // CSV の「要確認」の読めない値（付箋なしとして扱う。知らせるだけ）
   flagUnreadable: string | null;
+  // 読めなかった日付のファイルの値（日付は空にしてある）。日付を入れたら用済み
+  rawDate: string | null;
+  // 壊れた行の疑い（サーバが付けた理由）。行を直すか「このままでよい」で消える
+  issues: string[];
+  // 読み込んだときに問題の行だったか（取込の結果に、直した・このままにした・除いた数を出すため）
+  fromProblem: boolean;
+  // 疑いを見たうえで、直さずに取り込むと決めた
+  accepted: boolean;
 };
 
 export type EditFile = {
@@ -70,6 +84,11 @@ export type EditFile = {
   hasFlag: boolean;
   account: AccountFields;
   rows: EditRow[];
+  // 取引でないので読み飛ばした行（繰越など）と、残高のつながりの出発点
+  skipped: SkippedRow[];
+  openingBalance: number | null;
+  // 読み込んだときの問題の行の数（除いた数を数えるため）
+  problemTotal: number;
 };
 
 export type CheckedRow = EditRow & {
@@ -103,13 +122,29 @@ export const blankRow = (date = ''): EditRow => ({
   memo: '',
   flagged: false,
   flagUnreadable: null,
+  rawDate: null,
+  issues: [],
+  fromProblem: false,
+  accepted: false,
 });
 
+// 直接入力など、ファイルから読んでいないときの既定
+export const NO_FILE_REVIEW = { skipped: [] as SkippedRow[], openingBalance: null, problemTotal: 0 } as const;
+
 const amountText = (n: number) => (n === 0 ? '' : String(n));
+
+// 読めなかった金額はファイルの値のまま欄に入れる（そのまま赤く出て、直すまで取り込めない）
+const amountField = (n: number, raw: string | undefined) => raw ?? amountText(n);
+
+// 読み込んだときに問題の行か: 日付・金額が読めない、または壊れた行の疑いがある
+const isProblemPreviewRow = (r: ParsedPreviewFile['rows'][number]) => r.raw !== undefined || (r.issues?.length ?? 0) > 0;
 
 export function toEditFiles(previews: ParsedPreviewFile[]): EditFile[] {
   return previews.map((p) => ({
     key: newKey(),
+    skipped: p.skippedRows ?? [],
+    openingBalance: p.openingBalance ?? null,
+    problemTotal: p.rows.filter(isProblemPreviewRow).length,
     filename: p.filename,
     isSplit: p.isSplit === true,
     detected: p.detectedAccount.accountNumber !== '',
@@ -121,9 +156,9 @@ export function toEditFiles(previews: ParsedPreviewFile[]): EditFile[] {
       key: newKey(),
       date: r.date,
       description: r.description ?? '',
-      amountOut: amountText(r.amountOut),
-      amountIn: amountText(r.amountIn),
-      balance: r.balance === null ? '' : String(r.balance),
+      amountOut: amountField(r.amountOut, r.raw?.amountOut),
+      amountIn: amountField(r.amountIn, r.raw?.amountIn),
+      balance: r.raw?.balance ?? (r.balance === null ? '' : String(r.balance)),
       dup: r.isDuplicate ? (r.dupConfidence ?? 'high') : null,
       category: r.category ?? '',
       categoryOrigin: r.category ? 'csv' : 'auto',
@@ -132,6 +167,10 @@ export function toEditFiles(previews: ParsedPreviewFile[]): EditFile[] {
       memo: r.memo ?? '',
       flagged: r.flagged === true,
       flagUnreadable: r.flagUnreadable ?? null,
+      rawDate: r.raw?.date ?? null,
+      issues: r.issues ?? [],
+      fromProblem: isProblemPreviewRow(r),
+      accepted: false,
     })),
   }));
 }
@@ -144,7 +183,9 @@ function rowError(r: EditRow): { error: string | null; amountOut: number; amount
   const error = !date.ok
     ? date.error
     : !date.value
-      ? '日付を入力してください'
+      ? r.rawDate !== null && r.rawDate.trim() !== ''
+        ? `日付「${r.rawDate}」を読めません。日付を入力してください`
+        : '日付を入力してください'
       : r.description.length > MAX_DESCRIPTION
         ? `摘要は${MAX_DESCRIPTION}文字以内にしてください`
         : !amountOut.ok
@@ -162,11 +203,14 @@ function rowError(r: EditRow): { error: string | null; amountOut: number; amount
   };
 }
 
-// 画面の並び順のまま突き合わせる（行を動かしたら、その順で数え直す）。未入力の行は飛ばす
-export function checkRows(rows: EditRow[], hasBalance: boolean): CheckedRow[] {
+// 画面の並び順のまま突き合わせる（行を動かしたら、その順で数え直す）。未入力の行は飛ばす。
+// opening は繰越の残高（あれば先頭の行もこれから計算して突き合わせる）
+export function checkRows(rows: EditRow[], hasBalance: boolean, opening: number | null = null): CheckedRow[] {
   const filled = rows.filter((r) => !isBlankRow(r));
   const parsed = filled.map(rowError);
-  const chained = hasBalance ? chainBalance(parsed) : parsed.map((p) => ({ ...p, calcBalance: null, isBalanceError: false }));
+  const chained = hasBalance
+    ? chainBalance(parsed, opening)
+    : parsed.map((p) => ({ ...p, calcBalance: null, isBalanceError: false }));
   const byKey = new Map(filled.map((r, i) => [r.key, chained[i]!]));
   return rows.map((r) => {
     const c = byKey.get(r.key);
@@ -181,6 +225,8 @@ const categorySourceOf = (origin: CategoryOrigin, unknown: string | null) =>
 
 export const toCommitFile = (f: EditFile) => ({
   account: f.account,
+  // 取込の結果の残高のつながりの出発点（取込の中身には使わない）
+  openingBalance: f.openingBalance,
   rows: f.rows
     .filter((r) => !isBlankRow(r))
     .map(({ date, description, amountOut, amountIn, balance, category, categoryOrigin, unknownCategory, memo, flagged }) => ({
@@ -219,4 +265,23 @@ export function duplicateWarning(rows: CheckedRow[]): string | null {
   const marks = filled.map((r) => ({ isDuplicate: r.dup !== null }));
   const count = marks.filter((m) => m.isDuplicate).length;
   return buildDuplicateWarning(marks, count, filled.length)?.message ?? null;
+}
+
+// まだ片付いていない疑い（直すか「このままでよい」を選ぶまで取り込まない）。未入力の行は数えない
+export const hasOpenIssues = (r: EditRow) => r.issues.length > 0 && !isBlankRow(r);
+
+// 取込の結果に載せる、手順3の確認の数（依頼26）。除いた数は読み込んだときの数から残りを引く
+export function reviewCounts(files: readonly EditFile[]) {
+  let skippedRows = 0;
+  let problemFixed = 0;
+  let problemAccepted = 0;
+  let problemRemoved = 0;
+  for (const f of files) {
+    skippedRows += f.skipped.length;
+    const left = f.rows.filter((r) => r.fromProblem && !isBlankRow(r));
+    problemAccepted += left.filter((r) => r.accepted).length;
+    problemFixed += left.filter((r) => !r.accepted).length;
+    problemRemoved += Math.max(0, f.problemTotal - left.length);
+  }
+  return { skippedRows, problemFixed, problemAccepted, problemRemoved };
 }

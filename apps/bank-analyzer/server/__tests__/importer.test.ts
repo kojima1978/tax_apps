@@ -10,7 +10,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { validateBalance } from '../lib/balance.js';
 import { StatementImportError } from '../lib/import/errors.js';
-import { loadStatement, type Statement } from '../lib/import/loadStatement.js';
+import { loadStatement, looksLikeAmount, type Statement } from '../lib/import/loadStatement.js';
 
 const GOLDEN_DIR = path.resolve('test-data/golden');
 const INPUT_DIR = path.join(GOLDEN_DIR, 'inputs/files');
@@ -363,5 +363,64 @@ describe('取込: 正解に無い入力', () => {
       expect((e as Error).name).toBe('FormatError');
       expect((e as StatementImportError).toDict().message).toContain('見出しの行が見つかりません');
     }
+  });
+});
+
+// 依頼26: AI（Gemini）が通帳を読んだ CSV。取込ウィザードの読み方（lenient）はファイルを止めず、行ごとに知らせる
+describe('取込: AI の読み取り（lenient）', () => {
+  const csv = (text: string) => new TextEncoder().encode(text);
+  const AI_HEADER = '銀行名,支店名,口座番号,種別,日付,摘要,払戻額,お預り額,差引残高,分類,メモ,要確認\n';
+  const AI_ACCOUNT = '架空銀行,本店,0012345,普通';
+  // 2行目: 繰越（日付・金額なし）。4行目: 半角カナの濁点が「"」になり、項目が1つ増えて残高が分類の列へずれた行
+  const AI_CSV =
+    AI_HEADER +
+    `${AI_ACCOUNT},,繰越,,,"4,475,000",,日付なし,○\n` +
+    `${AI_ACCOUNT},R6.8.1,ZZQカード,"77,000",,"4,398,000",,,\n` +
+    `${AI_ACCOUNT},R6.9.20,ZZQ ﾌﾄ"ﾞｻﾝ,,,,"1,773,190",事業・不動産,,\n` +
+    `${AI_ACCOUNT},6-08-12,ZZQ元号なし,1000,,"4,397,000",,,\n` +
+    `${AI_ACCOUNT},R6.10.1,ZZQ読めない,1O00,,"4,396,000",,,\n`;
+
+  it('繰越の行は読み飛ばして残高を返し、壊れた行・読めない値は理由と元の値つきで残す', () => {
+    const st = loadStatement(csv(AI_CSV), { lenient: true });
+    expect(st.skipped).toEqual([
+      { line: 2, description: '繰越', balance: 4_475_000, bankName: '架空銀行', branchName: '本店', accountNumber: '0012345' },
+    ]);
+    expect(st.rows.map((r) => r.line)).toEqual([3, 4, 5, 6]);
+    expect(st.rows[0]!.issues).toBeUndefined();
+
+    const broken = st.rows[1]!;
+    expect(broken).toMatchObject({ amountOut: 0, amountIn: 0, balance: null });
+    expect(broken.category).toBeUndefined(); // 金額のような分類は分類として使わない
+    expect(broken.issues).toEqual([
+      '列の数が見出し（12列）と違う13列です（列ずれの疑い）',
+      '払戻額もお預り額も空欄（0）です（読み落とし・列ずれの疑い）',
+      '分類の列に金額のような値「1,773,190」があります（列ずれの疑い）',
+      '摘要に「"」があります（半角カナの濁点・半濁点の崩れの疑い）',
+    ]);
+
+    expect(st.rows[2]).toMatchObject({ date: '', raw: { date: '6-08-12' }, amountOut: 1000 });
+    expect(st.rows[3]).toMatchObject({ date: '2024-10-01', raw: { amountOut: '1O00' }, amountOut: 0, balance: 4_396_000 });
+  });
+
+  it('既定の読み方は今までどおり止める', () => {
+    expect(() => loadStatement(csv(AI_CSV))).toThrow();
+    expect(loadStatement(csv(AI_HEADER + `${AI_ACCOUNT},R6.8.1,ZZQ,1000,,9000,,,\n`)).skipped).toEqual([]);
+  });
+
+  it('値のはみ出した行は、はみ出した値を出す', () => {
+    const st = loadStatement(csv('日付,摘要,払戻額,お預り額,差引残高\nR3.4.1,ATM,1000,,9000\nR3.4.2,振込,カンマ,1000,,8000\n'), { lenient: true });
+    expect(st.rows[1]!.issues?.[0]).toBe('列の数が見出し（5列）より多い6列です。はみ出した「8000」は読んでいません（列ずれの疑い）');
+    expect(st.rows[1]!.raw).toEqual({ amountOut: 'カンマ' });
+  });
+
+  it('金額の列が空でも、日付があれば取引の行として残す（0円の行）', () => {
+    const st = loadStatement(csv('日付,摘要,払戻額,お預り額\nR3.4.1,ZZQ記帳のみ,,\n'), { lenient: true });
+    expect(st.skipped).toEqual([]);
+    expect(st.rows[0]!.issues).toEqual(['払戻額もお預り額も空欄（0）です（読み落とし・列ずれの疑い）']);
+  });
+
+  it('looksLikeAmount', () => {
+    for (const v of ['1,773,190', '¥1,000', '△500', '１２３円']) expect(looksLikeAmount(v)).toBe(true);
+    for (const v of ['事業・不動産', '年金', '']) expect(looksLikeAmount(v)).toBe(false);
   });
 });

@@ -11,6 +11,9 @@
 // - 手順1に「取込できる形式」（列の表・ひな形・AI に渡す指示文）。列が足りないエラーは
 //   足りない列とファイルにあった列を並べて、そこへ案内する（依頼24）
 // - CSV の分類・メモ・要確認の列を読む。手順3で分類を行ごとに直せ、知らない分類名は読み替え先を選ぶ
+// - AI の読み取り（依頼26）: .txt も CSV として読む。取引でない行（繰越など）は読み飛ばして手順3に一覧を出し、
+//   繰越の残高は残高のつながりの出発点にする。読めない日付・金額や列ずれの疑いはファイルを止めず、
+//   問題の行として手順3で直す（「このままでよい」か削除でもよい）
 
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -30,6 +33,8 @@ import { PreviewTable } from './import/PreviewTable';
 import { useWizardFiles, type DuplicateCheck } from './import/useWizardFiles';
 import {
   checkRows,
+  hasOpenIssues,
+  reviewCounts,
   toCommitFile,
   toEditFiles,
   unknownCategories,
@@ -38,7 +43,7 @@ import {
 } from './import/wizardRows';
 
 const MAX_FILES = 10;
-const ACCEPT = /\.(csv|xlsx)$/i;
+const ACCEPT = /\.(csv|xlsx|txt)$/i;
 const STEPS = ['ファイル選択', '口座の確認', '内容の確認'] as const;
 type Step = 1 | 2 | 3;
 
@@ -161,7 +166,7 @@ export function ImportWizardPage() {
     requestAnimationFrame(() => document.getElementById(FORMAT_GUIDE_ID)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
   };
 
-  const checked = useMemo(() => new Map(wizard.files.map((f) => [f.key, checkRows(f.rows, f.hasBalance)])), [wizard.files]);
+  const checked = useMemo(() => new Map(wizard.files.map((f) => [f.key, checkRows(f.rows, f.hasBalance, f.openingBalance)])), [wizard.files]);
   const summary = useMemo(() => {
     const all = [...checked.values()].flat().filter((r) => !r.blank);
     const duplicates = all.filter((r) => r.dup).length;
@@ -170,10 +175,14 @@ export function ImportWizardPage() {
       duplicates,
       balanceErrors: all.filter((r) => r.isBalanceError).length,
       inputErrors: all.filter((r) => r.error).length,
+      // 重複として除く行は取り込まないので、要確認でも確定を止めない（入力の誤りはサーバが全行を読むので止める）
+      openIssues: all.filter((r) => !r.error && !(skipDuplicates && r.dup) && hasOpenIssues(r)).length,
       toImport: all.length - (skipDuplicates ? duplicates : 0),
     };
   }, [checked, skipDuplicates]);
   const noBalanceFiles = wizard.files.filter((f) => !f.hasBalance);
+  const skippedFiles = wizard.files.filter((f) => f.skipped.length > 0);
+  const skippedTotal = skippedFiles.reduce((n, f) => n + f.skipped.length, 0);
   const missingAccount = wizard.files.some((f) => f.account.accountNumber.trim() === '');
 
   const parse = async () => {
@@ -181,7 +190,7 @@ export function ImportWizardPage() {
     if (picked.length === 0) return setParseError({ message: 'ファイルを選択してください。', details: null });
     if (picked.length > MAX_FILES) return setParseError({ message: `一度に選べるのは${MAX_FILES}ファイルまでです。`, details: null });
     const wrong = picked.find((f) => !ACCEPT.test(f.name));
-    if (wrong) return setParseError({ message: `「${wrong.name}」は CSV・Excel（.xlsx）ではありません。`, details: null });
+    if (wrong) return setParseError({ message: `「${wrong.name}」は CSV・Excel（.xlsx）・テキスト（.txt）ではありません。`, details: null });
     if (sameFiles(picked, parsedFrom)) return setStep(2);
 
     const form = new FormData();
@@ -221,6 +230,8 @@ export function ImportWizardPage() {
 
   const commitBlockers = [
     summary.inputErrors > 0 && `入力エラーの行が${summary.inputErrors}行あります。直すか削除してください。`,
+    summary.openIssues > 0 &&
+      `要確認の行が${summary.openIssues}行あります。直すか、「このままでよい」を押すか、削除してください。`,
     summary.rows === 0 && '取り込む行がありません。',
     noBalanceFiles.length > 0 && !allowNoBalance && '残高の列が無いファイルがあります。下の確認にチェックを入れてください。',
   ].filter((m): m is string => typeof m === 'string');
@@ -233,6 +244,7 @@ export function ImportWizardPage() {
       const res = await api.post<Omit<LastImport, 'at'>>(`/cases/${caseId}/import/commit`, {
         files: wizard.files.map(toCommitFile),
         skipDuplicates,
+        review: reviewCounts(wizard.files),
       });
       notice.success(res.message);
       saveLastImport(caseId!, { summary: res.summary, message: res.message, at: new Date().toISOString() });
@@ -258,14 +270,14 @@ export function ImportWizardPage() {
         <div className="card p-6">
           <h2 className="mb-3 font-semibold">取り込むファイルを選ぶ</h2>
           <FileDrop
-            accept=".csv,.xlsx"
+            accept=".csv,.xlsx,.txt"
             multiple
             files={picked}
             onChange={(f) => {
               setPicked(f);
               setParseError(null);
             }}
-            hint={`CSV・Excel（.xlsx）、${MAX_FILES}ファイル・各10MBまで`}
+            hint={`CSV・Excel（.xlsx）・CSV の中身のテキスト（.txt）、${MAX_FILES}ファイル・各10MBまで`}
             invalid={parseError !== null}
           />
           {parsedFrom && !sameFiles(picked, parsedFrom) && (
@@ -371,6 +383,29 @@ export function ImportWizardPage() {
             <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">
               「要確認」の列に読めない値が{num(unreadableFlags)}行ありました。付箋なしにしています（付箋の列で付け直せます）。
             </p>
+          )}
+
+          {skippedFiles.length > 0 && (
+            <section className="card border-slate-200 bg-slate-50 p-4 text-sm" aria-label="読み飛ばした行">
+              <h3 className="mb-1 font-semibold">取引でない行を{num(skippedTotal)}行読み飛ばしました（繰越 など）</h3>
+              <p className="mb-2 text-slate-600">日付も金額も無い行です。取り込みません。取引だった場合は、下の表で行を足して入れてください。</p>
+              {skippedFiles.map((f) => (
+                <div key={f.key} className="mb-2 last:mb-0">
+                  {skippedFiles.length > 1 && <div className="font-medium">{f.filename}</div>}
+                  <ul className="space-y-0.5">
+                    {f.skipped.map((r) => (
+                      <li key={r.line} className="tabular-nums">
+                        {r.line}行目: {r.description || '（摘要なし）'}
+                        {r.balance !== null && `　残高 ${num(r.balance)}`}
+                      </li>
+                    ))}
+                  </ul>
+                  {f.openingBalance !== null && (
+                    <p className="mt-1 text-slate-600">残高 {num(f.openingBalance)} を、1行目の残高を確かめる出発点にしています。</p>
+                  )}
+                </div>
+              ))}
+            </section>
           )}
 
           {wizard.files.map((f) => (

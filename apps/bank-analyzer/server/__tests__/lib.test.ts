@@ -170,6 +170,21 @@ describe('chainBalance', () => {
       [1150, true],
     ]);
   });
+
+  it('繰越の残高（opening）があれば1行目も突き合わせる（依頼26）', () => {
+    const rows = [{ amountOut: 77_000, amountIn: 0, balance: 4_398_000 }];
+    expect(chainBalance(rows, 4_475_000).map((r) => [r.calcBalance, r.isBalanceError])).toEqual([[4_398_000, false]]);
+    expect(chainBalance(rows, 4_400_000).map((r) => [r.calcBalance, r.isBalanceError])).toEqual([[4_323_000, true]]);
+  });
+
+  it('日付の読めなかった行は前の行の日付に並べる（validateBalance）', () => {
+    const rows = [
+      { date: '2024-08-01', amountOut: 0, amountIn: 0, balance: 1000 },
+      { date: '', amountOut: 100, amountIn: 0, balance: 900 },
+      { date: '2024-08-02', amountOut: 100, amountIn: 0, balance: 800 },
+    ];
+    expect(validateBalance(rows, true).map((r) => r.isBalanceError)).toEqual([false, false, false]);
+  });
 });
 
 describe('pyRound', () => {

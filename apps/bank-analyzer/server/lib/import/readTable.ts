@@ -26,6 +26,11 @@ export type TableRow = {
   // Excel で開いたときの行番号と同じで、エラーの「行N」はこれを出す。
   line: number;
   cells: Cell[];
+  // CSV の行にあった項目の数（xlsx は持たない）。見出しと数が違う行は列がずれている恐れがある
+  fieldCount?: number;
+  // 見出しより後ろにはみ出した項目（空欄だけなら持たない）。取込ウィザードは問題の行として見せ、
+  // 正解との突き合わせ（loadStatement の既定）は今までどおり形式エラーで止める
+  overflow?: string[];
 };
 
 export type Table = {
@@ -125,16 +130,14 @@ function tableFromRecords(records: CsvRecord[]): Table | null {
     const rows: TableRow[] = [];
     for (const r of records) {
       if (r.line <= candidate.line) continue;
-      // 見出しより列が多い行。末尾が空欄だけ（行末のカンマ）なら捨てて読む。
-      // 値が入っていると列がずれている恐れがあるので止める（pandas は1行目なら
-      // 先頭の列を索引に回して列をずらし、2行目以降ならファイルごと失敗していた）。
-      if (r.fields.length > header.length && r.fields.slice(header.length).some((f) => f.trim() !== '')) {
-        throw new FormatError('見出しより列の多い行があります。', {
-          lineNumber: r.line,
-          suggestion: `行${r.line} の列の数が見出し（${header.length}列）と合いません。摘要などにカンマが含まれていないか、引用符（"）で囲まれているかを確認してください。`,
-        });
-      }
-      rows.push({ line: r.line, cells: header.map((_, i) => r.fields[i] ?? null) });
+      // 見出しより後ろの項目は読まない。値があれば overflow に残す（末尾が空欄だけ＝行末のカンマなら残さない）
+      const overflow = r.fields.slice(header.length);
+      rows.push({
+        line: r.line,
+        cells: header.map((_, i) => r.fields[i] ?? null),
+        fieldCount: r.fields.length,
+        ...(overflow.some((f) => f.trim() !== '') ? { overflow } : {}),
+      });
     }
     return { header, rows };
   }

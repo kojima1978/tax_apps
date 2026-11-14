@@ -111,6 +111,26 @@ export function ImportResultPage() {
             { label: '取り込んだ取引', value: <CountLink to={list()} count={s.imported} /> },
             { label: '重複として除いた取引', value: <span className="tabular-nums">{num(s.skipped)}件</span>, hint: '取込済みの取引と同じ行' },
             { label: 'ファイル', value: <span className="tabular-nums">{num(s.files)}件</span> },
+            // 依頼26。手順3で読み飛ばした行・問題の行をどうしたか（古い記録には無い）
+            ...(s.review
+              ? [
+                  { label: '読み飛ばした取引でない行', value: <span className="tabular-nums">{num(s.review.skippedRows)}行</span>, hint: '繰越 など。取り込んでいません' },
+                  {
+                    label: '問題の行',
+                    value: (
+                      // 1行に並べると狭い画面で見出しの側が1文字ずつ折り返されるので、内訳ごとに改行する
+                      <span className="block whitespace-nowrap text-right tabular-nums">
+                        直した {num(s.review.problemFixed)}行
+                        <br />
+                        このままでよい {num(s.review.problemAccepted)}行
+                        <br />
+                        除いた {num(s.review.problemRemoved)}行
+                      </span>
+                    ),
+                    hint: '読めない日付・金額や列ずれの疑いがあった行',
+                  },
+                ]
+              : []),
           ]}
         />
       </Section>

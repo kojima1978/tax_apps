@@ -17,7 +17,7 @@ import {
   type DuplicateWarning,
   type ExistingIndex,
 } from './dedup.js';
-import { loadStatement, type StatementRow } from './import/loadStatement.js';
+import { loadStatement, type SkippedRow, type StatementRow } from './import/loadStatement.js';
 
 export type DetectedAccount = {
   bankName: string;
@@ -40,6 +40,10 @@ export type PreviewFile = {
   detectedAccount: DetectedAccount;
   hasBalance: boolean;
   rows: PreviewRow[];
+  // 依頼26。取引でないので読み飛ばした行（繰越など。分けたときはその口座の分）と、
+  // 残高のつながりの出発点に使った残高（読み飛ばした行のうち、最初の取引より前で最後のもの）
+  skippedRows: SkippedRow[];
+  openingBalance: number | null;
 };
 
 // ファイル名から銀行名を推測する（大文字小文字は区別しない）。
@@ -59,26 +63,49 @@ const ACCOUNT_NUMBER_IN_FILENAME = /\p{Nd}{7,8}/u;
 
 // 1つのファイルを読んで、口座ごとのプレビューにする。index は消費される
 // （同じ取込で後に読むファイルが、同じ既存取引を重複として取り合わないように）。
+// 行の誤りではファイルを止めない（lenient。読めない値・壊れた行の疑いは行に載せて画面で直す）。
 export function buildPreview(filename: string, bytes: Uint8Array, index: ExistingIndex): PreviewFile[] {
-  const statement = loadStatement(bytes, { allowMultiple: true });
-  const rows = validateBalance(statement.rows, statement.hasBalance);
-  const groups = groupRowsByAccount(rows);
+  const statement = loadStatement(bytes, { allowMultiple: true, lenient: true });
+  const groups = groupRowsByAccount(statement.rows);
 
   if (groups.length <= 1) {
+    const opening = openingOf(statement.skipped, statement.rows, null);
+    const rows = validateBalance(statement.rows, statement.hasBalance, opening.balance);
     const detected = detectAccount(rows[0], filename);
-    return [previewFile(filename, rows, detected, statement.hasBalance, index)];
+    return [previewFile(filename, rows, detected, statement.hasBalance, index, statement.skipped, opening.balance)];
   }
 
   return groups.map((g) => {
-    // 口座ごとに残高を突き合わせ直す（混ざったままだと口座をまたいで計算してしまう）
-    const groupRows = validateBalance(g.rows, statement.hasBalance);
+    // 口座ごとに残高を突き合わせる（混ざったままだと口座をまたいで計算してしまう）
+    const key = accountIdentity(g.account);
+    const opening = openingOf(statement.skipped, g.rows, key);
+    const groupRows = validateBalance(g.rows, statement.hasBalance, opening.balance);
     const name = (g.account.bankName || '不明') + (g.account.accountNumber ? ` (${g.account.accountNumber})` : '');
+    // 口座の分からない読み飛ばし行は、最初の口座にだけ出す（同じ行を2回数えない）
+    const skipped = statement.skipped.filter(
+      (s) => accountIdentity(s) === key || (!s.accountNumber && g === groups[0]),
+    );
     return {
-      ...previewFile(`${filename} - ${name}`, groupRows, g.account, statement.hasBalance, index),
+      ...previewFile(`${filename} - ${name}`, groupRows, g.account, statement.hasBalance, index, skipped, opening.balance),
       originalFilename: filename,
       isSplit: true as const,
     };
   });
+}
+
+// 残高のつながりの出発点: 読み飛ばした行のうち、残高があり、その口座の最初の取引より前にある最後の行。
+// 口座番号の無い行はどの口座のものとしても使う（account が null＝口座が1つのファイルなら全部）
+function openingOf(skipped: SkippedRow[], rows: StatementRow[], account: string | null): { balance: number | null } {
+  const firstLine = Math.min(...rows.map((r) => r.line));
+  const hit = skipped
+    .filter(
+      (s) =>
+        s.balance !== null &&
+        s.line < firstLine &&
+        (account === null || !s.accountNumber || accountIdentity(s) === account),
+    )
+    .at(-1);
+  return { balance: hit?.balance ?? null };
 }
 
 function previewFile<T extends BalanceChecked<StatementRow>>(
@@ -87,6 +114,8 @@ function previewFile<T extends BalanceChecked<StatementRow>>(
   detected: DetectedAccount,
   hasBalance: boolean,
   index: ExistingIndex,
+  skippedRows: SkippedRow[],
+  openingBalance: number | null,
 ): PreviewFile {
   const marked = markDuplicates(rows, index, detected);
   return {
@@ -98,6 +127,8 @@ function previewFile<T extends BalanceChecked<StatementRow>>(
     detectedAccount: detected,
     hasBalance,
     rows: marked.rows,
+    skippedRows,
+    openingBalance: hasBalance ? openingBalance : null,
   };
 }
 
@@ -172,10 +203,11 @@ export function selectRowsToCommit<T extends CommitRow>(
   account: CommitAccount,
   index: ExistingIndex,
   skipDuplicates: boolean,
-): { rows: (T & CommitAccount & DuplicateMark)[]; skipped: number } {
+): { rows: (T & CommitAccount & DuplicateMark)[]; skipped: number; firstKept: boolean } {
   const withAccount = rows.map((r) => ({ ...r, ...account }));
   const marked = markDuplicates(withAccount, index, account);
-  if (!skipDuplicates) return { rows: marked.rows, skipped: 0 };
+  if (!skipDuplicates) return { rows: marked.rows, skipped: 0, firstKept: marked.rows.length > 0 };
   const kept = marked.rows.filter((r) => !r.isDuplicate);
-  return { rows: kept, skipped: marked.rows.length - kept.length };
+  // 先頭の行を入れたか（入れていなければ、繰越の残高は今回の行の出発点にならない）
+  return { rows: kept, skipped: marked.rows.length - kept.length, firstKept: marked.rows[0]?.isDuplicate === false };
 }

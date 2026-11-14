@@ -13,6 +13,7 @@ import { buildPreview, type CommitAccount, type CommitRow, type PreviewFile } fr
 import { toDateString } from '../json.js';
 import { isRecord, optionalText, parseAmountValue, parseDateValue, type Parsed } from '../input.js';
 import { decideCategories } from '../lib/import/csvCategory.js';
+import type { ImportReview } from '../lib/import/summary.js';
 import { checkWizardDuplicates, commitRows, commitWizard, importCategories, type ImportRow, type WizardFile } from '../services/imports.js';
 import { getClassifierSettings } from '../services/settings.js';
 import { fail, ok, readBody, type CaseRouter } from './common.js';
@@ -89,9 +90,21 @@ function parseWizardFiles(value: unknown): Parsed<WizardFile[]> {
       if (!row.ok) return failValue(`ファイル${i + 1} 行${j + 1}: ${row.error}`);
       rows.push(row.value);
     }
-    files.push({ account, rows });
+    // 繰越の残高（依頼26）。取込の結果の数え方にだけ使うので、おかしな値は黙って無視する
+    const opening = f.openingBalance;
+    const openingBalance = typeof opening === 'number' && Number.isSafeInteger(opening) ? opening : null;
+    files.push({ account, rows, openingBalance });
   }
   return files.some((f) => f.rows.length > 0) ? okValue(files) : failValue('インポートデータがありません');
+}
+
+// 手順3の確認の数（依頼26）。画面が数えて送る。無い・おかしいときは結果に出さない
+const REVIEW_KEYS = ['skippedRows', 'problemFixed', 'problemAccepted', 'problemRemoved'] as const;
+function parseReview(value: unknown): ImportReview | undefined {
+  if (!isRecord(value)) return undefined;
+  const counts = REVIEW_KEYS.map((k) => value[k]);
+  if (!counts.every((n) => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0)) return undefined;
+  return Object.fromEntries(REVIEW_KEYS.map((k, i) => [k, counts[i]])) as ImportReview;
 }
 
 const DIRECT_KEYS = ['date', 'description', 'amountOut', 'amountIn', 'balance', ...ACCOUNT_KEYS] as const;
@@ -214,7 +227,13 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
     const body = await readBody(c);
     const files = parseWizardFiles(body.files);
     if (!files.ok) return fail(c, files.error);
-    const summary = await commitWizard(db, c.get('caseId'), files.value, body.skipDuplicates !== false);
+    const summary = await commitWizard(
+      db,
+      c.get('caseId'),
+      files.value,
+      body.skipDuplicates !== false,
+      parseReview(body.review),
+    );
     const { imported, skipped } = summary;
     const transferUnmatched = summary.attention.transferUnmatched;
     const message =

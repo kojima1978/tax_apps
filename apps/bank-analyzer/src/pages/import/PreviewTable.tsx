@@ -1,12 +1,13 @@
 // 取込ウィザードの手順3: 1ファイル分の行を直す表（削除・下に挿入・上下の入れ替え・問題の行への移動）
 // 分類の列は categories を渡したときだけ出す（直接入力は出さない）。メモ・付箋の列は CSV に入っていたときだけ
+// 依頼26: 壊れた行の疑い（列ずれ・0円・「"」など）は「要確認」に理由を出す。直すか「このままでよい」か削除するまで取込は進めない
 
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { num, warekiShort } from '../../lib/format';
 import { accountLabel } from './AccountForm';
 import type { WizardFiles } from './useWizardFiles';
-import { duplicateWarning, type CheckedRow, type EditFile } from './wizardRows';
+import { duplicateWarning, hasOpenIssues, type CheckedRow, type EditFile } from './wizardRows';
 
 const BADGE = 'inline-block rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap';
 
@@ -22,6 +23,18 @@ function RowStatus({ r }: { r: CheckedRow }) {
     badges.push(
       <span key="e" className={`${BADGE} bg-red-100 text-red-800`} title={r.error}>
         入力エラー
+      </span>,
+    );
+  if (hasOpenIssues(r))
+    badges.push(
+      <span key="i" className={`${BADGE} bg-red-100 text-red-800`} title={r.issues.join('\n')}>
+        要確認
+      </span>,
+    );
+  if (r.accepted)
+    badges.push(
+      <span key="a" className={`${BADGE} bg-slate-100 text-slate-600`} title="要確認の行を、このままでよいとしました">
+        確認済み
       </span>,
     );
   if (r.isBalanceError)
@@ -88,7 +101,7 @@ const AMOUNT_COLUMNS = [
 type Props = {
   file: EditFile;
   rows: CheckedRow[];
-  actions: Pick<WizardFiles, 'updateRow' | 'deleteRows' | 'insertBelow' | 'move'>;
+  actions: Pick<WizardFiles, 'updateRow' | 'acceptRow' | 'deleteRows' | 'insertBelow' | 'move'>;
   // 選べる分類（未分類は除く）。渡したときだけ分類の列を出す
   categories?: string[];
 };
@@ -96,7 +109,7 @@ type Props = {
 export function PreviewTable({ file, rows, actions, categories }: Props) {
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const [cursor, setCursor] = useState(-1);
-  const problems = useMemo(() => rows.flatMap((r, i) => (r.error || r.isBalanceError ? [i] : [])), [rows]);
+  const problems = useMemo(() => rows.flatMap((r, i) => (r.error || r.isBalanceError || hasOpenIssues(r) ? [i] : [])), [rows]);
   // 行を消したり直したりしたら数え直す（読み込んだときの文を出し続けない）
   const warning = useMemo(() => duplicateWarning(rows), [rows]);
   const duplicateKeys = useMemo(() => rows.filter((r) => r.dup).map((r) => r.key), [rows]);
@@ -202,13 +215,26 @@ export function PreviewTable({ file, rows, actions, categories }: Props) {
               <tr
                 key={r.key}
                 id={rowId(r.key)}
-                className={r.error ? 'bg-red-50' : r.isBalanceError ? 'bg-amber-50' : r.dup || r.blank ? 'bg-slate-50 text-slate-500' : undefined}
+                className={r.error || hasOpenIssues(r) ? 'bg-red-50' : r.isBalanceError ? 'bg-amber-50' : r.dup || r.blank ? 'bg-slate-50 text-slate-500' : undefined}
               >
                 <td>
                   <input type="checkbox" aria-label={`${i + 1}行目を選ぶ`} checked={selected.has(r.key)} onChange={() => toggle(r.key)} />
                 </td>
                 <td>
                   <RowStatus r={r} />
+                  {hasOpenIssues(r) && (
+                    <div className="mt-1 w-56 space-y-1">
+                      <ul className="list-disc space-y-0.5 pl-4 text-xs text-red-800">
+                        {r.issues.map((m) => (
+                          <li key={m}>{m}</li>
+                        ))}
+                      </ul>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => actions.acceptRow(file.key, r.key)}>
+                        <Check size={14} />
+                        このままでよい
+                      </button>
+                    </div>
+                  )}
                 </td>
                 <td>
                   <input
@@ -219,6 +245,7 @@ export function PreviewTable({ file, rows, actions, categories }: Props) {
                     onChange={(e) => actions.updateRow(file.key, r.key, { date: e.target.value })}
                   />
                   {ISO_DATE.test(r.date) && <div className="mt-0.5 text-xs text-slate-500">{warekiShort(r.date)}</div>}
+                  {!r.date && r.rawDate && <div className="mt-0.5 text-xs text-red-700">ファイルの値: {r.rawDate}</div>}
                 </td>
                 <td>
                   <input
@@ -332,7 +359,11 @@ export function PreviewTable({ file, rows, actions, categories }: Props) {
           </tbody>
         </table>
       </div>
-      {problems.length > 0 && cursor >= 0 && rows[cursor]?.error && <p className="mt-2 text-sm text-red-700">{cursor + 1}行目: {rows[cursor]!.error}</p>}
+      {problems.length > 0 && cursor >= 0 && rows[cursor] && (rows[cursor]!.error || hasOpenIssues(rows[cursor]!)) && (
+        <p className="mt-2 text-sm text-red-700">
+          {cursor + 1}行目: {[rows[cursor]!.error, ...rows[cursor]!.issues].filter(Boolean).join(' / ')}
+        </p>
+      )}
     </section>
   );
 }

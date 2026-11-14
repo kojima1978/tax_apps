@@ -11,7 +11,9 @@
 // - 分類の出どころ: CSV（AI）／手順3で人が選んだ（うち知らない分類名の読み替え）／自動。
 //   「未分類のまま」は入った分類が未分類の行（自動分類でどれにも当たらなかったもの）
 // - 残高のつながり: ファイルごとに、入った行を送られた並び（手順3の表の並び）で突き合わせる
-//   （lib/balance.ts の chainBalance。手順3の赤い行と同じ規則）。重複で除いた行は入っていないので数えない
+//   （lib/balance.ts の chainBalance。手順3の赤い行と同じ規則）。重複で除いた行は入っていないので数えない。
+//   繰越の残高（依頼26）は、ファイルの先頭の行が入ったときだけ出発点にする（先頭が重複で除かれたら使わない）
+// - 手順3の確認（依頼26）: 読み飛ばした行・問題の行を直した／このままにした／除いた数。画面が数えて送り、そのまま載せる
 // - 相手の見つからない通帳間移動: 分類が通帳間移動なのに資金移動の印が付かなかった行
 //   （全ファイルを入れ終えた後の状態で数える）
 // - 通帳の抜け: 口座ごとに、前から入っていた取引と今回の取引を日付順に並べ、隣り合う取引の間が GAP_DAYS 日を
@@ -69,6 +71,14 @@ export type AccountResult = SummaryAccountInfo & {
   emptyYears: number[];
 };
 
+// 手順3の確認（依頼26）。取引でない行の読み飛ばしと、問題の行（読めない値・壊れた行の疑い）の始末
+export type ImportReview = {
+  skippedRows: number;
+  problemFixed: number;
+  problemAccepted: number;
+  problemRemoved: number;
+};
+
 export type ImportSummary = {
   files: number;
   imported: number;
@@ -78,6 +88,7 @@ export type ImportSummary = {
   accounts: AccountResult[];
   categories: { csv: number; manual: number; remap: number; auto: number; uncategorized: number };
   attention: { flagged: number; memo: number; large: number; transferUnmatched: number; gift: number };
+  review?: ImportReview;
 };
 
 // 間がこの日数を超えて空いていれば「通帳の抜け」かもしれないと知らせる
@@ -126,6 +137,9 @@ function overlapOf(a: Period, b: Period): Period | null {
 export function buildImportSummary(input: {
   // 送られたファイルごとの、入った行（送られた並び）
   files: readonly (readonly InsertedRow[])[];
+  // ファイルごとの残高の出発点（繰越。先頭の行が入らなかったファイルは null）
+  openings?: readonly (number | null)[];
+  review?: ImportReview;
   fileCount: number;
   skipped: number;
   accounts: readonly SummaryAccountInfo[];
@@ -134,12 +148,15 @@ export function buildImportSummary(input: {
 }): ImportSummary {
   const rows = input.files.flat();
   const errorIds = new Set<number>();
-  for (const f of input.files) {
+  input.files.forEach((f, fi) => {
     // 口座ごとに突き合わせる（1ファイルは1口座だが、複数口座の CSV は口座ごとのファイルに分かれて届く）
     const byAccount = new Map<number, InsertedRow[]>();
     for (const r of f) byAccount.set(r.accountId, [...(byAccount.get(r.accountId) ?? []), r]);
-    for (const list of byAccount.values()) for (const c of chainBalance(list)) if (c.isBalanceError) errorIds.add(c.id);
-  }
+    const opening = byAccount.size === 1 ? (input.openings?.[fi] ?? null) : null;
+    for (const list of byAccount.values()) {
+      for (const c of chainBalance(list, opening)) if (c.isBalanceError) errorIds.add(c.id);
+    }
+  });
 
   const existingByAccount = new Map<number, string[]>();
   for (const e of input.existing) {
@@ -210,6 +227,7 @@ export function buildImportSummary(input: {
       transferUnmatched: count(isUnmatchedTransfer),
       gift: count((r) => r.category === GIFT_CATEGORY),
     },
+    ...(input.review ? { review: input.review } : {}),
   };
 }
 

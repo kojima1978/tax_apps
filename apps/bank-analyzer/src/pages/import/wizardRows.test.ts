@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { blankRow, checkRows, duplicateWarning, toCommitFile, unknownCategories, unreadableFlagCount, type EditFile, type EditRow } from './wizardRows';
+import {
+  blankRow,
+  checkRows,
+  duplicateWarning,
+  hasOpenIssues,
+  NO_FILE_REVIEW,
+  reviewCounts,
+  toCommitFile,
+  unknownCategories,
+  unreadableFlagCount,
+  type EditFile,
+  type EditRow,
+} from './wizardRows';
 
 const row = (day: number, dup: EditRow['dup']): EditRow => ({
   ...blankRow(`2024-04-${String(day).padStart(2, '0')}`),
@@ -45,6 +57,7 @@ describe('分類・メモ・付箋（依頼24）', () => {
     hasFlag: true,
     account: { bankName: '架空銀行', branchName: '', accountType: '', accountNumber: '1234567' },
     rows,
+    ...NO_FILE_REVIEW,
   });
 
   it('送るのは CSV・人が選んだ分類と、入っているメモ・付箋だけ（自動分類は送らない）', () => {
@@ -84,5 +97,45 @@ describe('分類・メモ・付箋（依頼24）', () => {
       { name: 'ZZQ別', count: 1, chosen: '' },
     ]);
     expect(unreadableFlagCount([file(rows)])).toBe(1);
+  });
+});
+
+describe('問題の行（依頼26）', () => {
+  const problem = (over: Partial<EditRow>): EditRow => ({
+    ...blankRow('2024-08-01'),
+    description: 'ZZQ',
+    amountOut: '1000',
+    issues: ['払戻額もお預り額も空欄（0）です（読み落とし・列ずれの疑い）'],
+    fromProblem: true,
+    ...over,
+  });
+
+  it('要確認は直すか「このままでよい」まで残り、確定の review を数える', () => {
+    const fixed = problem({ issues: [] });
+    const accepted = problem({ issues: [], accepted: true });
+    const open = problem({});
+    expect([fixed, accepted, open].map(hasOpenIssues)).toEqual([false, false, true]);
+    const file: EditFile = {
+      key: 1,
+      filename: '架空.txt',
+      isSplit: false,
+      detected: true,
+      hasBalance: true,
+      hasMemo: false,
+      hasFlag: false,
+      account: { bankName: '', branchName: '', accountType: '', accountNumber: '1' },
+      rows: [fixed, accepted, blankRow()],
+      skipped: [{ line: 2, description: '繰越', balance: 5000, bankName: null, branchName: null, accountNumber: null }],
+      openingBalance: 5000,
+      problemTotal: 3, // 1行は削除した
+    };
+    expect(reviewCounts([file])).toEqual({ skippedRows: 1, problemFixed: 1, problemAccepted: 1, problemRemoved: 1 });
+  });
+
+  it('繰越の残高から1行目を確かめる', () => {
+    const rows = [problem({ issues: [], amountOut: '1000', balance: '4000' })];
+    expect(checkRows(rows, true, 5000)[0]).toMatchObject({ calcBalance: 4000, isBalanceError: false });
+    expect(checkRows(rows, true, null)[0]).toMatchObject({ calcBalance: 4000, isBalanceError: false });
+    expect(checkRows(rows, true, 6000)[0]!.isBalanceError).toBe(true);
   });
 });

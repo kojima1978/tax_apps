@@ -19,6 +19,7 @@ import { DEFAULT_FUZZY_CONFIG, DEFAULT_GIFT_THRESHOLD, DEFAULT_PATTERNS, type Pa
 import { classifyTransactions, type ClassifierSettings } from '../lib/classify.js';
 import { buildExistingIndex, type DedupFields } from '../lib/dedup.js';
 import { StatementImportError } from '../lib/import/errors.js';
+import { loadStatement } from '../lib/import/loadStatement.js';
 import { normalizeText } from '../lib/text.js';
 import { buildPreview, selectRowsToCommit, type PreviewFile } from '../lib/wizard.js';
 
@@ -290,6 +291,9 @@ function replay(name: string, spec: ScenarioSpec, djangoSteps: DjangoStep[], che
     const index = buildExistingIndex(db);
     let previews: PreviewFile[] | null = null;
     try {
+      // 取込ウィザードは行の誤りでファイルを止めなくなった（依頼26・lenient）。今までどおり読めない
+      // ファイル（Django 版がエラーにしたもの）を見分けるため、先に既定の厳しい読み方で読む
+      for (const f of step.parse) loadStatement(fs.readFileSync(path.join(INPUT_DIR, f)), { allowMultiple: true });
       previews = step.parse.flatMap((f) => buildPreview(f, fs.readFileSync(path.join(INPUT_DIR, f)), index));
     } catch (e) {
       if (!(e instanceof StatementImportError)) throw e;
@@ -392,5 +396,28 @@ describe.each(scenarios.map((s) => [s.name, s] as const))('%s', (name, spec) => 
       .filter((t) => ids.has(t.id as number))
       .map((t) => ({ ...t, ...deviations[t.id as number] }));
     expect(actual).toEqual(expected);
+  });
+});
+
+describe('取込ウィザード: AI の読み取り（依頼26）', () => {
+  const AI_HEADER = '銀行名,支店名,口座番号,種別,日付,摘要,払戻額,お預り額,差引残高,分類,メモ,要確認\n';
+  const AI_ACCOUNT = '架空銀行,本店,0012345,普通';
+  // 2行目: 繰越（日付・金額なし）。4行目: 半角カナの濁点が「"」になり、項目が1つ増えて残高が分類の列へずれた行
+  const AI_CSV =
+    AI_HEADER +
+    `${AI_ACCOUNT},,繰越,,,"4,475,000",,日付なし,○\n` +
+    `${AI_ACCOUNT},R6.8.1,ZZQカード,"77,000",,"4,398,000",,,\n` +
+    `${AI_ACCOUNT},R6.9.20,ZZQ ﾌﾄ"ﾞｻﾝ,,,,"1,773,190",事業・不動産,,\n` +
+    `${AI_ACCOUNT},6-08-12,ZZQ元号なし,1000,,"4,397,000",,,\n` +
+    `${AI_ACCOUNT},R6.10.1,ZZQ読めない,1O00,,"4,396,000",,,\n`;
+
+  it('繰越の残高を出発点にし、壊れた行で止めない', () => {
+    const [file] = buildPreview('架空.txt', new TextEncoder().encode(AI_CSV), buildExistingIndex([]));
+    expect(file!.openingBalance).toBe(4_475_000);
+    expect(file!.skippedRows.map((s) => s.description)).toEqual(['繰越']);
+    expect(file!.rowCount).toBe(4);
+    // 1行目: 4,475,000 − 77,000 = 4,398,000（繰越が無ければ起点になるだけで確かめられない）
+    expect(file!.rows[0]).toMatchObject({ calcBalance: 4_398_000, isBalanceError: false });
+    expect(file!.rows[1]!.issues).toHaveLength(4);
   });
 });

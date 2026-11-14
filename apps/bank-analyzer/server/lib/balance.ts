@@ -8,6 +8,9 @@
 // Django 版との違い: 残高が空欄の行（#2）は突き合わせない。計算上の残高を
 // 次の行へ引き継ぐだけにする。Django 版は空欄を 0 と読んでいたので、
 // その行と次の行の2か所に不整合が出ていた。
+//
+// opening（依頼26）: 通帳の「繰越」の行など、取引でない行に書かれた残高。あれば1行目もこれから
+// 計算して突き合わせる（無ければ今までどおり1行目の残高を起点にするだけ）。
 
 export type BalanceInput = {
   date: string; // 'YYYY-MM-DD'
@@ -22,17 +25,35 @@ export type BalanceChecked<T> = T & {
 };
 
 // 残高の列が無いファイルは並べ替えずにそのまま返す（Django 版と同じ）。
-export function validateBalance<T extends BalanceInput>(rows: T[], hasBalance: boolean): BalanceChecked<T>[] {
+export function validateBalance<T extends BalanceInput>(
+  rows: T[],
+  hasBalance: boolean,
+  opening: number | null = null,
+): BalanceChecked<T>[] {
   if (!hasBalance) return rows.map((r) => ({ ...r, calcBalance: null, isBalanceError: false }));
 
+  // 日付の読めなかった行（date が ''。取込ウィザードだけ）は、ファイルで前にある行の日付に並べて
+  // 置き場所を変えない（先頭へ寄せると、その前後の残高のつながりが切れる）
+  let last = '';
+  const keyed = rows.map((r) => {
+    if (r.date) last = r.date;
+    return { r, key: r.date || last };
+  });
   // Array.prototype.sort は安定ソート（ES2019〜）
-  return chainBalance([...rows].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)));
+  keyed.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return chainBalance(
+    keyed.map((k) => k.r),
+    opening,
+  );
 }
 
 // 並べ替えずに、渡された順で突き合わせる。取込ウィザードの画面が、行を動かした・直した後に
 // 同じ規則で数え直すのに使う（サーバとは別の規則で赤くすると、画面と取込結果が食い違う）
-export function chainBalance<T extends Omit<BalanceInput, 'date'>>(rows: T[]): BalanceChecked<T>[] {
-  let prev: number | null = null;
+export function chainBalance<T extends Omit<BalanceInput, 'date'>>(
+  rows: T[],
+  opening: number | null = null,
+): BalanceChecked<T>[] {
+  let prev: number | null = opening;
   return rows.map((r) => {
     if (prev === null) {
       // 起点。書かれた残高をそのまま使う（空欄ならまだ起点が無い）。

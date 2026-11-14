@@ -124,8 +124,22 @@ describe('取込できる形式の案内', () => {
     expect(text).toContain('1,500,000円以上');
     expect(text).not.toMatch(/^- 未分類/m);
     expect(text).toContain('金額・残高は通帳のとおりに書く。計算で作らない');
-    expect(text).toContain('読めない字は推測で埋めない。メモに読めなかった箇所を書き、要確認を「○」にする');
+    expect(text).toContain('読めない字は「■」にして、メモに読めなかった箇所を書き、要確認を「○」にする');
     expect(text).toContain('分類に迷ったら空欄にする（アプリが自動で分類する）');
+    // 依頼26: Gemini で崩れた所
+    expect(text).toContain(`どの行も項目は必ず${IMPORT_COLUMNS.length}個`);
+    expect(text).toContain('金額・残高は数字だけ。カンマを入れない');
+    expect(text).toContain('「繰越」「合計」「前ページより」');
+    expect(text).toContain('ｾﾞ → ゼ');
+    expect(text).toContain('R6.8.12 の形で書き、決めた根拠を1行目のメモに書く');
+    expect(text).toContain('返すのは CSV だけ');
+    // 贈与のキーワード（振込）は例に出さず、出金・閾値以上・入金には付けない、を決まりで書く
+    expect(text).toMatch(/^- 贈与・教育費（出金）$/m);
+    expect(text).not.toContain('摘要の例: 振込');
+    expect(text).toContain('出金が1,500,000円以上の振込だけに付ける。入金には付けない');
+    expect(text).toContain('- 年金（入金。摘要の例: 年金・厚生年金）');
+    // 長さは Gemini にそのまま貼れる範囲
+    expect(text.length).toBeLessThan(4000);
     for (const c of IMPORT_COLUMNS) expect(text).toContain(`- ${c.name}（${c.required ? '必須' : '任意'}）`);
   });
 
