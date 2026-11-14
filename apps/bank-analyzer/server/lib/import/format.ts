@@ -5,6 +5,7 @@
 
 import { GIFT_CATEGORY, OTHER_CATEGORY, TRANSFER_CATEGORY, UNCATEGORIZED } from '../categories.js';
 import { IMPORT_COLUMNS, type StandardColumn } from './columns.js';
+import { eraLabel, type EraChoice } from './eralessDates.js';
 
 // 列の表のほかの決まり（画面・README・指示文で同じ文を使う）
 export const IMPORT_RULES: readonly string[] = [
@@ -13,6 +14,7 @@ export const IMPORT_RULES: readonly string[] = [
   '必須でない列は、列ごと無くても、空欄でも、一部の行だけ書いてあってもよい',
   '文字コードは UTF-8（BOM の有無は問わない）か Shift_JIS。Excel（.xlsx）も読める。中身が CSV のテキスト（.txt）も CSV として読む',
   '日付も金額も無い行（通帳の「繰越」など）は取引でないので読み飛ばし、取込の手順3に一覧を出す。繰越の残高は1行目の残高を確かめる出発点にする',
+  '元号の無い日付（6-08-12・6.8.12・06/08/12）は、手順3で元号を選んでまとめて直す。年が戻る所（31-04-26 の次が 1-05-07）で区切り、区切りごとに別の元号を当てられる',
   '読めない日付・金額や列ずれの疑いのある行（項目の数が見出しと違う・払戻額もお預り額も空欄・分類に金額・摘要に「\"」）は、ファイルを止めずに手順3の問題の行にする。直すか「このままでよい」か削除するまで取り込まない',
   '1ファイルに複数の口座を入れるときは、全行に銀行名と口座番号を書く（口座ごとに分けて取り込む）',
   '一度に10ファイル・1ファイル10MBまで',
@@ -96,9 +98,16 @@ const AI_COLUMN_FORMAT: Partial<Record<StandardColumn, string>> = {
   balance: '払戻額と同じ書き方。通帳に無ければ空欄',
 };
 
-// 依頼26 で Gemini の読み取りを試して決めた文。繰越の行・列ずれ・半角カナの濁点・元号の無い日付・
-// 振込がみな贈与になる、の5つを潰すように書いてある。長さは Gemini にそのまま貼れる範囲に保つ
-export function aiInstruction(format: ImportFormat): string {
+// 指示文に足す、人が分かっていること（任意。依頼27）
+export type InstructionHint = {
+  era?: EraChoice | null; // この通帳の日付の元号
+  period?: string; // 通帳の期間（書かれたまま渡す）
+};
+
+// 依頼26・27 で Gemini の読み取りを試して決めた文。繰越の行・列ずれ・半角カナの濁点・元号の無い日付・
+// 振込がみな贈与になる、を潰すように書いてある。長さは Gemini にそのまま貼れる範囲に保つ。
+// 元号は推測させない（1ページの画像からは決めようが無い）。分かっていれば hint で渡す
+export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}): string {
   const listed = format.categories.filter((c) => c.name !== UNCATEGORIZED);
   const names = listed.map((c) => c.name);
   const headerLine = IMPORT_COLUMNS.map((c) => c.name).join(',');
@@ -114,10 +123,23 @@ export function aiInstruction(format: ImportFormat): string {
     return `- ${c.name}${notes.length > 0 ? `（${notes.join('。')}）` : ''}`;
   });
 
+  const period = hint.period?.trim();
+  const knownLines = [
+    ...(hint.era
+      ? [
+          hint.era === 'AD'
+            ? '- この通帳の日付は西暦です。日付は 2024-08-12 の形（4桁の年）で書く'
+            : `- この通帳の日付の元号は ${eraLabel(hint.era)} です。日付は ${hint.era}6.8.12 の形で書く`,
+        ]
+      : []),
+    ...(period ? [`- この通帳の期間: ${period}`] : []),
+  ];
+
   return [
     '通帳の画像を読み取り、次の形式の CSV を作ってください。銀行取引分析アプリへそのまま取り込みます。',
     '返すのは CSV だけにしてください（前後に説明の文を付けない）。保存するときの拡張子は .csv です。',
     '',
+    ...(knownLines.length > 0 ? ['## 分かっていること', ...knownLines, ''] : []),
     '## CSV の書き方',
     '- 1行目は見出し行。列は次の順に並べ、列名はこのとおりに書く',
     `  ${headerLine}`,
@@ -135,8 +157,11 @@ export function aiInstruction(format: ImportFormat): string {
     '- 行は通帳に印字された順のまま。ページをまたいで同じ行が2回写っていたら1回だけ書く',
     '- 摘要が2つの欄（摘要・お取引内容 など）に分かれていたら、空白1つでつないで摘要に書く',
     '- 通帳の列名が違っても意味で当てる（お支払金額・お引出し → 払戻額、お預り金額・ご入金 → お預り額、残高 → 差引残高）',
-    '- 日付に元号が無いとき（6-08-12 など）は、表紙・前後のページ・取引の内容から元号を決めて R6.8.12 の形で書き、決めた根拠を1行目のメモに書く。決められなければ読めた数字のまま書き、要確認を「○」にする',
-    '- 半角カナは全角カナにし、濁点・半濁点は前の字とまとめて1文字にする（ｾﾞ → ゼ、ﾎﾟ → ポ）。「"」や空白にしない',
+    hint.era
+      ? '- 日付に元号が無いとき（6-08-12 など）は、上の「分かっていること」の元号で書く'
+      : '- 日付に元号が無いとき（6-08-12 など）は、通帳の数字のまま書く（6-08-12）。推測で元号を付けない。元号はアプリの取込の画面でまとめて指定する。これだけでは要確認にしない',
+    '- 半角カナは全角カナにし、濁点・半濁点は前の字とまとめて1文字にする（ｾﾞｲｷﾝ → ゼイキン、ﾎﾟ → ポ）。濁点・半濁点のあとに空白や「"」を入れない。語の区切りの空白は印字のとおり',
+    '- 大きく印字された字は大きいまま書く（ｼﾖｳｹﾝ → シヨウケン、ﾘﾖｳ → リヨウ）。小さい字（ョ・ッ など）に直さない',
     '- 口座番号は先頭の0を残す',
     '',
     '## 読めないとき・合わないとき',

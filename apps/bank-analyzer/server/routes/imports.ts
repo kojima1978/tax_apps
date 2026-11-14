@@ -7,6 +7,7 @@
 
 import type { PrismaClient } from '@prisma/client';
 import { UNCATEGORIZED } from '../lib/categories.js';
+import { accountIdentity } from '../lib/accountIdentity.js';
 import { buildExistingIndex } from '../lib/dedup.js';
 import { StatementImportError } from '../lib/import/errors.js';
 import { buildPreview, type CommitAccount, type CommitRow, type PreviewFile } from '../lib/wizard.js';
@@ -139,6 +140,24 @@ function uploadedFiles(body: Record<string, unknown>): File[] {
   return [...numbered, ...listed].flat().filter((f): f is File => f instanceof File);
 }
 
+// 口座ごとの取込済みの取引の期間（依頼27。手順3で元号の無い日付に元号を当てるときの候補の目印）
+type ExistingForPeriod = { date: Date | null; account: { bankName: string; branchName: string; accountNumber: string } | null };
+export function accountPeriodsOf(existing: readonly ExistingForPeriod[]) {
+  const periods = new Map<string, { bankName: string; branchName: string; accountNumber: string; from: string; to: string }>();
+  for (const t of existing) {
+    const date = toDateString(t.date);
+    if (!date || !t.account) continue;
+    const key = accountIdentity(t.account);
+    const p = periods.get(key);
+    if (!p) periods.set(key, { ...t.account, from: date, to: date });
+    else {
+      if (date < p.from) p.from = date;
+      if (date > p.to) p.to = date;
+    }
+  }
+  return [...periods.values()];
+}
+
 export function importRoutes(r: CaseRouter, db: PrismaClient) {
   // プレビュー（書き込まない）。既存の取引との重複は全ファイルで1つの索引を取り合う
   r.post('/:caseId/import/parse', async (c) => {
@@ -206,7 +225,7 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
         }),
       };
     });
-    return ok(c, { files: annotated, categories });
+    return ok(c, { files: annotated, categories, accountPeriods: accountPeriodsOf(existing) });
   });
 
   // 取込できる形式の案内（依頼24）: 分類名とキーワードの例・贈与の閾値。指示文とひな形は画面で組み立てる

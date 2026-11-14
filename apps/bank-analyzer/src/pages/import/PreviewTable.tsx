@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { num, warekiShort } from '../../lib/format';
 import { accountLabel } from './AccountForm';
+import { EraDatePanel, type EraPanelContext } from './EraDatePanel';
 import type { WizardFiles } from './useWizardFiles';
 import { duplicateWarning, hasOpenIssues, type CheckedRow, type EditFile } from './wizardRows';
 
@@ -104,9 +105,11 @@ type Props = {
   actions: Pick<WizardFiles, 'updateRow' | 'acceptRow' | 'deleteRows' | 'insertBelow' | 'move'>;
   // 選べる分類（未分類は除く）。渡したときだけ分類の列を出す
   categories?: string[];
+  // 元号の無い日付をまとめて直す欄（取込ウィザードだけ。直接入力は出さない）
+  era?: EraPanelContext;
 };
 
-export function PreviewTable({ file, rows, actions, categories }: Props) {
+export function PreviewTable({ file, rows, actions, categories, era }: Props) {
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const [cursor, setCursor] = useState(-1);
   const problems = useMemo(() => rows.flatMap((r, i) => (r.error || r.isBalanceError || hasOpenIssues(r) ? [i] : [])), [rows]);
@@ -148,6 +151,7 @@ export function PreviewTable({ file, rows, actions, categories }: Props) {
       </div>
 
       {warning && <p className="mb-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">{warning}</p>}
+      {era && <EraDatePanel file={file} era={era} />}
       {!file.hasBalance && (
         <p className="mb-2 rounded bg-slate-100 px-3 py-2 text-sm text-slate-700">このファイルには残高の列がありません。残高の突き合わせはできません。</p>
       )}

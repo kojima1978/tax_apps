@@ -130,8 +130,12 @@ describe('取込できる形式の案内', () => {
     expect(text).toContain(`どの行も項目は必ず${IMPORT_COLUMNS.length}個`);
     expect(text).toContain('金額・残高は数字だけ。カンマを入れない');
     expect(text).toContain('「繰越」「合計」「前ページより」');
-    expect(text).toContain('ｾﾞ → ゼ');
-    expect(text).toContain('R6.8.12 の形で書き、決めた根拠を1行目のメモに書く');
+    expect(text).toContain('ｾﾞｲｷﾝ → ゼイキン');
+    // 依頼27: 元号は推測させない・濁点のあとに空白を入れない・大きい字は大きいまま
+    expect(text).toContain('通帳の数字のまま書く（6-08-12）。推測で元号を付けない');
+    expect(text).not.toContain('分かっていること');
+    expect(text).toContain('濁点・半濁点のあとに空白や「\"」を入れない');
+    expect(text).toContain('ｼﾖｳｹﾝ → シヨウケン');
     expect(text).toContain('返すのは CSV だけ');
     // 贈与のキーワード（振込）は例に出さず、出金・閾値以上・入金には付けない、を決まりで書く
     expect(text).toMatch(/^- 贈与・教育費（出金）$/m);
@@ -141,6 +145,21 @@ describe('取込できる形式の案内', () => {
     // 長さは Gemini にそのまま貼れる範囲
     expect(text.length).toBeLessThan(4000);
     for (const c of IMPORT_COLUMNS) expect(text).toContain(`- ${c.name}（${c.required ? '必須' : '任意'}）`);
+  });
+
+  it('元号・通帳の期間が分かっていれば指示文に入れる（依頼27）', () => {
+    const format = { categories: [], giftThreshold: 1_000_000 };
+    const reiwa = aiInstruction(format, { era: 'R', period: '令和6年8月〜令和7年1月' });
+    expect(reiwa).toContain('## 分かっていること');
+    expect(reiwa).toContain('この通帳の日付の元号は 令和 です。日付は R6.8.12 の形で書く');
+    expect(reiwa).toContain('この通帳の期間: 令和6年8月〜令和7年1月');
+    expect(reiwa).toContain('上の「分かっていること」の元号で書く');
+    expect(reiwa).not.toContain('推測で元号を付けない');
+    expect(aiInstruction(format, { era: 'H' })).toContain('元号は 平成 です。日付は H6.8.12 の形で書く');
+    expect(aiInstruction(format, { era: 'AD' })).toContain('西暦です。日付は 2024-08-12 の形');
+    // 期間だけ（空白だけは入れない）
+    expect(aiInstruction(format, { period: '  ' })).not.toContain('分かっていること');
+    expect(aiInstruction(format, { period: '2024年' })).toContain('推測で元号を付けない');
   });
 
   // README はイメージに入れない（.dockerignore）ので、コンテナの中では飛ばし、CI（チェックアウトの中）で確かめる

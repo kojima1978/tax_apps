@@ -30,8 +30,11 @@ import { AccountForm, AccountTypeOptions } from './import/AccountForm';
 import { FORMAT_GUIDE_ID, FormatGuide } from './import/FormatGuide';
 import { saveLastImport, type LastImport } from './import/lastImport';
 import { PreviewTable } from './import/PreviewTable';
+import { pickCompatibleAccount } from '../../server/lib/accountIdentity';
+import type { EraChoice } from '../../server/lib/import/eralessDates';
 import { useWizardFiles, type DuplicateCheck } from './import/useWizardFiles';
 import {
+  applyEra,
   checkRows,
   hasOpenIssues,
   reviewCounts,
@@ -135,6 +138,12 @@ function ParseErrorBox({ message, details, onShowGuide }: { message: string; det
   );
 }
 
+type AccountPeriod = { bankName: string; branchName: string; accountNumber: string; from: string; to: string };
+
+// 端末の今日（'YYYY-MM-DD'。toISOString は UTC なので朝9時前に前の日になる）
+const localIsoDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 const sameFiles = (a: File[], b: File[] | null) => b !== null && a.length === b.length && a.every((f, i) => f === b[i]);
 
 export function ImportWizardPage() {
@@ -157,6 +166,8 @@ export function ImportWizardPage() {
   const [guideOpen, setGuideOpen] = useState(false);
   // 選べる分類（parse がいまの設定から返す。未分類は除く）
   const [categories, setCategories] = useState<string[]>([]);
+  // 口座ごとの取込済みの取引の期間（元号の無い日付の候補の目印）
+  const [accountPeriods, setAccountPeriods] = useState<AccountPeriod[]>([]);
   const wizard = useWizardFiles();
   const unknowns = useMemo(() => unknownCategories(wizard.files), [wizard.files]);
   const unreadableFlags = useMemo(() => unreadableFlagCount(wizard.files), [wizard.files]);
@@ -197,9 +208,13 @@ export function ImportWizardPage() {
     picked.forEach((f, i) => form.append(`file_${i}`, f));
     setBusy(true);
     try {
-      const res = await api.post<{ files: ParsedPreviewFile[]; categories: string[] }>(`/cases/${caseId}/import/parse`, form);
+      const res = await api.post<{ files: ParsedPreviewFile[]; categories: string[]; accountPeriods: AccountPeriod[] }>(
+        `/cases/${caseId}/import/parse`,
+        form,
+      );
       wizard.setFiles(toEditFiles(res.files));
       setCategories(res.categories);
+      setAccountPeriods(res.accountPeriods);
       setParsedFrom(picked);
       setShowRequired(false);
       setAllowNoBalance(false);
@@ -214,19 +229,33 @@ export function ImportWizardPage() {
   // 重複は手順2で決めた口座で判定し直してから見せる（プレビューはファイルから読めた口座番号で
   // 判定しているので、口座を選んだファイルは「重複 0件」のままになる）。
   // 判定し直せなくても先へは進める（確定時にサーバがもう一度判定する）
+  const checkDuplicates = async (files: typeof wizard.files) => {
+    try {
+      const res = await api.post<{ files: DuplicateCheck[] }>(`/cases/${caseId}/import/check`, { files: files.map(toCommitFile) });
+      wizard.applyDuplicateCheck(res.files);
+    } catch {
+      // 入力エラーの行があるときなど。手順3の表に理由が出る
+    }
+  };
+
   const toPreview = async () => {
     if (missingAccount) return setShowRequired(true);
     setBusy(true);
     try {
-      const res = await api.post<{ files: DuplicateCheck[] }>(`/cases/${caseId}/import/check`, { files: wizard.files.map(toCommitFile) });
-      wizard.applyDuplicateCheck(res.files);
-    } catch {
-      // 入力エラーの行があるときなど。手順3の表に理由が出る
+      await checkDuplicates(wizard.files);
     } finally {
       setBusy(false);
     }
     setStep(3);
   };
+
+  // 元号の無い日付に元号を当てる（依頼27）。日付が入ったので重複も判定し直す
+  const applyEraTo = (fileKey: number, rowKeys: ReadonlySet<number>, era: EraChoice) => {
+    const next = applyEra(wizard.files, fileKey, rowKeys, era);
+    wizard.setFiles(next);
+    void checkDuplicates(next);
+  };
+  const today = localIsoDate(new Date());
 
   const commitBlockers = [
     summary.inputErrors > 0 && `入力エラーの行が${summary.inputErrors}行あります。直すか削除してください。`,
@@ -409,7 +438,19 @@ export function ImportWizardPage() {
           )}
 
           {wizard.files.map((f) => (
-            <PreviewTable key={f.key} file={f} rows={checked.get(f.key) ?? []} actions={wizard} categories={categories} />
+            <PreviewTable
+              key={f.key}
+              file={f}
+              rows={checked.get(f.key) ?? []}
+              actions={wizard}
+              categories={categories}
+              era={{
+                existing: pickCompatibleAccount(accountPeriods, f.account),
+                referenceDate: caseData?.referenceDate ?? null,
+                today,
+                onApply: applyEraTo,
+              }}
+            />
           ))}
 
           <div className="card space-y-2 p-4">

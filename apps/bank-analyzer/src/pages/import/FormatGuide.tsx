@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { ClipboardCopy, Download } from 'lucide-react';
 import { IMPORT_COLUMNS } from '../../../server/lib/import/columns';
+import { ERA_CHOICES, type EraChoice } from '../../../server/lib/import/eralessDates';
 import { aiInstruction, IMPORT_RULES, templateCsv, type ImportFormat } from '../../../server/lib/import/format';
 import { exportFileName } from '../../../server/lib/exportFileName';
 import { api, errorMessage, saveBlob } from '../../lib/api';
@@ -22,12 +23,15 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
   const [instruction, setInstruction] = useState<string | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // 指示文に足す、分かっていること（任意。依頼27）
+  const [era, setEra] = useState<EraChoice | ''>('');
+  const [period, setPeriod] = useState('');
 
   const copyInstruction = async () => {
     setBusy(true);
     setStatus(null);
     try {
-      const text = aiInstruction(await api.get<ImportFormat>(`/cases/${caseId}/import/format`));
+      const text = aiInstruction(await api.get<ImportFormat>(`/cases/${caseId}/import/format`), { era: era || null, period });
       setInstruction(text);
       try {
         await navigator.clipboard.writeText(text);
@@ -74,6 +78,28 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
             </tbody>
           </table>
         </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs text-slate-600">
+            通帳の日付の元号（任意）
+            <select className="input mt-0.5 block w-40" value={era} onChange={(e) => setEra(e.target.value as EraChoice | '')}>
+              <option value="">分からない</option>
+              {ERA_CHOICES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs text-slate-600">
+            通帳の期間（任意）
+            <input
+              className="input mt-0.5 block w-56"
+              value={period}
+              placeholder="例: 令和6年8月〜令和7年1月"
+              onChange={(e) => setPeriod(e.target.value)}
+            />
+          </label>
+        </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-secondary btn-sm" onClick={downloadTemplate}>
             <Download size={14} />
@@ -84,7 +110,10 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
             AI に渡す指示文をコピー
           </button>
         </div>
-        <p className="text-xs text-slate-500">指示文の分類名・キーワードの例・贈与の金額は、この案件のいまの設定から作ります。</p>
+        <p className="text-xs text-slate-500">
+          指示文の分類名・キーワードの例・贈与の金額は、この案件のいまの設定から作ります。元号・期間は入れたときだけ指示文に入ります
+          （元号が分からなければ、AI には通帳の数字のまま書かせ、取込の手順3でまとめて当てます）。
+        </p>
         {status && (
           <p role="status" className={status.ok ? 'text-emerald-800' : 'text-amber-800'}>
             {status.text}

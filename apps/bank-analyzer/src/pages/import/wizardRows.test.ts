@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyEra,
   blankRow,
   checkRows,
   duplicateWarning,
+  eraTargets,
   hasOpenIssues,
   NO_FILE_REVIEW,
   reviewCounts,
@@ -137,5 +139,87 @@ describe('問題の行（依頼26）', () => {
     expect(checkRows(rows, true, 5000)[0]).toMatchObject({ calcBalance: 4000, isBalanceError: false });
     expect(checkRows(rows, true, null)[0]).toMatchObject({ calcBalance: 4000, isBalanceError: false });
     expect(checkRows(rows, true, 6000)[0]!.isBalanceError).toBe(true);
+  });
+});
+
+describe('元号の無い日付をまとめて直す（依頼27）', () => {
+  const eraless = (key: number, raw: string): EditRow => ({
+    ...blankRow(''),
+    key,
+    rawDate: raw,
+    description: `ZZQ${key}`,
+    amountOut: '1000',
+    fromProblem: true,
+  });
+  const file = (key: number, rows: EditRow[]): EditFile => ({
+    key,
+    filename: `架空${key}.txt`,
+    isSplit: false,
+    detected: true,
+    hasBalance: false,
+    hasMemo: false,
+    hasFlag: false,
+    account: { bankName: '', branchName: '', accountType: '', accountNumber: String(key) },
+    rows,
+    skipped: [],
+    openingBalance: null,
+    problemTotal: rows.filter((r) => r.fromProblem).length,
+  });
+
+  it('年をまたいでもそのまま当たり、問題の行は「直した」に数える', () => {
+    const f = file(1, [eraless(1, '6-12-22'), eraless(2, '7-01-05'), { ...blankRow('2024-01-01'), key: 3, description: '読めた行', amountIn: '1' }]);
+    expect(eraTargets(f.rows).map((t) => t.row.key)).toEqual([1, 2]);
+    const [after] = applyEra([f], 1, new Set([1, 2]), 'R');
+    expect(after!.rows.map((r) => [r.date, r.eraFilled])).toEqual([
+      ['2024-12-22', 'R'],
+      ['2025-01-05', 'R'],
+      ['2024-01-01', null],
+    ]);
+    expect(checkRows(after!.rows, false).every((r) => r.error === null)).toBe(true);
+    expect(reviewCounts([after!])).toMatchObject({ problemFixed: 2, problemAccepted: 0, problemRemoved: 0 });
+  });
+
+  it('元号をまたぐ通帳は区切りごとに別の元号を当てられる', () => {
+    const f = file(1, [eraless(1, '31-04-26'), eraless(2, '1-05-07')]);
+    const step1 = applyEra([f], 1, new Set([1]), 'H');
+    const [after] = applyEra(step1, 1, new Set([2]), 'R');
+    expect(after!.rows.map((r) => r.date)).toEqual(['2019-04-26', '2019-05-07']);
+  });
+
+  it('ファイル（口座）ごとに別の元号を当て、ほかのファイルには触らない', () => {
+    const files = [file(1, [eraless(1, '6.8.12')]), file(2, [eraless(1, '06/08/12')])];
+    const step1 = applyEra(files, 1, new Set([1]), 'R');
+    expect(step1[1]).toBe(files[1]);
+    const after = applyEra(step1, 2, new Set([1]), 'H');
+    expect(after.map((x) => x.rows[0]!.date)).toEqual(['2024-08-12', '1994-08-12']);
+  });
+
+  it('西暦2桁は 20xx。実在しない日は空のまま入力エラーに残る', () => {
+    const f = file(1, [eraless(1, '24-08-12'), eraless(2, '7-02-30')]);
+    const [after] = applyEra([f], 1, new Set([1, 2]), 'AD');
+    expect(after!.rows.map((r) => [r.date, r.eraFilled])).toEqual([
+      ['2024-08-12', 'AD'],
+      ['', null],
+    ]);
+    expect(checkRows(after!.rows, false)[1]!.error).toContain('日付「7-02-30」を読めません');
+  });
+
+  it('当てたあとも選び直せ、手で直した行は対象から外れる', () => {
+    const f = file(1, [eraless(1, '6-08-12'), eraless(2, '6-08-13')]);
+    const [r] = applyEra([f], 1, new Set([1, 2]), 'R');
+    const [h] = applyEra([r!], 1, new Set([1, 2]), 'H');
+    expect(h!.rows[0]!.date).toBe('1994-08-12');
+    const edited = { ...h!, rows: [{ ...h!.rows[0]!, date: '2024-08-12', eraFilled: null }, h!.rows[1]!] };
+    expect(eraTargets(edited.rows).map((t) => t.row.key)).toEqual([2]);
+  });
+
+  it('読めた日付・未入力の行・元号つきや4桁の年は対象にしない', () => {
+    const rows = [
+      { ...blankRow('2024-08-12'), key: 1, rawDate: 'R6.8.12', description: 'x', amountOut: '1' },
+      { ...blankRow(''), key: 2, rawDate: '6-08-12' },
+      eraless(3, '2024/08/12'),
+      eraless(4, '6-8'),
+    ];
+    expect(eraTargets(rows)).toEqual([]);
   });
 });

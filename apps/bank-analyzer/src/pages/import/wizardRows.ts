@@ -24,6 +24,7 @@
 import { parseAmountValue, parseDateValue } from '../../../server/input';
 import { chainBalance } from '../../../server/lib/balance';
 import { buildDuplicateWarning } from '../../../server/lib/dedup';
+import { eralessToIso, parseEralessDate, type EraChoice, type EralessDate } from '../../../server/lib/import/eralessDates';
 import type { SkippedRow } from '../../../server/lib/import/loadStatement';
 import type { PreviewFile } from '../../../server/lib/wizard';
 
@@ -64,6 +65,8 @@ export type EditRow = {
   flagUnreadable: string | null;
   // 読めなかった日付のファイルの値（日付は空にしてある）。日付を入れたら用済み
   rawDate: string | null;
+  // 元号の無い日付に、手順3でまとめて当てた元号（依頼27）。日付を手で直したら null
+  eraFilled: EraChoice | null;
   // 壊れた行の疑い（サーバが付けた理由）。行を直すか「このままでよい」で消える
   issues: string[];
   // 読み込んだときに問題の行だったか（取込の結果に、直した・このままにした・除いた数を出すため）
@@ -123,6 +126,7 @@ export const blankRow = (date = ''): EditRow => ({
   flagged: false,
   flagUnreadable: null,
   rawDate: null,
+  eraFilled: null,
   issues: [],
   fromProblem: false,
   accepted: false,
@@ -168,6 +172,7 @@ export function toEditFiles(previews: ParsedPreviewFile[]): EditFile[] {
       flagged: r.flagged === true,
       flagUnreadable: r.flagUnreadable ?? null,
       rawDate: r.raw?.date ?? null,
+      eraFilled: null,
       issues: r.issues ?? [],
       fromProblem: isProblemPreviewRow(r),
       accepted: false,
@@ -284,4 +289,32 @@ export function reviewCounts(files: readonly EditFile[]) {
     problemRemoved += Math.max(0, f.problemTotal - left.length);
   }
   return { skippedRows, problemFixed, problemAccepted, problemRemoved };
+}
+
+// 元号をまとめて当てる対象の行（依頼27）: ファイルの値が元号の無い日付（6-08-12 など）で、日付がまだ空か、
+// まとめて当てたまま（手で直した行は外す）。未入力の行は外す。index は画面の並びでの位置
+export function eraTargets(rows: readonly EditRow[]): { row: EditRow; index: number; date: EralessDate }[] {
+  return rows.flatMap((row, index) => {
+    const date = parseEralessDate(row.rawDate);
+    return date && (row.date === '' || row.eraFilled !== null) && !isBlankRow(row) ? [{ row, index, date }] : [];
+  });
+}
+
+// 選んだ行に元号を当てる。実在しない日になる行は空のまま（その行は入力エラーのまま残る）。
+// 問題の行の「直した」に入る（accepted にしない）。日付が変わるので重複の印は消す（取込時にサーバが判定し直す）。
+// 列ずれなどの疑い（issues）は日付と関係ないので残す
+export function applyEra(files: readonly EditFile[], fileKey: number, rowKeys: ReadonlySet<number>, era: EraChoice): EditFile[] {
+  return files.map((f) =>
+    f.key !== fileKey
+      ? f
+      : {
+          ...f,
+          rows: f.rows.map((r) => {
+            const d = rowKeys.has(r.key) ? parseEralessDate(r.rawDate) : null;
+            if (!d) return r;
+            const iso = eralessToIso(d, era);
+            return { ...r, date: iso ?? '', eraFilled: iso ? era : null, dup: null };
+          }),
+        },
+  );
 }

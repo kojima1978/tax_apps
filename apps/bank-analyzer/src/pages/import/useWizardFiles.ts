@@ -15,6 +15,8 @@ const DEDUP_FIELDS = ['date', 'description', 'amountOut', 'amountIn', 'balance']
 function patchRow(r: EditRow, patch: RowPatch): EditRow {
   const next: EditRow = { ...r, ...patch };
   if (DEDUP_FIELDS.some((k) => k in patch)) next.dup = null;
+  // 日付を手で直したら、まとめて当てた元号の行ではなくなる（まとめて当て直しても上書きしない）
+  if ('date' in patch) next.eraFilled = null;
   // 摘要を直したら自動分類の見込みは分からなくなる（取込時にサーバが付け直す）
   if ('description' in patch) next.autoCategory = null;
   // 分類を選んだら「人が直した」。空（自動）に戻したら自動
