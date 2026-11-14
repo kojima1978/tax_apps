@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/Label"
 import { Input } from "@/components/ui/Input"
 import { SelectField } from "@/components/ui/SelectField"
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
+import { SectionPanel } from "@/components/ui/SectionPanel"
 import { StaffSelect } from "@/components/ui/StaffSelect"
 import Link from "next/link"
 import { User } from "lucide-react"
@@ -18,18 +18,16 @@ interface BasicInfoSectionProps {
     assignees: Assignee[]
     referrers: Referrer[]
     returnToPath: string
-    isOpen?: boolean
-    onToggle?: () => void
     handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
     onMasterEditNavigate?: () => void
 }
 
 export function BasicInfoSection({
-    formData, assignees, referrers, returnToPath, isOpen, onToggle, handleChange, setFormData, onMasterEditNavigate
+    formData, assignees, referrers, returnToPath, handleChange, setFormData, onMasterEditNavigate
 }: BasicInfoSectionProps) {
     return (
-        <CollapsibleSection title="基本情報" icon={User} isOpen={isOpen} onToggle={onToggle} compact>
+        <SectionPanel title="基本情報" icon={User} compact>
             <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
                 <div className="space-y-1.5">
                     <Label htmlFor="deceasedName" className="text-xs">被相続人氏名 <span className="text-gray-500">*</span></Label>
@@ -84,7 +82,7 @@ export function BasicInfoSection({
                         onChange={(value) => setFormData(prev => ({ ...prev, assigneeId: value ? Number(value) : null }))}
                     />
                     <div className="text-right text-[11px]">
-                        <Link href={`/settings/staff?returnTo=${returnToPath}`} onClick={onMasterEditNavigate} className="text-muted-foreground hover:underline hover:text-primary">
+                        <Link href={`/settings/staff?returnTo=${encodeURIComponent(returnToPath)}`} onClick={onMasterEditNavigate} className="text-muted-foreground hover:underline hover:text-primary">
                             担当者を追加・編集
                         </Link>
                     </div>
@@ -99,6 +97,6 @@ export function BasicInfoSection({
                     onMasterEditNavigate={onMasterEditNavigate}
                 />
             </div>
-        </CollapsibleSection>
+        </SectionPanel>
     )
 }

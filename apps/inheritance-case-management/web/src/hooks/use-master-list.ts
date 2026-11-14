@@ -166,7 +166,8 @@ export function useMasterList<T extends MasterListItem, C, U>(
 
             router.refresh()
             if (returnTo) {
-                router.push(`${returnTo}?saved=${cfg.savedParam}`)
+                const separator = returnTo.includes("?") ? "&" : "?"
+                router.push(`${returnTo}${separator}saved=${cfg.savedParam}`)
             } else {
                 toast.success("変更を保存しました")
             }

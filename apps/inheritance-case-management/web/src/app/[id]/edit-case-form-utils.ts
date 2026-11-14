@@ -1,14 +1,14 @@
 import type { InheritanceCase } from "@/types/shared"
 import { toExpenses, toHeirInputs, toProgressSteps, toRelatedPartyInputs, toSpecialAdditions } from "@/lib/case-converters"
 import { COMPLETED_STATUSES } from "@/types/constants"
-
-export const SECTION_IDS = ["basicInfo", "financial", "progress", "expenses", "heirs", "relatedParties", "memo", "auditLog"] as const
+import { DEFAULT_CASE_DETAIL_TAB, getCaseDetailTabHref, type CaseDetailTabId } from "./case-detail-tabs"
 
 const NUMERIC_FIELDS = ["taxAmount", "feeAmount", "fiscalYear"] as const
 const FK_FIELDS = ["assigneeId", "internalReferrerId", "referrerId"] as const
 
-export function getCaseReturnPath(formData: InheritanceCase, isCreateMode: boolean): string {
-    return isCreateMode ? "/new" : `/${formData.id}`
+/** マスタ画面から戻るときの行き先。案件詳細は今見ているタブへ戻す */
+export function getCaseReturnPath(formData: InheritanceCase, isCreateMode: boolean, tab: CaseDetailTabId = DEFAULT_CASE_DETAIL_TAB): string {
+    return isCreateMode ? "/new" : getCaseDetailTabHref(formData.id, tab)
 }
 
 export function parseCaseFieldValue(name: string, value: string) {

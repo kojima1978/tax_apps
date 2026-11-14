@@ -12,7 +12,6 @@ import Link from "next/link"
 import { ProgressSummary } from "./ProgressSummary"
 import { FileText, PencilLine } from "lucide-react"
 import { isCompleted } from "@/types/constants"
-import { getCaseDetailHrefWithClosedSections } from "@/lib/case-detail-section-state"
 
 interface ColumnOptions {
     amountSort: "asc" | "desc" | null
@@ -112,7 +111,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
             const c = row.original
             return (
                 <Link
-                    href={getCaseDetailHrefWithClosedSections(c.id)}
+                    href={`/${c.id}`}
                     onClick={(event) => event.stopPropagation()}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-black/20 bg-white text-black transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label={`${c.deceasedName}様の案件を編集`}

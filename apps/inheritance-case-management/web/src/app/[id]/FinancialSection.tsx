@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/Label"
 import { useEffect, useState } from "react"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { CurrencyField } from "@/components/ui/CurrencyField"
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
+import { SectionPanel } from "@/components/ui/SectionPanel"
 import { Banknote } from "lucide-react"
 import type { InheritanceCase } from "@/types/shared"
 import { FinancialAggregationStatus } from "./FinancialAggregationStatus"
@@ -13,15 +13,13 @@ interface FinancialSectionProps {
     formData: InheritanceCase
     netRevenue: number
     estimateNetRevenue: number
-    isOpen?: boolean
-    onToggle?: () => void
     currencyChange: (field: keyof InheritanceCase) => (value: string | undefined) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
     highlightFee?: boolean
 }
 
 export function FinancialSection({
-    formData, netRevenue, estimateNetRevenue, isOpen, onToggle, currencyChange, setFormData, highlightFee,
+    formData, netRevenue, estimateNetRevenue, currencyChange, setFormData, highlightFee,
 }: FinancialSectionProps) {
     const [tab, setSelectedTab] = useState<"calculation" | "estimate" | "invoice">(highlightFee ? "invoice" : "calculation")
     useEffect(() => {
@@ -33,7 +31,7 @@ export function FinancialSection({
     const amount = tab === "estimate" ? formData.estimateAmount : formData.feeAmount
     const referral = tab === "estimate" ? formData.estimateReferralFeeAmount : formData.referralFeeAmount
     return (
-        <CollapsibleSection title="金額情報" icon={Banknote} isOpen={isOpen} onToggle={onToggle} compact>
+        <SectionPanel title="金額情報" icon={Banknote} compact>
             <div className="max-w-3xl">
             <dl className="mb-3 grid grid-cols-1 gap-2 rounded-lg bg-blue-50 p-3 sm:grid-cols-3" aria-label="主要な金額">
                 {[{ label: tab === "estimate" ? "見積額（税抜）" : "報酬額（税抜）", value: amount }, { label: "紹介料", value: referral }, { label: "手取り", value: tab === "estimate" ? estimateNetRevenue : netRevenue }].map(item => <div key={item.label} className="flex items-center justify-between gap-3 sm:block"><dt className="text-xs text-slate-600">{item.label}</dt><dd className="text-right text-lg font-bold tabular-nums text-blue-900">{formatCurrency(item.value || 0)}</dd></div>)}
@@ -96,6 +94,6 @@ export function FinancialSection({
             </div>}
             <div className="mt-3"><FinancialAggregationStatus formData={formData} /></div>
             </div>
-        </CollapsibleSection>
+        </SectionPanel>
     )
 }

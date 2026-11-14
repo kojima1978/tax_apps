@@ -6,7 +6,6 @@ import type { CaseListItem } from "@/types/shared"
 import { calcBestGrossAmount } from "@/lib/case-amount-utils"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
-import { getCaseDetailHrefWithClosedSections } from "@/lib/case-detail-section-state"
 import { isCompleted, isHandlingEnded } from "@/types/constants"
 
 interface CaseMobileListProps {
@@ -38,7 +37,7 @@ export function CaseMobileList({ data, selectedIds, onToggleSelected, visibleCol
                             <input type="checkbox" aria-label={`${caseItem.deceasedName}様の案件を選択`} checked={selectedIds.has(caseItem.id)} onChange={() => onToggleSelected(caseItem.id)} className="h-5 w-5 accent-blue-700" />
                         </label>
                         <Link
-                            href={getCaseDetailHrefWithClosedSections(caseItem.id)}
+                            href={`/${caseItem.id}`}
                             aria-label={`${caseItem.deceasedName}様の案件詳細を開く`}
                             className={`block rounded-xl border bg-card p-4 pl-14 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isEnded ? "opacity-65" : ""}`}
                         >

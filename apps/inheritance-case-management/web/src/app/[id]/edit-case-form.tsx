@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { flushSync } from "react-dom"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
@@ -20,13 +20,12 @@ import { HeirListEditor } from "./HeirListEditor"
 import { RelatedPartyListEditor } from "./RelatedPartyListEditor"
 import { BasicInfoSection } from "./BasicInfoSection"
 import { FinancialSection } from "./FinancialSection"
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
+import { SectionPanel } from "@/components/ui/SectionPanel"
 import { DocumentExportModal } from "./DocumentExportModal"
 import { AuditLogSection } from "./AuditLogSection"
 import { ListChecks, Receipt, Users, Briefcase, StickyNote, FileText } from "lucide-react"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
-import { useSectionState } from "@/hooks/use-section-state"
 import {
     calculateEstimateNetRevenue,
     calculateNetRevenue,
@@ -36,7 +35,6 @@ import {
     hasInvalidExpense,
     hasInvalidSpecialAddition,
     parseCaseFieldValue,
-    SECTION_IDS,
     shouldPromptForConfirmedFee,
 } from "./edit-case-form-utils"
 import { useEditCaseMasters } from "./use-edit-case-masters"
@@ -46,33 +44,23 @@ import {
     getCaseFormDraftKey,
     saveCaseFormDraft,
 } from "./case-form-draft"
-import { shouldCloseCaseDetailSections } from "@/lib/case-detail-section-state"
-import { CaseSectionNavigation, type CaseSectionNavigationItem } from "./CaseSectionNavigation"
 import { CaseDetailHeader } from "./CaseDetailHeader"
 import { CaseWorkspaceSummary } from "./CaseWorkspaceSummary"
 import { CaseBrowseNavigation } from "./CaseBrowseNavigation"
 import { getCaseListReturnHref, readCaseListNavigation, saveCaseListNavigation } from "@/lib/case-list-navigation"
-import { getChangedCaseSections, type MissingCaseInput } from "./case-workspace-utils"
-
-const CLOSED_SECTION_DEFAULTS = Object.fromEntries(
-    SECTION_IDS.map((id) => [id, false]),
-) as Record<string, boolean>
-
-const CREATE_SECTION_DEFAULTS = {
-    ...CLOSED_SECTION_DEFAULTS,
-    basicInfo: true,
-}
-
-const CASE_SECTION_NAVIGATION_ITEMS = [
-    { id: "case-basic-info", label: "基本情報", sectionKey: "basicInfo" },
-    { id: "case-progress", label: "進捗管理", sectionKey: "progress" },
-    { id: "case-financial", label: "金額情報", sectionKey: "financial" },
-    { id: "case-expenses", label: "立替金", sectionKey: "expenses" },
-    { id: "case-heirs", label: "相続人", sectionKey: "heirs" },
-    { id: "case-related-parties", label: "関係者", sectionKey: "relatedParties" },
-    { id: "case-memo", label: "メモ", sectionKey: "memo" },
-    { id: "case-audit-log", label: "変更履歴", sectionKey: "auditLog" },
-] as const satisfies readonly CaseSectionNavigationItem[]
+import { getChangedCaseSections, getMissingCaseInputs, type MissingCaseInput } from "./case-workspace-utils"
+import {
+    buildCaseDetailTabUrl,
+    CASE_DETAIL_TAB_PARAM,
+    CASE_SECTION_ANCHORS,
+    getAvailableCaseDetailTabs,
+    getCaseDetailTabStatuses,
+    getTabForSectionAnchor,
+    getTabForSectionKey,
+    resolveCaseDetailTab,
+    type CaseDetailTabId,
+} from "./case-detail-tabs"
+import { CaseTabNavigation, getCaseTabButtonId, getCaseTabPanelId } from "./CaseTabNavigation"
 
 export function EditCaseForm({ initialData, isCreateMode = false }: { initialData: InheritanceCase, isCreateMode?: boolean }) {
     const router = useRouter()
@@ -85,17 +73,46 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     )
     const { isDirty, resetBaseline, baselineData } = useUnsavedChanges(formData, initialData)
     const changedSections = useMemo(() => getChangedCaseSections(formData, baselineData), [formData, baselineData])
-    const sections = useSectionState(
-        [...SECTION_IDS],
-        isCreateMode ? CREATE_SECTION_DEFAULTS : CLOSED_SECTION_DEFAULTS,
-        {
-            persist: !isCreateMode,
-            getInitialStates: () => {
-                if (isCreateMode || !shouldCloseCaseDetailSections(searchParams)) return undefined
-                return CLOSED_SECTION_DEFAULTS
-            },
-        },
+    const missingInputs = useMemo(() => getMissingCaseInputs(formData), [formData])
+    const tabs = useMemo(() => getAvailableCaseDetailTabs(isCreateMode), [isCreateMode])
+    const tabStatuses = useMemo(
+        () => getCaseDetailTabStatuses(formData, changedSections, missingInputs),
+        [formData, changedSections, missingInputs],
     )
+    // タブは URL に入れる（再読込・貼り付け・戻る／進むで同じタブが開く）。
+    // 切り替えるのは表示だけで、フォームの状態は1つのまま ── 隠れているタブの入力も保存・検証される。
+    // 旧リンク（#case-progress など）はその区分を含むタブで開く。最初の描画で決めるので、
+    // 開いてから切り替わるちらつきが無い（スクロールは下の useEffect）
+    const [activeTab, setActiveTab] = useState<CaseDetailTabId>(() => {
+        const anchorTab = typeof window === "undefined" ? null : getTabForSectionAnchor(window.location.hash)
+        if (anchorTab && tabs.some(tab => tab.id === anchorTab)) return anchorTab
+        return resolveCaseDetailTab(searchParams.get(CASE_DETAIL_TAB_PARAM), tabs)
+    })
+    const selectTab = useCallback((next: CaseDetailTabId, options?: { replaceHistory?: boolean }) => {
+        setActiveTab(next)
+        if (typeof window === "undefined") return
+        const url = buildCaseDetailTabUrl(window.location.pathname, next)
+        if (options?.replaceHistory) window.history.replaceState(null, "", url)
+        else window.history.pushState(null, "", url)
+    }, [])
+
+    useEffect(() => {
+        const syncFromUrl = () => {
+            const param = new URLSearchParams(window.location.search).get(CASE_DETAIL_TAB_PARAM)
+            setActiveTab(resolveCaseDetailTab(param, tabs))
+        }
+        window.addEventListener("popstate", syncFromUrl)
+        return () => window.removeEventListener("popstate", syncFromUrl)
+    }, [tabs])
+
+    // 旧リンクで開いたときは、そのまま区分の位置までスクロールする
+    useEffect(() => {
+        const anchorTab = getTabForSectionAnchor(window.location.hash)
+        if (!anchorTab || !tabs.some(tab => tab.id === anchorTab)) return
+        document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
     const [showLeaveModal, setShowLeaveModal] = useState(false)
     const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
     const [showOtherActions, setShowOtherActions] = useState(false)
@@ -111,12 +128,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
     useEffect(() => {
         const saved = searchParams.get("saved")
-        const closeSections = shouldCloseCaseDetailSections(searchParams)
         if (saved === "assignees" || saved === "referrers") {
             toast.success(saved === "assignees" ? "担当者設定を保存しました" : "紹介者設定を保存しました")
-        }
-        if (saved === "assignees" || saved === "referrers" || closeSections) {
-            router.replace(getCaseReturnPath(formData, isCreateMode))
+            router.replace(getCaseReturnPath(formData, isCreateMode, activeTab))
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams])
@@ -130,11 +144,15 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     const currencyChange = (field: keyof InheritanceCase) => (value: string | undefined) =>
         setFormData((prev) => ({ ...prev, [field]: value ? Number(value) : 0 }))
 
+    const openFeeInput = () => {
+        selectTab(getTabForSectionKey("financial"), { replaceHistory: true })
+        window.dispatchEvent(new Event("itcm:focus-fee"))
+    }
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         if (shouldPromptForConfirmedFee(name, value, formData)) {
-            sections.open("financial")
-            window.dispatchEvent(new Event("itcm:focus-fee"))
+            openFeeInput()
         }
         setFormData((prev) => ({
             ...prev,
@@ -184,25 +202,30 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         }
     }
 
+    /** 保存できない入力は、その欄があるタブへ切り替えてから知らせる */
+    const focusInvalidInput = (sectionKey: string, focus?: () => void) => {
+        flushSync(() => selectTab(getTabForSectionKey(sectionKey), { replaceHistory: true }))
+        focus?.()
+    }
+
     const handleSave = async (): Promise<boolean> => {
         if (!formData.deceasedName || formData.deceasedName.trim() === "") {
             toast.warning("被相続人氏名を入力してください")
-            sections.open("basicInfo")
-            requestAnimationFrame(() => document.getElementById("deceasedName")?.focus())
+            focusInvalidInput("basicInfo", () => document.getElementById("deceasedName")?.focus())
             return false
         }
 
         if (hasInvalidSpecialAddition(formData)) {
             toast.warning("特別業務報酬額の内容を入力してください")
-            sections.open("financial")
+            focusInvalidInput("financial")
             return false
         }
 
         if (hasInvalidExpense(formData)) {
             toast.warning("立替金の内容を入力してください")
-            sections.open("expenses")
-            requestAnimationFrame(() => {
-                document.querySelector<HTMLElement>('[aria-label="立替金の内容"]')?.focus()
+            focusInvalidInput("expenses", () => {
+                const input = document.querySelector('[aria-label="立替金の内容"]')
+                if (input instanceof HTMLElement) input.focus()
             })
             return false
         }
@@ -237,37 +260,37 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         else performNavigation(href)
     }
 
-    const returnToPath = getCaseReturnPath(formData, isCreateMode)
+    const returnToPath = getCaseReturnPath(formData, isCreateMode, activeTab)
     const needsConfirmedFee = getNeedsConfirmedFee(formData)
 
-    const netRevenue = useMemo(() =>
-        calculateNetRevenue(formData),
-        [formData]
-    )
-
+    const netRevenue = useMemo(() => calculateNetRevenue(formData), [formData])
     const estimateNetRevenue = useMemo(() => calculateEstimateNetRevenue(formData), [formData])
-    const caseSectionNavigationItems = useMemo(
-        () => formData.progress
-            ? CASE_SECTION_NAVIGATION_ITEMS
-            : CASE_SECTION_NAVIGATION_ITEMS.filter((item) => item.sectionKey !== "progress"),
-        [formData.progress],
-    )
 
+    /** 入力チェックの一覧から、その欄があるタブへ切り替えて欄まで移動する */
     const navigateToMissingInput = (item: MissingCaseInput) => {
         flushSync(() => {
-            sections.open(item.sectionKey)
+            selectTab(getTabForSectionKey(item.sectionKey))
             if (item.sectionKey === "financial") window.dispatchEvent(new Event("itcm:focus-fee"))
         })
-        window.requestAnimationFrame(() => {
-            const section = document.getElementById(item.targetId)
-            section?.scrollIntoView({ block: "start" })
-            if (item.field) section?.querySelector<HTMLElement>(`[id="${item.field}"], [name="${item.field}"]`)?.focus({ preventScroll: true })
-        })
+        const section = document.getElementById(item.targetId)
+        section?.scrollIntoView({ block: "start" })
+        if (item.field) {
+            const field = section?.querySelector(`[id="${item.field}"], [name="${item.field}"]`)
+            if (field instanceof HTMLElement) field.focus({ preventScroll: true })
+        }
     }
+
+    const tabPanelProps = (tab: CaseDetailTabId) => ({
+        id: getCaseTabPanelId(tab),
+        role: "tabpanel",
+        "aria-labelledby": getCaseTabButtonId(tab),
+        hidden: activeTab !== tab,
+    })
 
     return (
         <div className="case-detail-readable space-y-3 text-sm" onClickCapture={event => {
-            const anchor = (event.target as HTMLElement).closest("a")
+            const target = event.target
+            const anchor = target instanceof HTMLElement ? target.closest("a") : null
             if (!anchor || !isDirty) return
             const url = new URL(anchor.href)
             if (url.origin !== location.origin || !url.pathname.startsWith("/itcm")) return
@@ -278,130 +301,126 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
         }}>
             {!isCreateMode && (
                 <>
-                    <CaseBrowseNavigation id={formData.id} disabled={isSaving} onNavigate={navigate} />
-                    <CaseDetailHeader
-                        formData={formData}
-                        allOpen={sections.allOpen}
-                        onToggleAll={sections.toggleAll}
-                    />
-                    <CaseSectionNavigation
-                        items={caseSectionNavigationItems}
-                        onOpenSection={sections.open}
-                        changedSections={changedSections}
-                    />
+                    <CaseBrowseNavigation id={formData.id} tab={activeTab} disabled={isSaving} onNavigate={navigate} />
+                    <CaseDetailHeader formData={formData} />
                 </>
             )}
 
+            <CaseTabNavigation tabs={tabs} activeTab={activeTab} statuses={tabStatuses} onSelect={selectTab} />
+
             <CaseWorkspaceSummary data={formData} savedName={baselineData.deceasedName} isCreateMode={isCreateMode} onNavigate={navigateToMissingInput} />
 
-            <div id="case-basic-info" className="scroll-mt-28">
-                <BasicInfoSection
-                    formData={formData}
-                    assignees={assignees}
-                    referrers={referrers}
-                    returnToPath={returnToPath}
-                    isOpen={sections.isOpen("basicInfo")}
-                    onToggle={() => sections.toggle("basicInfo")}
-                    handleChange={handleChange}
-                    setFormData={setFormData}
-                    onMasterEditNavigate={preserveDraftBeforeMasterNavigation}
-                />
-                {isCreateMode && <CaseDuplicateCheck deceasedName={formData.deceasedName} deceasedNameKana={formData.deceasedNameKana} dateOfDeath={formData.dateOfDeath} />}
-            </div>
-
-            {formData.progress && (
-                <div id="case-progress" className="scroll-mt-28">
-                    <CollapsibleSection title="進捗管理" icon={ListChecks} isOpen={sections.isOpen("progress")} onToggle={() => sections.toggle("progress")} badge={formData.status} compact>
-                        <ProgressEditor
-                            progress={toProgressSteps(formData.progress)}
-                            onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
-                            formData={formData}
-                            isCreateMode={isCreateMode}
-                            handleChange={handleChange}
-                            setFormData={setFormData}
-                            onNeedsConfirmedFee={() => { sections.open("financial"); window.dispatchEvent(new Event("itcm:focus-fee")) }}
-                        />
-                    </CollapsibleSection>
+            <div {...tabPanelProps("basic")} className="space-y-3">
+                <div id={CASE_SECTION_ANCHORS.basicInfo} className="scroll-mt-28">
+                    <BasicInfoSection
+                        formData={formData}
+                        assignees={assignees}
+                        referrers={referrers}
+                        returnToPath={returnToPath}
+                        handleChange={handleChange}
+                        setFormData={setFormData}
+                        onMasterEditNavigate={preserveDraftBeforeMasterNavigation}
+                    />
+                    {isCreateMode && <CaseDuplicateCheck deceasedName={formData.deceasedName} deceasedNameKana={formData.deceasedNameKana} dateOfDeath={formData.dateOfDeath} />}
                 </div>
-            )}
 
-            <div id="case-financial" className="scroll-mt-28">
-                <FinancialSection
-                    formData={formData}
-                    netRevenue={netRevenue}
-                    estimateNetRevenue={estimateNetRevenue}
-                    isOpen={sections.isOpen("financial")}
-                    onToggle={() => sections.toggle("financial")}
-                    currencyChange={currencyChange}
-                    setFormData={setFormData}
-                    highlightFee={needsConfirmedFee}
-                />
+                {formData.progress && (
+                    <div id={CASE_SECTION_ANCHORS.progress} className="scroll-mt-28">
+                        <SectionPanel title="進捗管理" icon={ListChecks} badge={formData.status} compact>
+                            <ProgressEditor
+                                progress={toProgressSteps(formData.progress)}
+                                onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
+                                formData={formData}
+                                isCreateMode={isCreateMode}
+                                handleChange={handleChange}
+                                setFormData={setFormData}
+                                onNeedsConfirmedFee={openFeeInput}
+                            />
+                        </SectionPanel>
+                    </div>
+                )}
+
+                <div id={CASE_SECTION_ANCHORS.memo} className="scroll-mt-28">
+                    <SectionPanel title="メモ" icon={StickyNote} compact>
+                        <textarea
+                            value={formData.memo || ""}
+                            onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
+                            placeholder="自由にメモを記載できます"
+                            rows={4}
+                            className="w-full min-h-[64px] resize-y rounded-md border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                    </SectionPanel>
+                </div>
             </div>
 
-            <div id="case-expenses" className="scroll-mt-28">
-                <CollapsibleSection title="立替金" icon={Receipt} isOpen={sections.isOpen("expenses")} onToggle={() => sections.toggle("expenses")} badge={`${(formData.expenses || []).length}件`} compact>
-                    <ExpenseEditor
-                        expenses={toExpenses(formData.expenses || [])}
-                        deceasedName={formData.deceasedName}
-                        heirs={formData.heirs || []}
-                        hasUnsavedChanges={isDirty || isCreateMode}
-                        onChange={(expenses) => setFormData(prev => ({ ...prev, expenses: toExpenseItems(expenses) }))}
+            <div {...tabPanelProps("money")} className="space-y-3">
+                <div id={CASE_SECTION_ANCHORS.financial} className="scroll-mt-28">
+                    <FinancialSection
+                        formData={formData}
+                        netRevenue={netRevenue}
+                        estimateNetRevenue={estimateNetRevenue}
+                        currencyChange={currencyChange}
+                        setFormData={setFormData}
+                        highlightFee={needsConfirmedFee}
                     />
-                </CollapsibleSection>
+                </div>
+
+                <div id={CASE_SECTION_ANCHORS.expenses} className="scroll-mt-28">
+                    <SectionPanel title="立替金" icon={Receipt} badge={`${(formData.expenses || []).length}件`} compact>
+                        <ExpenseEditor
+                            expenses={toExpenses(formData.expenses || [])}
+                            deceasedName={formData.deceasedName}
+                            heirs={formData.heirs || []}
+                            hasUnsavedChanges={isDirty || isCreateMode}
+                            onChange={(expenses) => setFormData(prev => ({ ...prev, expenses: toExpenseItems(expenses) }))}
+                        />
+                    </SectionPanel>
+                </div>
             </div>
 
-            <div id="case-heirs" className="scroll-mt-28">
-                <CollapsibleSection title="相続人" icon={Users} isOpen={sections.isOpen("heirs")} onToggle={() => sections.toggle("heirs")} badge={`${(formData.heirs || []).length}件`} compact>
-                    <HeirListEditor
-                        heirs={formData.heirs || []}
-                        persons={heirPersons}
-                        dateOfDeath={formData.dateOfDeath}
-                        deceasedName={formData.deceasedName}
-                        onChange={(heirs) => setFormData(prev => ({ ...prev, heirs }))}
-                        onPersonsChange={setHeirPersons}
-                    />
-                </CollapsibleSection>
-            </div>
+            <div {...tabPanelProps("people")} className="space-y-3">
+                <div id={CASE_SECTION_ANCHORS.heirs} className="scroll-mt-28">
+                    <SectionPanel title="相続人" icon={Users} badge={`${(formData.heirs || []).length}人`} compact>
+                        <HeirListEditor
+                            heirs={formData.heirs || []}
+                            persons={heirPersons}
+                            dateOfDeath={formData.dateOfDeath}
+                            deceasedName={formData.deceasedName}
+                            onChange={(heirs) => setFormData(prev => ({ ...prev, heirs }))}
+                            onPersonsChange={setHeirPersons}
+                        />
+                    </SectionPanel>
+                </div>
 
-            <div id="case-related-parties" className="scroll-mt-28">
-                <CollapsibleSection title="関係者" icon={Briefcase} isOpen={sections.isOpen("relatedParties")} onToggle={() => sections.toggle("relatedParties")} badge={`${(formData.relatedParties || []).length}件`} compact>
-                    <RelatedPartyListEditor
-                        parties={formData.relatedParties || []}
-                        persons={relatedPartyPersons}
-                        onChange={(relatedParties) => setFormData(prev => ({ ...prev, relatedParties }))}
-                        onPersonsChange={setRelatedPartyPersons}
-                    />
-                </CollapsibleSection>
-            </div>
-
-            <div id="case-memo" className="scroll-mt-28">
-                <CollapsibleSection title="メモ" icon={StickyNote} isOpen={sections.isOpen("memo")} onToggle={() => sections.toggle("memo")} compact>
-                    <textarea
-                        value={formData.memo || ""}
-                        onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
-                        placeholder="自由にメモを記載できます"
-                        rows={4}
-                        className="w-full min-h-[64px] resize-y rounded-md border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                </CollapsibleSection>
+                <div id={CASE_SECTION_ANCHORS.relatedParties} className="scroll-mt-28">
+                    <SectionPanel title="関係者" icon={Briefcase} badge={`${(formData.relatedParties || []).length}人`} compact>
+                        <RelatedPartyListEditor
+                            parties={formData.relatedParties || []}
+                            persons={relatedPartyPersons}
+                            onChange={(relatedParties) => setFormData(prev => ({ ...prev, relatedParties }))}
+                            onPersonsChange={setRelatedPartyPersons}
+                        />
+                    </SectionPanel>
+                </div>
             </div>
 
             {!isCreateMode && (
-                <div id="case-audit-log" className="scroll-mt-28">
-                    <AuditLogSection
-                        caseId={formData.id}
-                        assignees={assignees}
-                        referrers={referrers}
-                        isOpen={sections.isOpen("auditLog")}
-                        onToggle={() => sections.toggle("auditLog")}
-                        refreshKey={auditRefreshKey}
-                    />
+                <div {...tabPanelProps("history")} className="space-y-3">
+                    <div id={CASE_SECTION_ANCHORS.auditLog} className="scroll-mt-28">
+                        <AuditLogSection
+                            caseId={formData.id}
+                            assignees={assignees}
+                            referrers={referrers}
+                            isActive={activeTab === "history"}
+                            refreshKey={auditRefreshKey}
+                        />
+                    </div>
                 </div>
             )}
 
             <StickyActionBar className="flex-wrap items-center gap-2 !p-3">
                 <span role="status" className={`mr-auto w-full text-xs sm:w-auto ${saveFailed || isDirty ? "text-amber-800" : "text-muted-foreground"}`}>
-                    {isSaving ? "保存中…" : saveFailed ? "保存に失敗しました（未保存）" : isDirty ? `未保存 · ${changedSections.length}セクションに変更` : isCreateMode ? "未登録" : lastSavedAt ? `保存済み · ${lastSavedAt}` : "保存済み"}
+                    {isSaving ? "保存中…" : saveFailed ? "保存に失敗しました（未保存）" : isDirty ? `未保存 · ${changedSections.length}区分に変更` : isCreateMode ? "未登録" : lastSavedAt ? `保存済み · ${lastSavedAt}` : "保存済み"}
                 </span>
                 <Button
                     onClick={() => navigate(getCaseListReturnHref(formData.id))}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection"
+import { SectionPanel } from "@/components/ui/SectionPanel"
 import { ClipboardList } from "lucide-react"
 import { getCaseAuditLogs } from "@/lib/api/cases"
 import { formatWareki } from "@/lib/japanese-era"
@@ -86,15 +86,15 @@ interface AuditLogSectionProps {
     caseId: number
     assignees: Assignee[]
     referrers: Referrer[]
-    isOpen?: boolean
-    onToggle?: () => void
+    /** 変更履歴のタブが選ばれているか（選ばれたときに1度だけ読み込む） */
+    isActive?: boolean
     refreshKey?: number
 }
 
-export function AuditLogSection({ caseId, assignees, referrers, isOpen, onToggle, refreshKey }: AuditLogSectionProps) {
+export function AuditLogSection({ caseId, assignees, referrers, isActive, refreshKey }: AuditLogSectionProps) {
     const [logs, setLogs] = useState<AuditLogEntry[]>([])
     const [hasLoaded, setHasLoaded] = useState(false)
-    const isLoading = !!isOpen && !hasLoaded
+    const isLoading = !!isActive && !hasLoaded
 
     const masters = useMemo(() => ({
         assigneeNames: new Map(assignees.map((a) => [a.id, a.name])),
@@ -102,14 +102,14 @@ export function AuditLogSection({ caseId, assignees, referrers, isOpen, onToggle
     }), [assignees, referrers])
 
     useEffect(() => {
-        if (!isOpen || hasLoaded) return
+        if (!isActive || hasLoaded) return
         let cancelled = false
         getCaseAuditLogs(caseId)
             .then((data) => { if (!cancelled) setLogs(data) })
             .catch(console.error)
             .finally(() => { if (!cancelled) setHasLoaded(true) })
         return () => { cancelled = true }
-    }, [isOpen, caseId, hasLoaded])
+    }, [isActive, caseId, hasLoaded])
 
     useEffect(() => {
         if (refreshKey && hasLoaded) {
@@ -118,7 +118,7 @@ export function AuditLogSection({ caseId, assignees, referrers, isOpen, onToggle
     }, [refreshKey, caseId, hasLoaded])
 
     return (
-        <CollapsibleSection title="変更履歴" icon={ClipboardList} isOpen={isOpen} onToggle={onToggle} badge={hasLoaded ? `${logs.length}件` : undefined} compact>
+        <SectionPanel title="変更履歴" icon={ClipboardList} badge={hasLoaded ? `${logs.length}件` : undefined} compact>
             {isLoading ? (
                 <div className="text-sm text-muted-foreground py-4 text-center">読み込み中...</div>
             ) : logs.length === 0 ? (
@@ -166,6 +166,6 @@ export function AuditLogSection({ caseId, assignees, referrers, isOpen, onToggle
                     })}
                 </div>
             )}
-        </CollapsibleSection>
+        </SectionPanel>
     )
 }
