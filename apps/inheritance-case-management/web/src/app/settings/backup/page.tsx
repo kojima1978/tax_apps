@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useRef, Suspense, type DragEvent, type ChangeEvent } from "react"
-import Link from "next/link"
-import { Download, Upload, AlertTriangle, ChevronRight } from "lucide-react"
+import { Download, Upload, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { BACKUP_TABLES, backupDataSchema, getBackupCountsTotal, getBackupDataTotal, type BackupData } from "@/types/backup"
 import { exportBackup, restoreBackup } from "@/lib/api/backup"
@@ -89,13 +88,6 @@ function BackupContent() {
 
   return (
     <div className="container mx-auto py-10 max-w-2xl px-4">
-      {/* Breadcrumb */}
-      <nav aria-label="パンくず" className="flex items-center gap-1 text-sm text-muted-foreground mb-6">
-        <Link href="/settings" className="hover:text-foreground transition-colors">設定</Link>
-        <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        <span aria-current="page" className="text-foreground font-medium">バックアップ / リストア</span>
-      </nav>
-
       <h1 className="text-xl font-bold mb-8">バックアップ / リストア</h1>
 
       {/* Export Section */}

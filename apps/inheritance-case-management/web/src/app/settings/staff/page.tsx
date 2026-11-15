@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { MasterBreadcrumb } from "@/components/master-list/MasterBreadcrumb"
+import { MasterReturnLink } from "@/components/master-list/MasterReturnLink"
 import { MasterLoadError } from "@/components/master-list/MasterLoadError"
 import { parseError } from "@/hooks/use-error-handler"
 import { useToast } from "@/components/ui/Toast"
@@ -101,7 +101,7 @@ function StaffContent() {
 
     return (
         <div className="container mx-auto py-10 max-w-3xl px-4">
-            <MasterBreadcrumb returnTo={returnTo} title="担当者管理" />
+            <MasterReturnLink returnTo={returnTo} />
 
             <div className="flex items-center gap-3 mb-6">
                 <div className="p-2.5 rounded-lg bg-white text-black border border-black/10">

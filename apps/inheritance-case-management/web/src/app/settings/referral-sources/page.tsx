@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Network } from "lucide-react"
-import { MasterBreadcrumb } from "@/components/master-list/MasterBreadcrumb"
+import { MasterReturnLink } from "@/components/master-list/MasterReturnLink"
 import { MasterLoadError } from "@/components/master-list/MasterLoadError"
 import { parseError } from "@/hooks/use-error-handler"
 import { useToast } from "@/components/ui/Toast"
@@ -224,7 +224,7 @@ function ReferralSourcesContent() {
 
     return (
         <div className="container mx-auto py-10 max-w-4xl px-4">
-            <MasterBreadcrumb returnTo={returnTo} title="紹介元管理" />
+            <MasterReturnLink returnTo={returnTo} />
 
             <div className="flex items-center gap-3 mb-6">
                 <div className="p-2.5 rounded-lg bg-white text-black border border-black/10">

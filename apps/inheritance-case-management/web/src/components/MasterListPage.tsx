@@ -5,7 +5,7 @@ import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Label } from "@/components/ui/Label"
 import { StickyActionBar } from "@/components/ui/StickyActionBar"
-import { MasterBreadcrumb } from "@/components/master-list/MasterBreadcrumb"
+import { MasterReturnLink } from "@/components/master-list/MasterReturnLink"
 import { MasterListTable } from "@/components/master-list/MasterListTable"
 import { MasterLoadError } from "@/components/master-list/MasterLoadError"
 import { MasterSearchControl } from "@/components/master-list/MasterSearchControl"
@@ -157,7 +157,7 @@ export function MasterListPage<T extends MasterListItem>({
 
     return (
         <div className="container mx-auto py-10 max-w-[1180px] relative pb-24 px-4">
-            <MasterBreadcrumb returnTo={returnTo} title={title} />
+            <MasterReturnLink returnTo={returnTo} />
 
             <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1">

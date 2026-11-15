@@ -396,6 +396,10 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
         summary: "マスタの管理と、バックアップ・リストア",
         blocks: [
             {
+                kind: "paragraph",
+                text: "設定の中は、画面の上に並ぶタブ（設定トップ・担当者・紹介元・相続人・関係者・バックアップ）で切り替えます。",
+            },
+            {
                 kind: "table",
                 headers: ["項目", "内容"],
                 rows: [
