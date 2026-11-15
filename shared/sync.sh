@@ -48,6 +48,11 @@ TARGETS=(
   staff-retirement:inheritance-tax-docs:
   staff-retirement:retirement-tax-calc:
   staff-retirement:stock-valuation-form:
+  # 氏名・フリガナの空白の揃え（姓と名の間は全角スペース1つ）。保存する側が全員同じ規則を通す
+  person-name:inheritance-case-management/web:test
+  person-name:private-banking:
+  person-name:inheritance-tax-docs::server/shared
+  person-name:staff-directory::server/shared
 )
 
 check=0

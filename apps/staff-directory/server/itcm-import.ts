@@ -1,4 +1,6 @@
 import type Database from 'better-sqlite3';
+// itcm の名前は「姓 名」か姓だけ。割る規則は shared/person-name に1つだけ置く
+import { splitPersonName } from './shared/person-name/personName.js';
 
 // 案件管理（itcm）の担当者・部署を台帳へ取り込む。
 //
@@ -43,13 +45,6 @@ export type ImportPlan = {
 
 export class NoCompanyError extends Error {}
 
-// itcm の名前は「姓 名」か姓だけ。最初の空白で分ける（移行と同じ規則）
-export function splitName(name: string): { familyName: string; givenName: string } {
-  const t = name.trim();
-  const i = t.search(/\s/); // 全角の空白も含む
-  if (i < 0) return { familyName: t, givenName: '' };
-  return { familyName: t.slice(0, i), givenName: t.slice(i + 1).replace(/\s+/g, '') };
-}
 
 function linkedId(db: Database.Database, entity: 'staff' | 'department', externalId: number): number | null {
   const row = db
@@ -103,7 +98,7 @@ export function planItcmImport(
       employeeNo = null;
     }
     if (employeeNo !== null) takenInBatch.add(employeeNo);
-    const { familyName, givenName } = splitName(source.name);
+    const { familyName, givenName } = splitPersonName(source.name);
     if ((nameCount.get(familyName, givenName) as { n: number }).n > 0) {
       notes.push('台帳に同じ名前の人がいます（別人として登録）');
     }
@@ -152,7 +147,7 @@ export function applyItcmImport(db: Database.Database, plan: ImportPlan): Import
     for (const p of plan.staff) {
       if (p.action !== 'create') continue;
       const deptId = p.source.departmentId === null ? null : (deptMap.get(p.source.departmentId) ?? null);
-      const { familyName, givenName } = splitName(p.source.name);
+      const { familyName, givenName } = splitPersonName(p.source.name);
       const localId = Number(insertStaff.run(familyName, givenName, p.retiredOn).lastInsertRowid);
       insertAffiliation.run(localId, companyId, deptId, p.employeeNo);
       insertLink.run(ITCM_APP, 'staff', String(p.source.id), localId);

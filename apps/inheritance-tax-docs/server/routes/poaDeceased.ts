@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { getDb, writeAuditLog, type PoaDeceasedRow, type PoaPrincipalRow } from '../db.js';
 import { parseBirthDate } from '../../src/utils/powerOfAttorney/wareki.js';
 import { principalResponse } from './poaPrincipals.js';
-import { actorFrom, auditMask, collator, deceasedLinksByPrincipal, heirsByDeceased, isRecord, normalizeForSearch } from './poaShared.js';
+import { actorFrom, auditMask, collator, deceasedLinksByPrincipal, heirsByDeceased, isRecord, normalizeForSearch, normalizeTextField } from './poaShared.js';
 
 /**
  * 委任状の被相続人DB。相続人（委任者DB）とは多対多でつなぐ（poa_deceased_heirs）。
@@ -21,7 +21,7 @@ const parseFields = (body: unknown): { ok: true; value: DeceasedFields } | { ok:
   for (const key of Object.keys(LIMITS) as (keyof typeof LIMITS)[]) {
     const value = source[key] ?? '';
     if (typeof value !== 'string') return { ok: false, error: `${LABELS[key]}が不正です` };
-    const trimmed = value.trim();
+    const trimmed = normalizeTextField(key, value);
     if (trimmed.length > LIMITS[key]) return { ok: false, error: `${LABELS[key]}は${LIMITS[key]}文字以内にしてください` };
     texts[key] = trimmed;
   }

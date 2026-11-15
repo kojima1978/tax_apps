@@ -85,7 +85,7 @@ describe('委任者DB API', () => {
   it('氏名だけで登録でき、生年月日は和暦に直して持つ', async () => {
     const onlyName = await create({ name: '  架空 花子  ' });
     expect(onlyName.response.status).toBe(201);
-    expect(onlyName.body).toMatchObject({ kind: 'individual', name: '架空 花子', address: '', birthDate: '', version: 1 });
+    expect(onlyName.body).toMatchObject({ kind: 'individual', name: '架空　花子', address: '', birthDate: '', version: 1 });
 
     const full = await create({ name: '架空 太郎', nameKana: 'カクウ タロウ', address: '架空県架空市1-2-3', birthDate: '1970/3/2' });
     expect(full.body.birthDate).toBe('昭和45年3月2日');
@@ -94,6 +94,15 @@ describe('委任者DB API', () => {
     const again = await update(full.body.id, { ...full.body, birthDate: full.body.birthDate });
     expect(again.body.unchanged).toBe(true);
     expect(again.body.version).toBe(1);
+  });
+
+  it('氏名・フリガナの空白は全角スペース1つへ揃える（住所・代表者・メモは前後を落とすだけ）', async () => {
+    const half = await create({ name: '架空 花子', nameKana: 'カクウ　　ハナコ' });
+    expect(half.body).toMatchObject({ name: '架空　花子', nameKana: 'カクウ　ハナコ' });
+
+    // 法人名の英数字の隣は半角のまま。氏名欄以外は途中の空白を触らない
+    const corporate = await create({ kind: 'corporate', name: '架空  ABC  株式会社', representative: '代表取締役 架空 太郎', address: ' 架空県 架空市 1-2-3 ' });
+    expect(corporate.body).toMatchObject({ name: '架空 ABC 株式会社', representative: '代表取締役 架空 太郎', address: '架空県 架空市 1-2-3' });
   });
 
   it('氏名が無い・存在しない日付は弾く。法人は生年月日を、個人は代表者を持たない', async () => {
@@ -116,10 +125,10 @@ describe('委任者DB API', () => {
     const deceasedId = Number(db.getDb().prepare("INSERT INTO poa_deceased (name) VALUES ('架空 一郎')").run().lastInsertRowid);
     db.getDb().prepare('INSERT INTO poa_deceased_heirs (deceased_id, principal_id) VALUES (?, ?)').run(deceasedId, taro.id);
 
-    expect((await list()).body.map((p) => p.name)).toEqual(['仮名 次郎', '架空 太郎', '架空 花子']);
-    expect((await list('?q=' + encodeURIComponent('架空花子'))).body.map((p) => p.name)).toEqual(['架空 花子']);
+    expect((await list()).body.map((p) => p.name)).toEqual(['仮名　次郎', '架空　太郎', '架空　花子']);
+    expect((await list('?q=' + encodeURIComponent('架空花子'))).body.map((p) => p.name)).toEqual(['架空　花子']);
     expect((await list('?q=' + encodeURIComponent('ｶｸｳ'))).body).toHaveLength(2);
-    expect((await list('?q=' + encodeURIComponent('一郎'))).body.map((p) => p.name)).toEqual(['架空 太郎']);
+    expect((await list('?q=' + encodeURIComponent('一郎'))).body.map((p) => p.name)).toEqual(['架空　太郎']);
   });
 
   it('古い版での更新は 409 で弾き、今の内容を返す', async () => {
@@ -137,7 +146,7 @@ describe('委任者DB API', () => {
     const removed = await requestJson<{ ok: boolean }>(`/poa-principals/${created.id}`, { method: 'DELETE', headers: operatorHeaders() });
     expect(removed.body.ok).toBe(true);
     expect((await list()).body).toHaveLength(0);
-    expect((await list('?deleted=1')).body.map((p) => p.name)).toEqual(['架空 花子']);
+    expect((await list('?deleted=1')).body.map((p) => p.name)).toEqual(['架空　花子']);
 
     // ゴミ箱の中は直せないし、1人だけ引くこともできない
     expect((await update(created.id, { ...created })).response.status).toBe(404);
@@ -146,7 +155,7 @@ describe('委任者DB API', () => {
     const restored = await requestJson<PrincipalResponse>(`/poa-principals/${created.id}/restore`, { method: 'POST', headers: operatorHeaders() });
     expect(restored.body.deletedAt).toBeNull();
     expect((await list()).body).toHaveLength(1);
-    expect((await requestJson<PrincipalResponse>(`/poa-principals/${created.id}`)).body.name).toBe('架空 花子');
+    expect((await requestJson<PrincipalResponse>(`/poa-principals/${created.id}`)).body.name).toBe('架空　花子');
   });
 
   it('操作履歴に住所と生年月日の中身を残さない', async () => {

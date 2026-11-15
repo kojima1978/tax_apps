@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
+import { normalizeNameKanaForStorage, normalizePersonNameForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import {
   CASE_INCLUDE,
   CASE_LIST_SELECT,
@@ -301,7 +301,7 @@ export async function createCase(data: CreateCaseData) {
 
     const created = await tx.inheritanceCase.create({
       data: {
-        deceasedName: data.deceasedName,
+        deceasedName: normalizePersonNameForStorage(data.deceasedName ?? ''),
         deceasedNameKana,
         deceasedNameKanaNormalized,
         dateOfDeath: toDate(data.dateOfDeath),
@@ -357,6 +357,8 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
 
     const updateData: Record<string, unknown> = {};
     applyScalarUpdates(updateData, data);
+
+    if ('deceasedName' in data) updateData.deceasedName = normalizePersonNameForStorage(String(data.deceasedName ?? ''));
 
     if ('deceasedNameKana' in data) {
       normalizeDeceasedNameKana(updateData, data.deceasedNameKana);

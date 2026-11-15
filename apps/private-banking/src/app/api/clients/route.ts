@@ -5,6 +5,7 @@ import { defaultAsOfDate, isAsOfDateForFiscalYear, parseDateOnlyUtc } from "@/li
 import { CLIENT_QUALITY_LABELS, type ClientQualityIssue } from "@/lib/clients";
 import { writeActivityLog } from "@/lib/activity-log";
 import { changeHouseholdStaff } from "@/lib/staff-assignment";
+import { normalizePersonNameSpacing } from "@/shared/person-name/personName";
 
 /** 顧客一覧（ClientSummary）が必要とする列。GET・POST・PATCH で同じ形を返す。 */
 const clientSummarySelect = { id: true, clientCode: true, name: true, nameKana: true, relatedCompany: true, staffId: true, staff: { select: { name: true } } } as const;
@@ -25,8 +26,9 @@ const staffIdSchema = z.preprocess(
 ).default(null);
 
 const clientFieldsSchema = z.object({
-  name: z.string().trim().min(1, "顧客名を入力してください。").max(100),
-  nameKana: z.string().trim().max(100).optional().default(""),
+  // 氏名・フリガナの空白は保存する形へ揃える（姓と名の間は全角スペース1つ。規則は shared/person-name）
+  name: z.string().trim().min(1, "顧客名を入力してください。").max(100).transform(normalizePersonNameSpacing),
+  nameKana: z.string().trim().max(100).transform(normalizePersonNameSpacing).optional().default(""),
   clientCode: z.string().trim().min(1, "顧客コードを入力してください。").max(30).regex(/^[A-Za-z0-9_-]+$/, "顧客コードは半角英数字・ハイフン・アンダースコアで入力してください。"),
   // 担当者は台帳から選ぶ。未設定は null。
   staffId: staffIdSchema,

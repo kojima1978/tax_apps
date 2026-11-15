@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { migrateLegacyPersonAddress } from '@/lib/person-address';
 import { toDateStr } from '@/lib/prisma-includes';
-import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
+import { normalizeNameKanaForStorage, normalizePersonNameForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import type { BackupTableCounts } from '@/types/backup';
 
 type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
@@ -133,7 +133,7 @@ const TABLE_DEFS = [
         : null;
       return {
       id: c.id as number,
-      deceasedName: c.deceasedName as string,
+      deceasedName: normalizePersonNameForStorage((c.deceasedName as string) ?? ''),
       deceasedNameKana,
       deceasedNameKanaNormalized,
       dateOfDeath: toDateOnly(c.dateOfDeath as string),
@@ -186,7 +186,7 @@ const TABLE_DEFS = [
       });
       return {
         id: p.id as number,
-        name: p.name as string,
+        name: normalizePersonNameForStorage((p.name as string) ?? ''),
         nameKana,
         nameKanaNormalized,
         dateOfBirth: p.dateOfBirth ? toDateOnly(p.dateOfBirth as string) : null,
@@ -218,7 +218,7 @@ const TABLE_DEFS = [
       });
       return {
         id: p.id as number,
-        name: p.name as string,
+        name: normalizePersonNameForStorage((p.name as string) ?? ''),
         nameKana,
         nameKanaNormalized,
         profession: (p.profession as string) ?? '',

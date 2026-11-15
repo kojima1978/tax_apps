@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getDb, writeAuditLog, type PoaPrincipalRow } from '../db.js';
 import { parseBirthDate } from '../../src/utils/powerOfAttorney/wareki.js';
-import { actorFrom, auditMask, collator, deceasedLinksByPrincipal, isRecord, normalizeForSearch, type LinkedName } from './poaShared.js';
+import { actorFrom, auditMask, collator, deceasedLinksByPrincipal, isRecord, normalizeForSearch, normalizeTextField, type LinkedName } from './poaShared.js';
 
 /**
  * 委任状の委任者DB。委任状を気軽に作れることを優先し、必須は氏名（法人名）だけ。
@@ -45,7 +45,7 @@ const parseFields = (body: unknown): { ok: true; value: PrincipalFields } | { ok
   for (const key of Object.keys(LIMITS) as (keyof typeof LIMITS)[]) {
     const value = source[key] ?? '';
     if (typeof value !== 'string') return { ok: false, error: `${LABELS[key]}が不正です` };
-    const trimmed = value.trim();
+    const trimmed = normalizeTextField(key, value);
     if (trimmed.length > LIMITS[key]) return { ok: false, error: `${LABELS[key]}は${LIMITS[key]}文字以内にしてください` };
     texts[key] = trimmed;
   }

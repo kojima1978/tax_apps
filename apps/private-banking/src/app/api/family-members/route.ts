@@ -4,6 +4,7 @@ import { familyComposition } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnlyUtc } from "@/lib/snapshot-date";
 import { writeActivityLog } from "@/lib/activity-log";
+import { normalizePersonNameSpacing } from "@/shared/person-name/personName";
 
 const optionalFractionPart = z.union([z.number(), z.string()]).transform((value) => {
   if (value === "") return null;
@@ -13,8 +14,9 @@ const optionalFractionPart = z.union([z.number(), z.string()]).transform((value)
 
 const familyMemberSchema = z.object({
   id: z.number().int().positive().optional(),
-  name: z.string().trim().min(1, "氏名を入力してください。").max(100),
-  nameKana: z.string().trim().max(100).default(""),
+  // 氏名・フリガナの空白は保存する形へ揃える（姓と名の間は全角スペース1つ。規則は shared/person-name）
+  name: z.string().trim().min(1, "氏名を入力してください。").max(100).transform(normalizePersonNameSpacing),
+  nameKana: z.string().trim().max(100).transform(normalizePersonNameSpacing).default(""),
   relationship: z.enum(["SPOUSE", "CHILD", "GRANDCHILD", "PARENT", "GRANDPARENT", "SIBLING", "NIECE_NEPHEW", "OTHER"]),
   acquisitionReason: z.enum(["INHERITANCE", "BEQUEST", "GIFT", "OTHER"]),
   civilShareNumerator: optionalFractionPart.nullable(),

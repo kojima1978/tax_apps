@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import type { AffiliationInput, CompanyInput, DepartmentInput, StaffInput, StaffPersonalInput } from './normalize.js';
+import { joinPersonName } from './shared/person-name/personName.js';
 
 // API の応答の形。各アプリが読むのはこの形なので、列名を変えるときはここだけで吸収する。
 
@@ -100,7 +101,6 @@ type AffiliationRow = {
   is_primary: number;
 };
 
-const joinName = (a: string, b: string) => (b === '' ? a : `${a} ${b}`);
 
 /**
  * 略称。同じ姓の在籍者（自分を除く）がいなければ姓だけ。いれば、名の頭を1文字ずつ伸ばして
@@ -192,12 +192,12 @@ function loadStaff(db: Database.Database, where: string, params: unknown[] = [])
       givenName: r.given_name,
       familyKana: r.family_kana,
       givenKana: r.given_kana,
-      fullName: joinName(r.family_name, r.given_name),
+      fullName: joinPersonName(r.family_name, r.given_name),
       shortName,
       customShortName: r.short_name,
       autoShortName,
       name: shortName,
-      nameKana: joinName(r.family_kana, r.given_kana),
+      nameKana: joinPersonName(r.family_kana, r.given_kana),
       affiliations: affs,
       employeeNo: primary?.employeeNo ?? null,
       companyId: primary?.companyId ?? null,

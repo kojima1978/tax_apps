@@ -66,10 +66,10 @@ describe('社員', () => {
     expect(created.status).toBe(201);
     expect(created.body).toMatchObject({
       id: 1,
-      fullName: '山田 太郎',
+      fullName: '山田　太郎',
       shortName: '山田',
       name: '山田',
-      nameKana: 'ヤマダ タロウ',
+      nameKana: 'ヤマダ　タロウ',
       employeeNo: 'T001',
       companyId: 1,
       departmentId: dept,
@@ -123,7 +123,7 @@ describe('社員', () => {
     await call('POST', '/staff', staff('青木', { givenName: '花子', familyKana: 'あおき', givenKana: 'はなこ' }));
     await call('POST', '/staff', staff('青木', { givenName: '一郎', familyKana: 'あおき', givenKana: 'いちろう' }));
     const list = (await call('GET', '/staff')).body.map((s: { fullName: string }) => s.fullName);
-    expect(list).toEqual(['青木 一郎', '青木 花子', '渡辺', '未入力']);
+    expect(list).toEqual(['青木　一郎', '青木　花子', '渡辺', '未入力']);
   });
 
   it('略称: 同じ姓の在籍者がいるときだけ、区別がつくところまで名の頭を足す', async () => {
@@ -139,13 +139,13 @@ describe('社員', () => {
     const all = (await call('GET', '/staff?status=all')).body as { fullName: string; shortName: string }[];
     const short = Object.fromEntries(all.map((s) => [s.fullName, s.shortName]));
     expect(short).toEqual({
-      '山田 太郎': '山田太郎',
-      '山田 太一': '山田太一',
-      '山田 花子': '山田花',
-      '鈴木 次郎': '鈴木',
-      '鈴木 三郎': '鈴木三',
-      '佐藤 四郎': '佐藤',
-      '佐藤 五郎': '佐藤',
+      '山田　太郎': '山田太郎',
+      '山田　太一': '山田太一',
+      '山田　花子': '山田花',
+      '鈴木　次郎': '鈴木',
+      '鈴木　三郎': '鈴木三',
+      '佐藤　四郎': '佐藤',
+      '佐藤　五郎': '佐藤',
     });
   });
 

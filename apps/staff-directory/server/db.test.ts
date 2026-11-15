@@ -150,7 +150,7 @@ describe('版1からの移行（住所・生年月日）', () => {
     const db = openDb(file);
     expect(db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION);
     expect(getStaff(db, 1)).toMatchObject({
-      fullName: '山田 太郎',
+      fullName: '山田　太郎',
       familyKana: 'ヤマダ',
       mobilePhone: '090-0000-0000',
       employeeNo: 'A001',

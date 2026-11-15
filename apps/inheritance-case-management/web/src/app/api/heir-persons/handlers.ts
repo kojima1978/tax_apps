@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server';
 import { createCrudRouteHandlers } from '@/lib/create-crud-route-handlers';
 import { migrateLegacyPersonAddress } from '@/lib/person-address';
 import { formatPersonDeleteBlockedMessage } from '@/lib/person-delete-message';
-import { normalizeNameKanaForStorage, normalizePersonSearchText } from '@/lib/person-search';
+import { normalizeNameKanaForStorage, normalizePersonNameForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import { prisma } from '@/lib/prisma';
 import { toDateStr } from '@/lib/prisma-includes';
 import { createHeirPersonSchema, updateHeirPersonSchema } from '@/types/validation';
 
 function mapPersonData(data: Record<string, unknown>): Record<string, unknown> {
   const next = { ...data };
+
+  if ('name' in next) next.name = normalizePersonNameForStorage(String(next.name ?? ''));
 
   if ('nameKana' in next) {
     const nameKana = normalizeNameKanaForStorage(String(next.nameKana ?? ''));

@@ -1,3 +1,5 @@
+import { normalizePersonNameSpacing } from "@/shared/person-name/personName";
+
 type SearchablePerson = {
   name?: string;
   nameKana?: string;
@@ -16,8 +18,16 @@ function hiraganaToKatakana(value: string): string {
   );
 }
 
+/**
+ * 氏名を保存する形へ。姓と名の間は全角スペース1つ（規則は shared/person-name に1つだけ置く）。
+ * 姓と名は分けて持たない ── 様式の氏名は1マスで、関係者の欄には法人名も入るため。
+ */
+export function normalizePersonNameForStorage(value: string): string {
+  return normalizePersonNameSpacing(value);
+}
+
 export function normalizeNameKanaForStorage(value: string): string {
-  return hiraganaToKatakana(value.normalize("NFKC")).replace(/\s+/g, " ").trim();
+  return normalizePersonNameSpacing(hiraganaToKatakana(value.normalize("NFKC")));
 }
 
 export function normalizePersonSearchText(value: string): string {

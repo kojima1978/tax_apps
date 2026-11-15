@@ -4,7 +4,7 @@ import {
     normalizePersonAddressParts,
     withCombinedPersonAddress,
 } from "@/lib/person-address"
-import { normalizeNameKanaForStorage } from "@/lib/person-search"
+import { normalizeNameKanaForStorage, normalizePersonNameForStorage } from "@/lib/person-search"
 
 export interface BasePersonFormState {
     name: string
@@ -37,7 +37,7 @@ export function getDisplayAddress(parts: PersonAddressInput): string {
 
 export function getBasePersonPayload(person: BasePersonFormState) {
     return {
-        name: person.name.trim(),
+        name: normalizePersonNameForStorage(person.name),
         nameKana: normalizeNameKanaForStorage(person.nameKana),
         phone: person.phone,
         postalCode: person.postalCode,

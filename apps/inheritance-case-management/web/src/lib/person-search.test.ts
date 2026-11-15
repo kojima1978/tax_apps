@@ -1,19 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import {
   normalizeNameKanaForStorage,
+  normalizePersonNameForStorage,
   normalizePersonSearchText,
   personMatchesSearch,
 } from './person-search';
 
+describe('氏名の保存用正規化', () => {
+  it('姓と名の間は全角スペース1つへ揃える', () => {
+    expect(normalizePersonNameForStorage(' 山田  太郎 ')).toBe('山田　太郎');
+    expect(normalizePersonNameForStorage('山田　　太郎')).toBe('山田　太郎');
+    expect(normalizePersonNameForStorage('山田太郎')).toBe('山田太郎');
+  });
+
+  it('法人名（関係者の氏名欄にも入る）の英数字の隣は半角のまま', () => {
+    expect(normalizePersonNameForStorage('株式会社  ABC')).toBe('株式会社 ABC');
+  });
+});
+
 describe('カナの保存用正規化', () => {
   it('ひらがな・半角カナ・全角英数を揃える', () => {
-    expect(normalizeNameKanaForStorage('やまだ たろう')).toBe('ヤマダ タロウ');
-    expect(normalizeNameKanaForStorage('ﾔﾏﾀﾞ ﾀﾛｳ')).toBe('ヤマダ タロウ');
+    expect(normalizeNameKanaForStorage('やまだ たろう')).toBe('ヤマダ　タロウ');
+    expect(normalizeNameKanaForStorage('ﾔﾏﾀﾞ ﾀﾛｳ')).toBe('ヤマダ　タロウ');
     expect(normalizeNameKanaForStorage('ＡＢＣ')).toBe('ABC');
   });
 
-  it('連続した空白は1つにし、前後は落とす（表示用なので空白自体は残す）', () => {
-    expect(normalizeNameKanaForStorage('  ヤマダ　　タロウ  ')).toBe('ヤマダ タロウ');
+  it('連続した空白は全角スペース1つにし、前後は落とす（表示用なので空白自体は残す）', () => {
+    expect(normalizeNameKanaForStorage('  ヤマダ　　タロウ  ')).toBe('ヤマダ　タロウ');
   });
 });
 

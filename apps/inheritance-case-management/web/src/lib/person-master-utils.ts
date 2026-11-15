@@ -1,5 +1,5 @@
 import { migrateLegacyPersonAddress, normalizePersonAddressParts } from "@/lib/person-address"
-import { normalizeNameKanaForStorage } from "@/lib/person-search"
+import { normalizeNameKanaForStorage, normalizePersonNameForStorage } from "@/lib/person-search"
 
 export interface PersonMasterFields {
     name?: string | null
@@ -33,7 +33,7 @@ export function createPersonMasterDraft({
     phone: string
 }): PersonMasterPayload {
     return {
-        name: name.trim(),
+        name: normalizePersonNameForStorage(name),
         nameKana: normalizeNameKanaForStorage(nameKana),
         phone: phone.trim(),
         postalCode: "",
@@ -76,7 +76,7 @@ export function getPersonMasterPayload(fields: PersonMasterFields): PersonMaster
     })
 
     return {
-        name: fields.name?.trim() || "",
+        name: normalizePersonNameForStorage(fields.name || ""),
         nameKana: normalizeNameKanaForStorage(fields.nameKana || ""),
         phone: fields.phone?.trim() || "",
         postalCode: fields.postalCode?.trim() || "",

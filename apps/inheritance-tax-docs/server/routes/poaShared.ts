@@ -1,4 +1,5 @@
 import { getDb, type PoaPrincipalRow } from '../db.js';
+import { normalizePersonNameSpacing } from '../shared/person-name/personName.js';
 
 /** 委任者DBと被相続人DBで共通の小物（同じものを2つの経路に持たせない） */
 
@@ -15,6 +16,13 @@ export const actorFrom = (req: { header(name: string): string | undefined }): st
 
 // 検索は空白と全角半角の違いを無視する（「架空 花子」と「架空花子」を同じに）
 export const normalizeForSearch = (value: string) => value.normalize('NFKC').replace(/\s/g, '').toLowerCase();
+
+/**
+ * 欄の値を保存する形へ。氏名・フリガナは姓と名の間を全角スペース1つに揃え（規則は
+ * shared/person-name）、ほかの欄は前後の空白だけ落とす。委任者DBと被相続人DBで同じ規則を通す。
+ */
+export const normalizeTextField = (key: string, value: string): string =>
+  key === 'name' || key === 'name_kana' ? normalizePersonNameSpacing(value) : value.trim();
 
 export const collator = new Intl.Collator('ja');
 
