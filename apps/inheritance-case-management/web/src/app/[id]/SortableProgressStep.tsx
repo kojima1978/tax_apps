@@ -1,6 +1,7 @@
 import { GripVertical, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { InlineCheckbox } from "@/components/ui/InlineCheckbox"
 import { shouldShowAddVisit } from "@/lib/progress-utils"
 import { cn } from "@/lib/utils"
 import { toWareki } from "@/lib/analytics-utils"
@@ -65,11 +66,10 @@ export function SortableProgressStep({
                             <GripVertical className="h-4 w-4" />
                         </button>
                         <label className="flex min-h-11 flex-1 cursor-pointer items-start gap-3 rounded-md px-1 py-1.5">
-                            <input
-                                type="checkbox"
+                            <InlineCheckbox
                                 checked={checked}
                                 onChange={onToggle}
-                                className="mt-1 h-4 w-4 rounded border-gray-300 accent-primary"
+                                className="rounded border-gray-300 accent-primary"
                                 aria-label={`${step.name}を一括日付設定の対象にする`}
                             />
                             <span className="min-w-0 flex-1">

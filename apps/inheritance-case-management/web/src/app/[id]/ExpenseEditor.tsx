@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { CurrencyField } from "@/components/ui/CurrencyField"
+import { SelectField } from "@/components/ui/SelectField"
 import { Copy, Download, GripVertical, Trash2 } from "lucide-react"
 import type { CaseHeir, Expense } from "@/types/shared"
 import { EXPENSE_DESCRIPTION_PRESETS } from "@/types/constants"
@@ -121,8 +122,9 @@ function DescriptionField({
     }
 
     return (
-        <select
+        <SelectField
             aria-label="立替金の内容"
+            wrapperClassName="min-w-0"
             value={isPreset ? value : ""}
             onChange={(e) => {
                 const v = e.target.value
@@ -133,14 +135,13 @@ function DescriptionField({
                     onChange(v)
                 }
             }}
-            className="flex h-10 w-full min-w-0 rounded-md border-2 border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:h-9"
         >
             <option value="" disabled>選択...</option>
             {EXPENSE_DESCRIPTION_PRESETS.map((opt) => (
                 <option key={opt} value={opt}>{opt}</option>
             ))}
             <option value={OTHER_VALUE}>その他（自由入力）</option>
-        </select>
+        </SelectField>
     )
 }
 
@@ -170,7 +171,7 @@ function SortableExpenseRow({
             <button
                 type="button"
                 aria-label="ドラッグして順序変更"
-                className="flex h-10 w-10 cursor-grab touch-none items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing sm:col-span-2 lg:col-span-1 lg:h-9 lg:w-6"
+                className="flex h-11 w-10 cursor-grab touch-none items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing sm:col-span-2 lg:col-span-1 lg:w-6"
                 {...attributes}
                 {...listeners}
             >
@@ -218,7 +219,7 @@ function SortableExpenseRow({
                     size="sm"
                     aria-label={`${index + 1}行目の立替金を複製`}
                     title="この行を末尾に複製"
-                    className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground lg:h-9 lg:w-9"
+                    className="h-11 w-10 p-0 text-muted-foreground hover:text-foreground lg:w-9"
                     onClick={() => onDuplicate(index)}
                 >
                     <Copy className="h-4 w-4" />
@@ -229,7 +230,7 @@ function SortableExpenseRow({
                     size="sm"
                     aria-label="この立替金を削除"
                     title="削除"
-                    className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground lg:h-9 lg:w-9"
+                    className="h-11 w-10 p-0 text-muted-foreground hover:text-foreground lg:w-9"
                     onClick={() => onDelete(index)}
                 >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -304,7 +305,7 @@ export function ExpenseEditor({ expenses, deceasedName, heirs, hasUnsavedChanges
     const total = expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
 
     return (
-        <div ref={editorRef} className="space-y-2 [&_input]:!h-10 lg:[&_input]:!h-9">
+        <div ref={editorRef} className="space-y-2">
             <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">日付・内容・金額・備考を入力</span>
                 <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 px-2.5 text-xs lg:h-9" onClick={handleAdd}>

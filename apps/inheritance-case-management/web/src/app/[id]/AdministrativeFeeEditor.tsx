@@ -9,6 +9,8 @@ import { CurrencyField } from "@/components/ui/CurrencyField"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { Modal } from "@/components/ui/Modal"
+import { SelectField } from "@/components/ui/SelectField"
+import { InlineCheckbox } from "@/components/ui/InlineCheckbox"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { getAdministrativeFeeItems } from "@/lib/api/administrative-fee-items"
 import { ADMINISTRATIVE_FEE_CATEGORIES, ADMINISTRATIVE_FEE_NOTES } from "@/lib/constants/administrative-fees"
@@ -52,7 +54,7 @@ function SortableFeeRow({
             <button
                 type="button"
                 aria-label="ドラッグして順序変更"
-                className="flex h-10 w-10 cursor-grab touch-none items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing sm:col-span-2 lg:col-span-1 lg:h-9 lg:w-6"
+                className="flex h-11 w-10 cursor-grab touch-none items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing sm:col-span-2 lg:col-span-1 lg:w-6"
                 {...attributes}
                 {...listeners}
             >
@@ -60,17 +62,17 @@ function SortableFeeRow({
             </button>
             <div className="min-w-0">
                 <span className="mb-1 block text-xs text-muted-foreground lg:hidden">手続き分類</span>
-                <select
+                <SelectField
                     aria-label={`${index + 1}行目の手続き分類`}
+                    wrapperClassName="min-w-0"
                     value={fee.category}
                     onChange={(e) => onFieldChange(index, "category", e.target.value)}
-                    className="flex h-10 w-full min-w-0 rounded-md border-2 border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:h-9"
                 >
                     <option value="">（未分類）</option>
                     {categories.map((category) => (
                         <option key={category} value={category}>{category}</option>
                     ))}
-                </select>
+                </SelectField>
             </div>
             <div className="min-w-0">
                 <span className="mb-1 block text-xs text-muted-foreground lg:hidden">手続き内容</span>
@@ -105,7 +107,7 @@ function SortableFeeRow({
             </div>
             <div className="min-w-0">
                 <span className="mb-1 block text-xs text-muted-foreground lg:hidden">小計</span>
-                <div className="flex h-10 items-center justify-end px-1 text-sm font-medium tabular-nums lg:h-9">
+                <div className="flex min-h-11 items-center justify-end px-1 text-sm font-medium tabular-nums">
                     {formatCurrency(administrativeFeeRowTotal(fee))}
                 </div>
             </div>
@@ -125,7 +127,7 @@ function SortableFeeRow({
                     size="sm"
                     aria-label={`${index + 1}行目の遺産整理業務を削除`}
                     title="削除"
-                    className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground lg:h-9 lg:w-9"
+                    className="h-11 w-10 p-0 text-muted-foreground hover:text-foreground lg:w-9"
                     onClick={() => onDelete(index)}
                 >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -178,9 +180,7 @@ function FeeItemPicker({
                             {group.items.map((item) => (
                                 <li key={item.id}>
                                     <label className="flex cursor-pointer items-start gap-2 px-2.5 py-1.5 hover:bg-muted/40">
-                                        <input
-                                            type="checkbox"
-                                            className="mt-1 h-4 w-4 shrink-0"
+                                        <InlineCheckbox
                                             checked={selectedIds.includes(item.id)}
                                             onChange={() => toggle(item.id)}
                                         />
@@ -275,7 +275,7 @@ export function AdministrativeFeeEditor({ fees, onChange, discount, onDiscountCh
     })
 
     return (
-        <div className="space-y-2 [&_input]:!h-10 lg:[&_input]:!h-9">
+        <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">料金表から選ぶと単価が入ります。件数・単価はこの画面で直せます</span>
                 <div className="flex shrink-0 gap-2">
@@ -329,9 +329,8 @@ export function AdministrativeFeeEditor({ fees, onChange, discount, onDiscountCh
 
             <div className="space-y-2 rounded-md border bg-muted/20 px-2.5 py-2">
                 <label className="flex cursor-pointer items-start gap-2 text-xs">
-                    <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-blue-700"
+                    <InlineCheckbox
+                        className="accent-blue-700"
                         checked={discount.enabled}
                         onChange={(e) => onDiscountChange({ enabled: e.target.checked, amount: null })}
                     />
