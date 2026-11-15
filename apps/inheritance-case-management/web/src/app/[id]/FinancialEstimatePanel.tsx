@@ -83,32 +83,35 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
     return (
         <div className="space-y-3 rounded-lg border bg-white p-3">
             <Label className="text-sm font-semibold">報酬計算</Label>
-            <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:flex sm:flex-wrap sm:gap-x-6">
-                {ESTIMATE_COUNT_FIELDS.map(({ key, label, suffix }) => (
-                    <div key={key} className="space-y-1">
-                        <Label htmlFor={key} className="text-xs">{label}</Label>
-                        <div className="flex items-center gap-1">
-                            <Input
-                                id={key}
-                                name={key}
-                                type="number"
-                                min="0"
-                                className="w-20 max-w-full text-right tabular-nums"
-                                value={formData[key] || 0}
-                                onChange={(e) => updateEstimateCount(key, e.target.value)}
-                            />
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">{suffix}</span>
+            {/* 幅のある画面では「件数の入力」と「内訳」を左右に並べる（縦に積むと内訳が画面の外へ出る） */}
+            <div className="grid gap-x-6 gap-y-3 lg:grid-cols-2">
+                <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:flex sm:flex-wrap sm:gap-x-6 lg:content-start">
+                    {ESTIMATE_COUNT_FIELDS.map(({ key, label, suffix }) => (
+                        <div key={key} className="space-y-1">
+                            <Label htmlFor={key} className="text-xs">{label}</Label>
+                            <div className="flex items-center gap-1">
+                                <Input
+                                    id={key}
+                                    name={key}
+                                    type="number"
+                                    min="0"
+                                    className="w-20 max-w-full text-right tabular-nums"
+                                    value={formData[key] || 0}
+                                    onChange={(e) => updateEstimateCount(key, e.target.value)}
+                                />
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">{suffix}</span>
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
-            <div className="space-y-0.5 border-t pt-1.5 text-[11px] text-muted-foreground">
-                <div className="flex justify-between"><span>基本報酬（遺産総額 × 0.8%）</span><span>{formatCurrency(breakdown.baseFee)}</span></div>
-                {breakdown.landRosenkaFee > 0 && <div className="flex justify-between"><span>加算：土地（路線価）{formData.landRosenkaCount}区分 × ¥10,000</span><span>{formatCurrency(breakdown.landRosenkaFee)}</span></div>}
-                {breakdown.landBairitsuFee > 0 && <div className="flex justify-between"><span>加算：土地（倍率）{formData.landBairitsuCount}区分 × ¥3,000</span><span>{formatCurrency(breakdown.landBairitsuFee)}</span></div>}
-                {breakdown.unlistedStockFee > 0 && <div className="flex justify-between"><span>加算：非上場株式 {formData.unlistedStockCount}社 × ¥100,000</span><span>{formatCurrency(breakdown.unlistedStockFee)}</span></div>}
-                {breakdown.heirFee > 0 && <div className="flex justify-between"><span>加算：相続人 {Math.min((formData.feeCalculationHeirCount || 0) - 1, 4)}人 × ¥50,000</span><span>{formatCurrency(breakdown.heirFee)}</span></div>}
-                <div className="flex justify-between font-semibold border-t pt-1"><span>小計</span><span>{formatCurrency(breakdown.total)}</span></div>
+                    ))}
+                </div>
+                <div className="space-y-0.5 border-t pt-1.5 text-[11px] text-muted-foreground lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                    <div className="flex justify-between"><span>基本報酬（遺産総額 × 0.8%）</span><span>{formatCurrency(breakdown.baseFee)}</span></div>
+                    {breakdown.landRosenkaFee > 0 && <div className="flex justify-between"><span>加算：土地（路線価）{formData.landRosenkaCount}区分 × ¥10,000</span><span>{formatCurrency(breakdown.landRosenkaFee)}</span></div>}
+                    {breakdown.landBairitsuFee > 0 && <div className="flex justify-between"><span>加算：土地（倍率）{formData.landBairitsuCount}区分 × ¥3,000</span><span>{formatCurrency(breakdown.landBairitsuFee)}</span></div>}
+                    {breakdown.unlistedStockFee > 0 && <div className="flex justify-between"><span>加算：非上場株式 {formData.unlistedStockCount}社 × ¥100,000</span><span>{formatCurrency(breakdown.unlistedStockFee)}</span></div>}
+                    {breakdown.heirFee > 0 && <div className="flex justify-between"><span>加算：相続人 {Math.min((formData.feeCalculationHeirCount || 0) - 1, 4)}人 × ¥50,000</span><span>{formatCurrency(breakdown.heirFee)}</span></div>}
+                    <div className="flex justify-between font-semibold border-t pt-1"><span>小計</span><span>{formatCurrency(breakdown.total)}</span></div>
+                </div>
             </div>
             <details
                 className="group rounded-md border bg-background px-2.5 py-1.5"
