@@ -22,8 +22,7 @@ import { MATTER_PRESETS, editedText, splitExtraMatters } from '@/utils/powerOfAt
 import type { DocumentKind, NameMode } from '@/utils/powerOfAttorney/record';
 import { deceasedDiffersFromRecord, slotDiffersFromRecord } from '@/utils/powerOfAttorney/principalLink';
 import { exportFileName } from '@/utils/exportFileName';
-
-const COMPANY_DIRECTORY_URL = '/staff-directory/companies';
+import { COMPANY_DIRECTORY_URL } from '@/constants/navigation';
 
 // 定型文は全社共通なので、押す前に確かめる
 const REGISTER_CONFIRM = '定型文は全社共通です。この文面を委任事項マスタに登録しますか？\n（マスタ管理の「委任事項」タブで直し・削除ができます）';

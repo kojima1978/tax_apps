@@ -1,8 +1,7 @@
 import { useId } from 'react';
+import { COMPANY_DIRECTORY_URL } from '@/constants/navigation';
 import { useCompanyInfo, type CompanyInfo } from '@/shared/staff-directory/company';
 
-/** 会社を足したり直したりする場所（社員台帳の会社一覧）。 */
-const COMPANY_DIRECTORY_URL = '/staff-directory/companies';
 /** プルダウン末尾の「会社を追加・編集…」の値。会社ID と重ならない文字列にする。 */
 const MANAGE_OPTION = 'manage';
 

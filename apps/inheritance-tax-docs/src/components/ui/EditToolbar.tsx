@@ -10,17 +10,14 @@ import {
   Upload,
   Menu,
   Home,
-  FileText,
   Trash2,
-  Settings,
-  Stamp,
   BookOpenCheck,
-  CircleHelp,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, usesDeceasedName, type DocListType } from '@/constants';
 import type { CompanyInfo } from '@/shared/staff-directory/company';
 import { CompanyField } from './CompanyField';
+import { APP_PAGES, REGISTER_LINKS } from '@/constants/navigation';
 
 // ─── 型定義 ───
 
@@ -38,13 +35,8 @@ type ToolbarAction = {
 // 色を付けるのは印刷だけ。ほかは枠線のボタンにそろえて、強い色が並ばないようにする
 const OUTLINE_BUTTON_CLASS = 'bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600';
 
-/** 補助画面はヘッダーに並べず、1つのメニューへまとめる */
-const NAV_LINKS: { to: string; label: string; icon: LucideIcon }[] = [
-  { to: '/resources', label: '参考資料', icon: FileText },
-  { to: '/power-of-attorney', label: '委任状', icon: Stamp },
-  { to: '/masters', label: 'マスタ管理', icon: Settings },
-  { to: '/help', label: '使い方', icon: CircleHelp },
-];
+/** 補助画面はヘッダーに並べず、1つのメニューへまとめる（サイドバーが無い狭い画面用。いまの書類リストは除く） */
+const NAV_LINKS = APP_PAGES.filter((page) => page.to !== '/');
 
 // ─── 印刷対象の設定（2択の切り替え） ───
 
@@ -247,6 +239,13 @@ export const EditToolbar = ({
                     <link.icon className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" />
                     {link.label}
                   </Link>
+                ))}
+                <div className="my-1.5 border-t border-slate-200 dark:border-slate-700" role="separator" />
+                {REGISTER_LINKS.map((link) => (
+                  <a key={link.href} href={link.href} target="_blank" rel="noopener" title={link.title} role="menuitem" onClick={() => setShowNavMenu(false)} className="flex min-h-11 items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 dark:text-slate-200 dark:hover:bg-slate-700">
+                    <link.icon className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" />
+                    {link.label}
+                  </a>
                 ))}
               </div>
             ) : null}
