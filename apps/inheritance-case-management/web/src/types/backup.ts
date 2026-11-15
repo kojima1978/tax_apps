@@ -8,12 +8,14 @@ export const BACKUP_TABLES = [
   { key: 'referrers', label: '紹介者' },
   { key: 'heirPersons', label: '相続人マスタ' },
   { key: 'relatedPartyPersons', label: '関係者マスタ' },
+  { key: 'administrativeFeeItems', label: '遺産整理業務料金表' },
   { key: 'cases', label: '案件' },
   { key: 'caseHeirs', label: '案件相続人' },
   { key: 'caseRelatedParties', label: '案件関係者' },
   { key: 'caseProgress', label: '進捗' },
   { key: 'caseExpenses', label: '立替経費' },
   { key: 'caseSpecialAdditions', label: '特別業務報酬額' },
+  { key: 'caseAdministrativeFees', label: '遺産整理の明細' },
   { key: 'auditLogs', label: '操作履歴' },
 ] as const;
 
@@ -31,6 +33,8 @@ export interface BackupData {
     referrers: unknown[];
     heirPersons: unknown[];
     relatedPartyPersons: unknown[];
+    administrativeFeeItems?: unknown[];
+    caseAdministrativeFees?: unknown[];
     cases: unknown[];
     caseHeirs: unknown[];
     caseRelatedParties: unknown[];
@@ -42,7 +46,7 @@ export interface BackupData {
 }
 
 export function getBackupDataTotal(data: BackupData['data']): number {
-  return BACKUP_TABLES.reduce((sum, { key }) => sum + data[key].length, 0);
+  return BACKUP_TABLES.reduce((sum, { key }) => sum + (data[key]?.length ?? 0), 0);
 }
 
 export function getBackupCountsTotal(counts: Partial<BackupTableCounts>): number {
@@ -60,6 +64,9 @@ export const backupDataSchema = z.object({
     referrers: z.array(z.unknown()),
     heirPersons: z.array(z.unknown()).optional().default([]),
     relatedPartyPersons: z.array(z.unknown()).optional().default([]),
+    // 欠落（旧形式・現在値を保持）と空配列（明示的に空へ復元）を区別する。
+    administrativeFeeItems: z.array(z.unknown()).optional(),
+    caseAdministrativeFees: z.array(z.unknown()).optional(),
     cases: z.array(z.unknown()),
     caseHeirs: z.array(z.unknown()),
     caseRelatedParties: z.array(z.unknown()).optional().default([]),

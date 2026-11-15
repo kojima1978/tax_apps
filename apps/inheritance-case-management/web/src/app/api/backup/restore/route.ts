@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const parsed = backupDataSchema.parse(body);
-    const counts = await restoreBackup(parsed.data as Record<string, Record<string, unknown>[]>);
+    const counts = await restoreBackup(parsed.data as Record<string, Record<string, unknown>[] | undefined>);
 
     return NextResponse.json({ success: true, counts });
   } catch (e) {

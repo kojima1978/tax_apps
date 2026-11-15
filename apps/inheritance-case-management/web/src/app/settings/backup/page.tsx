@@ -85,6 +85,7 @@ function BackupContent() {
   const caseCount = backupData?.data.cases.length ?? 0
   const previewTotal = backupData ? getBackupDataTotal(backupData.data) : 0
   const confirmValid = confirmInput === String(caseCount)
+  const isLegacyBackup = !!backupData && (backupData.data.administrativeFeeItems === undefined || backupData.data.caseAdministrativeFees === undefined)
 
   return (
     <div className="container mx-auto py-10 max-w-2xl px-4">
@@ -162,7 +163,9 @@ function BackupContent() {
                 {BACKUP_TABLES.map(({ key, label }) => (
                   <tr key={key} className="border-t">
                     <td className="px-4 py-2">{label}</td>
-                    <td className="px-4 py-2 text-right font-mono">{backupData.data[key].length}</td>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {backupData.data[key]?.length ?? <span className="font-sans text-muted-foreground">含まれていない</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -177,7 +180,12 @@ function BackupContent() {
             {/* Warning */}
             <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-sm">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>リストアを実行すると、現在の全データが削除され、アップロードしたデータに置き換わります。</span>
+              <div className="space-y-1">
+                <p>リストアを実行すると、現在の全データが削除され、アップロードしたデータに置き換わります。</p>
+                {isLegacyBackup && (
+                  <p>このファイルは遺産整理の料金表・明細を含まない旧形式です。料金表は今の内容を残し、明細は同じ番号の案件があるものだけ残します。</p>
+                )}
+              </div>
             </div>
 
             {/* Confirmation Input */}

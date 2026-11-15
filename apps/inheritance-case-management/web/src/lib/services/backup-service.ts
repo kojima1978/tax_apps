@@ -39,7 +39,27 @@ function normalizeBackupStatus(c: Rec): { status: string; isUndivided: boolean }
   return { status: s, isUndivided };
 }
 
-const TABLE_DEFS = [
+// 社員台帳から再生成できる同期実行記録は、業務データのバックアップ対象外。
+export const BACKUP_EXCLUDED_MODELS = ['StaffDirectorySyncRun'] as const;
+
+export const TABLE_DEFS = [
+  {
+    key: 'administrativeFeeItems' as const,
+    model: (tx: TxClient) => tx.administrativeFeeItem,
+    map: (r: Rec) => ({
+      id: r.id as number,
+      category: r.category as string,
+      categoryOrder: toNumOr(r.categoryOrder, 0),
+      name: r.name as string,
+      unitPrice: toNumOr(r.unitPrice, 0),
+      note: (r.note as string) ?? null,
+      sortOrder: toNumOr(r.sortOrder, 0),
+      active: (r.active as boolean) ?? true,
+      createdAt: new Date(r.createdAt as string),
+      updatedAt: new Date(r.updatedAt as string),
+    }),
+    seqTable: 'AdministrativeFeeItem',
+  },
   {
     key: 'departments' as const,
     model: (tx: TxClient) => tx.department,
@@ -305,6 +325,22 @@ const TABLE_DEFS = [
     seqTable: 'CaseSpecialAddition',
   },
   {
+    key: 'caseAdministrativeFees' as const,
+    model: (tx: TxClient) => tx.caseAdministrativeFee,
+    map: (r: Rec) => ({
+      id: r.id as number,
+      caseId: r.caseId as number,
+      feeItemId: (r.feeItemId as number) ?? null,
+      sortOrder: toNumOr(r.sortOrder, 0),
+      category: r.category as string,
+      name: r.name as string,
+      quantity: toNumOr(r.quantity, 1),
+      unitPrice: toNumOr(r.unitPrice, 0),
+      memo: (r.memo as string) ?? null,
+    }),
+    seqTable: 'CaseAdministrativeFee',
+  },
+  {
     key: 'auditLogs' as const,
     model: (tx: TxClient) => tx.auditLog,
     map: (a: Rec) => ({
@@ -328,6 +364,10 @@ interface TableDef {
 }
 
 export async function exportBackup() {
+  const [administrativeFeeItems, caseAdministrativeFees] = await Promise.all([
+    prisma.administrativeFeeItem.findMany(),
+    prisma.caseAdministrativeFee.findMany(),
+  ]);
   const [departments, companies, companyBranches, assignees, referrers, heirPersons, relatedPartyPersons, cases, caseHeirs, caseRelatedParties, caseProgress, caseExpenses, caseSpecialAdditions, auditLogs] = await Promise.all([
     prisma.department.findMany(),
     prisma.company.findMany(),
@@ -355,6 +395,8 @@ export async function exportBackup() {
     version: 1,
     exportedAt: new Date().toISOString(),
     data: {
+      administrativeFeeItems: administrativeFeeItems.map(serializeTimestamps),
+      caseAdministrativeFees,
       departments: departments.map(serializeTimestamps),
       companies: companies.map(serializeTimestamps),
       companyBranches: companyBranches.map(serializeTimestamps),
@@ -392,9 +434,35 @@ export async function exportBackup() {
   };
 }
 
-export async function restoreBackup(data: Record<string, Rec[]>) {
-  await prisma.$transaction(
+/**
+ * 遺産整理の料金表・明細が無い旧形式のバックアップ（2026-11 より前）は、その2つを今の DB から引き継ぐ。
+ * 料金表はそのまま残し、明細は復元後にも同じ ID の案件があるものだけ入れ直す（案件の削除で Cascade されるため）。
+ * 料金表を入れ替えた結果、参照先が無くなった明細は料金表に無い自由行（feeItemId = null）として残す。
+ */
+async function resolveAdministrativeFees(tx: TxClient, data: Record<string, Rec[] | undefined>) {
+  const keepFeeItems = data.administrativeFeeItems === undefined;
+  const feeItems: Rec[] = data.administrativeFeeItems ?? await tx.administrativeFeeItem.findMany();
+  const feeItemIds = new Set(feeItems.map(row => row.id));
+  const caseIds = new Set((data.cases ?? []).map(row => row.id));
+  const fees: Rec[] = data.caseAdministrativeFees
+    ?? (await tx.caseAdministrativeFee.findMany()).filter(row => caseIds.has(row.caseId));
+  return {
+    keepFeeItems,
+    feeItems,
+    fees: fees.map(row => ({ ...row, feeItemId: feeItemIds.has(row.feeItemId) ? row.feeItemId : null })),
+  };
+}
+
+export async function restoreBackup(data: Record<string, Rec[] | undefined>) {
+  return prisma.$transaction(
     async (tx: TxClient) => {
+      const { keepFeeItems, feeItems, fees } = await resolveAdministrativeFees(tx, data);
+      const restoreData: Record<string, Rec[] | undefined> = {
+        ...data,
+        administrativeFeeItems: feeItems,
+        caseAdministrativeFees: fees,
+      };
+      await tx.caseAdministrativeFee.deleteMany();
       await tx.auditLog.deleteMany();
       await tx.caseSpecialAddition.deleteMany();
       await tx.caseExpense.deleteMany();
@@ -402,6 +470,7 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
       await tx.caseRelatedParty.deleteMany();
       await tx.caseHeir.deleteMany();
       await tx.inheritanceCase.deleteMany();
+      if (!keepFeeItems) await tx.administrativeFeeItem.deleteMany();
       await tx.relatedPartyPerson.deleteMany();
       await tx.heirPerson.deleteMany();
       await tx.referrer.deleteMany();
@@ -411,7 +480,8 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
       await tx.department.deleteMany();
 
       for (const def of TABLE_DEFS as unknown as TableDef[]) {
-        const rows = (data[def.key as keyof typeof data] ?? []) as Rec[];
+        if (def.key === 'administrativeFeeItems' && keepFeeItems) continue;
+        const rows = restoreData[def.key] ?? [];
         if (rows.length > 0) {
           await def.model(tx).createMany({ data: rows.map(def.map) });
         }
@@ -419,11 +489,10 @@ export async function restoreBackup(data: Record<string, Rec[]>) {
           `SELECT setval(pg_get_serial_sequence('"${def.seqTable}"', 'id'), COALESCE((SELECT MAX("id") FROM "${def.seqTable}"), 0) + 1, false)`
         );
       }
+      return Object.fromEntries(TABLE_DEFS.map(def =>
+        [def.key, (restoreData[def.key] ?? []).length]
+      )) as BackupTableCounts;
     },
     { timeout: 60000 }
   );
-
-  return Object.fromEntries(
-    TABLE_DEFS.map((def) => [def.key, ((data[def.key as keyof typeof data] ?? []) as Rec[]).length])
-  ) as BackupTableCounts;
 }
