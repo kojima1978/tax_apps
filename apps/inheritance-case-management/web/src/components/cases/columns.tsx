@@ -4,14 +4,13 @@ import { ColumnDef } from "@tanstack/react-table"
 import type { CaseListItem, CaseStatus } from "@/types/shared"
 import { formatCurrency, toWareki } from "@/lib/analytics-utils"
 import { calcGrossAmount } from "@/lib/case-amount-utils"
-import { isHandlingEnded } from "@/types/constants"
+import { isCompleted, isDeadlineTracked, isHandlingEnded } from "@/types/constants"
 import { SortableHeader, SortIcon } from "@/components/ui/SortableHeader"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
 import { Button } from "@/components/ui/Button"
 import Link from "next/link"
 import { ProgressSummary } from "./ProgressSummary"
 import { FileText, PencilLine } from "lucide-react"
-import { isCompleted } from "@/types/constants"
 
 interface ColumnOptions {
     amountSort: "asc" | "desc" | null
@@ -174,6 +173,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
             const inheritanceDate = `${formatSlashDate(c.dateOfDeath)}(${formatCompactWareki(c.dateOfDeath)})`
             const ended = isHandlingEnded(c.status, c.isUndivided)
             const completed = isCompleted(c.status)
+            const tracked = isDeadlineTracked(c.status, c.isUndivided)
             const deadlineStatus = getDeadlineStatus(deadline)
             const remainingLabel = ended ? "終了" : completed ? "申告済" : deadlineStatus.badge
             const deadlineClassName = ended
@@ -186,7 +186,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
                         <dt className="whitespace-nowrap font-normal text-muted-foreground">期限</dt>
                         <dd className={`flex min-w-0 flex-wrap items-center gap-1 ${deadlineClassName}`}>
                             <time className="min-w-0 break-words tabular-nums" dateTime={formatSlashDate(deadline).replaceAll("/", "-")}>{deadlineDate}</time>
-                            <span className={`shrink-0 rounded px-1 py-0.5 text-[11px] font-medium ${!ended && !completed ? deadlineStatus.badgeClassName : "text-slate-600"}`}>{remainingLabel}</span>
+                            <span className={`shrink-0 rounded px-1 py-0.5 text-[11px] font-medium ${tracked ? deadlineStatus.badgeClassName : "text-slate-600"}`}>{remainingLabel}</span>
                         </dd>
                         <dt className="whitespace-nowrap text-muted-foreground">相続開始日</dt>
                         <dd className="min-w-0 break-words tabular-nums text-muted-foreground"><time dateTime={c.dateOfDeath}>{inheritanceDate}</time></dd>

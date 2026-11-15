@@ -6,7 +6,7 @@ import type { CaseListItem } from "@/types/shared"
 import { calcBestGrossAmount } from "@/lib/case-amount-utils"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
-import { isCompleted, isHandlingEnded } from "@/types/constants"
+import { isDeadlineTracked, isHandlingEnded } from "@/types/constants"
 
 interface CaseMobileListProps {
     selectedIds: Set<number>
@@ -30,6 +30,7 @@ export function CaseMobileList({ data, selectedIds, onToggleSelected, visibleCol
                 const deadline = getDeadlineDate(caseItem.dateOfDeath)
                 const deadlineStatus = getDeadlineStatus(deadline)
                 const isEnded = isHandlingEnded(caseItem.status, caseItem.isUndivided)
+                const tracked = isDeadlineTracked(caseItem.status, caseItem.isUndivided)
 
                 return (
                     <li key={caseItem.id} data-case-id={caseItem.id} className="relative">
@@ -62,9 +63,9 @@ export function CaseMobileList({ data, selectedIds, onToggleSelected, visibleCol
                                         <CalendarClock className="h-4 w-4" aria-hidden="true" />
                                         申告期限
                                     </dt>
-                                    <dd className={`mt-1 font-medium tabular-nums ${isEnded || isCompleted(caseItem.status) ? "text-muted-foreground" : deadlineStatus.className}`}>
+                                    <dd className={`mt-1 font-medium tabular-nums ${tracked ? deadlineStatus.className : "text-muted-foreground"}`}>
                                         {formatDate(deadline)}
-                                        {!isEnded && !isCompleted(caseItem.status) && <span className={`mt-1 block w-fit rounded px-1.5 py-0.5 text-xs ${deadlineStatus.badgeClassName}`}>{deadlineStatus.badge}</span>}
+                                        {tracked && <span className={`mt-1 block w-fit rounded px-1.5 py-0.5 text-xs ${deadlineStatus.badgeClassName}`}>{deadlineStatus.badge}</span>}
                                     </dd>
                                 </div>}
                                 {shows("assignee") && <div>

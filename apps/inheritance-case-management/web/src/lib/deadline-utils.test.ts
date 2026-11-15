@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getDeadlineDate, getDeadlineStatus } from './deadline-utils';
+import { isDeadlineTracked } from '@/types/constants';
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -44,5 +45,21 @@ describe('期限バッジ', () => {
     const over = badgeAt('2026-10-04', '2026-10-03');
     expect(over.badge).toBe('期限超過');
     expect(over.className).toContain('red');
+  });
+});
+
+describe('申告期限を追う案件', () => {
+  it('受任前（見積前・見積中）も期限を追う', () => {
+    for (const status of ['見積前', '見積中', '受託', '手続中', '最終確認']) {
+      expect(isDeadlineTracked(status), status).toBe(true);
+    }
+  });
+
+  it('見送り・申告済以降・未分割は追わない', () => {
+    for (const status of ['見送り', '申告済', '請求済', '入金済']) {
+      expect(isDeadlineTracked(status), status).toBe(false);
+    }
+    expect(isDeadlineTracked('見積中', true)).toBe(false);
+    expect(isDeadlineTracked('手続中', true)).toBe(false);
   });
 });

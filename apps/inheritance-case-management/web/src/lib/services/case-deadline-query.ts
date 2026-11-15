@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { ACCEPTED_STATUSES, COMPLETED_STATUSES } from '@/types/constants';
+import { DEADLINE_TRACKED_STATUSES } from '@/types/constants';
 import { getDeadlineDate } from '@/lib/deadline-utils';
 import { todayDate } from './case-date-utils';
 
@@ -32,7 +32,8 @@ export function buildDeadlineCondition(kind: 'soon' | 'overdue', today = todayDa
     }
   }
   return {
-    status: { in: ACCEPTED_STATUSES.filter(s => !(COMPLETED_STATUSES as readonly string[]).includes(s)) },
+    // 行の札（isDeadlineTracked）と同じ案件を数える
+    status: { in: [...DEADLINE_TRACKED_STATUSES] },
     isUndivided: false,
     OR: ranges,
   };

@@ -46,9 +46,14 @@ export const CLOSED_STATUSES: readonly CaseStatus[] = ['見送り', '入金済']
 /** 対応終了（一覧の非アクティブ表示用）: 見送り・入金済・未分割 */
 export const isHandlingEnded = (status: string, isUndivided?: boolean): boolean =>
     (CLOSED_STATUSES as readonly string[]).includes(status) || !!isUndivided
-/** 期限チェック対象外（完了系・見送り・未分割） */
-export const isDeadlineSkip = (status: string, isUndivided?: boolean): boolean =>
-    isCompleted(status) || status === '見送り' || !!isUndivided
+/**
+ * 申告期限を追うステータス（行の「残N日」「期限超過」の札と、一覧の「14日以内」「期限超過」の件数・絞り込みの両方）。
+ * 申告期限は受任したかどうかに関係なく来るので、受任前（見積前・見積中）も入れる。未分割はここに関係なく除く。
+ */
+export const DEADLINE_TRACKED_STATUSES: readonly CaseStatus[] = ['見積前', '見積中', '受託', '手続中', '最終確認'] as const
+/** 申告期限を追う案件か（札を出す・期限の件数に入れる） */
+export const isDeadlineTracked = (status: string, isUndivided?: boolean): boolean =>
+    (DEADLINE_TRACKED_STATUSES as readonly string[]).includes(status) && !isUndivided
 
 /** マイルストン日付フィールドと、それを自動セットするステータス（ステータス連動の単一入力） */
 export type MilestoneDateField = 'caseAddedDate' | 'caseCompletedDate' | 'billedDate' | 'paidDate'

@@ -3,6 +3,7 @@ import { buildDeadlineCondition } from './case-deadline-query';
 import { getDeadlineDate } from '../deadline-utils';
 import { applyKpiCardFilter, getCaseListKpiFilters, parseCaseListUrlParams, toCaseListUrlSearch } from '@/app/case-list-utils';
 import { selectedCaseIdsSchema } from '@/types/validation';
+import { CASE_STATUS_OPTIONS, isDeadlineTracked } from '@/types/constants';
 
 describe('期限の絞り込み', () => {
   it('DBへ投げる条件が、画面に出る期限と同じ案件を選ぶ（月末・閏年を含む）', () => {
@@ -27,6 +28,20 @@ describe('期限の絞り込み', () => {
           }
         }
       }
+    }
+  });
+
+  it('件数・絞り込みは行の札と同じステータスを数える（見積中は数える／見送り・申告済・未分割は数えない）', () => {
+    for (const kind of ['soon', 'overdue'] as const) {
+      const query = buildDeadlineCondition(kind, new Date(Date.UTC(2026, 10, 16)));
+      const statuses = (query.status as { in: string[] }).in;
+      for (const status of CASE_STATUS_OPTIONS) {
+        expect(statuses.includes(status), `${kind}: ${status}`).toBe(isDeadlineTracked(status, false));
+      }
+      expect(statuses).toContain('見積中');
+      expect(statuses).not.toContain('見送り');
+      expect(statuses).not.toContain('申告済');
+      expect(query.isUndivided).toBe(false);
     }
   });
 

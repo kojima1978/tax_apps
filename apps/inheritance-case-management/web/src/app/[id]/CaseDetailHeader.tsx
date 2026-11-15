@@ -2,7 +2,7 @@
 
 import { getDeadlineDate, getDeadlineStatus } from "@/lib/deadline-utils"
 import { formatWareki } from "@/lib/japanese-era"
-import { STATUS_STYLES, isCompleted, isHandlingEnded } from "@/types/constants"
+import { STATUS_STYLES, isDeadlineTracked, isHandlingEnded } from "@/types/constants"
 import type { CaseStatus, InheritanceCase } from "@/types/shared"
 
 /**
@@ -14,8 +14,7 @@ export function CaseDetailHeader({ formData }: { formData: InheritanceCase }) {
     const deadline = formData.dateOfDeath ? getDeadlineDate(formData.dateOfDeath) : null
     const deadlineStatus = deadline ? getDeadlineStatus(deadline) : null
     const ended = isHandlingEnded(formData.status, formData.isUndivided)
-    const completed = isCompleted(formData.status)
-    const showRemaining = !!deadlineStatus && !ended && !completed
+    const showRemaining = !!deadlineStatus && isDeadlineTracked(formData.status, formData.isUndivided)
 
     return (
         <div className="mb-2 border-b pb-2">
