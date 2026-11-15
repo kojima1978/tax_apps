@@ -242,7 +242,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Tab Navigation */}
-            <div className="sticky top-14 z-20 rounded-xl border bg-white shadow-sm">
+            <div className="sticky top-14 z-20 lg:top-0 rounded-xl border bg-white shadow-sm">
             <div className="flex gap-1 overflow-x-auto p-2" role="tablist" aria-label="分析の表示切替">
                 {TABS.map((tab, index) => (
                     <button

@@ -53,7 +53,7 @@ export function CaseTabNavigation({ tabs, activeTab, onSelect }: CaseTabNavigati
             ref={rowRef}
             role="tablist"
             aria-label="案件詳細の区分"
-            className="sticky top-14 z-30 -mx-3 flex items-stretch gap-1 overflow-x-auto border-y bg-card/95 px-3 py-1.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/85 lg:-mx-3.5 lg:px-3.5"
+            className="sticky top-14 z-30 lg:top-0 -mx-3 flex items-stretch gap-1 overflow-x-auto border-y bg-card/95 px-3 py-1.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/85 lg:-mx-3.5 lg:px-3.5"
         >
             {tabs.map((tab, index) => {
                 const isActive = activeTab === tab.id

@@ -2,28 +2,17 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, List, BarChart3, Settings, HelpCircle } from "lucide-react"
+import { Home } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { APP_NAV_FOCUS_STYLE as FOCUS_STYLE, APP_NAV_LINKS as NAV_LINKS, PORTAL_HREF, isAppNavLinkActive } from "./app-navigation"
 
-const NAV_LINKS = [
-    { href: "/", label: "案件一覧", icon: List },
-    { href: "/analytics", label: "経営分析", icon: BarChart3 },
-    { href: "/settings", label: "設定", icon: Settings },
-    { href: "/help", label: "使い方", icon: HelpCircle },
-] as const
-
-const FOCUS_STYLE = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
-// The portal is outside Next.js's /itcm base path; use a normal document navigation.
-const PORTAL_HREF = "/"
-
+/** 狭い画面の入口。広い画面は左の `AppSidebar` が受け持つので、この帯は出さない */
 export function AppHeader() {
     const pathname = usePathname()
-    const isActive = (href: string) => href === "/"
-        ? pathname === "/" || pathname === ""
-        : pathname === href || pathname.startsWith(`${href}/`)
+    const isActive = (href: string) => isAppNavLinkActive(pathname, href)
 
     return (
-        <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
+        <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm lg:hidden">
             <div className="container mx-auto flex h-14 items-center gap-1.5 px-3 sm:gap-3 md:gap-5 md:px-4">
                 <a
                     href={PORTAL_HREF}

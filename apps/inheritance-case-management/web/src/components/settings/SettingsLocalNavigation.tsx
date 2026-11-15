@@ -62,7 +62,7 @@ export function SettingsLocalNavigation() {
     return (
         <>
             <aside className="hidden lg:block" aria-label="設定ナビゲーション">
-                <div className="sticky top-20 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <div className="sticky top-20 lg:top-6 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
                     <div className="px-3 pb-2 pt-1">
                         <p className="text-sm font-semibold text-slate-800">設定メニュー</p>
                     </div>

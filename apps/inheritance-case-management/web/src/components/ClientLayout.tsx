@@ -4,6 +4,7 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
 import { ToastProvider, useToast } from "./ui/Toast";
 import { AppHeader } from "./AppHeader";
+import { AppSidebar } from "./AppSidebar";
 
 function QueryClientWrapper({ children }: { children: React.ReactNode }) {
   const toast = useToast();
@@ -43,7 +44,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     <ToastProvider>
       <QueryClientWrapper>
         <AppHeader />
-        <main>{children}</main>
+        <AppSidebar />
+        <main className="lg:pl-[4.5rem]">{children}</main>
       </QueryClientWrapper>
     </ToastProvider>
   );

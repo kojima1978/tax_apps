@@ -117,7 +117,8 @@ body {
 /* 操作説明書（/help）の印刷: ヘッダー・目次・印刷ボタンを落として A4 縦に通しで出す */
 @media print {
   @page { size: A4 portrait; margin: 14mm 12mm; }
-  body:has(.help-doc) header { display: none; }
+  body:has(.help-doc) header, body:has(.help-doc) aside.no-print { display: none; }
+  body:has(.help-doc) main { padding-left: 0; }
   .help-doc .help-toc, .help-doc .help-print-button { display: none; }
   .help-doc { max-width: none; padding: 0; }
   .help-doc .help-section { border: 0; border-radius: 0; padding: 0; margin-bottom: 8mm; }
