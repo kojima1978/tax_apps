@@ -151,9 +151,10 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
                     <CurrencyField id="discountAmount" name="discountAmount" value={formData.discountAmount} onValueChange={currencyChange("discountAmount")} />
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                    <div className="mr-1 text-right">
-                        <div className="text-[11px] text-muted-foreground">差引額</div>
-                        <div className="text-sm font-bold">{formatCurrency(netEstimate)}</div>
+                    {/* 差引額は見出しの右に金額（1行）。まとめ枠の主要な金額と同じ並べ方 */}
+                    <div className="mr-1 flex items-baseline gap-2">
+                        <span className="text-[11px] text-muted-foreground">差引額</span>
+                        <span className="text-sm font-bold tabular-nums">{formatCurrency(netEstimate)}</span>
                     </div>
                     <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={applyToEstimate}>
                         <ArrowDown className="mr-1 h-3 w-3" />見積へ反映
