@@ -31,8 +31,10 @@ model InheritanceCase {
   unlistedStockCount Int?    @default(0) // 非上場株式の数
   feeCalculationHeirCount Int? @default(0) // 報酬計算に使用する相続人数（紐付け人数とは別）
   discountAmount    Int?     @default(0) // 値引額（円）
+  administrativeDiscountEnabled Boolean @default(false) // 遺産整理業務の報酬を相続税申告の報酬から値引くか
+  administrativeDiscountAmount Int?     // 遺産整理業務分の値引額（円）。null = 明細の合計と同額（自動）
   feeCalcSnapshot   Json?    // 報酬計算時のパラメータ・料率・内訳スナップショット
-  summary           String?  @db.VarChar(10) // 特記事項��短い概要、最大10���字）
+  summary           String?  @db.VarChar(10) // 特記事項（短い概要、最大10文字）
   memo              String?  @db.Text        // メモ（フリーテキスト）
   caseAddedDate     DateTime? @db.Date       // 受託日（ステータス連動: 受託で自動）
   caseCompletedDate DateTime? @db.Date       // 申告日（ステータス連動: 申告済で自動）

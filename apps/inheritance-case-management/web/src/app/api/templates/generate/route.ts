@@ -35,6 +35,12 @@ export async function POST(request: Request) {
     if (message === 'WORKSHEET_NOT_FOUND') {
       return NextResponse.json({ error: 'ワークシートが見つかりません' }, { status: 500 });
     }
+    if (message === 'TEMPLATE_LAYOUT_OUTDATED') {
+      return NextResponse.json(
+        { error: 'テンプレート（estimate_template.xlsx）が古い形式です。値引額を2行（遺産整理業務分／その他）にした新しいテンプレートへ差し替えてください' },
+        { status: 500 }
+      );
+    }
     console.error('テンプレート生成エラー:', e);
     return NextResponse.json(
       { error: 'テンプレート生成に失敗しました: ' + message },

@@ -83,4 +83,20 @@ describe('報酬計算の控え（feeCalcSnapshot）', () => {
     expect(snap.rates.baseRate).toBe(0.008);
     expect(snap.rates.heirMaxAdditional).toBe(4);
   });
+
+  it('遺産整理業務分の値引きは、その他の値引きと別に持って両方引く', () => {
+    const p = params({ propertyValue: 100_000_000 });
+    const snap = createFeeCalcSnapshot(p, 50_000, 'fee', [], 40_000);
+    // 800,000 − 50,000（その他）− 40,000（遺産整理業務分）
+    expect(snap.breakdown.total).toBe(800_000);
+    expect(snap.discountAmount).toBe(50_000);
+    expect(snap.administrativeDiscountAmount).toBe(40_000);
+    expect(snap.netAmount).toBe(710_000);
+  });
+
+  it('遺産整理業務分を渡さなければ 0 として扱う（今までの案件はそのまま）', () => {
+    const snap = createFeeCalcSnapshot(params({ propertyValue: 100_000_000 }), 50_000, 'fee');
+    expect(snap.administrativeDiscountAmount).toBe(0);
+    expect(snap.netAmount).toBe(750_000);
+  });
 });

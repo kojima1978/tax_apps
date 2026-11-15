@@ -50,6 +50,8 @@ erDiagram
         Int unlistedStockCount
         Int feeCalculationHeirCount
         Int discountAmount
+        Boolean administrativeDiscountEnabled
+        Int administrativeDiscountAmount
         Json feeCalcSnapshot
         String summary
         String memo

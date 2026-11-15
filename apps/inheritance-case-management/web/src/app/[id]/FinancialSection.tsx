@@ -16,10 +16,11 @@ interface FinancialSectionProps {
     currencyChange: (field: keyof InheritanceCase) => (value: string | undefined) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
     highlightFee?: boolean
+    onOpenAdministrativeFees?: () => void
 }
 
 export function FinancialSection({
-    formData, netRevenue, estimateNetRevenue, currencyChange, setFormData, highlightFee,
+    formData, netRevenue, estimateNetRevenue, currencyChange, setFormData, highlightFee, onOpenAdministrativeFees,
 }: FinancialSectionProps) {
     const [tab, setSelectedTab] = useState<"calculation" | "estimate" | "invoice">(highlightFee ? "invoice" : "calculation")
     useEffect(() => {
@@ -77,6 +78,7 @@ export function FinancialSection({
                     formData={formData}
                     currencyChange={currencyChange}
                     setFormData={setFormData}
+                    onOpenAdministrativeFees={onOpenAdministrativeFees}
                 />
 
             </div>

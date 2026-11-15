@@ -7,14 +7,14 @@ import { ExternalLink, GripVertical, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { CurrencyField } from "@/components/ui/CurrencyField"
 import { Input } from "@/components/ui/Input"
+import { Label } from "@/components/ui/Label"
 import { Modal } from "@/components/ui/Modal"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { getAdministrativeFeeItems } from "@/lib/api/administrative-fee-items"
 import { ADMINISTRATIVE_FEE_CATEGORIES, ADMINISTRATIVE_FEE_NOTES } from "@/lib/constants/administrative-fees"
 import type { AdministrativeFee, AdministrativeFeeItem } from "@/types/shared"
+import { administrativeFeeRowTotal, administrativeFeeTotal, resolveAdministrativeDiscount } from "@/lib/administrative-fee-calc"
 import {
-    administrativeFeeRowTotal,
-    administrativeFeeTotal,
     emptyAdministrativeFeeRow,
     feeItemToRow,
     groupFeeItemsByCategory,
@@ -209,16 +209,24 @@ function FeeItemPicker({
     )
 }
 
+export interface AdministrativeDiscountState {
+    enabled: boolean
+    /** null = 明細の合計と同額（自動）、数値 = 手入力で固定 */
+    amount: number | null
+}
+
 interface AdministrativeFeeEditorProps {
     fees: AdministrativeFee[]
     onChange: (fees: AdministrativeFee[]) => void
+    discount: AdministrativeDiscountState
+    onDiscountChange: (next: AdministrativeDiscountState) => void
 }
 
 /**
  * 遺産整理業務の報酬の明細。単価は料金表から**写す**ので、
  * 料金表を後で変えても登録済みの案件の金額は動かない（この画面で直せる）。
  */
-export function AdministrativeFeeEditor({ fees, onChange }: AdministrativeFeeEditorProps) {
+export function AdministrativeFeeEditor({ fees, onChange, discount, onDiscountChange }: AdministrativeFeeEditorProps) {
     const [isPickerOpen, setIsPickerOpen] = useState(false)
     const { data: feeItems = [], isLoading } = useQuery({
         queryKey: ADMINISTRATIVE_FEE_ITEMS_QUERY_KEY,
@@ -258,6 +266,13 @@ export function AdministrativeFeeEditor({ fees, onChange }: AdministrativeFeeEdi
     }
 
     const total = administrativeFeeTotal(fees)
+    // 自動（金額が null）なら明細の合計と同額。手入力があればその額で固定（svf の「自動／手動固定」と同じ作法）
+    const isDiscountManual = discount.amount !== null
+    const discountValue = resolveAdministrativeDiscount({
+        administrativeDiscountEnabled: discount.enabled,
+        administrativeDiscountAmount: discount.amount,
+        administrativeFees: fees,
+    })
 
     return (
         <div className="space-y-2 [&_input]:!h-10 lg:[&_input]:!h-9">
@@ -311,6 +326,46 @@ export function AdministrativeFeeEditor({ fees, onChange }: AdministrativeFeeEdi
                     </div>
                 </div>
             )}
+
+            <div className="space-y-2 rounded-md border bg-muted/20 px-2.5 py-2">
+                <label className="flex cursor-pointer items-start gap-2 text-xs">
+                    <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-blue-700"
+                        checked={discount.enabled}
+                        onChange={(e) => onDiscountChange({ enabled: e.target.checked, amount: null })}
+                    />
+                    <span className="min-w-0 flex-1 leading-relaxed">
+                        遺産整理業務の報酬を相続税申告の報酬から値引く
+                        <span className="ml-1 text-[11px] text-muted-foreground">（請求は行政書士法人から。相続税申告の見積書・請求書には値引額として載る）</span>
+                    </span>
+                </label>
+                {discount.enabled && (
+                    <div className="flex flex-wrap items-end gap-x-3 gap-y-2 border-t pt-2">
+                        <div className="w-56 max-w-full space-y-1">
+                            <Label htmlFor="administrativeDiscountAmount" className="text-[11px]">値引額</Label>
+                            <CurrencyField
+                                id="administrativeDiscountAmount"
+                                name="administrativeDiscountAmount"
+                                value={discountValue || undefined}
+                                onValueChange={(value) => onDiscountChange({ enabled: true, amount: value ? Number(value) : 0 })}
+                            />
+                        </div>
+                        <div className="flex min-h-10 flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                            {isDiscountManual ? (
+                                <>
+                                    <span>手入力の金額で固定しています（明細を直しても動きません）</span>
+                                    <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => onDiscountChange({ enabled: true, amount: null })}>
+                                        自動に戻す
+                                    </Button>
+                                </>
+                            ) : (
+                                <span>上の合計と同額（自動）。明細を足すと値引額も追従します。一部だけ値引くときは金額を直してください</span>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
 
             <div className="space-y-1 border-t pt-1.5 text-[11px] leading-relaxed text-muted-foreground">
                 {ADMINISTRATIVE_FEE_NOTES.map((note) => (

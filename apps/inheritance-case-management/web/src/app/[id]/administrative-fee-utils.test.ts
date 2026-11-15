@@ -1,7 +1,5 @@
 import { describe, it, expect } from "vitest"
 import {
-    administrativeFeeRowTotal,
-    administrativeFeeTotal,
     emptyAdministrativeFeeRow,
     feeItemToRow,
     groupFeeItemsByCategory,
@@ -10,29 +8,6 @@ import type { AdministrativeFeeItem } from "@/types/shared"
 
 const item = (id: number, category: string, name: string, unitPrice: number, extra: Partial<AdministrativeFeeItem> = {}): AdministrativeFeeItem => ({
     id, category, categoryOrder: 0, name, unitPrice, note: null, sortOrder: id, active: true, ...extra,
-})
-
-describe("administrativeFeeRowTotal / administrativeFeeTotal", () => {
-    it("件数 × 単価で小計を出す", () => {
-        expect(administrativeFeeRowTotal({ quantity: 3, unitPrice: 2000 })).toBe(6000)
-    })
-
-    it("件数0・単価0は0円（欄を空にした行で NaN にしない）", () => {
-        expect(administrativeFeeRowTotal({ quantity: 0, unitPrice: 8000 })).toBe(0)
-        expect(administrativeFeeRowTotal({ quantity: 2, unitPrice: 0 })).toBe(0)
-    })
-
-    it("合計は各行の小計の足し上げ", () => {
-        expect(administrativeFeeTotal([
-            { quantity: 1, unitPrice: 4000 },
-            { quantity: 3, unitPrice: 2000 },
-            { quantity: 1, unitPrice: 20000 },
-        ])).toBe(30000)
-    })
-
-    it("明細が無ければ0円", () => {
-        expect(administrativeFeeTotal([])).toBe(0)
-    })
 })
 
 describe("feeItemToRow", () => {

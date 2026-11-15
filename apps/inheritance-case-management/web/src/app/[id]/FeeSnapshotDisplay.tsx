@@ -15,6 +15,7 @@ interface FeeSnapshotDisplayProps {
     }
     currentSpecialAdditionsTotal: number
     currentDiscount: number
+    currentAdministrativeDiscount?: number
 }
 
 export function FeeSnapshotDisplay({
@@ -22,9 +23,10 @@ export function FeeSnapshotDisplay({
     currentBreakdown,
     currentSpecialAdditionsTotal,
     currentDiscount,
+    currentAdministrativeDiscount = 0,
 }: FeeSnapshotDisplayProps) {
     const [isOpen, setIsOpen] = useState(false)
-    const currentNet = currentBreakdown.total + currentSpecialAdditionsTotal - currentDiscount
+    const currentNet = currentBreakdown.total + currentSpecialAdditionsTotal - currentDiscount - currentAdministrativeDiscount
     const hasChanged = snapshot.netAmount !== currentNet
 
     return (
@@ -71,7 +73,8 @@ export function FeeSnapshotDisplay({
                         {(snapshot.specialAdditionsTotal || 0) > 0 && (
                             <div className="flex justify-between"><span>特別業務報酬額合計</span><span>{formatCurrency(snapshot.specialAdditionsTotal || 0)}</span></div>
                         )}
-                        {snapshot.discountAmount > 0 && <div className="flex justify-between"><span>値引額</span><span>-{formatCurrency(snapshot.discountAmount)}</span></div>}
+                        {(snapshot.administrativeDiscountAmount || 0) > 0 && <div className="flex justify-between"><span>値引額（遺産整理業務分）</span><span>△{formatCurrency(snapshot.administrativeDiscountAmount || 0)}</span></div>}
+                        {snapshot.discountAmount > 0 && <div className="flex justify-between"><span>値引額{(snapshot.administrativeDiscountAmount || 0) > 0 ? "（その他）" : ""}</span><span>△{formatCurrency(snapshot.discountAmount)}</span></div>}
                         <div className="flex justify-between font-semibold"><span>転記額</span><span>{formatCurrency(snapshot.netAmount)}</span></div>
                     </div>
                     {hasChanged && (

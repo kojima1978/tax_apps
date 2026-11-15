@@ -85,6 +85,8 @@ export function getCaseApiPayload(formData: InheritanceCase) {
         unlistedStockCount: formData.unlistedStockCount || 0,
         feeCalculationHeirCount: formData.feeCalculationHeirCount || 0,
         discountAmount: formData.discountAmount || 0,
+        administrativeDiscountEnabled: formData.administrativeDiscountEnabled ?? false,
+        administrativeDiscountAmount: formData.administrativeDiscountAmount ?? null,
         feeCalcSnapshot: formData.feeCalcSnapshot ?? null,
         summary: formData.summary || null,
         memo: formData.memo || null,

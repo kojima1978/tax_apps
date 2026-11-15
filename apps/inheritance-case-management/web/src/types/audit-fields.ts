@@ -46,6 +46,8 @@ export const AUDIT_FIELDS: Record<string, AuditFieldDef> = {
     unlistedStockCount: { label: '非上場株式数', kind: 'count' },
     feeCalculationHeirCount: { label: '報酬計算上の相続人数', kind: 'count' },
     discountAmount: { label: '値引額', kind: 'currency' },
+    administrativeDiscountEnabled: { label: '遺産整理業務分の値引', kind: 'boolean' },
+    administrativeDiscountAmount: { label: '遺産整理業務分の値引額', kind: 'currency' },
     summary: { label: '特記事項', kind: 'text' },
     memo: { label: 'メモ', kind: 'text' },
     caseAddedDate: { label: '受託日', kind: 'date' },

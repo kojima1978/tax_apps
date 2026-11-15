@@ -77,6 +77,8 @@ type CreateCaseData = {
   unlistedStockCount?: number;
   feeCalculationHeirCount?: number;
   discountAmount?: number;
+  administrativeDiscountEnabled?: boolean;
+  administrativeDiscountAmount?: number | null;
   feeCalcSnapshot?: Prisma.InputJsonValue | null;
   summary?: string | null;
   memo?: string | null;
@@ -118,6 +120,8 @@ const CASE_SCALAR_FIELDS = [
   'unlistedStockCount',
   'feeCalculationHeirCount',
   'discountAmount',
+  'administrativeDiscountEnabled',
+  'administrativeDiscountAmount',
   'feeCalcSnapshot',
   'caseAddedDate',
   'caseCompletedDate',
@@ -321,6 +325,8 @@ export async function createCase(data: CreateCaseData) {
         unlistedStockCount: data.unlistedStockCount ?? 0,
         feeCalculationHeirCount: data.feeCalculationHeirCount ?? 0,
         discountAmount: data.discountAmount ?? 0,
+        administrativeDiscountEnabled: data.administrativeDiscountEnabled ?? false,
+        administrativeDiscountAmount: data.administrativeDiscountAmount ?? null,
         feeCalcSnapshot: data.feeCalcSnapshot ?? undefined,
         summary: data.summary || null,
         memo: data.memo || null,

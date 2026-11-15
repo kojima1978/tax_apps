@@ -66,6 +66,8 @@ export interface FeeCalcSnapshot {
   specialAdditions?: EstimateSpecialAddition[];
   specialAdditionsTotal?: number;
   discountAmount: number;
+  /** 遺産整理業務分の値引額（円）。お客様には値引額とは別の行で出す */
+  administrativeDiscountAmount?: number;
   netAmount: number;
 }
 
@@ -78,6 +80,7 @@ export function createFeeCalcSnapshot(
   discountAmount: number,
   appliedTo: 'estimate' | 'fee',
   specialAdditions: EstimateSpecialAddition[] = [],
+  administrativeDiscountAmount = 0,
 ): FeeCalcSnapshot {
   const breakdown = calcEstimate(params);
   const normalizedAdditions = specialAdditions
@@ -85,7 +88,7 @@ export function createFeeCalcSnapshot(
     .filter((a) => a.description.trim() !== '')
     .map((a) => ({ description: a.description.trim(), amount: a.amount || 0 }));
   const specialAdditionsTotal = calcSpecialAdditionsTotal(normalizedAdditions);
-  const netAmount = breakdown.total + specialAdditionsTotal - discountAmount;
+  const netAmount = breakdown.total + specialAdditionsTotal - discountAmount - administrativeDiscountAmount;
   return {
     calculatedAt: new Date().toISOString(),
     appliedTo,
@@ -102,6 +105,7 @@ export function createFeeCalcSnapshot(
     specialAdditions: normalizedAdditions,
     specialAdditionsTotal,
     discountAmount,
+    administrativeDiscountAmount,
     netAmount,
   };
 }

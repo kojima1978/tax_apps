@@ -106,6 +106,8 @@ export const createCaseSchema = z.object({
   unlistedStockCount: z.number().int().min(0, '非上場株式数は0以上を入力してください').optional().default(0),
   feeCalculationHeirCount: z.number().int().min(0, '報酬計算上の相続人数は0以上を入力してください').optional().default(0),
   discountAmount: z.number().int().min(0, '値引額は0以上を入力してください').optional().default(0),
+  administrativeDiscountEnabled: z.boolean().optional(),
+  administrativeDiscountAmount: z.number().int().min(0, '遺産整理業務分の値引額は0以上を入力してください').nullable().optional(),
   feeCalcSnapshot: z.record(z.any()).nullable().optional(),
   summary: z.string().max(MAX_SUMMARY_LENGTH, `特記事項は${MAX_SUMMARY_LENGTH}文字以内で入力してください`).nullable().optional(),
   memo: z.string().nullable().optional(),

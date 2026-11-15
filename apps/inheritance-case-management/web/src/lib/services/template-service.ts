@@ -27,9 +27,9 @@ const INVOICE_OVERRIDES: Record<string, string> = {
   B11: '相 続 税 申 告 報 酬 請 求 書',
   B14: '下記計算書の通り御請求申し上げます。',
   B17: '御請求額',
-  B43: '御　請　求　額',
-  B44: '振　込　先',
-  E44: '　阿波銀行（銀行コード：0172）蔵本支店（店番号：117）\n　普通預金 №１１３５４１７　ゼイ）マスエージェント\n　（振込手数料はお客様にてご負担をお願い致します。）',
+  B44: '御　請　求　額',
+  B45: '振　込　先',
+  E45: '　阿波銀行（銀行コード：0172）蔵本支店（店番号：117）\n　普通預金 №１１３５４１７　ゼイ）マスエージェント\n　（振込手数料はお客様にてご負担をお願い致します。）',
 };
 
 export type DocType = DocumentType;
@@ -44,8 +44,8 @@ const mm = (value: number) => value / 25.4;
  * （'A1:O46' だと `$A1:$O46` という行が相対参照の印刷範囲になる）。
  */
 const PRINT_AREAS: Record<DocType, string> = {
-  estimate: 'A$1:O$46',
-  invoice: 'A$1:O$46',
+  estimate: 'A$1:O$47',
+  invoice: 'A$1:O$47',
   'invoice-request': 'A$1:AB$32',
 };
 
@@ -69,12 +69,13 @@ const SHEET_NAMES: Record<DocType, string> = {
  * 外したときの値として覚えている）。書かないと 100% 扱いになり、依頼票は横が
  * 7.6mm はみ出して右端3列（Z・AA・AB）が2ページ目へ落ちる。
  * 余白10mmの印刷領域(190x277mm)に収まる倍率は実寸から:
- *   見積書・請求書 175.7 x 297.5mm → 93%（縦が制約）… 余裕を見て 90
+ *   見積書・請求書 175.7 x 304.4mm → 91%（縦が制約）… 余裕を見て 88
+ *                （値引額を2行にしたぶん 6.9mm 伸びている）
  *   依頼票         197.6 x 198.0mm → 96%（横が制約）… 余裕を見て 95
  */
 const FALLBACK_SCALES: Record<DocType, number> = {
-  estimate: 90,
-  invoice: 90,
+  estimate: 88,
+  invoice: 88,
   'invoice-request': 95,
 };
 
@@ -139,7 +140,10 @@ export interface GenerateTemplateInput {
   landBairitsuCount: number;
   unlistedStockCount: number;
   heirCount: number;
+  /** 値引額（遺産整理業務分を除く）。帳票では「値引額（その他）」の行 */
   discount: number;
+  /** 遺産整理業務分の値引額。帳票では別の行に出す（請求は行政書士法人から） */
+  administrativeDiscount?: number;
   expensesTotal: number;
   specialAdditions?: { description: string; amount: number }[];
   // invoice-request 用
@@ -260,6 +264,49 @@ export function shrinkLetterheadToFit(ws: ExcelJS.Worksheet) {
   }
 }
 
+/**
+ * 値引きの行。テンプレートは2行持っていて、上が遺産整理業務分、下がその他。
+ * 両方あるときだけ2行に分けて刷り、片方だけ（または無し）なら
+ * 下の1行に「値　　引　　額」としてまとめ、上の行は隠して印刷から外す。
+ */
+const DISCOUNT_ROWS = { administrative: 38, other: 39 } as const;
+
+const DISCOUNT_LABELS = {
+  single: '値　　引　　額',
+  administrative: '値引額（遺産整理業務分）',
+  other: '値引額（その他）',
+} as const;
+
+/** 行がずれていないかの見張り（テンプレートは Git 管理外なので古い版が置かれうる） */
+function assertEstimateLayout(ws: ExcelJS.Worksheet) {
+  const label = ws.getCell('B40').value;
+  const normalized = typeof label === 'string' ? label.replace(/[\s　]/g, '') : '';
+  if (normalized !== '差引額') throw new Error('TEMPLATE_LAYOUT_OUTDATED');
+}
+
+/** 値引きの2行を埋める（テストから呼ぶため export）*/
+export function fillDiscountRows(
+  ws: ExcelJS.Worksheet,
+  input: { discount?: number; administrativeDiscount?: number },
+) {
+  const administrative = Math.abs(Math.round(input.administrativeDiscount || 0));
+  const other = Math.abs(Math.round(input.discount || 0));
+  const setRow = (row: number, label: string | null, amount: number) => {
+    ws.getCell(`B${row}`).value = label;
+    ws.getCell(`M${row}`).value = amount ? -amount : null;
+    ws.getRow(row).hidden = label === null;
+  };
+
+  if (administrative > 0 && other > 0) {
+    setRow(DISCOUNT_ROWS.administrative, DISCOUNT_LABELS.administrative, administrative);
+    setRow(DISCOUNT_ROWS.other, DISCOUNT_LABELS.other, other);
+    return;
+  }
+  // 片方だけ・どちらも無しは今までどおり1行
+  setRow(DISCOUNT_ROWS.administrative, null, 0);
+  setRow(DISCOUNT_ROWS.other, DISCOUNT_LABELS.single, administrative + other);
+}
+
 export async function generateTemplate(input: GenerateTemplateInput): Promise<Buffer> {
   const fileName = TEMPLATE_FILES[input.docType];
   if (!fileName) throw new Error('TEMPLATE_NOT_FOUND');
@@ -281,11 +328,12 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
   if (input.docType === 'invoice-request') {
     fillInvoiceRequest(ws, input);
   } else {
+    assertEstimateLayout(ws);
     if (input.docType === 'invoice') {
       for (const [cell, value] of Object.entries(INVOICE_OVERRIDES)) {
         ws.getCell(cell).value = value;
       }
-      const expenseTitleCell = ws.getCell('B42');
+      const expenseTitleCell = ws.getCell('B43');
       expenseTitleCell.value = ' ４．立替金費用（戸籍謄本・不動産登記事項閲覧・残高証明書発行手数料等）';
       expenseTitleCell.font = { ...expenseTitleCell.font, name: 'ＭＳ 明朝', size: 10, bold: true };
     }
@@ -307,9 +355,9 @@ export async function generateTemplate(input: GenerateTemplateInput): Promise<Bu
     specialAdditionDescription2.value = specialAdditions[1]?.description ? `    ${specialAdditions[1].description}` : null;
     specialAdditionDescription2.font = { ...specialAdditionDescription2.font, ...specialAdditionDescriptionFont };
     ws.getCell('M36').value = specialAdditions[1]?.amount || null;
-    ws.getCell('M38').value = input.discount ? -Math.abs(input.discount) : null;
+    fillDiscountRows(ws, input);
     if (input.docType === 'invoice') {
-      ws.getCell('M42').value = input.expensesTotal;
+      ws.getCell('M43').value = input.expensesTotal;
     }
 
     shrinkLetterheadToFit(ws);

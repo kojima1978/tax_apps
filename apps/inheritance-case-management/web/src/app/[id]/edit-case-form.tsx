@@ -357,6 +357,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         currencyChange={currencyChange}
                         setFormData={setFormData}
                         highlightFee={needsConfirmedFee}
+                        onOpenAdministrativeFees={() => selectTab("administrative")}
                     />
                 </div>
             </div>
@@ -367,6 +368,15 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         <AdministrativeFeeEditor
                             fees={toAdministrativeFees(formData.administrativeFees || [])}
                             onChange={(fees) => setFormData(prev => ({ ...prev, administrativeFees: toAdministrativeFeeItems(fees) }))}
+                            discount={{
+                                enabled: formData.administrativeDiscountEnabled ?? false,
+                                amount: formData.administrativeDiscountAmount ?? null,
+                            }}
+                            onDiscountChange={({ enabled, amount }) => setFormData(prev => ({
+                                ...prev,
+                                administrativeDiscountEnabled: enabled,
+                                administrativeDiscountAmount: amount,
+                            }))}
                         />
                     </SectionPanel>
                 </div>

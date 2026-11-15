@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button"
 import { CurrencyField } from "@/components/ui/CurrencyField"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
+import { resolveAdministrativeDiscount } from "@/lib/administrative-fee-calc"
 import { formatCurrency } from "@/lib/analytics-utils"
 import { calcEstimate, createFeeCalcSnapshot } from "@/lib/estimate-calc"
 import type { CaseSpecialAdditionItem, InheritanceCase } from "@/types/shared"
@@ -23,14 +24,18 @@ interface FinancialEstimatePanelProps {
     formData: InheritanceCase
     currencyChange: (field: keyof InheritanceCase) => (value: string | undefined) => void
     setFormData: React.Dispatch<React.SetStateAction<InheritanceCase>>
+    /** 遺産整理業務分の値引きはあちらのタブで設定する（この欄からは飛ぶだけ） */
+    onOpenAdministrativeFees?: () => void
 }
 
-export function FinancialEstimatePanel({ formData, currencyChange, setFormData }: FinancialEstimatePanelProps) {
+export function FinancialEstimatePanel({ formData, currencyChange, setFormData, onOpenAdministrativeFees }: FinancialEstimatePanelProps) {
     const estimateParams = getEstimateParams(formData)
     const breakdown = calcEstimate(estimateParams)
     const specialAdditions = getSpecialAdditions(formData)
     const specialAdditionsTotal = getSpecialAdditionsTotal(specialAdditions)
-    const netEstimate = breakdown.total + specialAdditionsTotal - (formData.discountAmount || 0)
+    // 遺産整理業務分の値引きは遺産整理タブで設定する。ここでは引くだけ（お客様には別の行で出す）
+    const administrativeDiscount = resolveAdministrativeDiscount(formData)
+    const netEstimate = breakdown.total + specialAdditionsTotal - (formData.discountAmount || 0) - administrativeDiscount
     const [isSpecialAdditionsOpen, setIsSpecialAdditionsOpen] = useState(specialAdditions.length > 0)
 
     const updateEstimateCount = (key: EstimateCountKey, rawValue: string) => {
@@ -59,7 +64,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
     }
 
     const applyToEstimate = () => {
-        const snapshot = createFeeCalcSnapshot(estimateParams, formData.discountAmount || 0, "estimate", specialAdditions)
+        const snapshot = createFeeCalcSnapshot(estimateParams, formData.discountAmount || 0, "estimate", specialAdditions, administrativeDiscount)
         setFormData(prev => ({
             ...prev,
             estimateAmount: netEstimate,
@@ -70,7 +75,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
     }
 
     const applyToFee = () => {
-        const snapshot = createFeeCalcSnapshot(estimateParams, formData.discountAmount || 0, "fee", specialAdditions)
+        const snapshot = createFeeCalcSnapshot(estimateParams, formData.discountAmount || 0, "fee", specialAdditions, administrativeDiscount)
         setFormData(prev => ({
             ...prev,
             feeAmount: netEstimate,
@@ -145,9 +150,22 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
                     )}
                 </div>
             </details>
+            {administrativeDiscount > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md border bg-muted/20 px-2.5 py-1.5 text-[11px]">
+                    <span className="text-muted-foreground">値引額（遺産整理業務分）</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold tabular-nums">△{formatCurrency(administrativeDiscount)}</span>
+                        {onOpenAdministrativeFees && (
+                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-[11px]" onClick={onOpenAdministrativeFees}>
+                                遺産整理タブで直す
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            )}
             <div className="flex flex-wrap items-end justify-between gap-2 border-t pt-2">
                 <div className="w-56 max-w-full space-y-1">
-                    <Label htmlFor="discountAmount" className="text-[11px]">値引額</Label>
+                    <Label htmlFor="discountAmount" className="text-[11px]">値引額{administrativeDiscount > 0 && <span className="ml-1 text-muted-foreground">（遺産整理業務分を除く）</span>}</Label>
                     <CurrencyField id="discountAmount" name="discountAmount" value={formData.discountAmount} onValueChange={currencyChange("discountAmount")} />
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
@@ -176,6 +194,7 @@ export function FinancialEstimatePanel({ formData, currencyChange, setFormData }
                     currentBreakdown={breakdown}
                     currentSpecialAdditionsTotal={specialAdditionsTotal}
                     currentDiscount={formData.discountAmount || 0}
+                    currentAdministrativeDiscount={administrativeDiscount}
                 />
             )}
         </div>

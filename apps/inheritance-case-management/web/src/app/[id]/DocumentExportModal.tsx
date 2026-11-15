@@ -11,6 +11,7 @@ import { todayIsoDate } from "@/lib/date-utils"
 import { useToast } from "@/components/ui/Toast"
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from "@/lib/document-types"
 import { formatCurrency } from "@/lib/analytics-utils"
+import { resolveAdministrativeDiscount } from "@/lib/administrative-fee-calc"
 
 type AddresseeMode = "heirs-respective" | "selected-heirs" | "custom"
 const MAX_ESTIMATE_INVOICE_ADDRESSEES = 3
@@ -38,6 +39,7 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType, hasUns
     const [saveFirst, setSaveFirst] = useState(false)
     const [hasConfirmed, setHasConfirmed] = useState(false)
     const expensesTotal = (caseData.expenses || []).reduce((sum, item) => sum + (item.amount || 0), 0)
+    const administrativeDiscount = resolveAdministrativeDiscount(caseData)
 
     const heirs = useMemo(() => caseData.heirs || [], [caseData.heirs])
     const selectedHeirNames = useMemo(
@@ -259,7 +261,8 @@ export function DocumentExportModal({ isOpen, onClose, caseData, docType, hasUns
                             <dt>遺産総額</dt><dd>{formatCurrency(caseData.propertyValue || 0)}</dd>
                             <dt>加算対象</dt><dd>土地（路線価）{caseData.landRosenkaCount || 0}区分・土地（倍率）{caseData.landBairitsuCount || 0}区分・非上場株式{caseData.unlistedStockCount || 0}社・相続人{caseData.feeCalculationHeirCount || 0}名</dd>
                             <dt>特別業務報酬額</dt><dd>{(caseData.specialAdditions || []).slice(0, 2).map(item => `${item.description || "内容未入力"}：${formatCurrency(item.amount || 0)}`).join("、") || "なし"}</dd>
-                            <dt>値引額</dt><dd>{formatCurrency(Math.abs(caseData.discountAmount || 0))}</dd>
+                            {administrativeDiscount > 0 && <><dt>値引額（遺産整理業務分）</dt><dd>{formatCurrency(administrativeDiscount)}</dd></>}
+                            <dt>値引額{administrativeDiscount > 0 ? "（その他）" : ""}</dt><dd>{formatCurrency(Math.abs(caseData.discountAmount || 0))}</dd>
                         </>}
                         {docType !== "estimate" && <><dt>立替金</dt><dd>{formatCurrency(expensesTotal)}（{caseData.expenses?.length || 0}件）</dd></>}
                         {docType === "invoice-request" && <><dt>紹介料</dt><dd>{formatCurrency(caseData.referralFeeAmount || 0)}</dd></>}

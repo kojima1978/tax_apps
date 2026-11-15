@@ -7,6 +7,8 @@
 import type { InheritanceCase } from '@/types/shared';
 import { formatReferrerLabel } from '@/types/shared';
 import { API_URL, apiClient } from './api/client';
+import { resolveAdministrativeDiscount } from './administrative-fee-calc';
+import type { GenerateTemplateInput } from './services/template-service';
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@/lib/document-types';
 import { exportFileName } from '@/lib/export-filename';
 
@@ -32,23 +34,8 @@ async function checkTemplateExists(docType: DocumentType): Promise<boolean> {
 /** サーバーサイドでテンプレートに値を埋め込み、Blobとして取得 */
 async function generateFromTemplate(
   docType: DocumentType,
-  data: {
-    issueDate: string;
-    addresseeName: string;
-    deceasedName: string;
-    propertyValue: number;
-    landRosenkaCount: number;
-    landBairitsuCount: number;
-    unlistedStockCount: number;
-    heirCount: number;
-    discount: number;
-    expensesTotal: number;
-    specialAdditions?: { description: string; amount: number }[];
-    assigneeName?: string;
-    referrerName?: string;
-    revenueAmount?: number;
-    referralFeeAmount?: number;
-  },
+  // 欄を2箇所で書かないようサーバー側の入力型をそのまま使う（型だけなので ExcelJS は混ざらない）
+  data: Omit<GenerateTemplateInput, 'docType'>,
 ): Promise<Blob> {
   const res = await fetch(`${API_URL}/templates/generate/`, {
     method: 'POST',
@@ -112,6 +99,7 @@ export async function exportDocument(params: ExportParams): Promise<void> {
     unlistedStockCount: caseData.unlistedStockCount || 0,
     heirCount: caseData.feeCalculationHeirCount || 0,
     discount: caseData.discountAmount || 0,
+    administrativeDiscount: resolveAdministrativeDiscount(caseData),
     expensesTotal,
     specialAdditions: (caseData.specialAdditions || []).slice(0, 2).map(a => ({
       description: a.description,

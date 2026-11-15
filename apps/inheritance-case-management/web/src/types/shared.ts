@@ -165,6 +165,10 @@ export interface InheritanceCase {
   unlistedStockCount?: number;
   feeCalculationHeirCount?: number;
   discountAmount?: number;
+  /** 遺産整理業務の報酬を相続税申告の報酬から値引くか */
+  administrativeDiscountEnabled?: boolean;
+  /** 遺産整理業務分の値引額（円）。null/undefined = 明細の合計と同額（自動） */
+  administrativeDiscountAmount?: number | null;
   feeCalcSnapshot?: FeeCalcSnapshot | null;
   summary?: string;
   memo?: string;

@@ -153,6 +153,8 @@ const TABLE_DEFS = [
       unlistedStockCount: toNumOr(c.unlistedStockCount, 0),
       feeCalculationHeirCount: toNumOr(c.feeCalculationHeirCount ?? c.heirCount, 0),
       discountAmount: toNumOr(c.discountAmount, 0),
+      administrativeDiscountEnabled: Boolean(c.administrativeDiscountEnabled),
+      administrativeDiscountAmount: toNum(c.administrativeDiscountAmount),
       feeCalcSnapshot: (c.feeCalcSnapshot as Record<string, unknown>) ?? null,
       caseAddedDate,
       caseCompletedDate,
