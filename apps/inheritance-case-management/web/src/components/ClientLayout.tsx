@@ -45,7 +45,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <QueryClientWrapper>
         <AppHeader />
         <AppSidebar />
-        <main className="lg:pl-[4.5rem]">{children}</main>
+        <main className="min-h-[calc(100vh-3.5rem)] bg-slate-50 lg:min-h-screen lg:pl-[4.5rem]">{children}</main>
       </QueryClientWrapper>
     </ToastProvider>
   );

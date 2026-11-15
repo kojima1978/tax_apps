@@ -235,7 +235,7 @@ export default function AnalyticsPage() {
     }
 
     return (
-        <div className="case-workspace analytics-workspace mx-auto min-h-screen max-w-[1600px] space-y-3 px-3 py-4 text-sm lg:px-6">
+        <div className="case-workspace analytics-workspace mx-auto max-w-[1600px] space-y-3 px-3 py-4 text-sm lg:px-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><h1 className="text-xl font-bold sm:text-2xl">経営分析ダッシュボード</h1><p className="mt-1 text-sm text-slate-600">売上の見通しから、部門・紹介者ごとの内訳まで確認できます。</p></div>
                 <div className="flex flex-wrap items-center gap-3"><span role="status" className="text-xs text-slate-600">{isFetching ? "最新データを取得中…" : `最終更新 ${new Date(dataUpdatedAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" })}`}</span><Button type="button" variant="outline" disabled={isFetching} onClick={() => void refetch()}><RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />{isFetching ? "更新中…" : "データを更新"}</Button></div>

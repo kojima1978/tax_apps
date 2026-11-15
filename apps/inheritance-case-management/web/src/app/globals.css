@@ -32,9 +32,7 @@ body {
   --muted-foreground: #475569;
   --muted: #f1f5f9;
   --input: #cbd5e1;
-  background: #f8fafc;
   color: #0f172a;
-  min-height: calc(100vh - 56px);
 }
 .settings-workspace :where(a, button, summary, input, select, textarea):focus-visible {
   outline: 2px solid #2563eb;
@@ -79,7 +77,6 @@ body {
   --ring: #2563eb;
   --accent: #eff6ff;
   --accent-foreground: #1e40af;
-  background: #f8fafc;
   color: #0f172a;
 }
 :where(.case-workspace) :where([class*="border"]) { border-color: #e2e8f0; }
@@ -117,6 +114,8 @@ body {
 /* 操作説明書（/help）の印刷: ヘッダー・目次・印刷ボタンを落として A4 縦に通しで出す */
 @media print {
   @page { size: A4 portrait; margin: 14mm 12mm; }
+  /* 画面の下地（main）は印刷では無地・高さの下限なしに戻す */
+  main { min-height: 0; background: none; }
   body:has(.help-doc) header, body:has(.help-doc) aside.no-print { display: none; }
   body:has(.help-doc) main { padding-left: 0; }
   .help-doc .help-toc, .help-doc .help-print-button { display: none; }

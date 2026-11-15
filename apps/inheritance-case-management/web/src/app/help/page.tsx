@@ -71,7 +71,7 @@ export default function HelpPage() {
             </div>
 
             <div className="gap-8 lg:flex lg:items-start">
-                <nav aria-labelledby="help-toc-heading" className="help-toc mb-6 rounded-xl border border-slate-200 bg-white p-4 lg:sticky lg:top-20 lg:mb-0 lg:w-72 lg:shrink-0">
+                <nav aria-labelledby="help-toc-heading" className="help-toc mb-6 rounded-xl border border-slate-200 bg-white p-4 lg:sticky lg:top-6 lg:mb-0 lg:w-72 lg:shrink-0">
                     <h2 id="help-toc-heading" className="mb-3 text-sm font-semibold text-slate-800">目次</h2>
                     <ol className="space-y-2">
                         {HELP_SECTIONS.map(section => (

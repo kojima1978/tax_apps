@@ -184,7 +184,7 @@ function InheritanceMockupPageContent() {
     }, [deleteTargets, refetch, refetchKpis, toast])
 
     return (
-        <div className="case-workspace mx-auto min-h-screen max-w-[1600px] px-3 py-4 lg:px-6" onClickCapture={event => {
+        <div className="case-workspace mx-auto max-w-[1600px] px-3 py-4 lg:px-6" onClickCapture={event => {
             const anchor = (event.target as HTMLElement).closest("a")
             if (!anchor) return
             const match = new URL(anchor.href).pathname.match(/\/(\d+)\/?$/)
