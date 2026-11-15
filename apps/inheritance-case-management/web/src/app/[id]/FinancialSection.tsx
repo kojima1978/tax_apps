@@ -31,12 +31,12 @@ export function FinancialSection({
     const amount = tab === "estimate" ? formData.estimateAmount : formData.feeAmount
     const referral = tab === "estimate" ? formData.estimateReferralFeeAmount : formData.referralFeeAmount
     return (
-        <SectionPanel title="金額情報" icon={Banknote} compact>
+        <SectionPanel title="報酬情報" icon={Banknote} compact>
             {/* 主要な金額は1件1行（見出しの右に金額）。横へ並べ、入りきらない幅でだけ折り返す */}
             <dl className="mb-3 flex flex-wrap items-baseline gap-x-8 gap-y-1 rounded-lg bg-blue-50 px-3 py-2" aria-label="主要な金額">
                 {[{ label: tab === "estimate" ? "見積額（税抜）" : "報酬額（税抜）", value: amount }, { label: "紹介料", value: referral }, { label: "手取り", value: tab === "estimate" ? estimateNetRevenue : netRevenue }].map(item => <div key={item.label} className="flex items-baseline gap-2"><dt className="text-xs text-slate-600">{item.label}</dt><dd className="text-lg font-bold tabular-nums text-blue-900">{formatCurrency(item.value || 0)}</dd></div>)}
             </dl>
-            <div role="tablist" aria-label="金額情報の区分" className="mb-3 flex gap-2">
+            <div role="tablist" aria-label="報酬情報の区分" className="mb-3 flex gap-2">
                 {tabs.map((item, index) => <button key={item.id} type="button" id={`financial-tab-${item.id}`} role="tab" aria-selected={tab === item.id} aria-controls={`financial-panel-${item.id}`} tabIndex={tab === item.id ? 0 : -1} className={`min-h-11 flex-1 rounded-md border px-3 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-ring ${tab === item.id ? "border-blue-700 bg-blue-700 text-white" : "bg-white hover:bg-blue-50"}`} onClick={() => setSelectedTab(item.id)} onKeyDown={event => {
                     const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : null
                     if (next === null) return
