@@ -24,8 +24,8 @@ const baseCase = {
 } as unknown as InheritanceCase
 
 describe("CASE_DETAIL_TABS", () => {
-    it("4つのタブで、節は重複せず全部どこかに属する", () => {
-        expect(CASE_DETAIL_TABS.map(tab => tab.id)).toEqual(["basic", "money", "people", "history"])
+    it("7つのタブで、節は重複せず全部どこかに属する", () => {
+        expect(CASE_DETAIL_TABS.map(tab => tab.id)).toEqual(["basic", "progress", "money", "expenses", "heirs", "relatedParties", "history"])
         const keys = CASE_DETAIL_TABS.flatMap(tab => [...tab.sectionKeys])
         expect(new Set(keys).size).toBe(keys.length)
         expect(new Set(keys)).toEqual(new Set(Object.keys(CASE_SECTION_ANCHORS)))
@@ -33,9 +33,12 @@ describe("CASE_DETAIL_TABS", () => {
 
     it("区分の並びは依頼のとおり", () => {
         expect(CASE_DETAIL_TABS.map(tab => [...tab.sectionKeys])).toEqual([
-            ["basicInfo", "progress", "memo"],
-            ["financial", "expenses"],
-            ["heirs", "relatedParties"],
+            ["basicInfo", "memo"],
+            ["progress"],
+            ["financial"],
+            ["expenses"],
+            ["heirs"],
+            ["relatedParties"],
             ["auditLog"],
         ])
     })
@@ -43,9 +46,10 @@ describe("CASE_DETAIL_TABS", () => {
 
 describe("getTabForSectionKey / getTabForSectionAnchor", () => {
     it("節からタブを引ける", () => {
-        expect(getTabForSectionKey("progress")).toBe("basic")
-        expect(getTabForSectionKey("expenses")).toBe("money")
-        expect(getTabForSectionKey("relatedParties")).toBe("people")
+        expect(getTabForSectionKey("memo")).toBe("basic")
+        expect(getTabForSectionKey("progress")).toBe("progress")
+        expect(getTabForSectionKey("expenses")).toBe("expenses")
+        expect(getTabForSectionKey("relatedParties")).toBe("relatedParties")
         expect(getTabForSectionKey("auditLog")).toBe("history")
     })
 
@@ -54,9 +58,10 @@ describe("getTabForSectionKey / getTabForSectionAnchor", () => {
     })
 
     it("旧リンクのアンカーからタブを引ける（# は付いていても良い）", () => {
-        expect(getTabForSectionAnchor("#case-progress")).toBe("basic")
+        expect(getTabForSectionAnchor("#case-progress")).toBe("progress")
         expect(getTabForSectionAnchor("case-financial")).toBe("money")
-        expect(getTabForSectionAnchor("#case-heirs")).toBe("people")
+        expect(getTabForSectionAnchor("#case-heirs")).toBe("heirs")
+        expect(getTabForSectionAnchor("#case-related-parties")).toBe("relatedParties")
         expect(getTabForSectionAnchor("#case-audit-log")).toBe("history")
     })
 
@@ -79,9 +84,9 @@ describe("resolveCaseDetailTab", () => {
 
     it("新規登録では変更履歴を選べない", () => {
         const available = getAvailableCaseDetailTabs(true)
-        expect(available.map(tab => tab.id)).toEqual(["basic", "money", "people"])
+        expect(available.map(tab => tab.id)).toEqual(["basic", "progress", "money", "expenses", "heirs", "relatedParties"])
         expect(resolveCaseDetailTab("history", available)).toBe(DEFAULT_CASE_DETAIL_TAB)
-        expect(resolveCaseDetailTab("people", available)).toBe("people")
+        expect(resolveCaseDetailTab("heirs", available)).toBe("heirs")
     })
 
     it("isCaseDetailTabId は型の番人", () => {
@@ -99,6 +104,7 @@ describe("buildCaseDetailTabUrl / getCaseDetailTabHref", () => {
 
     it("それ以外は ?tab= を付ける", () => {
         expect(buildCaseDetailTabUrl("/354", "money")).toBe("/354?tab=money")
+        expect(buildCaseDetailTabUrl("/354", "relatedParties")).toBe("/354?tab=relatedParties")
         expect(getCaseDetailTabHref(12, "history")).toBe("/12?tab=history")
     })
 })
@@ -112,22 +118,26 @@ describe("getCaseDetailTabStatuses", () => {
             expenses: [{ id: 4 }],
         } as unknown as InheritanceCase
         const statuses = getCaseDetailTabStatuses(data, [], [])
-        expect(statuses.people.counts).toEqual(["相続人2人", "関係者1人"])
-        expect(statuses.money.counts).toEqual(["立替金1件"])
+        expect(statuses.heirs.counts).toEqual(["2人"])
+        expect(statuses.relatedParties.counts).toEqual(["1人"])
+        expect(statuses.expenses.counts).toEqual(["1件"])
         expect(statuses.basic.counts).toEqual([])
+        expect(statuses.money.counts).toEqual([])
         expect(statuses.history.counts).toEqual([])
     })
 
     it("0件は出さない", () => {
         const statuses = getCaseDetailTabStatuses(baseCase, [], [])
-        expect(statuses.people.counts).toEqual([])
-        expect(statuses.money.counts).toEqual([])
+        expect(statuses.heirs.counts).toEqual([])
+        expect(statuses.relatedParties.counts).toEqual([])
+        expect(statuses.expenses.counts).toEqual([])
     })
 
     it("未保存の変更はその節を含むタブに印が付く", () => {
         const statuses = getCaseDetailTabStatuses(baseCase, ["memo", "heirs"], [])
         expect(statuses.basic.hasChanges).toBe(true)
-        expect(statuses.people.hasChanges).toBe(true)
+        expect(statuses.heirs.hasChanges).toBe(true)
+        expect(statuses.relatedParties.hasChanges).toBe(false)
         expect(statuses.money.hasChanges).toBe(false)
         expect(statuses.history.hasChanges).toBe(false)
     })
@@ -135,11 +145,13 @@ describe("getCaseDetailTabStatuses", () => {
     it("未入力はタブごとに数える", () => {
         const statuses = getCaseDetailTabStatuses(baseCase, [], [
             { sectionKey: "basicInfo" },
+            { sectionKey: "memo" },
             { sectionKey: "progress" },
             { sectionKey: "financial" },
         ])
         expect(statuses.basic.missingCount).toBe(2)
+        expect(statuses.progress.missingCount).toBe(1)
         expect(statuses.money.missingCount).toBe(1)
-        expect(statuses.people.missingCount).toBe(0)
+        expect(statuses.heirs.missingCount).toBe(0)
     })
 })

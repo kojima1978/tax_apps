@@ -3,13 +3,16 @@ import type { InheritanceCase } from "@/types/shared"
 /**
  * 案件詳細の区分。以前は8つのセクションを縦に積み、上のリンクで位置へ飛ばしていた
  * （全部開くと 4,000px を超えて、目的の欄を探すのに縦スクロールが要った）。
- * 今は4つのタブに分けて1つだけ表示する。フォームの状態は1つのままで、
+ * 今は区分ごとのタブに分けて1つだけ表示する。フォームの状態は1つのままで、
  * タブは表示の切り替えだけ ── 隠れているタブの入力も保存され、検証もされる。
  */
 export const CASE_DETAIL_TABS = [
-    { id: "basic", label: "基本・進捗", sectionKeys: ["basicInfo", "progress", "memo"] },
-    { id: "money", label: "金額", sectionKeys: ["financial", "expenses"] },
-    { id: "people", label: "相続人・関係者", sectionKeys: ["heirs", "relatedParties"] },
+    { id: "basic", label: "基本", sectionKeys: ["basicInfo", "memo"] },
+    { id: "progress", label: "進捗", sectionKeys: ["progress"] },
+    { id: "money", label: "金額", sectionKeys: ["financial"] },
+    { id: "expenses", label: "立替金", sectionKeys: ["expenses"] },
+    { id: "heirs", label: "相続人", sectionKeys: ["heirs"] },
+    { id: "relatedParties", label: "関係者", sectionKeys: ["relatedParties"] },
     { id: "history", label: "変更履歴", sectionKeys: ["auditLog"] },
 ] as const
 
@@ -68,7 +71,7 @@ export function resolveCaseDetailTab(
     return available[0]?.id ?? DEFAULT_CASE_DETAIL_TAB
 }
 
-/** 現在のタブを URL に入れる。既定のタブには付けない（パラメータ無し＝基本・進捗） */
+/** 現在のタブを URL に入れる。既定のタブには付けない（パラメータ無し＝基本） */
 export function buildCaseDetailTabUrl(pathname: string, tab: CaseDetailTabId): string {
     return tab === DEFAULT_CASE_DETAIL_TAB ? pathname : `${pathname}?${CASE_DETAIL_TAB_PARAM}=${tab}`
 }
@@ -78,7 +81,7 @@ export function getCaseDetailTabHref(caseId: number, tab: CaseDetailTabId): stri
 }
 
 export interface CaseDetailTabStatus {
-    /** タブのラベルに添える件数（相続人 N人・立替金 N件 など） */
+    /** タブのラベルに添える件数（相続人・関係者は N人、立替金は N件） */
     counts: string[]
     /** 未保存の変更があるタブ */
     hasChanges: boolean
@@ -86,21 +89,23 @@ export interface CaseDetailTabStatus {
     missingCount: number
 }
 
+/** 0件は出さない（見出しが長くなるだけで何も分からない） */
+function countOrNone(count: number, unit: string): string[] {
+    return count > 0 ? [`${count}${unit}`] : []
+}
+
 export function getCaseDetailTabStatuses(
     data: InheritanceCase,
     changedSections: readonly string[],
     missingInputs: readonly { sectionKey: string }[],
 ): Record<CaseDetailTabId, CaseDetailTabStatus> {
-    const expenses = data.expenses?.length ?? 0
-    const heirs = data.heirs?.length ?? 0
-    const relatedParties = data.relatedParties?.length ?? 0
     const countsByTab: Record<CaseDetailTabId, string[]> = {
         basic: [],
-        money: expenses > 0 ? [`立替金${expenses}件`] : [],
-        people: [
-            ...(heirs > 0 ? [`相続人${heirs}人`] : []),
-            ...(relatedParties > 0 ? [`関係者${relatedParties}人`] : []),
-        ],
+        progress: [],
+        money: [],
+        expenses: countOrNone(data.expenses?.length ?? 0, "件"),
+        heirs: countOrNone(data.heirs?.length ?? 0, "人"),
+        relatedParties: countOrNone(data.relatedParties?.length ?? 0, "人"),
         history: [],
     }
     const statuses = {} as Record<CaseDetailTabId, CaseDetailTabStatus>

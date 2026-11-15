@@ -324,22 +324,6 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                     {isCreateMode && <CaseDuplicateCheck deceasedName={formData.deceasedName} deceasedNameKana={formData.deceasedNameKana} dateOfDeath={formData.dateOfDeath} />}
                 </div>
 
-                {formData.progress && (
-                    <div id={CASE_SECTION_ANCHORS.progress} className="scroll-mt-28">
-                        <SectionPanel title="進捗管理" icon={ListChecks} badge={formData.status} compact>
-                            <ProgressEditor
-                                progress={toProgressSteps(formData.progress)}
-                                onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
-                                formData={formData}
-                                isCreateMode={isCreateMode}
-                                handleChange={handleChange}
-                                setFormData={setFormData}
-                                onNeedsConfirmedFee={openFeeInput}
-                            />
-                        </SectionPanel>
-                    </div>
-                )}
-
                 <div id={CASE_SECTION_ANCHORS.memo} className="scroll-mt-28">
                     <SectionPanel title="メモ" icon={StickyNote} compact>
                         <textarea
@@ -348,6 +332,22 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                             placeholder="自由にメモを記載できます"
                             rows={4}
                             className="w-full min-h-[64px] resize-y rounded-md border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                    </SectionPanel>
+                </div>
+            </div>
+
+            <div {...tabPanelProps("progress")} className="space-y-3">
+                <div id={CASE_SECTION_ANCHORS.progress} className="scroll-mt-28">
+                    <SectionPanel title="進捗管理" icon={ListChecks} badge={formData.status} compact>
+                        <ProgressEditor
+                            progress={toProgressSteps(formData.progress ?? [])}
+                            onChange={(steps) => setFormData(prev => ({ ...prev, progress: toProgressItems(steps) }))}
+                            formData={formData}
+                            isCreateMode={isCreateMode}
+                            handleChange={handleChange}
+                            setFormData={setFormData}
+                            onNeedsConfirmedFee={openFeeInput}
                         />
                     </SectionPanel>
                 </div>
@@ -364,7 +364,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         highlightFee={needsConfirmedFee}
                     />
                 </div>
+            </div>
 
+            <div {...tabPanelProps("expenses")} className="space-y-3">
                 <div id={CASE_SECTION_ANCHORS.expenses} className="scroll-mt-28">
                     <SectionPanel title="立替金" icon={Receipt} badge={`${(formData.expenses || []).length}件`} compact>
                         <ExpenseEditor
@@ -378,7 +380,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 </div>
             </div>
 
-            <div {...tabPanelProps("people")} className="space-y-3">
+            <div {...tabPanelProps("heirs")} className="space-y-3">
                 <div id={CASE_SECTION_ANCHORS.heirs} className="scroll-mt-28">
                     <SectionPanel title="相続人" icon={Users} badge={`${(formData.heirs || []).length}人`} compact>
                         <HeirListEditor
@@ -391,7 +393,9 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         />
                     </SectionPanel>
                 </div>
+            </div>
 
+            <div {...tabPanelProps("relatedParties")} className="space-y-3">
                 <div id={CASE_SECTION_ANCHORS.relatedParties} className="scroll-mt-28">
                     <SectionPanel title="関係者" icon={Briefcase} badge={`${(formData.relatedParties || []).length}人`} compact>
                         <RelatedPartyListEditor

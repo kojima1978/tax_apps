@@ -21,7 +21,8 @@ interface CaseTabNavigationProps {
 }
 
 /**
- * 案件詳細のタブ。左右の矢印キー・Home・End で移動でき、
+ * 案件詳細のタブ。区分ごとに1つで、見出しは1行（ラベル＋件数＋印）。
+ * 左右の矢印キー・Home・End で移動でき、
  * 未保存の変更があるタブと未入力があるタブには印が付く。
  */
 export function CaseTabNavigation({ tabs, activeTab, statuses, onSelect }: CaseTabNavigationProps) {
@@ -63,25 +64,23 @@ export function CaseTabNavigation({ tabs, activeTab, statuses, onSelect }: CaseT
                             moveFocus(next)
                         }}
                         className={cn(
-                            "flex min-h-11 shrink-0 flex-col items-start justify-center gap-0 rounded-md border px-2.5 py-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                            "flex min-h-10 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                             isActive
                                 ? "border-primary bg-primary/10 text-primary"
                                 : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
                         )}
                     >
-                        <span className="flex items-center gap-1 whitespace-nowrap text-xs font-semibold">
-                            {tab.label}
-                            {status.hasChanges && (
-                                <span className="rounded bg-amber-100 px-1 text-[11px] font-medium text-amber-900">未保存</span>
-                            )}
-                            {status.missingCount > 0 && (
-                                <span className="rounded bg-red-100 px-1 text-[11px] font-medium text-red-900">要確認{status.missingCount}</span>
-                            )}
-                        </span>
+                        {tab.label}
                         {status.counts.length > 0 && (
-                            <span className={cn("whitespace-nowrap text-[11px] font-normal", isActive ? "text-primary/80" : "text-muted-foreground")}>
+                            <span className={cn("text-[11px] font-normal", isActive ? "text-primary/80" : "text-muted-foreground")}>
                                 {status.counts.join("・")}
                             </span>
+                        )}
+                        {status.hasChanges && (
+                            <span className="rounded bg-amber-100 px-1 text-[11px] font-medium text-amber-900">未保存</span>
+                        )}
+                        {status.missingCount > 0 && (
+                            <span className="rounded bg-red-100 px-1 text-[11px] font-medium text-red-900">要確認{status.missingCount}</span>
                         )}
                     </button>
                 )
