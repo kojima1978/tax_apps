@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/Button"
 import type { MasterListItem } from "@/components/master-list/types"
 
 const ICON_BTN_MUTED = "h-8 w-8 text-muted-foreground hover:text-foreground"
-const ICON_BTN_GREEN = "h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-const ICON_BTN_ORANGE = "h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+const ICON_BTN_NEUTRAL = "h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
 const ICON_BTN_DESTRUCTIVE = "h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
 
 export function EditActionButtons({
@@ -19,8 +18,10 @@ export function EditActionButtons({
             <Button
                 variant="ghost"
                 size="icon"
-                className={ICON_BTN_GREEN}
+                className={ICON_BTN_NEUTRAL}
                 onClick={onSaveEdit}
+                title="確定"
+                aria-label="確定"
             >
                 <Check className="h-4 w-4" />
             </Button>
@@ -29,6 +30,8 @@ export function EditActionButtons({
                 size="icon"
                 className={ICON_BTN_MUTED}
                 onClick={onCancelEdit}
+                title="キャンセル"
+                aria-label="キャンセル"
             >
                 <X className="h-4 w-4" />
             </Button>
@@ -54,6 +57,8 @@ export function RowActionButtons<T extends MasterListItem>({
                 size="icon"
                 className={ICON_BTN_MUTED}
                 onClick={() => onStartEdit(item)}
+                title="編集"
+                aria-label="編集"
             >
                 <Pencil className="h-4 w-4" />
             </Button>
@@ -62,9 +67,10 @@ export function RowActionButtons<T extends MasterListItem>({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className={ICON_BTN_GREEN}
+                        className={ICON_BTN_NEUTRAL}
                         onClick={() => onToggleActive(item.id)}
                         title="有効化"
+                        aria-label="有効化"
                     >
                         <RotateCcw className="h-4 w-4" />
                     </Button>
@@ -74,6 +80,7 @@ export function RowActionButtons<T extends MasterListItem>({
                         className={ICON_BTN_DESTRUCTIVE}
                         onClick={() => onPermanentDelete(item.id)}
                         title="完全削除"
+                        aria-label="完全削除"
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>
@@ -82,9 +89,10 @@ export function RowActionButtons<T extends MasterListItem>({
                 <Button
                     variant="ghost"
                     size="icon"
-                    className={ICON_BTN_ORANGE}
+                    className={ICON_BTN_NEUTRAL}
                     onClick={() => onToggleActive(item.id)}
                     title="無効化"
+                    aria-label="無効化"
                 >
                     <Ban className="h-4 w-4" />
                 </Button>

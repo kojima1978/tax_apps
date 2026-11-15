@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/Label"
 import { cn } from "@/lib/utils"
 import { formatPostalCodeForInput } from "@/lib/postal-code-format"
 
-interface PersonAddressFieldsProps {
+export interface PersonAddressFieldsProps {
     fieldId: (field: string) => string
     postalCode: string
     addressFromPostalCode: string
