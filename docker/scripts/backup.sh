@@ -511,24 +511,51 @@ write_backup_manifest() {
   ok "manifest.sha256"
 }
 
+# 突合が落ちた回の「どのファイルが合わなかったか」。detail へ入れるので1行。
+MANIFEST_FAILED_DETAIL=""
+
 verify_backup_manifest() {
   local dir="$1"
   local manifest="$dir/manifest.sha256"
+  MANIFEST_FAILED_DETAIL=""
 
   if [[ ! -f "$manifest" ]]; then
     warn "No manifest.sha256 found; legacy backup integrity check skipped."
     return 0
   fi
 
-  if (
-    cd "$dir"
-    sha256sum -c manifest.sha256 >/dev/null
-  ); then
+  # 出力を捨てずに受ける。以前は `>/dev/null` で、無人実行では画面も残らないため
+  # 「突合が落ちた」しか分からなかった（2026-11-14〜15 のドリルの失敗は、手で
+  # 叩き直すと通ってしまい、どのファイルが合わなかったのか追う手がかりが
+  # 1つも残っていなかった）。
+  local output rc=0
+  output=$(
+    cd "$dir" || exit 1
+    sha256sum -c manifest.sha256 2>&1
+  ) || rc=$?
+
+  if [[ $rc -eq 0 ]]; then
     ok "Backup integrity check passed"
     return 0
   fi
 
   err "Backup integrity check failed. Restore aborted."
+
+  local failed_lines failed_count=0 first=""
+  failed_lines=$(printf '%s
+' "$output" | grep -v ': OK$' | grep -v '^$' || true)
+  if [[ -n "$failed_lines" ]]; then
+    failed_count=$(printf '%s
+' "$failed_lines" | grep -c 'FAILED' || true)
+    first=$(printf '%s
+' "$failed_lines" | grep 'FAILED' | head -1)
+    # 画面とログには落ちた行をそのまま出す（多いときは先頭10行）。
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && err "  $line"
+    done < <(printf '%s
+' "$failed_lines" | head -10)
+  fi
+  MANIFEST_FAILED_DETAIL="failed=$failed_count${first:+ first=$first}"
   return 1
 }
 
@@ -2543,7 +2570,7 @@ cmd_drill() {
     return 1
   fi
   if ! verify_backup_manifest "$EXTRACTED_BACKUP_PATH"; then
-    ops_write_last_result "drill" "manifest-failed" "$(basename "$archive")"
+    ops_write_last_result "drill" "manifest-failed"       "$(basename "$archive") ${MANIFEST_FAILED_DETAIL}$(_drill_stale_suffix)"
     return 1
   fi
   echo ""
@@ -3259,10 +3286,17 @@ _due_needed() {
 # cmd_backup / cmd_drill を if の条件に直接置くと、bash はその中まで errexit を
 # 止める。途中の想定外の失敗が無視されて最後の集計だけで ok になりうるので、
 # サブシェルで set -e を張り直してから終了コードだけ受け取る。
+#
+# サブシェルでは親の trap が既定へ戻る（bash の仕様）ので、復号した平文と
+# 訓練用コンテナの後始末はここで張り直す。無人実行の経路はこの関数しか
+# 通らないため、`due` のドリルは毎回 20MB の平文（DBのダンプ・顧客名の
+# 入った JSON・.env）を docker/backups/ に置いたまま終わっていた
+# （次のドリルまで最長1週間。sweep_stale_restore_work が「前回は
+# taskkill で終わった」と言いながら毎回掃いていたのはこれ）。
 _due_run() {
   local rc=0
   set +e
-  ( set -e; "$@" )
+  ( set -e; trap on_release_operation_lock EXIT; "$@" )
   rc=$?
   set -e
   return "$rc"

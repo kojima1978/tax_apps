@@ -151,6 +151,10 @@ jobs:
       - name: Staff directory link alert regression
         run: bash docker/scripts/tests/staff-links-alert.test.sh
 
+      # 無人実行の後始末（復号した平文を残さない）と、突合が落ちた回の内訳の記録
+      - name: Due unattended work regression
+        run: bash docker/scripts/tests/due-unattended.test.sh
+
       # 各アプリの src/shared/ は shared/ の写し。写しだけ直すと次の sync で黙って消える
       - name: Shared sources are in sync
         run: bash shared/sync.sh --check

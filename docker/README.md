@@ -708,6 +708,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-docker-watchdog-t
 | 実行条件 | ログオン中の現在ユーザーで実行（`RunLevel=Limited` で昇格不要） |
 | 多重起動 | 新しいインスタンスを開始しない |
 | ログ | `docker\logs\docker-watchdog.log`（1MB でローテーション・`.1`〜`.3` を保持） |
+| 無人処理の出力 | `docker\logs\unattended-work.log`（`due` / `recover` が印字した全文。1MB でローテーション・`.1`〜`.3` を保持） |
 | 直近結果 | `docker\logs\last-run\watchdog`（`manage.sh status` / `preflight` が表示） |
 | 状態ファイル | `docker\logs\docker-watchdog.state.json`（直近の再起動時刻を記録） |
 | 監視判定 | `docker info` が2回連続で失敗（タイムアウト or 非0終了）したら復旧処理を実行 |

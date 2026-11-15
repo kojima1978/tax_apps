@@ -276,6 +276,29 @@ docker/scripts/manage.sh test <app-name>   # 1アプリだけ
   掃き（`restore` と `drill` の両方がここを通る。**鍵の確認より先に**掃くので、鍵が無くて
   早期に戻る回でも平文は消える）、消した件数を drill の `last-run` の detail に `swept=N` で
   出す ── 黙って消すと「毎回殺されている」ことが誰にも見えなくなる。
+- **サブシェルで走らせる処理には trap を張り直す**（`_due_run`）。bash は**サブシェルで
+  trap を既定へ戻す**ので、`cmd_due` が各項目を `( set -e; "$@" )` で呼んでいた間、
+  中で設定された `RESTORE_WORK_DIR` / `DRILL_PG_STARTED` は親の
+  `on_release_operation_lock` から見えず、**無人のドリルは毎回 20MB の平文
+  （DB のダンプ・顧客名入り JSON・`.env`）を `docker/backups/` に置いたまま終わっていた**
+  （次のドリルまで最長1週間。`sweep_stale_restore_work` が「前回は taskkill で終わった」と
+  言いながら毎回1件掃いていたのはこれで、*殺されていたのではなく後始末が最初から
+  呼ばれていなかった*。訓練用の PG コンテナの取り残しも同じ経路）。いまは
+  `( set -e; trap on_release_operation_lock EXIT; "$@" )`。テストは
+  `docker/scripts/tests/due-unattended.test.sh`（CI の shell scripts ジョブ）
+- **無人実行の出力は捨てずに残す**（`docker/logs/unattended-work.log`、1MB×3世代）。
+  ウォッチドッグは `due` / `recover` の ASCII 1行（`DUE_RESULT` / `RECOVER_RESULT`）しか
+  読まず、残りの stdout/stderr を破棄していた ── 2026-11-14〜15、ドリルが6回連続で
+  `manifest-failed` を書いたのに、同じアーカイブを手で叩くと通ってしまい、
+  **どのファイルが合わなかったのかがディスク上のどこにも無かった**（`docker/logs/restore-drill.log`
+  は 2026-10-11 に専用タスクを廃止して以降、誰も書いていない）。パイプには
+  `StandardOutputEncoding` / `StandardErrorEncoding` に UTF-8 を**必ず指定する** ──
+  既定ではコンソールのコードページ（この PC は 932）で復号され、`manage.sh` の
+  日本語がすべて文字化けする（ASCII 1行だけ読んでいた間は無害だった）
+- **突合が落ちた回は「どのファイルか」まで記録する**（`verify_backup_manifest`）。
+  `sha256sum -c` の出力を `>/dev/null` に捨てていたので、`last-run` には
+  `manifest-failed` の1語しか残らなかった。いまは落ちた行を画面（先頭10行）と
+  drill の detail（`failed=N first=…`、1行）に出す
 - **内側のタイムアウトは外側より必ず小さく保つ**（`docker-watchdog.ps1`）。
   `AppRecoveryTimeoutSeconds`(600) + `DueWorkTimeoutSeconds`(1200) ≒ 35分 <
   ウォッチドッグのロックの陳腐化(45分) < タスクの `ExecutionTimeLimit`(90分)。

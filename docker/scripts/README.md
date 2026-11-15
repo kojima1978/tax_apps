@@ -239,6 +239,7 @@ SQL かどうかは別問題なので、`drill` が実際に復元して確か�
   - **クールダウン**: 直近 45 分以内に再起動済みなら復旧をスキップ
   - **状態ファイル**: `docker/logs/docker-watchdog.state.json`（直近の再起動時刻を記録）
   - **ログ**: `docker/logs/docker-watchdog.log`（1MB でローテーション・`.1`〜`.3` を保持）
+  - **無人処理の出力**: `docker/logs/unattended-work.log`（`due` / `recover` が印字した全文。1MB でローテーション・`.1`〜`.3` を保持）。要約の1行だけでは失敗の原因が追えないため
   - **ロック**: `docker/logs/docker-watchdog.lock`（多重起動防止）
   - **直近結果**: `docker/logs/last-run/watchdog`（`manage.sh status` / `preflight` が読む。下記参照）
 

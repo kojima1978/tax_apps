@@ -32,6 +32,12 @@ $LogPath = Join-Path $LogDir "docker-watchdog.log"
 $StatePath = Join-Path $LogDir "docker-watchdog.state.json"
 $LockPath = Join-Path $LogDir "docker-watchdog.lock"
 $LastRunDir = Join-Path $LogDir "last-run"
+# Everything "manage.bat due" and "manage.bat recover" printed. Until 2026-11-15
+# only their one ASCII summary line was read and the rest was thrown away, so an
+# unattended failure left nothing to investigate: the restore drill reported
+# "manifest-failed" six runs in a row while the same archive verified fine by
+# hand, and which file had failed the checksum was nowhere on disk.
+$UnattendedLogPath = Join-Path $LogDir "unattended-work.log"
 $LogMaxBytes = 1048576
 $LogKeep = 3
 
@@ -40,24 +46,56 @@ New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 # This log is append-only and was never rotated; it had been growing since
 # 2026-05 and being long is one reason nobody read it.
 function Invoke-WatchdogLogRotation {
-    if (-not (Test-Path -LiteralPath $LogPath)) {
+    param([string]$Path = $LogPath)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
         return
     }
 
-    $size = (Get-Item -LiteralPath $LogPath).Length
+    $size = (Get-Item -LiteralPath $Path).Length
     if ($size -le $LogMaxBytes) {
         return
     }
 
     for ($i = $LogKeep - 1; $i -ge 1; $i--) {
-        $from = "$LogPath.$i"
-        $to = "$LogPath.$($i + 1)"
+        $from = "$Path.$i"
+        $to = "$Path.$($i + 1)"
         if (Test-Path -LiteralPath $from) {
             Move-Item -LiteralPath $from -Destination $to -Force -ErrorAction SilentlyContinue
         }
     }
 
-    Move-Item -LiteralPath $LogPath -Destination "$LogPath.1" -Force -ErrorAction SilentlyContinue
+    Move-Item -LiteralPath $Path -Destination "$Path.1" -Force -ErrorAction SilentlyContinue
+}
+
+# The whole output of one unattended command, under a header that says which
+# command it was and how it ended. Rotated like the watchdog log: without a
+# limit this grows unread, which is half of why nobody looked at the other one.
+function Write-UnattendedOutput {
+    param(
+        [string]$Command,
+        $Result
+    )
+
+    try {
+        Invoke-WatchdogLogRotation -Path $UnattendedLogPath
+        $ending = if ($Result.TimedOut) { "timed out" } else { "exit $($Result.ExitCode)" }
+        $lines = New-Object System.Collections.Generic.List[string]
+        # The parentheses matter: inside a method call the commas of -f would be
+        # read as further arguments to Add().
+        $lines.Add(("===== {0} manage.bat {1} ({2})" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Command, $ending))
+        $out = ($Result.StdOut | Out-String).TrimEnd()
+        if (-not [string]::IsNullOrWhiteSpace($out)) { $lines.Add($out) }
+        $errText = ($Result.StdErr | Out-String).TrimEnd()
+        if (-not [string]::IsNullOrWhiteSpace($errText)) {
+            $lines.Add("--- stderr")
+            $lines.Add($errText)
+        }
+        Add-Content -LiteralPath $UnattendedLogPath -Value $lines -Encoding UTF8
+    }
+    catch {
+        Write-WatchdogLog "WARN" "Could not write $UnattendedLogPath : $($_.Exception.Message)"
+    }
 }
 
 function Write-WatchdogLog {
@@ -454,6 +492,12 @@ function Invoke-ProcessWithTimeout {
     $process.StartInfo.UseShellExecute = $false
     $process.StartInfo.RedirectStandardOutput = $true
     $process.StartInfo.RedirectStandardError = $true
+    # manage.sh prints Japanese in UTF-8. Without this the pipes are decoded with
+    # the console code page (932 here), so every Japanese line became mojibake -
+    # harmless while only the ASCII summary line was read, unreadable now that the
+    # whole output is kept.
+    $process.StartInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    $process.StartInfo.StandardErrorEncoding = [System.Text.Encoding]::UTF8
     $process.StartInfo.CreateNoWindow = $true
 
     try {
@@ -577,6 +621,7 @@ function Invoke-TaxAppsRecovery {
             -FilePath $manageBat `
             -ArgumentList @("recover") `
             -TimeoutSeconds $AppRecoveryTimeoutSeconds
+        Write-UnattendedOutput -Command "recover" -Result $result
 
         if ($result.TimedOut) {
             Write-WatchdogLog "WARN" "manage.bat recover timed out after ${AppRecoveryTimeoutSeconds}s."
@@ -948,6 +993,7 @@ function Invoke-DueUnattendedWork {
             -FilePath $manageBat `
             -ArgumentList @("due") `
             -TimeoutSeconds $DueWorkTimeoutSeconds
+        Write-UnattendedOutput -Command "due" -Result $result
 
         if ($result.TimedOut) {
             Write-WatchdogLog "WARN" "manage.bat due timed out after ${DueWorkTimeoutSeconds}s."
