@@ -16,6 +16,20 @@ describe("SETTINGS_NAV_LINKS", () => {
     })
 })
 
+describe("SETTINGS_MENU", () => {
+    it("画面の名前は中身の名前だけ（「〜管理」「〜マスタ」を付けない）", () => {
+        for (const item of SETTINGS_MENU) {
+            expect(item.title).not.toMatch(/管理$|マスタ/)
+        }
+    })
+
+    it("短い名前は title が長いときだけ書く", () => {
+        for (const item of SETTINGS_MENU) {
+            if (item.navLabel) expect(item.navLabel).not.toBe(item.title)
+        }
+    })
+})
+
 describe("isSettingsPathCurrent", () => {
     it("設定トップは完全一致のときだけ選択状態になる", () => {
         expect(isSettingsPathCurrent("/settings", "/settings")).toBe(true)

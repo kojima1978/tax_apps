@@ -337,7 +337,7 @@ function RelatedPartyPersonsContent() {
     return (
         <MasterListPage<RelatedPartyPerson>
             {...getMasterListPageProps(ml)}
-            title="関係者マスタ管理"
+            title="関係者"
             entityLabel="関係者"
             columns={COLUMNS}
             searchPlaceholder="氏名・フリガナ・業種・電話番号・住所で検索"

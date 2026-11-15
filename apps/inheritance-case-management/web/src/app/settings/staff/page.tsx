@@ -107,7 +107,7 @@ function StaffContent() {
                 <div className="p-2.5 rounded-lg bg-white text-black border border-black/10">
                     <Users className="h-6 w-6" />
                 </div>
-                <h1 className="text-xl font-bold">担当者管理</h1>
+                <h1 className="text-xl font-bold">担当者</h1>
             </div>
 
             <StaffDirectoryNotice sync={sync} onResync={handleResync} />

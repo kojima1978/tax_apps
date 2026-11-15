@@ -341,7 +341,7 @@ function HeirPersonsContent() {
     return (
         <MasterListPage<HeirPerson>
             {...getMasterListPageProps(ml)}
-            title="相続人マスタ管理"
+            title="相続人"
             entityLabel="相続人"
             columns={COLUMNS}
             searchPlaceholder="氏名・フリガナ・電話番号・住所で検索"
