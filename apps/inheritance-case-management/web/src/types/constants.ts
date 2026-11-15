@@ -75,14 +75,6 @@ export const CASE_STATUS_FILTER_OPTIONS = CASE_STATUS_OPTIONS.map(s => ({ value:
 // Filter keys used for hasFilters check and KPI dependency
 export const FILTER_KEYS = ['search', 'status', 'fiscalYear', 'fiscalYears', 'department', 'assigneeId', 'internalReferrerId', 'staffId', 'referrerCompany', 'unassigned', 'noReferrer', 'deadlineSoon', 'deadlineOverdue', 'caseAddedFrom', 'caseAddedTo', 'caseCompletedFrom', 'caseCompletedTo', 'billedFrom', 'billedTo', 'paidFrom', 'paidTo'] as const
 
-// Fiscal year range
-export const FISCAL_YEAR_START = 2015
-export const FISCAL_YEAR_COUNT = 21
-export const FISCAL_YEARS = Array.from({ length: FISCAL_YEAR_COUNT }, (_, i) => FISCAL_YEAR_START + FISCAL_YEAR_COUNT - 1 - i)
-
-// Filter year options (FISCAL_YEARSと同じ範囲)
-export const FILTER_YEAR_OPTIONS = FISCAL_YEARS
-
 // Referrer mode toggle options
 export const REFERRER_MODE_OPTIONS = [
     { value: "none" as const, label: "なし" },

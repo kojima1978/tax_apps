@@ -7,7 +7,8 @@ import { SelectField } from "@/components/ui/SelectField"
 import { MultiSelectDropdown } from "@/components/ui/MultiSelectDropdown"
 import { Search, X, SlidersHorizontal, RotateCcw } from "lucide-react"
 import type { CasesQueryParams } from "@/lib/api/cases"
-import { CASE_STATUS_FILTER_OPTIONS, FILTER_YEAR_OPTIONS } from "@/types/constants"
+import { CASE_STATUS_FILTER_OPTIONS } from "@/types/constants"
+import { filterFiscalYearOptions } from "@/lib/fiscal-year-options"
 import type { Assignee, Department } from "@/types/shared"
 
 const FILTER_SELECT_WRAPPER = "h-11 w-auto p-0 text-sm sm:h-10"
@@ -46,15 +47,14 @@ interface FilterBarProps {
     totalCount?: number
     isUpdating?: boolean
     hasFilters: boolean
+    /** 案件のある年度（KPI の応答）。読み込み中は undefined */
+    fiscalYears?: number[]
 }
 
-const STATIC_FILTER_DEFS: FilterDef[] = [
-    { key: "fiscalYear", placeholder: "年度", options: FILTER_YEAR_OPTIONS.map(y => ({ value: y, label: `${y}年度` })) },
-    { key: "status", placeholder: "ステータス", options: CASE_STATUS_FILTER_OPTIONS, multiSelect: true },
-]
+const STATUS_FILTER_DEF: FilterDef = { key: "status", placeholder: "ステータス", options: CASE_STATUS_FILTER_OPTIONS, multiSelect: true }
 
 export function FilterBar({
-    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onClearAll, onResetDefaults, assignees, departments, totalCount, isUpdating,
+    queryParams, searchInput, setSearchInput, onSearch, onFilterChange, onClearAll, onResetDefaults, assignees, departments, totalCount, isUpdating, fiscalYears,
 }: FilterBarProps) {
     const [advancedOpen, setAdvancedOpen] = useState(() => Boolean(
         queryParams.department || queryParams.internalReferrerId
@@ -80,12 +80,18 @@ export function FilterBar({
             }))
     }, [assignees])
 
+    const fiscalYearOptions = useMemo(
+        () => filterFiscalYearOptions(new Date().getFullYear(), fiscalYears ?? [], queryParams.fiscalYear).map(y => ({ value: y, label: `${y}年度` })),
+        [fiscalYears, queryParams.fiscalYear],
+    )
+
     const filterDefs: FilterDef[] = useMemo(() => [
-        ...STATIC_FILTER_DEFS,
+        { key: "fiscalYear" as const, placeholder: "年度", options: fiscalYearOptions },
+        STATUS_FILTER_DEF,
         { key: "department" as const, placeholder: "部門", options: departments.filter(d => d.active).map(d => ({ value: d.name, label: d.name })) },
         { key: "assigneeId" as const, placeholder: "担当者", options: activeAssigneeOptions, optGroups: assigneeOptGroups },
         { key: "internalReferrerId" as const, placeholder: "紹介者（社内）", options: activeAssigneeOptions, optGroups: assigneeOptGroups, wrapperClassName: REFERRER_SELECT_WRAPPER },
-    ], [activeAssigneeOptions, assigneeOptGroups, departments])
+    ], [fiscalYearOptions, activeAssigneeOptions, assigneeOptGroups, departments])
 
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 

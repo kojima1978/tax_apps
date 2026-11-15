@@ -238,6 +238,7 @@ function InheritanceMockupPageContent() {
                 totalCount={pagination?.total}
                 isUpdating={isFetching}
                 hasFilters={hasFilters}
+                fiscalYears={kpiData?.fiscalYears}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-b-xl border-t bg-slate-50/70 px-3 py-2 sm:px-4">

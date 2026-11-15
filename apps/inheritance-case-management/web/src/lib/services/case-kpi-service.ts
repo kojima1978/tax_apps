@@ -22,7 +22,7 @@ function currentMonthRange(now: Date): { start: Date; end: Date } {
 export async function getCaseKpis(where: Prisma.InheritanceCaseWhereInput): Promise<KPIData> {
   const now = todayDate();
   const { start, end } = currentMonthRange(now);
-  const [total, ongoing, deadlineSoon, deadlineOverdue, completed, addedThisMonth, completedThisMonth] = await Promise.all([
+  const [total, ongoing, deadlineSoon, deadlineOverdue, completed, addedThisMonth, completedThisMonth, yearRows] = await Promise.all([
     prisma.inheritanceCase.count({ where }),
     prisma.inheritanceCase.count({
       where: withCondition(where, { status: { in: [...ONGOING_STATUSES] } }),
@@ -38,7 +38,11 @@ export async function getCaseKpis(where: Prisma.InheritanceCaseWhereInput): Prom
     prisma.inheritanceCase.count({
       where: withCondition(where, { caseCompletedDate: { gte: start, lt: end } }),
     }),
+    prisma.inheritanceCase.findMany({ distinct: ['fiscalYear'], select: { fiscalYear: true }, orderBy: { fiscalYear: 'desc' } }),
   ]);
 
-  return { total, ongoing, deadlineSoon, deadlineOverdue, completed, addedThisMonth, completedThisMonth };
+  return {
+    total, ongoing, deadlineSoon, deadlineOverdue, completed, addedThisMonth, completedThisMonth,
+    fiscalYears: yearRows.map(row => row.fiscalYear),
+  };
 }

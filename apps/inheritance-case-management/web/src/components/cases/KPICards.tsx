@@ -1,11 +1,11 @@
 import { Clock, AlertTriangle, CheckCircle } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import type { KPIData } from "@/lib/kpi-utils"
+import type { KPICountKey, KPIData } from "@/lib/kpi-utils"
 
 export type KPICardFilterKey = "total" | "ongoing" | "completed" | "deadlineSoon" | "deadlineOverdue" | "addedThisMonth" | "completedThisMonth"
 
 const KPI_CARD_DEFS: readonly {
-    key: keyof KPIData
+    key: KPICountKey
     label: string
     icon: LucideIcon
     color: string

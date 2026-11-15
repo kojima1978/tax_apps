@@ -8,9 +8,9 @@ import { User } from "lucide-react"
 import { toWareki } from "@/lib/analytics-utils"
 import type { InheritanceCase, Assignee, Referrer } from "@/types/shared"
 import {
-    FISCAL_YEARS,
     MAX_SUMMARY_LENGTH,
 } from "@/types/constants"
+import { inputFiscalYearOptions } from "@/lib/fiscal-year-options"
 import { ReferrerToggleSelect } from "./ReferrerToggleSelect"
 
 interface BasicInfoSectionProps {
@@ -42,7 +42,7 @@ export function BasicInfoSection({
                 <div className="space-y-1.5">
                     <Label htmlFor="fiscalYear" className="text-xs">年度（{toWareki(new Date(formData.fiscalYear, 0, 1))}度）</Label>
                     <SelectField id="fiscalYear" name="fiscalYear" value={formData.fiscalYear} onChange={handleChange}>
-                        {FISCAL_YEARS.map(year => (
+                        {inputFiscalYearOptions(new Date().getFullYear(), formData.fiscalYear).map(year => (
                             <option key={year} value={year}>{year}年度</option>
                         ))}
                     </SelectField>
