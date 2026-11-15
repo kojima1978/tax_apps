@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     }
     if (message === 'TEMPLATE_LAYOUT_OUTDATED') {
       return NextResponse.json(
-        { error: 'テンプレート（estimate_template.xlsx）が古い形式です。値引額を2行（遺産整理業務分／その他）にした新しいテンプレートへ差し替えてください' },
+        { error: 'テンプレート（estimate_template.xlsx）が古い形式です。リポジトリの apps/inheritance-case-management/templates/estimate_template.xlsx（値引額を2行にした版）へ差し替えてください' },
         { status: 500 }
       );
     }

@@ -154,5 +154,8 @@ Excel の結合セルは、入り切らない文字を隣のセルへあふれ�
 ## 注意
 
 - テンプレートが存在しない場合はエラーになります。必ず配置してください。
-- このフォルダ内の Excel ファイルは `.gitignore` で除外されています。
+- テンプレート本体（`estimate_template.xlsx` / `invoice_request_template.xlsx`）は Git 管理下です。
+  欄割りは `template-service.ts` の転記セルと対で決まるので、片方だけ戻すと出力が壊れます。
+  テンプレートを直したらコードと同じコミットに入れてください。作業中の控え（`*控え*.xlsx`）と
+  Excel の一時ファイル（`~$*.xlsx`）だけ `.gitignore` で除外しています。
 - Docker コンテナ内では `/app/templates/` に読み取り専用でマウントされます。

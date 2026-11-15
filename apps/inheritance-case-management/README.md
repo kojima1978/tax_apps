@@ -180,8 +180,9 @@
   - 1 行目と 2 行目の間、合計行の上に A-D 列まで横罫線を出力
 - テンプレートは `templates/` から読み込み、Docker では `/app/templates` に読み取り専用マウント
   - 見積書と請求書は `estimate_template.xlsx` を共用、請求書発行依頼票は `invoice_request_template.xlsx`（詳細は `templates/README.md`）
-  - **`*.xlsx` は Git に入らない**（`templates/.gitignore`）。控えは夜間バックアップの `itcm-templates` だけなので、
-    新しい PC ではバックアップから戻すか手で置く。ファイルが無い種類は帳票出力ができない
+  - **テンプレート本体は Git 管理下**（作業中の控え `*控え*.xlsx` だけ除外）。欄割りはコード側の転記セルと対なので、
+    テンプレートを直したらコードと同じコミットに入れる。新しい PC では `git clone` でそのまま揃う。
+    ファイルが無い種類は帳票出力ができない
 - `estimate_template.xlsx` への主な転記セル:
   - 土地数（路線価）: `K27`
   - 土地数（倍率）: `K28`
@@ -222,7 +223,7 @@
 全アプリ共通の仕組み（取るのは全体で1つ、戻すのはアプリごと）は [docker/RESTORE.md](../../docker/RESTORE.md)。
 
 - **全体バックアップに入るもの**: DB の `pg_dump`（`itcm-postgres`）・Excel テンプレート（`templates/`。
-  `.gitignore` 対象で Git には無い）・`.env`（`backup.sh` の `PG_TARGETS` / `BIND_TARGETS` / `SETTINGS_TARGETS`）
+  Git にもあるが、本番 PC で差し替えた版を拾うため控えを取る）・`.env`（`backup.sh` の `PG_TARGETS` / `BIND_TARGETS` / `SETTINGS_TARGETS`）
 - **取る**: `docker/scripts/manage.sh backup`（全体。ふだんはウォッチドッグが自動で回すので叩かなくてよい）
 - **戻す**: `docker/scripts/manage.sh restore inheritance-case-management <バックアップ>`（`itcm` でも通る）。
   `--yes` が無ければ一覧だけ出して何も変えない。実行は `--yes` を付けて、人の確認の後

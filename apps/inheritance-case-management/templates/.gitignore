@@ -1,2 +1,5 @@
-# テンプレートExcelファイルはGit管理対象外
-*.xlsx
+# テンプレート本体（estimate_template.xlsx / invoice_request_template.xlsx）は Git 管理下に置く。
+# 帳票の欄割りはコード側の転記セルと対で決まるので、片方だけ戻ると出力が壊れる。
+# 除外するのは作業中の控えと Excel の一時ファイルだけ。
+*控え*.xlsx
+~$*.xlsx

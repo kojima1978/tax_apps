@@ -488,7 +488,7 @@ DBなどの永続データは Docker Named Volume またはバインドマウン
 | 3 | Private Banking PostgreSQL | `pg_dump`（SQLダンプ） | 同上 |
 | 4 | Stock Valuation Form PostgreSQL | `pg_dump`（SQLダンプ） | 同上。業種目マスタと各社データ |
 | 5 | SQLite 2アプリ | `better-sqlite3 backup` + `PRAGMA integrity_check` | 稼働中も整合性のあるスナップショットを取得 |
-| 6 | ITCM Excel テンプレート | `cp` | `apps/inheritance-case-management/templates/`。`.gitignore` 対象なので Git には無い |
+| 6 | ITCM Excel テンプレート | `cp` | `apps/inheritance-case-management/templates/`。Git にもあるが、本番 PC で差し替えた版を拾う |
 | 7 | 設定ファイル | `cp` | ITCM / Bank Analyzer / Private Banking / Stock Valuation Form の `.env` |
 | 8 | Bank Analyzer 案件別JSON | `npm run backup:json` | 画面のJSONバックアップと同じ形式 |
 
