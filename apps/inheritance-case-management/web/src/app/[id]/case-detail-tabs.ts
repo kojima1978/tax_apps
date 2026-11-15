@@ -1,5 +1,3 @@
-import type { InheritanceCase } from "@/types/shared"
-
 /**
  * 案件詳細の区分。以前は8つのセクションを縦に積み、上のリンクで位置へ飛ばしていた
  * （全部開くと 4,000px を超えて、目的の欄を探すのに縦スクロールが要った）。
@@ -78,43 +76,4 @@ export function buildCaseDetailTabUrl(pathname: string, tab: CaseDetailTabId): s
 
 export function getCaseDetailTabHref(caseId: number, tab: CaseDetailTabId): string {
     return buildCaseDetailTabUrl(`/${caseId}`, tab)
-}
-
-export interface CaseDetailTabStatus {
-    /** タブのラベルに添える件数（相続人・関係者は N人、立替金は N件） */
-    counts: string[]
-    /** 未保存の変更があるタブ */
-    hasChanges: boolean
-    /** 未入力・入力エラーの件数 */
-    missingCount: number
-}
-
-/** 0件は出さない（見出しが長くなるだけで何も分からない） */
-function countOrNone(count: number, unit: string): string[] {
-    return count > 0 ? [`${count}${unit}`] : []
-}
-
-export function getCaseDetailTabStatuses(
-    data: InheritanceCase,
-    changedSections: readonly string[],
-    missingInputs: readonly { sectionKey: string }[],
-): Record<CaseDetailTabId, CaseDetailTabStatus> {
-    const countsByTab: Record<CaseDetailTabId, string[]> = {
-        basic: [],
-        progress: [],
-        money: [],
-        expenses: countOrNone(data.expenses?.length ?? 0, "件"),
-        heirs: countOrNone(data.heirs?.length ?? 0, "人"),
-        relatedParties: countOrNone(data.relatedParties?.length ?? 0, "人"),
-        history: [],
-    }
-    const statuses = {} as Record<CaseDetailTabId, CaseDetailTabStatus>
-    for (const tab of CASE_DETAIL_TABS) {
-        statuses[tab.id] = {
-            counts: countsByTab[tab.id],
-            hasChanges: changedSections.some(key => getTabForSectionKey(key) === tab.id),
-            missingCount: missingInputs.filter(item => getTabForSectionKey(item.sectionKey) === tab.id).length,
-        }
-    }
-    return statuses
 }

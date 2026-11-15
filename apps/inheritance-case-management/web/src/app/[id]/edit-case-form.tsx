@@ -48,13 +48,12 @@ import { CaseDetailHeader } from "./CaseDetailHeader"
 import { CaseWorkspaceSummary } from "./CaseWorkspaceSummary"
 import { CaseBrowseNavigation } from "./CaseBrowseNavigation"
 import { getCaseListReturnHref, readCaseListNavigation, saveCaseListNavigation } from "@/lib/case-list-navigation"
-import { getChangedCaseSections, getMissingCaseInputs, type MissingCaseInput } from "./case-workspace-utils"
+import { getChangedCaseSections, type MissingCaseInput } from "./case-workspace-utils"
 import {
     buildCaseDetailTabUrl,
     CASE_DETAIL_TAB_PARAM,
     CASE_SECTION_ANCHORS,
     getAvailableCaseDetailTabs,
-    getCaseDetailTabStatuses,
     getTabForSectionAnchor,
     getTabForSectionKey,
     resolveCaseDetailTab,
@@ -73,12 +72,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
     )
     const { isDirty, resetBaseline, baselineData } = useUnsavedChanges(formData, initialData)
     const changedSections = useMemo(() => getChangedCaseSections(formData, baselineData), [formData, baselineData])
-    const missingInputs = useMemo(() => getMissingCaseInputs(formData), [formData])
     const tabs = useMemo(() => getAvailableCaseDetailTabs(isCreateMode), [isCreateMode])
-    const tabStatuses = useMemo(
-        () => getCaseDetailTabStatuses(formData, changedSections, missingInputs),
-        [formData, changedSections, missingInputs],
-    )
     // タブは URL に入れる（再読込・貼り付け・戻る／進むで同じタブが開く）。
     // 切り替えるのは表示だけで、フォームの状態は1つのまま ── 隠れているタブの入力も保存・検証される。
     // 旧リンク（#case-progress など）はその区分を含むタブで開く。最初の描画で決めるので、
@@ -306,7 +300,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                 </>
             )}
 
-            <CaseTabNavigation tabs={tabs} activeTab={activeTab} statuses={tabStatuses} onSelect={selectTab} />
+            <CaseTabNavigation tabs={tabs} activeTab={activeTab} onSelect={selectTab} />
 
             <CaseWorkspaceSummary data={formData} savedName={baselineData.deceasedName} isCreateMode={isCreateMode} onNavigate={navigateToMissingInput} />
 
