@@ -6,6 +6,7 @@
  */
 
 import { DETAIL_KINDS } from '../../data/detailCodes';
+import { TABLE13_DEBT_FORM, TABLE13_FUNERAL_FORM } from '../../forms/table13';
 import { TABLE10_DETAIL_FORM, TABLE10_ROWS } from '../../forms/table10';
 import { TABLE15_KEYS, TABLE15_KEY_BY_MARK, table15Key } from '../../forms/table15';
 import { TABLE9_DETAIL_FORM, TABLE9_ROWS } from '../../forms/table9';
@@ -178,6 +179,16 @@ function computeAllWithRatios(
   const unsplitTotals = computeUnsplit(detailItems, linkedCivil);
   // 第13表3①④ ← 同表1・2の明細の「負担する金額」
   const t13 = computeTable13(details);
+  // 負担者が未確定の明細も相続分で按分する。②⑤の手入力は個別の負担割合を
+  // 指定したものとして優先し、空欄なら自動計算に戻す。
+  const unsettled = (form: string) => computeUnsplit(
+    (details[form] ?? [])
+      .filter((row) => (row.who ?? '').trim() === '' && (row.share ?? '').trim() === '')
+      .map((row) => ({ value: row.amt ?? '' })),
+    linkedCivil,
+  );
+  const unsettledDebt = unsettled(TABLE13_DEBT_FORM);
+  const unsettledFuneral = unsettled(TABLE13_FUNERAL_FORM);
   // 第15表①〜㉘ ← 付表の細目ごとの合計。転記になる欄は手入力の残りを混ぜないよう毎回空に戻す。
   const t15 = sumTable15(used, withDerived);
   // 第1表⑫ ← 第4表の2㉕。この様式は自分の入力だけで完結するので、第1表を1周する前に確定させる
@@ -211,6 +222,8 @@ function computeAllWithRatios(
       t11v2: unsplit === 0 ? '' : str(unsplit),
       t13v1: debt === 0 ? '' : str(debt),
       t13v4: funeral === 0 ? '' : str(funeral),
+      t13v2: filled(h, 't13v2') ? h.t13v2! : (unsettledDebt[i + 1] ? str(unsettledDebt[i + 1]!) : ''),
+      t13v5: filled(h, 't13v5') ? h.t13v5! : (unsettledFuneral[i + 1] ? str(unsettledFuneral[i + 1]!) : ''),
       ...t15Blank,
       ...Object.fromEntries(Object.entries(t15).map(([key, byNo]) => {
         const amount = byNo[i + 1] ?? 0;

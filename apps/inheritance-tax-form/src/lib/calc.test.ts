@@ -587,6 +587,52 @@ describe('入力内容の比較', () => {
 });
 
 describe('computeAll 第13表1・2の集計', () => {
+  const equalHeirs: Values[] = [
+    { name: '甲', isLawful: '1', lawNum: '1', lawDen: '2' },
+    { name: '乙', isLawful: '1', lawNum: '1', lawDen: '2' },
+  ];
+
+  it('負担者未確定の債務・葬式費用を按分して第1表と第15表へ転記する', () => {
+    const result = computeAll({}, equalHeirs, ['table13', 'table15'], {
+      table13debt: [{ amt: '1000001' }],
+      table13funeral: [{ amt: '200000' }],
+    });
+    expect(result.heirs.map((h) => h.t13v2)).toEqual(['500001', '500000']);
+    expect(result.heirs.map((h) => h.t13v5)).toEqual(['100000', '100000']);
+    expect(result.heirs.map((h) => h.v3)).toEqual(['600001', '600000']);
+    expect(result.heirs.map((h) => h[table15Key(33)])).toEqual(['500001', '500000']);
+    expect(result.totals.t13v7).toBe('1200001');
+  });
+
+  it('確定済みの負担額を未確定分に混ぜず、負担者確定後は②を残さない', () => {
+    const fixed = { amt: '600000', who: '1', share: '600000' };
+    const before = computeAll({}, equalHeirs, ['table13'], {
+      table13debt: [fixed, { amt: '400000' }],
+    });
+    expect(before.heirs.map((h) => h.v3)).toEqual(['800000', '200000']);
+    const after = computeAll({}, equalHeirs, ['table13'], {
+      table13debt: [fixed, { amt: '400000', who: '2', share: '400000' }],
+    });
+    expect(after.heirs.map((h) => h.t13v2)).toEqual(['', '']);
+    expect(after.heirs.map((h) => h.v3)).toEqual(['600000', '400000']);
+  });
+
+  it('②⑤の手入力（0も含む）を優先する', () => {
+    const result = computeAll({}, equalHeirs.map((h, i) => ({
+      ...h, t13v2: i === 0 ? '0' : '1000000', t13v5: '0',
+    })), ['table13'], { table13debt: [{ amt: '1000000' }] });
+    expect(result.heirs.map((h) => h.t13v2)).toEqual(['0', '1000000']);
+    expect(result.heirs.map((h) => h.v3)).toEqual(['0', '1000000']);
+  });
+
+  it('未確定の債務は税法上の人数ではなく民法上の相続分で按分する', () => {
+    const result = computeAll({}, [
+      { name: '甲', isLawful: '1', civilNum: '1', civilDen: '4' },
+      { name: '乙', isLawful: '1', civilNum: '3', civilDen: '4' },
+    ], ['table13'], { table13debt: [{ amt: '1000000' }] });
+    expect(result.heirs.map((h) => h.t13v2)).toEqual(['250000', '750000']);
+  });
+
   const heirs: Values[] = [{ name: '甲' }, { name: '乙' }];
   /** 負担する人は `resolveHeirRefs` を通った後の「何人目か」 */
   const debt: Values[] = [
