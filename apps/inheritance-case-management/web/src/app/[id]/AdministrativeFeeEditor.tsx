@@ -123,7 +123,7 @@ function SortableFeeRow({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    aria-label={`${index + 1}行目の行政書士業務を削除`}
+                    aria-label={`${index + 1}行目の遺産整理業務を削除`}
                     title="削除"
                     className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground lg:h-9 lg:w-9"
                     onClick={() => onDelete(index)}
@@ -168,7 +168,7 @@ function FeeItemPicker({
             <div className="space-y-3">
                 {groups.length === 0 && (
                     <p className="rounded-md border border-dashed py-6 text-center text-xs text-muted-foreground">
-                        料金表に行がありません。設定の「行政書士料金表」で登録してください。
+                        料金表に行がありません。設定の「遺産整理料金表」で登録してください。
                     </p>
                 )}
                 {groups.map((group) => (
@@ -215,7 +215,7 @@ interface AdministrativeFeeEditorProps {
 }
 
 /**
- * 行政書士業務の報酬の明細。単価は料金表から**写す**ので、
+ * 遺産整理業務の報酬の明細。単価は料金表から**写す**ので、
  * 料金表を後で変えても登録済みの案件の金額は動かない（この画面で直せる）。
  */
 export function AdministrativeFeeEditor({ fees, onChange }: AdministrativeFeeEditorProps) {
@@ -298,7 +298,7 @@ export function AdministrativeFeeEditor({ fees, onChange }: AdministrativeFeeEdi
 
             {fees.length === 0 && (
                 <div className="rounded-md border border-dashed py-4 text-center text-xs text-muted-foreground">
-                    行政書士業務は登録されていません
+                    遺産整理業務は登録されていません
                 </div>
             )}
 

@@ -6,7 +6,7 @@ export function administrativeFeeRowTotal(fee: Pick<AdministrativeFee, "quantity
     return (fee.quantity || 0) * (fee.unitPrice || 0)
 }
 
-/** 行政書士業務の報酬の合計 */
+/** 遺産整理業務の報酬の合計 */
 export function administrativeFeeTotal(fees: Pick<AdministrativeFee, "quantity" | "unitPrice">[]): number {
     return fees.reduce((sum, fee) => sum + administrativeFeeRowTotal(fee), 0)
 }

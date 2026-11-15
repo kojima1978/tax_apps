@@ -212,7 +212,7 @@ function AdministrativeFeesContent() {
         }
         const workbook = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(workbook, worksheet, ADMINISTRATIVE_FEE_EXCEL_SHEET_NAME)
-        XLSX.writeFile(workbook, exportFileName("行政書士料金表", "xlsx"))
+        XLSX.writeFile(workbook, exportFileName("遺産整理料金表", "xlsx"))
     }
 
     const handleImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -352,7 +352,7 @@ function AdministrativeFeesContent() {
         <>
             <MasterListPage<AdministrativeFeeItem>
                 {...getMasterListPageProps(ml)}
-                title="行政書士料金表"
+                title="遺産整理料金表"
                 entityLabel="料金表の行"
                 columns={COLUMNS}
                 searchPlaceholder="手続き分類・手続き内容・備考・料金で検索"
@@ -395,7 +395,7 @@ function AdministrativeFeesContent() {
             <div className="container mx-auto px-4 pb-10">
                 <div className="space-y-1 rounded-md border bg-muted/20 p-3 text-xs leading-relaxed text-muted-foreground">
                     <p className="font-medium text-foreground">料金表の使い方</p>
-                    <p>案件詳細の「行政書士」タブで、この表から手続きを選ぶと単価が入ります。案件側で単価を直しても、この表は変わりません。</p>
+                    <p>案件詳細の「遺産整理」タブで、この表から手続きを選ぶと単価が入ります。案件側で単価を直しても、この表は変わりません。</p>
                     <p>Excel出力した表を直して取り込むと、手続き分類＋手続き内容が同じ行は料金・備考を上書きし、無い行は追加します（表に無い行はこの画面から消してください）。</p>
                     {ADMINISTRATIVE_FEE_NOTES.map(note => <p key={note}>※ {note}</p>)}
                 </div>

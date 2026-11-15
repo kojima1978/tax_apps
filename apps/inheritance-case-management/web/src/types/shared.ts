@@ -48,7 +48,7 @@ export interface CaseExpenseItem {
   memo?: string;
 }
 
-// 行政書士業務の明細（input shape for API — used by editors）
+// 遺産整理業務の明細（input shape for API — used by editors）
 export interface AdministrativeFee {
   feeItemId?: number | null;
   category: string;
@@ -69,7 +69,7 @@ export interface CaseAdministrativeFeeItem {
   memo?: string | null;
 }
 
-/** 行政書士業務の料金表（マスタ） */
+/** 遺産整理業務の料金表（マスタ） */
 export interface AdministrativeFeeItem {
   id: number;
   category: string;

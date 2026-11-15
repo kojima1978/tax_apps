@@ -363,7 +363,7 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
 
             <div {...tabPanelProps("administrative")} className="space-y-3">
                 <div id={CASE_SECTION_ANCHORS.administrativeFees} className="scroll-mt-28">
-                    <SectionPanel title="行政書士業務" icon={ScrollText} badge={`${(formData.administrativeFees || []).length}件`} compact>
+                    <SectionPanel title="遺産整理業務" icon={ScrollText} badge={`${(formData.administrativeFees || []).length}件`} compact>
                         <AdministrativeFeeEditor
                             fees={toAdministrativeFees(formData.administrativeFees || [])}
                             onChange={(fees) => setFormData(prev => ({ ...prev, administrativeFees: toAdministrativeFeeItems(fees) }))}

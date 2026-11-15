@@ -316,7 +316,7 @@ model StaffDirectorySyncRun {
   unlinked Json?
 }
 
-// 行政書士業務の料金表（全社共通のマスタ）。単価は設定画面で編集でき、Excel で持ち運べる。
+// 遺産整理業務の料金表（全社共通のマスタ）。単価は設定画面で編集でき、Excel で持ち運べる。
 // 案件の明細は分類・手続き内容・単価をこのマスタから「写して」持つので、
 // あとで料金表を変えても過去の案件の記録は動かない。
 model AdministrativeFeeItem {
@@ -336,7 +336,7 @@ model AdministrativeFeeItem {
   @@index([categoryOrder, sortOrder])
 }
 
-// 案件ごとの行政書士業務の明細。料金表に無い手続きも自由行として足せる（feeItemId = null）
+// 案件ごとの遺産整理業務の明細。料金表に無い手続きも自由行として足せる（feeItemId = null）
 model CaseAdministrativeFee {
   id        Int                    @id @default(autoincrement())
   caseId    Int

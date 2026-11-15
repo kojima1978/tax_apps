@@ -8,7 +8,7 @@ export const CASE_DETAIL_TABS = [
     { id: "basic", label: "基本", sectionKeys: ["basicInfo", "memo"] },
     { id: "progress", label: "進捗", sectionKeys: ["progress"] },
     { id: "money", label: "報酬", sectionKeys: ["financial"] },
-    { id: "administrative", label: "行政書士", sectionKeys: ["administrativeFees"] },
+    { id: "administrative", label: "遺産整理", sectionKeys: ["administrativeFees"] },
     { id: "expenses", label: "立替金", sectionKeys: ["expenses"] },
     { id: "heirs", label: "相続人", sectionKeys: ["heirs"] },
     { id: "relatedParties", label: "関係者", sectionKeys: ["relatedParties"] },

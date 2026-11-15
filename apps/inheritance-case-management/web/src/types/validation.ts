@@ -71,7 +71,7 @@ const specialAdditionSchema = z.object({
   amount: z.number().int().min(0, '特別業務報酬額は0以上を入力してください'),
 });
 
-// 行政書士業務の明細（internal - createCaseSchema で使う）
+// 遺産整理業務の明細（internal - createCaseSchema で使う）
 const caseAdministrativeFeeSchema = z.object({
   feeItemId: z.number().int().nullable().optional(),
   category: z.string().max(40, '手続き分類は40文字以内で入力してください').optional().default(''),
@@ -118,7 +118,7 @@ export const createCaseSchema = z.object({
   progress: z.array(progressStepSchema).optional(),
   expenses: z.array(expenseSchema).optional(),
   specialAdditions: z.array(specialAdditionSchema).max(2, '特別業務報酬額は最大2行までです').optional(),
-  administrativeFees: z.array(caseAdministrativeFeeSchema).max(100, '行政書士業務の明細は最大100行までです').optional(),
+  administrativeFees: z.array(caseAdministrativeFeeSchema).max(100, '遺産整理業務の明細は最大100行までです').optional(),
 });
 
 export const updateCaseSchema = createCaseSchema.partial().extend({
@@ -179,7 +179,7 @@ export const updateReferrerSchema = createReferrerSchema.partial().extend({
   active: z.boolean().optional(),
 });
 
-// AdministrativeFeeItem Schemas（行政書士業務の料金表）
+// AdministrativeFeeItem Schemas（遺産整理業務の料金表）
 export const createAdministrativeFeeItemSchema = z.object({
   category: z.string().min(1, '手続き分類は必須です').max(40, '手続き分類は40文字以内で入力してください'),
   name: z.string().min(1, '手続き内容は必須です').max(120, '手続き内容は120文字以内で入力してください'),
