@@ -4,8 +4,10 @@ import {
   assigneeFilterPeople,
   assigneeMatches,
   buildPickerSections,
+  departmentChips,
   departmentOrderByName,
   parseAssigneeFilter,
+  peopleInDepartment,
   personMatches,
   pushRecent,
   sectionsByDepartment,
@@ -79,6 +81,44 @@ describe('buildPickerSections', () => {
       ['検索結果（1人）', [12]],
     ]);
     expect(buildPickerSections(rows, { query: '', directoryIdOf }).map((s) => s.kind)).toEqual(['department', 'department', 'department']);
+  });
+
+  it('部署で絞ると自分・最近を挟まずその部署だけ。検索語はその部署の中で当てる', () => {
+    expect(buildPickerSections(rows, { query: '', directoryIdOf, department: '会計部', quick: { meId: 2, recentIds: [2] } })
+      .map((s) => [s.kind, s.label, s.people.map((p) => p.id)])).toEqual([
+      ['department', '会計部', [11]],
+    ]);
+    // 絞った部署に居ない人は検索しても出ない
+    expect(buildPickerSections(rows, { query: 'じろう', directoryIdOf, department: '会計部' })
+      .map((s) => [s.label, s.people.map((p) => p.id)])).toEqual([['検索結果（0人）', []]]);
+  });
+});
+
+describe('departmentChips / peopleInDepartment', () => {
+  const list = [
+    person({ id: 1, departmentName: '会計部', departmentOrder: 1 }),
+    person({ id: 2, departmentName: '医療部', departmentOrder: 2 }),
+    person({ id: 3, departmentName: '医療部', departmentOrder: 2 }),
+    person({ id: 4, departmentName: '' }),
+  ];
+
+  it('見出しと同じ label・同じ並びで人数を添える', () => {
+    expect(departmentChips(list)).toEqual([
+      { label: '会計部', count: 1 },
+      { label: '医療部', count: 2 },
+      { label: '部署なし', count: 1 },
+    ]);
+  });
+
+  it('部署が1つしか無ければチップは出さない', () => {
+    expect(departmentChips([person({ id: 1 }), person({ id: 2 })])).toEqual([]);
+  });
+
+  it('選んだ部署の人だけ。絞っていない・知らない部署なら全員', () => {
+    expect(peopleInDepartment(list, '医療部').map((p) => p.id)).toEqual([2, 3]);
+    expect(peopleInDepartment(list, '部署なし').map((p) => p.id)).toEqual([4]);
+    expect(peopleInDepartment(list, null).map((p) => p.id)).toEqual([1, 2, 3, 4]);
+    expect(peopleInDepartment(list, '消えた部').map((p) => p.id)).toEqual([1, 2, 3, 4]);
   });
 });
 

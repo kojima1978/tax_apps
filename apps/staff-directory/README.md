@@ -383,7 +383,7 @@ bash shared/sync.sh --check  # 写しがずれていれば 1 で終わる（CI�
 | `operator.ts` | 操作者（いま画面を使っている人）。選んだ台帳ID は `tax-apps:operator-id` に置き、同じブラウザの全アプリで共通 |
 | `OperatorPicker.tsx` | 画面右上の操作者ボタンと選ぶダイアログ。`usage` に「このアプリでは何に使うか」を渡す。`variant="dark"` は暗いヘッダー用 |
 | `AssigneePicker.tsx` | 案件の担当者を選ぶダイアログ（先頭に「自分」「最近選んだ人」） |
-| `StaffPickerDialog.tsx` | 上の2つの共通部分（検索・部署別の一覧・↑↓で移動・Enter で先頭に決定） |
+| `StaffPickerDialog.tsx` | 上の2つの共通部分（検索・部署のチップで絞り込み・部署別の一覧・↑↓で移動・Enter で先頭に決定） |
 | `assignee.ts` | 担当者の検索・並び・部署分け・「自分の担当」などの絞り込み（テストはここ） |
 | `company.ts` / `CompanySwitcher.tsx` | 帳票に刷る事務所情報と会社の切り替え。連絡先の行（`getContactLine`）は `TEL …` だけ |
 

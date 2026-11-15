@@ -90,6 +90,26 @@ export function sectionsByDepartment<T extends PersonLike>(people: readonly T[])
     .map(([label, { members }]) => ({ label, people: sortPeople(members) }));
 }
 
+export type DepartmentChip = { label: string; count: number };
+
+/**
+ * 部署で絞り込むチップ（「部署で絞ってから氏名」を1タップでできるようにするもの）。
+ * 見出しと同じ label・同じ並びで、人数を添える。部署が1つしか無ければ空（絞る意味が無い）
+ */
+export function departmentChips<T extends PersonLike>(people: readonly T[]): DepartmentChip[] {
+  const sections = sectionsByDepartment(people);
+  return sections.length < 2 ? [] : sections.map((s) => ({ label: s.label, count: s.people.length }));
+}
+
+/**
+ * チップで選んだ部署の人だけ（label は departmentChips の label）。
+ * 絞っていない（null）・台帳が入れ替わって知らない label になったときは全員 ── 絞り込みで誰も選べなくならないように。
+ */
+export function peopleInDepartment<T extends PersonLike>(people: readonly T[], label: string | null | undefined): readonly T[] {
+  if (!label) return people;
+  return sectionsByDepartment(people).find((s) => s.label === label)?.people ?? people;
+}
+
 /**
  * 部署名 → 台帳の表示順。部署名しか持たない写し（PB）が、台帳から読めた操作者の一覧で順を引くためのもの。
  * 別の会社に同じ名前の部署があれば前のほう（小さい番号）を採る。台帳に届かなければ空を渡す（名前順に戻る）
@@ -114,6 +134,7 @@ export const RECENT_SECTION_LABEL = '最近選んだ人';
  * 担当者を選ぶ一覧の組み立て（台帳のダイアログ・PB の選択欄で同じ決まり）。
  * - 検索語があれば当たった人だけを1つの塊に
  * - 無ければ先頭に「自分（操作者）」「最近選んだ人」（quick のとき）、そのあと部署ごと
+ * - 部署のチップで絞っているときはその部署だけ（検索語はその部署の中で当てる）
  * 自分と最近は台帳ID で持つので、写しの行は directoryIdOf で台帳ID を引く。
  */
 export function buildPickerSections<T extends PersonLike>(
@@ -122,13 +143,18 @@ export function buildPickerSections<T extends PersonLike>(
     query: string;
     directoryIdOf: (person: T) => number | null;
     quick?: { meId: number | null; recentIds: readonly number[]; meLabel?: string };
+    /** チップで部署を選んでいるときはその label（departmentChips）。絞っていなければ null */
+    department?: string | null;
   },
 ): PickerSection<T>[] {
-  const { query, directoryIdOf, quick } = options;
+  const { query, directoryIdOf, quick, department } = options;
+  const scoped = peopleInDepartment(people, department);
   if (query.trim() !== '') {
-    const hits = sortPeople(people.filter((p) => personMatches(p, query)));
+    const hits = sortPeople(scoped.filter((p) => personMatches(p, query)));
     return [{ kind: 'search', label: `検索結果（${hits.length}人）`, people: hits, showDepartment: true }];
   }
+  // 部署で絞っているときは自分・最近を挟まず、その部署だけを出す（絞ったものがそのまま出る）
+  if (department) return [{ kind: 'department', label: department, people: sortPeople(scoped), showDepartment: false }];
   const byDepartment = sectionsByDepartment(people).map((s): PickerSection<T> => ({ ...s, kind: 'department', showDepartment: false }));
   if (!quick) return byDepartment;
   const findByDirectoryId = (id: number | null) => (id === null ? undefined : people.find((p) => directoryIdOf(p) === id));

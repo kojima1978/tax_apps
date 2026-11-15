@@ -74,9 +74,22 @@ describe("担当者の検索式選択", () => {
     fireEvent.focus(input());
     await screen.findByRole("option", { name: /T001/ });
     // 退職者と未連携の人は候補に出ないので、残るのは東京の1人と大阪の1人。
-    const groups = screen.getAllByRole("group");
+    const groups = screen.getAllByRole("group").filter((group) => group.getAttribute("aria-label") !== "部署で絞り込み");
     expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["大阪", "東京"]);
     expect(groups[0].querySelector(".staff-combobox-group-label")?.textContent).toBe("大阪1人");
+  });
+
+  it("部署のチップで絞ってから氏名を選べる", async () => {
+    render(<StaffSelect defaultValue={null} />);
+    fireEvent.focus(input());
+    await screen.findByRole("option", { name: /T001/ });
+    const chips = screen.getByRole("group", { name: "部署で絞り込み" });
+    expect([...chips.querySelectorAll("button")].map((chip) => chip.textContent)).toEqual(["すべて2", "大阪1", "東京1"]);
+    fireEvent.click(screen.getByRole("button", { name: /大阪/ }));
+    // 絞った部署の人だけが残る（自分・最近の塊も挟まない）
+    expect(screen.queryByRole("option", { name: /T001/ })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: /T003/ }));
+    expect(savedValue()).toBe("3");
   });
 
   it("開いたら候補一覧を外側ごと見える位置へ送る", async () => {
@@ -88,8 +101,9 @@ describe("担当者の検索式選択", () => {
     fireEvent.focus(input());
     await screen.findByRole("option", { name: /T001/ });
     expect(scrollIntoView.mock.calls.some(([options]) => options?.block === "nearest")).toBe(true);
-    const list = document.querySelector(".staff-combobox-options");
-    expect(scrollIntoView.mock.instances).toContain(list);
+    // 送るのは部署チップごと外側の枠（一覧だけを送るとチップが画面の外へ出る）
+    const popup = document.querySelector(".staff-combobox-popup");
+    expect(scrollIntoView.mock.instances).toContain(popup);
     Reflect.deleteProperty(Element.prototype, "scrollIntoView");
   });
 

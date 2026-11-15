@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { retirementMark } from '../staff-retirement/retirement';
-import { buildPickerSections, readRecentIds, rememberRecent } from './assignee';
+import { buildPickerSections, departmentChips, readRecentIds, rememberRecent } from './assignee';
 import { useOperator, type Operator } from './operator';
 
 /** 人を足す・直す場所。名簿はここ1つで、各アプリには持たせない */
@@ -82,6 +82,8 @@ function PickerBody({
 }: Omit<StaffPickerDialogProps, 'open'>) {
   const { operators, status, selected: me } = useOperator();
   const [query, setQuery] = useState('');
+  // 部署で絞ってから氏名を選ぶ人のためのチップ（既定は「すべて」。打って探すのを邪魔しない）
+  const [department, setDepartment] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentIds] = useState(readRecentIds);
@@ -98,9 +100,11 @@ function PickerBody({
         query,
         directoryIdOf: (p) => p.id,
         quick: quickSections ? { meId, recentIds, meLabel: '自分（画面右上の操作者）' } : undefined,
+        department,
       }),
-    [people, query, recentIds, meId, quickSections],
+    [people, query, recentIds, meId, quickSections, department],
   );
+  const chips = useMemo(() => departmentChips(people), [people]);
   const firstHit = sections[0]?.people[0];
 
   const pick = async (person: Operator | null) => {
@@ -159,6 +163,25 @@ function PickerBody({
             className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
           />
         )}
+        {status === 'ok' && chips.length > 0 && (
+          <div className="flex items-center gap-1 overflow-x-auto sm:flex-wrap sm:overflow-x-visible" role="group" aria-label="部署で絞り込み">
+            {[{ label: 'すべて', count: people.length, value: null }, ...chips.map((c) => ({ ...c, value: c.label }))].map((chip) => {
+              const on = department === chip.value;
+              return (
+                <button
+                  key={chip.label}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setDepartment(chip.value)}
+                  className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs ${on ? 'border-blue-300 bg-blue-50 font-semibold text-blue-800' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  {chip.label}
+                  <span className="ml-1 font-normal text-slate-500">{chip.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div ref={listRef} className="min-h-24 flex-1 overflow-y-auto px-3 py-2" onKeyDown={(e) => moveFocus(e, 'list')}>
@@ -166,9 +189,9 @@ function PickerBody({
         {status === 'fallback' && <p className="px-2 py-4 text-sm text-amber-800">{fallbackMessage}</p>}
         {status === 'ok' && query.trim() !== '' && !firstHit && (
           <p className="px-2 py-6 text-center text-sm text-slate-500">
-            「{query}」に当たる人はいません。
+            {department ? `${department}に` : ''}「{query}」に当たる人はいません。
             <br />
-            台帳に居ない人は、下の「社員台帳で登録」から足してください。
+            {department ? '部署の絞り込みを「すべて」へ戻すと全員から探せます。' : '台帳に居ない人は、下の「社員台帳で登録」から足してください。'}
           </p>
         )}
         {status === 'ok' &&

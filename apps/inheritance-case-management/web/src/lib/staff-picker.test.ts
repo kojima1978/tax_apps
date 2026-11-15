@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildStaffPickerSections, flattenStaffPickerRows, markOf } from "@/lib/staff-picker"
+import { buildStaffPickerSections, flattenStaffPickerRows, markOf, staffDepartmentChips } from "@/lib/staff-picker"
 import type { Assignee } from "@/types/shared"
 
 // 名前はすべて架空。id は案件管理の写しの ID、staffDirectoryId が台帳ID（わざとずらしてある）
@@ -61,6 +61,25 @@ describe("buildStaffPickerSections", () => {
         expect(hit).toEqual([13])
         const osakaSection = buildStaffPickerSections(withKana, { query: "", value: "", today }).find((s) => s.label === "大阪")
         expect(ids(osakaSection!.rows)).toEqual([13, 12])
+    })
+
+    it("部署のチップで絞ると自分・最近を挟まずその部署だけ（検索語はその部署の中で当てる）", () => {
+        const sections = buildStaffPickerSections(assignees, { query: "", value: "", quick: { meId: 1, recentIds: [3] }, department: "大阪", today })
+        expect(sections.map((s) => [s.kind, s.label])).toEqual([["department", "大阪"]])
+        // フリガナが無いので氏名順（ja の照合では「三郎」が「二郎」より前）
+        expect(ids(sections[0].rows)).toEqual([13, 12])
+        const hit = buildStaffPickerSections(assignees, { query: "一郎", value: "", department: "大阪", today })
+        expect(hit[0].label).toBe("検索結果（0人）")
+        // 絞っていない・知らない部署のときは全員（絞り込みで誰も選べなくならないように）
+        expect(flattenStaffPickerRows(buildStaffPickerSections(assignees, { query: "", value: "", department: "札幌", today }))).toHaveLength(4)
+    })
+
+    it("部署のチップは見出しと同じ並び・人数つき（退職者は数えない）", () => {
+        expect(staffDepartmentChips(assignees, "")).toEqual([
+            { label: "東京", count: 1 },
+            { label: "大阪", count: 2 },
+            { label: "部署なし", count: 1 },
+        ])
     })
 
     it("同じ人が自分と部署の塊に出ても行の key は重ならない", () => {

@@ -5,7 +5,7 @@ import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
 import { readRecentIds, rememberRecent } from "@/shared/staff-directory/assignee"
 import { copyLinkTroubleMessage, useCopyLinkTrouble } from "@/shared/staff-directory/linkHealth"
 import { useOperator } from "@/shared/staff-directory/operator"
-import { buildStaffPickerSections, flattenStaffPickerRows, markOf } from "@/lib/staff-picker"
+import { buildStaffPickerSections, flattenStaffPickerRows, markOf, staffDepartmentChips } from "@/lib/staff-picker"
 import type { Assignee } from "@/types/shared"
 
 /** link-health の写しの状態を引くときのアプリ名（社員台帳の server/linkedApps.ts と同じ） */
@@ -31,12 +31,15 @@ export function StaffSelect({ id, label, value, assignees, onChange, placeholder
     const { selected: me, operators, status } = useOperator()
     const trouble = useCopyLinkTrouble(LINK_APP)
     const [query, setQuery] = useState("")
+    // 部署で絞ってから氏名を選ぶ人のためのチップ（既定は「すべて」。打って探すのを邪魔しない）
+    const [department, setDepartment] = useState<string | null>(null)
     const [open, setOpen] = useState(false)
     const [activeIndex, setActiveIndex] = useState(0)
     // localStorage はブラウザでしか読めないので、開いたときに読む（サーバーで描く1回目と食い違わせない）
     const [recentIds, setRecentIds] = useState<number[]>([])
     const listboxId = `${id}-options`
     const optionsRef = useRef<HTMLDivElement>(null)
+    const popupRef = useRef<HTMLDivElement>(null)
 
     const selected = assignees.find((a) => String(a.id) === value) ?? null
     // 退職予定の印に使う退職日は台帳から（写しには持たない）。台帳が止まっていれば印は出せない
@@ -45,17 +48,25 @@ export function StaffSelect({ id, label, value, assignees, onChange, placeholder
         [operators, status],
     )
     const meId = status === "ok" ? me?.id ?? null : null
-    const sectionsFor = (text: string, recent: readonly number[]) => buildStaffPickerSections(assignees, {
+    const sectionsFor = (text: string, recent: readonly number[], dept: string | null = null) => buildStaffPickerSections(assignees, {
         query: text,
         value,
         quick: quick ? { meId, recentIds: recent } : undefined,
+        department: dept,
         retiredOnByDirectoryId,
     })
-    const sections = sectionsFor(query, recentIds)
+    const sections = sectionsFor(query, recentIds, department)
+    const chips = useMemo(() => staffDepartmentChips(assignees, value), [assignees, value])
     const flat = flattenStaffPickerRows(sections)
     const active = flat[activeIndex]
     // 閉じているときも、今の人が退職・退職予定なら欄の中に印を出す（案件を開いた時点で気づけるように）
     const selectedMark = selected ? markOf(selected, retiredOnByDirectoryId) : ""
+
+    // 開いたら候補を外側ごと見える位置へ送る（部署チップが付いて縦が伸びたぶん、1024x768 では
+    // 一覧の下端が画面の外へ51px出た）。`block: "nearest"` なので、全部見えていれば何も動かない
+    useEffect(() => {
+        if (open) popupRef.current?.scrollIntoView?.({ block: "nearest" })
+    }, [open])
 
     useEffect(() => {
         if (!open) return
@@ -68,6 +79,7 @@ export function StaffSelect({ id, label, value, assignees, onChange, placeholder
         const recent = quick ? readRecentIds() : []
         setRecentIds(recent)
         setQuery("")
+        setDepartment(null)
         setOpen(true)
         setActiveIndex(Math.max(flattenStaffPickerRows(sectionsFor("", recent)).findIndex((row) => String(row.assignee.id) === value), 0))
     }
@@ -75,6 +87,7 @@ export function StaffSelect({ id, label, value, assignees, onChange, placeholder
     function choose(assignee: Assignee | null) {
         onChange(assignee ? String(assignee.id) : "")
         setQuery("")
+        setDepartment(null)
         setOpen(false)
         // 最近選んだ人は全アプリ共通で台帳ID を控える（担当者のときだけ・台帳に居ない行は控えない）
         if (quick && assignee?.staffDirectoryId != null) rememberRecent(assignee.staffDirectoryId)
@@ -96,6 +109,7 @@ export function StaffSelect({ id, label, value, assignees, onChange, placeholder
         } else if (event.key === "Escape") {
             event.preventDefault()
             setQuery("")
+            setDepartment(null)
             setOpen(false)
         }
     }
@@ -106,6 +120,7 @@ export function StaffSelect({ id, label, value, assignees, onChange, placeholder
             onBlur={(event) => {
                 if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
                 setQuery("")
+                setDepartment(null)
                 setOpen(false)
             }}
         >
@@ -139,12 +154,30 @@ export function StaffSelect({ id, label, value, assignees, onChange, placeholder
             </div>
 
             {open && (
+                <div ref={popupRef} className="absolute left-0 top-full z-40 mt-1 flex w-full flex-col overflow-hidden rounded-xl border bg-white shadow-lg">
+                {chips.length > 0 && (
+                    <div className="flex gap-1 overflow-x-auto border-b bg-slate-50 px-2 py-2 sm:flex-wrap sm:overflow-x-visible" role="group" aria-label="部署で絞り込み">
+                        {[{ label: "すべて", count: chips.reduce((total, chip) => total + chip.count, 0), value: null as string | null }, ...chips.map((chip) => ({ ...chip, value: chip.label as string | null }))].map((chip) => {
+                            const on = department === chip.value
+                            return (
+                                <button
+                                    key={chip.label}
+                                    type="button"
+                                    aria-pressed={on}
+                                    className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs ${on ? "border-blue-300 bg-blue-50 font-semibold text-blue-800" : "border-slate-300 bg-white text-muted-foreground hover:bg-slate-100"}`}
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onClick={() => { setDepartment(chip.value); setActiveIndex(0) }}
+                                >{chip.label}<span className="ml-1 font-normal text-muted-foreground">{chip.count}</span></button>
+                            )
+                        })}
+                    </div>
+                )}
                 <div
                     ref={optionsRef}
                     id={listboxId}
                     role="listbox"
                     aria-label={`${label}の候補`}
-                    className="absolute left-0 top-full z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border bg-white p-1 shadow-lg"
+                    className="max-h-72 overflow-y-auto p-1"
                 >
                     <button
                         type="button"
@@ -184,12 +217,13 @@ export function StaffSelect({ id, label, value, assignees, onChange, placeholder
                             })}
                         </div>
                     ))}
-                    {flat.length === 0 && <p className="p-3 text-sm text-muted-foreground">一致する人がいません</p>}
+                    {flat.length === 0 && <p className="p-3 text-sm text-muted-foreground">{department ? `${department}に一致する人がいません（「すべて」へ戻すと全員から探せます）` : "一致する人がいません"}</p>}
                     {status === "fallback" && (
                         <p className="p-3 text-xs text-muted-foreground">
                             社員台帳に接続できないため、{quick ? "自分（操作者）と" : ""}退職予定の印は出ていません（一覧は案件管理の写しから選べます）。
                         </p>
                     )}
+                </div>
                 </div>
             )}
             {trouble ? <p role="status" className="mt-1 text-[11px] leading-snug text-amber-800">{copyLinkTroubleMessage(trouble)}</p> : null}

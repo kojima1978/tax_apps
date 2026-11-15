@@ -1,4 +1,4 @@
-import { buildPickerSections, type PersonLike, type PickerSection } from "@/shared/staff-directory/assignee"
+import { buildPickerSections, departmentChips, type DepartmentChip, type PersonLike, type PickerSection } from "@/shared/staff-directory/assignee"
 import { retirementMark } from "@/shared/staff-retirement/retirement"
 import type { Assignee } from "@/types/shared"
 
@@ -27,19 +27,10 @@ export type StaffPickerRow = {
 
 export type StaffPickerSection = { kind: PickerSection<Person>["kind"]; label: string; showCount: boolean; rows: StaffPickerRow[] }
 
-export function buildStaffPickerSections(assignees: readonly Assignee[], options: {
-    query: string
-    /** いま選ばれている写しの ID。退職していても候補から外さない（値が黙って消えないように） */
-    value: string
-    /** 自分・最近を出すとき（担当者）。社内紹介者は出さない */
-    quick?: { meId: number | null; recentIds: readonly number[] }
-    /** 台帳の退職日（台帳ID → 日付）。写しは退職日を持たない */
-    retiredOnByDirectoryId?: ReadonlyMap<number, string | null>
-    /** テスト用（既定は日本時間の今日） */
-    today?: string
-}): StaffPickerSection[] {
-    const people = assignees
-        .filter((a) => a.active !== false || String(a.id) === options.value)
+/** 共通の形へ寄せた一覧（並べ方・検索・部署の塊は shared が決める） */
+function toPeople(assignees: readonly Assignee[], value: string): Person[] {
+    return assignees
+        .filter((a) => a.active !== false || String(a.id) === value)
         // フリガナのある人は共通の関数が読み順に並べる。無い人はこの並び（氏名順）のまま後ろへ
         .sort((a, b) => a.name.localeCompare(b.name, "ja"))
         .map((a): Person => ({
@@ -53,10 +44,32 @@ export function buildStaffPickerSections(assignees: readonly Assignee[], options
             departmentOrder: a.department?.sortOrder ?? null,
             searchExtra: a.employeeId ?? "",
         }))
+}
+
+/** 「部署で絞ってから氏名」の部署チップ（部署が1つなら空）。一覧は欄と同じ `toPeople` から出す */
+export function staffDepartmentChips(assignees: readonly Assignee[], value: string): DepartmentChip[] {
+    return departmentChips(toPeople(assignees, value))
+}
+
+export function buildStaffPickerSections(assignees: readonly Assignee[], options: {
+    query: string
+    /** いま選ばれている写しの ID。退職していても候補から外さない（値が黙って消えないように） */
+    value: string
+    /** 自分・最近を出すとき（担当者）。社内紹介者は出さない */
+    quick?: { meId: number | null; recentIds: readonly number[] }
+    /** チップで部署を絞っているときはその label（絞っていなければ null） */
+    department?: string | null
+    /** 台帳の退職日（台帳ID → 日付）。写しは退職日を持たない */
+    retiredOnByDirectoryId?: ReadonlyMap<number, string | null>
+    /** テスト用（既定は日本時間の今日） */
+    today?: string
+}): StaffPickerSection[] {
+    const people = toPeople(assignees, options.value)
     const sections = buildPickerSections(people, {
         query: options.query,
         directoryIdOf: (p) => p.assignee.staffDirectoryId ?? null,
         quick: options.quick,
+        department: options.department,
     })
     return sections.map((section, s) => ({
         kind: section.kind,

@@ -2,7 +2,7 @@
 
 import { ChevronDown, Search, X } from "lucide-react";
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
-import { buildPickerSections, departmentOrderByName, type PersonLike, readRecentIds, rememberRecent } from "@/shared/staff-directory/assignee";
+import { buildPickerSections, departmentChips, departmentOrderByName, type PersonLike, readRecentIds, rememberRecent } from "@/shared/staff-directory/assignee";
 import { copyLinkTroubleMessage, useCopyLinkTrouble } from "@/shared/staff-directory/linkHealth";
 import { useOperator } from "@/shared/staff-directory/operator";
 import { retirementMark } from "@/shared/staff-retirement/retirement";
@@ -41,11 +41,14 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
   const selectedLabel = selected ? labelOf(selected) : "";
   const [query, setQuery] = useState(selectedLabel);
   const [open, setOpen] = useState(false);
+  // 部署で絞ってから氏名を選ぶ人のためのチップ（既定は「すべて」。打って探すのを邪魔しない）
+  const [department, setDepartment] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   // localStorage はブラウザでしか読めないので、開いたときに読む（サーバーで描く1回目と食い違わせない）
   const [recentIds, setRecentIds] = useState<number[]>([]);
   const listboxId = `${id}-options`;
   const optionsRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   // 部署の並びは台帳の部署の画面の順。写しは部署名しか持たないので、台帳から読めた一覧で名前から順を引く。
   // 台帳が止まっていれば空 ── 並びが名前順に戻るだけで、選ぶのは写しからできる
@@ -65,13 +68,15 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
     [operators, status],
   );
   const meId = status === "ok" ? me?.id ?? null : null;
-  const sectionsFor = (text: string, recent: readonly number[]) => buildPickerSections(people, {
+  const sectionsFor = (text: string, recent: readonly number[], dept: string | null = null) => buildPickerSections(people, {
     query: text,
     directoryIdOf: (person) => person.row.staffDirectoryId,
     quick: { meId, recentIds: recent },
+    department: dept,
   });
   const searchText = query === selectedLabel ? "" : query;
-  const sections = sectionsFor(searchText, recentIds);
+  const sections = sectionsFor(searchText, recentIds, department);
+  const chips = useMemo(() => departmentChips(people), [people]);
   // 表示は塊ごと。キー操作は塊を跨いで「見えている順」に動かすので、同じ順で平らにした配列も持つ。
   // 自分・最近の人は部署の塊にも出るので、行の識別は塊の番号つき。
   const entries = (list: typeof sections) => list.flatMap((section, s) => section.people.map((person) => ({ key: `${s}-${person.row.id}`, row: person.row })));
@@ -82,9 +87,10 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
    * 開いたら外側を送って一覧を丸ごと見せる。新規登録の画面は候補がモーダルの中に出るため、
    * 一覧の下端が枠で切れて1行ぶん（実測50px）読めなかった。モーダル自身がスクロールするので
    * `block: "nearest"` で足りるぶんだけ送る（既に全部見えていれば何も動かない）。
+   * 送るのは部署チップごと（外側の枠）── 一覧だけを送るとチップが画面の外へ出る。
    */
   useEffect(() => {
-    if (open) optionsRef.current?.scrollIntoView?.({ block: "nearest" });
+    if (open) popupRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [open]);
   useEffect(() => {
     if (!open) return;
@@ -98,6 +104,7 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
   function choose(row: Staff) {
     onChange(String(row.id));
     setQuery(labelOf(row));
+    setDepartment(null);
     setOpen(false);
     // 最近選んだ人は全アプリ共通で台帳ID を控える（台帳に居ない行は控えない）
     if (row.staffDirectoryId !== null) rememberRecent(row.staffDirectoryId);
@@ -111,6 +118,7 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
     const recent = readRecentIds();
     setRecentIds(recent);
     setQuery(selectedLabel);
+    setDepartment(null);
     setOpen(true);
     const all = entries(sectionsFor("", recent));
     setActiveIndex(Math.max(all.findIndex((entry) => String(entry.row.id) === value), 0));
@@ -129,7 +137,7 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
       event.preventDefault();
       if (!event.nativeEvent.isComposing && flat[activeIndex]) choose(flat[activeIndex].row);
     } else if (event.key === "Escape") {
-      event.preventDefault(); setQuery(selectedLabel); setOpen(false);
+      event.preventDefault(); setQuery(selectedLabel); setDepartment(null); setOpen(false);
     }
   }
 
@@ -145,7 +153,7 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
     className="staff-combobox"
     onBlur={(event) => {
       if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-      setQuery(selectedLabel); setOpen(false);
+      setQuery(selectedLabel); setDepartment(null); setOpen(false);
     }}
   >
     {name ? <input type="hidden" name={name} value={value} /> : null}
@@ -169,7 +177,18 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
       />
       {value ? <button type="button" className="staff-combobox-clear" aria-label="担当者の選択を解除" onClick={() => { onChange(""); setQuery(""); setOpen(true); setActiveIndex(0); }} disabled={disabled}><X /></button> : <ChevronDown aria-hidden="true" />}
     </div>
-    {open ? <div ref={optionsRef} id={listboxId} className="staff-combobox-options" role="listbox" aria-label="担当者の候補">
+    {open ? <div className="staff-combobox-popup" ref={popupRef}>
+      {chips.length > 0 ? <div className="staff-combobox-depts" role="group" aria-label="部署で絞り込み">
+        {[{ label: "すべて", count: chips.reduce((total, chip) => total + chip.count, 0), value: null as string | null }, ...chips.map((chip) => ({ ...chip, value: chip.label as string | null }))].map((chip) => <button
+          key={chip.label}
+          type="button"
+          className="staff-combobox-dept"
+          aria-pressed={department === chip.value}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => { setDepartment(chip.value); setActiveIndex(0); }}
+        >{chip.label}<span>{chip.count}</span></button>)}
+      </div> : null}
+      <div ref={optionsRef} id={listboxId} className="staff-combobox-options" role="listbox" aria-label="担当者の候補">
       <button type="button" role="option" aria-selected={value === ""} className="staff-combobox-option is-empty" onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(""); setQuery(""); setOpen(false); }}>未設定</button>
       {sections.map((section, s) => section.people.length === 0 ? null : <div key={`${section.kind}-${section.label}`} role="group" aria-label={section.label} className="staff-combobox-group">
         <p className="staff-combobox-group-label" aria-hidden="true">{section.label}{section.kind === "department" ? <span>{section.people.length}人</span> : null}</p>
@@ -190,8 +209,9 @@ export function StaffCombobox({ id, staff, value, onChange, name, ariaLabel = "�
           ><strong>{row.name}</strong>{detail.mark ? <em className="staff-combobox-mark">{detail.mark}</em> : null}{detail.text ? <span>{detail.text}</span> : null}</button>;
         })}
       </div>)}
-      {flat.length === 0 ? <p className="staff-combobox-empty">一致する担当者がいません。</p> : null}
+      {flat.length === 0 ? <p className="staff-combobox-empty">{department ? `${department}に一致する担当者がいません（「すべて」へ戻すと全員から探せます）。` : "一致する担当者がいません。"}</p> : null}
       {status === "fallback" ? <p className="staff-combobox-empty">社員台帳に接続できないため、自分（操作者）と退職予定の印は出ていません（一覧は PB の写しから選べます）。</p> : null}
+      </div>
     </div> : null}
     {trouble ? <small className="staff-field-note is-warning" role="status">{copyLinkTroubleMessage(trouble)}</small> : null}
   </div>;
