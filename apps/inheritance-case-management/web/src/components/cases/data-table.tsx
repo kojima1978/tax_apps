@@ -35,9 +35,9 @@ interface DataTableProps {
     visibleColumnIds?: readonly string[]
 }
 
-function getResponsiveColumnClass(columnId: string): string {
-    if (columnId === "assignee" || columnId === "amount") return "hidden md:table-cell"
-    return ""
+/** 右寄せの売上と左寄せの特記事項が続けて読めないよう、特記事項の左を空ける */
+function getColumnClass(columnId: string): string {
+    return columnId === "summary" ? "pl-5" : ""
 }
 
 function DataTableComponent({
@@ -80,14 +80,14 @@ function DataTableComponent({
             {rows.length > 0 && <CaseMobileList data={data} selectedIds={selectedIds} onToggleSelected={onToggleSelected} visibleColumnIds={visibleColumnIds} />}
             {rows.length === 0 && <div className="rounded-xl border md:hidden">{emptyState}</div>}
             <div className="hidden w-full overflow-x-auto rounded-md border bg-white md:block">
-                <Table className={cn("w-full table-fixed", columns.length > 6 ? "min-w-[920px]" : "min-w-[680px]", density === "standard" ? "case-list-readable text-sm" : "text-xs")}>
+                <Table className={cn("w-full table-fixed", columns.length > 6 ? "min-w-[860px]" : "min-w-[680px]", density === "standard" ? "case-list-readable text-sm" : "text-xs")}>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => (
                                     <TableHead
                                         key={header.id}
-                                        className={cn("h-11 px-2 py-2 text-xs", getResponsiveColumnClass(header.column.id))}
+                                        className={cn("h-11 px-2 py-2 text-xs", getColumnClass(header.column.id))}
                                         style={{ width: `${(header.getSize() / totalColumnSize) * 100}%` }}
                                     >
                                         {header.isPlaceholder
@@ -119,7 +119,7 @@ function DataTableComponent({
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell
                                             key={cell.id}
-                                            className={cn("px-2 py-2 align-top text-xs leading-snug", getResponsiveColumnClass(cell.column.id))}
+                                            className={cn("px-2 py-2 align-top text-xs leading-snug", getColumnClass(cell.column.id))}
                                             style={{ width: `${(cell.column.getSize() / totalColumnSize) * 100}%` }}
                                         >
                                             {flexRender(

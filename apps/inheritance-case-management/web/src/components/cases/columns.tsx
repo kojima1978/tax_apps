@@ -97,14 +97,14 @@ function AmountSortHeader({ sort, onToggle }: { sort: "asc" | "desc" | null; onT
 export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, selectedIds, onToggleSelected, allSelected, onToggleAll }: ColumnOptions): ColumnDef<CaseListItem>[] {
     return [
     {
-        id: "select", size: 32,
+        id: "select", size: 38,
         header: () => <label className="flex min-h-11 min-w-9 items-center justify-center"><input type="checkbox" aria-label="このページの案件をすべて選択" checked={allSelected} onChange={onToggleAll} className="h-4 w-4 accent-blue-700" /></label>,
         cell: ({ row }) => <label className="flex min-h-11 min-w-9 items-center justify-center"><input type="checkbox" aria-label={`${row.original.deceasedName}様の案件を選択`} checked={selectedIds.has(row.original.id)} onChange={() => onToggleSelected(row.original.id)} className="h-4 w-4 accent-blue-700" /></label>,
     },
     // ── 操作列：狭い画面でも常に左端に表示 ─────────────────────
     {
         id: "actions",
-        size: 28,
+        size: 32,
         header: () => <span className="sr-only">操作</span>,
         cell: ({ row }) => {
             const c = row.original
@@ -123,7 +123,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
     // ── NO列 ──────────────────────────────────────────────────
     {
         id: "rowNumber",
-        size: 34,
+        size: 36,
         header: () => <span className="inline-flex items-center h-8">NO</span>,
         cell: ({ row }) => (
             <div className="text-center text-xs text-muted-foreground tabular-nums">
@@ -134,7 +134,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
     // ── 第1列：識別と基本属性 ─────────────────────────────────
     {
         accessorKey: "deceasedName",
-        size: 130,
+        size: 145,
         header: ({ column }) => <SortableHeader column={column}>被相続人</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
@@ -164,7 +164,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
     // ── 第2列：時間管理（デッドライン） ───────────────────────
     {
         accessorKey: "dateOfDeath",
-        size: 190,
+        size: 213,
         header: ({ column }) => <SortableHeader column={column}>申告期限</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
@@ -207,7 +207,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
     // ── 第4列：担当・リレーション ──────────────────────────────
     {
         id: "assignee",
-        size: 70,
+        size: 80,
         header: ({ column }) => <SortableHeader column={column}>担当</SortableHeader>,
         cell: ({ row }) => {
             const c = row.original
@@ -228,7 +228,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
     // ── 第5列：報酬・売上管理 ──────────────────────────────────
     {
         id: "amount",
-        size: 85,
+        size: 128,
         header: () => <AmountSortHeader sort={amountSort} onToggle={toggleAmountSort} />,
         cell: ({ row }) => {
             const c = row.original
@@ -274,7 +274,7 @@ export function createColumns({ amountSort, toggleAmountSort, rowNumberOffset, s
     },
     {
         accessorKey: "summary",
-        size: 105,
+        size: 115,
         header: () => <span className="inline-flex items-center h-8">特記事項</span>,
         cell: ({ row }) => {
             const c = row.original
