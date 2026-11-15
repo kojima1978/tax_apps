@@ -1,6 +1,6 @@
 # 相続税申告案件管理 ER図
 
-最終更新: 2026-10-19  
+最終更新: 2026-11-15  
 正本: [`web/prisma/schema.prisma`](web/prisma/schema.prisma)
 
 ## エンティティ関連図
@@ -24,6 +24,8 @@ erDiagram
     InheritanceCase ||--o{ CaseProgress : "工程"
     InheritanceCase ||--o{ CaseExpense : "立替金"
     InheritanceCase ||--o{ CaseSpecialAddition : "特別業務報酬"
+    InheritanceCase ||--o{ CaseAdministrativeFee : "行政書士業務"
+    AdministrativeFeeItem o|--o{ CaseAdministrativeFee : "料金表から写す"
 
     InheritanceCase {
         Int id PK
@@ -191,6 +193,29 @@ erDiagram
         Int amount
     }
 
+    AdministrativeFeeItem {
+        Int id PK
+        String category
+        Int categoryOrder
+        String name
+        Int unitPrice
+        String note
+        Int sortOrder
+        Boolean active
+    }
+
+    CaseAdministrativeFee {
+        Int id PK
+        Int caseId FK
+        Int feeItemId FK
+        Int sortOrder
+        String category
+        String name
+        Int quantity
+        Int unitPrice
+        String memo
+    }
+
     AuditLog {
         Int id PK
         String entity
@@ -213,7 +238,8 @@ erDiagram
 | `Company` | `Referrer.companyId` | 会社1件に社外紹介者0件以上 | `Restrict` |
 | `CompanyBranch` | `Referrer.branchId` | 紹介者の支店は任意 | `SetNull` |
 | `Referrer` | `InheritanceCase.referrerId` | 案件の社外紹介者は任意 | `SetNull` |
-| `InheritanceCase` | 工程・立替金・特別業務報酬・人物中間テーブル | 案件1件に明細0件以上 | `Cascade` |
+| `InheritanceCase` | 工程・立替金・特別業務報酬・行政書士業務・人物中間テーブル | 案件1件に明細0件以上 | `Cascade` |
+| `AdministrativeFeeItem` | `CaseAdministrativeFee.feeItemId` | 料金表の行は任意（自由入力の行は NULL） | `SetNull` |
 | `HeirPerson` | `CaseHeir.personId` | 相続人と案件は多対多 | `Restrict` |
 | `RelatedPartyPerson` | `CaseRelatedParty.personId` | 関係者と案件は多対多 | `Restrict` |
 
@@ -238,11 +264,12 @@ erDiagram
 ## 補足
 
 - `AuditLog.entityId`は複数種類のエンティティを記録するため、DB外部キーを設定していません。
-- `CompanyBranch`は`companyId + name`、人物中間テーブルは`caseId + personId`で一意です。
+- `CompanyBranch`は`companyId + name`、人物中間テーブルは`caseId + personId`で一意です。`AdministrativeFeeItem`は`category + name`で一意です。
 - `Referrer`は氏名を持たず、「会社＋支店（任意）」そのものが紹介元です。
 - `feeCalculationHeirCount`は報酬計算の入力値であり、`CaseHeir`の紐付け人数とは別の業務値です。
 - 紹介料額は非NULLで保持し、自動計算か手動上書きかを`isReferralFeeManual`と`isEstimateReferralFeeManual`で区別します。
 - 相続人と関係者は役割固有項目と管理画面が異なるため、`HeirPerson`と`RelatedPartyPerson`に意図的に分離しています。
+- `CaseAdministrativeFee`は料金表の値を写して持ちます（`category` / `name` / `unitPrice`）。料金表を後から直しても登録済み案件の金額は動かず、`feeItemId`は出どころの控えです。行政書士業務の合計は税理士報酬（`feeAmount`）とは別建てで、売上集計には混ぜません。
 - 年計表は`paidDate`（入金日）を計上月として集計します。
 - 案件一覧は`fiscalYear`＋（`status` / `assigneeId` / `internalReferrerId`）＋`dateOfDeath`の複合索引で引きます（`InheritanceCase_list_*_idx`）。
 - Mermaidの属性欄では任意項目も型名のみで表記しています。NULL可否・既定値・索引の正確な定義はPrismaスキーマを参照してください。

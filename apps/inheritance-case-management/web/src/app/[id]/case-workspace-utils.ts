@@ -26,6 +26,7 @@ const SECTION_FIELDS: Record<string, readonly (keyof InheritanceCase)[]> = {
     basicInfo: ["deceasedName", "deceasedNameKana", "dateOfDeath", "fiscalYear", "assigneeId", "internalReferrerId", "referrerId", "summary"],
     progress: ["status", "isUndivided", "caseAddedDate", "caseCompletedDate", "billedDate", "paidDate", "progress"],
     financial: ["propertyValue", "taxAmount", "estimateAmount", "feeAmount", "referralFeeRate", "referralFeeAmount", "estimateReferralFeeAmount", "isReferralFeeManual", "isEstimateReferralFeeManual", "landRosenkaCount", "landBairitsuCount", "unlistedStockCount", "feeCalculationHeirCount", "discountAmount", "feeCalcSnapshot", "specialAdditions"],
+    administrativeFees: ["administrativeFees"],
     expenses: ["expenses"], heirs: ["heirs"], relatedParties: ["relatedParties"], memo: ["memo"],
 }
 

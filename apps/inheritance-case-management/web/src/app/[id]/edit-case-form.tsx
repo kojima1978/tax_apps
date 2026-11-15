@@ -10,12 +10,13 @@ import type { InheritanceCase } from "@/types/shared"
 import { createCase, updateCase, getCaseDuplicates } from "@/lib/api/cases"
 import type { CaseDuplicateResult } from "@/lib/case-duplicates"
 import { CaseDuplicateCheck, CaseDuplicateCandidates } from "./CaseDuplicateCheck"
-import { toProgressSteps, toProgressItems, toExpenses, toExpenseItems } from "@/lib/case-converters"
+import { toProgressSteps, toProgressItems, toExpenses, toExpenseItems, toAdministrativeFees, toAdministrativeFeeItems } from "@/lib/case-converters"
 import { CASES_QUERY_KEY } from "@/hooks/use-cases"
 import { useToast } from "@/components/ui/Toast"
 import { Modal } from "@/components/ui/Modal"
 import { ProgressEditor } from "./ProgressEditor"
 import { ExpenseEditor } from "./ExpenseEditor"
+import { AdministrativeFeeEditor } from "./AdministrativeFeeEditor"
 import { HeirListEditor } from "./HeirListEditor"
 import { RelatedPartyListEditor } from "./RelatedPartyListEditor"
 import { BasicInfoSection } from "./BasicInfoSection"
@@ -23,7 +24,7 @@ import { FinancialSection } from "./FinancialSection"
 import { SectionPanel } from "@/components/ui/SectionPanel"
 import { DocumentExportModal } from "./DocumentExportModal"
 import { AuditLogSection } from "./AuditLogSection"
-import { ListChecks, Receipt, Users, Briefcase, StickyNote, FileText } from "lucide-react"
+import { ListChecks, Receipt, Users, Briefcase, StickyNote, FileText, ScrollText } from "lucide-react"
 import { isConflictError, CONFLICT_MESSAGE } from "@/lib/error-utils"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import {
@@ -357,6 +358,17 @@ export function EditCaseForm({ initialData, isCreateMode = false }: { initialDat
                         setFormData={setFormData}
                         highlightFee={needsConfirmedFee}
                     />
+                </div>
+            </div>
+
+            <div {...tabPanelProps("administrative")} className="space-y-3">
+                <div id={CASE_SECTION_ANCHORS.administrativeFees} className="scroll-mt-28">
+                    <SectionPanel title="行政書士業務" icon={ScrollText} badge={`${(formData.administrativeFees || []).length}件`} compact>
+                        <AdministrativeFeeEditor
+                            fees={toAdministrativeFees(formData.administrativeFees || [])}
+                            onChange={(fees) => setFormData(prev => ({ ...prev, administrativeFees: toAdministrativeFeeItems(fees) }))}
+                        />
+                    </SectionPanel>
                 </div>
             </div>
 

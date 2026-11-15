@@ -1,11 +1,14 @@
-import type { Company, CompanyBranch, Department, Assignee, Referrer, HeirPerson, RelatedPartyPerson } from '@/types/shared';
+import type { AdministrativeFeeItem, Company, CompanyBranch, Department, Assignee, Referrer, HeirPerson, RelatedPartyPerson } from '@/types/shared';
 import type {
   CreateCompanyInput, UpdateCompanyInput,
   CreateCompanyBranchInput, UpdateCompanyBranchInput,
   CreateReferrerInput, UpdateReferrerInput,
   CreateHeirPersonInput, UpdateHeirPersonInput,
   CreateRelatedPartyPersonInput, UpdateRelatedPartyPersonInput,
+  CreateAdministrativeFeeItemInput, UpdateAdministrativeFeeItemInput,
+  ImportAdministrativeFeeItemsInput,
 } from '@/types/validation';
+import { apiClient } from './client';
 import { createCrudApi } from './crud-factory';
 
 const companyApi = createCrudApi<Company, CreateCompanyInput, UpdateCompanyInput>('/companies');
@@ -44,3 +47,22 @@ export const getRelatedPartyPersons = relatedPartyPersonApi.getAll;
 export const createRelatedPartyPerson = relatedPartyPersonApi.create;
 export const updateRelatedPartyPerson = relatedPartyPersonApi.update;
 export const deleteRelatedPartyPerson = relatedPartyPersonApi.remove;
+
+const administrativeFeeItemApi = createCrudApi<AdministrativeFeeItem, CreateAdministrativeFeeItemInput, UpdateAdministrativeFeeItemInput>('/administrative-fee-items');
+export const getAdministrativeFeeItems = administrativeFeeItemApi.getAll;
+export const createAdministrativeFeeItem = administrativeFeeItemApi.create;
+export const updateAdministrativeFeeItem = administrativeFeeItemApi.update;
+export const deleteAdministrativeFeeItem = administrativeFeeItemApi.remove;
+
+export interface AdministrativeFeeImportResult {
+  updated: number;
+  created: number;
+  unchanged: number;
+}
+
+/** 料金表の取込（分類＋手続き内容で突き合わせ。表に無い行は消さない） */
+export const importAdministrativeFeeItems = (input: ImportAdministrativeFeeItemsInput) =>
+  apiClient<AdministrativeFeeImportResult>('/administrative-fee-items/import/', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });

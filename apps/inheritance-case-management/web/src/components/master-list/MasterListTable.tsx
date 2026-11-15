@@ -35,8 +35,9 @@ export function MasterListTable<T extends MasterListItem>({
     groupBy,
 }: MasterListTableProps<T>) {
     return (
-        <div className="border-y">
-            <Table className="table-fixed">
+        /* 狭い画面では列を潰さず横スクロールさせる（table-fixed は幅が足りないと1文字ずつ折り返す） */
+        <div className="border-y overflow-x-auto">
+            <Table className="table-fixed min-w-[640px]">
                 <TableHeader>
                     <TableRow>
                         {columns.map(col => (

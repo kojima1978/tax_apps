@@ -13,6 +13,7 @@ export const CASE_INCLUDE = {
   progress: { orderBy: { sortOrder: 'asc' } },
   expenses: { orderBy: { sortOrder: 'asc' } },
   specialAdditions: { orderBy: { sortOrder: 'asc' } },
+  administrativeFees: { orderBy: { sortOrder: 'asc' } },
   assignee: { include: { department: true } },
   internalReferrer: { include: { department: true } },
   referrer: { include: { company: true, branch: true } },
@@ -89,6 +90,23 @@ export function toExpenseCreateData(expenses: { date: string; description: strin
     description: e.description,
     amount: e.amount,
     memo: e.memo ?? null,
+    sortOrder: i,
+  }));
+}
+
+/** POST/PUT 用: administrativeFees 配列を Prisma create 入力に変換。
+ *  分類・手続き内容・単価は料金表から**写した値**をそのまま保存する
+ *  （料金表を後で変えても、過去案件の明細は動かさない） */
+export function toAdministrativeFeeCreateData(
+  fees: { feeItemId?: number | null; category?: string; name: string; quantity: number; unitPrice: number; memo?: string | null }[],
+) {
+  return fees.map((f, i) => ({
+    feeItemId: f.feeItemId ?? null,
+    category: (f.category ?? '').trim(),
+    name: f.name.trim(),
+    quantity: f.quantity,
+    unitPrice: f.unitPrice,
+    memo: f.memo?.trim() ? f.memo.trim() : null,
     sortOrder: i,
   }));
 }

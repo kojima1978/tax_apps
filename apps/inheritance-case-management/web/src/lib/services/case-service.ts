@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { normalizeNameKanaForStorage, normalizePersonNameForStorage, normalizePersonSearchText } from '@/lib/person-search';
 import {
   CASE_INCLUDE,
+  toAdministrativeFeeCreateData,
   CASE_LIST_SELECT,
   serializeCase,
   toDate,
@@ -91,6 +92,7 @@ type CreateCaseData = {
   progress?: { id: string; name: string; date: string | null; memo?: string; isDynamic?: boolean }[];
   expenses?: { date: string; description: string; amount: number; memo?: string | null }[];
   specialAdditions?: { description: string; amount: number }[];
+  administrativeFees?: { feeItemId?: number | null; category?: string; name: string; quantity: number; unitPrice: number; memo?: string | null }[];
 };
 
 const CASE_SCALAR_FIELDS = [
@@ -331,6 +333,7 @@ export async function createCase(data: CreateCaseData) {
         progress: { create: toProgressCreateData(data.progress ?? []) },
         expenses: { create: toExpenseCreateData(data.expenses ?? []) },
         specialAdditions: { create: toSpecialAdditionCreateData(data.specialAdditions ?? []) },
+        administrativeFees: { create: toAdministrativeFeeCreateData(data.administrativeFees ?? []) },
       },
       include: CASE_INCLUDE,
     });
@@ -404,6 +407,13 @@ export async function updateCase(id: number, data: Record<string, unknown>): Pro
       updateData.specialAdditions = {
         deleteMany: {},
         create: toSpecialAdditionCreateData(data.specialAdditions as Parameters<typeof toSpecialAdditionCreateData>[0]),
+      };
+    }
+
+    if (data.administrativeFees !== undefined) {
+      updateData.administrativeFees = {
+        deleteMany: {},
+        create: toAdministrativeFeeCreateData(data.administrativeFees as Parameters<typeof toAdministrativeFeeCreateData>[0]),
       };
     }
 

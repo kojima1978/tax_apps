@@ -53,6 +53,7 @@ model InheritanceCase {
   progress          CaseProgress[]
   expenses          CaseExpense[]
   specialAdditions  CaseSpecialAddition[]
+  administrativeFees CaseAdministrativeFee[]
 
   // Audit fields
   createdBy         String?
@@ -313,4 +314,42 @@ model StaffDirectorySyncRun {
   updated  Int      @default(0)
   /// 成功した回の、台帳と結び付いていない担当者 [{ id, name }]
   unlinked Json?
+}
+
+// 行政書士業務の料金表（全社共通のマスタ）。単価は設定画面で編集でき、Excel で持ち運べる。
+// 案件の明細は分類・手続き内容・単価をこのマスタから「写して」持つので、
+// あとで料金表を変えても過去の案件の記録は動かない。
+model AdministrativeFeeItem {
+  id            Int      @id @default(autoincrement())
+  category      String   @db.VarChar(40) // 手続き分類（戸籍収集 など）
+  categoryOrder Int      @default(0)
+  name          String   @db.VarChar(120) // 手続き内容
+  unitPrice     Int      @default(0) // 料金（円）
+  note          String?  @db.VarChar(200)
+  sortOrder     Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  caseFees      CaseAdministrativeFee[]
+
+  @@unique([category, name])
+  @@index([categoryOrder, sortOrder])
+}
+
+// 案件ごとの行政書士業務の明細。料金表に無い手続きも自由行として足せる（feeItemId = null）
+model CaseAdministrativeFee {
+  id        Int                    @id @default(autoincrement())
+  caseId    Int
+  case      InheritanceCase        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  feeItemId Int?
+  feeItem   AdministrativeFeeItem? @relation(fields: [feeItemId], references: [id], onDelete: SetNull)
+  sortOrder Int                    @default(0)
+  category  String                 @db.VarChar(40)
+  name      String                 @db.VarChar(120)
+  quantity  Int                    @default(1)
+  unitPrice Int                    @default(0)
+  memo      String?                @db.VarChar(200)
+
+  @@index([caseId])
+  @@index([caseId, sortOrder])
 }

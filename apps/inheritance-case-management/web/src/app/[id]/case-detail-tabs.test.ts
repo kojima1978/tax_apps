@@ -13,8 +13,8 @@ import {
 } from "./case-detail-tabs"
 
 describe("CASE_DETAIL_TABS", () => {
-    it("7つのタブで、節は重複せず全部どこかに属する", () => {
-        expect(CASE_DETAIL_TABS.map(tab => tab.id)).toEqual(["basic", "progress", "money", "expenses", "heirs", "relatedParties", "history"])
+    it("8つのタブで、節は重複せず全部どこかに属する", () => {
+        expect(CASE_DETAIL_TABS.map(tab => tab.id)).toEqual(["basic", "progress", "money", "administrative", "expenses", "heirs", "relatedParties", "history"])
         const keys = CASE_DETAIL_TABS.flatMap(tab => [...tab.sectionKeys])
         expect(new Set(keys).size).toBe(keys.length)
         expect(new Set(keys)).toEqual(new Set(Object.keys(CASE_SECTION_ANCHORS)))
@@ -25,6 +25,7 @@ describe("CASE_DETAIL_TABS", () => {
             ["basicInfo", "memo"],
             ["progress"],
             ["financial"],
+            ["administrativeFees"],
             ["expenses"],
             ["heirs"],
             ["relatedParties"],
@@ -73,7 +74,7 @@ describe("resolveCaseDetailTab", () => {
 
     it("新規登録では変更履歴を選べない", () => {
         const available = getAvailableCaseDetailTabs(true)
-        expect(available.map(tab => tab.id)).toEqual(["basic", "progress", "money", "expenses", "heirs", "relatedParties"])
+        expect(available.map(tab => tab.id)).toEqual(["basic", "progress", "money", "administrative", "expenses", "heirs", "relatedParties"])
         expect(resolveCaseDetailTab("history", available)).toBe(DEFAULT_CASE_DETAIL_TAB)
         expect(resolveCaseDetailTab("heirs", available)).toBe("heirs")
     })

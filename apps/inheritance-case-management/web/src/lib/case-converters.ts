@@ -1,4 +1,4 @@
-import type { CaseProgressItem, CaseHeir, CaseRelatedParty, CaseExpenseItem, CaseSpecialAdditionItem, ProgressStep, HeirInput, RelatedPartyInput, Expense, SpecialAddition } from '@/types/shared';
+import type { AdministrativeFee, CaseAdministrativeFeeItem, CaseProgressItem, CaseHeir, CaseRelatedParty, CaseExpenseItem, CaseSpecialAdditionItem, ProgressStep, HeirInput, RelatedPartyInput, Expense, SpecialAddition } from '@/types/shared';
 import { relationshipSortFor } from '@/lib/constants/heir-relationships';
 
 /** DB の CaseProgressItem[] → API 入力の ProgressStep[] */
@@ -131,5 +131,31 @@ export function toSpecialAdditionItems(additions: SpecialAddition[]): CaseSpecia
     sortOrder: i,
     description: a.description,
     amount: a.amount,
+  }));
+}
+
+/** DB の CaseAdministrativeFeeItem[] → API 入力の AdministrativeFee[] */
+export function toAdministrativeFees(items: CaseAdministrativeFeeItem[]): AdministrativeFee[] {
+  return items.map((f) => ({
+    feeItemId: f.feeItemId ?? null,
+    category: f.category,
+    name: f.name,
+    quantity: f.quantity,
+    unitPrice: f.unitPrice,
+    memo: f.memo ?? null,
+  }));
+}
+
+/** API 入力の AdministrativeFee[] → DB 形状の CaseAdministrativeFeeItem[] */
+export function toAdministrativeFeeItems(fees: AdministrativeFee[]): CaseAdministrativeFeeItem[] {
+  return fees.map((f, i) => ({
+    id: 0,
+    sortOrder: i,
+    feeItemId: f.feeItemId ?? null,
+    category: f.category,
+    name: f.name,
+    quantity: f.quantity,
+    unitPrice: f.unitPrice,
+    memo: f.memo ?? null,
   }));
 }

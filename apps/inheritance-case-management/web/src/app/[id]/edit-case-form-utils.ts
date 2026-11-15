@@ -1,5 +1,5 @@
 import type { InheritanceCase } from "@/types/shared"
-import { toExpenses, toHeirInputs, toProgressSteps, toRelatedPartyInputs, toSpecialAdditions } from "@/lib/case-converters"
+import { toAdministrativeFees, toExpenses, toHeirInputs, toProgressSteps, toRelatedPartyInputs, toSpecialAdditions } from "@/lib/case-converters"
 import { COMPLETED_STATUSES } from "@/types/constants"
 import { DEFAULT_CASE_DETAIL_TAB, getCaseDetailTabHref, type CaseDetailTabId } from "./case-detail-tabs"
 
@@ -59,6 +59,10 @@ export function getCaseApiPayload(formData: InheritanceCase) {
     const specialAdditions = formData.specialAdditions
         ? toSpecialAdditions(formData.specialAdditions).filter(addition => addition.description.trim() !== "")
         : undefined
+    // 手続き内容が空の行は保存しない（料金表から足して消し忘れた行を残さない）
+    const administrativeFees = formData.administrativeFees
+        ? toAdministrativeFees(formData.administrativeFees).filter(fee => fee.name.trim() !== "")
+        : undefined
 
     return {
         deceasedName: formData.deceasedName,
@@ -96,5 +100,6 @@ export function getCaseApiPayload(formData: InheritanceCase) {
         progress,
         expenses,
         specialAdditions,
+        administrativeFees,
     }
 }

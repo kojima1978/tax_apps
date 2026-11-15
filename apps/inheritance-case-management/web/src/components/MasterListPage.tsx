@@ -190,9 +190,10 @@ export function MasterListPage<T extends MasterListItem>({
                 </div>
 
                 <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                            <Label>登録済み{entityLabel}</Label>
+                    {/* 狭い画面では見出しと操作が潰れるので折り返す（見出しは1行のまま） */}
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                            <Label className="whitespace-nowrap">登録済み{entityLabel}</Label>
                             {listToolbar}
                         </div>
                         <div className="flex items-center gap-3">

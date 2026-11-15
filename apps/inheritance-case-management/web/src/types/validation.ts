@@ -71,6 +71,16 @@ const specialAdditionSchema = z.object({
   amount: z.number().int().min(0, '特別業務報酬額は0以上を入力してください'),
 });
 
+// 行政書士業務の明細（internal - createCaseSchema で使う）
+const caseAdministrativeFeeSchema = z.object({
+  feeItemId: z.number().int().nullable().optional(),
+  category: z.string().max(40, '手続き分類は40文字以内で入力してください').optional().default(''),
+  name: z.string().min(1, '手続き内容は必須です').max(120, '手続き内容は120文字以内で入力してください'),
+  quantity: z.number().int().min(0, '件数は0以上を入力してください').max(999, '件数は999以下を入力してください'),
+  unitPrice: z.number().int().min(0, '単価は0以上を入力してください'),
+  memo: z.string().max(200, '備考は200文字以内で入力してください').nullable().optional(),
+});
+
 // Case Schemas
 export const createCaseSchema = z.object({
   deceasedName: z.string().min(1, '被相続人氏名は必須です').max(100, '被相続人氏名は100文字以内で入力してください'),
@@ -108,6 +118,7 @@ export const createCaseSchema = z.object({
   progress: z.array(progressStepSchema).optional(),
   expenses: z.array(expenseSchema).optional(),
   specialAdditions: z.array(specialAdditionSchema).max(2, '特別業務報酬額は最大2行までです').optional(),
+  administrativeFees: z.array(caseAdministrativeFeeSchema).max(100, '行政書士業務の明細は最大100行までです').optional(),
 });
 
 export const updateCaseSchema = createCaseSchema.partial().extend({
@@ -167,6 +178,27 @@ export const createReferrerSchema = z.object({
 export const updateReferrerSchema = createReferrerSchema.partial().extend({
   active: z.boolean().optional(),
 });
+
+// AdministrativeFeeItem Schemas（行政書士業務の料金表）
+export const createAdministrativeFeeItemSchema = z.object({
+  category: z.string().min(1, '手続き分類は必須です').max(40, '手続き分類は40文字以内で入力してください'),
+  name: z.string().min(1, '手続き内容は必須です').max(120, '手続き内容は120文字以内で入力してください'),
+  unitPrice: z.number().int().min(0, '料金は0以上を入力してください').max(99999999, '料金が大きすぎます'),
+  note: z.string().max(200, '備考は200文字以内で入力してください').nullable().optional(),
+  sortOrder: z.number().int().min(0).optional().default(0),
+  categoryOrder: z.number().int().min(0).optional(),
+});
+
+export const updateAdministrativeFeeItemSchema = createAdministrativeFeeItemSchema.partial().extend({
+  active: z.boolean().optional(),
+});
+
+/** Excel・貼り付けからの取込。分類＋手続き内容が同じ行は単価を上書きし、無い行は追加する */
+export const importAdministrativeFeeItemsSchema = z.object({
+  items: z.array(createAdministrativeFeeItemSchema.omit({ sortOrder: true, categoryOrder: true }))
+    .min(1, '取り込む行がありません')
+    .max(300, '一度に取り込めるのは300行までです'),
+}).strict();
 
 // Person Schemas（HeirPerson / RelatedPartyPerson 共通の項目構造）
 const personBaseSchema = z.object({
@@ -260,6 +292,9 @@ export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
 export type CreateCompanyBranchInput = z.infer<typeof createCompanyBranchSchema>;
 export type UpdateCompanyBranchInput = z.infer<typeof updateCompanyBranchSchema>;
+export type CreateAdministrativeFeeItemInput = z.infer<typeof createAdministrativeFeeItemSchema>;
+export type UpdateAdministrativeFeeItemInput = z.infer<typeof updateAdministrativeFeeItemSchema>;
+export type ImportAdministrativeFeeItemsInput = z.infer<typeof importAdministrativeFeeItemsSchema>;
 export type CreateReferrerInput = z.infer<typeof createReferrerSchema>;
 export type UpdateReferrerInput = z.infer<typeof updateReferrerSchema>;
 export type CreateHeirPersonInput = z.infer<typeof createHeirPersonSchema>;

@@ -48,6 +48,39 @@ export interface CaseExpenseItem {
   memo?: string;
 }
 
+// 行政書士業務の明細（input shape for API — used by editors）
+export interface AdministrativeFee {
+  feeItemId?: number | null;
+  category: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  memo?: string | null;
+}
+
+export interface CaseAdministrativeFeeItem {
+  id: number;
+  sortOrder: number;
+  feeItemId?: number | null;
+  category: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  memo?: string | null;
+}
+
+/** 行政書士業務の料金表（マスタ） */
+export interface AdministrativeFeeItem {
+  id: number;
+  category: string;
+  categoryOrder: number;
+  name: string;
+  unitPrice: number;
+  note?: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface CaseSpecialAdditionItem {
   id: number;
   sortOrder: number;
@@ -153,6 +186,7 @@ export interface InheritanceCase {
   relatedParties?: CaseRelatedParty[];
   expenses?: CaseExpenseItem[];
   specialAdditions?: CaseSpecialAdditionItem[];
+  administrativeFees?: CaseAdministrativeFeeItem[];
   createdAt?: Date;
   updatedAt?: Date;
 }
