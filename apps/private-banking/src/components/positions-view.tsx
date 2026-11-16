@@ -30,6 +30,7 @@ import {
   propertyTypeOf,
   valuationDetailLine,
 } from "@/lib/portfolio-view";
+import { ScrollRegion } from "@/components/scroll-region";
 
 const JPY_PER_MAN_YEN = 10_000;
 
@@ -321,7 +322,7 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
         )}
       />
       <p className="sr-only" aria-live="polite">{announcement}</p>
-      <div className="table-scroll">
+      <ScrollRegion className="table-scroll" label={`${title}の明細`}>
         <table className={`position-table ${hasTaxBurden ? "" : "without-tax-burden"}`}>
           <thead><tr><th className="reorder-column"><span className="sr-only">並び順</span></th><th>中分類</th><th>科目・名称</th><th>所在地・金融機関等</th><th>評価方法</th><th className="number">評価額（円）</th><th className="number tax-burden-column">相続税負担額</th><th className="actions-column">操作</th></tr></thead>
           <tbody>
@@ -371,7 +372,7 @@ function PositionTable({ title, section, items, onAdd, onEdit, onDelete, onReord
               並び順・操作の列は印刷で消えるため、他の列とまとめず単独のセルにしておく。 */}
           <tfoot><tr className="position-total-row"><td className="reorder-cell" /><th scope="row" colSpan={4} className="position-total-label">{filterActive ? "表示中の合計" : "合計"}</th><td data-label="評価額（円）" className="number">{yen.format(visibleTotal)}</td><td data-label="相続税負担額" className="number tax-burden-column"><TaxBurdenAmount value={visibleBurdenTotal} /></td><td className="actions-cell" /></tr></tfoot>
         </table>
-      </div>
+      </ScrollRegion>
     </section>
   );
 }

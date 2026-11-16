@@ -13,6 +13,7 @@ import {
   trendRows,
   trendValues,
 } from "@/lib/portfolio-view";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnapshot, saving }: { snapshots: Snapshot[]; onCreate: () => void; onEditSnapshot: (snapshotId: number) => void; onDeleteSnapshot: (snapshot: Snapshot) => void; saving: boolean }) {
   const [expandedGroups, setExpandedGroups] = useState<Set<TrendGroup>>(() => new Set());
@@ -72,7 +73,7 @@ export function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnaps
     <section className="panel table-panel trend-panel" aria-label="年度推移表">
       <PanelHeader title="年度推移表" subtitle="3期" />
       {snapshots.length < columnCount ? <p className="trend-guidance">登録の無い期は「データなし」で表示しています。年度を追加すると比較できます。</p> : null}
-      <div className="table-scroll trend-scroll">
+      <ScrollRegion className="table-scroll trend-scroll" label="年度推移表">
         <table className="trend-table">
           <caption className="sr-only">貸借対照表の年度推移</caption>
           <thead><tr><th scope="col"><span className="sr-only">科目</span></th>{paddedPeriods.map((period, index) => <th scope="col" className={`center period-selector${period ? "" : " period-no-data"}`} key={`period-${index}`}><span className="period-position-label">{periodLabels[index]}</span><select aria-label={`${periodLabels[index]}の選択`} value={period?.snapshot.id ?? ""} onChange={(event) => selectPeriod(index, event.target.value)}>{/* 空の選択肢は空いている列にだけ出す。年度が3つ以上ある顧客で列を空にできると、
@@ -86,14 +87,14 @@ export function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnaps
             return <tr className={rowClass || undefined} key={`${row.child ? "child" : row.tone ?? "detail"}-${row.key}`}><th scope="row"><span className="trend-row-heading">{row.group && canExpand ? <button type="button" className="trend-expand" aria-label={`${row.label}の小分類を${expanded ? "閉じる" : "表示"}`} aria-expanded={expanded} onClick={() => toggleGroup(row.group!)}>{expanded ? <Minus /> : <Plus />}</button> : !row.child && !row.tone ? <span className="trend-expand-placeholder" aria-hidden="true" /> : null}<span>{row.label}</span></span></th>{paddedPeriods.map((period, index) => <td className={`number${period ? "" : " trend-no-data"}`} key={period?.snapshot.id ?? `empty-${index}`}>{period ? compactYen(period.values[row.key]) : "データなし"}</td>)}<td className={`number trend-change ${change === null ? "" : change > 0 ? "positive" : change < 0 ? "negative" : "neutral"}`}>{change === null ? "—" : `${change > 0 ? "+" : ""}${compactYen(change)}`}</td></tr>;
           })}</tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {/* 画面の案内（年度を追加する話）は紙で消えるので、紙には「データなし」の意味だけを残す。 */}
       {hasEmptyPeriod ? <p className="trend-print-note">「データなし」の期は、その年度が登録されていません。</p> : null}
     </section>
     {/* 年度一覧は画面だけ。印刷では、データなしの期も含めて常に表示する3期の推移表を使う。 */}
     <section className="panel table-panel history-list-panel">
       <PanelHeader title="年度一覧" subtitle={`${snapshots.length}年度`} />
-      <div className="table-scroll"><table className="history-table"><thead><tr><th className="center">基準日</th><th className="center">状態</th><th className="number">資産合計</th><th className="number">登録負債</th><th className="number">税金等</th><th className="number">予測純資産</th><th className="number">個人保証</th><th className="number">相続税（実効税率）</th><th className="actions-column">操作</th></tr></thead><tbody>{[...orderedSnapshots].reverse().map((snapshot) => { const s = trendValues(snapshot); const calc = snapshot.inheritanceTaxCalculation; return <tr key={snapshot.id}><td className="center"><strong>{dateJa(snapshot.asOfDate)}</strong></td><td className="center">{snapshot.isCurrent ? <span className="current-badge">現在</span> : snapshot.label}</td><td className="number">{compactYen(s.assets)}</td><td className="number">{compactYen(s.borrowings + s.otherLiabilities)}</td><td className="number">{compactYen(s.taxes)}</td><td className="number emphasis">{compactYen(s.netWorth)}</td><td className="number">{compactYen(s.guarantees)}</td><td className="number">{calc ? <><strong>{compactYen(calc.totalInheritanceTaxJpy)}</strong><small className="history-tax-rate">実効税率 {calc.effectiveTaxRate.toFixed(1)}%</small></> : <span className="history-tax-empty">未計算</span>}</td><td><div className="table-actions">{/* 行の操作は顧客一覧・資産負債明細と同じ「…」1つに揃える。削除だけを剥き出しのボタンで置いていたため、
+      <ScrollRegion className="table-scroll" label="年度一覧"><table className="history-table"><thead><tr><th className="center">基準日</th><th className="center">状態</th><th className="number">資産合計</th><th className="number">登録負債</th><th className="number">税金等</th><th className="number">予測純資産</th><th className="number">個人保証</th><th className="number">相続税（実効税率）</th><th className="actions-column">操作</th></tr></thead><tbody>{[...orderedSnapshots].reverse().map((snapshot) => { const s = trendValues(snapshot); const calc = snapshot.inheritanceTaxCalculation; return <tr key={snapshot.id}><td className="center"><strong>{dateJa(snapshot.asOfDate)}</strong></td><td className="center">{snapshot.isCurrent ? <span className="current-badge">現在</span> : snapshot.label}</td><td className="number">{compactYen(s.assets)}</td><td className="number">{compactYen(s.borrowings + s.otherLiabilities)}</td><td className="number">{compactYen(s.taxes)}</td><td className="number emphasis">{compactYen(s.netWorth)}</td><td className="number">{compactYen(s.guarantees)}</td><td className="number">{calc ? <><strong>{compactYen(calc.totalInheritanceTaxJpy)}</strong><small className="history-tax-rate">実効税率 {calc.effectiveTaxRate.toFixed(1)}%</small></> : <span className="history-tax-empty">未計算</span>}</td><td><div className="table-actions">{/* 行の操作は顧客一覧・資産負債明細と同じ「…」1つに揃える。削除だけを剥き出しのボタンで置いていたため、
                 この表だけ消す操作がワンクリックで並んでいた。 */}<ActionMenu
                   id={`snapshot-menu-${snapshot.id}`}
                   label={`${fiscalYearLabel(snapshot)}の操作`}
@@ -102,7 +103,7 @@ export function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnaps
                     { key: "edit", label: "この年度を修正", icon: Pencil, onSelect: () => onEditSnapshot(snapshot.id) },
                     { key: "delete", label: "年度データを削除", icon: Trash2, danger: true, onSelect: () => onDeleteSnapshot(snapshot) },
                   ]}
-                /></div></td></tr>; })}</tbody></table></div>
+                /></div></td></tr>; })}</tbody></table></ScrollRegion>
     </section>
   </>;
 }

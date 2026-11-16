@@ -235,6 +235,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* 氏名の敬称。画面では入力した氏名そのままを出し、印刷にだけ「様」を出す。 */
 .print-honorific { display: none; }
 .table-scroll { width: 100%; max-width: 100%; overflow-x: auto; }
+/* 幅に収まらない表を入れる枠（components/scroll-region.tsx）。overflow は各枠のクラスが決める。
+   position: relative は、中の .sr-only（position: absolute）をこの枠の中に留めるため。
+   無いと枠の overflow に切られず、表の右端にある .sr-only がページ全体を横へ押し広げる
+   （資産・負債一覧で 1440px のとき 127px、375px のとき 856px の横スクロールが出ていた）。 */
+.scroll-region { position: relative; }
+/* Tab で止まるのは、はみ出している間だけ。枠の外側は親の overflow に切られることがあるので内側に描く。 */
+.scroll-region:focus-visible { outline: 3px solid #86c99b; outline-offset: -3px; }
 .position-table-actions { display: flex; align-items: flex-end; gap: 10px; }
 .position-table-actions .table-add-button { min-height: 38px; padding: 0 12px; font-size: 12px; }
 .position-table-actions .table-add-button svg { width: 15px; height: 15px; }
@@ -413,7 +420,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .action-menu-trigger { cursor: pointer; }
 .action-menu-trigger:hover { background: var(--slate-100); }
 .action-menu-trigger:focus-visible, .action-menu-list [role="menuitem"]:focus-visible { outline: 3px solid #15803d; outline-offset: -3px; }
-.action-menu-list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 40; min-width: 184px; padding: 4px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px #0002; }
+/* 置く位置（top / bottom / right / max-height）は ActionMenu が開くときにボタンの位置から決める。
+   画面に対して置くので、横スクロールの枠の中の表でも切り取られない。 */
+.action-menu-list { position: fixed; z-index: 40; min-width: 184px; padding: 4px; overflow-y: auto; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px #0002; }
 .action-menu-list [role="menuitem"] { width: 100%; min-height: 44px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 5px; color: var(--slate-700); background: #fff; font: inherit; font-size: 13px; font-weight: 600; text-align: left; text-decoration: none; white-space: nowrap; cursor: pointer; }
 .action-menu-list [role="menuitem"]:hover { color: var(--navy-950); background: #f0fdf4; }
 .action-menu-list [role="menuitem"].danger { margin-top: 4px; color: #b91c1c; box-shadow: 0 -1px var(--line); border-radius: 0 0 5px 5px; }
@@ -943,7 +952,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .family-table-scroll { overflow-x: auto; }
 /* 列を7つにまとめ、最小幅を持たせず割合で割り付ける（本文幅 約700px まで横スクロールなし）。 */
 .family-table { width: 100%; min-width: 760px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
-.family-table-scroll:focus-visible { outline: 3px solid #86c99b; outline-offset: -3px; }
 .family-table th { padding: 10px 8px; color: #345c4b; background: #f0f7f2; border-bottom: 2px solid var(--line-strong); font-size: 12px; line-height: 1.45; text-align: left; }
 .family-table th:nth-child(1) { width: 22%; }
 .family-table th:nth-child(2) { width: 10%; }
@@ -1787,7 +1795,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .client-home-toolbar .client-toolbar-secondary { display: none; }
   .client-toolbar-mobile-menu { display: block; }
   .client-toolbar-mobile-menu .action-menu-trigger { width: 100%; justify-content: center; }
-  .client-toolbar-mobile-menu .action-menu-list { right: 0; left: auto; min-width: 220px; }
+  .client-toolbar-mobile-menu .action-menu-list { min-width: 220px; }
   .client-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .client-list-tools { align-items: stretch; }
   .client-list-tools .position-table-tools { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1844,11 +1852,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-list-search svg { position: absolute; width: 16px; left: 10px; top: 50%; transform: translateY(-50%); }
 .position-list-search input { padding-left: 34px; }
 .position-result-count { font-size: 12px; color: var(--slate-600); margin: 12px 0; }
-/* position: relative は見出しの .sr-only（position: absolute）をこの枠の中に留めるため。
-   無いと枠の overflow に切られず、表の右端にある .sr-only がページ全体を横へ押し広げる
-   （1440px で 127px、375px で 856px の横スクロールが出ていた）。 */
-.position-summary-scroll { position: relative; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
-.position-summary-scroll:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
+.position-summary-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
 .position-summary-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
 .position-summary-table th, .position-summary-table td { min-width: 128px; padding: 9px 11px; border-right: 1px solid var(--line); font-size: 12px; vertical-align: middle; }
 .position-summary-table thead th { background: #eef4f0; text-align: left; }
@@ -2043,7 +2047,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .category-detail-table .position-name-button { white-space: normal; overflow-wrap: anywhere; }
 .category-row-actions { display: flex; gap: 0; }
 .category-row-actions .icon-button { width: 32px; height: 32px; }
-.category-table-scroll:focus-visible, .detail-category-links a:focus-visible, .detail-category-select select:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
+.detail-category-links a:focus-visible, .detail-category-select select:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
 @media (max-width: 700px) {
   .category-table-toolbar { flex-wrap: wrap; }
   /* 列を minmax(0, 1fr) にしないと、長い科目名の幅（16px で約300px）がそのまま列の幅になり、320px の画面で右へはみ出す。 */
@@ -2466,16 +2470,19 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .property-plan-report-heading h2 { margin: 0 0 8px; font-size: 20px; }
 .property-plan-report-heading p, .property-plan-report-help { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .property-plan-screen-help { margin-left: .5em; }
-.property-plan-report-table { width: 100%; min-width: 1200px; table-layout: fixed; border-collapse: collapse; }
+/* 画面の列幅。サイドバーを開いた 1280px の画面（枠の幅 934px）で、右端の評価額まで横スクロールなしに見える幅にしている。
+   方針の5列は見出し（5文字・10px）が1行に収まる 54px を下限に取り、残りを名称と所在地へ回す。
+   紙の列幅はこの下の @media print に別に持つ（画面の都合で紙の割り付けを動かさない）。 */
+.property-plan-report-table { width: 100%; min-width: 900px; table-layout: fixed; border-collapse: collapse; }
+.property-plan-report-table .plan-choice { width: 6%; }
 .property-plan-report-table .plan-no { width: 4%; }
-.property-plan-report-table .plan-choice { width: 5%; }
+.property-plan-report-table .plan-type { width: 6.5%; }
 .property-plan-report-table .plan-name { width: 16%; }
-.property-plan-report-table .plan-address { width: 20%; }
+.property-plan-report-table .plan-address { width: 18%; }
+.property-plan-report-table .plan-area { width: 8.5%; }
+.property-plan-report-table .plan-share { width: 6%; }
 .property-plan-report-table .plan-value { width: 11%; }
-.property-plan-report-table .plan-type { width: 5%; }
 .property-plan-report-table .plan-type-heading { padding-inline: 3px; font-size: 10px; white-space: nowrap; }
-.property-plan-report-table .plan-area { width: 9%; }
-.property-plan-report-table .plan-share { width: 10%; }
 .property-plan-report-table .plan-group-heading, .property-plan-report-table .plan-choice-heading, .property-plan-report-table .plan-choice-cell { text-align: center; }
 .property-plan-report-table .plan-choice-heading { padding: 6px 2px; font-size: 10px; }
 .property-plan-report-table .plan-choice-cell { padding: 0; vertical-align: middle; }
@@ -2493,10 +2500,51 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .property-plan-edit:hover { text-decoration: underline; }
 .property-plan-edit:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .property-plan-empty { padding: 24px 0; }
+/* スマホ幅では1物件1枚のカードにする。表のままだと、左端の方針5列だけで画面が埋まり、
+   どの物件の方針を選んでいるのかが見えなかった（名称の列は左から 408px の位置）。
+   名称・所在地を上に、方針の5択はその下に文字つきで並べる。 */
+@media (max-width: 600px) {
+  .property-plan-report { padding: 16px 14px; }
+  .property-plan-report .table-scroll { overflow: visible; }
+  .property-plan-report-table { display: block; min-width: 0; }
+  .property-plan-report-table colgroup, .property-plan-report-table thead { display: none; }
+  .property-plan-report-table tbody, .property-plan-report-table tfoot { display: block; }
+  .property-plan-report-table tbody tr { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0 6px; padding: 12px 0; border-top: 1px solid var(--line-strong); }
+  .property-plan-report-table tbody td { display: block; min-width: 0; padding: 0; border: 0; text-align: left; }
+  .property-plan-report-table .plan-no-cell { grid-row: 1; grid-column: 1; color: var(--slate-600); text-align: left; }
+  .property-plan-report-table .plan-no-cell::before { content: "No."; }
+  .property-plan-report-table .plan-type-cell { grid-row: 1; grid-column: 2 / -1; color: var(--slate-600); }
+  .property-plan-report-table .plan-name-cell { grid-row: 2; grid-column: 1 / -1; font-size: 14px; }
+  .property-plan-report-table .plan-address-cell { grid-row: 3; grid-column: 1 / -1; }
+  .property-plan-report-table .plan-area-cell, .property-plan-report-table .plan-share-cell, .property-plan-report-table .plan-value-cell { grid-row: 4; grid-column: span 2; padding: 6px 0 8px; }
+  /* 3つを左・中央・右に置く（.number の右寄せのままだと、左の2つが列の右端に寄って間が詰まる）。 */
+  .property-plan-report-table .plan-area-cell { text-align: left; }
+  .property-plan-report-table .plan-share-cell { text-align: center; }
+  .property-plan-report-table .plan-value-cell { text-align: right; }
+  .property-plan-report-table tbody td[data-label]::before { content: attr(data-label); display: block; color: var(--slate-600); font-size: 11px; }
+  .property-plan-report-table .plan-choice-cell { grid-column: span 2; border-radius: 6px; }
+  .property-plan-radio { justify-content: flex-start; gap: 6px; padding: 0 4px; }
+  /* 表の見出しを出さないので、選択肢の名前を丸の横に出す（広い画面では読み上げ専用）。 */
+  .property-plan-radio .property-plan-radio-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; font-size: 12px; }
+  .property-plan-report-table tfoot tr { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 0 0; border-top: 2px solid var(--line-strong); }
+  .property-plan-report-table tfoot th, .property-plan-report-table tfoot td { display: block; padding: 0; border: 0; font-size: 13px; }
+}
+/* 3つ並べると「保有・承継」が入らない幅では2つずつ並べる。 */
+@media (max-width: 340px) {
+  .property-plan-report-table .plan-choice-cell { grid-column: span 3; }
+}
 @media print {
   .property-plan-report { padding: 0; break-inside: auto !important; }
   .property-plan-report .table-scroll { overflow: visible; }
   .property-plan-report-table { min-width: 0; }
+  .property-plan-report-table .plan-choice { width: 5%; }
+  .property-plan-report-table .plan-no { width: 4%; }
+  .property-plan-report-table .plan-type { width: 5%; }
+  .property-plan-report-table .plan-name { width: 16%; }
+  .property-plan-report-table .plan-address { width: 20%; }
+  .property-plan-report-table .plan-area { width: 9%; }
+  .property-plan-report-table .plan-share { width: 10%; }
+  .property-plan-report-table .plan-value { width: 11%; }
   .property-plan-report-table thead { display: table-header-group; }
   .property-plan-report-table tfoot { display: table-row-group; }
   .property-plan-report-table tr { break-inside: avoid; }

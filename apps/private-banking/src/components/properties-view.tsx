@@ -28,6 +28,7 @@ import {
   propertyPositionHref,
   sortProperties,
 } from "@/lib/properties";
+import { ScrollRegion } from "@/components/scroll-region";
 
 type PropertyYearMode = "current" | "all" | `${number}`;
 type PropertiesResponse = { rows: PropertyRow[]; fiscalYears: number[] };
@@ -197,7 +198,7 @@ export function PropertiesView() {
         {propertyPlanOptions.map((option) => <button key={option.value} type="button" aria-pressed={filters.plan === option.value} onClick={() => { setFilters((current) => ({ ...current, plan: option.value })); setPage(1); }} disabled={rows === null}>{option.label} <span>{planCounts.counts[option.value]}件</span></button>)}
       </div>
       <div className="properties-print-heading"><h2>不動産一覧{includePlan ? "（希望時期・メモ付き）" : ""}</h2><p>{yearSubtitle}</p>{printFilters.length || query.trim() ? <p>{[...printFilters, ...(query.trim() ? [`検索：${query.trim()}`] : [])].join("／")}</p> : null}</div>
-      <div className="table-scroll" role="region" aria-label="不動産一覧。横にスクロールできます" tabIndex={0}>
+      <ScrollRegion className="table-scroll" label="不動産一覧">
         {rows === null ? <p className="properties-loading" role="status"><LoaderCircle className="spin" />読み込み中です…</p> : <table className="properties-table">
           <thead><tr>
             <th colSpan={5} scope="colgroup" className="properties-plan-group">今後の方針</th>
@@ -242,7 +243,7 @@ export function PropertiesView() {
             {includePlan ? <td className="property-plan-column property-plan-memo-column" /> : null}
           </tr></tfoot>
         </table>}
-      </div>
+      </ScrollRegion>
       {filtered.length === 0 ? null : <ListPager
         label="不動産一覧のページ切り替え"
         total={filtered.length}

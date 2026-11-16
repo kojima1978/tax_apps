@@ -3,14 +3,16 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FamilyView } from "@/components/family-view";
 import type { FamilyMember } from "@/lib/family";
+import { stubScrollRegionLayout } from "@/components/__tests__/scroll-region-layout";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 const members = [{ id: 1, name: "テスト家族", nameKana: "", relationship: "CHILD", acquisitionReason: "INHERITANCE", civilShareNumerator: 1, civilShareDenominator: 1, taxShareNumerator: 1, taxShareDenominator: 1, specialTaxAddition: false, disabilityCategory: "NONE", birthDate: null, note: "", sortOrder: 0 }] as FamilyMember[];
 
 describe("親族関係の一覧と入力", () => {
   it("一覧の横スクロール領域をキーボードで選択できる", () => {
+    stubScrollRegionLayout({ scrollWidth: 760, clientWidth: 600 });
     render(<FamilyView members={members} referenceDate="2026-01-01" saving={false} onSave={vi.fn()} />);
-    const region = screen.getByRole("region", { name: /家族一覧（幅が足りない場合は横スクロール/ });
+    const region = screen.getByRole("region", { name: "家族一覧。横にスクロールできます" });
     expect(region.tabIndex).toBe(0);
     expect(region.querySelector("table")).not.toBeNull();
     expect(screen.queryByText(/名を登録済み/)).toBeNull();

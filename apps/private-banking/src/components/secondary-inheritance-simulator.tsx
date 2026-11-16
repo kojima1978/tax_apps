@@ -4,6 +4,7 @@ import { LoaderCircle, Repeat2, TrendingDown } from "lucide-react";
 import { useState } from "react";
 import { API_BASE } from "@/lib/api";
 import { compactYen } from "@/lib/format";
+import { ScrollRegion } from "@/components/scroll-region";
 
 type Scenario = {
   spouseSharePercent: number;
@@ -85,7 +86,7 @@ export function SecondaryInheritanceSimulator({ householdId }: { householdId: nu
     {error ? <p className="secondary-sim-error" role="alert">{error}</p> : null}
 
     {result ? <div className="secondary-sim-result">
-      <div className="table-scroll">
+      <ScrollRegion className="table-scroll" label="配偶者の取得割合ごとの相続税の概算">
         <table className="secondary-sim-table">
           <caption className="sr-only">配偶者取得割合ごとの一次・二次相続税の概算</caption>
           <thead><tr>
@@ -108,7 +109,7 @@ export function SecondaryInheritanceSimulator({ householdId }: { householdId: nu
             </tr>;
           })}</tbody>
         </table>
-      </div>
+      </ScrollRegion>
       <p className="secondary-sim-note" role="note">
         配偶者の取得割合を{result.recommendedPercent}%にすると、この試算では合計税額が最小（{compactYen(best)}）になります。
         最大との差は{compactYen(worst - best)}です。実際は二次相続までの財産の増減・使用、遺産分割、配偶者居住権などで変動するため、あくまで検討の目安としてご利用ください。

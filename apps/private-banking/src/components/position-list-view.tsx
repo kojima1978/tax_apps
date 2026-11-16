@@ -14,6 +14,7 @@ import { matchesSearchTerms, searchTerms } from "@/lib/clients";
 import { yen, triangleYen, valuationNumber } from "@/lib/format";
 import { positionAllocationAmounts, positionAllocationLabel, positionCaption, positionDetailFields, positionKeyInfo } from "@/lib/position-display";
 import { detailPageFor } from "@/lib/position-detail-pages";
+import { ScrollRegion } from "@/components/scroll-region";
 
 type AllocationPayload = { positionId: number; amounts: Array<{ familyMemberId: number; amountJpy: number }> };
 type AllocationSummary = { amountJpy: number };
@@ -358,7 +359,7 @@ function AllocationMatrix({ rows, allPositions, familyMembers, saving, onSave, t
       <div><strong>一覧内で割り振りを編集</strong><p>1行目に取得額・負担額を入力し、2行目の操作で全額や残額を設定できます。</p>{legalShareError ? <p id="legal-share-error" className="allocation-legal-share-error">{legalShareError}</p> : null}</div>
       <div className="allocation-toolbar-actions"><button type="button" className="button secondary" onClick={applyLegalShares} disabled={saving || !legalSharesValid || allEditablePositions.length === 0} aria-describedby={legalShareError ? "legal-share-error" : undefined}><Scale />全明細を法定相続分で割り振る</button><button type="button" className="button primary" onClick={() => void save()} disabled={saving || dirtyIds.length === 0 || invalidRows.length > 0}><Save />割り振りを保存</button></div>
     </div>
-    <div className="position-summary-scroll allocation-inline-scroll" tabIndex={0} aria-label="資産・負債の割り振り編集。横にスクロールできます"><table className="position-summary-table allocation-inline-table" aria-label="財産の割り振り入力">
+    <ScrollRegion className="position-summary-scroll allocation-inline-scroll" label="資産・負債の割り振り編集"><table className="position-summary-table allocation-inline-table" aria-label="財産の割り振り入力">
       <thead><tr><th className="number position-summary-sticky-number">No.</th><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／参考情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担</span></th>)}<th className="number position-summary-unallocated">未割当</th><th>操作</th></tr></thead>
       {rows.map((position, index) => {
         const readOnly = ["INSURANCE", "RETIREMENT_ALLOWANCE"].includes(position.category);
@@ -388,7 +389,7 @@ function AllocationMatrix({ rows, allPositions, familyMembers, saving, onSave, t
           </tr>
         </tbody>;
       })}
-    </table></div>
+    </table></ScrollRegion>
     {invalidRows.length > 0 ? <p className="allocation-save-warning" role="alert">{invalidRows.length}件の割当合計が評価額と一致していません。</p> : <p className="allocation-save-status" aria-live="polite">{bulkNotice || (dirtyIds.length > 0 ? `${dirtyIds.length}件を変更中` : "保存済み")}</p>}
   </>;
 }
@@ -446,7 +447,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
     <p className="position-result-count" aria-live="polite">{rows.length}件（全{snapshot.positions.length}件中）</p>
     <section className="panel position-summary-panel">
       <div className={allocationMode ? "" : "allocation-editor-hidden"}><AllocationMatrix key={`${snapshot.id}-${familyMembers.map((member) => member.id).join("-")}`} rows={rows} allPositions={snapshot.positions} familyMembers={familyMembers} saving={saving} onSave={onSaveAllocations} taxBurden={taxBurden} detailHref={href} focusTarget={allocationFocusTarget} /></div>
-      <div className={allocationMode ? "allocation-view-hidden" : ""}><div className="position-summary-scroll" tabIndex={0} aria-label="資産・負債一覧。横にスクロールできます"><table className="position-summary-table" aria-label="資産・負債一覧">
+      <div className={allocationMode ? "allocation-view-hidden" : ""}><ScrollRegion className="position-summary-scroll" label="資産・負債一覧"><table className="position-summary-table" aria-label="資産・負債一覧">
       <thead><tr><th className="number position-summary-sticky-number">No.</th><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／参考情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担／相続税額</span></th>)}<th className="number position-summary-unallocated">未割当</th><th className="position-summary-action-column"><span className="sr-only">詳細</span></th></tr></thead>
       {rows.map((p, index) => {
         const burden = taxBurden(p);
@@ -512,7 +513,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
           <td className="position-summary-action-column" />
         </tr>
       </tfoot>
-    </table></div>{rows.length === 0 ? <div className="position-detail-empty"><strong>{snapshot.positions.length ? "条件に一致する明細がありません" : "まだ明細が登録されていません"}</strong>{snapshot.positions.length ? <button className="button secondary" onClick={() => { const next = new URLSearchParams(params.toString()); ["q", "listSection", "listCategory"].forEach((k) => next.delete(k)); router.replace(`${pathname}?${next}`, { scroll: false }); }}>絞り込みを解除</button> : <button className="button primary" onClick={() => onAdd("ASSET")}><Plus />明細を追加</button>}</div> : null}</div>
+    </table></ScrollRegion>{rows.length === 0 ? <div className="position-detail-empty"><strong>{snapshot.positions.length ? "条件に一致する明細がありません" : "まだ明細が登録されていません"}</strong>{snapshot.positions.length ? <button className="button secondary" onClick={() => { const next = new URLSearchParams(params.toString()); ["q", "listSection", "listCategory"].forEach((k) => next.delete(k)); router.replace(`${pathname}?${next}`, { scroll: false }); }}>絞り込みを解除</button> : <button className="button primary" onClick={() => onAdd("ASSET")}><Plus />明細を追加</button>}</div> : null}</div>
     </section>
     <p className="position-list-note">{allocationMode ? "生命保険・退職金は詳細画面の受取人情報を相続税計算に使用します。" : "一覧では生命保険は死亡保険金、退職金は死亡退職金、それ以外は現在B/Sの評価額を表示します。相続税計算では生命保険・退職金の非課税額控除後の課税対象額を使用します。貸借対照表では生命保険・退職金を解約返戻金・解約手当金で表示し、生命保険契約に関する権利は解約返戻金相当額で評価します。"}</p>
   </>;

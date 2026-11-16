@@ -2,7 +2,7 @@
 
 import { LoaderCircle, MoreHorizontal, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /** メニューの1項目。画面移動は `href`、その場の操作は `onSelect` で指定する。`className` は画面幅による出し分けなどに使う。 */
 export type ActionMenuItem = { key: string; label: string; icon: LucideIcon; danger?: boolean; className?: string } & (
@@ -10,9 +10,34 @@ export type ActionMenuItem = { key: string; label: string; icon: LucideIcon; dan
   | { onSelect: () => void; href?: never }
 );
 
+const MENU_GAP = 4;
+const MENU_MARGIN = 8;
+
+type MenuPlacement = { top: number | null; bottom: number | null; right: number; maxHeight: number };
+
+/**
+ * メニューを出す位置（画面の左上を原点にした position: fixed の値）。
+ * ボタンの下に全部入ればそこへ、入らなければ上下の広い方へ出す。それでも入らない分は maxHeight で縦スクロールさせる。
+ * 右端はボタンの右端にそろえ、狭い画面で左へはみ出すときだけ内側へ寄せる。
+ */
+export function menuPlacement(trigger: { top: number; bottom: number; right: number }, menu: { width: number; height: number }, viewport: { width: number; height: number }): MenuPlacement {
+  const below = viewport.height - trigger.bottom - MENU_GAP - MENU_MARGIN;
+  const above = trigger.top - MENU_GAP - MENU_MARGIN;
+  const right = Math.max(MENU_MARGIN, Math.min(viewport.width - trigger.right, viewport.width - menu.width - MENU_MARGIN));
+  return menu.height <= below || below >= above
+    ? { top: trigger.bottom + MENU_GAP, bottom: null, right, maxHeight: Math.max(below, 0) }
+    : { top: null, bottom: viewport.height - trigger.top + MENU_GAP, right, maxHeight: Math.max(above, 0) };
+}
+
+const px = (value: number | null) => value === null ? "auto" : `${value}px`;
+
 /**
  * 「⋯」などのボタンから開く操作メニュー。開いたら先頭の項目へフォーカスし、
  * Escape・外側のクリックで閉じる。上下矢印で項目間を移動できる。
+ *
+ * メニューは画面に対して置く（position: fixed）。ボタンの下へ absolute で出していた頃は、
+ * 横スクロールの枠の中の表（年度一覧）で枠に切り取られて2項目めが見えず、
+ * 一覧の最後の行では画面の下へはみ出していた。画面がスクロールされたら、ボタンから離れてしまうので閉じる。
  */
 export function ActionMenu({ id, label, items, heading, busy = false, loading = false, trigger, triggerClassName = "icon-button", className = "" }: {
   id: string;
@@ -34,9 +59,26 @@ export function ActionMenu({ id, label, items, heading, busy = false, loading = 
   // 画面幅で隠している項目はフォーカスできないので、矢印キーの移動先から外す。
   const menuItems = () => [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])].filter((element) => getComputedStyle(element).display !== "none");
 
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    const trigger = triggerRef.current;
+    if (!open || !menu || !trigger) return;
+    const place = () => {
+      // 前回の maxHeight が残っていると、本来の高さを測れない。
+      menu.style.maxHeight = "none";
+      const { top, bottom, right, maxHeight } = menuPlacement(trigger.getBoundingClientRect(), { width: menu.offsetWidth, height: menu.offsetHeight }, { width: window.innerWidth, height: window.innerHeight });
+      Object.assign(menu.style, { top: px(top), bottom: px(bottom), right: px(right), maxHeight: px(maxHeight) });
+    };
+    place();
+    const closeOnScroll = (event: Event) => { if (!menu.contains(event.target as Node)) setOpen(false); };
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", closeOnScroll, true);
+    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", closeOnScroll, true); };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
-    menuItems()[0]?.focus();
+    menuItems()[0]?.focus({ preventScroll: true });
     const closeOutside = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };

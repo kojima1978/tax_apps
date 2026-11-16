@@ -12,6 +12,7 @@ import {
   disabilityLabels,
   relationshipLabels,
 } from "@/lib/family";
+import { ScrollRegion } from "@/components/scroll-region";
 
 const fraction = (numerator: number | null, denominator: number | null) =>
   numerator === null || denominator === null ? "－" : `${numerator} / ${denominator}`;
@@ -59,7 +60,7 @@ export function FamilyView({
           <button type="button" className="button secondary" onClick={openEditor}><Plus />登録を始める</button>
         </div>
       ) : (
-        <div className="family-table-scroll" role="region" aria-label="家族一覧（幅が足りない場合は横スクロールできます）" tabIndex={0}>
+        <ScrollRegion className="family-table-scroll" label="家族一覧">
           <table className="family-table">
             {/* 横スクロールを出さないよう、関係の深い項目は1つのセルにまとめて7列にしている。 */}
             <thead><tr>
@@ -80,7 +81,7 @@ export function FamilyView({
               </tr>;
             })}</tbody>
           </table>
-        </div>
+        </ScrollRegion>
       )}
     </section>
 
