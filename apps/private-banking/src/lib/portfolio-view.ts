@@ -84,9 +84,8 @@ export const printSectionForSection = (section: Section): PrintSection | null =>
  * 片方でしか判定しないと「目次に載っているのに本文が1ページも出ない」組み合わせができる。
  *
  * 年度比較は年度が1つでも選べる（以前は「2年度目から選択可」で外していた）。
- * 比べる相手が無いことも報告の中身なので、刷る側を差し替えて出す ──
- * 推移表の代わりに「前年度のデータが無い」の1行、その下に年度一覧（1行）。
- * history-view.tsx の `trend-print-note` と globals.css の印刷側が対になっている。
+ * 比べる相手が無いことも報告の中身なので、推移表は常に3期ぶんの列で刷り、登録の無い期は
+ * 全行に「データなし」と出す。表の下の注記（history-view.tsx の `trend-print-note`）は紙だけ。
  */
 export const unprintableSections = (snapshot: Snapshot): Partial<Record<PrintSection, string>> => ({
   ...(snapshot.inheritanceTaxCalculation ? {} : { "tax-calculation": "計算後に選択可" }),

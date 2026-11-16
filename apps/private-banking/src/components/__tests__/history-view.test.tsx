@@ -28,8 +28,15 @@ describe("年度比較の列", () => {
     expect(periodHeaders().map((th) => th.querySelector(".period-position-label")?.textContent)).toEqual(["古い年度", "直前年度", "最新年度"]);
     expect(screen.getAllByRole("combobox").map((select) => (select as HTMLSelectElement).value)).toEqual(["", "", "1"]);
     expect(screen.getAllByRole("combobox").map((select) => (select as HTMLSelectElement).selectedOptions[0].textContent)).toEqual(["2024年度（データなし）", "2025年度（データなし）", "2026年度"]);
-    expect(screen.getAllByText("未登録")).toHaveLength(2);
-    expect(screen.getByText(/過去データが未登録の期/)).toBeTruthy();
+    expect(screen.queryByText("未登録")).toBeNull();
+    expect(screen.getByText(/登録の無い期は「データなし」/)).toBeTruthy();
+    expect(screen.getByText(/「データなし」の期は、その年度が登録されていません/)).toBeTruthy();
+    // 空の期の列は、見出しだけでなく全行に「データなし」と出す（— だけでは無いのか0なのか分からない）。
+    const bodyRows = [...document.querySelectorAll(".trend-table tbody tr:not(.trend-section)")];
+    expect(bodyRows.length).toBeGreaterThan(5);
+    for (const row of bodyRows) expect([...row.querySelectorAll("td")].map((td) => td.textContent).slice(0, 2)).toEqual(["データなし", "データなし"]);
+    // 差が出せない理由は見出しで言う。
+    expect(document.querySelector(".trend-change-column small")?.textContent).toBe("直前年度のデータなし");
     screen.getByRole("button", { name: "年度を追加" }).click();
     expect(onCreate).toHaveBeenCalled();
   });
@@ -39,14 +46,23 @@ describe("年度比較の列", () => {
     expect(periodHeaders().map((th) => th.querySelector(".period-position-label")?.textContent)).toEqual(["古い年度", "直前年度", "最新年度"]);
     expect(screen.getAllByRole("combobox").map((select) => (select as HTMLSelectElement).value)).toEqual(["", "1", "2"]);
     expect(screen.getAllByRole("combobox").map((select) => (select as HTMLSelectElement).selectedOptions[0].textContent)).toEqual(["2024年度（データなし）", "2025年度", "2026年度"]);
-    expect(document.querySelector(".trend-table")?.className).toContain("trend-columns-3");
-    expect(screen.getAllByText("未登録")).toHaveLength(1);
+    expect(document.querySelectorAll("td.trend-no-data").length).toBe(document.querySelectorAll(".trend-table tbody tr:not(.trend-section)").length);
+    expect(document.querySelector(".trend-change-column small")?.textContent).toBe("最新 − 直前");
   });
 
   it("3年度あれば3列を出し、案内は消える", () => {
     renderView([snapshot(1, 2024), snapshot(2, 2025), snapshot(3, 2026)]);
     expect(periodHeaders().map((th) => th.querySelector(".period-position-label")?.textContent)).toEqual(["古い年度", "直前年度", "最新年度"]);
-    expect(screen.queryByText(/もう1年度登録すると/)).toBeNull();
+    expect(screen.queryByText(/登録の無い期は/)).toBeNull();
+    expect(document.querySelector(".trend-print-note")).toBeNull();
+    expect(document.querySelectorAll("td.trend-no-data")).toHaveLength(0);
+  });
+
+  it("年度が3つ以上あるときは列を空にできない（登録済みの年度に「データなし」と出さない）", () => {
+    renderView([snapshot(1, 2022), snapshot(2, 2023), snapshot(3, 2024), snapshot(4, 2025)]);
+    for (const select of screen.getAllByRole("combobox")) {
+      expect([...(select as HTMLSelectElement).options].some((option) => option.value === "")).toBe(false);
+    }
   });
 
   it("科目の見出し行は3期ぶんを使い、差額の列まではみ出さない", () => {

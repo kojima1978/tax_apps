@@ -298,10 +298,8 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .position-table tfoot .position-total-label { color: var(--navy-950); background: #f7f9fa; border: 0; font-size: 12px; font-weight: 800; text-align: left; }
 .trend-panel .panel-header, .history-list-panel .panel-header { border-bottom: 1px solid var(--line); }
 .trend-guidance { margin: 0; padding: 10px 20px; color: #52635b; background: #f0fdf4; border-bottom: 1px solid #bbf7d0; font-size: 11px; }
-.trend-table { min-width: 1040px; table-layout: fixed; font-variant-numeric: tabular-nums; }
-/* 年度が2つしか無いときは列も1つ減るので、最小幅も1列ぶん詰める。残りの列幅は
-   table-layout: fixed が等分するので、列数ごとの指定は要らない。 */
-.trend-table.trend-columns-2 { min-width: 840px; }
+/* 最小幅は、サイドバーを開いた 1280px の枠（974px）に3期＋差の列が横スクロールなしで収まる値。 */
+.trend-table { min-width: 920px; table-layout: fixed; font-variant-numeric: tabular-nums; }
 .trend-table thead th:first-child { width: 24%; }
 .trend-table thead span, .trend-table thead small { display: block; }
 .trend-table thead span { color: var(--slate-700); font-size: 11px; }
@@ -311,10 +309,11 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .period-edit { width: 100%; min-height: 44px; margin: 3px 0 0; padding: 0 8px; color: #166534; background: transparent; border: 0; border-radius: 5px; display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 11px; font-weight: 700; }
 .period-edit:hover { background: #dcfce7; }
 .period-edit svg { width: 12px; height: 12px; }
-.period-selector.period-no-data { background: #f7f9f8; }
-.period-selector.period-no-data select { color: var(--slate-500); background: #f7f9f8; border-style: dashed; }
-.period-no-data-label { margin-top: 7px; color: var(--slate-500); font-size: 10px; font-weight: 600; text-align: right; }
-.trend-no-data { color: var(--slate-500); background: #fbfcfb; }
+.period-selector.period-no-data select { color: var(--slate-500); background: transparent; border-style: dashed; }
+/* データなしの期は列ごと薄い網掛けにして、数字の入った列と見分ける。合計・純資産・小分類の行は
+   行の背景（詳細度 0,2,1）を持つので、セル側を 0,2,2 にして列の網掛けを通す。紙でも同じ色で残す。 */
+.period-selector.period-no-data, .trend-table tbody td.trend-no-data { background: #eef1ef; }
+.trend-table tbody td.trend-no-data { color: var(--slate-500); font-size: 11px; font-weight: 500; }
 .trend-table tbody th { padding: 12px 18px; border-bottom: 1px solid var(--line); text-align: left; font-size: 11px; font-weight: 600; }
 .trend-table tbody td { padding: 12px 16px; }
 .trend-row-heading { display: flex; align-items: center; gap: 8px; }
@@ -400,9 +399,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-table .position-empty-row td { height: 88px; color: var(--slate-500); text-align: center; }
 .list-empty-state { display: grid; justify-items: center; gap: 10px; }
 .list-empty-state p { margin: 0; color: var(--slate-500); font-size: 13px; }
-/* 明細一覧は空の行（88px）が高さを作るが、年度比較は表ごと出さないので自前で余白を取る。 */
+/* 年度比較の「データなし」の注記は紙だけ（画面には年度を追加する案内 .trend-guidance が出る）。 */
 .trend-print-note { display: none; }
-.trend-empty-state { padding: 44px 20px; }
 .position-section.contingent-section .panel-header p::after { content: "・純資産計算の対象外"; }
 .icon-button svg { width: 18px; }
 .action-menu { position: relative; }
@@ -2384,20 +2382,11 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .history-page-heading h2 { margin: 1px 0 2px; font-size: 18px; }
   .trend-panel .panel-header p, .period-position-label { display: none !important; }
   .history-page-heading .button, .trend-guidance, .period-edit { display: none !important; }
-  /* 年度一覧は推移表があるときは紙に出さない（同じ数字が2通りの形で並ぶだけ）。年度が1つで
-     推移表の出ない回だけ `history-list-print` が付くので、そのときは隠さない。 */
-  .history-list-panel:not(.history-list-print) { display: none !important; }
-  /* 紙では「年度を追加」できないので、空状態ごと1行の注記へ差し替える。 */
-  .trend-empty-state { display: none !important; }
-  .trend-print-note { display: block !important; margin: 10px 10px 12px; font-size: 11.5px; color: var(--navy-700); }
-  .history-list-panel { margin-bottom: 0; overflow: visible; }
-  .history-list-panel .panel-header { min-height: 38px; padding: 6px 10px; break-after: avoid; page-break-after: avoid; }
-  .history-list-panel .panel-header h3 { font-size: 13px; }
-  .history-list-panel .table-scroll { overflow: visible; }
-  .history-table { width: 100%; max-width: 100%; min-width: 0; table-layout: fixed; font-size: 11px; }
-  .history-table th, .history-table td { padding: 6px 9px; font-size: 11px; }
-  /* 操作の「…」は紙では押せない。列ごと落とす（中身だけ消すと空の列が残る）。 */
-  .history-table th:last-child, .history-table td:last-child { display: none !important; }
+  /* 年度一覧は紙に出さない（推移表と同じ数字が2通りの形で並ぶだけ）。推移表は年度が1つでも
+     3期ぶんの列で出るので、年度一覧を代わりに刷る回は無い。 */
+  .history-list-panel { display: none !important; }
+  /* 画面の案内（年度を追加）は紙で消えるので、「データなし」の意味だけを表の下に残す。 */
+  .trend-print-note { display: block !important; margin: 6px 10px; font-size: 10px; color: var(--navy-700); break-before: avoid; page-break-before: avoid; }
   .trend-panel { margin-bottom: 0; overflow: visible; break-inside: auto; page-break-inside: auto; }
   .trend-panel .panel-header { min-height: 38px; padding: 6px 10px; break-after: avoid; page-break-after: avoid; }
   .trend-panel .panel-header h3 { font-size: 13px; }
@@ -2411,8 +2400,6 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .trend-table .trend-expandable + .trend-child { break-before: avoid; page-break-before: avoid; }
   .trend-table thead th:first-child, .trend-table tbody th { width: 28%; max-width: 28%; min-width: 0; }
   .trend-table thead th.period-selector, .trend-table thead th.trend-change-column { width: 18%; }
-  /* 年度が2つのときは列が1本減る。3列前提の幅のままだと18%余って列が間延びする。 */
-  .trend-columns-2 thead th.period-selector, .trend-columns-2 thead th.trend-change-column { width: 24%; }
   .trend-table th, .trend-table td { min-width: 0; padding: 6px 9px; box-sizing: border-box; }
   .trend-table thead span { font-size: 11px; }
   .trend-table thead small { font-size: 10px; }
