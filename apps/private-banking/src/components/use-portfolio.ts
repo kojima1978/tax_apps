@@ -16,19 +16,22 @@ export function usePortfolio(householdId: number) {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // URL の顧客が存在しない（削除された・打ち間違えた）。一覧へは飛ばさず、その場で知らせる。
+  // 以前は何も言わずに顧客一覧へ移していたので、何を開こうとしたのかが URL からも消えていた。
+  const [notFound, setNotFound] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
     try {
       const response = await fetch(`${API_BASE}/portfolio?householdId=${householdId}`, { cache: "no-store" });
-      // URL の顧客が存在しない場合は一覧へ戻して選び直してもらう。
-      if (response.status === 404) { router.replace("/"); return; }
+      if (response.status === 404) { setNotFound(true); return; }
       if (!response.ok) throw new Error();
+      setNotFound(false);
       setPortfolio(await response.json() as Portfolio);
     } catch {
       setError("データを読み込めませんでした。接続を確認してください。");
     }
-  }, [householdId, router]);
+  }, [householdId]);
 
   // 顧客が変わったときだけ、安定したローダー経由で読み直す。
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -58,5 +61,5 @@ export function usePortfolio(householdId: number) {
     }
   }
 
-  return { portfolio, saving, error, setError, load, mutate, router };
+  return { portfolio, notFound, saving, error, setError, load, mutate, router };
 }

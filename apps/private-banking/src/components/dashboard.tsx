@@ -29,6 +29,7 @@ import { ActivityView } from "@/components/activity-view";
 import { PRINT_SECTION_META, PrintFrontMatter } from "@/components/print-front-matter";
 import { PersonFamilyPrintView } from "@/components/print-person-family";
 import { SecondaryInheritanceSimulator } from "@/components/secondary-inheritance-simulator";
+import { NotFoundNotice } from "@/components/not-found-notice";
 import { usePortfolio } from "@/components/use-portfolio";
 import { ToastRegion, useToast } from "@/components/use-toast";
 import { useUndoableDelete } from "@/components/use-undoable-delete";
@@ -70,7 +71,7 @@ const SECTIONS = [
 const SPOTLIGHT_MS = 2_400;
 
 export function Dashboard({ householdId, section }: { householdId: number; section: Section }) {
-  const { portfolio, saving, error, setError, load, mutate, router } = usePortfolio(householdId);
+  const { portfolio, notFound, saving, error, setError, load, mutate, router } = usePortfolio(householdId);
   const [balanceScenario, setBalanceScenario] = useState<BalanceScenario>("without-tax");
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -385,6 +386,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     window.setTimeout(() => setTaxApiStatus("idle"), 3_000);
   }
 
+  if (notFound) return <NotFoundNotice title="この顧客は見つかりません" description="削除されたか、URL が違います。" />;
   if (!portfolio || !current) {
     // 読み込み中の文言は開いている画面の名前で出す。固定で「貸借対照表」と出していたころは、
     // 親族関係や本人情報のURLを直接開くと見出しと違うものを待っているように見えていた。
