@@ -408,23 +408,26 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     <div className="app-shell">
       <a href="#main-content" className="skip-link">本文へ移動</a>
       <aside className={`sidebar ${menuOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <AppBrand />
+        {/* 折りたたみ・閉じるボタンはスクロールしない外側に置く（.sidebar のコメント）。 */}
         <button className="sidebar-toggle" aria-label={sidebarCollapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"} title={sidebarCollapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>{sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</button>
         <button className="close-menu" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)}><X /></button>
-        <nav aria-label="メインメニュー">
-          {SECTIONS.map(({ key, label, icon: Icon }) => <Link
-            key={key}
-            className={`nav-button ${section === key ? "active" : ""}`}
-            href={sectionHref(key)}
-            aria-current={section === key ? "page" : undefined}
-            aria-label={label}
-            title={label}
-            onClick={() => setMenuOpen(false)}
-          ><Icon /><span>{label}</span></Link>)}
-        </nav>
-        <div className="side-section"><p>外部連携</p><a className="side-link" href={`/inheritance-tax-app/?source=pb&householdId=${portfolio.household.id}`} aria-label="相続税シミュレーター" title="相続税シミュレーター"><Link2 /><span>相続税シミュレーター</span><ChevronRight /></a></div>
-        <div className="sidebar-settings"><button type="button" className="nav-button" aria-label="設定" title="選択中の顧客・年度の設定" onClick={() => { setMenuOpen(false); setFxSettingsModalOpen(true); }}><Settings /><span>設定</span></button></div>
-        <div className="security-note"><ShieldCheck /><div><strong>ローカル環境</strong><span>データは社内DBで管理</span></div></div>
+        <div className="sidebar-scroll">
+          <AppBrand />
+          <nav aria-label="メインメニュー">
+            {SECTIONS.map(({ key, label, icon: Icon }) => <Link
+              key={key}
+              className={`nav-button ${section === key ? "active" : ""}`}
+              href={sectionHref(key)}
+              aria-current={section === key ? "page" : undefined}
+              aria-label={label}
+              title={label}
+              onClick={() => setMenuOpen(false)}
+            ><Icon /><span>{label}</span></Link>)}
+          </nav>
+          <div className="side-section"><p>外部連携</p><a className="side-link" href={`/inheritance-tax-app/?source=pb&householdId=${portfolio.household.id}`} aria-label="相続税シミュレーター" title="相続税シミュレーター"><Link2 /><span>相続税シミュレーター</span><ChevronRight /></a></div>
+          <div className="sidebar-settings"><button type="button" className="nav-button" aria-label="設定" title="選択中の顧客・年度の設定" onClick={() => { setMenuOpen(false); setFxSettingsModalOpen(true); }}><Settings /><span>設定</span></button></div>
+          <div className="security-note"><ShieldCheck /><div><strong>ローカル環境</strong><span>データは社内DBで管理</span></div></div>
+        </div>
       </aside>
 
       <div className={`main-area ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
