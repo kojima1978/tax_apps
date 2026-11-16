@@ -1378,6 +1378,10 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-table-actions { width: 100%; align-items: stretch; flex-direction: column; }
   .classified-bs { height: auto; padding: 18px 14px 0; grid-template-columns: 1fr; gap: 10px; }
   .classified-bs-side { height: auto; min-height: 0; }
+  /* 1列に積むと区画エリアは中身の高さ（実測 131〜241px）まで縮む。内訳を表の下の注記へ回す判定
+     （balance-view.ts の AREA_HEIGHT = 326）はエリアが 326px 以上ある前提なので、縮んだままだと
+     注記の付かない区画で行が切れる。判定の前提と同じ高さを、この幅でも確保する。 */
+  .bs-account-area { flex: none; height: 326px; }
   .bs-callout-notes { margin-inline: 14px; grid-template-columns: 1fr; gap: 8px; }
   .bs-callout-column-title { display: block; }
   .bs-account, .bs-account.grouped-account, .bs-account.compact-account { min-height: 0; }

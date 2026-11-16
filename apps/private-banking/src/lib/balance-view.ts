@@ -27,6 +27,8 @@ export type BsCallout = BalanceView["callouts"][number];
  * 縮めた後も約330px（実測329.6〜331.6px）でこの値を下回らない。globals.css の印刷側を
  * 触るときはそこを崩さないこと ──
  * 下回ると印刷だけ注記の付かない切れた区画ができる。
+ * 600px 以下の画面は資産と負債・純資産を縦1列に積むので、放っておくとエリアが中身の高さ
+ * （実測 131〜241px）まで縮む。globals.css の 600px 以下で `.bs-account-area` を 326px に固定している。
  */
 const AREA_HEIGHT = 326;
 /** これ未満の面積比の区画は中身を出さない（micro-account）。 */
