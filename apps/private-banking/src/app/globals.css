@@ -1822,7 +1822,10 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-list-search svg { position: absolute; width: 16px; left: 10px; top: 50%; transform: translateY(-50%); }
 .position-list-search input { padding-left: 34px; }
 .position-result-count { font-size: 12px; color: var(--slate-600); margin: 12px 0; }
-.position-summary-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+/* position: relative は見出しの .sr-only（position: absolute）をこの枠の中に留めるため。
+   無いと枠の overflow に切られず、表の右端にある .sr-only がページ全体を横へ押し広げる
+   （1440px で 127px、375px で 856px の横スクロールが出ていた）。 */
+.position-summary-scroll { position: relative; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
 .position-summary-scroll:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
 .position-summary-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
 .position-summary-table th, .position-summary-table td { min-width: 128px; padding: 9px 11px; border-right: 1px solid var(--line); font-size: 12px; vertical-align: middle; }
