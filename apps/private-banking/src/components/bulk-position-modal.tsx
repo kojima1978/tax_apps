@@ -3,6 +3,7 @@
 import { AlertTriangle, CircleCheck, Copy, LoaderCircle, Plus, Table2, Trash2, X } from "lucide-react";
 import { ClipboardEvent, Fragment, KeyboardEvent as ReactKeyboardEvent, useMemo, useState } from "react";
 import { BulkBenefitRecipients, benefitDraftError, benefitDrafts, benefitValues, type BulkBenefitDraft } from "@/components/bulk-benefit-recipients";
+import { ModalCloseConfirm } from "@/components/modal-close-confirm";
 import { useModalDialog } from "@/components/use-modal-dialog";
 import { personSelectOptions } from "@/lib/family";
 import { currencyOptions, fxRateFor, positionCurrencies } from "@/lib/fx-rates";
@@ -303,18 +304,14 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   /**
    * 開いたときのフォーカスは表の先頭ではなく、いま開いている種類のタブへ移す。
    * この表は9種類ぶんの入力先を持っていて、まずどの種類を編集しているかが要るため。
-   * 入力の途中で Escape を押しても捨てない（9種類ぶんの入力が一度に消えるので、確認を挟む）。
+   * 保存対象の行があるときは、Escape・×・キャンセルのどれで閉じても確認を挟む（9種類ぶんの入力が一度に消えるため）。
+   * 以前は Escape だけ止めていて、×とキャンセルは確認なしに捨てていた。
    */
-  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({
+  const { dialogRef, onKeyDown, requestClose, closeConfirm } = useModalDialog<HTMLDivElement>({
     initialFocus: ".bulk-entry-tab.is-active",
-    onEscape: () => {
-      if (saving) return;
-      if (savedRows.length > 0) {
-        setFormError("未保存の編集があります。「変更をまとめて保存」か「キャンセル」を選んでください。");
-        return;
-      }
-      onClose();
-    },
+    onClose,
+    busy: saving,
+    isDirty: () => savedRows.length > 0,
   });
   const errorCounts = useMemo(() => Object.fromEntries(
     bulkEntryTypes.map((type) => [type, rowsByType[type].filter((row) => row.error).length]),
@@ -664,7 +661,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   }
 
   return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal bulk-position-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
-    <header><div><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要{bulkEntryTypes.length}種類）</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <header><div><h2 id="bulk-modal-title">明細をまとめて入力</h2><p>{snapshot.fiscalYear}年度・資産の部（主要{bulkEntryTypes.length}種類）</p></div><button type="button" className="icon-button" aria-label="閉じる" onClick={requestClose} disabled={saving}><X /></button></header>
     <div className="bulk-modal-body">
       <section className="bulk-common-settings" aria-label="共通条件">
         {onOpenFxSettings ? <button type="button" className="button secondary" onClick={onOpenFxSettings}>為替レート設定</button> : null}
@@ -728,7 +725,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         </table>
       </div>
       <button type="button" className="button secondary bulk-add-row" onClick={() => addRow()}><Plus />新しい行を追加</button>
-      <footer><span>保存対象：編集 {savedExistingCount}件・新規 {savedNewCount}件（全{bulkEntryTypes.length}種類の合計）</span><div><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="button" className="button primary" onClick={() => void submitBulk()} disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <CircleCheck />}変更をまとめて保存</button></div></footer>
+      <footer><span>保存対象：編集 {savedExistingCount}件・新規 {savedNewCount}件（全{bulkEntryTypes.length}種類の合計）</span><div>{closeConfirm.open ? <ModalCloseConfirm confirm={closeConfirm} /> : <><button type="button" className="button secondary" onClick={requestClose} disabled={saving}>キャンセル</button><button type="button" className="button primary" onClick={() => void submitBulk()} disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <CircleCheck />}変更をまとめて保存</button></>}</div></footer>
     </div>
   </div></div>;
 }

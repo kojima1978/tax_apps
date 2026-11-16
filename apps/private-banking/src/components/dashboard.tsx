@@ -181,9 +181,10 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     setClientSaved(false);
     const body = { ...Object.fromEntries(new FormData(event.currentTarget).entries()), id: householdId };
     const { ok } = await mutate("/clients", "PATCH", body, "顧客情報を保存できませんでした。");
-    if (!ok) return;
+    if (!ok) return false;
     await load();
     setClientSaved(true);
+    return true;
   }
 
   async function deleteClient(event: FormEvent<HTMLFormElement>) {

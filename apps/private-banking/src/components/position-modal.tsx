@@ -5,6 +5,7 @@ import { normalizePropertyPlan, propertyPlanOptions } from "@/lib/property-plan"
 import { AlertTriangle, Info, LoaderCircle, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { FormEvent, type ReactNode, useEffect, useId, useState } from "react";
 import { BuildingTypeField, CommaNumberInput, LandCategoryField, OwnershipFractionInput } from "@/components/form-fields";
+import { ModalCloseConfirm } from "@/components/modal-close-confirm";
 import { useModalDialog } from "@/components/use-modal-dialog";
 import { personSelectOptions } from "@/lib/family";
 import { contractAmountText, currencyOptions, fxRateFor, positionCurrencies, type FxRates } from "@/lib/fx-rates";
@@ -308,9 +309,9 @@ export function PositionModal({ position, defaultSection = "ASSET", defaultCateg
   const [institution, setInstitution] = useState(position?.institution ?? "");
   // 受取人ごとの分数の合計が1かどうか。受取人欄（BenefitRecipientsField）から受け取る。
   const [benefitAllocationValid, setBenefitAllocationValid] = useState(true);
-  // 開いたときのフォーカスと Tab の巡回、Escape での閉じ方。Escape は「閉じる」「キャンセル」と同じ扱いで、
-  // どちらも確認を挟まず入力を捨てるので、Escape を足しても失うものは増えない。
-  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); } });
+  // 開いたときのフォーカスと Tab の巡回、閉じ方。Escape・×・キャンセルはどれも requestClose を通り、
+  // 開いたときから入力が変わっていれば「変更を保存せずに閉じますか？」を挟む（何も変えていなければそのまま閉じる）。
+  const { dialogRef, onKeyDown, requestClose, closeConfirm } = useModalDialog<HTMLDivElement>({ onClose, busy: saving });
 
   // 区分の切替も科目の切替を通す。以前は setCategory を直に呼んでいたため通貨が JPY へ戻らず、
   // 外貨預金から負債へ切り替えると「借入残高（USD）」と見せたまま JPY で保存され、
@@ -425,7 +426,7 @@ export function PositionModal({ position, defaultSection = "ASSET", defaultCateg
   /> : <LiabilitySpecificFields category={category} details={assetDetails} />;
 
   return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className={`modal position-modal${isInsurance ? " insurance-position-modal" : ""}${isSecurities ? " securities-position-modal" : ""}${isStockCategory ? " stock-position-modal" : ""}${isRealEstateCategory && propertyType === "BUILDING" ? " building-position-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="modal-title">
-    <header><div><h2 id="modal-title">{isEditing ? "明細を修正" : "明細を追加"}</h2><p className="position-modal-caption">{categoryLabels[category]}{isRealEstateCategory ? ` ／ ${propertyType === "LAND" ? "土地" : "建物"}` : ""}</p></div><button className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <header><div><h2 id="modal-title">{isEditing ? "明細を修正" : "明細を追加"}</h2><p className="position-modal-caption">{categoryLabels[category]}{isRealEstateCategory ? ` ／ ${propertyType === "LAND" ? "土地" : "建物"}` : ""}</p></div><button type="button" className="icon-button" aria-label="閉じる" onClick={requestClose} disabled={saving}><X /></button></header>
     <form onSubmit={onSubmit}>
       <div className="position-modal-body">
       <input type="hidden" name="side" value={section === "ASSET" ? "ASSET" : "LIABILITY"} />
@@ -479,7 +480,7 @@ export function PositionModal({ position, defaultSection = "ASSET", defaultCateg
       </div>
       {/* 直接入力のときは今打った金額をそのまま読み上げるだけなので黙らせ、
           複数の欄から決まる算式のときだけ読み上げる。 */}
-      <footer><div className="position-modal-summary" aria-live={isCalculated ? "polite" : undefined}><span>{amountLabel}</span><strong>{summaryAmount === null ? "未入力" : `${formatAmount(summaryAmount)} ${amountUnit}`}</strong>{summaryJpy && !isInsurance ? <small>{summaryJpy}</small> : null}</div><button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null || !benefitAllocationValid}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></footer>
+      <footer><div className="position-modal-summary" aria-live={isCalculated ? "polite" : undefined}><span>{amountLabel}</span><strong>{summaryAmount === null ? "未入力" : `${formatAmount(summaryAmount)} ${amountUnit}`}</strong>{summaryJpy && !isInsurance ? <small>{summaryJpy}</small> : null}</div>{closeConfirm.open ? <ModalCloseConfirm confirm={closeConfirm} /> : <><button type="button" className="button secondary" onClick={requestClose} disabled={saving}>キャンセル</button><button type="submit" className="button primary" disabled={saving || fxRate === null || !benefitAllocationValid}>{saving ? <LoaderCircle className="spin" /> : isEditing ? <Pencil /> : <Plus />}{isEditing ? "保存する" : "登録する"}</button></>}</footer>
     </form>
   </div></div>;
 }

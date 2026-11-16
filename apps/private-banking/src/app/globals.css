@@ -972,7 +972,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .family-editor-confirm p { flex: 1 1 260px; margin: 0; color: #78350f; font-size: 12px; font-weight: 700; }
 .family-editor-confirm .button { min-height: 34px; padding-inline: 12px; font-size: 12px; }
 .family-editor-error { flex: 1 1 100%; margin: 0; padding: 8px 12px; color: #7f1d1d; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; font-size: 12px; font-weight: 700; }
-.family-editor-footer-message { flex: 1 1 220px; margin: 0; color: var(--slate-700); font-size: 12px; font-weight: 700; }
+/* 閉じる前の確認（ModalCloseConfirm）。入力を持つモーダルのフッターで共通に使う。 */
+.modal-close-confirm-message { flex: 1 1 220px; margin: 0; color: var(--slate-700); font-size: 12px; font-weight: 700; }
 .family-editor-empty { margin: 0; padding: 28px 16px; color: var(--slate-500); border: 1px dashed var(--line-strong); border-radius: 9px; font-size: 12px; text-align: center; }
 .family-card-list { margin: 14px 24px 0; display: grid; gap: 10px; }
 /* 追加したカードへスクロールしたとき、固定の操作帯・保存ボタンに隠れないよう余白を取る。 */
@@ -1140,7 +1141,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .person-form-footer { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .person-form-actions { display: flex; align-items: center; gap: 14px; }
 .person-save-status { color: #166534; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; }
-.person-save-status svg { width: 16px; height: 16px; }
+.person-save-status svg { width: 16px; height: 16px; flex: none; }
+/* 保存していない変更。「保存しました」と同じ場所に出し、色と印で区別する。 */
+.person-save-status.is-unsaved { color: #b45309; }
 
 /* 相続税概算。参照帳票の「左に計算、右に根拠」を現在の配色へ合わせる。 */
 .tax-calculation-document { margin-top: 18px; }
@@ -1461,6 +1464,9 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   /* 狭い画面では入力欄の見える範囲を広く取るため、金額とボタンを1行に並べる。桁の多い金額はボタンを割らずに金額側で折り返す。 */
   .position-modal-summary { flex: 1 1 0; }
   .position-modal-summary strong { font-size: 15px; }
+  /* 閉じる前の確認が出ている間は、確認の文とボタン2つを同じ行に並べない。並べると、金額が幅0まで潰れて1文字ずつ縦に並び、ボタンも2行に割れる。 */
+  .modal-close-confirm-message { flex-basis: 100%; }
+  .position-modal form > footer:has(.modal-close-confirm-message) .position-modal-summary { flex-basis: 100%; }
   .classification-row { align-items: stretch; flex-direction: column; gap: 5px; }
   .client-create-form footer { padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
   .bulk-modal-body { max-height: calc(94vh - 78px); max-height: calc(94dvh - 78px); padding-inline: 12px; }
@@ -2035,7 +2041,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .category-table-scroll:focus-visible, .detail-category-links a:focus-visible, .detail-category-select select:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
 @media (max-width: 700px) {
   .category-table-toolbar { flex-wrap: wrap; }
-  .detail-category-select { min-width: 0; width: 100%; }
+  /* 列を minmax(0, 1fr) にしないと、長い科目名の幅（16px で約300px）がそのまま列の幅になり、320px の画面で右へはみ出す。 */
+  .detail-category-select { min-width: 0; width: 100%; grid-template-columns: minmax(0, 1fr); }
   .detail-category-select select { font-size: 16px; }
   .detail-column-options { grid-template-columns: 1fr; }
   .detail-column-option { flex-wrap: wrap; }

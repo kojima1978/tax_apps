@@ -332,10 +332,60 @@ describe("PositionModal（モーダルの作法）", () => {
     expect(document.activeElement).toBe(container.querySelector(".position-modal"));
   });
 
-  it("Escape で閉じる", () => {
+  it("何も入れていなければ Escape で閉じる", () => {
     const onClose = vi.fn();
     const { container } = renderModal(onClose);
     fireEvent.keyDown(container.querySelector(".modal-layer")!, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  // 以前は確認なしで閉じ、入れかけの明細が消えていた。
+  it.each([
+    ["Escape", (container: HTMLElement) => fireEvent.keyDown(container.querySelector(".modal-layer")!, { key: "Escape" })],
+    ["×", () => fireEvent.click(screen.getByRole("button", { name: "閉じる" }))],
+    ["キャンセル", () => fireEvent.click(screen.getByRole("button", { name: "キャンセル" }))],
+  ] as const)("入力があるときは %s で閉じず、破棄してよいか確かめる", (_name, close) => {
+    const onClose = vi.fn();
+    const { container } = renderModal(onClose);
+    typeIn("名称", "普通預金");
+    close(container);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe("変更を保存せずに閉じますか？");
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "編集に戻る" }));
+    // 確認の間は、登録のボタンを出さない（Enter で確認を飛ばして閉じる・登録するの取り違えを避ける）。
+    expect(screen.queryByRole("button", { name: "登録する" })).toBeNull();
+  });
+
+  it("「編集に戻る」で入力は残り、「変更を破棄して閉じる」で閉じる", () => {
+    const onClose = vi.fn();
+    const { container } = renderModal(onClose);
+    typeIn("名称", "普通預金");
+    fireEvent.keyDown(container.querySelector(".modal-layer")!, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "編集に戻る" }));
+    expect((screen.getByLabelText("名称") as HTMLInputElement).value).toBe("普通預金");
+    expect(screen.getByRole("button", { name: "登録する" })).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+    fireEvent.click(screen.getByRole("button", { name: "変更を破棄して閉じる" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("入れた文字を消して元に戻せば、確認なしで閉じる", () => {
+    const onClose = vi.fn();
+    const { container } = renderModal(onClose);
+    typeIn("名称", "普通預金");
+    typeIn("名称", "");
+    fireEvent.keyDown(container.querySelector(".modal-layer")!, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("科目を切り替えただけでも、送る内容が変わるので確かめる", () => {
+    const onClose = vi.fn();
+    const { container } = renderModal(onClose);
+    fireEvent.change(screen.getByLabelText("中分類"), { target: { value: "不動産" } });
+    fireEvent.keyDown(container.querySelector(".modal-layer")!, { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("変更を保存せずに閉じますか？")).toBeTruthy();
   });
 });

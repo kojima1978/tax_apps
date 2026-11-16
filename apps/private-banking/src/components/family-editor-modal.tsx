@@ -3,6 +3,8 @@
 import { ArrowDown, ArrowUp, Calculator, LoaderCircle, Pencil, Plus, Trash2, X } from "lucide-react";
 import { FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { DateInput } from "@/components/date-input";
+import { ModalCloseConfirm } from "@/components/modal-close-confirm";
+import { useModalDialog } from "@/components/use-modal-dialog";
 import { ToastRegion, useToast } from "@/components/use-toast";
 import { type FamilyEditRow, MAX_FAMILY_ROWS, familyDraftsFromRows, useFamilyEditor } from "@/components/use-family-editor";
 import {
@@ -138,10 +140,13 @@ export function FamilyEditorModal({ members, referenceDate, saving, onSave, onCl
   const editor = useFamilyEditor(members);
   const { toast, showToast, dismissToast } = useToast();
   const [submitError, setSubmitError] = useState("");
-  const [confirmingClose, setConfirmingClose] = useState(false);
-  const keepEditingRef = useRef<HTMLButtonElement>(null);
   const confirmCalculationRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  // 閉じる前の確認は共通の作法（useModalDialog）。入力は rows の state が持つので、変更の有無は editor.dirty を渡す。
+  const { dialogRef, onKeyDown, requestClose, closeConfirm } = useModalDialog<HTMLDivElement>({
+    onClose: () => { dismissToast(); onClose(); },
+    busy: saving,
+    isDirty: () => editor.dirty,
+  });
   const { focusKey, clearFocusKey } = editor;
 
   // 追加したカード・元に戻したカードまで画面を動かし、氏名欄から入力を始められるようにする。
@@ -153,14 +158,7 @@ export function FamilyEditorModal({ members, referenceDate, saving, onSave, onCl
     clearFocusKey();
   }, [focusKey, clearFocusKey]);
 
-  useEffect(() => { if (confirmingClose) keepEditingRef.current?.focus(); }, [confirmingClose]);
   useEffect(() => { if (editor.pendingOverwrite !== null) confirmCalculationRef.current?.focus(); }, [editor.pendingOverwrite]);
-
-  const requestClose = () => {
-    if (saving) return;
-    if (editor.dirty) setConfirmingClose(true);
-    else onClose();
-  };
 
   const removeRow = (row: FamilyEditRow) => {
     const removed = editor.remove(row.key);
@@ -174,7 +172,6 @@ export function FamilyEditorModal({ members, referenceDate, saving, onSave, onCl
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError("");
-    setConfirmingClose(false);
     try {
       await onSave(familyDraftsFromRows(editor.rows));
       dismissToast();
@@ -186,12 +183,7 @@ export function FamilyEditorModal({ members, referenceDate, saving, onSave, onCl
 
   const addButton = (className: string) => <button type="button" className={className} disabled={editor.rows.length >= MAX_FAMILY_ROWS} onClick={editor.add}><Plus />家族を追加</button>;
 
-  return <div className="modal-layer" role="presentation" onKeyDown={(event) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    if (confirmingClose) setConfirmingClose(false);
-    else requestClose();
-  }}>
+  return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}>
     <div ref={dialogRef} tabIndex={-1} className="modal family-editor-modal" role="dialog" aria-modal="true" aria-labelledby="family-editor-title">
       <header>
         <div><h2 id="family-editor-title">家族情報の入力</h2></div>
@@ -226,11 +218,7 @@ export function FamilyEditorModal({ members, referenceDate, saving, onSave, onCl
         {addButton("family-add-button")}
         <footer>
           {submitError ? <p className="family-editor-error" role="alert">{submitError}</p> : null}
-          {confirmingClose ? <>
-            <p className="family-editor-footer-message" role="alert">変更を保存せずに閉じますか？</p>
-            <button type="button" className="button secondary" ref={keepEditingRef} onClick={() => setConfirmingClose(false)}>編集に戻る</button>
-            <button type="button" className="button danger-button" onClick={() => { dismissToast(); onClose(); }}>変更を破棄して閉じる</button>
-          </> : <>
+          {closeConfirm.open ? <ModalCloseConfirm confirm={closeConfirm} /> : <>
             <button type="button" className="button secondary" onClick={requestClose} disabled={saving}>キャンセル</button>
             <button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}{saving ? "保存中" : "保存する"}</button>
           </>}

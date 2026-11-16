@@ -574,12 +574,44 @@ describe("BulkPositionModal（モーダルの作法）", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("未保存の編集があるときは Escape で閉じず、理由を出す", () => {
+  // 以前は Escape だけが止まり（理由の文を出すだけ）、×とキャンセルは入力ごと閉じていた。
+  it.each([
+    ["Escape", (pressEscape: () => void) => pressEscape()],
+    ["×", () => fireEvent.click(screen.getByRole("button", { name: "閉じる" }))],
+    ["キャンセル", () => fireEvent.click(screen.getByRole("button", { name: "キャンセル" }))],
+  ] as const)("未保存の編集があるときは %s で閉じず、破棄してよいか確かめる", (_name, close) => {
+    const { onClose, pressEscape } = renderWithClose();
+    selectEntryType("LOAN_RECEIVABLE");
+    typeIn(1, "名称", "役員貸付金");
+    close(pressEscape);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe("変更を保存せずに閉じますか？");
+    // 確認が出たら、入力が残る側（編集に戻る）にフォーカスを置く。
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "編集に戻る" }));
+  });
+
+  it("確認で「編集に戻る」を選ぶと入力は残り、「変更を破棄して閉じる」で閉じる", () => {
     const { onClose, pressEscape } = renderWithClose();
     selectEntryType("LOAN_RECEIVABLE");
     typeIn(1, "名称", "役員貸付金");
     pressEscape();
+    fireEvent.click(screen.getByRole("button", { name: "編集に戻る" }));
+    expect(screen.queryByText("変更を保存せずに閉じますか？")).toBeNull();
+    expect(screen.getByDisplayValue("役員貸付金")).toBeTruthy();
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert").textContent).toContain("未保存の編集があります");
+
+    pressEscape();
+    fireEvent.click(screen.getByRole("button", { name: "変更を破棄して閉じる" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("確認が出ている間の Escape は「編集に戻る」（2回押しても閉じない）", () => {
+    const { onClose, pressEscape } = renderWithClose();
+    selectEntryType("LOAN_RECEIVABLE");
+    typeIn(1, "名称", "役員貸付金");
+    pressEscape();
+    pressEscape();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText("変更を保存せずに閉じますか？")).toBeNull();
   });
 });

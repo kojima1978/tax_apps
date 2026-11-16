@@ -17,6 +17,7 @@ import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import { defaultAsOfDate } from "@/lib/snapshot-date";
 import { type Portfolio } from "@/lib/portfolio-view";
 import { compactYen } from "@/lib/format";
+import { ModalCloseConfirm } from "@/components/modal-close-confirm";
 import { useModalDialog } from "@/components/use-modal-dialog";
 
 /** 顧客ページのうち、一覧から最初に開く画面。 */
@@ -403,7 +404,7 @@ function ClientCreateModal({ error, saving, onClose, onSubmit }: {
   const currentYear = new Date().getFullYear();
   const [fiscalYear, setFiscalYear] = useState(String(currentYear));
   const [asOfDate, setAsOfDate] = useState(defaultAsOfDate(currentYear));
-  const { dialogRef, onKeyDown } = useModalDialog<HTMLDivElement>({ onEscape: () => { if (!saving) onClose(); }, initialFocus: 'input[name="name"]' });
+  const { dialogRef, onKeyDown, requestClose, closeConfirm } = useModalDialog<HTMLDivElement>({ onClose, busy: saving, initialFocus: 'input[name="name"]' });
 
   function changeFiscalYear(value: string) {
     setFiscalYear(value);
@@ -412,7 +413,7 @@ function ClientCreateModal({ error, saving, onClose, onSubmit }: {
   }
 
   return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal client-switcher-modal" role="dialog" aria-modal="true" aria-labelledby="client-create-title" aria-busy={saving}>
-    <header><div><h2 id="client-create-title">顧客を追加</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={onClose} disabled={saving}><X /></button></header>
+    <header><div><h2 id="client-create-title">顧客を追加</h2></div><button type="button" className="icon-button" aria-label="閉じる" onClick={requestClose} disabled={saving}><X /></button></header>
     <form className="client-create-form" onSubmit={onSubmit}>
       <p className="client-modal-guidance">新しい顧客専用の貸借対照表を作成します。既存顧客のデータとは分離して保存されます。</p>
       {error ? <p className="client-modal-error" role="alert"><AlertTriangle />{error}</p> : null}
@@ -426,8 +427,10 @@ function ClientCreateModal({ error, saving, onClose, onSubmit }: {
         </div>
       </div>
       <footer>
-        <button type="button" className="button secondary" onClick={onClose} disabled={saving}>キャンセル</button>
-        <button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <UserPlus />}登録して開く</button>
+        {closeConfirm.open ? <ModalCloseConfirm confirm={closeConfirm} /> : <>
+          <button type="button" className="button secondary" onClick={requestClose} disabled={saving}>キャンセル</button>
+          <button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <UserPlus />}登録して開く</button>
+        </>}
       </footer>
     </form>
   </div></div>;
