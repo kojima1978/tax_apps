@@ -19,7 +19,6 @@ type BackupPreview = {
   households: number;
   snapshots: number;
   positions: number;
-  planningScenarios: number;
   activityLogs: number;
   staff: number;
   staffAssignments: number;
@@ -52,7 +51,7 @@ function backupTimestamp(value: string | null) {
 }
 
 function previewContents(preview: BackupPreview) {
-  return `顧客${preview.households}件 / 年度${preview.snapshots}件 / 明細${preview.positions}件 / 担当者${preview.staff}件 / 担当履歴${preview.staffAssignments}件 / シナリオ${preview.planningScenarios}件 / 操作履歴${preview.activityLogs}件${preview.appCurrencies > 0 ? ` / 追加通貨${preview.appCurrencies}件` : ""}`;
+  return `顧客${preview.households}件 / 年度${preview.snapshots}件 / 明細${preview.positions}件 / 担当者${preview.staff}件 / 担当履歴${preview.staffAssignments}件 / 操作履歴${preview.activityLogs}件${preview.appCurrencies > 0 ? ` / 追加通貨${preview.appCurrencies}件` : ""}`;
 }
 
 function readBackupPreview(payload: unknown): BackupPreview {
@@ -65,8 +64,7 @@ function readBackupPreview(payload: unknown): BackupPreview {
     const data = backup.data as Record<string, unknown> | undefined;
     const households = data?.households, snapshots = data?.snapshots, positions = data?.positions;
     if (!Array.isArray(households) || !Array.isArray(snapshots) || !Array.isArray(positions)) throw new Error("全体バックアップの中身が壊れています。");
-    const planningScenarios = data?.planningScenarios, activityLogs = data?.activityLogs;
-    if (planningScenarios !== undefined && !Array.isArray(planningScenarios)) throw new Error("全体バックアップのシナリオが壊れています。");
+    const activityLogs = data?.activityLogs;
     if (activityLogs !== undefined && !Array.isArray(activityLogs)) throw new Error("全体バックアップの操作履歴が壊れています。");
     if (data?.staff !== undefined && !Array.isArray(data.staff)) throw new Error("担当者台帳が壊れています。");
     if (data?.staffAssignments !== undefined && !Array.isArray(data.staffAssignments)) throw new Error("担当履歴が壊れています。");
@@ -78,7 +76,6 @@ function readBackupPreview(payload: unknown): BackupPreview {
       households: households.length,
       snapshots: snapshots.length,
       positions: positions.length,
-      planningScenarios: planningScenarios?.length ?? 0,
       activityLogs: activityLogs?.length ?? 0,
       staff: Array.isArray(data?.staff) ? data.staff.length : 0,
       staffAssignments: Array.isArray(data?.staffAssignments) ? data.staffAssignments.length : 0,
@@ -94,8 +91,7 @@ function readBackupPreview(payload: unknown): BackupPreview {
       const rows = (snapshot as Record<string, unknown> | null)?.positions;
       return total + (Array.isArray(rows) ? rows.length : 0);
     }, 0);
-    const planningScenarios = backup.planningScenarios, activityLogs = backup.activityLogs;
-    if (planningScenarios !== undefined && !Array.isArray(planningScenarios)) throw new Error("顧客データのシナリオが壊れています。");
+    const activityLogs = backup.activityLogs;
     if (activityLogs !== undefined && !Array.isArray(activityLogs)) throw new Error("顧客データの操作履歴が壊れています。");
     if (backup.staffAssignments !== undefined && !Array.isArray(backup.staffAssignments)) throw new Error("担当履歴が壊れています。");
     if (backup.appCurrencies !== undefined && !Array.isArray(backup.appCurrencies)) throw new Error("追加通貨が壊れています。");
@@ -106,7 +102,6 @@ function readBackupPreview(payload: unknown): BackupPreview {
       households: 1,
       snapshots: snapshots.length,
       positions,
-      planningScenarios: planningScenarios?.length ?? 0,
       activityLogs: activityLogs?.length ?? 0,
       staff: household.assignedStaffCode || household.assignedStaff ? 1 : 0,
       staffAssignments: Array.isArray(backup.staffAssignments) ? backup.staffAssignments.length : 0,
@@ -191,7 +186,7 @@ function GlobalBackup() {
           <div className="backup-option">
             <div>
               <strong>顧客を選んで書き出す</strong>
-              <span>選んだ顧客の全年度・明細・親族関係・シナリオ・操作履歴を1件ぶんのファイルに保存します。</span>
+              <span>選んだ顧客の全年度・明細・親族関係・操作履歴を1件ぶんのファイルに保存します。</span>
               {clients && clients.length > 0 ? <select
                 className="backup-client-select"
                 aria-label="書き出す顧客"
@@ -213,7 +208,7 @@ function GlobalBackup() {
         <PanelHeader title="全体書き出し" subtitle="すべての顧客をまとめて書き出します" />
         <div className="backup-body">
           <div className="backup-option">
-            <div><strong>全顧客をまとめて書き出す</strong><span>すべての顧客・年度・明細・シナリオ・操作履歴を1つのファイルに保存します。障害時の復旧用です。</span></div>
+            <div><strong>全顧客をまとめて書き出す</strong><span>すべての顧客・年度・明細・操作履歴を1つのファイルに保存します。障害時の復旧用です。</span></div>
             <a className="button primary" href={`${API_BASE}/backup`} download><Download />全体を書き出す</a>
           </div>
         </div>

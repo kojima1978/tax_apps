@@ -57,32 +57,24 @@ describe.runIf(runIntegrationTests)("private-banking API integration", () => {
     ]));
   });
 
-  it("旧シナリオデータを含む顧客バックアップを別顧客へ復元する", async () => {
-    await prisma.planningScenario.create({
-      data: {
-        householdId,
-        name: "バックアップ対象案",
-        assetChangePercent: 7.5,
-        liabilityChangePercent: -2,
-        inheritanceTaxJpy: 9_000_000,
-        successionCostsJpy: 1_000_000,
-        note: "復元確認",
-      },
+  it("顧客バックアップを別顧客へ復元する（旧ファイルのシナリオは読み飛ばす）", async () => {
+    // 2026-11-17 に PlanningScenario を削除した。それより前のファイルに残る planningScenarios は取り込まない
+    const exported = householdBackupSchema.parse({
+      ...await exportHousehold(householdId),
+      planningScenarios: [{ name: "旧シナリオ", assetChangePercent: "7.50", note: "読み飛ばす" }],
     });
-
-    const exported = householdBackupSchema.parse(await exportHousehold(householdId));
-    expect(exported.planningScenarios).toHaveLength(1);
+    expect(exported).not.toHaveProperty("planningScenarios");
     expect(exported.activityLogs).toHaveLength(0);
 
     const imported = await importHousehold(exported);
     expect(imported.renamedClientCode).toBe(`${clientCode}-2`);
-    expect(imported.counts).toEqual(expect.objectContaining({ planningScenarios: 1, activityLogs: 0 }));
+    expect(imported.counts).toEqual(expect.objectContaining({ activityLogs: 0 }));
+    expect(imported.counts).not.toHaveProperty("planningScenarios");
 
     const restored = await prisma.household.findUniqueOrThrow({
       where: { id: imported.household.id },
-      include: { planningScenarios: true, activityLogs: { orderBy: { createdAt: "asc" } } },
+      include: { activityLogs: { orderBy: { createdAt: "asc" } } },
     });
-    expect(restored.planningScenarios[0]).toEqual(expect.objectContaining({ name: "バックアップ対象案", note: "復元確認" }));
     expect(restored.activityLogs).toHaveLength(0);
     expect(restored.activityLogs.every((log) => log.clientCode === `${clientCode}-2`)).toBe(true);
   });

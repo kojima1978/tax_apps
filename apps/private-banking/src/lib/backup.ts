@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import type { ActivityLog, FamilyMember, Household, PlanningScenario, Position, PositionAllocation, Snapshot } from "@prisma/client";
+import type { ActivityLog, FamilyMember, Household, Position, PositionAllocation, Snapshot } from "@prisma/client";
 import { z } from "zod";
 import { type AppCurrencyInput, addableAppCurrencies, appCurrencySchema } from "@/lib/app-currencies";
 import { parseFxRates } from "@/lib/fx-rates";
@@ -141,21 +141,6 @@ function serializePositionAllocation(allocation: PositionAllocation) {
   };
 }
 
-function serializePlanningScenario(scenario: PlanningScenario) {
-  return {
-    id: scenario.id,
-    householdId: scenario.householdId,
-    name: scenario.name,
-    assetChangePercent: decimalText(scenario.assetChangePercent),
-    liabilityChangePercent: decimalText(scenario.liabilityChangePercent),
-    inheritanceTaxJpy: decimalText(scenario.inheritanceTaxJpy),
-    successionCostsJpy: decimalText(scenario.successionCostsJpy),
-    note: scenario.note,
-    createdAt: scenario.createdAt.toISOString(),
-    updatedAt: scenario.updatedAt.toISOString(),
-  };
-}
-
 function serializeActivityLog(log: ActivityLog) {
   return {
     id: log.id,
@@ -174,13 +159,12 @@ function serializeActivityLog(log: ActivityLog) {
 
 /** 全顧客ぶんをテーブル単位で書き出す（ID・シーケンスまで含めた完全復元用）。 */
 export async function exportAll() {
-  const [households, snapshots, positions, familyMembers, positionAllocations, planningScenarios, activityLogs, staff, staffAssignments, appCurrencies] = await Promise.all([
+  const [households, snapshots, positions, familyMembers, positionAllocations, activityLogs, staff, staffAssignments, appCurrencies] = await Promise.all([
     prisma.household.findMany({ orderBy: { id: "asc" }, include: { staff: { select: backupStaffSelect } } }),
     prisma.snapshot.findMany({ orderBy: { id: "asc" } }),
     prisma.position.findMany({ orderBy: { id: "asc" } }),
     prisma.familyMember.findMany({ orderBy: { id: "asc" } }),
     prisma.positionAllocation.findMany({ orderBy: { id: "asc" } }),
-    prisma.planningScenario.findMany({ orderBy: { id: "asc" } }),
     prisma.activityLog.findMany({ orderBy: { id: "asc" } }),
     prisma.staff.findMany({ orderBy: { staffCode: "asc" }, select: backupStaffSelect }),
     prisma.staffAssignment.findMany({ orderBy: { id: "asc" } }),
@@ -198,7 +182,6 @@ export async function exportAll() {
       positions: positions.map(serializePosition),
       familyMembers: familyMembers.map(serializeFamilyMember),
       positionAllocations: positionAllocations.map(serializePositionAllocation),
-      planningScenarios: planningScenarios.map(serializePlanningScenario),
       activityLogs: activityLogs.map(serializeActivityLog),
       staff,
       staffAssignments: staffAssignments.map((row) => ({ householdId: row.householdId, ...serializeStaffAssignment(row) })),
@@ -215,7 +198,6 @@ export async function exportHousehold(householdId: number) {
       staff: { select: backupStaffSelect },
       staffAssignments: { orderBy: [{ startedAt: "asc" }, { id: "asc" }] },
       familyMembers: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
-      planningScenarios: { orderBy: [{ updatedAt: "desc" }, { id: "desc" }] },
       activityLogs: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
       snapshots: {
         orderBy: { fiscalYear: "asc" },
@@ -238,7 +220,6 @@ export async function exportHousehold(householdId: number) {
     staffAssignments: household.staffAssignments.map(serializeStaffAssignment),
     appCurrencies,
     familyMembers: household.familyMembers.map((member) => omit(serializeFamilyMember(member), ["id", "householdId", "createdAt", "updatedAt"])),
-    planningScenarios: household.planningScenarios.map((scenario) => omit(serializePlanningScenario(scenario), ["id", "householdId", "createdAt", "updatedAt"])),
     activityLogs: household.activityLogs.map((log) => omit(serializeActivityLog(log), ["id", "householdId", "householdName", "clientCode"])),
     snapshots: household.snapshots.map((snapshot) => ({
       ...omit(serializeSnapshot(snapshot), ["id", "householdId", "createdAt", "updatedAt"]),
@@ -361,15 +342,6 @@ const familyMemberFieldsSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-const planningScenarioFieldsSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  assetChangePercent: decimalLike.default(0),
-  liabilityChangePercent: decimalLike.default(0),
-  inheritanceTaxJpy: decimalLike.default(0),
-  successionCostsJpy: decimalLike.default(0),
-  note: z.string().default(""),
-});
-
 const activityLogFieldsSchema = z.object({
   householdName: z.string().default(""),
   clientCode: z.string().default(""),
@@ -412,7 +384,6 @@ export const fullBackupSchema = z.object({
     positions: z.array(positionFieldsSchema.extend({ id: z.number().int().positive(), snapshotId: z.number().int().positive() }).merge(timestampsSchema)),
     familyMembers: z.array(familyMemberFieldsSchema.extend({ id: z.number().int().positive(), householdId: z.number().int().positive() }).merge(timestampsSchema)).default([]),
     positionAllocations: z.array(fullPositionAllocationSchema).default([]),
-    planningScenarios: z.array(planningScenarioFieldsSchema.extend({ id: z.number().int().positive(), householdId: z.number().int().positive() }).merge(timestampsSchema)).default([]),
     activityLogs: z.array(activityLogFieldsSchema.extend({ id: z.number().int().positive(), householdId: z.number().int().positive().nullable() })).default([]),
   }),
 });
@@ -425,7 +396,6 @@ export const householdBackupSchema = z.object({
   staffAssignments: z.array(staffAssignmentSchema).default([]),
   appCurrencies: z.array(appCurrencySchema).default([]),
   familyMembers: z.array(familyMemberFieldsSchema).default([]),
-  planningScenarios: z.array(planningScenarioFieldsSchema).default([]),
   activityLogs: z.array(activityLogFieldsSchema.omit({ householdName: true, clientCode: true })).default([]),
   snapshots: z.array(snapshotFieldsSchema.extend({ positions: z.array(positionFieldsSchema.extend({ allocations: z.array(portablePositionAllocationSchema).default([]) })).default([]) })),
 });
@@ -437,7 +407,6 @@ export type BackupCounts = {
   snapshots: number;
   positions: number;
   familyMembers: number;
-  planningScenarios: number;
   activityLogs: number;
 };
 
@@ -458,7 +427,6 @@ type HouseholdFields = z.infer<typeof householdFieldsSchema>;
 type SnapshotFields = z.infer<typeof snapshotFieldsSchema>;
 type PositionFields = z.infer<typeof positionFieldsSchema>;
 type FamilyMemberFields = z.infer<typeof familyMemberFieldsSchema>;
-type PlanningScenarioFields = z.infer<typeof planningScenarioFieldsSchema>;
 type ActivityLogFields = z.infer<typeof activityLogFieldsSchema>;
 
 /**
@@ -590,17 +558,6 @@ function familyMemberData(row: FamilyMemberFields) {
   };
 }
 
-function planningScenarioData(row: PlanningScenarioFields) {
-  return {
-    name: row.name,
-    assetChangePercent: toDecimal(row.assetChangePercent),
-    liabilityChangePercent: toDecimal(row.liabilityChangePercent),
-    inheritanceTaxJpy: toDecimal(row.inheritanceTaxJpy),
-    successionCostsJpy: toDecimal(row.successionCostsJpy),
-    note: row.note,
-  };
-}
-
 function activityLogData(row: Pick<ActivityLogFields, "action" | "entityType" | "entityId" | "summary" | "actor" | "details" | "createdAt">) {
   return {
     action: row.action,
@@ -613,7 +570,7 @@ function activityLogData(row: Pick<ActivityLogFields, "action" | "entityType" | 
   };
 }
 
-const SEQUENCE_TABLES = ["Household", "Snapshot", "Position", "FamilyMember", "PositionAllocation", "PlanningScenario", "ActivityLog"] as const;
+const SEQUENCE_TABLES = ["Household", "Snapshot", "Position", "FamilyMember", "PositionAllocation", "ActivityLog"] as const;
 
 async function restoreStaffAssignments(tx: Prisma.TransactionClient, householdId: number, currentStaffId: number | null, rows: z.infer<typeof staffAssignmentSchema>[]) {
   const activeRows = rows.filter((row) => row.endedAt === null);
@@ -644,7 +601,7 @@ async function addAppCurrencies(tx: Prisma.TransactionClient, rows: readonly App
 
 /** 既存データをすべて破棄し、バックアップの内容へ置き換える（共通設定の通貨は足すだけ）。 */
 export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
-  const { households, snapshots, positions, familyMembers, positionAllocations, planningScenarios, activityLogs } = backup.data;
+  const { households, snapshots, positions, familyMembers, positionAllocations, activityLogs } = backup.data;
   if (households.length === 0) throw new BackupError("バックアップに顧客が1件も含まれていません。");
 
   const householdIds = new Set(households.map((household) => household.id));
@@ -659,8 +616,6 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
   const familyMemberIds = new Set(familyMembers.map((member) => member.id));
   const orphanAllocation = positionAllocations.find((allocation) => !positionIds.has(allocation.positionId) || !familyMemberIds.has(allocation.familyMemberId));
   if (orphanAllocation) throw new BackupError(`取得者・負担者（ID ${orphanAllocation.id}）の明細または家族が見つかりません。バックアップが壊れている可能性があります。`);
-  const orphanScenario = planningScenarios.find((scenario) => !householdIds.has(scenario.householdId));
-  if (orphanScenario) throw new BackupError(`シナリオ（ID ${orphanScenario.id}）の顧客が見つかりません。バックアップが壊れている可能性があります。`);
   const orphanActivityLog = activityLogs.find((log) => log.householdId !== null && !householdIds.has(log.householdId));
   if (orphanActivityLog) throw new BackupError(`操作履歴（ID ${orphanActivityLog.id}）の顧客が見つかりません。バックアップが壊れている可能性があります。`);
   if (backup.data.staffAssignments.some((row) => !householdIds.has(row.householdId))) throw new BackupError("担当履歴の顧客が見つかりません。");
@@ -671,7 +626,6 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
   await syncStaffDirectory("manual");
   await prisma.$transaction(async (tx) => {
     await tx.activityLog.deleteMany();
-    await tx.planningScenario.deleteMany();
     await tx.position.deleteMany();
     await tx.snapshot.deleteMany();
     await tx.household.deleteMany();
@@ -719,11 +673,6 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
         data: positionAllocations.map((row) => ({ id: row.id, positionId: row.positionId, familyMemberId: row.familyMemberId, role: row.role, numerator: row.numerator, denominator: row.denominator, createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt) })),
       });
     }
-    if (planningScenarios.length > 0) {
-      await tx.planningScenario.createMany({
-        data: planningScenarios.map((row) => ({ id: row.id, householdId: row.householdId, ...planningScenarioData(row), createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt) })),
-      });
-    }
     if (activityLogs.length > 0) {
       await tx.activityLog.createMany({
         data: activityLogs.map((row) => ({
@@ -749,7 +698,6 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
     snapshots: snapshots.length,
     positions: positions.length,
     familyMembers: familyMembers.length,
-    planningScenarios: planningScenarios.length,
     activityLogs: activityLogs.length,
   };
 }
@@ -807,7 +755,6 @@ export async function importHousehold(backup: HouseholdBackup) {
         })) });
       }
     }
-    if (backup.planningScenarios.length > 0) await tx.planningScenario.createMany({ data: backup.planningScenarios.map((scenario) => ({ householdId: household.id, ...planningScenarioData(scenario) })) });
     if (backup.activityLogs.length > 0) await tx.activityLog.createMany({ data: backup.activityLogs.map((log) => ({ householdId: household.id, householdName: backup.household.name, clientCode, ...activityLogData(log) })) });
     return household;
   });
@@ -820,7 +767,6 @@ export async function importHousehold(backup: HouseholdBackup) {
       snapshots: backup.snapshots.length,
       positions: backup.snapshots.reduce((total, snapshot) => total + snapshot.positions.length, 0),
       familyMembers: backup.familyMembers.length,
-      planningScenarios: backup.planningScenarios.length,
       activityLogs: backup.activityLogs.length,
     } satisfies BackupCounts,
   };

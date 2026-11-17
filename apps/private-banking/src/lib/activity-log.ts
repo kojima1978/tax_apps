@@ -7,7 +7,7 @@ export type ActivityInput = {
   householdName: string;
   clientCode: string;
   action: "CREATE" | "UPDATE" | "DELETE" | "CALCULATE" | "RESTORE";
-  entityType: "CLIENT" | "SNAPSHOT" | "POSITION" | "FAMILY" | "TAX" | "SCENARIO" | "BACKUP";
+  entityType: "CLIENT" | "SNAPSHOT" | "POSITION" | "FAMILY" | "TAX" | "BACKUP";
   entityId?: string | number | null;
   summary: string;
   details?: Prisma.InputJsonValue;

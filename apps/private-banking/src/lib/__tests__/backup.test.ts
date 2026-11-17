@@ -73,7 +73,7 @@ describe("バックアップの復元：日付", () => {
 });
 
 describe("バックアップの復元：追加データ", () => {
-  it("旧い顧客バックアップではシナリオと操作履歴を空配列として扱う", () => {
+  it("旧い顧客バックアップでは操作履歴を空配列として扱う", () => {
     const parsed = householdBackupSchema.parse({
       schemaVersion: 1,
       kind: "household",
@@ -81,11 +81,10 @@ describe("バックアップの復元：追加データ", () => {
       snapshots: [{ label: "現状", asOfDate: "2026-04-01", fiscalYear: 2026 }],
     });
 
-    expect(parsed.planningScenarios).toEqual([]);
     expect(parsed.activityLogs).toEqual([]);
   });
 
-  it("顧客バックアップのシナリオと操作履歴を検証して保持する", () => {
+  it("顧客バックアップの操作履歴を検証して保持し、削除済みのシナリオは読み飛ばす", () => {
     const parsed = householdBackupSchema.parse({
       schemaVersion: 1,
       kind: "household",
@@ -95,7 +94,7 @@ describe("バックアップの復元：追加データ", () => {
       activityLogs: [{ action: "CREATE", entityType: "SCENARIO", summary: "承継案を登録", createdAt: "2026-04-02T03:00:00.000Z" }],
     });
 
-    expect(parsed.planningScenarios[0]).toEqual(expect.objectContaining({ name: "承継案", assetChangePercent: "5.50" }));
+    expect(parsed).not.toHaveProperty("planningScenarios");
     expect(parsed.activityLogs[0]).toEqual(expect.objectContaining({ action: "CREATE", summary: "承継案を登録" }));
   });
 
@@ -103,10 +102,11 @@ describe("バックアップの復元：追加データ", () => {
     const parsed = fullBackupSchema.parse({
       schemaVersion: 1,
       kind: "full",
-      data: { households: [], snapshots: [], positions: [], familyMembers: [] },
+      data: { households: [], snapshots: [], positions: [], familyMembers: [], planningScenarios: [{ id: 1, householdId: 1, name: "旧シナリオ" }] },
     });
 
-    expect(parsed.data.planningScenarios).toEqual([]);
     expect(parsed.data.activityLogs).toEqual([]);
+    // 削除済みのシナリオ（2026-11-17）は読み飛ばす
+    expect(parsed.data).not.toHaveProperty("planningScenarios");
   });
 });
