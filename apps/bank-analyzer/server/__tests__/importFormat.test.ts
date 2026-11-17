@@ -7,7 +7,7 @@ import { buildExistingIndex } from '../lib/dedup.js';
 import { IMPORT_COLUMNS, parseFlag, REQUIRED_COLUMNS } from '../lib/import/columns.js';
 import { categoryResolver, decideCategories } from '../lib/import/csvCategory.js';
 import { FormatError, missingColumnsOf } from '../lib/import/errors.js';
-import { aiInstruction, formatGuideMarkdown, templateCsv } from '../lib/import/format.js';
+import { aiInstruction, formatGuideMarkdown, promptImprovementRequest, templateCsv } from '../lib/import/format.js';
 import { loadStatement } from '../lib/import/loadStatement.js';
 import { buildPreview } from '../lib/wizard.js';
 
@@ -160,6 +160,32 @@ describe('取込できる形式の案内', () => {
     // 期間だけ（空白だけは入れない）
     expect(aiInstruction(format, { period: '  ' })).not.toContain('分かっていること');
     expect(aiInstruction(format, { period: '2024年' })).toContain('推測で元号を付けない');
+  });
+
+  it('Gemini向けExcelでは検査結果・次回依頼文案・改善ルールを指示する', () => {
+    const text = aiInstruction(
+      { categories: [{ name: '年金', keywords: ['年金'] }], giftThreshold: 1_000_000 },
+      { era: 'R', period: '令和2年〜令和3年' },
+      { output: 'xlsx', extraRules: '- 年の02は令和2年として前後ページでも確認する' },
+    );
+    expect(text).toContain('Excel ファイル（.xlsx）だけ');
+    expect(text).toContain('1枚目のシート名は「取引データ」');
+    expect(text).toContain('2枚目の「検査結果」シート');
+    expect(text).toContain('3枚目の「次回依頼文案」シート');
+    expect(text).toContain('Excel「取引データ」シートの1行');
+    expect(text).toContain('分類の列は空欄にする');
+    expect(text).not.toContain('摘要の例: 年金');
+    expect(text).toContain('## これまでの誤りから追加したルール');
+    expect(text).toContain('年の02は令和2年');
+    expect(text).not.toContain('文字コードは UTF-8');
+  });
+
+  it('人の指摘とGemini案を含む改善依頼を作る', () => {
+    const text = promptImprovementRequest('現在の依頼文ZZQ', '入出金が逆ZZQ', '列見出しを再確認ZZQ');
+    expect(text).toContain('入出金が逆ZZQ');
+    expect(text).toContain('列見出しを再確認ZZQ');
+    expect(text).toContain('現在の依頼文ZZQ');
+    expect(text).toContain('追加するルールの箇条書きだけ');
   });
 
   // README はイメージに入れない（.dockerignore）ので、コンテナの中では飛ばし、CI（チェックアウトの中）で確かめる

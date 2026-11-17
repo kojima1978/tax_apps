@@ -19,11 +19,28 @@ import {
 } from '../services/settings.js';
 import { seedCase } from './helpers/fixtures.js';
 import { useTestDb } from './helpers/testDb.js';
+import { currentOcrPrompt, getOcrPromptHistory, saveOcrPromptVersion } from '../services/ocrPrompt.js';
 
 const db = useTestDb();
 
 const stored = async (key: string) => (await db().appSetting.findUnique({ where: { key } }))?.value;
 const caseStored = async (id: bigint) => (await db().case.findUniqueOrThrow({ where: { id } })).customPatterns;
+
+describe('Gemini文字認識の標準依頼文', () => {
+  it('初期版から人の改善内容を版として積み上げる', async () => {
+    expect(await getOcrPromptHistory(db())).toMatchObject({ currentVersion: 1, versions: [{ version: 1, rules: '' }] });
+    const v2 = await saveOcrPromptVersion(db(), '- 年の02は前後ページの元号と照合する', '令和02年の誤読');
+    expect(currentOcrPrompt(v2)).toMatchObject({ version: 2, rules: '- 年の02は前後ページの元号と照合する', note: '令和02年の誤読' });
+    const v3 = await saveOcrPromptVersion(db(), '- 出金・入金は列見出しと残高検算の両方で確認する', '入出金の逆転');
+    expect(v3.versions.map((v) => v.version)).toEqual([1, 2, 3]);
+    expect((await getOcrPromptHistory(db())).currentVersion).toBe(3);
+  });
+
+  it('空の追加ルールは保存しない', async () => {
+    await expect(saveOcrPromptVersion(db(), '  ', '空')).rejects.toThrow('追加するルール');
+    expect(await db().appSetting.findUnique({ where: { key: 'OCR_PROMPT_HISTORY' } })).toBeNull();
+  });
+});
 
 describe('分析パラメータ', () => {
   it('未設定なら既定値', async () => {

@@ -25,6 +25,11 @@ export type FormatCategory = { name: string; keywords: string[] };
 export type ImportFormat = {
   categories: FormatCategory[]; // 選べる分類（未分類は除く）。並びは画面の分類と同じ
   giftThreshold: number;
+  ocrPrompt?: {
+    currentVersion: number;
+    currentRules: string;
+    versions: { version: number; rules: string; note: string; createdAt: string | null }[];
+  };
 };
 
 // ひな形の例の行（架空の値）。差引残高がつながるように書いてある
@@ -104,10 +109,34 @@ export type InstructionHint = {
   period?: string; // 通帳の期間（書かれたまま渡す）
 };
 
+export type InstructionOptions = { output?: 'csv' | 'xlsx'; extraRules?: string };
+
+export function promptImprovementRequest(currentPrompt: string, issue: string, geminiDraft = ''): string {
+  return `# 通帳PDF文字認識の依頼文を改善してください
+
+下の「現在の依頼文」で通帳PDFをExcel化したところ、「今回見つかった問題」がありました。
+GeminiがExcelに書いた案も参考にし、次回から同じ問題を減らす追加ルールを作ってください。
+
+## 返答方法
+- 返すのは、次回から追加するルールの箇条書きだけにしてください。
+- 現在の依頼文に既にあるルールは繰り返さず、今回の問題を防ぐ具体的な確認方法を書いてください。
+- 読めない箇所を推測で補完させないでください。
+- Excelの列名・シート名・出力形式は変更しないでください。
+
+## 今回見つかった問題
+${issue.trim() || '（ここに問題を記入してください）'}
+
+## Geminiが作った追加ルール案
+${geminiDraft.trim() || '（案なし）'}
+
+## 現在の依頼文
+${currentPrompt}`;
+}
+
 // 依頼26・27 で Gemini の読み取りを試して決めた文。繰越の行・列ずれ・半角カナの濁点・元号の無い日付・
 // 振込がみな贈与になる、を潰すように書いてある。長さは Gemini にそのまま貼れる範囲に保つ。
 // 元号は推測させない（1ページの画像からは決めようが無い）。分かっていれば hint で渡す
-export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}): string {
+export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}, options: InstructionOptions = {}): string {
   const listed = format.categories.filter((c) => c.name !== UNCATEGORIZED);
   const names = listed.map((c) => c.name);
   const headerLine = IMPORT_COLUMNS.map((c) => c.name).join(',');
@@ -124,6 +153,8 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}):
   });
 
   const period = hint.period?.trim();
+  const excel = options.output === 'xlsx';
+  const extraRules = options.extraRules?.trim();
   const knownLines = [
     ...(hint.era
       ? [
@@ -136,24 +167,38 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}):
   ];
 
   return [
-    '通帳の画像を読み取り、次の形式の CSV を作ってください。銀行取引分析アプリへそのまま取り込みます。',
-    '返すのは CSV だけにしてください（前後に説明の文を付けない）。保存するときの拡張子は .csv です。',
+    excel
+      ? '通帳PDFを読み取り、添付したひな形と同じ形式の Excel を作ってください。銀行取引分析アプリへそのまま取り込みます。'
+      : '通帳の画像を読み取り、次の形式の CSV を作ってください。銀行取引分析アプリへそのまま取り込みます。',
+    excel
+      ? '返すのは Excel ファイル（.xlsx）だけにしてください。前後に説明文を付けず、Googleスプレッドシートで作業した場合も最後は .xlsx でダウンロードしてください。'
+      : '返すのは CSV だけにしてください（前後に説明の文を付けない）。保存するときの拡張子は .csv です。',
     '',
     ...(knownLines.length > 0 ? ['## 分かっていること', ...knownLines, ''] : []),
-    '## CSV の書き方',
-    '- 1行目は見出し行。列は次の順に並べ、列名はこのとおりに書く',
+    ...(extraRules ? ['## これまでの誤りから追加したルール', extraRules, ''] : []),
+    excel ? '## Excel の書き方' : '## CSV の書き方',
+    excel ? '- 1枚目のシート名は「取引データ」。1行目は見出し行。列は次の順に並べ、列名はこのとおりに書く' : '- 1行目は見出し行。列は次の順に並べ、列名はこのとおりに書く',
     `  ${headerLine}`,
-    `- どの行も項目は必ず${IMPORT_COLUMNS.length}個（見出しと同じ数）。書くことが無い項目も空欄で残す。返す前に全行の項目の数を数え直す`,
-    '- 金額・残高は数字だけ。カンマを入れない（区切りのカンマと紛れて列がずれる）',
-    '- 値に「,」や「"」が入るときは、値全体を「"」で囲む（中の「"」は「""」と2つ重ねる）',
-    '- 文字コードは UTF-8',
+    excel
+      ? `- どの行も${IMPORT_COLUMNS.length}列を保つ。書くことが無いセルは空欄にし、セルの結合、列の追加・削除、見出しの変更をしない`
+      : `- どの行も項目は必ず${IMPORT_COLUMNS.length}個（見出しと同じ数）。書くことが無い項目も空欄で残す。返す前に全行の項目の数を数え直す`,
+    excel ? '- 金額・残高は数値セルにし、カンマや「円」などの文字を入れない' : '- 金額・残高は数字だけ。カンマを入れない（区切りのカンマと紛れて列がずれる）',
+    ...(excel ? [] : ['- 値に「,」や「"」が入るときは、値全体を「"」で囲む（中の「"」は「""」と2つ重ねる）', '- 文字コードは UTF-8']),
     '- 1ファイルに複数の口座を入れるときは、全行に銀行名と口座番号を書く',
+    ...(excel
+      ? [
+          '- 2枚目の「検査結果」シートに、残高不一致・日付の逆転・重複の疑い・読めない箇所をPDFページ番号と取引データ行番号つきで書く',
+          '- 3枚目の「次回依頼文案」シートに、今回迷った点と、次回の文字認識精度を上げるための具体的な追加ルール案を書く。既存ルールの繰り返しはしない',
+        ]
+      : []),
     '',
     '## 列の書き方',
     ...columnLines,
     '',
     '## 通帳の読み方',
-    '- 通帳の1行の取引を CSV の1行にする。「繰越」「合計」「前ページより」「次ページへ」など、取引でない行は書かない',
+    excel
+      ? '- 通帳の1行の取引を Excel「取引データ」シートの1行にする。「繰越」「合計」「前ページより」「次ページへ」など、取引でない行は書かない'
+      : '- 通帳の1行の取引を CSV の1行にする。「繰越」「合計」「前ページより」「次ページへ」など、取引でない行は書かない',
     '- 行は通帳に印字された順のまま。ページをまたいで同じ行が2回写っていたら1回だけ書く',
     '- 摘要が2つの欄（摘要・お取引内容 など）に分かれていたら、空白1つでつないで摘要に書く',
     '- 通帳の列名が違っても意味で当てる（お支払金額・お引出し → 払戻額、お預り金額・ご入金 → お預り額、残高 → 差引残高）',
@@ -169,15 +214,19 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}):
     '- 検算: 前の行の差引残高 − 払戻額 ＋ お預り額 が、その行の差引残高と合うかを1行ずつ確かめる。合わない行は画像を読み直す。それでも合わなければ読めたとおりに書き、メモに「残高が合わない」と書いて要確認を「○」にする',
     '- 金額・残高は通帳のとおりに書く。計算で作らない（検算は確かめるためだけ）',
     '',
-    '## 分類',
-    '分類の列には次の名前のどれかを、このとおりに書く。ここに無い名前は作らない。（）は入金・出金のどちらに付く分類か。',
-    ...categoryLines,
-    ...(names.includes(GIFT_CATEGORY)
-      ? [
-          `- 「${GIFT_CATEGORY}」は、出金が${yen(format.giftThreshold)}以上の振込だけに付ける。入金には付けない。${yen(format.giftThreshold)}未満の振込は空欄にする`,
-        ]
-      : []),
-    ...(names.includes(OTHER_CATEGORY) ? [`- どれにも当たらないとはっきり分かるものだけ「${OTHER_CATEGORY}」にする`] : []),
-    '- 分類に迷ったら空欄にする（アプリが自動で分類する）。自信のあるものだけ書く',
+    ...(excel
+      ? ['## 分類', '- 今回は文字認識の正確さを優先するため、分類の列は空欄にする。分類はExcelをアプリへ取り込んだ後に別工程で行う']
+      : [
+          '## 分類',
+          '分類の列には次の名前のどれかを、このとおりに書く。ここに無い名前は作らない。（）は入金・出金のどちらに付く分類か。',
+          ...categoryLines,
+          ...(names.includes(GIFT_CATEGORY)
+            ? [
+                `- 「${GIFT_CATEGORY}」は、出金が${yen(format.giftThreshold)}以上の振込だけに付ける。入金には付けない。${yen(format.giftThreshold)}未満の振込は空欄にする`,
+              ]
+            : []),
+          ...(names.includes(OTHER_CATEGORY) ? [`- どれにも当たらないとはっきり分かるものだけ「${OTHER_CATEGORY}」にする`] : []),
+          '- 分類に迷ったら空欄にする（アプリが自動で分類する）。自信のあるものだけ書く',
+        ]),
   ].join('\n');
 }

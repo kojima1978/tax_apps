@@ -17,6 +17,8 @@ import { decideCategories } from '../lib/import/csvCategory.js';
 import type { ImportReview } from '../lib/import/summary.js';
 import { checkWizardDuplicates, commitRows, commitWizard, importCategories, type ImportRow, type WizardFile } from '../services/imports.js';
 import { getClassifierSettings } from '../services/settings.js';
+import { contentDisposition } from '../lib/exportFileName.js';
+import { currentOcrPrompt, getOcrPromptHistory, ocrExcelTemplate, saveOcrPromptVersion } from '../services/ocrPrompt.js';
 import { fail, ok, readBody, type CaseRouter } from './common.js';
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -230,8 +232,32 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
 
   // 取込できる形式の案内（依頼24）: 分類名とキーワードの例・贈与の閾値。指示文とひな形は画面で組み立てる
   r.get('/:caseId/import/format', async (c) => {
+    const [classifier, history] = await Promise.all([getClassifierSettings(db, c.get('caseId')), getOcrPromptHistory(db)]);
+    const current = currentOcrPrompt(history);
+    return ok(c, {
+      categories: importCategories(classifier),
+      giftThreshold: classifier.giftThreshold,
+      ocrPrompt: { currentVersion: current.version, currentRules: current.rules, versions: [...history.versions].reverse() },
+    });
+  });
+
+  r.get('/:caseId/import/ocr-template', async (c) => {
     const classifier = await getClassifierSettings(db, c.get('caseId'));
-    return ok(c, { categories: importCategories(classifier), giftThreshold: classifier.giftThreshold });
+    const file = await ocrExcelTemplate(importCategories(classifier).map((x) => x.name));
+    return c.body(file.body, 200, { 'Content-Type': file.contentType, 'Content-Disposition': contentDisposition(file.filename) });
+  });
+
+  r.post('/:caseId/import/ocr-prompt', async (c) => {
+    const body = await readBody(c);
+    const rules = optionalText(body.rules);
+    if (!rules) return fail(c, '次回から追加するルールを入力してください。');
+    try {
+      const history = await saveOcrPromptVersion(db, rules, optionalText(body.note) ?? '');
+      const current = currentOcrPrompt(history);
+      return ok(c, { version: current.version, message: `標準依頼文 Ver.${current.version} を保存しました。次の通帳から使用されます。` });
+    } catch (e) {
+      return fail(c, e instanceof Error ? e.message : '保存できませんでした。');
+    }
   });
 
   // 手順3に入るときに、画面で決めた口座で重複を判定し直す（書き込まない）。送る形は確定と同じ
