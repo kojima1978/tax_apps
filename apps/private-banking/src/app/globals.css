@@ -1218,6 +1218,8 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .inheritance-tax-report-heading dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .inheritance-tax-report-heading dt { color: var(--slate-500); font-size: var(--font-note); font-weight: 700; }
 .inheritance-tax-report-heading dd { margin: 0; color: var(--slate-800); font-size: var(--font-note); font-weight: 700; text-align: right; }
+/* 版番号はシミュレーターの内部の名前。画面で問い合わせに答えるためだけに小さく添え、紙には出さない。 */
+.tax-calc-version { display: block; color: var(--slate-500); font-size: var(--font-note); font-weight: 400; }
 .tax-calc-stale { margin: 12px 0 0; padding: 9px 11px; color: #854d0e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 7px; display: flex; align-items: center; gap: 7px; font-size: var(--font-note); font-weight: 700; }
 .tax-calc-stale svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .tax-calc-stale > span { flex: 1 1 auto; }
@@ -2359,7 +2361,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .detail-page-actions, .position-table-actions, .position-table-tools, .list-pager, .list-empty-state .button, .tax-section-toolbar, .tax-calc-recalc, .secondary-sim { display: none !important; }
   /* 件数・絞り込み・並び順は「どの範囲をどの順で刷ったか」なので紙にも残す。
      ドラッグの案内だけは画面の操作方法なので消す。 */
-  .screen-only-hint { display: none !important; }
+  .screen-only-hint, .tax-calc-version { display: none !important; }
   .tax-calculation-document { margin-top: 0; }
   .inheritance-tax-report { width: 100%; height: auto; max-height: 174mm; padding: 4mm 5mm 3mm; border: 1px solid var(--line); border-radius: 0; box-shadow: none; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
   .inheritance-tax-report-heading { min-height: 18mm; padding: 0 1mm 3mm; gap: 8mm; }

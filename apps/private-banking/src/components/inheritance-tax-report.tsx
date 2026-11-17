@@ -4,6 +4,7 @@ import { legalHeirRoster } from "@/lib/family";
 import { compactYen, dateJaWithWareki } from "@/lib/format";
 import { taxCalcLabel, type InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 import { fiscalYearLabel, totals, type Portfolio, type Snapshot } from "@/lib/portfolio-view";
+import { calculationBasisLabel, isKnownCalculationVersion } from "@/lib/tax-calculation-basis";
 
 type HeirCalculation = InheritanceTaxCalculation["heirs"][number];
 
@@ -149,7 +150,7 @@ export function InheritanceTaxReport({
         <div><dt>対象</dt><dd><PersonName name={household.name} /></dd></div>
         <div><dt>年度</dt><dd>{fiscalYearLabel(snapshot)}</dd></div>
         <div><dt>計算日時</dt><dd>{calculatedAt}</dd></div>
-        <div><dt>計算ルール</dt><dd>{calculation.calculationVersion}</dd></div>
+        <div><dt>計算の基準</dt><dd>{calculationBasisLabel(calculation.calculationVersion)}{isKnownCalculationVersion(calculation.calculationVersion) ? <small className="tax-calc-version">版 {calculation.calculationVersion}</small> : null}</dd></div>
       </dl>
     </header>
 
