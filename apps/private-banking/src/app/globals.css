@@ -2230,6 +2230,15 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .position-summary-table tbody { break-inside: avoid; page-break-inside: avoid; }
   .position-summary-totals { break-inside: avoid; page-break-inside: avoid; }
   .position-summary-totals th small { font-size: 6px; }
+  /* 相続人の列が少ない顧客は1段大きく刷る（境目は lib/position-print-size.ts）。
+     上の 7px の段はそのまま残す ── 列が多い顧客のページ数を変えないため。 */
+  .position-summary-table[data-print-size="large"] td, .position-summary-table[data-print-size="large"] th { font-size: 8px; }
+  .position-summary-table[data-print-size="large"] thead .position-summary-heading-sub,
+  .position-summary-table[data-print-size="large"] .position-summary-secondary-row > * { font-size: 7.5px; }
+  .position-summary-table[data-print-size="large"] .position-summary-secondary-row > .position-summary-tax-amount,
+  .position-summary-table[data-print-size="large"] .position-summary-secondary-row > .position-summary-person-tax { font-size: 8px; }
+  .position-summary-table[data-print-size="large"] .position-summary-secondary-label,
+  .position-summary-table[data-print-size="large"] .position-summary-totals th small { font-size: 7px; }
 }
 .print-front-matter, .print-empty-notice { display: none; }
 @page {

@@ -14,6 +14,7 @@ import { matchesSearchTerms, searchTerms } from "@/lib/clients";
 import { yen, triangleYen, valuationNumber } from "@/lib/format";
 import { positionAllocationAmounts, positionAllocationLabel, positionCaption, positionDetailFields, positionKeyInfo } from "@/lib/position-display";
 import { detailPageFor } from "@/lib/position-detail-pages";
+import { positionPrintSize } from "@/lib/position-print-size";
 import { ScrollRegion } from "@/components/scroll-region";
 
 type AllocationPayload = { positionId: number; amounts: Array<{ familyMemberId: number; amountJpy: number }> };
@@ -360,7 +361,7 @@ function AllocationMatrix({ rows, allPositions, familyMembers, saving, onSave, t
       <div className="allocation-toolbar-actions"><button type="button" className="button secondary" onClick={applyLegalShares} disabled={saving || !legalSharesValid || allEditablePositions.length === 0} aria-describedby={legalShareError ? "legal-share-error" : undefined}><Scale />全明細を法定相続分で割り振る</button><button type="button" className="button primary" onClick={() => void save()} disabled={saving || dirtyIds.length === 0 || invalidRows.length > 0}><Save />割り振りを保存</button></div>
     </div>
     <ScrollRegion className="position-summary-scroll allocation-inline-scroll" label="資産・負債の割り振り編集"><table className="position-summary-table allocation-inline-table" aria-label="財産の割り振り入力">
-      <thead><tr><th className="number position-summary-sticky-number">No.</th><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／参考情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担</span></th>)}<th className="number position-summary-unallocated">未割当</th><th>操作</th></tr></thead>
+      <thead><tr><th className="number position-summary-sticky-number">No.</th><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／参考情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span className="position-summary-heading-sub">取得・負担</span></th>)}<th className="number position-summary-unallocated">未割当</th><th>操作</th></tr></thead>
       {rows.map((position, index) => {
         const readOnly = ["INSURANCE", "RETIREMENT_ALLOWANCE"].includes(position.category);
         const total = rowTotal(position.id);
@@ -447,8 +448,8 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
     <p className="position-result-count" aria-live="polite">{rows.length}件（全{snapshot.positions.length}件中）</p>
     <section className="panel position-summary-panel">
       <div className={allocationMode ? "" : "allocation-editor-hidden"}><AllocationMatrix key={`${snapshot.id}-${familyMembers.map((member) => member.id).join("-")}`} rows={rows} allPositions={snapshot.positions} familyMembers={familyMembers} saving={saving} onSave={onSaveAllocations} taxBurden={taxBurden} detailHref={href} focusTarget={allocationFocusTarget} /></div>
-      <div className={allocationMode ? "allocation-view-hidden" : ""}><ScrollRegion className="position-summary-scroll" label="資産・負債一覧"><table className="position-summary-table" aria-label="資産・負債一覧">
-      <thead><tr><th className="number position-summary-sticky-number">No.</th><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／参考情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span>取得・負担／相続税額</span></th>)}<th className="number position-summary-unallocated">未割当</th><th className="position-summary-action-column"><span className="sr-only">詳細</span></th></tr></thead>
+      <div className={allocationMode ? "allocation-view-hidden" : ""}><ScrollRegion className="position-summary-scroll" label="資産・負債一覧"><table className="position-summary-table" aria-label="資産・負債一覧" data-print-size={positionPrintSize(familyMembers.length)}>
+      <thead><tr><th className="number position-summary-sticky-number">No.</th><th className="center position-summary-sticky-section">区分</th><th className="position-summary-sticky-subject">科目・名称</th><th>所在地・金融機関等／参考情報</th><th className="number position-summary-sticky-money"><MoneyColumnHeading /></th>{familyMembers.map((member) => <th key={member.id} className="number position-summary-heir">{member.name}<span className="position-summary-heading-sub">取得・負担／相続税額</span></th>)}<th className="number position-summary-unallocated">未割当</th><th className="position-summary-action-column"><span className="sr-only">詳細</span></th></tr></thead>
       {rows.map((p, index) => {
         const burden = taxBurden(p);
         const config = deemedConfig(p);
