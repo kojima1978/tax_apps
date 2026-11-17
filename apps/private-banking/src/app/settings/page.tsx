@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
+import { BackToClientList } from "@/components/back-to-client-list";
 import { API_BASE } from "@/lib/api";
 
 export default function SettingsPage() {
@@ -38,7 +38,7 @@ export default function SettingsPage() {
     } catch (e) { setError(e instanceof Error ? e.message : "登録に失敗しました。"); }
     finally { setSaving(false); }
   }
-  return <main className="currency-settings-page"><Link href="/">顧客一覧へ戻る</Link><h1>アプリ共通設定</h1><section className="panel currency-settings-panel"><h2>利用する通貨</h2><p>通常はJPY・USD・EURを使用します。追加通貨は全顧客で共通です。換算レートは顧客・年度ごとに設定してください。</p>
+  return <main className="currency-settings-page"><BackToClientList /><h1>アプリ共通設定</h1><section className="panel currency-settings-panel"><h2>利用する通貨</h2><p>通常はJPY・USD・EURを使用します。追加通貨は全顧客で共通です。換算レートは顧客・年度ごとに設定してください。</p>
     {error ? <p role="alert">{error}</p> : null}{notice ? <p role="status">{notice}</p> : null}
     <ul>{currencies.map((item) => <li key={item.code}><strong>{item.code}</strong>：{item.name}</li>)}</ul>
     <details><summary>その他の通貨を追加する</summary><form className="form-grid" onSubmit={submit}><label>通貨コード<input name="code" maxLength={3} pattern="[A-Za-z]{3}" placeholder="例：CAD" required autoComplete="off" /></label><label>通貨名<input name="name" maxLength={100} placeholder="例：カナダドル" required /></label><button type="submit" className="button primary" disabled={saving || currencies.length === 0}>{saving ? "登録中" : "通貨を追加"}</button></form></details>

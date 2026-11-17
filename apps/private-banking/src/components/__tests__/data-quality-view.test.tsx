@@ -57,4 +57,17 @@ describe("データ品質チェック", () => {
     const call = fetchMock.mock.calls.find(([url]) => String(url).includes("bulk-staff"));
     expect(JSON.parse(String(call?.[1]?.body))).toEqual({ householdIds: [8], staffId: "3" });
   });
+
+  it("チェックボックスは押せる範囲の label で包み、label を押しても選択が切り替わる", async () => {
+    const clients = [{ ...baseClient, qualityIssues: [{ code: "staff-missing", label: "担当者未設定", severity: "warning", href: "profile" }] } satisfies ClientSummary];
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({ ok: true, json: async () => url.includes("/staff") ? [] : clients })));
+    render(<DataQualityView />);
+    const [checkbox] = await screen.findAllByRole("checkbox", { name: /中原 美佐/ }) as HTMLInputElement[];
+    const hit = checkbox.closest("label") as HTMLElement;
+    expect(hit.className).toBe("quality-check-hit");
+    fireEvent.click(hit);
+    expect(checkbox.checked).toBe(true);
+    expect(screen.getByRole("button", { name: "1件に設定" })).toBeTruthy();
+    expect(screen.getAllByRole("link", { name: /中原 美佐/ }).every((link) => link.classList.contains("quality-client-link"))).toBe(true);
+  });
 });

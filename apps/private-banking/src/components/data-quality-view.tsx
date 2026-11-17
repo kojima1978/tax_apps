@@ -19,6 +19,11 @@ function IssueLinks({ client }: { client: ClientSummary }) {
   return <div className="quality-issue-list">{client.qualityIssues.map((issue) => <Link key={issue.code} className={`quality-issue ${issue.severity}`} href={`/customers/${client.id}/${issue.href}`}><AlertTriangle />{issue.label}<span>修正する</span></Link>)}</div>;
 }
 
+/** 担当者設定の対象にするチェックボックス。見た目は 20px のまま、包む label を 44px 四方にして押せる範囲にする。 */
+function QualityCheck({ client, checked, onToggle }: { client: ClientSummary; checked: boolean; onToggle: (id: number) => void }) {
+  return <label className="quality-check-hit"><input type="checkbox" aria-label={`${client.name}を担当者設定の対象にする`} checked={checked} onChange={() => onToggle(client.id)} /></label>;
+}
+
 export function DataQualityView() {
   const [clients, setClients] = useState<ClientSummary[] | null>(null);
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -83,9 +88,9 @@ export function DataQualityView() {
     </section> : null}
     {attentionClients.length === 0 ? <section className="quality-complete"><CheckCircle2 /><h2>すべて確認済みです</h2><p>現在、確認が必要な顧客はいません。</p></section> : visibleClients.length === 0 ? <section className="quality-complete"><CheckCircle2 /><h2>該当する顧客はいません</h2><p>別の確認項目を選択してください。</p></section> : <section className="panel table-panel quality-results">
       <ScrollRegion className="table-scroll quality-table-wrap" label="確認が必要な顧客の一覧"><table className="quality-table"><thead><tr><th className="quality-check-column"><span className="sr-only">選択</span></th><th>顧客</th><th>基準日</th><th className="number">純資産</th><th>確認事項</th></tr></thead><tbody>
-        {visibleClients.map((client) => { const canAssign = client.qualityIssues.some((issue) => issue.code === "staff-missing"); return <tr key={client.id}><td className="quality-check-column">{canAssign ? <input type="checkbox" aria-label={`${client.name}を担当者設定の対象にする`} checked={selected.has(client.id)} onChange={() => toggleSelected(client.id)} /> : null}</td><td><Link href={`/customers/${client.id}/balance`}><strong>{client.name}</strong><small>{client.clientCode}</small></Link></td><td>{client.latestAsOfDate ? dateJa(client.latestAsOfDate) : "—"}</td><td className="number">{compactYen(client.netWorth)}</td><td><IssueLinks client={client} /></td></tr>; })}
+        {visibleClients.map((client) => { const canAssign = client.qualityIssues.some((issue) => issue.code === "staff-missing"); return <tr key={client.id}><td className="quality-check-column">{canAssign ? <QualityCheck client={client} checked={selected.has(client.id)} onToggle={toggleSelected} /> : null}</td><td><Link className="quality-client-link" href={`/customers/${client.id}/balance`}><strong>{client.name}</strong><small>{client.clientCode}</small></Link></td><td>{client.latestAsOfDate ? dateJa(client.latestAsOfDate) : "—"}</td><td className="number">{compactYen(client.netWorth)}</td><td><IssueLinks client={client} /></td></tr>; })}
       </tbody></table></ScrollRegion>
-      <div className="quality-card-list">{visibleClients.map((client) => { const canAssign = client.qualityIssues.some((issue) => issue.code === "staff-missing"); return <article key={client.id} className="quality-card"><header>{canAssign ? <input type="checkbox" aria-label={`${client.name}を担当者設定の対象にする`} checked={selected.has(client.id)} onChange={() => toggleSelected(client.id)} /> : null}<Link href={`/customers/${client.id}/balance`}><strong>{client.name}</strong><small>{client.clientCode}</small></Link></header><dl><div><dt>基準日</dt><dd>{client.latestAsOfDate ? dateJa(client.latestAsOfDate) : "—"}</dd></div><div><dt>純資産</dt><dd>{compactYen(client.netWorth)}</dd></div></dl><IssueLinks client={client} /></article>; })}</div>
+      <div className="quality-card-list">{visibleClients.map((client) => { const canAssign = client.qualityIssues.some((issue) => issue.code === "staff-missing"); return <article key={client.id} className="quality-card"><header>{canAssign ? <QualityCheck client={client} checked={selected.has(client.id)} onToggle={toggleSelected} /> : null}<Link className="quality-client-link" href={`/customers/${client.id}/balance`}><strong>{client.name}</strong><small>{client.clientCode}</small></Link></header><dl><div><dt>基準日</dt><dd>{client.latestAsOfDate ? dateJa(client.latestAsOfDate) : "—"}</dd></div><div><dt>純資産</dt><dd>{compactYen(client.netWorth)}</dd></div></dl><IssueLinks client={client} /></article>; })}</div>
     </section>}
   </main></div>;
 }

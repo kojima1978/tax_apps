@@ -56,6 +56,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
    同じ 8px を足して同心にする。広がる 8px はサイドバーの余白・ブランド行の下余白（実測で最初の
    ナビ項目まで8px余る）の中に収まり、他に押せるものは無い。 */
 .portal-link::after { content: ""; position: absolute; inset: -8px; border-radius: 16px; }
+/* 表の中の名称ボタン・リンク、丸い札のボタン、サイドバーの開閉ボタンも同じ考え方で、見た目は変えずに
+   押せる範囲だけ 44px へ広げる。式は「44px に足りない分の半分だけ外へ出す」で、すでに 44px 以上の向きは
+   0（広げない）。どれも周りに別の押せる部品が無いもの（表の行・札の行・サイドバーの縁）に限る。
+   縦に詰めて並ぶ一覧（顧客一覧の行・ナビ・確認事項の札）は、広げると隣と重なって後ろの行が押されて
+   しまうので対象にせず、タッチ操作の端末でだけ実寸を 44px にする（(pointer: coarse) の節）。 */
+.position-name-button, .properties-client-link, .properties-position-link, .position-summary-open, .tax-calc-recalc { position: relative; }
+.position-name-button::after, .properties-client-link::after, .properties-position-link::after, .position-summary-open::after, .tax-calc-recalc::after { content: ""; position: absolute; inset: min(0px, calc(50% - 22px)); }
+/* サイドバーの開閉ボタン（38px の丸）は左半分がナビの右端に重なっているので、ナビ側（左）へは広げない。 */
+.sidebar-toggle::after { content: ""; position: absolute; inset: -3px -6px -3px 0; }
 .portal-link:hover { color: #166534; background: #dcfce7; border-color: #16a34a; }
 .portal-link:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 2px; }
 .brand strong { display: block; font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: .01em; }
@@ -79,7 +88,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .topbar { min-height: 60px; padding: 8px 34px; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 14px; }
 .topbar-subject { min-width: 0; flex: 0 1 auto; display: flex; align-items: center; gap: 8px; }
 .topbar h1 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-family: inherit; font-weight: 700; }
-.client-switcher-trigger { min-width: 7.5em; max-width: min(520px, 46vw); min-height: 40px; padding: 4px 10px; color: var(--navy-950); background: transparent; border: 1px solid transparent; border-radius: 8px; display: flex; align-items: center; gap: 9px; text-align: left; cursor: pointer; transition: background-color .2s, border-color .2s; }
+.client-switcher-trigger { min-width: 7.5em; max-width: min(520px, 46vw); min-height: 44px; padding: 4px 10px; color: var(--navy-950); background: transparent; border: 1px solid transparent; border-radius: 8px; display: flex; align-items: center; gap: 9px; text-align: left; cursor: pointer; transition: background-color .2s, border-color .2s; }
 .client-switcher-trigger:hover { background: #f7fcf8; border-color: #bbf7d0; }
 .client-switcher-trigger:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 1px; }
 .client-switcher-trigger > svg { width: 18px; height: 18px; color: #168642; flex: 0 0 auto; }
@@ -90,18 +99,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .top-actions { min-width: 0; margin-left: auto; display: flex; align-items: center; gap: 9px; }
 .topbar-fx { flex-shrink: 0; white-space: nowrap; }
 /* 表示年度はどの画面でも共通なので、トップバーに1か所だけ置く。過年度を見ているときは色で気づけるようにする。 */
-.year-switcher { min-width: 0; min-height: 44px; padding: 3px 3px 3px 10px; border: 1px solid var(--field-border); border-radius: 8px; background: #fff; display: flex; align-items: center; gap: 8px; }
+.year-switcher { min-width: 0; min-height: 44px; padding: 0 0 0 10px; border: 1px solid var(--field-border); border-radius: 8px; background: #fff; display: flex; align-items: center; gap: 8px; }
 .year-switcher.historical { background: #fffbeb; border-color: #fcd34d; }
 /* 年度セレクタは縮ませない。顧客名が長いときや基準日に和暦を併記したときに
    ここが縮むと「2027年度」が読めなくなるため、代わりに顧客名を省略させる（狭い画面では後で上書きする）。 */
 .year-switcher label { min-width: 0; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
 .year-switcher-caption { color: var(--slate-500); display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .year-switcher-caption svg { width: 16px; height: 16px; flex: 0 0 auto; }
-.year-switcher select { min-width: 0; min-height: 36px; padding: 4px 28px 4px 8px; color: var(--navy-950); background-color: transparent; border: 1px solid transparent; border-radius: 6px; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+/* 枠の見た目は 44px のまま、中の select と「…」は枠線に 1px ずつ重ねて押せる範囲を 44px にする。 */
+.year-switcher select { min-width: 0; min-height: 44px; margin-block: -1px; padding: 4px 28px 4px 8px; color: var(--navy-950); background-color: transparent; border: 1px solid transparent; border-radius: 6px; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
 .year-switcher select:hover { border-color: var(--field-border); background-color: #fff; }
 .year-switcher select:focus-visible { border-color: #22c55e; outline: 3px solid #bbf7d0; outline-offset: 1px; }
 .year-switcher-date { color: var(--slate-600); font-size: 12px; font-weight: 600; white-space: nowrap; }
-.year-switcher-menu .action-menu-trigger { width: 38px; height: 38px; }
+.year-switcher-menu .action-menu-trigger { width: 44px; height: 44px; margin: -1px -1px -1px 0; }
 .button { min-height: 44px; padding: 0 16px; border-radius: 7px; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; font-weight: 700; transition: background-color .2s, border-color .2s, color .2s, box-shadow .2s; }
 .button svg { width: 17px; height: 17px; }
 .button.primary { color: white; background: var(--navy-800); box-shadow: 0 3px 10px #15803d2e; }
@@ -248,7 +258,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .position-table-tools { display: flex; align-items: flex-end; gap: 10px; }
 .position-table-tools label { display: grid; gap: 3px; }
 .position-table-tools label > span { color: var(--slate-500); font-size: 11px; font-weight: 700; }
-.position-table-tools select { min-width: 132px; min-height: 38px; padding: 5px 30px 5px 10px; color: var(--navy-950); background-color: #fff; border: 1px solid var(--field-border); border-radius: 6px; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+.position-table-tools select { min-width: 132px; min-height: 44px; padding: 5px 30px 5px 10px; color: var(--navy-950); background-color: #fff; border: 1px solid var(--field-border); border-radius: 6px; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; transition: border-color .2s, box-shadow .2s; }
 .position-table-tools select:hover { border-color: #86efac; }
 .position-table-tools select:focus-visible { border-color: #22c55e; outline: 3px solid #bbf7d0; outline-offset: 1px; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -773,7 +783,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-notice { margin: 0 0 14px; padding: 10px 12px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; font-size: 11px; font-weight: 700; }
 .staff-list-toolbar { margin-bottom: 14px; padding: 12px; background: #f7faf8; border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: minmax(240px, 1fr) 150px auto; align-items: end; gap: 10px; }
 .staff-list-toolbar label > span { display: block; margin-bottom: 5px; color: var(--slate-700); font-size: 11px; font-weight: 800; }
-.staff-list-toolbar select, .staff-list-toolbar input { width: 100%; min-height: 42px; padding: 8px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
+.staff-list-toolbar select, .staff-list-toolbar input { width: 100%; min-height: 44px; padding: 8px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
 .staff-list-search > div { position: relative; }
 .staff-list-search svg { position: absolute; top: 50%; left: 10px; width: 16px; height: 16px; color: var(--slate-500); transform: translateY(-50%); pointer-events: none; }
 .staff-list-search input { padding-left: 34px; }
@@ -788,7 +798,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-row-fields.is-readonly > span { min-width: 0; min-height: 24px; color: var(--slate-950); font-size: 13px; display: flex; align-items: center; overflow-wrap: anywhere; }
 .staff-row-fields.is-readonly > span:empty::before { content: "—"; color: var(--slate-400, #94a3b8); }
 .staff-sync-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.staff-sync-actions .button { min-height: 36px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.staff-sync-actions .button { min-height: 44px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .staff-sync-actions svg { width: 15px; height: 15px; }
 .staff-sync-time { margin: 0 0 10px; color: var(--slate-500); font-size: 11px; font-weight: 700; }
 .staff-row-meta { color: var(--slate-500); font-size: 11px; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
@@ -799,7 +809,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-row-actions svg { width: 15px; height: 15px; }
 .staff-row-confirm { color: var(--danger); font-size: 11px; font-weight: 800; }
 .staff-history { max-width: 920px; margin-top: 18px; padding: 16px; }
-.staff-history summary { min-height: 28px; cursor: pointer; font-weight: 700; }
+.staff-history summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-weight: 700; }
 .staff-history p { margin-bottom: 0; font-size: 12px; }
 .staff-history table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 12px; }
 .staff-history th, .staff-history td { padding: 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
@@ -869,7 +879,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
    切り替えボタンは項目名の右端へ逃がす（和暦は元号＋年月日の4欄あり、
    入力欄と同じ行に置くと欄の幅に入りきらず2段へ折り返す）。 */
 .date-field { position: relative; min-width: 0; }
-.date-field > label { display: block; padding-right: 46px; }
+.date-field > label { display: block; }
 .family-field:has(.date-input) { position: relative; }
 .family-field:has(.date-input) > label { padding-right: 0; }
 .date-input { min-width: 0; margin-top: 5px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
@@ -884,16 +894,20 @@ input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
 input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { appearance: none; margin: 0; }
 /* 実在しない日付・範囲外の理由は、押すまで何も言わない setCustomValidity と別に欄の下へ出す。
    4欄の下へ回り込ませるため flex の行を独立させる（理由が無いときは hidden で消える）。 */
-.date-input-error { flex: 1 0 100%; margin: 0; color: var(--danger); font-size: 11px; font-weight: 700; line-height: 1.45; }
+.date-input-error { order: 1; flex: 1 0 100%; margin: 0; color: var(--danger); font-size: 11px; font-weight: 700; line-height: 1.45; }
 .date-input :is(input, select)[aria-invalid="true"] { border-color: var(--danger); background: #fff7f6; }
-.date-input-mode { position: absolute; top: -1px; right: 0; min-height: 18px; padding: 0 7px; color: var(--slate-600); background: #f4f6f5; border: 1px solid var(--field-border); border-radius: 4px; font-size: 10px; font-weight: 800; }
+/* 和暦⇔西暦の切替は欄の並びの右端に置き、入力欄と同じ高さ（44px 以上）にする（見出しの行に 18px で載せると押しにくい）。
+   和暦の4欄と並ばない狭い欄（年度追加の2列の画面など）では次の行の右端へ回る。理由の行（.date-input-error）は order で一番下へ。 */
+.date-input-mode { flex: 0 0 auto; align-self: stretch; margin-left: auto; min-width: 44px; min-height: 44px; padding: 0 9px; color: var(--slate-600); background: #f4f6f5; border: 1px solid var(--field-border); border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; }
 .date-input-mode:hover { color: var(--navy-900); background: #e9efec; }
 .date-input-mode:disabled { opacity: .55; cursor: not-allowed; }
 /* 親族カードは1行が狭いので、欄の高さに合わせて詰める。 */
 .family-field .date-input { gap: 3px; margin-top: 0; }
 /* 家族欄の見出しは「生年月日」（11px × 5文字）。切り替えを8px隣へ置き、
    ラベル自体には含めず、日付欄との読み上げ上の関連を維持する。 */
-.family-field .date-input-mode { top: 4px; right: auto; left: calc(11px * 5 + 8px); min-height: 22px; cursor: pointer; }
+/* 家族の表は欄が狭いので、切替は見出しの行に重ねたまま、押せる範囲だけ縦に 44px へ広げる。 */
+.family-field .date-input-mode { position: absolute; top: 4px; left: calc(11px * 5 + 8px); margin-left: 0; min-width: 0; min-height: 22px; padding: 0 7px; border-radius: 4px; font-size: 10px; }
+.family-field .date-input-mode::after { content: ""; position: absolute; inset: min(0px, calc(50% - 22px)); }
 .family-field .date-input-mode:focus-visible { outline: 2px solid #166534; outline-offset: 2px; }
 .family-field .date-input .date-input-date { flex: 1 1 110px; width: auto; min-height: 36px; margin-top: 0; }
 .family-field .date-input .date-input-era { width: auto; min-width: 52px; min-height: 36px; margin-top: 0; }
@@ -1330,7 +1344,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .topbar { gap: 10px; }
   .topbar-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
   /* .back-to-list の基本定義はこの後ろにあるので、詳細度で上書きする。 */
-  .topbar .back-to-list { width: 40px; padding: 0; justify-content: center; }
+  .topbar .back-to-list { width: 44px; padding: 0; justify-content: center; }
   .topbar-print { width: 44px; padding: 0; }
   .year-switcher-caption-text, .client-switcher-trigger em { display: none; }
   .client-switcher-trigger strong { font-size: 14px; }
@@ -1521,7 +1535,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .backup-option span { display: block; margin-top: 3px; color: var(--slate-500); font-size: 11px; line-height: 1.6; }
 .backup-option .button { flex: 0 0 auto; }
 /* 個別書き出しの顧客プルダウンと、顧客がいないときの案内。 */
-.backup-client-select { margin-top: 9px; max-width: 100%; min-height: 34px; padding: 5px 9px; border: 1px solid var(--field-border); border-radius: 7px; background: #fff; color: var(--navy-950); font: inherit; font-size: 12px; }
+.backup-client-select { margin-top: 9px; max-width: 100%; min-height: 44px; padding: 5px 9px; border: 1px solid var(--field-border); border-radius: 7px; background: #fff; color: var(--navy-950); font: inherit; font-size: 12px; }
 .backup-client-select:focus-visible { border-color: #22c55e; outline: 3px solid #bbf7d0; }
 .backup-option-status { flex: 0 0 auto; }
 .backup-file-picker { min-height: 84px; padding: 16px; background: #f0fdf4; border: 1px dashed #86efac; border-radius: 9px; display: flex; align-items: center; gap: 13px; cursor: pointer; transition: background-color .2s, border-color .2s; }
@@ -1578,10 +1592,10 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .client-home-toolbar { display: flex; align-items: center; gap: 14px; }
 .client-search { min-width: 0; flex: 1 1 auto; position: relative; }
 .client-search svg { position: absolute; left: 12px; top: 50%; width: 17px; height: 17px; color: var(--slate-500); transform: translateY(-50%); pointer-events: none; }
-.client-search input { width: 100%; min-height: 42px; padding: 8px 12px 8px 36px; border: 1px solid var(--field-border); border-radius: 7px; background: #fff; font: inherit; font-size: 14px; }
+.client-search input { width: 100%; min-height: 44px; padding: 8px 12px 8px 36px; border: 1px solid var(--field-border); border-radius: 7px; background: #fff; font: inherit; font-size: 14px; }
 .client-search input:focus { border-color: #22c55e; outline: 3px solid #bbf7d0; }
-/* 追加ボタンは検索バーより一回り小さくし、縮んで重ならないよう固定幅にする。 */
-.client-home-toolbar .button { flex: 0 0 auto; min-height: 38px; padding: 0 13px; font-size: 12px; }
+/* 追加ボタンは文字を検索バーより一回り小さくし、縮んで重ならないよう固定幅にする（高さは検索バーと同じ 44px）。 */
+.client-home-toolbar .button { flex: 0 0 auto; min-height: 44px; padding: 0 13px; font-size: 12px; }
 .client-home-toolbar .button svg { width: 13px; height: 13px; }
 .client-toolbar-mobile-menu { display: none; }
 .client-home-main .client-list { margin-top: 14px; max-height: none; background: #fff; }
@@ -1633,7 +1647,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 /* 件数と表示件数を1行に並べる。 */
 .client-list-tools { margin: 10px 2px 6px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 /* 「年度の新しい順」が入る幅。表示件数（「25件」）だけなら 96px で足りていた。 */
-.client-list-tools .position-table-tools select { min-width: 128px; min-height: 32px; }
+.client-list-tools .position-table-tools select { min-width: 128px; }
 /* 不動産一覧（全顧客横断）。列が多いので表は横スクロールさせ、名称・所在地だけ折り返して読ませる。 */
 .properties-panel { margin-top: 14px; }
 .properties-panel > .panel-header { flex-wrap: wrap; gap: 12px; }
@@ -1711,7 +1725,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .list-pager p { margin: 0; color: var(--slate-500); font-size: 11px; font-weight: 600; }
 .list-pager div { display: flex; align-items: center; gap: 8px; }
 .list-pager span { color: var(--navy-950); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.list-pager .button { min-height: 32px; padding: 5px 10px; font-size: 11px; }
+.list-pager .button { min-height: 44px; padding: 5px 10px; font-size: 11px; }
 .list-pager .button:disabled { opacity: .45; cursor: not-allowed; }
 /* 行のどこを押してもその明細へ移る。名称と顧客名はリンクなので、キーボードでも辿れる。 */
 .properties-table tbody tr.properties-row { cursor: pointer; }
@@ -1725,7 +1739,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .client-delete-notice { color: #166534; padding: 10px 12px; background: #f0fdf4; border-radius: 8px; }
 .client-list-item mark { padding: 0 1px; color: #14532d; background: #fde68a; border-radius: 2px; }
 .client-home-main .security-note { margin-top: 26px; }
-.back-to-list { min-height: 40px; padding: 0 12px 0 8px; color: var(--slate-700); background: #fff; border: 1px solid var(--field-border); border-radius: 7px; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; transition: color .2s, background-color .2s, border-color .2s; }
+.back-to-list { min-height: 44px; padding: 0 12px 0 8px; color: var(--slate-700); background: #fff; border: 1px solid var(--field-border); border-radius: 7px; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; transition: color .2s, background-color .2s, border-color .2s; }
 .back-to-list:hover { color: #166534; background: #f0fdf4; border-color: #86efac; }
 .back-to-list:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 1px; }
 .back-to-list svg { width: 16px; height: 16px; }
@@ -1747,15 +1761,19 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .quality-notice svg { width: 17px; }
 .quality-bulk { margin-bottom: 14px; padding: 12px 14px; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .quality-bulk label { min-height: 44px; display: flex; align-items: center; gap: 7px; color: var(--slate-700); font-size: 11px; font-weight: 700; }
-.quality-bulk label:not(.quality-select-all) { align-items: flex-start; flex-direction: column; gap: 3px; }
-.quality-bulk select { min-width: 180px; min-height: 36px; padding: 6px 9px; border: 1px solid var(--field-border); border-radius: 6px; background: #fff; }
-.quality-bulk input[type="checkbox"], .quality-check-column input, .quality-card input { width: 20px; height: 20px; }
-.quality-check-column { width: 42px; text-align: center; }
+/* 担当者欄の見出しは欄の上に詰めて置く（44px の行の高さは「すべて選択」のチェックボックスだけに要る）。 */
+.quality-bulk label:not(.quality-select-all) { min-height: 0; }
+.quality-bulk select { min-width: 180px; min-height: 44px; padding: 6px 9px; border: 1px solid var(--field-border); border-radius: 6px; background: #fff; }
+.quality-bulk input[type="checkbox"], .quality-check-hit input { width: 20px; height: 20px; }
+/* チェックボックスの見た目は 20px のまま、包む label を 44px 四方にして押せる範囲にする。 */
+.quality-check-hit { flex: 0 0 auto; width: 44px; height: 44px; display: grid; place-items: center; cursor: pointer; }
+.quality-check-column { width: 52px; padding-block: 0; text-align: center; }
+.quality-check-column .quality-check-hit { margin-inline: auto; }
 .quality-card-list { display: none; }
 .quality-table { min-width: 760px; }
 .quality-table td { vertical-align: top; }
-.quality-table td:first-child a { color: inherit; display: flex; flex-direction: column; text-decoration: none; }
-.quality-table td:first-child small { color: var(--slate-500); }
+.quality-client-link { min-height: 44px; color: inherit; display: flex; flex-direction: column; justify-content: center; text-decoration: none; }
+.quality-client-link small { color: var(--slate-500); }
 .quality-issue-list { display: flex; flex-wrap: wrap; gap: 5px; }
 .quality-issue { min-height: 32px; padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; text-decoration: none; }
 .quality-issue span { padding-left: 4px; border-left: 1px solid currentColor; }
@@ -1771,7 +1789,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 /* 操作履歴 */
 .activity-tools { max-width: 1000px; margin-bottom: 16px; padding: 12px; background: #fff; border: 1px solid var(--line); border-radius: 9px; display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(120px, .7fr)) auto; align-items: end; gap: 10px; }
 .activity-tools label { min-width: 0; color: var(--slate-600); display: flex; flex-direction: column; gap: 4px; font-size: 10px; font-weight: 700; }
-.activity-tools input, .activity-tools select { width: 100%; min-height: 38px; padding: 6px 9px; border: 1px solid var(--field-border); border-radius: 6px; background: #fff; font: inherit; font-size: 11px; }
+.activity-tools input, .activity-tools select { width: 100%; min-height: 44px; padding: 6px 9px; border: 1px solid var(--field-border); border-radius: 6px; background: #fff; font: inherit; font-size: 11px; }
 .activity-search > div { position: relative; }
 .activity-search svg { position: absolute; left: 9px; top: 50%; width: 15px; color: var(--slate-500); transform: translateY(-50%); pointer-events: none; }
 .activity-search input { padding-left: 30px; }
@@ -1796,11 +1814,19 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 
 .form-grid .span-2 { grid-column: 1 / -1; }
 .form-grid textarea { width: 100%; margin-top: 7px; padding: 9px 11px; border: 1px solid var(--field-border); border-radius: 6px; font: inherit; resize: vertical; }
+/* タッチ操作の端末では、マウス向けに詰めて並べた一覧（ナビ・顧客一覧の行・品質の札・行の「…」・確認事項の札）も
+   幅によらず実寸で 44px にする。狭い画面の節（下の max-width: 700px）が後に来るので、そちらの 52px などが優先される。 */
+@media screen and (pointer: coarse) {
+  .nav-button, .side-link { min-height: 44px; }
+  .client-home-main .client-list-item { min-height: 44px; }
+  .client-quality-button, .quality-issue { min-height: 44px; }
+  .client-row-actions .action-menu-trigger { width: 44px; height: 44px; }
+}
 @media (max-width: 700px) {
   .client-home-toolbar { flex-wrap: wrap; }
   .client-search { flex-basis: 100%; }
   .client-home-toolbar > .button.primary, .client-home-toolbar > .client-toolbar-mobile-menu { width: calc(50% - 7px); }
-  .client-home-toolbar > .button.primary, .client-toolbar-mobile-menu .action-menu-trigger { min-height: 44px; }
+  .client-toolbar-mobile-menu .action-menu-trigger { min-height: 44px; }
   .client-home-toolbar .client-toolbar-secondary { display: none; }
   .client-toolbar-mobile-menu { display: block; }
   .client-toolbar-mobile-menu .action-menu-trigger { width: 100%; justify-content: center; }
@@ -1815,13 +1841,10 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .quality-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .quality-bulk { align-items: stretch; flex-direction: column; }
   .quality-bulk label, .quality-bulk select, .quality-bulk .button { width: 100%; }
-  .quality-bulk .quality-select-all { min-height: 44px; }
   .quality-table-wrap { display: none; }
   .quality-card-list { padding: 10px; display: grid; gap: 10px; }
   .quality-card { padding: 13px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
-  .quality-card header { display: flex; align-items: center; gap: 10px; }
-  .quality-card header a { color: inherit; display: flex; flex-direction: column; text-decoration: none; }
-  .quality-card header small { color: var(--slate-500); }
+  .quality-card header { display: flex; align-items: center; gap: 4px; }
   .quality-card dl { margin: 12px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .quality-card dl div { padding: 8px; background: var(--slate-50); border-radius: 6px; }
   .quality-card dt { color: var(--slate-500); font-size: 10px; }
@@ -1855,7 +1878,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .position-detail-values span { color: var(--slate-600); font-size: 11px; }
 .position-list-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
 .position-list-filters label { display: grid; gap: 5px; min-width: 0; color: var(--slate-600); font-size: 11px; font-weight: 700; }
-.position-list-filters select, .position-list-filters input { width: 100%; min-height: 40px; padding: 8px 10px; background: white; border: 1px solid var(--field-border); border-radius: 7px; color: var(--navy-950); font: inherit; font-size: 13px; }
+.position-list-filters select, .position-list-filters input { width: 100%; min-height: 44px; padding: 8px 10px; background: white; border: 1px solid var(--field-border); border-radius: 7px; color: var(--navy-950); font: inherit; font-size: 13px; }
 .position-list-search { flex: 1; min-width: 240px !important; }
 .position-list-search > div { position: relative; }
 .position-list-search svg { position: absolute; width: 16px; left: 10px; top: 50%; transform: translateY(-50%); }
@@ -1909,7 +1932,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .position-summary-name span { color: var(--slate-600); font-size: 10px; flex-shrink: 0; }
 .position-summary-name strong { overflow: hidden; text-overflow: ellipsis; }
 .position-summary-table .position-summary-detail-target, .position-summary-table .position-summary-allocation-target { padding: 0; transition: background-color .2s; }
-.position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { width: 100%; min-height: 42px; padding: 9px 11px; color: inherit; background: transparent; border: 0; border-radius: 0; display: flex; align-items: center; font: inherit; text-align: inherit; text-decoration: none; }
+.position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { width: 100%; min-width: 44px; min-height: 44px; padding: 9px 11px; color: inherit; background: transparent; border: 0; border-radius: 0; display: flex; align-items: center; font: inherit; text-align: inherit; text-decoration: none; }
 .position-summary-table .number > .position-summary-cell-link, .position-summary-table .number > .position-summary-allocation-button { justify-content: flex-end; }
 .position-summary-table .center > .position-summary-cell-link, .position-summary-table .center > .position-summary-allocation-button { justify-content: center; }
 /* No. 列の右余白は 16px（本文のセルは余白をリンク／ボタンへ移しているのでそちらに付ける）。
@@ -2054,8 +2077,11 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .category-detail-table tr.is-spotlight td { background: #dcfce7; }
 .category-detail-table td.number { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .category-detail-table .position-name-button { white-space: normal; overflow-wrap: anywhere; }
+.category-detail-table td.category-row-actions-cell { padding-inline: 0; }
 .category-row-actions { display: flex; gap: 0; }
-.category-row-actions .icon-button { width: 32px; height: 32px; }
+/* 横に隙間なく並ぶので幅は実寸で 44px にし、高さは行（49px）を変えないよう押せる範囲だけ縦に広げる。 */
+.category-row-actions .icon-button { position: relative; flex: 0 0 auto; width: 44px; height: 32px; }
+.category-row-actions .icon-button::after { content: ""; position: absolute; inset: min(0px, calc(50% - 22px)) 0; }
 .detail-category-links a:focus-visible, .detail-category-select select:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
 @media (max-width: 700px) {
   .category-table-toolbar { flex-wrap: wrap; }
@@ -2140,7 +2166,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
      見た目は変わらない）。 */
   .position-summary-table .position-summary-detail-target,
   .position-summary-table .position-summary-allocation-target { padding-inline: 1mm; }
-  .position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { min-height: 0; padding: 0; }
+  .position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { min-width: 0; min-height: 0; padding: 0; }
   .position-summary-name { display: block; }
   .position-summary-name span { display: block; }
   .position-summary-table tbody { break-inside: avoid; page-break-inside: avoid; }
