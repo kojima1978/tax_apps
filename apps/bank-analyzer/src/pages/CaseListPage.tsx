@@ -437,7 +437,7 @@ export function CaseListPage() {
         target={creating ? 'new' : editing}
         onClose={() => (creating ? closeCreate() : setEditing(null))}
         onSaved={(id, created) => {
-          if (created) navigate(`/cases/${id}/import`);
+          if (created) navigate(`/cases/${id}`);
           else {
             setEditing(null);
             reload();

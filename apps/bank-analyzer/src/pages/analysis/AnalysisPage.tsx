@@ -36,6 +36,7 @@ import { useApiData } from '../../hooks/useApiData';
 import { api } from '../../lib/api';
 import { num } from '../../lib/format';
 import { clearLastImport, loadLastImport } from '../import/lastImport';
+import { FORMAT_GUIDE_ID } from '../import/FormatGuide';
 import { AllTab } from './AllTab';
 import { UnclassifiedTab } from './UnclassifiedTab';
 import { AiTab } from './AiTab';
@@ -287,26 +288,33 @@ function NoData({ caseId, backup, onRestored }: { caseId: number; backup: Dashbo
     onRestored();
   };
   return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4" role="status">
-      <h2 className="mb-1 font-semibold text-blue-900">取引データがありません</h2>
-      <p className="mb-3 text-sm text-blue-900">CSVまたはExcelファイルを追加取込すると、取引の編集・分析を開始できます。</p>
-      <div className="flex flex-wrap gap-2">
-        <Link to={`/cases/${caseId}/import`} className="btn btn-primary btn-sm">
-          <FileUp size={14} />
-          CSV追加取込
-        </Link>
-        <Link to={`/cases/${caseId}/direct`} className="btn btn-secondary btn-sm">
-          <Keyboard size={14} />
-          直接入力
-        </Link>
-        {backup && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={restore} disabled={busy !== null}>
-            <Undo2 size={14} />
-            直前に削除した{num(backup.transactionCount)}件を復元
-          </button>
-        )}
+    <section className="card p-5" aria-labelledby="startTitle">
+      <h2 id="startTitle" className="text-lg font-semibold">取引データを追加</h2>
+      <p className="mt-1 text-sm text-slate-600">お持ちの資料に合う方法を選んでください。</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <Sparkles size={22} className="text-blue-700" aria-hidden="true" />
+          <h3 className="mt-2 font-semibold text-blue-950">通帳PDFから</h3>
+          <p className="mt-1 min-h-10 text-sm text-blue-900">Geminiで文字認識し、Excelにして取り込みます。</p>
+          <Link to={`/cases/${caseId}/import#${FORMAT_GUIDE_ID}`} className="btn btn-primary mt-3 w-full">
+            Geminiの手順を見る
+          </Link>
+        </div>
+        <div className="rounded-lg border border-slate-200 p-4">
+          <FileUp size={22} className="text-slate-600" aria-hidden="true" />
+          <h3 className="mt-2 font-semibold">CSV・Excelから</h3>
+          <p className="mt-1 min-h-10 text-sm text-slate-600">すでに作成済みの取引データを取り込みます。</p>
+          <Link to={`/cases/${caseId}/import`} className="btn btn-secondary mt-3 w-full">ファイルを取り込む</Link>
+        </div>
+        <div className="rounded-lg border border-slate-200 p-4">
+          <Keyboard size={22} className="text-slate-600" aria-hidden="true" />
+          <h3 className="mt-2 font-semibold">画面で入力</h3>
+          <p className="mt-1 min-h-10 text-sm text-slate-600">少ない件数を1件ずつ直接入力します。</p>
+          <Link to={`/cases/${caseId}/direct`} className="btn btn-secondary mt-3 w-full">直接入力する</Link>
+        </div>
       </div>
-    </div>
+      {backup && <div className="mt-4 border-t border-slate-200 pt-4"><button type="button" className="btn btn-secondary btn-sm" onClick={restore} disabled={busy !== null}><Undo2 size={14} />直前に削除した{num(backup.transactionCount)}件を復元</button></div>}
+    </section>
   );
 }
 
