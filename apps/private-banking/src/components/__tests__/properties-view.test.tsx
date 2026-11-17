@@ -32,7 +32,7 @@ describe("不動産一覧の方針", () => {
     await screen.findByText("土地1");
     expect([...container.querySelectorAll(".properties-plan-choice")].map((cell) => cell.textContent)).toEqual(["未定", "保有・承継", "売却予定", "処分予定", "要検討"]);
     const firstRowCells = [...container.querySelectorAll(".properties-row:first-child td")];
-    expect(firstRowCells[7].getAttribute("data-label")).toBe("評価額（円）");
+    expect(firstRowCells.slice(0, 8).map((cell) => cell.getAttribute("data-label"))).toEqual(["科目・区分", "名称・所在地", "地目・用途", "面積", "持分", "固定資産税評価額", "評価額（円）", "顧客"]);
     expect(firstRowCells.slice(8, 13).map((cell) => cell.textContent).join("")).toContain("●");
     fireEvent.click(screen.getByRole("button", { name: "売却予定 1件" }));
     expect(container.querySelectorAll(".properties-row")).toHaveLength(1);

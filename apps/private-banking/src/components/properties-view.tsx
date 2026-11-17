@@ -193,10 +193,11 @@ export function PropertiesView() {
       <ScrollRegion className="table-scroll" label="不動産一覧">
         {rows === null ? <p className="properties-loading" role="status"><LoaderCircle className="spin" />読み込み中です…</p> : <table className="properties-table">
           <thead><tr>
-            <th rowSpan={2} scope="col" className="properties-client-column">顧客</th><th rowSpan={2} scope="col" className="properties-category-column">科目・区分</th><th rowSpan={2} scope="col">名称・所在地</th><th rowSpan={2} scope="col" className="properties-use-column">地目・用途</th>
+            <th rowSpan={2} scope="col" className="properties-category-column">科目・区分</th><th rowSpan={2} scope="col">名称・所在地</th><th rowSpan={2} scope="col" className="properties-use-column">地目・用途</th>
             <th rowSpan={2} scope="col" className="number properties-area-column">面積</th><th rowSpan={2} scope="col" className="number properties-share-column">持分</th>
             <th rowSpan={2} scope="col" className="number properties-fixed-value-column">固定資産税評価額</th><th rowSpan={2} scope="col" className="number properties-value-column">評価額（円）</th>
-            {/* 方針は物件を見分ける列（顧客・名称・評価額）の後ろ。顧客ごとの方針一覧と同じ並び */}
+            {/* 物件（名称・所在地・評価額）を先に読み、誰の物件か（顧客）→今後の方針の順。方針は顧客ごとの方針一覧と同じく評価額より右 */}
+            <th rowSpan={2} scope="col" className="properties-client-column">顧客</th>
             <th colSpan={5} scope="colgroup" className="properties-plan-group">今後の方針</th>
             {includePlan ? <th rowSpan={2} scope="col" className="property-plan-column property-plan-memo-column">希望時期・メモ</th> : null}
           </tr><tr>{propertyPlanOptions.map((option) => <th key={option.value} scope="col" className="properties-plan-choice">{option.label}</th>)}</tr></thead>
@@ -208,12 +209,6 @@ export function PropertiesView() {
                 if ((event.target as HTMLElement).closest("a")) return;
                 router.push(propertyPositionHref(row));
               }}>
-                <td data-label="顧客">
-                  <Link className="properties-client-link" href={`/customers/${row.householdId}/positions`}>
-                    <strong><Highlighted text={row.clientName} terms={terms} /></strong>
-                  </Link>
-                  <small><Highlighted text={row.clientCode} terms={terms} />／{row.fiscalYear}年度</small>
-                </td>
                 <td data-label="科目・区分"><span className="category-tag">{row.categoryLabel}</span>{row.propertyTypeLabel}</td>
                 <td data-label="名称・所在地">
                   <Link className="properties-position-link" href={propertyPositionHref(row)}>
@@ -226,14 +221,20 @@ export function PropertiesView() {
                 <td data-label="持分" className="number properties-share-column">{ownershipText(row.ownership)}</td>
                 <td data-label="固定資産税評価額" className="number">{yenText(row.fixedAssetTaxValue)}</td>
                 <td data-label="評価額（円）" className="number">{yen.format(row.valueJpy)}</td>
+                <td data-label="顧客">
+                  <Link className="properties-client-link" href={`/customers/${row.householdId}/positions`}>
+                    <strong><Highlighted text={row.clientName} terms={terms} /></strong>
+                  </Link>
+                  <small><Highlighted text={row.clientCode} terms={terms} />／{row.fiscalYear}年度</small>
+                </td>
                 {propertyPlanOptions.map((option) => <td key={option.value} className={`properties-plan-mark${row.plan === option.value ? " is-selected" : ""}`} data-label={option.label}><span aria-hidden="true">{row.plan === option.value ? "●" : "○"}</span>{row.plan === option.value ? <span className="sr-only">今後の方針：{option.label}</span> : null}</td>)}
                 {includePlan ? <td data-label="希望時期・メモ" className="property-plan-column property-plan-memo-column"><div className="property-plan-print-details">{row.planTiming ? <p>希望時期：{row.planTiming}</p> : null}{row.planNote ? <p>{row.planNote}</p> : null}{!row.planTiming && !row.planNote ? "—" : null}</div></td> : null}
               </tr>)}
           </tbody>
           <tfoot><tr>
-            <th scope="row" colSpan={7}>{narrowed ? "絞り込みの合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
+            <th scope="row" colSpan={6}>{narrowed ? "絞り込みの合計" : "合計"}（{filtered.length}件・{clientCount}名）</th>
             <td className="number">{yen.format(total)}</td>
-            <td colSpan={5} />
+            <td colSpan={6} />
             {includePlan ? <td className="property-plan-column property-plan-memo-column" /> : null}
           </tr></tfoot>
         </table>}
