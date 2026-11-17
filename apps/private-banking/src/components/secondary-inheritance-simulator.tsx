@@ -63,7 +63,7 @@ export function SecondaryInheritanceSimulator({ householdId }: { householdId: nu
     <header className="secondary-sim-heading">
       <Repeat2 />
       <div>
-        <h3 id="secondary-sim-title">二次相続シミュレーション</h3>
+        <h2 id="secondary-sim-title">二次相続シミュレーション</h2>
         <p>一次相続での配偶者の取得割合を変えたとき、一次＋二次で納める相続税の合計がどう変わるかを概算します。</p>
       </div>
     </header>

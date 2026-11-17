@@ -56,7 +56,7 @@ export function PersonView({
   return <>
     <section className="page-heading detail-page-heading">
       <div>
-        <h2>本人情報</h2>
+        <h1>本人情報</h1>
         <p>顧客本人の基本情報を管理します。</p>
       </div>
     </section>
@@ -64,7 +64,7 @@ export function PersonView({
     <section className="panel person-panel" aria-labelledby="person-information-title">
       <header className="panel-header">
         <div>
-          <h3 id="person-information-title">基本情報</h3>
+          <h2 id="person-information-title">基本情報</h2>
           <p>氏名・生年月日・担当情報・関連法人</p>
         </div>
         <CircleUserRound aria-hidden="true" />

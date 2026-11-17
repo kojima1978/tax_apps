@@ -143,7 +143,7 @@ export function InheritanceTaxReport({
   return <section className="inheritance-tax-report" aria-labelledby="inheritance-tax-report-title">
     <header className="inheritance-tax-report-heading">
       <div>
-        <h2 id="inheritance-tax-report-title">相続税の概算</h2>
+        <h1 id="inheritance-tax-report-title">相続税の概算</h1>
       </div>
       <dl>
         <div><dt>対象</dt><dd><PersonName name={household.name} /></dd></div>
@@ -157,7 +157,7 @@ export function InheritanceTaxReport({
 
     <div className="tax-calc-columns">
       <article className="tax-calc-statement">
-        <h3><Calculator />概算計算</h3>
+        <h2><Calculator />概算計算</h2>
         <div className="tax-calc-money-list">
           <MoneyRow label="金融資産" value={calculation.source.financialAssetsJpy} />
           <MoneyRow label="不動産" value={calculation.source.realEstateJpy} />
@@ -184,7 +184,7 @@ export function InheritanceTaxReport({
       </article>
 
       <article className="tax-calc-basis">
-        <h3><ShieldCheck />計算根拠</h3>
+        <h2><ShieldCheck />計算根拠</h2>
         <ol>
           <li><strong>財産評価額と債務</strong><p>現在年度のB/S登録額を使用。個人保証などB/S外債務は控除していません。</p></li>
           <li><strong>生命保険金の非課税額</strong><p>500万円 × 法定相続人 {calculation.legalHeirCount}人 ＝ {compactYen(calculation.insuranceNonTaxableLimitJpy)}（対象保険金が上限）。</p></li>

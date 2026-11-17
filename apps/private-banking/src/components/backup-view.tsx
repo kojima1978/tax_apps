@@ -250,7 +250,7 @@ export function RestoreView() {
 
 /** 顧客一覧から開く画面だけ `back` を立てる（顧客個別画面の中では、戻る先はトップバーが持っている）。 */
 function BackupHeading({ title = "バックアップ", description, back = false }: { title?: string; description: string; back?: boolean }) {
-  return <section className="page-heading"><div>{back ? <BackToClientList /> : null}<h2>{title}</h2><p>{description}</p></div></section>;
+  return <section className="page-heading"><div>{back ? <BackToClientList /> : null}<h1>{title}</h1><p>{description}</p></div></section>;
 }
 
 /** ファイル選択→内容の確認→復元（または取り込み）までの一連の操作。 */

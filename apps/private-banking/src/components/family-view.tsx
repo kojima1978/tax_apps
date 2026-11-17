@@ -39,7 +39,7 @@ export function FamilyView({
   return <>
     <section className="page-heading detail-page-heading">
       <div>
-        <h2>親族関係</h2>
+        <h1>親族関係</h1>
         <p>相続人の構成と法定相続分を管理します。年齢はB/S基準日時点です。</p>
       </div>
       <div className="page-heading-actions">
@@ -49,7 +49,7 @@ export function FamilyView({
 
     <section className="panel family-panel" aria-labelledby="family-list-title">
       <header className="panel-header">
-        <div><h3 id="family-list-title">家族一覧</h3>{relatives.length === 0 ? <p>家族情報はまだ登録されていません</p> : null}</div>
+        <div><h2 id="family-list-title">家族一覧</h2>{relatives.length === 0 ? <p>家族情報はまだ登録されていません</p> : null}</div>
         <UsersRound aria-hidden="true" />
       </header>
       {relatives.length === 0 ? (

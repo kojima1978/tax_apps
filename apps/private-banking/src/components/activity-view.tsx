@@ -46,7 +46,7 @@ export function ActivityView({ householdId }: { householdId: number }) {
   }
 
   return <>
-    <section className="page-heading"><div><h2>操作履歴</h2><p>顧客データに対する重要な登録・更新・削除を確認できます。</p></div></section>
+    <section className="page-heading"><div><h1>操作履歴</h1><p>顧客データに対する重要な登録・更新・削除を確認できます。</p></div></section>
     {error ? <p className="error-banner" role="alert"><AlertTriangle />{error}</p> : null}
     {items && items.length > 0 ? <section className="activity-tools" aria-label="操作履歴の検索と絞り込み">
       <label className="activity-search"><span>検索</span><div><Search /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="概要・実行者・対象で検索" /></div></label>

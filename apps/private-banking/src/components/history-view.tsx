@@ -69,7 +69,7 @@ export function HistoryView({ snapshots, onCreate, onEditSnapshot, onDeleteSnaps
   }
 
   return <>
-    <section className="page-heading history-page-heading"><div><h2>年度比較</h2></div><button className="button primary" onClick={onCreate} disabled={saving}><Plus />年度を追加</button></section>
+    <section className="page-heading history-page-heading"><div><h1>年度比較</h1></div><button className="button primary" onClick={onCreate} disabled={saving}><Plus />年度を追加</button></section>
     <section className="panel table-panel trend-panel" aria-label="年度推移表">
       <PanelHeader title="年度推移表" subtitle="3期" />
       {snapshots.length < columnCount ? <p className="trend-guidance">登録の無い期は「データなし」で表示しています。年度を追加すると比較できます。</p> : null}

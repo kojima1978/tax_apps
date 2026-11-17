@@ -87,7 +87,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* トップバーは1行に収める（縦積みにせず、画面の高さを本文へ回す）。 */
 .topbar { min-height: 60px; padding: 8px 34px; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 14px; }
 .topbar-subject { min-width: 0; flex: 0 1 auto; display: flex; align-items: center; gap: 8px; }
-.topbar h1 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-family: inherit; font-weight: 700; }
 .client-switcher-trigger { min-width: 7.5em; max-width: min(520px, 46vw); min-height: 44px; padding: 4px 10px; color: var(--navy-950); background: transparent; border: 1px solid transparent; border-radius: 8px; display: flex; align-items: center; gap: 9px; text-align: left; cursor: pointer; transition: background-color .2s, border-color .2s; }
 .client-switcher-trigger:hover { background: #f7fcf8; border-color: #bbf7d0; }
 .client-switcher-trigger:focus-visible { outline: 3px solid #bbf7d0; outline-offset: 1px; }
@@ -121,7 +120,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .button:disabled { opacity: .6; cursor: not-allowed; }
 .content { min-width: 0; max-width: 1500px; margin: 0 auto; padding: 34px; }
 .page-heading { margin-bottom: 26px; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
-.page-heading h2 { margin: 2px 0 3px; color: var(--navy-950); font-family: inherit; font-size: clamp(24px, 2.2vw, 31px); font-weight: 700; letter-spacing: -.02em; }
+/* 見出しは2段。画面名の h1 は全画面 24px、区切り（パネル・節）の h2 は 16px。 */
+.page-heading h1 { margin: 2px 0 3px; color: var(--navy-950); font-family: inherit; font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
 .page-heading > div > p:last-child { margin: 0; color: var(--slate-500); font-size: 13px; }
 .page-heading-actions { margin-left: auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .detail-heading-meta { min-height: 24px; display: flex; align-items: center; gap: 9px 12px; flex-wrap: wrap; }
@@ -143,7 +143,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .balance-report-series.screen-with-tax > .balance-report-without-tax { display: none; }
 .panel { background: white; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 2px 4px #172b3a08; }
 .panel-header { min-height: 72px; padding: 17px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
-.panel-header h3 { margin: 0; color: var(--navy-950); font-family: inherit; font-size: 16px; font-weight: 700; }
+.panel-header h2 { margin: 0; color: var(--navy-950); font-family: inherit; font-size: 16px; font-weight: 700; }
 .panel-header p { margin: 1px 0 0; color: var(--slate-500); font-size: 11px; }
 .text-button.compact { min-height: 42px; font-size: 11px; }
 .balance-panel-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
@@ -1133,7 +1133,8 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .currency-extra-settings { margin-top: 16px; font-size: 12px; }
 .currency-extra-settings summary { min-height: 36px; cursor: pointer; }
 .currency-settings-page { max-width: 900px; margin: auto; padding: 24px 16px; }
-.currency-settings-page h1 { font-size: 24px; }
+.currency-settings-page h1 { margin: 2px 0 3px; color: var(--navy-950); font-size: 24px; }
+.currency-settings-page h2 { color: var(--navy-950); font-size: 16px; }
 .currency-settings-panel { padding: 20px; }
 .currency-settings-panel p { font-size: 13px; line-height: 1.7; }
 .currency-settings-panel li { margin: 12px 0; }
@@ -1184,7 +1185,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .tax-calculation-document { margin-top: 18px; }
 .inheritance-tax-report { padding: 20px; color: var(--slate-800); background: #fff; border: 1px solid #cfdad4; border-radius: 10px; box-shadow: 0 2px 8px #172b3a0a; }
 .inheritance-tax-report-heading { padding-bottom: 14px; border-bottom: 2px solid #2f765e; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
-.inheritance-tax-report-heading h2 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 24px; font-weight: 700; }
+.inheritance-tax-report-heading h1 { margin: 0; color: #123c31; font-family: Georgia, "Yu Mincho", serif; font-size: 24px; font-weight: 700; }
 .inheritance-tax-report-heading dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 4px 18px; }
 .inheritance-tax-report-heading dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .inheritance-tax-report-heading dt { color: var(--slate-500); font-size: 11px; font-weight: 700; }
@@ -1198,8 +1199,8 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .tax-calc-recalc svg { width: 14px; height: 14px; }
 .tax-calc-columns { margin-top: 16px; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 18px; }
 .tax-calc-statement, .tax-calc-basis { min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.tax-calc-statement h3, .tax-calc-basis h3 { min-height: 39px; margin: 0; padding: 8px 12px; color: #fff; background: #183f34; display: flex; align-items: center; gap: 7px; font-size: 12px; }
-.tax-calc-statement h3 svg, .tax-calc-basis h3 svg { width: 15px; height: 15px; }
+.tax-calc-statement h2, .tax-calc-basis h2 { min-height: 39px; margin: 0; padding: 8px 12px; color: #fff; background: #183f34; display: flex; align-items: center; gap: 7px; font-size: 16px; }
+.tax-calc-statement h2 svg, .tax-calc-basis h2 svg { width: 15px; height: 15px; }
 .tax-calc-money-list { padding: 6px 12px 10px; }
 .tax-calc-money-row { min-height: 28px; padding: 4px 2px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: baseline; gap: 4px; font-size: 11px; }
 .tax-calc-money-row strong { color: #263b34; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -1219,7 +1220,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .secondary-sim { margin-top: 20px; padding: 18px 20px; border: 1px solid #d5e3db; border-radius: 12px; background: #fbfdfc; }
 .secondary-sim-heading { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
 .secondary-sim-heading svg { width: 22px; height: 22px; flex: 0 0 auto; color: #2f765e; margin-top: 2px; }
-.secondary-sim-heading h3 { margin: 0; font-size: 14px; color: #1f3a30; }
+.secondary-sim-heading h2 { margin: 0; font-size: 16px; color: #1f3a30; }
 .secondary-sim-heading p { margin: 2px 0 0; font-size: 11px; color: #5b7268; line-height: 1.55; }
 .secondary-sim-form { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
 .secondary-sim-form label { flex: 1 1 240px; min-width: 0; color: var(--slate-700); font-size: 12px; font-weight: 700; }
@@ -1391,7 +1392,6 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .family-editor-modal form > footer { padding: 12px 16px; }
 }
 @media (max-width: 600px) {
-  .topbar h1 { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* 1段目にメニュー・戻る・顧客名、2段目に表示年度。印刷は年度メニューの中へ移す。 */
   .topbar { flex-wrap: wrap; row-gap: 8px; padding-block: 10px; }
   .topbar-subject { flex: 1 1 0; }
@@ -1579,7 +1579,6 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .client-home-header .brand { padding: 0; border-bottom: 0; }
 .client-home-main { max-width: 1180px; margin: 0 auto; padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px) 48px; }
 .client-home-main .page-heading { margin-bottom: 14px; }
-.client-home-main .page-heading h1 { margin: 0; color: var(--navy-950); font-family: inherit; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
 .client-overview { margin-bottom: 14px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
 .client-overview > div, .client-overview > button { min-height: 70px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 9px; display: flex; flex-direction: column; justify-content: center; gap: 3px; text-align: left; }
 .client-overview > button { font: inherit; cursor: pointer; transition: border-color .2s, background-color .2s, box-shadow .2s; }
@@ -1800,7 +1799,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .quality-issue:focus-visible { outline: 3px solid #86efac; outline-offset: 1px; }
 .quality-complete { min-height: 240px; padding: 28px; color: #166534; background: #fff; border: 1px solid #bbf7d0; border-radius: 10px; display: grid; place-items: center; align-content: center; text-align: center; }
 .quality-complete svg { width: 32px; height: 32px; }
-.quality-complete h2 { margin: 10px 0 2px; font-size: 17px; }
+.quality-complete h2 { margin: 10px 0 2px; font-size: 16px; }
 .quality-complete p { margin: 0; color: var(--slate-600); font-size: 12px; }
 
 /* 操作履歴 */
@@ -2041,9 +2040,6 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .position-detail-tabs button[aria-pressed="true"] { background: #f0fdf4; border-color: #22c55e; color: #166534; box-shadow: inset 0 0 0 1px #22c55e; }
 .position-detail-tabs span { margin-left: 4px; font-variant-numeric: tabular-nums; }
 .position-detail-tabs button:focus-visible, .position-summary-name:focus-visible, .position-summary-open:focus-visible, .position-list-filters input:focus-visible, .position-list-filters select:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
-.position-detail-group { margin-bottom: 24px; }
-.position-detail-group > h3 { font-size: 15px; color: var(--navy-950); display: flex; align-items: center; gap: 10px; }
-.position-detail-group > h3 span { color: var(--slate-600); font-size: 11px; font-weight: 400; }
 .position-detail-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .position-detail-card { padding: 18px; scroll-margin-top: 100px; }
 .position-detail-card.is-spotlight { outline: 3px solid #22c55e; background: #f0fdf4; }
@@ -2084,7 +2080,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .detail-group-links a[data-empty]:not([aria-current]) span, .detail-category-links a[data-empty]:not([aria-current]) span { background: transparent; color: var(--slate-500); }
 .detail-column-settings { padding: 16px; margin-block: 14px; }
 .detail-column-settings header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.detail-column-settings h3 { margin: 0; font-size: 14px; }
+.detail-column-settings h2 { margin: 0; font-size: 14px; }
 .detail-column-settings p { font-size: 11px; color: var(--slate-600); line-height: 1.6; }
 .detail-column-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .detail-column-option { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--line); padding-block: 5px; min-width: 0; }
@@ -2260,7 +2256,6 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .app-shell, .main-area { width: 100%; max-width: 100%; min-height: 0; height: auto; margin: 0; overflow-x: clip; }
   .main-area { margin: 0; }
   .topbar { min-height: 30px; padding: 0 2mm 2mm; }
-  .topbar h1 { font-size: 13px; }
   .content { width: calc(100% - 2mm); max-width: calc(100% - 2mm); margin: 0 2mm 0 0; padding: 1mm 0 0; overflow-x: clip; }
   .content, .dashboard-grid, .panel, .table-scroll, table { min-width: 0; max-width: 100%; box-sizing: border-box; }
   .properties-table { min-width: 0; font-size: 9px; }
@@ -2272,7 +2267,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .panel { border-radius: 0; break-inside: avoid; box-shadow: none; }
   .balance-panel { overflow: hidden; break-inside: auto; }
   .balance-panel .panel-header { min-height: 42px; padding: 7px 12px; }
-  .balance-panel .panel-header h3 { font-size: 14px; }
+  .balance-panel .panel-header h2 { font-size: 14px; }
   .balance-panel .panel-header p { font-size: 10.5px; }
   .classified-bs { height: 120mm; padding: 9px 14px 0; gap: 9px; }
   /* 注記は区画エリアの下へ積むので、同じ側に2つ以上並ぶとA4横1枚に収まらなくなる。1枚に
@@ -2328,7 +2323,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   /* 「個人資産・負債を時価で俯瞰します。」のような画面向けの説明は紙に要らない。
      基準日や「過年度を表示中」は印刷しても意味があるので .detail-heading-meta だけ残す。 */
   .detail-page-heading > div > p:not(.detail-heading-meta) { display: none !important; }
-  .detail-page-heading h2 { margin: 1px 0 2px; font-size: 18px; }
+  .detail-page-heading h1 { margin: 1px 0 2px; font-size: 18px; }
   .detail-heading-meta { gap: 6px; font-size: 9.5px; }
   .detail-status-screen, .detail-updated-at { display: none !important; }
   .detail-status-print { display: inline; }
@@ -2340,7 +2335,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .tax-calculation-document { margin-top: 0; }
   .inheritance-tax-report { width: 100%; height: auto; max-height: 174mm; padding: 4mm 5mm 3mm; border: 1px solid var(--line); border-radius: 0; box-shadow: none; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
   .inheritance-tax-report-heading { min-height: 18mm; padding: 0 1mm 3mm; gap: 8mm; }
-  .inheritance-tax-report-heading h2 { font-size: 21px; }
+  .inheritance-tax-report-heading h1 { font-size: 21px; }
   .inheritance-tax-report-heading dl { min-width: 105mm; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1mm 6mm; }
   .inheritance-tax-report-heading dt { font-size: 9px; }
   .inheritance-tax-report-heading dd { font-size: 9.5px; }
@@ -2348,8 +2343,8 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .tax-calc-stale svg { width: 10px; height: 10px; }
   .tax-calc-columns { min-height: 126mm; margin-top: 3mm; gap: 4mm; grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr); }
   .tax-calc-statement, .tax-calc-basis { border-radius: 2px; }
-  .tax-calc-statement h3, .tax-calc-basis h3 { min-height: 9mm; padding: 1.5mm 2.5mm; font-size: 9.5px; }
-  .tax-calc-statement h3 svg, .tax-calc-basis h3 svg { width: 10px; height: 10px; }
+  .tax-calc-statement h2, .tax-calc-basis h2 { min-height: 9mm; padding: 1.5mm 2.5mm; font-size: 9.5px; }
+  .tax-calc-statement h2 svg, .tax-calc-basis h2 svg { width: 10px; height: 10px; }
   .tax-calc-money-list { padding: 1mm 2.5mm 1.5mm; }
   .tax-calc-money-row { min-height: 5.4mm; padding: .45mm .5mm; grid-template-columns: 4mm minmax(0, 1fr) auto; font-size: 9.5px; line-height: 1.4; }
   .tax-calc-money-row strong { font-size: 10px; }
@@ -2418,7 +2413,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .position-section .position-table tbody tr[class] { --classification-border: #000; }
   .position-section { margin-bottom: 10px; overflow: visible; border: 0; border-radius: 0; break-inside: auto; page-break-inside: auto; }
   .position-section .panel-header { min-height: 38px; padding: 6px 10px; border: 1px solid var(--line-strong); border-bottom: 0; break-after: avoid-page; page-break-after: avoid; }
-  .position-section .panel-header h3 { font-size: 13px; }
+  .position-section .panel-header h2 { font-size: 13px; }
   .position-section .panel-header p { font-size: 9.5px; }
   .position-section .table-scroll { overflow: visible; }
   .position-table { width: 100%; min-width: 0; table-layout: fixed; font-size: 11px; }
@@ -2476,7 +2471,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   /* 目次は「年度比較」なので、紙の見出しもそれに揃える（年度を追加するボタンだけ消す）。
      すぐ下の .page-heading:not(.detail-page-heading) に負けるので display を明示する。 */
   .history-page-heading { display: flex !important; margin: 0 0 8px; padding: 0 2mm; }
-  .history-page-heading h2 { margin: 1px 0 2px; font-size: 18px; }
+  .history-page-heading h1 { margin: 1px 0 2px; font-size: 18px; }
   .trend-panel .panel-header p, .period-position-label { display: none !important; }
   .history-page-heading .button, .trend-guidance, .period-edit { display: none !important; }
   /* 年度一覧は紙に出さない（推移表と同じ数字が2通りの形で並ぶだけ）。推移表は年度が1つでも
@@ -2486,7 +2481,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .trend-print-note { display: block !important; margin: 6px 10px; font-size: 10px; color: var(--navy-700); break-before: avoid; page-break-before: avoid; }
   .trend-panel { margin-bottom: 0; overflow: visible; break-inside: auto; page-break-inside: auto; }
   .trend-panel .panel-header { min-height: 38px; padding: 6px 10px; break-after: avoid; page-break-after: avoid; }
-  .trend-panel .panel-header h3 { font-size: 13px; }
+  .trend-panel .panel-header h2 { font-size: 13px; }
   .trend-panel .panel-header p { font-size: 9.5px; }
   .trend-scroll { overflow: visible; }
   .trend-table { width: 100%; max-width: 100%; min-width: 0; margin: 0; table-layout: fixed; font-size: 11px; }
@@ -2514,27 +2509,10 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .report-document table th.center, .report-document table td.center,
   .report-document table th.applicability, .report-document table td.applicability { text-align: center; }
 }
-.position-allocation-fieldset {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px;
-}
-.position-allocation-fieldset legend,
-.position-allocation-fieldset h3 { font-weight: 700; }
-.position-allocation-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.position-allocation-heading p,
-.deemed-allocation-note p { margin: 0; color: var(--muted); font-size: .86rem; }
-.position-allocation-row { display: grid; grid-template-columns: minmax(190px, 1fr) minmax(170px, .65fr) 44px; align-items: end; gap: 10px; margin-top: 10px; }
-.position-allocation-row label > span:first-child { display: block; margin-bottom: 5px; font-size: .82rem; font-weight: 650; }
-.position-allocation-row .icon-button { min-width: 44px; min-height: 44px; }
-.deemed-allocation-note { background: var(--surface-subtle, #f7faf8); }
-@media (max-width: 680px) {
-  .position-allocation-heading { align-items: stretch; flex-direction: column; }
-  .position-allocation-row { grid-template-columns: 1fr 1fr 44px; }
-}
 .property-plan-report { padding: 20px; min-width: 0; }
 .property-plan-report .table-scroll { overflow-x: auto; }
-.property-plan-report-heading h2 { margin: 0 0 8px; font-size: 20px; }
+.property-plan-report-heading h1 { margin: 0 0 8px; color: var(--navy-950); font-size: 24px; }
+@media print { .property-plan-report-heading h1 { font-size: 20px; } }
 .property-plan-report-heading p, .property-plan-report-help { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .property-plan-screen-help { margin-left: .5em; }
 /* 画面の列幅。サイドバーを開いた 1280px の画面（枠の幅 934px）で、右端の評価額まで横スクロールなしに見える幅にしている。
