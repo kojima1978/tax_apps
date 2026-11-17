@@ -676,9 +676,10 @@ PBが持っているのは受取人の氏名であって相続人の資格では
 - 貸借対照表
 - 資産・負債一覧
 - 資産・負債詳細
+- 不動産の保有・処分方針一覧
 - 年度比較
 
-利用者は複数セクションを選択できる。選択肢の並び、目次の並び、印刷されるページの並びはすべてこの順に従う。相続税の概算は概算税額を計算した後でなければ選択できない。貸借対照表を選択した場合は「税金なし」「税金あり」の両方を印刷する。
+利用者は複数セクションを選択できる。並びの定義は `print-front-matter.tsx` の `PRINT_SECTION_META` 1か所。選択肢の並び、目次の並び、印刷されるページの並びはすべてこの順に従う。相続税の概算は概算税額を計算した後でなければ選択できない。貸借対照表を選択した場合は「税金なし」「税金あり」の両方を印刷する。
 
 ### 13.2 ページ構成
 
@@ -698,7 +699,7 @@ PBが持っているのは受取人の氏名であって相続人の資格では
 - 配偶者税額控除、未成年者控除、障害者控除は法定相続人にあたる親族だけを該当ありとする。2割加算は登録値をそのまま表示する。
 - 家族一覧の下に、2割加算と配偶者税額控除は概算税額に反映済みであり、未成年者控除・障害者控除は反映していない旨を注記する。
 - 目次には選択した資料のみ掲載する。
-- 目次は全6資料を選択した場合も免責事項を含めて1ページに収める。
+- 目次は全7資料を選択した場合も免責事項を含めて1ページに収める。
 - 資産・負債一覧は1明細2行を途中で分割せず、改ページ後も表見出しを繰り返し、未割当列を含む各セルの罫線を閉じて表示する。
 - 資産・負債詳細は入力画面と同じ科目別表とし、登録のある科目だけを印刷する。
 - 印刷表の配置は全様式で統一し、名称・科目・所在地・評価方法・メモ等の文字列は左詰め、金額・数量・単価・面積・倍率・割合・分数は右詰め、区分・状態・年度・日付・該当有無は中央揃えとする。列見出しも明細と同じ配置にする。
@@ -711,12 +712,15 @@ PBが持っているのは受取人の氏名であって相続人の資格では
 | Method | Path | 用途 |
 |---|---|---|
 | GET / POST / PATCH / DELETE | `/clients` | 顧客一覧・作成・更新・削除 |
+| POST | `/clients/bulk-staff` | 複数顧客の担当者をまとめて変更 |
+| GET | `/clients/staff-history?householdId={id}` | 顧客の担当変更履歴 |
 | GET | `/portfolio?householdId={id}` | 顧客ポートフォリオ取得 |
 | GET | `/properties?year={current｜年度｜all}` | 全顧客の選択年度条件にある不動産明細一覧と登録年度 |
 | POST | `/positions` | 明細追加 |
 | PUT / DELETE | `/positions/{id}` | 明細更新・削除 |
 | POST / PUT / PATCH | `/positions/bulk` | 表形式の追加・更新・一括管理 |
 | PUT | `/positions/reorder` | 明細並び順保存 |
+| PATCH | `/positions/allocations` | 明細の取得者・負担者の按分を保存 |
 | PUT | `/family-members` | 家族情報一括保存・相続人構成同期 |
 | POST | `/snapshots` | 年度追加 |
 | PUT / DELETE | `/snapshots/{id}` | 年度税額更新・年度削除 |
@@ -727,6 +731,11 @@ PBが持っているのは受取人の氏名であって相続人の資格では
 | GET | `/backup` | JSONバックアップ出力 |
 | POST | `/backup/import` | 顧客バックアップ取り込み |
 | POST | `/backup/restore` | 全体バックアップ復元 |
+| GET | `/activity?householdId={id}` | 顧客の操作履歴 |
+| GET / POST | `/currencies` | 通貨の一覧（標準＋追加）・追加通貨の登録 |
+| GET | `/staff` | 担当者の一覧（社員台帳の写し。POST・PATCH・DELETE は 405） |
+| GET / POST | `/staff-directory` | 社員台帳からの写しの状況 / 今すぐ写し直す（台帳が保存のたびに呼ぶ） |
+| GET | `/staff-directory/workload` | 台帳ID ごとの担当顧客数（社員台帳が読む） |
 | GET | `/health` | ヘルスチェック |
 
 一般的なステータスコード:
@@ -775,6 +784,31 @@ PBが持っているのは受取人の氏名であって相続人の資格では
 - `sortOrder` で表示順を保持
 - 顧客削除時に連鎖削除
 - 全体／顧客単位バックアップの対象に含める
+
+### 15.5 PositionAllocation
+
+資産の取得者、負債・偶発債務の負担者を分数で持つ。
+
+- `Position 1 : N PositionAllocation`、`FamilyMember 1 : N PositionAllocation`
+- `role`（`ACQUIRER` 取得者／`DEBT_BEARER` 負担者）・`numerator` / `denominator`。`(positionId, familyMemberId, role)` は一意
+- 明細・家族のどちらを消しても連鎖削除
+
+### 15.6 Staff・StaffAssignment
+
+- `Staff` は担当者。社員台帳（staff-directory）の写しで、このアプリでは作らない・書き換えない（§4.5）。
+  `staffCode` と `staffDirectoryId`（台帳ID）が一意。台帳ID の無い行は「未連携」
+- `Household.staffId` が担当者を指す（担当者が消えたら未設定へ）
+- `StaffAssignment` は担当変更の履歴。担当者のコード・氏名を写して持つので、担当者が消えても履歴は読める。顧客削除時に連鎖削除
+- `StaffDirectorySyncRun` は台帳からの写しの記録（直近20回と最後に成功した回だけ残す）。バックアップの対象外
+
+### 15.7 AppCurrency
+
+共通設定で足した通貨（コードが主キー）。標準の JPY・USD・EUR は持たない。全顧客で共有し、バックアップでは足すだけ（§12.1）。
+
+### 15.8 ActivityLog・PlanningScenario
+
+- `ActivityLog` は操作履歴。顧客を消しても記録は残す（`householdId` は未設定へ、顧客名・コードは写して持つ）
+- `PlanningScenario` は以前の「プラン比較」の保存先。いまは画面も API も無く、バックアップで往復するだけ
 
 ## 16. 入力・表示共通仕様
 
