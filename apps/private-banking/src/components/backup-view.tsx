@@ -23,6 +23,7 @@ type BackupPreview = {
   activityLogs: number;
   staff: number;
   staffAssignments: number;
+  appCurrencies: number;
 };
 type SelectedFile = { fileName: string; payload: unknown; preview: BackupPreview };
 
@@ -51,7 +52,7 @@ function backupTimestamp(value: string | null) {
 }
 
 function previewContents(preview: BackupPreview) {
-  return `顧客${preview.households}件 / 年度${preview.snapshots}件 / 明細${preview.positions}件 / 担当者${preview.staff}件 / 担当履歴${preview.staffAssignments}件 / シナリオ${preview.planningScenarios}件 / 操作履歴${preview.activityLogs}件`;
+  return `顧客${preview.households}件 / 年度${preview.snapshots}件 / 明細${preview.positions}件 / 担当者${preview.staff}件 / 担当履歴${preview.staffAssignments}件 / シナリオ${preview.planningScenarios}件 / 操作履歴${preview.activityLogs}件${preview.appCurrencies > 0 ? ` / 追加通貨${preview.appCurrencies}件` : ""}`;
 }
 
 function readBackupPreview(payload: unknown): BackupPreview {
@@ -69,6 +70,7 @@ function readBackupPreview(payload: unknown): BackupPreview {
     if (activityLogs !== undefined && !Array.isArray(activityLogs)) throw new Error("全体バックアップの操作履歴が壊れています。");
     if (data?.staff !== undefined && !Array.isArray(data.staff)) throw new Error("担当者台帳が壊れています。");
     if (data?.staffAssignments !== undefined && !Array.isArray(data.staffAssignments)) throw new Error("担当履歴が壊れています。");
+    if (data?.appCurrencies !== undefined && !Array.isArray(data.appCurrencies)) throw new Error("追加通貨が壊れています。");
     return {
       kind: "full",
       exportedAt,
@@ -80,6 +82,7 @@ function readBackupPreview(payload: unknown): BackupPreview {
       activityLogs: activityLogs?.length ?? 0,
       staff: Array.isArray(data?.staff) ? data.staff.length : 0,
       staffAssignments: Array.isArray(data?.staffAssignments) ? data.staffAssignments.length : 0,
+      appCurrencies: Array.isArray(data?.appCurrencies) ? data.appCurrencies.length : 0,
     };
   }
 
@@ -95,6 +98,7 @@ function readBackupPreview(payload: unknown): BackupPreview {
     if (planningScenarios !== undefined && !Array.isArray(planningScenarios)) throw new Error("顧客データのシナリオが壊れています。");
     if (activityLogs !== undefined && !Array.isArray(activityLogs)) throw new Error("顧客データの操作履歴が壊れています。");
     if (backup.staffAssignments !== undefined && !Array.isArray(backup.staffAssignments)) throw new Error("担当履歴が壊れています。");
+    if (backup.appCurrencies !== undefined && !Array.isArray(backup.appCurrencies)) throw new Error("追加通貨が壊れています。");
     return {
       kind: "household",
       exportedAt,
@@ -106,6 +110,7 @@ function readBackupPreview(payload: unknown): BackupPreview {
       activityLogs: activityLogs?.length ?? 0,
       staff: household.assignedStaffCode || household.assignedStaff ? 1 : 0,
       staffAssignments: Array.isArray(backup.staffAssignments) ? backup.staffAssignments.length : 0,
+      appCurrencies: Array.isArray(backup.appCurrencies) ? backup.appCurrencies.length : 0,
     };
   }
 

@@ -88,4 +88,29 @@ describe.runIf(enabled)("担当者の履歴・バックアップの実DB検証",
     expect(await prisma.staff.findUniqueOrThrow({ where: { id: secondId } })).toMatchObject({ name: "変更後" });
     expect(await prisma.staffAssignment.count()).toBe(exported.data.staffAssignments.length);
   });
+
+  it("共通設定の通貨は全体・顧客のバックアップで往復し、復元では足すだけ", async () => {
+    await prisma.appCurrency.deleteMany({ where: { code: { in: ["CHF", "SGD"] } } });
+    await prisma.appCurrency.create({ data: { code: "CHF", name: "スイスフラン" } });
+    const snapshot = await prisma.snapshot.findFirstOrThrow({ where: { householdId } });
+    await prisma.position.create({ data: { snapshotId: snapshot.id, side: "ASSET", category: "DEPOSIT", name: "外貨預金", currency: "CHF", originalAmount: 1, valueJpy: 170 } });
+
+    const full = fullBackupSchema.parse(await exportAll());
+    expect(full.data.appCurrencies).toContainEqual({ code: "CHF", name: "スイスフラン" });
+    const single = householdBackupSchema.parse(await exportHousehold(householdId));
+    expect(single.appCurrencies).toEqual([{ code: "CHF", name: "スイスフラン" }]);
+
+    // 移した先に無い通貨は足し、既にある通貨（ここでは SGD）は消さない
+    await prisma.appCurrency.deleteMany({ where: { code: "CHF" } });
+    await prisma.appCurrency.create({ data: { code: "SGD", name: "シンガポールドル" } });
+    await restoreAll(full);
+    expect(await prisma.appCurrency.findMany({ where: { code: { in: ["CHF", "SGD"] } }, orderBy: { code: "asc" }, select: { code: true, name: true } }))
+      .toEqual([{ code: "CHF", name: "スイスフラン" }, { code: "SGD", name: "シンガポールドル" }]);
+
+    await prisma.appCurrency.deleteMany({ where: { code: "CHF" } });
+    const imported = await importHousehold(single);
+    expect(await prisma.appCurrency.findUnique({ where: { code: "CHF" } })).toMatchObject({ name: "スイスフラン" });
+    await prisma.household.delete({ where: { id: imported.household.id } });
+    await prisma.appCurrency.deleteMany({ where: { code: { in: ["CHF", "SGD"] } } });
+  });
 });

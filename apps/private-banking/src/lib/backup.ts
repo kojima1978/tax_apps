@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { ActivityLog, FamilyMember, Household, PlanningScenario, Position, PositionAllocation, Snapshot } from "@prisma/client";
 import { z } from "zod";
+import { type AppCurrencyInput, addableAppCurrencies, appCurrencySchema } from "@/lib/app-currencies";
 import { parseFxRates } from "@/lib/fx-rates";
 import { normalizedValuationMethod } from "@/lib/position-input";
 import { prisma } from "@/lib/prisma";
@@ -173,7 +174,7 @@ function serializeActivityLog(log: ActivityLog) {
 
 /** 全顧客ぶんをテーブル単位で書き出す（ID・シーケンスまで含めた完全復元用）。 */
 export async function exportAll() {
-  const [households, snapshots, positions, familyMembers, positionAllocations, planningScenarios, activityLogs, staff, staffAssignments] = await Promise.all([
+  const [households, snapshots, positions, familyMembers, positionAllocations, planningScenarios, activityLogs, staff, staffAssignments, appCurrencies] = await Promise.all([
     prisma.household.findMany({ orderBy: { id: "asc" }, include: { staff: { select: backupStaffSelect } } }),
     prisma.snapshot.findMany({ orderBy: { id: "asc" } }),
     prisma.position.findMany({ orderBy: { id: "asc" } }),
@@ -183,6 +184,7 @@ export async function exportAll() {
     prisma.activityLog.findMany({ orderBy: { id: "asc" } }),
     prisma.staff.findMany({ orderBy: { staffCode: "asc" }, select: backupStaffSelect }),
     prisma.staffAssignment.findMany({ orderBy: { id: "asc" } }),
+    prisma.appCurrency.findMany({ orderBy: { code: "asc" }, select: { code: true, name: true } }),
   ]);
 
   return {
@@ -200,6 +202,7 @@ export async function exportAll() {
       activityLogs: activityLogs.map(serializeActivityLog),
       staff,
       staffAssignments: staffAssignments.map((row) => ({ householdId: row.householdId, ...serializeStaffAssignment(row) })),
+      appCurrencies,
     },
   };
 }
@@ -221,6 +224,9 @@ export async function exportHousehold(householdId: number) {
     },
   });
   if (!household) throw new BackupError("顧客が見つかりません。");
+  // 共通設定で足した通貨のうち、この顧客が使っているものだけを添える（移した先で選択肢に出すため）
+  const usedCurrencies = new Set([household.currency, ...household.snapshots.flatMap((snapshot) => snapshot.positions.map((position) => position.currency))]);
+  const appCurrencies = await prisma.appCurrency.findMany({ where: { code: { in: [...usedCurrencies] } }, orderBy: { code: "asc" }, select: { code: true, name: true } });
 
   const familyMemberIndex = new Map(household.familyMembers.map((member, index) => [member.id, index]));
   return {
@@ -230,6 +236,7 @@ export async function exportHousehold(householdId: number) {
     exportedAt: new Date().toISOString(),
     household: omit(serializeHousehold(household), ["id", "createdAt", "updatedAt"]),
     staffAssignments: household.staffAssignments.map(serializeStaffAssignment),
+    appCurrencies,
     familyMembers: household.familyMembers.map((member) => omit(serializeFamilyMember(member), ["id", "householdId", "createdAt", "updatedAt"])),
     planningScenarios: household.planningScenarios.map((scenario) => omit(serializePlanningScenario(scenario), ["id", "householdId", "createdAt", "updatedAt"])),
     activityLogs: household.activityLogs.map((log) => omit(serializeActivityLog(log), ["id", "householdId", "householdName", "clientCode"])),
@@ -398,6 +405,8 @@ export const fullBackupSchema = z.object({
   data: z.object({
     staff: z.array(staffBackupSchema).default([]),
     staffAssignments: z.array(z.object({ householdId: z.number().int().positive() }).and(staffAssignmentSchema)).default([]),
+    // 共通設定で足した通貨。この項目が無い旧いファイルは何も足さない
+    appCurrencies: z.array(appCurrencySchema).default([]),
     households: z.array(householdFieldsSchema.extend({ id: z.number().int().positive() }).merge(timestampsSchema)),
     snapshots: z.array(snapshotFieldsSchema.extend({ id: z.number().int().positive(), householdId: z.number().int().positive() }).merge(timestampsSchema)),
     positions: z.array(positionFieldsSchema.extend({ id: z.number().int().positive(), snapshotId: z.number().int().positive() }).merge(timestampsSchema)),
@@ -414,6 +423,7 @@ export const householdBackupSchema = z.object({
   exportedAt: z.string().optional(),
   household: householdFieldsSchema,
   staffAssignments: z.array(staffAssignmentSchema).default([]),
+  appCurrencies: z.array(appCurrencySchema).default([]),
   familyMembers: z.array(familyMemberFieldsSchema).default([]),
   planningScenarios: z.array(planningScenarioFieldsSchema).default([]),
   activityLogs: z.array(activityLogFieldsSchema.omit({ householdName: true, clientCode: true })).default([]),
@@ -623,7 +633,16 @@ async function restoreStaffAssignments(tx: Prisma.TransactionClient, householdId
   if (currentStaff && activeRows.length === 0) await tx.staffAssignment.create({ data: { householdId, staffId: currentStaff.id, staffCode: currentStaff.staffCode, staffName: currentStaff.name } });
 }
 
-/** 既存データをすべて破棄し、バックアップの内容へ置き換える。 */
+/**
+ * 共通設定の通貨は足すだけ（全体復元でも消さない）。登録済みのコードは名前も書き換えない。
+ * 明細の通貨はこれが無くても保持されるので、ここで足すのは画面の選択肢に出すためだけ。
+ */
+async function addAppCurrencies(tx: Prisma.TransactionClient, rows: readonly AppCurrencyInput[]) {
+  const addable = addableAppCurrencies(rows);
+  if (addable.length > 0) await tx.appCurrency.createMany({ data: addable, skipDuplicates: true });
+}
+
+/** 既存データをすべて破棄し、バックアップの内容へ置き換える（共通設定の通貨は足すだけ）。 */
 export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
   const { households, snapshots, positions, familyMembers, positionAllocations, planningScenarios, activityLogs } = backup.data;
   if (households.length === 0) throw new BackupError("バックアップに顧客が1件も含まれていません。");
@@ -657,6 +676,7 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
     await tx.snapshot.deleteMany();
     await tx.household.deleteMany();
 
+    await addAppCurrencies(tx, backup.data.appCurrencies);
     // 担当者の一覧は社員台帳の写しなので、バックアップの担当者では書き換えない（顧客の結び付けにだけ使う）。
     if (households.length > 0) {
       const staffIdOf = await resolveStaffIds(tx, households);
@@ -764,6 +784,7 @@ export async function importHousehold(backup: HouseholdBackup) {
   const clientCode = await availableClientCode(backup.household.clientCode.toUpperCase());
   await syncStaffDirectory("manual");
   const created = await prisma.$transaction(async (tx) => {
+    await addAppCurrencies(tx, backup.appCurrencies);
     const staffIdOf = await resolveStaffIds(tx, [backup.household]);
     const household = await tx.household.create({ data: { ...householdData(backup.household, staffIdOf(backup.household)), clientCode }, select: { id: true, clientCode: true, name: true } });
     await restoreStaffAssignments(tx, household.id, staffIdOf(backup.household), backup.staffAssignments);
