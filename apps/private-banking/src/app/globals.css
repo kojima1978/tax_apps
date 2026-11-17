@@ -2068,10 +2068,20 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .category-table-toolbar { display: flex; align-items: flex-end; gap: 12px; justify-content: space-between; }
 .detail-category-select { display: grid; gap: 5px; color: var(--slate-600); font-size: 12px; min-width: 240px; }
 .detail-category-select select { min-height: 44px; padding: 8px 12px; border: 1px solid var(--field-border); border-radius: 7px; background: white; color: var(--navy-950); font: inherit; }
-.detail-category-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
-.detail-category-links a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--slate-700); text-decoration: none; font-size: 12px; }
+/* 広い画面は区分（上段）と科目（下段）のチップで切り替え、select は 600px 以下だけ出す。
+   件数は「N件」で読ませ、0件は薄くするが押せる（明細を足す入口になるため）。 */
+.detail-category-select { display: none; }
+.detail-category-nav { display: grid; gap: 8px; margin: 12px 0; }
+.detail-group-links, .detail-category-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.detail-group-links { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.detail-group-links a, .detail-category-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--slate-700); text-decoration: none; font-size: 12px; }
+.detail-group-links a { font-weight: 700; }
+.detail-group-links a[aria-current] { background: var(--navy-950); border-color: var(--navy-950); color: #fff; }
 .detail-category-links a[aria-current="page"] { background: #f0fdf4; border-color: #22c55e; color: #166534; font-weight: 700; }
-.detail-category-links span { font-size: 10px; }
+.detail-group-links span, .detail-category-links span { padding: 1px 6px; border-radius: 999px; background: var(--slate-100); color: var(--slate-700); font-size: 11px; font-weight: 600; }
+.detail-group-links a[aria-current] span { background: rgba(255, 255, 255, .18); color: #fff; }
+.detail-group-links a[data-empty]:not([aria-current]), .detail-category-links a[data-empty]:not([aria-current]) { border-style: dashed; color: var(--slate-500); }
+.detail-group-links a[data-empty]:not([aria-current]) span, .detail-category-links a[data-empty]:not([aria-current]) span { background: transparent; color: var(--slate-500); }
 .detail-column-settings { padding: 16px; margin-block: 14px; }
 .detail-column-settings header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .detail-column-settings h3 { margin: 0; font-size: 14px; }
@@ -2100,7 +2110,11 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 /* 横に隙間なく並ぶので幅は実寸で 44px にし、高さは行（49px）を変えないよう押せる範囲だけ縦に広げる。 */
 .category-row-actions .icon-button { position: relative; flex: 0 0 auto; width: 44px; height: 32px; }
 .category-row-actions .icon-button::after { content: ""; position: absolute; inset: min(0px, calc(50% - 22px)) 0; }
-.detail-category-links a:focus-visible, .detail-category-select select:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
+@media (max-width: 600px) {
+  .detail-category-select { display: grid; }
+  .detail-category-nav { display: none; }
+}
+.detail-group-links a:focus-visible, .detail-category-links a:focus-visible, .detail-category-select select:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
 @media (max-width: 700px) {
   .category-table-toolbar { flex-wrap: wrap; }
   /* 列を minmax(0, 1fr) にしないと、長い科目名の幅（16px で約300px）がそのまま列の幅になり、320px の画面で右へはみ出す。 */

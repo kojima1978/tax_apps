@@ -1,6 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { DETAIL_PAGES, defaultColumns, detailColumns, detailPageFor, parseColumnPreferences } from "@/lib/position-detail-pages";
+import { DETAIL_PAGES, defaultColumns, detailColumns, detailNavigation, detailPageFor, detailPageGroup, parseColumnPreferences } from "@/lib/position-detail-pages";
 import { type Position } from "@/lib/portfolio-view";
+
+describe("科目の切り替え（区分と科目の件数）", () => {
+  const position = (category: string, extra: Partial<Position> = {}) => ({ side: "ASSET", category, assetDetails: {}, ...extra }) as Position;
+  it("区分ごとに科目の件数と合計を出し、0件の科目も残す", () => {
+    const nav = detailNavigation([position("DEPOSIT"), position("DEPOSIT"), position("HOME_REAL_ESTATE", { assetDetails: { propertyType: "BUILDING" } })]);
+    expect(nav.map((group) => group.label)).toEqual([...new Set(DETAIL_PAGES.map(detailPageGroup))]);
+    const deposits = nav.find((group) => group.pages.some((p) => p.key === "deposit"))!;
+    expect(deposits.count).toBe(2);
+    expect(deposits.pages.find((p) => p.key === "deposit")?.count).toBe(2);
+    expect(nav.reduce((sum, group) => sum + group.pages.length, 0)).toBe(DETAIL_PAGES.length);
+    expect(nav.find((group) => group.label === "負債")?.count).toBe(0);
+  });
+  it("区分を押した先は明細のある最初の科目、全部0件なら区分の先頭", () => {
+    const nav = detailNavigation([position("HOME_REAL_ESTATE", { assetDetails: { propertyType: "BUILDING" } })]);
+    const property = nav.find((group) => group.pages.some((p) => p.key === "home-real-estate-building"))!;
+    expect(property.pages[0].key).not.toBe("home-real-estate-building");
+    expect(property.first.key).toBe("home-real-estate-building");
+    const liabilities = nav.find((group) => group.label === "負債")!;
+    expect(liabilities.first.key).toBe(liabilities.pages[0].key);
+  });
+});
 
 describe("科目別ページと列設定", () => {
   it("同じ居宅でも土地・建物を別ページへ振り分ける", () => {

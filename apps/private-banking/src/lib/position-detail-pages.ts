@@ -1,4 +1,4 @@
-import { assetCategories, categoryLabels, liabilityCategories, positionSection, propertyTypeOf, realEstateCategories, type Position, type PositionSection } from "@/lib/portfolio-view";
+import { assetCategories, assetGroupOf, categoryLabels, liabilityCategories, positionSection, propertyTypeOf, realEstateCategories, type Position, type PositionSection } from "@/lib/portfolio-view";
 
 export type DetailPage = { key: string; label: string; category: string; section: PositionSection; propertyType?: "LAND" | "BUILDING" };
 export const DETAIL_PAGES: DetailPage[] = [...assetCategories, ...liabilityCategories, "GUARANTEE"].flatMap((category) => {
@@ -11,6 +11,22 @@ export const DETAIL_PAGES: DetailPage[] = [...assetCategories, ...liabilityCateg
 });
 export const matchesDetailPage = (p: Position, page: DetailPage) => positionSection(p) === page.section && (p.category === page.category || (page.category === "LOAN_OTHER" && p.category === "LOAN")) && (!page.propertyType || propertyTypeOf(p) === page.propertyType);
 export function detailPageFor(p: Position) { return DETAIL_PAGES.find((page) => matchesDetailPage(p, page)); }
+
+/** 科目別ページの区分（資産は中分類、負債と保証はそれぞれ1つ）。select の optgroup と区分のチップが同じものを使う。 */
+export const detailPageGroup = (page: DetailPage) => page.section === "ASSET" ? assetGroupOf(page.category) ?? "その他資産" : page.section === "LIABILITY" ? "負債" : "偶発債務";
+export type DetailNavPage = DetailPage & { count: number };
+export type DetailNavGroup = { label: string; count: number; pages: DetailNavPage[]; first: DetailNavPage };
+/**
+ * 科目の切り替えに出す区分・科目と件数。区分を押したときの行き先は、明細のある最初の科目
+ * （全部0件なら区分の先頭）にする。0件の科目も明細を足す入口なので消さない。
+ */
+export function detailNavigation(positions: Position[]): DetailNavGroup[] {
+  const pages = DETAIL_PAGES.map((page) => ({ ...page, count: positions.filter((p) => matchesDetailPage(p, page)).length }));
+  return [...new Set(pages.map(detailPageGroup))].map((label) => {
+    const inGroup = pages.filter((page) => detailPageGroup(page) === label);
+    return { label, count: inGroup.reduce((sum, page) => sum + page.count, 0), pages: inGroup, first: inGroup.find((page) => page.count > 0) ?? inGroup[0] };
+  });
+}
 
 export type DetailColumn = { key: string; label: string; width: number; alignment?: "text" | "number" | "center"; required?: boolean; defaultVisible?: boolean };
 const numericDetailKeys = new Set([
