@@ -3,9 +3,12 @@
 import { AlertTriangle, ExternalLink, LoaderCircle, RefreshCw, Search, UserCog } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackToClientList } from "@/components/back-to-client-list";
+import { ListPager, PageSizeSelect } from "@/components/list-pager";
 import { PanelHeader } from "@/components/panel-header";
+import { usePrinting } from "@/components/use-printing";
 import { API_BASE } from "@/lib/api";
 import { matchesSearchTerms, searchTerms } from "@/lib/clients";
+import { PAGE_SIZE_DEFAULT, pageSlice } from "@/lib/pagination";
 import type { Staff } from "@/lib/staff";
 import type { StaffDirectorySyncResult } from "@/lib/staff-directory/sync";
 
@@ -13,6 +16,12 @@ import type { StaffDirectorySyncResult } from "@/lib/staff-directory/sync";
 const STAFF_DIRECTORY_PAGE = "/staff-directory/";
 
 type StatusFilter = "active" | "retired" | "unlinked" | "all";
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "active", label: "在籍" },
+  { value: "retired", label: "退職" },
+  { value: "unlinked", label: "未連携" },
+  { value: "all", label: "すべて" },
+];
 
 const isUnlinked = (row: Staff) => row.staffDirectoryId === null;
 const matchesStatus = (row: Staff, status: StatusFilter) => {
@@ -39,6 +48,10 @@ export function StaffView() {
   const [syncing, setSyncing] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("active");
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
+  const [page, setPage] = useState(1);
+  // 印刷はページ送りで隠れている人も含め、絞り込んだ全員を出す（不動産一覧と同じ）
+  const printing = usePrinting();
 
   const load = useCallback(async () => {
     try {
@@ -78,9 +91,13 @@ export function StaffView() {
     return (staff ?? []).filter((row) => matchesStatus(row, status)
       && matchesSearchTerms([row.staffCode, row.name, row.nameKana, row.department], terms));
   }, [staff, query, status]);
+  const paged = useMemo(() => pageSlice(visibleStaff, page, pageSize), [visibleStaff, page, pageSize]);
   const unlinkedCount = (staff ?? []).filter(isUnlinked).length;
+  // フリガナは台帳で入れていない間は全員空なので、列ごと出さない（「—」が並ぶだけになる）。
+  // 判定は絞り込み前の全員で ── 検索や在籍状態の切り替えで列が出たり消えたりしないように。
+  const showKana = (staff ?? []).some((row) => row.nameKana.trim() !== "");
 
-  return <>
+  return <div className="staff-page">
     <div className="page-heading"><div><BackToClientList /><h1>担当者</h1><p>担当者は社員台帳の写しです。追加・修正・退職は社員台帳で行います。</p></div></div>
     {error ? <p className="error-banner" role="alert"><AlertTriangle />{error}</p> : null}
     {sync && !sync.ok ? <p className="error-banner" role="alert"><AlertTriangle />{syncTime(sync.at)} に社員台帳から読み直せませんでした（{sync.error}）。前回までの写しで表示しています。</p> : null}
@@ -99,10 +116,13 @@ export function StaffView() {
       <div className="staff-panel-body">
         {sync?.lastSuccessAt ? <p className="staff-sync-time">最終の読み直し: {syncTime(sync.lastSuccessAt)}</p> : null}
         <div className="staff-list-toolbar">
-          <label className="staff-list-search"><span>検索</span><div><Search aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="氏名・カナ・コード・部署" /></div></label>
-          <label><span>在籍状態</span><select value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)}><option value="active">在籍</option><option value="retired">退職</option><option value="unlinked">未連携</option><option value="all">すべて</option></select></label>
+          <label className="staff-list-search"><span>検索</span><div><Search aria-hidden="true" /><input type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="氏名・カナ・コード・部署" /></div></label>
+          <label><span>在籍状態</span><select value={status} onChange={(event) => { setStatus(event.target.value as StatusFilter); setPage(1); }}>{STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} />
           <p aria-live="polite">{visibleStaff.length}件（全{staff?.length ?? 0}件中）</p>
         </div>
+        {/* 紙には入力欄の代わりに、どの条件で絞った何人かを1行で出す */}
+        <p className="staff-print-conditions">在籍状態：{STATUS_OPTIONS.find((option) => option.value === status)?.label}{query.trim() ? `／検索：${query.trim()}` : ""}　{visibleStaff.length}件（全{staff?.length ?? 0}件中）</p>
 
         {staff === null
           ? <p className="staff-loading"><LoaderCircle className="spin" />読み込んでいます</p>
@@ -110,12 +130,12 @@ export function StaffView() {
             ? <p className="staff-empty"><UserCog />担当者がまだいません。社員台帳で登録してください。</p>
             : visibleStaff.length === 0
               ? <p className="staff-empty"><UserCog />条件に一致する担当者がいません。</p>
-              : <ul className="staff-list">
-                {visibleStaff.map((row) => <li key={row.id} className={`staff-row${row.isActive && !isUnlinked(row) ? "" : " is-retired"}`} aria-label={row.name}>
-                  <div className="staff-row-fields is-readonly">
-                    <span className="staff-code-input">{row.staffCode}</span>
+              : <><ul className="staff-list">
+                {(printing ? visibleStaff : paged.rows).map((row) => <li key={row.id} className={`staff-row${row.isActive && !isUnlinked(row) ? "" : " is-retired"}`} aria-label={row.name}>
+                  <div className={`staff-row-fields${showKana ? "" : " no-kana"}`}>
+                    <span className="staff-code">{row.staffCode}</span>
                     <span>{row.name}</span>
-                    <span>{row.nameKana}</span>
+                    {showKana ? <span>{row.nameKana}</span> : null}
                     <span>{row.department}</span>
                   </div>
                   <span className="staff-row-meta">
@@ -123,8 +143,17 @@ export function StaffView() {
                     {row.clientCount === 0 ? "担当なし" : `担当 ${row.clientCount}件`}
                   </span>
                 </li>)}
-              </ul>}
+              </ul>
+              <ListPager
+                label="担当者の一覧のページ切り替え"
+                total={visibleStaff.length}
+                from={paged.from}
+                shown={paged.rows.length}
+                current={paged.current}
+                last={paged.last}
+                onChange={setPage}
+              /></>}
       </div>
     </article>
-  </>;
+  </div>;
 }

@@ -783,7 +783,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-panel .panel-header p { max-width: 68ch; margin-top: 4px; line-height: 1.7; }
 .staff-panel-body { padding: 22px; }
 .staff-notice { margin: 0 0 14px; padding: 10px 12px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; font-size: 11px; font-weight: 700; }
-.staff-list-toolbar { margin-bottom: 14px; padding: 12px; background: #f7faf8; border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: minmax(240px, 1fr) 150px auto; align-items: end; gap: 10px; }
+.staff-list-toolbar { margin-bottom: 14px; padding: 12px; background: #f7faf8; border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: minmax(240px, 1fr) 150px 110px auto; align-items: end; gap: 10px; }
 .staff-list-toolbar label > span { display: block; margin-bottom: 5px; color: var(--slate-700); font-size: 11px; font-weight: 800; }
 .staff-list-toolbar select, .staff-list-toolbar input { width: 100%; min-height: 44px; padding: 8px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
 .staff-list-search > div { position: relative; }
@@ -795,21 +795,18 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-row { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .staff-row.is-retired { background: #f8fafc; }
 .staff-row-fields { min-width: 0; flex: 1 1 640px; display: grid; grid-template-columns: 110px minmax(150px, 1.1fr) minmax(130px, 1fr) minmax(140px, 1fr); gap: 8px; }
-.staff-row-fields input { min-width: 0; width: 100%; min-height: 40px; padding: 7px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
-.staff-row-fields .staff-code-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
-.staff-row-fields.is-readonly > span { min-width: 0; min-height: 24px; color: var(--slate-950); font-size: 13px; display: flex; align-items: center; overflow-wrap: anywhere; }
-.staff-row-fields.is-readonly > span:empty::before { content: "—"; color: var(--slate-400, #94a3b8); }
+/* フリガナが全員空の間は列ごと出さない（staff-view.tsx の showKana）。 */
+.staff-row-fields.no-kana { grid-template-columns: 110px minmax(150px, 1.1fr) minmax(140px, 1fr); }
+.staff-row-fields .staff-code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
+.staff-row-fields > span { min-width: 0; min-height: 24px; color: var(--slate-950); font-size: 13px; display: flex; align-items: center; overflow-wrap: anywhere; }
+.staff-row-fields > span:empty::before { content: "—"; color: var(--slate-400, #94a3b8); }
+.staff-list + .list-pager { margin-top: 12px; padding-inline: 0; }
 .staff-sync-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .staff-sync-actions .button { min-height: 44px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .staff-sync-actions svg { width: 15px; height: 15px; }
 .staff-sync-time { margin: 0 0 10px; color: var(--slate-500); font-size: 11px; font-weight: 700; }
 .staff-row-meta { color: var(--slate-500); font-size: 11px; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 .staff-retired-tag { padding: 0 6px; color: #fff; background: var(--slate-500); border-radius: 999px; font-size: 10px; font-weight: 800; line-height: 1.6; }
-.staff-row-actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.staff-row-actions .button { min-height: 36px; padding: 0 12px; font-size: 12px; }
-.staff-row-actions .text-button { min-height: 36px; padding: 0 8px; font-size: 12px; }
-.staff-row-actions svg { width: 15px; height: 15px; }
-.staff-row-confirm { color: var(--danger); font-size: 11px; font-weight: 800; }
 .staff-history { max-width: 920px; margin-top: 18px; padding: 16px; }
 .staff-history summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-weight: 700; }
 .staff-history p { margin-bottom: 0; font-size: 12px; }
@@ -1375,7 +1372,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .content { padding: 26px 20px; }
   .staff-list-toolbar { grid-template-columns: 1fr; align-items: stretch; }
   .staff-list-toolbar p { margin: 0; }
-  .staff-row-fields { grid-template-columns: 1fr 1fr; }
+  .staff-row-fields, .staff-row-fields.no-kana { grid-template-columns: 1fr 1fr; }
   .position-section .panel-header { align-items: flex-start; flex-direction: column; gap: 12px; }
   .position-table-tools { width: 100%; }
   .position-table-tools label { flex: 1 1 0; }
@@ -1407,8 +1404,8 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .page-heading { align-items: flex-start; flex-direction: column; }
   .page-heading-actions { width: 100%; margin-left: 0; justify-content: flex-start; }
   .staff-panel-body { padding: 16px; }
-  .staff-row-fields { grid-template-columns: 1fr; }
-  .staff-combobox-input input, .staff-list-toolbar input, .staff-list-toolbar select, .staff-row-fields input { font-size: 16px; }
+  .staff-row-fields, .staff-row-fields.no-kana { grid-template-columns: 1fr; }
+  .staff-combobox-input input, .staff-list-toolbar input, .staff-list-toolbar select { font-size: 16px; }
   /* 指で押す幅を確保する（画面が狭いので見える件数より押しやすさを採る）。 */
   .staff-combobox-option { min-height: 44px; }
   /* 狭い画面では部署チップを折り返さず横1行（8部署だと5段になり、候補の一覧が画面の外へ出る） */
@@ -1663,6 +1660,24 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .property-plan-export-option { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 12px; cursor: pointer; }
 .property-plan-export-option input { width: 16px; height: 16px; }
 .properties-print-heading, .property-plan-print-details { display: none; }
+.staff-print-conditions { display: none; }
+/* 担当者の一覧の印刷: 操作部品と入力欄は外し、絞り込みの条件と件数を1行で出して、1人1行の表にする。
+   列の割り付けは画面の幅の段階（820px・600px の節）に引きずられないよう紙で決め直す。 */
+@media print {
+  .client-home:has(.staff-page) { min-height: 0; background: white; }
+  .client-home:has(.staff-page) > .client-home-header { display: none; }
+  .client-home-main:has(> .staff-page) { width: 100%; max-width: none; margin: 0; padding: 0; }
+  .staff-page .staff-sync-actions, .staff-page .panel-header p, .staff-page .staff-list-toolbar, .staff-page .staff-sync-time { display: none !important; }
+  .staff-page .staff-panel { max-width: none; margin: 0; border: 0; break-inside: auto; }
+  .staff-page .panel-header { padding: 0 0 4px; border: 0; }
+  .staff-page .staff-panel-body { padding: 0; }
+  .staff-print-conditions { display: block; margin: 0 0 6px; font-size: 10px; }
+  .staff-list { gap: 0; border-top: 1px solid var(--line); }
+  .staff-row { padding: 3px 6px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; flex-wrap: nowrap; break-inside: avoid; }
+  .staff-row-fields { flex: 1 1 auto; grid-template-columns: 30mm 1fr 1fr 1fr; }
+  .staff-row-fields.no-kana { grid-template-columns: 30mm 1fr 1fr; }
+  .staff-row-fields > span { min-height: 0; font-size: 10.5px; }
+}
 @media print {
   .client-home:has(.properties-page) { min-height: 0; background: white; }
   .client-home:has(.properties-page) > .client-home-header { display: none; }

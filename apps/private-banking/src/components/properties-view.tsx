@@ -4,12 +4,12 @@ import { AlertTriangle, Download, LoaderCircle, Printer, Search } from "lucide-r
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { flushSync } from "react-dom";
 import { propertyPlanOptions } from "@/lib/property-plan";
 import { BackToClientList } from "@/components/back-to-client-list";
 import { Highlighted } from "@/components/highlighted";
 import { ListPager, PageSizeSelect } from "@/components/list-pager";
 import { PanelHeader } from "@/components/panel-header";
+import { usePrinting } from "@/components/use-printing";
 import { API_BASE } from "@/lib/api";
 import { searchTerms } from "@/lib/clients";
 import { yen } from "@/lib/format";
@@ -70,17 +70,9 @@ export function PropertiesView() {
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
   const [page, setPage] = useState(1);
   const [includePlan, setIncludePlan] = useState(false);
-  const [printing, setPrinting] = useState(false);
-  const router = useRouter();
-
   // 印刷時はページ送りで隠れている明細も含め、絞り込み結果をすべて出す。
-  useEffect(() => {
-    const before = () => flushSync(() => setPrinting(true));
-    const after = () => setPrinting(false);
-    window.addEventListener("beforeprint", before);
-    window.addEventListener("afterprint", after);
-    return () => { window.removeEventListener("beforeprint", before); window.removeEventListener("afterprint", after); };
-  }, []);
+  const printing = usePrinting();
+  const router = useRouter();
 
   useEffect(() => {
     const controller = new AbortController();

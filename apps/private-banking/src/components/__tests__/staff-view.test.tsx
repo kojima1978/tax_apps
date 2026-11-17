@@ -71,4 +71,42 @@ describe("担当者の一覧（社員台帳の写し）", () => {
     expect(screen.queryByRole("listitem", { name: "佐藤税理士" })).toBeNull();
     expect(row("高橋")).toBeTruthy();
   });
+
+  it("フリガナは誰か1人でも入っていれば列を出し、全員空なら列ごと出さない", async () => {
+    await open();
+    // 在籍の1人だけが見えている状態でも、判定は絞り込み前の全員で行う
+    expect(row("佐藤税理士").querySelectorAll(".staff-row-fields > span")).toHaveLength(4);
+    cleanup();
+    rows = rows.map((r) => ({ ...r, nameKana: "" }));
+    await open();
+    const fields = row("佐藤税理士").querySelector(".staff-row-fields");
+    expect(fields?.classList.contains("no-kana")).toBe(true);
+    expect(fields?.querySelectorAll("span")).toHaveLength(3);
+  });
+
+  it("多いときはページで送り、絞り込みを変えたら1ページ目へ戻る", async () => {
+    rows = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, staffCode: `SD-${i + 1}`, department: i < 27 ? "東京" : "大阪", name: `担当${i + 1}`, nameKana: "", isActive: true, staffDirectoryId: i + 1, clientCount: 0 }));
+    render(<StaffView />);
+    await screen.findByRole("listitem", { name: "担当1" });
+    const pager = screen.getByRole("navigation", { name: "担当者の一覧のページ切り替え" });
+    expect(screen.getAllByRole("listitem")).toHaveLength(25);
+    expect(pager.textContent).toContain("30件中 1〜25件目");
+    fireEvent.click(within(pager).getByRole("button", { name: /次へ/ }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(5);
+    expect(pager.textContent).toContain("2 / 2ページ");
+    fireEvent.change(screen.getByRole("searchbox", { name: "検索" }), { target: { value: "東京" } });
+    expect(screen.getByRole("navigation", { name: "担当者の一覧のページ切り替え" }).textContent).toContain("27件中 1〜25件目");
+    fireEvent.change(screen.getByRole("combobox", { name: "表示件数" }), { target: { value: "50" } });
+    expect(screen.getAllByRole("listitem")).toHaveLength(27);
+  });
+
+  it("印刷するときはページ送りで隠れている人も全員出す", async () => {
+    rows = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, staffCode: `SD-${i + 1}`, department: "東京", name: `担当${i + 1}`, nameKana: "", isActive: true, staffDirectoryId: i + 1, clientCount: 0 }));
+    render(<StaffView />);
+    await screen.findByRole("listitem", { name: "担当1" });
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(screen.getAllByRole("listitem")).toHaveLength(30);
+    window.dispatchEvent(new Event("afterprint"));
+    await vi.waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(25));
+  });
 });
