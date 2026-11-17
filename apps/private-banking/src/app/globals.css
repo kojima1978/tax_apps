@@ -6,11 +6,15 @@
   --gold-600: #15803d;
   --gold-100: #ecfdf5;
   --slate-950: #202824;
+  --slate-800: #2f3833;
   --slate-700: #3f4a44;
+  --slate-600: #4d5751;
   --slate-500: #5c665f;
+  --slate-400: #87918b;
   --slate-300: #cbd2ce;
   --slate-200: #dfe4e1;
   --slate-100: #f0f3f1;
+  --slate-50: #f6f8f7;
   /* 背景色とは分け、画面・印刷で罫線の濃さを調整する。 */
   --line: #91a198;
   --line-strong: #647d6d;
@@ -799,7 +803,7 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .staff-row-fields.no-kana { grid-template-columns: 110px minmax(150px, 1.1fr) minmax(140px, 1fr); }
 .staff-row-fields .staff-code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
 .staff-row-fields > span { min-width: 0; min-height: 24px; color: var(--slate-950); font-size: 13px; display: flex; align-items: center; overflow-wrap: anywhere; }
-.staff-row-fields > span:empty::before { content: "—"; color: var(--slate-400, #94a3b8); }
+.staff-row-fields > span:empty::before { content: "—"; color: var(--slate-400); }
 .staff-list + .list-pager { margin-top: 12px; padding-inline: 0; }
 .staff-sync-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .staff-sync-actions .button { min-height: 44px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
@@ -1574,7 +1578,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 }
 
 /* 顧客一覧（トップページ）とバックアップページ */
-.client-home { min-height: 100vh; background: var(--slate-50, #f6f8f7); }
+.client-home { min-height: 100vh; background: var(--slate-50); }
 .client-home-header { padding: 14px clamp(16px, 4vw, 40px); background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .client-home-header .brand { padding: 0; border-bottom: 0; }
 .client-home-main { max-width: 1180px; margin: 0 auto; padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px) 48px; }
@@ -1982,7 +1986,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 
 .allocation-panel { padding: 0; overflow: hidden; }
 .allocation-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: #f8faf9; }
-.allocation-toolbar p { margin: 3px 0 0; color: var(--muted); font-size: .82rem; }
+.allocation-toolbar p { margin: 3px 0 0; color: var(--slate-500); font-size: .82rem; }
 .allocation-toolbar .button { min-height: 44px; flex: 0 0 auto; }
 .allocation-toolbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .allocation-legal-share-error { color: #b42318 !important; font-weight: 700; }
@@ -1996,23 +2000,23 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .allocation-matrix-table .allocation-sticky-status { position: sticky; right: 146px; z-index: 2; min-width: 150px; max-width: 150px; background: #f8faf9; box-shadow: -1px 0 0 var(--line); }
 .allocation-matrix-table .allocation-sticky-actions { position: sticky; right: 0; z-index: 2; min-width: 146px; max-width: 146px; background: #f8faf9; }
 .allocation-matrix-table thead .allocation-sticky-status, .allocation-matrix-table thead .allocation-sticky-actions { z-index: 5; background: #e7f0ea; }
-.allocation-matrix-table tbody th > span { display: block; color: var(--muted); font-size: 10px; font-weight: 500; }
+.allocation-matrix-table tbody th > span { display: block; color: var(--slate-500); font-size: 10px; font-weight: 500; }
 .allocation-matrix-table tbody th > strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .allocation-person-cell input { width: 100%; min-height: 44px; padding: 8px 10px; text-align: right; }
 .allocation-quick-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 3px; }
 .allocation-full-button { padding: 2px 5px; border: 0; background: transparent; color: #166534; font-size: 11px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.allocation-full-button:disabled { color: var(--muted); cursor: not-allowed; opacity: .58; }
+.allocation-full-button:disabled { color: var(--slate-500); cursor: not-allowed; opacity: .58; }
 .allocation-full-button:focus-visible, .allocation-mode-button:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
 .allocation-sticky-actions .button { min-height: 32px; padding: 5px 7px; font-size: 11px; }
 .allocation-sticky-actions .button + .button { margin-left: 4px; }
 .allocation-status-ok { color: #166534; font-weight: 700; }
 .allocation-status-error, .allocation-save-warning { color: #b42318; font-weight: 700; }
 .allocation-row-error td, .allocation-row-error th { background-color: #fff7f6; }
-.allocation-readonly-cell { color: var(--muted); text-align: center; }
+.allocation-readonly-cell { color: var(--slate-500); text-align: center; }
 .allocation-readonly-cell span { font-weight: 700; }
 .allocation-save-warning, .allocation-save-status { margin: 0; padding: 10px 16px; background: #f8faf9; font-size: 12px; }
 .allocation-empty { padding: 28px; text-align: center; }
-.allocation-empty p { margin-bottom: 0; color: var(--muted); }
+.allocation-empty p { margin-bottom: 0; color: var(--slate-500); }
 .allocation-normal-list-hidden { display: none; }
 
 @media (max-width: 700px) {
@@ -2478,7 +2482,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
      3期ぶんの列で出るので、年度一覧を代わりに刷る回は無い。 */
   .history-list-panel { display: none !important; }
   /* 画面の案内（年度を追加）は紙で消えるので、「データなし」の意味だけを表の下に残す。 */
-  .trend-print-note { display: block !important; margin: 6px 10px; font-size: 10px; color: var(--navy-700); break-before: avoid; page-break-before: avoid; }
+  .trend-print-note { display: block !important; margin: 6px 10px; font-size: 10px; break-before: avoid; page-break-before: avoid; }
   .trend-panel { margin-bottom: 0; overflow: visible; break-inside: auto; page-break-inside: auto; }
   .trend-panel .panel-header { min-height: 38px; padding: 6px 10px; break-after: avoid; page-break-after: avoid; }
   .trend-panel .panel-header h2 { font-size: 13px; }
@@ -2513,7 +2517,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .property-plan-report .table-scroll { overflow-x: auto; }
 .property-plan-report-heading h1 { margin: 0 0 8px; color: var(--navy-950); font-size: 24px; }
 @media print { .property-plan-report-heading h1 { font-size: 20px; } }
-.property-plan-report-heading p, .property-plan-report-help { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.property-plan-report-heading p, .property-plan-report-help { color: var(--slate-500); font-size: 12px; line-height: 1.6; }
 .property-plan-screen-help { margin-left: .5em; }
 /* 画面の列幅。サイドバーを開いた 1280px の画面（枠の幅 934px）で、右端の評価額まで横スクロールなしに見える幅にしている。
    方針の5列は見出し（5文字・10px）が1行に収まる 54px を下限に取り、残りを名称と所在地へ回す。
@@ -2541,7 +2545,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .property-plan-report-table th, .property-plan-report-table td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; text-align: left; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }
 .property-plan-report-table .number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .property-plan-report-table .plan-share-cell { white-space: normal; }
-.property-plan-edit { display: block; min-height: 44px; max-width: 100%; padding: 4px 0; border: 0; background: transparent; color: var(--accent); font: inherit; font-weight: 700; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.property-plan-edit { display: block; min-height: 44px; max-width: 100%; padding: 4px 0; border: 0; background: transparent; color: var(--navy-900); font: inherit; font-weight: 700; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
 .property-plan-edit:hover { text-decoration: underline; }
 .property-plan-edit:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .property-plan-empty { padding: 24px 0; }
