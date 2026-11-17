@@ -877,8 +877,11 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .date-input .date-input-date { flex: 1 1 148px; width: auto; min-width: 0; margin-top: 0; }
 .date-input .date-input-era { flex: 0 0 auto; width: auto; min-width: 58px; margin-top: 0; padding-right: 4px; text-align: left; text-align-last: left; }
 /* 年・月・日は桁数が決まっているので上下ボタンは出さない（幅を食うだけ）。 */
-.date-input .date-input-number { flex: 0 0 auto; width: 44px; margin-top: 0; padding-right: 6px; padding-left: 6px; text-align: right; font-variant-numeric: tabular-nums; appearance: textfield; }
-.date-input-number::-webkit-outer-spin-button, .date-input-number::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.date-input .date-input-number { flex: 0 0 auto; width: 44px; margin-top: 0; padding-right: 6px; padding-left: 6px; text-align: right; font-variant-numeric: tabular-nums; }
+/* 数値の入力欄にスピナーを付けない（全アプリ共通の決まり）。年度・列幅など type="number" のまま使う欄も含めて、ここ1か所で外す。
+   金額はスピナー以前に type="number" ではカンマが出ないので CommaNumberInput を使う。 */
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { appearance: none; margin: 0; }
 /* 実在しない日付・範囲外の理由は、押すまで何も言わない setCustomValidity と別に欄の下へ出す。
    4欄の下へ回り込ませるため flex の行を独立させる（理由が無いときは hidden で消える）。 */
 .date-input-error { flex: 1 0 100%; margin: 0; color: var(--danger); font-size: 11px; font-weight: 700; line-height: 1.45; }

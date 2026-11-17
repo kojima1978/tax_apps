@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SnapshotSettingsModal } from "@/components/dashboard-modals";
+import { ForecastModal, SnapshotSettingsModal } from "@/components/dashboard-modals";
 import type { Snapshot } from "@/lib/portfolio-view";
 
 afterEach(cleanup);
@@ -44,5 +44,33 @@ describe("年度・為替設定", () => {
     expect(data.get("estimatedInheritanceTax")).toBe("12345678");
     fireEvent.click(screen.getByRole("button", { name: "戻る" }));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+});
+
+// 以前は type="number" で、カンマが出ず（12345678 の桁が読めない）スピナーも付いていた。
+describe("税金・費用の入力", () => {
+  const forecastSnapshot = { ...snapshot, successionCosts: 3000000, inheritanceTaxUpdatedAt: null } as unknown as Snapshot;
+  it("金額をカンマ表示し、全角の数字も受け付け、送る値はそのまま3つそろう", () => {
+    const { container } = render(<ForecastModal snapshot={forecastSnapshot} onClose={vi.fn()} onSubmit={vi.fn()} saving={false} />);
+    const tax = screen.getByLabelText("想定相続税（円）") as HTMLInputElement;
+    expect(tax.type).toBe("text");
+    expect(tax.value).toBe("12,345,678");
+    expect((screen.getByLabelText("その他税金（円）") as HTMLInputElement).value).toBe("987,654");
+    expect((screen.getByLabelText("承継関連費用（円）") as HTMLInputElement).value).toBe("3,000,000");
+    fireEvent.change(tax, { target: { value: "１２３４５" } });
+    expect(tax.value).toBe("12,345");
+    expect(document.activeElement).toBe(tax);
+    expect(container.querySelectorAll('input[type="number"]')).toHaveLength(0);
+  });
+});
+
+describe("為替レートの入力", () => {
+  it("カンマ表示・小数6桁まで。0 は受け付けない", () => {
+    render(<SnapshotSettingsModal snapshot={{ ...snapshot, fxRates: { USD: 1500.123456 } }} fxOnly onClose={vi.fn()} onSubmit={vi.fn()} saving={false} />);
+    const usd = screen.getByLabelText("USD") as HTMLInputElement;
+    expect(usd.type).toBe("text");
+    expect(usd.value).toBe("1,500.123456");
+    fireEvent.change(usd, { target: { value: "0" } });
+    expect(usd.validationMessage).toBe("0より大きい数値を入力してください。");
   });
 });

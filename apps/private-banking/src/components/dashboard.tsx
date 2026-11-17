@@ -358,7 +358,9 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
     if (!portfolio) return;
     if (!workingSnapshot) return;
     // 税金・費用は年度が持つので、開いている年度を指定して保存する。
-    const body = { ...Object.fromEntries(new FormData(event.currentTarget).entries()), householdId: portfolio.household.id, snapshotId: workingSnapshot.id };
+    const fields = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, unknown>;
+    for (const name of ["estimatedInheritanceTax", "otherTaxes", "successionCosts"]) fields[name] = unformatNumberInput(fields[name] as FormDataEntryValue);
+    const body = { ...fields, householdId: portfolio.household.id, snapshotId: workingSnapshot.id };
     const { ok } = await mutate("/inheritance-estimate", "PUT", body, "税金・費用を保存できませんでした。");
     if (!ok) return;
     setForecastModalOpen(false);
