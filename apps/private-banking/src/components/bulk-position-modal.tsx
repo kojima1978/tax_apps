@@ -8,6 +8,7 @@ import { useModalDialog } from "@/components/use-modal-dialog";
 import { personSelectOptions } from "@/lib/family";
 import { currencyOptions, fxRateFor, positionCurrencies } from "@/lib/fx-rates";
 import { decimalToFraction, formatCommaNumberInput, yen } from "@/lib/format";
+import { assetDetailTypeOptions } from "@/lib/position-display";
 import {
   type AssetDetails,
   type BenefitAllocation,
@@ -141,7 +142,7 @@ const ownedDetailKeys: Record<BulkEntryType, Array<keyof AssetDetails>> = {
   LOAN_RECEIVABLE: ["repaymentDueDate", "interestRate", "collateral"],
 };
 /** 預金種類。貼り付け時のラベル照合にも使うので、選択肢と同じ並びを1箇所で持つ。 */
-const accountTypeOptions = [{ value: "ORDINARY", label: "普通預金" }, { value: "TIME", label: "定期預金" }, { value: "FOREIGN", label: "外貨預金" }, { value: "OTHER", label: "その他" }];
+const accountTypeOptions = Object.entries(assetDetailTypeOptions.accountType).map(([value, label]) => ({ value, label }));
 /**
  * 方式セレクトの表示名。以前は「路」「倍」「直」の1文字で、何を選んでいるか読めなかった。
  * 貼り付け時のラベル照合にも使う（正式名称の「路線価方式」なども別途受け付ける）。

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { positionAllocationAmounts, positionAllocationLabel, positionDetailFields, positionDetailTableValue } from "@/lib/position-display";
+import { assetDetailLabel, positionAllocationAmounts, positionAllocationLabel, positionDetailFields, positionDetailTableValue } from "@/lib/position-display";
 import { type Position } from "@/lib/portfolio-view";
 
 describe("positionDetailFields", () => {
@@ -56,6 +56,20 @@ describe("positionDetailFields", () => {
     expect(fields.get("利率")).toBe("1.5%");
     expect(fields.get("担保")).toBe("対象不動産");
     expect(positionDetailTableValue(position, "利率")).toBe("1.5");
+  });
+
+  it("保存済みの種類コードは英字のまま出さず表示名にする（今は選べない古い値も）", () => {
+    const security = { category: "SECURITIES", institution: "", currency: "JPY", assetDetails: { securityType: "STOCK" } } as Position;
+    const insurance = { side: "ASSET", category: "INSURANCE", institution: "", currency: "JPY", assetDetails: { insuranceType: "WHOLE_LIFE" } } as Position;
+    const retirement = { side: "ASSET", category: "RETIREMENT_ALLOWANCE", institution: "", currency: "JPY", assetDetails: { retirementType: "SMALL_ENTERPRISE" } } as Position;
+    expect(positionDetailTableValue(security, "証券種類")).toBe("上場株式");
+    expect(positionDetailTableValue(insurance, "保険種類")).toBe("終身保険");
+    expect(positionDetailTableValue(retirement, "退職金制度")).toBe("小規模企業共済");
+  });
+
+  it("表に無い値（自由入力の時代の文字）はそのまま出す", () => {
+    expect(assetDetailLabel("insuranceType", "終身")).toBe("終身");
+    expect(assetDetailLabel("securityType", "FUND")).toBe("投資信託");
   });
 });
 

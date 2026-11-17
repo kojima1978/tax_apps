@@ -57,19 +57,34 @@ export function positionAllocationAmounts(position: Position) {
     amountJpy: amounts[index],
   }));
 }
-const labels: Record<string, Record<string, string>> = {
+/** 明細フォームの「種類」欄で選べる値。フォームの選択肢と表示の両方がここを使う。 */
+export const assetDetailTypeOptions = {
   accountType: { ORDINARY: "普通預金", TIME: "定期預金", FOREIGN: "外貨預金", OTHER: "その他" },
   securityType: { LISTED_STOCK: "上場株式", BOND: "債券", FUND: "投資信託", ETF: "ETF", OTHER: "その他" },
   businessAssetType: { EQUIPMENT: "機械・設備", VEHICLE: "車両", GOODWILL: "営業権", INVENTORY: "棚卸資産", OTHER: "その他" },
   otherAssetType: otherAssetTypeLabels,
+} as const satisfies Record<string, Record<string, string>>;
+/**
+ * 今は選べないが保存済みのデータに残っている値の表示名。
+ * - securityType の STOCK: まとめて入力が以前 LISTED_STOCK の代わりに保存していた値
+ * - insuranceType / retirementType: 2026-08 に入力欄を外す前の選択肢（表示だけ残っている）
+ */
+const legacyAssetDetailLabels: Record<string, Record<string, string>> = {
+  securityType: { STOCK: "上場株式" },
+  insuranceType: { WHOLE_LIFE: "終身保険", TERM: "定期保険", ENDOWMENT: "養老保険", ANNUITY: "個人年金保険", OTHER: "その他" },
+  retirementType: { SMALL_ENTERPRISE: "小規模企業共済", CORPORATE: "中小企業退職金共済", OFFICER: "役員退職金", EMPLOYEE: "従業員退職金", OTHER: "その他" },
 };
+/** 保存値を表示名へ。どちらの表にも無い値（自由入力の時代の文字など）はそのまま出す。 */
+export function assetDetailLabel(key: string, value: string) {
+  return (assetDetailTypeOptions as Record<string, Record<string, string>>)[key]?.[value] ?? legacyAssetDetailLabels[key]?.[value] ?? value;
+}
 /** 保存されている値だけを表示し、未登録の項目や0円を推測で補わない。 */
 export function positionDetailFields(p: Position): Array<[string, string]> {
   const d = p.assetDetails ?? {};
   const amountUnit = p.currency === "JPY" ? "円" : p.currency;
   const fields: Array<[string, string]> = [];
   const add = (label: string, value: string | number | null | undefined, suffix = "") => { if (value !== undefined && value !== null && value !== "") fields.push([label, `${typeof value === "number" ? valuationNumber.format(value) : value}${suffix}`]); };
-  const typed = (key: keyof typeof d, label: string) => { const value = d[key]; if (typeof value === "string") add(label, labels[key]?.[value] ?? value); };
+  const typed = (key: keyof typeof d, label: string) => { const value = d[key]; if (typeof value === "string") add(label, assetDetailLabel(key, value)); };
   add("科目", positionCaption(p));
   add("所在地・金融機関等", institutionOrPropertyAddress(p));
   if (p.category === "DEPOSIT") { typed("accountType", "預金種類"); add("支店", d.branchName); add("口座番号（末尾）", d.accountSuffix); add("満期日", d.maturityDate); }
@@ -84,8 +99,8 @@ export function positionDetailFields(p: Position): Array<[string, string]> {
     add("小規模宅地等の区分", d.smallLotType ? smallLotTypeOptions.find((option) => option.value === d.smallLotType)?.label ?? d.smallLotType : "");
   }
   if (detailGroup(p) === "insurance") {
-    add("保険種類", d.insuranceType); add("証券番号", d.policyNumber); add("被保険者", d.insuredPerson);
-    add("退職金制度", d.retirementType);
+    typed("insuranceType", "保険種類"); add("証券番号", d.policyNumber); add("被保険者", d.insuredPerson);
+    typed("retirementType", "退職金制度");
     const config = deemedConfig(p);
     if (config) { add(config.surrenderLabel, yen.format(p.valueJpy)); if (d[config.benefitKey] !== undefined) add(config.label, yen.format(deemedBenefitJpy(p))); else add(config.label, "未登録"); add("受取人・取り分", deemedAllocations(p).map((a) => `${a.recipient || "未設定"} ${a.numerator}/${a.denominator}`).join("、")); }
   }

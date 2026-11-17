@@ -10,6 +10,7 @@ import { useModalDialog } from "@/components/use-modal-dialog";
 import { personSelectOptions } from "@/lib/family";
 import { contractAmountText, currencyOptions, fxRateFor, positionCurrencies, type FxRates } from "@/lib/fx-rates";
 import { decimalToFraction, yen } from "@/lib/format";
+import { assetDetailTypeOptions } from "@/lib/position-display";
 import {
   type AssetDetails,
   type AssetGroupLabel,
@@ -25,7 +26,6 @@ import {
   valuationFromFormula,
   liabilityCategories,
   otherLiabilityCategories,
-  otherAssetTypeLabels,
   positionSection,
   propertyTypeOf,
   manualAssetValuationMethods,
@@ -56,13 +56,14 @@ const otherLiabilityInstitutionLabels: Record<string, string> = {
  */
 const categoryTypeFields: Record<string, { label: string; name: string; fallback: string; options: Record<string, string>; read: (details: AssetDetails) => string | undefined; hint?: string }> = {
   DEPOSIT: { label: "預金種類", name: "assetDetail.accountType", fallback: "ORDINARY", read: (details) => details.accountType,
-    options: { ORDINARY: "普通預金", TIME: "定期預金", FOREIGN: "外貨預金", OTHER: "その他" } },
-  SECURITIES: { label: "証券種類", name: "assetDetail.securityType", fallback: "LISTED_STOCK", read: (details) => details.securityType,
-    options: { LISTED_STOCK: "上場株式", BOND: "債券", FUND: "投資信託", ETF: "ETF", OTHER: "その他" } },
+    options: assetDetailTypeOptions.accountType },
+  // 以前のまとめて入力が保存した STOCK は選択肢に無いので、上場株式として選んだ状態で開く。
+  SECURITIES: { label: "証券種類", name: "assetDetail.securityType", fallback: "LISTED_STOCK", read: (details) => details.securityType === "STOCK" ? "LISTED_STOCK" : details.securityType,
+    options: assetDetailTypeOptions.securityType },
   BUSINESS_ASSETS: { label: "資産種類", name: "assetDetail.businessAssetType", fallback: "EQUIPMENT", read: (details) => details.businessAssetType,
-    options: { EQUIPMENT: "機械・設備", VEHICLE: "車両", GOODWILL: "営業権", INVENTORY: "棚卸資産", OTHER: "その他" } },
+    options: assetDetailTypeOptions.businessAssetType },
   COLLECTIBLES: { label: "資産種類", name: "assetDetail.otherAssetType", fallback: "PRECIOUS_METAL", read: (details) => details.otherAssetType,
-    options: otherAssetTypeLabels, hint: "明細一覧の「所在地・金融機関等」に表示します。" },
+    options: assetDetailTypeOptions.otherAssetType, hint: "明細一覧の「所在地・金融機関等」に表示します。" },
 };
 
 /**
