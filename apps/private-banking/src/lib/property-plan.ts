@@ -1,4 +1,4 @@
-/** 保有・処分の意向。評価額や税計算からの除外とは独立して管理する。 */
+/** 不動産の今後の方針（保有・承継／売却／処分など）。評価額や税計算からの除外とは独立して管理する。 */
 export const propertyPlanOptions = [
   { value: "UNDECIDED", label: "未定" },
   { value: "KEEP", label: "保有・承継" },

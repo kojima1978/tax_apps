@@ -29,23 +29,20 @@ export function PropertyPlanReport({ snapshot, onEdit, onChangePlan }: { snapsho
     .filter(({ position }) => propertyTypeOf(position) !== null);
   return <section className="panel property-plan-report">
     <header className="property-plan-report-heading">
-      <h1>不動産の保有・処分方針一覧</h1>
+      <h1>不動産の今後の方針</h1>
       <p>{fiscalYearLabel(snapshot)} ／ 基準日：{dateJaWithWareki(snapshot.asOfDate)} ／ {positions.length}件</p>
     </header>
     <p className="property-plan-report-help">方針が未登録の物件は「未定」と表示しています。方針は評価額・相続税の計算には影響しません。<span className="property-plan-screen-help">方針は1つ選ぶと保存されます。物件名から詳細を編集できます。</span></p>
     <p role="status" aria-live="polite" className="property-plan-save-status">{message}</p>
-    {positions.length ? <ScrollRegion className="table-scroll" label="不動産の保有・処分方針一覧"><table className="property-plan-report-table">
-      <colgroup>{propertyPlanOptions.map((option) => <col key={option.value} className="plan-choice" />)}<col className="plan-no" /><col className="plan-type" /><col className="plan-name" /><col className="plan-address" /><col className="plan-area" /><col className="plan-share" /><col className="plan-value" /></colgroup>
-      <thead><tr><th scope="colgroup" colSpan={5} className="plan-group-heading">今後の方針</th><th scope="col" rowSpan={2} className="number">No.</th><th scope="col" rowSpan={2} className="plan-type-heading">土地・建物</th><th scope="col" rowSpan={2}>名称</th><th scope="col" rowSpan={2}>所在地</th><th scope="col" rowSpan={2} className="number">面積（㎡）</th><th scope="col" rowSpan={2} className="number">持分</th><th scope="col" rowSpan={2} className="number">評価額（円）</th></tr><tr>{propertyPlanOptions.map((option) => <th key={option.value} scope="col" className="plan-choice-heading">{option.label}</th>)}</tr></thead>
+    {positions.length ? <ScrollRegion className="table-scroll" label="不動産の今後の方針"><table className="property-plan-report-table">
+      <colgroup><col className="plan-no" /><col className="plan-type" /><col className="plan-name" /><col className="plan-address" /><col className="plan-area" /><col className="plan-share" /><col className="plan-value" />{propertyPlanOptions.map((option) => <col key={option.value} className="plan-choice" />)}</colgroup>
+      {/* 物件を名称・所在地・評価額で見分けてから方針を読む順に、方針の5択は右端に置く */}
+      <thead><tr><th scope="col" rowSpan={2} className="number">No.</th><th scope="col" rowSpan={2} className="plan-type-heading">土地・建物</th><th scope="col" rowSpan={2}>名称</th><th scope="col" rowSpan={2}>所在地</th><th scope="col" rowSpan={2} className="number">面積（㎡）</th><th scope="col" rowSpan={2} className="number">持分</th><th scope="col" rowSpan={2} className="number">評価額（円）</th><th scope="colgroup" colSpan={5} className="plan-group-heading">今後の方針</th></tr><tr>{propertyPlanOptions.map((option) => <th key={option.value} scope="col" className="plan-choice-heading">{option.label}</th>)}</tr></thead>
       <tbody>{positions.map(({ position, number }) => {
         const plan = pending?.id === position.id ? pending.plan : normalizePropertyPlan(position.assetDetails?.propertyPlan);
         const propertyType = propertyTypeOf(position)!;
         const area = propertyArea(position, propertyType);
         return <tr key={position.id}>
-          {propertyPlanOptions.map((option) => <td key={option.value} className={`plan-choice-cell ${plan === option.value ? "is-selected" : ""}`}>
-            {onChangePlan ? <label className="property-plan-radio"><input type="radio" name={`${groupId}-plan-${position.id}`} aria-label={`${position.name}（No.${number}）：${option.label}`} checked={plan === option.value} disabled={pending !== null} onChange={() => void changePlan(position, option.value)} /><span className="sr-only property-plan-radio-label">{option.label}</span></label> : null}
-            <span className={onChangePlan ? "property-plan-print-mark" : "property-plan-readonly-mark"} aria-hidden={onChangePlan ? true : undefined}>{plan === option.value ? "●" : "○"}</span>
-          </td>)}
           <td className="number plan-no-cell">{number}</td>
           <td className="plan-type-cell">{propertyTypeLabels[propertyType]}</td>
           <td className="plan-name-cell">{onEdit ? <button type="button" className="property-plan-edit" onClick={() => onEdit(position)} aria-label={`${position.name}の方針を編集`}>{position.name}</button> : <strong>{position.name}</strong>}</td>
@@ -53,9 +50,13 @@ export function PropertyPlanReport({ snapshot, onEdit, onChangePlan }: { snapsho
           <td className="number plan-area-cell" data-label="面積（㎡）">{area == null ? "—" : area.toLocaleString("ja-JP", { maximumFractionDigits: 2 })}</td>
           <td className="number plan-share-cell" data-label="持分">{ownershipFraction(position) || "—"}</td>
           <td className="number plan-value-cell" data-label="評価額（円）">{amount(position.valueJpy)}</td>
+          {propertyPlanOptions.map((option) => <td key={option.value} className={`plan-choice-cell ${plan === option.value ? "is-selected" : ""}`}>
+            {onChangePlan ? <label className="property-plan-radio"><input type="radio" name={`${groupId}-plan-${position.id}`} aria-label={`${position.name}（No.${number}）：${option.label}`} checked={plan === option.value} disabled={pending !== null} onChange={() => void changePlan(position, option.value)} /><span className="sr-only property-plan-radio-label">{option.label}</span></label> : null}
+            <span className={onChangePlan ? "property-plan-print-mark" : "property-plan-readonly-mark"} aria-hidden={onChangePlan ? true : undefined}>{plan === option.value ? "●" : "○"}</span>
+          </td>)}
         </tr>;
       })}</tbody>
-      <tfoot><tr><th colSpan={11} scope="row">合計</th><td className="number">{amount(positions.reduce((sum, { position }) => sum + position.valueJpy, 0))}</td></tr></tfoot>
+      <tfoot><tr><th colSpan={6} scope="row">合計</th><td className="number">{amount(positions.reduce((sum, { position }) => sum + position.valueJpy, 0))}</td><td colSpan={5} className="plan-total-blank" /></tr></tfoot>
     </table></ScrollRegion> : <p className="property-plan-empty">この年度には不動産が登録されていません。</p>}
   </section>;
 }

@@ -71,7 +71,7 @@ export const sectionLabels = {
   balance: "貸借対照表",
   "position-list": "資産・負債一覧",
   positions: "資産・負債詳細",
-  "property-plan": "不動産の保有・処分方針",
+  "property-plan": "不動産の今後の方針",
   history: "年度比較",
   activity: "操作履歴",
   backup: "バックアップ",

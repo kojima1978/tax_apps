@@ -27,11 +27,13 @@ describe("不動産一覧の方針", () => {
     fireEvent.click(screen.getByLabelText("希望時期・メモ付きで出力"));
     expect(container.querySelector(".property-plan-print-details")?.textContent).toContain("相続後");
   });
-  it("先頭の五択に該当箇所を示し、件数ボタンで絞り込み・解除できる", async () => {
+  it("評価額の後ろの五択に該当箇所を示し、件数ボタンで絞り込み・解除できる", async () => {
     const { container } = setup([row(1), row(2, "SELL"), row(3, "UNDECIDED")]);
     await screen.findByText("土地1");
     expect([...container.querySelectorAll(".properties-plan-choice")].map((cell) => cell.textContent)).toEqual(["未定", "保有・承継", "売却予定", "処分予定", "要検討"]);
-    expect(container.querySelectorAll(".properties-row:first-child td")[1].textContent).toContain("●");
+    const firstRowCells = [...container.querySelectorAll(".properties-row:first-child td")];
+    expect(firstRowCells[7].getAttribute("data-label")).toBe("評価額（円）");
+    expect(firstRowCells.slice(8, 13).map((cell) => cell.textContent).join("")).toContain("●");
     fireEvent.click(screen.getByRole("button", { name: "売却予定 1件" }));
     expect(container.querySelectorAll(".properties-row")).toHaveLength(1);
     expect(screen.queryByText("土地1")).toBeNull();

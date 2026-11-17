@@ -27,10 +27,10 @@ const typeIn = (label: string, value: string) => fireEvent.change(screen.getByLa
 describe("PositionModal（明細を追加）", () => {
   it("不動産で方針・希望時期・メモを入力し、土地建物を切り替えても保持する", () => {
     const { form, submitted } = renderModal();
-    expect(screen.queryByLabelText("保有・処分の方針")).toBeNull();
+    expect(screen.queryByLabelText("方針")).toBeNull();
     fireEvent.change(screen.getByLabelText("中分類"), { target: { value: "不動産" } });
-    expect((screen.getByLabelText("保有・処分の方針") as HTMLSelectElement).value).toBe("UNDECIDED");
-    typeIn("保有・処分の方針", "SELL");
+    expect((screen.getByLabelText("方針") as HTMLSelectElement).value).toBe("UNDECIDED");
+    typeIn("方針", "SELL");
     typeIn("希望時期", "相続後");
     typeIn("方針メモ", "家族と相談して売却");
     typeIn("資産区分", "BUILDING");

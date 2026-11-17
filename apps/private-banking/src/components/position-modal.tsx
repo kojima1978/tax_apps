@@ -459,7 +459,7 @@ export function PositionModal({ position, defaultSection = "ASSET", defaultCateg
         </div></fieldset>
         {isRealEstateCategory ? <fieldset className="asset-detail-fieldset full property-plan-fields"><legend>今後の方針</legend>
           <div className="asset-detail-grid">
-            <label>保有・処分の方針<select name="assetDetail.propertyPlan" defaultValue={normalizePropertyPlan(assetDetails.propertyPlan)}>{propertyPlanOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            <label>方針<select name="assetDetail.propertyPlan" defaultValue={normalizePropertyPlan(assetDetails.propertyPlan)}>{propertyPlanOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
             <label>希望時期<input name="assetDetail.propertyPlanTiming" maxLength={100} defaultValue={assetDetails.propertyPlanTiming ?? ""} placeholder="例：相続後、2028年頃" /></label>
             <label className="wide">方針メモ<textarea name="assetDetail.propertyPlanNote" maxLength={500} rows={2} defaultValue={assetDetails.propertyPlanNote ?? ""} placeholder="残したい理由、売却・処分の条件など（任意）" /></label>
           </div>

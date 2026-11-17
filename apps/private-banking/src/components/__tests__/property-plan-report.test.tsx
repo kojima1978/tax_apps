@@ -7,7 +7,7 @@ import type { Position, Snapshot } from "@/lib/portfolio-view";
 afterEach(cleanup);
 const land = (id: number, fields: Partial<Position> = {}) => ({ id, side: "ASSET", name: `物件${id}`, category: "HOME_REAL_ESTATE", valueJpy: 123000, institution: "東京都", landArea: 180.5, ownershipNumerator: 1, ownershipDenominator: 1, assetDetails: null, ...fields } as Position);
 const snapshot = (positions: Position[]) => ({ id: 8, fiscalYear: 2024, asOfDate: "2024-12-31", positions } as Snapshot);
-describe("不動産の保有・処分方針一覧", () => {
+describe("不動産の今後の方針", () => {
   it("選択年度の不動産のみを未定も含めて表示し、方針を編集できる", () => {
     const onEdit = vi.fn();
     const sell = land(2, { assetDetails: { propertyType: "BUILDING", propertyPlan: "SELL", propertyPlanTiming: "相続後", propertyPlanNote: "境界確認\n売却条件を家族と相談" } });
@@ -17,9 +17,9 @@ describe("不動産の保有・処分方針一覧", () => {
     expect(container.querySelectorAll("tbody tr:first-child .property-plan-readonly-mark")[0].textContent).toBe("●");
     expect(screen.queryByText("相続後")).toBeNull();
     expect(container.textContent).not.toContain("境界確認");
-    expect([...container.querySelectorAll("thead th")].map((cell) => cell.textContent)).toEqual(["今後の方針", "No.", "土地・建物", "名称", "所在地", "面積（㎡）", "持分", "評価額（円）", "未定", "保有・承継", "売却予定", "処分予定", "要検討"]);
-    expect(container.querySelector("tbody tr")?.children[5].textContent).toBe("2");
-    expect(container.querySelector("tbody tr")?.children[9].textContent).toBe("180.5");
+    expect([...container.querySelectorAll("thead th")].map((cell) => cell.textContent)).toEqual(["No.", "土地・建物", "名称", "所在地", "面積（㎡）", "持分", "評価額（円）", "今後の方針", "未定", "保有・承継", "売却予定", "処分予定", "要検討"]);
+    expect(container.querySelector("tbody tr")?.children[0].textContent).toBe("2");
+    expect(container.querySelector("tbody tr")?.children[4].textContent).toBe("180.5");
     // 基準日は西暦に和暦の年を添える（印刷にも出る）。
     expect(container.textContent).toContain("基準日：2024（令和6）年12月31日");
     expect(container.querySelector("tfoot")?.textContent).toContain("246,000");
@@ -50,6 +50,6 @@ describe("不動産の保有・処分方針一覧", () => {
   it("空の年度を案内し、印刷対象に専用帳票を登録する", () => {
     render(<PropertyPlanReport snapshot={snapshot([])} />);
     expect(screen.getByText("この年度には不動産が登録されていません。")).toBeTruthy();
-    expect(PRINT_SECTION_META.find(({ key }) => key === "property-plan")?.title).toBe("不動産の保有・処分方針一覧");
+    expect(PRINT_SECTION_META.find(({ key }) => key === "property-plan")?.title).toBe("不動産の今後の方針");
   });
 });

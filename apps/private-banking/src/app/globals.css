@@ -1728,12 +1728,13 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 }
 .properties-panel .position-table-tools { flex-wrap: wrap; justify-content: flex-start; }
 .properties-panel .position-table-tools label:first-child select { min-width: 156px; }
-.properties-table { width: 100%; min-width: 1180px; }
+/* サイドバーを開いた 1280px の画面（枠の幅 1098px）で、右端の方針5列まで横スクロールなしに見える幅 */
+.properties-table { width: 100%; min-width: 1080px; }
 .properties-table th, .properties-table td { padding-inline: 5px; vertical-align: top; }
 .properties-table th { padding-block: 8px; letter-spacing: 0; }
 .properties-table td { padding-block: 8px; font-size: var(--font-body); }
 .properties-table td small { margin-top: 1px; font-size: var(--font-note); line-height: 1.35; }
-/* 方針は先頭の5列。名称・所在地は残りの幅を受け持つ。 */
+/* 方針は評価額の後ろの5列。名称・所在地は残りの幅を受け持つ。 */
 .properties-table .properties-plan-group { text-align: center; }
 .properties-table .properties-plan-choice { width: 48px; padding: 6px 2px; text-align: center; font-size: var(--font-note); }
 .properties-table .properties-plan-mark { text-align: center; vertical-align: middle; }
@@ -2554,7 +2555,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 @media print { .property-plan-report-heading h1 { font-size: 20px; } }
 .property-plan-report-heading p, .property-plan-report-help { color: var(--slate-500); font-size: var(--font-body); line-height: 1.6; }
 .property-plan-screen-help { margin-left: .5em; }
-/* 画面の列幅。サイドバーを開いた 1280px の画面（枠の幅 934px）で、右端の評価額まで横スクロールなしに見える幅にしている。
+/* 画面の列幅。サイドバーを開いた 1280px の画面（枠の幅 934px）で、右端の方針5列まで横スクロールなしに見える幅にしている。
    方針の5列は見出し（5文字・10px）が1行に収まる 54px を下限に取り、残りを名称と所在地へ回す。
    紙の列幅はこの下の @media print に別に持つ（画面の都合で紙の割り付けを動かさない）。 */
 .property-plan-report-table { width: 100%; min-width: 900px; table-layout: fixed; border-collapse: collapse; }
@@ -2584,8 +2585,8 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .property-plan-edit:hover { text-decoration: underline; }
 .property-plan-edit:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .property-plan-empty { padding: 24px 0; }
-/* スマホ幅では1物件1枚のカードにする。表のままだと、左端の方針5列だけで画面が埋まり、
-   どの物件の方針を選んでいるのかが見えなかった（名称の列は左から 408px の位置）。
+/* スマホ幅では1物件1枚のカードにする。表のままだと横スクロールの先に方針5列があり、
+   どの物件の方針を選んでいるのかを名称と同時に見られない。
    名称・所在地を上に、方針の5択はその下に文字つきで並べる。 */
 @media (max-width: 600px) {
   .property-plan-report { padding: 16px 14px; }
@@ -2612,6 +2613,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .property-plan-radio .property-plan-radio-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; font-size: var(--font-body); }
   .property-plan-report-table tfoot tr { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 0 0; border-top: 2px solid var(--line-strong); }
   .property-plan-report-table tfoot th, .property-plan-report-table tfoot td { display: block; padding: 0; border: 0; font-size: 13px; }
+  .property-plan-report-table tfoot .plan-total-blank { display: none; }
 }
 /* 3つ並べると「保有・承継」が入らない幅では2つずつ並べる。 */
 @media (max-width: 340px) {
