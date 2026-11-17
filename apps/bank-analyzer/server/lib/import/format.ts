@@ -109,7 +109,70 @@ export type InstructionHint = {
   period?: string; // 通帳の期間（書かれたまま渡す）
 };
 
-export type InstructionOptions = { output?: 'csv' | 'xlsx'; extraRules?: string };
+export type InstructionOptions = {
+  output?: 'csv' | 'xlsx';
+  extraRules?: string;
+  // 文字認識へ集中させ、分類は取込後の別工程にする
+  ocrOnly?: boolean;
+  // Gemini の回答本文を、そのままアプリへ貼り付けられる2部構成にする
+  includeImprovement?: boolean;
+};
+
+export type GeminiResponseParts = { csv: string; improvementDraft: string };
+
+function excelClipboardToCsv(input: string): string {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i]!;
+    if (ch === '"') {
+      if (quoted && input[i + 1] === '"') { field += '"'; i++; }
+      else quoted = !quoted;
+    } else if (!quoted && ch === '\t') {
+      row.push(field); field = '';
+    } else if (!quoted && (ch === '\n' || ch === '\r')) {
+      if (ch === '\r' && input[i + 1] === '\n') i++;
+      row.push(field); rows.push(row); row = []; field = '';
+    } else {
+      field += ch;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.map((cells) => cells.map(csvCell).join(',')).join('\n');
+}
+
+// Gemini の回答全体、```csv のコードブロックだけ、CSVだけ、のどれを貼っても取引CSVを取り出す。
+// 「次回依頼文案」があれば別欄へ回す。CSV の値に改行を入れない指示なので、見出し単位で区切れる。
+export function extractGeminiResponse(raw: string): GeminiResponseParts {
+  const text = raw.replaceAll('\r\n', '\n').trim();
+  if (!text) return { csv: '', improvementDraft: '' };
+  const required = ['日付', '摘要', '払戻額', 'お預り額'];
+  const isCsv = (value: string) => {
+    const first = value.split('\n').find((line) => line.trim()) ?? '';
+    return required.every((name) => first.includes(name));
+  };
+  const firstLine = text.split('\n').find((line) => line.trim()) ?? '';
+  if (firstLine.includes('\t') && required.every((name) => firstLine.includes(name))) {
+    return { csv: excelClipboardToCsv(text), improvementDraft: '' };
+  }
+  const fenced = [...text.matchAll(/```(?:csv)?\s*\n([\s\S]*?)```/gi)].map((m) => m[1]!.trim());
+  let csv = fenced.find(isCsv) ?? '';
+  const heading = /^#{1,6}\s*次回依頼文案\s*$/m;
+  const match = heading.exec(text);
+  let improvementDraft = match ? text.slice(match.index + match[0].length).split(/^#{1,6}\s+/m)[0]!.trim() : '';
+  improvementDraft = improvementDraft.replace(/^```(?:markdown|md)?\s*\n?/i, '').replace(/```\s*$/i, '').trim();
+  if (!csv) {
+    const lines = text.split('\n');
+    const start = lines.findIndex((line) => isCsv(line));
+    if (start >= 0) {
+      const endOffset = lines.slice(start + 1).findIndex((line) => heading.test(line));
+      csv = lines.slice(start, endOffset < 0 ? undefined : start + 1 + endOffset).join('\n').replace(/```\s*$/i, '').trim();
+    }
+  }
+  return { csv, improvementDraft };
+}
 
 export function promptImprovementRequest(currentPrompt: string, issue: string, geminiDraft = ''): string {
   return `# 通帳PDF文字認識の依頼文を改善してください
@@ -154,6 +217,8 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}, 
 
   const period = hint.period?.trim();
   const excel = options.output === 'xlsx';
+  const ocrOnly = options.ocrOnly ?? excel;
+  const includeImprovement = options.includeImprovement === true;
   const extraRules = options.extraRules?.trim();
   const knownLines = [
     ...(hint.era
@@ -169,13 +234,30 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}, 
   return [
     excel
       ? '通帳PDFを読み取り、添付したひな形と同じ形式の Excel を作ってください。銀行取引分析アプリへそのまま取り込みます。'
-      : '通帳の画像を読み取り、次の形式の CSV を作ってください。銀行取引分析アプリへそのまま取り込みます。',
+      : includeImprovement
+        ? '通帳PDFを読み取り、銀行取引分析アプリへ貼り付けられるCSVテキストを作ってください。ファイルの作成は不要です。'
+        : '通帳の画像を読み取り、次の形式の CSV を作ってください。銀行取引分析アプリへそのまま取り込みます。',
     excel
       ? '返すのは Excel ファイル（.xlsx）だけにしてください。前後に説明文を付けず、Googleスプレッドシートで作業した場合も最後は .xlsx でダウンロードしてください。'
-      : '返すのは CSV だけにしてください（前後に説明の文を付けない）。保存するときの拡張子は .csv です。',
+      : includeImprovement
+        ? '回答は「取引CSV」と「次回依頼文案」の2部だけにしてください。取引CSVは必ず ```csv のコードブロックに入れてください。'
+        : '返すのは CSV だけにしてください（前後に説明の文を付けない）。保存するときの拡張子は .csv です。',
     '',
     ...(knownLines.length > 0 ? ['## 分かっていること', ...knownLines, ''] : []),
     ...(extraRules ? ['## これまでの誤りから追加したルール', extraRules, ''] : []),
+    ...(includeImprovement
+      ? [
+          '## 回答の形',
+          '# 取引CSV',
+          '```csv',
+          headerLine,
+          '（ここに取引行）',
+          '```',
+          '# 次回依頼文案',
+          '- （今回迷った点と、次回の精度を上げる具体的な追加ルール）',
+          '',
+        ]
+      : []),
     excel ? '## Excel の書き方' : '## CSV の書き方',
     excel ? '- 1枚目のシート名は「取引データ」。1行目は見出し行。列は次の順に並べ、列名はこのとおりに書く' : '- 1行目は見出し行。列は次の順に並べ、列名はこのとおりに書く',
     `  ${headerLine}`,
@@ -214,8 +296,8 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}, 
     '- 検算: 前の行の差引残高 − 払戻額 ＋ お預り額 が、その行の差引残高と合うかを1行ずつ確かめる。合わない行は画像を読み直す。それでも合わなければ読めたとおりに書き、メモに「残高が合わない」と書いて要確認を「○」にする',
     '- 金額・残高は通帳のとおりに書く。計算で作らない（検算は確かめるためだけ）',
     '',
-    ...(excel
-      ? ['## 分類', '- 今回は文字認識の正確さを優先するため、分類の列は空欄にする。分類はExcelをアプリへ取り込んだ後に別工程で行う']
+    ...(ocrOnly
+      ? ['## 分類', '- 今回は文字認識の正確さを優先するため、分類の列は空欄にする。分類はデータをアプリへ取り込んだ後に別工程で行う']
       : [
           '## 分類',
           '分類の列には次の名前のどれかを、このとおりに書く。ここに無い名前は作らない。（）は入金・出金のどちらに付く分類か。',
@@ -228,5 +310,13 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}, 
           ...(names.includes(OTHER_CATEGORY) ? [`- どれにも当たらないとはっきり分かるものだけ「${OTHER_CATEGORY}」にする`] : []),
           '- 分類に迷ったら空欄にする（アプリが自動で分類する）。自信のあるものだけ書く',
         ]),
+    ...(includeImprovement
+      ? [
+          '',
+          '## 次回依頼文案',
+          '- CSVの後に「# 次回依頼文案」の見出しを付け、今回迷った箇所と、次回から追加するとよい具体的な確認ルールを箇条書きで書く',
+          '- 既存の依頼文にあるルールは繰り返さない',
+        ]
+      : []),
   ].join('\n');
 }

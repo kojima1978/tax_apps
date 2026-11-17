@@ -17,7 +17,7 @@
 
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Upload } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, FileUp, Sparkles, Upload } from 'lucide-react';
 import { FileDrop } from '../components/FileDrop';
 import { Breadcrumb } from '../components/Layout';
 import { useNotice } from '../components/Notice';
@@ -164,6 +164,7 @@ export function ImportWizardPage() {
   const [allowNoBalance, setAllowNoBalance] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [method, setMethod] = useState<'gemini' | 'file'>(() => (window.location.hash === `#${FORMAT_GUIDE_ID}` ? 'gemini' : 'file'));
   // 選べる分類（parse がいまの設定から返す。未分類は除く）
   const [categories, setCategories] = useState<string[]>([]);
   // 口座ごとの取込済みの取引の期間（元号の無い日付の候補の目印）
@@ -173,6 +174,7 @@ export function ImportWizardPage() {
   const unreadableFlags = useMemo(() => unreadableFlagCount(wizard.files), [wizard.files]);
 
   const showGuide = () => {
+    setMethod('file');
     setGuideOpen(true);
     requestAnimationFrame(() => document.getElementById(FORMAT_GUIDE_ID)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
   };
@@ -297,28 +299,63 @@ export function ImportWizardPage() {
 
       {step === 1 && (
         <div className="card p-6">
-          <h2 className="mb-3 font-semibold">取り込むファイルを選ぶ</h2>
-          <FileDrop
-            accept=".csv,.xlsx,.txt"
-            multiple
-            files={picked}
-            onChange={(f) => {
-              setPicked(f);
+          <h2 className="font-semibold">取り込み方法を選ぶ</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2" role="group" aria-label="取り込み方法">
+            <button
+              type="button"
+              aria-pressed={method === 'gemini'}
+              className={`flex min-h-20 cursor-pointer items-start gap-3 rounded-lg border p-4 text-left transition-colors ${method === 'gemini' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'}`}
+              onClick={() => { setMethod('gemini'); setPicked([]); setParseError(null); }}
+            >
+              <Sparkles size={21} className="mt-0.5 shrink-0 text-blue-700" aria-hidden="true" />
+              <span><strong className="block">Geminiの回答を貼り付け</strong><span className="mt-1 block text-sm text-slate-600">通帳PDFをGeminiで読み取る場合</span></span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={method === 'file'}
+              className={`flex min-h-20 cursor-pointer items-start gap-3 rounded-lg border p-4 text-left transition-colors ${method === 'file' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'}`}
+              onClick={() => { setMethod('file'); setPicked([]); setParseError(null); }}
+            >
+              <FileUp size={21} className="mt-0.5 shrink-0 text-slate-600" aria-hidden="true" />
+              <span><strong className="block">CSV・Excelファイル</strong><span className="mt-1 block text-sm text-slate-600">作成済みのファイルを取り込む場合</span></span>
+            </button>
+          </div>
+
+          {method === 'file' && <>
+            <div className="mt-4">
+              <FileDrop
+                accept=".csv,.xlsx,.txt"
+                multiple
+                files={picked}
+                onChange={(f) => {
+                  setPicked(f);
+                  setParseError(null);
+                }}
+                hint={`CSV・Excel（.xlsx）・CSV の中身のテキスト（.txt）、${MAX_FILES}ファイル・各10MBまで`}
+                invalid={parseError !== null}
+              />
+            </div>
+            <FormatGuide caseId={caseId!} open={guideOpen} onToggle={setGuideOpen} variant="file" />
+          </>}
+          {method === 'gemini' && <FormatGuide
+            caseId={caseId!}
+            open={false}
+            onToggle={() => undefined}
+            variant="gemini"
+            onPaste={(csv) => {
+              setPicked([new File([`\ufeff${csv}\r\n`], 'Gemini文字認識.csv', { type: 'text/csv;charset=utf-8' })]);
               setParseError(null);
             }}
-            hint={`CSV・Excel（.xlsx）・CSV の中身のテキスト（.txt）、${MAX_FILES}ファイル・各10MBまで`}
-            invalid={parseError !== null}
-          />
+          />}
           {parsedFrom && !sameFiles(picked, parsedFrom) && (
             <p className="mt-3 text-sm text-amber-800">ファイルを選び直したので、口座と内容の修正は最初からやり直しになります。</p>
           )}
           {parseError && <ParseErrorBox {...parseError} onShowGuide={showGuide} />}
-          <FormatGuide caseId={caseId!} open={guideOpen} onToggle={setGuideOpen} />
           <div className="mt-6 flex justify-end gap-2">
             <button type="button" className="btn btn-secondary" onClick={() => navigate(`/cases/${caseId}`)}>
               キャンセル
             </button>
-            <button type="button" className="btn btn-primary" onClick={parse} disabled={busy}>
+            <button type="button" className="btn btn-primary" onClick={parse} disabled={busy || picked.length === 0}>
               {busy ? '読み込み中…' : '次へ'}
               <ArrowRight size={16} />
             </button>

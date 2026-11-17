@@ -7,7 +7,7 @@ import { buildExistingIndex } from '../lib/dedup.js';
 import { IMPORT_COLUMNS, parseFlag, REQUIRED_COLUMNS } from '../lib/import/columns.js';
 import { categoryResolver, decideCategories } from '../lib/import/csvCategory.js';
 import { FormatError, missingColumnsOf } from '../lib/import/errors.js';
-import { aiInstruction, formatGuideMarkdown, promptImprovementRequest, templateCsv } from '../lib/import/format.js';
+import { aiInstruction, extractGeminiResponse, formatGuideMarkdown, promptImprovementRequest, templateCsv } from '../lib/import/format.js';
 import { loadStatement } from '../lib/import/loadStatement.js';
 import { buildPreview } from '../lib/wizard.js';
 
@@ -186,6 +186,27 @@ describe('取込できる形式の案内', () => {
     expect(text).toContain('列見出しを再確認ZZQ');
     expect(text).toContain('現在の依頼文ZZQ');
     expect(text).toContain('追加するルールの箇条書きだけ');
+  });
+
+  it('Geminiの回答全体から取引CSVと次回依頼文案を分ける', () => {
+    const parts = extractGeminiResponse(
+      '# 取引CSV\n```csv\n日付,摘要,払戻額,お預り額\nR2.1.1,テスト,100,,\n```\n# 次回依頼文案\n- 元号は表紙と照合する\n',
+    );
+    expect(parts.csv).toBe('日付,摘要,払戻額,お預り額\nR2.1.1,テスト,100,,');
+    expect(parts.improvementDraft).toBe('- 元号は表紙と照合する');
+  });
+
+  it('CSVだけを貼り付けてもそのまま取り出す', () => {
+    expect(extractGeminiResponse('日付,摘要,払戻額,お預り額\nR2.1.1,テスト,,100\n').csv).toContain('R2.1.1');
+    expect(extractGeminiResponse('説明だけです').csv).toBe('');
+  });
+
+  it('Excelでコピーしたタブ区切りの表をCSVへ変換する', () => {
+    const parts = extractGeminiResponse(
+      '日付\t摘要\t払戻額\tお預り額\nR2.1.1\t振込,ヤマダ\t1000\t\nR2.1.2\t利息\t\t20\n',
+    );
+    expect(parts.csv).toBe('日付,摘要,払戻額,お預り額\nR2.1.1,"振込,ヤマダ",1000,\nR2.1.2,利息,,20');
+    expect(parts.improvementDraft).toBe('');
   });
 
   // README はイメージに入れない（.dockerignore）ので、コンテナの中では飛ばし、CI（チェックアウトの中）で確かめる

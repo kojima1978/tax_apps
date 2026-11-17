@@ -3,13 +3,13 @@
 // 分類名・キーワード・贈与の閾値は案件のいまの設定をサーバから取る（画面で分類名を持たない）
 
 import { useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, ClipboardCopy, Download, FileSpreadsheet, History, Save, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ClipboardCopy, ClipboardPaste, Download, History, Save, Sparkles } from 'lucide-react';
 import { IMPORT_COLUMNS } from '../../../server/lib/import/columns';
 import { ERA_CHOICES, type EraChoice } from '../../../server/lib/import/eralessDates';
-import { aiInstruction, IMPORT_RULES, promptImprovementRequest, templateCsv, type ImportFormat } from '../../../server/lib/import/format';
+import { aiInstruction, extractGeminiResponse, IMPORT_RULES, promptImprovementRequest, templateCsv, type ImportFormat } from '../../../server/lib/import/format';
 import { exportFileName } from '../../../server/lib/exportFileName';
 import { Dialog } from '../../components/Dialog';
-import { api, download, errorMessage, saveBlob } from '../../lib/api';
+import { api, errorMessage, saveBlob } from '../../lib/api';
 
 export const FORMAT_GUIDE_ID = 'import-format-guide';
 
@@ -18,9 +18,9 @@ function downloadTemplate() {
   saveBlob(new Blob(['﻿', templateCsv()], { type: 'text/csv;charset=utf-8' }), exportFileName('取込のひな形', 'csv'));
 }
 
-type Props = { caseId: string; open: boolean; onToggle: (open: boolean) => void };
+type Props = { caseId: string; open: boolean; onToggle: (open: boolean) => void; variant: 'gemini' | 'file'; onPaste?: (csv: string) => void };
 
-export function FormatGuide({ caseId, open, onToggle }: Props) {
+export function FormatGuide({ caseId, open, onToggle, variant, onPaste }: Props) {
   const [instruction, setInstruction] = useState<string | null>(null);
   const [format, setFormat] = useState<ImportFormat | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
@@ -35,6 +35,7 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
   const [historyVersion, setHistoryVersion] = useState('');
   const [improveOpen, setImproveOpen] = useState(false);
   const [showInstruction, setShowInstruction] = useState(false);
+  const [geminiResponse, setGeminiResponse] = useState('');
 
   const loadFormat = async () => {
     const next = await api.get<ImportFormat>(`/cases/${caseId}/import/format`);
@@ -46,7 +47,8 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
     void loadFormat().catch((e) => setStatus({ ok: false, text: errorMessage(e) }));
   }, [caseId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fullInstruction = (f: ImportFormat) => aiInstruction(f, { era: era || null, period }, { output: 'xlsx', extraRules: f.ocrPrompt?.currentRules });
+  const fullInstruction = (f: ImportFormat) =>
+    aiInstruction(f, { era: era || null, period }, { output: 'csv', extraRules: f.ocrPrompt?.currentRules, ocrOnly: true, includeImprovement: true });
 
   const copyInstruction = async () => {
     setBusy(true);
@@ -57,7 +59,7 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
       try {
         await navigator.clipboard.writeText(text);
         setShowInstruction(false);
-        setStatus({ ok: true, text: 'Gemini用の依頼文をコピーしました。通帳PDFとExcelひな形と一緒に渡してください。' });
+        setStatus({ ok: true, text: '依頼文をコピーしました。Geminiへ通帳PDFと一緒に貼り付けてください。' });
       } catch {
         setShowInstruction(true);
         setStatus({ ok: false, text: 'コピーできませんでした。下の欄から選んでコピーしてください。' });
@@ -67,6 +69,31 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
     } finally {
       setBusy(false);
     }
+  };
+
+  const useGeminiResponse = () => {
+    setStatus(null);
+    const parts = extractGeminiResponse(geminiResponse);
+    if (!parts.csv) {
+      setStatus({ ok: false, text: '取引データを見つけられませんでした。Geminiの回答全体、またはExcelでコピーした表を見出し行ごと貼り付けてください。' });
+      return;
+    }
+    onPaste?.(parts.csv);
+    if (parts.improvementDraft) setGeminiDraft(parts.improvementDraft);
+    setStatus({
+      ok: true,
+      text: `貼り付け内容から取引データを取り出しました${parts.improvementDraft ? '。次回依頼文案も保存候補へ入れました' : ''}。「次へ」で内容を確認できます。`,
+    });
+  };
+
+  const saveForExcel = () => {
+    const parts = extractGeminiResponse(geminiResponse);
+    if (!parts.csv) {
+      setStatus({ ok: false, text: '保存できる取引データが見つかりませんでした。' });
+      return;
+    }
+    saveBlob(new Blob(['\ufeff', parts.csv, '\r\n'], { type: 'text/csv;charset=utf-8' }), exportFileName('Gemini文字認識_修正用', 'csv'));
+    setStatus({ ok: true, text: 'Excelで修正するためのCSVを保存しました。修正後は表全体をコピーして、同じ欄へ貼り付けられます。' });
   };
 
   const copyImprovement = async () => {
@@ -105,40 +132,44 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
 
   return (
     <div id={FORMAT_GUIDE_ID} className="mt-4 space-y-3">
-      <section className="rounded-lg border border-blue-200 bg-blue-50 p-4" aria-labelledby="ocrGeminiTitle">
+      {variant === 'gemini' && <section className="rounded-lg border border-blue-200 bg-blue-50 p-4" aria-labelledby="ocrGeminiTitle">
         <div className="flex flex-wrap items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-700 text-white">
             <Sparkles size={18} aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 id="ocrGeminiTitle" className="font-semibold text-blue-950">Geminiで通帳PDFをExcelにする</h3>
+              <h3 id="ocrGeminiTitle" className="font-semibold text-blue-950">Geminiで通帳PDFを読み取る</h3>
               <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-blue-800">依頼文 Ver.{format?.ocrPrompt?.currentVersion ?? '－'}</span>
             </div>
-            <p className="mt-0.5 text-sm text-blue-900">次の2つをGeminiへ通帳PDFと一緒に渡し、返されたExcelを上の枠へ入れます。</p>
+            <p className="mt-0.5 text-sm text-blue-900">依頼文をGeminiへ貼り付け、返ってきた回答をこの画面へ貼り戻します。</p>
           </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
           <ol className="flex min-w-0 flex-1 flex-col gap-2 text-sm text-blue-950 sm:flex-row sm:items-center">
-            <li className="flex items-center gap-2"><StepNumber n={1} /><span><strong>ひな形を保存</strong></span></li>
+            <li className="flex items-center gap-2"><StepNumber n={1} /><span><strong>依頼文をコピー</strong></span></li>
             <ArrowRight size={15} className="hidden shrink-0 text-blue-400 sm:block" aria-hidden="true" />
-            <li className="flex items-center gap-2"><StepNumber n={2} /><span><strong>依頼文をコピー</strong></span></li>
+            <li className="flex items-center gap-2"><StepNumber n={2} /><span><strong>PDFと一緒にGeminiへ</strong></span></li>
             <ArrowRight size={15} className="hidden shrink-0 text-blue-400 sm:block" aria-hidden="true" />
-            <li className="flex items-center gap-2"><StepNumber n={3} /><span><strong>Excelを戻す</strong></span></li>
+            <li className="flex items-center gap-2"><StepNumber n={3} /><span><strong>回答を貼り付け</strong></span></li>
           </ol>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void download(`/cases/${caseId}/import/ocr-template`).catch((e) => setStatus({ ok: false, text: errorMessage(e) }))}>
-              <FileSpreadsheet size={16} />Excelひな形を保存
-            </button>
-            <button type="button" className="btn btn-primary" onClick={copyInstruction} disabled={busy}>
-              <ClipboardCopy size={16} />依頼文をコピー
-            </button>
+          <button type="button" className="btn btn-primary" onClick={copyInstruction} disabled={busy}><ClipboardCopy size={16} />依頼文をコピー</button>
+        </div>
+
+        <div className="mt-4 rounded-md border border-blue-200 bg-white p-3">
+          <label htmlFor="geminiResponse" className="font-medium text-slate-800">Geminiの回答・Excelの表を貼り付け</label>
+          <p className="mt-0.5 text-xs text-slate-500">Geminiの回答全体、またはExcelで修正してコピーした表を貼れます。CSVと次回依頼文案は自動で分けます。</p>
+          <textarea id="geminiResponse" className="input mt-2 min-h-32 w-full font-mono text-xs" value={geminiResponse} onChange={(e) => setGeminiResponse(e.target.value)} placeholder={'# 取引CSV\n```csv\n銀行名,支店名,…\n```\n# 次回依頼文案\n- …'} />
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" className="btn btn-secondary" disabled={!geminiResponse.trim()} onClick={useGeminiResponse}><ClipboardPaste size={16} />取込データに追加</button>
+            <button type="button" className="btn btn-secondary" disabled={!geminiResponse.trim()} onClick={saveForExcel}><Download size={16} />CSVを保存してExcelで修正</button>
           </div>
+          <p className="mt-2 text-xs text-slate-500">追加後もすぐには保存されません。「次へ」から、口座情報と各取引を修正してから確定できます。</p>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-blue-200 pt-3 text-xs">
-          <span className="inline-flex items-center gap-1 text-blue-900"><CheckCircle2 size={14} aria-hidden="true" />残高検算・読めない箇所もExcelへ記録</span>
+          <span className="inline-flex items-center gap-1 text-blue-900"><CheckCircle2 size={14} aria-hidden="true" />CSVの切り出しやファイル保存は不要</span>
           <button type="button" className="font-medium text-blue-800 underline underline-offset-2 hover:text-blue-950" onClick={() => { setStatus(null); setImproveOpen(true); }}>
             <History size={14} className="mr-1 inline" aria-hidden="true" />読み取り精度を改善
           </button>
@@ -146,9 +177,9 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
         </div>
         {status && <p role="status" className={`mt-3 rounded px-3 py-2 text-sm ${status.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>{status.text}</p>}
         {instruction && showInstruction && <textarea className="input mt-3 h-48 w-full font-mono text-xs" readOnly aria-label="Geminiに渡す指示文" value={instruction} onFocus={(e) => e.currentTarget.select()} />}
-      </section>
+      </section>}
 
-      <details className="rounded border border-slate-200" open={open} onToggle={(e) => onToggle(e.currentTarget.open)}>
+      {variant === 'file' && <details className="rounded border border-slate-200" open={open} onToggle={(e) => onToggle(e.currentTarget.open)}>
         <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">取込できるファイル形式・列を確認</summary>
         <div className="space-y-3 border-t border-slate-200 px-4 py-3 text-sm">
           <ul className="list-disc space-y-0.5 pl-5 text-slate-700">
@@ -209,9 +240,9 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
           </div>
           <p className="text-xs text-slate-500">元号が分からなければ、通帳の数字のまま読み取り、取込の手順3でまとめて指定できます。</p>
         </div>
-      </details>
+      </details>}
 
-      <Dialog open={improveOpen} onClose={() => setImproveOpen(false)} title="Geminiの読み取り精度を改善" size="lg" footer={<button type="button" className="btn btn-secondary" onClick={() => setImproveOpen(false)}>閉じる</button>}>
+      {variant === 'gemini' && <Dialog open={improveOpen} onClose={() => setImproveOpen(false)} title="Geminiの読み取り精度を改善" size="lg" footer={<button type="button" className="btn btn-secondary" onClick={() => setImproveOpen(false)}>閉じる</button>}>
         <div className="space-y-5 text-sm">
           <p className="rounded bg-blue-50 px-3 py-2 text-blue-900">誤読を見つけたときだけ行います。改善内容は次回以降の依頼文へ追加され、過去の版も残ります。</p>
 
@@ -220,8 +251,8 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
             <label className="block text-sm text-slate-700">今回見つかった間違い・改善点
               <textarea data-autofocus className="input mt-1 min-h-24 w-full" value={issue} onChange={(e) => setIssue(e.target.value)} placeholder="例: 02年を平成2年と読んだが、表紙と前後ページから令和2年だった" />
             </label>
-            <label className="mt-3 block text-sm text-slate-700">Excel「次回依頼文案」の内容 <span className="text-xs text-slate-500">（任意）</span>
-              <textarea className="input mt-1 min-h-20 w-full" value={geminiDraft} onChange={(e) => setGeminiDraft(e.target.value)} placeholder="GeminiがExcelに書いた追加ルール案を貼り付け" />
+            <label className="mt-3 block text-sm text-slate-700">Geminiの「次回依頼文案」 <span className="text-xs text-slate-500">（回答貼り付け時に自動入力）</span>
+              <textarea className="input mt-1 min-h-20 w-full" value={geminiDraft} onChange={(e) => setGeminiDraft(e.target.value)} placeholder="Geminiの回答に含まれた追加ルール案" />
             </label>
           </section>
 
@@ -246,7 +277,7 @@ export function FormatGuide({ caseId, open, onToggle }: Props) {
           </section>
           {status && <p role="status" className={`rounded px-3 py-2 ${status.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>{status.text}</p>}
         </div>
-      </Dialog>
+      </Dialog>}
     </div>
   );
 }
