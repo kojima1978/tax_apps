@@ -38,6 +38,16 @@ describe("FamilyEditorModal", () => {
     }
   });
 
+  it("開いたら、先頭の人の氏名欄へフォーカスを移す", () => {
+    renderModal();
+    expect(document.activeElement).toBe(field("1人目の氏名"));
+  });
+
+  it("家族が1人もいなければ、ダイアログ自身へフォーカスを移す", () => {
+    renderModal([]);
+    expect(document.activeElement).toBe(screen.getByRole("dialog"));
+  });
+
   it("家族を追加すると、追加した人の氏名欄にフォーカスが移る", async () => {
     renderModal();
     click("家族を追加");

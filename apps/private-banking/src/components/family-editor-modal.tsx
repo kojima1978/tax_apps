@@ -146,6 +146,8 @@ export function FamilyEditorModal({ members, referenceDate, saving, onSave, onCl
     onClose: () => { dismissToast(); onClose(); },
     busy: saving,
     isDirty: () => editor.dirty,
+    // 開いた直後は先頭のカードの氏名欄。家族が1人もいなければダイアログ自身。
+    initialFocus: 'input[id$="-name"]',
   });
   const { focusKey, clearFocusKey } = editor;
 

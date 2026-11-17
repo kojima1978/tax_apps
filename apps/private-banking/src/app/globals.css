@@ -533,10 +533,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .position-modal .form-grid :is(input, select, textarea):user-invalid { border-color: var(--danger); box-shadow: 0 0 0 3px #f8d7d5; }
 /* 幅は vw ではなく親（.modal-layer）に対する % で取る。vw は縦スクロールバーの幅を含むうえ
    .modal-layer の padding を無視するので、置き場所より広くなって右端（保存ボタン）が画面外へ出る。 */
-.bulk-position-modal { width: min(1480px, 100%); overflow: hidden; }
-.bulk-position-modal > header { min-height: 78px; }
+/* 高さはモーダル（.modal の max-height）だけで決め、本文は残りを使う。以前は本文に「画面の高さ − 150px」と
+   ヘッダーの高さを決め打ちしていたため、ヘッダーが2行になる狭い画面ではフッターが画面の下へ切れていた。 */
+.bulk-position-modal { width: min(1480px, 100%); overflow: hidden; display: flex; flex-direction: column; }
+.bulk-position-modal > header { flex: 0 0 auto; min-height: 78px; }
 .bulk-position-modal > header p:last-child { margin: 4px 0 0; color: var(--slate-500); font-size: 12px; }
-.bulk-modal-body { max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); padding: 14px 10px 0; overflow: auto; }
+.bulk-modal-body { flex: 1 1 auto; min-height: 0; padding: 14px 10px 0; overflow: auto; }
 .bulk-common-settings { padding: 14px; border: 1px solid #bbf7d0; border-radius: 9px; background: #f7fdf9; display: flex; flex-direction: column; gap: 10px; }
 .bulk-entry-tabs { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
 /* 中分類のまとまりが分かるよう、明細一覧と同じ区切りで見出しを載せる。 */
@@ -558,8 +560,12 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .bulk-entry-tab.has-error { border-color: #fecaca; color: #991b1b; background: #fef2f2; }
 .bulk-entry-tab.has-error.is-active { border-color: #991b1b; color: #fff; background: #991b1b; }
 .bulk-entry-tab.has-error em { background: #fee2e2; color: #991b1b; }
-.bulk-help { color: var(--slate-500); font-size: 11px; line-height: 1.5; display: flex; align-items: center; gap: 8px; }
-.bulk-help svg { width: 18px; height: 18px; color: #16a34a; flex: 0 0 auto; }
+.bulk-help { color: var(--slate-600); font-size: 11px; line-height: 1.6; }
+.bulk-help > summary { width: fit-content; min-height: 32px; color: var(--slate-500); display: flex; align-items: center; gap: 6px; font-weight: 700; list-style: none; cursor: pointer; }
+.bulk-help > summary::-webkit-details-marker { display: none; }
+.bulk-help > summary svg { width: 18px; height: 18px; color: #16a34a; flex: 0 0 auto; }
+.bulk-help > summary:hover, .bulk-help[open] > summary { color: #166534; }
+.bulk-help > p { margin: 4px 0 0; padding: 8px 10px; background: #fff; border: 1px solid #e2ece4; border-radius: 6px; }
 .bulk-form-error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 7px; color: #991b1b; background: #fef2f2; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .bulk-form-error svg { width: 17px; height: 17px; }
 .bulk-table-scroll { margin-top: 14px; border: 1px solid var(--field-border); border-radius: 8px; background: white; overflow: auto; }
@@ -1482,8 +1488,8 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
   .position-modal form > footer:has(.modal-close-confirm-message) .position-modal-summary { flex-basis: 100%; }
   .classification-row { align-items: stretch; flex-direction: column; gap: 5px; }
   .client-create-form footer { padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
-  .bulk-modal-body { max-height: calc(94vh - 78px); max-height: calc(94dvh - 78px); padding-inline: 12px; }
-  .bulk-help { width: 100%; }
+  .bulk-modal-body { padding-inline: 12px; }
+  .bulk-help > summary { width: 100%; min-height: 44px; }
   .bulk-modal-body > footer { margin-inline: -12px; padding-inline: 12px; }
   .client-create-grid { grid-template-columns: 1fr; }
   .client-list-year { display: none; }

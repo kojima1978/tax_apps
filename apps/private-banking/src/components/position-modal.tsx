@@ -309,9 +309,13 @@ export function PositionModal({ position, defaultSection = "ASSET", defaultCateg
   const [institution, setInstitution] = useState(position?.institution ?? "");
   // 受取人ごとの分数の合計が1かどうか。受取人欄（BenefitRecipientsField）から受け取る。
   const [benefitAllocationValid, setBenefitAllocationValid] = useState(true);
-  // 開いたときのフォーカスと Tab の巡回、閉じ方。Escape・×・キャンセルはどれも requestClose を通り、
+  // 開いたときのフォーカスと Tab の巡回、閉じ方。開いた直後は名称・金融機関などの最初の入力欄（区分と科目は
+  // 開く前の画面で決まっていることが多いので飛ばす）。Escape・×・キャンセルはどれも requestClose を通り、
   // 開いたときから入力が変わっていれば「変更を保存せずに閉じますか？」を挟む（何も変えていなければそのまま閉じる）。
-  const { dialogRef, onKeyDown, requestClose, closeConfirm } = useModalDialog<HTMLDivElement>({ onClose, busy: saving });
+  const { dialogRef, onKeyDown, requestClose, closeConfirm } = useModalDialog<HTMLDivElement>({
+    onClose, busy: saving,
+    initialFocus: '.position-identity-grid input:not([type="hidden"]), .position-identity-grid select',
+  });
 
   // 区分の切替も科目の切替を通す。以前は setCategory を直に呼んでいたため通貨が JPY へ戻らず、
   // 外貨預金から負債へ切り替えると「借入残高（USD）」と見せたまま JPY で保存され、

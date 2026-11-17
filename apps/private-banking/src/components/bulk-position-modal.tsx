@@ -682,7 +682,8 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
             </button>;
           })}</div>
         </div>)}</div>
-        <div className="bulk-help"><Table2 /><span>登録済み行の修正と新規行の追加を同じ表で行えます。生命保険は行ごとの通貨で金額を入力し、評価額列は円換算後の額です。それ以外の科目は円単位です。Excelから複数セルを貼り付けることもできます（貼り付けは文字を打てる欄から始めてください。科目・方式・地目・建物種類・預金種類の選択欄では受け付けません）。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の{bulkEntryTypes.length}種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</span></div>
+        {/* 説明は畳んでおく。狭い画面では10行ほどになり、表が下へ押し出されていた。開いた状態は覚えない。 */}
+        <details className="bulk-help"><summary><Table2 aria-hidden="true" />入力のしかた（金額の単位・貼り付け・セルの移動）</summary><p>登録済み行の修正と新規行の追加を同じ表で行えます。生命保険は行ごとの通貨で金額を入力し、評価額列は円換算後の額です。それ以外の科目は円単位です。Excelから複数セルを貼り付けることもできます（貼り付けは文字を打てる欄から始めてください。科目・方式・地目・建物種類・預金種類の選択欄では受け付けません）。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の{bulkEntryTypes.length}種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</p></details>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>

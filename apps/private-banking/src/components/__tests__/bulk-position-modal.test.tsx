@@ -562,6 +562,15 @@ describe("BulkPositionModal（モーダルの作法）", () => {
     return { onClose, pressEscape: () => fireEvent.keyDown(container.querySelector(".modal-layer")!, { key: "Escape" }) };
   }
 
+  // 狭い画面では説明が10行ほどになり、表が下へ押し出されていた。開いた状態は覚えない。
+  it("入力のしかたの説明は畳んだ状態で開く", () => {
+    renderWithClose();
+    const help = document.querySelector<HTMLDetailsElement>("details.bulk-help")!;
+    expect(help.open).toBe(false);
+    expect(help.querySelector("summary")!.textContent).toBe("入力のしかた（金額の単位・貼り付け・セルの移動）");
+    expect(help.querySelector("p")!.textContent).toContain("Enterで次のセル");
+  });
+
   it("開いたら、いま編集している種類のタブへフォーカスを移す", () => {
     renderWithClose();
     // 9種類ぶんの入力先があるので、先頭のセルではなく「どの種類か」へ移す。

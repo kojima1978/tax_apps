@@ -327,9 +327,12 @@ describe("PositionModal（受取人ごとの分数）", () => {
 });
 
 describe("PositionModal（モーダルの作法）", () => {
-  it("開いたらフォーカスをモーダルの中へ移す", () => {
+  // 以前はダイアログの枠に止まり、名称を打ち始めるまでに Tab が1回要った。
+  it("開いたら、名称・金融機関などの最初の入力欄へフォーカスを移す（区分と科目は飛ばす）", () => {
     const { container } = renderModal();
-    expect(document.activeElement).toBe(container.querySelector(".position-modal"));
+    const active = document.activeElement as HTMLElement;
+    expect(active.closest(".position-identity-grid")).not.toBeNull();
+    expect(active).toBe(container.querySelector(".position-identity-grid")!.querySelector('input:not([type="hidden"]), select'));
   });
 
   it("何も入れていなければ Escape で閉じる", () => {
