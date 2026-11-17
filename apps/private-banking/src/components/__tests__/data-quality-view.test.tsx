@@ -69,5 +69,7 @@ describe("データ品質チェック", () => {
     expect(checkbox.checked).toBe(true);
     expect(screen.getByRole("button", { name: "1件に設定" })).toBeTruthy();
     expect(screen.getAllByRole("link", { name: /中原 美佐/ }).every((link) => link.classList.contains("quality-client-link"))).toBe(true);
+    // 最新の基準日は西暦に和暦の年を添える（表とカードの両方）。
+    expect(screen.getAllByText("2026（令和8）年1月1日").length).toBeGreaterThanOrEqual(1);
   });
 });

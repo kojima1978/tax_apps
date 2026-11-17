@@ -38,7 +38,7 @@ import { API_BASE } from "@/lib/api";
 import { buildBalanceView, loanBreakdownTotals, successionAssetTotals } from "@/lib/balance-view";
 import { legalHeirNames, type FamilyMemberDraft } from "@/lib/family";
 import { taxCalcLabel, type TaxCalcStatus } from "@/lib/inheritance-tax-calculation";
-import { dateJa, unformatNumberInput } from "@/lib/format";
+import { dateJaWithWareki, unformatNumberInput } from "@/lib/format";
 import {
   type BalanceScenario,
   type BulkPositionPayload,
@@ -471,7 +471,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
                 <div>
                   <h2>貸借対照表</h2>
                   <p>個人資産・負債を時価で俯瞰します。</p>
-                  {reportSnapshot.isCurrent ? null : <p className="detail-heading-meta"><span className="detail-status historical">過年度を表示中</span><span>基準日 {dateJa(reportSnapshot.asOfDate)}</span></p>}
+                  {reportSnapshot.isCurrent ? null : <p className="detail-heading-meta"><span className="detail-status historical">過年度を表示中</span><span>基準日 {dateJaWithWareki(reportSnapshot.asOfDate)}</span></p>}
                 </div>
               </section>
               <section className={`dashboard-grid balance-report-series screen-${balanceScenario}`}>

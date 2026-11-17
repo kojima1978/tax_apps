@@ -139,7 +139,7 @@ export function DeleteSnapshotModal({ snapshot, snapshotCount, onClose, onSubmit
 
 export function SnapshotSettingsModal({ snapshot, onClose, onSubmit, saving, fxOnly = false, error = "", currencyCodes = positionCurrencies, customerName = "", onReloadCurrencies }: { snapshot: Snapshot; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean; fxOnly?: boolean; error?: string; currencyCodes?: string[]; customerName?: string; onReloadCurrencies?: () => void }) {
   const visibleCurrencies = currencyOptions(currencyCodes).filter((code) => code !== "JPY");
-  const { dialogRef, onKeyDown, requestClose, closeConfirm } = useModalDialog<HTMLDivElement>({ onClose, busy: saving, initialFocus: fxOnly ? 'input[name="fxRate.USD"]' : 'input[name="asOfDate"]' });
+  const { dialogRef, onKeyDown, requestClose, closeConfirm } = useModalDialog<HTMLDivElement>({ onClose, busy: saving, initialFocus: fxOnly ? 'input[name="fxRate.USD"]' : "#snapshot-as-of-date" });
   return <div className="modal-layer" role="presentation" onKeyDown={onKeyDown}><div ref={dialogRef} tabIndex={-1} className="modal snapshot-tax-modal" role="dialog" aria-modal="true" aria-labelledby="snapshot-settings-title" aria-busy={saving} aria-describedby={customerName ? "snapshot-settings-context" : undefined}>
     <header><div><h2 id="snapshot-settings-title">{fiscalYearLabel(snapshot)}の{fxOnly ? "為替レート設定" : "年度設定"}</h2>{customerName ? <p className="snapshot-settings-context" id="snapshot-settings-context">対象顧客：{customerName} ／ 対象年度：{fiscalYearLabel(snapshot)}</p> : null}</div><button type="button" className="icon-button" aria-label="閉じる" onClick={requestClose} disabled={saving}><X /></button></header>
     <form onSubmit={onSubmit}>
@@ -151,7 +151,12 @@ export function SnapshotSettingsModal({ snapshot, onClose, onSubmit, saving, fxO
         <input type="hidden" name="estimatedInheritanceTax" value={snapshot.estimatedInheritanceTax} />
         <input type="hidden" name="otherTaxes" value={snapshot.otherTaxes} />
       </> : <div className="form-grid snapshot-settings-grid">
-        <label className="snapshot-date-field">B/S基準日<input name="asOfDate" type="date" min={`${snapshot.fiscalYear}-01-01`} max={`${snapshot.fiscalYear}-12-31`} defaultValue={snapshot.asOfDate} aria-describedby="snapshot-as-of-date-help" required /><small id="snapshot-as-of-date-help" className="field-help">対象年度内の日付を指定してください。</small></label>
+        {/* 年度の追加・顧客の追加の基準日と同じく、和暦でも入れられる欄にする。 */}
+        <div className="date-field snapshot-date-field">
+          <label htmlFor="snapshot-as-of-date">B/S基準日</label>
+          <DateInput id="snapshot-as-of-date" name="asOfDate" label="B/S基準日" min={`${snapshot.fiscalYear}-01-01`} max={`${snapshot.fiscalYear}-12-31`} defaultValue={snapshot.asOfDate} describedBy="snapshot-as-of-date-help" required disabled={saving} />
+          <small id="snapshot-as-of-date-help" className="field-help">対象年度内の日付を指定してください。</small>
+        </div>
         <label>相続税（円）<CommaNumberInput name="estimatedInheritanceTax" defaultValue={snapshot.estimatedInheritanceTax} maxFractionDigits={0} placeholder="0" /></label>
         <label>その他税金（円）<CommaNumberInput name="otherTaxes" defaultValue={snapshot.otherTaxes} maxFractionDigits={0} placeholder="0" /></label>
       </div>}

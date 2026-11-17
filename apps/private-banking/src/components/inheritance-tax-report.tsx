@@ -1,7 +1,7 @@
 import { AlertTriangle, Calculator, LoaderCircle, RefreshCw, ShieldCheck } from "lucide-react";
 import { PersonName } from "@/components/person-name";
 import { legalHeirRoster } from "@/lib/family";
-import { compactYen, dateJa } from "@/lib/format";
+import { compactYen, dateJaWithWareki } from "@/lib/format";
 import { taxCalcLabel, type InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
 import { fiscalYearLabel, totals, type Portfolio, type Snapshot } from "@/lib/portfolio-view";
 
@@ -203,7 +203,7 @@ export function InheritanceTaxReport({
 
     <footer className="tax-calc-notes">
       <p>※ {calculation.warnings.join(" ")}</p>
-      <p>適用ルール基準日：{dateJa(calculation.taxRuleAsOf)}／本資料は申告税額を確定するものではありません。</p>
+      <p>適用ルール基準日：{dateJaWithWareki(calculation.taxRuleAsOf)}／本資料は申告税額を確定するものではありません。</p>
     </footer>
   </section>;
 }

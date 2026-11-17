@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { dateJa } from "@/lib/format";
+import { dateJaWithWareki } from "@/lib/format";
 import { fiscalYearLabel, institutionOrPropertyAddress, ownershipFraction, propertyArea, propertyTypeLabels, propertyTypeOf, type Position, type Snapshot } from "@/lib/portfolio-view";
 import { normalizePropertyPlan, propertyPlanOptions, type PropertyPlan } from "@/lib/property-plan";
 import { comparePositionClassification } from "@/lib/position-order";
@@ -30,7 +30,7 @@ export function PropertyPlanReport({ snapshot, onEdit, onChangePlan }: { snapsho
   return <section className="panel property-plan-report">
     <header className="property-plan-report-heading">
       <h2>不動産の保有・処分方針一覧</h2>
-      <p>{fiscalYearLabel(snapshot)} ／ 基準日：{dateJa(snapshot.asOfDate)} ／ {positions.length}件</p>
+      <p>{fiscalYearLabel(snapshot)} ／ 基準日：{dateJaWithWareki(snapshot.asOfDate)} ／ {positions.length}件</p>
     </header>
     <p className="property-plan-report-help">方針が未登録の物件は「未定」と表示しています。方針は評価額・相続税の計算には影響しません。<span className="property-plan-screen-help">方針は1つ選ぶと保存されます。物件名から詳細を編集できます。</span></p>
     <p role="status" aria-live="polite" className="property-plan-save-status">{message}</p>

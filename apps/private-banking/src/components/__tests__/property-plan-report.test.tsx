@@ -20,7 +20,8 @@ describe("不動産の保有・処分方針一覧", () => {
     expect([...container.querySelectorAll("thead th")].map((cell) => cell.textContent)).toEqual(["今後の方針", "No.", "土地・建物", "名称", "所在地", "面積（㎡）", "持分", "評価額（円）", "未定", "保有・承継", "売却予定", "処分予定", "要検討"]);
     expect(container.querySelector("tbody tr")?.children[5].textContent).toBe("2");
     expect(container.querySelector("tbody tr")?.children[9].textContent).toBe("180.5");
-    expect(container.textContent).toContain("2024");
+    // 基準日は西暦に和暦の年を添える（印刷にも出る）。
+    expect(container.textContent).toContain("基準日：2024（令和6）年12月31日");
     expect(container.querySelector("tfoot")?.textContent).toContain("246,000");
     fireEvent.click(screen.getByRole("button", { name: "物件2の方針を編集" }));
     expect(onEdit).toHaveBeenCalledWith(sell);

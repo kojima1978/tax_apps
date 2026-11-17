@@ -32,6 +32,20 @@ describe("年度・為替設定", () => {
     expect(tax.required).toBe(true);
   });
 
+  // 以前は素の type="date" で、年度・顧客の追加と違って和暦では入れられなかった。
+  it("B/S基準日は和暦でも入れられ、開いた直後はこの欄にフォーカスする", () => {
+    const { container } = render(<SnapshotSettingsModal snapshot={snapshot} onClose={vi.fn()} onSubmit={vi.fn()} saving={false} />);
+    const date = container.querySelector("#snapshot-as-of-date") as HTMLInputElement;
+    expect(document.activeElement).toBe(date);
+    expect(date.value).toBe("2026-01-01");
+    expect(date.min).toBe("2026-01-01");
+    expect(date.max).toBe("2026-12-31");
+    fireEvent.click(screen.getByRole("button", { name: "B/S基準日を和暦で入力する" }));
+    expect((screen.getByLabelText("B/S基準日の元号") as HTMLSelectElement).value).toBe("REIWA");
+    expect((screen.getByLabelText("B/S基準日の年") as HTMLInputElement).value).toBe("8");
+    expect(new FormData(container.querySelector("form")!).getAll("asOfDate")).toEqual(["2026-01-01"]);
+  });
+
   it("為替専用では税額を編集させず、USDへフォーカスして戻れる", () => {
     const onClose = vi.fn();
     const { container } = render(<SnapshotSettingsModal snapshot={snapshot} fxOnly onClose={onClose} onSubmit={vi.fn()} saving={false} />);

@@ -50,6 +50,13 @@ describe("年度比較の列", () => {
     expect(document.querySelector(".trend-change-column small")?.textContent).toBe("最新 − 直前");
   });
 
+  it("年度の一覧の基準日は西暦に和暦の年を添える", () => {
+    renderView([snapshot(1, 2025), snapshot(2, 2026)]);
+    const table = document.querySelector(".history-table") as HTMLElement;
+    expect(table.textContent).toContain("2026（令和8）年12月31日");
+    expect(table.textContent).toContain("2025（令和7）年12月31日");
+  });
+
   it("3年度あれば3列を出し、案内は消える", () => {
     renderView([snapshot(1, 2024), snapshot(2, 2025), snapshot(3, 2026)]);
     expect(periodHeaders().map((th) => th.querySelector(".period-position-label")?.textContent)).toEqual(["古い年度", "直前年度", "最新年度"]);
