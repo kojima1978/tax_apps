@@ -165,7 +165,7 @@ export function SnapshotSettingsModal({ snapshot, onClose, onSubmit, saving, fxO
         <div className="fx-rate-grid">{visibleCurrencies.map((code) => <label key={code}>{code}<CommaNumberInput name={`fxRate.${code}`} defaultValue={snapshot.fxRates[code] ?? ""} maxFractionDigits={6} placeholder="円／1通貨" positive required={false} /></label>)}</div>
         {Object.entries(snapshot.fxRates).filter(([code]) => !visibleCurrencies.includes(code)).map(([code, rate]) => <input type="hidden" key={code} name={`fxRate.${code}`} value={rate} />)}
       </fieldset>
-      <details className="currency-extra-settings"><summary>その他の通貨を使う場合</summary><p><Link href="/settings" target="_blank" rel="noopener noreferrer">アプリ共通設定で通貨を追加（別タブ）</Link></p>{onReloadCurrencies ? <button type="button" className="button secondary" onClick={onReloadCurrencies}>追加した通貨を反映</button> : null}</details>
+      <details className="currency-extra-settings"><summary>その他の通貨を使う場合</summary><p><Link href="/settings" target="_blank" rel="noopener noreferrer">共通設定で通貨を追加（別タブ）</Link></p>{onReloadCurrencies ? <button type="button" className="button secondary" onClick={onReloadCurrencies}>追加した通貨を反映</button> : null}</details>
       <footer>{closeConfirm.open ? <ModalCloseConfirm confirm={closeConfirm} /> : <><button type="button" className="button secondary" onClick={requestClose} disabled={saving}>{fxOnly ? "戻る" : "キャンセル"}</button><button type="submit" className="button primary" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <Pencil />}保存する</button></>}</footer>
     </form>
   </div></div>;

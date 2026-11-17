@@ -3,7 +3,7 @@
  * B/Sは基準日時点の評価なので、同じ年度・同じ通貨のレートが明細ごとに食い違うことはないため。
  */
 
-/** 通常使う通貨。例外的な通貨はアプリ共通設定から追加する。 */
+/** 通常使う通貨。例外的な通貨は共通設定（/settings）から追加する。 */
 export const entryForeignCurrencies = ["USD", "EUR"];
 export const positionCurrencies = ["JPY", ...entryForeignCurrencies];
 const isoCurrencies = new Set(Intl.supportedValuesOf("currency"));

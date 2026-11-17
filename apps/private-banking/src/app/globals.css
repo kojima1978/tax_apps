@@ -1136,16 +1136,37 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .benefit-recipient-amount small { display: block; font-size: 11px; }
 .currency-extra-settings { margin-top: 16px; font-size: 12px; }
 .currency-extra-settings summary { min-height: 36px; cursor: pointer; }
-.currency-settings-page { max-width: 900px; margin: auto; padding: 24px 16px; }
-.currency-settings-page h1 { margin: 2px 0 3px; color: var(--navy-950); font-size: 24px; }
-.currency-settings-page h2 { color: var(--navy-950); font-size: 16px; }
-.currency-settings-panel { padding: 20px; }
-.currency-settings-panel p { font-size: 13px; line-height: 1.7; }
-.currency-settings-panel li { margin: 12px 0; }
-.currency-settings-panel details { margin-top: 20px; }
-.currency-settings-panel summary { min-height: 44px; cursor: pointer; }
-.currency-settings-panel form { margin-top: 16px; }
-.currency-settings-panel input { width: 100%; min-height: 44px; margin-top: 6px; padding: 8px; border: 1px solid var(--field-border); border-radius: 6px; font-size: 16px; }
+/* 共通設定（/settings）。担当者の画面と同じ枠に、通貨の表と追加の欄を置く。 */
+.settings-panel { margin-top: 14px; max-width: 760px; }
+.settings-panel .panel-header { min-height: 0; }
+.settings-panel .panel-header p { max-width: 68ch; margin-top: 4px; line-height: 1.7; }
+.settings-panel-body { padding: 0 22px 22px; }
+.settings-loading { margin: 0; padding: 24px 0; color: var(--slate-500); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; font-weight: 700; }
+.settings-notice { margin-bottom: 18px; min-height: 48px; padding: 10px 12px 10px 16px; color: #14532d; background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 7px; display: flex; align-items: center; gap: 9px; font-size: 13px; }
+.settings-notice svg { width: 18px; flex: none; }
+.currency-table th:first-child, .currency-table td:first-child { width: 120px; }
+.currency-table th:last-child, .currency-table td:last-child { width: 96px; }
+.currency-table .currency-code { color: var(--navy-950); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.currency-add { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--slate-200); }
+.currency-add h3 { margin: 0 0 10px; color: var(--navy-950); font-size: 14px; }
+.currency-add-form { display: grid; grid-template-columns: 140px minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.currency-add-form label { min-width: 0; color: var(--slate-700); font-size: 12px; font-weight: 700; }
+.currency-add-form input { width: 100%; min-height: 44px; margin-top: 5px; padding: 9px 11px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 16px; }
+.currency-add-form input[name="code"] { text-transform: uppercase; }
+/* 紙は通貨の表だけ（追加の欄・ヘッダーは操作部品なので外す）。 */
+@media print {
+  .client-home:has(.settings-page) { min-height: 0; background: white; }
+  .client-home:has(.settings-page) > .client-home-header, .settings-page .currency-add, .settings-notice { display: none !important; }
+  .client-home-main:has(> .settings-page) { width: 100%; max-width: none; margin: 0; padding: 0; }
+  .settings-page .settings-panel { max-width: none; margin: 0; border: 0; box-shadow: none; }
+  .settings-page .panel-header { padding: 0 0 4px; border: 0; }
+  .settings-page .settings-panel-body { padding: 0; }
+}
+@media (max-width: 600px) {
+  .settings-panel-body { padding: 0 14px 16px; }
+  .currency-add-form { grid-template-columns: minmax(0, 1fr); }
+  .currency-add-form button { width: 100%; }
+}
 .fx-rate-grid label { min-width: 0; color: var(--slate-700); font-size: 11px; font-weight: 800; }
 .fx-rate-grid input { width: 100%; min-height: 42px; margin-top: 6px; padding: 8px 10px; color: var(--slate-950); background: #fff; border: 1px solid var(--field-border); border-radius: 6px; font-size: 13px; }
 .snapshot-settings-grid input[inputmode="decimal"], .fx-rate-grid input { text-align: right; font-variant-numeric: tabular-nums; }
