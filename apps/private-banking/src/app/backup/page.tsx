@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { BackupView } from "@/components/backup-view";
 import { AppBrand } from "@/components/portal-link";
+
+export const metadata: Metadata = { title: "バックアップ" };
 
 export default function BackupPage() {
   return <div className="client-home">

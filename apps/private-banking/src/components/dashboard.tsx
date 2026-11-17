@@ -49,23 +49,18 @@ import {
   type Snapshot,
   fiscalYearLabel,
   printSectionForSection,
+  sectionLabels,
   totals,
   unprintableSections,
 } from "@/lib/portfolio-view";
 
 /** サイドバーのメニュー。key はそのまま URL の `/customers/<id>/<key>` になる。 */
-const SECTIONS = [
-  { key: "profile", label: "本人情報", icon: CircleUserRound },
-  { key: "family", label: "親族関係", icon: UsersRound },
-  { key: "tax", label: "相続税の概算", icon: Calculator },
-  { key: "balance", label: "貸借対照表", icon: LayoutDashboard },
-  { key: "position-list", label: "資産・負債一覧", icon: WalletCards },
-  { key: "positions", label: "資産・負債詳細", icon: WalletCards },
-  { key: "property-plan", label: "不動産の保有・処分方針", icon: LayoutDashboard },
-  { key: "history", label: "年度比較", icon: History },
-  { key: "activity", label: "操作履歴", icon: Activity },
-  { key: "backup", label: "バックアップ", icon: DatabaseBackup },
-] as const satisfies ReadonlyArray<{ key: Section; label: string; icon: typeof LayoutDashboard }>;
+const SECTION_ICONS = {
+  profile: CircleUserRound, family: UsersRound, tax: Calculator, balance: LayoutDashboard, "position-list": WalletCards,
+  positions: WalletCards, "property-plan": LayoutDashboard, history: History, activity: Activity, backup: DatabaseBackup,
+} satisfies Record<Section, typeof LayoutDashboard>;
+// 名前と並びは lib の sectionLabels（タブ名と共通）。
+const SECTIONS = (Object.keys(sectionLabels) as Section[]).map((key) => ({ key, label: sectionLabels[key], icon: SECTION_ICONS[key] }));
 
 /** 行を光らせておく長さ。送られた先を目で拾えれば十分なので短くする。 */
 const SPOTLIGHT_MS = 2_400;

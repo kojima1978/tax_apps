@@ -63,6 +63,19 @@ export type Portfolio = {
 };
 /** サイドバーのメニュー key。そのまま URL の `/customers/<id>/<key>` になる。 */
 export type Section = "balance" | "position-list" | "positions" | "property-plan" | "tax" | "profile" | "family" | "history" | "activity" | "backup";
+/** 顧客の画面の名前。サイドバーの項目名とブラウザのタブ名の両方に使う。並びはサイドバーの順。 */
+export const sectionLabels = {
+  profile: "本人情報",
+  family: "親族関係",
+  tax: "相続税の概算",
+  balance: "貸借対照表",
+  "position-list": "資産・負債一覧",
+  positions: "資産・負債詳細",
+  "property-plan": "不動産の保有・処分方針",
+  history: "年度比較",
+  activity: "操作履歴",
+  backup: "バックアップ",
+} as const satisfies Record<Section, string>;
 export type BulkPositionPayload = Record<string, unknown>;
 export type BalanceScenario = "without-tax" | "with-tax";
 export type PrintSection = "profile-family" | "balance" | "tax-calculation" | "position-list" | "details" | "property-plan" | "history";

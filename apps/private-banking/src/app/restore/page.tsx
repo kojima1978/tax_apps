@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { RestoreView } from "@/components/backup-view";
 import { AppBrand } from "@/components/portal-link";
+
+export const metadata: Metadata = { title: "データ復元" };
 
 export default function RestorePage() {
   return <div className="client-home">

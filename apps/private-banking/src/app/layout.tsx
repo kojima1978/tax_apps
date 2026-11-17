@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { appTitleMetadata } from "@/lib/page-title";
 import "./globals.css";
 
+// タブ名は各ページの title ＋「｜個人資産・負債管理」（顧客の画面は顧客コード＋画面名、src/lib/page-title.ts）。
 export const metadata: Metadata = {
-  title: "個人資産・負債管理",
+  title: appTitleMetadata,
   description: "税理士がオーナー本人の個人資産・負債を時価で管理する貸借対照表アプリ",
 };
 
