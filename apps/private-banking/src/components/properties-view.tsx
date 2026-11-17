@@ -37,7 +37,7 @@ type PropertiesResponse = { rows: PropertyRow[]; fiscalYears: number[] };
 const filterFields = [
   { key: "category", label: "科目", options: realEstateCategories.map((category) => ({ value: category, label: categoryLabels[category] })) },
   { key: "propertyType", label: "土地・建物", options: Object.entries(propertyTypeLabels).map(([value, label]) => ({ value, label })) },
-  { key: "plan", label: "今後の方針", options: [...propertyPlanOptions, { value: "DISPOSAL", label: "売却・処分予定" }] },
+  { key: "plan", label: "今後の方針", options: [...propertyPlanOptions, { value: "DISPOSAL", label: "売却・整理予定" }] },
 ] as const satisfies ReadonlyArray<{ key: keyof PropertyFilters; label: string; options: ReadonlyArray<{ value: string; label: string }> }>;
 
 /** 面積は㎡までの整数・小数をそのまま出す（未入力は「－」）。 */

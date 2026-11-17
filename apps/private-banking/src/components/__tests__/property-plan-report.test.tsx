@@ -17,7 +17,7 @@ describe("不動産の今後の方針", () => {
     expect(container.querySelectorAll("tbody tr:first-child .property-plan-readonly-mark")[0].textContent).toBe("●");
     expect(screen.queryByText("相続後")).toBeNull();
     expect(container.textContent).not.toContain("境界確認");
-    expect([...container.querySelectorAll("thead th")].map((cell) => cell.textContent)).toEqual(["No.", "土地・建物", "名称", "所在地", "面積（㎡）", "持分", "評価額（円）", "今後の方針", "未定", "保有・承継", "売却予定", "処分予定", "要検討"]);
+    expect([...container.querySelectorAll("thead th")].map((cell) => cell.textContent)).toEqual(["No.", "土地・建物", "名称", "所在地", "面積（㎡）", "持分", "評価額（円）", "今後の方針", "未定", "保有・承継", "売却予定", "整理予定", "要検討"]);
     expect(container.querySelector("tbody tr")?.children[0].textContent).toBe("2");
     expect(container.querySelector("tbody tr")?.children[4].textContent).toBe("180.5");
     // 基準日は西暦に和暦の年を添える（印刷にも出る）。

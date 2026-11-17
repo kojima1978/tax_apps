@@ -92,7 +92,7 @@ describe("propertyRows", () => {
 });
 
 describe("filterProperties", () => {
-  it("方針別と売却・処分予定のまとめで絞り込める", () => {
+  it("方針別と売却・整理予定のまとめで絞り込める", () => {
     const planned = ["KEEP", "SELL", "DISPOSE", "REVIEW", undefined].map((propertyPlan, index) => toPropertyRow(position({ id: index + 1, assetDetails: { propertyPlan } }), owner()));
     const base = { category: PROPERTY_FILTER_ALL, propertyType: PROPERTY_FILTER_ALL };
     expect(filterProperties(planned, [], { ...base, plan: "DISPOSAL" }).map((row) => row.plan)).toEqual(["SELL", "DISPOSE"]);

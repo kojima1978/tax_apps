@@ -461,7 +461,7 @@ export function PositionModal({ position, defaultSection = "ASSET", defaultCateg
           <div className="asset-detail-grid">
             <label>方針<select name="assetDetail.propertyPlan" defaultValue={normalizePropertyPlan(assetDetails.propertyPlan)}>{propertyPlanOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
             <label>希望時期<input name="assetDetail.propertyPlanTiming" maxLength={100} defaultValue={assetDetails.propertyPlanTiming ?? ""} placeholder="例：相続後、2028年頃" /></label>
-            <label className="wide">方針メモ<textarea name="assetDetail.propertyPlanNote" maxLength={500} rows={2} defaultValue={assetDetails.propertyPlanNote ?? ""} placeholder="残したい理由、売却・処分の条件など（任意）" /></label>
+            <label className="wide">方針メモ<textarea name="assetDetail.propertyPlanNote" maxLength={500} rows={2} defaultValue={assetDetails.propertyPlanNote ?? ""} placeholder="残したい理由、売却・整理の条件など（任意）" /></label>
           </div>
           <p className="asset-detail-hint">方針を変更しても、評価額や相続税計算の対象は変わりません。土地・建物は明細ごとに設定します。</p>
         </fieldset> : null}

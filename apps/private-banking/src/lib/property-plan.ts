@@ -1,9 +1,9 @@
-/** 不動産の今後の方針（保有・承継／売却／処分など）。評価額や税計算からの除外とは独立して管理する。 */
+/** 不動産の今後の方針（保有・承継／売却／整理など）。評価額や税計算からの除外とは独立して管理する。 */
 export const propertyPlanOptions = [
   { value: "UNDECIDED", label: "未定" },
   { value: "KEEP", label: "保有・承継" },
   { value: "SELL", label: "売却予定" },
-  { value: "DISPOSE", label: "処分予定" },
+  { value: "DISPOSE", label: "整理予定" },
   { value: "REVIEW", label: "要検討" },
 ] as const;
 export type PropertyPlan = typeof propertyPlanOptions[number]["value"];

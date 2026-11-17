@@ -30,7 +30,7 @@ describe("不動産一覧の方針", () => {
   it("評価額の後ろの五択に該当箇所を示し、件数ボタンで絞り込み・解除できる", async () => {
     const { container } = setup([row(1), row(2, "SELL"), row(3, "UNDECIDED")]);
     await screen.findByText("土地1");
-    expect([...container.querySelectorAll(".properties-plan-choice")].map((cell) => cell.textContent)).toEqual(["未定", "保有・承継", "売却予定", "処分予定", "要検討"]);
+    expect([...container.querySelectorAll(".properties-plan-choice")].map((cell) => cell.textContent)).toEqual(["未定", "保有・承継", "売却予定", "整理予定", "要検討"]);
     const firstRowCells = [...container.querySelectorAll(".properties-row:first-child td")];
     expect(firstRowCells.slice(0, 8).map((cell) => cell.getAttribute("data-label"))).toEqual(["科目・区分", "名称・所在地", "地目・用途", "面積", "持分", "固定資産税評価額", "評価額（円）", "顧客"]);
     expect(firstRowCells.slice(8, 13).map((cell) => cell.textContent).join("")).toContain("●");
