@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
 import { api } from '../api';
 import { exportFileName } from '../exportFileName';
 import { checkLinkedApps, type LinkedImpact } from '../linkedApps';
-import { ErrorBanner, Modal, btn } from './ui';
+import { ErrorBanner, Modal, Section, btn } from './ui';
 import type { DirectorySummary, RestoreResult } from '../types';
 
 // 台帳まるごとの JSON 控え（書き出し・復元）。住所・生年月日も入る
@@ -137,7 +137,9 @@ function JsonDropZone({ onFile }: { onFile: (file: File) => void }) {
   );
 }
 
-export default function BackupMenu() {
+// 台帳の控えは画面ごとの操作ではなく台帳全体のものなので、入口はサイドバー（狭い画面は上の帯）に1つ。
+// 押すとダイアログで「書き出し」と「復元」を選ぶ。className / children で入口の見た目だけ置き場所に合わせる
+export default function BackupMenu({ className, children }: { className: string; children: ReactNode }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pickCount = useRef(0);
   // null = 復元のダイアログを閉じている。開くたびに番号を変えて Modal を作り直す（showModal は mount 時だけ）
@@ -162,6 +164,7 @@ export default function BackupMenu() {
 
   function openDialog() {
     setPending(null);
+    setExportError(null);
     setDialogId(++pickCount.current);
   }
 
@@ -213,63 +216,70 @@ export default function BackupMenu() {
   }
 
   return (
-    <div className="ml-auto flex flex-wrap items-center gap-2">
-      {exportError && <span className="text-sm text-red-600">{exportError}</span>}
-      <button type="button" className={btn.secondary} onClick={exportNow} disabled={exporting}>
-        JSONで書き出し
-      </button>
-      <button type="button" className={btn.secondary} onClick={openDialog}>
-        JSONから復元
+    <>
+      <button type="button" className={className} onClick={openDialog} title="台帳の控え（JSON の書き出し・復元）">
+        {children}
       </button>
 
       {dialogId !== null && (
-        <Modal key={dialogId} title="JSONから復元" dialogRef={dialogRef} onClose={closeDialog}>
-          {/* 読めなかったときもここから選び直せるように、件数が出るまでは受け口を出しておく */}
-          {!pending?.preview && !restoring && <JsonDropZone onFile={(file) => void load(file)} />}
-          {pending && <p className="break-all text-sm text-slate-600">{pending.fileName}</p>}
-          {pending?.preview ? (
-            <>
-              <p className="text-sm text-slate-600">書き出した日時: {formatExportedAt(pending.preview.exportedAt)}</p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="py-1 text-left font-medium" />
-                    <th className="py-1 text-right font-medium">今の台帳</th>
-                    <th className="py-1 text-right font-medium">復元後</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {SUMMARY_ROWS.map((r) => {
-                    const before = pending.preview!.current[r.key];
-                    const after = pending.preview!.restored[r.key];
-                    return (
-                      <tr key={r.key} className="border-b border-slate-100">
-                        <td className="py-1 text-slate-700">{r.label}</td>
-                        <td className="py-1 text-right tabular-nums">{before}</td>
-                        <td className={`py-1 text-right tabular-nums ${before === after ? '' : 'font-bold text-amber-700'}`}>
-                          {after}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <LinkedImpactList impact={pending.impact} />
-              <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                今の台帳の中身はすべてこのファイルの内容に置き換わります（台帳IDはファイルのまま）。
-                復元の直前に、今の中身を「復元前の控え」として書き出します。
-              </p>
-            </>
-          ) : (
-            pending &&
-            !pending.error && <p className="text-sm text-slate-500">ファイルを確かめています…</p>
-          )}
-          <ErrorBanner message={pending?.error ?? null} />
+        <Modal key={dialogId} title="台帳の控え（JSON）" dialogRef={dialogRef} onClose={closeDialog}>
+          <Section title="書き出し" first>
+            <p className="text-sm text-slate-600">会社・部署・社員を住所・生年月日も含めて1つのファイルに書き出します。</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className={btn.secondary} onClick={exportNow} disabled={exporting || restoring}>
+                {exporting ? '書き出しています…' : 'JSONで書き出し'}
+              </button>
+              {exportError && <span className="text-sm text-red-600">{exportError}</span>}
+            </div>
+          </Section>
+          <Section title="復元">
+            {/* 読めなかったときもここから選び直せるように、件数が出るまでは受け口を出しておく */}
+            {!pending?.preview && !restoring && <JsonDropZone onFile={(file) => void load(file)} />}
+            {pending && <p className="break-all text-sm text-slate-600">{pending.fileName}</p>}
+            {pending?.preview ? (
+              <>
+                <p className="text-sm text-slate-600">書き出した日時: {formatExportedAt(pending.preview.exportedAt)}</p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="py-1 text-left font-medium" />
+                      <th className="py-1 text-right font-medium">今の台帳</th>
+                      <th className="py-1 text-right font-medium">復元後</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {SUMMARY_ROWS.map((r) => {
+                      const before = pending.preview!.current[r.key];
+                      const after = pending.preview!.restored[r.key];
+                      return (
+                        <tr key={r.key} className="border-b border-slate-100">
+                          <td className="py-1 text-slate-700">{r.label}</td>
+                          <td className="py-1 text-right tabular-nums">{before}</td>
+                          <td className={`py-1 text-right tabular-nums ${before === after ? '' : 'font-bold text-amber-700'}`}>
+                            {after}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <LinkedImpactList impact={pending.impact} />
+                <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  今の台帳の中身はすべてこのファイルの内容に置き換わります（台帳IDはファイルのまま）。
+                  復元の直前に、今の中身を「復元前の控え」として書き出します。
+                </p>
+              </>
+            ) : (
+              pending &&
+              !pending.error && <p className="text-sm text-slate-500">ファイルを確かめています…</p>
+            )}
+            <ErrorBanner message={pending?.error ?? null} />
+          </Section>
           <div className="flex justify-end gap-2">
             {/* close() の close イベントが届かない環境がある（アプリ内ブラウザで実測）。
                 それに頼ると pending が残り、次にファイルを選んでもダイアログが開かない */}
             <button type="button" className={btn.secondary} onClick={closeDialog} disabled={restoring}>
-              やめる
+              閉じる
             </button>
             <button type="button" className={btn.primary} onClick={restore} disabled={!pending?.preview || restoring}>
               {restoring ? '復元しています…' : '復元する'}
@@ -277,6 +287,6 @@ export default function BackupMenu() {
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }
