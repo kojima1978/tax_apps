@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   serverExternalPackages: ['@prisma/client'],
   experimental: {
+    agentUpgrade: 'security',
     optimizePackageImports: ['lucide-react'],
   },
   // compose watch の sync は Docker デーモンがオーバーレイの上位層へ直接書き込むため、

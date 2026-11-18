@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   ...(isJsonDemoMode ? {} : { basePath: '/insurance' }),
   trailingSlash: true,
   serverExternalPackages: ['better-sqlite3'],
+  experimental: {
+    agentUpgrade: 'security',
+  },
 }
 
 export default nextConfig

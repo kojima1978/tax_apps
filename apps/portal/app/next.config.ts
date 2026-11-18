@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   images: { unoptimized: true },
 
   experimental: {
+    agentUpgrade: 'security',
     optimizePackageImports: ['lucide-react'],
   },
 
