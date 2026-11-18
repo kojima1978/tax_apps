@@ -423,16 +423,6 @@ export default function App() {
       </div>
 
       <div className="no-print app-topbar" ref={topbarRef}>
-        {/* サマリーは帳票の外なので表切替は畳む。戻り口はサマリー側の「帳票入力へ戻る」に一本化する */}
-        {!summaryOpen && (
-          <Navigation
-            activeId={activeTab}
-            onSelect={goToNav}
-            hasData={hasData}
-            isJudgmentTarget={isJudgmentTarget}
-          />
-        )}
-
         {/*
           左＝操作、右＝状態。状態（前提条件・必須未入力・確認事項・業種目）は以前ヘッダの右端と
           ここの右端に割れていて、引っかかりを2箇所見に行く必要があった。操作の左端は「← 一覧」・
@@ -499,6 +489,16 @@ export default function App() {
 
 
       <div className="app-shell">
+        {/*
+          表の切替は左の一覧に一本化する（上の帯に残すのは操作だけ）。様式ではないサマリーも
+          並びの先頭に入れてあるので、サマリーを開いている間も同じ一覧から帳票へ戻れる。
+        */}
+        <Navigation
+          activeId={summaryOpen ? SUMMARY_TAB_ID : activeTab}
+          onSelect={goToNav}
+          hasData={hasData}
+          isJudgmentTarget={isJudgmentTarget}
+        />
         <main className="app-main">
           {summaryOpen && !printAll && worksheetOpen ? (
             <CalculationWorksheet
