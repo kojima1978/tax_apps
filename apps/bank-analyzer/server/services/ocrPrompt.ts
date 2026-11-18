@@ -4,7 +4,11 @@ import { IMPORT_COLUMNS } from '../lib/import/columns.js';
 import { exportFileName } from '../lib/exportFileName.js';
 import type { ExportFile } from './exports.js';
 
-const KEY = 'OCR_PROMPT_HISTORY';
+export type AiPromptKind = 'ocr' | 'classification';
+const KEYS: Record<AiPromptKind, string> = {
+  ocr: 'OCR_PROMPT_HISTORY',
+  classification: 'CLASSIFICATION_PROMPT_HISTORY',
+};
 const MAX_RULES = 20_000;
 const MAX_NOTE = 1_000;
 
@@ -29,27 +33,31 @@ function parse(value: unknown): OcrPromptHistory {
   return { currentVersion, versions };
 }
 
-export async function getOcrPromptHistory(db: PrismaClient): Promise<OcrPromptHistory> {
-  return parse((await db.appSetting.findUnique({ where: { key: KEY }, select: { value: true } }))?.value);
+export async function getAiPromptHistory(db: PrismaClient, kind: AiPromptKind): Promise<OcrPromptHistory> {
+  return parse((await db.appSetting.findUnique({ where: { key: KEYS[kind] }, select: { value: true } }))?.value);
 }
 
-export async function saveOcrPromptVersion(db: PrismaClient, rules: string, note: string): Promise<OcrPromptHistory> {
+export async function saveAiPromptVersion(db: PrismaClient, kind: AiPromptKind, rules: string, note: string): Promise<OcrPromptHistory> {
+  const key = KEYS[kind];
   const clean = rules.trim();
   if (!clean) throw new Error('次回から追加するルールを入力してください。');
   if (clean.length > MAX_RULES) throw new Error('追加ルールは20,000文字以内にしてください。');
   if (note.trim().length > MAX_NOTE) throw new Error('改善内容は1,000文字以内にしてください。');
   return db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`analyzer_appsetting:${KEY}`}))`;
-    const history = parse((await tx.appSetting.findUnique({ where: { key: KEY }, select: { value: true } }))?.value);
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`analyzer_appsetting:${key}`}))`;
+    const history = parse((await tx.appSetting.findUnique({ where: { key }, select: { value: true } }))?.value);
     const version = Math.max(...history.versions.map((v) => v.version)) + 1;
     const next: OcrPromptHistory = {
       currentVersion: version,
       versions: [...history.versions, { version, rules: clean, note: note.trim(), createdAt: new Date().toISOString() }],
     };
-    await tx.appSetting.upsert({ where: { key: KEY }, create: { key: KEY, value: next as unknown as Prisma.InputJsonValue }, update: { value: next as unknown as Prisma.InputJsonValue } });
+    await tx.appSetting.upsert({ where: { key }, create: { key, value: next as unknown as Prisma.InputJsonValue }, update: { value: next as unknown as Prisma.InputJsonValue } });
     return next;
   });
 }
+
+export const getOcrPromptHistory = (db: PrismaClient) => getAiPromptHistory(db, 'ocr');
+export const saveOcrPromptVersion = (db: PrismaClient, rules: string, note: string) => saveAiPromptVersion(db, 'ocr', rules, note);
 
 export function currentOcrPrompt(history: OcrPromptHistory): OcrPromptVersion {
   return history.versions.find((v) => v.version === history.currentVersion) ?? history.versions.at(-1)!;

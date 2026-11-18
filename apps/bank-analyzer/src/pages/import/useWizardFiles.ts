@@ -17,10 +17,10 @@ function patchRow(r: EditRow, patch: RowPatch): EditRow {
   if (DEDUP_FIELDS.some((k) => k in patch)) next.dup = null;
   // 日付を手で直したら、まとめて当てた元号の行ではなくなる（まとめて当て直しても上書きしない）
   if ('date' in patch) next.eraFilled = null;
-  // 摘要を直したら自動分類の見込みは分からなくなる（取込時にサーバが付け直す）
+  // 摘要を直したら、読み込み時に計算したアプリ候補は使えない
   if ('description' in patch) next.autoCategory = null;
-  // 分類を選んだら「人が直した」。空（自動）に戻したら自動
-  if ('category' in patch) next.categoryOrigin = patch.category ? 'manual' : 'auto';
+  // 元のAI・CSV分類に戻した場合は、分類の出どころも元に戻す
+  if ('category' in patch) next.categoryOrigin = !patch.category ? 'auto' : patch.category === r.sourceCategory && r.unknownCategory === null ? 'csv' : 'manual';
   // 問題の行は、取引の欄を直したら「直した」として疑いを消す（分類・メモ・付箋だけでは消さない）
   if (DEDUP_FIELDS.some((k) => k in patch) && r.issues.length > 0) {
     next.issues = [];
@@ -60,7 +60,7 @@ export function useWizardFiles() {
     [updateFile],
   );
 
-  // CSV の知らない分類名を、全ファイルのその名前の行でまとめて読み替える（'' = 自動分類）
+  // CSV の知らない分類名を、全ファイルのその名前の行でまとめて読み替える（'' = 未分類）
   const mapUnknownCategory = useCallback((name: string, category: string) => {
     setFiles((list) =>
       list.map((f) => ({
@@ -72,6 +72,15 @@ export function useWizardFiles() {
 
   const deleteRows = useCallback(
     (fileKey: number, rowKeys: ReadonlySet<number>) => updateFile(fileKey, (f) => ({ ...f, rows: f.rows.filter((r) => !rowKeys.has(r.key)) })),
+    [updateFile],
+  );
+
+  const setExcluded = useCallback(
+    (fileKey: number, rowKeys: ReadonlySet<number>, excluded: boolean) =>
+      updateFile(fileKey, (f) => ({
+        ...f,
+        rows: f.rows.map((r) => (rowKeys.has(r.key) ? { ...r, excluded } : r)),
+      })),
     [updateFile],
   );
 
@@ -104,7 +113,7 @@ export function useWizardFiles() {
     setFiles((list) =>
       list.map((f, i) => {
         const result = results[i];
-        const filled = f.rows.filter((r) => !isBlankRow(r));
+        const filled = f.rows.filter((r) => !r.excluded && !isBlankRow(r));
         if (!result || result.marks.length !== filled.length) return f;
         const marks = new Map(filled.map((r, j) => [r.key, result.marks[j]!]));
         return {
@@ -125,7 +134,7 @@ export function useWizardFiles() {
     [updateFile],
   );
 
-  return { files, setFiles, setAccount, updateRow, acceptRow, mapUnknownCategory, deleteRows, insertBelow, move, applyDuplicateCheck, appendRows };
+  return { files, setFiles, setAccount, updateRow, acceptRow, mapUnknownCategory, deleteRows, setExcluded, insertBelow, move, applyDuplicateCheck, appendRows };
 }
 
 export type WizardFiles = ReturnType<typeof useWizardFiles>;

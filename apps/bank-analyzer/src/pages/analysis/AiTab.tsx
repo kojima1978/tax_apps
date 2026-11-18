@@ -313,6 +313,7 @@ export function AiTab({ dash, reload }: Props) {
                 ))}
               </div>
             </div>
+            <p className="border-b border-slate-100 px-3 py-1.5 text-xs text-slate-600">「見送る」は未分類のまま候補を一時的に隠します。</p>
             {dash.targetCount > SHOWN_LIMIT && (
               <p className="border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
                 未分類 {num(dash.targetCount)}件のうち、新しい{SHOWN_LIMIT}件から候補を出しています。分類すると次の分が出ます。
@@ -347,9 +348,7 @@ export function AiTab({ dash, reload }: Props) {
                       <th className="w-28 text-right">{flat ? 'お預り' : 'お預り合計'}</th>
                       <th className="min-w-48">候補</th>
                       <th className="w-32">信頼度</th>
-                      <th className="w-56">
-                        <span className="sr-only">操作</span>
-                      </th>
+                      <th className="min-w-80">操作</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -516,14 +515,15 @@ function SuggestionCells({
       </td>
       <td className="whitespace-nowrap">
         <button type="button" className="btn btn-primary btn-sm" disabled={disabled} aria-busy={busy} onClick={() => onApply(row.category)}>
-          適用
+          適用のみ
         </button>
         <button type="button" className="btn btn-secondary btn-sm ml-1" disabled={disabled} onClick={onPattern} title="キーワードを登録して、含むものをまとめて分類">
           <Tags size={14} />
-          登録して適用
+          適用して登録
         </button>
-        <button type="button" className="ml-1 rounded p-1 text-slate-500 hover:bg-slate-100" disabled={disabled} onClick={onDismiss} aria-label={`「${row.description}」の候補を一覧から外す`} title="一覧から外す（未分類のまま）">
-          <EyeOff size={14} />
+        <button type="button" className="btn btn-secondary btn-sm ml-1" disabled={disabled} onClick={onDismiss} aria-label={`「${row.description}」の候補を見送る`} title="一覧から一時的に外す（未分類のまま。画面を開き直すと戻ります）">
+          <EyeOff size={14} aria-hidden="true" />
+          見送る
         </button>
       </td>
     </>

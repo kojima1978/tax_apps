@@ -7,12 +7,15 @@ import {
   eraTargets,
   hasOpenIssues,
   NO_FILE_REVIEW,
+  patternLearningCandidates,
   reviewCounts,
   toCommitFile,
+  toEditFiles,
   unknownCategories,
   unreadableFlagCount,
   type EditFile,
   type EditRow,
+  type ParsedPreviewFile,
 } from './wizardRows';
 
 const row = (day: number, dup: EditRow['dup']): EditRow => ({
@@ -62,7 +65,20 @@ describe('分類・メモ・付箋（依頼24）', () => {
     ...NO_FILE_REVIEW,
   });
 
-  it('送るのは CSV・人が選んだ分類と、入っているメモ・付箋だけ（自動分類は送らない）', () => {
+  it('AI・CSVの元の分類を、未分類への変更後に戻せるよう保持する', () => {
+    const preview = {
+      filename: 'AI.csv',
+      detectedAccount: { bankName: '架空銀行', branchName: '', accountType: '', accountNumber: '1234567' },
+      hasBalance: false,
+      rows: [
+        { date: '2024-04-01', description: '給与', amountOut: 0, amountIn: 100, balance: null, category: '給与' },
+        { date: '2024-04-02', description: '独自', amountOut: 100, amountIn: 0, balance: null, unknownCategory: '独自分類' },
+      ],
+    } as ParsedPreviewFile;
+    expect(toEditFiles([preview])[0]?.rows.map((r) => r.sourceCategory)).toEqual(['給与', '独自分類']);
+  });
+
+  it('送るのは CSV・人が選んだ分類と、入っているメモ・付箋だけ（候補は送らない）', () => {
     const rows = [
       { ...row(1, null), category: '生活費', categoryOrigin: 'csv' as const },
       { ...row(2, null), autoCategory: '年金', memo: '  ', flagged: false },
@@ -99,6 +115,25 @@ describe('分類・メモ・付箋（依頼24）', () => {
       { name: 'ZZQ別', count: 1, chosen: '' },
     ]);
     expect(unreadableFlagCount([file(rows)])).toBe(1);
+  });
+
+  it('AI・CSVの分類とアプリ候補が違う摘要だけを学習候補にまとめる', () => {
+    const rows = [
+      { ...row(1, null), description: '  固定資産税  ', category: '税金', categoryOrigin: 'csv' as const, autoCategory: '未分類' },
+      { ...row(2, null), description: '固定資産税', category: '税金', categoryOrigin: 'csv' as const, autoCategory: '未分類' },
+      { ...row(3, null), description: 'スーパー', category: '生活費', categoryOrigin: 'csv' as const, autoCategory: '生活費' },
+      { ...row(4, null), description: '手直し', category: '税金', categoryOrigin: 'manual' as const, autoCategory: '未分類' },
+    ];
+    expect(patternLearningCandidates([file(rows)])).toEqual([
+      { key: '税金\u0000固定資産税', category: '税金', description: '固定資産税', autoCategory: '未分類', count: 2 },
+    ]);
+  });
+
+  it('対象外にした行は一覧に残しても取込・学習候補には送らない', () => {
+    const included = { ...row(1, null), category: '生活費', categoryOrigin: 'csv' as const };
+    const excluded = { ...row(2, null), excluded: true, category: '税金', categoryOrigin: 'csv' as const, autoCategory: '生活費' };
+    expect(toCommitFile(file([included, excluded])).rows).toHaveLength(1);
+    expect(patternLearningCandidates([file([included, excluded])]).map((candidate) => candidate.description)).toEqual(['摘要1']);
   });
 });
 

@@ -5,7 +5,7 @@
 import type { ImportSummary } from '../../../server/lib/import/summary';
 
 export type { ImportSummary };
-export type LastImport = { summary: ImportSummary; message: string; at: string };
+export type LastImport = { summary: ImportSummary; message: string; at: string; dismissedLearningCandidates?: NonNullable<ImportSummary['learningCandidates']> };
 
 const key = (caseId: string | number) => `bank-analyzer:last-import:${caseId}`;
 

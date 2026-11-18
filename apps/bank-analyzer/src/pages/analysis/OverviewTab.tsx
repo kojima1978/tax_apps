@@ -25,23 +25,24 @@ export function OverviewTab({ dash, reload }: Props) {
   const caseId = dash.case.id;
   return (
     <div className="space-y-4">
-      <ReferenceDate caseId={caseId} value={dash.case.referenceDate} onSaved={reload} />
-
-      <div className="card flex flex-wrap items-center gap-2 px-4 py-2 text-sm" aria-label="分析対象期間">
-        <span className="flex items-center gap-1 font-medium text-slate-500">
-          <CalendarDays size={14} />
-          分析対象期間
-        </span>
-        <strong>
-          {dash.earliestTransactionDate && dash.latestTransactionDate
-            ? `${warekiShort(dash.earliestTransactionDate)}〜${warekiShort(dash.latestTransactionDate)}`
-            : '日付未設定'}
-        </strong>
-        <span className="ml-auto rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-600">全{num(dash.totalTxCount)}件</span>
+      <div className="card grid md:grid-cols-2">
+        <ReferenceDate caseId={caseId} value={dash.case.referenceDate} onSaved={reload} />
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm md:border-t-0 md:border-l" aria-label="分析対象期間">
+          <span className="flex items-center gap-1 font-medium text-slate-500">
+            <CalendarDays size={14} aria-hidden="true" />
+            分析対象期間
+          </span>
+          <strong>
+            {dash.earliestTransactionDate && dash.latestTransactionDate
+              ? `${warekiShort(dash.earliestTransactionDate)}〜${warekiShort(dash.latestTransactionDate)}`
+              : '日付未設定'}
+          </strong>
+          <span className="ml-auto rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-600">全{num(dash.totalTxCount)}件</span>
+        </div>
       </div>
 
-      <Kpis dash={dash} />
       <NextStep dash={dash} />
+      <Kpis dash={dash} />
       <AccountList caseId={caseId} accounts={dash.accountSummary} onDeleted={reload} />
 
       <section className="card p-4" aria-labelledby="monthlyHeading">
@@ -81,7 +82,7 @@ function ReferenceDate({ caseId, value, onSaved }: { caseId: number; value: stri
   };
 
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3">
       <span className="text-sm font-medium text-slate-500">基準日（相続開始日）</span>
       {editing ? (
         <form
@@ -172,10 +173,10 @@ function NextStep({ dash }: { dash: DashboardSummary }) {
       ? { title: `${num(dash.flaggedCount)}件の付箋を確認`, text: '確認事項やメモが残っている取引を整理しましょう。', tab: 'flagged', action: '質問候補を開く' }
       : null;
   return (
-    <section className="card border-l-4 border-l-emerald-500 p-4" aria-labelledby="nextStepHeading">
+    <section className={`card border-l-4 border-l-emerald-500 ${step ? 'p-4' : 'px-3 py-2'}`} aria-labelledby="nextStepHeading">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <span className="text-xs font-semibold text-emerald-700">次に行う作業</span>
+          {step && <span className="text-xs font-semibold text-emerald-700">次に行う作業</span>}
           <h2 id="nextStepHeading" className={step ? 'text-base font-semibold' : 'text-sm text-slate-600'}>
             {step?.title ?? '主要な確認作業は完了しています'}
           </h2>

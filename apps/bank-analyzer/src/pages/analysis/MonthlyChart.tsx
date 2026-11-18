@@ -4,7 +4,7 @@
 // - 縦軸は左に固定し、棒だけを横に流す。いまどこを見ているかは上の帯に和暦で出す
 // - 突出した棒で縦軸がつぶれるときは上限で切り、切った棒には切れ目と実額を描く
 // - 棒を押すとその月（年）の取引一覧へ。キーボードでは下の表の月（年）から移れる
-// - 出金と入金は色に加えて塗り（出金）と斜線（入金）でも分ける
+// - 出金は赤、入金は青の単色。左右の位置と凡例でも区別する
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Crosshair } from 'lucide-react';
@@ -48,18 +48,11 @@ const UNIT_WORD = { month: '月', year: '年' } as const;
 const listSearch = (b: Bucket) => new URLSearchParams({ tab: 'all', date_from: b.from, date_to: b.to }).toString();
 const bucketName = (b: Bucket) => `${b.label}${b.note ? `（${b.note}）` : ''}`;
 
-// 出金（塗り）・入金（斜線）の見本。凡例とグラフで同じ形を使う
+// 出金（赤）・入金（青）の見本。凡例とグラフで同じ色を使う
 function Swatch({ kind }: { kind: 'out' | 'in' }) {
   return (
     <svg width={14} height={12} aria-hidden="true" className="shrink-0">
-      {kind === 'out' ? (
-        <rect width={14} height={12} rx={2} fill={COLORS.out} />
-      ) : (
-        <>
-          <rect width={14} height={12} rx={2} fill="url(#monthly-hatch-in)" />
-          <rect x={0.5} y={0.5} width={13} height={11} rx={2} fill="none" stroke={COLORS.in} />
-        </>
-      )}
+      <rect width={14} height={12} rx={2} fill={COLORS[kind]} />
     </svg>
   );
 }
@@ -161,24 +154,15 @@ export function MonthlyChart({ data }: { data: Monthly }) {
 
   return (
     <div>
-      <svg width={0} height={0} className="absolute" aria-hidden="true" focusable="false">
-        <defs>
-          <pattern id="monthly-hatch-in" width={6} height={6} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width={6} height={6} fill="#dbeafe" />
-            <rect width={3.2} height={6} fill={COLORS.in} />
-          </pattern>
-        </defs>
-      </svg>
-
       <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-3 text-xs text-slate-600">
           <span className="flex items-center gap-1">
             <Swatch kind="out" />
-            出金（左・塗り）
+            出金（左・赤）
           </span>
           <span className="flex items-center gap-1">
             <Swatch kind="in" />
-            入金（右・斜線）
+            入金（右・青）
           </span>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2 print:hidden">
@@ -289,7 +273,7 @@ export function MonthlyChart({ data }: { data: Monthly }) {
               const cx = x0 + band / 2;
               const bars = [
                 { kind: 'out' as const, v: b.out, x: cx - barW, fill: COLORS.out },
-                { kind: 'in' as const, v: b.in, x: cx, fill: 'url(#monthly-hatch-in)' },
+                { kind: 'in' as const, v: b.in, x: cx, fill: COLORS.in },
               ];
               const peakTop = y(Math.max(b.out, b.in));
               return (
@@ -305,7 +289,7 @@ export function MonthlyChart({ data }: { data: Monthly }) {
                   {bars.map((bar) =>
                     bar.v > 0 ? (
                       <g key={bar.kind}>
-                        <rect x={bar.x} y={y(bar.v)} width={barW} height={y(0) - y(bar.v)} fill={bar.fill} stroke={bar.kind === 'in' ? COLORS.in : 'none'} strokeWidth={0.8} />
+                        <rect x={bar.x} y={y(bar.v)} width={barW} height={y(0) - y(bar.v)} fill={bar.fill} />
                         {capped && bar.v > top && (
                           <>
                             {/* 切れ目（上限を超えた棒） */}

@@ -111,7 +111,7 @@ describe('確定', () => {
     expect(res.json).toMatchObject({ imported: 1, skipped: 1, message: '1件の取引を取り込みました（1件の重複をスキップ）' });
     const rows = await rowsOf(caseId);
     expect(rows).toHaveLength(2);
-    expect(rows[1]).toMatchObject({ amountOut: 600000, isLarge: true, category: '生活費', classificationScore: 0, balance: null });
+    expect(rows[1]).toMatchObject({ amountOut: 600000, isLarge: true, category: '未分類', classificationScore: 0, balance: null });
     expect(rows[1]!.descriptionSearch).toBe('zzq架空商会');
     expect(rows[1]!.accountId).toBe(rows[0]!.accountId);
     expect(await db().classificationChange.count()).toBe(0);
@@ -209,15 +209,14 @@ describe('分類・メモ・要確認の列（依頼24）', () => {
     expect(res.json.categories).toContain('生活費');
     expect(res.json.categories).not.toContain('未分類');
     const rows = res.json.files[0].rows as Json[];
-    expect(rows[0]).toMatchObject({ category: '生活費' });
-    expect(rows[0]).not.toHaveProperty('autoCategory');
+    expect(rows[0]).toMatchObject({ category: '生活費', autoCategory: '未分類' });
     expect(rows[1]).toMatchObject({ autoCategory: '年金', memo: '読めない字あり', flagged: true });
     expect(rows[1]).not.toHaveProperty('category');
     expect(rows[2]).toMatchObject({ unknownCategory: 'ZZQ謎の分類', flagUnreadable: 'たぶん' });
     expect(await rowsOf(caseId)).toHaveLength(0);
   });
 
-  it('確定: 書かれた分類は点数0・履歴なしで入れ、知らない名前は自動分類、メモと付箋も入れる', async () => {
+  it('確定: 書かれた分類はそのまま入れ、空欄と知らない名前は未分類、メモと付箋も入れる', async () => {
     const { caseId } = await seedCase(db());
     const res = await call('POST', `/${caseId}/import/commit`, {
       files: [
@@ -236,20 +235,44 @@ describe('分類・メモ・要確認の列（依頼24）', () => {
     const rows = await rowsOf(caseId);
     expect(rows.map((r) => [r.category, r.classificationScore, r.memo, r.isFlagged])).toEqual([
       ['生活費', 0, null, false],
-      ['年金', expect.any(Number), '読めない字あり', true],
-      [expect.not.stringMatching(/ZZQ/), expect.any(Number), null, false],
+      ['未分類', expect.any(Number), '読めない字あり', true],
+      ['未分類', expect.any(Number), null, false],
       ['贈与・教育費', 0, null, false],
     ]);
     expect(await db().classificationChange.count()).toBe(0);
   });
 
-  it('列が無い送り方は今までどおり（未分類にせず自動分類・メモなし・付箋なし）', async () => {
+  it('分類が無い行はアプリ候補を確定せず未分類で取り込む', async () => {
     const { caseId } = await seedCase(db());
     await call('POST', `/${caseId}/import/commit`, {
       files: [{ account: account('1234567'), rows: [{ date: '2025-04-02', description: '年金 ZZQ', amountIn: '500' }] }],
     });
     const [row] = await rowsOf(caseId);
-    expect([row!.category, row!.memo, row!.isFlagged]).toEqual(['年金', null, false]);
+    expect([row!.category, row!.memo, row!.isFlagged]).toEqual(['未分類', null, false]);
+  });
+
+  it('取込後の結果に、AI・CSV分類とアプリ候補が違う摘要だけを学習候補としてまとめる', async () => {
+    const { caseId } = await seedCase(db());
+    const res = await call('POST', `/${caseId}/import/commit`, {
+      files: [{
+        account: account('1234567'),
+        rows: [
+          { date: '2025-05-01', description: 'ZZQ_AI_LEARNING', amountOut: '100', balance: '900', category: '税金', categorySource: 'csv' },
+          { date: '2025-05-02', description: ' ZZQ_AI_LEARNING ', amountOut: '100', balance: '800', category: '税金', categorySource: 'csv' },
+          { date: '2025-05-03', description: 'ZZQ_MANUAL', amountOut: '100', balance: '700', category: '生活費', categorySource: 'manual' },
+        ],
+      }],
+    });
+    expect(res.status).toBe(200);
+    expect(res.json.summary.learningCandidates).toEqual([
+      {
+        key: '税金\u0000ZZQ_AI_LEARNING',
+        category: '税金',
+        description: 'ZZQ_AI_LEARNING',
+        autoCategory: '未分類',
+        count: 2,
+      },
+    ]);
   });
 
   it('相手の見つからない通帳間移動の件数を取込の知らせに書く', async () => {
@@ -274,6 +297,13 @@ describe('分類・メモ・要確認の列（依頼24）', () => {
     await call('POST', `/${caseId}/patterns/add`, { category: 'ZZQ追加分類', keyword: 'ZZQキーワード', scope: 'case' });
     const after = await call('GET', `/${caseId}/import/format`);
     expect(after.json.categories).toContainEqual({ name: 'ZZQ追加分類', keywords: ['ZZQキーワード'] });
+    expect(after.json.classificationPrompt).toMatchObject({ currentVersion: 1, currentRules: '' });
+
+    const saved = await call('POST', `/${caseId}/import/classification-prompt`, { rules: '- ZZQ高額送金は要確認', note: '分類間違い' });
+    expect(saved.status).toBe(200);
+    expect(saved.json.message).toContain('分類依頼文 Ver.2');
+    const withRule = await call('GET', `/${caseId}/import/format`);
+    expect(withRule.json.classificationPrompt).toMatchObject({ currentVersion: 2, currentRules: '- ZZQ高額送金は要確認' });
   });
 });
 
@@ -333,7 +363,7 @@ describe('取込の結果', () => {
     expect(await listed(main.balanceErrorIds.map((id: number) => ['id', String(id)] as [string, string]))).toBe(main.balanceErrors);
   });
 
-  it('分類の列が無い CSV でも組み立てる（すべて自動）', async () => {
+  it('分類の列が無い CSV でも組み立てる（すべて未分類）', async () => {
     const { caseId } = await seedCase(db());
     const res = await call('POST', `/${caseId}/import/commit`, {
       files: [{ account: account('1111111'), rows: [{ date: '2025-05-01', description: 'ZZQ', amountOut: 1, balance: null }] }],

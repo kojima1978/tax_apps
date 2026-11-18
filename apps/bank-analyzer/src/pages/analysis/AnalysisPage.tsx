@@ -7,7 +7,7 @@
 // - 書き出せないとき（取引が無い・分類済みが無いなど）は JSON が画面いっぱいに出ていた。通知に出す
 
 import { useEffect, useRef, useState, type ComponentType } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeftRight,
   ArrowRight,
@@ -17,11 +17,16 @@ import {
   DatabaseBackup,
   FileSpreadsheet,
   FileUp,
+  FolderOpen,
   Gauge,
   History,
+  Home,
   Keyboard,
   Lightbulb,
+  Mail,
   Pencil,
+  Plus,
+  Settings,
   Sparkles,
   Table2,
   Undo2,
@@ -31,6 +36,7 @@ import {
 import { DownloadButton } from '../../components/DownloadButton';
 import { Breadcrumb } from '../../components/Layout';
 import { useNotice } from '../../components/Notice';
+import { OperatorPicker } from '@/shared/staff-directory/OperatorPicker';
 import { useAction } from '../../hooks/useAction';
 import { useApiData } from '../../hooks/useApiData';
 import { api } from '../../lib/api';
@@ -49,23 +55,23 @@ import { TABS, type Dashboard, type DashboardSummary, type OverviewData, type Ta
 type NavItem = { tab: Tab; label: string; icon: ComponentType<LucideProps>; badge?: (d: DashboardSummary) => { count: number; tone: string } };
 
 const NAV: { title: string; items: NavItem[] }[] = [
-  { title: '案件', items: [{ tab: 'overview', label: '概要', icon: Gauge }] },
+  { title: '案件の確認', items: [{ tab: 'overview', label: '概要', icon: Gauge }] },
   {
-    title: '取引処理',
+    title: '取引を整理',
     items: [
       { tab: 'all', label: '取引一覧・検索', icon: Table2 },
       { tab: 'unclassified', label: '未分類', icon: CircleHelp, badge: (d) => ({ count: d.unclassifiedCount, tone: 'bg-amber-400 text-slate-900' }) },
       { tab: 'ai', label: '分類候補', icon: Lightbulb, badge: (d) => ({ count: d.suggestionsCount, tone: 'bg-blue-700 text-white' }) },
+      { tab: 'cleanup', label: 'データクレンジング', icon: Sparkles },
     ],
   },
   {
-    title: '分析',
+    title: '分析・質問',
     items: [
       { tab: 'transfers', label: '資金移動フロー', icon: ArrowLeftRight },
       { tab: 'flagged', label: '質問候補', icon: ClipboardList, badge: (d) => ({ count: d.flaggedCount, tone: 'bg-cyan-600 text-white' }) },
     ],
   },
-  { title: 'データ管理', items: [{ tab: 'cleanup', label: 'データクレンジング', icon: Sparkles }] },
 ];
 
 const parseTab = (v: string | null): Tab => ((TABS as readonly string[]).includes(v ?? '') ? (v as Tab) : 'overview');
@@ -98,7 +104,10 @@ export function AnalysisPage() {
 
       <LastImportStrip caseId={data.case.id} />
       {data.noData ? (
-        <NoData caseId={data.case.id} backup={data.latestDeletionBackup} onRestored={reload} />
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+          <aside aria-label="案件メニュー" className="lg:sticky lg:top-4 lg:self-start"><GlobalCaseMenu /></aside>
+          <NoData caseId={data.case.id} backup={data.latestDeletionBackup} onRestored={reload} />
+        </div>
       ) : (
         <>
           {data.latestClassificationChange && <HistoryStrip caseId={data.case.id} change={data.latestClassificationChange} onUndone={reload} />}
@@ -161,7 +170,7 @@ function TabContent({ dash, reload }: { dash: Exclude<Dashboard, { noData: true 
 }
 
 // ---------------------------------------------------------------------------
-// 見出し（お客様名の修正・書き出し・取込への入口）
+// 見出し（お客様名の修正）。案件の操作はサイドバーにまとめる
 // ---------------------------------------------------------------------------
 
 function Header({ caseId, name, onRenamed }: { caseId: number; name: string; onRenamed: (name: string) => void }) {
@@ -194,7 +203,7 @@ function Header({ caseId, name, onRenamed }: { caseId: number; name: string; onR
   };
 
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div className="mb-4 flex flex-wrap items-center gap-3">
       {editing ? (
         <form
           noValidate
@@ -247,28 +256,6 @@ function Header({ caseId, name, onRenamed }: { caseId: number; name: string; onR
           </button>
         </div>
       )}
-      <div className="flex flex-wrap gap-2">
-        <DownloadButton path={`/cases/${caseId}/export/xlsx/categories`} className="btn btn-success btn-sm">
-          <FileSpreadsheet size={14} />
-          分類別Excel出力
-        </DownloadButton>
-        <Link to={`/cases/${caseId}/passbooks`} className="btn btn-secondary btn-sm">
-          <Table2 size={14} />
-          通帳有無一覧表
-        </Link>
-        <Link to={`/cases/${caseId}/import`} className="btn btn-secondary btn-sm">
-          <FileUp size={14} />
-          CSV追加取込
-        </Link>
-        <Link to={`/cases/${caseId}/direct`} className="btn btn-secondary btn-sm">
-          <Keyboard size={14} />
-          直接入力
-        </Link>
-        <DownloadButton path={`/cases/${caseId}/export/json`}>
-          <DatabaseBackup size={14} />
-          JSONバックアップ
-        </DownloadButton>
-      </div>
     </div>
   );
 }
@@ -312,6 +299,10 @@ function NoData({ caseId, backup, onRestored }: { caseId: number; backup: Dashbo
           <p className="mt-1 min-h-10 text-sm text-slate-600">少ない件数を1件ずつ直接入力します。</p>
           <Link to={`/cases/${caseId}/direct`} className="btn btn-secondary mt-3 w-full">直接入力する</Link>
         </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
+        <Link to={`/cases/${caseId}/passbooks`} className="btn btn-secondary btn-sm"><Table2 size={14} aria-hidden="true" />通帳有無一覧表</Link>
+        <DownloadButton path={`/cases/${caseId}/export/json`}><DatabaseBackup size={14} aria-hidden="true" />JSONバックアップ</DownloadButton>
       </div>
       {backup && <div className="mt-4 border-t border-slate-200 pt-4"><button type="button" className="btn btn-secondary btn-sm" onClick={restore} disabled={busy !== null}><Undo2 size={14} />直前に削除した{num(backup.transactionCount)}件を復元</button></div>}
     </section>
@@ -364,13 +355,45 @@ function HistoryStrip({ caseId, change, onUndone }: { caseId: number; change: No
 // 左のメニュー（狭い画面では上に横並び）
 // ---------------------------------------------------------------------------
 
-function Sidebar({ dash, active }: { dash: DashboardSummary; active: Tab }) {
+function GlobalCaseMenu() {
+  const item = 'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
   return (
-    <aside aria-label="分析メニュー" className="space-y-3 lg:sticky lg:top-18 lg:self-start">
-      <nav className="card flex gap-1 overflow-x-auto p-2 lg:flex-col lg:overflow-visible" aria-label="分析機能">
+    <nav className="card p-2 print:hidden" aria-label="共通メニュー">
+      <details>
+        <summary className="cursor-pointer rounded-md px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">アプリ全体へ</summary>
+        <div className="mt-1 grid grid-cols-2 gap-1 border-t border-slate-100 pt-1 lg:grid-cols-1">
+          <a href="/" className={item}><Home size={16} aria-hidden="true" />ポータル</a>
+          <Link to="/" className={item}><FolderOpen size={16} aria-hidden="true" />案件一覧</Link>
+          <Link to="/settings" className={item}><Settings size={16} aria-hidden="true" />設定</Link>
+          <a href={`${import.meta.env.BASE_URL}letter`} target="_blank" rel="noopener" className={item}><Mail size={16} aria-hidden="true" />お客様配布用文書</a>
+          <Link to="/?new=1" className={item}><Plus size={16} aria-hidden="true" />新規案件</Link>
+        </div>
+      </details>
+      <div className="mt-1 border-t border-slate-200 px-2 pt-2">
+        <OperatorPicker usage="取引の分類を変えたとき、変更履歴に名前が残ります" className="max-w-full" />
+      </div>
+    </nav>
+  );
+}
+
+function Sidebar({ dash, active }: { dash: DashboardSummary; active: Tab }) {
+  const navigate = useNavigate();
+  return (
+    <aside aria-label="分析メニュー" className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+      <label className="card flex items-center gap-3 px-3 py-2 text-sm font-medium lg:hidden">
+        <span className="shrink-0">表示する画面</span>
+        <select className="input min-w-0 flex-1" value={active} onChange={(event) => navigate(`?tab=${event.target.value}`)}>
+          {NAV.map((group) => (
+            <optgroup key={group.title} label={group.title}>
+              {group.items.map((item) => <option key={item.tab} value={item.tab}>{item.label}</option>)}
+            </optgroup>
+          ))}
+        </select>
+      </label>
+      <nav className="card hidden p-2 lg:flex lg:flex-col" aria-label="分析機能">
         {NAV.map((group) => (
-          <div key={group.title} className="flex shrink-0 gap-1 lg:flex-col">
-            <span className="hidden px-2 pt-2 text-xs font-semibold text-slate-400 lg:block">{group.title}</span>
+          <div key={group.title} className="flex flex-col gap-1">
+            <span className="px-2 pt-2 text-xs font-semibold text-slate-500">{group.title}</span>
             {group.items.map(({ tab, label, icon: Icon, badge }) => {
               const b = badge?.(dash);
               const current = tab === active;
@@ -379,7 +402,7 @@ function Sidebar({ dash, active }: { dash: DashboardSummary; active: Tab }) {
                   key={tab}
                   to={`?tab=${tab}`}
                   aria-current={current ? 'page' : undefined}
-                  className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm whitespace-nowrap ${current ? 'bg-blue-50 font-semibold text-blue-800' : 'text-slate-700 hover:bg-slate-100'}`}
+                  className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${current ? 'bg-blue-50 font-semibold text-blue-800' : 'text-slate-700 hover:bg-slate-100'}`}
                 >
                   <Icon size={16} aria-hidden="true" />
                   <span>{label}</span>
@@ -390,20 +413,20 @@ function Sidebar({ dash, active }: { dash: DashboardSummary; active: Tab }) {
           </div>
         ))}
       </nav>
-      <section className="card hidden p-3 text-sm lg:block" aria-labelledby="outputTitle">
-        <span className="text-xs font-semibold text-slate-400">最終成果物</span>
-        <h2 id="outputTitle" className="flex items-center gap-1 font-semibold">
-          <FileSpreadsheet size={16} aria-hidden="true" />
-          分類別Excel
-        </h2>
-        <p className="my-1 text-xs text-slate-600">分類ごとのシートに加え、多額取引・付箋付き取引もまとめて出力します。</p>
-        <p className={`mb-2 text-xs ${dash.unclassifiedCount ? 'text-amber-700' : 'text-emerald-700'}`}>
-          {dash.unclassifiedCount ? `未分類 ${num(dash.unclassifiedCount)}件を含みます` : '出力準備完了'}
-        </p>
-        <DownloadButton path={`/cases/${dash.case.id}/export/xlsx/categories`} className="btn btn-success w-full">
-          Excelを出力
-        </DownloadButton>
+      <section className="card p-2" aria-labelledby="caseActionsTitle">
+        <h2 id="caseActionsTitle" className="px-2 py-1 text-xs font-semibold text-slate-500">データを追加</h2>
+        <div className="grid grid-cols-2 gap-1 lg:grid-cols-1">
+          <Link to={`/cases/${dash.case.id}/import`} className="btn btn-secondary btn-sm justify-start"><FileUp size={14} aria-hidden="true" />CSV追加取込</Link>
+          <Link to={`/cases/${dash.case.id}/direct`} className="btn btn-secondary btn-sm justify-start"><Keyboard size={14} aria-hidden="true" />直接入力</Link>
+        </div>
+        <h3 className="mt-2 border-t border-slate-100 px-2 pt-2 pb-1 text-xs font-semibold text-slate-500">資料・バックアップ</h3>
+        <div className="grid grid-cols-2 gap-1 lg:grid-cols-1">
+          <DownloadButton path={`/cases/${dash.case.id}/export/xlsx/categories`} className="btn btn-success btn-sm col-span-2 w-full justify-start lg:col-span-1"><FileSpreadsheet size={14} aria-hidden="true" />分類別Excel出力</DownloadButton>
+          <Link to={`/cases/${dash.case.id}/passbooks`} className="btn btn-secondary btn-sm justify-start"><Table2 size={14} aria-hidden="true" />通帳有無一覧表</Link>
+          <DownloadButton path={`/cases/${dash.case.id}/export/json`} className="btn btn-secondary btn-sm w-full justify-start"><DatabaseBackup size={14} aria-hidden="true" />JSONバックアップ</DownloadButton>
+        </div>
       </section>
+      <GlobalCaseMenu />
     </aside>
   );
 }

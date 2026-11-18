@@ -79,6 +79,14 @@ export type ImportReview = {
   problemRemoved: number;
 };
 
+export type PatternLearningCandidate = {
+  key: string;
+  category: string;
+  description: string;
+  autoCategory: string;
+  count: number;
+};
+
 export type ImportSummary = {
   files: number;
   imported: number;
@@ -89,6 +97,8 @@ export type ImportSummary = {
   categories: { csv: number; manual: number; remap: number; auto: number; uncategorized: number };
   attention: { flagged: number; memo: number; large: number; transferUnmatched: number; gift: number };
   review?: ImportReview;
+  // AI・CSV分類とアプリ候補が違う摘要。取込後に人が確認してパターン登録する
+  learningCandidates?: PatternLearningCandidate[];
 };
 
 // 間がこの日数を超えて空いていれば「通帳の抜け」かもしれないと知らせる
@@ -145,6 +155,7 @@ export function buildImportSummary(input: {
   accounts: readonly SummaryAccountInfo[];
   // 取込の前から案件に入っていた取引（日付のあるもの）
   existing: readonly { accountId: number | null; date: string }[];
+  learningCandidates?: readonly PatternLearningCandidate[];
 }): ImportSummary {
   const rows = input.files.flat();
   const errorIds = new Set<number>();
@@ -228,6 +239,7 @@ export function buildImportSummary(input: {
       gift: count((r) => r.category === GIFT_CATEGORY),
     },
     ...(input.review ? { review: input.review } : {}),
+    ...(input.learningCandidates?.length ? { learningCandidates: [...input.learningCandidates] } : {}),
   };
 }
 

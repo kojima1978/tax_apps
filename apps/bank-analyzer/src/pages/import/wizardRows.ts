@@ -14,7 +14,7 @@
 //   Django 版は読み込んだときの文をそのまま持っていたので、重複の行を消しても注意が残った
 //
 // 分類・メモ・付箋（依頼24）: CSV の「分類」「メモ」「要確認」の列から来る。分類は出どころ
-// （CSV・自動・人が直した）を持ち、送るのは CSV と人が選んだものだけ（自動はサーバが付ける）
+// （CSV・未分類・人が直した）を持ち、送るのは CSV と人が選んだものだけ。アプリの判定は候補表示だけに使う
 //
 // 問題の行（依頼26）: サーバは行の誤りでファイルを止めず、読めない日付・金額はファイルの値のまま、
 // 壊れた行の疑いは issues（理由）付きで返す。人が直す・「このままでよい」・除くのどれかを選ぶまで
@@ -45,6 +45,8 @@ export const EMPTY_ACCOUNT: AccountFields = { bankName: '', branchName: '', acco
 
 export type EditRow = {
   key: number;
+  // 確認画面で取込対象から外した行。元データと修正内容は残す
+  excluded: boolean;
   date: string;
   description: string;
   amountOut: string;
@@ -52,12 +54,14 @@ export type EditRow = {
   balance: string;
   // プレビューでの重複の判定。行を直したら消す（取込時にサーバがもう一度判定する）
   dup: 'high' | 'low' | null;
-  // 取り込む分類。'' は自動分類（取込時にサーバが付ける）
+  // 取り込む分類。'' は未分類（アプリの候補を勝手に確定しない）
   category: string;
   categoryOrigin: CategoryOrigin;
-  // 自動分類なら付く分類の見込み。摘要を直したら分からなくなるので null
+  // AI・CSV が最初に返した分類。未分類や別分類に直しても参照できるように残す
+  sourceCategory: string | null;
+  // アプリが摘要から判断した分類候補。AI・CSVの分類との比較にも使う
   autoCategory: string | null;
-  // CSV に書かれていた知らない分類名（読み替え先を選ぶまで自動分類）
+  // CSV に書かれていた知らない分類名（読み替え先を選ぶまで未分類）
   unknownCategory: string | null;
   memo: string;
   flagged: boolean;
@@ -112,6 +116,7 @@ export const isBlankRow = (r: EditRow) => [r.description, r.amountOut, r.amountI
 
 export const blankRow = (date = ''): EditRow => ({
   key: newKey(),
+  excluded: false,
   date,
   description: '',
   amountOut: '',
@@ -120,6 +125,7 @@ export const blankRow = (date = ''): EditRow => ({
   dup: null,
   category: '',
   categoryOrigin: 'auto',
+  sourceCategory: null,
   autoCategory: null,
   unknownCategory: null,
   memo: '',
@@ -158,6 +164,7 @@ export function toEditFiles(previews: ParsedPreviewFile[]): EditFile[] {
     account: { ...p.detectedAccount },
     rows: p.rows.map((r) => ({
       key: newKey(),
+      excluded: false,
       date: r.date,
       description: r.description ?? '',
       amountOut: amountField(r.amountOut, r.raw?.amountOut),
@@ -166,6 +173,7 @@ export function toEditFiles(previews: ParsedPreviewFile[]): EditFile[] {
       dup: r.isDuplicate ? (r.dupConfidence ?? 'high') : null,
       category: r.category ?? '',
       categoryOrigin: r.category ? 'csv' : 'auto',
+      sourceCategory: r.category || r.unknownCategory || null,
       autoCategory: r.autoCategory ?? null,
       unknownCategory: r.unknownCategory ?? null,
       memo: r.memo ?? '',
@@ -224,7 +232,7 @@ export function checkRows(rows: EditRow[], hasBalance: boolean, opening: number 
 }
 
 // 取込（POST /cases/:id/import/commit）に送る形。金額は文字のまま送り、サーバが同じ規則で読む。
-// 分類は CSV と人が選んだものだけ送る（自動分類はサーバが付ける）。メモ・付箋は入っているときだけ
+// 分類は CSV と人が選んだものだけ送る。空欄はサーバでも未分類にする。メモ・付箋は入っているときだけ
 const categorySourceOf = (origin: CategoryOrigin, unknown: string | null) =>
   unknown !== null ? 'remap' : origin === 'csv' ? 'csv' : 'manual';
 
@@ -233,7 +241,7 @@ export const toCommitFile = (f: EditFile) => ({
   // 取込の結果の残高のつながりの出発点（取込の中身には使わない）
   openingBalance: f.openingBalance,
   rows: f.rows
-    .filter((r) => !isBlankRow(r))
+    .filter((r) => !r.excluded && !isBlankRow(r))
     .map(({ date, description, amountOut, amountIn, balance, category, categoryOrigin, unknownCategory, memo, flagged }) => ({
       date,
       description,
@@ -247,12 +255,12 @@ export const toCommitFile = (f: EditFile) => ({
     })),
 });
 
-// 知らない分類名ごとの行数（手順3の「知らない分類」の欄）。chosen は読み替え先（'' = 自動分類）
+// 知らない分類名ごとの行数（手順3の「知らない分類」の欄）。chosen は読み替え先（'' = 未分類）
 export function unknownCategories(files: readonly EditFile[]): { name: string; count: number; chosen: string }[] {
   const out = new Map<string, { name: string; count: number; chosen: string }>();
   for (const f of files)
     for (const r of f.rows) {
-      if (r.unknownCategory === null || isBlankRow(r)) continue;
+      if (r.excluded || r.unknownCategory === null || isBlankRow(r)) continue;
       const e = out.get(r.unknownCategory) ?? { name: r.unknownCategory, count: 0, chosen: r.category };
       e.count += 1;
       out.set(r.unknownCategory, e);
@@ -260,13 +268,39 @@ export function unknownCategories(files: readonly EditFile[]): { name: string; c
   return [...out.values()];
 }
 
+export type PatternLearningCandidate = {
+  key: string;
+  category: string;
+  description: string;
+  autoCategory: string | null;
+  count: number;
+};
+
+const normalizedDescription = (value: string) => value.trim().replace(/\s+/g, ' ');
+
+// AI・CSVの確定分類とアプリ候補が違う摘要だけを、人が登録を判断する学習候補にする。
+export function patternLearningCandidates(files: readonly EditFile[]): PatternLearningCandidate[] {
+  const grouped = new Map<string, PatternLearningCandidate>();
+  for (const file of files) {
+    for (const row of file.rows) {
+      const description = normalizedDescription(row.description);
+      if (row.excluded || row.categoryOrigin !== 'csv' || !row.category || !description || row.autoCategory === row.category || isBlankRow(row)) continue;
+      const key = `${row.category}\u0000${description}`;
+      const found = grouped.get(key);
+      if (found) found.count += 1;
+      else grouped.set(key, { key, category: row.category, description, autoCategory: row.autoCategory, count: 1 });
+    }
+  }
+  return [...grouped.values()].sort((a, b) => b.count - a.count || a.category.localeCompare(b.category, 'ja') || a.description.localeCompare(b.description, 'ja'));
+}
+
 // CSV の「要確認」に読めない値が入っていた行の数（付箋なしで取り込む。知らせるだけ）
 export const unreadableFlagCount = (files: readonly EditFile[]) =>
-  files.reduce((n, f) => n + f.rows.filter((r) => r.flagUnreadable !== null && !isBlankRow(r)).length, 0);
+  files.reduce((n, f) => n + f.rows.filter((r) => !r.excluded && r.flagUnreadable !== null && !isBlankRow(r)).length, 0);
 
 // 重複の注意（サーバのプレビューと同じ規則）。未入力の行は数えない
 export function duplicateWarning(rows: CheckedRow[]): string | null {
-  const filled = rows.filter((r) => !r.blank);
+  const filled = rows.filter((r) => !r.blank && !r.excluded);
   const marks = filled.map((r) => ({ isDuplicate: r.dup !== null }));
   const count = marks.filter((m) => m.isDuplicate).length;
   return buildDuplicateWarning(marks, count, filled.length)?.message ?? null;
@@ -283,7 +317,7 @@ export function reviewCounts(files: readonly EditFile[]) {
   let problemRemoved = 0;
   for (const f of files) {
     skippedRows += f.skipped.length;
-    const left = f.rows.filter((r) => r.fromProblem && !isBlankRow(r));
+    const left = f.rows.filter((r) => r.fromProblem && !r.excluded && !isBlankRow(r));
     problemAccepted += left.filter((r) => r.accepted).length;
     problemFixed += left.filter((r) => !r.accepted).length;
     problemRemoved += Math.max(0, f.problemTotal - left.length);

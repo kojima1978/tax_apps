@@ -5,7 +5,7 @@
 //
 // 履歴は持たない: 結果はこのタブの sessionStorage に案件ごとに直前の1回分だけ（lastImport.ts）。
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CircleHelp, ClipboardList, FileUp, Undo2 } from 'lucide-react';
 import { Breadcrumb } from '../components/Layout';
@@ -15,7 +15,8 @@ import { num, signedNum, warekiShort, warekiYearAbbr } from '../lib/format';
 import type { CaseDetail } from '../types';
 import { GIFT_CATEGORY, UNCATEGORIZED } from '../../server/lib/categories';
 import { GAP_DAYS } from '../../server/lib/import/summary';
-import { loadLastImport, txListLink, type ImportSummary } from './import/lastImport';
+import { loadLastImport, saveLastImport, txListLink, type ImportSummary } from './import/lastImport';
+import { PatternLearningCandidates } from './import/PatternLearningCandidates';
 
 type Account = ImportSummary['accounts'][number];
 
@@ -64,7 +65,7 @@ function Rows({ items }: { items: { label: ReactNode; value: ReactNode; hint?: R
 export function ImportResultPage() {
   const { caseId = '' } = useParams();
   const { data } = useApiData(`case-${caseId}`, () => api.get<{ case: CaseDetail }>(`/cases/${caseId}`));
-  const last = loadLastImport(caseId);
+  const [last, setLast] = useState(() => loadLastImport(caseId));
   const caseName = data?.case.name ?? '案件';
   const crumbs = [{ label: '案件一覧', to: '/' }, { label: caseName, to: `/cases/${caseId}` }, { label: '取込の結果' }];
 
@@ -84,6 +85,45 @@ export function ImportResultPage() {
   }
 
   const s = last.summary;
+  const learningCandidates = s.learningCandidates ?? [];
+  const candidateSaved = (key: string) => {
+    setLast((current) => {
+      if (!current) return current;
+      const next = {
+        ...current,
+        summary: { ...current.summary, learningCandidates: (current.summary.learningCandidates ?? []).filter((candidate) => candidate.key !== key) },
+      };
+      saveLastImport(caseId, next);
+      return next;
+    });
+  };
+  const dismissCandidates = (keys: readonly string[]) => {
+    setLast((current) => {
+      if (!current) return current;
+      const dismissed = (current.summary.learningCandidates ?? []).filter((candidate) => keys.includes(candidate.key));
+      const next = {
+        ...current,
+        summary: { ...current.summary, learningCandidates: (current.summary.learningCandidates ?? []).filter((candidate) => !keys.includes(candidate.key)) },
+        dismissedLearningCandidates: [...(current.dismissedLearningCandidates ?? []), ...dismissed],
+      };
+      saveLastImport(caseId, next);
+      return next;
+    });
+  };
+  const restoreCandidate = (key: string) => {
+    setLast((current) => {
+      if (!current) return current;
+      const restored = (current.dismissedLearningCandidates ?? []).find((candidate) => candidate.key === key);
+      if (!restored) return current;
+      const next = {
+        ...current,
+        summary: { ...current.summary, learningCandidates: [...(current.summary.learningCandidates ?? []), restored] },
+        dismissedLearningCandidates: (current.dismissedLearningCandidates ?? []).filter((candidate) => candidate.key !== key),
+      };
+      saveLastImport(caseId, next);
+      return next;
+    });
+  };
   const list = (extra: Parameters<typeof txListLink>[2] = {}) => txListLink(caseId, s, extra);
   const byAccount = (a: Account) => ({ ...(a.bankName ? { bank: a.bankName } : {}), account: a.accountNumber });
   const balanceErrors = s.accounts.reduce((n, a) => n + a.balanceErrors, 0);
@@ -181,18 +221,20 @@ export function ImportResultPage() {
 
       <Section
         title="分類の内訳"
-        note={s.categories.csv === 0 && s.categories.manual === 0 && s.categories.remap === 0 ? 'CSV に分類の列が無い・空欄のときは、すべてアプリが自動で分類します。' : undefined}
+        note={s.categories.csv === 0 && s.categories.manual === 0 && s.categories.remap === 0 ? 'CSV に分類の列が無い・空欄のときは、すべて未分類で取り込みます。' : undefined}
       >
         <Rows
           items={[
             { label: 'CSV に書いてあった分類', value: <span className="tabular-nums">{num(s.categories.csv)}件</span>, hint: 'AI で作った CSV の分類など' },
             { label: '手順3で選んだ分類', value: <span className="tabular-nums">{num(s.categories.manual)}件</span> },
             { label: '知らない分類名を読み替えた', value: <span className="tabular-nums">{num(s.categories.remap)}件</span> },
-            { label: 'アプリが自動で分類', value: <span className="tabular-nums">{num(s.categories.auto)}件</span> },
+            { label: '通帳間移動などの自動判定', value: <span className="tabular-nums">{num(s.categories.auto)}件</span> },
             { label: `${UNCATEGORIZED}のまま`, value: <CountLink to={list({ category: UNCATEGORIZED })} count={s.categories.uncategorized} /> },
           ]}
         />
       </Section>
+
+      <PatternLearningCandidates caseId={caseId} candidates={learningCandidates} dismissed={last.dismissedLearningCandidates ?? []} onSaved={candidateSaved} onDismiss={dismissCandidates} onRestore={restoreCandidate} />
 
       <Section title="人が見る所" note="件数を押すと、今回取り込んだ取引のうち当てはまるものを取引一覧で開きます。">
         <Rows

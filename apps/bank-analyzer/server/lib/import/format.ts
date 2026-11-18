@@ -30,6 +30,11 @@ export type ImportFormat = {
     currentRules: string;
     versions: { version: number; rules: string; note: string; createdAt: string | null }[];
   };
+  classificationPrompt?: {
+    currentVersion: number;
+    currentRules: string;
+    versions: { version: number; rules: string; note: string; createdAt: string | null }[];
+  };
 };
 
 // ひな形の例の行（架空の値）。差引残高がつながるように書いてある
@@ -94,6 +99,24 @@ const CATEGORY_SIDE: Readonly<Record<string, string>> = {
   [OTHER_CATEGORY]: '入金・出金',
 };
 
+// AIへ渡す判断基準。アプリの分類パターンとは意図的に分離する。
+// アプリがAIの結果から学習しても、そのキーワードをAIへ戻して循環させない。
+const AI_CATEGORY_GUIDANCE: Readonly<Record<string, string>> = {
+  生活費: '日常生活の買物、公共料金、通信費、医療費、交通費など',
+  給与: '勤務先からの給与、賞与、報酬などの入金',
+  年金: '公的年金、企業年金、共済年金などの入金',
+  [GIFT_CATEGORY]: '家族などへの贈与や教育費の可能性がある出金。金額だけで断定しない',
+  税金: '国税・地方税と、公的な健康保険料・介護保険料・年金保険料など',
+  '修繕・資本': '建物や設備の修繕、改良、購入など資産に関係する支出',
+  '事業・不動産': '事業収入・経費、家賃・地代・不動産に関係する入出金',
+  関連会社: '本人や家族と関係する会社との入出金',
+  '銀行・利息・手数料': '預金利息、銀行手数料、定期預金など銀行取引',
+  '証券・株式・配当': '証券会社、株式、債券、投資信託、配当など',
+  保険会社: '生命保険・損害保険などの保険料や保険金',
+  [TRANSFER_CATEGORY]: '本人名義の別口座など、同一人物の通帳間の資金移動',
+  [OTHER_CATEGORY]: '他の分類に当たらないことが明確な取引だけ',
+};
+
 // 指示文でだけ書き方を絞る列（アプリはカンマ付きも読めるが、AI にはカンマを書かせない。
 // 区切りのカンマと紛れて列がずれる。依頼26）
 const AI_COLUMN_FORMAT: Partial<Record<StandardColumn, string>> = {
@@ -119,6 +142,7 @@ export type InstructionOptions = {
 };
 
 export type GeminiResponseParts = { csv: string; improvementDraft: string };
+export type ImprovementResponseParts = { rules: string; changes: string };
 
 function excelClipboardToCsv(input: string): string {
   const rows: string[][] = [];
@@ -174,26 +198,131 @@ export function extractGeminiResponse(raw: string): GeminiResponseParts {
   return { csv, improvementDraft };
 }
 
+export function extractImprovementResponse(raw: string): ImprovementResponseParts {
+  const text = raw.replaceAll('\r\n', '\n').trim();
+  if (!text) return { rules: '', changes: '' };
+  const rulesHeading = /^#{1,6}\s*改善後のルール全文\s*$/m;
+  const changesHeading = /^#{1,6}\s*今回の変更点\s*$/m;
+  const rulesMatch = rulesHeading.exec(text);
+  const changesMatch = changesHeading.exec(text);
+  if (!rulesMatch) return { rules: text.replace(/^```(?:markdown|md)?\s*\n?/i, '').replace(/```\s*$/i, '').trim(), changes: '' };
+  const rulesStart = rulesMatch.index + rulesMatch[0].length;
+  const rulesEnd = changesMatch && changesMatch.index > rulesStart ? changesMatch.index : text.length;
+  const rules = text.slice(rulesStart, rulesEnd).replace(/^```(?:markdown|md)?\s*\n?/i, '').replace(/```\s*$/i, '').trim();
+  const changes = changesMatch
+    ? text.slice(changesMatch.index + changesMatch[0].length).replace(/^```(?:markdown|md)?\s*\n?/i, '').replace(/```\s*$/i, '').trim()
+    : '';
+  return { rules, changes };
+}
+
 export function promptImprovementRequest(currentPrompt: string, issue: string, geminiDraft = ''): string {
   return `# 通帳PDF文字認識の依頼文を改善してください
 
-下の「現在の依頼文」で通帳PDFをExcel化したところ、「今回見つかった問題」がありました。
-GeminiがExcelに書いた案も参考にし、次回から同じ問題を減らす追加ルールを作ってください。
+下の「現在の依頼文」で通帳PDFをCSV化したところ、「今回見つかった問題」がありました。
+AIが作った案も参考にし、次回から同じ問題を減らす追加ルールを作ってください。
 
 ## 返答方法
-- 返すのは、次回から追加するルールの箇条書きだけにしてください。
-- 現在の依頼文に既にあるルールは繰り返さず、今回の問題を防ぐ具体的な確認方法を書いてください。
+- 現在の「これまでの誤りから追加したルール」を土台に、今回の改善を統合したルール全文を作ってください。
+- 古いルールも、現在も有効なものは必ず残してください。重複は統合し、矛盾は今回の問題を踏まえて解消してください。
+- 基本の指示、列名、回答形式は書き直さず、改善ルール部分だけを返してください。
 - 読めない箇所を推測で補完させないでください。
-- Excelの列名・シート名・出力形式は変更しないでください。
+- CSVの列名・出力形式は変更しないでください。
+- 回答は必ず次の形にしてください。
+
+# 改善後のルール全文
+- （過去の有効なルールと今回の改善を統合した全文）
+
+# 今回の変更点
+- （追加・整理・削除した内容と理由）
 
 ## 今回見つかった問題
 ${issue.trim() || '（ここに問題を記入してください）'}
 
-## Geminiが作った追加ルール案
+## AIが作った追加ルール案
 ${geminiDraft.trim() || '（案なし）'}
 
 ## 現在の依頼文
 ${currentPrompt}`;
+}
+
+export function classificationImprovementRequest(currentPrompt: string, issue: string, aiDraft = ''): string {
+  return `# 取引分類の依頼文を改善してください
+
+下の「現在の依頼文」で取引を分類したところ、「今回見つかった問題」がありました。
+次回から同じ分類間違いを減らす、具体的な追加ルールを作ってください。
+
+## 返答方法
+- 現在の改善ルールを土台に、今回の改善を統合したルール全文を作ってください。
+- 古いルールも、現在も有効なものは必ず残してください。重複は統合し、矛盾は今回の問題を踏まえて解消してください。
+- 基本の指示、分類項目、CSVの列名、回答形式は書き直さず、改善ルール部分だけを返してください。
+- 個別の人名・金額だけに通用するルールではなく、同種の取引にも使える判断基準にしてください。
+- 登録済みの分類名とCSVの列名は変更しないでください。
+- 回答は必ず次の形にしてください。
+
+# 改善後のルール全文
+- （過去の有効なルールと今回の改善を統合した全文）
+
+# 今回の変更点
+- （追加・整理・削除した内容と理由）
+
+## 今回見つかった問題
+${issue.trim() || '（ここに問題を記入してください）'}
+
+## AIが作った追加ルール案
+${aiDraft.trim() || '（案なし）'}
+
+## 現在の依頼文
+${currentPrompt}`;
+}
+
+export function classificationInstruction(format: ImportFormat, extraRules = ''): string {
+  const listed = format.categories.filter((c) => c.name !== UNCATEGORIZED);
+  const names = listed.map((c) => c.name);
+  const categoryLines = listed.map((c) => {
+    const side = CATEGORY_SIDE[c.name];
+    const guidance = AI_CATEGORY_GUIDANCE[c.name];
+    const notes = [
+      ...(side ? [side] : []),
+      ...(guidance ? [guidance] : []),
+    ];
+    return `- ${c.name}${notes.length ? `（${notes.join('。')}）` : ''}`;
+  });
+  const rules = extraRules.trim();
+  const headerLine = IMPORT_COLUMNS.map((c) => c.name).join(',');
+  return [
+    '# 銀行取引の一次分類',
+    'これから貼り付けるCSVまたはスプレッドシートの表を、下記の基準で分類してください。PDFの文字認識は既に完了しています。',
+    '最初の回答は「分類済みCSV」だけにしてください。ファイルの作成は不要です。',
+    '',
+    '## 最重要ルール',
+    '- 変更してよいのは「分類」列だけです。日付・摘要・払戻額・お預り額・差引残高・銀行名・支店名・口座番号・種別・メモ・要確認は、一文字も変更しないでください',
+    '- 行の追加・削除・並べ替え・統合・分割をしないでください。入力と同じ行数・同じ順番で返してください',
+    '- 元の分類が空欄の行を分類してください。既に分類がある行は、明らかな誤りでない限り変更しないでください',
+    '- 登録されていない分類名を作らないでください。判断できない場合は「未分類」にしてください',
+    '',
+    '## 使用できる分類と基準',
+    ...categoryLines,
+    ...(names.includes(GIFT_CATEGORY)
+      ? [`- 「${GIFT_CATEGORY}」は、出金が${yen(format.giftThreshold)}以上の振込だけを候補にします。入金には付けません。金額だけで断定せず、判断できなければ未分類にします`]
+      : []),
+    ...(names.includes(OTHER_CATEGORY) ? [`- 「${OTHER_CATEGORY}」は、どの分類にも当たらないとはっきり分かる場合だけ使います`] : []),
+    ...(rules ? ['', '## これまでの分類間違いから追加したルール', rules] : []),
+    '',
+    '## 回答の形',
+    '# 分類済みCSV',
+    '```csv',
+    headerLine,
+    '（入力された全行を、分類列だけ補ってここへ返す）',
+    '```',
+    '',
+    '## 後から誤りを指摘された場合',
+    '- 同じ会話でユーザーから分類間違いを指摘されたら、分類済みCSVを修正して返す',
+    '- 修正済みCSVに続けて「# 改善後のルール全文」を付け、過去の有効な改善ルールと今回の改善を統合した全文を書く。重複は統合し、矛盾は今回の確認結果に合わせて解消する',
+    '- 続けて「# 今回の変更点」を付け、追加・整理・削除した内容と理由を書く',
+    '- 基本の指示、分類項目、列名、出力形式は改善ルールへ含めない',
+    '',
+    'CSVの値に「,」や「\"」が入る場合は、値全体を「\"」で囲み、中の「\"」は「\"\"」と重ねてください。',
+  ].join('\n');
 }
 
 // 依頼26・27 で Gemini の読み取りを試して決めた文。繰越の行・列ずれ・半角カナの濁点・元号の無い日付・
@@ -240,7 +369,7 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}, 
     excel
       ? '返すのは Excel ファイル（.xlsx）だけにしてください。前後に説明文を付けず、Googleスプレッドシートで作業した場合も最後は .xlsx でダウンロードしてください。'
       : includeImprovement
-        ? '回答は「取引CSV」と「次回依頼文案」の2部だけにしてください。取引CSVは必ず ```csv のコードブロックに入れてください。'
+        ? '最初の回答は「取引CSV」だけにしてください。取引CSVは必ず ```csv のコードブロックに入れてください。'
         : '返すのは CSV だけにしてください（前後に説明の文を付けない）。保存するときの拡張子は .csv です。',
     '',
     ...(knownLines.length > 0 ? ['## 分かっていること', ...knownLines, ''] : []),
@@ -253,8 +382,6 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}, 
           headerLine,
           '（ここに取引行）',
           '```',
-          '# 次回依頼文案',
-          '- （今回迷った点と、次回の精度を上げる具体的な追加ルール）',
           '',
         ]
       : []),
@@ -308,14 +435,16 @@ export function aiInstruction(format: ImportFormat, hint: InstructionHint = {}, 
               ]
             : []),
           ...(names.includes(OTHER_CATEGORY) ? [`- どれにも当たらないとはっきり分かるものだけ「${OTHER_CATEGORY}」にする`] : []),
-          '- 分類に迷ったら空欄にする（アプリが自動で分類する）。自信のあるものだけ書く',
+          '- 分類に迷ったら空欄にする（アプリでは未分類で取り込む）。自信のあるものだけ書く',
         ]),
     ...(includeImprovement
       ? [
           '',
-          '## 次回依頼文案',
-          '- CSVの後に「# 次回依頼文案」の見出しを付け、今回迷った箇所と、次回から追加するとよい具体的な確認ルールを箇条書きで書く',
-          '- 既存の依頼文にあるルールは繰り返さない',
+          '## 後から誤りを指摘された場合',
+          '- 同じ会話でユーザーから読み取り間違いを指摘されたら、PDFを再確認して修正済みの取引CSVを返す',
+          '- 修正済みCSVに続けて「# 改善後のルール全文」を付け、過去の有効な改善ルールと今回の改善を統合した全文を書く。重複は統合し、矛盾は今回の確認結果に合わせて解消する',
+          '- 続けて「# 今回の変更点」を付け、追加・整理・削除した内容と理由を書く',
+          '- 基本の指示、列名、出力形式は改善ルールへ含めない',
         ]
       : []),
   ].join('\n');

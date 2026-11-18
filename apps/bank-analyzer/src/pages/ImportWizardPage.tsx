@@ -37,6 +37,8 @@ import {
   applyEra,
   checkRows,
   hasOpenIssues,
+  isBlankRow,
+  patternLearningCandidates,
   reviewCounts,
   toCommitFile,
   toEditFiles,
@@ -164,7 +166,7 @@ export function ImportWizardPage() {
   const [allowNoBalance, setAllowNoBalance] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
-  const [method, setMethod] = useState<'gemini' | 'file'>(() => (window.location.hash === `#${FORMAT_GUIDE_ID}` ? 'gemini' : 'file'));
+  const [method, setMethod] = useState<'ai' | 'file'>(() => (window.location.hash === `#${FORMAT_GUIDE_ID}` ? 'ai' : 'file'));
   // 選べる分類（parse がいまの設定から返す。未分類は除く）
   const [categories, setCategories] = useState<string[]>([]);
   // 口座ごとの取込済みの取引の期間（元号の無い日付の候補の目印）
@@ -172,6 +174,7 @@ export function ImportWizardPage() {
   const wizard = useWizardFiles();
   const unknowns = useMemo(() => unknownCategories(wizard.files), [wizard.files]);
   const unreadableFlags = useMemo(() => unreadableFlagCount(wizard.files), [wizard.files]);
+  const learningCandidates = useMemo(() => patternLearningCandidates(wizard.files), [wizard.files]);
 
   const showGuide = () => {
     setMethod('file');
@@ -181,10 +184,12 @@ export function ImportWizardPage() {
 
   const checked = useMemo(() => new Map(wizard.files.map((f) => [f.key, checkRows(f.rows, f.hasBalance, f.openingBalance)])), [wizard.files]);
   const summary = useMemo(() => {
-    const all = [...checked.values()].flat().filter((r) => !r.blank);
+    const visible = [...checked.values()].flat().filter((r) => !r.blank);
+    const all = visible.filter((r) => !r.excluded);
     const duplicates = all.filter((r) => r.dup).length;
     return {
       rows: all.length,
+      excluded: visible.length - all.length,
       duplicates,
       balanceErrors: all.filter((r) => r.isBalanceError).length,
       inputErrors: all.filter((r) => r.error).length,
@@ -193,7 +198,7 @@ export function ImportWizardPage() {
       toImport: all.length - (skipDuplicates ? duplicates : 0),
     };
   }, [checked, skipDuplicates]);
-  const noBalanceFiles = wizard.files.filter((f) => !f.hasBalance);
+  const noBalanceFiles = wizard.files.filter((f) => !f.hasBalance && f.rows.some((r) => !r.excluded && !isBlankRow(r)));
   const skippedFiles = wizard.files.filter((f) => f.skipped.length > 0);
   const skippedTotal = skippedFiles.reduce((n, f) => n + f.skipped.length, 0);
   const missingAccount = wizard.files.some((f) => f.account.accountNumber.trim() === '');
@@ -260,9 +265,9 @@ export function ImportWizardPage() {
   const today = localIsoDate(new Date());
 
   const commitBlockers = [
-    summary.inputErrors > 0 && `入力エラーの行が${summary.inputErrors}行あります。直すか削除してください。`,
+    summary.inputErrors > 0 && `入力エラーの行が${summary.inputErrors}行あります。直すか取込対象から外してください。`,
     summary.openIssues > 0 &&
-      `要確認の行が${summary.openIssues}行あります。直すか、「このままでよい」を押すか、削除してください。`,
+      `要確認の行が${summary.openIssues}行あります。直すか、「このままでよい」を押すか、取込対象から外してください。`,
     summary.rows === 0 && '取り込む行がありません。',
     noBalanceFiles.length > 0 && !allowNoBalance && '残高の列が無いファイルがあります。下の確認にチェックを入れてください。',
   ].filter((m): m is string => typeof m === 'string');
@@ -303,12 +308,12 @@ export function ImportWizardPage() {
           <div className="mt-3 grid gap-3 sm:grid-cols-2" role="group" aria-label="取り込み方法">
             <button
               type="button"
-              aria-pressed={method === 'gemini'}
-              className={`flex min-h-20 cursor-pointer items-start gap-3 rounded-lg border p-4 text-left transition-colors ${method === 'gemini' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'}`}
-              onClick={() => { setMethod('gemini'); setPicked([]); setParseError(null); }}
+              aria-pressed={method === 'ai'}
+              className={`flex min-h-20 cursor-pointer items-start gap-3 rounded-lg border p-4 text-left transition-colors ${method === 'ai' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'}`}
+              onClick={() => { setMethod('ai'); setPicked([]); setParseError(null); }}
             >
               <Sparkles size={21} className="mt-0.5 shrink-0 text-blue-700" aria-hidden="true" />
-              <span><strong className="block">Geminiの回答を貼り付け</strong><span className="mt-1 block text-sm text-slate-600">通帳PDFをGeminiで読み取る場合</span></span>
+              <span><strong className="block">AIで文字認識・分類</strong><span className="mt-1 block text-sm text-slate-600">PDFから2段階で処理する場合</span></span>
             </button>
             <button
               type="button"
@@ -337,13 +342,13 @@ export function ImportWizardPage() {
             </div>
             <FormatGuide caseId={caseId!} open={guideOpen} onToggle={setGuideOpen} variant="file" />
           </>}
-          {method === 'gemini' && <FormatGuide
+          {method === 'ai' && <FormatGuide
             caseId={caseId!}
             open={false}
             onToggle={() => undefined}
-            variant="gemini"
+            variant="ai"
             onPaste={(csv) => {
-              setPicked([new File([`\ufeff${csv}\r\n`], 'Gemini文字認識.csv', { type: 'text/csv;charset=utf-8' })]);
+              setPicked([new File([`\ufeff${csv}\r\n`], 'AI分類済み.csv', { type: 'text/csv;charset=utf-8' })]);
               setParseError(null);
             }}
           />}
@@ -401,11 +406,12 @@ export function ImportWizardPage() {
 
       {step === 3 && (
         <div className="space-y-4">
-          <dl className="card grid grid-cols-2 gap-3 p-4 text-center sm:grid-cols-5">
+          <dl className="card grid grid-cols-2 gap-3 p-4 text-center sm:grid-cols-3 lg:grid-cols-6">
             {[
               ['ファイル', wizard.files.length, ''],
               ['総行数', summary.rows, ''],
               ['取り込む見込み', summary.toImport, 'text-blue-800'],
+              ['対象外', summary.excluded, 'text-slate-700'],
               ['重複', summary.duplicates, summary.duplicates ? 'text-slate-700' : ''],
               ['残高の誤差', summary.balanceErrors, summary.balanceErrors ? 'text-amber-800' : ''],
             ].map(([label, value, color]) => (
@@ -419,7 +425,7 @@ export function ImportWizardPage() {
           {unknowns.length > 0 && (
             <section className="card border-amber-200 bg-amber-50 p-4 text-sm" aria-label="知らない分類">
               <h3 className="mb-1 font-semibold text-amber-900">CSV に設定に無い分類名があります</h3>
-              <p className="mb-2 text-amber-900">分類は勝手に作りません。読み替え先を選んでください（選ばなければ取込のときに自動で分類します）。</p>
+              <p className="mb-2 text-amber-900">分類は勝手に作りません。読み替え先を選んでください（選ばなければ未分類のまま取り込みます）。</p>
               <ul className="space-y-1.5">
                 {unknowns.map((u) => (
                   <li key={u.name} className="flex flex-wrap items-center gap-2">
@@ -433,7 +439,7 @@ export function ImportWizardPage() {
                       value={u.chosen}
                       onChange={(e) => wizard.mapUnknownCategory(u.name, e.target.value)}
                     >
-                      <option value="">自動で分類する</option>
+                      <option value="">未分類のまま</option>
                       {categories.map((c) => (
                         <option key={c} value={c}>
                           {c}
@@ -471,6 +477,20 @@ export function ImportWizardPage() {
                   )}
                 </div>
               ))}
+            </section>
+          )}
+
+          {learningCandidates.length > 0 && (
+            <section className="card border-blue-200 bg-blue-50/40 p-4" aria-label="分類パターンの学習候補">
+              <div className="flex items-start gap-2">
+                <Sparkles size={18} className="mt-0.5 shrink-0 text-blue-700" aria-hidden />
+                <div>
+                  <h3 className="font-semibold">分類パターンの学習候補が{num(learningCandidates.length)}件あります</h3>
+                  <p className="mt-0.5 text-sm text-slate-600">
+                    ここでは設定を変更しません。取引を取り込んだ後の結果画面で、登録する候補と適用範囲を確認できます。
+                  </p>
+                </div>
+              </div>
             </section>
           )}
 

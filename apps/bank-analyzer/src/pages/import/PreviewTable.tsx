@@ -1,373 +1,153 @@
-// 取込ウィザードの手順3: 1ファイル分の行を直す表（削除・下に挿入・上下の入れ替え・問題の行への移動）
-// 分類の列は categories を渡したときだけ出す（直接入力は出さない）。メモ・付箋の列は CSV に入っていたときだけ
-// 依頼26: 壊れた行の疑い（列ずれ・0円・「"」など）は「要確認」に理由を出す。直すか「このままでよい」か削除するまで取込は進めない
-
+// 取込確認: AI・CSVの分類を既定で採用し、取り込まない行だけを選ぶ。
+// 一覧は1取引1行。細かな修正は行の編集画面で行う。
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ConfirmDialog, Dialog } from '../../components/Dialog';
 import { num, warekiShort } from '../../lib/format';
 import { accountLabel } from './AccountForm';
 import { EraDatePanel, type EraPanelContext } from './EraDatePanel';
 import type { WizardFiles } from './useWizardFiles';
 import { duplicateWarning, hasOpenIssues, type CheckedRow, type EditFile } from './wizardRows';
 
+const PAGE_SIZE = 100;
 const BADGE = 'inline-block rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap';
+const ORIGIN_LABEL = { csv: 'AI・CSV', auto: '未分類', manual: '手直し' } as const;
+const amount = (value: string) => {
+  if (!value.trim()) return '－';
+  const parsed = Number(value.replace(/,/g, ''));
+  return Number.isFinite(parsed) ? num(parsed) : value;
+};
 
-function RowStatus({ r }: { r: CheckedRow }) {
-  if (r.blank)
-    return (
-      <span className={`${BADGE} bg-slate-100 text-slate-500`} title="摘要・金額が空の行は取り込みません">
-        未入力
-      </span>
-    );
-  const badges = [];
-  if (r.error)
-    badges.push(
-      <span key="e" className={`${BADGE} bg-red-100 text-red-800`} title={r.error}>
-        入力エラー
-      </span>,
-    );
-  if (hasOpenIssues(r))
-    badges.push(
-      <span key="i" className={`${BADGE} bg-red-100 text-red-800`} title={r.issues.join('\n')}>
-        要確認
-      </span>,
-    );
-  if (r.accepted)
-    badges.push(
-      <span key="a" className={`${BADGE} bg-slate-100 text-slate-600`} title="要確認の行を、このままでよいとしました">
-        確認済み
-      </span>,
-    );
-  if (r.isBalanceError)
-    badges.push(
-      <span key="b" className={`${BADGE} bg-amber-100 text-amber-900`} title={`計算上の残高: ${num(r.calcBalance)}`}>
-        誤差
-      </span>,
-    );
-  if (r.dup)
-    badges.push(
-      <span
-        key="d"
-        className={`${BADGE} ${r.dup === 'high' ? 'bg-slate-200 text-slate-800' : 'bg-slate-100 text-slate-600'}`}
-        title={r.dup === 'high' ? '取込済みの取引と同じ内容です' : '取込済みの取引と日付・摘要・金額が同じです（残高が違う）'}
-      >
-        {r.dup === 'high' ? '重複' : '重複?'}
-      </span>,
-    );
-  if (badges.length === 0) badges.push(<span key="ok" className={`${BADGE} bg-emerald-100 text-emerald-800`}>OK</span>);
-  return <div className="flex flex-col items-start gap-0.5">{badges}</div>;
+function RowStatus({ row }: { row: CheckedRow }) {
+  if (row.excluded) return <span className={`${BADGE} bg-slate-200 text-slate-700`}>対象外</span>;
+  if (row.blank) return <span className={`${BADGE} bg-slate-100 text-slate-500`}>未入力</span>;
+  if (row.error) return <span className={`${BADGE} bg-red-100 text-red-800`} title={row.error}>入力エラー</span>;
+  if (hasOpenIssues(row)) return <span className={`${BADGE} bg-red-100 text-red-800`} title={row.issues.join('\n')}>要確認</span>;
+  if (row.isBalanceError) return <span className={`${BADGE} bg-amber-100 text-amber-900`} title={`計算上の残高: ${num(row.calcBalance)}`}>残高差</span>;
+  if (row.dup) return <span className={`${BADGE} bg-slate-200 text-slate-700`} title="取込済みの取引と重複しています">重複</span>;
+  if (row.accepted) return <span className={`${BADGE} bg-slate-100 text-slate-700`}>確認済み</span>;
+  return <span className={`${BADGE} bg-emerald-100 text-emerald-800`}>OK</span>;
 }
-
-const ORIGIN_BADGE = {
-  csv: { label: 'CSV', className: 'bg-sky-100 text-sky-800', title: 'CSV の分類の列に書かれていた分類' },
-  auto: { label: '自動', className: 'bg-slate-100 text-slate-600', title: '取込のときにアプリが摘要から付ける分類' },
-  manual: { label: '手直し', className: 'bg-violet-100 text-violet-800', title: 'この画面で選んだ分類' },
-} as const;
-
-function CategoryCell({ r, index, categories, onChange }: { r: CheckedRow; index: number; categories: string[]; onChange: (category: string) => void }) {
-  const badge = ORIGIN_BADGE[r.categoryOrigin];
-  // CSV の分類が設定から消えていても選択肢に残す（黙って別の値に見せない）
-  const options = r.category && !categories.includes(r.category) ? [r.category, ...categories] : categories;
-  return (
-    <div className="flex flex-col items-start gap-0.5">
-      <select className={`${CELL_INPUT} w-48`} aria-label={`${index + 1}行目の分類`} value={r.category} onChange={(e) => onChange(e.target.value)}>
-        <option value="">{`自動（${r.autoCategory ?? '取込時に決まる'}）`}</option>
-        {options.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
-      <span className="flex flex-wrap items-center gap-1">
-        <span className={`${BADGE} ${badge.className}`} title={badge.title}>
-          {badge.label}
-        </span>
-        {r.unknownCategory !== null && (
-          <span className="text-xs text-amber-800" title="CSV に書かれていた、設定に無い分類名">
-            CSV: {r.unknownCategory}
-          </span>
-        )}
-      </span>
-    </div>
-  );
-}
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const CELL_INPUT = 'input px-1.5 py-1 text-sm';
-const AMOUNT_COLUMNS = [
-  { key: 'amountOut', label: '出金' },
-  { key: 'amountIn', label: '入金' },
-] as const;
 
 type Props = {
   file: EditFile;
   rows: CheckedRow[];
-  actions: Pick<WizardFiles, 'updateRow' | 'acceptRow' | 'deleteRows' | 'insertBelow' | 'move'>;
-  // 選べる分類（未分類は除く）。渡したときだけ分類の列を出す
+  actions: Pick<WizardFiles, 'updateRow' | 'acceptRow' | 'deleteRows' | 'setExcluded' | 'insertBelow' | 'move'>;
   categories?: string[];
-  // 元号の無い日付をまとめて直す欄（取込ウィザードだけ。直接入力は出さない）
   era?: EraPanelContext;
 };
 
 export function PreviewTable({ file, rows, actions, categories, era }: Props) {
-  const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
-  const [cursor, setCursor] = useState(-1);
-  const problems = useMemo(() => rows.flatMap((r, i) => (r.error || r.isBalanceError || hasOpenIssues(r) ? [i] : [])), [rows]);
-  // 行を消したり直したりしたら数え直す（読み込んだときの文を出し続けない）
+  const [page, setPage] = useState(1);
+  const [editingKey, setEditingKey] = useState<number | null>(null);
+  const [deleteKey, setDeleteKey] = useState<number | null>(null);
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const shown = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const editing = rows.find((row) => row.key === editingKey);
+  const editingIndex = editing ? rows.indexOf(editing) : -1;
+  const deleting = rows.find((row) => row.key === deleteKey);
   const warning = useMemo(() => duplicateWarning(rows), [rows]);
-  const duplicateKeys = useMemo(() => rows.filter((r) => r.dup).map((r) => r.key), [rows]);
-  const rowId = (key: number) => `row-${file.key}-${key}`;
-
-  const jump = (direction: 1 | -1) => {
-    if (problems.length === 0) return;
-    // 端まで行ったら反対の端へ回る（findLast は ES2023 なので使わない）
-    const before = problems.filter((i) => i < cursor);
-    const next =
-      direction === 1 ? (problems.find((i) => i > cursor) ?? problems[0]!) : (before[before.length - 1] ?? problems[problems.length - 1]!);
-    setCursor(next);
-    const el = document.getElementById(rowId(rows[next]!.key));
-    el?.scrollIntoView({ block: 'center' });
-    el?.querySelector<HTMLInputElement>('input[type=date]')?.focus();
-  };
-
-  const toggle = (key: number) =>
-    setSelected((s) => {
-      const next = new Set(s);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
-  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.key));
-  // 選択・状態・日付・摘要・出金・入金・操作 ＋ 残高2列 ＋ 分類・メモ・付箋
-  const columnCount = 7 + (file.hasBalance ? 2 : 0) + (categories ? 1 : 0) + (file.hasMemo ? 1 : 0) + (file.hasFlag ? 1 : 0);
+  const reviewMode = categories !== undefined;
+  const excluded = rows.filter((row) => row.excluded && !row.blank).length;
+  const duplicateKeys = useMemo(() => rows.filter((row) => row.dup && !row.excluded && !row.blank).map((row) => row.key), [rows]);
+  const categoryChoices = editing?.category && !categories?.includes(editing.category) ? [editing.category, ...(categories ?? [])] : categories ?? [];
 
   return (
     <section className="card p-4" aria-label={file.filename}>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-semibold">
-          {file.filename}
-          <span className="ml-2 text-sm font-normal text-slate-500">{accountLabel(file.account)}</span>
-        </h3>
-        <span className="text-sm text-slate-500">{num(rows.filter((r) => !r.blank).length)}行</span>
+        <h3 className="font-semibold">{file.filename}<span className="ml-2 text-sm font-normal text-slate-500">{accountLabel(file.account)}</span></h3>
+        <span className="text-sm text-slate-600">{reviewMode ? `取込対象 ${num(rows.filter((row) => !row.blank && !row.excluded).length)}行・対象外 ${num(excluded)}行` : `${num(rows.filter((row) => !row.blank).length)}行`}</span>
       </div>
-
+      {reviewMode && <p className="mb-2 text-sm text-slate-600">AI・CSVの分類をそのまま使います。取り込まない行だけ「対象外」にチェックしてください。修正は「編集」から行えます。</p>}
       {warning && <p className="mb-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">{warning}</p>}
       {era && <EraDatePanel file={file} era={era} />}
-      {!file.hasBalance && (
-        <p className="mb-2 rounded bg-slate-100 px-3 py-2 text-sm text-slate-700">このファイルには残高の列がありません。残高の突き合わせはできません。</p>
-      )}
-
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <button type="button" className="btn btn-outline-danger btn-sm" disabled={selected.size === 0} onClick={() => {
-          actions.deleteRows(file.key, selected);
-          setSelected(new Set());
-        }}>
-          <Trash2 size={14} />
-          選択した{selected.size > 0 ? `${selected.size}行` : '行'}を削除
-        </button>
-        {duplicateKeys.length > 0 && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelected(new Set(duplicateKeys))}>
-            重複の{duplicateKeys.length}行を選ぶ
-          </button>
-        )}
-        <span className="ml-auto flex items-center gap-1 text-sm">
-          <span className={problems.length ? 'text-amber-800' : 'text-slate-500'}>問題の行 {problems.length}件</span>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={!problems.length} onClick={() => jump(-1)} aria-label="前の問題の行へ">
-            <ChevronUp size={14} />
-          </button>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={!problems.length} onClick={() => jump(1)} aria-label="次の問題の行へ">
-            <ChevronDown size={14} />
-          </button>
-        </span>
-      </div>
-
-      <div className="max-h-[60vh] overflow-auto rounded border border-slate-200">
-        <table className="table-base text-sm">
-          <thead className="sticky top-0 z-10 bg-slate-50">
-            <tr>
-              <th className="w-8">
-                <input
-                  type="checkbox"
-                  aria-label="すべての行を選ぶ"
-                  checked={allSelected}
-                  onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.key)))}
-                />
-              </th>
-              <th>状態</th>
-              <th>日付</th>
-              <th>摘要</th>
-              {AMOUNT_COLUMNS.map((c) => (
-                <th key={c.key} className="text-right">
-                  {c.label}
-                </th>
-              ))}
-              {file.hasBalance && (
-                <>
-                  <th className="text-right">残高</th>
-                  <th className="text-right">計算上の残高</th>
-                </>
-              )}
-              {categories && <th>分類</th>}
-              {file.hasMemo && <th>メモ</th>}
-              {file.hasFlag && (
-                <th title="CSV の「要確認」の列。付けた取引は質問候補の付箋つきで取り込みます">付箋</th>
-              )}
-              <th className="text-right">操作</th>
-            </tr>
-          </thead>
+      {!file.hasBalance && <p className="mb-2 rounded bg-slate-100 px-3 py-2 text-sm text-slate-700">このファイルには残高の列がありません。残高の突き合わせはできません。</p>}
+      {reviewMode && duplicateKeys.length > 0 && <button type="button" className="btn btn-secondary btn-sm mb-2" onClick={() => actions.setExcluded(file.key, new Set(duplicateKeys), true)}>重複の{duplicateKeys.length}行を対象外にする</button>}
+      <div className="overflow-x-auto rounded border border-slate-200">
+        <table className="table-base mx-auto min-w-[920px] max-w-[1100px] table-fixed" aria-label={`${file.filename}の取引`}>
+          <colgroup>
+            {reviewMode && <col className="w-16" />}<col className="w-20" /><col className="w-20" /><col />
+            <col className="w-24" /><col className="w-24" />
+            {file.hasBalance && <col className="w-24" />}
+            {categories && <col className="w-40" />}
+            <col className={reviewMode ? 'w-44' : 'w-24'} />
+          </colgroup>
+          <thead><tr>{reviewMode && <th>対象外</th>}<th>状態</th><th>日付</th><th>摘要</th><th className="text-right">出金</th><th className="text-right">入金</th>{file.hasBalance && <th className="text-right">残高</th>}{categories && <th>分類</th>}<th>操作</th></tr></thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr
-                key={r.key}
-                id={rowId(r.key)}
-                className={r.error || hasOpenIssues(r) ? 'bg-red-50' : r.isBalanceError ? 'bg-amber-50' : r.dup || r.blank ? 'bg-slate-50 text-slate-500' : undefined}
-              >
+            {shown.map((row, index) => {
+              const rowNumber = (currentPage - 1) * PAGE_SIZE + index + 1;
+              return <tr key={row.key} className={row.excluded ? 'bg-slate-50 text-slate-500' : row.error || hasOpenIssues(row) ? 'bg-red-50' : row.isBalanceError ? 'bg-amber-50' : undefined}>
+                {reviewMode && <td><input type="checkbox" aria-label={`${rowNumber}行目を取込対象から外す`} checked={row.excluded} disabled={row.blank} onChange={(event) => actions.setExcluded(file.key, new Set([row.key]), event.target.checked)} /></td>}
+                <td><RowStatus row={row} /></td>
+                <td className="whitespace-nowrap text-xs tabular-nums" title={row.date}>{row.date ? warekiShort(row.date) : row.rawDate || '－'}</td>
+                <td><div className="truncate" title={row.description}>{row.description || '－'}</div></td>
+                <td className="text-right whitespace-nowrap tabular-nums">{amount(row.amountOut)}</td>
+                <td className="text-right whitespace-nowrap tabular-nums">{amount(row.amountIn)}</td>
+                {file.hasBalance && <td className="text-right whitespace-nowrap tabular-nums" title={row.calcBalance === null ? undefined : `計算上: ${num(row.calcBalance)}`}>{amount(row.balance)}</td>}
+                {categories && <td>
+                  <div className="truncate text-xs" title={`現在: ${row.category || '未分類'}${row.sourceCategory && row.sourceCategory !== row.category ? ` / 元のAI・CSV分類: ${row.sourceCategory}` : ''}`}>
+                    {row.category || '未分類'}
+                    {row.sourceCategory && row.sourceCategory !== row.category && <span className="ml-1 text-slate-600">（元: {row.sourceCategory}）</span>}
+                  </div>
+                </td>}
                 <td>
-                  <input type="checkbox" aria-label={`${i + 1}行目を選ぶ`} checked={selected.has(r.key)} onChange={() => toggle(r.key)} />
-                </td>
-                <td>
-                  <RowStatus r={r} />
-                  {hasOpenIssues(r) && (
-                    <div className="mt-1 w-56 space-y-1">
-                      <ul className="list-disc space-y-0.5 pl-4 text-xs text-red-800">
-                        {r.issues.map((m) => (
-                          <li key={m}>{m}</li>
-                        ))}
-                      </ul>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => actions.acceptRow(file.key, r.key)}>
-                        <Check size={14} />
-                        このままでよい
-                      </button>
-                    </div>
-                  )}
-                </td>
-                <td>
-                  <input
-                    type="date"
-                    className={`${CELL_INPUT} w-36`}
-                    aria-label={`${i + 1}行目の日付`}
-                    value={r.date}
-                    onChange={(e) => actions.updateRow(file.key, r.key, { date: e.target.value })}
-                  />
-                  {ISO_DATE.test(r.date) && <div className="mt-0.5 text-xs text-slate-500">{warekiShort(r.date)}</div>}
-                  {!r.date && r.rawDate && <div className="mt-0.5 text-xs text-red-700">ファイルの値: {r.rawDate}</div>}
-                </td>
-                <td>
-                  <input
-                    className={`${CELL_INPUT} min-w-48`}
-                    aria-label={`${i + 1}行目の摘要`}
-                    value={r.description}
-                    onChange={(e) => actions.updateRow(file.key, r.key, { description: e.target.value })}
-                  />
-                </td>
-                {AMOUNT_COLUMNS.map((c) => (
-                  <td key={c.key}>
-                    <input
-                      className={`${CELL_INPUT} w-28 text-right tabular-nums`}
-                      inputMode="numeric"
-                      aria-label={`${i + 1}行目の${c.label}`}
-                      value={r[c.key]}
-                      onChange={(e) => actions.updateRow(file.key, r.key, { [c.key]: e.target.value })}
-                    />
-                  </td>
-                ))}
-                {file.hasBalance && (
-                  <>
-                    <td>
-                      <input
-                        className={`${CELL_INPUT} w-32 text-right tabular-nums`}
-                        inputMode="numeric"
-                        aria-label={`${i + 1}行目の残高`}
-                        placeholder="（空欄）"
-                        value={r.balance}
-                        onChange={(e) => actions.updateRow(file.key, r.key, { balance: e.target.value })}
-                      />
-                    </td>
-                    <td className={`text-right tabular-nums ${r.isBalanceError ? 'font-semibold text-amber-900' : 'text-slate-500'}`}>
-                      {r.calcBalance === null ? '' : num(r.calcBalance)}
-                    </td>
-                  </>
-                )}
-                {categories && (
-                  <td>
-                    <CategoryCell r={r} index={i} categories={categories} onChange={(category) => actions.updateRow(file.key, r.key, { category })} />
-                  </td>
-                )}
-                {file.hasMemo && (
-                  <td>
-                    <input
-                      className={`${CELL_INPUT} min-w-40`}
-                      aria-label={`${i + 1}行目のメモ`}
-                      value={r.memo}
-                      onChange={(e) => actions.updateRow(file.key, r.key, { memo: e.target.value })}
-                    />
-                  </td>
-                )}
-                {file.hasFlag && (
-                  <td className="text-center">
-                    <input
-                      type="checkbox"
-                      aria-label={`${i + 1}行目に付箋を付ける`}
-                      checked={r.flagged}
-                      onChange={(e) => actions.updateRow(file.key, r.key, { flagged: e.target.checked })}
-                    />
-                    {r.flagUnreadable !== null && (
-                      <div className="mt-0.5 text-xs text-amber-800" title="CSV の「要確認」の値が読めなかったので付箋なしにしています">
-                        読めない値: {r.flagUnreadable}
-                      </div>
-                    )}
-                  </td>
-                )}
-                <td>
-                  <div className="flex justify-end gap-1">
-                    <button type="button" className="btn btn-secondary btn-sm px-1.5" aria-label={`${i + 1}行目を上へ`} disabled={i === 0} onClick={() => actions.move(file.key, r.key, -1)}>
-                      <ArrowUp size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm px-1.5"
-                      aria-label={`${i + 1}行目を下へ`}
-                      disabled={i === rows.length - 1}
-                      onClick={() => actions.move(file.key, r.key, 1)}
-                    >
-                      <ArrowDown size={14} />
-                    </button>
-                    <button type="button" className="btn btn-secondary btn-sm px-1.5" aria-label={`${i + 1}行目の下に行を足す`} onClick={() => actions.insertBelow(file.key, r.key)}>
-                      <Plus size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline-danger btn-sm px-1.5"
-                      aria-label={`${i + 1}行目を削除`}
-                      onClick={() => {
-                        actions.deleteRows(file.key, new Set([r.key]));
-                        setSelected((s) => {
-                          const next = new Set(s);
-                          next.delete(r.key);
-                          return next;
-                        });
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <div className="flex items-center gap-1 whitespace-nowrap">
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditingKey(row.key)} aria-label={`${rowNumber}行目を編集`}>編集</button>
+                    {reviewMode && (row.category ? (
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => actions.updateRow(file.key, row.key, { category: '' })} aria-label={`${rowNumber}行目を未分類にする`}>未分類</button>
+                    ) : row.sourceCategory && categories?.includes(row.sourceCategory) ? (
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => actions.updateRow(file.key, row.key, { category: row.sourceCategory! })} aria-label={`${rowNumber}行目を元のAI・CSV分類「${row.sourceCategory}」に戻す`}>元に戻す</button>
+                    ) : (
+                      <button type="button" className="btn btn-secondary btn-sm" disabled>未分類</button>
+                    ))}
+                    <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setDeleteKey(row.key)} aria-label={`${rowNumber}行目を削除`}>削除</button>
                   </div>
                 </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={columnCount} className="py-6 text-center text-slate-500">
-                  行がありません。このファイルからは何も取り込みません。
-                </td>
-              </tr>
-            )}
+              </tr>;
+            })}
+            {rows.length === 0 && <tr><td colSpan={6 + (reviewMode ? 1 : 0) + (file.hasBalance ? 1 : 0) + (categories ? 1 : 0)} className="py-6 text-center text-slate-500">行がありません。</td></tr>}
           </tbody>
         </table>
       </div>
-      {problems.length > 0 && cursor >= 0 && rows[cursor] && (rows[cursor]!.error || hasOpenIssues(rows[cursor]!)) && (
-        <p className="mt-2 text-sm text-red-700">
-          {cursor + 1}行目: {[rows[cursor]!.error, ...rows[cursor]!.issues].filter(Boolean).join(' / ')}
-        </p>
-      )}
+      {pageCount > 1 && <nav className="mt-3 flex items-center justify-end gap-2 text-sm" aria-label={`${file.filename}のページ切り替え`}><span>{num(currentPage)} / {num(pageCount)}ページ</span><button type="button" className="btn btn-secondary btn-sm" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={14} aria-hidden="true" />前へ</button><button type="button" className="btn btn-secondary btn-sm" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>次へ<ChevronRight size={14} aria-hidden="true" /></button></nav>}
+      <Dialog open={!!editing} onClose={() => setEditingKey(null)} title={`${editingIndex + 1}行目を編集`} size="lg" footer={<button type="button" className="btn btn-primary" onClick={() => setEditingKey(null)}>閉じる</button>}>
+        {editing && <div className="space-y-4 text-sm">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label>日付<input type="date" className="input mt-1" value={editing.date} onChange={(event) => actions.updateRow(file.key, editing.key, { date: event.target.value })} /></label>
+            <label>摘要<input className="input mt-1" value={editing.description} onChange={(event) => actions.updateRow(file.key, editing.key, { description: event.target.value })} /></label>
+            <label>出金<input className="input mt-1" inputMode="numeric" value={editing.amountOut} onChange={(event) => actions.updateRow(file.key, editing.key, { amountOut: event.target.value })} /></label>
+            <label>入金<input className="input mt-1" inputMode="numeric" value={editing.amountIn} onChange={(event) => actions.updateRow(file.key, editing.key, { amountIn: event.target.value })} /></label>
+            {file.hasBalance && <label>残高<input className="input mt-1" inputMode="numeric" value={editing.balance} onChange={(event) => actions.updateRow(file.key, editing.key, { balance: event.target.value })} /></label>}
+            {categories && <label>分類<select className="input mt-1" value={editing.category} onChange={(event) => actions.updateRow(file.key, editing.key, { category: event.target.value })}><option value="">未分類</option>{categoryChoices.map((category) => <option key={category} value={category}>{category}</option>)}</select><span className="mt-1 block text-xs text-slate-500">現在: {ORIGIN_LABEL[editing.categoryOrigin]}{editing.sourceCategory && `・元のAI・CSV分類: ${editing.sourceCategory}`}{editing.autoCategory && editing.autoCategory !== editing.category ? `・アプリ候補: ${editing.autoCategory}` : ''}</span></label>}
+            {file.hasMemo && <label>メモ<input className="input mt-1" value={editing.memo} onChange={(event) => actions.updateRow(file.key, editing.key, { memo: event.target.value })} /></label>}
+            {file.hasFlag && <label className="flex items-center gap-2"><input type="checkbox" checked={editing.flagged} onChange={(event) => actions.updateRow(file.key, editing.key, { flagged: event.target.checked })} />付箋を付ける</label>}
+          </div>
+          {editing.rawDate && !editing.date && <p className="text-red-700">ファイルの日付: {editing.rawDate}</p>}
+          {editing.flagUnreadable && <p className="text-amber-800">「要確認」の読めない値: {editing.flagUnreadable}</p>}
+          {editing.error && <p role="alert" className="text-red-700">{editing.error}</p>}
+          {hasOpenIssues(editing) && <div className="rounded bg-red-50 p-3 text-red-800"><p>{editing.issues.join(' / ')}</p><button type="button" className="btn btn-secondary btn-sm mt-2" onClick={() => actions.acceptRow(file.key, editing.key)}><Check size={14} aria-hidden="true" />このままでよい</button></div>}
+          {editing.isBalanceError && <p className="text-amber-800">計算上の残高: {num(editing.calcBalance)}</p>}
+          <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+            <button type="button" className="btn btn-secondary btn-sm" disabled={editingIndex === 0} onClick={() => actions.move(file.key, editing.key, -1)}><ArrowUp size={14} aria-hidden="true" />上へ</button>
+            <button type="button" className="btn btn-secondary btn-sm" disabled={editingIndex === rows.length - 1} onClick={() => actions.move(file.key, editing.key, 1)}><ArrowDown size={14} aria-hidden="true" />下へ</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => actions.insertBelow(file.key, editing.key)}><Plus size={14} aria-hidden="true" />下に行を追加</button>
+          </div>
+        </div>}
+      </Dialog>
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleteKey(null)}
+        onConfirm={() => {
+          if (deleteKey !== null) actions.deleteRows(file.key, new Set([deleteKey]));
+          setDeleteKey(null);
+        }}
+        title="行を削除"
+        confirmLabel="削除する"
+        danger
+      >
+        「{deleting?.description || '未入力の行'}」を確認画面から削除します。{reviewMode && '取り込まないだけなら「対象外」を選んでください。'}
+      </ConfirmDialog>
     </section>
   );
 }

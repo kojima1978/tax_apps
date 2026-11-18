@@ -19,7 +19,7 @@ import {
 } from '../services/settings.js';
 import { seedCase } from './helpers/fixtures.js';
 import { useTestDb } from './helpers/testDb.js';
-import { currentOcrPrompt, getOcrPromptHistory, saveOcrPromptVersion } from '../services/ocrPrompt.js';
+import { currentOcrPrompt, getAiPromptHistory, getOcrPromptHistory, saveAiPromptVersion, saveOcrPromptVersion } from '../services/ocrPrompt.js';
 
 const db = useTestDb();
 
@@ -39,6 +39,14 @@ describe('Gemini文字認識の標準依頼文', () => {
   it('空の追加ルールは保存しない', async () => {
     await expect(saveOcrPromptVersion(db(), '  ', '空')).rejects.toThrow('追加するルール');
     expect(await db().appSetting.findUnique({ where: { key: 'OCR_PROMPT_HISTORY' } })).toBeNull();
+  });
+
+  it('文字認識用と分類用の改善履歴を分けて保存する', async () => {
+    await saveOcrPromptVersion(db(), '- 元号を確認する', 'OCR');
+    await saveAiPromptVersion(db(), 'classification', '- 高額送金は未分類で確認する', '分類');
+    expect(currentOcrPrompt(await getOcrPromptHistory(db())).rules).toContain('元号');
+    expect(currentOcrPrompt(await getAiPromptHistory(db(), 'classification')).rules).toContain('高額送金');
+    expect(await db().appSetting.count()).toBe(2);
   });
 });
 

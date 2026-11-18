@@ -8,7 +8,7 @@
 //   → 欄ごとのメッセージ（400 の errors）だけを出し、入力は残す
 // - 「いつ効く設定なのか」が画面に無かった。閾値を変えても分類済みの取引が変わらない理由が
 //   分からないため、どちらの種類かを節ごとに書く（多額取引・資金移動は表示のたびに判定、
-//   贈与判定・ファジーは取込と自動分類のときに使う）
+//   贈与判定・ファジーは取込時の候補表示と自動分類のときに使う）
 // - 既定値が画面のどこにも無く、触ったあとで元の値に戻せなかった → 欄ごとに既定値を出す
 //
 // 「質問文の下書き」は Django 版に無い節（お客様への確認事項。文と選び方は server/lib/questions.ts）
@@ -189,13 +189,13 @@ function AnalysisParamsForm({ settings, onSaved }: { settings: Settings; onSaved
           </div>
         </div>
       </Section>
-      <Section icon={Gift} title="贈与判定" note="取込と自動分類のときに使います（すでに分類済みの取引は変わりません）">
+      <Section icon={Gift} title="贈与判定" note="取込時の候補表示と自動分類のときに使います（すでに分類済みの取引は変わりません）">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{field('giftThreshold')}</div>
       </Section>
       <Section icon={CalendarClock} title="相続税の検討" note="概要タブの「相続税の検討」とカテゴリー別 Excel に、表示のたびに効きます">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{field('preDeathMonths')}</div>
       </Section>
-      <Section icon={Search} title="ファジーマッチング" note="取込と自動分類のときに使います（すでに分類済みの取引は変わりません）">
+      <Section icon={Search} title="ファジーマッチング" note="取込時の候補表示と自動分類のときに使います（すでに分類済みの取引は変わりません）">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" className="mt-0.5" checked={form.fuzzyEnabled} onChange={(e) => set({ fuzzyEnabled: e.target.checked })} />

@@ -18,7 +18,7 @@ import type { ImportReview } from '../lib/import/summary.js';
 import { checkWizardDuplicates, commitRows, commitWizard, importCategories, type ImportRow, type WizardFile } from '../services/imports.js';
 import { getClassifierSettings } from '../services/settings.js';
 import { contentDisposition } from '../lib/exportFileName.js';
-import { currentOcrPrompt, getOcrPromptHistory, ocrExcelTemplate, saveOcrPromptVersion } from '../services/ocrPrompt.js';
+import { currentOcrPrompt, getAiPromptHistory, getOcrPromptHistory, ocrExcelTemplate, saveAiPromptVersion, saveOcrPromptVersion } from '../services/ocrPrompt.js';
 import { fail, ok, readBody, type CaseRouter } from './common.js';
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -217,13 +217,19 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
       .filter((n) => n !== UNCATEGORIZED);
     const annotated = previews.map((f) => {
       const decided = decideCategories(f.rows, [...categories, UNCATEGORIZED], classifier);
+      const candidates = decideCategories(
+        f.rows.map(({ category: _category, ...row }) => row),
+        [...categories, UNCATEGORIZED],
+        classifier,
+      );
       return {
         ...f,
         rows: f.rows.map(({ category: _raw, ...row }, i) => {
           const d = decided[i]!;
+          const autoCategory = candidates[i]!.category;
           return d.source === 'csv'
-            ? { ...row, category: d.category }
-            : { ...row, autoCategory: d.category, ...(d.unknown !== undefined ? { unknownCategory: d.unknown } : {}) };
+            ? { ...row, category: d.category, autoCategory }
+            : { ...row, autoCategory, ...(d.unknown !== undefined ? { unknownCategory: d.unknown } : {}) };
         }),
       };
     });
@@ -232,12 +238,22 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
 
   // 取込できる形式の案内（依頼24）: 分類名とキーワードの例・贈与の閾値。指示文とひな形は画面で組み立てる
   r.get('/:caseId/import/format', async (c) => {
-    const [classifier, history] = await Promise.all([getClassifierSettings(db, c.get('caseId')), getOcrPromptHistory(db)]);
+    const [classifier, history, classificationHistory] = await Promise.all([
+      getClassifierSettings(db, c.get('caseId')),
+      getOcrPromptHistory(db),
+      getAiPromptHistory(db, 'classification'),
+    ]);
     const current = currentOcrPrompt(history);
+    const classificationCurrent = currentOcrPrompt(classificationHistory);
     return ok(c, {
       categories: importCategories(classifier),
       giftThreshold: classifier.giftThreshold,
       ocrPrompt: { currentVersion: current.version, currentRules: current.rules, versions: [...history.versions].reverse() },
+      classificationPrompt: {
+        currentVersion: classificationCurrent.version,
+        currentRules: classificationCurrent.rules,
+        versions: [...classificationHistory.versions].reverse(),
+      },
     });
   });
 
@@ -255,6 +271,19 @@ export function importRoutes(r: CaseRouter, db: PrismaClient) {
       const history = await saveOcrPromptVersion(db, rules, optionalText(body.note) ?? '');
       const current = currentOcrPrompt(history);
       return ok(c, { version: current.version, message: `標準依頼文 Ver.${current.version} を保存しました。次の通帳から使用されます。` });
+    } catch (e) {
+      return fail(c, e instanceof Error ? e.message : '保存できませんでした。');
+    }
+  });
+
+  r.post('/:caseId/import/classification-prompt', async (c) => {
+    const body = await readBody(c);
+    const rules = optionalText(body.rules);
+    if (!rules) return fail(c, '次回から追加するルールを入力してください。');
+    try {
+      const history = await saveAiPromptVersion(db, 'classification', rules, optionalText(body.note) ?? '');
+      const current = currentOcrPrompt(history);
+      return ok(c, { version: current.version, message: `分類依頼文 Ver.${current.version} を保存しました。次回の分類から使用されます。` });
     } catch (e) {
       return fail(c, e instanceof Error ? e.message : '保存できませんでした。');
     }

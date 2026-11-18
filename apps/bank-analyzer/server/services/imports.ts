@@ -3,10 +3,10 @@
 // 1回の取込でやること（Django 版と同じ順番）: 分類 → 多額の印 → 口座を探して/作って登録 →
 // 案件の全取引で資金移動を判定し直す（印は付けるだけで外さない）。取込時の点数は保存しない。
 //
-// CSV の「分類」の列（依頼24）: 分類が書かれた行はその分類で入れ、自動分類にかけるのは
-// 書かれていない行だけ。点数は自動分類と同じく保存しない（0 のまま ＝ 取込時に付いた分類）。
+// CSV の「分類」の列（依頼24）: 分類が書かれた行はその分類で入れ、書かれていない行は未分類にする。
+// アプリの分類判定は取込前の候補表示にだけ使う。点数は保存しない。
 // 分類の変更履歴（ClassificationChange）にも積まない ── 履歴は「取込後に人が変えた操作」を
-// 戻すためのもので、取込で付く分類は自動分類と同じく最初の状態だから。
+// 戻すためのもので、取込で付く分類は最初の状態だから。
 // 贈与・多額・資金移動の判定は CSV の分類があっても今までどおり走る。
 //
 // Django 版との違い:
@@ -20,7 +20,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { accountIdentity, accountLabel } from '../lib/accountIdentity.js';
 import { detectTransfers, isLargeAmount, type AnalysisSettings } from '../lib/analyze.js';
-import { STANDARD_CATEGORIES, normalizePatterns, sortCategories } from '../lib/categories.js';
+import { STANDARD_CATEGORIES, UNCATEGORIZED, normalizePatterns, sortCategories } from '../lib/categories.js';
 import { type ClassifierSettings } from '../lib/classify.js';
 import { decideCategories } from '../lib/import/csvCategory.js';
 import {
@@ -29,6 +29,7 @@ import {
   type ImportReview,
   type ImportSummary,
   type InsertedRow,
+  type PatternLearningCandidate,
 } from '../lib/import/summary.js';
 import { buildDuplicateWarning, buildExistingIndex, markDuplicates, type DedupFields, type DuplicateMark, type DuplicateWarning } from '../lib/dedup.js';
 import { normalizeText } from '../lib/text.js';
@@ -102,10 +103,16 @@ export function importCategories(classifier: Pick<ClassifierSettings, 'globalPat
 
 // commit_import の1回分。分類の使い回し（同じ摘要は最初の行の結果）は1回の中だけで効く。
 // 戻り値は入れた取引の ID（送られた並び）と、行ごとの分類の出どころ（取込の結果の内訳用）
-async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<{ ids: bigint[]; sources: CategorySource[] }> {
-  if (rows.length === 0) return { ids: [], sources: [] };
+async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<{ ids: bigint[]; sources: CategorySource[]; learningCandidates: PatternLearningCandidate[] }> {
+  if (rows.length === 0) return { ids: [], sources: [], learningCandidates: [] };
   const [classifier, settings] = await Promise.all([getClassifierSettings(tx, caseId), getAppSettings(tx)]);
-  const decided = decideCategories(rows, importCategories(classifier).map((c) => c.name), classifier);
+  const categoryNames = importCategories(classifier).map((c) => c.name);
+  const decided = decideCategories(rows, categoryNames, classifier);
+  const candidates = decideCategories(
+    rows.map(({ category: _category, ...row }) => row),
+    categoryNames,
+    classifier,
+  );
 
   // 同じ口座を2度探さないための覚え書き。キーは同一性（番号だけだと、同じ番号の
   // 別の銀行の行が最初の口座へ流れ込む）
@@ -128,7 +135,8 @@ async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<{ 
       amountIn: r.amountIn,
       balance: r.balance,
       isLarge: isLargeAmount(r.amountOut, r.amountIn, settings.largeAmountThreshold),
-      category: decided[i]!.category,
+      // CSV・AIが明示した分類だけを確定する。アプリの判定は取込前の候補表示に留める。
+      category: decided[i]!.source === 'csv' ? decided[i]!.category : UNCATEGORIZED,
       memo: r.memo || null,
       isFlagged: r.flagged === true,
     });
@@ -136,10 +144,23 @@ async function insertRows(tx: Tx, caseId: bigint, rows: ImportRow[]): Promise<{ 
   // createManyAndReturn は送った並びで返す（PostgreSQL の INSERT … RETURNING）
   const created = await tx.transaction.createManyAndReturn({ data, select: { id: true } });
   await markTransfers(tx, caseId, settings);
+  const learning = new Map<string, PatternLearningCandidate>();
+  for (const [i, r] of rows.entries()) {
+    const source = decided[i]!.source === 'csv' ? (r.categorySource ?? 'csv') : 'auto';
+    const description = (r.description ?? '').trim().replace(/\s+/g, ' ');
+    const category = decided[i]!.category;
+    const autoCategory = candidates[i]!.category;
+    if (source !== 'csv' || !description || category === autoCategory) continue;
+    const key = `${category}\u0000${description}`;
+    const found = learning.get(key);
+    if (found) found.count += 1;
+    else learning.set(key, { key, category, description, autoCategory, count: 1 });
+  }
   return {
     ids: created.map((t) => t.id),
-    // 使える分類名で入った行は画面の申告（無ければ CSV）、自動分類へ回った行は auto
+    // 使える分類名で入った行は画面の申告（無ければ CSV）、空欄・知らない分類は未分類として auto の枠で集計
     sources: decided.map((d, i) => (d.source === 'csv' ? (rows[i]!.categorySource ?? 'csv') : 'auto')),
+    learningCandidates: [...learning.values()],
   };
 }
 
@@ -199,7 +220,7 @@ export async function commitWizard(
       const before = await loadCaseRows(tx, caseId);
       const index = buildExistingIndex(before satisfies DedupFields[]);
       let skipped = 0;
-      const inserted: { ids: bigint[]; sources: CategorySource[] }[] = [];
+      const inserted: { ids: bigint[]; sources: CategorySource[]; learningCandidates: PatternLearningCandidate[] }[] = [];
       const openings: (number | null)[] = [];
       for (const f of files) {
         const selected = selectRowsToCommit(f.rows, f.account, index, skipDuplicates);
@@ -216,6 +237,12 @@ export async function commitWizard(
         where: { id: { in: accountIds } },
         select: { id: true, bankName: true, branchName: true, accountNumber: true, accountType: true },
       });
+      const learning = new Map<string, PatternLearningCandidate>();
+      for (const candidate of inserted.flatMap((f) => f.learningCandidates)) {
+        const found = learning.get(candidate.key);
+        if (found) found.count += candidate.count;
+        else learning.set(candidate.key, { ...candidate });
+      }
       return buildImportSummary({
         files: inserted.map((f) =>
           f.ids.map((id, i): InsertedRow => {
@@ -242,6 +269,9 @@ export async function commitWizard(
         skipped,
         accounts: accounts.map((a) => ({ ...a, id: toId(a.id) })),
         existing: before,
+        learningCandidates: [...learning.values()].sort(
+          (a, b) => b.count - a.count || a.category.localeCompare(b.category, 'ja') || a.description.localeCompare(b.description, 'ja'),
+        ),
       });
     },
     { timeout: IMPORT_TIMEOUT_MS },

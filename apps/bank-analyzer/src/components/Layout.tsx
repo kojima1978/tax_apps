@@ -1,6 +1,6 @@
 // 全画面共通の枠（Django の base.html のヘッダー）
 
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet, Link, useMatch } from 'react-router-dom';
 import { FolderOpen, Home, Mail, Plus, Settings } from 'lucide-react';
 import { OperatorPicker } from '@/shared/staff-directory/OperatorPicker';
 
@@ -8,12 +8,13 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm whitespace-nowrap sm:px-2.5 ${isActive ? 'bg-white/15 font-semibold text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white'}`;
 
 export function Layout() {
+  const caseAnalysis = useMatch({ path: '/cases/:caseId', end: true });
   return (
     <>
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-2">
         メインコンテンツへ移動
       </a>
-      <header className="sticky top-0 z-40 bg-slate-800 print:hidden">
+      {!caseAnalysis && <header className="sticky top-0 z-40 bg-slate-800 print:hidden">
         <div className="flex h-14 items-center justify-between gap-2 px-3 sm:px-4">
           <nav className="flex items-center gap-1" aria-label="主なメニュー">
             <a href="/" className={navClass({ isActive: false })} title="ポータルに戻る">
@@ -43,7 +44,7 @@ export function Layout() {
             </Link>
           </div>
         </div>
-      </header>
+      </header>}
       <main id="main-content" tabIndex={-1} className="outline-none">
         <Outlet />
       </main>

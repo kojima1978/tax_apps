@@ -7,7 +7,7 @@ import { buildExistingIndex } from '../lib/dedup.js';
 import { IMPORT_COLUMNS, parseFlag, REQUIRED_COLUMNS } from '../lib/import/columns.js';
 import { categoryResolver, decideCategories } from '../lib/import/csvCategory.js';
 import { FormatError, missingColumnsOf } from '../lib/import/errors.js';
-import { aiInstruction, extractGeminiResponse, formatGuideMarkdown, promptImprovementRequest, templateCsv } from '../lib/import/format.js';
+import { aiInstruction, classificationImprovementRequest, classificationInstruction, extractGeminiResponse, extractImprovementResponse, formatGuideMarkdown, promptImprovementRequest, templateCsv } from '../lib/import/format.js';
 import { loadStatement } from '../lib/import/loadStatement.js';
 import { buildPreview } from '../lib/wizard.js';
 
@@ -125,7 +125,7 @@ describe('取込できる形式の案内', () => {
     expect(text).not.toMatch(/^- 未分類/m);
     expect(text).toContain('金額・残高は通帳のとおりに書く。計算で作らない');
     expect(text).toContain('読めない字は「■」にして、メモに読めなかった箇所を書き、要確認を「○」にする');
-    expect(text).toContain('分類に迷ったら空欄にする（アプリが自動で分類する）');
+    expect(text).toContain('分類に迷ったら空欄にする（アプリでは未分類で取り込む）');
     // 依頼26: Gemini で崩れた所
     expect(text).toContain(`どの行も項目は必ず${IMPORT_COLUMNS.length}個`);
     expect(text).toContain('金額・残高は数字だけ。カンマを入れない');
@@ -185,7 +185,8 @@ describe('取込できる形式の案内', () => {
     expect(text).toContain('入出金が逆ZZQ');
     expect(text).toContain('列見出しを再確認ZZQ');
     expect(text).toContain('現在の依頼文ZZQ');
-    expect(text).toContain('追加するルールの箇条書きだけ');
+    expect(text).toContain('今回の改善を統合したルール全文');
+    expect(text).toContain('# 今回の変更点');
   });
 
   it('Geminiの回答全体から取引CSVと次回依頼文案を分ける', () => {
@@ -194,6 +195,46 @@ describe('取込できる形式の案内', () => {
     );
     expect(parts.csv).toBe('日付,摘要,払戻額,お預り額\nR2.1.1,テスト,100,,');
     expect(parts.improvementDraft).toBe('- 元号は表紙と照合する');
+  });
+
+  it('分類専用の依頼文は分類基準を示し、元データの変更を禁止する', () => {
+    const text = classificationInstruction({
+      categories: [{ name: '生活費', keywords: ['ZZQアプリ専用キーワード'] }, { name: '贈与・教育費', keywords: ['振込'] }],
+      giftThreshold: 1_000_000,
+    }, '- 同一人物への反復送金は要確認');
+    expect(text).toContain('変更してよいのは「分類」列だけ');
+    expect(text).toContain('生活費（出金。日常生活の買物、公共料金、通信費、医療費、交通費など）');
+    expect(text).not.toContain('ZZQアプリ専用キーワード');
+    expect(text).toContain('1,000,000円以上');
+    expect(text).toContain('同一人物への反復送金は要確認');
+    expect(text).toContain('# 分類済みCSV');
+    expect(text).toContain('最初の回答は「分類済みCSV」だけ');
+    expect(text).toContain('同じ会話でユーザーから分類間違いを指摘されたら');
+    expect(text).toContain('# 改善後のルール全文');
+  });
+
+  it('文字認識の初回はCSVだけを求め、修正時に統合済み改善ルールも求める', () => {
+    const text = aiInstruction({ categories: [], giftThreshold: 1_000_000 }, {}, { output: 'csv', ocrOnly: true, includeImprovement: true });
+    expect(text).toContain('最初の回答は「取引CSV」だけ');
+    expect(text).toContain('同じ会話でユーザーから読み取り間違いを指摘されたら');
+    expect(text).toContain('「# 改善後のルール全文」');
+    expect(text).toContain('「# 今回の変更点」');
+    expect(text).not.toContain('# 次回依頼文案');
+  });
+
+  it('分類依頼文の改善は個別事例を一般化させる', () => {
+    const text = classificationImprovementRequest('現在の分類依頼ZZQ', '生活費と誤分類ZZQ', '高額送金を確認ZZQ');
+    expect(text).toContain('現在の分類依頼ZZQ');
+    expect(text).toContain('生活費と誤分類ZZQ');
+    expect(text).toContain('個別の人名・金額だけに通用するルールではなく');
+    expect(text).toContain('# 改善後のルール全文');
+  });
+
+  it('改善AIの回答から統合後の全文と変更点を分ける', () => {
+    expect(extractImprovementResponse('# 改善後のルール全文\n- 旧ルール\n- 新ルール\n\n# 今回の変更点\n- 新ルールを追加')).toEqual({
+      rules: '- 旧ルール\n- 新ルール', changes: '- 新ルールを追加',
+    });
+    expect(extractImprovementResponse('- 見出しなしの全文')).toEqual({ rules: '- 見出しなしの全文', changes: '' });
   });
 
   it('CSVだけを貼り付けてもそのまま取り出す', () => {
