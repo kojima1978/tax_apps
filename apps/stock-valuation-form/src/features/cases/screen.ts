@@ -1,4 +1,4 @@
-// どの画面を出すかの判定。会社一覧・年度一覧・帳票・業種目データ管理をハッシュで切り替える
+// どの画面を出すかの判定。会社一覧・年度一覧・帳票・業種目データ管理・使い方をハッシュで切り替える
 // （ルータは入れていない。URLに残したいのはどの画面かと、どの会社かだけ）。
 //
 // ハッシュが無いときは会社一覧。会社を選んでから帳票へ入る形にしておくと、前の会社の
@@ -8,6 +8,8 @@
 export const CASES_HASH = '#cases';
 export const FORM_HASH = '#form';
 export const ADMIN_HASH = '#industry-data';
+/** 使い方の画面。戻り先は App が開く前のハッシュを覚えておく。 */
+export const HELP_HASH = '#help';
 
 /** その会社の年度一覧のハッシュ。印は caseGroups の groupKeyOf が作る。 */
 export const companyHash = (groupKey: string) => `${CASES_HASH}/${encodeURIComponent(groupKey)}`;
@@ -16,7 +18,8 @@ export type Route =
   | { screen: 'cases' }
   | { screen: 'company'; groupKey: string }
   | { screen: 'form' }
-  | { screen: 'admin' };
+  | { screen: 'admin' }
+  | { screen: 'help' };
 
 /**
  * ハッシュから画面を決める。知らないハッシュ（古いブックマークなど）は会社一覧に落とす
@@ -25,6 +28,7 @@ export type Route =
 export function resolveRoute(hash: string): Route {
   if (hash === ADMIN_HASH) return { screen: 'admin' };
   if (hash === FORM_HASH) return { screen: 'form' };
+  if (hash === HELP_HASH) return { screen: 'help' };
 
   if (hash.startsWith(`${CASES_HASH}/`)) {
     const raw = hash.slice(CASES_HASH.length + 1);

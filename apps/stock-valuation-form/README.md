@@ -10,6 +10,9 @@
 会社一覧（`#cases`）→ その会社の年度一覧（`#cases/<会社>`）→ 帳票（`#form`）。どの画面を出すかは
 `src/features/cases/screen.ts` の `resolveRoute` だけが決めます。帳票の「← 一覧」はその会社の年度一覧へ戻ります。
 
+**使い方**（`#help`）は会社一覧・年度一覧のヘッダーと帳票のツールバーの「使い方」から開き、開く前の画面へ戻ります。
+本文は `src/features/help/helpContent.ts`（表の一覧とショートカットは定義から作る）、印刷は A4 縦。
+
 - **案件は DB に保存**（`ValuationCase`）。帳票への入力は自動で保存され、案件に紐づいていない入力も
   3秒後に自動で案件になります（ゴミ箱へ移した直後の入力は作り直しません）
 - **楽観ロック**: 画面は読んだときの `updatedAt` を `expectedUpdatedAt` で送り、別の端末（や MCP サーバー）が
@@ -100,14 +103,18 @@ src/
 │       └── formGeometry.ts      # 様式原本の実測mm座標
 ├── data/
 │   ├── constants.ts             # タブ定義（TABS / NAV_TABS）
+│   ├── shortcuts.ts             # キーボードショートカット（一覧と使い方で共用）
 │   ├── industryDataset.ts       # 業種目データのビュー・検索
 │   ├── IndustryDataProvider.tsx # API からの取得と供給
 │   └── formQr.ts                # 印刷用QRコード
 ├── features/
 │   ├── cases/                   # 会社一覧・年度一覧・新規案件・自動保存（useCases）
+│   ├── help/                    # 使い方の画面（#help）と本文
 │   ├── industryAdmin/           # 業種目データ管理画面
+│   ├── intake/                  # 外から入った欄の印と「取込の確認」
 │   ├── table5Paste/             # 第５表への決算書の貼り付け取込
 │   └── pastedTable/             # 貼り付けた表の共通部品
+├── shared/                      # 共通部品の写し（原本は tax_apps/shared。help-doc など）
 ├── hooks/
 │   ├── useFormData.ts           # フォーム状態管理 + localStorage の作業中の写し
 │   └── rollover.ts              # 翌年度更新

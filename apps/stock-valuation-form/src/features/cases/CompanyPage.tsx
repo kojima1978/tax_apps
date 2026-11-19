@@ -23,10 +23,11 @@ interface CompanyPageProps {
   /** 会社の印（caseGroups の groupKeyOf が作る。URLのハッシュに入っている）。 */
   groupKey: string;
   onBack: () => void;
+  onOpenHelp: () => void;
   onEnterForm: () => void;
 }
 
-export function CompanyPage({ store, groupKey, onBack, onEnterForm }: CompanyPageProps) {
+export function CompanyPage({ store, groupKey, onBack, onEnterForm, onOpenHelp }: CompanyPageProps) {
   const { busy, act } = useBusyAction();
   // 読み込む前は案件が0件なので、そのまま描くと「見つかりません」が一瞬出る。
   const loaded = useCaseListReload(store);
@@ -43,6 +44,9 @@ export function CompanyPage({ store, groupKey, onBack, onEnterForm }: CompanyPag
         <div className="app-header-title">{APP_TITLE}</div>
         <div className="app-header-right">
           <OperatorPicker usage="会社一覧の「自分の担当」は、この人の担当で絞ります" />
+          <button type="button" className="app-tool-btn" onClick={onOpenHelp} title="このアプリの使い方を表示します">
+            使い方
+          </button>
         </div>
       </header>
 

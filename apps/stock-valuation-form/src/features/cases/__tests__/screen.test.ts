@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADMIN_HASH, CASES_HASH, FORM_HASH, companyHash, resolveRoute } from '../screen';
+import { ADMIN_HASH, CASES_HASH, FORM_HASH, HELP_HASH, companyHash, resolveRoute } from '../screen';
 
 describe('resolveRoute', () => {
   it('ハッシュ無しは会社一覧から始まる（会社を選んでから帳票に入る）', () => {
@@ -27,6 +27,10 @@ describe('resolveRoute', () => {
 
   it('#industry-data は業種目データ管理', () => {
     expect(resolveRoute(ADMIN_HASH)).toEqual({ screen: 'admin' });
+  });
+
+  it('#help は使い方', () => {
+    expect(resolveRoute(HELP_HASH)).toEqual({ screen: 'help' });
   });
 
   it('知らないハッシュ・壊れた印は会社一覧に落とす（行き止まりを作らない）', () => {

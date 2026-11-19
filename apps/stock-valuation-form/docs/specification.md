@@ -50,7 +50,7 @@ Dockerfile は `deps` → `dev` / `builder` → `runner` の multi-stage 構成�
 
 ### 4.0 画面の切替
 
-ルータは使わず、ハッシュで4つの画面を切り替える（`features/cases/screen.ts` の `resolveRoute`）。
+ルータは使わず、ハッシュで5つの画面を切り替える（`features/cases/screen.ts` の `resolveRoute`）。
 
 | ハッシュ | 画面 |
 |---|---|
@@ -58,14 +58,20 @@ Dockerfile は `deps` → `dev` / `builder` → `runner` の multi-stage 構成�
 | `#cases/<会社>` | その会社の年度一覧（課税時期の新しい順） |
 | `#form` | 帳票（以下 §4.1〜） |
 | `#industry-data` | 業種目データ管理 |
+| `#help` | 使い方（会社一覧・年度一覧のヘッダーと帳票のツールバーの「使い方」から開く） |
 
 知らないハッシュは会社一覧に落とす。帳票の「← 一覧」は開いている会社の年度一覧へ戻る。
+使い方は開く前の画面へ戻る（`#help` で再読み込みしたときは会社一覧へ）。同じタブで開く ──
+別のタブで開くと帳票が2つ立ち、同じ案件を自動保存し合って楽観ロックにぶつかるため。
+本文は `features/help/helpContent.ts`、描画は共通部品 `shared/help-doc`（印刷は A4 縦）。
+表の一覧は `NAV_TABS`、ショートカットは `data/shortcuts.ts` から作るので、足せば使い方にも載る。
 
 ### 4.1 レイアウト
 
 - 左サイドバー: 様式ナビゲーション（11タブ・開閉可能）。第２表の判定で記載対象になる表にバッジを出す
-- ヘッダー: 前提条件チップ、お客様サマリー、業種目データ管理、ショートカット一覧
-- ツールバー: 保存 (JSON) / 読込 (JSON) / 翌年度更新 / 全表印刷 / 現在の表を印刷 / 全データリセット
+- ヘッダー: ← 一覧、案件名、保存の状態（ぶつかったときは「読み直す」）
+- ツールバー（左＝操作）: 保存 (JSON) / 読込 (JSON) / 翌年度更新 / 全表印刷 / 現在の表を印刷 / 全データリセット / ショートカット / 使い方
+- ツールバー（右＝状態）: 前提条件チップ、必須未入力、確認事項、取込の確認、業種目の年分
 - メイン領域: A4実寸（210mm × 297mm）で様式原本の罫線位置に合わせたグリッド
 
 ### 4.2 タブ一覧
@@ -435,7 +441,7 @@ stock-valuation-form/
 │   │   ├── IndustryYearNotice.tsx     # 業種目データの年分ずれの警告
 │   │   ├── PrerequisitesDialog.tsx    # 入力前提の確認
 │   │   ├── RequiredFieldNavigator.tsx # 未入力の必須項目へ誘導
-│   │   ├── ShortcutHelp.tsx           # ショートカット一覧
+│   │   ├── ShortcutHelp.tsx           # ショートカット一覧（中身は data/shortcuts.ts）
 │   │   ├── tables/                    # 様式ごとのグリッド定義と計算
 │   │   │   ├── Table1_1Grid.tsx       # 第１表の１（続紙対応）
 │   │   │   ├── shared.ts              # 第３表・第６表 共通の適用方式セル
@@ -448,15 +454,19 @@ stock-valuation-form/
 │   │       ├── SheetOps.tsx           # 用紙間の操作帯
 │   │       └── formGeometry.ts        # 様式原本の実測mm座標
 │   ├── data/
-│   │   ├── constants.ts               # タブ定義（TABS）
+│   │   ├── constants.ts               # タブ定義（TABS / NAV_TABS）
+│   │   ├── shortcuts.ts               # キーボードショートカット（一覧と使い方で共用）
 │   │   ├── industryDataset.ts         # 業種目データのビュー・検索
 │   │   ├── IndustryDataProvider.tsx   # API からの取得と供給
 │   │   └── formQr.ts                  # 印刷用QRコード
 │   ├── features/
 │   │   ├── cases/                     # 会社一覧・年度一覧・案件の保存（useCases / screen.ts）
+│   │   ├── help/                      # 使い方の画面（#help）と本文
 │   │   ├── industryAdmin/             # 業種目データ管理画面（#industry-data）
+│   │   ├── intake/                    # 外から入った欄の印と「取込の確認」
 │   │   ├── pastedTable/               # 表の貼り付け取込の共通部品
 │   │   └── table5Paste/               # 第５表への貼り付け取込
+│   ├── shared/                        # 共通部品の写し（原本は tax_apps/shared。help-doc など）
 │   ├── hooks/
 │   │   ├── useFormData.ts             # フォーム状態管理 + 作業中の写し（localStorage）
 │   │   └── rollover.ts                # 翌年度更新

@@ -2359,7 +2359,9 @@
   .summary-footer { padding: 8px 20px; }
 }
 
-.admin-root {
+/* 使い方（#help）も業種目データ管理と同じ地の色・高さ */
+.admin-root,
+.help-root {
   background: #f8fafc;
   min-height: 100vh;
 }

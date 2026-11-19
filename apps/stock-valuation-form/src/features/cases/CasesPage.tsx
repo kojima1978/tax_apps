@@ -25,9 +25,10 @@ interface CasesPageProps {
   /** その会社の年度一覧へ移る。 */
   onOpenCompany: (groupKey: string) => void;
   onOpenAdmin: () => void;
+  onOpenHelp: () => void;
 }
 
-export function CasesPage({ store, hasInput, onEnterForm, onOpenCompany, onOpenAdmin }: CasesPageProps) {
+export function CasesPage({ store, hasInput, onEnterForm, onOpenCompany, onOpenAdmin, onOpenHelp }: CasesPageProps) {
   const { busy, act } = useBusyAction();
   // 一覧に入るたびサーバから取り直す（別の端末で増えた案件を出さないまま選ばせない）。
   const loaded = useCaseListReload(store);
@@ -73,6 +74,9 @@ export function CasesPage({ store, hasInput, onEnterForm, onOpenCompany, onOpenA
             title="類似業種比準価額に使う業種目マスタ・業種目別株価等を登録・訂正します"
           >
             業種目データ管理
+          </button>
+          <button type="button" className="app-tool-btn" onClick={onOpenHelp} title="このアプリの使い方を表示します">
+            使い方
           </button>
         </div>
       </header>

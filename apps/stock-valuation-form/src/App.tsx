@@ -18,7 +18,8 @@ import { IndustryAdminPage } from '@/features/industryAdmin/IndustryAdminPage';
 import { CasesPage } from '@/features/cases/CasesPage';
 import { CompanyPage } from '@/features/cases/CompanyPage';
 import { groupKeyOfCaseId } from '@/features/cases/caseGroups';
-import { ADMIN_HASH, CASES_HASH, FORM_HASH, companyHash, resolveRoute } from '@/features/cases/screen';
+import { ADMIN_HASH, CASES_HASH, FORM_HASH, HELP_HASH, companyHash, resolveRoute } from '@/features/cases/screen';
+import { HelpPage } from '@/features/help/HelpPage';
 import { useCases } from '@/features/cases/useCases';
 import { formHeaderTitle, saveStatusLabel } from '@/features/cases/caseLabels';
 import type { TableId, TableProps } from '@/types/form';
@@ -96,9 +97,15 @@ export default function App() {
   const [printPrepared, setPrintPrepared] = useState(false);
   const [prereqOpen, setPrereqOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  // 帳票・会社一覧・年度一覧・業種目データ管理の切り替え（判定は features/cases/screen.ts）。
+  // 帳票・会社一覧・年度一覧・業種目データ管理・使い方の切り替え（判定は features/cases/screen.ts）。
   const [route, setRoute] = useState(() => resolveRoute(window.location.hash));
   const screen = route.screen;
+  // 使い方を開く前にいた画面。#help で再読み込みしたときは分からないので会社一覧へ戻す
+  const helpReturnRef = useRef<string>(CASES_HASH);
+  const openHelp = useCallback(() => {
+    helpReturnRef.current = window.location.hash === '' ? CASES_HASH : window.location.hash;
+    window.location.hash = HELP_HASH;
+  }, []);
   const [printSelection, setPrintSelection] = useState<Record<TableId, boolean>>(
     () => Object.fromEntries(TABS.map((t) => [t.id, true])) as Record<TableId, boolean>,
   );
@@ -350,6 +357,16 @@ export default function App() {
     );
   }
 
+  if (screen === 'help') {
+    const back = resolveRoute(helpReturnRef.current).screen;
+    return (
+      <HelpPage
+        backLabel={back === 'form' ? '← 帳票に戻る' : back === 'company' ? '← 年分の一覧に戻る' : '← 会社の一覧に戻る'}
+        onClose={() => { window.location.hash = helpReturnRef.current; }}
+      />
+    );
+  }
+
   if (route.screen === 'company') {
     return (
       <CompanyPage
@@ -357,6 +374,7 @@ export default function App() {
         groupKey={route.groupKey}
         onBack={() => { window.location.hash = CASES_HASH; }}
         onEnterForm={() => { window.location.hash = FORM_HASH; }}
+        onOpenHelp={openHelp}
       />
     );
   }
@@ -369,6 +387,7 @@ export default function App() {
         onEnterForm={() => { window.location.hash = FORM_HASH; }}
         onOpenCompany={(groupKey) => { window.location.hash = companyHash(groupKey); }}
         onOpenAdmin={() => { window.location.hash = ADMIN_HASH; }}
+        onOpenHelp={openHelp}
       />
     );
   }
@@ -466,6 +485,15 @@ export default function App() {
             title="キーボードショートカットの一覧を表示します（? キー）"
           >
             ショートカット
+          </button>
+          {/* 同じタブで開く（別タブだと帳票が2つ立ち、同じ案件を自動保存し合ってぶつかる）。戻ると帳票へ */}
+          <button
+            type="button"
+            className="app-tool-btn"
+            onClick={openHelp}
+            title="このアプリの使い方を表示します（入力は自動で保存されます）"
+          >
+            使い方
           </button>
           <input id="app-import-json" name="app.importJson" ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
           </div>
