@@ -53,6 +53,12 @@ TARGETS=(
   person-name:private-banking:
   person-name:inheritance-tax-docs::server/shared
   person-name:staff-directory::server/shared
+  # アプリ内の「使い方」画面（本文の型・崩れの検査・画面・CSS）。本文は各アプリの help-content.ts
+  #   PB の vitest は __tests__ の下しか拾わないので、テストは写さずアプリ側の __tests__ で本文を検査する
+  help-doc:private-banking:
+  help-doc:insurance-app:test:lib/shared
+  help-doc:stock-valuation-form:test
+  help-doc:staff-directory:test
 )
 
 check=0

@@ -1626,6 +1626,12 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .client-home-toolbar .button { flex: 0 0 auto; min-height: 44px; padding: 0 13px; font-size: var(--font-body); }
 .client-home-toolbar .button svg { width: 13px; height: 13px; }
 .client-toolbar-mobile-menu { display: none; }
+/* 顧客一覧はボタンが7つ並び、1100px を切るあたりで検索欄が潰れてボタンが右へはみ出す。
+   その幅からは検索欄を1行に取り、ボタンは次の行へ折り返す（700px 以下は「その他」へまとめる）。 */
+@media (max-width: 1100px) {
+  .client-list-toolbar { flex-wrap: wrap; }
+  .client-list-toolbar > .client-search { flex-basis: 100%; }
+}
 .client-home-main .client-list { margin-top: 14px; max-height: none; background: #fff; }
 /* 一覧の1行はコンパクトに保つ。 */
 .client-home-main .client-list-item { min-height: 30px; padding: 2px 10px; gap: 8px; text-decoration: none; }
@@ -1690,6 +1696,14 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .property-plan-export-option input { width: 16px; height: 16px; }
 .properties-print-heading, .property-plan-print-details { display: none; }
 .staff-print-conditions { display: none; }
+/* 使い方（/help）: 余白は .client-home-main が持つので本文側の外周は0。印刷はヘッダーを外し、
+   用紙は本文側の名前付き @page（A4 縦）に任せる（全体の A4 横は顧客の帳票用）。 */
+.client-home-main > .help-doc { padding: 0; }
+@media print {
+  .client-home:has(.help-doc) { min-height: 0; background: white; }
+  .client-home:has(.help-doc) > .client-home-header { display: none; }
+  .client-home-main:has(> .help-doc) { width: 100%; max-width: none; margin: 0; padding: 0; }
+}
 /* 担当者の一覧の印刷: 操作部品と入力欄は外し、絞り込みの条件と件数を1行で出して、1人1行の表にする。
    列の割り付けは画面の幅の段階（820px・600px の節）に引きずられないよう紙で決め直す。 */
 @media print {

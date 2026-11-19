@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Building2, ChevronRight, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Menu, Search, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
+import { AlertTriangle, Building2, ChevronRight, CircleHelp, CircleUserRound, DatabaseBackup, LayoutDashboard, LoaderCircle, Menu, Search, Settings, Trash2, Upload, UserCog, UserPlus, WalletCards, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +22,19 @@ import { useModalDialog } from "@/components/use-modal-dialog";
 
 /** 顧客ページのうち、一覧から最初に開く画面。 */
 export const CLIENT_HOME_SECTION = "balance";
+
+/**
+ * 顧客一覧の上に並べる、顧客をまたぐ画面への口。広い画面ではボタン、狭い画面では「その他」の中に同じ並びで出す。
+ * 担当者の台帳はここだけから開く（顧客の欄では選ぶだけにして、名前の揺れを1箇所で止める）。
+ */
+const TOOLBAR_LINKS = [
+  { key: "staff", label: "担当者", icon: UserCog, href: "/staff" },
+  { key: "settings", label: "共通設定", icon: Settings, href: "/settings" },
+  { key: "properties", label: "不動産一覧", icon: Building2, href: "/properties" },
+  { key: "backup", label: "バックアップ", icon: DatabaseBackup, href: "/backup" },
+  { key: "restore", label: "データ復元", icon: Upload, href: "/restore" },
+  { key: "help", label: "使い方", icon: CircleHelp, href: "/help" },
+] satisfies (ActionMenuItem & { href: string })[];
 
 export const clientHref = (householdId: number) => `/customers/${householdId}/${CLIENT_HOME_SECTION}`;
 const qualityIssuesFor = (client: ClientSummary) => client.qualityIssues ?? [];
@@ -214,7 +227,7 @@ export function ClientList() {
       {error ? <div className="error-banner" role="alert"><AlertTriangle />{error}<button onClick={() => setError("")} aria-label="閉じる"><X /></button></div> : null}
       {notice ? <p className="client-delete-notice" role="status">{notice}</p> : null}
 
-      <div className="client-home-toolbar">
+      <div className="client-home-toolbar client-list-toolbar">
         <label className="client-search">
           <span className="sr-only">顧客を検索</span>
           <Search />
@@ -235,25 +248,14 @@ export function ClientList() {
           />
         </label>
         <button type="button" className="button primary" onClick={() => { setError(""); setCreating(true); }}><UserPlus />顧客を追加</button>
-        {/* 担当者の台帳はここだけから開く。顧客の欄では選ぶだけにして、名前の揺れを1箇所で止める。 */}
-        <Link className="button secondary client-toolbar-secondary" href="/staff"><UserCog />担当者</Link>
-        <Link className="button secondary client-toolbar-secondary" href="/settings"><UserCog />共通設定</Link>
-        <Link className="button secondary client-toolbar-secondary" href="/properties"><Building2 />不動産一覧</Link>
-        <Link className="button secondary client-toolbar-secondary" href="/backup"><DatabaseBackup />バックアップ</Link>
-        <Link className="button secondary client-toolbar-secondary" href="/restore"><Upload />データ復元</Link>
+        {TOOLBAR_LINKS.map(({ key, label, icon: Icon, href }) => <Link key={key} className="button secondary client-toolbar-secondary" href={href}><Icon />{label}</Link>)}
         <ActionMenu
           id="client-toolbar-menu"
           label="その他の操作"
           className="client-toolbar-mobile-menu"
           triggerClassName="button secondary"
           trigger={<><Menu />その他</>}
-          items={[
-            { key: "staff", label: "担当者", icon: UserCog, href: "/staff" },
-            { key: "settings", label: "共通設定", icon: UserCog, href: "/settings" },
-            { key: "properties", label: "不動産一覧", icon: Building2, href: "/properties" },
-            { key: "backup", label: "バックアップ", icon: DatabaseBackup, href: "/backup" },
-            { key: "restore", label: "データ復元", icon: Upload, href: "/restore" },
-          ]}
+          items={TOOLBAR_LINKS}
         />
       </div>
       {/* 削除の通知が role="status" を使うので、件数は aria-live だけで読み上げる。 */}

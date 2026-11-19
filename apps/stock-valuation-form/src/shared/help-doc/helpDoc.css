@@ -1,0 +1,331 @@
+/* 原本は tax_apps/shared/help-doc/。写しを直さず原本を直して `bash shared/sync.sh` で配る
+ *
+ * 「使い方」画面の見た目。すべて .help-doc の中に閉じる（各アプリの画面・印刷を巻き込まない）。
+ * Tailwind の preflight（リストの記号・表の罫線・見出しの大きさを消す）が効いているアプリでも
+ * 同じに見えるよう、使う性質はここで全部書く。
+ * アプリの外枠（ヘッダー・サイドバー）を印刷から外すのは各アプリの CSS（外枠の作りがアプリごとに違う）。
+ */
+
+.help-doc {
+  --help-doc-text: #334155;
+  --help-doc-strong: #0f172a;
+  --help-doc-muted: #64748b;
+  --help-doc-line: #cbd5e1;
+  --help-doc-panel-line: #e2e8f0;
+  --help-doc-head-bg: #f1f5f9;
+  --help-doc-hover: #f1f5f9;
+  --help-doc-focus: #2563eb;
+  box-sizing: border-box;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  color: var(--help-doc-text);
+  font-size: 14px;
+  line-height: 1.75;
+  text-align: left;
+}
+
+.help-doc *,
+.help-doc *::before,
+.help-doc *::after {
+  box-sizing: border-box;
+}
+
+.help-doc-before {
+  margin-bottom: 12px;
+}
+
+.help-doc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.help-doc-head h1 {
+  margin: 0;
+  color: var(--help-doc-strong);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.help-doc-head p {
+  margin: 8px 0 0;
+  color: var(--help-doc-muted);
+}
+
+.help-doc-print {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--help-doc-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--help-doc-strong);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.help-doc-print:hover {
+  background: var(--help-doc-hover);
+}
+
+.help-doc-print:focus-visible,
+.help-doc-toc a:focus-visible {
+  outline: 2px solid var(--help-doc-focus);
+  outline-offset: 2px;
+}
+
+.help-doc-toc {
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid var(--help-doc-panel-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.help-doc-toc h2 {
+  margin: 0 0 8px;
+  color: var(--help-doc-strong);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.help-doc-toc ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.help-doc-toc a {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--help-doc-text);
+  text-decoration: none;
+}
+
+.help-doc-toc a:hover {
+  background: var(--help-doc-hover);
+  color: var(--help-doc-strong);
+}
+
+.help-doc-toc-title {
+  display: block;
+  font-weight: 600;
+}
+
+.help-doc-toc-summary {
+  display: block;
+  color: var(--help-doc-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.help-doc-sections {
+  min-width: 0;
+}
+
+.help-doc-section {
+  margin: 0 0 24px;
+  padding: 16px;
+  border: 1px solid var(--help-doc-panel-line);
+  border-radius: 12px;
+  background: #fff;
+  /* 目次から飛んだとき、上に貼り付くヘッダーの下へ隠れないように */
+  scroll-margin-top: 80px;
+}
+
+.help-doc-section h2 {
+  margin: 0;
+  color: var(--help-doc-strong);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.help-doc-summary {
+  margin: 2px 0 0;
+  color: var(--help-doc-muted);
+  font-size: 12px;
+}
+
+.help-doc-blocks {
+  margin-top: 16px;
+}
+
+/* ブロックの間の余白。各ブロックの margin: 0（下）と詳細度が同じだと後勝ちで消えるので一段上げる */
+.help-doc .help-doc-blocks > * + * {
+  margin-top: 14px;
+}
+
+.help-doc-text {
+  margin: 0;
+}
+
+.help-doc-list,
+.help-doc-steps {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.help-doc-list {
+  list-style: disc;
+}
+
+.help-doc-steps {
+  list-style: decimal;
+}
+
+.help-doc-list li + li,
+.help-doc-steps li + li {
+  margin-top: 4px;
+}
+
+.help-doc-table-wrap {
+  overflow-x: auto;
+}
+
+.help-doc-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.help-doc-table caption {
+  margin-bottom: 6px;
+  color: var(--help-doc-strong);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.help-doc-table th,
+.help-doc-table td {
+  padding: 8px 10px;
+  border: 1px solid var(--help-doc-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.help-doc-table th {
+  background: var(--help-doc-head-bg);
+  color: var(--help-doc-strong);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.help-doc-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #78350f;
+}
+
+@media (min-width: 1024px) {
+  .help-doc {
+    padding-top: 32px;
+  }
+
+  .help-doc-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 32px;
+  }
+
+  .help-doc-toc {
+    position: sticky;
+    top: 24px;
+    flex-shrink: 0;
+    width: 280px;
+    margin-bottom: 0;
+  }
+
+  .help-doc-sections {
+    flex: 1;
+  }
+}
+
+/* 名前付きページ: アプリ全体の @page（PB の A4 横など）を変えずに、使い方だけ A4 縦にする */
+@page help-doc {
+  size: A4 portrait;
+  margin: 12mm 14mm;
+}
+
+@media print {
+  .help-doc {
+    page: help-doc;
+    max-width: none;
+    padding: 0;
+    font-size: 10pt;
+    line-height: 1.6;
+  }
+
+  .help-doc-before,
+  .help-doc-print,
+  .help-doc-toc {
+    display: none;
+  }
+
+  .help-doc-body {
+    display: block;
+  }
+
+  .help-doc-head {
+    margin-bottom: 6mm;
+  }
+
+  .help-doc-head h1 {
+    font-size: 16pt;
+  }
+
+  .help-doc-section {
+    margin-bottom: 7mm;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .help-doc-section h2 {
+    font-size: 13pt;
+  }
+
+  .help-doc-section h2,
+  .help-doc-head h1,
+  .help-doc-summary {
+    break-after: avoid;
+  }
+
+  .help-doc-table-wrap {
+    overflow: visible;
+  }
+
+  .help-doc tr,
+  .help-doc li,
+  .help-doc p,
+  .help-doc caption {
+    break-inside: avoid;
+  }
+
+  .help-doc thead {
+    display: table-header-group;
+  }
+
+  .help-doc-table th {
+    white-space: normal;
+  }
+
+  .help-doc-table th,
+  .help-doc-note {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
