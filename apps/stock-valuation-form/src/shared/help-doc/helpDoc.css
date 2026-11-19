@@ -287,6 +287,14 @@
     font-size: 16pt;
   }
 
+  /* 「背景のグラフィック」を付けて刷ると、アプリの地の色（薄い灰色など）が紙に出て
+     白い節の箱だけが浮く。説明書の紙は白一色にする */
+  body:has(.help-doc),
+  .help-doc,
+  .help-doc-section {
+    background: #fff;
+  }
+
   .help-doc-section {
     margin-bottom: 7mm;
     padding: 0;

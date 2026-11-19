@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom';
 import BackupMenu from './BackupMenu';
 import { ArchiveIcon, ContactIcon, HomeIcon } from './icons';
-import { APP_PAGES, APP_TITLE, FOCUS_RING, PORTAL_HREF } from '../navigation';
+import { APP_PAGES, APP_TITLE, FOCUS_RING, HELP_PAGE, PORTAL_HREF } from '../navigation';
 
 // ほかのアプリ（必要書類管理・案件管理など）と同じ入口の形。
 // 広い画面（lg 以上）は左の固定サイドバー、狭い画面は上の帯1本（縦を帯2本に使わない）。
-// 置くのは画面の切り替え・ポータル・台帳全体の控えだけで、画面ごとの操作は各画面に置く
+// 置くのは画面の切り替え・使い方・ポータル・台帳全体の控えだけで、画面ごとの操作は各画面に置く
 
 const SIDE_ITEM = `flex min-h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-bold transition-colors ${FOCUS_RING}`;
 const SIDE_IDLE = 'text-slate-600 hover:bg-slate-100 hover:text-slate-900';
@@ -32,6 +32,10 @@ export function AppSidebar() {
         ))}
       </nav>
       <div className="mt-auto flex flex-col items-center gap-1 border-t border-slate-200 pt-2">
+        <NavLink to={HELP_PAGE.to} className={({ isActive }) => `${SIDE_ITEM} ${isActive ? ACTIVE : SIDE_IDLE}`}>
+          <HELP_PAGE.icon className="h-5 w-5" />
+          <span>{HELP_PAGE.label}</span>
+        </NavLink>
         <BackupMenu className={`${SIDE_ITEM} ${SIDE_IDLE}`}>
           <ArchiveIcon className="h-5 w-5" />
           <span>控え</span>
@@ -59,7 +63,8 @@ export function AppHeader() {
         >
           <HomeIcon className="h-5 w-5" />
         </a>
-        <h1 className="shrink-0 whitespace-nowrap text-xs font-bold text-slate-800 sm:border-l sm:border-slate-200 sm:pl-3 sm:text-sm">
+        {/* 400px 未満では入口6つ（使い方まで）が並びきらないので、アプリ名は読み上げ用だけにする */}
+        <h1 className="shrink-0 whitespace-nowrap text-xs font-bold text-slate-800 max-[399px]:sr-only sm:border-l sm:border-slate-200 sm:pl-3 sm:text-sm">
           {APP_TITLE}
         </h1>
         <nav aria-label="メインナビゲーション" className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-1">
@@ -78,6 +83,13 @@ export function AppHeader() {
             <ArchiveIcon className="h-4 w-4" />
             <span className="whitespace-nowrap">控え</span>
           </BackupMenu>
+          <NavLink
+            to={HELP_PAGE.to}
+            className={({ isActive }) => `${BAR_ITEM} ${isActive ? `${ACTIVE} font-semibold` : SIDE_IDLE}`}
+          >
+            <HELP_PAGE.icon className="h-4 w-4" />
+            <span className="whitespace-nowrap">{HELP_PAGE.label}</span>
+          </NavLink>
         </nav>
       </div>
     </header>

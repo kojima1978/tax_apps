@@ -3,6 +3,7 @@ import StaffPage from './pages/StaffPage';
 import DepartmentsPage from './pages/DepartmentsPage';
 import CompaniesPage from './pages/CompaniesPage';
 import LinksPage from './pages/LinksPage';
+import HelpPage from './pages/HelpPage';
 import { AppHeader, AppSidebar } from './components/AppNavigation';
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/departments" element={<DepartmentsPage />} />
           <Route path="/companies" element={<CompaniesPage />} />
           <Route path="/links" element={<LinksPage />} />
+          <Route path="/help" element={<HelpPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

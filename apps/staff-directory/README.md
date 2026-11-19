@@ -3,7 +3,7 @@
 全アプリで使う社員・会社・部署の情報の置き場。各アプリは自分で社員を持たず、
 **台帳ID** でここの人を参照する（名前は表示用の控えとして各アプリ側に写してよい）。
 
-- 画面: http://localhost/staff-directory/ （社員 / 部署 / 会社）
+- 画面: http://localhost/staff-directory/ （社員 / 部署 / 会社 / 連携 / 使い方 `/help`）
 - Port 3031、Vite + React 19 + Tailwind v4 / Express 5 + better-sqlite3
 - DB: `/app/data/staff.sqlite`（ボリューム `staff-directory-data`）。
   夜間バックアップ・リストア・訓練の対象（`backup.sh` の `SQLITE_TARGETS`）
@@ -44,9 +44,14 @@
   途中まで・存在しない日・元号違い（平成31年5月1日 → 令和元年5月1日）は**別の日に直さず保存を止め**、
   正しい和暦を添えて欄の下に出す。消すときは4つとも空にする
 - **入口は左のサイドバー**（ほかのアプリと同じ形・幅 4.5rem）。広い画面（lg 以上）はサイドバー、狭い画面は上の帯1本で、
-  中身は同じ（社員・部署・会社・連携／控え・ポータル）。画面の一覧は `src/navigation.ts` の1か所、部品は
+  中身は同じ（社員・部署・会社・連携／使い方・控え・ポータル）。画面の一覧は `src/navigation.ts` の1か所、部品は
   `src/components/AppNavigation.tsx`。置くのは画面の切り替えと台帳全体のものだけで、画面ごとの操作は各画面に置く。
-  アイコンは数個なので lucide-react を入れず `src/components/icons.tsx` に同じ形で持つ。印刷では両方とも消える
+  アイコンは数個なので lucide-react を入れず `src/components/icons.tsx` に同じ形で持つ。印刷では両方とも消える。
+  狭い画面の帯は 400px 未満だとアプリ名を読み上げ用だけにして、入口6つを横スクロールなしで並べる
+- **使い方の画面**（`/help`）は本文を `src/helpContent.ts` に持ち、見た目と印刷（A4 縦）は共通部品
+  `shared/help-doc`（`bash shared/sync.sh` で写す）に任せる。画面の構成の表は `APP_PAGES`、未入力のチップは
+  `MISSING_LABEL`、台帳を使うアプリの表は `linkedApps.ts` から作るので、画面やアプリを足せば表にも載る
+  （食い違いは `helpContent.test.ts` が落とす）。画面や操作を変えたら本文も同じコミットで直す
 - **リポジトリは公開**なので、テストやシードに実在の社員の名前・電話番号を書かない
 
 ## API（`/staff-directory/api`）
