@@ -4114,6 +4114,7 @@ h1 {
 }
 
 .case-agency-btn {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -4123,7 +4124,10 @@ h1 {
   padding: 0.7rem 1.2rem;
   border-radius: 8px;
   font-weight: 600;
+  /* ボタンとリンク（使い方）が並ぶので書体を揃える。button は既定で親の書体を継がない */
+  font-family: inherit;
   font-size: 0.9rem;
+  text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s;
@@ -4733,6 +4737,21 @@ h1 {
   background: #eff6ff;
 }
 
+/* 使い方（/help/）の「お客様一覧へ」。本文の見た目は共通の helpDoc.css が持つ */
+.help-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  color: #475569;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.help-back-link:hover {
+  color: #3182ce;
+}
+
 /* レスポンシブ */
 
 @media (max-width: 1100px) {
@@ -5263,6 +5282,8 @@ body:has(.app-shell) #root {
   border-radius: 8px;
   background: transparent;
   color: #64748b;
+  /* ボタンとリンク（使い方・ポータル）が混ざるので書体を揃える。button は既定で親の書体を継がず高さがずれる */
+  font-family: inherit;
   font-size: 0.78rem;
   font-weight: 600;
   text-align: left;

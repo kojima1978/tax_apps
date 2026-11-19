@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2, Home, Upload, DatabaseBackup, ChevronDown, ChevronRight, Download, FileJson } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Trash2, Search, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Building2, Home, Upload, DatabaseBackup, ChevronDown, ChevronRight, Download, FileJson, CircleHelp } from 'lucide-react';
 import AgencyMasterModal from '@/components/AgencyMasterModal';
 import {
   fetchCases,
@@ -356,6 +357,10 @@ export default function CaseListPage({ onSelect }: Props) {
           <button className="case-agency-btn" onClick={() => setShowAgencyMaster(true)}>
             <Building2 size={18} /> 代理店管理
           </button>
+          {/* 入力中の画面を残したまま読めるよう、使い方は別のタブで開く（サイドバーからも同じ） */}
+          <Link href="/help/" target="_blank" rel="noopener" className="case-agency-btn">
+            <CircleHelp size={18} aria-hidden="true" /> 使い方
+          </Link>
           <button className="case-create-btn" onClick={handleCreate}>
             <Plus size={18} /> 新規お客様
           </button>

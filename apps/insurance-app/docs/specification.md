@@ -23,6 +23,7 @@ insurance-app/
 │   ├── layout.tsx
 │   ├── page.tsx
 │   ├── globals.css
+│   ├── help/page.tsx        # 使い方
 │   └── api/
 │       ├── agency-masters/
 │       ├── app-state/
@@ -37,7 +38,9 @@ insurance-app/
 ├── lib/
 │   ├── api.ts
 │   ├── db.ts
-│   └── policyPrompt.ts
+│   ├── help-content.ts      # 使い方の本文
+│   ├── policyPrompt.ts
+│   └── shared/help-doc/     # 使い方の共通部品（写し。原本は shared/help-doc）
 ├── services/
 ├── validators/
 ├── utils/
@@ -366,6 +369,10 @@ MainDashboard
         ├── InsuranceTypeOverview
         └── PolicyAnalysisCard × N
 ```
+
+使い方（`app/help/page.tsx` → `/insurance/help/`）は別のルート。お客様一覧のヘッダーとサイドバー下部から
+別タブで開く（未保存の入力は画面の state にしか無く、同じタブで移ると消えるため）。本文は `lib/help-content.ts`、
+画面と崩れの検査は共通の `lib/shared/help-doc`（原本 `shared/help-doc`）。印刷は名前付き `@page help-doc` で A4 縦。
 
 ### 7.2 SummaryDashboard
 

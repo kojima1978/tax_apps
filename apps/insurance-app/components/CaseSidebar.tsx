@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { ArrowLeft, Building2, DollarSign, Home, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Building2, CircleHelp, DollarSign, Home, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import type { CaseSectionDef, CaseSectionKey } from '@/utils/caseSections';
 
 interface CaseSidebarProps {
@@ -104,6 +105,11 @@ const CaseSidebar: React.FC<CaseSidebarProps> = ({
         <ArrowLeft size={16} />
         {!collapsed && <span>お客様一覧</span>}
       </button>
+      {/* 未保存の入力が画面の state にしか無いので、同じタブで移ると消える。使い方は別のタブで開く */}
+      <Link href="/help/" target="_blank" rel="noopener" className="case-sidebar-link" title="使い方を別のタブで開く">
+        <CircleHelp size={16} />
+        {!collapsed && <span>使い方</span>}
+      </Link>
       {/* ゲートウェイのポータル(このアプリ外)へのリンクなので next/link は使えない */}
       {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a href="/" className="case-sidebar-link" title="ポータルに戻る">

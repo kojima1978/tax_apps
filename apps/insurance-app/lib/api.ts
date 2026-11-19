@@ -585,15 +585,3 @@ export function savePolicyPrompt(prompt: string): Promise<PolicyPromptResponse> 
 export function getBackupUrl(): string {
   return '/insurance/api/backup/';
 }
-
-export async function restoreBackup(file: File): Promise<{ ok: boolean; message: string }> {
-  if (JSON_STORAGE_MODE) {
-    throw Object.assign(new ApiError(400), { error: 'JSONデモモードではSQLiteバックアップ復元は利用できません' });
-  }
-  const form = new FormData();
-  form.append('file', file);
-  const res = await fetch('/insurance/api/backup/', { method: 'POST', body: form });
-  const body = await res.json();
-  if (!res.ok) throw new ApiError(res.status, body.errors);
-  return body;
-}
