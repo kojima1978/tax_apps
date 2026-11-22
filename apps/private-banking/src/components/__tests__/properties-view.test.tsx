@@ -3,13 +3,14 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PropertiesView } from "@/components/properties-view";
 import { type PropertyRow } from "@/lib/properties";
+import { storedPropertyLocation } from "@/lib/property-location";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const row = (id: number, plan = "KEEP"): PropertyRow => ({
   householdId: 1, snapshotId: 1, isCurrent: true, clientCode: "001", clientName: "テスト", clientNameKana: "テスト", assignedStaff: "担当",
   fiscalYear: 2026, asOfDate: "2026-01-01", positionId: id, category: "HOME_REAL_ESTATE", categoryLabel: "居宅", propertyType: "LAND", propertyTypeLabel: "土地",
-  name: `土地${id}`, address: "東京都", useLabel: "宅地", area: 100, ownership: "1/1", fixedAssetTaxValue: 1000, valueJpy: 2000,
+  name: `土地${id}`, address: "東京都", addressSource: "東京都", location: storedPropertyLocation({ propertyAddress: "東京都" }), useLabel: "宅地", area: 100, ownership: "1/1", fixedAssetTaxValue: 1000, valueJpy: 2000,
   valuationMethod: "路線価", valuationDetail: "算式", note: "", plan: plan as PropertyRow["plan"], planLabel: plan === "KEEP" ? "保有・承継" : "売却予定", planNote: "長いメモは必要な出力のみ", planTiming: "相続後",
 });
 function setup(rows: PropertyRow[]) {

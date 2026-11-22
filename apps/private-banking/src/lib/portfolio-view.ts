@@ -2,6 +2,7 @@ import { decimalToFraction, eraYearWareki, valuationNumber } from "@/lib/format"
 import type { FamilyMember } from "@/lib/family";
 import type { FxRates } from "@/lib/fx-rates";
 import type { InheritanceTaxCalculation } from "@/lib/inheritance-tax-calculation";
+import { propertyLocationText } from "@/lib/property-location";
 
 /** 画面側で扱うポートフォリオの型。API (`/api/portfolio`) のレスポンスと対応する。 */
 export type Position = {
@@ -28,6 +29,8 @@ export type AssetDetails = {
   securityType?: string; securityCode?: string;
   insuranceType?: string; policyNumber?: string; insuredPerson?: string; beneficiary?: string; deathBenefit?: number;
   propertyType?: string; propertyAddress?: string; landCategory?: string; smallLotType?: string;
+  /** 所在の構造（property-location.ts）。propertyAddress はその原文 */
+  municipalityCode?: string; municipalityName?: string; townName?: string; aza?: string; lotNumber?: string; houseNumber?: string;
   propertyPlan?: string; propertyPlanNote?: string; propertyPlanTiming?: string;
   buildingType?: string; buildingStructure?: string; floorArea?: number;
   shareClass?: string; totalIssuedShares?: number; valuationApproach?: string;
@@ -395,7 +398,8 @@ export function propertyAreaNote(position: Position): string {
 
 export function institutionOrPropertyAddress(position: Position) {
   const isRealEstate = realEstateCategories.includes(position.category);
-  if (isRealEstate) return position.assetDetails?.propertyAddress?.trim() ?? "";
+  // 市区町村と地番を保存していればそこから組み、無ければ原文（古い明細はこちら）
+  if (isRealEstate) return propertyLocationText(position.assetDetails);
   // 生命保険は保険会社名を明細の名称に使っているので、この欄には証券番号を出す。
   if (position.category === "INSURANCE" || position.category === "INSURANCE_RIGHTS") return position.assetDetails?.policyNumber?.trim() ?? "";
   // その他資産は保管先を持たせないので、この欄には資産種類を出す。

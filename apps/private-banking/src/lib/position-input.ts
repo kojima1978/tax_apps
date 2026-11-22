@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizePropertyLocationFields } from "@/lib/municipality";
 import { propertyPlanValues } from "@/lib/property-plan";
 import { fractionTotal, manualValuationLabel, realEstateCategories, unitRateBaseLabel, unitRateCategories, valuationFromFormula } from "@/lib/portfolio-view";
 
@@ -51,7 +52,17 @@ const assetDetailsSchema = z.object({
   beneficiary: optionalDetailText,
   deathBenefit: optionalDetailNumber,
   propertyType: optionalDetailText,
-  propertyAddress: optionalDetailText,
+  // 所在・地番の原文。照合できなかったときに元の表記を確かめるため、分けた後も残す
+  propertyAddress: z.preprocess(
+    (value) => value === "" || value === undefined ? undefined : value,
+    z.string().trim().max(200).optional(),
+  ),
+  // 所在の構造。市区町村コード（municipalityCode）は受け取らず、名前から付け直す（normalizePropertyLocationFields）
+  municipalityName: optionalDetailText,
+  townName: optionalDetailText,
+  aza: optionalDetailText,
+  lotNumber: optionalDetailText,
+  houseNumber: optionalDetailText,
   propertyPlan: z.preprocess((value) => value === "" ? undefined : value, z.enum(propertyPlanValues).optional()),
   propertyPlanNote: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().max(500).optional()),
   propertyPlanTiming: optionalDetailText,
@@ -86,7 +97,7 @@ const assetDetailsSchema = z.object({
   ),
   principalDebtor: optionalDetailText,
   guaranteeExpiryDate: optionalDetailDate,
-}).default({});
+}).transform((details): typeof details & { municipalityCode?: string } => normalizePropertyLocationFields(details)).default({});
 const stockCategories = new Set(["SECURITIES", "PRIVATE_SHARES"]);
 const unitRateCategorySet = new Set(unitRateCategories);
 const realEstateCategorySet = new Set(realEstateCategories);
@@ -178,8 +189,9 @@ export const positionInputSchema = z.object({
     if (!["LAND", "BUILDING"].includes(data.assetDetails.propertyType ?? "")) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "propertyType"], message: "土地または建物を選択してください。" });
     }
-    if (!data.assetDetails.propertyAddress) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "propertyAddress"], message: "所在地を入力してください。" });
+    const details = data.assetDetails;
+    if (!details.propertyAddress && !(details.municipalityName && details.lotNumber)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["assetDetails", "propertyAddress"], message: "所在・地番の原文か、市区町村と地番を入力してください。" });
     }
     requirePositive(data.ownershipNumerator, "ownershipNumerator", "持分の分子");
     requirePositive(data.ownershipDenominator, "ownershipDenominator", "持分の分母");

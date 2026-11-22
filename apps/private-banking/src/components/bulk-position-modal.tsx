@@ -4,10 +4,12 @@ import { AlertTriangle, CircleCheck, Copy, LoaderCircle, Plus, Table2, Trash2, X
 import { ClipboardEvent, Fragment, KeyboardEvent as ReactKeyboardEvent, useMemo, useState } from "react";
 import { BulkBenefitRecipients, benefitDraftError, benefitDrafts, benefitValues, type BulkBenefitDraft } from "@/components/bulk-benefit-recipients";
 import { ModalCloseConfirm } from "@/components/modal-close-confirm";
+import { MunicipalityDatalist, municipalityHintFor } from "@/components/property-location-fields";
 import { useModalDialog } from "@/components/use-modal-dialog";
 import { personSelectOptions } from "@/lib/family";
 import { currencyOptions, fxRateFor, positionCurrencies } from "@/lib/fx-rates";
 import { decimalToFraction, formatCommaNumberInput, yen } from "@/lib/format";
+import { propertyLocationOf } from "@/lib/municipality";
 import { assetDetailTypeOptions } from "@/lib/position-display";
 import {
   type AssetDetails,
@@ -25,9 +27,10 @@ import {
   realEstateCategories,
   valuationFromFormula,
 } from "@/lib/portfolio-view";
+import { propertyLocationKeys } from "@/lib/property-location";
 
 type BulkEntryType = "DEPOSIT" | "SECURITIES" | "PRIVATE_SHARES" | "LAND" | "BUILDING" | "INSURANCE" | "INSURANCE_RIGHTS" | "RETIREMENT_ALLOWANCE" | "LOAN_RECEIVABLE";
-type BulkField = "currency" | "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "address" | "landCategory" | "buildingType" | "floorArea" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "repaymentDueDate" | "interestRate" | "collateral" | "note";
+type BulkField = "currency" | "category" | "valuationFormula" | "name" | "institution" | "accountType" | "policyNumber" | "insuredPerson" | "benefit" | "recipient" | "municipalityName" | "townName" | "aza" | "lotNumber" | "houseNumber" | "propertyAddress" | "landCategory" | "buildingType" | "floorArea" | "quantity" | "unitPrice" | "landArea" | "roadsideValue" | "fixedAssetTaxValue" | "multiplier" | "adjustmentRate" | "ownershipNumerator" | "ownershipDenominator" | "originalAmount" | "repaymentDueDate" | "interestRate" | "collateral" | "note";
 type BulkRow = Record<BulkField, string> & { id: number; positionId: number | null; error: string; errorFields: BulkField[]; benefitAllocations: BulkBenefitDraft[] };
 /**
  * conditional は「どの方式のときに使う欄か」。見出しの札と、使わない方式で無効にした欄の説明にそのまま出す。
@@ -129,13 +132,15 @@ const simpleEntryConfigOf = (type: BulkEntryType) => simpleEntryConfigs[type as 
  * 以前は assetDetails をまるごと作り直していたので、1行も触らずに保存しただけで
  * それらが消えていた（登録済みの行は編集の有無に関わらず全件送られるため）。
  */
+/** 所在の列が持つキー。市区町村コードは保存時に名前から付け直すので、表の持ち物として入れ替える。 */
+const propertyLocationDetailKeys = ["municipalityCode", ...propertyLocationKeys, "propertyAddress"] as const satisfies ReadonlyArray<keyof AssetDetails>;
 const ownedDetailKeys: Record<BulkEntryType, Array<keyof AssetDetails>> = {
   DEPOSIT: ["accountType"],
   // 証券種類に列は無い。新規行の既定値としてだけ入れ、登録済みの行では触らない。
   SECURITIES: [],
   PRIVATE_SHARES: ["shareClass"],
-  LAND: ["propertyType", "propertyAddress", "landCategory"],
-  BUILDING: ["propertyType", "propertyAddress", "buildingType", "floorArea"],
+  LAND: ["propertyType", ...propertyLocationDetailKeys, "landCategory"],
+  BUILDING: ["propertyType", ...propertyLocationDetailKeys, "buildingType", "floorArea"],
   INSURANCE: ["policyNumber", "insuredPerson", "beneficiary", "deathBenefit", "benefitAllocations"],
   INSURANCE_RIGHTS: ["policyNumber", "insuredPerson"],
   RETIREMENT_ALLOWANCE: ["retirementRecipient", "retirementAllowance", "benefitAllocations"],
@@ -155,7 +160,8 @@ const bulkFormulaOptions = (entryType: BulkEntryType): ValuationFormula[] => ent
 function createBulkRow(id: number, positionId: number | null = null): BulkRow {
   return {
     id, positionId, error: "", errorFields: [], benefitAllocations: [], currency: "JPY", category: "REAL_ESTATE", valuationFormula: "STOCK", name: "", institution: "",
-    accountType: "ORDINARY", policyNumber: "", insuredPerson: "", benefit: "", recipient: "", address: "", landCategory: "", buildingType: "",
+    accountType: "ORDINARY", policyNumber: "", insuredPerson: "", benefit: "", recipient: "",
+    municipalityName: "", townName: "", aza: "", lotNumber: "", houseNumber: "", propertyAddress: "", landCategory: "", buildingType: "",
     floorArea: "", quantity: "", unitPrice: "", landArea: "", roadsideValue: "", fixedAssetTaxValue: "", multiplier: "1.0",
     adjustmentRate: "1.0", ownershipNumerator: "1", ownershipDenominator: "1", originalAmount: "",
     repaymentDueDate: "", interestRate: "", collateral: "", note: "",
@@ -187,6 +193,18 @@ function bulkNumber(value: number | null | undefined, maxFractionDigits = 2) {
   return value === null || value === undefined ? "" : formatCommaNumberInput(String(value), maxFractionDigits);
 }
 
+const bulkMunicipalityListId = "bulk-municipality-options";
+/** 市区町村のセルに重ねる説明（1件ずつの入力と同じ文）。コードが付くかどうかを、列を増やさずに確かめられるようにする。 */
+const municipalityCodeTitle = (name: string) => municipalityHintFor(name).text;
+
+function bulkLocationFields(details: AssetDetails) {
+  const { location } = propertyLocationOf(details);
+  return {
+    municipalityName: location.municipalityName, townName: location.townName, aza: location.aza,
+    lotNumber: location.lotNumber, houseNumber: location.houseNumber, propertyAddress: location.source,
+  };
+}
+
 function bulkRowFromPosition(position: Position): BulkRow {
   const details = position.assetDetails ?? {};
   const [fallbackNumerator, fallbackDenominator] = decimalToFraction(position.ownershipShare);
@@ -203,7 +221,8 @@ function bulkRowFromPosition(position: Position): BulkRow {
     benefit: bulkNumber(details.deathBenefit ?? details.retirementAllowance),
     recipient: details.benefitAllocations?.[0]?.recipient ?? details.beneficiary ?? details.retirementRecipient ?? "",
     benefitAllocations: position.category === "INSURANCE" ? benefitDrafts(details.benefitAllocations ?? []) : [],
-    address: details.propertyAddress ?? "",
+    // 所在を構造で保存していない古い明細は、原文から分けた案を入れておく（触らなければ保存されない）
+    ...bulkLocationFields(details),
     landCategory: details.landCategory ?? "",
     buildingType: details.buildingType ?? "",
     floorArea: bulkNumber(details.floorArea),
@@ -268,6 +287,9 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
   currencyCodes?: string[]; onOpenFxSettings?: () => void;
 }) {
   const entryCounts = useMemo(() => Object.fromEntries(bulkEntryTypes.map((type) => [type, editableBulkPositions(snapshot, type).length])) as Record<BulkEntryType, number>, [snapshot]);
+  /** 所在を原文から分けた案で開いた行の数（土地・建物）。案のまま他の欄を直して保存すると案も保存されるので知らせる。 */
+  const inferredLocationCounts = useMemo(() => Object.fromEntries((["LAND", "BUILDING"] as const).map((type) => [type,
+    editableBulkPositions(snapshot, type).filter((position) => propertyLocationOf(position.assetDetails).inferred).length])) as Record<"LAND" | "BUILDING", number>, [snapshot]);
   /** 開いた直後の行。タブに「未保存の編集」を出すため、比較の基準として持っておく。 */
   const initialRowsByType = useMemo(() => Object.fromEntries(
     bulkEntryTypes.map((type) => [type, initialRows(snapshot, type)]),
@@ -342,7 +364,12 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
     const basic: BulkColumn[] = [
       { key: "category", label: "科目", required: true, kind: "category", width: "132px" },
       { key: "name", label: "名称", required: true, width: "120px" },
-      { key: "address", label: "所在地", required: true, width: "190px" },
+      { key: "municipalityName", label: "市区町村", width: "136px" },
+      { key: "townName", label: "大字・町名", width: "112px" },
+      { key: "aza", label: "字", width: "80px" },
+      { key: "lotNumber", label: "地番", width: "88px" },
+      ...(isBuilding ? [{ key: "houseNumber", label: "家屋番号", width: "88px" } satisfies BulkColumn] : []),
+      { key: "propertyAddress", label: "所在・地番の原文", width: "180px" },
     ];
     if (isLand) {
       basic.push(
@@ -427,7 +454,9 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
     if (targetType === "DEPOSIT") return ["name", "originalAmount"];
     const targetIsStock = ["SECURITIES", "PRIVATE_SHARES"].includes(targetType);
     if (targetIsStock) return row.valuationFormula === "MANUAL" ? ["name", "valuationFormula", "originalAmount"] : ["name", "valuationFormula", "quantity", "unitPrice", "adjustmentRate"];
-    const common: BulkField[] = ["category", "name", "address", "valuationFormula", "ownershipNumerator", "ownershipDenominator"];
+    // 所在は「市区町村と地番」か「原文」のどちらかがあればよい。足りないときは原文の欄を指す
+    const location: BulkField[] = row.municipalityName.trim() && row.lotNumber.trim() ? [] : ["propertyAddress"];
+    const common: BulkField[] = ["category", "name", ...location, "valuationFormula", "ownershipNumerator", "ownershipDenominator"];
     if (row.valuationFormula === "LAND_ROADSIDE") return [...common, "landArea", "roadsideValue", "adjustmentRate"];
     if (["LAND_MULTIPLIER", "BUILDING"].includes(row.valuationFormula)) return [...common, "fixedAssetTaxValue", "multiplier", "adjustmentRate"];
     return [...common, "originalAmount"];
@@ -555,7 +584,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
     }
     let invalid = false;
     const fieldLabels: Partial<Record<BulkField, string>> = {
-      category: "科目", valuationFormula: "方式", name: "名称", institution: "金融機関等", address: "所在地",
+      category: "科目", valuationFormula: "方式", name: "名称", institution: "金融機関等", propertyAddress: "所在・地番の原文（または市区町村と地番）",
       policyNumber: "証券番号", insuredPerson: "被保険者", benefit: "給付金額", recipient: "受取人",
       repaymentDueDate: "返済期限", interestRate: "利率", collateral: "担保",
       quantity: "株数・口数", unitPrice: "単価", landArea: "面積", floorArea: "床面積", roadsideValue: "路線価",
@@ -650,7 +679,15 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
           ? type === "SECURITIES" ? (row.positionId === null ? { securityType: "LISTED_STOCK" } : {}) : { shareClass: row.institution.trim() }
           : {
             propertyType: rowIsLand ? "LAND" : "BUILDING",
-            propertyAddress: row.address.trim(),
+            propertyAddress: row.propertyAddress.trim(),
+            // 所在の欄は空なら送らない（構造の無い明細は原文だけを持つ形のまま残す）
+            ...Object.fromEntries(Object.entries({
+              municipalityName: row.municipalityName.trim(),
+              townName: row.townName.trim(),
+              aza: row.aza.trim(),
+              lotNumber: row.lotNumber.trim(),
+              ...(rowIsLand ? {} : { houseNumber: row.houseNumber.trim() }),
+            }).filter(([, value]) => value !== "")),
             // 床面積は未入力なら項目ごと持たせない（0㎡として残さない）。
             ...(rowIsLand ? { landCategory: row.landCategory.trim() } : { buildingType: row.buildingType.trim(), ...(numberOrNull(row.floorArea) === null ? {} : { floorArea: numberOrNull(row.floorArea) }) }),
           }),
@@ -687,6 +724,8 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
         <details className="bulk-help"><summary><Table2 aria-hidden="true" />入力のしかた（金額の単位・貼り付け・セルの移動）</summary><p>登録済み行の修正と新規行の追加を同じ表で行えます。生命保険は行ごとの通貨で金額を入力し、評価額列は円換算後の額です。それ以外の科目は円単位です。Excelから複数セルを貼り付けることもできます（貼り付けは文字を打てる欄から始めてください。科目・方式・地目・建物種類・預金種類の選択欄では受け付けません）。灰色の欄は、選んだ方式では使いません。Enterで次のセル、Shift+Enterで前のセルへ移動します。ここで扱えるのは上の{bulkEntryTypes.length}種類だけです。事業用資産・その他資産・借入金・個人保証は、明細一覧の各表にある「〜を追加」から登録します。</p></details>
       </section>
       {formError ? <p className="bulk-form-error" role="alert"><AlertTriangle />{formError}</p> : null}
+      {isRealEstate && inferredLocationCounts[entryType] > 0 ? <p className="bulk-location-note"><AlertTriangle />所在地を原文から自動で分けた案の行が{inferredLocationCounts[entryType]}件あります。市区町村〜地番は原文と見比べてから保存してください（その行を直さなければ保存されません）。</p> : null}
+      {isRealEstate ? <MunicipalityDatalist id={bulkMunicipalityListId} /> : null}
       <div className="bulk-table-scroll" id="bulk-entry-panel" role="tabpanel" aria-labelledby={`bulk-entry-tab-${entryType}`}>
         <table className="bulk-entry-table">
           <thead><tr><th className="bulk-row-number">行</th>{columns.map((column) => <th key={column.key} style={{ width: column.width }}><span>{entryType === "INSURANCE" ? column.label.replace("（円）", "（契約通貨）") : column.label}</span>{column.required ? <em>必須</em> : column.conditional ? <em className="conditional" title={`方式が「${column.conditional}」の行で入力します`}>{column.conditional}</em> : null}</th>)}<th className="bulk-calculated-value">評価額（円）</th><th className="bulk-row-actions">操作・状態</th></tr></thead>
@@ -713,7 +752,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
                   : column.kind === "formula" ? <select {...commonProps} onChange={(event) => updateRow(row.id, column.key, event.target.value)}>{bulkFormulaOptions(entryType).map((formula) => <option key={formula} value={formula}>{bulkFormulaLabels[formula]}</option>)}</select>
                     : column.kind === "landCategory" ? <><select {...commonProps} title={landCategoryByValue.get(row.landCategory)?.definition ?? "地目を選択"} aria-describedby={row.landCategory ? `bulk-land-category-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{landCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.landCategory ? <span id={`bulk-land-category-${row.id}`} className="sr-only">{landCategoryByValue.get(row.landCategory)?.definition}</span> : null}</>
                       : column.kind === "buildingType" ? <><select {...commonProps} title={buildingTypeByValue.get(row.buildingType)?.definition ?? "建物種類を選択"} aria-describedby={row.buildingType ? `bulk-building-type-${row.id}` : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value)}><option value="">未選択</option>{buildingTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{row.buildingType ? <span id={`bulk-building-type-${row.id}`} className="sr-only">{buildingTypeByValue.get(row.buildingType)?.definition}</span> : null}</>
-                    : <input {...commonProps} type={column.kind === "date" ? "date" : "text"} inputMode={column.numeric ? "decimal" : undefined} disabled={disabled} placeholder={disabled ? "—" : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value, column.numeric)} />}
+                    : <input {...commonProps} type={column.kind === "date" ? "date" : "text"} inputMode={column.numeric ? "decimal" : undefined} disabled={disabled} placeholder={disabled ? "—" : undefined} list={column.key === "municipalityName" ? bulkMunicipalityListId : undefined} title={column.key === "municipalityName" ? municipalityCodeTitle(row.municipalityName) : undefined} onChange={(event) => updateRow(row.id, column.key, event.target.value, column.numeric)} />}
                 {entryType === "INSURANCE" && column.key === "recipient" ? <button type="button" className="bulk-recipient-toggle" aria-expanded={expandedRecipientRow === `${entryType}-${row.id}`} aria-controls={`bulk-recipients-${row.id}`} aria-label={`${rowIndex + 1}行目の受取人設定`} onClick={() => setExpandedRecipientRow(expandedRecipientRow === `${entryType}-${row.id}` ? null : `${entryType}-${row.id}`)}>{row.benefitAllocations.length > 1 ? "配分を編集" : "複数人に設定"}</button> : null}
               </td>;
             })}

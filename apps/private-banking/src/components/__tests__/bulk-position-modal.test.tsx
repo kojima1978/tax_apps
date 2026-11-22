@@ -178,7 +178,7 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
       expect(screen.getByLabelText(`1行目 ${label}`)).toBeTruthy();
     }
     expect(screen.queryByLabelText("1行目 方式")).toBeNull();
-    expect(screen.queryByLabelText("1行目 所在地")).toBeNull();
+    expect(screen.queryByLabelText("1行目 所在・地番の原文")).toBeNull();
   });
 
   it("退職金・貸付金は科目ごとに列と必須項目が変わる", () => {
@@ -416,7 +416,7 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     const onSubmit = renderModal();
     selectEntryType("BUILDING");
     typeIn(1, "名称", "自宅家屋");
-    typeIn(1, "所在地", "東京都港区1-2-3");
+    typeIn(1, "所在・地番の原文", "東京都港区1-2-3");
     typeIn(1, "床面積（㎡）", "120.5");
     typeIn(1, "固定資産税評価額（円）", "8,000,000");
     save();
@@ -424,11 +424,42 @@ describe("BulkPositionModal（生命保険・退職金・貸付金）", () => {
     expect(savedPayloads(onSubmit)[0].data.assetDetails).toMatchObject({ propertyType: "BUILDING", floorArea: 120.5 });
   });
 
+  it("所在は市区町村・地番などの列で入れ、市区町村と地番があれば原文は空でも保存できる", async () => {
+    const onSubmit = renderModal();
+    selectEntryType("BUILDING");
+    typeIn(1, "名称", "貸家");
+    typeIn(1, "市区町村", "東京都港区");
+    typeIn(1, "大字・町名", "テスト一丁目");
+    typeIn(1, "地番", "12-3");
+    typeIn(1, "家屋番号", "12番3");
+    typeIn(1, "固定資産税評価額（円）", "3,000,000");
+    expect(cell(1, "市区町村").title).toContain("13103");
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).toMatchObject({ propertyType: "BUILDING", propertyAddress: "", municipalityName: "東京都港区", townName: "テスト一丁目", lotNumber: "12-3", houseNumber: "12番3" });
+    expect(savedPayloads(onSubmit)[0].data.assetDetails).not.toHaveProperty("aza");
+  });
+
+  it("所在を分けて保存していない明細は原文から分けた案を入れ、注意を出す", () => {
+    renderModal([position({
+      id: 11, category: "HOME_REAL_ESTATE", name: "自宅土地", valuationFormula: "LAND_ROADSIDE",
+      landArea: 100, roadsideValue: 100_000, adjustmentRate: 1, ownershipNumerator: 1, ownershipDenominator: 1,
+      originalAmount: 10_000_000, valueJpy: 10_000_000,
+      assetDetails: { propertyType: "LAND", propertyAddress: "東京都港区テスト一丁目5番6", landCategory: "RESIDENTIAL" },
+    })]);
+    selectEntryType("LAND");
+    expect(cell(1, "市区町村").value).toBe("東京都港区");
+    expect(cell(1, "大字・町名").value).toBe("テスト一丁目");
+    expect(cell(1, "地番").value).toBe("5番6");
+    expect(cell(1, "所在・地番の原文").value).toBe("東京都港区テスト一丁目5番6");
+    expect(screen.getByText(/所在地を原文から自動で分けた案の行が1件あります/)).toBeTruthy();
+  });
+
   it("床面積が空欄の建物は、項目ごと持たせない", async () => {
     const onSubmit = renderModal();
     selectEntryType("BUILDING");
     typeIn(1, "名称", "倉庫");
-    typeIn(1, "所在地", "東京都港区1-2-4");
+    typeIn(1, "所在・地番の原文", "東京都港区1-2-4");
     typeIn(1, "固定資産税評価額（円）", "3,000,000");
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));

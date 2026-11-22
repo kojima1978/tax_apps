@@ -118,6 +118,12 @@ describe("filterProperties", () => {
     expect(filterProperties(rows, searchTerms("共同住宅"), all).map((row) => row.positionId)).toEqual([2]);
   });
 
+  it("所在を分けて保存した明細は、原文の表記でも探せる", () => {
+    const structured = propertyRows([{ position: position({ id: 3, assetDetails: { municipalityName: "東京都港区", lotNumber: "1番2", propertyAddress: "港区テスト1-2" } }), owner: owner() }]);
+    expect(structured[0].address).toBe("東京都港区1番2");
+    expect(filterProperties(structured, searchTerms("テスト1-2"), all)).toHaveLength(1);
+  });
+
   it("検索語はすべて含まれていなければ残さない", () => {
     expect(filterProperties(rows, searchTerms("山田 船橋"), all)).toHaveLength(0);
   });
@@ -152,6 +158,17 @@ describe("propertiesCsv", () => {
     const cells = csv.split("\r\n")[1];
     expect(cells).toContain('"A""棟"');
     expect(cells).toContain('"備考,あり"');
+  });
+
+  it("所在は市区町村コード・市区町村・大字町名・字・地番・家屋番号・原文の列に分け、家屋番号は建物だけ出す", () => {
+    const header = csv.split("\r\n")[0];
+    expect(header).toContain('"市区町村コード","市区町村","大字・町名","字","地番","家屋番号","所在・地番の原文"');
+    expect(header).not.toContain('"所在地"');
+    const details = { municipalityName: "北海道余市郡余市町", municipalityCode: "01408", townName: "大字テスト", aza: "サンプル", lotNumber: "45番", houseNumber: "45番1", propertyAddress: "余市町大字テスト字サンプル45" };
+    const land = propertiesCsv(propertyRows([{ position: position({ assetDetails: { propertyType: "LAND", ...details } }), owner: owner() }])).split("\r\n")[1];
+    expect(land).toContain('"01408","北海道余市郡余市町","大字テスト","サンプル","45番","","余市町大字テスト字サンプル45"');
+    const building = propertiesCsv(propertyRows([{ position: position({ valuationFormula: "BUILDING", assetDetails: { propertyType: "BUILDING", ...details } }), owner: owner() }])).split("\r\n")[1];
+    expect(building).toContain('"45番","45番1","余市町大字テスト字サンプル45"');
   });
 
   it("固定資産税評価額は列として書き出し、未入力は空欄にする", () => {

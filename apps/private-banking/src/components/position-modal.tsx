@@ -7,6 +7,7 @@ import { FormEvent, type ReactNode, useEffect, useId, useState } from "react";
 import { BuildingTypeField, CommaNumberInput, LandCategoryField, OwnershipFractionInput } from "@/components/form-fields";
 import { ModalCloseConfirm } from "@/components/modal-close-confirm";
 import { useModalDialog } from "@/components/use-modal-dialog";
+import { PropertyLocationFields } from "@/components/property-location-fields";
 import { personSelectOptions } from "@/lib/family";
 import { contractAmountText, currencyOptions, fxRateFor, positionCurrencies, type FxRates } from "@/lib/fx-rates";
 import { decimalToFraction, yen } from "@/lib/format";
@@ -448,9 +449,9 @@ export function PositionModal({ position, defaultSection = "ASSET", defaultCateg
         {typeField ? <label key={category}>{typeField.label}<select name={typeField.name} defaultValue={typeField.read(assetDetails) ?? typeField.fallback}>{Object.entries(typeField.options).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{typeField.hint ? <small className="asset-detail-hint">{typeField.hint}</small> : null}</label> : null}
         {isInsurance
           ? <input type="hidden" name="name" value={institution} />
-          : <label className={(typeField && !currencyInIdentity) || isPrivateShares ? "position-field-wide" : undefined}>{nameLabel}<input name="name" required placeholder={category === "SECURITIES" ? "例：○○株式会社" : category === "PRIVATE_SHARES" ? "例：山田産業株式会社" : ""} defaultValue={position?.name ?? ""} /></label>}
+          : <label className={(typeField && !currencyInIdentity) || isPrivateShares || isRealEstateCategory ? "position-field-wide" : undefined}>{nameLabel}<input name="name" required placeholder={category === "SECURITIES" ? "例：○○株式会社" : category === "PRIVATE_SHARES" ? "例：山田産業株式会社" : ""} defaultValue={position?.name ?? ""} /></label>}
         {isInsurance ? <label>保険会社<input name="institution" required value={institution} onChange={(event) => setInstitution(event.target.value)} placeholder="例：日本生命" /><small className="asset-detail-hint">明細の「科目・名称」にはこの保険会社名を表示します。</small></label> : null}
-        {isRealEstateCategory ? <><label>所在地<input name="assetDetail.propertyAddress" required defaultValue={assetDetails.propertyAddress ?? ""} placeholder="例：東京都港区南青山1-2-3" /></label><input type="hidden" name="institution" value="" /></> : null}
+        {isRealEstateCategory ? <><PropertyLocationFields details={assetDetails} propertyType={propertyType} /><input type="hidden" name="institution" value="" /></> : null}
         {isInsurance ? <label>証券番号<input name="assetDetail.policyNumber" defaultValue={assetDetails.policyNumber ?? ""} placeholder="例：1234567890" /><small className="asset-detail-hint">明細の「所在地・金融機関等」に表示します。</small></label> : null}
         {isInsurance ? <PersonSelect key={`${category}-insured`} label="被保険者" name="assetDetail.insuredPerson" value={assetDetails.insuredPerson ?? ""} people={people} /> : null}
         {currencyInIdentity ? currencyField : null}

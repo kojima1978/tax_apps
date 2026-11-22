@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { type FormEvent } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PositionModal } from "@/components/position-modal";
+import { municipalityHintFor } from "@/components/property-location-fields";
 import { assetCategories, liabilityCategories, type PositionSection } from "@/lib/portfolio-view";
 
 afterEach(cleanup);
@@ -22,7 +23,7 @@ function renderModal(onClose: () => void = () => {}) {
   };
 }
 
-const typeIn = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+const typeIn = (label: string | RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe("PositionModal（明細を追加）", () => {
   it("不動産で方針・希望時期・メモを入力し、土地建物を切り替えても保持する", () => {
@@ -37,18 +38,44 @@ describe("PositionModal（明細を追加）", () => {
     fireEvent.submit(form);
     expect(submitted[0]).toMatchObject({ "assetDetail.propertyPlan": "SELL", "assetDetail.propertyPlanTiming": "相続後", "assetDetail.propertyPlanNote": "家族と相談して売却" });
   });
-  it("物件の名称と所在地を等幅2列用の通常幅で表示し、入力内容を保持する", () => {
+  it("物件の名称は全幅、所在は市区町村・大字町名・字・地番と原文の欄で入力する", () => {
     const { container, form, submitted } = renderModal();
     fireEvent.change(screen.getByLabelText("中分類"), { target: { value: "不動産" } });
     const grid = container.querySelector(".position-identity-grid")!;
-    expect(grid.querySelectorAll("label").length).toBe(2);
-    expect(grid.querySelector(".position-field-wide")).toBeNull();
+    expect(screen.getByLabelText("名称").closest("label")!.classList.contains("position-field-wide")).toBe(true);
+    expect(screen.queryByLabelText("家屋番号")).toBeNull();
     typeIn("名称", "自宅マンション");
-    typeIn("所在地", "東京都港区南青山1-2-3 ○○マンション101号室");
+    typeIn(/^市区町村/, "港区");
+    expect(grid.textContent).toContain("市区町村コード 13103");
+    typeIn(/^大字・町名/, "テスト一丁目");
+    typeIn(/^地番/, "1-2");
+    expect(grid.textContent).toContain("一覧・印刷での表示：東京都港区テスト一丁目1番2");
+    expect((screen.getByLabelText("所在・地番の原文") as HTMLInputElement).required).toBe(false);
     fireEvent.change(screen.getByLabelText("資産区分"), { target: { value: "BUILDING" } });
+    typeIn("家屋番号", "1番2");
+    expect(grid.textContent).toContain("東京都港区テスト一丁目1番2　家屋番号 1番2");
     fireEvent.submit(form);
-    expect(submitted[0]).toMatchObject({ name: "自宅マンション", "assetDetail.propertyAddress": "東京都港区南青山1-2-3 ○○マンション101号室" });
-    expect(grid.querySelector(".position-field-wide")).toBeNull();
+    expect(submitted[0]).toMatchObject({ name: "自宅マンション", "assetDetail.municipalityName": "港区", "assetDetail.townName": "テスト一丁目", "assetDetail.lotNumber": "1-2", "assetDetail.houseNumber": "1番2", "assetDetail.propertyAddress": "" });
+  });
+  it("市区町村の案内は、同じ名前が複数あるときと表に無いときを分けて知らせる", () => {
+    expect(municipalityHintFor("府中市")).toMatchObject({ municipality: null, warning: true, text: "同じ名前の市区町村が複数あります（東京都府中市・広島県府中市）。都道府県から入力してください。" });
+    expect(municipalityHintFor("テスト市")).toMatchObject({ municipality: null, warning: true, text: expect.stringContaining("表に無い名前") });
+    expect(municipalityHintFor("東京都府中市")).toMatchObject({ warning: false, text: "市区町村コード 13206" });
+    expect(municipalityHintFor(" ")).toMatchObject({ warning: false, text: "市区町村コードは名前から自動で付きます。" });
+  });
+  it("原文だけを入れたときは原文が必須のまま、「原文から分ける」で各欄の案を入れる", () => {
+    const { container } = renderModal();
+    fireEvent.change(screen.getByLabelText("中分類"), { target: { value: "不動産" } });
+    const source = screen.getByLabelText("所在・地番の原文") as HTMLInputElement;
+    expect(source.required).toBe(true);
+    typeIn("所在・地番の原文", "東京都港区テスト1-2-3 サンプル101");
+    fireEvent.click(screen.getByRole("button", { name: "原文から分ける" }));
+    expect((screen.getByLabelText(/^市区町村/) as HTMLInputElement).value).toBe("東京都港区");
+    expect((screen.getByLabelText(/^地番/) as HTMLInputElement).value).toBe("");
+    const notes = container.querySelector(".property-location-notes")!.textContent;
+    expect(notes).toContain("原文から自動で分けた案です");
+    expect(notes).toContain("住居表示");
+    expect(notes).toContain("サンプル101");
   });
   it.each(["LAND_ROADSIDE", "LAND_MULTIPLIER", "BUILDING"])("%sの評価方式・単価または倍率・調整率を同じ行にまとめる", (method) => {
     const { container, form, submitted } = renderModal();

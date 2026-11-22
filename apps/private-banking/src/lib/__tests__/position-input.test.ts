@@ -194,7 +194,19 @@ describe("positionInputSchema", () => {
       ownershipDenominator: undefined,
     });
     expect(noAddress.success).toBe(false);
+    expect(noAddress.error?.issues.map((issue) => issue.message)).toContain("所在・地番の原文か、市区町村と地番を入力してください。");
     expect(noShare.success).toBe(false);
+  });
+
+  it("原文が無くても市区町村と地番があれば通し、市区町村コードを名前から付ける", () => {
+    const structured = positionInputSchema.safeParse({
+      ...landRoadsideInput,
+      assetDetails: { propertyType: "LAND", municipalityName: "港区", townName: "テスト一丁目", aza: "", lotNumber: "1-2" },
+    });
+    expect(structured.success).toBe(true);
+    expect(structured.data?.assetDetails).toEqual({ propertyType: "LAND", municipalityName: "東京都港区", municipalityCode: "13103", townName: "テスト一丁目", lotNumber: "1番2" });
+    const noLot = positionInputSchema.safeParse({ ...landRoadsideInput, assetDetails: { propertyType: "LAND", municipalityName: "東京都港区" } });
+    expect(noLot.success).toBe(false);
   });
 
   it("株式の算式は単価・株数・調整率が0より大きいこと", () => {

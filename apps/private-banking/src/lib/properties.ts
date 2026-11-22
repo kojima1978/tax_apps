@@ -1,5 +1,6 @@
 import { exportFileName } from "@/lib/export-filename";
 import { normalizePropertyPlan, propertyPlanLabel, type PropertyPlan } from "@/lib/property-plan";
+import { storedPropertyLocation, type PropertyLocation } from "@/lib/property-location";
 import { matchesSearchTerms, normalizeSearchText } from "@/lib/clients";
 import {
   type Position,
@@ -31,13 +32,18 @@ export type PropertyOwner = {
 
 /** 不動産一覧の1行。選択した年度条件にある不動産の明細を、表とCSVで同じ形にして扱う。 */
 export type PropertyRow = PropertyOwner & {
+  /** 所在・地番の原文。表示は address だが、原文の表記（「1-2-3」など）でも探せるよう検索に含める */
+  addressSource: string;
   positionId: number;
   category: string;
   categoryLabel: string;
   propertyType: PropertyType;
   propertyTypeLabel: string;
   name: string;
+  /** 一覧に出す所在（市区町村と地番があればそこから組み、無ければ原文） */
   address: string;
+  /** 所在の構造と原文（CSV と検索に使う） */
+  location: PropertyLocation;
   useLabel: string;
   area: number | null;
   ownership: string;
@@ -64,7 +70,7 @@ export const propertyPositionHref = (row: PropertyRow) => {
 /** 検索対象になる項目。表示側のハイライトもこの項目に対して行う。 */
 export const PROPERTY_SEARCH_FIELDS = [
   "clientName", "clientNameKana", "clientCode", "assignedStaff",
-  "categoryLabel", "propertyTypeLabel", "name", "address", "useLabel",
+  "categoryLabel", "propertyTypeLabel", "name", "address", "addressSource", "useLabel",
 ] as const satisfies readonly (keyof PropertyRow)[];
 
 /** 土地は地目、建物は建物用途を「地目・用途」欄に出す。 */
@@ -74,6 +80,7 @@ const propertyUseLabel = (position: Position, propertyType: PropertyType) => pro
 
 export function toPropertyRow(position: Position, owner: PropertyOwner): PropertyRow {
   const propertyType = propertyTypeOf(position) ?? "LAND";
+  const location = storedPropertyLocation(position.assetDetails);
   return {
     ...owner,
     positionId: position.id,
@@ -83,6 +90,8 @@ export function toPropertyRow(position: Position, owner: PropertyOwner): Propert
     propertyTypeLabel: propertyTypeLabels[propertyType],
     name: position.name,
     address: institutionOrPropertyAddress(position),
+    addressSource: location.source,
+    location,
     useLabel: propertyUseLabel(position, propertyType),
     area: propertyArea(position, propertyType),
     ownership: ownershipFraction(position),
@@ -180,7 +189,14 @@ export const PROPERTY_CSV_COLUMNS: ReadonlyArray<{ header: string; value: (row: 
   { header: "科目", value: (row) => row.categoryLabel },
   { header: "区分", value: (row) => row.propertyTypeLabel },
   { header: "名称", value: (row) => row.name },
-  { header: "所在地", value: (row) => row.address },
+  // 所在は構造のまま列に分ける（照合に使えるように）。構造の無い古い明細は原文の列だけが埋まる
+  { header: "市区町村コード", value: (row) => row.location.municipalityCode },
+  { header: "市区町村", value: (row) => row.location.municipalityName },
+  { header: "大字・町名", value: (row) => row.location.townName },
+  { header: "字", value: (row) => row.location.aza },
+  { header: "地番", value: (row) => row.location.lotNumber },
+  { header: "家屋番号", value: (row) => row.propertyType === "BUILDING" ? row.location.houseNumber : "" },
+  { header: "所在・地番の原文", value: (row) => row.location.source },
   { header: "地目・用途", value: (row) => row.useLabel },
   { header: "面積（㎡）", value: (row) => row.area === null ? "" : String(row.area) },
   { header: "持分", value: (row) => row.ownership },

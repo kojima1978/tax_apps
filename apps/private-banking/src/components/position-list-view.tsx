@@ -415,7 +415,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
   }
   const rows = useMemo(() => {
     const terms = searchTerms(query);
-    const filtered = snapshot.positions.filter((p) => (section === "all" || positionSection(p) === section) && (category === "all" || p.category === category) && matchesSearchTerms([p.name, positionKeyInfo(p), positionAllocationLabel(p), positionCaption(p), p.institution, p.note], terms));
+    const filtered = snapshot.positions.filter((p) => (section === "all" || positionSection(p) === section) && (category === "all" || p.category === category) && matchesSearchTerms([p.name, positionKeyInfo(p), positionAllocationLabel(p), positionCaption(p), p.institution, p.assetDetails?.propertyAddress ?? "", p.note], terms));
     return filtered.sort((a, b) => sort === "value-desc" ? primaryAmount(b).valueJpy - primaryAmount(a).valueJpy || a.id - b.id : sort === "value-asc" ? primaryAmount(a).valueJpy - primaryAmount(b).valueJpy || a.id - b.id : sort === "registered" ? a.id - b.id : comparePositionClassification(a, b));
   }, [snapshot.positions, query, section, category, sort]);
   const categories = [...new Set(snapshot.positions.map((p) => p.category))];
