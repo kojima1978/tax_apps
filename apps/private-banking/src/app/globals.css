@@ -1594,6 +1594,14 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .property-plan-badge.plan-keep { color: #166534; background: #dcfce7; }
 .property-plan-badge.plan-sell, .property-plan-badge.plan-dispose { color: #92400e; background: #fef3c7; }
 .property-plan-badge.plan-review { color: #1e40af; background: #dbeafe; }
+/* 「前年のまま」：前の年度と金額が同じ明細。画面だけ（印刷では外す）。 */
+.carryover-badge { display: inline-block; flex-shrink: 0; padding: 2px 6px; border-radius: 4px; color: #92400e; background: #fef3c7; font-size: var(--font-note); font-weight: 700; line-height: 1.4; white-space: nowrap; vertical-align: middle; }
+.bulk-existing-badge.carryover-badge { display: inline-flex; border-radius: 999px; padding: 3px 5px; }
+.category-detail-table .carryover-badge { margin-top: 4px; }
+.position-list-filters .position-list-carryover { display: flex; align-items: center; gap: 6px; min-height: 44px; color: var(--navy-950); font-size: var(--font-body); white-space: nowrap; cursor: pointer; }
+/* 絞り込みの入力欄の共通指定（幅100%・高さ44px・枠）をチェックボックスには当てない。 */
+.position-list-filters .position-list-carryover input { flex: none; width: 18px; height: 18px; min-height: 0; margin: 0; padding: 0; accent-color: #b45309; }
+@media print { .carryover-badge { display: none !important; } }
 .properties-table .property-plan-column { width: 86px; }
 .property-plan-export-option { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: var(--font-body); cursor: pointer; }
 .property-plan-export-option input { width: 16px; height: 16px; }
@@ -1894,7 +1902,9 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .position-summary-total-amount, .position-summary-total-tax { color: var(--navy-950); font-weight: 750; font-variant-numeric: tabular-nums; }
 .position-summary-totals tr:last-child > * { border-bottom: 2px solid #6f8177; }
 .position-summary-name { color: inherit; text-decoration: none; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.position-summary-name span { color: var(--slate-600); font-size: var(--font-note); flex-shrink: 0; }
+.position-summary-caption { color: var(--slate-600); font-size: var(--font-note); flex-shrink: 0; }
+/* 名称と「前年のまま」の印。入りきらないときは印を次の行へ回し、名称を先に見せる。 */
+.position-summary-title { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; }
 .position-summary-name strong { overflow: hidden; text-overflow: ellipsis; }
 .position-summary-table .position-summary-detail-target, .position-summary-table .position-summary-allocation-target { padding: 0; transition: background-color .2s; }
 .position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { width: 100%; min-width: 44px; min-height: 44px; padding: 9px 11px; color: inherit; background: transparent; border: 0; border-radius: 0; display: flex; align-items: center; font: inherit; text-align: inherit; text-decoration: none; }
@@ -2144,7 +2154,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .position-summary-table .position-summary-allocation-target { padding-inline: 1mm; }
   .position-summary-cell-link, .position-summary-allocation-button, .position-summary-detail-target > .position-summary-name { min-width: 0; min-height: 0; padding: 0; }
   .position-summary-name { display: block; }
-  .position-summary-name span { display: block; }
+  .position-summary-caption, .position-summary-title { display: block; }
   .position-summary-table tbody { break-inside: avoid; page-break-inside: avoid; }
   .position-summary-totals { break-inside: avoid; page-break-inside: avoid; }
   .position-summary-totals th small { font-size: 6px; }

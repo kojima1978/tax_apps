@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compactYen } from "@/lib/format";
 import { type Position, type Snapshot } from "@/lib/portfolio-view";
-import { changeText, changeTone, lineageHistory, positionTrendRows } from "@/lib/position-trend";
+import { carriedOverPositions, changeText, changeTone, lineageHistory, positionTrendRows } from "@/lib/position-trend";
 
 // 名称・金融機関・所在はすべて架空のもの
 
@@ -99,5 +99,44 @@ describe("差の表示", () => {
     expect(changeText(-1_230_000, compactYen)).toBe("△123万円");
     expect(changeText(null, compactYen)).toBe("—");
     expect([changeTone(1), changeTone(-1), changeTone(0), changeTone(null)]).toEqual(["positive", "negative", "neutral", ""]);
+  });
+});
+
+describe("前年のまま", () => {
+  it("前の年度に同じ系統キーがあり金額が同じ明細だけ。名称を直しても、為替だけ変わっても印を残す", () => {
+    const previous = snapshot(1, 2025, [
+      position("same", "普通預金", 1_000_000),
+      position("renamed", "定期預金", 2_000_000),
+      position("updated", "上場株式", 3_000_000),
+      position("fx", "外貨預金", 10_000, { currency: "USD", fxRate: 150, valueJpy: 1_500_000 }),
+    ]);
+    const current = snapshot(2, 2026, [
+      position("same", "普通預金", 1_000_000),
+      position("renamed", "定期預金（満期）", 2_000_000),
+      position("updated", "上場株式", 3_200_000),
+      position("fx", "外貨預金", 10_000, { currency: "USD", fxRate: 155, valueJpy: 1_550_000 }),
+      position("new", "新しい預金", 1_000_000),
+      position(undefined, "キーの無い預金", 1_000_000),
+    ]);
+    const result = carriedOverPositions([current, previous], current);
+    expect(result.previous?.fiscalYear).toBe(2025);
+    expect(current.positions.filter((p) => result.ids.has(p.id)).map((p) => p.lineageKey)).toEqual(["same", "renamed", "fx"]);
+  });
+
+  it("保険は解約返戻金が同じでも死亡保険金を直していれば印を出さない", () => {
+    const details = (deathBenefit: number) => ({ category: "INSURANCE", assetDetails: { deathBenefit } });
+    const previous = snapshot(1, 2025, [position("a", "終身保険", 500_000, details(10_000_000))]);
+    const current = snapshot(2, 2026, [position("a", "終身保険", 500_000, details(12_000_000))]);
+    expect(carriedOverPositions([previous, current], current).ids.size).toBe(0);
+  });
+
+  it("年度が飛んでいれば、その前で最も新しい年度と比べる。前の年度が無ければ印は出ない", () => {
+    const oldest = snapshot(1, 2022, [position("a", "普通預金", 1)]);
+    const previous = snapshot(2, 2024, [position("a", "普通預金", 2)]);
+    const current = snapshot(3, 2026, [position("a", "普通預金", 2)]);
+    expect(carriedOverPositions([oldest, current, previous], current).previous?.fiscalYear).toBe(2024);
+    expect(carriedOverPositions([oldest, current, previous], current).ids.size).toBe(1);
+    expect(carriedOverPositions([oldest, current, previous], oldest)).toMatchObject({ previous: null });
+    expect(carriedOverPositions([oldest, current, previous], oldest).ids.size).toBe(0);
   });
 });

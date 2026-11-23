@@ -9,9 +9,11 @@ import { DETAIL_PAGES, defaultColumns, detailColumns, detailNavigation, detailPa
 import { type Position, type PositionSection, type Snapshot, positionSection, propertyTypeOf, valuationDetailLine } from "@/lib/portfolio-view";
 import { triangleYenNumber, yenNumber } from "@/lib/format";
 import { ScrollRegion } from "@/components/scroll-region";
+import { CarryoverBadge } from "@/components/carryover-badge";
+import { type CarriedOverPositions } from "@/lib/position-trend";
 
 type Props = {
-  snapshot: Snapshot; taxBurden: (p: Position) => number | null;
+  snapshot: Snapshot; taxBurden: (p: Position) => number | null; carriedOver?: CarriedOverPositions | null;
   onAdd: (s: PositionSection, category?: string, propertyType?: "LAND" | "BUILDING") => void;
   onBulkManage: () => void; onEdit: (p: Position) => void; onDelete: (p: Position) => void;
   onReorder: (s: PositionSection, ids: number[]) => Promise<boolean>; saving: boolean; spotlightId?: number | null;
@@ -36,7 +38,7 @@ export function PositionDetailsView(props: Props) {
   return <CategoryTable key={`${page.key}-${props.snapshot.id}`} {...props} page={page} root={root} />;
 }
 
-function CategoryTable({ page, root, snapshot, taxBurden, onAdd, onBulkManage, onEdit, onDelete, onReorder, saving, spotlightId }: Props & { page: DetailPage; root: string }) {
+function CategoryTable({ page, root, snapshot, taxBurden, carriedOver, onAdd, onBulkManage, onEdit, onDelete, onReorder, saving, spotlightId }: Props & { page: DetailPage; root: string }) {
   const params = useSearchParams(); const router = useRouter();
   const columns = useMemo(() => detailColumns(page), [page]);
   const [preferences, setPreferences] = useState(() => defaultColumns(columns));
@@ -58,6 +60,7 @@ function CategoryTable({ page, root, snapshot, taxBurden, onAdd, onBulkManage, o
   const orderedColumns = preferences.order.map((key) => columns.find((c) => c.key === key)).filter((c): c is typeof columns[number] => Boolean(c));
   const visibleColumns = orderedColumns.filter((c) => preferences.visible.includes(c.key));
   const rows = snapshot.positions.filter((p) => matchesDetailPage(p, page));
+  const carryoverCount = carriedOver ? rows.filter((p) => carriedOver.ids.has(p.id)).length : 0;
   const nextParams = new URLSearchParams(params.toString()); nextParams.delete("position"); nextParams.delete("detailGroup");
   const suffix = nextParams.size ? `?${nextParams}` : "";
   const listHref = `${root.replace(/\/positions$/, "/position-list")}${suffix}`;
@@ -80,7 +83,7 @@ function CategoryTable({ page, root, snapshot, taxBurden, onAdd, onBulkManage, o
   }
   const add = () => onAdd(page.section, page.category, page.propertyType);
   function cell(p: Position, key: string) {
-    if (key === "name") return <button className="position-name-button" onClick={() => onEdit(p)} disabled={saving} aria-label={`${p.name}を修正`}>{p.name || "名称未登録"}</button>;
+    if (key === "name") return <><button className="position-name-button" onClick={() => onEdit(p)} disabled={saving} aria-label={`${p.name}を修正`}>{p.name || "名称未登録"}</button><CarryoverBadge carriedOver={carriedOver} positionId={p.id} /></>;
     if (key === "value") return yenNumber.format(p.valueJpy);
     if (key === "tax") { const burden = taxBurden(p); return burden === null ? "—" : triangleYenNumber(burden); }
     if (key === "method") return p.valuationMethod || "金額を直接入力";
@@ -99,7 +102,7 @@ function CategoryTable({ page, root, snapshot, taxBurden, onAdd, onBulkManage, o
       <div className="detail-category-links" aria-label={`${currentGroup.label}の科目`}>{currentGroup.pages.map((p) => <Link key={p.key} href={`${root}/${p.key}${suffix}`} aria-current={p.key === page.key ? "page" : undefined} data-empty={p.count === 0 ? "" : undefined}>{p.label}<span>{p.count}件</span></Link>)}</div>
     </nav>
     {settingsOpen ? <section id="detail-column-settings" className="panel detail-column-settings" aria-label="列の表示設定"><header><div><h2>{page.label}の列設定</h2><p>名称と金額は常に表示します。設定は科目ごとにこのブラウザに保存します。</p></div><button className="button secondary" onClick={() => update(defaultColumns(columns))}>標準表示に戻す</button></header><div className="detail-column-options">{orderedColumns.map((c, index) => <div key={c.key} className="detail-column-option"><label><input type="checkbox" aria-label={`${c.label}を表示`} checked={preferences.visible.includes(c.key)} disabled={c.required} onChange={(e) => update({ ...preferences, visible: e.target.checked ? [...preferences.visible, c.key] : preferences.visible.filter((key) => key !== c.key) })} />{c.label}</label><label className="column-width-label">幅<input type="number" aria-label={`${c.label}の列幅`} min={90} max={600} step={10} value={preferences.widths[c.key]} onChange={(e) => { const width = Number(e.target.value); if (width >= 90 && width <= 600) update({ ...preferences, widths: { ...preferences.widths, [c.key]: width } }); }} /><span>px</span></label><button className="icon-button" aria-label={`${c.label}の列を前へ`} disabled={c.key === "name" || index <= 1} onClick={() => reorderColumn(c.key, -1)}><ArrowUp /></button><button className="icon-button" aria-label={`${c.label}の列を後ろへ`} disabled={c.key === "name" || index === orderedColumns.length - 1} onClick={() => reorderColumn(c.key, 1)}><ArrowDown /></button></div>)}</div>{storageNotice ? <p role="status">{storageNotice}</p> : null}</section> : null}
-    <p className="position-result-count">{page.label}・{rows.length}件・{snapshot.fiscalYear}年度{snapshot.isCurrent ? "（現在）" : "（過年度）"}{page.section === "CONTINGENT" ? "・B/S外" : ""}</p>
+    <p className="position-result-count">{page.label}・{rows.length}件・{snapshot.fiscalYear}年度{snapshot.isCurrent ? "（現在）" : "（過年度）"}{page.section === "CONTINGENT" ? "・B/S外" : ""}{carryoverCount > 0 ? `・前年のまま${carryoverCount}件` : ""}</p>
     <section className="panel category-table-panel"><ScrollRegion className="category-table-scroll" label={`${page.label}の明細表`}><table className="category-detail-table" style={{ width: visibleColumns.reduce((sum, c) => sum + preferences.widths[c.key], 0) + NUMBER_COLUMN_WIDTH + ACTIONS_COLUMN_WIDTH }}><caption className="sr-only">{page.label}の明細</caption><colgroup><col data-column-width="number" style={{ width: NUMBER_COLUMN_WIDTH }} />{visibleColumns.map((c) => <col key={c.key} data-column-width={c.key} style={{ width: preferences.widths[c.key] }} />)}<col data-column-width="actions" style={{ width: ACTIONS_COLUMN_WIDTH }} /></colgroup><thead><tr><th scope="col" className="number fixed-number">No.</th>{visibleColumns.map((c) => <th key={c.key} scope="col" className={`${c.key === "name" ? "fixed-name" : ""} ${c.alignment ?? "text"}`}>{c.label}</th>)}<th scope="col">操作・並び順</th></tr></thead><tbody>{rows.map((p, index) => <tr id={`position-${p.id}`} key={p.id} className={spotlightId === p.id ? "is-spotlight" : undefined}><td className="number fixed-number" aria-label={`詳細番号 ${index + 1}`}>{index + 1}</td>{visibleColumns.map((c) => <td key={c.key} data-column={c.key} className={`${c.key === "name" ? "fixed-name" : ""} ${c.alignment ?? "text"}`}>{cell(p, c.key)}</td>)}<td className="category-row-actions-cell"><div className="category-row-actions"><button className="icon-button" aria-label={`${p.name}を修正（操作）`} disabled={saving} onClick={() => onEdit(p)}><Pencil /></button><button className="icon-button danger" aria-label={`${p.name}を削除`} disabled={saving} onClick={() => onDelete(p)}><Trash2 /></button><button className="icon-button" aria-label={`${p.name}を前へ移動`} disabled={saving || !neighbor(p, -1)} onClick={() => move(p, -1)}><ArrowUp /></button><button className="icon-button" aria-label={`${p.name}を後ろへ移動`} disabled={saving || !neighbor(p, 1)} onClick={() => move(p, 1)}><ArrowDown /></button></div></td></tr>)}</tbody></table></ScrollRegion>{rows.length === 0 ? <div className="position-detail-empty"><strong>この科目の明細はまだありません</strong><button className="button primary" onClick={add} disabled={saving}><Plus />明細を追加</button></div> : null}</section>
     <p className="position-list-note">標準表示は画面内に収まりやすい列幅です。必要な列は「表示する列」から追加でき、収まらない場合は横スクロールできます。名称列は左側に固定しています。</p>
   </>;

@@ -16,6 +16,8 @@ import { positionAllocationAmounts, positionAllocationLabel, positionCaption, po
 import { detailPageFor } from "@/lib/position-detail-pages";
 import { positionPrintSize } from "@/lib/position-print-size";
 import { ScrollRegion } from "@/components/scroll-region";
+import { CarryoverBadge } from "@/components/carryover-badge";
+import { type CarriedOverPositions } from "@/lib/position-trend";
 
 type AllocationPayload = { positionId: number; amounts: Array<{ familyMemberId: number; amountJpy: number }> };
 type AllocationSummary = { amountJpy: number };
@@ -372,7 +374,7 @@ function AllocationMatrix({ rows, allPositions, familyMembers, saving, onSave, t
           <tr className="position-summary-primary-row">
             <td rowSpan={2} className="number position-summary-sticky-number" aria-label={`一覧番号 ${index + 1}`}>{index + 1}</td>
             <td rowSpan={2} className="center position-summary-sticky-section"><span className={`position-section-badge section-${positionSection(position)}`}>{positionSection(position) === "ASSET" ? "資産" : positionSection(position) === "LIABILITY" ? "負債" : "B/S外"}</span></td>
-            <th scope="rowgroup" className="position-summary-sticky-subject"><Link href={detailHref(position)} className="position-summary-name"><span>{positionCaption(position)}</span><strong>{position.name || "名称未登録"}</strong></Link></th>
+            <th scope="rowgroup" className="position-summary-sticky-subject"><Link href={detailHref(position)} className="position-summary-name"><span className="position-summary-caption">{positionCaption(position)}</span><strong>{position.name || "名称未登録"}</strong></Link></th>
             <td className="position-summary-info" title={positionKeyInfo(position)}>{positionKeyInfo(position)}</td>
             <td rowSpan={2} className="number position-summary-sticky-money"><PositionMoneyLines position={position} burden={burden} /></td>
             {familyMembers.map((member) => {
@@ -395,8 +397,9 @@ function AllocationMatrix({ rows, allPositions, familyMembers, saving, onSave, t
   </>;
 }
 
-export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBulkManage, onSaveAllocations = async () => false, familyMembers = [], saving }: {
+export function PositionListView({ snapshot, detailHref, taxBurden, carriedOver, onAdd, onBulkManage, onSaveAllocations = async () => false, familyMembers = [], saving }: {
   snapshot: Snapshot; detailHref: string; taxBurden: (position: Snapshot["positions"][number]) => number | null;
+  carriedOver?: CarriedOverPositions | null;
   onAdd: (section: PositionSection) => void; onBulkManage: () => void; onSaveAllocations?: (positions: AllocationPayload[]) => Promise<boolean>; familyMembers?: FamilyMember[]; saving: boolean;
 }) {
   const [allocationMode, setAllocationMode] = useState(false);
@@ -408,6 +411,9 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
   const section = params.get("listSection") ?? "all";
   const category = params.get("listCategory") ?? "all";
   const sort = params.get("listSort") ?? "classification";
+  const carryoverCount = carriedOver ? snapshot.positions.filter((p) => carriedOver.ids.has(p.id)).length : 0;
+  // 対象が無くなった（全部直した）あとに URL だけ残っていても、空の一覧にしない。
+  const carryoverOnly = params.get("carryover") === "1" && carryoverCount > 0;
   function change(key: string, value: string) {
     const next = new URLSearchParams(params.toString());
     if (value === "" || value === "all" || (key === "listSort" && value === "classification")) next.delete(key); else next.set(key, value);
@@ -415,9 +421,9 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
   }
   const rows = useMemo(() => {
     const terms = searchTerms(query);
-    const filtered = snapshot.positions.filter((p) => (section === "all" || positionSection(p) === section) && (category === "all" || p.category === category) && matchesSearchTerms([p.name, positionKeyInfo(p), positionAllocationLabel(p), positionCaption(p), p.institution, p.assetDetails?.propertyAddress ?? "", p.note], terms));
+    const filtered = snapshot.positions.filter((p) => (section === "all" || positionSection(p) === section) && (category === "all" || p.category === category) && (!carryoverOnly || carriedOver!.ids.has(p.id)) && matchesSearchTerms([p.name, positionKeyInfo(p), positionAllocationLabel(p), positionCaption(p), p.institution, p.assetDetails?.propertyAddress ?? "", p.note], terms));
     return filtered.sort((a, b) => sort === "value-desc" ? primaryAmount(b).valueJpy - primaryAmount(a).valueJpy || a.id - b.id : sort === "value-asc" ? primaryAmount(a).valueJpy - primaryAmount(b).valueJpy || a.id - b.id : sort === "registered" ? a.id - b.id : comparePositionClassification(a, b));
-  }, [snapshot.positions, query, section, category, sort]);
+  }, [snapshot.positions, query, section, category, sort, carryoverOnly, carriedOver]);
   const categories = [...new Set(snapshot.positions.map((p) => p.category))];
   const allocationTotals = useMemo(() => listAllocationTotals(snapshot.positions, familyMembers), [snapshot.positions, familyMembers]);
   const taxTotals = useMemo(() => listTaxTotals(rows, familyMembers, taxBurden), [rows, familyMembers, taxBurden]);
@@ -444,8 +450,9 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
       <label>区分<select value={section} onChange={(e) => change("listSection", e.target.value)}><option value="all">すべて</option><option value="ASSET">資産</option><option value="LIABILITY">負債</option><option value="CONTINGENT">偶発債務（B/S外）</option></select></label>
       <label>科目<select value={category} onChange={(e) => change("listCategory", e.target.value)}><option value="all">すべて</option>{categories.map((c) => <option key={c} value={c}>{categoryLabels[c] ?? c}</option>)}</select></label>
       <label>表示順<select value={sort} onChange={(e) => change("listSort", e.target.value)}><option value="classification">区分・科目順</option><option value="value-desc">評価額・給付額の大きい順</option><option value="value-asc">評価額・給付額の小さい順</option><option value="registered">登録順</option></select></label>
+      {carryoverCount > 0 ? <label className="position-list-carryover" title={`${carriedOver!.previous!.fiscalYear}年度と金額が同じ明細だけを表示します`}><input type="checkbox" checked={carryoverOnly} onChange={(e) => change("carryover", e.target.checked ? "1" : "")} />前年のままだけ（{carryoverCount}件）</label> : null}
     </div>
-    <p className="position-result-count" aria-live="polite">{rows.length}件（全{snapshot.positions.length}件中）</p>
+    <p className="position-result-count" aria-live="polite">{rows.length}件（全{snapshot.positions.length}件中）{carryoverCount > 0 ? `・前年のまま${carryoverCount}件` : ""}</p>
     <section className="panel position-summary-panel">
       <div className={allocationMode ? "" : "allocation-editor-hidden"}><AllocationMatrix key={`${snapshot.id}-${familyMembers.map((member) => member.id).join("-")}`} rows={rows} allPositions={snapshot.positions} familyMembers={familyMembers} saving={saving} onSave={onSaveAllocations} taxBurden={taxBurden} detailHref={href} focusTarget={allocationFocusTarget} /></div>
       <div className={allocationMode ? "allocation-view-hidden" : ""}><ScrollRegion className="position-summary-scroll" label="資産・負債一覧"><table className="position-summary-table" aria-label="資産・負債一覧" data-print-size={positionPrintSize(familyMembers.length)}>
@@ -466,7 +473,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
               ? <Link href={targetHref} className="position-summary-cell-link" aria-label={`${p.name}の詳細を開く`}>{index + 1}</Link>
               : <button type="button" className="position-summary-allocation-button" onClick={() => openAllocation(p.id)} aria-label={`${p.name}の割り振りを編集`}>{index + 1}</button>}</td>
             <td rowSpan={2} data-label="区分" className="center position-summary-sticky-section position-summary-detail-target"><Link href={targetHref} className="position-summary-cell-link" aria-label={`${p.name}の詳細を開く`}><span className={`position-section-badge section-${positionSection(p)}`}>{positionSection(p) === "ASSET" ? "資産" : positionSection(p) === "LIABILITY" ? "負債" : "B/S外"}</span></Link></td>
-            <th scope="rowgroup" className="position-summary-sticky-subject position-summary-detail-target"><Link href={targetHref} className="position-summary-name"><span>{positionCaption(p)}</span><strong>{p.name || "名称未登録"}</strong></Link></th>
+            <th scope="rowgroup" className="position-summary-sticky-subject position-summary-detail-target"><Link href={targetHref} className="position-summary-name"><span className="position-summary-caption">{positionCaption(p)}</span><span className="position-summary-title"><strong>{p.name || "名称未登録"}</strong><CarryoverBadge carriedOver={carriedOver} positionId={p.id} /></span></Link></th>
             <td className="position-summary-info position-summary-detail-target" title={positionKeyInfo(p)}><Link href={targetHref} className="position-summary-cell-link" aria-label={`${p.name}の詳細を開く`}>{positionKeyInfo(p)} <PropertyPlanBadge position={p} /></Link></td>
             <td className="number position-summary-sticky-money position-summary-value-amount position-summary-detail-target" aria-label={`${primaryAmount(p).label} ${primaryAmountText(p)}`}><Link href={targetHref} className="position-summary-cell-link" aria-label={`${p.name}の詳細を開く`}><strong>{primaryAmountText(p)}</strong></Link></td>
             {familyMembers.map((member) => {
@@ -514,7 +521,7 @@ export function PositionListView({ snapshot, detailHref, taxBurden, onAdd, onBul
           <td className="position-summary-action-column" />
         </tr>
       </tfoot>
-    </table></ScrollRegion>{rows.length === 0 ? <div className="position-detail-empty"><strong>{snapshot.positions.length ? "条件に一致する明細がありません" : "まだ明細が登録されていません"}</strong>{snapshot.positions.length ? <button className="button secondary" onClick={() => { const next = new URLSearchParams(params.toString()); ["q", "listSection", "listCategory"].forEach((k) => next.delete(k)); router.replace(`${pathname}?${next}`, { scroll: false }); }}>絞り込みを解除</button> : <button className="button primary" onClick={() => onAdd("ASSET")}><Plus />明細を追加</button>}</div> : null}</div>
+    </table></ScrollRegion>{rows.length === 0 ? <div className="position-detail-empty"><strong>{snapshot.positions.length ? "条件に一致する明細がありません" : "まだ明細が登録されていません"}</strong>{snapshot.positions.length ? <button className="button secondary" onClick={() => { const next = new URLSearchParams(params.toString()); ["q", "listSection", "listCategory", "carryover"].forEach((k) => next.delete(k)); router.replace(`${pathname}?${next}`, { scroll: false }); }}>絞り込みを解除</button> : <button className="button primary" onClick={() => onAdd("ASSET")}><Plus />明細を追加</button>}</div> : null}</div>
     </section>
     <p className="position-list-note">{allocationMode ? "生命保険・退職金は詳細画面の受取人情報を相続税計算に使用します。" : "一覧では生命保険は死亡保険金、退職金は死亡退職金、それ以外は現在B/Sの評価額を表示します。相続税計算では生命保険・退職金の非課税額控除後の課税対象額を使用します。貸借対照表では生命保険・退職金を解約返戻金・解約手当金で表示し、生命保険契約に関する権利は解約返戻金相当額で評価します。"}</p>
   </>;

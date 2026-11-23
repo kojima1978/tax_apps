@@ -4,6 +4,7 @@ import {
   type PositionSection,
   type Snapshot,
   categoryRank,
+  deemedBenefit,
   institutionOrPropertyAddress,
   positionSection,
   propertyTypeOf,
@@ -127,4 +128,33 @@ export function lineageHistory(snapshots: Snapshot[], lineageKey: string): Linea
     const previous = offset > 0 ? found[index - 1] : null;
     return { snapshot, position, change: position && previous ? position.valueJpy - previous.valueJpy : null };
   });
+}
+
+export type CarriedOverPositions = {
+  /** 比べた前の年度（その顧客の、この年度より前で最も新しい年度）。無ければ null */
+  previous: Snapshot | null;
+  /** 前の年度と金額が同じ明細の ID */
+  ids: ReadonlySet<number>;
+};
+
+/**
+ * 「前年のまま」の明細。翌期更新は前年度をコピーしてから直すので、直し忘れた明細は前年の金額のまま残る。
+ * 前の年度に同じ系統キーの明細があり、金額（通貨と外貨建ての額。保険・退職金は給付額も）が同じものを返す。
+ * 円換算額は比べない（為替だけ直した外貨預金も、残高は前年のままなので印を残す）。名称・所在など
+ * 金額以外の違いは見ない（名称だけ直して金額を直し忘れたものを拾うため）。
+ * 判定は保存された値だけで行い、DB に「確認済み」を持たない。前年と同じ金額が正しい明細（路線価が
+ * 据え置きの土地など）にも印は出たままになる ── 印は事実（前年と同じ金額）を示すだけで、誤りを意味しない。
+ */
+export function carriedOverPositions(snapshots: Snapshot[], snapshot: Snapshot): CarriedOverPositions {
+  const previous = snapshots
+    .filter((candidate) => candidate.fiscalYear < snapshot.fiscalYear)
+    .reduce<Snapshot | null>((latest, candidate) => latest === null || candidate.fiscalYear > latest.fiscalYear ? candidate : latest, null);
+  const ids = new Set<number>();
+  if (!previous) return { previous, ids };
+  const previousByKey = new Map(previous.positions.filter((position) => position.lineageKey).map((position) => [position.lineageKey, position]));
+  for (const position of snapshot.positions) {
+    const before = position.lineageKey ? previousByKey.get(position.lineageKey) : undefined;
+    if (before && before.currency === position.currency && before.originalAmount === position.originalAmount && deemedBenefit(before) === deemedBenefit(position)) ids.add(position.id);
+  }
+  return { previous, ids };
 }

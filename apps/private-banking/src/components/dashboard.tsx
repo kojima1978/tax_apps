@@ -25,6 +25,7 @@ import { PositionListView } from "@/components/position-list-view";
 import { PositionDetailsPrintView } from "@/components/position-details-print-view";
 import { PropertyPlanReport } from "@/components/property-plan-report";
 import { buildPositionTaxBurden } from "@/lib/position-tax-burden";
+import { carriedOverPositions } from "@/lib/position-trend";
 import { type PropertyPlan } from "@/lib/property-plan";
 import { ActivityView } from "@/components/activity-view";
 import { PRINT_SECTION_META, PrintFrontMatter } from "@/components/print-front-matter";
@@ -122,6 +123,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const legalHeirNameSet = useMemo(() => legalHeirNames(portfolio?.familyMembers ?? []), [portfolio]);
   // 資産・負債一覧、資産・負債詳細とその印刷で同じ負担額を使う。
   const positionTaxBurden = useMemo(() => workingSnapshot ? buildPositionTaxBurden(workingSnapshot, legalHeirNameSet) : () => null, [workingSnapshot, legalHeirNameSet]);
+  // 前の年度と金額が同じ明細（「前年のまま」の印）。資産・負債一覧、資産・負債詳細、まとめて入力で同じものを使う。
+  const carriedOver = useMemo(() => portfolio && workingSnapshot ? carriedOverPositions(portfolio.snapshots, workingSnapshot) : null, [portfolio, workingSnapshot]);
   // 保険の被保険者・受取人の選択肢。本人と親族関係タブの登録者を氏名で並べる。
   const familyPeopleNames = useMemo(
     () => [...new Set([portfolio?.household.name, ...(portfolio?.familyMembers ?? []).map((member) => member.name)].filter((name): name is string => Boolean(name?.trim())))],
@@ -497,8 +500,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             </div>
           ) : null}
 
-          {(section === "position-list" || printIncludes("position-list")) && workingSnapshot ? <div id="print-section-position-list" className={`report-document ${section !== "position-list" ? "print-only-document" : ""} ${printIncludes("position-list") ? "" : "print-excluded-document"}`}><PositionListView snapshot={workingSnapshot} detailHref={sectionHref("positions")} taxBurden={positionTaxBurden} familyMembers={portfolio.familyMembers} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onSaveAllocations={savePositionAllocations} saving={saving} /></div> : null}
-          {section === "positions" && workingSnapshot ? <div className="report-document position-details-screen"><PositionDetailsView snapshot={workingSnapshot} taxBurden={positionTaxBurden} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} saving={saving} spotlightId={spotlightId} /></div> : null}
+          {(section === "position-list" || printIncludes("position-list")) && workingSnapshot ? <div id="print-section-position-list" className={`report-document ${section !== "position-list" ? "print-only-document" : ""} ${printIncludes("position-list") ? "" : "print-excluded-document"}`}><PositionListView snapshot={workingSnapshot} detailHref={sectionHref("positions")} taxBurden={positionTaxBurden} carriedOver={carriedOver} familyMembers={portfolio.familyMembers} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onSaveAllocations={savePositionAllocations} saving={saving} /></div> : null}
+          {section === "positions" && workingSnapshot ? <div className="report-document position-details-screen"><PositionDetailsView snapshot={workingSnapshot} taxBurden={positionTaxBurden} carriedOver={carriedOver} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} saving={saving} spotlightId={spotlightId} /></div> : null}
           {printIncludes("details") && workingSnapshot ? <div id="print-section-details" className="report-document print-only-document"><PositionDetailsPrintView snapshot={workingSnapshot} taxBurden={positionTaxBurden} /></div> : null}
           {(section === "property-plan" || printIncludes("property-plan")) && workingSnapshot ? <div id="print-section-property-plan" className={`report-document ${section !== "property-plan" ? "print-only-document" : ""} ${printIncludes("property-plan") ? "" : "print-excluded-document"}`}><PropertyPlanReport key={workingSnapshot.id} snapshot={workingSnapshot} onEdit={openEditPosition} onChangePlan={section === "property-plan" ? savePropertyPlan : undefined} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
@@ -512,7 +515,7 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
       <ToastRegion toast={toast} error={clientDeleteOpen ? undefined : error} onDismissToast={dismissToast} onDismissError={() => setError("")} />
       {menuOpen ? <button className="backdrop" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} /> : null}
       {modalOpen ? <div hidden={fxSettingsModalOpen}><PositionModal currencyCodes={portfolio.currencies} position={editingPosition} defaultSection={newPositionSection} defaultCategory={newPositionCategory} defaultPropertyType={newPositionPropertyType} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} fxRates={workingSnapshot?.fxRates ?? {}} onClose={closePositionModal} onSubmit={savePosition} saving={saving} onOpenFxSettings={() => setFxSettingsModalOpen(true)} /></div> : null}
-      {bulkModalOpen && workingSnapshot ? <div hidden={fxSettingsModalOpen}><BulkPositionModal currencyCodes={portfolio.currencies} onOpenFxSettings={() => setFxSettingsModalOpen(true)} snapshot={workingSnapshot} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /></div> : null}
+      {bulkModalOpen && workingSnapshot ? <div hidden={fxSettingsModalOpen}><BulkPositionModal currencyCodes={portfolio.currencies} onOpenFxSettings={() => setFxSettingsModalOpen(true)} snapshot={workingSnapshot} carriedOver={carriedOver} people={familyPeopleNames} legalHeirNames={legalHeirNameSet} onClose={() => setBulkModalOpen(false)} onSubmit={saveBulkPositions} saving={saving} /></div> : null}
       {deletingSnapshot ? <DeleteSnapshotModal snapshot={deletingSnapshot} snapshotCount={portfolio.snapshots.length} onClose={() => setDeletingSnapshot(null)} onSubmit={deleteSnapshot} saving={saving} /> : null}
       {forecastModalOpen && workingSnapshot ? <ForecastModal snapshot={workingSnapshot} onClose={() => setForecastModalOpen(false)} onSubmit={saveForecast} saving={saving} /> : null}
       {yearCreationSourceId !== null ? <YearCreationModal snapshots={portfolio.snapshots} initialSourceId={yearCreationSourceId} onClose={() => setYearCreationSourceId(null)} onSubmit={saveSnapshot} onEditExisting={(snapshotId) => { setYearCreationSourceId(null); editSnapshot(snapshotId); }} saving={saving} /> : null}

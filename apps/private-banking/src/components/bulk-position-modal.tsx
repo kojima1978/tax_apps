@@ -11,6 +11,7 @@ import { currencyOptions, fxRateFor, positionCurrencies } from "@/lib/fx-rates";
 import { decimalToFraction, formatCommaNumberInput, yen } from "@/lib/format";
 import { propertyLocationOf } from "@/lib/municipality";
 import { assetDetailTypeOptions } from "@/lib/position-display";
+import { type CarriedOverPositions } from "@/lib/position-trend";
 import {
   type AssetDetails,
   type BenefitAllocation,
@@ -275,8 +276,10 @@ const bulkRowIsFilledNew = (row: BulkRow) => row.positionId === null && (row.cur
 /** 行の内容だけを比べるための文字列。id と検証結果は保存内容と関係しないので落とす。 */
 const bulkRowContent = (row: BulkRow) => JSON.stringify({ ...row, id: 0, error: "", errorFields: [] });
 
-export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, onSubmit, saving, currencyCodes = positionCurrencies, onOpenFxSettings }: {
+export function BulkPositionModal({ snapshot, carriedOver, people, legalHeirNames, onClose, onSubmit, saving, currencyCodes = positionCurrencies, onOpenFxSettings }: {
   snapshot: Snapshot;
+  /** 前の年度と金額が同じ明細。触っていない行の状態を「前年のまま」と出す。 */
+  carriedOver?: CarriedOverPositions | null;
   /** 被保険者・受取人の選択肢。本人と親族関係タブの登録者。 */
   people: string[];
   /** 受取人が非課税枠の対象かを判定するための法定相続人の氏名。 */
@@ -760,7 +763,10 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
             <td className="bulk-row-actions"><div className="bulk-row-actions-content">
               <button type="button" className="icon-button" aria-label={`${rowIndex + 1}行目を複製`} title="行を複製" onClick={() => addRow(row.id, row)}><Copy /></button>
               {row.positionId === null ? <button type="button" className="icon-button danger" aria-label={`${rowIndex + 1}行目を削除`} title="新規行を削除" onClick={() => removeRow(row.id)}><Trash2 /></button> : null}
-              <span className={row.positionId === null ? "bulk-new-badge" : "bulk-existing-badge"}>{row.positionId === null ? "未登録" : "登録済"}</span>
+              {row.positionId === null ? <span className="bulk-new-badge">未登録</span>
+                : carriedOver?.previous && carriedOver.ids.has(row.positionId) && !savedRowsByType[entryType].includes(row)
+                  ? <span className="bulk-existing-badge carryover-badge" title={`${carriedOver.previous.fiscalYear}年度と同じ金額です`}>前年のまま</span>
+                  : <span className="bulk-existing-badge">登録済</span>}
             </div></td>
           </tr>{entryType === "INSURANCE" && expandedRecipientRow === `${entryType}-${row.id}` ? <tr className="bulk-benefit-detail-row" id={`bulk-recipients-${row.id}`}><td colSpan={columns.length + 3}><BulkBenefitRecipients currency={row.currency} fxRate={fxRateFor(snapshot.fxRates, row.currency)} drafts={row.benefitAllocations.length ? row.benefitAllocations : benefitDrafts(soleAllocation(row.recipient))} benefit={row.benefit} people={people} legalHeirNames={legalHeirNames} rowLabel={`${rowIndex + 1}行目`} onChange={(drafts) => updateRecipients(row.id, drafts)} onClose={() => { setExpandedRecipientRow(null); dialogRef.current?.querySelector<HTMLButtonElement>(`button[aria-controls="bulk-recipients-${row.id}"]`)?.focus(); }} /></td></tr> : null}</Fragment>)}</tbody>
         </table>
