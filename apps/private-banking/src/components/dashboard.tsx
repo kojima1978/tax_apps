@@ -20,10 +20,11 @@ import { InheritanceTaxReport } from "@/components/inheritance-tax-report";
 import { PersonView } from "@/components/person-view";
 import { AppBrand, PortalLink } from "@/components/portal-link";
 import { PositionModal } from "@/components/position-modal";
-import { AssetsView, buildPositionTaxBurden } from "@/components/positions-view";
+import { PositionDetailsView } from "@/components/position-details-view";
 import { PositionListView } from "@/components/position-list-view";
 import { PositionDetailsPrintView } from "@/components/position-details-print-view";
 import { PropertyPlanReport } from "@/components/property-plan-report";
+import { buildPositionTaxBurden } from "@/lib/position-tax-burden";
 import { type PropertyPlan } from "@/lib/property-plan";
 import { ActivityView } from "@/components/activity-view";
 import { PRINT_SECTION_META, PrintFrontMatter } from "@/components/print-front-matter";
@@ -119,6 +120,8 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
   const successionAssets = useMemo(() => successionAssetTotals(workingSnapshot?.positions ?? []), [workingSnapshot]);
   // 非課税枠の判定に使う法定相続人の氏名。受取人を選ぶだけで判定できるよう、入力欄では持たせない。
   const legalHeirNameSet = useMemo(() => legalHeirNames(portfolio?.familyMembers ?? []), [portfolio]);
+  // 資産・負債一覧、資産・負債詳細とその印刷で同じ負担額を使う。
+  const positionTaxBurden = useMemo(() => workingSnapshot ? buildPositionTaxBurden(workingSnapshot, legalHeirNameSet) : () => null, [workingSnapshot, legalHeirNameSet]);
   // 保険の被保険者・受取人の選択肢。本人と親族関係タブの登録者を氏名で並べる。
   const familyPeopleNames = useMemo(
     () => [...new Set([portfolio?.household.name, ...(portfolio?.familyMembers ?? []).map((member) => member.name)].filter((name): name is string => Boolean(name?.trim())))],
@@ -494,9 +497,9 @@ export function Dashboard({ householdId, section }: { householdId: number; secti
             </div>
           ) : null}
 
-          {(section === "position-list" || printIncludes("position-list")) && workingSnapshot ? <div id="print-section-position-list" className={`report-document ${section !== "position-list" ? "print-only-document" : ""} ${printIncludes("position-list") ? "" : "print-excluded-document"}`}><PositionListView snapshot={workingSnapshot} detailHref={sectionHref("positions")} taxBurden={buildPositionTaxBurden(workingSnapshot, legalHeirNameSet)} familyMembers={portfolio.familyMembers} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onSaveAllocations={savePositionAllocations} saving={saving} /></div> : null}
-          {section === "positions" && workingSnapshot ? <div className="report-document position-details-screen"><AssetsView detailed snapshot={workingSnapshot} legalHeirNames={legalHeirNameSet} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} saving={saving} spotlightId={spotlightId} /></div> : null}
-          {printIncludes("details") && workingSnapshot ? <div id="print-section-details" className="report-document print-only-document"><PositionDetailsPrintView snapshot={workingSnapshot} taxBurden={buildPositionTaxBurden(workingSnapshot, legalHeirNameSet)} /></div> : null}
+          {(section === "position-list" || printIncludes("position-list")) && workingSnapshot ? <div id="print-section-position-list" className={`report-document ${section !== "position-list" ? "print-only-document" : ""} ${printIncludes("position-list") ? "" : "print-excluded-document"}`}><PositionListView snapshot={workingSnapshot} detailHref={sectionHref("positions")} taxBurden={positionTaxBurden} familyMembers={portfolio.familyMembers} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onSaveAllocations={savePositionAllocations} saving={saving} /></div> : null}
+          {section === "positions" && workingSnapshot ? <div className="report-document position-details-screen"><PositionDetailsView snapshot={workingSnapshot} taxBurden={positionTaxBurden} onAdd={openNewPosition} onBulkManage={() => setBulkModalOpen(true)} onEdit={openEditPosition} onDelete={deletePosition} onReorder={(side, orderedIds) => reorderPositions(workingSnapshot.id, side, orderedIds)} saving={saving} spotlightId={spotlightId} /></div> : null}
+          {printIncludes("details") && workingSnapshot ? <div id="print-section-details" className="report-document print-only-document"><PositionDetailsPrintView snapshot={workingSnapshot} taxBurden={positionTaxBurden} /></div> : null}
           {(section === "property-plan" || printIncludes("property-plan")) && workingSnapshot ? <div id="print-section-property-plan" className={`report-document ${section !== "property-plan" ? "print-only-document" : ""} ${printIncludes("property-plan") ? "" : "print-excluded-document"}`}><PropertyPlanReport key={workingSnapshot.id} snapshot={workingSnapshot} onEdit={openEditPosition} onChangePlan={section === "property-plan" ? savePropertyPlan : undefined} /></div> : null}
           {section === "profile" ? <div className="report-document print-excluded-document"><PersonView household={portfolio.household} referenceDate={reportSnapshot.asOfDate} saving={saving} saved={clientSaved} onSubmit={saveClient} onRequestDelete={() => { setError(""); setClientDeleteOpen(true); }} /></div> : null}
           {section === "family" ? <div className="report-document print-excluded-document"><FamilyView members={portfolio.familyMembers} referenceDate={reportSnapshot.asOfDate} saving={saving} onSave={saveFamilyMembers} /></div> : null}

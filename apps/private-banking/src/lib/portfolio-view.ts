@@ -54,7 +54,6 @@ export type Snapshot = {
   fxRates: FxRates; updatedAt: string; positions: Position[];
 };
 export type PositionSection = "ASSET" | "LIABILITY" | "CONTINGENT";
-export type PositionSortMode = "manual" | "classification-asc" | "classification-desc" | "value-desc" | "value-asc";
 export type ValuationFormula = "MANUAL" | "STOCK" | "UNIT_RATE" | "LAND_ROADSIDE" | "LAND_MULTIPLIER" | "BUILDING";
 export type Portfolio = {
   currencies?: string[];

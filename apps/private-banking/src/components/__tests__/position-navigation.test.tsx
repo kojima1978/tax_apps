@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PositionListView } from "@/components/position-list-view";
 import { PositionDetailsView } from "@/components/position-details-view";
 import { PositionDetailsPrintView } from "@/components/position-details-print-view";
-import { buildPositionTaxBurden } from "@/components/positions-view";
+import { buildPositionTaxBurden } from "@/lib/position-tax-burden";
 import { type Position, type Snapshot } from "@/lib/portfolio-view";
 import { type FamilyMember } from "@/lib/family";
 import { yen, triangleYen } from "@/lib/format";
