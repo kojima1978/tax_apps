@@ -366,6 +366,36 @@ table { width: 100%; border-collapse: collapse; font-size: var(--font-body); }
 .trend-change.positive { color: #166534; }
 .trend-change.negative { color: var(--danger); }
 .trend-change.neutral { color: var(--slate-500); }
+/* 明細ごとの推移（年度比較の2つ目の表）。年度推移表と同じ3期・同じ色分けで、明細の列だけ広く取る。
+   名称は押すと全年度の推移（PositionHistoryModal）を開くボタン。科目・金融機関／所在・旧名称は小さく添える。 */
+.position-trend-panel { margin-top: 18px; }
+.position-trend-table thead th:first-child { width: 32%; }
+.position-trend-table thead th.period-no-data { background: #eef1ef; }
+.position-trend-table tbody th { padding-block: 8px; font-weight: 500; }
+.position-trend-table tbody th small { display: block; color: var(--slate-500); font-size: var(--font-note); font-weight: 500; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }
+.position-trend-table .position-trend-caption { font-weight: 700; }
+.position-trend-name { min-height: 36px; padding: 0; color: #166534; background: transparent; border: 0; display: block; font: inherit; font-weight: 700; line-height: 1.45; text-align: left; text-decoration: underline; text-decoration-color: #86efac; text-underline-offset: 3px; white-space: normal; overflow-wrap: anywhere; cursor: pointer; }
+.position-trend-name:hover { color: #14532d; text-decoration-color: currentColor; }
+.position-trend-tag { margin-left: 6px; padding: 0 6px; border-radius: 4px; display: inline-block; font-size: var(--font-note); font-weight: 700; line-height: 1.6; }
+.position-trend-tag.new { color: #166534; background: #dcfce7; }
+.position-trend-tag.ended { color: var(--slate-700); background: var(--slate-100); }
+.position-trend-ended td:not(.trend-change) { color: var(--slate-500); }
+.position-trend-empty { margin: 0; padding: 24px 22px; color: var(--slate-500); font-size: var(--font-body); }
+/* 1つの明細の全年度の推移（ダイアログ）。年度は新しい順。 */
+.modal.position-history-modal { width: min(980px, 100%); }
+.position-history-modal > header h2 { font-size: 20px; }
+.position-history-caption { display: block; color: var(--slate-500); font-size: var(--font-note); font-weight: 700; }
+.position-history-body { padding: 16px 24px 24px; }
+.position-history-note { margin: 0 0 12px; padding: 8px 12px; color: #52635b; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: var(--font-note); }
+.position-history-table { width: 100%; min-width: 760px; table-layout: fixed; font-variant-numeric: tabular-nums; }
+.position-history-table thead th:nth-child(1) { width: 19%; }
+.position-history-table thead th:nth-child(2) { width: 29%; }
+.position-history-table thead th:nth-child(3) { width: 22%; }
+.position-history-table tbody th, .position-history-table tbody td { padding: 10px 12px; color: var(--slate-950); background: #fff; border-bottom: 1px solid var(--line); font-size: var(--font-body); vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
+.position-history-table tbody th strong, .position-history-table tbody small { display: block; }
+.position-history-table tbody small { margin-top: 2px; color: var(--slate-500); font-size: var(--font-note); font-weight: 500; }
+.position-history-name { font-weight: 700; }
+.position-history-absent th, .position-history-absent-cell { color: var(--slate-500) !important; background: #f6f8f7 !important; }
 /* 狭い画面では表ごと横に送る。セルは折り返さない（基準日の「2026（令和8）年1月1日」や「現在」が1文字ずつ縦に割れる）。 */
 .history-table { min-width: 790px; }
 .history-table th, .history-table td { white-space: nowrap; }
@@ -1516,7 +1546,8 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .tax-api-button { flex: 1 1 auto; justify-content: center; }
   .insurance-data-note { margin-inline: 14px; }
   .table-scroll { overflow: visible; }
-  .trend-scroll, .history-list-panel .table-scroll, .properties-panel .table-scroll, .location-adopt-scroll { overflow-x: auto; }
+  .trend-scroll, .history-list-panel .table-scroll, .properties-panel .table-scroll, .location-adopt-scroll, .position-history-body .table-scroll { overflow-x: auto; }
+  .position-history-body { padding: 12px; }
   .trend-panel .panel-header, .history-list-panel .panel-header { padding: 16px; }
   .trend-guidance { padding-inline: 16px; }
   .position-table { min-width: 0; display: block; background: var(--background); }
@@ -2604,6 +2635,16 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .trend-table tbody th, .trend-table tbody td { padding: 6px 9px; font-size: 11px; }
   .trend-table .trend-section th { padding: 5px 9px; font-size: 11px; }
   .trend-table .trend-child th { padding-left: 18px; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+  /* 明細ごとの推移は行数が顧客ごとに大きく違うので、年度推移表（1枚）とは別のページから始める。 */
+  .position-trend-panel { margin-top: 0; break-before: page; page-break-before: always; }
+  .position-trend-table thead th:first-child, .position-trend-table tbody th { width: 34%; max-width: 34%; }
+  .position-trend-table thead th.number:not(.trend-change-column) { width: 16%; }
+  .position-trend-table tbody th { padding-block: 4px; }
+  .position-trend-table tbody th small { font-size: 9.5px; line-height: 1.35; }
+  .position-trend-name { min-height: 0; color: var(--navy-950); text-decoration: none; font-size: 11px; }
+  .position-trend-tag { padding: 0 4px; font-size: 9px; line-height: 1.5; }
+  .position-trend-ended td:not(.trend-change) { color: var(--navy-950); }
+  .modal-layer:has(.position-history-modal) { display: none !important; }
   /* 帳票の表は内容の種類で配置を統一する。見出しも明細と同じ位置にそろえる。 */
   .report-document table th, .report-document table td { text-align: left; }
   .report-document table th.number, .report-document table td.number,

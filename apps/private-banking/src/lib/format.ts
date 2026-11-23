@@ -23,10 +23,10 @@ export const valuationNumber = new Intl.NumberFormat("ja-JP", { maximumFractionD
 export const householdBackupFileName = (clientCode: string, name: string, now?: Date) =>
   exportFileName([clientCode, name, "バックアップ"], "json", now);
 
-/** 億・万円で丸めた表示。B/Sの区画やサマリーで使う。 */
+/** 億・万円で丸めた表示。B/Sの区画やサマリーで使う。マイナスは他の金額と同じく「△」。 */
 export const compactYen = (value: number) => {
   const manYen = Math.round(value / 10000);
-  const sign = manYen < 0 ? "-" : "";
+  const sign = manYen < 0 ? "△" : "";
   const absoluteManYen = Math.abs(manYen);
   const okuYen = Math.floor(absoluteManYen / 10000);
   const remainderManYen = absoluteManYen % 10000;

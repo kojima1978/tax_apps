@@ -15,6 +15,8 @@ export type Position = {
   assetDetails: AssetDetails | null;
   allocations?: PositionAllocation[];
   note: string;
+  /** 年度をまたいで同じ明細をつなぐキー（lib/position-lineage.ts）。保存前の明細には無い。 */
+  lineageKey?: string;
 };
 export type PositionAllocation = {
   id: number;

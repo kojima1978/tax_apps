@@ -10,7 +10,7 @@ export const PRINT_SECTION_META: ReadonlyArray<{ key: PrintSection; title: strin
   { key: "position-list", title: "資産・負債一覧", description: "全区分の名称・評価額／給付額・相続税額の一覧" },
   { key: "details", title: "資産・負債詳細", description: "入力画面と同じ科目別の資産・負債明細" },
   { key: "property-plan", title: "不動産の今後の方針", description: "物件の基本情報・評価額と今後の方針" },
-  { key: "history", title: "年度比較", description: "年度ごとの残高推移と比較" },
+  { key: "history", title: "年度比較", description: "年度ごとの残高推移と明細ごとの推移" },
 ];
 
 /** 印刷時だけ出す表紙と目次（目次ページの下端に免責事項）。画面では `aria-hidden` で読み飛ばす。 */
