@@ -94,6 +94,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
   };
   const page = dash.unclassifiedTxs;
   const groupPage = dash.unclassifiedGroups;
+  const listStart = useRef<HTMLElement>(null);
 
   // 一覧はサーバーの1ページ分の写し。分類したものは先に画面から消す
   const [rows, setRows] = useState<TxRow[]>(page.items);
@@ -574,7 +575,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
       )}
 
       {grouped ? (
-        <section className="card" aria-label="摘要グループ">
+        <section ref={listStart} tabIndex={-1} className="card scroll-mt-4" aria-label="摘要グループ">
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2 text-sm">
             <Layers size={16} className="text-amber-600" aria-hidden="true" />
             摘要グループ: <strong className="tabular-nums">{num(groupCount)}</strong>組 /
@@ -613,10 +614,10 @@ export function UnclassifiedTab({ dash, reload }: Props) {
               </table>
             </div>
           )}
-          <Pagination page={groupPage.page} pageCount={groupPage.pageCount} params={params} setParams={setParams} pageParam="group_page" label="グループのページ" />
+          <Pagination page={groupPage.page} pageCount={groupPage.pageCount} params={params} setParams={setParams} pageParam="group_page" label="グループのページ" listStart={listStart} />
         </section>
       ) : (
-        <section className="card" aria-label="未分類の取引">
+        <section ref={listStart} tabIndex={-1} className="card scroll-mt-4" aria-label="未分類の取引">
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2 text-sm">
             <span>
               <strong className="tabular-nums">{num(total)}</strong>件{filtering && <small className="ml-1 text-slate-500">（{filterNote}で絞り込み中）</small>}
@@ -743,7 +744,7 @@ export function UnclassifiedTab({ dash, reload }: Props) {
               </table>
             </div>
           )}
-          <Pagination page={page.page} pageCount={page.pageCount} perPage={page.perPage} params={params} setParams={setParams} pageParam="unclassified_page" />
+          <Pagination page={page.page} pageCount={page.pageCount} perPage={page.perPage} params={params} setParams={setParams} pageParam="unclassified_page" listStart={listStart} />
         </section>
       )}
 

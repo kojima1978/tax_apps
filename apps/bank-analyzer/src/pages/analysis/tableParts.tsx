@@ -1,9 +1,10 @@
 // 取引の表で使う部品（保存状態・分類の選択・並び替えの見出し・ページ送り）。
 // 取引一覧・未分類・資金移動・質問候補のタブで共通
 
-import { useMemo } from 'react';
+import { useMemo, type RefObject } from 'react';
 import type { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Check, Loader2 } from 'lucide-react';
+import { useScrollToListStart } from '../../hooks/useScrollToListStart';
 import type { TxRow } from './types';
 
 type SetParams = ReturnType<typeof useSearchParams>[1];
@@ -116,6 +117,7 @@ export function Pagination({
   setParams,
   pageParam = 'page',
   label = 'ページ',
+  listStart,
 }: {
   page: number;
   pageCount: number;
@@ -125,7 +127,9 @@ export function Pagination({
   setParams: SetParams;
   pageParam?: string;
   label?: string;
+  listStart: RefObject<HTMLElement | null>;
 }) {
+  useScrollToListStart(page, perPage, listStart);
   const go = (p: number) => {
     const q = new URLSearchParams(params);
     if (p <= 1) q.delete(pageParam);

@@ -61,6 +61,7 @@ export function AllTab({ dash, reload }: Props) {
   const clearFilters = useClearFilters(params, setParams);
   const showSame = useShowSame(params, setParams);
   const page = dash.allTxs;
+  const listStart = useRef<HTMLElement>(null);
 
   // 一覧はサーバーの1ページ分の写し。分類の変更は先に画面へ出し、失敗したら戻す
   const [rows, setRows] = useState<TxRow[]>(page.items);
@@ -269,7 +270,7 @@ export function AllTab({ dash, reload }: Props) {
         </Link>
       </p>
 
-      <section className="card" aria-label="取引一覧">
+      <section ref={listStart} tabIndex={-1} className="card scroll-mt-4" aria-label="取引一覧">
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2">
           <span className="text-sm">
             <strong className="tabular-nums">{num(total)}</strong>件
@@ -456,7 +457,7 @@ export function AllTab({ dash, reload }: Props) {
           </div>
         )}
 
-        <Pagination page={page.page} pageCount={page.pageCount} perPage={page.perPage} params={params} setParams={setParams} />
+        <Pagination page={page.page} pageCount={page.pageCount} perPage={page.perPage} params={params} setParams={setParams} listStart={listStart} />
       </section>
 
       <TxEditDialog

@@ -2,7 +2,7 @@
 // 中身は server/lib/import の columns.ts（列）と format.ts（決まり・ひな形・指示文）から作り、
 // 分類名・キーワード・贈与の閾値は案件のいまの設定をサーバから取る（画面で分類名を持たない）
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { ArrowRight, ClipboardCopy, ClipboardPaste, Download, History, Save, Sparkles, Tags } from 'lucide-react';
 import { IMPORT_COLUMNS } from '../../../server/lib/import/columns';
 import { ERA_CHOICES, type EraChoice } from '../../../server/lib/import/eralessDates';
@@ -22,17 +22,18 @@ type Props = { caseId: string; open: boolean; onToggle: (open: boolean) => void;
 type ImproveKind = 'ocr' | 'classification';
 
 export function FormatGuide({ caseId, open, onToggle, variant, onPaste }: Props) {
-  const [instruction, setInstruction] = useState<string | null>(null);
   const [format, setFormat] = useState<ImportFormat | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [copyStatus, setCopyStatus] = useState<{ kind: ImproveKind; ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const ocrInstructionRef = useRef<HTMLTextAreaElement>(null);
+  const classificationInstructionRef = useRef<HTMLTextAreaElement>(null);
   // 指示文に足す、分かっていること（任意。依頼27）
   const [era, setEra] = useState<EraChoice | ''>('');
   const [period, setPeriod] = useState('');
   const [newRules, setNewRules] = useState('');
   const [historyVersion, setHistoryVersion] = useState('');
   const [improveOpen, setImproveOpen] = useState(false);
-  const [showInstruction, setShowInstruction] = useState(false);
   const [geminiResponse, setGeminiResponse] = useState('');
   const [classificationResponse, setClassificationResponse] = useState('');
   const [improveKind, setImproveKind] = useState<ImproveKind>('ocr');
@@ -50,26 +51,26 @@ export function FormatGuide({ caseId, open, onToggle, variant, onPaste }: Props)
   const fullInstruction = (f: ImportFormat) =>
     aiInstruction(f, { era: era || null, period }, { output: 'csv', extraRules: f.ocrPrompt?.currentRules, ocrOnly: true, includeImprovement: true });
   const fullClassificationInstruction = (f: ImportFormat) => classificationInstruction(f, f.classificationPrompt?.currentRules);
+  const ocrInstruction = useMemo(() => format ? fullInstruction(format) : '', [format, era, period]);
+  const categoryInstruction = useMemo(() => format ? fullClassificationInstruction(format) : '', [format]);
 
   const copyInstruction = async (kind: ImproveKind) => {
-    setBusy(true);
-    setStatus(null);
+    const text = kind === 'ocr' ? ocrInstruction : categoryInstruction;
+    const field = kind === 'ocr' ? ocrInstructionRef.current : classificationInstructionRef.current;
+    if (!text || !field) return;
+    setCopyStatus(null);
     try {
-      const f = format ?? (await loadFormat());
-      const text = kind === 'ocr' ? fullInstruction(f) : fullClassificationInstruction(f);
-      setInstruction(text);
-      try {
-        await navigator.clipboard.writeText(text);
-        setShowInstruction(false);
-        setStatus({ ok: true, text: kind === 'ocr' ? '文字認識用の依頼文をコピーしました。利用するAIへ通帳PDFと一緒に貼り付けてください。' : '分類用の依頼文をコピーしました。利用するAIへ、修正済みの表と一緒に貼り付けてください。' });
-      } catch {
-        setShowInstruction(true);
-        setStatus({ ok: false, text: 'コピーできませんでした。下の欄から選んでコピーしてください。' });
-      }
-    } catch (e) {
-      setStatus({ ok: false, text: errorMessage(e) });
-    } finally {
-      setBusy(false);
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(text);
+      setCopyStatus({ kind, ok: true, text: 'コピーしました。AIの入力欄へ貼り付けてください。' });
+    } catch {
+      field.focus();
+      field.select();
+      let copied = false;
+      try { copied = document.execCommand('copy'); } catch { /* 手動コピーへ案内する */ }
+      setCopyStatus(copied
+        ? { kind, ok: true, text: 'コピーしました。AIの入力欄へ貼り付けてください。' }
+        : { kind, ok: false, text: '自動コピーできませんでした。依頼文を選択したので、Ctrl+Cでコピーしてください。' });
     }
   };
 
@@ -109,8 +110,7 @@ export function FormatGuide({ caseId, open, onToggle, variant, onPaste }: Props)
       const note = (improved.changes || 'AIが生成した改善後のルール全文').slice(0, 1000);
       const res = await api.post<{ version: number; message: string }>(`/cases/${caseId}/import/${endpoint}`, { rules: improved.rules, note });
       setStatus({ ok: true, text: res.message });
-      const next = await loadFormat();
-      setInstruction(improveKind === 'ocr' ? fullInstruction(next) : fullClassificationInstruction(next));
+      await loadFormat();
       setNewRules('');
       setImproveOpen(false);
     } catch (e) { setStatus({ ok: false, text: errorMessage(e) }); }
@@ -149,12 +149,37 @@ export function FormatGuide({ caseId, open, onToggle, variant, onPaste }: Props)
           </ol>
         </div>
 
+        <details className="rounded-lg border border-slate-200 bg-white text-sm">
+          <summary className="cursor-pointer rounded-lg px-4 py-3 font-semibold text-blue-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">使い方（PDFから取込まで）</summary>
+          <ol className="list-decimal space-y-3 border-t border-slate-200 px-5 py-4 pl-9 text-slate-700">
+            <li><strong className="text-slate-900">文字認識を依頼：</strong>通帳の日付に元号が書かれていなければ、分かる場合だけ下で元号を選びます。「依頼文をコピー」して、通帳PDFと一緒にAIへ送ります。平成30年の「30－03－21」は <code className="font-mono">H30.3.21</code> と出す指示になります。</li>
+            <li><strong className="text-slate-900">結果を確認・修正：</strong>AIが返した取引CSVを1つ目の入力欄に貼り、「Excelで開けるCSVを保存」。PDFと照合し、日付・摘要・金額・残高を確認します。誤りは同じAIの会話で修正を依頼するか、Excelで直します。</li>
+            <li><strong className="text-slate-900">分類を依頼：</strong>「分類の依頼文をコピー」し、修正済みの表と一緒にAIへ送ります。返された分類済みCSVを2つ目の入力欄に貼り、「分類済みデータを取り込む」を押します。</li>
+            <li><strong className="text-slate-900">アプリで最終確認：</strong>画面下の「次へ」で口座と各取引を確認します。元号を決められなかった日付はここで指定し、内容を確認して取込を確定します。</li>
+          </ol>
+          <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-600">元号が不明・混在する場合は選ばず、AIには印字の数字を残させてください。推測で平成や令和へ変換しません。</p>
+        </details>
+
         <AiStageCard icon={<Sparkles size={18} />} number="1" title="PDFを文字認識" version={format?.ocrPrompt?.currentVersion} tone="blue">
           <p className="text-sm text-slate-600">文字認識用の依頼文と通帳PDFをAIへ渡し、返されたCSVを貼り付けます。この工程では分類しません。</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className="btn btn-primary" onClick={() => void copyInstruction('ocr')} disabled={busy}><ClipboardCopy size={16} />文字認識の依頼文をコピー</button>
-            <button type="button" className="btn btn-secondary" onClick={() => openImprovement('ocr')}><History size={16} />文字認識の精度を改善</button>
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-semibold text-amber-950">日付の元号を確認</p>
+            <p className="mt-1 text-xs text-amber-900">通帳の「30－03－21」が平成30年なら「平成」を選択してください。元号が不明・混在する場合は、数字のまま残して取込時に確認します。</p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <label htmlFor="ocrEra" className="text-sm text-slate-800">元号
+                <select id="ocrEra" className="input mt-1 block w-44" value={era} onChange={(e) => setEra(e.target.value as EraChoice | '')}>
+                  <option value="">不明・混在</option>
+                  {ERA_CHOICES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </label>
+              <label htmlFor="ocrPeriod" className="text-sm text-slate-800">通帳の期間（任意）
+                <input id="ocrPeriod" className="input mt-1 block w-56 max-w-full" value={period} placeholder="例: 平成30年3月〜31年4月" onChange={(e) => setPeriod(e.target.value)} />
+              </label>
+            </div>
+            {era === 'H' && <p className="mt-2 text-xs font-medium text-amber-950">依頼文に「30－03－21 → H30.3.21」を反映します。</p>}
           </div>
+          <PromptPreview id="ocrInstruction" title="文字認識の依頼文" value={ocrInstruction} fieldRef={ocrInstructionRef} onCopy={() => void copyInstruction('ocr')} feedback={copyStatus?.kind === 'ocr' ? copyStatus : null} />
+          <button type="button" className="btn btn-secondary mt-3" onClick={() => openImprovement('ocr')}><History size={16} />文字認識の精度を改善</button>
           <label htmlFor="ocrResponse" className="mt-4 block font-medium text-slate-800">AIの文字認識結果を貼り付け</label>
           <textarea id="ocrResponse" className="input mt-2 min-h-28 w-full font-mono text-xs" value={geminiResponse} onChange={(e) => setGeminiResponse(e.target.value)} placeholder={'# 取引CSV\n```csv\n日付,摘要,払戻額,お預り額,…\n```'} />
           <button type="button" className="btn btn-secondary mt-2" disabled={!geminiResponse.trim()} onClick={saveForExcel}><Download size={16} />Excelで開けるCSVを保存</button>
@@ -163,10 +188,8 @@ export function FormatGuide({ caseId, open, onToggle, variant, onPaste }: Props)
 
         <AiStageCard icon={<Tags size={18} />} number="2" title="取引を項目別に分類" version={format?.classificationPrompt?.currentVersion} tone="indigo">
           <p className="text-sm text-slate-600">分類用の依頼文と、修正済みの表をAIへ渡します。案件の分類項目・キーワード・基準は依頼文へ自動で入ります。</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className="btn btn-primary" onClick={() => void copyInstruction('classification')} disabled={busy}><ClipboardCopy size={16} />分類の依頼文をコピー</button>
-            <button type="button" className="btn btn-secondary" onClick={() => openImprovement('classification')}><History size={16} />分類精度を改善</button>
-          </div>
+          <PromptPreview id="classificationInstruction" title="分類の依頼文" value={categoryInstruction} fieldRef={classificationInstructionRef} onCopy={() => void copyInstruction('classification')} feedback={copyStatus?.kind === 'classification' ? copyStatus : null} />
+          <button type="button" className="btn btn-secondary mt-3" onClick={() => openImprovement('classification')}><History size={16} />分類精度を改善</button>
           <label htmlFor="classificationResponse" className="mt-4 block font-medium text-slate-800">AIの分類結果を貼り付け</label>
           <textarea id="classificationResponse" className="input mt-2 min-h-28 w-full font-mono text-xs" value={classificationResponse} onChange={(e) => setClassificationResponse(e.target.value)} placeholder={'# 分類済みCSV\n```csv\n日付,摘要,払戻額,お預り額,…,分類\n```'} />
           <button type="button" className="btn btn-primary mt-2" disabled={!classificationResponse.trim()} onClick={() => useAiResponse('classification')}><ClipboardPaste size={16} />分類済みデータを取り込む</button>
@@ -174,8 +197,6 @@ export function FormatGuide({ caseId, open, onToggle, variant, onPaste }: Props)
         </AiStageCard>
 
         {status && <p role="status" className={`rounded px-3 py-2 text-sm ${status.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>{status.text}</p>}
-        {instruction && showInstruction && <textarea className="input h-48 w-full font-mono text-xs" readOnly aria-label="AIに渡す依頼文" value={instruction} onFocus={(e) => e.currentTarget.select()} />}
-        {instruction && <button type="button" className="text-sm text-blue-800 underline underline-offset-2" onClick={() => setShowInstruction((v) => !v)}>{showInstruction ? '依頼文を閉じる' : '最後にコピーした依頼文を確認'}</button>}
       </section>}
 
       {variant === 'file' && <details className="rounded border border-slate-200" open={open} onToggle={(e) => onToggle(e.currentTarget.open)}>
@@ -209,35 +230,13 @@ export function FormatGuide({ caseId, open, onToggle, variant, onPaste }: Props)
             </tbody>
           </table>
           </div>
-          <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs text-slate-600">
-            通帳の日付の元号（任意）
-            <select className="input mt-0.5 block w-40" value={era} onChange={(e) => setEra(e.target.value as EraChoice | '')}>
-              <option value="">分からない</option>
-              {ERA_CHOICES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs text-slate-600">
-            通帳の期間（任意）
-            <input
-              className="input mt-0.5 block w-56"
-              value={period}
-              placeholder="例: 令和6年8月〜令和7年1月"
-              onChange={(e) => setPeriod(e.target.value)}
-            />
-          </label>
-          </div>
           <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-secondary btn-sm" onClick={downloadTemplate}>
             <Download size={14} />
             ひな形をダウンロード（CSV）
           </button>
           </div>
-          <p className="text-xs text-slate-500">元号が分からなければ、通帳の数字のまま読み取り、取込の手順3でまとめて指定できます。</p>
+          <p className="text-xs text-slate-500">元号の無い日付は、取込の手順3でまとめて指定できます。</p>
         </div>
       </details>}
 
@@ -273,6 +272,25 @@ export function FormatGuide({ caseId, open, onToggle, variant, onPaste }: Props)
       </Dialog>}
     </div>
   );
+}
+
+function PromptPreview({ id, title, value, fieldRef, onCopy, feedback }: {
+  id: string;
+  title: string;
+  value: string;
+  fieldRef: RefObject<HTMLTextAreaElement | null>;
+  onCopy: () => void;
+  feedback: { ok: boolean; text: string } | null;
+}) {
+  return <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <label htmlFor={id} className="font-semibold text-slate-800">{title}</label>
+      <button type="button" className="btn btn-primary btn-sm" onClick={onCopy} disabled={!value}><ClipboardCopy size={15} />依頼文をコピー</button>
+    </div>
+    <p className="mt-1 text-xs text-slate-600">内容を確認してからAIへ貼り付けてください。コピーできない場合は、下の文章を選んでコピーできます。</p>
+    <textarea id={id} ref={fieldRef} className="input mt-3 h-64 w-full resize-y whitespace-pre-wrap bg-white font-mono text-sm leading-relaxed text-slate-800 sm:h-72" readOnly value={value} placeholder="依頼文を読み込んでいます…" />
+    {feedback && <p role="status" className={`mt-2 text-sm ${feedback.ok ? 'text-emerald-800' : 'text-amber-900'}`}>{feedback.text}</p>}
+  </div>;
 }
 
 function StepNumber({ n }: { n: number }) {

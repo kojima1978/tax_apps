@@ -12,6 +12,7 @@ import {
   ArrowLeftRight,
   ArrowRight,
   Check,
+  BookOpen,
   CircleHelp,
   ClipboardList,
   DatabaseBackup,
@@ -359,6 +360,7 @@ function GlobalCaseMenu() {
   const item = 'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
   return (
     <nav className="card p-2 print:hidden" aria-label="共通メニュー">
+      <Link to="/help" className={`${item} font-medium text-blue-800`}><BookOpen size={16} aria-hidden="true" />使い方</Link>
       <details>
         <summary className="cursor-pointer rounded-md px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">アプリ全体へ</summary>
         <div className="mt-1 grid grid-cols-2 gap-1 border-t border-slate-100 pt-1 lg:grid-cols-1">

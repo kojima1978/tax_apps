@@ -1,9 +1,10 @@
 // 取込確認: AI・CSVの分類を既定で採用し、取り込まない行だけを選ぶ。
 // 一覧は1取引1行。細かな修正は行の編集画面で行う。
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { ConfirmDialog, Dialog } from '../../components/Dialog';
 import { num, warekiShort } from '../../lib/format';
+import { useScrollToListStart } from '../../hooks/useScrollToListStart';
 import { accountLabel } from './AccountForm';
 import { EraDatePanel, type EraPanelContext } from './EraDatePanel';
 import type { WizardFiles } from './useWizardFiles';
@@ -39,10 +40,12 @@ type Props = {
 
 export function PreviewTable({ file, rows, actions, categories, era }: Props) {
   const [page, setPage] = useState(1);
+  const listStart = useRef<HTMLElement>(null);
   const [editingKey, setEditingKey] = useState<number | null>(null);
   const [deleteKey, setDeleteKey] = useState<number | null>(null);
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
+  useScrollToListStart(currentPage, undefined, listStart);
   const shown = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const editing = rows.find((row) => row.key === editingKey);
   const editingIndex = editing ? rows.indexOf(editing) : -1;
@@ -54,7 +57,7 @@ export function PreviewTable({ file, rows, actions, categories, era }: Props) {
   const categoryChoices = editing?.category && !categories?.includes(editing.category) ? [editing.category, ...(categories ?? [])] : categories ?? [];
 
   return (
-    <section className="card p-4" aria-label={file.filename}>
+    <section ref={listStart} tabIndex={-1} className="card scroll-mt-20 p-4" aria-label={file.filename}>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-semibold">{file.filename}<span className="ml-2 text-sm font-normal text-slate-500">{accountLabel(file.account)}</span></h3>
         <span className="text-sm text-slate-600">{reviewMode ? `取込対象 ${num(rows.filter((row) => !row.blank && !row.excluded).length)}行・対象外 ${num(excluded)}行` : `${num(rows.filter((row) => !row.blank).length)}行`}</span>

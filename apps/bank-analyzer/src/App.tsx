@@ -19,6 +19,7 @@ import { CaseListPage } from './pages/CaseListPage';
 import { ClassifyPreviewPage } from './pages/ClassifyPreviewPage';
 import { CustomerLetterPage } from './pages/CustomerLetterPage';
 import { DirectInputPage } from './pages/DirectInputPage';
+import { HelpPage } from './pages/HelpPage';
 import { ImportResultPage } from './pages/ImportResultPage';
 import { ImportWizardPage } from './pages/ImportWizardPage';
 import { JsonImportPage } from './pages/JsonImportPage';
@@ -39,6 +40,7 @@ export default function App() {
             <Route index element={<CaseListPage />} />
             <Route path="import-json" element={<JsonImportPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="help" element={<HelpPage />} />
             <Route path="cases/:caseId" element={<AnalysisPage />} />
             <Route path="cases/:caseId/import" element={<ImportWizardPage />} />
             <Route path="cases/:caseId/import/result" element={<ImportResultPage />} />

@@ -1,7 +1,7 @@
 // 全画面共通の枠（Django の base.html のヘッダー）
 
 import { NavLink, Outlet, Link, useMatch } from 'react-router-dom';
-import { FolderOpen, Home, Mail, Plus, Settings } from 'lucide-react';
+import { BookOpen, FolderOpen, Home, Mail, Plus, Settings } from 'lucide-react';
 import { OperatorPicker } from '@/shared/staff-directory/OperatorPicker';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -29,6 +29,10 @@ export function Layout() {
             <NavLink to="/settings" className={navClass}>
               <Settings size={16} />
               <span className="sr-only sm:not-sr-only">設定</span>
+            </NavLink>
+            <NavLink to="/help" className={navClass}>
+              <BookOpen size={16} />
+              <span className="sr-only sm:not-sr-only">使い方</span>
             </NavLink>
           </nav>
           <div className="flex items-center gap-1">
