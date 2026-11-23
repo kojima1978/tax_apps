@@ -310,7 +310,7 @@ label:has(input[type="file"]:focus-visible) {
     gap: 16px;
     margin-bottom: 2mm;
     padding-bottom: 1.5mm;
-    border-bottom: 2px solid #047857;
+    border-bottom: 2px solid #171717;
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -323,9 +323,9 @@ label:has(input[type="file"]:focus-visible) {
   }
 
   .guide-selection-counter-box {
-    border: 2px solid #059669;
+    border: 2px solid #171717;
     border-radius: 5px;
-    background: #ecfdf5;
+    background: #ffffff;
     padding: 2.5mm;
     break-inside: avoid;
     page-break-inside: avoid;
@@ -334,7 +334,7 @@ label:has(input[type="file"]:focus-visible) {
   .guide-selection-counter-label {
     display: inline-block;
     border-radius: 3px;
-    background: #047857;
+    background: #171717;
     padding: 1.5mm 2.5mm;
     color: white;
     font-size: 9px;
@@ -354,9 +354,13 @@ label:has(input[type="file"]:focus-visible) {
     align-items: center;
     gap: 1.5mm;
     margin-bottom: 1.5mm;
-    color: #065f46;
+    color: #171717;
     font-size: 10px;
     font-weight: 700;
+  }
+
+  .guide-selection-info-box h2.guide-selection-flow-heading {
+    color: #b91c1c;
   }
 
   .guide-selection-step-number {
@@ -367,7 +371,7 @@ label:has(input[type="file"]:focus-visible) {
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    background: #047857;
+    background: #171717;
     color: white;
     font-size: 9px;
     font-weight: 700;

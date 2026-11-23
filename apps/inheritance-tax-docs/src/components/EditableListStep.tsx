@@ -7,8 +7,9 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useId, useState, useMemo, useCallback } from 'react';
+import { useId, useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useInheritanceTaxGuide } from '@/hooks/useInheritanceTaxGuide';
 import { useEditableListEditing } from '@/hooks/useEditableListEditing';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
@@ -54,7 +55,8 @@ const waitForRenderedGuideImages = async (): Promise<void> => {
   }
 };
 
-export const EditableListStep = () => {
+export const EditableListStep = ({ initialAcquisitionGuideSelectorOpen = false }: { initialAcquisitionGuideSelectorOpen?: boolean }) => {
+  const navigate = useNavigate();
   const { company } = useCompanyInfo();
   const {
     docListType,
@@ -107,10 +109,14 @@ export const EditableListStep = () => {
   const dnd = useDragAndDrop(documentList, setDocumentList);
   const dndId = useId();
   const { images: acquisitionGuideImages, reload: reloadAcquisitionGuideImages } = useAcquisitionGuideImages();
-  const [showAcquisitionGuideSelector, setShowAcquisitionGuideSelector] = useState(false);
+  const [showAcquisitionGuideSelector, setShowAcquisitionGuideSelector] = useState(initialAcquisitionGuideSelectorOpen);
   const [selectedAcquisitionGuideIds, setSelectedAcquisitionGuideIds] = useState<AcquisitionGuideId[]>([]);
   const [printOutput, setPrintOutput] = useState<'list' | 'acquisition-guides'>('list');
   const [isPreparingGuidePrint, setIsPreparingGuidePrint] = useState(false);
+
+  useEffect(() => {
+    if (initialAcquisitionGuideSelectorOpen) setShowAcquisitionGuideSelector(true);
+  }, [initialAcquisitionGuideSelectorOpen]);
 
   const printAfterRender = useCallback(async (output: 'list' | 'acquisition-guides') => {
     setPrintOutput(output);
@@ -132,10 +138,16 @@ export const EditableListStep = () => {
         .map((image) => preloadImage(image.contentUrl)));
       setShowAcquisitionGuideSelector(false);
       await printAfterRender('acquisition-guides');
+      if (initialAcquisitionGuideSelectorOpen) navigate('/', { replace: true });
     } finally {
       setIsPreparingGuidePrint(false);
     }
-  }, [acquisitionGuideImages, isPreparingGuidePrint, printAfterRender, reloadAcquisitionGuideImages, selectedAcquisitionGuideIds]);
+  }, [acquisitionGuideImages, initialAcquisitionGuideSelectorOpen, isPreparingGuidePrint, navigate, printAfterRender, reloadAcquisitionGuideImages, selectedAcquisitionGuideIds]);
+
+  const closeAcquisitionGuideSelector = useCallback(() => {
+    setShowAcquisitionGuideSelector(false);
+    if (initialAcquisitionGuideSelectorOpen) navigate('/', { replace: true });
+  }, [initialAcquisitionGuideSelectorOpen, navigate]);
 
   const openSingleAcquisitionGuide = useCallback((guideId: AcquisitionGuideId) => {
     setSelectedAcquisitionGuideIds([guideId]);
@@ -267,7 +279,6 @@ export const EditableListStep = () => {
         onJsonExport={handleJsonExportWithToast}
         onFileSelect={editing.handleFileSelect}
         onPrint={() => { void printAfterRender('list'); }}
-        onOpenAcquisitionGuides={docListType === 'inheritance-tax' ? () => setShowAcquisitionGuideSelector(true) : undefined}
         onExcelExport={handleExcelExportWithLoading}
         hideSubmittedInPrint={hideSubmittedInPrint}
         toggleHideSubmitted={toggleHideSubmitted}
@@ -400,7 +411,7 @@ export const EditableListStep = () => {
       {showAcquisitionGuideSelector ? <AcquisitionGuideSelectorDialog
         selectedIds={selectedAcquisitionGuideIds}
         onSelectedIdsChange={setSelectedAcquisitionGuideIds}
-        onClose={() => setShowAcquisitionGuideSelector(false)}
+        onClose={closeAcquisitionGuideSelector}
         onPrint={() => { void printSelectedAcquisitionGuides(); }}
         isPreparing={isPreparingGuidePrint}
       /> : null}

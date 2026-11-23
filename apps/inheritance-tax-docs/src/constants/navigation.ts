@@ -1,4 +1,4 @@
-import { Building2, CircleHelp, ClipboardList, Contact, FileText, Settings, Stamp, Users } from 'lucide-react';
+import { BookOpenCheck, Building2, CircleHelp, ClipboardList, Contact, FileText, Settings, Stamp, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 /**
@@ -19,6 +19,7 @@ export type AppPageLink = {
 
 export const APP_PAGES: AppPageLink[] = [
   { to: '/', label: '書類リスト', shortLabel: '書類', icon: ClipboardList, end: true },
+  { to: '/acquisition-guides', label: '相続税申告の取得案内', shortLabel: '取得案内', icon: BookOpenCheck },
   { to: '/resources', label: '参考資料', shortLabel: '資料', icon: FileText },
   { to: '/power-of-attorney', label: '委任状', shortLabel: '委任状', icon: Stamp },
   { to: '/masters', label: 'マスタ管理', shortLabel: 'マスタ', icon: Settings },

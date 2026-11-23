@@ -68,16 +68,16 @@ export function HelpPage() {
         <div className="max-w-7xl mx-auto px-4 py-2.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <a href="/" className="flex items-center justify-center gap-1 min-h-6 min-w-6 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors" title="ポータルに戻る">
-                <Home className="h-5 w-5" />
-                <span className="hidden md:inline text-sm font-medium">ポータル</span>
-              </a>
-              <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
-              <Link to="/" className="flex items-center justify-center gap-1 min-h-6 min-w-6 text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors" title="書類リストに戻る">
-                <ArrowLeft className="h-4 w-4" />
-                <span className="text-sm font-medium">書類リスト</span>
-              </Link>
-              <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
+              {/* PCは固定サイドバーを使う。サイドバーが消える狭い画面だけ戻り先を表示する。 */}
+              <nav className="flex items-center gap-1 lg:hidden" aria-label="戻り先">
+                <a href="/" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-emerald-400" title="ポータルに戻る" aria-label="ポータルに戻る">
+                  <Home className="h-5 w-5" aria-hidden="true" />
+                </a>
+                <Link to="/" className="flex min-h-11 items-center justify-center gap-1 rounded-lg px-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-emerald-400" title="書類リストに戻る">
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  <span className="text-sm font-medium">書類リスト</span>
+                </Link>
+              </nav>
               <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">使い方</h1>
             </div>
             <div className="flex items-center gap-2">

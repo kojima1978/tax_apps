@@ -14,6 +14,7 @@ export default function App() {
       <div className="lg:pl-[4.5rem] print:pl-0">
         <Routes>
           <Route path="/" element={<EditableListStep />} />
+          <Route path="/acquisition-guides" element={<EditableListStep initialAcquisitionGuideSelectorOpen />} />
           <Route path="/resources" element={<ResourcesPage readOnly />} />
           <Route path="/masters" element={<MasterDataPage />} />
           <Route path="/power-of-attorney" element={<PowerOfAttorneyPage />} />

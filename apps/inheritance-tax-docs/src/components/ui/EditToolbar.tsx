@@ -11,7 +11,6 @@ import {
   Menu,
   Home,
   Trash2,
-  BookOpenCheck,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DOC_LIST_TYPE_LABELS, usesDeceasedName, type DocListType } from '@/constants';
@@ -88,7 +87,6 @@ type EditToolbarProps = {
   onJsonExport: () => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onPrint: () => void;
-  onOpenAcquisitionGuides?: () => void;
   onExcelExport: () => void;
   hideSubmittedInPrint: boolean;
   toggleHideSubmitted: () => void;
@@ -116,7 +114,6 @@ export const EditToolbar = ({
   onJsonExport,
   onFileSelect,
   onPrint,
-  onOpenAcquisitionGuides,
   onExcelExport,
   hideSubmittedInPrint,
   toggleHideSubmitted,
@@ -144,11 +141,10 @@ export const EditToolbar = ({
   }, [showMobileMenu, showNavMenu]);
 
   const ACTIONS: ToolbarAction[] = useMemo(() => [
-    ...(onOpenAcquisitionGuides ? [{ id: 'acquisition-guides', label: '取得案内', icon: BookOpenCheck, onClick: onOpenAcquisitionGuides, group: 'print' as const, colorClass: 'bg-emerald-700 text-white hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500' }] : []),
     { id: 'excel', label: 'Excel', icon: FileSpreadsheet, onClick: isExporting ? undefined : onExcelExport, group: 'file', colorClass: isExporting ? `${OUTLINE_BUTTON_CLASS} cursor-not-allowed opacity-50` : OUTLINE_BUTTON_CLASS },
     { id: 'json-export', label: 'ファイルに保存', icon: Download, onClick: onJsonExport, group: 'file', colorClass: OUTLINE_BUTTON_CLASS },
     { id: 'json-import', label: 'ファイルを読込', icon: Upload, onFileSelect, group: 'file', colorClass: OUTLINE_BUTTON_CLASS },
-  ], [onOpenAcquisitionGuides, onExcelExport, onJsonExport, onFileSelect, isExporting]);
+  ], [onExcelExport, onJsonExport, onFileSelect, isExporting]);
 
   const PRINT_SETTINGS: PrintSetting[] = useMemo(() => [
     { id: 'scope', label: '載せる書類', options: [{ label: '全書類', active: !hideSubmittedInPrint }, { label: '未提出のみ', active: hideSubmittedInPrint }], toggle: toggleHideSubmitted },

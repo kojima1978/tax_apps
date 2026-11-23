@@ -94,7 +94,7 @@ export const PrintSection = ({
   return (
     <div className="hidden print:block bg-white p-0">
       {/* ─── ヘッダー ─── */}
-      <div className={`border-b-2 border-slate-800 pb-6 mb-8 flex justify-between items-end ${l.headerBorder}`}>
+      <div className={`border-b-2 border-slate-800 pb-6 mb-8 flex justify-between items-start ${l.headerBorder}`}>
         <div>
           <h1 className={`text-3xl font-bold text-slate-900 mb-2 ${l.title}`}>
             {DOC_LIST_TYPE_LABELS[docListType]} 必要書類リスト
@@ -108,7 +108,7 @@ export const PrintSection = ({
           </p>
         </div>
         <div className="text-right text-sm text-slate-500">
-          <p>発行日: {currentDate}</p>
+          <p className="mb-2 font-medium text-slate-700">発行日: {currentDate}</p>
           <p>{company.name}</p>
           {personInCharge && <p>担当者: {personInCharge}</p>}
         </div>

@@ -203,7 +203,7 @@ export const MasterDataPage = () => {
             <div>
               <Link to="/" onClick={(event) => {
                 if (unsaved && !window.confirm('保存していない変更を破棄して書類リストへ戻りますか？')) event.preventDefault();
-              }} className="mb-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-emerald-400 sm:min-h-0">
+              }} className="mb-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-emerald-400 sm:min-h-0 lg:hidden">
                 <ArrowLeft className="h-4 w-4" />必要書類リストへ戻る
               </Link>
               <h1 className="text-2xl font-bold">書類マスタ管理</h1>
