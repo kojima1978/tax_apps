@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { ActivityLog, FamilyMember, Household, Position, PositionAllocation, Snapshot } from "@prisma/client";
 import { z } from "zod";
 import { type AppCurrencyInput, addableAppCurrencies, appCurrencySchema } from "@/lib/app-currencies";
 import { parseFxRates } from "@/lib/fx-rates";
 import { normalizedValuationMethod } from "@/lib/position-input";
+import { type LineagePosition, type LineageSnapshot, assignLineageKeys } from "@/lib/position-lineage";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnlyUtc } from "@/lib/snapshot-date";
 import { syncStaffDirectory } from "@/lib/staff-directory/sync";
@@ -101,6 +103,7 @@ function serializePosition(position: Position) {
     assetDetails: position.assetDetails ?? null,
     note: position.note,
     sortOrder: position.sortOrder,
+    lineageKey: position.lineageKey,
     createdAt: position.createdAt.toISOString(),
     updatedAt: position.updatedAt.toISOString(),
   };
@@ -324,6 +327,8 @@ const positionFieldsSchema = z.object({
   assetDetails: z.record(z.unknown()).nullable().optional(),
   note: z.string().default(""),
   sortOrder: z.number().int().default(0),
+  // 系統キー（2026-11-23 追加）。無い旧いバックアップは復元のときに隣の年度と結び直す（position-lineage.ts）
+  lineageKey: z.string().uuid().nullable().optional(),
 });
 
 const familyMemberFieldsSchema = z.object({
@@ -599,6 +604,37 @@ async function addAppCurrencies(tx: Prisma.TransactionClient, rows: readonly App
   if (addable.length > 0) await tx.appCurrency.createMany({ data: addable, skipDuplicates: true });
 }
 
+/**
+ * 全体バックアップの明細の系統キーを、明細 ID ごとに決める。持っているキーはそのまま、
+ * 無いもの（旧いバックアップ）は顧客ごとに隣の年度と結び直す。テストのため export している。
+ */
+export function restoredLineageKeys(
+  snapshots: { id: number; householdId: number; fiscalYear: number }[],
+  positions: (LineagePosition & { id: number; snapshotId: number })[],
+) {
+  const positionsOf = new Map<number, (LineagePosition & { id: number })[]>();
+  for (const position of positions) positionsOf.set(position.snapshotId, [...(positionsOf.get(position.snapshotId) ?? []), position]);
+  const keyOf = new Map<number, string>();
+  for (const householdId of new Set(snapshots.map((snapshot) => snapshot.householdId))) {
+    const own = snapshots.filter((snapshot) => snapshot.householdId === householdId).map((snapshot) => ({ fiscalYear: snapshot.fiscalYear, positions: positionsOf.get(snapshot.id) ?? [] }));
+    assignLineageKeys(own).forEach((keys, snapshotIndex) => keys.forEach((key, positionIndex) => keyOf.set(own[snapshotIndex].positions[positionIndex].id, key)));
+  }
+  return keyOf;
+}
+
+/**
+ * 顧客ごとの持ち出しを取り込むときの系統キー。別の顧客として入るので、つながりは保ったまま
+ * 新しいキーへ振り直す（移し元と同じ DB へ取り込んでも、2人の明細が同じキーを持たない）。
+ * 戻り値は snapshots[i].positions[j] と同じ並び。テストのため export している。
+ */
+export function importedLineageKeys(snapshots: LineageSnapshot[], newKey: () => string = randomUUID) {
+  const renamed = new Map<string, string>();
+  return assignLineageKeys(snapshots, newKey).map((keys) => keys.map((key) => {
+    if (!renamed.has(key)) renamed.set(key, newKey());
+    return renamed.get(key)!;
+  }));
+}
+
 /** 既存データをすべて破棄し、バックアップの内容へ置き換える（共通設定の通貨は足すだけ）。 */
 export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
   const { households, snapshots, positions, familyMembers, positionAllocations, activityLogs } = backup.data;
@@ -659,8 +695,9 @@ export async function restoreAll(backup: FullBackup): Promise<BackupCounts> {
       });
     }
     if (positions.length > 0) {
+      const lineageKeyOf = restoredLineageKeys(snapshots, positions);
       await tx.position.createMany({
-        data: positions.map((row) => ({ id: row.id, snapshotId: row.snapshotId, ...positionData(row), createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt) })),
+        data: positions.map((row) => ({ id: row.id, snapshotId: row.snapshotId, ...positionData(row), lineageKey: lineageKeyOf.get(row.id)!, createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt) })),
       });
     }
     if (familyMembers.length > 0) {
@@ -728,6 +765,7 @@ export async function importHousehold(backup: HouseholdBackup) {
   }
 
   const currentFiscalYear = currentFiscalYearOf(backup.snapshots);
+  const lineageKeys = importedLineageKeys(backup.snapshots);
 
   const clientCode = await availableClientCode(backup.household.clientCode.toUpperCase());
   await syncStaffDirectory("manual");
@@ -741,11 +779,11 @@ export async function importHousehold(backup: HouseholdBackup) {
       const createdMember = await tx.familyMember.create({ data: { householdId: household.id, ...familyMemberData(member) }, select: { id: true } });
       memberIds.push(createdMember.id);
     }
-    for (const snapshot of backup.snapshots) {
+    for (const [snapshotIndex, snapshot] of backup.snapshots.entries()) {
       const createdSnapshot = await tx.snapshot.create({ data: { householdId: household.id, ...snapshotData(snapshot, backup.household), isCurrent: snapshot.fiscalYear === currentFiscalYear }, select: { id: true } });
-      for (const position of snapshot.positions) {
+      for (const [positionIndex, position] of snapshot.positions.entries()) {
         const { allocations, ...positionFields } = position;
-        const createdPosition = await tx.position.create({ data: { snapshotId: createdSnapshot.id, ...positionData(positionFields) }, select: { id: true } });
+        const createdPosition = await tx.position.create({ data: { snapshotId: createdSnapshot.id, ...positionData(positionFields), lineageKey: lineageKeys[snapshotIndex][positionIndex] }, select: { id: true } });
         if (allocations.length > 0) await tx.positionAllocation.createMany({ data: allocations.map((allocation) => ({
           positionId: createdPosition.id,
           familyMemberId: memberIds[allocation.familyMemberIndex]!,

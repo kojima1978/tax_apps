@@ -178,11 +178,15 @@ model Position {
   assetDetails       Json?
   note               String   @default("")
   sortOrder          Int      @default(0)
+  /// 系統キー。年度をまたいで同じ明細を1つとして扱う（前年度コピーで写る・同じ年度の中では一意）。
+  /// 規則は src/lib/position-lineage.ts、既存データの結び付けは 20261123000000_position_lineage_key
+  lineageKey         String   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   allocations        PositionAllocation[]
 
   @@index([snapshotId, side, category])
+  @@unique([snapshotId, lineageKey])
 }
 
 /// 資産の取得者、または負債・偶発債務の負担者。分数で複数人へ按分する。

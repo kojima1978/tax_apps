@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GET as getClients } from "@/app/api/clients/route";
 import { POST as bulkAssignStaff } from "@/app/api/clients/bulk-staff/route";
 import { PATCH as savePositionAllocations } from "@/app/api/positions/allocations/route";
+import { POST as createSnapshot } from "@/app/api/snapshots/route";
 import { exportHousehold, householdBackupSchema, importHousehold } from "@/lib/backup";
 import { prisma } from "@/lib/prisma";
 
@@ -79,6 +80,30 @@ describe.runIf(runIntegrationTests)("private-banking API integration", () => {
     expect(restored.activityLogs.every((log) => log.clientCode === `${clientCode}-2`)).toBe(true);
   });
 
+  it("前年度コピーと顧客の持ち出しで、明細の系統キーがつながったまま写る", async () => {
+    const source = await prisma.snapshot.findFirstOrThrow({ where: { householdId, fiscalYear: 2026 } });
+    const original = await prisma.position.create({ data: { snapshotId: source.id, side: "ASSET", category: "DEPOSIT", name: "系統テスト預金", originalAmount: 100, valueJpy: 100 } });
+    expect(original.lineageKey).toMatch(/^[0-9a-f-]{36}$/);
+    const response = await createSnapshot(jsonRequest("http://integration.test/api/snapshots", "POST", { sourceSnapshotId: source.id, fiscalYear: 2027, creationMode: "COPY" }));
+    expect(response.status).toBe(201);
+    const copied = await prisma.position.findFirstOrThrow({ where: { snapshot: { householdId, fiscalYear: 2027 }, name: "系統テスト預金" } });
+    expect(copied.lineageKey).toBe(original.lineageKey);
+
+    // 持ち出し → 取り込みは別の顧客になるのでキーを振り直し、2年のつながりは保つ
+    const exported = householdBackupSchema.parse(await exportHousehold(householdId));
+    const imported = await importHousehold(exported);
+    const keys = await prisma.position.findMany({ where: { snapshot: { householdId: imported.household.id }, name: "系統テスト預金" }, select: { lineageKey: true } });
+    expect(keys).toHaveLength(2);
+    expect(new Set(keys.map((row) => row.lineageKey)).size).toBe(1);
+    expect(keys[0].lineageKey).not.toBe(original.lineageKey);
+
+    // キーの無い旧いファイルは、隣の年度で1件だけ一致する明細を結び直す
+    const keyless = householdBackupSchema.parse({ ...exported, snapshots: exported.snapshots.map((snapshot) => ({ ...snapshot, positions: snapshot.positions.map((position) => ({ ...position, lineageKey: undefined })) })) });
+    const legacy = await importHousehold(keyless);
+    const legacyKeys = await prisma.position.findMany({ where: { snapshot: { householdId: legacy.household.id }, name: "系統テスト預金" }, select: { lineageKey: true } });
+    expect(new Set(legacyKeys.map((row) => row.lineageKey)).size).toBe(1);
+  });
+
   it("担当者未設定の顧客へ担当者を一括設定し、履歴も残す", async () => {
     const staff = await prisma.staff.create({ data: { staffCode: `IT-${Date.now()}`, name: `統合テスト担当-${Date.now()}`, nameKana: "トウゴウテスト", staffDirectoryId: 1_000_000_000 + (Date.now() % 1_000_000_000) } });
     staffId = staff.id;
@@ -91,10 +116,9 @@ describe.runIf(runIntegrationTests)("private-banking API integration", () => {
 
   it("一覧で入力した評価額を既約分数にして取得者へ保存する", async () => {
     const snapshot = await prisma.snapshot.findFirstOrThrow({ where: { householdId } });
-    const [first, second] = await Promise.all([
-      prisma.familyMember.create({ data: { householdId, name: "長女", relationship: "CHILD", sortOrder: 0 } }),
-      prisma.familyMember.create({ data: { householdId, name: "長男", relationship: "CHILD", sortOrder: 1 } }),
-    ]);
+    // 下で familyMemberId の昇順に読むので、ID の大小が決まるよう順に作る（並行だと入れ替わって時々落ちた）
+    const first = await prisma.familyMember.create({ data: { householdId, name: "長女", relationship: "CHILD", sortOrder: 0 } });
+    const second = await prisma.familyMember.create({ data: { householdId, name: "長男", relationship: "CHILD", sortOrder: 1 } });
     const position = await prisma.position.create({ data: {
       snapshotId: snapshot.id, side: "ASSET", category: "DEPOSIT", name: "割り振りテスト預金", originalAmount: 100, valueJpy: 100,
     } });

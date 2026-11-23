@@ -110,3 +110,11 @@ describe("バックアップの復元：追加データ", () => {
     expect(parsed.data).not.toHaveProperty("planningScenarios");
   });
 });
+
+describe("バックアップの復元：系統キー", () => {
+  it("持っているキーは取り込み、無い旧いバックアップでも読める", () => {
+    expect(restoredPosition({ lineageKey: "8b1f2c1e-0000-4000-8000-000000000001" }).lineageKey).toBe("8b1f2c1e-0000-4000-8000-000000000001");
+    expect(restoredPosition({}).lineageKey).toBeUndefined();
+    expect(() => restoredPosition({ lineageKey: "壊れた値" })).toThrow();
+  });
+});

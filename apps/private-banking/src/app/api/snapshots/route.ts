@@ -90,7 +90,7 @@ export async function POST(request: Request) {
           fxRates: creationMode === "COPY" ? parseFxRates(source.fxRates) : Prisma.DbNull,
           ...(creationMode === "COPY" ? { positions: {
             create: source.positions.map(
-              // Database identifiers and timestamps are regenerated for the copied fiscal year.
+              // ID と日時は作り直す。系統キー（lineageKey）は残りの項目と一緒に写し、前年の明細とつなぐ。
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
               ({ id: _id, snapshotId: _snapshotId, createdAt: _createdAt, updatedAt: _updatedAt, assetDetails, allocations, ...position }) => ({
                 ...position,
