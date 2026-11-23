@@ -62,10 +62,40 @@ export type PropertyRow = PropertyOwner & {
  * その明細を開くためのURL。現在年度は従来どおり年度指定を省略し、
  * 過年度だけ snapshot を付けて、一覧で見ていた年度の明細を確実に開く。
  */
-export const propertyPositionHref = (row: PropertyRow) => {
+export const propertyPositionHref = (row: Pick<PropertyRow, "isCurrent" | "snapshotId" | "householdId" | "positionId">) => {
   const snapshot = row.isCurrent ? "" : `snapshot=${row.snapshotId}&`;
   return `/customers/${row.householdId}/positions?${snapshot}position=${row.positionId}`;
 };
+
+/**
+ * 所在をまとめて分ける画面の1行（GET /api/properties/locations）。構造を持たず原文だけがある明細と、
+ * 原文から分けた案。problems が空の行だけをまとめて保存できる（それ以外は人が明細を開いて入力する）。
+ */
+export type PropertyLocationCandidate = Pick<PropertyRow,
+  "householdId" | "snapshotId" | "isCurrent" | "clientCode" | "clientName" | "fiscalYear" | "positionId" | "categoryLabel" | "propertyTypeLabel" | "name"> & {
+  location: PropertyLocation;
+  problems: string[];
+};
+
+/** まとめて保存の結果。原文が変わっていた・すでに分けてあった・分け切れなかった行は保存せずに理由を返す。 */
+export type PropertyLocationAdoptResult = {
+  updated: number[];
+  skipped: Array<{ positionId: number; reason: string }>;
+};
+
+/**
+ * まとめて保存した結果の知らせ。保存しなかった行は理由ごとに件数をまとめる
+ * （画面で見比べている間に原文が直された・ほかの画面で保存された、など）。
+ */
+export function propertyLocationAdoptMessage(result: PropertyLocationAdoptResult) {
+  const reasons = new Map<string, number>();
+  for (const { reason } of result.skipped) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  const saved = result.updated.length > 0 ? `所在を${result.updated.length}件分けて保存しました。` : "所在を保存した明細はありません。";
+  return {
+    headline: result.skipped.length > 0 ? `${saved}${result.skipped.length}件は保存していません。` : saved,
+    skipped: [...reasons].map(([reason, count]) => `${count}件：${reason}`),
+  };
+}
 
 /** 検索対象になる項目。表示側のハイライトもこの項目に対して行う。 */
 export const PROPERTY_SEARCH_FIELDS = [

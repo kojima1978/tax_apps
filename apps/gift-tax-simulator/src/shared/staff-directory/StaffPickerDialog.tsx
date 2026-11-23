@@ -5,6 +5,9 @@ import { retirementMark } from '../staff-retirement/retirement';
 import { buildPickerSections, departmentChips, readRecentIds, rememberRecent } from './assignee';
 import { useOperator, type Operator } from './operator';
 
+// 読み込み中・失敗のときの空の一覧。毎回 [] を作ると下の useMemo が描画のたびに作り直しになる
+const NO_PEOPLE: Operator[] = [];
+
 /** 人を足す・直す場所。名簿はここ1つで、各アプリには持たせない */
 export const STAFF_DIRECTORY_PAGE = '/staff-directory/';
 
@@ -90,7 +93,7 @@ function PickerBody({
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const people = status === 'ok' ? operators : [];
+  const people = status === 'ok' ? operators : NO_PEOPLE;
 
   // 並べ方は assignee.ts の1か所（PB の選択欄も同じものを使う）。showDepartment は部署の塊以外でだけ行に部署名を出す
   const meId = me?.id ?? null;

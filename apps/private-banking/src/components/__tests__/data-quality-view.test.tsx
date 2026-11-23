@@ -43,7 +43,8 @@ describe("データ品質チェック", () => {
 
   it("担当者未設定の顧客を選択して一括設定する", async () => {
     const clients = [{ ...baseClient, qualityIssues: [{ code: "staff-missing", label: "担当者未設定", severity: "warning", href: "profile" }] } satisfies ClientSummary];
-    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+    // 2つ目の引数（RequestInit）は送った中身を確かめるために型だけ持たせる
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<unknown>>((url) => {
       if (url.includes("bulk-staff")) return Promise.resolve({ ok: true, json: async () => ({ count: 1, staffName: "佐藤" }) });
       return Promise.resolve({ ok: true, json: async () => url.includes("/staff") ? [{ id: 3, name: "佐藤", nameKana: "", isActive: true, staffDirectoryId: 3, clientCount: 0 }] : clients });
     });

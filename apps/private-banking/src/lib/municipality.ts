@@ -154,6 +154,24 @@ export function propertyLocationOf(details: Parameters<typeof storedPropertyLoca
 }
 
 /**
+ * まとめて採用の対象かどうか。構造を持たず原文だけがある明細について、分けた案と分け切れなかった点を返す
+ * （構造を保存済み・原文も無い明細は null）。problems が空の案だけを画面でまとめて保存できる。
+ */
+export function propertyLocationDraft(details: Parameters<typeof storedPropertyLocation>[0]): ParsedPropertyLocation | null {
+  const current = propertyLocationOf(details);
+  return current.inferred ? { location: current.location, problems: current.problems } : null;
+}
+
+/**
+ * 分けた案を assetDetails へ重ねる。所在の欄（市区町村・大字町名・字・地番）だけを足し、
+ * 原文・家屋番号・ほかの補足項目はそのまま。コードは名前から付け直す（normalizePropertyLocationFields）。
+ */
+export function adoptedPropertyLocationDetails<T extends Record<string, unknown>>(details: T, location: PropertyLocation): T {
+  const { municipalityName, townName, aza, lotNumber } = location;
+  return normalizePropertyLocationFields({ ...details, municipalityName, townName, aza, lotNumber });
+}
+
+/**
  * 保存前に所在の欄を揃える（API の検証から呼ぶ）。市区町村コードは名前から付け直し、
  * 名前は表の書き方（都道府県から）へ寄せる。表に無い名前は入力のまま残しコードを外す。
  */

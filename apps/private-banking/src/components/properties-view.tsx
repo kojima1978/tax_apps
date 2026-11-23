@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Download, LoaderCircle, Printer, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, LoaderCircle, MapPin, Printer, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -9,6 +9,7 @@ import { BackToClientList } from "@/components/back-to-client-list";
 import { Highlighted } from "@/components/highlighted";
 import { ListPager, PageSizeSelect } from "@/components/list-pager";
 import { PanelHeader } from "@/components/panel-header";
+import { PropertyLocationAdoptModal } from "@/components/property-location-adopt-modal";
 import { usePrinting } from "@/components/use-printing";
 import { API_BASE } from "@/lib/api";
 import { searchTerms } from "@/lib/clients";
@@ -25,6 +26,7 @@ import {
   filterProperties,
   propertiesCsv,
   propertiesCsvFileName,
+  propertyLocationAdoptMessage,
   propertyPositionHref,
   sortProperties,
 } from "@/lib/properties";
@@ -70,6 +72,10 @@ export function PropertiesView() {
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_DEFAULT);
   const [page, setPage] = useState(1);
   const [includePlan, setIncludePlan] = useState(false);
+  const [adoptOpen, setAdoptOpen] = useState(false);
+  const [adoptMessage, setAdoptMessage] = useState<ReturnType<typeof propertyLocationAdoptMessage> | null>(null);
+  // 所在をまとめて分けたあとに一覧を読み直す（所在地の表示が構造から組んだものに変わる）
+  const [reloadKey, setReloadKey] = useState(0);
   // 印刷時はページ送りで隠れている明細も含め、絞り込み結果をすべて出す。
   const printing = usePrinting();
   const router = useRouter();
@@ -90,7 +96,7 @@ export function PropertiesView() {
       }
     })();
     return () => controller.abort();
-  }, [yearMode]);
+  }, [yearMode, reloadKey]);
 
   const terms = useMemo(() => searchTerms(query), [query]);
   const planCounts = useMemo(() => {
@@ -142,9 +148,14 @@ export function PropertiesView() {
         <Download />CSVで書き出す
       </button>
       <button type="button" className="button secondary" onClick={() => window.print()} disabled={filtered.length === 0}><Printer />印刷・PDF</button>
+      <button type="button" className="button secondary" onClick={() => { setAdoptMessage(null); setAdoptOpen(true); }}><MapPin />所在をまとめて分ける</button>
       <label className="property-plan-export-option"><input type="checkbox" checked={includePlan} onChange={(event) => setIncludePlan(event.target.checked)} />希望時期・メモ付きで出力</label>
     </div>
     {error ? <p className="backup-message error" role="alert"><AlertTriangle />{error}</p> : null}
+    {adoptMessage ? <div className={`backup-message ${adoptMessage.skipped.length ? "warning" : "success"} properties-adopt-message`} role="status">
+      {adoptMessage.skipped.length ? <AlertTriangle /> : <CheckCircle2 />}
+      <div><p>{adoptMessage.headline}</p>{adoptMessage.skipped.length ? <ul>{adoptMessage.skipped.map((line) => <li key={line}>{line}</li>)}</ul> : null}</div>
+    </div> : null}
     <article className="panel properties-panel">
       <PanelHeader
         title="登録している不動産"
@@ -249,5 +260,13 @@ export function PropertiesView() {
         onChange={setPage}
       />}
     </article>
+    {adoptOpen ? <PropertyLocationAdoptModal
+      onClose={() => setAdoptOpen(false)}
+      onSaved={(result) => {
+        setAdoptOpen(false);
+        setAdoptMessage(propertyLocationAdoptMessage(result));
+        if (result.updated.length > 0) setReloadKey((key) => key + 1);
+      }}
+    /> : null}
   </div>;
 }

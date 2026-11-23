@@ -565,6 +565,45 @@ tfoot td { color: var(--navy-950); background: #f7f9fa; border: 0; font-weight: 
 .bulk-position-modal > header { flex: 0 0 auto; min-height: 78px; }
 .bulk-position-modal > header p:last-child { margin: 4px 0 0; color: var(--slate-500); font-size: var(--font-body); }
 .bulk-modal-body { flex: 1 1 auto; min-height: 0; padding: 14px 10px 0; overflow: auto; }
+/* 所在をまとめて分ける（不動産一覧）。見出しと操作行を固定し、表の部分だけをスクロールさせる */
+.location-adopt-modal { width: min(1180px, 100%); overflow: hidden; display: flex; flex-direction: column; }
+.location-adopt-modal > header { flex: 0 0 auto; gap: 12px; }
+.location-adopt-modal > header p { margin: 4px 0 0; color: var(--slate-500); font-size: var(--font-body); }
+.location-adopt-body { flex: 1 1 auto; min-height: 0; padding: 16px 24px; overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 18px; }
+.location-adopt-body h3 { margin: 0 0 4px; font-size: 15px; }
+.location-adopt-help { margin: 0 0 8px; color: var(--slate-600); font-size: var(--font-body); }
+.location-adopt-empty { margin: 0; padding: 28px 0; color: var(--slate-500); text-align: center; font-size: 13px; }
+.location-adopt-scroll { border: 1px solid var(--slate-200); border-radius: 8px; }
+.location-adopt-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: var(--font-body); }
+.location-adopt-table th, .location-adopt-table td { padding: 7px 10px; border-bottom: 1px solid var(--slate-200); text-align: left; vertical-align: top; }
+.location-adopt-table thead th { background: var(--slate-50); color: var(--slate-600); font-weight: 700; white-space: nowrap; }
+.location-adopt-client { white-space: nowrap; }
+.location-adopt-table tbody tr:last-child td { border-bottom: 0; }
+.location-adopt-table tbody tr:not(.is-selected) td:not(.location-adopt-check) { color: var(--slate-400); }
+.location-adopt-table small { display: block; color: var(--slate-500); font-size: var(--font-note); font-variant-numeric: tabular-nums; }
+.location-adopt-table .category-tag { display: inline; margin-right: 4px; }
+.location-adopt-check { width: 44px; text-align: center !important; vertical-align: middle !important; }
+.location-adopt-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--navy-800); }
+.location-adopt-source { min-width: 14em; }
+.location-adopt-problems { margin: 0; padding-left: 1.1em; color: #7f1d1d; }
+.location-adopt-open { min-height: 36px; padding: 0 10px; white-space: nowrap; font-size: var(--font-body); }
+.location-adopt-open svg { width: 13px; height: 13px; }
+.location-adopt-manual > summary { min-height: 44px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; }
+.location-adopt-manual > summary::before { content: "▸"; margin-right: 6px; color: var(--slate-500); }
+.location-adopt-manual[open] > summary::before { content: "▾"; }
+.location-adopt-manual > summary::-webkit-details-marker { display: none; }
+.location-adopt-manual > summary { list-style: none; }
+.modal footer.location-adopt-footer { flex: 0 0 auto; margin: 0; padding: 14px 24px calc(14px + env(safe-area-inset-bottom, 0px)); }
+.location-adopt-footer .button { min-height: 44px; }
+.properties-adopt-message ul { margin: 4px 0 0; padding-left: 1.2em; }
+.properties-adopt-message p { margin: 0; font-weight: 700; }
+@media (max-width: 720px) {
+  .location-adopt-modal > header { padding: 14px 16px; }
+  .location-adopt-body { padding: 12px; }
+  .modal footer.location-adopt-footer { padding-inline: 12px; flex-wrap: nowrap; }
+  .location-adopt-footer .button { flex: 1 1 0; min-width: 0; justify-content: center; }
+  .location-adopt-footer .button + .button { flex-grow: 2; }
+}
 .bulk-common-settings { padding: 14px; border: 1px solid #bbf7d0; border-radius: 9px; background: #f7fdf9; display: flex; flex-direction: column; gap: 10px; }
 .bulk-entry-tabs { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
 /* 中分類のまとまりが分かるよう、明細一覧と同じ区切りで見出しを載せる。 */
@@ -1477,7 +1516,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .tax-api-button { flex: 1 1 auto; justify-content: center; }
   .insurance-data-note { margin-inline: 14px; }
   .table-scroll { overflow: visible; }
-  .trend-scroll, .history-list-panel .table-scroll, .properties-panel .table-scroll { overflow-x: auto; }
+  .trend-scroll, .history-list-panel .table-scroll, .properties-panel .table-scroll, .location-adopt-scroll { overflow-x: auto; }
   .trend-panel .panel-header, .history-list-panel .panel-header { padding: 16px; }
   .trend-guidance { padding-inline: 16px; }
   .position-table { min-width: 0; display: block; background: var(--background); }
@@ -1735,7 +1774,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .client-home:has(.properties-page) > .client-home-header { display: none; }
   .client-home-main:has(> .properties-page) { width: 100%; max-width: none; margin: 0; padding: 0; }
   .properties-page .properties-row:hover td { background: white; }
-  .properties-page .client-home-toolbar, .properties-page .panel-header, .properties-page .list-pager { display: none !important; }
+  .properties-page .client-home-toolbar, .properties-page .panel-header, .properties-page .list-pager, .properties-page .modal-layer, .properties-adopt-message { display: none !important; }
   .properties-print-heading { display: block; margin-bottom: 10px; }
   .properties-print-heading h2 { margin: 0 0 5px; font-size: 16px; }
   .properties-print-heading p { margin: 0; font-size: 10px; }

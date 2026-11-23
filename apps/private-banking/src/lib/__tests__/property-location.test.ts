@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { findMunicipality, findMunicipalityCandidates, municipalities, normalizePropertyLocationFields, parsePropertyLocation, propertyLocationOf } from "@/lib/municipality";
+import {
+  adoptedPropertyLocationDetails, findMunicipality, findMunicipalityCandidates, municipalities, normalizePropertyLocationFields,
+  parsePropertyLocation, propertyLocationDraft, propertyLocationOf,
+} from "@/lib/municipality";
 import { composedPropertyLocation, normalizeAza, normalizeLotNumber, propertyLocationText, storedPropertyLocation } from "@/lib/property-location";
 
 // 町名・地番は架空のもの（市区町村名だけ表に合わせて実在の名前を使う）
@@ -154,5 +157,39 @@ describe("normalizePropertyLocationFields", () => {
 
   it("所在の欄が無い明細はそのまま", () => {
     expect(normalizePropertyLocationFields({ propertyAddress: "東京都港区テスト1" })).toEqual({ propertyAddress: "東京都港区テスト1" });
+  });
+});
+
+describe("所在をまとめて分ける", () => {
+  it("対象は構造を持たず原文だけがある明細。分け切れなかった点も一緒に返す", () => {
+    expect(propertyLocationDraft({ propertyAddress: "東京都港区テスト一丁目123番4" })).toEqual({
+      location: expect.objectContaining({ municipalityCode: "13103", townName: "テスト一丁目", lotNumber: "123番4" }), problems: [],
+    });
+    expect(propertyLocationDraft({ propertyAddress: "東京都港区テスト1-2-3" })?.problems[0]).toContain("住居表示");
+    expect(propertyLocationDraft({ propertyAddress: "港区テスト1", municipalityName: "東京都港区" })).toBeNull();
+    expect(propertyLocationDraft({})).toBeNull();
+    expect(propertyLocationDraft(null)).toBeNull();
+  });
+
+  it("所在の欄だけを足し、原文・ほかの補足項目は変えない", () => {
+    const details = { propertyAddress: "北海道余市町大字テスト字サンプル45番地", landArea: 120.5, propertyPlan: "KEEP" };
+    const draft = propertyLocationDraft(details)!;
+    expect(adoptedPropertyLocationDetails(details, draft.location)).toEqual({
+      propertyAddress: "北海道余市町大字テスト字サンプル45番地", landArea: 120.5, propertyPlan: "KEEP",
+      municipalityName: "北海道余市郡余市町", municipalityCode: "01408", townName: "大字テスト", aza: "サンプル", lotNumber: "45番",
+    });
+  });
+
+  it("家屋番号は案から上書きしない（入っていれば構造ありとして対象外）", () => {
+    expect(propertyLocationDraft({ propertyAddress: "東京都港区テスト2番", houseNumber: "2番1" })).toBeNull();
+    const location = parsePropertyLocation("東京都港区テスト2番").location;
+    expect(adoptedPropertyLocationDetails({ propertyAddress: "東京都港区テスト2番", houseNumber: "2番の1" }, location)).toMatchObject({ houseNumber: "2番1", lotNumber: "2番" });
+  });
+
+  it("空の字・町名はキーを作らない", () => {
+    const details = { propertyAddress: "東京都港区123番4" };
+    expect(adoptedPropertyLocationDetails(details, propertyLocationDraft(details)!.location)).toEqual({
+      propertyAddress: "東京都港区123番4", municipalityName: "東京都港区", municipalityCode: "13103", lotNumber: "123番4",
+    });
   });
 });

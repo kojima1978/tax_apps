@@ -396,7 +396,7 @@ export function BulkPositionModal({ snapshot, people, legalHeirNames, onClose, o
       { key: "originalAmount", label: "直接入力額（円）", numeric: true, conditional: "直接入力", width: "124px" },
     );
     return basic;
-  }, [entryType, isDeposit, isLand, isStock, simpleConfig]);
+  }, [entryType, isBuilding, isDeposit, isLand, isStock, simpleConfig]);
 
   function changeEntryType(nextType: BulkEntryType) {
     setEntryType(nextType);
