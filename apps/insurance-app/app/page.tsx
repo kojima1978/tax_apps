@@ -20,6 +20,7 @@ import ToastContainer, { type ToastMessage } from '@/components/Toast';
 import { PrintPagesProvider } from '@/components/PrintPageContext';
 import { buildPrintPageKeys, type PrintPageKey } from '@/utils/printPages';
 import { CASE_SECTIONS, sectionPanelClassName, type CaseSectionKey } from '@/utils/caseSections';
+import { helpHrefForCase } from '@/utils/helpNavigation';
 import { DISPLAY_POLICY_TYPES, isIncomeProtectionPolicyType } from '@/types';
 import type { Policy, FamilyMember, Agency, AppState, EvaluationOverride, ValuationSettings } from '@/types';
 import { applyValuationRateToPolicy, EMPTY_VALUATION_SETTINGS, inferValuationSettings } from '@/utils/currencyUtils';
@@ -196,17 +197,33 @@ export default function Page() {
     try {
       const state = await fetchAppState(caseId);
       applyState(state);
+      return true;
     } catch (err) {
       addToast('error', getErrorMessage(err, 'データの読み込みに失敗しました'));
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [applyState, addToast]);
 
   const handleSelectCase = useCallback((caseId: string) => {
     setActiveCaseId(caseId);
     setActiveSection('summary');
-    loadFromApi(caseId);
+    // 読み込めない案件(消された・URL の id が古い)で空の画面に留まらないよう一覧へ戻す
+    void loadFromApi(caseId).then(ok => { if (!ok) setActiveCaseId(null); });
   }, [loadFromApi]);
+
+  // 別のタブで開いた「使い方」から戻ってきたとき(/?case=...)は、その案件をそのまま開く。
+  // 開いたら ?case= は消す(リロードや履歴で意図せず案件へ入らないように)
+  const caseParamHandled = useRef(false);
+  useEffect(() => {
+    if (caseParamHandled.current) return;
+    caseParamHandled.current = true;
+    const caseId = new URLSearchParams(window.location.search).get('case');
+    if (!caseId) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    handleSelectCase(caseId);
+  }, [handleSelectCase]);
 
   const handleBackToList = () => {
     if (hasUnsavedChanges) {
@@ -591,6 +608,91 @@ export default function Page() {
 
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
+        <header className="app-header">
+          <div className="header-title-area">
+            <h1 className="app-title">保険証券分析・診断ダッシュボード</h1>
+            <button
+              type="button"
+              className="customer-summary-display"
+              onClick={() => setCustomerSettingsSection('family')}
+              title="世帯・家族情報を編集"
+              aria-label={`${self?.name || 'お客様'}様の世帯・家族情報を編集`}
+            >
+              <span className="customer-name-tag">{self?.name} 様</span>
+              <span className="customer-meta-tag">({birthDateLabel} | {ageLabel} | 世帯人数: {familyMembers.length}名)</span>
+              <UserCog size={16} className="customer-edit-icon" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="header-actions">
+            <div
+              className={`save-status save-status-${saveStatus.kind}`}
+              role={saveStatus.kind === 'error' ? 'alert' : 'status'}
+              aria-live="polite"
+              title={saveStatus.detail}
+            >
+              <SaveStatusIcon size={16} />
+              <span className="save-status-label">{saveStatus.label}</span>
+              <span className="save-status-detail">{saveStatus.detail}</span>
+            </div>
+            <div className="dropdown-wrapper" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(v => !v)}
+                className="dropdown-trigger"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+              >
+                <Menu size={16} /> データ管理 <ChevronDown size={12} />
+              </button>
+              {menuOpen && (
+                <div className="dropdown-menu">
+                  <button onClick={() => { setMenuOpen(false); loadSampleData(); }}>
+                    <FileUp size={16} /> サンプル読込
+                  </button>
+                  {!jsonStorageMode && (
+                    <button onClick={() => { setMenuOpen(false); setCsvImportOpen(true); }}>
+                      <Upload size={16} /> CSV取込
+                    </button>
+                  )}
+                  <button onClick={() => { setMenuOpen(false); handleExport(); }}>
+                    <Download size={16} /> JSON出力
+                  </button>
+                  {!jsonStorageMode && (
+                    <>
+                      <hr />
+                      <button onClick={() => { setMenuOpen(false); handleBackup(); }}>
+                        <DatabaseBackup size={16} /> バックアップ
+                      </button>
+                    </>
+                  )}
+                  <hr />
+                  <button className="dropdown-danger" onClick={() => { setMenuOpen(false); handleClear(); }}>
+                    <Trash2 size={16} /> データ消去
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="save-button"
+              disabled={!hasUnsavedChanges || isSaving}
+              aria-label={isSaving ? '変更を保存中' : '変更を保存'}
+            >
+              <Save size={16} aria-hidden="true" /> {isSaving ? '保存中...' : '変更を保存'}
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="print-button"
+              title="印刷 / PDF保存"
+              aria-label="印刷またはPDF保存"
+            >
+              <Printer size={16} aria-hidden="true" /> <span>印刷</span>
+            </button>
+          </div>
+        </header>
+
         <CaseSidebar
           sections={availableSections}
           activeKey={currentSection}
@@ -602,6 +704,7 @@ export default function Page() {
           onOpenValuation={() => setCustomerSettingsSection('valuation')}
           onOpenAgency={() => setCustomerSettingsSection('agency')}
           onBackToList={handleBackToList}
+          helpHref={helpHrefForCase(activeCaseId)}
         />
 
         <div className="main-area">
@@ -611,91 +714,6 @@ export default function Page() {
               <button onClick={() => setError(null)} className="error-close-btn">&times;</button>
             </div>
           )}
-
-          <header className="app-header">
-            <div className="header-title-area">
-              <h1 className="app-title">保険証券分析・診断ダッシュボード</h1>
-              <button
-                type="button"
-                className="customer-summary-display"
-                onClick={() => setCustomerSettingsSection('family')}
-                title="世帯・家族情報を編集"
-                aria-label={`${self?.name || 'お客様'}様の世帯・家族情報を編集`}
-              >
-                <span className="customer-name-tag">{self?.name} 様</span>
-                <span className="customer-meta-tag">({birthDateLabel} | {ageLabel} | 世帯人数: {familyMembers.length}名)</span>
-                <UserCog size={16} className="customer-edit-icon" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="header-actions">
-              <div
-                className={`save-status save-status-${saveStatus.kind}`}
-                role={saveStatus.kind === 'error' ? 'alert' : 'status'}
-                aria-live="polite"
-                title={saveStatus.detail}
-              >
-                <SaveStatusIcon size={16} />
-                <span className="save-status-label">{saveStatus.label}</span>
-                <span className="save-status-detail">{saveStatus.detail}</span>
-              </div>
-              <div className="dropdown-wrapper" ref={menuRef}>
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen(v => !v)}
-                  className="dropdown-trigger"
-                  aria-expanded={menuOpen}
-                  aria-haspopup="menu"
-                >
-                  <Menu size={16} /> データ管理 <ChevronDown size={12} />
-                </button>
-                {menuOpen && (
-                  <div className="dropdown-menu">
-                    <button onClick={() => { setMenuOpen(false); loadSampleData(); }}>
-                      <FileUp size={16} /> サンプル読込
-                    </button>
-                    {!jsonStorageMode && (
-                      <button onClick={() => { setMenuOpen(false); setCsvImportOpen(true); }}>
-                        <Upload size={16} /> CSV取込
-                      </button>
-                    )}
-                    <button onClick={() => { setMenuOpen(false); handleExport(); }}>
-                      <Download size={16} /> JSON出力
-                    </button>
-                    {!jsonStorageMode && (
-                      <>
-                        <hr />
-                        <button onClick={() => { setMenuOpen(false); handleBackup(); }}>
-                          <DatabaseBackup size={16} /> バックアップ
-                        </button>
-                      </>
-                    )}
-                    <hr />
-                    <button className="dropdown-danger" onClick={() => { setMenuOpen(false); handleClear(); }}>
-                      <Trash2 size={16} /> データ消去
-                    </button>
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="save-button"
-                disabled={!hasUnsavedChanges || isSaving}
-                aria-label={isSaving ? '変更を保存中' : '変更を保存'}
-              >
-                <Save size={16} aria-hidden="true" /> {isSaving ? '保存中...' : '変更を保存'}
-              </button>
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="print-button"
-                title="印刷 / PDF保存"
-                aria-label="印刷またはPDF保存"
-              >
-                <Printer size={16} aria-hidden="true" /> <span>印刷</span>
-              </button>
-            </div>
-          </header>
 
           <main>
             <section className={sectionPanelClassName(

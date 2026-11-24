@@ -17,6 +17,8 @@ interface CaseSidebarProps {
   onOpenValuation: () => void;
   onOpenAgency: () => void;
   onBackToList: () => void;
+  /** 使い方の画面へのリンク先。戻り先に今の案件を渡すのでアプリ側で組む */
+  helpHref: string;
 }
 
 const CaseSidebar: React.FC<CaseSidebarProps> = ({
@@ -30,6 +32,7 @@ const CaseSidebar: React.FC<CaseSidebarProps> = ({
   onOpenValuation,
   onOpenAgency,
   onBackToList,
+  helpHref,
 }) => (
   <aside className={`case-sidebar no-print ${collapsed ? 'collapsed' : ''}`}>
     <div className="case-sidebar-head">
@@ -106,7 +109,7 @@ const CaseSidebar: React.FC<CaseSidebarProps> = ({
         {!collapsed && <span>お客様一覧</span>}
       </button>
       {/* 未保存の入力が画面の state にしか無いので、同じタブで移ると消える。使い方は別のタブで開く */}
-      <Link href="/help/" target="_blank" rel="noopener" className="case-sidebar-link" title="使い方を別のタブで開く">
+      <Link href={helpHref} target="_blank" rel="noopener" className="case-sidebar-link" title="使い方を別のタブで開く">
         <CircleHelp size={16} />
         {!collapsed && <span>使い方</span>}
       </Link>

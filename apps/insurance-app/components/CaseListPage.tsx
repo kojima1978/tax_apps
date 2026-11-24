@@ -14,6 +14,7 @@ import {
   restoreJsonBackup,
 } from '@/lib/api';
 import type { CaseSummary } from '@/lib/api';
+import { helpHrefForCase } from '@/utils/helpNavigation';
 
 interface Props {
   onSelect: (caseId: string) => void;
@@ -358,7 +359,7 @@ export default function CaseListPage({ onSelect }: Props) {
             <Building2 size={18} /> 代理店管理
           </button>
           {/* 入力中の画面を残したまま読めるよう、使い方は別のタブで開く（サイドバーからも同じ） */}
-          <Link href="/help/" target="_blank" rel="noopener" className="case-agency-btn">
+          <Link href={helpHrefForCase(null)} target="_blank" rel="noopener" className="case-agency-btn">
             <CircleHelp size={18} aria-hidden="true" /> 使い方
           </Link>
           <button className="case-create-btn" onClick={handleCreate}>
