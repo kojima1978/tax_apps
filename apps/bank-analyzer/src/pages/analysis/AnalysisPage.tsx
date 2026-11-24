@@ -35,7 +35,6 @@ import {
   type LucideProps,
 } from 'lucide-react';
 import { DownloadButton } from '../../components/DownloadButton';
-import { Breadcrumb } from '../../components/Layout';
 import { useNotice } from '../../components/Notice';
 import { OperatorPicker } from '@/shared/staff-directory/OperatorPicker';
 import { useAction } from '../../hooks/useAction';
@@ -99,7 +98,6 @@ export function AnalysisPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] px-4 py-6">
-      <Breadcrumb items={[{ label: '案件一覧', to: '/' }, { label: data.case.name }]} />
       <Header caseId={data.case.id} name={data.case.name} onRenamed={rename} />
       {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
 
@@ -361,16 +359,13 @@ function GlobalCaseMenu() {
   return (
     <nav className="card p-2 print:hidden" aria-label="共通メニュー">
       <Link to="/help" className={`${item} font-medium text-blue-800`}><BookOpen size={16} aria-hidden="true" />使い方</Link>
-      <details>
-        <summary className="cursor-pointer rounded-md px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">アプリ全体へ</summary>
-        <div className="mt-1 grid grid-cols-2 gap-1 border-t border-slate-100 pt-1 lg:grid-cols-1">
-          <a href="/" className={item}><Home size={16} aria-hidden="true" />ポータル</a>
-          <Link to="/" className={item}><FolderOpen size={16} aria-hidden="true" />案件一覧</Link>
-          <Link to="/settings" className={item}><Settings size={16} aria-hidden="true" />設定</Link>
-          <a href={`${import.meta.env.BASE_URL}letter`} target="_blank" rel="noopener" className={item}><Mail size={16} aria-hidden="true" />お客様配布用文書</a>
-          <Link to="/?new=1" className={item}><Plus size={16} aria-hidden="true" />新規案件</Link>
-        </div>
-      </details>
+      <div className="mt-1 grid grid-cols-2 gap-1 border-t border-slate-100 pt-1 lg:grid-cols-1">
+        <a href="/" className={item}><Home size={16} aria-hidden="true" />ポータル</a>
+        <Link to="/" className={item}><FolderOpen size={16} aria-hidden="true" />案件一覧</Link>
+        <Link to="/settings" className={item}><Settings size={16} aria-hidden="true" />設定</Link>
+        <a href={`${import.meta.env.BASE_URL}letter`} target="_blank" rel="noopener" className={item}><Mail size={16} aria-hidden="true" />お客様配布用文書</a>
+        <Link to="/?new=1" className={item}><Plus size={16} aria-hidden="true" />新規案件</Link>
+      </div>
       <div className="mt-1 border-t border-slate-200 px-2 pt-2">
         <OperatorPicker usage="取引の分類を変えたとき、変更履歴に名前が残ります" className="max-w-full" />
       </div>
@@ -381,7 +376,7 @@ function GlobalCaseMenu() {
 function Sidebar({ dash, active }: { dash: DashboardSummary; active: Tab }) {
   const navigate = useNavigate();
   return (
-    <aside aria-label="分析メニュー" className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+    <aside aria-label="分析メニュー" className="space-y-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto">
       <label className="card flex items-center gap-3 px-3 py-2 text-sm font-medium lg:hidden">
         <span className="shrink-0">表示する画面</span>
         <select className="input min-w-0 flex-1" value={active} onChange={(event) => navigate(`?tab=${event.target.value}`)}>
