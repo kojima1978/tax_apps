@@ -16,6 +16,7 @@ const WIDTH = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl'
 
 export function Dialog({ open, onClose, title, children, footer, size = 'md' }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
+  const pressedOnBackdrop = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -33,8 +34,14 @@ export function Dialog({ open, onClose, title, children, footer, size = 'md' }: 
     <dialog
       ref={ref}
       onClose={onClose}
-      // 背景（dialog 自身）を押したら閉じる。中身を押したときは target が子要素になる
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      // 編集欄から背景へドラッグして離したクリックは閉じる操作とみなさない
+      onPointerDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onPointerCancel={() => { pressedOnBackdrop.current = false; }}
+      onClick={(e) => {
+        const shouldClose = pressedOnBackdrop.current && e.target === e.currentTarget;
+        pressedOnBackdrop.current = false;
+        if (shouldClose) onClose();
+      }}
       className={`m-auto w-[calc(100%-2rem)] ${WIDTH[size]} rounded-lg bg-white p-0 text-slate-800 shadow-xl backdrop:bg-slate-900/40`}
     >
       {open && (
