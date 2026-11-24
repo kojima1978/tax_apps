@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 無人実行（backup.sh due）の2点を固定する。
+# 無人実行（backup.sh due）の3点を固定する。
 #
 # 1. `_due_run` のサブシェルで後始末の trap が走ること。bash はサブシェルで trap を
 #    既定へ戻すため、`( "$@" )` だけだと親が張った `on_release_operation_lock` が
@@ -9,6 +9,9 @@
 # 2. 突合が落ちたときに「どのファイルが合わなかったか」が残ること。以前は
 #    sha256sum -c の出力を捨てていたので、無人実行では manifest-failed の1語しか
 #    残らず追う手がかりが無かった。
+# 3. stdin が無い（スケジュールタスク）回でも突合が通ること。MSYS 版 sha256sum は
+#    stdin が閉じていると1ファイルも見ずに失敗するため、2026-11-14 以降のドリルは
+#    毎回 manifest-failed（failed=0）を記録し、手で叩くと通る状態だった。
 set -euo pipefail
 
 script_dir=$(cd "$(dirname "$0")" && pwd)
@@ -60,6 +63,9 @@ printf 'good\n' > "$work/intact.sql"
 printf 'before\n' > "$work/broken-itcm-postgres.sql"
 ( cd "$work" && sha256sum intact.sql broken-itcm-postgres.sql > manifest.sha256 )
 
+# 3 で使う健全な写し（下でこのアーカイブは壊す）
+cp -r "$work" "$test_dir/archive-intact"
+
 verify_backup_manifest "$work" || fail "健全なアーカイブで突合が落ちました"
 [[ -z "$MANIFEST_FAILED_DETAIL" ]] || fail "成功した回に detail が残っています"
 
@@ -77,3 +83,12 @@ legacy="$test_dir/legacy"
 mkdir -p "$legacy"
 verify_backup_manifest "$legacy" || fail "manifest の無いアーカイブで落ちました"
 printf 'manifest の無い版は飛ばす: OK\n'
+
+# ---- 3. stdin が閉じていても照合できる ----
+# 無人実行（スケジュールタスク）では stdin が無い。MSYS 版 sha256sum はその状態で呼ぶと
+# 1ファイルも見ないまま終了コード 1 を返すため、落ちたファイルが1つも無いのに
+# manifest-failed が記録され続けていた（2026-11-14〜25）。
+MANIFEST_FAILED_DETAIL=""
+rc=0; verify_backup_manifest "$test_dir/archive-intact" 0<&- || rc=$?
+[[ $rc -eq 0 ]] || fail "stdin が閉じた状態で突合が落ちました（rc=$rc detail=$MANIFEST_FAILED_DETAIL）"
+printf 'stdin が無い（無人実行）回でも突合が通る: OK\n'

@@ -528,10 +528,17 @@ verify_backup_manifest() {
   # 「突合が落ちた」しか分からなかった（2026-11-14〜15 のドリルの失敗は、手で
   # 叩き直すと通ってしまい、どのファイルが合わなかったのか追う手がかりが
   # 1つも残っていなかった）。
+  # stdin は必ず開いたまま渡す（`< /dev/null`）。MSYS 版 coreutils の sha256sum は
+  # 起動時に fd 0 のテキスト/バイナリモードを設定するため、stdin が閉じた状態で呼ぶと
+  # 1ファイルも照合しないまま
+  #   sha256sum: failed to set file descriptor text/binary mode: Bad file descriptor
+  # だけ出して終了コード 1 を返す。無人実行（スケジュールタスク）では stdin が無いので
+  # 毎回これに当たり、手で叩くと通る ── 2026-11-14 以降ドリルが manifest-failed を
+  # 書き続けていた（detail は failed=0 で FAILED 行が1つも無い）のがこれ。
   local output rc=0
   output=$(
     cd "$dir" || exit 1
-    sha256sum -c manifest.sha256 2>&1
+    sha256sum -c manifest.sha256 2>&1 < /dev/null
   ) || rc=$?
 
   if [[ $rc -eq 0 ]]; then
