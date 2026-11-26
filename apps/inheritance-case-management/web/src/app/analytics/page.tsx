@@ -15,7 +15,6 @@ import { parseError } from "@/hooks/use-error-handler"
 import { useRankingSort } from "@/hooks/use-ranking-sort"
 import { YearFilter } from "./YearFilter"
 import { OverviewTab } from "./OverviewTab"
-import { MonthlyCaseActivity } from "./MonthlyCaseActivity"
 import { BreakdownTab } from "./BreakdownTab"
 import { ReferrerTab } from "./ReferrerTab"
 import dynamic from "next/dynamic"
@@ -281,7 +280,6 @@ export default function AnalyticsPage() {
                     selectedYears={selectedYears}
                 />
             )}
-            {activeTab === "overview" && <MonthlyCaseActivity years={selectedYears} />}
 
             {activeTab === "trend" && (
                 <AnnualTrendTab

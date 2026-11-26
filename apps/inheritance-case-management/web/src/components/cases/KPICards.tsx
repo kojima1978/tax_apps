@@ -1,4 +1,4 @@
-import { Clock, AlertTriangle, CheckCircle } from "lucide-react"
+import { Clock, AlertTriangle, CheckCircle, CalendarPlus, CalendarCheck } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import type { KPICountKey, KPIData } from "@/lib/kpi-utils"
 
@@ -15,6 +15,8 @@ const KPI_CARD_DEFS: readonly {
     { key: "deadlineOverdue", label: "期限超過", icon: AlertTriangle, color: "border-red-200 bg-red-50 text-red-700", filterKey: "deadlineOverdue" },
     { key: "deadlineSoon", label: "14日以内", icon: AlertTriangle, color: "border-amber-200 bg-amber-50 text-amber-800", filterKey: "deadlineSoon" },
     { key: "completed", label: "完了", icon: CheckCircle, color: "border-emerald-200 bg-emerald-50 text-emerald-700", filterKey: "completed" },
+    { key: "addedThisMonth", label: "当月追加", icon: CalendarPlus, color: "border-blue-200 bg-blue-50 text-blue-700", filterKey: "addedThisMonth" },
+    { key: "completedThisMonth", label: "当月完了", icon: CalendarCheck, color: "border-emerald-200 bg-emerald-50 text-emerald-700", filterKey: "completedThisMonth" },
 ] as const
 
 interface KPICardsProps {
