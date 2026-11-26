@@ -36,6 +36,29 @@ const base = (overrides: Partial<PowerOfAttorneyInput> = {}): PowerOfAttorneyInp
 const row = (rows: SheetRow[], label: string) => rows.find((r) => r.label === label);
 
 describe('buildSheets', () => {
+  it('使者証明書は案件ごとに1枚出力し、委任者・被相続人・使者・証明者を記載する', () => {
+    const sheets = buildSheets(base({
+      documents: 'messenger',
+      principals: [person, corporation],
+      deceased: { name: '架空太郎', birthDate: '昭和10年4月5日' },
+      matters: [],
+    }));
+    expect(sheets).toHaveLength(1);
+    const [sheet] = sheets;
+    expect(sheet.title).toBe('使者証明書');
+    expect(sheet.delegation[0]).toContain('架空花子、株式会社架空　代表取締役 架空一郎');
+    expect(sheet.delegation[0]).toContain('架空太郎（昭和10年4月5日生）');
+    expect(sheet.delegation[0]).not.toContain('死亡');
+    expect(sheet.delegation[0]).toContain('原本還付物の受領を含む。');
+    expect(sheet.upperRows).toEqual([
+      { label: '所属・役職', value: '架空税理士法人　職員' },
+      { label: '氏名', value: '架空三郎' },
+    ]);
+    expect(row(sheet.principalRows, '法人名・代表')?.seal).toBe('（実印）');
+    expect(sheet.date).toBe('令和8年10月25日');
+    expect(buildSheets(base({ purpose: 'personal', documents: 'messenger' }))).toEqual([]);
+  });
+
   it('委任者ごとに 委任状 → 復代理委任状 の順で並べる', () => {
     const sheets = buildSheets(base({ principals: [person, corporation] }));
     expect(sheets.map((s) => s.title)).toEqual(['委任状（原本還付希望）', '復代理委任状', '委任状（原本還付希望）', '復代理委任状']);
@@ -47,6 +70,8 @@ describe('buildSheets', () => {
     expect(sheet.matterHeading).toBe('１．被相続人　架空太郎（昭和10年4月5日生）の相続手続きに関する下記の権限');
     expect(sheet.principalHeading).toBe('【委任者（相続人及び受遺者）】');
     expect(row(sheet.principalRows, '氏名')).toMatchObject({ value: '架空花子', seal: '（印）' });
+    expect(row(sheet.principalRows, '氏名')?.sealNote).toBeUndefined();
+    expect(sheet.principalNote).toBe('※金融機関等提出の場合は実印を押印し、印鑑証明書を添付してください。');
     expect(sheet.closingItems).toHaveLength(2);
   });
 
@@ -92,7 +117,7 @@ describe('buildSheets', () => {
     expect(buildSheets(base({ documents: 'principal' })).map((s) => s.title)).toEqual(['委任状（原本還付希望）']);
   });
 
-  it('復代理委任状: 復代理人・代理人の実印・受任会社名の本文', () => {
+  it('復代理委任状: 復代理人・代理人の押印欄・受任会社名の本文', () => {
     const [, sub] = buildSheets(base());
     expect(sub.upperRows.map((r) => r.value)).toEqual(['架空県架空市10', '架空三郎', '平成2年6月7日']);
     expect(sub.delegation[0]).toBe(
@@ -100,7 +125,7 @@ describe('buildSheets', () => {
     );
     expect(sub.principalHeading).toBe('【本来の委任者（相続人）】');
     expect(row(sub.principalRows, '氏名')?.seal).toBeUndefined();
-    expect(sub.agentRows?.[1]).toMatchObject({ value: '架空税理士法人　代表社員 架空次郎', seal: '（実印）' });
+    expect(sub.agentRows?.[1]).toMatchObject({ value: '架空税理士法人　代表社員 架空次郎', seal: '（印）' });
     expect(sub.closingItems).toEqual(['２．本委任状の原本還付請求及び受領に関する一切の権限']);
   });
 

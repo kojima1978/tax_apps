@@ -116,7 +116,8 @@ export function usePowerOfAttorneyForm(linked: { principalId?: number; deceasedI
   const purpose: Purpose = subject === 'deceased' ? 'inheritance' : 'personal';
   // ②③は区分が決まる。①は相続人ごとに選べる（法人の受遺者がいるため）
   const forcedKind: PrincipalKind | null = subject === 'deceased' ? null : subject;
-  const [documents, setDocuments] = useState<DocumentKind>('both');
+  const [documentKind, setDocuments] = useState<DocumentKind>('both');
+  const documents = subject !== 'deceased' && documentKind === 'messenger' ? 'both' : documentKind;
   const [printDetails, setPrintDetails] = useState(true);
   const [nameMode, setNameMode] = useState<NameMode>('printed');
   const [dateMode, setDateMode] = useState<DateMode>('blank');
@@ -389,6 +390,15 @@ export function usePowerOfAttorneyForm(linked: { principalId?: number; deceasedI
   }, []);
 
   const availableMatters = master.matters[purpose];
+  const selectAllMatters = useCallback(() => {
+    setMatterState((prev) => {
+      const selection = { ...prev.selection };
+      for (const { id } of availableMatters) {
+        selection[id] = { checked: true, text: selection[id]?.text ?? '' };
+      }
+      return { ...prev, selection };
+    });
+  }, [availableMatters]);
 
   /** 文面を定型文に登録し、登録した事項に印を付け直す。select は登録結果の id から次の選択を作る */
   const register = useCallback(async (
@@ -470,10 +480,12 @@ export function usePowerOfAttorneyForm(linked: { principalId?: number; deceasedI
       if (!result.ok) errors[key] = result.error;
     };
     if (subject === 'deceased') check('deceased', deceased.birthInput);
-    principals.forEach((p) => p.kind === 'individual' && check(`principal-${p.id}`, p.birthInput));
-    if (subAgent) check('subAgent', subAgent.birthInput);
+    if (documents !== 'messenger') {
+      principals.forEach((p) => p.kind === 'individual' && check(`principal-${p.id}`, p.birthInput));
+      if (subAgent) check('subAgent', subAgent.birthInput);
+    }
     return errors;
-  }, [subject, deceased.birthInput, principals, subAgent]);
+  }, [subject, documents, deceased.birthInput, principals, subAgent]);
 
   const matters = useMemo(
     () => resolveMatters(availableMatters, selection, extraMatters),
@@ -557,6 +569,7 @@ export function usePowerOfAttorneyForm(linked: { principalId?: number; deceasedI
     selection,
     activePresetIds,
     togglePresetById,
+    selectAllMatters,
     updateMatter,
     extraMatters,
     setExtraMatters,

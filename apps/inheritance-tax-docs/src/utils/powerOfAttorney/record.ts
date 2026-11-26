@@ -7,7 +7,7 @@
  */
 import type { Purpose } from './matters';
 
-export type DocumentKind = 'both' | 'principal' | 'subdelegate';
+export type DocumentKind = 'both' | 'principal' | 'subdelegate' | 'messenger';
 export type NameMode = 'printed' | 'signature';
 
 export type PrincipalInput = {
@@ -55,8 +55,11 @@ export type PowerOfAttorneySheet = {
   date: string;
   principalHeading: string;
   principalRows: SheetRow[];
+  principalNote?: string;
   /** 復代理委任状の末尾の代理人（＝受任会社）の表 */
   agentRows: SheetRow[] | null;
+  /** 使者証明書は証明文から始め、使者と証明者の欄を並べる */
+  messenger?: true;
 };
 
 const BLANK_NAME = '　　　　　　　　　';
@@ -94,7 +97,7 @@ function principalRows(
   const seal = withSeal
     ? corporate
       ? { seal: '（社印）', sealNote: '法人名の入った社印を押印してください' }
-      : { seal: '（印）', sealNote: '金融機関等提出の場合は実印' }
+      : { seal: '（印）' }
     : {};
   const rows: SheetRow[] = [
     { label: '住所', value: input.printDetails ? principal.address.trim() : '' },
@@ -124,6 +127,9 @@ function principalSheet(input: PowerOfAttorneyInput, principal: PrincipalInput, 
     date: input.date.trim() || BLANK_DATE,
     principalHeading: principalHeading(input, principal, false),
     principalRows: principalRows(input, principal, input.nameMode, true),
+    principalNote: principal.kind === 'individual'
+      ? '※金融機関等提出の場合は実印を押印し、印鑑証明書を添付してください。'
+      : undefined,
     agentRows: null,
   };
 }
@@ -155,12 +161,41 @@ function subdelegateSheet(
     date: input.date.trim() || BLANK_DATE,
     principalHeading: principalHeading(input, principal, true),
     principalRows: principalRows(input, principal, nameMode, false),
-    agentRows: agentRows(input, '（実印）'),
+    agentRows: agentRows(input, '（印）'),
+  };
+}
+
+/** 使者証明書は委任者ごとではなく、案件と派遣職員の組み合わせで1枚発行する。 */
+function messengerSheet(input: PowerOfAttorneyInput): PowerOfAttorneySheet {
+  const name = input.deceased.name.trim() || BLANK_NAME;
+  const principals = input.principals.map((principal) => principalName(principal, 'printed')).filter(Boolean).join('、') || BLANK_NAME;
+  const birth = input.deceased.birthDate.trim() || BLANK_BIRTH;
+  return {
+    key: 'messenger',
+    label: '使者証明書',
+    title: '使者証明書',
+    upperHeading: '【使者】',
+    upperRows: [
+      { label: '所属・役職', value: join(input.agent.name, '職員') },
+      { label: '氏名', value: input.subAgent?.name.trim() ?? '' },
+    ],
+    delegation: [
+      `下記の者を、当法人が委任者　${principals}　より受任した、被相続人　${name}（${birth}生）に係る相続手続に関する書類の提出・請求及び受領（原本還付物の受領を含む。）のための使者として証明いたします。`,
+    ],
+    matterHeading: '',
+    matters: [],
+    closingItems: [],
+    date: input.date.trim() || BLANK_DATE,
+    principalHeading: '【証明者（受任者）】',
+    principalRows: agentRows(input, '（実印）'),
+    agentRows: null,
+    messenger: true,
   };
 }
 
 /** 委任者1人につき、委任状 → 復代理委任状 の順で並べる（作らない方は飛ばす） */
 export function buildSheets(input: PowerOfAttorneyInput): PowerOfAttorneySheet[] {
+  if (input.documents === 'messenger') return input.purpose === 'inheritance' ? [messengerSheet(input)] : [];
   return input.principals.flatMap((principal, index) => [
     ...(input.documents !== 'subdelegate' ? [principalSheet(input, principal, index)] : []),
     ...(input.documents !== 'principal' ? [subdelegateSheet(input, principal, index, input.nameMode)] : []),

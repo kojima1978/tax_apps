@@ -36,29 +36,49 @@ export type MatterMaster = {
   presets: Record<MatterPresetId, string[]>;
 };
 
+export const BANK_STATEMENTS_MATTER: Matter = {
+  id: 'bank-statements',
+  text: '被相続人名義の全取引に係る残高証明書、利息計算書、取引明細書（取引履歴証明書・取引推移表を含む）等の発行請求及び受領に関する一切の権限',
+};
+
+export const BANK_PROCEDURES_MATTER: Matter = {
+  id: 'bank-procedures',
+  text: '被相続人名義の預貯金・有価証券等の一切の取引に係る相続手続（相続届、相続手続依頼書その他の関係書類の作成・記入、提出及び受領、口座の解約並びに払戻金等の請求及び受領を含む。）に関する一切の権限',
+};
+
+export const BANK_ACCOUNT_OPENING_MATTER: Matter = {
+  id: 'bank-account-opening',
+  text: '相続手続に伴う新規口座の開設申込書その他の関係書類の作成・記入、提出及び受領に関する一切の権限',
+};
+
+export const BANK_INCIDENTAL_MATTER: Matter = {
+  id: 'bank-incidental-matters',
+  text: 'その他、上記の相続手続及びこれに付随する事項に関する一切の権限',
+};
+
+export const CARE_FACILITY_MATTER: Matter = {
+  id: 'care-facility',
+  text: '被相続人の相続税申告及び関連手続に伴い、被相続人が入居・入所していた施設が保管する入所契約書の写し、介護保険被保険者証の写しその他の関係書類の交付請求及び受領に関する一切の権限',
+};
+
 export const DEFAULT_MATTER_MASTER: MatterMaster = {
   matters: {
     // 相続手続き用（被相続人の名前を見出しに刷る）
     inheritance: [
-      {
-        id: 'bank-statements',
-        text: '被相続人名義の全取引に係る残高証明書、利息計算書、取引明細書等の発行請求および当該書類の受領に関する一切の権限',
-      },
-      {
-        id: 'bank-procedures',
-        text: '被相続人名義の全取引に関する相続手続きに関し、関係書類へ記入および、解約、手続きに関するすべての権限',
-      },
+      BANK_STATEMENTS_MATTER,
+      BANK_PROCEDURES_MATTER,
+      BANK_ACCOUNT_OPENING_MATTER,
       {
         id: 'deceased-koseki',
-        text: '被相続人の出生から死亡にいたるまでの戸籍謄本、除籍謄本、改製原戸籍謄本及び再製原戸籍謄本並びにその附票の交付申請並びに受領に関する一切の権限',
+        text: '被相続人の出生から死亡に至るまでの戸籍謄本、除籍謄本、改製原戸籍謄本及び再製原戸籍謄本並びに戸籍の附票の写し（除附票の写しを含む。）の交付申請及び受領に関する一切の権限',
       },
       {
         id: 'heir-koseki',
-        text: '相続人及び受遺者の戸籍謄本、除籍謄本、改製原戸籍謄本及び再製原戸籍謄本並びに相続人を確認するために必要となる戸籍謄本、除籍謄本、改製原戸籍謄本及び再製原戸籍謄本の交付申請並びに受領に関する一切の権限',
+        text: '相続人及び受遺者並びに相続関係を証するために必要な者の戸籍謄本、除籍謄本、改製原戸籍謄本及び再製原戸籍謄本の交付申請及び受領に関する一切の権限',
       },
       {
         id: 'resident-records',
-        text: '被相続人及び相続人及び受遺者の住民票の写し、除票の写し及び戸籍の（除）附票の交付申請並びに受領に関する一切の権限',
+        text: '被相続人、相続人及び受遺者の住民票の写し、住民票の除票の写し及び戸籍の附票の写し（除附票の写しを含む。）の交付申請及び受領に関する一切の権限',
       },
       {
         // 登記事項証明書は誰でも請求できる（委任状が要らない）ので、法務局は一覧図の写しだけ
@@ -67,12 +87,10 @@ export const DEFAULT_MATTER_MASTER: MatterMaster = {
       },
       {
         id: 'property-certificates',
-        text: '被相続人所有（共有名義のものを含む）の不動産の評価証明書・名寄帳・課税証明書・無資産証明書の交付申請並びに受領に関する一切の権限',
+        text: '被相続人が所有する不動産（共有名義のものを含む。）に係る固定資産評価証明書、名寄帳の写し、固定資産課税台帳記載事項証明書、公課証明書及び無資産証明書の交付申請及び受領に関する一切の権限',
       },
-      {
-        id: 'care-facility',
-        text: '被相続人の相続税申告および関連手続きに伴い、被相続人が入居・入所していた施設が保管する「施設入所時における契約書の写し」および「介護保険被保険者証の写し」の交付請求ならびに受領に関する一切の件',
-      },
+      CARE_FACILITY_MATTER,
+      BANK_INCIDENTAL_MATTER,
     ],
     // 委任者本人の手続き用（被相続人は刷らない）
     personal: [
@@ -84,7 +102,7 @@ export const DEFAULT_MATTER_MASTER: MatterMaster = {
   },
   presets: {
     koseki: ['deceased-koseki', 'heir-koseki', 'resident-records'],
-    bank: ['bank-statements', 'bank-procedures'],
+    bank: ['bank-statements', BANK_PROCEDURES_MATTER.id, BANK_ACCOUNT_OPENING_MATTER.id, BANK_INCIDENTAL_MATTER.id],
     property: ['property-certificates'],
     'legal-affairs': ['statutory-heir-info'],
   },

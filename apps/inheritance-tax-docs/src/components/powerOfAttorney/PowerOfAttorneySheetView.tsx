@@ -5,6 +5,7 @@ import type { PowerOfAttorneySheet, SheetRow } from '@/utils/powerOfAttorney/rec
 const MARGIN_MM = { vertical: 14, horizontal: 16 };
 const PRINTABLE_HEIGHT_MM = 297 - MARGIN_MM.vertical * 2;
 const MM_TO_PX = 96 / 25.4;
+const PRINT_FIT_BUFFER_MM = 1;
 
 /** 委任状の画面が開いている間だけ差し込む @page（globals.css の既定は書類リスト用の A4 横） */
 export const POA_PAGE_STYLE = `@media print { @page { size: A4 portrait; margin: ${MARGIN_MM.vertical}mm ${MARGIN_MM.horizontal}mm; } }`;
@@ -50,19 +51,26 @@ const contentHeightMm = (el: HTMLElement) => {
 /** 委任事項が多い・文面が長いときに、1枚に収まる文字の大きさを選ぶ */
 function useFitFontSize(sheet: PowerOfAttorneySheet) {
   const ref = useRef<HTMLElement>(null);
-  const [fit, setFit] = useState({ fontPt: FONT_STEPS_PT[0], overflow: false });
+  const [fit, setFit] = useState({ fontPt: FONT_STEPS_PT[0], compact: false, overflow: false });
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const measure = () => {
-      const found = FONT_STEPS_PT.find((pt) => {
+      const findFittingFont = (steps: number[]) => steps.find((pt) => {
         el.style.fontSize = `${pt}pt`;
-        return contentHeightMm(el) <= PRINTABLE_HEIGHT_MM;
+        return contentHeightMm(el) <= PRINTABLE_HEIGHT_MM - PRINT_FIT_BUFFER_MM;
       });
-      const next = { fontPt: found ?? FONT_STEPS_PT[FONT_STEPS_PT.length - 1], overflow: found === undefined };
+      el.classList.remove('poa-sheet-compact');
+      let found = findFittingFont(sheet.agentRows ? FONT_STEPS_PT.slice(0, 2) : FONT_STEPS_PT);
+      const compact = Boolean(sheet.agentRows && found === undefined);
+      if (compact) {
+        el.classList.add('poa-sheet-compact');
+        found = findFittingFont(FONT_STEPS_PT);
+      }
+      const next = { fontPt: found ?? FONT_STEPS_PT[FONT_STEPS_PT.length - 1], compact, overflow: found === undefined };
       el.style.fontSize = `${next.fontPt}pt`;
-      setFit((prev) => (prev.fontPt === next.fontPt && prev.overflow === next.overflow ? prev : next));
+      setFit((prev) => prev.fontPt === next.fontPt && prev.compact === next.compact && prev.overflow === next.overflow ? prev : next);
     };
     measure();
     // 明朝体の読み込みが後から終わると高さが変わる
@@ -78,7 +86,7 @@ function useFitFontSize(sheet: PowerOfAttorneySheet) {
 
 /** A4 縦1枚。画面のプレビューと印刷は同じ DOM（見た目を2つ持たない） */
 export const PowerOfAttorneySheetView = ({ sheet }: { sheet: PowerOfAttorneySheet }) => {
-  const { ref, fontPt, overflow } = useFitFontSize(sheet);
+  const { ref, fontPt, compact, overflow } = useFitFontSize(sheet);
   return (
     <>
       {overflow && (
@@ -88,42 +96,56 @@ export const PowerOfAttorneySheetView = ({ sheet }: { sheet: PowerOfAttorneyShee
       )}
       <section
         ref={ref}
-        className="poa-sheet"
+        className={compact ? 'poa-sheet poa-sheet-compact' : 'poa-sheet'}
         aria-label={sheet.label}
         style={{ fontSize: `${fontPt}pt`, padding: `${MARGIN_MM.vertical}mm ${MARGIN_MM.horizontal}mm` }}
       >
         <h2 className="poa-title">{sheet.title}</h2>
 
-        <p className="poa-heading">{sheet.upperHeading}</p>
-        <RowsTable rows={sheet.upperRows} />
-
-        <div className="poa-body">
-          {sheet.delegation.map((text) => (
-            <p key={text}>{text}</p>
-          ))}
-        </div>
-
-        <p className="poa-heading poa-center">【委任事項】</p>
-        <p className="poa-item">{sheet.matterHeading}</p>
-        <ul className="poa-matters">
-          {sheet.matters.map((text, index) => (
-            <li key={`${index}-${text}`}>{text}</li>
-          ))}
-        </ul>
-        {sheet.closingItems.map((text) => (
-          <p key={text} className="poa-item">{text}</p>
-        ))}
-        <p className="poa-right">以上</p>
-
-        <p className="poa-right poa-date">{sheet.date}</p>
-
-        <p className="poa-heading">{sheet.principalHeading}</p>
-        <RowsTable rows={sheet.principalRows} />
-
-        {sheet.agentRows && (
+        {sheet.messenger ? (
           <>
-            <p className="poa-heading">【代理人】</p>
-            <RowsTable rows={sheet.agentRows} />
+            <div className="poa-body">
+              {sheet.delegation.map((text) => <p key={text}>{text}</p>)}
+            </div>
+            <p className="poa-heading">{sheet.upperHeading}</p>
+            <RowsTable rows={sheet.upperRows} />
+            <p className="poa-right poa-date">{sheet.date}</p>
+            <p className="poa-heading">{sheet.principalHeading}</p>
+            <RowsTable rows={sheet.principalRows} />
+          </>
+        ) : (
+          <>
+            <p className="poa-heading">{sheet.upperHeading}</p>
+            <RowsTable rows={sheet.upperRows} />
+
+            <div className="poa-body">
+              {sheet.delegation.map((text) => <p key={text}>{text}</p>)}
+            </div>
+
+            <p className="poa-heading poa-center">【委任事項】</p>
+            <p className="poa-item">{sheet.matterHeading}</p>
+            <ul className="poa-matters">
+              {sheet.matters.map((text, index) => (
+                <li key={`${index}-${text}`}>{text}</li>
+              ))}
+            </ul>
+            {sheet.closingItems.map((text) => (
+              <p key={text} className="poa-item">{text}</p>
+            ))}
+            <p className="poa-right">以上</p>
+
+            <p className="poa-right poa-date">{sheet.date}</p>
+
+            <p className="poa-heading">{sheet.principalHeading}</p>
+            <RowsTable rows={sheet.principalRows} />
+            {sheet.principalNote && <p className="poa-principal-note">{sheet.principalNote}</p>}
+
+            {sheet.agentRows && (
+              <>
+                <p className="poa-heading">【代理人】</p>
+                <RowsTable rows={sheet.agentRows} />
+              </>
+            )}
           </>
         )}
       </section>

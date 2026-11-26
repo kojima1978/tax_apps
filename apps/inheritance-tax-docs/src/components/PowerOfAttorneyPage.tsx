@@ -47,6 +47,10 @@ const DOCUMENT_OPTIONS: { value: DocumentKind; label: string }[] = [
   { value: 'principal', label: '委任状だけ' },
   { value: 'subdelegate', label: '復代理委任状だけ' },
 ];
+const INHERITANCE_DOCUMENT_OPTIONS: typeof DOCUMENT_OPTIONS = [
+  ...DOCUMENT_OPTIONS,
+  { value: 'messenger', label: '使者証明書' },
+];
 const NAME_MODE_OPTIONS: { value: NameMode; label: string }[] = [
   { value: 'printed', label: '印字する' },
   { value: 'signature', label: '空欄（自署）' },
@@ -61,6 +65,12 @@ const WORKFLOW_NAV = [
   { id: 'poa-principals', label: '委任者' },
   { id: 'poa-matters', label: '委任事項' },
   { id: 'poa-agent', label: '受任者' },
+] as const;
+const MESSENGER_WORKFLOW_NAV = [
+  WORKFLOW_NAV[0],
+  WORKFLOW_NAV[1],
+  WORKFLOW_NAV[3],
+  { id: 'poa-staff', label: '使者' },
 ] as const;
 
 // 文字だけのボタンは小さい（16px）ので、スマホ幅でだけ押せる高さ（44px）を取る
@@ -108,6 +118,7 @@ export const PowerOfAttorneyPage = () => {
   const [editingMatter, setEditingMatter] = useState<string | null>(null);
   const errorCount = Object.keys(form.birthErrors).length;
   const { company } = form;
+  const isMessenger = form.documents === 'messenger';
 
   // 委任者の欄に入ったら、その人の紙をプレビューに出す（同じ欄の中を移る間は動かさない）
   const revealedSlot = useRef<number | null>(null);
@@ -122,13 +133,13 @@ export const PowerOfAttorneyPage = () => {
   };
 
   const printBlocker =
-    errorCount > 0 ? `生年月日の誤りを直してください（${errorCount}か所）` : form.matters.length === 0 ? '委任事項を選んでください' : '';
+    errorCount > 0 ? `日付の誤りを直してください（${errorCount}か所）` : !isMessenger && form.matters.length === 0 ? '委任事項を選んでください' : '';
 
   const handlePrint = () => {
     // PDF に保存するときの既定のファイル名は document.title から付く
     const previous = document.title;
     const subject = form.subject === 'deceased' ? form.deceased.name : form.principals[0]?.name ?? '';
-    document.title = exportFileName([subject, '委任状'], 'pdf').replace(/\.pdf$/, '');
+    document.title = exportFileName([subject, isMessenger ? '使者証明書' : '委任状'], 'pdf').replace(/\.pdf$/, '');
     window.print();
     document.title = previous;
   };
@@ -197,7 +208,7 @@ export const PowerOfAttorneyPage = () => {
               入力する順番
             </div>
             <nav className="mt-2 grid grid-cols-4 gap-1" aria-label="委任状の入力項目">
-              {WORKFLOW_NAV.map((item, index) => (
+              {(isMessenger ? MESSENGER_WORKFLOW_NAV : WORKFLOW_NAV).map((item, index) => (
                 <button
                   key={item.id}
                   type="button"
@@ -222,22 +233,22 @@ export const PowerOfAttorneyPage = () => {
 
           <Section id="poa-settings" step="1" title="作る書類">
             <RadioGroup label="資料が必要な人" name="subject" options={SUBJECT_OPTIONS} value={form.subject} onChange={form.setSubject} />
-            <RadioGroup label="書類" name="documents" options={DOCUMENT_OPTIONS} value={form.documents} onChange={form.setDocuments} />
-            <RadioGroup
+            <RadioGroup label="書類" name="documents" options={form.purpose === 'inheritance' ? INHERITANCE_DOCUMENT_OPTIONS : DOCUMENT_OPTIONS} value={form.documents} onChange={form.setDocuments} />
+            {!isMessenger && <><RadioGroup
               label="委任者の住所・生年月日"
               name="details"
               options={PRINT_OPTIONS}
               value={form.printDetails ? 'print' : 'blank'}
               onChange={(v) => form.setPrintDetails(v === 'print')}
             />
-            <RadioGroup label="委任者の氏名（個人）" name="name-mode" options={NAME_MODE_OPTIONS} value={form.nameMode} onChange={form.setNameMode} />
-            <RadioGroup label="委任日（両方の書類に同じ日付）" name="date" options={DATE_OPTIONS} value={form.dateMode} onChange={form.setDateMode} />
+            <RadioGroup label="委任者の氏名（個人）" name="name-mode" options={NAME_MODE_OPTIONS} value={form.nameMode} onChange={form.setNameMode} /></>}
+            <RadioGroup label={isMessenger ? '証明日' : '委任日（両方の書類に同じ日付）'} name="date" options={DATE_OPTIONS} value={form.dateMode} onChange={form.setDateMode} />
             {form.dateMode === 'pick' && (
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="date"
-                    aria-label="委任日"
+                    aria-label={isMessenger ? '証明日' : '委任日'}
                     className={`${inputClass} !w-44`}
                     value={form.dateIso}
                     onChange={(e) => form.setDateIso(e.target.value)}
@@ -275,7 +286,7 @@ export const PowerOfAttorneyPage = () => {
             </Section>
           )}
 
-          <Section id="poa-principals" step="2" title={PRINCIPALS_TITLE[form.subject]} note="1人につき1組（委任状と復代理委任状）を刷ります。" action={<DirectoryLink tab="people" />}>
+          <Section id="poa-principals" step="2" title={PRINCIPALS_TITLE[form.subject]} note={isMessenger ? '入力した委任者名を証明書の本文に記載します。' : '1人につき1組（委任状と復代理委任状）を刷ります。'} action={<DirectoryLink tab="people" />}>
             {form.principals.map((principal, index) => (
               <div
                 key={principal.id}
@@ -363,11 +374,21 @@ export const PowerOfAttorneyPage = () => {
             </div>
           </Section>
 
-          <Section
+          {!isMessenger && <Section
             id="poa-matters"
             step="3"
             title="委任事項"
             note={form.purpose === 'inheritance' ? '提出先を選ぶと、そこで要る事項に印が付きます（後から1つずつ付け外しできます）。' : undefined}
+            action={
+              <button
+                type="button"
+                onClick={form.selectAllMatters}
+                disabled={form.availableMatters.every(({ id }) => form.selection[id]?.checked)}
+                className={linkButtonClass}
+              >
+                すべて選択
+              </button>
+            }
           >
             {form.masterStatus === 'fallback' && (
               <p className="text-xs text-amber-700 dark:text-amber-400">
@@ -501,9 +522,8 @@ export const PowerOfAttorneyPage = () => {
             {form.matters.length === 0 && (
               <p className="text-xs text-amber-700 dark:text-amber-400">委任事項が1つも選ばれていません。</p>
             )}
-          </Section>
-
-          <Section id="poa-agent" step="4" title="受任者（見出しの会社）">
+          </Section>}
+          <Section id="poa-agent" step="4" title={isMessenger ? '証明者（見出しの会社）' : '受任者（見出しの会社）'}>
             <dl className="text-sm grid grid-cols-[5rem_1fr] gap-y-1">
               <dt className="text-slate-500">法人名</dt>
               <dd>{company.name}</dd>
@@ -524,7 +544,7 @@ export const PowerOfAttorneyPage = () => {
           </Section>
 
           {form.documents !== 'principal' && (
-            <Section title="復代理人（社員台帳から）">
+            <Section id="poa-staff" title={isMessenger ? '使者（社員台帳から）' : '復代理人（社員台帳から）'}>
               <button
                 type="button"
                 onClick={() => setPickerOpen(true)}
@@ -533,7 +553,7 @@ export const PowerOfAttorneyPage = () => {
                 <UserRound className="w-4 h-4" />
                 {form.subAgent ? form.subAgent.name : '社員を選ぶ'}
               </button>
-              {form.subAgent && (
+              {!isMessenger && form.subAgent && (
                 <>
                   {form.subAgent.status === 'loading' && <p className="text-xs text-slate-500">住所・生年月日を読み込み中…</p>}
                   {form.subAgent.status === 'missing' && (
@@ -621,17 +641,17 @@ export const PowerOfAttorneyPage = () => {
       <StaffPickerDialog
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        title="復代理人を選ぶ"
+        title={isMessenger ? '使者を選ぶ' : '復代理人を選ぶ'}
         currentId={form.subAgent?.staffId ?? null}
         onPick={(person) => {
           void form.pickSubAgent(person);
           setPickerOpen(false);
         }}
-        clearLabel="復代理人を外す"
+        clearLabel={isMessenger ? '使者を外す' : '復代理人を外す'}
         quickSections
-        fallbackMessage="社員台帳に接続できないため、復代理人を選べません。"
+        fallbackMessage="社員台帳に接続できないため、社員を選べません。"
         searchLabel="名前・よみ・部署で探す"
-        summary={<p className="text-sm text-slate-600">復代理委任状の【復代理人】欄に刷る社員を選びます。</p>}
+        summary={<p className="text-sm text-slate-600">{isMessenger ? '使者証明書の【使者】欄に刷る社員を選びます。' : '復代理委任状の【復代理人】欄に刷る社員を選びます。'}</p>}
       />
     </div>
   );

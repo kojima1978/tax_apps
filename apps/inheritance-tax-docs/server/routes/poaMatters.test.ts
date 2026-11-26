@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_MATTER_MASTER, type MatterMaster } from '../../src/constants/powerOfAttorneyMatters.js';
+import { BANK_ACCOUNT_OPENING_MATTER, BANK_INCIDENTAL_MATTER, DEFAULT_MATTER_MASTER, type MatterMaster } from '../../src/constants/powerOfAttorneyMatters.js';
 
 type MasterResponse = MatterMaster & { version: number; ok?: boolean; unchanged?: boolean; error?: string };
 type RegisterResponse = MasterResponse & { ids: string[]; created: number };
@@ -85,6 +85,90 @@ describe('委任事項マスタAPI', () => {
     expect((await load()).body.matters.personal[0].text).toBe('架空の文面');
   });
 
+  it.each([
+    { text: '被相続人名義の全取引に関する相続手続きに関し、関係書類へ記入および、解約、手続きに関するすべての権限', updates: true },
+    { text: '利用者が編集した金融機関向けの文面', updates: false },
+  ])('旧マスタの金融機関向け初期文言だけを一度更新する ($updates)', async ({ text, updates }) => {
+    const edited = structuredClone(DEFAULT_MATTER_MASTER);
+    const matter = edited.matters.inheritance.find(({ id }) => id === 'bank-procedures')!;
+    const defaultText = matter.text;
+    matter.text = text;
+    edited.matters.personal[0].text = '利用者が編集した別の文面';
+    const saved = await save(edited, 1);
+    expect(saved.response.status).toBe(200);
+
+    const { runMasterMigrations } = await import('../masterMigrations.js');
+    runMasterMigrations();
+    runMasterMigrations();
+
+    if (updates) matter.text = defaultText;
+    const loaded = await load();
+    expect(masterOf(loaded.body)).toEqual(edited);
+    expect(loaded.body.version).toBe(saved.body.version + (updates ? 1 : 0));
+    const history = await requestJson<AuditResponse[]>('/audit-logs?targetType=poa_matter');
+    expect(history.body).toHaveLength(updates ? 2 : 1);
+  });
+
+  it('金融機関の選択肢を追加し、施設の旧初期文言を一度だけ更新する', async () => {
+    const addedIds = [BANK_ACCOUNT_OPENING_MATTER.id, BANK_INCIDENTAL_MATTER.id];
+    const legacy = structuredClone(DEFAULT_MATTER_MASTER);
+    legacy.matters.inheritance = legacy.matters.inheritance.filter(({ id }) => !addedIds.includes(id));
+    legacy.presets.bank = legacy.presets.bank.filter((id) => !addedIds.includes(id));
+    const facility = legacy.matters.inheritance.find(({ id }) => id === 'care-facility')!;
+    facility.text = '被相続人の相続税申告および関連手続きに伴い、被相続人が入居・入所していた施設が保管する「施設入所時における契約書の写し」および「介護保険被保険者証の写し」の交付請求ならびに受領に関する一切の件';
+    const saved = await save(legacy, 1);
+    expect(saved.response.status).toBe(200);
+
+    const { runMasterMigrations } = await import('../masterMigrations.js');
+    runMasterMigrations();
+    runMasterMigrations();
+
+    const loaded = await load();
+    expect(masterOf(loaded.body)).toEqual(DEFAULT_MATTER_MASTER);
+    expect(loaded.body.version).toBe(saved.body.version + 2);
+    const history = await requestJson<AuditResponse[]>('/audit-logs?targetType=poa_matter');
+    expect(history.body[0]).toMatchObject({ action: 'create', actor: 'システム（金融機関の委任事項を追加）' });
+  });
+
+  it.each([
+    '被相続人名義の全取引に係る残高証明書、利息計算書、取引明細書等の発行請求および当該書類の受領に関する一切の権限',
+    '被相続人名義の全取引に係る残高証明書、利息計算書、取引明細書等の発行請求及び受領に関する一切の権限',
+  ])('旧版の取引明細書の初期文言を更新し、個別に編集した文言を保つ (%#)', async (oldText) => {
+    const legacy = structuredClone(DEFAULT_MATTER_MASTER);
+    legacy.matters.inheritance[0].text = oldText;
+    legacy.matters.inheritance[1].text = '個別に編集した金融機関の文言';
+    const saved = await save(legacy, 1);
+    expect(saved.response.status).toBe(200);
+
+    const { runMasterMigrations } = await import('../masterMigrations.js');
+    runMasterMigrations();
+    runMasterMigrations();
+
+    legacy.matters.inheritance[0].text = DEFAULT_MATTER_MASTER.matters.inheritance[0].text;
+    const loaded = await load();
+    expect(masterOf(loaded.body)).toEqual(legacy);
+    expect(loaded.body.version).toBe(saved.body.version + 1);
+  });
+
+  it('登録済みの付帯事項を相続手続き用の末尾へ一度だけ移す', async () => {
+    const legacy = structuredClone(DEFAULT_MATTER_MASTER);
+    const incidental = legacy.matters.inheritance.pop();
+    expect(incidental).toEqual(BANK_INCIDENTAL_MATTER);
+    legacy.matters.inheritance.splice(3, 0, BANK_INCIDENTAL_MATTER);
+    const saved = await save(legacy, 1);
+    expect(saved.response.status).toBe(200);
+
+    const { runMasterMigrations } = await import('../masterMigrations.js');
+    runMasterMigrations();
+    runMasterMigrations();
+
+    const loaded = await load();
+    expect(masterOf(loaded.body)).toEqual(DEFAULT_MATTER_MASTER);
+    expect(loaded.body.version).toBe(saved.body.version + 1);
+    const history = await requestJson<AuditResponse[]>('/audit-logs?targetType=poa_matter');
+    expect(history.body[0]).toMatchObject({ action: 'reorder', actor: 'システム（付帯事項を相続手続き用の末尾へ移動）' });
+  });
+
   it('追加・並び替え・編集・削除を履歴に分けて残し、削除した事項は提出先から外させる', async () => {
     let version = (await load()).body.version;
     const unchanged = await save(DEFAULT_MATTER_MASTER, version);
@@ -99,7 +183,7 @@ describe('委任事項マスタAPI', () => {
     reordered.matters.inheritance.reverse();
     const reorderedResult = await save(reordered, version);
     // 提出先の印はマスタの並びに揃えて持つ
-    expect(reorderedResult.body.presets.bank).toEqual(['new-matter', 'bank-procedures', 'bank-statements']);
+    expect(reorderedResult.body.presets.bank).toEqual(['new-matter', ...[...DEFAULT_MATTER_MASTER.presets.bank].reverse()]);
     version = reorderedResult.body.version;
 
     const updated = structuredClone(reordered);

@@ -87,7 +87,7 @@ const saveMaster = (master: MatterMaster): PoaMatterMasterRow => {
 };
 
 /** 操作履歴に載せる形。変更前後の差は項目名ごとに並ぶので、id ではなく文面と提出先の名前で残す */
-const auditSnapshot = (master: MatterMaster) => Object.fromEntries(PURPOSES.map((purpose) => [
+export const auditSnapshot = (master: MatterMaster) => Object.fromEntries(PURPOSES.map((purpose) => [
   PURPOSE_LABELS[purpose],
   master.matters[purpose].map((matter) => {
     if (purpose !== 'inheritance') return { 文面: matter.text };
